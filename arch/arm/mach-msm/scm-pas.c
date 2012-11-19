@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /* Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -191,6 +192,11 @@ EXPORT_SYMBOL(pas_supported);
 
 static int __init scm_pas_init(void)
 {
+	if (machine_is_ipq806x_rumi3()) {
+		pr_warn("Skipping %s for RUMI\n", __func__);
+		return 0;
+	}
+
 	if (cpu_is_msm8974()) {
 		scm_pas_bw_tbl[0].vectors[0].src = MSM_BUS_MASTER_CRYPTO_CORE0;
 		scm_pas_bw_tbl[1].vectors[0].src = MSM_BUS_MASTER_CRYPTO_CORE0;

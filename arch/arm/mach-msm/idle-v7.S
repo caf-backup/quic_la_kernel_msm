@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /*
  * Idle processing for ARMv7-based Qualcomm SoCs.
  *
@@ -127,7 +128,7 @@ skip:
 	str	r2, [r1]
 skip_pc_debug1:
 
-#ifdef CONFIG_ARCH_MSM_KRAIT
+#if defined(CONFIG_ARCH_MSM_KRAIT) && defined(CONFIG_MSM_SCM)
 	ldr	r0, =SCM_SVC_BOOT
 	ldr	r1, =SCM_CMD_TERMINATE_PC
 	ldr	r2, =msm_pm_flush_l2_flag

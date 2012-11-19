@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /*
  * Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
@@ -23,6 +24,7 @@ enum platform_type {
 	MSM_8960,
 	MDM_9615,
 	APQ_8064,
+	IPQ_806X,
 	MSM_TYPE
 };
 

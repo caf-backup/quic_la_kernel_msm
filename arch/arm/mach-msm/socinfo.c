@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /* Copyright (c) 2009-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -19,6 +20,7 @@
 #include <linux/sysdev.h>
 #include <asm/mach-types.h>
 #include <mach/socinfo.h>
+#include <mach/msm_iomap.h>
 
 #include "smd_private.h"
 
@@ -302,6 +304,9 @@ static enum msm_cpu cpu_of_id[] = {
 
 	/* 8064AA IDs */
 	[172] = MSM_CPU_8064AA,
+
+	/* IPQ806X IDs */
+	[158] = MSM_CPU_IPQ806X,
 
 	/* Uninitialized IDs are not known to run Linux.
 	   MSM_CPU_UNKNOWN is set to 0 to ensure these IDs are
@@ -961,4 +966,28 @@ const int cpu_is_krait_v3(void)
 	default:
 		return 0;
 	};
+}
+
+int
+is_rumi3(void)
+{
+/*
+ *		Akronite E1.1 Emulation Release
+ *		    Release Date 19/11/2012
+ *	.
+ *	.
+ *	.
+ * 4. RTL Tag/Emulation Release Version Info: Two MSB byte
+ * of Register Location 0x0006206C contains the RTL Version
+ * information and Two LSB byte contains Emulation Release
+ * version information [Ex: 01490E11, Here RTL Tag=V1.49,
+ * Emulation Release =E1.1]
+ */
+#define RTL_TAG_EMU_RLS_VER_INFO	(MSM_RPM_TIMERS_BASE + 0x6c)
+
+	uint32_t	rls_info;
+
+	rls_info = readl(RTL_TAG_EMU_RLS_VER_INFO) & 0x00000F00;
+
+	return (rls_info == 0x00000E00);
 }

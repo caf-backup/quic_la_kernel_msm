@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /* Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -64,14 +65,19 @@ struct saw_vreg {
 
 static int saw_get_voltage(struct regulator_dev *rdev)
 {
+#ifdef CONFIG_REGULATOR
 	struct saw_vreg *vreg = rdev_get_drvdata(rdev);
 
 	return vreg->uV;
+#else
+	return FTSMPS_BAND3_UV_MAX;
+#endif
 }
 
 static int saw_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV,
 			   unsigned *selector)
 {
+#ifdef CONFIG_REGULATOR
 	struct saw_vreg *vreg = rdev_get_drvdata(rdev);
 	int uV = min_uV;
 	int rc;
@@ -131,6 +137,9 @@ static int saw_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV,
 	}
 
 	return rc;
+#else
+	return  0;
+#endif
 }
 
 static struct regulator_ops saw_ops = {

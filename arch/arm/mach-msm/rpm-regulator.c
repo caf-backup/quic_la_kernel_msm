@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /*
  * Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
  *
@@ -578,6 +579,11 @@ int rpm_vreg_set_voltage(int vreg_id, enum rpm_vreg_voter voter, int min_uV,
 	int uV = min_uV;
 	int lim_min_uV, lim_max_uV, i, rc;
 
+	if (machine_is_ipq806x_rumi3()) {
+		printk("Skipping %s for rumi\n", __func__);
+		return 0;
+	}
+
 	if (!config) {
 		pr_err("rpm-regulator driver has not probed yet.\n");
 		return -ENODEV;
@@ -691,6 +697,11 @@ int rpm_vreg_set_frequency(int vreg_id, enum rpm_vreg_freq freq)
 	unsigned int mask[2] = {0}, val[2] = {0};
 	struct vreg *vreg;
 	int rc;
+
+	if (machine_is_ipq806x_rumi3()) {
+		printk("Skipping %s for rumi\n", __func__);
+		return 0;
+	}
 
 	if (!config) {
 		pr_err("rpm-regulator driver has not probed yet.\n");

@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /* linux/include/asm-arm/arch-msm/dma.h
  *
  * Copyright (C) 2007 Google, Inc.
@@ -170,7 +171,7 @@ int msm_dmov_exec_cmd(unsigned id, unsigned int cmdptr);
 #define DMOV_HSUART2_RX_CHAN   8
 #define DMOV_HSUART2_RX_CRCI   14
 
-#elif defined(CONFIG_ARCH_MSM8960)
+#elif defined(CONFIG_ARCH_MSM8960) || defined(CONFIG_ARCH_IPQ806X)
 #define DMOV_GP_CHAN           9
 
 #define DMOV_CE_IN_CHAN        0
@@ -285,6 +286,12 @@ int msm_dmov_exec_cmd(unsigned id, unsigned int cmdptr);
 
 #define DMOV_MPQ8064_HSUART_GSBI6_RX_CHAN	6
 #define DMOV_MPQ8064_HSUART_GSBI6_RX_CRCI	11
+
+#define DMOV_IPQ806X_HSUART_GSBI6_TX_CHAN	DMOV_MPQ8064_HSUART_GSBI6_TX_CHAN
+#define DMOV_IPQ806X_HSUART_GSBI6_TX_CRCI	DMOV_MPQ8064_HSUART_GSBI6_TX_CRCI
+
+#define DMOV_IPQ806X_HSUART_GSBI6_RX_CHAN	DMOV_MPQ8064_HSUART_GSBI6_RX_CHAN
+#define DMOV_IPQ806X_HSUART_GSBI6_RX_CRCI	DMOV_MPQ8064_HSUART_GSBI6_RX_CRCI
 
 /* no client rate control ifc (eg, ram) */
 #define DMOV_NONE_CRCI        0

@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /* Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -19,6 +20,7 @@
 
 #include <mach/rpm-regulator-8660.h>
 #include <mach/rpm-regulator-8960.h>
+#include <mach/rpm-regulator-ipq806x.h>
 #include <mach/rpm-regulator-9615.h>
 #include <mach/rpm-regulator-8974.h>
 #include <mach/rpm-regulator-8930.h>
@@ -33,6 +35,7 @@ enum rpm_vreg_version {
 	RPM_VREG_VERSION_8930,
 	RPM_VREG_VERSION_8930_PM8917,
 	RPM_VREG_VERSION_8960_PM8917,
+	RPM_VREG_VERSION_IPQ806X = RPM_VREG_VERSION_8960,
 	RPM_VREG_VERSION_MAX = RPM_VREG_VERSION_8960_PM8917,
 };
 

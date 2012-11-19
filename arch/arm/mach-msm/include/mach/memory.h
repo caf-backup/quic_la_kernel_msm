@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /* arch/arm/mach-msm/include/mach/memory.h
  *
  * Copyright (C) 2007 Google, Inc.
@@ -13,6 +14,7 @@
  * GNU General Public License for more details.
  *
  */
+
 #ifndef __ASM_ARCH_MEMORY_H
 #define __ASM_ARCH_MEMORY_H
 #include <linux/types.h>
@@ -88,7 +90,9 @@ extern void l2x0_cache_sync(void);
 #define finish_arch_switch(prev)     do { l2x0_cache_sync(); } while (0)
 #endif
 
-#if defined(CONFIG_ARCH_MSM8X60) || defined(CONFIG_ARCH_MSM8960)
+#if defined(CONFIG_ARCH_MSM8X60) || defined(CONFIG_ARCH_MSM8960) || \
+	defined(CONFIG_ARCH_IPQ806X)
+
 extern void store_ttbr0(void);
 #ifdef CONFIG_LGE_CRASH_HANDLER
 extern void store_ctrl(void);

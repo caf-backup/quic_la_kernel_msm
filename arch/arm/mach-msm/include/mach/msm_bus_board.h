@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /* Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -91,6 +92,11 @@ extern struct msm_bus_fabric_registration msm_bus_8974_ocmem_noc_pdata;
 extern struct msm_bus_fabric_registration msm_bus_8974_periph_noc_pdata;
 extern struct msm_bus_fabric_registration msm_bus_8974_config_noc_pdata;
 extern struct msm_bus_fabric_registration msm_bus_8974_ocmem_vnoc_pdata;
+
+extern struct msm_bus_fabric_registration msm_bus_ipq806x_apps_fabric_pdata;
+extern struct msm_bus_fabric_registration msm_bus_ipq806x_sys_fabric_pdata;
+extern struct msm_bus_fabric_registration msm_bus_ipq806x_sys_fpb_pdata;
+extern struct msm_bus_fabric_registration msm_bus_ipq806x_cpss_fpb_pdata;
 
 void msm_bus_rpm_set_mt_mask(void);
 int msm_bus_board_rpm_get_il_ids(uint16_t *id);

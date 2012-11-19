@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /* Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -35,6 +36,7 @@ extern struct msm_mpm_device_data msm8660_mpm_dev_data;
 extern struct msm_mpm_device_data msm8960_mpm_dev_data;
 extern struct msm_mpm_device_data msm9615_mpm_dev_data;
 extern struct msm_mpm_device_data apq8064_mpm_dev_data;
+extern struct msm_mpm_device_data ipq806x_mpm_dev_data;
 
 void msm_mpm_irq_extn_init(struct msm_mpm_device_data *mpm_data);
 

@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /* arch/arm/mach-msm/cpufreq.c
  *
  * MSM architecture cpufreq driver

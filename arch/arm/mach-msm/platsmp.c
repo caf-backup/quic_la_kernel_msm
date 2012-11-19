@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /*
  *  Copyright (C) 2002 ARM Ltd.
  *  All Rights Reserved
@@ -173,6 +174,14 @@ static int __cpuinit release_secondary(unsigned int cpu)
 {
 	BUG_ON(cpu >= get_core_count());
 
+	if (machine_is_ipq806x_rumi3()) {
+		/*
+		 * The CMM scripts take care of the inits
+		 * Don't muck around...
+		 */
+		return 0;
+	}
+
 	if (cpu_is_msm8x60())
 		return scorpion_release_secondary();
 
@@ -180,7 +189,7 @@ static int __cpuinit release_secondary(unsigned int cpu)
 		return krait_release_secondary_sim(0xf9088000, cpu);
 
 	if (soc_class_is_msm8960() || soc_class_is_msm8930() ||
-	    soc_class_is_apq8064())
+	    soc_class_is_apq8064() || cpu_is_ipq806x())
 		return krait_release_secondary(0x02088000, cpu);
 
 	if (cpu_is_msm8974())

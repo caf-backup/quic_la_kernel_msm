@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /* Copyright (c) 2008-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -9,6 +10,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -169,8 +171,14 @@ int chk_apps_master(void)
 {
 	if (driver->use_device_tree)
 		return 1;
+<<<<<<< HEAD
 	else if (soc_class_is_msm8960() || soc_class_is_msm8930() ||
 		 soc_class_is_apq8064() || cpu_is_msm9615())
+=======
+	else if (cpu_is_msm8960() || cpu_is_msm8930() || cpu_is_msm8930aa() ||
+		cpu_is_msm9615() || cpu_is_apq8064() || cpu_is_msm8627() ||
+		cpu_is_msm8960ab() || cpu_is_apq8064ab() || cpu_is_ipq806x())
+>>>>>>> ca3d6ab... [ipq806x] Initial support
 		return 1;
 	else
 		return 0;

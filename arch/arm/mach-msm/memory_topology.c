@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /* Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -21,7 +22,7 @@
 #include <mach/socinfo.h>
 #include "smd_private.h"
 
-#if defined(CONFIG_ARCH_MSM8960)
+#if defined(CONFIG_ARCH_MSM8960) || defined(CONFIG_ARCH_IPQ806X)
 #include "rpm_resources.h"
 #endif
 

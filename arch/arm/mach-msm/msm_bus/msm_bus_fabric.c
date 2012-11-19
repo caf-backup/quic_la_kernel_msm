@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /* Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -616,7 +617,7 @@ static int msm_bus_fabric_hw_init(struct msm_bus_fabric_registration *pdata,
 	struct msm_bus_hw_algorithm *hw_algo)
 {
 	int ret = 0;
-
+#ifdef CONFIG_MSM_RPM
 	switch (pdata->hw_sel) {
 	case MSM_BUS_NOC:
 		msm_bus_noc_hw_init(pdata, hw_algo);
@@ -632,6 +633,7 @@ static int msm_bus_fabric_hw_init(struct msm_bus_fabric_registration *pdata,
 		}
 		break;
 	}
+#endif
 	return ret;
 }
 

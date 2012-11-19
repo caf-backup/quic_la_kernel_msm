@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /* Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -186,7 +187,7 @@ int msm_spm_turn_on_cpu_rail(unsigned int cpu)
 	reg = saw_bases[cpu];
 
 	if (soc_class_is_msm8960() || soc_class_is_msm8930() ||
-	    soc_class_is_apq8064()) {
+	    soc_class_is_apq8064() || cpu_is_ipq806x()) {
 		val = 0xA4;
 		reg += 0x14;
 		timeout = 512;

@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /*
  * Copyright (C) 2007 Google, Inc.
  * Copyright (c) 2008-2012, The Linux Foundation. All rights reserved.
@@ -22,7 +23,7 @@
 #include "irqs-8625.h"
 
 #if defined(CONFIG_ARCH_MSM8960) || defined(CONFIG_ARCH_APQ8064) || \
-	defined(CONFIG_ARCH_MSM8930)
+	defined(CONFIG_ARCH_MSM8930) || defined(CONFIG_ARCH_IPQ806X)
 
 #ifdef CONFIG_ARCH_MSM8960
 #include "irqs-8960.h"
@@ -34,6 +35,10 @@
 
 #ifdef CONFIG_ARCH_APQ8064
 #include "irqs-8064.h"
+#endif
+
+#ifdef CONFIG_ARCH_IPQ806X
+#include "irqs-ipq806x.h"
 #endif
 
 /* For now, use the maximum number of interrupts until a pending GIC issue

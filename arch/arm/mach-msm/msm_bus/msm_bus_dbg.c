@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /* Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -523,6 +524,7 @@ static int msm_bus_dbg_fill_fab_buffer(const char *fabname,
 	void *cdata, int nmasters, int nslaves,
 	int ntslaves)
 {
+#ifdef CONFIG_MSM_RPM
 	int i;
 	char *buf = NULL;
 	struct msm_bus_fab_list *fablist = NULL;
@@ -557,6 +559,7 @@ static int msm_bus_dbg_fill_fab_buffer(const char *fabname,
 	mutex_lock(&msm_bus_dbg_fablist_lock);
 	fablist->size = i;
 	mutex_unlock(&msm_bus_dbg_fablist_lock);
+#endif
 	return 0;
 }
 

@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /* arch/arm/mach-msm/io.c
  *
  * MSM7K, QSD io support
@@ -293,6 +294,42 @@ void __init msm_map_apq8064_io(void)
 	msm_map_io(apq8064_io_desc, ARRAY_SIZE(apq8064_io_desc));
 }
 #endif /* CONFIG_ARCH_APQ8064 */
+
+#ifdef CONFIG_ARCH_IPQ806X
+static struct map_desc ipq806x_io_desc[] __initdata = {
+	MSM_CHIP_DEVICE(QGIC_DIST, IPQ806X),
+	MSM_CHIP_DEVICE(QGIC_CPU, IPQ806X),
+	MSM_CHIP_DEVICE(TMR, IPQ806X),
+	MSM_CHIP_DEVICE(TMR0, IPQ806X),
+	MSM_CHIP_DEVICE(TLMM, IPQ806X),
+	MSM_CHIP_DEVICE(ACC0, IPQ806X),
+	MSM_CHIP_DEVICE(ACC1, IPQ806X),
+	MSM_CHIP_DEVICE(HFPLL, IPQ806X),
+	MSM_CHIP_DEVICE(CLK_CTL, IPQ806X),
+	MSM_CHIP_DEVICE(RPM, IPQ806X),
+	MSM_CHIP_DEVICE(RPM_MPM, IPQ806X),
+	MSM_CHIP_DEVICE(RPM_TIMERS, IPQ806X),
+	MSM_CHIP_DEVICE(SAW0, IPQ806X),
+	MSM_CHIP_DEVICE(SAW1, IPQ806X),
+	MSM_CHIP_DEVICE(SAW_L2, IPQ806X),
+	MSM_CHIP_DEVICE(IMEM, IPQ806X),
+	{
+		.virtual =  (unsigned long) MSM_SHARED_RAM_BASE,
+		.length =   MSM_SHARED_RAM_SIZE,
+		.type =     MT_DEVICE,
+	},
+	MSM_CHIP_DEVICE(QFPROM, IPQ806X),
+	MSM_CHIP_DEVICE(SIC_NON_SECURE, IPQ806X),
+#ifdef CONFIG_DEBUG_IPQ806X_UART
+	MSM_DEVICE(DEBUG_UART),
+#endif
+};
+
+void __init msm_map_ipq806x_io(void)
+{
+       msm_map_io(ipq806x_io_desc, ARRAY_SIZE(ipq806x_io_desc));
+}
+#endif /* CONFIG_ARCH_IPQ806X */
 
 #ifdef CONFIG_ARCH_MSM8974
 static struct map_desc msm_8974_io_desc[] __initdata = {

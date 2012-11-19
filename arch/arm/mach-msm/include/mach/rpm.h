@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /* Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -23,6 +24,7 @@
 #include <mach/rpm-8960.h>
 #include <mach/rpm-8930.h>
 #include <mach/rpm-8064.h>
+#include <mach/rpm-ipq806x.h>
 
 #define SEL_MASK_SIZE (5)
 
@@ -1124,6 +1126,7 @@ extern struct msm_rpm_platform_data msm9615_rpm_data;
 extern struct msm_rpm_platform_data msm8930_rpm_data;
 extern struct msm_rpm_platform_data msm8930_rpm_data_pm8917;
 extern struct msm_rpm_platform_data apq8064_rpm_data;
+extern struct msm_rpm_platform_data ipq806x_rpm_data;
 
 #if defined(CONFIG_MSM_RPM)
 

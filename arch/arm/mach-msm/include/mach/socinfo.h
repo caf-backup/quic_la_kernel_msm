@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /* Copyright (c) 2009-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -103,7 +104,8 @@ enum msm_cpu {
 	MSM_CPU_8625,
 	MSM_CPU_9625,
 	MSM_CPU_8092,
-	MSM_CPU_8226
+	MSM_CPU_8226,
+	MSM_CPU_IPQ806X
 };
 
 enum pmic_model {
@@ -322,6 +324,15 @@ static inline int cpu_is_apq8064aa(void)
 {
 #ifdef CONFIG_ARCH_APQ8064
 	return read_msm_cpu_type() == MSM_CPU_8064AA;
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq806x(void)
+{
+#ifdef CONFIG_ARCH_IPQ806X
+	return read_msm_cpu_type() == MSM_CPU_IPQ806X;
 #else
 	return 0;
 #endif

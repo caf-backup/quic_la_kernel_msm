@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /*
  * Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
@@ -48,6 +49,8 @@ extern struct clock_init_data msm8930_clock_init_data;
 extern struct clock_init_data msm8930_pm8917_clock_init_data;
 extern struct clock_init_data msm8974_clock_init_data;
 extern struct clock_init_data msm8974_rumi_clock_init_data;
+extern struct clock_init_data ipq806x_dummy_clock_init_data;
+extern struct clock_init_data ipq806x_clock_init_data;
 
 int msm_clock_init(struct clock_init_data *data);
 int find_vdd_level(struct clk *clk, unsigned long rate);

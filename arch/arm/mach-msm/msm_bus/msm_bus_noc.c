@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /* Copyright (c) 2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -589,8 +590,10 @@ skip_mas_bw:
 static int msm_bus_noc_commit(struct msm_bus_fabric_registration
 	*fab_pdata, void *hw_data, void **cdata)
 {
+#ifdef CONFIG_MSM_RPM
 	MSM_BUS_DBG("\nReached NOC Commit\n");
 	msm_bus_remote_hw_commit(fab_pdata, hw_data, cdata);
+#endif
 	return 0;
 }
 

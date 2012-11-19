@@ -116,7 +116,9 @@ ifndef CONFIG_ARCH_MSM8X60
 ifndef CONFIG_ARCH_APQ8064
 ifndef CONFIG_ARCH_MSM8974
 ifndef CONFIG_ARCH_MSM9625
+ifndef CONFIG_ARCH_IPQ806X
 	obj-y += nand_partitions.o
+endif
 endif
 endif
 endif
@@ -198,6 +200,7 @@ obj-$(CONFIG_ARCH_MSM8960) += rpm-regulator-8960.o
 obj-$(CONFIG_ARCH_MSM9615) += rpm-regulator-9615.o
 obj-$(CONFIG_ARCH_MSM8930) += rpm-regulator-8930.o
 obj-$(CONFIG_ARCH_APQ8064) += rpm-regulator-8960.o
+obj-$(CONFIG_ARCH_IPQ806X) += rpm-regulator-ipq806x.o
 endif
 
 obj-$(CONFIG_MSM_RPM_REGULATOR_SMD) += rpm-regulator-smd.o
@@ -216,6 +219,7 @@ obj-$(CONFIG_MSM_GSS_SSR_8064) += gss-8064.o
 
 ifdef CONFIG_CPU_IDLE
 	obj-$(CONFIG_ARCH_APQ8064) += cpuidle.o
+	obj-$(CONFIG_ARCH_IPQ806X) += cpuidle.o
 	obj-$(CONFIG_ARCH_MSM8960) += cpuidle.o
 	obj-$(CONFIG_ARCH_MSM8X60) += cpuidle.o
 	obj-$(CONFIG_ARCH_MSM9615) += cpuidle.o
@@ -267,16 +271,22 @@ obj-$(CONFIG_ARCH_MSM7X30) += clock-local.o clock-7x30.o acpuclock-7x30.o clock-
 obj-$(CONFIG_MACH_MSM7X25_SURF) += board-msm7x27.o devices-msm7x25.o
 obj-$(CONFIG_MACH_MSM7X25_FFA) += board-msm7x27.o devices-msm7x25.o
 obj-$(CONFIG_ARCH_MSM8960) += clock-local.o clock-dss-8960.o clock-8960.o clock-rpm.o clock-pll.o
+obj-$(CONFIG_ARCH_IPQ806X) += clock-local.o clock-ipq806x.o clock-rpm.o clock-pll.o
 obj-$(CONFIG_ARCH_MSM8960) += footswitch-8x60.o
 obj-$(CONFIG_ARCH_MSM8960) += acpuclock-8960.o acpuclock-8960ab.o
 obj-$(CONFIG_ARCH_MSM8960) += memory_topology.o
+obj-$(CONFIG_ARCH_IPQ806X) += memory_topology.o
 obj-$(CONFIG_ARCH_MSM8960) += saw-regulator.o
+obj-$(CONFIG_ARCH_IPQ806X) += saw-regulator.o
 obj-$(CONFIG_ARCH_MSM8960) += devices-8960.o
 obj-$(CONFIG_ARCH_APQ8064) += devices-8960.o devices-8064.o
+obj-$(CONFIG_ARCH_IPQ806X) += devices-ipq806x.o
 obj-$(CONFIG_ARCH_APQ8064) += acpuclock-8064.o
+obj-$(CONFIG_ARCH_IPQ806X) += acpuclock-ipq806x.o
 board-8960-all-objs += board-8960.o board-8960-camera.o board-8960-display.o board-8960-pmic.o board-8960-storage.o board-8960-gpiomux.o
 board-8930-all-objs += board-8930.o board-8930-camera.o board-8930-display.o board-8930-pmic.o board-8930-storage.o board-8930-gpiomux.o devices-8930.o board-8930-gpu.o
 board-8064-all-objs += board-8064.o board-8064-pmic.o board-8064-storage.o board-8064-gpiomux.o board-8064-camera.o board-8064-display.o board-8064-gpu.o
+board-ipq806x-all-objs += board-ipq806x.o board-ipq806x-pmic.o board-ipq806x-storage.o board-ipq806x-gpiomux.o
 obj-$(CONFIG_MACH_MSM8960_CDP) += board-8960-all.o board-8960-regulator.o
 obj-$(CONFIG_MACH_MSM8960_MTP) += board-8960-all.o board-8960-regulator.o
 obj-$(CONFIG_MACH_MSM8960_FLUID) += board-8960-all.o board-8960-regulator.o
@@ -289,6 +299,7 @@ obj-$(CONFIG_MACH_APQ8064_CDP) += board-8064-all.o board-8064-regulator.o
 obj-$(CONFIG_MACH_APQ8064_MTP) += board-8064-all.o board-8064-regulator.o
 obj-$(CONFIG_MACH_APQ8064_LIQUID) += board-8064-all.o board-8064-regulator.o
 obj-$(CONFIG_MACH_MPQ8064_HRD) += board-8064-all.o board-8064-regulator.o
+obj-$(CONFIG_MACH_IPQ806X_CDP) += board-ipq806x-all.o board-ipq806x-regulator.o
 obj-$(CONFIG_MACH_MPQ8064_DTV) += board-8064-all.o board-8064-regulator.o
 obj-$(CONFIG_ARCH_MSM9615) += board-9615.o devices-9615.o board-9615-regulator.o board-9615-gpiomux.o board-9615-storage.o board-9615-display.o
 obj-$(CONFIG_ARCH_MSM9615) += clock-local.o clock-9615.o acpuclock-9615.o clock-rpm.o clock-pll.o
@@ -321,6 +332,7 @@ obj-$(CONFIG_MSM_SDIO_SMEM) += sdio_smem.o
 obj-$(CONFIG_MSM_RPM) += rpm.o
 ifdef CONFIG_MSM_RPM
 	obj-$(CONFIG_ARCH_APQ8064) += rpm_resources.o
+	obj-$(CONFIG_ARCH_IPQ806X) += rpm_resources.o
 	obj-$(CONFIG_ARCH_MSM8960) += rpm_resources.o
 	obj-$(CONFIG_ARCH_MSM8X60) += rpm_resources.o
 	obj-$(CONFIG_ARCH_MSM9615) += rpm_resources.o
@@ -353,6 +365,7 @@ obj-$(CONFIG_ARCH_QSD8X50) += gpiomux-8x50.o gpiomux-v1.o gpiomux.o
 obj-$(CONFIG_ARCH_MSM8X60) += gpiomux-8x60.o gpiomux-v2.o gpiomux.o
 obj-$(CONFIG_ARCH_MSM8960) += gpiomux-v2.o gpiomux.o
 obj-$(CONFIG_ARCH_APQ8064) += gpiomux-v2.o gpiomux.o
+obj-$(CONFIG_ARCH_IPQ806X) += gpiomux-v2.o gpiomux.o
 obj-$(CONFIG_ARCH_MSM9615) += gpiomux-v2.o gpiomux.o
 obj-$(CONFIG_ARCH_MSM8974) += gpiomux-v2.o gpiomux.o
 obj-$(CONFIG_ARCH_MSM9625) += gpiomux-v2.o gpiomux.o

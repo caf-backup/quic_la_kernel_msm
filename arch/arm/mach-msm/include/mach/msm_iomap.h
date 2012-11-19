@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /*
  * Copyright (C) 2007 Google, Inc.
  * Copyright (c) 2008-2012, The Linux Foundation. All rights reserved.
@@ -53,7 +54,7 @@
 	defined(CONFIG_ARCH_MSM8974) || defined(CONFIG_ARCH_MSM7X27) || \
 	defined(CONFIG_ARCH_MSM7X25) || defined(CONFIG_ARCH_MSM7X01A) || \
 	defined(CONFIG_ARCH_MSM8625) || defined(CONFIG_ARCH_MSM7X30) || \
-	defined(CONFIG_ARCH_MSM9625)
+	defined(CONFIG_ARCH_MSM9625) || defined(CONFIG_ARCH_IPQ806X)
 
 /* Unified iomap */
 
@@ -76,6 +77,7 @@
 #define MSM_LPASS_CLK_CTL_BASE	IOMEM(0xFA015000)	/*  4K	*/
 #define MSM_HFPLL_BASE		IOMEM(0xFA016000)	/*  4K	*/
 #define MSM_TLMM_BASE		IOMEM(0xFA017000)	/* 16K	*/
+#define MSM_RPM_TIMERS_BASE	IOMEM(0xFA062000)	/*  4K  */
 #define MSM_SHARED_RAM_BASE	IOMEM(0xFA300000)	/*  2M  */
 #define MSM_SIC_NON_SECURE_BASE	IOMEM(0xFA600000)	/* 64K	*/
 #define MSM_HDMI_BASE		IOMEM(0xFA800000)	/*  4K  */
@@ -118,6 +120,7 @@
 #include "msm_iomap-9615.h"
 #include "msm_iomap-8974.h"
 #include "msm_iomap-9625.h"
+#include "msm_iomap-ipq806x.h"
 
 #else
 /* Legacy single-target iomap */

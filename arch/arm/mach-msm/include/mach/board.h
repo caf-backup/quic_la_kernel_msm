@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /* arch/arm/mach-msm/include/mach/board.h
  *
  * Copyright (C) 2007 Google, Inc.
@@ -575,6 +576,7 @@ void msm_map_msm8x60_io(void);
 void msm_map_msm8960_io(void);
 void msm_map_msm8930_io(void);
 void msm_map_apq8064_io(void);
+void msm_map_ipq806x_io(void);
 void msm_map_msm7x30_io(void);
 void msm_map_fsm9xxx_io(void);
 void msm_map_8974_io(void);

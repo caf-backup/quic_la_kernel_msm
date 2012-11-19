@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /* linux/arch/arm/mach-msm/devices.h
  *
  * Copyright (C) 2008 Google, Inc.
@@ -472,3 +473,40 @@ extern struct platform_device bmdm_8064_device;
 
 extern struct platform_device sglte_mdm_8064_device;
 extern struct platform_device sglte2_qsc_8064_device;
+
+extern struct platform_device ipq806x_device_ssbi_pmic1;
+extern struct platform_device ipq806x_coresight_funnel_device;
+extern struct platform_device ipq806x_device_acpuclk;
+extern struct platform_device ipq806x_device_ehci_host3;
+extern struct platform_device ipq806x_device_hsic_host;
+extern struct platform_device ipq806x_device_qup_i2c_gsbi1;
+extern struct platform_device ipq806x_device_qup_i2c_gsbi3;
+extern struct platform_device ipq806x_device_qup_i2c_gsbi4;
+extern struct platform_device ipq806x_device_qup_spi_gsbi5;
+extern struct platform_device ipq806x_device_dmov;
+extern struct platform_device msm_device_smd_ipq806x;
+extern struct platform_device ipq806x_device_otg;
+extern struct platform_device ipq806x_device_gadget_peripheral;
+extern struct platform_device ipq806x_device_hsusb_host;
+extern struct platform_device ipq806x_device_watchdog;
+extern struct platform_device ipq806x_device_rng;
+extern struct platform_device ipq806x_rpm_device;
+extern struct platform_device ipq806x_rpm_log_device;
+extern struct platform_device ipq806x_rpm_stat_device;
+extern struct platform_device ipq806x_rpm_master_stat_device;
+extern struct platform_device ipq806x_rtb_device;
+extern struct platform_device ipq806x_msm_gov_device;
+extern struct platform_device ipq806x_device_cache_erp;
+extern struct platform_device ipq806x_device_ebi1_ch0_erp;
+extern struct platform_device ipq806x_cache_dump_device;
+extern struct platform_device ipq806x_msm_mpd_device;
+extern struct platform_device ipq806x_device_uart_gsbi1;
+extern struct platform_device ipq806x_device_uart_gsbi7;
+extern struct platform_device msm_device_sps_ipq806x;
+extern struct platform_device ipq806x_pc_cntr;
+extern struct platform_device ipq806x_device_qup_i2c_gsbi5;
+extern struct platform_device msm_bus_ipq806x_apps_fabric;
+extern struct platform_device msm_bus_ipq806x_sys_fabric;
+extern struct platform_device msm_bus_ipq806x_sys_fpb;
+extern struct platform_device msm_bus_ipq806x_cpss_fpb;
+extern struct platform_device ipq_device_tz_log;
