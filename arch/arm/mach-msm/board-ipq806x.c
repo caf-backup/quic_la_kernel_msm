@@ -1513,10 +1513,16 @@ static void __init ipq806x_init_buses(void)
 	msm_bus_rpm_set_mt_mask();
 	msm_bus_ipq806x_apps_fabric_pdata.rpm_enabled = 1;
 	msm_bus_ipq806x_sys_fabric_pdata.rpm_enabled = 1;
+
 	msm_bus_ipq806x_apps_fabric.dev.platform_data =
 		&msm_bus_ipq806x_apps_fabric_pdata;
 	msm_bus_ipq806x_sys_fabric.dev.platform_data =
 		&msm_bus_ipq806x_sys_fabric_pdata;
+	msm_bus_ipq806x_nss_fabric_0.dev.platform_data =
+		&msm_bus_ipq806x_nss_fabric_0_pdata;
+	msm_bus_ipq806x_nss_fabric_1.dev.platform_data =
+		&msm_bus_ipq806x_nss_fabric_1_pdata;
+
 	msm_bus_ipq806x_sys_fpb.dev.platform_data = &msm_bus_ipq806x_sys_fpb_pdata;
 	msm_bus_ipq806x_cpss_fpb.dev.platform_data = &msm_bus_ipq806x_cpss_fpb_pdata;
 }

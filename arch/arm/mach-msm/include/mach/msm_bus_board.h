@@ -95,6 +95,8 @@ extern struct msm_bus_fabric_registration msm_bus_8974_ocmem_vnoc_pdata;
 
 extern struct msm_bus_fabric_registration msm_bus_ipq806x_apps_fabric_pdata;
 extern struct msm_bus_fabric_registration msm_bus_ipq806x_sys_fabric_pdata;
+extern struct msm_bus_fabric_registration msm_bus_ipq806x_nss_fabric_0_pdata;
+extern struct msm_bus_fabric_registration msm_bus_ipq806x_nss_fabric_1_pdata;
 extern struct msm_bus_fabric_registration msm_bus_ipq806x_sys_fpb_pdata;
 extern struct msm_bus_fabric_registration msm_bus_ipq806x_cpss_fpb_pdata;
 
@@ -185,6 +187,7 @@ enum msm_bus_fabric_type {
 	MSM_BUS_FAB_MMSS = 2048,
 	MSM_BUS_FAB_SYSTEM_FPB = 3072,
 	MSM_BUS_FAB_CPSS_FPB = 4096,
+	MSM_BUS_FAB_NSS =  5124,
 };
 
 enum msm_bus_fab_noc_bimc_type {
@@ -202,6 +205,7 @@ enum msm_bus_fabric_master_type {
 	MSM_BUS_MASTER_AMPSS_M0 = 1,
 	MSM_BUS_MASTER_AMPSS_M1,
 	MSM_BUS_APPSS_MASTER_FAB_MMSS,
+	MSM_BUS_APPSS_MASTER_FAB_NSS,
 	MSM_BUS_APPSS_MASTER_FAB_SYSTEM,
 
 	MSM_BUS_SYSTEM_MASTER_FAB_APPSS,
@@ -218,6 +222,7 @@ enum msm_bus_fabric_master_type {
 	MSM_BUS_SYSTEM_MASTER_CPSS_FPB,
 	MSM_BUS_SYSTEM_MASTER_SYSTEM_FPB,
 	MSM_BUS_SYSTEM_MASTER_MMSS_FPB,
+	MSM_BUS_SYSTEM_MASTER_NSS_FPB,
 	MSM_BUS_MASTER_ADM1_CI,
 	MSM_BUS_MASTER_ADM0_CI,
 	MSM_BUS_MASTER_MSS_MDM_PORT1,
@@ -297,8 +302,9 @@ enum msm_bus_fabric_master_type {
 	MSM_BUS_MASTER_USB_HS,
 	MSM_BUS_MASTER_PNOC_CFG,
 	MSM_BUS_MASTER_V_OCMEM_GFX3D,
-
-	MSM_BUS_MASTER_LAST = MSM_BUS_MASTER_V_OCMEM_GFX3D,
+	MSM_BUS_MASTER_UBI32,
+	MSM_BUS_MASTER_NSS_FAB_0,
+	MSM_BUS_MASTER_LAST = MSM_BUS_MASTER_NSS_FAB_0,
 
 	MSM_BUS_SYSTEM_FPB_MASTER_SYSTEM =
 		MSM_BUS_SYSTEM_MASTER_SYSTEM_FPB,
@@ -312,6 +318,7 @@ enum msm_bus_fabric_slave_type {
 	MSM_BUS_SLAVE_EBI_CH1,
 	MSM_BUS_SLAVE_AMPSS_L2,
 	MSM_BUS_APPSS_SLAVE_FAB_MMSS,
+	MSM_BUS_APPSS_SLAVE_FAB_NSS,
 	MSM_BUS_APPSS_SLAVE_FAB_SYSTEM,
 
 	MSM_BUS_SYSTEM_SLAVE_FAB_APPS,
@@ -323,6 +330,7 @@ enum msm_bus_fabric_slave_type {
 	MSM_BUS_SYSTEM_SLAVE_CPSS_FPB,
 	MSM_BUS_SYSTEM_SLAVE_SYSTEM_FPB,
 	MSM_BUS_SYSTEM_SLAVE_MMSS_FPB,
+	MSM_BUS_SYSTEM_SLAVE_NSS_FPB,
 	MSM_BUS_SLAVE_CORESIGHT,
 	MSM_BUS_SLAVE_RIVA,
 
@@ -452,8 +460,11 @@ enum msm_bus_fabric_slave_type {
 	MSM_BUS_SLAVE_PHY_APU_CFG,
 	MSM_BUS_SLAVE_EBI1_PHY_CFG,
 	MSM_BUS_SLAVE_SERVICE_CNOC,
+	MSM_BUS_SLAVE_UBI32,
+	MSM_BUS_SLAVE_NSS_FAB_1,
+	MSM_BUS_SLAVE_NSS_TCM,
 
-	MSM_BUS_SLAVE_LAST = MSM_BUS_SLAVE_SERVICE_CNOC,
+	MSM_BUS_SLAVE_LAST = MSM_BUS_SLAVE_NSS_TCM,
 
 	MSM_BUS_SYSTEM_FPB_SLAVE_SYSTEM =
 		MSM_BUS_SYSTEM_SLAVE_SYSTEM_FPB,

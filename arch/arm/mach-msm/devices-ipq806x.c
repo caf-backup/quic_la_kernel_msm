@@ -1042,9 +1042,13 @@ struct platform_device msm_bus_ipq806x_apps_fabric = {
 	.name  = "msm_bus_fabric",
 	.id    = MSM_BUS_FAB_APPSS,
 };
-struct platform_device msm_bus_ipq806x_mm_fabric = {
-	.name  = "msm_bus_fabric",
-	.id    = MSM_BUS_FAB_MMSS,
+struct platform_device msm_bus_ipq806x_nss_fabric_0 = {
+	.name  = "msm_bus_fabric_0",
+	.id    = MSM_BUS_FAB_NSS,
+};
+struct platform_device msm_bus_ipq806x_nss_fabric_1 = {
+	.name  = "msm_bus_fabric_1",
+	.id    = MSM_BUS_FAB_NSS,
 };
 struct platform_device msm_bus_ipq806x_sys_fpb = {
 	.name  = "msm_bus_fabric",

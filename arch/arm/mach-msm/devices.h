@@ -507,6 +507,8 @@ extern struct platform_device ipq806x_pc_cntr;
 extern struct platform_device ipq806x_device_qup_i2c_gsbi5;
 extern struct platform_device msm_bus_ipq806x_apps_fabric;
 extern struct platform_device msm_bus_ipq806x_sys_fabric;
+extern struct platform_device msm_bus_ipq806x_nss_fabric_0;
+extern struct platform_device msm_bus_ipq806x_nss_fabric_1;
 extern struct platform_device msm_bus_ipq806x_sys_fpb;
 extern struct platform_device msm_bus_ipq806x_cpss_fpb;
 extern struct platform_device ipq_device_tz_log;
