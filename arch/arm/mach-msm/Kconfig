@@ -969,7 +969,7 @@ config PHYS_OFFSET
 	hex
 	default "0x40800000" if ARCH_MSM9615
 	default "0x80200000" if ARCH_APQ8064
-	default "0x80200000" if ARCH_IPQ806X
+	default "0x40400000" if ARCH_IPQ806X
 	default "0x80200000" if ARCH_MSM8960
 	default "0x80200000" if ARCH_MSM8930
 	default "0x00000000" if ARCH_MSM8974
