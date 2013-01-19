@@ -2921,6 +2921,8 @@ static struct clk_lookup msm_clocks_ipq806x_dummy[] = {
         CLK_DUMMY("dfab_sdc_clk",       DFAB_SDC5_CLK,          NULL, 0),
         CLK_DUMMY("dfab_clk",           DFAB_CLK,               NULL, 0),
         CLK_DUMMY("dma_bam_pclk",       DMA_BAM_P_CLK,          NULL, 0),
+	CLK_DUMMY("core_clk",		adm0_clk.c,	"msm_dmov", 0),
+	CLK_DUMMY("iface_clk",		adm0_p_clk.c,	"msm_dmov", 0),
 };
 
 /*

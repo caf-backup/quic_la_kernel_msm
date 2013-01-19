@@ -69,6 +69,12 @@ extern unsigned long ebi2_register_base;
 #define MSM_NAND_DEV_CMD1             MSM_NAND_REG(0x00A4)
 #define MSM_NAND_DEV_CMD2             MSM_NAND_REG(0x00A8)
 #define MSM_NAND_DEV_CMD_VLD          MSM_NAND_REG(0x00AC)
+#define DEV_CMD_VLD_SEQ_READ_START_VLD		0x10
+#define DEV_CMD_VLD_ERASE_START_VLD		0x8
+#define DEV_CMD_VLD_WRITE_START_VLD		0x4
+#define DEV_CMD_VLD_READ_STOP_VLD		0x2
+#define DEV_CMD_VLD_READ_START_VLD		0x1
+
 #define MSM_NAND_EBI2_MISR_SIG_REG    MSM_NAND_REG(0x00B0)
 #define MSM_NAND_ADDR2                MSM_NAND_REG(0x00C0)
 #define MSM_NAND_ADDR3                MSM_NAND_REG(0x00C4)

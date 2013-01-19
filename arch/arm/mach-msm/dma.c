@@ -1,3 +1,4 @@
+/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
 /* linux/arch/arm/mach-msm/dma.c
  *
  * Copyright (C) 2007 Google, Inc.
@@ -180,7 +181,80 @@ static struct msm_dmov_conf dmov_conf[] = {
 				msm_dmov_clock_work),
 	}
 };
+
+#define DMOV_IRQ_TO_ADM(irq)   \
+({ \
+	typeof(irq) _irq = irq; \
+	((_irq == INT_ADM1_MASTER) || (_irq == INT_ADM1_AARM)); \
+})
+
+#elif defined(CONFIG_ARCH_IPQ806X)
+
+#define DMOV_ADM0_RESET			(MSM_CLK_CTL_BASE + 0x220c)
+#define		DMOV_ADM0_RESET_C2_RESET	(1 << 0x4)
+#define		DMOV_ADM0_RESET_C1_RESET	(1 << 0x3)
+#define		DMOV_ADM0_RESET_C0_RESET	(1 << 0x2)
+#define		DMOV_ADM0_RESET_PBUS_CLK_RESET	(1 << 0x1)
+#define		DMOV_ADM0_RESET_CLK_RESET	(1 << 0x0)
+
+#define DMOV_CRCI_DEFAULT_CONF { .sd = 0, .blk_size = 0 }
+
+static struct msm_dmov_crci_conf adm_crci_conf[] = {
+	DMOV_CRCI_DEFAULT_CONF,
+	DMOV_CRCI_DEFAULT_CONF,
+	DMOV_CRCI_DEFAULT_CONF,
+	DMOV_CRCI_DEFAULT_CONF,
+	DMOV_CRCI_DEFAULT_CONF,
+	DMOV_CRCI_DEFAULT_CONF,
+	DMOV_CRCI_DEFAULT_CONF,
+	DMOV_CRCI_DEFAULT_CONF,
+	DMOV_CRCI_DEFAULT_CONF,
+	DMOV_CRCI_DEFAULT_CONF,
+	DMOV_CRCI_DEFAULT_CONF,
+	DMOV_CRCI_DEFAULT_CONF,
+	DMOV_CRCI_DEFAULT_CONF,
+	DMOV_CRCI_DEFAULT_CONF,
+	DMOV_CRCI_DEFAULT_CONF,
+	DMOV_CRCI_DEFAULT_CONF,
+};
+
+#define DMOV_CHANNEL_DEFAULT_CONF { .sd = 0, .block = 0, .priority = 1 }
+
+static struct msm_dmov_chan_conf adm_chan_conf[] = {
+	DMOV_CHANNEL_DEFAULT_CONF,
+	DMOV_CHANNEL_DEFAULT_CONF,
+	DMOV_CHANNEL_DEFAULT_CONF,
+	DMOV_CHANNEL_DEFAULT_CONF,
+	DMOV_CHANNEL_DEFAULT_CONF,
+	DMOV_CHANNEL_DEFAULT_CONF,
+	DMOV_CHANNEL_DEFAULT_CONF,
+	DMOV_CHANNEL_DEFAULT_CONF,
+	DMOV_CHANNEL_DEFAULT_CONF,
+	DMOV_CHANNEL_DEFAULT_CONF,
+	DMOV_CHANNEL_DEFAULT_CONF,
+	DMOV_CHANNEL_DEFAULT_CONF,
+	DMOV_CHANNEL_DEFAULT_CONF,
+	DMOV_CHANNEL_DEFAULT_CONF,
+	DMOV_CHANNEL_DEFAULT_CONF,
+	DMOV_CHANNEL_DEFAULT_CONF,
+};
+
+#define DMOV_IRQ_TO_ADM(irq) 0
+
+static struct msm_dmov_conf dmov_conf[] = {
+	{
+		.crci_conf = adm_crci_conf,
+		.chan_conf = adm_chan_conf,
+		.lock = __MUTEX_INITIALIZER(dmov_conf[0].lock),
+		.list_lock = __SPIN_LOCK_UNLOCKED(dmov_list_lock),
+		.clk_ctl = CLK_DIS,
+		.work = __DELAYED_WORK_INITIALIZER(dmov_conf[0].work,
+				msm_dmov_clock_work),
+	}
+};
+
 #else
+#define DMOV_IRQ_TO_ADM(irq) 0
 static struct msm_dmov_conf dmov_conf[] = {
 	{
 		.crci_conf = NULL,
@@ -200,16 +274,6 @@ static struct msm_dmov_conf dmov_conf[] = {
 #define DMOV_ID_TO_ADM(id)   ((id) / MSM_DMOV_CHANNEL_COUNT)
 #define DMOV_ID_TO_CHAN(id)   ((id) % MSM_DMOV_CHANNEL_COUNT)
 #define DMOV_CHAN_ADM_TO_ID(ch, adm) ((ch) + (adm) * MSM_DMOV_CHANNEL_COUNT)
-
-#ifdef CONFIG_MSM_ADM3
-#define DMOV_IRQ_TO_ADM(irq)   \
-({ \
-	typeof(irq) _irq = irq; \
-	((_irq == INT_ADM1_MASTER) || (_irq == INT_ADM1_AARM)); \
-})
-#else
-#define DMOV_IRQ_TO_ADM(irq) 0
-#endif
 
 enum {
 	MSM_DMOV_PRINT_ERRORS = 1,
@@ -650,6 +714,77 @@ static int msm_dmov_init_clocks(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_ARCH_IPQ806X
+static void config_datamover(int adm)
+{
+#ifdef CONFIG_MSM_ADM3
+	int i;
+
+	/* Reset the ADM */
+	i = readl_relaxed(DMOV_ADM0_RESET) | DMOV_ADM0_RESET_CLK_RESET;
+	writel_relaxed(i, DMOV_ADM0_RESET);
+	writel_relaxed(DMOV_ADM0_RESET_CLK_RESET |
+			DMOV_ADM0_RESET_C0_RESET |
+			DMOV_ADM0_RESET_C1_RESET |
+			DMOV_ADM0_RESET_C2_RESET, DMOV_ADM0_RESET);
+	writel_relaxed(0, DMOV_ADM0_RESET);	/* pull out from reset */
+
+	writel_relaxed(DMOV_CRCI_CONF0_CRCI9_SD,
+			       DMOV_REG(DMOV_CRCI_CONF0, adm));
+
+	for (i = 0; i < MSM_DMOV_CHANNEL_COUNT; i++) {
+		struct msm_dmov_chan_conf *chan_conf =
+			dmov_conf[adm].chan_conf;
+		unsigned conf;
+		/* Only configure scorpion channels */
+		if (chan_conf[i].sd <= 1) {
+			conf = readl_relaxed(DMOV_REG(DMOV_CONF(i), adm));
+			conf |= DMOV_CONF_MPU_DISABLE |
+				DMOV_CONF_PERM_MPU_CONF |
+				DMOV_CONF_FLUSH_RSLT_EN |
+				DMOV_CONF_FORCE_RSLT_EN |
+				DMOV_CONF_IRQ_EN |
+				DMOV_CONF_PRIORITY(chan_conf[i].priority);
+
+			conf &= ~DMOV_CONF_SD(7);
+			conf |= DMOV_CONF_SD(chan_conf[i].sd);
+			writel_relaxed(conf, DMOV_REG(DMOV_CONF(i), adm));
+		}
+	}
+
+	for (i = 0; i < MSM_DMOV_CRCI_COUNT; i++) {
+		writel_relaxed(DMOV_CRCI_CTL_RST,
+		       DMOV_REG(DMOV_CRCI_CTL(i), adm));
+	}
+
+	/* NAND CRCI Enable */
+	writel_relaxed(0, DMOV_REG(DMOV_CRCI_CTL(DMOV_NAND_CRCI_DATA), adm));
+	writel_relaxed(0, DMOV_REG(DMOV_CRCI_CTL(DMOV_NAND_CRCI_CMD), adm));
+
+	writel_relaxed(DMOV_CI_CONF_RANGE_START(0x40) |	/* EBI1 */
+			DMOV_CI_CONF_RANGE_END(0xb0) |
+			DMOV_CI_CONF_MAX_BURST(0x8),
+		       DMOV_REG(DMOV_CI_CONF(0), adm));
+
+	writel_relaxed(DMOV_CI_CONF_RANGE_START(0x2a) |	/* IMEM */
+			DMOV_CI_CONF_RANGE_END(0x2c) |
+			DMOV_CI_CONF_MAX_BURST(0x8),
+		       DMOV_REG(DMOV_CI_CONF(1), adm));
+
+	writel_relaxed(DMOV_CI_CONF_RANGE_START(0x12) |	/* CPSS/SPS */
+			DMOV_CI_CONF_RANGE_END(0x28) |
+			DMOV_CI_CONF_MAX_BURST(0x8),
+		       DMOV_REG(DMOV_CI_CONF(2), adm));
+
+	writel_relaxed(DMOV_HI_GP_CTL_CI3_CLK_LP_EN |
+			DMOV_HI_GP_CTL_CI2_CLK_LP_EN |
+			DMOV_HI_GP_CTL_CI1_CLK_LP_EN |
+			DMOV_HI_GP_CTL_CI0_CLK_LP_EN |
+			DMOV_HI_GP_CTL_LP_CNT(0xf),
+		       DMOV_REG(DMOV_HI_GP_CTL, adm));
+#endif /* CONFIG_MSM_ADM3 */
+}
+#else /* CONFIG_ARCH_IPQ806X */
 static void config_datamover(int adm)
 {
 #ifdef CONFIG_MSM_ADM3
@@ -676,6 +811,7 @@ static void config_datamover(int adm)
 	}
 #endif
 }
+#endif /* CONFIG_ARCH_IPQ806X */
 
 static int msm_dmov_probe(struct platform_device *pdev)
 {

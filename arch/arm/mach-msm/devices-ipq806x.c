@@ -38,6 +38,7 @@
 #include <mach/msm_smd.h>
 #include <mach/msm_dcvs.h>
 #include <mach/msm_rtb.h>
+#include <asm/mach/flash.h>
 #include <linux/msm_ion.h>
 #include "clock.h"
 #include "devices.h"
@@ -148,7 +149,7 @@ struct platform_device ipq806x_device_watchdog = {
 
 static struct resource msm_dmov_resource[] = {
 	{
-		.start = ADM_0_SCSS_1_IRQ,
+		.start = ADM_0_SCSS_0_IRQ,
 		.flags = IORESOURCE_IRQ,
 	},
 	{
@@ -159,7 +160,7 @@ static struct resource msm_dmov_resource[] = {
 };
 
 static struct msm_dmov_pdata msm_dmov_pdata = {
-	.sd = 1,
+	.sd = 0,
 	.sd_size = 0x800,
 };
 
@@ -1069,6 +1070,41 @@ struct platform_device msm_device_sps_ipq806x = {
 	.num_resources	= ARRAY_SIZE(resources_sps),
 	.resource	= resources_sps,
 	.dev.platform_data = &msm_sps_pdata,
+};
+
+#define MSM_NAND_PHYS		0x1AC00000
+static struct resource resources_nand[] = {
+	[0] = {
+		.name   = "msm_nand_dmac",
+		.start	= DMOV_NAND_CHAN,
+		.end	= DMOV_NAND_CHAN,
+		.flags	= IORESOURCE_DMA,
+	},
+	[1] = {
+		.name   = "msm_nand_phys",
+		.start  = MSM_NAND_PHYS,
+		.end    = MSM_NAND_PHYS + 0x7FF,
+		.flags  = IORESOURCE_MEM,
+	},
+};
+
+struct flash_platform_data msm_nand_data = {
+	.version = VERSION_2,
+};
+
+struct platform_device msm_device_nand = {
+	.name		= "msm_nand",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(resources_nand),
+	.resource	= resources_nand,
+	.dev		= {
+		.platform_data	= &msm_nand_data,
+	},
+};
+
+struct platform_device msm_device_bam_dmux = {
+	.name		= "BAM_RMNT",
+	.id		= -1,
 };
 
 static struct resource smd_resource[] = {

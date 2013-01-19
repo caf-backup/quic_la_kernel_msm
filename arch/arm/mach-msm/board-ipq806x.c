@@ -1686,7 +1686,13 @@ static struct platform_device *common_devices[] __initdata = {
 #ifdef CONFIG_HW_RANDOM_MSM
 	&ipq806x_device_rng,
 #endif
-
+	/*
+	 * FIXME:
+	 * Disabled temporarily. Not all RUMI setups will have a NAND
+	 * daughter card plugged in. Enable only if NAND card is present.
+	 * Un-comment this for the actual chip
+	 */
+	//&msm_device_nand,
 	&ipq806x_rpm_device,
 	&ipq806x_rpm_log_device,
 	&ipq806x_rpm_stat_device,

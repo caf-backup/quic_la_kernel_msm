@@ -85,12 +85,15 @@ int msm_dmov_exec_cmd(unsigned id, unsigned int cmdptr);
 #define DMOV_STATUS_CMD_PTR_RDY      (1 << 0)
 
 #define DMOV_CONF(ch)         DMOV_ADDR(0x240, ch)
-#define DMOV_CONF_SD(sd)      (((sd & 4) << 11) | ((sd & 3) << 4))
-#define DMOV_CONF_IRQ_EN             (1 << 6)
-#define DMOV_CONF_FORCE_RSLT_EN      (1 << 7)
-#define DMOV_CONF_SHADOW_EN          (1 << 12)
-#define DMOV_CONF_MPU_DISABLE        (1 << 11)
-#define DMOV_CONF_PRIORITY(n)        (n << 0)
+#define DMOV_CONF_SD(sd)		(((sd & 4) << 11) | ((sd & 3) << 4))
+#define DMOV_CONF_OTHER_CH_BLK_MASK(m)	((m << 0x10) & 0xffff0000)
+#define DMOV_CONF_SHADOW_EN		(1 << 12)
+#define DMOV_CONF_MPU_DISABLE		(1 << 11)
+#define DMOV_CONF_PERM_MPU_CONF		(1 << 9)
+#define DMOV_CONF_FLUSH_RSLT_EN		(1 << 8)
+#define DMOV_CONF_IRQ_EN		(1 << 6)
+#define DMOV_CONF_FORCE_RSLT_EN		(1 << 7)
+#define DMOV_CONF_PRIORITY(n)		(n << 0)
 
 #define DMOV_DBG_ERR(ci)      DMOV_ADDR(0x280, ci)
 
@@ -109,9 +112,18 @@ int msm_dmov_exec_cmd(unsigned id, unsigned int cmdptr);
 #define DMOV_CI_DBG_ERR(ci)   DMOV_ADDR(0x3B0, ci)
 
 #define DMOV_CRCI_CONF0       DMOV_ADDR(0x3D0, 0)
+#define DMOV_CRCI_CONF0_CRCI9_SD	(2 << 0x1b)
+
 #define DMOV_CRCI_CONF1       DMOV_ADDR(0x3D4, 0)
 #define DMOV_CRCI_CONF0_SD(crci, sd) (sd << (crci*3))
 #define DMOV_CRCI_CONF1_SD(crci, sd) (sd << ((crci-DMOV_CRCIS_PER_CONF)*3))
+
+#define DMOV_HI_GP_CTL			DMOV_ADDR(0x3D8, 0)
+#define DMOV_HI_GP_CTL_LP_CNT(x)	(((x) & 0xf) << 8)
+#define DMOV_HI_GP_CTL_CI3_CLK_LP_EN	(1 << 7)
+#define DMOV_HI_GP_CTL_CI2_CLK_LP_EN	(1 << 6)
+#define DMOV_HI_GP_CTL_CI1_CLK_LP_EN	(1 << 5)
+#define DMOV_HI_GP_CTL_CI0_CLK_LP_EN	(1 << 4)
 
 #define DMOV_CRCI_CTL(crci)   DMOV_ADDR(0x400, crci)
 #define DMOV_CRCI_CTL_BLK_SZ(n)        ((n) << 0)
@@ -171,7 +183,7 @@ int msm_dmov_exec_cmd(unsigned id, unsigned int cmdptr);
 #define DMOV_HSUART2_RX_CHAN   8
 #define DMOV_HSUART2_RX_CRCI   14
 
-#elif defined(CONFIG_ARCH_MSM8960) || defined(CONFIG_ARCH_IPQ806X)
+#elif defined(CONFIG_ARCH_MSM8960)
 #define DMOV_GP_CHAN           9
 
 #define DMOV_CE_IN_CHAN        0
@@ -200,6 +212,40 @@ int msm_dmov_exec_cmd(unsigned id, unsigned int cmdptr);
 
 #define DMOV_HSUART_GSBI9_RX_CHAN	3
 #define DMOV_HSUART_GSBI9_RX_CRCI	12
+
+#elif defined(CONFIG_ARCH_IPQ806X)
+#define DMOV_GP_CHAN           9
+
+#define DMOV_CE_IN_CHAN        0
+#define DMOV_CE_IN_CRCI        2
+
+#define DMOV_CE_OUT_CHAN       1
+#define DMOV_CE_OUT_CRCI       3
+
+#define DMOV_TSIF_CHAN         2
+#define DMOV_TSIF_CRCI         11
+
+#define DMOV_HSUART_GSBI6_TX_CHAN	7
+#define DMOV_HSUART_GSBI6_TX_CRCI	6
+
+#define DMOV_HSUART_GSBI6_RX_CHAN	8
+#define DMOV_HSUART_GSBI6_RX_CRCI	11
+
+#define DMOV_HSUART_GSBI8_TX_CHAN	7
+#define DMOV_HSUART_GSBI8_TX_CRCI	10
+
+#define DMOV_HSUART_GSBI8_RX_CHAN	8
+#define DMOV_HSUART_GSBI8_RX_CRCI	9
+
+#define DMOV_HSUART_GSBI9_TX_CHAN	4
+#define DMOV_HSUART_GSBI9_TX_CRCI	13
+
+#define DMOV_HSUART_GSBI9_RX_CHAN	3
+#define DMOV_HSUART_GSBI9_RX_CRCI	12
+
+#define DMOV_NAND_CHAN			3
+#define DMOV_NAND_CRCI_CMD		15
+#define DMOV_NAND_CRCI_DATA		3
 
 #elif defined(CONFIG_ARCH_MSM9615)
 

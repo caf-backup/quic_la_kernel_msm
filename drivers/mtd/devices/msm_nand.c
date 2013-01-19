@@ -7162,6 +7162,13 @@ no_dual_nand_ctlr_support:
 			goto out_free_dma_buffer;
 		}
 
+#ifdef CONFIG_ARCH_IPQ806X
+	flash_wr_reg(&info->msm_nand, MSM_NAND_DEV_CMD_VLD,
+				DEV_CMD_VLD_SEQ_READ_START_VLD |
+				DEV_CMD_VLD_ERASE_START_VLD |
+				DEV_CMD_VLD_WRITE_START_VLD |
+				DEV_CMD_VLD_READ_START_VLD);
+#endif
 	err = setup_mtd_device(pdev, info);
 	if (err < 0) {
 		pr_err("%s: setup_mtd_device failed with err=%d\n",
