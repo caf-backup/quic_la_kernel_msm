@@ -583,7 +583,7 @@ static struct resource resources_qup_spi_gsbi5[] = {
 
 struct platform_device ipq806x_device_qup_spi_gsbi5 = {
 	.name		= "spi_qsd",
-	.id		= 0,
+	.id		= 5,
 	.num_resources	= ARRAY_SIZE(resources_qup_spi_gsbi5),
 	.resource	= resources_qup_spi_gsbi5,
 };

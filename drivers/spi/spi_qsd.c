@@ -768,9 +768,10 @@ static void msm_spi_write_word_to_fifo(struct msm_spi *dd)
 			dd->tx_bytes_remaining = 0;
 	dd->write_xfr_cnt++;
 	if (dd->multi_xfr) {
-		if (!dd->tx_bytes_remaining)
+		if (!dd->tx_bytes_remaining) {
+			dd->cur_msg->actual_length += dd->write_xfr_cnt;
 			dd->write_xfr_cnt = 0;
-		else if ((dd->write_xfr_cnt * dd->bytes_per_word) ==
+		} else if ((dd->write_xfr_cnt * dd->bytes_per_word) ==
 						dd->write_len) {
 			struct spi_transfer *t = dd->cur_tx_transfer;
 			if (t->transfer_list.next != &dd->cur_msg->transfers) {
@@ -779,6 +780,7 @@ static void msm_spi_write_word_to_fifo(struct msm_spi *dd)
 						transfer_list);
 				dd->write_buf = t->tx_buf;
 				dd->write_len = t->len;
+				dd->cur_msg->actual_length += dd->write_xfr_cnt;
 				dd->write_xfr_cnt = 0;
 				dd->cur_tx_transfer = t;
 			}
@@ -1432,6 +1434,7 @@ static void msm_spi_workq(struct work_struct *work)
 					 struct spi_message, queue);
 		list_del_init(&dd->cur_msg->queue);
 		spin_unlock_irqrestore(&dd->queue_lock, flags);
+		dd->cur_msg->actual_length = 0;
 		if (status_error)
 			dd->cur_msg->status = -EIO;
 		else
@@ -2369,7 +2372,7 @@ static int __init msm_spi_init(void)
 {
 	return platform_driver_probe(&msm_spi_driver, msm_spi_probe);
 }
-module_init(msm_spi_init);
+subsys_initcall(msm_spi_init);
 
 static void __exit msm_spi_exit(void)
 {

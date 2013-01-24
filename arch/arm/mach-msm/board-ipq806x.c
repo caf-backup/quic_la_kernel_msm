@@ -27,6 +27,7 @@
 #include <linux/mfd/pm8xxx/misc.h>
 #include <linux/msm_ssbi.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/flash.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_data/qcom_crypto_device.h>
 #include <linux/msm_ion.h>
@@ -224,6 +225,24 @@ static struct platform_device ipq806x_android_pmem_audio_device = {
 static struct platform_device battery_bcl_device = {
 	.name = "battery_current_limit",
 	.id = -1,
+};
+#endif
+
+#ifdef CONFIG_SPI_QUP
+static struct flash_platform_data ipq806x_spi_flash_data = {
+	.name = "m25p80",
+	.type = "m25pe16",
+};
+
+static struct spi_board_info ipq806x_rumi_spi_board_info[] __initdata = {
+	{
+		.modalias       = "m25p80",
+		.mode           = SPI_MODE_0,
+		.bus_num        = 5,
+		.chip_select    = 0,
+		.platform_data  = &ipq806x_spi_flash_data,
+		.max_speed_hz   = 52000000,
+	}
 };
 #endif
 
@@ -1619,7 +1638,6 @@ static struct platform_device *common_i2s_devices[] __initdata = {
 static struct platform_device *early_common_devices[] __initdata = {
 	&ipq806x_device_acpuclk,
 	&ipq806x_device_dmov,
-	&ipq806x_device_qup_spi_gsbi5,
 };
 
 static struct platform_device *pm8921_common_devices[] __initdata = {
@@ -1710,29 +1728,11 @@ static struct platform_device *cdp_devices[] __initdata = {
 static struct msm_serial_hs_platform_data msm_uart_dm9_pdata;
 #endif
 
+#ifdef CONFIG_SPI_QUP
 static struct msm_spi_platform_data ipq806x_qup_spi_gsbi5_pdata = {
-	.max_clock_speed = 1100000,
+	.max_clock_speed = 52000000,
 };
-
-#define KS8851_IRQ_GPIO		43
-
-static struct spi_board_info spi_board_info[] __initdata = {
-	{
-		.modalias               = "ks8851",
-		.irq                    = MSM_GPIO_TO_INT(KS8851_IRQ_GPIO),
-		.max_speed_hz           = 19200000,
-		.bus_num                = 0,
-		.chip_select            = 2,
-		.mode                   = SPI_MODE_0,
-	},
-	{
-		.modalias		= "epm_adc",
-		.max_speed_hz		= 1100000,
-		.bus_num		= 0,
-		.chip_select		= 3,
-		.mode			= SPI_MODE_0,
-	},
-};
+#endif
 
 static struct msm_i2c_platform_data ipq806x_i2c_qup_gsbi1_pdata = {
 	.clk_freq = 100000,
@@ -1777,27 +1777,6 @@ static void __init ipq806x_i2c_init(void)
 	ipq806x_device_qup_i2c_gsbi5.dev.platform_data =
 					&ipq806x_i2c_qup_gsbi5_pdata;
 }
-
-#if defined(CONFIG_KS8851) || defined(CONFIG_KS8851_MODULE)
-static int ethernet_init(void)
-{
-	int ret;
-	ret = gpio_request(KS8851_IRQ_GPIO, "ks8851_irq");
-	if (ret) {
-		pr_err("ks8851 gpio_request failed: %d\n", ret);
-		goto fail;
-	}
-
-	return 0;
-fail:
-	return ret;
-}
-#else
-static int ethernet_init(void)
-{
-	return 0;
-}
-#endif
 
 #define GPIO_KEY_HOME			PM8921_GPIO_PM_TO_SYS(27)
 #define GPIO_KEY_VOLUME_UP		PM8921_GPIO_PM_TO_SYS(35)
@@ -1912,6 +1891,22 @@ static void enable_ddr3_regulator(void)
 	}
 }
 
+#ifdef CONFIG_SPI_QUP
+static void ipq806x_spi_register(void)
+{
+	ipq806x_device_qup_spi_gsbi5.dev.platform_data =
+				&ipq806x_qup_spi_gsbi5_pdata;
+
+	platform_device_register(&ipq806x_device_qup_spi_gsbi5);
+
+	if (machine_is_ipq806x_rumi3())
+		spi_register_board_info(ipq806x_rumi_spi_board_info,
+					ARRAY_SIZE(ipq806x_rumi_spi_board_info));
+
+	return;
+}
+#endif
+
 static void __init ipq806x_common_init(void)
 {
 	u32 platform_version = socinfo_get_platform_version();
@@ -1941,8 +1936,10 @@ static void __init ipq806x_common_init(void)
 		register_i2c_devices();
 	}
 
-	ipq806x_device_qup_spi_gsbi5.dev.platform_data =
-						&ipq806x_qup_spi_gsbi5_pdata;
+#ifdef CONFIG_SPI_QUP
+	ipq806x_spi_register();
+#endif
+
 	ipq806x_init_pmic();
 
 #ifdef CONFIG_ANDROID
@@ -1998,14 +1995,12 @@ static void __init ipq806x_cdp_init(void)
 		pr_err("meminfo_init() failed!\n");
 	ipq806x_common_init();
 	ipq806x_pcie_init();
-	ethernet_init();
+
 #ifdef CONFIG_MSM_ROTATOR
 	msm_rotator_set_split_iommu_domain();
 #endif
+
 	platform_add_devices(cdp_devices, ARRAY_SIZE(cdp_devices));
-	spi_register_board_info(spi_board_info, ARRAY_SIZE(spi_board_info));
-
-
 
 	if (machine_is_ipq806x_cdp())
 		platform_device_register(&cdp_kp_pdev);

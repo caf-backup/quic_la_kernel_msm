@@ -403,6 +403,58 @@ static struct msm_gpiomux_config ipq806x_gsbi5_i2c_configs[] __initdata = {
 	},
 };
 
+#ifdef CONFIG_SPI_QUP
+/* GSBI5 pin configuration */
+static struct gpiomux_setting gsbi5_spi_clk_cfg = {
+	.func = GPIOMUX_FUNC_1,
+	.drv = GPIOMUX_DRV_12MA,
+	.pull = GPIOMUX_PULL_DOWN,
+};
+
+static struct gpiomux_setting gsbi5_spi_cs_cfg = {
+	.func = GPIOMUX_FUNC_1,
+	.drv = GPIOMUX_DRV_10MA,
+	.pull = GPIOMUX_PULL_UP,
+};
+
+static struct gpiomux_setting gsbi5_spi_data_cfg = {
+	.func = GPIOMUX_FUNC_1,
+	.drv = GPIOMUX_DRV_10MA,
+	.pull = GPIOMUX_PULL_DOWN,
+};
+
+static struct msm_gpiomux_config ipq806x_gsbi5_spi_configs[] __initdata = {
+	{
+		.gpio      = 21,                        /* GSBI5 SPI CLK */
+		.settings = {
+			[GPIOMUX_ACTIVE] = &gsbi5_spi_clk_cfg,
+			[GPIOMUX_SUSPENDED] = &gsbi5_spi_clk_cfg,
+		},
+	},
+	{
+		.gpio      = 20,                        /* GSBI5 SPI CS */
+		.settings = {
+			[GPIOMUX_ACTIVE] = &gsbi5_spi_cs_cfg,
+			[GPIOMUX_SUSPENDED] = &gsbi5_spi_cs_cfg,
+		},
+	},
+	{
+		.gpio      = 19,                        /* GSBI5 SPI MISO */
+		.settings = {
+			[GPIOMUX_ACTIVE] = &gsbi5_spi_data_cfg,
+			[GPIOMUX_SUSPENDED] = &gsbi5_spi_data_cfg,
+		},
+	},
+	{
+		.gpio      = 18,                        /* GSBI5 SPI MOSI */
+		.settings = {
+			[GPIOMUX_ACTIVE] = &gsbi5_spi_data_cfg,
+			[GPIOMUX_SUSPENDED] = &gsbi5_spi_data_cfg,
+		},
+	},
+};
+#endif
+
 static struct gpiomux_setting ipq806x_sdc3_card_det_cfg = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_2MA,
@@ -439,6 +491,11 @@ void __init ipq806x_init_gpiomux(void)
 		msm_gpiomux_install(ipq806x_mi2s_configs,
 			ARRAY_SIZE(ipq806x_mi2s_configs));
 	}
+
+#ifdef CONFIG_SPI_QUP
+	msm_gpiomux_install(ipq806x_gsbi5_spi_configs,
+			ARRAY_SIZE(ipq806x_gsbi5_spi_configs));
+#endif
 
 	msm_gpiomux_install(ipq806x_ext_regulator_configs,
 			ARRAY_SIZE(ipq806x_ext_regulator_configs));
