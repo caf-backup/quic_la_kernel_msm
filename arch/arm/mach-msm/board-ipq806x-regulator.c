@@ -635,3 +635,127 @@ ipq806x_rpm_regulator_pm8921_pdata __devinitdata = {
 	.vreg_id_vdd_dig	  = RPM_VREG_ID_PM8921_S3,
 	.requires_tcxo_workaround = true,
 };
+
+#define VREG_DUMMY_CONSUMERS(_id) \
+	struct regulator_consumer_supply dummy_supplies_##_id[]
+
+VREG_DUMMY_CONSUMERS(1) = {
+        REGULATOR_SUPPLY("ssusb_vdd_dig",    "msm-dwc3.0"),
+};
+VREG_DUMMY_CONSUMERS(2) = {
+	REGULATOR_SUPPLY("SSUSB_VDDCX",      "msm-dwc3.0"),
+};
+VREG_DUMMY_CONSUMERS(3) = {
+	REGULATOR_SUPPLY("SSUSB_1p8",        "msm-dwc3.0"),
+};
+VREG_DUMMY_CONSUMERS(4) = {
+	REGULATOR_SUPPLY("hsusb_vdd_dig",    "msm-dwc3.0"),
+};
+VREG_DUMMY_CONSUMERS(5) = {
+	REGULATOR_SUPPLY("HSUSB_VDDCX",      "msm-dwc3.0"),
+};
+VREG_DUMMY_CONSUMERS(6) = {
+	REGULATOR_SUPPLY("HSUSB_3p3",        "msm-dwc3.0"),
+};
+VREG_DUMMY_CONSUMERS(7) = {
+	REGULATOR_SUPPLY("HSUSB_1p8",        "msm-dwc3.0"),
+};
+VREG_DUMMY_CONSUMERS(8) = {
+	REGULATOR_SUPPLY("ssusb_vdd_dig",    "msm-dwc3.1"),
+};
+VREG_DUMMY_CONSUMERS(9) = {
+	REGULATOR_SUPPLY("SSUSB_VDDCX",      "msm-dwc3.1"),
+};
+VREG_DUMMY_CONSUMERS(10) = {
+	REGULATOR_SUPPLY("SSUSB_1p8",        "msm-dwc3.1"),
+};
+VREG_DUMMY_CONSUMERS(11) = {
+	REGULATOR_SUPPLY("hsusb_vdd_dig",    "msm-dwc3.1"),
+};
+VREG_DUMMY_CONSUMERS(12) = {
+	REGULATOR_SUPPLY("HSUSB_VDDCX",      "msm-dwc3.1"),
+};
+VREG_DUMMY_CONSUMERS(13) = {
+	REGULATOR_SUPPLY("HSUSB_3p3",        "msm-dwc3.1"),
+};
+VREG_DUMMY_CONSUMERS(14) = {
+	REGULATOR_SUPPLY("HSUSB_1p8",        "msm-dwc3.1"),
+};
+VREG_DUMMY_CONSUMERS(15) = {
+	REGULATOR_SUPPLY("hsic_vdd_dig",  "msm_hsic_host"),
+};
+VREG_DUMMY_CONSUMERS(16) = {
+        REGULATOR_SUPPLY("HSIC_VDDCX",  "msm_hsic_host"),
+};
+
+#define REG_INIT_DATA(_id)\
+	struct regulator_init_data ipq806x_dummy_regulator##_id
+
+#define DUMMY_VREG_INIT(_id, _name, _min_uV, _max_uV) \
+	{ \
+		.constraints = { \
+			.name        = _name, \
+			.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE, \
+			.min_uV         = _min_uV, \
+			.max_uV         = _max_uV, \
+		}, \
+		.num_consumer_supplies = \
+				ARRAY_SIZE(dummy_supplies_##_id),\
+		.consumer_supplies = dummy_supplies_##_id,\
+	}
+
+REG_INIT_DATA(_ssusb_vdd_dig1) =
+	DUMMY_VREG_INIT(1, "dummy1",    0x0, 0xFFFFFFF);
+REG_INIT_DATA(_SSUSB_VDDCX1) =
+	DUMMY_VREG_INIT(2, "dummy2",    0x0, 0xFFFFFFF);
+REG_INIT_DATA(_SSUSB_1p81) =
+	DUMMY_VREG_INIT(3, "dummy3",    0x0, 0xFFFFFFF);
+REG_INIT_DATA(_hsusb_vdd_dig1) =
+	DUMMY_VREG_INIT(4, "dummy4",    0x0, 0xFFFFFFF);
+REG_INIT_DATA(_HSUSB_VDDCX1) =
+	DUMMY_VREG_INIT(5, "dummy5",    0x0, 0xFFFFFFF);
+REG_INIT_DATA(_HSUSB_3p31) =
+	DUMMY_VREG_INIT(6, "dummy6",    0x0, 0xFFFFFFF);
+REG_INIT_DATA(_HSUSB_1p81) =
+	DUMMY_VREG_INIT(7, "dummy7",    0x0, 0xFFFFFFF);
+REG_INIT_DATA(_ssusb_vdd_dig2) =
+	DUMMY_VREG_INIT(8, "dummy8",    0x0, 0xFFFFFFF);
+REG_INIT_DATA(_SSUSB_VDDCX2) =
+	DUMMY_VREG_INIT(9, "dummy9",    0x0, 0xFFFFFFF);
+REG_INIT_DATA(_SSUSB_1p82) =
+	DUMMY_VREG_INIT(10, "dummy10",  0x0, 0xFFFFFFF);
+REG_INIT_DATA(_hsusb_vdd_dig2) =
+	DUMMY_VREG_INIT(11, "dummy11",  0x0, 0xFFFFFFF);
+REG_INIT_DATA(_HSUSB_VDDCX2) =
+	DUMMY_VREG_INIT(12, "dummy12",  0x0, 0xFFFFFFF);
+REG_INIT_DATA(_HSUSB_3p32) =
+	DUMMY_VREG_INIT(13, "dummy13",  0x0, 0xFFFFFFF);
+REG_INIT_DATA(_HSUSB_1p82) =
+	DUMMY_VREG_INIT(14, "dummy14",  0x0, 0xFFFFFFF);
+REG_INIT_DATA(_hsic_vdd_dig1) =
+        DUMMY_VREG_INIT(15, "dummy15",  0x0, 0xFFFFFFF);
+
+#define FIXED_VOLTAGE_CONFIG(_supp_name, _id, _regul_id)\
+	struct fixed_voltage_config ipq806x_fixed_regul_##_regul_id##_id = {\
+        .supply_name = _supp_name, \
+        .microvolts = 0,\
+        .gpio = -EINVAL,\
+        .enabled_at_boot = 1, \
+        .init_data = &ipq806x_dummy_regulator_##_regul_id##_id,\
+        }
+
+FIXED_VOLTAGE_CONFIG("fixed_dummy1",   1, ssusb_vdd_dig);
+FIXED_VOLTAGE_CONFIG("fixed_dummy2",   1, SSUSB_VDDCX);
+FIXED_VOLTAGE_CONFIG("fixed_dummy3",   1, SSUSB_1p8);
+FIXED_VOLTAGE_CONFIG("fixed_dummy4",   1, hsusb_vdd_dig);
+FIXED_VOLTAGE_CONFIG("fixed_dummy5",   1, HSUSB_VDDCX);
+FIXED_VOLTAGE_CONFIG("fixed_dummy6",   1, HSUSB_3p3);
+FIXED_VOLTAGE_CONFIG("fixed_dummy7",   1, HSUSB_1p8);
+FIXED_VOLTAGE_CONFIG("fixed_dummy8",   2, ssusb_vdd_dig);
+FIXED_VOLTAGE_CONFIG("fixed_dummy9",   2, SSUSB_VDDCX);
+FIXED_VOLTAGE_CONFIG("fixed_dummy10",  2, SSUSB_1p8);
+FIXED_VOLTAGE_CONFIG("fixed_dummy11",  2, hsusb_vdd_dig);
+FIXED_VOLTAGE_CONFIG("fixed_dummy12",  2, HSUSB_VDDCX);
+FIXED_VOLTAGE_CONFIG("fixed_dummy13",  2, HSUSB_3p3);
+FIXED_VOLTAGE_CONFIG("fixed_dummy14",  2, HSUSB_1p8);
+FIXED_VOLTAGE_CONFIG("fixed_dummy15",  1, hsic_vdd_dig);

@@ -22,6 +22,7 @@
 #include <linux/regulator/fixed.h>
 #include <mach/msm_rtb.h>
 #include <mach/msm_cache_dump.h>
+#include <linux/regulator/fixed.h>
 
 #include "pcie.h"
 
@@ -68,6 +69,24 @@ extern struct rpm_regulator_platform_data
 
 extern struct regulator_init_data ipq806x_saw_regulator_pdata_8921_s5;
 extern struct regulator_init_data ipq806x_saw_regulator_pdata_8921_s6;
+
+extern struct fixed_voltage_config ipq806x_fixed_regul_ssusb_vdd_dig1;
+extern struct fixed_voltage_config ipq806x_fixed_regul_SSUSB_VDDCX1;
+extern struct fixed_voltage_config ipq806x_fixed_regul_SSUSB_1p81;
+extern struct fixed_voltage_config ipq806x_fixed_regul_hsusb_vdd_dig1;
+extern struct fixed_voltage_config ipq806x_fixed_regul_HSUSB_VDDCX1;
+extern struct fixed_voltage_config ipq806x_fixed_regul_HSUSB_3p31;
+extern struct fixed_voltage_config ipq806x_fixed_regul_HSUSB_1p81;
+
+extern struct fixed_voltage_config ipq806x_fixed_regul_ssusb_vdd_dig2;
+extern struct fixed_voltage_config ipq806x_fixed_regul_SSUSB_VDDCX2;
+extern struct fixed_voltage_config ipq806x_fixed_regul_SSUSB_1p82;
+extern struct fixed_voltage_config ipq806x_fixed_regul_hsusb_vdd_dig2;
+extern struct fixed_voltage_config ipq806x_fixed_regul_HSUSB_VDDCX2;
+extern struct fixed_voltage_config ipq806x_fixed_regul_HSUSB_3p32;
+extern struct fixed_voltage_config ipq806x_fixed_regul_HSUSB_1p82;
+
+extern struct fixed_voltage_config ipq806x_fixed_regul_hsic_vdd_dig1;
 
 struct mmc_platform_data;
 int __init ipq806x_add_sdcc(unsigned int controller,

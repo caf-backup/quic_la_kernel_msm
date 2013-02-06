@@ -89,6 +89,7 @@
 #include "pm-boot.h"
 #include "devices-msm8x60.h"
 #include "smd_private.h"
+#include <linux/regulator/fixed.h>
 
 #define MHL_GPIO_INT           30
 #define MHL_GPIO_RESET         35
@@ -1598,11 +1599,39 @@ static struct platform_device *pm8921_common_devices[] __initdata = {
 	&ipq806x_device_ssbi_pmic1,
 };
 
+#define DUMMY_REG_PLAT_DEVICE(_id, _dev_id, _regul_id) \
+	struct platform_device ipq806x_device_dummy_regulator_##_regul_id##_id \
+	= {\
+	.name   = "reg-fixed-voltage",\
+	.id     = _dev_id,\
+	.dev    = {\
+		.platform_data = &ipq806x_fixed_regul_##_regul_id##_id,\
+	},\
+}
+
+DUMMY_REG_PLAT_DEVICE(1, 0, ssusb_vdd_dig);
+DUMMY_REG_PLAT_DEVICE(1, 1, SSUSB_VDDCX);
+DUMMY_REG_PLAT_DEVICE(1, 2, SSUSB_1p8);
+DUMMY_REG_PLAT_DEVICE(1, 3, hsusb_vdd_dig);
+DUMMY_REG_PLAT_DEVICE(1, 4, HSUSB_VDDCX);
+DUMMY_REG_PLAT_DEVICE(1, 5, HSUSB_3p3);
+DUMMY_REG_PLAT_DEVICE(1, 6, HSUSB_1p8);
+DUMMY_REG_PLAT_DEVICE(2, 7, ssusb_vdd_dig);
+DUMMY_REG_PLAT_DEVICE(2, 8, SSUSB_VDDCX);
+DUMMY_REG_PLAT_DEVICE(2, 9, SSUSB_1p8);
+DUMMY_REG_PLAT_DEVICE(2, 10, hsusb_vdd_dig);
+DUMMY_REG_PLAT_DEVICE(2, 11, HSUSB_VDDCX);
+DUMMY_REG_PLAT_DEVICE(2, 12, HSUSB_3p3);
+DUMMY_REG_PLAT_DEVICE(2, 13, HSUSB_1p8);
+DUMMY_REG_PLAT_DEVICE(1, 14, hsic_vdd_dig);
+
 static struct platform_device *common_devices[] __initdata = {
 	&msm_device_smd_ipq806x,
 	&ipq806x_device_otg,
 	&ipq806x_device_gadget_peripheral,
 	&ipq806x_device_hsusb_host,
+	&ipq806x_device_dwc3_host1,
+	&ipq806x_device_dwc3_host2,
 #ifdef CONFIG_ANDROID
 	&android_usb_device,
 #endif
@@ -1620,6 +1649,21 @@ static struct platform_device *common_devices[] __initdata = {
 	&ipq806x_device_watchdog,
 	&ipq806x_device_saw_regulator_core0,
 	&ipq806x_device_saw_regulator_core1,
+	&ipq806x_device_dummy_regulator_ssusb_vdd_dig1,
+	&ipq806x_device_dummy_regulator_SSUSB_VDDCX1,
+	&ipq806x_device_dummy_regulator_SSUSB_1p81,
+	&ipq806x_device_dummy_regulator_hsusb_vdd_dig1,
+	&ipq806x_device_dummy_regulator_HSUSB_VDDCX1,
+	&ipq806x_device_dummy_regulator_HSUSB_3p31,
+	&ipq806x_device_dummy_regulator_HSUSB_1p81,
+	&ipq806x_device_dummy_regulator_ssusb_vdd_dig2,
+	&ipq806x_device_dummy_regulator_SSUSB_VDDCX2,
+	&ipq806x_device_dummy_regulator_SSUSB_1p82,
+	&ipq806x_device_dummy_regulator_hsusb_vdd_dig2,
+	&ipq806x_device_dummy_regulator_HSUSB_VDDCX2,
+	&ipq806x_device_dummy_regulator_HSUSB_3p32,
+	&ipq806x_device_dummy_regulator_HSUSB_1p82,
+	&ipq806x_device_dummy_regulator_hsic_vdd_dig1,
 #if defined(CONFIG_QSEECOM)
 	&qseecom_device,
 #endif
@@ -1637,13 +1681,11 @@ static struct platform_device *common_devices[] __initdata = {
 #ifdef CONFIG_HW_RANDOM_MSM
 	&ipq806x_device_rng,
 #endif
-	/*
-	 * FIXME:
-	 * Disabled temporarily. Not all RUMI setups will have a NAND
-	 * daughter card plugged in. Enable only if NAND card is present.
-	 * Un-comment this for the actual chip
-	 */
-	//&msm_device_nand,
+
+#ifdef CONFIG_MTD_MSM_NAND
+	&msm_device_nand,
+#endif
+
 	&ipq806x_rpm_device,
 	&ipq806x_rpm_log_device,
 	&ipq806x_rpm_stat_device,
@@ -1978,6 +2020,8 @@ static void __init ipq806x_common_init(void)
 		BUG_ON(msm_pm_boot_init(&msm_pm_boot_pdata));
 		msm_pm_set_tz_retention_flag(1);
 	}
+
+	platform_device_register(&ipq806x_device_hsic_host);
 }
 
 static void __init ipq806x_allocate_memory_regions(void)

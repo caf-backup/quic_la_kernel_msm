@@ -94,19 +94,28 @@
 #define MSM_HSUSB4_PHYS		0x12530000
 #define MSM_HSUSB4_SIZE		SZ_4K
 
+/* Address of SS USB1 */
+#define MSM_SSUSB1_PHYS		0x11000000
+#define MSM_SSUSB1_SIZE		SZ_16M
+
+/* Address of SS USB2 */
+#define MSM_SSUSB2_PHYS		0x10000000
+#define MSM_SSUSB2_SIZE		SZ_16M
+
 /* Address of PCIE20 PARF */
-#define PCIE20_PARF_PHYS   0x1b600000
-#define PCIE20_PARF_SIZE   SZ_128
+#define PCIE20_PARF_PHYS	0x1b600000
+#define PCIE20_PARF_SIZE	SZ_128
 
 /* Address of PCIE20 ELBI */
-#define PCIE20_ELBI_PHYS   0x1b502000
-#define PCIE20_ELBI_SIZE   SZ_256
+#define PCIE20_ELBI_PHYS	0x1b502000
+#define PCIE20_ELBI_SIZE	SZ_256
 
 /* Address of PCIE20 */
-#define PCIE20_PHYS   0x1b500000
-#define PCIE20_SIZE   SZ_4K
+#define PCIE20_PHYS		0x1b500000
+#define PCIE20_SIZE		SZ_4K
+
 #define IPQ806X_RPM_MASTER_STATS_BASE	0x10BB00
-#define IPQ806X_PC_CNTR_PHYS	(IPQ806X_IMEM_PHYS + 0x664)
+#define IPQ806X_PC_CNTR_PHYS		(IPQ806X_IMEM_PHYS + 0x664)
 #define IPQ806X_PC_CNTR_SIZE		0x40
 
 static struct resource ipq806x_resources_pccntr[] = {
@@ -877,6 +886,56 @@ struct platform_device ipq806x_device_hsic_host = {
 	},
 };
 
+static struct resource resources_dwc3_host1[] = {
+	{
+		.start  = MSM_SSUSB1_PHYS,
+		.end    = MSM_SSUSB1_PHYS + MSM_SSUSB1_SIZE - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	{
+		.start  = USB30_EE1_IRQ_1,
+		.end    = USB30_EE1_IRQ_1,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct resource resources_dwc3_host2[] = {
+	{
+		.start  = MSM_SSUSB2_PHYS,
+		.end    = MSM_SSUSB2_PHYS + MSM_SSUSB2_SIZE - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	{
+		.start  = USB30_EE2_IRQ_1,
+		.end    = USB30_EE2_IRQ_1,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+
+
+struct platform_device ipq806x_device_dwc3_host1 = {
+	.name		= "msm-dwc3",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(resources_dwc3_host1),
+	.resource	= resources_dwc3_host1,
+	.dev		= {
+		.dma_mask		= &dma_mask,
+		.coherent_dma_mask	= 0xffffffff,
+	},
+};
+
+struct platform_device ipq806x_device_dwc3_host2 = {
+	.name		= "msm-dwc3",
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(resources_dwc3_host2),
+	.resource	= resources_dwc3_host2,
+	.dev		= {
+		.dma_mask		= &dma_mask,
+		.coherent_dma_mask	= 0xffffffff,
+	},
+};
+
 static struct resource resources_ehci_host3[] = {
 {
 		.start  = MSM_HSUSB3_PHYS,
@@ -1191,16 +1250,6 @@ static struct resource smd_resource[] = {
 	{
 		.name   = "dsps_a11_smsm",
 		.start  = INT_DSPS_A11_SMSM,
-		.flags  = IORESOURCE_IRQ,
-	},
-	{
-		.name   = "wcnss_a11",
-		.start  = INT_WCNSS_A11,
-		.flags  = IORESOURCE_IRQ,
-	},
-	{
-		.name   = "wcnss_a11_smsm",
-		.start  = INT_WCNSS_A11_SMSM,
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -1753,10 +1802,6 @@ static uint16_t msm_mpm_bypassed_apps_irqs[] __initdata = {
 	LPASS_SCSS_GP_HIGH_IRQ,
 	SPS_MTI_30,
 	SPS_MTI_31,
-	RIVA_APSS_SPARE_IRQ,
-	RIVA_APPS_WLAN_SMSM_IRQ,
-	RIVA_APPS_WLAN_RX_DATA_AVAIL_IRQ,
-	RIVA_APPS_WLAN_DATA_XFER_DONE_IRQ,
 	PM8821_SEC_IRQ_N,
 };
 
