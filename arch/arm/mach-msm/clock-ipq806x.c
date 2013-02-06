@@ -2732,6 +2732,22 @@ static struct clk_lookup msm_clocks_ipq806x_dummy[] = {
 	CLK_LOOKUP("core_clk",          gsbi7_uart_clk.c,       NULL),
 	*/
 
+	CLK_DUMMY("xo",	cxo_clk.c,	"BAM_RMNT", 0),
+	CLK_DUMMY("core_clk",	qdss_clk.c,	"coresight-tpiu.0", 0),
+	CLK_DUMMY("core_clk",	qdss_clk.c,	"coresight-etb.0", 0),
+	CLK_DUMMY("core_clk",	qdss_clk.c,	"coresight-funnel.0", 0),
+	CLK_DUMMY("core_clk",	qdss_clk.c,	"coresight-etm.0", 0),
+	CLK_DUMMY("core_clk",	qdss_clk.c,	"coresight-etm.1", 0),
+
+	CLK_DUMMY("mem_clk",	pmem_clk.c,	"msm_sps", 0),
+	CLK_DUMMY("core_clk",   prng_clk.c,	"msm_rng.0", 0),
+
+	CLK_DUMMY("dfab_clk",	dfab_sps_clk.c,	"msm_sps", 0),
+	CLK_DUMMY("bus_clk",	dfab_bam_dmux_clk.c,	"BAM_RMNT", 0),
+	CLK_DUMMY("bus_clk",	dfab_scm_clk.c,	"scm", 0),
+
+	CLK_DUMMY("mem_clk",	ebi1_adm_clk.c, "msm_dmov", 0),
+
 	CLK_DUMMY("core_clk",		gp0_clk.c,		"", 0),
 	CLK_DUMMY("core_clk",		gp1_clk.c,		"", 0),
 	CLK_DUMMY("core_clk",		gp2_clk.c,		"", 0),
