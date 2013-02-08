@@ -500,6 +500,7 @@ extern struct platform_device ipq806x_rpm_master_stat_device;
 extern struct platform_device ipq806x_rtb_device;
 extern struct platform_device ipq806x_msm_gov_device;
 extern struct platform_device ipq806x_device_cache_erp;
+extern struct platform_device ipq806x_device_sata;
 extern struct platform_device ipq806x_device_ebi1_ch0_erp;
 extern struct platform_device ipq806x_cache_dump_device;
 extern struct platform_device ipq806x_msm_mpd_device;

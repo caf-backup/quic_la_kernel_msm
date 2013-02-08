@@ -190,6 +190,7 @@ VREG_CONSUMERS(S4) = {
 	REGULATOR_SUPPLY("vddp",		"0-0048"),
 	REGULATOR_SUPPLY("hdmi_lvl_tsl",	"hdmi_msm.0"),
 	REGULATOR_SUPPLY("vdd-io",		"spi0.2"),
+	REGULATOR_SUPPLY("sata_pmp_pwr",        "msm_sata.0"),
 };
 VREG_CONSUMERS(S5) = {
 	REGULATOR_SUPPLY("8921_s5",		NULL),
@@ -257,6 +258,10 @@ VREG_CONSUMERS(EXT_3P3V) = {
 VREG_CONSUMERS(EXT_TS_SW) = {
 	REGULATOR_SUPPLY("ext_ts_sw",		NULL),
 	REGULATOR_SUPPLY("vdd_ana",		"3-005b"),
+};
+VREG_CONSUMERS(EXT_SATA_PWR) = {
+	REGULATOR_SUPPLY("ext_sata_pwr",        NULL),
+	REGULATOR_SUPPLY("sata_ext_3p3v",       "msm_sata.0"),
 };
 
 /* Regulators that are only present when using PM8921 */
@@ -377,7 +382,8 @@ VREG_CONSUMERS(EXT_5V) = {
 		.pin_ctrl	= _pin_ctrl, \
 	}
 
-#define GPIO_VREG(_id, _reg_name, _gpio_label, _gpio, _supply_regulator) \
+#define GPIO_VREG(_id, _reg_name, _gpio_label, _gpio, _supply_regulator, \
+		_active_low) \
 	[GPIO_VREG_ID_##_id] = { \
 		.init_data = { \
 			.constraints = { \
@@ -391,6 +397,7 @@ VREG_CONSUMERS(EXT_5V) = {
 		.regulator_name = _reg_name, \
 		.gpio_label	= _gpio_label, \
 		.gpio		= _gpio, \
+		.active_low     = _active_low, \
 	}
 
 #define SAW_VREG_INIT(_id, _name, _min_uV, _max_uV) \
@@ -505,14 +512,17 @@ VREG_CONSUMERS(EXT_5V) = {
 /* GPIO regulator constraints */
 struct gpio_regulator_platform_data
 ipq806x_gpio_regulator_pdata[] __devinitdata = {
-	/*        ID      vreg_name gpio_label   gpio                  supply */
-	GPIO_VREG(EXT_5V, "ext_5v", "ext_5v_en", PM8921_MPP_PM_TO_SYS(7), NULL),
+	/*        ID      vreg_name gpio_label   gpio   supply  active_low */
+	GPIO_VREG(EXT_5V, "ext_5v", "ext_5v_en",
+				PM8921_MPP_PM_TO_SYS(7), NULL, 0),
 	GPIO_VREG(EXT_3P3V, "ext_3p3v", "ext_3p3v_en",
-		  IPQ806X_EXT_3P3V_REG_EN_GPIO, NULL),
+		  IPQ806X_EXT_3P3V_REG_EN_GPIO, NULL, 0),
 	GPIO_VREG(EXT_TS_SW, "ext_ts_sw", "ext_ts_sw_en",
-		  PM8921_GPIO_PM_TO_SYS(23), "ext_3p3v"),
+		  PM8921_GPIO_PM_TO_SYS(23), "ext_3p3v", 0),
 	GPIO_VREG(EXT_MPP8, "ext_mpp8", "ext_mpp8_en",
-			PM8921_MPP_PM_TO_SYS(8), NULL),
+			PM8921_MPP_PM_TO_SYS(8), NULL, 1),
+	GPIO_VREG(EXT_SATA_PWR, "ext_sata_pwr", "ext_sata_pwr_en",
+			PM8921_MPP_PM_TO_SYS(4), "ext_3p3v", 1),
 };
 
 /* SAW regulator constraints */
