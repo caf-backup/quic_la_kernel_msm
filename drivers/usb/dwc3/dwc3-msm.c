@@ -1510,6 +1510,7 @@ static int __devinit dwc3_msm_probe(struct platform_device *pdev)
 	dwc3->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 	dwc3->dev.dma_mask = &dwc3_msm_dma_mask;
 	dwc3->dev.dma_parms = pdev->dev.dma_parms;
+	dwc3->dev.id = pdev->id;
 	msm->resource_size = resource_size(res);
 	msm->dwc3 = dwc3;
 

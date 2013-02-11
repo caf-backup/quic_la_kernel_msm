@@ -46,7 +46,7 @@ int dwc3_host_init(struct dwc3 *dwc)
 	int			ret;
 	struct xhci_plat_data	pdata;
 
-	xhci = platform_device_alloc("xhci-hcd", -1);
+	xhci = platform_device_alloc("xhci-hcd", dwc->dev->id);
 	if (!xhci) {
 		dev_err(dwc->dev, "couldn't allocate xHCI device\n");
 		ret = -ENOMEM;
