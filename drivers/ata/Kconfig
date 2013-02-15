@@ -94,6 +94,12 @@ config SATA_AHCI_MSM
 
 	  If unsure, say N.
 
+config SATA_SNPS_PHY
+	bool "SATA Synopsys PHY"
+	depends on ARCH_MSM
+	help
+	  This option adds support for SATA Synopsys PHY.
+
 config SATA_FSL
 	tristate "Freescale 3.0Gbps SATA support"
 	depends on FSL_SOC

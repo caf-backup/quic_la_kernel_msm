@@ -267,6 +267,7 @@ config ARCH_IPQ806X
 	select MULTI_IRQ_HANDLER
 	select QCACHE
 	select REGULATOR
+	select SATA_SNPS_PHY
 
 config ARCH_MSM8974
 	bool "MSM8974"

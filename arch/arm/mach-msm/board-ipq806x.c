@@ -80,12 +80,13 @@
 #include <mach/restart.h>
 #include <mach/msm_iomap.h>
 #include <mach/msm_nss_gmac.h>
+#include <mach/mpm.h>
+#include <linux/regulator/fixed.h>
 
 #include "msm_watchdog.h"
 #include "board-ipq806x.h"
 #include "clock.h"
 #include "spm.h"
-#include <mach/mpm.h>
 #include "rpm_resources.h"
 #include "pm.h"
 #include "pm-boot.h"
@@ -1750,6 +1751,8 @@ static struct platform_device *common_devices[] __initdata = {
 	&ipq806x_device_nss_crypto[1],
 	&ipq806x_device_nss_crypto[2],
 	&ipq806x_device_nss_crypto[3],
+
+	&ipq806x_device_sata,
 };
 
 static struct platform_device *cdp_devices[] __initdata = {
@@ -1978,6 +1981,11 @@ static void ipq806x_spi_register(void)
 }
 #endif
 
+static struct regulator_consumer_supply ahci0_dummy_supply[] = {
+	REGULATOR_SUPPLY("sata_ext_3p3v",  "msm_sata.0"),
+	REGULATOR_SUPPLY("sata_pmp_pwr",  "msm_sata.0"),
+};
+
 static void __init ipq806x_common_init(void)
 {
 	u32 platform_version = socinfo_get_platform_version();
@@ -1989,6 +1997,8 @@ static void __init ipq806x_common_init(void)
 		pr_err("socinfo_init() failed!\n");
 	if (machine_is_ipq806x_rumi3()) {
 		msm_clock_init(&ipq806x_dummy_clock_init_data);
+		regulator_register_fixed(0, ahci0_dummy_supply,
+						ARRAY_SIZE(ahci0_dummy_supply));
 	} else {
 		BUG_ON(msm_rpm_init(&ipq806x_rpm_data));
 		BUG_ON(msm_rpmrs_levels_init(&msm_rpmrs_data));
@@ -2000,6 +2010,8 @@ static void __init ipq806x_common_init(void)
 			pr_err("Failed to initialize XO votes\n");
 		msm_clock_init(&ipq806x_clock_init_data);
 	}
+
+
 	ipq806x_init_gpiomux();
 
 	if (!machine_is_ipq806x_rumi3()) {
@@ -2174,7 +2186,6 @@ static void __init ipq806x_init(void)
 			pr_err("%s: pm8921 MPP %d init config failed(%d)\n",
 					__func__, PM8921_MPP_PM_TO_SYS(4), ret);
 		platform_device_register(&ipq806x_device_ext_3p3v_mpp4_vreg);
-		platform_device_register(&ipq806x_device_sata);
 	}
 }
 

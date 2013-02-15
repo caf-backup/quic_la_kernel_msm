@@ -2966,6 +2966,15 @@ static struct clk_lookup msm_clocks_ipq806x_dummy[] = {
 	CLK_DUMMY("cal_clk",         usb_hsic_hsio_cal_clk.c, "msm_hsic_host",0),
 	CLK_DUMMY("core_clk",        usb_hsic_system_clk.c,   "msm_hsic_host",0),
 	CLK_DUMMY("iface_clk",       usb_hsic_p_clk.c,        "msm_hsic_host",0),
+
+	CLK_DUMMY("ref_clk",		REF_CLK,		NULL, "msm_sata.0"),
+	CLK_DUMMY("cfg_clk",		CFG_CLK,		NULL, "msm_sata.0"),
+	CLK_DUMMY("src_clk",		SRC_CLK,		NULL, "msm_sata.0"),
+	CLK_DUMMY("core_rxoob_clk",	CORE_RXOOB_CLK,		NULL, "msm_sata.0"),
+	CLK_DUMMY("core_pmalive_clk",	CORE_PMALIVE_CLK,	NULL, "msm_sata.0"),
+	CLK_DUMMY("bus_clk",		BUS_CLK,		NULL, "msm_sata.0"),
+	CLK_DUMMY("iface_clk",		IFACE_CLK,		NULL, "msm_sata.0"),
+	CLK_DUMMY("slave_iface_clk",	SLAVE_IFACE_CLK,	NULL, "msm_sata.0"),
 };
 
 /*

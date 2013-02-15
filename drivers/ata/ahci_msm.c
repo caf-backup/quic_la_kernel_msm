@@ -1,3 +1,4 @@
+/* * Copyright (c) 2013 Qualcomm Atheros, Inc. * */
 /*
  * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
@@ -154,6 +155,12 @@
 #define AHCI_HOST_CAP		0x00
 #define AHCI_HOST_CAP_MASK	0x1F
 #define AHCI_HOST_CAP_PMP	(1 << 17)
+
+#define SATA_PHY_P0_PARAM0		0x200
+#define SATA_PHY_P0_PARAM1		0x204
+#define SATA_PHY_P0_PARAM2		0x208
+#define SATA_PHY_P0_PARAM3		0x20C
+#define SATA_PHY_P0_PARAM4		0x210
 
 struct msm_sata_hba {
 	struct platform_device *ahci_pdev;
@@ -467,6 +474,83 @@ static void msm_sata_vreg_deinit(struct device *dev)
 				"sata_pmp_pwr", 1800000);
 }
 
+#ifdef CONFIG_SATA_SNPS_PHY
+static void msm_sata_phy_deinit(struct device *dev)
+{
+	/* Synopsys PHY specific Power Down Sequence */
+
+	struct msm_sata_hba *hba = dev_get_drvdata(dev);
+
+	devm_iounmap(dev, hba->phy_base);
+}
+
+static int msm_sata_phy_init(struct device *dev)
+{
+	/* Synopsys PHY specific Power Up Sequence */
+
+	u32 reg = 0;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct msm_sata_hba *hba = dev_get_drvdata(dev);
+	struct resource *mem;
+
+	mem = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phy_mem");
+	if (!mem) {
+		dev_err(dev, "no mmio space\n");
+		return -EINVAL;
+	}
+
+	hba->phy_base = devm_ioremap(dev, mem->start, resource_size(mem));
+	if (!hba->phy_base) {
+		dev_err(dev, "failed to allocate memory for SATA PHY\n");
+		return -ENOMEM;
+	}
+
+
+	/* Setting SSC_EN to 1 */
+
+	reg = readl_relaxed(hba->phy_base + SATA_PHY_P0_PARAM3);
+	reg = reg | 0x08;
+	writel_relaxed(reg, hba->phy_base + SATA_PHY_P0_PARAM3);
+
+	/*
+	 * Setting P0_TX_PREEMPH_GEN1=0x15
+	 * Setting P0_TX_PREEMPH_GEN2=0x15
+	 * Setting P0_TX_PREEMPH_GEN3=0x20
+	 */
+
+	writel_relaxed(0x00220555, hba->phy_base + SATA_PHY_P0_PARAM0);
+
+	/*
+	 * Setting P0_TX_AMPLITUDE_GEN1=0x71
+	 * Setting P0_TX_AMPLITUDE_GEN2=0x71
+	 * Setting P0_TX_AMPLITUDE_GEN3=0x71
+	 */
+
+	writel_relaxed(0x007c78f1, hba->phy_base + SATA_PHY_P0_PARAM1);
+
+	/* Setting PHY_RESET to 1 */
+
+	reg = readl_relaxed(hba->phy_base + SATA_PHY_P0_PARAM4);
+	reg = reg | 0x01;
+	writel_relaxed(reg, hba->phy_base + SATA_PHY_P0_PARAM4);
+
+	/* Setting REF_SSP_EN to 1 */
+
+	reg = readl_relaxed(hba->phy_base + SATA_PHY_P0_PARAM4);
+	reg = reg | 0x03;
+	writel_relaxed(reg, hba->phy_base + SATA_PHY_P0_PARAM4);
+	mb();
+	msm_sata_delay_us(20);
+
+	/* Clearing PHY_RESET to 0 */
+
+	reg = readl_relaxed(hba->phy_base + SATA_PHY_P0_PARAM4);
+	reg = reg & 0xfffffffe;
+	writel_relaxed(reg, hba->phy_base + SATA_PHY_P0_PARAM4);
+
+	return 0;
+}
+#else
 static void msm_sata_phy_deinit(struct device *dev)
 {
 	struct msm_sata_hba *hba = dev_get_drvdata(dev);
@@ -604,6 +688,7 @@ out:
 
 	return ret;
 }
+#endif
 
 int msm_sata_init(struct device *ahci_dev, void __iomem *mmio)
 {
