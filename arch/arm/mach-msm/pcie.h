@@ -27,7 +27,7 @@
 	if (msm_pcie_get_debug_mask())   \
 		pr_info(x);              \
 	} while (0)
-
+#define PCIE_VREG_REQ             0
 /* voltage regulator info structrue */
 struct msm_pcie_vreg_info_t {
 	struct regulator  *hdl;
@@ -35,6 +35,7 @@ struct msm_pcie_vreg_info_t {
 	uint32_t           max_v;
 	uint32_t           min_v;
 	uint32_t           opt_mode;
+	uint32_t           required;
 };
 
 /* clock info structure */

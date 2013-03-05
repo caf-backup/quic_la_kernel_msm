@@ -574,6 +574,39 @@ static struct msm_gpiomux_config ipq806x_sdc3_configs[] __initdata = {
 	},
 };
 
+
+#ifdef CONFIG_MSM_PCIE
+static struct gpiomux_setting pcie_rst_n = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+
+static struct gpiomux_setting pcie_pwr_en = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+
+static struct msm_gpiomux_config ipq806x_pcie_configs[] __initdata = {
+	{
+		.gpio      = PCIE_RST_GPIO,
+		.settings = {
+		[GPIOMUX_SUSPENDED] = &pcie_rst_n,
+		[GPIOMUX_ACTIVE] = &pcie_rst_n,
+		},
+	},
+	{
+		.gpio      = PCIE_PWR_EN_GPIO,
+		.settings = {
+		[GPIOMUX_SUSPENDED] = &pcie_pwr_en,
+		[GPIOMUX_ACTIVE] = &pcie_pwr_en,
+		},
+	},
+};
+
+#endif
+
 void __init ipq806x_init_gpiomux(void)
 {
 	int rc;
@@ -608,4 +641,9 @@ void __init ipq806x_init_gpiomux(void)
 #endif
 	msm_gpiomux_install(ipq806x_sdc3_configs,
 			ARRAY_SIZE(ipq806x_sdc3_configs));
+#ifdef CONFIG_MSM_PCIE
+	msm_gpiomux_install(ipq806x_pcie_configs,
+			ARRAY_SIZE(ipq806x_pcie_configs));
+
+#endif
 }

@@ -1489,29 +1489,35 @@ static void __init ipq806x_init_buses(void)
 
 /* PCIe gpios */
 static struct msm_pcie_gpio_info_t msm_pcie_gpio_info[MSM_PCIE_MAX_GPIO] = {
-	{"rst_n", PM8921_MPP_PM_TO_SYS(PCIE_RST_N_PMIC_MPP), 0},
-	{"pwr_en", PM8921_GPIO_PM_TO_SYS(PCIE_PWR_EN_PMIC_GPIO), 1},
+	{"rst_n", PCIE_RST_GPIO , 0},
+	{"pwr_en", PCIE_PWR_EN_GPIO, 1},
 };
 
 static struct msm_pcie_platform msm_pcie_platform_data = {
 	.gpio = msm_pcie_gpio_info,
 	.axi_addr = PCIE_AXI_BAR_PHYS,
 	.axi_size = PCIE_AXI_BAR_SIZE,
-	.wake_n = PM8921_GPIO_IRQ(PM8921_IRQ_BASE, PCIE_WAKE_N_PMIC_GPIO),
 };
 
 static int __init ipq806x_pcie_enabled(void)
 {
-	return !((readl_relaxed(QFPROM_RAW_FEAT_CONFIG_ROW0_MSB) & BIT(21)) ||
-		(readl_relaxed(QFPROM_RAW_OEM_CONFIG_ROW0_LSB) & BIT(4)));
+	if (machine_is_ipq806x_rumi3())
+		return 1;
+
+	return !((readl_relaxed(QFPROM_RAW_FEAT_CONFIG_ROW0_MSB) &
+			BIT(21)) ||
+			(readl_relaxed(QFPROM_RAW_OEM_CONFIG_ROW0_LSB) &
+			BIT(4)));
 }
 
 static void __init ipq806x_pcie_init(void)
 {
-	if (ipq806x_pcie_enabled()) {
-		msm_device_pcie.dev.platform_data = &msm_pcie_platform_data;
-		platform_device_register(&msm_device_pcie);
-	}
+	if (!ipq806x_pcie_enabled())
+		return;
+
+	msm_pcie_platform_data.wake_n = gpio_to_irq(PCIE_WAKE_N_GPIO);
+	msm_device_pcie.dev.platform_data = &msm_pcie_platform_data;
+	platform_device_register(&msm_device_pcie);
 }
 
 static struct platform_device ipq806x_device_ext_5v_vreg __devinitdata = {

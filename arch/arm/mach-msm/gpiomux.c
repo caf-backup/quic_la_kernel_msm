@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/gpio.h>
 #include <mach/gpiomux.h>
 
 struct msm_gpiomux_rec {
@@ -140,10 +141,13 @@ void msm_gpiomux_install(struct msm_gpiomux_config *configs, unsigned nconfigs)
 
 	for (c = 0; c < nconfigs; ++c) {
 		for (s = 0; s < GPIOMUX_NSETTINGS; ++s) {
-			rc = msm_gpiomux_write(configs[c].gpio, s,
-				configs[c].settings[s], NULL);
-			if (rc)
-				pr_err("%s: write failure: %d\n", __func__, rc);
+			if (gpio_is_valid(configs[c].gpio)) {
+				rc = msm_gpiomux_write(configs[c].gpio, s,
+					configs[c].settings[s], NULL);
+				if (rc)
+					pr_err("%s: write failure: %d\n",
+						__func__, rc);
+			}
 		}
 	}
 }

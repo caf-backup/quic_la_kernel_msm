@@ -1291,7 +1291,7 @@ static struct resource resources_msm_pcie[] = {
 
 struct platform_device msm_device_pcie = {
 	.name           = "msm_pcie",
-	.id             = -1,
+	.id             = 0,
 	.num_resources  = ARRAY_SIZE(resources_msm_pcie),
 	.resource       = resources_msm_pcie,
 };
@@ -1696,16 +1696,6 @@ static uint16_t msm_mpm_bypassed_apps_irqs[] __initdata = {
 	RPM_APCC_CPU1_GP_MEDIUM_IRQ,
 	RPM_APCC_CPU1_GP_LOW_IRQ,
 	RPM_APCC_CPU1_WAKE_UP_IRQ,
-	GSS_TO_APPS_IRQ_0,
-	GSS_TO_APPS_IRQ_1,
-	GSS_TO_APPS_IRQ_2,
-	GSS_TO_APPS_IRQ_3,
-	GSS_TO_APPS_IRQ_4,
-	GSS_TO_APPS_IRQ_5,
-	GSS_TO_APPS_IRQ_6,
-	GSS_TO_APPS_IRQ_7,
-	GSS_TO_APPS_IRQ_8,
-	GSS_TO_APPS_IRQ_9,
 	LPASS_SCSS_GP_LOW_IRQ,
 	LPASS_SCSS_GP_MEDIUM_IRQ,
 	LPASS_SCSS_GP_HIGH_IRQ,

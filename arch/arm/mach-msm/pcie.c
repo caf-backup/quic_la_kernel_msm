@@ -33,6 +33,7 @@
 #include <mach/gpiomux.h>
 #include <mach/hardware.h>
 #include <mach/msm_iomap.h>
+#include <asm/mach/arch.h>
 
 #include "pcie.h"
 
@@ -99,10 +100,10 @@ static struct msm_pcie_dev_t msm_pcie_dev;
 
 /* regulators */
 static struct msm_pcie_vreg_info_t msm_pcie_vreg_info[MSM_PCIE_MAX_VREG] = {
-	{NULL, "vp_pcie",      1050000, 1050000, 40900},
-	{NULL, "vptx_pcie",    1050000, 1050000, 18200},
-	{NULL, "vdd_pcie_vph",       0,       0,     0},
-	{NULL, "pcie_ext_3p3v",      0,       0,     0}
+	{NULL, "vp_pcie",      1050000, 1050000, 40900, PCIE_VREG_REQ},
+	{NULL, "vptx_pcie",    1050000, 1050000, 18200, PCIE_VREG_REQ},
+	{NULL, "vdd_pcie_vph",       0,       0,     0, PCIE_VREG_REQ},
+	{NULL, "pcie_ext_3p3v",      0,       0,     0, PCIE_VREG_REQ}
 };
 
 /* clocks */
@@ -226,6 +227,9 @@ static int __init msm_pcie_gpio_init(void)
 	for (i = 0; i < MSM_PCIE_MAX_GPIO; i++) {
 		info = &msm_pcie_dev.gpio[i];
 
+		if (!gpio_is_valid(info->num))
+			continue;
+
 		rc = gpio_request(info->num, info->name);
 		if (rc) {
 			pr_err("can't get gpio %s; %d\n", info->name, rc);
@@ -264,7 +268,8 @@ static int __init msm_pcie_vreg_init(struct device *dev)
 
 	for (i = 0; i < MSM_PCIE_MAX_VREG; i++) {
 		info = &msm_pcie_dev.vreg[i];
-
+		if (msm_pcie_dev.vreg[i].required == 0)
+			continue;
 		vreg = regulator_get(dev, info->name);
 		if (!vreg || IS_ERR(vreg)) {
 			rc = (PTR_ERR(vreg)) ? PTR_ERR(vreg) : -ENODEV;
@@ -512,10 +517,12 @@ static int __init msm_pcie_setup(int nr, struct pci_sys_data *sys)
 	if (rc)
 		goto clk_fail;
 
-	/* enable pcie power; wait 3ms for clock to stabilize */
-	gpio_set_value_cansleep(dev->gpio[MSM_PCIE_GPIO_PWR_EN].num,
-				dev->gpio[MSM_PCIE_GPIO_PWR_EN].on);
-	usleep(3000);
+	if (gpio_is_valid(dev->gpio[MSM_PCIE_GPIO_PWR_EN].num)) {
+		/* enable pcie power; wait 3ms for clock to stabilize */
+		gpio_set_value_cansleep(dev->gpio[MSM_PCIE_GPIO_PWR_EN].num,
+					dev->gpio[MSM_PCIE_GPIO_PWR_EN].on);
+		usleep(3000);
+	}
 
 	/*
 	 * de-assert PCIe PARF reset;

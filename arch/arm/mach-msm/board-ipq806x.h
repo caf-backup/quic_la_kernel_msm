@@ -19,8 +19,11 @@
 #include <mach/msm_memtypes.h>
 #include <mach/irqs.h>
 #include <mach/rpm-regulator.h>
+#include <linux/regulator/fixed.h>
 #include <mach/msm_rtb.h>
 #include <mach/msm_cache_dump.h>
+
+#include "pcie.h"
 
 /* Macros assume PMIC GPIOs and MPPs start at 1 */
 #define PM8921_GPIO_BASE		NR_GPIO_IRQS
@@ -61,6 +64,7 @@ extern struct rpm_regulator_platform_data
 
 extern struct rpm_regulator_platform_data
 	ipq806x_rpm_regulator_pm8921_pdata __devinitdata;
+
 
 extern struct regulator_init_data ipq806x_saw_regulator_pdata_8921_s5;
 extern struct regulator_init_data ipq806x_saw_regulator_pdata_8921_s6;
@@ -122,6 +126,14 @@ enum {
 	SX150X_EXP3,
 	SX150X_EXP4,
 };
+
+/* GPIO Definitions for IPQ806x */
+
+/* PCIE gpios */
+#define PCIE_RST_GPIO           3
+#define PCIE_PWR_EN_GPIO        -EINVAL
+#define PCIE_WAKE_N_GPIO        4
+
 
 extern struct msm_rtb_platform_data ipq806x_rtb_pdata;
 extern struct msm_cache_dump_platform_data ipq806x_cache_dump_pdata;
