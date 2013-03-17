@@ -1000,7 +1000,7 @@ int __init ipq806x_add_sdcc(unsigned int controller,
 
 	if (!plat)
 		return 0;
-	if (controller < 1 || controller > 4)
+	if (controller < 1 || controller > 2)
 		return -EINVAL;
 
 	pdev = ipq806x_sdcc_devices[controller-1];

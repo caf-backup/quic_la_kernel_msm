@@ -1979,9 +1979,9 @@ static void __init ipq806x_common_init(void)
 		enable_ddr3_regulator();
 		msm_hsic_pdata.swfi_latency = msm_rpmrs_levels[0].latency_us;
 		ipq806x_pm8xxx_gpio_mpp_init();
-		ipq806x_init_mmc();
 
 	}
+	ipq806x_init_mmc();
 	msm_spm_init(msm_spm_data, ARRAY_SIZE(msm_spm_data));
 	msm_spm_l2_init(msm_spm_l2_data);
 	if (!machine_is_ipq806x_rumi3()) {

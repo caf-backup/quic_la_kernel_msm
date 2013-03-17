@@ -29,28 +29,16 @@
 
 /*
  * ipq806x has 2 SDCC controllers sdc1 and sdc3
- * However, leave the sdc2 and sdc4 stuff as is...
+ * So removed sdc2 and sdc4 related code here...
  */
 enum sdcc_controllers {
 	SDCC1,
-	SDCC2,
 	SDCC3,
-	SDCC4,
 	MAX_SDCC_CONTROLLER
 };
 
 /* All SDCC controllers require VDD/VCC voltage */
 static struct msm_mmc_reg_data mmc_vdd_reg_data[MAX_SDCC_CONTROLLER] = {
-	/* SDCC1 : eMMC card connected */
-	[SDCC1] = {
-		.name = "sdc_vdd",
-		.high_vol_level = 2950000,
-		.low_vol_level = 2950000,
-		.always_on = 1,
-		.lpm_sup = 1,
-		.lpm_uA = 9000,
-		.hpm_uA = 200000, /* 200mA */
-	},
 	/* SDCC3 : External card slot connected */
 	[SDCC3] = {
 		.name = "sdc_vdd",
@@ -62,14 +50,6 @@ static struct msm_mmc_reg_data mmc_vdd_reg_data[MAX_SDCC_CONTROLLER] = {
 
 /* SDCC controllers may require voting for VDD IO voltage */
 static struct msm_mmc_reg_data mmc_vdd_io_reg_data[MAX_SDCC_CONTROLLER] = {
-	/* SDCC1 : eMMC card connected */
-	[SDCC1] = {
-		.name = "sdc_vdd_io",
-		.always_on = 1,
-		.high_vol_level = 1800000,
-		.low_vol_level = 1800000,
-		.hpm_uA = 200000, /* 200mA */
-	},
 	/* SDCC3 : External card slot connected */
 	[SDCC3] = {
 		.name = "sdc_vdd_io",
@@ -89,41 +69,11 @@ static struct msm_mmc_reg_data mmc_vdd_io_reg_data[MAX_SDCC_CONTROLLER] = {
 };
 
 static struct msm_mmc_slot_reg_data mmc_slot_vreg_data[MAX_SDCC_CONTROLLER] = {
-	/* SDCC1 : eMMC card connected */
-	[SDCC1] = {
-		.vdd_data = &mmc_vdd_reg_data[SDCC1],
-		.vdd_io_data = &mmc_vdd_io_reg_data[SDCC1],
-	},
 	/* SDCC3 : External card slot connected */
 	[SDCC3] = {
 		.vdd_data = &mmc_vdd_reg_data[SDCC3],
 		.vdd_io_data = &mmc_vdd_io_reg_data[SDCC3],
 	}
-};
-
-/* SDC1 pad data */
-static struct msm_mmc_pad_drv sdc1_pad_drv_on_cfg[] = {
-	{TLMM_HDRV_SDC1_CLK, GPIO_CFG_16MA},
-	{TLMM_HDRV_SDC1_CMD, GPIO_CFG_10MA},
-	{TLMM_HDRV_SDC1_DATA, GPIO_CFG_10MA}
-};
-
-static struct msm_mmc_pad_drv sdc1_pad_drv_off_cfg[] = {
-	{TLMM_HDRV_SDC1_CLK, GPIO_CFG_2MA},
-	{TLMM_HDRV_SDC1_CMD, GPIO_CFG_2MA},
-	{TLMM_HDRV_SDC1_DATA, GPIO_CFG_2MA}
-};
-
-static struct msm_mmc_pad_pull sdc1_pad_pull_on_cfg[] = {
-	{TLMM_PULL_SDC1_CLK, GPIO_CFG_NO_PULL},
-	{TLMM_PULL_SDC1_CMD, GPIO_CFG_PULL_UP},
-	{TLMM_PULL_SDC1_DATA, GPIO_CFG_PULL_UP}
-};
-
-static struct msm_mmc_pad_pull sdc1_pad_pull_off_cfg[] = {
-	{TLMM_PULL_SDC1_CLK, GPIO_CFG_NO_PULL},
-	{TLMM_PULL_SDC1_CMD, GPIO_CFG_PULL_UP},
-	{TLMM_PULL_SDC1_DATA, GPIO_CFG_PULL_UP}
 };
 
 /* SDC3 pad data */
@@ -152,11 +102,6 @@ static struct msm_mmc_pad_pull sdc3_pad_pull_off_cfg[] = {
 };
 
 static struct msm_mmc_pad_pull_data mmc_pad_pull_data[MAX_SDCC_CONTROLLER] = {
-	[SDCC1] = {
-		.on = sdc1_pad_pull_on_cfg,
-		.off = sdc1_pad_pull_off_cfg,
-		.size = ARRAY_SIZE(sdc1_pad_pull_on_cfg)
-	},
 	[SDCC3] = {
 		.on = sdc3_pad_pull_on_cfg,
 		.off = sdc3_pad_pull_off_cfg,
@@ -165,11 +110,6 @@ static struct msm_mmc_pad_pull_data mmc_pad_pull_data[MAX_SDCC_CONTROLLER] = {
 };
 
 static struct msm_mmc_pad_drv_data mmc_pad_drv_data[MAX_SDCC_CONTROLLER] = {
-	[SDCC1] = {
-		.on = sdc1_pad_drv_on_cfg,
-		.off = sdc1_pad_drv_off_cfg,
-		.size = ARRAY_SIZE(sdc1_pad_drv_on_cfg)
-	},
 	[SDCC3] = {
 		.on = sdc3_pad_drv_on_cfg,
 		.off = sdc3_pad_drv_off_cfg,
@@ -178,59 +118,41 @@ static struct msm_mmc_pad_drv_data mmc_pad_drv_data[MAX_SDCC_CONTROLLER] = {
 };
 
 static struct msm_mmc_pad_data mmc_pad_data[MAX_SDCC_CONTROLLER] = {
-	[SDCC1] = {
-		.pull = &mmc_pad_pull_data[SDCC1],
-		.drv = &mmc_pad_drv_data[SDCC1]
-	},
 	[SDCC3] = {
 		.pull = &mmc_pad_pull_data[SDCC3],
 		.drv = &mmc_pad_drv_data[SDCC3]
 	},
 };
 
-static struct msm_mmc_gpio sdc2_gpio[] = {
-	{59, "sdc2_clk"},
-	{57, "sdc2_cmd"},
-	{62, "sdc2_dat_0"},
-	{61, "sdc2_dat_1"},
-	{60, "sdc2_dat_2"},
-	{58, "sdc2_dat_3"},
-};
-
-static struct msm_mmc_gpio sdc4_gpio[] = {
-	{68, "sdc4_clk"},
-	{67, "sdc4_cmd"},
-	{66, "sdc4_dat_0"},
-	{65, "sdc4_dat_1"},
-	{64, "sdc4_dat_2"},
-	{63, "sdc4_dat_3"},
+static struct msm_mmc_gpio sdc1_gpio[] = {
+	{42, "sdc1_clk"},
+	{45, "sdc1_cmd"},
+	{44, "sdc1_dat_0"},
+	{43, "sdc1_dat_1"},
+	{41, "sdc1_dat_2"},
+	{40, "sdc1_dat_3"},
+#ifdef CONFIG_MMC_MSM_SDC1_8_BIT_SUPPORT
+	{47, "sdc1_dat_4"},
+	{46, "sdc1_dat_5"},
+	{39, "sdc1_dat_6"},
+	{38, "sdc1_dat_7"},
+#endif
 };
 
 static struct msm_mmc_gpio_data mmc_gpio_data[MAX_SDCC_CONTROLLER] = {
-	[SDCC2] = {
-		.gpio = sdc2_gpio,
-		.size = ARRAY_SIZE(sdc2_gpio),
+	[SDCC1] = {
+		.gpio = sdc1_gpio,
+		.size = ARRAY_SIZE(sdc1_gpio),
 	},
-	[SDCC4] = {
-		.gpio = sdc4_gpio,
-		.size = ARRAY_SIZE(sdc4_gpio),
-	}
 };
 
 static struct msm_mmc_pin_data mmc_slot_pin_data[MAX_SDCC_CONTROLLER] = {
 	[SDCC1] = {
-		.pad_data = &mmc_pad_data[SDCC1],
-	},
-	[SDCC2] = {
 		.is_gpio = 1,
-		.gpio_data = &mmc_gpio_data[SDCC2],
+		.gpio_data = &mmc_gpio_data[SDCC1],
 	},
 	[SDCC3] = {
 		.pad_data = &mmc_pad_data[SDCC3],
-	},
-	[SDCC4] = {
-		.is_gpio = 1,
-		.gpio_data = &mmc_gpio_data[SDCC4],
 	},
 };
 
@@ -253,34 +175,12 @@ static struct mmc_platform_data sdc1_data = {
 	.sup_clk_cnt	= ARRAY_SIZE(sdc1_sup_clk_rates),
 	.nonremovable	= 1,
 	.pin_data	= &mmc_slot_pin_data[SDCC1],
-	.vreg_data	= &mmc_slot_vreg_data[SDCC1],
-	.uhs_caps	= MMC_CAP_1_8V_DDR | MMC_CAP_UHS_DDR50,
-	.uhs_caps2	= MMC_CAP2_HS200_1_8V_SDR,
 	.mpm_sdiowakeup_int = MSM_MPM_PIN_SDC1_DAT1,
 	.msm_bus_voting_data = &sps_to_ddr_bus_voting_data,
 };
 static struct mmc_platform_data *ipq806x_sdc1_pdata = &sdc1_data;
 #else
 static struct mmc_platform_data *ipq806x_sdc1_pdata;
-#endif
-
-#ifdef CONFIG_MMC_MSM_SDC2_SUPPORT
-static unsigned int sdc2_sup_clk_rates[] = {
-	400000, 24000000, 48000000
-};
-
-static struct mmc_platform_data sdc2_data = {
-	.ocr_mask       = MMC_VDD_27_28 | MMC_VDD_28_29,
-	.mmc_bus_width  = MMC_CAP_4_BIT_DATA,
-	.sup_clk_table	= sdc2_sup_clk_rates,
-	.sup_clk_cnt	= ARRAY_SIZE(sdc2_sup_clk_rates),
-	.pin_data	= &mmc_slot_pin_data[SDCC2],
-	.sdiowakeup_irq = MSM_GPIO_TO_INT(61),
-	.msm_bus_voting_data = &sps_to_ddr_bus_voting_data,
-};
-static struct mmc_platform_data *ipq806x_sdc2_pdata = &sdc2_data;
-#else
-static struct mmc_platform_data *ipq806x_sdc2_pdata;
 #endif
 
 #ifdef CONFIG_MMC_MSM_SDC3_SUPPORT
@@ -313,46 +213,30 @@ static struct mmc_platform_data *ipq806x_sdc3_pdata = &sdc3_data;
 static struct mmc_platform_data *ipq806x_sdc3_pdata;
 #endif
 
-
-#ifdef CONFIG_MMC_MSM_SDC4_SUPPORT
-static unsigned int sdc4_sup_clk_rates[] = {
-	400000, 24000000, 48000000
-};
-
-static struct mmc_platform_data sdc4_data = {
-	.ocr_mask       = MMC_VDD_27_28 | MMC_VDD_28_29,
-	.mmc_bus_width  = MMC_CAP_4_BIT_DATA,
-	.sup_clk_table	= sdc4_sup_clk_rates,
-	.sup_clk_cnt	= ARRAY_SIZE(sdc4_sup_clk_rates),
-	.pin_data	= &mmc_slot_pin_data[SDCC4],
-	.sdiowakeup_irq = MSM_GPIO_TO_INT(65),
-	.msm_bus_voting_data = &sps_to_ddr_bus_voting_data,
-};
-static struct mmc_platform_data *ipq806x_sdc4_pdata = &sdc4_data;
-#else
-static struct mmc_platform_data *ipq806x_sdc4_pdata;
-#endif
-
 void __init ipq806x_init_mmc(void)
 {
-	if (ipq806x_sdc1_pdata)
+	if (ipq806x_sdc1_pdata) {
+		if (machine_is_ipq806x_rumi3()) {
+			sps_to_ddr_bus_voting_data.bw_vecs_size = 0;
+			sdc1_data.msm_bus_voting_data = &sps_to_ddr_bus_voting_data;
+		}
 		ipq806x_add_sdcc(1, ipq806x_sdc1_pdata);
-
-	if (ipq806x_sdc2_pdata)
-		ipq806x_add_sdcc(2, ipq806x_sdc2_pdata);
+	}
 
 	if (ipq806x_sdc3_pdata) {
+		if (machine_is_ipq806x_rumi3()) {
+			sps_to_ddr_bus_voting_data.bw_vecs_size = 0;
+			sdc3_data.msm_bus_voting_data = &sps_to_ddr_bus_voting_data;
+		}
 		if (machine_is_ipq806x_cdp()) {
 			int i;
 			struct msm_mmc_pad_drv_data *drv =
-			     	ipq806x_sdc3_pdata->pin_data->pad_data->drv;
+				ipq806x_sdc3_pdata->pin_data->pad_data->drv;
 
 			for (i = 0; i < drv->size; i++)
 				drv->on[i].val = GPIO_CFG_10MA;
 		}
-		ipq806x_add_sdcc(3, ipq806x_sdc3_pdata);
+		ipq806x_add_sdcc(2, ipq806x_sdc3_pdata);
 	}
 
-	if (ipq806x_sdc4_pdata)
-		ipq806x_add_sdcc(4, ipq806x_sdc4_pdata);
 }

@@ -455,6 +455,109 @@ static struct msm_gpiomux_config ipq806x_gsbi5_spi_configs[] __initdata = {
 };
 #endif
 
+#ifdef CONFIG_MMC_MSM_SDC1_SUPPORT
+static struct gpiomux_setting sdc1_clk_active_cfg = {
+	.func = GPIOMUX_FUNC_2,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+
+static struct gpiomux_setting sdc1_cmd_data_0_3_active_cfg = {
+	.func = GPIOMUX_FUNC_2,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_UP,
+};
+
+static struct gpiomux_setting sdc1_suspended_cfg = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_DOWN,
+};
+
+static struct gpiomux_setting sdc1_data_1_suspended_cfg = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_UP,
+};
+
+static struct msm_gpiomux_config ipq806x_sdc1_configs[] __initdata = {
+	{
+		.gpio      = 42,
+		.settings = {
+			[GPIOMUX_ACTIVE] = &sdc1_clk_active_cfg,
+			[GPIOMUX_SUSPENDED] = &sdc1_suspended_cfg,
+		},
+	},
+	{
+		.gpio      = 45,
+		.settings = {
+			[GPIOMUX_ACTIVE] = &sdc1_cmd_data_0_3_active_cfg,
+			[GPIOMUX_SUSPENDED] = &sdc1_suspended_cfg,
+		},
+
+	},
+	{
+		.gpio      = 44,
+		.settings = {
+			[GPIOMUX_ACTIVE] = &sdc1_cmd_data_0_3_active_cfg,
+			[GPIOMUX_SUSPENDED] = &sdc1_suspended_cfg,
+		},
+	},
+	{
+		.gpio      = 43,
+		.settings = {
+			[GPIOMUX_ACTIVE] = &sdc1_cmd_data_0_3_active_cfg,
+			[GPIOMUX_SUSPENDED] = &sdc1_data_1_suspended_cfg,
+		},
+	},
+	{
+		.gpio      = 41,
+		.settings = {
+			[GPIOMUX_ACTIVE] = &sdc1_cmd_data_0_3_active_cfg,
+			[GPIOMUX_SUSPENDED] = &sdc1_suspended_cfg,
+		},
+	},
+	{
+		.gpio      = 40,
+		.settings = {
+			[GPIOMUX_ACTIVE] = &sdc1_cmd_data_0_3_active_cfg,
+			[GPIOMUX_SUSPENDED] = &sdc1_suspended_cfg,
+		},
+	},
+#ifdef CONFIG_MMC_MSM_SDC1_8_BIT_SUPPORT
+	{
+		.gpio      = 47,
+		.settings = {
+			[GPIOMUX_ACTIVE] = &sdc1_cmd_data_0_3_active_cfg,
+			[GPIOMUX_SUSPENDED] = &sdc1_suspended_cfg,
+		},
+	},
+	{
+		.gpio      = 46,
+		.settings = {
+			[GPIOMUX_ACTIVE] = &sdc1_cmd_data_0_3_active_cfg,
+			[GPIOMUX_SUSPENDED] = &sdc1_suspended_cfg,
+		},
+	},
+	{
+		.gpio      = 39,
+		.settings = {
+			[GPIOMUX_ACTIVE] = &sdc1_cmd_data_0_3_active_cfg,
+			[GPIOMUX_SUSPENDED] = &sdc1_suspended_cfg,
+		},
+	},
+	{
+		.gpio      = 38,
+		.settings = {
+			[GPIOMUX_ACTIVE] = &sdc1_cmd_data_0_3_active_cfg,
+			[GPIOMUX_SUSPENDED] = &sdc1_suspended_cfg,
+		},
+	},
+#endif
+
+};
+#endif
+
 static struct gpiomux_setting ipq806x_sdc3_card_det_cfg = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_2MA,
@@ -499,7 +602,10 @@ void __init ipq806x_init_gpiomux(void)
 
 	msm_gpiomux_install(ipq806x_ext_regulator_configs,
 			ARRAY_SIZE(ipq806x_ext_regulator_configs));
-
+#ifdef CONFIG_MMC_MSM_SDC1_SUPPORT
+	msm_gpiomux_install(ipq806x_sdc1_configs,
+			ARRAY_SIZE(ipq806x_sdc1_configs));
+#endif
 	msm_gpiomux_install(ipq806x_sdc3_configs,
 			ARRAY_SIZE(ipq806x_sdc3_configs));
 }
