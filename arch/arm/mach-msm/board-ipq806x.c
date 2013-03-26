@@ -1579,6 +1579,10 @@ static struct platform_device *common_not_mpq_devices[] __initdata = {
 	&ipq806x_device_qup_i2c_gsbi4,
 };
 
+static struct platform_device *common_ipq_devices[] __initdata = {
+	&ipq806x_device_qup_i2c_gsbi2,
+};
+
 static struct platform_device *common_i2s_devices[] __initdata = {
 };
 
@@ -1692,6 +1696,11 @@ static struct msm_i2c_platform_data ipq806x_i2c_qup_gsbi1_pdata = {
 	.src_clk_rate = 24000000,
 };
 
+static struct msm_i2c_platform_data ipq806x_i2c_qup_gsbi2_pdata = {
+	.clk_freq = 100000,
+	.src_clk_rate = 4800000,
+};
+
 static struct msm_i2c_platform_data ipq806x_i2c_qup_gsbi3_pdata = {
 	.clk_freq = 384000,
 	.src_clk_rate = 24000000,
@@ -1729,6 +1738,8 @@ static void __init ipq806x_i2c_init(void)
 					&ipq806x_i2c_qup_gsbi4_pdata;
 	ipq806x_device_qup_i2c_gsbi5.dev.platform_data =
 					&ipq806x_i2c_qup_gsbi5_pdata;
+	ipq806x_device_qup_i2c_gsbi2.dev.platform_data =
+					&ipq806x_i2c_qup_gsbi2_pdata;
 }
 
 #define GPIO_KEY_HOME			PM8921_GPIO_PM_TO_SYS(27)
@@ -1911,6 +1922,14 @@ static void __init ipq806x_common_init(void)
 		platform_add_devices(pm8921_common_devices,
 					ARRAY_SIZE(pm8921_common_devices));
 	}
+
+	if (machine_is_ipq806x_rumi3()) {
+		ipq806x_device_qup_i2c_gsbi2.dev.platform_data =
+				&ipq806x_i2c_qup_gsbi2_pdata;
+		platform_add_devices(common_ipq_devices,
+				ARRAY_SIZE(common_ipq_devices));
+        }
+
 	if (machine_is_ipq806x_cdp())
 		platform_device_register(&ipq806x_device_ext_ts_sw_vreg);
 	platform_add_devices(common_devices, ARRAY_SIZE(common_devices));

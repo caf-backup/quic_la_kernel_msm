@@ -385,6 +385,34 @@ static struct msm_gpiomux_config ipq806x_mi2s_configs[] __initdata = {
 	},
 };
 
+static struct gpiomux_setting gsbi2_suspended_cfg = {
+	.func = GPIOMUX_FUNC_1,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_UP,
+};
+
+static struct gpiomux_setting gsbi2_active_cfg = {
+	.func = GPIOMUX_FUNC_1,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_UP,
+};
+
+static struct msm_gpiomux_config ipq806x_gsbi2_i2c_configs[] __initdata = {
+	{
+		.gpio      = 25,                        /* GSBI2 I2C QUP SDA */
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &gsbi2_suspended_cfg,
+			[GPIOMUX_ACTIVE] = &gsbi2_active_cfg,
+		},
+	},
+	{
+		.gpio      = 24,                        /* GSBI2 I2C QUP SCL */
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &gsbi2_suspended_cfg,
+			[GPIOMUX_ACTIVE] = &gsbi2_active_cfg,
+		},
+	},
+};
 
 static struct msm_gpiomux_config ipq806x_gsbi5_i2c_configs[] __initdata = {
 	{
@@ -615,6 +643,12 @@ void __init ipq806x_init_gpiomux(void)
 	if (rc) {
 		pr_err(KERN_ERR "msm_gpiomux_init failed %d\n", rc);
 		return;
+	}
+
+	if (machine_is_ipq806x_rumi3())
+	{
+		msm_gpiomux_install(ipq806x_gsbi2_i2c_configs,
+				ARRAY_SIZE(ipq806x_gsbi2_i2c_configs));
 	}
 
 	if (machine_is_ipq806x_cdp()) {
