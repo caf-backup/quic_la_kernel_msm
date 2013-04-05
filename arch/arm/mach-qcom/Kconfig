@@ -4,6 +4,7 @@ menuconfig ARCH_QCOM
 	select ARM_GIC
 	select ARM_AMBA
 	select PINCTRL
+	select ARCH_WANT_KMAP_ATOMIC_FLUSH
 	select QCOM_SCM if SMP
 	select PCI_DOMAINS if PCI
 	help
