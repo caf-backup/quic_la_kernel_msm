@@ -1159,7 +1159,7 @@ static struct msm_thermal_data msm_thermal_pdata = {
 	.freq_step = 2,
 };
 
-#define MSM_SHARED_RAM_PHYS 0x80000000
+#define MSM_SHARED_RAM_PHYS 0x40400000
 static void __init ipq806x_map_io(void)
 {
 	msm_shared_ram_phys = MSM_SHARED_RAM_PHYS;
