@@ -488,6 +488,7 @@ static void msm_spi_setup_dm_transfer(struct msm_spi *dd)
 	bytes_to_send = min_t(u32, dd->tx_bytes_remaining,
 			      dd->max_trfr_len);
 
+	dd->cur_msg->actual_length = bytes_to_send;
 	num_transfers = DIV_ROUND_UP(bytes_to_send, dd->bytes_per_word);
 	dd->tx_unaligned_len = bytes_to_send % dd->output_burst_size;
 	dd->rx_unaligned_len = bytes_to_send % dd->input_burst_size;
@@ -970,11 +971,15 @@ static void msm_spi_unmap_dma_buffers(struct msm_spi *dd)
 						 prev_xfr->len,
 						 DMA_TO_DEVICE);
 			}
-			if (dd->rx_unaligned_len && dd->read_buf) {
-				offset = dd->cur_msg_len - dd->rx_unaligned_len;
+			if (dd->read_buf) {
 				dma_coherent_post_ops();
-				memcpy(dd->read_buf + offset, dd->rx_padding,
-				       dd->rx_unaligned_len);
+				if (dd->unaligned_len) {
+					offset = dd->cur_msg_len
+						- dd->unaligned_len;
+					memcpy(dd->read_buf + offset,
+					       dd->rx_padding,
+					       dd->unaligned_len);
+				}
 				memcpy(dd->cur_transfer->rx_buf,
 				       dd->read_buf + prev_xfr->len,
 				       dd->cur_transfer->len);
@@ -1183,6 +1188,7 @@ static void msm_spi_process_transfer(struct msm_spi *dd)
 				dev_err(dd->dev, "%s: SPI transaction "
 						 "timeout\n", __func__);
 				dd->cur_msg->status = -EIO;
+				dd->cur_msg->actual_length = 0;
 				if (dd->mode == SPI_DMOV_MODE) {
 					msm_dmov_flush(dd->tx_dma_chan, 1);
 					msm_dmov_flush(dd->rx_dma_chan, 1);

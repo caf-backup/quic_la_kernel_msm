@@ -247,6 +247,11 @@ int msm_dmov_exec_cmd(unsigned id, unsigned int cmdptr);
 #define DMOV_NAND_CRCI_CMD		15
 #define DMOV_NAND_CRCI_DATA		3
 
+#define DMOV_SPI_GSBI5_RX_CRCI		9
+#define DMOV_SPI_GSBI5_TX_CRCI		10
+#define DMOV_SPI_GSBI5_RX_CHAN		6
+#define DMOV_SPI_GSBI5_TX_CHAN		5
+
 #elif defined(CONFIG_ARCH_MSM9615)
 
 #define DMOV_GP_CHAN          4

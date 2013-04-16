@@ -1686,8 +1686,32 @@ static struct msm_serial_hs_platform_data msm_uart_dm9_pdata;
 #endif
 
 #ifdef CONFIG_SPI_QUP
+static int gsbi5_dma_config(void)
+{
+	unsigned int i;
+	unsigned int chan_conf = 0;
+	unsigned int crci_conf = 0;
+
+	for (i = 0; i < ipq806x_device_qup_spi_gsbi5.num_resources; i++) {
+		if (!strcmp(ipq806x_device_qup_spi_gsbi5.resource[i].name,
+							"spidm_channels"))
+			chan_conf = 1;
+
+		if (!strcmp(ipq806x_device_qup_spi_gsbi5.resource[i].name,
+							"spidm_crci"))
+			crci_conf = 1;
+	}
+
+	if (chan_conf && crci_conf)
+		return 0;
+
+	return -EINVAL;
+}
+
 static struct msm_spi_platform_data ipq806x_qup_spi_gsbi5_pdata = {
 	.max_clock_speed = 52000000,
+	.dma_config      = gsbi5_dma_config,
+	.infinite_mode   = 0xFFC0,
 };
 #endif
 

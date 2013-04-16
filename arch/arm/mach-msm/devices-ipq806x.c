@@ -623,6 +623,18 @@ static struct resource resources_qup_spi_gsbi5[] = {
 		.end    = GSBI5_QUP_IRQ,
 		.flags  = IORESOURCE_IRQ,
 	},
+	{
+		.name   = "spidm_channels",
+		.start  = DMOV_SPI_GSBI5_RX_CHAN,
+		.end    = DMOV_SPI_GSBI5_TX_CHAN,
+		.flags  = IORESOURCE_DMA,
+	},
+	{
+		.name   = "spidm_crci",
+		.start  = DMOV_SPI_GSBI5_RX_CRCI,
+		.end    = DMOV_SPI_GSBI5_TX_CRCI,
+		.flags  = IORESOURCE_DMA,
+	},
 };
 
 struct platform_device ipq806x_device_qup_spi_gsbi5 = {

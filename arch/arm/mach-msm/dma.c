@@ -198,6 +198,7 @@ static struct msm_dmov_conf dmov_conf[] = {
 #define		DMOV_ADM0_RESET_CLK_RESET	(1 << 0x0)
 
 #define DMOV_CRCI_DEFAULT_CONF { .sd = 0, .blk_size = 0 }
+#define DMOV_CRCI_CONF(secd, blk) { .sd = secd, .blk_size = blk }
 
 static struct msm_dmov_crci_conf adm_crci_conf[] = {
 	DMOV_CRCI_DEFAULT_CONF,
@@ -210,7 +211,7 @@ static struct msm_dmov_crci_conf adm_crci_conf[] = {
 	DMOV_CRCI_DEFAULT_CONF,
 	DMOV_CRCI_DEFAULT_CONF,
 	DMOV_CRCI_DEFAULT_CONF,
-	DMOV_CRCI_DEFAULT_CONF,
+	DMOV_CRCI_CONF(0, 1),
 	DMOV_CRCI_DEFAULT_CONF,
 	DMOV_CRCI_DEFAULT_CONF,
 	DMOV_CRCI_DEFAULT_CONF,
@@ -729,9 +730,6 @@ static void config_datamover(int adm)
 			DMOV_ADM0_RESET_C2_RESET, DMOV_ADM0_RESET);
 	writel_relaxed(0, DMOV_ADM0_RESET);	/* pull out from reset */
 
-	writel_relaxed(DMOV_CRCI_CONF0_CRCI9_SD,
-			       DMOV_REG(DMOV_CRCI_CONF0, adm));
-
 	for (i = 0; i < MSM_DMOV_CHANNEL_COUNT; i++) {
 		struct msm_dmov_chan_conf *chan_conf =
 			dmov_conf[adm].chan_conf;
@@ -760,6 +758,10 @@ static void config_datamover(int adm)
 	/* NAND CRCI Enable */
 	writel_relaxed(0, DMOV_REG(DMOV_CRCI_CTL(DMOV_NAND_CRCI_DATA), adm));
 	writel_relaxed(0, DMOV_REG(DMOV_CRCI_CTL(DMOV_NAND_CRCI_CMD), adm));
+
+	/* GSBI5 CRCI Enable */
+	writel_relaxed(0, DMOV_REG(DMOV_CRCI_CTL(DMOV_SPI_GSBI5_RX_CRCI), adm));
+	writel_relaxed(0, DMOV_REG(DMOV_CRCI_CTL(DMOV_SPI_GSBI5_TX_CRCI), adm));
 
 	writel_relaxed(DMOV_CI_CONF_RANGE_START(0x40) |	/* EBI1 */
 			DMOV_CI_CONF_RANGE_END(0xb0) |
