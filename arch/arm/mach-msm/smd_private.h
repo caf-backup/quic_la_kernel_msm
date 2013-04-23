@@ -264,4 +264,41 @@ struct interrupt_stat {
 };
 extern struct interrupt_stat interrupt_stats[NUM_SMD_SUBSYSTEMS];
 
+enum smem_flash_type {
+	SMEM_FLASH_NONE,
+	SMEM_FLASH_NOR,
+	SMEM_FLASH_NAND,
+	SMEM_FLASH_ONENAND,
+	SMEM_FLASH_SDC,
+	SMEM_FLASH_MMC,
+	SMEM_FLASH_SPI,
+};
+
+#define SMEM_FLASH_PART_MAGIC1     0x55EE73AA
+#define SMEM_FLASH_PART_MAGIC2     0xE35EBDDB
+#define SMEM_FLASH_PART_VERSION    0x3
+
+#define SMEM_MAX_PART_NAME         16
+#define SMEM_MAX_PARTITIONS        16
+
+#define SMEM_LINUX_FS_PART_NAME    "0:EFS2APPS"
+
+struct smem_flash_partition_entry {
+	char name[SMEM_MAX_PART_NAME];
+	u32 offset;	/* Offset in blocks from beginning of device */
+	u32 length;	/* Length of the partition in blocks */
+	u8 attrib1;
+	u8 attrib2;
+	u8 attrib3;
+	u8 which_flash;	/* Numeric ID (first = 0, second = 1) */
+};
+
+struct smem_flash_partition_table {
+	u32 magic1;
+	u32 magic2;
+	u32 version;
+	u32 numparts;
+	struct smem_flash_partition_entry part_entry[SMEM_MAX_PARTITIONS];
+};
+
 #endif

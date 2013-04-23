@@ -120,6 +120,7 @@ ifndef CONFIG_ARCH_APQ8064
 ifndef CONFIG_ARCH_MSM8974
 ifndef CONFIG_ARCH_MSM9625
 	obj-y += nand_partitions.o
+	obj-$(CONFIG_SPI_QUP) += sf_partitions.o
 endif
 endif
 endif

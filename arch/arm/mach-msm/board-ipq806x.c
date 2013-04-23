@@ -236,7 +236,7 @@ static struct platform_device battery_bcl_device = {
 #endif
 
 #ifdef CONFIG_SPI_QUP
-static struct flash_platform_data ipq806x_spi_flash_data = {
+struct flash_platform_data msm_sf_data = {
 	.name = "m25p80",
 	.type = "m25pe16",
 };
@@ -247,7 +247,7 @@ static struct spi_board_info ipq806x_rumi_spi_board_info[] __initdata = {
 		.mode           = SPI_MODE_0,
 		.bus_num        = 5,
 		.chip_select    = 0,
-		.platform_data  = &ipq806x_spi_flash_data,
+		.platform_data  = &msm_sf_data,
 		.max_speed_hz   = 52000000,
 	}
 };

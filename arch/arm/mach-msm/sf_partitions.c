@@ -1,10 +1,14 @@
-/* arch/arm/mach-msm/nand_partitions.c
+/* arch/arm/mach-msm/sf_partitions.c
  *
- * Code to extract partition information from ATAG set up by the
- * bootloader.
+ * Code to extract SPI Flash partitions information from SMEM, setup
+ * by bootloader.
+ *
+ * Copyright (c) 2013 Qualcomm Atheros, Inc.
+ *
+ * Based on arch/arm/mach-msm/nand_partitions.c
  *
  * Copyright (C) 2007 Google, Inc.
- * Copyright (c) 2008-2009,2011 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2008-2009,2011 Code Aurora Forum. All rights reserved.
  * Author: Brian Swetland <swetland@google.com>
  *
  * This software is licensed under the terms of the GNU General Public
@@ -22,12 +26,11 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 
-#include <asm/mach/flash.h>
+#include <linux/spi/flash.h>
 #include <linux/io.h>
 
 #include <asm/setup.h>
 
-#include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 
 #include <mach/msm_iomap.h>
@@ -35,77 +38,25 @@
 #include <mach/board.h>
 #ifdef CONFIG_MSM_SMD
 #include "smd_private.h"
-#endif
 
-/* configuration tags specific to msm */
+static struct mtd_partition msm_sf_partitions;
+static char msm_sf_names[SMEM_MAX_PART_NAME];
 
-#define ATAG_MSM_PARTITION 0x4d534D70 /* MSMp */
+extern struct flash_platform_data msm_sf_data;
 
-struct msm_ptbl_entry {
-	char name[16];
-	__u32 offset;
-	__u32 size;
-	__u32 flags;
-};
-
-#define MSM_MAX_PARTITIONS 18
-
-static struct mtd_partition msm_nand_partitions[MSM_MAX_PARTITIONS];
-static char msm_nand_names[MSM_MAX_PARTITIONS * 16];
-
-extern struct flash_platform_data msm_nand_data;
-
-static int __init parse_tag_msm_partition(const struct tag *tag)
-{
-	struct mtd_partition *ptn = msm_nand_partitions;
-	char *name = msm_nand_names;
-	struct msm_ptbl_entry *entry = (void *) &tag->u;
-	unsigned count, n;
-
-	count = (tag->hdr.size - 2) /
-		(sizeof(struct msm_ptbl_entry) / sizeof(__u32));
-
-	if (count > MSM_MAX_PARTITIONS)
-		count = MSM_MAX_PARTITIONS;
-
-	for (n = 0; n < count; n++) {
-		memcpy(name, entry->name, 15);
-		name[15] = 0;
-
-		ptn->name = name;
-		ptn->offset = entry->offset;
-		ptn->size = entry->size;
-
-		printk(KERN_INFO "Partition (from atag) %s "
-				"-- Offset:%llx Size:%llx\n",
-				ptn->name, ptn->offset, ptn->size);
-
-		name += 16;
-		entry++;
-		ptn++;
-	}
-
-	msm_nand_data.nr_parts = count;
-	msm_nand_data.parts = msm_nand_partitions;
-
-	return 0;
-}
-
-__tagtable(ATAG_MSM_PARTITION, parse_tag_msm_partition);
-
-
-#ifdef CONFIG_MSM_SMD
-static int get_nand_partitions(void)
+static int get_sf_partitions(void)
 {
 	struct smem_flash_partition_table *partition_table;
 	struct smem_flash_partition_entry *part_entry;
 	u32 *flash_type_ptr;
 	u32 flash_type;
-	struct mtd_partition *ptn = msm_nand_partitions;
-	char *name = msm_nand_names;
+	u32 *block_size_ptr;
+	u32 block_size;
+	struct mtd_partition *ptn = &msm_sf_partitions;
+	char *name = msm_sf_names;
 	int part;
 
-	if (msm_nand_data.nr_parts)
+	if (msm_sf_data.nr_parts)
 		return 0;
 
 	partition_table = (struct smem_flash_partition_table *)
@@ -131,17 +82,26 @@ static int get_nand_partitions(void)
 
 	flash_type_ptr = smem_alloc(SMEM_BOOT_FLASH_TYPE, sizeof(u32));
 	if (!flash_type_ptr) {
-		printk(KERN_WARNING "%s: no flash type in shared memory,"
+		printk(KERN_WARNING "%s: no flash type in shared memory, "
 		       "assuming NAND", __func__);
 		flash_type = SMEM_FLASH_NAND;
 	} else {
 		flash_type = *flash_type_ptr;
 	}
 
-	if (flash_type != SMEM_FLASH_NAND)
+	if (flash_type != SMEM_FLASH_SPI && flash_type != SMEM_FLASH_MMC)
 		return 0;
 
-	msm_nand_data.nr_parts = 0;
+	block_size_ptr = smem_alloc(SMEM_BOOT_FLASH_BLOCK_SIZE, sizeof(u32));
+	if (!block_size_ptr) {
+		printk(KERN_WARNING "%s: no flash block size in shared "
+		       "memory", __func__);
+		return -EFAULT;
+	}
+
+	block_size = *block_size_ptr;
+
+	msm_sf_data.nr_parts = 0;
 
 	/* Get the LINUX FS partition info */
 	for (part = 0; part < partition_table->numparts; part++) {
@@ -152,8 +112,8 @@ static int get_nand_partitions(void)
 			strcpy(name, part_entry->name);
 			ptn->name = name;
 
-			/*TODO: Get block count and size info */
-			ptn->offset = part_entry->offset;
+			/* TODO: Get block count and size info */
+			ptn->offset = part_entry->offset * block_size;
 
 			/* For SMEM, -1 indicates remaining space in flash,
 			 * but for MTD it is 0
@@ -161,10 +121,10 @@ static int get_nand_partitions(void)
 			if (part_entry->length == (u32)-1)
 				ptn->size = 0;
 			else
-				ptn->size = part_entry->length;
+				ptn->size = part_entry->length * block_size;
 
-			msm_nand_data.nr_parts = 1;
-			msm_nand_data.parts = msm_nand_partitions;
+			msm_sf_data.nr_parts = 1;
+			msm_sf_data.parts = &msm_sf_partitions;
 
 			printk(KERN_INFO "Partition(from smem) %s "
 					"-- Offset:%llx Size:%llx\n",
@@ -179,10 +139,10 @@ static int get_nand_partitions(void)
 	return -ENODEV;
 }
 #else
-static int get_nand_partitions(void)
+static int get_sf_partitions(void)
 {
 
-	if (msm_nand_data.nr_parts)
+	if (msm_sf_data.nr_parts)
 		return 0;
 
 	printk(KERN_WARNING "%s: no partition table found!", __func__);
@@ -191,4 +151,4 @@ static int get_nand_partitions(void)
 }
 #endif
 
-device_initcall(get_nand_partitions);
+device_initcall(get_sf_partitions);
