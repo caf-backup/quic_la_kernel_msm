@@ -305,8 +305,17 @@ static enum msm_cpu cpu_of_id[] = {
 	/* 8064AA IDs */
 	[172] = MSM_CPU_8064AA,
 
-	/* IPQ806X IDs */
-	[158] = MSM_CPU_IPQ806X,
+	/* IPQ8062 IDs */
+	[201] = MSM_CPU_IPQ8062,
+
+	/* IPQ8064 IDs */
+	[202] = MSM_CPU_IPQ8064,
+
+	/* IPQ8066 IDs */
+	[203] = MSM_CPU_IPQ8066,
+
+	/* IPQ8068 IDs */
+	[204] = MSM_CPU_IPQ8068,
 
 	/* Uninitialized IDs are not known to run Linux.
 	   MSM_CPU_UNKNOWN is set to 0 to ensure these IDs are
@@ -748,7 +757,7 @@ static void * __init setup_dummy_socinfo(void)
 	} else if (machine_is_msm8625_rumi3()) {
 		dummy_socinfo.id = 127;
 	} else if (machine_is_ipq806x_cdp() || machine_is_ipq806x_rumi3()) {
-		dummy_socinfo.id = 158;
+		dummy_socinfo.id = 202;
 	}
 	strlcat(dummy_socinfo.build_id, "Dummy socinfo",
 		sizeof(dummy_socinfo.build_id));
