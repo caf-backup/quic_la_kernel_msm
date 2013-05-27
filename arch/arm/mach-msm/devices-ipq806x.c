@@ -455,72 +455,6 @@ struct platform_device ipq806x_device_uart_gsbi3 = {
 	.resource	= resources_uart_gsbi3,
 };
 
-static struct resource resources_qup_i2c_gsbi3[] = {
-	{
-		.name	= "gsbi_qup_i2c_addr",
-		.start	= MSM_GSBI3_PHYS,
-		.end	= MSM_GSBI3_PHYS + 4 - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.name	= "qup_phys_addr",
-		.start	= MSM_GSBI3_QUP_PHYS,
-		.end	= MSM_GSBI3_QUP_PHYS + MSM_QUP_SIZE - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.name	= "qup_err_intr",
-		.start	= GSBI3_QUP_IRQ,
-		.end	= GSBI3_QUP_IRQ,
-		.flags	= IORESOURCE_IRQ,
-	},
-	{
-		.name	= "i2c_clk",
-		.start	= 9,
-		.end	= 9,
-		.flags	= IORESOURCE_IO,
-	},
-	{
-		.name	= "i2c_sda",
-		.start	= 8,
-		.end	= 8,
-		.flags	= IORESOURCE_IO,
-	},
-};
-
-static struct resource resources_qup_i2c_gsbi2[] = {
-	{
-		.name   = "gsbi_qup_i2c_addr",
-		.start  = MSM_GSBI2_PHYS,
-		.end    = MSM_GSBI2_PHYS + 4 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "qup_phys_addr",
-		.start  = MSM_GSBI2_QUP_PHYS,
-		.end    = MSM_GSBI2_QUP_PHYS + MSM_QUP_SIZE - 1,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "qup_err_intr",
-		.start  = IPQ806X_GSBI2_QUP_IRQ,
-		.end    = IPQ806X_GSBI2_QUP_IRQ,
-		.flags  = IORESOURCE_IRQ,
-	},
-	{
-		.name   = "i2c_clk",
-		.start  = 25,
-		.end    = 25,
-		.flags  = IORESOURCE_IO,
-	},
-	{
-		.name   = "i2c_sda",
-		.start  = 24,
-		.end    = 24,
-		.flags  = IORESOURCE_IO,
-	},
-};
-
 static struct resource resources_qup_i2c_gsbi1[] = {
 	{
 		.name	= "gsbi_qup_i2c_addr",
@@ -542,14 +476,47 @@ static struct resource resources_qup_i2c_gsbi1[] = {
 	},
 	{
 		.name	= "i2c_clk",
-		.start	= 21,
-		.end	= 21,
+		.start	= 54,
+		.end	= 54,
 		.flags	= IORESOURCE_IO,
 	},
 	{
 		.name	= "i2c_sda",
-		.start	= 20,
-		.end	= 20,
+		.start	= 53,
+		.end	= 53,
+		.flags	= IORESOURCE_IO,
+	},
+};
+
+static struct resource resources_qup_i2c_gsbi2[] = {
+	{
+		.name	= "gsbi_qup_i2c_addr",
+		.start	= MSM_GSBI2_PHYS,
+		.end	= MSM_GSBI2_PHYS + 4 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "qup_phys_addr",
+		.start	= MSM_GSBI2_QUP_PHYS,
+		.end	= MSM_GSBI2_QUP_PHYS + MSM_QUP_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.name	= "qup_err_intr",
+		.start	= IPQ806X_GSBI2_QUP_IRQ,
+		.end	= IPQ806X_GSBI2_QUP_IRQ,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.name	= "i2c_clk",
+		.start	= 25,
+		.end	= 25,
+		.flags	= IORESOURCE_IO,
+	},
+	{
+		.name	= "i2c_sda",
+		.start	= 24,
+		.end	= 24,
 		.flags	= IORESOURCE_IO,
 	},
 };
@@ -562,17 +529,10 @@ struct platform_device ipq806x_device_qup_i2c_gsbi1 = {
 };
 
 struct platform_device ipq806x_device_qup_i2c_gsbi2 = {
-	.name           = "qup_i2c",
-	.id             = 0,
-	.num_resources  = ARRAY_SIZE(resources_qup_i2c_gsbi2),
-	.resource       = resources_qup_i2c_gsbi2,
-};
-
-struct platform_device ipq806x_device_qup_i2c_gsbi3 = {
 	.name		= "qup_i2c",
-	.id		= 3,
-	.num_resources	= ARRAY_SIZE(resources_qup_i2c_gsbi3),
-	.resource	= resources_qup_i2c_gsbi3,
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(resources_qup_i2c_gsbi2),
+	.resource	= resources_qup_i2c_gsbi2,
 };
 
 static struct resource resources_qup_i2c_gsbi4[] = {
@@ -596,21 +556,21 @@ static struct resource resources_qup_i2c_gsbi4[] = {
 	},
 	{
 		.name	= "i2c_clk",
-		.start	= 11,
-		.end	= 11,
+		.start	= 13,
+		.end	= 13,
 		.flags	= IORESOURCE_IO,
 	},
 	{
 		.name	= "i2c_sda",
-		.start	= 10,
-		.end	= 10,
+		.start	= 12,
+		.end	= 12,
 		.flags	= IORESOURCE_IO,
 	},
 };
 
 struct platform_device ipq806x_device_qup_i2c_gsbi4 = {
 	.name		= "qup_i2c",
-	.id		= 4,
+	.id		= 3,
 	.num_resources	= ARRAY_SIZE(resources_qup_i2c_gsbi4),
 	.resource	= resources_qup_i2c_gsbi4,
 };
@@ -676,21 +636,21 @@ static struct resource resources_qup_i2c_gsbi5[] = {
 	},
 	{
 		.name	= "i2c_clk",
-		.start	= 54,
-		.end	= 54,
+		.start	= 21,
+		.end	= 21,
 		.flags	= IORESOURCE_IO,
 	},
 	{
 		.name	= "i2c_sda",
-		.start	= 53,
-		.end	= 53,
+		.start	= 20,
+		.end	= 20,
 		.flags	= IORESOURCE_IO,
 	},
 };
 
 struct platform_device ipq806x_device_qup_i2c_gsbi5 = {
 	.name		= "qup_i2c",
-	.id		= 5,
+	.id		= 4,
 	.num_resources	= ARRAY_SIZE(resources_qup_i2c_gsbi5),
 	.resource	= resources_qup_i2c_gsbi5,
 };

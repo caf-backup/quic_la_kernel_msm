@@ -312,6 +312,42 @@ static struct gpiomux_setting ext_regulator_config = {
 	.dir = GPIOMUX_OUT_LOW,
 };
 
+static struct gpiomux_setting gsbi1_suspended_cfg = {
+	.func = GPIOMUX_FUNC_1,
+	.drv = GPIOMUX_DRV_12MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+
+static struct gpiomux_setting gsbi1_active_cfg = {
+	.func = GPIOMUX_FUNC_1,
+	.drv = GPIOMUX_DRV_12MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+
+static struct gpiomux_setting gsbi2_suspended_cfg = {
+	.func = GPIOMUX_FUNC_1,
+	.drv = GPIOMUX_DRV_12MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+
+static struct gpiomux_setting gsbi2_active_cfg = {
+	.func = GPIOMUX_FUNC_1,
+	.drv = GPIOMUX_DRV_12MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+
+static struct gpiomux_setting gsbi4_suspended_cfg = {
+	.func = GPIOMUX_FUNC_1,
+	.drv = GPIOMUX_DRV_12MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+
+static struct gpiomux_setting gsbi4_active_cfg = {
+	.func = GPIOMUX_FUNC_1,
+	.drv = GPIOMUX_DRV_12MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+
 static struct gpiomux_setting gsbi5_suspended_cfg = {
 	.func = GPIOMUX_FUNC_2,
 	.drv = GPIOMUX_DRV_12MA,
@@ -385,28 +421,33 @@ static struct msm_gpiomux_config ipq806x_mi2s_configs[] __initdata = {
 	},
 };
 
-static struct gpiomux_setting gsbi2_suspended_cfg = {
-	.func = GPIOMUX_FUNC_1,
-	.drv = GPIOMUX_DRV_8MA,
-	.pull = GPIOMUX_PULL_UP,
-};
-
-static struct gpiomux_setting gsbi2_active_cfg = {
-	.func = GPIOMUX_FUNC_1,
-	.drv = GPIOMUX_DRV_8MA,
-	.pull = GPIOMUX_PULL_UP,
+static struct msm_gpiomux_config ipq806x_gsbi1_i2c_configs[] __initdata = {
+	{
+		.gpio      = 53,			/* GSBI1 I2C QUP SDA */
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &gsbi1_suspended_cfg,
+			[GPIOMUX_ACTIVE] = &gsbi1_active_cfg,
+		},
+	},
+	{
+		.gpio      = 54,			/* GSBI1 I2C QUP SCL */
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &gsbi1_suspended_cfg,
+			[GPIOMUX_ACTIVE] = &gsbi1_active_cfg,
+		},
+	},
 };
 
 static struct msm_gpiomux_config ipq806x_gsbi2_i2c_configs[] __initdata = {
 	{
-		.gpio      = 25,                        /* GSBI2 I2C QUP SDA */
+		.gpio      = 24,			/* GSBI1 I2C QUP SDA */
 		.settings = {
 			[GPIOMUX_SUSPENDED] = &gsbi2_suspended_cfg,
 			[GPIOMUX_ACTIVE] = &gsbi2_active_cfg,
 		},
 	},
 	{
-		.gpio      = 24,                        /* GSBI2 I2C QUP SCL */
+		.gpio      = 25,			/* GSBI1 I2C QUP SCL */
 		.settings = {
 			[GPIOMUX_SUSPENDED] = &gsbi2_suspended_cfg,
 			[GPIOMUX_ACTIVE] = &gsbi2_active_cfg,
@@ -414,19 +455,19 @@ static struct msm_gpiomux_config ipq806x_gsbi2_i2c_configs[] __initdata = {
 	},
 };
 
-static struct msm_gpiomux_config ipq806x_gsbi5_i2c_configs[] __initdata = {
+static struct msm_gpiomux_config ipq806x_gsbi4_i2c_configs[] __initdata = {
 	{
-		.gpio      = 53,			/* GSBI5 I2C QUP SDA */
+		.gpio      = 12,			/* GSBI4 I2C QUP SDA */
 		.settings = {
-			[GPIOMUX_SUSPENDED] = &gsbi5_suspended_cfg,
-			[GPIOMUX_ACTIVE] = &gsbi5_active_cfg,
+			[GPIOMUX_SUSPENDED] = &gsbi4_suspended_cfg,
+			[GPIOMUX_ACTIVE] = &gsbi4_active_cfg,
 		},
 	},
 	{
-		.gpio      = 54,			/* GSBI5 I2C QUP SCL */
+		.gpio      = 13,			/* GSBI4 I2C QUP SCL */
 		.settings = {
-			[GPIOMUX_SUSPENDED] = &gsbi5_suspended_cfg,
-			[GPIOMUX_ACTIVE] = &gsbi5_active_cfg,
+			[GPIOMUX_SUSPENDED] = &gsbi4_suspended_cfg,
+			[GPIOMUX_ACTIVE] = &gsbi4_active_cfg,
 		},
 	},
 };
@@ -645,15 +686,18 @@ void __init ipq806x_init_gpiomux(void)
 		return;
 	}
 
-	if (machine_is_ipq806x_rumi3())
-	{
+	if (machine_is_ipq806x_rumi3()) {
 		msm_gpiomux_install(ipq806x_gsbi2_i2c_configs,
 				ARRAY_SIZE(ipq806x_gsbi2_i2c_configs));
 	}
 
 	if (machine_is_ipq806x_cdp()) {
-		msm_gpiomux_install(ipq806x_gsbi5_i2c_configs,
-				ARRAY_SIZE(ipq806x_gsbi5_i2c_configs));
+		msm_gpiomux_install(ipq806x_gsbi1_i2c_configs,
+				ARRAY_SIZE(ipq806x_gsbi1_i2c_configs));
+		msm_gpiomux_install(ipq806x_gsbi2_i2c_configs,
+				ARRAY_SIZE(ipq806x_gsbi2_i2c_configs));
+		msm_gpiomux_install(ipq806x_gsbi4_i2c_configs,
+				ARRAY_SIZE(ipq806x_gsbi4_i2c_configs));
 #ifdef CONFIG_MSM_VCAP
 		msm_gpiomux_install(vcap_configs,
 				ARRAY_SIZE(vcap_configs));

@@ -21,6 +21,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c/smb349.h>
 #include <linux/i2c/sx150x.h>
+#include <linux/spi/mcp23s08.h>
 #include <linux/slimbus/slimbus.h>
 #include <linux/mfd/wcd9xxx/core.h>
 #include <linux/mfd/wcd9xxx/pdata.h>
@@ -905,6 +906,21 @@ static void __init ipq806x_ehci_host_init(void)
 	}
 }
 
+#define MCP23S08_NAME "mcp23s08"
+
+static struct mcp23s08_platform_data ipq806x_mcp23s08_sys_gpio_info = {
+	.chip[0].is_present = true,
+	.base = 0x0,
+};
+
+static struct i2c_board_info mcp23s08_ioexpander_i2c_info[] __initdata = {
+	{
+		I2C_BOARD_INFO(MCP23S08_NAME,
+			IPQ806X_MCP23S08_I2C_SLAVE_ADDRESS),
+		.platform_data  = &ipq806x_mcp23s08_sys_gpio_info,
+	},
+};
+
 
 #ifdef CONFIG_QSEECOM
 /* qseecom bus scaling */
@@ -1584,9 +1600,13 @@ ipq806x_pm8921_device_rpm_regulator __devinitdata = {
 	},
 };
 
-static struct platform_device *common_not_mpq_devices[] __initdata = {
+static struct platform_device *common_rumi3_i2c_ipq806x_devices[] __initdata = {
+	&ipq806x_device_qup_i2c_gsbi2,
+};
+
+static struct platform_device *common_cdp_i2c_ipq806x_devices[] __initdata = {
 	&ipq806x_device_qup_i2c_gsbi1,
-	&ipq806x_device_qup_i2c_gsbi3,
+	&ipq806x_device_qup_i2c_gsbi2,
 	&ipq806x_device_qup_i2c_gsbi4,
 };
 
@@ -1777,11 +1797,6 @@ static struct msm_i2c_platform_data ipq806x_i2c_qup_gsbi1_pdata = {
 
 static struct msm_i2c_platform_data ipq806x_i2c_qup_gsbi2_pdata = {
 	.clk_freq = 100000,
-	.src_clk_rate = 4800000,
-};
-
-static struct msm_i2c_platform_data ipq806x_i2c_qup_gsbi3_pdata = {
-	.clk_freq = 384000,
 	.src_clk_rate = 24000000,
 };
 
@@ -1809,10 +1824,10 @@ static void __init ipq806x_i2c_init(void)
 	wmb();
 	iounmap(gsbi_mem);
 	ipq806x_i2c_qup_gsbi1_pdata.use_gsbi_shared_mode = 1;
-	ipq806x_device_qup_i2c_gsbi3.dev.platform_data =
-					&ipq806x_i2c_qup_gsbi3_pdata;
 	ipq806x_device_qup_i2c_gsbi1.dev.platform_data =
 					&ipq806x_i2c_qup_gsbi1_pdata;
+	ipq806x_device_qup_i2c_gsbi2.dev.platform_data =
+					&ipq806x_i2c_qup_gsbi2_pdata;
 	ipq806x_device_qup_i2c_gsbi4.dev.platform_data =
 					&ipq806x_i2c_qup_gsbi4_pdata;
 	ipq806x_device_qup_i2c_gsbi5.dev.platform_data =
@@ -1887,6 +1902,7 @@ static struct platform_device cdp_kp_pdev = {
 #define I2C_SIM  (1 << 3)
 #define I2C_LIQUID (1 << 4)
 #define I2C_MPQ_CDP	BIT(5)
+#define I2C_IPQ806X_CDP	BIT(5)
 #define I2C_MPQ_HRD	BIT(6)
 #define I2C_MPQ_DTV	BIT(7)
 
@@ -1898,6 +1914,12 @@ struct i2c_registry {
 };
 
 static struct i2c_registry ipq806x_i2c_devices[] __initdata = {
+	{
+		I2C_IPQ806X_CDP,
+		IPQ806X_GSBI1_QUP_I2C_BUS_ID,
+		mcp23s08_ioexpander_i2c_info,
+		ARRAY_SIZE(mcp23s08_ioexpander_i2c_info)
+	}
 };
 
 static void __init register_i2c_devices(void)
@@ -1907,7 +1929,7 @@ static void __init register_i2c_devices(void)
 
 	/* Build the matching 'supported_machs' bitmask */
 	if (machine_is_ipq806x_cdp())
-		mach_mask = I2C_SURF;
+		mach_mask = I2C_IPQ806X_CDP;
 	else
 		pr_err("unmatched machine ID in register_i2c_devices\n");
 
@@ -2005,17 +2027,17 @@ static void __init ipq806x_common_init(void)
 	if (machine_is_ipq806x_rumi3()) {
 		ipq806x_device_qup_i2c_gsbi2.dev.platform_data =
 				&ipq806x_i2c_qup_gsbi2_pdata;
-		platform_add_devices(common_ipq_devices,
-				ARRAY_SIZE(common_ipq_devices));
-        }
+		platform_add_devices(common_rumi3_i2c_ipq806x_devices,
+				ARRAY_SIZE(common_rumi3_i2c_ipq806x_devices));
+	}
 
 	if (machine_is_ipq806x_cdp())
 		platform_device_register(&ipq806x_device_ext_ts_sw_vreg);
 	platform_add_devices(common_devices, ARRAY_SIZE(common_devices));
 
 	if (!machine_is_ipq806x_rumi3()) {
-		platform_add_devices(common_not_mpq_devices,
-				ARRAY_SIZE(common_not_mpq_devices));
+		platform_add_devices(common_cdp_i2c_ipq806x_devices,
+				ARRAY_SIZE(common_cdp_i2c_ipq806x_devices));
 
 		if (SOCINFO_VERSION_MINOR(platform_version) == 1)
 			platform_add_devices(common_i2s_devices,

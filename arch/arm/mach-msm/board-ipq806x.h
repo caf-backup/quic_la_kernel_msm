@@ -97,10 +97,12 @@ void ipq806x_init_mmc(void);
 void ipq806x_init_gpiomux(void);
 void ipq806x_init_pmic(void);
 
+#define IPQ806X_MCP23S08_I2C_SLAVE_ADDRESS 0x46
+
 #define IPQ806X_GSBI1_QUP_I2C_BUS_ID 0
-#define IPQ806X_GSBI3_QUP_I2C_BUS_ID 3
-#define IPQ806X_GSBI4_QUP_I2C_BUS_ID 4
-#define IPQ806X_GSBI5_QUP_I2C_BUS_ID 5
+#define IPQ806X_GSBI2_QUP_I2C_BUS_ID 1
+#define IPQ806X_GSBI4_QUP_I2C_BUS_ID 3
+#define IPQ806X_GSBI5_QUP_I2C_BUS_ID 4
 
 void ipq806x_pm8xxx_gpio_mpp_init(void);
 
