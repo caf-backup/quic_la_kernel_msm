@@ -1,4 +1,5 @@
-/* Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013 Qualcomm Atheros, Inc.
+ * Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -11,12 +12,25 @@
  */
 
 #include <linux/platform_device.h>
+#include <linux/irq.h>
 #include <asm/pmu.h>
 #include <mach/irqs.h>
 #include <mach/socinfo.h>
 
 #if defined(CONFIG_ARCH_MSM_KRAITMP) || defined(CONFIG_ARCH_MSM_SCORPIONMP)
 static DEFINE_PER_CPU(u32, pmu_irq_cookie);
+
+static void pmu_enable_irq_callback(void *info)
+{
+	int irq = *(unsigned int *)info;
+	enable_percpu_irq(irq, IRQ_TYPE_EDGE_RISING);
+}
+
+static void pmu_disable_irq_callback(void *info)
+{
+	int irq = *(unsigned int *)info;
+	disable_percpu_irq(irq);
+}
 
 static int
 multicore_request_irq(int irq, irq_handler_t *handle_irq)
@@ -30,7 +44,7 @@ multicore_request_irq(int irq, irq_handler_t *handle_irq)
 	if (!err) {
 		for_each_cpu(cpu, cpu_online_mask) {
 			smp_call_function_single(cpu,
-					enable_irq_callback, &irq, 1);
+					pmu_enable_irq_callback, &irq, 1);
 		}
 	}
 
@@ -45,7 +59,7 @@ multicore_free_irq(int irq)
 	if (irq >= 0) {
 		for_each_cpu(cpu, cpu_online_mask) {
 			smp_call_function_single(cpu,
-					disable_irq_callback, &irq, 1);
+					pmu_disable_irq_callback, &irq, 1);
 		}
 		free_percpu_irq(irq, &pmu_irq_cookie);
 	}
