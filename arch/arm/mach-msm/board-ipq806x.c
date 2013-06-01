@@ -643,53 +643,6 @@ static struct reserve_info ipq806x_reserve_info __initdata = {
 	.paddr_to_memtype = ipq806x_paddr_to_memtype,
 };
 
-static int ipq806x_memory_bank_size(void)
-{
-	return 1<<29;
-}
-
-static void __init locate_unstable_memory(void)
-{
-	struct membank *mb = &meminfo.bank[meminfo.nr_banks - 1];
-	unsigned long bank_size;
-	unsigned long low, high;
-
-	bank_size = ipq806x_memory_bank_size();
-	low = meminfo.bank[0].start;
-	high = mb->start + mb->size;
-
-	/* Check if 32 bit overflow occured */
-	if (high < mb->start)
-		high = -PAGE_SIZE;
-
-	low &= ~(bank_size - 1);
-
-	if (high - low <= bank_size)
-		goto no_dmm;
-
-#ifdef CONFIG_ENABLE_DMM
-	ipq806x_reserve_info.low_unstable_address = mb->start -
-					MIN_MEMORY_BLOCK_SIZE + mb->size;
-	ipq806x_reserve_info.max_unstable_size = MIN_MEMORY_BLOCK_SIZE;
-
-	ipq806x_reserve_info.bank_size = bank_size;
-	pr_info("low unstable address %lx max size %lx bank size %lx\n",
-		ipq806x_reserve_info.low_unstable_address,
-		ipq806x_reserve_info.max_unstable_size,
-		ipq806x_reserve_info.bank_size);
-	return;
-#endif
-no_dmm:
-	ipq806x_reserve_info.low_unstable_address = high;
-	ipq806x_reserve_info.max_unstable_size = 0;
-}
-
-static int ipq806x_change_memory_power(u64 start, u64 size,
-	int change_type)
-{
-	return soc_change_memory_power(start, size, change_type);
-}
-
 static char prim_panel_name[PANEL_NAME_MAX_LEN];
 static char ext_panel_name[PANEL_NAME_MAX_LEN];
 
@@ -750,8 +703,6 @@ static void __init place_movable_zone(void)
 static void __init ipq806x_early_reserve(void)
 {
 	reserve_info = &ipq806x_reserve_info;
-	locate_unstable_memory();
-	place_movable_zone();
 
 }
 #ifdef CONFIG_USB_EHCI_MSM_HSIC
@@ -2010,8 +1961,6 @@ static void __init ipq806x_cdp_init(void)
 
 	if (machine_is_ipq806x_cdp())
 		platform_device_register(&cdp_kp_pdev);
-
-	change_memory_power = &ipq806x_change_memory_power;
 
 }
 

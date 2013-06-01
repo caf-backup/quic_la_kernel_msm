@@ -99,7 +99,7 @@ extern uint32_t SMSM_NUM_HOSTS;
 #ifdef CONFIG_MSM_SMD
 void *smem_alloc(unsigned id, unsigned size);
 #else
-void *smem_alloc(unsigned id, unsigned size)
+static void *smem_alloc(unsigned id, unsigned size)
 {
 	return NULL;
 }

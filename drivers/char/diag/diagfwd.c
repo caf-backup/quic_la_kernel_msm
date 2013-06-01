@@ -171,14 +171,8 @@ int chk_apps_master(void)
 {
 	if (driver->use_device_tree)
 		return 1;
-<<<<<<< HEAD
 	else if (soc_class_is_msm8960() || soc_class_is_msm8930() ||
-		 soc_class_is_apq8064() || cpu_is_msm9615())
-=======
-	else if (cpu_is_msm8960() || cpu_is_msm8930() || cpu_is_msm8930aa() ||
-		cpu_is_msm9615() || cpu_is_apq8064() || cpu_is_msm8627() ||
-		cpu_is_msm8960ab() || cpu_is_apq8064ab() || cpu_is_ipq806x())
->>>>>>> ca3d6ab... [ipq806x] Initial support
+		 soc_class_is_apq8064() || cpu_is_msm9615() || cpu_is_ipq806x())
 		return 1;
 	else
 		return 0;

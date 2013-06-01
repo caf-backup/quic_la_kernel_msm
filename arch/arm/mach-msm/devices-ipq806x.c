@@ -53,6 +53,7 @@
 
 /* Address of GSBI blocks */
 #define MSM_GSBI1_PHYS		0x12440000
+#define MSM_GSBI2_PHYS		0x13440000
 #define MSM_GSBI3_PHYS		0x16200000
 #define MSM_GSBI4_PHYS		0x16300000
 #define MSM_GSBI5_PHYS		0x1A200000
@@ -62,11 +63,13 @@
 /* GSBI UART devices */
 #define MSM_UART1DM_PHYS	(MSM_GSBI1_PHYS + 0x10000)
 #define MSM_UART3DM_PHYS	(MSM_GSBI3_PHYS + 0x40000)
+#define MSM_UART4DM_PHYS	(MSM_GSBI4_PHYS + 0x40000)
 #define MSM_UART6DM_PHYS	(MSM_GSBI6_PHYS + 0x40000)
 #define MSM_UART7DM_PHYS	(MSM_GSBI7_PHYS + 0x40000)
 
 /* GSBI QUP devices */
 #define MSM_GSBI1_QUP_PHYS	(MSM_GSBI1_PHYS + 0x20000)
+#define MSM_GSBI2_QUP_PHYS	(MSM_GSBI2_PHYS + 0x20000)
 #define MSM_GSBI3_QUP_PHYS	(MSM_GSBI3_PHYS + 0x80000)
 #define MSM_GSBI4_QUP_PHYS	(MSM_GSBI4_PHYS + 0x80000)
 #define MSM_GSBI5_QUP_PHYS	(MSM_GSBI5_PHYS + 0x80000)
@@ -102,9 +105,9 @@
 /* Address of PCIE20 */
 #define PCIE20_PHYS   0x1b500000
 #define PCIE20_SIZE   SZ_4K
+#define IPQ806X_RPM_MASTER_STATS_BASE	0x10BB00
 #define IPQ806X_PC_CNTR_PHYS	(IPQ806X_IMEM_PHYS + 0x664)
 #define IPQ806X_PC_CNTR_SIZE		0x40
-#define IPQ806X_RPM_MASTER_STATS_BASE	0x10BB00
 
 static struct resource ipq806x_resources_pccntr[] = {
 	{
@@ -1845,18 +1848,7 @@ struct platform_device i2s_mdm_ipq806x_device = {
 	.resource	= i2s_mdm_resources,
 };
 
-static struct msm_dcvs_freq_entry ipq806x_freq[] = {
-	{ 384000, 900,  0, 0, 0},
-	{ 594000, 950,  0, 0, 0},
-	{ 702000, 975,  0, 0, 0},
-	{1026000, 1075, 0, 0, 0},
-	{1242000, 1150, 0, 100, 100},
-	{1458000, 1188, 0, 100, 100},
-	{1512000, 1200, 1, 100, 100},
-};
-
 static struct msm_dcvs_core_info ipq806x_core_info = {
-	.freq_tbl		= &ipq806x_freq[0],
 	.num_cores		= 4,
 	.sensors		= (int[]){7, 8, 9, 10},
 	.thermal_poll_ms	= 60000,
@@ -1874,7 +1866,7 @@ static struct msm_dcvs_core_info ipq806x_core_info = {
 		.slack_weight_thresh_pct	= 3,
 		.slack_time_min_us		= 45000,
 		.slack_time_max_us		= 45000,
-		.ss_iobusy_conv			= 100,
+		.ss_no_corr_below_freq		= 0,
 		.ss_win_size_min_us		= 1000000,
 		.ss_win_size_max_us		= 1000000,
 		.ss_util_pct			= 95,
@@ -1891,7 +1883,7 @@ static struct msm_dcvs_core_info ipq806x_core_info = {
 	},
 	.power_param		= {
 		.current_temp	= 25,
-		.num_freq	= ARRAY_SIZE(ipq806x_freq),
+		.num_freq	= 0,
 	}
 };
 
