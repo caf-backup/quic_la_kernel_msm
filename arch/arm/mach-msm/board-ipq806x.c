@@ -690,16 +690,6 @@ static void __init ipq806x_reserve(void)
 #endif
 }
 
-static void __init place_movable_zone(void)
-{
-#ifdef CONFIG_ENABLE_DMM
-	movable_reserved_start = ipq806x_reserve_info.low_unstable_address;
-	movable_reserved_size = ipq806x_reserve_info.max_unstable_size;
-	pr_info("movable zone start %lx size %lx\n",
-		movable_reserved_start, movable_reserved_size);
-#endif
-}
-
 static void __init ipq806x_early_reserve(void)
 {
 	reserve_info = &ipq806x_reserve_info;
