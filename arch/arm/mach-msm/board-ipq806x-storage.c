@@ -37,6 +37,7 @@ enum sdcc_controllers {
 	MAX_SDCC_CONTROLLER
 };
 
+#ifdef CONFIG_MMC_MSM_SDC3_SUPPORT
 /* All SDCC controllers require VDD/VCC voltage */
 static struct msm_mmc_reg_data mmc_vdd_reg_data[MAX_SDCC_CONTROLLER] = {
 	/* SDCC3 : External card slot connected */
@@ -75,7 +76,9 @@ static struct msm_mmc_slot_reg_data mmc_slot_vreg_data[MAX_SDCC_CONTROLLER] = {
 		.vdd_io_data = &mmc_vdd_io_reg_data[SDCC3],
 	}
 };
+#endif
 
+#if defined(CONFIG_MMC_MSM_SDC1_SUPPORT) || defined(CONFIG_MMC_MSM_SDC3_SUPPORT)
 /* SDC3 pad data */
 static struct msm_mmc_pad_drv sdc3_pad_drv_on_cfg[] = {
 	{TLMM_HDRV_SDC3_CLK, GPIO_CFG_8MA},
@@ -155,6 +158,7 @@ static struct msm_mmc_pin_data mmc_slot_pin_data[MAX_SDCC_CONTROLLER] = {
 		.pad_data = &mmc_pad_data[SDCC3],
 	},
 };
+#endif
 
 #define MSM_MPM_PIN_SDC1_DAT1	17
 #define MSM_MPM_PIN_SDC3_DAT1	21
@@ -218,7 +222,7 @@ void __init ipq806x_init_mmc(void)
 	if (ipq806x_sdc1_pdata) {
 		if (machine_is_ipq806x_rumi3()) {
 			sps_to_ddr_bus_voting_data.bw_vecs_size = 0;
-			sdc1_data.msm_bus_voting_data = &sps_to_ddr_bus_voting_data;
+			ipq806x_sdc1_pdata->msm_bus_voting_data = &sps_to_ddr_bus_voting_data;
 		}
 		ipq806x_add_sdcc(1, ipq806x_sdc1_pdata);
 	}
@@ -226,7 +230,7 @@ void __init ipq806x_init_mmc(void)
 	if (ipq806x_sdc3_pdata) {
 		if (machine_is_ipq806x_rumi3()) {
 			sps_to_ddr_bus_voting_data.bw_vecs_size = 0;
-			sdc3_data.msm_bus_voting_data = &sps_to_ddr_bus_voting_data;
+			ipq806x_sdc3_pdata->msm_bus_voting_data = &sps_to_ddr_bus_voting_data;
 		}
 		if (machine_is_ipq806x_cdp()) {
 			int i;
