@@ -745,8 +745,11 @@ static void * __init setup_dummy_socinfo(void)
 		dummy_socinfo.id = 145;
 		strlcpy(dummy_socinfo.build_id, "msm8226 - ",
 			sizeof(dummy_socinfo.build_id));
-	} else if (machine_is_msm8625_rumi3())
+	} else if (machine_is_msm8625_rumi3()) {
 		dummy_socinfo.id = 127;
+	} else if (machine_is_ipq806x_cdp() || machine_is_ipq806x_rumi3()) {
+		dummy_socinfo.id = 158;
+	}
 	strlcat(dummy_socinfo.build_id, "Dummy socinfo",
 		sizeof(dummy_socinfo.build_id));
 	return (void *) &dummy_socinfo;
