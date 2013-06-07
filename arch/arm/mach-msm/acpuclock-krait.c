@@ -63,6 +63,12 @@ static struct drv_data {
 
 static unsigned long acpuclk_krait_get_rate(int cpu)
 {
+	if(!drv.scalable[cpu].cur_speed) {
+		printk(KERN_ERR "%s: invalid drv data - cur_speed is NULL\n",
+		       __FUNCTION__);
+		return 0;
+	}
+
 	return drv.scalable[cpu].cur_speed->khz;
 }
 

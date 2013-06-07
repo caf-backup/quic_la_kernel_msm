@@ -15,12 +15,15 @@
 #include "acpuclock.h"
 #include <trace/events/power.h>
 
-static struct acpuclk_data *acpuclk_data;
+static struct acpuclk_data *acpuclk_data = NULL;
 
 unsigned long acpuclk_get_rate(int cpu)
 {
-	if (!acpuclk_data->get_rate)
+	if (!acpuclk_data || !acpuclk_data->get_rate) {
+		printk(KERN_ERR "%s: acpuclk_data not init properly\n",
+		       __FUNCTION__);
 		return 0;
+	}
 
 	return acpuclk_data->get_rate(cpu);
 }
@@ -29,8 +32,11 @@ int acpuclk_set_rate(int cpu, unsigned long rate, enum setrate_reason reason)
 {
 	int ret;
 
-	if (!acpuclk_data->set_rate)
+	if (!acpuclk_data || !acpuclk_data->set_rate) {
+		printk(KERN_ERR "%s: acpuclk_data not init properly\n",
+		       __FUNCTION__);
 		return 0;
+	}
 
 	trace_cpu_frequency_switch_start(acpuclk_get_rate(cpu), rate, cpu);
 	ret = acpuclk_data->set_rate(cpu, rate, reason);
