@@ -35,8 +35,8 @@ enum rpm_vreg_version {
 	RPM_VREG_VERSION_8930,
 	RPM_VREG_VERSION_8930_PM8917,
 	RPM_VREG_VERSION_8960_PM8917,
-	RPM_VREG_VERSION_IPQ806X = RPM_VREG_VERSION_8960,
-	RPM_VREG_VERSION_MAX = RPM_VREG_VERSION_8960_PM8917,
+	RPM_VREG_VERSION_IPQ806X,
+	RPM_VREG_VERSION_MAX = RPM_VREG_VERSION_IPQ806X,
 };
 
 #define RPM_VREG_PIN_CTRL_NONE		0x00
@@ -54,6 +54,8 @@ enum rpm_vreg_state {
  */
 enum rpm_vreg_freq {
 	RPM_VREG_FREQ_NONE,
+	RPM_VREG_FREQ_0p50,
+	RPM_VREG_FREQ_1p00,
 	RPM_VREG_FREQ_19p20,
 	RPM_VREG_FREQ_9p60,
 	RPM_VREG_FREQ_6p40,
@@ -96,6 +98,18 @@ enum rpm_vreg_voter {
 	RPM_VREG_VOTER4,		/* for use by the acpu-clock driver */
 	RPM_VREG_VOTER5,		/* for use by the acpu-clock driver */
 	RPM_VREG_VOTER6,		/* for use by the acpu-clock driver */
+	RPM_VREG_VOTER7,		/* for use by the acpu-clock driver */
+	RPM_VREG_VOTER8,		/* for use by the acpu-clock driver */
+	RPM_VREG_VOTER9,		/* for use by the acpu-clock driver */
+	RPM_VREG_VOTER10,		/* for use by the acpu-clock driver */
+	RPM_VREG_VOTER11,		/* for use by the acpu-clock driver */
+	RPM_VREG_VOTER12,		/* for use by the acpu-clock driver */
+	RPM_VREG_VOTER13,		/* for use by other drivers */
+	RPM_VREG_VOTER14,		/* for use by other drivers */
+	RPM_VREG_VOTER15, 	    	/* for use by other drivers */
+	RPM_VREG_VOTER16,       	/* for use by other drivers */
+	RPM_VREG_VOTER17,     		/* for use by other drivers */
+	RPM_VREG_VOTER18,	    	/* for use by other drivers */
 	RPM_VREG_VOTER_COUNT,
 };
 
@@ -212,6 +226,13 @@ int rpm_vreg_set_voltage(int vreg_id, enum rpm_vreg_voter voter, int min_uV,
  * Returns 0 on success or errno.
  */
 int rpm_vreg_set_frequency(int vreg_id, enum rpm_vreg_freq freq);
+
+
+/*
+ * For board configurations which have fixed output regulators, we set the is_enabled
+ * flag to 1 (always on state).
+ */
+int rpm_vreg_regulator_set_enable(void);
 
 #else
 

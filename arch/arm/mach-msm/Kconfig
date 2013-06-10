@@ -271,6 +271,7 @@ config ARCH_IPQ806X
 	select QCACHE
 	select REGULATOR
 	select SATA_SNPS_PHY
+	select MSM_SMB_FIXED_VOLTAGE
 
 config ARCH_MSM8974
 	bool "MSM8974"
@@ -2719,5 +2720,13 @@ config MSM_CPU_PWRCTL
 	  Droop detector mechanism can adversely affect krait plls during
 	  stand alone power collapse operation. Selecting this option
 	  ensures that they are always off.
+
+config MSM_SMB_FIXED_VOLTAGE
+	bool "Fixed Voltage configuration"
+	help
+	If you say yes, all the SMB regulators would be held at fixed voltage
+	by the PM framework.
+	Default option will enable voltage scaling for all voltage rails that
+	are connected to programmable regulators.
 
 endif

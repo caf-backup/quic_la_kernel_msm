@@ -94,6 +94,7 @@
 #include "devices-msm8x60.h"
 #include "smd_private.h"
 #include <linux/regulator/fixed.h>
+#include <linux/gpio.h>
 
 #define MHL_GPIO_INT           30
 #define MHL_GPIO_RESET         35
@@ -1203,22 +1204,6 @@ static void __init ipq806x_init_irq(void)
 #endif
 }
 
-static struct platform_device ipq806x_device_saw_regulator_core0 = {
-	.name	= "saw-regulator",
-	.id	= 0,
-	.dev	= {
-		.platform_data = &ipq806x_saw_regulator_pdata_8921_s5,
-	},
-};
-
-static struct platform_device ipq806x_device_saw_regulator_core1 = {
-	.name	= "saw-regulator",
-	.id	= 1,
-	.dev	= {
-		.platform_data = &ipq806x_saw_regulator_pdata_8921_s6,
-	},
-};
-
 static struct msm_rpmrs_level msm_rpmrs_levels[] = {
 	{
 		MSM_PM_SLEEP_MODE_WAIT_FOR_INTERRUPT,
@@ -1307,10 +1292,10 @@ static struct msm_rpmrs_platform_data msm_rpmrs_data __initdata = {
 	.rpmrs_target_id = {
 		[MSM_RPMRS_ID_PXO_CLK]		= MSM_RPM_ID_PXO_CLK,
 		[MSM_RPMRS_ID_L2_CACHE_CTL]	= MSM_RPM_ID_LAST,
-		[MSM_RPMRS_ID_VDD_DIG_0]	= MSM_RPM_ID_PM8921_S3_0,
-		[MSM_RPMRS_ID_VDD_DIG_1]	= MSM_RPM_ID_PM8921_S3_1,
-		[MSM_RPMRS_ID_VDD_MEM_0]	= MSM_RPM_ID_PM8921_L24_0,
-		[MSM_RPMRS_ID_VDD_MEM_1]	= MSM_RPM_ID_PM8921_L24_1,
+		[MSM_RPMRS_ID_VDD_DIG_0]	= MSM_RPM_ID_SMB208_S1b_0,
+		[MSM_RPMRS_ID_VDD_DIG_1]	= MSM_RPM_ID_SMB208_S1b_1,
+		[MSM_RPMRS_ID_VDD_MEM_0]	= MSM_RPM_ID_SMB208_S1b_0,
+		[MSM_RPMRS_ID_VDD_MEM_1]	= MSM_RPM_ID_SMB208_S1b_1,
 		[MSM_RPMRS_ID_RPM_CTL]		= MSM_RPM_ID_RPM_CTL,
 	},
 };
@@ -1668,33 +1653,6 @@ static void __init ipq806x_pcie_init(void)
 	}
 }
 
-static struct platform_device ipq806x_device_ext_5v_vreg __devinitdata = {
-	.name	= GPIO_REGULATOR_DEV_NAME,
-	.id	= PM8921_MPP_PM_TO_SYS(7),
-	.dev	= {
-		.platform_data
-			= &ipq806x_gpio_regulator_pdata[GPIO_VREG_ID_EXT_5V],
-	},
-};
-
-static struct platform_device ipq806x_device_ext_mpp8_vreg __devinitdata = {
-	.name	= GPIO_REGULATOR_DEV_NAME,
-	.id	= PM8921_MPP_PM_TO_SYS(8),
-	.dev	= {
-		.platform_data
-			= &ipq806x_gpio_regulator_pdata[GPIO_VREG_ID_EXT_MPP8],
-	},
-};
-
-static struct platform_device ipq806x_device_ext_3p3v_vreg __devinitdata = {
-	.name	= GPIO_REGULATOR_DEV_NAME,
-	.id	= IPQ806X_EXT_3P3V_REG_EN_GPIO,
-	.dev	= {
-		.platform_data =
-			&ipq806x_gpio_regulator_pdata[GPIO_VREG_ID_EXT_3P3V],
-	},
-};
-
 static struct platform_device ipq806x_device_ext_ts_sw_vreg __devinitdata = {
 	.name	= GPIO_REGULATOR_DEV_NAME,
 	.id	= PM8921_GPIO_PM_TO_SYS(23),
@@ -1712,24 +1670,6 @@ static struct platform_device ipq806x_device_ext_3p3v_mpp4_vreg __devinitdata = 
 			&ipq806x_gpio_regulator_pdata[GPIO_VREG_ID_EXT_SATA_PWR],
 	},
 };
-
-static struct platform_device ipq806x_device_rpm_regulator __devinitdata = {
-	.name	= "rpm-regulator",
-	.id	= 0,
-	.dev	= {
-		.platform_data = &ipq806x_rpm_regulator_pdata,
-	},
-};
-
-static struct platform_device
-ipq806x_pm8921_device_rpm_regulator __devinitdata = {
-	.name	= "rpm-regulator",
-	.id	= 1,
-	.dev	= {
-		.platform_data = &ipq806x_rpm_regulator_pm8921_pdata,
-	},
-};
-
 static struct platform_device *common_rumi3_i2c_ipq806x_devices[] __initdata = {
 	&ipq806x_device_qup_i2c_gsbi2,
 };
@@ -1740,8 +1680,13 @@ static struct platform_device *common_cdp_i2c_ipq806x_devices[] __initdata = {
 	&ipq806x_device_qup_i2c_gsbi4,
 };
 
-static struct platform_device *common_ipq_devices[] __initdata = {
-	&ipq806x_device_qup_i2c_gsbi2,
+static struct platform_device
+ipq806x_smb_device_rpm_regulator __devinitdata = {
+	.name	= "rpm-regulator",
+	.id	= 0,
+	.dev	= {
+		.platform_data = &ipq806x_rpm_regulator_smb_pdata,
+	},
 };
 
 static struct platform_device *common_i2s_devices[] __initdata = {
@@ -1751,39 +1696,6 @@ static struct platform_device *early_common_devices[] __initdata = {
 	&ipq806x_device_acpuclk,
 	&ipq806x_device_dmov,
 };
-
-static struct platform_device *pm8921_common_devices[] __initdata = {
-	&ipq806x_device_ext_5v_vreg,
-	&ipq806x_device_ext_mpp8_vreg,
-	&ipq806x_device_ext_3p3v_vreg,
-	&ipq806x_device_ssbi_pmic1,
-};
-
-#define DUMMY_REG_PLAT_DEVICE(_id, _dev_id, _regul_id) \
-	struct platform_device ipq806x_device_dummy_regulator_##_regul_id##_id \
-	= {\
-	.name   = "reg-fixed-voltage",\
-	.id     = _dev_id,\
-	.dev    = {\
-		.platform_data = &ipq806x_fixed_regul_##_regul_id##_id,\
-	},\
-}
-
-DUMMY_REG_PLAT_DEVICE(1, 0, ssusb_vdd_dig);
-DUMMY_REG_PLAT_DEVICE(1, 1, SSUSB_VDDCX);
-DUMMY_REG_PLAT_DEVICE(1, 2, SSUSB_1p8);
-DUMMY_REG_PLAT_DEVICE(1, 3, hsusb_vdd_dig);
-DUMMY_REG_PLAT_DEVICE(1, 4, HSUSB_VDDCX);
-DUMMY_REG_PLAT_DEVICE(1, 5, HSUSB_3p3);
-DUMMY_REG_PLAT_DEVICE(1, 6, HSUSB_1p8);
-DUMMY_REG_PLAT_DEVICE(2, 7, ssusb_vdd_dig);
-DUMMY_REG_PLAT_DEVICE(2, 8, SSUSB_VDDCX);
-DUMMY_REG_PLAT_DEVICE(2, 9, SSUSB_1p8);
-DUMMY_REG_PLAT_DEVICE(2, 10, hsusb_vdd_dig);
-DUMMY_REG_PLAT_DEVICE(2, 11, HSUSB_VDDCX);
-DUMMY_REG_PLAT_DEVICE(2, 12, HSUSB_3p3);
-DUMMY_REG_PLAT_DEVICE(2, 13, HSUSB_1p8);
-DUMMY_REG_PLAT_DEVICE(1, 14, hsic_vdd_dig);
 
 static struct platform_device *common_devices[] __initdata = {
 	&msm_device_smd_ipq806x,
@@ -1807,23 +1719,6 @@ static struct platform_device *common_devices[] __initdata = {
 	&ipq806x_ion_dev,
 #endif
 	&ipq806x_device_watchdog,
-	&ipq806x_device_saw_regulator_core0,
-	&ipq806x_device_saw_regulator_core1,
-	&ipq806x_device_dummy_regulator_ssusb_vdd_dig1,
-	&ipq806x_device_dummy_regulator_SSUSB_VDDCX1,
-	&ipq806x_device_dummy_regulator_SSUSB_1p81,
-	&ipq806x_device_dummy_regulator_hsusb_vdd_dig1,
-	&ipq806x_device_dummy_regulator_HSUSB_VDDCX1,
-	&ipq806x_device_dummy_regulator_HSUSB_3p31,
-	&ipq806x_device_dummy_regulator_HSUSB_1p81,
-	&ipq806x_device_dummy_regulator_ssusb_vdd_dig2,
-	&ipq806x_device_dummy_regulator_SSUSB_VDDCX2,
-	&ipq806x_device_dummy_regulator_SSUSB_1p82,
-	&ipq806x_device_dummy_regulator_hsusb_vdd_dig2,
-	&ipq806x_device_dummy_regulator_HSUSB_VDDCX2,
-	&ipq806x_device_dummy_regulator_HSUSB_3p32,
-	&ipq806x_device_dummy_regulator_HSUSB_1p82,
-	&ipq806x_device_dummy_regulator_hsic_vdd_dig1,
 #if defined(CONFIG_QSEECOM)
 	&qseecom_device,
 #endif
@@ -2080,20 +1975,6 @@ static void __init register_i2c_devices(void)
 	}
 }
 
-static void enable_ddr3_regulator(void)
-{
-	static struct regulator *ext_ddr3;
-
-	/* Use MPP7 output state as a flag for PCDDR3 presence. */
-	if (gpio_get_value_cansleep(PM8921_MPP_PM_TO_SYS(7)) > 0) {
-		ext_ddr3 = regulator_get(NULL, "ext_ddr3");
-		if (IS_ERR(ext_ddr3) || ext_ddr3 == NULL)
-			pr_err("Could not get MPP7 regulator\n");
-		else
-			regulator_enable(ext_ddr3);
-	}
-}
-
 #ifdef CONFIG_SPI_QUP
 static void ipq806x_spi_register(void)
 {
@@ -2120,20 +2001,26 @@ static void __init ipq806x_common_init(void)
 	msm_thermal_init(&msm_thermal_pdata);
 	if (socinfo_init() < 0)
 		pr_err("socinfo_init() failed!\n");
-	if (machine_is_ipq806x_rumi3()) {
-		msm_clock_init(&ipq806x_dummy_clock_init_data);
-	} else {
+	if (machine_is_ipq806x_rumi3() ||
+			machine_is_ipq806x_tb726() ||
+			machine_is_ipq806x_db149()) {
 		BUG_ON(msm_rpm_init(&ipq806x_rpm_data));
 		BUG_ON(msm_rpmrs_levels_init(&msm_rpmrs_data));
 		regulator_suppress_info_printing();
-		platform_device_register(&ipq806x_device_rpm_regulator);
-		if (socinfo_get_pmic_model() != PMIC_MODEL_PM8917)
-			platform_device_register(&ipq806x_pm8921_device_rpm_regulator);
+		msm_clock_init(&ipq806x_dummy_clock_init_data);
+	} else {
 		if (msm_xo_init())
 			pr_err("Failed to initialize XO votes\n");
 		msm_clock_init(&ipq806x_clock_init_data);
 	}
 
+	/* Regulator devices need to be registered for RUMI as well */
+	if (machine_is_ipq806x_rumi3() ||
+			machine_is_ipq806x_tb726() ||
+			machine_is_ipq806x_db149()) {
+		fixup_ipq806x_smb_power_grid();
+		platform_device_register(&ipq806x_smb_device_rpm_regulator);
+	}
 
 	ipq806x_init_gpiomux();
 
@@ -2141,6 +2028,12 @@ static void __init ipq806x_common_init(void)
 		ipq806x_i2c_init();
 		register_i2c_devices();
 	}
+
+#ifdef CONFIG_CPU_FREQ_SWITCH_PROFILER
+	if (gpio_request_one(26, GPIOF_OUT_INIT_LOW, "cpufreq-profile-gpio") < 0) {
+		printk("ERROR: cpufreq profile GPIO request failed\n");
+	}
+#endif
 
 #ifdef CONFIG_SPI_QUP
 	ipq806x_spi_register();
@@ -2157,11 +2050,6 @@ static void __init ipq806x_common_init(void)
 
 	platform_add_devices(early_common_devices,
 				ARRAY_SIZE(early_common_devices));
-
-	if (!machine_is_ipq806x_rumi3()) {
-		platform_add_devices(pm8921_common_devices,
-					ARRAY_SIZE(pm8921_common_devices));
-	}
 
 	if (machine_is_ipq806x_rumi3()) {
 		ipq806x_device_qup_i2c_gsbi2.dev.platform_data =
@@ -2182,7 +2070,6 @@ static void __init ipq806x_common_init(void)
 			platform_add_devices(common_i2s_devices,
 					ARRAY_SIZE(common_i2s_devices));
 
-		enable_ddr3_regulator();
 		msm_hsic_pdata.swfi_latency = msm_rpmrs_levels[0].latency_us;
 
 	}

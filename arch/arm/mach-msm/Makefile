@@ -288,7 +288,7 @@ obj-$(CONFIG_ARCH_IPQ806X) += acpuclock-ipq806x.o
 board-8960-all-objs += board-8960.o board-8960-camera.o board-8960-display.o board-8960-pmic.o board-8960-storage.o board-8960-gpiomux.o
 board-8930-all-objs += board-8930.o board-8930-camera.o board-8930-display.o board-8930-pmic.o board-8930-storage.o board-8930-gpiomux.o devices-8930.o board-8930-gpu.o
 board-8064-all-objs += board-8064.o board-8064-pmic.o board-8064-storage.o board-8064-gpiomux.o board-8064-camera.o board-8064-display.o board-8064-gpu.o
-board-ipq806x-all-objs += board-ipq806x.o board-ipq806x-pmic.o board-ipq806x-storage.o board-ipq806x-gpiomux.o
+board-ipq806x-all-objs += board-ipq806x.o board-ipq806x-storage.o board-ipq806x-gpiomux.o
 obj-$(CONFIG_MACH_MSM8960_CDP) += board-8960-all.o board-8960-regulator.o
 obj-$(CONFIG_MACH_MSM8960_MTP) += board-8960-all.o board-8960-regulator.o
 obj-$(CONFIG_MACH_MSM8960_FLUID) += board-8960-all.o board-8960-regulator.o
@@ -332,6 +332,9 @@ obj-$(CONFIG_HTC_HEADSET) += htc_headset.o
 obj-$(CONFIG_MSM_RMT_STORAGE_CLIENT) += rmt_storage_client.o
 obj-$(CONFIG_MSM_SDIO_SMEM) += sdio_smem.o
 obj-$(CONFIG_MSM_RPM) += rpm.o
+ifdef CONFIG_DEBUG_FS
+obj-$(CONFIG_MSM_RPM) += rpm-debug.o
+endif
 ifdef CONFIG_MSM_RPM
 	obj-$(CONFIG_ARCH_APQ8064) += rpm_resources.o
 	obj-$(CONFIG_ARCH_IPQ806X) += rpm_resources.o

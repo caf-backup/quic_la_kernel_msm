@@ -64,6 +64,7 @@ struct vreg_config *(*get_config[])(void) = {
 	[RPM_VREG_VERSION_8930] = get_config_8930,
 	[RPM_VREG_VERSION_8930_PM8917] = get_config_8930_pm8917,
 	[RPM_VREG_VERSION_8960_PM8917] = get_config_8960_pm8917,
+	[RPM_VREG_VERSION_IPQ806X] = get_config_ipq806x,
 };
 
 static struct rpm_regulator_consumer_mapping *consumer_map;
@@ -1106,6 +1107,9 @@ static int vreg_is_enabled(struct regulator_dev *rdev)
 static void set_enable(struct vreg *vreg, unsigned int *mask, unsigned int *val)
 {
 	switch (vreg->type) {
+	case RPM_REGULATOR_TYPE_SMPS_FIXED:
+		/* placeholder for fixed regulator   */
+		break;
 	case RPM_REGULATOR_TYPE_LDO:
 	case RPM_REGULATOR_TYPE_SMPS:
 	case RPM_REGULATOR_TYPE_CORNER:
@@ -1136,6 +1140,13 @@ static int rpm_vreg_enable(struct regulator_dev *rdev)
 	struct vreg *vreg = rdev_get_drvdata(rdev);
 	unsigned int mask[2] = {0}, val[2] = {0};
 	int rc = 0;
+
+	/*
+	 * Bypass for Fixed regulators
+	 */
+	if (vreg->type == RPM_REGULATOR_TYPE_SMPS_FIXED) {
+		return 0;
+	}
 
 	set_enable(vreg, mask, val);
 
@@ -1186,6 +1197,13 @@ static int rpm_vreg_disable(struct regulator_dev *rdev)
 	unsigned int mask[2] = {0}, val[2] = {0};
 	int rc = 0;
 
+	/*
+	 * Bypass for Fixed regulators
+	 */
+	if (vreg->type == RPM_REGULATOR_TYPE_SMPS_FIXED) {
+		return 0;
+	}
+
 	set_disable(vreg, mask, val);
 
 	mutex_lock(&vreg->pc_lock);
@@ -1214,6 +1232,16 @@ static int vreg_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV,
 	unsigned int mask[2] = {0}, val[2] = {0};
 	int rc = 0, uV = min_uV;
 	int lim_min_uV, lim_max_uV, i;
+
+	/*
+	 * For fixed-type regulators , set_voltages is not supported.
+	 * Do a graceful return, so that Consumer drivers do not get error
+	 * status
+	 */
+
+	if (vreg->type == RPM_REGULATOR_TYPE_SMPS_FIXED) {
+		return 0;
+	}
 
 	/* Check if request voltage is outside of physically settable range. */
 	lim_min_uV = vreg->set_points->range[0].min_uV;
@@ -1337,6 +1365,15 @@ static int vreg_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	unsigned int mask[2] = {0}, val[2] = {0};
 	int rc = 0;
 	int peak_uA;
+
+	/*
+	 * For fixed-type regulators , set_mode is not supported.
+	 * Do a graceful return, so that Consumer drivers do not get error
+	 * status
+	 */
+	if (vreg->type == RPM_REGULATOR_TYPE_SMPS_FIXED) {
+		return 0;
+	}
 
 	mutex_lock(&vreg->pc_lock);
 
@@ -1464,6 +1501,10 @@ static int vreg_pin_control_enable(struct regulator_dev *rdev)
 	struct vreg *vreg = rdev_get_drvdata(rdev);
 	unsigned int mask[2] = {0}, val[2] = {0};
 	int rc;
+
+	if (vreg->type == RPM_REGULATOR_TYPE_SMPS_FIXED) {
+		return 0;
+	}
 
 	mutex_lock(&vreg->pc_lock);
 
@@ -1595,11 +1636,12 @@ static struct regulator_ops pin_control_ops = {
 };
 
 struct regulator_ops *vreg_ops[] = {
-	[RPM_REGULATOR_TYPE_LDO]	= &ldo_ops,
-	[RPM_REGULATOR_TYPE_SMPS]	= &smps_ops,
-	[RPM_REGULATOR_TYPE_VS]		= &switch_ops,
-	[RPM_REGULATOR_TYPE_NCP]	= &ncp_ops,
-	[RPM_REGULATOR_TYPE_CORNER]	= &corner_ops,
+	[RPM_REGULATOR_TYPE_LDO]		= &ldo_ops,
+	[RPM_REGULATOR_TYPE_SMPS]		= &smps_ops,
+	[RPM_REGULATOR_TYPE_SMPS_FIXED]		= &smps_ops,
+	[RPM_REGULATOR_TYPE_VS]			= &switch_ops,
+	[RPM_REGULATOR_TYPE_NCP]		= &ncp_ops,
+	[RPM_REGULATOR_TYPE_CORNER]		= &corner_ops,
 };
 
 static struct vreg *rpm_vreg_get_vreg(int id)
@@ -1741,6 +1783,21 @@ bail:
 
 	return rc;
 }
+
+int rpm_vreg_regulator_set_enable(void)
+{
+	int i;
+
+	config = get_config[RPM_VREG_VERSION_IPQ806X]();
+
+	for (i = 0; i < config->vregs_len; i++)
+	{
+		if(strstr(config->vregs[i].rdesc.name,"smb208"))
+			config->vregs[i].is_enabled = true;
+	}
+	return 0;
+}
+
 
 static void rpm_vreg_set_point_init(void)
 {

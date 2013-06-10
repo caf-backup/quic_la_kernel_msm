@@ -31,6 +31,7 @@
 #include <asm/hardware/gic.h>
 #include <mach/msm_iomap.h>
 #include <mach/rpm.h>
+#include <linux/gpio.h>
 
 /******************************************************************************
  * Data type and structure definitions
@@ -65,6 +66,9 @@ static struct msm_rpm_request msm_rpm_request_poll_mode;
 static LIST_HEAD(msm_rpm_notifications);
 static struct msm_rpm_notif_config msm_rpm_notif_cfgs[MSM_RPM_CTX_SET_COUNT];
 static bool msm_rpm_init_notif_done;
+#ifdef CONFIG_DEBUG_FS
+extern int rpm_debug_init(struct msm_rpm_platform_data *data);
+#endif
 /******************************************************************************
  * Internal functions
  *****************************************************************************/
@@ -340,12 +344,17 @@ static int msm_rpm_set_exclusive(int ctx,
 	/* Ensure RPM data is written before sending the interrupt */
 	mb();
 	msm_rpm_send_req_interrupt();
+#ifdef CONFIG_CPU_FREQ_SWITCH_PROFILER
+	gpio_set_value(26, 1);
+#endif
 
 	spin_unlock(&msm_rpm_irq_lock);
 	spin_unlock_irqrestore(&msm_rpm_lock, flags);
 
 	wait_for_completion(&ack);
-
+#ifdef CONFIG_CPU_FREQ_SWITCH_PROFILER
+	gpio_set_value(26, 0);
+#endif
 	BUG_ON((ctx_mask_ack & ~(msm_rpm_get_ctx_mask(MSM_RPM_CTX_REJECTED)))
 		!= ctx_mask);
 	BUG_ON(memcmp(sel_masks, sel_masks_ack, sizeof(sel_masks_ack)));
@@ -1019,5 +1028,8 @@ int __init msm_rpm_init(struct msm_rpm_platform_data *data)
 
 	msm_rpm_populate_map(data);
 
+#ifdef CONFIG_DEBUG_FS
+	rpm_debug_init(data);
+#endif
 	return platform_driver_register(&msm_rpm_platform_driver);
 }

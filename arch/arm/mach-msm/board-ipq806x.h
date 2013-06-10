@@ -25,6 +25,7 @@
 #include <linux/regulator/fixed.h>
 
 #include "pcie.h"
+#include <mach/socinfo.h>
 
 /* Macros assume PMIC GPIOs and MPPs start at 1 */
 #define PM8921_GPIO_BASE		NR_GPIO_IRQS
@@ -38,11 +39,6 @@
 #define PM8821_IRQ_BASE			(PM8921_IRQ_BASE + PM8921_NR_IRQS)
 
 #define TABLA_INTERRUPT_BASE		(PM8821_IRQ_BASE + PM8821_NR_IRQS)
-
-extern struct pm8xxx_regulator_platform_data
-	ipq806x_pm8921_regulator_pdata[] __devinitdata;
-
-extern int ipq806x_pm8921_regulator_pdata_len __devinitdata;
 
 #define GPIO_VREG_ID_EXT_5V		0
 #define GPIO_VREG_ID_EXT_3P3V		1
@@ -67,9 +63,8 @@ extern struct rpm_regulator_platform_data
 extern struct rpm_regulator_platform_data
 	ipq806x_rpm_regulator_pm8921_pdata __devinitdata;
 
-
-extern struct regulator_init_data ipq806x_saw_regulator_pdata_8921_s5;
-extern struct regulator_init_data ipq806x_saw_regulator_pdata_8921_s6;
+extern struct rpm_regulator_platform_data
+    ipq806x_rpm_regulator_smb_pdata __devinitdata;
 
 extern struct fixed_voltage_config ipq806x_fixed_regul_ssusb_vdd_dig1;
 extern struct fixed_voltage_config ipq806x_fixed_regul_SSUSB_VDDCX1;
@@ -88,6 +83,8 @@ extern struct fixed_voltage_config ipq806x_fixed_regul_HSUSB_3p32;
 extern struct fixed_voltage_config ipq806x_fixed_regul_HSUSB_1p82;
 
 extern struct fixed_voltage_config ipq806x_fixed_regul_hsic_vdd_dig1;
+void __init fixup_ipq806x_smb_power_grid(void);
+
 
 struct mmc_platform_data;
 int __init ipq806x_add_sdcc(unsigned int controller,
@@ -163,6 +160,17 @@ enum {
 #define PCIE_2_RST_GPIO		54
 #define PCIE_2_PWR_EN_GPIO	-EINVAL
 #define PCIE_2_WAKE_N_GPIO	55
+
+/*
+ * Summit PMIC related constants
+ */
+
+/* Default Voltage setting for Summit programmable regulators */
+#define SMB208_DEFAULT_UV  1150000
+
+/* Range of voltages supported by fixed summit regulators on board */
+#define SMB208_FIXED_MINUV	100000
+#define SMB208_FIXED_MAXUV	5000000
 
 extern struct msm_rtb_platform_data ipq806x_rtb_pdata;
 extern struct msm_cache_dump_platform_data ipq806x_cache_dump_pdata;

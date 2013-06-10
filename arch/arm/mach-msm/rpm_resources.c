@@ -1093,11 +1093,6 @@ static int __init msm_rpmrs_init(void)
 	struct msm_rpm_iv_pair req;
 	int rc;
 
-	if (machine_is_ipq806x_rumi3()) {
-		printk("Skipping %s for rumi\n", __func__);
-		return -ENODEV;
-	}
-
 	BUG_ON(!msm_rpmrs_levels);
 
 	if (cpu_is_msm8x60()) {
