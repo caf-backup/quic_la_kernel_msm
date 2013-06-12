@@ -1744,6 +1744,12 @@ static struct platform_device *common_devices[] __initdata = {
 
 	&ipq806x_device_nss0,
 	&ipq806x_device_nss1,
+
+	/* nss-crypto */
+	&ipq806x_device_nss_crypto[0],
+	&ipq806x_device_nss_crypto[1],
+	&ipq806x_device_nss_crypto[2],
+	&ipq806x_device_nss_crypto[3],
 };
 
 static struct platform_device *cdp_devices[] __initdata = {

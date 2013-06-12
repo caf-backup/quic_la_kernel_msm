@@ -52,6 +52,7 @@
 #include <mach/msm_memtypes.h>
 #include <mach/msm_nss_gmac.h>
 #include <mach/msm_nss.h>
+#include <mach/msm_nss_crypto.h>
 
 /* Address of GSBI blocks */
 #define MSM_GSBI1_PHYS		0x12440000
@@ -2250,4 +2251,50 @@ struct platform_device ipq806x_cache_dump_device = {
 struct platform_device msm_gpio_device = {
 	.name = "msmgpio",
 	.id = -1,
+};
+
+/*
+ * NSS crypto for IPQ806x (version 1.0)
+ */
+#define NSS_CRYPTO_PBASE_SZ	0x20000 /* Crypto Register space size */
+#define NSS_CRYPTO_BAM_PBASE_SZ	0x22000 /* Crypto BAM Register space size */
+#define NSS_CRYPTO_PBASE_OFST	0x400000 /* Crypto Register offset for each engine */
+
+#define NSS_CRYPTO_PBASE_ENG(engine)		(0x38000000 + (NSS_CRYPTO_PBASE_OFST * engine))
+#define NSS_CRYPTO_BAM_PBASE_ENG(engine)	(NSS_CRYPTO_PBASE_ENG(engine) + 0x4000)
+
+#define NSS_CRYPTO_INIT_PLATFORM_DATA_ENG(engine)	{	\
+	.crypto_pbase = NSS_CRYPTO_PBASE_ENG(engine),	\
+	.crypto_pbase_sz = NSS_CRYPTO_PBASE_SZ,	\
+	.bam_pbase = NSS_CRYPTO_BAM_PBASE_ENG(engine),	\
+	.bam_pbase_sz = NSS_CRYPTO_BAM_PBASE_SZ,	\
+	.bam_ee = 0,	\
+}
+
+/*
+ * instantiate platform data for nss crypto
+ */
+static struct nss_crypto_platform_data nss_crypto_eng[] = {
+	NSS_CRYPTO_INIT_PLATFORM_DATA_ENG(0),/* Engine - 0 */
+	NSS_CRYPTO_INIT_PLATFORM_DATA_ENG(1),/* Engine - 1 */
+	NSS_CRYPTO_INIT_PLATFORM_DATA_ENG(2),/* Engine - 2 */
+	NSS_CRYPTO_INIT_PLATFORM_DATA_ENG(3),/* Engine - 3 */
+};
+
+#define NSS_CRYPTO_INIT_PLATFORM_DEVICE_ENG(engine)	{	\
+	.name = "nss-crypto",	\
+	.id = (engine),	\
+	.dev = {	\
+		.platform_data = &nss_crypto_eng[(engine)],	\
+	}	\
+}
+
+/*
+ * instantiate platform devices for nss crypto
+ */
+struct platform_device ipq806x_device_nss_crypto[] = {
+	NSS_CRYPTO_INIT_PLATFORM_DEVICE_ENG(0),/* Engine - 0 */
+	NSS_CRYPTO_INIT_PLATFORM_DEVICE_ENG(1),/* Engine - 1 */
+	NSS_CRYPTO_INIT_PLATFORM_DEVICE_ENG(2),/* Engine - 2 */
+	NSS_CRYPTO_INIT_PLATFORM_DEVICE_ENG(3),/* Engine - 3 */
 };
