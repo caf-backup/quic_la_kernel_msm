@@ -2070,7 +2070,6 @@ static void __init ipq806x_allocate_memory_regions(void)
 	//ipq806x_allocate_fb_region();
 }
 
-
 static void nss_gmac_init(void)
 {
 	struct msm_nss_gmac_platform_data *pdata;
@@ -2143,7 +2142,7 @@ int32_t nss_gmac_get_phy_profile(void)
 }
 EXPORT_SYMBOL(nss_gmac_get_phy_profile);
 
-static void __init ipq806x_cdp_init(void)
+static void __init ipq806x_init(void)
 {
 	if (meminfo_init(SYS_MEMORY, SZ_256M) < 0)
 		pr_err("meminfo_init() failed!\n");
@@ -2186,7 +2185,7 @@ MACHINE_START(IPQ806X_CDP, "QCA IPQ806X CDP")
 	.init_irq = ipq806x_init_irq,
 	.handle_irq = gic_handle_irq,
 	.timer = &msm_timer,
-	.init_machine = ipq806x_cdp_init,
+	.init_machine = ipq806x_init,
 	.init_early = ipq806x_allocate_memory_regions,
 	.init_very_early = ipq806x_early_reserve,
 	.restart = msm_restart,
@@ -2198,7 +2197,7 @@ MACHINE_START(IPQ806X_RUMI3, "QCA IPQ806X RUMI3")
 	.init_irq = ipq806x_init_irq,
 	.handle_irq = gic_handle_irq,
 	.timer = &msm_timer,
-	.init_machine = ipq806x_cdp_init,
+	.init_machine = ipq806x_init,
 	.init_early = ipq806x_allocate_memory_regions,
 	.init_very_early = ipq806x_early_reserve,
 	.restart = msm_restart,
