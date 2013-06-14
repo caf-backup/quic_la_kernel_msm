@@ -323,6 +323,10 @@ static struct map_desc ipq806x_io_desc[] __initdata = {
 #ifdef CONFIG_DEBUG_IPQ806X_UART
 	MSM_DEVICE(DEBUG_UART),
 #endif
+	MSM_CHIP_DEVICE(NSS_TCM, IPQ806X),
+	MSM_CHIP_DEVICE(NSS_FPB, IPQ806X),
+	MSM_CHIP_DEVICE(UBI32_0_CSM, IPQ806X),
+	MSM_CHIP_DEVICE(UBI32_1_CSM, IPQ806X),
 };
 
 void __init msm_map_ipq806x_io(void)

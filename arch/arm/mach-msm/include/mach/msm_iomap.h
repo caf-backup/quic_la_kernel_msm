@@ -1,4 +1,4 @@
-/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
+/* * Copyright (c) 2012-2013 Qualcomm Atheros, Inc. * */
 /*
  * Copyright (C) 2007 Google, Inc.
  * Copyright (c) 2008-2012, The Linux Foundation. All rights reserved.
@@ -103,6 +103,13 @@
 #define MSM_STRONGLY_ORDERED_PAGE	0xFA0F0000
 #define MSM8625_SECONDARY_PHYS		0x0FE00000
 
+/*
+ * Reserved 128KB for NSS TCM @ 0xFB700000 for now
+ */
+#define MSM_NSS_TCM_BASE        IOMEM(0xFB700000)       /* 128K */
+#define MSM_NSS_FPB_BASE        IOMEM(0xFB720000)       /*  4K  */
+#define MSM_UBI32_0_CSM_BASE    IOMEM(0xFB721000)       /*  4K  */
+#define MSM_UBI32_1_CSM_BASE    IOMEM(0xFB722000)       /*  4K  */
 
 #if defined(CONFIG_ARCH_MSM9615) || defined(CONFIG_ARCH_MSM7X27) \
 	|| defined(CONFIG_ARCH_MSM7X30)

@@ -1,4 +1,4 @@
-/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
+/* * Copyright (c) 2012-2013 Qualcomm Atheros, Inc. * */
 /* linux/arch/arm/mach-msm/devices.h
  *
  * Copyright (C) 2008 Google, Inc.
@@ -513,3 +513,9 @@ extern struct platform_device msm_bus_ipq806x_nss_fabric_1;
 extern struct platform_device msm_bus_ipq806x_sys_fpb;
 extern struct platform_device msm_bus_ipq806x_cpss_fpb;
 extern struct platform_device ipq_device_tz_log;
+extern struct platform_device ipq806x_device_nss0;
+extern struct platform_device ipq806x_device_nss1;
+extern struct platform_device nss_gmac_0;
+extern struct platform_device nss_gmac_1;
+extern struct platform_device nss_gmac_2;
+extern struct platform_device nss_gmac_3;

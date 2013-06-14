@@ -1,4 +1,4 @@
-/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
+/* * Copyright (c) 2012-2013 Qualcomm Atheros, Inc. * */
 /*
  * Copyright (C) 2007 Google, Inc.
  * Copyright (c) 2008-2012, Code Aurora Forum. All rights reserved.
@@ -104,5 +104,17 @@
 #define MSM_DEBUG_UART_BASE		IOMEM(0xFA740000)
 #define MSM_DEBUG_UART_PHYS		0x16640000
 #endif
+
+#define IPQ806X_NSS_TCM_PHYS            0x39000000
+#define IPQ806X_NSS_TCM_SIZE            SZ_128K
+
+#define IPQ806X_NSS_FPB_PHYS            0x03000000
+#define IPQ806X_NSS_FPB_SIZE            SZ_4K
+
+#define IPQ806X_UBI32_0_CSM_PHYS        0x36000000
+#define IPQ806X_UBI32_0_CSM_SIZE        SZ_4K
+
+#define IPQ806X_UBI32_1_CSM_PHYS        0x36400000
+#define IPQ806X_UBI32_1_CSM_SIZE        SZ_4K
 
 #endif /* __ASM_ARCH_MSM_IOMAP_IPQ806X_H */
