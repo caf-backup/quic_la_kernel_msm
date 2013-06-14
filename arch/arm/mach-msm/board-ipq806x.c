@@ -1,4 +1,4 @@
-/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
+/* * Copyright (c) 2012-2013 Qualcomm Atheros, Inc. * */
 /* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -78,6 +78,7 @@
 #include <mach/msm_pcie.h>
 #include <mach/restart.h>
 #include <mach/msm_iomap.h>
+#include <mach/msm_nss_gmac.h>
 
 #include "msm_watchdog.h"
 #include "board-ipq806x.h"
@@ -1720,6 +1721,9 @@ static struct platform_device *common_devices[] __initdata = {
 	&battery_bcl_device,
 #endif
 	&ipq806x_msm_mpd_device,
+
+	&ipq806x_device_nss0,
+	&ipq806x_device_nss1,
 };
 
 static struct platform_device *cdp_devices[] __initdata = {
@@ -2038,12 +2042,87 @@ static void __init ipq806x_allocate_memory_regions(void)
 	//ipq806x_allocate_fb_region();
 }
 
+
+static void nss_gmac_init(void)
+{
+	struct msm_nss_gmac_platform_data *pdata;
+	if (machine_is_ipq806x_rumi3()) {
+
+		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_0.dev.platform_data;
+		pdata->phy_mdio_addr = 4;
+		pdata->poll_required = 1;
+		pdata->rgmii_delay = 0;
+		pdata->phy_mii_type = GMAC_INTF_RGMII;
+		pdata->emulation = 1;
+
+		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_1.dev.platform_data;
+		pdata->phy_mdio_addr = 6;
+		pdata->poll_required = 1;
+		pdata->rgmii_delay = 0;
+		pdata->phy_mii_type = GMAC_INTF_RGMII;
+		pdata->emulation = 1;
+
+		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_2.dev.platform_data;
+		pdata->phy_mdio_addr = -1;
+		pdata->poll_required = 0;
+		pdata->rgmii_delay = 0;
+		pdata->phy_mii_type = GMAC_INTF_SGMII;
+		pdata->emulation = 1;
+
+		platform_device_register(&nss_gmac_0);
+		platform_device_register(&nss_gmac_1);
+		return;
+	}
+
+	pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_0.dev.platform_data;
+	pdata->phy_mdio_addr = -1;
+	pdata->poll_required = 0;
+	pdata->rgmii_delay = 0;
+	pdata->phy_mii_type = GMAC_INTF_RGMII;
+	pdata->emulation = 0;
+
+	pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_1.dev.platform_data;
+	pdata->phy_mdio_addr = 5;
+	pdata->poll_required = 1;
+	pdata->rgmii_delay = 0;
+	pdata->phy_mii_type = GMAC_INTF_SGMII;
+	pdata->emulation = 0;
+
+	pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_2.dev.platform_data;
+	pdata->phy_mdio_addr = 6;
+	pdata->poll_required = 1;
+	pdata->rgmii_delay = 0;
+	pdata->phy_mii_type = GMAC_INTF_SGMII;
+	pdata->emulation = 0;
+
+	pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_3.dev.platform_data;
+	pdata->phy_mdio_addr = 7;
+	pdata->poll_required = 1;
+	pdata->rgmii_delay = 0;
+	pdata->phy_mii_type = GMAC_INTF_SGMII;
+	pdata->emulation = 0;
+
+	platform_device_register(&nss_gmac_0);
+}
+
+
+int32_t nss_gmac_get_phy_profile(void)
+{
+	if (machine_is_ipq806x_rumi3())
+		return NSS_GMAC_PHY_PROFILE_2R_2S;
+	else
+		return NSS_GMAC_PHY_PROFILE_1R_3S;
+}
+EXPORT_SYMBOL(nss_gmac_get_phy_profile);
+
 static void __init ipq806x_cdp_init(void)
 {
 	if (meminfo_init(SYS_MEMORY, SZ_256M) < 0)
 		pr_err("meminfo_init() failed!\n");
 	ipq806x_common_init();
 	ipq806x_pcie_init();
+
+	nss_gmac_init();
 
 #ifdef CONFIG_MSM_ROTATOR
 	msm_rotator_set_split_iommu_domain();

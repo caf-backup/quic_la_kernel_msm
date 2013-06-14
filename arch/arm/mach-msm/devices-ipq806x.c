@@ -1,4 +1,4 @@
-/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
+/* * Copyright (c) 2013 Qualcomm Atheros, Inc. * */
 /* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -50,6 +50,8 @@
 #include <mach/iommu_domains.h>
 #include <mach/msm_cache_dump.h>
 #include <mach/msm_memtypes.h>
+#include <mach/msm_nss_gmac.h>
+#include <mach/msm_nss.h>
 
 /* Address of GSBI blocks */
 #define MSM_GSBI1_PHYS		0x12440000
@@ -982,6 +984,185 @@ struct platform_device ipq806x_device_ehci_host4 = {
 		.dma_mask               = &dma_mask,
 		.coherent_dma_mask      = 0xffffffff,
 	},
+};
+
+static struct nss_platform_data nss0_pdata = {
+	.num_irq		= 2,
+	.irq[0]			= NSS_UBI32_CORE0_IRQ_0,
+	.irq[1]			= NSS_UBI32_CORE0_IRQ_1,
+	.nmap			= (uint32_t)MSM_UBI32_0_CSM_BASE,
+	.vmap			= (uint32_t)MSM_NSS_TCM_BASE,
+	.nphys			= IPQ806X_UBI32_0_CSM_PHYS,
+	.vphys			= IPQ806X_NSS_TCM_PHYS,
+	.rst_addr		= 0x40000000,
+	.ipv4_enabled		= NSS_FEATURE_ENABLED,
+	.ipv6_enabled		= NSS_FEATURE_ENABLED,
+	.l2switch_enabled	= NSS_FEATURE_ENABLED,
+	.crypto_enabled		= NSS_FEATURE_ENABLED,
+	.ipsec_enabled		= NSS_FEATURE_ENABLED,
+	.wlan_enabled		= NSS_FEATURE_NOT_ENABLED,
+	.gmac_enabled[0]	= NSS_FEATURE_ENABLED,
+	.gmac_enabled[1]	= NSS_FEATURE_ENABLED,
+	.gmac_enabled[2]	= NSS_FEATURE_ENABLED,
+	.gmac_enabled[3]	= NSS_FEATURE_NOT_ENABLED,
+};
+
+struct platform_device ipq806x_device_nss0 = {
+	.name	= "qca-nss",
+	.id	= 0,
+	.dev	= {
+		.platform_data = &nss0_pdata,
+	},
+};
+
+static struct nss_platform_data nss1_pdata = {
+	.num_irq		= 2,
+	.irq[0]			= NSS_UBI32_CORE1_IRQ_0,
+	.irq[1]			= NSS_UBI32_CORE1_IRQ_1,
+	.nmap			= (uint32_t)MSM_UBI32_1_CSM_BASE,
+	.vmap			= (uint32_t)(MSM_NSS_TCM_BASE + SZ_64K),
+	.vphys			= IPQ806X_NSS_TCM_PHYS + SZ_64K,
+	.nphys			= IPQ806X_UBI32_1_CSM_PHYS,
+	.rst_addr		= 0x40100000,
+	.ipv4_enabled		= NSS_FEATURE_NOT_ENABLED,
+	.ipv6_enabled		= NSS_FEATURE_NOT_ENABLED,
+	.l2switch_enabled	= NSS_FEATURE_NOT_ENABLED,
+	.crypto_enabled		= NSS_FEATURE_NOT_ENABLED,
+	.ipsec_enabled		= NSS_FEATURE_NOT_ENABLED,
+	.wlan_enabled		= NSS_FEATURE_NOT_ENABLED,
+	.gmac_enabled[0]	= NSS_FEATURE_NOT_ENABLED,
+	.gmac_enabled[1]	= NSS_FEATURE_NOT_ENABLED,
+	.gmac_enabled[2]	= NSS_FEATURE_NOT_ENABLED,
+	.gmac_enabled[3]	= NSS_FEATURE_NOT_ENABLED,
+};
+
+struct platform_device ipq806x_device_nss1 = {
+	.name	= "qca-nss",
+	.id	= 1,
+	.dev	= {
+		.platform_data = &nss1_pdata,
+	},
+};
+
+/* Resources for GMAC0 */
+static struct resource nss_gmac_0_res[] = {
+	[0] = {
+		.start	= NSS_GMAC0_BASE,
+		.end	= (NSS_GMAC0_BASE + NSS_GMAC_REG_LEN - 1),
+		.name	= "registers",
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= NSS_GMAC0_IRQ0,
+		.end	= NSS_GMAC0_IRQ0,
+		.name	= "irq",
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+
+static struct msm_nss_gmac_platform_data ipq806x_gmac0_platform_data;
+struct platform_device nss_gmac_0 = {
+	.name		= "nss-gmac",		/* This should be same as used
+						   by driver for all GMACs 	*/
+	.id		= 0,			/* Increment this sequentially 	*/
+	.dev		= {
+		.dma_mask		= (u64 *)~0,
+		.coherent_dma_mask	= 0xffffffff,
+		.platform_data		= (void *)&ipq806x_gmac0_platform_data,
+	},
+	.num_resources	= ARRAY_SIZE(nss_gmac_0_res),
+	.resource	= nss_gmac_0_res,
+};
+
+/* Resources for GMAC1 */
+static struct resource nss_gmac_1_res[] = {
+	[0] = {
+		.start	= NSS_GMAC1_BASE,
+		.end	= (NSS_GMAC1_BASE + NSS_GMAC_REG_LEN - 1),
+		.name	= "registers",
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= NSS_GMAC1_IRQ0,
+		.end	= NSS_GMAC1_IRQ0,
+		.name	= "irq",
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+
+static struct msm_nss_gmac_platform_data ipq806x_gmac1_platform_data;
+struct platform_device nss_gmac_1 = {
+	.name		= "nss-gmac",
+	.id		= 1,
+	.dev		= {
+		.dma_mask		= (u64 *)~0,
+		.coherent_dma_mask	= 0xffffffff,
+		.platform_data		= (void *)&ipq806x_gmac1_platform_data,
+	},
+	.num_resources			= ARRAY_SIZE(nss_gmac_1_res),
+	.resource			= nss_gmac_1_res,
+};
+
+/* Resources for GMAC2 */
+static struct resource nss_gmac_2_res[] = {
+	[0] = {
+		.start	= NSS_GMAC2_BASE,
+		.end	= (NSS_GMAC2_BASE + NSS_GMAC_REG_LEN - 1),
+		.name	= "registers",
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= NSS_GMAC2_IRQ0,
+		.end	= NSS_GMAC2_IRQ0,
+		.name	= "irq",
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+
+static struct msm_nss_gmac_platform_data ipq806x_gmac2_platform_data;
+struct platform_device nss_gmac_2 = {
+	.name		= "nss-gmac",
+	.id		= 2,
+	.dev		= {
+		.dma_mask		= (u64 *)~0,
+		.coherent_dma_mask	= 0xffffffff,
+		.platform_data		= (void *)&ipq806x_gmac2_platform_data,
+	},
+	.num_resources			= ARRAY_SIZE(nss_gmac_2_res),
+	.resource			= nss_gmac_2_res,
+};
+
+/* Resources for GMAC3 */
+static struct resource nss_gmac_3_res[] = {
+	[0] = {
+		.start	= NSS_GMAC3_BASE,
+		.end	= (NSS_GMAC3_BASE + NSS_GMAC_REG_LEN - 1),
+		.name	= "registers",
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= NSS_GMAC3_IRQ0,
+		.end	= NSS_GMAC3_IRQ0,
+		.name	= "irq",
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+
+static struct msm_nss_gmac_platform_data ipq806x_gmac3_platform_data;
+struct platform_device nss_gmac_3 = {
+	.name		= "nss-gmac",
+	.id		= 3,
+	.dev		= {
+		.dma_mask		= (u64 *)~0,
+		.coherent_dma_mask	= 0xffffffff,
+		.platform_data		= (void *)&ipq806x_gmac3_platform_data,
+	},
+	.num_resources			= ARRAY_SIZE(nss_gmac_3_res),
+	.resource			= nss_gmac_3_res,
 };
 
 struct platform_device ipq806x_device_acpuclk = {
