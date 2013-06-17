@@ -973,12 +973,12 @@ static void msm_spi_unmap_dma_buffers(struct msm_spi *dd)
 			}
 			if (dd->read_buf) {
 				dma_coherent_post_ops();
-				if (dd->unaligned_len) {
+				if (dd->rx_unaligned_len) {
 					offset = dd->cur_msg_len
-						- dd->unaligned_len;
+						- dd->rx_unaligned_len;
 					memcpy(dd->read_buf + offset,
 					       dd->rx_padding,
-					       dd->unaligned_len);
+					       dd->rx_unaligned_len);
 				}
 				memcpy(dd->cur_transfer->rx_buf,
 				       dd->read_buf + prev_xfr->len,
