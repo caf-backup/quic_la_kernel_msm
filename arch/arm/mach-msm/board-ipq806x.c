@@ -1756,7 +1756,7 @@ static struct platform_device *common_devices[] __initdata = {
 };
 
 static struct platform_device *cdp_devices[] __initdata = {
-	&ipq806x_device_uart_gsbi1,
+	&ipq806x_device_uart_gsbi2,
 	&ipq806x_device_uart_gsbi7,
 	&msm_device_sps_ipq806x,
 #ifdef CONFIG_MSM_ROTATOR
