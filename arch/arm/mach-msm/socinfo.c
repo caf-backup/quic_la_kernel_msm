@@ -756,7 +756,8 @@ static void * __init setup_dummy_socinfo(void)
 			sizeof(dummy_socinfo.build_id));
 	} else if (machine_is_msm8625_rumi3()) {
 		dummy_socinfo.id = 127;
-	} else if (machine_is_ipq806x_cdp() || machine_is_ipq806x_rumi3()) {
+	} else if (machine_is_ipq806x_db149() || machine_is_ipq806x_rumi3() ||
+		   machine_is_ipq806x_tb726() || machine_is_ipq806x_ap144()) {
 		dummy_socinfo.id = 202;
 	}
 	strlcat(dummy_socinfo.build_id, "Dummy socinfo",

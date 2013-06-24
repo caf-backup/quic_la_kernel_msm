@@ -911,17 +911,41 @@ config MACH_APQ8064_LIQUID
 	help
 	  Support for the Qualcomm APQ8064 LIQUID device.
 
-config MACH_IPQ806X_CDP
-	depends on ARCH_IPQ806X
-	bool "IPQ806X CDP"
-	help
-	  Support for the Qualcomm IPQ806X CDP device.
-
 config MACH_IPQ806X_RUMI3
 	depends on ARCH_IPQ806X
 	bool "IPQ806X RUMI3"
 	help
 	  Support for the Qualcomm IPQ806X RUMI3 device.
+
+config MACH_IPQ806X_TB726
+	depends on ARCH_IPQ806X
+	bool "IPQ806X TB726"
+	help
+	  Support for the Qualcomm IPQ806X TB726 device.
+
+config MACH_IPQ806X_AP144
+	depends on ARCH_IPQ806X
+	bool "IPQ806X AP144"
+	help
+	  Support for the Qualcomm IPQ806X AP144 device.
+
+config MACH_IPQ806X_DB149
+	depends on ARCH_IPQ806X
+	bool "IPQ806X DB149"
+	help
+	  Support for the Qualcomm IPQ806X DB149 device.
+
+config MACH_IPQ806X_DB147
+	depends on ARCH_IPQ806X
+	bool "IPQ806X DB147"
+	help
+	  Support for the Qualcomm IPQ806X DB147 device.
+
+config MACH_IPQ806X_AP148
+	depends on ARCH_IPQ806X
+	bool "IPQ806X AP148"
+	help
+	  Support for the Qualcomm IPQ806X AP148 device.
 
 config MACH_MPQ8064_CDP
 	depends on ARCH_APQ8064

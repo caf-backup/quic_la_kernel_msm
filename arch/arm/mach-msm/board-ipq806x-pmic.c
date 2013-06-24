@@ -166,33 +166,6 @@ void __init ipq806x_configure_gpios(struct pm8xxx_gpio_init *data, int len)
 	}
 }
 
-void __init ipq806x_pm8xxx_gpio_mpp_init(void)
-{
-	int i, rc;
-
-	if (socinfo_get_pmic_model() != PMIC_MODEL_PM8917)
-		ipq806x_configure_gpios(pm8921_gpios, ARRAY_SIZE(pm8921_gpios));
-
-	if (machine_is_ipq806x_cdp()) {
-		if (socinfo_get_pmic_model() != PMIC_MODEL_PM8917)
-			ipq806x_configure_gpios(pm8921_cdp_kp_gpios,
-					ARRAY_SIZE(pm8921_cdp_kp_gpios));
-	}
-
-	if (machine_is_ipq806x_cdp())
-		ipq806x_configure_gpios(pm8921_mpq_gpios,
-					ARRAY_SIZE(pm8921_mpq_gpios));
-
-	for (i = 0; i < ARRAY_SIZE(pm8xxx_mpps); i++) {
-		rc = pm8xxx_mpp_config(pm8xxx_mpps[i].mpp,
-					&pm8xxx_mpps[i].config);
-		if (rc) {
-			pr_err("%s: pm8xxx_mpp_config: rc=%d\n", __func__, rc);
-			break;
-		}
-	}
-}
-
 static struct pm8xxx_pwrkey_platform_data ipq806x_pm8921_pwrkey_pdata = {
 	.pull_up		= 1,
 	.kpd_trigger_delay_us	= 15625,
@@ -411,22 +384,3 @@ static struct msm_ssbi_platform_data ipq806x_ssbi_pm8921_pdata __devinitdata = {
 		.platform_data	= &ipq806x_pm8921_platform_data,
 	},
 };
-
-void __init ipq806x_init_pmic(void)
-{
-	pmic_reset_irq = PM8921_IRQ_BASE + PM8921_RESOUT_IRQ;
-
-	ipq806x_device_ssbi_pmic1.dev.platform_data =
-						&ipq806x_ssbi_pm8921_pdata;
-
-	if (socinfo_get_pmic_model() != PMIC_MODEL_PM8917) {
-		ipq806x_pm8921_platform_data.regulator_pdatas
-			= ipq806x_pm8921_regulator_pdata;
-		ipq806x_pm8921_platform_data.num_regulators
-			= ipq806x_pm8921_regulator_pdata_len;
-	}
-
-	if (machine_is_ipq806x_cdp()) {
-		ipq806x_pm8921_chg_pdata.has_dc_supply = true;
-	}
-}

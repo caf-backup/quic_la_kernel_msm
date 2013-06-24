@@ -232,7 +232,7 @@ void __init ipq806x_init_mmc(void)
 			sps_to_ddr_bus_voting_data.bw_vecs_size = 0;
 			ipq806x_sdc3_pdata->msm_bus_voting_data = &sps_to_ddr_bus_voting_data;
 		}
-		if (machine_is_ipq806x_cdp()) {
+		if (machine_is_ipq806x_db149()) {
 			int i;
 			struct msm_mmc_pad_drv_data *drv =
 				ipq806x_sdc3_pdata->pin_data->pad_data->drv;

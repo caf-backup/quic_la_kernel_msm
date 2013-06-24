@@ -691,7 +691,7 @@ void __init ipq806x_init_gpiomux(void)
 				ARRAY_SIZE(ipq806x_gsbi2_i2c_configs));
 	}
 
-	if (machine_is_ipq806x_cdp()) {
+	if (machine_is_ipq806x_db149()) {
 		msm_gpiomux_install(ipq806x_gsbi1_i2c_configs,
 				ARRAY_SIZE(ipq806x_gsbi1_i2c_configs));
 		msm_gpiomux_install(ipq806x_gsbi2_i2c_configs,

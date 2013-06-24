@@ -892,7 +892,7 @@ static struct msm_usb_host_platform_data msm_ehci_host_pdata4;
 
 static void __init ipq806x_ehci_host_init(void)
 {
-	if (machine_is_ipq806x_cdp()) {
+	if (machine_is_ipq806x_db149()) {
 		msm_ehci_host_pdata3.pmic_gpio_dp_irq = PMIC_GPIO_DP_IRQ;
 
 		ipq806x_device_ehci_host3.dev.platform_data =
@@ -1937,7 +1937,7 @@ static void __init register_i2c_devices(void)
 	int i;
 
 	/* Build the matching 'supported_machs' bitmask */
-	if (machine_is_ipq806x_cdp())
+	if (machine_is_ipq806x_db149())
 		mach_mask = I2C_IPQ806X_CDP;
 	else
 		pr_err("unmatched machine ID in register_i2c_devices\n");
@@ -2023,8 +2023,6 @@ static void __init ipq806x_common_init(void)
 	ipq806x_spi_register();
 #endif
 
-	ipq806x_init_pmic();
-
 #ifdef CONFIG_ANDROID
 	android_usb_pdata.swfi_latency =
 		msm_rpmrs_levels[0].latency_us;
@@ -2049,7 +2047,7 @@ static void __init ipq806x_common_init(void)
 				ARRAY_SIZE(common_rumi3_i2c_ipq806x_devices));
 	}
 
-	if (machine_is_ipq806x_cdp())
+	if (machine_is_ipq806x_db149())
 		platform_device_register(&ipq806x_device_ext_ts_sw_vreg);
 	platform_add_devices(common_devices, ARRAY_SIZE(common_devices));
 
@@ -2063,7 +2061,6 @@ static void __init ipq806x_common_init(void)
 
 		enable_ddr3_regulator();
 		msm_hsic_pdata.swfi_latency = msm_rpmrs_levels[0].latency_us;
-		ipq806x_pm8xxx_gpio_mpp_init();
 
 	}
 	ipq806x_init_mmc();
@@ -2169,10 +2166,10 @@ static void __init ipq806x_init(void)
 
 	platform_add_devices(cdp_devices, ARRAY_SIZE(cdp_devices));
 
-	if (machine_is_ipq806x_cdp())
+	if (machine_is_ipq806x_db149())
 		platform_device_register(&cdp_kp_pdev);
 
-	if (machine_is_ipq806x_cdp()) {
+	if (machine_is_ipq806x_db149()) {
 		int ret;
 		struct pm8xxx_mpp_config_data sata_pwr_cfg = {
 			.type = PM8XXX_MPP_TYPE_D_OUTPUT,
@@ -2190,7 +2187,7 @@ static void __init ipq806x_init(void)
 }
 
 
-MACHINE_START(IPQ806X_CDP, "QCA IPQ806X CDP")
+MACHINE_START(IPQ806X_RUMI3, "QCA IPQ806X RUMI3")
 	.map_io = ipq806x_map_io,
 	.reserve = ipq806x_reserve,
 	.init_irq = ipq806x_init_irq,
@@ -2202,7 +2199,55 @@ MACHINE_START(IPQ806X_CDP, "QCA IPQ806X CDP")
 	.restart = msm_restart,
 MACHINE_END
 
-MACHINE_START(IPQ806X_RUMI3, "QCA IPQ806X RUMI3")
+MACHINE_START(IPQ806X_TB726, "QCA IPQ806X TB726")
+	.map_io = ipq806x_map_io,
+	.reserve = ipq806x_reserve,
+	.init_irq = ipq806x_init_irq,
+	.handle_irq = gic_handle_irq,
+	.timer = &msm_timer,
+	.init_machine = ipq806x_init,
+	.init_early = ipq806x_allocate_memory_regions,
+	.init_very_early = ipq806x_early_reserve,
+	.restart = msm_restart,
+MACHINE_END
+
+MACHINE_START(IPQ806X_AP144, "QCA IPQ806X AP144")
+	.map_io = ipq806x_map_io,
+	.reserve = ipq806x_reserve,
+	.init_irq = ipq806x_init_irq,
+	.handle_irq = gic_handle_irq,
+	.timer = &msm_timer,
+	.init_machine = ipq806x_init,
+	.init_early = ipq806x_allocate_memory_regions,
+	.init_very_early = ipq806x_early_reserve,
+	.restart = msm_restart,
+MACHINE_END
+
+MACHINE_START(IPQ806X_DB149, "QCA IPQ806X DB149")
+	.map_io = ipq806x_map_io,
+	.reserve = ipq806x_reserve,
+	.init_irq = ipq806x_init_irq,
+	.handle_irq = gic_handle_irq,
+	.timer = &msm_timer,
+	.init_machine = ipq806x_init,
+	.init_early = ipq806x_allocate_memory_regions,
+	.init_very_early = ipq806x_early_reserve,
+	.restart = msm_restart,
+MACHINE_END
+
+MACHINE_START(IPQ806X_DB147, "QCA IPQ806X DB147")
+	.map_io = ipq806x_map_io,
+	.reserve = ipq806x_reserve,
+	.init_irq = ipq806x_init_irq,
+	.handle_irq = gic_handle_irq,
+	.timer = &msm_timer,
+	.init_machine = ipq806x_init,
+	.init_early = ipq806x_allocate_memory_regions,
+	.init_very_early = ipq806x_early_reserve,
+	.restart = msm_restart,
+MACHINE_END
+
+MACHINE_START(IPQ806X_AP148, "QCA IPQ806X AP148")
 	.map_io = ipq806x_map_io,
 	.reserve = ipq806x_reserve,
 	.init_irq = ipq806x_init_irq,
