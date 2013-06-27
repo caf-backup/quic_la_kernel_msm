@@ -2151,6 +2151,11 @@ ar8216_read_status(struct phy_device *phydev)
 	}
 	phydev->duplex = link.duplex ? DUPLEX_FULL : DUPLEX_HALF;
 
+	/* flush the address translation unit */
+	mutex_lock(&priv->reg_mutex);
+	ret = priv->chip->atu_flush(priv);
+	mutex_unlock(&priv->reg_mutex);
+
 	phydev->state = PHY_RUNNING;
 	netif_carrier_on(phydev->attached_dev);
 	phydev->adjust_link(phydev->attached_dev);
