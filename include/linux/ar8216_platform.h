@@ -78,6 +78,10 @@ struct ar8327_led_cfg {
 	bool open_drain;
 };
 
+struct ar8327_sgmii_ctrl_cfg {
+	u32 sgmii_pll_en;
+};
+
 struct ar8327_platform_data {
 	struct ar8327_pad_cfg *pad0_cfg;
 	struct ar8327_pad_cfg *pad5_cfg;
@@ -86,6 +90,7 @@ struct ar8327_platform_data {
 	struct ar8327_port_cfg port5_cfg;
 	struct ar8327_port_cfg port6_cfg;
 	struct ar8327_led_cfg *led_cfg;
+	struct ar8327_sgmii_ctrl_cfg *sgmii_ctrl_cfg;
 };
 
 #endif /* AR8216_PLATFORM_H */

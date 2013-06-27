@@ -1032,6 +1032,7 @@ ar8327_hw_init(struct ar8216_priv *priv)
 {
 	struct ar8327_platform_data *pdata;
 	struct ar8327_led_cfg *led_cfg;
+	struct ar8327_sgmii_ctrl_cfg *sgmii_ctrl_cfg;
 	struct mii_bus *bus;
 	u32 pos, new_pos;
 	u32 t;
@@ -1067,6 +1068,14 @@ ar8327_hw_init(struct ar8216_priv *priv)
 	if (new_pos != pos) {
 		new_pos |= AR8327_POWER_ON_STRIP_POWER_ON_SEL;
 		priv->write(priv, AR8327_REG_POWER_ON_STRIP, new_pos);
+	}
+
+	sgmii_ctrl_cfg = pdata->sgmii_ctrl_cfg;
+	if (sgmii_ctrl_cfg) {
+		if (sgmii_ctrl_cfg->sgmii_pll_en) {
+			priv->write(priv, AR8327_SGMII_CTRL_REG, 0xC74164DF);
+			priv->write(priv, AR8327_REG_POWER_ON_STRIP, 0x602613A0);
+		}
 	}
 
 	bus = priv->phy->bus;
