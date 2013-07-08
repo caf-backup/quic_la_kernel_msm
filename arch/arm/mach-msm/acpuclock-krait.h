@@ -223,6 +223,7 @@ struct scalable {
 	struct vreg vreg[NUM_VREG];
 	bool initialized;
 	bool avs_enabled;
+	bool vddmx_scale_en;
 };
 
 /**

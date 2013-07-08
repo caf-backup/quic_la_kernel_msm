@@ -63,7 +63,7 @@ static struct drv_data {
 
 static unsigned long acpuclk_krait_get_rate(int cpu)
 {
-	if(!drv.scalable[cpu].cur_speed) {
+	if (!drv.scalable[cpu].cur_speed) {
 		printk(KERN_ERR "%s: invalid drv data - cur_speed is NULL\n",
 		       __FUNCTION__);
 		return 0;
@@ -274,45 +274,47 @@ static int increase_vdd(int cpu, struct vdd_data *data,
 	struct scalable *sc = &drv.scalable[cpu];
 	int rc;
 
-	/*
-	 * Increase vdd_mem active-set before vdd_dig.
-	 * vdd_mem should be >= vdd_dig.
-	 */
-	if (data->vdd_mem > sc->vreg[VREG_MEM].cur_vdd) {
-		rc = rpm_regulator_set_voltage(sc->vreg[VREG_MEM].rpm_reg,
-				data->vdd_mem, sc->vreg[VREG_MEM].max_vdd);
-		if (rc) {
-			dev_err(drv.dev,
-				"vdd_mem (cpu%d) increase failed (%d)\n",
-				cpu, rc);
-			return rc;
+	if (sc->vddmx_scale_en) {
+		/*
+		 * Increase vdd_mem active-set before vdd_dig.
+		 * vdd_mem should be >= vdd_dig.
+		 */
+		if (data->vdd_mem > sc->vreg[VREG_MEM].cur_vdd) {
+			rc = rpm_regulator_set_voltage(sc->vreg[VREG_MEM].rpm_reg,
+					data->vdd_mem, sc->vreg[VREG_MEM].max_vdd);
+			if (rc) {
+				dev_err(drv.dev,
+						"vdd_mem (cpu%d) increase failed (%d)\n",
+						cpu, rc);
+				return rc;
+			}
+			sc->vreg[VREG_MEM].cur_vdd = data->vdd_mem;
 		}
-		 sc->vreg[VREG_MEM].cur_vdd = data->vdd_mem;
-	}
 
-	/* Increase vdd_dig active-set vote. */
-	if (data->vdd_dig > sc->vreg[VREG_DIG].cur_vdd) {
-		rc = rpm_regulator_set_voltage(sc->vreg[VREG_DIG].rpm_reg,
-				data->vdd_dig, sc->vreg[VREG_DIG].max_vdd);
-		if (rc) {
-			dev_err(drv.dev,
-				"vdd_dig (cpu%d) increase failed (%d)\n",
-				cpu, rc);
-			return rc;
+		/* Increase vdd_dig active-set vote. */
+		if (data->vdd_dig > sc->vreg[VREG_DIG].cur_vdd) {
+			rc = rpm_regulator_set_voltage(sc->vreg[VREG_DIG].rpm_reg,
+					data->vdd_dig, sc->vreg[VREG_DIG].max_vdd);
+			if (rc) {
+				dev_err(drv.dev,
+						"vdd_dig (cpu%d) increase failed (%d)\n",
+						cpu, rc);
+				return rc;
+			}
+			sc->vreg[VREG_DIG].cur_vdd = data->vdd_dig;
 		}
-		sc->vreg[VREG_DIG].cur_vdd = data->vdd_dig;
-	}
 
-	/* Increase current request. */
-	if (data->ua_core > sc->vreg[VREG_CORE].cur_ua) {
-		rc = regulator_set_optimum_mode(sc->vreg[VREG_CORE].reg,
-						data->ua_core);
-		if (rc < 0) {
-			dev_err(drv.dev, "regulator_set_optimum_mode(%s) failed (%d)\n",
-				sc->vreg[VREG_CORE].name, rc);
-			return rc;
+		/* Increase current request. */
+		if (data->ua_core > sc->vreg[VREG_CORE].cur_ua) {
+			rc = regulator_set_optimum_mode(sc->vreg[VREG_CORE].reg,
+					data->ua_core);
+			if (rc < 0) {
+				dev_err(drv.dev, "regulator_set_optimum_mode(%s) failed (%d)\n",
+						sc->vreg[VREG_CORE].name, rc);
+				return rc;
+			}
+			sc->vreg[VREG_CORE].cur_ua = data->ua_core;
 		}
-		sc->vreg[VREG_CORE].cur_ua = data->ua_core;
 	}
 
 	/*
@@ -362,13 +364,17 @@ static void decrease_vdd(int cpu, struct vdd_data *data,
 		sc->vreg[VREG_CORE].cur_vdd = data->vdd_core;
 	}
 
+	if (!sc->vddmx_scale_en) {
+		return;
+	}
+
 	/* Decrease current request. */
 	if (data->ua_core < sc->vreg[VREG_CORE].cur_ua) {
 		ret = regulator_set_optimum_mode(sc->vreg[VREG_CORE].reg,
-						data->ua_core);
+				data->ua_core);
 		if (ret < 0) {
 			dev_err(drv.dev, "regulator_set_optimum_mode(%s) failed (%d)\n",
-				sc->vreg[VREG_CORE].name, ret);
+					sc->vreg[VREG_CORE].name, ret);
 			return;
 		}
 		sc->vreg[VREG_CORE].cur_ua = data->ua_core;
@@ -380,8 +386,8 @@ static void decrease_vdd(int cpu, struct vdd_data *data,
 				data->vdd_dig, sc->vreg[VREG_DIG].max_vdd);
 		if (ret) {
 			dev_err(drv.dev,
-				"vdd_dig (cpu%d) decrease failed (%d)\n",
-				cpu, ret);
+					"vdd_dig (cpu%d) decrease failed (%d)\n",
+					cpu, ret);
 			return;
 		}
 		sc->vreg[VREG_DIG].cur_vdd = data->vdd_dig;
@@ -500,6 +506,12 @@ static int acpuclk_krait_set_rate(int cpu, unsigned long rate,
 	if (cpu > num_possible_cpus())
 		return -EINVAL;
 
+	if (!drv.scalable[cpu].cur_speed) {
+		printk(KERN_ERR "%s: invalid drv data - cur_speed is NULL\n",
+				__FUNCTION__);
+		return 0;
+	}
+
 	if (reason == SETRATE_CPUFREQ || reason == SETRATE_HOTPLUG)
 		mutex_lock(&driver_lock);
 
@@ -522,10 +534,12 @@ static int acpuclk_krait_set_rate(int cpu, unsigned long rate,
 	}
 
 	/* Calculate voltage requirements for the current CPU. */
-	vdd_data.vdd_mem  = calculate_vdd_mem(tgt);
-	vdd_data.vdd_dig  = calculate_vdd_dig(tgt);
+	if (drv.scalable[cpu].vddmx_scale_en) {
+		vdd_data.vdd_mem  = calculate_vdd_mem(tgt);
+		vdd_data.vdd_dig  = calculate_vdd_dig(tgt);
+		vdd_data.ua_core = tgt->ua_core;
+	}
 	vdd_data.vdd_core = calculate_vdd_core(tgt);
-	vdd_data.ua_core = tgt->ua_core;
 
 	/* Disable AVS before voltage switch */
 	if (reason == SETRATE_CPUFREQ && drv.scalable[cpu].avs_enabled) {
@@ -695,20 +709,23 @@ static void __cpuinit rpm_regulator_cleanup(struct scalable *sc,
 static int __cpuinit regulator_init(struct scalable *sc,
 				const struct acpu_level *acpu_level)
 {
-	int ret, vdd_mem, vdd_dig, vdd_core;
+	int ret, vdd_core;
+	int vdd_mem, vdd_dig;
 
-	vdd_mem = calculate_vdd_mem(acpu_level);
-	ret = rpm_regulator_init(sc, VREG_MEM, vdd_mem, true);
-	if (ret)
-		goto err_mem;
+	if (sc->vddmx_scale_en) {
+		vdd_mem = calculate_vdd_mem(acpu_level);
+		ret = rpm_regulator_init(sc, VREG_MEM, vdd_mem, true);
+		if (ret)
+			goto err_mem;
 
-	vdd_dig = calculate_vdd_dig(acpu_level);
-	ret = rpm_regulator_init(sc, VREG_DIG, vdd_dig, true);
-	if (ret)
-		goto err_dig;
+		vdd_dig = calculate_vdd_dig(acpu_level);
+		ret = rpm_regulator_init(sc, VREG_DIG, vdd_dig, true);
+		if (ret)
+			goto err_dig;
+	}
 
 	ret = rpm_regulator_init(sc, VREG_HFPLL_A,
-			   sc->vreg[VREG_HFPLL_A].max_vdd, false);
+			sc->vreg[VREG_HFPLL_A].max_vdd, false);
 	if (ret)
 		goto err_hfpll_a;
 	ret = rpm_regulator_init(sc, VREG_HFPLL_B,
@@ -725,20 +742,24 @@ static int __cpuinit regulator_init(struct scalable *sc,
 			sc->vreg[VREG_CORE].name, ret);
 		goto err_core_get;
 	}
-	ret = regulator_set_optimum_mode(sc->vreg[VREG_CORE].reg,
-					 acpu_level->ua_core);
-	if (ret < 0) {
-		dev_err(drv.dev, "regulator_set_optimum_mode(%s) failed (%d)\n",
-			sc->vreg[VREG_CORE].name, ret);
-		goto err_core_conf;
+
+	if (sc->vddmx_scale_en) {
+		ret = regulator_set_optimum_mode(sc->vreg[VREG_CORE].reg,
+				acpu_level->ua_core);
+		if (ret < 0) {
+			dev_err(drv.dev, "regulator_set_optimum_mode(%s) failed (%d)\n",
+					sc->vreg[VREG_CORE].name, ret);
+			goto err_core_conf;
+		}
+		sc->vreg[VREG_CORE].cur_ua = acpu_level->ua_core;
 	}
-	sc->vreg[VREG_CORE].cur_ua = acpu_level->ua_core;
+
 	vdd_core = calculate_vdd_core(acpu_level);
 	ret = regulator_set_voltage(sc->vreg[VREG_CORE].reg, vdd_core,
-				    sc->vreg[VREG_CORE].max_vdd);
+			sc->vreg[VREG_CORE].max_vdd);
 	if (ret) {
 		dev_err(drv.dev, "regulator_set_voltage(%s) (%d)\n",
-			sc->vreg[VREG_CORE].name, ret);
+				sc->vreg[VREG_CORE].name, ret);
 		goto err_core_conf;
 	}
 	sc->vreg[VREG_CORE].cur_vdd = vdd_core;
@@ -766,9 +787,13 @@ err_core_get:
 err_hfpll_b:
 	rpm_regulator_cleanup(sc, VREG_HFPLL_A);
 err_hfpll_a:
-	rpm_regulator_cleanup(sc, VREG_DIG);
+	if (sc->vddmx_scale_en) {
+		rpm_regulator_cleanup(sc, VREG_DIG);
+	}
 err_dig:
-	rpm_regulator_cleanup(sc, VREG_MEM);
+	if (sc->vddmx_scale_en) {
+		rpm_regulator_cleanup(sc, VREG_MEM);
+	}
 err_mem:
 	return ret;
 }
@@ -779,8 +804,11 @@ static void __cpuinit regulator_cleanup(struct scalable *sc)
 	regulator_put(sc->vreg[VREG_CORE].reg);
 	rpm_regulator_cleanup(sc, VREG_HFPLL_B);
 	rpm_regulator_cleanup(sc, VREG_HFPLL_A);
-	rpm_regulator_cleanup(sc, VREG_DIG);
-	rpm_regulator_cleanup(sc, VREG_MEM);
+
+	if (sc->vddmx_scale_en) {
+		rpm_regulator_cleanup(sc, VREG_DIG);
+		rpm_regulator_cleanup(sc, VREG_MEM);
+	}
 }
 
 /* Set initial rate for a given core. */
@@ -939,10 +967,6 @@ static void __init cpufreq_table_init(void)
 {
 	int cpu;
 
-	if (machine_is_ipq806x_rumi3()) {
-		printk("Skipping %s for rumi\n", __func__);
-		return;
-	}
 
 	for_each_possible_cpu(cpu) {
 		int i, freq_cnt = 0;
@@ -1154,9 +1178,6 @@ static void __init hw_init(void)
 	l2->hfpll_base = ioremap(l2->hfpll_phys_base, SZ_32);
 	BUG_ON(!l2->hfpll_base);
 
-	if (machine_is_ipq806x_rumi3()) {
-		return;
-	}
 	rc = rpm_regulator_init(l2, VREG_HFPLL_A,
 				l2->vreg[VREG_HFPLL_A].max_vdd, false);
 	BUG_ON(rc);
