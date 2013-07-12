@@ -1535,8 +1535,8 @@ static void __init ipq806x_pcie_init(void)
 		return;
 
 	msm_pcie_platform_data.wake_n = gpio_to_irq(PCIE_WAKE_N_GPIO);
-	msm_device_pcie.dev.platform_data = &msm_pcie_platform_data;
-	platform_device_register(&msm_device_pcie);
+	msm_device_pcie[0].dev.platform_data = &msm_pcie_platform_data;
+	platform_device_register(&msm_device_pcie[0]);
 }
 
 static struct platform_device ipq806x_device_ext_5v_vreg __devinitdata = {

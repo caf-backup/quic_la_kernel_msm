@@ -251,6 +251,9 @@ config ARCH_IPQ806X
 	select GPIO_MSM_V2
 	select HOLES_IN_ZONE if SPARSEMEM
 	select MIGHT_HAVE_PCI
+	select PCI
+	select PCI_MSI
+	select MSM_PCIE
 	select MSM_ADM3
 	select MSM_DIRECT_SCLK_ACCESS
 	select MSM_GPIOMUX
@@ -1375,6 +1378,15 @@ config MSM_PCIE
 	help
 	  Enables the PCIe functionality by configures PCIe core on
 	  MSM chipset and by enabling the ARM PCI framework extension.
+
+config MSM_NUM_PCIE
+	int "Number of PCIe Root Complex"
+	default 0 if !MSM_PCIE
+	default 3 if ARCH_IPQ806X
+	default 1
+	range 0 3
+	help
+	  Max. number of PCIe RCs available in the SoC
 
 config MSM_RPC_SDIO_XPRT
 	depends on MSM_SDIO_AL

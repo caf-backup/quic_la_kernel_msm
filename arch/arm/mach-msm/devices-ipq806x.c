@@ -1571,11 +1571,13 @@ static struct resource resources_msm_pcie[] = {
 	},
 };
 
-struct platform_device msm_device_pcie = {
-	.name           = "msm_pcie",
-	.id             = 0,
-	.num_resources  = ARRAY_SIZE(resources_msm_pcie),
-	.resource       = resources_msm_pcie,
+struct platform_device msm_device_pcie[] = {
+	{
+		.name           = "msm_pcie",
+		.id             = 0,
+		.num_resources  = ARRAY_SIZE(resources_msm_pcie),
+		.resource       = resources_msm_pcie,
+	}
 };
 
 #ifdef CONFIG_HW_RANDOM_MSM

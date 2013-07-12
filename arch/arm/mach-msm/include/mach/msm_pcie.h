@@ -29,6 +29,12 @@ struct msm_pcie_gpio_info_t {
 	uint32_t   on;
 };
 
+/* Port Enable info */
+typedef struct {
+	void __iomem  *reg;
+	uint32_t      bits;
+} msm_pcie_port_en_t;
+
 /* msm pcie platfrom data */
 struct msm_pcie_platform {
 	struct msm_pcie_gpio_info_t  *gpio;
@@ -36,6 +42,27 @@ struct msm_pcie_platform {
 	uint32_t                      axi_addr;
 	uint32_t                      axi_size;
 	uint32_t                      wake_n;
+	uint32_t                     vreg_n;
+	struct platform_device       *pdev;
+
+	struct msm_pcie_vreg_info_t  *vreg;
+	struct msm_pcie_clk_info_t   *clk;
+	struct msm_pcie_res_info_t   *res;
+
+	void __iomem                 *parf;
+	void __iomem                 *elbi;
+	void __iomem                 *pcie20;
+	void __iomem                 *axi_conf;
+	void __iomem                 *reset_reg;
+	void __iomem                 *porten_reg;
+	uint32_t                     axi_bar_start;
+	uint32_t                     axi_bar_end;
+
+	struct resource              dev_mem_res;
+
+	uint32_t                     msi_irq;
+	uint32_t                     inta;
+        msm_pcie_port_en_t           *port_en;
 };
 
 #endif

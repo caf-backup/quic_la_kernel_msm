@@ -27,7 +27,28 @@
 	if (msm_pcie_get_debug_mask())   \
 		pr_info(x);              \
 	} while (0)
-#define PCIE_VREG_REQ             0
+
+#define PCIE_RESET		(MSM_CLK_CTL_BASE + 0x22DC)
+#define PCIE_1_RESET		(MSM_CLK_CTL_BASE + 0x3A9C)
+#define PCIE_2_RESET		(MSM_CLK_CTL_BASE + 0x3ADC)
+
+#define PCIE_SFAB_AXI_S5_FCLK_CTL	(MSM_CLK_CTL_BASE + 0x2154)
+#define PCIE_1_ACLK_CTL			(MSM_CLK_CTL_BASE + 0x3A80)
+#define PCIE_2_ACLK_CTL			(MSM_CLK_CTL_BASE + 0x3AC0)
+
+/* resources from device file */
+enum msm_pcie_res {
+	/* platform defined resources */
+	MSM_PCIE_RES_PARF,
+	MSM_PCIE_RES_ELBI,
+	MSM_PCIE_RES_PCIE20,
+	MSM_PCIE_MAX_PLATFORM_RES,
+
+	/* other resources */
+	MSM_PCIE_RES_AXI_CONF = MSM_PCIE_MAX_PLATFORM_RES,
+	MSM_PCIE_MAX_RES,
+};
+
 /* voltage regulator info structrue */
 struct msm_pcie_vreg_info_t {
 	struct regulator  *hdl;
@@ -35,7 +56,6 @@ struct msm_pcie_vreg_info_t {
 	uint32_t           max_v;
 	uint32_t           min_v;
 	uint32_t           opt_mode;
-	uint32_t           required;
 };
 
 /* clock info structure */
@@ -53,24 +73,32 @@ struct msm_pcie_res_info_t {
 
 /* msm pcie device structure */
 struct msm_pcie_dev_t {
-	struct platform_device       *pdev;
+	struct platform_device		*pdev;
 
-	struct msm_pcie_vreg_info_t  *vreg;
-	struct msm_pcie_gpio_info_t  *gpio;
-	struct msm_pcie_clk_info_t   *clk;
-	struct msm_pcie_res_info_t   *res;
+	struct msm_pcie_vreg_info_t	*vreg;
+	struct msm_pcie_gpio_info_t	*gpio;
+	struct msm_pcie_clk_info_t	*clk;
+	struct msm_pcie_res_info_t	*res;
+        msm_pcie_port_en_t              *port_en;
 
-	void __iomem                 *parf;
-	void __iomem                 *elbi;
-	void __iomem                 *pcie20;
-	void __iomem                 *axi_conf;
+	void __iomem			*parf;
+	void __iomem			*elbi;
+	void __iomem			*pcie20;
+	void __iomem			*axi_conf;
+	void __iomem			*reset_reg;
+	void __iomem			*porten_reg;
+	uint32_t			axi_bar_start;
+	uint32_t			axi_bar_end;
 
-	uint32_t                      axi_bar_start;
-	uint32_t                      axi_bar_end;
+	struct resource			dev_mem_res;
 
-	struct resource               dev_mem_res;
-
-	uint32_t                      wake_n;
+	uint32_t			wake_n;
+	uint32_t			vreg_n;
+	uint32_t			msi_irq;
+	uint32_t			inta;
+	uint32_t			axi_addr;
+	uint32_t			axi_size;
+	uint32_t			bus;
 };
 
 extern uint32_t msm_pcie_irq_init(struct msm_pcie_dev_t *dev);
