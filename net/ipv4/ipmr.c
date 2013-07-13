@@ -2,6 +2,7 @@
  *	IP multicast routing support for mrouted 3.6/3.8
  *
  *		(c) 1995 Alan Cox, <alan@lxorguk.ukuu.org.uk>
+ *              Copyright (c) 2013 Qualcomm Atheros, Inc.
  *	  Linux Consultancy and Custom Driver Development
  *
  *	This program is free software; you can redistribute it and/or
@@ -981,7 +982,7 @@ ipmr_cache_unresolved(struct mr_table *mrt, vifi_t vifi, struct sk_buff *skb)
 	if (!found) {
 		/* Create a new entry if allowable */
 
-		if (atomic_read(&mrt->cache_resolve_queue_len) >= 10 ||
+		if (atomic_read(&mrt->cache_resolve_queue_len) >= sysctl_igmp_max_memberships ||
 		    (c = ipmr_cache_alloc_unres()) == NULL) {
 			spin_unlock_bh(&mfc_unres_lock);
 
