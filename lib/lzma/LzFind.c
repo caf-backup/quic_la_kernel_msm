@@ -42,12 +42,12 @@ static int LzInWindow_Create(CMatchFinder *p, UInt32 keepSizeReserv, ISzAlloc *a
   return (p->bufferBase != 0);
 }
 
-Byte *MatchFinder_GetPointerToCurrentPos(CMatchFinder *p) { return p->buffer; }
-Byte MatchFinder_GetIndexByte(CMatchFinder *p, Int32 index) { return p->buffer[index]; }
+static Byte *MatchFinder_GetPointerToCurrentPos(CMatchFinder *p) { return p->buffer; }
+static Byte MatchFinder_GetIndexByte(CMatchFinder *p, Int32 index) { return p->buffer[index]; }
 
-UInt32 MatchFinder_GetNumAvailableBytes(CMatchFinder *p) { return p->streamPos - p->pos; }
+static UInt32 MatchFinder_GetNumAvailableBytes(CMatchFinder *p) { return p->streamPos - p->pos; }
 
-void MatchFinder_ReduceOffsets(CMatchFinder *p, UInt32 subValue)
+static void MatchFinder_ReduceOffsets(CMatchFinder *p, UInt32 subValue)
 {
   p->posLimit -= subValue;
   p->pos -= subValue;
@@ -268,7 +268,7 @@ static void MatchFinder_SetLimits(CMatchFinder *p)
   p->posLimit = p->pos + limit;
 }
 
-void MatchFinder_Init(CMatchFinder *p)
+static void MatchFinder_Init(CMatchFinder *p)
 {
   UInt32 i;
   for (i = 0; i < p->hashSizeSum; i++)
@@ -287,7 +287,7 @@ static UInt32 MatchFinder_GetSubValue(CMatchFinder *p)
   return (p->pos - p->historySize - 1) & kNormalizeMask;
 }
 
-void MatchFinder_Normalize3(UInt32 subValue, CLzRef *items, UInt32 numItems)
+static void MatchFinder_Normalize3(UInt32 subValue, CLzRef *items, UInt32 numItems)
 {
   UInt32 i;
   for (i = 0; i < numItems; i++)
@@ -350,7 +350,7 @@ static UInt32 * Hc_GetMatchesSpec(UInt32 lenLimit, UInt32 curMatch, UInt32 pos, 
   }
 }
 
-UInt32 * GetMatchesSpec1(UInt32 lenLimit, UInt32 curMatch, UInt32 pos, const Byte *cur, CLzRef *son,
+static UInt32 * GetMatchesSpec1(UInt32 lenLimit, UInt32 curMatch, UInt32 pos, const Byte *cur, CLzRef *son,
     UInt32 _cyclicBufferPos, UInt32 _cyclicBufferSize, UInt32 cutValue,
     UInt32 *distances, UInt32 maxLen)
 {
@@ -492,7 +492,7 @@ static UInt32 Bt2_MatchFinder_GetMatches(CMatchFinder *p, UInt32 *distances)
   GET_MATCHES_FOOTER(offset, 1)
 }
 
-UInt32 Bt3Zip_MatchFinder_GetMatches(CMatchFinder *p, UInt32 *distances)
+static __maybe_unused UInt32 Bt3Zip_MatchFinder_GetMatches(CMatchFinder *p, UInt32 *distances)
 {
   UInt32 offset;
   GET_MATCHES_HEADER(3)
@@ -632,7 +632,7 @@ static UInt32 Hc4_MatchFinder_GetMatches(CMatchFinder *p, UInt32 *distances)
   MOVE_POS_RET
 }
 
-UInt32 Hc3Zip_MatchFinder_GetMatches(CMatchFinder *p, UInt32 *distances)
+static __maybe_unused UInt32 Hc3Zip_MatchFinder_GetMatches(CMatchFinder *p, UInt32 *distances)
 {
   UInt32 offset;
   GET_MATCHES_HEADER(3)
@@ -657,7 +657,7 @@ static void Bt2_MatchFinder_Skip(CMatchFinder *p, UInt32 num)
   while (--num != 0);
 }
 
-void Bt3Zip_MatchFinder_Skip(CMatchFinder *p, UInt32 num)
+static __maybe_unused void Bt3Zip_MatchFinder_Skip(CMatchFinder *p, UInt32 num)
 {
   do
   {
@@ -718,7 +718,7 @@ static void Hc4_MatchFinder_Skip(CMatchFinder *p, UInt32 num)
   while (--num != 0);
 }
 
-void Hc3Zip_MatchFinder_Skip(CMatchFinder *p, UInt32 num)
+static __maybe_unused void Hc3Zip_MatchFinder_Skip(CMatchFinder *p, UInt32 num)
 {
   do
   {
