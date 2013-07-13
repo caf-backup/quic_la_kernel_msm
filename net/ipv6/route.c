@@ -241,6 +241,24 @@ static struct rt6_info ip6_prohibit_entry_template = {
 	.rt6i_ref	= ATOMIC_INIT(1),
 };
 
+static int ip6_pkt_failed_policy(struct sk_buff *skb);
+static int ip6_pkt_failed_policy_out(struct sk_buff *skb);
+
+static const struct rt6_info ip6_failed_policy_entry_template = {
+	.dst = {
+		.__refcnt	= ATOMIC_INIT(1),
+		.__use		= 1,
+		.obsolete	= -1,
+		.error		= -EPERM,
+		.input		= ip6_pkt_failed_policy,
+		.output		= ip6_pkt_failed_policy_out,
+	},
+	.rt6i_flags	= (RTF_REJECT | RTF_NONEXTHOP),
+	.rt6i_protocol	= RTPROT_KERNEL,
+	.rt6i_metric	= ~(u32) 0,
+	.rt6i_ref	= ATOMIC_INIT(1),
+};
+
 static struct rt6_info ip6_blk_hole_entry_template = {
 	.dst = {
 		.__refcnt	= ATOMIC_INIT(1),
@@ -1378,6 +1396,9 @@ int ip6_route_add(struct fib6_config *cfg)
 		case RTN_THROW:
 			rt->dst.error = -EAGAIN;
 			break;
+		case RTN_FAILED_POLICY:
+			rt->dst.error = -EPERM;
+			break;
 		default:
 			rt->dst.error = -ENETUNREACH;
 			break;
@@ -2105,6 +2126,17 @@ static int ip6_pkt_prohibit_out(struct sk_buff *skb)
 	return ip6_pkt_drop(skb, ICMPV6_ADM_PROHIBITED, IPSTATS_MIB_OUTNOROUTES);
 }
 
+static int ip6_pkt_failed_policy(struct sk_buff *skb)
+{
+	return ip6_pkt_drop(skb, ICMPV6_FAILED_POLICY, IPSTATS_MIB_INNOROUTES);
+}
+
+static int ip6_pkt_failed_policy_out(struct sk_buff *skb)
+{
+	skb->dev = skb_dst(skb)->dev;
+	return ip6_pkt_drop(skb, ICMPV6_FAILED_POLICY, IPSTATS_MIB_OUTNOROUTES);
+}
+
 #endif
 
 /*
@@ -2320,7 +2352,8 @@ static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (rtm->rtm_type == RTN_UNREACHABLE ||
 	    rtm->rtm_type == RTN_BLACKHOLE ||
 	    rtm->rtm_type == RTN_PROHIBIT ||
-	    rtm->rtm_type == RTN_THROW)
+	    rtm->rtm_type == RTN_THROW ||
+	    rtm->rtm_type == RTN_FAILED_POLICY)
 		cfg->fc_flags |= RTF_REJECT;
 
 	if (rtm->rtm_type == RTN_LOCAL)
@@ -2457,6 +2490,9 @@ static int rt6_fill_node(struct net *net,
 			break;
 		case -EACCES:
 			rtm->rtm_type = RTN_PROHIBIT;
+			break;
+		case -EPERM:
+			rtm->rtm_type = RTN_FAILED_POLICY;
 			break;
 		case -EAGAIN:
 			rtm->rtm_type = RTN_THROW;
@@ -2715,6 +2751,8 @@ static int ip6_route_dev_notify(struct notifier_block *this,
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 		net->ipv6.ip6_prohibit_entry->dst.dev = dev;
 		net->ipv6.ip6_prohibit_entry->rt6i_idev = in6_dev_get(dev);
+		net->ipv6.ip6_failed_policy_entry->dst.dev = dev;
+		net->ipv6.ip6_failed_policy_entry->rt6i_idev = in6_dev_get(dev);
 		net->ipv6.ip6_blk_hole_entry->dst.dev = dev;
 		net->ipv6.ip6_blk_hole_entry->rt6i_idev = in6_dev_get(dev);
 #endif
@@ -2975,6 +3013,17 @@ static int __net_init ip6_route_net_init(struct net *net)
 	net->ipv6.ip6_blk_hole_entry->dst.ops = &net->ipv6.ip6_dst_ops;
 	dst_init_metrics(&net->ipv6.ip6_blk_hole_entry->dst,
 			 ip6_template_metrics, true);
+
+	net->ipv6.ip6_failed_policy_entry =
+		kmemdup(&ip6_failed_policy_entry_template,
+			sizeof(*net->ipv6.ip6_failed_policy_entry), GFP_KERNEL);
+	if (!net->ipv6.ip6_failed_policy_entry)
+		goto out_ip6_blk_hole_entry;
+	net->ipv6.ip6_failed_policy_entry->dst.path =
+		(struct dst_entry *)net->ipv6.ip6_failed_policy_entry;
+	net->ipv6.ip6_failed_policy_entry->dst.ops = &net->ipv6.ip6_dst_ops;
+	dst_init_metrics(&net->ipv6.ip6_failed_policy_entry->dst,
+			 ip6_template_metrics, true);
 #endif
 
 	net->ipv6.sysctl.flush_delay = 0;
@@ -2997,6 +3046,8 @@ out:
 	return ret;
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
+out_ip6_blk_hole_entry:
+	kfree(net->ipv6.ip6_blk_hole_entry);
 out_ip6_prohibit_entry:
 	kfree(net->ipv6.ip6_prohibit_entry);
 out_ip6_null_entry:
@@ -3018,6 +3069,7 @@ static void __net_exit ip6_route_net_exit(struct net *net)
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 	kfree(net->ipv6.ip6_prohibit_entry);
 	kfree(net->ipv6.ip6_blk_hole_entry);
+	kfree(net->ipv6.ip6_failed_policy_entry);
 #endif
 	dst_entries_destroy(&net->ipv6.ip6_dst_ops);
 }
@@ -3063,6 +3115,9 @@ int __init ip6_route_init(void)
 	init_net.ipv6.ip6_prohibit_entry->rt6i_idev = in6_dev_get(init_net.loopback_dev);
 	init_net.ipv6.ip6_blk_hole_entry->dst.dev = init_net.loopback_dev;
 	init_net.ipv6.ip6_blk_hole_entry->rt6i_idev = in6_dev_get(init_net.loopback_dev);
+	init_net.ipv6.ip6_failed_policy_entry->dst.dev = init_net.loopback_dev;
+	init_net.ipv6.ip6_failed_policy_entry->rt6i_idev =
+		in6_dev_get(init_net.loopback_dev);
   #endif
 	ret = fib6_init();
 	if (ret)
