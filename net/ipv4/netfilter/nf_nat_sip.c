@@ -4,6 +4,7 @@
  * based on RR's ip_nat_ftp.c and other modules.
  * (C) 2007 United Security Providers
  * (C) 2007, 2008 Patrick McHardy <kaber@trash.net>
+ * Copyright (c) 2013 Qualcomm Atheros, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -79,15 +80,19 @@ static int map_addr(struct sk_buff *skb, unsigned int dataoff,
 	__be32 newaddr;
 	__be16 newport;
 
-	if (ct->tuplehash[dir].tuple.src.u3.ip == addr->ip &&
-	    ct->tuplehash[dir].tuple.src.u.udp.port == port) {
+	if (ct->tuplehash[dir].tuple.src.u3.ip == addr->ip) {
 		newaddr = ct->tuplehash[!dir].tuple.dst.u3.ip;
-		newport = ct->tuplehash[!dir].tuple.dst.u.udp.port;
-	} else if (ct->tuplehash[dir].tuple.dst.u3.ip == addr->ip &&
-		   ct->tuplehash[dir].tuple.dst.u.udp.port == port) {
+		if(ct->tuplehash[dir].tuple.src.u.udp.port == port)
+			newport = ct->tuplehash[!dir].tuple.dst.u.udp.port;
+		else
+			newport = ct->tuplehash[dir].tuple.src.u.udp.port;
+	} else if (ct->tuplehash[dir].tuple.dst.u3.ip == addr->ip ) {
 		newaddr = ct->tuplehash[!dir].tuple.src.u3.ip;
-		newport = help->help.ct_sip_info.forced_dport ? :
+		if(ct->tuplehash[dir].tuple.dst.u.udp.port == port)
+			newport = help->help.ct_sip_info.forced_dport ? :
 			  ct->tuplehash[!dir].tuple.src.u.udp.port;
+		else
+			newport = ct->tuplehash[dir].tuple.dst.u.udp.port;
 	} else
 		return 1;
 
@@ -155,14 +160,12 @@ static unsigned int ip_nat_sip(struct sk_buff *skb, unsigned int dataoff,
 		char buffer[sizeof("nnn.nnn.nnn.nnn:nnnnn")];
 
 		/* We're only interested in headers related to this
-		 * connection */
+		 * host,support VIA info port different with session source port*/
 		if (request) {
-			if (addr.ip != ct->tuplehash[dir].tuple.src.u3.ip ||
-			    port != ct->tuplehash[dir].tuple.src.u.udp.port)
+			if (addr.ip != ct->tuplehash[dir].tuple.src.u3.ip )
 				goto next;
 		} else {
-			if (addr.ip != ct->tuplehash[dir].tuple.dst.u3.ip ||
-			    port != ct->tuplehash[dir].tuple.dst.u.udp.port)
+			if (addr.ip != ct->tuplehash[dir].tuple.dst.u3.ip)
 				goto next;
 		}
 
@@ -484,6 +487,7 @@ static unsigned int ip_nat_sdp_media(struct sk_buff *skb, unsigned int dataoff,
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	u_int16_t port;
+	int portloop = 0;
 
 	/* Connection will come from reply */
 	if (ct->tuplehash[dir].tuple.src.u3.ip ==
@@ -506,8 +510,13 @@ static unsigned int ip_nat_sdp_media(struct sk_buff *skb, unsigned int dataoff,
 
 	/* Try to get same pair of ports: if not, try to change them. */
 	for (port = ntohs(rtp_exp->tuple.dst.u.udp.port);
-	     port != 0; port += 2) {
+	     port != 0 || 0 == portloop; port += 2) {
 		int ret;
+		/* support edge case port 65534/65535 */
+		if(0 == port) {
+			portloop = 1;
+			port +=	2;
+		}
 
 		rtp_exp->tuple.dst.u.udp.port = htons(port);
 		ret = nf_ct_expect_related(rtp_exp);
