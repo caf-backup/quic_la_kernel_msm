@@ -20,6 +20,7 @@
 #include <linux/clkdev.h>
 #include <linux/dma-mapping.h>
 #include <linux/coresight.h>
+#include <linux/mdio-gpio.h>
 #include <mach/irqs-ipq806x.h>
 #include <mach/board.h>
 #include <mach/msm_iomap.h>
@@ -54,6 +55,7 @@
 #include <mach/msm_nss_gmac.h>
 #include <mach/msm_nss.h>
 #include <mach/msm_nss_crypto.h>
+#include <linux/ar8216_platform.h>
 
 /* Address of GSBI blocks */
 #define MSM_GSBI1_PHYS		0x12440000
@@ -1133,6 +1135,62 @@ struct platform_device nss_gmac_3 = {
 	},
 	.num_resources			= ARRAY_SIZE(nss_gmac_3_res),
 	.resource			= nss_gmac_3_res,
+};
+
+static struct mdio_gpio_platform_data ipq806x_mdio_platform_data;
+struct platform_device ip806x_mdio_device = {
+	.name   = IPQ806X_MDIO_BUS_NAME,
+	.id     = IPQ806X_MDIO_BUS_NUM,
+	.dev    = {
+		.platform_data = &ipq806x_mdio_platform_data,
+	},
+};
+
+static struct ar8327_pad_cfg ipq806x_ar8337_pad0_cfg = {
+	.mode = AR8327_PAD_MAC_RGMII,
+	.txclk_delay_en = true,
+	.rxclk_delay_en = true,
+	.txclk_delay_sel = AR8327_CLK_DELAY_SEL1,
+	.rxclk_delay_sel = AR8327_CLK_DELAY_SEL2,
+};
+
+static struct ar8327_sgmii_cfg ipq806x_ar8337_sgmii_cfg = {
+	.sgmii_mode = AR8327_SGMII_PHY,
+	.serdes_aen = false,
+};
+
+static struct ar8327_pad_cfg ipq806x_ar8337_pad6_cfg = {
+	.mode = AR8327_PAD_MAC_SGMII,
+	.sgmii_txclk_phase_sel = AR8327_SGMII_CLK_PHASE_RISE,
+	.sgmii_rxclk_phase_sel = AR8327_SGMII_CLK_PHASE_FALL,
+};
+
+static struct ar8327_platform_data ipq806x_ar8337_data = {
+	.pad0_cfg = &ipq806x_ar8337_pad0_cfg,
+	.pad6_cfg = &ipq806x_ar8337_pad6_cfg,
+	.cpuport_cfg = {
+		.force_link = 1,
+		.speed = AR8327_PORT_SPEED_1000,
+		.duplex = 1,
+		.txpause = 0,
+		.rxpause = 0,
+	},
+	.port6_cfg = {
+		.force_link = 1,
+		.speed = AR8327_PORT_SPEED_1000,
+		.duplex = 1,
+		.txpause = 0,
+		.rxpause = 0,
+	},
+	.sgmii_cfg = &ipq806x_ar8337_sgmii_cfg
+};
+
+struct mdio_board_info ipq806x_mdio_info[IPQ806X_MDIO_BUS_MAX] = {
+	{
+		.bus_id = "gpio-0",
+		.phy_addr = 0,
+		.platform_data = &ipq806x_ar8337_data,
+	}
 };
 
 struct platform_device ipq806x_device_acpuclk = {

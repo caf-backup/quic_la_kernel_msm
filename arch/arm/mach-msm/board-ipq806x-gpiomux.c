@@ -704,6 +704,283 @@ static struct msm_gpiomux_config ipq806x_pcie_configs[] __initdata = {
 
 #endif
 
+
+/*
+ * NSS debug pins configuration
+ */
+
+/*
+ * Core 0, Data
+ * No pull up, Function 2
+ */
+static struct gpiomux_setting nss_spi_data_0 = {
+	.func = GPIOMUX_FUNC_2,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_NONE,
+	.dir = GPIOMUX_IN,
+};
+
+/*
+ * Core 0, CLK, CS
+ * Pull up high, Function 2
+ */
+static struct gpiomux_setting nss_spi_cs_clk_0 = {
+	.func = GPIOMUX_FUNC_2,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_UP,
+	.dir = GPIOMUX_IN,
+};
+/*
+ * Core 1, CS
+ * Pull up high, Function 4
+ */
+static struct gpiomux_setting nss_spi_cs_1 = {
+	.func = GPIOMUX_FUNC_4,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_UP,
+	.dir = GPIOMUX_IN,
+};
+
+/*
+ * Core 1, CLK
+ * Pull up high, Function 5
+ */
+static struct gpiomux_setting nss_spi_clk_1 = {
+	.func = GPIOMUX_FUNC_5,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_UP,
+	.dir = GPIOMUX_IN,
+};
+
+/*
+ * Core 1, Data
+ * Pull up none, Function 5
+ */
+static struct gpiomux_setting nss_spi_data_1 = {
+	.func = GPIOMUX_FUNC_5,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_NONE,
+	.dir = GPIOMUX_IN,
+};
+
+static struct gpiomux_setting nss_spi_suspended = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_NONE,
+	.dir = GPIOMUX_IN,
+};
+
+static struct msm_gpiomux_config ipq806x_nss_spi_configs[] __initdata = {
+	{
+		.gpio = 14,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nss_spi_data_0,
+			[GPIOMUX_ACTIVE] = &nss_spi_suspended,
+		},
+	},
+	{
+		.gpio = 15,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nss_spi_data_0,
+			[GPIOMUX_ACTIVE] = &nss_spi_suspended,
+		},
+	},
+	{
+		.gpio = 16,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nss_spi_cs_clk_0,
+			[GPIOMUX_ACTIVE] = &nss_spi_suspended,
+		},
+	},
+	{
+		.gpio = 17,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nss_spi_cs_clk_0,
+			[GPIOMUX_ACTIVE] = &nss_spi_suspended,
+		},
+	},
+	{
+		.gpio = 55,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nss_spi_data_1,
+			[GPIOMUX_ACTIVE] = &nss_spi_suspended,
+		},
+	},
+	{
+		.gpio = 56,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nss_spi_data_1,
+			[GPIOMUX_ACTIVE] = &nss_spi_suspended,
+		},
+	},
+	{
+		.gpio = 57,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nss_spi_cs_1,
+			[GPIOMUX_ACTIVE] = &nss_spi_suspended,
+		},
+	},
+	{
+		.gpio = 58,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nss_spi_clk_1,
+			[GPIOMUX_ACTIVE] = &nss_spi_suspended,
+		},
+	},
+};
+
+/*
+ * RGMII pins configuration for NSS GMAC1
+ */
+static struct gpiomux_setting nss_gmac1_rgmii_set = {
+	.func = GPIOMUX_FUNC_2,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+
+static struct msm_gpiomux_config nss_gmac1_rgmii_configs[] __initdata = {
+	{
+		.gpio = 51,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nss_gmac1_rgmii_set,
+			[GPIOMUX_ACTIVE] = &nss_gmac1_rgmii_set,
+		},
+	},
+	{
+		.gpio = 62,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nss_gmac1_rgmii_set,
+			[GPIOMUX_ACTIVE] = &nss_gmac1_rgmii_set,
+		},
+	},
+	{
+		.gpio = 61,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nss_gmac1_rgmii_set,
+			[GPIOMUX_ACTIVE] = &nss_gmac1_rgmii_set,
+		},
+	},
+	{
+		.gpio = 60,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nss_gmac1_rgmii_set,
+			[GPIOMUX_ACTIVE] = &nss_gmac1_rgmii_set,
+		},
+	},
+	{
+		.gpio = 59,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nss_gmac1_rgmii_set,
+			[GPIOMUX_ACTIVE] = &nss_gmac1_rgmii_set,
+		},
+	},
+	{
+		.gpio = 52,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nss_gmac1_rgmii_set,
+			[GPIOMUX_ACTIVE] = &nss_gmac1_rgmii_set,
+		},
+	},
+	{
+		.gpio = 27,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nss_gmac1_rgmii_set,
+			[GPIOMUX_ACTIVE] = &nss_gmac1_rgmii_set,
+		},
+	},
+	{
+		.gpio = 32,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nss_gmac1_rgmii_set,
+			[GPIOMUX_ACTIVE] = &nss_gmac1_rgmii_set,
+		},
+	},
+	{
+		.gpio = 31,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nss_gmac1_rgmii_set,
+			[GPIOMUX_ACTIVE] = &nss_gmac1_rgmii_set,
+		},
+	},
+	{
+		.gpio = 30,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nss_gmac1_rgmii_set,
+			[GPIOMUX_ACTIVE] = &nss_gmac1_rgmii_set,
+		},
+	},
+	{
+		.gpio = 29,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nss_gmac1_rgmii_set,
+			[GPIOMUX_ACTIVE] = &nss_gmac1_rgmii_set,
+		},
+	},
+	{
+		.gpio = 28,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &nss_gmac1_rgmii_set,
+			[GPIOMUX_ACTIVE] = &nss_gmac1_rgmii_set,
+		},
+	},
+};
+
+static struct gpiomux_setting mdio_n = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+
+static struct gpiomux_setting nss_gmac0_rgmii_set0 = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+
+static struct gpiomux_setting nss_gmac0_rgmii_set1 = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_16MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+static struct msm_gpiomux_config ipq806x_mdio_configs[] __initdata = {
+	/*
+	* NSS GMSC MDIO pins configuratio
+	*/
+	{
+		.gpio		= 0,
+		.settings	= {
+			[GPIOMUX_SUSPENDED]	= &mdio_n,
+			[GPIOMUX_ACTIVE]	= &mdio_n,
+		},
+	},
+	{
+		.gpio		= 1,
+		.settings	= {
+			[GPIOMUX_SUSPENDED]	= &mdio_n,
+			[GPIOMUX_ACTIVE]	= &mdio_n,
+		},
+	},
+
+	/*
+	* RGMII pins configuration for NSS GMAC0
+	*/
+	{
+		.gpio		= 2,
+		.settings	= {
+			[GPIOMUX_SUSPENDED]	= &nss_gmac0_rgmii_set0,
+			[GPIOMUX_ACTIVE]	= &nss_gmac0_rgmii_set0,
+		},
+	},
+	{
+		.gpio		= 66,
+		.settings	= {
+			[GPIOMUX_SUSPENDED]	= &nss_gmac0_rgmii_set1,
+			[GPIOMUX_ACTIVE]	= &nss_gmac0_rgmii_set1,
+		},
+	},
+};
+
+
 void __init ipq806x_init_gpiomux(void)
 {
 	int rc;
@@ -752,4 +1029,10 @@ void __init ipq806x_init_gpiomux(void)
 			ARRAY_SIZE(ipq806x_pcie_configs));
 
 #endif
+	msm_gpiomux_install(ipq806x_nss_spi_configs,
+		ARRAY_SIZE(ipq806x_nss_spi_configs));
+	msm_gpiomux_install(nss_gmac1_rgmii_configs,
+		ARRAY_SIZE(nss_gmac1_rgmii_configs));
+	msm_gpiomux_install(ipq806x_mdio_configs,
+		ARRAY_SIZE(ipq806x_mdio_configs));
 }

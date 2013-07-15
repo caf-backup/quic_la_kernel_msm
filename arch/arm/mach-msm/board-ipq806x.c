@@ -38,6 +38,7 @@
 #include <linux/i2c/atmel_mxt_ts.h>
 #include <linux/cyttsp-qc.h>
 #include <linux/i2c/isa1200.h>
+#include <linux/mdio-gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/epm_adc.h>
 #include <linux/i2c/sx150x.h>
@@ -2204,44 +2205,27 @@ static void __init ipq806x_allocate_memory_regions(void)
 static void nss_gmac_init(void)
 {
 	struct msm_nss_gmac_platform_data *pdata;
-	if (machine_is_ipq806x_rumi3()) {
+	struct mdio_gpio_platform_data *mdata;
 
-		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_0.dev.platform_data;
-		pdata->phy_mdio_addr = 4;
-		pdata->poll_required = 1;
-		pdata->rgmii_delay = 0;
-		pdata->phy_mii_type = GMAC_INTF_RGMII;
-		pdata->emulation = 1;
+	mdiobus_register_board_info(ipq806x_mdio_info, IPQ806X_MDIO_BUS_MAX);
 
-		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_1.dev.platform_data;
-		pdata->phy_mdio_addr = 6;
-		pdata->poll_required = 1;
-		pdata->rgmii_delay = 0;
-		pdata->phy_mii_type = GMAC_INTF_RGMII;
-		pdata->emulation = 1;
+	mdata = (struct mdio_gpio_platform_data *)ip806x_mdio_device.dev.platform_data;
+	mdata->mdc = 1;
+	mdata->mdio = 0;
+	mdata->phy_mask = 0;
+	platform_device_register(&ip806x_mdio_device);
 
-		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_2.dev.platform_data;
-		pdata->phy_mdio_addr = -1;
-		pdata->poll_required = 0;
-		pdata->rgmii_delay = 0;
-		pdata->phy_mii_type = GMAC_INTF_SGMII;
-		pdata->emulation = 1;
-
-		platform_device_register(&nss_gmac_0);
-		platform_device_register(&nss_gmac_1);
-		return;
-	}
-
+	/* GMAC0, GMAC1 connected to switch. Attach to PHY 0 to configure switch. */
 	pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_0.dev.platform_data;
-	pdata->phy_mdio_addr = -1;
-	pdata->poll_required = 0;
+	pdata->phy_mdio_addr = 4;
+	pdata->poll_required = 1;
 	pdata->rgmii_delay = 0;
 	pdata->phy_mii_type = GMAC_INTF_RGMII;
 	pdata->emulation = 0;
 
 	pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_1.dev.platform_data;
-	pdata->phy_mdio_addr = 5;
-	pdata->poll_required = 1;
+	pdata->phy_mdio_addr = 0;
+	pdata->poll_required = 0;
 	pdata->rgmii_delay = 0;
 	pdata->phy_mii_type = GMAC_INTF_SGMII;
 	pdata->emulation = 0;
@@ -2261,15 +2245,15 @@ static void nss_gmac_init(void)
 	pdata->emulation = 0;
 
 	platform_device_register(&nss_gmac_0);
+	platform_device_register(&nss_gmac_1);
+	platform_device_register(&nss_gmac_2);
+	platform_device_register(&nss_gmac_3);
 }
 
 
 int32_t nss_gmac_get_phy_profile(void)
 {
-	if (machine_is_ipq806x_rumi3())
-		return NSS_GMAC_PHY_PROFILE_2R_2S;
-	else
-		return NSS_GMAC_PHY_PROFILE_1R_3S;
+	return NSS_GMAC_PHY_PROFILE_1R_3S;
 }
 EXPORT_SYMBOL(nss_gmac_get_phy_profile);
 

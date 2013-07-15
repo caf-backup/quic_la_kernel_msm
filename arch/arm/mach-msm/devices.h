@@ -521,3 +521,4 @@ extern struct platform_device nss_gmac_1;
 extern struct platform_device nss_gmac_2;
 extern struct platform_device nss_gmac_3;
 extern struct platform_device ipq806x_device_nss_crypto[];
+extern struct platform_device ip806x_mdio_device;
