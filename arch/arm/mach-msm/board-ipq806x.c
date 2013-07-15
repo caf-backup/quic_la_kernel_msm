@@ -1981,10 +1981,6 @@ static void ipq806x_spi_register(void)
 }
 #endif
 
-static struct regulator_consumer_supply ahci0_dummy_supply[] = {
-	REGULATOR_SUPPLY("sata_ext_3p3v",  "msm_sata.0"),
-	REGULATOR_SUPPLY("sata_pmp_pwr",  "msm_sata.0"),
-};
 
 static void __init ipq806x_common_init(void)
 {
@@ -1997,8 +1993,6 @@ static void __init ipq806x_common_init(void)
 		pr_err("socinfo_init() failed!\n");
 	if (machine_is_ipq806x_rumi3()) {
 		msm_clock_init(&ipq806x_dummy_clock_init_data);
-		regulator_register_fixed(0, ahci0_dummy_supply,
-						ARRAY_SIZE(ahci0_dummy_supply));
 	} else {
 		BUG_ON(msm_rpm_init(&ipq806x_rpm_data));
 		BUG_ON(msm_rpmrs_levels_init(&msm_rpmrs_data));
