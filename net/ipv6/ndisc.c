@@ -153,6 +153,8 @@ struct neigh_table nd_tbl = {
 	.gc_thresh3 =	1024,
 };
 
+EXPORT_SYMBOL_GPL(nd_tbl);
+
 /* ND options */
 struct ndisc_options {
 	struct nd_opt_hdr *nd_opt_array[__ND_OPT_ARRAY_MAX];
