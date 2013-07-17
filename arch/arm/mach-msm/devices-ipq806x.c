@@ -46,6 +46,7 @@
 #include "msm_watchdog.h"
 #include "rpm_stats.h"
 #include "rpm_log.h"
+#include "pcie.h"
 #include <mach/mpm.h>
 #include <mach/iommu_domains.h>
 #include <mach/msm_cache_dump.h>
@@ -107,19 +108,26 @@
 #define MSM_SSUSB2_SIZE		SZ_16M
 
 /* Address of PCIE20 PARF */
-#define PCIE20_PARF_PHYS	0x1b600000
-#define PCIE20_PARF_SIZE	SZ_128
+#define PCIE20_0_PARF_PHYS 0x1b600000
+#define PCIE20_1_PARF_PHYS 0x1b800000
+#define PCIE20_2_PARF_PHYS 0x1ba00000
+#define PCIE20_PARF_SIZE   SZ_128
 
 /* Address of PCIE20 ELBI */
-#define PCIE20_ELBI_PHYS	0x1b502000
-#define PCIE20_ELBI_SIZE	SZ_256
+#define PCIE20_0_ELBI_PHYS 0x1b502000
+#define PCIE20_1_ELBI_PHYS 0x1b702000
+#define PCIE20_2_ELBI_PHYS 0x1b902000
+
+#define PCIE20_ELBI_SIZE   SZ_256
 
 /* Address of PCIE20 */
-#define PCIE20_PHYS		0x1b500000
-#define PCIE20_SIZE		SZ_4K
+#define PCIE20_0_PHYS 0x1b500000
+#define PCIE20_1_PHYS 0x1b700000
+#define PCIE20_2_PHYS 0x1b900000
+#define PCIE20_SIZE   SZ_4K
 
 #define IPQ806X_RPM_MASTER_STATS_BASE	0x10BB00
-#define IPQ806X_PC_CNTR_PHYS		(IPQ806X_IMEM_PHYS + 0x664)
+#define IPQ806X_PC_CNTR_PHYS	(IPQ806X_IMEM_PHYS + 0x664)
 #define IPQ806X_PC_CNTR_SIZE		0x40
 
 static struct resource ipq806x_resources_pccntr[] = {
@@ -1550,35 +1558,60 @@ struct platform_device msm_device_smd_ipq806x = {
 	},
 };
 
-static struct resource resources_msm_pcie[] = {
+#define MSM_PCIE_RES(n, id, type, f)		\
+{						\
+	.name   = n,				\
+	.start  = PCIE20_##id####type##PHYS,	\
+	.end    = PCIE20_##id####type##PHYS +	\
+			PCIE20##type##SIZE - 1,	\
+	.flags  = f,				\
+}
+
+static struct resource resources_msm_pcie[][MSM_PCIE_MAX_PLATFORM_RES] = {
 	{
-		.name   = "pcie_parf",
-		.start  = PCIE20_PARF_PHYS,
-		.end    = PCIE20_PARF_PHYS + PCIE20_PARF_SIZE - 1,
-		.flags  = IORESOURCE_MEM,
+		MSM_PCIE_RES("pcie_parf", 0, _PARF_, IORESOURCE_MEM),
+		MSM_PCIE_RES("pcie_elbi", 0, _ELBI_, IORESOURCE_MEM),
+		MSM_PCIE_RES("pcie20", 0, _, IORESOURCE_MEM),
 	},
 	{
-		.name   = "pcie_elbi",
-		.start  = PCIE20_ELBI_PHYS,
-		.end    = PCIE20_ELBI_PHYS + PCIE20_ELBI_SIZE - 1,
-		.flags  = IORESOURCE_MEM,
+		MSM_PCIE_RES("pcie_parf", 1, _PARF_, IORESOURCE_MEM),
+		MSM_PCIE_RES("pcie_elbi", 1, _ELBI_, IORESOURCE_MEM),
+		MSM_PCIE_RES("pcie20", 1, _, IORESOURCE_MEM),
 	},
 	{
-		.name   = "pcie20",
-		.start  = PCIE20_PHYS,
-		.end    = PCIE20_PHYS + PCIE20_SIZE - 1,
-		.flags  = IORESOURCE_MEM,
+		MSM_PCIE_RES("pcie_parf", 2, _PARF_, IORESOURCE_MEM),
+		MSM_PCIE_RES("pcie_elbi", 2, _ELBI_, IORESOURCE_MEM),
+		MSM_PCIE_RES("pcie20", 2, _, IORESOURCE_MEM),
 	},
 };
 
+#define MSM_DEVICE_PCIE(i, n)					\
+{								\
+	.name           = n,					\
+	.id             = i,					\
+	.num_resources  = ARRAY_SIZE(resources_msm_pcie[i]),	\
+	.resource       = resources_msm_pcie[i],		\
+}
+
 struct platform_device msm_device_pcie[] = {
-	{
-		.name           = "msm_pcie",
-		.id             = 0,
-		.num_resources  = ARRAY_SIZE(resources_msm_pcie),
-		.resource       = resources_msm_pcie,
-	}
+	MSM_DEVICE_PCIE(0, "msm_pcie"),
+	MSM_DEVICE_PCIE(1, "msm_pcie"),
+	MSM_DEVICE_PCIE(2, "msm_pcie"),
 };
+
+int __init ipq806x_add_pcie(unsigned int controller,
+			 struct mmc_platform_data *plat)
+{
+	struct platform_device  *pdev;
+
+	if (!plat)
+		return 0;
+	if (controller > CONFIG_MSM_NUM_PCIE)
+		return -EINVAL;
+	pdev = &msm_device_pcie[controller];
+	pdev->dev.platform_data = plat;
+	return platform_device_register(pdev);
+}
 
 #ifdef CONFIG_HW_RANDOM_MSM
 /* PRNG device */
@@ -1943,7 +1976,6 @@ static uint16_t msm_mpm_irqs_m2a[MSM_MPM_NR_MPM_IRQS] __initdata = {
 	[23] = MSM_GPIO_TO_INT(65),
 	[24] = MSM_GPIO_TO_INT(63),
 	[25] = USB1_HS_IRQ,
-	[27] = HDMI_IRQ,
 	[29] = MSM_GPIO_TO_INT(22),
 	[30] = MSM_GPIO_TO_INT(72),
 	[31] = USB4_HS_IRQ,

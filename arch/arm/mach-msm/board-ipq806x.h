@@ -152,10 +152,17 @@ enum {
 /* GPIO Definitions for IPQ806x */
 
 /* PCIE gpios */
-#define PCIE_RST_GPIO           3
-#define PCIE_PWR_EN_GPIO        -EINVAL
-#define PCIE_WAKE_N_GPIO        4
+#define PCIE_RST_GPIO		3
+#define PCIE_PWR_EN_GPIO	-EINVAL
+#define PCIE_WAKE_N_GPIO	4
 
+#define PCIE_1_RST_GPIO		48
+#define PCIE_1_PWR_EN_GPIO	-EINVAL
+#define PCIE_1_WAKE_N_GPIO	49
+
+#define PCIE_2_RST_GPIO		54
+#define PCIE_2_PWR_EN_GPIO	-EINVAL
+#define PCIE_2_WAKE_N_GPIO	55
 
 extern struct msm_rtb_platform_data ipq806x_rtb_pdata;
 extern struct msm_cache_dump_platform_data ipq806x_cache_dump_pdata;

@@ -137,13 +137,15 @@
 #define QFPROM_RAW_OEM_CONFIG_ROW0_LSB      (MSM_QFPROM_BASE + 0x220)
 
 /* PCIE AXI address space */
-#define PCIE_AXI_BAR_PHYS   0x08000000
-#define PCIE_AXI_BAR_SIZE   SZ_128M
+#define PCIE_AXI_BAR_PHYS		0x08000000
+#define PCIE_AXI_BAR_SIZE		SZ_128M
+#define PCIE_1_AXI_BAR_PHYS		0x2E000000
+#define PCIE_1_AXI_BAR_SIZE		SZ_64M
+#define PCIE_2_AXI_BAR_PHYS		0x32000000
+#define PCIE_2_AXI_BAR_SIZE		SZ_64M
+#define MAX_PCIE_SUPPLIES		4
 
-/* PCIe pmic gpios */
-#define PCIE_WAKE_N_PMIC_GPIO 12
-#define PCIE_PWR_EN_PMIC_GPIO 13
-#define PCIE_RST_N_PMIC_MPP 1
+
 
 #ifdef CONFIG_KERNEL_MSM_CONTIG_MEM_REGION
 static unsigned msm_contig_mem_size = MSM_CONTIG_MEM_SIZE;
@@ -1507,15 +1509,132 @@ static void __init ipq806x_init_buses(void)
 }
 
 /* PCIe gpios */
-static struct msm_pcie_gpio_info_t msm_pcie_gpio_info[MSM_PCIE_MAX_GPIO] = {
-	{"rst_n", PCIE_RST_GPIO , 0},
-	{"pwr_en", PCIE_PWR_EN_GPIO, 1},
+static struct msm_pcie_gpio_info_t msm_pcie_gpio_info[][MSM_PCIE_MAX_GPIO] = {
+	{
+		{"rst_n",  PCIE_RST_GPIO, 0},
+		{"pwr_en", PCIE_PWR_EN_GPIO, 1}
+	},
+	{
+		{"rst_n",  PCIE_1_RST_GPIO, 0},
+		{"pwr_en", PCIE_1_PWR_EN_GPIO, 1}
+	},
+	{
+		{"rst_n",  PCIE_2_RST_GPIO, 0},
+		{"pwr_en", PCIE_2_PWR_EN_GPIO, 1}
+	},
 };
 
-static struct msm_pcie_platform msm_pcie_platform_data = {
-	.gpio = msm_pcie_gpio_info,
-	.axi_addr = PCIE_AXI_BAR_PHYS,
-	.axi_size = PCIE_AXI_BAR_SIZE,
+struct msm_pcie_vreg_info_t msm_pcie_vreg_info[][MSM_PCIE_MAX_VREG] = {
+		/* hdl, name,           max_v,   min_v,   opt_mode, */
+	{
+		{ NULL, "vp_pcie",      1050000, 1050000, 40900 },
+		{ NULL, "vptx_pcie",    1050000, 1050000, 18200 },
+		{ NULL, "vdd_pcie_vph",       0,       0,     0 },
+		{ NULL, "pcie_ext_3p3v",      0,       0,     0 }
+	},
+	{
+		{ NULL, "vp_pcie",      1050000, 1050000, 40900 },
+		{ NULL, "vptx_pcie",    1050000, 1050000, 18200 },
+		{ NULL, "vdd_pcie_vph",       0,       0,     0 },
+		{ NULL, "pcie_ext_3p3v",      0,       0,     0 }
+	},
+	{
+		{ NULL, "vp_pcie",      1050000, 1050000, 40900 },
+		{ NULL, "vptx_pcie",    1050000, 1050000, 18200 },
+		{ NULL, "vdd_pcie_vph",       0,       0,     0 },
+		{ NULL, "pcie_ext_3p3v",      0,       0,     0 }
+	},
+};
+
+struct msm_pcie_clk_info_t msm_pcie_clk_info[][MSM_PCIE_MAX_CLK] = {
+		/* hdl, name */
+	{
+		{ NULL, "bus_clk" },
+		{ NULL, "iface_clk" },
+		{ NULL, "ref_clk" }
+	},
+	{
+		{ NULL, "bus_clk" },
+		{ NULL, "iface_clk" },
+		{ NULL, "ref_clk" }
+	},
+	{
+		{ NULL, "bus_clk" },
+		{ NULL, "iface_clk" },
+		{ NULL, "ref_clk" }
+	},
+};
+
+struct msm_pcie_res_info_t msm_pcie_res_info[][MSM_PCIE_MAX_RES] = {
+	{
+		{ "pcie_parf",     0, 0 },
+		{ "pcie_elbi",     0, 0 },
+		{ "pcie20",        0, 0 },
+		{ "pcie_axi_conf", 0, 0 },
+	},
+	{
+		{ "pcie_parf",     0, 0 },
+		{ "pcie_elbi",     0, 0 },
+		{ "pcie20",        0, 0 },
+		{ "pcie_axi_conf", 0, 0 },
+	},
+	{
+		{ "pcie_parf",     0, 0 },
+		{ "pcie_elbi",     0, 0 },
+		{ "pcie20",        0, 0 },
+		{ "pcie_axi_conf", 0, 0 },
+	},
+};
+
+static msm_pcie_port_en_t msm_pcie_port_en_info[] = {
+	{ PCIE_SFAB_AXI_S5_FCLK_CTL, BIT(4), },
+	{ PCIE_1_ACLK_CTL, BIT(6), },
+	{ PCIE_2_ACLK_CTL, BIT(6), },
+};
+
+static struct msm_pcie_platform msm_pcie_platform_data[] = {
+	{
+		.gpio		= msm_pcie_gpio_info[0],
+		.axi_addr	= PCIE_AXI_BAR_PHYS,
+		.axi_size	= PCIE_AXI_BAR_SIZE,
+		.wake_n		= PCIE_WAKE_N_GPIO,
+		.reset_reg	= PCIE_RESET,
+		.msi_irq	= PCIE20_INT_MSI,
+		.inta		= PCIE20_INTA,
+		.vreg		= msm_pcie_vreg_info[0],
+		.vreg_n		= MSM_PCIE_MAX_VREG,
+		.clk		= msm_pcie_clk_info[0],
+		.res		= msm_pcie_res_info[0],
+		.port_en	= &msm_pcie_port_en_info[0],
+	},
+	{
+		.gpio		= msm_pcie_gpio_info[1],
+		.axi_addr	= PCIE_1_AXI_BAR_PHYS,
+		.axi_size	= PCIE_1_AXI_BAR_SIZE,
+		.wake_n		= PCIE_1_WAKE_N_GPIO,
+		.reset_reg	= PCIE_1_RESET,
+		.msi_irq	= PCIE20_1_INT_MSI,
+		.inta		= PCIE20_1_INTA,
+		.vreg		= msm_pcie_vreg_info[1],
+		.vreg_n		= MSM_PCIE_MAX_VREG,
+		.clk		= msm_pcie_clk_info[1],
+		.res		= msm_pcie_res_info[1],
+		.port_en	= &msm_pcie_port_en_info[1],
+	},
+	{
+		.gpio		= msm_pcie_gpio_info[2],
+		.axi_addr	= PCIE_2_AXI_BAR_PHYS,
+		.axi_size	= PCIE_2_AXI_BAR_SIZE,
+		.wake_n		= PCIE_2_WAKE_N_GPIO,
+		.reset_reg	= PCIE_2_RESET,
+		.msi_irq	= PCIE20_2_INT_MSI,
+		.inta		= PCIE20_2_INTA,
+		.vreg		= msm_pcie_vreg_info[2],
+		.vreg_n		= MSM_PCIE_MAX_VREG,
+		.clk		= msm_pcie_clk_info[2],
+		.res		= msm_pcie_res_info[2],
+		.port_en	= &msm_pcie_port_en_info[2],
+	},
 };
 
 static int __init ipq806x_pcie_enabled(void)
@@ -1523,20 +1642,29 @@ static int __init ipq806x_pcie_enabled(void)
 	if (machine_is_ipq806x_rumi3())
 		return 1;
 
-	return !((readl_relaxed(QFPROM_RAW_FEAT_CONFIG_ROW0_MSB) &
-			BIT(21)) ||
-			(readl_relaxed(QFPROM_RAW_OEM_CONFIG_ROW0_LSB) &
-			BIT(4)));
+	return !((readl_relaxed(QFPROM_RAW_FEAT_CONFIG_ROW0_MSB) & BIT(21)) ||
+			(readl_relaxed(QFPROM_RAW_OEM_CONFIG_ROW0_LSB) & BIT(4)));
 }
 
 static void __init ipq806x_pcie_init(void)
 {
+	int i;
+
 	if (!ipq806x_pcie_enabled())
 		return;
 
-	msm_pcie_platform_data.wake_n = gpio_to_irq(PCIE_WAKE_N_GPIO);
-	msm_device_pcie[0].dev.platform_data = &msm_pcie_platform_data;
-	platform_device_register(&msm_device_pcie[0]);
+	for (i = 0; i < CONFIG_MSM_NUM_PCIE; i++) {
+		if (machine_is_ipq806x_rumi3()) {
+			/*
+			 * Prevent msm_pcie_vreg_init from registering
+			 * these regulators.
+			 */
+			msm_pcie_platform_data[i].vreg_n = 0;
+		}
+		msm_device_pcie[i].dev.platform_data =
+			&msm_pcie_platform_data[i];
+		platform_device_register(&msm_device_pcie[i]);
+	}
 }
 
 static struct platform_device ipq806x_device_ext_5v_vreg __devinitdata = {

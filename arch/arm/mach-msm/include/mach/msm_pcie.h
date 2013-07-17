@@ -39,9 +39,9 @@ typedef struct {
 struct msm_pcie_platform {
 	struct msm_pcie_gpio_info_t  *gpio;
 
-	uint32_t                      axi_addr;
-	uint32_t                      axi_size;
-	uint32_t                      wake_n;
+	uint32_t                     axi_addr;
+	uint32_t                     axi_size;
+	uint32_t                     wake_n;
 	uint32_t                     vreg_n;
 	struct platform_device       *pdev;
 

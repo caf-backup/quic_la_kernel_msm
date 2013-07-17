@@ -23,7 +23,7 @@
 #include <linux/msi.h>
 #include <linux/pci.h>
 #include <mach/irqs.h>
-
+#include <linux/gpio.h>
 #include "pcie.h"
 
 /* Any address will do here, as it won't be dereferenced */
@@ -91,7 +91,7 @@ uint32_t __init msm_pcie_irq_init(struct msm_pcie_dev_t *dev)
 	wmb();
 
 	/* register handler for physical MSI interrupt line */
-	rc = request_irq(PCIE20_INT_MSI, handle_msi_irq, IRQF_TRIGGER_RISING,
+	rc = request_irq(dev->msi_irq, handle_msi_irq, IRQF_TRIGGER_RISING,
 			 "msm_pcie_msi", dev);
 	if (rc) {
 		pr_err("Unable to allocate msi interrupt\n");
@@ -99,11 +99,12 @@ uint32_t __init msm_pcie_irq_init(struct msm_pcie_dev_t *dev)
 	}
 
 	/* register handler for PCIE_WAKE_N interrupt line */
-	rc = request_irq(dev->wake_n, handle_wake_irq, IRQF_TRIGGER_FALLING,
+	rc = request_irq(gpio_to_irq(dev->wake_n),
+		handle_wake_irq, IRQF_TRIGGER_FALLING,
 			 "msm_pcie_wake", dev);
 	if (rc) {
 		pr_err("Unable to allocate wake interrupt\n");
-		free_irq(PCIE20_INT_MSI, dev);
+		free_irq(dev->msi_irq, dev);
 		goto out;
 	}
 
@@ -117,7 +118,7 @@ out:
 
 void __exit msm_pcie_irq_deinit(struct msm_pcie_dev_t *dev)
 {
-	free_irq(PCIE20_INT_MSI, dev);
+	free_irq(dev->msi_irq, dev);
 	free_irq(dev->wake_n, dev);
 }
 
@@ -150,12 +151,19 @@ static struct irq_chip pcie_msi_chip = {
 	.irq_unmask = unmask_msi_irq,
 };
 
-static int msm_pcie_create_irq(void)
+static int msm_pcie_create_irq(struct pci_dev *pdev)
 {
 	int irq, pos;
 
 again:
 	pos = find_first_zero_bit(msi_irq_in_use, NR_PCIE_MSI_IRQS);
+	/*
+	 * MSI IRQs are assigned at the end of the list (of all IRQs).
+	 * We know that RC takes even numbered bus and EP takes
+	 * odd numbered bus. We need MSI IRQs for the EPs. Allot
+	 * a bunch of 32 IRQs for each EP.
+	 */
+	pos = (pdev->bus->number / 2) * 32 + pos;
 	irq = MSM_PCIE_MSI_INT(pos);
 	if (irq >= (MSM_PCIE_MSI_INT(0) + NR_PCIE_MSI_IRQS))
 		return -ENOSPC;
@@ -173,7 +181,7 @@ int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 	int irq;
 	struct msi_msg msg;
 
-	irq = msm_pcie_create_irq();
+	irq = msm_pcie_create_irq(pdev);
 	if (irq < 0)
 		return irq;
 

@@ -659,17 +659,45 @@ static struct gpiomux_setting pcie_pwr_en = {
 
 static struct msm_gpiomux_config ipq806x_pcie_configs[] __initdata = {
 	{
-		.gpio      = PCIE_RST_GPIO,
+		.gpio   = PCIE_RST_GPIO,
 		.settings = {
-		[GPIOMUX_SUSPENDED] = &pcie_rst_n,
-		[GPIOMUX_ACTIVE] = &pcie_rst_n,
+			[GPIOMUX_SUSPENDED] = &pcie_rst_n,
+			[GPIOMUX_ACTIVE] = &pcie_rst_n,
 		},
 	},
 	{
-		.gpio      = PCIE_PWR_EN_GPIO,
+		.gpio   = PCIE_1_RST_GPIO,
 		.settings = {
-		[GPIOMUX_SUSPENDED] = &pcie_pwr_en,
-		[GPIOMUX_ACTIVE] = &pcie_pwr_en,
+			[GPIOMUX_SUSPENDED] = &pcie_rst_n,
+			[GPIOMUX_ACTIVE] = &pcie_rst_n,
+		},
+	},
+	{
+		.gpio   = PCIE_2_RST_GPIO,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &pcie_rst_n,
+			[GPIOMUX_ACTIVE] = &pcie_rst_n,
+		},
+	},
+	{
+		.gpio   = PCIE_PWR_EN_GPIO,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &pcie_pwr_en,
+			[GPIOMUX_ACTIVE] = &pcie_pwr_en,
+		},
+	},
+	{
+		.gpio   = PCIE_1_PWR_EN_GPIO,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &pcie_pwr_en,
+			[GPIOMUX_ACTIVE] = &pcie_pwr_en,
+		},
+	},
+	{
+		.gpio   = PCIE_2_PWR_EN_GPIO,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &pcie_pwr_en,
+			[GPIOMUX_ACTIVE] = &pcie_pwr_en,
 		},
 	},
 };
