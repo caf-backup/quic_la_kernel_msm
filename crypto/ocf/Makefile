@@ -37,18 +37,6 @@ obj-$(CONFIG_OCF_CRYPTODEV)   += cryptodev.o
 obj-$(CONFIG_OCF_CRYPTOSOFT)  += cryptosoft.o
 obj-$(CONFIG_OCF_BENCH)       += ocf-bench.o
 
-$(_obj)-$(CONFIG_OCF_SAFE)    += safe$(_slash)
-$(_obj)-$(CONFIG_OCF_HIFN)    += hifn$(_slash)
-$(_obj)-$(CONFIG_OCF_IXP4XX)  += ixp4xx$(_slash)
-$(_obj)-$(CONFIG_OCF_TALITOS) += talitos$(_slash)
-$(_obj)-$(CONFIG_OCF_PASEMI)  += pasemi$(_slash)
-$(_obj)-$(CONFIG_OCF_EP80579) += ep80579$(_slash)
-$(_obj)-$(CONFIG_OCF_CRYPTOCTEON) += cryptocteon$(_slash)
-$(_obj)-$(CONFIG_OCF_KIRKWOOD) += kirkwood$(_slash)
-$(_obj)-$(CONFIG_OCF_OCFNULL) += ocfnull$(_slash)
-$(_obj)-$(CONFIG_OCF_C7108) += c7108$(_slash)
-$(_obj)-$(CONFIG_OCF_UBSEC_SSB) += ubsec_ssb$(_slash)
-
 ocf-objs := $(OCF_OBJS)
 
 dummy:
