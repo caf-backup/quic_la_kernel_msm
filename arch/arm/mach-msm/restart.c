@@ -232,6 +232,8 @@ void set_kernel_crash_magic_number(void)
 }
 #endif /* CONFIG_LGE_CRASH_HANDLER */
 
+#define APCS_WDT0_CPU0_WDOG_EXPIRED_ENABLE      (MSM_CLK_CTL_BASE+0x3820)
+
 void msm_restart(char mode, const char *cmd)
 {
 
@@ -295,6 +297,9 @@ reset:
 	__raw_writel(0x31F3, msm_tmr0_base + WDT0_BITE_TIME);
 	__raw_writel(1, msm_tmr0_base + WDT0_EN);
 
+#ifndef CONFIG_MSM_SCM
+	__raw_writel(1, APCS_WDT0_CPU0_WDOG_EXPIRED_ENABLE);
+#endif
 	mdelay(10000);
 	printk(KERN_ERR "Restarting has failed\n");
 }
