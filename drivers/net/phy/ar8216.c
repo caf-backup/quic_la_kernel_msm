@@ -1032,7 +1032,6 @@ ar8327_hw_init(struct ar8216_priv *priv)
 {
 	struct ar8327_platform_data *pdata;
 	struct ar8327_led_cfg *led_cfg;
-	struct ar8327_sgmii_ctrl_cfg *sgmii_ctrl_cfg;
 	struct mii_bus *bus;
 	u32 pos, new_pos;
 	u32 t;
@@ -1063,20 +1062,39 @@ ar8327_hw_init(struct ar8216_priv *priv)
 		priv->write(priv, AR8327_REG_LED_CTRL1, led_cfg->led_ctrl1);
 		priv->write(priv, AR8327_REG_LED_CTRL2, led_cfg->led_ctrl2);
 		priv->write(priv, AR8327_REG_LED_CTRL3, led_cfg->led_ctrl3);
-	}
 
-	if (new_pos != pos) {
-		new_pos |= AR8327_POWER_ON_STRIP_POWER_ON_SEL;
-		priv->write(priv, AR8327_REG_POWER_ON_STRIP, new_pos);
-	}
-
-	sgmii_ctrl_cfg = pdata->sgmii_ctrl_cfg;
-	if (sgmii_ctrl_cfg) {
-		if (sgmii_ctrl_cfg->sgmii_pll_en) {
-			priv->write(priv, AR8327_SGMII_CTRL_REG, 0xC74164DF);
-			priv->write(priv, AR8327_REG_POWER_ON_STRIP, 0x602613A0);
+		if (new_pos != pos) {
+			new_pos |= AR8327_POWER_ON_STRIP_POWER_ON_SEL;
 		}
 	}
+
+	/*  The logic is added to configure the SGMII CTRL regsiter with appropriate configuration */
+	if (pdata->sgmii_cfg) {
+		t = priv->read(priv, AR8327_REG_SGMII_CTRL);
+		t &= ~(AR8327_SGMII_CTRL_MODE_CTRL);
+		t |= ((pdata->sgmii_cfg->sgmii_mode) << AR8327_SGMII_CTRL_MODE_CTRL_S);
+
+		if (chip_is_ar8337(priv)) {
+			t |= (AR8327_SGMII_CTRL_EN_PLL |
+			     AR8327_SGMII_CTRL_EN_RX |
+			     AR8327_SGMII_CTRL_EN_TX);
+		} else {
+			t &= ~(AR8327_SGMII_CTRL_EN_PLL |
+			       AR8327_SGMII_CTRL_EN_RX |
+			       AR8327_SGMII_CTRL_EN_TX);
+		}
+		t |= AR8327_SGMII_CTRL_EN_SD;
+
+		priv->write(priv, AR8327_REG_SGMII_CTRL, t);
+
+		if (pdata->sgmii_cfg->serdes_aen) {
+			new_pos &= ~AR8327_POWER_ON_STRIP_SERDES_AEN;
+		} else {
+			new_pos |= AR8327_POWER_ON_STRIP_SERDES_AEN;
+		}
+	}
+
+	priv->write(priv, AR8327_REG_POWER_ON_STRIP, new_pos);
 
 	bus = priv->phy->bus;
 	for (i = 0; i < AR8327_NUM_PHYS; i++) {

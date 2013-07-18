@@ -62,12 +62,23 @@ enum ar8327_port_speed {
 	AR8327_PORT_SPEED_1000,
 };
 
+enum  ar8327_sgmii_mode {
+	AR8327_BASE_X = 0,
+	AR8327_SGMII_PHY,
+	AR8327_SGMII_MAC,
+};
+
 struct ar8327_port_cfg {
 	int force_link:1;
 	enum ar8327_port_speed speed;
 	int txpause:1;
 	int rxpause:1;
 	int duplex:1;
+};
+
+struct ar8327_sgmii_cfg {
+	enum ar8327_sgmii_mode sgmii_mode;
+	bool serdes_aen;
 };
 
 struct ar8327_led_cfg {
@@ -78,10 +89,6 @@ struct ar8327_led_cfg {
 	bool open_drain;
 };
 
-struct ar8327_sgmii_ctrl_cfg {
-	u32 sgmii_pll_en;
-};
-
 struct ar8327_platform_data {
 	struct ar8327_pad_cfg *pad0_cfg;
 	struct ar8327_pad_cfg *pad5_cfg;
@@ -90,7 +97,7 @@ struct ar8327_platform_data {
 	struct ar8327_port_cfg port5_cfg;
 	struct ar8327_port_cfg port6_cfg;
 	struct ar8327_led_cfg *led_cfg;
-	struct ar8327_sgmii_ctrl_cfg *sgmii_ctrl_cfg;
+	struct ar8327_sgmii_cfg *sgmii_cfg;
 };
 
 #endif /* AR8216_PLATFORM_H */
