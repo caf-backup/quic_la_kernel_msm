@@ -512,6 +512,18 @@ config USB_DWC3_MSM
 	  device and otg modes of operation. For more information please
 	  refer to http://www.qualcomm.com/chipsets.
 
+config USB_DWC3_IPQ
+	tristate "DesignWare USB3.0 (DRD) Controller for IPQ"
+	depends on ARCH_MSM
+	select USB_DWC3
+	select USB_GADGET_DUALSPEED
+	select USB_GADGET_SELECTED
+	help
+	  The DesignWare USB3.0 controller is a SuperSpeed USB3.0 Controller
+	  integrated into the Qualcomm IPQ chipset series, supporting host,
+	  device and otg modes of operation. For more information please
+	  refer to http://www.qualcomm.com/chipsets.
+
 config USB_DWC3_OMAP
 	tristate "DesignWare USB3.0 (DRD) Controller for OMAP"
 	depends on ARCH_OMAP

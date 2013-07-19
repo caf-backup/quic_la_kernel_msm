@@ -652,17 +652,22 @@
 #define PCIE_2_ALT_REF_CLK_NS			REG(0x3AE0)
 #define EBI2_CLK_CTL				REG(0x3B00)
 #define EBI2_CLK_FS				REG(0x3B04)
-#define USB30_ACLK_FS				REG(0x3B20)
-#define USB30_RESET				REG(0x3B24)
-#define USB30_SFAB_PORT_RESET			REG(0x3B28)
-#define USB30_SLEEP_CLK_CTL			REG(0x3B2C)
-#define USB30_MOC_UTMI_CLK_MD			REG(0x3B30)
-#define USB30_MOC_UTMI_CLK_NS			REG(0x3B34)
-#define USB30_MASTER_CLK_MD			REG(0x3B38)
-#define USB30_MASTER_CLK_NS			REG(0x3B3C)
-#define USB30_1_ACLK_FS				REG(0x3B40)
-#define USB30_1_RESET				REG(0x3B44)
-#define USB30_1_SFAB_PORT_RESET			REG(0x3B48)
+#define USB30_0_ACLK_FS				REG(0x3B20)
+#define USB30_0_MASTER_CLK_CTL			REG(0x3B24)
+#define USB30_MASTER_CLK_MD			REG(0x3B28)
+#define USB30_MASTER_CLK_NS			REG(0x3B2C)
+#define USB30_1_ACLK_FS				REG(0x3B30)
+#define USB30_1_MASTER_CLK_CTL			REG(0x3B34)
+#define USB30_0_SLEEP_CLK_CTL			REG(0x3B38)
+#define USB30_1_SLEEP_CLK_CTL			REG(0x3B3C)
+#define USB30_MOC_UTMI_CLK_MD			REG(0x3B40)
+#define USB30_MOC_UTMI_CLK_NS			REG(0x3B44)
+#define USB30_0_MOC_UTMI_CLK_CTL		REG(0x3B48)
+#define USB30_1_MOC_UTMI_CLK_CTL		REG(0x3B4C)
+#define USB30_0_RESET				REG(0x3B50)
+#define USB30_0_SFAB_PORT_RESET			REG(0x3B54)
+#define USB30_1_RESET				REG(0x3B58)
+#define USB30_1_SFAB_PORT_RESET			REG(0x3B5C)
 #define NSS_RESET				REG(0x3B60)
 #define NSS_RESET_SPARE				REG(0x3B64)
 #define NSS_FB0_CLK_SRC_CTL			REG(0x3B80)
@@ -760,7 +765,143 @@
 
 #define MN_MODE_DUAL_EDGE 0x2
 
-struct pll_rate {
+#define CLK_USB_SS(name, n, h_b) \
+	static struct rcg_clk name = { \
+	.b = { \
+		.ctl_reg = USB30_MASTER_CLK_NS, \
+		.en_mask = BIT(11), \
+		.halt_check = NOCHECK, \
+	}, \
+	.ns_reg = USB30_MASTER_CLK_NS, \
+	.md_reg = USB30_MASTER_CLK_MD, \
+	.ns_mask = (BM(23, 16) | BM(6, 0)), \
+	.root_en_mask = BIT(11), \
+	.mnd_en_mask = BIT(8), \
+	.set_rate = set_rate_mnd, \
+	.freq_tbl = clk_tbl_usb30, \
+	.current_freq = &rcg_dummy_freq, \
+	.c = { \
+		.dbg_name = "USB30_clk", \
+		.ops = &clk_ops_rcg, \
+		CLK_INIT(name.c), \
+	}, \
+}
+
+#define F_USB30(f, s, d, m, n) \
+	{ \
+		.freq_hz = f, \
+		.md_val = MD8(16, m, 0, n), \
+		.ns_val = NS(23, 16, n, m, 5, 4, 3, d, 2, 0, s##_to_bb_mux), \
+	}
+
+static struct clk_freq_tbl clk_tbl_usb30[] = {
+	F_USB30(125000000, pll0, 1, 5, 32),
+	F_END
+};
+
+CLK_USB_SS(usb30_0_master_clk, 0, 0);
+static struct branch_clk usb30_0_branch_clk = {
+	.b = {
+		.ctl_reg = USB30_0_MASTER_CLK_CTL,
+		.en_mask =  BIT(4),
+		.halt_reg = CLK_HALT_AFAB_SFAB_STATEB_REG,
+		.halt_bit = 22,
+	},
+	.parent = &usb30_0_master_clk.c,
+	.c = {
+		.dbg_name = "usb30_0_branch_clk",
+		.ops = &clk_ops_branch,
+		CLK_INIT(usb30_0_branch_clk.c),
+	},
+};
+
+static struct branch_clk usb30_1_branch_clk = {
+	.b = {
+		.ctl_reg = USB30_1_MASTER_CLK_CTL,
+		.en_mask =  BIT(4),
+		.halt_reg = CLK_HALT_AFAB_SFAB_STATEB_REG,
+		.halt_bit = 17,
+	},
+	.parent = &usb30_0_master_clk.c,
+	.c = {
+		.dbg_name = "usb30_1_branch_clk",
+		.ops = &clk_ops_branch,
+		CLK_INIT(usb30_1_branch_clk.c),
+	},
+};
+
+#define CLK_USB_UTMI(name, n, h_b) \
+	static struct rcg_clk name = { \
+	.b = { \
+		.ctl_reg = USB30_MOC_UTMI_CLK_NS, \
+		.en_mask = BIT(11), \
+		.halt_check = NOCHECK,\
+	}, \
+	.ns_reg = USB30_MOC_UTMI_CLK_NS, \
+	.md_reg = USB30_MOC_UTMI_CLK_MD, \
+	.ns_mask = (BM(23, 16) | BM(6, 0)), \
+	.mnd_en_mask = BIT(8), \
+	.set_rate = set_rate_mnd, \
+	.freq_tbl = clk_tbl_usb30_utmi, \
+	.current_freq = &rcg_dummy_freq, \
+	.c = { \
+		.dbg_name = #name, \
+		.ops = &clk_ops_rcg, \
+		CLK_INIT(usb30_utmi_clk.c), \
+	}, \
+}
+
+static struct clk_freq_tbl clk_tbl_usb30_utmi[] = {
+	F_USB30(60000000, pll0, 1, 1, 40),
+	F_END
+};
+
+CLK_USB_UTMI(usb30_utmi_clk, 0, 0);
+static struct branch_clk usb30_0_utmi_clk_ctl = {
+	.b = {
+		.ctl_reg = USB30_0_MOC_UTMI_CLK_CTL,
+		.en_mask = BIT(4),
+		.halt_reg = CLK_HALT_AFAB_SFAB_STATEB_REG,
+		.halt_bit = 21,
+	},
+	.parent = &usb30_utmi_clk.c,
+	.c = {
+		.dbg_name = "usb30_0_utmi_clk_ctl",
+		.ops = &clk_ops_branch,
+		CLK_INIT(usb30_0_utmi_clk_ctl.c),
+	},
+};
+
+static struct branch_clk usb30_1_utmi_clk_ctl = {
+	.b = {
+		.ctl_reg = USB30_1_MOC_UTMI_CLK_CTL,
+		.en_mask = BIT(4),
+		.halt_reg = CLK_HALT_AFAB_SFAB_STATEB_REG,
+		.halt_bit = 15,
+	},
+	.parent = &usb30_utmi_clk.c,
+	.c = {
+		.dbg_name = "usb30_1_utmi_clk_ctl",
+		.ops = &clk_ops_branch,
+		CLK_INIT(usb30_1_utmi_clk_ctl.c),
+	},
+};
+
+static struct clk_lookup msm_usb30_clocks_ipq806x[] = {
+	CLK_LOOKUP("core_clk",		usb30_0_master_clk.c,	"msm-dwc3.0"),
+	CLK_LOOKUP("iface_clk",		usb30_0_branch_clk.c,	"msm-dwc3.0"),
+	CLK_LOOKUP("iface1_clk",	usb30_1_branch_clk.c,	"msm-dwc3.0"),
+	CLK_LOOKUP("utmi_clk",		usb30_utmi_clk.c,	"msm-dwc3.0"),
+	CLK_LOOKUP("utmi_b0_clk",	usb30_0_utmi_clk_ctl.c,	"msm-dwc3.0"),
+	CLK_LOOKUP("utmi_b1_clk",	usb30_1_utmi_clk_ctl.c,	"msm-dwc3.0"),
+};
+
+struct clock_init_data ipq806x_usb30_clocks __initdata = {
+	.table = msm_usb30_clocks_ipq806x,
+	.size = ARRAY_SIZE(msm_usb30_clocks_ipq806x),
+};
+
+struct pll_rate{
 	const uint32_t	l_val;
 	const uint32_t	m_val;
 	const uint32_t	n_val;
@@ -2749,12 +2890,6 @@ static struct clk_lookup msm_clocks_ipq806x_dummy[] = {
         CLK_DUMMY("prng_clk",           PRNG_CLK,               NULL, OFF),
         CLK_DUMMY("tsif_ref_clk",       TSIF_REF_CLK,           NULL, OFF),
         CLK_DUMMY("tssc_clk",           TSSC_CLK,               NULL, OFF),
-	CLK_DUMMY("core_clk",		USB30_MASTER_CLK,
-							"msm-dwc3.0", OFF),
-	CLK_DUMMY("utmi_clk",		USB30_UTMI_CLK,
-							"msm-dwc3.0", OFF),
-	CLK_DUMMY("iface_clk",		USB30_AXI_CLK,
-							"msm-dwc3.0", OFF),
 	CLK_DUMMY("sleep_clk",		USB30_SLEEP_CLK,
 							"msm-dwc3.0", OFF),
 	CLK_DUMMY("sleep_a_clk",	USB2a_SLEEP_CLK,
@@ -2763,12 +2898,6 @@ static struct clk_lookup msm_clocks_ipq806x_dummy[] = {
 							"msm-dwc3.0", OFF),
 	CLK_DUMMY("ref_clk",		USB30_DIFF_CLK,
 							"msm-dwc3.0", OFF),
-	CLK_DUMMY("core_clk",		USB30_MASTER_CLK,
-							"msm-dwc3.1", OFF),
-	CLK_DUMMY("utmi_clk",		USB30_UTMI_CLK,
-							"msm-dwc3.1", OFF),
-	CLK_DUMMY("iface_clk",		USB30_AXI_CLK,
-							"msm-dwc3.1", OFF),
 	CLK_DUMMY("sleep_clk",		USB30_SLEEP_CLK,
 							"msm-dwc3.1", OFF),
 	CLK_DUMMY("sleep_a_clk",	USB2a_SLEEP_CLK,

@@ -471,16 +471,21 @@ static int __devinit dwc3_probe(struct platform_device *pdev)
 		dev_err(dev, "missing IRQ\n");
 		return -ENODEV;
 	}
-	dwc->xhci_resources[1] = *res;
+	dwc->xhci_resources[1].start = res->start;
+	dwc->xhci_resources[1].end = res->end;
+	dwc->xhci_resources[1].flags = res->flags;
+	dwc->xhci_resources[1].name = res->name;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(dev, "missing memory resource\n");
 		return -ENODEV;
 	}
-	dwc->xhci_resources[0] = *res;
+	dwc->xhci_resources[0].start = res->start;
 	dwc->xhci_resources[0].end = dwc->xhci_resources[0].start +
 					DWC3_XHCI_REGS_END;
+	dwc->xhci_resources[0].flags = res->flags;
+	dwc->xhci_resources[0].name = res->name;
 
 	 /*
 	  * Request memory region but exclude xHCI regs,
@@ -532,7 +537,11 @@ static int __devinit dwc3_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	mode = DWC3_MODE(dwc->hwparams.hwparams0);
+	if (dev->platform_data) {
+		mode = *(u8 *)dev->platform_data;
+	} else {
+		mode = DWC3_MODE(dwc->hwparams.hwparams0);
+	}
 
 	switch (mode) {
 	case DWC3_MODE_DEVICE:

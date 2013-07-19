@@ -56,6 +56,7 @@
 #include <mach/msm_nss.h>
 #include <mach/msm_nss_crypto.h>
 #include <linux/ar8216_platform.h>
+#include <mach/msm_usb30.h>
 
 /* Address of GSBI blocks */
 #define MSM_GSBI1_PHYS		0x12440000
@@ -880,33 +881,45 @@ static struct resource resources_dwc3_host2[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	{
-		.start  = USB30_EE2_IRQ_1,
-		.end    = USB30_EE2_IRQ_1,
+		.start  = USB30_EE1_IRQ,
+		.end    = USB30_EE1_IRQ,
 		.flags  = IORESOURCE_IRQ,
 	},
 };
 
+static struct dwc3_platform_data dwc3_pdata_host1 = {
+	.usb_mode	= USB30_MODE_HOST,
+	.pwr_en		= 1,
+	.pwr_en_gpio1	= 51,
+	.pwr_en_gpio2	= 52,
+};
 
+static struct dwc3_platform_data dwc3_pdata_host2 = {
+	.usb_mode	= USB30_MODE_HOST,
+	.pwr_en		= 0,
+};
 
 struct platform_device ipq806x_device_dwc3_host1 = {
-	.name		= "msm-dwc3",
+	.name		= "ipq-dwc3",
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(resources_dwc3_host1),
 	.resource	= resources_dwc3_host1,
 	.dev		= {
 		.dma_mask		= &dma_mask,
 		.coherent_dma_mask	= 0xffffffff,
+		.platform_data		= &dwc3_pdata_host1,
 	},
 };
 
 struct platform_device ipq806x_device_dwc3_host2 = {
-	.name		= "msm-dwc3",
+	.name		= "ipq-dwc3",
 	.id		= 1,
 	.num_resources	= ARRAY_SIZE(resources_dwc3_host2),
 	.resource	= resources_dwc3_host2,
 	.dev		= {
 		.dma_mask		= &dma_mask,
 		.coherent_dma_mask	= 0xffffffff,
+		.platform_data          = &dwc3_pdata_host2,
 	},
 };
 

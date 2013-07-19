@@ -442,7 +442,7 @@ enum usb_bam {
 	HSIC_BAM,
 };
 
-#ifdef CONFIG_USB_DWC3_MSM
+#if defined(CONFIG_USB_DWC3_MSM) || defined(CONFIG_USB_DWC3_IPQ)
 int msm_ep_config(struct usb_ep *ep);
 int msm_ep_unconfig(struct usb_ep *ep);
 int msm_data_fifo_config(struct usb_ep *ep, u32 addr, u32 size,

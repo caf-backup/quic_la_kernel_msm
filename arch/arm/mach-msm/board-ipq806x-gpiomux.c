@@ -643,6 +643,29 @@ static struct msm_gpiomux_config ipq806x_sdc3_configs[] __initdata = {
 	},
 };
 
+static struct gpiomux_setting usb30_pwr_en_n = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_12MA,
+	.pull = GPIOMUX_PULL_DOWN,
+	.dir = GPIOMUX_OUT_HIGH,
+};
+
+static struct msm_gpiomux_config ipq806x_usb30_configs[] __initdata = {
+	{
+		.gpio   = 51,
+		.settings = {
+			[GPIOMUX_ACTIVE] = &usb30_pwr_en_n,
+			[GPIOMUX_SUSPENDED] = &usb30_pwr_en_n,
+		}
+	},
+	{
+		.gpio   = 52,
+		.settings = {
+			[GPIOMUX_ACTIVE] = &usb30_pwr_en_n,
+			[GPIOMUX_SUSPENDED] = &usb30_pwr_en_n,
+		}
+	},
+};
 
 #ifdef CONFIG_MSM_PCIE
 static struct gpiomux_setting pcie_rst_n = {
@@ -1037,4 +1060,7 @@ void __init ipq806x_init_gpiomux(void)
 	}
 	msm_gpiomux_install(ipq806x_mdio_configs,
 		ARRAY_SIZE(ipq806x_mdio_configs));
+
+	msm_gpiomux_install(ipq806x_usb30_configs,
+			ARRAY_SIZE(ipq806x_usb30_configs));
 }
