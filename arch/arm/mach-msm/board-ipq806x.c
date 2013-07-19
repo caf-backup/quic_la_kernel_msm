@@ -2293,7 +2293,7 @@ static void __init ipq806x_init(void)
 }
 
 
-MACHINE_START(IPQ806X_RUMI3, "QCA IPQ806X RUMI3")
+MACHINE_START(IPQ806X_RUMI3, "Qualcomm Atheros RUMI3 emulation platform")
 	.map_io = ipq806x_map_io,
 	.reserve = ipq806x_reserve,
 	.init_irq = ipq806x_init_irq,
@@ -2305,7 +2305,7 @@ MACHINE_START(IPQ806X_RUMI3, "QCA IPQ806X RUMI3")
 	.restart = msm_restart,
 MACHINE_END
 
-MACHINE_START(IPQ806X_TB726, "QCA IPQ806X TB726")
+MACHINE_START(IPQ806X_TB726, "Qualcomm Atheros TB726 test board")
 	.map_io = ipq806x_map_io,
 	.reserve = ipq806x_reserve,
 	.init_irq = ipq806x_init_irq,
@@ -2317,7 +2317,7 @@ MACHINE_START(IPQ806X_TB726, "QCA IPQ806X TB726")
 	.restart = msm_restart,
 MACHINE_END
 
-MACHINE_START(IPQ806X_AP144, "QCA IPQ806X AP144")
+MACHINE_START(IPQ806X_AP144, "Qualcomm Atheros AP144 reference board")
 	.map_io = ipq806x_map_io,
 	.reserve = ipq806x_reserve,
 	.init_irq = ipq806x_init_irq,
@@ -2329,7 +2329,7 @@ MACHINE_START(IPQ806X_AP144, "QCA IPQ806X AP144")
 	.restart = msm_restart,
 MACHINE_END
 
-MACHINE_START(IPQ806X_DB149, "QCA IPQ806X DB149")
+MACHINE_START(IPQ806X_DB149, "Qualcomm Atheros DB149 reference board")
 	.map_io = ipq806x_map_io,
 	.reserve = ipq806x_reserve,
 	.init_irq = ipq806x_init_irq,
@@ -2341,7 +2341,7 @@ MACHINE_START(IPQ806X_DB149, "QCA IPQ806X DB149")
 	.restart = msm_restart,
 MACHINE_END
 
-MACHINE_START(IPQ806X_DB147, "QCA IPQ806X DB147")
+MACHINE_START(IPQ806X_DB147, "Qualcomm Atheros DB147 reference board")
 	.map_io = ipq806x_map_io,
 	.reserve = ipq806x_reserve,
 	.init_irq = ipq806x_init_irq,
@@ -2353,7 +2353,7 @@ MACHINE_START(IPQ806X_DB147, "QCA IPQ806X DB147")
 	.restart = msm_restart,
 MACHINE_END
 
-MACHINE_START(IPQ806X_AP148, "QCA IPQ806X AP148")
+MACHINE_START(IPQ806X_AP148, "Qualcomm Atheros AP148 reference board")
 	.map_io = ipq806x_map_io,
 	.reserve = ipq806x_reserve,
 	.init_irq = ipq806x_init_irq,
