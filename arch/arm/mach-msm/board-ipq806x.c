@@ -1783,6 +1783,17 @@ static struct platform_device *common_devices[] __initdata = {
 	&ipq806x_device_nss_crypto[3],
 
 	&ipq806x_device_sata,
+
+	/* lpass */
+	&ipq806x_lpass_dmlite,
+	&ipq806x_lpass_cpudai,
+	&ipq806x_lpass_lpaif,
+	&ipq806x_lpass_clock,
+	&ipq806x_lpass_spdif,
+	&ipq806x_lpass_pcm_mi2s,
+	&ipq806x_lpass_pcm_voip,
+	&ipq806x_lpass_pcm_spdif,
+	&ipq806x_lpass_codec,
 };
 
 static struct platform_device *cdp_devices[] __initdata = {

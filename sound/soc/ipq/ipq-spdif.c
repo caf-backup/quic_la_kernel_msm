@@ -1,0 +1,288 @@
+/* Copyright (c) 2013 Qualcomm Atheros, Inc.
+ *
+ * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include <linux/module.h>
+#include <linux/platform_device.h>
+#include <linux/dma-mapping.h>
+#include <linux/debugfs.h>
+#include <linux/delay.h>
+#include <linux/uaccess.h>
+#include <sound/core.h>
+#include <sound/pcm.h>
+#include <sound/soc.h>
+#include <mach/msm_iomap-8x60.h>
+#include <mach/audio_dma_msm8k.h>
+#include <asm/io.h>
+#include <sound/dai.h>
+#include <linux/slab.h>
+#include "ipq-pcm.h"
+#include "ipq-spdif.h"
+
+/*
+ * SPDIFTX driver has two specific component -
+ * 1. SPDIC PCM driver
+ * 2. SPDIC CPU DAI driver
+ * PCM driver has to access SPDIF TX register
+ * space which is defined in CPU DAI driver.
+ * This is enabled by exporting the structure.
+ */
+struct ipq_lpaif_spdif_baseinfo ipq_spdif_info;
+EXPORT_SYMBOL_GPL(ipq_spdif_info);
+
+struct spdif_intr {
+	irqreturn_t (*callback) (int intrsrc, void *private_data);
+	void *private_data;
+};
+
+struct spdif_intr *spdif_handler;
+
+static irqreturn_t ipq_lpaif_spdif_irq_handler(int irq, void *dev_id)
+{
+	uint32_t status;
+	int ret = IRQ_NONE;
+	status = readl(ipq_spdif_info.base + LPA_IF_SPDIF_TX_INT_STAT);
+
+	if (((status & 0x1) == 0x1) || ((status & 0x2) == 0x2)) {
+		/* Ack the interrupts */
+		writel(0x7f, ipq_spdif_info.base + LPA_IF_SPDIF_TX_INT_STAT);
+		if (spdif_handler->callback && spdif_handler->private_data)
+			ret = spdif_handler->callback(status,
+					spdif_handler->private_data);
+	}
+
+	return ret;
+}
+
+void ipq_spdif_register_handler(irqreturn_t (*callback) (int intrsrc,
+		void *private_data), void *private_data)
+{
+	spdif_handler->callback = callback;
+	spdif_handler->private_data = private_data;
+}
+EXPORT_SYMBOL_GPL(ipq_spdif_register_handler);
+
+void ipq_cfg_spdif_hwparams(int bit_width)
+{
+	uint32_t cfg;
+
+	cfg = readl(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CFG);
+
+	cfg |= (LPA_IF_SPDIF_FR_SZ |
+		~(LPA_IF_SPDIF_DR_LB) |
+		~(LPA_IF_SPDIF_EN_INH_WTTS));
+	writel(cfg, ipq_spdif_info.base + LPA_IF_SPDIF_TX_CFG);
+
+	cfg = readl(ipq_spdif_info.base + LPA_IF_SPDIF_TX_PORT_CFG);
+	switch (bit_width) {
+	case SNDRV_PCM_FORMAT_S16:
+		cfg |= LPA_IF_SPDIF_TX_PORT_CFG_L16;
+		break;
+	case SNDRV_PCM_FORMAT_S24:
+		cfg |= LPA_IF_SPDIF_TX_PORT_CFG_L24;
+		break;
+	default:
+		break;
+	}
+	writel(cfg, ipq_spdif_info.base + LPA_IF_SPDIF_TX_PORT_CFG);
+}
+EXPORT_SYMBOL_GPL(ipq_cfg_spdif_hwparams);
+
+void ipq_spdif_onetime_cfg(void)
+{
+	/* Frame Size in cfg*/
+	writel((SPDIF_FRAMESIZE-1),
+		(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CFG));
+	/* port select */
+	writel(0x0,  (ipq_spdif_info.base + LPA_IF_SPDIF_TXP_SEL));
+	writel(0x0, (ipq_spdif_info.base + LPA_IF_SPDIF_TX_PORT_CFG));
+	writel(SPDIF_FIFO_CTL, (ipq_spdif_info.base + LPA_IF_SPDIF_FIFO_CNTL));
+	/* Presently for 44.1Khz */
+	writel(SPDIF_TX_CH_ST, (ipq_spdif_info.base + LPA_IF_SPDIF_TX_CH_STAT));
+
+	/* Burst ctrl */
+	writel(SPDIF_TX_BURST_CTL,
+		(ipq_spdif_info.base + LPA_IF_SPDIF_TX_BURST_CNTL));
+	writel(0x0, (ipq_spdif_info.base + LPA_IF_SPDIF_TX_BURST_MISC));
+	writel(SPDIF_TX_DBG_CRC_CNT,
+		(ipq_spdif_info.base + LPA_IF_SPDIF_TX_DEBUG_CRC_COUNT));
+	writel(0x0, (ipq_spdif_info.base + LPA_IF_SPDIF_TX_DEBUG_CRC_CNTL));
+	writel(SPDIF_TX_INTR, (ipq_spdif_info.base + LPA_IF_SPDIF_TX_INT_STAT));
+}
+EXPORT_SYMBOL_GPL(ipq_spdif_onetime_cfg);
+
+void ipq_lpaif_spdif_port_en(uint8_t en)
+{
+	if (en == 1)
+		writel(0x1, ipq_spdif_info.base + LPA_IF_SPDIF_TXP_SEL);
+	else
+		writel(0x0, ipq_spdif_info.base + LPA_IF_SPDIF_TXP_SEL);
+}
+EXPORT_SYMBOL_GPL(ipq_lpaif_spdif_port_en);
+
+void ipq_spdif_intr_enable(void)
+{
+	uint32_t cfg;
+	/* SPDIFTX_INT_CNTL register*/
+	cfg = readl(ipq_spdif_info.base + LPA_IF_SPDIF_TX_INT_CNTL);
+	cfg |= (LPA_IF_SPDIF_TX_BLKDONE_INT |
+		LPA_IF_SPDIF_TX_FIFO_UNDERFLOW_INT |
+		LPA_IF_SPDIF_TX_IDLE_INT |
+		LPA_IF_SPDIF_TX_PAUSE_INT |
+		LPA_IF_SPDIF_TX_DROPLB_INT |
+		LPA_IF_SPDIF_TX_TS_DIFF_INT |
+		LPA_IF_SPDIF_TX_MC_ERR |
+		LPA_IF_SPDIF_TX_INT_MASK);
+	writel(0x0, ipq_spdif_info.base + LPA_IF_SPDIF_TX_INT_CNTL);
+	writel(SPDIF_INTR_MASK, ipq_spdif_info.base + LPA_IF_SPDIF_TX_INT_CNTL);
+}
+EXPORT_SYMBOL_GPL(ipq_spdif_intr_enable);
+
+dma_addr_t ipq_spdif_set_params(dma_addr_t paddr)
+{
+	uint32_t cfg;
+
+	/* SPDIFTX_CMD register */
+	writel(0x0, ipq_spdif_info.base + LPA_IF_SPDIF_LB_SHAPER_CFG);
+	writel(SPDIF_TXP_SEL, ipq_spdif_info.base + LPA_IF_SPDIF_TXP_SEL);
+
+	writel(paddr, ipq_spdif_info.base + LPA_IF_SPDIF_BUF_PNTR);
+	writel(0, ipq_spdif_info.base + LPA_IF_SPDIF_TX_SUBBUF_FIFO);
+	paddr += (SPDIF_FRAMESIZE * 4);
+	writel(paddr, ipq_spdif_info.base + LPA_IF_SPDIF_BUF_PNTR);
+	writel(0, ipq_spdif_info.base + LPA_IF_SPDIF_TX_SUBBUF_FIFO);
+	paddr += (SPDIF_FRAMESIZE * 4);
+	writel(paddr, ipq_spdif_info.base + LPA_IF_SPDIF_BUF_PNTR);
+	writel(0, ipq_spdif_info.base + LPA_IF_SPDIF_TX_SUBBUF_FIFO);
+	paddr += (SPDIF_FRAMESIZE * 4);
+	writel(paddr, ipq_spdif_info.base + LPA_IF_SPDIF_BUF_PNTR);
+	writel(0, ipq_spdif_info.base + LPA_IF_SPDIF_TX_SUBBUF_FIFO);
+	paddr += (SPDIF_FRAMESIZE * 4);
+	writel(paddr, ipq_spdif_info.base + LPA_IF_SPDIF_BUF_PNTR);
+	writel(0, ipq_spdif_info.base + LPA_IF_SPDIF_TX_SUBBUF_FIFO);
+	paddr += (SPDIF_FRAMESIZE * 4);
+	writel(paddr, ipq_spdif_info.base + LPA_IF_SPDIF_BUF_PNTR);
+	writel(0, ipq_spdif_info.base + LPA_IF_SPDIF_TX_SUBBUF_FIFO);
+	paddr += (SPDIF_FRAMESIZE * 4);
+	writel(paddr, ipq_spdif_info.base + LPA_IF_SPDIF_BUF_PNTR);
+	writel(0, ipq_spdif_info.base + LPA_IF_SPDIF_TX_SUBBUF_FIFO);
+	paddr += (SPDIF_FRAMESIZE * 4);
+	writel(paddr, ipq_spdif_info.base + LPA_IF_SPDIF_BUF_PNTR);
+	writel(0, ipq_spdif_info.base + LPA_IF_SPDIF_TX_SUBBUF_FIFO);
+	mb();
+
+	/* SPDIFTX_SUBBUF_FIFO register*/
+	cfg = readl(ipq_spdif_info.base + LPA_IF_SPDIF_TX_SUBBUF_FIFO);
+	cfg |= (~(LPA_IF_SPDIF_TX_SUBBUF_FIFO_WTTS) |
+		 LPA_IF_SPDIF_TX_SUBBUF_FIFO_FR_SIZ_ADJUST(0));
+
+	return paddr;
+
+}
+EXPORT_SYMBOL_GPL(ipq_spdif_set_params);
+
+struct resource *spdif_intr_tx;
+
+static int __devinit ipq_lpaif_spdif_probe(struct platform_device *pdev)
+{
+	int rc;
+	int ret;
+	struct resource *spdif_res;
+
+	spdif_res = platform_get_resource_byname(pdev,
+					IORESOURCE_MEM, "ipq-spdif");
+	if (!spdif_res) {
+		dev_err(&pdev->dev, "%s: %d: Error getting spdif resource\n",
+						__func__, __LINE__);
+		return -ENODEV;
+	}
+	ipq_spdif_info.base = ioremap(spdif_res->start,
+				(spdif_res->end - spdif_res->start) + 1);
+
+	if (!ipq_spdif_info.base) {
+		dev_err(&pdev->dev, "%s: %d: Error ioremap for spdif\n",
+						__func__, __LINE__);
+		return -ENOMEM;
+	}
+
+	/*
+	 * Register intr handler
+	 */
+	spdif_intr_tx = platform_get_resource_byname(
+		pdev, IORESOURCE_IRQ, "ipq-spdiftx-irq");
+
+	if (!spdif_intr_tx) {
+		dev_err(&pdev->dev, "%s: %d: Failed to get irq resource\n",
+						__func__, __LINE__);
+		rc = -ENODEV;
+		goto error;
+	}
+
+	ret = request_irq(spdif_intr_tx->start, ipq_lpaif_spdif_irq_handler,
+			IRQF_TRIGGER_RISING, "ipq-spdiftx-intr", NULL);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "%s: %dRequest Irq Failed.\n",
+						__func__, __LINE__);
+		rc = -ENXIO;
+		goto error;
+	}
+
+	spdif_handler = kmalloc(sizeof(struct spdif_intr), GFP_KERNEL);
+
+	if (!spdif_handler) {
+		free_irq(spdif_intr_tx->start, NULL);
+		rc = -ENOMEM;
+		goto error;
+	}
+
+	return 0;
+error:
+	iounmap(ipq_spdif_info.base);
+	return rc;
+}
+
+static int ipq_lpaif_spdif_remove(struct platform_device *pdev)
+{
+	iounmap(ipq_spdif_info.base);
+	free_irq(spdif_intr_tx->start, NULL);
+	return 0;
+}
+
+static struct platform_driver spdif_driver = {
+	.probe = ipq_lpaif_spdif_probe,
+	.remove = ipq_lpaif_spdif_remove,
+	.driver = {
+		.name = "ipq-spdif",
+		.owner = THIS_MODULE
+	},
+};
+
+static int __init spdif_init(void)
+{
+	int ret;
+	ret = platform_driver_register(&spdif_driver);
+	if (ret)
+		pr_debug("Error in SPDIF driver register %s\n", __func__);
+	return ret;
+}
+
+static void __exit spdif_exit(void)
+{
+	platform_driver_unregister(&spdif_driver);
+}
+
+module_init(spdif_init);
+module_exit(spdif_exit);
+
+MODULE_DESCRIPTION("IPQ SPDIF Driver");
+MODULE_LICENSE("GPL v2");

@@ -133,6 +133,16 @@
 #define IPQ806X_PC_CNTR_PHYS	(IPQ806X_IMEM_PHYS + 0x664)
 #define IPQ806X_PC_CNTR_SIZE		0x40
 
+/* LPASS Addresses */
+#define IPQ_DML_START	0x28008040
+#define IPQ_DML_END	0x28008060
+
+#define IPQ_LPAIF_SPDIF_PHYS	0x28080000
+#define IPQ_LPAIF_SPDIF_END	0x28081ffc
+
+#define IPQ_LPAIF_PHYS	0x28100000
+#define IPQ_LPAIF_END	0x2810ffff
+
 static struct resource ipq806x_resources_pccntr[] = {
 	{
 		.start	= IPQ806X_PC_CNTR_PHYS,
@@ -1971,8 +1981,8 @@ static uint16_t msm_mpm_bypassed_apps_irqs[] __initdata = {
 	RPM_APCC_CPU1_GP_MEDIUM_IRQ,
 	RPM_APCC_CPU1_GP_LOW_IRQ,
 	RPM_APCC_CPU1_WAKE_UP_IRQ,
-	LPASS_SCSS_GP_LOW_IRQ,
-	LPASS_SCSS_GP_MEDIUM_IRQ,
+	LPASS_DML_IRQ,
+	LPASS_SPDIFTX_IRQ,
 	LPASS_SCSS_GP_HIGH_IRQ,
 	SPS_MTI_30,
 	SPS_MTI_31,
@@ -2198,6 +2208,113 @@ struct platform_device ipq806x_device_cache_erp = {
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(msm_cache_erp_resources),
 	.resource	= msm_cache_erp_resources,
+};
+
+struct resource ipq_dmlite_resource[] = {
+	{
+		.name   = "ipq-dmlite",
+		.start  = IPQ_DML_START,
+		.end    = IPQ_DML_END,
+		.flags  = IORESOURCE_MEM,
+	},
+	{
+		.name	= "ipq-dmlite-irq",
+		.start	= LPASS_DML_IRQ,
+		.end	= LPASS_DML_IRQ,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct resource ipq_spdif_resources[] = {
+	{
+		.start = IPQ_LPAIF_SPDIF_PHYS,
+		.end   = IPQ_LPAIF_SPDIF_END,
+		.flags = IORESOURCE_MEM,
+		.name  = "ipq-spdif",
+	},
+	{
+		.name	= "ipq-spdiftx-irq",
+		.start	= LPASS_SPDIFTX_IRQ,
+		.end	= LPASS_SPDIFTX_IRQ,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct resource ipq_lpaif_resources[] = {
+        {
+		.start = IPQ_LPAIF_PHYS,
+		.end   = IPQ_LPAIF_END,
+		.flags = IORESOURCE_MEM,
+		.name  = "ipq-dai",
+        },
+	{
+		.name	= "ipq-dai-irq",
+		.start	= LPASS_AUDIO_IF_OUT0_IRQ,
+		.end	= LPASS_AUDIO_IF_OUT0_IRQ,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct resource ipq_lpass_clk[] = {
+        {
+		.start = IPQ806X_LPASS_CLK_CTL_PHYS,
+		.end   = IPQ806X_LPASS_CLK_CTL_PHYS + SZ_4K,
+		.flags = IORESOURCE_MEM,
+		.name  = "ipq-lpass-clk",
+        },
+};
+
+struct platform_device ipq806x_lpass_lpaif = {
+	.name = "ipq-lpaif",
+	.id = -1,
+	.num_resources = ARRAY_SIZE(ipq_lpaif_resources),
+	.resource = ipq_lpaif_resources,
+};
+
+struct  platform_device ipq806x_lpass_dmlite = {
+	.name = "ipq-dmlite",
+	.id = -1,
+	.num_resources = ARRAY_SIZE(ipq_dmlite_resource),
+	.resource = ipq_dmlite_resource,
+};
+
+struct platform_device ipq806x_lpass_cpudai = {
+	.name = "ipq-cpu-dai",
+	.id = -1,
+};
+
+struct platform_device ipq806x_lpass_clock = {
+	.name = "ipq-lpass-clk",
+	.id = -1,
+	.num_resources = ARRAY_SIZE(ipq_lpass_clk),
+	.resource = ipq_lpass_clk,
+};
+
+struct platform_device ipq806x_lpass_spdif = {
+	.name = "ipq-spdif",
+	.id = -1,
+	.num_resources = ARRAY_SIZE(ipq_spdif_resources),
+	.resource = ipq_spdif_resources,
+};
+
+struct platform_device ipq806x_lpass_pcm_mi2s = {
+	.name = "ipq-pcm-mi2s",
+	.id = -1,
+};
+
+struct platform_device ipq806x_lpass_pcm_voip = {
+	.name = "ipq-pcm-voip",
+	.id = -1,
+};
+
+struct platform_device ipq806x_lpass_pcm_spdif = {
+	.name = "ipq-pcm-spdif",
+	.id = -1,
+};
+
+struct platform_device ipq806x_lpass_codec = {
+	.name = "ipq-lpass-codec",
+	.id = -1,
 };
 
 struct msm_rtb_platform_data ipq806x_rtb_pdata = {
