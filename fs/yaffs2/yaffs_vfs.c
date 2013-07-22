@@ -54,6 +54,7 @@
 #include <linux/delay.h>
 #include <linux/freezer.h>
 #include <linux/cleancache.h>
+#include <linux/mtd/super.h>
 
 #include <asm/div64.h>
 
@@ -62,7 +63,7 @@
 #define UnlockPage(p) unlock_page(p)
 #define Page_Uptodate(page)	test_bit(PG_uptodate, &(page)->flags)
 
-#define yaffs_devname(sb, buf)	bdevname(sb->s_bdev, buf)
+#define yaffs_devname(sb)	((sb)->s_mtd->name)
 
 #define YPROC_ROOT  NULL
 
@@ -2026,7 +2027,6 @@ static struct super_block *yaffs_internal_read_super(int yaffs_version,
 	struct inode *inode = NULL;
 	struct dentry *root;
 	struct yaffs_dev *dev = 0;
-	char devname_buf[BDEVNAME_SIZE + 1];
 	struct mtd_info *mtd;
 	int err;
 	char *data_str = (char *)data;
@@ -2054,12 +2054,12 @@ static struct super_block *yaffs_internal_read_super(int yaffs_version,
 		printk(KERN_INFO "yaffs: sb is NULL\n");
 	else if (!sb->s_dev)
 		printk(KERN_INFO "yaffs: sb->s_dev is NULL\n");
-	else if (!yaffs_devname(sb, devname_buf))
+	else if (!yaffs_devname(sb))
 		printk(KERN_INFO "yaffs: devname is NULL\n");
 	else
 		printk(KERN_INFO "yaffs: dev is %d name is \"%s\" %s\n",
 		       sb->s_dev,
-		       yaffs_devname(sb, devname_buf), read_only ? "ro" : "rw");
+		       yaffs_devname(sb), read_only ? "ro" : "rw");
 
 	if (!data_str)
 		data_str = "";
@@ -2084,7 +2084,7 @@ static struct super_block *yaffs_internal_read_super(int yaffs_version,
 	yaffs_trace(YAFFS_TRACE_ALWAYS,
 		"Attempting MTD mount of %u.%u,\"%s\"",
 		MAJOR(sb->s_dev), MINOR(sb->s_dev),
-		yaffs_devname(sb, devname_buf));
+		yaffs_devname(sb));
 
 	/* Check it's an mtd device..... */
 	if (MAJOR(sb->s_dev) != MTD_BLOCK_MAJOR)
@@ -2391,7 +2391,7 @@ static int yaffs_internal_read_super_mtd(struct super_block *sb, void *data,
 static struct dentry *yaffs_mount(struct file_system_type *fs, int flags,
 			const char *dev_name, void *data)
 {
-	return mount_bdev(fs, flags, dev_name, data,
+	return mount_mtd(fs, flags, dev_name, data,
 		yaffs_internal_read_super_mtd);
 }
 
@@ -2399,7 +2399,7 @@ static struct file_system_type yaffs_fs_type = {
 	.owner = THIS_MODULE,
 	.name = "yaffs",
 	.mount = yaffs_mount,
-	.kill_sb = kill_block_super,
+	.kill_sb = kill_mtd_super,
 	.fs_flags = FS_REQUIRES_DEV,
 };
 
@@ -2414,15 +2414,15 @@ static int yaffs2_internal_read_super_mtd(struct super_block *sb, void *data,
 static struct dentry *yaffs2_mount(struct file_system_type *fs,
 			     int flags, const char *dev_name, void *data)
 {
-	return mount_bdev(fs, flags, dev_name, data,
-			   yaffs2_internal_read_super_mtd);
+	return mount_mtd(fs, flags, dev_name, data,
+			 yaffs2_internal_read_super_mtd);
 }
 
 static struct file_system_type yaffs2_fs_type = {
 	.owner = THIS_MODULE,
 	.name = "yaffs2",
 	.mount = yaffs2_mount,
-	.kill_sb = kill_block_super,
+	.kill_sb = kill_mtd_super,
 	.fs_flags = FS_REQUIRES_DEV,
 };
 #endif /* CONFIG_YAFFS_YAFFS2 */
