@@ -247,6 +247,7 @@ struct bonding {
 	/* debugging suport via debugfs */
 	struct	 dentry *debug_dir;
 #endif /* CONFIG_DEBUG_FS */
+	u32      id;
 };
 
 static inline bool bond_vlan_used(struct bonding *bond)

@@ -191,6 +191,11 @@ static int bond_mode	= BOND_MODE_ROUNDROBIN;
 static int xmit_hashtype = BOND_XMIT_POLICY_LAYER2;
 static int lacp_fast;
 
+/*
+ * This counter is used to assign a unique id to a LAG group.
+ */
+static unsigned int bond_id_counter;
+
 const struct bond_parm_tbl bond_lacp_tbl[] = {
 {	"slow",		AD_LACP_SLOW},
 {	"fast",		AD_LACP_FAST},
@@ -244,6 +249,9 @@ struct bond_parm_tbl ad_select_tbl[] = {
 {	NULL,		-1},
 };
 
+/*-------------------------- External variables -----------------------------*/
+extern struct bond_cb *bond_cb;
+
 /*-------------------------- Forward declarations ---------------------------*/
 
 static int bond_init(struct net_device *bond_dev);
@@ -268,6 +276,20 @@ const char *bond_mode_name(int mode)
 
 	return names[mode];
 }
+
+/*---------------------------- Exported APIs --------------------------------*/
+int bond_get_id(struct net_device *bond_dev)
+{
+	struct bonding *bond = NULL;
+
+	if (!((bond_dev->priv_flags & IFF_BONDING) && (bond_dev->flags & IFF_MASTER))) {
+		return -EINVAL;
+	}
+
+	bond = netdev_priv(bond_dev);
+	return bond->id;
+}
+EXPORT_SYMBOL_GPL(bond_get_id);
 
 /*---------------------------------- VLAN -----------------------------------*/
 
@@ -1662,6 +1684,10 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		goto err_restore_mac;
 	}
 
+	if (bond_cb && bond_cb->bond_cb_enslave) {
+		bond_cb->bond_cb_enslave(slave_dev);
+	}
+
 	/* open the slave since the application closed it */
 	res = dev_open(slave_dev);
 	if (res) {
@@ -1879,6 +1905,10 @@ err_detach:
 	bond_detach_slave(bond, new_slave);
 	write_unlock_bh(&bond->lock);
 
+	if (bond_cb && bond_cb->bond_cb_release) {
+		bond_cb->bond_cb_release(slave_dev);
+	}
+
 err_close:
 	dev_close(slave_dev);
 
@@ -2078,6 +2108,10 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	/* close slave before restoring its mac address */
 	dev_close(slave_dev);
+
+	if (bond_cb && bond_cb->bond_cb_release) {
+		bond_cb->bond_cb_release(slave_dev);
+	}
 
 	if (bond->params.fail_over_mac != BOND_FOM_ACTIVE) {
 		/* restore original ("permanent") mac address */
@@ -4317,6 +4351,8 @@ static void bond_setup(struct net_device *bond_dev)
 	rwlock_init(&bond->curr_slave_lock);
 
 	bond->params = bonding_defaults;
+	bond->id = bond_id_counter;
+	bond_id_counter++;
 
 	/* Initialize pointers */
 	bond->dev = bond_dev;
