@@ -21,7 +21,7 @@
 #include <mach/msm_pcie.h>
 
 #define MSM_PCIE_MAX_VREG 4
-#define MSM_PCIE_MAX_CLK  3
+#define MSM_PCIE_MAX_CLK  4
 
 #define PCIE_DBG(x...) do {              \
 	if (msm_pcie_get_debug_mask())   \
@@ -94,6 +94,7 @@ struct msm_pcie_dev_t {
 
 	uint32_t			wake_n;
 	uint32_t			vreg_n;
+	uint32_t			clk_n;
 	uint32_t			msi_irq;
 	uint32_t			inta;
 	uint32_t			axi_addr;

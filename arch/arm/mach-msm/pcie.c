@@ -315,7 +315,7 @@ static int __init msm_pcie_clk_init(struct msm_pcie_dev_t *msm_pcie_dev)
 	struct msm_pcie_clk_info_t *info;
 	struct device *dev = &msm_pcie_dev->pdev->dev;
 
-	for (i = 0; i < MSM_PCIE_MAX_CLK; i++) {
+	for (i = 0; i < msm_pcie_dev->clk_n; i++) {
 		info = &msm_pcie_dev->clk[i];
 
 		clk_hdl = clk_get(dev, info->name);
@@ -342,7 +342,7 @@ static void msm_pcie_clk_deinit(struct msm_pcie_dev_t *msm_pcie_dev)
 {
 	int i;
 
-	for (i = 0; i < MSM_PCIE_MAX_CLK; i++) {
+	for (i = 0; i < msm_pcie_dev->clk_n; i++) {
 		clk_disable_unprepare(msm_pcie_dev->clk[i].hdl);
 		clk_put(msm_pcie_dev->clk[i].hdl);
 		msm_pcie_dev->clk[i].hdl = NULL;
@@ -648,6 +648,7 @@ static int __init msm_pcie_probe(struct platform_device *pdev)
 	msm_pcie_dev->msi_irq = pdata->msi_irq;
 	msm_pcie_dev->reset_reg = pdata->reset_reg;
 	msm_pcie_dev->vreg_n = pdata->vreg_n;
+	msm_pcie_dev->clk_n = pdata->clk_n;
 	msm_pcie_dev->port_en = pdata->port_en;
 	/* device memory resource */
 	res = &msm_pcie_dev->dev_mem_res;

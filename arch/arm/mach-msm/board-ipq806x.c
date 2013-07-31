@@ -1537,17 +1537,20 @@ struct msm_pcie_clk_info_t msm_pcie_clk_info[][MSM_PCIE_MAX_CLK] = {
 	{
 		{ NULL, "bus_clk" },
 		{ NULL, "iface_clk" },
-		{ NULL, "ref_clk" }
+		{ NULL, "ref_clk" },
+		{ NULL, "alt_ref_clk" },
 	},
 	{
 		{ NULL, "bus_clk" },
 		{ NULL, "iface_clk" },
-		{ NULL, "ref_clk" }
+		{ NULL, "ref_clk" },
+		{ NULL, "alt_ref_clk" },
 	},
 	{
 		{ NULL, "bus_clk" },
 		{ NULL, "iface_clk" },
-		{ NULL, "ref_clk" }
+		{ NULL, "ref_clk" },
+		{ NULL, "alt_ref_clk" },
 	},
 };
 
@@ -1588,8 +1591,9 @@ static struct msm_pcie_platform msm_pcie_platform_data[] = {
 		.msi_irq	= PCIE20_INT_MSI,
 		.inta		= PCIE20_INTA,
 		.vreg		= msm_pcie_vreg_info[0],
-		.vreg_n		= MSM_PCIE_MAX_VREG,
+		.vreg_n		= ARRAY_SIZE(msm_pcie_vreg_info[0]),
 		.clk		= msm_pcie_clk_info[0],
+		.clk_n		= ARRAY_SIZE(msm_pcie_clk_info[0]),
 		.res		= msm_pcie_res_info[0],
 		.port_en	= &msm_pcie_port_en_info[0],
 	},
@@ -1602,8 +1606,9 @@ static struct msm_pcie_platform msm_pcie_platform_data[] = {
 		.msi_irq	= PCIE20_1_INT_MSI,
 		.inta		= PCIE20_1_INTA,
 		.vreg		= msm_pcie_vreg_info[1],
-		.vreg_n		= MSM_PCIE_MAX_VREG,
+		.vreg_n		= ARRAY_SIZE(msm_pcie_vreg_info[1]),
 		.clk		= msm_pcie_clk_info[1],
+		.clk_n		= ARRAY_SIZE(msm_pcie_clk_info[1]),
 		.res		= msm_pcie_res_info[1],
 		.port_en	= &msm_pcie_port_en_info[1],
 	},
@@ -1616,8 +1621,9 @@ static struct msm_pcie_platform msm_pcie_platform_data[] = {
 		.msi_irq	= PCIE20_2_INT_MSI,
 		.inta		= PCIE20_2_INTA,
 		.vreg		= msm_pcie_vreg_info[2],
-		.vreg_n		= MSM_PCIE_MAX_VREG,
+		.vreg_n		= ARRAY_SIZE(msm_pcie_vreg_info[2]),
 		.clk		= msm_pcie_clk_info[2],
+		.clk_n		= ARRAY_SIZE(msm_pcie_clk_info[2]),
 		.res		= msm_pcie_res_info[2],
 		.port_en	= &msm_pcie_port_en_info[2],
 	},

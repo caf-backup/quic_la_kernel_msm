@@ -43,6 +43,7 @@ struct msm_pcie_platform {
 	uint32_t                     axi_size;
 	uint32_t                     wake_n;
 	uint32_t                     vreg_n;
+	uint32_t                     clk_n;
 	struct platform_device       *pdev;
 
 	struct msm_pcie_vreg_info_t  *vreg;

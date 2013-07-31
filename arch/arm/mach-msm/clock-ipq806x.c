@@ -738,6 +738,7 @@
 #define pll4_to_lpa_mux		2
 #define gnd_to_lpa_mux		6
 #define pll3_to_pcie_mux	1
+#define pxo_to_pcie_mux		1
 
 /* Test Vector Macros */
 #define TEST_TYPE_PER_LS	1
@@ -819,6 +820,17 @@ static DEFINE_VDD_CLASS(vdd_dig, set_vdd_dig_ipq806x, VDD_DIG_NUM);
 
 DEFINE_CLK_RPM_BRANCH(pxo_clk, pxo_a_clk, PXO, 27000000);
 DEFINE_CLK_RPM_BRANCH(cxo_clk, cxo_a_clk, CXO, 19200000);
+
+static struct pll_clk pll3_clk = {
+	.mode_reg = GPLL1_MODE,
+	.parent = &pxo_clk.c,
+	.c = {
+		.dbg_name = "pll3_clk",
+		.rate = 1200000000,
+		.ops = &clk_ops_local_pll,
+		CLK_INIT(pll3_clk.c),
+	},
+};
 
 static struct pll_vote_clk pll8_clk = {
 	.en_reg = BB_PLL_ENA_SC0_REG,
@@ -1801,6 +1813,72 @@ static struct branch_clk pcie2_a_clk = {
 	},
 };
 
+#define F_PCIe(f, s, d) \
+	{ \
+		.freq_hz = f, \
+		.src_clk = &s##_clk.c, \
+		.ns_val = NS_DIVSRC(6, 3, d, 2, 0, s##_to_pcie_mux), \
+	}
+
+static struct clk_freq_tbl clk_tbl_pcie[] = {
+	F_PCIe( 100000000, pll3, 12),
+	F_END
+};
+
+static struct rcg_clk pcie_src_clk = {
+	.b = {
+		.ctl_reg = PCIE_ALT_REF_CLK_NS,
+		.halt_check = NOCHECK,
+	},
+	.ns_reg = PCIE_ALT_REF_CLK_NS,
+	.root_en_mask = BIT(11),
+	.ns_mask = BM(6, 3) | BIT(0),
+	.set_rate = set_rate_nop,
+	.freq_tbl = clk_tbl_pcie,
+	.current_freq = &rcg_dummy_freq,
+	.c = {
+		.dbg_name = "pcie_src_clk",
+		.ops = &clk_ops_rcg,
+		CLK_INIT(pcie_src_clk.c),
+	},
+};
+
+static struct rcg_clk pcie1_src_clk = {
+	.b = {
+		.ctl_reg = PCIE_1_ALT_REF_CLK_NS,
+		.halt_check = NOCHECK,
+	},
+	.ns_reg = PCIE_1_ALT_REF_CLK_NS,
+	.root_en_mask = BIT(11),
+	.ns_mask = BM(6, 3) | BIT(0),
+	.set_rate = set_rate_nop,
+	.freq_tbl = clk_tbl_pcie,
+	.current_freq = &rcg_dummy_freq,
+	.c = {
+		.dbg_name = "pcie1_src_clk",
+		.ops = &clk_ops_rcg,
+		CLK_INIT(pcie1_src_clk.c),
+	},
+};
+
+static struct rcg_clk pcie2_src_clk = {
+	.b = {
+		.ctl_reg = PCIE_2_ALT_REF_CLK_NS,
+		.halt_check = NOCHECK,
+	},
+	.ns_reg = PCIE_2_ALT_REF_CLK_NS,
+	.root_en_mask = BIT(11),
+	.ns_mask = BM(6, 3) | BIT(0),
+	.set_rate = set_rate_nop,
+	.freq_tbl = clk_tbl_pcie,
+	.current_freq = &rcg_dummy_freq,
+	.c = {
+		.dbg_name = "pcie2_src_clk",
+		.ops = &clk_ops_rcg,
+		CLK_INIT(pcie2_src_clk.c),
+	},
+};
+
 static struct branch_clk dma_bam_p_clk = {
 	.b = {
 		.ctl_reg = DMA_BAM_HCLK_CTL,
@@ -2659,12 +2737,15 @@ static struct clk_lookup msm_clocks_ipq806x[] = {
 	CLK_LOOKUP("iface_clk",		pcie_p_clk.c,		"msm_pcie.0"),
 	CLK_LOOKUP("ref_clk",		pcie_phy_ref_clk.c,	"msm_pcie.0"),
 	CLK_LOOKUP("bus_clk",		pcie_a_clk.c,		"msm_pcie.0"),
+	CLK_LOOKUP("alt_ref_clk",	pcie_src_clk.c,		"msm_pcie.0"),
 	CLK_LOOKUP("iface_clk",		pcie1_p_clk.c,		"msm_pcie.1"),
 	CLK_LOOKUP("ref_clk",		pcie1_phy_ref_clk.c,	"msm_pcie.1"),
 	CLK_LOOKUP("bus_clk",		pcie1_a_clk.c,		"msm_pcie.1"),
+	CLK_LOOKUP("alt_ref_clk",	pcie1_src_clk.c,	"msm_pcie.1"),
 	CLK_LOOKUP("iface_clk",		pcie2_p_clk.c,		"msm_pcie.2"),
 	CLK_LOOKUP("ref_clk",		pcie2_phy_ref_clk.c,	"msm_pcie.2"),
 	CLK_LOOKUP("bus_clk",		pcie2_a_clk.c,		"msm_pcie.2"),
+	CLK_LOOKUP("alt_ref_clk",	pcie2_src_clk.c,	"msm_pcie.2"),
 	CLK_LOOKUP("core_clk",		adm0_clk.c,		"msm_dmov"),
 	CLK_LOOKUP("iface_clk",		adm0_p_clk.c,		"msm_dmov"),
 	CLK_LOOKUP("iface_clk",		pmic_arb0_p_clk.c,	""),
@@ -2847,12 +2928,15 @@ static struct clk_lookup msm_clocks_ipq806x_dummy[] = {
 	CLK_DUMMY("iface_clk",		pcie_p_clk.c,		"msm_pcie.0", OFF),
 	CLK_DUMMY("ref_clk",		pcie_phy_ref_clk.c,	"msm_pcie.0", OFF),
 	CLK_DUMMY("bus_clk",		pcie_a_clk.c,		"msm_pcie.0", OFF),
+	CLK_DUMMY("alt_ref_clk",	pcie_src_clk.c,		"msm_pcie.0", OFF),
 	CLK_DUMMY("iface_clk",		pcie_p_clk.c,		"msm_pcie.1", OFF),
 	CLK_DUMMY("ref_clk",		pcie_phy_ref_clk.c,	"msm_pcie.1", OFF),
 	CLK_DUMMY("bus_clk",		pcie_a_clk.c,		"msm_pcie.1", OFF),
+	CLK_DUMMY("alt_ref_clk",	pcie1_src_clk.c,	"msm_pcie.1", OFF),
 	CLK_DUMMY("iface_clk",		pcie_p_clk.c,		"msm_pcie.2", OFF),
 	CLK_DUMMY("ref_clk",		pcie_phy_ref_clk.c,	"msm_pcie.2", OFF),
 	CLK_DUMMY("bus_clk",		pcie_a_clk.c,		"msm_pcie.2", OFF),
+	CLK_DUMMY("alt_ref_clk",	pcie2_src_clk.c,	"msm_pcie.2", OFF),
         CLK_DUMMY("sata_rxoob_clk",     SATA_RXOOB_CLK,         NULL, OFF),
         CLK_DUMMY("sata_pmalive_clk",   SATA_PMALIVE_CLK,       NULL, OFF),
         CLK_DUMMY("sata_phy_ref_clk",   SATA_PHY_REF_CLK,       NULL, OFF),
@@ -3116,6 +3200,9 @@ static void __init ipq806x_clock_post_init(void)
 	clk_set_rate(&usb_hsic_hsic_src_clk.c, 480000000);
 	clk_set_rate(&usb_hsic_hsio_cal_clk.c, 9000000);
 	clk_set_rate(&usb_hsic_system_clk.c, 60000000);
+	clk_set_rate(&pcie_src_clk.c, 100000000);
+	clk_set_rate(&pcie1_src_clk.c, 100000000);
+	clk_set_rate(&pcie2_src_clk.c, 100000000);
 
 	/*
 	 * The halt status bits for these clocks may be incorrect at boot.
