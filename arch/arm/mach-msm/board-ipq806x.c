@@ -1574,8 +1574,8 @@ struct msm_pcie_res_info_t msm_pcie_res_info[][MSM_PCIE_MAX_RES] = {
 
 static msm_pcie_port_en_t msm_pcie_port_en_info[] = {
 	{ PCIE_SFAB_AXI_S5_FCLK_CTL, BIT(4), },
-	{ PCIE_1_ACLK_CTL, BIT(6), },
-	{ PCIE_2_ACLK_CTL, BIT(6), },
+	{ NULL, 0, },	/* Not applicable for PCIe 1 */
+	{ NULL, 0, },	/* Not applicable for PCIe 2 */
 };
 
 static struct msm_pcie_platform msm_pcie_platform_data[] = {

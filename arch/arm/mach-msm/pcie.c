@@ -476,7 +476,8 @@ static void msm_pcie_port_enable(struct msm_pcie_dev_t *msm_pcie_dev)
 {
         msm_pcie_port_en_t *port_en = msm_pcie_dev->port_en;
 
-	writel_relaxed(port_en->bits, port_en->reg);
+	if (port_en->reg)
+		writel_relaxed(port_en->bits, port_en->reg);
 }
 
 static int __init msm_pcie_setup(int nr, struct pci_sys_data *sys)
