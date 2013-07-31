@@ -674,7 +674,7 @@
 #define NSS_FAB1_CLK_SRC0_NS			REG(0x3BE4)
 #define NSS_FAB1_CLK_SRC1_NS			REG(0x3BE8)
 #define NSS_FB1_CLK_CTL				REG(0x3C00)
-#define CLK_HALT_NSS_FAB0_NSS_FAB1_STATEA	REG(0x3C20)
+#define CLK_HALT_NSS_FAB0_NSS_FAB1_STATEA_REG	REG(0x3C20)
 #define UBI32_MPT_CLK_CTL			REG(0x3C40)
 #define CE5_HCLK_SRC_CTL			REG(0x3C60)
 #define CE5_HCLK_SRC0_NS			REG(0x3C64)
@@ -965,16 +965,10 @@ static struct clk_freq_tbl clk_tbl_gsbi_uart[] = {
 
 static CLK_GSBI_UART(gsbi1_uart,   1, CLK_HALT_CFPB_STATEA_REG, 12);
 static CLK_GSBI_UART(gsbi2_uart,   2, CLK_HALT_CFPB_STATEA_REG,  8);
-// N/A for Akronite static CLK_GSBI_UART(gsbi3_uart,   3, CLK_HALT_CFPB_STATEA_REG,  2);
 static CLK_GSBI_UART(gsbi4_uart,   4, CLK_HALT_CFPB_STATEB_REG, 26);
 static CLK_GSBI_UART(gsbi5_uart,   5, CLK_HALT_CFPB_STATEB_REG, 22);
 static CLK_GSBI_UART(gsbi6_uart,   6, CLK_HALT_CFPB_STATEB_REG, 18);
 static CLK_GSBI_UART(gsbi7_uart,   7, CLK_HALT_CFPB_STATEB_REG, 14);
-// N/A for Akronite static CLK_GSBI_UART(gsbi8_uart,   8, CLK_HALT_CFPB_STATEB_REG, 10);
-// N/A for Akronite static CLK_GSBI_UART(gsbi9_uart,   9, CLK_HALT_CFPB_STATEB_REG,  6);
-// N/A for Akronite static CLK_GSBI_UART(gsbi10_uart, 10, CLK_HALT_CFPB_STATEB_REG,  2);
-// N/A for Akronite static CLK_GSBI_UART(gsbi11_uart, 11, CLK_HALT_CFPB_STATEC_REG, 17);
-// N/A for Akronite static CLK_GSBI_UART(gsbi12_uart, 12, CLK_HALT_CFPB_STATEC_REG, 13);
 
 #define CLK_GSBI_QUP(i, n, h_r, h_b) \
 	struct rcg_clk i##_clk = { \
@@ -1022,18 +1016,12 @@ static struct clk_freq_tbl clk_tbl_gsbi_qup[] = {
 	F_END
 };
 
-static CLK_GSBI_QUP(gsbi1_qup,   1, CLK_HALT_CFPB_STATEA_REG,  9);
-static CLK_GSBI_QUP(gsbi2_qup,   2, CLK_HALT_CFPB_STATEA_REG,  4);
-// N/A for Akronite static CLK_GSBI_QUP(gsbi3_qup,   3, CLK_HALT_CFPB_STATEA_REG,  0);
+static CLK_GSBI_QUP(gsbi1_qup,   1, CLK_HALT_CFPB_STATEA_REG, 11);
+static CLK_GSBI_QUP(gsbi2_qup,   2, CLK_HALT_CFPB_STATEA_REG,  6);
 static CLK_GSBI_QUP(gsbi4_qup,   4, CLK_HALT_CFPB_STATEB_REG, 24);
 static CLK_GSBI_QUP(gsbi5_qup,   5, CLK_HALT_CFPB_STATEB_REG, 20);
 static CLK_GSBI_QUP(gsbi6_qup,   6, CLK_HALT_CFPB_STATEB_REG, 16);
 static CLK_GSBI_QUP(gsbi7_qup,   7, CLK_HALT_CFPB_STATEB_REG, 12);
-// N/A for Akronite static CLK_GSBI_QUP(gsbi8_qup,   8, CLK_HALT_CFPB_STATEB_REG,  8);
-// N/A for Akronite static CLK_GSBI_QUP(gsbi9_qup,   9, CLK_HALT_CFPB_STATEB_REG,  4);
-// N/A for Akronite static CLK_GSBI_QUP(gsbi10_qup, 10, CLK_HALT_CFPB_STATEB_REG,  0);
-// N/A for Akronite static CLK_GSBI_QUP(gsbi11_qup, 11, CLK_HALT_CFPB_STATEC_REG, 15);
-// N/A for Akronite static CLK_GSBI_QUP(gsbi12_qup, 12, CLK_HALT_CFPB_STATEC_REG, 11);
 
 #define F_PDM(f, s, d) \
 	{ \
@@ -1168,10 +1156,7 @@ static struct clk_freq_tbl clk_tbl_sdc[] = {
 };
 
 static CLK_SDC(sdc1_clk, 1, 6,  52000000, 104000000);
-static CLK_SDC(sdc2_clk, 2, 5,  52000000, 104000000);
 static CLK_SDC(sdc3_clk, 3, 4, 104000000, 208000000);
-static CLK_SDC(sdc4_clk, 4, 3,  33000000,  67000000);
-static CLK_SDC(sdc5_clk, 5, 2,  33000000,  67000000);
 
 #define F_TSIF_REF(f, s, d, m, n) \
 	{ \
@@ -1281,8 +1266,6 @@ static struct clk_freq_tbl clk_tbl_usb[] = {
 };
 
 CLK_USB_HS(usb_hs1_xcvr_clk, 1, 0);
-CLK_USB_HS(usb_hs3_xcvr_clk, 3, 30);
-CLK_USB_HS(usb_hs4_xcvr_clk, 4, 2);
 
 static struct clk_freq_tbl clk_tbl_usb_hsic[] = {
 	F_USB(       0, gnd,  1, 0,  0),
@@ -1295,7 +1278,7 @@ static struct rcg_clk usb_hsic_xcvr_fs_clk = {
 		.ctl_reg = USB_HSIC_XCVR_FS_CLK_NS_REG,
 		.en_mask = BIT(9),
 		.halt_reg = CLK_HALT_CFPB_STATEA_REG,
-		.halt_bit = 26,
+		.halt_bit = 28,
 	},
 	.ns_reg = USB_HSIC_XCVR_FS_CLK_NS_REG,
 	.md_reg = USB_HSIC_XCVR_FS_CLK_MD_REG,
@@ -1320,7 +1303,7 @@ static struct branch_clk usb_hsic_system_clk = {
 		.reset_reg = USB_HSIC_RESET_REG,
 		.reset_mask = BIT(0),
 		.halt_reg = CLK_HALT_CFPB_STATEA_REG,
-		.halt_bit = 24,
+		.halt_bit = 26,
 	},
 	.parent = &usb_hsic_xcvr_fs_clk.c,
 	.c = {
@@ -1362,7 +1345,7 @@ static struct branch_clk usb_hsic_hsic_clk = {
 		.ctl_reg = USB_HSIC_HSIC_CLK_CTL_REG,
 		.en_mask = BIT(0),
 		.halt_reg = CLK_HALT_CFPB_STATEA_REG,
-		.halt_bit = 19,
+		.halt_bit = 21,
 	},
 	.parent = &usb_hsic_hsic_src_clk.c,
 	.c = {
@@ -1387,7 +1370,7 @@ static struct rcg_clk usb_hsic_hsio_cal_clk = {
 		.ctl_reg = USB_HSIC_HSIO_CAL_CLK_CTL_REG,
 		.en_mask = BIT(0),
 		.halt_reg = CLK_HALT_CFPB_STATEA_REG,
-		.halt_bit = 23,
+		.halt_bit = 25,
 	},
 	.set_rate = set_rate_nop,
 	.freq_tbl = clk_tbl_usb_hsio_cal,
@@ -1442,7 +1425,7 @@ static struct branch_clk usb_fs1_xcvr_clk = {
 		.reset_reg = USB_FS1_RESET_REG,
 		.reset_mask = BIT(1),
 		.halt_reg = CLK_HALT_CFPB_STATEA_REG,
-		.halt_bit = 15,
+		.halt_bit = 17,
 	},
 	.parent = &usb_fs1_src_clk.c,
 	.c = {
@@ -1459,7 +1442,7 @@ static struct branch_clk usb_fs1_sys_clk = {
 		.reset_reg = USB_FS1_RESET_REG,
 		.reset_mask = BIT(0),
 		.halt_reg = CLK_HALT_CFPB_STATEA_REG,
-		.halt_bit = 16,
+		.halt_bit = 18,
 	},
 	.parent = &usb_fs1_src_clk.c,
 	.c = {
@@ -1555,8 +1538,8 @@ static struct branch_clk ce5_p_clk = {
 		.en_mask = BIT(4),
 		.reset_reg = CE5_HCLK_CTL_REG,
 		.reset_mask = BIT(7),
-		.halt_reg = CLK_HALT_AFAB_SFAB_STATEB_REG,
-		.halt_bit = 16,
+		.halt_reg = CLK_HALT_NSS_FAB0_NSS_FAB1_STATEA_REG,
+		.halt_bit = 11,
 	},
 	.parent = &ce5_src_clk.c,
 	.c = {
@@ -1603,7 +1586,7 @@ static struct branch_clk sata_rxoob_clk = {
 		.ctl_reg = SATA_RXOOB_CLK_CTL_REG,
 		.en_mask = BIT(4),
 		.halt_reg = CLK_HALT_MSS_SMPSS_MISC_STATE_REG,
-		.halt_bit = 26,
+		.halt_bit = 20,
 	},
 	.parent = &sata_src_clk.c,
 	.c = {
@@ -1618,7 +1601,7 @@ static struct branch_clk sata_pmalive_clk = {
 		.ctl_reg = SATA_PMALIVE_CLK_CTL_REG,
 		.en_mask = BIT(4),
 		.halt_reg = CLK_HALT_MSS_SMPSS_MISC_STATE_REG,
-		.halt_bit = 25,
+		.halt_bit = 19,
 	},
 	.parent = &sata_src_clk.c,
 	.c = {
@@ -1633,7 +1616,7 @@ static struct branch_clk sata_phy_ref_clk = {
 		.ctl_reg = SATA_PHY_REF_CLK_CTL_REG,
 		.en_mask = BIT(4),
 		.halt_reg = CLK_HALT_MSS_SMPSS_MISC_STATE_REG,
-		.halt_bit = 24,
+		.halt_bit = 18,
 	},
 	.parent = &pxo_clk.c,
 	.c = {
@@ -1662,7 +1645,7 @@ static struct branch_clk sata_p_clk = {
 		.ctl_reg = SATA_HCLK_CTL_REG,
 		.en_mask = BIT(4),
 		.halt_reg = CLK_HALT_MSS_SMPSS_MISC_STATE_REG,
-		.halt_bit = 27,
+		.halt_bit = 21,
                 .reset_reg = SATA_RESET,
 		.reset_mask = BIT(0),
 	},
@@ -1902,7 +1885,7 @@ static struct branch_clk gsbi1_p_clk = {
 		.hwcg_reg = GSBIn_HCLK_CTL_REG(1),
 		.hwcg_mask = BIT(6),
 		.halt_reg = CLK_HALT_CFPB_STATEA_REG,
-		.halt_bit = 11,
+		.halt_bit = 13,
 	},
 	.c = {
 		.dbg_name = "gsbi1_p_clk",
@@ -1918,7 +1901,7 @@ static struct branch_clk gsbi2_p_clk = {
 		.hwcg_reg = GSBIn_HCLK_CTL_REG(2),
 		.hwcg_mask = BIT(6),
 		.halt_reg = CLK_HALT_CFPB_STATEA_REG,
-		.halt_bit = 7,
+		.halt_bit = 9,
 	},
 	.c = {
 		.dbg_name = "gsbi2_p_clk",
@@ -1996,7 +1979,7 @@ static struct branch_clk sata_phy_cfg_clk = {
 		.ctl_reg = SATA_PHY_CFG_CLK_CTL_REG,
 		.en_mask = BIT(4),
 		.halt_reg = CLK_HALT_CFPB_STATEA_REG,
-		.halt_bit = 12,
+		.halt_bit = 14,
 	},
 	.c = {
 		.dbg_name = "sata_phy_cfg_clk",
@@ -2026,7 +2009,7 @@ static struct branch_clk usb_fs1_p_clk = {
 		.ctl_reg = USB_FS1_HCLK_CTL_REG,
 		.en_mask = BIT(4),
 		.halt_reg = CLK_HALT_CFPB_STATEA_REG,
-		.halt_bit = 17,
+		.halt_bit = 19,
 	},
 	.c = {
 		.dbg_name = "usb_fs1_p_clk",
@@ -2052,40 +2035,12 @@ static struct branch_clk usb_hs1_p_clk = {
 	},
 };
 
-static struct branch_clk usb_hs3_p_clk = {
-	.b = {
-		.ctl_reg = USB_HS3_HCLK_CTL_REG,
-		.en_mask = BIT(4),
-		.halt_reg = CLK_HALT_DFAB_STATE_REG,
-		.halt_bit = 31,
-	},
-	.c = {
-		.dbg_name = "usb_hs3_p_clk",
-		.ops = &clk_ops_branch,
-		CLK_INIT(usb_hs3_p_clk.c),
-	},
-};
-
-static struct branch_clk usb_hs4_p_clk = {
-	.b = {
-		.ctl_reg = USB_HS4_HCLK_CTL_REG,
-		.en_mask = BIT(4),
-		.halt_reg = CLK_HALT_DFAB_STATE_REG,
-		.halt_bit = 7,
-	},
-	.c = {
-		.dbg_name = "usb_hs4_p_clk",
-		.ops = &clk_ops_branch,
-		CLK_INIT(usb_hs4_p_clk.c),
-	},
-};
-
 static struct branch_clk usb_hsic_p_clk = {
 	.b = {
 		.ctl_reg = USB_HSIC_HCLK_CTL_REG,
 		.en_mask = BIT(4),
 		.halt_reg = CLK_HALT_CFPB_STATEA_REG,
-		.halt_bit = 28,
+		.halt_bit = 30,
 	},
 	.c = {
 		.dbg_name = "usb_hsic_p_clk",
@@ -2110,22 +2065,6 @@ static struct branch_clk sdc1_p_clk = {
 	},
 };
 
-static struct branch_clk sdc2_p_clk = {
-	.b = {
-		.ctl_reg = SDCn_HCLK_CTL_REG(2),
-		.en_mask = BIT(4),
-		.hwcg_reg = SDCn_HCLK_CTL_REG(2),
-		.hwcg_mask = BIT(6),
-		.halt_reg = CLK_HALT_DFAB_STATE_REG,
-		.halt_bit = 10,
-	},
-	.c = {
-		.dbg_name = "sdc2_p_clk",
-		.ops = &clk_ops_branch,
-		CLK_INIT(sdc2_p_clk.c),
-	},
-};
-
 static struct branch_clk sdc3_p_clk = {
 	.b = {
 		.ctl_reg = SDCn_HCLK_CTL_REG(3),
@@ -2142,38 +2081,6 @@ static struct branch_clk sdc3_p_clk = {
 	},
 };
 
-static struct branch_clk sdc4_p_clk = {
-	.b = {
-		.ctl_reg = SDCn_HCLK_CTL_REG(4),
-		.en_mask = BIT(4),
-		.hwcg_reg = SDCn_HCLK_CTL_REG(4),
-		.hwcg_mask = BIT(6),
-		.halt_reg = CLK_HALT_DFAB_STATE_REG,
-		.halt_bit = 8,
-	},
-	.c = {
-		.dbg_name = "sdc4_p_clk",
-		.ops = &clk_ops_branch,
-		CLK_INIT(sdc4_p_clk.c),
-	},
-};
-
-static struct branch_clk sdc5_p_clk = {
-	.b = {
-		.ctl_reg = SDCn_HCLK_CTL_REG(5),
-		.en_mask = BIT(4),
-		.hwcg_reg = SDCn_HCLK_CTL_REG(5),
-		.hwcg_mask = BIT(6),
-		.halt_reg = CLK_HALT_DFAB_STATE_REG,
-		.halt_bit = 7,
-	},
-	.c = {
-		.dbg_name = "sdc5_p_clk",
-		.ops = &clk_ops_branch,
-		CLK_INIT(sdc5_p_clk.c),
-	},
-};
-
 /* HW-Voteable Clocks */
 static struct branch_clk adm0_clk = {
 	.b = {
@@ -2181,7 +2088,7 @@ static struct branch_clk adm0_clk = {
 		.en_mask = BIT(2),
 		.halt_reg = CLK_HALT_MSS_SMPSS_MISC_STATE_REG,
 		.halt_check = HALT_VOTED,
-		.halt_bit = 14,
+		.halt_bit = 12,
 	},
 	.c = {
 		.dbg_name = "adm0_clk",
@@ -2198,7 +2105,7 @@ static struct branch_clk adm0_p_clk = {
 		.hwcg_mask = BIT(6),
 		.halt_reg = CLK_HALT_MSS_SMPSS_MISC_STATE_REG,
 		.halt_check = HALT_VOTED,
-		.halt_bit = 13,
+		.halt_bit = 11,
 	},
 	.c = {
 		.dbg_name = "adm0_p_clk",
@@ -2298,8 +2205,6 @@ DEFINE_CLK_RPM(afab_clk, afab_a_clk, APPS_FABRIC, NULL);
 DEFINE_CLK_RPM(cfpb_clk, cfpb_a_clk, CFPB, NULL);
 DEFINE_CLK_RPM(dfab_clk, dfab_a_clk, DAYTONA_FABRIC, NULL);
 DEFINE_CLK_RPM(ebi1_clk, ebi1_a_clk, EBI1, NULL);
-DEFINE_CLK_RPM(mmfab_clk, mmfab_a_clk, MM_FABRIC, NULL);
-DEFINE_CLK_RPM(mmfpb_clk, mmfpb_a_clk, MMFPB, NULL);
 DEFINE_CLK_RPM(sfab_clk, sfab_a_clk, SYSTEM_FABRIC, NULL);
 DEFINE_CLK_RPM(sfpb_clk, sfpb_a_clk, SFPB, NULL);
 DEFINE_CLK_RPM_QDSS(qdss_clk, qdss_a_clk);
@@ -2309,13 +2214,8 @@ static DEFINE_CLK_VOTER(sfab_tmr_a_clk, &sfab_a_clk.c, 0);
 
 static DEFINE_CLK_VOTER(dfab_dsps_clk, &dfab_clk.c, 0);
 static DEFINE_CLK_VOTER(dfab_usb_hs_clk, &dfab_clk.c, 0);
-static DEFINE_CLK_VOTER(dfab_usb_hs3_clk, &dfab_clk.c, 0);
-static DEFINE_CLK_VOTER(dfab_usb_hs4_clk, &dfab_clk.c, 0);
 static DEFINE_CLK_VOTER(dfab_sdc1_clk, &dfab_clk.c, 0);
-static DEFINE_CLK_VOTER(dfab_sdc2_clk, &dfab_clk.c, 0);
 static DEFINE_CLK_VOTER(dfab_sdc3_clk, &dfab_clk.c, 0);
-static DEFINE_CLK_VOTER(dfab_sdc4_clk, &dfab_clk.c, 0);
-static DEFINE_CLK_VOTER(dfab_sdc5_clk, &dfab_clk.c, 0);
 static DEFINE_CLK_VOTER(dfab_sps_clk, &dfab_clk.c, 0);
 static DEFINE_CLK_VOTER(dfab_bam_dmux_clk, &dfab_clk.c, 0);
 static DEFINE_CLK_VOTER(dfab_scm_clk, &dfab_clk.c, 0);
@@ -2339,23 +2239,12 @@ struct measure_sel {
 static DEFINE_CLK_MEASURE(l2_m_clk);
 static DEFINE_CLK_MEASURE(krait0_m_clk);
 static DEFINE_CLK_MEASURE(krait1_m_clk);
-static DEFINE_CLK_MEASURE(krait2_m_clk);
-static DEFINE_CLK_MEASURE(krait3_m_clk);
-static DEFINE_CLK_MEASURE(q6sw_clk);
-static DEFINE_CLK_MEASURE(q6fw_clk);
-static DEFINE_CLK_MEASURE(q6_func_clk);
 
 static struct measure_sel measure_mux[] = {
 	{ TEST_PER_LS(0x12), &sdc1_p_clk.c },
 	{ TEST_PER_LS(0x13), &sdc1_clk.c },
-	{ TEST_PER_LS(0x14), &sdc2_p_clk.c },
-	{ TEST_PER_LS(0x15), &sdc2_clk.c },
 	{ TEST_PER_LS(0x16), &sdc3_p_clk.c },
 	{ TEST_PER_LS(0x17), &sdc3_clk.c },
-	{ TEST_PER_LS(0x18), &sdc4_p_clk.c },
-	{ TEST_PER_LS(0x19), &sdc4_clk.c },
-	{ TEST_PER_LS(0x1A), &sdc5_p_clk.c },
-	{ TEST_PER_LS(0x1B), &sdc5_clk.c },
 	{ TEST_PER_LS(0x1F), &gp0_clk.c },
 	{ TEST_PER_LS(0x20), &gp1_clk.c },
 	{ TEST_PER_LS(0x21), &gp2_clk.c },
@@ -2371,9 +2260,6 @@ static struct measure_sel measure_mux[] = {
 	{ TEST_PER_LS(0x41), &gsbi2_p_clk.c },
 	{ TEST_PER_LS(0x42), &gsbi2_uart_clk.c },
 	{ TEST_PER_LS(0x44), &gsbi2_qup_clk.c },
-	//{ TEST_PER_LS(0x45), &gsbi3_p_clk.c },
-	//{ TEST_PER_LS(0x46), &gsbi3_uart_clk.c },
-	//{ TEST_PER_LS(0x48), &gsbi3_qup_clk.c },
 	{ TEST_PER_LS(0x49), &gsbi4_p_clk.c },
 	{ TEST_PER_LS(0x4A), &gsbi4_uart_clk.c },
 	{ TEST_PER_LS(0x4C), &gsbi4_qup_clk.c },
@@ -2386,32 +2272,14 @@ static struct measure_sel measure_mux[] = {
 	{ TEST_PER_LS(0x55), &gsbi7_p_clk.c },
 	{ TEST_PER_LS(0x56), &gsbi7_uart_clk.c },
 	{ TEST_PER_LS(0x58), &gsbi7_qup_clk.c },
-	//{ TEST_PER_LS(0x59), &gsbi8_p_clk.c },
 	{ TEST_PER_LS(0x59), &sfab_sata_s_p_clk.c },
-	//{ TEST_PER_LS(0x5A), &gsbi8_uart_clk.c },
 	{ TEST_PER_LS(0x5A), &sata_p_clk.c },
 	{ TEST_PER_LS(0x5B), &sata_rxoob_clk.c },
 	{ TEST_PER_LS(0x5C), &sata_pmalive_clk.c },
-	//{ TEST_PER_LS(0x5C), &gsbi8_qup_clk.c },
-	//{ TEST_PER_LS(0x5D), &gsbi9_p_clk.c },
-	//{ TEST_PER_LS(0x5E), &gsbi9_uart_clk.c },
-	//{ TEST_PER_LS(0x60), &gsbi9_qup_clk.c },
-	//{ TEST_PER_LS(0x61), &gsbi10_p_clk.c },
-	//{ TEST_PER_LS(0x62), &gsbi10_uart_clk.c },
-	//{ TEST_PER_LS(0x64), &gsbi10_qup_clk.c },
-	//{ TEST_PER_LS(0x65), &gsbi11_p_clk.c },
-	//{ TEST_PER_LS(0x66), &gsbi11_uart_clk.c },
-	//{ TEST_PER_LS(0x68), &gsbi11_qup_clk.c },
-	//{ TEST_PER_LS(0x69), &gsbi12_p_clk.c },
-	//{ TEST_PER_LS(0x6A), &gsbi12_uart_clk.c },
-	//{ TEST_PER_LS(0x6C), &gsbi12_qup_clk.c },
+	{ TEST_PER_LS(0x5D), &pcie_src_clk.c },
 	{ TEST_PER_LS(0x5E), &pcie_p_clk.c },
 	{ TEST_PER_LS(0x5F), &ce5_p_clk.c },
 	{ TEST_PER_LS(0x60), &ce5_core_clk.c },
-	{ TEST_PER_LS(0x63), &usb_hs3_p_clk.c },
-	{ TEST_PER_LS(0x64), &usb_hs3_xcvr_clk.c },
-	{ TEST_PER_LS(0x65), &usb_hs4_p_clk.c },
-	{ TEST_PER_LS(0x66), &usb_hs4_xcvr_clk.c },
 	{ TEST_PER_LS(0x6B), &sata_phy_ref_clk.c },
 	{ TEST_PER_LS(0x6C), &sata_phy_cfg_clk.c },
 	{ TEST_PER_LS(0x78), &sfpb_clk.c },
@@ -2430,15 +2298,16 @@ static struct measure_sel measure_mux[] = {
 	{ TEST_PER_LS(0x89), &usb_fs1_p_clk.c },
 	{ TEST_PER_LS(0x8A), &usb_fs1_sys_clk.c },
 	{ TEST_PER_LS(0x8B), &usb_fs1_xcvr_clk.c },
-	//{ TEST_PER_LS(0x8C), &usb_fs2_p_clk.c },
-	//{ TEST_PER_LS(0x8D), &usb_fs2_sys_clk.c },
-	//{ TEST_PER_LS(0x8E), &usb_fs2_xcvr_clk.c },
 	{ TEST_PER_LS(0x8F), &tsif_p_clk.c },
 	{ TEST_PER_LS(0x91), &tsif_ref_clk.c },
 	{ TEST_PER_LS(0x92), &ce1_p_clk.c },
 	{ TEST_PER_LS(0x94), &tssc_clk.c },
 	{ TEST_PER_LS(0x9D), &usb_hsic_hsio_cal_clk.c },
 	{ TEST_PER_LS(0xA4), &ce1_core_clk.c },
+	{ TEST_PER_LS(0xB0), &pcie1_p_clk.c },
+	{ TEST_PER_LS(0xB1), &pcie1_src_clk.c },
+	{ TEST_PER_LS(0xB2), &pcie2_p_clk.c },
+	{ TEST_PER_LS(0xB3), &pcie2_src_clk.c },
 
 	{ TEST_PER_HS(0x07), &afab_clk.c },
 	{ TEST_PER_HS(0x07), &afab_a_clk.c },
@@ -2451,6 +2320,10 @@ static struct measure_sel measure_mux[] = {
 	{ TEST_PER_HS(0x34), &ebi1_clk.c },
 	{ TEST_PER_HS(0x34), &ebi1_a_clk.c },
 	{ TEST_PER_HS(0x50), &usb_hsic_hsic_clk.c },
+	{ TEST_PER_HS(0x56), &pcie1_phy_ref_clk.c },
+	{ TEST_PER_HS(0x58), &pcie2_phy_ref_clk.c },
+	{ TEST_PER_HS(0x66), &pcie1_a_clk.c },
+	{ TEST_PER_HS(0x67), &pcie2_a_clk.c },
 
 	{ TEST_CPUL2(0x2), &l2_m_clk },
 	{ TEST_CPUL2(0x0), &krait0_m_clk },
@@ -2641,10 +2514,6 @@ static struct clk_lookup msm_clocks_ipq806x[] = {
 	CLK_LOOKUP("bus_clk",		dfab_a_clk.c,	""),
 	CLK_LOOKUP("mem_clk",		ebi1_clk.c,	""),
 	CLK_LOOKUP("mem_clk",		ebi1_a_clk.c,	""),
-	CLK_LOOKUP("bus_clk",		mmfab_clk.c,	""),
-	CLK_LOOKUP("bus_clk",		mmfab_a_clk.c,	""),
-	CLK_LOOKUP("bus_clk",		mmfpb_clk.c,	""),
-	CLK_LOOKUP("bus_clk",		mmfpb_a_clk.c,	""),
 	CLK_LOOKUP("bus_clk",		sfab_clk.c,	""),
 	CLK_LOOKUP("bus_clk",		sfab_a_clk.c,	""),
 	CLK_LOOKUP("bus_clk",		sfpb_clk.c,	""),
@@ -2675,8 +2544,8 @@ static struct clk_lookup msm_clocks_ipq806x[] = {
 	CLK_LOOKUP("core_clk",		gp0_clk.c,		""),
 	CLK_LOOKUP("core_clk",		gp1_clk.c,		""),
 	CLK_LOOKUP("core_clk",		gp2_clk.c,		""),
-	CLK_LOOKUP("core_clk",		gsbi1_uart_clk.c, "msm_serial_hsl.1"),
-	CLK_LOOKUP("core_clk",		gsbi2_uart_clk.c,	""),
+	CLK_LOOKUP("core_clk",		gsbi1_uart_clk.c,	""),
+	CLK_LOOKUP("core_clk",		gsbi2_uart_clk.c,	"msm_serial_hsl.1"),
 	//CLK_LOOKUP("core_clk",		gsbi3_uart_clk.c,	""),
 	CLK_LOOKUP("core_clk",		gsbi4_uart_clk.c,	""),
 	CLK_LOOKUP("core_clk",		gsbi5_uart_clk.c,	""),
@@ -2697,8 +2566,6 @@ static struct clk_lookup msm_clocks_ipq806x[] = {
 	CLK_LOOKUP("core_clk",		sdc3_clk.c,		"msm_sdcc.3"),
 	CLK_LOOKUP("core_clk",		tssc_clk.c,		""),
 	CLK_LOOKUP("alt_core_clk",	usb_hs1_xcvr_clk.c,	"msm_otg"),
-	CLK_LOOKUP("alt_core_clk",      usb_hs3_xcvr_clk.c,  "msm_ehci_host.0"),
-	CLK_LOOKUP("alt_core_clk",      usb_hs4_xcvr_clk.c,  "msm_ehci_host.1"),
 	CLK_LOOKUP("src_clk",		usb_fs1_src_clk.c,	""),
 	CLK_LOOKUP("alt_core_clk",	usb_fs1_xcvr_clk.c,	""),
 	CLK_LOOKUP("sys_clk",		usb_fs1_sys_clk.c,	""),
@@ -2717,8 +2584,8 @@ static struct clk_lookup msm_clocks_ipq806x[] = {
 	CLK_LOOKUP("ce5_core_src_clk",	ce5_src_clk.c,		"qce.0"),
 	CLK_LOOKUP("ce5_core_src_clk",	ce5_src_clk.c,		"qcrypto.0"),
 	CLK_LOOKUP("dma_bam_pclk",	dma_bam_p_clk.c,	NULL),
-	CLK_LOOKUP("iface_clk",		gsbi1_p_clk.c,		"msm_serial_hsl.1"),
 	CLK_LOOKUP("iface_clk",		gsbi1_p_clk.c,		"qup_i2c.0"),
+	CLK_LOOKUP("iface_clk",		gsbi2_p_clk.c,		"msm_serial_hsl.1"),
 	CLK_LOOKUP("iface_clk",		gsbi2_p_clk.c,		"qup_i2c.1"),
 	/*CLK_LOOKUP("iface_clk",	gsbi3_p_clk.c,		"qup_i2c.2"),*/
 	CLK_LOOKUP("iface_clk",		gsbi4_p_clk.c,		"qup_i2c.3"),
@@ -2730,8 +2597,6 @@ static struct clk_lookup msm_clocks_ipq806x[] = {
 	CLK_LOOKUP("iface_clk",		tsif_p_clk.c,		"msm_tspp.0"),
 	CLK_LOOKUP("iface_clk",		usb_fs1_p_clk.c,	""),
 	CLK_LOOKUP("iface_clk",		usb_hs1_p_clk.c,	"msm_otg"),
-	CLK_LOOKUP("iface_clk",         usb_hs3_p_clk.c,	"msm_ehci_host.0"),
-	CLK_LOOKUP("iface_clk",         usb_hs4_p_clk.c,	"msm_ehci_host.1"),
 	CLK_LOOKUP("iface_clk",		sdc1_p_clk.c,		"msm_sdcc.1"),
 	CLK_LOOKUP("iface_clk",		sdc3_p_clk.c,		"msm_sdcc.3"),
 	CLK_LOOKUP("iface_clk",		pcie_p_clk.c,		"msm_pcie.0"),
@@ -2754,12 +2619,8 @@ static struct clk_lookup msm_clocks_ipq806x[] = {
 	CLK_LOOKUP("mem_clk",		rpm_msg_ram_p_clk.c,	""),
 
 	CLK_LOOKUP("core_clk",		dfab_usb_hs_clk.c,	"msm_otg"),
-	CLK_LOOKUP("core_clk",		dfab_usb_hs3_clk.c, "msm_ehci_host.0"),
-	CLK_LOOKUP("core_clk",		dfab_usb_hs3_clk.c, "msm_ehci_host.1"),
 	CLK_LOOKUP("bus_clk",		dfab_sdc1_clk.c, "msm_sdcc.1"),
-	CLK_LOOKUP("bus_clk",		dfab_sdc2_clk.c, "msm_sdcc.2"),
 	CLK_LOOKUP("bus_clk",		dfab_sdc3_clk.c, "msm_sdcc.3"),
-	CLK_LOOKUP("bus_clk",		dfab_sdc4_clk.c, "msm_sdcc.4"),
 	CLK_LOOKUP("dfab_clk",		dfab_sps_clk.c,	"msm_sps"),
 	CLK_LOOKUP("bus_clk",		dfab_bam_dmux_clk.c,	"BAM_RMNT"),
 	CLK_LOOKUP("bus_clk",		dfab_scm_clk.c,	"scm"),
@@ -3191,10 +3052,6 @@ static void __init ipq806x_clock_post_init(void)
 	clk_set_rate(&tsif_ref_clk.c, 105000);
 	clk_set_rate(&tssc_clk.c, 27000000);
 	clk_set_rate(&usb_hs1_xcvr_clk.c, 60000000);
-	if (cpu_is_ipq806x()) {
-		clk_set_rate(&usb_hs3_xcvr_clk.c, 60000000);
-		clk_set_rate(&usb_hs4_xcvr_clk.c, 60000000);
-	}
 	clk_set_rate(&usb_fs1_src_clk.c, 60000000);
 	clk_set_rate(&usb_hsic_xcvr_fs_clk.c, 60000000);
 	clk_set_rate(&usb_hsic_hsic_src_clk.c, 480000000);
