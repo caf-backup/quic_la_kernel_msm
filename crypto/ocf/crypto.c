@@ -165,6 +165,14 @@ int crypto_all_qblocked = 0;  /* protect with Q_LOCK */
 module_param(crypto_all_qblocked, int, 0444);
 MODULE_PARM_DESC(crypto_all_qblocked, "Are all crypto queues blocked");
 
+int cpu_begin = 0;  /* protect with Q_LOCK */
+module_param(cpu_begin, int, 0444);
+MODULE_PARM_DESC(cpu_begin, "begin cpu");
+
+int cpu_end = 1;  /* protect with Q_LOCK */
+module_param(cpu_end, int, 0444);
+MODULE_PARM_DESC(cpu_end, "end cpu");
+
 int crypto_all_kqblocked = 0; /* protect with Q_LOCK */
 module_param(crypto_all_kqblocked, int, 0444);
 MODULE_PARM_DESC(crypto_all_kqblocked, "Are all asym crypto queues blocked");
@@ -261,9 +269,9 @@ MODULE_PARM_DESC(crypto_devallowsoft,
 	   "Enable/disable use of software crypto support");
 
 /*
- * This parameter controls the maximum number of crypto operations to 
- * do consecutively in the crypto kernel thread before scheduling to allow 
- * other processes to run. Without it, it is possible to get into a 
+ * This parameter controls the maximum number of crypto operations to
+ * do consecutively in the crypto kernel thread before scheduling to allow
+ * other processes to run. Without it, it is possible to get into a
  * situation where the crypto thread never allows any other processes to run.
  * Default to 1000 which should be less than one second.
  */
@@ -1447,7 +1455,7 @@ crypto_proc(void *arg)
 			cryptostats.cs_intrs++;
 		} else if (loopcount > crypto_max_loopcount) {
 			/*
-			 * Give other processes a chance to run if we've 
+			 * Give other processes a chance to run if we've
 			 * been using the CPU exclusively for a while.
 			 */
 			loopcount = 0;
@@ -1679,7 +1687,12 @@ crypto_init(void)
 
 	memset(crypto_drivers, 0, crypto_drivers_num * sizeof(struct cryptocap));
 
+#if 0
 	ocf_for_each_cpu(cpu) {
+#else
+	for (cpu = cpu_begin; cpu < cpu_end; cpu++) {
+#endif
+
 		cryptoproc[cpu] = kthread_create(crypto_proc, (void *) cpu,
 									"ocf_%d", (int) cpu);
 		if (IS_ERR(cryptoproc[cpu])) {
@@ -1725,7 +1738,7 @@ crypto_exit(void)
 		kthread_stop(cryptoretproc[cpu]);
 	}
 
-	/* 
+	/*
 	 * Reclaim dynamically allocated resources.
 	 */
 	if (crypto_drivers != NULL)
