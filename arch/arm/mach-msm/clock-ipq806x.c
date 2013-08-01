@@ -786,7 +786,7 @@ static int set_vdd_dig_ipq806x(struct clk_vdd_class *vdd_class, int level)
 		[VDD_DIG_NOMINAL] = 1050000,
 		[VDD_DIG_HIGH]    = 1150000
 	};
-	return rpm_vreg_set_voltage(RPM_VREG_ID_PM8921_S3, RPM_VREG_VOTER3,
+	return rpm_vreg_set_voltage(RPM_VREG_ID_SMB208_S1a, RPM_VREG_VOTER3,
 				    vdd_uv[level], 1150000, 1);
 }
 
@@ -818,8 +818,11 @@ static DEFINE_VDD_CLASS(vdd_dig, set_vdd_dig_ipq806x, VDD_DIG_NUM);
  * Clock Descriptions
  */
 
-DEFINE_CLK_RPM_BRANCH(pxo_clk, pxo_a_clk, PXO, 27000000);
-DEFINE_CLK_RPM_BRANCH(cxo_clk, cxo_a_clk, CXO, 19200000);
+#define IPQ_PXO_FREQ		(25 * 1000 * 1000)	/* MHz */
+#define IPQ_CXO_FREQ		IPQ_PXO_FREQ
+
+DEFINE_CLK_RPM_BRANCH(pxo_clk, pxo_a_clk, PXO, IPQ_PXO_FREQ);
+DEFINE_CLK_RPM_BRANCH(cxo_clk, cxo_a_clk, CXO, IPQ_CXO_FREQ);
 
 static struct pll_clk pll3_clk = {
 	.mode_reg = GPLL1_MODE,
@@ -896,10 +899,8 @@ static struct pll_vote_clk pll14_clk = {
 	}
 static struct clk_freq_tbl clk_tbl_gp[] = {
 	F_GP(        0, gnd,  1, 0, 0),
-	F_GP(  9600000, cxo,  2, 0, 0),
-	F_GP( 13500000, pxo,  2, 0, 0),
-	F_GP( 19200000, cxo,  1, 0, 0),
-	F_GP( 27000000, pxo,  1, 0, 0),
+	F_GP( 12500000, pxo,  2, 0, 0),
+	F_GP( 25000000, pxo,  1, 0, 0),
 	F_GP( 64000000, pll8, 2, 1, 3),
 	F_GP( 76800000, pll8, 1, 1, 5),
 	F_GP( 96000000, pll8, 4, 0, 0),
@@ -1003,16 +1004,16 @@ static CLK_GSBI_UART(gsbi7_uart,   7, CLK_HALT_CFPB_STATEB_REG, 14);
 		.ns_val = NS(23, 16, n, m, 5, 4, 3, d, 2, 0, s##_to_bb_mux), \
 	}
 static struct clk_freq_tbl clk_tbl_gsbi_qup[] = {
-	F_GSBI_QUP(       0, gnd,  1, 0,  0),
-	F_GSBI_QUP( 1100000, pxo,  1, 11, 250),
-	F_GSBI_QUP( 5400000, pxo,  1, 27,  125),
-	F_GSBI_QUP(10800000, pxo,  1, 54,  125),
-	F_GSBI_QUP(15060000, pll8, 1, 2, 51),
-	F_GSBI_QUP(24000000, pll8, 4, 1,  4),
-	F_GSBI_QUP(25600000, pll8, 1, 1, 15),
-	F_GSBI_QUP(27000000, pll8, 1, 9,  128),
-	F_GSBI_QUP(48000000, pll8, 4, 1,  2),
-	F_GSBI_QUP(51200000, pll8, 1, 2, 15),
+	F_GSBI_QUP(		  0, gnd,  1, 0,  0),
+	F_GSBI_QUP(	    1100000, pxo,  1, 11, 250),
+	F_GSBI_QUP(IPQ_PXO_FREQ * 2, pxo,  1, 1, 5),
+	F_GSBI_QUP(IPQ_PXO_FREQ * 4, pxo,  1, 2, 5),
+	F_GSBI_QUP(	   15060000, pll8, 1, 2, 51),
+	F_GSBI_QUP(	   24000000, pll8, 4, 1,  4),
+	F_GSBI_QUP(	   25600000, pll8, 1, 1, 15),
+	F_GSBI_QUP(	   27000000, pll8, 1, 9,  128),
+	F_GSBI_QUP(	   48000000, pll8, 4, 1,  2),
+	F_GSBI_QUP(	   51200000, pll8, 1, 2, 15),
 	F_END
 };
 
@@ -1031,7 +1032,7 @@ static CLK_GSBI_QUP(gsbi7_qup,   7, CLK_HALT_CFPB_STATEB_REG, 12);
 	}
 static struct clk_freq_tbl clk_tbl_pdm[] = {
 	F_PDM(       0, gnd, 1),
-	F_PDM(27000000, pxo, 1),
+	F_PDM(IPQ_PXO_FREQ, pxo, 1),
 	F_END
 };
 
@@ -1053,7 +1054,7 @@ static struct rcg_clk pdm_clk = {
 	.c = {
 		.dbg_name = "pdm_clk",
 		.ops = &clk_ops_rcg,
-		VDD_DIG_FMAX_MAP1(LOW, 27000000),
+		VDD_DIG_FMAX_MAP1(LOW, IPQ_PXO_FREQ),
 		CLK_INIT(pdm_clk.c),
 	},
 };
@@ -1142,7 +1143,7 @@ static struct rcg_clk prng_clk = {
 	}
 static struct clk_freq_tbl clk_tbl_sdc[] = {
 	F_SDC(        0, gnd,   1, 0,   0),
-	F_SDC(   144000, pxo,   3, 2, 125),
+	F_SDC(   144000, pxo,   5, 18, 625),
 	F_SDC(   400000, pll8,  4, 1, 240),
 	F_SDC( 16000000, pll8,  4, 1,   6),
 	F_SDC( 17070000, pll8,  1, 2,  45),
@@ -1189,7 +1190,7 @@ static struct rcg_clk tsif_ref_clk = {
 	.c = {
 		.dbg_name = "tsif_ref_clk",
 		.ops = &clk_ops_rcg,
-		VDD_DIG_FMAX_MAP2(LOW, 27000000, NOMINAL, 54000000),
+		VDD_DIG_FMAX_MAP2(LOW, IPQ_PXO_FREQ, NOMINAL, (2 * IPQ_PXO_FREQ)),
 		CLK_INIT(tsif_ref_clk.c),
 	},
 };
@@ -1202,7 +1203,7 @@ static struct rcg_clk tsif_ref_clk = {
 	}
 static struct clk_freq_tbl clk_tbl_tssc[] = {
 	F_TSSC(       0, gnd),
-	F_TSSC(27000000, pxo),
+	F_TSSC(IPQ_PXO_FREQ, pxo),
 	F_END
 };
 
@@ -1221,7 +1222,7 @@ static struct rcg_clk tssc_clk = {
 	.c = {
 		.dbg_name = "tssc_clk",
 		.ops = &clk_ops_rcg,
-		VDD_DIG_FMAX_MAP1(LOW, 27000000),
+		VDD_DIG_FMAX_MAP1(LOW, IPQ_PXO_FREQ),
 		CLK_INIT(tssc_clk.c),
 	},
 };
@@ -3047,10 +3048,10 @@ static void __init ipq806x_clock_post_init(void)
 	clk_prepare_enable(&pxo_a_clk.c);
 
 	/* Initialize rates for clocks that only support one. */
-	clk_set_rate(&pdm_clk.c, 27000000);
+	clk_set_rate(&pdm_clk.c, IPQ_PXO_FREQ);
 	clk_set_rate(&prng_clk.c, prng_clk.freq_tbl->freq_hz);
 	clk_set_rate(&tsif_ref_clk.c, 105000);
-	clk_set_rate(&tssc_clk.c, 27000000);
+	clk_set_rate(&tssc_clk.c, IPQ_PXO_FREQ);
 	clk_set_rate(&usb_hs1_xcvr_clk.c, 60000000);
 	clk_set_rate(&usb_fs1_src_clk.c, 60000000);
 	clk_set_rate(&usb_hsic_xcvr_fs_clk.c, 60000000);
@@ -3077,7 +3078,7 @@ static void __init ipq806x_clock_post_init(void)
 	 * times when Apps CPU is active. This ensures the timer's requirement
 	 * of Krait AHB running 4 times as fast as the timer itself.
 	 */
-	clk_set_rate(&sfab_tmr_a_clk.c, 54000000);
+	clk_set_rate(&sfab_tmr_a_clk.c, IPQ_PXO_FREQ * 2);
 	clk_prepare_enable(&sfab_tmr_a_clk.c);
 }
 
