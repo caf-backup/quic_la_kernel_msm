@@ -24,7 +24,7 @@
 
 #define NMASTERS	54
 #define NSLAVES		75
-#define NFAB_IPQ806X	5
+#define NFAB_IPQ806X	4
 
 enum msm_bus_fabric_tiered_slave_type {
 	MSM_BUS_SYSTEM_TIERED_SLAVE_FAB_APPSS_0 = 1,
