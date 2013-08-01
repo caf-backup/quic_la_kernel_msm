@@ -37,6 +37,8 @@ obj-$(CONFIG_OCF_CRYPTODEV)   += cryptodev.o
 obj-$(CONFIG_OCF_CRYPTOSOFT)  += cryptosoft.o
 obj-$(CONFIG_OCF_BENCH)       += ocf-bench.o
 
+$(_obj)-$(CONFIG_OCF_OCFNULL) += ocfnull$(_slash)
+
 ocf-objs := $(OCF_OBJS)
 
 dummy:
