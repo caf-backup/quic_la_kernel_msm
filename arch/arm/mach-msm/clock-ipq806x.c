@@ -1559,7 +1559,7 @@ static struct branch_clk ce5_p_clk = {
 
 static struct clk_freq_tbl clk_tbl_sata[] = {
 	F_SATA(        0,  gnd, 1),
-	F_SATA( 48000000, pll8, 8),
+	F_SATA(100000000, pll3, 12),
 	F_END
 };
 
