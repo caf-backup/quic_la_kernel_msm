@@ -2007,13 +2007,16 @@ static void __init ipq806x_common_init(void)
 	msm_thermal_init(&msm_thermal_pdata);
 	if (socinfo_init() < 0)
 		pr_err("socinfo_init() failed!\n");
-	if (machine_is_ipq806x_rumi3() ||
-			machine_is_ipq806x_tb726() ||
-			machine_is_ipq806x_db149()) {
+	if (machine_is_ipq806x_rumi3()) {
 		BUG_ON(msm_rpm_init(&ipq806x_rpm_data));
 		BUG_ON(msm_rpmrs_levels_init(&msm_rpmrs_data));
 		regulator_suppress_info_printing();
 		msm_clock_init(&ipq806x_dummy_clock_init_data);
+	} else if (machine_is_ipq806x_tb726() || machine_is_ipq806x_db149()) {
+		BUG_ON(msm_rpm_init(&ipq806x_rpm_data));
+		BUG_ON(msm_rpmrs_levels_init(&msm_rpmrs_data));
+		regulator_suppress_info_printing();
+		msm_clock_init(&ipq806x_clock_init_data);
 	} else {
 		if (msm_xo_init())
 			pr_err("Failed to initialize XO votes\n");
