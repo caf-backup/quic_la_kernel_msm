@@ -157,9 +157,9 @@ enum {
 #define PCIE_1_PWR_EN_GPIO	-EINVAL
 #define PCIE_1_WAKE_N_GPIO	49
 
-#define PCIE_2_RST_GPIO		54
+#define PCIE_2_RST_GPIO		63
 #define PCIE_2_PWR_EN_GPIO	-EINVAL
-#define PCIE_2_WAKE_N_GPIO	55
+#define PCIE_2_WAKE_N_GPIO	64
 
 /*
  * Summit PMIC related constants
