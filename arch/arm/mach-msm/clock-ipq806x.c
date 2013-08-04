@@ -2458,7 +2458,8 @@ static unsigned long measure_clk_get_rate(struct clk *c)
 		ret = 0;
 	else {
 		/* Compute rate in Hz. */
-		raw_count_full = ((raw_count_full * 10) + 15) * 4800000;
+		raw_count_full = ((raw_count_full * 10) + 15) *
+							(IPQ_CXO_FREQ / 4);
 		do_div(raw_count_full, ((measure->sample_ticks * 10) + 35));
 		ret = (raw_count_full * measure->multiplier);
 	}
