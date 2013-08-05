@@ -172,6 +172,9 @@ enum {
 #define SMB208_FIXED_MINUV	100000
 #define SMB208_FIXED_MAXUV	5000000
 
+/*This GPIO is for SDCARD detection*/
+#define SDCARD_DETECT_GPIO	63
+
 extern struct msm_rtb_platform_data ipq806x_rtb_pdata;
 extern struct msm_cache_dump_platform_data ipq806x_cache_dump_pdata;
 #endif

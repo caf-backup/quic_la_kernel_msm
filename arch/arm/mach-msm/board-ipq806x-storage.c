@@ -199,10 +199,8 @@ static struct mmc_platform_data sdc3_data = {
 	.sup_clk_cnt	= ARRAY_SIZE(sdc3_sup_clk_rates),
 	.pin_data	= &mmc_slot_pin_data[SDCC3],
 	.vreg_data	= &mmc_slot_vreg_data[SDCC3],
-	.wpswitch_gpio	= PM8921_GPIO_PM_TO_SYS(17),
-	.is_wpswitch_active_low = true,
-	.status_gpio	= 26,
-	.status_irq	= MSM_GPIO_TO_INT(26),
+	.status_gpio	= SDCARD_DETECT_GPIO,
+	.status_irq	= MSM_GPIO_TO_INT(SDCARD_DETECT_GPIO),
 	.irq_flags	= IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 	.is_status_gpio_active_low = 1,
 	.xpc_cap	= 1,
@@ -220,18 +218,14 @@ static struct mmc_platform_data *ipq806x_sdc3_pdata;
 void __init ipq806x_init_mmc(void)
 {
 	if (ipq806x_sdc1_pdata) {
-		if (machine_is_ipq806x_rumi3()) {
-			sps_to_ddr_bus_voting_data.bw_vecs_size = 0;
-			ipq806x_sdc1_pdata->msm_bus_voting_data = &sps_to_ddr_bus_voting_data;
-		}
+		sps_to_ddr_bus_voting_data.bw_vecs_size = 0;
+		ipq806x_sdc1_pdata->msm_bus_voting_data = &sps_to_ddr_bus_voting_data;
 		ipq806x_add_sdcc(1, ipq806x_sdc1_pdata);
 	}
 
 	if (ipq806x_sdc3_pdata) {
-		if (machine_is_ipq806x_rumi3()) {
-			sps_to_ddr_bus_voting_data.bw_vecs_size = 0;
-			ipq806x_sdc3_pdata->msm_bus_voting_data = &sps_to_ddr_bus_voting_data;
-		}
+		sps_to_ddr_bus_voting_data.bw_vecs_size = 0;
+		ipq806x_sdc3_pdata->msm_bus_voting_data = &sps_to_ddr_bus_voting_data;
 		if (machine_is_ipq806x_db149()) {
 			int i;
 			struct msm_mmc_pad_drv_data *drv =

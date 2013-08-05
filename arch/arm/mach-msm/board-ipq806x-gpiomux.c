@@ -635,7 +635,7 @@ static struct gpiomux_setting ipq806x_sdc3_card_det_cfg = {
 
 static struct msm_gpiomux_config ipq806x_sdc3_configs[] __initdata = {
 	{
-		.gpio      = 26,
+		.gpio      = SDCARD_DETECT_GPIO,
 		.settings = {
 			[GPIOMUX_SUSPENDED] = &ipq806x_sdc3_card_det_cfg,
 			[GPIOMUX_ACTIVE] = &ipq806x_sdc3_card_det_cfg,
