@@ -1031,8 +1031,10 @@ void __init ipq806x_init_gpiomux(void)
 #endif
 	msm_gpiomux_install(ipq806x_nss_spi_configs,
 		ARRAY_SIZE(ipq806x_nss_spi_configs));
-	msm_gpiomux_install(nss_gmac1_rgmii_configs,
-		ARRAY_SIZE(nss_gmac1_rgmii_configs));
+	if (machine_is_ipq806x_db147()) {
+		msm_gpiomux_install(nss_gmac1_rgmii_configs,
+			ARRAY_SIZE(nss_gmac1_rgmii_configs));
+	}
 	msm_gpiomux_install(ipq806x_mdio_configs,
 		ARRAY_SIZE(ipq806x_mdio_configs));
 }
