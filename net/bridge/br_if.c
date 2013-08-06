@@ -454,3 +454,45 @@ void __net_exit br_net_exit(struct net *net)
 	rtnl_unlock();
 
 }
+
+/*
+ * br_port_dev_get()
+ *	Using the given addr, identify the port to which it is reachable,
+ * 	returing a reference to the net device associated with that port.
+ *
+ * NOTE: Return NULL if given dev is not a bridge or the mac has no associated port
+ */
+struct net_device *br_port_dev_get(struct net_device *dev, unsigned char *addr)
+{
+	struct net_bridge_fdb_entry *fdbe;
+	struct net_bridge *br;
+	struct net_device *pdev;
+
+	/*
+	 * Is this a bridge?
+	 */
+	if (!(dev->priv_flags & IFF_EBRIDGE)) {
+		return NULL;
+	}
+
+	/*
+	 * Lookup the fdb entry
+	 */
+	br = netdev_priv(dev);
+	rcu_read_lock();
+	fdbe = __br_fdb_get(br, addr);
+	if (!fdbe) {
+		rcu_read_unlock();
+		return NULL;
+	}
+
+	/*
+	 * Get reference to the port dev
+	 */
+	pdev = fdbe->dst->dev;
+	dev_hold(pdev);
+	rcu_read_unlock();
+
+	return pdev;
+}
+EXPORT_SYMBOL_GPL(br_port_dev_get);
