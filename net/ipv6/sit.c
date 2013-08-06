@@ -595,6 +595,11 @@ static int ipip6_rcv(struct sk_buff *skb)
 
 		ipip6_ecn_decapsulate(iph, skb);
 
+		/**
+		 * Reset the skb_iif to Tunnels interface index
+		 * for Conntrack Module to trace tunnel connection
+		 */
+		skb->skb_iif = tunnel->dev->ifindex;
 		netif_rx(skb);
 
 		rcu_read_unlock();
@@ -841,6 +846,12 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 
 	nf_reset(skb);
 	tstats = this_cpu_ptr(dev->tstats);
+
+        /**
+	  * Reset the skb_iif to Tunnels interface index
+	  * for Conntrack Module to trace tunnel connection
+	  */
+	skb->skb_iif = tunnel->dev->ifindex;
 	__IPTUNNEL_XMIT(tstats, &dev->stats);
 	return NETDEV_TX_OK;
 
