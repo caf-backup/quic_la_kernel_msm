@@ -1304,6 +1304,7 @@ static uint8_t spm_wfi_cmd_sequence[] __initdata = {
 	0x03, 0x0f,
 };
 
+#ifdef CONFIG_MSM_STANDALONE_POWER_COLLAPSE
 static uint8_t spm_power_collapse_without_rpm[] __initdata = {
 	0x00, 0x24, 0x54, 0x10,
 	0x09, 0x03, 0x01,
@@ -1322,6 +1323,7 @@ static uint8_t spm_power_collapse_with_rpm[] __initdata = {
 	0x10, 0x54, 0x30, 0x0C,
 	0x24, 0x30, 0x0f,
 };
+#endif
 
 static struct msm_spm_seq_entry msm_spm_boot_cpu_seq_list[] __initdata = {
 	[0] = {
@@ -1329,6 +1331,7 @@ static struct msm_spm_seq_entry msm_spm_boot_cpu_seq_list[] __initdata = {
 		.notify_rpm = false,
 		.cmd = spm_wfi_cmd_sequence,
 	},
+#ifdef CONFIG_MSM_STANDALONE_POWER_COLLAPSE
 	[1] = {
 		.mode = MSM_SPM_MODE_POWER_RETENTION,
 		.notify_rpm = false,
@@ -1344,6 +1347,7 @@ static struct msm_spm_seq_entry msm_spm_boot_cpu_seq_list[] __initdata = {
 		.notify_rpm = true,
 		.cmd = spm_power_collapse_with_rpm,
 	},
+#endif
 };
 static struct msm_spm_seq_entry msm_spm_nonboot_cpu_seq_list[] __initdata = {
 	[0] = {
@@ -1351,6 +1355,7 @@ static struct msm_spm_seq_entry msm_spm_nonboot_cpu_seq_list[] __initdata = {
 		.notify_rpm = false,
 		.cmd = spm_wfi_cmd_sequence,
 	},
+#ifdef CONFIG_MSM_STANDALONE_POWER_COLLAPSE
 	[1] = {
 		.mode = MSM_SPM_MODE_POWER_COLLAPSE,
 		.notify_rpm = false,
@@ -1361,6 +1366,7 @@ static struct msm_spm_seq_entry msm_spm_nonboot_cpu_seq_list[] __initdata = {
 		.notify_rpm = true,
 		.cmd = spm_power_collapse_with_rpm,
 	},
+#endif
 };
 
 static uint8_t l2_spm_wfi_cmd_sequence[] __initdata = {
@@ -1368,6 +1374,7 @@ static uint8_t l2_spm_wfi_cmd_sequence[] __initdata = {
 	0x00, 0x0f,
 };
 
+#ifdef CONFIG_MSM_STANDALONE_POWER_COLLAPSE
 static uint8_t l2_spm_gdhs_cmd_sequence[] __initdata = {
 	0x00, 0x20, 0x34, 0x64,
 	0x48, 0x07, 0x48, 0x20,
@@ -1380,6 +1387,7 @@ static uint8_t l2_spm_power_off_cmd_sequence[] __initdata = {
 	0x50, 0x64, 0x04, 0x34,
 	0x50, 0x0F,
 };
+#endif
 
 static struct msm_spm_seq_entry msm_spm_l2_seq_list[] __initdata = {
 	[0] = {
@@ -1387,6 +1395,7 @@ static struct msm_spm_seq_entry msm_spm_l2_seq_list[] __initdata = {
 		.notify_rpm = false,
 		.cmd = l2_spm_wfi_cmd_sequence,
 	},
+#ifdef CONFIG_MSM_STANDALONE_POWER_COLLAPSE
 	[1] = {
 		.mode = MSM_SPM_L2_MODE_GDHS,
 		.notify_rpm = true,
@@ -1397,6 +1406,7 @@ static struct msm_spm_seq_entry msm_spm_l2_seq_list[] __initdata = {
 		.notify_rpm = true,
 		.cmd = l2_spm_power_off_cmd_sequence,
 	},
+#endif
 };
 
 
