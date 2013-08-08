@@ -59,7 +59,9 @@ static int rpm_debug_resource_set(void *data, u64 val)
 	int ret;
 
 	struct msm_rpm_iv_pair req[MAX_REQUEST_LEN];
-	struct msm_rpm_map_data *resource = data;
+	struct msm_rpm_map_data *resource;
+
+	resource = data;
 
 	for (i = 0; i < resource->count; i++) {
 		req[i].id = resource->id;
@@ -77,23 +79,19 @@ static int rpm_debug_resource_set(void *data, u64 val)
 }
 
 /*
- * rpm_debug_command_send()
- * 	Send command to RPM to set self_fresh or idle_state values
+ * rpm_debug_idle_set()
+ * 	Send command to RPM to set idle-state
  */
-static int rpm_debug_command_send(void *data, u64 val)
+static int rpm_debug_idle_set(void *data, u64 val)
 {
 	int ret;
-
 	struct msm_rpm_iv_pair req;
-	struct msm_rpm_map_data *resource = data;
+	struct msm_rpm_map_data *resource;
 
-	req.id = resource->id;
-	req.value = 1;
-
-	ret = msm_rpm_set(MSM_RPM_CTX_SET_0, &req, 1);
+	ret = msm_rpm_send_idle_command();
 
 	if (ret) {
-		pr_err("rpm_debug_command_send(%d) failed (%d)\n", resource->id, ret);
+		pr_err("rpm_debug_idle_set failed (%d)\n", ret);
 	}
 
 	return ret;
@@ -103,7 +101,7 @@ DEFINE_SIMPLE_ATTRIBUTE(generic_resource_fops, rpm_debug_resource_get,
 		rpm_debug_resource_set, "%llu\n");
 
 DEFINE_SIMPLE_ATTRIBUTE(command_fops, rpm_debug_status_get,
-		rpm_debug_command_send, "%llu\n");
+		rpm_debug_idle_set, "%llu\n");
 
 /*
  * rpm_debug_resource_add()
@@ -117,15 +115,16 @@ static int rpm_debug_resource_add(struct msm_rpm_map_data *resource)
 	strlcpy(temp, resource->dbg_name, ARRAY_SIZE(temp));
 	resource_dir = debugfs_create_dir(temp, debugfs_base);
 
-	if (!resource_dir)
+	if (!resource_dir) {
 		return -ENOMEM;
+	}
 
 	if (!debugfs_create_file("value", S_IRUGO | S_IWUSR, resource_dir,
-				resource, &generic_resource_fops))
+				resource, &generic_resource_fops)) {
 		goto error;
+	}
 
 	return 0;
-
 error:
 	debugfs_remove_recursive(resource_dir);
 	return -ENOMEM;
@@ -138,7 +137,9 @@ error:
 int __init rpm_debug_init(struct msm_rpm_platform_data *data)
 {
 	int i;
-	struct msm_rpm_map_data *resource = NULL;
+	struct msm_rpm_map_data *resource;
+
+	resource = NULL;
 
 	debugfs_base = debugfs_create_dir("rpm-dbg", NULL);
 
@@ -152,17 +153,9 @@ int __init rpm_debug_init(struct msm_rpm_platform_data *data)
 		i += (resource->count) ? resource->count : 1;
 	}
 
-	resource = &data->target_id[MSM_RPM_ID_DDR_SELF_REFRESH];
-	if (!debugfs_create_file("enable_self_refresh", S_IRUGO | S_IWUSR, debugfs_base,
-				resource, &command_fops))
-	{
-		pr_err("rpm_debug_init failed to create debugfs for enable_self_refresh \n");
-	}
-
 	resource = &data->target_id[MSM_RPM_ID_ENTER_IDLE];
 	if (!debugfs_create_file("enable_idle_state", S_IRUGO | S_IWUSR, debugfs_base,
-				resource, &command_fops))
-	{
+				resource, &command_fops)) {
 		pr_err("rpm_debug_init failed to create debugfs for enable_idle \n");
 	}
 

@@ -1279,6 +1279,7 @@ int msm_rpm_register_notification(struct msm_rpm_notification *n,
 	struct msm_rpm_iv_pair *req, int count);
 int msm_rpm_unregister_notification(struct msm_rpm_notification *n);
 int msm_rpm_init(struct msm_rpm_platform_data *data);
+int msm_rpm_send_idle_command(void);
 
 #else
 
@@ -1344,6 +1345,10 @@ static inline int msm_rpm_init(struct msm_rpm_platform_data *data)
 	return -ENODEV;
 }
 
+static inline int msm_rpm_send_idle_command(void)
+{
+	return 1;
+}
 #endif /* CONFIG_RPM */
 
 #endif /* __ARCH_ARM_MACH_MSM_RPM_H */

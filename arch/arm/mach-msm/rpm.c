@@ -62,6 +62,7 @@ static DEFINE_SPINLOCK(msm_rpm_irq_lock);
 static struct msm_rpm_request *msm_rpm_request;
 static struct msm_rpm_request msm_rpm_request_irq_mode;
 static struct msm_rpm_request msm_rpm_request_poll_mode;
+struct completion *wake_done;
 
 static LIST_HEAD(msm_rpm_notifications);
 static struct msm_rpm_notif_config msm_rpm_notif_cfgs[MSM_RPM_CTX_SET_COUNT];
@@ -171,6 +172,11 @@ static inline void msm_rpm_send_req_interrupt(void)
 			msm_rpm_data.ipc_rpm_reg);
 }
 
+static inline void msm_rpm_send_idle_interrupt(void)
+{
+	__raw_writel(BIT(1), msm_rpm_data.ipc_rpm_reg);
+}
+
 /*
  * Note: assumes caller has acquired <msm_rpm_irq_lock>.
  *
@@ -241,6 +247,33 @@ static int msm_rpm_process_ack_interrupt(void)
 
 	return 2;
 }
+
+/*
+ * msm_rpm_sleep()
+ *	Sends idle/sleep interrupt to ARM, and then waits for wake up interrupt
+ */
+int msm_rpm_send_idle_command(void) {
+
+	DECLARE_COMPLETION_ONSTACK(ack);
+	unsigned long flags;
+
+	wake_done = &ack;
+
+	spin_lock_irqsave(&msm_rpm_lock, flags);
+	spin_lock(&msm_rpm_irq_lock);
+
+	msm_rpm_send_idle_interrupt();
+
+	spin_unlock(&msm_rpm_irq_lock);
+	spin_unlock_irqrestore(&msm_rpm_lock, flags);
+
+	pr_debug("Waiting for Wake from RPM \n");
+	wait_for_completion(&ack);
+	pr_debug("Received Wake from RPM \n");
+
+	return 0;
+}
+EXPORT_SYMBOL(msm_rpm_send_idle_command);
 
 static void msm_rpm_err_fatal(void)
 {
@@ -948,6 +981,8 @@ static irqreturn_t msm_pm_rpm_wakeup_interrupt(int irq, void *dev_id)
 {
 	if (dev_id != &msm_pm_rpm_wakeup_interrupt)
 		return IRQ_NONE;
+
+	complete_all(wake_done);
 
 	return IRQ_HANDLED;
 }
