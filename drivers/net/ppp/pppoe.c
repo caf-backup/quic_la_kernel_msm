@@ -1,6 +1,8 @@
 /** -*- linux-c -*- ***********************************************************
  * Linux PPP over Ethernet (PPPoX/PPPoE) Sockets
  *
+ * Copyright (c) 2013 Qualcomm Atheros, Inc.
+ *
  * PPPoX --- Generic PPP encapsulation socket family
  * PPPoE --- PPP over Ethernet (RFC 2516)
  *
@@ -107,6 +109,13 @@ struct pppoe_net {
 	 */
 	struct pppox_sock *hash_table[PPPOE_HASH_SIZE];
 	rwlock_t hash_lock;
+
+	/*
+	 * This function is registered by the generic PPP
+	 * kernel module. It is called when the PPPoE
+	 * session is torn down.
+	 */
+	ppp_channel_destroy_method_t pppoe_destroy_method;
 };
 
 /*
@@ -564,6 +573,7 @@ static int pppoe_release(struct socket *sock)
 	struct pppox_sock *po;
 	struct pppoe_net *pn;
 	struct net *net = NULL;
+	ppp_channel_destroy_method_t pppoe_destroy_method;
 
 	if (!sk)
 		return 0;
@@ -588,6 +598,20 @@ static int pppoe_release(struct socket *sock)
 
 	net = sock_net(sk);
 	pn = pppoe_pernet(net);
+
+	/*
+	 * We must ensure to destroy all PPPoE NSS rules associated with this
+	 * PPPoE session before the socket is released.
+	 */
+	if (po->pppoe_pa.sid) {
+		read_lock_bh(&pn->hash_lock);
+		pppoe_destroy_method = pn->pppoe_destroy_method;
+		read_unlock_bh(&pn->hash_lock);
+
+		if (pppoe_destroy_method) {
+			pppoe_destroy_method(be16_to_cpu(po->pppoe_pa.sid), po->pppoe_pa.remote);
+		}
+	}
 
 	/*
 	 * protect "po" from concurrent updates
@@ -616,6 +640,7 @@ static int pppoe_connect(struct socket *sock, struct sockaddr *uservaddr,
 	struct pppoe_net *pn;
 	struct net *net = NULL;
 	int error;
+	ppp_channel_destroy_method_t pppoe_destroy_method;
 
 	lock_sock(sk);
 
@@ -641,6 +666,19 @@ static int pppoe_connect(struct socket *sock, struct sockaddr *uservaddr,
 	if (stage_session(po->pppoe_pa.sid)) {
 		pppox_unbind_sock(sk);
 		pn = pppoe_pernet(sock_net(sk));
+
+		/*
+		 * In the case of related PPPoE session is torn down,
+		 * destruction function is called if it is registered before.
+		 */
+		read_lock_bh(&pn->hash_lock);
+		pppoe_destroy_method = pn->pppoe_destroy_method;
+		read_unlock_bh(&pn->hash_lock);
+
+		if (pppoe_destroy_method) {
+			pppoe_destroy_method(be16_to_cpu(po->pppoe_pa.sid), po->pppoe_pa.remote);
+		}
+
 		delete_item(pn, po->pppoe_pa.sid,
 			    po->pppoe_pa.remote, po->pppoe_ifindex);
 		if (po->pppoe_dev) {
@@ -964,8 +1002,85 @@ static int pppoe_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	return __pppoe_xmit(sk, skb);
 }
 
+/************************************************************************
+ *
+ * function called by generic PPP driver to get the PPPoE session ID
+ * corresponding to the given channel
+ *
+ ***********************************************************************/
+static __be16 pppoe_get_session_id(struct ppp_channel *chan)
+{
+	struct sock *sk = (struct sock *)chan->private;
+	struct pppox_sock *po = pppox_sk(sk);
+
+	return po->num;
+}
+
+/************************************************************************
+ *
+ * function called by generic PPP driver to get the net_device
+ * corresponding to the given channel
+ *
+ ***********************************************************************/
+static struct net_device *pppoe_get_netdev(struct ppp_channel *chan)
+{
+	struct sock *sk = (struct sock *)chan->private;
+	struct pppox_sock *po = pppox_sk(sk);
+
+	return po->pppoe_dev;
+}
+
+/************************************************************************
+ *
+ * function called by generic PPP driver to get the remote MAC address
+ * corresponding to the given channel
+ *
+ ***********************************************************************/
+static unsigned char *pppoe_get_remote_mac(struct ppp_channel *chan)
+{
+	struct sock *sk = (struct sock *)chan->private;
+	struct pppox_sock *po = pppox_sk(sk);
+
+	return po->pppoe_pa.remote;
+}
+
+/************************************************************************
+ *
+ * function called by generic PPP driver to register destroy methods
+ *
+ ***********************************************************************/
+static void pppoe_register_destroy_method(struct ppp_channel *chan, ppp_channel_destroy_method_t method)
+{
+	struct sock *sk = (struct sock *)chan->private;
+	struct pppoe_net *pn = pppoe_pernet(sock_net(sk));
+
+	write_lock_bh(&pn->hash_lock);
+	pn->pppoe_destroy_method = method;
+	write_unlock_bh(&pn->hash_lock);
+}
+
+/************************************************************************
+ *
+ * function called by generic PPP driver to unregister destroy methods
+ *
+ ***********************************************************************/
+static void pppoe_unregister_destroy_method(struct ppp_channel *chan)
+{
+	struct sock *sk = (struct sock *)chan->private;
+	struct pppoe_net *pn = pppoe_pernet(sock_net(sk));
+
+	write_lock_bh(&pn->hash_lock);
+	pn->pppoe_destroy_method = NULL;
+	write_unlock_bh(&pn->hash_lock);
+}
+
 static const struct ppp_channel_ops pppoe_chan_ops = {
 	.start_xmit = pppoe_xmit,
+	.get_session_id = pppoe_get_session_id,
+	.get_netdev = pppoe_get_netdev,
+	.get_remote_mac = pppoe_get_remote_mac,
+	.reg_destroy_method = pppoe_register_destroy_method,
+	.unreg_destroy_method = pppoe_unregister_destroy_method,
 };
 
 static int pppoe_recvmsg(struct kiocb *iocb, struct socket *sock,
@@ -1137,6 +1252,8 @@ static __net_init int pppoe_init_net(struct net *net)
 	struct proc_dir_entry *pde;
 
 	rwlock_init(&pn->hash_lock);
+
+	pn->pppoe_destroy_method = NULL;
 
 	pde = proc_net_fops_create(net, "pppoe", S_IRUGO, &pppoe_seq_fops);
 #ifdef CONFIG_PROC_FS

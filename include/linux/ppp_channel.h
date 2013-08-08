@@ -24,6 +24,8 @@
 #include <linux/poll.h>
 #include <net/net_namespace.h>
 
+typedef void (*ppp_channel_destroy_method_t)(uint16_t, uint8_t *);
+
 struct ppp_channel;
 
 struct ppp_channel_ops {
@@ -32,6 +34,16 @@ struct ppp_channel_ops {
 	int	(*start_xmit)(struct ppp_channel *, struct sk_buff *);
 	/* Handle an ioctl call that has come in via /dev/ppp. */
 	int	(*ioctl)(struct ppp_channel *, unsigned int, unsigned long);
+	/* Return the session ID of the connection which is cretaed on the channel. */
+	__be16	(*get_session_id)(struct ppp_channel *);
+	/* Return the net_device of the given channel. */
+	struct net_device* (*get_netdev)(struct ppp_channel *);
+	/* Return the remote MAC address of the connection which is created on the channel. */
+	unsigned char* (*get_remote_mac)(struct ppp_channel *);
+	/* Register destroy function into PPP channels */
+	void (*reg_destroy_method)(struct ppp_channel *, ppp_channel_destroy_method_t method);
+	/* Unregister destroy function from PPP channels */
+	void (*unreg_destroy_method)(struct ppp_channel *);
 };
 
 struct ppp_channel {
@@ -46,6 +58,36 @@ struct ppp_channel {
 };
 
 #ifdef __KERNEL__
+/* Called by upper layers to get the Ethernet (channel) net_device corresponding to
+   the given PPP net_device */
+extern struct net_device *ppp_get_eth_netdev(struct net_device *);
+
+/* Called by upper layers to get the channel session ID corresponding to
+   the given PPP net_device */
+extern __be16 ppp_get_session_id(struct net_device *);
+
+/* Called by upper layers to get the channel remote MAC corresponding to
+   the given PPP net_device */
+extern unsigned char *ppp_get_remote_mac(struct net_device *);
+
+/* Called by upper layers to get the PPP net_device corresponding to
+   the given Ethernet net_device */
+extern struct net_device *ppp_get_ppp_netdev(struct net_device *);
+
+/* Get the ppp net_device associated with a particular session ID (sid) */
+extern struct net_device *ppp_session_to_netdev(uint16_t session_id, uint8_t *remote_mac);
+
+/* Register destroy function into PPP channels */
+extern struct net_device *ppp_register_destroy_method(ppp_channel_destroy_method_t method);
+
+/* Unregister destroy function from PPP channels */
+extern struct net_device *ppp_unregister_destroy_method(void);
+
+/* Update statistics of the PPP net_device by incrementing related
+   statistics field value with corresponding parameter */
+extern void ppp_update_stats(struct net_device *dev, unsigned long rx_packets,
+		unsigned long rx_bytes, unsigned long tx_packets, unsigned long tx_bytes);
+
 /* Called by the channel when it can send some more data. */
 extern void ppp_output_wakeup(struct ppp_channel *);
 
