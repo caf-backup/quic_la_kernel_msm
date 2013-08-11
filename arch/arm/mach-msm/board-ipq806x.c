@@ -875,41 +875,6 @@ static int phy_init_seq[] = {
 #define PMIC_GPIO_DP_IRQ	PM8921_GPIO_IRQ(PM8921_IRQ_BASE, PMIC_GPIO_DP)
 #define MSM_MPM_PIN_USB1_OTGSESSVLD	40
 
-static struct msm_otg_platform_data msm_otg_pdata = {
-	.mode			= USB_OTG,
-	.otg_control		= OTG_PMIC_CONTROL,
-	.phy_type		= SNPS_28NM_INTEGRATED_PHY,
-	.pmic_id_irq		= PM8921_USB_ID_IN_IRQ(PM8921_IRQ_BASE),
-	.power_budget		= 750,
-	.bus_scale_table	= &usb_bus_scale_pdata,
-	.phy_init_seq		= phy_init_seq,
-	.mpm_otgsessvld_int	= MSM_MPM_PIN_USB1_OTGSESSVLD,
-};
-
-static struct msm_usb_host_platform_data msm_ehci_host_pdata3 = {
-	.power_budget = 500,
-};
-
-#ifdef CONFIG_USB_EHCI_MSM_HOST4
-static struct msm_usb_host_platform_data msm_ehci_host_pdata4;
-#endif
-
-static void __init ipq806x_ehci_host_init(void)
-{
-	if (machine_is_ipq806x_db149()) {
-		msm_ehci_host_pdata3.pmic_gpio_dp_irq = PMIC_GPIO_DP_IRQ;
-
-		ipq806x_device_ehci_host3.dev.platform_data =
-				&msm_ehci_host_pdata3;
-		platform_device_register(&ipq806x_device_ehci_host3);
-
-#ifdef CONFIG_USB_EHCI_MSM_HOST4
-		ipq806x_device_ehci_host4.dev.platform_data =
-				&msm_ehci_host_pdata4;
-		platform_device_register(&ipq806x_device_ehci_host4);
-#endif
-	}
-}
 
 #define MCP23S08_NAME "mcp23s08"
 
@@ -1715,7 +1680,6 @@ static struct platform_device *early_common_devices[] __initdata = {
 
 static struct platform_device *common_devices[] __initdata = {
 	&msm_device_smd_ipq806x,
-	&ipq806x_device_otg,
 	&ipq806x_device_gadget_peripheral,
 	&ipq806x_device_hsusb_host,
 	&ipq806x_device_dwc3_host1,
@@ -2074,8 +2038,6 @@ static void __init ipq806x_common_init(void)
 		msm_rpmrs_levels[0].latency_us;
 #endif
 
-	ipq806x_device_otg.dev.platform_data = &msm_otg_pdata;
-	ipq806x_ehci_host_init();
 	ipq806x_init_buses();
 
 	platform_add_devices(early_common_devices,

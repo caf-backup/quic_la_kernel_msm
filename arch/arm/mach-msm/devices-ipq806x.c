@@ -764,29 +764,6 @@ struct platform_device ipq806x_device_ssbi_pmic1 = {
 	.num_resources  = ARRAY_SIZE(resources_ssbi_pmic1),
 };
 
-static struct resource resources_otg[] = {
-	{
-		.start	= MSM_HSUSB1_PHYS,
-		.end	= MSM_HSUSB1_PHYS + MSM_HSUSB1_SIZE - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= USB1_HS_IRQ,
-		.end	= USB1_HS_IRQ,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device ipq806x_device_otg = {
-	.name		= "msm_otg",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(resources_otg),
-	.resource	= resources_otg,
-	.dev		= {
-		.coherent_dma_mask	= 0xffffffff,
-	},
-};
-
 static struct resource resources_hsusb[] = {
 	{
 		.start	= MSM_HSUSB1_PHYS,
@@ -930,54 +907,6 @@ struct platform_device ipq806x_device_dwc3_host2 = {
 		.dma_mask		= &dma_mask,
 		.coherent_dma_mask	= 0xffffffff,
 		.platform_data          = &dwc3_pdata_host2,
-	},
-};
-
-static struct resource resources_ehci_host3[] = {
-{
-		.start  = MSM_HSUSB3_PHYS,
-		.end    = MSM_HSUSB3_PHYS + MSM_HSUSB3_SIZE - 1,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.start  = USB3_HS_IRQ,
-		.end    = USB3_HS_IRQ,
-		.flags  = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device ipq806x_device_ehci_host3 = {
-	.name           = "msm_ehci_host",
-	.id             = 0,
-	.num_resources  = ARRAY_SIZE(resources_ehci_host3),
-	.resource       = resources_ehci_host3,
-	.dev            = {
-		.dma_mask               = &dma_mask,
-		.coherent_dma_mask      = 0xffffffff,
-	},
-};
-
-static struct resource resources_ehci_host4[] = {
-{
-		.start  = MSM_HSUSB4_PHYS,
-		.end    = MSM_HSUSB4_PHYS + MSM_HSUSB4_SIZE - 1,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.start  = USB4_HS_IRQ,
-		.end    = USB4_HS_IRQ,
-		.flags  = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device ipq806x_device_ehci_host4 = {
-	.name           = "msm_ehci_host",
-	.id             = 1,
-	.num_resources  = ARRAY_SIZE(resources_ehci_host4),
-	.resource       = resources_ehci_host4,
-	.dev            = {
-		.dma_mask               = &dma_mask,
-		.coherent_dma_mask      = 0xffffffff,
 	},
 };
 
