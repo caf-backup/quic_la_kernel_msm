@@ -1665,7 +1665,7 @@ static struct platform_driver dwc3_ipq_driver = {
 	},
 };
 
-MODULE_LICENSE("GPLV2");
+MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("DesignWare USB3 IPQ Glue Layer");
 
 static int __devinit dwc3_ipq_init(void)

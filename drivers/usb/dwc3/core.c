@@ -663,6 +663,8 @@ static struct platform_driver dwc3_driver = {
 };
 
 module_platform_driver(dwc3_driver);
+EXPORT_SYMBOL(dwc3_send_gadget_ep_cmd);
+EXPORT_SYMBOL(dwc3_trb_dma_offset);
 
 MODULE_ALIAS("platform:dwc3");
 MODULE_AUTHOR("Felipe Balbi <balbi@ti.com>");
