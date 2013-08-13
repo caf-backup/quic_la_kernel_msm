@@ -259,7 +259,25 @@ int msm_rpm_send_idle_command(void) {
 
 	wake_done = &ack;
 
+	/*
+	 * Acquire RPM command mutex
+	 * This ensures that RPM resource requests, idle-set requests are all serialized
+	 */
+	mutex_lock(&msm_rpm_mutex);
+
+	/* Protect "msm_rpm_request" access while the request is being sent
+	 *
+	 * Note: Currently the idle-set request is being sent as a simple interrupt
+	 *       and not as resource request, which means msm_rpm_request is not used.
+	 *       We are retaining the spinlock to keep the code standard and to allow
+	 *       for future modifications (eg. if a parameter has to be passed to RPM with the idle-set
+	 *       request
+	 * */
 	spin_lock_irqsave(&msm_rpm_lock, flags);
+
+	/*
+	 * Get exclusive access to Krait-RPM IRQ registers
+	 */
 	spin_lock(&msm_rpm_irq_lock);
 
 	msm_rpm_send_idle_interrupt();
@@ -269,6 +287,12 @@ int msm_rpm_send_idle_command(void) {
 
 	pr_debug("Waiting for Wake from RPM \n");
 	wait_for_completion(&ack);
+
+	/*
+	 * Release RPM command mutex
+	 */
+	mutex_unlock(&msm_rpm_mutex);
+
 	pr_debug("Received Wake from RPM \n");
 
 	return 0;
