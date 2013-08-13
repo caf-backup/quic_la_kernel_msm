@@ -403,7 +403,7 @@ static struct gpiomux_setting pcm_sus_cfg = {
 };
 
 static struct gpiomux_setting spdif_act_cfg = {
-	.func = GPIOMUX_FUNC_3,
+	.func = GPIOMUX_FUNC_2,
 	.drv = GPIOMUX_DRV_8MA,
 	.pull = GPIOMUX_PULL_NONE,
 	.dir = GPIOMUX_OUT_HIGH,
