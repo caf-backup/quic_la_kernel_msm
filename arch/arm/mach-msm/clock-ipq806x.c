@@ -2797,6 +2797,13 @@ static struct clk_lookup msm_clocks_ipq806x[] = {
 	CLK_LOOKUP("l2_mclk",		l2_m_clk,     ""),
 	CLK_LOOKUP("krait0_mclk",	krait0_m_clk, ""),
 	CLK_LOOKUP("krait1_mclk",	krait1_m_clk, ""),
+
+	CLK_LOOKUP("core_clk",		usb30_0_master_clk.c,	"ipq-dwc3.0"),
+	CLK_LOOKUP("iface0_clk",	usb30_0_branch_clk.c,	"ipq-dwc3.0"),
+	CLK_LOOKUP("iface1_clk",	usb30_1_branch_clk.c,	"ipq-dwc3.0"),
+	CLK_LOOKUP("utmi_clk",		usb30_utmi_clk.c,	"ipq-dwc3.0"),
+	CLK_LOOKUP("utmi_b0_clk",	usb30_0_utmi_clk_ctl.c,	"ipq-dwc3.0"),
+	CLK_LOOKUP("utmi_b1_clk",	usb30_1_utmi_clk_ctl.c,	"ipq-dwc3.0"),
 };
 
 

@@ -125,7 +125,7 @@ struct dwc3_ipq {
 	const struct usb_ep_ops *original_ep_ops[DWC3_ENDPOINTS_NUM];
 	struct list_head req_complete_list;
 	struct clk		*core_clk;
-	struct clk		*iface_clk;
+	struct clk		*iface0_clk;
 	struct clk              *iface1_clk;
 	struct clk		*sleep_clk;
 	struct clk		*utmi_clk;
@@ -1274,6 +1274,12 @@ static int dwc3_ipq_suspend(struct dwc3_ipq *mdwc)
 		return 0;
 	}
 
+	clk_disable_unprepare(mdwc->utmi_b0_clk);
+	clk_disable_unprepare(mdwc->utmi_clk);
+	clk_disable_unprepare(mdwc->iface1_clk);
+	clk_disable_unprepare(mdwc->iface0_clk);
+	clk_disable_unprepare(mdwc->core_clk);
+	clk_disable_unprepare(mdwc->utmi_b1_clk);
 	wake_unlock(&mdwc->wlock);
 
 	if (mdwc->bus_perf_client) {
@@ -1308,6 +1314,12 @@ static int dwc3_ipq_resume(struct dwc3_ipq *mdwc)
 	}
 
 	wake_lock(&mdwc->wlock);
+	clk_prepare_enable(mdwc->core_clk);
+	clk_prepare_enable(mdwc->iface0_clk);
+	clk_prepare_enable(mdwc->iface1_clk);
+	clk_prepare_enable(mdwc->utmi_clk);
+	clk_prepare_enable(mdwc->utmi_b0_clk);
+	clk_prepare_enable(mdwc->utmi_b1_clk);
 	atomic_set(&mdwc->in_lpm, 0);
 	dev_info(mdwc->dev, "DWC3 exited from low power mode\n");
 
@@ -1450,6 +1462,57 @@ static int __devinit dwc3_ipq_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&ipq->chg_work, dwc3_chg_detect_work);
 	INIT_DELAYED_WORK(&ipq->resume_work, dwc3_resume_work);
 
+	/* Initialize clocks */
+	if (pdev->id == 0) {
+		ipq->core_clk = devm_clk_get(&pdev->dev, "core_clk");
+		if (IS_ERR(ipq->core_clk)) {
+			dev_err(&pdev->dev, "failed to get core_clk\n");
+			return PTR_ERR(ipq->core_clk);
+		}
+		clk_set_rate(ipq->core_clk, 125000000);
+		clk_prepare_enable(ipq->core_clk);
+
+		ipq->iface0_clk = devm_clk_get(&pdev->dev, "iface0_clk");
+		if (IS_ERR(ipq->iface0_clk)) {
+			dev_err(&pdev->dev, "failed to get iface0_clk\n");
+			ret = PTR_ERR(ipq->iface0_clk);
+			goto disable_core_clk;
+		}
+		clk_prepare_enable(ipq->iface0_clk);
+
+		ipq->iface1_clk = devm_clk_get(&pdev->dev, "iface1_clk");
+		if (IS_ERR(ipq->iface1_clk)) {
+			dev_err(&pdev->dev, "failed to get iface1_clk\n");
+			ret = PTR_ERR(ipq->iface1_clk);
+			goto disable_iface0_clk;
+		}
+		clk_prepare_enable(ipq->iface1_clk);
+
+		ipq->utmi_clk = devm_clk_get(&pdev->dev, "utmi_clk");
+		if (IS_ERR(ipq->utmi_clk)) {
+			dev_err(&pdev->dev, "failed to get utmi_clk\n");
+			goto disable_iface1_clk;
+		}
+		clk_set_rate(ipq->utmi_clk, 60000000);
+		clk_prepare_enable(ipq->utmi_clk);
+
+		ipq->utmi_b0_clk = devm_clk_get(&pdev->dev, "utmi_b0_clk");
+		if (IS_ERR(ipq->utmi_b0_clk)) {
+			dev_err(&pdev->dev, "failed to get utmi_b0_clk \n");
+			ret = PTR_ERR(ipq->utmi_b0_clk);
+			goto disable_utmi_clk;
+		}
+		clk_prepare_enable(ipq->utmi_b0_clk);
+
+		ipq->utmi_b1_clk = devm_clk_get(&pdev->dev, "utmi_b1_clk");
+		if (IS_ERR(ipq->utmi_b1_clk)) {
+			dev_err(&pdev->dev, "failed to get utmi_b0_clk\n");
+			ret = PTR_ERR(ipq->utmi_b1_clk);
+			goto disable_utmi_b0__clk;
+		}
+		clk_prepare_enable(ipq->utmi_b1_clk);
+	}
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!res) {
 		dev_dbg(&pdev->dev, "missing TCSR memory resource\n");
@@ -1556,6 +1619,16 @@ static int __devinit dwc3_ipq_probe(struct platform_device *pdev)
 
 put_pdev:
 	platform_device_put(dwc3);
+disable_utmi_b0__clk:
+	clk_disable_unprepare(ipq->utmi_b0_clk);
+disable_utmi_clk:
+	clk_disable_unprepare(ipq->utmi_clk);
+disable_iface1_clk:
+	clk_disable_unprepare(ipq->iface1_clk);
+disable_iface0_clk:
+	clk_disable_unprepare(ipq->iface0_clk);
+disable_core_clk:
+	clk_disable_unprepare(ipq->core_clk);
 	return ret;
 }
 
