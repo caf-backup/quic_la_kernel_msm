@@ -159,8 +159,8 @@ struct platform_device ipq806x_pc_cntr = {
 };
 
 static struct msm_watchdog_pdata msm_watchdog_pdata = {
-	.pet_time = 10000,
-	.bark_time = 30000,
+	.pet_time = 5000,
+	.bark_time = 10000,
 	.has_secure = true,
 	.needs_expired_enable = true,
 	.base = MSM_TMR0_BASE + WDT0_OFFSET,
