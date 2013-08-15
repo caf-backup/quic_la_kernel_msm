@@ -281,7 +281,7 @@ enum smem_flash_type {
 #define SMEM_MAX_PART_NAME         16
 #define SMEM_MAX_PARTITIONS        16
 
-#define SMEM_LINUX_FS_PART_NAME    "0:EFS2APPS"
+#define SMEM_LINUX_FS_PART_NAME    "rootfs"
 
 struct smem_flash_partition_entry {
 	char name[SMEM_MAX_PART_NAME];
