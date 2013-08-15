@@ -239,10 +239,10 @@ static struct platform_device battery_bcl_device = {
 #ifdef CONFIG_SPI_QUP
 struct flash_platform_data msm_sf_data = {
 	.name = "m25p80",
-	.type = "m25pe16",
+	.type = "s25fl512s",
 };
 
-static struct spi_board_info ipq806x_rumi_spi_board_info[] __initdata = {
+static struct spi_board_info ipq806x_spi_board_info[] __initdata = {
 	{
 		.modalias       = "m25p80",
 		.mode           = SPI_MODE_0,
@@ -1974,9 +1974,8 @@ static void ipq806x_spi_register(void)
 
 	platform_device_register(&ipq806x_device_qup_spi_gsbi5);
 
-	if (machine_is_ipq806x_rumi3())
-		spi_register_board_info(ipq806x_rumi_spi_board_info,
-					ARRAY_SIZE(ipq806x_rumi_spi_board_info));
+	spi_register_board_info(ipq806x_spi_board_info,
+				ARRAY_SIZE(ipq806x_spi_board_info));
 
 	return;
 }
