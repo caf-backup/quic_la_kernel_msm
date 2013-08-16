@@ -1936,7 +1936,7 @@ static void __init register_i2c_devices(void)
 	int i;
 
 	/* Build the matching 'supported_machs' bitmask */
-	if (machine_is_ipq806x_db149())
+	if (machine_is_ipq806x_db149() || machine_is_ipq806x_db147())
 		mach_mask = I2C_IPQ806X_CDP;
 	else
 		pr_err("unmatched machine ID in register_i2c_devices\n");
@@ -1980,7 +1980,8 @@ static void __init ipq806x_common_init(void)
 		BUG_ON(msm_rpmrs_levels_init(&msm_rpmrs_data));
 		regulator_suppress_info_printing();
 		msm_clock_init(&ipq806x_dummy_clock_init_data);
-	} else if (machine_is_ipq806x_tb726() || machine_is_ipq806x_db149()) {
+	} else if (machine_is_ipq806x_tb726() || machine_is_ipq806x_db149()
+					||  machine_is_ipq806x_db147()) {
 		BUG_ON(msm_rpm_init(&ipq806x_rpm_data));
 		BUG_ON(msm_rpmrs_levels_init(&msm_rpmrs_data));
 		regulator_suppress_info_printing();
@@ -1994,7 +1995,8 @@ static void __init ipq806x_common_init(void)
 	/* Regulator devices need to be registered for RUMI as well */
 	if (machine_is_ipq806x_rumi3() ||
 			machine_is_ipq806x_tb726() ||
-			machine_is_ipq806x_db149()) {
+			machine_is_ipq806x_db149() ||
+			machine_is_ipq806x_db147()) {
 		fixup_ipq806x_smb_power_grid();
 		platform_device_register(&ipq806x_smb_device_rpm_regulator);
 	}
@@ -2046,7 +2048,11 @@ static void __init ipq806x_common_init(void)
 		msm_hsic_pdata.swfi_latency = msm_rpmrs_levels[0].latency_us;
 
 	}
-	ipq806x_init_mmc();
+
+	if (!machine_is_ipq806x_db147())
+		ipq806x_init_mmc();
+
+
 	msm_spm_init(msm_spm_data, ARRAY_SIZE(msm_spm_data));
 	msm_spm_l2_init(msm_spm_l2_data);
 	if (!machine_is_ipq806x_rumi3()) {
@@ -2132,7 +2138,7 @@ static void __init ipq806x_init(void)
 
 	platform_add_devices(cdp_devices, ARRAY_SIZE(cdp_devices));
 
-	if (machine_is_ipq806x_db149())
+	if (machine_is_ipq806x_db149() || machine_is_ipq806x_db147())
 		platform_device_register(&cdp_kp_pdev);
 
 }

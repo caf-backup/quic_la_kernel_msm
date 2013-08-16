@@ -705,6 +705,23 @@ static struct msm_gpiomux_config ipq806x_usb30_configs[] __initdata = {
 	},
 };
 
+static struct msm_gpiomux_config ipq806x_usb30_configs_db147[] __initdata = {
+	{
+		.gpio   = 55,
+		.settings = {
+			[GPIOMUX_ACTIVE] = &usb30_pwr_en_n,
+			[GPIOMUX_SUSPENDED] = &usb30_pwr_en_n,
+		}
+	},
+	{
+		.gpio   = 56,
+		.settings = {
+			[GPIOMUX_ACTIVE] = &usb30_pwr_en_n,
+			[GPIOMUX_SUSPENDED] = &usb30_pwr_en_n,
+		}
+	},
+};
+
 #ifdef CONFIG_MSM_PCIE
 static struct gpiomux_setting pcie_rst_n = {
 	.func = GPIOMUX_FUNC_GPIO,
@@ -756,6 +773,37 @@ static struct msm_gpiomux_config ipq806x_pcie_configs[] __initdata = {
 	},
 	{
 		.gpio   = PCIE_2_PWR_EN_GPIO,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &pcie_pwr_en,
+			[GPIOMUX_ACTIVE] = &pcie_pwr_en,
+		},
+	},
+};
+
+static struct msm_gpiomux_config ipq806x_pcie_configs_db147[] __initdata = {
+	{
+		.gpio   = PCIE_RST_GPIO,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &pcie_rst_n,
+			[GPIOMUX_ACTIVE] = &pcie_rst_n,
+		},
+	},
+	{
+		.gpio   = PCIE_1_RST_GPIO,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &pcie_rst_n,
+			[GPIOMUX_ACTIVE] = &pcie_rst_n,
+		},
+	},
+	{
+		.gpio   = PCIE_PWR_EN_GPIO,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &pcie_pwr_en,
+			[GPIOMUX_ACTIVE] = &pcie_pwr_en,
+		},
+	},
+	{
+		.gpio   = PCIE_1_PWR_EN_GPIO,
 		.settings = {
 			[GPIOMUX_SUSPENDED] = &pcie_pwr_en,
 			[GPIOMUX_ACTIVE] = &pcie_pwr_en,
@@ -1060,6 +1108,10 @@ void __init ipq806x_init_gpiomux(void)
 	if (machine_is_ipq806x_db149()) {
 		msm_gpiomux_install(ipq806x_gsbi1_i2c_configs,
 				ARRAY_SIZE(ipq806x_gsbi1_i2c_configs));
+	}
+
+	if (machine_is_ipq806x_db149() ||
+		machine_is_ipq806x_db147()) {
 		msm_gpiomux_install(ipq806x_gsbi2_i2c_configs,
 				ARRAY_SIZE(ipq806x_gsbi2_i2c_configs));
 		msm_gpiomux_install(ipq806x_gsbi4_i2c_configs,
@@ -1085,12 +1137,18 @@ void __init ipq806x_init_gpiomux(void)
 	msm_gpiomux_install(ipq806x_sdc1_configs,
 			ARRAY_SIZE(ipq806x_sdc1_configs));
 #endif
-	msm_gpiomux_install(ipq806x_sdc3_configs,
+	 if (machine_is_ipq806x_db149()) {
+		msm_gpiomux_install(ipq806x_sdc3_configs,
 			ARRAY_SIZE(ipq806x_sdc3_configs));
+	}
 #ifdef CONFIG_MSM_PCIE
-	msm_gpiomux_install(ipq806x_pcie_configs,
-			ARRAY_SIZE(ipq806x_pcie_configs));
-
+	if (machine_is_ipq806x_db149()) {
+		msm_gpiomux_install(ipq806x_pcie_configs,
+				ARRAY_SIZE(ipq806x_pcie_configs));
+	} else if (machine_is_ipq806x_db147()) {
+		msm_gpiomux_install(ipq806x_pcie_configs_db147,
+				ARRAY_SIZE(ipq806x_pcie_configs_db147));
+	}
 #endif
 	msm_gpiomux_install(ipq806x_nss_spi_configs,
 		ARRAY_SIZE(ipq806x_nss_spi_configs));
@@ -1101,6 +1159,13 @@ void __init ipq806x_init_gpiomux(void)
 	msm_gpiomux_install(ipq806x_mdio_configs,
 		ARRAY_SIZE(ipq806x_mdio_configs));
 
-	msm_gpiomux_install(ipq806x_usb30_configs,
-			ARRAY_SIZE(ipq806x_usb30_configs));
+	if (machine_is_ipq806x_db149()) {
+		msm_gpiomux_install(ipq806x_usb30_configs,
+				ARRAY_SIZE(ipq806x_usb30_configs));
+	}
+
+	if (machine_is_ipq806x_db147()) {
+		msm_gpiomux_install(ipq806x_usb30_configs_db147,
+				ARRAY_SIZE(ipq806x_usb30_configs_db147));
+	}
 }
