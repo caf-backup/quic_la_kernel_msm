@@ -383,25 +383,6 @@ static struct gpiomux_setting mi2s_sus_cfg = {
 	.pull = GPIOMUX_PULL_DOWN,
 };
 
-static struct gpiomux_setting pcm_in_act_cfg = {
-	.func = GPIOMUX_FUNC_1,
-	.drv = GPIOMUX_DRV_8MA,
-	.pull = GPIOMUX_PULL_NONE,
-};
-
-static struct gpiomux_setting pcm_out_act_cfg = {
-	.func = GPIOMUX_FUNC_1,
-	.drv = GPIOMUX_DRV_8MA,
-	.pull = GPIOMUX_PULL_NONE,
-	.dir = GPIOMUX_OUT_HIGH,
-};
-
-static struct gpiomux_setting pcm_sus_cfg = {
-	.func = GPIOMUX_FUNC_GPIO,
-	.drv = GPIOMUX_DRV_2MA,
-	.pull = GPIOMUX_PULL_DOWN,
-};
-
 static struct gpiomux_setting spdif_act_cfg = {
 	.func = GPIOMUX_FUNC_2,
 	.drv = GPIOMUX_DRV_8MA,
@@ -467,36 +448,6 @@ static struct msm_gpiomux_config ipq806x_mi2s_configs[] __initdata = {
 	},
 };
 
-static struct msm_gpiomux_config ipq806x_pcm_configs[] __initdata = {
-	{
-		.gpio	= 14,		/* audio_pcm_dout */
-		.settings = {
-			[GPIOMUX_ACTIVE]    = &pcm_out_act_cfg,
-			[GPIOMUX_SUSPENDED] = &pcm_sus_cfg,
-		},
-	},
-	{
-		.gpio	= 15,		/* audio_pcm_din */
-		.settings = {
-			[GPIOMUX_ACTIVE]    = &pcm_in_act_cfg,
-			[GPIOMUX_SUSPENDED] = &pcm_sus_cfg,
-		},
-	},
-	{
-		.gpio	= 16,		/* audio_pcm_sync */
-		.settings = {
-			[GPIOMUX_ACTIVE]    = &pcm_out_act_cfg,
-			[GPIOMUX_SUSPENDED] = &pcm_sus_cfg,
-		},
-	},
-	{
-		.gpio	= 17,		/* audio_pcm_clk */
-		.settings = {
-			[GPIOMUX_ACTIVE]    = &pcm_out_act_cfg,
-			[GPIOMUX_SUSPENDED] = &pcm_sus_cfg,
-		},
-	},
-};
 
 static struct msm_gpiomux_config ipq806x_spdif_configs[] __initdata = {
 	{
@@ -1119,8 +1070,6 @@ void __init ipq806x_init_gpiomux(void)
 #endif
 		msm_gpiomux_install(ipq806x_mi2s_configs,
 			ARRAY_SIZE(ipq806x_mi2s_configs));
-		msm_gpiomux_install(ipq806x_pcm_configs,
-			ARRAY_SIZE(ipq806x_pcm_configs));
 		msm_gpiomux_install(ipq806x_spdif_configs,
 			ARRAY_SIZE(ipq806x_spdif_configs));
 	}
