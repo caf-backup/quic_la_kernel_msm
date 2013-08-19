@@ -763,6 +763,22 @@
 #define TEST_LPA_HS(s)		TEST_VECTOR((s), TEST_TYPE_LPA_HS)
 #define TEST_CPUL2(s)		TEST_VECTOR((s), TEST_TYPE_CPUL2)
 
+#define CLK_IPQ_AFAB_IDLE_FREQ		(133 * 1000 * 1000)
+#define CLK_IPQ_AFAB_NOMINAL_FREQ	(400 * 1000 * 1000)
+#define CLK_IPQ_AFAB_TURBO_FREQ		(533 * 1000 * 1000)
+#define CLK_IPQ_SFAB_IDLE_FREQ		(80 * 1000 * 1000)
+#define CLK_IPQ_SFAB_NOMINAL_FREQ	(133 * 1000 * 1000)
+#define CLK_IPQ_SFAB_TURBO_FREQ		(177.667 * 1000 * 1000)
+#define CLK_IPQ_DFAB_IDLE_FREQ		(32 * 1000 * 1000)
+#define CLK_IPQ_DFAB_NOMINAL_FREQ	(64 * 1000 * 1000)
+#define CLK_IPQ_DFAB_TURBO_FREQ		(64 * 1000 * 1000)
+#define CLK_IPQ_SFPB_IDLE_FREQ		(32 * 1000 * 1000)
+#define CLK_IPQ_SFPB_NOMINAL_FREQ	(64 * 1000 * 1000)
+#define CLK_IPQ_SFPB_TURBO_FREQ		(64 * 1000 * 1000)
+#define CLK_IPQ_CFPB_IDLE_FREQ		(32 * 1000 * 1000)
+#define CLK_IPQ_CFPB_NOMINAL_FREQ	(64 * 1000 * 1000)
+#define CLK_IPQ_CFPB_TURBO_FREQ		(64 * 1000 * 1000)
+
 #define MN_MODE_DUAL_EDGE 0x2
 
 #define CLK_USB_SS(name, n, h_b) \
@@ -3200,12 +3216,20 @@ static void __init ipq806x_clock_post_init(void)
 	clk_disable_unprepare(&usb_hsic_hsic_clk.c);
 
 	/*
-	 * Keep sfab floor @ 54MHz so that Krait AHB is at least 27MHz at all
-	 * times when Apps CPU is active. This ensures the timer's requirement
-	 * of Krait AHB running 4 times as fast as the timer itself.
+	 * Keep sfab floor @ 133MHz @ nominal frequency
 	 */
-	clk_set_rate(&sfab_tmr_a_clk.c, IPQ_PXO_FREQ * 2);
+	clk_set_rate(&sfab_tmr_a_clk.c, CLK_IPQ_SFAB_NOMINAL_FREQ);
 	clk_prepare_enable(&sfab_tmr_a_clk.c);
+	/*
+	 * Keep dfab floor @ 64MHz @ nominal frequency
+	 */
+	clk_set_rate(&dfab_msmbus_a_clk.c, CLK_IPQ_DFAB_NOMINAL_FREQ);
+	clk_prepare_enable(&dfab_msmbus_a_clk.c);
+	/*
+	 * Keep sfpb floor @ 64MHz @ nominal frequency
+	 */
+	clk_set_rate(&sfpb_a_clk.c, CLK_IPQ_SFPB_NOMINAL_FREQ);
+	clk_prepare_enable(&sfpb_a_clk.c);
 }
 
 static int __init ipq806x_clock_late_init(void)
@@ -3217,7 +3241,7 @@ static int __init ipq806x_clock_late_init(void)
 	if (WARN(IS_ERR(cfpb_a_clk), "cfpb_a_clk not found (%ld)\n",
 			PTR_ERR(cfpb_a_clk)))
 		return PTR_ERR(cfpb_a_clk);
-	rc = clk_set_rate(cfpb_a_clk, 32000000);
+	rc = clk_set_rate(cfpb_a_clk, CLK_IPQ_CFPB_NOMINAL_FREQ);
 	if (WARN(rc, "cfpb_a_clk rate was not set (%d)\n", rc))
 		return rc;
 	rc = clk_prepare_enable(cfpb_a_clk);
