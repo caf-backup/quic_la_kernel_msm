@@ -62,6 +62,24 @@ static struct request_gpio mi2s_gpios[] = {
 	},
 };
 
+static struct request_gpio pcm_gpios[] = {
+	{
+		.gpio_no = GPIO_PCM_DOUT,
+		.gpio_name = "GPIO_PCM_DOUT",
+	},
+	{
+		.gpio_no = GPIO_PCM_DIN,
+		.gpio_name = "GPIO_PCM_DIN",
+	},
+	{
+		.gpio_no = GPIO_PCM_SYNC,
+		.gpio_name = "GPIO_PCM_SYNC",
+	},
+	{
+		.gpio_no = GPIO_PCM_CLK,
+		.gpio_name = "GPIO_PCM_CLK",
+	},
+};
 
 static int ipq806x_cfg_mi2s_gpios(void)
 {
@@ -86,6 +104,38 @@ err:
 	return ret;
 }
 
+static int ipq806x_cfg_pcm_gpios(void)
+{
+	int i;
+	int ret;
+	int j;
+
+	for (i = 0; i < ARRAY_SIZE(pcm_gpios); i++) {
+		ret = gpio_request(pcm_gpios[i].gpio_no,
+					pcm_gpios[i].gpio_name);
+		if (ret) {
+			pr_err("%s failed failed to request gpio %d\n",
+					__func__, pcm_gpios[i].gpio_no);
+			goto err;
+		}
+		if (pcm_gpios[i].gpio_no != GPIO_PCM_DIN) {
+			ret = gpio_direction_output(pcm_gpios[i].gpio_no, 0x2);
+			if (ret) {
+				pr_err("%s err in setting dir for gpio :%d\n",
+					__func__, pcm_gpios[i].gpio_no);
+				goto err;
+			}
+		}
+	}
+
+	return ret;
+
+err:
+	for (j = i; j >= 0; j--)
+		gpio_free(pcm_gpios[i].gpio_no);
+
+	return ret;
+}
 
 static int ipq806x_cfg_spdif_gpios(void)
 {
@@ -118,6 +168,12 @@ static void ipq806x_mi2s_free_gpios(void)
 		gpio_free(mi2s_gpios[i].gpio_no);
 }
 
+static void ipq806x_pcm_free_gpios(void)
+{
+	int i;
+	for (i = 0; i < ARRAY_SIZE(pcm_gpios); i++)
+		gpio_free(pcm_gpios[i].gpio_no);
+}
 
 static void ipq806x_spdif_free_gpios(void)
 {
@@ -235,6 +291,13 @@ static int __init ipq806x_lpass_init(void)
 		goto err_reg;
 	}
 
+	ret = ipq806x_cfg_pcm_gpios();
+	if (ret) {
+		pr_err("%s: %d: pcm gpios configuration failed\n",
+					__func__, __LINE__);
+		goto err_reg;
+	}
+
 	ret = ipq806x_cfg_spdif_gpios();
 	if (ret) {
 		pr_err("%s: %d: spdif gpios configuration failed\n",
@@ -254,6 +317,7 @@ err_add:
 static void __exit ipq806x_lpass_exit(void)
 {
 	ipq806x_mi2s_free_gpios();
+	ipq806x_pcm_free_gpios();
 	ipq806x_spdif_free_gpios();
 
 	platform_driver_unregister(&ipq_lpass_clk);
