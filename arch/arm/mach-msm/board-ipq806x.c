@@ -249,7 +249,7 @@ static struct spi_board_info ipq806x_spi_board_info[] __initdata = {
 		.bus_num        = 5,
 		.chip_select    = 0,
 		.platform_data  = &msm_sf_data,
-		.max_speed_hz   = 52000000,
+		.max_speed_hz   = 51200000,
 	}
 };
 #endif

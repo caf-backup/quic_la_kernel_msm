@@ -1145,16 +1145,16 @@ static CLK_GSBI_UART(gsbi7_uart,   7, CLK_HALT_CFPB_STATEB_REG, 14);
 		.ns_val = NS(23, 16, n, m, 5, 4, 3, d, 2, 0, s##_to_bb_mux), \
 	}
 static struct clk_freq_tbl clk_tbl_gsbi_qup[] = {
-	F_GSBI_QUP(		  0, gnd,  1, 0,  0),
-	F_GSBI_QUP(	    1100000, pxo,  1, 11, 250),
-	F_GSBI_QUP(IPQ_PXO_FREQ * 2, pxo,  1, 1, 5),
-	F_GSBI_QUP(IPQ_PXO_FREQ * 4, pxo,  1, 2, 5),
-	F_GSBI_QUP(	   15060000, pll8, 1, 2, 51),
-	F_GSBI_QUP(	   24000000, pll8, 4, 1,  4),
-	F_GSBI_QUP(	   25600000, pll8, 1, 1, 15),
-	F_GSBI_QUP(	   27000000, pll8, 1, 9,  128),
-	F_GSBI_QUP(	   48000000, pll8, 4, 1,  2),
-	F_GSBI_QUP(	   51200000, pll8, 1, 2, 15),
+	F_GSBI_QUP(                 0, gnd,  1, 0,   0),
+	F_GSBI_QUP( IPQ_PXO_FREQ / 25, pxo,  1, 1,  25),
+	F_GSBI_QUP(  IPQ_PXO_FREQ / 5, pxo,  1, 1,   5),
+	F_GSBI_QUP(IPQ_PXO_FREQ / 2.5, pxo,  1, 2,   5),
+	F_GSBI_QUP(          15060000, pll8, 1, 2,  51),
+	F_GSBI_QUP(          24000000, pll8, 4, 1,   4),
+	F_GSBI_QUP(          25600000, pll8, 1, 1,  15),
+	F_GSBI_QUP(          27000000, pll8, 1, 9, 128),
+	F_GSBI_QUP(          48000000, pll8, 4, 1,   2),
+	F_GSBI_QUP(          51200000, pll8, 1, 2,  15),
 	F_END
 };
 
