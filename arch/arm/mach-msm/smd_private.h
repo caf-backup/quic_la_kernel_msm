@@ -281,7 +281,14 @@ enum smem_flash_type {
 #define SMEM_MAX_PART_NAME         16
 #define SMEM_MAX_PARTITIONS        16
 
-#define SMEM_LINUX_FS_PART_NAME    "rootfs"
+#ifdef CONFIG_ARCH_IPQ806X
+#define SMEM_LINUX_FS_PARTS	{ "0:APPSBLENV", "0:HLOS", "0:NSS0", "0:NSS1", "0:ART", "rootfs" }
+#define SMEM_LINUX_MTD_NAME	{ "APPSBLENV", "kernel", "NSS0", "NSS1", "ART", "rootfs" }
+#else
+#define SMEM_LINUX_FS_PARTS	"0:EFS2APPS"
+#define SMEM_LINUX_MTD_NAME	"0:EFS2APPS"
+#endif
+
 
 struct smem_flash_partition_entry {
 	char name[SMEM_MAX_PART_NAME];
@@ -301,4 +308,5 @@ struct smem_flash_partition_table {
 	struct smem_flash_partition_entry part_entry[SMEM_MAX_PARTITIONS];
 };
 
+int check_fs_partition(char *partition_name, char *part_mtd_name);
 #endif

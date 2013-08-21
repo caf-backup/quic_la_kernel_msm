@@ -39,10 +39,10 @@
 #ifdef CONFIG_MSM_SMD
 #include "smd_private.h"
 
-static struct mtd_partition msm_sf_partitions;
-static char msm_sf_names[SMEM_MAX_PART_NAME];
-
 extern struct flash_platform_data msm_sf_data;
+
+static struct mtd_partition msm_sf_partitions[SMEM_MAX_PARTITIONS];
+static char msm_sf_names[SMEM_MAX_PARTITIONS * SMEM_MAX_PART_NAME];
 
 static int get_sf_partitions(void)
 {
@@ -52,7 +52,7 @@ static int get_sf_partitions(void)
 	u32 flash_type;
 	u32 *block_size_ptr;
 	u32 block_size;
-	struct mtd_partition *ptn = &msm_sf_partitions;
+	struct mtd_partition *ptn = msm_sf_partitions;
 	char *name = msm_sf_names;
 	int part;
 
@@ -108,8 +108,7 @@ static int get_sf_partitions(void)
 		part_entry = &partition_table->part_entry[part];
 
 		/* Find a match for the Linux file system partition */
-		if (strcmp(part_entry->name, SMEM_LINUX_FS_PART_NAME) == 0) {
-			strcpy(name, part_entry->name);
+		if (check_fs_partition(part_entry->name, name) == 0) {
 			ptn->name = name;
 
 			/* TODO: Get block count and size info */
@@ -123,15 +122,19 @@ static int get_sf_partitions(void)
 			else
 				ptn->size = part_entry->length * block_size;
 
-			msm_sf_data.nr_parts = 1;
-			msm_sf_data.parts = &msm_sf_partitions;
-
 			printk(KERN_INFO "Partition(from smem) %s "
 					"-- Offset:%llx Size:%llx\n",
 					ptn->name, ptn->offset, ptn->size);
 
-			return 0;
+			msm_sf_data.nr_parts++;
+			ptn++;
+			name += SMEM_MAX_PART_NAME;
 		}
+	}
+
+	if (msm_sf_data.nr_parts) {
+		msm_sf_data.parts = msm_sf_partitions;
+		return 0;
 	}
 
 	printk(KERN_WARNING "%s: no partition table found!", __func__);

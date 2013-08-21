@@ -50,8 +50,8 @@ struct msm_ptbl_entry {
 
 #define MSM_MAX_PARTITIONS 18
 
-static struct mtd_partition msm_nand_partitions[MSM_MAX_PARTITIONS];
-static char msm_nand_names[MSM_MAX_PARTITIONS * 16];
+static struct mtd_partition msm_nand_partitions[SMEM_MAX_PARTITIONS];
+static char msm_nand_names[SMEM_MAX_PARTITIONS * SMEM_MAX_PART_NAME];
 
 extern struct flash_platform_data msm_nand_data;
 
@@ -95,6 +95,20 @@ __tagtable(ATAG_MSM_PARTITION, parse_tag_msm_partition);
 
 
 #ifdef CONFIG_MSM_SMD
+int check_fs_partition(char *partition_name, char *mtd_name)
+{
+	int i;
+	char *fs_parts[] = SMEM_LINUX_FS_PARTS;
+	char *mtd_names[] = SMEM_LINUX_MTD_NAME;
+	for (i = 0; i < ARRAY_SIZE(fs_parts); i++) {
+		if (strcmp(partition_name, fs_parts[i]) == 0) {
+			strncpy(mtd_name, mtd_names[i], SMEM_MAX_PART_NAME);
+			return 0;
+		}
+	}
+	return -1;
+}
+
 static int get_nand_partitions(void)
 {
 	struct smem_flash_partition_table *partition_table;
@@ -148,8 +162,7 @@ static int get_nand_partitions(void)
 		part_entry = &partition_table->part_entry[part];
 
 		/* Find a match for the Linux file system partition */
-		if (strcmp(part_entry->name, SMEM_LINUX_FS_PART_NAME) == 0) {
-			strcpy(name, part_entry->name);
+		if (check_fs_partition(part_entry->name, name) == 0) {
 			ptn->name = name;
 
 			/*TODO: Get block count and size info */
@@ -163,15 +176,19 @@ static int get_nand_partitions(void)
 			else
 				ptn->size = part_entry->length;
 
-			msm_nand_data.nr_parts = 1;
-			msm_nand_data.parts = msm_nand_partitions;
-
 			printk(KERN_INFO "Partition(from smem) %s "
 					"-- Offset:%llx Size:%llx\n",
 					ptn->name, ptn->offset, ptn->size);
 
-			return 0;
+			msm_nand_data.nr_parts++;
+			ptn++;
+			name += SMEM_MAX_PART_NAME;
 		}
+	}
+
+	if (msm_nand_data.nr_parts) {
+		msm_nand_data.parts = msm_nand_partitions;
+		return 0;
 	}
 
 	printk(KERN_WARNING "%s: no partition table found!", __func__);
