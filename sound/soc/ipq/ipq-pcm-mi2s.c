@@ -232,13 +232,17 @@ static int ipq_pcm_mi2s_trigger(struct snd_pcm_substream *substream, int cmd)
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
-	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		ipq_dml_trigger((unsigned long)substream);
+		break;
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		ipq_cfg_i2s_spkr(1, 0, LPA_IF_MI2S);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
-	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		ipq_lpaif_dai_stop(prtd->lpaif_info.dma_ch);
+		break;
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		ipq_cfg_i2s_spkr(0, 0, LPA_IF_MI2S);
 		break;
 	default:
 		ret = -EINVAL;
