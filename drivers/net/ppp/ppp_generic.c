@@ -3181,59 +3181,78 @@ void ppp_update_stats(struct net_device *dev, unsigned long rx_packets,
  * Registers a destroy method to the channel. When a PPP interface goes down,
  * this destroy method is called if it is registered.
  */
-struct net_device *ppp_register_destroy_method(ppp_channel_destroy_method_t method)
+bool ppp_register_destroy_method(struct net_device *dev, ppp_channel_destroy_method_t method, void *arg)
 {
-	struct net_device *dev;
-	struct ppp *ppp;
-	struct list_head *list;
 	struct channel *pch;
+	struct ppp *ppp;
+	struct ppp_net *pn;
 
-	for_each_netdev_rcu(&init_net, dev) {
-		if (dev->type == ARPHRD_PPP) {
-			ppp = netdev_priv(dev);
-			list = &ppp->channels;
+	if (!dev) {
+		printk(KERN_NOTICE "net device is null\n");
+		return false;
+	}
 
-			if (!list_empty(list)) {
-				list = list->next;
-				pch = list_entry(list, struct channel, clist);
-				if (pch->chan && pch->chan->ops->reg_destroy_method) {
-					pch->chan->ops->reg_destroy_method(pch->chan, method);
-					dev_hold(dev);
-					return dev;
-				}
+	if (dev->type != ARPHRD_PPP) {
+		printk(KERN_NOTICE "net device type is not PPP\n");
+		return false;
+	}
+
+	ppp = netdev_priv(dev);
+	pn = ppp_pernet(ppp->ppp_net);
+
+	spin_lock_bh(&pn->all_channels_lock);
+	list_for_each_entry(pch, &ppp->channels, clist) {
+		if (pch->chan && pch->chan->ops->reg_destroy_method) {
+			if (!pch->chan->ops->reg_destroy_method(pch->chan, method, arg)) {
+				/*
+				 * One of the channels has failed to register the destroy method.
+				 */
+				spin_unlock_bh(&pn->all_channels_lock);
+				printk(KERN_NOTICE "PPP channel %p failed to register destroy method\n", pch->chan);
+				return false;
 			}
 		}
 	}
-	return NULL;
+	spin_unlock_bh(&pn->all_channels_lock);
+
+	return true;
 }
 
 /*
  * Unregisters the destroy method from the channel.
  */
-struct net_device *ppp_unregister_destroy_method(void)
+bool ppp_unregister_destroy_method(struct net_device *dev)
 {
-	struct net_device *dev;
-	struct ppp *ppp;
-	struct list_head *list;
 	struct channel *pch;
+	struct ppp *ppp;
+	struct ppp_net *pn;
 
-	for_each_netdev(&init_net, dev) {
-		if (dev->type == ARPHRD_PPP) {
-			ppp = netdev_priv(dev);
-			list = &ppp->channels;
+	if (!dev) {
+		printk(KERN_NOTICE "net device is null\n");
+		return false;
+	}
 
-			if (!list_empty(list)) {
-				list = list->next;
-				pch = list_entry(list, struct channel, clist);
-				if (pch->chan && pch->chan->ops->unreg_destroy_method) {
-					pch->chan->ops->unreg_destroy_method(pch->chan);
-					dev_hold(dev);
-					return dev;
-				}
-			}
+	if (dev->type != ARPHRD_PPP) {
+		printk(KERN_NOTICE "net device type is not PPP\n");
+		return false;
+	}
+
+	ppp = netdev_priv(dev);
+
+	pn = ppp_pernet(ppp->ppp_net);
+
+	spin_lock_bh(&pn->all_channels_lock);
+	list_for_each_entry(pch, &ppp->channels, clist) {
+		if (pch->chan && pch->chan->ops->unreg_destroy_method) {
+			/*
+			 * unregister function just sets the fields to NULL, so there is not any failure case.
+			 */
+			pch->chan->ops->unreg_destroy_method(pch->chan);
 		}
 	}
-	return NULL;
+	spin_unlock_bh(&pn->all_channels_lock);
+
+	return true;
 }
 
 /* Module/initialization stuff */

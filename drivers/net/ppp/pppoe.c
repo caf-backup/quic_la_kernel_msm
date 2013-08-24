@@ -116,6 +116,7 @@ struct pppoe_net {
 	 * session is torn down.
 	 */
 	ppp_channel_destroy_method_t pppoe_destroy_method;
+	void *destroy_method_arg;
 };
 
 /*
@@ -574,6 +575,7 @@ static int pppoe_release(struct socket *sock)
 	struct pppoe_net *pn;
 	struct net *net = NULL;
 	ppp_channel_destroy_method_t pppoe_destroy_method;
+	void *destroy_method_arg;
 
 	if (!sk)
 		return 0;
@@ -606,10 +608,11 @@ static int pppoe_release(struct socket *sock)
 	if (po->pppoe_pa.sid) {
 		read_lock_bh(&pn->hash_lock);
 		pppoe_destroy_method = pn->pppoe_destroy_method;
+		destroy_method_arg = pn->destroy_method_arg;
 		read_unlock_bh(&pn->hash_lock);
 
 		if (pppoe_destroy_method) {
-			pppoe_destroy_method(be16_to_cpu(po->pppoe_pa.sid), po->pppoe_pa.remote);
+			pppoe_destroy_method(destroy_method_arg, be16_to_cpu(po->pppoe_pa.sid), po->pppoe_pa.remote);
 		}
 	}
 
@@ -641,6 +644,7 @@ static int pppoe_connect(struct socket *sock, struct sockaddr *uservaddr,
 	struct net *net = NULL;
 	int error;
 	ppp_channel_destroy_method_t pppoe_destroy_method;
+	void *destroy_method_arg;
 
 	lock_sock(sk);
 
@@ -670,13 +674,18 @@ static int pppoe_connect(struct socket *sock, struct sockaddr *uservaddr,
 		/*
 		 * In the case of related PPPoE session is torn down,
 		 * destruction function is called if it is registered before.
+		 *
+		 * TODO: In an SMP system, the destroy method could be called after
+		 * the user has unregitered because the destory existed while the lock was held.
+		 * This race needs to be fixed in a future patch.
 		 */
 		read_lock_bh(&pn->hash_lock);
 		pppoe_destroy_method = pn->pppoe_destroy_method;
+		destroy_method_arg = pn->destroy_method_arg;
 		read_unlock_bh(&pn->hash_lock);
 
 		if (pppoe_destroy_method) {
-			pppoe_destroy_method(be16_to_cpu(po->pppoe_pa.sid), po->pppoe_pa.remote);
+			pppoe_destroy_method(destroy_method_arg, be16_to_cpu(po->pppoe_pa.sid), po->pppoe_pa.remote);
 		}
 
 		delete_item(pn, po->pppoe_pa.sid,
@@ -689,6 +698,15 @@ static int pppoe_connect(struct socket *sock, struct sockaddr *uservaddr,
 		memset(sk_pppox(po) + 1, 0,
 		       sizeof(struct pppox_sock) - sizeof(struct sock));
 		sk->sk_state = PPPOX_NONE;
+
+		/*
+		 * Unregister the destroy method and its argument. They
+		 * will be re-registered once the new connection is established.
+		 */
+		write_lock_bh(&pn->hash_lock);
+		pn->pppoe_destroy_method = NULL;
+		pn->destroy_method_arg = NULL;
+		write_unlock_bh(&pn->hash_lock);
 	}
 
 	/* Re-bind in session stage only */
@@ -1049,14 +1067,21 @@ static unsigned char *pppoe_get_remote_mac(struct ppp_channel *chan)
  * function called by generic PPP driver to register destroy methods
  *
  ***********************************************************************/
-static void pppoe_register_destroy_method(struct ppp_channel *chan, ppp_channel_destroy_method_t method)
+static bool pppoe_register_destroy_method(struct ppp_channel *chan, ppp_channel_destroy_method_t method, void *destroy_method_arg)
 {
 	struct sock *sk = (struct sock *)chan->private;
 	struct pppoe_net *pn = pppoe_pernet(sock_net(sk));
 
 	write_lock_bh(&pn->hash_lock);
+	if (pn->pppoe_destroy_method || pn->destroy_method_arg) {
+		write_unlock_bh(&pn->hash_lock);
+		return false;
+	}
 	pn->pppoe_destroy_method = method;
+	pn->destroy_method_arg = destroy_method_arg;
 	write_unlock_bh(&pn->hash_lock);
+
+	return true;
 }
 
 /************************************************************************
@@ -1071,6 +1096,7 @@ static void pppoe_unregister_destroy_method(struct ppp_channel *chan)
 
 	write_lock_bh(&pn->hash_lock);
 	pn->pppoe_destroy_method = NULL;
+	pn->destroy_method_arg = NULL;
 	write_unlock_bh(&pn->hash_lock);
 }
 
@@ -1254,6 +1280,7 @@ static __net_init int pppoe_init_net(struct net *net)
 	rwlock_init(&pn->hash_lock);
 
 	pn->pppoe_destroy_method = NULL;
+	pn->destroy_method_arg = NULL;
 
 	pde = proc_net_fops_create(net, "pppoe", S_IRUGO, &pppoe_seq_fops);
 #ifdef CONFIG_PROC_FS

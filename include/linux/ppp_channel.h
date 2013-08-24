@@ -24,7 +24,7 @@
 #include <linux/poll.h>
 #include <net/net_namespace.h>
 
-typedef void (*ppp_channel_destroy_method_t)(uint16_t, uint8_t *);
+typedef void (*ppp_channel_destroy_method_t)(void *, uint16_t, uint8_t *);
 
 struct ppp_channel;
 
@@ -41,7 +41,7 @@ struct ppp_channel_ops {
 	/* Return the remote MAC address of the connection which is created on the channel. */
 	unsigned char* (*get_remote_mac)(struct ppp_channel *);
 	/* Register destroy function into PPP channels */
-	void (*reg_destroy_method)(struct ppp_channel *, ppp_channel_destroy_method_t method);
+	bool (*reg_destroy_method)(struct ppp_channel *, ppp_channel_destroy_method_t method, void *);
 	/* Unregister destroy function from PPP channels */
 	void (*unreg_destroy_method)(struct ppp_channel *);
 };
@@ -78,10 +78,10 @@ extern struct net_device *ppp_get_ppp_netdev(struct net_device *);
 extern struct net_device *ppp_session_to_netdev(uint16_t session_id, uint8_t *remote_mac);
 
 /* Register destroy function into PPP channels */
-extern struct net_device *ppp_register_destroy_method(ppp_channel_destroy_method_t method);
+extern bool ppp_register_destroy_method(struct net_device *dev, ppp_channel_destroy_method_t method, void *arg);
 
 /* Unregister destroy function from PPP channels */
-extern struct net_device *ppp_unregister_destroy_method(void);
+extern bool ppp_unregister_destroy_method(struct net_device *dev);
 
 /* Update statistics of the PPP net_device by incrementing related
    statistics field value with corresponding parameter */
