@@ -29,6 +29,7 @@
 #include <linux/msm_ssbi.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
+#include <linux/mtd/mtd.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_data/qcom_crypto_device.h>
 #include <linux/msm_ion.h>
@@ -2116,6 +2117,51 @@ static void nss_gmac_init(void)
 	platform_device_register(&nss_gmac_3);
 }
 
+#define IPQ_MAC_ADDR_PARTITION	"ART"
+
+inline void ipq_nss_get_mac_addr(struct mtd_info *mtd, int id,
+				struct msm_nss_gmac_platform_data *pdata)
+{
+	int ret, len;
+	loff_t off = id * sizeof(pdata->mac_addr);
+	uint8_t *mac = pdata->mac_addr;
+
+	if ((ret = mtd_read(mtd, off, sizeof(pdata->mac_addr), &len,
+		pdata->mac_addr)) || (len != sizeof(pdata->mac_addr))) {
+		printk("%s: Couldn't get MAC address for %d (%d)\n",
+				__func__, id, ret);
+		return;
+	}
+
+	printk("%s: MAC[%d]: %02x:%02x:%02x:%02x:%02x:%02x\n", __func__, id,
+			mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+}
+
+static void nss_fixup_platform_data(void)
+{
+	struct mtd_info *mtd;
+	struct msm_nss_gmac_platform_data *pdata;
+
+	mtd = get_mtd_device_nm(IPQ_MAC_ADDR_PARTITION);
+	if (IS_ERR_OR_NULL(mtd)) {
+		printk("%s: " IPQ_MAC_ADDR_PARTITION " not found\n", __func__);
+		return;
+	}
+
+	pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_0.dev.platform_data;
+	ipq_nss_get_mac_addr(mtd, 0, pdata);
+
+	pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_1.dev.platform_data;
+	ipq_nss_get_mac_addr(mtd, 1, pdata);
+
+	pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_2.dev.platform_data;
+	ipq_nss_get_mac_addr(mtd, 2, pdata);
+
+	pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_3.dev.platform_data;
+	ipq_nss_get_mac_addr(mtd, 3, pdata);
+}
+
+late_initcall(nss_fixup_platform_data);
 
 int32_t nss_gmac_get_phy_profile(void)
 {
