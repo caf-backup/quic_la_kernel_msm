@@ -17,10 +17,10 @@
 
 enum ipq_stream_channels {
 	IPQ_CHANNEL_MONO = 1,
-	IPQ_CHANNELS_STEREO,
-	IPQ_CHANNELS_4,
-	IPQ_CHANNELS_6,
-	IPQ_CHANNELS_8,
+	IPQ_CHANNELS_STEREO = 2,
+	IPQ_CHANNELS_4 = 4,
+	IPQ_CHANNELS_6 = 6,
+	IPQ_CHANNELS_8 = 8,
 };
 
 struct ipq_pcm_stream_t {

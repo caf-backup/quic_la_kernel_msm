@@ -381,9 +381,9 @@ EXPORT_SYMBOL_GPL(ipq_lpaif_dai_set_params);
 
 int ipq_lpaif_dai_stop(uint32_t dma_ch)
 {
-	writel(~0x0, dai_info.base + LPAIF_IRQ_CLEAR(0));
-	writel(0x0, dai_info.base + LPAIF_IRQ_EN(0));
 	writel(0x0, dai_info.base + LPAIF_MI2S_CTL_OFFSET(LPA_IF_MI2S));
+	writel(0x0, dai_info.base + LPAIF_IRQ_EN(0));
+	writel(~0x0, dai_info.base + LPAIF_IRQ_CLEAR(0));
 	writel(0x0, dai_info.base + LPAIF_DMA_CTL(dma_ch));
 	return 0;
 }
