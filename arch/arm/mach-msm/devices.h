@@ -503,6 +503,7 @@ extern struct platform_device ipq806x_device_ebi1_ch0_erp;
 extern struct platform_device ipq806x_cache_dump_device;
 extern struct platform_device ipq806x_msm_mpd_device;
 extern struct platform_device ipq806x_device_uart_gsbi2;
+extern struct platform_device ipq806x_device_uart_gsbi4;
 extern struct platform_device ipq806x_device_uart_gsbi7;
 extern struct platform_device msm_device_sps_ipq806x;
 extern struct platform_device ipq806x_pc_cntr;

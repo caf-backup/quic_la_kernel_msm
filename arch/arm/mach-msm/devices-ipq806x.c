@@ -424,6 +424,33 @@ struct platform_device ipq806x_device_ebi1_ch0_erp = {
 	.resource	= msm_ebi1_ch0_erp_resources,
 };
 
+static struct resource resources_uart_gsbi4[] = {
+	{
+		.start	= IPQ806X_GSBI4_UARTDM_IRQ,
+		.end	= IPQ806X_GSBI4_UARTDM_IRQ,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= MSM_UART4DM_PHYS,
+		.end	= MSM_UART4DM_PHYS + PAGE_SIZE - 1,
+		.name	= "uartdm_resource",
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= MSM_GSBI4_PHYS,
+		.end	= MSM_GSBI4_PHYS + PAGE_SIZE - 1,
+		.name	= "gsbi_resource",
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device ipq806x_device_uart_gsbi4 = {
+	.name	= "msm_serial_hsl",
+	.id	= 1,
+	.num_resources	= ARRAY_SIZE(resources_uart_gsbi4),
+	.resource	= resources_uart_gsbi4,
+};
+
 static struct resource resources_uart_gsbi2[] = {
 	{
 		.start	= IPQ806X_GSBI2_UARTDM_IRQ,

@@ -1160,21 +1160,28 @@ void __init ipq806x_init_gpiomux(void)
 	}
 
 	if (machine_is_ipq806x_db149() ||
-		machine_is_ipq806x_db147()) {
-		msm_gpiomux_install(ipq806x_gsbi2_i2c_configs,
-				ARRAY_SIZE(ipq806x_gsbi2_i2c_configs));
+		machine_is_ipq806x_db147() ||
+		machine_is_ipq806x_ap148()) {
+		if (!machine_is_ipq806x_ap148()) {
+			msm_gpiomux_install(ipq806x_gsbi2_i2c_configs,
+					ARRAY_SIZE(ipq806x_gsbi2_i2c_configs));
+		}
 		msm_gpiomux_install(ipq806x_gsbi4_i2c_configs,
 				ARRAY_SIZE(ipq806x_gsbi4_i2c_configs));
 #ifdef CONFIG_MSM_VCAP
 		msm_gpiomux_install(vcap_configs,
 				ARRAY_SIZE(vcap_configs));
 #endif
-		msm_gpiomux_install(ipq806x_mi2s_configs,
-			ARRAY_SIZE(ipq806x_mi2s_configs));
+		if (!machine_is_ipq806x_ap148()) {
+			msm_gpiomux_install(ipq806x_mi2s_configs,
+					ARRAY_SIZE(ipq806x_mi2s_configs));
+		}
 		msm_gpiomux_install(ipq806x_pcm_configs,
 			ARRAY_SIZE(ipq806x_pcm_configs));
-		msm_gpiomux_install(ipq806x_spdif_configs,
-			ARRAY_SIZE(ipq806x_spdif_configs));
+		if (!machine_is_ipq806x_ap148()) {
+			msm_gpiomux_install(ipq806x_spdif_configs,
+					ARRAY_SIZE(ipq806x_spdif_configs));
+		}
 	}
 
 #ifdef CONFIG_SPI_QUP
@@ -1196,14 +1203,14 @@ void __init ipq806x_init_gpiomux(void)
 	if (machine_is_ipq806x_db149()) {
 		msm_gpiomux_install(ipq806x_pcie_configs,
 				ARRAY_SIZE(ipq806x_pcie_configs));
-	} else if (machine_is_ipq806x_db147()) {
+	} else if (machine_is_ipq806x_db147() || machine_is_ipq806x_ap148()) {
 		msm_gpiomux_install(ipq806x_pcie_configs_db147,
 				ARRAY_SIZE(ipq806x_pcie_configs_db147));
 	}
 #endif
 	msm_gpiomux_install(ipq806x_nss_spi_configs,
 		ARRAY_SIZE(ipq806x_nss_spi_configs));
-	if (machine_is_ipq806x_db147()) {
+	if (machine_is_ipq806x_db147() || machine_is_ipq806x_ap148()) {
 		msm_gpiomux_install(nss_gmac1_rgmii_configs,
 			ARRAY_SIZE(nss_gmac1_rgmii_configs));
 	}
@@ -1215,7 +1222,7 @@ void __init ipq806x_init_gpiomux(void)
 				ARRAY_SIZE(ipq806x_usb30_configs));
 	}
 
-	if (machine_is_ipq806x_db147()) {
+	if (machine_is_ipq806x_db147() || machine_is_ipq806x_ap148()) {
 		msm_gpiomux_install(ipq806x_usb30_configs_db147,
 				ARRAY_SIZE(ipq806x_usb30_configs_db147));
 	}

@@ -1765,6 +1765,12 @@ static struct platform_device *cdp_devices[] __initdata = {
 	&ipq806x_pc_cntr,
 };
 
+static struct platform_device *cdp_devices_ap148[] __initdata = {
+	&ipq806x_device_uart_gsbi4,
+	&msm_device_sps_ipq806x,
+	&ipq806x_pc_cntr,
+};
+
 #ifndef CONFIG_SERIAL_MSM_HS
 static struct msm_serial_hs_platform_data msm_uart_dm9_pdata;
 #endif
@@ -1937,7 +1943,9 @@ static void __init register_i2c_devices(void)
 	int i;
 
 	/* Build the matching 'supported_machs' bitmask */
-	if (machine_is_ipq806x_db149() || machine_is_ipq806x_db147())
+	if (machine_is_ipq806x_db149() ||
+		machine_is_ipq806x_db147() ||
+		machine_is_ipq806x_ap148())
 		mach_mask = I2C_IPQ806X_CDP;
 	else
 		pr_err("unmatched machine ID in register_i2c_devices\n");
@@ -1982,7 +1990,7 @@ static void __init ipq806x_common_init(void)
 		regulator_suppress_info_printing();
 		msm_clock_init(&ipq806x_dummy_clock_init_data);
 	} else if (machine_is_ipq806x_tb726() || machine_is_ipq806x_db149()
-					||  machine_is_ipq806x_db147()) {
+			  || machine_is_ipq806x_db147() || machine_is_ipq806x_ap148()) {
 		BUG_ON(msm_rpm_init(&ipq806x_rpm_data));
 		BUG_ON(msm_rpmrs_levels_init(&msm_rpmrs_data));
 		regulator_suppress_info_printing();
@@ -1997,7 +2005,8 @@ static void __init ipq806x_common_init(void)
 	if (machine_is_ipq806x_rumi3() ||
 			machine_is_ipq806x_tb726() ||
 			machine_is_ipq806x_db149() ||
-			machine_is_ipq806x_db147()) {
+			machine_is_ipq806x_db147() ||
+			machine_is_ipq806x_ap148()) {
 		fixup_ipq806x_smb_power_grid();
 		platform_device_register(&ipq806x_smb_device_rpm_regulator);
 	}
@@ -2050,7 +2059,7 @@ static void __init ipq806x_common_init(void)
 
 	}
 
-	if (!machine_is_ipq806x_db147())
+	if (!machine_is_ipq806x_db147() && !machine_is_ipq806x_ap148())
 		ipq806x_init_mmc();
 
 
@@ -2181,10 +2190,15 @@ static void __init ipq806x_init(void)
 #ifdef CONFIG_MSM_ROTATOR
 	msm_rotator_set_split_iommu_domain();
 #endif
+	if (machine_is_ipq806x_ap148()) {
+		platform_add_devices(cdp_devices_ap148, ARRAY_SIZE(cdp_devices_ap148));
+	} else {
+		platform_add_devices(cdp_devices, ARRAY_SIZE(cdp_devices));
+	}
 
-	platform_add_devices(cdp_devices, ARRAY_SIZE(cdp_devices));
-
-	if (machine_is_ipq806x_db149() || machine_is_ipq806x_db147())
+	if (machine_is_ipq806x_db149() ||
+		machine_is_ipq806x_db147() ||
+		machine_is_ipq806x_ap148())
 		platform_device_register(&cdp_kp_pdev);
 
 }

@@ -758,7 +758,7 @@ static void * __init setup_dummy_socinfo(void)
 		dummy_socinfo.id = 127;
 	} else if (machine_is_ipq806x_db149() || machine_is_ipq806x_rumi3() ||
 		   machine_is_ipq806x_tb726() || machine_is_ipq806x_ap144() ||
-						machine_is_ipq806x_db147()) {
+		   machine_is_ipq806x_db147() || machine_is_ipq806x_ap148()) {
 		dummy_socinfo.id = 202;
 	}
 	strlcat(dummy_socinfo.build_id, "Dummy socinfo",
