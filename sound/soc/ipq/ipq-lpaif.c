@@ -442,11 +442,11 @@ static irqreturn_t dai_irq_handler(int irq, void *data)
 	while (intrsrc) {
 		dma_ch = dai_find_dma_channel(intrsrc);
 
-		if (!dai[dma_ch]->callback && !dai[dma_ch]->private_data)
-			continue;
+		if (dai[dma_ch]->callback && dai[dma_ch]->private_data) {
 
-		ret = dai[dma_ch]->callback(intrsrc,
+			ret = dai[dma_ch]->callback(intrsrc,
 				dai[dma_ch]->private_data);
+		}
 		intrsrc &= ~(0x1 << (dma_ch * 3));
 	}
 	spin_unlock_irqrestore(&dai_lock, flag);
