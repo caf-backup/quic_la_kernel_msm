@@ -35,6 +35,7 @@ struct nss_platform_data {
 	enum nss_feature_enabled ipsec_enabled;	/* Does this core handle IPsec? */
 	enum nss_feature_enabled wlan_enabled;	/* Does this core handle WLAN 11ac? */
 	enum nss_feature_enabled tun6rd_enabled;	/* Does this core handle 6rd Tunnel ? */
+	enum nss_feature_enabled tunipip6_enabled;	/* Does this core handle ipip6 Tunnel ? */
 	enum nss_feature_enabled gmac_enabled[4];	/* Does this core handle GMACs? */
 };
 
