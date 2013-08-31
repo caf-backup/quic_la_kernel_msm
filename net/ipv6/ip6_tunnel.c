@@ -767,6 +767,11 @@ static int ip6_tnl_rcv(struct sk_buff *skb, __u16 protocol,
 
 		dscp_ecn_decapsulate(t, ipv6h, skb);
 
+		/**
+		 * Reset the skb_iif to Tunnels interface index
+		 * for Conntrack Module to trace tunnel connection
+		 */
+		skb->skb_iif = t->dev->ifindex;
 		netif_rx(skb);
 
 		rcu_read_unlock();
@@ -983,6 +988,12 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 	ipv6h->daddr = fl6->daddr;
 	nf_reset(skb);
 	pkt_len = skb->len;
+
+	/**
+	 * Reset the skb_iif to Tunnels interface index
+	 * for Conntrack Module to trace tunnel connection
+	 */
+	skb->skb_iif = dev->ifindex;
 	err = ip6_local_out(skb);
 
 	if (net_xmit_eval(err) == 0) {
