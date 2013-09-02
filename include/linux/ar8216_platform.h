@@ -45,6 +45,7 @@ enum ar8327_sgmii_clk_phase_sel {
 
 struct ar8327_pad_cfg {
 	enum ar8327_pad_mode mode;
+	bool rgmii_1_8v;
 	bool rxclk_sel;
 	bool txclk_sel;
 	bool pipe_rxclk_sel;

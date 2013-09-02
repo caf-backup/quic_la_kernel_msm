@@ -1001,6 +1001,39 @@ ar8327_get_pad_cfg(struct ar8327_pad_cfg *cfg)
 	return t;
 }
 
+static u32
+ar8327_get_mac_pwr_sel(struct ar8216_priv *priv, struct ar8327_platform_data *pdata)
+{
+	struct ar8327_pad_cfg *pad_cfg = NULL;
+	u32 t;
+
+	if (!pdata) {
+		return 0;
+	}
+
+	t = priv->read(priv, AR8327_REG_MAC_PWR_SEL);
+
+	pad_cfg = pdata->pad0_cfg;
+	if (pad_cfg && pad_cfg->mode == AR8327_PAD_MAC_RGMII
+		&& pad_cfg->rgmii_1_8v) {
+		t |= AR8327_MAC_PWR_RGMII0_1_8V;
+	}
+
+	pad_cfg = pdata->pad5_cfg;
+	if (pad_cfg && pad_cfg->mode == AR8327_PAD_MAC_RGMII
+		&& pad_cfg->rgmii_1_8v) {
+		t |= AR8327_MAC_PWR_RGMII1_1_8V;
+	}
+
+	pad_cfg = pdata->pad6_cfg;
+	if (pad_cfg && pad_cfg->mode == AR8327_PAD_MAC_RGMII
+		&& pad_cfg->rgmii_1_8v) {
+		t |= AR8327_MAC_PWR_RGMII1_1_8V;
+	}
+
+	return t;
+}
+
 static void
 ar8327_phy_fixup(struct ar8216_priv *priv, int phy)
 {
@@ -1047,6 +1080,9 @@ ar8327_hw_init(struct ar8216_priv *priv)
 	priv->write(priv, AR8327_REG_PAD5_MODE, t);
 	t = ar8327_get_pad_cfg(pdata->pad6_cfg);
 	priv->write(priv, AR8327_REG_PAD6_MODE, t);
+
+	t = ar8327_get_mac_pwr_sel(priv, pdata);
+	priv->write(priv, AR8327_REG_MAC_PWR_SEL, t);
 
 	pos = priv->read(priv, AR8327_REG_POWER_ON_STRIP);
 	new_pos = pos;

@@ -1127,28 +1127,49 @@ struct platform_device ip806x_mdio_device = {
 	},
 };
 
-static struct ar8327_pad_cfg ipq806x_ar8337_pad0_cfg = {
+static struct ar8327_pad_cfg ipq806x_db149_ar8337_pad0_cfg = {
 	.mode = AR8327_PAD_MAC_RGMII,
 	.txclk_delay_en = true,
 	.rxclk_delay_en = true,
 	.txclk_delay_sel = AR8327_CLK_DELAY_SEL1,
 	.rxclk_delay_sel = AR8327_CLK_DELAY_SEL2,
+	.rgmii_1_8v = false,
 };
 
-static struct ar8327_sgmii_cfg ipq806x_ar8337_sgmii_cfg = {
+static struct ar8327_pad_cfg ipq806x_db147_ar8337_pad0_cfg = {
+	.mode = AR8327_PAD_MAC_RGMII,
+	.txclk_delay_en = true,
+	.rxclk_delay_en = true,
+	.txclk_delay_sel = AR8327_CLK_DELAY_SEL1,
+	.rxclk_delay_sel = AR8327_CLK_DELAY_SEL2,
+	.rgmii_1_8v = true,
+};
+
+static struct ar8327_sgmii_cfg ipq806x_db147_ar8337_sgmii_cfg = {
 	.sgmii_mode = AR8327_SGMII_PHY,
 	.serdes_aen = false,
 };
 
-static struct ar8327_pad_cfg ipq806x_ar8337_pad6_cfg = {
+static struct ar8327_sgmii_cfg ipq806x_db149_ar8337_sgmii_cfg = {
+	.sgmii_mode = AR8327_SGMII_PHY,
+	.serdes_aen = false,
+};
+
+static struct ar8327_pad_cfg ipq806x_db149_ar8337_pad6_cfg = {
 	.mode = AR8327_PAD_MAC_SGMII,
 	.sgmii_txclk_phase_sel = AR8327_SGMII_CLK_PHASE_RISE,
 	.sgmii_rxclk_phase_sel = AR8327_SGMII_CLK_PHASE_FALL,
 };
 
-static struct ar8327_platform_data ipq806x_ar8337_data = {
-	.pad0_cfg = &ipq806x_ar8337_pad0_cfg,
-	.pad6_cfg = &ipq806x_ar8337_pad6_cfg,
+static struct ar8327_pad_cfg ipq806x_db147_ar8337_pad6_cfg = {
+	.mode = AR8327_PAD_MAC_SGMII,
+	.sgmii_txclk_phase_sel = AR8327_SGMII_CLK_PHASE_RISE,
+	.sgmii_rxclk_phase_sel = AR8327_SGMII_CLK_PHASE_FALL,
+};
+
+static struct ar8327_platform_data ipq806x_db149_ar8337_data = {
+	.pad0_cfg = &ipq806x_db149_ar8337_pad0_cfg,
+	.pad6_cfg = &ipq806x_db149_ar8337_pad6_cfg,
 	.cpuport_cfg = {
 		.force_link = 1,
 		.speed = AR8327_PORT_SPEED_1000,
@@ -1163,14 +1184,42 @@ static struct ar8327_platform_data ipq806x_ar8337_data = {
 		.txpause = 0,
 		.rxpause = 0,
 	},
-	.sgmii_cfg = &ipq806x_ar8337_sgmii_cfg
+	.sgmii_cfg = &ipq806x_db149_ar8337_sgmii_cfg
 };
 
-struct mdio_board_info ipq806x_mdio_info[IPQ806X_MDIO_BUS_MAX] = {
+static struct ar8327_platform_data ipq806x_db147_ar8337_data = {
+	.pad0_cfg = &ipq806x_db147_ar8337_pad0_cfg,
+	.pad6_cfg = &ipq806x_db147_ar8337_pad6_cfg,
+	.cpuport_cfg = {
+		.force_link = 1,
+		.speed = AR8327_PORT_SPEED_1000,
+		.duplex = 1,
+		.txpause = 0,
+		.rxpause = 0,
+	},
+	.port6_cfg = {
+		.force_link = 1,
+		.speed = AR8327_PORT_SPEED_1000,
+		.duplex = 1,
+		.txpause = 0,
+		.rxpause = 0,
+	},
+	.sgmii_cfg = &ipq806x_db147_ar8337_sgmii_cfg
+};
+
+struct mdio_board_info ipq806x_db149_mdio_info[IPQ806X_MDIO_BUS_MAX] = {
 	{
 		.bus_id = "gpio-0",
 		.phy_addr = 0,
-		.platform_data = &ipq806x_ar8337_data,
+		.platform_data = &ipq806x_db149_ar8337_data,
+	}
+};
+
+struct mdio_board_info ipq806x_db147_mdio_info[IPQ806X_MDIO_BUS_MAX] = {
+	{
+		.bus_id = "gpio-0",
+		.phy_addr = 0,
+		.platform_data = &ipq806x_db147_ar8337_data,
 	}
 };
 

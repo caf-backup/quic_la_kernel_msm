@@ -96,6 +96,7 @@
 #include "smd_private.h"
 #include <linux/regulator/fixed.h>
 #include <linux/gpio.h>
+#include <linux/ar8216_platform.h>
 
 #define MHL_GPIO_INT           30
 #define MHL_GPIO_RESET         35
@@ -2083,47 +2084,71 @@ static void nss_gmac_init(void)
 	struct msm_nss_gmac_platform_data *pdata;
 	struct mdio_gpio_platform_data *mdata;
 
-	mdiobus_register_board_info(ipq806x_mdio_info, IPQ806X_MDIO_BUS_MAX);
-
 	mdata = (struct mdio_gpio_platform_data *)ip806x_mdio_device.dev.platform_data;
 	mdata->mdc = 1;
 	mdata->mdio = 0;
 	mdata->phy_mask = 0;
 	platform_device_register(&ip806x_mdio_device);
 
-	/* GMAC0, GMAC1 connected to switch. Attach to PHY 0 to configure switch. */
-	pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_0.dev.platform_data;
-	pdata->phy_mdio_addr = 4;
-	pdata->poll_required = 1;
-	pdata->rgmii_delay = 0;
-	pdata->phy_mii_type = GMAC_INTF_RGMII;
-	pdata->emulation = 0;
+	if (machine_is_ipq806x_db149()) {
+		mdiobus_register_board_info(ipq806x_db149_mdio_info, IPQ806X_MDIO_BUS_MAX);
 
-	pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_1.dev.platform_data;
-	pdata->phy_mdio_addr = 0;
-	pdata->poll_required = 0;
-	pdata->rgmii_delay = 0;
-	pdata->phy_mii_type = GMAC_INTF_SGMII;
-	pdata->emulation = 0;
+		/* GMAC0, GMAC1 connected to switch. Attach to PHY 0 to configure switch. */
+		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_0.dev.platform_data;
+		pdata->phy_mdio_addr = 4;
+		pdata->poll_required = 1;
+		pdata->rgmii_delay = 0;
+		pdata->phy_mii_type = GMAC_INTF_RGMII;
+		pdata->emulation = 0;
 
-	pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_2.dev.platform_data;
-	pdata->phy_mdio_addr = 6;
-	pdata->poll_required = 1;
-	pdata->rgmii_delay = 0;
-	pdata->phy_mii_type = GMAC_INTF_SGMII;
-	pdata->emulation = 0;
+		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_1.dev.platform_data;
+		pdata->phy_mdio_addr = 0;
+		pdata->poll_required = 0;
+		pdata->rgmii_delay = 0;
+		pdata->phy_mii_type = GMAC_INTF_SGMII;
+		pdata->emulation = 0;
 
-	pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_3.dev.platform_data;
-	pdata->phy_mdio_addr = 7;
-	pdata->poll_required = 1;
-	pdata->rgmii_delay = 0;
-	pdata->phy_mii_type = GMAC_INTF_SGMII;
-	pdata->emulation = 0;
+		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_2.dev.platform_data;
+		pdata->phy_mdio_addr = 6;
+		pdata->poll_required = 1;
+		pdata->rgmii_delay = 0;
+		pdata->phy_mii_type = GMAC_INTF_SGMII;
+		pdata->emulation = 0;
 
-	platform_device_register(&nss_gmac_0);
-	platform_device_register(&nss_gmac_1);
-	platform_device_register(&nss_gmac_2);
-	platform_device_register(&nss_gmac_3);
+		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_3.dev.platform_data;
+		pdata->phy_mdio_addr = 7;
+		pdata->poll_required = 1;
+		pdata->rgmii_delay = 0;
+		pdata->phy_mii_type = GMAC_INTF_SGMII;
+		pdata->emulation = 0;
+
+		platform_device_register(&nss_gmac_0);
+		platform_device_register(&nss_gmac_1);
+		platform_device_register(&nss_gmac_2);
+		platform_device_register(&nss_gmac_3);
+	}
+
+       if (machine_is_ipq806x_db147()) {
+		mdiobus_register_board_info(ipq806x_db147_mdio_info, IPQ806X_MDIO_BUS_MAX);
+
+		/* GMAC1, GMAC2 connected to switch. Attach to PHY 0 to configure switch. */
+		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_1.dev.platform_data;
+		pdata->phy_mdio_addr = 4;
+		pdata->poll_required = 1;
+		pdata->rgmii_delay = 0;
+		pdata->phy_mii_type = GMAC_INTF_RGMII;
+		pdata->emulation = 0;
+
+		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_2.dev.platform_data;
+		pdata->phy_mdio_addr = 0;
+		pdata->poll_required = 0;
+		pdata->rgmii_delay = 0;
+		pdata->phy_mii_type = GMAC_INTF_SGMII;
+		pdata->emulation = 0;
+
+		platform_device_register(&nss_gmac_1);
+		platform_device_register(&nss_gmac_2);
+	}
 }
 
 #define IPQ_MAC_ADDR_PARTITION	"ART"
@@ -2174,6 +2199,10 @@ late_initcall(nss_fixup_platform_data);
 
 int32_t nss_gmac_get_phy_profile(void)
 {
+	if (machine_is_ipq806x_db147()) {
+		return NSS_GMAC_PHY_PROFILE_2R_2S;
+	}
+
 	return NSS_GMAC_PHY_PROFILE_1R_3S;
 }
 EXPORT_SYMBOL(nss_gmac_get_phy_profile);

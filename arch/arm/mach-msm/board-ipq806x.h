@@ -22,6 +22,7 @@
 #include <linux/regulator/fixed.h>
 #include <mach/msm_rtb.h>
 #include <mach/msm_cache_dump.h>
+#include <mach/msm_nss_gmac.h>
 #include <linux/regulator/fixed.h>
 
 #include "pcie.h"
@@ -85,6 +86,8 @@ extern struct fixed_voltage_config ipq806x_fixed_regul_HSUSB_1p82;
 extern struct fixed_voltage_config ipq806x_fixed_regul_hsic_vdd_dig1;
 void __init fixup_ipq806x_smb_power_grid(void);
 
+extern struct mdio_board_info ipq806x_db149_mdio_info[IPQ806X_MDIO_BUS_MAX];
+extern struct mdio_board_info ipq806x_db147_mdio_info[IPQ806X_MDIO_BUS_MAX];
 
 struct mmc_platform_data;
 int __init ipq806x_add_sdcc(unsigned int controller,

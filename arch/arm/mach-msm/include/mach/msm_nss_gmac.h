@@ -304,8 +304,6 @@ struct msm_nss_gmac_platform_data {
 #define IPQ806X_MDIO_BUS_NUM			0
 #define IPQ806X_MDIO_BUS_MAX			1
 
-extern struct mdio_board_info ipq806x_mdio_info[IPQ806X_MDIO_BUS_MAX];
-
 #endif /*__ASM_ARCH_MSM_NSS_GMAC_H */
 
 
