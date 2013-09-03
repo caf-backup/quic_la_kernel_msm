@@ -214,6 +214,9 @@ static int ipq_pcm_mi2s_close(struct snd_pcm_substream *substream)
 	struct ipq_lpass_runtime_data_t *prtd =
 		(struct ipq_lpass_runtime_data_t *)runtime->private_data;
 
+	ipq_lpaif_dai_stop(prtd->lpaif_info.dma_ch);
+	prtd->pcm_stream_info.pcm_fwd_flag = 0;
+
 	if (prtd) {
 		ipq_lpaif_unregister_dma_irq_handler(prtd->lpaif_info.dma_ch);
 		kfree(prtd);
@@ -232,7 +235,12 @@ static int ipq_pcm_mi2s_trigger(struct snd_pcm_substream *substream, int cmd)
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
-		ipq_dml_trigger((unsigned long)substream);
+		if (prtd->pcm_stream_info.pcm_fwd_flag == 0) {
+			ipq_dml_trigger((unsigned long)substream);
+			prtd->pcm_stream_info.pcm_fwd_flag = 1;
+		} else {
+			ipq_cfg_i2s_spkr(1, 0, LPA_IF_MI2S);
+		}
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		ipq_cfg_i2s_spkr(1, 0, LPA_IF_MI2S);
@@ -242,7 +250,7 @@ static int ipq_pcm_mi2s_trigger(struct snd_pcm_substream *substream, int cmd)
 		/* Disable DML interrupts before lpaif_stop */
 		writel(0x1, dml_info.base + DML_STATUS);
 		writel(0x0, (dml_info.base + DML_CTL));
-		ipq_lpaif_dai_stop(prtd->lpaif_info.dma_ch);
+		ipq_cfg_i2s_spkr(0, 0, LPA_IF_MI2S);
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		ipq_cfg_i2s_spkr(0, 0, LPA_IF_MI2S);
@@ -291,6 +299,7 @@ static int ipq_pcm_mi2s_open(struct snd_pcm_substream *substream)
 	prtd->pcm_stream_info.pcm_prepare_start = 0;
 	prtd->lpaif_info.dma_ch = MI2S_DMA_RD_CH;
 	prtd->pcm_stream_info.substream = substream;
+	prtd->pcm_stream_info.pcm_fwd_flag = 0;
 	runtime->private_data = prtd;
 	gprtd = prtd;
 

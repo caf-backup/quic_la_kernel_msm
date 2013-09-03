@@ -27,6 +27,7 @@ struct ipq_pcm_stream_t {
 	uint8_t pcm_prepare_start;
 	uint32_t period_index;
 	struct snd_pcm_substream *substream;
+	uint8_t pcm_fwd_flag;
 };
 
 struct ipq_dml_t {
