@@ -239,6 +239,9 @@ static int ipq_pcm_mi2s_trigger(struct snd_pcm_substream *substream, int cmd)
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
+		/* Disable DML interrupts before lpaif_stop */
+		writel(0x1, dml_info.base + DML_STATUS);
+		writel(0x0, (dml_info.base + DML_CTL));
 		ipq_lpaif_dai_stop(prtd->lpaif_info.dma_ch);
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
