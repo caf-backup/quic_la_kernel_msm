@@ -97,6 +97,7 @@
 #include <linux/regulator/fixed.h>
 #include <linux/gpio.h>
 #include <linux/ar8216_platform.h>
+#include <linux/ethtool.h>
 
 #define MHL_GPIO_INT           30
 #define MHL_GPIO_RESET         35
@@ -2094,6 +2095,8 @@ static void nss_gmac_init(void)
 		pdata->rgmii_delay = 0;
 		pdata->phy_mii_type = GMAC_INTF_RGMII;
 		pdata->emulation = 0;
+		pdata->forced_speed = SPEED_1000;
+		pdata->forced_duplex = DUPLEX_FULL;
 
 		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_1.dev.platform_data;
 		pdata->phy_mdio_addr = 0;
@@ -2101,6 +2104,8 @@ static void nss_gmac_init(void)
 		pdata->rgmii_delay = 0;
 		pdata->phy_mii_type = GMAC_INTF_SGMII;
 		pdata->emulation = 0;
+		pdata->forced_speed = SPEED_1000;
+		pdata->forced_duplex = DUPLEX_FULL;
 
 		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_2.dev.platform_data;
 		pdata->phy_mdio_addr = 6;
@@ -2132,6 +2137,8 @@ static void nss_gmac_init(void)
 		pdata->rgmii_delay = 0;
 		pdata->phy_mii_type = GMAC_INTF_RGMII;
 		pdata->emulation = 0;
+		pdata->forced_speed = SPEED_1000;
+		pdata->forced_duplex = DUPLEX_FULL;
 
 		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_2.dev.platform_data;
 		pdata->phy_mdio_addr = 0;
@@ -2139,6 +2146,8 @@ static void nss_gmac_init(void)
 		pdata->rgmii_delay = 0;
 		pdata->phy_mii_type = GMAC_INTF_SGMII;
 		pdata->emulation = 0;
+		pdata->forced_speed = SPEED_1000;
+		pdata->forced_duplex = DUPLEX_FULL;
 
 		platform_device_register(&nss_gmac_1);
 		platform_device_register(&nss_gmac_2);
@@ -2154,6 +2163,8 @@ static void nss_gmac_init(void)
 		pdata->rgmii_delay = 0;
 		pdata->phy_mii_type = GMAC_INTF_RGMII;
 		pdata->emulation = 0;
+		pdata->forced_speed = SPEED_1000;
+		pdata->forced_duplex = DUPLEX_FULL;
 
 		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_2.dev.platform_data;
 		pdata->phy_mdio_addr = 0;
@@ -2161,6 +2172,8 @@ static void nss_gmac_init(void)
 		pdata->rgmii_delay = 0;
 		pdata->phy_mii_type = GMAC_INTF_SGMII;
 		pdata->emulation = 0;
+		pdata->forced_speed = SPEED_1000;
+		pdata->forced_duplex = DUPLEX_FULL;
 
 		platform_device_register(&nss_gmac_1);
 		platform_device_register(&nss_gmac_2);

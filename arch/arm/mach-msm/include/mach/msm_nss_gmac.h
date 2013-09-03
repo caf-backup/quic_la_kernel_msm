@@ -297,6 +297,10 @@ struct msm_nss_gmac_platform_data {
 	uint32_t phy_mii_type;
 	uint32_t emulation;			/* Running on emulation platform */
 	uint8_t  mac_addr[6];
+	int32_t forced_speed;			/* Forced speed. Values used from
+						   ethtool.h. 0 = Speed not forced */
+	int32_t forced_duplex;			/* Forced duplex. Values used from
+						   ethtool.h. 0 = Duplex not forced. */
 };
 
 #define NSS_MAX_GMACS				4
