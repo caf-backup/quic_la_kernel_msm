@@ -1176,7 +1176,8 @@ static void msm_spi_process_transfer(struct msm_spi *dd)
 	if (msm_spi_set_state(dd, SPI_OP_STATE_RUN))
 		goto transfer_end;
 
-	timeout = 100 * msecs_to_jiffies(
+	/* FIXME: Can be reduced once system level DDR access is corrected */
+	timeout = 1000 * msecs_to_jiffies(
 	      DIV_ROUND_UP(dd->cur_msg_len * 8,
 		 DIV_ROUND_UP(max_speed, MSEC_PER_SEC)));
 
