@@ -37,11 +37,31 @@ VREG_CONSUMERS(S1a) = {
 	REGULATOR_SUPPLY("vptx_pcie", "msm_pcie.2"),
 };
 
+VREG_CONSUMERS(S1a_ap148) = {
+	REGULATOR_SUPPLY("smb208_s1a", NULL),
+	/*
+	 * TODO Map the PCIe voltages to appropriate regulators after adding
+	 * them to regulator list
+	 */
+	REGULATOR_SUPPLY("vp_pcie", "msm_pcie.0"),
+	REGULATOR_SUPPLY("vptx_pcie", "msm_pcie.0"),
+	REGULATOR_SUPPLY("vp_pcie", "msm_pcie.1"),
+	REGULATOR_SUPPLY("vptx_pcie", "msm_pcie.1"),
+	REGULATOR_SUPPLY("vp_pcie", "msm_pcie.2"),
+	REGULATOR_SUPPLY("vptx_pcie", "msm_pcie.2"),
+	REGULATOR_SUPPLY("VDD_UBI0", "qca-nss.0"),
+	REGULATOR_SUPPLY("VDD_UBI1", "qca-nss.1"),
+};
+
 VREG_CONSUMERS(S1b) = {
 	REGULATOR_SUPPLY("smb208_s1b", NULL),
 	REGULATOR_SUPPLY("VDD_UBI0", "qca-nss.0"),
 	REGULATOR_SUPPLY("VDD_UBI1", "qca-nss.1"),
 
+};
+
+VREG_CONSUMERS(S1b_ap148) = {
+	REGULATOR_SUPPLY("smb208_s1b", NULL),
 };
 
 VREG_CONSUMERS(S2a) = {
@@ -293,6 +313,34 @@ msm_rpm_regulator_smb_db14x_consumer_mapping[] __devinitdata = {
 };
 
 static struct rpm_regulator_consumer_mapping
+msm_rpm_regulator_smb_ap148_consumer_mapping[] __devinitdata = {
+
+	/* SMB208_S1b  - HFPLLs , VDD_CX,VDD_CDC_SDCx */
+	RPM_SMB_REG_MAP(S1a,  RPM_VREG_VOTER1, "krait0_hfpll", "acpuclk-ipq806x"),
+	RPM_SMB_REG_MAP(S1a,  RPM_VREG_VOTER2, "krait1_hfpll", "acpuclk-ipq806x"),
+	RPM_SMB_REG_MAP(S1a,  RPM_VREG_VOTER4, "l2_hfpll",     "acpuclk-ipq806x"),
+	RPM_SMB_REG_MAP(S1a,  RPM_VREG_VOTER5, "krait0_mem",   "acpuclk-ipq806x"),
+	RPM_SMB_REG_MAP(S1a,  RPM_VREG_VOTER6, "krait1_mem",   "acpuclk-ipq806x"),
+	RPM_SMB_REG_MAP(S1a,  RPM_VREG_VOTER7, "krait0_dig",   "acpuclk-ipq806x"),
+	RPM_SMB_REG_MAP(S1a,  RPM_VREG_VOTER8, "krait1_dig",   "acpuclk-ipq806x"),
+
+	RPM_SMB_REG_MAP(S1a, RPM_VREG_VOTER11, "VDD_CX",        NULL),
+	RPM_SMB_REG_MAP(S1a, RPM_VREG_VOTER12, "VCC_CDC_SDCx",  NULL),
+
+	/* SMB208_S1a   - VDD_UBI */
+	RPM_SMB_REG_MAP(S1a, RPM_VREG_VOTER1, "VDD_UBI0",       "qca-nss.0"),
+	RPM_SMB_REG_MAP(S1a, RPM_VREG_VOTER2, "VDD_UBI1",       "qca-nss.1"),
+
+	/* SMB207_S3a  -  VDD12_S17, VDD12_QSGMII_PHY */
+	RPM_SMB_REG_MAP(S3a, RPM_VREG_VOTER1, "VDD_S17",  "nss_gmac"),
+	RPM_SMB_REG_MAP(S3a, RPM_VREG_VOTER2, "VDD_QGMII_PHY",  "nss_gmac"),
+
+	/* SMB207_S3b  - VDDPX_1,VDD15_DDR3 */
+	RPM_SMB_REG_MAP(S3b, RPM_VREG_VOTER1, "VDD_IO_1", NULL),
+	RPM_SMB_REG_MAP(S3b, RPM_VREG_VOTER2, "VDD_DDR",  NULL),
+};
+
+static struct rpm_regulator_consumer_mapping
 msm_rpm_regulator_smb_rumi3_consumer_mapping[] __devinitdata = {
 	/*
 	 * These will be tested using sysfs using command line interface
@@ -352,9 +400,10 @@ void __init fixup_ipq806x_smb_power_grid(void)
 {
 
 #ifdef CONFIG_MSM_SMB_FIXED_VOLTAGE
-	static struct rpm_regulator_init_data *rpm_data;
 	int i;
 #endif
+	static struct rpm_regulator_init_data *rpm_data;
+
 	/*
 	 * For RUMI, though the voltage rails are always fixed, we could test
 	 * the voltage scaling using SMB test board, and observing the voltages
@@ -365,19 +414,33 @@ void __init fixup_ipq806x_smb_power_grid(void)
 			msm_rpm_regulator_smb_rumi3_consumer_mapping;
 		ipq806x_rpm_regulator_smb_pdata.consumer_map_len =
 			ARRAY_SIZE(msm_rpm_regulator_smb_rumi3_consumer_mapping);
-	}
-	else if (machine_is_ipq806x_tb726()) {
+	} else if (machine_is_ipq806x_tb726()) {
 		ipq806x_rpm_regulator_smb_pdata.consumer_map =
 			msm_rpm_regulator_smb_tb732_consumer_mapping;
 		ipq806x_rpm_regulator_smb_pdata.consumer_map_len =
 			ARRAY_SIZE(msm_rpm_regulator_smb_tb732_consumer_mapping);
 	} else if (machine_is_ipq806x_db149() ||
-			machine_is_ipq806x_db147() ||
-			machine_is_ipq806x_ap148()) {
+			machine_is_ipq806x_db147()) {
 		ipq806x_rpm_regulator_smb_pdata.consumer_map =
 			msm_rpm_regulator_smb_db14x_consumer_mapping;
 		ipq806x_rpm_regulator_smb_pdata.consumer_map_len =
 			ARRAY_SIZE(msm_rpm_regulator_smb_db14x_consumer_mapping);
+	} else if (machine_is_ipq806x_ap148()) {
+		ipq806x_rpm_regulator_smb_pdata.consumer_map =
+			msm_rpm_regulator_smb_ap148_consumer_mapping;
+		ipq806x_rpm_regulator_smb_pdata.consumer_map_len =
+			ARRAY_SIZE(msm_rpm_regulator_smb_ap148_consumer_mapping);
+
+		/* In AP148, VDD_UBI also maps to S1a regulator */
+
+		rpm_data = &ipq806x_rpm_regulator_smb_init_data[0];
+		rpm_data->init_data.num_consumer_supplies = ARRAY_SIZE(vreg_consumers_S1a_ap148);
+		rpm_data->init_data.consumer_supplies = vreg_consumers_S1a_ap148;
+
+		rpm_data = &ipq806x_rpm_regulator_smb_init_data[1];
+		rpm_data->init_data.num_consumer_supplies = ARRAY_SIZE(vreg_consumers_S1b_ap148);
+		rpm_data->init_data.consumer_supplies = vreg_consumers_S1b_ap148;
+
 	}
 
 #ifdef CONFIG_MSM_SMB_FIXED_VOLTAGE
