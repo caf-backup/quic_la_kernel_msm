@@ -2149,6 +2149,29 @@ static void nss_gmac_init(void)
 		platform_device_register(&nss_gmac_1);
 		platform_device_register(&nss_gmac_2);
 	}
+
+	if (machine_is_ipq806x_ap148()) {
+		mdiobus_register_board_info(ipq806x_ap148_mdio_info, IPQ806X_MDIO_BUS_MAX);
+
+		/* GMAC1, GMAC2 connected to switch. Attach to PHY 0 to configure switch. */
+		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_1.dev.platform_data;
+		pdata->phy_mdio_addr = 4;
+		pdata->poll_required = 1;
+		pdata->rgmii_delay = 0;
+		pdata->phy_mii_type = GMAC_INTF_RGMII;
+		pdata->emulation = 0;
+
+		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_2.dev.platform_data;
+		pdata->phy_mdio_addr = 0;
+		pdata->poll_required = 0;
+		pdata->rgmii_delay = 0;
+		pdata->phy_mii_type = GMAC_INTF_SGMII;
+		pdata->emulation = 0;
+
+		platform_device_register(&nss_gmac_1);
+		platform_device_register(&nss_gmac_2);
+	}
+
 }
 
 #define IPQ_MAC_ADDR_PARTITION	"ART"

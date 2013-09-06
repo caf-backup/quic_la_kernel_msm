@@ -88,6 +88,7 @@ void __init fixup_ipq806x_smb_power_grid(void);
 
 extern struct mdio_board_info ipq806x_db149_mdio_info[IPQ806X_MDIO_BUS_MAX];
 extern struct mdio_board_info ipq806x_db147_mdio_info[IPQ806X_MDIO_BUS_MAX];
+extern struct mdio_board_info ipq806x_ap148_mdio_info[IPQ806X_MDIO_BUS_MAX];
 
 struct mmc_platform_data;
 int __init ipq806x_add_sdcc(unsigned int controller,
