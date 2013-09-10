@@ -355,11 +355,12 @@ msm_nand_dma_map(struct device *dev, void *addr, size_t size,
 uint32_t flash_read_id(struct msm_nand_chip *chip)
 {
 	struct {
-		dmov_s cmd[7];
+		dmov_s cmd[9];
 		unsigned cmdptr;
 		unsigned data[7];
 	} *dma_buffer;
 	uint32_t rv;
+	dmov_s *cmd;
 
 	wait_event(chip->wait_queue, (dma_buffer = msm_nand_get_dma_buffer
 				(chip, sizeof(*dma_buffer))));
@@ -373,42 +374,63 @@ uint32_t flash_read_id(struct msm_nand_chip *chip)
 	dma_buffer->data[6] = 0x00000000;
 	BUILD_BUG_ON(6 != ARRAY_SIZE(dma_buffer->data) - 1);
 
-	dma_buffer->cmd[0].cmd = 0 | CMD_OCB;
-	dma_buffer->cmd[0].src = msm_virt_to_dma(chip, &dma_buffer->data[6]);
-	dma_buffer->cmd[0].dst = MSM_NAND_SFLASHC_BURST_CFG;
-	dma_buffer->cmd[0].len = 4;
+	cmd = dma_buffer->cmd;
 
-	dma_buffer->cmd[1].cmd = 0;
-	dma_buffer->cmd[1].src = msm_virt_to_dma(chip, &dma_buffer->data[0]);
-	dma_buffer->cmd[1].dst = MSM_NAND_FLASH_CHIP_SELECT;
-	dma_buffer->cmd[1].len = 4;
+	cmd->cmd = 0 | CMD_OCB;
+	cmd->src = msm_virt_to_dma(chip, &dma_buffer->data[6]);
+	cmd->dst = MSM_NAND_SFLASHC_BURST_CFG;
+	cmd->len = 4;
+	cmd++;
 
-	dma_buffer->cmd[2].cmd = DST_CRCI_NAND_CMD;
-	dma_buffer->cmd[2].src = msm_virt_to_dma(chip, &dma_buffer->data[1]);
-	dma_buffer->cmd[2].dst = MSM_NAND_FLASH_CMD;
-	dma_buffer->cmd[2].len = 4;
+	cmd->cmd = 0;
+	cmd->src = msm_virt_to_dma(chip, &dma_buffer->data[6]);
+	cmd->dst = MSM_NAND_ADDR0;
+	cmd->len = 4;
+	cmd++;
 
-	dma_buffer->cmd[3].cmd = 0;
-	dma_buffer->cmd[3].src = msm_virt_to_dma(chip, &dma_buffer->data[2]);
-	dma_buffer->cmd[3].dst = MSM_NAND_EXEC_CMD;
-	dma_buffer->cmd[3].len = 4;
+	cmd->cmd = 0;
+	cmd->src = msm_virt_to_dma(chip, &dma_buffer->data[6]);
+	cmd->dst = MSM_NAND_ADDR1;
+	cmd->len = 4;
+	cmd++;
 
-	dma_buffer->cmd[4].cmd = SRC_CRCI_NAND_DATA;
-	dma_buffer->cmd[4].src = MSM_NAND_FLASH_STATUS;
-	dma_buffer->cmd[4].dst = msm_virt_to_dma(chip, &dma_buffer->data[3]);
-	dma_buffer->cmd[4].len = 4;
+	cmd->cmd = 0;
+	cmd->src = msm_virt_to_dma(chip, &dma_buffer->data[0]);
+	cmd->dst = MSM_NAND_FLASH_CHIP_SELECT;
+	cmd->len = 4;
+	cmd++;
 
-	dma_buffer->cmd[5].cmd = 0;
-	dma_buffer->cmd[5].src = MSM_NAND_READ_ID;
-	dma_buffer->cmd[5].dst = msm_virt_to_dma(chip, &dma_buffer->data[4]);
-	dma_buffer->cmd[5].len = 4;
+	cmd->cmd = DST_CRCI_NAND_CMD;
+	cmd->src = msm_virt_to_dma(chip, &dma_buffer->data[1]);
+	cmd->dst = MSM_NAND_FLASH_CMD;
+	cmd->len = 4;
+	cmd++;
 
-	dma_buffer->cmd[6].cmd = CMD_OCU | CMD_LC;
-	dma_buffer->cmd[6].src = msm_virt_to_dma(chip, &dma_buffer->data[5]);
-	dma_buffer->cmd[6].dst = MSM_NAND_SFLASHC_BURST_CFG;
-	dma_buffer->cmd[6].len = 4;
+	cmd->cmd = 0;
+	cmd->src = msm_virt_to_dma(chip, &dma_buffer->data[2]);
+	cmd->dst = MSM_NAND_EXEC_CMD;
+	cmd->len = 4;
+	cmd++;
 
-	BUILD_BUG_ON(6 != ARRAY_SIZE(dma_buffer->cmd) - 1);
+	cmd->cmd = SRC_CRCI_NAND_DATA;
+	cmd->src = MSM_NAND_FLASH_STATUS;
+	cmd->dst = msm_virt_to_dma(chip, &dma_buffer->data[3]);
+	cmd->len = 4;
+	cmd++;
+
+	cmd->cmd = 0;
+	cmd->src = MSM_NAND_READ_ID;
+	cmd->dst = msm_virt_to_dma(chip, &dma_buffer->data[4]);
+	cmd->len = 4;
+	cmd++;
+
+	cmd->cmd = CMD_OCU | CMD_LC;
+	cmd->src = msm_virt_to_dma(chip, &dma_buffer->data[5]);
+	cmd->dst = MSM_NAND_SFLASHC_BURST_CFG;
+	cmd->len = 4;
+	cmd++;
+
+	BUILD_BUG_ON(8 != ARRAY_SIZE(dma_buffer->cmd) - 1);
 
 	dma_buffer->cmdptr = (msm_virt_to_dma(chip, dma_buffer->cmd) >> 3
 			) | CMD_PTR_LP;
