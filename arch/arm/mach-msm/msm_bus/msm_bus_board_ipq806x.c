@@ -22,8 +22,8 @@
 #include <mach/rpm.h>
 #include "msm_bus_core.h"
 
-#define NMASTERS	54
-#define NSLAVES		75
+#define NMASTERS	MSM_BUS_MASTER_LAST
+#define NSLAVES		MSM_BUS_SLAVE_LAST
 #define NFAB_IPQ806X	4
 
 enum msm_bus_fabric_tiered_slave_type {
