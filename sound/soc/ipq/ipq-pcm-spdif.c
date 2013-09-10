@@ -71,10 +71,10 @@ static struct snd_pcm_hardware ipq_pcm_hardware_playback = {
 	.rate_max =		192000,
 	.channels_min =		1,
 	.channels_max =		8,
-	.buffer_bytes_max =	768*30,
+	.buffer_bytes_max =	SPDIF_BUF_MAX_BYTES,
 	.period_bytes_min =	760,
-	.period_bytes_max =	(768*30)/2,
-	.periods_min =		30,
+	.period_bytes_max =	SPDIF_BUF_MAX_BYTES / 2,
+	.periods_min =		SPDIF_BUFFERS,
 	.periods_max =		512,
 	.fifo_size =		0,
 };
@@ -89,7 +89,8 @@ static irqreturn_t ipq_pcm_spdif(int src, void *data)
 		(struct ipq_lpass_runtime_data_t *)runtime->private_data;
 
 	if (spdif_buf_info.curr_buf >=
-		(spdif_buf_info.start_buf + spdif_buf_info.size_buf))
+		(spdif_buf_info.start_buf + spdif_buf_info.size_buf)
+						- (SPDIF_FRAMESIZE * 4))
 		spdif_buf_info.curr_buf = spdif_buf_info.start_buf;
 	else
 		spdif_buf_info.curr_buf += (SPDIF_FRAMESIZE * 4);
@@ -106,7 +107,8 @@ static irqreturn_t ipq_pcm_spdif(int src, void *data)
 		writel(0, ipq_spdif_info.base + LPA_IF_SPDIF_TX_SUBBUF_FIFO);
 
 		if (spdif_buf_info.curr_buf >=
-			(spdif_buf_info.start_buf + spdif_buf_info.size_buf))
+			(spdif_buf_info.start_buf + spdif_buf_info.size_buf)
+						- (SPDIF_FRAMESIZE * 4))
 			spdif_buf_info.curr_buf = spdif_buf_info.start_buf;
 		else
 			spdif_buf_info.curr_buf += (SPDIF_FRAMESIZE * 4);
