@@ -274,3 +274,6 @@ void br_multicast_forward(struct net_bridge_mdb_entry *mdst,
 	br_multicast_flood(mdst, skb, skb2, __br_forward);
 }
 #endif
+
+EXPORT_SYMBOL_GPL(br_deliver);
+EXPORT_SYMBOL_GPL(br_forward);

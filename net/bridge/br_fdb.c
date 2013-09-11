@@ -246,6 +246,7 @@ struct net_bridge_fdb_entry *__br_fdb_get(struct net_bridge *br,
 
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(__br_fdb_get);
 
 #if IS_ENABLED(CONFIG_ATM_LANE)
 /* Interface used by ATM LANE hook to test
@@ -527,6 +528,7 @@ static void fdb_notify(struct net_bridge *br,
 		kfree_skb(skb);
 		goto errout;
 	}
+	__br_notify(RTNLGRP_NEIGH, type, fdb);
 	rtnl_notify(skb, net, 0, RTNLGRP_NEIGH, NULL, GFP_ATOMIC);
 	return;
 errout:

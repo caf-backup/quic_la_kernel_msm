@@ -26,6 +26,14 @@ const u8 br_group_address[ETH_ALEN] = { 0x01, 0x80, 0xc2, 0x00, 0x00, 0x00 };
 br_should_route_hook_t __rcu *br_should_route_hook __read_mostly;
 EXPORT_SYMBOL(br_should_route_hook);
 
+/* Hook for external Multicast handler */
+br_multicast_handle_hook_t __rcu *br_multicast_handle_hook __read_mostly;
+EXPORT_SYMBOL_GPL(br_multicast_handle_hook);
+
+/* Hook for external forwarding logic */
+br_get_dst_hook_t __rcu *br_get_dst_hook __read_mostly;
+EXPORT_SYMBOL_GPL(br_get_dst_hook);
+
 static int br_pass_frame_up(struct sk_buff *skb)
 {
 	struct net_device *indev, *brdev = BR_INPUT_SKB_CB(skb)->brdev;
@@ -53,6 +61,8 @@ int br_handle_frame_finish(struct sk_buff *skb)
 	struct net_bridge_fdb_entry *dst;
 	struct net_bridge_mdb_entry *mdst;
 	struct sk_buff *skb2;
+	struct net_bridge_port *pdst = NULL;
+	br_get_dst_hook_t *get_dst_hook = rcu_dereference(br_get_dst_hook);
 
 	if (!p || p->state == BR_STATE_DISABLED)
 		goto drop;
@@ -85,6 +95,10 @@ int br_handle_frame_finish(struct sk_buff *skb)
 	} else if (is_broadcast_ether_addr(dest))
 		skb2 = skb;
 	else if (is_multicast_ether_addr(dest)) {
+		br_multicast_handle_hook_t *multicast_handle_hook = rcu_dereference(br_multicast_handle_hook);
+		if (!__br_get(multicast_handle_hook, true, p, skb))
+			goto out;
+
 		mdst = br_mdb_get(br, skb);
 		if (mdst || BR_INPUT_SKB_CB_MROUTERS_ONLY(skb)) {
 			if ((mdst && mdst->mglist) ||
@@ -98,6 +112,8 @@ int br_handle_frame_finish(struct sk_buff *skb)
 			skb2 = skb;
 
 		br->dev->stats.multicast++;
+	} else if ((pdst = __br_get(get_dst_hook, NULL, p, &skb))) {
+		if (!skb) goto out;
 	} else if ((p->flags & BR_ISOLATE_MODE) ||
 		   ((dst = __br_fdb_get(br, dest)) && dst->is_local)) {
 		skb2 = skb;
@@ -108,8 +124,12 @@ int br_handle_frame_finish(struct sk_buff *skb)
 	if (skb) {
 		if (dst) {
 			dst->used = jiffies;
-			br_forward(dst->dst, skb, skb2);
-		} else
+			pdst = dst->dst;
+		}
+
+		if (pdst)
+			br_forward(pdst, skb, skb2);
+		else
 			br_flood_forward(br, skb, skb2);
 	}
 
