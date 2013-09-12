@@ -859,6 +859,15 @@ void msm_bus_rpm_fill_cdata_buffer(int *curr, char *buf, const int max_size,
 }
 #endif
 
+#ifdef CONFIG_MSM_BUS_RPM_ARB_DISABLE
+static int msm_bus_rpm_commit(struct msm_bus_fabric_registration
+	*fab_pdata, void *hw_data, void **cdata)
+{
+	return 0;
+}
+
+#else
+
 /**
 * msm_bus_rpm_commit() - Commit the arbitration data to RPM
 * @fabric: Fabric for which the data should be committed
@@ -902,6 +911,7 @@ static int msm_bus_rpm_commit(struct msm_bus_fabric_registration
 
 	return ret;
 }
+#endif
 
 static int msm_bus_rpm_port_halt(uint32_t haltid, uint8_t mport)
 {

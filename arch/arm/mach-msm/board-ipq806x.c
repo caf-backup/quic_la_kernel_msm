@@ -1717,6 +1717,8 @@ static struct platform_device *common_devices[] __initdata = {
 	&msm_bus_ipq806x_sys_fabric,
 	&msm_bus_ipq806x_sys_fpb,
 	&msm_bus_ipq806x_cpss_fpb,
+	&msm_bus_ipq806x_nss_fabric_0,
+	&msm_bus_ipq806x_nss_fabric_1,
 	&ipq806x_rtb_device,
 	&ipq806x_msm_gov_device,
 	&ipq806x_device_cache_erp,

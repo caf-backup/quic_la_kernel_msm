@@ -1485,12 +1485,12 @@ struct platform_device msm_bus_ipq806x_apps_fabric = {
 	.id    = MSM_BUS_FAB_APPSS,
 };
 struct platform_device msm_bus_ipq806x_nss_fabric_0 = {
-	.name  = "msm_bus_fabric_0",
-	.id    = MSM_BUS_FAB_NSS,
+	.name  = "msm_bus_fabric",
+	.id    = MSM_BUS_FAB_NSS_0,
 };
 struct platform_device msm_bus_ipq806x_nss_fabric_1 = {
-	.name  = "msm_bus_fabric_1",
-	.id    = MSM_BUS_FAB_NSS,
+	.name  = "msm_bus_fabric",
+	.id    = MSM_BUS_FAB_NSS_1,
 };
 struct platform_device msm_bus_ipq806x_sys_fpb = {
 	.name  = "msm_bus_fabric",
@@ -1791,11 +1791,9 @@ struct msm_rpm_platform_data ipq806x_rpm_data __initdata = {
 		MSM_RPM_MAP(IPQ806X, PXO_CLK, PXO_CLK, 1, "pxo_clk"),
 		MSM_RPM_MAP(IPQ806X, APPS_FABRIC_CLK, APPS_FABRIC_CLK, 1, "apps_fabric_clk"),
 		MSM_RPM_MAP(IPQ806X, SYSTEM_FABRIC_CLK, SYSTEM_FABRIC_CLK, 1, "system_fabric_clk"),
-		MSM_RPM_MAP(IPQ806X, MM_FABRIC_CLK, MM_FABRIC_CLK, 1, "mm_fabric_clk"),
 		MSM_RPM_MAP(IPQ806X, DAYTONA_FABRIC_CLK, DAYTONA_FABRIC_CLK, 1, "daytona_fabric_clk"),
 		MSM_RPM_MAP(IPQ806X, SFPB_CLK, SFPB_CLK, 1, "sfpb_clk"),
 		MSM_RPM_MAP(IPQ806X, CFPB_CLK, CFPB_CLK, 1, "cfpb_clk"),
-		MSM_RPM_MAP(IPQ806X, MMFPB_CLK, MMFPB_CLK, 1, "mmfpb_clk"),
 		MSM_RPM_MAP(IPQ806X, EBI1_CLK, EBI1_CLK, 1, "ebi1_clk"),
 		MSM_RPM_MAP(IPQ806X, APPS_FABRIC_CFG_HALT_0,
 				APPS_FABRIC_CFG_HALT, 2, "apps_fabric_cfg_halt"),
@@ -1835,7 +1833,9 @@ struct msm_rpm_platform_data ipq806x_rpm_data __initdata = {
 		MSM_RPM_MAP(IPQ806X, SMB208_S3b_0, SMB208_S3b, 2, "smb208_s3b"),
 
 		MSM_RPM_MAP(IPQ806X, DDR_SELF_REFRESH, DDR_SELF_REFRESH, 1, "ddr_self_refresh"),
-		MSM_RPM_MAP(IPQ806X, ENTER_IDLE, ENTER_IDLE, 2, "enter_idle"),
+		MSM_RPM_MAP(IPQ806X, ENTER_IDLE, ENTER_IDLE, 1, "enter_idle"),
+		MSM_RPM_MAP(IPQ806X, NSS_FABRIC_0_CLK, NSS_FABRIC_0_CLK, 1, "nss_fabric_0_clk" ),
+		MSM_RPM_MAP(IPQ806X, NSS_FABRIC_1_CLK, NSS_FABRIC_1_CLK, 1, "nss_fabric_1_clk" ),
 	},
 	.target_status = {
 		MSM_RPM_STATUS_ID_MAP(IPQ806X, VERSION_MAJOR),
@@ -1851,11 +1851,9 @@ struct msm_rpm_platform_data ipq806x_rpm_data __initdata = {
 		MSM_RPM_STATUS_ID_MAP(IPQ806X, PXO_CLK),
 		MSM_RPM_STATUS_ID_MAP(IPQ806X, APPS_FABRIC_CLK),
 		MSM_RPM_STATUS_ID_MAP(IPQ806X, SYSTEM_FABRIC_CLK),
-		MSM_RPM_STATUS_ID_MAP(IPQ806X, MM_FABRIC_CLK),
 		MSM_RPM_STATUS_ID_MAP(IPQ806X, DAYTONA_FABRIC_CLK),
 		MSM_RPM_STATUS_ID_MAP(IPQ806X, SFPB_CLK),
 		MSM_RPM_STATUS_ID_MAP(IPQ806X, CFPB_CLK),
-		MSM_RPM_STATUS_ID_MAP(IPQ806X, MMFPB_CLK),
 		MSM_RPM_STATUS_ID_MAP(IPQ806X, EBI1_CLK),
 		MSM_RPM_STATUS_ID_MAP(IPQ806X, APPS_FABRIC_CFG_HALT),
 		MSM_RPM_STATUS_ID_MAP(IPQ806X, APPS_FABRIC_CFG_CLKMOD),
@@ -1896,6 +1894,8 @@ struct msm_rpm_platform_data ipq806x_rpm_data __initdata = {
 
 		MSM_RPM_STATUS_ID_MAP(IPQ806X, DDR_SELF_REFRESH),
 		MSM_RPM_STATUS_ID_MAP(IPQ806X, ENTER_IDLE),
+		MSM_RPM_STATUS_ID_MAP(IPQ806X, NSS_FABRIC_0_CLK),
+		MSM_RPM_STATUS_ID_MAP(IPQ806X, NSS_FABRIC_1_CLK),
 	},
 	.target_ctrl_id = {
 		MSM_RPM_CTRL_MAP(IPQ806X, VERSION_MAJOR),

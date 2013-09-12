@@ -22,9 +22,9 @@
 #include <mach/rpm.h>
 #include "msm_bus_core.h"
 
-#define NMASTERS	MSM_BUS_MASTER_LAST
-#define NSLAVES		MSM_BUS_SLAVE_LAST
-#define NFAB_IPQ806X	4
+#define NMASTERS	MSM_BUS_MASTER_COUNT
+#define NSLAVES		MSM_BUS_SLAVE_COUNT
+#define NFAB_IPQ806X	6
 
 enum msm_bus_fabric_tiered_slave_type {
 	MSM_BUS_SYSTEM_TIERED_SLAVE_FAB_APPSS_0 = 1,
@@ -46,8 +46,8 @@ enum msm_bus_ipq806x_master_ports_type {
 	MSM_BUS_MASTER_PORT_ADM_PORT0,
 	MSM_BUS_MASTER_PORT_ADM_PORT1,
 	MSM_BUS_MASTER_PORT_PCIE_1,
-	MSM_BUS_MASTER_PORT_PCIE_2,
 	MSM_BUS_MASTER_PORT_USB3,
+	MSM_BUS_MASTER_PORT_PCIE_2,
 	MSM_BUS_MASTER_PORT_PCIE_3,
 	MSM_BUS_MASTER_PORT_SATA,
 	MSM_BUS_MASTER_PORT_LPASS,
@@ -67,10 +67,10 @@ enum msm_bus_ipq806x_master_ports_type {
 	MSM_BUS_MASTER_PORT_GMAC_1,
 	MSM_BUS_MASTER_PORT_GMAC_2,
 	MSM_BUS_MASTER_PORT_GMAC_3,
+	MSM_BUS_MASTER_PORT_CRYPTO5_0,
 	MSM_BUS_MASTER_PORT_CRYPTO5_1,
 	MSM_BUS_MASTER_PORT_CRYPTO5_2,
 	MSM_BUS_MASTER_PORT_CRYPTO5_3,
-	MSM_BUS_MASTER_PORT_CRYPTO5_4,
 
 	MSM_BUS_MASTER_PORT_KMPSS_M0 = 0,
 	MSM_BUS_MASTER_PORT_KMPSS_M1,
@@ -170,7 +170,7 @@ static struct msm_bus_node_info apps_fabric_info[] = {
 		.buswidth = 8,
 	},
 	{
-		.id = MSM_BUS_FAB_NSS,
+		.id = MSM_BUS_FAB_NSS_1,
 		.gateway = 1,
 		.slavep = appss_sport_nss_fab,
 		.num_sports = ARRAY_SIZE(appss_sport_nss_fab),
@@ -227,6 +227,7 @@ static int sport_usb30[] = {
 };
 static int sport_sata[] = {MSM_BUS_SLAVE_PORT_SATA,};
 static int sport_kmpss[] = {MSM_BUS_SLAVE_PORT_KMPSS,};
+static int sport_pcie1[] = {MSM_BUS_SLAVE_PORT_PCIE_1,};
 
 static int sport_lpass[] = {MSM_BUS_SLAVE_PORT_LPASS,};
 static int sport_nss_fpb[] = {MSM_BUS_SYSTEM_SLAVE_PORT_NSS_FPB,};
@@ -358,7 +359,14 @@ static struct msm_bus_node_info system_fabric_info[]  = {
 		.num_tiers = ARRAY_SIZE(tier2),
 		.buswidth = 8,
 	},
-
+	{
+		.id = MSM_BUS_SLAVE_SYS_PCIE_1,
+		.slavep = sport_pcie1,
+		.num_sports = ARRAY_SIZE(sport_pcie1),
+		.tier = tier2,
+		.num_tiers = ARRAY_SIZE(tier2),
+		.buswidth = 8,
+	},
 	{
 		.id = MSM_BUS_SLAVE_USB3,
 		.slavep = sport_usb30,
@@ -402,29 +410,32 @@ static struct msm_bus_node_info system_fabric_info[]  = {
 	},
 };
 
-static int appss_mport_fab_0_nss[] = {MSM_BUS_APPSS_MASTER_PORT_FAB_NSS_0, };
+static int appss_mport_fab_0_nss[] = {MSM_BUS_APPSS_MASTER_PORT_FAB_NSS_0,};
 
-static int nss_sport_apps_fab_0[] = {MSM_BUS_NSS_SLAVE_PORT_APPS_FAB_0, };
+static int nss_sport_apps_fab_0[] = {MSM_BUS_NSS_SLAVE_PORT_APPS_FAB_0,};
 
-static int mport_nss_fab_0_ubi32[] = {
-	MSM_BUS_MASTER_PORT_UBI32_0,
-	MSM_BUS_MASTER_PORT_UBI32_1,
-};
+static int mport_nss_fab_0_ubi32_core0[] = {MSM_BUS_MASTER_PORT_UBI32_0,};
+static int mport_nss_fab_0_ubi32_core1[] = {MSM_BUS_MASTER_PORT_UBI32_1,};
 
-static int nss0_mport_nss1[] = {MSM_BUS_NSS_MASTER_PORT_NSS_FAB1, };
-
-static int sport_nss_tcm[] = {MSM_BUS_SLAVE_PORT_NSS_TCM, };
+static int sport_nss_tcm[] = {MSM_BUS_SLAVE_PORT_NSS_TCM,};
 static int nss_tiered_slave_fab_0_apps[] = {
 	MSM_BUS_NSS_TIERED_SLAVE_FAB_APPS_0,
 };
-static int tiered_slave_nss_tcm[] = {MSM_BUS_TIERED_SLAVE_NSS_TCM, };
+static int tiered_slave_nss_tcm[] = {MSM_BUS_TIERED_SLAVE_NSS_TCM,};
 
 
 static struct msm_bus_node_info nss_fabric_0_info[]  = {
 	{
-		.id = MSM_BUS_MASTER_UBI32,
-		.masterp = mport_nss_fab_0_ubi32,
-		.num_mports = ARRAY_SIZE(mport_nss_fab_0_ubi32),
+		.id = MSM_BUS_MASTER_UBI32_0,
+		.masterp = mport_nss_fab_0_ubi32_core0,
+		.num_mports = ARRAY_SIZE(mport_nss_fab_0_ubi32_core0),
+		.tier = tier2,
+		.num_tiers = ARRAY_SIZE(tier2),
+	},
+	{
+		.id = MSM_BUS_MASTER_UBI32_1,
+		.masterp = mport_nss_fab_0_ubi32_core1,
+		.num_mports = ARRAY_SIZE(mport_nss_fab_0_ubi32_core1),
 		.tier = tier2,
 		.num_tiers = ARRAY_SIZE(tier2),
 	},
@@ -447,24 +458,34 @@ static struct msm_bus_node_info nss_fabric_0_info[]  = {
 		.num_tiers = ARRAY_SIZE(tiered_slave_nss_tcm),
 		.buswidth = 8,
 	},
-	{
-		.id = MSM_BUS_MASTER_NSS_FAB_0,
-		.masterp = nss0_mport_nss1,
-		.num_mports = ARRAY_SIZE(nss0_mport_nss1),
-		.tier = tier2,
-		.num_tiers = ARRAY_SIZE(tier2),
-	},
 };
 
-static int appss_mport_fab_1_nss[] = {MSM_BUS_APPSS_MASTER_PORT_FAB_NSS_1, };
-static int nss_sport_apps_fab_1[] = {MSM_BUS_NSS_SLAVE_PORT_APPS_FAB_1, };
-static int nss1_sport_nss0[] = {MSM_BUS_NSS_SLAVE_PORT_NSS_FAB0, };
+static int appss_mport_fab_1_nss[] = {MSM_BUS_APPSS_MASTER_PORT_FAB_NSS_1,};
+static int nss_sport_apps_fab_1[] = {MSM_BUS_NSS_SLAVE_PORT_APPS_FAB_1,};
+static int nss1_sport_nss0[] = {MSM_BUS_NSS_SLAVE_PORT_NSS_FAB0,};
+static int nss0_mport_nss1[] = {MSM_BUS_NSS_MASTER_PORT_NSS_FAB1,};
+
 static int nss_tiered_slave_fab_1_apps[] = {
 	MSM_BUS_NSS_TIERED_SLAVE_FAB_APPS_1,
 };
 
-static int mport_nss_fab_1_ubi32[] = {MSM_BUS_MASTER_PORT_UBI32, };
-static int sport_nss_fab_1_ubi32[] = {MSM_BUS_SLAVE_PORT_UBI32, };
+static int mport_nss_fab_1_ubi32[] = {MSM_BUS_MASTER_PORT_UBI32,};
+static int sport_nss_fab_1_ubi32[] = {MSM_BUS_SLAVE_PORT_UBI32,};
+
+static int mport_nss_fab_1_gmac_0[] = {MSM_BUS_MASTER_PORT_GMAC_0,};
+static int mport_nss_fab_1_gmac_1[] = {MSM_BUS_MASTER_PORT_GMAC_1,};
+static int mport_nss_fab_1_gmac_2[] = {MSM_BUS_MASTER_PORT_GMAC_2,};
+static int mport_nss_fab_1_gmac_3[] = {MSM_BUS_MASTER_PORT_GMAC_3,};
+
+static int mport_nss_fab_1_crypto_0[] = {MSM_BUS_MASTER_PORT_CRYPTO5_0,};
+static int mport_nss_fab_1_crypto_1[] = {MSM_BUS_MASTER_PORT_CRYPTO5_1,};
+static int mport_nss_fab_1_crypto_2[] = {MSM_BUS_MASTER_PORT_CRYPTO5_2,};
+static int mport_nss_fab_1_crypto_3[] = {MSM_BUS_MASTER_PORT_CRYPTO5_3,};
+
+static int nss_sport_gmac_fab_1[] = {MSM_BUS_SLAVE_PORT_GMAC,};
+static int nss_sport_crypto_fab_1[] = {MSM_BUS_SLAVE_PORT_CRYPTO5,};
+static int nss_sport_pcie2[] = {MSM_BUS_SLAVE_PORT_PCIE_2,};
+static int nss_sport_pcie3[] = {MSM_BUS_SLAVE_PORT_PCIE_3,};
 
 static struct msm_bus_node_info nss_fabric_1_info[]  = {
 	{
@@ -479,24 +500,101 @@ static struct msm_bus_node_info nss_fabric_1_info[]  = {
 		.buswidth = 16,
 	},
 	{
-		.id = MSM_BUS_SLAVE_NSS_FAB_1,
+		.id = MSM_BUS_FAB_NSS_0,
+		.gateway = 1,
 		.slavep = nss1_sport_nss0,
 		.num_sports = ARRAY_SIZE(nss1_sport_nss0),
+		.masterp = nss0_mport_nss1,
+		.num_mports = ARRAY_SIZE(nss0_mport_nss1),
+		.tier = tier2,
+		.num_tiers = ARRAY_SIZE(tier2),
 		.buswidth = 16,
 	},
 	{
-		.id = MSM_BUS_MASTER_UBI32,
-		.gateway = 1,
-		.slavep = sport_nss_fab_1_ubi32,
-		.num_sports = ARRAY_SIZE(sport_nss_fab_1_ubi32),
-		.masterp = mport_nss_fab_1_ubi32,
-		.num_mports = ARRAY_SIZE(mport_nss_fab_1_ubi32),
-		.tier = nss_tiered_slave_fab_1_apps,
-		.num_tiers = ARRAY_SIZE(nss_tiered_slave_fab_1_apps),
-		.buswidth = 16,
+		.id = MSM_BUS_MASTER_NSS_GMAC_0,
+		.masterp = mport_nss_fab_1_gmac_0,
+		.num_mports = ARRAY_SIZE(mport_nss_fab_1_gmac_0),
+		.tier = tier2,
+		.num_tiers = ARRAY_SIZE(tier2),
+	},
+	{
+		.id = MSM_BUS_MASTER_NSS_GMAC_1,
+		.masterp = mport_nss_fab_1_gmac_1,
+		.num_mports = ARRAY_SIZE(mport_nss_fab_1_gmac_1),
+		.tier = tier2,
+		.num_tiers = ARRAY_SIZE(tier2),
+	},
+	{
+		.id = MSM_BUS_MASTER_NSS_GMAC_2,
+		.masterp = mport_nss_fab_1_gmac_2,
+		.num_mports = ARRAY_SIZE(mport_nss_fab_1_gmac_2),
+		.tier = tier2,
+		.num_tiers = ARRAY_SIZE(tier2),
+	},
+	{
+		.id = MSM_BUS_MASTER_NSS_GMAC_3,
+		.masterp = mport_nss_fab_1_gmac_3,
+		.num_mports = ARRAY_SIZE(mport_nss_fab_1_gmac_3),
+		.tier = tier2,
+		.num_tiers = ARRAY_SIZE(tier2),
+	},
+	{
+		.id = MSM_BUS_MASTER_NSS_CRYPTO5_0,
+		.masterp = mport_nss_fab_1_crypto_0,
+		.num_mports = ARRAY_SIZE(mport_nss_fab_1_crypto_0),
+		.tier = tier2,
+		.num_tiers = ARRAY_SIZE(tier2),
+	},
+	{
+		.id = MSM_BUS_MASTER_NSS_CRYPTO5_1,
+		.masterp = mport_nss_fab_1_crypto_1,
+		.num_mports = ARRAY_SIZE(mport_nss_fab_1_crypto_1),
+		.tier = tier2,
+		.num_tiers = ARRAY_SIZE(tier2),
+	},
+	{
+		.id = MSM_BUS_MASTER_NSS_CRYPTO5_2,
+		.masterp = mport_nss_fab_1_crypto_2,
+		.num_mports = ARRAY_SIZE(mport_nss_fab_1_crypto_2),
+		.tier = tier2,
+		.num_tiers = ARRAY_SIZE(tier2),
+	},
+	{
+		.id = MSM_BUS_MASTER_NSS_CRYPTO5_3,
+		.masterp = mport_nss_fab_1_crypto_3,
+		.num_mports = ARRAY_SIZE(mport_nss_fab_1_crypto_3),
+		.tier = tier2,
+		.num_tiers = ARRAY_SIZE(tier2),
+	},
+	{
+		.id = MSM_BUS_SLAVE_NSS_GMAC,
+		.slavep = nss_sport_gmac_fab_1,
+		.num_sports = ARRAY_SIZE(nss_sport_gmac_fab_1),
+		.buswidth = 8,
+	},
+	{
+		.id = MSM_BUS_SLAVE_NSS_CRYPTO5,
+		.slavep = nss_sport_crypto_fab_1,
+		.num_sports = ARRAY_SIZE(nss_sport_crypto_fab_1),
+		.buswidth = 8,
+	},
+	{
+		.id = MSM_BUS_SLAVE_NSS_PCIE_2,
+		.slavep = nss_sport_pcie2,
+		.num_sports = ARRAY_SIZE(nss_sport_pcie2),
+		.tier = tier2,
+		.num_tiers = ARRAY_SIZE(tier2),
+		.buswidth = 8,
+	},
+	{
+		.id = MSM_BUS_SLAVE_NSS_PCIE_3,
+		.slavep = nss_sport_pcie3,
+		.num_sports = ARRAY_SIZE(nss_sport_pcie3),
+		.tier = tier2,
+		.num_tiers = ARRAY_SIZE(tier2),
+		.buswidth = 8,
 	},
 
-	/* Fill in NSS Ports for GEMACS, CRYPTO5 & PCI Config */
 };
 
 
@@ -780,7 +878,7 @@ struct msm_bus_fabric_registration msm_bus_ipq806x_sys_fabric_pdata = {
 };
 
 struct msm_bus_fabric_registration msm_bus_ipq806x_nss_fabric_0_pdata = {
-	.id = MSM_BUS_FAB_NSS,
+	.id = MSM_BUS_FAB_NSS_0,
 	.name = "msm_nss_fab_0",
 	nss_fabric_0_info,
 	ARRAY_SIZE(nss_fabric_0_info),
@@ -796,7 +894,7 @@ struct msm_bus_fabric_registration msm_bus_ipq806x_nss_fabric_0_pdata = {
 };
 
 struct msm_bus_fabric_registration msm_bus_ipq806x_nss_fabric_1_pdata = {
-	.id = MSM_BUS_FAB_NSS,
+	.id = MSM_BUS_FAB_NSS_1,
 	.name = "msm_nss_fab_1",
 	nss_fabric_1_info,
 	ARRAY_SIZE(nss_fabric_1_info),
@@ -840,6 +938,5 @@ struct msm_bus_fabric_registration msm_bus_ipq806x_cpss_fpb_pdata = {
 
 int msm_bus_board_rpm_get_il_ids(uint16_t id[])
 {
-	id[0] = MSM_RPM_STATUS_ID_EBI1_CH0_RANGE;
-	return 0;
+	return -ENXIO;
 }

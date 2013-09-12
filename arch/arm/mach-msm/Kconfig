@@ -272,6 +272,7 @@ config ARCH_IPQ806X
 	select REGULATOR
 	select SATA_SNPS_PHY
 	select MSM_CPU_PWRCTL
+	select MSM_BUS_RPM_ARB_DISABLE
 
 config ARCH_MSM8974
 	bool "MSM8974"
@@ -2730,5 +2731,9 @@ config MSM_CPU_PWRCTL
 	  Droop detector mechanism can adversely affect krait plls during
 	  stand alone power collapse operation. Selecting this option
 	  ensures that they are always off.
+
+config MSM_BUS_RPM_ARB_DISABLE
+	bool "Disables ARB request sent to RPM Firmware"
+	depends on MSM_BUS_SCALING
 
 endif
