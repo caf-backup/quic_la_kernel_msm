@@ -1990,21 +1990,27 @@ static void __init ipq806x_common_init(void)
 		BUG_ON(msm_rpm_init(&ipq806x_rpm_data));
 		BUG_ON(msm_rpmrs_levels_init(&msm_rpmrs_data));
 		regulator_suppress_info_printing();
-		fixup_ipq806x_smb_power_grid();
-		platform_device_register(&ipq806x_smb_device_rpm_regulator);
 		msm_clock_init(&ipq806x_dummy_clock_init_data);
 	} else if (machine_is_ipq806x_tb726() || machine_is_ipq806x_db149()
-			|| machine_is_ipq806x_db147() || machine_is_ipq806x_ap148()) {
+			  || machine_is_ipq806x_db147() || machine_is_ipq806x_ap148()) {
 		BUG_ON(msm_rpm_init(&ipq806x_rpm_data));
 		BUG_ON(msm_rpmrs_levels_init(&msm_rpmrs_data));
 		regulator_suppress_info_printing();
-		fixup_ipq806x_smb_power_grid();
-		platform_device_register(&ipq806x_smb_device_rpm_regulator);
 		msm_clock_init(&ipq806x_clock_init_data);
 	} else {
 		if (msm_xo_init())
 			pr_err("Failed to initialize XO votes\n");
 		msm_clock_init(&ipq806x_clock_init_data);
+	}
+
+	/* Regulator devices need to be registered for RUMI as well */
+	if (machine_is_ipq806x_rumi3() ||
+			machine_is_ipq806x_tb726() ||
+			machine_is_ipq806x_db149() ||
+			machine_is_ipq806x_db147() ||
+			machine_is_ipq806x_ap148()) {
+		fixup_ipq806x_smb_power_grid();
+		platform_device_register(&ipq806x_smb_device_rpm_regulator);
 	}
 
 	ipq806x_init_gpiomux();
