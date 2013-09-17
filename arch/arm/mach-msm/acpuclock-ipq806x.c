@@ -100,7 +100,7 @@ static struct msm_bus_scale_pdata bus_scale_data __initdata = {
 };
 
 /*
- * FIXME: For bringup.Update this with PTE values
+ * PVS tables for Akronite based platforms
  */
 static struct l2_level l2_freq_tbl[] __initdata = {
 	[0] = { {  384000, PLL_8, 0, 0x00 }, 1050000, 1050000, 1 },
@@ -127,6 +127,22 @@ static struct pvs_table pvs_tables[NUM_SPEED_BINS][NUM_PVS] __initdata = {
 	[0][PVS_SLOW]    = {tbl_slow, sizeof(tbl_slow),     0 },
 };
 
+/*
+ * PVS tables for Akronite-lite based platforms
+ */
+static struct acpu_level tbl_slow_lite[] __initdata = {
+	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0), 1000000 },
+	{ 1, {   600000, HFPLL, 1, 0x18 }, L2(0), 1000000 },
+	{ 1, {   700000, HFPLL, 1, 0x1C }, L2(1), 1050000 },
+	{ 1, {   900000, HFPLL, 1, 0x24 }, L2(1), 1050000 },
+	{ 1, {  1000000, HFPLL, 1, 0x28 }, L2(1), 1050000 },
+	{ 0, { 0 } }
+};
+
+static struct pvs_table pvs_tables_lite[NUM_SPEED_BINS][NUM_PVS] __initdata = {
+	[0][PVS_SLOW]    = {tbl_slow_lite, sizeof(tbl_slow_lite),     0 },
+};
+
 static struct acpuclk_krait_params acpuclk_ipq806x_params __initdata = {
 	.scalable = scalable,
 	.scalable_size = sizeof(scalable),
@@ -141,6 +157,12 @@ static struct acpuclk_krait_params acpuclk_ipq806x_params __initdata = {
 
 static int __init acpuclk_ipq806x_probe(struct platform_device *pdev)
 {
+	/* Fix up the pvs tables for Akronite-Lite based platforms */
+	if (cpu_is_ipq8062() || cpu_is_ipq8066())
+	{
+		acpuclk_ipq806x_params.pvs_tables = pvs_tables_lite;
+	}
+
 	return acpuclk_krait_init(&pdev->dev, &acpuclk_ipq806x_params);
 }
 
