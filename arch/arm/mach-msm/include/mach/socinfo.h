@@ -344,6 +344,42 @@ static inline int cpu_is_ipq806x(void)
 #endif
 }
 
+static inline int cpu_is_ipq8062(void)
+{
+#ifdef CONFIG_ARCH_IPQ806X
+	return (read_msm_cpu_type() == MSM_CPU_IPQ8062);
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq8064(void)
+{
+#ifdef CONFIG_ARCH_IPQ806X
+	return (read_msm_cpu_type() == MSM_CPU_IPQ8064);
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq8066(void)
+{
+#ifdef CONFIG_ARCH_IPQ806X
+	return (read_msm_cpu_type() == MSM_CPU_IPQ8066);
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq8068(void)
+{
+#ifdef CONFIG_ARCH_IPQ806X
+	return (read_msm_cpu_type() == MSM_CPU_IPQ8068);
+#else
+	return 0;
+#endif
+}
+
 static inline int cpu_is_msm8930(void)
 {
 #ifdef CONFIG_ARCH_MSM8930
