@@ -332,18 +332,6 @@ static inline int cpu_is_apq8064aa(void)
 #endif
 }
 
-static inline int cpu_is_ipq806x(void)
-{
-#ifdef CONFIG_ARCH_IPQ806X
-	return ((read_msm_cpu_type() == MSM_CPU_IPQ8062) || \
-		(read_msm_cpu_type() == MSM_CPU_IPQ8064) || \
-		(read_msm_cpu_type() == MSM_CPU_IPQ8066) || \
-		(read_msm_cpu_type() == MSM_CPU_IPQ8068));
-#else
-	return 0;
-#endif
-}
-
 static inline int cpu_is_ipq8062(void)
 {
 #ifdef CONFIG_ARCH_IPQ806X
@@ -375,6 +363,16 @@ static inline int cpu_is_ipq8068(void)
 {
 #ifdef CONFIG_ARCH_IPQ806X
 	return (read_msm_cpu_type() == MSM_CPU_IPQ8068);
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq806x(void)
+{
+#ifdef CONFIG_ARCH_IPQ806X
+	return (cpu_is_ipq8062() || cpu_is_ipq8064() ||
+		cpu_is_ipq8066() || cpu_is_ipq8068());
 #else
 	return 0;
 #endif
