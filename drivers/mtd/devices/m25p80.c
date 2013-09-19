@@ -60,6 +60,9 @@
 
 /* Used for Spansion flashes only. */
 #define	OPCODE_BRWR		0x17	/* Bank register write */
+#define	OPCODE_4FAST_READ	0x0c    /* New command 4-byte address read */
+#define	OPCODE_4PP		0x12    /* New command 4-byte address program */
+#define	OPCODE_4SE		0xdc    /* New command 4-byte sector erase */
 
 /* Status Register bits. */
 #define	SR_WIP			1	/* Write in progress */
@@ -98,7 +101,9 @@ struct m25p {
 	struct mtd_info		mtd;
 	u16			page_size;
 	u16			addr_width;
+	u8			read_opcode;
 	u8			erase_opcode;
+	u8			write_opcode;
 	u8			*command;
 };
 
@@ -177,8 +182,12 @@ static inline int set_4byte(struct m25p *flash, u32 jedec_id, int enable)
 	case CFI_MFR_MACRONIX:
 		flash->command[0] = enable ? OPCODE_EN4B : OPCODE_EX4B;
 		return spi_write(flash->spi, flash->command, 1);
+	case CFI_MFR_AMD:
+		flash->read_opcode  = OPCODE_4FAST_READ;
+		flash->write_opcode = OPCODE_4PP;
+		flash->erase_opcode = OPCODE_4SE;
+		return 0;
 	default:
-		/* Spansion style */
 		flash->command[0] = OPCODE_BRWR;
 		flash->command[1] = enable << 7;
 		return spi_write(flash->spi, flash->command, 2);
@@ -383,7 +392,7 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 	 */
 
 	/* Set up the write data buffer. */
-	flash->command[0] = OPCODE_READ;
+	flash->command[0] = flash->read_opcode;
 	m25p_addr2cmd(flash, from, flash->command);
 
 	spi_sync(flash->spi, &m);
@@ -432,7 +441,7 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 	write_enable(flash);
 
 	/* Set up the opcode in the write buffer. */
-	flash->command[0] = OPCODE_PP;
+	flash->command[0] = flash->write_opcode;
 	m25p_addr2cmd(flash, to, flash->command);
 
 	page_offset = to & (flash->page_size - 1);
@@ -895,10 +904,13 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	flash->mtd._read = m25p80_read;
 
 	/* sst flash chips use AAI word program */
-	if (JEDEC_MFR(info->jedec_id) == CFI_MFR_SST)
+	if (JEDEC_MFR(info->jedec_id) == CFI_MFR_SST) {
 		flash->mtd._write = sst_write;
-	else
-		flash->mtd._write = m25p80_write;
+	} else {
+		flash->mtd._write   = m25p80_write;
+		flash->read_opcode  = OPCODE_READ;
+		flash->write_opcode = OPCODE_PP;
+	}
 
 	/* prefer "small sector" erase if possible */
 	if (PREFER_SMALL_SECTOR_ERASE && (info->flags & SECT_4K)) {
