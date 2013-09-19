@@ -26,6 +26,7 @@
 #include <linux/mfd/pm8xxx/misc.h>
 
 #include <asm/mach-types.h>
+#include <asm/cacheflush.h>
 
 #include <mach/msm_iomap.h>
 #include <mach/restart.h>
@@ -85,8 +86,18 @@ static void set_dload_mode(int on)
 {
 	if (dload_mode_addr) {
 		__raw_writel(on ? 0xE47B337D : 0, dload_mode_addr);
+#ifdef CONFIG_MSM_DLOAD_MODE_APPSBL
+		/* Write magic number to IMEM, so that bootloaders
+		 * can start download procedure. For IPQ806x series
+		 * application bootloader is handling this rather
+		 * than SBL
+		 */
+		__raw_writel(on ? 0x0501CAB0 : 0,
+		       dload_mode_addr + sizeof(unsigned int));
+#else
 		__raw_writel(on ? 0xCE14091A : 0,
 		       dload_mode_addr + sizeof(unsigned int));
+#endif
 #ifdef CONFIG_LGE_CRASH_HANDLER
 		__raw_writel(on ? LGE_ERROR_HANDLER_MAGIC_NUM : 0,
 				lge_error_handler_cookie_addr);
@@ -291,6 +302,13 @@ reset:
 		mdelay(5000);
 		pr_notice("PS_HOLD didn't work, falling back to watchdog\n");
 	}
+
+#ifdef CONFIG_MSM_DLOAD_MODE_APPSBL
+	/* In case the platform is handling download mode in the application
+	 * bootloader, we need to keep data in sync before performing reset
+	 */
+	flush_cache_all();
+#endif
 
 	__raw_writel(1, msm_tmr0_base + WDT0_RST);
 	__raw_writel(5*0x31F3, msm_tmr0_base + WDT0_BARK_TIME);

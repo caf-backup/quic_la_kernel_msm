@@ -2275,6 +2275,16 @@ config MSM_DLOAD_MODE
 		make the kernel reboot on a kernel panic - that must be
 		enabled via another mechanism.
 
+config MSM_DLOAD_MODE_APPSBL
+	bool "Application bootloader based download mode handling"
+	depends on MSM_DLOAD_MODE
+	default n
+	help
+		Select this if application bootloader, for example U-Boot, to handle
+		download mode due to kernel panic.
+
+		If unsure, say N
+
 config MSM_JTAG
 	bool "Debug and ETM trace support across power collapse"
 	help
