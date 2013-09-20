@@ -190,7 +190,7 @@ static struct snd_soc_dai_link ipq_snd_dai[] = {
 		/* Platform Driver Name */
 		.platform_name	= "ipq-pcm-mi2s",
 		/* Codec DAI Name */
-		.codec_dai_name	= "ipq-codec-dai",
+		.codec_dai_name	= "ipq-mi2s-codec-dai",
 		/*Codec Driver Name */
 		.codec_name	= "ipq-lpass-codec",
 	},
@@ -199,7 +199,7 @@ static struct snd_soc_dai_link ipq_snd_dai[] = {
 		.stream_name	= "MultiMedia2",
 		.cpu_dai_name	= "ipq-spdif-dai",
 		.platform_name	= "ipq-pcm-spdif",
-		.codec_dai_name	= "ipq-codec-dai",
+		.codec_dai_name	= "ipq-spdif-codec-dai",
 		.codec_name	= "ipq-lpass-codec",
 	},
 	{
@@ -207,7 +207,7 @@ static struct snd_soc_dai_link ipq_snd_dai[] = {
 		.stream_name	= "CS-Voice",
 		.cpu_dai_name	= "ipq-pcm-dai",
 		.platform_name	= "ipq-pcm-voip",
-		.codec_dai_name	= "ipq-codec-dai",
+		.codec_dai_name	= "ipq-pcm-codec-dai",
 		.codec_name	= "ipq-lpass-codec",
 	},
 };

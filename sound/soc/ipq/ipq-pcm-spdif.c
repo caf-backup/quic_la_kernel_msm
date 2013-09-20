@@ -64,10 +64,14 @@ static struct snd_pcm_hardware ipq_pcm_hardware_playback = {
 				SNDRV_PCM_INFO_PAUSE |
 				SNDRV_PCM_INFO_RESUME,
 	.formats =		SNDRV_PCM_FMTBIT_S16 |
-				SNDRV_PCM_FMTBIT_S24 |
-				SNDRV_PCM_FMTBIT_S32,
-	.rates =		SNDRV_PCM_RATE_8000_48000,
-	.rate_min =		8000,
+				SNDRV_PCM_FMTBIT_S24,
+	.rates = 		SNDRV_PCM_RATE_22050 |
+				SNDRV_PCM_RATE_32000 |
+				SNDRV_PCM_RATE_44100 |
+				SNDRV_PCM_RATE_88200 |
+				SNDRV_PCM_RATE_176400 |
+				SNDRV_PCM_RATE_192000,
+	.rate_min =		22050,
 	.rate_max =		192000,
 	.channels_min =		1,
 	.channels_max =		8,

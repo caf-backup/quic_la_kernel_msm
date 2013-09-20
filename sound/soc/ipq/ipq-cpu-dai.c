@@ -195,10 +195,9 @@ static struct snd_soc_dai_driver ipq_cpu_dais[] = {
 	{
 		.playback = {
 			.rates		= SNDRV_PCM_RATE_8000 |
-					SNDRV_PCM_RATE_16000 |
-					SNDRV_PCM_RATE_44100 |
-					SNDRV_PCM_RATE_48000,
+					SNDRV_PCM_RATE_16000,
 			.formats	= SNDRV_PCM_FMTBIT_S8 |
+					SNDRV_PCM_FMTBIT_U8 |
 					SNDRV_PCM_FMTBIT_S16,
 			.channels_min	= 1,
 			.channels_max	= 2,
@@ -209,6 +208,7 @@ static struct snd_soc_dai_driver ipq_cpu_dais[] = {
 			.rates		= SNDRV_PCM_RATE_8000 |
 					SNDRV_PCM_RATE_16000,
 			.formats	= SNDRV_PCM_FMTBIT_S8 |
+					SNDRV_PCM_FMTBIT_U8 |
 					SNDRV_PCM_FMTBIT_S16,
 			.channels_min	= 1,
 			.channels_max	= 2,
@@ -220,13 +220,7 @@ static struct snd_soc_dai_driver ipq_cpu_dais[] = {
 	},
 	{
 		.playback = {
-			.rates		= SNDRV_PCM_RATE_8000 |
-					SNDRV_PCM_RATE_16000 |
-					SNDRV_PCM_RATE_32000 |
-					SNDRV_PCM_RATE_44100 |
-					SNDRV_PCM_RATE_48000 |
-					SNDRV_PCM_RATE_96000 |
-					SNDRV_PCM_RATE_192000,
+			.rates		= SNDRV_PCM_RATE_8000_192000,
 			.formats	= SNDRV_PCM_FMTBIT_S16 |
 					SNDRV_PCM_FMTBIT_S24 |
 					SNDRV_PCM_FMTBIT_S32,
@@ -240,17 +234,17 @@ static struct snd_soc_dai_driver ipq_cpu_dais[] = {
 	},
 	{
 		.playback = {
-			.rates		= SNDRV_PCM_RATE_8000 |
-					SNDRV_PCM_RATE_16000 |
+			.rates		= SNDRV_PCM_RATE_22050 |
 					SNDRV_PCM_RATE_32000 |
 					SNDRV_PCM_RATE_44100 |
-					SNDRV_PCM_RATE_48000 |
-					SNDRV_PCM_RATE_96000,
+					SNDRV_PCM_RATE_88200 |
+					SNDRV_PCM_RATE_176400 |
+					SNDRV_PCM_RATE_192000,
 			.formats	= SNDRV_PCM_FMTBIT_S16 |
 					SNDRV_PCM_FMTBIT_S24,
 			.channels_min	= 1,
 			.channels_max	= 8,
-			.rate_min	= 8000,
+			.rate_min	= 22050,
 			.rate_max	= 192000,
 		},
 		.ops    = &ipq_lpass_spdif_ops,
