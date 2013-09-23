@@ -95,10 +95,10 @@ void ipq_cfg_pcm_rate(uint32_t rate)
 	writel(cfg, dai_info.base + LPA_IF_PCM_0);
 
 	switch (rate) {
-	case SNDRV_PCM_RATE_8000:
+	case PCM_RATE_8000:
 		cfg |= LPA_IF_PCM_CTL_R8KHZ;
 		break;
-	case SNDRV_PCM_RATE_16000:
+	case PCM_RATE_16000:
 		cfg |= LPA_IF_PCM_CTL_R16KHZ;
 		break;
 	default:
@@ -114,14 +114,20 @@ void ipq_cfg_pcm_width(uint8_t bit_width, uint8_t dir)
 	uint32_t cfg;
 	cfg = readl(dai_info.base + LPA_IF_PCM_0);
 
+	/* Clear the bit-width field */
+	cfg = cfg & ~(LPA_IF_PCM_BITW_MASK);
+	writel(cfg, dai_info.base + LPA_IF_PCM_0);
+
 	switch (bit_width) {
 	case SNDRV_PCM_FORMAT_S8:
+	case SNDRV_PCM_FORMAT_U8:
 		break;
+	case SNDRV_PCM_FORMAT_U16:
 	case SNDRV_PCM_FORMAT_S16:
 		if (dir)
-			cfg |= LPA_IF_PCM_RPCM_WIDTH;
-		else
 			cfg |= LPA_IF_PCM_TPCM_WIDTH;
+		else
+			cfg |= LPA_IF_PCM_RPCM_WIDTH;
 		break;
 	default:
 		break;
@@ -388,6 +394,15 @@ int ipq_lpaif_dai_stop(uint32_t dma_ch)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ipq_lpaif_dai_stop);
+
+int ipq_lpaif_pcm_stop(uint32_t dma_ch)
+{
+	writel(0x0, dai_info.base + LPAIF_IRQ_EN(0));
+	writel(~0x0, dai_info.base + LPAIF_IRQ_CLEAR(0));
+	writel(0x0, dai_info.base + LPAIF_DMA_CTL(dma_ch));
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ipq_lpaif_pcm_stop);
 
 void ipq_lpaif_register_dma_irq_handler(int dma_ch,
 	irqreturn_t (*callback) (int intrsrc, void *private_data),

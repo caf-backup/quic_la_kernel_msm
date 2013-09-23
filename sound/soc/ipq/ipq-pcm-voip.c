@@ -50,6 +50,7 @@ static struct snd_pcm_hardware ipq_pcm_hardware_playback = {
 				SNDRV_PCM_INFO_PAUSE |
 				SNDRV_PCM_INFO_RESUME,
 	.formats	=	SNDRV_PCM_FMTBIT_S16_LE |
+				SNDRV_PCM_FORMAT_U16 |
 				SNDRV_PCM_FMTBIT_U8 |
 				SNDRV_PCM_FMTBIT_S8,
 	.rates		=	SNDRV_PCM_RATE_8000 |
@@ -74,6 +75,7 @@ static struct snd_pcm_hardware ipq_pcm_hardware_capture = {
 				SNDRV_PCM_INFO_PAUSE |
 				SNDRV_PCM_INFO_RESUME,
         .formats	=	SNDRV_PCM_FMTBIT_S16_LE |
+				SNDRV_PCM_FORMAT_U16 |
 				SNDRV_PCM_FMTBIT_U8 |
 				SNDRV_PCM_FMTBIT_S8,
         .rates		=	SNDRV_PCM_RATE_8000 |
@@ -237,6 +239,8 @@ static int ipq_pcm_close(struct snd_pcm_substream *substream)
 		kfree(prtd);
 	}
 
+	ipq_lpaif_pcm_stop(prtd->lpaif_info.dma_ch);
+
 	return 0;
 }
 
@@ -292,13 +296,6 @@ static int ipq_pcm_open(struct snd_pcm_substream *substream)
 	ret = snd_pcm_hw_constraint_integer(runtime,
 				SNDRV_PCM_HW_PARAM_PERIODS);
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		snd_soc_set_runtime_hwparams(substream,
-					&ipq_pcm_hardware_playback);
-	else
-		snd_soc_set_runtime_hwparams(substream,
-					&ipq_pcm_hardware_capture);
-
 	prtd = kzalloc(sizeof(struct ipq_lpass_runtime_data_t), GFP_KERNEL);
 
 	if (prtd == NULL) {
@@ -310,9 +307,9 @@ static int ipq_pcm_open(struct snd_pcm_substream *substream)
 	prtd->pcm_stream_info.pcm_prepare_start = 0;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		prtd->lpaif_info.dma_ch = PCM0_DMA_WR_CH;
-	else
 		prtd->lpaif_info.dma_ch = PCM0_DMA_RD_CH;
+	else
+		prtd->lpaif_info.dma_ch = PCM0_DMA_WR_CH;
 
 	prtd->pcm_stream_info.substream = substream;
 	runtime->private_data = prtd;

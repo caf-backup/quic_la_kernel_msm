@@ -186,6 +186,7 @@
 #define LPA_IF_RPCM_SLOT_MASK	(0x03E0)
 #define LPA_IF_TPCM_SLOT_MASK	(0x001F)
 #define LPA_IF_PCM_RATE_MASK	(7 << 15)
+#define LPA_IF_PCM_BITW_MASK	(3 << 10)
 
 /* PCM RPCM SLOTS */
 #define LPA_IF_PCM_RPCM_SLOT(x)	(x << 5)
@@ -197,6 +198,11 @@
  * in a separate LPASS specific clock header file
  */
 #define LCC_PCM_NS_ARES		(1 << 13)
+
+enum pcm_rates {
+	PCM_RATE_8000 = 8000,
+	PCM_RATE_16000 = 16000,
+};
 
 struct ipq_lpaif_dai_baseinfo {
 	void __iomem *base;
@@ -222,6 +228,7 @@ extern void ipq_lpaif_register_dma_irq_handler(int dma_ch,
 	void *private_data);
 extern void ipq_lpaif_unregister_dma_irq_handler(int dma_ch);
 extern int ipq_lpaif_dai_stop(uint32_t dma_ch);
+extern int ipq_lpaif_pcm_stop(uint32_t dma_ch);
 extern void ipq_cfg_pcm_reset(uint8_t);
 extern void ipq_cfg_pcm_sync_src(uint8_t);
 extern void ipq_cfg_pcm_slot(uint8_t, uint8_t);

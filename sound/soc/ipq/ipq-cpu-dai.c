@@ -117,6 +117,8 @@ static int ipq_lpass_pcm_hw_params(struct snd_pcm_substream *substream,
 	stream = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) ? 1 : 0;
 
 	if (bit_width == SNDRV_PCM_FORMAT_S8 ||
+	bit_width == SNDRV_PCM_FORMAT_U8 ||
+	bit_width == SNDRV_PCM_FORMAT_U16 ||
 	bit_width == SNDRV_PCM_FORMAT_S16)
 		ipq_cfg_pcm_width(bit_width, stream);
 	else
@@ -198,7 +200,8 @@ static struct snd_soc_dai_driver ipq_cpu_dais[] = {
 					SNDRV_PCM_RATE_16000,
 			.formats	= SNDRV_PCM_FMTBIT_S8 |
 					SNDRV_PCM_FMTBIT_U8 |
-					SNDRV_PCM_FMTBIT_S16,
+					SNDRV_PCM_FORMAT_U16 |
+					SNDRV_PCM_FMTBIT_S16_LE,
 			.channels_min	= 1,
 			.channels_max	= 2,
 			.rate_min	= 8000,
@@ -209,7 +212,8 @@ static struct snd_soc_dai_driver ipq_cpu_dais[] = {
 					SNDRV_PCM_RATE_16000,
 			.formats	= SNDRV_PCM_FMTBIT_S8 |
 					SNDRV_PCM_FMTBIT_U8 |
-					SNDRV_PCM_FMTBIT_S16,
+					SNDRV_PCM_FORMAT_U16 |
+					SNDRV_PCM_FMTBIT_S16_LE,
 			.channels_min	= 1,
 			.channels_max	= 2,
 			.rate_min	= 8000,

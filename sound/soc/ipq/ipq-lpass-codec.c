@@ -29,8 +29,9 @@ static struct snd_soc_dai_driver lpass_codec_dai[] = {
 			.rate_min = 8000,
 			.rates = SNDRV_PCM_RATE_8000 |
 				SNDRV_PCM_RATE_16000,
-			.formats = SNDRV_PCM_FMTBIT_S16 |
+			.formats = SNDRV_PCM_FMTBIT_S16_LE |
 				SNDRV_PCM_FMTBIT_U8 |
+				SNDRV_PCM_FORMAT_U16 |
 				SNDRV_PCM_FMTBIT_S8,
 			.channels_min = 1,
 			.channels_max = 2,
@@ -43,7 +44,8 @@ static struct snd_soc_dai_driver lpass_codec_dai[] = {
 				SNDRV_PCM_RATE_16000,
 			.formats = SNDRV_PCM_FMTBIT_S8 |
 				SNDRV_PCM_FMTBIT_U8 |
-				SNDRV_PCM_FMTBIT_S16,
+				SNDRV_PCM_FORMAT_U16 |
+				SNDRV_PCM_FMTBIT_S16_LE,
 		},
 	}, {
 		.name = "ipq-mi2s-codec-dai",
