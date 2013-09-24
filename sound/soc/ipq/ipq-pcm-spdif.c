@@ -43,8 +43,6 @@
 #include "ipq-pcm.h"
 #include "ipq-spdif.h"
 
-
-
 extern int ipq_dml_audio_trigger(uint32_t src_addr, size_t count,
 						uint8_t dma_ch);
 extern void ipq_spdif_intr_enable(void);
@@ -130,7 +128,6 @@ static irqreturn_t ipq_pcm_spdif(int src, void *data)
 	return IRQ_HANDLED;
 }
 
-
 static int ipq_pcm_preallocate_dma_buffer(struct snd_pcm *pcm,
 						int stream)
 {
@@ -152,7 +149,6 @@ static int ipq_pcm_preallocate_dma_buffer(struct snd_pcm *pcm,
 	buf->bytes = size;
 	return 0;
 }
-
 
 static snd_pcm_uframes_t ipq_pcm_spdif_pointer(
 			struct snd_pcm_substream *substream)
@@ -248,7 +244,6 @@ static int ipq_pcm_spdif_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-
 static int ipq_pcm_spdif_open(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -277,9 +272,9 @@ static int ipq_pcm_spdif_open(struct snd_pcm_substream *substream)
 	}
 
 	prtd->pcm_stream_info.pcm_prepare_start = 0;
+	prtd->lpaif_clk.is_bit_clk_enabled = 0;
 	prtd->pcm_stream_info.substream = substream;
 	runtime->private_data = prtd;
-
 
 	return 0;
 

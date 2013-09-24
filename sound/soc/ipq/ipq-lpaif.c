@@ -24,6 +24,7 @@
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
+#include <mach/clk.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
@@ -41,6 +42,8 @@ struct ipq_lpaif_dai_baseinfo dai_info;
 struct dai_drv *dai[MAX_LPAIF_CHANNELS];
 
 static spinlock_t dai_lock;
+struct clk *lpaif_pcm_bit_clk;
+EXPORT_SYMBOL_GPL(lpaif_pcm_bit_clk);
 
 void ipq_cfg_pcm_reset(uint8_t reset)
 {
@@ -138,23 +141,13 @@ EXPORT_SYMBOL_GPL(ipq_cfg_pcm_width);
 
 void ipq_pcm_start(void)
 {
-	/*
-	 * To take PCM out of reset, we need this hack till we
-	 * have clk structure for LPASS in place.
-	 * CR 517771
-	 */
-	writel(0xf4000b42, lpass_clk_base.base + LCC_PCM_NS);
+	clk_reset(lpaif_pcm_bit_clk, LPAIF_PCM_DEASSERT);
 }
 EXPORT_SYMBOL_GPL(ipq_pcm_start);
 
 void ipq_pcm_stop(void)
 {
-	/*
-	 * To put PCM in reset, we need this hack till we have
-	 * clk structure for LPASS in place.
-	 * CR 517771
-	 */
-	writel(0xf4002b42, lpass_clk_base.base + LCC_PCM_NS);
+	clk_reset(lpaif_pcm_bit_clk, LPAIF_PCM_ASSERT);
 }
 EXPORT_SYMBOL_GPL(ipq_pcm_stop);
 
@@ -254,7 +247,6 @@ static int ipq_lpaif_dai_config_dma(uint32_t dma_ch)
 
 	return 0;
 }
-
 
 static void ipq_lpaif_dai_disable_codec(uint32_t dma_ch, int codec)
 {
@@ -478,6 +470,7 @@ static void ipq_lpaif_dai_ch_free(void)
 }
 
 static struct resource *lpa_irq;
+
 static int __devinit ipq_lpaif_dai_probe(struct platform_device *pdev)
 {
 	uint8_t i;

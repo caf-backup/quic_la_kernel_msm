@@ -29,9 +29,7 @@
 #include <sound/control.h>
 #include <asm/dma.h>
 #include <linux/memory_alloc.h>
-
 #include <sound/dai.h>
-
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <sound/core.h>
@@ -126,7 +124,6 @@ static irqreturn_t ipq_pcm_irq(int intrsrc, void *data)
 	int dma_ch;
 	unsigned int has_xrun, pending;
 	unsigned int ret = IRQ_NONE;
-
 
 	if (prtd)
 		dma_ch = prtd->lpaif_info.dma_ch;
@@ -305,6 +302,7 @@ static int ipq_pcm_open(struct snd_pcm_substream *substream)
 	}
 
 	prtd->pcm_stream_info.pcm_prepare_start = 0;
+	prtd->lpaif_clk.is_bit_clk_enabled = 0;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		prtd->lpaif_info.dma_ch = PCM0_DMA_RD_CH;

@@ -30,10 +30,57 @@
 #include "ipq806x.h"
 #include "ipq-spdif.h"
 
+static struct clk *lpaif_mi2s_bit_clk;
+static struct clk *lpaif_mi2s_osr_clk;
+static struct clk *spdif_bit_clk;
+extern struct clk *lpaif_pcm_bit_clk;
+
 static int ipq_lpass_spdif_hw_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *params,
 					struct snd_soc_dai *dai)
 {
+	uint32_t ret;
+	uint32_t bit_width = params_format(params);
+	uint32_t freq = params_rate(params);
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct ipq_lpass_runtime_data_t *prtd =
+	(struct ipq_lpass_runtime_data_t *)runtime->private_data;
+
+	ret = ipq_spdif_cfg_bit_width(bit_width);
+	if (ret) {
+		dev_err(dai->dev, "%s:%d\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+
+	ret = ipq_spdif_cfg_freq(freq);
+	if (ret) {
+		dev_err(dai->dev, "%s:%d\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+
+	switch (freq) {
+	case F_22_05_KHZ:
+	case F_32_KHZ:
+	case F_44_1_KHZ:
+	case F_88_2_KHZ:
+	case F_176_4_KHZ:
+	case F_192_KHZ:
+		clk_set_rate(spdif_bit_clk, freq);
+		ret = clk_prepare_enable(spdif_bit_clk);
+		if (IS_ERR_VALUE(ret)) {
+			dev_err(dai->dev,
+			"%s: error in enabling spdif bit clk \n", __func__);
+			return ret;
+		}
+		prtd->lpaif_clk.is_bit_clk_enabled = 1;
+		break;
+	default:
+		dev_err(dai->dev, "%s:%d Format not supported\n",
+						 __func__, __LINE__);
+		return -EINVAL;
+
+	}
+
 	return 0;
 }
 
@@ -46,6 +93,14 @@ static int ipq_lpass_spdif_prepare(struct snd_pcm_substream *substream,
 static int ipq_lpass_spdif_startup(struct snd_pcm_substream *substream,
 					struct snd_soc_dai *dai)
 {
+
+	spdif_bit_clk = clk_get(dai->dev, "spdif_bit_clk");
+	if (IS_ERR(spdif_bit_clk)) {
+		dev_err(dai->dev,
+			"%s: Error in getting spdif_bit_clk\n", __func__);
+		return PTR_ERR(spdif_bit_clk);
+	}
+
 	dev_dbg(dai->dev, "%s:%d\n", __func__, __LINE__);
 	ipq_spdif_onetime_cfg();
 	return 0;
@@ -54,7 +109,18 @@ static int ipq_lpass_spdif_startup(struct snd_pcm_substream *substream,
 static void ipq_lpass_spdif_shutdown(struct snd_pcm_substream *substream,
 					struct snd_soc_dai *dai)
 {
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct ipq_lpass_runtime_data_t *prtd =
+	(struct ipq_lpass_runtime_data_t *)runtime->private_data;
+
 	dev_dbg(dai->dev, "%s:%d\n", __func__, __LINE__);
+	if (spdif_bit_clk) {
+		if (prtd->lpaif_clk.is_bit_clk_enabled)
+			clk_disable_unprepare(spdif_bit_clk);
+
+		clk_put(spdif_bit_clk);
+		spdif_bit_clk = NULL;
+	}
 }
 
 static int ipq_lpass_spdif_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
@@ -63,13 +129,68 @@ static int ipq_lpass_spdif_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
+static uint32_t ipq_lpass_get_act_bit_width(uint32_t bit_width)
+{
+	switch (bit_width) {
+	case SNDRV_PCM_FORMAT_S8:
+	case SNDRV_PCM_FORMAT_U8:
+		return __BIT_8;
+	case SNDRV_PCM_FORMAT_S16_LE:
+	case SNDRV_PCM_FORMAT_S16_BE:
+	case SNDRV_PCM_FORMAT_U16_LE:
+	case SNDRV_PCM_FORMAT_U16_BE:
+		return __BIT_16;
+	case SNDRV_PCM_FORMAT_S24_LE:
+	case SNDRV_PCM_FORMAT_S24_BE:
+	case SNDRV_PCM_FORMAT_U24_LE:
+	case SNDRV_PCM_FORMAT_U24_BE:
+		return __BIT_24;
+	case SNDRV_PCM_FORMAT_S32_LE:
+	case SNDRV_PCM_FORMAT_S32_BE:
+	case SNDRV_PCM_FORMAT_U32_LE:
+	case SNDRV_PCM_FORMAT_U32_BE:
+		return __BIT_32;
+	default:
+		return __BIT_INVAL;
+	}
+}
+
+static uint32_t ipq_lpass_get_bit_div(uint32_t samp_freq)
+{
+	switch (samp_freq) {
+	case FREQ_8000:
+	case FREQ_11025:
+	case FREQ_16000:
+	case FREQ_22050:
+	case FREQ_32000:
+	case FREQ_44100:
+	case FREQ_48000:
+		return __BIT_DIV_8;
+	case FREQ_64000:
+	case FREQ_88200:
+	case FREQ_96000:
+	case FREQ_176400:
+	case FREQ_192000:
+		return __BIT_DIV_2;
+	default:
+		return __BIT_DIV_INVAL;
+	}
+}
+
 static int ipq_lpass_mi2s_hw_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *params,
 					struct snd_soc_dai *dai)
 {
-	int ret = 0;
+	uint32_t ret;
+	uint32_t bit_act;
+	uint16_t bit_div;
 	uint32_t bit_width = params_format(params);
 	uint32_t channels = params_channels(params);
+	uint32_t rate = params_rate(params);
+
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct ipq_lpass_runtime_data_t *prtd =
+	(struct ipq_lpass_runtime_data_t *)runtime->private_data;
 
 	ret = ipq_cfg_mi2s_hwparams_bit_width(bit_width, LPA_IF_MI2S);
 	if (ret)
@@ -79,7 +200,34 @@ static int ipq_lpass_mi2s_hw_params(struct snd_pcm_substream *substream,
 	if (ret)
 		return -EINVAL;
 
-	return ret;
+	bit_act = ipq_lpass_get_act_bit_width(bit_width);
+	if (bit_act == __BIT_INVAL)
+		return -EINVAL;
+
+	bit_div = ipq_lpass_get_bit_div(rate);
+	if (bit_div == __BIT_DIV_INVAL)
+		return -EINVAL;
+
+	clk_set_rate(lpaif_mi2s_osr_clk,
+		(rate * bit_act * channels * bit_div));
+	ret = clk_prepare_enable(lpaif_mi2s_osr_clk);
+	if (IS_ERR_VALUE(ret)) {
+		dev_err(dai->dev,
+		"%s: error in enabling mi2s osr clk \n", __func__);
+		return ret;
+	}
+	prtd->lpaif_clk.is_osr_clk_enabled = 1;
+
+	clk_set_rate(lpaif_mi2s_bit_clk, bit_div);
+	ret = clk_prepare_enable(lpaif_mi2s_bit_clk);
+	if (IS_ERR_VALUE(ret)) {
+		dev_err(dai->dev,
+		"%s: error in enabling mi2s bit clk \n", __func__);
+		return ret;
+	}
+	prtd->lpaif_clk.is_bit_clk_enabled = 1;
+
+	return 0;
 }
 
 static int ipq_lpass_mi2s_prepare(struct snd_pcm_substream *substream,
@@ -91,6 +239,21 @@ static int ipq_lpass_mi2s_prepare(struct snd_pcm_substream *substream,
 static int ipq_lpass_mi2s_startup(struct snd_pcm_substream *substream,
 					struct snd_soc_dai *dai)
 {
+
+	lpaif_mi2s_osr_clk = clk_get(dai->dev, "mi2s_osr_clk");
+	if (IS_ERR(lpaif_mi2s_osr_clk)) {
+		dev_err(dai->dev,
+			"%s: Error in getting lpaif_mi2s_osr_clk\n", __func__);
+		return PTR_ERR(lpaif_mi2s_osr_clk);
+	}
+
+	lpaif_mi2s_bit_clk = clk_get(dai->dev, "mi2s_bit_clk");
+	if (IS_ERR(lpaif_mi2s_bit_clk)) {
+		dev_err(dai->dev,
+			"%s: Error in getting lpaif_mi2s_bit_clk\n", __func__);
+		return PTR_ERR(lpaif_mi2s_bit_clk);
+	}
+
 	ipq_cfg_i2s_spkr(0, 0, LPA_IF_MI2S);
 	return 0;
 }
@@ -98,7 +261,27 @@ static int ipq_lpass_mi2s_startup(struct snd_pcm_substream *substream,
 static void ipq_lpass_mi2s_shutdown(struct snd_pcm_substream *substream,
 					struct snd_soc_dai *dai)
 {
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct ipq_lpass_runtime_data_t *prtd =
+	(struct ipq_lpass_runtime_data_t *)runtime->private_data;
+
 	ipq_cfg_i2s_spkr(0, 0, LPA_IF_MI2S);
+
+	if (lpaif_mi2s_osr_clk) {
+		if (prtd->lpaif_clk.is_osr_clk_enabled)
+			clk_disable_unprepare(lpaif_mi2s_osr_clk);
+
+		clk_put(lpaif_mi2s_osr_clk);
+		lpaif_mi2s_osr_clk = NULL;
+	}
+
+	if (lpaif_mi2s_bit_clk) {
+		if (prtd->lpaif_clk.is_bit_clk_enabled)
+			clk_disable_unprepare(lpaif_mi2s_bit_clk);
+
+		clk_put(lpaif_mi2s_bit_clk);
+		lpaif_mi2s_bit_clk = NULL;
+	}
 }
 
 static int ipq_lpass_mi2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
@@ -111,8 +294,28 @@ static int ipq_lpass_pcm_hw_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *params,
 					struct snd_soc_dai *dai)
 {
+	uint32_t ret;
 	uint32_t stream;
+	uint32_t bit_act;
 	uint32_t bit_width = params_format(params);
+	uint32_t freq = params_rate(params);
+
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct ipq_lpass_runtime_data_t *prtd =
+	(struct ipq_lpass_runtime_data_t *)runtime->private_data;
+
+	bit_act = ipq_lpass_get_act_bit_width(bit_width);
+	if (bit_act == __BIT_INVAL)
+		return -EINVAL;
+
+	clk_set_rate(lpaif_pcm_bit_clk, (freq * bit_act));
+	ret = clk_prepare_enable(lpaif_pcm_bit_clk);
+	if (IS_ERR_VALUE(ret)) {
+		dev_err(dai->dev,
+		"%s: error in enabling pcm bit clk \n", __func__);
+		return ret;
+	}
+	prtd->lpaif_clk.is_bit_clk_enabled = 1;
 
 	stream = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) ? 1 : 0;
 
@@ -135,9 +338,18 @@ static int ipq_lpass_pcm_prepare(struct snd_pcm_substream *substream,
 	dev_dbg(dai->dev, "%s:%d\n", __func__, __LINE__);
 	return 0;
 }
+
 static int ipq_lpass_pcm_startup(struct snd_pcm_substream *substream,
 					struct snd_soc_dai *dai)
 {
+	lpaif_pcm_bit_clk = clk_get(dai->dev, "pcm_bit_clk");
+	if (IS_ERR(lpaif_pcm_bit_clk)) {
+		dev_err(dai->dev,
+			"%s: Error in getting pcm_bit_clk\n", __func__);
+		return PTR_ERR(lpaif_pcm_bit_clk);
+	}
+
+	clk_reset(lpaif_pcm_bit_clk, LPAIF_PCM_ASSERT);
 	/*
 	 * Put the PCM instance to Reset
 	 */
@@ -158,6 +370,16 @@ static int ipq_lpass_pcm_startup(struct snd_pcm_substream *substream,
 static void ipq_lpass_pcm_shutdown(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct ipq_lpass_runtime_data_t *prtd =
+	(struct ipq_lpass_runtime_data_t *)runtime->private_data;
+
+	if (lpaif_pcm_bit_clk) {
+		if (prtd->lpaif_clk.is_bit_clk_enabled)
+			clk_disable_unprepare(lpaif_pcm_bit_clk);
+		clk_put(lpaif_pcm_bit_clk);
+		lpaif_pcm_bit_clk = NULL;
+	}
 	dev_dbg(dai->dev, "%s:%d\n", __func__, __LINE__);
 }
 
@@ -166,7 +388,6 @@ static int ipq_lpass_pcm_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	dev_dbg(dai->dev, "%s:%d\n", __func__, __LINE__);
 	return 0;
 }
-
 
 static struct snd_soc_dai_ops ipq_lpass_pcm_ops = {
 	.startup	= ipq_lpass_pcm_startup,
@@ -191,7 +412,6 @@ static struct snd_soc_dai_ops ipq_lpass_spdif_ops = {
 	.shutdown	= ipq_lpass_spdif_shutdown,
 	.set_fmt	= ipq_lpass_spdif_set_fmt,
 };
-
 
 static struct snd_soc_dai_driver ipq_cpu_dais[] = {
 	{

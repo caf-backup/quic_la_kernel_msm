@@ -328,6 +328,7 @@ static struct map_desc ipq806x_io_desc[] __initdata = {
 	MSM_CHIP_DEVICE(NSS_FPB, IPQ806X),
 	MSM_CHIP_DEVICE(UBI32_0_CSM, IPQ806X),
 	MSM_CHIP_DEVICE(UBI32_1_CSM, IPQ806X),
+	MSM_CHIP_DEVICE(LPASS_CLK_CTL, IPQ806X),
 };
 
 void __init msm_map_ipq806x_io(void)

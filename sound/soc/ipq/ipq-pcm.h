@@ -30,6 +30,11 @@ struct ipq_pcm_stream_t {
 	uint8_t pcm_fwd_flag;
 };
 
+struct ipq_lpa_if_clk_t {
+	uint8_t is_bit_clk_enabled;
+	uint8_t is_osr_clk_enabled;
+};
+
 struct ipq_dml_t {
 	uint8_t	dml_dma_started;
 	dma_addr_t dml_start_addr;
@@ -47,6 +52,7 @@ struct ipq_lpass_runtime_data_t {
 	struct ipq_pcm_stream_t pcm_stream_info;
 	struct ipq_dml_t dml_info;
 	struct ipq_lpa_if_t lpaif_info;
+	struct ipq_lpa_if_clk_t lpaif_clk;
 };
 
 enum dma_intf_wr_ch {

@@ -40,6 +40,7 @@
 #define LPA_IF_SPDIF_TX_CMD_ABRT			(1 << 2)
 
 #define LPA_IF_SPDIF_TX_PORT_CFG			0x10
+#define LPA_IF_SPDIF_TX_PORT_CFG_BIT_MASK		0xF
 #define LPA_IF_SPDIF_TX_PORT_CFG_L16			(0x0)
 #define LPA_IF_SPDIF_TX_PORT_CFG_L17			(1 << 0)
 #define LPA_IF_SPDIF_TX_PORT_CFG_L18			(2 << 0)
@@ -128,6 +129,7 @@
 #define LPA_IF_SPDIF_TX_MC_ERR_ACK			(1 << 6)
 
 #define LPA_IF_SPDIF_TX_CH_STAT				0x50
+#define LPA_IF_SPDIF_TX_CH_STAT_F_MASK			0x3c000
 #define LPA_IF_SPDIF_TX_CH_STAT_F_22_05KHZ		(1 << 14)
 #define LPA_IF_SPDIF_TX_CH_STAT_F_44_1KHZ		(2 << 14)
 #define LPA_IF_SPDIF_TX_CH_STAT_F_88_2KHZ		(3 << 14)
@@ -209,7 +211,7 @@
 
 
 #define SPDIF_FIFO_CTL		0x000000B8
-#define SPDIF_TX_CH_ST		0x0000BFDC
+#define SPDIF_TX_CH_ST		0x00003FDC
 #define SPDIF_TX_BURST_CTL	0x00C30000
 #define SPDIF_TX_DBG_CRC_CNT	0x00000101
 #define SPDIF_TX_INTR		0x0000007F
@@ -226,8 +228,21 @@ struct ipq_spdif_buf_info {
 	size_t size_buf;
 };
 
+enum ipq_spdif_freq {
+	F_22_05_KHZ = 22050,
+	F_44_1_KHZ = 44100,
+	F_88_2_KHZ = 88200,
+	F_176_4_KHZ = 176400,
+	F_24_KHZ = 24000,
+	F_192_KHZ = 192000,
+	F_32_KHZ = 32000,
+};
+
+extern uint32_t ipq_spdif_cfg_bit_width(uint32_t bitwidth);
+extern uint32_t ipq_spdif_cfg_freq(uint32_t freq);
 extern void ipq_cfg_spdif_rate(uint32_t rate);
 extern void ipq_spdif_onetime_cfg(void);
 extern dma_addr_t ipq_spdif_set_params(dma_addr_t frame_buf_ptr);
 extern void ipq_cfg_spdif_hwparams(int bit_width);
+
 #endif /* _IPQ_SPDIF_H */

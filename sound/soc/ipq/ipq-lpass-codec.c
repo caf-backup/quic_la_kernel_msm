@@ -47,7 +47,8 @@ static struct snd_soc_dai_driver lpass_codec_dai[] = {
 				SNDRV_PCM_FORMAT_U16 |
 				SNDRV_PCM_FMTBIT_S16_LE,
 		},
-	}, {
+	},
+	{
 		.name = "ipq-mi2s-codec-dai",
 		.playback = {
 			.stream_name = "lpass-mi2s-playback",
@@ -58,7 +59,8 @@ static struct snd_soc_dai_driver lpass_codec_dai[] = {
 				SNDRV_PCM_FMTBIT_S24 |
 				SNDRV_PCM_FMTBIT_S32,
 		},
-	}, {
+	},
+	{
 		.name = "ipq-spdif-codec-dai",
 		.playback = {
 			.stream_name = "lpass-spdif-playback",
@@ -98,7 +100,7 @@ static const struct snd_soc_codec_driver lpass_codec = {
 static int lpass_codec_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_codec(&pdev->dev,
-		&lpass_codec, &lpass_codec_dai, ARRAY_SIZE(lpass_codec_dai));
+		&lpass_codec, lpass_codec_dai, ARRAY_SIZE(lpass_codec_dai));
 }
 
 static int lpass_codec_remove(struct platform_device *pdev)
@@ -128,6 +130,7 @@ static void __exit codec_exit(void)
 	platform_driver_unregister(&lpass_codec_driver);
 
 }
+
 module_init(codec_init);
 module_exit(codec_exit);
 MODULE_DESCRIPTION("IPQ LPASS Codec Driver");

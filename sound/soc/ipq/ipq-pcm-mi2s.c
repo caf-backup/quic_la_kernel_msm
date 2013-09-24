@@ -293,6 +293,8 @@ static int ipq_pcm_mi2s_open(struct snd_pcm_substream *substream)
 	}
 
 	prtd->pcm_stream_info.pcm_prepare_start = 0;
+	prtd->lpaif_clk.is_bit_clk_enabled = 0;
+	prtd->lpaif_clk.is_osr_clk_enabled = 0;
 	prtd->lpaif_info.dma_ch = MI2S_DMA_RD_CH;
 	prtd->pcm_stream_info.substream = substream;
 	prtd->pcm_stream_info.pcm_fwd_flag = 0;

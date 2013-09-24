@@ -192,12 +192,38 @@
 #define LPA_IF_PCM_RPCM_SLOT(x)	(x << 5)
 #define LPA_IF_PCM_TPCM_SLOT(x)	(x << 0)
 
+#define __BIT_8		8
+#define __BIT_16	16
+#define __BIT_24	24
+#define __BIT_32	32
+#define __BIT_INVAL	-1
+
+#define __BIT_DIV_8	8
+#define __BIT_DIV_2	2
+#define __BIT_DIV_INVAL	-1
 
 /*
  * LPASS CLK specific, temporary, we need to put this
  * in a separate LPASS specific clock header file
  */
 #define LCC_PCM_NS_ARES		(1 << 13)
+#define LPAIF_PCM_ASSERT	(1)
+#define LPAIF_PCM_DEASSERT	(0)
+
+enum mi2s_samp_freq {
+	FREQ_8000 = 8000,
+	FREQ_11025 = 11025,
+	FREQ_16000 = 16000,
+	FREQ_22050 = 22050,
+	FREQ_32000 = 32000,
+	FREQ_44100 = 44100,
+	FREQ_48000 = 48000,
+	FREQ_64000 = 64000,
+	FREQ_88200 = 88200,
+	FREQ_96000 = 96000,
+	FREQ_176400 = 176400,
+	FREQ_192000 = 192000,
+};
 
 enum pcm_rates {
 	PCM_RATE_8000 = 8000,
@@ -219,7 +245,6 @@ struct dai_drv {
 	unsigned int period_len;
 	unsigned int master_mode;
 };
-
 
 extern int ipq_lpaif_dai_set_params(uint32_t dma_ch,
 				struct dai_dma_params *params);

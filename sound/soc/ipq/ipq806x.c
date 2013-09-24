@@ -28,6 +28,8 @@
 #include <asm/io.h>
 #include "ipq806x.h"
 
+static struct clk *lpass_ahbex_clk;
+static struct clk *lpass_ahbix_clk;
 struct lpass_clk_baseinfo lpass_clk_base;
 EXPORT_SYMBOL_GPL(lpass_clk_base);
 
@@ -220,6 +222,7 @@ static struct snd_soc_card snd_soc_card_ipq = {
 
 static int ipq_lpass_clk_probe(struct platform_device *pdev)
 {
+	uint32_t ret;
 	struct resource *clk_res;
 
 	clk_res = platform_get_resource_byname(pdev,
@@ -239,16 +242,60 @@ static int ipq_lpass_clk_probe(struct platform_device *pdev)
 							__func__, __LINE__);
 		return -ENOMEM;
 	}
+
+	lpass_ahbex_clk = clk_get(&pdev->dev, "ahbex_clk");
+	if (IS_ERR(lpass_ahbex_clk)) {
+		dev_err(&pdev->dev, "%s: %d: Error in getting ahbex_clk\n",
+							__func__, __LINE__);
+		ret = PTR_ERR(lpass_ahbex_clk);
+		goto err;
+	}
+	ret = clk_prepare_enable(lpass_ahbex_clk);
+	if (IS_ERR_VALUE(ret)) {
+		dev_err(&pdev->dev, "%s: %d: Error in enabling ahbex_clk\n",
+							__func__, __LINE__);
+		goto err;
+	}
+
+	lpass_ahbix_clk = clk_get(&pdev->dev, "ahbix_clk");
+	if (IS_ERR(lpass_ahbix_clk)) {
+		dev_err(&pdev->dev, "%s: %d: Error in getting ahbix_clk\n",
+							__func__, __LINE__);
+		ret = PTR_ERR(lpass_ahbix_clk);
+		goto err;
+	}
+	clk_set_rate(lpass_ahbix_clk, 131072);
+	ret = clk_prepare_enable(lpass_ahbix_clk);
+	if (IS_ERR_VALUE(ret)) {
+		dev_err(&pdev->dev, "%s: %d: Error in enabling ahbix_clk\n",
+							__func__, __LINE__);
+		goto err;
+	}
+
 	return 0;
+err:
+	iounmap(lpass_clk_base.base);
+	return ret;
+
 }
 
 static int ipq_lpass_clk_remove(struct platform_device *pdev)
 {
 	pr_debug("%s %d\n", __func__, __LINE__);
+	if (lpass_ahbex_clk) {
+		clk_disable_unprepare(lpass_ahbex_clk);
+		clk_put(lpass_ahbex_clk);
+		lpass_ahbex_clk = NULL;
+	}
+
+	if (lpass_ahbix_clk) {
+		clk_disable_unprepare(lpass_ahbix_clk);
+		clk_put(lpass_ahbix_clk);
+		lpass_ahbix_clk = NULL;
+	}
 	iounmap(lpass_clk_base.base);
 	return 0;
 }
-
 
 static struct platform_driver ipq_lpass_clk = {
 	.driver = {
@@ -310,6 +357,7 @@ static int __init ipq806x_lpass_init(void)
 err_reg:
 	platform_driver_unregister(&ipq_lpass_clk);
 err_add:
+	platform_device_del(ipq_snd_device);
 	platform_device_put(ipq_snd_device);
 	return ret;
 }

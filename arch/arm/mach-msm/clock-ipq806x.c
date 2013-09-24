@@ -37,6 +37,7 @@
 
 #define REG(off)	(MSM_CLK_CTL_BASE + (off))
 #define REG_GCC(off)	(MSM_APCS_GCC_BASE + (off))
+#define REG_LPA(off)	(MSM_LPASS_CLK_CTL_BASE + (off))
 
 /* Peripheral clock registers. */
 #define GCC_RPU_CR				REG(0x0F80)
@@ -727,6 +728,53 @@
 #define CLK_TEST_REG				REG(0x2FA0)
 #define GCC_APCS_CLK_DIAG			REG_GCC(0x001C)
 
+/* LPASS CLOCK REGISTERS */
+#define LCC_CLK_HS_DEBUG_CFG_REG		REG_LPA(0x00A4)
+#define LCC_CLK_LS_DEBUG_CFG_REG		REG_LPA(0x00A8)
+#define LCC_CODEC_I2S_MIC_MD_REG		REG_LPA(0x0064)
+#define LCC_CODEC_I2S_MIC_NS_REG		REG_LPA(0x0060)
+#define LCC_CODEC_I2S_MIC_STATUS_REG		REG_LPA(0x0068)
+#define LCC_CODEC_I2S_SPKR_MD_REG		REG_LPA(0x0070)
+#define LCC_CODEC_I2S_SPKR_NS_REG		REG_LPA(0x006C)
+#define LCC_CODEC_I2S_SPKR_STATUS_REG		REG_LPA(0x0074)
+#define LCC_MI2S_MD_REG				REG_LPA(0x004C)
+#define LCC_MI2S_NS_REG				REG_LPA(0x0048)
+#define LCC_MI2S_STATUS_REG			REG_LPA(0x0050)
+#define LCC_PCM_MD_REG				REG_LPA(0x0058)
+#define LCC_PCM_NS_REG				REG_LPA(0x0054)
+#define LCC_PCM_STATUS_REG			REG_LPA(0x005C)
+#define LCC_PLL0_MODE_REG			REG_LPA(0x0000)
+#define LCC_PLL0_L_VAL_REG			REG_LPA(0x0004)
+#define LCC_PLL0_M_VAL_REG			REG_LPA(0x0008)
+#define LCC_PLL0_N_VAL_REG			REG_LPA(0x000C)
+#define LCC_PLL0_CONFIG_REG			REG_LPA(0x0014)
+#define LCC_PLL0_STATUS_REG			REG_LPA(0x0018)
+#define LCC_SPARE_I2S_MIC_MD_REG		REG_LPA(0x007C)
+#define LCC_SPARE_I2S_MIC_NS_REG		REG_LPA(0x0078)
+#define LCC_SPARE_I2S_MIC_STATUS_REG		REG_LPA(0x0080)
+#define LCC_SPARE_I2S_SPKR_MD_REG		REG_LPA(0x0088)
+#define LCC_SPARE_I2S_SPKR_NS_REG		REG_LPA(0x0084)
+#define LCC_SPARE_I2S_SPKR_STATUS_REG		REG_LPA(0x008C)
+#define LCC_SLIMBUS_NS_REG			REG_LPA(0x00CC)
+#define LCC_SLIMBUS_MD_REG			REG_LPA(0x00D0)
+#define LCC_SLIMBUS_STATUS_REG			REG_LPA(0x00D4)
+#define LCC_AHBEX_BRANCH_CTL_REG		REG_LPA(0x00E4)
+#define LCC_PRI_PLL_CLK_CTL_REG			REG_LPA(0x00C4)
+#define LCC_AHBIX_NS_REG			REG_LPA(0x0038)
+#define LCC_AHBIX_MD_REG			REG_LPA(0x003C)
+#define LCC_AHBIX_STATUS_REG			REG_LPA(0x0044)
+#define LCC_PXO_SRC_CTL_REG			REG_LPA(0x00B4)
+#define LCC_PRI_PLL_CLK_CTL			REG_LPA(0x00C4)
+#define LCC_PLL0_MODE_MASK			(0)
+#define LCC_PLL0_MODE_OUTCTRL			(1 << 0)
+#define LCC_PLL0_MODE_BYPASSNL			(1 << 1)
+#define LCC_PLL0_MODE_RESET_N			(1 << 2)
+#define LCC_PXO_SRC_CTL_MASK			(0)
+#define LCC_PXO_SRC_CTL_GFM_CXO_SRC_SEL		(1 << 0)
+#define LCC_PRI_PLL_CLK_CTL_MASK		(0)
+#define LCC_PRI_PLL_CLK_CTL_GFM_PRI_PLL_SRC_SEL	(1 << 0)
+
+
 /* MUX source input identifiers. */
 #define pxo_to_bb_mux		0
 #define cxo_to_bb_mux		5
@@ -809,6 +857,39 @@
 		.md_val = MD8(16, m, 0, n), \
 		.ns_val = NS(23, 16, n, m, 5, 4, 3, d, 2, 0, s##_to_bb_mux), \
 	}
+
+#define F_AIF_MI2S(f, s, d, m, n) \
+	{ \
+		.freq_hz = f, \
+		.src_clk = &s##_clk.c, \
+		.md_val = MD8(8, m, 0, n), \
+		.ns_val = NS(31, 24, n, m, 5, 4, 3, d, 2, 0, s##_to_lpa_mux), \
+	}
+
+#define F_AIF_SPDIF(f, s, d, m, n) \
+	{ \
+		.freq_hz = f, \
+		.src_clk = &s##_clk.c, \
+		.md_val = MD16(m, n), \
+		.ns_val = NS(31, 16, n, m, 5, 4, 3, d, 2, 0, s##_to_lpa_mux), \
+	}
+
+#define F_PCM(f, s, d, m, n) \
+	{ \
+		.freq_hz = f, \
+		.src_clk = &s##_clk.c, \
+		.md_val = MD16(m, n), \
+		.ns_val = NS(31, 16, n, m, 5, 4, 3, d, 2, 0, s##_to_lpa_mux), \
+	}
+
+#define F_AHBIX(f, s, d, m, n) \
+	{ \
+		.freq_hz = f, \
+		.src_clk = &s##_clk.c, \
+		.md_val = MD8(8, m, 0, n), \
+		.ns_val = NS(31, 24, n, m, 5, 4, 3, d, 2, 0, s##_to_lpa_mux),\
+	}
+
 
 static struct clk_freq_tbl clk_tbl_usb30[] = {
 	F_USB30(125000000, pll0, 1, 5, 32),
@@ -925,6 +1006,7 @@ struct pll_rate{
 	const uint32_t	post_div;
 	const uint32_t	i_bits;
 };
+
 #define PLL_RATE(l, m, n, v, d, i) { l, m, n, v, (d>>1), i }
 
 enum vdd_dig_levels {
@@ -1017,6 +1099,220 @@ static struct pll_vote_clk pll14_clk = {
 		.rate = 480000000,
 		.ops = &clk_ops_pll_vote,
 		CLK_INIT(pll14_clk.c),
+	},
+};
+
+static struct pll_vote_clk pll4_clk = {
+	.en_reg = BB_PLL_ENA_SC0_REG,
+	.en_mask = BIT(4),
+	.status_reg = PLL_LOCK_DET_STATUS,
+	.status_mask = BIT(4),
+	.parent = &pxo_clk.c,
+	.c = {
+		.dbg_name = "pll4_clk",
+		.rate = 393216000,
+		.ops = &clk_ops_pll_vote,
+		CLK_INIT(pll4_clk.c),
+	},
+};
+
+static struct clk_freq_tbl clk_tbl_aif_mi2s[] = {
+	F_AIF_MI2S(0,		gnd,	1,	0,	0),
+	F_AIF_MI2S(2048000,	pll4,	4,	1,	48),
+	F_AIF_MI2S(2822400,	pll4,	4,	6,	209),
+	F_AIF_MI2S(4096000,	pll4,	4,	1,	24),
+	F_AIF_MI2S(5644800,	pll4,	4,	12,	209),
+	F_AIF_MI2S(8192000,	pll4,	4,	1,	12),
+	F_AIF_MI2S(11289600,	pll4,	4,	24,	209),
+	F_AIF_MI2S(12288000,	pll4,	4,	1,	8),
+	F_AIF_MI2S(6144000,	pll4,	4,	1,	16),
+	F_AIF_MI2S(16384000,	pll4,	4,	1,	6),
+	F_AIF_MI2S(22579200,	pll4,	4,	48,	209),
+	F_AIF_MI2S(32768000,	pll4,	4,	1,	3),
+	F_AIF_MI2S(45158400,	pll4,	4,	96,	209),
+	F_AIF_MI2S(49152000,	pll4,	4,	1,	2),
+	F_AIF_MI2S(24576000,	pll4,	4,	1,	4),
+	F_AIF_MI2S(36864000,	pll4,	4,	3,	8),
+	F_AIF_MI2S(8467200,	pll4,	4,	18,	209),
+	F_AIF_MI2S(16934400,	pll4,	4,	41,	238),
+	F_AIF_MI2S(33868800,	pll4,	4,	41,	119),
+	F_AIF_MI2S(18432000,	pll4,	4,	3,	16),
+	F_AIF_MI2S(3072000,	pll4,	4,	1,	32),
+	F_AIF_MI2S(4233600,	pll4,	4,	9,	209),
+	F_AIF_MI2S(84687200,	pll4,	4,	18,	209),
+	F_AIF_MI2S(9216000,	pll4,	4,	3,	32),
+	F_AIF_MI2S(12700800,	pll4,	4,	27,	209),
+	F_AIF_MI2S(25401600,	pll4,	4,	77,	298),
+	F_AIF_MI2S(50803200,	pll4,	4,	200,	387),
+	F_AIF_MI2S(55296000,	pll4,	4,	9,	16),
+	F_AIF_MI2S(27648000,	pll4,	4,	9,	32),
+	F_AIF_MI2S(225792000,	pll4,	4,	65,	283),
+	F_END
+};
+
+#define CLK_AIF_MI2S_BIT(i, ns, h_r) \
+struct cdiv_clk i##_clk = { \
+	.b = { \
+		.ctl_reg = ns, \
+		.en_mask = BIT(15), \
+		.halt_reg = h_r, \
+		.halt_check = DELAY, \
+	}, \
+	.ns_reg = ns, \
+	.ext_mask = BIT(14), \
+	.div_offset = 10, \
+	.max_div = 16, \
+	.c = { \
+		.dbg_name = #i "_clk", \
+		.ops = &clk_ops_cdiv, \
+		CLK_INIT(i##_clk.c), \
+		.rate = ULONG_MAX, \
+	}, \
+}
+
+#define CLK_AIF_MI2S_OSR(i, ns, md, h_r) \
+	struct rcg_clk i##_clk = { \
+		.b = { \
+			.ctl_reg = ns, \
+			.en_mask = BIT(17), \
+			.reset_reg = ns, \
+			.reset_mask = BIT(19), \
+			.halt_reg = h_r, \
+			.halt_check = ENABLE, \
+			.halt_bit = 1 , \
+		}, \
+		.ns_reg = ns, \
+		.md_reg = md, \
+		.root_en_mask = BIT(9), \
+		.ns_mask = (BM(31, 24) | BM(6, 0)), \
+		.mnd_en_mask = BIT(8), \
+		.set_rate = set_rate_mnd, \
+		.freq_tbl = clk_tbl_aif_mi2s, \
+		.current_freq = &rcg_dummy_freq, \
+		.c = { \
+			.dbg_name = #i "_clk", \
+			.ops = &clk_ops_rcg, \
+			CLK_INIT(i##_clk.c), \
+		}, \
+	}
+
+static CLK_AIF_MI2S_OSR(mi2s_osr, LCC_MI2S_NS_REG, LCC_MI2S_MD_REG,
+	LCC_MI2S_STATUS_REG);
+
+static CLK_AIF_MI2S_BIT(mi2s_bit, LCC_MI2S_NS_REG, LCC_MI2S_STATUS_REG);
+
+static struct clk_freq_tbl clk_tbl_pcm[] = {
+	{ .ns_val = BIT(10) },
+	F_PCM(64,	pll4,	4,	1,	6144),
+	F_PCM(128,	pll4,	4,	1,	3072),
+	F_PCM(256,	pll4,	4,	1,	1536),
+	F_END
+};
+
+static struct rcg_clk pcm_clk = {
+	.b = {
+		.ctl_reg = LCC_PCM_NS_REG,
+		.en_mask = BIT(11),
+		.reset_reg = LCC_PCM_NS_REG,
+		.reset_mask = BIT(13),
+		.halt_reg = LCC_PCM_STATUS_REG,
+		.halt_check = ENABLE,
+		.halt_bit = 0,
+	},
+	.ns_reg = LCC_PCM_NS_REG,
+	.md_reg = LCC_PCM_MD_REG,
+	.root_en_mask = BIT(9),
+	.ns_mask = BM(31, 16) | BM(6, 0),
+	.mnd_en_mask = BIT(8),
+	.set_rate = set_rate_mnd,
+	.freq_tbl = clk_tbl_pcm,
+	.current_freq = &rcg_dummy_freq,
+	.c = {
+		.dbg_name = "pcm_clk",
+		.ops = &clk_ops_rcg,
+		CLK_INIT(pcm_clk.c),
+		.rate = ULONG_MAX,
+	},
+};
+
+static struct clk_freq_tbl clk_tbl_aif_osr_492[] = {
+	F_AIF_SPDIF(0,		gnd,	1,	0,	0),
+	F_AIF_SPDIF(22050,	pll4,	1,	449,	62555),
+	F_AIF_SPDIF(32000,	pll4,	1,	1,	96),
+	F_AIF_SPDIF(44100,	pll4,	1,	248,	17289),
+	F_AIF_SPDIF(88200,	pll4,	1,	1117,	38906),
+	F_AIF_SPDIF(176400,	pll4,	1,	3398,	59177),
+	F_AIF_SPDIF(96000,	pll4,	1,	1,	32),
+	F_AIF_SPDIF(192000,	pll4,	1,	1,	16),
+	F_END
+};
+
+static struct rcg_clk spdif_clk = {
+	.b = {
+		.ctl_reg = LCC_SLIMBUS_NS_REG,
+		.en_mask = BIT(12),
+		.reset_reg = LCC_SLIMBUS_NS_REG,
+		.reset_mask = BIT(7),
+		.halt_reg = LCC_SLIMBUS_STATUS_REG,
+		.halt_check = ENABLE,
+		.halt_bit = 1,
+	},
+	.ns_reg = LCC_SLIMBUS_NS_REG,
+	.md_reg = LCC_SLIMBUS_MD_REG,
+	.root_en_mask = BIT(10) | BIT(8),
+	.ns_mask = (BM(31, 16) | BM(6, 0)),
+	.mnd_en_mask = BIT(9),
+	.set_rate = set_rate_mnd,
+	.freq_tbl = clk_tbl_aif_osr_492,
+	.current_freq = &rcg_dummy_freq,
+	.c = {
+		.dbg_name = "SPDIF_CLK",
+		.ops = &clk_ops_rcg,
+		CLK_INIT(spdif_clk.c),
+	},
+};
+
+static struct clk_freq_tbl clk_tbl_ahbix[] = {
+	F_AHBIX(131072, pll4, 1, 1, 3),
+	F_END
+};
+
+static struct rcg_clk ahbix_clk = {
+	.b = {
+		.ctl_reg = LCC_AHBIX_NS_REG,
+		.reset_reg = LCC_AHBIX_NS_REG,
+		.reset_mask = BIT(10),
+		.halt_reg = LCC_AHBIX_STATUS_REG,
+		.halt_check = ENABLE,
+		.halt_bit = 0,
+	},
+	.ns_reg = LCC_AHBIX_NS_REG,
+	.md_reg = LCC_AHBIX_MD_REG,
+	.root_en_mask = BIT(8),
+	.ns_mask = (BM(31, 24) | BM(6, 0)),
+	.mnd_en_mask = BIT(8) | BIT(10),
+	.set_rate = set_rate_mnd,
+	.freq_tbl = clk_tbl_ahbix,
+	.current_freq = &rcg_dummy_freq,
+	.c = {
+		.dbg_name = "AHBIX_CLK",
+		.ops = &clk_ops_rcg,
+		CLK_INIT(ahbix_clk.c),
+	},
+};
+
+static struct branch_clk ahbex_clk = {
+	.b = {
+		.ctl_reg = LCC_AHBEX_BRANCH_CTL_REG,
+		.en_mask = BIT(15) | BIT(16),
+		.halt_reg = LCC_AHBIX_STATUS_REG,
+		.halt_check = ENABLE,
+		.halt_bit = 0,
+	},
+	.c = {
+		.dbg_name = "AHBEX_CLK",
+		.ops = &clk_ops_branch,
+		CLK_INIT(ahbex_clk.c),
 	},
 };
 
@@ -2814,6 +3110,14 @@ static struct clk_lookup msm_clocks_ipq806x[] = {
 	CLK_LOOKUP("utmi_clk",		usb30_utmi_clk.c,	"ipq-dwc3.0"),
 	CLK_LOOKUP("utmi_b0_clk",	usb30_0_utmi_clk_ctl.c,	"ipq-dwc3.0"),
 	CLK_LOOKUP("utmi_b1_clk",	usb30_1_utmi_clk_ctl.c,	"ipq-dwc3.0"),
+
+	CLK_LOOKUP("PLL4",		pll4_clk.c,		NULL),
+	CLK_LOOKUP("ahbex_clk",		ahbex_clk.c,	"ipq-lpass-clk"),
+	CLK_LOOKUP("ahbix_clk",		ahbix_clk.c,	"ipq-lpass-clk"),
+	CLK_LOOKUP("mi2s_osr_clk",	mi2s_osr_clk.c,	"ipq-cpu-dai"),
+	CLK_LOOKUP("mi2s_bit_clk",	mi2s_bit_clk.c,	"ipq-cpu-dai"),
+	CLK_LOOKUP("spdif_bit_clk",	spdif_clk.c,	"ipq-cpu-dai"),
+	CLK_LOOKUP("pcm_bit_clk",	pcm_clk.c,	"ipq-cpu-dai"),
 };
 
 
@@ -3125,9 +3429,34 @@ static struct pll_config pll14_config __initdata = {
 	.main_output_mask = BIT(23),
 };
 
+static struct pll_config_regs pll4_regs __initdata = {
+	.l_reg = LCC_PLL0_L_VAL_REG,
+	.m_reg = LCC_PLL0_M_VAL_REG,
+	.n_reg = LCC_PLL0_N_VAL_REG,
+	.config_reg = LCC_PLL0_CONFIG_REG,
+	.mode_reg = LCC_PLL0_MODE_REG,
+};
+
+static struct pll_config pll4_config_393 __initdata = {
+	.l = 0xF,
+	.m = 0x91,
+	.n = 0xC7,
+	.vco_val = 0x0,
+	.vco_mask = BM(17, 16),
+	.pre_div_val = 0x0,
+	.pre_div_mask = BIT(19),
+	.post_div_val = 0x0,
+	.post_div_mask = BM(21, 20),
+	.mn_ena_val = BIT(22),
+	.mn_ena_mask = BIT(22),
+	.main_output_val = BIT(23),
+	.main_output_mask = BIT(23),
+};
+
 static void __init reg_init(void)
 {
 	void __iomem *imem_reg;
+	uint32_t cfg_val;
 
 	/* Enable IMEM's clk_on signal */
 	imem_reg = ioremap(0x04b00040, 4);
@@ -3183,6 +3512,33 @@ static void __init reg_init(void)
 		/* Program prng_clk to 64MHz if it isn't configured */
 		if (!readl_relaxed(PRNG_CLK_NS_REG))
 			writel_relaxed(0x2B, PRNG_CLK_NS_REG);
+
+		/* Check whether Pll4 is active */
+
+		is_pll_enabled = readl_relaxed(PLL_LOCK_DET_STATUS) & BIT(4);
+
+		if (!is_pll_enabled) {
+			configure_sr_pll(&pll4_config_393, &pll4_regs, 1);
+			writel_relaxed(0x1, LCC_PRI_PLL_CLK_CTL_REG);
+		}
+		/* Enable Lpass pll src ctrl registers */
+		cfg_val = readl_relaxed(LCC_PLL0_MODE_REG);
+		cfg_val &= LCC_PLL0_MODE_MASK;
+		cfg_val |= (LCC_PLL0_MODE_OUTCTRL |
+				LCC_PLL0_MODE_BYPASSNL |
+				LCC_PLL0_MODE_RESET_N);
+		writel_relaxed(cfg_val, LCC_PLL0_MODE_REG);
+
+		cfg_val = readl_relaxed(LCC_PXO_SRC_CTL_REG);
+		cfg_val &= LCC_PXO_SRC_CTL_MASK;
+		cfg_val |= LCC_PXO_SRC_CTL_GFM_CXO_SRC_SEL;
+		writel_relaxed(cfg_val, LCC_PXO_SRC_CTL_REG);
+
+		cfg_val = readl_relaxed(LCC_PRI_PLL_CLK_CTL);
+		cfg_val &= LCC_PRI_PLL_CLK_CTL_MASK;
+		cfg_val |= LCC_PRI_PLL_CLK_CTL_GFM_PRI_PLL_SRC_SEL;
+		writel_relaxed(cfg_val, LCC_PRI_PLL_CLK_CTL);
+
 	}
 
 }
