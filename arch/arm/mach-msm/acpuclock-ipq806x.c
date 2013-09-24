@@ -105,7 +105,7 @@ static struct msm_bus_scale_pdata bus_scale_data __initdata = {
 static struct l2_level l2_freq_tbl[] __initdata = {
 	[0] = { {  384000, PLL_8, 0, 0x00 }, 1050000, 1050000, 1 },
 	[1] = { {  700000, HFPLL, 1, 0x1C }, 1050000, 1050000, 4 },
-	[2] = { { 1200000, HFPLL, 1, 0x30 }, 1150000, 1150000, 4 },
+	[2] = { { 1200000, HFPLL, 1, 0x30 }, 1150000, 1150000, 5 },
 	{ }
 };
 
