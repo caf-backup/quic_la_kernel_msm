@@ -1855,6 +1855,46 @@ static void __init ipq806x_i2c_init(void)
 					&ipq806x_i2c_qup_gsbi2_pdata;
 }
 
+#define AP148_GPIO_BTN_JUMPSTART	65
+#define AP148_GPIO_BTN_RESET		54
+
+#define AP148_KEYS_POLL_INTERVAL	20	/* msecs */
+#define AP148_KEYS_DEBOUNCE_INTERVAL	(3 * AP148_KEYS_POLL_INTERVAL)
+
+static struct gpio_keys_button ap148_gpio_keys[] = {
+	{
+		.desc		= "wps",
+		.type		= EV_KEY,
+		.code		= KEY_WPS_BUTTON,
+		.debounce_interval = AP148_KEYS_DEBOUNCE_INTERVAL,
+		.gpio		= AP148_GPIO_BTN_JUMPSTART,
+		.wakeup		= 1,
+		.active_low	= 1,
+	},
+	{
+		.desc		= "reset",
+		.type		= EV_KEY,
+		.code		= KEY_RESTART,
+		.debounce_interval = AP148_KEYS_DEBOUNCE_INTERVAL,
+		.gpio		= AP148_GPIO_BTN_RESET,
+		.wakeup		= 1,
+		.active_low	= 1,
+	}
+};
+
+static struct gpio_keys_platform_data ap148_keys_data = {
+	.buttons        = ap148_gpio_keys,
+	.nbuttons       = ARRAY_SIZE(ap148_gpio_keys),
+};
+
+static struct platform_device ap148_kp_pdev = {
+	.name           = "gpio-keys",
+	.id             = -1,
+	.dev            = {
+		.platform_data  = &ap148_keys_data,
+	},
+};
+
 #define GPIO_KEY_HOME			PM8921_GPIO_PM_TO_SYS(27)
 #define GPIO_KEY_VOLUME_UP		PM8921_GPIO_PM_TO_SYS(35)
 #define GPIO_KEY_VOLUME_DOWN_PM8921	PM8921_GPIO_PM_TO_SYS(38)
@@ -2253,7 +2293,6 @@ static void __init ipq806x_init(void)
 	ipq806x_pcie_init();
 
 	nss_gmac_init();
-
 #ifdef CONFIG_MSM_ROTATOR
 	msm_rotator_set_split_iommu_domain();
 #endif
@@ -2264,9 +2303,11 @@ static void __init ipq806x_init(void)
 	}
 
 	if (machine_is_ipq806x_db149() ||
-		machine_is_ipq806x_db147() ||
-		machine_is_ipq806x_ap148())
+		machine_is_ipq806x_db147())
 		platform_device_register(&cdp_kp_pdev);
+
+	if (machine_is_ipq806x_ap148())
+		platform_device_register(&ap148_kp_pdev);
 
 }
 

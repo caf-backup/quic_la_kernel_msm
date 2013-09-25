@@ -729,6 +729,28 @@ static struct msm_gpiomux_config ipq806x_sdc3_configs[] __initdata = {
 		},
 	},
 };
+static struct gpiomux_setting ipq806x_buttons_ap148_cfg = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_UP,
+};
+
+static struct msm_gpiomux_config ipq806x_buttons_ap148[] __initdata = {
+	{
+		.gpio      = 54,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &ipq806x_buttons_ap148_cfg,
+			[GPIOMUX_ACTIVE] = &ipq806x_buttons_ap148_cfg,
+		},
+	},
+	{
+		.gpio      = 65,
+		.settings = {
+			[GPIOMUX_SUSPENDED] = &ipq806x_buttons_ap148_cfg,
+			[GPIOMUX_ACTIVE] = &ipq806x_buttons_ap148_cfg,
+		},
+	},
+};
 
 static struct gpiomux_setting usb30_pwr_en_n = {
 	.func = GPIOMUX_FUNC_GPIO,
@@ -1199,6 +1221,11 @@ void __init ipq806x_init_gpiomux(void)
 		msm_gpiomux_install(ipq806x_sdc3_configs,
 			ARRAY_SIZE(ipq806x_sdc3_configs));
 	}
+	 if (machine_is_ipq806x_ap148()) {
+		msm_gpiomux_install(ipq806x_buttons_ap148,
+			ARRAY_SIZE(ipq806x_buttons_ap148));
+	}
+
 #ifdef CONFIG_MSM_PCIE
 	if (machine_is_ipq806x_db149()) {
 		msm_gpiomux_install(ipq806x_pcie_configs,
