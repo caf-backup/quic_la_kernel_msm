@@ -1302,7 +1302,7 @@ static int
 ar8327_atu_dump(struct ar8216_priv *priv)
 {
 	u32 ret;
-	u32 i = 0, len = 0;
+	u32 i = 0, len = 0, entry_len = 0;
 	volatile u32 reg[4] = {0,0,0,0};
 	u8 addr[ETH_ALEN] = { 0 };
 	char *buf;
@@ -1343,6 +1343,12 @@ ar8327_atu_dump(struct ar8216_priv *priv)
 		len += snprintf(buf+len, sizeof(priv->buf) - len, "PORTMAP: 0x%02x\n", ((reg[1] >> 16) & 0x7f));
 
 		reg[2] |= 0xf;
+
+		if (!entry_len)
+			entry_len = len;
+
+		if (sizeof(priv->buf) - len <= entry_len)
+			break;
 	}while(1);
 
 	return len;
