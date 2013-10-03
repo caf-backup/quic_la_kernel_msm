@@ -3552,8 +3552,6 @@ static void __init ipq806x_clock_pre_init(void)
 	if ((readl_relaxed(PRNG_CLK_NS_REG) & 0x7F) == 0x2B)
 		prng_clk.freq_tbl = clk_tbl_prng_64;
 
-	vote_vdd_level(&vdd_dig, VDD_DIG_HIGH);
-
 	clk_ops_local_pll.enable = sr_pll_clk_enable;
 }
 
@@ -3576,17 +3574,6 @@ static void __init ipq806x_clock_post_init(void)
 	clk_set_rate(&pcie_src_clk.c, 100000000);
 	clk_set_rate(&pcie1_src_clk.c, 100000000);
 	clk_set_rate(&pcie2_src_clk.c, 100000000);
-
-	/*
-	 * The halt status bits for these clocks may be incorrect at boot.
-	 * Toggle these clocks on and off to refresh them.
-	 */
-	clk_prepare_enable(&pdm_clk.c);
-	clk_disable_unprepare(&pdm_clk.c);
-	clk_prepare_enable(&tssc_clk.c);
-	clk_disable_unprepare(&tssc_clk.c);
-	clk_prepare_enable(&usb_hsic_hsic_clk.c);
-	clk_disable_unprepare(&usb_hsic_hsic_clk.c);
 
 	/*
 	 * Keep sfab floor @ 133MHz @ nominal frequency
@@ -3621,7 +3608,7 @@ static int __init ipq806x_clock_late_init(void)
 	if (WARN(rc, "cfpb_a_clk not enabled (%d)\n", rc))
 		return rc;
 
-	return unvote_vdd_level(&vdd_dig, VDD_DIG_HIGH);
+	return 0;
 }
 
 struct clock_init_data ipq806x_clock_init_data __initdata = {
