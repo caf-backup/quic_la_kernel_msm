@@ -22,6 +22,8 @@
 
 #define CPU_CONFIG_CMD 5
 #define CPU_CONFIG_QUERY_CMD 6
+#define TZBSP_MAJOR_VERSION(x)	(((x) >> 16) & 0xFFFF)
+#define TZBSP_MINOR_VERSION(x)	((x) & 0xFFFF)
 
 static int query_cpu_config(void)
 {
@@ -101,9 +103,29 @@ static ssize_t store_cpuctl(struct sysdev_class *class,
 
 static SYSDEV_CLASS_ATTR(cpuctl, 0600, show_cpuctl, store_cpuctl);
 
+static ssize_t show_tzbspver(struct sysdev_class *class,
+		struct sysdev_class_attribute *attr, char *buf)
+{
+	u32 ver = scm_get_version();
+	return snprintf(buf, PAGE_SIZE, "%u.%u\n", TZBSP_MAJOR_VERSION(ver),
+			TZBSP_MINOR_VERSION(ver));
+}
+
+static SYSDEV_CLASS_ATTR(tzbsp_version, 0600, show_tzbspver, NULL);
+
+static struct attribute *cpu_subsys_attributes[] = {
+	&attr_cpuctl.attr,
+	&attr_tzbsp_version.attr,
+	NULL
+};
+
+static struct attribute_group cpu_subsys_attr_group = {
+	.attrs = cpu_subsys_attributes,
+};
+
 static int __init init_scm_cpu(void)
 {
-	return sysfs_create_file(&cpu_subsys.dev_root->kobj,
-			&attr_cpuctl.attr);
+	return sysfs_create_group(&cpu_subsys.dev_root->kobj,
+			&cpu_subsys_attr_group);
 }
 module_init(init_scm_cpu);
