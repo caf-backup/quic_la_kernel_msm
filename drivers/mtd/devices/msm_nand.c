@@ -2081,6 +2081,7 @@ msm_nand_read(struct mtd_info *mtd, loff_t from, size_t len,
 	      size_t *retlen, u_char *buf)
 {
 	int ret;
+	struct mtd_ecc_stats stats;
 	struct mtd_oob_ops ops;
 	int (*read_oob)(struct mtd_info *, loff_t, struct mtd_oob_ops *);
 
@@ -2095,6 +2096,7 @@ msm_nand_read(struct mtd_info *mtd, loff_t from, size_t len,
 	ops.oobbuf = NULL;
 	ret = 0;
 	*retlen = 0;
+	stats = mtd->ecc_stats;
 
 	if ((from & (mtd->writesize - 1)) == 0 && len == mtd->writesize) {
 		/* reading a page on page boundary */
@@ -2129,7 +2131,16 @@ msm_nand_read(struct mtd_info *mtd, loff_t from, size_t len,
 
 			no_copy = (offset == 0 && actual_len == mtd->writesize);
 			ops.datbuf = (no_copy) ? buf : bounce_buf;
+
+			/*
+			 * MTD API requires that all the pages are to
+			 * be read even if uncorrectable or
+			 * correctable ECC errors occur.
+			 */
 			ret = read_oob(mtd, aligned_from, &ops);
+			if (ret == -EBADMSG || ret == -EUCLEAN)
+				ret = 0;
+
 			if (ret < 0)
 				break;
 
@@ -2150,7 +2161,16 @@ msm_nand_read(struct mtd_info *mtd, loff_t from, size_t len,
 	}
 
 out:
-	return ret;
+	if (ret)
+		return ret;
+
+	if (mtd->ecc_stats.failed - stats.failed)
+		return -EBADMSG;
+
+	if (mtd->ecc_stats.corrected - stats.corrected)
+		return -EUCLEAN;
+
+	return 0;
 }
 
 static int
