@@ -119,6 +119,7 @@ int msm_dmov_exec_cmd(unsigned id, unsigned int cmdptr);
 #define DMOV_CRCI_CONF1_SD(crci, sd) (sd << ((crci-DMOV_CRCIS_PER_CONF)*3))
 
 #define DMOV_HI_GP_CTL			DMOV_ADDR(0x3D8, 0)
+#define DMOV_HI_GP_CTL_CORE_CLK_LP_EN	(1 << 12)
 #define DMOV_HI_GP_CTL_LP_CNT(x)	(((x) & 0xf) << 8)
 #define DMOV_HI_GP_CTL_CI3_CLK_LP_EN	(1 << 7)
 #define DMOV_HI_GP_CTL_CI2_CLK_LP_EN	(1 << 6)

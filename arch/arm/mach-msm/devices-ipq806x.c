@@ -190,8 +190,8 @@ static struct resource msm_dmov_resource[] = {
 		.flags = IORESOURCE_IRQ,
 	},
 	{
-		.start = 0x18320000,
-		.end = 0x18320000 + SZ_1M - 1,
+		.start = 0x18300000,
+		.end = 0x18300000 + SZ_1M - 1,
 		.flags = IORESOURCE_MEM,
 	},
 };

@@ -778,12 +778,10 @@ static void config_datamover(int adm)
 			DMOV_CI_CONF_MAX_BURST(0x8),
 		       DMOV_REG(DMOV_CI_CONF(2), adm));
 
-	writel_relaxed(DMOV_HI_GP_CTL_CI3_CLK_LP_EN |
-			DMOV_HI_GP_CTL_CI2_CLK_LP_EN |
-			DMOV_HI_GP_CTL_CI1_CLK_LP_EN |
-			DMOV_HI_GP_CTL_CI0_CLK_LP_EN |
+	writel_relaxed(DMOV_HI_GP_CTL_CORE_CLK_LP_EN | /* will disable LP */
 			DMOV_HI_GP_CTL_LP_CNT(0xf),
 		       DMOV_REG(DMOV_HI_GP_CTL, adm));
+
 #endif /* CONFIG_MSM_ADM3 */
 }
 #else /* CONFIG_ARCH_IPQ806X */
