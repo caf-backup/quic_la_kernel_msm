@@ -65,7 +65,12 @@ static int ipq_lpass_spdif_hw_params(struct snd_pcm_substream *substream,
 	case F_88_2_KHZ:
 	case F_176_4_KHZ:
 	case F_192_KHZ:
-		clk_set_rate(spdif_bit_clk, freq);
+		ret = clk_set_rate(spdif_bit_clk, freq);
+		if (IS_ERR_VALUE(ret)) {
+			dev_err(dai->dev,
+			"%s: error in setting spdif bit clk \n", __func__);
+			return ret;
+		}
 		ret = clk_prepare_enable(spdif_bit_clk);
 		if (IS_ERR_VALUE(ret)) {
 			dev_err(dai->dev,
@@ -208,8 +213,13 @@ static int ipq_lpass_mi2s_hw_params(struct snd_pcm_substream *substream,
 	if (bit_div == __BIT_DIV_INVAL)
 		return -EINVAL;
 
-	clk_set_rate(lpaif_mi2s_osr_clk,
+	ret = clk_set_rate(lpaif_mi2s_osr_clk,
 		(rate * bit_act * channels * bit_div));
+	if (IS_ERR_VALUE(ret)) {
+		dev_err(dai->dev,
+		"%s: error in setting mi2s osr clk \n", __func__);
+		return ret;
+	}
 	ret = clk_prepare_enable(lpaif_mi2s_osr_clk);
 	if (IS_ERR_VALUE(ret)) {
 		dev_err(dai->dev,
@@ -218,7 +228,12 @@ static int ipq_lpass_mi2s_hw_params(struct snd_pcm_substream *substream,
 	}
 	prtd->lpaif_clk.is_osr_clk_enabled = 1;
 
-	clk_set_rate(lpaif_mi2s_bit_clk, bit_div);
+	ret = clk_set_rate(lpaif_mi2s_bit_clk, bit_div);
+	if (IS_ERR_VALUE(ret)) {
+		dev_err(dai->dev,
+		"%s: error in setting mi2s bit clk \n", __func__);
+		return ret;
+	}
 	ret = clk_prepare_enable(lpaif_mi2s_bit_clk);
 	if (IS_ERR_VALUE(ret)) {
 		dev_err(dai->dev,
@@ -308,7 +323,12 @@ static int ipq_lpass_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (bit_act == __BIT_INVAL)
 		return -EINVAL;
 
-	clk_set_rate(lpaif_pcm_bit_clk, (freq * bit_act));
+	ret = clk_set_rate(lpaif_pcm_bit_clk, (freq * bit_act));
+	if (IS_ERR_VALUE(ret)) {
+		dev_err(dai->dev,
+		"%s: error in setting pcm bit clk \n", __func__);
+		return ret;
+	}
 	ret = clk_prepare_enable(lpaif_pcm_bit_clk);
 	if (IS_ERR_VALUE(ret)) {
 		dev_err(dai->dev,

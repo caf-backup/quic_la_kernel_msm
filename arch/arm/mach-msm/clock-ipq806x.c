@@ -829,6 +829,8 @@
 
 #define MN_MODE_DUAL_EDGE 0x2
 
+#define PLL_VAL 0x00C1248B
+
 #define CLK_USB_SS(name, n, h_b) \
 	static struct rcg_clk name = { \
 	.b = { \
@@ -1118,10 +1120,20 @@ static struct pll_vote_clk pll4_clk = {
 
 static struct clk_freq_tbl clk_tbl_aif_mi2s[] = {
 	F_AIF_MI2S(0,		gnd,	1,	0,	0),
+	F_AIF_MI2S(1024000,	pll4,	4,	1,	96),
+	F_AIF_MI2S(2822400,	pll4,	4,	1,	35),
+	F_AIF_MI2S(5644800,	pll4,	4,	2,	35),
+	F_AIF_MI2S(4233600,	pll4,	4,	1,	23),
+	F_AIF_MI2S(8467200,	pll4,	4,	2,	23),
+	F_AIF_MI2S(9216000,	pll4,	4,	2,	21),
+	F_AIF_MI2S(4608000,	pll4,	4,	2,	43),
+	F_AIF_MI2S(1411200,	pll4,	4,	2,	139),
+	F_AIF_MI2S(3072000,	pll4,	4,	1,	32),
+	F_AIF_MI2S(1536000,	pll4,	4,	1,	64),
+	F_AIF_MI2S(2116800,	pll4,	4,	2,	93),
+	F_AIF_MI2S(11289600,	pll4,	4,	2,	17),
 	F_AIF_MI2S(2048000,	pll4,	4,	1,	48),
-	F_AIF_MI2S(2822400,	pll4,	4,	6,	209),
 	F_AIF_MI2S(4096000,	pll4,	4,	1,	24),
-	F_AIF_MI2S(5644800,	pll4,	4,	12,	209),
 	F_AIF_MI2S(8192000,	pll4,	4,	1,	12),
 	F_AIF_MI2S(11289600,	pll4,	4,	24,	209),
 	F_AIF_MI2S(12288000,	pll4,	4,	1,	8),
@@ -1133,14 +1145,11 @@ static struct clk_freq_tbl clk_tbl_aif_mi2s[] = {
 	F_AIF_MI2S(49152000,	pll4,	4,	1,	2),
 	F_AIF_MI2S(24576000,	pll4,	4,	1,	4),
 	F_AIF_MI2S(36864000,	pll4,	4,	3,	8),
-	F_AIF_MI2S(8467200,	pll4,	4,	18,	209),
 	F_AIF_MI2S(16934400,	pll4,	4,	41,	238),
 	F_AIF_MI2S(33868800,	pll4,	4,	41,	119),
 	F_AIF_MI2S(18432000,	pll4,	4,	3,	16),
 	F_AIF_MI2S(3072000,	pll4,	4,	1,	32),
-	F_AIF_MI2S(4233600,	pll4,	4,	9,	209),
 	F_AIF_MI2S(84687200,	pll4,	4,	18,	209),
-	F_AIF_MI2S(9216000,	pll4,	4,	3,	32),
 	F_AIF_MI2S(12700800,	pll4,	4,	27,	209),
 	F_AIF_MI2S(25401600,	pll4,	4,	77,	298),
 	F_AIF_MI2S(50803200,	pll4,	4,	200,	387),
@@ -1203,9 +1212,9 @@ static CLK_AIF_MI2S_BIT(mi2s_bit, LCC_MI2S_NS_REG, LCC_MI2S_STATUS_REG);
 
 static struct clk_freq_tbl clk_tbl_pcm[] = {
 	{ .ns_val = BIT(10) },
-	F_PCM(64,	pll4,	4,	1,	6144),
-	F_PCM(128,	pll4,	4,	1,	3072),
-	F_PCM(256,	pll4,	4,	1,	1536),
+	F_PCM(64000,	pll4,	4,	1,	6144),
+	F_PCM(128000,	pll4,	4,	1,	3072),
+	F_PCM(256000,	pll4,	4,	1,	1536),
 	F_END
 };
 
@@ -3538,6 +3547,7 @@ static void __init reg_init(void)
 		cfg_val &= LCC_PRI_PLL_CLK_CTL_MASK;
 		cfg_val |= LCC_PRI_PLL_CLK_CTL_GFM_PRI_PLL_SRC_SEL;
 		writel_relaxed(cfg_val, LCC_PRI_PLL_CLK_CTL);
+		writel_relaxed(PLL_VAL, LCC_PLL0_CONFIG_REG);
 
 	}
 

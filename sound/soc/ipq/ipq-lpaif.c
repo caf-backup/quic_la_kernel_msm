@@ -118,7 +118,11 @@ void ipq_cfg_pcm_width(uint8_t bit_width, uint8_t dir)
 	cfg = readl(dai_info.base + LPA_IF_PCM_0);
 
 	/* Clear the bit-width field */
-	cfg = cfg & ~(LPA_IF_PCM_BITW_MASK);
+	if (dir)
+		cfg = cfg & ~(LPA_IF_PCM_TPCM_WIDTH);
+	else
+		cfg = cfg & ~(LPA_IF_PCM_RPCM_WIDTH);
+
 	writel(cfg, dai_info.base + LPA_IF_PCM_0);
 
 	switch (bit_width) {

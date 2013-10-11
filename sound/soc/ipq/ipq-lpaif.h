@@ -186,7 +186,6 @@
 #define LPA_IF_RPCM_SLOT_MASK	(0x03E0)
 #define LPA_IF_TPCM_SLOT_MASK	(0x001F)
 #define LPA_IF_PCM_RATE_MASK	(7 << 15)
-#define LPA_IF_PCM_BITW_MASK	(3 << 10)
 
 /* PCM RPCM SLOTS */
 #define LPA_IF_PCM_RPCM_SLOT(x)	(x << 5)
