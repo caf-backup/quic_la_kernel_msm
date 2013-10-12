@@ -333,6 +333,10 @@ static int increase_vdd(int cpu, struct vdd_data *data,
 				cpu, rc);
 			return rc;
 		}
+
+		/* Voltage settling Time */
+		udelay(10);
+
 		sc->vreg[VREG_CORE].cur_vdd = data->vdd_core;
 	}
 
@@ -361,6 +365,10 @@ static void decrease_vdd(int cpu, struct vdd_data *data,
 				cpu, ret);
 			return;
 		}
+
+		/* Voltage settling Time */
+		udelay(10);
+
 		sc->vreg[VREG_CORE].cur_vdd = data->vdd_core;
 	}
 
