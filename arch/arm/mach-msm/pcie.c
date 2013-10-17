@@ -56,14 +56,16 @@
 #define PCIE20_BUSNUMBERS              0x18
 #define PCIE20_MEMORY_BASE_LIMIT       0x20
 
-#define PCIE20_PLR_IATU_VIEWPORT       0x900
-#define PCIE20_PLR_IATU_CTRL1          0x904
-#define PCIE20_PLR_IATU_CTRL2          0x908
-#define PCIE20_PLR_IATU_LBAR           0x90C
-#define PCIE20_PLR_IATU_UBAR           0x910
-#define PCIE20_PLR_IATU_LAR            0x914
-#define PCIE20_PLR_IATU_LTAR           0x918
-#define PCIE20_PLR_IATU_UTAR           0x91c
+#define PCIE20_AXI_MSTR_RESP_COMP_CTRL0 0x818
+#define PCIE20_AXI_MSTR_RESP_COMP_CTRL1 0x81c
+#define PCIE20_PLR_IATU_VIEWPORT        0x900
+#define PCIE20_PLR_IATU_CTRL1           0x904
+#define PCIE20_PLR_IATU_CTRL2           0x908
+#define PCIE20_PLR_IATU_LBAR            0x90C
+#define PCIE20_PLR_IATU_UBAR            0x910
+#define PCIE20_PLR_IATU_LAR             0x914
+#define PCIE20_PLR_IATU_LTAR            0x918
+#define PCIE20_PLR_IATU_UTAR            0x91c
 
 #define MSM_PCIE_DEV_BAR_ADDR	PCIBIOS_MIN_MEM
 #define MSM_PCIE_DEV_CFG_ADDR	0x01000000
@@ -392,6 +394,13 @@ static void __init msm_pcie_config_controller(struct msm_pcie_dev_t *dev)
 	writel_relaxed(0, dev->pcie20 + PCIE20_PLR_IATU_UTAR);
 	/* ensure that hardware registers the configuration */
 	wmb();
+
+	/* 1K PCIE buffer setting */
+	writel_relaxed(0x3, dev->pcie20 + PCIE20_AXI_MSTR_RESP_COMP_CTRL0);
+	writel_relaxed(0x1, dev->pcie20 + PCIE20_AXI_MSTR_RESP_COMP_CTRL1);
+	/* ensure that hardware registers the configuration */
+	wmb();
+
 }
 
 static int __init msm_pcie_get_resources(struct platform_device *pdev)
