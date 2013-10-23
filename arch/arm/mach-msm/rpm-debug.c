@@ -85,8 +85,6 @@ static int rpm_debug_resource_set(void *data, u64 val)
 static int rpm_debug_idle_set(void *data, u64 val)
 {
 	int ret;
-	struct msm_rpm_iv_pair req;
-	struct msm_rpm_map_data *resource;
 
 	ret = msm_rpm_send_idle_command();
 
