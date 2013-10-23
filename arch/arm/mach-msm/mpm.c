@@ -344,6 +344,7 @@ int msm_mpm_enable_pin(unsigned int pin, unsigned int enable)
 	spin_unlock_irqrestore(&msm_mpm_lock, flags);
 	return 0;
 }
+EXPORT_SYMBOL(msm_mpm_enable_pin);
 
 int msm_mpm_set_pin_wake(unsigned int pin, unsigned int on)
 {
@@ -361,6 +362,7 @@ int msm_mpm_set_pin_wake(unsigned int pin, unsigned int on)
 	spin_unlock_irqrestore(&msm_mpm_lock, flags);
 	return 0;
 }
+EXPORT_SYMBOL(msm_mpm_set_pin_wake);
 
 int msm_mpm_set_pin_type(unsigned int pin, unsigned int flow_type)
 {
