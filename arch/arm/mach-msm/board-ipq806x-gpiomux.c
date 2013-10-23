@@ -348,18 +348,6 @@ static struct gpiomux_setting gsbi4_active_cfg = {
 	.pull = GPIOMUX_PULL_NONE,
 };
 
-static struct gpiomux_setting gsbi5_suspended_cfg = {
-	.func = GPIOMUX_FUNC_2,
-	.drv = GPIOMUX_DRV_12MA,
-	.pull = GPIOMUX_PULL_NONE,
-};
-
-static struct gpiomux_setting gsbi5_active_cfg = {
-	.func = GPIOMUX_FUNC_2,
-	.drv = GPIOMUX_DRV_12MA,
-	.pull = GPIOMUX_PULL_NONE,
-};
-
 /* External 3.3 V regulator enable */
 static struct msm_gpiomux_config ipq806x_ext_regulator_configs[] __initdata = {
 	{

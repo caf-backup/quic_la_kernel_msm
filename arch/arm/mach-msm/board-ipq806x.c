@@ -831,49 +831,6 @@ static struct platform_device android_usb_device = {
 };
 #endif
 
-/* Bandwidth requests (zero) if no vote placed */
-static struct msm_bus_vectors usb_init_vectors[] = {
-	{
-		.src = MSM_BUS_MASTER_SPS,
-		.dst = MSM_BUS_SLAVE_EBI_CH0,
-		.ab = 0,
-		.ib = 0,
-	},
-};
-
-/* Bus bandwidth requests in Bytes/sec */
-static struct msm_bus_vectors usb_max_vectors[] = {
-	{
-		.src = MSM_BUS_MASTER_SPS,
-		.dst = MSM_BUS_SLAVE_EBI_CH0,
-		.ab = 60000000,		/* At least 480Mbps on bus. */
-		.ib = 960000000,	/* MAX bursts rate */
-	},
-};
-
-static struct msm_bus_paths usb_bus_scale_usecases[] = {
-	{
-		ARRAY_SIZE(usb_init_vectors),
-		usb_init_vectors,
-	},
-	{
-		ARRAY_SIZE(usb_max_vectors),
-		usb_max_vectors,
-	},
-};
-
-static struct msm_bus_scale_pdata usb_bus_scale_pdata = {
-	usb_bus_scale_usecases,
-	ARRAY_SIZE(usb_bus_scale_usecases),
-	.name = "usb",
-};
-
-static int phy_init_seq[] = {
-	0x68, 0x81, /* update DC voltage level */
-	0x24, 0x82, /* set pre-emphasis and rise/fall time */
-	-1
-};
-
 #define PMIC_GPIO_DP		27    /* PMIC GPIO for D+ change */
 #define PMIC_GPIO_DP_IRQ	PM8921_GPIO_IRQ(PM8921_IRQ_BASE, PMIC_GPIO_DP)
 #define MSM_MPM_PIN_USB1_OTGSESSVLD	40
@@ -2249,7 +2206,7 @@ inline void ipq_nss_get_mac_addr(struct mtd_info *mtd, int id,
 			mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 }
 
-static void nss_fixup_platform_data(void)
+static int __init nss_fixup_platform_data(void)
 {
 	struct mtd_info *mtd;
 	struct msm_nss_gmac_platform_data *pdata;
@@ -2257,7 +2214,7 @@ static void nss_fixup_platform_data(void)
 	mtd = get_mtd_device_nm(IPQ_MAC_ADDR_PARTITION);
 	if (IS_ERR_OR_NULL(mtd)) {
 		printk("%s: " IPQ_MAC_ADDR_PARTITION " not found\n", __func__);
-		return;
+		return -ENXIO;
 	}
 
 	pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_0.dev.platform_data;
@@ -2271,6 +2228,8 @@ static void nss_fixup_platform_data(void)
 
 	pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_3.dev.platform_data;
 	ipq_nss_get_mac_addr(mtd, 3, pdata);
+
+	return 0;
 }
 
 late_initcall(nss_fixup_platform_data);
