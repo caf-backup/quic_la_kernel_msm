@@ -700,14 +700,20 @@
 #define GMAC_CORE1_CLK_CTL			REG(0x3CAC)
 #define GMAC_COREn_CLK_FS(n)			REG(0x3CB0+32*(n-1))
 #define GMAC_CORE1_CLK_FS			REG(0x3CB0)
-#define UBI32_COREn_CLK_SRC_CTL(n)		REG(0x3D20+32*(n-1))
+#define UBI32_COREn_CLK_SRC_CTL(n)		REG(0x3D20+32*(n))
 #define UBI32_CORE1_CLK_SRC_CTL			REG(0x3D20)
-#define UBI32_COREn_CLK_MD(n)			REG(0x3D24+32*(n-1))
-#define UBI32_CORE1_CLK_MD			REG(0x3D24)
+#define UBI32_COREn_CLK_SRC0_MD(n)		REG(0x3D24+32*(n))
+#define UBI32_CORE1_CLK_SRC0_MD			REG(0x3D24)
+#define UBI32_COREn_CLK_SRC1_MD(n)		REG(0x3D28+32*(n))
+#define UBI32_CORE1_CLK_SRC1_MD			REG(0x3D28)
+#define UBI32_COREn_CLK_SRC0_NS(n)		REG(0x3D2C+32*(n))
+#define UBI32_CORE1_CLK_SRC0_NS			REG(0x3D2C)
+#define UBI32_COREn_CLK_SRC1_NS(n)		REG(0x3D30+32*(n))
+#define UBI32_CORE1_CLK_SRC1_NS			REG(0x3D30)
+#define UBI32_COREn_CLK_CTL(n)			REG(0x3D34+32*(n))
+#define UBI32_CORE1_CLK_CTL			REG(0x3D34)
 #define UBI32_COREn_DUAL_MN8_CRC_CTL(n)		REG(0x3D28+32*(n-1))
 #define UBI32_CORE1_DUAL_MN8_CRC_CTL		REG(0x3D28)
-#define UBI32_COREn_CLK_CTL(n)			REG(0x3D2C+32*(n-1))
-#define UBI32_CORE1_CLK_CTL			REG(0x3D2C)
 #define UBI32_COREn_CLK_FS(n)			REG(0x3D30+32*(n-1))
 #define UBI32_CORE1_CLK_FS			REG(0x3D30)
 #define NSS_250MHZ_CLK_SRC_CTL			REG(0x3D60)
@@ -1053,6 +1059,26 @@ static DEFINE_VDD_CLASS(vdd_dig, set_vdd_dig_ipq806x, VDD_DIG_NUM);
 		[VDD_DIG_##l2] = (f2),		\
 		[VDD_DIG_##l3] = (f3),		\
 	},					\
+	.num_fmax = VDD_DIG_NUM
+
+static int set_vdd_dig_nss_core(struct clk_vdd_class *vdd_class, int level)
+{
+	static const int vdd_uv[] = {
+		[VDD_DIG_NOMINAL] = 1050000,
+		[VDD_DIG_HIGH]    = 1150000
+	};
+	return rpm_vreg_set_voltage(RPM_VREG_ID_SMB208_S1b, RPM_VREG_VOTER3,
+				    vdd_uv[level], 1150000, 1);
+}
+
+static DEFINE_VDD_CLASS(vdd_nss_dig, set_vdd_dig_nss_core, VDD_DIG_NUM);
+
+#define VDD_NSS_DIG_FMAX_MAP2(l1, f1, l2, f2)	\
+	.vdd_class = &vdd_nss_dig,			\
+	.fmax = (unsigned long[VDD_DIG_NUM]) {	\
+		[VDD_DIG_##l1] = (f1),		\
+		[VDD_DIG_##l2] = (f2),		\
+	}, \
 	.num_fmax = VDD_DIG_NUM
 
 /*
@@ -2962,6 +2988,318 @@ static struct measure_clk measure_clk = {
 	.multiplier = 1,
 };
 
+#define NSS_PLL_RATE(l, m, n, v, d, i) \
+	{  \
+		.l_val = l, \
+		.m_val = m, \
+		.n_val = n, \
+		.vco = v, \
+		.post_div = d, \
+		.i_bits = i, \
+	}
+
+/*
+ * Currently unable to use Macros for Bitwise operator
+ * TODO: Waiting for framework to be checked and clean up
+ */
+#define F_NSS_CORE(f, s, m, n, p_r) \
+	{ \
+		.freq_hz = f, \
+		.src_clk = &s##_clk.c, \
+		.md_val = m, \
+		.ns_val = n, \
+		.extra_freq_data = p_r, \
+	}
+
+static struct pll_clk pll18_clk = {
+	.mode_reg = PLL18_MODE,
+	.parent = &pxo_clk.c,
+	.c = {
+		.dbg_name = "pll18_clk",
+		.rate = 0, /* TODO: Detect rate dynamically */
+		.ops = &clk_ops_local_pll,
+		CLK_INIT(pll18_clk.c),
+	},
+};
+
+static struct pll_rate pll18_rate[] = {
+	[0] = NSS_PLL_RATE( 0x4000042C, 0x00, 0x01, 0x1, 0x2, 0x01495625),	/*  PLL Values for 550Mhz */
+	[1] = NSS_PLL_RATE( 0x4000043A, 0x10, 0x19, 0x1, 0x2, 0x014B5625),	/*  PLL Values for 733Mhz */
+};
+
+static struct clk_freq_tbl clk_tbl_nss[] = {
+	F_NSS_CORE( 110000000, pll18, 0x0100fa, 0xfb0141, &pll18_rate[0]),	/* 110Mhz */
+	F_NSS_CORE( 275000000, pll18, 0x0100fd, 0xfe0141, &pll18_rate[0]),	/* 275Mhz */
+	F_NSS_CORE( 550000000, pll18, 0xff00ff, 0xff0001, &pll18_rate[0]),	/* 550Mhz */
+	F_NSS_CORE( 733000000, pll18, 0xff00ff, 0xff0001, &pll18_rate[1]),	/* 733Mhz */
+	F_END
+};
+
+/*
+ * Custom Table to handle programming both cores at same time
+ * TODO: Waiting for framework to be checked and clean up
+ */
+struct nss_core_clk_tbl {
+	bool prepared;
+	bool enabled;
+	unsigned long cur_rate;
+
+	void __iomem *const ctl0_src_reg;
+	void __iomem *const ctl1_src_reg;
+
+	uint32_t ns_mask;
+	void __iomem *const ns0_reg;
+	void __iomem *const ns1_reg;
+
+	uint32_t md_mask;
+	void __iomem *const md0_reg;
+	void __iomem *const md1_reg;
+
+	uint32_t mnd_en_mask;
+	uint32_t root_en_mask;
+
+	void   (*set_rate)(struct nss_core_clk_tbl *, struct clk_freq_tbl *);
+
+	struct clk_freq_tbl *freq_tbl;
+        struct clk_freq_tbl *current_freq;
+
+	struct branch b;
+	struct branch b1;
+	struct clk c;
+};
+
+static inline struct nss_core_clk_tbl *to_nss_core_clk(struct clk *c)
+{
+	return container_of(c, struct nss_core_clk_tbl, c);
+}
+
+static int nss_core_clk_set_rate(struct clk *c, unsigned long rate)
+{
+	struct nss_core_clk_tbl *ncc = to_nss_core_clk(c);
+	struct clk_freq_tbl *nf, *cf;
+	unsigned long flags;
+
+	for (nf = ncc->freq_tbl; nf->freq_hz != FREQ_END
+			&& nf->freq_hz != rate; nf++)
+		;
+
+	if (nf->freq_hz == FREQ_END)
+		return -EINVAL;
+
+	cf = ncc->current_freq;
+
+	spin_lock_irqsave(&c->lock, flags);
+	spin_lock(&local_clock_reg_lock);
+
+	ncc->set_rate(ncc, nf);
+	ncc->current_freq = nf;
+
+	spin_unlock(&local_clock_reg_lock);
+	spin_unlock_irqrestore(&c->lock, flags);
+
+	return 0;
+}
+
+static unsigned long nss_core_clk_get_rate(struct clk *c)
+{
+	printk("nss_core_clk_get_rate() not implemented\n");
+	return 0;
+}
+
+static int nss_core_clk_prepare(struct clk *c)
+{
+	struct nss_core_clk_tbl *ncc = to_nss_core_clk(c);
+
+	WARN(ncc->current_freq == &rcg_dummy_freq,
+		"Attempting to prepare %s before setting its rate. "
+		"Set the rate first!\n", ncc->c.dbg_name);
+	return 0;
+}
+
+static int nss_core_clk_enable(struct clk *c)
+{
+	unsigned long flags;
+	struct nss_core_clk_tbl *ncc = to_nss_core_clk(c);
+
+	spin_lock_irqsave(&local_clock_reg_lock, flags);
+	ncc->enabled = true;
+	spin_unlock_irqrestore(&local_clock_reg_lock, flags);
+
+	return 0;
+}
+
+static void nss_core_clk_disable(struct clk *c)
+{
+	printk("nss_core_clk_disable() not implemented \n");
+}
+
+static void nss_core_clk_unprepare(struct clk *c)
+{
+	struct nss_core_clk_tbl *ncc = to_nss_core_clk(c);
+	ncc->prepared = false;
+}
+
+static struct clk *nss_core_clk_get_parent(struct clk *c)
+{
+	return to_nss_core_clk(c)->current_freq->src_clk;
+}
+
+static int nss_core_clk_list_rate(struct clk *c, unsigned n)
+{
+	printk("nss_core_clk_list_rate() not implemented \n");
+	return -ENXIO;
+}
+
+static int nss_core_clk_reset(struct clk *c, enum clk_reset_action action)
+{
+	return branch_reset(&to_nss_core_clk(c)->b, action);
+}
+
+static enum handoff nss_core_clk_handoff(struct clk *c)
+{
+	return HANDOFF_DISABLED_CLK;
+}
+
+/*
+ * TODO - Clean up code to use banking
+ */
+static void set_rate_nss(struct nss_core_clk_tbl *ncc, struct clk_freq_tbl *nf)
+{
+	struct pll_rate *rate = nf->extra_freq_data;
+
+	uint32_t ctl_reg0;
+	uint32_t ctl_reg1;
+
+	const uint32_t pll_cl_mask = 0x1;
+	const uint32_t pll11_mask = 0x1;
+	const uint32_t pll18_mask = 0x0;
+
+	uint32_t wait_cycles = 100;
+	volatile uint32_t value;
+	volatile uint32_t mask = (1 << 2);
+
+	/*
+	 * Switch to Stable PLL
+	 */
+	writel_relaxed(0x0100fd, UBI32_COREn_CLK_SRC1_MD(0));
+	writel_relaxed(0x0100fd, UBI32_COREn_CLK_SRC1_MD(1));
+	writel_relaxed(0xfe0141, UBI32_COREn_CLK_SRC1_NS(0));
+	writel_relaxed(0xfe0141, UBI32_COREn_CLK_SRC1_NS(1));
+
+	ctl_reg0 = readl_relaxed(ncc->ctl0_src_reg);
+	ctl_reg1 = readl_relaxed(ncc->ctl1_src_reg);
+	ctl_reg0 &= ~pll_cl_mask;
+	ctl_reg1 &= ~pll_cl_mask;
+	ctl_reg0 |= pll11_mask;
+	ctl_reg1 |= pll11_mask;
+	writel_relaxed(ctl_reg0, ncc->ctl0_src_reg);
+	writel_relaxed(ctl_reg1, ncc->ctl1_src_reg);
+
+	/*
+	 * Start with clean slate
+	 * 	Programming Sequence Provided by HW Team
+	 */
+	writel_relaxed(0, PLL18_MODE);
+
+	/*
+	 * Program PLL
+	 */
+	writel_relaxed(rate->l_val, PLL18_L_VAL);
+	writel_relaxed(rate->m_val, PLL18_M_VAL);
+	writel_relaxed(rate->n_val, PLL18_N_VAL);
+
+	writel_relaxed(rate->i_bits, PLL18_CONFIG);
+	writel_relaxed(0x00003080, PLL18_TEST_CTL);
+
+	/*
+	 * Enable PLL18 output
+	 */
+	writel_relaxed(0x2, PLL18_MODE);
+	mdelay(1);
+	writel_relaxed(0x6, PLL18_MODE);
+	writel_relaxed(0x7, PLL18_MODE);
+
+	/*
+	 * Enable NSS Vote for PLL18 and acquire LOCK
+	 */
+	writel_relaxed(mask, PLL_ENA_NSS);
+	do {
+		value = readl_relaxed(PLL_LOCK_DET_STATUS);
+		if (value & mask) {
+			break;
+		}
+		mdelay(1);
+	} while (wait_cycles-- > 0);
+
+	/*
+	 * Program MND NS Registers
+	 */
+	writel_relaxed(nf->md_val, ncc->md0_reg);
+	writel_relaxed(nf->md_val, ncc->md1_reg);
+
+	writel_relaxed(nf->ns_val, ncc->ns0_reg);
+	writel_relaxed(nf->ns_val, ncc->ns1_reg);
+
+	/*
+	 * Switch to New PLL
+	 */
+	ctl_reg0 = readl_relaxed(ncc->ctl0_src_reg);
+	ctl_reg1 = readl_relaxed(ncc->ctl1_src_reg);
+	ctl_reg0 &= ~pll_cl_mask;
+	ctl_reg1 &= ~pll_cl_mask;
+	ctl_reg0 |= pll18_mask;
+	ctl_reg1 |= pll18_mask;
+	writel_relaxed(ctl_reg0, ncc->ctl0_src_reg);
+	writel_relaxed(ctl_reg1, ncc->ctl1_src_reg);
+}
+
+static struct clk_ops clk_ops_nss_core = {
+	.prepare = nss_core_clk_prepare,
+	.enable = nss_core_clk_enable,
+	.disable = nss_core_clk_disable,
+	.unprepare = nss_core_clk_unprepare,
+	.handoff = nss_core_clk_handoff,
+	.set_rate = nss_core_clk_set_rate,
+	.get_rate = nss_core_clk_get_rate,
+	.list_rate = nss_core_clk_list_rate,
+	.reset = nss_core_clk_reset,
+	.get_parent = nss_core_clk_get_parent,
+};
+
+static struct nss_core_clk_tbl nss_core_clk = {
+	.b = {
+		.ctl_reg = UBI32_COREn_CLK_CTL(0),
+		.en_mask = BIT(1),
+		.halt_check = NOCHECK,
+	},
+	.b1 = {
+		.ctl_reg = UBI32_COREn_CLK_CTL(1),
+		.en_mask = BIT(1),
+		.halt_check = NOCHECK,
+	},
+	.ctl0_src_reg = UBI32_COREn_CLK_SRC_CTL(0),
+	.ctl1_src_reg = UBI32_COREn_CLK_SRC_CTL(1),
+	.ns0_reg = UBI32_COREn_CLK_SRC0_NS(0),
+	.ns1_reg = UBI32_COREn_CLK_SRC0_NS(1),
+	.md0_reg = UBI32_COREn_CLK_SRC0_MD(0),
+	.md1_reg = UBI32_COREn_CLK_SRC0_MD(1),
+
+	.ns_mask = 0xff01ff,
+	.md_mask = 0xff00ff,
+
+	.root_en_mask = BIT(11),
+	.mnd_en_mask = BIT(8),
+	.set_rate = set_rate_nss,
+	.freq_tbl = clk_tbl_nss,
+	.current_freq = &rcg_dummy_freq,
+	.c = {
+		.dbg_name = "nss_core_clk",
+		.ops = &clk_ops_nss_core,
+		CLK_INIT(nss_core_clk.c),
+		VDD_NSS_DIG_FMAX_MAP2(NOMINAL, 550000000, HIGH, 733000000),
+	},
+};
+
 static struct clk_lookup msm_clocks_ipq806x[] = {
 	CLK_LOOKUP("xo",		cxo_a_clk.c,	""),
 	CLK_LOOKUP("xo",		pxo_a_clk.c,	""),
@@ -3001,6 +3339,7 @@ static struct clk_lookup msm_clocks_ipq806x[] = {
 	CLK_LOOKUP("bus_a_clk",		nssfab0_a_clk.c,	"msm_nss_fab_0"),
 	CLK_LOOKUP("bus_clk",		nssfab1_clk.c,		"msm_nss_fab_1"),
 	CLK_LOOKUP("bus_a_clk",		nssfab1_a_clk.c,	"msm_nss_fab_1"),
+	CLK_LOOKUP("nss_core_clk",	nss_core_clk.c,		"qca-nss.0"),
 	CLK_LOOKUP("mem_clk",		ebi1_msmbus_clk.c,	"msm_bus"),
 	CLK_LOOKUP("mem_a_clk",		ebi1_msmbus_a_clk.c,	"msm_bus"),
 	CLK_LOOKUP("dfab_clk",		dfab_msmbus_clk.c,	"msm_bus"),
