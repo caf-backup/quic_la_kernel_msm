@@ -1250,7 +1250,6 @@ static void
 ar8327_init_port(struct ar8216_priv *priv, int port)
 {
 	struct ar8327_platform_data *pdata;
-	struct ar8327_port_cfg *cfg;
 	u32 t;
 
 	pdata = priv->phy->dev.platform_data;
@@ -1799,9 +1798,12 @@ ar8xxx_atu_dump(struct switch_dev *dev,
 }
 
 static int
-ar8xxx_atu_flush(struct ar8216_priv *priv)
+ar8xxx_atu_flush(struct switch_dev *dev,
+		 const struct switch_attr *attr,
+		 struct switch_val *val)
 {
 	int ret;
+	struct ar8216_priv *priv = to_ar8216(dev);
 	ret = priv->chip->atu_flush(priv);
 	return ret;
 }
@@ -2210,7 +2212,7 @@ static int ar8216_get_vlan_dev(struct phy_device *phydev, int vlanID)
 	struct ar8216_priv *priv = phydev->priv;
 	uint8_t  name[10];
 
-	sprintf(name, "%s.%d\0", phydev->attached_dev->name, vlanID);
+	sprintf(name, "%s.%d", phydev->attached_dev->name, vlanID);
 	priv->vlan_dev[vlanID] = dev_get_by_name(&init_net, name);
 	if(priv->vlan_dev[vlanID] != NULL){
 		dev_put(priv->vlan_dev[vlanID]);
@@ -2238,7 +2240,7 @@ ar8216_read_status(struct phy_device *phydev)
 			port_status |= 1 << i;
 	}
 
-	if(priv->old_port_status ^ port_status != 0) {
+	if((priv->old_port_status ^ port_status) != 0) {
 		for(i = 0; i < AR8X16_MAX_VLANS; i++) {
 			if(((port_status & priv->vlan_table[i]) != 0) &&
 					(priv->vlan_status[i] == 0)){
