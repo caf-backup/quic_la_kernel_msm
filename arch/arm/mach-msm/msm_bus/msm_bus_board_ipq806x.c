@@ -469,9 +469,6 @@ static int nss_tiered_slave_fab_1_apps[] = {
 	MSM_BUS_NSS_TIERED_SLAVE_FAB_APPS_1,
 };
 
-static int mport_nss_fab_1_ubi32[] = {MSM_BUS_MASTER_PORT_UBI32,};
-static int sport_nss_fab_1_ubi32[] = {MSM_BUS_SLAVE_PORT_UBI32,};
-
 static int mport_nss_fab_1_gmac_0[] = {MSM_BUS_MASTER_PORT_GMAC_0,};
 static int mport_nss_fab_1_gmac_1[] = {MSM_BUS_MASTER_PORT_GMAC_1,};
 static int mport_nss_fab_1_gmac_2[] = {MSM_BUS_MASTER_PORT_GMAC_2,};
