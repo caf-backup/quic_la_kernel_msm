@@ -541,6 +541,8 @@ static int acpuclk_krait_set_rate(int cpu, unsigned long rate,
 		goto out;
 	}
 
+	memset(&vdd_data, 0, sizeof(struct vdd_data));
+
 	/* Calculate voltage requirements for the current CPU. */
 	if (drv.scalable[cpu].vddmx_scale_en) {
 		vdd_data.vdd_mem  = calculate_vdd_mem(tgt);
