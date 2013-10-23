@@ -612,6 +612,7 @@ static void *msm_bus_rpm_allocate_rpm_data(struct platform_device *pdev,
 	return (void *)rpm_data;
 }
 
+#ifndef CONFIG_MSM_BUS_RPM_ARB_DISABLE
 static int msm_bus_rpm_compare_cdata(
 	struct msm_bus_fabric_registration *fab_pdata,
 	struct commit_data *cd1, struct commit_data *cd2)
@@ -743,6 +744,7 @@ static int msm_bus_rpm_commit_arb(struct msm_bus_fabric_registration
 
 	return status;
 }
+#endif
 
 #define FORMAT_BW(x) \
 	((x < 0) ? \
