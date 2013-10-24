@@ -176,18 +176,34 @@ static inline int write_disable(struct m25p *flash)
 /*
  * Enable/disable 4-byte addressing mode.
  */
-static inline int set_4byte(struct m25p *flash, u32 jedec_id, int enable)
+static inline int set_4byte(struct m25p *flash, u32 jedec_id,
+			int enable, unsigned int set_4b_codes)
 {
-	switch (JEDEC_MFR(jedec_id)) {
-	case CFI_MFR_MACRONIX:
-		flash->command[0] = enable ? OPCODE_EN4B : OPCODE_EX4B;
-		return spi_write(flash->spi, flash->command, 1);
-	case CFI_MFR_AMD:
+	unsigned int jedec_mfr = JEDEC_MFR(jedec_id);
+
+	if (set_4b_codes) {
+		/* This mode is supported only for Macronix, Spansion and Micron */
+		if ((jedec_mfr != CFI_MFR_MACRONIX) && (jedec_mfr != CFI_MFR_ST)
+			&& (jedec_mfr != CFI_MFR_AMD))
+			return -1;
+
+		/*
+		 * Set command opcode for 4-byte operation
+		 * without entering 4-byte addressing mode.
+		 */
 		flash->read_opcode  = OPCODE_4FAST_READ;
 		flash->write_opcode = OPCODE_4PP;
 		flash->erase_opcode = OPCODE_4SE;
+
 		return 0;
+	}
+
+	switch (jedec_mfr) {
+	case CFI_MFR_MACRONIX:
+		flash->command[0] = enable ? OPCODE_EN4B : OPCODE_EX4B;
+		return spi_write(flash->spi, flash->command, 1);
 	default:
+		/* Spansion style */
 		flash->command[0] = OPCODE_BRWR;
 		flash->command[1] = enable << 7;
 		return spi_write(flash->spi, flash->command, 2);
@@ -932,14 +948,14 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	flash->page_size = info->page_size;
 	flash->mtd.writebufsize = flash->page_size;
 
-	if (info->addr_width)
+	if (info->addr_width) {
 		flash->addr_width = info->addr_width;
-	else {
+	} else {
 		/* enable 4-byte addressing if the device exceeds 16MiB */
-		if (flash->mtd.size > 0x1000000) {
+		if ((flash->mtd.size > 0x1000000)
+		    && !set_4byte(flash, info->jedec_id, 1, data->use_4b_cmd))
 			flash->addr_width = 4;
-			set_4byte(flash, info->jedec_id, 1);
-		} else
+		else
 			flash->addr_width = 3;
 	}
 
