@@ -1,4 +1,4 @@
-/* * Copyright (c) 2012 Qualcomm Atheros, Inc. * */
+/* * Copyright (c) 2012 The Linux Foundation. All rights reserved.* */
 /* arch/arm/mach-msm/io.c
  *
  * MSM7K, QSD io support

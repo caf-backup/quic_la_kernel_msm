@@ -2,7 +2,7 @@
  * Generic PPP layer for Linux.
  *
  * Copyright 1999-2002 Paul Mackerras.
- * Copyright (c) 2013 Qualcomm Atheros, Inc.
+ * Copyright (c) 2013 The Linux Foundation. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License

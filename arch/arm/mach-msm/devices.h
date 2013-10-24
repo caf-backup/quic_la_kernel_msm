@@ -1,4 +1,4 @@
-/* * Copyright (c) 2012-2013 Qualcomm Atheros, Inc. * */
+/* * Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.* */
 /* linux/arch/arm/mach-msm/devices.h
  *
  * Copyright (C) 2008 Google, Inc.

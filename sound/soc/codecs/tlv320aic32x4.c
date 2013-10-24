@@ -1,7 +1,7 @@
 /*
  * linux/sound/soc/codecs/tlv320aic32x4.c
  *
- * Copyright (c) 2013 Qualcomm Atheros, Inc.
+ * Copyright (c) 2013 The Linux Foundation. All rights reserved.
  * Copyright 2011 Vista Silicon S.L.
  *
  * Author: Javier Martin <javier.martin@vista-silicon.com>

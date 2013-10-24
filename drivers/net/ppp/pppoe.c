@@ -1,7 +1,7 @@
 /** -*- linux-c -*- ***********************************************************
  * Linux PPP over Ethernet (PPPoX/PPPoE) Sockets
  *
- * Copyright (c) 2013 Qualcomm Atheros, Inc.
+ * Copyright (c) 2013 The Linux Foundation. All rights reserved.
  *
  * PPPoX --- Generic PPP encapsulation socket family
  * PPPoE --- PPP over Ethernet (RFC 2516)

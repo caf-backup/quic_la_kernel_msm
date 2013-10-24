@@ -3,7 +3,7 @@
  * Code to extract SPI Flash partitions information from SMEM, setup
  * by bootloader.
  *
- * Copyright (c) 2013 Qualcomm Atheros, Inc.
+ * Copyright (c) 2013 The Linux Foundation. All rights reserved.
  *
  * Based on arch/arm/mach-msm/nand_partitions.c
  *
