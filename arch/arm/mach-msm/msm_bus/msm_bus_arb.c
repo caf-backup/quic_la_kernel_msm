@@ -316,6 +316,9 @@ static int update_path(int curr, int pnode, uint64_t req_clk, uint64_t req_bw,
 	int64_t add_bw = req_bw - curr_bw;
 	unsigned bwsum = 0;
 	uint64_t req_clk_hz, curr_clk_hz, bwsum_hz;
+#ifdef CONFIG_MSM_BUS_RPM_ARB_DISABLE
+        uint64_t aggrbwsum_hz;
+#endif
 	int *master_tiers;
 	struct msm_bus_fabric_device *fabdev = msm_bus_get_fabric_device
 		(GET_FABID(curr));
@@ -406,11 +409,21 @@ static int update_path(int curr, int pnode, uint64_t req_clk, uint64_t req_bw,
 			req_clk);
 		bwsum_hz = BW_TO_CLK_FREQ_HZ(hop->node_info->buswidth,
 			bwsum);
+#ifdef CONFIG_MSM_BUS_RPM_ARB_DISABLE
+                aggrbwsum_hz = BW_TO_CLK_FREQ_HZ(hop->node_info->buswidth,
+                               hop->link_info.bw[ctx & cl_active_flag]);
+#endif
 		MSM_BUS_DBG("up-clk: curr_hz: %llu, req_hz: %llu, bw_hz %llu\n",
 			curr_clk, req_clk, bwsum_hz);
+#ifdef CONFIG_MSM_BUS_RPM_ARB_DISABLE
+		ret = fabdev->algo->update_clks(fabdev, hop, index,
+			curr_clk_hz, req_clk_hz, aggrbwsum_hz, SEL_FAB_CLK,
+			ctx, cl_active_flag);
+#else
 		ret = fabdev->algo->update_clks(fabdev, hop, index,
 			curr_clk_hz, req_clk_hz, bwsum_hz, SEL_FAB_CLK,
 			ctx, cl_active_flag);
+#endif
 		if (ret)
 			MSM_BUS_WARN("Failed to update clk\n");
 		info = hop;
