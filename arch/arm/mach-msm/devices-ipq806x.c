@@ -1991,7 +1991,7 @@ struct platform_device ipq806x_rpm_master_stat_device = {
 };
 
 static struct msm_rpm_log_platform_data msm_rpm_log_pdata = {
-	.phys_addr_base = 0x0010C000,
+	.phys_addr_base = 0x0010C0C8,
 	.reg_offsets = {
 		[MSM_RPM_LOG_PAGE_INDICES] = 0x00000080,
 		[MSM_RPM_LOG_PAGE_BUFFER]  = 0x000000A0,
