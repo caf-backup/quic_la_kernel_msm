@@ -29,6 +29,7 @@ static struct hfpll_data hfpll_data __initdata = {
 	.m_offset = 0x0C,
 	.n_offset = 0x10,
 	.config_offset = 0x04,
+	.status_offset = 0x1C,
 	.config_val = 0x7845C665,
 	.has_droop_ctl = true,
 	.droop_offset = 0x14,

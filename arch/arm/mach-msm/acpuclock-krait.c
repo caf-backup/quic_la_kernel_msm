@@ -164,6 +164,9 @@ static void hfpll_enable(struct scalable *sc, bool skip_regulators)
 
 	/* Enable PLL output. */
 	writel_relaxed(0x7, sc->hfpll_base + drv.hfpll_data->mode_offset);
+
+	/* Confirm that PLL is Locked - HW team's recommendation */
+	while (readl_relaxed(sc->hfpll_base + drv.hfpll_data->status_offset) == 0);
 }
 
 /* Disable a HFPLL for power-savings or while it's being reprogrammed. */

@@ -164,6 +164,7 @@ struct acpu_level {
  * @m_offset: "M" value register offset from base address.
  * @n_offset: "N" value register offset from base address.
  * @config_offset: Configuration register offset from base address.
+ * @status_offset: Status register offset from base address.
  * @config_val: Value to initialize the @config_offset register to.
  * @has_user_reg: Indicates the presence of an addition config register.
  * @user_offset: User register offset from base address, if applicable.
@@ -183,6 +184,7 @@ struct hfpll_data {
 	const u32 m_offset;
 	const u32 n_offset;
 	const u32 config_offset;
+	const u32 status_offset;
 	const u32 config_val;
 	const bool has_user_reg;
 	const u32 user_offset;
