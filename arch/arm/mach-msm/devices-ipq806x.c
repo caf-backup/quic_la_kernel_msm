@@ -2449,10 +2449,13 @@ static struct nss_crypto_platform_data nss_crypto_eng[] = {
 	NSS_CRYPTO_INIT_PLATFORM_DATA_ENG(3),/* Engine - 3 */
 };
 
+static u64 nss_crypto_dma_mask = DMA_BIT_MASK(32);
 #define NSS_CRYPTO_INIT_PLATFORM_DEVICE_ENG(engine)	{	\
 	.name = "nss-crypto",	\
 	.id = (engine),	\
 	.dev = {	\
+		.dma_mask		= &nss_crypto_dma_mask,	\
+		.coherent_dma_mask	= DMA_BIT_MASK(32),	\
 		.platform_data = &nss_crypto_eng[(engine)],	\
 	}	\
 }
