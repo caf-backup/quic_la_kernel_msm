@@ -78,7 +78,7 @@ static void xhci_free_segments_for_ring(struct xhci_hcd *xhci,
 	struct xhci_segment *seg;
 
 	seg = first->next;
-	while (seg != first) {
+	while (seg && (seg != first)) {
 		struct xhci_segment *next = seg->next;
 		xhci_segment_free(xhci, seg);
 		seg = next;
