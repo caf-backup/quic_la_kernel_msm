@@ -193,7 +193,8 @@ static int ipq_pcm_mi2s_prepare(struct snd_pcm_substream *substream)
 	prtd->pcm_stream_info.pcm_prepare_start = 1;
 	prtd->lpaif_info.lpa_if_dma_start = 0;
 	prtd->dml_info.dml_dma_started  = 0;
-	ret = ipq_lpaif_dai_set_params(prtd->lpaif_info.dma_ch, &dma_params);
+	ret = ipq_lpaif_dai_set_params(prtd->lpaif_info.dma_ch, &dma_params,
+						prtd->pcm_stream_info.bit_width);
 	if (ret)
 		return -EINVAL;
 

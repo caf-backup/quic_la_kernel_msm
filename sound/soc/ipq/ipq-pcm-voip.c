@@ -213,7 +213,8 @@ static int ipq_pcm_prepare(struct snd_pcm_substream *substream)
 	dma_params.period_size = snd_pcm_lib_period_bytes(substream);
 	dma_params.channels = runtime->channels;
 
-	ret = ipq_lpaif_dai_set_params(dma_ch, &dma_params);
+	ret = ipq_lpaif_dai_set_params(dma_ch, &dma_params,
+			prtd->pcm_stream_info.bit_width);
 	if (ret)
 		return -EINVAL;
 

@@ -28,6 +28,7 @@ struct ipq_pcm_stream_t {
 	uint32_t period_index;
 	struct snd_pcm_substream *substream;
 	uint8_t pcm_fwd_flag;
+	uint32_t bit_width;
 };
 
 struct ipq_lpa_if_clk_t {

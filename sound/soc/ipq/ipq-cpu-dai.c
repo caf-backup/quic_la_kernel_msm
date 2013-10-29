@@ -160,8 +160,12 @@ static uint32_t ipq_lpass_get_act_bit_width(uint32_t bit_width)
 	}
 }
 
-static uint32_t ipq_lpass_get_bit_div(uint32_t samp_freq)
+static uint32_t ipq_lpass_get_bit_div(uint32_t samp_freq, uint32_t bit_width,
+							uint32_t channels)
 {
+	if (IPQ_CHANNELS_8 == channels)
+		return __BIT_DIV_1;
+
 	switch (samp_freq) {
 	case FREQ_8000:
 	case FREQ_11025:
@@ -170,13 +174,16 @@ static uint32_t ipq_lpass_get_bit_div(uint32_t samp_freq)
 	case FREQ_32000:
 	case FREQ_44100:
 	case FREQ_48000:
-		return __BIT_DIV_8;
 	case FREQ_64000:
 	case FREQ_88200:
 	case FREQ_96000:
-	case FREQ_176400:
 	case FREQ_192000:
-		return __BIT_DIV_2;
+		if (__BIT_32 == bit_width)
+			return __BIT_DIV_4;
+		else
+			return __BIT_DIV_8;
+	case FREQ_176400:
+		return __BIT_DIV_4;
 	default:
 		return __BIT_DIV_INVAL;
 	}
@@ -197,19 +204,21 @@ static int ipq_lpass_mi2s_hw_params(struct snd_pcm_substream *substream,
 	struct ipq_lpass_runtime_data_t *prtd =
 	(struct ipq_lpass_runtime_data_t *)runtime->private_data;
 
-	ret = ipq_cfg_mi2s_hwparams_bit_width(bit_width, LPA_IF_MI2S);
-	if (ret)
-		return -EINVAL;
-
-	ret = ipq_cfg_mi2s_hwparams_channels(channels, LPA_IF_MI2S);
-	if (ret)
-		return -EINVAL;
-
 	bit_act = ipq_lpass_get_act_bit_width(bit_width);
 	if (bit_act == __BIT_INVAL)
 		return -EINVAL;
 
-	bit_div = ipq_lpass_get_bit_div(rate);
+	prtd->pcm_stream_info.bit_width = bit_act;
+
+	ret = ipq_cfg_mi2s_hwparams_bit_width(bit_width, LPA_IF_MI2S);
+	if (ret)
+		return -EINVAL;
+
+	ret = ipq_cfg_mi2s_hwparams_channels(channels, LPA_IF_MI2S, bit_act);
+	if (ret)
+		return -EINVAL;
+
+	bit_div = ipq_lpass_get_bit_div(rate, bit_act, channels);
 	if (bit_div == __BIT_DIV_INVAL)
 		return -EINVAL;
 
@@ -228,7 +237,7 @@ static int ipq_lpass_mi2s_hw_params(struct snd_pcm_substream *substream,
 	}
 	prtd->lpaif_clk.is_osr_clk_enabled = 1;
 
-	ret = clk_set_rate(lpaif_mi2s_bit_clk, bit_div);
+	ret = clk_set_rate(lpaif_mi2s_bit_clk, ((channels / 2) * bit_div));
 	if (IS_ERR_VALUE(ret)) {
 		dev_err(dai->dev,
 		"%s: error in setting mi2s bit clk \n", __func__);
@@ -322,6 +331,8 @@ static int ipq_lpass_pcm_hw_params(struct snd_pcm_substream *substream,
 	bit_act = ipq_lpass_get_act_bit_width(bit_width);
 	if (bit_act == __BIT_INVAL)
 		return -EINVAL;
+
+	prtd->pcm_stream_info.bit_width = bit_act;
 
 	ret = clk_set_rate(lpaif_pcm_bit_clk, (freq * bit_act));
 	if (IS_ERR_VALUE(ret)) {

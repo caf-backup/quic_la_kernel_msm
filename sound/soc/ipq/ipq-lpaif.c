@@ -203,12 +203,14 @@ int ipq_cfg_mi2s_hwparams_bit_width(uint32_t bit_width, uint32_t off)
 }
 EXPORT_SYMBOL_GPL(ipq_cfg_mi2s_hwparams_bit_width);
 
-int ipq_cfg_mi2s_hwparams_channels(uint32_t channels, uint32_t off)
+int ipq_cfg_mi2s_hwparams_channels(uint32_t channels, uint32_t off,
+						uint32_t bit_width)
 {
 	int ret = 0;
 	uint32_t cfg;
 
 	cfg = readl(dai_info.base + LPAIF_MI2S_CTL_OFFSET(off));
+	cfg &= ~(LPA_IF_SPK_MODE_MASK);
 
 	switch (channels) {
 	case IPQ_CHANNEL_MONO:
@@ -303,7 +305,8 @@ void ipq_lpaif_dai_set_master_mode(uint32_t dma_ch, int mode)
 		pr_err("%s: %d:invalid dma channel\n", __func__, __LINE__);
 }
 
-static int ipq_cfg_lpaif_dma_ch(uint32_t lpaif_dma_ch, uint32_t channels)
+static int ipq_cfg_lpaif_dma_ch(uint32_t lpaif_dma_ch, uint32_t channels,
+							uint32_t bit_width)
 {
 	int ret = 0;
 	uint32_t cfg = readl(dai_info.base + LPAIF_DMA_CTL(lpaif_dma_ch));
@@ -316,27 +319,34 @@ static int ipq_cfg_lpaif_dma_ch(uint32_t lpaif_dma_ch, uint32_t channels)
 		cfg |= LPA_IF_DMACTL_AUDIO_INTF_PCM;
 	} else if (lpaif_dma_ch == MI2S_DMA_RD_CH) {
 		cfg |= LPA_IF_DMACTL_AUDIO_INTF_MI2S;
+		cfg &= ~(LPA_IF_DMACTL_WPSCNT_MASK);
 
-		switch (channels) {
-		case IPQ_CHANNEL_MONO:
+		if ((__BIT_16 == bit_width) &&
+			(IPQ_CHANNELS_STEREO == channels))
 			cfg |= LPA_IF_DMACTL_WPSCNT_MONO;
-			break;
-		case IPQ_CHANNELS_STEREO:
-			cfg |= LPA_IF_DMACTL_WPSCNT_STEREO_2CH;
-			break;
-		case IPQ_CHANNELS_4:
+		else if (((__BIT_16 == bit_width) &&
+			(IPQ_CHANNELS_4 == channels)) ||
+			(((__BIT_24 == bit_width) || (__BIT_32 == bit_width))
+					&& (IPQ_CHANNELS_STEREO == channels)))
+			cfg |= LPA_IF_DMACTL_WPSCNT_STEREO;
+		else if ((__BIT_16 == bit_width) &&
+			(IPQ_CHANNELS_6 == channels))
+			cfg |= LPA_IF_DMACTL_WPSCNT_3CH;
+		else if (((__BIT_16 == bit_width) &&
+			(IPQ_CHANNELS_8 == channels)) ||
+			(((__BIT_32 == bit_width) || (__BIT_24 == bit_width)) &&
+			(IPQ_CHANNELS_4 == channels)))
 			cfg |= LPA_IF_DMACTL_WPSCNT_4CH;
-			break;
-		case IPQ_CHANNELS_6:
+		else if (((__BIT_24 == bit_width) || (__BIT_32 == bit_width)) &&
+			(IPQ_CHANNELS_6 == channels))
 			cfg |= LPA_IF_DMACTL_WPSCNT_6CH;
-			break;
-		case IPQ_CHANNELS_8:
+		else if	(((__BIT_24 == bit_width) || (__BIT_32 == bit_width)) &&
+			(IPQ_CHANNELS_8 == channels))
 			cfg |= LPA_IF_DMACTL_WPSCNT_8CH;
-			break;
-		default:
+		else
 			ret = -EINVAL;
-			break;
-		}
+
+
 	}
 
 	if (!ret)
@@ -345,7 +355,8 @@ static int ipq_cfg_lpaif_dma_ch(uint32_t lpaif_dma_ch, uint32_t channels)
 	return ret;
 }
 
-int ipq_lpaif_dai_set_params(uint32_t dma_ch, struct dai_dma_params *params)
+int ipq_lpaif_dai_set_params(uint32_t dma_ch, struct dai_dma_params *params,
+							uint32_t bit_width)
 {
 	int ret;
 	uint32_t cfg;
@@ -373,7 +384,7 @@ int ipq_lpaif_dai_set_params(uint32_t dma_ch, struct dai_dma_params *params)
 
 	writel(cfg, dai_info.base + LPAIF_DMA_CTL(dma_ch));
 
-	ret = ipq_cfg_lpaif_dma_ch(dma_ch, params->channels);
+	ret = ipq_cfg_lpaif_dma_ch(dma_ch, params->channels, bit_width);
 	if (ret)
 		return ret;
 
