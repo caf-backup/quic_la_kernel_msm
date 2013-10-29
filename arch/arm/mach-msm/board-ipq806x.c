@@ -1812,6 +1812,47 @@ static void __init ipq806x_i2c_init(void)
 					&ipq806x_i2c_qup_gsbi2_pdata;
 }
 
+static struct gpio_led ap148_gpio_leds[] = {
+	{
+		.name       = "ap148:green:usb_1",
+		.gpio       = 7,
+		.active_low = 0,
+	},
+	{
+		.name       = "ap148:green:usb_3",
+		.gpio       = 8,
+		.active_low = 0,
+	},
+	{
+		.name       = "ap148:green:sata",
+		.gpio       = 26,
+		.active_low = 0,
+	},
+	{
+		.name       = "ap148:green:status",
+		.gpio       = 9,
+		.active_low = 0,
+	},
+	{
+		.name       = "ap148:red:status",
+		.gpio       = 53,
+		.active_low = 0,
+	},
+};
+
+static struct gpio_led_platform_data gpio_led_pdata = {
+	.leds		= ap148_gpio_leds,
+	.num_leds	= ARRAY_SIZE(ap148_gpio_leds),
+};
+
+static struct platform_device ap148_leds_gpio = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &gpio_led_pdata,
+	},
+};
+
 #define AP148_GPIO_BTN_JUMPSTART	65
 #define AP148_GPIO_BTN_RESET		54
 
@@ -2265,9 +2306,10 @@ static void __init ipq806x_init(void)
 		machine_is_ipq806x_db147())
 		platform_device_register(&cdp_kp_pdev);
 
-	if (machine_is_ipq806x_ap148())
+	if (machine_is_ipq806x_ap148()) {
 		platform_device_register(&ap148_kp_pdev);
-
+		platform_device_register(&ap148_leds_gpio);
+	}
 }
 
 
