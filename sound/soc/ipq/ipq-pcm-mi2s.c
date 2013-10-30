@@ -54,8 +54,8 @@ static struct snd_pcm_hardware ipq_pcm_hardware_playback = {
 	.channels_min		=	1,
 	.channels_max		=	8,
 	.buffer_bytes_max	=	IPQ_LPM_PERIOD_SIZE * 4,
-	.period_bytes_max	=	(IPQ_LPM_PERIOD_SIZE * 4)/2,
-	.period_bytes_min	=	IPQ_LPM_PERIOD_SIZE,
+	.period_bytes_max	=	(IPQ_LPM_PERIOD_SIZE * 4) / 2,
+	.period_bytes_min	=	IPQ_PERIOD_MIN_SIZE,
 	.periods_min		=	4,
 	.periods_max		=	512,
 	.fifo_size		=	32,
@@ -184,15 +184,17 @@ static int ipq_pcm_mi2s_prepare(struct snd_pcm_substream *substream)
 	if (prtd->pcm_stream_info.pcm_prepare_start)
 		return 0;
 
-	dma_params.src_start = IPQ_LPM_START;
-	dma_params.buffer_size = IPQ_LPM_SIZE;
-	dma_params.period_size = IPQ_LPM_PERIOD_SIZE;
-	dma_params.channels = runtime->channels;
+	prtd->dml_info.lpm_period_size =
+		frames_to_bytes(runtime, runtime->period_size);
 	prtd->dml_info.dml_start_addr = runtime->dma_addr;
-	prtd->dml_info.dml_transfer_size = DML_TRANSFER_SIZE;
+	prtd->dml_info.dml_transfer_size = prtd->dml_info.lpm_period_size;
 	prtd->pcm_stream_info.pcm_prepare_start = 1;
 	prtd->lpaif_info.lpa_if_dma_start = 0;
 	prtd->dml_info.dml_dma_started  = 0;
+	dma_params.src_start = IPQ_LPM_START;
+	dma_params.buffer_size = (prtd->dml_info.lpm_period_size * 2);
+	dma_params.period_size = prtd->dml_info.lpm_period_size;
+	dma_params.channels = runtime->channels;
 	ret = ipq_lpaif_dai_set_params(prtd->lpaif_info.dma_ch, &dma_params,
 						prtd->pcm_stream_info.bit_width);
 	if (ret)

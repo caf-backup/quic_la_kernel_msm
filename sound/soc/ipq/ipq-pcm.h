@@ -14,6 +14,7 @@
 
 #ifndef _IPQ_PCM_H
 #define _IPQ_PCM_H
+#define IPQ_PERIOD_MIN_SIZE	8184
 
 enum ipq_stream_channels {
 	IPQ_CHANNEL_MONO = 1,
@@ -42,6 +43,7 @@ struct ipq_dml_t {
 	dma_addr_t dml_src_addr;
 	dma_addr_t dml_dst_addr;
 	ssize_t dml_transfer_size;
+	uint32_t lpm_period_size;
 };
 
 struct ipq_lpa_if_t {

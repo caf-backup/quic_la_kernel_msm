@@ -58,27 +58,31 @@ static irqreturn_t ipq_dml_intr_handler(int irq, void *dev_id)
 		writel(0x1, dml_info.base + DML_STATUS);
 
 		if (gprtd->lpaif_info.lpa_if_dma_start != 0) {
-			gprtd->dml_info.dml_src_addr += IPQ_LPM_PERIOD_SIZE;
-			gprtd->dml_info.dml_dst_addr += IPQ_LPM_PERIOD_SIZE;
+			gprtd->dml_info.dml_src_addr +=
+				gprtd->dml_info.lpm_period_size;
+			gprtd->dml_info.dml_dst_addr +=
+				gprtd->dml_info.lpm_period_size;
 		} else {
 			/*
 			 * This indicates the start of the ALSA
 			 * ring buffer. Enable LPA_IF data transfer
 			 */
 			ipq_cfg_i2s_spkr(1, 0, LPA_IF_MI2S);
-			gprtd->dml_info.dml_src_addr += IPQ_LPM_SIZE;
-			gprtd->dml_info.dml_dst_addr += IPQ_LPM_SIZE;
+			gprtd->dml_info.dml_src_addr +=
+				(gprtd->dml_info.lpm_period_size * 2);
+			gprtd->dml_info.dml_dst_addr +=
+				(gprtd->dml_info.lpm_period_size * 2);
 			gprtd->lpaif_info.lpa_if_dma_start = 1;
 		}
 
 		if (gprtd->dml_info.dml_src_addr >=
 		(gprtd->dml_info.dml_start_addr +
-		(IPQ_LPM_PERIOD_SIZE * 4)))
+		(gprtd->dml_info.lpm_period_size * 4)))
 			gprtd->dml_info.dml_src_addr =
 			gprtd->dml_info.dml_start_addr;
 
 		if ((gprtd->dml_info.dml_dst_addr) >=
-		(IPQ_LPM_START + IPQ_LPM_SIZE))
+		(IPQ_LPM_START + (gprtd->dml_info.lpm_period_size * 2)))
 			gprtd->dml_info.dml_dst_addr = IPQ_LPM_START;
 
 		ret = IRQ_HANDLED;
@@ -98,7 +102,8 @@ void ipq_dml_trigger(unsigned long data)
 		prtd->dml_info.dml_start_addr = runtime->dma_addr;
 		prtd->dml_info.dml_src_addr = runtime->dma_addr;
 		prtd->dml_info.dml_dst_addr = IPQ_LPM_START;
-		prtd->dml_info.dml_transfer_size = IPQ_LPM_SIZE;
+		prtd->dml_info.dml_transfer_size =
+			(prtd->dml_info.lpm_period_size * 2);
 
 		prtd->dml_info.dml_dma_started = 1;
 	}
@@ -112,7 +117,7 @@ void ipq_dml_trigger(unsigned long data)
 	writel(0x1, dml_info.base + DML_STATUS);
 	/* Initiating DML DMA transfer */
 	writel(0x1, (dml_info.base + DML_CTL));
-	prtd->dml_info.dml_transfer_size = IPQ_LPM_PERIOD_SIZE;
+	prtd->dml_info.dml_transfer_size = prtd->dml_info.lpm_period_size;
 }
 EXPORT_SYMBOL_GPL(ipq_dml_trigger);
 

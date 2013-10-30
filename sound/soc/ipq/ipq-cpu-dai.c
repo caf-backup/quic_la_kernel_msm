@@ -165,6 +165,14 @@ static uint32_t ipq_lpass_get_bit_div(uint32_t samp_freq, uint32_t bit_width,
 {
 	if (IPQ_CHANNELS_8 == channels)
 		return __BIT_DIV_1;
+	else if (IPQ_CHANNELS_6 == channels) {
+		if (__BIT_32 == bit_width &&
+			((FREQ_176400 == samp_freq) ||
+			(FREQ_192000 == samp_freq)))
+			return __BIT_DIV_1;
+		else
+			return __BIT_DIV_2;
+	}
 
 	switch (samp_freq) {
 	case FREQ_8000:
