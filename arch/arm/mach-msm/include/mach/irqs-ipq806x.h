@@ -296,5 +296,10 @@
 #define INT_WCNSS_A11		RIVA_APSS_SPARE_IRQ
 #define INT_WCNSS_A11_SMSM	RIVA_APPS_WLAN_SMSM_IRQ
 
+#define IS_TLMM_MSM_DIR_CONN_IRQ(irq) \
+	((irq >=0 && irq < 10) || irq == TLMM_MSM_DIR_CONN_IRQ_16 \
+	 || irq == TLMM_MSM_DIR_CONN_IRQ_18 || irq == TLMM_MSM_DIR_CONN_IRQ_19 \
+	 || irq == TLMM_MSM_DIR_CONN_IRQ_21)
+
 #endif
 
