@@ -139,6 +139,9 @@ static void disable_rpm_vreg(struct vreg *vreg)
 /* Enable an already-configured HFPLL. */
 static void hfpll_enable(struct scalable *sc, bool skip_regulators)
 {
+	volatile uint32_t value;
+	uint32_t wait_cycles = 100;
+
 	if (!skip_regulators) {
 		/* Enable regulators required by the HFPLL. */
 		enable_rpm_vreg(&sc->vreg[VREG_HFPLL_A]);
@@ -166,7 +169,14 @@ static void hfpll_enable(struct scalable *sc, bool skip_regulators)
 	writel_relaxed(0x7, sc->hfpll_base + drv.hfpll_data->mode_offset);
 
 	/* Confirm that PLL is Locked - HW team's recommendation */
-	while (readl_relaxed(sc->hfpll_base + drv.hfpll_data->status_offset) == 0);
+	do {
+		value = readl_relaxed(sc->hfpll_base + drv.hfpll_data->status_offset);
+		if (value != 0) {
+			break;
+		}
+		mdelay(1);
+	} while (wait_cycles-- > 0);
+
 }
 
 /* Disable a HFPLL for power-savings or while it's being reprogrammed. */
