@@ -29,10 +29,19 @@ config SND_IPQ_SOC_IPQ806X
 	select SND_IPQ_SOC_SPDIF
 	select SND_IPQ_SOC_LPASS_CODEC
 	select SND_IPQ_SOC_CPU_DAI
-	select SND_IPQ_SOC_DMLITE
 	select SND_IPQ_SOC_LPAIF
+	select SND_IPQ_SOC_CLK
+	select SND_IPQ_SOC_PCM_RAW
 	help
 	  Say Y or M if you want to add support for IPQ platforms
+
+config SND_IPQ_SOC_CLK
+	tristate
+	depends on SND_IPQ_SOC
+
+config SND_IPQ_SOC_PCM_RAW
+	tristate
+	depends on SND_IPQ_SOC
 
 config SND_IPQ_SOC_DMLITE
 	tristate
@@ -59,10 +68,6 @@ config SND_IPQ_SOC_LPASS_CODEC
 	depends on SND_IPQ_SOC
 
 config SND_IPQ_SOC_CPU_DAI
-	tristate
-	depends on SND_IPQ_SOC
-
-config SND_IPQ_SOC_DMLITE
 	tristate
 	depends on SND_IPQ_SOC
 

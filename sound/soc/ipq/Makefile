@@ -1,6 +1,8 @@
 #IPQ LPASS SND CARD
 
 snd-soc-ipq806x-objs := ipq806x.o
+snd-soc-ipq806x-clk-objs := ipq-lpass-clk.o
+snd-soc-ipq-pcm-raw-objs := ipq-pcm-raw.o
 snd-soc-ipq-pcm-mi2s-objs := ipq-pcm-mi2s.o
 snd-soc-ipq-pcm-spdif-objs := ipq-pcm-spdif.o
 snd-soc-ipq-pcm-voip-objs := ipq-pcm-voip.o
@@ -11,7 +13,8 @@ snd-soc-ipq-dmlite-objs := ipq-dmlite.o
 snd-soc-ipq-lpaif-objs := ipq-lpaif.o
 
 obj-$(CONFIG_SND_IPQ_SOC_IPQ806X) += snd-soc-ipq806x.o
-
+obj-$(CONFIG_SND_IPQ_SOC_CLK) += snd-soc-ipq806x-clk.o
+obj-$(CONFIG_SND_IPQ_SOC_PCM_RAW) += snd-soc-ipq-pcm-raw.o
 obj-$(CONFIG_SND_IPQ_SOC_PCM_I2S) += snd-soc-ipq-pcm-mi2s.o
 obj-$(CONFIG_SND_IPQ_SOC_PCM_SPDIF) += snd-soc-ipq-pcm-spdif.o
 obj-$(CONFIG_SND_IPQ_SOC_PCM_VOIP) += snd-soc-ipq-pcm-voip.o
