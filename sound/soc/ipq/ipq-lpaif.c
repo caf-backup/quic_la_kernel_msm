@@ -35,8 +35,6 @@
 #include "ipq-lpaif.h"
 #include "ipq806x.h"
 
-extern struct lpass_clk_baseinfo lpass_clk_base;
-
 struct ipq_lpaif_dai_baseinfo dai_info;
 
 struct dai_drv *dai[MAX_LPAIF_CHANNELS];
@@ -45,19 +43,42 @@ static spinlock_t dai_lock;
 struct clk *lpaif_pcm_bit_clk;
 EXPORT_SYMBOL_GPL(lpaif_pcm_bit_clk);
 
-void ipq_cfg_pcm_reset(uint8_t reset)
+int ipq_pcm_int_enable(uint8_t dma_ch)
+{
+	uint32_t intr_val;
+	if (dma_ch >= MAX_LPAIF_CHANNELS)
+		return -EINVAL;
+	intr_val = readl(dai_info.base + LPAIF_IRQ_EN(0));
+	intr_val = intr_val | (1 << (dma_ch * 3));
+	writel(intr_val,dai_info.base + LPAIF_IRQ_EN(0));
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ipq_pcm_int_enable);
+
+int ipq_pcm_int_disable(uint8_t dma_ch)
+{
+	uint32_t intr_val;
+	if (dma_ch >= MAX_LPAIF_CHANNELS)
+		return -EINVAL;
+	intr_val = readl(dai_info.base + LPAIF_IRQ_EN(0));
+	intr_val = intr_val & ~(1 << (dma_ch * 3));
+	writel(intr_val, dai_info.base + LPAIF_IRQ_EN(0));
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ipq_pcm_int_disable);
+
+void ipq_cfg_pcm_aux_mode(uint8_t mode)
 {
 	uint32_t cfg;
-	cfg = readl(lpass_clk_base.base + LCC_PCM_NS);
-
-	if (reset)
-		cfg = cfg | LCC_PCM_NS_ARES;
+	cfg = readl(dai_info.base + LPA_IF_PCM_0);
+	if (mode)
+		cfg |= LPA_IF_PCM_AUX_MODE;
 	else
-		cfg = cfg & ~LCC_PCM_NS_ARES;
+		cfg &= ~(LPA_IF_PCM_AUX_MODE);
 
-	writel(cfg, lpass_clk_base.base + LCC_PCM_NS);
+	writel(cfg, dai_info.base + LPA_IF_PCM_0);
 }
-EXPORT_SYMBOL_GPL(ipq_cfg_pcm_reset);
+EXPORT_SYMBOL_GPL(ipq_cfg_pcm_aux_mode);
 
 void ipq_cfg_pcm_sync_src(uint8_t src)
 {
@@ -79,10 +100,10 @@ void ipq_cfg_pcm_slot(uint8_t slot, uint8_t dir)
 
 	if (dir)
 		cfg = (cfg & ~(LPA_IF_RPCM_SLOT_MASK)) |
-			 (LPA_IF_PCM_RPCM_SLOT(slot));
+			(LPA_IF_PCM_RPCM_SLOT(slot));
 	else
-		cfg |= (LPA_IF_TPCM_SLOT_MASK &
-			LPA_IF_PCM_TPCM_SLOT(slot));
+		cfg = (cfg & ~(LPA_IF_TPCM_SLOT_MASK))  |
+			LPA_IF_PCM_TPCM_SLOT(slot);
 
 	writel(cfg, dai_info.base + LPA_IF_PCM_0);
 }
@@ -92,21 +113,29 @@ void ipq_cfg_pcm_rate(uint32_t rate)
 {
 	uint32_t cfg;
 	cfg = readl(dai_info.base + LPA_IF_PCM_0);
-
 	/* Clear the rate field */
 	cfg = cfg & ~(LPA_IF_PCM_RATE_MASK);
-	writel(cfg, dai_info.base + LPA_IF_PCM_0);
-
 	switch (rate) {
-	case PCM_RATE_8000:
-		cfg |= LPA_IF_PCM_CTL_R8KHZ;
-		break;
-	case PCM_RATE_16000:
-		cfg |= LPA_IF_PCM_CTL_R16KHZ;
-		break;
-	default:
-		cfg |= LPA_IF_PCM_CTL_R8KHZ;
-		break;
+		case IPQ_PCM_BITS_IN_FRAME_8:
+			cfg |= LPA_IF_PCM_CTL_8_BITS;
+			break;
+		case IPQ_PCM_BITS_IN_FRAME_16:
+			cfg |= LPA_IF_PCM_CTL_16_BITS;
+			break;
+		case IPQ_PCM_BITS_IN_FRAME_32:
+			cfg |= LPA_IF_PCM_CTL_32_BITS;
+			break;
+		case IPQ_PCM_BITS_IN_FRAME_64:
+			cfg |= LPA_IF_PCM_CTL_64_BITS;
+			break;
+		case IPQ_PCM_BITS_IN_FRAME_128:
+			cfg |= LPA_IF_PCM_CTL_128_BITS;
+			break;
+		case IPQ_PCM_BITS_IN_FRAME_256:
+			cfg |= LPA_IF_PCM_CTL_256_BITS;
+			break;
+		default:
+			break;
 	}
 	writel(cfg, dai_info.base + LPA_IF_PCM_0);
 }
@@ -117,27 +146,21 @@ void ipq_cfg_pcm_width(uint8_t bit_width, uint8_t dir)
 	uint32_t cfg;
 	cfg = readl(dai_info.base + LPA_IF_PCM_0);
 
-	/* Clear the bit-width field */
-	if (dir)
-		cfg = cfg & ~(LPA_IF_PCM_TPCM_WIDTH);
-	else
-		cfg = cfg & ~(LPA_IF_PCM_RPCM_WIDTH);
-
-	writel(cfg, dai_info.base + LPA_IF_PCM_0);
-
 	switch (bit_width) {
-	case SNDRV_PCM_FORMAT_S8:
-	case SNDRV_PCM_FORMAT_U8:
-		break;
-	case SNDRV_PCM_FORMAT_U16:
-	case SNDRV_PCM_FORMAT_S16:
-		if (dir)
-			cfg |= LPA_IF_PCM_TPCM_WIDTH;
-		else
-			cfg |= LPA_IF_PCM_RPCM_WIDTH;
-		break;
-	default:
-		break;
+		case IPQ_PCM_BIT_WIDTH_8:
+			if (dir)
+				cfg = cfg & ~(LPA_IF_PCM_TPCM_WIDTH);
+			else
+				cfg = cfg & ~(LPA_IF_PCM_RPCM_WIDTH);
+			break;
+		case IPQ_PCM_BIT_WIDTH_16:
+			if (dir)
+				cfg |= LPA_IF_PCM_TPCM_WIDTH;
+			else
+				cfg |= LPA_IF_PCM_RPCM_WIDTH;
+			break;
+		default:
+			break;
 	}
 	writel(cfg, dai_info.base + LPA_IF_PCM_0);
 }
@@ -238,7 +261,7 @@ int ipq_cfg_mi2s_hwparams_channels(uint32_t channels, uint32_t off,
 }
 EXPORT_SYMBOL_GPL(ipq_cfg_mi2s_hwparams_channels);
 
-static int ipq_lpaif_dai_config_dma(uint32_t dma_ch)
+int ipq_lpaif_dai_config_dma(uint32_t dma_ch)
 {
 	if (dma_ch >= MAX_LPAIF_CHANNELS)
 		return -EINVAL;
@@ -253,6 +276,17 @@ static int ipq_lpaif_dai_config_dma(uint32_t dma_ch)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ipq_lpaif_dai_config_dma);
+
+void ipq_lpaif_disable_dma(uint32_t dma_ch)
+{
+	unsigned long flag;
+
+	spin_lock_irqsave(&dai_lock, flag);
+	writel(0x0, dai_info.base + LPAIF_DMA_CTL(dma_ch));
+	spin_unlock_irqrestore(&dai_lock, flag);
+}
+EXPORT_SYMBOL_GPL(ipq_lpaif_disable_dma);
 
 static void ipq_lpaif_dai_disable_codec(uint32_t dma_ch, int codec)
 {
@@ -355,12 +389,11 @@ static int ipq_cfg_lpaif_dma_ch(uint32_t lpaif_dma_ch, uint32_t channels,
 	return ret;
 }
 
-int ipq_lpaif_dai_set_params(uint32_t dma_ch, struct dai_dma_params *params,
-							uint32_t bit_width)
+int ipq_lpaif_cfg_dma(uint32_t dma_ch, struct dai_dma_params *params, 
+		uint32_t bit_width, bool enable_intr)
 {
 	int ret;
 	uint32_t cfg;
-	uint32_t intr_val;
 
 	dai[dma_ch]->buffer = params->buffer;
 	dai[dma_ch]->buffer_phys = params->src_start;
@@ -372,25 +405,28 @@ int ipq_lpaif_dai_set_params(uint32_t dma_ch, struct dai_dma_params *params,
 	if (ret)
 		return ret;
 
-	intr_val = readl(dai_info.base + LPAIF_IRQ_EN(0));
-	intr_val = intr_val | (1 << (dma_ch * 3));
-	writel(intr_val, dai_info.base + LPAIF_IRQ_EN(0));
-
-	cfg = readl(dai_info.base + LPAIF_DMA_CTL(dma_ch));
-
-	cfg |= (LPA_IF_DMACTL_FIFO_WM_8 |
-		LPA_IF_DMACTL_ENABLE |
-		LPA_IF_DMACTL_BURST_EN);
-
-	writel(cfg, dai_info.base + LPAIF_DMA_CTL(dma_ch));
+	if (enable_intr) {
+		ipq_pcm_int_enable(dma_ch);
+	}
 
 	ret = ipq_cfg_lpaif_dma_ch(dma_ch, params->channels, bit_width);
-	if (ret)
+	if (ret) {
+		ipq_pcm_int_disable(dma_ch);
 		return ret;
+	}
+
+	cfg = readl(dai_info.base + LPAIF_DMA_CTL(dma_ch));
+	cfg |= (LPA_IF_DMACTL_FIFO_WM_8 |
+			LPA_IF_DMACTL_BURST_EN);
+	writel(cfg, dai_info.base + LPAIF_DMA_CTL(dma_ch));
+
+	cfg = readl(dai_info.base + LPAIF_DMA_CTL(dma_ch));
+	cfg |= LPA_IF_DMACTL_ENABLE;
+	writel(cfg, dai_info.base + LPAIF_DMA_CTL(dma_ch));
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(ipq_lpaif_dai_set_params);
+EXPORT_SYMBOL_GPL(ipq_lpaif_cfg_dma);
 
 int ipq_lpaif_dai_stop(uint32_t dma_ch)
 {
@@ -464,7 +500,7 @@ static irqreturn_t dai_irq_handler(int irq, void *data)
 	while (intrsrc) {
 		dma_ch = dai_find_dma_channel(intrsrc);
 
-		if (dai[dma_ch]->callback && dai[dma_ch]->private_data) {
+		if (dai[dma_ch]->callback) {
 
 			ret = dai[dma_ch]->callback(intrsrc,
 				dai[dma_ch]->private_data);
@@ -495,14 +531,14 @@ static int __devinit ipq_lpaif_dai_probe(struct platform_device *pdev)
 	lpa_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ipq-dai");
 	if (!lpa_res) {
 		dev_err(&pdev->dev, "%s: %d:error getting resource\n",
-						__func__, __LINE__);
+				__func__, __LINE__);
 		return -ENODEV;
 	}
 	dai_info.base = ioremap(lpa_res->start,
-			 (lpa_res->end - lpa_res->start));
+			(lpa_res->end - lpa_res->start));
 	if (!dai_info.base) {
 		dev_err(&pdev->dev, "%s: %d:error remapping resource\n",
-						__func__, __LINE__);
+				__func__, __LINE__);
 		return -ENOMEM;
 	}
 
@@ -510,19 +546,27 @@ static int __devinit ipq_lpaif_dai_probe(struct platform_device *pdev)
 			pdev, IORESOURCE_IRQ, "ipq-dai-irq");
 	if (!lpa_irq) {
 		dev_err(&pdev->dev, "%s: %d: failed get irq res\n",
-						__func__, __LINE__);
+				__func__, __LINE__);
 		rc = -ENODEV;
 		goto error;
 	}
 
 	rc = request_irq(lpa_irq->start, dai_irq_handler,
-		IRQF_TRIGGER_RISING, "ipq-lpaif-intr", NULL);
+			IRQF_TRIGGER_RISING, "ipq-lpaif-intr", NULL);
 
 	if (rc < 0) {
 		dev_err(&pdev->dev, "%s: %d:irq resource request failed\n",
-						__func__, __LINE__);
+				__func__, __LINE__);
 		goto error;
 	}
+
+	lpaif_pcm_bit_clk = clk_get(&pdev->dev, "pcm_bit_clk");
+	if (!lpaif_pcm_bit_clk) {
+		dev_err(&pdev->dev, "%s: %d: cannot get PCM bit clock \n",
+				__func__, __LINE__);
+		goto error_irq;
+	}
+
 	/*
 	 * Allocating memory for all the LPA_IF DMA channels
 	 */
@@ -530,14 +574,15 @@ static int __devinit ipq_lpaif_dai_probe(struct platform_device *pdev)
 		dai[i] = kzalloc(sizeof(struct dai_drv), GFP_KERNEL);
 		if (!dai[i]) {
 			dev_err(&pdev->dev, "%s: %d:ch allocation failed\n",
-						__func__, __LINE__);
+					__func__, __LINE__);
 			rc = -ENOMEM;
-			goto error_irq;
+			goto error_mem;
 		}
 	}
 	spin_lock_init(&dai_lock);
 	return 0;
-
+error_mem:
+	clk_put(lpaif_pcm_bit_clk);
 error_irq:
 	free_irq(lpa_irq->start, NULL);
 	ipq_lpaif_dai_ch_free();

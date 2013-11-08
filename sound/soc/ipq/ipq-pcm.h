@@ -14,7 +14,30 @@
 
 #ifndef _IPQ_PCM_H
 #define _IPQ_PCM_H
+
 #define IPQ_PERIOD_MIN_SIZE	8184
+
+/* 8 bit 2 channel configuration */
+#define CHANNEL_BIT_WIDTH       16
+#define NUM_PCM_SLOTS           8
+#define CHANNEL_SAMPLING_RATE   8000
+#define CHANNEL_BYTE_WIDTH      CHANNEL_BIT_WIDTH / 8
+#define SAMPLES_PER_TXN         80
+#define NUM_BUFFERS             2
+#define VOICE_BUFF_SIZE         (CHANNEL_BYTE_WIDTH *			\
+					SAMPLES_PER_TXN * NUM_BUFFERS)
+#define VOICE_PERIOD_SIZE       (VOICE_BUFF_SIZE / NUM_BUFFERS)
+
+struct pcm_context {
+	uint32_t rd_pending;
+	uint8_t needs_deinit;
+};
+
+struct voice_dma_buffer {
+	dma_addr_t addr;
+	size_t size;
+	unsigned char *area;
+};
 
 enum ipq_stream_channels {
 	IPQ_CHANNEL_MONO = 1,
@@ -22,6 +45,20 @@ enum ipq_stream_channels {
 	IPQ_CHANNELS_4 = 4,
 	IPQ_CHANNELS_6 = 6,
 	IPQ_CHANNELS_8 = 8,
+};
+
+enum ipq_pcm_bits_in_frame {
+	IPQ_PCM_BITS_IN_FRAME_8 = 8,
+	IPQ_PCM_BITS_IN_FRAME_16 = 16,
+	IPQ_PCM_BITS_IN_FRAME_32 = 32,
+	IPQ_PCM_BITS_IN_FRAME_64 = 64,
+	IPQ_PCM_BITS_IN_FRAME_128 = 128,
+	IPQ_PCM_BITS_IN_FRAME_256 = 256,
+};
+
+enum ipq_pcm_bit_width {
+	IPQ_PCM_BIT_WIDTH_8 = 8,
+	IPQ_PCM_BIT_WIDTH_16 = 16,
 };
 
 struct ipq_pcm_stream_t {
@@ -68,8 +105,10 @@ enum dma_intf_wr_ch {
 enum dma_intf_rd_ch {
 	MIN_DMA_RD_CH = 0,
 	MI2S_DMA_RD_CH = 0,
-	PCM0_DMA_RD_CH,
+	PCM0_DMA_RD_CH = 1,
 	PCM1_DMA_RD_CH,
 	MAX_DMA_RD_CH = 4,
 };
+
+extern struct clk *lpaif_pcm_bit_clk;
 #endif /*_IPQ_PCM_H */

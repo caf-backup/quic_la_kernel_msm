@@ -381,13 +381,6 @@ static int ipq_lpass_pcm_prepare(struct snd_pcm_substream *substream,
 static int ipq_lpass_pcm_startup(struct snd_pcm_substream *substream,
 					struct snd_soc_dai *dai)
 {
-	lpaif_pcm_bit_clk = clk_get(dai->dev, "pcm_bit_clk");
-	if (IS_ERR(lpaif_pcm_bit_clk)) {
-		dev_err(dai->dev,
-			"%s: Error in getting pcm_bit_clk\n", __func__);
-		return PTR_ERR(lpaif_pcm_bit_clk);
-	}
-
 	clk_reset(lpaif_pcm_bit_clk, LPAIF_PCM_ASSERT);
 	/*
 	 * Put the PCM instance to Reset
@@ -416,8 +409,6 @@ static void ipq_lpass_pcm_shutdown(struct snd_pcm_substream *substream,
 	if (lpaif_pcm_bit_clk) {
 		if (prtd->lpaif_clk.is_bit_clk_enabled)
 			clk_disable_unprepare(lpaif_pcm_bit_clk);
-		clk_put(lpaif_pcm_bit_clk);
-		lpaif_pcm_bit_clk = NULL;
 	}
 	dev_dbg(dai->dev, "%s:%d\n", __func__, __LINE__);
 }

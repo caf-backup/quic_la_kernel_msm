@@ -173,12 +173,12 @@
 /* PCM CTRL */
 #define LPA_IF_PCM_0		0x0
 #define LPA_IF_PCM_1		0x4
-#define LPA_IF_PCM_CTL_R8KHZ	(0 << 15)
-#define LPA_IF_PCM_CTL_R16KHZ	(1 << 15)
-#define LPA_IF_PCM_CTL_R32KHZ	(2 << 15)
-#define LPA_IF_PCM_CTL_R64KHZ	(3 << 15)
-#define LPA_IF_PCM_CTL_R128KHZ	(4 << 15)
-#define LPA_IF_PCM_CTL_R256KHZ	(5 << 15)
+#define LPA_IF_PCM_CTL_8_BITS	(0 << 15)
+#define LPA_IF_PCM_CTL_16_BITS	(1 << 15)
+#define LPA_IF_PCM_CTL_32_BITS	(2 << 15)
+#define LPA_IF_PCM_CTL_64_BITS	(3 << 15)
+#define LPA_IF_PCM_CTL_128_BITS	(4 << 15)
+#define LPA_IF_PCM_CTL_256_BITS	(5 << 15)
 
 #define LPA_IF_PCM_CTL_LO	(1 << 14)
 #define LPA_IF_PCM_SYNC_SRC_INT	(1 << 13)
@@ -249,8 +249,6 @@ struct dai_drv {
 	unsigned int master_mode;
 };
 
-extern int ipq_lpaif_dai_set_params(uint32_t dma_ch,
-			struct dai_dma_params *params, uint32_t bit_width);
 extern void ipq_lpaif_register_dma_irq_handler(int dma_ch,
 	irqreturn_t (*callback) (int intrSrc, void *private_data),
 	void *private_data);
@@ -268,5 +266,12 @@ extern int ipq_cfg_mi2s_hwparams_channels(uint32_t channels, uint32_t off,
 extern void ipq_cfg_i2s_spkr(uint8_t enable, uint32_t mode, uint32_t off);
 extern void ipq_pcm_start(void);
 extern void ipq_pcm_stop(void);
+extern int ipq_lpaif_cfg_dma(uint32_t dma_ch, struct dai_dma_params *params,
+                                        uint32_t bit_width, bool enable_intr);
+extern int ipq_pcm_int_enable(uint8_t dma_ch);
+extern int ipq_pcm_int_disable(uint8_t dma_ch);
+extern void ipq_lpaif_disable_dma(uint32_t dma_ch);
+extern int ipq_lpaif_dai_config_dma(uint32_t dma_ch);
+extern void ipq_cfg_pcm_aux_mode(uint8_t mode);
 
 #endif /* _IPQ_LPA_IF_H */

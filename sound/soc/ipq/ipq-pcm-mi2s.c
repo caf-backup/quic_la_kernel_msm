@@ -195,8 +195,9 @@ static int ipq_pcm_mi2s_prepare(struct snd_pcm_substream *substream)
 	dma_params.buffer_size = (prtd->dml_info.lpm_period_size * 2);
 	dma_params.period_size = prtd->dml_info.lpm_period_size;
 	dma_params.channels = runtime->channels;
-	ret = ipq_lpaif_dai_set_params(prtd->lpaif_info.dma_ch, &dma_params,
-						prtd->pcm_stream_info.bit_width);
+	ret = ipq_lpaif_cfg_dma(prtd->lpaif_info.dma_ch, &dma_params,
+					prtd->pcm_stream_info.bit_width,
+					1 /*enable intr*/);
 	if (ret)
 		return -EINVAL;
 
