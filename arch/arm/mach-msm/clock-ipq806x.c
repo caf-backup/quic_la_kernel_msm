@@ -3176,15 +3176,16 @@ static void set_rate_nss(struct nss_core_clk_tbl *ncc, struct clk_freq_tbl *nf)
 
 	uint32_t wait_cycles = 100;
 	volatile uint32_t value;
-	volatile uint32_t mask = (1 << 2);
+	volatile uint32_t en_mask = (1 << 18);
+	volatile uint32_t status_mask = (1 << 2);
 
 	/*
 	 * Switch to Stable PLL
 	 */
-	writel_relaxed(0x0100fd, UBI32_COREn_CLK_SRC1_MD(0));
 	writel_relaxed(0x0100fd, UBI32_COREn_CLK_SRC1_MD(1));
-	writel_relaxed(0xfe0141, UBI32_COREn_CLK_SRC1_NS(0));
-	writel_relaxed(0xfe0141, UBI32_COREn_CLK_SRC1_NS(1));
+	writel_relaxed(0x0100fd, UBI32_COREn_CLK_SRC1_MD(2));
+	writel_relaxed(0xfe014a, UBI32_COREn_CLK_SRC1_NS(1));
+	writel_relaxed(0xfe014a, UBI32_COREn_CLK_SRC1_NS(2));
 
 	ctl_reg0 = readl_relaxed(ncc->ctl0_src_reg);
 	ctl_reg1 = readl_relaxed(ncc->ctl1_src_reg);
@@ -3213,19 +3214,22 @@ static void set_rate_nss(struct nss_core_clk_tbl *ncc, struct clk_freq_tbl *nf)
 
 	/*
 	 * Enable PLL18 output
+	 *	mb() added to ensure writes complete - Following /arch/arm/mach-msm without any other write functions
 	 */
 	writel_relaxed(0x2, PLL18_MODE);
 	mdelay(1);
+	mb();
 	writel_relaxed(0x6, PLL18_MODE);
+	mb();
 	writel_relaxed(0x7, PLL18_MODE);
 
 	/*
 	 * Enable NSS Vote for PLL18 and acquire LOCK
 	 */
-	writel_relaxed(mask, PLL_ENA_NSS);
+	writel_relaxed((readl_relaxed(PLL_ENA_NSS) | en_mask), PLL_ENA_NSS);
 	do {
 		value = readl_relaxed(PLL_LOCK_DET_STATUS);
-		if (value & mask) {
+		if (value & status_mask) {
 			break;
 		}
 		mdelay(1);
