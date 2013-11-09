@@ -200,13 +200,14 @@ static struct mmc_platform_data sdc3_data = {
 	.pin_data	= &mmc_slot_pin_data[SDCC3],
 	.vreg_data	= &mmc_slot_vreg_data[SDCC3],
 	.status_gpio	= SDCARD_DETECT_GPIO,
+	.uhs_gpio	= -1,
 	.status_irq	= MSM_GPIO_TO_INT(SDCARD_DETECT_GPIO),
 	.irq_flags	= IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 	.is_status_gpio_active_low = 1,
 	.xpc_cap	= 1,
 	.uhs_caps	= (MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 |
 			MMC_CAP_UHS_SDR50 | MMC_CAP_UHS_DDR50 |
-			MMC_CAP_UHS_SDR104 | MMC_CAP_MAX_CURRENT_800),
+			MMC_CAP_MAX_CURRENT_800),
 	.mpm_sdiowakeup_int = MSM_MPM_PIN_SDC3_DAT1,
 	.msm_bus_voting_data = &sps_to_ddr_bus_voting_data,
 };
@@ -229,6 +230,7 @@ void __init ipq806x_init_mmc(void)
 
 			for (i = 0; i < drv->size; i++)
 				drv->on[i].val = GPIO_CFG_10MA;
+			ipq806x_sdc3_pdata->uhs_gpio = 61;
 		}
 		ipq806x_add_sdcc(2, ipq806x_sdc3_pdata);
 	}

@@ -162,6 +162,12 @@ static struct gpiomux_setting ipq806x_sdc3_card_det_cfg = {
 	.pull = GPIOMUX_PULL_UP,
 };
 
+static struct gpiomux_setting ipq806x_sdc3_uhs_card_det_cfg = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_16MA,
+	.pull = GPIOMUX_PULL_NONE,
+};
+
 static struct gpiomux_setting ipq806x_buttons_ap148_cfg = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_2MA,
@@ -348,7 +354,7 @@ static struct msm_gpiomux_config ipq806x_db149_gpiomux[] = {
 	ipq_mux(54, gsbi1_active_cfg,			gsbi1_suspended_cfg),
 	ipq_mux(59, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(60, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
-	ipq_mux(61, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+	ipq_mux(61, ipq806x_sdc3_uhs_card_det_cfg,		ipq806x_sdc3_uhs_card_det_cfg),
 	ipq_mux(62, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(63, pcie_rst_n,				pcie_rst_n),
 	ipq_mux(66, nss_gmac0_rgmii_set1,		nss_gmac0_rgmii_set1),

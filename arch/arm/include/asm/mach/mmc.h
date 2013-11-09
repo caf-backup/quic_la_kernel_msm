@@ -161,6 +161,7 @@ struct mmc_platform_data {
 	bool nonremovable;
 	unsigned int mpm_sdiowakeup_int;
 	int wpswitch_gpio;
+	int uhs_gpio;
 	bool is_wpswitch_active_low;
 	struct msm_mmc_slot_reg_data *vreg_data;
 	int is_sdio_al_client;

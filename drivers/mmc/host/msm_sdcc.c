@@ -3713,12 +3713,30 @@ static int msmsdcc_switch_io_voltage(struct mmc_host *mmc,
 	 * Switch VDD Io from high voltage range (2.7v - 3.6v) to
 	 * low voltage range (1.7v - 1.95v).
 	 */
-	rc = msmsdcc_set_vdd_io_vol(host, VDD_IO_LOW, 0);
-	if (rc)
-		goto out;
+	if (gpio_is_valid(host->plat->uhs_gpio)) {
+		rc = gpio_request(host->plat->uhs_gpio, "UHS_mode");
+		if (rc) {
+			printk("gpio_request failed \n");
+			goto out;
+		}
+		rc = gpio_direction_output(host->plat->uhs_gpio, 1);
+		if (rc) {
+			printk("gpio direction failed\n");
+			gpio_free(host->plat->uhs_gpio);
+			goto out;
+		}
+		spin_lock_irqsave(&host->lock, flags);
+		writel_relaxed((readl_relaxed(host->base + MMCICLOCK) |
+				IO_PAD_PWR_SWITCH), host->base + MMCICLOCK);
+		spin_unlock_irqrestore(&host->lock, flags);
+		host->io_pad_pwr_switch = 1;
+	} else {
+		rc = msmsdcc_set_vdd_io_vol(host, VDD_IO_LOW, 0);
+		if (rc)
+			goto out;
 
-	msmsdcc_update_io_pad_pwr_switch(host);
-
+		msmsdcc_update_io_pad_pwr_switch(host);
+	}
 	/* Wait 5 ms for the voltage regulater in the card to become stable. */
 	usleep_range(5000, 5500);
 
@@ -6682,7 +6700,6 @@ static struct platform_driver msmsdcc_driver = {
 	.remove		= msmsdcc_remove,
 	.driver		= {
 		.name	= "msm_sdcc",
-		.pm	= &msmsdcc_dev_pm_ops,
 		.of_match_table = msmsdcc_dt_match,
 	},
 };
