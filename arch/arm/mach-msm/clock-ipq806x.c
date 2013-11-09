@@ -1235,9 +1235,12 @@ static CLK_AIF_MI2S_BIT(mi2s_bit, LCC_MI2S_NS_REG, LCC_MI2S_STATUS_REG);
 
 static struct clk_freq_tbl clk_tbl_pcm[] = {
 	{ .ns_val = BIT(10) },
-	F_PCM(64000,	pll4,	4,	1,	6144),
-	F_PCM(128000,	pll4,	4,	1,	3072),
-	F_PCM(256000,	pll4,	4,	1,	1536),
+	F_PCM(64000,	pll4,	4,	1,	1536),
+	F_PCM(128000,	pll4,	4,	1,	768),
+	F_PCM(256000,	pll4,	4,	1,	384),
+	F_PCM(512000,	pll4,	4,	1,	192),
+	F_PCM(1024000,	pll4,	4,	1,	96),
+	F_PCM(2048000,	pll4,	4,	1,	48),
 	F_END
 };
 
@@ -3367,7 +3370,7 @@ static struct clk_lookup msm_clocks_ipq806x[] = {
 	CLK_LOOKUP("core_clk",		gsbi4_qup_clk.c,	"qup_i2c.3"),
 	CLK_LOOKUP("core_clk",		gsbi5_qup_clk.c,	"spi_qsd.5"),
 	CLK_LOOKUP("core_clk",		gsbi5_qup_clk.c,	"qup_i2c.4"),
-	CLK_LOOKUP("core_clk",		gsbi6_qup_clk.c,	""),
+	CLK_LOOKUP("core_clk",		gsbi6_qup_clk.c,	"spi_qsd.6"),
 	CLK_LOOKUP("core_clk",		gsbi7_qup_clk.c,	""),
 	CLK_LOOKUP("core_clk",		pdm_clk.c,		""),
 	CLK_LOOKUP("mem_clk",		pmem_clk.c,		"msm_sps"),
@@ -3401,7 +3404,7 @@ static struct clk_lookup msm_clocks_ipq806x[] = {
 	CLK_LOOKUP("iface_clk",		gsbi4_p_clk.c,		"msm_serial_hsl.1"),
 	CLK_LOOKUP("iface_clk",		gsbi5_p_clk.c,		"spi_qsd.5"),
 	CLK_LOOKUP("iface_clk",		gsbi5_p_clk.c,		"qup_i2c.4"),
-	CLK_LOOKUP("iface_clk",		gsbi6_p_clk.c,		"msm_serial_hs.0"),
+	CLK_LOOKUP("iface_clk",		gsbi6_p_clk.c,		"spi_qsd.6"),
 	CLK_LOOKUP("iface_clk",		gsbi7_p_clk.c,		"msm_serial_hsl.0"),
 	CLK_LOOKUP("ref_clk",		tsif_ref_clk.c,		"msm_tspp.0"),
 	CLK_LOOKUP("iface_clk",		tsif_p_clk.c,		"msm_tspp.0"),
@@ -3462,7 +3465,7 @@ static struct clk_lookup msm_clocks_ipq806x[] = {
 	CLK_LOOKUP("mi2s_osr_clk",	mi2s_osr_clk.c,	"ipq-cpu-dai"),
 	CLK_LOOKUP("mi2s_bit_clk",	mi2s_bit_clk.c,	"ipq-cpu-dai"),
 	CLK_LOOKUP("spdif_bit_clk",	spdif_clk.c,	"ipq-cpu-dai"),
-	CLK_LOOKUP("pcm_bit_clk",	pcm_clk.c,	"ipq-cpu-dai"),
+	CLK_LOOKUP("pcm_bit_clk",	pcm_clk.c,	"ipq-lpaif"),
 };
 
 

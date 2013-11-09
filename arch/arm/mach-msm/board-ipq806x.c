@@ -253,7 +253,14 @@ static struct spi_board_info ipq806x_spi_board_info[] __initdata = {
 		.chip_select    = 0,
 		.platform_data  = &msm_sf_data,
 		.max_speed_hz   = 51200000,
-	}
+	},
+	{
+		.modalias       = "ipq_pcm_spi",
+		.mode           = SPI_MODE_0,
+		.bus_num        = 6,
+		.chip_select    = 0,
+		.max_speed_hz   = 6000000,
+	},
 };
 #endif
 
@@ -1708,6 +1715,7 @@ static struct platform_device *common_devices[] __initdata = {
 	&ipq806x_lpass_dmlite,
 	&ipq806x_lpass_cpudai,
 	&ipq806x_lpass_lpaif,
+	&ipq806x_lpass_pcm_raw,
 	&ipq806x_lpass_clock,
 	&ipq806x_lpass_spdif,
 	&ipq806x_lpass_pcm_mi2s,
@@ -1763,6 +1771,10 @@ static struct msm_spi_platform_data ipq806x_qup_spi_gsbi5_pdata = {
 	.max_clock_speed = 52000000,
 	.dma_config      = gsbi5_dma_config,
 	.infinite_mode   = 0xFFC0,
+};
+
+static struct msm_spi_platform_data ipq806x_qup_spi_gsbi6_pdata = {
+	.max_clock_speed = 6000000,    /* Max SPI Clock on SLIC */
 };
 #endif
 
@@ -2008,6 +2020,11 @@ static void ipq806x_spi_register(void)
 				&ipq806x_qup_spi_gsbi5_pdata;
 
 	platform_device_register(&ipq806x_device_qup_spi_gsbi5);
+
+	ipq806x_device_qup_spi_gsbi6.dev.platform_data =
+		&ipq806x_qup_spi_gsbi6_pdata;
+
+	platform_device_register(&ipq806x_device_qup_spi_gsbi6);
 
 	spi_register_board_info(ipq806x_spi_board_info,
 				ARRAY_SIZE(ipq806x_spi_board_info));

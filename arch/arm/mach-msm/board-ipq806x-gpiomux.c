@@ -21,6 +21,7 @@
 #include <asm/mach/mmc.h>
 #include <mach/msm_bus_board.h>
 #include <mach/board.h>
+#include <mach/msm_iomap.h>
 #include <mach/gpiomux.h>
 #include <mach/socinfo.h>
 #include "devices.h"
@@ -70,28 +71,36 @@ static struct gpiomux_setting mi2s_act_cfg = {
 };
 
 static struct gpiomux_setting mi2s_sus_cfg = {
-	.func = GPIOMUX_FUNC_GPIO,
-	.drv = GPIOMUX_DRV_2MA,
-	.pull = GPIOMUX_PULL_DOWN,
-};
-
-static struct gpiomux_setting pcm_in_act_cfg = {
-	.func = GPIOMUX_FUNC_1,
-	.drv = GPIOMUX_DRV_8MA,
-	.pull = GPIOMUX_PULL_NONE,
-};
-
-static struct gpiomux_setting pcm_out_act_cfg = {
 	.func = GPIOMUX_FUNC_1,
 	.drv = GPIOMUX_DRV_8MA,
 	.pull = GPIOMUX_PULL_NONE,
 	.dir = GPIOMUX_OUT_HIGH,
 };
 
-static struct gpiomux_setting pcm_sus_cfg = {
-	.func = GPIOMUX_FUNC_GPIO,
-	.drv = GPIOMUX_DRV_2MA,
+static struct gpiomux_setting pcm_in_act_cfg = {
+	.func = GPIOMUX_FUNC_1,
+	.drv = GPIOMUX_DRV_8MA,
 	.pull = GPIOMUX_PULL_DOWN,
+};
+
+static struct gpiomux_setting pcm_out_act_cfg = {
+	.func = GPIOMUX_FUNC_1,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_DOWN,
+	.dir = GPIOMUX_OUT_LOW,
+};
+
+static struct gpiomux_setting pcm_in_sus_cfg = {
+	.func = GPIOMUX_FUNC_1,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_DOWN,
+};
+
+static struct gpiomux_setting pcm_out_sus_cfg = {
+	.func = GPIOMUX_FUNC_1,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_DOWN,
+	.dir = GPIOMUX_OUT_LOW,
 };
 
 static struct gpiomux_setting spdif_act_cfg = {
@@ -102,9 +111,10 @@ static struct gpiomux_setting spdif_act_cfg = {
 };
 
 static struct gpiomux_setting spdif_sus_cfg = {
-	.func = GPIOMUX_FUNC_GPIO,
-	.drv = GPIOMUX_DRV_2MA,
-	.pull = GPIOMUX_PULL_DOWN,
+	.func = GPIOMUX_FUNC_2,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_NONE,
+	.dir = GPIOMUX_OUT_HIGH,
 };
 
 #ifdef CONFIG_SPI_QUP
@@ -295,6 +305,38 @@ static struct gpiomux_setting nss_gmac0_rgmii_set1 = {
 	.pull = GPIOMUX_PULL_NONE,
 };
 
+/* GSBI6 pin configuration for PCM SLIC*/
+static struct gpiomux_setting gsbi6_spi_clk_cfg = {
+	.func = GPIOMUX_FUNC_3,
+	.drv = GPIOMUX_DRV_12MA,
+	.pull = GPIOMUX_PULL_DOWN,
+};
+
+static struct gpiomux_setting gsbi6_spi_cs_cfg = {
+	.func = GPIOMUX_FUNC_3,
+	.drv = GPIOMUX_DRV_12MA,
+	.pull = GPIOMUX_PULL_UP,
+};
+
+static struct gpiomux_setting gsbi6_spi_mosi_cfg = {
+	.func = GPIOMUX_FUNC_3,
+	.drv = GPIOMUX_DRV_12MA,
+	.pull = GPIOMUX_PULL_DOWN,
+};
+
+static struct gpiomux_setting gsbi6_spi_miso_cfg = {
+	.func = GPIOMUX_FUNC_3,
+	.drv = GPIOMUX_DRV_14MA,
+	.pull = GPIOMUX_PULL_DOWN,
+};
+
+static struct gpiomux_setting gsbi6_spi_reset_cfg = {
+	.func = GPIOMUX_FUNC_1,
+	.drv = GPIOMUX_DRV_10MA,
+	.pull = GPIOMUX_PULL_DOWN,
+	.dir = GPIOMUX_OUT_LOW,
+};
+
 #define ipq_mux(g, a, s)			\
 {						\
 	.gpio = g,				\
@@ -312,10 +354,10 @@ static struct msm_gpiomux_config ipq806x_db149_gpiomux[] = {
 	ipq_mux(10, spdif_act_cfg,			spdif_sus_cfg),
 	ipq_mux(12, gsbi4_active_cfg,			gsbi4_suspended_cfg),
 	ipq_mux(13, gsbi4_active_cfg,			gsbi4_suspended_cfg),
-	ipq_mux(14, pcm_out_act_cfg,			pcm_sus_cfg),
-	ipq_mux(15, pcm_in_act_cfg,			pcm_sus_cfg),
-	ipq_mux(16, pcm_out_act_cfg,			pcm_sus_cfg),
-	ipq_mux(17, pcm_out_act_cfg,			pcm_sus_cfg),
+	ipq_mux(14, pcm_out_act_cfg,			pcm_out_sus_cfg),
+	ipq_mux(15, pcm_in_act_cfg,			pcm_in_sus_cfg),
+	ipq_mux(16, pcm_out_act_cfg,			pcm_out_sus_cfg),
+	ipq_mux(17, pcm_out_act_cfg,			pcm_out_sus_cfg),
 	ipq_mux(18, gsbi5_spi_data_cfg,			gsbi5_spi_data_cfg),
 	ipq_mux(19, gsbi5_spi_data_cfg,			gsbi5_spi_data_cfg),
 	ipq_mux(20, gsbi5_spi_cs_cfg,			gsbi5_spi_cs_cfg),
@@ -352,6 +394,12 @@ static struct msm_gpiomux_config ipq806x_db149_gpiomux[] = {
 	ipq_mux(52, ipq806x_sdc3_card_det_cfg,		ipq806x_sdc3_card_det_cfg),
 	ipq_mux(53, gsbi1_active_cfg,			gsbi1_suspended_cfg),
 	ipq_mux(54, gsbi1_active_cfg,			gsbi1_suspended_cfg),
+
+	ipq_mux(55, gsbi6_spi_mosi_cfg,			gsbi6_spi_mosi_cfg),
+	ipq_mux(56, gsbi6_spi_miso_cfg,			gsbi6_spi_miso_cfg),
+	ipq_mux(57, gsbi6_spi_cs_cfg,			gsbi6_spi_cs_cfg),
+	ipq_mux(58, gsbi6_spi_clk_cfg,			gsbi6_spi_clk_cfg),
+
 	ipq_mux(59, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(60, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(61, ipq806x_sdc3_uhs_card_det_cfg,		ipq806x_sdc3_uhs_card_det_cfg),
@@ -368,10 +416,10 @@ static struct msm_gpiomux_config ipq806x_db147_gpiomux[] = {
 	ipq_mux(10, spdif_act_cfg,			spdif_sus_cfg),
 	ipq_mux(12, gsbi4_active_cfg,			gsbi4_suspended_cfg),
 	ipq_mux(13, gsbi4_active_cfg,			gsbi4_suspended_cfg),
-	ipq_mux(14, pcm_out_act_cfg,			pcm_sus_cfg),
-	ipq_mux(15, pcm_in_act_cfg,			pcm_sus_cfg),
-	ipq_mux(16, pcm_out_act_cfg,			pcm_sus_cfg),
-	ipq_mux(17, pcm_out_act_cfg,			pcm_sus_cfg),
+	ipq_mux(14, pcm_out_act_cfg,			pcm_out_sus_cfg),
+	ipq_mux(15, pcm_in_act_cfg,			pcm_in_sus_cfg),
+	ipq_mux(16, pcm_out_act_cfg,			pcm_out_sus_cfg),
+	ipq_mux(17, pcm_out_act_cfg,			pcm_out_sus_cfg),
 	ipq_mux(18, gsbi5_spi_data_cfg,			gsbi5_spi_data_cfg),
 	ipq_mux(19, gsbi5_spi_data_cfg,			gsbi5_spi_data_cfg),
 	ipq_mux(20, gsbi5_spi_cs_cfg,			gsbi5_spi_cs_cfg),
@@ -406,6 +454,10 @@ static struct msm_gpiomux_config ipq806x_db147_gpiomux[] = {
 	ipq_mux(52, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	/*        53 Not available in pkg */
 	/*        54 Not available in pkg */
+	ipq_mux(55, gsbi6_spi_mosi_cfg,			gsbi6_spi_mosi_cfg),
+	ipq_mux(56, gsbi6_spi_miso_cfg,			gsbi6_spi_miso_cfg),
+	ipq_mux(57, gsbi6_spi_cs_cfg,			gsbi6_spi_cs_cfg),
+	ipq_mux(58, gsbi6_spi_clk_cfg,			gsbi6_spi_clk_cfg),
 	ipq_mux(59, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(60, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(61, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
@@ -423,10 +475,10 @@ static struct msm_gpiomux_config ipq806x_ap148_gpiomux[] = {
 	ipq_mux( 9, ipq806x_leds_ap148_cfg,		ipq806x_leds_ap148_cfg),
 	ipq_mux(12, gsbi4_active_cfg,			gsbi4_suspended_cfg),
 	ipq_mux(13, gsbi4_active_cfg,			gsbi4_suspended_cfg),
-	ipq_mux(14, pcm_out_act_cfg,			pcm_sus_cfg),
-	ipq_mux(15, pcm_in_act_cfg,			pcm_sus_cfg),
-	ipq_mux(16, pcm_out_act_cfg,			pcm_sus_cfg),
-	ipq_mux(17, pcm_out_act_cfg,			pcm_sus_cfg),
+	ipq_mux(14, pcm_out_act_cfg,			pcm_out_sus_cfg),
+	ipq_mux(15, pcm_in_act_cfg,			pcm_in_sus_cfg),
+	ipq_mux(16, pcm_out_act_cfg,			pcm_out_sus_cfg),
+	ipq_mux(17, pcm_out_act_cfg,			pcm_out_sus_cfg),
 	ipq_mux(18, gsbi5_spi_data_cfg,			gsbi5_spi_data_cfg),
 	ipq_mux(19, gsbi5_spi_data_cfg,			gsbi5_spi_data_cfg),
 	ipq_mux(20, gsbi5_spi_cs_cfg,			gsbi5_spi_cs_cfg),
@@ -438,12 +490,17 @@ static struct msm_gpiomux_config ipq806x_ap148_gpiomux[] = {
 	ipq_mux(30, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(31, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(32, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
-	/*      33 Not used*/
+	ipq_mux(33, gsbi6_spi_reset_cfg,		gsbi6_spi_reset_cfg),
 	ipq_mux(48, pcie_rst_n,				pcie_rst_n),
 	ipq_mux(51, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(52, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(53, ipq806x_leds_ap148_cfg,		ipq806x_leds_ap148_cfg),
 	ipq_mux(54, ipq806x_buttons_ap148_cfg,		ipq806x_buttons_ap148_cfg),
+	ipq_mux(55, gsbi6_spi_mosi_cfg,			gsbi6_spi_mosi_cfg),
+	ipq_mux(56, gsbi6_spi_miso_cfg,			gsbi6_spi_miso_cfg),
+	ipq_mux(57, gsbi6_spi_cs_cfg,			gsbi6_spi_cs_cfg),
+	ipq_mux(58, gsbi6_spi_clk_cfg,			gsbi6_spi_clk_cfg),
+
 	ipq_mux(59, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(60, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(61, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
@@ -464,11 +521,17 @@ void __init ipq806x_init_gpiomux(void)
 	if (machine_is_ipq806x_db149()) {
 		msm_gpiomux_install(ipq806x_db149_gpiomux,
 			ARRAY_SIZE(ipq806x_db149_gpiomux));
+		/* GSBI6 needs copy B */
+		msm_gpiomux_gsbi_select_copy(IPQ806X_GSBI6_PORT_SEL_BASE, GPIOMUX_COPY_B);
 	} else if (machine_is_ipq806x_db147()) {
 		msm_gpiomux_install(ipq806x_db147_gpiomux,
 			ARRAY_SIZE(ipq806x_db147_gpiomux));
+		/* GSBI6 needs copy B */
+		msm_gpiomux_gsbi_select_copy(IPQ806X_GSBI6_PORT_SEL_BASE, GPIOMUX_COPY_B);
 	} else if (machine_is_ipq806x_ap148()) {
 		msm_gpiomux_install(ipq806x_ap148_gpiomux,
 			ARRAY_SIZE(ipq806x_ap148_gpiomux));
+		/* GSBI6 needs copy B */
+		msm_gpiomux_gsbi_select_copy(IPQ806X_GSBI6_PORT_SEL_BASE, GPIOMUX_COPY_B);
 	}
 }

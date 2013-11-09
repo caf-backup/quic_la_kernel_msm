@@ -749,6 +749,35 @@ struct platform_device ipq806x_device_uartdm_gsbi6 = {
 	},
 };
 
+/* GSBI6 used into SPI Mode for PCM */
+static struct resource resources_qup_spi_pcm_gsbi6[] = {
+	{
+		.name   = "spi_base",
+		.start  = MSM_GSBI6_QUP_PHYS,
+		.end    = MSM_GSBI6_QUP_PHYS + MSM_QUP_SIZE - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	{
+		.name   = "gsbi_base",
+		.start  = MSM_GSBI6_PHYS,
+		.end    = MSM_GSBI6_PHYS + 4 - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	{
+		.name   = "spi_irq_in",
+		.start  = GSBI6_QUP_IRQ,
+		.end    = GSBI6_QUP_IRQ,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device ipq806x_device_qup_spi_gsbi6 = {
+	.name           = "spi_qsd",
+	.id             = 6,
+	.num_resources  = ARRAY_SIZE(resources_qup_spi_pcm_gsbi6),
+	.resource       = resources_qup_spi_pcm_gsbi6,
+};
+
 static struct resource resources_uart_gsbi7[] = {
 	{
 		.start	= GSBI7_UARTDM_IRQ,
@@ -2371,6 +2400,11 @@ struct platform_device ipq806x_lpass_pcm_spdif = {
 
 struct platform_device ipq806x_lpass_codec = {
 	.name = "ipq-lpass-codec",
+	.id = -1,
+};
+
+struct platform_device ipq806x_lpass_pcm_raw = {
+	.name = "ipq-pcm-raw",
 	.id = -1,
 };
 

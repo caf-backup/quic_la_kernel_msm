@@ -14,6 +14,7 @@
 #include <linux/spinlock.h>
 #include <linux/gpio.h>
 #include <mach/gpiomux.h>
+#include <linux/io.h>
 
 struct msm_gpiomux_rec {
 	struct gpiomux_setting *sets[GPIOMUX_NSETTINGS];
@@ -152,3 +153,11 @@ void msm_gpiomux_install(struct msm_gpiomux_config *configs, unsigned nconfigs)
 	}
 }
 EXPORT_SYMBOL(msm_gpiomux_install);
+
+void msm_gpiomux_gsbi_select_copy(void __iomem *address, unsigned copy_selection)
+{
+	uint32_t bits;
+	bits = (copy_selection) & 0x1;
+	__raw_writel(bits, address);
+	mb();
+}

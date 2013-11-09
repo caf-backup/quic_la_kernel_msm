@@ -117,4 +117,7 @@
 #define IPQ806X_UBI32_1_CSM_PHYS        0x36400000
 #define IPQ806X_UBI32_1_CSM_SIZE        SZ_4K
 
+/* Virtrual address for GSBI6 port selection */
+#define IPQ806X_GSBI6_PORT_SEL_BASE	(MSM_TLMM_BASE + 0x2088)
+
 #endif /* __ASM_ARCH_MSM_IOMAP_IPQ806X_H */

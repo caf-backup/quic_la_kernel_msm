@@ -58,6 +58,11 @@ enum gpiomux_pull {
 	GPIOMUX_PULL_UP,
 };
 
+enum gpiomux_copy_sel {
+	GPIOMUX_COPY_A = 0,
+	GPIOMUX_COPY_B,
+};
+
 /* Direction settings are only meaningful when GPIOMUX_FUNC_GPIO is selected.
  * This element is ignored for all other FUNC selections, as the output-
  * enable pin is not under software control in those cases.  See the SWI
@@ -121,6 +126,10 @@ int msm_gpiomux_init(size_t ngpio);
  * identical to calling msm_gpiomux_write many times.
  */
 void msm_gpiomux_install(struct msm_gpiomux_config *configs, unsigned nconfigs);
+
+/* select GSBI's copy A or B
+ */
+void msm_gpiomux_gsbi_select_copy(void __iomem *addr, unsigned copy_sel);
 
 /* Increment a gpio's reference count, possibly activating the line. */
 int __must_check msm_gpiomux_get(unsigned gpio);
