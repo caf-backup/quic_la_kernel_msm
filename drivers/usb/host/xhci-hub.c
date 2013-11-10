@@ -1082,6 +1082,10 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 	temp = xhci_readl(xhci, &xhci->op_regs->command);
 
 	spin_unlock_irqrestore(&xhci->lock, flags);
+
+	/* Belkin Hub issue some more delay for the hub to resume */
+	msleep(5);
+
 	return 0;
 }
 
