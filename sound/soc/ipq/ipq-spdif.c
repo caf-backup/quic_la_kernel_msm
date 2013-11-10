@@ -74,21 +74,27 @@ EXPORT_SYMBOL_GPL(ipq_spdif_register_handler);
 
 uint32_t ipq_spdif_cfg_bit_width(uint32_t bit_width)
 {
-	uint32_t cfg;
+	uint32_t cfg, fifo_ctl;
 
 	cfg = readl(ipq_spdif_info.base + LPA_IF_SPDIF_TX_PORT_CFG);
 	cfg &= ~(LPA_IF_SPDIF_TX_PORT_CFG_BIT_MASK);
+	fifo_ctl = readl(ipq_spdif_info.base + LPA_IF_SPDIF_FIFO_CNTL);
+	fifo_ctl &= ~(LPA_IF_SPDIF_FIFO_DWD_WD_SWAP);
+
 	switch (bit_width) {
 	case SNDRV_PCM_FORMAT_S16:
 		cfg |= LPA_IF_SPDIF_TX_PORT_CFG_L16;
+		fifo_ctl |= LPA_IF_SPDIF_FIFO_DWD_WD_SWAP;
 		break;
 	case SNDRV_PCM_FORMAT_S24:
+	case SNDRV_PCM_FORMAT_S24_3LE:
 		cfg |= LPA_IF_SPDIF_TX_PORT_CFG_L24;
 		break;
 	default:
 		return -EINVAL;
 	}
 	writel(cfg, ipq_spdif_info.base + LPA_IF_SPDIF_TX_PORT_CFG);
+	writel(fifo_ctl, (ipq_spdif_info.base + LPA_IF_SPDIF_FIFO_CNTL));
 
 	return 0;
 }

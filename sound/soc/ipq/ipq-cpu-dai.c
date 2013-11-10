@@ -146,6 +146,7 @@ static uint32_t ipq_lpass_get_act_bit_width(uint32_t bit_width)
 	case SNDRV_PCM_FORMAT_U16_BE:
 		return __BIT_16;
 	case SNDRV_PCM_FORMAT_S24_LE:
+	case SNDRV_PCM_FORMAT_S24_3LE:
 	case SNDRV_PCM_FORMAT_S24_BE:
 	case SNDRV_PCM_FORMAT_U24_LE:
 	case SNDRV_PCM_FORMAT_U24_BE:
@@ -495,6 +496,7 @@ static struct snd_soc_dai_driver ipq_cpu_dais[] = {
 					SNDRV_PCM_RATE_176400 |
 					SNDRV_PCM_RATE_192000,
 			.formats	= SNDRV_PCM_FMTBIT_S16 |
+					SNDRV_PCM_FMTBIT_S24_3LE |
 					SNDRV_PCM_FMTBIT_S24,
 			.channels_min	= 1,
 			.channels_max	= 8,
