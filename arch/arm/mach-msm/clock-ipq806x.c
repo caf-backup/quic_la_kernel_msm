@@ -3807,19 +3807,7 @@ static struct pll_config pll4_config_393 __initdata = {
 
 static void __init reg_init(void)
 {
-	void __iomem *imem_reg;
 	uint32_t cfg_val;
-
-	/* Enable IMEM's clk_on signal */
-	imem_reg = ioremap(0x04b00040, 4);
-	if (imem_reg) {
-		writel_relaxed(0x3, imem_reg);
-		iounmap(imem_reg);
-	}
-
-	/* Initialize MM CC registers: Set MM FORCE_CORE_ON bits so that core
-	 * memories retain state even when not clocked. Also, set sleep and
-	 * wake-up delays to safe values. */
 
 	/*
 	 * Initialize USB_HS_HCLK_FS registers: Set FORCE_C_ON bits so that
