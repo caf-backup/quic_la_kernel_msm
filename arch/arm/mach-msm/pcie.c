@@ -229,8 +229,10 @@ static int __init msm_pcie_gpio_init(struct msm_pcie_dev_t *msm_pcie_dev)
 	}
 
 	if (rc)
-		while (i--)
-			gpio_free(msm_pcie_dev->gpio[i].num);
+		while (i--) {
+			if (gpio_is_valid(msm_pcie_dev->gpio[i].num))
+				gpio_free(msm_pcie_dev->gpio[i].num);
+		}
 
 	return rc;
 }
@@ -240,7 +242,8 @@ static void msm_pcie_gpio_deinit(struct msm_pcie_dev_t *msm_pcie_dev)
 	int i;
 
 	for (i = 0; i < MSM_PCIE_MAX_GPIO; i++)
-		gpio_free(msm_pcie_dev->gpio[i].num);
+		if (gpio_is_valid(msm_pcie_dev->gpio[i].num))
+			gpio_free(msm_pcie_dev->gpio[i].num);
 }
 
 static int __init msm_pcie_vreg_init(struct msm_pcie_dev_t *msm_pcie_dev)
@@ -571,9 +574,11 @@ static int __init msm_pcie_setup(int nr, struct pci_sys_data *sys)
 	/* wait 150ms for clock acquisition */
 	udelay(150);
 
-	/* de-assert PCIe reset link to bring EP out of reset */
-	gpio_set_value_cansleep(dev->gpio[MSM_PCIE_GPIO_RST_N].num,
-				!dev->gpio[MSM_PCIE_GPIO_RST_N].on);
+	if (gpio_is_valid(dev->gpio[MSM_PCIE_GPIO_RST_N].num)) {
+		/* de-assert PCIe reset link to bring EP out of reset */
+		gpio_set_value_cansleep(dev->gpio[MSM_PCIE_GPIO_RST_N].num,
+					!dev->gpio[MSM_PCIE_GPIO_RST_N].on);
+	}
 
 	/* enable link training */
 	msm_pcie_write_mask(dev->elbi + PCIE20_ELBI_SYS_CTRL, 0, BIT(0));

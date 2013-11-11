@@ -1581,6 +1581,42 @@ static int __init ipq806x_pcie_enabled(void)
 			(readl_relaxed(QFPROM_RAW_OEM_CONFIG_ROW0_LSB) & BIT(4)));
 }
 
+void ipq806x_pcie_pdata_fixup(void)
+{
+	int i;
+	int rst[] = { PCIE_RST_GPIO, PCIE_1_RST_GPIO, PCIE_2_RST_GPIO };
+	int pwr[] = { PCIE_PWR_EN_GPIO, PCIE_1_PWR_EN_GPIO, PCIE_2_PWR_EN_GPIO };
+	int no_vreg[] = { 0, 0, 0 };
+
+	if (machine_is_ipq806x_rumi3()) {
+		rst[0] = rst[1] = rst[2] = -1;
+		pwr[0] = pwr[1] = pwr[2] = -1;
+		no_vreg[0] = no_vreg[1] = no_vreg[2] = 1;
+	}
+
+	if (machine_is_ipq806x_db147()) {
+		rst[1] = -1;
+		pwr[1] = -1;
+		no_vreg[1] = 1;
+		rst[2] = PCIE_1_RST_GPIO;
+		pwr[2] = PCIE_1_PWR_EN_GPIO;
+	}
+
+	if (machine_is_ipq806x_ap148()) {
+		rst[2] = -1;
+		pwr[2] = -1;
+		no_vreg[2] = 1;
+	}
+
+	for (i = 0; i < CONFIG_MSM_NUM_PCIE; i++) {
+		msm_pcie_gpio_info[i][0].num = rst[i];
+		msm_pcie_gpio_info[i][1].num = pwr[i];
+		if (no_vreg[i]) {
+			msm_pcie_platform_data[i].vreg_n = 0;
+		}
+	}
+}
+
 static void __init ipq806x_pcie_init(void)
 {
 	int i;
@@ -1588,14 +1624,9 @@ static void __init ipq806x_pcie_init(void)
 	if (!ipq806x_pcie_enabled())
 		return;
 
+	ipq806x_pcie_pdata_fixup();
+
 	for (i = 0; i < CONFIG_MSM_NUM_PCIE; i++) {
-		if (machine_is_ipq806x_rumi3()) {
-			/*
-			 * Prevent msm_pcie_vreg_init from registering
-			 * these regulators.
-			 */
-			msm_pcie_platform_data[i].vreg_n = 0;
-		}
 		msm_device_pcie[i].dev.platform_data =
 			&msm_pcie_platform_data[i];
 		platform_device_register(&msm_device_pcie[i]);
