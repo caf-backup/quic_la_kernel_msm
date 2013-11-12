@@ -1700,10 +1700,6 @@ static struct platform_device *common_devices[] __initdata = {
 	&ipq806x_device_rng,
 #endif
 
-#ifdef CONFIG_MTD_MSM_NAND
-	&msm_device_nand,
-#endif
-
 	&ipq806x_rpm_device,
 	&ipq806x_rpm_log_device,
 	&ipq806x_rpm_stat_device,
@@ -2029,7 +2025,7 @@ static void __init register_i2c_devices(void)
 	int i;
 
 	/* Build the matching 'supported_machs' bitmask */
-	if (machine_is_ipq806x_db149() ||
+	if (machine_is_ipq806x_db149() || machine_is_ipq806x_db149_1xx() ||
 		machine_is_ipq806x_db147() ||
 		machine_is_ipq806x_ap148())
 		mach_mask = I2C_IPQ806X_CDP;
@@ -2080,8 +2076,9 @@ static void __init ipq806x_common_init(void)
 		BUG_ON(msm_rpmrs_levels_init(&msm_rpmrs_data));
 		regulator_suppress_info_printing();
 		msm_clock_init(&ipq806x_dummy_clock_init_data);
-	} else if (machine_is_ipq806x_tb726() || machine_is_ipq806x_db149()
-			  || machine_is_ipq806x_db147() || machine_is_ipq806x_ap148()) {
+	} else if (machine_is_ipq806x_tb726() || machine_is_ipq806x_db149() ||
+		   machine_is_ipq806x_db147() || machine_is_ipq806x_ap148() ||
+		   machine_is_ipq806x_db149_1xx()) {
 		BUG_ON(msm_rpm_init(&ipq806x_rpm_data));
 		BUG_ON(msm_rpmrs_levels_init(&msm_rpmrs_data));
 		regulator_suppress_info_printing();
@@ -2093,11 +2090,9 @@ static void __init ipq806x_common_init(void)
 	}
 
 	/* Regulator devices need to be registered for RUMI as well */
-	if (machine_is_ipq806x_rumi3() ||
-			machine_is_ipq806x_tb726() ||
-			machine_is_ipq806x_db149() ||
-			machine_is_ipq806x_db147() ||
-			machine_is_ipq806x_ap148()) {
+	if (machine_is_ipq806x_rumi3() || machine_is_ipq806x_tb726() ||
+	    machine_is_ipq806x_db149() || machine_is_ipq806x_db149_1xx() ||
+	    machine_is_ipq806x_db147() || machine_is_ipq806x_ap148()) {
 		fixup_ipq806x_smb_power_grid();
 		platform_device_register(&ipq806x_smb_device_rpm_regulator);
 	}
@@ -2137,6 +2132,9 @@ static void __init ipq806x_common_init(void)
 	}
 
 	platform_add_devices(common_devices, ARRAY_SIZE(common_devices));
+
+	if (!machine_is_ipq806x_db149_1xx())
+		platform_device_register(&msm_device_nand);
 
 	if (!machine_is_ipq806x_rumi3()) {
 		platform_add_devices(common_cdp_i2c_ipq806x_devices,
@@ -2351,7 +2349,7 @@ static void __init ipq806x_init(void)
 		platform_add_devices(cdp_devices, ARRAY_SIZE(cdp_devices));
 	}
 
-	if (machine_is_ipq806x_db149() ||
+	if (machine_is_ipq806x_db149() || machine_is_ipq806x_db149_1xx() ||
 		machine_is_ipq806x_db147())
 		platform_device_register(&cdp_kp_pdev);
 
@@ -2399,6 +2397,18 @@ MACHINE_START(IPQ806X_AP144, "Qualcomm Atheros AP144 reference board")
 MACHINE_END
 
 MACHINE_START(IPQ806X_DB149, "Qualcomm Atheros DB149 reference board")
+	.map_io = ipq806x_map_io,
+	.reserve = ipq806x_reserve,
+	.init_irq = ipq806x_init_irq,
+	.handle_irq = gic_handle_irq,
+	.timer = &msm_timer,
+	.init_machine = ipq806x_init,
+	.init_early = ipq806x_allocate_memory_regions,
+	.init_very_early = ipq806x_early_reserve,
+	.restart = msm_restart,
+MACHINE_END
+
+MACHINE_START(IPQ806X_DB149_1XX, "Qualcomm Atheros DB149-1XX reference board")
 	.map_io = ipq806x_map_io,
 	.reserve = ipq806x_reserve,
 	.init_irq = ipq806x_init_irq,
