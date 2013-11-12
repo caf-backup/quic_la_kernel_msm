@@ -243,6 +243,7 @@ static struct platform_device battery_bcl_device = {
 struct flash_platform_data msm_sf_data = {
 	.name = "m25p80",
 	.type = "s25fl512s",
+	.use_4b_cmd = 1,
 };
 
 static struct spi_board_info ipq806x_spi_board_info[] __initdata = {
