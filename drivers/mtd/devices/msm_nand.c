@@ -532,6 +532,92 @@ uint16_t flash_onfi_crc_check(uint8_t *buffer, uint16_t count)
 	return result;
 }
 
+static void flash_reset(struct msm_nand_chip *chip)
+{
+	struct {
+		dmov_s cmd[6];
+		unsigned cmdptr;
+		struct {
+			uint32_t cmd;
+			uint32_t exec;
+			uint32_t flash_status;
+			uint32_t sflash_bcfg_orig;
+			uint32_t sflash_bcfg_mod;
+			uint32_t chip_select;
+		} data;
+	} *dma_buffer;
+	dmov_s *cmd;
+	dma_addr_t dma_cmd;
+	dma_addr_t dma_cmdptr;
+
+	wait_event(chip->wait_queue, (dma_buffer = msm_nand_get_dma_buffer
+				      (chip, sizeof(*dma_buffer))));
+
+	dma_buffer->data.sflash_bcfg_orig
+		= flash_rd_reg(chip, MSM_NAND_SFLASHC_BURST_CFG);
+	dma_buffer->data.sflash_bcfg_mod = 0x00000000;
+	dma_buffer->data.chip_select = 4;
+	dma_buffer->data.cmd = MSM_NAND_CMD_RESET;
+	dma_buffer->data.exec = 1;
+	dma_buffer->data.flash_status = 0xeeeeeeee;
+
+	cmd = dma_buffer->cmd;
+
+	/* Put the Nand ctlr in Async mode and disable SFlash ctlr */
+	cmd->cmd = 0;
+	cmd->src = msm_virt_to_dma(chip, &dma_buffer->data.sflash_bcfg_mod);
+	cmd->dst = MSM_NAND_SFLASHC_BURST_CFG;
+	cmd->len = 4;
+	cmd++;
+
+	cmd->cmd = 0;
+	cmd->src = msm_virt_to_dma(chip, &dma_buffer->data.chip_select);
+	cmd->dst = MSM_NAND_FLASH_CHIP_SELECT;
+	cmd->len = 4;
+	cmd++;
+
+	/* Block on cmd ready, & write Reset command */
+	cmd->cmd = DST_CRCI_NAND_CMD;
+	cmd->src = msm_virt_to_dma(chip, &dma_buffer->data.cmd);
+	cmd->dst = MSM_NAND_FLASH_CMD;
+	cmd->len = 4;
+	cmd++;
+
+	cmd->cmd = 0;
+	cmd->src = msm_virt_to_dma(chip, &dma_buffer->data.exec);
+	cmd->dst = MSM_NAND_EXEC_CMD;
+	cmd->len = 4;
+	cmd++;
+
+	cmd->cmd = SRC_CRCI_NAND_DATA;
+	cmd->src = MSM_NAND_FLASH_STATUS;
+	cmd->dst = msm_virt_to_dma(chip, &dma_buffer->data.flash_status);
+	cmd->len = 4;
+	cmd++;
+
+	/* Restore the SFLASH_BURST_CONFIG register */
+	cmd->cmd = 0;
+	cmd->src = msm_virt_to_dma(chip, &dma_buffer->data.sflash_bcfg_orig);
+	cmd->dst = MSM_NAND_SFLASHC_BURST_CFG;
+	cmd->len = 4;
+	cmd++;
+
+	BUILD_BUG_ON(6 != ARRAY_SIZE(dma_buffer->cmd));
+
+	dma_buffer->cmd[0].cmd |= CMD_OCB;
+	cmd[-1].cmd |= CMD_OCU | CMD_LC;
+
+	dma_cmd = msm_virt_to_dma(chip, dma_buffer->cmd);
+	dma_buffer->cmdptr = (dma_cmd >> 3) | CMD_PTR_LP;
+
+	mb();
+	dma_cmdptr = msm_virt_to_dma(chip, &dma_buffer->cmdptr);
+	msm_dmov_exec_cmd(chip->dma_channel,
+			  DMOV_CMD_PTR_LIST | DMOV_CMD_ADDR(dma_cmdptr));
+	mb();
+
+	msm_nand_release_dma_buffer(chip, dma_buffer, sizeof(*dma_buffer));
+}
 
 uint32_t flash_onfi_probe(struct msm_nand_chip *chip)
 {
@@ -6916,6 +7002,12 @@ int msm_nand_scan(struct mtd_info *mtd, int maxchips)
 	struct nand_flash_dev *flashdev = NULL;
 	struct nand_manufacturers  *flashman = NULL;
 	unsigned int hw_id;
+
+	/*
+	 * Some Spansion parts, like the S34MS04G2, requires that the
+	 * NAND Flash be reset before issuing an ONFI probe.
+	 */
+	flash_reset(chip);
 
 	/* Probe the Flash device for ONFI compliance */
 	if (!flash_onfi_probe(chip)) {
