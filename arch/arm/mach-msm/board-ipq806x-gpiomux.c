@@ -337,6 +337,13 @@ static struct gpiomux_setting gsbi6_spi_reset_cfg = {
 	.dir = GPIOMUX_OUT_LOW,
 };
 
+static struct gpiomux_setting reset_control = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_NONE,
+	.dir = GPIOMUX_OUT_LOW,
+};
+
 #define ipq_mux(g, a, s)			\
 {						\
 	.gpio = g,				\
@@ -505,6 +512,7 @@ static struct msm_gpiomux_config ipq806x_ap148_gpiomux[] = {
 	ipq_mux(60, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(61, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(62, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+	ipq_mux(63, reset_control,			reset_control),
 	ipq_mux(65, ipq806x_buttons_ap148_cfg,		ipq806x_buttons_ap148_cfg),
 };
 

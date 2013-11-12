@@ -25,7 +25,7 @@ enum msm_pcie_gpio {
 /* gpio info structure */
 struct msm_pcie_gpio_info_t {
 	char      *name;
-	uint32_t   num;
+	int	   num;
 	uint32_t   on;
 };
 
