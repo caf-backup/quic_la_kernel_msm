@@ -1049,6 +1049,22 @@ static inline int msm_use_dm(struct msm_spi *dd, struct spi_transfer *tr,
 	return 1;
 }
 
+static void get_last_transfer(struct msm_spi *dd)
+{
+	struct spi_transfer *t = dd->cur_transfer;
+	struct spi_transfer *nxt;
+	struct spi_message *msg = dd->cur_msg;
+
+	while (!list_is_last(&t->transfer_list, &msg->transfers)) {
+		nxt = list_entry(t->transfer_list.next,
+				 struct spi_transfer, transfer_list);
+		t = nxt;
+	}
+	dd->cur_transfer = t;
+
+	return;
+}
+
 static void msm_spi_process_transfer(struct msm_spi *dd)
 {
 	u8  bpw;
@@ -1186,15 +1202,21 @@ static void msm_spi_process_transfer(struct msm_spi *dd)
 	do {
 		if (!wait_for_completion_timeout(&dd->transfer_complete,
 						 timeout)) {
-				dev_err(dd->dev, "%s: SPI transaction "
-						 "timeout\n", __func__);
-				dd->cur_msg->status = -EIO;
-				dd->cur_msg->actual_length = 0;
-				if (dd->mode == SPI_DMOV_MODE) {
-					msm_dmov_flush(dd->tx_dma_chan, 1);
-					msm_dmov_flush(dd->rx_dma_chan, 1);
-				}
-				break;
+			dev_err(dd->dev, "%s: SPI transaction "
+					 "timeout\n", __func__);
+			dd->cur_msg->status = -EIO;
+			dd->cur_msg->actual_length = 0;
+			if (dd->mode == SPI_DMOV_MODE) {
+				msm_dmov_flush(dd->tx_dma_chan, 1);
+				msm_dmov_flush(dd->rx_dma_chan, 1);
+			}
+
+			/* Before unmap dma buffer make sure that
+			 * we are in the last transfer of SPI message
+			 * so that prev_xfr points to a valid entry.
+			 */
+			get_last_transfer(dd);
+			break;
 		}
 	} while (msm_spi_dm_send_next(dd));
 
