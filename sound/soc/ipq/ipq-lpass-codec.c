@@ -73,6 +73,7 @@ static struct snd_soc_dai_driver lpass_codec_dai[] = {
 				SNDRV_PCM_RATE_176400 |
 				SNDRV_PCM_RATE_192000,
 			.formats = SNDRV_PCM_FMTBIT_S16 |
+				SNDRV_PCM_FMTBIT_S24_3LE |
 				SNDRV_PCM_FMTBIT_S24,
 		},
 	},
