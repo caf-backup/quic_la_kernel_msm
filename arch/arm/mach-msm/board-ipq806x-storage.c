@@ -37,9 +37,14 @@ enum sdcc_controllers {
 	MAX_SDCC_CONTROLLER
 };
 
-#ifdef CONFIG_MMC_MSM_SDC3_SUPPORT
 /* All SDCC controllers require VDD/VCC voltage */
 static struct msm_mmc_reg_data mmc_vdd_reg_data[MAX_SDCC_CONTROLLER] = {
+	[SDCC1] = {
+		.name = "sdc_vdd",
+		.high_vol_level = 2950000,
+		.low_vol_level = 2950000,
+		.hpm_uA = 800000, /* 200mA */
+	},
 	/* SDCC3 : External card slot connected */
 	[SDCC3] = {
 		.name = "sdc_vdd",
@@ -51,6 +56,21 @@ static struct msm_mmc_reg_data mmc_vdd_reg_data[MAX_SDCC_CONTROLLER] = {
 
 /* SDCC controllers may require voting for VDD IO voltage */
 static struct msm_mmc_reg_data mmc_vdd_io_reg_data[MAX_SDCC_CONTROLLER] = {
+	[SDCC1] = {
+	.name = "sdc_vdd_io",
+		.high_vol_level = 2950000,
+		.low_vol_level = 1850000,
+		.always_on = 1,
+		.lpm_sup = 1,
+		/* Max. Active current required is 16 mA */
+		.hpm_uA = 16000,
+		/*
+		 * Sleep current required is ~300 uA. But min. vote can be
+		 * in terms of mA (min. 1 mA). So let's vote for 2 mA
+		 * during sleep.
+		 */
+		.lpm_uA = 2000,
+	},
 	/* SDCC3 : External card slot connected */
 	[SDCC3] = {
 		.name = "sdc_vdd_io",
@@ -70,15 +90,18 @@ static struct msm_mmc_reg_data mmc_vdd_io_reg_data[MAX_SDCC_CONTROLLER] = {
 };
 
 static struct msm_mmc_slot_reg_data mmc_slot_vreg_data[MAX_SDCC_CONTROLLER] = {
+	/* SDCC1 : eMMC card connected */
+	[SDCC1] = {
+		.vdd_data = &mmc_vdd_reg_data[SDCC1],
+		.vdd_io_data = &mmc_vdd_io_reg_data[SDCC1],
+	},
 	/* SDCC3 : External card slot connected */
 	[SDCC3] = {
 		.vdd_data = &mmc_vdd_reg_data[SDCC3],
 		.vdd_io_data = &mmc_vdd_io_reg_data[SDCC3],
 	}
 };
-#endif
 
-#if defined(CONFIG_MMC_MSM_SDC1_SUPPORT) || defined(CONFIG_MMC_MSM_SDC3_SUPPORT)
 /* SDC3 pad data */
 static struct msm_mmc_pad_drv sdc3_pad_drv_on_cfg[] = {
 	{TLMM_HDRV_SDC3_CLK, GPIO_CFG_8MA},
@@ -158,12 +181,10 @@ static struct msm_mmc_pin_data mmc_slot_pin_data[MAX_SDCC_CONTROLLER] = {
 		.pad_data = &mmc_pad_data[SDCC3],
 	},
 };
-#endif
 
 #define MSM_MPM_PIN_SDC1_DAT1	17
 #define MSM_MPM_PIN_SDC3_DAT1	21
 
-#ifdef CONFIG_MMC_MSM_SDC1_SUPPORT
 static unsigned int sdc1_sup_clk_rates[] = {
 	400000, 24000000, 48000000, 96000000
 };
@@ -179,15 +200,14 @@ static struct mmc_platform_data sdc1_data = {
 	.sup_clk_cnt	= ARRAY_SIZE(sdc1_sup_clk_rates),
 	.nonremovable	= 1,
 	.pin_data	= &mmc_slot_pin_data[SDCC1],
+	.vreg_data	= &mmc_slot_vreg_data[SDCC1],
+	.irq_flags	= IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+	.is_status_gpio_active_low = 1,
+	.xpc_cap	= 1,
 	.mpm_sdiowakeup_int = MSM_MPM_PIN_SDC1_DAT1,
 	.msm_bus_voting_data = &sps_to_ddr_bus_voting_data,
 };
-static struct mmc_platform_data *ipq806x_sdc1_pdata = &sdc1_data;
-#else
-static struct mmc_platform_data *ipq806x_sdc1_pdata;
-#endif
 
-#ifdef CONFIG_MMC_MSM_SDC3_SUPPORT
 static unsigned int sdc3_sup_clk_rates[] = {
 	400000, 24000000, 48000000, 96000000, 192000000
 };
@@ -211,28 +231,18 @@ static struct mmc_platform_data sdc3_data = {
 	.mpm_sdiowakeup_int = MSM_MPM_PIN_SDC3_DAT1,
 	.msm_bus_voting_data = &sps_to_ddr_bus_voting_data,
 };
-static struct mmc_platform_data *ipq806x_sdc3_pdata = &sdc3_data;
-#else
-static struct mmc_platform_data *ipq806x_sdc3_pdata;
-#endif
 
 void __init ipq806x_init_mmc(void)
 {
-	if (ipq806x_sdc1_pdata) {
-		ipq806x_add_sdcc(1, ipq806x_sdc1_pdata);
-	}
+	int i;
+	struct msm_mmc_pad_drv_data *drv;
 
-	if (ipq806x_sdc3_pdata) {
-		if (machine_is_ipq806x_db149()) {
-			int i;
-			struct msm_mmc_pad_drv_data *drv =
-				ipq806x_sdc3_pdata->pin_data->pad_data->drv;
+	if (machine_is_ipq806x_db149_1xx())
+		ipq806x_add_sdcc(1, &sdc1_data);
 
-			for (i = 0; i < drv->size; i++)
-				drv->on[i].val = GPIO_CFG_10MA;
-			ipq806x_sdc3_pdata->uhs_gpio = 61;
-		}
-		ipq806x_add_sdcc(2, ipq806x_sdc3_pdata);
-	}
+	drv = sdc3_data.pin_data->pad_data->drv;
+	for (i = 0; i < drv->size; i++)
+		drv->on[i].val = GPIO_CFG_10MA;
 
+	ipq806x_add_sdcc(2, &sdc3_data);
 }

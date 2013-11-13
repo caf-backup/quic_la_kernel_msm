@@ -78,6 +78,7 @@ VREG_CONSUMERS(S2b) = {
 
 VREG_CONSUMERS(S3a) = {
 	REGULATOR_SUPPLY("smb208_s3a", NULL),
+	REGULATOR_SUPPLY("sdc_vdd_io", "msm_sdcc.1"),
 	REGULATOR_SUPPLY("sdc_vdd_io", "msm_sdcc.3"),
 };
 
@@ -93,6 +94,7 @@ VREG_CONSUMERS(S4) = {
 
 VREG_CONSUMERS(S5) = {
 	REGULATOR_SUPPLY("smb208_s5",  NULL),
+	REGULATOR_SUPPLY("sdc_vdd", "msm_sdcc.1"),
 	REGULATOR_SUPPLY("sdc_vdd", "msm_sdcc.3"),
 };
 
@@ -420,7 +422,8 @@ void __init fixup_ipq806x_smb_power_grid(void)
 		ipq806x_rpm_regulator_smb_pdata.consumer_map_len =
 			ARRAY_SIZE(msm_rpm_regulator_smb_tb732_consumer_mapping);
 	} else if (machine_is_ipq806x_db149() ||
-			machine_is_ipq806x_db147()) {
+		   machine_is_ipq806x_db149_1xx() ||
+		   machine_is_ipq806x_db147()) {
 		ipq806x_rpm_regulator_smb_pdata.consumer_map =
 			msm_rpm_regulator_smb_db14x_consumer_mapping;
 		ipq806x_rpm_regulator_smb_pdata.consumer_map_len =

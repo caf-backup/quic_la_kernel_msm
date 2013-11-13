@@ -940,6 +940,12 @@ config MACH_IPQ806X_DB149
 	help
 	  Support for the Qualcomm IPQ806X DB149 device.
 
+config MACH_IPQ806X_DB149_1XX
+	depends on ARCH_IPQ806X
+	bool "IPQ806X DB149-1XX"
+	help
+	  Support for the Qualcomm IPQ806X DB149-1XX enabled device.
+
 config MACH_IPQ806X_DB147
 	depends on ARCH_IPQ806X
 	bool "IPQ806X DB147"
