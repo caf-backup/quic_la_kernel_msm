@@ -243,6 +243,6 @@ void __init ipq806x_init_mmc(void)
 	drv = sdc3_data.pin_data->pad_data->drv;
 	for (i = 0; i < drv->size; i++)
 		drv->on[i].val = GPIO_CFG_10MA;
-
+	sdc3_data.uhs_gpio = 61;
 	ipq806x_add_sdcc(2, &sdc3_data);
 }
