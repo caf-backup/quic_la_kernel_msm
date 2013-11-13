@@ -485,22 +485,5 @@ static inline void set_default_hw_caps(struct msmsdcc_host *host)
 int msmsdcc_set_pwrsave(struct mmc_host *mmc, int pwrsave);
 int msmsdcc_sdio_al_lpm(struct mmc_host *mmc, bool enable);
 
-#ifdef CONFIG_MSM_SDIO_AL
-
-static inline int msmsdcc_lpm_enable(struct mmc_host *mmc)
-{
-	return msmsdcc_sdio_al_lpm(mmc, true);
-}
-
-static inline int msmsdcc_lpm_disable(struct mmc_host *mmc)
-{
-	struct msmsdcc_host *host = mmc_priv(mmc);
-	int ret;
-
-	ret = msmsdcc_sdio_al_lpm(mmc, false);
-	wake_unlock(&host->sdio_wlock);
-	return ret;
-}
-#endif
 
 #endif

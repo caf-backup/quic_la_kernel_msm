@@ -1348,27 +1348,7 @@ static struct i2c_board_info msm_i2c_board_info[] __initdata = {
 		.irq           =  MSM_GPIO_TO_INT(KBD_IRQ),
 		.platform_data  = &msm_kybd_data
 	},
-#ifdef CONFIG_MT9D112
-	{
-		I2C_BOARD_INFO("mt9d112", 0x78 >> 1),
-	},
-#endif
-#ifdef CONFIG_S5K3E2FX
-	{
-		I2C_BOARD_INFO("s5k3e2fx", 0x20 >> 1),
-	},
-#endif
-#ifdef CONFIG_MT9P012
-	{
-		I2C_BOARD_INFO("mt9p012", 0x6C >> 1),
-	},
-#endif
-#ifdef CONFIG_MT9P012_KM
-	{
-		I2C_BOARD_INFO("mt9p012_km", 0x6C >> 2),
-	},
-#endif
-#if defined(CONFIG_MT9T013) || defined(CONFIG_SENSORS_MT9T013)
+#if defined(CONFIG_SENSORS_MT9T013)
 	{
 		I2C_BOARD_INFO("mt9t013", 0x6C),
 	},
@@ -1577,135 +1557,10 @@ static struct msm_camera_sensor_flash_src msm_flash_src = {
 	._fsrc.pmic_src.pmic_set_current = pmic_set_flash_led_current,
 };
 
-#ifdef CONFIG_MT9D112
-static struct msm_camera_sensor_flash_data flash_mt9d112 = {
-	.flash_type = MSM_CAMERA_FLASH_LED,
-	.flash_src  = &msm_flash_src
-};
 
-static struct msm_camera_sensor_info msm_camera_sensor_mt9d112_data = {
-	.sensor_name    = "mt9d112",
-	.sensor_reset   = 17,
-	.sensor_pwd     = 85,
-	.vcm_pwd        = 0,
-	.vcm_enable     = 0,
-	.pdata          = &msm_camera_device_data,
-	.resource       = msm_camera_resources,
-	.num_resources  = ARRAY_SIZE(msm_camera_resources),
-	.flash_data     = &flash_mt9d112
-};
 
-static struct platform_device msm_camera_sensor_mt9d112 = {
-	.name      = "msm_camera_mt9d112",
-	.dev       = {
-		.platform_data = &msm_camera_sensor_mt9d112_data,
-	},
-};
-#endif
 
-#ifdef CONFIG_S5K3E2FX
-static struct msm_camera_sensor_flash_data flash_s5k3e2fx = {
-	.flash_type = MSM_CAMERA_FLASH_LED,
-	.flash_src  = &msm_flash_src
-};
 
-static struct msm_camera_sensor_info msm_camera_sensor_s5k3e2fx_data = {
-	.sensor_name    = "s5k3e2fx",
-	.sensor_reset   = 17,
-	.sensor_pwd     = 85,
-	/*.vcm_pwd = 31, */  /* CAM1_VCM_EN, enabled in a9 */
-	.vcm_enable     = 0,
-	.pdata          = &msm_camera_device_data,
-	.resource       = msm_camera_resources,
-	.num_resources  = ARRAY_SIZE(msm_camera_resources),
-	.flash_data     = &flash_s5k3e2fx
-};
-
-static struct platform_device msm_camera_sensor_s5k3e2fx = {
-	.name      = "msm_camera_s5k3e2fx",
-	.dev       = {
-		.platform_data = &msm_camera_sensor_s5k3e2fx_data,
-	},
-};
-#endif
-
-#ifdef CONFIG_MT9P012
-static struct msm_camera_sensor_flash_data flash_mt9p012 = {
-	.flash_type = MSM_CAMERA_FLASH_LED,
-	.flash_src  = &msm_flash_src
-};
-
-static struct msm_camera_sensor_info msm_camera_sensor_mt9p012_data = {
-	.sensor_name    = "mt9p012",
-	.sensor_reset   = 17,
-	.sensor_pwd     = 85,
-	.vcm_pwd        = 88,
-	.vcm_enable     = 0,
-	.pdata          = &msm_camera_device_data,
-	.resource       = msm_camera_resources,
-	.num_resources  = ARRAY_SIZE(msm_camera_resources),
-	.flash_data     = &flash_mt9p012
-};
-
-static struct platform_device msm_camera_sensor_mt9p012 = {
-	.name      = "msm_camera_mt9p012",
-	.dev       = {
-		.platform_data = &msm_camera_sensor_mt9p012_data,
-	},
-};
-#endif
-
-#ifdef CONFIG_MT9P012_KM
-static struct msm_camera_sensor_flash_data flash_mt9p012_km = {
-	.flash_type = MSM_CAMERA_FLASH_LED,
-	.flash_src  = &msm_flash_src
-};
-
-static struct msm_camera_sensor_info msm_camera_sensor_mt9p012_km_data = {
-	.sensor_name    = "mt9p012_km",
-	.sensor_reset   = 17,
-	.sensor_pwd     = 85,
-	.vcm_pwd        = 88,
-	.vcm_enable     = 0,
-	.pdata          = &msm_camera_device_data,
-	.resource       = msm_camera_resources,
-	.num_resources  = ARRAY_SIZE(msm_camera_resources),
-	.flash_data     = &flash_mt9p012_km
-};
-
-static struct platform_device msm_camera_sensor_mt9p012_km = {
-	.name      = "msm_camera_mt9p012_km",
-	.dev       = {
-		.platform_data = &msm_camera_sensor_mt9p012_km_data,
-	},
-};
-#endif
-
-#ifdef CONFIG_MT9T013
-static struct msm_camera_sensor_flash_data flash_mt9t013 = {
-	.flash_type = MSM_CAMERA_FLASH_LED,
-	.flash_src  = &msm_flash_src
-};
-
-static struct msm_camera_sensor_info msm_camera_sensor_mt9t013_data = {
-	.sensor_name    = "mt9t013",
-	.sensor_reset   = 17,
-	.sensor_pwd     = 85,
-	.vcm_pwd        = 0,
-	.vcm_enable     = 0,
-	.pdata          = &msm_camera_device_data,
-	.resource       = msm_camera_resources,
-	.num_resources  = ARRAY_SIZE(msm_camera_resources),
-	.flash_data     = &flash_mt9t013
-};
-
-static struct platform_device msm_camera_sensor_mt9t013 = {
-	.name      = "msm_camera_mt9t013",
-	.dev       = {
-		.platform_data = &msm_camera_sensor_mt9t013_data,
-	},
-};
-#endif
 #endif /*CONFIG_MSM_CAMERA*/
 
 static u32 msm_calculate_batt_capacity(u32 current_voltage);
@@ -1810,29 +1665,12 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_BT
 	&msm_bt_power_device,
 #endif
-#if !defined(CONFIG_MSM_SERIAL_DEBUGGER)
 	&msm_device_uart3,
-#endif
 	&msm_device_pmic_leds,
 	&msm_kgsl_3d0,
 	&hs_device,
 #if defined(CONFIG_TSIF) || defined(CONFIG_TSIF_MODULE)
 	&msm_device_tsif,
-#endif
-#ifdef CONFIG_MT9T013
-	&msm_camera_sensor_mt9t013,
-#endif
-#ifdef CONFIG_MT9D112
-	&msm_camera_sensor_mt9d112,
-#endif
-#ifdef CONFIG_S5K3E2FX
-	&msm_camera_sensor_s5k3e2fx,
-#endif
-#ifdef CONFIG_MT9P012
-	&msm_camera_sensor_mt9p012,
-#endif
-#ifdef CONFIG_MT9P012_KM
-	&msm_camera_sensor_mt9p012_km,
 #endif
 	&msm_batt_device,
 };
@@ -1953,17 +1791,11 @@ static void __init qsd8x50_init_usb(void)
 	if (machine_is_qsd8x50_ffa())
 		regulator_3p3_is_internal = 1;
 
-#ifdef CONFIG_USB_MSM_OTG_72K
-	platform_device_register(&msm_device_otg);
-#endif
 
 #ifdef CONFIG_USB_FUNCTION_MSM_HSUSB
 	platform_device_register(&msm_device_hsusb_peripheral);
 #endif
 
-#ifdef CONFIG_USB_MSM_72K
-	platform_device_register(&msm_device_gadget_peripheral);
-#endif
 
 	if (machine_is_qsd8x50_ffa())
 		return;
@@ -2446,12 +2278,6 @@ static void __init qsd8x50_init(void)
 	BUG_ON(msm_pm_boot_init(&msm_pm_boot_pdata));
 	msm_pm_register_irqs();
 
-#ifdef CONFIG_SURF_FFA_GPIO_KEYPAD
-	if (machine_is_qsd8x50_ffa())
-		platform_device_register(&keypad_device_8k_ffa);
-	else
-		platform_device_register(&keypad_device_surf);
-#endif
 }
 
 static void __init qsd8x50_allocate_memory_regions(void)

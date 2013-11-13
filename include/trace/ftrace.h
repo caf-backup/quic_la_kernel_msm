@@ -17,7 +17,6 @@
  */
 
 #include <linux/ftrace_event.h>
-#include <linux/coresight-stm.h>
 
 /*
  * DECLARE_EVENT_CLASS can be used to add a generic function

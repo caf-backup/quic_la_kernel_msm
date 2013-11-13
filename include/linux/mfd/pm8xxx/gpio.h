@@ -143,7 +143,7 @@ struct pm_gpio {
 	int		disable_pin;
 };
 
-#if defined(CONFIG_GPIO_PM8XXX) || defined(CONFIG_GPIO_PM8XXX_MODULE)
+#if defined(CONFIG_GPIO_PM8XXX_MODULE)
 /**
  * pm8xxx_gpio_config - configure a gpio controlled by a pm8xxx chip
  * @gpio: gpio number to configure

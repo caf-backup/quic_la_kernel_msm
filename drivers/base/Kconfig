@@ -233,18 +233,6 @@ config SW_SYNC_USER
          *WARNING* improper use of this can result in deadlocking kernel
 	 drivers from userspace.
 
-config CMA
-	bool "Contiguous Memory Allocator (EXPERIMENTAL)"
-	depends on HAVE_DMA_CONTIGUOUS && HAVE_MEMBLOCK && EXPERIMENTAL
-	select MIGRATION
-	help
-	  This enables the Contiguous Memory Allocator which allows drivers
-	  to allocate big physically-contiguous blocks of memory for use with
-	  hardware components that do not support I/O map nor scatter-gather.
-
-	  For more information see <include/linux/dma-contiguous.h>.
-	  If unsure, say "n".
-
 if CMA
 
 config CMA_DEBUG

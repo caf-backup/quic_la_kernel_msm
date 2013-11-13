@@ -401,17 +401,11 @@ static int msm_rpm_set_exclusive(int ctx,
 	/* Ensure RPM data is written before sending the interrupt */
 	mb();
 	msm_rpm_send_req_interrupt();
-#ifdef CONFIG_CPU_FREQ_SWITCH_PROFILER
-	gpio_set_value(26, 1);
-#endif
 
 	spin_unlock(&msm_rpm_irq_lock);
 	spin_unlock_irqrestore(&msm_rpm_lock, flags);
 
 	wait_for_completion(&ack);
-#ifdef CONFIG_CPU_FREQ_SWITCH_PROFILER
-	gpio_set_value(26, 0);
-#endif
 	BUG_ON((ctx_mask_ack & ~(msm_rpm_get_ctx_mask(MSM_RPM_CTX_REJECTED)))
 		!= ctx_mask);
 	BUG_ON(memcmp(sel_masks, sel_masks_ack, sizeof(sel_masks_ack)));

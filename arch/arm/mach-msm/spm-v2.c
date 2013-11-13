@@ -310,40 +310,6 @@ int msm_spm_drv_set_low_power_mode(struct msm_spm_driver_data *dev,
 	return 0;
 }
 
-#ifdef CONFIG_MSM_AVS_HW
-static bool msm_spm_drv_is_avs_enabled(struct msm_spm_driver_data *dev)
-{
-	msm_spm_drv_load_shadow(dev, MSM_SPM_REG_SAW2_AVS_CTL);
-	if (dev->major == SAW2_MAJOR_2)
-		return dev->reg_shadow[MSM_SPM_REG_SAW2_AVS_CTL] & BIT(0);
-	else
-		return dev->reg_shadow[MSM_SPM_REG_SAW2_AVS_CTL] & BIT(27);
-}
-
-static void msm_spm_drv_disable_avs(struct msm_spm_driver_data *dev)
-{
-	msm_spm_drv_load_shadow(dev, MSM_SPM_REG_SAW2_AVS_CTL);
-	dev->reg_shadow[MSM_SPM_REG_SAW2_AVS_CTL] &= ~BIT(27);
-	msm_spm_drv_flush_shadow(dev, MSM_SPM_REG_SAW2_AVS_CTL);
-}
-
-static void msm_spm_drv_enable_avs(struct msm_spm_driver_data *dev)
-{
-	dev->reg_shadow[MSM_SPM_REG_SAW2_AVS_CTL] |= BIT(27);
-	msm_spm_drv_flush_shadow(dev, MSM_SPM_REG_SAW2_AVS_CTL);
-}
-
-static void msm_spm_drv_set_avs_vlevel(struct msm_spm_driver_data *dev,
-		unsigned int vlevel)
-{
-	vlevel &= 0x3f;
-	dev->reg_shadow[MSM_SPM_REG_SAW2_AVS_CTL] &= ~0x7efc00;
-	dev->reg_shadow[MSM_SPM_REG_SAW2_AVS_CTL] |= ((vlevel - 4) << 10);
-	dev->reg_shadow[MSM_SPM_REG_SAW2_AVS_CTL] |= (vlevel << 17);
-	msm_spm_drv_flush_shadow(dev, MSM_SPM_REG_SAW2_AVS_CTL);
-}
-
-#else
 static bool msm_spm_drv_is_avs_enabled(struct msm_spm_driver_data *dev)
 {
 	return false;
@@ -355,7 +321,6 @@ static void msm_spm_drv_enable_avs(struct msm_spm_driver_data *dev) { }
 
 static void msm_spm_drv_set_avs_vlevel(struct msm_spm_driver_data *dev,
 		unsigned int vlevel) { }
-#endif
 
 int msm_spm_drv_set_vdd(struct msm_spm_driver_data *dev, unsigned int vlevel)
 {

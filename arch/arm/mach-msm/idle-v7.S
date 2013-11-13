@@ -68,9 +68,6 @@ wfi_done:
 #endif
 
 ENTRY(msm_pm_collapse)
-#if defined(CONFIG_MSM_FIQ_SUPPORT)
-	cpsid   f
-#endif
 
 	ldr     r0, =msm_saved_state	/* address of msm_saved_state ptr */
 	ldr	r0, [r0]		/* load ptr */
@@ -98,7 +95,7 @@ ENTRY(msm_pm_collapse)
 	mrc     p15, 0, ip, c13, c0, 1 /* context ID */
 	stmia   r0!, {r1-r9, ip}
 
-#if defined(CONFIG_MSM_JTAG) || defined(CONFIG_MSM_JTAG_MM)
+#if defined(CONFIG_MSM_JTAG)
 	bl      msm_jtag_save_state
 #endif
 
@@ -152,9 +149,6 @@ skip_pc_debug1:
 	SET_SMP_COHERENCY ON
 #endif
 
-#if defined(CONFIG_MSM_FIQ_SUPPORT)
-	cpsie   f
-#endif
 	mrc	p15, 0, r0, c0, c0, 5 /* MPIDR */
 	and	r0, r0, #15              /* what CPU am I                  */
 
@@ -170,7 +164,7 @@ skip_pc_debug1:
 
 skip_pc_debug2:
 
-#if defined(CONFIG_MSM_JTAG) || defined(CONFIG_MSM_JTAG_MM)
+#if defined(CONFIG_MSM_JTAG)
 	bl	msm_jtag_restore_state
 #endif
 	ldr     r0, =msm_saved_state	/* address of msm_saved_state ptr */
@@ -265,7 +259,7 @@ msm_pm_pa_to_va:
 	SET_SMP_COHERENCY ON
 #endif
 
-#if defined(CONFIG_MSM_JTAG) || defined(CONFIG_MSM_JTAG_MM)
+#if defined(CONFIG_MSM_JTAG)
 	stmfd   sp!, {lr}
 	bl      msm_jtag_restore_state
 	ldmfd   sp!, {lr}

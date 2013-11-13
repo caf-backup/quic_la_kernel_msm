@@ -35,10 +35,6 @@ struct msm_ssbi_platform_data {
 	enum msm_ssbi_controller_type controller_type;
 };
 
-#ifdef CONFIG_MSM_SSBI
-int msm_ssbi_write(struct device *dev, u16 addr, u8 *buf, int len);
-int msm_ssbi_read(struct device *dev, u16 addr, u8 *buf, int len);
-#else
 static inline int msm_ssbi_write(struct device *dev, u16 addr, u8 *buf, int len)
 {
 	return -ENXIO;
@@ -47,5 +43,4 @@ static inline int msm_ssbi_read(struct device *dev, u16 addr, u8 *buf, int len)
 {
 	return -ENXIO;
 }
-#endif
 #endif

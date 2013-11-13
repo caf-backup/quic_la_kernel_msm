@@ -80,7 +80,7 @@ void invalidate_caches(unsigned long, unsigned long, unsigned long);
 int msm_get_memory_type_from_name(const char *memtype_name);
 unsigned long get_ddr_size(void);
 
-#if defined(CONFIG_ARCH_MSM_ARM11) || defined(CONFIG_ARCH_MSM_CORTEX_A5)
+#if defined(CONFIG_ARCH_MSM_CORTEX_A5)
 void write_to_strongly_ordered_memory(void);
 void map_page_strongly_ordered(void);
 #endif
@@ -94,10 +94,6 @@ extern void l2x0_cache_sync(void);
 	defined(CONFIG_ARCH_IPQ806X)
 
 extern void store_ttbr0(void);
-#ifdef CONFIG_LGE_CRASH_HANDLER
-extern void store_ctrl(void);
-extern void store_dac(void);
-#endif
 #define finish_arch_switch(prev)	do { store_ttbr0(); } while (0)
 #endif
 

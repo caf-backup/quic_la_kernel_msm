@@ -123,9 +123,7 @@ struct mdp_dma_data dma_e_data;
 #else
 static struct mdp_dma_data dma2_data;
 static struct mdp_dma_data dma_s_data;
-#ifndef CONFIG_FB_MSM_MDP303
 static struct mdp_dma_data dma_e_data;
-#endif
 #endif
 
 #ifdef CONFIG_FB_MSM_WRITEBACK_MSM_PANEL
@@ -646,42 +644,6 @@ static int mdp_lut_update_lcdc(struct fb_info *info, struct fb_cmap *cmap)
 	return 0;
 }
 
-#ifdef CONFIG_UPDATE_LCDC_LUT
-int mdp_preset_lut_update_lcdc(struct fb_cmap *cmap, uint32_t *internal_lut)
-{
-	uint32_t out;
-	int i;
-	u16 r, g, b;
-
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
-	mdp_clk_ctrl(1);
-
-	for (i = 0; i < cmap->len; i++) {
-		r = lut2r(internal_lut[i]);
-		g = lut2g(internal_lut[i]);
-		b = lut2b(internal_lut[i]);
-#ifdef CONFIG_LCD_KCAL
-		r = scaled_by_kcal(r, *(cmap->red));
-		g = scaled_by_kcal(g, *(cmap->green));
-		b = scaled_by_kcal(b, *(cmap->blue));
-#endif
-		MDP_OUTP(MDP_BASE + 0x94800 +
-			(0x400*mdp_lut_i) + cmap->start*4 + i*4,
-				((g & 0xff) |
-				 ((b & 0xff) << 8) |
-				 ((r & 0xff) << 16)));
-	}
-
-	/*mask off non LUT select bits*/
-	out = inpdw(MDP_BASE + 0x90070) & ~((0x1 << 10) | 0x7);
-	MDP_OUTP(MDP_BASE + 0x90070, (mdp_lut_i << 10) | 0x7 | out);
-	mdp_clk_ctrl(0);
-	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
-	mdp_lut_i = (mdp_lut_i + 1)%2;
-
-	return 0;
-}
-#endif
 
 static void mdp_lut_enable(void)
 {
@@ -1451,13 +1413,6 @@ error:
 }
 #endif
 
-#ifdef CONFIG_FB_MSM_MDP303
-/* vsync_isr_handler: Called from isr context*/
-static void vsync_isr_handler(void)
-{
-	vsync_cntrl.vsync_time = ktime_get();
-}
-#endif
 
 ssize_t mdp_dma_show_event(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -1734,13 +1689,6 @@ void mdp_pipe_kickoff(uint32 term, struct msm_fb_data_type *mfd)
 #else
 		outpdw(MDP_BASE + 0x0044, 0x0);	/* start DMA */
 
-#ifdef CONFIG_FB_MSM_MDP303
-
-#ifdef CONFIG_FB_MSM_MIPI_DSI
-		mipi_dsi_cmd_mdp_start();
-#endif
-
-#endif
 
 #endif
 #endif
@@ -2178,24 +2126,12 @@ irqreturn_t mdp_isr(int irq, void *ptr)
 			mdp_dma2_timeval.tv_usec =
 			    now.tv_usec - mdp_dma2_timeval.tv_usec;
 		}
-#ifndef CONFIG_FB_MSM_MDP303
 		dma = &dma2_data;
 		spin_lock_irqsave(&mdp_spin_lock, flag);
 		dma->busy = FALSE;
 		spin_unlock_irqrestore(&mdp_spin_lock, flag);
 		mdp_pipe_ctrl(MDP_DMA2_BLOCK, MDP_BLOCK_POWER_OFF, TRUE);
 		complete(&dma->comp);
-#else
-		if (mdp_prim_panel_type == MIPI_CMD_PANEL) {
-			dma = &dma2_data;
-			spin_lock_irqsave(&mdp_spin_lock, flag);
-			dma->busy = FALSE;
-			spin_unlock_irqrestore(&mdp_spin_lock, flag);
-			mdp_pipe_ctrl(MDP_DMA2_BLOCK, MDP_BLOCK_POWER_OFF,
-				TRUE);
-			complete(&dma->comp);
-		}
-#endif
 	}
 
 	/* PPP Complete */
@@ -2259,12 +2195,10 @@ static void mdp_drv_init(void)
 	init_completion(&dma_s_data.comp);
 	sema_init(&dma_s_data.mutex, 1);
 
-#ifndef CONFIG_FB_MSM_MDP303
 	dma_e_data.busy = FALSE;
 	dma_e_data.waiting = FALSE;
 	init_completion(&dma_e_data.comp);
 	mutex_init(&dma_e_data.ov_mutex);
-#endif
 #ifdef CONFIG_FB_MSM_WRITEBACK_MSM_PANEL
 	dma_wb_data.busy = FALSE;
 	dma_wb_data.waiting = FALSE;
@@ -2304,14 +2238,6 @@ static void mdp_drv_init(void)
 				msm_fb_debugfs_file_create(mdp_dir,
 					"mdp_current_clk_on",
 					(u32 *) &mdp_current_clk_on);
-#ifdef CONFIG_FB_MSM_LCDC
-				msm_fb_debugfs_file_create(mdp_dir,
-					"lcdc_start_x",
-					(u32 *) &first_pixel_start_x);
-				msm_fb_debugfs_file_create(mdp_dir,
-					"lcdc_start_y",
-					(u32 *) &first_pixel_start_y);
-#endif
 			}
 		}
 	}
@@ -2401,17 +2327,6 @@ static int mdp_off(struct platform_device *pdev)
 	return ret;
 }
 
-#ifdef CONFIG_FB_MSM_MDP303
-unsigned is_mdp4_hw_reset(void)
-{
-	return 0;
-}
-void mdp4_hw_init(void)
-{
-	/* empty */
-}
-
-#endif
 
 static int mdp_bus_scale_restore_request(void);
 
@@ -3055,7 +2970,6 @@ static int mdp_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_FB_MSM_MIPI_DSI
 	case MIPI_VIDEO_PANEL:
-#ifndef CONFIG_FB_MSM_MDP303
 		mipi = &mfd->panel_info.mipi;
 		mfd->vsync_init = mdp4_dsi_vsync_init;
 		mfd->vsync_show = mdp4_dsi_video_show_event;
@@ -3073,26 +2987,6 @@ static int mdp_probe(struct platform_device *pdev)
 			mfd->dma = &dma_e_data;
 		}
 		mdp4_display_intf_sel(if_no, DSI_VIDEO_INTF);
-#else
-		pdata->on = mdp_dsi_video_on;
-		pdata->off = mdp_dsi_video_off;
-		mfd->hw_refresh = TRUE;
-		mfd->dma_fnc = mdp_dsi_video_update;
-		mfd->do_histogram = mdp_do_histogram;
-		mfd->start_histogram = mdp_histogram_start;
-		mfd->stop_histogram = mdp_histogram_stop;
-		mfd->vsync_ctrl = mdp_dma_video_vsync_ctrl;
-		mfd->vsync_show = mdp_dma_video_show_event;
-		if (mfd->panel_info.pdest == DISPLAY_1)
-			mfd->dma = &dma2_data;
-		else {
-			printk(KERN_ERR "Invalid Selection of destination panel\n");
-			rc = -ENODEV;
-			mdp_clk_ctrl(0);
-			goto mdp_probe_err;
-		}
-
-#endif
 		if (mdp_rev >= MDP_REV_40)
 			mfd->cursor_update = mdp_hw_cursor_sync_update;
 		else
@@ -3100,7 +2994,6 @@ static int mdp_probe(struct platform_device *pdev)
 		break;
 
 	case MIPI_CMD_PANEL:
-#ifndef CONFIG_FB_MSM_MDP303
 		mfd->dma_fnc = mdp4_dsi_cmd_overlay;
 		mipi = &mfd->panel_info.mipi;
 		mfd->vsync_init = mdp4_dsi_rdptr_init;
@@ -3117,24 +3010,6 @@ static int mdp_probe(struct platform_device *pdev)
 		mfd->start_histogram = mdp_histogram_start;
 		mfd->stop_histogram = mdp_histogram_stop;
 		mdp4_display_intf_sel(if_no, DSI_CMD_INTF);
-#else
-		mfd->dma_fnc = mdp_dma2_update;
-		mfd->do_histogram = mdp_do_histogram;
-		mfd->start_histogram = mdp_histogram_start;
-		mfd->stop_histogram = mdp_histogram_stop;
-		mfd->vsync_ctrl = mdp_dma_vsync_ctrl;
-		mfd->vsync_show = mdp_dma_show_event;
-		if (mfd->panel_info.pdest == DISPLAY_1)
-			mfd->dma = &dma2_data;
-		else {
-			printk(KERN_ERR "Invalid Selection of destination panel\n");
-			rc = -ENODEV;
-			mdp_clk_ctrl(0);
-			goto mdp_probe_err;
-		}
-		INIT_WORK(&mfd->dma_update_worker,
-			mdp_lcd_update_workqueue_handler);
-#endif
 		mdp_config_vsync(mdp_init_pdev, mfd);
 		break;
 #endif
@@ -3158,10 +3033,6 @@ static int mdp_probe(struct platform_device *pdev)
 	case HDMI_PANEL:
 	case LCDC_PANEL:
 	case LVDS_PANEL:
-#ifdef CONFIG_FB_MSM_MDP303
-		pdata->on = mdp_lcdc_on;
-		pdata->off = mdp_lcdc_off;
-#endif
 		mfd->hw_refresh = TRUE;
 #if	defined(CONFIG_FB_MSM_OVERLAY) && defined(CONFIG_FB_MSM_MDP40)
 		mfd->cursor_update = mdp_hw_cursor_sync_update;
@@ -3202,19 +3073,11 @@ static int mdp_probe(struct platform_device *pdev)
 		break;
 
 	case TV_PANEL:
-#if defined(CONFIG_FB_MSM_OVERLAY) && defined(CONFIG_FB_MSM_TVOUT)
-		pdata->on = mdp4_atv_on;
-		pdata->off = mdp4_atv_off;
-		mfd->dma_fnc = mdp4_atv_overlay;
-		mfd->dma = &dma_e_data;
-		mdp4_display_intf_sel(EXTERNAL_INTF_SEL, TV_INTF);
-#else
 		pdata->on = mdp_dma3_on;
 		pdata->off = mdp_dma3_off;
 		mfd->hw_refresh = TRUE;
 		mfd->dma_fnc = mdp_dma3_update;
 		mfd->dma = &dma3_data;
-#endif
 		break;
 
 #ifdef CONFIG_FB_MSM_WRITEBACK_MSM_PANEL

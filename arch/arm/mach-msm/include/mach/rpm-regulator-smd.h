@@ -38,7 +38,7 @@ enum rpm_regulator_voltage_corner {
 	RPM_REGULATOR_CORNER_SUPER_TURBO,
 };
 
-#if defined(CONFIG_MSM_RPM_REGULATOR_SMD) || defined(CONFIG_MSM_RPM_REGULATOR)
+#if defined(CONFIG_MSM_RPM_REGULATOR)
 
 struct rpm_regulator *rpm_regulator_get(struct device *dev, const char *supply);
 

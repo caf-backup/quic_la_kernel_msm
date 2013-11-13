@@ -104,7 +104,7 @@ struct bms_battery_data {
 	int			rbatt_capacitive_mohm;
 };
 
-#if defined(CONFIG_PM8921_BMS) || \
+#if \
 	defined(CONFIG_PM8921_BMS_MODULE)
 extern struct bms_battery_data  palladium_1500_data;
 extern struct bms_battery_data  desay_5200_data;

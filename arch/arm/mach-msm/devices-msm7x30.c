@@ -34,9 +34,6 @@
 
 #include <asm/mach/mmc.h>
 #include <mach/msm_hsusb.h>
-#ifdef CONFIG_PMIC8058
-#include <linux/mfd/pmic8058.h>
-#endif
 #include <mach/dal_axi.h>
 #include <mach/msm_memtypes.h>
 #include "pm.h"
@@ -404,42 +401,7 @@ struct platform_device qup_device_i2c = {
 	.resource	= resources_qup,
 };
 
-#ifdef CONFIG_MSM_SSBI
-#define MSM_SSBI_PMIC1_PHYS	0xAD900000
-static struct resource msm_ssbi_pmic1_resources[] = {
-	{
-		.start  = MSM_SSBI_PMIC1_PHYS,
-		.end    = MSM_SSBI_PMIC1_PHYS + SZ_4K - 1,
-		.flags  = IORESOURCE_MEM,
-	},
-};
 
-struct platform_device msm_device_ssbi_pmic1 = {
-	.name           = "msm_ssbi",
-	.id             = 0,
-	.resource       = msm_ssbi_pmic1_resources,
-	.num_resources  = ARRAY_SIZE(msm_ssbi_pmic1_resources),
-};
-#endif
-
-#ifdef CONFIG_I2C_SSBI
-#define MSM_SSBI7_PHYS  0xAC800000
-static struct resource msm_ssbi7_resources[] = {
-	{
-		.name   = "ssbi_base",
-		.start  = MSM_SSBI7_PHYS,
-		.end    = MSM_SSBI7_PHYS + SZ_4K - 1,
-		.flags  = IORESOURCE_MEM,
-	},
-};
-
-struct platform_device msm_device_ssbi7 = {
-	.name		= "i2c_ssbi",
-	.id		= 7,
-	.num_resources	= ARRAY_SIZE(msm_ssbi7_resources),
-	.resource	= msm_ssbi7_resources,
-};
-#endif /* CONFIG_I2C_SSBI */
 
 #define MSM_HSUSB_PHYS        0xA3600000
 static struct resource resources_hsusb_otg[] = {
@@ -569,22 +531,6 @@ struct platform_device asoc_msm_dai1 = {
 	.id     = 0,
 };
 
-#if defined (CONFIG_SND_MSM_MVS_DAI_SOC)
-struct platform_device asoc_msm_mvs = {
-	.name   = "msm-mvs-audio",
-	.id     = 0,
-};
-
-struct platform_device asoc_mvs_dai0 = {
-	.name   = "mvs-codec-dai",
-	.id     = 0,
-};
-
-struct platform_device asoc_mvs_dai1 = {
-	.name   = "mvs-cpu-dai",
-	.id     = 0,
-};
-#endif
 
 #define MSM_NAND_PHYS		0xA0200000
 #define MSM_NANDC01_PHYS	0xA0240000
@@ -1053,16 +999,6 @@ static struct resource msm_tvenc_resources[] = {
 	}
 };
 
-#ifdef CONFIG_FB_MSM_TVOUT
-static struct resource tvout_device_resources[] = {
-	{
-		.name  = "tvout_device_irq",
-		.start = INT_TV_ENC,
-		.end   = INT_TV_ENC,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-#endif
 
 static struct platform_device msm_mdp_device = {
 	.name   = "mdp",
@@ -1109,14 +1045,6 @@ static struct platform_device msm_tvenc_device = {
 	.resource       = msm_tvenc_resources,
 };
 
-#ifdef CONFIG_FB_MSM_TVOUT
-static struct platform_device tvout_msm_device = {
-	.name = "tvout_device",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(tvout_device_resources),
-	.resource = tvout_device_resources,
-};
-#endif
 
 /* TSIF begin */
 #if defined(CONFIG_TSIF) || defined(CONFIG_TSIF_MODULE)
@@ -1161,54 +1089,6 @@ struct platform_device msm_device_tsif = {
 
 
 
-#ifdef CONFIG_MSM_ROTATOR
-static struct resource resources_msm_rotator[] = {
-	{
-		.start	= 0xA3E00000,
-		.end	= 0xA3F00000 - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= INT_ROTATOR,
-		.end	= INT_ROTATOR,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct msm_rot_clocks rotator_clocks[] = {
-	{
-		.clk_name = "core_clk",
-		.clk_type = ROTATOR_CORE_CLK,
-		.clk_rate = 0,
-	},
-	{
-		.clk_name = "iface_clk",
-		.clk_type = ROTATOR_PCLK,
-		.clk_rate = 0,
-	},
-	{
-		.clk_name = "mem_clk",
-		.clk_type = ROTATOR_IMEM_CLK,
-		.clk_rate = 0,
-	},
-};
-
-static struct msm_rotator_platform_data rotator_pdata = {
-	.number_of_clocks = ARRAY_SIZE(rotator_clocks),
-	.hardware_version_number = 0x1000303,
-	.rotator_clks = rotator_clocks,
-};
-
-struct platform_device msm_rotator_device = {
-	.name		= "msm_rotator",
-	.id		= 0,
-	.num_resources  = ARRAY_SIZE(resources_msm_rotator),
-	.resource       = resources_msm_rotator,
-	.dev = {
-		.platform_data = &rotator_pdata,
-	},
-};
-#endif
 
 static void __init msm_register_device(struct platform_device *pdev, void *data)
 {
@@ -1239,10 +1119,6 @@ void __init msm_fb_register_device(char *name, void *data)
 		msm_register_device(&msm_lcdc_device, data);
 	else if (!strncmp(name, "dtv", 3))
 		msm_register_device(&msm_dtv_device, data);
-#ifdef CONFIG_FB_MSM_TVOUT
-	else if (!strncmp(name, "tvout_device", 12))
-		msm_register_device(&tvout_msm_device, data);
-#endif
 	else
 		printk(KERN_ERR "%s: unknown device! %s\n", __func__, name);
 }

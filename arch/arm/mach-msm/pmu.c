@@ -17,7 +17,7 @@
 #include <mach/irqs.h>
 #include <mach/socinfo.h>
 
-#if defined(CONFIG_ARCH_MSM_KRAITMP) || defined(CONFIG_ARCH_MSM_SCORPIONMP)
+#if defined(CONFIG_ARCH_MSM_KRAITMP)
 static DEFINE_PER_CPU(u32, pmu_irq_cookie);
 
 static void pmu_enable_irq_callback(void *info)
@@ -120,7 +120,7 @@ static int __init msm_pmu_init(void)
 	 * Defaults to unicore API {request,free}_irq().
 	 * See arch/arm/kernel/perf_event.c
 	 */
-#if defined(CONFIG_ARCH_MSM_KRAITMP) || defined(CONFIG_ARCH_MSM_SCORPIONMP)
+#if defined(CONFIG_ARCH_MSM_KRAITMP)
 	cpu_pmu_device.dev.platform_data = &multicore_data;
 #endif
 

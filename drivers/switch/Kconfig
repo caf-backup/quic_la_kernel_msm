@@ -11,10 +11,4 @@ config SWITCH_GPIO
 	depends on GENERIC_GPIO
 	help
 	  Say Y here to enable GPIO based switch support.
-
-config SWITCH_FSA8008
-	bool "FSA8008 Headset detection driver"
-	help
-	 Say Y here to enable FSA8008 driver
-
 endif # SWITCH

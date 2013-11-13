@@ -126,24 +126,6 @@ static int sirc_irq_set_type(struct irq_data *d, unsigned int flow_type)
 	return 0;
 }
 
-#if defined(CONFIG_MSM_FIQ_SUPPORT)
-void sirc_fiq_select(int irq, bool enable)
-{
-	uint32_t mask = 1 << (irq - FIRST_SIRC_IRQ);
-	uint32_t val;
-	unsigned long flags;
-
-	local_irq_save(flags);
-	val = readl(SPSS_SIRC_INT_SELECT);
-	if (enable)
-		val |= mask;
-	else
-		val &= ~mask;
-	writel(val, SPSS_SIRC_INT_SELECT);
-	mb();
-	local_irq_restore(flags);
-}
-#endif
 
 /* Finds the pending interrupt on the passed cascade irq and redrives it */
 static void sirc_irq_handler(unsigned int irq, struct irq_desc *desc)
@@ -219,10 +201,6 @@ void __init msm_init_sirc(void)
 		irq_set_chained_handler(sirc_reg_table[i].cascade_irq,
 					sirc_irq_handler);
 		irq_set_irq_wake(sirc_reg_table[i].cascade_irq, 1);
-#if defined(CONFIG_MSM_FIQ_SUPPORT)
-		msm_fiq_select(sirc_reg_table[i].cascade_fiq);
-		msm_fiq_enable(sirc_reg_table[i].cascade_fiq);
-#endif
 	}
 	return;
 }

@@ -42,11 +42,6 @@ int msm_chg_usb_i_is_not_available(void);
 int msm_chg_usb_charger_disconnected(void);
 int msm_chg_rpc_close(void);
 
-#ifdef CONFIG_USB_MSM_72K
-int hsusb_chg_init(int connect);
-void hsusb_chg_vbus_draw(unsigned mA);
-void hsusb_chg_connected(enum chg_type chgtype);
-#endif
 
 
 int msm_fsusb_rpc_init(struct msm_otg_ops *ops);
@@ -78,11 +73,6 @@ static inline int msm_chg_usb_i_is_not_available(void) { return 0; }
 static inline int msm_chg_usb_charger_disconnected(void) { return 0; }
 static inline int msm_chg_rpc_close(void) { return 0; }
 
-#ifdef CONFIG_USB_MSM_72K
-static inline int hsusb_chg_init(int connect) { return 0; }
-static inline void hsusb_chg_vbus_draw(unsigned mA) { }
-static inline void hsusb_chg_connected(enum chg_type chgtype) { }
-#endif
 
 static inline int msm_fsusb_rpc_init(struct msm_otg_ops *ops) { return 0; }
 static inline int msm_fsusb_init_phy(void) { return 0; }

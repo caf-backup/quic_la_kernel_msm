@@ -91,7 +91,7 @@ struct pm8921_bms_platform_data {
 	int				hold_soc_est;
 };
 
-#if defined(CONFIG_PM8921_BMS) || defined(CONFIG_PM8921_BMS_MODULE)
+#if defined(CONFIG_PM8921_BMS_MODULE)
 /**
  * pm8921_bms_get_vsense_avg - return the voltage across the sense
  *				resitor in microvolts

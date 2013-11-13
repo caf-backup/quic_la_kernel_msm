@@ -8,19 +8,6 @@ config MSM_KGSL
 	  3D graphics driver. Required to use hardware accelerated
 	  OpenGL ES 2.0 and 1.1.
 
-config MSM_KGSL_CFF_DUMP
-	bool "Enable KGSL Common File Format (CFF) Dump Feature [Use with caution]"
-	default n
-	depends on MSM_KGSL
-	select RELAY
-	---help---
-	  This is an analysis and diagnostic feature only, and should only be
-	  turned on during KGSL GPU diagnostics and will slow down the KGSL
-	  performance sigificantly, hence *do not use in production builds*.
-	  When enabled, CFF Dump is on at boot. It can be turned off at runtime
-	  via 'echo 0 > /d/kgsl/cff_dump'.  The log can be captured via
-	  /d/kgsl-cff/cpu[0|1].
-
 config MSM_KGSL_CFF_DUMP_NO_CONTEXT_MEM_DUMP
 	bool "When selected will disable KGSL CFF Dump for context switches"
 	default n
@@ -59,10 +46,6 @@ config MSM_KGSL_2D
 	tristate "MSM 2D graphics driver. Required for OpenVG"
 	default y
 	depends on MSM_KGSL && !ARCH_MSM7X27 && !ARCH_MSM7X27A && !(ARCH_QSD8X50 && !MSM_SOC_REV_A)
-
-config MSM_KGSL_DRM
-	bool "Build a DRM interface for the MSM_KGSL driver"
-	depends on MSM_KGSL && DRM
 
 config KGSL_PER_PROCESS_PAGE_TABLE
 	bool "Enable Per Process page tables for the KGSL driver"

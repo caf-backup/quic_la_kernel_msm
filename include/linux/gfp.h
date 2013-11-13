@@ -160,14 +160,8 @@ static inline int allocflags_to_migratetype(gfp_t gfp_flags)
 		return MIGRATE_UNMOVABLE;
 
 	/* Group based on mobility */
-#ifndef CONFIG_CMA
 	return (((gfp_flags & __GFP_MOVABLE) != 0) << 1) |
 		((gfp_flags & __GFP_RECLAIMABLE) != 0);
-#else
-	return (((gfp_flags & __GFP_MOVABLE) != 0) << 1) |
-		(((gfp_flags & __GFP_CMA) != 0) << 1) |
-		((gfp_flags & __GFP_RECLAIMABLE) != 0);
-#endif
 }
 
 #ifdef CONFIG_HIGHMEM
@@ -400,16 +394,5 @@ static inline bool pm_suspended_storage(void)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-#ifdef CONFIG_CMA
-
-/* The below functions must be run on a range from a single zone. */
-extern int alloc_contig_range(unsigned long start, unsigned long end,
-			      unsigned migratetype);
-extern void free_contig_range(unsigned long pfn, unsigned nr_pages);
-
-/* CMA stuff */
-extern void init_cma_reserved_pageblock(struct page *page);
-
-#endif
 
 #endif /* __LINUX_GFP_H */

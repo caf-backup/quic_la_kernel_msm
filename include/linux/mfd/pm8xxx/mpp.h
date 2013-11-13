@@ -106,7 +106,7 @@ struct pm8xxx_mpp_config_data {
 };
 
 /* API */
-#if defined(CONFIG_GPIO_PM8XXX_MPP) || defined(CONFIG_GPIO_PM8XXX_MPP_MODULE)
+#if defined(CONFIG_GPIO_PM8XXX_MPP_MODULE)
 
 /**
  * pm8xxx_mpp_config() - configure control options of a multi-purpose pin (MPP)

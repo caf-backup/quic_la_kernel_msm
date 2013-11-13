@@ -60,16 +60,10 @@ extern struct platform_device apq8064_msm_device_vidc;
 
 extern struct platform_device msm_charm_modem;
 extern struct platform_device msm_device_tz_log;
-#ifdef CONFIG_HW_RANDOM_MSM
-extern struct platform_device msm_device_rng;
-#endif
 
 void __init msm8x60_init_irq(void);
 void __init msm8x60_check_2d_hardware(void);
 
-#ifdef CONFIG_MSM_DSPS
-extern struct platform_device msm_dsps_device;
-#endif
 
 #if defined(CONFIG_MSM_RPM_STATS_LOG)
 extern struct platform_device msm_rpm_stat_device;

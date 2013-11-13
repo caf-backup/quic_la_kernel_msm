@@ -14,14 +14,6 @@
 #ifndef AVS_H
 #define AVS_H
 
-#ifdef CONFIG_MSM_AVS_HW
-u32 avs_get_avscsr(void);
-void avs_set_avscsr(u32 avscsr);
-u32 avs_get_avsdscr(void);
-void avs_set_avsdscr(u32 avsdscr);
-void avs_disable(int cpu);
-void avs_enable(int cpu, u32 avsdscr);
-#else
 static inline u32 avs_get_avscsr(void)
 { return 0; }
 static inline void avs_set_avscsr(u32 avscsr) {}
@@ -30,7 +22,6 @@ static inline u32 avs_get_avsdscr(void)
 static inline void avs_set_avsdscr(u32 avsdscr) {}
 static inline void avs_disable(int cpu) {}
 static inline void avs_enable(int cpu, u32 avsdscr) {}
-#endif
 
 #define AVS_DISABLE(cpu) avs_disable(cpu)
 #define AVS_ENABLE(cpu, x) avs_enable(cpu, x)

@@ -59,12 +59,8 @@ struct msm_gov_platform_data {
  *
  * Register a cpu frequency and its operating voltage with dcvs.
  */
-#ifdef CONFIG_MSM_DCVS
-void msm_dcvs_register_cpu_freq(uint32_t freq, uint32_t voltage);
-#else
 static inline void msm_dcvs_register_cpu_freq(uint32_t freq, uint32_t voltage)
 {}
-#endif
 
 /**
  * msm_dcvs_idle

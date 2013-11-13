@@ -23,8 +23,6 @@
 #include <linux/i2c/sx150x.h>
 #include <linux/spi/mcp23s08.h>
 #include <linux/slimbus/slimbus.h>
-#include <linux/mfd/wcd9xxx/core.h>
-#include <linux/mfd/wcd9xxx/pdata.h>
 #include <linux/mfd/pm8xxx/misc.h>
 #include <linux/msm_ssbi.h>
 #include <linux/spi/spi.h>

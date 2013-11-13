@@ -9,11 +9,3 @@ menuconfig SLIMBUS
 	  application processors and peripheral components in mobile
 	  terminals.
 
-if SLIMBUS
-config SLIMBUS_MSM_CTRL
-	tristate "Qualcomm Slimbus Master Component"
-	default n
-	help
-	  Select driver for Qualcomm's Slimbus Master Component.
-
-endif

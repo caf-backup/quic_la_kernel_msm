@@ -74,18 +74,6 @@ config TWL4030_USB
 	  This transceiver supports high and full speed devices plus,
 	  in host mode, low speed.
 
-config USB_MSM_OTG_72K
-	bool "OTG support for Legcay Qualcomm on-chip USB controller"
-	depends on ARCH_MSM
-	select USB_OTG_UTILS
-	default USB_MSM_72K
-	help
-	  Enable this to support the USB OTG transceiver on MSM chips. It
-	  handles PHY initialization, clock management, low power mode and
-	  workarounds required after resetting the hardware. This driver is
-	  required for even peripheral only or host only mode configuration.
-	  Supports SRP and HNP when both gadget and Host are selected.
-
 config MSM_OTG_ENABLE_A_WAIT_BCON_TIMEOUT
 	bool "Enable A-device timeout for B-device connection"
 	depends on USB_MSM_OTG_72K

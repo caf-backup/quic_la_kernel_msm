@@ -6333,79 +6333,10 @@ static int msmsdcc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_MSM_SDIO_AL
-int msmsdcc_sdio_al_lpm(struct mmc_host *mmc, bool enable)
-{
-	struct msmsdcc_host *host = mmc_priv(mmc);
-	unsigned long flags;
-	int rc = 0;
-
-	mutex_lock(&host->clk_mutex);
-	spin_lock_irqsave(&host->lock, flags);
-	pr_debug("%s: %sabling LPM\n", mmc_hostname(mmc),
-			enable ? "En" : "Dis");
-
-	if (enable) {
-		if (!host->sdcc_irq_disabled) {
-			writel_relaxed(0, host->base + MMCIMASK0);
-			disable_irq_nosync(host->core_irqres->start);
-			host->sdcc_irq_disabled = 1;
-		}
-		rc = msmsdcc_setup_clocks(host, false);
-		if (rc)
-			goto out;
-
-		if (host->plat->sdio_lpm_gpio_setup &&
-				!host->sdio_gpio_lpm) {
-			spin_unlock_irqrestore(&host->lock, flags);
-			host->plat->sdio_lpm_gpio_setup(mmc_dev(mmc), 0);
-			spin_lock_irqsave(&host->lock, flags);
-			host->sdio_gpio_lpm = 1;
-		}
-
-		if (host->sdio_wakeupirq_disabled) {
-			msmsdcc_enable_irq_wake(host);
-			enable_irq(host->plat->sdiowakeup_irq);
-			host->sdio_wakeupirq_disabled = 0;
-		}
-	} else {
-		rc = msmsdcc_setup_clocks(host, true);
-		if (rc)
-			goto out;
-
-		if (!host->sdio_wakeupirq_disabled) {
-			disable_irq_nosync(host->plat->sdiowakeup_irq);
-			host->sdio_wakeupirq_disabled = 1;
-			msmsdcc_disable_irq_wake(host);
-		}
-
-		if (host->plat->sdio_lpm_gpio_setup &&
-				host->sdio_gpio_lpm) {
-			spin_unlock_irqrestore(&host->lock, flags);
-			host->plat->sdio_lpm_gpio_setup(mmc_dev(mmc), 1);
-			spin_lock_irqsave(&host->lock, flags);
-			host->sdio_gpio_lpm = 0;
-		}
-
-		if (host->sdcc_irq_disabled && atomic_read(&host->clks_on)) {
-			writel_relaxed(host->mci_irqenable,
-				       host->base + MMCIMASK0);
-			mb();
-			enable_irq(host->core_irqres->start);
-			host->sdcc_irq_disabled = 0;
-		}
-	}
-out:
-	spin_unlock_irqrestore(&host->lock, flags);
-	mutex_unlock(&host->clk_mutex);
-	return rc;
-}
-#else
 int msmsdcc_sdio_al_lpm(struct mmc_host *mmc, bool enable)
 {
 	return 0;
 }
-#endif
 
 #ifdef CONFIG_PM
 #ifdef CONFIG_MMC_CLKGATE

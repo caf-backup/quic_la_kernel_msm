@@ -10,10 +10,7 @@ DHDCFLAGS = -DLINUX -DBCMDRIVER -DBCMDONGLEHOST -DDHDTHREAD -DBCMWPA2         \
 	-DKEEP_ALIVE -DPNO_SUPPORT                                            \
 	-Idrivers/net/wireless/bcm4329 -Idrivers/net/wireless/bcm4329/include
 
-DHDOFILES = dhd_linux.o linux_osl.o bcmutils.o dhd_common.o dhd_custom_gpio.o \
-	wl_iw.o siutils.o sbutils.o aiutils.o hndpmu.o bcmwifi.o dhd_sdio.o   \
-	dhd_linux_sched.o dhd_cdc.o bcmsdh_sdmmc.o bcmsdh.o bcmsdh_linux.o    \
-	bcmsdh_sdmmc_linux.o
+	dhd_linux_sched.o
 
 obj-$(CONFIG_BCM4329) += bcm4329.o
 bcm4329-objs += $(DHDOFILES)

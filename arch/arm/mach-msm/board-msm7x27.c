@@ -148,105 +148,7 @@ static void __init msm7x2x_init_host(void)
 }
 #endif
 
-#ifdef CONFIG_USB_MSM_OTG_72K
-static int hsusb_rpc_connect(int connect)
-{
-	if (connect)
-		return msm_hsusb_rpc_connect();
-	else
-		return msm_hsusb_rpc_close();
-}
-#endif
 
-#ifdef CONFIG_USB_MSM_OTG_72K
-static int msm_hsusb_ldo_init(int init)
-{
-	static struct regulator *reg_hsusb;
-	int rc;
-	if (init) {
-		reg_hsusb = regulator_get(NULL, "usb");
-		if (IS_ERR(reg_hsusb)) {
-			rc = PTR_ERR(reg_hsusb);
-			pr_err("%s: could not get regulator: %d\n",
-					__func__, rc);
-			goto out;
-		}
-
-		rc = regulator_set_voltage(reg_hsusb, 3300000, 3300000);
-		if (rc < 0) {
-			pr_err("%s: could not set voltage: %d\n",
-					 __func__, rc);
-			goto usb_reg_fail;
-		}
-
-		rc = regulator_enable(reg_hsusb);
-		if (rc < 0) {
-			pr_err("%s: could not enable regulator: %d\n",
-					__func__, rc);
-			goto usb_reg_fail;
-		}
-
-		/*
-		 * PHY 3.3V analog domain(VDDA33) is powered up by
-		 * an always enabled power supply (LP5900TL-3.3).
-		 * USB VREG default source is VBUS line. Turning
-		 * on USB VREG has a side effect on the USB suspend
-		 * current. Hence USB VREG is explicitly turned
-		 * off here.
-		 */
-
-		rc = regulator_disable(reg_hsusb);
-		if (rc < 0) {
-			pr_err("%s: could not disable regulator: %d\n",
-					__func__, rc);
-			goto usb_reg_fail;
-		}
-
-		regulator_put(reg_hsusb);
-	}
-
-	return 0;
-usb_reg_fail:
-	regulator_put(reg_hsusb);
-out:
-	return rc;
-}
-
-static int msm_hsusb_pmic_notif_init(void (*callback)(int online), int init)
-{
-	int ret;
-
-	if (init) {
-		ret = msm_pm_app_rpc_init(callback);
-	} else {
-		msm_pm_app_rpc_deinit(callback);
-		ret = 0;
-	}
-	return ret;
-}
-
-static int msm_otg_rpc_phy_reset(void __iomem *regs)
-{
-	return msm_hsusb_phy_reset();
-}
-
-static struct msm_otg_platform_data msm_otg_pdata = {
-	.rpc_connect	= hsusb_rpc_connect,
-	.pmic_vbus_notif_init         = msm_hsusb_pmic_notif_init,
-	.chg_vbus_draw		 = hsusb_chg_vbus_draw,
-	.chg_connected		 = hsusb_chg_connected,
-	.chg_init		 = hsusb_chg_init,
-#ifdef CONFIG_USB_EHCI_MSM_72K
-	.vbus_power = msm_hsusb_vbus_power,
-#endif
-	.ldo_init		= msm_hsusb_ldo_init,
-	.pclk_required_during_lpm = 1,
-};
-
-#ifdef CONFIG_USB_GADGET
-static struct msm_hsusb_gadget_platform_data msm_gadget_pdata;
-#endif
-#endif
 
 #define SND(desc, num) { .name = #desc, .id = num }
 static struct snd_endpoint snd_endpoints_list[] = {
@@ -859,34 +761,9 @@ static struct platform_device msm_bluesleep_device = {
 };
 
 static struct i2c_board_info i2c_devices[] = {
-#ifdef CONFIG_MT9D112
-	{
-		I2C_BOARD_INFO("mt9d112", 0x78 >> 1),
-	},
-#endif
-#ifdef CONFIG_S5K3E2FX
-	{
-		I2C_BOARD_INFO("s5k3e2fx", 0x20 >> 1),
-	},
-#endif
-#ifdef CONFIG_MT9P012
-	{
-		I2C_BOARD_INFO("mt9p012", 0x6C >> 1),
-	},
-#endif
-#ifdef CONFIG_MT9P012_KM
-	{
-		I2C_BOARD_INFO("mt9p012_km", 0x6C >> 2),
-	},
-#endif
-#if defined(CONFIG_MT9T013) || defined(CONFIG_SENSORS_MT9T013)
+#if defined(CONFIG_SENSORS_MT9T013)
 	{
 		I2C_BOARD_INFO("mt9t013", 0x6C),
-	},
-#endif
-#ifdef CONFIG_VB6801
-	{
-		I2C_BOARD_INFO("vb6801", 0x20),
 	},
 #endif
 };
@@ -1085,149 +962,11 @@ static struct msm_camera_sensor_flash_src msm_flash_src = {
 	._fsrc.pmic_src.pmic_set_current = pmic_set_flash_led_current,
 };
 
-#ifdef CONFIG_MT9D112
-static struct msm_camera_sensor_flash_data flash_mt9d112 = {
-	.flash_type = MSM_CAMERA_FLASH_LED,
-	.flash_src  = &msm_flash_src
-};
 
-static struct msm_camera_sensor_info msm_camera_sensor_mt9d112_data = {
-	.sensor_name    = "mt9d112",
-	.sensor_reset   = 89,
-	.sensor_pwd     = 85,
-	.vcm_pwd        = 0,
-	.vcm_enable     = 0,
-	.pdata          = &msm_camera_device_data,
-	.flash_data     = &flash_mt9d112
-};
 
-static struct platform_device msm_camera_sensor_mt9d112 = {
-	.name      = "msm_camera_mt9d112",
-	.dev       = {
-		.platform_data = &msm_camera_sensor_mt9d112_data,
-	},
-};
-#endif
 
-#ifdef CONFIG_S5K3E2FX
-static struct msm_camera_sensor_flash_data flash_s5k3e2fx = {
-	.flash_type = MSM_CAMERA_FLASH_LED,
-	.flash_src  = &msm_flash_src
-};
 
-static struct msm_camera_sensor_info msm_camera_sensor_s5k3e2fx_data = {
-	.sensor_name    = "s5k3e2fx",
-	.sensor_reset   = 89,
-	.sensor_pwd     = 85,
-	.vcm_pwd        = 0,
-	.vcm_enable     = 0,
-	.pdata          = &msm_camera_device_data,
-	.flash_data     = &flash_s5k3e2fx
-};
 
-static struct platform_device msm_camera_sensor_s5k3e2fx = {
-	.name      = "msm_camera_s5k3e2fx",
-	.dev       = {
-		.platform_data = &msm_camera_sensor_s5k3e2fx_data,
-	},
-};
-#endif
-
-#ifdef CONFIG_MT9P012
-static struct msm_camera_sensor_flash_data flash_mt9p012 = {
-	.flash_type = MSM_CAMERA_FLASH_LED,
-	.flash_src  = &msm_flash_src
-};
-
-static struct msm_camera_sensor_info msm_camera_sensor_mt9p012_data = {
-	.sensor_name    = "mt9p012",
-	.sensor_reset   = 89,
-	.sensor_pwd     = 85,
-	.vcm_pwd        = 88,
-	.vcm_enable     = 0,
-	.pdata          = &msm_camera_device_data,
-	.flash_data     = &flash_mt9p012
-};
-
-static struct platform_device msm_camera_sensor_mt9p012 = {
-	.name      = "msm_camera_mt9p012",
-	.dev       = {
-		.platform_data = &msm_camera_sensor_mt9p012_data,
-	},
-};
-#endif
-
-#ifdef CONFIG_MT9P012_KM
-static struct msm_camera_sensor_flash_data flash_mt9p012_km = {
-	.flash_type = MSM_CAMERA_FLASH_LED,
-	.flash_src  = &msm_flash_src
-};
-
-static struct msm_camera_sensor_info msm_camera_sensor_mt9p012_km_data = {
-	.sensor_name    = "mt9p012_km",
-	.sensor_reset   = 89,
-	.sensor_pwd     = 85,
-	.vcm_pwd        = 88,
-	.vcm_enable     = 0,
-	.pdata          = &msm_camera_device_data,
-	.flash_data     = &flash_mt9p012_km
-};
-
-static struct platform_device msm_camera_sensor_mt9p012_km = {
-	.name      = "msm_camera_mt9p012_km",
-	.dev       = {
-		.platform_data = &msm_camera_sensor_mt9p012_km_data,
-	},
-};
-#endif
-
-#ifdef CONFIG_MT9T013
-static struct msm_camera_sensor_flash_data flash_mt9t013 = {
-	.flash_type = MSM_CAMERA_FLASH_LED,
-	.flash_src  = &msm_flash_src
-};
-
-static struct msm_camera_sensor_info msm_camera_sensor_mt9t013_data = {
-	.sensor_name    = "mt9t013",
-	.sensor_reset   = 89,
-	.sensor_pwd     = 85,
-	.vcm_pwd        = 0,
-	.vcm_enable     = 0,
-	.pdata          = &msm_camera_device_data,
-	.flash_data     = &flash_mt9t013
-};
-
-static struct platform_device msm_camera_sensor_mt9t013 = {
-	.name      = "msm_camera_mt9t013",
-	.dev       = {
-		.platform_data = &msm_camera_sensor_mt9t013_data,
-	},
-};
-#endif
-
-#ifdef CONFIG_VB6801
-static struct msm_camera_sensor_flash_data flash_vb6801 = {
-	.flash_type = MSM_CAMERA_FLASH_LED,
-	.flash_src  = &msm_flash_src
-};
-
-static struct msm_camera_sensor_info msm_camera_sensor_vb6801_data = {
-	.sensor_name    = "vb6801",
-	.sensor_reset   = 89,
-	.sensor_pwd     = 88,
-	.vcm_pwd        = 0,
-	.vcm_enable     = 0,
-	.pdata          = &msm_camera_device_data,
-	.flash_data     = &flash_vb6801
-};
-
-static struct platform_device msm_camera_sensor_vb6801 = {
-	.name      = "msm_camera_vb6801",
-	.dev       = {
-		.platform_data = &msm_camera_sensor_vb6801_data,
-	},
-};
-#endif
 #endif
 
 static u32 msm_calculate_batt_capacity(u32 current_voltage);
@@ -1265,12 +1004,6 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_dmov,
 	&msm_device_nand,
 
-#ifdef CONFIG_USB_MSM_OTG_72K
-	&msm_device_otg,
-#ifdef CONFIG_USB_GADGET
-	&msm_device_gadget_peripheral,
-#endif
-#endif
 
 #ifdef CONFIG_USB_G_ANDROID
 	&android_usb_device,
@@ -1291,24 +1024,6 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_pmic_leds,
 	&msm_device_snd,
 	&msm_device_adspdec,
-#ifdef CONFIG_MT9T013
-	&msm_camera_sensor_mt9t013,
-#endif
-#ifdef CONFIG_MT9D112
-	&msm_camera_sensor_mt9d112,
-#endif
-#ifdef CONFIG_S5K3E2FX
-	&msm_camera_sensor_s5k3e2fx,
-#endif
-#ifdef CONFIG_MT9P012
-	&msm_camera_sensor_mt9p012,
-#endif
-#ifdef CONFIG_MT9P012_KM
-	&msm_camera_sensor_mt9p012_km,
-#endif
-#ifdef CONFIG_VB6801
-	&msm_camera_sensor_vb6801,
-#endif
 	&msm_bluesleep_device,
 #ifdef CONFIG_ARCH_MSM7X27
 	&msm_kgsl_3d0,
@@ -1779,31 +1494,6 @@ static void __init msm7x2x_init(void)
 	usb_mpp_init();
 
 
-#ifdef CONFIG_USB_MSM_OTG_72K
-	msm_device_otg.dev.platform_data = &msm_otg_pdata;
-	if (machine_is_msm7x25_surf() || machine_is_msm7x25_ffa()) {
-		msm_otg_pdata.pemp_level =
-			PRE_EMPHASIS_WITH_20_PERCENT;
-		msm_otg_pdata.drv_ampl = HS_DRV_AMPLITUDE_5_PERCENT;
-		msm_otg_pdata.cdr_autoreset = CDR_AUTO_RESET_ENABLE;
-		msm_otg_pdata.phy_reset = msm_otg_rpc_phy_reset;
-	}
-	if (machine_is_msm7x27_surf() || machine_is_msm7x27_ffa()) {
-		msm_otg_pdata.pemp_level =
-			PRE_EMPHASIS_WITH_10_PERCENT;
-		msm_otg_pdata.drv_ampl = HS_DRV_AMPLITUDE_5_PERCENT;
-		msm_otg_pdata.cdr_autoreset = CDR_AUTO_RESET_DISABLE;
-		msm_otg_pdata.phy_reset_sig_inverted = 1;
-	}
-
-#ifdef CONFIG_USB_GADGET
-	msm_otg_pdata.swfi_latency =
-		msm7x27_pm_data
-		[MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT].latency;
-	msm_device_gadget_peripheral.dev.platform_data = &msm_gadget_pdata;
-	msm_gadget_pdata.is_phy_status_timer_on = 1;
-#endif
-#endif
 #if defined(CONFIG_TSIF) || defined(CONFIG_TSIF_MODULE)
 	msm_device_tsif.dev.platform_data = &tsif_platform_data;
 #endif
@@ -1817,12 +1507,6 @@ static void __init msm7x2x_init(void)
 	msm_device_i2c_init();
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
 
-#ifdef CONFIG_SURF_FFA_GPIO_KEYPAD
-	if (machine_is_msm7x25_ffa() || machine_is_msm7x27_ffa())
-		platform_device_register(&keypad_device_7k_ffa);
-	else
-		platform_device_register(&keypad_device_surf);
-#endif
 	lcdc_gordon_gpio_init();
 	msm_fb_add_devices();
 #ifdef CONFIG_USB_EHCI_MSM_72K
@@ -1909,11 +1593,6 @@ static struct memtype_reserve msm7x27_reserve_table[] __initdata = {
 
 static void __init size_pmem_devices(void)
 {
-#ifdef CONFIG_ANDROID_PMEM
-	android_pmem_adsp_pdata.size = pmem_adsp_size;
-	android_pmem_pdata.size = pmem_mdp_size;
-	android_pmem_audio_pdata.size = pmem_audio_size;
-#endif
 }
 
 static void __init reserve_memory_for(struct android_pmem_platform_data *p)
@@ -1923,12 +1602,6 @@ static void __init reserve_memory_for(struct android_pmem_platform_data *p)
 
 static void __init reserve_pmem_memory(void)
 {
-#ifdef CONFIG_ANDROID_PMEM
-	reserve_memory_for(&android_pmem_adsp_pdata);
-	reserve_memory_for(&android_pmem_pdata);
-	reserve_memory_for(&android_pmem_audio_pdata);
-	msm7x27_reserve_table[MEMTYPE_EBI1].size += pmem_kernel_ebi1_size;
-#endif
 }
 
 static void __init msm7x27_calculate_reserve_sizes(void)

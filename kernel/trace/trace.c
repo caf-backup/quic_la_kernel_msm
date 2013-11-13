@@ -38,7 +38,6 @@
 #include <linux/poll.h>
 #include <linux/nmi.h>
 #include <linux/fs.h>
-#include <linux/coresight-stm.h>
 
 #include "trace.h"
 #include "trace_output.h"
