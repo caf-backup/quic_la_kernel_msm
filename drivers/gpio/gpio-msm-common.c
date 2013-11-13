@@ -518,7 +518,7 @@ int msm_gpio_install_direct_irq(unsigned gpio, unsigned irq,
 {
 	unsigned long irq_flags;
 
-	if (gpio >= NR_MSM_GPIOS || irq >= NR_TLMM_MSM_DIR_CONN_IRQ)
+	if (gpio >= NR_MSM_GPIOS || !IS_TLMM_MSM_DIR_CONN_IRQ(irq))
 		return -EINVAL;
 
 	spin_lock_irqsave(&tlmm_lock, irq_flags);

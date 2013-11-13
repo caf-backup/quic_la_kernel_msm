@@ -107,4 +107,8 @@
 		NR_PM8821_IRQS + NR_TABLA_IRQS + NR_GPIO_EXPANDER_IRQS + (n))
 #endif
 
+#ifndef IS_TLMM_MSM_DIR_CONN_IRQ
+#define IS_TLMM_MSM_DIR_CONN_IRQ(irq) (irq < NR_TLMM_MSM_DIR_CONN_IRQ)
+#endif
+
 #endif
