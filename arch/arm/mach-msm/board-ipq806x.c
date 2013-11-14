@@ -1893,6 +1893,36 @@ static struct platform_device ap148_leds_gpio = {
 	},
 };
 
+#define DB149_GPIO_BTN_JUMPSTART	26
+
+#define DB149_KEYS_POLL_INTERVAL	20	/* msecs */
+#define DB149_KEYS_DEBOUNCE_INTERVAL	(3 * DB149_KEYS_POLL_INTERVAL)
+
+static struct gpio_keys_button db149_gpio_keys[] = {
+	{
+		.desc		= "wps",
+		.type		= EV_KEY,
+		.code		= KEY_WPS_BUTTON,
+		.debounce_interval = DB149_KEYS_DEBOUNCE_INTERVAL,
+		.gpio		= DB149_GPIO_BTN_JUMPSTART,
+		.wakeup		= 1,
+		.active_low	= 1,
+	},
+};
+
+static struct gpio_keys_platform_data db149_keys_data = {
+	.buttons        = db149_gpio_keys,
+	.nbuttons       = ARRAY_SIZE(db149_gpio_keys),
+};
+
+static struct platform_device db149_kp_pdev = {
+	.name           = "gpio-keys",
+	.id             = -1,
+	.dev            = {
+		.platform_data  = &db149_keys_data,
+	},
+};
+
 #define AP148_GPIO_BTN_JUMPSTART	65
 #define AP148_GPIO_BTN_RESET		54
 
@@ -1930,66 +1960,6 @@ static struct platform_device ap148_kp_pdev = {
 	.id             = -1,
 	.dev            = {
 		.platform_data  = &ap148_keys_data,
-	},
-};
-
-#define GPIO_KEY_HOME			PM8921_GPIO_PM_TO_SYS(27)
-#define GPIO_KEY_VOLUME_UP		PM8921_GPIO_PM_TO_SYS(35)
-#define GPIO_KEY_VOLUME_DOWN_PM8921	PM8921_GPIO_PM_TO_SYS(38)
-#define GPIO_KEY_VOLUME_DOWN_PM8917	PM8921_GPIO_PM_TO_SYS(30)
-#define GPIO_KEY_CAM_FOCUS		PM8921_GPIO_PM_TO_SYS(3)
-#define GPIO_KEY_CAM_SNAP		PM8921_GPIO_PM_TO_SYS(4)
-#define GPIO_KEY_ROTATION_PM8921	PM8921_GPIO_PM_TO_SYS(42)
-#define GPIO_KEY_ROTATION_PM8917	PM8921_GPIO_PM_TO_SYS(8)
-
-static struct gpio_keys_button cdp_keys_pm8921[] = {
-	{
-		.code           = KEY_HOME,
-		.gpio           = GPIO_KEY_HOME,
-		.desc           = "home_key",
-		.active_low     = 1,
-		.type		= EV_KEY,
-		.wakeup		= 1,
-		.debounce_interval = 15,
-	},
-	{
-		.code           = KEY_VOLUMEUP,
-		.gpio           = GPIO_KEY_VOLUME_UP,
-		.desc           = "volume_up_key",
-		.active_low     = 1,
-		.type		= EV_KEY,
-		.wakeup		= 1,
-		.debounce_interval = 15,
-	},
-	{
-		.code           = KEY_VOLUMEDOWN,
-		.gpio           = GPIO_KEY_VOLUME_DOWN_PM8921,
-		.desc           = "volume_down_key",
-		.active_low     = 1,
-		.type		= EV_KEY,
-		.wakeup		= 1,
-		.debounce_interval = 15,
-	},
-	{
-		.code           = SW_ROTATE_LOCK,
-		.gpio           = GPIO_KEY_ROTATION_PM8921,
-		.desc           = "rotate_key",
-		.active_low     = 1,
-		.type		= EV_SW,
-		.debounce_interval = 15,
-	},
-};
-
-static struct gpio_keys_platform_data cdp_keys_data = {
-	.buttons        = cdp_keys_pm8921,
-	.nbuttons       = ARRAY_SIZE(cdp_keys_pm8921),
-};
-
-static struct platform_device cdp_kp_pdev = {
-	.name           = "gpio-keys",
-	.id             = -1,
-	.dev            = {
-		.platform_data  = &cdp_keys_data,
 	},
 };
 
@@ -2349,13 +2319,12 @@ static void __init ipq806x_init(void)
 		platform_add_devices(cdp_devices, ARRAY_SIZE(cdp_devices));
 	}
 
-	if (machine_is_ipq806x_db149() || machine_is_ipq806x_db149_1xx() ||
-		machine_is_ipq806x_db147())
-		platform_device_register(&cdp_kp_pdev);
-
 	if (machine_is_ipq806x_ap148()) {
 		platform_device_register(&ap148_kp_pdev);
 		platform_device_register(&ap148_leds_gpio);
+	}
+	if (machine_is_ipq806x_db149() || machine_is_ipq806x_db149_1xx()) {
+		platform_device_register(&db149_kp_pdev);
 	}
 }
 

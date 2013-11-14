@@ -175,6 +175,18 @@ static struct gpiomux_setting ipq806x_sdc3_uhs_card_det_cfg = {
 	.pull = GPIOMUX_PULL_NONE,
 };
 
+static struct gpiomux_setting ipq806x_buttons_db149_cfg = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_UP,
+};
+
+static struct gpiomux_setting ipq806x_buttons_db149_1xx_cfg = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_UP,
+};
+
 static struct gpiomux_setting ipq806x_buttons_ap148_cfg = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_2MA,
@@ -368,6 +380,7 @@ static struct msm_gpiomux_config ipq806x_db149_gpiomux[] = {
 	ipq_mux(21, gsbi5_spi_clk_cfg,			gsbi5_spi_clk_cfg),
 	ipq_mux(24, gsbi2_active_cfg,			gsbi2_suspended_cfg),
 	ipq_mux(25, gsbi2_active_cfg,			gsbi2_suspended_cfg),
+	ipq_mux(26, ipq806x_buttons_db149_cfg,		ipq806x_buttons_db149_cfg),
 
 	ipq_mux(27, mi2s_act_cfg,			mi2s_sus_cfg),
 	ipq_mux(28, mi2s_act_cfg,			mi2s_sus_cfg),
@@ -417,6 +430,7 @@ static struct msm_gpiomux_config ipq806x_db149_1xx_gpiomux[] = {
 	ipq_mux(21, gsbi5_spi_clk_cfg,			gsbi5_spi_clk_cfg),
 	ipq_mux(24, gsbi2_active_cfg,			gsbi2_suspended_cfg),
 	ipq_mux(25, gsbi2_active_cfg,			gsbi2_suspended_cfg),
+	ipq_mux(26, ipq806x_buttons_db149_1xx_cfg,		ipq806x_buttons_db149_1xx_cfg),
 
 	ipq_mux(27, mi2s_act_cfg,			mi2s_sus_cfg),
 	ipq_mux(28, mi2s_act_cfg,			mi2s_sus_cfg),
