@@ -428,7 +428,8 @@ void __init fixup_ipq806x_smb_power_grid(void)
 			msm_rpm_regulator_smb_db14x_consumer_mapping;
 		ipq806x_rpm_regulator_smb_pdata.consumer_map_len =
 			ARRAY_SIZE(msm_rpm_regulator_smb_db14x_consumer_mapping);
-	} else if (machine_is_ipq806x_ap148()) {
+	} else if (machine_is_ipq806x_ap148() ||
+			machine_is_ipq806x_ap145()) {
 		ipq806x_rpm_regulator_smb_pdata.consumer_map =
 			msm_rpm_regulator_smb_ap148_consumer_mapping;
 		ipq806x_rpm_regulator_smb_pdata.consumer_map_len =

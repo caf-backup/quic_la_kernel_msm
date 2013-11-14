@@ -199,6 +199,17 @@ static struct gpiomux_setting ipq806x_leds_ap148_cfg = {
 	.pull = GPIOMUX_PULL_UP,
 };
 
+static struct gpiomux_setting ipq806x_buttons_ap145_cfg = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_UP,
+};
+
+static struct gpiomux_setting ipq806x_leds_ap145_cfg = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_UP,
+};
 static struct gpiomux_setting usb30_pwr_en_n = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_12MA,
@@ -567,6 +578,45 @@ static struct msm_gpiomux_config ipq806x_ap148_gpiomux[] = {
 	ipq_mux(65, ipq806x_buttons_ap148_cfg,		ipq806x_buttons_ap148_cfg),
 };
 
+static struct msm_gpiomux_config ipq806x_ap145_gpiomux[] = {
+	ipq_mux( 0, mdio_n,				mdio_n),
+	ipq_mux( 1, mdio_n,				mdio_n),
+	ipq_mux( 3, pcie_rst_n,				pcie_rst_n),
+	ipq_mux(12, gsbi4_active_cfg,			gsbi4_suspended_cfg),
+	ipq_mux(13, gsbi4_active_cfg,			gsbi4_suspended_cfg),
+	ipq_mux(14, nss_spi_data_0,				nss_spi_suspended),
+	ipq_mux(15, nss_spi_data_0,				nss_spi_suspended),
+	ipq_mux(16, nss_spi_cs_clk_0,			nss_spi_suspended),
+	ipq_mux(17, nss_spi_cs_clk_0,			nss_spi_suspended),
+	ipq_mux(18, gsbi5_spi_data_cfg,			gsbi5_spi_data_cfg),
+	ipq_mux(19, gsbi5_spi_data_cfg,			gsbi5_spi_data_cfg),
+	ipq_mux(20, gsbi5_spi_cs_cfg,			gsbi5_spi_cs_cfg),
+	ipq_mux(21, gsbi5_spi_clk_cfg,			gsbi5_spi_clk_cfg),
+	ipq_mux(22, ipq806x_buttons_ap145_cfg,	ipq806x_buttons_ap145_cfg),
+	ipq_mux(23, ipq806x_leds_ap145_cfg,		ipq806x_leds_ap145_cfg),
+	ipq_mux(24, ipq806x_buttons_ap145_cfg,	ipq806x_buttons_ap145_cfg),
+	ipq_mux(25, nss_gmac0_rgmii_set0,		nss_gmac0_rgmii_set0),
+	ipq_mux(26, ipq806x_leds_ap145_cfg,		ipq806x_leds_ap145_cfg),
+	ipq_mux(27, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+	ipq_mux(28, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+	ipq_mux(29, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+	ipq_mux(30, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+	ipq_mux(31, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+	ipq_mux(32, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+	ipq_mux(33, ipq806x_leds_ap145_cfg,		ipq806x_leds_ap145_cfg),
+	ipq_mux(48, pcie_rst_n,					pcie_rst_n),
+	ipq_mux(51, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+	ipq_mux(52, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+	ipq_mux(55, nss_spi_data_1,				nss_spi_suspended),
+	ipq_mux(56, nss_spi_data_1,				nss_spi_suspended),
+	ipq_mux(57, nss_spi_cs_1,				nss_spi_suspended),
+	ipq_mux(58, nss_spi_clk_1,				nss_spi_suspended),
+	ipq_mux(59, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+	ipq_mux(60, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+	ipq_mux(61, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+	ipq_mux(62, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+};
+
 void __init ipq806x_init_gpiomux(void)
 {
 	int rc;
@@ -597,5 +647,11 @@ void __init ipq806x_init_gpiomux(void)
 			ARRAY_SIZE(ipq806x_ap148_gpiomux));
 		/* GSBI6 needs copy B */
 		msm_gpiomux_gsbi_select_copy(IPQ806X_GSBI6_PORT_SEL_BASE, GPIOMUX_COPY_B);
+	} else if (machine_is_ipq806x_ap145()) {
+		msm_gpiomux_install(ipq806x_ap145_gpiomux,
+			ARRAY_SIZE(ipq806x_ap145_gpiomux));
+		/* GSBI6 needs copy B */
+		msm_gpiomux_gsbi_select_copy(IPQ806X_GSBI6_PORT_SEL_BASE, GPIOMUX_COPY_B);
 	}
+
 }
