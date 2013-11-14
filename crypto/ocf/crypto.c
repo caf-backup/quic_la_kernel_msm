@@ -275,7 +275,7 @@ MODULE_PARM_DESC(crypto_devallowsoft,
  * situation where the crypto thread never allows any other processes to run.
  * Default to 1000 which should be less than one second.
  */
-static int crypto_max_loopcount = 1000;
+static int crypto_max_loopcount = 8;
 module_param(crypto_max_loopcount, int, 0644);
 MODULE_PARM_DESC(crypto_max_loopcount,
 	   "Maximum number of crypto ops to do before yielding to other processes");
