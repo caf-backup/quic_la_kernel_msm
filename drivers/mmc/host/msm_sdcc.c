@@ -4369,12 +4369,18 @@ msmsdcc_check_status(unsigned long data)
 					"(%d -> %d)\n",
 					mmc_hostname(host->mmc),
 					host->oldstat, status);
-			else if (host->plat->is_status_gpio_active_low)
+			else if (host->plat->is_status_gpio_active_low) {
+				if ((host->oldstat) && (gpio_is_valid(host->plat->uhs_gpio))
+					 && (host->io_pad_pwr_switch)) {
+					gpio_direction_output(host->plat->uhs_gpio, 0);
+					gpio_free(host->plat->uhs_gpio);
+				}
 				pr_info("%s: Slot status change detected "
 					"(%d -> %d) and the card detect GPIO"
 					" is ACTIVE_LOW\n",
 					mmc_hostname(host->mmc),
 					host->oldstat, status);
+			}
 			else
 				pr_info("%s: Slot status change detected "
 					"(%d -> %d) and the card detect GPIO"
