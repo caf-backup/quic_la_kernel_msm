@@ -164,12 +164,19 @@ static uint32_t ipq_lpass_get_act_bit_width(uint32_t bit_width)
 static uint32_t ipq_lpass_get_bit_div(uint32_t samp_freq, uint32_t bit_width,
 							uint32_t channels)
 {
-	if (IPQ_CHANNELS_8 == channels)
+	if (IPQ_CHANNELS_8 == channels) {
+		if (__BIT_24 == bit_width &&
+			((FREQ_176400 != samp_freq) &&
+			(FREQ_192000 != samp_freq)))
+			return __BIT_DIV_2;
 		return __BIT_DIV_1;
-	else if (IPQ_CHANNELS_6 == channels) {
-		if (__BIT_32 == bit_width &&
+	} else if (IPQ_CHANNELS_6 == channels) {
+		if ((__BIT_32 == bit_width &&
 			((FREQ_176400 == samp_freq) ||
-			(FREQ_192000 == samp_freq)))
+			(FREQ_192000 == samp_freq))) ||
+			(__BIT_24 == bit_width &&
+			((FREQ_88200 == samp_freq) ||
+			(FREQ_192000 == samp_freq))))
 			return __BIT_DIV_1;
 		else
 			return __BIT_DIV_2;
@@ -182,6 +189,8 @@ static uint32_t ipq_lpass_get_bit_div(uint32_t samp_freq, uint32_t bit_width,
 	case FREQ_22050:
 	case FREQ_32000:
 	case FREQ_44100:
+		if (__BIT_24 == bit_width )
+			return __BIT_DIV_4;
 	case FREQ_48000:
 	case FREQ_64000:
 	case FREQ_88200:
@@ -189,9 +198,13 @@ static uint32_t ipq_lpass_get_bit_div(uint32_t samp_freq, uint32_t bit_width,
 	case FREQ_192000:
 		if (__BIT_32 == bit_width)
 			return __BIT_DIV_4;
+		else if (__BIT_24 == bit_width)
+			return __BIT_DIV_2;
 		else
 			return __BIT_DIV_8;
 	case FREQ_176400:
+		if (__BIT_24 == bit_width)
+			return __BIT_DIV_2;
 		return __BIT_DIV_4;
 	default:
 		return __BIT_DIV_INVAL;
