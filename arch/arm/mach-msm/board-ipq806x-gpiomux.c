@@ -351,10 +351,10 @@ static struct gpiomux_setting gsbi6_spi_miso_cfg = {
 };
 
 static struct gpiomux_setting gsbi6_spi_reset_cfg = {
-	.func = GPIOMUX_FUNC_1,
+	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_10MA,
 	.pull = GPIOMUX_PULL_DOWN,
-	.dir = GPIOMUX_OUT_LOW,
+	.dir = GPIOMUX_OUT_HIGH,
 };
 
 static struct gpiomux_setting reset_control = {

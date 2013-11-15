@@ -246,6 +246,8 @@ struct flash_platform_data msm_sf_data = {
 	.use_4b_cmd = 1,
 };
 
+static uint32_t pcm_spi_reset_gpio_num = 33;
+
 static struct spi_board_info ipq806x_spi_board_info[] __initdata = {
 	{
 		.modalias       = "m25p80",
@@ -260,6 +262,7 @@ static struct spi_board_info ipq806x_spi_board_info[] __initdata = {
 		.mode           = SPI_MODE_0,
 		.bus_num        = 6,
 		.chip_select    = 0,
+		.platform_data  = &pcm_spi_reset_gpio_num,
 		.max_speed_hz   = 6000000,
 	},
 };
