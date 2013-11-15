@@ -2123,10 +2123,7 @@ static void __init ipq806x_common_init(void)
 
 	}
 
-	if (!machine_is_ipq806x_db147() && !machine_is_ipq806x_ap148()
-		&& !machine_is_ipq806x_ap145())
-		ipq806x_init_mmc();
-
+	ipq806x_init_mmc();
 
 	msm_spm_init(msm_spm_data, ARRAY_SIZE(msm_spm_data));
 	msm_spm_l2_init(msm_spm_l2_data);

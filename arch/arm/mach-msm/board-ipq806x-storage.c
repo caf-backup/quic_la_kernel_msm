@@ -198,9 +198,10 @@ static struct mmc_platform_data sdc1_data = {
 #endif
 	.sup_clk_table	= sdc1_sup_clk_rates,
 	.sup_clk_cnt	= ARRAY_SIZE(sdc1_sup_clk_rates),
-	.nonremovable	= 1,
 	.pin_data	= &mmc_slot_pin_data[SDCC1],
 	.vreg_data	= &mmc_slot_vreg_data[SDCC1],
+	.status_gpio	= 51,
+	.status_irq	= MSM_GPIO_TO_INT(51),
 	.irq_flags	= IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 	.is_status_gpio_active_low = 1,
 	.xpc_cap	= 1,
@@ -220,7 +221,7 @@ static struct mmc_platform_data sdc3_data = {
 	.pin_data	= &mmc_slot_pin_data[SDCC3],
 	.vreg_data	= &mmc_slot_vreg_data[SDCC3],
 	.status_gpio	= SDCARD_DETECT_GPIO,
-	.uhs_gpio	= -1,
+	.uhs_gpio	= 61,
 	.status_irq	= MSM_GPIO_TO_INT(SDCARD_DETECT_GPIO),
 	.irq_flags	= IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 	.is_status_gpio_active_low = 1,
@@ -240,9 +241,10 @@ void __init ipq806x_init_mmc(void)
 	if (machine_is_ipq806x_db149_1xx())
 		ipq806x_add_sdcc(1, &sdc1_data);
 
-	drv = sdc3_data.pin_data->pad_data->drv;
-	for (i = 0; i < drv->size; i++)
-		drv->on[i].val = GPIO_CFG_10MA;
-	sdc3_data.uhs_gpio = 61;
-	ipq806x_add_sdcc(2, &sdc3_data);
+	if (machine_is_ipq806x_db149() || machine_is_ipq806x_db149_1xx()) {
+		drv = sdc3_data.pin_data->pad_data->drv;
+		for (i = 0; i < drv->size; i++)
+			drv->on[i].val = GPIO_CFG_10MA;
+		ipq806x_add_sdcc(2, &sdc3_data);
+	}
 }
