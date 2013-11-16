@@ -52,9 +52,9 @@ static struct scalable scalable[] __initdata = {
 		.vreg[VREG_CORE] = { "krait0", 1250000 },
 		.vreg[VREG_MEM]  = { "krait0_mem", 1150000 },
 		.vreg[VREG_DIG]  = { "krait0_dig", 1150000 },
-		.vreg[VREG_HFPLL_A] = { "krait0_hfpll", 1150000 },
+		.vreg[VREG_HFPLL_A] = { "krait0_hfpll", 1100000 },
 		.avs_enabled = false,
-		.vddmx_scale_en = false,
+		.vddmx_scale_en = true,
 	},
 	[CPU1] = {
 		.hfpll_phys_base = 0x00903240,
@@ -65,9 +65,9 @@ static struct scalable scalable[] __initdata = {
 		.vreg[VREG_CORE] = { "krait1", 1250000 },
 		.vreg[VREG_MEM]  = { "krait1_mem", 1150000 },
 		.vreg[VREG_DIG]  = { "krait1_dig", 1150000 },
-		.vreg[VREG_HFPLL_A] = { "krait1_hfpll", 1150000 },
+		.vreg[VREG_HFPLL_A] = { "krait1_hfpll", 1100000 },
 		.avs_enabled = false,
-		.vddmx_scale_en = false,
+		.vddmx_scale_en = true,
 	},
 	[L2] = {
 		.hfpll_phys_base = 0x00903300,
@@ -75,9 +75,9 @@ static struct scalable scalable[] __initdata = {
 		.aux_clk_sel = 3,
 		.sec_clk_sel = 2,
 		.l2cpmr_iaddr = 0x0500,
-		.vreg[VREG_HFPLL_A] = { "l2_hfpll", 1150000 },
+		.vreg[VREG_HFPLL_A] = { "l2_hfpll", 1100000 },
 		.avs_enabled = false,
-		.vddmx_scale_en = false,
+		.vddmx_scale_en = true,
 	},
 };
 
@@ -105,7 +105,7 @@ static struct msm_bus_scale_pdata bus_scale_data __initdata = {
  */
 static struct l2_level l2_freq_tbl[] __initdata = {
 	[0] = { {  384000, PLL_8, 0, 0x00 }, 1100000, 1100000, 4 },
-	[1] = { { 1000000, HFPLL, 1, 0x28 }, 1150000, 1150000, 4 },
+	[1] = { { 1000000, HFPLL, 1, 0x28 }, 1100000, 1100000, 4 },
 	[2] = { { 1200000, HFPLL, 1, 0x30 }, 1150000, 1150000, 5 },
 	{ }
 };

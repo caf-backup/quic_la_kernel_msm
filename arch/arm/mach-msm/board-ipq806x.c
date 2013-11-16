@@ -1222,13 +1222,13 @@ static struct msm_rpmrs_platform_data msm_rpmrs_data __initdata = {
 	.vdd_mem_levels  = {
 		[MSM_RPMRS_VDD_MEM_RET_LOW]	= 750000,
 		[MSM_RPMRS_VDD_MEM_RET_HIGH]	= 750000,
-		[MSM_RPMRS_VDD_MEM_ACTIVE]	= 1050000,
+		[MSM_RPMRS_VDD_MEM_ACTIVE]	= 1100000,
 		[MSM_RPMRS_VDD_MEM_MAX]		= 1150000,
 	},
 	.vdd_dig_levels = {
 		[MSM_RPMRS_VDD_DIG_RET_LOW]	= 500000,
 		[MSM_RPMRS_VDD_DIG_RET_HIGH]	= 750000,
-		[MSM_RPMRS_VDD_DIG_ACTIVE]	= 950000,
+		[MSM_RPMRS_VDD_DIG_ACTIVE]	= 1100000,
 		[MSM_RPMRS_VDD_DIG_MAX]		= 1150000,
 	},
 	.vdd_mask = 0x7FFFFF,
@@ -1466,20 +1466,20 @@ static struct msm_pcie_gpio_info_t msm_pcie_gpio_info[][MSM_PCIE_MAX_GPIO] = {
 struct msm_pcie_vreg_info_t msm_pcie_vreg_info[][MSM_PCIE_MAX_VREG] = {
 		/* hdl, name,           max_v,   min_v,   opt_mode, */
 	{
-		{ NULL, "vp_pcie",      1050000, 1050000, 40900 },
-		{ NULL, "vptx_pcie",    1050000, 1050000, 18200 },
+		{ NULL, "vp_pcie",      1100000, 1100000, 40900 },
+		{ NULL, "vptx_pcie",    1100000, 1100000, 18200 },
 		{ NULL, "vdd_pcie_vph",       0,       0,     0 },
 		{ NULL, "pcie_ext_3p3v",      0,       0,     0 }
 	},
 	{
-		{ NULL, "vp_pcie",      1050000, 1050000, 40900 },
-		{ NULL, "vptx_pcie",    1050000, 1050000, 18200 },
+		{ NULL, "vp_pcie",      1100000, 1100000, 40900 },
+		{ NULL, "vptx_pcie",    1100000, 1100000, 18200 },
 		{ NULL, "vdd_pcie_vph",       0,       0,     0 },
 		{ NULL, "pcie_ext_3p3v",      0,       0,     0 }
 	},
 	{
-		{ NULL, "vp_pcie",      1050000, 1050000, 40900 },
-		{ NULL, "vptx_pcie",    1050000, 1050000, 18200 },
+		{ NULL, "vp_pcie",      1100000, 1100000, 40900 },
+		{ NULL, "vptx_pcie",    1100000, 1100000, 18200 },
 		{ NULL, "vdd_pcie_vph",       0,       0,     0 },
 		{ NULL, "pcie_ext_3p3v",      0,       0,     0 }
 	},
