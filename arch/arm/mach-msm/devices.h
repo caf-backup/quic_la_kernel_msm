@@ -534,3 +534,4 @@ extern struct platform_device ipq806x_lpass_pcm_spdif;
 extern struct platform_device ipq806x_lpass_codec;
 extern struct platform_device ipq806x_lpass_pcm_raw;
 extern struct platform_device ipq806x_device_qup_spi_gsbi6;
+extern struct platform_device ipq806x_device_qup_spi_gsbi2;

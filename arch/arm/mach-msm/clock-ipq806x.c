@@ -3434,6 +3434,7 @@ static struct clk_lookup msm_clocks_ipq806x[] = {
 	CLK_LOOKUP("core_clk",		gsbi7_uart_clk.c, "msm_serial_hsl.0"),
 	CLK_LOOKUP("core_clk",		gsbi1_qup_clk.c,	"qup_i2c.0"),
 	CLK_LOOKUP("core_clk",		gsbi2_qup_clk.c,	"qup_i2c.1"),
+	CLK_LOOKUP("core_clk",		gsbi2_qup_clk.c,	"spi_qsd.2"),
 	/*CLK_LOOKUP("core_clk",	gsbi3_qup_clk.c,	"qup_i2c.2"),*/
 	CLK_LOOKUP("core_clk",		gsbi4_qup_clk.c,	"qup_i2c.3"),
 	CLK_LOOKUP("core_clk",		gsbi5_qup_clk.c,	"spi_qsd.5"),
@@ -3468,6 +3469,7 @@ static struct clk_lookup msm_clocks_ipq806x[] = {
 	CLK_LOOKUP("iface_clk",		gsbi1_p_clk.c,		"qup_i2c.0"),
 	CLK_LOOKUP("iface_clk",		gsbi2_p_clk.c,		"msm_serial_hsl.1"),
 	CLK_LOOKUP("iface_clk",		gsbi2_p_clk.c,		"qup_i2c.1"),
+	CLK_LOOKUP("iface_clk",		gsbi2_p_clk.c,		"spi_qsd.2"),
 	/*CLK_LOOKUP("iface_clk",	gsbi3_p_clk.c,		"qup_i2c.2"),*/
 	CLK_LOOKUP("iface_clk",		gsbi4_p_clk.c,		"msm_serial_hsl.1"),
 	CLK_LOOKUP("iface_clk",		gsbi5_p_clk.c,		"spi_qsd.5"),

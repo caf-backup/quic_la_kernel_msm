@@ -254,20 +254,25 @@ static uint32_t ipq_pcm_spi_reset_gpio;
 		.mode           = m,				\
 		.bus_num        = bn,				\
 		.chip_select    = cs,				\
-		.platform_data  = &pd,				\
+		.platform_data  = pd,				\
 		.max_speed_hz   = speed,			\
 	}
 
 
-static struct spi_board_info ipq806x_spi_board_info[] __initdata = {
-	IPQ806X_SPI_INFO("m25p80", SPI_MODE_0, 5, 0, msm_sf_data, 51200000),
-	IPQ806X_SPI_INFO("ipq_pcm_spi", SPI_MODE_0, 6, 0, ipq_pcm_spi_reset_gpio, 6000000)
+static struct spi_board_info ipq806x_db149_spi_board_info[] __initdata = {
+	IPQ806X_SPI_INFO("m25p80", SPI_MODE_0, 5, 0, &msm_sf_data, 51200000),
+	IPQ806X_SPI_INFO("ipq_pcm_spi", SPI_MODE_0, 6, 0, &ipq_pcm_spi_reset_gpio, 6000000),
 };
 
 static struct spi_board_info ipq806x_default_spi_board_info[] __initdata = {
-	IPQ806X_SPI_INFO("m25p80", SPI_MODE_0, 5, 0, msm_sf_data, 51200000),
+	IPQ806X_SPI_INFO("m25p80", SPI_MODE_0, 5, 0, &msm_sf_data, 51200000),
 };
 
+static struct spi_board_info ipq806x_ap148_spi_board_info[] __initdata = {
+	IPQ806X_SPI_INFO("m25p80", SPI_MODE_0, 5, 0, &msm_sf_data, 51200000),
+	IPQ806X_SPI_INFO("ipq_pcm_spi", SPI_MODE_0, 6, 0, &ipq_pcm_spi_reset_gpio, 6000000),
+	IPQ806X_SPI_INFO("spidev", SPI_MODE_0, 2, 0, NULL, 51200000),
+};
 #endif
 
 static struct memtype_reserve ipq806x_reserve_table[] __initdata = {
@@ -1812,6 +1817,10 @@ static struct msm_spi_platform_data ipq806x_qup_spi_gsbi5_pdata = {
 static struct msm_spi_platform_data ipq806x_qup_spi_gsbi6_pdata = {
 	.max_clock_speed = 6000000,    /* Max SPI Clock on SLIC */
 };
+
+static struct msm_spi_platform_data ipq806x_qup_spi_gsbi2_pdata = {
+	.max_clock_speed = 51200000,    /* Max SPI Clock */
+};
 #endif
 
 static struct msm_i2c_platform_data ipq806x_i2c_qup_gsbi1_pdata = {
@@ -2025,21 +2034,23 @@ static void ipq806x_spi_register(void)
 {
 	ipq806x_device_qup_spi_gsbi5.dev.platform_data =
 				&ipq806x_qup_spi_gsbi5_pdata;
-
 	platform_device_register(&ipq806x_device_qup_spi_gsbi5);
 
 	ipq806x_device_qup_spi_gsbi6.dev.platform_data =
 		&ipq806x_qup_spi_gsbi6_pdata;
-
 	platform_device_register(&ipq806x_device_qup_spi_gsbi6);
+
 	if (machine_is_ipq806x_db149() || machine_is_ipq806x_db149_1xx()) {
 		ipq_pcm_spi_reset_gpio = 59;
-		spi_register_board_info(ipq806x_spi_board_info,
-				ARRAY_SIZE(ipq806x_spi_board_info));
+		spi_register_board_info(ipq806x_db149_spi_board_info,
+				ARRAY_SIZE(ipq806x_db149_spi_board_info));
 	} else if (machine_is_ipq806x_ap148()) {
 		ipq_pcm_spi_reset_gpio = 33;
-		spi_register_board_info(ipq806x_spi_board_info,
-				ARRAY_SIZE(ipq806x_spi_board_info));
+		ipq806x_device_qup_spi_gsbi2.dev.platform_data =
+			&ipq806x_qup_spi_gsbi2_pdata;
+		platform_device_register(&ipq806x_device_qup_spi_gsbi2);
+		spi_register_board_info(ipq806x_ap148_spi_board_info,
+				ARRAY_SIZE(ipq806x_ap148_spi_board_info));
 	} else
 		spi_register_board_info(ipq806x_default_spi_board_info,
 				ARRAY_SIZE(ipq806x_default_spi_board_info));

@@ -137,6 +137,24 @@ static struct gpiomux_setting gsbi5_spi_data_cfg = {
 	.pull = GPIOMUX_PULL_DOWN,
 };
 
+/* GSBI2 pin configuration */
+static struct gpiomux_setting gsbi2_spi_clk_cfg = {
+	.func = GPIOMUX_FUNC_1,
+	.drv = GPIOMUX_DRV_12MA,
+	.pull = GPIOMUX_PULL_DOWN,
+};
+
+static struct gpiomux_setting gsbi2_spi_cs_cfg = {
+	.func = GPIOMUX_FUNC_1,
+	.drv = GPIOMUX_DRV_10MA,
+	.pull = GPIOMUX_PULL_UP,
+};
+
+static struct gpiomux_setting gsbi2_spi_data_cfg = {
+	.func = GPIOMUX_FUNC_1,
+	.drv = GPIOMUX_DRV_10MA,
+	.pull = GPIOMUX_PULL_DOWN,
+};
 #endif
 
 static struct gpiomux_setting sdc1_clk_active_cfg = {
@@ -558,6 +576,10 @@ static struct msm_gpiomux_config ipq806x_ap148_gpiomux[] = {
 	ipq_mux(19, gsbi5_spi_data_cfg,			gsbi5_spi_data_cfg),
 	ipq_mux(20, gsbi5_spi_cs_cfg,			gsbi5_spi_cs_cfg),
 	ipq_mux(21, gsbi5_spi_clk_cfg,			gsbi5_spi_clk_cfg),
+	ipq_mux(22, gsbi2_spi_data_cfg,			gsbi2_spi_data_cfg),
+	ipq_mux(23, gsbi2_spi_data_cfg,			gsbi2_spi_data_cfg),
+	ipq_mux(24, gsbi2_spi_cs_cfg,			gsbi2_spi_cs_cfg),
+	ipq_mux(25, gsbi2_spi_clk_cfg,			gsbi2_spi_clk_cfg),
 	ipq_mux(26, ipq806x_leds_ap148_cfg,		ipq806x_leds_ap148_cfg),
 	ipq_mux(27, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(28, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),

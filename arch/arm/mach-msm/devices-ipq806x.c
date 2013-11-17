@@ -625,6 +625,34 @@ struct platform_device ipq806x_device_qup_i2c_gsbi4 = {
 	.resource	= resources_qup_i2c_gsbi4,
 };
 
+/* GSBI2 used into SPI Mode */
+static struct resource resources_qup_spi_gsbi2[] = {
+	{
+		.name   = "spi_base",
+		.start  = MSM_GSBI2_QUP_PHYS,
+		.end    = MSM_GSBI2_QUP_PHYS + MSM_QUP_SIZE - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	{
+		.name   = "gsbi_base",
+		.start  = MSM_GSBI2_PHYS,
+		.end    = MSM_GSBI2_PHYS + 4 - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	{
+		.name   = "spi_irq_in",
+		.start  = IPQ806X_GSBI2_QUP_IRQ,
+		.end    = IPQ806X_GSBI2_QUP_IRQ,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device ipq806x_device_qup_spi_gsbi2 = {
+	.name           = "spi_qsd",
+	.id             = 2,
+	.num_resources  = ARRAY_SIZE(resources_qup_spi_gsbi2),
+	.resource       = resources_qup_spi_gsbi2,
+};
 static struct resource resources_qup_spi_gsbi5[] = {
 	{
 		.name   = "spi_base",
