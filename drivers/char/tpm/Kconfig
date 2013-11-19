@@ -62,10 +62,4 @@ config TCG_INFINEON
 	  Further information on this driver and the supported hardware
 	  can be found at http://www.trust.rub.de/projects/linux-device-driver-infineon-tpm/ 
 
-config TCG_TPMD_DEV
-	tristate "tpmd_dev TPM Emulator driver"
-	default n
-	---help---
-	  Enables the TPM emulator driver
-
 endif # TCG_TPM
