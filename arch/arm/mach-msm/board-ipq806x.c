@@ -246,26 +246,28 @@ struct flash_platform_data msm_sf_data = {
 	.use_4b_cmd = 1,
 };
 
-static uint32_t pcm_spi_reset_gpio_num = 33;
+static uint32_t ipq_pcm_spi_reset_gpio;
+
+#define IPQ806X_SPI_INFO(ma, m, bn, cs, pd, speed)		\
+	{							\
+		.modalias       = ma,				\
+		.mode           = m,				\
+		.bus_num        = bn,				\
+		.chip_select    = cs,				\
+		.platform_data  = &pd,				\
+		.max_speed_hz   = speed,			\
+	}
+
 
 static struct spi_board_info ipq806x_spi_board_info[] __initdata = {
-	{
-		.modalias       = "m25p80",
-		.mode           = SPI_MODE_0,
-		.bus_num        = 5,
-		.chip_select    = 0,
-		.platform_data  = &msm_sf_data,
-		.max_speed_hz   = 51200000,
-	},
-	{
-		.modalias       = "ipq_pcm_spi",
-		.mode           = SPI_MODE_0,
-		.bus_num        = 6,
-		.chip_select    = 0,
-		.platform_data  = &pcm_spi_reset_gpio_num,
-		.max_speed_hz   = 6000000,
-	},
+	IPQ806X_SPI_INFO("m25p80", SPI_MODE_0, 5, 0, msm_sf_data, 51200000),
+	IPQ806X_SPI_INFO("ipq_pcm_spi", SPI_MODE_0, 6, 0, ipq_pcm_spi_reset_gpio, 6000000)
 };
+
+static struct spi_board_info ipq806x_default_spi_board_info[] __initdata = {
+	IPQ806X_SPI_INFO("m25p80", SPI_MODE_0, 5, 0, msm_sf_data, 51200000),
+};
+
 #endif
 
 static struct memtype_reserve ipq806x_reserve_table[] __initdata = {
@@ -2027,9 +2029,17 @@ static void ipq806x_spi_register(void)
 		&ipq806x_qup_spi_gsbi6_pdata;
 
 	platform_device_register(&ipq806x_device_qup_spi_gsbi6);
-
-	spi_register_board_info(ipq806x_spi_board_info,
+	if (machine_is_ipq806x_db149() || machine_is_ipq806x_db149_1xx()) {
+		ipq_pcm_spi_reset_gpio = 59;
+		spi_register_board_info(ipq806x_spi_board_info,
 				ARRAY_SIZE(ipq806x_spi_board_info));
+	} else if (machine_is_ipq806x_ap148()) {
+		ipq_pcm_spi_reset_gpio = 33;
+		spi_register_board_info(ipq806x_spi_board_info,
+				ARRAY_SIZE(ipq806x_spi_board_info));
+	} else
+		spi_register_board_info(ipq806x_default_spi_board_info,
+				ARRAY_SIZE(ipq806x_default_spi_board_info));
 
 	return;
 }

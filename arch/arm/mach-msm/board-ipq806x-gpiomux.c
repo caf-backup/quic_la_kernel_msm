@@ -421,7 +421,7 @@ static struct msm_gpiomux_config ipq806x_db149_gpiomux[] = {
 	ipq_mux(56, gsbi6_spi_miso_cfg,			gsbi6_spi_miso_cfg),
 	ipq_mux(57, gsbi6_spi_cs_cfg,			gsbi6_spi_cs_cfg),
 	ipq_mux(58, gsbi6_spi_clk_cfg,			gsbi6_spi_clk_cfg),
-	ipq_mux(59, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+	ipq_mux(59, gsbi6_spi_reset_cfg,		gsbi6_spi_reset_cfg),
 	ipq_mux(60, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(61, ipq806x_sdc3_uhs_card_det_cfg,		ipq806x_sdc3_uhs_card_det_cfg),
 	ipq_mux(62, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
@@ -475,7 +475,7 @@ static struct msm_gpiomux_config ipq806x_db149_1xx_gpiomux[] = {
 	ipq_mux(56, gsbi6_spi_miso_cfg,			gsbi6_spi_miso_cfg),
 	ipq_mux(57, gsbi6_spi_cs_cfg,			gsbi6_spi_cs_cfg),
 	ipq_mux(58, gsbi6_spi_clk_cfg,			gsbi6_spi_clk_cfg),
-	ipq_mux(59, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+	ipq_mux(59, gsbi6_spi_reset_cfg,		gsbi6_spi_reset_cfg),
 	ipq_mux(60, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(61, ipq806x_sdc3_uhs_card_det_cfg,		ipq806x_sdc3_uhs_card_det_cfg),
 	ipq_mux(62, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
@@ -656,8 +656,6 @@ void __init ipq806x_init_gpiomux(void)
 	} else if (machine_is_ipq806x_ap145()) {
 		msm_gpiomux_install(ipq806x_ap145_gpiomux,
 			ARRAY_SIZE(ipq806x_ap145_gpiomux));
-		/* GSBI6 needs copy B */
-		msm_gpiomux_gsbi_select_copy(IPQ806X_GSBI6_PORT_SEL_BASE, GPIOMUX_COPY_B);
 	}
 
 }
