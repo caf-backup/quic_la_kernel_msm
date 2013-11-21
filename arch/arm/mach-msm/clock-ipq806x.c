@@ -3100,6 +3100,13 @@ static struct clk_freq_tbl clk_tbl_nss[] = {
 	F_END
 };
 
+static struct clk_freq_tbl clk_tbl_nss_lite[] = {
+	F_NSS_CORE( 110000000, pll18, 0x0100fa, 0xfb0141, &pll18_rate[0]),	/* 110Mhz */
+	F_NSS_CORE( 275000000, pll18, 0x0100fd, 0xfe0141, &pll18_rate[0]),	/* 275Mhz */
+	F_NSS_CORE( 550000000, pll18, 0xff00ff, 0xff0001, &pll18_rate[0]),	/* 550Mhz */
+	F_END
+};
+
 /*
  * Custom Table to handle programming both cores at same time
  * TODO: Waiting for framework to be checked and clean up
@@ -3968,6 +3975,14 @@ static void __init ipq806x_clock_pre_init(void)
 		prng_clk.freq_tbl = clk_tbl_prng_64;
 
 	clk_ops_local_pll.enable = sr_pll_clk_enable;
+
+	if(cpu_is_ipq8062() || cpu_is_ipq8066()) {
+		nss_core_clk.freq_tbl = clk_tbl_nss_lite;
+		printk("clk_tbl_nss_lite - loaded\n");
+	} else {
+		nss_core_clk.freq_tbl = clk_tbl_nss;
+		printk("clk_tbl_nss - loaded\n");
+	}
 }
 
 static void __init ipq806x_clock_post_init(void)

@@ -46,6 +46,7 @@
 #include <asm/hardware/gic.h>
 #include <asm/mach/mmc.h>
 #include <linux/platform_data/qcom_wcnss_device.h>
+#include <linux/platform_device.h>
 
 #include <mach/board.h>
 #include <mach/msm_iomap.h>
@@ -79,6 +80,7 @@
 #include <mach/msm_pcie.h>
 #include <mach/restart.h>
 #include <mach/msm_iomap.h>
+#include <mach/msm_nss.h>
 #include <mach/msm_nss_gmac.h>
 #include <mach/mpm.h>
 #include <linux/regulator/fixed.h>
@@ -2292,7 +2294,8 @@ inline void ipq_nss_get_mac_addr(struct mtd_info *mtd, int id,
 static int __init nss_fixup_platform_data(void)
 {
 	struct mtd_info *mtd;
-	struct msm_nss_gmac_platform_data *pdata;
+	struct nss_platform_data *pdata;
+	struct msm_nss_gmac_platform_data *gmac_pdata;
 
 	mtd = get_mtd_device_nm(IPQ_MAC_ADDR_PARTITION);
 	if (IS_ERR_OR_NULL(mtd)) {
@@ -2300,17 +2303,25 @@ static int __init nss_fixup_platform_data(void)
 		return -ENXIO;
 	}
 
-	pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_0.dev.platform_data;
-	ipq_nss_get_mac_addr(mtd, 0, pdata);
+	pdata = (struct nss_platform_data *)ipq806x_device_nss0.dev.platform_data;
 
-	pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_1.dev.platform_data;
-	ipq_nss_get_mac_addr(mtd, 1, pdata);
+	if (cpu_is_ipq8062() || cpu_is_ipq8066()) {
+		pdata->turbo_frequency = NSS_FEATURE_NOT_ENABLED;
+	} else {
+		pdata->turbo_frequency = NSS_FEATURE_ENABLED;
+	}
 
-	pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_2.dev.platform_data;
-	ipq_nss_get_mac_addr(mtd, 2, pdata);
+	gmac_pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_0.dev.platform_data;
+	ipq_nss_get_mac_addr(mtd, 0, gmac_pdata);
 
-	pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_3.dev.platform_data;
-	ipq_nss_get_mac_addr(mtd, 3, pdata);
+	gmac_pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_1.dev.platform_data;
+	ipq_nss_get_mac_addr(mtd, 1, gmac_pdata);
+
+	gmac_pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_2.dev.platform_data;
+	ipq_nss_get_mac_addr(mtd, 2, gmac_pdata);
+
+	gmac_pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_3.dev.platform_data;
+	ipq_nss_get_mac_addr(mtd, 3, gmac_pdata);
 
 	return 0;
 }
