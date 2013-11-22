@@ -151,6 +151,56 @@ static void skb_under_panic(struct sk_buff *skb, int sz, void *here)
 	BUG();
 }
 
+static inline void zero_struct(void *v, int size)
+{
+	uint32_t *s = (uint32_t *)v;
+
+	/* We assume that size is word aligned; in fact, it's constant */
+	BUG_ON((size & 3) != 0);
+
+	/*
+	 * This looks odd but we "know" size is a constant, and so the
+	 * compiler can fold away all of the conditionals.  The compiler is
+	 * pretty smart here, and can fold away the loop, too!
+	 */
+	while (size > 0) {
+		if (size >= 4)
+			s[0] = 0;
+		if (size >= 8)
+			s[1] = 0;
+		if (size >= 12)
+			s[2] = 0;
+		if (size >= 16)
+			s[3] = 0;
+		if (size >= 20)
+			s[4] = 0;
+		if (size >= 24)
+			s[5] = 0;
+		if (size >= 28)
+			s[6] = 0;
+		if (size >= 32)
+			s[7] = 0;
+		if (size >= 36)
+			s[8] = 0;
+		if (size >= 40)
+			s[9] = 0;
+		if (size >= 44)
+			s[10] = 0;
+		if (size >= 48)
+			s[11] = 0;
+		if (size >= 52)
+			s[12] = 0;
+		if (size >= 56)
+			s[13] = 0;
+		if (size >= 60)
+			s[14] = 0;
+		if (size >= 64)
+			s[15] = 0;
+		size -= 64;
+		s += 16;
+	}
+}
+
 /* 	Allocate a new skbuff. We do this ourselves so we can fill in a few
  *	'private' fields and also do memory statistics to find all the
  *	[BEEP] leaks.
@@ -329,9 +379,10 @@ struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
 		put_cpu_var(recycle_list);
 		if (likely(skb)) {
 			struct skb_shared_info *s = skb_shinfo(skb);
-			memset(s, 0, offsetof(struct skb_shared_info, dataref));
+			zero_struct(s,
+				    offsetof(struct skb_shared_info, dataref));
 			atomic_set(&s->dataref, 1);
-			memset(skb, 0, offsetof(struct sk_buff, tail));
+			zero_struct(skb, offsetof(struct sk_buff, tail));
 			skb->data = skb->head;
 			skb_reset_tail_pointer(skb);
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
@@ -406,9 +457,10 @@ struct sk_buff *dev_alloc_skb(unsigned int length)
 		put_cpu_var(recycle_list);
 		if (likely(skb)) {
 			struct skb_shared_info *s = skb_shinfo(skb);
-			memset(s, 0, offsetof(struct skb_shared_info, dataref));
+			zero_struct(s,
+				    offsetof(struct skb_shared_info, dataref));
 			atomic_set(&s->dataref, 1);
-			memset(skb, 0, offsetof(struct sk_buff, tail));
+			zero_struct(skb, offsetof(struct sk_buff, tail));
 			skb->data = skb->head + NET_SKB_PAD;
 			skb_reset_tail_pointer(skb);
 			skb_reserve(skb, NET_SKB_PAD);
