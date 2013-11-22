@@ -378,16 +378,26 @@ struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
 		local_irq_restore(flags);
 		put_cpu_var(recycle_list);
 		if (likely(skb)) {
-			struct skb_shared_info *s = skb_shinfo(skb);
-			zero_struct(s,
-				    offsetof(struct skb_shared_info, dataref));
-			atomic_set(&s->dataref, 1);
+			struct skb_shared_info *shinfo;
+
+			/*
+			 * We're about to write a large amount to the skb to
+			 * zero most of the structure so prefetch the start
+			 * of the shinfo region now so it's in the D-cache
+			 * before we start to write that.
+			 */
+			prefetchw(&skb->end);
+
 			zero_struct(skb, offsetof(struct sk_buff, tail));
 			skb->data = skb->head;
 			skb_reset_tail_pointer(skb);
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
 			skb->mac_header = ~0U;
 #endif
+			shinfo = skb_shinfo(skb);
+			zero_struct(shinfo, offsetof(struct skb_shared_info, dataref));
+			atomic_set(&shinfo->dataref, 1);
+
 			skb_reserve(skb, NET_SKB_PAD);
 			skb->dev = dev;
 			return skb;
@@ -447,6 +457,10 @@ struct sk_buff *dev_alloc_skb(unsigned int length)
 {
 	unsigned int len;
 
+	/*
+	 * Is this a request for an skb that we might be able to pull
+	 * from the recycling list?
+	 */
 	if (likely(length <= SKB_RECYCLE_SIZE)) {
 		unsigned long flags;
 		struct sk_buff *skb;
@@ -456,17 +470,25 @@ struct sk_buff *dev_alloc_skb(unsigned int length)
 		local_irq_restore(flags);
 		put_cpu_var(recycle_list);
 		if (likely(skb)) {
-			struct skb_shared_info *s = skb_shinfo(skb);
-			zero_struct(s,
-				    offsetof(struct skb_shared_info, dataref));
-			atomic_set(&s->dataref, 1);
+			struct skb_shared_info *shinfo;
+			/*
+			 * We're about to write a large amount to the skb to
+			 * zero most of the structure so prefetch the start
+			 * of the shinfo region now so it's in the D-cache
+			 * before we start to write that.
+			 */
+			prefetchw(&skb->end);
 			zero_struct(skb, offsetof(struct sk_buff, tail));
-			skb->data = skb->head + NET_SKB_PAD;
+			skb->data = skb->head;
 			skb_reset_tail_pointer(skb);
 			skb_reserve(skb, NET_SKB_PAD);
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
 			skb->mac_header = ~0U;
 #endif
+			shinfo = skb_shinfo(skb);
+			zero_struct(shinfo,
+				    offsetof(struct skb_shared_info, dataref));
+			atomic_set(&shinfo->dataref, 1);
 			return skb;
 		}
 	}
@@ -678,6 +700,9 @@ void consume_skb(struct sk_buff *skb)
 {
 	if (unlikely(!skb))
 		return;
+
+	prefetch(&skb->destructor);
+
 	if (likely(atomic_read(&skb->users) == 1))
 		smp_rmb();
 	else if (likely(!atomic_dec_and_test(&skb->users)))
