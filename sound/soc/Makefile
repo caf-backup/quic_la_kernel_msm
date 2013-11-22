@@ -16,7 +16,6 @@ obj-$(CONFIG_SND_SOC)   += imx/
 obj-$(CONFIG_SND_SOC)   += ipq/
 obj-$(CONFIG_SND_SOC)	+= jz4740/
 obj-$(CONFIG_SND_SOC)	+= mid-x86/
-obj-$(CONFIG_SND_SOC)	+= msm/
 obj-$(CONFIG_SND_SOC)	+= mxs/
 obj-$(CONFIG_SND_SOC)	+= nuc900/
 obj-$(CONFIG_SND_SOC)	+= omap/
