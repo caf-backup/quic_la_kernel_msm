@@ -1,4 +1,5 @@
 #
+#
 # Makefile for the video capture/playback device drivers.
 #
 
@@ -208,7 +209,6 @@ obj-$(CONFIG_VIDEO_IR_I2C)  += ir-kbd-i2c.o
 
 obj-y	+= davinci/
 
-obj-$(CONFIG_MSM_CAMERA) += msm/
 obj-$(CONFIG_ARCH_OMAP)	+= omap/
 
 ccflags-y += -I$(srctree)/drivers/media/dvb/dvb-core
