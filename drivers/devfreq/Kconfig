@@ -135,6 +135,19 @@ config ARM_QCOM_DEVFREQ_FW
 	  various governors could be used to scale the frequency of these
 	  devices.
 
+config DEVFREQ_ICBW
+	bool "DEVFREQ device for making bandwidth votes on interconnect paths"
+	select DEVFREQ_GOV_PERFORMANCE
+	select DEVFREQ_GOV_POWERSAVE
+	select DEVFREQ_GOV_USERSPACE
+	default n
+	help
+	  Different devfreq governors use this devfreq device to make
+	  bandwidth votes for interconnect paths between different devices
+	  (Eg: CPU to DDR, GPU to DDR, etc). This driver provides a generic
+	  interface so that the devfreq governors can be shared across SoCs
+	  and architectures.
+
 source "drivers/devfreq/event/Kconfig"
 
 endif # PM_DEVFREQ
