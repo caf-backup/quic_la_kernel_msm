@@ -862,6 +862,7 @@
 #define F_USB30(f, s, d, m, n) \
 	{ \
 		.freq_hz = f, \
+		.src_clk = &s##_clk.c, \
 		.md_val = MD8(16, m, 0, n), \
 		.ns_val = NS(23, 16, n, m, 5, 4, 3, d, 2, 0, s##_to_bb_mux), \
 	}
@@ -898,6 +899,25 @@
 		.ns_val = NS(31, 24, n, m, 5, 4, 3, d, 2, 0, s##_to_lpa_mux),\
 	}
 
+#define IPQ_PXO_FREQ		(25 * 1000 * 1000)	/* MHz */
+#define IPQ_CXO_FREQ		IPQ_PXO_FREQ
+
+DEFINE_CLK_RPM_BRANCH(pxo_clk, pxo_a_clk, PXO, IPQ_PXO_FREQ);
+DEFINE_CLK_RPM_BRANCH(cxo_clk, cxo_a_clk, CXO, IPQ_CXO_FREQ);
+
+static struct pll_vote_clk pll0_clk = {
+	.en_reg = BB_PLL_ENA_SC0_REG,
+	.en_mask = BIT(0),
+	.status_reg = PLL_LOCK_DET_STATUS,
+	.status_mask = BIT(0),
+	.parent = &pxo_clk.c,
+	.c = {
+		.dbg_name = "pll0_clk",
+		.rate = 800000000,
+		.ops = &clk_ops_pll_vote,
+		CLK_INIT(pll0_clk.c),
+	},
+};
 
 static struct clk_freq_tbl clk_tbl_usb30[] = {
 	F_USB30(125000000, pll0, 1, 5, 32),
@@ -1085,11 +1105,6 @@ static DEFINE_VDD_CLASS(vdd_nss_dig, set_vdd_dig_nss_core, VDD_DIG_NUM);
  * Clock Descriptions
  */
 
-#define IPQ_PXO_FREQ		(25 * 1000 * 1000)	/* MHz */
-#define IPQ_CXO_FREQ		IPQ_PXO_FREQ
-
-DEFINE_CLK_RPM_BRANCH(pxo_clk, pxo_a_clk, PXO, IPQ_PXO_FREQ);
-DEFINE_CLK_RPM_BRANCH(cxo_clk, cxo_a_clk, CXO, IPQ_CXO_FREQ);
 
 static struct pll_clk pll3_clk = {
 	.mode_reg = GPLL1_MODE,
@@ -3313,6 +3328,7 @@ static struct clk_lookup msm_clocks_ipq806x[] = {
 	CLK_LOOKUP("xo",		cxo_clk.c,	"msm_xo"),
 	CLK_LOOKUP("vref_buff",		cxo_clk.c,	"rpm-regulator"),
 	CLK_LOOKUP("pll8",		pll8_clk.c,	NULL),
+	CLK_LOOKUP("pll0",		pll0_clk.c,	NULL),
 	CLK_LOOKUP("measure",		measure_clk.c,	"debug"),
 
 	CLK_LOOKUP("bus_clk",		afab_clk.c,	""),
