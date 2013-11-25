@@ -6,15 +6,15 @@
  *	Ville Nuorvala		<vnuorval@tcs.hut.fi>
  *	Yasuyuki Kozakai	<kozakai@linux-ipv6.org>
  *
- *      Based on:
- *      linux/net/ipv6/sit.c and linux/net/ipv4/ipip.c
+ *	Based on:
+ *	linux/net/ipv6/sit.c and linux/net/ipv4/ipip.c
  *
- *      RFC 2473
+ *	RFC 2473
  *
  *	This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
+ *	modify it under the terms of the GNU General Public License
+ *	as published by the Free Software Foundation; either version
+ *	2 of the License, or (at your option) any later version.
  *
  */
 
@@ -114,6 +114,20 @@ static struct net_device_stats *ip6_get_stats(struct net_device *dev)
 	dev->stats.tx_bytes   = sum.tx_bytes;
 	return &dev->stats;
 }
+/*
+ *  Update offload stats
+ */
+void ip6_update_offload_stats(struct net_device *dev, void *ptr)
+{
+	struct pcpu_tstats *tstats = per_cpu_ptr(dev->tstats, 0);
+	struct pcpu_tstats *offload_stats = (struct pcpu_tstats *)ptr;
+
+	tstats->tx_packets += offload_stats->tx_packets;
+	tstats->tx_bytes   += offload_stats->tx_bytes;
+	tstats->rx_packets += offload_stats->rx_packets;
+	tstats->rx_bytes   += offload_stats->rx_bytes;
+}
+EXPORT_SYMBOL(ip6_update_offload_stats);
 
 /*
  * Locking : hash tables are protected by RCU and RTNL
