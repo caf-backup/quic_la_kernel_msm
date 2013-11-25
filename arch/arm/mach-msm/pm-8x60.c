@@ -669,9 +669,6 @@ static void msm_pm_target_init(void)
 {
 	if (cpu_is_apq8064())
 		msm_pm_save_cp15 = true;
-
-	if (cpu_is_msm8974())
-		msm_pm_use_qtimer = true;
 }
 
 static int64_t msm_pm_timer_enter_idle(void)
