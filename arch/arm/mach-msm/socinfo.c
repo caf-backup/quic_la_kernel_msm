@@ -253,9 +253,6 @@ static enum msm_cpu cpu_of_id[] = {
 	/* 8060A ID */
 	[124] = MSM_CPU_8960,
 
-	/* 8974 IDs */
-	[126] = MSM_CPU_8974,
-
 	/* 8625 IDs */
 	[127] = MSM_CPU_8625,
 	[128] = MSM_CPU_8625,
@@ -742,11 +739,7 @@ static void * __init setup_dummy_socinfo(void)
 		dummy_socinfo.id = 87;
 	else if (machine_is_msm9615_mtp() || machine_is_msm9615_cdp())
 		dummy_socinfo.id = 104;
-	else if (early_machine_is_msm8974()) {
-		dummy_socinfo.id = 126;
-		strlcpy(dummy_socinfo.build_id, "msm8974 - ",
-			sizeof(dummy_socinfo.build_id));
-	} else if (early_machine_is_msm9625()) {
+	else if (early_machine_is_msm9625()) {
 		dummy_socinfo.id = 134;
 		strlcpy(dummy_socinfo.build_id, "msm9625 - ",
 			sizeof(dummy_socinfo.build_id));
@@ -923,10 +916,6 @@ const int read_msm_cpu_type(void)
 
 	case 0x510F06F0:
 		return MSM_CPU_8064;
-
-	case 0x511F06F1:
-	case 0x512F06F0:
-		return MSM_CPU_8974;
 
 	default:
 		return MSM_CPU_UNKNOWN;

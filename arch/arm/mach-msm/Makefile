@@ -68,10 +68,8 @@ ifndef CONFIG_ARCH_MSM9615
 ifndef CONFIG_ARCH_APQ8064
 ifndef CONFIG_ARCH_MSM8960
 ifndef CONFIG_ARCH_MSM8X60
-ifndef CONFIG_ARCH_MSM8974
 	obj-$(CONFIG_MSM_SMD) += pmic.o
 	obj-$(CONFIG_MSM_ONCRPCROUTER) += rpc_hsusb.o rpc_pmapp.o rpc_fsusb.o
-endif
 endif
 endif
 endif
@@ -79,11 +77,9 @@ endif
 ifndef CONFIG_ARCH_MSM8960
 ifndef CONFIG_ARCH_MSM8X60
 ifndef CONFIG_ARCH_APQ8064
-ifndef CONFIG_ARCH_MSM8974
 ifndef CONFIG_ARCH_MSM9625
 	obj-y += nand_partitions.o
 	obj-$(CONFIG_SPI_QUP) += sf_partitions.o
-endif
 endif
 endif
 endif
@@ -141,7 +137,6 @@ ifdef CONFIG_CPU_IDLE
 	obj-$(CONFIG_ARCH_MSM8960) += cpuidle.o
 	obj-$(CONFIG_ARCH_MSM8X60) += cpuidle.o
 	obj-$(CONFIG_ARCH_MSM9615) += cpuidle.o
-	obj-$(CONFIG_ARCH_MSM8974) += cpuidle.o
 endif
 obj-$(CONFIG_ARCH_FSM9XXX) += clock-local.o
 
@@ -194,7 +189,6 @@ obj-$(CONFIG_MACH_MPQ8064_HRD) += board-8064-all.o
 obj-$(CONFIG_ARCH_IPQ806X) += board-ipq806x-all.o board-ipq806x-regulator.o
 obj-$(CONFIG_MACH_MPQ8064_DTV) += board-8064-all.o
 obj-$(CONFIG_ARCH_MSM9615) += clock-local.o clock-rpm.o clock-pll.o
-obj-$(CONFIG_ARCH_MSM8974) += clock-pll.o clock-rpm.o clock-voter.o
 obj-$(CONFIG_MACH_SAPPHIRE) += board-sapphire.o
 
 
@@ -233,7 +227,6 @@ obj-$(CONFIG_ARCH_MSM8960) += gpiomux-v2.o gpiomux.o
 obj-$(CONFIG_ARCH_APQ8064) += gpiomux-v2.o gpiomux.o
 obj-$(CONFIG_ARCH_IPQ806X) += gpiomux-v2.o gpiomux.o
 obj-$(CONFIG_ARCH_MSM9615) += gpiomux-v2.o gpiomux.o
-obj-$(CONFIG_ARCH_MSM8974) += gpiomux-v2.o gpiomux.o
 obj-$(CONFIG_ARCH_MSM9625) += gpiomux-v2.o gpiomux.o
 
 

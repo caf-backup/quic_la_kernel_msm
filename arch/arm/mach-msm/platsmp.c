@@ -104,12 +104,6 @@ static int __cpuinit krait_release_secondary_sim(unsigned long base, int cpu)
 	if (!base_ptr)
 		return -ENODEV;
 
-	if (machine_is_msm8974_sim()) {
-		writel_relaxed(0x800, base_ptr+0x04);
-		writel_relaxed(0x3FFF, base_ptr+0x14);
-	}
-
-	mb();
 	iounmap(base_ptr);
 	return 0;
 }
@@ -185,15 +179,9 @@ static int __cpuinit release_secondary(unsigned int cpu)
 	if (cpu_is_msm8x60())
 		return scorpion_release_secondary();
 
-	if (machine_is_msm8974_sim())
-		return krait_release_secondary_sim(0xf9088000, cpu);
-
 	if (soc_class_is_msm8960() || soc_class_is_msm8930() ||
 	    soc_class_is_apq8064() || cpu_is_ipq806x())
 		return krait_release_secondary(0x02088000, cpu);
-
-	if (cpu_is_msm8974())
-		return krait_release_secondary_p3(0xf9088000, cpu);
 
 	WARN(1, "unknown CPU case in release_secondary\n");
 	return -EINVAL;

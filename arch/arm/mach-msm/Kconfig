@@ -246,28 +246,6 @@ config ARCH_IPQ806X
 	select MSM_CPU_PWRCTL
 	select MSM_BUS_RPM_ARB_DISABLE
 
-config ARCH_MSM8974
-	bool "MSM8974"
-	select ARCH_MSM_KRAITMP
-	select GPIO_MSM_V3
-	select ARM_GIC
-	select CPU_V7
-	select MSM_SCM if SMP
-	select MSM_GPIOMUX
-	select MULTI_IRQ_HANDLER
-	select MSM_MULTIMEDIA_USE_ION
-	select MSM_PIL
-	select MSM_SPM_V2
-	select MSM_L2_SPM
-	select MSM_PM8X60 if PM
-	select MAY_HAVE_SPARSE_IRQ
-	select SPARSE_IRQ
-	select MSM_RPM_SMD
-	select REGULATOR
-	select MSM_AUDIO_QDSP6V2 if SND_SOC
-	select ARM_HAS_SG_CHAIN
-	select MSM_RUN_QUEUE_STATS
-
 config ARCH_MSM8226
 	bool "MSM8226"
 	select ARCH_MSM_KRAITMP
@@ -929,7 +907,6 @@ config PHYS_OFFSET
 	default "0x40800000" if ARCH_IPQ806X
 	default "0x80200000" if ARCH_MSM8960
 	default "0x80200000" if ARCH_MSM8930
-	default "0x00000000" if ARCH_MSM8974
 	default "0x00000000" if ARCH_MPQ8092
 	default "0x00000000" if ARCH_MSM8226
 	default "0x10000000" if ARCH_FSM9XXX
@@ -943,7 +920,7 @@ config PHYS_OFFSET
 config KERNEL_MSM_CONTIG_MEM_REGION
 	bool "Enable in-kernel contiguous memory region"
 	default y if ARCH_MSM8X60
-	depends on ANDROID_PMEM && (ARCH_MSM8X60 || ARCH_MSM8960 || ARCH_MSM8974)
+	depends on ANDROID_PMEM && (ARCH_MSM8X60 || ARCH_MSM8960)
 	help
 	   Enable the in-kernel contiguous memory allocator. Sets up a
 	   region of physically contiguous memory. This memory is
@@ -989,12 +966,6 @@ config MSM_HAS_DEBUG_UART_HS
 	bool
 	help
 	  Say Y here if high speed MSM UART is present.
-
-config MSM_HAS_DEBUG_UART_HS_V14
-	bool
-	select MSM_HAS_DEBUG_UART_HS
-	help
-	  Say Y here if high speed MSM UART v1.4 is present.
 
 config MSM_DEBUG_UART_PHYS
 	hex
@@ -1072,13 +1043,6 @@ choice
 		Say Y here if you want the debug print routines to direct
 		their output to the serial port on IPQ 806x devices.
 
-	config DEBUG_MSM8974_UART
-		bool "Kernel low-level debugging messages via MSM 8974 UART"
-		depends on ARCH_MSM8974
-		select MSM_HAS_DEBUG_UART_HS_V14
-		help
-		  Say Y here if you want the debug print routines to direct
-		  their output to the serial port on MSM 8974 devices.
 endchoice
 
 choice
