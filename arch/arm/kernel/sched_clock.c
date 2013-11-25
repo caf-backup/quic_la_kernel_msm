@@ -26,7 +26,8 @@ struct clock_data {
 
 static void sched_clock_poll(unsigned long wrap_ticks);
 static DEFINE_TIMER(sched_clock_timer, sched_clock_poll, 0, 0);
-static int irqtime = -1;
+/* We want IRQ time accounting enabled by default */
+static int irqtime = 1;
 
 core_param(irqtime, irqtime, int, 0400);
 
