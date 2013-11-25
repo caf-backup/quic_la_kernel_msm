@@ -48,9 +48,6 @@ endif
 # IPQ806x
    zreladdr-$(CONFIG_ARCH_IPQ806X)	:= 0x40808000
 
-# MSM9615
-   zreladdr-$(CONFIG_ARCH_MSM9615)	:= 0x40808000
-
 # MSM9625
    zreladdr-$(CONFIG_ARCH_MSM9625)	:= 0x20208000
 

@@ -1233,7 +1233,6 @@ struct msm_rpm_platform_data {
 
 extern struct msm_rpm_platform_data msm8660_rpm_data;
 extern struct msm_rpm_platform_data msm8960_rpm_data;
-extern struct msm_rpm_platform_data msm9615_rpm_data;
 extern struct msm_rpm_platform_data msm8930_rpm_data;
 extern struct msm_rpm_platform_data msm8930_rpm_data_pm8917;
 extern struct msm_rpm_platform_data apq8064_rpm_data;
