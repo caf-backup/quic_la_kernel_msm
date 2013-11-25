@@ -67,6 +67,25 @@ bool vlan_do_receive(struct sk_buff **skbp, bool last_handler)
 	return true;
 }
 
+/* Update the VLAN device with statistics from network offload engines */
+void __vlan_dev_update_accel_stats(struct net_device *dev, struct rtnl_link_stats64 *nlstats)
+{
+	struct vlan_pcpu_stats *stats;
+
+	if (!is_vlan_dev(dev))
+		return;
+
+	stats = per_cpu_ptr(vlan_dev_priv(dev)->vlan_pcpu_stats, 0);
+
+	u64_stats_update_begin(&stats->syncp);
+	stats->rx_packets += nlstats->rx_packets;
+	stats->rx_bytes += nlstats->rx_bytes;
+	stats->tx_packets += nlstats->tx_packets;
+	stats->tx_bytes += nlstats->tx_bytes;
+	u64_stats_update_end(&stats->syncp);
+}
+EXPORT_SYMBOL(__vlan_dev_update_accel_stats);
+
 /* Must be invoked with rcu_read_lock or with RTNL. */
 struct net_device *__vlan_find_dev_deep(struct net_device *real_dev,
 					u16 vlan_id)

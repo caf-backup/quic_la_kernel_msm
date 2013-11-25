@@ -86,6 +86,8 @@ static inline int is_vlan_dev(struct net_device *dev)
 
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 
+extern void __vlan_dev_update_accel_stats(struct net_device *dev,
+				    struct rtnl_link_stats64 *stats);
 extern struct net_device *__vlan_find_dev_deep(struct net_device *real_dev,
 					       u16 vlan_id);
 extern struct net_device *vlan_dev_real_dev(const struct net_device *dev);
@@ -102,6 +104,12 @@ extern int vlan_vids_add_by_dev(struct net_device *dev,
 extern void vlan_vids_del_by_dev(struct net_device *dev,
 				 const struct net_device *by_dev);
 #else
+static inline void __vlan_dev_update_accel_stats(struct net_device *dev,
+					   struct rtnl_link_stats64 *stats)
+{
+	return;
+}
+
 static inline struct net_device *
 __vlan_find_dev_deep(struct net_device *real_dev, u16 vlan_id)
 {
