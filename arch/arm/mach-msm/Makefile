@@ -64,13 +64,11 @@ obj-$(CONFIG_MSM_IPC_LOGGING) += ipc_logging_debug.o
 endif
 obj-$(CONFIG_MSM_SMD) += smd.o smd_debug.o remote_spinlock.o smd_private.o
 obj-y += socinfo.o
-ifndef CONFIG_ARCH_MSM9615
 ifndef CONFIG_ARCH_APQ8064
 ifndef CONFIG_ARCH_MSM8960
 ifndef CONFIG_ARCH_MSM8X60
 	obj-$(CONFIG_MSM_SMD) += pmic.o
 	obj-$(CONFIG_MSM_ONCRPCROUTER) += rpc_hsusb.o rpc_pmapp.o rpc_fsusb.o
-endif
 endif
 endif
 endif
@@ -136,7 +134,6 @@ ifdef CONFIG_CPU_IDLE
 	obj-$(CONFIG_ARCH_IPQ806X) += cpuidle.o
 	obj-$(CONFIG_ARCH_MSM8960) += cpuidle.o
 	obj-$(CONFIG_ARCH_MSM8X60) += cpuidle.o
-	obj-$(CONFIG_ARCH_MSM9615) += cpuidle.o
 endif
 obj-$(CONFIG_ARCH_FSM9XXX) += clock-local.o
 
@@ -188,12 +185,10 @@ obj-$(CONFIG_MACH_APQ8064_LIQUID) += board-8064-all.o
 obj-$(CONFIG_MACH_MPQ8064_HRD) += board-8064-all.o
 obj-$(CONFIG_ARCH_IPQ806X) += board-ipq806x-all.o board-ipq806x-regulator.o
 obj-$(CONFIG_MACH_MPQ8064_DTV) += board-8064-all.o
-obj-$(CONFIG_ARCH_MSM9615) += clock-local.o clock-rpm.o clock-pll.o
 obj-$(CONFIG_MACH_SAPPHIRE) += board-sapphire.o
 
 
 CFLAGS_msm_vibrator.o += -Idrivers/staging/android
-CFLAGS_board-9615.o += -Idrivers/usb/gadget
 
 
 
@@ -206,7 +201,6 @@ ifdef CONFIG_MSM_RPM
 	obj-$(CONFIG_ARCH_IPQ806X) += rpm_resources.o
 	obj-$(CONFIG_ARCH_MSM8960) += rpm_resources.o
 	obj-$(CONFIG_ARCH_MSM8X60) += rpm_resources.o
-	obj-$(CONFIG_ARCH_MSM9615) += rpm_resources.o
 endif
 obj-$(CONFIG_MSM_MPM) += mpm.o
 obj-$(CONFIG_MSM_RPM_STATS_LOG) += rpm_stats.o rpm_master_stat.o
@@ -226,7 +220,6 @@ obj-$(CONFIG_ARCH_MSM8X60) += gpiomux-8x60.o gpiomux-v2.o gpiomux.o
 obj-$(CONFIG_ARCH_MSM8960) += gpiomux-v2.o gpiomux.o
 obj-$(CONFIG_ARCH_APQ8064) += gpiomux-v2.o gpiomux.o
 obj-$(CONFIG_ARCH_IPQ806X) += gpiomux-v2.o gpiomux.o
-obj-$(CONFIG_ARCH_MSM9615) += gpiomux-v2.o gpiomux.o
 obj-$(CONFIG_ARCH_MSM9625) += gpiomux-v2.o gpiomux.o
 
 

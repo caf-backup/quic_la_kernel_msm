@@ -254,27 +254,6 @@ config ARCH_FSM9XXX
 	select MSM_REMOTE_SPINLOCK_LDREX
 	select MULTI_IRQ_HANDLER
 
-config ARCH_MSM9615
-	bool "MSM9615"
-	select ARM_GIC
-	select GIC_SECURE
-	select ARCH_MSM_CORTEX_A5
-	select CPU_V7
-	select GPIO_MSM_V2
-	select MSM_GPIOMUX
-	select MSM_RPM
-	select MSM_SPM_V2
-	select MSM_NATIVE_RESTART
-	select REGULATOR
-	select MSM_RPM_REGULATOR
-	select MULTI_IRQ_HANDLER
-	select MSM_PM8X60 if PM
-	select MSM_XO
-	select MSM_MULTIMEDIA_USE_ION
-	select MSM_AUDIO_QDSP6 if SND_SOC
-	select FIQ
-	select ARM_HAS_SG_CHAIN
-
 config ARCH_MSM8625
 	bool "MSM8625"
 	select ARCH_MSM_CORTEX_A5
@@ -750,18 +729,6 @@ config MACH_MSM8627_MTP
 	help
 	  Support for the Qualcomm MSM8627 MTP device.
 
-config MACH_MSM9615_CDP
-	depends on ARCH_MSM9615
-	bool "MSM9615 CDP"
-	help
-	  Support for the Qualcomm MSM9615 CDP device.
-
-config MACH_MSM9615_MTP
-	depends on ARCH_MSM9615
-	bool "MSM9615 MTP"
-	help
-	  Support for the Qualcomm MSM9615 MTP device.
-
 config MSM_USE_TSIF1
 	depends on ARCH_MSM8X60
 	bool "MSM8x60 use TSIF1"
@@ -881,7 +848,6 @@ config MSM_STACKED_MEMORY
 
 config PHYS_OFFSET
 	hex
-	default "0x40800000" if ARCH_MSM9615
 	default "0x80200000" if ARCH_APQ8064
 	default "0x40800000" if ARCH_IPQ806X
 	default "0x80200000" if ARCH_MSM8960
@@ -1728,7 +1694,7 @@ config MSM_BUS_RPM_MULTI_TIER_ENABLED
 
 config MSM_WATCHDOG
 	bool "MSM Watchdog Support"
-	depends on ARCH_MSM8X60 || ARCH_MSM8960 || ARCH_MSM9615 || ARCH_FSM9XXX || ARCH_IPQ806X
+	depends on ARCH_MSM8X60 || ARCH_MSM8960 || ARCH_FSM9XXX || ARCH_IPQ806X
 	help
 		This enables the watchdog as is present on 8x60. Currently we use
 		core 0's watchdog, and reset the entire SoC if it times out. It does
@@ -1737,7 +1703,7 @@ config MSM_WATCHDOG
 
 config MSM_DLOAD_MODE
 	bool "Enable download mode on crashes"
-	depends on ARCH_MSM8X60 || ARCH_MSM8960 || ARCH_MSM9615 || ARCH_IPQ806X
+	depends on ARCH_MSM8X60 || ARCH_MSM8960 || ARCH_IPQ806X
 	default n
 	help
 		This makes the SoC enter download mode when it resets

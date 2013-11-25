@@ -1143,11 +1143,6 @@ static int __init msm_rpmrs_l2_init(void)
 		msm_rpmrs_l2_cache.restore = NULL;
 
 		register_hotcpu_notifier(&rpmrs_cpu_notifier);
-
-	} else if (cpu_is_msm9615()) {
-		msm_rpmrs_l2_cache.beyond_limits = NULL;
-		msm_rpmrs_l2_cache.aggregate = NULL;
-		msm_rpmrs_l2_cache.restore = NULL;
 	}
 
 	msm_pm_set_sleep_ops(&msm_rpmrs_ops);

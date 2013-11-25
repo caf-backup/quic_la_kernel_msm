@@ -73,7 +73,7 @@ do { \
 #elif defined(CONFIG_ARCH_APQ8064) || defined(CONFIG_ARCH_MSM7X01A) || \
 	defined(CONFIG_ARCH_MSM7x25) || defined(CONFIG_ARCH_MSM7X27) || \
 	defined(CONFIG_ARCH_MSM7X27A) || defined(CONFIG_ARCH_MSM8960) || \
-	defined(CONFIG_ARCH_MSM9615) || defined(CONFIG_ARCH_QSD8X50) || \
+	defined(CONFIG_ARCH_QSD8X50) || \
 	defined(CONFIG_ARCH_IPQ806X)
 #define TIMESTAMP_ADDR (MSM_TMR_BASE + 0x04)
 #endif
