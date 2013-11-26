@@ -725,8 +725,6 @@ config MACH_MSM_DUMMY
 
 endmenu
 
-source "arch/arm/mach-msm/lge/Kconfig"
-
 config MSM_STACKED_MEMORY
 	bool "Stacked Memory"
 	default y
