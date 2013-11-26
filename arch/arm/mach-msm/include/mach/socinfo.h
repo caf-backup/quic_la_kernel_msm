@@ -33,17 +33,11 @@
 #define SOCINFO_VERSION_MINOR(ver) (ver & 0x0000ffff)
 
 #ifdef CONFIG_OF
-#define early_machine_is_msm9625()	\
-	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,msm9625")
-#define machine_is_msm9625()		\
-	of_machine_is_compatible("qcom,msm9625")
 #define early_machine_is_mpq8092()	\
 	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,mpq8092")
 #define machine_is_mpq8092_sim()           \
 	of_machine_is_compatible("qcom,mpq8092-sim")
 #else
-#define early_machine_is_msm9625()	0
-#define machine_is_msm9625()		0
 #define early_machine_is_mpq8092()	0
 #define machine_is_mpq8092_sim()	0
 #endif
@@ -74,7 +68,6 @@ enum msm_cpu {
 	MSM_CPU_8064AA,
 	MSM_CPU_7X27AA,
 	MSM_CPU_8625,
-	MSM_CPU_9625,
 	MSM_CPU_8092,
 	MSM_CPU_IPQ8062,
 	MSM_CPU_IPQ8064,

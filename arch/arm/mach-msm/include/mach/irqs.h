@@ -59,9 +59,7 @@
 
 #else
 
-#if defined(CONFIG_ARCH_MSM9625)
-#include "irqs-9625.h"
-#elif defined(CONFIG_ARCH_MSM7X30)
+#if defined(CONFIG_ARCH_MSM7X30)
 #include "irqs-7x30.h"
 #elif defined(CONFIG_ARCH_QSD8X50)
 #include "irqs-8x50.h"

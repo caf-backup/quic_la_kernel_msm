@@ -574,10 +574,8 @@ void msm_map_ipq806x_io(void);
 void msm_map_msm7x30_io(void);
 void msm_map_fsm9xxx_io(void);
 void msm_map_msm8625_io(void);
-void msm_map_msm9625_io(void);
 void msm_init_irq(void);
 void vic_handle_irq(struct pt_regs *regs);
-void msm9625_init_gpiomux(void);
 void msm_map_mpq8092_io(void);
 void mpq8092_init_gpiomux(void);
 
