@@ -1485,18 +1485,21 @@ struct msm_pcie_clk_info_t msm_pcie_clk_info[][MSM_PCIE_MAX_CLK] = {
 	{
 		{ NULL, "bus_clk" },
 		{ NULL, "iface_clk" },
+		{ NULL, "aux_clk" },
 		{ NULL, "ref_clk" },
 		{ NULL, "alt_ref_clk" },
 	},
 	{
 		{ NULL, "bus_clk" },
 		{ NULL, "iface_clk" },
+		{ NULL, "aux_clk" },
 		{ NULL, "ref_clk" },
 		{ NULL, "alt_ref_clk" },
 	},
 	{
 		{ NULL, "bus_clk" },
 		{ NULL, "iface_clk" },
+		{ NULL, "aux_clk" },
 		{ NULL, "ref_clk" },
 		{ NULL, "alt_ref_clk" },
 	},

@@ -21,7 +21,7 @@
 #include <mach/msm_pcie.h>
 
 #define MSM_PCIE_MAX_VREG 4
-#define MSM_PCIE_MAX_CLK  4
+#define MSM_PCIE_MAX_CLK  5
 
 #define PCIE_DBG(x...) do {              \
 	if (msm_pcie_get_debug_mask())   \
