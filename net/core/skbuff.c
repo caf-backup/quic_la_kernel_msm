@@ -404,7 +404,9 @@ struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
 		}
 	}
 
-	len = (len <= SKB_RECYCLE_SIZE) ? SKB_RECYCLE_SIZE : len;
+	len = SKB_RECYCLE_SIZE;
+	if (unlikely(length > SKB_RECYCLE_SIZE))
+		len = length;
 	skb = __alloc_skb(len + NET_SKB_PAD, gfp_mask, 0, NUMA_NO_NODE);
 	if (unlikely(skb == NULL))
 		return NULL;
@@ -493,7 +495,10 @@ struct sk_buff *dev_alloc_skb(unsigned int length)
 		}
 	}
 
-	len = (length <= SKB_RECYCLE_SIZE) ? SKB_RECYCLE_SIZE : length;
+	len = SKB_RECYCLE_SIZE;
+	if (unlikely(length > SKB_RECYCLE_SIZE))
+		len = length;
+
 	/*
 	 * There is more code here than it seems:
 	 * __dev_alloc_skb is an inline
@@ -3195,7 +3200,6 @@ void __init skb_init(void)
 	for_each_possible_cpu(cpu) {
 		struct sk_buff_head *h = &per_cpu(recycle_list, cpu);
 		skb_queue_head_init(h);
-		printk(KERN_INFO "Initialized recycle list for cpu %d.\n", cpu);
 	}
 
 	hotcpu_notifier(skb_cpu_callback, 0);
