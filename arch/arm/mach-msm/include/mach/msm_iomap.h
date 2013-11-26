@@ -50,7 +50,6 @@
 
 
 #if defined(CONFIG_ARCH_MSM8960) || defined(CONFIG_ARCH_APQ8064) || \
-	defined(CONFIG_ARCH_MSM8930) || \
 	defined(CONFIG_ARCH_MSM7X27) || \
 	defined(CONFIG_ARCH_MSM7X25) || defined(CONFIG_ARCH_MSM7X01A) || \
 	defined(CONFIG_ARCH_MSM8625) || defined(CONFIG_ARCH_MSM7X30) || \
@@ -122,7 +121,6 @@
 #include "msm_iomap-7x30.h"
 #include "msm_iomap-8625.h"
 #include "msm_iomap-8960.h"
-#include "msm_iomap-8930.h"
 #include "msm_iomap-8064.h"
 #include "msm_iomap-9625.h"
 #include "msm_iomap-ipq806x.h"

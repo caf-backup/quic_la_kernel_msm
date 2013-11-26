@@ -227,17 +227,6 @@ static enum msm_cpu cpu_of_id[] = {
 	/* 8064 IDs */
 	[109] = MSM_CPU_8064,
 
-	/* 8930 IDs */
-	[116] = MSM_CPU_8930,
-	[117] = MSM_CPU_8930,
-	[118] = MSM_CPU_8930,
-	[119] = MSM_CPU_8930,
-	[179] = MSM_CPU_8930,
-
-	/* 8627 IDs */
-	[120] = MSM_CPU_8627,
-	[121] = MSM_CPU_8627,
-
 	/* 8660A ID */
 	[122] = MSM_CPU_8960,
 
@@ -270,25 +259,11 @@ static enum msm_cpu cpu_of_id[] = {
 	[140] = MSM_CPU_8960AB,
 	[141] = MSM_CPU_8960AB,
 
-	/* 8930AA IDs */
-	[142] = MSM_CPU_8930AA,
-	[143] = MSM_CPU_8930AA,
-	[144] = MSM_CPU_8930AA,
-	[160] = MSM_CPU_8930AA,
-	[180] = MSM_CPU_8930AA,
-
 	/* 8092 IDs */
 	[146] = MSM_CPU_8092,
 
 	/* 8064AB IDs */
 	[153] = MSM_CPU_8064AB,
-
-	/* 8930AB IDs */
-	[154] = MSM_CPU_8930AB,
-	[155] = MSM_CPU_8930AB,
-	[156] = MSM_CPU_8930AB,
-	[157] = MSM_CPU_8930AB,
-	[181] = MSM_CPU_8930AB,
 
 	/* 8064AA IDs */
 	[172] = MSM_CPU_8064AA,
@@ -895,9 +870,6 @@ const int read_msm_cpu_type(void)
 	case 0x511F04D0:
 	case 0x512F04D0:
 		return MSM_CPU_8960;
-
-	case 0x51404D11: /* We can't get here unless we are in bringup */
-		return MSM_CPU_8930;
 
 	case 0x510F06F0:
 		return MSM_CPU_8064;

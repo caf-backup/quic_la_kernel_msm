@@ -72,11 +72,7 @@ enum msm_cpu {
 	MSM_CPU_8064,
 	MSM_CPU_8064AB,
 	MSM_CPU_8064AA,
-	MSM_CPU_8930,
-	MSM_CPU_8930AA,
-	MSM_CPU_8930AB,
 	MSM_CPU_7X27AA,
-	MSM_CPU_8627,
 	MSM_CPU_8625,
 	MSM_CPU_9625,
 	MSM_CPU_8092,
@@ -353,43 +349,6 @@ static inline int cpu_is_ipq806x(void)
 #endif
 }
 
-static inline int cpu_is_msm8930(void)
-{
-#ifdef CONFIG_ARCH_MSM8930
-	return read_msm_cpu_type() == MSM_CPU_8930;
-#else
-	return 0;
-#endif
-}
-
-static inline int cpu_is_msm8930aa(void)
-{
-#ifdef CONFIG_ARCH_MSM8930
-	return read_msm_cpu_type() == MSM_CPU_8930AA;
-#else
-	return 0;
-#endif
-}
-
-static inline int cpu_is_msm8930ab(void)
-{
-#ifdef CONFIG_ARCH_MSM8930
-	return read_msm_cpu_type() == MSM_CPU_8930AB;
-#else
-	return 0;
-#endif
-}
-
-static inline int cpu_is_msm8627(void)
-{
-/* 8930 and 8627 will share the same CONFIG_ARCH type unless otherwise needed */
-#ifdef CONFIG_ARCH_MSM8930
-	return read_msm_cpu_type() == MSM_CPU_8627;
-#else
-	return 0;
-#endif
-}
-
 static inline int cpu_is_fsm9xxx(void)
 {
 #ifdef CONFIG_ARCH_FSM9XXX
@@ -428,12 +387,6 @@ static inline int soc_class_is_msm8960(void)
 static inline int soc_class_is_apq8064(void)
 {
 	return cpu_is_apq8064() || cpu_is_apq8064ab() || cpu_is_apq8064aa();
-}
-
-static inline int soc_class_is_msm8930(void)
-{
-	return cpu_is_msm8930() || cpu_is_msm8930aa() || cpu_is_msm8930ab() ||
-	       cpu_is_msm8627();
 }
 
 #endif

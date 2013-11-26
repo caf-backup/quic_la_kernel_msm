@@ -23,14 +23,10 @@
 #include "irqs-8625.h"
 
 #if defined(CONFIG_ARCH_MSM8960) || defined(CONFIG_ARCH_APQ8064) || \
-	defined(CONFIG_ARCH_MSM8930) || defined(CONFIG_ARCH_IPQ806X)
+	defined(CONFIG_ARCH_IPQ806X)
 
 #ifdef CONFIG_ARCH_MSM8960
 #include "irqs-8960.h"
-#endif
-
-#ifdef CONFIG_ARCH_MSM8930
-#include "irqs-8930.h"
 #endif
 
 #ifdef CONFIG_ARCH_APQ8064

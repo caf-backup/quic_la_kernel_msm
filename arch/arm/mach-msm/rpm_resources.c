@@ -1132,7 +1132,7 @@ static struct msm_pm_sleep_ops msm_rpmrs_ops = {
 
 static int __init msm_rpmrs_l2_init(void)
 {
-	if (soc_class_is_msm8960() || soc_class_is_msm8930() ||
+	if (soc_class_is_msm8960() ||
 	    soc_class_is_apq8064() || cpu_is_ipq806x()) {
 
 		msm_pm_set_l2_flush_flag(0);
