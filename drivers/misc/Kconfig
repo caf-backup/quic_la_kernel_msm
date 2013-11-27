@@ -529,12 +529,6 @@ config TSIF_DEBUG
 	---help---
 	  This turns on debugging information for the tsif driver
 
-config BU52031NVX_POUCHDETECT
-	tristate "Cradle BU52031NVX_POUCHDETECT support"
-	depends on BU52031NVX
-	help
-	  depends on BU52031NVX
-
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
@@ -543,6 +537,4 @@ source "drivers/misc/ti-st/Kconfig"
 source "drivers/misc/lis3lv02d/Kconfig"
 source "drivers/misc/carma/Kconfig"
 source "drivers/misc/altera-stapl/Kconfig"
-source "drivers/misc/slimport_anx7808/Kconfig"
-
 endmenu
