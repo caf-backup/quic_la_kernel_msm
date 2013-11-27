@@ -160,10 +160,15 @@ EXPORT_SYMBOL_GPL(ipq_spdif_onetime_cfg);
 
 void ipq_lpaif_spdif_port_en(uint8_t en)
 {
+	uint32_t cfg;
+
+	cfg = readl(ipq_spdif_info.base + LPA_IF_SPDIF_TXP_SEL);
 	if (en == 1)
-		writel(0x1, ipq_spdif_info.base + LPA_IF_SPDIF_TXP_SEL);
+		cfg |= LPA_IF_SPDIF_TXP_PEN;
 	else
-		writel(0x0, ipq_spdif_info.base + LPA_IF_SPDIF_TXP_SEL);
+		cfg &= ~(LPA_IF_SPDIF_TXP_PEN);
+
+	writel(cfg, ipq_spdif_info.base + LPA_IF_SPDIF_TXP_SEL);
 }
 EXPORT_SYMBOL_GPL(ipq_lpaif_spdif_port_en);
 

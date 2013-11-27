@@ -215,7 +215,7 @@
 #define SPDIF_TX_BURST_CTL	0x00C30000
 #define SPDIF_TX_DBG_CRC_CNT	0x00000101
 #define SPDIF_TX_INTR		0x0000007F
-#define SPDIF_TXP_SEL		0x0000000B
+#define SPDIF_TXP_SEL		0x0000000A
 #define SPDIF_INTR_MASK		0x00000083
 
 struct ipq_lpaif_spdif_baseinfo {
