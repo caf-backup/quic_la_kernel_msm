@@ -52,17 +52,13 @@ static int ipq_lpass_spdif_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	ret = ipq_spdif_cfg_freq(freq);
-	if (ret) {
-		dev_err(dai->dev, "%s:%d\n", __func__, __LINE__);
-		return -EINVAL;
-	}
-
 	switch (freq) {
 	case F_22_05_KHZ:
 	case F_32_KHZ:
 	case F_44_1_KHZ:
+	case F_48_KHZ:
 	case F_88_2_KHZ:
+	case F_96_KHZ:
 	case F_176_4_KHZ:
 	case F_192_KHZ:
 		ret = clk_set_rate(spdif_bit_clk, freq);
@@ -505,7 +501,9 @@ static struct snd_soc_dai_driver ipq_cpu_dais[] = {
 			.rates		= SNDRV_PCM_RATE_22050 |
 					SNDRV_PCM_RATE_32000 |
 					SNDRV_PCM_RATE_44100 |
+					SNDRV_PCM_RATE_48000 |
 					SNDRV_PCM_RATE_88200 |
+					SNDRV_PCM_RATE_96000 |
 					SNDRV_PCM_RATE_176400 |
 					SNDRV_PCM_RATE_192000,
 			.formats	= SNDRV_PCM_FMTBIT_S16 |

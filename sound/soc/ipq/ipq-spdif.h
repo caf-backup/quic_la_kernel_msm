@@ -231,7 +231,9 @@ struct ipq_spdif_buf_info {
 enum ipq_spdif_freq {
 	F_22_05_KHZ = 22050,
 	F_44_1_KHZ = 44100,
+	F_48_KHZ = 48000,
 	F_88_2_KHZ = 88200,
+	F_96_KHZ = 96000,
 	F_176_4_KHZ = 176400,
 	F_24_KHZ = 24000,
 	F_192_KHZ = 192000,
