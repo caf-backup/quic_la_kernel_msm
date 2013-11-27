@@ -250,8 +250,29 @@ static int ipq_pcm_spdif_trigger(struct snd_pcm_substream *substream, int cmd)
 static int ipq_pcm_spdif_hw_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *params)
 {
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct ipq_lpass_runtime_data_t *prtd =
+		(struct ipq_lpass_runtime_data_t *)runtime->private_data;
+
 	pr_debug("%s\n", __func__);
+
 	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
+
+	switch (params->reserved[63]) {
+	case SND_AUDIOCODEC_AC3:
+	case SND_AUDIOCODEC_MPEG_1:
+	case SND_AUDIOCODEC_MPEG_2:
+	case SND_AUDIOCODEC_DTS:
+	case SND_AUDIOCODEC_ATRAC:
+	case SND_AUDIOCODEC_ATRAC2:
+	case SND_AUDIOCODEC_LINEAR:
+		prtd->pcm_stream_info.compr_mode = params->reserved[63];
+		break;
+	default:
+		prtd->pcm_stream_info.compr_mode = SND_AUDIOCODEC_LINEAR;
+		break;
+
+	}
 	return 0;
 }
 
@@ -285,6 +306,7 @@ static int ipq_pcm_spdif_open(struct snd_pcm_substream *substream)
 	prtd->pcm_stream_info.pcm_prepare_start = 0;
 	prtd->lpaif_clk.is_bit_clk_enabled = 0;
 	prtd->pcm_stream_info.substream = substream;
+	prtd->pcm_stream_info.compr_mode = SND_AUDIOCODEC_LINEAR;
 	runtime->private_data = prtd;
 
 	return 0;
