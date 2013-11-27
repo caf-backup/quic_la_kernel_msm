@@ -2189,6 +2189,20 @@ static struct branch_clk pcie_p_clk = {
 	},
 };
 
+static struct branch_clk pcie_aux_clk = {
+	.b = {
+		.ctl_reg = PCIE_AUX_CLK_CTL,
+		.en_mask = BIT(4),
+		.halt_reg = CLK_HALT_MSS_SMPSS_MISC_STATE_REG,
+		.halt_bit = 31,
+	},
+	.c = {
+		.dbg_name = "pcie_aux_clk",
+		.ops = &clk_ops_branch,
+		CLK_INIT(pcie_aux_clk.c),
+	},
+};
+
 static struct branch_clk pcie_phy_ref_clk = {
 	.b = {
 		.ctl_reg = PCIE_PCLK_CTL_REG,
@@ -2231,6 +2245,20 @@ static struct branch_clk pcie1_p_clk = {
 	},
 };
 
+static struct branch_clk pcie1_aux_clk = {
+	.b = {
+		.ctl_reg = PCIE_1_AUX_CLK_CTL,
+		.en_mask = BIT(4),
+		.halt_reg = CLK_HALT_MSS_SMPSS_MISC_STATE_REG,
+		.halt_bit = 28,
+	},
+	.c = {
+		.dbg_name = "pcie1_aux_clk",
+		.ops = &clk_ops_branch,
+		CLK_INIT(pcie1_aux_clk.c),
+	},
+};
+
 static struct branch_clk pcie1_phy_ref_clk = {
 	.b = {
 		.ctl_reg = PCIE_1_PCLK_CTL_REG,
@@ -2270,6 +2298,20 @@ static struct branch_clk pcie2_p_clk = {
 		.dbg_name = "pcie2_p_clk",
 		.ops = &clk_ops_branch,
 		CLK_INIT(pcie2_p_clk.c),
+	},
+};
+
+static struct branch_clk pcie2_aux_clk = {
+	.b = {
+		.ctl_reg = PCIE_2_AUX_CLK_CTL,
+		.en_mask = BIT(4),
+		.halt_reg = CLK_HALT_MSS_SMPSS_MISC_STATE_REG,
+		.halt_bit = 25,
+	},
+	.c = {
+		.dbg_name = "pcie2_aux_clk",
+		.ops = &clk_ops_branch,
+		CLK_INIT(pcie2_aux_clk.c),
 	},
 };
 
@@ -2822,12 +2864,15 @@ static struct measure_sel measure_mux[] = {
 	{ TEST_PER_HS(0x18), &sfab_a_clk.c },
 	{ TEST_PER_HS(0x2A), &adm0_clk.c },
 	{ TEST_PER_HS(0x31), &sata_a_clk.c },
+	{ TEST_PER_HS(0x2B), &pcie_aux_clk.c },
 	{ TEST_PER_HS(0x2D), &pcie_phy_ref_clk.c },
 	{ TEST_PER_HS(0x32), &pcie_a_clk.c },
 	{ TEST_PER_HS(0x34), &ebi1_clk.c },
 	{ TEST_PER_HS(0x34), &ebi1_a_clk.c },
 	{ TEST_PER_HS(0x50), &usb_hsic_hsic_clk.c },
+	{ TEST_PER_HS(0x55), &pcie1_aux_clk.c },
 	{ TEST_PER_HS(0x56), &pcie1_phy_ref_clk.c },
+	{ TEST_PER_HS(0x57), &pcie2_aux_clk.c },
 	{ TEST_PER_HS(0x58), &pcie2_phy_ref_clk.c },
 	{ TEST_PER_HS(0x66), &pcie1_a_clk.c },
 	{ TEST_PER_HS(0x67), &pcie2_a_clk.c },
@@ -3434,14 +3479,17 @@ static struct clk_lookup msm_clocks_ipq806x[] = {
 	CLK_LOOKUP("iface_clk",		sdc1_p_clk.c,		"msm_sdcc.1"),
 	CLK_LOOKUP("iface_clk",		sdc3_p_clk.c,		"msm_sdcc.3"),
 	CLK_LOOKUP("iface_clk",		pcie_p_clk.c,		"msm_pcie.0"),
+	CLK_LOOKUP("aux_clk",		pcie_aux_clk.c,	"msm_pcie.0"),
 	CLK_LOOKUP("ref_clk",		pcie_phy_ref_clk.c,	"msm_pcie.0"),
 	CLK_LOOKUP("bus_clk",		pcie_a_clk.c,		"msm_pcie.0"),
 	CLK_LOOKUP("alt_ref_clk",	pcie_src_clk.c,		"msm_pcie.0"),
 	CLK_LOOKUP("iface_clk",		pcie1_p_clk.c,		"msm_pcie.1"),
+	CLK_LOOKUP("aux_clk",		pcie1_aux_clk.c,	"msm_pcie.1"),
 	CLK_LOOKUP("ref_clk",		pcie1_phy_ref_clk.c,	"msm_pcie.1"),
 	CLK_LOOKUP("bus_clk",		pcie1_a_clk.c,		"msm_pcie.1"),
 	CLK_LOOKUP("alt_ref_clk",	pcie1_src_clk.c,	"msm_pcie.1"),
 	CLK_LOOKUP("iface_clk",		pcie2_p_clk.c,		"msm_pcie.2"),
+	CLK_LOOKUP("aux_clk",		pcie2_aux_clk.c,	"msm_pcie.2"),
 	CLK_LOOKUP("ref_clk",		pcie2_phy_ref_clk.c,	"msm_pcie.2"),
 	CLK_LOOKUP("bus_clk",		pcie2_a_clk.c,		"msm_pcie.2"),
 	CLK_LOOKUP("alt_ref_clk",	pcie2_src_clk.c,	"msm_pcie.2"),
@@ -3621,13 +3669,16 @@ static struct clk_lookup msm_clocks_ipq806x_dummy[] = {
 	CLK_DUMMY("ce_pclk",            CE5_P_CLK,              NULL, OFF),
 	CLK_DUMMY("iface_clk",		pcie_p_clk.c,		"msm_pcie.0", OFF),
 	CLK_DUMMY("ref_clk",		pcie_phy_ref_clk.c,	"msm_pcie.0", OFF),
+	CLK_DUMMY("aux_clk",		pcie_aux_clk.c,	    "msm_pcie.0", OFF),
 	CLK_DUMMY("bus_clk",		pcie_a_clk.c,		"msm_pcie.0", OFF),
 	CLK_DUMMY("alt_ref_clk",	pcie_src_clk.c,		"msm_pcie.0", OFF),
 	CLK_DUMMY("iface_clk",		pcie_p_clk.c,		"msm_pcie.1", OFF),
+	CLK_DUMMY("aux_clk",		pcie_aux_clk.c,	    "msm_pcie.1", OFF),
 	CLK_DUMMY("ref_clk",		pcie_phy_ref_clk.c,	"msm_pcie.1", OFF),
 	CLK_DUMMY("bus_clk",		pcie_a_clk.c,		"msm_pcie.1", OFF),
 	CLK_DUMMY("alt_ref_clk",	pcie1_src_clk.c,	"msm_pcie.1", OFF),
 	CLK_DUMMY("iface_clk",		pcie_p_clk.c,		"msm_pcie.2", OFF),
+	CLK_DUMMY("aux_clk",		pcie_aux_clk.c,	    "msm_pcie.2", OFF),
 	CLK_DUMMY("ref_clk",		pcie_phy_ref_clk.c,	"msm_pcie.2", OFF),
 	CLK_DUMMY("bus_clk",		pcie_a_clk.c,		"msm_pcie.2", OFF),
 	CLK_DUMMY("alt_ref_clk",	pcie2_src_clk.c,	"msm_pcie.2", OFF),
