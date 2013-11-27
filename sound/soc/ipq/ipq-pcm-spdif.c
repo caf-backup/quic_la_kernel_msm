@@ -29,6 +29,7 @@
 #include <sound/control.h>
 #include <asm/dma.h>
 #include <linux/memory_alloc.h>
+#include <linux/delay.h>
 
 #include <sound/dai.h>
 
@@ -218,6 +219,9 @@ static int ipq_pcm_spdif_close(struct snd_pcm_substream *substream)
 static int ipq_pcm_spdif_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	int ret = 0;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct ipq_lpass_runtime_data_t *prtd =
+		(struct ipq_lpass_runtime_data_t *)runtime->private_data;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -232,6 +236,11 @@ static int ipq_pcm_spdif_trigger(struct snd_pcm_substream *substream, int cmd)
 		break;
 	default:
 		ret = -EINVAL;
+	}
+
+	if (prtd->pcm_stream_info.pcm_prepare_start == 1) {
+		mdelay(700);
+		prtd->pcm_stream_info.pcm_prepare_start++;
 	}
 	return ret;
 }
