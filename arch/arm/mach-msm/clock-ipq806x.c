@@ -1195,6 +1195,7 @@ static struct clk_freq_tbl clk_tbl_aif_mi2s[] = {
 	F_AIF_MI2S(55296000,	pll4,	4,	9,	16),
 	F_AIF_MI2S(27648000,	pll4,	4,	9,	32),
 	F_AIF_MI2S(6350400,	pll4,	4,	2,	31),
+	F_AIF_MI2S(13824000,	pll4,	4,	1,	7),
 	F_END
 };
 
