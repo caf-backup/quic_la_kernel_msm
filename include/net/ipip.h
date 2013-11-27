@@ -64,4 +64,6 @@ struct ip_tunnel_prl_entry {
 
 #define IPTUNNEL_XMIT() __IPTUNNEL_XMIT(txq, stats)
 
+void ipip6_update_offload_stats(struct net_device *dev, void *ptr);
+void ip6_update_offload_stats(struct net_device *dev, void *ptr);
 #endif

@@ -112,6 +112,19 @@ static struct net_device_stats *ipip6_get_stats(struct net_device *dev)
 	dev->stats.tx_bytes   = sum.tx_bytes;
 	return &dev->stats;
 }
+
+void ipip6_update_offload_stats(struct net_device *dev, void *ptr)
+{
+	struct pcpu_tstats *tstats = per_cpu_ptr(dev->tstats, 0);
+	struct pcpu_tstats *offload_stats = (struct pcpu_tstats *)ptr;
+
+	tstats->tx_packets += offload_stats->tx_packets;
+	tstats->tx_bytes   += offload_stats->tx_bytes;
+	tstats->rx_packets += offload_stats->rx_packets;
+	tstats->rx_bytes   += offload_stats->rx_bytes;
+}
+EXPORT_SYMBOL(ipip6_update_offload_stats);
+
 /*
  * Must be invoked with rcu_read_lock
  */
