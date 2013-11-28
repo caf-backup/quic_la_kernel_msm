@@ -212,11 +212,26 @@
 
 #define SPDIF_FIFO_CTL		0x000000B8
 #define SPDIF_TX_CH_ST		0x00003FDC
-#define SPDIF_TX_BURST_CTL	0x00C30000
 #define SPDIF_TX_DBG_CRC_CNT	0x00000101
 #define SPDIF_TX_INTR		0x0000007F
 #define SPDIF_TXP_SEL		0x0000000A
 #define SPDIF_INTR_MASK		0x00000083
+#define SPDIF_TX_BURST_CTL_LINEAR	0x00C30000
+#define SPDIF_TX_BURST_CTL_NON_LINEAR	0x430021
+
+#define LPA_IF_SPDIF_TX_CHA_STAT_BUF0_VAL		0x02110006
+#define LPA_IF_SPDIF_TX_CHA_STAT_BUF1_VAL		0x2
+#define LPA_IF_SPDIF_TX_CHA_STAT_BUF2_VAL		0x9CA54EA6
+#define LPA_IF_SPDIF_TX_CHA_STAT_BUF3_VAL		0x9F325B41
+#define LPA_IF_SPDIF_TX_CHA_STAT_BUF4_VAL		0x22B783B5
+#define LPA_IF_SPDIF_TX_CHA_STAT_BUF5_VAL		0xF1017648
+
+#define LPA_IF_SPDIF_TX_CHB_STAT_BUF0_VAL		0x02210006
+#define LPA_IF_SPDIF_TX_CHB_STAT_BUF1_VAL		0x00000002
+#define LPA_IF_SPDIF_TX_CHB_STAT_BUF2_VAL		0x75D5E829
+#define LPA_IF_SPDIF_TX_CHB_STAT_BUF3_VAL		0x50A320B2
+#define LPA_IF_SPDIF_TX_CHB_STAT_BUF4_VAL		0xC3C5F68B
+#define LPA_IF_SPDIF_TX_CHB_STAT_BUF5_VAL		0x11DB7E92
 
 struct ipq_lpaif_spdif_baseinfo {
 	void __iomem *base;
@@ -240,11 +255,22 @@ enum ipq_spdif_freq {
 	F_32_KHZ = 32000,
 };
 
+enum ipq_spdif_compr_codec {
+	SND_AUDIOCODEC_LINEAR = 0,
+	SND_AUDIOCODEC_AC3,
+	SND_AUDIOCODEC_MPEG_1,
+	SND_AUDIOCODEC_MPEG_2,
+	SND_AUDIOCODEC_DTS,
+	SND_AUDIOCODEC_ATRAC,
+	SND_AUDIOCODEC_ATRAC2,
+};
+
 extern uint32_t ipq_spdif_cfg_bit_width(uint32_t bitwidth);
 extern uint32_t ipq_spdif_cfg_freq(uint32_t freq);
 extern void ipq_cfg_spdif_rate(uint32_t rate);
 extern void ipq_spdif_onetime_cfg(void);
 extern dma_addr_t ipq_spdif_set_params(dma_addr_t frame_buf_ptr);
 extern void ipq_cfg_spdif_hwparams(int bit_width);
+extern int ipq_spdif_cfg_compr_mode(uint32_t compr_mode);
 
 #endif /* _IPQ_SPDIF_H */

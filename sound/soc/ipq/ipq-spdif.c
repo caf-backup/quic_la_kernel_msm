@@ -111,9 +111,6 @@ void ipq_spdif_onetime_cfg(void)
 	writel(SPDIF_FIFO_CTL, (ipq_spdif_info.base + LPA_IF_SPDIF_FIFO_CNTL));
 	writel(SPDIF_TX_CH_ST, (ipq_spdif_info.base + LPA_IF_SPDIF_TX_CH_STAT));
 
-	/* Burst ctrl */
-	writel(SPDIF_TX_BURST_CTL,
-		(ipq_spdif_info.base + LPA_IF_SPDIF_TX_BURST_CNTL));
 	writel(0x0, (ipq_spdif_info.base + LPA_IF_SPDIF_TX_BURST_MISC));
 	writel(SPDIF_TX_DBG_CRC_CNT,
 		(ipq_spdif_info.base + LPA_IF_SPDIF_TX_DEBUG_CRC_COUNT));
@@ -121,6 +118,79 @@ void ipq_spdif_onetime_cfg(void)
 	writel(SPDIF_TX_INTR, (ipq_spdif_info.base + LPA_IF_SPDIF_TX_INT_STAT));
 }
 EXPORT_SYMBOL_GPL(ipq_spdif_onetime_cfg);
+
+int ipq_spdif_cfg_compr_mode(uint32_t compr_mode)
+{
+	switch (compr_mode) {
+	case SND_AUDIOCODEC_AC3:
+	case SND_AUDIOCODEC_MPEG_1:
+	case SND_AUDIOCODEC_MPEG_2:
+	case SND_AUDIOCODEC_DTS:
+	case SND_AUDIOCODEC_ATRAC:
+	case SND_AUDIOCODEC_ATRAC2:
+		/* Values to be set for compressed mode */
+		writel(LPA_IF_SPDIF_TX_CHA_STAT_BUF0_VAL,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHA_STAT_BUF0));
+		writel(LPA_IF_SPDIF_TX_CHA_STAT_BUF1_VAL,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHA_STAT_BUF1));
+		writel(LPA_IF_SPDIF_TX_CHA_STAT_BUF2_VAL,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHA_STAT_BUF2));
+		writel(LPA_IF_SPDIF_TX_CHA_STAT_BUF3_VAL,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHA_STAT_BUF3));
+		writel(LPA_IF_SPDIF_TX_CHA_STAT_BUF4_VAL,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHA_STAT_BUF4));
+		writel(LPA_IF_SPDIF_TX_CHA_STAT_BUF5_VAL,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHA_STAT_BUF5));
+		writel(LPA_IF_SPDIF_TX_CHB_STAT_BUF0_VAL,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHB_STAT_BUF0));
+		writel(LPA_IF_SPDIF_TX_CHB_STAT_BUF1_VAL,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHB_STAT_BUF1));
+		writel(LPA_IF_SPDIF_TX_CHB_STAT_BUF2_VAL,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHB_STAT_BUF2));
+		writel(LPA_IF_SPDIF_TX_CHB_STAT_BUF3_VAL,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHB_STAT_BUF3));
+		writel(LPA_IF_SPDIF_TX_CHB_STAT_BUF4_VAL,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHB_STAT_BUF4));
+		writel(LPA_IF_SPDIF_TX_CHB_STAT_BUF5_VAL,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHB_STAT_BUF5));
+		writel(SPDIF_TX_BURST_CTL_NON_LINEAR,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_BURST_CNTL));
+		break;
+	case SND_AUDIOCODEC_LINEAR:
+		writel(0x0,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHA_STAT_BUF0));
+		writel(0x0,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHA_STAT_BUF1));
+		writel(0x0,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHA_STAT_BUF2));
+		writel(0x0,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHA_STAT_BUF3));
+		writel(0x0,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHA_STAT_BUF4));
+		writel(0x0,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHA_STAT_BUF5));
+		writel(0x0,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHB_STAT_BUF0));
+		writel(0x0,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHB_STAT_BUF1));
+		writel(0x0,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHB_STAT_BUF2));
+		writel(0x0,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHB_STAT_BUF3));
+		writel(0x0,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHB_STAT_BUF4));
+		writel(0x0,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHB_STAT_BUF5));
+		/* Burst ctrl */
+		writel(SPDIF_TX_BURST_CTL_LINEAR,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_BURST_CNTL));
+		break;
+
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ipq_spdif_cfg_compr_mode);
 
 void ipq_lpaif_spdif_port_en(uint8_t en)
 {

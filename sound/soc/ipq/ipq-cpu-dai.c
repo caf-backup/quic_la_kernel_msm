@@ -88,7 +88,13 @@ static int ipq_lpass_spdif_hw_params(struct snd_pcm_substream *substream,
 static int ipq_lpass_spdif_prepare(struct snd_pcm_substream *substream,
 					struct snd_soc_dai *dai)
 {
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct ipq_lpass_runtime_data_t *prtd =
+	(struct ipq_lpass_runtime_data_t *)runtime->private_data;
+
 	dev_dbg(dai->dev, "%s:%d\n", __func__, __LINE__);
+	ipq_spdif_cfg_compr_mode(prtd->pcm_stream_info.compr_mode);
+
 	return 0;
 }
 static int ipq_lpass_spdif_startup(struct snd_pcm_substream *substream,
