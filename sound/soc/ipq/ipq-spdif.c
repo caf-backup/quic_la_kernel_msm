@@ -100,42 +100,6 @@ uint32_t ipq_spdif_cfg_bit_width(uint32_t bit_width)
 }
 EXPORT_SYMBOL_GPL(ipq_spdif_cfg_bit_width);
 
-uint32_t ipq_spdif_cfg_freq(uint32_t freq)
-{
-	uint32_t cfg = readl(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CH_STAT);
-	cfg &= ~(LPA_IF_SPDIF_TX_CH_STAT_F_MASK);
-	switch (freq) {
-	case F_22_05_KHZ:
-		cfg |= LPA_IF_SPDIF_TX_CH_STAT_F_22_05KHZ;
-		break;
-	case F_44_1_KHZ:
-		cfg |= LPA_IF_SPDIF_TX_CH_STAT_F_44_1KHZ;
-		break;
-	case F_88_2_KHZ:
-		cfg |= LPA_IF_SPDIF_TX_CH_STAT_F_88_2KHZ;
-		break;
-	case F_176_4_KHZ:
-		cfg |= LPA_IF_SPDIF_TX_CH_STAT_F_176_4KHZ;
-		break;
-	case F_24_KHZ:
-		cfg |= LPA_IF_SPDIF_TX_CH_STAT_F_24KHZ;
-		break;
-	case F_192_KHZ:
-		cfg |= LPA_IF_SPDIF_TX_CH_STAT_F_192KHZ;
-		break;
-	case F_32_KHZ:
-		cfg |= LPA_IF_SPDIF_TX_CH_STAT_F_32KHZ;
-		break;
-	default:
-		return -EINVAL;
-	}
-	writel(cfg, ipq_spdif_info.base + LPA_IF_SPDIF_TX_CH_STAT);
-
-	return 0;
-}
-
-EXPORT_SYMBOL_GPL(ipq_spdif_cfg_freq);
-
 void ipq_spdif_onetime_cfg(void)
 {
 	/* Frame Size in cfg*/
