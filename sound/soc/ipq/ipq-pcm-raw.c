@@ -47,6 +47,10 @@ static int tx_at = 0;
 static int rx_at = 0;
 static struct dai_dma_params tx_dma_params;
 static struct dai_dma_params rx_dma_params;
+static int rx_waiting;
+
+extern void pcm_test_init(void);
+extern void pcm_test_exit(void);
 
 static irqreturn_t pcm_irq_handler(int intrsrc, void *data)
 {
@@ -56,7 +60,9 @@ static irqreturn_t pcm_irq_handler(int intrsrc, void *data)
 		spin_lock_irqsave(&pcm_lock, flag);
 		rx_at = !rx_at;
 		spin_unlock_irqrestore(&pcm_lock, flag);
-		context.rd_pending += VOICE_PERIOD_SIZE;
+		/* read can be made pending only if upper layer is waiting */
+		context.rd_pending += (VOICE_PERIOD_SIZE * rx_waiting);
+		/* wakeup upper layer if its already waiting */
 		wake_up_interruptible(&pcm_q);
 		ret = IRQ_HANDLED;
 	}
@@ -170,6 +176,7 @@ void ipq_pcm_deinit(void)
 {
 	context.needs_deinit = 0;
 	clk_reset(lpaif_pcm_bit_clk, LPAIF_PCM_ASSERT);
+	clk_disable_unprepare(lpaif_pcm_bit_clk);
 	ipq_pcm_int_disable(PCM0_DMA_WR_CH);
 	ipq_pcm_int_disable(PCM0_DMA_RD_CH);
 	ipq_lpaif_unregister_dma_irq_handler(PCM0_DMA_WR_CH);
@@ -183,7 +190,8 @@ EXPORT_SYMBOL_GPL(ipq_pcm_deinit);
 uint32_t ipq_pcm_rx(char **rx_buf)
 {
 	unsigned long flag;
-
+	/* wait for data and let IRQ handler know we are waiting */
+	rx_waiting = 1;
 	wait_event_interruptible(pcm_q, context.rd_pending != 0);
 
 	spin_lock_irqsave(&pcm_lock, flag);
@@ -312,11 +320,14 @@ static int __init ipq_lpass_d2_pcm_init(void)
 		pr_err("%s: Failed to register VoIP platform driver\n",
 				__func__);
 	}
+
+	pcm_test_init();
 	return ret;
 }
 
 static void __exit ipq_lpass_d2_pcm_exit(void)
 {
+	pcm_test_exit();
 	if (context.needs_deinit)
 		ipq_pcm_deinit();
 

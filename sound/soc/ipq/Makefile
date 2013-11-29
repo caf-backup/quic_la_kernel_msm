@@ -2,7 +2,7 @@
 
 snd-soc-ipq806x-objs := ipq806x.o
 snd-soc-ipq806x-clk-objs := ipq-lpass-clk.o
-snd-soc-ipq-pcm-raw-objs := ipq-pcm-raw.o
+snd-soc-ipq-pcm-raw-objs := ipq-pcm-raw.o ipq-pcm-raw-lb-test.o
 snd-soc-ipq-pcm-mi2s-objs := ipq-pcm-mi2s.o
 snd-soc-ipq-pcm-spdif-objs := ipq-pcm-spdif.o
 snd-soc-ipq-pcm-voip-objs := ipq-pcm-voip.o
