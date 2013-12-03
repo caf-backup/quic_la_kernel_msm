@@ -41,6 +41,7 @@ extern uint32_t ipq_pcm_rx(char **rx_buf);
 extern unsigned char * ipq_pcm_tx(void);
 static void pcm_start_test(void);
 
+#define LOOPBACK_SKIP_COUNT		10
 #define DEFINE_INTEGER_ATTR(name)					\
 static unsigned short name;						\
 									\
@@ -159,21 +160,25 @@ void process_read(void)
 	char data;
 
 	ctx.read_count ++;
-	if (ctx.read_count  <= 4) {
+	if (ctx.read_count  <= LOOPBACK_SKIP_COUNT) {
 		/*
 		 * As soon as do pcm init, the DMA would start. So the initial
 		 * few rw till the 1st Rx is called will be 0's, so we skip
-		 * 4 reads so that our loopback settles down.
+		 * 10 reads so that our loopback settles down.
 		 * Note: our 1st loopback Tx is only after an RX is called.
 		 */
 		return;
-	} else if (ctx.read_count == 5) {
+	} else if (ctx.read_count == (LOOPBACK_SKIP_COUNT + 1)) {
 		/*
 		 * our loopback should have settled, so start looking for the
 		 * sequence from here.
 		 */
 		ctx.expected_rx_seq = ctx.last_rx_buff[0];
 	}
+
+	/* get out if test stopped */
+	if (start == 0)
+		return;
 
 	data = ctx.expected_rx_seq;
 	for (index = 0; index < VOICE_PERIOD_SIZE; index++) {
@@ -217,11 +222,8 @@ int pcm_test_rw(void *data)
 		pcm_read();
 		pcm_write();
 		process_read();
-		if (kthread_should_stop()) {
-			printk("%s : Test Thread stopped\n", __func__);
-			break;
-		}
 	}
+	printk("%s : Test Thread stopped\n", __func__);
 	printk("\nPassed : %d, Failed : %d\n", ctx.passed, ctx.failed);
 	pcm_deinit();
 	return 0;
@@ -239,7 +241,8 @@ static void pcm_start_test(void)
 		if (ctx.running) {
 			printk("%s : Stopping test\n", __func__);
 			ctx.running = 0;
-			kthread_stop(ctx.task);
+			/* wait sufficient time for test thread to finish */
+			mdelay(2000);
 		} else
 			printk("%s : Test already stopped\n", __func__);
 	}
@@ -254,7 +257,9 @@ int pcm_test_init(void)
 void pcm_test_exit(void)
 {
 	pcm_lb_sysfs_deinit();
-	if (ctx.running)
-		kthread_stop(ctx.task);
+	if (ctx.running) {
+		ctx.running = 0;
+		/* wait sufficient time for test thread to finish */
+		mdelay(2000);
+	}
 }
-
