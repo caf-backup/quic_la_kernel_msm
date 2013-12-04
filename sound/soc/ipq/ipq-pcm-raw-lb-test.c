@@ -196,8 +196,21 @@ void process_read(void)
 
 int pcm_test_rw(void *data)
 {
+	struct sched_param param;
+	int ret;
 	printk("%s : Test thread started\n", __func__);
 	ctx.running = 1;
+
+	/*
+	 * set test thread priority as 90, this is to align with what
+	 * D2 VOIP stack does.
+	 */
+
+	param.sched_priority = 90;
+	ret = sched_setscheduler(ctx.task, SCHED_FIFO, &param);
+	if (ret)
+		printk("%s : Error setting priority, error: %d\n", __func__, ret);
+
 	pcm_init();
 
 	while (ctx.running) {
