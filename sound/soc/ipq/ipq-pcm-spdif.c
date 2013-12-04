@@ -74,7 +74,7 @@ static struct snd_pcm_hardware ipq_pcm_hardware_playback = {
 				SNDRV_PCM_RATE_192000,
 	.rate_min =		22050,
 	.rate_max =		192000,
-	.channels_min =		1,
+	.channels_min =		2,
 	.channels_max =		8,
 	.buffer_bytes_max =	SPDIF_BUF_MAX_BYTES,
 	.period_bytes_min =	760,

@@ -498,7 +498,7 @@ static struct snd_soc_dai_driver ipq_cpu_dais[] = {
 			.formats	= SNDRV_PCM_FMTBIT_S16 |
 					SNDRV_PCM_FMTBIT_S24 |
 					SNDRV_PCM_FMTBIT_S32,
-			.channels_min	= 1,
+			.channels_min	= 2,
 			.channels_max	= 8,
 			.rate_min	= 8000,
 			.rate_max	= 192000,
@@ -519,7 +519,7 @@ static struct snd_soc_dai_driver ipq_cpu_dais[] = {
 			.formats	= SNDRV_PCM_FMTBIT_S16 |
 					SNDRV_PCM_FMTBIT_S24_3LE |
 					SNDRV_PCM_FMTBIT_S24,
-			.channels_min	= 1,
+			.channels_min	= 2,
 			.channels_max	= 8,
 			.rate_min	= 22050,
 			.rate_max	= 192000,

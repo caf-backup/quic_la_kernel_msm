@@ -52,7 +52,7 @@ static struct snd_soc_dai_driver lpass_codec_dai[] = {
 		.name = "ipq-mi2s-codec-dai",
 		.playback = {
 			.stream_name = "lpass-mi2s-playback",
-			.channels_min = 1,
+			.channels_min = 2,
 			.channels_max = 8,
 			.rates = SNDRV_PCM_RATE_8000_192000,
 			.formats = SNDRV_PCM_FMTBIT_S16 |
@@ -64,7 +64,7 @@ static struct snd_soc_dai_driver lpass_codec_dai[] = {
 		.name = "ipq-spdif-codec-dai",
 		.playback = {
 			.stream_name = "lpass-spdif-playback",
-			.channels_min = 1,
+			.channels_min = 2,
 			.channels_max = 8,
 			.rates = SNDRV_PCM_RATE_22050 |
 				SNDRV_PCM_RATE_32000 |

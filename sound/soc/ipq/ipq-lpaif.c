@@ -236,7 +236,6 @@ int ipq_cfg_mi2s_hwparams_channels(uint32_t channels, uint32_t off,
 	cfg &= ~(LPA_IF_SPK_MODE_MASK);
 
 	switch (channels) {
-	case IPQ_CHANNEL_MONO:
 	case IPQ_CHANNELS_STEREO:
 		cfg |= LPA_IF_SPK_MODE_SD0;
 		break;
