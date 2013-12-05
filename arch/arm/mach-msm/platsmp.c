@@ -98,16 +98,6 @@ static int __cpuinit scorpion_release_secondary(void)
 	return 0;
 }
 
-static int __cpuinit krait_release_secondary_sim(unsigned long base, int cpu)
-{
-	void *base_ptr = ioremap_nocache(base + (cpu * 0x10000), SZ_4K);
-	if (!base_ptr)
-		return -ENODEV;
-
-	iounmap(base_ptr);
-	return 0;
-}
-
 static int __cpuinit krait_release_secondary(unsigned long base, int cpu)
 {
 	void *base_ptr = ioremap_nocache(base + (cpu * 0x10000), SZ_4K);
@@ -134,31 +124,6 @@ static int __cpuinit krait_release_secondary(unsigned long base, int cpu)
 	udelay(100);
 
 	writel_relaxed(0x180, base_ptr+0x04);
-	mb();
-	iounmap(base_ptr);
-	return 0;
-}
-
-static int __cpuinit krait_release_secondary_p3(unsigned long base, int cpu)
-{
-	void *base_ptr = ioremap_nocache(base + (cpu * 0x10000), SZ_4K);
-	if (!base_ptr)
-		return -ENODEV;
-
-	secondary_cpu_hs_init(base_ptr);
-
-	writel_relaxed(0x021, base_ptr+0x04);
-	mb();
-	udelay(2);
-
-	writel_relaxed(0x020, base_ptr+0x04);
-	mb();
-	udelay(2);
-
-	writel_relaxed(0x000, base_ptr+0x04);
-	mb();
-
-	writel_relaxed(0x080, base_ptr+0x04);
 	mb();
 	iounmap(base_ptr);
 	return 0;
