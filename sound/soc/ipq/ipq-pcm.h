@@ -15,8 +15,6 @@
 #ifndef _IPQ_PCM_H
 #define _IPQ_PCM_H
 
-#define IPQ_PERIOD_MIN_SIZE	8184
-
 /* 8 bit 2 channel configuration */
 #define CHANNEL_BIT_WIDTH       16
 #define NUM_PCM_SLOTS           8
@@ -82,6 +80,7 @@ struct ipq_dml_t {
 	dma_addr_t dml_dst_addr;
 	ssize_t dml_transfer_size;
 	uint32_t lpm_period_size;
+	uint32_t lpm_periods;
 };
 
 struct ipq_lpa_if_t {

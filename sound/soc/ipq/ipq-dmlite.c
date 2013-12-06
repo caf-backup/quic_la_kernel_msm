@@ -77,7 +77,8 @@ static irqreturn_t ipq_dml_intr_handler(int irq, void *dev_id)
 
 		if (gprtd->dml_info.dml_src_addr >=
 		(gprtd->dml_info.dml_start_addr +
-		(gprtd->dml_info.lpm_period_size * 4)))
+		(gprtd->dml_info.lpm_period_size *
+			gprtd->dml_info.lpm_periods)))
 			gprtd->dml_info.dml_src_addr =
 			gprtd->dml_info.dml_start_addr;
 

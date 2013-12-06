@@ -34,6 +34,7 @@
 #include "ipq-lpaif.h"
 #include "ipq-dmlite.h"
 #include "ipq-pcm.h"
+#include "ipq806x.h"
 
 extern struct lpass_dml_baseinfo dml_info;
 extern struct ipq_lpass_runtime_data_t *gprtd;
@@ -49,16 +50,16 @@ static struct snd_pcm_hardware ipq_pcm_hardware_playback = {
 					SNDRV_PCM_FMTBIT_S24 |
 					SNDRV_PCM_FMTBIT_S32,
 	.rates			=	SNDRV_PCM_RATE_8000_192000,
-	.rate_min		=	8000,
-	.rate_max		=	192000,
-	.channels_min		=	2,
-	.channels_max		=	8,
-	.buffer_bytes_max	=	IPQ_LPM_PERIOD_SIZE * 4,
-	.period_bytes_max	=	(IPQ_LPM_PERIOD_SIZE * 4) / 2,
-	.period_bytes_min	=	IPQ_PERIOD_MIN_SIZE,
-	.periods_min		=	4,
-	.periods_max		=	512,
-	.fifo_size		=	32,
+	.rate_min		=	FREQ_8000,
+	.rate_max		=	FREQ_192000,
+	.channels_min		=	LPASS_STEREO,
+	.channels_max		=	LPASS_7_1,
+	.buffer_bytes_max	=	LPASS_MI2S_BUFF_SIZE,
+	.period_bytes_max	=	(LPASS_MI2S_BUFF_SIZE) / 2,
+	.period_bytes_min	=	LPASS_MI2S_PERIOD_BYTES_MIN,
+	.periods_min		=	LPASS_MI2S_BUFF_SIZE / LPASS_MI2S_PERIOD_BYTES_MIN,
+	.periods_max		=	LPASS_MI2S_BUFF_SIZE / LPASS_MI2S_PERIOD_BYTES_MIN,
+	.fifo_size		=	0,
 };
 
 static int ipq_pcm_preallocate_dma_buffer(struct snd_pcm *pcm,
@@ -114,14 +115,6 @@ static irqreturn_t ipq_mi2s_irq(int intrsrc, void *data)
 	if (pending & PER_CH(dma_ch)) {
 		if (++prtd->pcm_stream_info.period_index >= runtime->periods)
 			prtd->pcm_stream_info.period_index = 0;
-
-		writel(prtd->dml_info.dml_src_addr, (dml_info.base + DML_SRC));
-		writel(prtd->dml_info.dml_dst_addr, (dml_info.base + DML_DST));
-		writel(((prtd->dml_info.dml_transfer_size - 1)),
-					(dml_info.base + DML_TRAN));
-		writel(0x1, dml_info.base+DML_STATUS);
-		writel(0x1, (dml_info.base + DML_CTL));
-
 		snd_pcm_period_elapsed(substream);
 		pending &= ~PER_CH(dma_ch);
 		ret = IRQ_HANDLED;
@@ -184,16 +177,11 @@ static int ipq_pcm_mi2s_prepare(struct snd_pcm_substream *substream)
 	if (prtd->pcm_stream_info.pcm_prepare_start)
 		return 0;
 
-	prtd->dml_info.lpm_period_size =
-		frames_to_bytes(runtime, runtime->period_size);
-	prtd->dml_info.dml_start_addr = runtime->dma_addr;
-	prtd->dml_info.dml_transfer_size = prtd->dml_info.lpm_period_size;
 	prtd->pcm_stream_info.pcm_prepare_start = 1;
 	prtd->lpaif_info.lpa_if_dma_start = 0;
-	prtd->dml_info.dml_dma_started  = 0;
-	dma_params.src_start = IPQ_LPM_START;
-	dma_params.buffer_size = (prtd->dml_info.lpm_period_size * 2);
-	dma_params.period_size = prtd->dml_info.lpm_period_size;
+	dma_params.src_start = runtime->dma_addr;
+	dma_params.buffer_size = snd_pcm_lib_buffer_bytes(substream);
+	dma_params.period_size = snd_pcm_lib_period_bytes(substream);
 	dma_params.channels = runtime->channels;
 	ret = ipq_lpaif_cfg_dma(prtd->lpaif_info.dma_ch, &dma_params,
 					prtd->pcm_stream_info.bit_width,
@@ -210,12 +198,10 @@ static int ipq_pcm_mi2s_prepare(struct snd_pcm_substream *substream)
 static int ipq_pcm_mi2s_close(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-
 	struct ipq_lpass_runtime_data_t *prtd =
 		(struct ipq_lpass_runtime_data_t *)runtime->private_data;
 
 	ipq_lpaif_dai_stop(prtd->lpaif_info.dma_ch);
-	prtd->pcm_stream_info.pcm_fwd_flag = 0;
 
 	if (prtd) {
 		ipq_lpaif_unregister_dma_irq_handler(prtd->lpaif_info.dma_ch);
@@ -235,21 +221,13 @@ static int ipq_pcm_mi2s_trigger(struct snd_pcm_substream *substream, int cmd)
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
-		if (prtd->pcm_stream_info.pcm_fwd_flag == 0) {
-			ipq_dml_trigger((unsigned long)substream);
-			prtd->pcm_stream_info.pcm_fwd_flag = 1;
-		} else {
-			ipq_cfg_i2s_spkr(1, 0, LPA_IF_MI2S);
-		}
+		ipq_cfg_i2s_spkr(1, 0, LPA_IF_MI2S);
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		ipq_cfg_i2s_spkr(1, 0, LPA_IF_MI2S);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
-		/* Disable DML interrupts before lpaif_stop */
-		writel(0x1, dml_info.base + DML_STATUS);
-		writel(0x0, (dml_info.base + DML_CTL));
 		ipq_cfg_i2s_spkr(0, 0, LPA_IF_MI2S);
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
@@ -265,8 +243,13 @@ static int ipq_pcm_mi2s_trigger(struct snd_pcm_substream *substream, int cmd)
 static int ipq_pcm_mi2s_hw_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *params)
 {
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct ipq_lpass_runtime_data_t *prtd =
+		(struct ipq_lpass_runtime_data_t *)runtime->private_data;
+
 	pr_debug("%s %d\n", __func__, __LINE__);
 	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
+	prtd->pcm_stream_info.pcm_prepare_start = 0;
 	return 0;
 }
 
@@ -301,7 +284,6 @@ static int ipq_pcm_mi2s_open(struct snd_pcm_substream *substream)
 	prtd->lpaif_clk.is_osr_clk_enabled = 0;
 	prtd->lpaif_info.dma_ch = MI2S_DMA_RD_CH;
 	prtd->pcm_stream_info.substream = substream;
-	prtd->pcm_stream_info.pcm_fwd_flag = 0;
 	runtime->private_data = prtd;
 	gprtd = prtd;
 

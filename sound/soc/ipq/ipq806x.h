@@ -261,4 +261,13 @@ struct lpass_clk_baseinfo {
 /* SPDIF GPIO */
 #define GPIO_SPDIF	10
 
+/* Supported Channels */
+#define LPASS_STEREO	2
+#define LPASS_5_1	6
+#define LPASS_7_1	8
+
+/* MI2S Hw params */
+#define LPASS_MI2S_BUFF_SIZE		(1024*1024)
+#define LPASS_MI2S_PERIOD_BYTES_MIN	8184
+
 #endif /* _IPQ806x_H */

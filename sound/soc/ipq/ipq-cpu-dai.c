@@ -498,10 +498,10 @@ static struct snd_soc_dai_driver ipq_cpu_dais[] = {
 			.formats	= SNDRV_PCM_FMTBIT_S16 |
 					SNDRV_PCM_FMTBIT_S24 |
 					SNDRV_PCM_FMTBIT_S32,
-			.channels_min	= 2,
-			.channels_max	= 8,
-			.rate_min	= 8000,
-			.rate_max	= 192000,
+			.channels_min	= LPASS_STEREO,
+			.channels_max	= LPASS_7_1,
+			.rate_min	= FREQ_8000,
+			.rate_max	= FREQ_192000,
 		},
 		.ops    = &ipq_lpass_mi2s_ops,
 		.name = "ipq-mi2s-dai"
@@ -519,10 +519,10 @@ static struct snd_soc_dai_driver ipq_cpu_dais[] = {
 			.formats	= SNDRV_PCM_FMTBIT_S16 |
 					SNDRV_PCM_FMTBIT_S24_3LE |
 					SNDRV_PCM_FMTBIT_S24,
-			.channels_min	= 2,
-			.channels_max	= 8,
-			.rate_min	= 22050,
-			.rate_max	= 192000,
+			.channels_min	= LPASS_STEREO,
+			.channels_max	= LPASS_7_1,
+			.rate_min	= FREQ_22050,
+			.rate_max	= FREQ_192000,
 		},
 		.ops    = &ipq_lpass_spdif_ops,
 		.name = "ipq-spdif-dai"
