@@ -24,7 +24,66 @@ if CORESIGHT
 config HAVE_CORESIGHT_SINK
 	bool
 
+config CORESIGHT_CSR
+	bool "CoreSight Slave Register driver"
+	help
+	  This driver provides support for CoreSight Slave Register block
+	  that hosts miscellaneous configuration registers.
+
+config CORESIGHT_TMC
+	bool "CoreSight Trace Memory Controller driver"
+	select CORESIGHT_CSR
+	select HAVE_CORESIGHT_SINK
+	help
+	  This driver provides support for Trace Memory Controller which
+	  can be configured as either an ETB (Embedded Trace Buffer),
+	  ETR (Embedded Trace Router) or ETF (Embedded Trace Fifo). It acts
+	  as sink when configured as ETB, ETR or ETF in circular buffer mode
+	  whereas it is a link when configured as ETF in hardware fifo mode.
+
+	  ETB collects trace data in a circular buffer whereas ETR can be
+	  used to route trace data to memory allocated in RAM. ETF in
+	  circular buffer mode is like an ETB whereas in hardware fifo mode
+	  it is a fifo link.
+
+config CORESIGHT_TPIU
+	bool "CoreSight Trace Port Interface Unit driver"
+	select HAVE_CORESIGHT_SINK
+	help
+	  This driver provides support for Trace Port Interface Unit which
+	  acts as a conduit for offchip trace collection.
+
+config CORESIGHT_ETB
+	bool "CoreSight Embedded Trace Buffer driver"
+	select HAVE_CORESIGHT_SINK
+	help
+	  This driver provides support for the legacy Embedded Trace Buffer
+	  which is a circular buffer.
+
 if HAVE_CORESIGHT_SINK
+
+config CORESIGHT_FUNNEL
+	bool "CoreSight Funnel driver"
+	help
+	  This driver provides support for Funnel which is a link that
+	  typically has multiple input ports and a single output port. Input
+	  trace data streams from the input ports are interleaved into a
+	  single output trace data stream coming out of the output port.
+
+config CORESIGHT_REPLICATOR
+	bool "CoreSight Replicator driver"
+	help
+	  This driver provides support for Replicator that typically has
+	  a single input port and two output ports. Single trace data
+	  stream on the input port is replicated to produce two identical
+	  trace data output streams coming out of the two output ports.
+
+config CORESIGHT_STM
+	bool "CoreSight System Trace Macrocell driver"
+	help
+	  This driver provides support for hardware assisted software
+	  instrumentation based tracing. This is primarily useful for
+	  logging useful software events or data.
 
 config CORESIGHT_STM_DEFAULT_ENABLE
 	bool "Turn on STM tracing by default"
@@ -36,6 +95,13 @@ config CORESIGHT_STM_DEFAULT_ENABLE
 
 	  If unsure, say 'N' here to avoid potential power and performance
 	  penalty.
+
+config CORESIGHT_ETM
+	bool "CoreSight Embedded Trace Macrocell driver"
+	help
+	  This driver provides support for processor tracing which allows
+	  tracing the instructions that the processor is executing. This is
+	  primarily useful for instruction level tracing.
 
 config CORESIGHT_ETM_DEFAULT_ENABLE
 	bool "Turn on ETM tracing by default"
@@ -58,4 +124,12 @@ config CORESIGHT_ETM_PCSAVE_DEFAULT_ENABLE
 	  If unsure, say 'N' here to avoid potential power penalty.
 
 endif
+
+config CORESIGHT_EVENT
+	tristate "CoreSight Event driver"
+	help
+	  This driver provides support for registering with various events
+	  and performing CoreSight actions like aborting trace on their
+	  occurrence.
+
 endif
