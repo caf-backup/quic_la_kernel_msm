@@ -232,7 +232,7 @@ int rpm_vreg_set_frequency(int vreg_id, enum rpm_vreg_freq freq);
  * For board configurations which have fixed output regulators, we set the is_enabled
  * flag to 1 (always on state).
  */
-int rpm_vreg_regulator_set_enable(void);
+int rpm_vreg_regulator_set_fixed(void);
 
 #else
 

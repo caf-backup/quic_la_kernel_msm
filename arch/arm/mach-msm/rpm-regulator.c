@@ -1784,7 +1784,7 @@ bail:
 	return rc;
 }
 
-int rpm_vreg_regulator_set_enable(void)
+int rpm_vreg_regulator_set_fixed(void)
 {
 	int i;
 
@@ -1792,8 +1792,10 @@ int rpm_vreg_regulator_set_enable(void)
 
 	for (i = 0; i < config->vregs_len; i++)
 	{
-		if(strstr(config->vregs[i].rdesc.name,"smb208"))
+		if (strstr(config->vregs[i].rdesc.name,"smb208")) {
 			config->vregs[i].is_enabled = true;
+			config->vregs[i].type = RPM_REGULATOR_TYPE_SMPS_FIXED;
+		}
 	}
 	return 0;
 }
