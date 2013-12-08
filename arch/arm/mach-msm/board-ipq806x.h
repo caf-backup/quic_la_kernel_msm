@@ -168,7 +168,6 @@ enum {
 /*
  * Summit PMIC related constants
  */
-
 /* Default Voltage setting for Summit programmable regulators */
 #define SMB208_DEFAULT_UV  1150000
 
