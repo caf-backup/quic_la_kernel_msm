@@ -143,6 +143,10 @@
 #define IPQ_LPAIF_PHYS	0x28100000
 #define IPQ_LPAIF_END	0x2810ffff
 
+/* NSS Firmware default load addresses */
+#define NSS_CORE0_LOAD_ADDR 0x40000000
+#define NSS_CORE1_LOAD_ADDR 0x40100000
+
 static struct resource ipq806x_resources_pccntr[] = {
 	{
 		.start	= IPQ806X_PC_CNTR_PHYS,
@@ -1003,6 +1007,7 @@ static struct nss_platform_data nss0_pdata = {
 	.nphys			= IPQ806X_UBI32_0_CSM_PHYS,
 	.vphys			= IPQ806X_NSS_TCM_PHYS,
 	.rst_addr		= 0x40000000,
+	.load_addr		= NSS_CORE0_LOAD_ADDR,
 	.turbo_frequency	= NSS_FEATURE_NOT_ENABLED,
 	.ipv4_enabled		= NSS_FEATURE_ENABLED,
 	.ipv6_enabled		= NSS_FEATURE_ENABLED,
@@ -1026,6 +1031,13 @@ struct platform_device ipq806x_device_nss0 = {
 	},
 };
 
+static int __init parse_qca_nss_load0(char *p)
+{
+	nss0_pdata.load_addr = memparse(p, NULL);
+	return 0;
+}
+early_param("qca-nss-drv.load0", parse_qca_nss_load0);
+
 static struct nss_platform_data nss1_pdata = {
 	.num_irq		= 2,
 	.irq[0]			= NSS_UBI32_CORE1_IRQ_0,
@@ -1035,6 +1047,7 @@ static struct nss_platform_data nss1_pdata = {
 	.vphys			= IPQ806X_NSS_TCM_PHYS + SZ_64K,
 	.nphys			= IPQ806X_UBI32_1_CSM_PHYS,
 	.rst_addr		= 0x40100000,
+	.load_addr		= NSS_CORE1_LOAD_ADDR,
 	.turbo_frequency	= NSS_FEATURE_NOT_ENABLED,
 	.ipv4_enabled		= NSS_FEATURE_NOT_ENABLED,
 	.ipv6_enabled		= NSS_FEATURE_NOT_ENABLED,
@@ -1057,6 +1070,13 @@ struct platform_device ipq806x_device_nss1 = {
 		.platform_data = &nss1_pdata,
 	},
 };
+
+static int __init parse_qca_nss_load1(char *p)
+{
+	nss1_pdata.load_addr = memparse(p, NULL);
+	return 0;
+}
+early_param("qca-nss-drv.load1", parse_qca_nss_load1);
 
 /* Resources for GMAC0 */
 static struct resource nss_gmac_0_res[] = {
