@@ -33,33 +33,6 @@ config ARCH_MSM7X27
 	select DONT_MAP_HOLE_AFTER_MEMBANK0
 	select MIGHT_HAVE_CACHE_L2X0
 
-config ARCH_MSM7X30
-	bool "MSM7x30"
-	select ARCH_MSM_SCORPION
-	select MSM_VIC
-	select CPU_V7
-	select GPIO_MSM_V1
-	select MSM_REMOTE_SPINLOCK_DEKKERS
-	select ARCH_SPARSEMEM_ENABLE
-	select ARCH_HAS_HOLES_MEMORYMODEL
-	select MIGRATION
-	select MSM_GPIOMUX
-	select RESERVE_FIRST_PAGE
-	select REGULATOR
-	select MSM_PROC_COMM_REGULATOR
-	select MULTI_IRQ_HANDLER
-	select HOLES_IN_ZONE if SPARSEMEM
-
-config ARCH_QSD8X50
-	bool "QSD8X50"
-	select ARCH_MSM_SCORPION
-	select MSM_VIC
-	select CPU_V7
-	select GPIO_MSM_V1
-	select MSM_REMOTE_SPINLOCK_LDREX
-	select CPU_USE_DOMAINS
-	select MSM_GPIOMUX
-
 config ARCH_MSM8X60
 	bool "MSM8X60"
 	select SMP_PARALLEL_START if SMP
@@ -256,9 +229,6 @@ config MSM_KRAIT_TBB_ABORT_HANDLER
 	  at the expense of a very small performance penalty.
 
 	  If unsure, say N.
-
-config  ARCH_MSM_SCORPION
-	bool
 
 config  ARCH_MSM_KRAIT
 	bool
@@ -1080,7 +1050,6 @@ choice
 	prompt "MSM Shared memory interface version"
 	depends on MSM_SMD
 	default MSM_SMD_PKG3 if ARCH_MSM_ARM11
-	default MSM_SMD_PKG4 if ARCH_MSM_SCORPION
 
 	config MSM_SMD_PKG3
 	  bool
@@ -1381,13 +1350,6 @@ config WIFI_MEM_PREALLOC
 	help
 	  Preallocates memory buffers for WiFi driver
 
-config QSD_AUDIO
-	bool "QSD audio"
-	depends on ARCH_MSM_SCORPION && MSM_DALRPC && ANDROID_PMEM && !MSM_SMP
-	default y
-	help
-	  Provides PCM, MP3, and AAC audio playback.
-
 config AUDIO_AAC_PLUS
 	depends on (MSM_ADSP || QSD_AUDIO || MSM7KV2_AUDIO)
 	bool "AAC+ Audio"
@@ -1520,19 +1482,6 @@ config MSM_PIL_TZAPPS
 config MSM_SCM
 	bool "Secure Channel Manager (SCM) support"
 	default n
-
-config SCORPION_Uni_45nm_BUG
-	bool "Scorpion Uni 45nm(SC45U): Workaround for ICIMVAU and BPIMVA"
-	depends on ARCH_MSM7X30 || (ARCH_QSD8X50 && MSM_SOC_REV_A)
-	default y
-	help
-	  Invalidating the Instruction Cache by Modified Virtual Address to PoU and
-	  invalidating the Branch Predictor Array by Modified Virtual Address can
-	  create invalid entries in the TLB with the wrong ASID values on Scorpion
-	  Uniprocessor 45nm (SC45U) cores. This option enables the recommended software
-	  workaround for Scorpion Uniprocessor 45nm cores.
-
-	  This bug is not applicable to any ScorpionMP or Scorpion Uni 65nm(SC65U) cores.
 
 config MSM_TZ_LOG
 	tristate "MSM Trust Zone (TZ) Log Driver"

@@ -818,7 +818,7 @@ void msm_timer_exit_idle(int low_power)
 	if (!enabled)
 		__raw_writel(TIMER_ENABLE_EN, gpt_clk->regbase + TIMER_ENABLE);
 
-#if defined(CONFIG_ARCH_MSM_SCORPION) || defined(CONFIG_ARCH_MSM_KRAIT)
+#if defined(CONFIG_ARCH_MSM_KRAIT)
 	gpt_clk_state->in_sync = 0;
 #else
 	gpt_clk_state->in_sync = gpt_clk_state->in_sync && enabled;
@@ -834,7 +834,7 @@ void msm_timer_exit_idle(int low_power)
 	if (!enabled)
 		__raw_writel(TIMER_ENABLE_EN, clock->regbase + TIMER_ENABLE);
 
-#if defined(CONFIG_ARCH_MSM_SCORPION) || defined(CONFIG_ARCH_MSM_KRAIT)
+#if defined(CONFIG_ARCH_MSM_KRAIT)
 	clock_state->in_sync = 0;
 #else
 	clock_state->in_sync = clock_state->in_sync && enabled;

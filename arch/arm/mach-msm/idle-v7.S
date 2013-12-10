@@ -83,10 +83,6 @@ ENTRY(msm_pm_collapse)
 	mrc     p15, 0, r1, c1, c0, 0 /* MMU control */
 	mrc     p15, 0, r2, c2, c0, 0 /* TTBR0 */
 	mrc     p15, 0, r3, c3, c0, 0 /* dacr */
-#ifdef CONFIG_ARCH_MSM_SCORPION
-	/* This instruction is not valid for non scorpion processors */
-	mrc     p15, 3, r4, c15, c0, 3 /* L2CR1 is the L2 cache control reg 1 */
-#endif
 	mrc     p15, 0, r5, c10, c2, 0 /* PRRR */
 	mrc     p15, 0, r6, c10, c2, 1 /* NMRR */
 	mrc     p15, 0, r7, c1, c0, 1 /* ACTLR */
@@ -208,10 +204,6 @@ ENTRY(msm_pm_collapse_exit)
 	ldmdb   r1!, {r2-r11}
 	mcr     p15, 0, r4, c3, c0, 0 /* dacr */
 	mcr     p15, 0, r3, c2, c0, 0 /* TTBR0 */
-#ifdef CONFIG_ARCH_MSM_SCORPION
-	/* This instruction is not valid for non scorpion processors */
-	mcr     p15, 3, r5, c15, c0, 3 /* L2CR1 */
-#endif
 	mcr     p15, 0, r6, c10, c2, 0 /* PRRR */
 	mcr     p15, 0, r7, c10, c2, 1 /* NMRR */
 	mcr     p15, 0, r8, c1, c0, 1 /* ACTLR */
