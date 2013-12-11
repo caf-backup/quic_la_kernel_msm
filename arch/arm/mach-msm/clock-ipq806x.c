@@ -3160,14 +3160,12 @@ static int nss_core_clk_set_rate(struct clk *c, unsigned long rate)
 
 	cf = ncc->current_freq;
 
-	spin_lock_irqsave(&c->lock, flags);
 	spin_lock(&local_clock_reg_lock);
 
 	ncc->set_rate(ncc, nf);
 	ncc->current_freq = nf;
 
 	spin_unlock(&local_clock_reg_lock);
-	spin_unlock_irqrestore(&c->lock, flags);
 
 	return 0;
 }
@@ -3246,7 +3244,7 @@ static void set_rate_nss(struct nss_core_clk_tbl *ncc, struct clk_freq_tbl *nf)
 	const uint32_t pll11_mask = 0x1;
 	const uint32_t pll18_mask = 0x0;
 
-	uint32_t wait_cycles = 100;
+	uint32_t wait_cycles = 10000000;
 	volatile uint32_t value;
 	volatile uint32_t en_mask = (1 << 18);
 	volatile uint32_t status_mask = (1 << 2);
@@ -3289,7 +3287,6 @@ static void set_rate_nss(struct nss_core_clk_tbl *ncc, struct clk_freq_tbl *nf)
 	 *	mb() added to ensure writes complete - Following /arch/arm/mach-msm without any other write functions
 	 */
 	writel_relaxed(0x2, PLL18_MODE);
-	mdelay(1);
 	mb();
 	writel_relaxed(0x6, PLL18_MODE);
 	mb();
@@ -3304,7 +3301,7 @@ static void set_rate_nss(struct nss_core_clk_tbl *ncc, struct clk_freq_tbl *nf)
 		if (value & status_mask) {
 			break;
 		}
-		mdelay(1);
+		udelay(1);
 	} while (wait_cycles-- > 0);
 
 	/*
