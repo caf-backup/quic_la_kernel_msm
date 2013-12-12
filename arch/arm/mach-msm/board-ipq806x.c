@@ -1751,8 +1751,9 @@ static struct platform_device *common_devices[] __initdata = {
 	&ipq806x_device_nss_crypto[3],
 
 	&ipq806x_device_sata,
+};
 
-	/* lpass */
+static struct platform_device *audio_devices[] __initdata = {
 	&ipq806x_lpass_dmlite,
 	&ipq806x_lpass_cpudai,
 	&ipq806x_lpass_lpaif,
@@ -1762,7 +1763,9 @@ static struct platform_device *common_devices[] __initdata = {
 	&ipq806x_lpass_pcm_mi2s,
 	&ipq806x_lpass_pcm_voip,
 	&ipq806x_lpass_pcm_spdif,
-	&ipq806x_lpass_codec,
+	&ipq806x_mi2s_codec,
+	&ipq806x_spdif_codec,
+	&ipq806x_pcm_codec,
 };
 
 static struct platform_device *cdp_devices[] __initdata = {
@@ -2134,6 +2137,9 @@ static void __init ipq806x_common_init(void)
 
 	if (!machine_is_ipq806x_db149_1xx())
 		platform_device_register(&msm_device_nand);
+
+	if (machine_is_ipq806x_db149() || machine_is_ipq806x_db149_1xx())
+		platform_add_devices(audio_devices, ARRAY_SIZE(audio_devices));
 
 	if (!machine_is_ipq806x_rumi3()) {
 		platform_add_devices(common_cdp_i2c_ipq806x_devices,

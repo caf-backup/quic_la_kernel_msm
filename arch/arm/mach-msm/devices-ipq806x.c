@@ -2428,8 +2428,18 @@ struct platform_device ipq806x_lpass_pcm_spdif = {
 	.id = -1,
 };
 
-struct platform_device ipq806x_lpass_codec = {
-	.name = "ipq-lpass-codec",
+struct platform_device ipq806x_mi2s_codec = {
+	.name = "ipq-mi2s-codec",
+	.id = -1,
+};
+
+struct platform_device ipq806x_spdif_codec = {
+	.name = "ipq-spdif-codec",
+	.id = -1,
+};
+
+struct platform_device ipq806x_pcm_codec = {
+	.name = "ipq-pcm-codec",
 	.id = -1,
 };
 

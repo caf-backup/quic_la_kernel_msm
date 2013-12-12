@@ -40,7 +40,7 @@ static struct snd_soc_dai_link ipq_snd_dai[] = {
 		/* Codec DAI Name */
 		.codec_dai_name	= "ipq-mi2s-codec-dai",
 		/*Codec Driver Name */
-		.codec_name	= "ipq-lpass-codec",
+		.codec_name	= "ipq-mi2s-codec",
 	},
 	{
 		.name		= "IPQ806x Media2",
@@ -48,7 +48,7 @@ static struct snd_soc_dai_link ipq_snd_dai[] = {
 		.cpu_dai_name	= "ipq-spdif-dai",
 		.platform_name	= "ipq-pcm-spdif",
 		.codec_dai_name	= "ipq-spdif-codec-dai",
-		.codec_name	= "ipq-lpass-codec",
+		.codec_name	= "ipq-spdif-codec",
 	},
 	{
 		.name		= "IPQ806x VoIP",
@@ -56,7 +56,7 @@ static struct snd_soc_dai_link ipq_snd_dai[] = {
 		.cpu_dai_name	= "ipq-pcm-dai",
 		.platform_name	= "ipq-pcm-voip",
 		.codec_dai_name	= "ipq-pcm-codec-dai",
-		.codec_name	= "ipq-lpass-codec",
+		.codec_name	= "ipq-pcm-codec",
 	},
 };
 
