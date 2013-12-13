@@ -11,4 +11,5 @@ config SWITCH_GPIO
 	depends on GENERIC_GPIO
 	help
 	  Say Y here to enable GPIO based switch support.
+
 endif # SWITCH

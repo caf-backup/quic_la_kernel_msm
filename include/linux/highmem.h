@@ -214,7 +214,6 @@ alloc_zeroed_user_highpage_movable(struct vm_area_struct *vma,
 	return __alloc_zeroed_user_highpage(__GFP_MOVABLE, vma, vaddr);
 }
 
-
 static inline void clear_highpage(struct page *page)
 {
 	void *kaddr = kmap_atomic(page);
