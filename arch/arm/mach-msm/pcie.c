@@ -41,9 +41,26 @@
 #define PCIE_VENDOR_ID_RCP             0x17cb
 #define PCIE_DEVICE_ID_RCP             0x0101
 
+#define __mask(a, b)	(((1 << ((a) + 1)) - 1) & ~((1 << (b)) - 1))
+#define __set(v, a, b)	(((v) << (b)) & __mask(a, b))
+
 #define PCIE20_PARF_PCS_DEEMPH         0x34
+#define PCIE20_PARF_PCS_DEEMPH_TX_DEEMPH_GEN1(x)	__set(x, 21, 16)
+#define PCIE20_PARF_PCS_DEEMPH_TX_DEEMPH_GEN2_3_5DB(x)	__set(x, 13, 8)
+#define PCIE20_PARF_PCS_DEEMPH_TX_DEEMPH_GEN2_6DB(x)	__set(x, 5, 0)
+
 #define PCIE20_PARF_PCS_SWING          0x38
+#define PCIE20_PARF_PCS_SWING_TX_SWING_FULL(x)		__set(x, 14, 8)
+#define PCIE20_PARF_PCS_SWING_TX_SWING_LOW(x)		__set(x, 6, 0)
+
 #define PCIE20_PARF_PHY_CTRL           0x40
+#define PCIE20_PARF_PHY_CTRL_PHY_TX0_TERM_OFFST(x)	__set(x, 20, 16)
+#define PCIE20_PARF_PHY_CTRL_PHY_LOS_LEVEL(x)		__set(x, 12, 8)
+#define PCIE20_PARF_PHY_CTRL_PHY_RTUNE_REQ		(1 << 4)
+#define PCIE20_PARF_PHY_CTRL_PHY_TEST_BURNIN		(1 << 2)
+#define PCIE20_PARF_PHY_CTRL_PHY_TEST_BYPASS		(1 << 1)
+#define PCIE20_PARF_PHY_CTRL_PHY_TEST_PWR_DOWN		(1 << 0)
+
 #define PCIE20_PARF_PHY_REFCLK         0x4C
 #define PCIE20_PARF_CONFIG_BITS        0x50
 
@@ -550,9 +567,19 @@ static int __init msm_pcie_setup(int nr, struct pci_sys_data *sys)
 	/* enable PCIe clocks and resets */
 	msm_pcie_write_mask(dev->parf + PCIE20_PARF_PHY_CTRL, BIT(0), 0);
 
+	/* Set Tx Termination Offset */
+	val = readl_relaxed(dev->parf + PCIE20_PARF_PHY_CTRL) |
+				PCIE20_PARF_PHY_CTRL_PHY_TX0_TERM_OFFST(7);
+	writel_relaxed(val, dev->parf + PCIE20_PARF_PHY_CTRL);
+
 	/* PARF programming */
-	writel_relaxed(0x282828, dev->parf + PCIE20_PARF_PCS_DEEMPH);
-	writel_relaxed(0x7F7F, dev->parf + PCIE20_PARF_PCS_SWING);
+	writel_relaxed(PCIE20_PARF_PCS_DEEMPH_TX_DEEMPH_GEN1(0x18) |
+			PCIE20_PARF_PCS_DEEMPH_TX_DEEMPH_GEN2_3_5DB(0x18) |
+			PCIE20_PARF_PCS_DEEMPH_TX_DEEMPH_GEN2_6DB(0x22),
+			dev->parf + PCIE20_PARF_PCS_DEEMPH);
+	writel_relaxed(PCIE20_PARF_PCS_SWING_TX_SWING_FULL(0x78) |
+			PCIE20_PARF_PCS_SWING_TX_SWING_LOW(0x78),
+			dev->parf + PCIE20_PARF_PCS_SWING);
 	writel_relaxed((4<<24), dev->parf + PCIE20_PARF_CONFIG_BITS);
 	/* ensure that hardware registers the PARF configuration */
 	wmb();

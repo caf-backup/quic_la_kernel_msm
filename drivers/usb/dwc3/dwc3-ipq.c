@@ -45,9 +45,9 @@
 /* USB3.0 default values provided by VI */
 
 #define RX_TERM_VALUE           0   /* RTUNE_DEBUG register value */
-#define RX_EQ_VALUE             3   /* Override value for rx_eq */
-#define AMPLITUDE_VALUE         127 /* Override value for transmit amplitude */
-#define TX_DEEMPH_3_5DB         22  /* Override value for transmit preemphasis */
+#define RX_EQ_VALUE             4   /* Override value for rx_eq */
+#define AMPLITUDE_VALUE         110 /* Override value for transmit amplitude */
+#define TX_DEEMPH_3_5DB         23 /* Override value for transmit preemphasis */
 
 
 /**
@@ -281,7 +281,7 @@ static void  uw_ssusb_pre_init(void __iomem *ipq_base)
 		dwc3_ipq_ssusb_write_phy_reg(DWC3_SSUSB_PHY_RTUNE_DEBUG_REG,
 						RX_TERM_VALUE, ipq_base);
 	}
-	if (4 != RX_EQ_VALUE) { /* Values from 1 to 7 */
+	if (0 != RX_EQ_VALUE) { /* Values from 1 to 7 */
 		tmp =0;
 		/*
 		 * 1. Fixed EQ setting. This can be achieved as follows:
@@ -352,9 +352,10 @@ static void  uw_ssusb_pre_init(void __iomem *ipq_base)
 		DWC3_SSUSB_REG_GUSB3PIPECTL_REQUEST_P1P2P3,
 		ipq_base + DWC3_SSUSB_REG_GUSB3PIPECTL(0));
 	writel(IPQ_SSUSB_REG_QSCRATCH_SS_PHY_PARAM_CTRL_1_LOS_LEVEL(0x9) |
-		IPQ_SSUSB_REG_QSCRATCH_SS_PHY_PARAM_CTRL_1_TX_DEEMPH_3_5DB(0x15) |
+		IPQ_SSUSB_REG_QSCRATCH_SS_PHY_PARAM_CTRL_1_TX_DEEMPH_3_5DB(0x17) |
 		IPQ_SSUSB_REG_QSCRATCH_SS_PHY_PARAM_CTRL_1_TX_DEEMPH_6DB(0x20) |
-		IPQ_SSUSB_REG_QSCRATCH_SS_PHY_PARAM_CTRL_1_TX_SWING_FULL(0x61),
+		IPQ_SSUSB_REG_QSCRATCH_SS_PHY_PARAM_CTRL_1_TX_SWING_FULL(0x6E) |
+		IPQ_SSUSB_REG_QSCRATCH_SS_PHY_PARAM_CTRL_1_LANE0_TX_TERM_OFFSET(0x7),
 		ipq_base + IPQ_SS_PHY_PARAM_CTRL_1_REG);
 	writel(IPQ_SSUSB_REG_QSCRATCH_GENERAL_CFG_XHCI_REV(DWC3_SSUSB_XHCI_REV_10),
 		ipq_base + IPQ_QSCRATCH_GENERAL_CFG);
