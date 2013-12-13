@@ -121,6 +121,7 @@ EXPORT_SYMBOL_GPL(ipq_spdif_onetime_cfg);
 
 int ipq_spdif_cfg_compr_mode(uint32_t compr_mode)
 {
+	uint32_t fifo_ctl;
 	switch (compr_mode) {
 	case SND_AUDIOCODEC_AC3:
 	case SND_AUDIOCODEC_MPEG_1:
@@ -155,6 +156,8 @@ int ipq_spdif_cfg_compr_mode(uint32_t compr_mode)
 			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHB_STAT_BUF5));
 		writel(SPDIF_TX_BURST_CTL_NON_LINEAR,
 			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_BURST_CNTL));
+		fifo_ctl = readl(ipq_spdif_info.base + LPA_IF_SPDIF_FIFO_CNTL);
+		fifo_ctl &= ~(LPA_IF_SPDIF_FIFO_DWD_WD_SWAP);
 		break;
 	case SND_AUDIOCODEC_LINEAR:
 		writel(0x0,
