@@ -158,6 +158,8 @@ int ipq_spdif_cfg_compr_mode(uint32_t compr_mode)
 			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_BURST_CNTL));
 		fifo_ctl = readl(ipq_spdif_info.base + LPA_IF_SPDIF_FIFO_CNTL);
 		fifo_ctl &= ~(LPA_IF_SPDIF_FIFO_DWD_WD_SWAP);
+		writel(fifo_ctl, (ipq_spdif_info.base +
+					LPA_IF_SPDIF_FIFO_CNTL));
 		break;
 	case SND_AUDIOCODEC_LINEAR:
 		writel(0x0,

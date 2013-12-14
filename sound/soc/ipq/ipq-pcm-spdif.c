@@ -273,6 +273,8 @@ static int ipq_pcm_spdif_hw_params(struct snd_pcm_substream *substream,
 		break;
 
 	}
+	prtd->pcm_stream_info.pcm_prepare_start = 0;
+	prtd->pcm_stream_info.period_index = 0;
 	return 0;
 }
 
