@@ -252,6 +252,7 @@ static int ipq_pcm_mi2s_hw_params(struct snd_pcm_substream *substream,
 	pr_debug("%s %d\n", __func__, __LINE__);
 	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 	prtd->pcm_stream_info.pcm_prepare_start = 0;
+	prtd->pcm_stream_info.period_index = 0;
 	return 0;
 }
 
