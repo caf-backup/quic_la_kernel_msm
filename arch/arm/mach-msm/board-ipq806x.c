@@ -35,7 +35,6 @@
 #include <linux/memblock.h>
 #include <linux/msm_thermal.h>
 #include <linux/i2c/atmel_mxt_ts.h>
-#include <linux/cyttsp-qc.h>
 #include <linux/i2c/isa1200.h>
 #include <linux/mdio-gpio.h>
 #include <linux/gpio_keys.h>
