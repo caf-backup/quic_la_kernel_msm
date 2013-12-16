@@ -75,7 +75,7 @@
 static struct kmem_cache *skbuff_head_cache __read_mostly;
 static struct kmem_cache *skbuff_fclone_cache __read_mostly;
 static DEFINE_PER_CPU(struct sk_buff_head, recycle_list);
-#define SKB_RECYCLE_SIZE	2048
+#define SKB_RECYCLE_SIZE	2304
 #define SKB_RECYCLE_MAX_SKBS	2048
 
 static void sock_pipe_buf_release(struct pipe_inode_info *pipe,
@@ -729,7 +729,6 @@ void consume_skb(struct sk_buff *skb)
 	if (likely(consume_skb_can_recycle(skb, SKB_RECYCLE_SIZE))) {
 		unsigned long flags;
 		struct sk_buff_head *h;
-
 		h = &get_cpu_var(recycle_list);
 		local_irq_save(flags);
 		if (likely(skb_queue_len(h) < SKB_RECYCLE_MAX_SKBS)) {
