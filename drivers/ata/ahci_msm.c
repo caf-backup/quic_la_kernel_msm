@@ -156,9 +156,30 @@
 #define AHCI_HOST_CAP_MASK	0x1F
 #define AHCI_HOST_CAP_PMP	(1 << 17)
 
+#define __mask(a, b)	(((1 << ((a) + 1)) - 1) & ~((1 << (b)) - 1))
+#define __set(v, a, b)	(((v) << (b)) & __mask(a, b))
+
 #define SATA_PHY_P0_PARAM0		0x200
+#define SATA_PHY_P0_PARAM0_P0_TX_PREEMPH_GEN3(x)	__set(x, 17, 12)
+#define SATA_PHY_P0_PARAM0_P0_TX_PREEMPH_GEN3_MASK	__mask(17, 12)
+#define SATA_PHY_P0_PARAM0_P0_TX_PREEMPH_GEN2(x)	__set(x, 11, 6)
+#define SATA_PHY_P0_PARAM0_P0_TX_PREEMPH_GEN2_MASK	__mask(11, 6)
+#define SATA_PHY_P0_PARAM0_P0_TX_PREEMPH_GEN1(x)	__set(x, 5, 0)
+#define SATA_PHY_P0_PARAM0_P0_TX_PREEMPH_GEN1_MASK	__mask(5, 0)
+
 #define SATA_PHY_P0_PARAM1		0x204
+#define SATA_PHY_P0_PARAM1_RESERVED_BITS31_21(x)	__set(x, 31, 21)
+#define SATA_PHY_P0_PARAM1_P0_TX_AMPLITUDE_GEN3(x)	__set(x, 20, 14)
+#define SATA_PHY_P0_PARAM1_P0_TX_AMPLITUDE_GEN3_MASK	__mask(20, 14)
+#define SATA_PHY_P0_PARAM1_P0_TX_AMPLITUDE_GEN2(x)	__set(x, 13, 7)
+#define SATA_PHY_P0_PARAM1_P0_TX_AMPLITUDE_GEN2_MASK	__mask(13, 7)
+#define SATA_PHY_P0_PARAM1_P0_TX_AMPLITUDE_GEN1(x)	__set(x, 6, 0)
+#define SATA_PHY_P0_PARAM1_P0_TX_AMPLITUDE_GEN1_MASK	__mask(6, 0)
+
 #define SATA_PHY_P0_PARAM2		0x208
+#define SATA_PHY_P0_PARAM2_RX_EQ(x)	__set(x, 20, 18)
+#define SATA_PHY_P0_PARAM2_RX_EQ_MASK	__mask(20, 18)
+
 #define SATA_PHY_P0_PARAM3		0x20C
 #define SATA_PHY_P0_PARAM4		0x210
 
@@ -512,21 +533,26 @@ static int msm_sata_phy_init(struct device *dev)
 	reg = reg | 0x08;
 	writel_relaxed(reg, hba->phy_base + SATA_PHY_P0_PARAM3);
 
-	/*
-	 * Setting P0_TX_PREEMPH_GEN1=0x15
-	 * Setting P0_TX_PREEMPH_GEN2=0x15
-	 * Setting P0_TX_PREEMPH_GEN3=0x20
-	 */
+	reg = readl_relaxed(hba->phy_base + SATA_PHY_P0_PARAM0) &
+			~(SATA_PHY_P0_PARAM0_P0_TX_PREEMPH_GEN3_MASK |
+			  SATA_PHY_P0_PARAM0_P0_TX_PREEMPH_GEN2_MASK |
+			  SATA_PHY_P0_PARAM0_P0_TX_PREEMPH_GEN1_MASK);
+	reg |= SATA_PHY_P0_PARAM0_P0_TX_PREEMPH_GEN3(0xf);
+	writel_relaxed(reg, hba->phy_base + SATA_PHY_P0_PARAM0);
 
-	writel_relaxed(0x00220555, hba->phy_base + SATA_PHY_P0_PARAM0);
+	reg = readl_relaxed(hba->phy_base + SATA_PHY_P0_PARAM1) &
+			~(SATA_PHY_P0_PARAM1_P0_TX_AMPLITUDE_GEN3_MASK |
+			  SATA_PHY_P0_PARAM1_P0_TX_AMPLITUDE_GEN2_MASK |
+			  SATA_PHY_P0_PARAM1_P0_TX_AMPLITUDE_GEN1_MASK);
+	reg |= SATA_PHY_P0_PARAM1_P0_TX_AMPLITUDE_GEN3(0x55) |
+		SATA_PHY_P0_PARAM1_P0_TX_AMPLITUDE_GEN2(0x55) |
+		SATA_PHY_P0_PARAM1_P0_TX_AMPLITUDE_GEN1(0x55);
+	writel_relaxed(reg, hba->phy_base + SATA_PHY_P0_PARAM1);
 
-	/*
-	 * Setting P0_TX_AMPLITUDE_GEN1=0x71
-	 * Setting P0_TX_AMPLITUDE_GEN2=0x71
-	 * Setting P0_TX_AMPLITUDE_GEN3=0x71
-	 */
-
-	writel_relaxed(0x007c78f1, hba->phy_base + SATA_PHY_P0_PARAM1);
+	reg = readl_relaxed(hba->phy_base + SATA_PHY_P0_PARAM2) &
+		~SATA_PHY_P0_PARAM2_RX_EQ_MASK;
+	reg |= SATA_PHY_P0_PARAM2_RX_EQ(0x3);
+	writel_relaxed(reg, hba->phy_base + SATA_PHY_P0_PARAM2);
 
 	/* Setting PHY_RESET to 1 */
 
