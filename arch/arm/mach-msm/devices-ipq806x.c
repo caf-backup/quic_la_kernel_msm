@@ -15,7 +15,6 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/platform_device.h>
-#include <linux/msm_rotator.h>
 #include <linux/gpio.h>
 #include <linux/clkdev.h>
 #include <linux/dma-mapping.h>
