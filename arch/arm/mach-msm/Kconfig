@@ -101,7 +101,6 @@ config ARCH_MSM8960
 	select MSM_RPM
 	select MSM_XO
 	select MSM_PIL
-	select MSM_AUDIO_QDSP6 if SND_SOC
 	select CPU_HAS_L2_PMU
 	select MSM_SPM_V2
 	select MSM_L2_SPM
@@ -1289,20 +1288,6 @@ config MSM_QDSP6
 	help
 	  Enable support for qdsp6. This provides audio and video functionality.
 
-config MSM8X60_AUDIO
-	tristate "MSM8X60 audio support"
-	depends on ARCH_MSM8X60 && ANDROID_PMEM
-	default y
-	help
-	  Enable support for qdsp6v2. This provides audio functionality.
-
-config MSM8X60_FTM_AUDIO_DEVICES
-	bool "MSM8X60 audio factory test mode support"
-	depends on MSM8X60_AUDIO
-	help
-	  Enable support audio factory test mode devices.  This is used
-	  in a production line environment.
-
 config RTAC
 	bool "MSM8K real-time audio calibration support"
 	default y
@@ -1630,30 +1615,6 @@ config MSM_SHOW_RESUME_IRQ
 		This option logs wake up interrupts that have triggered just before
 		the resume loop unrolls. Say Y if you want to debug why the system
 		resumed.
-
-config MSM_AUDIO_QDSP6
-        bool "QDSP6 HW Audio support"
-        select SND_SOC_MSM_QDSP6_INTF
-        default n
-        help
-          Enable HW audio support in QDSP6.
-          QDSP6 can support HW encoder & decoder and audio processing
-
-config MSM_AUDIO_QDSP6V2
-        bool "QDSP6V2 HW Audio support"
-        select SND_SOC_MSM_QDSP6V2_INTF
-        help
-          Enable HW audio support in QDSP6V2.
-          QDSP6V2 can support HW encoder & decoder and
-          audio processing. It will enable support for
-          AAC, AMRNB, AMRWB, EVRC, MP3, QCELP among
-          others.
-
-config MSM_ULTRASOUND
-	bool "MSM ultrasound support"
-	depends on MSM_AUDIO_QDSP6
-	help
-	  Enable support for qdsp6/ultrasound.
 
 config PM8XXX_RPC_VIBRATOR
 	bool "RPC based Vibrator on PM8xxx PMICs"
