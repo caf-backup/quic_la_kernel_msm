@@ -227,42 +227,6 @@ extern struct platform_device msm_8960_q6_mss_sw;
 extern struct platform_device msm_8960_riva;
 extern struct platform_device msm_gss;
 
-extern struct platform_device apq_pcm;
-extern struct platform_device apq_pcm_routing;
-extern struct platform_device apq_cpudai0;
-extern struct platform_device apq_cpudai1;
-extern struct platform_device mpq_cpudai_mi2s_tx;
-extern struct platform_device apq_cpudai_hdmi_rx;
-extern struct platform_device apq_cpudai_bt_rx;
-extern struct platform_device apq_cpudai_bt_tx;
-extern struct platform_device apq_cpudai_fm_rx;
-extern struct platform_device apq_cpudai_fm_tx;
-extern struct platform_device apq_cpudai_auxpcm_rx;
-extern struct platform_device apq_cpudai_auxpcm_tx;
-extern struct platform_device apq_cpu_fe;
-extern struct platform_device apq_stub_codec;
-extern struct platform_device apq_voice;
-extern struct platform_device apq_voip;
-extern struct platform_device apq_lpa_pcm;
-extern struct platform_device apq_compr_dsp;
-extern struct platform_device apq_multi_ch_pcm;
-extern struct platform_device apq_lowlatency_pcm;
-extern struct platform_device apq_pcm_hostless;
-extern struct platform_device apq_cpudai_afe_01_rx;
-extern struct platform_device apq_cpudai_afe_01_tx;
-extern struct platform_device apq_cpudai_afe_02_rx;
-extern struct platform_device apq_cpudai_afe_02_tx;
-extern struct platform_device apq_pcm_afe;
-extern struct platform_device apq_cpudai_stub;
-extern struct platform_device apq_cpudai_slimbus_1_rx;
-extern struct platform_device apq_cpudai_slimbus_1_tx;
-extern struct platform_device apq_cpudai_slimbus_2_rx;
-extern struct platform_device apq_cpudai_slimbus_2_tx;
-extern struct platform_device apq_cpudai_slimbus_3_rx;
-extern struct platform_device apq_cpudai_slimbus_3_tx;
-extern struct platform_device apq_cpudai_slim_4_rx;
-extern struct platform_device apq_cpudai_slim_4_tx;
-
 extern struct platform_device *msm_footswitch_devices[];
 extern unsigned msm_num_footswitch_devices;
 extern struct platform_device *msm8660_footswitch[];
@@ -360,8 +324,6 @@ extern struct platform_device msm8960_cache_dump_device;
 extern struct platform_device apq8064_cache_dump_device;
 
 extern struct platform_device mdm_sglte_device;
-
-extern struct platform_device apq_device_tz_log;
 
 extern struct platform_device msm7x27_device_acpuclk;
 extern struct platform_device msm7x27a_device_acpuclk;
