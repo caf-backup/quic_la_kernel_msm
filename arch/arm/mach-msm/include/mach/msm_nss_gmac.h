@@ -283,6 +283,9 @@
 #define GMAC_INTF_SGMII				1
 #define GMAC_INTF_QSGMII			2
 
+/* For MII<->MII Interfaces that do not use an Ethernet PHY */
+#define NSS_GMAC_NO_MDIO_PHY			PHY_MAX_ADDR
+
 /* GMAC phy interface profiles */
 #define NSS_GMAC_PHY_PROFILE_2R_2S	0	/* 2 RGMII, 2 SGMII */
 #define NSS_GMAC_PHY_PROFILE_1R_3S	1	/* 1 RGMII, 3 SGMII*/
