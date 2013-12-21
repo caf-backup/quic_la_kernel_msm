@@ -2088,8 +2088,6 @@ struct v4l2_encoder_cmd {
 	};
 };
 
-#define V4L2_QCOM_BUF_FLAG_CODECCONFIG	0x4000
-
 /* Decoder commands */
 #define V4L2_DEC_CMD_START       (0)
 #define V4L2_DEC_CMD_STOP        (1)
