@@ -1102,7 +1102,8 @@ static int __init get_speed_bin(u32 pte_efuse)
 	if (speed_bin == 0xF)
 		speed_bin = (pte_efuse >> 4) & 0xF;
 
-	if (speed_bin == 0xF) {
+	/* Default to 0 if we read unknown speed_bin or if PVS is not blown */
+	if (speed_bin == 0xF || ((pte_efuse & PVS_BLOW_STATUS) == 0)) {
 		speed_bin = 0;
 		dev_warn(drv.dev, "SPEED BIN: Defaulting to %d\n", speed_bin);
 	} else {
@@ -1115,6 +1116,12 @@ static int __init get_speed_bin(u32 pte_efuse)
 static int __init get_pvs_bin(u32 pte_efuse)
 {
 	uint32_t pvs_bin;
+
+	/* Default to NOMINAL setting if PVS is not blown */
+	if ((pte_efuse & PVS_BLOW_STATUS) == 0) {
+		dev_warn(drv.dev, "ACPU PVS: Defaulting to nominal\n");
+		return PVS_NOMINAL;
+	}
 
 	pvs_bin = (pte_efuse >> 10) & 0x7;
 	if (pvs_bin == 0x7)

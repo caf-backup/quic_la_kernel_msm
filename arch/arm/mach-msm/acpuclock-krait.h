@@ -48,8 +48,8 @@ enum src_id {
 enum pvs {
 	PVS_SLOW = 0,
 	PVS_NOMINAL = 1,
-	PVS_FAST = 3,
-	PVS_FASTER = 4,
+	PVS_FAST = 2,
+	PVS_FASTER = 3,
 	NUM_PVS = 7
 };
 
@@ -57,6 +57,11 @@ enum pvs {
  * The maximum number of speed bins.
  */
 #define NUM_SPEED_BINS (16)
+
+/*
+ * PTE Fuse - If blown indicates that device has gone through PVS binning
+ */
+#define PVS_BLOW_STATUS (1 << 31)
 
 /**
  * enum scalables - IDs of frequency scalable hardware blocks.
