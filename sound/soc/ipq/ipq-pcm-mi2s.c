@@ -58,8 +58,8 @@ static struct snd_pcm_hardware ipq_pcm_hardware_playback = {
 	.buffer_bytes_max	=	LPASS_MI2S_BUFF_SIZE,
 	.period_bytes_max	=	(LPASS_MI2S_BUFF_SIZE) / 2,
 	.period_bytes_min	=	LPASS_MI2S_PERIOD_BYTES_MIN,
-	.periods_min		=	LPASS_MI2S_BUFF_SIZE / LPASS_MI2S_PERIOD_BYTES_MIN,
-	.periods_max		=	LPASS_MI2S_BUFF_SIZE / LPASS_MI2S_PERIOD_BYTES_MIN,
+	.periods_min		=	LPASS_MI2S_NO_OF_PERIODS,
+	.periods_max		=	LPASS_MI2S_NO_OF_PERIODS,
 	.fifo_size		=	0,
 };
 

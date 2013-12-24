@@ -267,7 +267,17 @@ struct lpass_clk_baseinfo {
 #define LPASS_7_1	8
 
 /* MI2S Hw params */
-#define LPASS_MI2S_BUFF_SIZE		(1024*1024)
-#define LPASS_MI2S_PERIOD_BYTES_MIN	8184
+/* The period size should be multiple of 5.1 (8 bit,
+ * 16 bit, 24 bit, 32 bit) and 7.1 (8 bit, 16 bit,
+ * 24 bit, 32bit). Taking the Least common multiple for the
+ * above values gives 288. Choosing the period size in the range of
+ * 8K will be 8064(multiple of 288). Choosing the buffer
+ * size in the range of 1M will be 1048320(multiple of 288).*/
+
+#define LPASS_MI2S_NO_OF_PERIODS	(130)
+#define LPASS_MI2S_PERIOD_BYTES_MIN	(8064)
+
+#define LPASS_MI2S_BUFF_SIZE		(LPASS_MI2S_PERIOD_BYTES_MIN * \
+					LPASS_MI2S_NO_OF_PERIODS)
 
 #endif /* _IPQ806x_H */
