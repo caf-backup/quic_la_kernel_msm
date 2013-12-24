@@ -37,43 +37,50 @@
 #include "ipq-lpaif.h"
 #include "ipq806x.h"
 #include "ipq-pcm.h"
+#include <mach/audio_dma_msm8k.h>
 
+static atomic_t data_avail;
+static atomic_t data_at;
+extern struct ipq_lpaif_dai_baseinfo dai_info;
 static struct voice_dma_buffer *rx_dma_buffer;
 static struct voice_dma_buffer *tx_dma_buffer;
 static spinlock_t pcm_lock;
 static DECLARE_WAIT_QUEUE_HEAD(pcm_q);
 static struct pcm_context context;
-static int tx_at = 0;
-static int rx_at = 0;
 static struct dai_dma_params tx_dma_params;
 static struct dai_dma_params rx_dma_params;
-static int rx_waiting;
-
 extern void pcm_test_init(void);
 extern void pcm_test_exit(void);
 
 static irqreturn_t pcm_irq_handler(int intrsrc, void *data)
 {
-	unsigned long flag;
-	irqreturn_t ret = IRQ_NONE;
-	if (intrsrc & LPA_IF_PER_CH5) {
-		spin_lock_irqsave(&pcm_lock, flag);
-		rx_at = !rx_at;
-		spin_unlock_irqrestore(&pcm_lock, flag);
-		/* read can be made pending only if upper layer is waiting */
-		context.rd_pending += (VOICE_PERIOD_SIZE * rx_waiting);
-		/* wakeup upper layer if its already waiting */
-		wake_up_interruptible(&pcm_q);
-		ret = IRQ_HANDLED;
-	}
+	void *dma_addr;
+	uint32_t offset;
+	uint32_t dma_at;
+	/*
+	 * Since Rx and Tx DMA starts at the same time after
+	 * PCM is taken out of reset, both would complete at
+	 * the same time, so no point in waiting for 2 interrupts.
+	 * If one finishes its implicit that other too finishes.
+	 * This handler assumes only Tx or Rx DMA interrupt is enabled.
+	 *
+	 * Read DMA current buffer address and figure out of buffer A
+	 * finished or B finished.
+	 */
 
-	if (intrsrc & LPA_IF_PER_CH1) {
-		spin_lock_irqsave(&pcm_lock, flag);
-		tx_at = !tx_at;
-		spin_unlock_irqrestore(&pcm_lock, flag);
-		ret = IRQ_HANDLED;
-        }
-        return ret;
+	dma_addr = (void *)readl(dai_info.base +
+				LPAIF_DMA_CURR_ADDR(PCM0_DMA_WR_CH));
+	offset = dma_addr - rx_dma_buffer->addr;
+	dma_at = offset / VOICE_PERIOD_SIZE;
+
+	if (dma_at > (NUM_BUFFERS - 1)) {
+		/* some error, get out */
+		return IRQ_HANDLED;
+	}
+	atomic_set(&data_at, (dma_at + 1) % NUM_BUFFERS);
+	atomic_set(&data_avail, 1);
+	wake_up_interruptible(&pcm_q);
+        return IRQ_HANDLED;
 }
 
 void ipq_pcm_init(void)
@@ -84,6 +91,8 @@ void ipq_pcm_init(void)
 	uint32_t freq = CHANNEL_SAMPLING_RATE;
 	uint32_t slots = NUM_PCM_SLOTS;
 
+	atomic_set(&data_avail, 0);
+	atomic_set(&data_at, 1);
 	clk_reset(lpaif_pcm_bit_clk, LPAIF_PCM_ASSERT);
 
 	/* Put the PCM instance to Reset */
@@ -106,18 +115,15 @@ void ipq_pcm_init(void)
 	/* Configure the number of slots */
 	ipq_cfg_pcm_rate(bit_width * slots);
 
-	/* Configure the DMA */
-	ipq_lpaif_register_dma_irq_handler(PCM0_DMA_RD_CH,
-						pcm_irq_handler, NULL);
-	ipq_lpaif_register_dma_irq_handler(PCM0_DMA_WR_CH,
-						pcm_irq_handler, NULL);
+	/*
+	 * Configure the DMA , Intr is enabled only for
+	 * for write channel. (host Rx)
+	*/
 
 	tx_dma_params.src_start = tx_dma_buffer->addr;
 	tx_dma_params.buffer = (u8 *)tx_dma_buffer->area;
 	tx_dma_params.buffer_size = VOICE_BUFF_SIZE;
 	tx_dma_params.period_size = VOICE_PERIOD_SIZE;
-
-	/* here write channel is from DMA point of view */
 	ret = ipq_lpaif_cfg_dma(PCM0_DMA_RD_CH, &tx_dma_params,
 					CHANNEL_BIT_WIDTH, 0 /*disable */);
 	if (ret) {
@@ -129,18 +135,17 @@ void ipq_pcm_init(void)
 	rx_dma_params.buffer = (u8 *)rx_dma_buffer->area;
 	rx_dma_params.buffer_size = VOICE_BUFF_SIZE;
 	rx_dma_params.period_size = VOICE_PERIOD_SIZE;
-
-	/* here write channel is from DMA point of view */
 	ret = ipq_lpaif_cfg_dma(PCM0_DMA_WR_CH, &rx_dma_params,
 					CHANNEL_BIT_WIDTH, 0 /*disable */);
 
+	ipq_lpaif_register_dma_irq_handler(PCM0_DMA_WR_CH,
+						pcm_irq_handler, NULL);
 	if (ret) {
 		goto error_cfg_wr_ch;
 		return ;
 	}
 
 	ipq_pcm_int_enable(PCM0_DMA_WR_CH);
-	ipq_pcm_int_enable(PCM0_DMA_RD_CH);
 
 	/* Start PCLK */
 	ret = clk_set_rate(lpaif_pcm_bit_clk, (freq * bit_width * slots));
@@ -156,6 +161,7 @@ void ipq_pcm_init(void)
 		goto error_clk;
 	}
 
+	/* take PCM out of reset to start it */
 	ipq_cfg_pcm_reset(0);
 
 	context.needs_deinit = 1;
@@ -164,10 +170,8 @@ void ipq_pcm_init(void)
 error_clk:
 	ipq_lpaif_disable_dma(PCM0_DMA_WR_CH);
 error_cfg_wr_ch:
-	ipq_lpaif_disable_dma(PCM0_DMA_RD_CH);
 error_cfg_rd_ch:
 	ipq_lpaif_unregister_dma_irq_handler(PCM0_DMA_WR_CH);
-	ipq_lpaif_unregister_dma_irq_handler(PCM0_DMA_RD_CH);
 
 }
 EXPORT_SYMBOL(ipq_pcm_init);
@@ -178,41 +182,36 @@ void ipq_pcm_deinit(void)
 	clk_reset(lpaif_pcm_bit_clk, LPAIF_PCM_ASSERT);
 	clk_disable_unprepare(lpaif_pcm_bit_clk);
 	ipq_pcm_int_disable(PCM0_DMA_WR_CH);
-	ipq_pcm_int_disable(PCM0_DMA_RD_CH);
 	ipq_lpaif_unregister_dma_irq_handler(PCM0_DMA_WR_CH);
 	ipq_lpaif_unregister_dma_irq_handler(PCM0_DMA_RD_CH);
 	ipq_lpaif_disable_dma(PCM0_DMA_WR_CH);
 	ipq_lpaif_disable_dma(PCM0_DMA_RD_CH);
 	memset(&context, 0, sizeof(struct voice_dma_buffer));
 }
-EXPORT_SYMBOL_GPL(ipq_pcm_deinit);
+EXPORT_SYMBOL(ipq_pcm_deinit);
 
-uint32_t ipq_pcm_rx(char **rx_buf)
+int ipq_pcm_data(char **rx_buf, char **tx_buf)
 {
 	unsigned long flag;
-	/* wait for data and let IRQ handler know we are waiting */
-	rx_waiting = 1;
-	wait_event_interruptible(pcm_q, context.rd_pending != 0);
+	uint32_t offset;
 
+        wait_event_interruptible(pcm_q, atomic_read(&data_avail) != 0);
+	atomic_set(&data_avail, 0);
+	offset = VOICE_PERIOD_SIZE * atomic_read(&data_at);
 	spin_lock_irqsave(&pcm_lock, flag);
-	context.rd_pending -= VOICE_PERIOD_SIZE;
-	*rx_buf = rx_dma_buffer->area + (VOICE_PERIOD_SIZE * !rx_at);
+	*rx_buf = rx_dma_buffer->area + offset;
+	*tx_buf = tx_dma_buffer->area + offset;
 	spin_unlock_irqrestore(&pcm_lock, flag);
 
 	return VOICE_PERIOD_SIZE;
 }
-EXPORT_SYMBOL(ipq_pcm_rx);
+EXPORT_SYMBOL(ipq_pcm_data);
 
-char * ipq_pcm_tx(void)
+void ipq_pcm_done(void)
 {
-	char *tx_buf;
-	unsigned long flag;
-	spin_lock_irqsave(&pcm_lock, flag);
-	tx_buf = tx_dma_buffer->area + (VOICE_PERIOD_SIZE * !tx_at);
-	spin_unlock_irqrestore(&pcm_lock, flag);
-	return tx_buf;
+	atomic_set(&data_avail, 0);
 }
-EXPORT_SYMBOL(ipq_pcm_tx);
+EXPORT_SYMBOL(ipq_pcm_done);
 
 static int voice_allocate_dma_buffer(struct device *dev,
 		struct voice_dma_buffer *dma_buffer)

@@ -37,8 +37,8 @@
 
 extern void ipq_pcm_init(void);
 extern void ipq_pcm_deinit(void);
-extern uint32_t ipq_pcm_rx(char **rx_buf);
-extern unsigned char * ipq_pcm_tx(void);
+extern uint32_t ipq_pcm_data(char **rx_buf, char **tx_buf);
+extern void ipq_pcm_done();
 static void pcm_start_test(void);
 
 #define LOOPBACK_SKIP_COUNT		10
@@ -120,26 +120,23 @@ void pcm_lb_sysfs_deinit(void)
 	}
 }
 
-void pcm_read(void)
+void pcm_read_write(void)
 {
-	char *rx;
-	ipq_pcm_rx(&rx);
-	ctx.last_rx_buff = rx;
-}
+	char *rx_buff;
+	char *tx_buff;
+	int i;
 
-void pcm_write(void)
-{
-	uint32_t i;
-	unsigned char *tx_buff;
+	ipq_pcm_data(&rx_buff, &tx_buff);
+	ctx.last_rx_buff = rx_buff;
 
 	/* get current Tx buffer and write the pattern
 	 * We will write 1, 2, 3, ..., 255, 1, 2, 3...
 	 */
-	tx_buff = ipq_pcm_tx();
 	for (i =  0; i < (VOICE_PERIOD_SIZE); i++) {
 		tx_buff[i] = ctx.tx_data;
 		ctx.tx_data ++;
 	}
+	ipq_pcm_done();
 }
 
 void pcm_init(void)
@@ -219,8 +216,7 @@ int pcm_test_rw(void *data)
 	pcm_init();
 
 	while (ctx.running) {
-		pcm_read();
-		pcm_write();
+		pcm_read_write();
 		process_read();
 	}
 	printk("%s : Test Thread stopped\n", __func__);
