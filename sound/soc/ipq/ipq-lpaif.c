@@ -36,9 +36,9 @@
 #include "ipq806x.h"
 
 struct ipq_lpaif_dai_baseinfo dai_info;
+EXPORT_SYMBOL_GPL(dai_info);
 
 struct dai_drv *dai[MAX_LPAIF_CHANNELS];
-
 static spinlock_t dai_lock;
 struct clk *lpaif_pcm_bit_clk;
 EXPORT_SYMBOL_GPL(lpaif_pcm_bit_clk);
@@ -46,11 +46,20 @@ EXPORT_SYMBOL_GPL(lpaif_pcm_bit_clk);
 int ipq_pcm_int_enable(uint8_t dma_ch)
 {
 	uint32_t intr_val;
+	uint32_t status_val;
+
 	if (dma_ch >= MAX_LPAIF_CHANNELS)
 		return -EINVAL;
+
+	/* clear status before enabling interrupt */
+	status_val = readl(dai_info.base + LPAIF_IRQ_CLEAR(0));
+	status_val = status_val | (1 << (dma_ch * 3));
+	writel(status_val, dai_info.base + LPAIF_IRQ_CLEAR(0));
+
 	intr_val = readl(dai_info.base + LPAIF_IRQ_EN(0));
 	intr_val = intr_val | (1 << (dma_ch * 3));
-	writel(intr_val,dai_info.base + LPAIF_IRQ_EN(0));
+	writel(intr_val, dai_info.base + LPAIF_IRQ_EN(0));
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ipq_pcm_int_enable);
@@ -349,6 +358,7 @@ static int ipq_cfg_lpaif_dma_ch(uint32_t lpaif_dma_ch, uint32_t channels,
 
 	if ((lpaif_dma_ch == PCM0_DMA_WR_CH) ||
 		(lpaif_dma_ch == PCM0_DMA_RD_CH)) {
+		cfg &= LPA_IF_DMACTL_AUDIO_INTF_MASK;
 		cfg |= LPA_IF_DMACTL_AUDIO_INTF_PCM;
 	} else if (lpaif_dma_ch == MI2S_DMA_RD_CH) {
 		cfg |= LPA_IF_DMACTL_AUDIO_INTF_MI2S;
