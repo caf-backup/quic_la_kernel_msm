@@ -187,6 +187,12 @@ void ipq_pcm_stop(void)
 }
 EXPORT_SYMBOL_GPL(ipq_pcm_stop);
 
+void ipq_cfg_mi2s_disable(uint32_t off)
+{
+	writel(0, dai_info.base + LPAIF_MI2S_CTL_OFFSET(off));
+}
+EXPORT_SYMBOL_GPL(ipq_cfg_mi2s_disable);
+
 void ipq_cfg_i2s_spkr(uint8_t enable, uint32_t mode, uint32_t off)
 {
 	uint32_t cfg;

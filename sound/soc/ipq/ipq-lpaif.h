@@ -274,5 +274,6 @@ extern int ipq_pcm_int_disable(uint8_t dma_ch);
 extern void ipq_lpaif_disable_dma(uint32_t dma_ch);
 extern int ipq_lpaif_dai_config_dma(uint32_t dma_ch);
 extern void ipq_cfg_pcm_aux_mode(uint8_t mode);
+extern void ipq_cfg_mi2s_disable(uint32_t off);
 
 #endif /* _IPQ_LPA_IF_H */

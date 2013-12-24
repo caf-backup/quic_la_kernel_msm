@@ -232,6 +232,7 @@ static int ipq_lpass_mi2s_hw_params(struct snd_pcm_substream *substream,
 	struct ipq_lpass_runtime_data_t *prtd =
 	(struct ipq_lpass_runtime_data_t *)runtime->private_data;
 
+	ipq_cfg_mi2s_disable(LPA_IF_MI2S);
 	bit_act = ipq_lpass_get_act_bit_width(bit_width);
 	if (bit_act == __BIT_INVAL)
 		return -EINVAL;
