@@ -851,23 +851,6 @@ static struct platform_device android_usb_device = {
 #define PMIC_GPIO_DP_IRQ	PM8921_GPIO_IRQ(PM8921_IRQ_BASE, PMIC_GPIO_DP)
 #define MSM_MPM_PIN_USB1_OTGSESSVLD	40
 
-
-#define MCP23S08_NAME "mcp23s08"
-
-static struct mcp23s08_platform_data ipq806x_mcp23s08_sys_gpio_info = {
-	.chip[0].is_present = true,
-	.base = 0x0,
-};
-
-static struct i2c_board_info mcp23s08_ioexpander_i2c_info[] __initdata = {
-	{
-		I2C_BOARD_INFO(MCP23S08_NAME,
-			IPQ806X_MCP23S08_I2C_SLAVE_ADDRESS),
-		.platform_data  = &ipq806x_mcp23s08_sys_gpio_info,
-	},
-};
-
-
 #ifdef CONFIG_QSEECOM
 /* qseecom bus scaling */
 static struct msm_bus_vectors qseecom_clks_init_vectors[] = {
@@ -1649,10 +1632,8 @@ static struct platform_device *common_rumi3_i2c_ipq806x_devices[] __initdata = {
 	&ipq806x_device_qup_i2c_gsbi2,
 };
 
-static struct platform_device *common_cdp_i2c_ipq806x_devices[] __initdata = {
+static struct platform_device *cdp_i2c_ipq806x_devices_db149[] __initdata = {
 	&ipq806x_device_qup_i2c_gsbi1,
-	&ipq806x_device_qup_i2c_gsbi2,
-	&ipq806x_device_qup_i2c_gsbi4,
 };
 
 static struct platform_device
@@ -1680,9 +1661,6 @@ static struct platform_device *common_devices[] __initdata = {
 	&ipq806x_device_dwc3_host2,
 #ifdef CONFIG_ANDROID
 	&android_usb_device,
-#endif
-#ifdef not_applicable_for_ipq806x
-	&ipq806x_fmem_device,
 #endif
 #if defined(CONFIG_ANDROID_PMEM) && !defined(CONFIG_MSM_MULTIMEDIA_USE_ION)
 	&ipq806x_android_pmem_device,
@@ -1723,7 +1701,6 @@ static struct platform_device *common_devices[] __initdata = {
 	&msm_bus_ipq806x_nss_fabric_0,
 	&msm_bus_ipq806x_nss_fabric_1,
 	&ipq806x_rtb_device,
-	&ipq806x_msm_gov_device,
 	&ipq806x_device_cache_erp,
 	&ipq806x_device_ebi1_ch0_erp,
 	&coresight_tpiu_device,
@@ -1990,55 +1967,6 @@ static struct platform_device ap148_kp_pdev = {
 	},
 };
 
-#define I2C_SURF 1
-#define I2C_FFA  (1 << 1)
-#define I2C_RUMI (1 << 2)
-#define I2C_SIM  (1 << 3)
-#define I2C_LIQUID (1 << 4)
-#define I2C_MPQ_CDP	BIT(5)
-#define I2C_IPQ806X_CDP	BIT(5)
-#define I2C_MPQ_HRD	BIT(6)
-#define I2C_MPQ_DTV	BIT(7)
-
-struct i2c_registry {
-	u8                     machs;
-	int                    bus;
-	struct i2c_board_info *info;
-	int                    len;
-};
-
-static struct i2c_registry ipq806x_i2c_devices[] __initdata = {
-	{
-		I2C_IPQ806X_CDP,
-		IPQ806X_GSBI1_QUP_I2C_BUS_ID,
-		mcp23s08_ioexpander_i2c_info,
-		ARRAY_SIZE(mcp23s08_ioexpander_i2c_info)
-	}
-};
-
-static void __init register_i2c_devices(void)
-{
-	u8 mach_mask = 0;
-	int i;
-
-	/* Build the matching 'supported_machs' bitmask */
-	if (machine_is_ipq806x_db149() || machine_is_ipq806x_db149_1xx() ||
-		machine_is_ipq806x_db147() ||
-		machine_is_ipq806x_ap148() ||
-		machine_is_ipq806x_ap145())
-		mach_mask = I2C_IPQ806X_CDP;
-	else
-		pr_err("unmatched machine ID in register_i2c_devices\n");
-
-	/* Run the array and install devices as appropriate */
-	for (i = 0; i < ARRAY_SIZE(ipq806x_i2c_devices); ++i) {
-		if (ipq806x_i2c_devices[i].machs & mach_mask)
-			i2c_register_board_info(ipq806x_i2c_devices[i].bus,
-						ipq806x_i2c_devices[i].info,
-						ipq806x_i2c_devices[i].len);
-	}
-}
-
 #ifdef CONFIG_SPI_QUP
 static void ipq806x_spi_register(void)
 {
@@ -2110,7 +2038,6 @@ static void __init ipq806x_common_init(void)
 
 	if (!machine_is_ipq806x_rumi3()) {
 		ipq806x_i2c_init();
-		register_i2c_devices();
 	}
 
 #ifdef CONFIG_CPU_FREQ_SWITCH_PROFILER
@@ -2150,6 +2077,9 @@ static void __init ipq806x_common_init(void)
 		platform_add_devices(lpass_dma_devices, ARRAY_SIZE(lpass_dma_devices));
 		platform_add_devices(lpass_alsa_devices, ARRAY_SIZE(lpass_alsa_devices));
 		platform_add_devices(lpass_pcm_devices, ARRAY_SIZE(lpass_pcm_devices));
+
+		platform_add_devices(cdp_i2c_ipq806x_devices_db149,
+				ARRAY_SIZE(cdp_i2c_ipq806x_devices_db149));
 	}
 
 	if (machine_is_ipq806x_ap148()) {
@@ -2159,9 +2089,6 @@ static void __init ipq806x_common_init(void)
 	}
 
 	if (!machine_is_ipq806x_rumi3()) {
-		platform_add_devices(common_cdp_i2c_ipq806x_devices,
-				ARRAY_SIZE(common_cdp_i2c_ipq806x_devices));
-
 		if (SOCINFO_VERSION_MINOR(platform_version) == 1)
 			platform_add_devices(common_i2s_devices,
 					ARRAY_SIZE(common_i2s_devices));
