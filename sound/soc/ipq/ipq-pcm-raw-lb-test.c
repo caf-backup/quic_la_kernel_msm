@@ -42,6 +42,7 @@ extern void ipq_pcm_done();
 static void pcm_start_test(void);
 
 #define LOOPBACK_SKIP_COUNT		10
+#define LOOPBACK_FAIL_THRESHOLD		20
 #define DEFINE_INTEGER_ATTR(name)					\
 static unsigned short name;						\
 									\
@@ -154,6 +155,7 @@ void pcm_deinit(void)
 void process_read(void)
 {
 	uint32_t index;
+	static uint32_t continuous_failures = 0;
 	char data;
 
 	ctx.read_count ++;
@@ -188,12 +190,23 @@ void process_read(void)
 		data ++;
 	}
 
-	if (index == VOICE_PERIOD_SIZE)
+	if (index == VOICE_PERIOD_SIZE) {
 		ctx.passed++;
-	else
+		continuous_failures = 0;
+	} else {
 		ctx.failed++;
+		continuous_failures ++;
+	}
 
 	ctx.expected_rx_seq += VOICE_PERIOD_SIZE;
+
+	/* Abort if there are more failures */
+	if (continuous_failures >= LOOPBACK_FAIL_THRESHOLD) {
+		printk("Aborting loopback test as there are %d continuous "
+				"failures\n", continuous_failures);
+		continuous_failures = 0;
+		ctx.running = 0; /* stops test thread (current) */
+	}
 }
 
 int pcm_test_rw(void *data)
