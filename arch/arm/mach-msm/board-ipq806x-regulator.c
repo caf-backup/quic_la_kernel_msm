@@ -13,42 +13,26 @@
  */
 
 #include <linux/regulator/pm8xxx-regulator.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/ipq-regulator.h>
 
 #include "board-ipq806x.h"
 
-
 #define VREG_CONSUMERS(_id) \
 	static struct regulator_consumer_supply vreg_consumers_##_id[]
+
+#define REG_IPQ_REGISTER(_id, _name) \
+	regulator_register_ipq_dummy(_id, vreg_consumers_##_name, ARRAY_SIZE(vreg_consumers_##_name), SMB208_FIXED_MINUV, SMB208_FIXED_MAXUV)
 
 /*
  * Regulators that are present when using SMB PMIC
  */
 VREG_CONSUMERS(S1a) = {
 	REGULATOR_SUPPLY("smb208_s1a", NULL),
-	/*
-	 * TODO Map the PCIe voltages to appropriate regulators after adding
-	 * them to regulator list
-	 */
-	REGULATOR_SUPPLY("vp_pcie", "msm_pcie.0"),
-	REGULATOR_SUPPLY("vptx_pcie", "msm_pcie.0"),
-	REGULATOR_SUPPLY("vp_pcie", "msm_pcie.1"),
-	REGULATOR_SUPPLY("vptx_pcie", "msm_pcie.1"),
-	REGULATOR_SUPPLY("vp_pcie", "msm_pcie.2"),
-	REGULATOR_SUPPLY("vptx_pcie", "msm_pcie.2"),
 };
 
 VREG_CONSUMERS(S1a_ap148) = {
 	REGULATOR_SUPPLY("smb208_s1a", NULL),
-	/*
-	 * TODO Map the PCIe voltages to appropriate regulators after adding
-	 * them to regulator list
-	 */
-	REGULATOR_SUPPLY("vp_pcie", "msm_pcie.0"),
-	REGULATOR_SUPPLY("vptx_pcie", "msm_pcie.0"),
-	REGULATOR_SUPPLY("vp_pcie", "msm_pcie.1"),
-	REGULATOR_SUPPLY("vptx_pcie", "msm_pcie.1"),
-	REGULATOR_SUPPLY("vp_pcie", "msm_pcie.2"),
-	REGULATOR_SUPPLY("vptx_pcie", "msm_pcie.2"),
 	REGULATOR_SUPPLY("VDD_UBI0", "qca-nss.0"),
 	REGULATOR_SUPPLY("VDD_UBI1", "qca-nss.1"),
 };
@@ -76,37 +60,55 @@ VREG_CONSUMERS(S2b) = {
 	REGULATOR_SUPPLY("krait1_dummy", "acpuclk-ipq806x"),
 };
 
-VREG_CONSUMERS(S3a) = {
-	REGULATOR_SUPPLY("smb208_s3a", NULL),
+VREG_CONSUMERS(fixed_sdc_vdd_io) = {
+	REGULATOR_SUPPLY("ipq_fixed_regulator1", NULL),
 	REGULATOR_SUPPLY("sdc_vdd_io", "msm_sdcc.1"),
+};
+
+VREG_CONSUMERS(fixed_sdc3_vdd_io) = {
+	REGULATOR_SUPPLY("ipq_fixed_regulator2", NULL),
 	REGULATOR_SUPPLY("sdc_vdd_io", "msm_sdcc.3"),
 };
 
-VREG_CONSUMERS(S3b) = {
-	REGULATOR_SUPPLY("smb208_s3b",NULL),
+VREG_CONSUMERS(fixed_sata_ext) = {
+	REGULATOR_SUPPLY("ipq_fixed_regulator3", NULL),
 	REGULATOR_SUPPLY("sata_ext_3p3v", "msm_sata.0"),
 };
 
-VREG_CONSUMERS(S4) = {
-	REGULATOR_SUPPLY("smb208_s4",  NULL),
+VREG_CONSUMERS(fixed_sata_pmp) = {
+	REGULATOR_SUPPLY("ipq_fixed_regulator4", NULL),
 	REGULATOR_SUPPLY("sata_pmp_pwr", "msm_sata.0"),
 };
 
-VREG_CONSUMERS(S5) = {
-	REGULATOR_SUPPLY("smb208_s5",  NULL),
+VREG_CONSUMERS(fixed_sdc_vdd) = {
+	REGULATOR_SUPPLY("ipq_fixed_regulator5", NULL),
 	REGULATOR_SUPPLY("sdc_vdd", "msm_sdcc.1"),
+};
+
+VREG_CONSUMERS(fixed_sdc3_vdd) = {
+	REGULATOR_SUPPLY("ipq_fixed_regulator6", NULL),
 	REGULATOR_SUPPLY("sdc_vdd", "msm_sdcc.3"),
 };
 
-VREG_CONSUMERS(S6a) = {
-	REGULATOR_SUPPLY("smb208_s6a",  NULL),
+VREG_CONSUMERS(fixed_pcie_ext) = {
+	REGULATOR_SUPPLY("ipq_fixed_regulator7", NULL),
 	REGULATOR_SUPPLY("pcie_ext_3p3v", "msm_pcie.0"),
 	REGULATOR_SUPPLY("pcie_ext_3p3v", "msm_pcie.1"),
 	REGULATOR_SUPPLY("pcie_ext_3p3v", "msm_pcie.2"),
 };
 
-VREG_CONSUMERS(S6b) = {
-	REGULATOR_SUPPLY("smb208_s6b",  NULL),
+VREG_CONSUMERS(fixed_pcie_vp) = {
+	REGULATOR_SUPPLY("ipq_fixed_regulator8", NULL),
+	REGULATOR_SUPPLY("vp_pcie", "msm_pcie.0"),
+	REGULATOR_SUPPLY("vptx_pcie", "msm_pcie.0"),
+	REGULATOR_SUPPLY("vp_pcie", "msm_pcie.1"),
+	REGULATOR_SUPPLY("vptx_pcie", "msm_pcie.1"),
+	REGULATOR_SUPPLY("vp_pcie", "msm_pcie.2"),
+	REGULATOR_SUPPLY("vptx_pcie", "msm_pcie.2"),
+};
+
+VREG_CONSUMERS(fixed_pcie_vph) = {
+	REGULATOR_SUPPLY("ipq_fixed_regulator9", NULL),
 	REGULATOR_SUPPLY("vdd_pcie_vph", "msm_pcie.0"),
 	REGULATOR_SUPPLY("vdd_pcie_vph", "msm_pcie.1"),
 	REGULATOR_SUPPLY("vdd_pcie_vph", "msm_pcie.2"),
@@ -229,26 +231,11 @@ ipq806x_gpio_regulator_pdata[] __devinitdata = {
 static struct rpm_regulator_init_data
 ipq806x_rpm_regulator_smb_init_data[] __devinitdata = {
 	/*       ID a_on pd ss min_uV   max_uV  supply sys_uA  freq  fm  ss_fm */
-#ifdef CONFIG_MSM_SMB_FIXED_VOLTAGE
-	RPM_SMB_SMPS(S1a, 0, 1, 1, SMB208_FIXED_MINUV, SMB208_FIXED_MAXUV, NULL, 1200000, 0p50, NONE, NONE),
-	RPM_SMB_SMPS(S1b, 0, 1, 1, SMB208_FIXED_MINUV, SMB208_FIXED_MAXUV, NULL, 1679000, 0p50, NONE, NONE),
-	RPM_SMB_SMPS(S2a, 0, 1, 1, SMB208_FIXED_MINUV, SMB208_FIXED_MAXUV, NULL, 1740000, 0p50, NONE, NONE),
-	RPM_SMB_SMPS(S2b, 0, 1, 1, SMB208_FIXED_MINUV, SMB208_FIXED_MAXUV, NULL, 1740000, 0p50, NONE, NONE),
-#else
+
 	RPM_SMB_SMPS(S1a, 0, 1, 1, 500000, 1150000, NULL, 1200000, 0p50, NONE, NONE),
 	RPM_SMB_SMPS(S1b, 0, 1, 1, 500000, 1150000, NULL, 1679000, 0p50, NONE, NONE),
 	RPM_SMB_SMPS(S2a, 0, 1, 1, 500000, 1250000, NULL, 1740000, 0p50, NONE, NONE),
 	RPM_SMB_SMPS(S2b, 0, 1, 1, 500000, 1250000, NULL, 1740000, 0p50, NONE, NONE),
-#endif
-	/*
-	 * These regulators are always fixed.
-	 */
-	RPM_SMB_SMPS(S3a, 0, 1, 0, 500000, 5000000, NULL, 1250000, 1p00, NONE, NONE),
-	RPM_SMB_SMPS(S3b, 0, 1, 1, 500000, 5000000, NULL, 472000, 1p00, NONE, NONE),
-	RPM_SMB_SMPS(S4, 0, 1, 1, 500000,  5000000, NULL, 472000, 1p00, NONE, NONE),
-	RPM_SMB_SMPS(S5, 0, 1, 1, 500000,  5000000, NULL, 472000, 1p00, NONE, NONE),
-	RPM_SMB_SMPS(S6a, 0, 1, 1, 500000, 5000000, NULL, 472000, 1p00, NONE, NONE),
-	RPM_SMB_SMPS(S6b, 0, 1, 1, 500000, 5000000, NULL, 472000, 1p00, NONE, NONE),
 };
 
 #define RPM_SMB_REG_MAP(_id, _voter, _supply, _dev_name) \
@@ -276,14 +263,6 @@ msm_rpm_regulator_smb_tb732_consumer_mapping[] __devinitdata = {
 	RPM_SMB_REG_MAP(S1b,  RPM_VREG_VOTER8, "krait1_dig",   "acpuclk-ipq806x"),
 	RPM_SMB_REG_MAP(S1b,  RPM_VREG_VOTER11, "VDD_CX",        NULL),
 	RPM_SMB_REG_MAP(S1b,  RPM_VREG_VOTER12, "VCC_CDC_SDCx",  NULL),
-
-	/* SMB207_S3a  -  VDD12_S17, VDD12_QSGMII_PHY */
-	RPM_SMB_REG_MAP(S3a, RPM_VREG_VOTER1, "VDD_S17",  "nss_gmac"),
-	RPM_SMB_REG_MAP(S3a, RPM_VREG_VOTER2, "VDD_QGMII_PHY",  "nss_gmac"),
-
-	/* SMB207_S3b  - VDDPX_1,VDD15_DDR3 */
-	RPM_SMB_REG_MAP(S3b, RPM_VREG_VOTER1, "VDD_IO_1", NULL),
-	RPM_SMB_REG_MAP(S3b, RPM_VREG_VOTER2, "VDD_DDR",  NULL),
 };
 
 static struct rpm_regulator_consumer_mapping
@@ -305,13 +284,6 @@ msm_rpm_regulator_smb_db14x_consumer_mapping[] __devinitdata = {
 	RPM_SMB_REG_MAP(S1b, RPM_VREG_VOTER1, "VDD_UBI0",       "qca-nss.0"),
 	RPM_SMB_REG_MAP(S1b, RPM_VREG_VOTER2, "VDD_UBI1",       "qca-nss.1"),
 
-	/* SMB207_S3a  -  VDD12_S17, VDD12_QSGMII_PHY */
-	RPM_SMB_REG_MAP(S3a, RPM_VREG_VOTER1, "VDD_S17",  "nss_gmac"),
-	RPM_SMB_REG_MAP(S3a, RPM_VREG_VOTER2, "VDD_QGMII_PHY",  "nss_gmac"),
-
-	/* SMB207_S3b  - VDDPX_1,VDD15_DDR3 */
-	RPM_SMB_REG_MAP(S3b, RPM_VREG_VOTER1, "VDD_IO_1", NULL),
-	RPM_SMB_REG_MAP(S3b, RPM_VREG_VOTER2, "VDD_DDR",  NULL),
 };
 
 static struct rpm_regulator_consumer_mapping
@@ -333,13 +305,6 @@ msm_rpm_regulator_smb_ap148_consumer_mapping[] __devinitdata = {
 	RPM_SMB_REG_MAP(S1a, RPM_VREG_VOTER1, "VDD_UBI0",       "qca-nss.0"),
 	RPM_SMB_REG_MAP(S1a, RPM_VREG_VOTER2, "VDD_UBI1",       "qca-nss.1"),
 
-	/* SMB207_S3a  -  VDD12_S17, VDD12_QSGMII_PHY */
-	RPM_SMB_REG_MAP(S3a, RPM_VREG_VOTER1, "VDD_S17",  "nss_gmac"),
-	RPM_SMB_REG_MAP(S3a, RPM_VREG_VOTER2, "VDD_QGMII_PHY",  "nss_gmac"),
-
-	/* SMB207_S3b  - VDDPX_1,VDD15_DDR3 */
-	RPM_SMB_REG_MAP(S3b, RPM_VREG_VOTER1, "VDD_IO_1", NULL),
-	RPM_SMB_REG_MAP(S3b, RPM_VREG_VOTER2, "VDD_DDR",  NULL),
 };
 
 static struct rpm_regulator_consumer_mapping
@@ -365,14 +330,6 @@ msm_rpm_regulator_smb_rumi3_consumer_mapping[] __devinitdata = {
 	RPM_SMB_REG_MAP(S1b,  RPM_VREG_VOTER8, "krait1_dig",   "acpuclk-ipq806x"),
 	RPM_SMB_REG_MAP(S1b,  RPM_VREG_VOTER11, "VDD_CX",        NULL),
 	RPM_SMB_REG_MAP(S1b,  RPM_VREG_VOTER12, "VCC_CDC_SDCx",  NULL),
-
-	/* SMB207_S3a  -  VDD12_S17, VDD12_QSGMII_PHY */
-	RPM_SMB_REG_MAP(S3a, RPM_VREG_VOTER1, "VDD_S17",  "nss_gmac"),
-	RPM_SMB_REG_MAP(S3a, RPM_VREG_VOTER2, "VDD_QGMII_PHY",  "nss_gmac"),
-
-	/* SMB207_S3b  - VDDPX_1,VDD15_DDR3 */
-	RPM_SMB_REG_MAP(S3b, RPM_VREG_VOTER1, "VDD_IO_1", NULL),
-	RPM_SMB_REG_MAP(S3b, RPM_VREG_VOTER2, "VDD_DDR",  NULL),
 
 };
 
@@ -400,10 +357,7 @@ ipq806x_rpm_regulator_smb_pdata __devinitdata = {
  */
 void __init fixup_ipq806x_smb_power_grid(void)
 {
-
-#ifdef CONFIG_MSM_SMB_FIXED_VOLTAGE
 	int i;
-#endif
 	static struct rpm_regulator_init_data *rpm_data;
 
 	/*
@@ -445,23 +399,34 @@ void __init fixup_ipq806x_smb_power_grid(void)
 		rpm_data->init_data.num_consumer_supplies = ARRAY_SIZE(vreg_consumers_S1b_ap148);
 		rpm_data->init_data.consumer_supplies = vreg_consumers_S1b_ap148;
 
+		if (machine_is_ipq806x_ap145()) {
+			rpm_vreg_regulator_set_fixed();
+
+			for (i = 0; i < ARRAY_SIZE(ipq806x_rpm_regulator_smb_init_data); i++) {
+
+				rpm_data = &ipq806x_rpm_regulator_smb_init_data[i];
+
+				/* All regulators are at fixed voltage in AP145
+				 * We will not change the min_uV and let the voltage requests
+				 * between min_uV and max_uV from consumers, end gracefully.
+				 */
+				rpm_data->init_data.constraints.min_uV = SMB208_FIXED_MINUV;
+				rpm_data->init_data.constraints.max_uV = SMB208_FIXED_MAXUV;
+			}
+		}
+
 	}
 
-#ifdef CONFIG_MSM_SMB_FIXED_VOLTAGE
-	rpm_vreg_regulator_set_enable();
-
-	for (i = 0; i < ARRAY_SIZE(ipq806x_rpm_regulator_smb_init_data); i++) {
-
-		rpm_data = &ipq806x_rpm_regulator_smb_init_data[i];
-
-		rpm_data->init_data.constraints.min_uV = SMB208_FIXED_MINUV ;
-		rpm_data->init_data.constraints.max_uV = SMB208_FIXED_MAXUV;
-
-		/*
-		 * Placeholder for any change in supported operations
-		 */
-
-		/* rpm_data->init_data.constraints.valid_ops_mask = 0; */
-	}
-#endif
+	/*
+	 * Register all dummy fixed regulators
+	 */
+	REG_IPQ_REGISTER(0, fixed_pcie_ext);
+	REG_IPQ_REGISTER(1, fixed_pcie_vp);
+	REG_IPQ_REGISTER(2, fixed_pcie_vph);
+	REG_IPQ_REGISTER(3, fixed_sdc_vdd_io);
+	REG_IPQ_REGISTER(4, fixed_sdc3_vdd_io);
+	REG_IPQ_REGISTER(5, fixed_sdc_vdd);
+	REG_IPQ_REGISTER(6, fixed_sdc3_vdd);
+	REG_IPQ_REGISTER(7, fixed_sata_ext);
+	REG_IPQ_REGISTER(8, fixed_sata_pmp);
 }
