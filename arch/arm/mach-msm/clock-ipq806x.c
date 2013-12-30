@@ -1161,43 +1161,217 @@ static struct pll_vote_clk pll4_clk = {
 
 static struct clk_freq_tbl clk_tbl_aif_mi2s[] = {
 	F_AIF_MI2S(0,		gnd,	1,	0,	0),
+	/*
+	 * 16 bit, stereo, 8KHz
+	 * 16 bit, 7.1 channels, 8KHz
+	 */
 	F_AIF_MI2S(1024000,	pll4,	4,	1,	96),
-	F_AIF_MI2S(2822400,	pll4,	4,	1,	35),
-	F_AIF_MI2S(5644800,	pll4,	4,	2,	35),
-	F_AIF_MI2S(4233600,	pll4,	4,	1,	23),
-	F_AIF_MI2S(8467200,	pll4,	4,	2,	23),
-	F_AIF_MI2S(9216000,	pll4,	4,	2,	21),
-	F_AIF_MI2S(4608000,	pll4,	4,	2,	43),
+	/*
+	 * 16 bit, stereo, 11.025KHz
+	 * 16 bit, 7.1 channels, 11.025KHz
+	 */
 	F_AIF_MI2S(1411200,	pll4,	4,	2,	139),
-	F_AIF_MI2S(3072000,	pll4,	4,	1,	32),
+	/*
+	 * 24 bit, stereo, 8KHz
+	 * 16 bit, 5.1 channels, 8KHz
+	 */
 	F_AIF_MI2S(1536000,	pll4,	4,	1,	64),
-	F_AIF_MI2S(2116800,	pll4,	4,	2,	93),
-	F_AIF_MI2S(11289600,	pll4,	4,	2,	17),
+	/*
+	 * 16 bit, stereo, 16KHz
+	 * 32 bit, stereo, 8KHz
+	 * 16 bit, 7.1 channels, 16KHz
+	 * 32 bit, 7.1 channels, 8KHz
+	 */
 	F_AIF_MI2S(2048000,	pll4,	4,	1,	48),
-	F_AIF_MI2S(4096000,	pll4,	4,	1,	24),
-	F_AIF_MI2S(8192000,	pll4,	4,	1,	12),
-	F_AIF_MI2S(12288000,	pll4,	4,	1,	8),
-	F_AIF_MI2S(6144000,	pll4,	4,	1,	16),
-	F_AIF_MI2S(16384000,	pll4,	4,	1,	6),
-	F_AIF_MI2S(22579200,	pll4,	4,	2,	9),
-	F_AIF_MI2S(32768000,	pll4,	4,	1,	3),
-	F_AIF_MI2S(45158400,	pll4,	4,	1,	2),
-	F_AIF_MI2S(49152000,	pll4,	4,	1,	2),
-	F_AIF_MI2S(24576000,	pll4,	4,	1,	4),
-	F_AIF_MI2S(36864000,	pll4,	4,	3,	8),
-	F_AIF_MI2S(16934400,	pll4,	4,	41,	238),
-	F_AIF_MI2S(33868800,	pll4,	4,	41,	119),
-	F_AIF_MI2S(18432000,	pll4,	4,	3,	16),
-	F_AIF_MI2S(84687200,	pll4,	4,	18,	209),
-	F_AIF_MI2S(12700800,	pll4,	4,	27,	209),
-	F_AIF_MI2S(25401600,	pll4,	4,	77,	298),
-	F_AIF_MI2S(50803200,	pll4,	4,	200,	387),
-	F_AIF_MI2S(55296000,	pll4,	4,	9,	16),
-	F_AIF_MI2S(27648000,	pll4,	4,	9,	32),
-	F_AIF_MI2S(6350400,	pll4,	4,	2,	31),
-	F_AIF_MI2S(13824000,	pll4,	4,	1,	7),
+	/*
+	 * 24 bit, stereo, 11.025KHz
+	 * 16 bit, 5.1 channels, 11.025KHz
+	 */
+	F_AIF_MI2S(2116800,	pll4,	4,	2,	93),
+	/*
+	 * 24 bit, 5.1 channels, 8KHz
+	 */
 	F_AIF_MI2S(2304000,	pll4,	4,	2,	85),
+	/*
+	 * 16 bit, stereo, 22.05KHz
+	 * 32  bit, stereo, 11.025KHz
+	 * 16 bit, 7.1 channels, 22.05KHz
+	 * 32 bit, 7.1 channels, 11.025KHz
+	 */
+	F_AIF_MI2S(2822400,	pll4,	4,	6,	209),
+	/*
+	 * 24 bit, stereo, 16KHz
+	 * 16 bit, 5.1 channels, 16KHz
+	 * 32 bit, 5.1 channels, 8KHz
+	 * 24 bit, 7.1 channels, 8KHz
+	 */
+	F_AIF_MI2S(3072000,	pll4,	4,	1,	32),
+	/*
+	 * 24 bit, 5.1 channels, 11.025KHz
+	 */
 	F_AIF_MI2S(3175200,	pll4,	4,	1,	31),
+	/*
+	 * 16 bit, stereo, 32KHz
+	 * 32 bit, stereo, 16KHz
+	 * 16 bit, 7.1 channels, 32KHz
+	 * 32 bit, 7.1 channels, 16KHz
+	 */
+	F_AIF_MI2S(4096000,	pll4,	4,	1,	24),
+	/*
+	 * 24 bit, stereo, 22.05KHz
+	 * 16 bit, 5.1 channels, 22.05KHz
+	 * 32 bit, 5.1 channels, 11.025KHz
+	 * 24 bit, 7.1 channels, 11.025KHz
+	 */
+	F_AIF_MI2S(4233600,	pll4,	4,	9,	209),
+	/*
+	 * 24 bit, 5.1 channels, 16KHz
+	 */
+	F_AIF_MI2S(4608000,	pll4,	4,	3,	64),
+	/*
+	 * 16 bit, stereo, 44.1KHz
+	 * 32 bit, stereo, 22.05KHz
+	 * 16 bit, 7.1 channels, 44.1KHz
+	 * 32 bit, 7.1 channels, 22.05KHz
+	 */
+	F_AIF_MI2S(5644800,	pll4,	4,	12,	209),
+	/*
+	 * 16 bit, stereo, 48KHz
+	 * 24 bit, stereo, 32KHz
+	 * 24 bit, stereo, 64KHz
+	 * 16 bit, 5.1 channels, 32KHz
+	 * 32 bit, 5.1 channels, 16KHz
+	 * 16 bit, 7.1 channels, 48KHz
+	 * 24 bit, 7.1 channels, 16KHz
+	 */
+	F_AIF_MI2S(6144000,	pll4,	4,	1,	16),
+	/*
+	 * 24 bit, 5.1 channels, 22.05KHz
+	 */
+	F_AIF_MI2S(6350400,	pll4,	4,	2,	31),
+	/*
+	 * 16 bit, stereo, 64KHz
+	 * 32 bit, stereo, 32KHz
+	 * 16 bit, 7.1 channels, 64KHz
+	 * 32 bit, 7.1 channels, 32KHz
+	 */
+	F_AIF_MI2S(8192000,	pll4,	4,	1,	12),
+	/*
+	 * 24 bit, stereo, 44.1KHz
+	 * 24 bit, stereo, 88.2KHz
+	 * 16 bit, 5.1 channels, 44.1KHz
+	 * 32 bit, 5.1 channels, 22.05KHz
+	 * 24 bit, 7.1 channels, 22.05KHz
+	 */
+	F_AIF_MI2S(8467200,	pll4,	4,	18,	209),
+	/*
+	 * 24 bit, stereo, 48KHz
+	 * 24 bit, stereo, 96KHz
+	 * 16 bit, 5.1 channels, 48KHz
+	 * 24 bit, 5.1 channels, 32KHz
+	 */
+	F_AIF_MI2S(9216000,	pll4,	4,	3,	32),
+	/*
+	 * 16bit, stereo, 88.2KHz
+	 * 16bit, stereo, 176.4KHz
+	 * 32bit, stereo, 44.1KHz
+	 * 16bit, 7.1 channels, 88.2KHz
+	 * 32bit, 7.1 channels, 44.1KHz
+	 */
+	F_AIF_MI2S(11289600,	pll4,	4,	24,	209),
+	/*
+	 * 32bit, stereo, 48KHz
+	 * 16bit, 5.1 channels, 64KHz
+	 * 32bit, 5.1 channels, 32KHz
+	 * 16bit, 7.1 channels, 96KHz
+	 * 24bit, 7.1 channels, 32KHz
+	 * 32bit, 7.1 channels, 48KHz
+	 */
+	F_AIF_MI2S(12288000,	pll4,	4,	1,	8),
+	/*
+	 * 24bit, 7.1 channels, 44.1KHz
+	 * 24bit, 7.1 channels, 88.2KHz
+	 */
+	F_AIF_MI2S(12700800,	pll4,	4,	27,	209),
+	/*
+	 * 24bit, 6ch, 48KHz
+	 */
+	F_AIF_MI2S(13824000,	pll4,	4,	9,	64),
+	/*
+	 * 32bit, stereo, 64KHz
+	 * 32bit, 7.1 channels, 64KHz
+	 */
+	F_AIF_MI2S(16384000,	pll4,	4,	1,	6),
+	/*
+	 * 24bit, stereo, 176.4KHz
+	 * 16bit, 5.1 channels, 88.2KHz
+	 * 32bit, 5.1 channels, 44.1KHz
+	 * 24bit, 7.1 channels, 44.1KHz
+	 */
+	F_AIF_MI2S(16934400,	pll4,	4,	41,	238),
+	/*
+	 * 24bit, stereo, 192KHz
+	 * 16bit, 5.1 channels, 96KHz
+	 * 24bit, 5.1 channels, 64KHz
+	 * 32bit, 5.1 channels, 48KHz
+	 * 24bit, 7.1 channels, 48KHz
+	 */
+	F_AIF_MI2S(18432000,	pll4,	4,	3,	16),
+	/*
+	 * 32bit, stereo, 176.4KHz
+	 * 32bit, stereo, 88.2KHz
+	 * 32bit, stereo, 88.2KHz
+	 * 32bit, stereo, 176.4KHz
+	 * 16bit, 7.1 channels, 176.4KHz
+	 * 32bit, 7.1 channels, 88.2KHz
+	 */
+	F_AIF_MI2S(22579200,	pll4,	2,	24,	209),
+	/*
+	 * 16bit, stereo, 96KHz
+	 * 32bit, stereo, 96KHz
+	 * 32bit, stereo,  96KHz
+	 * 32bit, 5.1 channels, 64KHz
+	 * 16bit, 7.1 channels, 192KHz
+	 * 24bit, 7.1 channels, 64KHz
+	 * 32bit, 7.1 channels, 96KHz
+	 */
+	F_AIF_MI2S(24576000,	pll4,	4,	1,	4),
+	/*
+	 * 24bit, 5.1 channels, 96KHz
+	 * 24bit, 5.1 channels, 192KHz
+	 */
+	F_AIF_MI2S(27648000,	pll4,	4,	9,	32),
+	/*
+	 * 16bit, 5.1 channels, 176.4KHz
+	 * 32bit, 5.1 channels, 88.2KHz
+	 * 32bit, 5.1 channels, 176.4KHz
+	 * 24bit, 7.1 channels, 88.2KHz
+	 * 24bit, 7.1 channels, 176.4KHz
+	 */
+	F_AIF_MI2S(33868800,	pll4,	4,	41,	119),
+	/*
+	 * 16bit, 5.1 channels, 192KHz
+	 * 32bit, 5.1 channels, 96KHz
+	 * 32bit, 5.1 channels, 192KHz
+	 * 24bit, 7.1 channels, 96KHz
+	 * 24bit, 7.1 channels, 192KHz
+	 */
+	F_AIF_MI2S(36864000,	pll4,	4,	3,	8),
+	/*
+	 * 32bit, 7.1 channels, 176.4KHz
+	 */
+	F_AIF_MI2S(45158400,	pll4,	1,	24,	209),
+	/*
+	 * 16bit, stereo, 192KHz
+	 * 32bit, stereo, 192KHz
+	 * 32bit, stereo, 192KHz
+	 * 32bit, 7.1 channels, 192KHz
+	 */
+	F_AIF_MI2S(49152000,	pll4,	4,	1,	2),
+	/*
+	 * 24bit, 5.1 channels, 176.4KHz
+	 */
+	F_AIF_MI2S(50803200,	pll4,	1,	27,	209),
 	F_END
 };
 
