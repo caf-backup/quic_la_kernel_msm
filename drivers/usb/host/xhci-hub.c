@@ -28,7 +28,7 @@
 #define	PORT_WAKE_BITS	(PORT_WKOC_E | PORT_WKDISC_E | PORT_WKCONN_E)
 #define	PORT_RWC_BITS	(PORT_CSC | PORT_PEC | PORT_WRC | PORT_OCC | \
 			 PORT_RC | PORT_PLC | PORT_PE)
-
+#define	USB_CTRL_STOP_EP_TIMEOUT	100
 /* usb 1.1 root hub device descriptor */
 static u8 usb_bos_descriptor [] = {
 	USB_DT_BOS_SIZE,		/*  __u8 bLength, 5 bytes */
@@ -296,7 +296,7 @@ static int xhci_stop_device(struct xhci_hcd *xhci, int slot_id, int suspend)
 	/* Wait for last stop endpoint command to finish */
 	timeleft = wait_for_completion_interruptible_timeout(
 			cmd->completion,
-			USB_CTRL_SET_TIMEOUT);
+			USB_CTRL_STOP_EP_TIMEOUT);
 	if (timeleft <= 0) {
 		xhci_warn(xhci, "%s while waiting for stop endpoint command\n",
 				timeleft == 0 ? "Timeout" : "Signal");
@@ -481,7 +481,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	u32 temp, status;
 	int retval = 0;
 	__le32 __iomem **port_array;
-	int slot_id;
+	int slot_id, ret, tries = 5;
 	struct xhci_bus_state *bus_state;
 	u16 link_state = 0;
 	u16 wake_mask = 0;
@@ -674,7 +674,10 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			}
 			/* unlock to execute stop endpoint commands */
 			spin_unlock_irqrestore(&xhci->lock, flags);
-			xhci_stop_device(xhci, slot_id, 1);
+			do {
+				ret = xhci_stop_device(xhci, slot_id, 1);
+				tries--;
+			} while ((ret == -ETIME) && (tries > 0));
 			spin_lock_irqsave(&xhci->lock, flags);
 
 			xhci_set_link_state(xhci, port_array, wIndex, XDEV_U3);
