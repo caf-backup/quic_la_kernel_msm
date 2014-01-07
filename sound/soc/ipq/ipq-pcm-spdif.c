@@ -190,6 +190,7 @@ static int ipq_pcm_spdif_prepare(struct snd_pcm_substream *substream)
 
 	ipq_spdif_intr_enable();
 	ipq_spdif_register_handler(ipq_pcm_spdif, substream);
+	ipq_spdif_cfg_compr_mode(prtd->pcm_stream_info.compr_mode);
 
 	spdif_buf_info.curr_buf = ipq_spdif_set_params(runtime->dma_addr);
 	spdif_buf_info.start_buf = runtime->dma_addr;
@@ -259,17 +260,24 @@ static int ipq_pcm_spdif_hw_params(struct snd_pcm_substream *substream,
 	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 
 	switch (params->reserved[63]) {
-	case SND_AUDIOCODEC_AC3:
-	case SND_AUDIOCODEC_MPEG_1:
-	case SND_AUDIOCODEC_MPEG_2:
-	case SND_AUDIOCODEC_DTS:
-	case SND_AUDIOCODEC_ATRAC:
-	case SND_AUDIOCODEC_ATRAC2:
-	case SND_AUDIOCODEC_LINEAR:
+	case LPA_IF_SPDIF_TX_DATA_TYPE_AC3:
+	case LPA_IF_SPDIF_TX_DATA_TYPE_MPEG_1_L1:
+	case LPA_IF_SPDIF_TX_DATA_TYPE_MPEG_1_L2:
+	case LPA_IF_SPDIF_TX_DATA_TYPE_MPEG_2_w_ext:
+	case LPA_IF_SPDIF_TX_DATA_TYPE_MPEG_2_AAC:
+	case LPA_IF_SPDIF_TX_DATA_TYPE_MPEG_2_L1:
+	case LPA_IF_SPDIF_TX_DATA_TYPE_MPEG_2_L2:
+	case LPA_IF_SPDIF_TX_DATA_TYPE_MPEG_2_L3:
+	case LPA_IF_SPDIF_TX_DATA_TYPE_DTS_T1:
+	case LPA_IF_SPDIF_TX_DATA_TYPE_DTS_T2:
+	case LPA_IF_SPDIF_TX_DATA_TYPE_DTS_T3:
+	case LPA_IF_SPDIF_TX_DATA_TYPE_ATRAC:
+	case LPA_IF_SPDIF_TX_DATA_TYPE_ATRAC2_3:
 		prtd->pcm_stream_info.compr_mode = params->reserved[63];
 		break;
 	default:
-		prtd->pcm_stream_info.compr_mode = SND_AUDIOCODEC_LINEAR;
+		prtd->pcm_stream_info.compr_mode =
+			LPA_IF_SPDIF_TX_DATA_TYPE_LINEAR;
 		break;
 
 	}
@@ -308,7 +316,7 @@ static int ipq_pcm_spdif_open(struct snd_pcm_substream *substream)
 	prtd->pcm_stream_info.pcm_prepare_start = 0;
 	prtd->lpaif_clk.is_bit_clk_enabled = 0;
 	prtd->pcm_stream_info.substream = substream;
-	prtd->pcm_stream_info.compr_mode = SND_AUDIOCODEC_LINEAR;
+	prtd->pcm_stream_info.compr_mode = LPA_IF_SPDIF_TX_DATA_TYPE_LINEAR;
 	runtime->private_data = prtd;
 
 	return 0;
