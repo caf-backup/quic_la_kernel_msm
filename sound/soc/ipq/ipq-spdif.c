@@ -105,6 +105,8 @@ void ipq_spdif_onetime_cfg(void)
 	/* Frame Size in cfg*/
 	writel((SPDIF_FRAMESIZE-1),
 		(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CFG));
+	writel(LPA_IF_SPDIF_TX_CMD_ABRT,
+		(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CMD));
 	/* port select */
 	writel(0x0,  (ipq_spdif_info.base + LPA_IF_SPDIF_TXP_SEL));
 	writel(0x0, (ipq_spdif_info.base + LPA_IF_SPDIF_TX_PORT_CFG));
@@ -122,46 +124,148 @@ EXPORT_SYMBOL_GPL(ipq_spdif_onetime_cfg);
 int ipq_spdif_cfg_compr_mode(uint32_t compr_mode)
 {
 	uint32_t fifo_ctl;
+	uint32_t cfg;
+
+	/* Values to be set for compressed mode */
+	writel(LPA_IF_SPDIF_TX_CHA_STAT_BUF0_VAL,
+		(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHA_STAT_BUF0));
+	writel(LPA_IF_SPDIF_TX_CHA_STAT_BUF1_VAL,
+		(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHA_STAT_BUF1));
+	writel(LPA_IF_SPDIF_TX_CHA_STAT_BUF2_VAL,
+		(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHA_STAT_BUF2));
+	writel(LPA_IF_SPDIF_TX_CHA_STAT_BUF3_VAL,
+		(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHA_STAT_BUF3));
+	writel(LPA_IF_SPDIF_TX_CHA_STAT_BUF4_VAL,
+		(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHA_STAT_BUF4));
+	writel(LPA_IF_SPDIF_TX_CHA_STAT_BUF5_VAL,
+		(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHA_STAT_BUF5));
+	writel(LPA_IF_SPDIF_TX_CHB_STAT_BUF0_VAL,
+		(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHB_STAT_BUF0));
+	writel(LPA_IF_SPDIF_TX_CHB_STAT_BUF1_VAL,
+		(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHB_STAT_BUF1));
+	writel(LPA_IF_SPDIF_TX_CHB_STAT_BUF2_VAL,
+		(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHB_STAT_BUF2));
+	writel(LPA_IF_SPDIF_TX_CHB_STAT_BUF3_VAL,
+		(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHB_STAT_BUF3));
+	writel(LPA_IF_SPDIF_TX_CHB_STAT_BUF4_VAL,
+		(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHB_STAT_BUF4));
+	writel(LPA_IF_SPDIF_TX_CHB_STAT_BUF5_VAL,
+		(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHB_STAT_BUF5));
+	fifo_ctl = readl(ipq_spdif_info.base + LPA_IF_SPDIF_FIFO_CNTL);
+	fifo_ctl &= ~(LPA_IF_SPDIF_FIFO_DWD_WD_SWAP);
+	writel(fifo_ctl, (ipq_spdif_info.base +
+				LPA_IF_SPDIF_FIFO_CNTL));
+
+	cfg = readl(ipq_spdif_info.base + LPA_IF_SPDIF_TX_BURST_CNTL);
+	cfg &= ~(LPA_IF_SPDIF_TX_BURST_CNTL_MASK);
+	writel(cfg, (ipq_spdif_info.base + LPA_IF_SPDIF_TX_BURST_CNTL));
+
 	switch (compr_mode) {
-	case SND_AUDIOCODEC_AC3:
-	case SND_AUDIOCODEC_MPEG_1:
-	case SND_AUDIOCODEC_MPEG_2:
-	case SND_AUDIOCODEC_DTS:
-	case SND_AUDIOCODEC_ATRAC:
-	case SND_AUDIOCODEC_ATRAC2:
-		/* Values to be set for compressed mode */
-		writel(LPA_IF_SPDIF_TX_CHA_STAT_BUF0_VAL,
-			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHA_STAT_BUF0));
-		writel(LPA_IF_SPDIF_TX_CHA_STAT_BUF1_VAL,
-			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHA_STAT_BUF1));
-		writel(LPA_IF_SPDIF_TX_CHA_STAT_BUF2_VAL,
-			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHA_STAT_BUF2));
-		writel(LPA_IF_SPDIF_TX_CHA_STAT_BUF3_VAL,
-			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHA_STAT_BUF3));
-		writel(LPA_IF_SPDIF_TX_CHA_STAT_BUF4_VAL,
-			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHA_STAT_BUF4));
-		writel(LPA_IF_SPDIF_TX_CHA_STAT_BUF5_VAL,
-			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHA_STAT_BUF5));
-		writel(LPA_IF_SPDIF_TX_CHB_STAT_BUF0_VAL,
-			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHB_STAT_BUF0));
-		writel(LPA_IF_SPDIF_TX_CHB_STAT_BUF1_VAL,
-			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHB_STAT_BUF1));
-		writel(LPA_IF_SPDIF_TX_CHB_STAT_BUF2_VAL,
-			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHB_STAT_BUF2));
-		writel(LPA_IF_SPDIF_TX_CHB_STAT_BUF3_VAL,
-			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHB_STAT_BUF3));
-		writel(LPA_IF_SPDIF_TX_CHB_STAT_BUF4_VAL,
-			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHB_STAT_BUF4));
-		writel(LPA_IF_SPDIF_TX_CHB_STAT_BUF5_VAL,
-			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHB_STAT_BUF5));
-		writel(SPDIF_TX_BURST_CTL_NON_LINEAR,
+	case LPA_IF_SPDIF_TX_DATA_TYPE_AC3:
+		cfg |= (LPA_IF_SPDIF_TX_DATA_TYPE_AC3 |
+			LPA_IF_SPDIF_TX_REF_POINT(1) |
+			LPA_IF_SPDIF_TX_REP_PERIOD_DATA_BURST(0x600) |
+			LPA_IF_SPDIF_TX_REP_PERIOD_PAUSE(1));
+		writel(cfg,
 			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_BURST_CNTL));
-		fifo_ctl = readl(ipq_spdif_info.base + LPA_IF_SPDIF_FIFO_CNTL);
-		fifo_ctl &= ~(LPA_IF_SPDIF_FIFO_DWD_WD_SWAP);
-		writel(fifo_ctl, (ipq_spdif_info.base +
-					LPA_IF_SPDIF_FIFO_CNTL));
 		break;
-	case SND_AUDIOCODEC_LINEAR:
+	case LPA_IF_SPDIF_TX_DATA_TYPE_MPEG_1_L1:
+		cfg |= (LPA_IF_SPDIF_TX_DATA_TYPE_MPEG_1_L1 |
+			LPA_IF_SPDIF_TX_REF_POINT(0) |
+			LPA_IF_SPDIF_TX_REP_PERIOD_DATA_BURST(0x180) |
+			LPA_IF_SPDIF_TX_REP_PERIOD_PAUSE(3));
+		writel(cfg,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_BURST_CNTL));
+		break;
+	case LPA_IF_SPDIF_TX_DATA_TYPE_MPEG_1_L2:
+		cfg |= (LPA_IF_SPDIF_TX_DATA_TYPE_MPEG_1_L2 |
+			LPA_IF_SPDIF_TX_REF_POINT(0) |
+			LPA_IF_SPDIF_TX_REP_PERIOD_DATA_BURST(0x480) |
+			LPA_IF_SPDIF_TX_REP_PERIOD_PAUSE(3));
+		writel(cfg,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_BURST_CNTL));
+		break;
+	case LPA_IF_SPDIF_TX_DATA_TYPE_MPEG_2_w_ext:
+		cfg |= (LPA_IF_SPDIF_TX_DATA_TYPE_MPEG_2_w_ext |
+			LPA_IF_SPDIF_TX_REF_POINT(0) |
+			LPA_IF_SPDIF_TX_REP_PERIOD_DATA_BURST(0x480) |
+			LPA_IF_SPDIF_TX_REP_PERIOD_PAUSE(3));
+		writel(cfg,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_BURST_CNTL));
+		break;
+	case LPA_IF_SPDIF_TX_DATA_TYPE_MPEG_2_AAC:
+		cfg |= (LPA_IF_SPDIF_TX_DATA_TYPE_MPEG_2_AAC |
+			LPA_IF_SPDIF_TX_REF_POINT(0) |
+			LPA_IF_SPDIF_TX_REP_PERIOD_DATA_BURST(0x400) |
+			LPA_IF_SPDIF_TX_REP_PERIOD_PAUSE(3));
+		writel(cfg,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_BURST_CNTL));
+		break;
+	case LPA_IF_SPDIF_TX_DATA_TYPE_MPEG_2_L1:
+		cfg |= (LPA_IF_SPDIF_TX_DATA_TYPE_MPEG_2_L1 |
+			LPA_IF_SPDIF_TX_REF_POINT(0) |
+			LPA_IF_SPDIF_TX_REP_PERIOD_DATA_BURST(0x300) |
+			LPA_IF_SPDIF_TX_REP_PERIOD_PAUSE(4));
+		writel(cfg,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_BURST_CNTL));
+		break;
+	case LPA_IF_SPDIF_TX_DATA_TYPE_MPEG_2_L2:
+		cfg |= (LPA_IF_SPDIF_TX_DATA_TYPE_MPEG_2_L2 |
+			LPA_IF_SPDIF_TX_REF_POINT(0) |
+			LPA_IF_SPDIF_TX_REP_PERIOD_DATA_BURST(0x900) |
+			LPA_IF_SPDIF_TX_REP_PERIOD_PAUSE(4));
+		writel(cfg,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_BURST_CNTL));
+		break;
+	case LPA_IF_SPDIF_TX_DATA_TYPE_MPEG_2_L3:
+		cfg |= (LPA_IF_SPDIF_TX_DATA_TYPE_MPEG_2_L3 |
+			LPA_IF_SPDIF_TX_REF_POINT(0) |
+			LPA_IF_SPDIF_TX_REP_PERIOD_DATA_BURST(0x480) |
+			LPA_IF_SPDIF_TX_REP_PERIOD_PAUSE(4));
+		writel(cfg,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_BURST_CNTL));
+		break;
+	case LPA_IF_SPDIF_TX_DATA_TYPE_DTS_T1:
+		cfg |= (LPA_IF_SPDIF_TX_DATA_TYPE_DTS_T1 |
+			LPA_IF_SPDIF_TX_REF_POINT(0) |
+			LPA_IF_SPDIF_TX_REP_PERIOD_DATA_BURST(0x200) |
+			LPA_IF_SPDIF_TX_REP_PERIOD_PAUSE(1));
+		writel(cfg,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_BURST_CNTL));
+		break;
+	case LPA_IF_SPDIF_TX_DATA_TYPE_DTS_T2:
+		cfg |= (LPA_IF_SPDIF_TX_DATA_TYPE_DTS_T2 |
+			LPA_IF_SPDIF_TX_REF_POINT(1) |
+			LPA_IF_SPDIF_TX_REP_PERIOD_DATA_BURST(0x400) |
+			LPA_IF_SPDIF_TX_REP_PERIOD_PAUSE(2));
+		writel(cfg,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_BURST_CNTL));
+		break;
+	case LPA_IF_SPDIF_TX_DATA_TYPE_DTS_T3:
+		cfg |= (LPA_IF_SPDIF_TX_DATA_TYPE_DTS_T3 |
+			LPA_IF_SPDIF_TX_REF_POINT(2) |
+			LPA_IF_SPDIF_TX_REP_PERIOD_DATA_BURST(0x800) |
+			LPA_IF_SPDIF_TX_REP_PERIOD_PAUSE(3));
+		writel(cfg,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_BURST_CNTL));
+		break;
+	case LPA_IF_SPDIF_TX_DATA_TYPE_ATRAC:
+		cfg |= (LPA_IF_SPDIF_TX_DATA_TYPE_ATRAC |
+			LPA_IF_SPDIF_TX_REF_POINT(0) |
+			LPA_IF_SPDIF_TX_REP_PERIOD_DATA_BURST(0x200) |
+			LPA_IF_SPDIF_TX_REP_PERIOD_PAUSE(3));
+		writel(cfg,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_BURST_CNTL));
+		break;
+	case LPA_IF_SPDIF_TX_DATA_TYPE_ATRAC2_3:
+		cfg |= (LPA_IF_SPDIF_TX_DATA_TYPE_ATRAC2_3 |
+			LPA_IF_SPDIF_TX_REF_POINT(0) |
+			LPA_IF_SPDIF_TX_REP_PERIOD_DATA_BURST(0x400) |
+			LPA_IF_SPDIF_TX_REP_PERIOD_PAUSE(3));
+		writel(cfg,
+			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_BURST_CNTL));
+		break;
+	case LPA_IF_SPDIF_TX_DATA_TYPE_LINEAR:
 		writel(0x0,
 			(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CHA_STAT_BUF0));
 		writel(0x0,
