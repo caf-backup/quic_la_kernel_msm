@@ -1465,12 +1465,12 @@ static struct rcg_clk pcm_clk = {
 
 static struct clk_freq_tbl clk_tbl_aif_osr_492[] = {
 	F_AIF_SPDIF(0,		gnd,	1,	0,	0),
-	F_AIF_SPDIF(22050,	pll4,	1,	2,	279),
+	F_AIF_SPDIF(22050,	pll4,	1,	147,	20480),
 	F_AIF_SPDIF(32000,	pll4,	1,	1,	96),
-	F_AIF_SPDIF(44100,	pll4,	1,	2,	139),
+	F_AIF_SPDIF(44100,	pll4,	1,	147,	10240),
 	F_AIF_SPDIF(48000,	pll4,	1,	1,	64),
-	F_AIF_SPDIF(88200,	pll4,	1,	1,	35),
-	F_AIF_SPDIF(176400,	pll4,	1,	2,	35),
+	F_AIF_SPDIF(88200,	pll4,	1,	147,	5120),
+	F_AIF_SPDIF(176400,	pll4,	1,	147,	2560),
 	F_AIF_SPDIF(96000,	pll4,	1,	1,	32),
 	F_AIF_SPDIF(192000,	pll4,	1,	1,	16),
 	F_END
