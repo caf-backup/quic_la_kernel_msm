@@ -115,6 +115,7 @@ extern int sysctl_nr_trim_pages;
 #ifdef CONFIG_BLOCK
 extern int blk_iopoll_enabled;
 #endif
+extern int softirq_max_time;
 
 /* Constants used for minimum and  maximum */
 #ifdef CONFIG_LOCKUP_DETECTOR
@@ -1011,6 +1012,15 @@ static struct ctl_table kern_table[] = {
 		.proc_handler	= proc_dointvec,
 },
 #endif
+	{
+		.procname       = "softirq_max_time",
+		.data           = &softirq_max_time,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = proc_dointvec_minmax,
+		.extra1         = &one,
+		.extra2         = &one_hundred,
+	},
 /*
  * NOTE: do not add new entries to this table unless you have read
  * Documentation/sysctl/ctl_unnumbered.txt
