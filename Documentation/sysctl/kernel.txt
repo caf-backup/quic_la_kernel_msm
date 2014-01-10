@@ -68,6 +68,7 @@ show up in /proc/sys/kernel:
 - shmall
 - shmmax                      [ sysv ipc ]
 - shmmni
+- softirq_max_time
 - softlockup_thresh
 - stop-a                      [ SPARC only ]
 - sysrq                       ==> Documentation/sysrq.txt
@@ -581,6 +582,19 @@ need this.
 
 Note that if you change this from 0 to 1, already created segments
 without users and with a dead originative process will be destroyed.
+
+==============================================================
+
+softirq_max_time:
+
+This value can be used to set the max time limit on softirq processing
+in the function __do_softirq. This does not specify a hard limit on
+how long __do_softirq runs. Instead the time limit check is only done if
+there are pending softirqs even after the existing batch pending softirqs
+have been processed. The next batch will be processed only if the time since
+__do_softirq entry does not exceed softirq_max_time.
+
+Valid values are 1 - 100 ms.  Default value is 2 ms.
 
 ==============================================================
 
