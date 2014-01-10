@@ -1072,6 +1072,12 @@ static void __init msm_timer_init(void)
 			gpt_hz = 32765;
 			sclk_hz = 32765;
 		}
+		if (cpu_is_ipq806x()) {
+			/* Exact value is 25MHz / 781 = 32.01024KHz */
+			gpt->freq = 32010;
+			gpt_hz = 32010;
+			sclk_hz = 32010;
+		}
 		if (!soc_class_is_msm8930() && !cpu_is_msm8960ab() &&
 		    !cpu_is_ipq806x()) {
 			gpt->flags |= MSM_CLOCK_FLAGS_UNSTABLE_COUNT;
