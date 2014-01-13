@@ -75,12 +75,12 @@ static struct snd_pcm_hardware ipq_pcm_hardware_playback = {
 	.rate_min =		22050,
 	.rate_max =		192000,
 	.channels_min =		2,
-	.channels_max =		8,
+	.channels_max =		2, /* spdif supports only stereo */
 	.buffer_bytes_max =	SPDIF_BUF_MAX_BYTES,
 	.period_bytes_min =	760,
 	.period_bytes_max =	SPDIF_BUF_MAX_BYTES / 2,
-	.periods_min =		SPDIF_BUFFERS,
-	.periods_max =		512,
+	.periods_min =		SPDIF_PERIODS_MIN,
+	.periods_max =		SPDIF_PERIODS_MAX,
 	.fifo_size =		0,
 };
 
@@ -95,10 +95,11 @@ static irqreturn_t ipq_pcm_spdif(int src, void *data)
 
 	if (spdif_buf_info.curr_buf >=
 		(spdif_buf_info.start_buf + spdif_buf_info.size_buf)
-						- (SPDIF_FRAMESIZE * 4))
+				- (prtd->pcm_stream_info.spdif_frame_size * 4))
 		spdif_buf_info.curr_buf = spdif_buf_info.start_buf;
 	else
-		spdif_buf_info.curr_buf += (SPDIF_FRAMESIZE * 4);
+		spdif_buf_info.curr_buf +=
+			(prtd->pcm_stream_info.spdif_frame_size * 4);
 
 	if (src & 0x1) {
 		writel(spdif_buf_info.curr_buf,
@@ -113,20 +114,36 @@ static irqreturn_t ipq_pcm_spdif(int src, void *data)
 
 		if (spdif_buf_info.curr_buf >=
 			(spdif_buf_info.start_buf + spdif_buf_info.size_buf)
-						- (SPDIF_FRAMESIZE * 4))
+				- (prtd->pcm_stream_info.spdif_frame_size * 4))
 			spdif_buf_info.curr_buf = spdif_buf_info.start_buf;
 		else
-			spdif_buf_info.curr_buf += (SPDIF_FRAMESIZE * 4);
+			spdif_buf_info.curr_buf +=
+				(prtd->pcm_stream_info.spdif_frame_size * 4);
 
 		writel(spdif_buf_info.curr_buf,
 			ipq_spdif_info.base + LPA_IF_SPDIF_BUF_PNTR);
 		writel(0, ipq_spdif_info.base + LPA_IF_SPDIF_TX_SUBBUF_FIFO);
 	}
 
+	prtd->pcm_stream_info.blocks_done_per_period ++;
+
+	/*
+	 * for Linear PCM, inform ALSA only of all blocks in a period are done
+	 */
+	if (prtd->pcm_stream_info.compr_mode ==
+			LPA_IF_SPDIF_TX_DATA_TYPE_LINEAR) {
+		if (prtd->pcm_stream_info.blocks_done_per_period !=
+			prtd->pcm_stream_info.blocks_per_period) {
+			/* period not done yet, don't inform upper layers */
+			return IRQ_HANDLED;
+		}
+	}
+
 	if (++prtd->pcm_stream_info.period_index >= runtime->periods)
 		prtd->pcm_stream_info.period_index = 0;
 
 	snd_pcm_period_elapsed(substream);
+	prtd->pcm_stream_info.blocks_done_per_period = 0;
 
 	return IRQ_HANDLED;
 }
@@ -188,11 +205,28 @@ static int ipq_pcm_spdif_prepare(struct snd_pcm_substream *substream)
 	if (prtd->pcm_stream_info.pcm_prepare_start)
 		return 0;
 
+	/* make sure the period size is multiple of 192 for PCM */
+	if (prtd->pcm_stream_info.compr_mode ==
+		LPA_IF_SPDIF_TX_DATA_TYPE_LINEAR) {
+		if (runtime->period_size % SPDIF_FRAMESIZE) {
+			pr_err("Period size(%lu) needs to be in multiple"
+					"of 192\n", runtime->period_size);
+			return -EINVAL;
+		}
+		prtd->pcm_stream_info.blocks_per_period =
+			runtime->period_size / SPDIF_FRAMESIZE;
+	} else {
+		/* for non linear PCM, one block is one period */
+		prtd->pcm_stream_info.blocks_per_period = 1;
+	}
+
 	ipq_spdif_intr_enable();
 	ipq_spdif_register_handler(ipq_pcm_spdif, substream);
-	ipq_spdif_cfg_compr_mode(prtd->pcm_stream_info.compr_mode);
+	ipq_spdif_cfg_compr_mode(prtd->pcm_stream_info.compr_mode,
+				prtd->pcm_stream_info.spdif_frame_size);
 
-	spdif_buf_info.curr_buf = ipq_spdif_set_params(runtime->dma_addr);
+	spdif_buf_info.curr_buf = ipq_spdif_set_params(runtime->dma_addr,
+				prtd->pcm_stream_info.spdif_frame_size);
 	spdif_buf_info.start_buf = runtime->dma_addr;
 	spdif_buf_info.size_buf =
 		frames_to_bytes(runtime, runtime->buffer_size);
@@ -274,15 +308,20 @@ static int ipq_pcm_spdif_hw_params(struct snd_pcm_substream *substream,
 	case LPA_IF_SPDIF_TX_DATA_TYPE_ATRAC:
 	case LPA_IF_SPDIF_TX_DATA_TYPE_ATRAC2_3:
 		prtd->pcm_stream_info.compr_mode = params->reserved[63];
+		prtd->pcm_stream_info.spdif_frame_size =
+			 (params->reserved[62] | (params->reserved[61] << 8));
 		break;
 	default:
 		prtd->pcm_stream_info.compr_mode =
 			LPA_IF_SPDIF_TX_DATA_TYPE_LINEAR;
+		prtd->pcm_stream_info.spdif_frame_size = SPDIF_FRAMESIZE;
 		break;
 
 	}
 	prtd->pcm_stream_info.pcm_prepare_start = 0;
 	prtd->pcm_stream_info.period_index = 0;
+	prtd->pcm_stream_info.blocks_done_per_period = 0;
+	prtd->pcm_stream_info.blocks_per_period = 0;
 	return 0;
 }
 
@@ -317,6 +356,7 @@ static int ipq_pcm_spdif_open(struct snd_pcm_substream *substream)
 	prtd->lpaif_clk.is_bit_clk_enabled = 0;
 	prtd->pcm_stream_info.substream = substream;
 	prtd->pcm_stream_info.compr_mode = LPA_IF_SPDIF_TX_DATA_TYPE_LINEAR;
+	prtd->pcm_stream_info.spdif_frame_size = SPDIF_FRAMESIZE;
 	runtime->private_data = prtd;
 
 	return 0;

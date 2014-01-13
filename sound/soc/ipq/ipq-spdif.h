@@ -222,10 +222,25 @@
 #define IPQ_LPAIF_SPDIF_PHYS				0x28080000
 #define IPQ_LPAIF_SPDIF_END				0x28081FFC
 
-#define SPDIF_FRAMESIZE		192
+/*
+ * For Linear PCM, the number of frames per transmit shoud
+ * be 192.
+ * For Non Linear PCM (Compressed) the number of frames per
+ * transmit is dependent on the encoding used. So our
+ * buffer configurations here should be by default in multiples
+ * of 192 to keep ALSA happy. The period min and period max
+ * configuration shoudl be such a way that number of periods
+ * min and max should be multiple of 192.
+ */
+
+#define SPDIF_FRAMESIZE		192 /* never change this */
 #define SPDIF_DWORD_SZ		4
+#define SPDIF_FIFO_DEPTH	8
 #define SPDIF_BUFFERS		64
-#define SPDIF_BUF_MAX_BYTES	(SPDIF_FRAMESIZE * SPDIF_DWORD_SZ * SPDIF_BUFFERS)
+#define SPDIF_PERIODS_MIN	8
+#define SPDIF_PERIODS_MAX	SPDIF_BUFFERS
+#define SPDIF_BUF_MAX_BYTES	\
+	(SPDIF_FRAMESIZE * SPDIF_DWORD_SZ * SPDIF_BUFFERS)
 
 
 #define SPDIF_FIFO_CTL		0x000000B8
@@ -276,8 +291,10 @@ extern uint32_t ipq_spdif_cfg_bit_width(uint32_t bitwidth);
 extern uint32_t ipq_spdif_cfg_freq(uint32_t freq);
 extern void ipq_cfg_spdif_rate(uint32_t rate);
 extern void ipq_spdif_onetime_cfg(void);
-extern dma_addr_t ipq_spdif_set_params(dma_addr_t frame_buf_ptr);
+extern dma_addr_t ipq_spdif_set_params(dma_addr_t frame_buf_ptr,
+				uint32_t spdif_frame_size);
 extern void ipq_cfg_spdif_hwparams(int bit_width);
-extern int ipq_spdif_cfg_compr_mode(uint32_t compr_mode);
+extern int ipq_spdif_cfg_compr_mode(uint32_t compr_mode,
+					uint32_t compr_frame_size);
 
 #endif /* _IPQ_SPDIF_H */
