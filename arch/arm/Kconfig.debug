@@ -2,6 +2,17 @@ menu "Kernel hacking"
 
 source "lib/Kconfig.debug"
 
+config STOPWATCH_HARD_IRQ
+	bool
+	depends on STOPWATCH
+	prompt "Measure hard IRQ processing time using stopwatch"
+	default n
+	help
+	  Measure the time taken to process each hard IRQ.
+	  The values can be viewed at /proc/stopwatch/hardirq
+
+	  If in doubt, say N here.
+
 config STRICT_DEVMEM
 	bool "Filter access to /dev/mem"
 	depends on MMU
