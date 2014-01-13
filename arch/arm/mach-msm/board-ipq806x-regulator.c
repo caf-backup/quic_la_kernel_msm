@@ -12,8 +12,6 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/regulator/pm8xxx-regulator.h>
-#include <linux/regulator/fixed.h>
 #include <linux/regulator/ipq-regulator.h>
 
 #include "board-ipq806x.h"
@@ -51,13 +49,11 @@ VREG_CONSUMERS(S1b_ap148) = {
 VREG_CONSUMERS(S2a) = {
 	REGULATOR_SUPPLY("smb208_s2a", NULL),
 	REGULATOR_SUPPLY("krait0", "acpuclk-ipq806x"),
-	REGULATOR_SUPPLY("krait0_dummy", "acpuclk-ipq806x"),
 };
 
 VREG_CONSUMERS(S2b) = {
 	REGULATOR_SUPPLY("smb208_s2b", NULL),
 	REGULATOR_SUPPLY("krait1", "acpuclk-ipq806x"),
-	REGULATOR_SUPPLY("krait1_dummy", "acpuclk-ipq806x"),
 };
 
 VREG_CONSUMERS(fixed_sdc_vdd_io) = {
@@ -114,51 +110,6 @@ VREG_CONSUMERS(fixed_pcie_vph) = {
 	REGULATOR_SUPPLY("vdd_pcie_vph", "msm_pcie.2"),
 };
 
-VREG_CONSUMERS(EXT_MPP8) = {
-	REGULATOR_SUPPLY("ext_mpp8", NULL),
-	REGULATOR_SUPPLY("vbus", "msm_ehci_host.1"),
-};
-VREG_CONSUMERS(EXT_3P3V) = {
-	REGULATOR_SUPPLY("ext_3p3v", NULL),
-	REGULATOR_SUPPLY("vdd-phy", "spi0.2"),
-	REGULATOR_SUPPLY("mhl_usb_hs_switch", "msm_otg"),
-	REGULATOR_SUPPLY("lvds_vccs_3p3v", "lvds.0"),
-	REGULATOR_SUPPLY("dsi1_vccs_3p3v", "mipi_dsi.1"),
-	REGULATOR_SUPPLY("hdmi_mux_vdd",  "hdmi_msm.0"),
-};
-VREG_CONSUMERS(EXT_TS_SW) = {
-	REGULATOR_SUPPLY("ext_ts_sw", NULL),
-	REGULATOR_SUPPLY("vdd_ana", "3-005b"),
-};
-VREG_CONSUMERS(EXT_SATA_PWR) = {
-	REGULATOR_SUPPLY("ext_sata_pwr", NULL),
-};
-
-VREG_CONSUMERS(EXT_5V) = {
-	REGULATOR_SUPPLY("ext_5v", NULL),
-	REGULATOR_SUPPLY("ext_ddr3", NULL),
-	REGULATOR_SUPPLY("vbus", "msm_ehci_host.0"),
-};
-
-
-#define GPIO_VREG(_id, _reg_name, _gpio_label, _gpio, _supply_regulator, \
-		_active_low) \
-	[GPIO_VREG_ID_##_id] = { \
-		.init_data = { \
-			.constraints = { \
-				.valid_ops_mask	= REGULATOR_CHANGE_STATUS, \
-			}, \
-			.num_consumer_supplies	= \
-					ARRAY_SIZE(vreg_consumers_##_id), \
-			.consumer_supplies	= vreg_consumers_##_id, \
-			.supply_regulator	= _supply_regulator, \
-		}, \
-		.regulator_name = _reg_name, \
-		.gpio_label	= _gpio_label, \
-		.gpio		= _gpio, \
-		.active_low     = _active_low, \
-	}
-
 /*
  * TODO - Not all members are required for SMB based regulators.
  * Can be optimized
@@ -212,22 +163,6 @@ VREG_CONSUMERS(EXT_5V) = {
 		 RPM_VREG_POWER_MODE_IPQ806X_PWM, RPM_VREG_STATE_OFF, \
 		 _sleep_selectable, _always_on, _supply_regulator, _system_uA)
 
-/* GPIO regulator constraints */
-struct gpio_regulator_platform_data
-ipq806x_gpio_regulator_pdata[] __devinitdata = {
-	/*        ID      vreg_name gpio_label   gpio   supply  active_low */
-	GPIO_VREG(EXT_5V, "ext_5v", "ext_5v_en",
-				PM8921_MPP_PM_TO_SYS(7), NULL, 0),
-	GPIO_VREG(EXT_3P3V, "ext_3p3v", "ext_3p3v_en",
-		IPQ806X_EXT_3P3V_REG_EN_GPIO, NULL, 0),
-	GPIO_VREG(EXT_TS_SW, "ext_ts_sw", "ext_ts_sw_en",
-		PM8921_GPIO_PM_TO_SYS(23), "ext_3p3v", 0),
-	GPIO_VREG(EXT_MPP8, "ext_mpp8", "ext_mpp8_en",
-			PM8921_MPP_PM_TO_SYS(8), NULL, 1),
-	GPIO_VREG(EXT_SATA_PWR, "ext_sata_pwr", "ext_sata_pwr_en",
-			PM8921_MPP_PM_TO_SYS(4), "ext_3p3v", 1),
-};
-
 static struct rpm_regulator_init_data
 ipq806x_rpm_regulator_smb_init_data[] __devinitdata = {
 	/*       ID a_on pd ss min_uV   max_uV  supply sys_uA  freq  fm  ss_fm */
@@ -261,8 +196,6 @@ msm_rpm_regulator_smb_tb732_consumer_mapping[] __devinitdata = {
 	RPM_SMB_REG_MAP(S1b,  RPM_VREG_VOTER6, "krait1_mem",   "acpuclk-ipq806x"),
 	RPM_SMB_REG_MAP(S1b,  RPM_VREG_VOTER7, "krait0_dig",   "acpuclk-ipq806x"),
 	RPM_SMB_REG_MAP(S1b,  RPM_VREG_VOTER8, "krait1_dig",   "acpuclk-ipq806x"),
-	RPM_SMB_REG_MAP(S1b,  RPM_VREG_VOTER11, "VDD_CX",        NULL),
-	RPM_SMB_REG_MAP(S1b,  RPM_VREG_VOTER12, "VCC_CDC_SDCx",  NULL),
 };
 
 static struct rpm_regulator_consumer_mapping
@@ -276,9 +209,6 @@ msm_rpm_regulator_smb_db14x_consumer_mapping[] __devinitdata = {
 	RPM_SMB_REG_MAP(S1a,  RPM_VREG_VOTER6, "krait1_mem",   "acpuclk-ipq806x"),
 	RPM_SMB_REG_MAP(S1a,  RPM_VREG_VOTER7, "krait0_dig",   "acpuclk-ipq806x"),
 	RPM_SMB_REG_MAP(S1a,  RPM_VREG_VOTER8, "krait1_dig",   "acpuclk-ipq806x"),
-
-	RPM_SMB_REG_MAP(S1a, RPM_VREG_VOTER11, "VDD_CX",        NULL),
-	RPM_SMB_REG_MAP(S1a, RPM_VREG_VOTER12, "VCC_CDC_SDCx",  NULL),
 
 	/* SMB208_S1a   - VDD_UBI */
 	RPM_SMB_REG_MAP(S1b, RPM_VREG_VOTER1, "VDD_UBI0",       "qca-nss.0"),
@@ -328,8 +258,6 @@ msm_rpm_regulator_smb_rumi3_consumer_mapping[] __devinitdata = {
 	RPM_SMB_REG_MAP(S1b,  RPM_VREG_VOTER6, "krait1_mem",   "acpuclk-ipq806x"),
 	RPM_SMB_REG_MAP(S1b,  RPM_VREG_VOTER7, "krait0_dig",   "acpuclk-ipq806x"),
 	RPM_SMB_REG_MAP(S1b,  RPM_VREG_VOTER8, "krait1_dig",   "acpuclk-ipq806x"),
-	RPM_SMB_REG_MAP(S1b,  RPM_VREG_VOTER11, "VDD_CX",        NULL),
-	RPM_SMB_REG_MAP(S1b,  RPM_VREG_VOTER12, "VCC_CDC_SDCx",  NULL),
 
 };
 

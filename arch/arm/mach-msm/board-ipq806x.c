@@ -83,7 +83,6 @@
 #include <mach/msm_nss.h>
 #include <mach/msm_nss_gmac.h>
 #include <mach/mpm.h>
-#include <linux/regulator/fixed.h>
 
 #include "msm_watchdog.h"
 #include "board-ipq806x.h"
@@ -94,7 +93,6 @@
 #include "pm-boot.h"
 #include "devices-msm8x60.h"
 #include "smd_private.h"
-#include <linux/regulator/fixed.h>
 #include <linux/gpio.h>
 #include <linux/ar8216_platform.h>
 #include <linux/ethtool.h>
