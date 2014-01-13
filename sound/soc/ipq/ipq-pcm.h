@@ -66,6 +66,9 @@ struct ipq_pcm_stream_t {
 	uint8_t pcm_fwd_flag;
 	uint32_t bit_width;
 	uint32_t compr_mode;
+	uint32_t blocks_per_period;
+	uint32_t blocks_done_per_period;
+	uint32_t spdif_frame_size;
 };
 
 struct ipq_lpa_if_clk_t {
