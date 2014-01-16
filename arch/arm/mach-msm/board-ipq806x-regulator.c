@@ -167,10 +167,10 @@ static struct rpm_regulator_init_data
 ipq806x_rpm_regulator_smb_init_data[] __devinitdata = {
 	/*       ID a_on pd ss min_uV   max_uV  supply sys_uA  freq  fm  ss_fm */
 
-	RPM_SMB_SMPS(S1a, 0, 1, 1, 500000, 1150000, NULL, 1200000, 0p50, NONE, NONE),
-	RPM_SMB_SMPS(S1b, 0, 1, 1, 500000, 1150000, NULL, 1679000, 0p50, NONE, NONE),
-	RPM_SMB_SMPS(S2a, 0, 1, 1, 500000, 1250000, NULL, 1740000, 0p50, NONE, NONE),
-	RPM_SMB_SMPS(S2b, 0, 1, 1, 500000, 1250000, NULL, 1740000, 0p50, NONE, NONE),
+	RPM_SMB_SMPS(S1a, 0, 1, 1, 1050000, 1150000, NULL, 1200000, 0p50, NONE, NONE),
+	RPM_SMB_SMPS(S1b, 0, 1, 1, 1050000, 1150000, NULL, 1679000, 0p50, NONE, NONE),
+	RPM_SMB_SMPS(S2a, 0, 1, 1, 800000, 1250000, NULL, 1740000, 0p50, NONE, NONE),
+	RPM_SMB_SMPS(S2b, 0, 1, 1, 800000, 1250000, NULL, 1740000, 0p50, NONE, NONE),
 };
 
 #define RPM_SMB_REG_MAP(_id, _voter, _supply, _dev_name) \
