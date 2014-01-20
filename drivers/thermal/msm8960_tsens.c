@@ -211,7 +211,7 @@ static void tsens8960_get_temp(int sensor_num, unsigned long *temp)
 	}
 
 	sensor_addr = (unsigned int)TSENS_S0_STATUS_ADDR;
-	if (tmdev->hw_type == APQ_8064 &&
+	if ((tmdev->hw_type == APQ_8064 || tmdev->hw_type == IPQ_806X) &&
 			sensor_num >= TSENS_8064_SEQ_SENSORS)
 		offset = TSENS_8064_S4_S5_OFFSET;
 	code = readl_relaxed(sensor_addr + offset +
@@ -283,7 +283,8 @@ static int tsens_tz_set_mode(struct thermal_zone_device *thermal,
 			writel_relaxed(reg | TSENS_SW_RST, TSENS_CNTL_ADDR);
 			if (tmdev->hw_type == MSM_8960 ||
 				tmdev->hw_type == MDM_9615 ||
-				tmdev->hw_type == APQ_8064)
+				tmdev->hw_type == APQ_8064 ||
+				tmdev->hw_type == IPQ_806X)
 				reg |= mask | TSENS_8960_SLP_CLK_ENA
 							| TSENS_EN;
 			else
@@ -293,7 +294,7 @@ static int tsens_tz_set_mode(struct thermal_zone_device *thermal,
 		} else {
 			reg &= ~mask;
 			if (!(reg & SENSOR0_EN)) {
-				if (tmdev->hw_type == APQ_8064)
+				if (tmdev->hw_type == APQ_8064 || tmdev->hw_type == IPQ_806X)
 					reg &= ~(TSENS_8064_SENSORS_EN |
 						TSENS_8960_SLP_CLK_ENA |
 						TSENS_EN);
@@ -359,7 +360,7 @@ static int tsens_tz_activate_trip_type(struct thermal_zone_device *thermal,
 	lo_code = TSENS_THRESHOLD_MIN_CODE;
 	hi_code = TSENS_THRESHOLD_MAX_CODE;
 
-	if (tmdev->hw_type == APQ_8064)
+	if (tmdev->hw_type == APQ_8064 || tmdev->hw_type == IPQ_806X)
 		reg_cntl = readl_relaxed(TSENS_8064_STATUS_CNTL);
 	else
 		reg_cntl = readl_relaxed(TSENS_CNTL_ADDR);
@@ -431,7 +432,7 @@ static int tsens_tz_activate_trip_type(struct thermal_zone_device *thermal,
 	}
 
 	if (mode == THERMAL_TRIP_ACTIVATION_DISABLED) {
-		if (tmdev->hw_type == APQ_8064)
+		if (tmdev->hw_type == APQ_8064 || tmdev->hw_type == IPQ_806X)
 			writel_relaxed(reg_cntl | mask, TSENS_8064_STATUS_CNTL);
 		else
 			writel_relaxed(reg_cntl | mask, TSENS_CNTL_ADDR);
@@ -440,7 +441,7 @@ static int tsens_tz_activate_trip_type(struct thermal_zone_device *thermal,
 			pr_info("%s with invalid code %x\n", __func__, code);
 			return -EINVAL;
 		}
-		if (tmdev->hw_type == APQ_8064)
+		if (tmdev->hw_type == APQ_8064 || tmdev->hw_type == IPQ_806X)
 			writel_relaxed(reg_cntl & ~mask,
 					TSENS_8064_STATUS_CNTL);
 		else
@@ -516,7 +517,7 @@ static int tsens_tz_set_trip_temp(struct thermal_zone_device *thermal,
 	lo_code = TSENS_THRESHOLD_MIN_CODE;
 	hi_code = TSENS_THRESHOLD_MAX_CODE;
 
-	if (tmdev->hw_type == APQ_8064)
+	if (tmdev->hw_type == APQ_8064 || tmdev->hw_type == IPQ_806X)
 		reg_cntl = readl_relaxed(TSENS_8064_STATUS_CNTL);
 	else
 		reg_cntl = readl_relaxed(TSENS_CNTL_ADDR);
@@ -620,7 +621,7 @@ static void tsens_scheduler_fn(struct work_struct *work)
 	bool upper_th_x, lower_th_x;
 	int adc_code;
 
-	if (tmdev->hw_type == APQ_8064) {
+	if (tmdev->hw_type == APQ_8064 || tmdev->hw_type == IPQ_806X) {
 		reg = readl_relaxed(TSENS_8064_STATUS_CNTL);
 		writel_relaxed(reg | TSENS_LOWER_STATUS_CLR |
 			TSENS_UPPER_STATUS_CLR, TSENS_8064_STATUS_CNTL);
@@ -637,7 +638,7 @@ static void tsens_scheduler_fn(struct work_struct *work)
 	threshold = (threshold & TSENS_THRESHOLD_UPPER_LIMIT_MASK)
 					>> TSENS_THRESHOLD_UPPER_LIMIT_SHIFT;
 	sensor = readl_relaxed(TSENS_CNTL_ADDR);
-	if (tmdev->hw_type == APQ_8064) {
+	if (tmdev->hw_type == APQ_8064 || tmdev->hw_type == IPQ_806X) {
 		reg = readl_relaxed(TSENS_8064_STATUS_CNTL);
 		sensor &= (uint32_t) TSENS_8064_SENSORS_EN;
 	} else {
@@ -668,7 +669,7 @@ static void tsens_scheduler_fn(struct work_struct *work)
 		sensor >>= 1;
 		sensor_addr += TSENS_SENSOR_STATUS_SIZE;
 	}
-	if (tmdev->hw_type == APQ_8064)
+	if (tmdev->hw_type == APQ_8064 || tmdev->hw_type == IPQ_806X)
 		writel_relaxed(reg & mask, TSENS_8064_STATUS_CNTL);
 	else
 	writel_relaxed(reg & mask, TSENS_CNTL_ADDR);
@@ -713,7 +714,7 @@ static int tsens_resume(struct device *dev)
 			TSENS_MIN_STATUS_MASK | TSENS_MAX_STATUS_MASK |
 			SENSORS_EN;
 		writel_relaxed(reg_cntl, TSENS_CNTL_ADDR);
-	} else if (tmdev->hw_type == APQ_8064) {
+	} else if (tmdev->hw_type == APQ_8064 || tmdev->hw_type == IPQ_806X) {
 		reg_cntl |= TSENS_8960_SLP_CLK_ENA |
 			(TSENS_MEASURE_PERIOD << 18) |
 			(((1 << tmdev->tsens_num_sensor) - 1)
@@ -766,7 +767,7 @@ static void tsens_disable_mode(void)
 
 	reg_cntl = readl_relaxed(TSENS_CNTL_ADDR);
 	if (tmdev->hw_type == MSM_8960 || tmdev->hw_type == MDM_9615 ||
-			tmdev->hw_type == APQ_8064)
+			tmdev->hw_type == APQ_8064 || tmdev->hw_type == IPQ_806X)
 		writel_relaxed(reg_cntl &
 				~((((1 << tmdev->tsens_num_sensor) - 1) <<
 				TSENS_SENSOR0_SHIFT) | TSENS_8960_SLP_CLK_ENA
@@ -814,7 +815,7 @@ static void tsens_hw_init(void)
 				(TSENS_8660_CONFIG << TSENS_8660_CONFIG_SHIFT);
 
 		writel_relaxed(reg_cntl, TSENS_CNTL_ADDR);
-	} else if (tmdev->hw_type == APQ_8064) {
+	} else if (tmdev->hw_type == APQ_8064 || tmdev->hw_type == IPQ_806X) {
 		reg_cntl |= TSENS_8960_SLP_CLK_ENA |
 			(TSENS_MEASURE_PERIOD << 18) |
 			(((1 << tmdev->tsens_num_sensor) - 1)
@@ -914,7 +915,7 @@ static int tsens_calib_sensors(void)
 	if (tmdev->hw_type == MSM_8660)
 		rc = tsens_calib_sensors8660();
 	else if (tmdev->hw_type == MSM_8960 || tmdev->hw_type == MDM_9615 ||
-		tmdev->hw_type == APQ_8064)
+		tmdev->hw_type == APQ_8064 || tmdev->hw_type == IPQ_806X)
 		rc = tsens_calib_sensors8960();
 
 	return rc;
@@ -951,7 +952,7 @@ int msm_tsens_early_init(struct tsens_platform_data *pdata)
 		return rc;
 	}
 
-	if (tmdev->hw_type == APQ_8064)
+	if (tmdev->hw_type == APQ_8064 || tmdev->hw_type == IPQ_806X)
 		tsens_status_cntl_start = 0;
 	else
 		tsens_status_cntl_start = TSENS_STATUS_CNTL_OFFSET;
