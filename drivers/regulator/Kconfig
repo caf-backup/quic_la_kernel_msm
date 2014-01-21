@@ -367,7 +367,7 @@ config REGULATOR_WM8994
 	  WM8994 CODEC.
 
 config REGULATOR_IPQ
-	tristate "Qualcomm IPQ Regulator"
+	tristate "Fixed IPQ Regulator"
 	help
 	  This feature provides dummy regulator support for IPQ based
 	  platform drivers to allow them to seamlessly work on both platforms -
