@@ -33,14 +33,6 @@
 #define SOCINFO_VERSION_MINOR(ver) (ver & 0x0000ffff)
 
 #ifdef CONFIG_OF
-#define early_machine_is_msm8974()	\
-	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,msm8974")
-#define machine_is_msm8974()		\
-	of_machine_is_compatible("qcom,msm8974")
-#define machine_is_msm8974_sim()		\
-	of_machine_is_compatible("qcom,msm8974-sim")
-#define machine_is_msm8974_rumi()	\
-	of_machine_is_compatible("qcom,msm8974-rumi")
 #define early_machine_is_msm9625()	\
 	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,msm9625")
 #define machine_is_msm9625()		\
@@ -56,10 +48,6 @@
 #define machine_is_msm8226_sim()		\
 	of_machine_is_compatible("qcom,msm8226-sim")
 #else
-#define early_machine_is_msm8974()	0
-#define machine_is_msm8974()		0
-#define machine_is_msm8974_sim()	0
-#define machine_is_msm8974_rumi()	0
 #define early_machine_is_msm9625()	0
 #define machine_is_msm9625()		0
 #define early_machine_is_mpq8092()	0
@@ -99,7 +87,6 @@ enum msm_cpu {
 	MSM_CPU_8930AB,
 	MSM_CPU_7X27AA,
 	MSM_CPU_9615,
-	MSM_CPU_8974,
 	MSM_CPU_8627,
 	MSM_CPU_8625,
 	MSM_CPU_9625,
@@ -446,18 +433,6 @@ static inline int cpu_is_msm8625(void)
 
 	BUG_ON(cpu == MSM_CPU_UNKNOWN);
 	return cpu == MSM_CPU_8625;
-#else
-	return 0;
-#endif
-}
-
-static inline int cpu_is_msm8974(void)
-{
-#ifdef CONFIG_ARCH_MSM8974
-	enum msm_cpu cpu = socinfo_get_msm_cpu();
-
-	BUG_ON(cpu == MSM_CPU_UNKNOWN);
-	return cpu == MSM_CPU_8974;
 #else
 	return 0;
 #endif

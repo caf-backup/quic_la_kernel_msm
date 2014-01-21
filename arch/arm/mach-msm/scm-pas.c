@@ -197,17 +197,12 @@ static int __init scm_pas_init(void)
 		return 0;
 	}
 
-	if (cpu_is_msm8974()) {
-		scm_pas_bw_tbl[0].vectors[0].src = MSM_BUS_MASTER_CRYPTO_CORE0;
-		scm_pas_bw_tbl[1].vectors[0].src = MSM_BUS_MASTER_CRYPTO_CORE0;
+	scm_bus_clk = clk_get_sys("scm", "bus_clk");
+	if (!IS_ERR(scm_bus_clk)) {
+		clk_set_rate(scm_bus_clk, 64000000);
 	} else {
-		scm_bus_clk = clk_get_sys("scm", "bus_clk");
-		if (!IS_ERR(scm_bus_clk)) {
-			clk_set_rate(scm_bus_clk, 64000000);
-		} else {
-			scm_bus_clk = NULL;
-			pr_warn("unable to get bus clock\n");
-		}
+		scm_bus_clk = NULL;
+		pr_warn("unable to get bus clock\n");
 	}
 
 	scm_perf_client = msm_bus_scale_register_client(&scm_pas_bus_pdata);
