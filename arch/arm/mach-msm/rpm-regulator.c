@@ -60,7 +60,6 @@ struct rpm_regulator {
 struct vreg_config *(*get_config[])(void) = {
 	[RPM_VREG_VERSION_8660] = get_config_8660,
 	[RPM_VREG_VERSION_8960] = get_config_8960,
-	[RPM_VREG_VERSION_9615] = get_config_9615,
 	[RPM_VREG_VERSION_8930] = get_config_8930,
 	[RPM_VREG_VERSION_8930_PM8917] = get_config_8930_pm8917,
 	[RPM_VREG_VERSION_8960_PM8917] = get_config_8960_pm8917,

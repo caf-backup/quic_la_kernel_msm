@@ -442,13 +442,6 @@ static int msm_watchdog_probe(struct platform_device *pdev)
 	msm_wdt_base = pdata->base;
 	msm_wdog_irq = platform_get_irq(pdev, 0);
 
-	/*
-	 * This is only temporary till SBLs turn on the XPUs
-	 * This initialization will be done in SBLs on a later releases
-	 */
-	if (cpu_is_msm9615())
-		__raw_writel(0xF, MSM_TCSR_BASE + TCSR_WDT_CFG);
-
 	if (pdata->needs_expired_enable)
 		__raw_writel(0x1, MSM_CLK_CTL_BASE + 0x3820);
 

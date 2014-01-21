@@ -50,7 +50,7 @@
 
 
 #if defined(CONFIG_ARCH_MSM8960) || defined(CONFIG_ARCH_APQ8064) || \
-	defined(CONFIG_ARCH_MSM8930) || defined(CONFIG_ARCH_MSM9615) || \
+	defined(CONFIG_ARCH_MSM8930) || \
 	defined(CONFIG_ARCH_MSM7X27) || \
 	defined(CONFIG_ARCH_MSM7X25) || defined(CONFIG_ARCH_MSM7X01A) || \
 	defined(CONFIG_ARCH_MSM8625) || defined(CONFIG_ARCH_MSM7X30) || \
@@ -111,7 +111,7 @@
 #define MSM_UBI32_0_CSM_BASE    IOMEM(0xFB721000)       /*  4K  */
 #define MSM_UBI32_1_CSM_BASE    IOMEM(0xFB722000)       /*  4K  */
 
-#if defined(CONFIG_ARCH_MSM9615) || defined(CONFIG_ARCH_MSM7X27) \
+#if defined(CONFIG_ARCH_MSM7X27) \
 	|| defined(CONFIG_ARCH_MSM7X30)
 #define MSM_SHARED_RAM_SIZE	SZ_1M
 #else
@@ -124,7 +124,6 @@
 #include "msm_iomap-8960.h"
 #include "msm_iomap-8930.h"
 #include "msm_iomap-8064.h"
-#include "msm_iomap-9615.h"
 #include "msm_iomap-9625.h"
 #include "msm_iomap-ipq806x.h"
 

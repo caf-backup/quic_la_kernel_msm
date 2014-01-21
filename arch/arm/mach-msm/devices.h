@@ -22,10 +22,6 @@
 #include <linux/platform_device.h>
 #include "clock.h"
 
-void __init msm9615_device_init(void);
-void __init msm9615_map_io(void);
-void __init msm_map_msm9615_io(void);
-void __init msm9615_init_irq(void);
 void __init msm_rotator_update_bus_vectors(unsigned int xres,
 	unsigned int yres);
 void __init msm_rotator_set_split_iommu_domain(void);
@@ -96,13 +92,6 @@ extern struct platform_device apq8064_device_ssbi_pmic1;
 extern struct platform_device apq8064_device_ssbi_pmic2;
 extern struct platform_device apq8064_device_cache_erp;
 
-extern struct platform_device msm9615_device_uart_gsbi4;
-extern struct platform_device msm9615_device_qup_i2c_gsbi5;
-extern struct platform_device msm9615_device_qup_spi_gsbi3;
-extern struct platform_device msm9615_slim_ctrl;
-extern struct platform_device msm9615_device_ssbi_pmic1;
-extern struct platform_device msm9615_device_tsens;
-extern struct platform_device msm_bus_9615_sys_fabric;
 extern struct platform_device msm_bus_def_fab;
 
 extern struct platform_device msm_device_sdc1;
@@ -180,7 +169,6 @@ extern struct platform_device msm8625_device_smd;
 extern struct platform_device msm_device_dmov;
 extern struct platform_device msm8960_device_dmov;
 extern struct platform_device apq8064_device_dmov;
-extern struct platform_device msm9615_device_dmov;
 extern struct platform_device msm8625_device_dmov;
 extern struct platform_device msm_device_dmov_adm0;
 extern struct platform_device msm_device_dmov_adm1;
@@ -358,11 +346,6 @@ extern struct platform_device msm8660_rpm_device;
 extern struct platform_device msm8660_rpm_stat_device;
 extern struct platform_device msm8660_rpm_log_device;
 
-extern struct platform_device msm9615_rpm_device;
-extern struct platform_device msm9615_rpm_stat_device;
-extern struct platform_device msm9615_rpm_master_stat_device;
-extern struct platform_device msm9615_rpm_log_device;
-
 extern struct platform_device apq8064_rpm_device;
 extern struct platform_device apq8064_rpm_stat_device;
 extern struct platform_device apq8064_rpm_master_stat_device;
@@ -371,19 +354,9 @@ extern struct platform_device apq8064_rpm_log_device;
 extern struct platform_device msm_device_rng;
 extern struct platform_device apq8064_device_rng;
 
-#if \
-		defined(CONFIG_CRYPTO_DEV_QCRYPTO_MODULE)
-extern struct platform_device msm9615_qcrypto_device;
-#endif
-
-#if \
-		defined(CONFIG_CRYPTO_DEV_QCEDEV_MODULE)
-extern struct platform_device msm9615_qcedev_device;
-#endif
 extern struct platform_device msm8960_device_watchdog;
 extern struct platform_device msm8660_device_watchdog;
 extern struct platform_device msm8064_device_watchdog;
-extern struct platform_device msm9615_device_watchdog;
 extern struct platform_device fsm9xxx_device_watchdog;
 
 extern struct platform_device coresight_tpiu_device;
@@ -453,7 +426,6 @@ extern struct platform_device msm8930aa_device_acpuclk;
 extern struct platform_device msm8930ab_device_acpuclk;
 extern struct platform_device msm8960_device_acpuclk;
 extern struct platform_device msm8960ab_device_acpuclk;
-extern struct platform_device msm9615_device_acpuclk;
 
 extern struct platform_device apq8064_msm_mpd_device;
 
