@@ -57,6 +57,7 @@
 #include <mach/msm_nss_crypto.h>
 #include <linux/ar8216_platform.h>
 #include <mach/msm_usb30.h>
+#include <mach/cache_erp.h>
 
 /* Address of GSBI blocks */
 #define MSM_GSBI1_PHYS		0x12440000
@@ -2333,11 +2334,82 @@ static struct resource msm_cache_erp_resources[] = {
 	}
 };
 
+#ifdef CONFIG_DEBUG_IPQ806X_CACHE_ERP_REGS
+
+#define ipq_err_reg(_base, _reg, _off)		\
+{						\
+	.name = #_base ": " #_reg,		\
+	.addr = ((MSM_ ##_base##_BASE) + _off)	\
+}
+
+struct ipq_reg ipq806x_cache_erp_regs[] = {
+	ipq_err_reg(SFAB, ID_REVISION_REG0,		0x0000),
+	ipq_err_reg(SFAB, ID_REVISION_REG1,		0x0004),
+	ipq_err_reg(SFAB, CONFIGURATION_REG,		0x0008),
+	ipq_err_reg(SFAB, ERROR_STATUS_REG_0,		0x3504),
+	ipq_err_reg(SFAB, ERROR_STATUS_REG_1,		0x3508),
+	ipq_err_reg(SFAB, ERROR_STATUS_REG_2,		0x350C),
+	ipq_err_reg(SFAB, ERROR_STATUS_REG_3,		0x3510),
+	ipq_err_reg(SFAB, ERROR_UPPER_ADDR_REG,		0x3514),
+	ipq_err_reg(SFAB, ERROR_LOWER_ADDR_REG,		0x3518),
+
+	ipq_err_reg(AFAB, ID_REVISION_REG0,		0x0000),
+	ipq_err_reg(AFAB, ID_REVISION_REG1,		0x0004),
+	ipq_err_reg(AFAB, CONFIGURATION_REG,		0x0008),
+	ipq_err_reg(AFAB, ERROR_STATUS_REG_0,		0x3504),
+	ipq_err_reg(AFAB, ERROR_STATUS_REG_1,		0x3508),
+	ipq_err_reg(AFAB, ERROR_STATUS_REG_2,		0x350C),
+	ipq_err_reg(AFAB, ERROR_STATUS_REG_3,		0x3510),
+	ipq_err_reg(AFAB, ERROR_UPPER_ADDR_REG,		0x3514),
+	ipq_err_reg(AFAB, ERROR_LOWER_ADDR_REG,		0x3518),
+
+	ipq_err_reg(NSSFAB_0, ID_REVISION_REG0,		0x0000),
+	ipq_err_reg(NSSFAB_0, ID_REVISION_REG1,		0x0004),
+	ipq_err_reg(NSSFAB_0, CONFIGURATION_REG,	0x0008),
+	ipq_err_reg(NSSFAB_0, ERROR_STATUS_REG_0,	0x3504),
+	ipq_err_reg(NSSFAB_0, ERROR_STATUS_REG_1,	0x3508),
+	ipq_err_reg(NSSFAB_0, ERROR_STATUS_REG_2,	0x350C),
+	ipq_err_reg(NSSFAB_0, ERROR_STATUS_REG_3,	0x3510),
+	ipq_err_reg(NSSFAB_0, ERROR_UPPER_ADDR_REG,	0x3514),
+	ipq_err_reg(NSSFAB_0, ERROR_LOWER_ADDR_REG,	0x3518),
+
+	ipq_err_reg(NSSFAB_1, ID_REVISION_REG0,		0x0000),
+	ipq_err_reg(NSSFAB_1, ID_REVISION_REG1,		0x0004),
+	ipq_err_reg(NSSFAB_1, CONFIGURATION_REG,	0x0008),
+	ipq_err_reg(NSSFAB_1, ERROR_STATUS_REG_0,	0x3504),
+	ipq_err_reg(NSSFAB_1, ERROR_STATUS_REG_1,	0x3508),
+	ipq_err_reg(NSSFAB_1, ERROR_STATUS_REG_2,	0x350C),
+	ipq_err_reg(NSSFAB_1, ERROR_STATUS_REG_3,	0x3510),
+	ipq_err_reg(NSSFAB_1, ERROR_UPPER_ADDR_REG,	0x3514),
+	ipq_err_reg(NSSFAB_1, ERROR_LOWER_ADDR_REG,	0x3518),
+
+	ipq_err_reg(DAY_CFG, ID_REVISION_REG0,		0x0000),
+	ipq_err_reg(DAY_CFG, ID_REVISION_REG1,		0x0004),
+	ipq_err_reg(DAY_CFG, CONFIGURATION_REG,		0x0008),
+	ipq_err_reg(DAY_CFG, ERROR_STATUS_REG_0,	0x3504),
+	ipq_err_reg(DAY_CFG, ERROR_STATUS_REG_1,	0x3508),
+	ipq_err_reg(DAY_CFG, ERROR_STATUS_REG_2,	0x350C),
+	ipq_err_reg(DAY_CFG, ERROR_STATUS_REG_3,	0x3510),
+	ipq_err_reg(DAY_CFG, ERROR_UPPER_ADDR_REG,	0x3514),
+	ipq_err_reg(DAY_CFG, ERROR_LOWER_ADDR_REG,	0x3518),
+};
+
+struct ipq_error_status_reg ipq806x_cache_erp_pdata = {
+	.reg = ipq806x_cache_erp_regs,
+	.num = ARRAY_SIZE(ipq806x_cache_erp_regs),
+};
+#endif
+
 struct platform_device ipq806x_device_cache_erp = {
 	.name		= "msm_cache_erp",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(msm_cache_erp_resources),
 	.resource	= msm_cache_erp_resources,
+#ifdef CONFIG_DEBUG_IPQ806X_CACHE_ERP_REGS
+	.dev		= {
+		.platform_data = &ipq806x_cache_erp_pdata,
+	},
+#endif
 };
 
 struct resource ipq_dmlite_resource[] = {

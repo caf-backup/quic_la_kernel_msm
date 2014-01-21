@@ -853,6 +853,12 @@ config MSM_DEBUG_UART_PHYS
 	default 0xA9C00000 if (ARCH_MSM7X27 || ARCH_QSD8X50) && DEBUG_MSM_UART3
 	default 0xACC00000 if ARCH_MSM7X30 && DEBUG_MSM_UART3
 
+config DEBUG_IPQ806X_CACHE_ERP_REGS
+	bool "Dump cache ERP registers on cache errors"
+	depends on ARCH_IPQ806X
+	help
+	Say Y here if you want the debug cache ERP register on IPQ806x devices.
+
 choice
 	prompt "Debug UART"
 	depends on DEBUG_LL

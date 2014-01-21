@@ -23,6 +23,7 @@
 #include <mach/socinfo.h>
 #include <asm/cputype.h>
 #include "acpuclock.h"
+#include <mach/cache_erp.h>
 
 #define CESR_DCTPE		BIT(0)
 #define CESR_DCDPE		BIT(1)
@@ -128,6 +129,10 @@ static struct msm_l2_err_stats msm_l2_erp_stats;
 
 static int l1_erp_irq, l2_erp_irq;
 static struct proc_dir_entry *procfs_entry;
+
+#ifdef CONFIG_DEBUG_IPQ806X_CACHE_ERP_REGS
+static struct ipq_error_status_reg *erp_error_status_reg;
+#endif
 
 #ifdef CONFIG_MSM_L1_ERR_LOG
 static struct proc_dir_entry *procfs_log_entry;
@@ -339,6 +344,19 @@ static irqreturn_t msm_l1_erp_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_DEBUG_IPQ806X_CACHE_ERP_REGS
+static void ipq_dump_error_status(struct ipq_error_status_reg *reg)
+{
+	int i;
+
+	for (i = 0; i < reg->num; i++) {
+		pr_alert("\t%s\t\t= 0x%08x\n",
+			reg->reg[i].name,
+			readl_relaxed(reg->reg[i].addr));
+	}
+}
+#endif
+
 static irqreturn_t msm_l2_erp_irq(int irq, void *dev_id)
 {
 	unsigned int l2esr;
@@ -368,6 +386,11 @@ static irqreturn_t msm_l2_erp_irq(int irq, void *dev_id)
 		pr_alert("\tL2EAR1   = 0x%08x\n", l2ear1);
 		pr_alert("\tCPU bitmap = 0x%x\n", (l2esr >> L2ESR_CPU_SHIFT) &
 							L2ESR_CPU_MASK);
+#ifdef CONFIG_DEBUG_IPQ806X_CACHE_ERP_REGS
+		if (erp_error_status_reg)
+			ipq_dump_error_status(erp_error_status_reg);
+#endif
+
 	}
 
 	if (l2esr & L2ESR_MPDCD) {
@@ -522,6 +545,10 @@ static int msm_cache_erp_probe(struct platform_device *pdev)
 	ret = procfs_event_log_init();
 	if (ret)
 		pr_err("Failed to create procfs node for ERP log access\n");
+
+#ifdef CONFIG_DEBUG_IPQ806X_CACHE_ERP_REGS
+	erp_error_status_reg = pdev->dev.platform_data;
+#endif
 
 	return 0;
 
