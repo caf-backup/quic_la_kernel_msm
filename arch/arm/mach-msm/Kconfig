@@ -149,38 +149,6 @@ config ARCH_MSM8960
 	select MSM_IOMMU_GPU_SYNC
 	select MSM_CPU_PWRCTL
 
-config ARCH_MSM8930
-	bool "MSM8930"
-	select ARCH_MSM_KRAITMP
-	select ARM_GIC
-	select CPU_V7
-	select GPIO_MSM_V2
-	select MSM_GPIOMUX
-	select MSM_SCM if SMP
-	select MSM_DIRECT_SCLK_ACCESS
-	select REGULATOR
-	select MSM_RPM_REGULATOR
-	select MSM_RPM
-	select MSM_XO
-	select MSM_PIL
-	select MSM_AUDIO_QDSP6 if SND_SOC
-	select CPU_HAS_L2_PMU
-	select MSM_SPM_V2
-	select MSM_L2_SPM
-	select MSM_NATIVE_RESTART
-	select DONT_MAP_HOLE_AFTER_MEMBANK0
-	select MSM_REMOTE_SPINLOCK_SFPB
-	select ARCH_SPARSEMEM_ENABLE
-	select ARCH_HAS_HOLES_MEMORYMODEL
-	select MSM_ULTRASOUND
-	select MULTI_IRQ_HANDLER
-	select MSM_PM8X60 if PM
-	select HOLES_IN_ZONE if SPARSEMEM
-	select ARM_HAS_SG_CHAIN
-	select MSM_KRAIT_WFE_FIXUP
-	select MSM_IOMMU_GPU_SYNC
-	select MSM_CPU_PWRCTL
-
 config ARCH_APQ8064
 	bool "APQ8064"
 	select ARCH_MSM_KRAITMP
@@ -693,42 +661,6 @@ config MACH_MSM8960_LIQUID
 	help
 	  Support for the Qualcomm MSM8960 LIQUID device.
 
-config MACH_MSM8930_CDP
-	depends on ARCH_MSM8930
-	bool "MSM8930 CDP"
-	help
-	  Support for the Qualcomm MSM8930 CDP device.
-
-config MACH_MSM8930_MTP
-	depends on ARCH_MSM8930
-	bool "MSM8930 MTP"
-	help
-	  Support for the Qualcomm MSM8930 MTP device.
-
-config MACH_MSM8930_FLUID
-	depends on ARCH_MSM8930
-	bool "MSM8930 FLUID"
-	help
-	  Support for the Qualcomm MSM8930 FLUID device.
-
-config MACH_MSM8930_EVT
-	depends on ARCH_MSM8930
-	bool "MSM8930 QRD EVT"
-	help
-	  Support for the Qualcomm Reference Design 8930 EVT device.
-
-config MACH_MSM8627_CDP
-	depends on ARCH_MSM8930
-	bool "MSM8627 CDP"
-	help
-	  Support for the Qualcomm MSM8627 CDP device.
-
-config MACH_MSM8627_MTP
-	depends on ARCH_MSM8930
-	bool "MSM8627 MTP"
-	help
-	  Support for the Qualcomm MSM8627 MTP device.
-
 config MSM_USE_TSIF1
 	depends on ARCH_MSM8X60
 	bool "MSM8x60 use TSIF1"
@@ -851,7 +783,6 @@ config PHYS_OFFSET
 	default "0x80200000" if ARCH_APQ8064
 	default "0x40800000" if ARCH_IPQ806X
 	default "0x80200000" if ARCH_MSM8960
-	default "0x80200000" if ARCH_MSM8930
 	default "0x00000000" if ARCH_MPQ8092
 	default "0x10000000" if ARCH_FSM9XXX
 	default "0x20200000" if ARCH_MSM9625
@@ -962,14 +893,6 @@ choice
 		help
 		  Say Y here if you want the debug print routines to direct
 		  their output to the serial port on MSM 8960 devices.
-
-	config DEBUG_MSM8930_UART
-		bool "Kernel low-level debugging messages via MSM 8930 UART"
-		depends on ARCH_MSM8930 && DEBUG_LL
-		select MSM_HAS_DEBUG_UART_HS
-		help
-		Say Y here if you want the debug print routines to direct
-		their output to the serial port on MSM 8930 devices.
 
 	config DEBUG_APQ8064_UART
 		bool "Kernel low-level debugging messages via APQ 8064 UART"

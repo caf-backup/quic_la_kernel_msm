@@ -186,7 +186,7 @@ int msm_spm_turn_on_cpu_rail(unsigned int cpu)
 
 	reg = saw_bases[cpu];
 
-	if (soc_class_is_msm8960() || soc_class_is_msm8930() ||
+	if (soc_class_is_msm8960() ||
 	    soc_class_is_apq8064() || cpu_is_ipq806x()) {
 		val = 0xA4;
 		reg += 0x14;

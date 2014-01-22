@@ -79,7 +79,6 @@ static int msm_rpm_master_copy_stats(
 	/*
 	 * iterrate possible nomasters times.
 	 * 8960, 8064 have 5 masters.
-	 * 8930 has 4 masters.
 	 * 9x15 has 3 masters.
 	 */
 	if (nomasters > pdata->nomasters - 1) {

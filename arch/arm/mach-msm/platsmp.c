@@ -179,7 +179,7 @@ static int __cpuinit release_secondary(unsigned int cpu)
 	if (cpu_is_msm8x60())
 		return scorpion_release_secondary();
 
-	if (soc_class_is_msm8960() || soc_class_is_msm8930() ||
+	if (soc_class_is_msm8960() ||
 	    soc_class_is_apq8064() || cpu_is_ipq806x())
 		return krait_release_secondary(0x02088000, cpu);
 

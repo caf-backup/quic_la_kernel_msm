@@ -172,20 +172,6 @@ static inline struct vreg_config *get_config_8960_pm8917(void)
 }
 #endif
 
-#if defined(CONFIG_MSM_RPM_REGULATOR) && defined(CONFIG_ARCH_MSM8930)
-struct vreg_config *get_config_8930(void);
-struct vreg_config *get_config_8930_pm8917(void);
-#else
-static inline struct vreg_config *get_config_8930(void)
-{
-	return NULL;
-}
-static inline struct vreg_config *get_config_8930_pm8917(void)
-{
-	return NULL;
-}
-#endif
-
 #if defined(CONFIG_MSM_RPM_REGULATOR) && defined(CONFIG_ARCH_IPQ806X)
 struct vreg_config *get_config_ipq806x(void);
 #else
