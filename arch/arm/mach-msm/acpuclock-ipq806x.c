@@ -111,16 +111,6 @@ static struct l2_level l2_freq_tbl[] __initdata = {
 };
 
 static struct acpu_level tbl_slow[] __initdata = {
-	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0), 1000000 },
-	{ 1, {   600000, HFPLL, 1, 0x18 }, L2(1), 1050000 },
-	{ 1, {   800000, HFPLL, 1, 0x20 }, L2(1), 1100000 },
-	{ 1, {  1000000, HFPLL, 1, 0x28 }, L2(1), 1150000 },
-	{ 1, {  1200000, HFPLL, 1, 0x30 }, L2(2), 1200000 },
-	{ 1, {  1400000, HFPLL, 1, 0x38 }, L2(2), 1250000 },
-	{ 0, { 0 } }
-};
-
-static struct acpu_level tbl_nominal[] __initdata = {
 	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0),  950000 },
 	{ 1, {   600000, HFPLL, 1, 0x18 }, L2(1), 1000000 },
 	{ 1, {   800000, HFPLL, 1, 0x20 }, L2(1), 1050000 },
@@ -130,7 +120,7 @@ static struct acpu_level tbl_nominal[] __initdata = {
 	{ 0, { 0 } }
 };
 
-static struct acpu_level tbl_fast[] __initdata = {
+static struct acpu_level tbl_nominal[] __initdata = {
 	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0),  900000 },
 	{ 1, {   600000, HFPLL, 1, 0x18 }, L2(1),  950000 },
 	{ 1, {   800000, HFPLL, 1, 0x20 }, L2(1), 1000000 },
@@ -140,13 +130,23 @@ static struct acpu_level tbl_fast[] __initdata = {
 	{ 0, { 0 } }
 };
 
-static struct acpu_level tbl_superfast[] __initdata = {
+static struct acpu_level tbl_fast[] __initdata = {
 	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0),  850000 },
 	{ 1, {   600000, HFPLL, 1, 0x18 }, L2(1),  900000 },
 	{ 1, {   800000, HFPLL, 1, 0x20 }, L2(1),  950000 },
 	{ 1, {  1000000, HFPLL, 1, 0x28 }, L2(1), 1000000 },
 	{ 1, {  1200000, HFPLL, 1, 0x30 }, L2(2), 1050000 },
 	{ 1, {  1400000, HFPLL, 1, 0x38 }, L2(2), 1100000 },
+	{ 0, { 0 } }
+};
+
+static struct acpu_level tbl_superfast[] __initdata = {
+	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0),  800000 },
+	{ 1, {   600000, HFPLL, 1, 0x18 }, L2(1),  850000 },
+	{ 1, {   800000, HFPLL, 1, 0x20 }, L2(1),  900000 },
+	{ 1, {  1000000, HFPLL, 1, 0x28 }, L2(1),  950000 },
+	{ 1, {  1200000, HFPLL, 1, 0x30 }, L2(2), 1000000 },
+	{ 1, {  1400000, HFPLL, 1, 0x38 }, L2(2), 1050000 },
 	{ 0, { 0 } }
 };
 
@@ -161,22 +161,14 @@ static struct pvs_table pvs_tables[NUM_SPEED_BINS][NUM_PVS] __initdata = {
  * PVS tables for Akronite-lite based platforms
  */
 static struct acpu_level tbl_slow_lite[] __initdata = {
-	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0), 1000000 },
-	{ 1, {   600000, HFPLL, 1, 0x18 }, L2(1), 1050000 },
-	{ 1, {   800000, HFPLL, 1, 0x20 }, L2(1), 1100000 },
-	{ 1, {  1000000, HFPLL, 1, 0x28 }, L2(1), 1150000 },
-	{ 0, { 0 } }
-};
-
-static struct acpu_level tbl_nominal_lite[] __initdata = {
-	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0),  950000 },
+	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0),  950000},
 	{ 1, {   600000, HFPLL, 1, 0x18 }, L2(1), 1000000 },
 	{ 1, {   800000, HFPLL, 1, 0x20 }, L2(1), 1050000 },
 	{ 1, {  1000000, HFPLL, 1, 0x28 }, L2(1), 1100000 },
 	{ 0, { 0 } }
 };
 
-static struct acpu_level tbl_fast_lite[] __initdata = {
+static struct acpu_level tbl_nominal_lite[] __initdata = {
 	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0),  900000 },
 	{ 1, {   600000, HFPLL, 1, 0x18 }, L2(1),  950000 },
 	{ 1, {   800000, HFPLL, 1, 0x20 }, L2(1), 1000000 },
@@ -184,11 +176,19 @@ static struct acpu_level tbl_fast_lite[] __initdata = {
 	{ 0, { 0 } }
 };
 
-static struct acpu_level tbl_superfast_lite[] __initdata = {
+static struct acpu_level tbl_fast_lite[] __initdata = {
 	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0),  850000 },
 	{ 1, {   600000, HFPLL, 1, 0x18 }, L2(1),  900000 },
 	{ 1, {   800000, HFPLL, 1, 0x20 }, L2(1),  950000 },
 	{ 1, {  1000000, HFPLL, 1, 0x28 }, L2(1), 1000000 },
+	{ 0, { 0 } }
+};
+
+static struct acpu_level tbl_superfast_lite[] __initdata = {
+	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0), 800000 },
+	{ 1, {   600000, HFPLL, 1, 0x18 }, L2(1), 850000 },
+	{ 1, {   800000, HFPLL, 1, 0x20 }, L2(1), 900000 },
+	{ 1, {  1000000, HFPLL, 1, 0x28 }, L2(1), 950000 },
 	{ 0, { 0 } }
 };
 
