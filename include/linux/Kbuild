@@ -418,4 +418,3 @@ header-y += msm_mdp.h
 header-y += msm_rotator.h
 header-y += msm_audio.h
 header-y += android_pmem.h
-header-y += genlock.h
