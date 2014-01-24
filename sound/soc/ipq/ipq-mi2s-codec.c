@@ -135,7 +135,6 @@ int ipq_mi2s_ctrl_write(uint8_t addr, uint8_t data)
 	struct spi_message msg;
 
 	if (ipq_mi2s_ctrl_spi == NULL) {
-		printk("SPI not init yet\n");
 		return 1;
 	}
 
