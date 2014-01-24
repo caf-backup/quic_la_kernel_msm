@@ -431,4 +431,5 @@ config RADIO_ZOLTRIX_PORT
 	  Enter the I/O port of your Zoltrix radio card.
 
 endif # V4L_RADIO_ISA_DRIVERS
+
 endif # RADIO_ADAPTERS
