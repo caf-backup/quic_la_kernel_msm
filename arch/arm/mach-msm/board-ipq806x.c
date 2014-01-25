@@ -1927,6 +1927,35 @@ static struct platform_device db149_kp_pdev = {
 	},
 };
 
+#define AP145_GPIO_BTN_JUMPSTART	22
+
+#define AP145_KEYS_POLL_INTERVAL	20	/* msecs */
+#define AP145_KEYS_DEBOUNCE_INTERVAL	(3 * AP145_KEYS_POLL_INTERVAL)
+
+static struct gpio_keys_button ap145_gpio_keys[] = {
+	{
+		.desc		= "wps",
+		.type		= EV_KEY,
+		.code		= KEY_WPS_BUTTON,
+		.debounce_interval = AP145_KEYS_DEBOUNCE_INTERVAL,
+		.gpio		= AP145_GPIO_BTN_JUMPSTART,
+		.wakeup		= 1,
+		.active_low	= 1,
+	},
+};
+
+static struct gpio_keys_platform_data ap145_keys_data = {
+	.buttons        = ap145_gpio_keys,
+	.nbuttons       = ARRAY_SIZE(ap145_gpio_keys),
+};
+
+static struct platform_device ap145_kp_pdev = {
+	.name           = "gpio-keys",
+	.id             = -1,
+	.dev            = {
+		.platform_data  = &ap145_keys_data,
+	},
+};
 #define AP148_GPIO_BTN_JUMPSTART	65
 #define AP148_GPIO_BTN_RESET		54
 
@@ -2311,6 +2340,9 @@ static void __init ipq806x_init(void)
 	}
 	if (machine_is_ipq806x_db149() || machine_is_ipq806x_db149_1xx()) {
 		platform_device_register(&db149_kp_pdev);
+	}
+	if (machine_is_ipq806x_ap145()) {
+		platform_device_register(&ap145_kp_pdev);
 	}
 }
 
