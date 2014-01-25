@@ -130,13 +130,10 @@ static irqreturn_t ipq_pcm_spdif(int src, void *data)
 	/*
 	 * for Linear PCM, inform ALSA only of all blocks in a period are done
 	 */
-	if (prtd->pcm_stream_info.compr_mode ==
-			LPA_IF_SPDIF_TX_DATA_TYPE_LINEAR) {
-		if (prtd->pcm_stream_info.blocks_done_per_period !=
-			prtd->pcm_stream_info.blocks_per_period) {
-			/* period not done yet, don't inform upper layers */
-			return IRQ_HANDLED;
-		}
+	if (prtd->pcm_stream_info.blocks_done_per_period !=
+		prtd->pcm_stream_info.blocks_per_period) {
+		/* period not done yet, don't inform upper layers */
+		return IRQ_HANDLED;
 	}
 
 	if (++prtd->pcm_stream_info.period_index >= runtime->periods)
@@ -209,17 +206,20 @@ static int ipq_pcm_spdif_prepare(struct snd_pcm_substream *substream)
 	if (prtd->pcm_stream_info.compr_mode ==
 		LPA_IF_SPDIF_TX_DATA_TYPE_LINEAR) {
 		if (runtime->period_size % SPDIF_FRAMESIZE) {
-			pr_err("Period size(%lu) needs to be in multiple"
-					"of 192\n", runtime->period_size);
-			return -EINVAL;
+			prtd->pcm_stream_info.spdif_frame_size =
+			((frames_to_bytes(runtime, runtime->period_size)) / 4);
+			prtd->pcm_stream_info.blocks_per_period = 1;
+		} else {
+			prtd->pcm_stream_info.blocks_per_period =
+			((frames_to_bytes(runtime, runtime->period_size)) /
+						(SPDIF_FRAMESIZE * 4));
 		}
-		prtd->pcm_stream_info.blocks_per_period =
-			runtime->period_size / SPDIF_FRAMESIZE;
 	} else {
 		/* for non linear PCM, one block is one period */
-		prtd->pcm_stream_info.blocks_per_period = 1;
+		prtd->pcm_stream_info.blocks_per_period =
+			(runtime->period_size /
+				prtd->pcm_stream_info.spdif_frame_size);
 	}
-
 	ipq_spdif_intr_enable();
 	ipq_spdif_register_handler(ipq_pcm_spdif, substream);
 	ipq_spdif_cfg_compr_mode(prtd->pcm_stream_info.compr_mode,
