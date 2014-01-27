@@ -104,6 +104,101 @@ enum {
 
 #define TCA_STAB_MAX (__TCA_STAB_MAX - 1)
 
+/* NSSFIFO section */
+
+enum {
+	TCA_NSSFIFO_UNSPEC,
+	TCA_NSSFIFO_PARMS,
+	__TCA_NSSFIFO_MAX
+};
+
+#define TCA_NSSFIFO_MAX	(__TCA_NSSFIFO_MAX - 1)
+
+struct tc_nssfifo_qopt {
+	__u32	limit;		/* Queue length: bytes for bfifo, packets for pfifo */
+	__u8	set_default;	/* Sets qdisc to be the default qdisc for enqueue */
+};
+
+/* NSSCODEL section */
+
+enum {
+	TCA_NSSCODEL_UNSPEC,
+	TCA_NSSCODEL_PARMS,
+	__TCA_NSSCODEL_MAX
+};
+
+#define TCA_NSSCODEL_MAX	(__TCA_NSSCODEL_MAX - 1)
+
+struct tc_nsscodel_qopt {
+	__u32	target;		/* Acceptable queueing delay */
+	__u32	limit;		/* Maximum number of packets that can be held in the queue */
+	__u32	interval;	/* Monitoring interval */
+	__u8	set_default;	/* Sets qdisc to be the default qdisc for enqueue */
+};
+
+struct tc_nsscodel_xstats {
+	__u32 peak_queue_delay;	/* Peak delay experienced by a dequeued packet */
+	__u32 peak_drop_delay;	/* Peak delay experienced by a dropped packet */
+};
+
+/* NSSTBL section */
+
+enum {
+	TCA_NSSTBL_UNSPEC,
+	TCA_NSSTBL_PARMS,
+	__TCA_NSSTBL_MAX
+};
+
+#define TCA_NSSTBL_MAX	(__TCA_NSSTBL_MAX - 1)
+
+struct tc_nsstbl_qopt {
+	__u32	burst;		/* Maximum burst size */
+	__u32	rate;		/* Limiting rate of TBF */
+	__u32	peakrate;	/* Maximum rate at which TBF is allowed to send */
+	__u32	mtu;		/* Max size of packet, or minumim burst size */
+};
+
+/* NSSPRIO section */
+
+#define TCA_NSSPRIO_MAX_BANDS 256
+
+enum {
+	TCA_NSSPRIO_UNSPEC,
+	TCA_NSSPRIO_PARMS,
+	__TCA_NSSPRIO_MAX
+};
+
+#define TCA_NSSPRIO_MAX	(__TCA_NSSPRIO_MAX - 1)
+
+struct tc_nssprio_qopt {
+	int	bands;				/* Number of bands */
+};
+
+/* NSSBF section */
+
+enum {
+	TCA_NSSBF_UNSPEC,
+	TCA_NSSBF_CLASS_PARMS,
+	TCA_NSSBF_QDISC_PARMS,
+	__TCA_NSSBF_MAX
+};
+
+#define TCA_NSSBF_MAX	(__TCA_NSSBF_MAX - 1)
+
+struct tc_nssbf_class_qopt {
+	__u32	burst;		/* Maximum burst size */
+	__u32	rate;		/* Limiting rate of TBF */
+	__u32	mtu;		/* Max size of packet, or minumim burst size */
+};
+
+struct tc_nssbf_qopt {
+	__u16	defcls;		/* Default class value */
+};
+
+struct tc_nssbf_xstats {
+	__u32	count;		/* Total number of packets processed by queue */
+};
+
 /* FIFO section */
 
 struct tc_fifo_qopt {
