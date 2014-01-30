@@ -266,13 +266,6 @@ static void  uw_ssusb_pre_init(void __iomem *ipq_base)
 	ipq_ssusb_clear_bits32(DWC3_SSUSB_REG_GCTL, DWC3_GCTL_CORESOFTRESET,
 				ipq_base);
 	udelay(5);
-	/* HACK - override RX detect value */
-	data = dwc3_ipq_ssusb_read_phy_reg(DWC3_SSUSB_PHY_TX_DEBUG_REG,
-						ipq_base);
-	data &= ~0xFF0;
-	data |= DWC3_SSUSB_PHY_TX_DEBUG_RXDET_MEAS_TIME_VAL;
-	dwc3_ipq_ssusb_write_phy_reg(DWC3_SSUSB_PHY_TX_DEBUG_REG,
-					data, ipq_base);
 	if (RX_TERM_VALUE) {
 		dwc3_ipq_ssusb_write_phy_reg(DWC3_SSUSB_PHY_RTUNE_RTUNE_CTRL_REG,
 						0, ipq_base);
@@ -331,8 +324,7 @@ static void  uw_ssusb_pre_init(void __iomem *ipq_base)
 	ipq_ssusb_clear_and_set_bits32(DWC3_SSUSB_REG_GCTL, clear_bits,
 					set_bits, ipq_base);
 
-	writel(DWC3_GCTL_U2EXIT_LFPS | DWC3_GCTL_SOFITPSYNC |
-		DWC3_GCTL_PRTCAPDIR(1) |
+	writel(DWC3_GCTL_U2EXIT_LFPS | DWC3_GCTL_PRTCAPDIR(1) |
 		DWC3_GCTL_U2RSTECN | DWC3_GCTL_PWRDNSCALE(2),
 		ipq_base + DWC3_GCTL);
 	writel((IPQ_SSUSB_QSCRATCH_SS_PHY_CTRL_MPLL_MULTI(0x19) |
