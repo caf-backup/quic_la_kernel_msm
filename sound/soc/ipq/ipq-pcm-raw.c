@@ -51,6 +51,8 @@ static struct dai_dma_params tx_dma_params;
 static struct dai_dma_params rx_dma_params;
 extern void pcm_test_init(void);
 extern void pcm_test_exit(void);
+static int dsp_flag;
+static int dsp_realtime_flag;
 
 static irqreturn_t pcm_irq_handler(int intrsrc, void *data)
 {
@@ -80,8 +82,34 @@ static irqreturn_t pcm_irq_handler(int intrsrc, void *data)
 	atomic_set(&data_at, (dma_at + 1) % NUM_BUFFERS);
 	atomic_set(&data_avail, 1);
 	wake_up_interruptible(&pcm_q);
+
+	/* Set the real-time miss flag if dsp_flag isn’t cleared by dsp */
+	if (dsp_flag)
+		dsp_realtime_flag++;
+
+	dsp_flag = 1;
+
         return IRQ_HANDLED;
 }
+
+void ipq_pcm_clear_flag(void)
+{
+	dsp_flag = 0;
+}
+EXPORT_SYMBOL(ipq_pcm_clear_flag);
+
+int ipq_pcm_check_flag(void)
+{
+	int retvalue;
+
+	retvalue = dsp_realtime_flag;
+	if (retvalue) {
+		dsp_realtime_flag = 0;
+		return retvalue;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(ipq_pcm_check_flag);
 
 void ipq_pcm_init(void)
 {
@@ -91,6 +119,8 @@ void ipq_pcm_init(void)
 	uint32_t freq = CHANNEL_SAMPLING_RATE;
 	uint32_t slots = NUM_PCM_SLOTS;
 
+	dsp_flag = 0;
+	dsp_realtime_flag = 0;
 	atomic_set(&data_avail, 0);
 	atomic_set(&data_at, 1);
 	clk_reset(lpaif_pcm_bit_clk, LPAIF_PCM_ASSERT);
