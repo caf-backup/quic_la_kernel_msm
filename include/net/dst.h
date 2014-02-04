@@ -36,18 +36,10 @@ struct dst_entry {
 	struct net_device       *dev;
 	struct  dst_ops	        *ops;
 	unsigned long		_metrics;
-	union {
-		unsigned long           expires;
-		/* point to where the dst_entry copied from */
-		struct dst_entry        *from;
-	};
+	unsigned long           expires;
 	struct dst_entry	*path;
 	struct neighbour __rcu	*_neighbour;
-#ifdef CONFIG_XFRM
-	struct xfrm_state	*xfrm;
-#else
-	void			*__pad1;
-#endif
+	struct dst_entry	*from;
 	int			(*input)(struct sk_buff*);
 	int			(*output)(struct sk_buff*);
 
@@ -91,6 +83,11 @@ struct dst_entry {
 		struct rt6_info		*rt6_next;
 		struct dn_route __rcu	*dn_next;
 	};
+#ifdef CONFIG_XFRM
+	struct xfrm_state	*xfrm;
+#else
+	void			*__pad1;
+#endif
 };
 
 static inline struct neighbour *dst_get_neighbour_noref(struct dst_entry *dst)
