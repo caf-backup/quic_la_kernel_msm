@@ -3962,17 +3962,10 @@ static int msmsdcc_config_cm_sdc4_dll_phase(struct msmsdcc_host *host,
 	 * Write the selected DLL clock output phase (0 ... 15)
 	 * to CDR_SELEXT bit field of MCI_DLL_CONFIG register.
 	 */
-	if (gpio_is_valid(host->plat->uhs_gpio)) {
-		writel_relaxed(((readl_relaxed(host->base + MCI_DLL_CONFIG)
-						& ~(0xF << 20))
-					| 8),
-				host->base + MCI_DLL_CONFIG);
-	} else {
-		writel_relaxed(((readl_relaxed(host->base + MCI_DLL_CONFIG)
-						& ~(0xF << 20))
-					| (grey_coded_phase_table[phase] << 20)),
-				host->base + MCI_DLL_CONFIG);
-	}
+	writel_relaxed(((readl_relaxed(host->base + MCI_DLL_CONFIG)
+					& ~(0xF << 20))
+				| (grey_coded_phase_table[phase] << 20)),
+			host->base + MCI_DLL_CONFIG);
 	/* Set CK_OUT_EN bit of MCI_DLL_CONFIG register to 1. */
 	writel_relaxed((readl_relaxed(host->base + MCI_DLL_CONFIG)
 			| MCI_CK_OUT_EN), host->base + MCI_DLL_CONFIG);
@@ -3984,12 +3977,7 @@ static int msmsdcc_config_cm_sdc4_dll_phase(struct msmsdcc_host *host,
 
 	config = readl_relaxed(host->base + MCI_DLL_CONFIG);
 	config |= MCI_CDR_EN;
-
-	if (gpio_is_valid(host->plat->uhs_gpio)) {
-		config |= MCI_CDR_EXT_EN;
-	} else {
-		config &= ~MCI_CDR_EXT_EN;
-	}
+	config &= ~MCI_CDR_EXT_EN;
 	writel_relaxed(config, host->base + MCI_DLL_CONFIG);
 	goto out;
 
