@@ -172,6 +172,7 @@ static int usbdev_trig_notify(struct notifier_block *nb,
 {
 	struct usb_device *usb_dev;
 	struct usbdev_trig_data *td;
+	unsigned long flags;
 
 	if (evt != USB_DEVICE_ADD && evt != USB_DEVICE_REMOVE)
 		return NOTIFY_DONE;
@@ -179,7 +180,7 @@ static int usbdev_trig_notify(struct notifier_block *nb,
 	usb_dev = data;
 	td = container_of(nb, struct usbdev_trig_data, notifier);
 
-	write_lock(&td->lock);
+	write_lock_irqsave(&td->lock, flags);
 
 	if (strcmp(dev_name(&usb_dev->dev), td->device_name))
 		goto done;
@@ -200,7 +201,7 @@ static int usbdev_trig_notify(struct notifier_block *nb,
 	usbdev_trig_update_state(td);
 
 done:
-	write_unlock(&td->lock);
+	write_unlock_irqrestore(&td->lock, flags);
 	return NOTIFY_DONE;
 }
 
@@ -209,8 +210,9 @@ static void usbdev_trig_timer(unsigned long arg)
 {
 	struct usbdev_trig_data *td = (struct usbdev_trig_data *)arg;
 	int new_urbnum;
+	unsigned long flags;
 
-	write_lock(&td->lock);
+	write_lock_irqsave(&td->lock, flags);
 
 	if (!td->usb_dev || td->interval == 0) {
 		/*
@@ -256,7 +258,7 @@ static void usbdev_trig_timer(unsigned long arg)
 	mod_timer(&td->timer, jiffies + td->interval);
 
 no_restart:
-	write_unlock(&td->lock);
+	write_unlock_irqrestore(&td->lock, flags);
 }
 
 static void usbdev_trig_activate(struct led_classdev *led_cdev)
