@@ -113,6 +113,13 @@ config NF_CONNTRACK_TIMEOUT
 
 	  If unsure, say `N'.
 
+config NF_CONNTRACK_DSCPREMARK_EXT
+	bool  'Connection tracking extension for dscp remark target'
+	depends on NETFILTER_ADVANCED
+	help
+	  This option enables support for connection tracking extension
+	  for dscp remark.
+
 config NF_CONNTRACK_TIMESTAMP
 	bool  'Connection tracking timestamping'
 	depends on NETFILTER_ADVANCED
@@ -492,6 +499,20 @@ config NETFILTER_XT_TARGET_DSCP
 	  or the Priority field of an IPv6 packet, prior to routing.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_TARGET_DSCPREMARK
+	tristate '"DSCPREMARK" target support (EXPERIMENTAL)'
+	depends on EXPERIMENTAL
+	depends on (IP_NF_MANGLE || IP6_NF_MANGLE) && NF_CONNTRACK_DSCPREMARK_EXT
+	depends on NETFILTER_ADVANCED
+	help
+	  This option adds `DSCPREMARK` target, which remarks the IP header
+	  DSCP field.
+
+	  The DSCP value of an egress packet which matches when marked with imask
+	  has a value of ivalue, can be used to create a new output DSCP value that
+	  is a mask of the input value with omask and OR'ed with ovalue. This essentially
+	  enables the caller to find any given value and convert that to any given output value.
 
 config NETFILTER_XT_TARGET_HL
 	tristate '"HL" hoplimit target support'
