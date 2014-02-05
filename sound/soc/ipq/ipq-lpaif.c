@@ -218,6 +218,7 @@ int ipq_cfg_mi2s_hwparams_bit_width(uint32_t bit_width, uint32_t off)
 	uint32_t cfg;
 
 	cfg = readl(dai_info.base + LPAIF_MI2S_CTL_OFFSET(off));
+	cfg &= ~(LPA_IF_BIT_MASK);
 
 	switch (bit_width) {
 	case SNDRV_PCM_FORMAT_S16:
@@ -404,7 +405,7 @@ static int ipq_cfg_lpaif_dma_ch(uint32_t lpaif_dma_ch, uint32_t channels,
 	return ret;
 }
 
-int ipq_lpaif_cfg_dma(uint32_t dma_ch, struct dai_dma_params *params, 
+int ipq_lpaif_cfg_dma(uint32_t dma_ch, struct dai_dma_params *params,
 		uint32_t bit_width, bool enable_intr)
 {
 	int ret;
@@ -461,6 +462,26 @@ int ipq_lpaif_pcm_stop(uint32_t dma_ch)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ipq_lpaif_pcm_stop);
+
+uint8_t ipq_lpaif_dma_stop(uint8_t dma_ch)
+{
+	uint32_t cfg;
+	cfg = readl(dai_info.base + LPAIF_DMA_CTL(dma_ch));
+	cfg &= ~(LPA_IF_DMACTL_ENABLE);
+	writel(cfg, dai_info.base + LPAIF_DMA_CTL(dma_ch));
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ipq_lpaif_dma_stop);
+
+uint8_t ipq_lpaif_dma_start(uint8_t dma_ch)
+{
+	uint32_t cfg;
+	cfg = readl(dai_info.base + LPAIF_DMA_CTL(dma_ch));
+	cfg |= LPA_IF_DMACTL_ENABLE;
+	writel(cfg, dai_info.base + LPAIF_DMA_CTL(dma_ch));
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ipq_lpaif_dma_start);
 
 void ipq_lpaif_register_dma_irq_handler(int dma_ch,
 	irqreturn_t (*callback) (int intrsrc, void *private_data),

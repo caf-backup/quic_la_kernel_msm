@@ -61,6 +61,7 @@
 
 #define LPA_IF_WS		(1 << 2)
 
+#define LPA_IF_BIT_MASK		0x3
 #define LPA_IF_BIT_RATE16	(0 << 0)
 #define LPA_IF_BIT_RATE24	(1 << 0)
 #define LPA_IF_BIT_RATE32	(2 << 0)
@@ -264,6 +265,8 @@ extern void ipq_cfg_pcm_rate(uint32_t rate);
 extern int ipq_cfg_mi2s_hwparams_bit_width(uint32_t bit_width, uint32_t off);
 extern int ipq_cfg_mi2s_hwparams_channels(uint32_t channels, uint32_t off,
 							uint32_t bit_width);
+extern uint8_t ipq_lpaif_dma_stop(uint8_t dma_ch);
+extern uint8_t ipq_lpaif_dma_start(uint8_t dma_ch);
 extern void ipq_cfg_i2s_spkr(uint8_t enable, uint32_t mode, uint32_t off);
 extern void ipq_pcm_start(void);
 extern void ipq_pcm_stop(void);
