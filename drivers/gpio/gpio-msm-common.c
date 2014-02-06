@@ -32,21 +32,12 @@
 #include <mach/mpm.h>
 #include "gpio-msm-common.h"
 
-#ifdef CONFIG_GPIO_MSM_V3
-enum msm_tlmm_register {
-	SDC4_HDRV_PULL_CTL = 0x0, /* NOT USED */
-	SDC3_HDRV_PULL_CTL = 0x0, /* NOT USED */
-	SDC2_HDRV_PULL_CTL = 0x2048,
-	SDC1_HDRV_PULL_CTL = 0x2044,
-};
-#else
 enum msm_tlmm_register {
 	SDC4_HDRV_PULL_CTL = 0x20a0,
 	SDC3_HDRV_PULL_CTL = 0x20a4,
 	SDC2_HDRV_PULL_CTL = 0x0, /* NOT USED */
 	SDC1_HDRV_PULL_CTL = 0x20a0,
 };
-#endif
 
 struct tlmm_field_cfg {
 	enum msm_tlmm_register reg;
