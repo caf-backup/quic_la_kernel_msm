@@ -273,16 +273,6 @@ config WIFI_CONTROL_FUNC
 	help
 	  Enables Power/Reset/Carddetect function abstraction
 
-config ATH6K_LEGACY_EXT
-	tristate "QCA AR6003 wlan SDIO driver - External"
-	depends on MMC_MSM && WLAN
-	select WIRELESS_EXT
-	select WEXT_PRIV
-	---help---
-	  This module adds support for wireless adapters based on QCA AR6003 chipset
-	  running over SDIO. Driver is built outside of kernel tree, this config
-	  only enables configurations required for QCA AR6003 wlan driver.
-
 config WCNSS_CORE
 	tristate "Qualcomm WCNSS CORE driver"
 	depends on ARCH_MSM8960
