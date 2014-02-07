@@ -39,7 +39,6 @@
 #include <linux/i2c/isa1200.h>
 #include <linux/mdio-gpio.h>
 #include <linux/gpio_keys.h>
-#include <linux/epm_adc.h>
 #include <linux/i2c/sx150x.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
