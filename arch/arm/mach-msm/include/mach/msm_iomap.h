@@ -53,7 +53,7 @@
 	defined(CONFIG_ARCH_MSM7X27) || \
 	defined(CONFIG_ARCH_MSM7X25) || defined(CONFIG_ARCH_MSM7X01A) || \
 	defined(CONFIG_ARCH_MSM8625) || defined(CONFIG_ARCH_MSM7X30) || \
-	defined(CONFIG_ARCH_MSM9625) || defined(CONFIG_ARCH_IPQ806X)
+	defined(CONFIG_ARCH_IPQ806X)
 
 /* Unified iomap */
 
@@ -128,7 +128,6 @@
 #include "msm_iomap-8625.h"
 #include "msm_iomap-8960.h"
 #include "msm_iomap-8064.h"
-#include "msm_iomap-9625.h"
 #include "msm_iomap-ipq806x.h"
 
 #else

@@ -74,10 +74,8 @@ endif
 ifndef CONFIG_ARCH_MSM8960
 ifndef CONFIG_ARCH_MSM8X60
 ifndef CONFIG_ARCH_APQ8064
-ifndef CONFIG_ARCH_MSM9625
 	obj-y += nand_partitions.o
 	obj-$(CONFIG_SPI_QUP) += sf_partitions.o
-endif
 endif
 endif
 endif
@@ -215,7 +213,6 @@ obj-$(CONFIG_ARCH_MSM8X60) += gpiomux-8x60.o gpiomux-v2.o gpiomux.o
 obj-$(CONFIG_ARCH_MSM8960) += gpiomux-v2.o gpiomux.o
 obj-$(CONFIG_ARCH_APQ8064) += gpiomux-v2.o gpiomux.o
 obj-$(CONFIG_ARCH_IPQ806X) += gpiomux-v2.o gpiomux.o
-obj-$(CONFIG_ARCH_MSM9625) += gpiomux-v2.o gpiomux.o
 
 
 obj-$(CONFIG_MSM_RUN_QUEUE_STATS) += msm_rq_stats.o
