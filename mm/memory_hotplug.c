@@ -677,54 +677,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(add_memory);
 
-int __ref physical_remove_memory(u64 start, u64 size)
-{
-	int ret;
-	struct resource *res, *res_old;
-	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
-	BUG_ON(!res);
-
-	ret = arch_physical_remove_memory(start, size);
-	if (!ret) {
-		kfree(res);
-		return 0;
-	}
-
-	res->name = "System RAM";
-	res->start = start;
-	res->end = start + size - 1;
-	res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-
-	res_old = locate_resource(&iomem_resource, res);
-	if (res_old) {
-		release_resource(res_old);
-		if (PageSlab(virt_to_head_page(res_old)))
-			kfree(res_old);
-	}
-	kfree(res);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(physical_remove_memory);
-
-int __ref physical_active_memory(u64 start, u64 size)
-{
-	int ret;
-
-	ret = arch_physical_active_memory(start, size);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(physical_active_memory);
-
-int __ref physical_low_power_memory(u64 start, u64 size)
-{
-	int ret;
-
-	ret = arch_physical_low_power_memory(start, size);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(physical_low_power_memory);
-
 #ifdef CONFIG_MEMORY_HOTREMOVE
 /*
  * A free page on the buddy free lists (not the per-cpu lists) has PageBuddy
