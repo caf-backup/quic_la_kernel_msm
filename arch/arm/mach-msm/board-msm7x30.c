@@ -45,7 +45,6 @@
 
 #include <mach/mpp.h>
 #include <mach/board.h>
-#include <mach/camera.h>
 #include <mach/memory.h>
 #include <mach/msm_iomap.h>
 #include <mach/msm_hsusb.h>
@@ -867,387 +866,6 @@ static struct i2c_board_info cy8info[] __initdata = {
 #endif /* CY_USE_TIMER */
 	},
 };
-
-#ifdef CONFIG_MSM_CAMERA_V4L2
-static struct msm_camera_device_platform_data msm_camera_csi_device_data[] = {
-	{
-		.csid_core = 0,
-		.is_vpe    = 1,
-		.ioclk = {
-			.vfe_clk_rate =	153600000,
-		},
-	},
-	{
-		.csid_core = 0,
-		.is_vpe    = 1,
-		.ioclk = {
-			.vfe_clk_rate =	153600000,
-		},
-	},
-};
-
-static struct camera_vreg_t msm_7x30_back_cam_vreg[] = {
-	{"gp2", REG_LDO, 2600000, 2600000, -1},
-	{"lvsw1", REG_VS, 0, 0, 0},
-};
-
-static uint32_t camera_off_gpio_table[] = {
-	/* parallel CAMERA interfaces */
-	/* RST */
-	GPIO_CFG(0,  0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT2 */
-	GPIO_CFG(2,  0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT3 */
-	GPIO_CFG(3,  0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT4 */
-	GPIO_CFG(4,  0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT5 */
-	GPIO_CFG(5,  0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT6 */
-	GPIO_CFG(6,  0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT7 */
-	GPIO_CFG(7,  0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT8 */
-	GPIO_CFG(8,  0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT9 */
-	GPIO_CFG(9,  0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT10 */
-	GPIO_CFG(10, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT11 */
-	GPIO_CFG(11, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* PCLK */
-	GPIO_CFG(12, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* HSYNC_IN */
-	GPIO_CFG(13, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* VSYNC_IN */
-	GPIO_CFG(14, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* MCLK */
-	GPIO_CFG(15, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-};
-
-static uint32_t camera_on_gpio_table[] = {
-	/* parallel CAMERA interfaces */
-	/* RST */
-	GPIO_CFG(0,  0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT2 */
-	GPIO_CFG(2,  1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT3 */
-	GPIO_CFG(3,  1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT4 */
-	GPIO_CFG(4,  1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT5 */
-	GPIO_CFG(5,  1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT6 */
-	GPIO_CFG(6,  1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT7 */
-	GPIO_CFG(7,  1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT8 */
-	GPIO_CFG(8,  1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT9 */
-	GPIO_CFG(9,  1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT10 */
-	GPIO_CFG(10, 1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT11 */
-	GPIO_CFG(11, 1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* PCLK */
-	GPIO_CFG(12, 1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* HSYNC_IN */
-	GPIO_CFG(13, 1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* VSYNC_IN */
-	GPIO_CFG(14, 1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* MCLK */
-	GPIO_CFG(15, 1, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-};
-
-static struct gpio msm7x30_back_cam_gpio[] = {
-	{0, GPIOF_DIR_OUT, "CAM_RESET"},
-};
-
-static struct msm_gpio_set_tbl msm7x30_back_cam_gpio_set_tbl[] = {
-	{0, GPIOF_OUT_INIT_LOW, 1000},
-	{0, GPIOF_OUT_INIT_HIGH, 4000},
-};
-
-static struct msm_camera_gpio_conf msm_7x30_back_cam_gpio_conf = {
-	.cam_gpio_req_tbl = msm7x30_back_cam_gpio,
-	.cam_gpio_req_tbl_size = ARRAY_SIZE(msm7x30_back_cam_gpio),
-	.cam_gpio_set_tbl = msm7x30_back_cam_gpio_set_tbl,
-	.cam_gpio_set_tbl_size = ARRAY_SIZE(msm7x30_back_cam_gpio_set_tbl),
-	.camera_off_table = camera_off_gpio_table,
-	.camera_off_table_size = ARRAY_SIZE(camera_off_gpio_table),
-	.camera_on_table = camera_on_gpio_table,
-	.camera_on_table_size = ARRAY_SIZE(camera_on_gpio_table),
-	.gpio_no_mux = 1,
-};
-
-static struct msm_camera_sensor_flash_data flash_vx6953 = {
-	.flash_type	= MSM_CAMERA_FLASH_NONE,
-};
-
-static struct msm_camera_sensor_platform_info sensor_board_info_vx6953 = {
-	.mount_angle	= 0,
-	.cam_vreg = msm_7x30_back_cam_vreg,
-	.num_vreg = ARRAY_SIZE(msm_7x30_back_cam_vreg),
-	.gpio_conf = &msm_7x30_back_cam_gpio_conf,
-};
-
-static struct msm_camera_sensor_info msm_camera_sensor_vx6953_data = {
-	.sensor_name	= "vx6953",
-	.pdata	= &msm_camera_csi_device_data[0],
-	.flash_data	= &flash_vx6953,
-	.sensor_platform_info = &sensor_board_info_vx6953,
-	.csi_if	= 1,
-	.camera_type = BACK_CAMERA_2D,
-};
-
-static struct platform_device msm_camera_server = {
-	.name = "msm_cam_server",
-	.id = 0,
-};
-
-void __init msm7x30_init_cam(void)
-{
-	platform_device_register(&msm_camera_server);
-	platform_device_register(&msm_device_csic0);
-	platform_device_register(&msm_device_vfe);
-	platform_device_register(&msm_device_vpe);
-}
-
-#ifdef CONFIG_I2C
-static struct i2c_board_info msm_camera_boardinfo[] = {
-	{
-	I2C_BOARD_INFO("vx6953", 0x20),
-	.platform_data = &msm_camera_sensor_vx6953_data,
-	},
-};
-#endif
-#else
-static struct i2c_board_info msm_camera_boardinfo[] __initdata = {
-#if defined(CONFIG_SENSORS_MT9T013)
-	{
-		I2C_BOARD_INFO("mt9t013", 0x6C),
-	},
-#endif
-
-};
-
-#ifdef CONFIG_MSM_CAMERA
-#define	CAM_STNDBY	143
-static uint32_t camera_off_vcm_gpio_table[] = {
-GPIO_CFG(1, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), /* VCM */
-};
-
-static uint32_t camera_off_gpio_table[] = {
-	/* parallel CAMERA interfaces */
-	/* RST */
-	GPIO_CFG(0,  0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT2 */
-	GPIO_CFG(2,  0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT3 */
-	GPIO_CFG(3,  0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT4 */
-	GPIO_CFG(4,  0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT5 */
-	GPIO_CFG(5,  0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT6 */
-	GPIO_CFG(6,  0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT7 */
-	GPIO_CFG(7,  0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT8 */
-	GPIO_CFG(8,  0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT9 */
-	GPIO_CFG(9,  0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT10 */
-	GPIO_CFG(10, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT11 */
-	GPIO_CFG(11, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* PCLK */
-	GPIO_CFG(12, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* HSYNC_IN */
-	GPIO_CFG(13, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* VSYNC_IN */
-	GPIO_CFG(14, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* MCLK */
-	GPIO_CFG(15, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-};
-
-static uint32_t camera_on_vcm_gpio_table[] = {
-GPIO_CFG(1, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA), /* VCM */
-};
-
-static uint32_t camera_on_gpio_table[] = {
-	/* parallel CAMERA interfaces */
-	/* RST */
-	GPIO_CFG(0,  0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT2 */
-	GPIO_CFG(2,  1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT3 */
-	GPIO_CFG(3,  1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT4 */
-	GPIO_CFG(4,  1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT5 */
-	GPIO_CFG(5,  1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT6 */
-	GPIO_CFG(6,  1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT7 */
-	GPIO_CFG(7,  1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT8 */
-	GPIO_CFG(8,  1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT9 */
-	GPIO_CFG(9,  1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT10 */
-	GPIO_CFG(10, 1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* DAT11 */
-	GPIO_CFG(11, 1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* PCLK */
-	GPIO_CFG(12, 1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* HSYNC_IN */
-	GPIO_CFG(13, 1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* VSYNC_IN */
-	GPIO_CFG(14, 1, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* MCLK */
-	GPIO_CFG(15, 1, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-};
-
-static uint32_t camera_off_gpio_fluid_table[] = {
-	/* FLUID: CAM_VGA_RST_N */
-	GPIO_CFG(31, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* FLUID: CAMIF_STANDBY */
-	GPIO_CFG(CAM_STNDBY, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA)
-};
-
-static uint32_t camera_on_gpio_fluid_table[] = {
-	/* FLUID: CAM_VGA_RST_N */
-	GPIO_CFG(31, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	/* FLUID: CAMIF_STANDBY */
-	GPIO_CFG(CAM_STNDBY, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA)
-};
-
-static void config_gpio_table(uint32_t *table, int len)
-{
-	int n, rc;
-	for (n = 0; n < len; n++) {
-		rc = gpio_tlmm_config(table[n], GPIO_CFG_ENABLE);
-		if (rc) {
-			pr_err("%s: gpio_tlmm_config(%#x)=%d\n",
-				__func__, table[n], rc);
-			break;
-		}
-	}
-}
-static int config_camera_on_gpios(void)
-{
-	config_gpio_table(camera_on_gpio_table,
-		ARRAY_SIZE(camera_on_gpio_table));
-
-	if (adie_get_detected_codec_type() != TIMPANI_ID)
-		/* GPIO1 is shared also used in Timpani RF card so
-		only configure it for non-Timpani RF card */
-		config_gpio_table(camera_on_vcm_gpio_table,
-			ARRAY_SIZE(camera_on_vcm_gpio_table));
-
-	if (machine_is_msm7x30_fluid()) {
-		config_gpio_table(camera_on_gpio_fluid_table,
-			ARRAY_SIZE(camera_on_gpio_fluid_table));
-		/* FLUID: turn on 5V booster */
-		gpio_set_value(
-			PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_FLASH_BOOST_ENABLE), 1);
-		/* FLUID: drive high to put secondary sensor to STANDBY */
-		gpio_set_value(CAM_STNDBY, 1);
-	}
-	return 0;
-}
-
-static void config_camera_off_gpios(void)
-{
-	config_gpio_table(camera_off_gpio_table,
-		ARRAY_SIZE(camera_off_gpio_table));
-
-	if (adie_get_detected_codec_type() != TIMPANI_ID)
-		/* GPIO1 is shared also used in Timpani RF card so
-		only configure it for non-Timpani RF card */
-		config_gpio_table(camera_off_vcm_gpio_table,
-			ARRAY_SIZE(camera_off_vcm_gpio_table));
-
-	if (machine_is_msm7x30_fluid()) {
-		config_gpio_table(camera_off_gpio_fluid_table,
-			ARRAY_SIZE(camera_off_gpio_fluid_table));
-		/* FLUID: turn off 5V booster */
-		gpio_set_value(
-			PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_FLASH_BOOST_ENABLE), 0);
-	}
-}
-
-struct resource msm_camera_resources[] = {
-	{
-		.start	= 0xA6000000,
-		.end	= 0xA6000000 + SZ_1M - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= INT_VFE,
-		.end	= INT_VFE,
-		.flags	= IORESOURCE_IRQ,
-	},
-	{
-		.flags  = IORESOURCE_DMA,
-	}
-};
-
-struct msm_camera_device_platform_data msm_camera_device_data = {
-	.camera_gpio_on  = config_camera_on_gpios,
-	.camera_gpio_off = config_camera_off_gpios,
-	.ioext.camifpadphy = 0xAB000000,
-	.ioext.camifpadsz  = 0x00000400,
-	.ioext.csiphy = 0xA6100000,
-	.ioext.csisz  = 0x00000400,
-	.ioext.csiirq = INT_CSI,
-	.ioclk.mclk_clk_rate = 24000000,
-	.ioclk.vfe_clk_rate  = 147456000,
-};
-
-static struct msm_camera_sensor_flash_src msm_flash_src_pwm = {
-	.flash_sr_type = MSM_CAMERA_FLASH_SRC_PWM,
-	._fsrc.pwm_src.freq  = 1000,
-	._fsrc.pwm_src.max_load = 300,
-	._fsrc.pwm_src.low_load = 30,
-	._fsrc.pwm_src.high_load = 100,
-	._fsrc.pwm_src.channel = 7,
-};
-
-
-
-
-
-
-
-
-
-#ifdef CONFIG_MSM_VPE
-static struct resource msm_vpe_resources[] = {
-	{
-		.start	= 0xAD200000,
-		.end	= 0xAD200000 + SZ_1M - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= INT_VPE,
-		.end	= INT_VPE,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device msm_vpe_device = {
-       .name = "msm_vpe",
-       .id   = 0,
-       .num_resources = ARRAY_SIZE(msm_vpe_resources),
-       .resource = msm_vpe_resources,
-};
-#endif
-
-#endif /*CONFIG_MSM_CAMERA*/
-#endif
-
 
 #ifdef CONFIG_MSM7KV2_AUDIO
 static uint32_t audio_pamp_gpio_config =
@@ -4500,14 +4118,6 @@ static struct platform_device *devices[] __initdata = {
 	&qup_device_i2c,
 	&msm_kgsl_3d0,
 	&msm_kgsl_2d0,
-#ifndef CONFIG_MSM_CAMERA_V4L2
-#endif
-	&msm_device_vidc_720p,
-#ifndef CONFIG_MSM_CAMERA_V4L2
-#ifdef CONFIG_MSM_VPE
-	&msm_vpe_device,
-#endif
-#endif
 #if defined(CONFIG_TSIF) || defined(CONFIG_TSIF_MODULE)
 	&msm_device_tsif,
 #endif
@@ -6020,9 +5630,6 @@ static void __init msm7x30_init(void)
 #ifdef CONFIG_USB_EHCI_MSM_72K
 	msm_add_host(0, &msm_usb_host_pdata);
 #endif
-#ifdef CONFIG_MSM_CAMERA_V4L2
-	msm7x30_init_cam();
-#endif
 	msm7x30_init_mmc();
 	msm7x30_init_nand();
 	msm_qsd_spi_init();
@@ -6073,9 +5680,6 @@ static void __init msm7x30_init(void)
 
 	i2c_register_board_info(2, msm_i2c_gsbi7_timpani_info,
 			ARRAY_SIZE(msm_i2c_gsbi7_timpani_info));
-
-	i2c_register_board_info(4 /* QUP ID */, msm_camera_boardinfo,
-				ARRAY_SIZE(msm_camera_boardinfo));
 
 	bt_power_init();
 	if (machine_is_msm7x30_fluid())
@@ -6184,14 +5788,6 @@ struct ion_platform_heap msm7x30_heaps[] = {
 			.name	= ION_VMALLOC_HEAP_NAME,
 		},
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
-		/* PMEM_ADSP = CAMERA */
-		{
-			.id	= ION_CAMERA_HEAP_ID,
-			.type	= ION_HEAP_TYPE_CARVEOUT,
-			.name	= ION_CAMERA_HEAP_NAME,
-			.memory_type = ION_EBI_TYPE,
-			.extra_data = (void *)&co_ion_pdata,
-		},
 		/* PMEM_AUDIO */
 		{
 			.id	= ION_AUDIO_HEAP_ID,
@@ -6235,7 +5831,6 @@ static struct memtype_reserve msm7x30_reserve_table[] __initdata = {
 };
 
 unsigned long size;
-unsigned long msm_ion_camera_size;
 
 static void fix_sizes(void)
 {
@@ -6243,10 +5838,6 @@ static void fix_sizes(void)
 		size = fluid_pmem_adsp_size;
 	else
 		size = pmem_adsp_size;
-
-#ifdef CONFIG_ION_MSM
-	msm_ion_camera_size = size;
-#endif
 }
 
 static void __init size_pmem_devices(void)
@@ -6267,7 +5858,7 @@ static void __init reserve_mdp_memory(void)
 static void __init size_ion_devices(void)
 {
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
-	ion_pdata.heaps[1].size = msm_ion_camera_size;
+	ion_pdata.heaps[1].size = 0;
 	ion_pdata.heaps[2].size = MSM_ION_AUDIO_SIZE;
 	ion_pdata.heaps[3].size = MSM_ION_SF_SIZE;
 #endif
@@ -6276,7 +5867,6 @@ static void __init size_ion_devices(void)
 static void __init reserve_ion_memory(void)
 {
 #if defined(CONFIG_ION_MSM) && defined(CONFIG_MSM_MULTIMEDIA_USE_ION)
-	msm7x30_reserve_table[MEMTYPE_EBI0].size += msm_ion_camera_size;
 	msm7x30_reserve_table[MEMTYPE_EBI0].size += MSM_ION_AUDIO_SIZE;
 	msm7x30_reserve_table[MEMTYPE_EBI0].size += MSM_ION_SF_SIZE;
 #endif
