@@ -514,12 +514,4 @@ config GPIO_TPS65910
 	help
 	  Select this option to enable GPIO driver for the TPS65910
 	  chip family.
-
-config GPIO_QPNP_PIN_DEBUG
-	depends on GPIO_QPNP_PIN
-	depends on DEBUG_FS
-	bool "Qualcomm QPNP GPIO debug support"
-	help
-	  Say 'y' here to include debug support for the Qualcomm
-	  QPNP gpio driver.
 endif

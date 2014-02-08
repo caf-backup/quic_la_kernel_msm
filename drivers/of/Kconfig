@@ -94,4 +94,5 @@ config OF_PCI_IRQ
 config OF_MTD
 	depends on MTD
 	def_bool y
+
 endmenu # OF
