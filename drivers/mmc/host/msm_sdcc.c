@@ -2169,7 +2169,8 @@ static void
 msmsdcc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 {
 	struct msmsdcc_host *host = mmc_priv(mmc);
-	unsigned long		flags;
+	unsigned long flags;
+	unsigned int error = 0;
 	int retries = 5;
 
 	/*
@@ -2179,6 +2180,18 @@ msmsdcc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	if (host->plat->is_sdio_al_client)
 		msmsdcc_sdio_al_lpm(mmc, false);
 
+	/*
+	 * Don't start the request if SDCC is not in proper state to handle it
+	 * BAM state is checked below if applicable
+	 */
+	if (!host->pwr || !atomic_read(&host->clks_on) ||
+			host->sdcc_irq_disabled) {
+		WARN(1, "%s: %s: SDCC is in bad state. don't process new request (CMD%d)\n",
+				mmc_hostname(host->mmc), __func__, mrq->cmd->opcode);
+		error = EIO;
+		goto bad_state;
+	}
+
 	/* check if sps bam needs to be reset */
 	if (is_sps_mode(host) && host->sps.reset_bam) {
 		while (retries) {
@@ -2187,6 +2200,14 @@ msmsdcc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			pr_err("%s: msmsdcc_bam_dml_reset_and_restore returned error. %d attempts left.\n",
 					mmc_hostname(host->mmc), --retries);
 		}
+
+		/* check if BAM reset succeeded or not */
+		if (host->sps.reset_bam) {
+			pr_err("%s: bam reset failed. Not processing the new request (CMD%d)\n",
+					mmc_hostname(host->mmc), mrq->cmd->opcode);
+			error = EAGAIN;
+			goto bad_state;
+		}
 	}
 
 	/*
@@ -2194,56 +2215,28 @@ msmsdcc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	 * starting new request.
 	 */
 	if (host->tuning_needed && !host->tuning_in_progress &&
-	    !host->tuning_done) {
+			!host->tuning_done) {
 		pr_debug("%s: %s: execute_tuning for timing mode = %d\n",
-			 mmc_hostname(mmc), __func__, host->mmc->ios.timing);
+				mmc_hostname(mmc), __func__, host->mmc->ios.timing);
 		if (host->mmc->ios.timing == MMC_TIMING_UHS_SDR104)
 			msmsdcc_execute_tuning(mmc,
-					       MMC_SEND_TUNING_BLOCK);
+					MMC_SEND_TUNING_BLOCK);
 		else if (host->mmc->ios.timing == MMC_TIMING_MMC_HS200)
 			msmsdcc_execute_tuning(mmc,
-					       MMC_SEND_TUNING_BLOCK_HS200);
+					MMC_SEND_TUNING_BLOCK_HS200);
 	}
-
-	spin_lock_irqsave(&host->lock, flags);
 
 	if (host->eject) {
-		if (mrq->data && !(mrq->data->flags & MMC_DATA_READ)) {
-			mrq->cmd->error = 0;
-			mrq->data->bytes_xfered = mrq->data->blksz *
-						  mrq->data->blocks;
-		} else
-			mrq->cmd->error = -ENOMEDIUM;
-
-		spin_unlock_irqrestore(&host->lock, flags);
-		mmc_request_done(mmc, mrq);
-		return;
-	}
-
-	/*
-	 * Don't start the request if SDCC is not in proper state to handle it
-	 */
-	if (!host->pwr || !atomic_read(&host->clks_on) ||
-			host->sdcc_irq_disabled ||
-			host->sps.reset_bam) {
-		WARN(1, "%s: %s: SDCC is in bad state. don't process"
-		     " new request (CMD%d)\n", mmc_hostname(host->mmc),
-		     __func__, mrq->cmd->opcode);
-		msmsdcc_dump_sdcc_state(host);
-		mrq->cmd->error = -EIO;
-		if (mrq->data) {
-			mrq->data->error = -EIO;
-			mrq->data->bytes_xfered = 0;
-		}
-		spin_unlock_irqrestore(&host->lock, flags);
-		mmc_request_done(mmc, mrq);
-		return;
+		error = ENOMEDIUM;
+		goto card_ejected;
 	}
 
 	WARN(host->curr.mrq, "%s: %s: New request (CMD%d) received while"
-	     " other request (CMD%d) is in progress\n",
-	     mmc_hostname(host->mmc), __func__,
-	     mrq->cmd->opcode, host->curr.mrq->cmd->opcode);
+			" other request (CMD%d) is in progress\n",
+			mmc_hostname(host->mmc), __func__,
+			mrq->cmd->opcode, host->curr.mrq->cmd->opcode);
+
+	spin_lock_irqsave(&host->lock, flags);
 
 	/*
 	 * Set timeout value to 10 secs (or more in case of buggy cards)
@@ -2271,18 +2264,28 @@ msmsdcc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			host->curr.wait_for_auto_prog_done = true;
 		} else {
 			if ((mrq->cmd->opcode == SD_IO_RW_EXTENDED) ||
-			    (mrq->cmd->opcode == 54))
+					(mrq->cmd->opcode == 54))
 				host->dummy_52_needed = 1;
 		}
 
 		if ((mrq->cmd->opcode == MMC_WRITE_BLOCK) ||
-		    (mrq->cmd->opcode == MMC_WRITE_MULTIPLE_BLOCK))
+				(mrq->cmd->opcode == MMC_WRITE_MULTIPLE_BLOCK))
 			host->curr.use_wr_data_pend = true;
 	}
 
 	msmsdcc_request_start(host, mrq);
-
 	spin_unlock_irqrestore(&host->lock, flags);
+	return;
+
+bad_state:
+	msmsdcc_dump_sdcc_state(host);
+card_ejected:
+	mrq->cmd->error = -error;
+	if (mrq->data) {
+		mrq->data->error = -error;
+		mrq->data->bytes_xfered = 0;
+	}
+	mmc_request_done(mmc, mrq);
 }
 
 static inline int msmsdcc_vreg_set_voltage(struct msm_mmc_reg_data *vreg,
@@ -3714,14 +3717,9 @@ static int msmsdcc_switch_io_voltage(struct mmc_host *mmc,
 	 * low voltage range (1.7v - 1.95v).
 	 */
 	if (gpio_is_valid(host->plat->uhs_gpio)) {
-		rc = gpio_request(host->plat->uhs_gpio, "UHS_mode");
-		if (rc) {
-			printk("gpio_request failed \n");
-			goto out;
-		}
 		rc = gpio_direction_output(host->plat->uhs_gpio, 1);
 		if (rc) {
-			printk("gpio direction failed\n");
+			pr_err("gpio direction failed\n");
 			gpio_free(host->plat->uhs_gpio);
 			goto out;
 		}
@@ -3873,7 +3871,7 @@ static inline int msmsdcc_dll_poll_ck_out_en(struct msmsdcc_host *host,
 						u8 poll)
 {
 	int rc = 0;
-	u32 wait_cnt = 50;
+	u32 wait_cnt = 200;
 	u8 ck_out_en = 0;
 
 	/* poll for MCI_CK_OUT_EN bit.  max. poll time = 50us */
@@ -3911,7 +3909,8 @@ static int msmsdcc_enable_cdr_cm_sdc4_dll(struct msmsdcc_host *host)
 
 	config = readl_relaxed(host->base + MCI_DLL_CONFIG);
 	config |= MCI_CDR_EN;
-	config &= ~(MCI_CDR_EXT_EN | MCI_CK_OUT_EN);
+	config |= MCI_CDR_EXT_EN;
+	config &= ~MCI_CK_OUT_EN;
 	writel_relaxed(config, host->base + MCI_DLL_CONFIG);
 
 	/* Wait until CK_OUT_EN bit of MCI_DLL_CONFIG register becomes '0' */
@@ -3987,6 +3986,50 @@ err_out:
 out:
 	spin_unlock_irqrestore(&host->lock, flags);
 	return rc;
+}
+
+#define MAX_DLL_PHASE 15
+
+static int find_phase_window(struct msmsdcc_host * host, u8 *phase_window)
+{
+	int i, j, longest_window_index, selected_phase;
+	/* extending windows to allow cyclic windows (such as phase 13 to phase 2) */
+	for (i = 0; i < (MAX_DLL_PHASE + 1); i++)
+		phase_window[(MAX_DLL_PHASE + 1) + i] = phase_window[i];
+
+	/* for every possible window end point */
+	j = 0;
+	for (i = (2 * (MAX_DLL_PHASE + 1)) - 1; i >= 0; i--) {
+		/* add to windows size or start a new window */
+		if (phase_window[i] > 0)
+			j++;
+		else
+			j = 0;
+		/* record for each window */
+		phase_window[i] = j;
+	}
+
+	/* find longest window */
+	longest_window_index = 0;
+	for (i = 1; i < (MAX_DLL_PHASE + 1); i++) {
+		if (phase_window[i] > phase_window[longest_window_index])
+			longest_window_index = i;
+	}
+
+	if (phase_window[longest_window_index] < 1) {
+		/* failed to find a valid window */
+		pr_err("%s: %s: Tuning can't find a valid window\n",
+				mmc_hostname(host->mmc), __func__);
+		return -EINVAL;
+	}
+
+	/* Select the phase at the 3/4 mark of the widest window: */
+	selected_phase = longest_window_index +
+		((3 * (phase_window[longest_window_index]) -1 ) >> 2);
+	if (selected_phase > MAX_DLL_PHASE)
+		selected_phase -= (MAX_DLL_PHASE+1);
+
+	return selected_phase;
 }
 
 /*
@@ -4105,7 +4148,7 @@ static int msmsdcc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	int rc = 0;
 	struct msmsdcc_host *host = mmc_priv(mmc);
 	unsigned long	flags;
-	u8 phase, *data_buf, tuned_phases[16], tuned_phase_cnt = 0;
+	u8 phase, *data_buf, tuned_phases[(MAX_DLL_PHASE+1)*2] = {0}, tuned_phase_cnt = 0;
 	const u32 *tuning_block_pattern = tuning_block_64;
 	int size = sizeof(tuning_block_64); /* Tuning pattern size in bytes */
 	bool is_tuning_all_phases;
@@ -4194,8 +4237,11 @@ retry:
 	} while (++phase < 16);
 
 	if (tuned_phase_cnt) {
-		rc = find_most_appropriate_phase(host, tuned_phases,
-							tuned_phase_cnt);
+		if (gpio_is_valid(host->plat->uhs_gpio))
+			rc = find_phase_window(host, tuned_phases);
+		else
+			rc = find_most_appropriate_phase(host, tuned_phases,
+					tuned_phase_cnt);
 		if (rc < 0)
 			goto kfree;
 		else
@@ -4369,10 +4415,8 @@ msmsdcc_check_status(unsigned long data)
 					mmc_hostname(host->mmc),
 					host->oldstat, status);
 			else if (host->plat->is_status_gpio_active_low) {
-				if ((host->oldstat) && (gpio_is_valid(host->plat->uhs_gpio))
-					 && (host->io_pad_pwr_switch)) {
+				if ((host->oldstat) && (gpio_is_valid(host->plat->uhs_gpio))) {
 					gpio_direction_output(host->plat->uhs_gpio, 0);
-					gpio_free(host->plat->uhs_gpio);
 				}
 				pr_info("%s: Slot status change detected "
 					"(%d -> %d) and the card detect GPIO"
@@ -5694,7 +5738,7 @@ msmsdcc_probe(struct platform_device *pdev)
 	struct resource *bam_memres = NULL;
 	struct resource *dmares = NULL;
 	struct resource *dma_crci_res = NULL;
-	int ret = 0;
+	int ret = 0, rc;
 
 	if (pdev->dev.of_node) {
 		plat = msmsdcc_populate_pdata(&pdev->dev);
@@ -6050,6 +6094,11 @@ msmsdcc_probe(struct platform_device *pdev)
 
 		host->eject = !host->oldstat;
 	}
+	rc = gpio_request(host->plat->uhs_gpio, "UHS_mode");
+	if (rc) {
+		pr_err("gpio_request failed \n");
+		goto out;
+	}
 
 	if (plat->status_irq) {
 		ret = request_threaded_irq(plat->status_irq, NULL,
@@ -6292,6 +6341,7 @@ static int msmsdcc_remove(struct platform_device *pdev)
 	free_irq(host->core_irqres->start, host);
 	free_irq(host->core_irqres->start, host);
 
+	gpio_free(host->plat->uhs_gpio);
 	clk_put(host->clk);
 	if (!IS_ERR(host->pclk))
 		clk_put(host->pclk);
