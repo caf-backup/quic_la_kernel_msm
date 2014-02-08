@@ -178,6 +178,7 @@ static int ipq_pcm_mi2s_prepare(struct snd_pcm_substream *substream)
 	if (prtd->pcm_stream_info.pcm_prepare_start)
 		return 0;
 
+	ipq_lpaif_dma_stop(prtd->lpaif_info.dma_ch);
 	prtd->pcm_stream_info.pcm_prepare_start = 1;
 	prtd->lpaif_info.lpa_if_dma_start = 0;
 	dma_params.src_start = runtime->dma_addr;
@@ -231,7 +232,6 @@ static int ipq_pcm_mi2s_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		ipq_cfg_i2s_spkr(0, 0, LPA_IF_MI2S);
-		ipq_lpaif_dma_stop(prtd->lpaif_info.dma_ch);
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		ipq_cfg_i2s_spkr(0, 0, LPA_IF_MI2S);

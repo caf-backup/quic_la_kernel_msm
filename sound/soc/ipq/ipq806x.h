@@ -274,7 +274,7 @@ struct lpass_clk_baseinfo {
  * 8K will be 8064(multiple of 288). Choosing the buffer
  * size in the range of 1M will be 1048320(multiple of 288).*/
 
-#define LPASS_MI2S_NO_OF_PERIODS	(130)
+#define LPASS_MI2S_NO_OF_PERIODS	(65)
 #define LPASS_MI2S_PERIOD_BYTES_MIN	(8064)
 
 #define LPASS_MI2S_BUFF_SIZE		(LPASS_MI2S_PERIOD_BYTES_MIN * \
