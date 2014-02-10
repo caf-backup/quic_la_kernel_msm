@@ -324,7 +324,8 @@ static void  uw_ssusb_pre_init(void __iomem *ipq_base)
 	ipq_ssusb_clear_and_set_bits32(DWC3_SSUSB_REG_GCTL, clear_bits,
 					set_bits, ipq_base);
 
-	writel(DWC3_GCTL_U2EXIT_LFPS | DWC3_GCTL_PRTCAPDIR(1) |
+	writel(DWC3_GCTL_U2EXIT_LFPS | DWC3_GCTL_SOFITPSYNC |
+		DWC3_GCTL_PRTCAPDIR(1) |
 		DWC3_GCTL_U2RSTECN | DWC3_GCTL_PWRDNSCALE(2),
 		ipq_base + DWC3_GCTL);
 	writel((IPQ_SSUSB_QSCRATCH_SS_PHY_CTRL_MPLL_MULTI(0x19) |
