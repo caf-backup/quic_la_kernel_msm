@@ -770,12 +770,7 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 		*min = *max = *step = *def = 0;
 		break;
 	case V4L2_CID_BG_COLOR:
-	case V4L2_CID_MPEG_VIDEO_H264_I_FRAME_QP:
-	case V4L2_CID_MPEG_VIDEO_H264_P_FRAME_QP:
-	case V4L2_CID_MPEG_VIDEO_H264_B_FRAME_QP:
-	case V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MAX_BYTES:
-	case V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MAX_MB:
-	*type = V4L2_CTRL_TYPE_INTEGER;
+		*type = V4L2_CTRL_TYPE_INTEGER;
 		*step = 1;
 		*min = 0;
 		/* Max is calculated as RGB888 that is 2^24 */
