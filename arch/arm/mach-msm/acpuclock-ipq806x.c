@@ -102,6 +102,9 @@ static struct msm_bus_scale_pdata bus_scale_data __initdata = {
 
 /*
  * PVS tables for Akronite based platforms
+ *
+ * These are based on PVS Characterization results for the 19x19 Package across Voltage and Temperature on the PVS Fused parts
+ * These are based on +/-5% Margin on the VDD_APCx that is advertised in our Datasheet across Temperature
  */
 static struct l2_level l2_freq_tbl[] __initdata = {
 	[0] = { {  384000, PLL_8, 0, 0x00 }, 1100000, 1100000, 4 },
@@ -111,32 +114,32 @@ static struct l2_level l2_freq_tbl[] __initdata = {
 };
 
 static struct acpu_level tbl_slow[] __initdata = {
-	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0),  950000 },
-	{ 1, {   600000, HFPLL, 1, 0x18 }, L2(1), 1000000 },
-	{ 1, {   800000, HFPLL, 1, 0x20 }, L2(1), 1050000 },
-	{ 1, {  1000000, HFPLL, 1, 0x28 }, L2(1), 1100000 },
-	{ 1, {  1200000, HFPLL, 1, 0x30 }, L2(2), 1150000 },
-	{ 1, {  1400000, HFPLL, 1, 0x38 }, L2(2), 1200000 },
+	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0), 1000000 },
+	{ 1, {   600000, HFPLL, 1, 0x18 }, L2(1), 1050000 },
+	{ 1, {   800000, HFPLL, 1, 0x20 }, L2(1), 1100000 },
+	{ 1, {  1000000, HFPLL, 1, 0x28 }, L2(1), 1150000 },
+	{ 1, {  1200000, HFPLL, 1, 0x30 }, L2(2), 1200000 },
+	{ 1, {  1400000, HFPLL, 1, 0x38 }, L2(2), 1250000 },
 	{ 0, { 0 } }
 };
 
 static struct acpu_level tbl_nominal[] __initdata = {
-	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0),  900000 },
-	{ 1, {   600000, HFPLL, 1, 0x18 }, L2(1),  950000 },
-	{ 1, {   800000, HFPLL, 1, 0x20 }, L2(1), 1000000 },
-	{ 1, {  1000000, HFPLL, 1, 0x28 }, L2(1), 1050000 },
-	{ 1, {  1200000, HFPLL, 1, 0x30 }, L2(2), 1100000 },
-	{ 1, {  1400000, HFPLL, 1, 0x38 }, L2(2), 1150000 },
+	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0),  925000 },
+	{ 1, {   600000, HFPLL, 1, 0x18 }, L2(1),  975000 },
+	{ 1, {   800000, HFPLL, 1, 0x20 }, L2(1), 1025000 },
+	{ 1, {  1000000, HFPLL, 1, 0x28 }, L2(1), 1075000 },
+	{ 1, {  1200000, HFPLL, 1, 0x30 }, L2(2), 1125000 },
+	{ 1, {  1400000, HFPLL, 1, 0x38 }, L2(2), 1175000 },
 	{ 0, { 0 } }
 };
 
 static struct acpu_level tbl_fast[] __initdata = {
-	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0),  850000 },
-	{ 1, {   600000, HFPLL, 1, 0x18 }, L2(1),  900000 },
-	{ 1, {   800000, HFPLL, 1, 0x20 }, L2(1),  950000 },
-	{ 1, {  1000000, HFPLL, 1, 0x28 }, L2(1), 1000000 },
-	{ 1, {  1200000, HFPLL, 1, 0x30 }, L2(2), 1050000 },
-	{ 1, {  1400000, HFPLL, 1, 0x38 }, L2(2), 1100000 },
+	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0),  875000 },
+	{ 1, {   600000, HFPLL, 1, 0x18 }, L2(1),  925000 },
+	{ 1, {   800000, HFPLL, 1, 0x20 }, L2(1),  995000 },
+	{ 1, {  1000000, HFPLL, 1, 0x28 }, L2(1), 1025000 },
+	{ 1, {  1200000, HFPLL, 1, 0x30 }, L2(2), 1075000 },
+	{ 1, {  1400000, HFPLL, 1, 0x38 }, L2(2), 1125000 },
 	{ 0, { 0 } }
 };
 
