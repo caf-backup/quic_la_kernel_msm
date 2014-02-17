@@ -3090,6 +3090,12 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	retval = hub_port_reset(hub, port1, udev, delay, false);
 	if (retval < 0)		/* error or disconnect */
 		goto fail;
+
+	if (udev->speed != USB_SPEED_SUPER) {
+		retval = hub_port_reset(hub, port1, udev, delay, false);
+		if (retval < 0)		/* error or disconnect */
+			goto fail;
+	}
 	/* success, speed is known */
 
 	retval = -ENODEV;
