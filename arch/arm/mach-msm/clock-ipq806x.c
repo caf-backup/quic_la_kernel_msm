@@ -1701,7 +1701,6 @@ static struct clk_freq_tbl clk_tbl_gsbi_qup[] = {
 
 static CLK_GSBI_QUP(gsbi1_qup,   1, CLK_HALT_CFPB_STATEA_REG, 11);
 static CLK_GSBI_QUP(gsbi2_qup,   2, CLK_HALT_CFPB_STATEA_REG,  6);
-static CLK_GSBI_QUP(gsbi4_qup,   4, CLK_HALT_CFPB_STATEB_REG, 24);
 static CLK_GSBI_QUP(gsbi5_qup,   5, CLK_HALT_CFPB_STATEB_REG, 20);
 static CLK_GSBI_QUP(gsbi6_qup,   6, CLK_HALT_CFPB_STATEB_REG, 16);
 static CLK_GSBI_QUP(gsbi7_qup,   7, CLK_HALT_CFPB_STATEB_REG, 12);
@@ -2989,7 +2988,6 @@ static struct measure_sel measure_mux[] = {
 	{ TEST_PER_LS(0x44), &gsbi2_qup_clk.c },
 	{ TEST_PER_LS(0x49), &gsbi4_p_clk.c },
 	{ TEST_PER_LS(0x4A), &gsbi4_uart_clk.c },
-	{ TEST_PER_LS(0x4C), &gsbi4_qup_clk.c },
 	{ TEST_PER_LS(0x4D), &gsbi5_p_clk.c },
 	{ TEST_PER_LS(0x4E), &gsbi5_uart_clk.c },
 	{ TEST_PER_LS(0x50), &gsbi5_qup_clk.c },
@@ -3616,7 +3614,6 @@ static struct clk_lookup msm_clocks_ipq806x[] = {
 	CLK_LOOKUP("core_clk",		gsbi2_qup_clk.c,	"qup_i2c.1"),
 	CLK_LOOKUP("core_clk",		gsbi2_qup_clk.c,	"spi_qsd.2"),
 	/*CLK_LOOKUP("core_clk",	gsbi3_qup_clk.c,	"qup_i2c.2"),*/
-	CLK_LOOKUP("core_clk",		gsbi4_qup_clk.c,	"qup_i2c.3"),
 	CLK_LOOKUP("core_clk",		gsbi5_qup_clk.c,	"spi_qsd.5"),
 	CLK_LOOKUP("core_clk",		gsbi5_qup_clk.c,	"qup_i2c.4"),
 	CLK_LOOKUP("core_clk",		gsbi6_qup_clk.c,	"spi_qsd.6"),
@@ -3784,7 +3781,6 @@ static struct clk_lookup msm_clocks_ipq806x_dummy[] = {
 	CLK_DUMMY("core_clk",		gsbi1_qup_clk.c,	"qup_i2c.0", 0),
 	CLK_DUMMY("core_clk",		gsbi2_qup_clk.c,	"qup_i2c.1", 0),
 	//CLK_DUMMY("core_clk",		gsbi3_qup_clk.c,	"qup_i2c.3", 0),
-	CLK_DUMMY("core_clk",		gsbi4_qup_clk.c,	"qup_i2c.3", 0),
 	CLK_DUMMY("core_clk",		gsbi5_qup_clk.c,	"spi_qsd.5", 0),
 	CLK_DUMMY("core_clk",		gsbi5_qup_clk.c,	"qup_i2c.4", 0),
 	CLK_DUMMY("core_clk",		gsbi6_qup_clk.c,	"", 0),
@@ -3817,7 +3813,6 @@ static struct clk_lookup msm_clocks_ipq806x_dummy[] = {
         CLK_DUMMY("gsbi_uart_clk",      GSBI7_UART_CLK,         NULL, OFF),
         CLK_DUMMY("gsbi_qup_clk",       GSBI2_QUP_CLK,          NULL, OFF),
         CLK_DUMMY("gsbi_qup_clk",       GSBI3_QUP_CLK,          NULL, OFF),
-        CLK_DUMMY("gsbi_qup_clk",       GSBI4_QUP_CLK,          NULL, OFF),
         CLK_DUMMY("gsbi_qup_clk",       GSBI6_QUP_CLK,          NULL, OFF),
         CLK_DUMMY("gsbi_qup_clk",       GSBI7_QUP_CLK,          NULL, OFF),
         CLK_DUMMY("pdm_clk",            PDM_CLK,                NULL, OFF),
