@@ -27,6 +27,7 @@
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_dscp.h>
 #include <linux/netfilter/xt_DSCPREMARK.h>
+#include <linux/../../net/offload/offload.h>
 
 //#define DSCPREMARK_DEBUG
 
@@ -216,6 +217,8 @@ static struct xt_target dscpremark[] __read_mostly = {
  */
 static int __init dscpremark_tg_init(void)
 {
+	offload_dscpremark_register(dscpremark_get_target_info);
+
 	return xt_register_targets(dscpremark, ARRAY_SIZE(dscpremark));
 }
 
@@ -225,6 +228,8 @@ static int __init dscpremark_tg_init(void)
  */
 static void __exit dscpremark_tg_fini(void)
 {
+	offload_dscpremark_unregister();
+
 	xt_unregister_targets(dscpremark, ARRAY_SIZE(dscpremark));
 }
 

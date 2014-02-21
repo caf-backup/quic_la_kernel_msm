@@ -30,6 +30,7 @@
 #include <linux/if_vlan.h>
 #include <linux/netfilter/xt_VLANTAG.h>
 #include <linux/../../net/8021q/vlan.h>
+#include <linux/../../net/offload/offload.h>
 
 //#define VLANTAG_DEBUG
 
@@ -259,6 +260,8 @@ static struct xt_target vlantag[] __read_mostly = {
  */
 static int __init vlantag_tg_init(void)
 {
+	offload_vlantag_register(vlantag_get_target_info);
+
 	return xt_register_targets(vlantag, ARRAY_SIZE(vlantag));
 }
 
@@ -268,6 +271,8 @@ static int __init vlantag_tg_init(void)
  */
 static void __exit vlantag_tg_fini(void)
 {
+	offload_vlantag_unregister();
+
 	xt_unregister_targets(vlantag, ARRAY_SIZE(vlantag));
 }
 
