@@ -120,6 +120,13 @@ config NF_CONNTRACK_DSCPREMARK_EXT
 	  This option enables support for connection tracking extension
 	  for dscp remark.
 
+config NF_CONNTRACK_VLANTAG_EXT
+	bool  'Connection tracking extension for vlan tagging target'
+	depends on NETFILTER_ADVANCED
+	help
+	  This option enables support for connection tracking extension
+	  for vlan tagging.
+
 config NF_CONNTRACK_TIMESTAMP
 	bool  'Connection tracking timestamping'
 	depends on NETFILTER_ADVANCED
@@ -709,6 +716,19 @@ config NETFILTER_XT_TARGET_TCPOPTSTRIP
 	help
 	  This option adds a "TCPOPTSTRIP" target, which allows you to strip
 	  TCP options from TCP packets.
+
+config NETFILTER_XT_TARGET_VLANTAG
+	tristate '"VLANTAG" target support (EXPERIMENTAL)'
+	depends on EXPERIMENTAL
+	depends on (IP_NF_MANGLE || IP6_NF_MANGLE) && NF_CONNTRACK_VLANTAG_EXT
+	depends on NETFILTER_ADVANCED
+	help
+	  This option adds `VLANTAG` target, which changes the VLAN tag field of packets.
+
+	  The VLAN tag value of an ingress packet which matches with
+	  a predefined input mask and an input value can be changed to a new value
+	  by masking it with a predefined output mask and OR'ing the masking result
+	  with an output value.
 
 # alphabetically ordered list of matches
 

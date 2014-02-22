@@ -26,6 +26,9 @@ enum nf_ct_ext_id {
 #ifdef CONFIG_NF_CONNTRACK_DSCPREMARK_EXT
 	NF_CT_EXT_DSCPREMARK,
 #endif
+#ifdef CONFIG_NF_CONNTRACK_VLANTAG_EXT
+	NF_CT_EXT_VLANTAG,
+#endif
 	NF_CT_EXT_NUM,
 };
 
@@ -37,6 +40,7 @@ enum nf_ct_ext_id {
 #define NF_CT_EXT_TSTAMP_TYPE struct nf_conn_tstamp
 #define NF_CT_EXT_TIMEOUT_TYPE struct nf_conn_timeout
 #define NF_CT_EXT_DSCPREMARK_TYPE struct nf_ct_dscpremark_ext
+#define NF_CT_EXT_VLANTAG_TYPE struct nf_ct_vlantag_ext
 
 /* Extensions: optional stuff which isn't permanently in struct. */
 struct nf_ct_ext {
