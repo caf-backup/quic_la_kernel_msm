@@ -223,6 +223,8 @@
 #define HWIO_LCC_AHBEX_BRANCH_CTL_CORE_SPDM_IBUS_CGC_EN_BMSK    0x8000
 #define HWIO_LCC_AHBEX_BRANCH_CTL_CORE_SPDM_XBUS_CGC_EN_SHFT    0x10
 #define HWIO_LCC_AHBEX_BRANCH_CTL_CORE_SPDM_IBUS_CGC_EN_SHFT    0xf
+#define HWIO_LCC_AHBEX_BRANCH_CTL_SLIMBUS_ARES_RESET    	(1 << 5)
+
 
 enum lpass_ahbix_clk_src_t {
 	LPASS_AHBIX_CLK_SRC_CXO,
@@ -242,6 +244,8 @@ struct request_gpio {
 struct lpass_clk_baseinfo {
 	void __iomem *base;
 };
+
+extern struct lpass_clk_baseinfo lpass_clk_base;
 
 /* MI2S GPIOs */
 #define GPIO_MI2S_WS	27
