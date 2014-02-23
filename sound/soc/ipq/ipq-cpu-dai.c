@@ -25,6 +25,7 @@
 #include <sound/apr_audio.h>
 #include <sound/pcm_params.h>
 #include <mach/clk.h>
+#include <asm/io.h>
 #include "ipq-pcm.h"
 #include "ipq-lpaif.h"
 #include "ipq806x.h"
@@ -114,6 +115,7 @@ static void ipq_lpass_spdif_shutdown(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct ipq_lpass_runtime_data_t *prtd =
 	(struct ipq_lpass_runtime_data_t *)runtime->private_data;
+	uint32_t cfg;
 
 	dev_dbg(dai->dev, "%s:%d\n", __func__, __LINE__);
 	if (spdif_bit_clk) {
@@ -123,6 +125,11 @@ static void ipq_lpass_spdif_shutdown(struct snd_pcm_substream *substream,
 		clk_put(spdif_bit_clk);
 		spdif_bit_clk = NULL;
 	}
+
+	/* put spdiftx block in reset */
+	cfg = readl(lpass_clk_base.base + LCC_AHBEX_BRANCH_CTL);
+	cfg |= HWIO_LCC_AHBEX_BRANCH_CTL_SLIMBUS_ARES_RESET;
+	writel(cfg, lpass_clk_base.base + LCC_AHBEX_BRANCH_CTL);
 }
 
 static int ipq_lpass_spdif_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)

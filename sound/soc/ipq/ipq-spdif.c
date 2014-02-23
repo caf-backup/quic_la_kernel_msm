@@ -26,6 +26,7 @@
 #include <asm/io.h>
 #include <sound/dai.h>
 #include <linux/slab.h>
+#include "ipq806x.h"
 #include "ipq-pcm.h"
 #include "ipq-spdif.h"
 
@@ -159,6 +160,14 @@ EXPORT_SYMBOL_GPL(ipq_spdif_cfg_bit_width);
 
 void ipq_spdif_onetime_cfg(void)
 {
+	uint32_t cfg;
+
+	/* Take SPIDFTX block out of reset */
+	cfg = readl(lpass_clk_base.base + LCC_AHBEX_BRANCH_CTL);
+	mdelay(500);
+	cfg &= ~(HWIO_LCC_AHBEX_BRANCH_CTL_SLIMBUS_ARES_RESET);
+	writel(cfg, lpass_clk_base.base + LCC_AHBEX_BRANCH_CTL);
+
 	writel(LPA_IF_SPDIF_TX_CMD_ABRT,
 		(ipq_spdif_info.base + LPA_IF_SPDIF_TX_CMD));
 	/* port select */
