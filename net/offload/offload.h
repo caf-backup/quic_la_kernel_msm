@@ -23,10 +23,38 @@
 typedef bool (*offload_vlantag_get_target_info_t)(struct nf_conn *ct, u_int16_t *imask, u_int16_t *itag, u_int16_t *omask, u_int16_t *oval);
 typedef bool (*offload_dscpremark_get_target_info_t)(struct nf_conn *ct, u_int8_t *imask, u_int8_t *itag, u_int8_t *omask, u_int8_t *oval);
 
+#ifdef CONFIG_NET_OFFLOAD
 extern bool offload_vlantag_get_target_info(struct nf_conn *ct, u_int16_t *imask, u_int16_t *itag, u_int16_t *omask, u_int16_t *oval);
 extern bool offload_dscpremark_get_target_info(struct nf_conn *ct, u_int8_t *imask, u_int8_t *itag, u_int8_t *omask, u_int8_t *oval);
 extern void offload_vlantag_register(offload_vlantag_get_target_info_t f);
 extern void offload_dscpremark_register(offload_dscpremark_get_target_info_t f);
 extern void offload_vlantag_unregister(void);
 extern void offload_dscpremark_unregister(void);
+#else
+static inline bool offload_vlantag_get_target_info(struct nf_conn *ct, u_int16_t *imask, u_int16_t *itag, u_int16_t *omask, u_int16_t *oval)
+{
+	return false;
+}
+
+static inline bool offload_dscpremark_get_target_info(struct nf_conn *ct, u_int8_t *imask, u_int8_t *itag, u_int8_t *omask, u_int8_t *oval)
+{
+	return false;
+}
+
+static inline void offload_vlantag_register(offload_vlantag_get_target_info_t f)
+{
+}
+
+static inline void offload_dscpremark_register(offload_dscpremark_get_target_info_t f)
+{
+}
+
+static inline void offload_vlantag_unregister(void)
+{
+}
+
+static inline void offload_dscpremark_unregister(void)
+{
+}
+#endif /* CONFIG_NET_OFFLOAD */
 #endif /* __OFFLOAD_H__ */

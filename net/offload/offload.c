@@ -70,6 +70,7 @@ void offload_vlantag_register(offload_vlantag_get_target_info_t f)
 {
 	rcu_assign_pointer(__offload_vlantag_get_target_info_func, f);
 }
+EXPORT_SYMBOL(offload_vlantag_register);
 
 /*
  * offload_dscpremark_register()
@@ -79,6 +80,7 @@ void offload_dscpremark_register(offload_dscpremark_get_target_info_t f)
 {
 	rcu_assign_pointer(__offload_dscpremark_get_target_info_func, f);
 }
+EXPORT_SYMBOL(offload_dscpremark_register);
 
 /*
  * offload_vlantag_unregister()
@@ -88,6 +90,7 @@ void offload_vlantag_unregister(void)
 {
 	rcu_assign_pointer(__offload_vlantag_get_target_info_func, NULL);
 }
+EXPORT_SYMBOL(offload_vlantag_unregister);
 
 /*
  * offload_dscpremark_unregister()
@@ -97,4 +100,5 @@ void offload_dscpremark_unregister(void)
 {
 	rcu_assign_pointer(__offload_dscpremark_get_target_info_func, NULL);
 }
+EXPORT_SYMBOL(offload_dscpremark_unregister);
 
