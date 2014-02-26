@@ -1796,14 +1796,18 @@ static struct msm_spi_platform_data ipq806x_qup_spi_gsbi5_pdata = {
 	.max_clock_speed = 52000000,
 	.dma_config      = gsbi5_dma_config,
 	.infinite_mode   = 0xFFC0,
+	.thread_mode = MSM_SPI_THREAD_DEFAULT,
 };
 
 static struct msm_spi_platform_data ipq806x_qup_spi_gsbi6_pdata = {
 	.max_clock_speed = 6000000,    /* Max SPI Clock on SLIC */
+	.thread_mode = MSM_SPI_THREAD_RT,
+	.thread_priority = 90,
 };
 
 static struct msm_spi_platform_data ipq806x_qup_spi_gsbi2_pdata = {
 	.max_clock_speed = 51200000,    /* Max SPI Clock */
+	.thread_mode = MSM_SPI_THREAD_DEFAULT,
 };
 #endif
 
