@@ -276,7 +276,10 @@ static int ipq_pcm_spdif_trigger(struct snd_pcm_substream *substream, int cmd)
 	}
 
 	if (prtd->pcm_stream_info.pcm_prepare_start == 1) {
-		mdelay(700);
+		if (prtd->pcm_stream_info.compr_mode ==
+				LPA_IF_SPDIF_TX_DATA_TYPE_LINEAR)
+			mdelay(700);
+
 		prtd->pcm_stream_info.pcm_prepare_start++;
 	}
 	return ret;
