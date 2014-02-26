@@ -14,6 +14,15 @@
  * SPI driver for Qualcomm MSM platforms.
  */
 
+/*
+ * Specifies whether the spi message processing must be
+ * performed by a kthread with RT priority or a workqueue.
+ */
+enum msm_spi_thread_mode {
+	MSM_SPI_THREAD_DEFAULT,
+	MSM_SPI_THREAD_RT
+};
+
 struct msm_spi_platform_data {
 	u32 max_clock_speed;
 	int (*gpio_config)(void);
@@ -22,4 +31,6 @@ struct msm_spi_platform_data {
 	const char *rsl_id;
 	uint32_t pm_lat;
 	uint32_t infinite_mode;
+	uint32_t thread_mode;
+	int32_t thread_priority;
 };
