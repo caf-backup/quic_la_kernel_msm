@@ -187,16 +187,13 @@ enum {
 
 struct tc_nssbf_class_qopt {
 	__u32	burst;		/* Maximum burst size */
-	__u32	rate;		/* Limiting rate of TBF */
-	__u32	mtu;		/* Max size of packet, or minumim burst size */
+	__u32	rate;		/* Allowed bandwidth for this class */
+	__u32	mtu;		/* MTU of attached interface */
+	__u32	quantum;	/* Quantum allocation value for DRR */
 };
 
 struct tc_nssbf_qopt {
 	__u16	defcls;		/* Default class value */
-};
-
-struct tc_nssbf_xstats {
-	__u32	count;		/* Total number of packets processed by queue */
 };
 
 /* FIFO section */
