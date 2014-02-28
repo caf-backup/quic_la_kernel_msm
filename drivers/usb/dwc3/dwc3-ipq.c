@@ -215,12 +215,11 @@ static void partial_rx_reset_init(void __iomem *ipq_base)
 
 static void  uw_ssusb_pre_init(void __iomem *ipq_base)
 {
-	u32 clear_bits, set_bits, tmp;
+	u32  set_bits, tmp;
 	u16 data;
 	/* GCTL Reset ON */
 	writel(0x800, ipq_base + DWC3_SSUSB_REG_GCTL);
 	/* Config SS PHY CTRL */
-	clear_bits = 0;
 	set_bits = 0;
 	writel(0x80, ipq_base + IPQ_SS_PHY_CTRL_REG);
 	udelay(5);
@@ -232,10 +231,7 @@ static void  uw_ssusb_pre_init(void __iomem *ipq_base)
 	set_bits |= IPQ_SSUSB_QSCRATCH_SS_PHY_CTRL_REF_SS_PHY_EN;
 	writel(set_bits, ipq_base + IPQ_SS_PHY_CTRL_REG);
 	/* Config HS PHY CTRL */
-	clear_bits = 0;
-	/* HS PHY UTMI_OTG_VBUS_VALID | AUTORESUME | COMMONN*/
-	set_bits = IPQ_SSUSB_REG_QSCRATCH_HS_PHY_CTRL_AUTORESUME |
-			IPQ_SSUSB_REG_QSCRATCH_HS_PHY_CTRL_UTMI_OTG_VBUS_VALID;
+	set_bits = IPQ_SSUSB_REG_QSCRATCH_HS_PHY_CTRL_UTMI_OTG_VBUS_VALID;
 	/*
 	 * COMMONONN forces xo, bias and pll to stay on during suspend;
 	 * Allowing suspend (writing 1) kills Aragorn V1
@@ -247,8 +243,8 @@ static void  uw_ssusb_pre_init(void __iomem *ipq_base)
 	 * If the configuration of clocks is not bypassed in Host mode,
 	 * HS PHY suspend needs to be prohibited, otherwise - SS connection fails
 	 */
-	ipq_ssusb_clear_and_set_bits32(IPQ_SSUSB_REG_QSCRATCH_HS_PHY_CTRL,
-					clear_bits, set_bits, ipq_base);
+	ipq_ssusb_clear_and_set_bits32(IPQ_SSUSB_REG_QSCRATCH_HS_PHY_CTRL, 0,
+					set_bits, ipq_base);
 	/* USB2 PHY Reset ON */
 	writel(DWC3_SSUSB_REG_GUSB2PHYCFG_PHYSOFTRST, ipq_base +
 		DWC3_SSUSB_REG_GUSB2PHYCFG(0));
@@ -312,18 +308,16 @@ static void  uw_ssusb_pre_init(void __iomem *ipq_base)
 	writel((1 << 2), ipq_base + IPQ_QSCRATCH_GENERAL_CFG);
 	writel(0x0c80c010, ipq_base + DWC3_SSUSB_REG_GUCTL);
 	partial_rx_reset_init(ipq_base);
-	clear_bits = 0;
 	set_bits = 0;
 	/* Test  U2EXIT_LFPS */
 	set_bits |= IPQ_SSUSB_REG_GCTL_U2EXIT_LFPS;
-	ipq_ssusb_clear_and_set_bits32(DWC3_SSUSB_REG_GCTL, clear_bits,
+	ipq_ssusb_clear_and_set_bits32(DWC3_SSUSB_REG_GCTL, 0,
 					set_bits, ipq_base);
 	set_bits = 0;
 	set_bits |= IPQ_SSUSB_REG_GCTL_U2RSTECN;
 	set_bits |= IPQ_SSUSB_REG_GCTL_U2EXIT_LFPS;
-	ipq_ssusb_clear_and_set_bits32(DWC3_SSUSB_REG_GCTL, clear_bits,
+	ipq_ssusb_clear_and_set_bits32(DWC3_SSUSB_REG_GCTL, 0,
 					set_bits, ipq_base);
-
 	writel(DWC3_GCTL_U2EXIT_LFPS | DWC3_GCTL_SOFITPSYNC |
 		DWC3_GCTL_PRTCAPDIR(1) |
 		DWC3_GCTL_U2RSTECN | DWC3_GCTL_PWRDNSCALE(2),
