@@ -26,10 +26,16 @@
  * VLAN tagging target structure.
  */
 struct xt_vlantag_target_info {
-	__u16 imask;
-	__u16 itag;
 	__u16 omask;
 	__u16 oval;
+};
+
+/*
+ * VLAN tagging match structure.
+ */
+struct xt_vlantag_match_info {
+	__u16 imask;
+	__u16 itag;
 };
 
 extern bool vlantag_get_target_info(struct nf_conn *ct, u_int16_t *imask, u_int16_t *itag, u_int16_t *omask, u_int16_t *oval);

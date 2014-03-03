@@ -26,6 +26,7 @@
  */
 struct nf_ct_vlantag_ext {
 	bool magic;
+	__u8 prio;
 	__u16 imask;
 	__u16 itag;
 	__u16 omask;
