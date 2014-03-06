@@ -106,4 +106,8 @@ extern uint32_t msm_pcie_irq_init(struct msm_pcie_dev_t *dev);
 extern void msm_pcie_irq_deinit(struct msm_pcie_dev_t *dev);
 extern int msm_pcie_get_debug_mask(void);
 
+struct pci_bus;
+extern struct msm_pcie_dev_t *pcie_bus_to_msm_pcie_dev(struct pci_bus *bus);
+#define bus_to_mpdev		pcie_bus_to_msm_pcie_dev
+
 #endif
