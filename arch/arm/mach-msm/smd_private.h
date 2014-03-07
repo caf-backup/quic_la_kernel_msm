@@ -282,8 +282,23 @@ enum smem_flash_type {
 #define SMEM_MAX_PARTITIONS        16
 
 #ifdef CONFIG_ARCH_IPQ806X
-#define SMEM_LINUX_FS_PARTS	{ "0:APPSBLENV", "0:HLOS", "0:NSS0", "0:NSS1", "0:ART", "rootfs" }
-#define SMEM_LINUX_MTD_NAME	{ "APPSBLENV", "kernel", "NSS0", "NSS1", "ART", "rootfs" }
+#define SMEM_LINUX_FS_PARTS					\
+	{							\
+		"0:SBL1",	"0:MIBIB",	"0:SBL2",	\
+		"0:SBL3",	"0:DDRCONFIG",	"0:SSD",	\
+		"0:TZ",		"0:RPM",	"0:APPSBL",	\
+		"0:APPSBLENV",	"0:ART",	"0:HLOS",	\
+		"rootfs",					\
+	}
+#define SMEM_LINUX_MTD_NAME					\
+	{							\
+		"SBL1",		"MIBIB",	"SBL2",		\
+		"SBL3",		"DDRCONFIG",	"SSD",		\
+		"TZ",		"RPM",		"APPSBL",	\
+		"APPSBLENV",	"ART",		"kernel",	\
+		"rootfs",					\
+	}
+
 #else
 #define SMEM_LINUX_FS_PARTS	"0:EFS2APPS"
 #define SMEM_LINUX_MTD_NAME	"0:EFS2APPS"
