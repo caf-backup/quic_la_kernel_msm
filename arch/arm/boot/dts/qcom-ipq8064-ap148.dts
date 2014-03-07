@@ -1,0 +1,25 @@
+#include "qcom-ipq8064-v1.0.dtsi"
+
+/ {
+	model = "Qualcomm IPQ8064/AP148";
+	compatible = "qcom,ipq8064-ap148", "qcom,ipq8064";
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		rsvd@41200000 {
+			reg = <0x41200000 0x300000>;
+			no-map;
+		};
+	};
+
+	soc {
+		gsbi@16300000 {
+			qcom,mode = <GSBI_PROT_I2C_UART>;
+			status = "ok";
+			serial@16340000 {
+				status = "ok";
+			};
+		};
+	};
+};
