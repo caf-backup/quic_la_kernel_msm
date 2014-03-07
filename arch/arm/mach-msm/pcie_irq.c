@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/msi.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <mach/irqs.h>
 #include <linux/gpio.h>
 #include "pcie.h"
@@ -37,7 +38,11 @@
 
 #define PCIE20_MSI_CTRL_MAX 8
 
-static DECLARE_BITMAP(msi_irq_in_use, NR_PCIE_MSI_IRQS);
+#define MAX_MSI_PER_RC	(NR_PCIE_MSI_IRQS / CONFIG_MSM_NUM_PCIE)
+#define MSM_PCIE_MSI_INT_RC(_r, _p)	\
+		(MSM_PCIE_MSI_INT(_p) + (_r * MAX_MSI_PER_RC))
+
+static DECLARE_BITMAP(msi_irq_in_use[CONFIG_MSM_NUM_PCIE], MAX_MSI_PER_RC);
 
 static irqreturn_t handle_wake_irq(int irq, void *data)
 {
@@ -73,6 +78,11 @@ static irqreturn_t handle_msi_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+inline phys_addr_t msm_get_pcie_msi_addr(int rc)
+{
+	return MSM_PCIE_MSI_PHY;
+}
+
 uint32_t __init msm_pcie_irq_init(struct msm_pcie_dev_t *dev)
 {
 	int i, rc;
@@ -80,7 +90,8 @@ uint32_t __init msm_pcie_irq_init(struct msm_pcie_dev_t *dev)
 	PCIE_DBG("\n");
 
 	/* program MSI controller and enable all interrupts */
-	writel_relaxed(MSM_PCIE_MSI_PHY, dev->pcie20 + PCIE20_MSI_CTRL_ADDR);
+	writel_relaxed(msm_get_pcie_msi_addr(dev->pdev->id),
+				dev->pcie20 + PCIE20_MSI_CTRL_ADDR);
 	writel_relaxed(0, dev->pcie20 + PCIE20_MSI_CTRL_UPPER_ADDR);
 
 	for (i = 0; i < PCIE20_MSI_CTRL_MAX; i++)
@@ -125,9 +136,11 @@ void __exit msm_pcie_irq_deinit(struct msm_pcie_dev_t *dev)
 void msm_pcie_destroy_irq(unsigned int irq)
 {
 	int pos = irq - MSM_PCIE_MSI_INT(0);
+	int rc = pos / MAX_MSI_PER_RC;
 
+	pos %= MAX_MSI_PER_RC;
 	dynamic_irq_cleanup(irq);
-	clear_bit(pos, msi_irq_in_use);
+	clear_bit(pos, &msi_irq_in_use[rc][0]);
 }
 
 /* hookup to linux pci msi framework */
@@ -153,33 +166,44 @@ static struct irq_chip pcie_msi_chip = {
 
 static int msm_pcie_create_irq(struct pci_dev *pdev)
 {
-	int irq, pos;
+	int irq, pos, rc;
 
 again:
-	pos = find_first_zero_bit(msi_irq_in_use, NR_PCIE_MSI_IRQS);
+	rc = bus_to_mpdev(pdev->bus)->bus;
+	pos = find_first_zero_bit(&msi_irq_in_use[rc][0], MAX_MSI_PER_RC);
 	/*
 	 * MSI IRQs are assigned at the end of the list (of all IRQs).
 	 * We know that RC takes even numbered bus and EP takes
 	 * odd numbered bus. We need MSI IRQs for the EPs. Allot
 	 * a bunch of 32 IRQs for each EP.
 	 */
-	pos = (pdev->bus->number / 2) * 32 + pos;
-	irq = MSM_PCIE_MSI_INT(pos);
+	irq = MSM_PCIE_MSI_INT_RC(rc, pos);
 	if (irq >= (MSM_PCIE_MSI_INT(0) + NR_PCIE_MSI_IRQS))
 		return -ENOSPC;
 
-	if (test_and_set_bit(pos, msi_irq_in_use))
+	if (test_and_set_bit(pos, &msi_irq_in_use[rc][0]))
 		goto again;
 
 	dynamic_irq_init(irq);
 	return irq;
 }
 
+void msm_write_msi_msg(struct pci_dev *pdev, unsigned int irq)
+{
+	struct msi_msg msg;
+	int rc = bus_to_mpdev(pdev->bus)->bus;
+
+	/* write msi vector and data */
+	msg.address_hi = 0;
+	msg.address_lo = msm_get_pcie_msi_addr(rc);
+	msg.data = irq - MSM_PCIE_MSI_INT_RC(0, rc);
+	write_msi_msg(irq, &msg);
+}
+
 /* hookup to linux pci msi framework */
-int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
+int msm_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 {
 	int irq;
-	struct msi_msg msg;
 
 	irq = msm_pcie_create_irq(pdev);
 	if (irq < 0)
@@ -189,13 +213,73 @@ int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 
 	irq_set_msi_desc(irq, desc);
 
-	/* write msi vector and data */
-	msg.address_hi = 0;
-	msg.address_lo = MSM_PCIE_MSI_PHY;
-	msg.data = irq - MSM_PCIE_MSI_INT(0);
-	write_msi_msg(irq, &msg);
-
 	irq_set_chip_and_handler(irq, &pcie_msi_chip, handle_simple_irq);
 	set_irq_flags(irq, IRQF_VALID);
+	return 0;
+}
+
+static int msm_alloc_msi_entries(struct pci_dev *dev, int nvec)
+{
+	struct msi_desc *head;
+	int i;
+
+	if (nvec <= 1)
+		return 0;
+
+	/* msi_capability_init created the zeroth entry */
+	head = list_first_entry(&dev->msi_list, struct msi_desc, list);
+
+	for (i = 1; i < nvec; i++) {
+		struct msi_desc *entry;
+
+		entry = kzalloc(sizeof(*entry) * (nvec - 1), GFP_KERNEL);
+		if (!entry) {
+			/*
+			 * If this failed midway, msi_capability_init's
+			 * error handling will clean it up
+			 */
+			return -ENOMEM;
+		}
+		entry->msi_attrib = head->msi_attrib;
+		entry->mask_pos = head->mask_pos;
+		entry->msi_attrib.entry_nr = i;
+		entry->dev = dev;
+		INIT_LIST_HEAD(&entry->list);
+		list_add_tail(&entry->list, &dev->msi_list);
+	}
+
+	head->msi_attrib.multiple = nvec;
+
+	return 0;
+}
+
+
+/* hookup to linux pci msi framework */
+int msm_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
+{
+	struct msi_desc *entry;
+	int rc, ret, pos;
+
+	rc = bus_to_mpdev(dev->bus)->bus;
+	pos = find_first_zero_bit(&msi_irq_in_use[rc][0], MAX_MSI_PER_RC);
+
+	/* Ensure we have enough free slots */
+	if (nvec > (MAX_MSI_PER_RC - pos))
+		return -ENOSPC;
+
+	if ((ret = msm_alloc_msi_entries(dev, nvec)) != 0)
+		return ret;
+
+	list_for_each_entry(entry, &dev->msi_list, list) {
+		ret = msm_setup_msi_irq(dev, entry);
+		if (ret < 0)
+			return ret;
+		if (ret > 0)
+			return -ENOSPC;
+	}
+
+	entry = list_first_entry(&dev->msi_list, struct msi_desc, list);
+	msm_write_msi_msg(dev, entry->irq);
+
 	return 0;
 }
