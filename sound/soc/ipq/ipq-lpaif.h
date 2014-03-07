@@ -48,6 +48,7 @@
 
 #define LPA_IF_SPK_MONO		(1 << 9)
 #define LPA_IF_MIC_EN		(1 << 8)
+#define LPA_IF_MIC_MODE_MASK	0xf0
 #define LPA_IF_MIC_MODE_NONE	(0 << 4)
 #define LPA_IF_MIC_MODE_SD0	(1 << 4)
 #define LPA_IF_MIC_MODE_SD1	(2 << 4)
@@ -61,7 +62,7 @@
 
 #define LPA_IF_WS		(1 << 2)
 
-#define LPA_IF_BIT_MASK		0x3
+#define LPA_IF_BIT_MASK		(0x3)
 #define LPA_IF_BIT_RATE16	(0 << 0)
 #define LPA_IF_BIT_RATE24	(1 << 0)
 #define LPA_IF_BIT_RATE32	(2 << 0)
@@ -239,6 +240,12 @@ struct ipq_lpaif_dai_baseinfo {
 	void __iomem *base;
 };
 
+struct mi2s_hw_params {
+	uint8_t channels;
+	uint32_t freq;
+	uint8_t bit_width;
+};
+
 struct dai_drv {
 	unsigned char *buffer;
 	unsigned int buffer_phys;
@@ -256,6 +263,8 @@ extern void ipq_lpaif_register_dma_irq_handler(int dma_ch,
 	void *private_data);
 extern void ipq_lpaif_unregister_dma_irq_handler(int dma_ch);
 extern int ipq_lpaif_dai_stop(uint32_t dma_ch);
+extern uint8_t ipq_lpaif_irq_disable(uint8_t dma_ch);
+extern uint8_t ipq_lpaif_mi2s_disable(void);
 extern int ipq_lpaif_pcm_stop(uint32_t dma_ch);
 extern void ipq_cfg_pcm_reset(uint8_t);
 extern void ipq_cfg_pcm_sync_src(uint8_t);
@@ -263,11 +272,14 @@ extern void ipq_cfg_pcm_slot(uint8_t, uint8_t);
 extern void ipq_cfg_pcm_width(uint8_t bit_width, uint8_t dir);
 extern void ipq_cfg_pcm_rate(uint32_t rate);
 extern int ipq_cfg_mi2s_hwparams_bit_width(uint32_t bit_width, uint32_t off);
+extern int ipq_cfg_mi2s_capture_hwparams_channels(uint32_t channels, uint32_t off,
+							uint32_t bit_width);
 extern int ipq_cfg_mi2s_hwparams_channels(uint32_t channels, uint32_t off,
 							uint32_t bit_width);
 extern uint8_t ipq_lpaif_dma_stop(uint8_t dma_ch);
 extern uint8_t ipq_lpaif_dma_start(uint8_t dma_ch);
 extern void ipq_cfg_i2s_spkr(uint8_t enable, uint32_t mode, uint32_t off);
+extern void ipq_cfg_i2s_mic(uint8_t enable, uint32_t off);
 extern void ipq_pcm_start(void);
 extern void ipq_pcm_stop(void);
 extern int ipq_lpaif_cfg_dma(uint32_t dma_ch, struct dai_dma_params *params,

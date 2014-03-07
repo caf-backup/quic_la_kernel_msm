@@ -102,6 +102,7 @@ enum dma_intf_wr_ch {
 	MIN_DMA_WR_CH = 5,
 	PCM0_DMA_WR_CH = 5,
 	PCM1_DMA_WR_CH,
+	MI2S_DMA_WR_CH = 6,
 	MAX_DMA_WR_CH = 8,
 };
 

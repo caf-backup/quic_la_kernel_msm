@@ -47,10 +47,12 @@ int ipq_pcm_int_enable(uint8_t dma_ch)
 {
 	uint32_t intr_val;
 	uint32_t status_val;
+	unsigned long flags;
 
 	if (dma_ch >= MAX_LPAIF_CHANNELS)
 		return -EINVAL;
 
+	spin_lock_irqsave(&dai_lock, flags);
 	/* clear status before enabling interrupt */
 	status_val = readl(dai_info.base + LPAIF_IRQ_CLEAR(0));
 	status_val = status_val | (1 << (dma_ch * 3));
@@ -59,6 +61,7 @@ int ipq_pcm_int_enable(uint8_t dma_ch)
 	intr_val = readl(dai_info.base + LPAIF_IRQ_EN(0));
 	intr_val = intr_val | (1 << (dma_ch * 3));
 	writel(intr_val, dai_info.base + LPAIF_IRQ_EN(0));
+	spin_unlock_irqrestore(&dai_lock, flags);
 
 	return 0;
 }
@@ -67,11 +70,17 @@ EXPORT_SYMBOL_GPL(ipq_pcm_int_enable);
 int ipq_pcm_int_disable(uint8_t dma_ch)
 {
 	uint32_t intr_val;
+	unsigned long flags;
+
 	if (dma_ch >= MAX_LPAIF_CHANNELS)
 		return -EINVAL;
+
+	spin_lock_irqsave(&dai_lock, flags);
 	intr_val = readl(dai_info.base + LPAIF_IRQ_EN(0));
 	intr_val = intr_val & ~(1 << (dma_ch * 3));
 	writel(intr_val, dai_info.base + LPAIF_IRQ_EN(0));
+	spin_unlock_irqrestore(&dai_lock, flags);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ipq_pcm_int_disable);
@@ -196,9 +205,11 @@ EXPORT_SYMBOL_GPL(ipq_cfg_mi2s_disable);
 void ipq_cfg_i2s_spkr(uint8_t enable, uint32_t mode, uint32_t off)
 {
 	uint32_t cfg;
-	cfg = readl(dai_info.base + LPAIF_MI2S_CTL_OFFSET(off));
+	unsigned long flags;
 
-	writel(0, dai_info.base + LPAIF_MI2S_CTL_OFFSET(off));
+	spin_lock_irqsave(&dai_lock, flags);
+
+	cfg = readl(dai_info.base + LPAIF_MI2S_CTL_OFFSET(off));
 
 	if (enable)
 		cfg |= LPA_IF_SPK_EN;
@@ -209,13 +220,38 @@ void ipq_cfg_i2s_spkr(uint8_t enable, uint32_t mode, uint32_t off)
 	cfg = cfg & ~LPA_IF_WS;
 
 	writel(cfg, dai_info.base + LPAIF_MI2S_CTL_OFFSET(off));
+	spin_unlock_irqrestore(&dai_lock, flags);
 }
 EXPORT_SYMBOL_GPL(ipq_cfg_i2s_spkr);
+
+void ipq_cfg_i2s_mic(uint8_t enable, uint32_t off)
+{
+	uint32_t cfg;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dai_lock, flags);
+
+	cfg = readl(dai_info.base + LPAIF_MI2S_CTL_OFFSET(off));
+
+	if (enable)
+		cfg |= LPA_IF_MIC_EN;
+	else
+		cfg = cfg & (~(LPA_IF_MIC_EN));
+
+	cfg = cfg & ~LPA_IF_WS;
+
+	writel(cfg, dai_info.base + LPAIF_MI2S_CTL_OFFSET(off));
+	spin_unlock_irqrestore(&dai_lock, flags);
+}
+EXPORT_SYMBOL_GPL(ipq_cfg_i2s_mic);
 
 int ipq_cfg_mi2s_hwparams_bit_width(uint32_t bit_width, uint32_t off)
 {
 	int ret = 0;
 	uint32_t cfg;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dai_lock, flags);
 
 	cfg = readl(dai_info.base + LPAIF_MI2S_CTL_OFFSET(off));
 	cfg &= ~(LPA_IF_BIT_MASK);
@@ -238,6 +274,7 @@ int ipq_cfg_mi2s_hwparams_bit_width(uint32_t bit_width, uint32_t off)
 	if (!ret)
 		writel(cfg, dai_info.base + LPAIF_MI2S_CTL_OFFSET(off));
 
+	spin_unlock_irqrestore(&dai_lock, flags);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(ipq_cfg_mi2s_hwparams_bit_width);
@@ -247,6 +284,9 @@ int ipq_cfg_mi2s_hwparams_channels(uint32_t channels, uint32_t off,
 {
 	int ret = 0;
 	uint32_t cfg;
+
+	unsigned long flags;
+	spin_lock_irqsave(&dai_lock, flags);
 
 	cfg = readl(dai_info.base + LPAIF_MI2S_CTL_OFFSET(off));
 	cfg &= ~(LPA_IF_SPK_MODE_MASK);
@@ -272,9 +312,41 @@ int ipq_cfg_mi2s_hwparams_channels(uint32_t channels, uint32_t off,
 	if (!ret)
 		writel(cfg, dai_info.base + LPAIF_MI2S_CTL_OFFSET(off));
 
+	spin_unlock_irqrestore(&dai_lock, flags);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(ipq_cfg_mi2s_hwparams_channels);
+
+int ipq_cfg_mi2s_capture_hwparams_channels(uint32_t channels, uint32_t off,
+						uint32_t bit_width)
+{
+	uint32_t cfg;
+	int ret = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dai_lock, flags);
+
+	cfg = readl(dai_info.base + LPAIF_MI2S_CTL_OFFSET(off));
+	cfg &= ~(LPA_IF_MIC_MODE_MASK);
+
+	switch (channels) {
+	case IPQ_CHANNELS_STEREO:
+		cfg |= LPA_IF_MIC_MODE_SD3;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	if (!ret)
+		writel(cfg, dai_info.base + LPAIF_MI2S_CTL_OFFSET(off));
+
+	spin_unlock_irqrestore(&dai_lock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ipq_cfg_mi2s_capture_hwparams_channels);
 
 int ipq_lpaif_dai_config_dma(uint32_t dma_ch)
 {
@@ -358,16 +430,22 @@ static int ipq_cfg_lpaif_dma_ch(uint32_t lpaif_dma_ch, uint32_t channels,
 							uint32_t bit_width)
 {
 	int ret = 0;
-	uint32_t cfg = readl(dai_info.base + LPAIF_DMA_CTL(lpaif_dma_ch));
+	uint32_t cfg;
+	unsigned long flags;
 
 	if (lpaif_dma_ch >= MAX_LPAIF_CHANNELS)
 		return -EINVAL;
+
+	spin_lock_irqsave(&dai_lock, flags);
+
+	cfg = readl(dai_info.base + LPAIF_DMA_CTL(lpaif_dma_ch));
 
 	if ((lpaif_dma_ch == PCM0_DMA_WR_CH) ||
 		(lpaif_dma_ch == PCM0_DMA_RD_CH)) {
 		cfg &= LPA_IF_DMACTL_AUDIO_INTF_MASK;
 		cfg |= LPA_IF_DMACTL_AUDIO_INTF_PCM;
-	} else if (lpaif_dma_ch == MI2S_DMA_RD_CH) {
+	} else if ((lpaif_dma_ch == MI2S_DMA_RD_CH) ||
+			(lpaif_dma_ch == MI2S_DMA_WR_CH)) {
 		cfg |= LPA_IF_DMACTL_AUDIO_INTF_MI2S;
 		cfg &= ~(LPA_IF_DMACTL_WPSCNT_MASK);
 
@@ -395,13 +473,12 @@ static int ipq_cfg_lpaif_dma_ch(uint32_t lpaif_dma_ch, uint32_t channels,
 			cfg |= LPA_IF_DMACTL_WPSCNT_8CH;
 		else
 			ret = -EINVAL;
-
-
 	}
 
 	if (!ret)
 		writel(cfg, dai_info.base + LPAIF_DMA_CTL(lpaif_dma_ch));
 
+	spin_unlock_irqrestore(&dai_lock, flags);
 	return ret;
 }
 
@@ -446,9 +523,6 @@ EXPORT_SYMBOL_GPL(ipq_lpaif_cfg_dma);
 
 int ipq_lpaif_dai_stop(uint32_t dma_ch)
 {
-	writel(0x0, dai_info.base + LPAIF_MI2S_CTL_OFFSET(LPA_IF_MI2S));
-	writel(0x0, dai_info.base + LPAIF_IRQ_EN(0));
-	writel(~0x0, dai_info.base + LPAIF_IRQ_CLEAR(0));
 	writel(0x0, dai_info.base + LPAIF_DMA_CTL(dma_ch));
 	return 0;
 }
@@ -456,9 +530,13 @@ EXPORT_SYMBOL_GPL(ipq_lpaif_dai_stop);
 
 int ipq_lpaif_pcm_stop(uint32_t dma_ch)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&dai_lock, flags);
 	writel(0x0, dai_info.base + LPAIF_IRQ_EN(0));
 	writel(~0x0, dai_info.base + LPAIF_IRQ_CLEAR(0));
 	writel(0x0, dai_info.base + LPAIF_DMA_CTL(dma_ch));
+	spin_unlock_irqrestore(&dai_lock, flags);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ipq_lpaif_pcm_stop);
@@ -482,6 +560,29 @@ uint8_t ipq_lpaif_dma_start(uint8_t dma_ch)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ipq_lpaif_dma_start);
+
+uint8_t ipq_lpaif_irq_disable(uint8_t dma_ch)
+{
+	uint32_t cfg;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dai_lock, flags);
+	cfg = readl(dai_info.base + LPAIF_IRQ_EN(0));
+	cfg &= ~((1 << (dma_ch * 3)));
+	writel(cfg, dai_info.base + LPAIF_IRQ_EN(0));
+	cfg = (1 << (dma_ch * 3));
+	writel(cfg, dai_info.base + LPAIF_IRQ_CLEAR(0));
+	spin_unlock_irqrestore(&dai_lock, flags);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ipq_lpaif_irq_disable);
+
+uint8_t ipq_lpaif_mi2s_disable(void)
+{
+	writel(0x0, dai_info.base + LPAIF_MI2S_CTL_OFFSET(LPA_IF_MI2S));
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ipq_lpaif_mi2s_disable);
 
 void ipq_lpaif_register_dma_irq_handler(int dma_ch,
 	irqreturn_t (*callback) (int intrsrc, void *private_data),
@@ -532,6 +633,7 @@ static irqreturn_t dai_irq_handler(int irq, void *data)
 	spin_lock_irqsave(&dai_lock, flag);
 	intrsrc = readl(dai_info.base + LPAIF_IRQ_STAT(0));
 	writel(intrsrc, dai_info.base + LPAIF_IRQ_CLEAR(0));
+	spin_unlock_irqrestore(&dai_lock, flag);
 	mb();
 	while (intrsrc) {
 		dma_ch = dai_find_dma_channel(intrsrc);
@@ -543,7 +645,6 @@ static irqreturn_t dai_irq_handler(int irq, void *data)
 		}
 		intrsrc &= ~(0x1 << (dma_ch * 3));
 	}
-	spin_unlock_irqrestore(&dai_lock, flag);
 	return ret;
 }
 
