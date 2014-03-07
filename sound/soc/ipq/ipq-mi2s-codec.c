@@ -75,6 +75,14 @@ static struct snd_soc_dai_driver mi2s_codec_dai = {
 				SNDRV_PCM_FMTBIT_S24 |
 				SNDRV_PCM_FMTBIT_S32,
 		},
+		.capture = {
+			.stream_name = "lpass-mi2s-capture",
+			.channels_min = 2,
+			.channels_max = 2,
+			.rates = SNDRV_PCM_RATE_8000_192000,
+			.formats = SNDRV_PCM_FMTBIT_S16 |
+				SNDRV_PCM_FMTBIT_S24,
+		},
 };
 
 static int mi2s_info(struct snd_kcontrol *kcontrol,

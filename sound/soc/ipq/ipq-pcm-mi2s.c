@@ -63,6 +63,26 @@ static struct snd_pcm_hardware ipq_pcm_hardware_playback = {
 	.fifo_size		=	0,
 };
 
+static struct snd_pcm_hardware ipq_pcm_hardware_capture = {
+	.info			=	SNDRV_PCM_INFO_MMAP |
+					SNDRV_PCM_INFO_BLOCK_TRANSFER |
+					SNDRV_PCM_INFO_MMAP_VALID |
+					SNDRV_PCM_INFO_INTERLEAVED,
+	.formats		=	SNDRV_PCM_FMTBIT_S16 |
+					SNDRV_PCM_FMTBIT_S24,
+	.rates			=	SNDRV_PCM_RATE_8000_192000,
+	.rate_min		=	FREQ_8000,
+	.rate_max		=	FREQ_192000,
+	.channels_min		=	LPASS_STEREO,
+	.channels_max		=	LPASS_STEREO,
+	.buffer_bytes_max	=	LPASS_MI2S_BUFF_SIZE,
+	.period_bytes_max	=	(LPASS_MI2S_BUFF_SIZE) / 2,
+	.period_bytes_min	=	LPASS_MI2S_PERIOD_BYTES_MIN,
+	.periods_min		=	LPASS_MI2S_NO_OF_PERIODS,
+	.periods_max		=	LPASS_MI2S_NO_OF_PERIODS,
+	.fifo_size		=	0,
+};
+
 static int ipq_pcm_preallocate_dma_buffer(struct snd_pcm *pcm,
 						int stream)
 {
@@ -70,7 +90,12 @@ static int ipq_pcm_preallocate_dma_buffer(struct snd_pcm *pcm,
 	struct snd_dma_buffer *buf = &substream->dma_buffer;
 	size_t size;
 
-	size = ipq_pcm_hardware_playback.buffer_bytes_max;
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		size = ipq_pcm_hardware_playback.buffer_bytes_max;
+	else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+		size = ipq_pcm_hardware_capture.buffer_bytes_max;
+	else
+		return -EINVAL;
 
 	buf->dev.type = SNDRV_DMA_TYPE_DEV;
 	buf->dev.dev = pcm->card->dev;
@@ -82,6 +107,20 @@ static int ipq_pcm_preallocate_dma_buffer(struct snd_pcm *pcm,
 	buf->bytes = size;
 
 	return 0;
+}
+
+static void ipq_pcm_free_dma_buffer(struct snd_pcm *pcm, int stream)
+{
+	struct snd_pcm_substream *substream;
+	struct snd_dma_buffer *buf;
+
+	substream = pcm->streams[stream].substream;
+	buf = &substream->dma_buffer;
+	if (buf->area) {
+		dma_free_coherent(pcm->card->dev, buf->bytes,
+					buf->area, buf->addr);
+	}
+	buf->area = NULL;
 }
 
 static irqreturn_t ipq_mi2s_irq(int intrsrc, void *data)
@@ -222,19 +261,26 @@ static int ipq_pcm_mi2s_trigger(struct snd_pcm_substream *substream, int cmd)
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		ipq_mi2s_ctrl_reset_codec();
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+			ipq_mi2s_ctrl_reset_codec();
 	case SNDRV_PCM_TRIGGER_RESUME:
-		ipq_cfg_i2s_spkr(1, 0, LPA_IF_MI2S);
-		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		ipq_cfg_i2s_spkr(1, 0, LPA_IF_MI2S);
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+			ipq_cfg_i2s_spkr(1, 0, LPA_IF_MI2S);
+		else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+			ipq_cfg_i2s_mic(1, LPA_IF_MI2S);
+		else
+			ret = -EINVAL;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
-		ipq_cfg_i2s_spkr(0, 0, LPA_IF_MI2S);
-		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		ipq_cfg_i2s_spkr(0, 0, LPA_IF_MI2S);
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+			ipq_cfg_i2s_spkr(0, 0, LPA_IF_MI2S);
+		else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+			ipq_cfg_i2s_mic(0, LPA_IF_MI2S);
+		else
+			ret = -EINVAL;
 		break;
 	default:
 		ret = -EINVAL;
@@ -265,10 +311,18 @@ static int ipq_pcm_mi2s_open(struct snd_pcm_substream *substream)
 
 	pr_debug("%s %d\n", __func__, __LINE__);
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		runtime->dma_bytes = ipq_pcm_hardware_playback.buffer_bytes_max;
-
-	snd_soc_set_runtime_hwparams(substream, &ipq_pcm_hardware_playback);
+		snd_soc_set_runtime_hwparams(substream,
+				&ipq_pcm_hardware_playback);
+	} else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+		runtime->dma_bytes = ipq_pcm_hardware_capture.buffer_bytes_max;
+		snd_soc_set_runtime_hwparams(substream,
+					&ipq_pcm_hardware_capture);
+	} else {
+		pr_err("%s: Invalid stream\n", __func__);
+		return -EINVAL;
+	}
 
 	ret = snd_pcm_hw_constraint_integer(runtime,
 			SNDRV_PCM_HW_PARAM_PERIODS);
@@ -286,7 +340,11 @@ static int ipq_pcm_mi2s_open(struct snd_pcm_substream *substream)
 	prtd->pcm_stream_info.pcm_prepare_start = 0;
 	prtd->lpaif_clk.is_bit_clk_enabled = 0;
 	prtd->lpaif_clk.is_osr_clk_enabled = 0;
-	prtd->lpaif_info.dma_ch = MI2S_DMA_RD_CH;
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		prtd->lpaif_info.dma_ch = MI2S_DMA_RD_CH;
+	else
+		prtd->lpaif_info.dma_ch = MI2S_DMA_WR_CH;
+
 	prtd->pcm_stream_info.substream = substream;
 	runtime->private_data = prtd;
 	gprtd = prtd;
@@ -307,19 +365,8 @@ static struct snd_pcm_ops ipq_asoc_pcm_mi2s_ops = {
 
 static void ipq_asoc_pcm_mi2s_free(struct snd_pcm *pcm)
 {
-	struct snd_pcm_substream *substream;
-	struct snd_dma_buffer *buf;
-	int stream = 0;
-
-	substream = pcm->streams[stream].substream;
-
-	buf = &substream->dma_buffer;
-	if (buf->area) {
-		dma_free_coherent(pcm->card->dev, buf->bytes,
-					buf->area, buf->addr);
-	}
-
-	buf->area = NULL;
+	ipq_pcm_free_dma_buffer(pcm, SNDRV_PCM_STREAM_PLAYBACK);
+	ipq_pcm_free_dma_buffer(pcm, SNDRV_PCM_STREAM_CAPTURE);
 }
 
 static int ipq_asoc_pcm_mi2s_new(struct snd_soc_pcm_runtime *prtd)
@@ -340,6 +387,17 @@ static int ipq_asoc_pcm_mi2s_new(struct snd_soc_pcm_runtime *prtd)
 		if (ret) {
 			pr_err("%s: %d: Error allocating dma buf\n",
 						__func__, __LINE__);
+			return -ENOMEM;
+		}
+	}
+
+	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
+		ret = ipq_pcm_preallocate_dma_buffer(pcm,
+				SNDRV_PCM_STREAM_CAPTURE);
+		if (ret) {
+			pr_err("%s: %d: Error allocating dma buf\n",
+						__func__, __LINE__);
+			ipq_pcm_free_dma_buffer(pcm, SNDRV_PCM_STREAM_PLAYBACK);
 			return -ENOMEM;
 		}
 	}

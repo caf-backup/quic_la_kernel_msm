@@ -232,6 +232,9 @@ static int ipq_lpass_mi2s_hw_params(struct snd_pcm_substream *substream,
 	struct ipq_lpass_runtime_data_t *prtd =
 	(struct ipq_lpass_runtime_data_t *)runtime->private_data;
 
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+		return -EINVAL; /* Capture not supported for now */
+
 	ipq_cfg_mi2s_disable(LPA_IF_MI2S);
 	bit_act = ipq_lpass_get_act_bit_width(bit_width);
 	if (bit_act == __BIT_INVAL)
@@ -292,6 +295,8 @@ static int ipq_lpass_mi2s_prepare(struct snd_pcm_substream *substream,
 static int ipq_lpass_mi2s_startup(struct snd_pcm_substream *substream,
 					struct snd_soc_dai *dai)
 {
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+		return -EINVAL; /* Capture not supported for now */
 
 	lpaif_mi2s_osr_clk = clk_get(dai->dev, "mi2s_osr_clk");
 	if (IS_ERR(lpaif_mi2s_osr_clk)) {
@@ -317,6 +322,9 @@ static void ipq_lpass_mi2s_shutdown(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct ipq_lpass_runtime_data_t *prtd =
 	(struct ipq_lpass_runtime_data_t *)runtime->private_data;
+
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+		return; /* Capture not supported for now */
 
 	ipq_cfg_i2s_spkr(0, 0, LPA_IF_MI2S);
 
@@ -501,6 +509,15 @@ static struct snd_soc_dai_driver ipq_cpu_dais[] = {
 					SNDRV_PCM_FMTBIT_S32,
 			.channels_min	= LPASS_STEREO,
 			.channels_max	= LPASS_7_1,
+			.rate_min	= FREQ_8000,
+			.rate_max	= FREQ_192000,
+		},
+		.capture = {
+			.rates		= SNDRV_PCM_RATE_8000_192000,
+			.formats	= SNDRV_PCM_FMTBIT_S16 |
+					SNDRV_PCM_FMTBIT_S24,
+			.channels_min	= LPASS_STEREO,
+			.channels_max	= LPASS_STEREO,
 			.rate_min	= FREQ_8000,
 			.rate_max	= FREQ_192000,
 		},
