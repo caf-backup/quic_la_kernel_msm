@@ -229,7 +229,7 @@ static void *msm_nand_get_dma_buffer(struct msm_nand_chip *chip, size_t size)
 	need_mask = (1UL << DIV_ROUND_UP(size, MSM_NAND_DMA_BUFFER_SLOTS)) - 1;
 	bitmask = atomic_read(&chip->dma_buffer_busy);
 	free_bitmask = ~bitmask;
-	do {
+	while (free_bitmask) {
 		free_index = __ffs(free_bitmask);
 		current_need_mask = need_mask << free_index;
 
@@ -251,7 +251,7 @@ static void *msm_nand_get_dma_buffer(struct msm_nand_chip *chip, size_t size)
 		/* below the top busy bit within current_need_mask */
 		free_bitmask &=
 			~(~0U >> (32 - fls(bitmask & current_need_mask)));
-	} while (free_bitmask);
+	}
 
 	return NULL;
 }
