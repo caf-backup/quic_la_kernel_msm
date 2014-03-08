@@ -255,9 +255,6 @@ static int ipq_pcm_mi2s_close(struct snd_pcm_substream *substream)
 static int ipq_pcm_mi2s_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	int ret = 0;
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct ipq_lpass_runtime_data_t *prtd =
-		(struct ipq_lpass_runtime_data_t *)runtime->private_data;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:

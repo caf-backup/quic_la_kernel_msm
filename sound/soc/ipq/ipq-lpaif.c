@@ -279,7 +279,7 @@ int ipq_cfg_mi2s_hwparams_bit_width(uint32_t bit_width, uint32_t off)
 }
 EXPORT_SYMBOL_GPL(ipq_cfg_mi2s_hwparams_bit_width);
 
-int ipq_cfg_mi2s_hwparams_channels(uint32_t channels, uint32_t off,
+int ipq_cfg_mi2s_playback_hwparams_channels(uint32_t channels, uint32_t off,
 						uint32_t bit_width)
 {
 	int ret = 0;
@@ -316,7 +316,7 @@ int ipq_cfg_mi2s_hwparams_channels(uint32_t channels, uint32_t off,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(ipq_cfg_mi2s_hwparams_channels);
+EXPORT_SYMBOL_GPL(ipq_cfg_mi2s_playback_hwparams_channels);
 
 int ipq_cfg_mi2s_capture_hwparams_channels(uint32_t channels, uint32_t off,
 						uint32_t bit_width)

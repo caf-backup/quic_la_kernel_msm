@@ -35,6 +35,18 @@ static struct clk *lpaif_mi2s_bit_clk;
 static struct clk *lpaif_mi2s_osr_clk;
 static struct clk *spdif_bit_clk;
 extern struct clk *lpaif_pcm_bit_clk;
+struct mi2s_hw_params mi2s_params;
+atomic_t mi2s_in_use[2] = {ATOMIC_INIT(0), ATOMIC_INIT(0)};
+
+uint8_t ipq_mi2s_compare_hw_params(struct mi2s_hw_params *curr_params)
+{
+	if ((curr_params->bit_width == mi2s_params.bit_width) &&
+		(curr_params->freq == mi2s_params.freq) &&
+		(curr_params->channels == mi2s_params.channels))
+		return 0;
+	else
+		return -EINVAL;
+}
 
 static int ipq_lpass_spdif_hw_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *params,
@@ -209,7 +221,7 @@ static uint32_t ipq_lpass_get_bit_div(uint32_t samp_freq, uint32_t bit_width,
 		else if (__BIT_24 == bit_width)
 			return __BIT_DIV_2;
 		else
-			return __BIT_DIV_8;
+			return __BIT_DIV_4;
 	case FREQ_176400:
 		return __BIT_DIV_2;
 	default:
@@ -221,32 +233,86 @@ static int ipq_lpass_mi2s_hw_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *params,
 					struct snd_soc_dai *dai)
 {
-	uint32_t ret;
+	uint32_t ret = 0;
 	uint32_t bit_act;
 	uint16_t bit_div;
 	uint32_t bit_width = params_format(params);
 	uint32_t channels = params_channels(params);
 	uint32_t rate = params_rate(params);
-
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct ipq_lpass_runtime_data_t *prtd =
 	(struct ipq_lpass_runtime_data_t *)runtime->private_data;
+	struct mi2s_hw_params curr_params;
 
-	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
-		return -EINVAL; /* Capture not supported for now */
-
-	ipq_cfg_mi2s_disable(LPA_IF_MI2S);
 	bit_act = ipq_lpass_get_act_bit_width(bit_width);
 	if (bit_act == __BIT_INVAL)
 		return -EINVAL;
 
 	prtd->pcm_stream_info.bit_width = bit_act;
+	curr_params.freq = rate;
+	curr_params.channels = channels;
+	curr_params.bit_width = bit_act;
 
-	ret = ipq_cfg_mi2s_hwparams_bit_width(bit_width, LPA_IF_MI2S);
+        /*
+         * Since CLKS are shared by all I2S channels, Rx and Tx when used
+         * simulatneoulsy will have to use the same channel, sampling
+         * frequency and bit widths. So compare the settings and then
+         * enable the clocks. Any MIC register change will take
+         * effect only when MIC is enabled in trigger.
+         */
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		atomic_set(&mi2s_in_use[SNDRV_PCM_STREAM_PLAYBACK], 1);
+		/* disable SPKR to make sure it will start in sane state */
+		ipq_cfg_i2s_spkr(0, 0, LPA_IF_MI2S);
+
+		/*
+		 * Set channel info, it will take effect only if SPKR is
+		 * enabled
+		 */
+		ret = ipq_cfg_mi2s_playback_hwparams_channels(channels,
+						LPA_IF_MI2S, bit_act);
+		if (atomic_read(&mi2s_in_use[SNDRV_PCM_STREAM_CAPTURE])) {
+			if (ipq_mi2s_compare_hw_params(&curr_params))
+				/* Playback and capture settings do not match */
+				return -EINVAL;
+			else
+				/* Settings match, CLK is already enabled */
+				return 0;
+		}
+	} else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+		atomic_set(&mi2s_in_use[SNDRV_PCM_STREAM_CAPTURE], 1);
+		/* disable MIC to make sure it will start in sane state */
+		ipq_cfg_i2s_mic(0, LPA_IF_MI2S);
+
+		/*
+		 * Set channel info, it will take effect only if MIC is
+		 * enabled
+		 */
+		ret = ipq_cfg_mi2s_capture_hwparams_channels(channels,
+						LPA_IF_MI2S, bit_act);
+		if (atomic_read(&mi2s_in_use[SNDRV_PCM_STREAM_PLAYBACK])) {
+			if (ipq_mi2s_compare_hw_params(&curr_params))
+				/* Playback and capture settings do not match */
+				return -EINVAL;
+			else
+				/* Settings match, CLK is already enabled */
+				return 0;
+		}
+	} else {
+		return -EINVAL;
+	}
+
+	/* Make sure our channel setting was success */
 	if (ret)
+		/* shutdown would be called where we restore stuff */
 		return -EINVAL;
 
-	ret = ipq_cfg_mi2s_hwparams_channels(channels, LPA_IF_MI2S, bit_act);
+	mi2s_params.freq = rate;
+	mi2s_params.channels = channels;
+	mi2s_params.bit_width = bit_act;
+
+	ret = ipq_cfg_mi2s_hwparams_bit_width(bit_width, LPA_IF_MI2S);
 	if (ret)
 		return -EINVAL;
 
@@ -282,7 +348,6 @@ static int ipq_lpass_mi2s_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 	prtd->lpaif_clk.is_bit_clk_enabled = 1;
-
 	return 0;
 }
 
@@ -295,8 +360,6 @@ static int ipq_lpass_mi2s_prepare(struct snd_pcm_substream *substream,
 static int ipq_lpass_mi2s_startup(struct snd_pcm_substream *substream,
 					struct snd_soc_dai *dai)
 {
-	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
-		return -EINVAL; /* Capture not supported for now */
 
 	lpaif_mi2s_osr_clk = clk_get(dai->dev, "mi2s_osr_clk");
 	if (IS_ERR(lpaif_mi2s_osr_clk)) {
@@ -312,7 +375,13 @@ static int ipq_lpass_mi2s_startup(struct snd_pcm_substream *substream,
 		return PTR_ERR(lpaif_mi2s_bit_clk);
 	}
 
-	ipq_cfg_i2s_spkr(0, 0, LPA_IF_MI2S);
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		ipq_cfg_i2s_spkr(0, 0, LPA_IF_MI2S);
+	else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+		ipq_cfg_i2s_mic(0, LPA_IF_MI2S);
+	else
+		return -EINVAL;
+
 	return 0;
 }
 
@@ -323,25 +392,30 @@ static void ipq_lpass_mi2s_shutdown(struct snd_pcm_substream *substream,
 	struct ipq_lpass_runtime_data_t *prtd =
 	(struct ipq_lpass_runtime_data_t *)runtime->private_data;
 
-	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
-		return; /* Capture not supported for now */
+	atomic_set(&mi2s_in_use[substream->stream], 0);
 
-	ipq_cfg_i2s_spkr(0, 0, LPA_IF_MI2S);
+	/*
+	 * Since CLKS are shared by all I2S channels, we need to shutdown
+	 * the clock only when both streams have been closed.
+	*/
 
-	if (lpaif_mi2s_osr_clk) {
-		if (prtd->lpaif_clk.is_osr_clk_enabled)
-			clk_disable_unprepare(lpaif_mi2s_osr_clk);
+	if (!(atomic_read(&mi2s_in_use[SNDRV_PCM_STREAM_PLAYBACK]) ||
+		atomic_read(&mi2s_in_use[SNDRV_PCM_STREAM_CAPTURE]))) {
+		if (lpaif_mi2s_osr_clk) {
+			if (prtd->lpaif_clk.is_osr_clk_enabled)
+				clk_disable_unprepare(lpaif_mi2s_osr_clk);
 
-		clk_put(lpaif_mi2s_osr_clk);
-		lpaif_mi2s_osr_clk = NULL;
-	}
+			clk_put(lpaif_mi2s_osr_clk);
+			lpaif_mi2s_osr_clk = NULL;
+		}
 
-	if (lpaif_mi2s_bit_clk) {
-		if (prtd->lpaif_clk.is_bit_clk_enabled)
-			clk_disable_unprepare(lpaif_mi2s_bit_clk);
+		if (lpaif_mi2s_bit_clk) {
+			if (prtd->lpaif_clk.is_bit_clk_enabled)
+				clk_disable_unprepare(lpaif_mi2s_bit_clk);
 
-		clk_put(lpaif_mi2s_bit_clk);
-		lpaif_mi2s_bit_clk = NULL;
+			clk_put(lpaif_mi2s_bit_clk);
+			lpaif_mi2s_bit_clk = NULL;
+		}
 	}
 }
 

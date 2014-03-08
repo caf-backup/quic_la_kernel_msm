@@ -272,10 +272,10 @@ extern void ipq_cfg_pcm_slot(uint8_t, uint8_t);
 extern void ipq_cfg_pcm_width(uint8_t bit_width, uint8_t dir);
 extern void ipq_cfg_pcm_rate(uint32_t rate);
 extern int ipq_cfg_mi2s_hwparams_bit_width(uint32_t bit_width, uint32_t off);
-extern int ipq_cfg_mi2s_capture_hwparams_channels(uint32_t channels, uint32_t off,
-							uint32_t bit_width);
-extern int ipq_cfg_mi2s_hwparams_channels(uint32_t channels, uint32_t off,
-							uint32_t bit_width);
+extern int ipq_cfg_mi2s_capture_hwparams_channels(uint32_t channels,
+				uint32_t off, uint32_t bit_width);
+extern int ipq_cfg_mi2s_playback_hwparams_channels(uint32_t channels,
+				uint32_t off, uint32_t bit_width);
 extern uint8_t ipq_lpaif_dma_stop(uint8_t dma_ch);
 extern uint8_t ipq_lpaif_dma_start(uint8_t dma_ch);
 extern void ipq_cfg_i2s_spkr(uint8_t enable, uint32_t mode, uint32_t off);
