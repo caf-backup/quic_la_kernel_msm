@@ -283,5 +283,7 @@ extern struct lpass_clk_baseinfo lpass_clk_base;
 
 #define LPASS_MI2S_BUFF_SIZE		(LPASS_MI2S_PERIOD_BYTES_MIN * \
 					LPASS_MI2S_NO_OF_PERIODS)
+#define LPASS_MI2S_CAPTURE_BUFF_SIZE	(LPASS_MI2S_PERIOD_BYTES_MIN * \
+					LPASS_MI2S_NO_OF_PERIODS * 2)
 
 #endif /* _IPQ806x_H */
