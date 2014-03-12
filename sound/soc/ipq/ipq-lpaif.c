@@ -30,6 +30,7 @@
 #include <sound/soc.h>
 #include <mach/msm_iomap-8x60.h>
 #include <mach/audio_dma_msm8k.h>
+#include <mach/socinfo.h>
 #include <sound/dai.h>
 #include "ipq-pcm.h"
 #include "ipq-lpaif.h"
@@ -42,6 +43,7 @@ struct dai_drv *dai[MAX_LPAIF_CHANNELS];
 static spinlock_t dai_lock;
 struct clk *lpaif_pcm_bit_clk;
 EXPORT_SYMBOL_GPL(lpaif_pcm_bit_clk);
+static uint32_t chip_version = 0;
 
 int ipq_pcm_int_enable(uint8_t dma_ch)
 {
@@ -134,26 +136,26 @@ void ipq_cfg_pcm_rate(uint32_t rate)
 	/* Clear the rate field */
 	cfg = cfg & ~(LPA_IF_PCM_RATE_MASK);
 	switch (rate) {
-		case IPQ_PCM_BITS_IN_FRAME_8:
-			cfg |= LPA_IF_PCM_CTL_8_BITS;
-			break;
-		case IPQ_PCM_BITS_IN_FRAME_16:
-			cfg |= LPA_IF_PCM_CTL_16_BITS;
-			break;
-		case IPQ_PCM_BITS_IN_FRAME_32:
-			cfg |= LPA_IF_PCM_CTL_32_BITS;
-			break;
-		case IPQ_PCM_BITS_IN_FRAME_64:
-			cfg |= LPA_IF_PCM_CTL_64_BITS;
-			break;
-		case IPQ_PCM_BITS_IN_FRAME_128:
-			cfg |= LPA_IF_PCM_CTL_128_BITS;
-			break;
-		case IPQ_PCM_BITS_IN_FRAME_256:
-			cfg |= LPA_IF_PCM_CTL_256_BITS;
-			break;
-		default:
-			break;
+	case IPQ_PCM_BITS_IN_FRAME_8:
+		cfg |= LPA_IF_PCM_CTL_8_BITS;
+		break;
+	case IPQ_PCM_BITS_IN_FRAME_16:
+		cfg |= LPA_IF_PCM_CTL_16_BITS;
+		break;
+	case IPQ_PCM_BITS_IN_FRAME_32:
+		cfg |= LPA_IF_PCM_CTL_32_BITS;
+		break;
+	case IPQ_PCM_BITS_IN_FRAME_64:
+		cfg |= LPA_IF_PCM_CTL_64_BITS;
+		break;
+	case IPQ_PCM_BITS_IN_FRAME_128:
+		cfg |= LPA_IF_PCM_CTL_128_BITS;
+		break;
+	case IPQ_PCM_BITS_IN_FRAME_256:
+		cfg |= LPA_IF_PCM_CTL_256_BITS;
+		break;
+	default:
+		break;
 	}
 	writel(cfg, dai_info.base + LPA_IF_PCM_0);
 }
@@ -165,24 +167,130 @@ void ipq_cfg_pcm_width(uint8_t bit_width, uint8_t dir)
 	cfg = readl(dai_info.base + LPA_IF_PCM_0);
 
 	switch (bit_width) {
-		case IPQ_PCM_BIT_WIDTH_8:
-			if (dir)
-				cfg = cfg & ~(LPA_IF_PCM_TPCM_WIDTH);
-			else
-				cfg = cfg & ~(LPA_IF_PCM_RPCM_WIDTH);
-			break;
-		case IPQ_PCM_BIT_WIDTH_16:
-			if (dir)
-				cfg |= LPA_IF_PCM_TPCM_WIDTH;
-			else
-				cfg |= LPA_IF_PCM_RPCM_WIDTH;
-			break;
-		default:
-			break;
+	case IPQ_PCM_BIT_WIDTH_8:
+		if (dir)
+			cfg = cfg & ~(LPA_IF_PCM_TPCM_WIDTH);
+		else
+			cfg = cfg & ~(LPA_IF_PCM_RPCM_WIDTH);
+		break;
+	case IPQ_PCM_BIT_WIDTH_16:
+		if (dir)
+			cfg |= LPA_IF_PCM_TPCM_WIDTH;
+		else
+			cfg |= LPA_IF_PCM_RPCM_WIDTH;
+		break;
+	default:
+		break;
 	}
 	writel(cfg, dai_info.base + LPA_IF_PCM_0);
 }
 EXPORT_SYMBOL_GPL(ipq_cfg_pcm_width);
+
+uint32_t ipq_cfg_pcm_active_slot_count(uint8_t slot_count, uint8_t dir)
+{
+	uint32_t cfg;
+
+	/* Supported only from AK 2.0 */
+	if (SOCINFO_VERSION_MAJOR(chip_version) < 2)
+		return -ENOTSUPP;
+
+	if (slot_count > LPA_IF_PCM_MAX_ACT_SLOT)
+		return -EINVAL;
+
+	cfg = readl(dai_info.base + LPA_IF_PCM_SLOT2_CTL0);
+
+	if (dir) { /* rx */
+		cfg &= ~(LPA_IF_PCM_RPCM_SLOT_COUNT_MASK);
+		cfg |= LPA_IF_PCM_RPCM_SLOT_COUNT(slot_count - 1); /* 0 based */
+	} else { /* tx */
+		cfg &= ~(LPA_IF_PCM_TPCM_SLOT_COUNT_MASK);
+		cfg |= LPA_IF_PCM_TPCM_SLOT_COUNT(slot_count - 1); /* 0 based */
+	}
+
+	writel(cfg, dai_info.base + LPA_IF_PCM_SLOT2_CTL0);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ipq_cfg_pcm_active_slot_count);
+
+uint32_t ipq_cfg_pcm_tx_active_slot(uint32_t slot, uint32_t val)
+{
+	uint32_t cfg;
+
+	/* Supported only from AK 2.0 */
+	if (SOCINFO_VERSION_MAJOR(chip_version) < 2)
+		return -ENOTSUPP;
+
+	switch (slot) {
+	case LPA_IF_TPCM_SLOT0:
+		cfg = readl(dai_info.base + LPA_IF_PCM_0);
+		cfg = (cfg & ~(LPA_IF_TPCM_SLOT_MASK)) |
+			LPA_IF_PCM_TPCM_SLOT(val);
+		writel(cfg, dai_info.base + LPA_IF_PCM_0);
+		break;
+	case LPA_IF_TPCM_SLOT1:
+		cfg = readl(dai_info.base + LPA_IF_PCM_SLOT_CTL0);
+		cfg = ((cfg & ~(LPA_IF_PCM_TPCM_SLOT1_MASK)) |
+				LPA_IF_PCM_TPCM_SLOT1(val));
+		writel(cfg, dai_info.base + LPA_IF_PCM_SLOT_CTL0);
+		break;
+	case LPA_IF_TPCM_SLOT2:
+		cfg = readl(dai_info.base + LPA_IF_PCM_SLOT2_CTL0);
+		cfg = ((cfg & ~(LPA_IF_PCM_TPCM_SLOT2_MASK)) |
+				LPA_IF_PCM_TPCM_SLOT2(val));
+		writel(cfg, dai_info.base + LPA_IF_PCM_SLOT2_CTL0);
+		break;
+	case LPA_IF_TPCM_SLOT3:
+		cfg = readl(dai_info.base + LPA_IF_PCM_SLOT2_CTL0);
+		cfg = ((cfg & ~(LPA_IF_PCM_TPCM_SLOT3_MASK)) |
+				LPA_IF_PCM_TPCM_SLOT3(val));
+		writel(cfg, dai_info.base + LPA_IF_PCM_SLOT2_CTL0);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ipq_cfg_pcm_tx_active_slot);
+
+uint32_t ipq_cfg_pcm_rx_active_slot(uint32_t slot, uint32_t val)
+{
+	uint32_t cfg;
+
+	/* Supported only from AK 2.0 */
+	if (SOCINFO_VERSION_MAJOR(chip_version) < 2)
+		return -ENOTSUPP;
+
+	switch (slot) {
+	case LPA_IF_RPCM_SLOT0:
+		cfg = readl(dai_info.base + LPA_IF_PCM_0);
+		cfg = ((cfg & ~(LPA_IF_RPCM_SLOT_MASK)) |
+			(LPA_IF_PCM_RPCM_SLOT(val)));
+		writel(cfg, dai_info.base + LPA_IF_PCM_0);
+		break;
+	case LPA_IF_RPCM_SLOT1:
+		cfg = readl(dai_info.base + LPA_IF_PCM_SLOT_CTL0);
+		cfg = ((cfg & ~(LPA_IF_PCM_RPCM_SLOT1_MASK)) |
+			(LPA_IF_PCM_RPCM_SLOT1(val)));
+		writel(cfg, dai_info.base + LPA_IF_PCM_SLOT_CTL0);
+		break;
+	case LPA_IF_RPCM_SLOT2:
+		cfg = readl(dai_info.base + LPA_IF_PCM_SLOT_CTL0);
+		cfg = ((cfg & ~(LPA_IF_PCM_RPCM_SLOT2_MASK)) |
+			(LPA_IF_PCM_RPCM_SLOT2(val)));
+		writel(cfg, dai_info.base + LPA_IF_PCM_SLOT_CTL0);
+		break;
+	case LPA_IF_RPCM_SLOT3:
+		cfg = readl(dai_info.base + LPA_IF_PCM_SLOT_CTL0);
+		cfg = ((cfg & ~(LPA_IF_PCM_RPCM_SLOT3_MASK)) |
+			(LPA_IF_PCM_RPCM_SLOT3(val)));
+		writel(cfg, dai_info.base + LPA_IF_PCM_SLOT_CTL0);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ipq_cfg_pcm_rx_active_slot);
 
 void ipq_pcm_start(void)
 {
@@ -664,6 +772,10 @@ static int __devinit ipq_lpaif_dai_probe(struct platform_device *pdev)
 	uint8_t i;
 	uint32_t rc;
 	struct resource *lpa_res;
+	struct device *lpaif_device;
+
+	lpaif_device = &pdev->dev;
+	chip_version = *((uint32_t *)lpaif_device->platform_data);
 
 	lpa_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ipq-dai");
 	if (!lpa_res) {

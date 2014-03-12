@@ -2467,11 +2467,16 @@ static struct resource ipq_lpass_clk[] = {
         },
 };
 
+static uint32_t ipq_chip_version = 0;
+
 struct platform_device ipq806x_lpass_lpaif = {
 	.name = "ipq-lpaif",
 	.id = -1,
 	.num_resources = ARRAY_SIZE(ipq_lpaif_resources),
 	.resource = ipq_lpaif_resources,
+	.dev	= {
+		.platform_data = &ipq_chip_version,
+	},
 };
 
 struct  platform_device ipq806x_lpass_dmlite = {

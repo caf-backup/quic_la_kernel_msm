@@ -175,7 +175,6 @@
 
 /* PCM CTRL */
 #define LPA_IF_PCM_0		0x0
-#define LPA_IF_PCM_1		0x4
 #define LPA_IF_PCM_CTL_8_BITS	(0 << 15)
 #define LPA_IF_PCM_CTL_16_BITS	(1 << 15)
 #define LPA_IF_PCM_CTL_32_BITS	(2 << 15)
@@ -192,9 +191,30 @@
 #define LPA_IF_TPCM_SLOT_MASK	(0x001F)
 #define LPA_IF_PCM_RATE_MASK	(7 << 15)
 
-/* PCM RPCM SLOTS */
 #define LPA_IF_PCM_RPCM_SLOT(x)	(x << 5)
 #define LPA_IF_PCM_TPCM_SLOT(x)	(x << 0)
+
+/* AK 2.0 specific CTL register */
+#define LPA_IF_PCM_SLOT_CTL0		0x0004
+#define LPA_IF_PCM_RPCM_SLOT1(x)	((x) << 0)
+#define LPA_IF_PCM_RPCM_SLOT2(x)	((x) << 5)
+#define LPA_IF_PCM_RPCM_SLOT3(x)	((x) << 10)
+#define LPA_IF_PCM_TPCM_SLOT1(x)	((x) << 15)
+#define LPA_IF_PCM_RPCM_SLOT1_MASK	0x1F
+#define LPA_IF_PCM_RPCM_SLOT2_MASK	0x3E0
+#define LPA_IF_PCM_RPCM_SLOT3_MASK	0x7C00
+#define LPA_IF_PCM_TPCM_SLOT1_MASK	0xF8000
+#define LPA_IF_PCM_SLOT2_CTL0		0x0018
+#define LPA_IF_PCM_TPCM_SLOT2(x)	((x) << 0)
+#define LPA_IF_PCM_TPCM_SLOT3(x)	((x) << 5)
+#define LPA_IF_PCM_TPCM_SLOT_COUNT(x)	((x) << 10)
+#define LPA_IF_PCM_RPCM_SLOT_COUNT(x)	((x) << 12)
+#define LPA_IF_PCM_EN_ALL_SLOTS		(1 << 14)
+#define LPA_IF_PCM_TPCM_SLOT2_MASK	0x1F
+#define LPA_IF_PCM_TPCM_SLOT3_MASK	0x3E0
+#define LPA_IF_PCM_TPCM_SLOT_COUNT_MASK	0xC00
+#define LPA_IF_PCM_RPCM_SLOT_COUNT_MASK	0x3000
+#define LPA_IF_PCM_MAX_ACT_SLOT		0x4
 
 #define __BIT_8		8
 #define __BIT_16	16
@@ -234,6 +254,22 @@ enum mi2s_samp_freq {
 enum pcm_rates {
 	PCM_RATE_8000 = 8000,
 	PCM_RATE_16000 = 16000,
+};
+
+enum LPA_IF_TPCM_SLOT {
+	LPA_IF_TPCM_SLOT0 = 0,
+	LPA_IF_TPCM_SLOT1,
+	LPA_IF_TPCM_SLOT2,
+	LPA_IF_TPCM_SLOT3,
+	LPA_IF_TPCM_MAX_SLOT = 4,
+};
+
+enum LPA_IF_RPCM_SLOT {
+	LPA_IF_RPCM_SLOT0 = 0,
+	LPA_IF_RPCM_SLOT1,
+	LPA_IF_RPCM_SLOT2,
+	LPA_IF_RPCM_SLOT3,
+	LPA_IF_RPCM_MAX_SLOT = 4,
 };
 
 struct ipq_lpaif_dai_baseinfo {
@@ -290,5 +326,8 @@ extern void ipq_lpaif_disable_dma(uint32_t dma_ch);
 extern int ipq_lpaif_dai_config_dma(uint32_t dma_ch);
 extern void ipq_cfg_pcm_aux_mode(uint8_t mode);
 extern void ipq_cfg_mi2s_disable(uint32_t off);
+extern uint32_t ipq_cfg_pcm_rx_active_slot(uint32_t slot, uint32_t val);
+extern uint32_t ipq_cfg_pcm_tx_active_slot(uint32_t slot, uint32_t val);
+extern uint32_t ipq_cfg_pcm_active_slot_count(uint8_t slot_count, uint8_t dir);
 
 #endif /* _IPQ_LPA_IF_H */

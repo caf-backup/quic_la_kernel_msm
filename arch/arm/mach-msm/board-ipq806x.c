@@ -2097,6 +2097,8 @@ static void __init ipq806x_common_init(void)
 	if (!machine_is_ipq806x_db149_1xx())
 		platform_device_register(&msm_device_nand);
 
+	*((uint32_t *)(ipq806x_lpass_lpaif.dev.platform_data)) = socinfo_get_version();
+
 	if (machine_is_ipq806x_db149() || machine_is_ipq806x_db149_1xx()) {
 		platform_add_devices(lpass_clock_devices, ARRAY_SIZE(lpass_clock_devices));
 		platform_add_devices(lpass_dma_devices, ARRAY_SIZE(lpass_dma_devices));
