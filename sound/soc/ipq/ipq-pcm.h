@@ -26,6 +26,9 @@
 					SAMPLES_PER_TXN * NUM_BUFFERS)
 #define VOICE_PERIOD_SIZE       (VOICE_BUFF_SIZE / NUM_BUFFERS)
 
+#define IPQ_PCM_SAMPLES_PER_10MS(rate) ((rate / 1000) * 10)
+#define IPQ_PCM_BYTES_PER_SAMPLE(bit_width) (bit_width / 8)
+
 struct pcm_context {
 	uint32_t rd_pending;
 	uint8_t needs_deinit;
@@ -57,6 +60,22 @@ enum ipq_pcm_bits_in_frame {
 enum ipq_pcm_bit_width {
 	IPQ_PCM_BIT_WIDTH_8 = 8,
 	IPQ_PCM_BIT_WIDTH_16 = 16,
+};
+
+enum ipq_pcm_sampling_rate {
+	IPQ_PCM_SAMPLING_RATE_8KHZ = 8000,
+	IPQ_PCM_SAMPLING_RATE_16KHZ = 16000,
+	IPQ_PCM_SAMPLING_RATE_32KHZ = 32000,
+	IPQ_PCM_SAMPLING_RATE_48KHZ = 48000,
+};
+
+enum ipq_pcm_slots_per_frame {
+	IPQ_PCM_SLOTS_1 = 1,
+	IPQ_PCM_SLOTS_2 = 2,
+	IPQ_PCM_SLOTS_4 = 4,
+	IPQ_PCM_SLOTS_8 = 8,
+	IPQ_PCM_SLOTS_16 = 16,
+	IPQ_PCM_SLOTS_32 = 32,
 };
 
 struct ipq_pcm_stream_t {
@@ -114,5 +133,13 @@ enum dma_intf_rd_ch {
 	MAX_DMA_RD_CH = 4,
 };
 
+struct ipq_pcm_params {
+	uint32_t bit_width;
+	uint32_t rate;
+	uint32_t slot_count;
+	uint32_t active_slot_count;
+	uint32_t tx_slots[4];
+	uint32_t rx_slots[4];
+};
 extern struct clk *lpaif_pcm_bit_clk;
 #endif /*_IPQ_PCM_H */
