@@ -35,7 +35,6 @@
 #include "ipq-dmlite.h"
 #include "ipq-pcm.h"
 #include "ipq806x.h"
-#include "ipq-mi2s-codec.h"
 
 extern struct lpass_dml_baseinfo dml_info;
 extern struct ipq_lpass_runtime_data_t *gprtd;
@@ -258,8 +257,6 @@ static int ipq_pcm_mi2s_trigger(struct snd_pcm_substream *substream, int cmd)
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			ipq_mi2s_ctrl_reset_codec();
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
