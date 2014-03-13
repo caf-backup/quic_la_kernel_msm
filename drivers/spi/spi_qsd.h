@@ -241,6 +241,9 @@ struct msm_spi {
 	struct list_head         queue;
 	struct workqueue_struct *workqueue;
 	struct work_struct       work_data;
+	struct kthread_worker	 spi_kthread_worker;
+	struct kthread_work	 spi_kthread_work;
+	struct task_struct 	*spi_kthread;
 	struct spi_message      *cur_msg;
 	struct spi_transfer     *cur_transfer;
 	struct completion        transfer_complete;
@@ -262,6 +265,7 @@ struct msm_spi {
 	int                      irq_out;
 	int                      irq_err;
 #endif
+	struct irq_affinity_notify irq_notify;
 	int                      bytes_per_word;
 	bool                     suspended;
 	bool                     transfer_pending;
