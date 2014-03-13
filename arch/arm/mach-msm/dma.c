@@ -1,4 +1,4 @@
-/* * Copyright (c) 2012 The Linux Foundation. All rights reserved.* */
+/* * Copyright (c) 2012, 2014 The Linux Foundation. All rights reserved.* */
 /* linux/arch/arm/mach-msm/dma.c
  *
  * Copyright (C) 2007 Google, Inc.
@@ -24,6 +24,7 @@
 #include <linux/spinlock.h>
 #include <linux/pm_runtime.h>
 #include <mach/dma.h>
+#include <mach/dma_memcpy.h>
 
 #define MODULE_NAME "msm_dmov"
 
@@ -295,6 +296,8 @@ unsigned int msm_dmov_print_mask = MSM_DMOV_PRINT_ERRORS;
 	MSM_DMOV_DPRINTF(MSM_DMOV_PRINT_IO, format, args);
 #define PRINT_FLOW(format, args...) \
 	MSM_DMOV_DPRINTF(MSM_DMOV_PRINT_FLOW, format, args);
+
+extern int msm_dmov_memcpy_init(struct device *dev);
 
 static int msm_dmov_clk_on(int adm)
 {
@@ -879,6 +882,7 @@ static int msm_dmov_probe(struct platform_device *pdev)
 	}
 	wmb();
 	msm_dmov_clk_off(adm);
+	msm_dmov_memcpy_init(&pdev->dev);
 	return ret;
 out_irq:
 	free_irq(dmov_conf[adm].irq, NULL);
