@@ -36,9 +36,10 @@
  */
 
 extern void ipq_pcm_init(void);
+extern uint32_t ipq_pcm_init_v2(struct ipq_pcm_params *params);
 extern void ipq_pcm_deinit(void);
 extern uint32_t ipq_pcm_data(char **rx_buf, char **tx_buf);
-extern void ipq_pcm_done();
+extern void ipq_pcm_done(void);
 static void pcm_start_test(void);
 
 #define LOOPBACK_SKIP_COUNT		10
@@ -121,28 +122,65 @@ void pcm_lb_sysfs_deinit(void)
 	}
 }
 
-void pcm_read_write(void)
+uint32_t pcm_read_write(void)
 {
 	char *rx_buff;
 	char *tx_buff;
-	int i;
+	uint32_t i;
+	uint32_t size;
 
-	ipq_pcm_data(&rx_buff, &tx_buff);
+	size = ipq_pcm_data(&rx_buff, &tx_buff);
 	ctx.last_rx_buff = rx_buff;
 
 	/* get current Tx buffer and write the pattern
 	 * We will write 1, 2, 3, ..., 255, 1, 2, 3...
 	 */
-	for (i =  0; i < (VOICE_PERIOD_SIZE); i++) {
+	for (i =  0; i < size; i++) {
 		tx_buff[i] = ctx.tx_data;
 		ctx.tx_data ++;
 	}
 	ipq_pcm_done();
+	return size;
 }
 
-void pcm_init(void)
+uint32_t pcm_init(void)
 {
-	ipq_pcm_init();
+	struct ipq_pcm_params  cfg_params;
+	uint32_t ret = 0;
+	if (start == 1) {
+		/* 8 bit 8 KHz 2 channels : AK 1.0 */
+		ipq_pcm_init();
+	} else if (start == 2) {
+	/* 16 bit 16 KHz 2 channels : AK 2.0 */
+		cfg_params.bit_width = 16;
+		cfg_params.rate = 16000;
+		cfg_params.slot_count = 8;
+		cfg_params.active_slot_count = 2;
+		cfg_params.tx_slots[0] = 1;
+		cfg_params.tx_slots[1] = 4;
+		cfg_params.rx_slots[0] = 1;
+		cfg_params.rx_slots[1] = 4;
+		ret = ipq_pcm_init_v2(&cfg_params);
+	} else if (start == 3) {
+	/* 16 bit 8 KHz 4 channels : AK 2.0 */
+		cfg_params.bit_width = 16;
+		cfg_params.rate = 8000;
+		cfg_params.slot_count = 16;
+		cfg_params.active_slot_count = 4;
+		cfg_params.tx_slots[0] = 0;
+		cfg_params.tx_slots[1] = 1;
+		cfg_params.tx_slots[2] = 8;
+		cfg_params.tx_slots[3] = 9;
+		cfg_params.rx_slots[0] = 0;
+		cfg_params.rx_slots[1] = 1;
+		cfg_params.rx_slots[2] = 8;
+		cfg_params.rx_slots[3] = 9;
+		ret = ipq_pcm_init_v2(&cfg_params);
+	} else {
+		ret = -EINVAL;
+		pr_err("Unknown configuration\n");
+	}
+	return ret;
 }
 
 void pcm_deinit(void)
@@ -152,7 +190,7 @@ void pcm_deinit(void)
 	ipq_pcm_deinit();
 }
 
-void process_read(void)
+void process_read(uint32_t size)
 {
 	uint32_t index;
 	static uint32_t continuous_failures = 0;
@@ -180,7 +218,7 @@ void process_read(void)
 		return;
 
 	data = ctx.expected_rx_seq;
-	for (index = 0; index < VOICE_PERIOD_SIZE; index++) {
+	for (index = 0; index < size; index++) {
 		if (ctx.last_rx_buff[index] != (data)) {
 			printk("Rx (%d) Failed at index %d: "
 				"Expected : %d, Received : %d\n",
@@ -190,7 +228,7 @@ void process_read(void)
 		data ++;
 	}
 
-	if (index == VOICE_PERIOD_SIZE) {
+	if (index == size) {
 		ctx.passed++;
 		continuous_failures = 0;
 	} else {
@@ -198,7 +236,7 @@ void process_read(void)
 		continuous_failures ++;
 	}
 
-	ctx.expected_rx_seq += VOICE_PERIOD_SIZE;
+	ctx.expected_rx_seq += size;
 
 	/* Abort if there are more failures */
 	if (continuous_failures >= LOOPBACK_FAIL_THRESHOLD) {
@@ -212,9 +250,8 @@ void process_read(void)
 int pcm_test_rw(void *data)
 {
 	struct sched_param param;
-	int ret;
-	printk("%s : Test thread started\n", __func__);
-	ctx.running = 1;
+	uint32_t ret;
+	uint32_t size;
 
 	/*
 	 * set test thread priority as 90, this is to align with what
@@ -226,11 +263,17 @@ int pcm_test_rw(void *data)
 	if (ret)
 		printk("%s : Error setting priority, error: %d\n", __func__, ret);
 
-	pcm_init();
+	ret = pcm_init();
+	if (ret) {
+		printk("Pcm init failed %d \n", ret);
+		return ret;
+	}
 
+	printk("%s : Test thread started\n", __func__);
+	ctx.running = 1;
 	while (ctx.running) {
-		pcm_read_write();
-		process_read();
+		size = pcm_read_write();
+		process_read(size);
 	}
 	printk("%s : Test Thread stopped\n", __func__);
 	printk("\nPassed : %d, Failed : %d\n", ctx.passed, ctx.failed);
