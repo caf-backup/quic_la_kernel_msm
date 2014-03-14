@@ -1427,11 +1427,10 @@ error:
 	}
 }
 
-/* workqueue - pull messages from queue & process */
-static void msm_spi_workq(struct work_struct *work)
+
+/* pull messages from queue & process */
+static void msm_spi_message_handler(struct msm_spi *dd)
 {
-	struct msm_spi      *dd =
-		container_of(work, struct msm_spi, work_data);
 	unsigned long        flags;
 	u32                  status_error = 0;
 
@@ -1489,6 +1488,28 @@ static void msm_spi_workq(struct work_struct *work)
 		wake_up_interruptible(&dd->continue_suspend);
 }
 
+static void msm_spi_workq(struct work_struct *work)
+{
+	struct msm_spi *dd =
+		container_of(work, struct msm_spi, work_data);
+	msm_spi_message_handler(dd);
+}
+
+static void msm_spi_kthread(struct kthread_work *work)
+{
+	struct msm_spi *dd =
+		container_of(work, struct msm_spi, spi_kthread_work);
+	msm_spi_message_handler(dd);
+}
+
+static inline void msm_spi_queue_thread(struct msm_spi *dd)
+{
+	if (dd->pdata->thread_mode == MSM_SPI_THREAD_RT)
+		queue_kthread_work(&dd->spi_kthread_worker, &dd->spi_kthread_work);
+	else
+		queue_work(dd->workqueue, &dd->work_data);
+}
+
 static int msm_spi_transfer(struct spi_device *spi, struct spi_message *msg)
 {
 	struct msm_spi	*dd;
@@ -1517,7 +1538,7 @@ static int msm_spi_transfer(struct spi_device *spi, struct spi_message *msg)
 	spin_lock_irqsave(&dd->queue_lock, flags);
 	list_add_tail(&msg->queue, &dd->queue);
 	spin_unlock_irqrestore(&dd->queue_lock, flags);
-	queue_work(dd->workqueue, &dd->work_data);
+	msm_spi_queue_thread(dd);
 	return 0;
 }
 
@@ -1929,6 +1950,67 @@ struct msm_spi_platform_data *msm_spi_dt_to_pdata(struct platform_device *pdev)
 	return pdata;
 }
 
+static int msm_spi_init_thread(struct platform_device *pdev, struct msm_spi *dd)
+{
+	int ret;
+	struct sched_param param;
+	struct spi_master *master;
+
+	if (dd->pdata->thread_mode == MSM_SPI_THREAD_RT) {
+		init_kthread_worker(&dd->spi_kthread_worker);
+		init_kthread_work(&dd->spi_kthread_work, msm_spi_kthread);
+		dd->spi_kthread = kthread_run(kthread_worker_fn,
+				(void *)&dd->spi_kthread_worker, "msm-spi-thread");
+		if (IS_ERR(dd->spi_kthread)) {
+			pr_err("Unable to create msm_spi kthread\n");
+			return -1;
+		}
+
+		if (dd->pdata->thread_priority) {
+			param.sched_priority = dd->pdata->thread_priority;
+			ret = sched_setscheduler(dd->spi_kthread, SCHED_FIFO, &param);
+			if (ret)
+				pr_err("%s : Error setting priority, error: %d\n",
+						__func__, ret);
+		}
+	} else {
+		master = platform_get_drvdata(pdev);
+		INIT_WORK(&dd->work_data, msm_spi_workq);
+		dd->workqueue = create_singlethread_workqueue(
+				dev_name(master->dev.parent));
+		if (!dd->workqueue) {
+			pr_err("Unable to create msm_spi workqueue\n");
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+static void msm_spi_destroy_thread(struct msm_spi *dd)
+{
+	if (dd->pdata->thread_mode == MSM_SPI_THREAD_RT)
+		kthread_stop(dd->spi_kthread);
+	else
+		destroy_workqueue(dd->workqueue);
+}
+
+static void
+msm_spi_irq_affinity_notify(struct irq_affinity_notify *notify,
+			    const cpumask_t *mask)
+{
+	struct msm_spi *dd =
+		container_of(notify, struct msm_spi, irq_notify);
+
+	if (dd->pdata->thread_mode == MSM_SPI_THREAD_RT)
+		sched_setaffinity(pid_nr(task_pid(dd->spi_kthread)), mask);
+}
+
+static void msm_spi_irq_affinity_release(struct kref *ref)
+{
+	return;
+}
+
 static int __init msm_spi_probe(struct platform_device *pdev)
 {
 	struct spi_master      *master;
@@ -2048,12 +2130,10 @@ skip_dma_resources:
 	spin_lock_init(&dd->queue_lock);
 	mutex_init(&dd->core_lock);
 	INIT_LIST_HEAD(&dd->queue);
-	INIT_WORK(&dd->work_data, msm_spi_workq);
 	init_waitqueue_head(&dd->continue_suspend);
-	dd->workqueue = create_singlethread_workqueue(
-			dev_name(master->dev.parent));
-	if (!dd->workqueue)
-		goto err_probe_workq;
+
+	if (msm_spi_init_thread(pdev, dd))
+		goto err_probe_thread;
 
 	if (!devm_request_mem_region(&pdev->dev, dd->mem_phys_addr,
 					dd->mem_size, SPI_DRV_NAME)) {
@@ -2168,6 +2248,10 @@ skip_dma_resources:
 	if (dd->use_rlock)
 		remote_mutex_unlock(&dd->r_lock);
 
+	dd->irq_notify.notify = msm_spi_irq_affinity_notify;
+	dd->irq_notify.release = msm_spi_irq_affinity_release;
+	irq_set_affinity_notifier(dd->irq_in, &dd->irq_notify);
+
 	mutex_unlock(&dd->core_lock);
 	locked = 0;
 
@@ -2216,8 +2300,8 @@ err_probe_clk_get:
 	}
 err_probe_rlock_init:
 err_probe_reqmem:
-	destroy_workqueue(dd->workqueue);
-err_probe_workq:
+	msm_spi_destroy_thread(dd);
+err_probe_thread:
 err_probe_res:
 	spi_master_put(master);
 err_probe_exit:
@@ -2366,7 +2450,7 @@ static int __devexit msm_spi_remove(struct platform_device *pdev)
 	pm_runtime_set_suspended(&pdev->dev);
 	clk_put(dd->clk);
 	clk_put(dd->pclk);
-	destroy_workqueue(dd->workqueue);
+	msm_spi_destroy_thread(dd);
 	platform_set_drvdata(pdev, 0);
 	spi_unregister_master(master);
 	spi_master_put(master);
