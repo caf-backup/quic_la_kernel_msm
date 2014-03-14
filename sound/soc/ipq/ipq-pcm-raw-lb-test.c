@@ -42,6 +42,19 @@ extern uint32_t ipq_pcm_data(char **rx_buf, char **tx_buf);
 extern void ipq_pcm_done(void);
 static void pcm_start_test(void);
 
+/* the test configurations supported */
+#define PCM_LBTEST_8BIT_8KHZ_2CH_TX_TO_RX	1
+#define PCM_LBTEST_8BIT_8KHZ_2CH_RX_TO_TX	101
+#define PCM_LBTEST_16BIT_16KHZ_2CH_TX_TO_RX	2
+#define PCM_LBTEST_16BIT_16KHZ_2CH_RX_TO_TX	201
+#define PCM_LBTEST_16BIT_8KHZ_4CH_TX_TO_RX	3
+#define PCM_LBTEST_16BIT_8KHZ_4CH_RX_TO_TX	301
+
+#define IS_PCM_LBTEST_RX_TO_TX(config)					\
+		((config == PCM_LBTEST_8BIT_8KHZ_2CH_RX_TO_TX) ||	\
+		(config == PCM_LBTEST_16BIT_16KHZ_2CH_RX_TO_TX) ||	\
+		(config == PCM_LBTEST_16BIT_8KHZ_4CH_RX_TO_TX))
+
 #define LOOPBACK_SKIP_COUNT		10
 #define LOOPBACK_FAIL_THRESHOLD		20
 #define DEFINE_INTEGER_ATTR(name)					\
@@ -132,12 +145,17 @@ uint32_t pcm_read_write(void)
 	size = ipq_pcm_data(&rx_buff, &tx_buff);
 	ctx.last_rx_buff = rx_buff;
 
-	/* get current Tx buffer and write the pattern
-	 * We will write 1, 2, 3, ..., 255, 1, 2, 3...
-	 */
-	for (i =  0; i < size; i++) {
-		tx_buff[i] = ctx.tx_data;
-		ctx.tx_data ++;
+	if (IS_PCM_LBTEST_RX_TO_TX(start)) {
+		/* Redirect Rx data to Tx */
+		memcpy(tx_buff, rx_buff, size);
+	} else {
+		/* get current Tx buffer and write the pattern
+		 * We will write 1, 2, 3, ..., 255, 1, 2, 3...
+		 */
+		for (i =  0; i < size; i++) {
+			tx_buff[i] = ctx.tx_data;
+			ctx.tx_data ++;
+		}
 	}
 	ipq_pcm_done();
 	return size;
@@ -147,11 +165,15 @@ uint32_t pcm_init(void)
 {
 	struct ipq_pcm_params  cfg_params;
 	uint32_t ret = 0;
-	if (start == 1) {
-		/* 8 bit 8 KHz 2 channels : AK 1.0 */
+
+	switch (start) {
+	case PCM_LBTEST_8BIT_8KHZ_2CH_TX_TO_RX:
+	case PCM_LBTEST_8BIT_8KHZ_2CH_RX_TO_TX:
 		ipq_pcm_init();
-	} else if (start == 2) {
-	/* 16 bit 16 KHz 2 channels : AK 2.0 */
+		break;
+
+	case PCM_LBTEST_16BIT_16KHZ_2CH_TX_TO_RX:
+	case PCM_LBTEST_16BIT_16KHZ_2CH_RX_TO_TX:
 		cfg_params.bit_width = 16;
 		cfg_params.rate = 16000;
 		cfg_params.slot_count = 8;
@@ -161,8 +183,10 @@ uint32_t pcm_init(void)
 		cfg_params.rx_slots[0] = 1;
 		cfg_params.rx_slots[1] = 4;
 		ret = ipq_pcm_init_v2(&cfg_params);
-	} else if (start == 3) {
-	/* 16 bit 8 KHz 4 channels : AK 2.0 */
+		break;
+
+	case PCM_LBTEST_16BIT_8KHZ_4CH_TX_TO_RX:
+	case PCM_LBTEST_16BIT_8KHZ_4CH_RX_TO_TX:
 		cfg_params.bit_width = 16;
 		cfg_params.rate = 8000;
 		cfg_params.slot_count = 16;
@@ -176,10 +200,13 @@ uint32_t pcm_init(void)
 		cfg_params.rx_slots[2] = 8;
 		cfg_params.rx_slots[3] = 9;
 		ret = ipq_pcm_init_v2(&cfg_params);
-	} else {
+		break;
+
+	default:
 		ret = -EINVAL;
 		pr_err("Unknown configuration\n");
 	}
+
 	return ret;
 }
 
@@ -273,10 +300,13 @@ int pcm_test_rw(void *data)
 	ctx.running = 1;
 	while (ctx.running) {
 		size = pcm_read_write();
-		process_read(size);
+		if (!IS_PCM_LBTEST_RX_TO_TX(start))
+			process_read(size);
 	}
 	printk("%s : Test Thread stopped\n", __func__);
-	printk("\nPassed : %d, Failed : %d\n", ctx.passed, ctx.failed);
+	/* for rx to tx loopback, we cnanot detect failures */
+	if (!IS_PCM_LBTEST_RX_TO_TX(start))
+		printk("\nPassed : %d, Failed : %d\n", ctx.passed, ctx.failed);
 	pcm_deinit();
 	return 0;
 }
