@@ -24,6 +24,4 @@
 #define IPQ_MI2S_CTRL_REG_IFC_CTRL			0x6
 #define IPQ_MI2S_CTRL_REG_IFC_CTRL_I2S_JUSTIFIED_24_BIT 0x22
 
-extern int ipq_mi2s_ctrl_write(uint8_t addr, uint8_t data);
-extern void ipq_mi2s_ctrl_reset_codec(void);
 #endif /* _IPQ_MI2S_CTRL_ */
