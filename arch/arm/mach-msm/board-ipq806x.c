@@ -2046,7 +2046,8 @@ static void __init ipq806x_common_init(void)
 		msm_clock_init(&ipq806x_dummy_clock_init_data);
 	} else if (machine_is_ipq806x_tb726() || machine_is_ipq806x_db149() ||
 		   machine_is_ipq806x_db147() || machine_is_ipq806x_ap148() ||
-		   machine_is_ipq806x_db149_1xx() || machine_is_ipq806x_ap145()) {
+		   machine_is_ipq806x_db149_1xx() || machine_is_ipq806x_ap145() ||
+		   machine_is_ipq806x_ap145_1xx()) {
 		BUG_ON(msm_rpm_init(&ipq806x_rpm_data));
 		BUG_ON(msm_rpmrs_levels_init(&msm_rpmrs_data));
 		regulator_suppress_info_printing();
@@ -2094,7 +2095,7 @@ static void __init ipq806x_common_init(void)
 
 	platform_add_devices(common_devices, ARRAY_SIZE(common_devices));
 
-	if (!machine_is_ipq806x_db149_1xx())
+	if (!machine_is_ipq806x_db149_1xx() && !machine_is_ipq806x_ap145_1xx())
 		platform_device_register(&msm_device_nand);
 
 	*((uint32_t *)(ipq806x_lpass_lpaif.dev.platform_data)) = socinfo_get_version();
@@ -2220,7 +2221,8 @@ static void nss_gmac_init(void)
 		platform_device_register(&nss_gmac_2);
 	}
 
-	if (machine_is_ipq806x_ap148() || machine_is_ipq806x_ap145()) {
+	if (machine_is_ipq806x_ap148() || machine_is_ipq806x_ap145() ||
+		machine_is_ipq806x_ap145_1xx()) {
 		mdiobus_register_board_info(ipq806x_ap148_mdio_info, IPQ806X_MDIO_BUS_MAX);
 
 		/* GMAC1, GMAC2 connected to switch. Attach to PHY 0 to configure switch. */
@@ -2363,7 +2365,8 @@ static void __init ipq806x_init(void)
 #ifdef CONFIG_MSM_ROTATOR
 	msm_rotator_set_split_iommu_domain();
 #endif
-	if (machine_is_ipq806x_ap148() || machine_is_ipq806x_ap145()) {
+	if (machine_is_ipq806x_ap148() || machine_is_ipq806x_ap145() ||
+		machine_is_ipq806x_ap145_1xx()) {
 		platform_add_devices(cdp_devices_ap148, ARRAY_SIZE(cdp_devices_ap148));
 	} else {
 		platform_add_devices(cdp_devices, ARRAY_SIZE(cdp_devices));
@@ -2376,7 +2379,7 @@ static void __init ipq806x_init(void)
 	if (machine_is_ipq806x_db149() || machine_is_ipq806x_db149_1xx()) {
 		platform_device_register(&db149_kp_pdev);
 	}
-	if (machine_is_ipq806x_ap145()) {
+	if (machine_is_ipq806x_ap145() || machine_is_ipq806x_ap145_1xx()) {
 		platform_device_register(&ap145_kp_pdev);
 	}
 }
@@ -2467,6 +2470,18 @@ MACHINE_START(IPQ806X_AP148, "Qualcomm Atheros AP148 reference board")
 MACHINE_END
 
 MACHINE_START(IPQ806X_AP145, "Qualcomm Atheros AP145 reference board")
+	.map_io = ipq806x_map_io,
+	.reserve = ipq806x_reserve,
+	.init_irq = ipq806x_init_irq,
+	.handle_irq = gic_handle_irq,
+	.timer = &msm_timer,
+	.init_machine = ipq806x_init,
+	.init_early = ipq806x_allocate_memory_regions,
+	.init_very_early = ipq806x_early_reserve,
+	.restart = msm_restart,
+MACHINE_END
+
+MACHINE_START(IPQ806X_AP145_1XX, "Qualcomm Atheros AP145-1XX reference board")
 	.map_io = ipq806x_map_io,
 	.reserve = ipq806x_reserve,
 	.init_irq = ipq806x_init_irq,

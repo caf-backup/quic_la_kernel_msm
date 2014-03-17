@@ -6094,12 +6094,13 @@ msmsdcc_probe(struct platform_device *pdev)
 
 		host->eject = !host->oldstat;
 	}
-	rc = gpio_request(host->plat->uhs_gpio, "UHS_mode");
-	if (rc) {
-		pr_err("gpio_request failed \n");
-		goto out;
+	if (pdev->id == 3) {
+		rc = gpio_request(host->plat->uhs_gpio, "UHS_mode");
+		if (rc) {
+			pr_err("gpio_request failed \n");
+			goto out;
+		}
 	}
-
 	if (plat->status_irq) {
 		ret = request_threaded_irq(plat->status_irq, NULL,
 				  msmsdcc_platform_status_irq,

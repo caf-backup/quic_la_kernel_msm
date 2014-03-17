@@ -311,7 +311,7 @@ void __init fixup_ipq806x_smb_power_grid(void)
 		ipq806x_rpm_regulator_smb_pdata.consumer_map_len =
 			ARRAY_SIZE(msm_rpm_regulator_smb_db14x_consumer_mapping);
 	} else if (machine_is_ipq806x_ap148() ||
-			machine_is_ipq806x_ap145()) {
+			machine_is_ipq806x_ap145() || machine_is_ipq806x_ap145_1xx()) {
 		ipq806x_rpm_regulator_smb_pdata.consumer_map =
 			msm_rpm_regulator_smb_ap148_consumer_mapping;
 		ipq806x_rpm_regulator_smb_pdata.consumer_map_len =
@@ -327,7 +327,7 @@ void __init fixup_ipq806x_smb_power_grid(void)
 		rpm_data->init_data.num_consumer_supplies = ARRAY_SIZE(vreg_consumers_S1b_ap148);
 		rpm_data->init_data.consumer_supplies = vreg_consumers_S1b_ap148;
 
-		if (machine_is_ipq806x_ap145()) {
+		if (machine_is_ipq806x_ap145()|| machine_is_ipq806x_ap145_1xx()) {
 			rpm_vreg_regulator_set_fixed();
 
 			for (i = 0; i < ARRAY_SIZE(ipq806x_rpm_regulator_smb_init_data); i++) {
