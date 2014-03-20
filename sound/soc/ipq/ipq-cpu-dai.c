@@ -216,12 +216,7 @@ static uint32_t ipq_lpass_get_bit_div(uint32_t samp_freq, uint32_t bit_width,
 			return __BIT_DIV_4;
 	case FREQ_96000:
 	case FREQ_192000:
-		if (__BIT_32 == bit_width)
-			return __BIT_DIV_4;
-		else if (__BIT_24 == bit_width)
-			return __BIT_DIV_2;
-		else
-			return __BIT_DIV_4;
+		return __BIT_DIV_4;
 	case FREQ_176400:
 		return __BIT_DIV_2;
 	default:
