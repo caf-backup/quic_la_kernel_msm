@@ -30,6 +30,9 @@
 #include <linux/regulator/consumer.h>
 #include <linux/ahci_platform.h>
 #include <mach/clk.h>
+#include <linux/pm_runtime.h>
+#include <linux/libata.h>
+#include "libata.h"
 
 /* PHY registers */
 #define UNIPHY_PLL_REFCLK_CFG		0x000
@@ -182,6 +185,11 @@
 
 #define SATA_PHY_P0_PARAM3		0x20C
 #define SATA_PHY_P0_PARAM4		0x210
+#define SATA_CNT_P0_PHYSR		0x17C
+#define POLL_PERIOD_US			100
+#define TIMEOUT_PERIOD_US		1000000
+#define SATA_PWR_STATE_DOWN		0x1
+#define SATA_PWR_STATE_UP		0x2
 
 struct msm_sata_hba {
 	struct platform_device *ahci_pdev;
@@ -196,6 +204,7 @@ struct msm_sata_hba {
 	struct regulator *pmp_pwr;
 	void __iomem *phy_base;
 	void __iomem *ahci_base;
+	int power_state;
 };
 
 static inline void msm_sata_delay_us(unsigned int delay)
@@ -499,8 +508,13 @@ static void msm_sata_vreg_deinit(struct device *dev)
 static void msm_sata_phy_deinit(struct device *dev)
 {
 	/* Synopsys PHY specific Power Down Sequence */
-
+	u32 reg;
 	struct msm_sata_hba *hba = dev_get_drvdata(dev);
+
+	/* Setting PHY_RESET to 1 */
+	reg = readl_relaxed(hba->phy_base + SATA_PHY_P0_PARAM4);
+	reg = reg | 0x01;
+	writel_relaxed(reg, hba->phy_base + SATA_PHY_P0_PARAM4);
 
 	devm_iounmap(dev, hba->phy_base);
 }
@@ -573,6 +587,15 @@ static int msm_sata_phy_init(struct device *dev)
 	reg = readl_relaxed(hba->phy_base + SATA_PHY_P0_PARAM4);
 	reg = reg & 0xfffffffe;
 	writel_relaxed(reg, hba->phy_base + SATA_PHY_P0_PARAM4);
+
+	reg = readl_poll_timeout(hba->ahci_base + SATA_CNT_P0_PHYSR, reg,
+			(reg & 1), POLL_PERIOD_US, TIMEOUT_PERIOD_US);
+	if (reg) {
+		dev_err(dev, "poll timeout SATA_CNT_P0_PHYSR\n");
+		/* power down PHY in case of failure */
+		msm_sata_phy_deinit(dev);
+		return reg;
+	}
 
 	return 0;
 }
@@ -716,6 +739,109 @@ out:
 }
 #endif
 
+int msm_sata_trigger_suspend(struct device *dev)
+{
+	int ret = 0;
+	int i;
+	struct device *ahci_dev = dev->parent;
+	struct msm_sata_hba *hba = dev_get_drvdata(ahci_dev);
+	struct ata_host *host = dev_get_drvdata(dev);
+	struct ata_port *ap;
+	struct device_type *apt = &ata_port_type;
+	const struct dev_pm_ops *pm = apt->pm;
+
+	if (hba->power_state == SATA_PWR_STATE_UP) {
+		for (i = 0; i < host->n_ports; i++) {
+			ap = host->ports[i];
+			/*Issue Port PM Suspend*/
+			ret = pm->runtime_suspend(&ap->tdev);
+			if (ret) {
+				dev_err(dev, "SATA controller port suspend failed\n");
+				return ret;
+			}
+		}
+		/*Issue Contoller PM Suspend*/
+		ret = pm_generic_runtime_suspend(dev);
+		if (ret) {
+			dev_err(dev, "SATA controller suspend failed\n");
+			return ret;
+		}
+		hba->power_state = SATA_PWR_STATE_DOWN;
+	} else {
+		dev_err(dev, "SATA device already in suspended state");
+	}
+
+	return ret;
+}
+
+int msm_sata_trigger_resume(struct device *dev)
+{
+	int ret = 0;
+	int i;
+	struct device *ahci_dev = dev->parent;
+	struct msm_sata_hba *hba = dev_get_drvdata(ahci_dev);
+	struct ata_host *host = dev_get_drvdata(dev);
+	struct ata_port *ap;
+	struct device_type *apt = &ata_port_type;
+	const struct dev_pm_ops *pm = apt->pm;
+
+	if (hba->power_state == SATA_PWR_STATE_DOWN) {
+		/*Issue Contoller PM Resume*/
+		ret = pm_generic_runtime_resume(dev);
+		if (ret) {
+			dev_err(dev, "SATA controller resume failed\n");
+			return ret;
+		}
+		for (i = 0; i < host->n_ports; i++) {
+			/*Issue Port PM Resume*/
+			ap = host->ports[i];
+			ret = pm->runtime_resume(&ap->tdev);
+			if (ret) {
+				dev_err(dev, "SATA controller port resume failed\n");
+				return ret;
+			}
+		}
+		hba->power_state = SATA_PWR_STATE_UP;
+	} else {
+		dev_err(dev, "SATA device already in resume state");
+	}
+
+	return ret;
+}
+
+static ssize_t
+display_sata_power_status(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct device *ahci_dev = dev;
+	struct device *dev_p = ahci_dev->parent;
+	struct msm_sata_hba *hba = dev_get_drvdata(dev_p);
+
+	if (hba->power_state == SATA_PWR_STATE_UP) {
+		printk("\nSATA interface in suspend state\n");
+	} else if (hba->power_state == SATA_PWR_STATE_DOWN) {
+		printk("\nSATA interface in full power state\n");
+	}
+
+	return 0;
+}
+
+
+static ssize_t
+process_sata_power_request(struct device *dev, struct device_attribute *attr,
+           const char *buf, size_t count)
+{
+	if (buf[0] == '1') {
+		msm_sata_trigger_suspend(dev);
+	} else if (buf[0] == '0') {
+		msm_sata_trigger_resume(dev);
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR(msm_sata_suspend, S_IRUGO | S_IWUSR, display_sata_power_status, process_sata_power_request);
+
 int msm_sata_init(struct device *ahci_dev, void __iomem *mmio)
 {
 	int ret;
@@ -745,6 +871,12 @@ int msm_sata_init(struct device *ahci_dev, void __iomem *mmio)
 		msm_sata_clk_deinit(dev);
 		goto out;
 	}
+	ret = device_create_file(ahci_dev, &dev_attr_msm_sata_suspend);
+	if (ret < 0) {
+		dev_err(dev, "SATA failed to create suspend /sys endpoint err=%d\n", ret);
+	}
+
+	hba->power_state = SATA_PWR_STATE_UP;
 
 out:
 	return ret;
@@ -755,7 +887,9 @@ void msm_sata_deinit(struct device *ahci_dev)
 	struct device *dev = ahci_dev->parent;
 
 	msm_sata_phy_deinit(dev);
+#ifndef CONFIG_SATA_SNPS_PHY
 	msm_sata_vreg_deinit(dev);
+#endif
 	msm_sata_clk_deinit(dev);
 }
 
@@ -790,12 +924,14 @@ static int msm_sata_resume(struct device *ahci_dev)
 	if (ret)
 		goto out;
 
+#ifndef CONFIG_SATA_SNPS_PHY
 	ret = msm_sata_vreg_init(dev);
 	if (ret) {
 		dev_err(dev, "SATA vreg init failed with err=%d\n", ret);
 		/* Do not turn off clks, AHCI driver might do register access */
 		goto out;
 	}
+#endif
 
 	ret = msm_sata_phy_init(dev);
 	if (ret) {
