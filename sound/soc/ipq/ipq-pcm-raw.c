@@ -49,8 +49,8 @@ static DECLARE_WAIT_QUEUE_HEAD(pcm_q);
 static struct pcm_context context;
 static struct dai_dma_params tx_dma_params;
 static struct dai_dma_params rx_dma_params;
-extern void pcm_test_init(void);
-extern void pcm_test_exit(void);
+extern int pcm_test_init(struct platform_device *pdev);
+extern void pcm_test_exit(struct platform_device *pdev);
 static struct platform_device *pcm_pdev;
 static int voice_allocate_dma_buffer(struct device *dev,
 		struct voice_dma_buffer *dma_buffer);
@@ -525,7 +525,7 @@ static __devinit int ipq_pcm_driver_probe(struct platform_device *pdev)
 		goto error_mem;
 	}
 
-
+	pcm_test_init(pcm_pdev);
 	spin_lock_init(&pcm_lock);
 	return 0;
 
@@ -541,6 +541,8 @@ static __devexit int ipq_pcm_driver_remove(struct platform_device *pdev)
 		kfree(tx_dma_buffer);
 	if (rx_dma_buffer)
 		kfree(rx_dma_buffer);
+
+	pcm_test_exit(pdev);
 	return 0;
 }
 
@@ -562,13 +564,11 @@ static int __init ipq_lpass_d2_pcm_init(void)
 				__func__);
 	}
 
-	pcm_test_init();
 	return ret;
 }
 
 static void __exit ipq_lpass_d2_pcm_exit(void)
 {
-	pcm_test_exit();
 	if (context.needs_deinit)
 		ipq_pcm_deinit();
 

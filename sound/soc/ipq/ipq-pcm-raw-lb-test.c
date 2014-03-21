@@ -21,6 +21,7 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/string.h>
+#include <linux/platform_device.h>
 #include "ipq-pcm.h"
 
 /*
@@ -57,33 +58,6 @@ static void pcm_start_test(void);
 
 #define LOOPBACK_SKIP_COUNT		10
 #define LOOPBACK_FAIL_THRESHOLD		20
-#define DEFINE_INTEGER_ATTR(name)					\
-static unsigned short name;						\
-									\
-static ssize_t name##_show (						\
-		struct kobject *kobj,					\
-		struct kobj_attribute *attr,				\
-		char *buf						\
-		) {							\
-									\
-	return sprintf(buf,"%hd", name);				\
-}									\
-									\
-static ssize_t name##_store (						\
-		struct kobject *kobj,   				\
-		struct kobj_attribute *attr, 				\
-		const char *buf,              				\
-		size_t count) {						\
-									\
-	sscanf(buf, "%hd", &name);					\
-	pcm_start_test();						\
-	return count;							\
-}									\
-									\
-static struct kobj_attribute 						\
-		name##_attribute =					\
-			__ATTR(name,0644,name##_show,name##_store);	\
-
 struct pcm_lb_test_ctx {
 	uint32_t failed;
 	uint32_t passed;
@@ -96,43 +70,32 @@ struct pcm_lb_test_ctx {
 };
 
 static struct pcm_lb_test_ctx ctx;
-DEFINE_INTEGER_ATTR(start)
+static unsigned int start = 0;
 
-static struct attribute *attributes[] = {
-	&start_attribute.attr,
-	NULL
-};
-
-static struct attribute_group attr_group = {
-	.attrs = attributes
-};
-
-static struct kobject *pcm_lb_test_object;
-
-void pcm_lb_sysfs_init(void)
+static ssize_t show_pcm_lb_value(struct device_driver *driver,
+						char *buff)
 {
-	int ret;
-	pcm_lb_test_object = kobject_create_and_add("pcmlb", kernel_kobj);
-	if (!pcm_lb_test_object) {
-		printk("%s : Error allocating pcmlb\n",__func__);
-		return;
-	}
-
-	ret = sysfs_create_group(pcm_lb_test_object, &attr_group);
-
-	if (ret) {
-		printk("%s : Error creating pcmlb\n",__func__);
-		kobject_put(pcm_lb_test_object);
-		pcm_lb_test_object = NULL;
-	}
+	return sprintf(buff, "%d", start);
 }
 
-void pcm_lb_sysfs_deinit(void)
+static ssize_t store_pcm_lb_value(struct device_driver *driver,
+				const char *buff, size_t count)
 {
-	if (pcm_lb_test_object) {
-		kobject_put(pcm_lb_test_object);
-		pcm_lb_test_object = NULL;
-	}
+	sscanf(buff, "%d", &start);
+	pcm_start_test();
+	return count;
+}
+
+static DRIVER_ATTR(pcmlb, 0644, show_pcm_lb_value, store_pcm_lb_value);
+
+static int pcm_lb_drv_attr_init(struct platform_device *pdev)
+{
+	return driver_create_file(pdev->dev.driver, &driver_attr_pcmlb);
+}
+
+static void pcm_lb_drv_attr_deinit(struct platform_device *pdev)
+{
+	driver_remove_file(pdev->dev.driver, &driver_attr_pcmlb);
 }
 
 uint32_t pcm_read_write(void)
@@ -330,15 +293,14 @@ static void pcm_start_test(void)
 	}
 }
 
-int pcm_test_init(void)
+int pcm_test_init(struct platform_device *pdev)
 {
-	pcm_lb_sysfs_init();
-	return 0;
+	return pcm_lb_drv_attr_init(pdev);
 }
 
-void pcm_test_exit(void)
+void pcm_test_exit(struct platform_device *pdev)
 {
-	pcm_lb_sysfs_deinit();
+	pcm_lb_drv_attr_deinit(pdev);
 	if (ctx.running) {
 		ctx.running = 0;
 		/* wait sufficient time for test thread to finish */
