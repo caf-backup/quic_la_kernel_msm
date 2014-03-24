@@ -52,6 +52,7 @@
 #include <mach/msm_cache_dump.h>
 #include <mach/msm_memtypes.h>
 #include <mach/msm_nss_gmac.h>
+#include <mach/msm_nss_macsec.h>
 #include <mach/msm_nss.h>
 #include <mach/msm_nss_crypto.h>
 #include <linux/ar8216_platform.h>
@@ -1199,6 +1200,72 @@ struct platform_device nss_gmac_3 = {
 	},
 	.num_resources			= ARRAY_SIZE(nss_gmac_3_res),
 	.resource			= nss_gmac_3_res,
+};
+
+/* Resources for MACSEC1 */
+static struct resource nss_macsec1_res[] = {
+	[0] = {
+		.start	= NSS_MACSEC1_BASE,
+		.end	= (NSS_MACSEC1_BASE + NSS_MACSEC_REG_LEN-1),
+		.name	= "registers",
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+
+struct platform_device nss_macsec1 = {
+	.name		= "nss-macsec",
+	.id		= 0,
+	.dev		= {
+		.dma_mask		= (u64 *)~0,
+		.coherent_dma_mask	= 0xffffffff,
+	},
+	.num_resources	= ARRAY_SIZE(nss_macsec1_res),
+	.resource	= nss_macsec1_res,
+};
+
+/* Resources for MACSEC2 */
+static struct resource nss_macsec2_res[] = {
+	[0] = {
+		.start	= NSS_MACSEC2_BASE,
+		.end	= (NSS_MACSEC2_BASE + NSS_MACSEC_REG_LEN - 1),
+		.name	= "registers",
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+
+struct platform_device nss_macsec2 = {
+	.name		= "nss-macsec",
+	.id		= 1,
+	.dev		= {
+		.dma_mask		= (u64 *)~0,
+		.coherent_dma_mask	= 0xffffffff,
+	},
+	.num_resources	= ARRAY_SIZE(nss_macsec2_res),
+	.resource	= nss_macsec2_res,
+};
+
+/* Resources for MACSEC3 */
+static struct resource nss_macsec3_res[] = {
+	[0] = {
+		.start	= NSS_MACSEC3_BASE,
+		.end	= (NSS_MACSEC3_BASE + NSS_MACSEC_REG_LEN - 1),
+		.name	= "registers",
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+
+struct platform_device nss_macsec3 = {
+	.name		= "nss-macsec",
+	.id		= 2,
+	.dev		= {
+		.dma_mask		= (u64 *)~0,
+		.coherent_dma_mask	= 0xffffffff,
+	},
+	.num_resources	= ARRAY_SIZE(nss_macsec3_res),
+	.resource	= nss_macsec3_res,
 };
 
 static struct mdio_gpio_platform_data ipq806x_mdio_platform_data;
