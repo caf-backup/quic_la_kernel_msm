@@ -59,6 +59,9 @@
 #define MACSEC3_CORE_CLK		(1 << 30)
 #define MACSEC2_CORE_CLK		(1 << 29)
 #define MACSEC1_CORE_CLK		(1 << 28)
+#define MACSEC_CORE_CLKEN_VAL		(0x7 << 28)
+#define MACSEC_GMII_RX_CLKEN_VAL	(0x7 << 24)
+#define MACSEC_GMII_TX_CLKEN_VAL	(0x7 << 20)
 #define GMAC0_PTP_CLK			(1 << 16)
 #define GMAC0_RGMII_RX_CLK		(1 << 9)
 #define GMAC0_RGMII_TX_CLK		(1 << 8)
@@ -105,6 +108,8 @@
 /* NSS_MACSEC_CTL bits */
 #define GMAC1_MACSEC_BYPASS			0x1
 #define GMACn_MACSEC_BYPASS(n)			(GMAC1_MACSEC_BYPASS << (n - 1))	/* n = 1,2,3 */
+#define MACSEC_EXT_BYPASS_EN_MASK		0x7
+#define MACSEC_DP_RST_VAL			(0x7 << 4)
 
 /* Macros to calculate bit offsets in NSS_ETH_CLK_CTL3 register */
 #define GMACn_GMII_CLK_RGMII(x)			(1 << x)
@@ -137,6 +142,8 @@
 
 /* GMAC min Inter Frame Gap values */
 #define GMAC_IFG				12
+#define MACSEC_IFG				(0x2D)
+#define IFG_MASK				(0x3F)
 #define GMAC_IFG_MIN_1000			10
 #define GMAC_IFG_MIN_HALF_DUPLEX		8
 
