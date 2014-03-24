@@ -990,6 +990,10 @@ static void __init cpufreq_table_init(void)
 {
 	int cpu;
 
+	if (machine_is_ipq806x_rumi3()) {
+		printk("Skipping %s for rumi\n", __func__);
+		return;
+	}
 
 	for_each_possible_cpu(cpu) {
 		int i, freq_cnt = 0;
@@ -1207,6 +1211,11 @@ static void __init hw_init(void)
 
 	l2->hfpll_base = ioremap(l2->hfpll_phys_base, SZ_32);
 	BUG_ON(!l2->hfpll_base);
+
+	if (machine_is_ipq806x_rumi3()) {
+		printk("Skipping %s for rumi\n", __func__);
+		return;
+	}
 
 	rc = rpm_regulator_init(l2, VREG_HFPLL_A,
 				l2->vreg[VREG_HFPLL_A].max_vdd, false);
