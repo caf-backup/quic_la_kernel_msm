@@ -347,5 +347,7 @@ void msm_snddev_tx_route_deconfig(void);
 
 extern unsigned int msm_shared_ram_phys; /* defined in arch/arm/mach-msm/io.c */
 
+extern int wifi_board_data_read(loff_t from, size_t len, size_t *retlen,
+		u_char *buf);
 
 #endif

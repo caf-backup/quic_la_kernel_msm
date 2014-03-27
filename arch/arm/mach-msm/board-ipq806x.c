@@ -2318,6 +2318,20 @@ int32_t nss_gmac_get_phy_profile(void)
 }
 EXPORT_SYMBOL(nss_gmac_get_phy_profile);
 
+int wifi_board_data_read(loff_t from, size_t len, size_t *retlen, u_char *buf)
+{
+	struct mtd_info *mtd;
+
+	mtd = get_mtd_device_nm(IPQ_MAC_ADDR_PARTITION);
+	if (IS_ERR_OR_NULL(mtd)) {
+		printk("%s: " IPQ_MAC_ADDR_PARTITION " not found\n", __func__);
+		return -ENXIO;
+	}
+
+	return mtd_read(mtd, from, len, retlen, buf);
+}
+EXPORT_SYMBOL(wifi_board_data_read);
+
 static void __init ipq806x_init(void)
 {
 	if (meminfo_init(SYS_MEMORY, SZ_256M) < 0)
