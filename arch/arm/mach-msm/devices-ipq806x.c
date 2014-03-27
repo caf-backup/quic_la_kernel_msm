@@ -964,6 +964,7 @@ static struct resource resources_dwc3_host2[] = {
 
 static struct dwc3_platform_data dwc3_pdata_host1 = {
 	.usb_mode	= USB30_MODE_HOST,
+	.dwc3_core_size = DWC3_CORE_SIZE,
 	.pwr_en		= 1,
 	.pwr_en_gpio1	= 51,
 	.pwr_en_gpio2	= 52,
@@ -971,6 +972,7 @@ static struct dwc3_platform_data dwc3_pdata_host1 = {
 
 static struct dwc3_platform_data dwc3_pdata_host2 = {
 	.usb_mode	= USB30_MODE_HOST,
+	.dwc3_core_size = DWC3_CORE_SIZE,
 	.pwr_en		= 0,
 };
 
