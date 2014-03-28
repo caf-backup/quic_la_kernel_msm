@@ -298,7 +298,7 @@ uint32_t ipq_pcm_validate_params(struct ipq_pcm_params *params)
 	return 0;
 }
 
-uint32_t ipq_pcm_init_v2(struct ipq_pcm_params *params)
+int ipq_pcm_init_v2(struct ipq_pcm_params *params)
 {
 	uint32_t ret;
 	uint32_t buf_size;

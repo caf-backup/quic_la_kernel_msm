@@ -186,7 +186,7 @@ void ipq_cfg_pcm_width(uint8_t bit_width, uint8_t dir)
 }
 EXPORT_SYMBOL_GPL(ipq_cfg_pcm_width);
 
-uint32_t ipq_cfg_pcm_active_slot_count(uint8_t slot_count, uint8_t dir)
+int ipq_cfg_pcm_active_slot_count(uint8_t slot_count, uint8_t dir)
 {
 	uint32_t cfg;
 
@@ -212,7 +212,7 @@ uint32_t ipq_cfg_pcm_active_slot_count(uint8_t slot_count, uint8_t dir)
 }
 EXPORT_SYMBOL_GPL(ipq_cfg_pcm_active_slot_count);
 
-uint32_t ipq_cfg_pcm_tx_active_slot(uint32_t slot, uint32_t val)
+int ipq_cfg_pcm_tx_active_slot(uint32_t slot, uint32_t val)
 {
 	uint32_t cfg;
 
@@ -252,7 +252,7 @@ uint32_t ipq_cfg_pcm_tx_active_slot(uint32_t slot, uint32_t val)
 }
 EXPORT_SYMBOL_GPL(ipq_cfg_pcm_tx_active_slot);
 
-uint32_t ipq_cfg_pcm_rx_active_slot(uint32_t slot, uint32_t val)
+int ipq_cfg_pcm_rx_active_slot(uint32_t slot, uint32_t val)
 {
 	uint32_t cfg;
 

@@ -37,7 +37,7 @@
  */
 
 extern void ipq_pcm_init(void);
-extern uint32_t ipq_pcm_init_v2(struct ipq_pcm_params *params);
+extern int ipq_pcm_init_v2(struct ipq_pcm_params *params);
 extern void ipq_pcm_deinit(void);
 extern uint32_t ipq_pcm_data(char **rx_buf, char **tx_buf);
 extern void ipq_pcm_done(void);

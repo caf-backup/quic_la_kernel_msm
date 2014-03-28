@@ -326,8 +326,8 @@ extern void ipq_lpaif_disable_dma(uint32_t dma_ch);
 extern int ipq_lpaif_dai_config_dma(uint32_t dma_ch);
 extern void ipq_cfg_pcm_aux_mode(uint8_t mode);
 extern void ipq_cfg_mi2s_disable(uint32_t off);
-extern uint32_t ipq_cfg_pcm_rx_active_slot(uint32_t slot, uint32_t val);
-extern uint32_t ipq_cfg_pcm_tx_active_slot(uint32_t slot, uint32_t val);
-extern uint32_t ipq_cfg_pcm_active_slot_count(uint8_t slot_count, uint8_t dir);
+extern int ipq_cfg_pcm_rx_active_slot(uint32_t slot, uint32_t val);
+extern int ipq_cfg_pcm_tx_active_slot(uint32_t slot, uint32_t val);
+extern int ipq_cfg_pcm_active_slot_count(uint8_t slot_count, uint8_t dir);
 
 #endif /* _IPQ_LPA_IF_H */
