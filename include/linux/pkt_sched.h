@@ -188,12 +188,40 @@ enum {
 struct tc_nssbf_class_qopt {
 	__u32	burst;		/* Maximum burst size */
 	__u32	rate;		/* Allowed bandwidth for this class */
-	__u32	mtu;		/* MTU of attached interface */
-	__u32	quantum;	/* Quantum allocation value for DRR */
+	__u32	mtu;		/* MTU of the associated interface */
+	__u32	quantum;	/* Quantum allocation for DRR */
 };
 
 struct tc_nssbf_qopt {
 	__u16	defcls;		/* Default class value */
+};
+
+/* NSSWRR section */
+
+enum {
+	TCA_NSSWRR_UNSPEC,
+	TCA_NSSWRR_CLASS_PARMS,
+	__TCA_NSSWRR_MAX
+};
+
+#define TCA_NSSWRR_MAX	(__TCA_NSSWRR_MAX - 1)
+
+struct tc_nsswrr_class_qopt {
+	__u32	quantum;	/* Weight associated to this class */
+};
+
+/* NSSWFQ section */
+
+enum {
+	TCA_NSSWFQ_UNSPEC,
+	TCA_NSSWFQ_CLASS_PARMS,
+	__TCA_NSSWFQ_MAX
+};
+
+#define TCA_NSSWFQ_MAX	(__TCA_NSSWFQ_MAX - 1)
+
+struct tc_nsswfq_class_qopt {
+	__u32	quantum;	/* Weight associated to this class */
 };
 
 /* FIFO section */
