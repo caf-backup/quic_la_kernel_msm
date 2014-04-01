@@ -113,9 +113,11 @@
 
 #define USB30_MODE_DEVICE	0
 #define USB30_MODE_HOST		1
+#define DWC3_CORE_SIZE		0x000F9000
 
 struct dwc3_platform_data {
 	u8 usb_mode;
+	u32 dwc3_core_size;
 	u8 pwr_en;
 	u8 pwr_en_gpio1;
 	u8 pwr_en_gpio2;

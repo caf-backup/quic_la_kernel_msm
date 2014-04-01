@@ -304,6 +304,14 @@ static void xhci_cleanup_msix(struct xhci_hcd *xhci)
 	struct usb_hcd *hcd = xhci_to_hcd(xhci);
 	struct pci_dev *pdev = to_pci_dev(hcd->self.controller);
 
+	/*
+	 * Nothing to clean up if we already skipped msix init
+	 * because of broken msi.
+	 */
+
+	if (xhci->quirks & XHCI_BROKEN_MSI)
+		return 0;
+
 	xhci_free_irq(xhci);
 
 	if (xhci->msix_entries) {

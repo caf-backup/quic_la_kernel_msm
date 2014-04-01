@@ -49,7 +49,6 @@
 #define AMPLITUDE_VALUE         110 /* Override value for transmit amplitude */
 #define TX_DEEMPH_3_5DB         23 /* Override value for transmit preemphasis */
 
-
 /**
  *  USB DBM Hardware registers.
  *
@@ -1427,6 +1426,35 @@ error:
 	debugfs_remove_recursive(dwc3_debugfs_root);
 }
 
+static int dwc3_ipq_power_down(struct dwc3_ipq *mdwc)
+{
+	int data, reg;
+
+	/*Setting HCRST bit USBCMD register*/
+	data = readl(mdwc->base + 0x0020);
+	data |= 0x2;
+	writel(data, mdwc->base + 0x0020);
+	/*Global USB3 PIPE Control Register, USB3 PHY Soft Reset bit 31*/
+	data = readl(mdwc->base + DWC3_SSUSB_REG_GUSB3PIPECTL(0));
+	data |= 0x80000000;
+	writel(data, mdwc->base + DWC3_SSUSB_REG_GUSB3PIPECTL(0));
+	/*Global USB2 PHY Configuration Register, UTMI PHY Soft Reset bit 31*/
+	data = readl(mdwc->base + DWC3_SSUSB_REG_GUSB2PHYCFG(0));
+	data |= 0x80000000;
+	writel(data, mdwc->base + DWC3_SSUSB_REG_GUSB2PHYCFG(0));
+	/*Global Control Register, Core Soft Reset bit 11*/
+	data = readl(mdwc->base + DWC3_SSUSB_REG_GCTL);
+	data |= 0x804;
+	writel(data, mdwc->base + DWC3_SSUSB_REG_GCTL);
+	/*USB30_QSCRATCH_SS_PHY_CTRL,  SS_PHY_RESET bit 7 */
+	data = readl(mdwc->base + IPQ_SS_PHY_CTRL_REG);
+	data |= 0x80;
+	writel(data, mdwc->base + IPQ_SS_PHY_CTRL_REG);
+	/*USB30 RESET*/
+	reg = USB30_RESET;
+	writel(0x3F, reg);
+}
+
 static int __devinit dwc3_ipq_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
@@ -1436,6 +1464,7 @@ static int __devinit dwc3_ipq_probe(struct platform_device *pdev)
 	void __iomem *tcsr;
 	int ret = 0;
 	struct dwc3_platform_data *pd = pdev->dev.platform_data;
+
 	ipq = devm_kzalloc(&pdev->dev, sizeof(*ipq), GFP_KERNEL);
 	if (!ipq) {
 		dev_err(&pdev->dev, "not enough memory\n");
@@ -1551,7 +1580,6 @@ static int __devinit dwc3_ipq_probe(struct platform_device *pdev)
 	ipq->resource_size = resource_size(res);
 	ipq->dwc3 = dwc3;
 	ipq->mode = pd->usb_mode;
-	dwc3->dev.platform_data = &ipq->mode;
 	if(pdev->id == 0)
 		usb30_common_pre_init(pdev->id, ipq->base);
 	uw_ssusb_pre_init(ipq->base);
@@ -1585,6 +1613,24 @@ static int __devinit dwc3_ipq_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "couldn't add resources to dwc3 device\n");
 		goto put_pdev;
 	}
+
+	ret = platform_device_add_data(dwc3, &ipq->mode, sizeof(ipq->mode));
+	if (ret) {
+		dev_err(&pdev->dev, "failed to add platform_data\n");
+		goto put_pdev;
+	}
+
+	/*
+	 * dwc3 does not need full memory range as dwc3-ipq, so we
+	 * will trim the region here.
+	 */
+	res = platform_get_resource(dwc3, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(&pdev->dev, "missing memory base resource\n");
+		ret = -ENODEV;
+		return ret;
+	}
+	res->end = res->start + pd->dwc3_core_size;
 
 	ret = platform_device_add(dwc3);
 	if (ret) {
@@ -1631,6 +1677,9 @@ static int __devexit dwc3_ipq_remove(struct platform_device *pdev)
 	}
 	pm_runtime_disable(ipq->dev);
 	platform_device_unregister(ipq->dwc3);
+	dwc3_ipq_power_down(ipq);
+	devm_iounmap(&pdev->dev, ipq->base);
+	devm_kfree(&pdev->dev, ipq);
 	wake_lock_destroy(&ipq->wlock);
 
 	return 0;
