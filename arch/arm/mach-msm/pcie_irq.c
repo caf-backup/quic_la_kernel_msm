@@ -38,6 +38,7 @@
 
 #define PCIE20_MSI_CTRL_MAX 8
 
+#define MAX_MSI_PER_EP 32
 #define MAX_MSI_PER_RC	(NR_PCIE_MSI_IRQS / CONFIG_MSM_NUM_PCIE)
 #define MSM_PCIE_MSI_INT_RC(_r, _p)	\
 		(MSM_PCIE_MSI_INT(_p) + (_r * MAX_MSI_PER_RC))
@@ -70,7 +71,7 @@ static irqreturn_t handle_msi_irq(int irq, void *data)
 			/* ensure that interrupt is cleared (acked) */
 			wmb();
 
-			generic_handle_irq(MSM_PCIE_MSI_INT(j + (32 * i)));
+			generic_handle_irq(MSM_PCIE_MSI_INT_RC(dev->rc_id, ((i * 32) + j)));
 			val = readl_relaxed(ctrl_status);
 		}
 	}
@@ -164,25 +165,54 @@ static struct irq_chip pcie_msi_chip = {
 	.irq_unmask = unmask_msi_irq,
 };
 
-static int msm_pcie_create_irq(struct pci_dev *pdev)
+/*
+ * Finding the free MSI contol from the RC
+ * msi_irq_in_use[rc].
+ * if  msi_irq_in_use[rc][i] == 0 , then the
+ * index i is free, we can use for MSI IRQ,
+ */
+
+inline static int msm_pcie_get_free_msi_ctrl(int rc)
+{
+	int i;
+
+	for (i = 0; i < PCIE20_MSI_CTRL_MAX; i++) {
+		if (msi_irq_in_use[rc][i] == 0)
+			return i;
+	}
+	return -ENOSPC;
+}
+
+static int msm_pcie_create_irq(struct pci_dev *pdev, int msi_idx)
 {
 	int irq, pos, rc;
 
-again:
-	rc = bus_to_mpdev(pdev->bus)->bus;
-	pos = find_first_zero_bit(&msi_irq_in_use[rc][0], MAX_MSI_PER_RC);
+	rc = bus_to_mpdev(pdev->bus)->rc_id;
+	pos = find_first_zero_bit(&(msi_irq_in_use[rc][msi_idx]),MAX_MSI_PER_EP);
+
 	/*
-	 * MSI IRQs are assigned at the end of the list (of all IRQs).
-	 * We know that RC takes even numbered bus and EP takes
-	 * odd numbered bus. We need MSI IRQs for the EPs. Allot
-	 * a bunch of 32 IRQs for each EP.
+	 * On failure case , find_first_zero_bit returns MAX_MSI_PER_EP
 	 */
-	irq = MSM_PCIE_MSI_INT_RC(rc, pos);
+	if (pos == MAX_MSI_PER_EP)
+		return -ENOSPC;
+
+	PCIE_DBG("%s pos %x, msi_idx = %x\n", __func__, pos, msi_idx);
+
+	/*
+	 * Each RC supports 8 MSI controls and each MSI control
+	 * can support 32 MSI_IRQs. For each EP one free MSI control
+	 * will be allocated out of 8 MSI controls. Then MSI_IRQs
+	 * are assigned from the alloted MSI control
+	 * Here,
+	 * rc -> RC index
+	 * msi_idx -> current MSI control alloted
+	 */
+
+	irq = MSM_PCIE_MSI_INT_RC(rc, (pos + (msi_idx * 32)));
 	if (irq >= (MSM_PCIE_MSI_INT(0) + NR_PCIE_MSI_IRQS))
 		return -ENOSPC;
 
-	if (test_and_set_bit(pos, &msi_irq_in_use[rc][0]))
-		goto again;
+	test_and_set_bit(pos, &(msi_irq_in_use[rc][msi_idx]));
 
 	dynamic_irq_init(irq);
 	return irq;
@@ -191,23 +221,25 @@ again:
 void msm_write_msi_msg(struct pci_dev *pdev, unsigned int irq)
 {
 	struct msi_msg msg;
-	int rc = bus_to_mpdev(pdev->bus)->bus;
+	int rc = bus_to_mpdev(pdev->bus)->rc_id;
 
 	/* write msi vector and data */
 	msg.address_hi = 0;
 	msg.address_lo = msm_get_pcie_msi_addr(rc);
-	msg.data = irq - MSM_PCIE_MSI_INT_RC(0, rc);
+	msg.data = irq - MSM_PCIE_MSI_INT_RC(rc, 0);
 	write_msi_msg(irq, &msg);
 }
 
 /* hookup to linux pci msi framework */
-int msm_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
+int msm_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc, int msi_idx)
 {
 	int irq;
 
-	irq = msm_pcie_create_irq(pdev);
-	if (irq < 0)
+	irq = msm_pcie_create_irq(pdev, msi_idx);
+	if (irq < 0) {
+		PCIE_DBG("irq %d allocated failed\n", irq);
 		return irq;
+	}
 
 	PCIE_DBG("irq %d allocated\n", irq);
 
@@ -258,20 +290,26 @@ static int msm_alloc_msi_entries(struct pci_dev *dev, int nvec)
 int msm_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
 	struct msi_desc *entry;
-	int rc, ret, pos;
+	int rc, ret, msi_idx;
 
-	rc = bus_to_mpdev(dev->bus)->bus;
-	pos = find_first_zero_bit(&msi_irq_in_use[rc][0], MAX_MSI_PER_RC);
+	rc = bus_to_mpdev(dev->bus)->rc_id;
 
-	/* Ensure we have enough free slots */
-	if (nvec > (MAX_MSI_PER_RC - pos))
+	/*
+	 * Each RC supports 8 MSI controls and each MSI control
+	 * can support 32 MSI_IRQs. For each EP one free MSI control
+	 * will be allocated out of 8 MSI controls. Finding the free
+	 * MSI control.
+	 */
+
+	msi_idx = msm_pcie_get_free_msi_ctrl(rc);
+	if (msi_idx < 0)
 		return -ENOSPC;
 
 	if ((ret = msm_alloc_msi_entries(dev, nvec)) != 0)
 		return ret;
 
 	list_for_each_entry(entry, &dev->msi_list, list) {
-		ret = msm_setup_msi_irq(dev, entry);
+		ret = msm_setup_msi_irq(dev, entry, msi_idx);
 		if (ret < 0)
 			return ret;
 		if (ret > 0)
