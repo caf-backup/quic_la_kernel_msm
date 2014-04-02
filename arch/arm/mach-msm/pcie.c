@@ -601,7 +601,7 @@ static int __init msm_pcie_setup(int nr, struct pci_sys_data *sys)
 	pci_add_resource(&sys->resources, &dev->dev_mem_res);
 
 	dev->bus = sys->busnr; /* Save the RC bus number */
-
+	dev->rc_id = nr; /* Save the RC index */
 	/* assert PCIe reset link to keep EP in reset */
 	if (gpio_is_valid(dev->gpio[MSM_PCIE_GPIO_RST_N].num)) {
 		gpio_set_value_cansleep(dev->gpio[MSM_PCIE_GPIO_RST_N].num,
