@@ -145,7 +145,7 @@
 
 /* NSS Firmware default load addresses */
 #define NSS_CORE0_LOAD_ADDR 0x40000000
-#define NSS_CORE1_LOAD_ADDR 0x40100000
+#define NSS_CORE1_LOAD_ADDR 0x40800000
 
 static struct resource ipq806x_resources_pccntr[] = {
 	{
@@ -1047,7 +1047,7 @@ static struct nss_platform_data nss1_pdata = {
 	.vmap			= (uint32_t)(MSM_NSS_TCM_BASE + SZ_64K),
 	.vphys			= IPQ806X_NSS_TCM_PHYS + SZ_64K,
 	.nphys			= IPQ806X_UBI32_1_CSM_PHYS,
-	.rst_addr		= 0x40100000,
+	.rst_addr		= 0x40800000,
 	.load_addr		= NSS_CORE1_LOAD_ADDR,
 	.turbo_frequency	= NSS_FEATURE_NOT_ENABLED,
 	.ipv4_enabled		= NSS_FEATURE_NOT_ENABLED,
