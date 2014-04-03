@@ -78,7 +78,7 @@ static DEFINE_PER_CPU(struct sk_buff_head, recycle_list);
 #define SKB_RECYCLE_SIZE	2304
 #define SKB_RECYCLE_MIN_SIZE	SKB_RECYCLE_SIZE
 #define SKB_RECYCLE_MAX_SIZE	3328
-#define SKB_RECYCLE_MAX_SKBS	2048
+#define SKB_RECYCLE_MAX_SKBS	1024
 
 static void sock_pipe_buf_release(struct pipe_inode_info *pipe,
 				  struct pipe_buffer *buf)
