@@ -41,6 +41,7 @@ unsigned long ebi2_register_base;
 uint32_t dual_nand_ctlr_present;
 uint32_t interleave_enable;
 uint32_t enable_bch_ecc;
+uint32_t boot_layout = 0;
 
 #define MSM_NAND_DMA_BUFFER_SIZE SZ_8K
 #define MSM_NAND_DMA_BUFFER_SLOTS \
@@ -61,6 +62,10 @@ uint32_t enable_bch_ecc;
 #define FLASH_READ_ONFI_IDENTIFIER_ADDRESS 0x20
 #define FLASH_READ_ONFI_PARAMETERS_COMMAND 0xEC
 #define FLASH_READ_ONFI_PARAMETERS_ADDRESS 0x00
+
+#define UD_SIZE_BYTES_MASK	(0x3FF << 9)
+#define SPARE_SIZE_BYTES_MASK	(0xF << 23)
+#define ECC_NUM_DATA_BYTES_MASK	(0x3FF << 16)
 
 #define VERBOSE 0
 
@@ -1177,11 +1182,15 @@ static int msm_nand_read_oob(struct mtd_info *mtd, loff_t from,
 			 * (only valid if status says success)
 			 */
 			if (ops->datbuf) {
-				if (ops->mode != MTD_OPS_RAW)
-					sectordatasize = (n < (cwperpage - 1))
-					? 516 : (512 - ((cwperpage - 1) << 2));
-				else
+				if (ops->mode != MTD_OPS_RAW) {
+					if (!boot_layout)
+						sectordatasize = (n < (cwperpage - 1))
+							? 516 : (512 - ((cwperpage - 1) << 2));
+					else
+						sectordatasize = 512;
+				} else {
 					sectordatasize = chip->cw_size;
+				}
 
 				cmd->cmd = 0;
 				cmd->src = MSM_NAND_FLASH_BUFFER;
@@ -2447,11 +2456,15 @@ msm_nand_write_oob(struct mtd_info *mtd, loff_t to, struct mtd_oob_ops *ops)
 			}
 
 			/* write data block */
-			if (ops->mode != MTD_OPS_RAW)
-				sectordatawritesize = (n < (cwperpage - 1)) ?
-					516 : (512 - ((cwperpage - 1) << 2));
-			else
+			if (ops->mode != MTD_OPS_RAW) {
+				if (!boot_layout)
+					sectordatawritesize = (n < (cwperpage - 1)) ?
+						516 : (512 - ((cwperpage - 1) << 2));
+				else
+					sectordatawritesize = 512;
+			} else {
 				sectordatawritesize = chip->cw_size;
+			}
 
 			cmd->cmd = 0;
 			cmd->src = data_dma_addr_curr;
@@ -7279,6 +7292,45 @@ static int setup_mtd_device(struct platform_device *pdev,
 	return err;
 }
 
+static ssize_t boot_layout_show(struct device *dev,
+                                  struct device_attribute *attr,
+                                  char *buf)
+{
+	return sprintf(buf, "%d\n", boot_layout);
+}
+
+static ssize_t boot_layout_store(struct device *dev,
+                                   struct device_attribute *attr,
+                                   const char *buf, size_t n)
+{
+	struct msm_nand_info *info = dev_get_drvdata(dev);
+	struct msm_nand_chip *chip = info->mtd.priv;
+	unsigned int ud_size;
+	unsigned int spare_size;
+	unsigned int ecc_num_data_bytes;
+
+	sscanf(buf, "%d", &boot_layout);
+
+	ud_size = boot_layout? 512: 516;
+	spare_size = boot_layout? (chip->cw_size -
+					(chip->ecc_parity_bytes+ 1+ ud_size)):
+					(enable_bch_ecc ? 2 : 1);
+	ecc_num_data_bytes = boot_layout? 512: 516;
+
+	chip->CFG0 = (chip->CFG0 & ~SPARE_SIZE_BYTES_MASK);
+	chip->CFG0 |= (spare_size << 23);
+
+	chip->CFG0 = (chip->CFG0 & ~UD_SIZE_BYTES_MASK);
+	chip->CFG0 |= (ud_size << 9);
+
+	chip->ecc_buf_cfg = (chip->ecc_buf_cfg & ~ECC_NUM_DATA_BYTES_MASK)
+				| (ecc_num_data_bytes << 16);
+
+	return n;
+}
+
+static const DEVICE_ATTR(boot_layout, 0644, boot_layout_show, boot_layout_store);
+
 static int __devinit msm_nand_probe(struct platform_device *pdev)
 {
 	struct msm_nand_info *info;
@@ -7408,6 +7460,10 @@ no_dual_nand_ctlr_support:
 		goto out_free_dma_buffer;
 	}
 
+	err = sysfs_create_file(&pdev->dev.kobj, &dev_attr_boot_layout.attr);
+	if (err)
+		goto out_free_dma_buffer;
+
 	dev_set_drvdata(&pdev->dev, info);
 
 	return 0;
@@ -7435,6 +7491,8 @@ static int __devexit msm_nand_remove(struct platform_device *pdev)
 				  info->msm_nand.dma_addr);
 		kfree(info);
 	}
+
+	sysfs_remove_file(&pdev->dev.kobj, &dev_attr_boot_layout.attr);
 
 	return 0;
 }
