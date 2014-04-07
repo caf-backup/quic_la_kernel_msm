@@ -242,10 +242,13 @@ static void pcm_start_test(void)
 {
 	printk("%s : %d\n",__func__, start);
 	if (start) {
-		if (ctx.running)
+		if (ctx.running) {
 			printk("%s : Test already running\n", __func__);
-		else
-			ctx.task = kthread_run(&pcm_test_rw,NULL,"PCMTest");
+		} else {
+			ctx.task = kthread_create(&pcm_test_rw, NULL, "PCMTest");
+			if(ctx.task)
+				wake_up_process(ctx.task);
+		}
 	} else {
 		if (ctx.running) {
 			printk("%s : Stopping test\n", __func__);
