@@ -645,6 +645,25 @@ static struct msm_gpiomux_config ipq806x_ap145_gpiomux[] = {
 	ipq_mux(62, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 };
 
+static struct msm_gpiomux_config ipq806x_ap145_1xx_gpiomux[] = {
+#ifdef CONFIG_MMC_MSM_SDC1_SUPPORT
+#ifdef CONFIG_MMC_MSM_SDC1_8_BIT_SUPPORT
+	ipq_mux(38, sdc1_cmd_data_0_3_active_cfg,	sdc1_suspended_cfg),
+	ipq_mux(39, sdc1_cmd_data_0_3_active_cfg,	sdc1_suspended_cfg),
+#endif
+	ipq_mux(40, sdc1_cmd_data_0_3_active_cfg,	sdc1_suspended_cfg),
+	ipq_mux(41, sdc1_cmd_data_0_3_active_cfg,	sdc1_suspended_cfg),
+	ipq_mux(42, sdc1_clk_active_cfg,		sdc1_suspended_cfg),
+	ipq_mux(43, sdc1_cmd_data_0_3_active_cfg,	sdc1_data_1_suspended_cfg),
+	ipq_mux(44, sdc1_cmd_data_0_3_active_cfg,	sdc1_suspended_cfg),
+	ipq_mux(45, sdc1_cmd_data_0_3_active_cfg,	sdc1_suspended_cfg),
+#ifdef CONFIG_MMC_MSM_SDC1_8_BIT_SUPPORT
+	ipq_mux(46, sdc1_cmd_data_0_3_active_cfg,	sdc1_suspended_cfg),
+	ipq_mux(47, sdc1_cmd_data_0_3_active_cfg,	sdc1_suspended_cfg),
+#endif
+#endif
+};
+
 void __init ipq806x_init_gpiomux(void)
 {
 	int rc;
@@ -678,6 +697,11 @@ void __init ipq806x_init_gpiomux(void)
 	} else if (machine_is_ipq806x_ap145()) {
 		msm_gpiomux_install(ipq806x_ap145_gpiomux,
 			ARRAY_SIZE(ipq806x_ap145_gpiomux));
+	} else if (machine_is_ipq806x_ap145_1xx()) {
+		msm_gpiomux_install(ipq806x_ap145_gpiomux,
+			ARRAY_SIZE(ipq806x_ap145_gpiomux));
+		msm_gpiomux_install(ipq806x_ap145_1xx_gpiomux,
+			ARRAY_SIZE(ipq806x_ap145_1xx_gpiomux));
 	}
 
 }
