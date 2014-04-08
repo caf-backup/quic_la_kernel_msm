@@ -1024,7 +1024,7 @@ static struct nss_platform_data nss0_pdata = {
 	.gmac_enabled[0]	= NSS_FEATURE_ENABLED,
 	.gmac_enabled[1]	= NSS_FEATURE_ENABLED,
 	.gmac_enabled[2]	= NSS_FEATURE_ENABLED,
-	.gmac_enabled[3]	= NSS_FEATURE_NOT_ENABLED,
+	.gmac_enabled[3]	= NSS_FEATURE_ENABLED,
 };
 
 struct platform_device ipq806x_device_nss0 = {
