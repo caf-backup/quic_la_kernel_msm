@@ -2384,6 +2384,7 @@ static struct branch_clk pcie_phy_ref_clk = {
 	.b = {
 		.ctl_reg = PCIE_PCLK_CTL_REG,
 		.en_mask = BIT(4),
+		.halt_check = NOCHECK,
 		.halt_reg = CLK_HALT_MSS_SMPSS_MISC_STATE_REG,
 		.halt_bit = 29,
 	},
@@ -2440,6 +2441,7 @@ static struct branch_clk pcie1_phy_ref_clk = {
 	.b = {
 		.ctl_reg = PCIE_1_PCLK_CTL_REG,
 		.en_mask = BIT(4),
+		.halt_check = NOCHECK,
 		.halt_reg = CLK_HALT_MSS_SMPSS_MISC_STATE_REG,
 		.halt_bit = 26,
 	},
@@ -2496,6 +2498,7 @@ static struct branch_clk pcie2_phy_ref_clk = {
 	.b = {
 		.ctl_reg = PCIE_2_PCLK_CTL_REG,
 		.en_mask = BIT(4),
+		.halt_check = NOCHECK,
 		.halt_reg = CLK_HALT_MSS_SMPSS_MISC_STATE_REG,
 		.halt_bit = 23,
 	},

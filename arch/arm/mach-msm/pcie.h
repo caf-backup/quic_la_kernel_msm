@@ -81,6 +81,9 @@ struct msm_pcie_dev_t {
 	struct msm_pcie_res_info_t	*res;
         msm_pcie_port_en_t              *port_en;
 
+	struct pci_bus			*pci_bus;
+	struct pci_sys_data		*sys;
+
 	void __iomem			*parf;
 	void __iomem			*elbi;
 	void __iomem			*pcie20;
@@ -103,8 +106,8 @@ struct msm_pcie_dev_t {
 	uint32_t			rc_id;
 };
 
-extern uint32_t msm_pcie_irq_init(struct msm_pcie_dev_t *dev);
-extern void msm_pcie_irq_deinit(struct msm_pcie_dev_t *dev);
+extern uint32_t msm_pcie_irq_init(struct msm_pcie_dev_t *dev, int remove);
+extern void msm_pcie_irq_deinit(struct msm_pcie_dev_t *dev, int remove);
 extern int msm_pcie_get_debug_mask(void);
 
 struct pci_bus;
