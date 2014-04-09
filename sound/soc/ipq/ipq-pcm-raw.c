@@ -437,6 +437,10 @@ void ipq_pcm_deinit(void)
 	context.needs_deinit = 0;
 	clk_reset(lpaif_pcm_bit_clk, LPAIF_PCM_ASSERT);
 	clk_disable_unprepare(lpaif_pcm_bit_clk);
+	 /* set Rx active slot count to default. */
+	ipq_cfg_pcm_active_slot_count(LPA_IF_PCM_DEFAULT_SLOT_COUNT, 0);
+	 /* set Tx active slot count to default. */
+	ipq_cfg_pcm_active_slot_count(LPA_IF_PCM_DEFAULT_SLOT_COUNT, 1);
 	ipq_pcm_int_disable(PCM0_DMA_WR_CH);
 	ipq_lpaif_unregister_dma_irq_handler(PCM0_DMA_WR_CH);
 	ipq_lpaif_unregister_dma_irq_handler(PCM0_DMA_RD_CH);
