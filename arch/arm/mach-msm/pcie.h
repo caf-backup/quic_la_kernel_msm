@@ -100,7 +100,6 @@ struct msm_pcie_dev_t {
 	uint32_t			axi_addr;
 	uint32_t			axi_size;
 	uint32_t			bus;
-	uint32_t			rc_id;
 };
 
 extern uint32_t msm_pcie_irq_init(struct msm_pcie_dev_t *dev);
