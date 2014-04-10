@@ -134,83 +134,6 @@ inline struct msm_pcie_dev_t *pdev_id_to_msm_pcie_dev(int id)
 }
 #define pdev_id_to_mpdev	pdev_id_to_msm_pcie_dev
 
-inline int is_msm_pcie_rc(struct pci_bus *bus)
-{
-	struct msm_pcie_dev_t *dev = bus_to_mpdev(bus);
-	return (bus->number == dev->bus);
-}
-
-/* PCIe TLP types that we are interested in */
-#define PCI_CFG0_RDWR	0x4
-#define PCI_CFG1_RDWR	0x5
-
-inline int msm_pcie_get_cfgtype(struct pci_bus *bus)
-{
-	int root = bus_to_mpdev(bus)->bus;
-
-	/*
-	 * http://www.tldp.org/LDP/tlk/dd/pci.html
-	 * Pass it onto the secondary bus interface unchanged if the
-	 * bus number specified is greater than the secondary bus
-	 * number and less than or equal to the subordinate bus
-	 * number.
-	 *
-	 * Read/Write to the RC and Device/Switch connected to the RC
-	 * are CFG0 type transactions. Rest have to be forwarded
-	 * down stream as CFG1 transactions.
-	 *
-	 */
-	if (bus->number == root || bus->primary == root)
-		return PCI_CFG0_RDWR;
-
-	return PCI_CFG1_RDWR;
-}
-
-void msm_pcie_config_cfgtype(struct pci_bus *bus, u32 devfn)
-{
-	uint32_t bdf, cfgtype;
-	struct msm_pcie_dev_t *dev = bus_to_mpdev(bus);
-
-	cfgtype = msm_pcie_get_cfgtype(bus);
-
-	if (cfgtype == PCI_CFG0_RDWR) {
-		bdf = MSM_PCIE_DEV_CFG_ADDR;
-	} else {
-		/*
-		 * iATU Lower Target Address Register
-		 *	Bits	Description
-		 *	*-1:0	Forms bits [*:0] of the
-		 *		start address of the new
-		 *		address of the translated
-		 *		region. The start address
-		 *		must be aligned to a
-		 *		CX_ATU_MIN_REGION_SIZE kB
-		 *		boundary, so these bits are
-		 *		always 0. A write to this
-		 *		location is ignored by the
-		 *		PCIe core.
-		 *	31:*1	Forms bits [31:*] of the of
-		 *		the new address of the
-		 *		translated region.
-		 *
-		 *	* is log2(CX_ATU_MIN_REGION_SIZE)
-		 */
-		bdf = (((bus->number & 0xff) << 24) & 0xff000000) |
-				(((devfn & 0xff) << 16) & 0x00ff0000);
-	}
-
-	writel_relaxed(0, dev->pcie20 + PCIE20_PLR_IATU_VIEWPORT);
-	wmb();
-
-	/* Program Bdf Address */
-	writel_relaxed(bdf, dev->pcie20 + PCIE20_PLR_IATU_LTAR);
-	wmb();
-
-	/* Write Config Request Type */
-	writel_relaxed(cfgtype, dev->pcie20 + PCIE20_PLR_IATU_CTRL1);
-	wmb();
-}
-
 static inline int msm_pcie_oper_conf(struct pci_bus *bus, u32 devfn, int oper,
 				     int where, int size, u32 *val)
 {
@@ -220,12 +143,18 @@ static inline int msm_pcie_oper_conf(struct pci_bus *bus, u32 devfn, int oper,
 	void __iomem *config_base;
 	int rc;
 
-	rc = is_msm_pcie_rc(bus);
+	/*
+	 * Each RC has 2 Linux PCIe bus numbers associated with it.
+	 * Linux PCIe bus numbering starts at 0. Hence, first RC will
+	 * take bus 0 & 1, second RC will take bus 2 & 3 and so on.
+	 * The lower numbered bus is for the RC and the other is for EP.
+	 */
+	rc = (bus->number % 2) ? 0 : 1;
 
 	/*
 	 * For downstream bus, make sure link is up
 	 */
-	if (rc && (devfn != 0)) {
+	if ((bus->number > ((CONFIG_MSM_NUM_PCIE * 2) - 1)) || (devfn != 0)) {
 		PCIE_DBG("invalid %s - bus %d devfn %d\n",
 			 (oper == RD) ? "rd" : "wr", bus->number, devfn);
 		*val = ~0;
@@ -236,8 +165,6 @@ static inline int msm_pcie_oper_conf(struct pci_bus *bus, u32 devfn, int oper,
 		*val = ~0;
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	}
-
-	msm_pcie_config_cfgtype(bus, devfn);
 
 	word_offset = where & ~0x3;
 	byte_offset = where & 0x3;
