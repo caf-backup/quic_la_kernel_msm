@@ -84,7 +84,7 @@ inline phys_addr_t msm_get_pcie_msi_addr(int rc)
 	return MSM_PCIE_MSI_PHY;
 }
 
-uint32_t __init msm_pcie_irq_init(struct msm_pcie_dev_t *dev)
+uint32_t msm_pcie_irq_init(struct msm_pcie_dev_t *dev, int remove)
 {
 	int i, rc;
 
@@ -110,6 +110,9 @@ uint32_t __init msm_pcie_irq_init(struct msm_pcie_dev_t *dev)
 		goto out;
 	}
 
+	if (!remove)
+		goto out;
+
 	/* register handler for PCIE_WAKE_N interrupt line */
 	rc = request_irq(gpio_to_irq(dev->wake_n),
 		handle_wake_irq, IRQF_TRIGGER_FALLING,
@@ -128,10 +131,11 @@ out:
 	return rc;
 }
 
-void __exit msm_pcie_irq_deinit(struct msm_pcie_dev_t *dev)
+void msm_pcie_irq_deinit(struct msm_pcie_dev_t *dev, int remove)
 {
 	free_irq(dev->msi_irq, dev);
-	free_irq(dev->wake_n, dev);
+	if (remove)
+		free_irq(dev->wake_n, dev);
 }
 
 void msm_pcie_destroy_irq(unsigned int irq)
