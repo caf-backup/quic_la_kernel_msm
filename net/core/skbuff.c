@@ -76,6 +76,8 @@ static struct kmem_cache *skbuff_head_cache __read_mostly;
 static struct kmem_cache *skbuff_fclone_cache __read_mostly;
 static DEFINE_PER_CPU(struct sk_buff_head, recycle_list);
 #define SKB_RECYCLE_SIZE	2304
+#define SKB_RECYCLE_MIN_SIZE	SKB_RECYCLE_SIZE
+#define SKB_RECYCLE_MAX_SIZE	3328
 #define SKB_RECYCLE_MAX_SKBS	2048
 
 static void sock_pipe_buf_release(struct pipe_inode_info *pipe,
@@ -669,7 +671,7 @@ void kfree_skb(struct sk_buff *skb)
 EXPORT_SYMBOL(kfree_skb);
 
 static inline bool consume_skb_can_recycle(const struct sk_buff *skb,
-					   int skb_size)
+					   int min_skb_size, int max_skb_size)
 {
 	if (unlikely(irqs_disabled()))
 		return false;
@@ -683,8 +685,12 @@ static inline bool consume_skb_can_recycle(const struct sk_buff *skb,
 	if (unlikely(skb->fclone != SKB_FCLONE_UNAVAILABLE))
 		return false;
 
-	skb_size = SKB_DATA_ALIGN(skb_size + NET_SKB_PAD);
-	if (unlikely(skb_end_pointer(skb) - skb->head < skb_size))
+	min_skb_size = SKB_DATA_ALIGN(min_skb_size + NET_SKB_PAD);
+	if (unlikely(skb_end_pointer(skb) - skb->head < min_skb_size))
+		return false;
+
+	max_skb_size = SKB_DATA_ALIGN(max_skb_size + NET_SKB_PAD);
+	if (unlikely(skb_end_pointer(skb) - skb->head > max_skb_size))
 		return false;
 
 	if (unlikely(skb_cloned(skb)))
@@ -726,7 +732,8 @@ void consume_skb(struct sk_buff *skb)
 	 * for us to recycle this one later than to allocate a new one
 	 * from scratch.
 	 */
-	if (likely(consume_skb_can_recycle(skb, SKB_RECYCLE_SIZE))) {
+	if (likely(consume_skb_can_recycle(skb, SKB_RECYCLE_MIN_SIZE,
+					   SKB_RECYCLE_MAX_SIZE))) {
 		unsigned long flags;
 		struct sk_buff_head *h;
 		h = &get_cpu_var(recycle_list);
