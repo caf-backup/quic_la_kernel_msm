@@ -122,10 +122,11 @@ static int msm_pcie_is_link_up(struct msm_pcie_dev_t *msm_pcie_dev)
 				BIT(29);
 }
 
-struct msm_pcie_dev_t *pcie_bus_to_msm_pcie_dev(struct pci_bus *bus)
+inline struct msm_pcie_dev_t *pcie_bus_to_msm_pcie_dev(struct pci_bus *bus)
 {
 	return ((struct pci_sys_data *)(bus->sysdata))->private_data;
 }
+#define bus_to_mpdev		pcie_bus_to_msm_pcie_dev
 
 inline struct msm_pcie_dev_t *pdev_id_to_msm_pcie_dev(int id)
 {
