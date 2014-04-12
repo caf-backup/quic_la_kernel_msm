@@ -2332,28 +2332,6 @@ int wifi_board_data_read(loff_t from, size_t len, size_t *retlen, u_char *buf)
 }
 EXPORT_SYMBOL(wifi_board_data_read);
 
-static void __init nss_macsec_register_devices(void)
-{
-	uint32_t soc_version = socinfo_get_version();
-
-	/* MACSEC only works on Aronite 2.0 board */
-	if(SOCINFO_VERSION_MAJOR(soc_version) < 2)
-		return;
-
-	/* GMAC1, GMAC2, GMAC3 are in sgmii mode. MACSEC works in that mode */
-	if(machine_is_ipq806x_db149()) {
-		platform_device_register(&nss_macsec1);
-		platform_device_register(&nss_macsec2);
-		platform_device_register(&nss_macsec3);
-	}
-
-	/* GMAC2 is in sgmii mode. MACSEC works in that mode */
-	if(machine_is_ipq806x_db147() || machine_is_ipq806x_ap148() ||
-			machine_is_ipq806x_ap145()) {
-		platform_device_register(&nss_macsec2);
-	}
-}
-
 static void __init ipq806x_init(void)
 {
 	if (meminfo_init(SYS_MEMORY, SZ_256M) < 0)
@@ -2362,7 +2340,6 @@ static void __init ipq806x_init(void)
 	ipq806x_pcie_init();
 
 	nss_gmac_init();
-	nss_macsec_register_devices();
 #ifdef CONFIG_MSM_ROTATOR
 	msm_rotator_set_split_iommu_domain();
 #endif
