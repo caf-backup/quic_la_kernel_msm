@@ -190,9 +190,13 @@ int ipq_cfg_pcm_active_slot_count(uint8_t slot_count, uint8_t dir)
 {
 	uint32_t cfg;
 
-	/* Supported only from AK 2.0 */
-	if (SOCINFO_VERSION_MAJOR(chip_version) < 2)
-		return -ENOTSUPP;
+	/* Multi slot supported only from AK 2.0 */
+	if (SOCINFO_VERSION_MAJOR(chip_version) < 2) {
+		if (slot_count != 1)
+			return -ENOTSUPP;
+		else
+			return 0; /*Nothing to update for AK 1.0 */
+	}
 
 	if (slot_count > LPA_IF_PCM_MAX_ACT_SLOT)
 		return -EINVAL;
@@ -217,7 +221,8 @@ int ipq_cfg_pcm_tx_active_slot(uint32_t slot, uint32_t val)
 	uint32_t cfg;
 
 	/* Supported only from AK 2.0 */
-	if (SOCINFO_VERSION_MAJOR(chip_version) < 2)
+	if ((SOCINFO_VERSION_MAJOR(chip_version) < 2) &&
+		(slot != LPA_IF_TPCM_SLOT0))
 		return -ENOTSUPP;
 
 	switch (slot) {
@@ -257,7 +262,8 @@ int ipq_cfg_pcm_rx_active_slot(uint32_t slot, uint32_t val)
 	uint32_t cfg;
 
 	/* Supported only from AK 2.0 */
-	if (SOCINFO_VERSION_MAJOR(chip_version) < 2)
+	if ((SOCINFO_VERSION_MAJOR(chip_version) < 2) &&
+		(slot != LPA_IF_RPCM_SLOT0))
 		return -ENOTSUPP;
 
 	switch (slot) {
