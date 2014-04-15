@@ -134,9 +134,11 @@ struct pppol2tp_session {
 };
 
 static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb);
+static struct net_device *pppol2tp_get_netdev(struct ppp_channel *chan);
 
 static const struct ppp_channel_ops pppol2tp_chan_ops = {
 	.start_xmit =  pppol2tp_xmit,
+	.get_netdev = pppol2tp_get_netdev,
 };
 
 static const struct proto_ops pppol2tp_ops;
@@ -446,6 +448,39 @@ abort:
 	kfree_skb(skb);
 	return 1;
 }
+
+static struct net_device *pppol2tp_get_netdev(struct ppp_channel *chan)
+{
+	struct sock *sk = (struct sock *)chan->private;
+	struct inet_sock *isk = NULL;
+	struct l2tp_session *session = NULL;
+	struct pppol2tp_session *ps = NULL;
+	struct net_device *dev = NULL;
+	struct rtable *rt = NULL;
+	struct dst_entry *dst = NULL;
+
+	session = pppol2tp_sock_to_session(sk);
+	if (session == NULL) {
+		return NULL;
+	}
+
+	ps = l2tp_session_priv(session);
+	isk = inet_sk(ps->tunnel_sock);
+
+	rt = ip_route_output(&init_net, isk->inet_daddr, 0, 0, 0);
+	if (IS_ERR(rt)) {
+		return NULL;
+	}
+
+	dst = (struct dst_entry *)rt;
+	dev = dst->dev;
+	dst_release(dst);
+
+	sock_put(sk);
+
+	return dev;
+}
+
 
 /*****************************************************************************
  * Session (and tunnel control) socket create/destroy.
