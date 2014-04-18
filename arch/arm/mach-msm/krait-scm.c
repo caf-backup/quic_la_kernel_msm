@@ -20,10 +20,12 @@
 
 #include <mach/scm.h>
 
-#define CPU_CONFIG_CMD 5
-#define CPU_CONFIG_QUERY_CMD 6
-#define TZBSP_MAJOR_VERSION(x)	(((x) >> 16) & 0xFFFF)
-#define TZBSP_MINOR_VERSION(x)	((x) & 0xFFFF)
+#define CPU_CONFIG_CMD			(5)
+#define CPU_CONFIG_QUERY_CMD 		(6)
+#define TZBSP_BUILD_VER_QUERY_CMD	(4)
+#define TZBSP_MAJOR_VERSION(x)		(((x) >> 16) & 0xFFFF)
+#define TZBSP_MINOR_VERSION(x)		((x) & 0xFFFF)
+#define TZBSP_BUILD_ID_LEN		(32)
 
 static int query_cpu_config(void)
 {
@@ -111,11 +113,29 @@ static ssize_t show_tzbspver(struct sysdev_class *class,
 			TZBSP_MINOR_VERSION(ver));
 }
 
+static ssize_t show_tzbsp_build_rev(struct sysdev_class *class,
+		struct sysdev_class_attribute *attr, char *buf)
+{
+	int ret;
+
+	ret = scm_call(SCM_SVC_INFO, TZBSP_BUILD_VER_QUERY_CMD, NULL,
+			0, buf, TZBSP_BUILD_ID_LEN);
+
+	if (ret)
+		pr_err("%s: could not query build revision ret = %d.\n",
+			__func__, ret);
+
+	return strlen(buf);
+
+}
+static SYSDEV_CLASS_ATTR(tzbsp_build_rev, 0600, show_tzbsp_build_rev, NULL);
+
 static SYSDEV_CLASS_ATTR(tzbsp_version, 0600, show_tzbspver, NULL);
 
 static struct attribute *cpu_subsys_attributes[] = {
 	&attr_cpuctl.attr,
 	&attr_tzbsp_version.attr,
+	&attr_tzbsp_build_rev.attr,
 	NULL
 };
 
