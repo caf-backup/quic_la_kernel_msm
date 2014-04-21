@@ -2339,6 +2339,10 @@ static void __init nss_macsec_register_devices(void)
 	if(SOCINFO_VERSION_MAJOR(soc_version) < 2)
 		return;
 
+	/* Only IPQ8066/8068 has MACSEC module */
+	if (!(cpu_is_ipq8066() || cpu_is_ipq8068()))
+		return;
+
 	/* GMAC1, GMAC2, GMAC3 are in sgmii mode. MACSEC works in that mode */
 	if(machine_is_ipq806x_db149()) {
 		platform_device_register(&nss_macsec1);
