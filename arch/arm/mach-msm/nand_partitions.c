@@ -39,19 +39,8 @@
 
 /* configuration tags specific to msm */
 
-#define ATAG_MSM_PARTITION 0x4d534D70 /* MSMp */
-
-struct msm_ptbl_entry {
-	char name[16];
-	__u32 offset;
-	__u32 size;
-	__u32 flags;
-};
-
-#define MSM_MAX_PARTITIONS 18
-
-static struct mtd_partition msm_nand_partitions[SMEM_MAX_PARTITIONS];
-static char msm_nand_names[SMEM_MAX_PARTITIONS * SMEM_MAX_PART_NAME];
+static struct mtd_partition msm_nand_partitions[SMEM_MAX_PARTITIONS + MSM_MTD_MAX_PARTS];
+static char msm_nand_names[ARRAY_SIZE(msm_nand_partitions) * SMEM_MAX_PART_NAME];
 
 extern struct flash_platform_data msm_nand_data;
 
@@ -75,7 +64,6 @@ static int __init parse_tag_msm_partition(const struct tag *tag)
 		ptn->name = name;
 		ptn->offset = entry->offset;
 		ptn->size = entry->size;
-
 		printk(KERN_INFO "Partition (from atag) %s "
 				"-- Offset:%llx Size:%llx\n",
 				ptn->name, ptn->offset, ptn->size);
@@ -115,12 +103,9 @@ static int get_nand_partitions(void)
 	struct smem_flash_partition_entry *part_entry;
 	u32 *flash_type_ptr;
 	u32 flash_type;
-	struct mtd_partition *ptn = msm_nand_partitions;
-	char *name = msm_nand_names;
+	struct mtd_partition *ptn = msm_nand_partitions + msm_nand_data.nr_parts;
+	char *name = msm_nand_names + (msm_nand_data.nr_parts * SMEM_MAX_PART_NAME);
 	int part;
-
-	if (msm_nand_data.nr_parts)
-		return 0;
 
 	partition_table = (struct smem_flash_partition_table *)
 	    smem_alloc(SMEM_AARM_PARTITION_TABLE,
@@ -154,8 +139,6 @@ static int get_nand_partitions(void)
 
 	if (flash_type != SMEM_FLASH_NAND)
 		return 0;
-
-	msm_nand_data.nr_parts = 0;
 
 	/* Get the LINUX FS partition info */
 	for (part = 0; part < partition_table->numparts; part++) {

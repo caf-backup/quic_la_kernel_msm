@@ -41,8 +41,47 @@
 
 extern struct flash_platform_data msm_sf_data;
 
-static struct mtd_partition msm_sf_partitions[SMEM_MAX_PARTITIONS];
-static char msm_sf_names[SMEM_MAX_PARTITIONS * SMEM_MAX_PART_NAME];
+static struct mtd_partition msm_sf_partitions[SMEM_MAX_PARTITIONS + MSM_MTD_MAX_PARTS];
+static char msm_sf_names[ARRAY_SIZE(msm_sf_partitions) * SMEM_MAX_PART_NAME];
+
+static int __init parse_tag_msm_partition(const struct tag *tag)
+{
+	struct mtd_partition *ptn = msm_sf_partitions;
+	char *name = msm_sf_names;
+	struct msm_ptbl_entry *entry = (void *) &tag->u;
+	unsigned count, n;
+
+	count = (tag->hdr.size - 2) /
+		(sizeof(struct msm_ptbl_entry) / sizeof(__u32));
+
+	if (count > MSM_MAX_PARTITIONS)
+		count = MSM_MAX_PARTITIONS;
+
+	for (n = 0; n < count; n++) {
+		memcpy(name, entry->name, 15);
+		name[15] = 0;
+
+		ptn->name = name;
+		ptn->offset = entry->offset;
+		ptn->size = entry->size;
+
+		printk(KERN_INFO "Partition (from atag) %s "
+				"-- Offset:%llx Size:%llx\n",
+				ptn->name, ptn->offset, ptn->size);
+
+		name += 16;
+		entry++;
+		ptn++;
+	}
+
+	msm_sf_data.nr_parts = count;
+	msm_sf_data.parts = msm_sf_partitions;
+
+	return 0;
+}
+
+__tagtable(ATAG_IPQ_NOR_PARTITION, parse_tag_msm_partition);
+
 
 static int get_sf_partitions(void)
 {
@@ -53,11 +92,8 @@ static int get_sf_partitions(void)
 	u32 *block_size_ptr;
 	u32 block_size;
 	struct mtd_partition *ptn = msm_sf_partitions;
-	char *name = msm_sf_names;
+	char *name = msm_sf_names + (msm_sf_data.nr_parts * SMEM_MAX_PART_NAME);
 	int part;
-
-	if (msm_sf_data.nr_parts)
-		return 0;
 
 	partition_table = (struct smem_flash_partition_table *)
 	    smem_alloc(SMEM_AARM_PARTITION_TABLE,
@@ -101,7 +137,11 @@ static int get_sf_partitions(void)
 
 	block_size = *block_size_ptr;
 
-	msm_sf_data.nr_parts = 0;
+	for (part = 0; part < msm_sf_data.nr_parts; part++, ptn++) {
+		ptn->offset *= block_size;
+		ptn->size *= block_size;
+	}
+
 
 	/* Get the LINUX FS partition info */
 	for (part = 0; part < partition_table->numparts; part++) {
