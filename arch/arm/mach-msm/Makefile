@@ -222,3 +222,4 @@ obj-$(CONFIG_MSM_CACHE_DUMP) += msm_cache_dump.o
 
 
 obj-$(CONFIG_MSM_CPU_PWRCTL) +=  msm_cpu_pwrctl.o
+obj-$(CONFIG_ARCH_IPQ806X) += dma_memcpy.o
