@@ -58,6 +58,7 @@ static int voice_free_dma_buffer(struct device *dev,
 		struct voice_dma_buffer *dma_buff);
 static int dsp_flag;
 static int dsp_realtime_flag;
+int ipq_pcm_init_v2(struct ipq_pcm_params *params);
 
 static irqreturn_t pcm_irq_handler(int intrsrc, void *data)
 {
@@ -118,110 +119,14 @@ EXPORT_SYMBOL(ipq_pcm_check_flag);
 
 void ipq_pcm_init(void)
 {
-	uint32_t ret;
-	uint32_t bit_width = CHANNEL_BIT_WIDTH;
-	uint32_t freq = CHANNEL_SAMPLING_RATE;
-	uint32_t slots = NUM_PCM_SLOTS;
-	dsp_flag = 0;
-	dsp_realtime_flag = 0;
-	atomic_set(&data_avail, 0);
-	atomic_set(&data_at, 1);
-	clk_reset(lpaif_pcm_bit_clk, LPAIF_PCM_ASSERT);
-
-	/* Put the PCM instance to Reset */
-	ipq_cfg_pcm_reset(1);
-
-	/* Sync source internal */
-	ipq_cfg_pcm_sync_src(1);
-
-	/* Select long FSYNC */
-	ipq_cfg_pcm_aux_mode(1);
-
-	/* Configuring Slot0 for Tx and Rx */
-	ipq_cfg_pcm_slot(0, 0);
-	ipq_cfg_pcm_slot(0, 1);
-
-	/* Configure bit width */
-	ipq_cfg_pcm_width(bit_width, 0);
-	ipq_cfg_pcm_width(bit_width, 1);
-
-	/* Configure the number of slots */
-	ipq_cfg_pcm_rate(bit_width * slots);
-
-	/*
-	 * Configure the DMA , Intr is enabled only for
-	 * for write channel. (host Rx)
-	*/
-	rx_dma_buffer->size = VOICE_BUFF_SIZE;
-	ret = voice_allocate_dma_buffer(&pcm_pdev->dev, rx_dma_buffer);
-	if (ret) {
-		dev_err(&pcm_pdev->dev, "%s: %d:Error in allocating tx ring buffer\n",
-				__func__, __LINE__);
-
-		return;
-	}
-
-	tx_dma_buffer->size = VOICE_BUFF_SIZE;
-	ret = voice_allocate_dma_buffer(&pcm_pdev->dev, tx_dma_buffer);
-	if (ret) {
-		dev_err(&pcm_pdev->dev, "%s: %d:Error in allocating tx ring buffer\n",
-				__func__, __LINE__);
-		goto error_mem;
-	}
-
-
-	tx_dma_params.src_start = tx_dma_buffer->addr;
-	tx_dma_params.buffer = (u8 *)tx_dma_buffer->area;
-	tx_dma_params.buffer_size = VOICE_BUFF_SIZE;
-	tx_dma_params.period_size = VOICE_PERIOD_SIZE;
-	ret = ipq_lpaif_cfg_dma(PCM0_DMA_RD_CH, &tx_dma_params,
-					CHANNEL_BIT_WIDTH, 0 /*disable */);
-	if (ret)
-		goto error_cfg_rd_ch;
-
-	rx_dma_params.src_start = rx_dma_buffer->addr;
-	rx_dma_params.buffer = (u8 *)rx_dma_buffer->area;
-	rx_dma_params.buffer_size = VOICE_BUFF_SIZE;
-	rx_dma_params.period_size = VOICE_PERIOD_SIZE;
-	ret = ipq_lpaif_cfg_dma(PCM0_DMA_WR_CH, &rx_dma_params,
-					CHANNEL_BIT_WIDTH, 0 /*disable */);
-
-	ipq_lpaif_register_dma_irq_handler(PCM0_DMA_WR_CH,
-						pcm_irq_handler, NULL);
-	if (ret)
-		goto error_cfg_wr_ch;
-
-	ipq_pcm_int_enable(PCM0_DMA_WR_CH);
-
-	/* Start PCLK */
-	ret = clk_set_rate(lpaif_pcm_bit_clk, (freq * bit_width * slots));
-	if (IS_ERR_VALUE(ret)) {
-		pr_err("%s : clk_set_rate failed for pcm bit clock\n", __func__);
-		goto error_clk;
-		return;
-	}
-
-	ret = clk_prepare_enable(lpaif_pcm_bit_clk);
-	if (IS_ERR_VALUE(ret)) {
-		pr_err("%s : clk_prepare_enable failed for pcm bit clock\n", __func__);
-		goto error_clk;
-	}
-
-	/* take PCM out of reset to start it */
-	ipq_cfg_pcm_reset(0);
-
-	context.needs_deinit = 1;
-	return;
-
-error_clk:
-	ipq_lpaif_disable_dma(PCM0_DMA_WR_CH);
-error_cfg_wr_ch:
-error_cfg_rd_ch:
-	ipq_lpaif_unregister_dma_irq_handler(PCM0_DMA_WR_CH);
-	voice_free_dma_buffer(&pcm_pdev->dev, tx_dma_buffer);
-error_mem:
-	voice_free_dma_buffer(&pcm_pdev->dev, rx_dma_buffer);
-	return;
+	struct ipq_pcm_params pcm_params;
+	pcm_params.bit_width = CHANNEL_BIT_WIDTH;
+	pcm_params.rate = CHANNEL_SAMPLING_RATE;
+	pcm_params.slot_count = NUM_PCM_SLOTS;
+	pcm_params.active_slot_count = 1;
+	pcm_params.rx_slots[0] = 0;
+	pcm_params.tx_slots[0] = 0;
+	ipq_pcm_init_v2(&pcm_params);
 }
 EXPORT_SYMBOL(ipq_pcm_init);
 
