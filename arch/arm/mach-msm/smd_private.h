@@ -274,6 +274,20 @@ enum smem_flash_type {
 	SMEM_FLASH_SPI,
 };
 
+
+struct msm_ptbl_entry {
+	char name[16];
+	__u32 offset;
+	__u32 size;
+	__u32 flags;
+};
+
+#define ATAG_IPQ_NOR_PARTITION 0x494e4f52 /* INOR */
+#define ATAG_MSM_PARTITION 0x4d534D70 /* MSMp */
+
+#define MSM_MTD_MAX_PARTS 16
+#define MSM_MAX_PARTITIONS 18
+
 #define SMEM_FLASH_PART_MAGIC1     0x55EE73AA
 #define SMEM_FLASH_PART_MAGIC2     0xE35EBDDB
 #define SMEM_FLASH_PART_VERSION    0x3
