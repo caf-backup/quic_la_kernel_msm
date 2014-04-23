@@ -7155,7 +7155,7 @@ int msm_nand_scan(struct mtd_info *mtd, int maxchips)
 	pr_info("CFG1 Init  : 0x%08x\n", chip->CFG1);
 	pr_info("ECCBUFCFG  : 0x%08x\n", chip->ecc_buf_cfg);
 
-	if (mtd->oobsize == 64) {
+	if ((mtd->oobsize == 64) || (mtd->oobsize == 112)) {
 		mtd->oobavail = msm_nand_oob_64.oobavail;
 		mtd->ecclayout = &msm_nand_oob_64;
 	} else if (mtd->oobsize == 128) {
