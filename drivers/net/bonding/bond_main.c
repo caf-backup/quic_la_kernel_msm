@@ -1978,12 +1978,11 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 		return -EINVAL;
 	}
 
+	write_unlock_bh(&bond->lock);
 	/* unregister rx_handler early so bond_handle_frame wouldn't be called
 	 * for this slave anymore.
 	 */
 	netdev_rx_handler_unregister(slave_dev);
-	write_unlock_bh(&bond->lock);
-	synchronize_net();
 	write_lock_bh(&bond->lock);
 
 	if (!bond->params.fail_over_mac) {
@@ -2190,7 +2189,6 @@ static int bond_release_all(struct net_device *bond_dev)
 		 * be called for this slave anymore.
 		 */
 		netdev_rx_handler_unregister(slave_dev);
-		synchronize_net();
 
 		if (bond_is_lb(bond)) {
 			/* must be called only after the slave
