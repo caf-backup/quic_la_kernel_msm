@@ -292,6 +292,28 @@ tx_error:
 	return 1;
 }
 
+static struct net_device *pptp_get_netdev(struct ppp_channel *chan)
+{
+	struct sock *sk = (struct sock *)chan->private;
+	struct rtable *rt = NULL;
+	struct dst_entry *dst = NULL;
+	struct pppox_sock *po = NULL;
+	struct net_device *dev = NULL;
+
+	po = pppox_sk(sk);
+
+	rt = ip_route_output(&init_net, po->proto.pptp.dst_addr.sin_addr.s_addr, 0, 0, 0);
+	if (IS_ERR(rt)) {
+		return NULL;
+	}
+
+	dst = (struct dst_entry *)rt;
+	dev = dst->dev;
+	dst_release(dst);
+
+	return dev;
+}
+
 static int pptp_rcv_core(struct sock *sk, struct sk_buff *skb)
 {
 	struct pppox_sock *po = pppox_sk(sk);
@@ -627,6 +649,7 @@ static int pptp_ppp_ioctl(struct ppp_channel *chan, unsigned int cmd,
 static const struct ppp_channel_ops pptp_chan_ops = {
 	.start_xmit = pptp_xmit,
 	.ioctl      = pptp_ppp_ioctl,
+	.get_netdev = pptp_get_netdev,
 };
 
 static struct proto pptp_sk_proto __read_mostly = {
