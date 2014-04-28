@@ -63,20 +63,17 @@ static int reg_to_bank(struct clk_dyn_rcg *rcg, u32 bank)
 	return !!bank;
 }
 
-static u8 clk_dyn_rcg_get_parent(struct clk_hw *hw)
+static int dyn_md_to_bank(struct clk_dyn_rcg_md *rcg, u32 bank)
 {
-	struct clk_dyn_rcg *rcg = to_clk_dyn_rcg(hw);
+	bank &= BIT(rcg->mux_sel_bit);
+	return !!bank;
+}
+
+static u8 __clk_dyn_rcg_get_parent(struct clk_hw *hw, struct src_sel *s, u32 ns)
+{
 	int num_parents = __clk_get_num_parents(hw->clk);
-	u32 ns, ctl;
-	int bank;
 	int i;
-	struct src_sel *s;
 
-	regmap_read(rcg->clkr.regmap, rcg->clkr.enable_reg, &ctl);
-	bank = reg_to_bank(rcg, ctl);
-	s = &rcg->s[bank];
-
-	regmap_read(rcg->clkr.regmap, rcg->ns_reg, &ns);
 	ns = ns_to_src(s, ns);
 
 	for (i = 0; i < num_parents; i++)
@@ -84,6 +81,36 @@ static u8 clk_dyn_rcg_get_parent(struct clk_hw *hw)
 			return i;
 
 	return -EINVAL;
+}
+
+static u8 clk_dyn_rcg_get_parent(struct clk_hw *hw)
+{
+	struct clk_dyn_rcg *rcg = to_clk_dyn_rcg(hw);
+	u32 ns, ctl;
+	int bank;
+	struct src_sel *s;
+
+	regmap_read(rcg->clkr.regmap, rcg->clkr.enable_reg, &ctl);
+	regmap_read(rcg->clkr.regmap, rcg->ns_reg, &ns);
+	bank = reg_to_bank(rcg, ctl);
+	s = &rcg->s[bank];
+
+	return __clk_dyn_rcg_get_parent(hw, s, ns);
+}
+
+static u8 clk_dyn_rcg_md_get_parent(struct clk_hw *hw)
+{
+	struct clk_dyn_rcg_md *rcg = to_clk_dyn_rcg_md(hw);
+	u32 ns, ctl;
+	int bank;
+	struct src_sel *s;
+
+	regmap_read(rcg->clkr.regmap, rcg->clkr.enable_reg, &ctl);
+	bank = dyn_md_to_bank(rcg, ctl);
+	s = &rcg->s[bank];
+	regmap_read(rcg->clkr.regmap, rcg->ns_reg[bank], &ns);
+
+	return __clk_dyn_rcg_get_parent(hw, s, ns);
 }
 
 static int clk_rcg_set_parent(struct clk_hw *hw, u8 index)
@@ -253,6 +280,63 @@ static void configure_bank(struct clk_dyn_rcg *rcg, const struct freq_tbl *f)
 	}
 }
 
+static void
+configure_md_bank(struct clk_dyn_rcg_md *rcg, const struct freq_tbl *f)
+{
+	u32 ns, md, ctl, *regp;
+	int bank, new_bank;
+	struct mn *mn;
+	struct pre_div *p;
+	struct src_sel *s;
+	bool enabled;
+	u32 md_reg, ns_reg;
+	u32 bank_reg;
+	struct clk_hw *hw = &rcg->clkr.hw;
+
+	enabled = __clk_is_enabled(hw->clk);
+
+	regmap_read(rcg->clkr.regmap, rcg->clkr.enable_reg, &ctl);
+
+	regp = &ctl;
+	bank_reg = rcg->clkr.enable_reg;
+
+	bank = dyn_md_to_bank(rcg, *regp);
+	new_bank = enabled ? !bank : bank;
+
+	mn = &rcg->mn[new_bank];
+	md_reg = rcg->md_reg[new_bank];
+	ns_reg = rcg->ns_reg[new_bank];
+
+	regmap_read(rcg->clkr.regmap, ns_reg, &ns);
+	ns |= BIT(mn->mnctr_reset_bit);
+	regmap_write(rcg->clkr.regmap, ns_reg, ns);
+
+	regmap_read(rcg->clkr.regmap, md_reg, &md);
+	md = mn_to_md(mn, f->m, f->n, md);
+	regmap_write(rcg->clkr.regmap, md_reg, md);
+
+	ns = mn_to_ns(mn, f->m, f->n, ns);
+	regmap_write(rcg->clkr.regmap, ns_reg, ns);
+
+	ctl = mn_to_reg(mn, f->m, f->n, ctl);
+	regmap_write(rcg->clkr.regmap, rcg->clkr.enable_reg, ctl);
+
+	ns &= ~BIT(mn->mnctr_reset_bit);
+	regmap_write(rcg->clkr.regmap, ns_reg, ns);
+
+	p = &rcg->p[new_bank];
+	ns = pre_div_to_ns(p, f->pre_div - 1, ns);
+
+	s = &rcg->s[new_bank];
+	ns = src_to_ns(s, s->parent_map[f->src], ns);
+	regmap_write(rcg->clkr.regmap, ns_reg, ns);
+
+	if (enabled) {
+		*regp ^= BIT(rcg->mux_sel_bit);
+		regmap_write(rcg->clkr.regmap, bank_reg, *regp);
+	}
+}
+
 static int clk_dyn_rcg_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct clk_dyn_rcg *rcg = to_clk_dyn_rcg(hw);
@@ -277,6 +361,28 @@ static int clk_dyn_rcg_set_parent(struct clk_hw *hw, u8 index)
 	f.src = index;
 
 	configure_bank(rcg, &f);
+
+	return 0;
+}
+
+static int clk_dyn_rcg_md_set_parent(struct clk_hw *hw, u8 index)
+{
+	struct clk_dyn_rcg_md *rcg = to_clk_dyn_rcg_md(hw);
+	u32 ns, ctl, md;
+	int bank;
+	struct freq_tbl f = { 0 };
+
+	regmap_read(rcg->clkr.regmap, rcg->clkr.enable_reg, &ctl);
+	bank = dyn_md_to_bank(rcg, ctl);
+
+	regmap_read(rcg->clkr.regmap, rcg->ns_reg[bank], &ns);
+	regmap_read(rcg->clkr.regmap, rcg->md_reg[bank], &md);
+	f.m = md_to_m(&rcg->mn[bank], md);
+	f.n = ns_m_to_n(&rcg->mn[bank], ns, f.m);
+	f.pre_div = ns_to_pre_div(&rcg->p[bank], ns) + 1;
+	f.src = index;
+
+	configure_md_bank(rcg, &f);
 
 	return 0;
 }
@@ -360,6 +466,28 @@ clk_dyn_rcg_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 	}
 }
 
+static unsigned long
+clk_dyn_rcg_md_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
+{
+	struct clk_dyn_rcg_md *rcg = to_clk_dyn_rcg_md(hw);
+	u32 m, n, pre_div, ns, md, mode, reg;
+	int bank;
+	struct mn *mn;
+
+	regmap_read(rcg->clkr.regmap, rcg->clkr.enable_reg, &reg);
+	bank = dyn_md_to_bank(rcg, reg);
+
+	regmap_read(rcg->clkr.regmap, rcg->ns_reg[bank], &ns);
+	mn = &rcg->mn[bank];
+	regmap_read(rcg->clkr.regmap, rcg->md_reg[bank], &md);
+	m = md_to_m(mn, md);
+	n = ns_m_to_n(mn, ns, m);
+	mode = reg_to_mnctr_mode(mn, reg);
+	pre_div = ns_to_pre_div(&rcg->p[bank], ns);
+
+	return calc_rate(parent_rate, m, n, mode, pre_div);
+}
+
 static const
 struct freq_tbl *find_freq(const struct freq_tbl *f, unsigned long rate)
 {
@@ -413,6 +541,14 @@ static long clk_dyn_rcg_determine_rate(struct clk_hw *hw, unsigned long rate,
 		unsigned long *p_rate, struct clk **p)
 {
 	struct clk_dyn_rcg *rcg = to_clk_dyn_rcg(hw);
+
+	return _freq_tbl_determine_rate(hw, rcg->freq_tbl, rate, p_rate, p);
+}
+
+static long clk_dyn_rcg_md_determine_rate(struct clk_hw *hw, unsigned long rate,
+		unsigned long *p_rate, struct clk **p)
+{
+	struct clk_dyn_rcg_md *rcg = to_clk_dyn_rcg_md(hw);
 
 	return _freq_tbl_determine_rate(hw, rcg->freq_tbl, rate, p_rate, p);
 }
@@ -492,6 +628,32 @@ static int clk_dyn_rcg_set_rate_and_parent(struct clk_hw *hw,
 	return __clk_dyn_rcg_set_rate(hw, rate);
 }
 
+static int __clk_dyn_rcg_md_set_rate(struct clk_hw *hw, unsigned long rate)
+{
+	struct clk_dyn_rcg_md *rcg = to_clk_dyn_rcg_md(hw);
+	const struct freq_tbl *f;
+
+	f = find_freq(rcg->freq_tbl, rate);
+	if (!f)
+		return -EINVAL;
+
+	configure_md_bank(rcg, f);
+
+	return 0;
+}
+
+static int clk_dyn_rcg_md_set_rate(struct clk_hw *hw, unsigned long rate,
+			    unsigned long parent_rate)
+{
+	return __clk_dyn_rcg_md_set_rate(hw, rate);
+}
+
+static int clk_dyn_rcg_md_set_rate_and_parent(struct clk_hw *hw,
+		unsigned long rate, unsigned long parent_rate, u8 index)
+{
+	return __clk_dyn_rcg_md_set_rate(hw, rate);
+}
+
 const struct clk_ops clk_rcg_ops = {
 	.enable = clk_enable_regmap,
 	.disable = clk_disable_regmap,
@@ -515,3 +677,16 @@ const struct clk_ops clk_dyn_rcg_ops = {
 	.set_rate_and_parent = clk_dyn_rcg_set_rate_and_parent,
 };
 EXPORT_SYMBOL_GPL(clk_dyn_rcg_ops);
+
+const struct clk_ops clk_dyn_rcg_md_ops = {
+	.enable = clk_enable_regmap,
+	.is_enabled = clk_is_enabled_regmap,
+	.disable = clk_disable_regmap,
+	.get_parent = clk_dyn_rcg_md_get_parent,
+	.set_parent = clk_dyn_rcg_md_set_parent,
+	.recalc_rate = clk_dyn_rcg_md_recalc_rate,
+	.determine_rate = clk_dyn_rcg_md_determine_rate,
+	.set_rate = clk_dyn_rcg_md_set_rate,
+	.set_rate_and_parent = clk_dyn_rcg_md_set_rate_and_parent,
+};
+EXPORT_SYMBOL_GPL(clk_dyn_rcg_md_ops);

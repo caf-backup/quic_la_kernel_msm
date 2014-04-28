@@ -132,6 +132,37 @@ extern const struct clk_ops clk_dyn_rcg_ops;
 	container_of(to_clk_regmap(_hw), struct clk_dyn_rcg, clkr)
 
 /**
+ * struct clk_dyn_rcg_md - root clock generator with glitch free mux
+ *
+ * @mux_sel_bit: bit to switch glitch free mux
+ * @ns_reg: NS0 and NS1 register
+ * @md_reg: MD0 and MD1 register
+ * @mn: mn counter (banked)
+ * @s: source selector (banked)
+ * @freq_tbl: frequency table
+ * @clkr: regmap clock handle
+ */
+struct clk_dyn_rcg_md {
+	u32	ns_reg[2];
+	u32	md_reg[2];
+
+	u8	mux_sel_bit;
+
+	struct mn	mn[2];
+	struct pre_div	p[2];
+	struct src_sel	s[2];
+
+	const struct freq_tbl *freq_tbl;
+
+	struct clk_regmap clkr;
+};
+
+extern const struct clk_ops clk_dyn_rcg_md_ops;
+
+#define to_clk_dyn_rcg_md(_hw) \
+	container_of(to_clk_regmap(_hw), struct clk_dyn_rcg_md, clkr)
+
+/**
  * struct clk_rcg2 - root clock generator
  *
  * @cmd_rcgr: corresponds to *_CMD_RCGR
