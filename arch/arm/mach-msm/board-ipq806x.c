@@ -75,6 +75,7 @@
 #include <media/gpio-ir-recv.h>
 #include <linux/fmem.h>
 #include <mach/msm_pcie.h>
+#include <mach/ahci_msm.h>
 #include <mach/restart.h>
 #include <mach/msm_iomap.h>
 #include <mach/msm_nss.h>
@@ -93,6 +94,7 @@
 #include <linux/gpio.h>
 #include <linux/ar8216_platform.h>
 #include <linux/ethtool.h>
+#include <mach/msm_usb30.h>
 
 #define MHL_GPIO_INT           30
 #define MHL_GPIO_RESET         35
@@ -1605,6 +1607,10 @@ void ipq806x_pcie_pdata_fixup(void)
 		if (no_vreg[i]) {
 			msm_pcie_platform_data[i].vreg_n = 0;
 		}
+		if (SOCINFO_VERSION_MAJOR(socinfo_get_version()) < 2)
+			msm_pcie_platform_data[i].term_offset = 7;
+		else
+			msm_pcie_platform_data[i].term_offset = 0;
 	}
 }
 
@@ -2028,9 +2034,12 @@ static void ipq806x_spi_register(void)
 #endif
 
 
+static struct ahci_msm_platform_data ahci_pdata;
 static void __init ipq806x_common_init(void)
 {
 	u32 platform_version = socinfo_get_platform_version();
+	struct dwc3_platform_data *usb_p_data1;
+	struct dwc3_platform_data *usb_p_data2;
 
 	platform_device_register(&msm_gpio_device);
 	msm_tsens_early_init(&ipq_tsens_pdata);
@@ -2092,6 +2101,35 @@ static void __init ipq806x_common_init(void)
 		platform_add_devices(common_rumi3_i2c_ipq806x_devices,
 				ARRAY_SIZE(common_rumi3_i2c_ipq806x_devices));
 	}
+
+	usb_p_data1 =
+	(struct dwc3_platform_data *)ipq806x_device_dwc3_host1.dev.platform_data;
+	usb_p_data2 =
+	(struct dwc3_platform_data *)ipq806x_device_dwc3_host2.dev.platform_data;
+	if (SOCINFO_VERSION_MAJOR(socinfo_get_version()) < 2) {
+		usb_p_data1->rx_eq = 4;
+		usb_p_data1->tx_deamp_3_5db = 23;
+		usb_p_data1->tx_deamp_6_db = 32;
+		usb_p_data2->rx_eq = 4;
+		usb_p_data2->tx_deamp_3_5db = 23;
+		usb_p_data2->tx_deamp_6_db = 32;
+	} else {
+		usb_p_data1->rx_eq = 2;
+		usb_p_data1->tx_deamp_3_5db = 31;
+		usb_p_data1->tx_deamp_6_db = 31;
+		usb_p_data2->rx_eq = 2;
+		usb_p_data2->tx_deamp_3_5db = 31;
+		usb_p_data2->tx_deamp_6_db = 31;
+	}
+
+	if (SOCINFO_VERSION_MAJOR(socinfo_get_version()) < 2) {
+		ahci_pdata.tx_preemph_gen3 = 0xf;
+		ahci_pdata.rx_eq = 3;
+	} else {
+		ahci_pdata.tx_preemph_gen3 = 0x15;
+		ahci_pdata.rx_eq = 4;
+	}
+	ipq806x_device_sata.dev.platform_data = &ahci_pdata;
 
 	platform_add_devices(common_devices, ARRAY_SIZE(common_devices));
 

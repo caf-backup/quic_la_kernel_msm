@@ -585,6 +585,7 @@ static int msm_pcie_setup(int nr, struct pci_sys_data *sys)
 {
 	int rc;
 	struct msm_pcie_dev_t *dev;
+	struct msm_pcie_platform *pcie_pdata;
 	uint32_t val;
 
 	PCIE_DBG("bus %d\n", nr);
@@ -593,6 +594,7 @@ static int msm_pcie_setup(int nr, struct pci_sys_data *sys)
 
 	sys->private_data =
 	dev = pdev_id_to_mpdev(nr);
+	pcie_pdata = (struct msm_pcie_platform *)dev->pdev->dev.platform_data;
 	/*
 	 * specify linux PCI framework to allocate device memory (BARs)
 	 * from msm_pcie_dev->dev_mem_res resource.
@@ -642,7 +644,8 @@ static int msm_pcie_setup(int nr, struct pci_sys_data *sys)
 
 	/* Set Tx Termination Offset */
 	val = readl_relaxed(dev->parf + PCIE20_PARF_PHY_CTRL) |
-				PCIE20_PARF_PHY_CTRL_PHY_TX0_TERM_OFFST(7);
+		PCIE20_PARF_PHY_CTRL_PHY_TX0_TERM_OFFST(pcie_pdata->term_offset);
+
 	writel_relaxed(val, dev->parf + PCIE20_PARF_PHY_CTRL);
 
 	/* PARF programming */
@@ -653,7 +656,7 @@ static int msm_pcie_setup(int nr, struct pci_sys_data *sys)
 	writel_relaxed(PCIE20_PARF_PCS_SWING_TX_SWING_FULL(0x78) |
 			PCIE20_PARF_PCS_SWING_TX_SWING_LOW(0x78),
 			dev->parf + PCIE20_PARF_PCS_SWING);
-	writel_relaxed((4<<24), dev->parf + PCIE20_PARF_CONFIG_BITS);
+	writel_relaxed((4 << 24), dev->parf + PCIE20_PARF_CONFIG_BITS);
 	/* ensure that hardware registers the PARF configuration */
 	wmb();
 

@@ -32,6 +32,7 @@
 #include <mach/clk.h>
 #include <linux/pm_runtime.h>
 #include <linux/libata.h>
+#include <mach/ahci_msm.h>
 #include "libata.h"
 
 /* PHY registers */
@@ -205,6 +206,8 @@ struct msm_sata_hba {
 	void __iomem *phy_base;
 	void __iomem *ahci_base;
 	int power_state;
+	uint32_t tx_preemph_gen3;
+	uint32_t rx_eq;
 };
 
 static inline void msm_sata_delay_us(unsigned int delay)
@@ -551,7 +554,8 @@ static int msm_sata_phy_init(struct device *dev)
 			~(SATA_PHY_P0_PARAM0_P0_TX_PREEMPH_GEN3_MASK |
 			  SATA_PHY_P0_PARAM0_P0_TX_PREEMPH_GEN2_MASK |
 			  SATA_PHY_P0_PARAM0_P0_TX_PREEMPH_GEN1_MASK);
-	reg |= SATA_PHY_P0_PARAM0_P0_TX_PREEMPH_GEN3(0xf);
+	reg |=
+	SATA_PHY_P0_PARAM0_P0_TX_PREEMPH_GEN3(hba->tx_preemph_gen3);
 	writel_relaxed(reg, hba->phy_base + SATA_PHY_P0_PARAM0);
 
 	reg = readl_relaxed(hba->phy_base + SATA_PHY_P0_PARAM1) &
@@ -565,7 +569,9 @@ static int msm_sata_phy_init(struct device *dev)
 
 	reg = readl_relaxed(hba->phy_base + SATA_PHY_P0_PARAM2) &
 		~SATA_PHY_P0_PARAM2_RX_EQ_MASK;
-	reg |= SATA_PHY_P0_PARAM2_RX_EQ(0x3);
+
+	reg |= SATA_PHY_P0_PARAM2_RX_EQ(hba->rx_eq);
+
 	writel_relaxed(reg, hba->phy_base + SATA_PHY_P0_PARAM2);
 
 	/* Setting PHY_RESET to 1 */
@@ -955,6 +961,7 @@ static int __devinit msm_sata_probe(struct platform_device *pdev)
 {
 	struct platform_device *ahci;
 	struct msm_sata_hba *hba;
+	struct ahci_msm_platform_data *msm_ahci_data;
 	int ret = 0;
 
 	hba = devm_kzalloc(&pdev->dev, sizeof(struct msm_sata_hba), GFP_KERNEL);
@@ -965,6 +972,10 @@ static int __devinit msm_sata_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, hba);
+	msm_ahci_data =
+		(struct ahci_msm_platform_data *)pdev->dev.platform_data;
+	hba->tx_preemph_gen3 = msm_ahci_data->tx_preemph_gen3;
+	hba->rx_eq = msm_ahci_data->rx_eq;
 
 	ahci = platform_device_alloc("ahci", pdev->id);
 	if (!ahci) {

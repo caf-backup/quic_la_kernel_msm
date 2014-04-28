@@ -121,5 +121,8 @@ struct dwc3_platform_data {
 	u8 pwr_en;
 	u8 pwr_en_gpio1;
 	u8 pwr_en_gpio2;
+	u32 rx_eq;
+	u32 tx_deamp_3_5db;
+	u32 tx_deamp_6_db;
 };
 #endif /*__MSM_USB30_H */

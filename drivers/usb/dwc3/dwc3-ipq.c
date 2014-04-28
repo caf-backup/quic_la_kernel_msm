@@ -44,10 +44,10 @@
 
 /* USB3.0 default values provided by VI */
 
-#define RX_TERM_VALUE           0   /* RTUNE_DEBUG register value */
-#define RX_EQ_VALUE             4   /* Override value for rx_eq */
-#define AMPLITUDE_VALUE         110 /* Override value for transmit amplitude */
-#define TX_DEEMPH_3_5DB         23 /* Override value for transmit preemphasis */
+#define RX_TERM_VALUE		0   /* RTUNE_DEBUG register value */
+#define RX_EQ_VALUE		4   /* Override value for rx_eq */
+#define AMPLITUDE_VALUE		110 /* Override value for transmit amplitude */
+#define TX_DEEMPH_3_5DB		23 /* Override value for transmit preemphasis */
 
 /**
  *  USB DBM Hardware registers.
@@ -212,10 +212,10 @@ static void partial_rx_reset_init(void __iomem *ipq_base)
 }
 
 
-static void  uw_ssusb_pre_init(void __iomem *ipq_base)
+static void  uw_ssusb_pre_init(void __iomem *ipq_base,
+	struct dwc3_platform_data *dwc3)
 {
 	u32  set_bits, tmp;
-	u16 data;
 	/* GCTL Reset ON */
 	writel(0x800, ipq_base + DWC3_SSUSB_REG_GCTL);
 	/* Config SS PHY CTRL */
@@ -285,7 +285,9 @@ static void  uw_ssusb_pre_init(void __iomem *ipq_base)
 		tmp |= ((u16)1 << DWC3_SSUSB_PHY_RX_OVRD_IN_HI_RX_EQ_EN_OVRD);
 		tmp &= ~((u16) DWC3_SSUSB_PHY_RX_OVRD_IN_HI_RX_EQ_MASK <<
 			DWC3_SSUSB_PHY_RX_OVRD_IN_HI_RX_EQ);
-		tmp |= RX_EQ_VALUE << DWC3_SSUSB_PHY_RX_OVRD_IN_HI_RX_EQ;
+		tmp |= ((dwc3->rx_eq) <<
+			(DWC3_SSUSB_PHY_RX_OVRD_IN_HI_RX_EQ));
+
 		tmp |= 1 << DWC3_SSUSB_PHY_RX_OVRD_IN_HI_RX_EQ_OVRD;
 		dwc3_ipq_ssusb_write_phy_reg(DWC3_SSUSB_PHY_RX_OVRD_IN_HI_REG,
 						tmp, ipq_base);
@@ -294,7 +296,8 @@ static void  uw_ssusb_pre_init(void __iomem *ipq_base)
 		tmp = dwc3_ipq_ssusb_read_phy_reg(DWC3_SSUSB_PHY_TX_OVRD_DRV_LO_REG,
 			ipq_base);
 		tmp &= ~DWC3_SSUSB_PHY_TX_DEEMPH_MASK;
-		tmp |= (TX_DEEMPH_3_5DB << DWC3_SSUSB_PHY_TX_DEEMPH_SHIFT);
+		tmp |= ((dwc3->tx_deamp_3_5db) <<
+			(DWC3_SSUSB_PHY_TX_DEEMPH_SHIFT));
 		tmp &= ~DWC3_SSUSB_PHY_AMP_MASK;
 		tmp |= AMPLITUDE_VALUE;
 		tmp |= DWC3_SSUSB_PHY_AMP_EN;
@@ -337,11 +340,14 @@ static void  uw_ssusb_pre_init(void __iomem *ipq_base)
 		DWC3_SSUSB_REG_GUSB3PIPECTL_U1U2EXITFAIL_TO_RECOV |
 		DWC3_SSUSB_REG_GUSB3PIPECTL_REQUEST_P1P2P3,
 		ipq_base + DWC3_SSUSB_REG_GUSB3PIPECTL(0));
-	writel(IPQ_SSUSB_REG_QSCRATCH_SS_PHY_PARAM_CTRL_1_LOS_LEVEL(0x9) |
-		IPQ_SSUSB_REG_QSCRATCH_SS_PHY_PARAM_CTRL_1_TX_DEEMPH_3_5DB(0x17) |
-		IPQ_SSUSB_REG_QSCRATCH_SS_PHY_PARAM_CTRL_1_TX_DEEMPH_6DB(0x20) |
-		IPQ_SSUSB_REG_QSCRATCH_SS_PHY_PARAM_CTRL_1_TX_SWING_FULL(0x6E),
-		ipq_base + IPQ_SS_PHY_PARAM_CTRL_1_REG);
+	writel(
+	IPQ_SSUSB_REG_QSCRATCH_SS_PHY_PARAM_CTRL_1_LOS_LEVEL(0x9) |
+	IPQ_SSUSB_REG_QSCRATCH_SS_PHY_PARAM_CTRL_1_TX_DEEMPH_3_5DB(
+						dwc3->tx_deamp_3_5db) |
+	IPQ_SSUSB_REG_QSCRATCH_SS_PHY_PARAM_CTRL_1_TX_DEEMPH_6DB(
+						dwc3->tx_deamp_6_db) |
+	IPQ_SSUSB_REG_QSCRATCH_SS_PHY_PARAM_CTRL_1_TX_SWING_FULL(0x6E),
+	ipq_base + IPQ_SS_PHY_PARAM_CTRL_1_REG);
 	writel(IPQ_SSUSB_REG_QSCRATCH_GENERAL_CFG_XHCI_REV(DWC3_SSUSB_XHCI_REV_10),
 		ipq_base + IPQ_QSCRATCH_GENERAL_CFG);
 }
@@ -1582,7 +1588,7 @@ static int __devinit dwc3_ipq_probe(struct platform_device *pdev)
 	ipq->mode = pd->usb_mode;
 	if(pdev->id == 0)
 		usb30_common_pre_init(pdev->id, ipq->base);
-	uw_ssusb_pre_init(ipq->base);
+	uw_ssusb_pre_init(ipq->base, pd);
 	if (pd->pwr_en) {
 		writel((0 << IPQ_GPIO_IN_OUTn_GPIO_OUT_SHFT),
 			(IPQ_GPIO_IN_OUTn(pd->pwr_en_gpio1)));
