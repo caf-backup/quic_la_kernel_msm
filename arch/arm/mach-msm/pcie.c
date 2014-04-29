@@ -96,6 +96,7 @@
 static int msm_pcie_debug_mask;
 module_param_named(debug_mask, msm_pcie_debug_mask,
 			    int, S_IRUGO | S_IWUSR | S_IWGRP);
+static atomic_t rc_removed;
 
 /* msm pcie device data */
 static struct msm_pcie_dev_t msm_pcie_rc_dev[CONFIG_MSM_NUM_PCIE];
@@ -747,11 +748,16 @@ void msm_pcie_remove_bus(void)
 {
 	int i;
 
+	if (atomic_read(&rc_removed))
+		return;
+
 	for (i = 0; i < ARRAY_SIZE(msm_pcie_rc_dev); i++) {
 		printk("---> Removing %d", i);
 		msm_rc_remove(&msm_pcie_rc_dev[i], 0);
 		printk(" ... done<---\n");
 	}
+
+	atomic_set(&rc_removed, 1);
 }
 
 static struct pci_bus *msm_pcie_scan_bus(int nr,
@@ -789,11 +795,16 @@ int msm_pcie_rescan(void)
 	int i;
 	extern int pci_apply_final_quirks(void);
 
+	if (!atomic_read(&rc_removed))
+		return 0;
+
 	for (i = 0; i < ARRAY_SIZE(msm_pcie_rc_dev); i++) {
 		msm_pcie_get_resources(msm_pcie_rc_dev[i].pdev);
 	}
 	pci_common_init(&msm_pci);
 	pci_apply_final_quirks();
+
+	atomic_set(&rc_removed, 0);
 
 	return 0;
 }
