@@ -850,7 +850,9 @@ define verify_kallsyms
 		(echo Inconsistent kallsyms data;                            \
 		 echo This is a bug - please report about it;                \
 		 echo Try "make KALLSYMS_EXTRA_PASS=1" as a workaround;      \
-		 rm .tmp_kallsyms* ; /bin/false )
+		 rm .tmp_kallsyms* ;					     \
+		 diff -y System.map .tmp_System.map | grep -C1 \|;	     \
+		 /bin/false )
 endef
 
 # Update vmlinux version before link
