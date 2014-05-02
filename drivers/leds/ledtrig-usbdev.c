@@ -89,21 +89,24 @@ static ssize_t usbdev_trig_name_store(struct device *dev,
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct usbdev_trig_data *td = led_cdev->trigger_data;
+	char device_name[DEV_BUS_ID_SIZE];
 
 	if (size < 0 || size >= DEV_BUS_ID_SIZE)
 		return -EINVAL;
 
-	write_lock(&td->lock);
+	strcpy(device_name, buf);
+	if (size > 0 && device_name[size - 1] == '\n')
+		device_name[size - 1] = 0;
 
-	strcpy(td->device_name, buf);
-	if (size > 0 && td->device_name[size - 1] == '\n')
-		td->device_name[size - 1] = 0;
-
-	if (td->device_name[0] != 0) {
+	if (device_name[0] != 0) {
 		struct usb_device *usb_dev;
 
 		/* check for existing device to update from */
-		usb_dev = usb_find_device_by_name(td->device_name);
+		usb_dev = usb_find_device_by_name(device_name);
+
+		write_lock(&td->lock);
+		strcpy(td->device_name, buf);
+
 		if (usb_dev) {
 			if (td->usb_dev)
 				usb_put_dev(td->usb_dev);
@@ -114,9 +117,9 @@ static ssize_t usbdev_trig_name_store(struct device *dev,
 
 		/* updates LEDs, may start timers */
 		usbdev_trig_update_state(td);
+		write_unlock(&td->lock);
 	}
 
-	write_unlock(&td->lock);
 	return size;
 }
 
