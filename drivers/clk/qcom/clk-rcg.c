@@ -292,6 +292,7 @@ configure_md_bank(struct clk_dyn_rcg_md *rcg, const struct freq_tbl *f)
 	u32 md_reg, ns_reg;
 	u32 bank_reg;
 	struct clk_hw *hw = &rcg->clkr.hw;
+	bool banked_mn = !!rcg->mn[1].width;
 
 	enabled = __clk_is_enabled(hw->clk);
 
@@ -311,18 +312,20 @@ configure_md_bank(struct clk_dyn_rcg_md *rcg, const struct freq_tbl *f)
 	ns |= BIT(mn->mnctr_reset_bit);
 	regmap_write(rcg->clkr.regmap, ns_reg, ns);
 
-	regmap_read(rcg->clkr.regmap, md_reg, &md);
-	md = mn_to_md(mn, f->m, f->n, md);
-	regmap_write(rcg->clkr.regmap, md_reg, md);
+	if (banked_mn) {
+		regmap_read(rcg->clkr.regmap, md_reg, &md);
+		md = mn_to_md(mn, f->m, f->n, md);
+		regmap_write(rcg->clkr.regmap, md_reg, md);
 
-	ns = mn_to_ns(mn, f->m, f->n, ns);
-	regmap_write(rcg->clkr.regmap, ns_reg, ns);
+		ns = mn_to_ns(mn, f->m, f->n, ns);
+		regmap_write(rcg->clkr.regmap, ns_reg, ns);
 
-	ctl = mn_to_reg(mn, f->m, f->n, ctl);
-	regmap_write(rcg->clkr.regmap, rcg->clkr.enable_reg, ctl);
+		ctl = mn_to_reg(mn, f->m, f->n, ctl);
+		regmap_write(rcg->clkr.regmap, rcg->clkr.enable_reg, ctl);
 
-	ns &= ~BIT(mn->mnctr_reset_bit);
-	regmap_write(rcg->clkr.regmap, ns_reg, ns);
+		ns &= ~BIT(mn->mnctr_reset_bit);
+		regmap_write(rcg->clkr.regmap, ns_reg, ns);
+	}
 
 	p = &rcg->p[new_bank];
 	ns = pre_div_to_ns(p, f->pre_div - 1, ns);
@@ -371,14 +374,17 @@ static int clk_dyn_rcg_md_set_parent(struct clk_hw *hw, u8 index)
 	u32 ns, ctl, md;
 	int bank;
 	struct freq_tbl f = { 0 };
+	bool banked_mn = !!rcg->mn[1].width;
 
 	regmap_read(rcg->clkr.regmap, rcg->clkr.enable_reg, &ctl);
 	bank = dyn_md_to_bank(rcg, ctl);
 
 	regmap_read(rcg->clkr.regmap, rcg->ns_reg[bank], &ns);
-	regmap_read(rcg->clkr.regmap, rcg->md_reg[bank], &md);
-	f.m = md_to_m(&rcg->mn[bank], md);
-	f.n = ns_m_to_n(&rcg->mn[bank], ns, f.m);
+	if (banked_mn) {
+		regmap_read(rcg->clkr.regmap, rcg->md_reg[bank], &md);
+		f.m = md_to_m(&rcg->mn[bank], md);
+		f.n = ns_m_to_n(&rcg->mn[bank], ns, f.m);
+	}
 	f.pre_div = ns_to_pre_div(&rcg->p[bank], ns) + 1;
 	f.src = index;
 
@@ -473,16 +479,21 @@ clk_dyn_rcg_md_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 	u32 m, n, pre_div, ns, md, mode, reg;
 	int bank;
 	struct mn *mn;
+	bool banked_mn = !!rcg->mn[1].width;
 
 	regmap_read(rcg->clkr.regmap, rcg->clkr.enable_reg, &reg);
 	bank = dyn_md_to_bank(rcg, reg);
 
 	regmap_read(rcg->clkr.regmap, rcg->ns_reg[bank], &ns);
-	mn = &rcg->mn[bank];
-	regmap_read(rcg->clkr.regmap, rcg->md_reg[bank], &md);
-	m = md_to_m(mn, md);
-	n = ns_m_to_n(mn, ns, m);
-	mode = reg_to_mnctr_mode(mn, reg);
+	if (banked_mn) {
+		mn = &rcg->mn[bank];
+		regmap_read(rcg->clkr.regmap, rcg->md_reg[bank], &md);
+		m = md_to_m(mn, md);
+		n = ns_m_to_n(mn, ns, m);
+		mode = reg_to_mnctr_mode(mn, reg);
+	} else {
+		m = n = mode = 0;
+	}
 	pre_div = ns_to_pre_div(&rcg->p[bank], ns);
 
 	return calc_rate(parent_rate, m, n, mode, pre_div);

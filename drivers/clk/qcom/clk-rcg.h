@@ -112,7 +112,10 @@ extern const struct clk_ops clk_rcg_ops;
  *
  */
 struct clk_dyn_rcg {
-	u32	ns_reg;
+	union {
+		u32	ns_reg;
+		u32	ns_regs[2];
+	};
 	u32	md_reg[2];
 
 	u8	mux_sel_bit;
