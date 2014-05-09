@@ -398,7 +398,7 @@ static int block2mtd_setup2(const char *val)
 		}
 	}
 	if (token[2] && (strlen(token[2]) + 1 > 80))
-		parse_err("mtd device name too long");
+		pr_err("mtd device name too long\n");
 
 	add_device(name, erase_size, token[2]);
 
