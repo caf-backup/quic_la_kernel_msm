@@ -234,6 +234,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size, const cha
 		/* We might not have rootfs mounted at this point. Try
 		   to resolve the device name by other means. */
 
+		wait_for_device_probe();
 		dev_t devt = name_to_dev_t(devname);
 		if (devt)
 			bdev = blkdev_get_by_dev(devt, mode, dev);
