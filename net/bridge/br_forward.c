@@ -30,8 +30,7 @@ static int deliver_clone(const struct net_bridge_port *prev,
 static inline int should_deliver(const struct net_bridge_port *p,
 				 const struct sk_buff *skb)
 {
-	const unsigned char *dest = eth_hdr(skb)->h_dest;
-	return (((skb->dev != p->dev) || ((p->flags & BR_HAIRPIN_MODE) && (!is_multicast_ether_addr(dest)))) &&
+	return (((p->flags & BR_HAIRPIN_MODE) || skb->dev != p->dev) &&
 		p->state == BR_STATE_FORWARDING);
 }
 
