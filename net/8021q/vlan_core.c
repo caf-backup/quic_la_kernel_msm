@@ -86,6 +86,25 @@ void __vlan_dev_update_accel_stats(struct net_device *dev, struct rtnl_link_stat
 }
 EXPORT_SYMBOL(__vlan_dev_update_accel_stats);
 
+/* Lookup the 802.1p egress_map table and return the 802.1p value */
+u16 vlan_dev_get_egress_prio(struct net_device *dev, u32 skb_prio)
+{
+	struct vlan_priority_tci_mapping *mp;
+
+	mp = vlan_dev_priv(dev)->egress_priority_map[(skb_prio & 0xF)];
+	while (mp) {
+		if (mp->priority == skb_prio) {
+			return mp->vlan_qos; /* This should already be shifted
+					      * to mask correctly with the
+					      * VLAN's TCI */
+		}
+		mp = mp->next;
+	}
+	return 0;
+}
+
+EXPORT_SYMBOL(vlan_dev_get_egress_prio);
+
 /* Must be invoked with rcu_read_lock or with RTNL. */
 struct net_device *__vlan_find_dev_deep(struct net_device *real_dev,
 					u16 vlan_id)

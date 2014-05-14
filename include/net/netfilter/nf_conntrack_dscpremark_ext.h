@@ -30,6 +30,11 @@ struct nf_ct_dscpremark_ext {
 	__u8 itag;
 	__u8 omask;
 	__u8 oval;
+	__u32 flow_priority;	/* Original direction packet priority */
+	__u32 reply_priority;	/* Reply direction packet priority */
+	__u8 flow_dscp;		/* IP DSCP value for original direction */
+	__u8 reply_dscp;	/* IP DSCP value for reply direction */
+	__u8 reserved[2];
 };
 
 /*

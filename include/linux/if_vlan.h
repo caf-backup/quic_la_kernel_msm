@@ -88,6 +88,9 @@ static inline int is_vlan_dev(struct net_device *dev)
 
 extern void __vlan_dev_update_accel_stats(struct net_device *dev,
 				    struct rtnl_link_stats64 *stats);
+
+extern u16 vlan_dev_get_egress_prio(struct net_device *dev, u32 skb_prio);
+
 extern struct net_device *__vlan_find_dev_deep(struct net_device *real_dev,
 					       u16 vlan_id);
 extern struct net_device *vlan_dev_real_dev(const struct net_device *dev);
@@ -108,6 +111,12 @@ static inline void __vlan_dev_update_accel_stats(struct net_device *dev,
 					   struct rtnl_link_stats64 *stats)
 {
 	return;
+}
+
+static inline u16 vlan_dev_get_egress_prio(struct net_device *dev,
+						u32 skb_prio)
+{
+	return 0;
 }
 
 static inline struct net_device *
@@ -409,7 +418,7 @@ struct vlan_ioctl_args {
 		unsigned int flag; /* Matches vlan_dev_priv flags */
         } u;
 
-	short vlan_qos;   
+	short vlan_qos;
 };
 
 #endif /* !(_LINUX_IF_VLAN_H_) */
