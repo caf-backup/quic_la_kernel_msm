@@ -137,6 +137,20 @@
 				clock-names = "core", "iface";
 				status = "disabled";
 			};
+
+			i2c@124a0000 {
+				compatible = "qcom,i2c-qup-v1.1.1";
+				reg = <0x124a0000 0x1000>;
+				interrupts = <0 196 0>;
+
+				clocks = <&gcc GSBI2_QUP_CLK>, <&gcc GSBI2_H_CLK>;
+				clock-names = "core", "iface";
+				status = "disabled";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
 		};
 
 		gsbi4: gsbi@16300000 {
@@ -157,6 +171,19 @@
 				clocks = <&gcc GSBI4_UART_CLK>, <&gcc GSBI4_H_CLK>;
 				clock-names = "core", "iface";
 				status = "disabled";
+			};
+
+			i2c@16380000 {
+				compatible = "qcom,i2c-qup-v1.1.1";
+				reg = <0x16380000 0x1000>;
+				interrupts = <0 153 0>;
+
+				clocks = <&gcc GSBI4_QUP_CLK>, <&gcc GSBI4_H_CLK>;
+				clock-names = "core", "iface";
+				status = "disabled";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
 			};
 		};
 
