@@ -34,16 +34,22 @@ struct ppp_channel_ops {
 	int	(*start_xmit)(struct ppp_channel *, struct sk_buff *);
 	/* Handle an ioctl call that has come in via /dev/ppp. */
 	int	(*ioctl)(struct ppp_channel *, unsigned int, unsigned long);
-	/* Return the session ID of the connection which is cretaed on the channel. */
+	/* Return the session ID of the connection which is cretaed on the channel. DEPRECATED 20140513 */
 	__be16	(*get_session_id)(struct ppp_channel *);
-	/* Return the net_device of the given channel. */
+	/* Return the net_device of the given channel.  DEPRECATED 20140513 */
 	struct net_device* (*get_netdev)(struct ppp_channel *);
-	/* Return the remote MAC address of the connection which is created on the channel. */
+	/* Return the remote MAC address of the connection which is created on the channel. DEPRECATED 20140513 */
 	unsigned char* (*get_remote_mac)(struct ppp_channel *);
 	/* Register destroy function into PPP channels */
 	bool (*reg_destroy_method)(struct ppp_channel *, ppp_channel_destroy_method_t method, void *);
 	/* Unregister destroy function from PPP channels */
 	void (*unreg_destroy_method)(struct ppp_channel *);
+	/* Get channel protocol type, one of PX_PROTO_XYZ or specific to the channel subtype */
+	int (*get_channel_protocol)(struct ppp_channel *);
+	/* Hold the channel from being destroyed */
+	void (*hold)(struct ppp_channel *);
+	/* Release hold on the channel */
+	void (*release)(struct ppp_channel *);
 };
 
 struct ppp_channel {
@@ -58,6 +64,15 @@ struct ppp_channel {
 };
 
 #ifdef __KERNEL__
+/* Call this to obtain the underlying protocol of the PPP channel, e.g. PX_PROTO_OE */
+extern int ppp_channel_get_protocol(struct ppp_channel *);
+
+/* Call this to hold a channel */
+extern bool ppp_channel_hold(struct ppp_channel *);
+
+/* Call this to release a hold you have upon a channel */
+extern void ppp_channel_release(struct ppp_channel *);
+
 /* Called by upper layers to get the Ethernet (channel) net_device corresponding to
    the given PPP net_device */
 extern struct net_device *ppp_get_eth_netdev(struct net_device *);
@@ -82,6 +97,15 @@ extern bool ppp_register_destroy_method(struct net_device *dev, ppp_channel_dest
 
 /* Unregister destroy function from PPP channels */
 extern bool ppp_unregister_destroy_method(struct net_device *dev);
+
+/* Release hold on PPP channels */
+extern void ppp_release_channels(struct ppp_channel *channels[], unsigned int chan_sz);
+
+/* Hold PPP channels for the PPP device */
+extern int ppp_hold_channels(struct net_device *dev, struct ppp_channel *channels[], unsigned int chan_sz);
+
+/* Test if the ppp device is a multi-link ppp device */
+extern int ppp_is_multilink(struct net_device *dev);
 
 /* Update statistics of the PPP net_device by incrementing related
    statistics field value with corresponding parameter */

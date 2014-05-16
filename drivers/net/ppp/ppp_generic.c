@@ -3255,6 +3255,153 @@ bool ppp_unregister_destroy_method(struct net_device *dev)
 	return true;
 }
 
+/*
+ * ppp_is_multilink()
+ *	Returns >0 if the device is a multilink PPP netdevice, 0 if not or < 0 if the device is not PPP
+ */
+int ppp_is_multilink(struct net_device *dev)
+{
+	struct ppp *ppp;
+	unsigned int flags;
+
+	if (!dev) {
+		return -1;
+	}
+	if (dev->type != ARPHRD_PPP) {
+		return -1;
+	}
+
+	ppp = netdev_priv(dev);
+	ppp_lock(ppp);
+	flags = ppp->flags;
+	ppp_unlock(ppp);
+	if (flags & SC_MULTILINK) {
+		return 1;
+	}
+	return 0;
+}
+
+/*
+ * ppp_channel_get_protocol()
+ *	Call this to obtain the underlying protocol of the PPP channel, e.g. PX_PROTO_OE
+ *
+ * NOTE: Some channels do not use PX sockets so the protocol value may be very different for them.
+ * NOTE: -1 indicates failure.
+ * NOTE: Once you know the channel protocol you may then either cast 'chan' to its sub-class or
+ * use the channel protocol specific API's as provided by that channel sub type.
+ */
+int ppp_channel_get_protocol(struct ppp_channel *chan)
+{
+	if (!chan->ops->get_channel_protocol) {
+		return -1;
+	}
+	return chan->ops->get_channel_protocol(chan);
+}
+
+/*
+ * ppp_channel_hold()
+ *	Call this to hold a channel.
+ *
+ * Returns true on success or false if the hold could not happen.
+ *
+ * NOTE: chan must be protected against destruction during this call -
+ * either by correct locking etc. or because you already have an implicit
+ * or explicit hold to the channel already and this is an additional hold.
+ */
+bool ppp_channel_hold(struct ppp_channel *chan)
+{
+	if (!chan->ops->hold) {
+		return false;
+	}
+	chan->ops->hold(chan);
+	return true;
+}
+
+/*
+ * ppp_channel_release()
+ *	Call this to release a hold you have upon a channel
+ */
+void ppp_channel_release(struct ppp_channel *chan)
+{
+	chan->ops->release(chan);
+}
+
+/*
+ * ppp_hold_channels()
+ *	Returns the PPP channels of the PPP device, storing each one into channels[].
+ *
+ * channels[] has chan_sz elements.
+ * This function returns the number of channels stored, up to chan_sz.
+ * It will return < 0 if the device is not PPP.
+ *
+ * You MUST release the channels using ppp_release_channels().
+ */
+int ppp_hold_channels(struct net_device *dev, struct ppp_channel *channels[], unsigned int chan_sz)
+{
+	struct ppp *ppp;
+	int c;
+	struct channel *pch;
+
+	if (!dev) {
+		return -1;
+	}
+	if (dev->type != ARPHRD_PPP) {
+		return -1;
+	}
+
+	ppp = netdev_priv(dev);
+
+	c = 0;
+	ppp_lock(ppp);
+	list_for_each_entry(pch, &ppp->channels, clist) {
+		struct ppp_channel *chan;
+
+		if (!pch->chan) {
+			/*
+			 * Channel is going / gone away
+			 */
+			continue;
+		}
+		if (c == chan_sz) {
+			/*
+			 * No space to record channel
+			 */
+			ppp_unlock(ppp);
+			return c;
+		}
+
+		/*
+		 * Hold the channel, if supported
+		 */
+		chan = pch->chan;
+		if (!chan->ops->hold) {
+			continue;
+		}
+		chan->ops->hold(chan);
+
+		/*
+		 * Record the channel
+		 */
+		channels[c++] = chan;
+	}
+	ppp_unlock(ppp);
+	return c;
+}
+
+/*
+ * ppp_release_channels()
+ *	Releases channels
+ */
+void ppp_release_channels(struct ppp_channel *channels[], unsigned int chan_sz)
+{
+	unsigned int c;
+	for (c = 0; c < chan_sz; ++c) {
+		struct ppp_channel *chan;
+		chan = channels[c];
+		chan->ops->release(chan);
+	}
+}
+
 /* Module/initialization stuff */
 
 module_init(ppp_init);
@@ -3279,6 +3426,12 @@ EXPORT_SYMBOL(ppp_session_to_netdev);
 EXPORT_SYMBOL(ppp_update_stats);
 EXPORT_SYMBOL(ppp_register_destroy_method);
 EXPORT_SYMBOL(ppp_unregister_destroy_method);
+EXPORT_SYMBOL(ppp_is_multilink);
+EXPORT_SYMBOL(ppp_hold_channels);
+EXPORT_SYMBOL(ppp_release_channels);
+EXPORT_SYMBOL(ppp_channel_get_protocol);
+EXPORT_SYMBOL(ppp_channel_hold);
+EXPORT_SYMBOL(ppp_channel_release);
 
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_CHARDEV(PPP_MAJOR, 0);

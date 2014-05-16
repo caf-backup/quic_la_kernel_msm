@@ -245,6 +245,18 @@ enum {
     PPPOX_DEAD		= 16  /* dead, useless, please clean me up!*/
 };
 
+/*
+ * PPPoE Channel specific operations
+ */
+struct pppoe_channel_ops {
+	/* Must be first - general to all PPP channels */
+	struct ppp_channel_ops ops;
+	void (*get_addressing)(struct ppp_channel *, struct pppoe_opt *);
+};
+
+/* Return PPPoE channel specific addressing information */
+extern void pppoe_channel_addressing_get(struct ppp_channel *chan, struct pppoe_opt *addressing);
+
 #endif /* __KERNEL__ */
 
 #endif /* !(__LINUX_IF_PPPOX_H) */

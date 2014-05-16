@@ -94,7 +94,7 @@
 static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb);
 
 static const struct proto_ops pppoe_ops;
-static const struct ppp_channel_ops pppoe_chan_ops;
+static const struct pppoe_channel_ops pppoe_chan_ops;
 
 /* per-net private data for this module */
 static int pppoe_net_id __read_mostly;
@@ -739,7 +739,7 @@ static int pppoe_connect(struct socket *sock, struct sockaddr *uservaddr,
 
 		po->chan.mtu = dev->mtu - sizeof(struct pppoe_hdr);
 		po->chan.private = sk;
-		po->chan.ops = &pppoe_chan_ops;
+		po->chan.ops = (struct ppp_channel_ops *)&pppoe_chan_ops;
 
 		error = ppp_register_net_channel(dev_net(dev), &po->chan);
 		if (error) {
@@ -1100,13 +1100,76 @@ static void pppoe_unregister_destroy_method(struct ppp_channel *chan)
 	write_unlock_bh(&pn->hash_lock);
 }
 
-static const struct ppp_channel_ops pppoe_chan_ops = {
-	.start_xmit = pppoe_xmit,
-	.get_session_id = pppoe_get_session_id,
-	.get_netdev = pppoe_get_netdev,
-	.get_remote_mac = pppoe_get_remote_mac,
-	.reg_destroy_method = pppoe_register_destroy_method,
-	.unreg_destroy_method = pppoe_unregister_destroy_method,
+/************************************************************************
+ *
+ * function called by generic PPP driver to hold channel
+ *
+ ***********************************************************************/
+static void pppoe_hold_chan(struct ppp_channel *chan)
+{
+	struct sock *sk = (struct sock *)chan->private;
+	sock_hold(sk);
+}
+
+/************************************************************************
+ *
+ * function called by generic PPP driver to release channel
+ *
+ ***********************************************************************/
+static void pppoe_release_chan(struct ppp_channel *chan)
+{
+	struct sock *sk = (struct sock *)chan->private;
+	sock_put(sk);
+}
+
+/************************************************************************
+ *
+ * function called to get the channel protocol type
+ *
+ ***********************************************************************/
+static int pppoe_get_channel_protocol(struct ppp_channel *chan)
+{
+	return PX_PROTO_OE;
+}
+
+/************************************************************************
+ *
+ * function called to get the PPPoE channel addressing
+ * NOTE: This function returns a HOLD to the netdevice
+ *
+ ***********************************************************************/
+static void pppoe_get_addressing(struct ppp_channel *chan, struct pppoe_opt *addressing)
+{
+	struct sock *sk = (struct sock *)chan->private;
+	struct pppox_sock *po = pppox_sk(sk);
+	*addressing = po->proto.pppoe;
+	if (addressing->dev) {
+		dev_hold(addressing->dev);
+	}
+}
+
+/*
+ * pppoe_channel_addressing_get()
+ *	Return PPPoE channel specific addressing information.
+ */
+void pppoe_channel_addressing_get(struct ppp_channel *chan, struct pppoe_opt *addressing)
+{
+	pppoe_get_addressing(chan, addressing);
+}
+
+static const struct pppoe_channel_ops pppoe_chan_ops = {
+	/* PPPoE specific channel ops */
+	.get_addressing = pppoe_get_addressing,
+	/* General ppp channel ops */
+	.ops.start_xmit = pppoe_xmit,
+	.ops.get_session_id = pppoe_get_session_id,			/* Deprecated 20140416, use pppoe channel specific get_addressing() */
+	.ops.get_netdev = pppoe_get_netdev,				/* Deprecated 20140416, use pppoe channel specific get_addressing() */
+	.ops.get_remote_mac = pppoe_get_remote_mac,			/* Deprecated 20140416, use pppoe channel specific get_addressing() */
+	.ops.reg_destroy_method = pppoe_register_destroy_method,
+	.ops.unreg_destroy_method = pppoe_unregister_destroy_method,
+	.ops.get_channel_protocol = pppoe_get_channel_protocol,
+	.ops.hold = pppoe_hold_chan,
+	.ops.release = pppoe_release_chan,
 };
 
 static int pppoe_recvmsg(struct kiocb *iocb, struct socket *sock,
@@ -1345,6 +1408,8 @@ static void __exit pppoe_exit(void)
 
 module_init(pppoe_init);
 module_exit(pppoe_exit);
+
+EXPORT_SYMBOL(pppoe_channel_addressing_get);
 
 MODULE_AUTHOR("Michal Ostrowski <mostrows@speakeasy.net>");
 MODULE_DESCRIPTION("PPP over Ethernet driver");
