@@ -202,7 +202,9 @@ SECTIONS
 #if !defined(CONFIG_SMP) && !defined(CONFIG_XIP_KERNEL)
 	. = ALIGN(THREAD_SIZE);
 #endif
+#ifdef CONFIG_SMP
 	PERCPU_SECTION(L1_CACHE_BYTES)
+#endif
 
 #ifdef CONFIG_XIP_KERNEL
 	__data_loc = ALIGN(4);		/* location in binary */
