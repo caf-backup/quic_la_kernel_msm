@@ -703,11 +703,13 @@ static void * __init setup_dummy_socinfo(void)
 	else if (machine_is_msm8625_rumi3()) {
 		dummy_socinfo.id = 127;
 	} else if (machine_is_ipq806x_db149() || machine_is_ipq806x_rumi3() ||
-		   machine_is_ipq806x_tb726() || machine_is_ipq806x_ap144() ||
-		   machine_is_ipq806x_db147() || machine_is_ipq806x_ap148() ||
-		   machine_is_ipq806x_db149_1xx() ||
-		   machine_is_ipq806x_ap145() ||
-		   machine_is_ipq806x_ap145_1xx()) {
+		machine_is_ipq806x_tb726() || machine_is_ipq806x_ap144() ||
+		machine_is_ipq806x_db147() || machine_is_ipq806x_ap148() ||
+		machine_is_ipq806x_ap148_1xx() ||
+		machine_is_ipq806x_db149_1xx() ||
+		machine_is_ipq806x_db149_2xx() ||
+		machine_is_ipq806x_ap145() ||
+		machine_is_ipq806x_ap145_1xx()) {
 		dummy_socinfo.id = 202;
 	}
 	strlcat(dummy_socinfo.build_id, "Dummy socinfo",

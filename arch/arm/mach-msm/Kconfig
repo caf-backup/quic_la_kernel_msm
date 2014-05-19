@@ -673,6 +673,12 @@ config MACH_IPQ806X_DB149_1XX
 	help
 	  Support for the Qualcomm IPQ806X DB149-1XX enabled device.
 
+config MACH_IPQ806X_DB149_2XX
+	depends on ARCH_IPQ806X
+	bool "IPQ806X DB149-2XX"
+	help
+	  Support for the Qualcomm IPQ806X DB149-2XX device.
+
 config MACH_IPQ806X_DB147
 	depends on ARCH_IPQ806X
 	bool "IPQ806X DB147"
@@ -684,6 +690,12 @@ config MACH_IPQ806X_AP148
 	bool "IPQ806X AP148"
 	help
 	  Support for the Qualcomm IPQ806X AP148 device.
+
+config MACH_IPQ806X_AP148_1XX
+	depends on ARCH_IPQ806X
+	bool "IPQ806X AP148-1XX"
+	help
+	  Support for the Qualcomm IPQ806X AP148-1XX device.
 
 config MACH_IPQ806X_AP145
 	depends on ARCH_IPQ806X
