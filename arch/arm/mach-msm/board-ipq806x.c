@@ -2347,7 +2347,9 @@ late_initcall(nss_fixup_platform_data);
 
 int32_t nss_gmac_get_phy_profile(void)
 {
-	if (machine_is_ipq806x_db147()) {
+	if (machine_is_ipq806x_db147()
+	    || machine_is_ipq806x_ap148()
+	    || machine_is_ipq806x_ap145()) {
 		return NSS_GMAC_PHY_PROFILE_2R_2S;
 	}
 
