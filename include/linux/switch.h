@@ -138,6 +138,12 @@ struct switch_portmap {
 	const char *s;
 };
 
+struct switch_ext {
+	const char *option_name;
+	const char *option_value;
+	struct switch_ext *next;
+};
+
 struct switch_val {
 	const struct switch_attr *attr;
 	int port_vlan;
@@ -146,6 +152,7 @@ struct switch_val {
 		const char *s;
 		u32 i;
 		struct switch_port *ports;
+		struct switch_ext *ext_val;
 	} value;
 };
 
