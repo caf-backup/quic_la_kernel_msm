@@ -3163,9 +3163,11 @@ void ppp_update_stats(struct net_device *dev, unsigned long rx_packets,
 {
 	struct ppp *ppp;
 
-	if (dev && dev->type != ARPHRD_PPP) {
+	if (!dev)
 		return;
-	}
+
+	if (dev->type != ARPHRD_PPP)
+		return;
 
 	ppp = netdev_priv(dev);
 

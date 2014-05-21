@@ -231,14 +231,15 @@ static int ipq_pcm_close(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct ipq_lpass_runtime_data_t *prtd =
 		(struct ipq_lpass_runtime_data_t *)runtime->private_data;
+	uint32_t dma_ch;
 
 	pr_debug("%s\n", __func__);
 	if (prtd) {
+		dma_ch = prtd->lpaif_info.dma_ch;
 		ipq_lpaif_unregister_dma_irq_handler(prtd->lpaif_info.dma_ch);
 		kfree(prtd);
+		ipq_lpaif_pcm_stop(dma_ch);
 	}
-
-	ipq_lpaif_pcm_stop(prtd->lpaif_info.dma_ch);
 
 	return 0;
 }
@@ -354,7 +355,7 @@ static int ipq_asoc_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
 	struct snd_pcm *pcm = rtd->pcm;
-	int ret;
+	int ret = 0;
 
 	if (!card->dev->coherent_dma_mask)
 		card->dev->coherent_dma_mask = DMA_BIT_MASK(32);

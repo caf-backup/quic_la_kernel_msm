@@ -327,7 +327,7 @@ static int msm_dmov_memcpy_sg_setup(struct msm_dmov_sg_req *req[],
 	struct msm_dmov_chan_info *ci;
 	struct dmov_sg_desclist_entry *srcdesclist;
 	struct dmov_sg_desclist_entry *dstdesclist;
-	int err;
+	int err, ui;
 
 	*cinfo = NULL;
 
@@ -438,11 +438,11 @@ clean2:
 	dma_unmap_single(ci->dev, srcdesclist[i].addr, req[i]->len,
 								DMA_TO_DEVICE);
 clean1:
-	for (i--; i >= 0; i--) {
-		dma_unmap_single(ci->dev, dstdesclist[i].addr,
-						req[i]->len, DMA_FROM_DEVICE);
-		dma_unmap_single(ci->dev, srcdesclist[i].addr,
-						req[i]->len, DMA_TO_DEVICE);
+	for (ui = i - 1; ui >= 0; ui--) {
+		dma_unmap_single(ci->dev, dstdesclist[ui].addr,
+						req[ui]->len, DMA_FROM_DEVICE);
+		dma_unmap_single(ci->dev, srcdesclist[ui].addr,
+						req[ui]->len, DMA_TO_DEVICE);
 	}
 	msm_dmov_release_chan(chan_index);
 	return err;
@@ -644,7 +644,7 @@ static void msm_dmov_sg_cleanup(struct msm_dmov_chan_info *ci)
 
 int msm_dmov_memcpy_init(struct device *dev)
 {
-	int err = 0;
+	int err = 0, ui;
 	unsigned int i;
 	struct msm_dmov_chan_info *ci;
 
@@ -673,8 +673,8 @@ clean2:
 	msm_dmov_single_cleanup(ci);
 
 clean1:
-	for (i--; i >= 0 ; i--) {
-		ci = &chan_info[i];
+	for (ui = i - 1; ui >= 0 ; ui--) {
+		ci = &chan_info[ui];
 		msm_dmov_sg_cleanup(ci);
 		msm_dmov_single_cleanup(ci);
 	}

@@ -351,7 +351,7 @@ void ipq_pcm_deinit(void)
 	ipq_lpaif_unregister_dma_irq_handler(PCM0_DMA_RD_CH);
 	ipq_lpaif_disable_dma(PCM0_DMA_WR_CH);
 	ipq_lpaif_disable_dma(PCM0_DMA_RD_CH);
-	memset(&context, 0, sizeof(struct voice_dma_buffer));
+	memset(&context, 0, sizeof(struct pcm_context));
 	if (tx_dma_buffer)
 		voice_free_dma_buffer(&pcm_pdev->dev, tx_dma_buffer);
 	if (rx_dma_buffer)

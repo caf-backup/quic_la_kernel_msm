@@ -631,7 +631,8 @@ static void LzmaEnc_InitPriceTables(UInt32 *ProbPrices)
   ProbPrices[((prob) ^ ((-((int)(symbol))) & (kBitModelTotal - 1))) >> kNumMoveReducingBits];
 
 #define GET_PRICE_0(prob) p->ProbPrices[(prob) >> kNumMoveReducingBits]
-#define GET_PRICE_1(prob) p->ProbPrices[((prob) ^ (kBitModelTotal - 1)) >> kNumMoveReducingBits]
+#define GET_PRICE_1(prob) p->ProbPrices[(((prob) ^ (kBitModelTotal - 1)) &\
+				(kBitModelTotal - 1)) >> kNumMoveReducingBits]
 
 #define GET_PRICE_0a(prob) ProbPrices[(prob) >> kNumMoveReducingBits]
 #define GET_PRICE_1a(prob) ProbPrices[((prob) ^ (kBitModelTotal - 1)) >> kNumMoveReducingBits]

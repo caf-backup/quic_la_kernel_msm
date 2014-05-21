@@ -219,6 +219,8 @@ static int ipq_pcm_mi2s_prepare(struct snd_pcm_substream *substream)
 	ipq_lpaif_dma_stop(prtd->lpaif_info.dma_ch);
 	prtd->pcm_stream_info.pcm_prepare_start = 1;
 	prtd->lpaif_info.lpa_if_dma_start = 0;
+
+	memset(&dma_params, 0, sizeof(dma_params));
 	dma_params.src_start = runtime->dma_addr;
 	dma_params.buffer_size = snd_pcm_lib_buffer_bytes(substream);
 	dma_params.period_size = snd_pcm_lib_period_bytes(substream);
@@ -241,9 +243,8 @@ static int ipq_pcm_mi2s_close(struct snd_pcm_substream *substream)
 	struct ipq_lpass_runtime_data_t *prtd =
 		(struct ipq_lpass_runtime_data_t *)runtime->private_data;
 
-	ipq_lpaif_dai_stop(prtd->lpaif_info.dma_ch);
-
 	if (prtd) {
+		ipq_lpaif_dai_stop(prtd->lpaif_info.dma_ch);
 		ipq_lpaif_unregister_dma_irq_handler(prtd->lpaif_info.dma_ch);
 		kfree(prtd);
 	}

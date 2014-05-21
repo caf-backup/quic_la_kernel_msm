@@ -713,15 +713,21 @@ swconfig_parse_ext(struct sk_buff *msg, struct nlattr *head,
 			return -ENOMEM;
 
 		if (nla_parse_nested(tb, SWITCH_EXT_ATTR_MAX, nla,
-				ext_policy))
+				ext_policy)) {
+			kfree(switch_ext_tmp);
 			return -EINVAL;
+		}
 
-		if (!tb[SWITCH_EXT_NAME])
+		if (!tb[SWITCH_EXT_NAME]) {
+			kfree(switch_ext_tmp);
 			return -EINVAL;
+		}
 		switch_ext_tmp->option_name = nla_data(tb[SWITCH_EXT_NAME]);
 
-		if (!tb[SWITCH_EXT_VALUE])
+		if (!tb[SWITCH_EXT_VALUE]) {
+			kfree(switch_ext_tmp);
 			return -EINVAL;
+		}
 		switch_ext_tmp->option_value = nla_data(tb[SWITCH_EXT_VALUE]);
 
 		if(!switch_ext_p)
@@ -806,13 +812,15 @@ swconfig_set_attr(struct sk_buff *skb, struct genl_info *info)
 
 error:
 	/* free memory if necessary */
-	switch(attr->type) {
-	case SWITCH_TYPE_EXT:
-		switch_ext_p = val.value.ext_val;
-		while(switch_ext_p) {
-			struct switch_ext *ext_value_p = switch_ext_p;
-			switch_ext_p = switch_ext_p->next;
-			kfree(ext_value_p);
+	if (attr) {
+		switch(attr->type) {
+		case SWITCH_TYPE_EXT:
+			switch_ext_p = val.value.ext_val;
+			while(switch_ext_p) {
+				struct switch_ext *ext_value_p = switch_ext_p;
+				switch_ext_p = switch_ext_p->next;
+				kfree(ext_value_p);
+			}
 		}
 	}
 

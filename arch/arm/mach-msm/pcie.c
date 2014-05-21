@@ -293,7 +293,7 @@ static struct pci_ops msm_pcie_ops = {
 
 static int msm_pcie_gpio_init(struct msm_pcie_dev_t *msm_pcie_dev)
 {
-	int rc, i;
+	int rc = 0, i;
 	struct msm_pcie_gpio_info_t *info;
 
 	for (i = 0; i < MSM_PCIE_MAX_GPIO; i++) {
