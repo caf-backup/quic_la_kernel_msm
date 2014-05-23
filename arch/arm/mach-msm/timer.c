@@ -1067,6 +1067,7 @@ static void __init msm_timer_init(void)
 			gpt->freq = 32010;
 			gpt_hz = 32010;
 			sclk_hz = 32010;
+			dgt->freq = 6250000;	/* 25MHz / 4 */
 		}
 		if (!cpu_is_msm8960ab() &&
 		    !cpu_is_ipq806x()) {
