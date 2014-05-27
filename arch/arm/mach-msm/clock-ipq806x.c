@@ -3548,6 +3548,26 @@ static struct nss_core_clk_tbl nss_core_clk = {
 	},
 };
 
+static struct clk_lookup msm_clocks_gsbi4_uart[] = {
+	CLK_LOOKUP("core_clk",	gsbi4_uart_clk.c,	"msm_serial_hsl.2"),
+	CLK_LOOKUP("iface_clk",	gsbi4_p_clk.c,		"msm_serial_hsl.2"),
+};
+
+static struct clk_lookup msm_clocks_gsbi2_uart[] = {
+	CLK_LOOKUP("core_clk",	gsbi2_uart_clk.c,	"msm_serial_hsl.2"),
+	CLK_LOOKUP("iface_clk",	gsbi2_p_clk.c,		"msm_serial_hsl.2"),
+};
+
+struct clock_init_data ipq806x_gsbi4_uart_clks  __initdata = {
+	.table = msm_clocks_gsbi4_uart,
+	.size = ARRAY_SIZE(msm_clocks_gsbi4_uart),
+};
+
+struct clock_init_data ipq806x_gsbi2_uart_clks  __initdata = {
+	.table = msm_clocks_gsbi2_uart,
+	.size = ARRAY_SIZE(msm_clocks_gsbi2_uart),
+};
+
 static struct clk_lookup msm_clocks_ipq806x[] = {
 	CLK_LOOKUP("xo",		cxo_a_clk.c,	""),
 	CLK_LOOKUP("xo",		pxo_a_clk.c,	""),

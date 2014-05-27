@@ -270,6 +270,11 @@ static struct spi_board_info ipq806x_ap148_spi_board_info[] __initdata = {
 	IPQ806X_SPI_INFO("ipq_pcm_spi", SPI_MODE_0, 6, 0, &ipq_pcm_spi_reset_gpio, 6000000),
 	IPQ806X_SPI_INFO("spidev", SPI_MODE_0, 2, 0, NULL, 51200000),
 };
+
+static struct spi_board_info ipq806x_ap148_1xx_spi_board_info[] __initdata = {
+	IPQ806X_SPI_INFO("m25p80", SPI_MODE_0, 5, 0, &msm_sf_data, 51200000),
+	IPQ806X_SPI_INFO("ipq_pcm_spi", SPI_MODE_0, 6, 0, &ipq_pcm_spi_reset_gpio, 6000000),
+};
 #endif
 
 static struct memtype_reserve ipq806x_reserve_table[] __initdata = {
@@ -1595,7 +1600,8 @@ void ipq806x_pcie_pdata_fixup(void)
 		pwr[2] = PCIE_1_PWR_EN_GPIO;
 	}
 
-	if (machine_is_ipq806x_ap148()) {
+	if (machine_is_ipq806x_ap148() ||
+		machine_is_ipq806x_ap148_1xx()) {
 		rst[2] = -1;
 		pwr[2] = -1;
 		no_vreg[2] = 1;
@@ -2014,17 +2020,23 @@ static void ipq806x_spi_register(void)
 		&ipq806x_qup_spi_gsbi6_pdata;
 	platform_device_register(&ipq806x_device_qup_spi_gsbi6);
 
-	if (machine_is_ipq806x_db149() || machine_is_ipq806x_db149_1xx()) {
+	if (machine_is_ipq806x_db149() || machine_is_ipq806x_db149_1xx() ||
+		machine_is_ipq806x_db149_2xx()) {
 		ipq_pcm_spi_reset_gpio = 59;
 		spi_register_board_info(ipq806x_db149_spi_board_info,
 				ARRAY_SIZE(ipq806x_db149_spi_board_info));
-	} else if (machine_is_ipq806x_ap148()) {
+	} else if (machine_is_ipq806x_ap148() || machine_is_ipq806x_ap148_1xx()) {
 		ipq_pcm_spi_reset_gpio = 33;
-		ipq806x_device_qup_spi_gsbi2.dev.platform_data =
-			&ipq806x_qup_spi_gsbi2_pdata;
-		platform_device_register(&ipq806x_device_qup_spi_gsbi2);
-		spi_register_board_info(ipq806x_ap148_spi_board_info,
+		if (machine_is_ipq806x_ap148_1xx()) {
+			spi_register_board_info(ipq806x_ap148_1xx_spi_board_info,
+				ARRAY_SIZE(ipq806x_ap148_1xx_spi_board_info));
+		} else {
+			ipq806x_device_qup_spi_gsbi2.dev.platform_data =
+				&ipq806x_qup_spi_gsbi2_pdata;
+			platform_device_register(&ipq806x_device_qup_spi_gsbi2);
+			spi_register_board_info(ipq806x_ap148_spi_board_info,
 				ARRAY_SIZE(ipq806x_ap148_spi_board_info));
+		}
 	} else
 		spi_register_board_info(ipq806x_default_spi_board_info,
 				ARRAY_SIZE(ipq806x_default_spi_board_info));
@@ -2054,15 +2066,21 @@ static void __init ipq806x_common_init(void)
 		platform_device_register(&ipq806x_smb_device_rpm_regulator);
 		msm_clock_init(&ipq806x_dummy_clock_init_data);
 	} else if (machine_is_ipq806x_tb726() || machine_is_ipq806x_db149() ||
-		   machine_is_ipq806x_db147() || machine_is_ipq806x_ap148() ||
-		   machine_is_ipq806x_db149_1xx() || machine_is_ipq806x_ap145() ||
-		   machine_is_ipq806x_ap145_1xx()) {
+		machine_is_ipq806x_db147() || machine_is_ipq806x_ap148() ||
+		machine_is_ipq806x_db149_1xx() || machine_is_ipq806x_ap145() ||
+		machine_is_ipq806x_ap145_1xx() ||
+		machine_is_ipq806x_ap148_1xx() ||
+		machine_is_ipq806x_db149_2xx()) {
 		BUG_ON(msm_rpm_init(&ipq806x_rpm_data));
 		BUG_ON(msm_rpmrs_levels_init(&msm_rpmrs_data));
 		regulator_suppress_info_printing();
 		fixup_ipq806x_smb_power_grid();
 		platform_device_register(&ipq806x_smb_device_rpm_regulator);
 		msm_clock_init(&ipq806x_clock_init_data);
+		if (machine_is_ipq806x_db149_2xx())
+			msm_clock_init(&ipq806x_gsbi4_uart_clks);
+		if (machine_is_ipq806x_ap148_1xx())
+			msm_clock_init(&ipq806x_gsbi2_uart_clks);
 	} else {
 		if (msm_xo_init())
 			pr_err("Failed to initialize XO votes\n");
@@ -2138,7 +2156,8 @@ static void __init ipq806x_common_init(void)
 
 	*((uint32_t *)(ipq806x_lpass_lpaif.dev.platform_data)) = socinfo_get_version();
 
-	if (machine_is_ipq806x_db149() || machine_is_ipq806x_db149_1xx()) {
+	if (machine_is_ipq806x_db149() || machine_is_ipq806x_db149_1xx() ||
+		machine_is_ipq806x_db149_2xx()) {
 		platform_add_devices(lpass_clock_devices, ARRAY_SIZE(lpass_clock_devices));
 		platform_add_devices(lpass_dma_devices, ARRAY_SIZE(lpass_dma_devices));
 		platform_add_devices(lpass_alsa_devices, ARRAY_SIZE(lpass_alsa_devices));
@@ -2148,7 +2167,7 @@ static void __init ipq806x_common_init(void)
 				ARRAY_SIZE(cdp_i2c_ipq806x_devices_db149));
 	}
 
-	if (machine_is_ipq806x_ap148()) {
+	if (machine_is_ipq806x_ap148() || machine_is_ipq806x_ap148_1xx()) {
 		platform_add_devices(lpass_clock_devices, ARRAY_SIZE(lpass_clock_devices));
 		platform_add_devices(lpass_dma_devices, ARRAY_SIZE(lpass_dma_devices));
 		platform_add_devices(lpass_pcm_devices, ARRAY_SIZE(lpass_pcm_devices));
@@ -2191,7 +2210,8 @@ static void nss_gmac_init(void)
 	mdata->phy_mask = 0;
 	platform_device_register(&ip806x_mdio_device);
 
-	if (machine_is_ipq806x_db149()) {
+	if (machine_is_ipq806x_db149() || machine_is_ipq806x_db149_1xx() ||
+		machine_is_ipq806x_db149_2xx()) {
 		mdiobus_register_board_info(ipq806x_db149_mdio_info, IPQ806X_MDIO_BUS_MAX);
 
 		/* GMAC0, GMAC1 connected to switch. Attach to PHY 0 to configure switch. */
@@ -2260,7 +2280,8 @@ static void nss_gmac_init(void)
 	}
 
 	if (machine_is_ipq806x_ap148() || machine_is_ipq806x_ap145() ||
-		machine_is_ipq806x_ap145_1xx()) {
+		machine_is_ipq806x_ap145_1xx() ||
+		machine_is_ipq806x_ap148_1xx()) {
 		mdiobus_register_board_info(ipq806x_ap148_mdio_info, IPQ806X_MDIO_BUS_MAX);
 
 		/* GMAC1, GMAC2 connected to switch. Attach to PHY 0 to configure switch. */
@@ -2348,8 +2369,10 @@ late_initcall(nss_fixup_platform_data);
 int32_t nss_gmac_get_phy_profile(void)
 {
 	if (machine_is_ipq806x_db147()
-	    || machine_is_ipq806x_ap148()
-	    || machine_is_ipq806x_ap145()) {
+		|| machine_is_ipq806x_ap148()
+		|| machine_is_ipq806x_ap148_1xx()
+		|| machine_is_ipq806x_ap145()
+		|| machine_is_ipq806x_ap145_1xx()) {
 		return NSS_GMAC_PHY_PROFILE_2R_2S;
 	}
 
@@ -2384,7 +2407,9 @@ static void __init nss_macsec_register_devices(void)
 		return;
 
 	/* GMAC1, GMAC2, GMAC3 are in sgmii mode. MACSEC works in that mode */
-	if(machine_is_ipq806x_db149()) {
+	if(machine_is_ipq806x_db149() ||
+		machine_is_ipq806x_db149_1xx() ||
+		machine_is_ipq806x_db149_2xx()) {
 		platform_device_register(&nss_macsec1);
 		platform_device_register(&nss_macsec2);
 		platform_device_register(&nss_macsec3);
@@ -2392,7 +2417,7 @@ static void __init nss_macsec_register_devices(void)
 
 	/* GMAC2 is in sgmii mode. MACSEC works in that mode */
 	if(machine_is_ipq806x_db147() || machine_is_ipq806x_ap148() ||
-			machine_is_ipq806x_ap145()) {
+		machine_is_ipq806x_ap145() || machine_is_ipq806x_ap148_1xx()) {
 		platform_device_register(&nss_macsec2);
 	}
 }
@@ -2410,17 +2435,26 @@ static void __init ipq806x_init(void)
 	msm_rotator_set_split_iommu_domain();
 #endif
 	if (machine_is_ipq806x_ap148() || machine_is_ipq806x_ap145() ||
-		machine_is_ipq806x_ap145_1xx()) {
+		machine_is_ipq806x_ap145_1xx() || machine_is_ipq806x_ap148_1xx()) {
 		platform_add_devices(cdp_devices_ap148, ARRAY_SIZE(cdp_devices_ap148));
+		if (machine_is_ipq806x_ap148_1xx()) {
+			ipq806x_device_uart_gsbi2.id = 2;
+			platform_device_register(&ipq806x_device_uart_gsbi2);
+		}
 	} else {
 		platform_add_devices(cdp_devices, ARRAY_SIZE(cdp_devices));
+		if (machine_is_ipq806x_db149_2xx()) {
+			ipq806x_device_uart_gsbi4.id = 2;
+			platform_device_register(&ipq806x_device_uart_gsbi4);
+		}
 	}
 
-	if (machine_is_ipq806x_ap148()) {
+	if (machine_is_ipq806x_ap148() || machine_is_ipq806x_ap148_1xx()) {
 		platform_device_register(&ap148_kp_pdev);
 		platform_device_register(&ap148_leds_gpio);
 	}
-	if (machine_is_ipq806x_db149() || machine_is_ipq806x_db149_1xx()) {
+	if (machine_is_ipq806x_db149() || machine_is_ipq806x_db149_1xx() ||
+		machine_is_ipq806x_db149_2xx()) {
 		platform_device_register(&db149_kp_pdev);
 	}
 	if (machine_is_ipq806x_ap145() || machine_is_ipq806x_ap145_1xx()) {
@@ -2489,6 +2523,18 @@ MACHINE_START(IPQ806X_DB149_1XX, "Qualcomm Atheros DB149-1XX reference board")
 	.restart = msm_restart,
 MACHINE_END
 
+MACHINE_START(IPQ806X_DB149_2XX, "Qualcomm Atheros DB149-2XX reference board")
+	.map_io = ipq806x_map_io,
+	.reserve = ipq806x_reserve,
+	.init_irq = ipq806x_init_irq,
+	.handle_irq = gic_handle_irq,
+	.timer = &msm_timer,
+	.init_machine = ipq806x_init,
+	.init_early = ipq806x_allocate_memory_regions,
+	.init_very_early = ipq806x_early_reserve,
+	.restart = msm_restart,
+MACHINE_END
+
 MACHINE_START(IPQ806X_DB147, "Qualcomm Atheros DB147 reference board")
 	.map_io = ipq806x_map_io,
 	.reserve = ipq806x_reserve,
@@ -2502,6 +2548,18 @@ MACHINE_START(IPQ806X_DB147, "Qualcomm Atheros DB147 reference board")
 MACHINE_END
 
 MACHINE_START(IPQ806X_AP148, "Qualcomm Atheros AP148 reference board")
+	.map_io = ipq806x_map_io,
+	.reserve = ipq806x_reserve,
+	.init_irq = ipq806x_init_irq,
+	.handle_irq = gic_handle_irq,
+	.timer = &msm_timer,
+	.init_machine = ipq806x_init,
+	.init_early = ipq806x_allocate_memory_regions,
+	.init_very_early = ipq806x_early_reserve,
+	.restart = msm_restart,
+MACHINE_END
+
+MACHINE_START(IPQ806X_AP148_1XX, "Qualcomm Atheros AP148-1XX reference board")
 	.map_io = ipq806x_map_io,
 	.reserve = ipq806x_reserve,
 	.init_irq = ipq806x_init_irq,
