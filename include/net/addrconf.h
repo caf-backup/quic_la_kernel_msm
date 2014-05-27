@@ -283,6 +283,8 @@ static inline int ipv6_addr_is_isatap(const struct in6_addr *addr)
 	return (addr->s6_addr32[2] | htonl(0x02000000)) == htonl(0x02005EFE);
 }
 
+struct net_device *ipv6_dev_find(struct net *net, struct in6_addr *addr, int strict);
+
 #ifdef CONFIG_PROC_FS
 extern int if6_proc_init(void);
 extern void if6_proc_exit(void);

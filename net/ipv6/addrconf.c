@@ -337,8 +337,6 @@ void in6_dev_finish_destroy(struct inet6_dev *idev)
 	kfree_rcu(idev, rcu);
 }
 
-EXPORT_SYMBOL(in6_dev_finish_destroy);
-
 static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 {
 	struct inet6_dev *ndev;
@@ -1358,6 +1356,33 @@ struct inet6_ifaddr *ipv6_get_ifaddr(struct net *net, const struct in6_addr *add
 
 	return result;
 }
+
+/*
+ * ipv6_dev_find()
+ *	Find (and hold) net device that has the given address.  Or NULL on failure.
+ */
+struct net_device *ipv6_dev_find(struct net *net, struct in6_addr *addr, int strict)
+{
+	struct inet6_ifaddr *ifp;
+	struct net_device *dev;
+
+	ifp = ipv6_get_ifaddr(net, addr, NULL, strict);
+	if (!ifp) {
+		return NULL;
+	}
+	if (!ifp->idev) {
+		in6_ifa_put(ifp);
+		return NULL;
+	}
+	dev = NULL;
+	if (ifp->idev->dev) {
+		dev = ifp->idev->dev;
+		dev_hold(dev);
+	}
+	in6_ifa_put(ifp);
+	return dev;
+}
+EXPORT_SYMBOL(ipv6_dev_find);
 
 /* Gets referenced address, destroys ifaddr */
 
