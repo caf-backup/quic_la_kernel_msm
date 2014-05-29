@@ -31,7 +31,7 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct net_bridge_mdb_entry *mdst;
 	struct br_cpu_netstats *brstats = this_cpu_ptr(br->stats);
 	struct net_bridge_port *pdst;
-	br_get_dst_hook_t *get_dst_hook = rcu_dereference(br_get_dst_hook);
+	br_get_dst_hook_t *get_dst_hook;
 
 #ifdef CONFIG_BRIDGE_NETFILTER
 	if (skb->nf_bridge && (skb->nf_bridge->mask & BRNF_BRIDGED_DNAT)) {
@@ -52,6 +52,8 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	u64_stats_update_end(&brstats->syncp);
 
 	rcu_read_lock();
+	get_dst_hook = rcu_dereference(br_get_dst_hook);
+
 	if (is_broadcast_ether_addr(dest))
 		br_flood_deliver(br, skb);
 	else if (is_multicast_ether_addr(dest)) {
