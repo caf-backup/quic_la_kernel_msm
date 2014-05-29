@@ -3206,14 +3206,6 @@ static int __netif_receive_skb(struct sk_buff *skb)
 
 	rcu_read_lock();
 
-	fast_recv = rcu_dereference(athrs_fast_nat_recv);
-	if (fast_recv) {
-		if (fast_recv(skb)) {
-			rcu_read_unlock();
-			return NET_RX_SUCCESS;
-		}
-	}
-
 	pt_prev = NULL;
 
 another_round:
@@ -3224,6 +3216,14 @@ another_round:
 		skb = vlan_untag(skb);
 		if (unlikely(!skb))
 			goto out;
+	}
+
+	fast_recv = rcu_dereference(athrs_fast_nat_recv);
+	if (fast_recv) {
+		if (fast_recv(skb)) {
+			rcu_read_unlock();
+			return NET_RX_SUCCESS;
+		}
 	}
 
 #ifdef CONFIG_NET_CLS_ACT
