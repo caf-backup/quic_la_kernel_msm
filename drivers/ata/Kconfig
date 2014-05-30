@@ -173,6 +173,16 @@ config AHCI_XGENE
 	help
 	 This option enables support for APM X-Gene SoC SATA host controller.
 
+config AHCI_QCOM
+	tristate "Qualcomm AHCI SATA support"
+	depends on ARCH_QCOM
+	help
+	  This option enables support for AHCI SATA controller
+	  integrated into Qualcomm ARM SoC chipsets. For more
+	  information please refer to http://www.qualcomm.com/chipsets.
+
+	  If unsure, say N.
+
 config SATA_FSL
 	tristate "Freescale 3.0Gbps SATA support"
 	depends on FSL_SOC
