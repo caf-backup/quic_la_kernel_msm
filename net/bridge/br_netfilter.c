@@ -46,6 +46,8 @@
 				 (skb->nf_bridge->data))->daddr.ipv4)
 #define store_orig_dstaddr(skb)	 (skb_origaddr(skb) = ip_hdr(skb)->daddr)
 #define dnat_took_place(skb)	 (skb_origaddr(skb) != ip_hdr(skb)->daddr)
+#define store_orig_srcaddr(skb, offset) ((skb)->nf_bridge->data[(offset)/sizeof(unsigned long)] = ip_hdr(skb)->saddr)
+#define snat_took_place(skb, offset) ((skb)->nf_bridge->data[(offset)/sizeof(unsigned long)] != ip_hdr(skb)->saddr)
 
 #ifdef CONFIG_SYSCTL
 static struct ctl_table_header *brnf_sysctl_header;
@@ -241,6 +243,8 @@ static inline void nf_bridge_save_header(struct sk_buff *skb)
 
 	skb_copy_from_linear_data_offset(skb, -header_size,
 					 skb->nf_bridge->data, header_size);
+
+	store_orig_srcaddr(skb, ALIGN(header_size, sizeof(unsigned long)));
 }
 
 static inline void nf_bridge_update_protocol(struct sk_buff *skb)
@@ -322,6 +326,7 @@ int nf_bridge_copy_header(struct sk_buff *skb)
 {
 	int err;
 	unsigned int header_size;
+	struct net_device *br = bridge_parent(skb->dev);
 
 	nf_bridge_update_protocol(skb);
 	header_size = ETH_HLEN + nf_bridge_encap_header_len(skb);
@@ -331,6 +336,13 @@ int nf_bridge_copy_header(struct sk_buff *skb)
 
 	skb_copy_to_linear_data_offset(skb, -header_size,
 				       skb->nf_bridge->data, header_size);
+
+	if(br && snat_took_place(skb, ALIGN(header_size, sizeof(unsigned long))))
+	{
+		/*change source mac address when snat happen*/
+		skb_copy_to_linear_data_offset(skb, ETH_ALEN - header_size, br->dev_addr, (size_t)br->addr_len);
+	}
+
 	__skb_push(skb, nf_bridge_encap_header_len(skb));
 	return 0;
 }
