@@ -634,6 +634,7 @@ void ndisc_send_ns(struct net_device *dev, struct neighbour *neigh,
 		     &icmp6h, solicit,
 		     !ipv6_addr_any(saddr) ? ND_OPT_SOURCE_LL_ADDR : 0);
 }
+EXPORT_SYMBOL(ndisc_send_ns);
 
 void ndisc_send_rs(struct net_device *dev, const struct in6_addr *saddr,
 		   const struct in6_addr *daddr)
