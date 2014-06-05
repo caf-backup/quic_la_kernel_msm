@@ -1684,10 +1684,6 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		goto err_restore_mac;
 	}
 
-	if (bond_cb && bond_cb->bond_cb_enslave) {
-		bond_cb->bond_cb_enslave(slave_dev);
-	}
-
 	/* open the slave since the application closed it */
 	res = dev_open(slave_dev);
 	if (res) {
@@ -1888,6 +1884,10 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		goto err_dest_symlinks;
 	}
 
+	if (bond_cb && bond_cb->bond_cb_enslave) {
+		bond_cb->bond_cb_enslave(slave_dev);
+	}
+
 	pr_info("%s: enslaving %s as a%s interface with a%s link.\n",
 		bond_dev->name, slave_dev->name,
 		bond_is_active_slave(new_slave) ? "n active" : " backup",
@@ -1904,10 +1904,6 @@ err_detach:
 	write_lock_bh(&bond->lock);
 	bond_detach_slave(bond, new_slave);
 	write_unlock_bh(&bond->lock);
-
-	if (bond_cb && bond_cb->bond_cb_release) {
-		bond_cb->bond_cb_release(slave_dev);
-	}
 
 err_close:
 	dev_close(slave_dev);
@@ -1934,6 +1930,10 @@ err_free:
 
 err_undo_flags:
 	bond_compute_features(bond);
+
+	if (bond_cb && bond_cb->bond_cb_release) {
+		bond_cb->bond_cb_release(slave_dev);
+	}
 
 	return res;
 }
@@ -1979,6 +1979,12 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 	}
 
 	write_unlock_bh(&bond->lock);
+
+	if (bond_cb && bond_cb->bond_cb_release) {
+		bond_cb->bond_cb_release(slave_dev);
+	}
+
+
 	/* unregister rx_handler early so bond_handle_frame wouldn't be called
 	 * for this slave anymore.
 	 */
@@ -2108,10 +2114,6 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 	/* close slave before restoring its mac address */
 	dev_close(slave_dev);
 
-	if (bond_cb && bond_cb->bond_cb_release) {
-		bond_cb->bond_cb_release(slave_dev);
-	}
-
 	if (bond->params.fail_over_mac != BOND_FOM_ACTIVE) {
 		/* restore original ("permanent") mac address */
 		memcpy(addr.sa_data, slave->perm_hwaddr, ETH_ALEN);
@@ -2170,6 +2172,10 @@ static int bond_release_all(struct net_device *bond_dev)
 	bond_change_active_slave(bond, NULL);
 
 	while ((slave = bond->first_slave) != NULL) {
+		if (bond_cb && bond_cb->bond_cb_release) {
+			bond_cb->bond_cb_release(slave_dev);
+		}
+
 		/* Inform AD package of unbinding of slave
 		 * before slave is detached from the list.
 		 */
@@ -4918,7 +4924,7 @@ static int __net_init bond_net_init(struct net *net)
 
 	bond_create_proc_dir(bn);
 	bond_create_sysfs(bn);
-	
+
 	return 0;
 }
 
