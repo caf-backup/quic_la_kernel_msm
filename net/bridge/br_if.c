@@ -490,6 +490,10 @@ struct net_device *br_port_dev_get(struct net_device *dev, unsigned char *addr)
 	/*
 	 * Get reference to the port dev
 	 */
+	if (!fdbe->dst) {
+		rcu_read_unlock();
+		return NULL;
+	}
 	pdev = fdbe->dst->dev;
 	dev_hold(pdev);
 	rcu_read_unlock();
