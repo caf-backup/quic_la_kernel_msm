@@ -24,7 +24,7 @@
 #if defined(CONFIG_ARCH_FSM9XXX)
 #include <mach/dma-fsm9xxx.h>
 #endif
-
+#include <linux/kthread.h>
 struct msm_dmov_errdata {
 	uint32_t flush[6];
 };
@@ -36,7 +36,7 @@ struct msm_dmov_cmd {
 			      unsigned int result,
 			      struct msm_dmov_errdata *err);
 	void (*exec_func)(struct msm_dmov_cmd *cmd);
-	struct work_struct work;
+	struct kthread_work dmov_kthread_work;
 	unsigned id;    /* For internal use */
 	void *user;	/* Pointer for caller's reference */
 	u8 toflush;
