@@ -53,6 +53,47 @@ int nf_conntrack_dscpremark_ext_init(void)
 }
 
 /*
+ * nf_conntrack_dscpremark_ext_set_dscp_rule_valid()
+ *	Set DSCP rule validity flag in the extention
+ */
+int nf_conntrack_dscpremark_ext_set_dscp_rule_valid(struct nf_conn *ct)
+{
+	int ret;
+	struct nf_ct_dscpremark_ext *ncde;
+
+	ncde = nf_ct_dscpremark_ext_find(ct);
+	if (!ncde) {
+		return -1;
+	}
+
+	ncde->rule_flags = NF_CT_DSCPREMARK_EXT_DSCP_RULE_VALID;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nf_conntrack_dscpremark_ext_set_dscp_rule_valid);
+
+/*
+ * nf_conntrack_dscpremark_ext_get_dscp_rule_validity()
+ *	Check if the DSCP rule flag is valid from the extention
+ */
+int nf_conntrack_dscpremark_ext_get_dscp_rule_validity(struct nf_conn *ct)
+{
+	struct nf_ct_dscpremark_ext *ncde;
+
+	ncde = nf_ct_dscpremark_ext_find(ct);
+	if (!ncde) {
+		return NF_CT_DSCPREMARK_EXT_RULE_NOT_VALID;
+	}
+
+	if (ncde->rule_flags & NF_CT_DSCPREMARK_EXT_DSCP_RULE_VALID) {
+		return NF_CT_DSCPREMARK_EXT_RULE_VALID;
+	}
+
+	return NF_CT_DSCPREMARK_EXT_RULE_NOT_VALID;
+}
+
+EXPORT_SYMBOL_GPL(nf_conntrack_dscpremark_ext_get_dscp_rule_validity);
+
+/*
  * nf_conntrack_dscpremark_ext_fini()
  *	De-initializes the DSCP remark conntrack extension.
  */

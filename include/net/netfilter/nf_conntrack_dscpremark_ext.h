@@ -21,6 +21,13 @@
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_extend.h>
 
+/* Rule flags */
+#define NF_CT_DSCPREMARK_EXT_DSCP_RULE_VALID 0x1
+
+/* Rule validity */
+#define NF_CT_DSCPREMARK_EXT_RULE_VALID 0x1
+#define NF_CT_DSCPREMARK_EXT_RULE_NOT_VALID 0x0
+
 /*
  * DSCP remark conntrack extension structure.
  */
@@ -34,7 +41,7 @@ struct nf_ct_dscpremark_ext {
 	__u32 reply_priority;	/* Reply direction packet priority */
 	__u8 flow_dscp;		/* IP DSCP value for original direction */
 	__u8 reply_dscp;	/* IP DSCP value for reply direction */
-	__u8 reserved[2];
+	__u16 rule_flags;	/* Rule Validity flags */
 };
 
 /*
@@ -72,6 +79,8 @@ static inline struct nf_ct_dscpremark_ext *nf_ct_dscpremark_ext_add(struct nf_co
 #ifdef CONFIG_NF_CONNTRACK_DSCPREMARK_EXT
 extern int nf_conntrack_dscpremark_ext_init(void);
 extern void nf_conntrack_dscpremark_ext_fini(void);
+extern int nf_conntrack_dscpremark_ext_set_dscp_rule_valid(struct nf_conn *ct);
+extern int nf_conntrack_dscpremark_ext_get_dscp_rule_validity(struct nf_conn *ct);
 #else
 /*
  * nf_conntrack_dscpremark_ext_init()
