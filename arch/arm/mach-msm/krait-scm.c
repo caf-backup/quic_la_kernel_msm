@@ -125,7 +125,7 @@ static ssize_t show_tzbsp_build_rev(struct sysdev_class *class,
 		pr_err("%s: could not query build revision ret = %d.\n",
 			__func__, ret);
 
-	return strlen(buf);
+	return strnlen(buf, TZBSP_BUILD_ID_LEN);
 
 }
 static SYSDEV_CLASS_ATTR(tzbsp_build_rev, 0600, show_tzbsp_build_rev, NULL);

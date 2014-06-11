@@ -70,11 +70,11 @@ enum  ar8327_sgmii_mode {
 };
 
 struct ar8327_port_cfg {
-	int force_link:1;
+	unsigned int force_link:1;
 	enum ar8327_port_speed speed;
-	int txpause:1;
-	int rxpause:1;
-	int duplex:1;
+	unsigned int txpause:1;
+	unsigned int rxpause:1;
+	unsigned int duplex:1;
 };
 
 struct ar8327_sgmii_cfg {

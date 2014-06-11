@@ -724,14 +724,14 @@ static int dai_find_dma_channel(uint32_t intrsrc)
 {
 	uint32_t dma_channel = 0;
 
-	while (dma_channel <= MAX_LPAIF_CHANNELS) {
+	while (dma_channel < MAX_LPAIF_CHANNELS) {
 		if (intrsrc & (0x1 << (dma_channel * 3)))
-			break;
+			return dma_channel;
 
 		dma_channel++;
 	}
 
-	return dma_channel;
+	return -1;
 }
 
 /*
@@ -750,14 +750,18 @@ static irqreturn_t dai_irq_handler(int irq, void *data)
 	spin_unlock_irqrestore(&dai_lock, flag);
 	mb();
 	while (intrsrc) {
-		dma_ch = dai_find_dma_channel(intrsrc);
+		if ((dma_ch = dai_find_dma_channel(intrsrc)) != -1) {
+			if (dai[dma_ch]->callback) {
 
-		if (dai[dma_ch]->callback) {
-
-			ret = dai[dma_ch]->callback(intrsrc,
-				dai[dma_ch]->private_data);
+				ret = dai[dma_ch]->callback(intrsrc,
+					dai[dma_ch]->private_data);
+			}
+			intrsrc &= ~(0x1 << (dma_ch * 3));
+		} else {
+			pr_err("%s: %d:error getting channel\n",
+					__func__, __LINE__);
+			break;
 		}
-		intrsrc &= ~(0x1 << (dma_ch * 3));
 	}
 	return ret;
 }
@@ -776,7 +780,7 @@ static struct resource *lpa_irq;
 static int __devinit ipq_lpaif_dai_probe(struct platform_device *pdev)
 {
 	uint8_t i;
-	uint32_t rc;
+	int32_t rc;
 	struct resource *lpa_res;
 	struct device *lpaif_device;
 

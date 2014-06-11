@@ -640,7 +640,7 @@ static int dwc3_ipq_dbm_ep_config(u8 usb_ep, u8 bam_pipe,
 				  bool producer, bool disable_wb,
 				  bool internal_mem, bool ioc)
 {
-	u8 dbm_ep;
+	s8 dbm_ep;
 	u32 ep_cfg;
 
 	dev_dbg(context->dev, "%s\n", __func__);
@@ -686,7 +686,7 @@ static int dwc3_ipq_dbm_ep_config(u8 usb_ep, u8 bam_pipe,
  */
 static int dwc3_ipq_dbm_ep_unconfig(u8 usb_ep)
 {
-	u8 dbm_ep;
+	s8 dbm_ep;
 
 	dev_dbg(context->dev, "%s\n", __func__);
 
@@ -1459,6 +1459,8 @@ static int dwc3_ipq_power_down(struct dwc3_ipq *mdwc)
 	/*USB30 RESET*/
 	reg = USB30_RESET;
 	writel(0x3F, reg);
+
+	return 0;
 }
 
 static int __devinit dwc3_ipq_probe(struct platform_device *pdev)

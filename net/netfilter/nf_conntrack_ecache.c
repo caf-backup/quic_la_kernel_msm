@@ -43,7 +43,7 @@ void nf_ct_deliver_cached_events(struct nf_conn *ct)
 	unsigned long events, missed;
 	struct nf_conntrack_ecache *e;
 	struct nf_ct_event item;
-	int ret;
+	int ret = 0;
 
 	e = nf_ct_ecache_find(ct);
 	if (e == NULL)
