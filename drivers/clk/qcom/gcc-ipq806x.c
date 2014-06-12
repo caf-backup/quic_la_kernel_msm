@@ -1992,7 +1992,7 @@ static struct clk_branch usb30_1_branch_clk = {
 };
 
 static const struct freq_tbl clk_tbl_usb30_utmi[] = {
-	{ 60000000, P_PLL0,  1, 1, 40 },
+	{ 60000000, P_PLL8,  1, 5, 32 },
 	{ }
 };
 
