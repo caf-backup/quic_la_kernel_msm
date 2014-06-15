@@ -273,24 +273,24 @@
 #define USB30_SLEEP_CLK				262
 #define USB30_UTMI_SRC				263
 #define USB30_0_UTMI_CLK			264
-#define USB30_1_UTMI_CLK			264
-#define USB30_MASTER_SRC			265
-#define USB30_0_MASTER_CLK			266
-#define USB30_1_MASTER_CLK			267
-#define GMAC_CORE1_CLK_SRC			268
-#define GMAC_CORE2_CLK_SRC			269
-#define GMAC_CORE3_CLK_SRC			270
-#define GMAC_CORE4_CLK_SRC			271
-#define GMAC_CORE1_CLK				272
-#define GMAC_CORE2_CLK				273
-#define GMAC_CORE3_CLK				274
-#define GMAC_CORE4_CLK				275
-#define UBI32_CORE1_CLK_SRC			276
-#define UBI32_CORE2_CLK_SRC			277
-#define UBI32_CORE1_CLK				278
-#define UBI32_CORE2_CLK				279
-#define NSSTCM_CLK_SRC				280
-#define NSSTCM_CLK				281
-#define NSS_CORE_CLK				282 /* Virtual */
+#define USB30_1_UTMI_CLK			265
+#define USB30_MASTER_SRC			266
+#define USB30_0_MASTER_CLK			267
+#define USB30_1_MASTER_CLK			268
+#define GMAC_CORE1_CLK_SRC			269
+#define GMAC_CORE2_CLK_SRC			270
+#define GMAC_CORE3_CLK_SRC			271
+#define GMAC_CORE4_CLK_SRC			272
+#define GMAC_CORE1_CLK				273
+#define GMAC_CORE2_CLK				274
+#define GMAC_CORE3_CLK				275
+#define GMAC_CORE4_CLK				276
+#define UBI32_CORE1_CLK_SRC			277
+#define UBI32_CORE2_CLK_SRC			278
+#define UBI32_CORE1_CLK				279
+#define UBI32_CORE2_CLK				280
+#define NSSTCM_CLK_SRC				281
+#define NSSTCM_CLK				282
+#define NSS_CORE_CLK				283 /* Virtual */
 
 #endif
