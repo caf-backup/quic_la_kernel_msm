@@ -27,7 +27,20 @@
 			qcom,saw = <&saw0>;
 			clocks = <&kraitcc 0>;
 			clock-names = "cpu";
+			operating-points = <
+				/* kHz    ignored */
+				1400000 1000000
+				1200000 1000000
+				1000000 1000000
+				 800000 1000000
+				 600000 1000000
+				 384000 1000000
+			>;
 			clock-latency = <100000>;
+
+			cooling-min-state = <0>;
+			cooling-max-state = <10>;
+			#cooling-cells = <2>;
 			core-supply = <&smb208_s2a>;
 			voltage-tolerance = <5>;
 		};
@@ -42,7 +55,20 @@
 			qcom,saw = <&saw1>;
 			clocks = <&kraitcc 1>;
 			clock-names = "cpu";
+			operating-points = <
+				/* kHz    ignored */
+				1400000 1000000
+				1200000 1000000
+				1000000 1000000
+				 800000 1000000
+				 600000 1000000
+				 384000 1000000
+			>;
 			clock-latency = <100000>;
+
+			cooling-min-state = <0>;
+			cooling-max-state = <10>;
+			#cooling-cells = <2>;
 			core-supply = <&smb208_s2b>;
 		};
 
@@ -64,6 +90,11 @@
 	cpu-pmu {
 		compatible = "qcom,krait-pmu";
 		interrupts = <1 10 0x304>;
+	};
+
+	kraitcc: clock-controller {
+		compatible = "qcom,krait-cc-v1";
+		#clock-cells = <1>;
 	};
 
 	reserved-memory {
@@ -245,7 +276,7 @@
 			reg = <0x2011000 0x1000>;
 			clock-output-names = "acpu_l2_aux";
  		};
- 
+
 		saw0: regulator@2089000 {
 			compatible = "qcom,saw2";
 			reg = <0x02089000 0x1000>, <0x02009000 0x1000>;
