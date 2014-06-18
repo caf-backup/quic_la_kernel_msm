@@ -7,6 +7,7 @@ clk-qcom-y += clk-rcg.o
 clk-qcom-y += clk-rcg2.o
 clk-qcom-y += clk-branch.o
 clk-qcom-y += clk-generic.o
+clk-qcom-y += clk-hfpll.o
 clk-qcom-y += reset.o
 
 obj-$(CONFIG_IPQ_GCC_806X) += gcc-ipq806x.o
