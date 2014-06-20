@@ -22,7 +22,6 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
-#include <linux/slab.h>
 #include <linux/pm_runtime.h>
 #include <mach/dma.h>
 #include <mach/dma_memcpy.h>
@@ -73,8 +72,7 @@ struct msm_dmov_conf {
 	struct clk *ebiclk;
 	unsigned int clk_ctl;
 	struct delayed_work work;
-	struct kthread_worker dmov_kthread_worker;
-	struct task_struct *dmov_kthread;
+	struct workqueue_struct *cmd_wq;
 };
 
 static void msm_dmov_clock_work(struct work_struct *);
@@ -378,10 +376,10 @@ static struct msm_dmov_cmd *start_ready_cmd(unsigned ch, int adm)
 	return cmd;
 }
 
-static void msm_dmov_enqueue_cmd_ext_work(struct kthread_work *work)
+static void msm_dmov_enqueue_cmd_ext_work(struct work_struct *work)
 {
 	struct msm_dmov_cmd *cmd =
-		container_of(work, struct msm_dmov_cmd, dmov_kthread_work);
+		container_of(work, struct msm_dmov_cmd, work);
 	unsigned id = cmd->id;
 	unsigned status;
 	unsigned long flags;
@@ -445,12 +443,12 @@ static void __msm_dmov_enqueue_cmd_ext(unsigned id, struct msm_dmov_cmd *cmd)
 	list_add_tail(&cmd->list, &dmov_conf[adm].staged_commands[ch]);
 	spin_unlock_irqrestore(&dmov_conf[adm].list_lock, flags);
 
-	queue_kthread_work(&dmov_conf[adm].dmov_kthread_worker, &cmd->dmov_kthread_work);
+	queue_work(dmov_conf[adm].cmd_wq, &cmd->work);
 }
 
 void msm_dmov_enqueue_cmd_ext(unsigned id, struct msm_dmov_cmd *cmd)
 {
-	init_kthread_work(&cmd->dmov_kthread_work, msm_dmov_enqueue_cmd_ext_work);
+	INIT_WORK(&cmd->work, msm_dmov_enqueue_cmd_ext_work);
 	__msm_dmov_enqueue_cmd_ext(id, cmd);
 }
 EXPORT_SYMBOL(msm_dmov_enqueue_cmd_ext);
@@ -459,7 +457,7 @@ void msm_dmov_enqueue_cmd(unsigned id, struct msm_dmov_cmd *cmd)
 {
 	/* Disable callback function (for backwards compatibility) */
 	cmd->exec_func = NULL;
-	init_kthread_work(&cmd->dmov_kthread_work, msm_dmov_enqueue_cmd_ext_work);
+	INIT_WORK(&cmd->work, msm_dmov_enqueue_cmd_ext_work);
 	__msm_dmov_enqueue_cmd_ext(id, cmd);
 }
 EXPORT_SYMBOL(msm_dmov_enqueue_cmd);
@@ -508,38 +506,29 @@ dmov_exec_cmdptr_complete_func(struct msm_dmov_cmd *_cmd,
 
 int msm_dmov_exec_cmd(unsigned id, unsigned int cmdptr)
 {
-	struct msm_dmov_exec_cmdptr_cmd *cmd;
-	int ret = 0;
+	struct msm_dmov_exec_cmdptr_cmd cmd;
 
 	PRINT_FLOW("dmov_exec_cmdptr(%d, %x)\n", id, cmdptr);
 
-	cmd = kmalloc(sizeof(struct msm_dmov_exec_cmdptr_cmd), GFP_ATOMIC);
+	cmd.dmov_cmd.cmdptr = cmdptr;
+	cmd.dmov_cmd.complete_func = dmov_exec_cmdptr_complete_func;
+	cmd.dmov_cmd.exec_func = NULL;
+	cmd.id = id;
+	cmd.result = 0;
+	INIT_WORK_ONSTACK(&cmd.dmov_cmd.work, msm_dmov_enqueue_cmd_ext_work);
+	init_completion(&cmd.complete);
 
-	if (cmd == NULL) {
-		PRINT_ERROR("%s : ERROR allocating memory for command.\n", __func__);
-		return -ENOMEM;
-	}
+	__msm_dmov_enqueue_cmd_ext(id, &cmd.dmov_cmd);
+	wait_for_completion(&cmd.complete);
 
-	cmd->dmov_cmd.cmdptr = cmdptr;
-	cmd->dmov_cmd.complete_func = dmov_exec_cmdptr_complete_func;
-	cmd->dmov_cmd.exec_func = NULL;
-	cmd->id = id;
-	cmd->result = 0;
-	init_kthread_work(&cmd->dmov_cmd.dmov_kthread_work, msm_dmov_enqueue_cmd_ext_work);
-	init_completion(&cmd->complete);
-
-	__msm_dmov_enqueue_cmd_ext(id, &cmd->dmov_cmd);
-	wait_for_completion(&cmd->complete);
-
-	if (cmd->result != 0x80000002) {
-		PRINT_ERROR("dmov_exec_cmdptr(%d): ERROR, result: %x\n", id, cmd->result);
+	if (cmd.result != 0x80000002) {
+		PRINT_ERROR("dmov_exec_cmdptr(%d): ERROR, result: %x\n", id, cmd.result);
 		PRINT_ERROR("dmov_exec_cmdptr(%d):  flush: %x %x %x %x\n",
-			id, cmd->err.flush[0], cmd->err.flush[1], cmd->err.flush[2], cmd->err.flush[3]);
-		ret = -EIO;
+			id, cmd.err.flush[0], cmd.err.flush[1], cmd.err.flush[2], cmd.err.flush[3]);
+		return -EIO;
 	}
 	PRINT_FLOW("dmov_exec_cmdptr(%d, %x) done\n", id, cmdptr);
-	kfree(cmd);
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(msm_dmov_exec_cmd);
 
@@ -855,11 +844,9 @@ static int msm_dmov_probe(struct platform_device *pdev)
 	if (!dmov_conf[adm].base)
 		return -ENOMEM;
 
-	init_kthread_worker(&dmov_conf[adm].dmov_kthread_worker);
-	dmov_conf[adm].dmov_kthread = kthread_run(kthread_worker_fn,
-			(void *)&dmov_conf[adm].dmov_kthread_worker, "msm-dmov-thread");
-	if (IS_ERR(dmov_conf[adm].dmov_kthread)) {
-		PRINT_ERROR("Couldn't allocate ADM%d work thread.\n", adm);
+	dmov_conf[adm].cmd_wq = alloc_ordered_workqueue("dmov%d_wq", 0, adm);
+	if (!dmov_conf[adm].cmd_wq) {
+		PRINT_ERROR("Couldn't allocate ADM%d workqueue.\n", adm);
 		ret = -ENOMEM;
 		goto out_map;
 	}
@@ -900,7 +887,7 @@ static int msm_dmov_probe(struct platform_device *pdev)
 out_irq:
 	free_irq(dmov_conf[adm].irq, NULL);
 out_wq:
-	kthread_stop(dmov_conf[adm].dmov_kthread);
+	destroy_workqueue(dmov_conf[adm].cmd_wq);
 out_map:
 	iounmap(dmov_conf[adm].base);
 	return ret;
