@@ -520,6 +520,7 @@ int msm_dmov_exec_cmd(unsigned id, unsigned int cmdptr)
 
 	__msm_dmov_enqueue_cmd_ext(id, &cmd.dmov_cmd);
 	wait_for_completion(&cmd.complete);
+	flush_work(&cmd.dmov_cmd.work);
 
 	if (cmd.result != 0x80000002) {
 		PRINT_ERROR("dmov_exec_cmdptr(%d): ERROR, result: %x\n", id, cmd.result);
