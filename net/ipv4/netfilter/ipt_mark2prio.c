@@ -7,7 +7,12 @@
 static unsigned int
 mark2prio(struct sk_buff *skb, const struct xt_action_param *par)
 {
-	skb->priority = skb->mark;
+	/* only override priority if it hasn't been set yet.
+	 * this prevents mark2prio from stomping on the CLASSIFY target.
+	 */
+	if (skb->priority == 0) {
+		skb->priority = skb->mark;
+	}
 
 	return NF_ACCEPT;
 }
