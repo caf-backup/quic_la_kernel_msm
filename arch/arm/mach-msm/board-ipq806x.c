@@ -2223,6 +2223,7 @@ static void nss_gmac_init(void)
 		pdata->emulation = 0;
 		pdata->forced_speed = SPEED_1000;
 		pdata->forced_duplex = DUPLEX_FULL;
+		pdata->socver = socinfo_get_version();
 
 		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_1.dev.platform_data;
 		pdata->phy_mdio_addr = 0;
@@ -2232,6 +2233,7 @@ static void nss_gmac_init(void)
 		pdata->emulation = 0;
 		pdata->forced_speed = SPEED_1000;
 		pdata->forced_duplex = DUPLEX_FULL;
+		pdata->socver = socinfo_get_version();
 
 		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_2.dev.platform_data;
 		pdata->phy_mdio_addr = 6;
@@ -2239,6 +2241,7 @@ static void nss_gmac_init(void)
 		pdata->rgmii_delay = 0;
 		pdata->phy_mii_type = GMAC_INTF_SGMII;
 		pdata->emulation = 0;
+		pdata->socver = socinfo_get_version();
 
 		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_3.dev.platform_data;
 		pdata->phy_mdio_addr = 7;
@@ -2246,6 +2249,7 @@ static void nss_gmac_init(void)
 		pdata->rgmii_delay = 0;
 		pdata->phy_mii_type = GMAC_INTF_SGMII;
 		pdata->emulation = 0;
+		pdata->socver = socinfo_get_version();
 
 		platform_device_register(&nss_gmac_0);
 		platform_device_register(&nss_gmac_1);
@@ -2265,6 +2269,7 @@ static void nss_gmac_init(void)
 		pdata->emulation = 0;
 		pdata->forced_speed = SPEED_1000;
 		pdata->forced_duplex = DUPLEX_FULL;
+		pdata->socver = socinfo_get_version();
 
 		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_2.dev.platform_data;
 		pdata->phy_mdio_addr = 0;
@@ -2274,6 +2279,7 @@ static void nss_gmac_init(void)
 		pdata->emulation = 0;
 		pdata->forced_speed = SPEED_1000;
 		pdata->forced_duplex = DUPLEX_FULL;
+		pdata->socver = socinfo_get_version();
 
 		platform_device_register(&nss_gmac_1);
 		platform_device_register(&nss_gmac_2);
@@ -2293,6 +2299,7 @@ static void nss_gmac_init(void)
 		pdata->emulation = 0;
 		pdata->forced_speed = SPEED_1000;
 		pdata->forced_duplex = DUPLEX_FULL;
+		pdata->socver = socinfo_get_version();
 
 		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_2.dev.platform_data;
 		pdata->phy_mdio_addr = 0;
@@ -2302,6 +2309,7 @@ static void nss_gmac_init(void)
 		pdata->emulation = 0;
 		pdata->forced_speed = SPEED_1000;
 		pdata->forced_duplex = DUPLEX_FULL;
+		pdata->socver = socinfo_get_version();
 
 		platform_device_register(&nss_gmac_1);
 		platform_device_register(&nss_gmac_2);
