@@ -16,6 +16,7 @@
 struct ahci_msm_platform_data {
 	uint32_t tx_preemph_gen3;
 	uint32_t rx_eq;
+	uint32_t mpll;
 };
 
 #endif

@@ -2131,21 +2131,25 @@ static void __init ipq806x_common_init(void)
 		usb_p_data2->rx_eq = 4;
 		usb_p_data2->tx_deamp_3_5db = 23;
 		usb_p_data2->tx_deamp_6_db = 32;
+		usb_p_data2->mpll = 0; /* default */
 	} else {
 		usb_p_data1->rx_eq = 2;
-		usb_p_data1->tx_deamp_3_5db = 31;
-		usb_p_data1->tx_deamp_6_db = 31;
+		usb_p_data1->tx_deamp_3_5db = 32;
+		usb_p_data1->tx_deamp_6_db = 32;
 		usb_p_data2->rx_eq = 2;
-		usb_p_data2->tx_deamp_3_5db = 31;
-		usb_p_data2->tx_deamp_6_db = 31;
+		usb_p_data2->tx_deamp_3_5db = 32;
+		usb_p_data2->tx_deamp_6_db = 32;
+		usb_p_data2->mpll = 0xa0;
 	}
 
 	if (SOCINFO_VERSION_MAJOR(socinfo_get_version()) < 2) {
 		ahci_pdata.tx_preemph_gen3 = 0xf;
 		ahci_pdata.rx_eq = 3;
+		ahci_pdata.mpll = 0; /* default */
 	} else {
 		ahci_pdata.tx_preemph_gen3 = 0x15;
 		ahci_pdata.rx_eq = 4;
+		ahci_pdata.mpll = 0xa0;
 	}
 	ipq806x_device_sata.dev.platform_data = &ahci_pdata;
 

@@ -304,6 +304,8 @@ static void  uw_ssusb_pre_init(void __iomem *ipq_base,
 		dwc3_ipq_ssusb_write_phy_reg(DWC3_SSUSB_PHY_TX_OVRD_DRV_LO_REG,
 						tmp, ipq_base);
 	}
+	if (dwc3->mpll)
+		dwc3_ipq_ssusb_write_phy_reg(DWC3_SSUSB_PHY_MPLL, dwc3->mpll, ipq_base);
 	ipq_ssusb_clear_and_set_bits32(IPQ_SS_PHY_PARAM_CTRL_1_REG,
 					0x7, 0x5, ipq_base);
 	/* XHCI REV */
