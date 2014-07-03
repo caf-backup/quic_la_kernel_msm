@@ -123,15 +123,6 @@ config IP_NF_TARGET_REJECT
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config IP_NF_TARGET_MARK2PRIO
-	tristate "mark2prio target support"
-	depends on IP_NF_FILTER
-	default m if NETFILTER_ADVANCED=n
-	help
-	  Move skb's mark to priority field if selected
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 config IP_NF_TARGET_REJECT_SKERR
 	bool "Force socket error when rejecting with icmp*"
 	depends on IP_NF_TARGET_REJECT
