@@ -301,16 +301,16 @@ struct msm_ptbl_entry {
 		"0:SBL1",	"0:MIBIB",	"0:SBL2",	\
 		"0:SBL3",	"0:DDRCONFIG",	"0:SSD",	\
 		"0:TZ",		"0:RPM",	"0:APPSBL",	\
-		"0:APPSBLENV",	"0:ART",	"0:HLOS",	\
-		"rootfs",					\
+		"0:APPSBLENV",	"0:ART",	"0:VENDORDATA",	\
+		"0:HLOS",	"rootfs",			\
 	}
 #define SMEM_LINUX_MTD_NAME					\
 	{							\
 		"SBL1",		"MIBIB",	"SBL2",		\
 		"SBL3",		"DDRCONFIG",	"SSD",		\
 		"TZ",		"RPM",		"APPSBL",	\
-		"APPSBLENV",	"ART",		"kernel",	\
-		"rootfs",					\
+		"APPSBLENV",	"ART",		"vendordata",	\
+		"kernel",	"rootfs",			\
 	}
 
 #else
