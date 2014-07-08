@@ -25,25 +25,38 @@ static int check_mark2prio(const struct xt_tgchk_param *par)
 	return 0;
 }
 
-static struct xt_target mark2prio_target __read_mostly = {
-	.name		= "mark2prio",
-	.family		= NFPROTO_IPV4,
-	.target		= mark2prio,
-	.targetsize	= 0,
-	.table		= "mangle",
-	.hooks		= (1 << NF_INET_POST_ROUTING),
-	.checkentry	= check_mark2prio,
-	.me		= THIS_MODULE,
+static struct xt_target mark2prio_target[] __read_mostly = {
+	{
+		.name		= "mark2prio",
+		.family		= NFPROTO_IPV4,
+		.target		= mark2prio,
+		.targetsize	= 0,
+		.table		= "mangle",
+		.hooks		= (1 << NF_INET_POST_ROUTING),
+		.checkentry	= check_mark2prio,
+		.me		= THIS_MODULE,
+	},
+	{
+		.name		= "mark2prio",
+		.family		= NFPROTO_IPV6,
+		.target		= mark2prio,
+		.targetsize	= 0,
+		.table		= "mangle",
+		.hooks		= (1 << NF_INET_POST_ROUTING),
+		.checkentry	= check_mark2prio,
+		.me		= THIS_MODULE,
+	},
 };
 
 static int __init mark2prio_init(void)
 {
-	return xt_register_target(&mark2prio_target);
+	return xt_register_targets(mark2prio_target,
+				   ARRAY_SIZE(mark2prio_target));
 }
 
 static void __exit mark2prio_exit(void)
 {
-	xt_unregister_target(&mark2prio_target);
+	xt_unregister_targets(mark2prio_target, ARRAY_SIZE(mark2prio_target));
 }
 
 module_init(mark2prio_init);
