@@ -91,7 +91,6 @@
 #define UNIPHY_PLL_DEBUG_BUS3		0x0D0
 #define UNIPHY_PLL_CTRL_54		0x0D4
 
-#define SATA_PHY_MPLL			0x0C0
 #define SATA_PHY_SER_CTRL		0x100
 #define SATA_PHY_TX_DRIV_CTRL0		0x104
 #define SATA_PHY_TX_DRIV_CTRL1		0x108
@@ -209,7 +208,6 @@ struct msm_sata_hba {
 	int power_state;
 	uint32_t tx_preemph_gen3;
 	uint32_t rx_eq;
-	uint32_t mpll;
 };
 
 static inline void msm_sata_delay_us(unsigned int delay)
@@ -605,10 +603,6 @@ static int msm_sata_phy_init(struct device *dev)
 		return reg;
 	}
 
-	/* MPLL setting */
-	if (hba->mpll)
-		writel_relaxed(hba->mpll, hba->phy_base + SATA_PHY_MPLL);
-
 	return 0;
 }
 #else
@@ -982,7 +976,6 @@ static int __devinit msm_sata_probe(struct platform_device *pdev)
 		(struct ahci_msm_platform_data *)pdev->dev.platform_data;
 	hba->tx_preemph_gen3 = msm_ahci_data->tx_preemph_gen3;
 	hba->rx_eq = msm_ahci_data->rx_eq;
-	hba->mpll = msm_ahci_data->mpll;
 
 	ahci = platform_device_alloc("ahci", pdev->id);
 	if (!ahci) {
