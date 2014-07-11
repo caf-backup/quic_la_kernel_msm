@@ -124,6 +124,5 @@ struct dwc3_platform_data {
 	u32 rx_eq;
 	u32 tx_deamp_3_5db;
 	u32 tx_deamp_6_db;
-	u32 mpll;
 };
 #endif /*__MSM_USB30_H */
