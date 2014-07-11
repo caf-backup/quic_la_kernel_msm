@@ -311,6 +311,7 @@ struct msm_nss_gmac_platform_data {
 						   ethtool.h. 0 = Speed not forced */
 	int32_t forced_duplex;			/* Forced duplex. Values used from
 						   ethtool.h. 0 = Duplex not forced. */
+	uint32_t socver;
 };
 
 #define NSS_MAX_GMACS				4
