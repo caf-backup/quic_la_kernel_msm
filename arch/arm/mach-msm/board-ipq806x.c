@@ -1228,6 +1228,7 @@ static struct msm_rpmrs_platform_data msm_rpmrs_data __initdata = {
 	},
 };
 
+#ifdef IPQ_ENABLE_SPM
 static uint8_t spm_wfi_cmd_sequence[] __initdata = {
 	0x03, 0x0f,
 };
@@ -1412,6 +1413,7 @@ static struct msm_spm_platform_data msm_spm_data[] __initdata = {
 		.modes = msm_spm_nonboot_cpu_seq_list,
 	},
 };
+#endif
 
 static void __init ipq806x_init_buses(void)
 {
@@ -2189,8 +2191,10 @@ static void __init ipq806x_common_init(void)
 
 	ipq806x_init_mmc();
 
+#ifdef IPQ_ENABLE_SPM
 	msm_spm_init(msm_spm_data, ARRAY_SIZE(msm_spm_data));
 	msm_spm_l2_init(msm_spm_l2_data);
+#endif
 	if (!machine_is_ipq806x_rumi3()) {
 		BUG_ON(msm_pm_boot_init(&msm_pm_boot_pdata));
 		msm_pm_set_tz_retention_flag(1);
