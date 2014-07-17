@@ -3092,14 +3092,6 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 		goto fail;
 
 	if (udev->speed != USB_SPEED_SUPER) {
-		/*
-		 * Some SS devices do not get correctly detected as SS
-		 * device, instead they are detected as HS device. So we
-		 * perform a reset again to see if speed detection is done
-		 * correctly. A delay between these resets helps the device
-		 * to recover and enumerate correctly
-		 */
-		msleep(500);
 		retval = hub_port_reset(hub, port1, udev, delay, false);
 		if (retval < 0)		/* error or disconnect */
 			goto fail;
