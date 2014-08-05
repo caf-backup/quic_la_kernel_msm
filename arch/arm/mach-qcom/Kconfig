@@ -35,7 +35,4 @@ config ARCH_QCA961x
 
 endmenu
 
-config QCOM_SCM
-	bool
-
 endif
