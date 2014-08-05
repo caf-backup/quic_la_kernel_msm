@@ -1,4 +1,4 @@
-/* * Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.* */
+/* * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.* */
 /* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -280,6 +280,30 @@ static struct memtype_reserve ipq806x_reserve_table[] __initdata = {
 		.flags	=	MEMTYPE_FLAGS_1M_ALIGN,
 	},
 };
+
+static void __init reserve_wifi_dump_memory(void)
+{
+#ifdef CONFIG_MSM_DLOAD_MODE_APPSBL
+#define IPQ_WIFI_DUMP_ADDR	0x44000000
+#define IPQ_WIFI_DUMP_SIZE	(6 << 20)
+
+	extern int _end;
+	int ret;
+
+	/* Ensure we are reserving after the end of kernel text and data */
+	if ((IPQ_WIFI_DUMP_ADDR - CONFIG_PHYS_OFFSET) <
+		((uint32_t)&_end - CONFIG_PAGE_OFFSET)) {
+		printk("%s: Cannot reserve\n", __func__);
+		return;
+	}
+
+	ret = memblock_remove(IPQ_WIFI_DUMP_ADDR, IPQ_WIFI_DUMP_SIZE);
+	BUG_ON(ret);
+	printk("%s: 0x%x, 0x%x\n", __func__,
+		IPQ_WIFI_DUMP_ADDR, IPQ_WIFI_DUMP_SIZE);
+#endif
+}
+
 
 static void __init reserve_rtb_memory(void)
 {
@@ -653,6 +677,7 @@ static void __init ipq806x_calculate_reserve_sizes(void)
 #if defined(CONFIG_ION_MSM) && defined(CONFIG_MSM_MULTIMEDIA_USE_ION)
 	reserve_ion_memory();
 #endif
+	reserve_wifi_dump_memory();
 	reserve_rtb_memory();
 	reserve_cache_dump_memory();
 	reserve_mpdcvs_memory();
