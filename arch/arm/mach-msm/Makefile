@@ -62,6 +62,7 @@ obj-$(CONFIG_MSM_IPC_LOGGING) += ipc_logging_debug.o
 endif
 obj-$(CONFIG_MSM_SMD) += smd.o smd_debug.o remote_spinlock.o smd_private.o
 obj-y += socinfo.o
+obj-y += qfprom.o
 ifndef CONFIG_ARCH_APQ8064
 ifndef CONFIG_ARCH_MSM8960
 ifndef CONFIG_ARCH_MSM8X60
