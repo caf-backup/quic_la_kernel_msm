@@ -224,6 +224,31 @@ struct tc_nsswfq_class_qopt {
 	__u32	quantum;	/* Weight associated to this class */
 };
 
+/* NSSHTB section */
+
+enum {
+	TCA_NSSHTB_UNSPEC,
+	TCA_NSSHTB_CLASS_PARMS,
+	TCA_NSSHTB_QDISC_PARMS,
+	__TCA_NSSHTB_MAX
+};
+
+#define TCA_NSSHTB_MAX	(__TCA_NSSHTB_MAX - 1)
+
+struct tc_nsshtb_class_qopt {
+	__u32	burst;		/* Allowed burst size */
+	__u32	rate;		/* Allowed bandwidth for this class */
+	__u32	cburst;		/* Maximum burst size */
+	__u32	crate;		/* Maximum bandwidth for this class */
+	__u32	quantum;	/* Quantum allocation for DRR */
+	__u32	priority;	/* Priority value associated with this class */
+	__u32	overhead;	/* Overhead in bytes per packet */
+};
+
+struct tc_nsshtb_qopt {
+	__u32	r2q;		/* Rate to quantum ratio */
+};
+
 /* FIFO section */
 
 struct tc_fifo_qopt {
