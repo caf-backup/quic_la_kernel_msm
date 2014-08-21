@@ -288,29 +288,43 @@ static struct memtype_reserve ipq806x_reserve_table[] __initdata = {
 	},
 };
 
+static void __init msm_reserve_memory(phys_addr_t base, phys_addr_t size)
+{
+	extern int _end;
+	int ret;
+
+	/* Ensure we are reserving after the end of kernel text and data */
+	if ((base - CONFIG_PHYS_OFFSET) <
+		((uint32_t)&_end - CONFIG_PAGE_OFFSET)) {
+		printk("%s: Cannot reserve memory @ 0x%x\n", __func__, base);
+		return;
+	}
+
+	ret = memblock_remove(base, size);
+	BUG_ON(ret);
+	printk("%s: 0x%x, 0x%x\n", __func__, base, size);
+}
+
 static void __init reserve_wifi_dump_memory(void)
 {
 #ifdef CONFIG_MSM_DLOAD_MODE_APPSBL
 #define IPQ_WIFI_DUMP_ADDR	0x44000000
 #define IPQ_WIFI_DUMP_SIZE	(6 << 20)
 
-	extern int _end;
-	int ret;
+	msm_reserve_memory(IPQ_WIFI_DUMP_ADDR, IPQ_WIFI_DUMP_SIZE);
 
-	/* Ensure we are reserving after the end of kernel text and data */
-	if ((IPQ_WIFI_DUMP_ADDR - CONFIG_PHYS_OFFSET) <
-		((uint32_t)&_end - CONFIG_PAGE_OFFSET)) {
-		printk("%s: Cannot reserve\n", __func__);
-		return;
-	}
-
-	ret = memblock_remove(IPQ_WIFI_DUMP_ADDR, IPQ_WIFI_DUMP_SIZE);
-	BUG_ON(ret);
-	printk("%s: 0x%x, 0x%x\n", __func__,
-		IPQ_WIFI_DUMP_ADDR, IPQ_WIFI_DUMP_SIZE);
 #endif
 }
 
+static void __init reserve_tz_apps_memory(void)
+{
+#ifdef CONFIG_MSM_SCM
+#define IPQ_TZ_APPS_ADDR	0x44600000
+#define IPQ_TZ_APPS_SIZE	(2 << 20)
+
+	msm_reserve_memory(IPQ_TZ_APPS_ADDR, IPQ_TZ_APPS_SIZE);
+#endif
+}
 
 static void __init reserve_rtb_memory(void)
 {
@@ -685,6 +699,7 @@ static void __init ipq806x_calculate_reserve_sizes(void)
 	reserve_ion_memory();
 #endif
 	reserve_wifi_dump_memory();
+	reserve_tz_apps_memory();
 	reserve_rtb_memory();
 	reserve_cache_dump_memory();
 	reserve_mpdcvs_memory();
