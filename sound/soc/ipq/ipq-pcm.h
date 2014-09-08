@@ -29,6 +29,14 @@
 #define IPQ_PCM_SAMPLES_PER_10MS(rate) ((rate / 1000) * 10)
 #define IPQ_PCM_BYTES_PER_SAMPLE(bit_width) (bit_width / 8)
 
+/* RT Miss counter buckets in procfs */
+#define RTMISS_PROC_CNTRS
+
+#ifdef RTMISS_PROC_CNTRS
+/* Define depth of counter buckets */
+#define NR_CNTS 10
+#endif
+
 struct pcm_context {
 	uint32_t rd_pending;
 	uint8_t needs_deinit;

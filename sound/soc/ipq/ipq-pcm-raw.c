@@ -39,6 +39,14 @@
 #include "ipq-pcm.h"
 #include <mach/audio_dma_msm8k.h>
 
+/*
+* RT Miss counter buckets
+*/
+#ifdef RTMISS_PROC_CNTRS
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
+#endif
+
 static atomic_t data_avail;
 static atomic_t data_at;
 extern struct ipq_lpaif_dai_baseinfo dai_info;
@@ -59,6 +67,80 @@ static int voice_free_dma_buffer(struct device *dev,
 static int dsp_flag;
 static int dsp_realtime_flag;
 int ipq_pcm_init_v2(struct ipq_pcm_params *params);
+
+#ifdef RTMISS_PROC_CNTRS
+unsigned rtmiss_cnts[NR_CNTS] = { 0 };
+static struct proc_dir_entry *proc_rt_miss;
+
+static int rtmiss_cnt_show(struct seq_file *p, void *v)
+{
+	int i;
+
+	seq_printf(p, "RTMISS:");
+	for (i = 0; i < NR_CNTS; i++) {
+		seq_printf(p, " %5u", rtmiss_cnts[i]);
+	}
+	seq_putc(p, '\n');
+
+	return 0;
+}
+
+static int rtmiss_cnt_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rtmiss_cnt_show, NULL);
+}
+
+static ssize_t rtmiss_cnt_reset(struct file *file, const char * buf, size_t size, loff_t * ppos)
+{
+#define CLEAR_STATS_CMD	"reset\n"
+
+	char buff[sizeof(CLEAR_STATS_CMD)];
+	int cmdsize = sizeof(CLEAR_STATS_CMD) - 1;
+	int i;
+
+	if (size != cmdsize)
+		return -ENOSYS;
+
+	buff[cmdsize] = '\0';
+
+	if (copy_from_user(buff, buf, cmdsize))
+		return -EFAULT;
+
+	if (strcasecmp(buff, CLEAR_STATS_CMD) == 0) {
+		/* Clear RT miss counters */
+		for (i = 0; i < NR_CNTS; i++) {
+			rtmiss_cnts[i] = 0;
+		}
+	}
+
+	return size;
+}
+
+static const struct file_operations proc_rtmiss_cnt_operations = {
+	.open		= rtmiss_cnt_open,
+	.read		= seq_read,
+	.write		= rtmiss_cnt_reset,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int __init proc_rtmiss_cnt_init(void)
+{
+	proc_rt_miss = proc_create("rtmiss_cntr", 0, NULL, &proc_rtmiss_cnt_operations);
+	return 0;
+}
+void proc_rtmiss_cnt_exit(void)
+{
+	remove_proc_entry("rtmiss_cntr", NULL);
+}
+static inline void cnt_update(int count, unsigned * counter)
+{
+	if (count > NR_CNTS-1)
+		counter[NR_CNTS-1] += 1;
+	else if (count)
+		counter[count-1] +=1;
+}
+#endif
 
 static irqreturn_t pcm_irq_handler(int intrsrc, void *data)
 {
@@ -95,7 +177,7 @@ static irqreturn_t pcm_irq_handler(int intrsrc, void *data)
 
 	dsp_flag = 1;
 
-        return IRQ_HANDLED;
+	return IRQ_HANDLED;
 }
 
 void ipq_pcm_clear_flag(void)
@@ -109,10 +191,15 @@ int ipq_pcm_check_flag(void)
 	int retvalue;
 
 	retvalue = dsp_realtime_flag;
+#ifdef RTMISS_PROC_CNTRS
+	dsp_realtime_flag = 0;
+	cnt_update(retvalue, rtmiss_cnts);
+#else
 	if (retvalue) {
 		dsp_realtime_flag = 0;
 		return retvalue;
 	}
+#endif
 	return 0;
 }
 EXPORT_SYMBOL(ipq_pcm_check_flag);
@@ -473,6 +560,10 @@ static int __init ipq_lpass_d2_pcm_init(void)
 				__func__);
 	}
 
+#ifdef RTMISS_PROC_CNTRS
+	/* Create RT miss count proc entry */
+	proc_rtmiss_cnt_init();
+#endif
 	return ret;
 }
 
@@ -482,6 +573,11 @@ static void __exit ipq_lpass_d2_pcm_exit(void)
 		ipq_pcm_deinit();
 
 	platform_driver_unregister(&ipq_pcm_driver);
+
+#ifdef RTMISS_PROC_CNTRS
+	/* Remove RT miss count proc entry */
+	proc_rtmiss_cnt_exit();
+#endif
 }
 
 module_init(ipq_lpass_d2_pcm_init);
