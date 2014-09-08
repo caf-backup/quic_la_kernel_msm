@@ -11,8 +11,37 @@
  */
 
 #include <linux/init.h>
+#include <linux/io.h>
+#include <linux/kernel.h>
 
 #include <asm/mach/arch.h>
+#include <asm/system_misc.h>
+
+static void __iomem *wdt;
+
+#define WDT0_RST	0x38
+#define WDT0_EN		0x40
+#define WDT0_BARK_TIME	0x4C
+#define WDT0_BITE_TIME	0x5C
+
+static void wdt_restart(enum reboot_mode reboot_mode, const char *cmd)
+{
+	writel_relaxed(1, wdt + WDT0_RST);
+	writel_relaxed(5*0x31F3, wdt + WDT0_BARK_TIME);
+	writel_relaxed(0x31F3, wdt + WDT0_BITE_TIME);
+	writel_relaxed(1, wdt + WDT0_EN);
+}
+
+static int wdt_init(void)
+{
+	wdt = ioremap(0x0200A000, 4096);
+	if (!wdt)
+		return -EINVAL;
+
+	arm_pm_restart = wdt_restart;
+	return 0;
+}
+late_initcall(wdt_init);
 
 static const char * const qcom_dt_match[] __initconst = {
 	"qcom,apq8064",
