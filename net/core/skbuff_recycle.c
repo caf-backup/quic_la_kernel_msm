@@ -9,6 +9,11 @@
 #include <skbuff_recycle.h>
 
 static DEFINE_PER_CPU(struct sk_buff_head, recycle_list);
+#ifdef CONFIG_SKB_RECYCLER_MULTI_CPU
+static DEFINE_PER_CPU(struct sk_buff_head, recycle_spare_list);
+static struct global_recycler glob_recycler;
+#endif
+
 
 inline struct sk_buff *skb_recycler_alloc(struct net_device *dev, unsigned int length) {
 	unsigned long flags;
@@ -22,6 +27,25 @@ inline struct sk_buff *skb_recycler_alloc(struct net_device *dev, unsigned int l
 	h = &get_cpu_var(recycle_list);
 	local_irq_save(flags);
 	skb = __skb_dequeue(h);
+#ifdef CONFIG_SKB_RECYCLER_MULTI_CPU
+	if (unlikely(!skb)) {
+		uint8_t head;
+		spin_lock(&glob_recycler.lock);
+		/* If global recycle list is not empty, use global buffers */
+		head = glob_recycler.head;
+		if (likely(head != glob_recycler.tail)) {
+			/* Move SKBs from global list to CPU pool */
+			skb_queue_splice_init(&glob_recycler.pool[head], h);
+			head = (head + 1) & SKB_RECYCLE_MAX_SHARED_POOLS_MASK;
+			glob_recycler.head = head;
+			spin_unlock(&glob_recycler.lock);
+			/* We have refilled the CPU pool - dequeue */
+			skb = __skb_dequeue(h);
+		} else {
+			spin_unlock(&glob_recycler.lock);
+		}
+	}
+#endif
 	local_irq_restore(flags);
 	put_cpu_var(recycle_list);
 
@@ -79,6 +103,39 @@ inline bool skb_recycler_consume(struct sk_buff *skb) {
 		preempt_enable();
 		return true;
 	}
+#ifdef CONFIG_SKB_RECYCLER_MULTI_CPU
+	h = &__get_cpu_var(recycle_spare_list);
+
+	/* The CPU hot recycle list was full; if the spare list is also full,
+	 * attempt to move the spare list to the global list for other CPUs to
+	 * use.
+	 */
+	if (unlikely(skb_queue_len(h) >= SKB_RECYCLE_SPARE_MAX_SKBS)) {
+		uint8_t cur_tail, next_tail;
+		spin_lock(&glob_recycler.lock);
+		cur_tail = glob_recycler.tail;
+		next_tail = (cur_tail + 1) & SKB_RECYCLE_MAX_SHARED_POOLS_MASK;
+		if (next_tail != glob_recycler.head) {
+			struct sk_buff_head *p = &glob_recycler.pool[cur_tail];
+			skb_queue_splice_init(h, p);
+			glob_recycler.tail = next_tail;
+			spin_unlock(&glob_recycler.lock);
+			/* We have now cleared room in the spare; enqueue */
+			__skb_queue_head(h, skb);
+			local_irq_restore(flags);
+			preempt_enable();
+			return true;
+		}
+		/* We still have a full spare because the global is also full */
+		spin_unlock(&glob_recycler.lock);
+	} else {
+		/* We have room in the spare list; enqueue to spare list */
+		__skb_queue_head(h, skb);
+		local_irq_restore(flags);
+		preempt_enable();
+		return true;
+	}
+#endif
 
 	local_irq_restore(flags);
 	preempt_enable();
@@ -93,6 +150,9 @@ static int skb_cpu_callback(struct notifier_block *nfb,
 
 	if (action == CPU_DEAD || action == CPU_DEAD_FROZEN) {
 		skb_queue_purge(&per_cpu(recycle_list, oldcpu));
+#ifdef CONFIG_SKB_RECYCLER_MULTI_CPU
+		skb_queue_purge(&per_cpu(recycle_spare_list, oldcpu));
+#endif
 	}
 
 	return NOTIFY_OK;
@@ -105,6 +165,22 @@ void __init skb_recycler_init() {
 	for_each_possible_cpu(cpu) {
 		skb_queue_head_init(&per_cpu(recycle_list, cpu));
 	}
+
+#ifdef CONFIG_SKB_RECYCLER_MULTI_CPU
+	for_each_possible_cpu(cpu) {
+		skb_queue_head_init(&per_cpu(recycle_spare_list, cpu));
+	}
+
+	spin_lock_init(&glob_recycler.lock);
+	{
+		unsigned int i;
+		for (i = 0; i < SKB_RECYCLE_MAX_SHARED_POOLS; i++) {
+			skb_queue_head_init(&glob_recycler.pool[i]);
+		}
+		glob_recycler.head = 0;
+		glob_recycler.tail = 0;
+	}
+#endif
 
 	hotcpu_notifier(skb_cpu_callback, 0);
 }

@@ -288,6 +288,11 @@ config SKB_RECYCLER
 	 routing workloads, reducing skbuff freeing/reallocation
 	 overhead.
 
+config SKB_RECYCLER_MULTI_CPU
+	bool "Cross-CPU recycling for CPU-locked workloads"
+	depends on SMP && SKB_RECYCLER
+	default n
+
 menu "Network testing"
 
 config NET_PKTGEN

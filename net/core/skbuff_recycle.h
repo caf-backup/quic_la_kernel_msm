@@ -40,6 +40,20 @@
 #define SKB_RECYCLE_MAX_SIZE	4096
 #define SKB_RECYCLE_MAX_SKBS	1024
 
+#define SKB_RECYCLE_SPARE_MAX_SKBS		256
+#define SKB_RECYCLE_MAX_SHARED_POOLS		8
+#define SKB_RECYCLE_MAX_SHARED_POOLS_MASK	(SKB_RECYCLE_MAX_SHARED_POOLS - 1)
+
+#ifdef CONFIG_SKB_RECYCLER_MULTI_CPU
+struct global_recycler {
+	/* Global circular list which holds the shared skb pools */
+	struct sk_buff_head pool[SKB_RECYCLE_MAX_SHARED_POOLS];
+	uint8_t head;		/* head of the circular list */
+	uint8_t tail;		/* tail of the circular list */
+	spinlock_t lock;
+};
+#endif
+
 static inline void zero_struct(void *v, int size)
 {
 	uint32_t *s = (uint32_t *)v;
