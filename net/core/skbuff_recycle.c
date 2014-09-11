@@ -81,7 +81,7 @@ inline bool skb_recycler_consume(struct sk_buff *skb) {
 	}
 
 	local_irq_restore(flags);
-	put_cpu_var(recycle_list);
+	preempt_enable();
 
 	return false;
 }
