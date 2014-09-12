@@ -59,7 +59,8 @@ inline struct sk_buff *skb_recycler_alloc(struct net_device *dev, unsigned int l
 		 * of the shinfo region now so it's in the D-cache
 		 * before we start to write that.
 		 */
-		prefetchw(&skb->end);
+		shinfo = skb_shinfo(skb);
+		prefetchw(shinfo);
 
 		zero_struct(skb, offsetof(struct sk_buff, tail));
 		skb->data = skb->head;
@@ -67,7 +68,6 @@ inline struct sk_buff *skb_recycler_alloc(struct net_device *dev, unsigned int l
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
 		skb->mac_header = ~0U;
 #endif
-		shinfo = skb_shinfo(skb);
 		zero_struct(shinfo, offsetof(struct skb_shared_info, dataref));
 		atomic_set(&shinfo->dataref, 1);
 
