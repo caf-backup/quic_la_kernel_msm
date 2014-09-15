@@ -650,7 +650,7 @@ static struct msm_gpiomux_config ipq806x_ap145_gpiomux[] = {
 	ipq_mux(62, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 };
 
-static struct msm_gpiomux_config ipq806x_ap145_1xx_gpiomux_override[] = {
+static struct msm_gpiomux_config ipq806x_mmc_gpiomux_override[] = {
 #ifdef CONFIG_MMC_MSM_SDC1_SUPPORT
 #ifdef CONFIG_MMC_MSM_SDC1_8_BIT_SUPPORT
 	ipq_mux(38, sdc1_cmd_data_0_3_active_cfg,	sdc1_suspended_cfg),
@@ -687,6 +687,9 @@ void __init ipq806x_init_gpiomux(void)
 		if (machine_is_ipq806x_db149_2xx())
 			msm_gpiomux_install(ipq806x_db149_2xx_gpiomux_override,
 			ARRAY_SIZE(ipq806x_db149_2xx_gpiomux_override));
+		if (machine_is_ipq806x_emmc_boot())
+			msm_gpiomux_install(ipq806x_mmc_gpiomux_override,
+			ARRAY_SIZE(ipq806x_mmc_gpiomux_override));
 
 	} else if (machine_is_ipq806x_db149_1xx()) {
 		msm_gpiomux_install(ipq806x_db149_1xx_gpiomux,
@@ -707,11 +710,14 @@ void __init ipq806x_init_gpiomux(void)
 	} else if (machine_is_ipq806x_ap145()) {
 		msm_gpiomux_install(ipq806x_ap145_gpiomux,
 			ARRAY_SIZE(ipq806x_ap145_gpiomux));
+		if (machine_is_ipq806x_emmc_boot())
+			msm_gpiomux_install(ipq806x_mmc_gpiomux_override,
+				ARRAY_SIZE(ipq806x_mmc_gpiomux_override));
 	} else if (machine_is_ipq806x_ap145_1xx()) {
 		msm_gpiomux_install(ipq806x_ap145_gpiomux,
 			ARRAY_SIZE(ipq806x_ap145_gpiomux));
-		msm_gpiomux_install(ipq806x_ap145_1xx_gpiomux_override,
-			ARRAY_SIZE(ipq806x_ap145_1xx_gpiomux_override));
+		msm_gpiomux_install(ipq806x_mmc_gpiomux_override,
+			ARRAY_SIZE(ipq806x_mmc_gpiomux_override));
 	}
 
 }

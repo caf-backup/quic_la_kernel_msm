@@ -238,9 +238,11 @@ void __init ipq806x_init_mmc(void)
 	int i;
 	struct msm_mmc_pad_drv_data *drv;
 
-	if (machine_is_ipq806x_db149_1xx() || machine_is_ipq806x_ap145_1xx())
+	if (machine_is_ipq806x_db149_1xx() || machine_is_ipq806x_ap145_1xx() ||
+						machine_is_ipq806x_emmc_boot())
 		ipq806x_add_sdcc(1, &sdc1_data);
-	if (machine_is_ipq806x_ap145_1xx()) {
+	if (machine_is_ipq806x_ap145_1xx() ||
+			(machine_is_ipq806x_ap145() && machine_is_ipq806x_emmc_boot())) {
 		sdc1_data.status_gpio = -1;
 		sdc1_data.status_irq = 0;
 	}

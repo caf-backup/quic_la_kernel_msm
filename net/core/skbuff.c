@@ -59,7 +59,6 @@
 #include <linux/errqueue.h>
 #include <linux/prefetch.h>
 #include <linux/if.h>
-#include <linux/cpu.h>
 
 #include <net/protocol.h>
 #include <net/dst.h>
@@ -71,14 +70,10 @@
 #include <trace/events/skb.h>
 
 #include "kmap_skb.h"
+#include "skbuff_recycle.h"
 
 static struct kmem_cache *skbuff_head_cache __read_mostly;
 static struct kmem_cache *skbuff_fclone_cache __read_mostly;
-static DEFINE_PER_CPU(struct sk_buff_head, recycle_list);
-#define SKB_RECYCLE_SIZE	2304
-#define SKB_RECYCLE_MIN_SIZE	SKB_RECYCLE_SIZE
-#define SKB_RECYCLE_MAX_SIZE	4096
-#define SKB_RECYCLE_MAX_SKBS	1024
 
 static void sock_pipe_buf_release(struct pipe_inode_info *pipe,
 				  struct pipe_buffer *buf)
@@ -151,56 +146,6 @@ static void skb_under_panic(struct sk_buff *skb, int sz, void *here)
 	       (unsigned long)skb->tail, (unsigned long)skb->end,
 	       skb->dev ? skb->dev->name : "<NULL>");
 	BUG();
-}
-
-static inline void zero_struct(void *v, int size)
-{
-	uint32_t *s = (uint32_t *)v;
-
-	/* We assume that size is word aligned; in fact, it's constant */
-	BUG_ON((size & 3) != 0);
-
-	/*
-	 * This looks odd but we "know" size is a constant, and so the
-	 * compiler can fold away all of the conditionals.  The compiler is
-	 * pretty smart here, and can fold away the loop, too!
-	 */
-	while (size > 0) {
-		if (size >= 4)
-			s[0] = 0;
-		if (size >= 8)
-			s[1] = 0;
-		if (size >= 12)
-			s[2] = 0;
-		if (size >= 16)
-			s[3] = 0;
-		if (size >= 20)
-			s[4] = 0;
-		if (size >= 24)
-			s[5] = 0;
-		if (size >= 28)
-			s[6] = 0;
-		if (size >= 32)
-			s[7] = 0;
-		if (size >= 36)
-			s[8] = 0;
-		if (size >= 40)
-			s[9] = 0;
-		if (size >= 44)
-			s[10] = 0;
-		if (size >= 48)
-			s[11] = 0;
-		if (size >= 52)
-			s[12] = 0;
-		if (size >= 56)
-			s[13] = 0;
-		if (size >= 60)
-			s[14] = 0;
-		if (size >= 64)
-			s[15] = 0;
-		size -= 64;
-		s += 16;
-	}
 }
 
 /* 	Allocate a new skbuff. We do this ourselves so we can fill in a few
@@ -368,47 +313,16 @@ struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
 	unsigned int len;
 	struct sk_buff *skb;
 
-	/*
-	 * Is this a request for an skb that we might be able to pull
-	 * from the recycling list?
-	 */
-	if (likely(length <= SKB_RECYCLE_SIZE)) {
-		unsigned long flags;
-		struct sk_buff_head *h = &get_cpu_var(recycle_list);
-		local_irq_save(flags);
-		skb = __skb_dequeue(h);
-		local_irq_restore(flags);
-		put_cpu_var(recycle_list);
-		if (likely(skb)) {
-			struct skb_shared_info *shinfo;
+	skb = skb_recycler_alloc(dev, length);
 
-			/*
-			 * We're about to write a large amount to the skb to
-			 * zero most of the structure so prefetch the start
-			 * of the shinfo region now so it's in the D-cache
-			 * before we start to write that.
-			 */
-			prefetchw(&skb->end);
-
-			zero_struct(skb, offsetof(struct sk_buff, tail));
-			skb->data = skb->head;
-			skb_reset_tail_pointer(skb);
-#ifdef NET_SKBUFF_DATA_USES_OFFSET
-			skb->mac_header = ~0U;
-#endif
-			shinfo = skb_shinfo(skb);
-			zero_struct(shinfo, offsetof(struct skb_shared_info, dataref));
-			atomic_set(&shinfo->dataref, 1);
-
-			skb_reserve(skb, NET_SKB_PAD);
-			skb->dev = dev;
-			return skb;
-		}
+	if (likely(skb)) {
+		return skb;
 	}
 
 	len = SKB_RECYCLE_SIZE;
 	if (unlikely(length > SKB_RECYCLE_SIZE))
 		len = length;
+
 	skb = __alloc_skb(len + NET_SKB_PAD, gfp_mask, 0, NUMA_NO_NODE);
 	if (unlikely(skb == NULL))
 		return NULL;
@@ -461,40 +375,10 @@ struct sk_buff *dev_alloc_skb(unsigned int length)
 {
 	unsigned int len;
 
-	/*
-	 * Is this a request for an skb that we might be able to pull
-	 * from the recycling list?
-	 */
-	if (likely(length <= SKB_RECYCLE_SIZE)) {
-		unsigned long flags;
-		struct sk_buff *skb;
-		struct sk_buff_head *h = &get_cpu_var(recycle_list);
-		local_irq_save(flags);
-		skb = __skb_dequeue(h);
-		local_irq_restore(flags);
-		put_cpu_var(recycle_list);
-		if (likely(skb)) {
-			struct skb_shared_info *shinfo;
-			/*
-			 * We're about to write a large amount to the skb to
-			 * zero most of the structure so prefetch the start
-			 * of the shinfo region now so it's in the D-cache
-			 * before we start to write that.
-			 */
-			prefetchw(&skb->end);
-			zero_struct(skb, offsetof(struct sk_buff, tail));
-			skb->data = skb->head;
-			skb_reset_tail_pointer(skb);
-			skb_reserve(skb, NET_SKB_PAD);
-#ifdef NET_SKBUFF_DATA_USES_OFFSET
-			skb->mac_header = ~0U;
-#endif
-			shinfo = skb_shinfo(skb);
-			zero_struct(shinfo,
-				    offsetof(struct skb_shared_info, dataref));
-			atomic_set(&shinfo->dataref, 1);
-			return skb;
-		}
+	struct sk_buff *skb = skb_recycler_alloc(NULL, length);
+
+	if (likely(skb)) {
+		return skb;
 	}
 
 	len = SKB_RECYCLE_SIZE;
@@ -670,35 +554,6 @@ void kfree_skb(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(kfree_skb);
 
-static inline bool consume_skb_can_recycle(const struct sk_buff *skb,
-					   int min_skb_size, int max_skb_size)
-{
-	if (unlikely(irqs_disabled()))
-		return false;
-
-	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_DEV_ZEROCOPY))
-		return false;
-
-	if (unlikely(skb_is_nonlinear(skb)))
-		return false;
-
-	if (unlikely(skb->fclone != SKB_FCLONE_UNAVAILABLE))
-		return false;
-
-	min_skb_size = SKB_DATA_ALIGN(min_skb_size + NET_SKB_PAD);
-	if (unlikely(skb_end_pointer(skb) - skb->head < min_skb_size))
-		return false;
-
-	max_skb_size = SKB_DATA_ALIGN(max_skb_size + NET_SKB_PAD);
-	if (unlikely(skb_end_pointer(skb) - skb->head > max_skb_size))
-		return false;
-
-	if (unlikely(skb_cloned(skb)))
-		return false;
-
-	return true;
-}
-
 /**
  *	consume_skb - free an skbuff
  *	@skb: buffer to free
@@ -732,21 +587,8 @@ void consume_skb(struct sk_buff *skb)
 	 * for us to recycle this one later than to allocate a new one
 	 * from scratch.
 	 */
-	if (likely(consume_skb_can_recycle(skb, SKB_RECYCLE_MIN_SIZE,
-					   SKB_RECYCLE_MAX_SIZE))) {
-		unsigned long flags;
-		struct sk_buff_head *h;
-		h = &get_cpu_var(recycle_list);
-		local_irq_save(flags);
-		if (likely(skb_queue_len(h) < SKB_RECYCLE_MAX_SKBS)) {
-			__skb_queue_head(h, skb);
-			local_irq_restore(flags);
-			put_cpu_var(recycle_list);
-			return;
-		}
-
-		local_irq_restore(flags);
-		put_cpu_var(recycle_list);
+	if (likely(skb_recycler_consume(skb))) {
+		return;
 	}
 
 	trace_consume_skb(skb);
@@ -3174,22 +3016,8 @@ done:
 }
 EXPORT_SYMBOL_GPL(skb_gro_receive);
 
-static int skb_cpu_callback(struct notifier_block *nfb,
-			    unsigned long action, void *ocpu)
-{
-	unsigned long oldcpu = (unsigned long)ocpu;
-
-	if (action == CPU_DEAD || action == CPU_DEAD_FROZEN) {
-		struct sk_buff_head *h = &per_cpu(recycle_list, oldcpu);
-		skb_queue_purge(h);
-	}
-
-	return NOTIFY_OK;
-}
-
 void __init skb_init(void)
 {
-	int cpu;
 
 	skbuff_head_cache = kmem_cache_create("skbuff_head_cache",
 					      sizeof(struct sk_buff),
@@ -3202,13 +3030,7 @@ void __init skb_init(void)
 						0,
 						SLAB_HWCACHE_ALIGN|SLAB_PANIC,
 						NULL);
-
-	for_each_possible_cpu(cpu) {
-		struct sk_buff_head *h = &per_cpu(recycle_list, cpu);
-		skb_queue_head_init(h);
-	}
-
-	hotcpu_notifier(skb_cpu_callback, 0);
+	skb_recycler_init();
 }
 
 /**

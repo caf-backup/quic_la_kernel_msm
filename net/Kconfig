@@ -280,6 +280,19 @@ config BPF_JIT
 	  packet sniffing (libpcap/tcpdump). Note : Admin should enable
 	  this feature changing /proc/sys/net/core/bpf_jit_enable
 
+config SKB_RECYCLER
+	bool "Generic skb recycling"
+	default y
+	---help---
+	 Enables RX-to-RX skb recycling scheme for bridging and
+	 routing workloads, reducing skbuff freeing/reallocation
+	 overhead.
+
+config SKB_RECYCLER_MULTI_CPU
+	bool "Cross-CPU recycling for CPU-locked workloads"
+	depends on SMP && SKB_RECYCLER
+	default n
+
 menu "Network testing"
 
 config NET_PKTGEN

@@ -350,4 +350,21 @@ extern unsigned int msm_shared_ram_phys; /* defined in arch/arm/mach-msm/io.c */
 extern int wifi_board_data_read(loff_t from, size_t len, size_t *retlen,
 		u_char *buf);
 
+extern unsigned int ipq_boot_flash_type;
+
+enum {
+        BOOT_NO_FLASH        = 0,
+        BOOT_NOR_FLASH       = 1,
+        BOOT_NAND_FLASH      = 2,
+        BOOT_ONENAND_FLASH   = 3,
+        BOOT_SDC_FLASH       = 4,
+        BOOT_MMC_FLASH       = 5,
+        BOOT_SPI_FLASH       = 6,
+};
+
+static inline int machine_is_ipq806x_emmc_boot(void)
+{
+	return ipq_boot_flash_type == BOOT_MMC_FLASH;
+
+}
 #endif

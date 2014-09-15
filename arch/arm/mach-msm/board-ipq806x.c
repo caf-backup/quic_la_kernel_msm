@@ -149,6 +149,8 @@
 
 
 
+unsigned int ipq_boot_flash_type = BOOT_NO_FLASH;
+
 #ifdef CONFIG_KERNEL_MSM_CONTIG_MEM_REGION
 static unsigned msm_contig_mem_size = MSM_CONTIG_MEM_SIZE;
 static int __init msm_contig_mem_size_setup(char *p)
@@ -2198,7 +2200,8 @@ static void __init ipq806x_common_init(void)
 
 	platform_add_devices(common_devices, ARRAY_SIZE(common_devices));
 
-	if (!machine_is_ipq806x_db149_1xx() && !machine_is_ipq806x_ap145_1xx())
+	if (!machine_is_ipq806x_db149_1xx() && !machine_is_ipq806x_ap145_1xx()
+					&& !machine_is_ipq806x_emmc_boot())
 		platform_device_register(&msm_device_nand);
 
 	*((uint32_t *)(ipq806x_lpass_lpaif.dev.platform_data)) = socinfo_get_version();
@@ -2481,8 +2484,13 @@ static void __init nss_macsec_register_devices(void)
 
 static void __init ipq806x_init(void)
 {
+	u32 *flash_type_ptr;
 	if (meminfo_init(SYS_MEMORY, SZ_256M) < 0)
 		pr_err("meminfo_init() failed!\n");
+
+	flash_type_ptr = smem_alloc(SMEM_BOOT_FLASH_TYPE, sizeof(u32));
+	ipq_boot_flash_type = *flash_type_ptr;
+
 	ipq806x_common_init();
 	ipq806x_pcie_init();
 
