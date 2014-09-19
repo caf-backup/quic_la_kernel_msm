@@ -63,15 +63,14 @@ inline struct sk_buff *skb_recycler_alloc(struct net_device *dev, unsigned int l
 		prefetchw(shinfo);
 
 		zero_struct(skb, offsetof(struct sk_buff, tail));
-		skb->data = skb->head;
-		skb_reset_tail_pointer(skb);
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
 		skb->mac_header = ~0U;
 #endif
 		zero_struct(shinfo, offsetof(struct skb_shared_info, dataref));
 		atomic_set(&shinfo->dataref, 1);
 
-		skb_reserve(skb, NET_SKB_PAD);
+		skb->data = skb->head + NET_SKB_PAD;
+		skb_reset_tail_pointer(skb);
 
 		if (dev) {
 			skb->dev = dev;
@@ -130,13 +129,14 @@ inline bool skb_recycler_consume(struct sk_buff *skb) {
 			glob_recycler.tail = next_tail;
 			spin_unlock(&glob_recycler.lock);
 
-			/* Optimized, inlined spare SKB list init */
-			h->next = (struct sk_buff *)h;
-			h->prev = (struct sk_buff *)h;
-			h->qlen = 0;
+			/*
+			 * We have now cleared room in the spare;
+			 * Intialize and enqueue skb into spare
+			 */
+			skb->next = skb->prev = (struct sk_buff *)h;
+			h->prev = h->next = skb;
+			h->qlen = 1;
 
-			/* We have now cleared room in the spare; enqueue */
-			__skb_queue_head(h, skb);
 			local_irq_restore(flags);
 			preempt_enable();
 			return true;
