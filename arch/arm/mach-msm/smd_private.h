@@ -146,6 +146,23 @@ struct smd_half_channel_word_access {
 	unsigned head;
 };
 
+struct sbl_if_dualboot_info_type {
+	/* magic number*/
+	uint32_t      magic;
+	/* active indicates the which partition to choose */
+	uint32_t      active;
+	/* update_started_on indicate which partition used for update */
+	uint32_t      update_started_on;
+	/* update_completed_on indicate which partition
+	 * used for update and is completed */
+	uint32_t      update_completed_on;
+	/* boot_kernel_success indicate which partition
+	 * is used for test booting
+	 */
+	uint32_t      boot_kernel_success;
+};
+
+
 struct smd_half_channel_access {
 	void (*set_state)(volatile void *half_channel, unsigned data);
 	unsigned (*get_state)(volatile void *half_channel);
