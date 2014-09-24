@@ -27,16 +27,71 @@ static unsigned int transition_latency;
 
 static struct device *cpu_dev;
 static DEFINE_PER_CPU(struct clk *, krait_cpu_clks);
+static struct clk *l2_clk;
 static struct cpufreq_frequency_table *freq_table;
 static struct thermal_cooling_device *cdev;
 
+struct cache_points {
+	unsigned long cache_freq;
+	unsigned long cpu_freq;
+};
+
+static struct cache_points *krait_l2_points;
+static int nr_krait_l2_points;
+
+static int krait_parse_cache_points(struct device *dev,
+		struct device_node *of_node)
+{
+	const struct property *prop;
+	const __be32 *val;
+	int nr, i;
+
+	prop = of_find_property(of_node, "cache-points-kHz", NULL);
+	if (!prop)
+		return -ENODEV;
+	if (!prop->value)
+		return -ENODATA;
+
+	/*
+	 * Each OPP is a set of tuples consisting of frequency and
+	 * cpu-frequency like <freq-kHz freq-kHz>.
+	 */
+	nr = prop->length / sizeof(u32);
+	if (nr % 2) {
+		dev_err(dev, "%s: Invalid cache points\n", __func__);
+		return -EINVAL;
+	}
+
+	krait_l2_points = devm_kcalloc(dev, nr, sizeof(*krait_l2_points),
+				       GFP_KERNEL);
+	if (!krait_l2_points)
+		return -ENOMEM;
+	nr_krait_l2_points = nr;
+
+	val = prop->value;
+	i = 0;
+	while (nr) {
+		unsigned long cache_freq = be32_to_cpup(val++) * 1000;
+		unsigned long cpu_freq = be32_to_cpup(val++) * 1000;
+
+		krait_l2_points[i].cache_freq = cache_freq;
+		krait_l2_points[i].cpu_freq = cpu_freq;
+
+		i++;
+		nr -= 2;
+	}
+
+	return 0;
+}
+
 static int krait_set_target(struct cpufreq_policy *policy, unsigned int index)
 {
-	unsigned long volt = 0, volt_old = 0;
+	unsigned long volt = 0, volt_old = 0, l2_rate = 0, freq;
 	unsigned int old_freq, new_freq;
 	long freq_Hz, freq_exact;
-	int ret;
+	int ret, i;
 	struct clk *cpu_clk;
+	unsigned int cpu;
 
 	cpu_clk = per_cpu(krait_cpu_clks, policy->cpu);
 
@@ -55,6 +110,18 @@ static int krait_set_target(struct cpufreq_policy *policy, unsigned int index)
 	ret = clk_set_rate(cpu_clk, freq_exact);
 	if (ret)
 		pr_err("failed to set clock rate: %d\n", ret);
+
+	for_each_possible_cpu(cpu) {
+		freq = clk_get_rate(per_cpu(krait_cpu_clks, cpu));
+		l2_rate = max(l2_rate, freq);
+	}
+
+	for (i = 0; i < nr_krait_l2_points; i++)
+		if (l2_rate >= krait_l2_points[i].cpu_freq)
+			break;
+
+	if (i != nr_krait_l2_points)
+		ret = clk_set_rate(l2_clk, krait_l2_points[i].cache_freq);
 
 	return ret;
 }
@@ -88,7 +155,7 @@ static struct cpufreq_driver krait_cpufreq_driver = {
 
 static int krait_cpufreq_probe(struct platform_device *pdev)
 {
-	struct device_node *np;
+	struct device_node *np, *cache;
 	int ret;
 	unsigned int cpu;
 	struct device *dev;
@@ -134,6 +201,14 @@ static int krait_cpufreq_probe(struct platform_device *pdev)
 
 	if (of_property_read_u32(np, "clock-latency", &transition_latency))
 		transition_latency = CPUFREQ_ETERNAL;
+
+	cache = of_find_next_cache_node(np);
+	if (cache) {
+		l2_clk = of_clk_get(cache, 0);
+		ret = krait_parse_cache_points(&pdev->dev, cache);
+		if (ret || IS_ERR(l2_clk))
+			l2_clk = NULL;
+	}
 
 	ret = cpufreq_register_driver(&krait_cpufreq_driver);
 	if (ret) {
