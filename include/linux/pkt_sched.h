@@ -249,6 +249,20 @@ struct tc_nsshtb_qopt {
 	__u32	r2q;		/* Rate to quantum ratio */
 };
 
+/* NSSBLACKHOLE section */
+
+enum {
+	TCA_NSSBLACKHOLE_UNSPEC,
+	TCA_NSSBLACKHOLE_PARMS,
+	__TCA_NSSBLACKHOLE_MAX
+};
+
+#define TCA_NSSBLACKHOLE_MAX	(__TCA_NSSBLACKHOLE_MAX - 1)
+
+struct tc_nssblackhole_qopt {
+	__u8	set_default;	/* Sets qdisc to be the default qdisc for enqueue */
+};
+
 /* FIFO section */
 
 struct tc_fifo_qopt {
