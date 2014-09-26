@@ -409,11 +409,10 @@ static void usb30_common_pre_init(int id, void __iomem *ipq_base)
 			IPQ_USB30_RESET_MOC_UTMI_ASYNC_RESET |
 			IPQ_USB30_RESET_POWERON_ASYNC_RESET |
 			IPQ_USB30_RESET_PHY_ASYNC_RESET), reg);
-		reg = ioremap(IPQ_TCSR_USB_CONTROLLER_TYPE_SEL, 4);
-		if (reg) {
-			writel(0x3, reg);
-			iounmap(reg);
-		}
+/*
+ * TCSR configuration cannot be done from HLOS drivers once XPUs are enabled.
+ * Configuration of IPQ_TCSR_USB_CONTROLLER_TYPE_SEL moved to TZ init.
+ */
 	}
 	writel((IPQ_SSUSB_REG_QSCRATCH_CGCTL_RAM1112_EN |
 		IPQ_SSUSB_REG_QSCRATCH_CGCTL_RAM13_EN),
