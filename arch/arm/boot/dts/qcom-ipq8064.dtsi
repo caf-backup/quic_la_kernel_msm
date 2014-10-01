@@ -113,14 +113,6 @@
 		};
 	};
 
-	clocks {
-		sleep_clk: sleep_clk {
-			compatible = "fixed-clock";
-			clock-frequency = <32768>;
-			#clock-cells = <0>;
-		};
-	};
-
 	kraitcc: clock-controller {
 		compatible = "qcom,krait-cc-v1";
 		#clock-cells = <1>;
@@ -164,6 +156,14 @@
 	nss-common {
 		reg = <0x03000000 0x00001000>;
 		reg-names = "nss_fpb_base";
+	};
+
+	clocks {
+		sleep_clk: sleep_clk {
+			compatible = "fixed-clock";
+			clock-frequency = <32768>;
+			#clock-cells = <0>;
+		};
 	};
 
 	soc: soc {
@@ -262,6 +262,13 @@
 			clocks = <&sleep_clk>;
 			clock-names = "sleep";
 			cpu-offset = <0x80000>;
+		};
+
+		watchdog@208a038 {
+			compatible = "qcom,kpss-wdt-ipq8064";
+			reg = <0x0208a038 0x40>;
+			clocks = <&sleep_clk>;
+			timeout-sec = <10>;
 		};
 
 		acc0: clock-controller@2088000 {
