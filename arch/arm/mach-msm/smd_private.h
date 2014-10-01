@@ -319,8 +319,8 @@ struct msm_ptbl_entry {
 		"0:SBL2",	"0:SBL3",	"0:DDRCONFIG",	\
 		"0:SSD",	"0:TZ",		"0:RPM",	\
 		"0:APPSBL",	"0:APPSBL_1",	"0:APPSBLENV",	\
-		"0:ART",	"0:HLOS",	"rootfs",	\
-		"rootfs_1"					\
+		"0:ART",	"0:VENDORDATA", "0:HLOS",	\
+		"rootfs",       "rootfs_1"			\
 	}
 #define SMEM_LINUX_MTD_NAME					\
 	{							\
@@ -328,8 +328,8 @@ struct msm_ptbl_entry {
 		"SBL2",		"SBL3",		"DDRCONFIG",		\
 		"SSD",		"TZ",		"RPM",		\
 		"APPSBL",	"APPSBL_1",	"APPSBLENV",	\
-		"ART",		"kernel",	"rootfs",	\
-		"rootfs_1"					\
+		"ART",		"vendordata",   "kernel",	\
+		"rootfs",	"rootfs_1"			\
 	}
 
 #else
