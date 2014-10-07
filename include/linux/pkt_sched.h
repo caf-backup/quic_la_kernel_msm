@@ -119,6 +119,52 @@ struct tc_nssfifo_qopt {
 	__u8	set_default;	/* Sets qdisc to be the default qdisc for enqueue */
 };
 
+/* NSSWRED section */
+
+enum {
+	TCA_NSSWRED_UNSPEC,
+	TCA_NSSWRED_PARMS,
+	__TCA_NSSWRED_MAX
+};
+
+#define TCA_NSSWRED_MAX (__TCA_NSSWRED_MAX - 1)
+#define NSSWRED_CLASS_MAX 6
+struct tc_red_alg_parameter {
+	__u32	min;			/* qlen_avg < min: pkts are all enqueued */
+	__u32	max;			/* qlen_avg > max: pkts are all dropped */
+	__u32	probability;		/* Drop probability at qlen_avg = max */
+	__u32	exp_weight_factor;	/* exp_weight_factor for calculate qlen_avg */
+};
+
+struct tc_nsswred_traffic_class {
+	__u32 limit;			/* Queue length */
+	__u32 weight_mode_value;	/* Weight mode value */
+	struct tc_red_alg_parameter rap;/* Parameters for RED alg */
+};
+
+/*
+ * Weight modes for WRED
+ */
+enum tc_nsswred_weight_modes {
+	TC_NSSWRED_WEIGHT_MODE_DSCP = 0,/* Weight mode is DSCP */
+	TC_NSSWRED_WEIGHT_MODES,	/* Must be last */
+};
+typedef enum tc_nsswred_weight_modes tc_nsswred_weight_mode_t;
+
+struct tc_nsswred_qopt {
+	__u32	limit;				/* Queue length */
+	tc_nsswred_weight_mode_t weight_mode;	/* Weight mode */
+	__u32	traffic_classes;		/* How many traffic classes: DPs */
+	__u32	def_traffic_class;		/* Default traffic if no match: def_DP */
+	__u32	traffic_id;			/* The traffic id to be configured: DP */
+	__u32	weight_mode_value;		/* Weight mode value */
+	struct tc_red_alg_parameter rap;	/* RED algorithm parameters */
+	struct tc_nsswred_traffic_class tntc[NSSWRED_CLASS_MAX];
+						/* Traffic settings for dumpping */
+	__u8	ecn;				/* Setting ECN bit or dropping */
+	__u8	set_default;			/* Sets qdisc to be the default for enqueue */
+};
+
 /* NSSCODEL section */
 
 enum {
