@@ -548,15 +548,8 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 	return of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
 }
 
-static int qcom_rpm_remove(struct platform_device *pdev)
-{
-	of_platform_depopulate(&pdev->dev);
-	return 0;
-}
-
 static struct platform_driver qcom_rpm_driver = {
 	.probe = qcom_rpm_probe,
-	.remove = qcom_rpm_remove,
 	.driver  = {
 		.name  = "qcom_rpm",
 		.of_match_table = qcom_rpm_of_match,
