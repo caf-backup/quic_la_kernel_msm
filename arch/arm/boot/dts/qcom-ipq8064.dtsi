@@ -25,16 +25,19 @@
 			qcom,saw = <&saw0>;
 			clocks = <&kraitcc 0>;
 			clock-names = "cpu";
+			core-supply = <&smb208_s2a>;
 			operating-points = <
-				/* kHz    ignored */
-				1400000 1000000
-				1200000 1000000
-				1000000 1000000
-				 800000 1000000
-				 600000 1000000
-				 384000 1000000
+				/* kHz    uV */
+				1400000 1175000
+				1200000 1125000
+				1000000 1075000
+				 800000 1025000
+				 600000  975000
+				 384000  925000
 			>;
+
 			clock-latency = <100000>;
+			voltage-tolerance = <5>;
 
 			cooling-min-state = <0>;
 			cooling-max-state = <10>;
@@ -49,16 +52,17 @@
 			next-level-cache = <&L2>;
 			qcom,acc = <&acc1>;
 			qcom,saw = <&saw1>;
+			core-supply = <&smb208_s2b>;
 			clocks = <&kraitcc 1>;
 			clock-names = "cpu";
 			operating-points = <
-				/* kHz    ignored */
-				1400000 1000000
-				1200000 1000000
-				1000000 1000000
-				 800000 1000000
-				 600000 1000000
-				 384000 1000000
+				/* kHz    uV */
+				1400000 1175000
+				1200000 1125000
+				1000000 1075000
+				 800000 1025000
+				 600000  975000
+				 384000  925000
 			>;
 			clock-latency = <100000>;
 
