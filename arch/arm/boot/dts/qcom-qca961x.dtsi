@@ -62,6 +62,11 @@
 			<0x0b002000 0x1000>;
 		};
 
+		counter {
+			compatible = "qcom,qca-gcnt";
+			reg = <0x004a1000 0x4>;
+		};
+
 		timer {
 			compatible = "arm,armv7-timer";
 			interrupts = <1 2 0xf08>,
