@@ -98,3 +98,10 @@ config KRAITCC
 config KRAIT_CLOCKS
 	bool
 	select KRAIT_L2_ACCESSORS
+
+config DUMMY_CLK
+	bool "Dummy clock controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Enable this if you are working on presil with no Clock controller
+	  modelled.
