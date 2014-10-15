@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -24,6 +24,7 @@
 #include <linux/types.h>
 #include <mach/msm_iomap.h>
 #include <mach/socinfo.h>
+#include <linux/delay.h>
 
 #define DRIVER_NAME "msm_rng"
 
@@ -58,7 +59,6 @@ static int msm_rng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 	size_t currsize = 0;
 	unsigned long val;
 	unsigned long *retdata = data;
-	int ret;
 
 	msm_rng_dev = (struct msm_rng_device *)rng->priv;
 	pdev = msm_rng_dev->pdev;
@@ -71,23 +71,15 @@ static int msm_rng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 	if (maxsize < 4)
 		return 0;
 
-	/* enable PRNG clock */
-	ret = clk_prepare_enable(msm_rng_dev->prng_clk);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to enable clock in callback\n");
-		return 0;
-	}
-
 	/* read random data from h/w */
 	do {
 		/* check status bit if data is available */
-		if (!(readl_relaxed(base + PRNG_STATUS_OFFSET) & 0x00000001))
-			break;	/* no data to read so just bail */
+		while (!(readl_relaxed(base + PRNG_STATUS_OFFSET) & 0x00000001))
+			msleep(5);
 
 		/* read FIFO */
-		val = readl_relaxed(base + PRNG_DATA_OUT_OFFSET);
-		if (!val)
-			break;	/* no data to read so just bail */
+		while (!(val = readl_relaxed(base + PRNG_DATA_OUT_OFFSET)))
+			msleep(5);
 
 		/* write data back to callers pointer */
 		*(retdata++) = val;
@@ -97,9 +89,6 @@ static int msm_rng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 		if ((maxsize - currsize) < 4)
 			break;
 	} while (currsize < maxsize);
-
-	/* vote to turn off clock */
-	clk_disable_unprepare(msm_rng_dev->prng_clk);
 
 	return currsize;
 }
@@ -146,7 +135,7 @@ static int __devinit msm_rng_enable_hw(struct msm_rng_device *msm_rng_dev)
 		mb();
 	}
 
-	clk_disable_unprepare(msm_rng_dev->prng_clk);
+	/* We are not disabling the PRNG clock here as we want it to stay on. */
 
 	return 0;
 }
@@ -224,6 +213,7 @@ static int __devexit msm_rng_remove(struct platform_device *pdev)
 	struct msm_rng_device *msm_rng_dev = platform_get_drvdata(pdev);
 
 	hwrng_unregister(&msm_rng);
+	clk_disable_unprepare(msm_rng_dev->prng_clk);
 	clk_put(msm_rng_dev->prng_clk);
 	iounmap(msm_rng_dev->base);
 	platform_set_drvdata(pdev, NULL);
