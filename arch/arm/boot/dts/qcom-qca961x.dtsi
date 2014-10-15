@@ -81,6 +81,17 @@
 			reg = <0x78b0000 0x200>;
 			interrupts = <0 108 0>;
 			status = "disabled";
+			clocks = <&gcc 0>,
+				<&gcc 0>;
+			clock-names = "core", "iface";
 		};
+
+		gcc: clock-controller@1800000 {
+			compatible = "qcom,gcc-dummy";
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+			reg = <0x1800000 0x60000>;
+		};
+
 	};
 };
