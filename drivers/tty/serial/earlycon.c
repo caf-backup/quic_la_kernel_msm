@@ -90,7 +90,7 @@ static int __init parse_options(struct earlycon_device *device, char *options)
 		strlcpy(device->options, options, length);
 	}
 
-	if (mmio || mmio32)
+	if (port->iotype == UPIO_MEM || port->iotype == UPIO_MEM32)
 		pr_info("Early serial console at MMIO%s 0x%llx (options '%s')\n",
 			(port->iotype == UPIO_MEM32) ? "32" : "",
 			(unsigned long long)port->mapbase,
