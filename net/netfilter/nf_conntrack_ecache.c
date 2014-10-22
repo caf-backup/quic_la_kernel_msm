@@ -28,11 +28,6 @@
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_extend.h>
 
-#ifdef CONFIG_NF_CONNTRACK_CHAIN_EVENTS
-ATOMIC_NOTIFIER_HEAD(nf_conntrack_chain);
-EXPORT_SYMBOL_GPL(nf_conntrack_chain);
-#endif
-
 static DEFINE_MUTEX(nf_ct_ecache_mutex);
 
 /* deliver cached events and clear cache entry - must be called with locally
@@ -43,6 +38,7 @@ void nf_ct_deliver_cached_events(struct nf_conn *ct)
 	unsigned long events, missed;
 	struct nf_conntrack_ecache *e;
 	struct nf_ct_event item;
+	struct net *net = nf_ct_net(ct);
 	int ret = 0;
 
 	e = nf_ct_ecache_find(ct);
@@ -66,7 +62,7 @@ void nf_ct_deliver_cached_events(struct nf_conn *ct)
 	item.pid = 0;
 	item.report = 0;
 
-	atomic_notifier_call_chain(&nf_conntrack_chain,
+	atomic_notifier_call_chain(&net->ct.nf_conntrack_chain,
 			events | missed,
 			&item);
 
@@ -137,7 +133,7 @@ EXPORT_SYMBOL_GPL(nf_ct_deliver_cached_events);
 #ifdef CONFIG_NF_CONNTRACK_CHAIN_EVENTS
 int nf_conntrack_register_notifier(struct net *net, struct notifier_block *nb)
 {
-        return atomic_notifier_chain_register(&nf_conntrack_chain, nb);
+        return atomic_notifier_chain_register(&net->ct.nf_conntrack_chain, nb);
 }
 #else
 int nf_conntrack_register_notifier(struct net *net,
@@ -167,7 +163,7 @@ EXPORT_SYMBOL_GPL(nf_conntrack_register_notifier);
 #ifdef CONFIG_NF_CONNTRACK_CHAIN_EVENTS
 int nf_conntrack_unregister_notifier(struct net *net, struct notifier_block *nb)
 {
-	return atomic_notifier_chain_unregister(&nf_conntrack_chain, nb);
+	return atomic_notifier_chain_unregister(&net->ct.nf_conntrack_chain, nb);
 }
 #else
 void nf_conntrack_unregister_notifier(struct net *net,
