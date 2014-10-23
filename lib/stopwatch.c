@@ -58,6 +58,9 @@ static struct stopwatch *stopwatch_find(const char *name)
 		 * Trying to find a match.
 		 */
 		struct stopwatch *sw = &stopwatches[idx];
+		if (!sw->name) {
+			continue;
+		}
 		if (strcmp(sw->name, name)) {
 			continue;
 		}
