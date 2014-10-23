@@ -406,7 +406,6 @@ static void scsi_run_queue(struct request_queue *q)
 	LIST_HEAD(starved_list);
 	unsigned long flags;
 
-
 	shost = sdev->host;
 	if (scsi_target(sdev)->single_lun)
 		scsi_single_lun_run(sdev);
@@ -761,7 +760,6 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	}
 
 	if (req->cmd_type == REQ_TYPE_BLOCK_PC) { /* SG_IO ioctl from block level */
-		req->errors = result;
 		if (result) {
 			if (sense_valid && req->sense) {
 				/*
@@ -777,6 +775,10 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 			if (!sense_deferred)
 				error = __scsi_error_from_host_byte(cmd, result);
 		}
+		/*
+		 * __scsi_error_from_host_byte may have reset the host_byte
+		 */
+		req->errors = cmd->result;
 
 		req->resid_len = scsi_get_resid(cmd);
 
@@ -793,6 +795,14 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 			scsi_next_command(cmd);
 			return;
 		}
+	} else if (blk_rq_bytes(req) == 0 && result && !sense_deferred) {
+		/*
+		 * Certain non BLOCK_PC requests are commands that don't
+		 * actually transfer anything (FLUSH), so cannot use
+		 * good_bytes != blk_rq_bytes(req) as the signal for an error.
+		 * This sets the error explicitly for the problem case.
+		 */
+		error = __scsi_error_from_host_byte(cmd, result);
 	}
 
 	/* no bidi support for !REQ_TYPE_BLOCK_PC yet */
@@ -1386,16 +1396,19 @@ static int scsi_lld_busy(struct request_queue *q)
 {
 	struct scsi_device *sdev = q->queuedata;
 	struct Scsi_Host *shost;
-	struct scsi_target *starget;
 
 	if (blk_queue_dead(q))
 		return 0;
 
 	shost = sdev->host;
-	starget = scsi_target(sdev);
 
-	if (scsi_host_in_recovery(shost) || scsi_host_is_busy(shost) ||
-	    scsi_target_is_busy(starget) || scsi_device_is_busy(sdev))
+	/*
+	 * Ignore host/starget busy state.
+	 * Since block layer does not have a concept of fairness across
+	 * multiple queues, congestion of host/starget needs to be handled
+	 * in SCSI layer.
+	 */
+	if (scsi_host_in_recovery(shost) || scsi_device_is_busy(sdev))
 		return 1;
 
 	return 0;
@@ -1695,7 +1708,6 @@ struct request_queue *scsi_alloc_queue(struct scsi_device *sdev)
 	blk_queue_lld_busy(q, scsi_lld_busy);
 	return q;
 }
-
 
 /*
  * Function:    scsi_block_requests()
