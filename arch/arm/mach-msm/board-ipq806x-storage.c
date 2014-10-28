@@ -233,6 +233,26 @@ static struct mmc_platform_data sdc3_data = {
 	.msm_bus_voting_data = &sps_to_ddr_bus_voting_data,
 };
 
+static struct mmc_platform_data sdc3_data_ap160 = {
+	.ocr_mask       = MMC_VDD_27_28 | MMC_VDD_28_29,
+	.mmc_bus_width  = MMC_CAP_4_BIT_DATA,
+	.sup_clk_table  = sdc3_sup_clk_rates,
+	.sup_clk_cnt    = ARRAY_SIZE(sdc3_sup_clk_rates),
+	.pin_data       = &mmc_slot_pin_data[SDCC3],
+	.vreg_data      = &mmc_slot_vreg_data[SDCC3],
+	.status_gpio    = 6,
+	.uhs_gpio       = 8,
+	.status_irq     = MSM_GPIO_TO_INT(6),
+	.irq_flags      = IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+	.is_status_gpio_active_low = 1,
+	.xpc_cap        = 1,
+	.uhs_caps       = (MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 |
+			MMC_CAP_UHS_SDR50 | MMC_CAP_UHS_DDR50 |
+			MMC_CAP_UHS_SDR104 | MMC_CAP_MAX_CURRENT_800),
+	.mpm_sdiowakeup_int = MSM_MPM_PIN_SDC3_DAT1,
+	.msm_bus_voting_data = &sps_to_ddr_bus_voting_data,
+};
+
 void __init ipq806x_init_mmc(void)
 {
 	int i;
@@ -254,5 +274,12 @@ void __init ipq806x_init_mmc(void)
 		for (i = 0; i < drv->size; i++)
 			drv->on[i].val = GPIO_CFG_10MA;
 		ipq806x_add_sdcc(2, &sdc3_data);
+	}
+
+	if (machine_is_ipq806x_ap160()) {
+		drv = sdc3_data_ap160.pin_data->pad_data->drv;
+		for (i = 0; i < drv->size; i++)
+			drv->on[i].val = GPIO_CFG_10MA;
+		ipq806x_add_sdcc(2, &sdc3_data_ap160);
 	}
 }

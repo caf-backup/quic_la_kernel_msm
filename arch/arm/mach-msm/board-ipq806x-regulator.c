@@ -314,7 +314,8 @@ void __init fixup_ipq806x_smb_power_grid(void)
 	} else if (machine_is_ipq806x_ap148() ||
 			machine_is_ipq806x_ap145() ||
 			machine_is_ipq806x_ap145_1xx() ||
-			machine_is_ipq806x_ap148_1xx()) {
+			machine_is_ipq806x_ap148_1xx() ||
+			machine_is_ipq806x_ap160()) {
 		ipq806x_rpm_regulator_smb_pdata.consumer_map =
 			msm_rpm_regulator_smb_ap148_consumer_mapping;
 		ipq806x_rpm_regulator_smb_pdata.consumer_map_len =
