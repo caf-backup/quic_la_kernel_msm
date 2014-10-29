@@ -6081,6 +6081,14 @@ msmsdcc_probe(struct platform_device *pdev)
 	 * Setup card detect change
 	 */
 
+	if (pdev->id == 3) {
+		rc = gpio_request(host->plat->uhs_gpio, "UHS_mode");
+		if (rc) {
+			pr_err("gpio_request failed \n");
+			goto out;
+		}
+	}
+
 	if (!plat->status_gpio)
 		plat->status_gpio = -ENOENT;
 	if (!plat->wpswitch_gpio)
@@ -6093,13 +6101,6 @@ msmsdcc_probe(struct platform_device *pdev)
 			host->oldstat = msmsdcc_slot_status(host);
 
 		host->eject = !host->oldstat;
-	}
-	if (pdev->id == 3) {
-		rc = gpio_request(host->plat->uhs_gpio, "UHS_mode");
-		if (rc) {
-			pr_err("gpio_request failed \n");
-			goto out;
-		}
 	}
 	if (plat->status_irq) {
 		ret = request_threaded_irq(plat->status_irq, NULL,
