@@ -96,6 +96,16 @@
 			reg = <0xb088000 0x1000>;
 		};
 
+		tlmm: pinctrl@0x01000000 {
+			compatible = "qcom,qca961x-pinctrl";
+			reg = <0x01000000 0x300000>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <0 208 0>;
+		};
+
 		serial@78b0000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0x78b0000 0x200>;
