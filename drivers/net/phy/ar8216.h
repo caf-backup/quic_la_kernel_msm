@@ -436,6 +436,7 @@ struct ar8xxx_priv {
 	bool mirror_tx;
 	int source_port;
 	int monitor_port;
+	struct regmap *regmap;
 };
 
 u32
