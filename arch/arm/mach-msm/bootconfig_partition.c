@@ -29,10 +29,17 @@
 #ifdef CONFIG_MSM_SMD
 #include "smd_private.h"
 
+#define REBOOT_COUNTER (MSM_IMEM_BASE + 0x18)
 
 static struct proc_dir_entry *boot_info_dir;
 static struct proc_dir_entry *uboot_dir;
 static struct proc_dir_entry *kernel_dir;
+
+static void clear_reboot_counter (void)
+{
+	writel_relaxed(0, REBOOT_COUNTER);
+
+}
 
 int get_partition_idx(const char *part_name, struct sbl_if_dualboot_info_type *sbl_info_t)
 {
@@ -341,6 +348,7 @@ static ssize_t upg_in_prog_proc_write(struct file *file, const char __user *user
 	optstr[count - 1] = '\0';
 	upg_in_prg = simple_strtoul(optstr, NULL, 0);
 	sbl_info_t->upgradeinprogress = upg_in_prg;
+	clear_reboot_counter();
 
 	return count;
 }
