@@ -1122,7 +1122,7 @@ void thermal_zone_device_update(struct thermal_zone_device *tz)
 				if (!ret) {
 					pr_emerg("Critical temperature reached (%ld C), shutting down\n",
 						 temp/1000);
-					orderly_poweroff(true);
+					kernel_restart(NULL);
 				}
 			}
 			break;
@@ -1150,7 +1150,7 @@ void thermal_zone_device_update(struct thermal_zone_device *tz)
 				printk(KERN_EMERG
 				"Critical temperature reached (%ld C), \
 					shutting down.\n", temp/1000);
-				orderly_poweroff(true);
+				kernel_restart(NULL);
 				}
 			}
 			break;
