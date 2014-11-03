@@ -25,6 +25,8 @@
 #include <linux/of.h>
 #include <mach/cpufreq.h>
 
+#define MIN_MITIGATION_FREQ	800000
+
 static int enabled;
 static struct msm_thermal_data msm_thermal_info;
 static uint32_t limited_max_freq = MSM_CPUFREQ_NO_LIMIT;
@@ -60,24 +62,47 @@ fail:
 	return ret;
 }
 
+static int  msm_thermal_cpufreq_callback(struct notifier_block *nfb, unsigned long event, void *data)
+{
+	struct cpufreq_policy *policy = data;
+
+	if (!table) {
+		pr_err("Frequency table not initialized.\n");
+		return NOTIFY_OK;
+	}
+	if (MSM_CPUFREQ_NO_LIMIT == limited_max_freq)
+		limited_max_freq = table[limit_idx_high].frequency;
+
+	if (policy->min > limited_max_freq) {
+		pr_err("Invalid frequency request Max:%u Min:%u. "
+			"Resetting min freq...\n",
+			limited_max_freq, policy->min);
+	}
+
+	cpufreq_verify_within_limits(policy, policy->min, limited_max_freq);
+	return NOTIFY_OK;
+}
+
+static struct notifier_block msm_thermal_cpufreq_notifier = {
+	.notifier_call = msm_thermal_cpufreq_callback
+};
+
 static int update_cpu_max_freq(int cpu, uint32_t max_freq)
 {
 	int ret = 0;
 
-	ret = msm_cpufreq_set_freq_limits(cpu, MSM_CPUFREQ_NO_LIMIT, max_freq);
-	if (ret)
-		return ret;
-
 	limited_max_freq = max_freq;
-	if (max_freq != MSM_CPUFREQ_NO_LIMIT)
-		pr_info("%s: Limiting cpu%d max frequency to %d\n",
-				KBUILD_MODNAME, cpu, max_freq);
+	if (max_freq != MSM_CPUFREQ_NO_LIMIT) {
+		if (MIN_MITIGATION_FREQ > limited_max_freq) {
+			limited_max_freq = MIN_MITIGATION_FREQ;
+			pr_debug("%s: Not capping max freq below %d due to performance constraints." , __func__ , MIN_MITIGATION_FREQ );
+		}
+		pr_info("%s: Limiting cpu%d max frequency to %d\n", KBUILD_MODNAME, cpu, limited_max_freq);
+	}
 	else
-		pr_info("%s: Max frequency reset for cpu%d\n",
-				KBUILD_MODNAME, cpu);
+		pr_info("%s: Max frequency reset for cpu%d\n", KBUILD_MODNAME, cpu);
 
 	ret = cpufreq_update_policy(cpu);
-
 	return ret;
 }
 
@@ -432,6 +457,7 @@ int __devinit msm_thermal_init(struct msm_thermal_data *pdata)
 
 	enabled = 1;
 	core_control_enabled = 1;
+	cpufreq_register_notifier(&msm_thermal_cpufreq_notifier, CPUFREQ_POLICY_NOTIFIER);
 	INIT_DELAYED_WORK(&check_temp_work, check_temp);
 	schedule_delayed_work(&check_temp_work, 0);
 
