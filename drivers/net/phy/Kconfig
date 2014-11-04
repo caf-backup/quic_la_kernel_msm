@@ -139,6 +139,7 @@ config AR8216_PHY
 	tristate "Driver for Atheros AR8216 switches"
 	select ETHERNET_PACKET_MANGLE
 	select SWCONFIG
+	select REGMAP
 
 config RTL8306_PHY
 	tristate "Driver for Realtek RTL8306S switches"
