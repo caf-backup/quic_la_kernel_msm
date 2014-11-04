@@ -361,6 +361,7 @@ extern struct platform_device ipq806x_device_otg;
 extern struct platform_device ipq806x_device_gadget_peripheral;
 extern struct platform_device ipq806x_device_hsusb_host;
 extern struct platform_device ipq806x_device_watchdog;
+extern struct platform_device qcom_wdt_device;
 extern struct platform_device ipq806x_device_rng;
 extern struct platform_device ipq806x_rpm_device;
 extern struct platform_device ipq806x_rpm_log_device;

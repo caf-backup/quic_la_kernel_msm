@@ -189,6 +189,21 @@ struct platform_device ipq806x_device_watchdog = {
 	.resource	= msm_watchdog_resources,
 };
 
+static struct resource qcom_wdt_resource[] =  {
+	{
+		.start = 0x0208a038,
+		.end = 0x0208a078,
+		.flags = IORESOURCE_MEM,
+	},
+};
+
+struct platform_device qcom_wdt_device = {
+	.name		= "qcom_wdt",
+	.id		= -1,
+	.resource	= qcom_wdt_resource,
+	.num_resources	= ARRAY_SIZE(qcom_wdt_resource),
+};
+
 static struct resource msm_dmov_resource[] = {
 	{
 		.start = ADM_0_SCSS_0_IRQ,
