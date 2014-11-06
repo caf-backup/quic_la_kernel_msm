@@ -82,7 +82,6 @@
 #include <mach/msm_nss_gmac.h>
 #include <mach/mpm.h>
 
-#include "msm_watchdog.h"
 #include "board-ipq806x.h"
 #include "clock.h"
 #include "spm.h"
@@ -1728,7 +1727,7 @@ static struct platform_device *common_devices[] __initdata = {
 #ifdef CONFIG_ION_MSM
 	&ipq806x_ion_dev,
 #endif
-	&ipq806x_device_watchdog,
+	&qcom_wdt_device,
 #if defined(CONFIG_QSEECOM)
 	&qseecom_device,
 #endif
