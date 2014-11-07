@@ -154,7 +154,8 @@ struct per_part_info
 	uint32_t upgraded;
 };
 
-#define NUM_ALT_PARTITION 2
+#define NUM_ALT_PARTITION 3
+#define SMEM_DUAL_BOOTINFO_MAGIC 0xA5A3A1A0
 struct sbl_if_dualboot_info_type
 {
 	/* Magic number for identification when reading from flash */
