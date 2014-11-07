@@ -17,16 +17,23 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/watchdog.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
+#include <linux/sched.h>
 
 #define WDT_RST		0x0
 #define WDT_EN		0x8
+#define WDT_BARK_TIME	0x14
 #define WDT_BITE_TIME	0x24
 
 struct qcom_wdt {
 	struct watchdog_device	wdd;
 	unsigned long		rate;
 	void __iomem		*base;
+	unsigned int		irq;
+	void 			**percpu;
 };
+
 
 static inline
 struct qcom_wdt *to_qcom_wdt(struct watchdog_device *wdd)
@@ -40,8 +47,11 @@ static int qcom_wdt_start(struct watchdog_device *wdd)
 
 	writel(0, wdt->base + WDT_EN);
 	writel(1, wdt->base + WDT_RST);
+	writel(wdd->timeout * wdt->rate / 2, wdt->base + WDT_BARK_TIME);
 	writel(wdd->timeout * wdt->rate, wdt->base + WDT_BITE_TIME);
 	writel(1, wdt->base + WDT_EN);
+
+	enable_percpu_irq(wdt->irq, IRQ_TYPE_EDGE_RISING);
 	return 0;
 }
 
@@ -50,6 +60,7 @@ static int qcom_wdt_stop(struct watchdog_device *wdd)
 	struct qcom_wdt *wdt = to_qcom_wdt(wdd);
 
 	writel(0, wdt->base + WDT_EN);
+	disable_percpu_irq(wdt->irq);
 	return 0;
 }
 
@@ -66,6 +77,17 @@ static int qcom_wdt_set_timeout(struct watchdog_device *wdd,
 {
 	wdd->timeout = timeout;
 	return qcom_wdt_start(wdd);
+}
+
+static irqreturn_t qcom_wdt_bark_handler(int irq, void *dev_id)
+{
+	unsigned long long t = sched_clock();
+	unsigned long nsec_rem = do_div(t, 1000000000);
+
+	pr_emerg("qcom_wdt bark! %lu.%06lu\n", (unsigned long) t,
+		nsec_rem / 1000);
+
+	return IRQ_HANDLED;
 }
 
 static const struct watchdog_ops qcom_wdt_ops = {
@@ -110,6 +132,7 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	wdt->wdd.ops = &qcom_wdt_ops;
 	wdt->wdd.min_timeout = 1;
 	wdt->wdd.max_timeout = 0x10000000U / wdt->rate;
+	wdt->irq = platform_get_irq(pdev, 0);
 
 	/*
 	 * If 'timeout-sec' unspecified in devicetree, assume a 30 second
@@ -124,6 +147,26 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	if (!wdt->irq) {
+		goto irq_failed;
+	}
+
+	wdt->percpu = alloc_percpu(void *);
+	if (!wdt->percpu) {
+		dev_warn(&pdev->dev, "alloc_percpu failed, no watchdog irq\n");
+		goto irq_failed;
+	}
+
+	ret = request_percpu_irq(wdt->irq, qcom_wdt_bark_handler,
+				"qcom_wdt_bark_handler", wdt->percpu);
+	if (ret) {
+		dev_warn(&pdev->dev,
+			"unable to register watchdog bark interrupt\n");
+		free_percpu(wdt->percpu);
+		goto irq_failed;
+	}
+
+irq_failed:
 	platform_set_drvdata(pdev, wdt);
 	return 0;
 }
@@ -132,6 +175,8 @@ static int qcom_wdt_remove(struct platform_device *pdev)
 {
 	struct qcom_wdt *wdt = platform_get_drvdata(pdev);
 
+	free_percpu_irq(wdt->irq, 0);
+	free_percpu(wdt->percpu);
 	watchdog_unregister_device(&wdt->wdd);
 	return 0;
 }
