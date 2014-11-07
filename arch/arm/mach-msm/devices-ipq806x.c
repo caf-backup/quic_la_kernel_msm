@@ -195,6 +195,11 @@ static struct resource qcom_wdt_resource[] =  {
 		.end = 0x0208a078,
 		.flags = IORESOURCE_MEM,
 	},
+	{
+		.start	= WDT0_ACCSCSSNBARK_INT,
+		.end	= WDT0_ACCSCSSNBARK_INT,
+		.flags	= IORESOURCE_IRQ,
+	},
 };
 
 struct platform_device qcom_wdt_device = {
