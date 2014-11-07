@@ -83,9 +83,16 @@ static irqreturn_t qcom_wdt_bark_handler(int irq, void *dev_id)
 {
 	unsigned long long t = sched_clock();
 	unsigned long nsec_rem = do_div(t, 1000000000);
+	struct task_struct *tsk;
 
 	pr_emerg("qcom_wdt bark! %lu.%06lu\n", (unsigned long) t,
 		nsec_rem / 1000);
+
+	for_each_process(tsk) {
+		pr_info("\nPID: %d, Name: %s\n",
+			tsk->pid, tsk->comm);
+		show_stack(tsk, NULL);
+	}
 
 	return IRQ_HANDLED;
 }
