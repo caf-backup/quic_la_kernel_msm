@@ -2187,6 +2187,8 @@ static int bond_release_all(struct net_device *bond_dev)
 	bond_change_active_slave(bond, NULL);
 
 	while ((slave = bond->first_slave) != NULL) {
+		slave_dev = slave->dev;
+
 		if (bond_cb && bond_cb->bond_cb_release) {
 			bond_cb->bond_cb_release(slave_dev);
 		}
@@ -2197,7 +2199,6 @@ static int bond_release_all(struct net_device *bond_dev)
 		if (bond->params.mode == BOND_MODE_8023AD)
 			bond_3ad_unbind_slave(slave);
 
-		slave_dev = slave->dev;
 		bond_detach_slave(bond, slave);
 
 		/* now that the slave is detached, unlock and perform
@@ -4031,7 +4032,6 @@ out:
 	return NETDEV_TX_OK;
 }
 
-
 /*
  * in active-backup mode, we know that bond->curr_active_slave is always valid if
  * the bond has a usable interface.
@@ -4057,19 +4057,70 @@ static int bond_xmit_activebackup(struct sk_buff *skb, struct net_device *bond_d
 }
 
 /*
- * In bond_xmit_xor() , we determine the output device by using a pre-
- * determined xmit_hash_policy(), If the selected device is not enabled,
- * find the next active slave.
+ * bond_xmit_hash - Applies load balancing algorithm for a packet,
+ * to calculate hash for a given set of L2/L3 addresses. Does not
+ * calculate egress interface.
  */
-static int bond_xmit_xor(struct sk_buff *skb, struct net_device *bond_dev)
+uint32_t bond_xmit_hash(uint8_t *src_mac, uint8_t *dst_mac, void *psrc,
+			void *pdst, uint16_t protocol, struct net_device *bond_dev)
+{
+	struct bonding *bond = netdev_priv(bond_dev);
+	uint32_t src = *(uint32_t *)psrc;
+	uint32_t dst = *(uint32_t *)pdst;
+
+	if (bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER23) {
+		if (protocol == htons(ETH_P_IP)) {
+			return ((ntohl((uint32_t)src ^ (uint32_t)dst) & 0xffff) ^
+				(dst_mac[5] ^ src_mac[5]));
+		}
+	}
+
+	/*
+	 * Use L2 addresses for non-IPv4 packets and for all other xmit policies
+	 */
+	return (dst_mac[5] ^ src_mac[5]);
+}
+
+/*
+ * bond_xor_get_tx_dev - Calculate egress interface for a given packet for a LAG
+ * 			 that is configured in balance-xor mode
+ * @skb: pointer to skb to be egressed
+ * @src_mac: pointer to source L2 address
+ * @dst_mac: pointer to destination L2 address
+ * @src: pointer to source L3 address in network order
+ * @dst: pointer to destination L3 address in network order
+ * @protocol: L3 protocol
+ * @bond_dev: pointer to bond master device
+ *
+ * If @skb is NULL, bond_xmit_hash is used to calculate hash using L2/L3
+ * addresses.
+ *
+ * Returns: Either valid slave device, or NULL otherwise
+ */
+struct net_device *bond_xor_get_tx_dev(struct sk_buff *skb, uint8_t *src_mac,
+					uint8_t *dst_mac, void *src,
+					void *dst, uint16_t protocol,
+					struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave, *start_at;
 	int slave_no;
 	int i;
-	int res = 1;
 
-	slave_no = bond->xmit_hash_policy(skb, bond->slave_cnt);
+	if (skb) {
+		slave_no = bond->xmit_hash_policy(skb, bond->slave_cnt);
+	} else {
+		uint32_t hash;
+
+		if (bond->params.xmit_policy != BOND_XMIT_POLICY_LAYER23
+		    && bond->params.xmit_policy != BOND_XMIT_POLICY_LAYER2) {
+			pr_debug("%s: Error: Unsupported hash policy for balance-XOR fast path\n", bond_dev->name);
+			return NULL;
+		}
+
+		hash = bond_xmit_hash(src_mac, dst_mac, src, dst, protocol, bond_dev);
+		slave_no = hash % bond->slave_cnt;
+	}
 
 	bond_for_each_slave(bond, slave, i) {
 		slave_no--;
@@ -4083,11 +4134,70 @@ static int bond_xmit_xor(struct sk_buff *skb, struct net_device *bond_dev)
 		if (IS_UP(slave->dev) &&
 		    (slave->link == BOND_LINK_UP) &&
 		    bond_is_active_slave(slave)) {
-			res = bond_dev_queue_xmit(bond, skb, slave->dev);
-			break;
+			return slave->dev;
 		}
 	}
 
+	return NULL;
+}
+
+/*
+ * bond_get_tx_dev - Calculate egress interface for a given packet.
+ *
+ * Supports 802.3AD and balance-xor modes
+ *
+ * @skb: pointer to skb to be egressed, if valid
+ * @src_mac: pointer to source L2 address
+ * @dst_mac: pointer to destination L2 address
+ * @src: pointer to source L3 address in network order
+ * @dst: pointer to destination L3 address in network order
+ * @protocol: L3 protocol id from L2 header
+ * @bond_dev: pointer to bond master device
+ *
+ * Returns: Either valid slave device, or NULL for un-supported LAG modes
+ */
+struct net_device *bond_get_tx_dev(struct sk_buff *skb, uint8_t *src_mac,
+				 uint8_t *dst_mac, void *src,
+				 void *dst, uint16_t protocol,
+				 struct net_device *bond_dev)
+{
+	struct bonding *bond = netdev_priv(bond_dev);
+
+	if (!bond) {
+		return NULL;
+	}
+
+	switch (bond->params.mode) {
+	case BOND_MODE_XOR:
+		return bond_xor_get_tx_dev(skb, src_mac, dst_mac, src, dst, protocol, bond_dev);
+	case BOND_MODE_8023AD:
+		return bond_3ad_get_tx_dev(skb, src_mac, dst_mac, src, dst, protocol, bond_dev);
+	default:
+		return NULL;
+	}
+}
+EXPORT_SYMBOL_GPL(bond_get_tx_dev);
+
+/*
+ * In bond_xmit_xor() , we determine the output device by using a pre-
+ * determined xmit_hash_policy(), If the selected device is not enabled,
+ * find the next active slave.
+ */
+static int bond_xmit_xor(struct sk_buff *skb, struct net_device *bond_dev)
+{
+	struct bonding *bond = netdev_priv(bond_dev);
+	int res = 1;
+
+	struct net_device *outdev = NULL;
+	outdev = bond_xor_get_tx_dev(skb, NULL, NULL, NULL, NULL, 0, bond_dev);
+
+	if (!outdev) {
+		goto out;
+	}
+
+	res = bond_dev_queue_xmit(bond, skb, outdev);
+
+out:
 	if (res) {
 		/* no suitable interface, frame not sent */
 		dev_kfree_skb(skb);

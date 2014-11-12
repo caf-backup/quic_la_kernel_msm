@@ -419,6 +419,8 @@ void bond_debug_register(struct bonding *bond);
 void bond_debug_unregister(struct bonding *bond);
 void bond_debug_reregister(struct bonding *bond);
 const char *bond_mode_name(int mode);
+uint32_t bond_xmit_hash(uint8_t *src_mac, uint8_t *dst_mac, void *psrc,
+			void *pdst, uint16_t protocol, struct net_device *bond_dev);
 
 struct bond_net {
 	struct net *		net;	/* Associated network namespace */
