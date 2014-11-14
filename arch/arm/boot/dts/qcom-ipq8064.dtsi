@@ -640,5 +640,27 @@
 			clocks = <&gcc PRNG_CLK>;
 			clock-names = "core";
 		};
+
+		qcom,msm-imem@2A03F000 {
+			compatible = "qcom,msm-imem";
+			reg = <0x2A03F000 0x1000>; /* Address and size of IMEM */
+			ranges = <0x0 0x2A03F000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			download_mode@0 {
+				compatible = "qcom,msm-imem-download_mode";
+				reg = <0x0 8>;
+			};
+
+			restart_reason@65c {
+				compatible = "qcom,msm-imem-restart_reason";
+				reg = <0x65c 4>;
+			};
+		};
+
+		qcom,restart_reason {
+			compatible        = "qcom,restart_reason";
+		};
 	};
 };
