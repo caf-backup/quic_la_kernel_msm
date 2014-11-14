@@ -123,6 +123,20 @@
 				};
 			};
 
+			mdio0_pins_default: mdio0_pins_default {
+				mux {
+					pins = "gpio0", "gpio1";
+					function = "mdio";
+					drive-strength = <8>;
+					bias-disable;
+				};
+
+				clk {
+					pins = "gpio1";
+					input-disable;
+				};
+			};
+
 			switch_reset: switch_reset {
 				rst {
 					pins = "gpio26";
@@ -320,7 +334,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			gpios = <&qcom_pinmux 1 0 &qcom_pinmux 0 0>;
-			pinctrl-0 = <&switch_reset>;
+			pinctrl-0 = <&mdio0_pins_default &switch_reset>;
 			pinctrl-names = "default";
 
 			phy0: ethernet-phy@0 {
@@ -401,7 +415,7 @@
 			compatible = "qcom,nss-gmac2";
 			reg = <0x37400000 0x200000>;
 			qcom,id = <2>;
-			qcom,phy_mdio_addr = <32>;	/* none */
+			qcom,phy_mdio_addr = <0>;	/* none */
 			qcom,poll_required = <0>;	/* no polling */
 			qcom,rgmii_delay = <0>;
 			qcom,phy_mii_type = <1>;	/* SGMII */
