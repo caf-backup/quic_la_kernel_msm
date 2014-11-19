@@ -681,6 +681,7 @@ static struct msm_gpiomux_config ipq806x_ap160_gpiomux[] = {
 	ipq_mux(61, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(62, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(63, pcie_rst_n,				pcie_rst_n),
+	ipq_mux(66, nss_gmac0_rgmii_set1,		nss_gmac0_rgmii_set1),
 };
 
 static struct msm_gpiomux_config ipq806x_ap161_gpiomux[] = {
