@@ -360,6 +360,7 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-apq8084-ifc6540.dtb \
 	qcom-apq8084-mtp.dtb \
 	qcom-ipq8064-ap148.dtb \
+	qcom-ipq8064-v2.0-ap148.dtb \
 	qcom-ipq8064-storm.dtb \
 	qcom-ipq8064-whirlwind.dtb \
 	qcom-ipq8064-db149.dtb \
