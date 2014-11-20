@@ -65,7 +65,6 @@ struct nf_ct_event {
 };
 
 #ifdef CONFIG_NF_CONNTRACK_CHAIN_EVENTS
-extern struct atomic_notifier_head nf_conntrack_chain;
 extern int nf_conntrack_register_notifier(struct net *net, struct notifier_block *nb);
 extern int nf_conntrack_unregister_notifier(struct net *net, struct notifier_block *nb);
 #else
@@ -105,6 +104,7 @@ nf_conntrack_eventmask_report(unsigned int eventmask,
 			      int report)
 {
 	struct nf_conntrack_ecache *e;
+	struct net *net = nf_ct_net(ct);
 
 	e = nf_ct_ecache_find(ct);
 	if (e == NULL)
@@ -122,7 +122,7 @@ nf_conntrack_eventmask_report(unsigned int eventmask,
 		if (!((eventmask | missed) & e->ctmask))
 			return 0;
 
-		atomic_notifier_call_chain(&nf_conntrack_chain, eventmask | missed, &item);
+		atomic_notifier_call_chain(&net->ct.nf_conntrack_chain, eventmask | missed, &item);
 	}
 
 	return 0;
