@@ -569,6 +569,7 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 {
 	unsigned long flags;
 	struct qcom_pcie *qcom_pcie;
+	struct device_node *np = pdev->dev.of_node;
 	struct hw_pci *hw;
 	int ret;
 	u32 val;
@@ -621,7 +622,11 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 
 	/* Set Tx Termination Offset */
 	val = qcom_parf_readl_relaxed(qcom_pcie, PCIE20_PARF_PHY_CTRL);
-	val |= PCIE20_PARF_PHY_CTRL_PHY_TX0_TERM_OFFST(7);
+	if (of_device_is_compatible(np, "qcom,pcie-ipq8064-v2"))
+		val |= PCIE20_PARF_PHY_CTRL_PHY_TX0_TERM_OFFST(0);
+	else
+		val |= PCIE20_PARF_PHY_CTRL_PHY_TX0_TERM_OFFST(7);
+
 	qcom_parf_writel_relaxed(qcom_pcie, val, PCIE20_PARF_PHY_CTRL);
 
 	/* PARF programming */
