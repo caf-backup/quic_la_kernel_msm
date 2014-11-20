@@ -435,8 +435,8 @@ static void qcom_pcie_config_controller(struct qcom_pcie *dev)
 	/* ensure that hardware registers the configuration */
 	wmb();
 
-	/* 1K PCIE buffer setting */
-	writel_relaxed(0x3, dev->dwc_base + PCIE20_AXI_MSTR_RESP_COMP_CTRL0);
+	/* 256B PCIE buffer setting */
+	writel_relaxed(0x1, dev->dwc_base + PCIE20_AXI_MSTR_RESP_COMP_CTRL0);
 	writel_relaxed(0x1, dev->dwc_base + PCIE20_AXI_MSTR_RESP_COMP_CTRL1);
 	/* ensure that hardware registers the configuration */
 	wmb();
