@@ -406,6 +406,8 @@
 			qcom,emulation = <0>;
 			qcom,forced_speed = <1000>;	/* Force speed 1G */
 			qcom,forced_duplex = <1>;	/* Force duplex FD */
+			qcom,irq = <252>;
+			qcom,socver = <0>;
 			local-mac-address = [000000000000];
 			mdiobus = <&mdio0>;
 		};
@@ -422,6 +424,8 @@
 			qcom,emulation = <0>;
 			qcom,forced_speed = <1000>;	/* Force speed 1G */
 			qcom,forced_duplex = <1>;	/* Force duplex FD */
+			qcom,irq = <258>;
+			qcom,socver = <0>;
 			local-mac-address = [000000000000];
 			mdiobus = <&mdio0>;
 		};
