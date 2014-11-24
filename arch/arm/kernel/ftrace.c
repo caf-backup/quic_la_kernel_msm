@@ -21,6 +21,9 @@
 #include <asm/ftrace.h>
 
 #include "insn.h"
+#ifdef CONFIG_ARCH_IPQ806X
+#include "patch.h"
+#endif
 
 #ifdef CONFIG_THUMB2_KERNEL
 #define	NOP		0xf85deb04	/* pop.w {lr} */
@@ -104,10 +107,13 @@ static int ftrace_modify_code(unsigned long pc, unsigned long old,
 			return -EINVAL;
 	}
 
+#ifdef CONFIG_ARCH_IPQ806X
+	patch_text((void *)pc, new);
+#else
 	if (probe_kernel_write((void *)pc, &new, MCOUNT_INSN_SIZE))
 		return -EPERM;
-
 	flush_icache_range(pc, pc + MCOUNT_INSN_SIZE);
+#endif
 
 	return 0;
 }
