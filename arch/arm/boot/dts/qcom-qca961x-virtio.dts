@@ -26,6 +26,10 @@
 	};
 
 	soc {
+		serial@78af000 {
+			status = "ok";
+		};
+
 		serial@78b0000 {
 			status = "ok";
 		};
