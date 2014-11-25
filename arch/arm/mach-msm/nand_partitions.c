@@ -106,10 +106,20 @@ static int get_nand_partitions(void)
 	struct mtd_partition *ptn = msm_nand_partitions + msm_nand_data.nr_parts;
 	char *name = msm_nand_names + (msm_nand_data.nr_parts * SMEM_MAX_PART_NAME);
 	int part;
+	u32 size;
 
 	partition_table = (struct smem_flash_partition_table *)
-	    smem_alloc(SMEM_AARM_PARTITION_TABLE,
-		       sizeof(struct smem_flash_partition_table));
+				smem_alloc(SMEM_AARM_PARTITION_TABLE,
+				sizeof(struct smem_flash_partition_table));
+	/* Trying for max 16 partition in case of smem_alloc fails for max 32 */
+	if (!partition_table) {
+		size = sizeof(struct smem_flash_partition_table) -
+				(sizeof(struct smem_flash_partition_entry) *
+				SMEM_MAX_PARTS_DEFAULT);
+		partition_table = (struct smem_flash_partition_table *)
+					smem_alloc(SMEM_AARM_PARTITION_TABLE,
+					size);
+	}
 
 	if (!partition_table) {
 		printk(KERN_WARNING "%s: no flash partition table in shared "
