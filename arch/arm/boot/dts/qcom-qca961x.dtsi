@@ -106,13 +106,23 @@
 			interrupts = <0 208 0>;
 		};
 
+		serial@78af000 {
+			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
+			reg = <0x78af000 0x200>;
+			interrupts = <0 107 0>;
+			status = "disabled";
+			clocks = <&gcc GCC_DUMMY_CLK>,
+				<&gcc GCC_DUMMY_CLK>;
+			clock-names = "core", "iface";
+		};
+
 		serial@78b0000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0x78b0000 0x200>;
 			interrupts = <0 108 0>;
 			status = "disabled";
-			clocks = <&gcc 0>,
-				<&gcc 0>;
+			clocks = <&gcc GCC_DUMMY_CLK>,
+				<&gcc GCC_DUMMY_CLK>;
 			clock-names = "core", "iface";
 		};
 
