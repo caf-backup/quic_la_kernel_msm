@@ -1819,7 +1819,19 @@ static struct platform_device *cdp_devices[] __initdata = {
 	&ipq806x_pc_cntr,
 };
 
-static struct platform_device *cdp_devices_ap148_ap160[] __initdata = {
+static struct platform_device *cdp_devices_ap145[] __initdata = {
+	&ipq806x_device_uart_gsbi4,
+	&msm_device_sps_ipq806x,
+	&ipq806x_pc_cntr,
+};
+
+static struct platform_device *cdp_devices_ap148[] __initdata = {
+	&ipq806x_device_uart_gsbi4,
+	&msm_device_sps_ipq806x,
+	&ipq806x_pc_cntr,
+};
+
+static struct platform_device *cdp_devices_ap160[] __initdata = {
 	&ipq806x_device_uart_gsbi4,
 	&msm_device_sps_ipq806x,
 	&ipq806x_pc_cntr,
@@ -2558,16 +2570,21 @@ static void __init ipq806x_init(void)
 #ifdef CONFIG_MSM_ROTATOR
 	msm_rotator_set_split_iommu_domain();
 #endif
-	if (machine_is_ipq806x_ap148() || machine_is_ipq806x_ap145() ||
-		machine_is_ipq806x_ap145_1xx() ||
-		machine_is_ipq806x_ap148_1xx() ||
-		machine_is_ipq806x_ap160()) {
-		platform_add_devices(cdp_devices_ap148_ap160,
-			ARRAY_SIZE(cdp_devices_ap148_ap160));
+	if (machine_is_ipq806x_ap148() ||
+		machine_is_ipq806x_ap148_1xx()) {
+		platform_add_devices(cdp_devices_ap148,
+			ARRAY_SIZE(cdp_devices_ap148));
 		if (machine_is_ipq806x_ap148_1xx()) {
 			ipq806x_device_uart_gsbi2.id = 2;
 			platform_device_register(&ipq806x_device_uart_gsbi2);
 		}
+	} else if (machine_is_ipq806x_ap145() ||
+		machine_is_ipq806x_ap145_1xx()) {
+		platform_add_devices(cdp_devices_ap145,
+			ARRAY_SIZE(cdp_devices_ap145));
+	} else if (machine_is_ipq806x_ap160()) {
+		platform_add_devices(cdp_devices_ap160,
+			ARRAY_SIZE(cdp_devices_ap160));
 	} else {
 		platform_add_devices(cdp_devices, ARRAY_SIZE(cdp_devices));
 		if (machine_is_ipq806x_db149_2xx()) {
@@ -2590,7 +2607,6 @@ static void __init ipq806x_init(void)
 	if (machine_is_ipq806x_ap160()) {
 		platform_device_register(&ap160_kp_pdev);
 	}
-
 }
 
 
