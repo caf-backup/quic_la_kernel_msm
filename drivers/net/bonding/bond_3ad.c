@@ -2422,38 +2422,9 @@ int bond_3ad_get_active_agg_info(struct bonding *bond, struct ad_info *ad_info)
 	return -1;
 }
 
-
 /*
- * bond_xmit_hash - Applies load balancing algorithm for a packet.
- * Applies load balancing algorithm to calculate hash for a given set
- * of L2/L3 addresses. Does not calculate egress interface.
- *
- * Returns: < 0 on Error.
- */
-uint32_t bond_xmit_hash(uint8_t *src_mac, uint8_t *dst_mac, void *psrc,
-			void *pdst, uint16_t protocol, struct net_device *bond_dev)
-{
-	struct bonding *bond = netdev_priv(bond_dev);
-	uint32_t src = *(uint32_t *)psrc;
-	uint32_t dst = *(uint32_t *)pdst;
-
-	if (bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER23) {
-		if (protocol == htons(ETH_P_IP)) {
-			return ((ntohl((uint32_t)src ^ (uint32_t)dst) & 0xffff) ^
-				(dst_mac[5] ^ src_mac[5]));
-		}
-
-		return (dst_mac[5] ^ src_mac[5]);
-	} else if (bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER2) {
-		return (dst_mac[5] ^ src_mac[5]);
-	}
-
-	return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(bond_xmit_hash);
-
-/*
- * bond_get_tx_dev - Calculate egress interface for a given packet.
+ * bond_3ad_get_tx_dev - Calculate egress interface for a given packet,
+ * 			 for a LAG that is configured in 802.3AD mode
  * @skb: pointer to skb to be egressed
  * @src_mac: pointer to source L2 address
  * @dst_mac: pointer to destination L2 address
@@ -2462,13 +2433,12 @@ EXPORT_SYMBOL_GPL(bond_xmit_hash);
  * @protocol: L3 protocol id from L2 header
  * @bond_dev: pointer to bond master device
  *
- * If @skb is NULL, bond_xmit_hash is used to calculate hash uisng individual
- * address fields and protocol number passed as agrument. Else the configured
- * xmit policy is run on the skb to determine egress interface.
+ * If @skb is NULL, bond_xmit_hash is used to calculate hash using L2/L3
+ * addresses.
  *
- * Returns: NULL on Error.
+ * Returns: Either valid slave device, or NULL otherwise
  */
-struct net_device *bond_get_tx_dev(struct sk_buff *skb, uint8_t *src_mac,
+struct net_device *bond_3ad_get_tx_dev(struct sk_buff *skb, uint8_t *src_mac,
 				 uint8_t *dst_mac, void *src,
 				 void *dst, uint16_t protocol,
 				 struct net_device *bond_dev)
@@ -2503,7 +2473,7 @@ struct net_device *bond_get_tx_dev(struct sk_buff *skb, uint8_t *src_mac,
 
 		if (bond->params.xmit_policy != BOND_XMIT_POLICY_LAYER23
 		    && bond->params.xmit_policy != BOND_XMIT_POLICY_LAYER2) {
-			pr_debug("%s: Error: Unsupported hash policy for fast path\n", bond_dev->name);
+			pr_debug("%s: Error: Unsupported hash policy for 802.3AD fast path\n", bond_dev->name);
 			return NULL;
 		}
 
@@ -2543,7 +2513,6 @@ struct net_device *bond_get_tx_dev(struct sk_buff *skb, uint8_t *src_mac,
 
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(bond_get_tx_dev);
 
 int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev)
 {
@@ -2551,7 +2520,7 @@ int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev)
 	struct net_device *outdev = NULL;
 	int res = 1;
 
-	outdev = bond_get_tx_dev(skb, NULL, NULL, NULL, NULL, 0, dev);
+	outdev = bond_3ad_get_tx_dev(skb, NULL, NULL, NULL, NULL, 0, dev);
 
 	if (!outdev) {
 		goto out;
