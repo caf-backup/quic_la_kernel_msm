@@ -20,6 +20,7 @@
 
 #include <asm/smp_plat.h>
 
+#include <asm/cacheflush.h>
 #include "scm-boot.h"
 
 #define VDD_SC1_ARRAY_CLAMP_GFS_CTL	0x35a0
@@ -43,8 +44,11 @@
 
 #define APCS_SAW2_VCTL		0x14
 #define APCS_SAW2_2_VCTL	0x1c
+#define of_board_is_sim()	(of_machine_is_compatible("qcom,qca961x-r3pc") \
+				 || of_machine_is_compatible("qcom,qca961x-virtio"))
 
 extern void secondary_startup(void);
+extern void msm_secondary_startup(void);
 
 static DEFINE_SPINLOCK(boot_lock);
 
@@ -55,8 +59,73 @@ static void __ref qcom_cpu_die(unsigned int cpu)
 }
 #endif
 
+/*
+ * Write pen_release in a way that is guaranteed to be visible to all
+ * observers, irrespective of whether they're taking part in coherency
+ * or not.  This is necessary for the hotplug code to work reliably.
+ */
+void __cpuinit write_pen_release(int val)
+{
+	pen_release = val;
+	smp_wmb();
+	__cpuc_flush_dcache_area((void *)&pen_release, sizeof(pen_release));
+	outer_clean_range(__pa(&pen_release), __pa(&pen_release + 1));
+}
+
+static int __cpuinit release_from_pen(unsigned int cpu)
+{
+	unsigned long timeout;
+
+	/* Set preset_lpj to avoid subsequent lpj recalculations */
+	preset_lpj = loops_per_jiffy;
+	/*
+	 * set synchronisation state between this boot processor
+	 * and the secondary one
+	 */
+	spin_lock(&boot_lock);
+
+	/*
+	 * The secondary processor is waiting to be released from
+	 * the holding pen - release it, then wait for it to flag
+	 * that it has been released by resetting pen_release.
+	 *
+	 * Note that "pen_release" is the hardware CPU ID, whereas
+	 * "cpu" is Linux's internal ID.
+	 */
+	write_pen_release(cpu_logical_map(cpu));
+
+	if (of_board_is_sim())
+		/* simulation platforms are very slow */
+		timeout = jiffies + 1;
+	else
+		timeout = jiffies + (1 * HZ);
+
+	while (time_before(jiffies, timeout)) {
+		smp_rmb(); /* barrier */
+		if (pen_release == -1)
+			break;
+
+		udelay(10);
+	}
+
+	/*
+	 * now the secondary core is starting up let it run its
+	 * calibrations, then wait for it to finish
+	 */
+	spin_unlock(&boot_lock);
+
+	return pen_release != -1 ? -ENOSYS : 0;
+}
+
 static void qcom_secondary_init(unsigned int cpu)
 {
+	/*
+	 * let the primary processor know we're out of the
+	 * pen, then head off into the C entry point
+	 */
+	if (of_board_is_sim())
+		write_pen_release(-1);
+
 	/*
 	 * Synchronise with the boot thread.
 	 */
@@ -321,6 +390,8 @@ static void __init qcom_smp_prepare_cpus(unsigned int max_cpus)
 {
 	int cpu, map;
 	unsigned int flags = 0;
+	phys_addr_t phys;
+
 	static const int cold_boot_flags[] = {
 		0,
 		SCM_FLAG_COLDBOOT_CPU1,
@@ -337,7 +408,12 @@ static void __init qcom_smp_prepare_cpus(unsigned int max_cpus)
 		flags |= cold_boot_flags[map];
 	}
 
-	if (scm_set_boot_addr(virt_to_phys(secondary_startup), flags)) {
+	if (of_board_is_sim())
+		phys = virt_to_phys(msm_secondary_startup);
+	else
+		phys = virt_to_phys(secondary_startup);
+
+	if (scm_set_boot_addr(phys, flags)) {
 		for_each_present_cpu(cpu) {
 			if (cpu == smp_processor_id())
 				continue;
