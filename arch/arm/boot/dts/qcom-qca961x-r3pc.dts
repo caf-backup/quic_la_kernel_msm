@@ -29,5 +29,11 @@
 		serial@78b0000 {
 			status = "ok";
 		};
+
+		ess-switch@c000000 {
+			compatible = "qcom,ess-switch";
+			reg = <0xc000000 0x80000>; /* 512KB */
+			switch_access_mode = "local bus";
+		};
 	};
 };
