@@ -1957,7 +1957,7 @@ static struct gpio_led ap148_gpio_leds[] = {
 	},
 };
 
-static struct gpio_led_platform_data gpio_led_pdata = {
+static struct gpio_led_platform_data gpio_led_ap148_pdata = {
 	.leds		= ap148_gpio_leds,
 	.num_leds	= ARRAY_SIZE(ap148_gpio_leds),
 };
@@ -1966,7 +1966,33 @@ static struct platform_device ap148_leds_gpio = {
 	.name	= "leds-gpio",
 	.id	= -1,
 	.dev	= {
-		.platform_data	= &gpio_led_pdata,
+		.platform_data	= &gpio_led_ap148_pdata,
+	},
+};
+
+static struct gpio_led ap160_gpio_leds[] = {
+	{
+		.name       = "ap160:green:usb_1",
+		.gpio       = 7,
+		.active_low = 0,
+	},
+	{
+		.name       = "ap160:red:status",
+		.gpio       = 53,
+		.active_low = 0,
+	},
+};
+
+static struct gpio_led_platform_data gpio_led_ap160_pdata = {
+	.leds		= ap160_gpio_leds,
+	.num_leds	= ARRAY_SIZE(ap160_gpio_leds),
+};
+
+static struct platform_device ap160_leds_gpio = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &gpio_led_ap160_pdata,
 	},
 };
 
@@ -2606,6 +2632,7 @@ static void __init ipq806x_init(void)
 	}
 	if (machine_is_ipq806x_ap160()) {
 		platform_device_register(&ap160_kp_pdev);
+		platform_device_register(&ap160_leds_gpio);
 	}
 }
 
