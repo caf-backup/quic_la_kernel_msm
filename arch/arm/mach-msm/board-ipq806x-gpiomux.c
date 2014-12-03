@@ -199,37 +199,13 @@ static struct gpiomux_setting ipq806x_sdc3_uhs_card_det_cfg = {
 	.pull = GPIOMUX_PULL_NONE,
 };
 
-static struct gpiomux_setting ipq806x_buttons_db149_cfg = {
+static struct gpiomux_setting ipq806x_buttons_cfg = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_2MA,
 	.pull = GPIOMUX_PULL_UP,
 };
 
-static struct gpiomux_setting ipq806x_buttons_db149_1xx_cfg = {
-	.func = GPIOMUX_FUNC_GPIO,
-	.drv = GPIOMUX_DRV_2MA,
-	.pull = GPIOMUX_PULL_UP,
-};
-
-static struct gpiomux_setting ipq806x_buttons_ap148_ap160_cfg = {
-	.func = GPIOMUX_FUNC_GPIO,
-	.drv = GPIOMUX_DRV_2MA,
-	.pull = GPIOMUX_PULL_UP,
-};
-
-static struct gpiomux_setting ipq806x_leds_ap148_ap160_cfg = {
-	.func = GPIOMUX_FUNC_GPIO,
-	.drv = GPIOMUX_DRV_2MA,
-	.pull = GPIOMUX_PULL_UP,
-};
-
-static struct gpiomux_setting ipq806x_buttons_ap145_cfg = {
-	.func = GPIOMUX_FUNC_GPIO,
-	.drv = GPIOMUX_DRV_2MA,
-	.pull = GPIOMUX_PULL_UP,
-};
-
-static struct gpiomux_setting ipq806x_leds_ap145_cfg = {
+static struct gpiomux_setting ipq806x_leds_cfg = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_2MA,
 	.pull = GPIOMUX_PULL_UP,
@@ -243,12 +219,6 @@ static struct gpiomux_setting usb30_pwr_en_n = {
 
 #ifdef CONFIG_MSM_PCIE
 static struct gpiomux_setting pcie_rst_n = {
-	.func = GPIOMUX_FUNC_GPIO,
-	.drv = GPIOMUX_DRV_2MA,
-	.pull = GPIOMUX_PULL_NONE,
-};
-
-static struct gpiomux_setting pcie_pwr_en = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_2MA,
 	.pull = GPIOMUX_PULL_NONE,
@@ -395,12 +365,6 @@ static struct gpiomux_setting mi2s_ap160_cfg = {
 	.dir = GPIOMUX_OUT_HIGH,
 };
 
-static struct gpiomux_setting pcie3_reset_ap160_cfg = {
-	.func = GPIOMUX_FUNC_1,
-	.drv = GPIOMUX_DRV_2MA,
-	.pull = GPIOMUX_PULL_NONE,
-	.dir = GPIOMUX_OUT_LOW,
-};
 #define ipq_mux(g, a, s)			\
 {						\
 	.gpio = g,				\
@@ -433,7 +397,7 @@ static struct msm_gpiomux_config ipq806x_db149_gpiomux[] = {
 	ipq_mux(21, gsbi5_spi_clk_cfg,			gsbi5_spi_clk_cfg),
 	ipq_mux(24, gsbi2_active_cfg,			gsbi2_suspended_cfg),
 	ipq_mux(25, gsbi2_active_cfg,			gsbi2_suspended_cfg),
-	ipq_mux(26, ipq806x_buttons_db149_cfg,		ipq806x_buttons_db149_cfg),
+	ipq_mux(26, ipq806x_buttons_cfg,		ipq806x_buttons_cfg),
 
 	ipq_mux(27, mi2s_act_cfg,			mi2s_sus_cfg),
 	ipq_mux(28, mi2s_act_cfg,			mi2s_sus_cfg),
@@ -483,7 +447,7 @@ static struct msm_gpiomux_config ipq806x_db149_1xx_gpiomux[] = {
 	ipq_mux(21, gsbi5_spi_clk_cfg,			gsbi5_spi_clk_cfg),
 	ipq_mux(24, gsbi2_active_cfg,			gsbi2_suspended_cfg),
 	ipq_mux(25, gsbi2_active_cfg,			gsbi2_suspended_cfg),
-	ipq_mux(26, ipq806x_buttons_db149_1xx_cfg,		ipq806x_buttons_db149_1xx_cfg),
+	ipq_mux(26, ipq806x_buttons_cfg,		ipq806x_buttons_cfg),
 
 	ipq_mux(27, mi2s_act_cfg,			mi2s_sus_cfg),
 	ipq_mux(28, mi2s_act_cfg,			mi2s_sus_cfg),
@@ -581,9 +545,9 @@ static struct msm_gpiomux_config ipq806x_ap148_gpiomux[] = {
 	ipq_mux( 1, mdio_n,				mdio_n),
 	ipq_mux( 2, nss_gmac0_rgmii_set0,		nss_gmac0_rgmii_set0),
 	ipq_mux( 3, pcie_rst_n,				pcie_rst_n),
-	ipq_mux( 7, ipq806x_leds_ap148_ap160_cfg,	ipq806x_leds_ap148_ap160_cfg),
-	ipq_mux( 8, ipq806x_leds_ap148_ap160_cfg,	ipq806x_leds_ap148_ap160_cfg),
-	ipq_mux( 9, ipq806x_leds_ap148_ap160_cfg,	ipq806x_leds_ap148_ap160_cfg),
+	ipq_mux( 7, ipq806x_leds_cfg,			ipq806x_leds_cfg),
+	ipq_mux( 8, ipq806x_leds_cfg,			ipq806x_leds_cfg),
+	ipq_mux( 9, ipq806x_leds_cfg,			ipq806x_leds_cfg),
 	ipq_mux(12, gsbi4_active_cfg,			gsbi4_suspended_cfg),
 	ipq_mux(13, gsbi4_active_cfg,			gsbi4_suspended_cfg),
 	ipq_mux(14, pcm_out_act_cfg,			pcm_out_sus_cfg),
@@ -598,7 +562,7 @@ static struct msm_gpiomux_config ipq806x_ap148_gpiomux[] = {
 	ipq_mux(23, gsbi2_spi_data_cfg,			gsbi2_spi_data_cfg),
 	ipq_mux(24, gsbi2_spi_cs_cfg,			gsbi2_spi_cs_cfg),
 	ipq_mux(25, gsbi2_spi_clk_cfg,			gsbi2_spi_clk_cfg),
-	ipq_mux(26, ipq806x_leds_ap148_ap160_cfg,	ipq806x_leds_ap148_ap160_cfg),
+	ipq_mux(26, ipq806x_leds_cfg,			ipq806x_leds_cfg),
 	ipq_mux(27, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(28, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(29, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
@@ -609,8 +573,8 @@ static struct msm_gpiomux_config ipq806x_ap148_gpiomux[] = {
 	ipq_mux(48, pcie_rst_n,				pcie_rst_n),
 	ipq_mux(51, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(52, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
-	ipq_mux(53, ipq806x_leds_ap148_ap160_cfg,	ipq806x_leds_ap148_ap160_cfg),
-	ipq_mux(54, ipq806x_buttons_ap148_ap160_cfg,	ipq806x_buttons_ap148_ap160_cfg),
+	ipq_mux(53, ipq806x_leds_cfg,			ipq806x_leds_cfg),
+	ipq_mux(54, ipq806x_buttons_cfg,		ipq806x_buttons_cfg),
 	ipq_mux(55, gsbi6_spi_mosi_cfg,			gsbi6_spi_mosi_cfg),
 	ipq_mux(56, gsbi6_spi_miso_cfg,			gsbi6_spi_miso_cfg),
 	ipq_mux(57, gsbi6_spi_cs_cfg,			gsbi6_spi_cs_cfg),
@@ -621,7 +585,7 @@ static struct msm_gpiomux_config ipq806x_ap148_gpiomux[] = {
 	ipq_mux(61, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(62, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(63, reset_control,			reset_control),
-	ipq_mux(65, ipq806x_buttons_ap148_ap160_cfg,	ipq806x_buttons_ap148_ap160_cfg),
+	ipq_mux(65, ipq806x_buttons_cfg,		ipq806x_buttons_cfg),
 };
 
 static struct msm_gpiomux_config ipq806x_ap145_gpiomux[] = {
@@ -638,18 +602,18 @@ static struct msm_gpiomux_config ipq806x_ap145_gpiomux[] = {
 	ipq_mux(19, gsbi5_spi_data_cfg,			gsbi5_spi_data_cfg),
 	ipq_mux(20, gsbi5_spi_cs_cfg,			gsbi5_spi_cs_cfg),
 	ipq_mux(21, gsbi5_spi_clk_cfg,			gsbi5_spi_clk_cfg),
-	ipq_mux(22, ipq806x_buttons_ap145_cfg,	ipq806x_buttons_ap145_cfg),
-	ipq_mux(23, ipq806x_leds_ap145_cfg,		ipq806x_leds_ap145_cfg),
-	ipq_mux(24, ipq806x_buttons_ap145_cfg,	ipq806x_buttons_ap145_cfg),
+	ipq_mux(22, ipq806x_buttons_cfg,		ipq806x_buttons_cfg),
+	ipq_mux(23, ipq806x_leds_cfg,			ipq806x_leds_cfg),
+	ipq_mux(24, ipq806x_buttons_cfg,		ipq806x_buttons_cfg),
 	ipq_mux(25, nss_gmac0_rgmii_set0,		nss_gmac0_rgmii_set0),
-	ipq_mux(26, ipq806x_leds_ap145_cfg,		ipq806x_leds_ap145_cfg),
+	ipq_mux(26, ipq806x_leds_cfg,			ipq806x_leds_cfg),
 	ipq_mux(27, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(28, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(29, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(30, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(31, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(32, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
-	ipq_mux(33, ipq806x_leds_ap145_cfg,		ipq806x_leds_ap145_cfg),
+	ipq_mux(33, ipq806x_leds_cfg,			ipq806x_leds_cfg),
 	ipq_mux(48, pcie_rst_n,					pcie_rst_n),
 	ipq_mux(51, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(52, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
@@ -688,17 +652,17 @@ static struct msm_gpiomux_config ipq806x_ap160_gpiomux[] = {
 	ipq_mux( 2, nss_gmac0_rgmii_set0,		nss_gmac0_rgmii_set0),
 	ipq_mux( 3, pcie_rst_n,				pcie_rst_n),
 	ipq_mux( 6, ipq806x_sdc3_card_det_cfg,          ipq806x_sdc3_card_det_cfg),
-	ipq_mux( 7, ipq806x_leds_ap148_ap160_cfg,	ipq806x_leds_ap148_ap160_cfg),
+	ipq_mux( 7, ipq806x_leds_cfg,			ipq806x_leds_cfg),
 	ipq_mux( 8, ipq806x_sdc3_uhs_card_det_cfg,	ipq806x_sdc3_uhs_card_det_cfg),
-	ipq_mux( 9, ipq806x_leds_ap148_ap160_cfg,	ipq806x_leds_ap148_ap160_cfg),
+	ipq_mux( 9, ipq806x_leds_cfg,			ipq806x_leds_cfg),
 	ipq_mux(12, gsbi4_active_cfg,			gsbi4_suspended_cfg),
 	ipq_mux(13, gsbi4_active_cfg,			gsbi4_suspended_cfg),
 	ipq_mux(18, gsbi5_spi_data_cfg,			gsbi5_spi_data_cfg),
 	ipq_mux(19, gsbi5_spi_data_cfg,			gsbi5_spi_data_cfg),
 	ipq_mux(20, gsbi5_spi_cs_cfg,			gsbi5_spi_cs_cfg),
 	ipq_mux(21, gsbi5_spi_clk_cfg,			gsbi5_spi_clk_cfg),
-	ipq_mux(22, ipq806x_buttons_ap148_ap160_cfg,	ipq806x_buttons_ap148_ap160_cfg),
-	ipq_mux(26, ipq806x_leds_ap148_ap160_cfg,	ipq806x_leds_ap148_ap160_cfg),
+	ipq_mux(22, ipq806x_buttons_cfg,		ipq806x_buttons_cfg),
+	ipq_mux(26, ipq806x_leds_cfg,			ipq806x_leds_cfg),
 	ipq_mux(27, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(28, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(29, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
@@ -709,8 +673,8 @@ static struct msm_gpiomux_config ipq806x_ap160_gpiomux[] = {
 	ipq_mux(48, pcie_rst_n,				pcie_rst_n),
 	ipq_mux(51, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(52, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
-	ipq_mux(53, ipq806x_leds_ap148_ap160_cfg,	ipq806x_leds_ap148_ap160_cfg),
-	ipq_mux(54, ipq806x_buttons_ap148_ap160_cfg,	ipq806x_buttons_ap148_ap160_cfg),
+	ipq_mux(53, ipq806x_leds_cfg,			ipq806x_leds_cfg),
+	ipq_mux(54, ipq806x_buttons_cfg,		ipq806x_buttons_cfg),
 	ipq_mux(55, mi2s_ap160_cfg,			mi2s_ap160_cfg),
 	ipq_mux(56, mi2s_ap160_cfg,			mi2s_ap160_cfg),
 	ipq_mux(57, mi2s_ap160_cfg,			mi2s_ap160_cfg),
@@ -721,7 +685,7 @@ static struct msm_gpiomux_config ipq806x_ap160_gpiomux[] = {
 	ipq_mux(61, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(62, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
 	ipq_mux(63, pcie_rst_n,				pcie_rst_n),
-	ipq_mux(65, ipq806x_buttons_ap148_ap160_cfg,	ipq806x_buttons_ap148_ap160_cfg),
+	ipq_mux(65, ipq806x_buttons_cfg,		ipq806x_buttons_cfg),
 };
 
 void __init ipq806x_init_gpiomux(void)

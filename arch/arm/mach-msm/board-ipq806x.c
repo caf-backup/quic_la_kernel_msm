@@ -1819,7 +1819,19 @@ static struct platform_device *cdp_devices[] __initdata = {
 	&ipq806x_pc_cntr,
 };
 
-static struct platform_device *cdp_devices_ap148_ap160[] __initdata = {
+static struct platform_device *cdp_devices_ap145[] __initdata = {
+	&ipq806x_device_uart_gsbi4,
+	&msm_device_sps_ipq806x,
+	&ipq806x_pc_cntr,
+};
+
+static struct platform_device *cdp_devices_ap148[] __initdata = {
+	&ipq806x_device_uart_gsbi4,
+	&msm_device_sps_ipq806x,
+	&ipq806x_pc_cntr,
+};
+
+static struct platform_device *cdp_devices_ap160[] __initdata = {
 	&ipq806x_device_uart_gsbi4,
 	&msm_device_sps_ipq806x,
 	&ipq806x_pc_cntr,
@@ -1945,7 +1957,7 @@ static struct gpio_led ap148_gpio_leds[] = {
 	},
 };
 
-static struct gpio_led_platform_data gpio_led_pdata = {
+static struct gpio_led_platform_data gpio_led_ap148_pdata = {
 	.leds		= ap148_gpio_leds,
 	.num_leds	= ARRAY_SIZE(ap148_gpio_leds),
 };
@@ -1954,7 +1966,33 @@ static struct platform_device ap148_leds_gpio = {
 	.name	= "leds-gpio",
 	.id	= -1,
 	.dev	= {
-		.platform_data	= &gpio_led_pdata,
+		.platform_data	= &gpio_led_ap148_pdata,
+	},
+};
+
+static struct gpio_led ap160_gpio_leds[] = {
+	{
+		.name       = "ap160:green:usb_1",
+		.gpio       = 7,
+		.active_low = 0,
+	},
+	{
+		.name       = "ap160:red:status",
+		.gpio       = 53,
+		.active_low = 0,
+	},
+};
+
+static struct gpio_led_platform_data gpio_led_ap160_pdata = {
+	.leds		= ap160_gpio_leds,
+	.num_leds	= ARRAY_SIZE(ap160_gpio_leds),
+};
+
+static struct platform_device ap160_leds_gpio = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &gpio_led_ap160_pdata,
 	},
 };
 
@@ -2558,16 +2596,21 @@ static void __init ipq806x_init(void)
 #ifdef CONFIG_MSM_ROTATOR
 	msm_rotator_set_split_iommu_domain();
 #endif
-	if (machine_is_ipq806x_ap148() || machine_is_ipq806x_ap145() ||
-		machine_is_ipq806x_ap145_1xx() ||
-		machine_is_ipq806x_ap148_1xx() ||
-		machine_is_ipq806x_ap160()) {
-		platform_add_devices(cdp_devices_ap148_ap160,
-			ARRAY_SIZE(cdp_devices_ap148_ap160));
+	if (machine_is_ipq806x_ap148() ||
+		machine_is_ipq806x_ap148_1xx()) {
+		platform_add_devices(cdp_devices_ap148,
+			ARRAY_SIZE(cdp_devices_ap148));
 		if (machine_is_ipq806x_ap148_1xx()) {
 			ipq806x_device_uart_gsbi2.id = 2;
 			platform_device_register(&ipq806x_device_uart_gsbi2);
 		}
+	} else if (machine_is_ipq806x_ap145() ||
+		machine_is_ipq806x_ap145_1xx()) {
+		platform_add_devices(cdp_devices_ap145,
+			ARRAY_SIZE(cdp_devices_ap145));
+	} else if (machine_is_ipq806x_ap160()) {
+		platform_add_devices(cdp_devices_ap160,
+			ARRAY_SIZE(cdp_devices_ap160));
 	} else {
 		platform_add_devices(cdp_devices, ARRAY_SIZE(cdp_devices));
 		if (machine_is_ipq806x_db149_2xx()) {
@@ -2589,8 +2632,8 @@ static void __init ipq806x_init(void)
 	}
 	if (machine_is_ipq806x_ap160()) {
 		platform_device_register(&ap160_kp_pdev);
+		platform_device_register(&ap160_leds_gpio);
 	}
-
 }
 
 
