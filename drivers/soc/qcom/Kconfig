@@ -47,4 +47,21 @@ config QCOM_DLOAD_MODE_APPSBL
         help
           Select this if application bootloader, for example U-Boot, will handle
           download mode due to kernel panic.
+
+config QCOM_CACHE_DUMP
+        bool "QCOM cache dumping support"
+        depends on ARCH_QCOM
+        help
+          Say y here to enable cache dumping support. This adds infrastructure
+          to dump the L1 and L2 caches to an allocated buffer. This allows for
+          analysis of the caches in case cache corruption is suspected.
+          If unsure, say N
+
+config QCOM_CACHE_DUMP_ON_PANIC
+        bool "Dump caches on panic"
+        depends on QCOM_CACHE_DUMP
+        help
+          By default, the caches are flushed on panic. This means that trying to
+          look at them in a RAM dump will give useless data. Select this if you
+          want to dump the L1 and L2 caches on panic before any flush occurs.
           If unsure, say N
