@@ -1388,6 +1388,9 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	else
 		p->exit_signal = (clone_flags & CSIGNAL);
 
+	p->pdeath_signal = 0;
+	p->exit_state = 0;
+
 	p->nr_dirtied = 0;
 	p->nr_dirtied_pause = 128 >> (PAGE_SHIFT - 10);
 	p->dirty_paused_when = 0;
@@ -1396,7 +1399,6 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	 * Ok, make it visible to the rest of the system.
 	 * We dont wake it up yet.
 	 */
-	p->pdeath_signal = 0;
 	p->group_leader = p;
 	INIT_LIST_HEAD(&p->thread_group);
 
