@@ -28,8 +28,36 @@
 
 #define QFPROM_RAW_SPARE_REG27_ROW0_LSB IPQ806X_QFPROM_PHYS + 0x440
 
-#define QFPROM_ROW_READ_CMD 		0x5
-#define QFPROM_ROW_ROLLBACK_WRITE_CMD 	0x6
+#define QFPROM_ROW_READ_CMD 			0x5
+#define QFPROM_ROW_ROLLBACK_WRITE_CMD 		0x6
+#define QFPROM_IS_AUTHENTICATE_CMD		0x7
+#define QFPROM_IS_AUTHENTICATE_CMD_RSP_SIZE	0x2
+
+static ssize_t
+qfprom_show_authenticate(struct sys_device *dev,
+			struct sysdev_attribute *attr,
+			char *buf)
+{
+	int ret;
+	ret = scm_call(SCM_SVC_FUSE, QFPROM_IS_AUTHENTICATE_CMD,
+			NULL, 0, buf, sizeof(char));
+
+	if (ret) {
+		pr_err("%s: Error in QFPROM read : %d\n",
+						__func__, ret);
+		return ret;
+	}
+
+	/* show needs a string response */
+	if (buf[0] == 1) {
+		buf[0] = '1';
+	} else {
+		buf[0] = '0';
+	}
+	buf[1] = '\0';
+
+	return QFPROM_IS_AUTHENTICATE_CMD_RSP_SIZE;
+}
 
 static ssize_t
 qfprom_show_version(struct sys_device *dev,
@@ -106,6 +134,8 @@ qfprom_store_version(struct sys_device *dev,
 static struct sysdev_attribute qfprom_files[] = {
 	_SYSDEV_ATTR(version, 0666, qfprom_show_version,
 					qfprom_store_version),
+	_SYSDEV_ATTR(authenticate, 0444, qfprom_show_authenticate,
+					NULL),
 };
 
 static struct sysdev_class qfprom_sysdev_class = {
