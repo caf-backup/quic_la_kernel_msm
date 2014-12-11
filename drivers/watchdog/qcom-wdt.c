@@ -20,6 +20,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/sched.h>
+#include <mach/scm.h>
 
 #define WDT_RST		0x0
 #define WDT_EN		0x8
@@ -28,12 +29,13 @@
 
 struct qcom_wdt {
 	struct watchdog_device	wdd;
+	struct device		*dev;
 	unsigned long		rate;
 	void __iomem		*base;
 	unsigned int		irq;
 	void 			**percpu;
+	void			*scm_regsave;
 };
-
 
 static inline
 struct qcom_wdt *to_qcom_wdt(struct watchdog_device *wdd)
@@ -41,17 +43,44 @@ struct qcom_wdt *to_qcom_wdt(struct watchdog_device *wdd)
 	return container_of(wdd, struct qcom_wdt, wdd);
 }
 
+static void qcom_wdt_scm_regsave(struct qcom_wdt *wdt)
+{
+	int ret;
+	struct {
+		unsigned addr;
+		int len;
+	} cmd_buf;
+
+	if (!wdt->scm_regsave)
+		return;
+
+	cmd_buf.addr = __pa(wdt->scm_regsave);
+	cmd_buf.len  = PAGE_SIZE;
+
+#define SCM_SET_REGSAVE_CMD 0x2
+	ret = scm_call(SCM_SVC_UTIL, SCM_SET_REGSAVE_CMD,
+		       &cmd_buf, sizeof(cmd_buf), NULL, 0);
+	if (ret) {
+		dev_err(wdt->dev, "Setting register save address failed");
+	}
+}
+
 static int qcom_wdt_start(struct watchdog_device *wdd)
 {
 	struct qcom_wdt *wdt = to_qcom_wdt(wdd);
 
 	writel(0, wdt->base + WDT_EN);
-	writel(1, wdt->base + WDT_RST);
+
+	qcom_wdt_scm_regsave(wdt);
+
 	writel(wdd->timeout * wdt->rate / 2, wdt->base + WDT_BARK_TIME);
 	writel(wdd->timeout * wdt->rate, wdt->base + WDT_BITE_TIME);
+
 	writel(1, wdt->base + WDT_EN);
+	writel(1, wdt->base + WDT_RST);
 
 	enable_percpu_irq(wdt->irq, IRQ_TYPE_EDGE_RISING);
+
 	return 0;
 }
 
@@ -122,6 +151,8 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	if (!wdt)
 		return -ENOMEM;
 
+	platform_set_drvdata(pdev, wdt);
+	wdt->dev = &pdev->dev;
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	wdt->base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (IS_ERR(wdt->base))
@@ -140,6 +171,11 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	wdt->wdd.min_timeout = 1;
 	wdt->wdd.max_timeout = 0x10000000U / wdt->rate;
 	wdt->irq = platform_get_irq(pdev, 0);
+	wdt->scm_regsave = (void *)__get_free_page(GFP_KERNEL);
+
+	if (!wdt->scm_regsave) {
+		dev_warn(&pdev->dev, "Allocating register save space failed\n");
+	}
 
 	/*
 	 * If 'timeout-sec' unspecified in devicetree, assume a 30 second
@@ -174,7 +210,6 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	}
 
 irq_failed:
-	platform_set_drvdata(pdev, wdt);
 	return 0;
 }
 
@@ -182,6 +217,8 @@ static int qcom_wdt_remove(struct platform_device *pdev)
 {
 	struct qcom_wdt *wdt = platform_get_drvdata(pdev);
 
+	if (wdt->scm_regsave)
+		__free_page(wdt->scm_regsave);
 	free_percpu_irq(wdt->irq, 0);
 	free_percpu(wdt->percpu);
 	watchdog_unregister_device(&wdt->wdd);
