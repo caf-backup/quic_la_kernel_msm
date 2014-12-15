@@ -63,6 +63,7 @@ struct msm_pcie_platform {
 
 	uint32_t                     msi_irq;
 	uint32_t                     inta;
+	uint32_t                     force_gen1;
         msm_pcie_port_en_t           *port_en;
 	uint32_t		term_offset;
 };

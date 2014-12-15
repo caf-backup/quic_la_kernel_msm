@@ -72,6 +72,7 @@
 #define PCIE20_COMMAND_STATUS          0x04
 #define PCIE20_BUSNUMBERS              0x18
 #define PCIE20_MEMORY_BASE_LIMIT       0x20
+#define PCIE20_LNK_CAS2                0xA0
 
 #define PCIE20_AXI_MSTR_RESP_COMP_CTRL0 0x818
 #define PCIE20_AXI_MSTR_RESP_COMP_CTRL1 0x81c
@@ -682,6 +683,9 @@ static int msm_pcie_setup(int nr, struct pci_sys_data *sys)
 		gpio_set_value_cansleep(dev->gpio[MSM_PCIE_GPIO_RST_N].num,
 					!dev->gpio[MSM_PCIE_GPIO_RST_N].on);
 	}
+	if (pcie_pdata->force_gen1)
+		writel_relaxed((readl_relaxed(dev->pcie20 + PCIE20_LNK_CAS2) | 1),
+					dev->pcie20 + PCIE20_LNK_CAS2);
 
 	/* enable link training */
 	msm_pcie_write_mask(dev->elbi + PCIE20_ELBI_SYS_CTRL, 0, BIT(0));
