@@ -26,12 +26,12 @@ struct net_device *netdev[2];
 
 void edma_write_reg(u16 reg_addr, u32 reg_value)
 {
-	writel(reg_value, (((void __iomem *)edma_hw_addr + reg_addr)));
+	writel(reg_value, ((void __iomem *)(edma_hw_addr + reg_addr)));
 }
 
 void edma_read_reg(u16 reg_addr, volatile u32 *reg_value)
 {
-	*reg_value = readl((void __iomem *)edma_hw_addr + reg_addr);
+	*reg_value = readl((void __iomem *)(edma_hw_addr + reg_addr));
 }
 
 /*
@@ -229,7 +229,7 @@ static int edma_axi_probe(struct platform_device *pdev)
 	return 0;
 
 err_configure:
-	edma_free_irqs(&adapter[0]);
+	edma_free_irqs(adapter[0]);
 	for (i = 0; i < EDMA_NR_CPU; i++)
 		napi_disable(&c_info->q_cinfo[i].napi);
 err_reset:
@@ -266,7 +266,7 @@ static int edma_axi_remove(struct platform_device *pdev)
 	edma_stop_rx_tx(hw);
 	napi_disable(&c_info->q_cinfo[id].napi);
 	edma_irq_disable(c_info);
-	edma_free_irqs(&adapter[0]);
+	edma_free_irqs(adapter);
 	edma_reset(c_info);
 	edma_free_tx_rings(c_info);
 	edma_free_rx_rings(c_info);

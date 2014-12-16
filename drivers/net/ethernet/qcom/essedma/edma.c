@@ -79,7 +79,6 @@ static int edma_alloc_rx_ring(struct edma_common_info *c_info,
 		struct edma_rfd_desc_ring *erxd)
 {
 	struct platform_device *pdev = c_info->pdev;
-	int size;
 
 	erxd->size = sizeof(struct edma_sw_desc) * erxd->count;
 	erxd->sw_next_to_fill = 0;
@@ -453,9 +452,7 @@ static struct edma_tx_desc *edma_get_next_tpd(struct edma_common_info *c_info,
 	struct edma_tx_desc *tpd_desc =
 		(&((struct edma_tx_desc *)(etdr->hw_desc))[sw_next_to_fill]);
 
-	etdr->sw_next_to_fill++;
-	if (unlikely(etdr->sw_next_to_fill == etdr->count))
-		etdr->sw_next_to_fill = 0;
+	etdr->sw_next_to_fill = (etdr->sw_next_to_fill + 1) % etdr->count;
 
 	return tpd_desc;
 }
