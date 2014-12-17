@@ -1585,6 +1585,7 @@ static struct msm_pcie_platform msm_pcie_platform_data[] = {
 		.clk_n		= ARRAY_SIZE(msm_pcie_clk_info[0]),
 		.res		= msm_pcie_res_info[0],
 		.port_en	= &msm_pcie_port_en_info[0],
+		.force_gen1	= 0,
 	},
 	{
 		.gpio		= msm_pcie_gpio_info[1],
@@ -1600,6 +1601,7 @@ static struct msm_pcie_platform msm_pcie_platform_data[] = {
 		.clk_n		= ARRAY_SIZE(msm_pcie_clk_info[1]),
 		.res		= msm_pcie_res_info[1],
 		.port_en	= &msm_pcie_port_en_info[1],
+		.force_gen1	= 0,
 	},
 	{
 		.gpio		= msm_pcie_gpio_info[2],
@@ -1615,6 +1617,7 @@ static struct msm_pcie_platform msm_pcie_platform_data[] = {
 		.clk_n		= ARRAY_SIZE(msm_pcie_clk_info[2]),
 		.res		= msm_pcie_res_info[2],
 		.port_en	= &msm_pcie_port_en_info[2],
+		.force_gen1	= 0,
 	},
 };
 
@@ -1653,6 +1656,7 @@ void ipq806x_pcie_pdata_fixup(void)
 		rst[2] = -1;
 		pwr[2] = -1;
 		no_vreg[2] = 1;
+		msm_pcie_platform_data[1].force_gen1 = 1;
 	}
 
 	for (i = 0; i < CONFIG_MSM_NUM_PCIE; i++) {
