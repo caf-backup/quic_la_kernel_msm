@@ -737,7 +737,7 @@ void __init ipq806x_init_gpiomux(void)
 			ARRAY_SIZE(ipq806x_ap145_gpiomux));
 		msm_gpiomux_install(ipq806x_mmc_gpiomux_override,
 			ARRAY_SIZE(ipq806x_mmc_gpiomux_override));
-	} else if (machine_is_ipq806x_ap160()) {
+	} else if (machine_is_ipq806x_ap160() || machine_is_ipq806x_ap160_2xx()) {
 		msm_gpiomux_install(ipq806x_ap160_gpiomux,
 			ARRAY_SIZE(ipq806x_ap160_gpiomux));
 	}
