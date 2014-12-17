@@ -43,6 +43,9 @@
 #define EDMA_MAX_RECEIVE_QUEUE 8
 #define EDMA_MAX_TRANSMIT_QUEUE 16
 
+#define EDMA_NETDEV_TX_QUEUE 4 /* TX queue exposed to Linux kernel */
+#define EDMA_NETDEV_RX_QUEUE 4 /* RX queue exposed to Linux kernel */
+
 #define EDMA_NUM_TXQ_PER_CORE 4
 #define EDMA_NUM_RXQ_PER_CORE 2
 #define EDMA_TPD_EOP_SHIFT 31
@@ -70,8 +73,9 @@
 #define EDMA_RFD_LTHR 0
 
 #define EDMA_TX_PER_CPU_MASK 0xF
-#define EDMA_RX_PER_CPU_MASK 0xF
-#define EDMA_PER_CPU_MASK_SHIFT 0x2
+#define EDMA_RX_PER_CPU_MASK 0x3
+#define EDMA_TX_PER_CPU_MASK_SHIFT 0x2
+#define EDMA_RX_PER_CPU_MASK_SHIFT 0x1
 #define EDMA_TX_CPU_START_SHIFT 0x2
 #define EDMA_RX_CPU_START_SHIFT 0x1
 
@@ -98,14 +102,6 @@ struct edma_rx_return_desc {
 struct edma_rx_free_desc {
 	__le32  buffer_addr; /* buffer address */
 };
-
-#define EDMA_RSS_TYPE_NONE 0x00
-#define EDMA_RSS_TYPE_IPV4 0x01
-#define EDMA_RSS_TYPE_IPV4_TCP 0x02
-#define EDMA_RSS_TYPE_IPV4_UDP 0x04
-#define EDMA_RSS_TYPE_IPV6 0x08
-#define EDMA_RSS_TYPE_IPV6_TCP 0x10
-#define EDMA_RSS_TYPE_IPV6_UDP 0x20
 
 /* edma hw specific data */
 struct edma_hw {

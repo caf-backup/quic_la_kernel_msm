@@ -188,12 +188,9 @@ struct edma_hw;
 #define RSS_PRI_ENTRY_BIT_OFFSET 4
 
 /* RSS Indirection Register */
-#define REG_RSS_IDT_START 0x840
-#define REG_RSS_IDT_END 0x87C
-#define RSS_IDT_REG_INC 4
-#define RSS_IDT_ENTRY_BIT_OFFSET 4
-#define RSS_IDT_ENTRY_MASK 0xf
-
+#define EDMA_REG_RSS_IDT(x) (0x840 + ((x) << 2)) /* x = No. of indirection table */
+#define EDMA_NUM_IDT 16
+#define EDMA_RSS_IDT_VALUE 0x64206420
 
 /* Default RSS Ring Register */
 #define REG_DEF_RSS 0x890
@@ -201,13 +198,13 @@ struct edma_hw;
 
 /* RSS Hash Function Type Register */
 #define REG_RSS_TYPE 0x894
-#define RSS_NONE 0x00000001
-#define RSS_IPV4_TCP_EN 0x00000002
-#define RSS_IPV6_TCP_EN 0x00000004
-#define RSS_IPV4_UDP_EN 0x00000008
-#define RSS_IPV6_UDP_EN 0x00000010
-#define RSS_IPV4_EN 0x00000020
-#define RSS_IPV6_EN 0x00000040
+#define EDMA_RSS_TYPE_NONE 0x01
+#define EDMA_RSS_TYPE_IPV4TCP 0x02
+#define EDMA_RSS_TYPE_IPV6_TCP 0x04
+#define EDMA_RSS_TYPE_IPV4_UDP 0x08
+#define EDMA_RSS_TYPE_IPV6UDP 0x10
+#define EDMA_RSS_TYPE_IPV4 0x20
+#define EDMA_RSS_TYPE_IPV6 0x40
 #define RSS_HASH_MODE_MASK 0x7f
 
 #define REG_RSS_HASH_VALUE 0x8C0
