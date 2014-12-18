@@ -240,7 +240,8 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-ipq8064-whirlwind.dtb \
 	qcom-msm8660-surf.dtb \
 	qcom-msm8960-cdp.dtb \
-	qcom-qca961x-r3pc.dtb
+	qcom-qca961x-r3pc.dtb \
+	qcom-qca961x-r3pc-wifi.dtb
 dtb-$(CONFIG_ARCH_U8500) += ste-snowball.dtb \
 	ste-hrefprev60-stuib.dtb \
 	ste-hrefprev60-tvk.dtb \
