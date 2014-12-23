@@ -55,6 +55,8 @@ struct nss_platform_data {
 	enum nss_feature_enabled gre_redir_enabled;	/* Does this core handle gre_redir Tunnel ? */
 	enum nss_feature_enabled shaping_enabled;	/* Does this core handle shaping ? */
 	enum nss_feature_enabled gmac_enabled[4];	/* Does this core handle GMACs? */
+	enum nss_feature_enabled wifioffload_enabled;	/* Does this core handle wifi
+							   data plane ? */
 };
 
 #endif /* __MSM_NSS__H */
