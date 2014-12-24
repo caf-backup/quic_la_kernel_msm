@@ -715,6 +715,12 @@ config MACH_IPQ806X_AP160
 	help
 	  Support for the Qualcomm IPQ806X AP160 device.
 
+config MACH_IPQ806X_AP160_2XX
+	depends on ARCH_IPQ806X
+	bool "IPQ806X AP160-2XX"
+	help
+	  Support for the Qualcomm IPQ806X AP160-2XX device.
+
 config MACH_MPQ8064_CDP
 	depends on ARCH_APQ8064
 	bool "MPQ8064 CDP"

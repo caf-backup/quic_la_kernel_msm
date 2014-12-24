@@ -276,7 +276,8 @@ void __init ipq806x_init_mmc(void)
 		ipq806x_add_sdcc(2, &sdc3_data);
 	}
 
-	if (machine_is_ipq806x_ap160()) {
+	if (machine_is_ipq806x_ap160() ||
+		machine_is_ipq806x_ap160_2xx()) {
 		drv = sdc3_data_ap160.pin_data->pad_data->drv;
 		for (i = 0; i < drv->size; i++)
 			drv->on[i].val = GPIO_CFG_10MA;
