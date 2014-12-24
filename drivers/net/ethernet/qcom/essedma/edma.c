@@ -572,6 +572,9 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 	unsigned long tx_flags = 0;
 	struct edma_tx_desc_ring *etdr;
 
+	/* this will be one of the 4 TX queues exposed to linux kernel */
+	u16 txq_id = skb_get_queue_mapping(skb);
+
 	queue_id = edma_tx_queue_get(adapter, skb);
 	etdr = c_info->tpd_ring[queue_id];
 
@@ -582,8 +585,13 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 
 	if (!edma_tpd_available(c_info, queue_id)) {
 
+		/* Get the netdev_queue in order to stop the queue for
+		 * the relvenat core
+		 */
+		struct netdev_queue *nq = netdev_get_tx_queue(netdev, txq_id);
+
 		/* not enough descriptor, just stop queue */
-		netif_stop_queue(netdev);
+		netif_tx_stop_queue(nq);
 		local_bh_enable();
 		return NETDEV_TX_BUSY;
 	}
@@ -787,7 +795,8 @@ int edma_configure(struct edma_common_info *c_info)
 int edma_open(struct net_device *netdev)
 {
 	netif_carrier_on(netdev);
-	netif_start_queue(netdev);
+	netif_tx_start_all_queues(netdev);
+
 	return 0;
 }
 
@@ -798,7 +807,7 @@ int edma_open(struct net_device *netdev)
 int edma_close(struct net_device *netdev)
 {
 	netif_carrier_off(netdev);
-	netif_stop_queue(netdev);
+	netif_tx_stop_all_queues(netdev);
 
 	return 0;
 }
@@ -956,7 +965,7 @@ int edma_poll(struct napi_struct *napi, int budget)
 	struct queue_per_cpu_info *q_cinfo = container_of(napi,
 		struct queue_per_cpu_info, napi);
 	struct edma_common_info *c_info = q_cinfo->c_info;
-	u32 reg_data;
+	volatile u32 reg_data;
 	u32 shadow_rx_status, shadow_tx_status;
 	int queue_id;
 	int i, work_done = 0;

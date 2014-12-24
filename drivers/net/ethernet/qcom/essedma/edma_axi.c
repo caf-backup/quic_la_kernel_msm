@@ -67,7 +67,9 @@ static int edma_axi_probe(struct platform_device *pdev)
 	struct resource *res;
 	int i, j, err = 0, ret = 0;
 
-	netdev[0] = alloc_etherdev(sizeof(struct edma_adapter));
+	/* Use to allocate net devices for multiple TX/RX queues */
+	netdev[0] = alloc_etherdev_mqs(sizeof(struct edma_adapter),
+			EDMA_NETDEV_TX_QUEUE, EDMA_NETDEV_RX_QUEUE);
 	if (!netdev[0]) {
 		dev_err(&pdev->dev, "net device alloc fails=%p\n", netdev[0]);
 		goto err_alloc;
@@ -103,7 +105,13 @@ static int edma_axi_probe(struct platform_device *pdev)
 
 	hw->intr_clear_type = EDMA_INTR_CLEAR_TYPE;
 	hw->intr_sw_idx_w = EDMA_INTR_SW_IDX_W_TYPE;
-	hw->rss_type = EDMA_RSS_TYPE;
+
+	/* configure RSS type to the different protocol that can be
+	 * supported
+	 */
+	hw->rss_type = EDMA_RSS_TYPE_IPV4TCP | EDMA_RSS_TYPE_IPV6_TCP |
+		EDMA_RSS_TYPE_IPV4_UDP | EDMA_RSS_TYPE_IPV6UDP |
+		EDMA_RSS_TYPE_IPV4 | EDMA_RSS_TYPE_IPV6;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
@@ -187,9 +195,9 @@ static int edma_axi_probe(struct platform_device *pdev)
 					edma_poll, 64);
 		napi_enable(&c_info->q_cinfo[i].napi);
 		c_info->q_cinfo[i].tx_mask = EDMA_TX_PER_CPU_MASK <<
-					(i << EDMA_PER_CPU_MASK_SHIFT);
+					(i << EDMA_TX_PER_CPU_MASK_SHIFT);
 		c_info->q_cinfo[i].rx_mask = EDMA_RX_PER_CPU_MASK <<
-					(i << EDMA_PER_CPU_MASK_SHIFT);
+					(i << EDMA_RX_PER_CPU_MASK_SHIFT);
 		c_info->q_cinfo[i].tx_start = tx_start =
 					i << EDMA_TX_CPU_START_SHIFT;
 		c_info->q_cinfo[i].rx_start =  rx_start =
@@ -220,6 +228,14 @@ static int edma_axi_probe(struct platform_device *pdev)
 		err = -EIO;
 		goto err_configure;
 	}
+
+	/* Configure RSS indirection table.
+	 * 128 hash will be configured in the following
+	 * pattern: hash{0,1,2,3} = {Q0,Q2,Q4,Q6} respectively
+	 * and so on
+	 */
+	for (i = 0; i < EDMA_NUM_IDT; i++)
+		edma_write_reg(EDMA_REG_RSS_IDT(i), EDMA_RSS_IDT_VALUE);
 
 	/* Enable All 16 tx and 8 rx irq mask */
 	edma_irq_enable(c_info);
