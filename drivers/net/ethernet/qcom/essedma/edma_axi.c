@@ -23,6 +23,8 @@ static const u32 default_msg = NETIF_MSG_DRV | NETIF_MSG_PROBE |
 static unsigned long edma_hw_addr;
 
 struct net_device *netdev[2];
+char edma_tx_irq[16][64];
+char edma_rx_irq[8][64];
 
 void edma_write_reg(u16 reg_addr, u32 reg_value)
 {
@@ -208,15 +210,15 @@ static int edma_axi_probe(struct platform_device *pdev)
 
 		/* Request irq per core */
 		for (j = c_info->q_cinfo[i].tx_start; j < (tx_start + 4); j++) {
+			sprintf(&edma_tx_irq[j][0], "edma_eth_tx%d", j);
 			err = request_irq(c_info->tx_irq[j], edma_interrupt,
-				IRQF_DISABLED, "edma_eth_tx",
-					&c_info->q_cinfo[i]);
+				IRQF_DISABLED, &edma_tx_irq[j][0], &c_info->q_cinfo[i]);
 		}
 
 		for (j = c_info->q_cinfo[i].rx_start; j < rx_start + 2; j++) {
+			sprintf(&edma_rx_irq[j][0], "edma_eth_rx%d", j);
 			err = request_irq(c_info->rx_irq[j], edma_interrupt,
-				IRQF_DISABLED, "edma_eth_rx",
-					&c_info->q_cinfo[i]);
+				IRQF_DISABLED, &edma_rx_irq[j][0], &c_info->q_cinfo[i]);
 		}
 	}
 
