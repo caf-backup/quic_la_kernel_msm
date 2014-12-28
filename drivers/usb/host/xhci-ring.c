@@ -318,14 +318,26 @@ static int xhci_abort_cmd_ring(struct xhci_hcd *xhci)
 			&xhci->op_regs->cmd_ring);
 
 	/* Section 4.6.1.2 of xHCI 1.0 spec says software should
-	 * time the completion od all xHCI commands, including
+	 * time the completion of all xHCI commands, including
 	 * the Command Abort operation. If software doesn't see
 	 * CRR negated in a timely manner (e.g. longer than 5
 	 * seconds), then it should assume that the there are
 	 * larger problems with the xHC and assert HCRST.
 	 */
-	ret = handshake(xhci, &xhci->op_regs->cmd_ring,
-			CMD_RING_RUNNING, 0, 5 * 1000 * 1000);
+	if (xhci->quirks & XHCI_RELAXED_ABORT) {
+		int wait = 5 * MSEC_PER_SEC;
+		unsigned long start = jiffies;
+		while (jiffies_to_msecs(jiffies - start) < wait) {
+			ret = handshake(xhci, &xhci->op_regs->cmd_ring,
+				CMD_RING_RUNNING, 0, (MSEC_PER_SEC / HZ) * 1000);
+			if (ret != -ETIMEDOUT)
+				break;
+
+			msleep(MSEC_PER_SEC / HZ);
+		}
+	} else
+		ret = handshake(xhci, &xhci->op_regs->cmd_ring,
+				CMD_RING_RUNNING, 0, 5 * 1000 * 1000);
 	if (ret < 0) {
 		xhci_err(xhci, "Stopped the command ring failed, "
 				"maybe the host is dead\n");

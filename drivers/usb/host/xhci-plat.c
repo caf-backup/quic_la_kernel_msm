@@ -39,6 +39,17 @@ static void xhci_plat_quirks(struct device *dev, struct xhci_hcd *xhci)
 	else if (pdata->vendor == SYNOPSIS_DWC3_VENDOR &&
 			pdata->revision < 0x230A)
 		xhci->quirks |= XHCI_PORTSC_DELAY;
+	else if (pdata->vendor == SYNOPSIS_DWC3_VENDOR &&
+			pdata->revision == 0x230A) {
+		/*
+		 * There is a known issue in this controller that has
+		 * enumeration  issues with some devices and could end up
+		 * aborting HC. When this happens, we don't want other processes
+		 * to get affected due to increased CPU utilization by the
+		 * abort process.
+		 */
+		xhci->quirks |= XHCI_RELAXED_ABORT;
+	}
 }
 
 /* called during probe() after chip reset completes */
