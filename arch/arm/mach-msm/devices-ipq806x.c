@@ -503,6 +503,49 @@ struct platform_device ipq806x_device_uart_gsbi2 = {
 	.resource	= resources_uart_gsbi2,
 };
 
+static struct resource msm_uart_dm2_resources[] = {
+	{
+		.start  = MSM_UART2DM_PHYS,
+		.end    = MSM_UART2DM_PHYS + PAGE_SIZE - 1,
+		.name   = "uartdm_resource",
+		.flags  = IORESOURCE_MEM,
+	},
+	{
+		.start	= IPQ806X_GSBI2_UARTDM_IRQ,
+		.end	= IPQ806X_GSBI2_UARTDM_IRQ,
+		.flags  = IORESOURCE_IRQ,
+	},
+	{
+		.start  = MSM_GSBI2_PHYS,
+		.end    = MSM_GSBI2_PHYS + PAGE_SIZE - 1,
+		.name   = "gsbi_resource",
+		.flags  = IORESOURCE_MEM,
+	},
+	{
+		.start  = DMOV_HSUART_GSBI2_TX_CHAN,
+		.end    = DMOV_HSUART_GSBI2_RX_CHAN,
+		.name   = "uartdm_channels",
+		.flags  = IORESOURCE_DMA,
+	},
+	{
+		.start  = DMOV_HSUART_GSBI2_TX_CRCI,
+		.end    = DMOV_HSUART_GSBI2_RX_CRCI,
+		.name   = "uartdm_crci",
+		.flags  = IORESOURCE_DMA,
+	},
+};
+static u64 msm_uart_dm2_dma_mask = DMA_BIT_MASK(32);
+struct platform_device ipq806x_device_uartdm_gsbi2 = {
+	.name   = "msm_serial_hs",
+	.id     = 0,
+	.num_resources  = ARRAY_SIZE(msm_uart_dm2_resources),
+	.resource       = msm_uart_dm2_resources,
+	.dev    = {
+		.dma_mask		= &msm_uart_dm2_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+
 static struct resource resources_uart_gsbi3[] = {
 	{
 		.start	= GSBI3_UARTDM_IRQ,
