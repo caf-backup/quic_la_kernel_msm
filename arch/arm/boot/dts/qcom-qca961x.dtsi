@@ -441,4 +441,9 @@
 			qcom,ledc_blink_indices_cnt = <4>;
 			qcom,ledc_blink_indices = <19 20 21 22>;
 		};
+
+		pmu {
+			compatible = "arm,cortex-a7-pmu";
+			interrupts = <1 7 0xf04>;
+		};
 	};
