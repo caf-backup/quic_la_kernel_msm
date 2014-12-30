@@ -36,7 +36,9 @@
 #include <linux/ctype.h>
 #include <linux/msm-sps.h>
 #include <linux/msm-bus.h>
+#ifdef CONFIG_MSM_SMD
 #include <soc/qcom/smem.h>
+#endif
 
 #define PAGE_SIZE_2K 2048
 #define PAGE_SIZE_4K 4096
