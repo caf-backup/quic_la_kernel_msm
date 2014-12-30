@@ -104,6 +104,28 @@
 			reg = <0x1800000 0x60000>;
 		};
 
+		qcom_crypto: qcrypto@8e20000 {
+			compatible = "qcom,qcrypto";
+			reg = <0x8e20000 0x20000>,
+				<0x8e04000 0x20000>;
+			reg-names = "crypto-base","crypto-bam-base";
+			interrupts = <0 207 0>;
+			qcom,bam-pipe-pair = <1>;
+			qcom,ce-hw-instance = <0>;
+			qcom,ce-device = <0>;
+		};
+
+		qcom_cedev: qcedev@8e20000 {
+			compatible = "qcom,qcedev";
+			reg = <0x8e20000  0x20000>,
+				<0x8e04000  0x20000>;
+			reg-names = "crypto-base","crypto-bam-base";
+			interrupts = <0 207 0>;
+			qcom,bam-pipe-pair = <1>;
+			qcom,ce-hw-instance = <0>;
+			qcom,ce-device = <0>;
+		};
+
 		wifi0: wifi@a000000 {
 			compatible = "qcom,wifi-qca961x";
 			reg = <0xa000000 0x200000>;
