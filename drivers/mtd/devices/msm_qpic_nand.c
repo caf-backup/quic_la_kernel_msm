@@ -95,6 +95,7 @@ static dma_addr_t msm_nand_dma_map(struct device *dev, void *addr, size_t size,
 	return dma_map_page(dev, page, offset, size, dir);
 }
 
+#ifdef CONFIG_MSM_BUS_SCALING
 static int msm_nand_bus_set_vote(struct msm_nand_info *info,
 			unsigned int vote)
 {
@@ -107,6 +108,13 @@ static int msm_nand_bus_set_vote(struct msm_nand_info *info,
 			info->clk_data.client_handle, vote, ret);
 	return ret;
 }
+#else
+static int msm_nand_bus_set_vote(struct msm_nand_info *info,
+			unsigned int vote)
+{
+	return 0;
+}
+#endif
 
 static int msm_nand_setup_clocks_and_bus_bw(struct msm_nand_info *info,
 				bool vote)
@@ -234,6 +242,7 @@ static int msm_nand_get_device(struct device *dev)
 	return ret;
 }
 
+#ifdef CONFIG_PM_RUNTIME
 static int msm_nand_put_device(struct device *dev)
 {
 	int ret = 0;
@@ -248,7 +257,14 @@ static int msm_nand_put_device(struct device *dev)
 	}
 	return ret;
 }
+#else
+static int msm_nand_put_device(struct device *dev)
+{
+	return 0;
+}
+#endif
 
+#ifdef CONFIG_MSM_BUS_SCALING
 static int msm_nand_bus_register(struct platform_device *pdev,
 		struct msm_nand_info *info)
 {
@@ -275,6 +291,17 @@ static void msm_nand_bus_unregister(struct msm_nand_info *info)
 	if (info->clk_data.client_handle)
 		msm_bus_scale_unregister_client(info->clk_data.client_handle);
 }
+#else
+static int msm_nand_bus_register(struct platform_device *pdev,
+		struct msm_nand_info *info)
+{
+	return 0;
+}
+
+static void msm_nand_bus_unregister(struct msm_nand_info *info)
+{
+}
+#endif
 
 /*
  * Wrapper function to prepare a single SPS command element with the data
@@ -655,6 +682,7 @@ static int msm_nand_flash_onfi_probe(struct msm_nand_info *info)
 	if (ret < 0)
 		goto free_dma;
 
+#ifdef CONFIG_MSM_SMD
 	/* Lookup the 'APPS' partition's first page address */
 	for (i = 0; i < FLASH_PTABLE_MAX_PARTS_V4; i++) {
 		if (!strncmp("apps", mtd_part[i].name,
@@ -663,6 +691,8 @@ static int msm_nand_flash_onfi_probe(struct msm_nand_info *info)
 			break;
 		}
 	}
+#endif
+
 	data.cfg.cmd = MSM_NAND_CMD_PAGE_READ_ALL;
 	data.exec = 1;
 	data.cfg.addr0 = (page_address << 16) |
@@ -2383,8 +2413,8 @@ int msm_nand_scan(struct mtd_info *mtd)
 			supported_flash->blksize = flashdev->erasesize;
 			supported_flash->oobsize = flashdev->oobsize;
 			supported_flash->ecc_correctability =
-					flashdev->ecc_correctable_bits;
-			if (!flashdev->ecc_correctable_bits)
+					flashdev->ecc.strength_ds;
+			if (!flashdev->ecc.strength_ds)
 				pr_err("num ecc correctable bit not specified and defaults to 4 bit BCH\n");
 		}
 		supported_flash->flash_id = flash_id;
@@ -2642,7 +2672,9 @@ static int msm_nand_bam_init(struct msm_nand_info *nand_info)
 	 * NANDc BAM device supports 2 execution environments - Modem and Apps
 	 * and thus the flag SPS_BAM_MGR_MULTI_EE is set.
 	 */
-	bam.manage = SPS_BAM_MGR_DEVICE_REMOTE | SPS_BAM_MGR_MULTI_EE;
+	bam.manage = SPS_BAM_MGR_MULTI_EE;
+	/* Setting to default threshold */
+	bam.summing_threshold = 0x4;
 
 	rc = sps_phy2h(bam.phys_addr, &nand_info->sps.bam_handle);
 	if (!rc)
@@ -2797,7 +2829,8 @@ out:
 #else
 static int msm_nand_parse_smem_ptable(int *nr_parts)
 {
-	return -ENODEV;
+	*nr_parts = 0;
+	return 0;
 }
 #endif
 
@@ -2995,7 +3028,9 @@ static struct platform_driver msm_nand_driver = {
 	.driver = {
 		.name		= DRIVER_NAME,
 		.of_match_table = msm_nand_match_table,
+#ifdef CONFIG_PM_RUNTIME
 		.pm		= &msm_nand_pm_ops,
+#endif
 	},
 };
 

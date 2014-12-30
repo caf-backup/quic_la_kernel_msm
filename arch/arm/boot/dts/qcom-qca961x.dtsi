@@ -97,6 +97,28 @@
 			clock-names = "core", "iface";
 		};
 
+		qcom,nand@7980000 {
+			compatible = "qcom,msm-nand";
+			reg = <0x07980000 0x40000>,
+				<0x07984000 0x1A000>;
+			reg-names = "nand_phys",
+					"bam_phys";
+			interrupts = <0 101 0>;
+			interrupt-names = "bam_irq";
+
+			qcom,msm-bus,name = "qpic_nand";
+			qcom,msm-bus,num-cases = <2>;
+			qcom,msm-bus,num-paths = <1>;
+
+			qcom,msm-bus,vectors-KBps =
+				<91 512 0 0>,
+				/* Voting for max b/w on PNOC bus for now */
+				<91 512 400000 800000>;
+
+			clock-names = "core_clk";
+			clocks = <&gcc 0>;
+		};
+
 		gcc: clock-controller@1800000 {
 			compatible = "qcom,gcc-dummy";
 			#clock-cells = <1>;
