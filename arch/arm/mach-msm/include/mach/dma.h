@@ -253,6 +253,11 @@ int msm_dmov_exec_cmd(unsigned id, unsigned int cmdptr);
 #define DMOV_SPI_GSBI5_RX_CHAN		6
 #define DMOV_SPI_GSBI5_TX_CHAN		5
 
+#define DMOV_HSUART_GSBI2_RX_CRCI	14
+#define DMOV_HSUART_GSBI2_TX_CRCI	4
+#define DMOV_HSUART_GSBI2_RX_CHAN	8
+#define DMOV_HSUART_GSBI2_TX_CHAN	7
+
 #elif defined(CONFIG_ARCH_FSM9XXX)
 /* defined in dma-fsm9xxx.h */
 

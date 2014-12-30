@@ -48,6 +48,7 @@ extern struct clock_init_data ipq806x_dummy_clock_init_data;
 extern struct clock_init_data ipq806x_clock_init_data;
 extern struct clock_init_data ipq806x_gsbi2_uart_clks;
 extern struct clock_init_data ipq806x_gsbi4_uart_clks;
+extern struct clock_init_data ipq806x_gsbi2_hsuart_clks;
 
 int msm_clock_init(struct clock_init_data *data);
 int find_vdd_level(struct clk *clk, unsigned long rate);

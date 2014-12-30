@@ -269,7 +269,6 @@ static struct spi_board_info ipq806x_default_spi_board_info[] __initdata = {
 static struct spi_board_info ipq806x_ap148_spi_board_info[] __initdata = {
 	IPQ806X_SPI_INFO("m25p80", SPI_MODE_0, 5, 0, &msm_sf_data, 51200000),
 	IPQ806X_SPI_INFO("ipq_pcm_spi", SPI_MODE_0, 6, 0, &ipq_pcm_spi_reset_gpio, 6000000),
-	IPQ806X_SPI_INFO("spidev", SPI_MODE_0, 2, 0, NULL, 51200000),
 };
 
 static struct spi_board_info ipq806x_ap148_1xx_spi_board_info[] __initdata = {
@@ -1841,10 +1840,6 @@ static struct platform_device *cdp_devices_ap160[] __initdata = {
 	&ipq806x_pc_cntr,
 };
 
-#ifndef CONFIG_SERIAL_MSM_HS
-static struct msm_serial_hs_platform_data msm_uart_dm9_pdata;
-#endif
-
 #ifdef CONFIG_SPI_QUP
 static int gsbi5_dma_config(void)
 {
@@ -2139,7 +2134,17 @@ static struct platform_device ap160_kp_pdev = {
 	},
 };
 
-
+static struct msm_serial_hs_platform_data ipq806x_uart_dm2_pdata = {
+	/* set to 1 if your device needs a character to be injected on wakeup */
+	.inject_rx_on_wakeup	= 0,
+	/* valid only if inject_rx_on_wakeup is 1 */
+	.rx_to_inject		= 0xFD,
+	.config_gpio		= 4,
+	.uart_tx_gpio		= 22,
+	.uart_rx_gpio		= 23,
+	.uart_cts_gpio		= 24,
+	.uart_rfr_gpio		= 25,
+};
 
 #ifdef CONFIG_SPI_QUP
 static void ipq806x_spi_register(void)
@@ -2163,9 +2168,6 @@ static void ipq806x_spi_register(void)
 			spi_register_board_info(ipq806x_ap148_1xx_spi_board_info,
 				ARRAY_SIZE(ipq806x_ap148_1xx_spi_board_info));
 		} else {
-			ipq806x_device_qup_spi_gsbi2.dev.platform_data =
-				&ipq806x_qup_spi_gsbi2_pdata;
-			platform_device_register(&ipq806x_device_qup_spi_gsbi2);
 			spi_register_board_info(ipq806x_ap148_spi_board_info,
 				ARRAY_SIZE(ipq806x_ap148_spi_board_info));
 		}
@@ -2221,6 +2223,8 @@ static void __init ipq806x_common_init(void)
 			msm_clock_init(&ipq806x_gsbi4_uart_clks);
 		if (machine_is_ipq806x_ap148_1xx())
 			msm_clock_init(&ipq806x_gsbi2_uart_clks);
+		if (machine_is_ipq806x_ap148())
+			msm_clock_init(&ipq806x_gsbi2_hsuart_clks);
 	} else {
 		if (msm_xo_init())
 			pr_err("Failed to initialize XO votes\n");
@@ -2611,6 +2615,10 @@ static void __init ipq806x_init(void)
 		if (machine_is_ipq806x_ap148_1xx()) {
 			ipq806x_device_uart_gsbi2.id = 2;
 			platform_device_register(&ipq806x_device_uart_gsbi2);
+		}
+		if (machine_is_ipq806x_ap148()) {
+			ipq806x_device_uartdm_gsbi2.dev.platform_data = &ipq806x_uart_dm2_pdata;
+			platform_device_register(&ipq806x_device_uartdm_gsbi2);
 		}
 	} else if (machine_is_ipq806x_ap145() ||
 		machine_is_ipq806x_ap145_1xx()) {
