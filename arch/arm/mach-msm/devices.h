@@ -61,6 +61,7 @@ extern struct platform_device apq8064_device_uart_gsbi3;
 extern struct platform_device apq8064_device_uart_gsbi4;
 extern struct platform_device apq8064_device_uartdm_gsbi4;
 extern struct platform_device apq8064_device_uart_gsbi7;
+extern struct platform_device ipq806x_device_uartdm_gsbi2;
 extern struct platform_device apq8064_device_qup_i2c_gsbi1;
 extern struct platform_device apq8064_device_qup_i2c_gsbi3;
 extern struct platform_device apq8064_device_qup_i2c_gsbi4;

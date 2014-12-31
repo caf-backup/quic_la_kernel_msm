@@ -3568,6 +3568,16 @@ struct clock_init_data ipq806x_gsbi2_uart_clks  __initdata = {
 	.size = ARRAY_SIZE(msm_clocks_gsbi2_uart),
 };
 
+static struct clk_lookup msm_clocks_gsbi2_hsuart[] = {
+	CLK_LOOKUP("core_clk",	gsbi2_uart_clk.c,	"msm_serial_hs.0"),
+	CLK_LOOKUP("iface_clk",	gsbi2_p_clk.c,		"msm_serial_hs.0"),
+};
+
+struct clock_init_data ipq806x_gsbi2_hsuart_clks  __initdata = {
+	.table = msm_clocks_gsbi2_hsuart,
+	.size = ARRAY_SIZE(msm_clocks_gsbi2_hsuart),
+};
+
 static struct clk_lookup msm_clocks_ipq806x[] = {
 	CLK_LOOKUP("xo",		cxo_a_clk.c,	""),
 	CLK_LOOKUP("xo",		pxo_a_clk.c,	""),
