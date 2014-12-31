@@ -683,11 +683,13 @@ static int _qcrypto_cipher_cra_init(struct crypto_tfm *tfm)
 	struct qcrypto_alg *q_alg;
 	struct qcrypto_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
 
+#ifdef CONFIG_FIPS_ENABLE
 	/* IF FIPS tests not passed, return error */
 	if (((g_fips140_status == FIPS140_STATUS_FAIL) ||
 		(g_fips140_status == FIPS140_STATUS_PASS_CRYPTO)) &&
 		is_fips_qcrypto_tests_done)
 		return -ENXIO;
+#endif
 
 	q_alg = container_of(alg, struct qcrypto_alg, cipher_alg);
 	ctx->flags = 0;
@@ -717,11 +719,13 @@ static int _qcrypto_ahash_cra_init(struct crypto_tfm *tfm)
 	struct qcrypto_alg *q_alg = container_of(alg, struct qcrypto_alg,
 								sha_alg);
 
+#ifdef CONFIG_FIPS_ENABLE
 	/* IF FIPS tests not passed, return error */
 	if (((g_fips140_status == FIPS140_STATUS_FAIL) ||
 		(g_fips140_status == FIPS140_STATUS_PASS_CRYPTO)) &&
 		is_fips_qcrypto_tests_done)
 		return -ENXIO;
+#endif
 
 	crypto_ahash_set_reqsize(ahash, sizeof(struct qcrypto_sha_req_ctx));
 	/* update context with ptr to cp */
@@ -4857,6 +4861,7 @@ fips_selftest:
 	*/
 	is_fips_qcrypto_tests_done = false;
 
+#ifdef CONFIG_FIPS_ENABLE
 	if (g_fips140_status != FIPS140_STATUS_NA) {
 
 		_qcrypto_prefix_alg_cra_name(prefix, 0);
@@ -4874,6 +4879,7 @@ fips_selftest:
 			g_fips140_status = FIPS140_STATUS_PASS_CRYPTO;
 
 	} else
+#endif
 		pr_info("qcrypto: FIPS140-2 Known Answer Tests: Skipped\n");
 
 	is_fips_qcrypto_tests_done = true;

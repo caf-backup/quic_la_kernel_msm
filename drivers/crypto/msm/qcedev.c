@@ -176,11 +176,13 @@ static int qcedev_open(struct inode *inode, struct file *file)
 	struct qcedev_handle *handle;
 	struct qcedev_control *podev;
 
+#ifdef CONFIG_FIPS_ENABLE
 	/* IF FIPS tests not passed, return error */
 	if (((g_fips140_status == FIPS140_STATUS_FAIL) ||
 		(g_fips140_status == FIPS140_STATUS_PASS_CRYPTO)) &&
 		is_fips_qcedev_integritytest_done)
 		return -ENXIO;
+#endif
 
 	podev = qcedev_minor_to_control(MINOR(inode->i_rdev));
 	if (podev == NULL) {
@@ -1823,6 +1825,7 @@ long qcedev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 		}
 		break;
 
+#ifdef CONFIG_FIPS_ENABLE
 		/* This IOCTL call can be called only once
 		by FIPS Integrity test */
 	case QCEDEV_IOCTL_UPDATE_FIPS_STATUS:
@@ -1856,7 +1859,6 @@ long qcedev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 
 		pr_info("qcedev: FIPS140-2 Global status flag: %d\n",
 			g_fips140_status);
-
 		break;
 
 		/* Read only IOCTL call to read the
@@ -1875,6 +1877,7 @@ long qcedev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 
 		}
 		break;
+#endif
 	default:
 		return -ENOTTY;
 	}
@@ -1956,6 +1959,7 @@ static int qcedev_probe(struct platform_device *pdev)
  * IN case of any failure, do not Init the module
  */
 	is_fips_qcedev_integritytest_done = false;
+#ifdef CONFIG_FIPS_ENABLE
 	if (g_fips140_status != FIPS140_STATUS_NA) {
 		if (_fips_qcedev_cipher_selftest(&qce_dev[0]) ||
 			_fips_qcedev_sha_selftest(&qce_dev[0])) {
@@ -1967,6 +1971,7 @@ static int qcedev_probe(struct platform_device *pdev)
 			rc = 0;
 		}
 	} else
+#endif
 		pr_info("qcedev: FIPS140-2 Known Answer Tests : Skipped\n");
 
 	if (rc >= 0)
