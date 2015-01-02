@@ -289,6 +289,28 @@ static void edma_init_desc(struct edma_common_info *c_info)
 }
 
 /*
+ * edma_receive_checksum
+ *	Api to check checksum on receive packets
+ */
+static void edma_receive_checksum(u8 *rrd1,
+	struct sk_buff *skb)
+{
+	skb_checksum_none_assert(skb);
+
+	/* check the RRD IP/L4 checksum bit to see if
+	 * its set, which in turn indicates checksum
+	 * failure.
+	 */
+	if ((rrd1[13] >> EDMA_RRD_L4_CSUM_OFFSET) & EDMA_RRD_CSUM_MASK)
+		return;
+
+	if ((rrd1[13] >> EDMA_RRD_IP_CSUM_OFFSET) & EDMA_RRD_CSUM_MASK)
+		return;
+
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
+}
+
+/*
  * edma_rx_complete()
  *	Main api called from the poll function to process rx packets.
  */
@@ -357,6 +379,7 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 		 */
 		skb->data += 16;
 		skb->protocol = eth_type_trans(skb, c_info->netdev[0]);
+		edma_receive_checksum(rrd, skb);
 		netif_receive_skb(skb);
 	}
 
@@ -524,11 +547,14 @@ static void edma_tx_update_hw_idx(struct edma_common_info *c_info,
  */
 static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 		struct edma_adapter *adapter, struct sk_buff *skb,
-		struct edma_tx_desc *tpd, int queue_id, unsigned long tx_flags)
+		struct edma_tx_desc *tpd, int queue_id,
+		bool edma_tx_csum_enabled)
 {
 	struct edma_sw_desc *sw_desc = NULL;
 	struct platform_device *pdev = c_info->pdev;
 	u16 buf_len = skb_headlen(skb);
+	struct iphdr *ip = (struct iphdr *) skb_network_header(skb);
+	u8 css;
 
 	sw_desc = edma_get_tx_buffer(c_info, tpd, queue_id);
 	sw_desc->dma = dma_map_single(&adapter->pdev->dev,
@@ -539,6 +565,25 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 
 	tpd->addr = cpu_to_le32(sw_desc->dma);
 	tpd->len  = cpu_to_le16(buf_len);
+
+	if (edma_tx_csum_enabled) {
+		css  = skb_transport_offset(skb);
+		switch(ip->protocol) {
+		case IPPROTO_TCP:
+			tpd->word1 |= (EDMA_TCP_CSUM_EN << EDMA_CSUM_SHIFT);
+			tpd->word1 |= (EDMA_IP_CSUM_EN << EDMA_IP_CSUM_SHIFT);
+			tpd->word1 |= (css << EDMA_HDR_OFFSET);
+			break;
+		case IPPROTO_UDP:
+			tpd->word1 |= (EDMA_UDP_CSUM_EN << EDMA_CSUM_SHIFT);
+			tpd->word1 |= (EDMA_IP_CSUM_EN << EDMA_IP_CSUM_SHIFT);
+			tpd->word1 |= (css << EDMA_HDR_OFFSET);
+			break;
+		default:
+			dev_dbg(&pdev->dev, "no TCP/UDP header\n");
+			break;
+		}
+	}
 
 	tpd->word3 |= EDMA_PORT_ENABLE_ALL << EDMA_TPD_PORT_BITMAP_SHIFT;
 
@@ -569,8 +614,8 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 	struct edma_tx_desc *tpd;
 	int queue_id = 0;
 	struct edma_common_info *c_info = adapter->c_info;
-	unsigned long tx_flags = 0;
 	struct edma_tx_desc_ring *etdr;
+	int ret;
 
 	/* this will be one of the 4 TX queues exposed to linux kernel */
 	u16 txq_id = skb_get_queue_mapping(skb);
@@ -598,10 +643,16 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 
 	tpd = edma_get_next_tpd(c_info, queue_id);
 
-	if (edma_tx_map_and_fill(c_info, adapter, skb, tpd,
-		queue_id, tx_flags)) {
-			dev_kfree_skb_any(skb);
-			goto netdev_okay;
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
+		ret = edma_tx_map_and_fill(c_info, adapter, skb, tpd,
+			queue_id, false);
+	else
+		ret = edma_tx_map_and_fill(c_info, adapter, skb, tpd,
+			queue_id, true);
+
+	if (ret) {
+		dev_kfree_skb_any(skb);
+		goto netdev_okay;
 	}
 
 	edma_tx_update_hw_idx(c_info, skb, tpd, queue_id);
