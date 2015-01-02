@@ -286,8 +286,14 @@ struct edma_hw;
 
 
 /* TX descriptor checksum offload */
-#define IP_CSUM_EN 0x1
-#define IP_CSUM_SHIFT 9
-#define TCP_CSUM_EN 0x1
-#define TCP_CSUM_SHIFT 10
-#define HDR_OFFSET 0
+#define EDMA_IP_CSUM_EN 0x1
+#define EDMA_IP_CSUM_SHIFT 9
+#define EDMA_TCP_CSUM_EN 0x1
+#define EDMA_UDP_CSUM_EN 0x2
+#define EDMA_CSUM_SHIFT 10
+#define EDMA_HDR_OFFSET 0
+
+/* RRD checksum field */
+#define EDMA_RRD_L4_CSUM_OFFSET 0x6
+#define EDMA_RRD_IP_CSUM_OFFSET 0x7
+#define EDMA_RRD_CSUM_MASK 0x1
