@@ -165,7 +165,7 @@ static struct gpiomux_setting sdc1_data_1_suspended_cfg = {
 static struct gpiomux_setting ipq806x_sdc3_card_det_cfg = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_2MA,
-	.pull = GPIOMUX_PULL_UP,
+	.pull = GPIOMUX_PULL_DOWN,
 };
 
 static struct gpiomux_setting ipq806x_mmc_card_det_cfg = {
