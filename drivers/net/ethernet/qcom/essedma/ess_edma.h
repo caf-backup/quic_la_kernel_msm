@@ -153,9 +153,18 @@ struct edma_hw;
 
 /* Tx side VLAN Configuration Register */
 #define REG_VLAN_CFG 0x4AC
-#define VLAN_TPID_MASK 0xffff
-#define SVLAN_TPID_SHIFT 0
-#define CVLAN_TPID_SHIFT 16
+
+#define EDMA_TX_CVLAN 16
+#define EDMA_TX_INS_CVLAN 17
+#define EDMA_TX_CVLAN_TAG_SHIFT 0
+
+#define EDMA_TX_SVLAN 14
+#define EDMA_TX_INS_SVLAN 15
+#define EDMA_TX_SVLAN_TAG_SHIFT 16
+
+#define EDMA_RRD_CVLAN_SHIFT 0
+#define EDMA_RRD_SVLAN_SHIFT 7
+#define EDMA_RRD_VLAN_MASK 0x1
 
 /* Tx Queue Packet Statistic Register */
 #define REG_TX_STAT_PKT_Q(x) (0x700 + ((x) << 2)) /* x = queue id */
