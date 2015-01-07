@@ -50,7 +50,7 @@
 #define HI_CRCI_CONF0			0x3d0
 #define HI_CRCI_CONF1			0x3d4
 #define HI_GP_CTL			0x3d8
-#define HI_CRCI_CTL(chan, ee)		(0x400 + 0x4*chan + 0x20800*ee)
+#define HI_CRCI_CTL(crci, ee)		(0x400 + 0x4*crci + 0x20800*ee)
 
 /* channel status */
 #define CH_STATUS_VALID	BIT(1)
@@ -73,7 +73,8 @@
 #define CH_RSLT_CONF_IRQ_EN	BIT(0)
 
 /* CRCI CTL */
-#define CRCI_CTL_RST	BIT(17)
+#define CRCI_CTL_MUX_SEL	BIT(18)
+#define CRCI_CTL_RST		BIT(17)
 
 /* CI configuration */
 #define CI_RANGE_END(x)		(x << 24)
@@ -86,7 +87,8 @@
 #define GP_CTL_LP_CNT(x)	(x << 8)
 
 /* Command pointer list entry */
-#define CPLE_LP		BIT(31)
+#define CPLE_LP			BIT(31)
+#define CPLE_CMD_PTR_LIST	BIT(29)
 
 /* Command list entry */
 #define CMD_LC			BIT(31)
@@ -138,6 +140,7 @@ struct adm_chan {
 
 	/* parsed from DT */
 	u32 id;			/* channel id */
+	u32 crci_mux;		/* determines primary/secondary crci mux */
 	u32 crci;		/* CRCI to be used for transfers */
 	u32 blk_size;		/* block size for CRCI, default 16 byte */
 
@@ -258,7 +261,7 @@ static struct dma_async_tx_descriptor *adm_prep_slave_sg(struct dma_chan *chan,
 		return ERR_PTR(-ENOMEM);
 
 	async_desc->dma_len = num_desc * sizeof(*desc) + sizeof(*cpl) +
-				ADM_DESC_ALIGN;
+				2*ADM_DESC_ALIGN;
 	async_desc->cpl = dma_alloc_writecombine(adev->dev, async_desc->dma_len,
 			&async_desc->dma_addr, GFP_NOWAIT);
 
@@ -274,7 +277,7 @@ static struct dma_async_tx_descriptor *adm_prep_slave_sg(struct dma_chan *chan,
 	desc_offset = (u32)desc - (u32)async_desc->cpl;
 
 	/* init cmd list */
-	cpl->cple |= CPLE_LP;
+	cpl->cple = CPLE_LP;
 	cpl->cple |= (async_desc->dma_addr + desc_offset) >> 3;
 
 	for_each_sg(sgl, sg, sg_len, i) {
@@ -342,7 +345,6 @@ static int adm_slave_config(struct adm_chan *achan,
 {
 	int ret = 0;
 	u32 burst;
-	struct adm_device *adev = achan->adev;
 
 	memcpy(&achan->slave, cfg, sizeof(*cfg));
 
@@ -370,15 +372,9 @@ static int adm_slave_config(struct adm_chan *achan,
 			achan->blk_size = 5;
 			break;
 		default:
-			achan->slave.src_maxburst = 0;
-			achan->slave.dst_maxburst = 0;
 			ret = -EINVAL;
 			break;
 		}
-
-		if (!ret)
-			writel(achan->blk_size,
-				adev->regs + HI_CRCI_CTL(achan->id, adev->ee));
 	}
 
 	return ret;
@@ -453,8 +449,7 @@ static void adm_start_dma(struct adm_chan *achan)
 	struct virt_dma_desc *vd = vchan_next_desc(&achan->vc);
 	struct adm_device *adev = achan->adev;
 	struct adm_async_desc *async_desc;
-	struct adm_desc_hw *desc;
-	struct adm_cmd_ptr_list *cpl;
+	u32 val;
 
 	lockdep_assert_held(&achan->vc.lock);
 
@@ -467,9 +462,6 @@ static void adm_start_dma(struct adm_chan *achan)
 	async_desc = container_of(vd, struct adm_async_desc, vd);
 	achan->curr_txd = async_desc;
 
-	cpl = PTR_ALIGN(async_desc->cpl, ADM_DESC_ALIGN);
-	desc = PTR_ALIGN(&cpl->desc[0], ADM_DESC_ALIGN);
-
 	if (!achan->initialized) {
 		/* enable interrupts */
 		writel(CH_CONF_IRQ_EN | CH_CONF_FLUSH_RSLT_EN |
@@ -480,19 +472,22 @@ static void adm_start_dma(struct adm_chan *achan)
 		writel(CH_RSLT_CONF_IRQ_EN | CH_RSLT_CONF_FLUSH_EN,
 			adev->regs + HI_CH_RSLT_CONF(achan->id, adev->ee));
 
-		if (achan->crci)
-			writel(achan->blk_size, adev->regs +
-				HI_CRCI_CTL(achan->crci, adev->ee));
-
 		achan->initialized = 1;
 	}
+
+	/* set the crci block size */
+	if (achan->crci)
+		writel(achan->crci_mux | achan->blk_size,
+			adev->regs + HI_CRCI_CTL(achan->crci, adev->ee));
 
 	/* make sure IRQ enable doesn't get reordered */
 	wmb();
 
+	val = ALIGN(async_desc->dma_addr, ADM_DESC_ALIGN) >> 3;
+	val |= CPLE_CMD_PTR_LIST;
+
 	/* write next command list out to the CMD FIFO */
-	writel(round_up(async_desc->dma_addr, ADM_DESC_ALIGN) >> 3,
-		adev->regs + HI_CH_CMD_PTR(achan->id, adev->ee));
+	writel(val, adev->regs + HI_CH_CMD_PTR(achan->id, adev->ee));
 }
 
 /**
@@ -571,17 +566,22 @@ static enum dma_status adm_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	size_t residue = 0;
 
 	ret = dma_cookie_status(chan, cookie, txstate);
+	if (ret == DMA_COMPLETE || !txstate)
+		return ret;
 
 	spin_lock_irqsave(&achan->vc.lock, flags);
 
 	vd = vchan_find_desc(&achan->vc, cookie);
 	if (vd)
 		residue = container_of(vd, struct adm_async_desc, vd)->length;
-	else if (achan->curr_txd && achan->curr_txd->vd.tx.cookie == cookie)
-		residue = achan->curr_txd->length;
 
 	spin_unlock_irqrestore(&achan->vc.lock, flags);
 
+	/*
+	 * residue is either the full length if it is in the issued list, or 0
+	 * if it is in progress.  We have no reliable way of determining
+	 * anything inbetween
+	*/
 	dma_set_residue(txstate, residue);
 
 	if (achan->error)
@@ -617,7 +617,10 @@ static struct dma_chan *adm_dma_xlate(struct of_phandle_args *dma_spec,
 		return NULL;
 
 	achan = to_adm_chan(chan);
-	achan->crci = crci;
+
+	/* lower 4 bits denotes crci port, upper bits denote mux setting */
+	achan->crci = crci & 0xf;
+	achan->crci_mux = (crci >> 4) ? CRCI_CTL_MUX_SEL : 0;
 
 	return chan;
 }

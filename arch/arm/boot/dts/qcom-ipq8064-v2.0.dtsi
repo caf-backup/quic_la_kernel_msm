@@ -1,0 +1,13 @@
+#include "qcom-ipq8064.dtsi"
+
+&soc {
+	pci@1b500000 {
+		compatible = "qcom,pcie-ipq8064-v2", "qcom,pcie-ipq8064";
+	};
+	pci@1b700000 {
+		compatible = "qcom,pcie-ipq8064-v2", "qcom,pcie-ipq8064";
+	};
+	pci@1b900000 {
+		compatible = "qcom,pcie-ipq8064-v2", "qcom,pcie-ipq8064";
+	};
+};

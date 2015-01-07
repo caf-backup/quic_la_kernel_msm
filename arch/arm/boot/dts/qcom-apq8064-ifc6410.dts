@@ -12,6 +12,7 @@
 				status = "ok";
 			};
 		};
+
 		amba {
 			/* eMMC */
 			sdcc1: sdcc@12400000 {
