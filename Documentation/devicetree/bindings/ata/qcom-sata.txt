@@ -4,7 +4,7 @@ SATA nodes are defined to describe on-chip Serial ATA controllers.
 Each SATA controller should have its own node.
 
 Required properties:
-- compatible		: compatible list, contains "qcom,msm-ahci"
+- compatible		: compatible list, must contain "generic-ahci"
 - interrupts		: <interrupt mapping for SATA IRQ>
 - reg			: <registers mapping>
 - phys			: Must contain exactly one entry as specified
@@ -19,10 +19,16 @@ Required properties for "qcom,ipq806x-ahci" compatible:
 				"core" - core clock
 				"rxoob" - RX out-of-band clock
 				"pmalive" - Power Module Alive clock
+- assigned-clocks	: Shall be:
+				SATA_RXOOB_CLK
+				SATA_PMALIVE_CLK
+- assigned-clock-rates	: Shall be:
+				100Mhz (100000000) for SATA_RXOOB_CLK
+				100Mhz (100000000) for SATA_PMALIVE_CLK
 
 Example:
 	sata@29000000 {
-		compatible = "qcom,ipq806x-ahci", "qcom,msm-ahci";
+		compatible = "qcom,ipq806x-ahci", "generic-ahci";
 		reg = <0x29000000 0x180>;
 
 		interrupts = <0 209 0x0>;
@@ -34,6 +40,8 @@ Example:
 			 <&gcc SATA_PMALIVE_CLK>;
 		clock-names = "slave_iface", "iface", "core",
 				"rxoob", "pmalive";
+		assigned-clocks = <&gcc SATA_RXOOB_CLK>, <&gcc SATA_PMALIVE_CLK>;
+		assigned-clock-rates = <100000000>, <100000000>;
 
 		phys = <&sata_phy>;
 		phy-names = "sata-phy";

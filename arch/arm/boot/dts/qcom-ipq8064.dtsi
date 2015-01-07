@@ -2,6 +2,7 @@
 
 #include "skeleton.dtsi"
 #include <dt-bindings/clock/qcom,gcc-ipq806x.h>
+#include <dt-bindings/mfd/qcom-rpm.h>
 #include <dt-bindings/reset/qcom,gcc-ipq806x.h>
 #include <dt-bindings/soc/qcom,gsbi.h>
 #include <dt-bindings/soc/qcom,tcsr.h>
@@ -25,16 +26,19 @@
 			qcom,saw = <&saw0>;
 			clocks = <&kraitcc 0>;
 			clock-names = "cpu";
+			core-supply = <&smb208_s2a>;
 			operating-points = <
-				/* kHz    ignored */
-				1400000 1000000
-				1200000 1000000
-				1000000 1000000
-				 800000 1000000
-				 600000 1000000
-				 384000 1000000
+				/* kHz    uV */
+				1400000 1175000
+				1200000 1125000
+				1000000 1075000
+				 800000 1025000
+				 600000  975000
+				 384000  925000
 			>;
+
 			clock-latency = <100000>;
+			voltage-tolerance = <5>;
 
 			cooling-min-state = <0>;
 			cooling-max-state = <10>;
@@ -49,16 +53,17 @@
 			next-level-cache = <&L2>;
 			qcom,acc = <&acc1>;
 			qcom,saw = <&saw1>;
+			core-supply = <&smb208_s2b>;
 			clocks = <&kraitcc 1>;
 			clock-names = "cpu";
 			operating-points = <
-				/* kHz    ignored */
-				1400000 1000000
-				1200000 1000000
-				1000000 1000000
-				 800000 1000000
-				 600000 1000000
-				 384000 1000000
+				/* kHz    uV */
+				1400000 1175000
+				1200000 1125000
+				1000000 1075000
+				 800000 1025000
+				 600000  975000
+				 384000  925000
 			>;
 			clock-latency = <100000>;
 
@@ -72,11 +77,12 @@
 			cache-level = <2>;
 			clocks = <&kraitcc 4>;
 			clock-names = "cache";
+			vdd_dig-supply = <&smb208_s1a>;
 			cache-points-kHz = <
-				/* kHz   CPU kHz */
-				1200000 1200000
-				1000000  600000
-				 384000  384000
+				/* kHz    uV    CPU kHz */
+				1200000 1150000 1200000
+				1000000 1100000  600000
+				 384000 1100000  384000
 			>;
 		};
 	};
@@ -107,6 +113,14 @@
 		};
 	};
 
+	clocks {
+		sleep_clk: sleep_clk {
+			compatible = "fixed-clock";
+			clock-frequency = <32768>;
+			#clock-cells = <0>;
+		};
+	};
+
 	nss-common {
 		reg = <0x03000000 0x00001000>;
 		reg-names = "nss_fpb_base";
@@ -117,6 +131,63 @@
 		#size-cells = <1>;
 		ranges;
 		compatible = "simple-bus";
+
+		rpm@108000 {
+			compatible = "qcom,rpm-ipq8064";
+			reg = <0x108000 0x1000>;
+			qcom,ipc = <&l2cc 0x8 2>;
+
+			interrupts = <0 19 0>,
+				     <0 21 0>,
+				     <0 22 0>;
+			interrupt-names = "ack",
+					  "err",
+					  "wakeup";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			smb208_s1a: smb208-s1a {
+				compatible = "qcom,rpm-smb208";
+				reg = <QCOM_RPM_SMB208_S1a>;
+
+				regulator-min-microvolt = <1050000>;
+				regulator-max-microvolt = <1150000>;
+
+				qcom,switch-mode-frequency = <500000>;
+
+			};
+
+			smb208_s1b: smb208-s1b {
+				compatible = "qcom,rpm-smb208";
+				reg = <QCOM_RPM_SMB208_S1b>;
+
+				regulator-min-microvolt = <1050000>;
+				regulator-max-microvolt = <1150000>;
+
+				qcom,switch-mode-frequency = <500000>;
+			};
+
+			smb208_s2a: smb208-s2a {
+				compatible = "qcom,rpm-smb208";
+				reg = <QCOM_RPM_SMB208_S2a>;
+
+				regulator-min-microvolt = < 800000>;
+				regulator-max-microvolt = <1250000>;
+
+				qcom,switch-mode-frequency = <500000>;
+			};
+
+			smb208_s2b: smb208-s2b {
+				compatible = "qcom,rpm-smb208";
+				reg = <QCOM_RPM_SMB208_S2b>;
+
+				regulator-min-microvolt = < 800000>;
+				regulator-max-microvolt = <1250000>;
+
+				qcom,switch-mode-frequency = <500000>;
+			};
+		};
 
 		qcom_pinmux: pinmux@800000 {
 			compatible = "qcom,ipq8064-pinctrl";
@@ -149,6 +220,13 @@
 			cpu-offset = <0x80000>;
 		};
 
+		watchdog@208a038 {
+			compatible = "qcom,kpss-wdt-ipq8064";
+			reg = <0x0208a038 0x40>;
+			clocks = <&sleep_clk>;
+			timeout-sec = <10>;
+		};
+
 		acc0: clock-controller@2088000 {
 			compatible = "qcom,kpss-acc-v1";
 			reg = <0x02088000 0x1000>, <0x02008000 0x1000>;
@@ -162,7 +240,7 @@
 		};
 
 		l2cc: clock-controller@2011000 {
-			compatible = "qcom,kpss-gcc";
+			compatible = "qcom,kpss-gcc", "syscon";
 			reg = <0x2011000 0x1000>;
 			clock-output-names = "acpu_l2_aux";
 		};
@@ -295,6 +373,39 @@
 			};
 		};
 
+		sata_phy: sata-phy@1b400000 {
+			compatible = "qcom,ipq806x-sata-phy";
+			reg = <0x1b400000 0x200>;
+
+			clocks = <&gcc SATA_PHY_CFG_CLK>;
+			clock-names = "cfg";
+
+			#phy-cells = <0>;
+			status = "disabled";
+		};
+
+		sata@29000000 {
+			compatible = "qcom,ipq806x-ahci", "generic-ahci";
+			reg = <0x29000000 0x180>;
+
+			interrupts = <0 209 0x0>;
+
+			clocks = <&gcc SFAB_SATA_S_H_CLK>,
+				 <&gcc SATA_H_CLK>,
+				 <&gcc SATA_A_CLK>,
+				 <&gcc SATA_RXOOB_CLK>,
+				 <&gcc SATA_PMALIVE_CLK>;
+			clock-names = "slave_face", "iface", "core",
+					"rxoob", "pmalive";
+
+			assigned-clocks = <&gcc SATA_RXOOB_CLK>, <&gcc SATA_PMALIVE_CLK>;
+			assigned-clock-rates = <100000000>, <100000000>;
+
+			phys = <&sata_phy>;
+			phy-names = "sata-phy";
+			status = "disabled";
+		};
+
 		qcom,ssbi@500000 {
 			compatible = "qcom,ssbi";
 			reg = <0x00500000 0x1000>;
@@ -397,36 +508,6 @@
 				 <&gcc PCIE_2_H_CLK>,
 				 <&gcc PCIE_2_PHY_CLK>;
 			clock-names = "core", "iface", "phy";
-			status = "disabled";
-		};
-
-		sata_phy: sata-phy@1b400000 {
-			compatible = "qcom,ipq806x-sata-phy";
-			reg = <0x1b400000 0x200>;
-
-			clocks = <&gcc SATA_PHY_CFG_CLK>;
-			clock-names = "cfg";
-
-			#phy-cells = <0>;
-			status = "disabled";
-		};
-
-		sata@29000000 {
-			compatible = "qcom,ipq806x-ahci", "qcom,msm-ahci";
-			reg = <0x29000000 0x180>;
-
-			interrupts = <0 209 0x0>;
-
-			clocks = <&gcc SFAB_SATA_S_H_CLK>,
-				 <&gcc SATA_H_CLK>,
-				 <&gcc SATA_A_CLK>,
-				 <&gcc SATA_RXOOB_CLK>,
-				 <&gcc SATA_PMALIVE_CLK>;
-			clock-names = "slave_face", "iface", "core",
-					"rxoob", "pmalive";
-
-			phys = <&sata_phy>;
-			phy-names = "sata-phy";
 			status = "disabled";
 		};
 

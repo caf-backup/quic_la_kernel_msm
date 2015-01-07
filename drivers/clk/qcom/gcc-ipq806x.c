@@ -296,7 +296,7 @@ static const u8 gcc_pxo_pll8_pll0[] = {
 static const char *gcc_pxo_pll8_pll0_map[] = {
 	"pxo",
 	"pll8_vote",
-	"pll0",
+	"pll0_vote",
 };
 
 static const u8 gcc_pxo_pll8_pll14_pll18_pll0_map[] = {

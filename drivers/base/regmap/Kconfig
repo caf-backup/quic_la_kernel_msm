@@ -20,6 +20,7 @@ config REGMAP_SPI
 config REGMAP_SPMI
 	select REGMAP
 	tristate
+	depends on SPMI
 
 config REGMAP_MMIO
 	select REGMAP

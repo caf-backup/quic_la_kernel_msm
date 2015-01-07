@@ -82,6 +82,8 @@
 #define QUP_IO_M_MODE_BAM		3
 
 /* QUP_OPERATIONAL fields */
+#define QUP_OP_IN_BLOCK_READ_REQ	BIT(13)
+#define QUP_OP_OUT_BLOCK_WRITE_REQ	BIT(12)
 #define QUP_OP_MAX_INPUT_DONE_FLAG	BIT(11)
 #define QUP_OP_MAX_OUTPUT_DONE_FLAG	BIT(10)
 #define QUP_OP_IN_SERVICE_FLAG		BIT(9)
@@ -153,8 +155,10 @@ struct spi_qup {
 	struct dma_slave_config	rx_conf;
 	struct dma_chan		*tx_chan;
 	struct dma_slave_config tx_conf;
-	void *dummy;
+	void			*dummy;
+	dma_addr_t		dummy_phys;
 	atomic_t		dma_outstanding;
+	int			mode;
 };
 
 
@@ -210,30 +214,14 @@ static int spi_qup_set_state(struct spi_qup *controller, u32 state)
 	return 0;
 }
 
-
-static void spi_qup_fifo_read(struct spi_qup *controller,
-			    struct spi_transfer *xfer)
+static void spi_qup_fill_read_buffer(struct spi_qup *controller,
+	struct spi_transfer *xfer, u32 data)
 {
 	u8 *rx_buf = xfer->rx_buf;
-	u32 word, state;
-	int idx, shift, w_size;
+	int idx, shift;
 
-	w_size = controller->w_size;
-
-	while (controller->rx_bytes < xfer->len) {
-
-		state = readl_relaxed(controller->base + QUP_OPERATIONAL);
-		if (0 == (state & QUP_OP_IN_FIFO_NOT_EMPTY))
-			break;
-
-		word = readl_relaxed(controller->base + QUP_INPUT_FIFO);
-
-		if (!rx_buf) {
-			controller->rx_bytes += w_size;
-			continue;
-		}
-
-		for (idx = 0; idx < w_size; idx++, controller->rx_bytes++) {
+	if (rx_buf)
+		for (idx = 0; idx < controller->w_size; idx++) {
 			/*
 			 * The data format depends on bytes per SPI word:
 			 *  4 bytes: 0x12345678
@@ -241,41 +229,139 @@ static void spi_qup_fifo_read(struct spi_qup *controller,
 			 *  1 byte : 0x00000012
 			 */
 			shift = BITS_PER_BYTE;
-			shift *= (w_size - idx - 1);
-			rx_buf[controller->rx_bytes] = word >> shift;
+			shift *= (controller->w_size - idx - 1);
+			rx_buf[controller->rx_bytes + idx] = data >> shift;
 		}
+
+	controller->rx_bytes += controller->w_size;
+}
+
+static void spi_qup_prepare_write_data(struct spi_qup *controller,
+	struct spi_transfer *xfer, u32 *data)
+{
+	const u8 *tx_buf = xfer->tx_buf;
+	u32 val;
+	int idx;
+
+	*data = 0;
+
+	if (tx_buf)
+		for (idx = 0; idx < controller->w_size; idx++) {
+			val = tx_buf[controller->tx_bytes + idx];
+			*data |= val << (BITS_PER_BYTE * (3 - idx));
+		}
+
+	controller->tx_bytes += controller->w_size;
+}
+
+static void spi_qup_fifo_read(struct spi_qup *controller,
+			    struct spi_transfer *xfer)
+{
+	u32 data;
+
+	/* clear service request */
+	writel_relaxed(QUP_OP_IN_SERVICE_FLAG,
+			controller->base + QUP_OPERATIONAL);
+
+	while (controller->rx_bytes < xfer->len) {
+		if (!(readl_relaxed(controller->base + QUP_OPERATIONAL) &
+		    QUP_OP_IN_FIFO_NOT_EMPTY))
+			break;
+
+		data = readl_relaxed(controller->base + QUP_INPUT_FIFO);
+
+		spi_qup_fill_read_buffer(controller, xfer, data);
 	}
 }
 
 static void spi_qup_fifo_write(struct spi_qup *controller,
-			    struct spi_transfer *xfer)
+	struct spi_transfer *xfer)
 {
-	const u8 *tx_buf = xfer->tx_buf;
-	u32 word, state, data;
-	int idx, w_size;
+	u32 data;
 
-	w_size = controller->w_size;
+	/* clear service request */
+	writel_relaxed(QUP_OP_OUT_SERVICE_FLAG,
+		controller->base + QUP_OPERATIONAL);
 
 	while (controller->tx_bytes < xfer->len) {
 
-		state = readl_relaxed(controller->base + QUP_OPERATIONAL);
-		if (state & QUP_OP_OUT_FIFO_FULL)
+		if (readl_relaxed(controller->base + QUP_OPERATIONAL) &
+				QUP_OP_OUT_FIFO_FULL)
 			break;
 
-		word = 0;
-		for (idx = 0; idx < w_size; idx++, controller->tx_bytes++) {
+		spi_qup_prepare_write_data(controller, xfer, &data);
+		writel_relaxed(data, controller->base + QUP_OUTPUT_FIFO);
 
-			if (!tx_buf) {
-				controller->tx_bytes += w_size;
-				break;
-			}
+	}
+}
 
-			data = tx_buf[controller->tx_bytes];
-			word |= data << (BITS_PER_BYTE * (3 - idx));
+static void spi_qup_block_read(struct spi_qup *controller,
+	struct spi_transfer *xfer)
+{
+	u32 data;
+	u32 reads_per_blk = controller->in_blk_sz >> 2;
+	u32 num_words = (xfer->len - controller->rx_bytes) / controller->w_size;
+	int i;
+
+	do {
+		/* ACK by clearing service flag */
+		writel_relaxed(QUP_OP_IN_SERVICE_FLAG,
+			controller->base + QUP_OPERATIONAL);
+
+		/* transfer up to a block size of data in a single pass */
+		for (i = 0; num_words && i < reads_per_blk; i++, num_words--) {
+
+			/* read data and fill up rx buffer */
+			data = readl_relaxed(controller->base + QUP_INPUT_FIFO);
+			spi_qup_fill_read_buffer(controller, xfer, data);
 		}
 
-		writel_relaxed(word, controller->base + QUP_OUTPUT_FIFO);
-	}
+		/* check to see if next block is ready */
+		if (!(readl_relaxed(controller->base + QUP_OPERATIONAL) &
+			QUP_OP_IN_BLOCK_READ_REQ))
+			break;
+
+	} while (num_words);
+
+	/*
+	 * Due to extra stickiness of the QUP_OP_IN_SERVICE_FLAG during block
+	 * reads, it has to be cleared again at the very end
+	 */
+	if (readl_relaxed(controller->base + QUP_OPERATIONAL) &
+		QUP_OP_MAX_INPUT_DONE_FLAG)
+		writel_relaxed(QUP_OP_IN_SERVICE_FLAG,
+			controller->base + QUP_OPERATIONAL);
+
+}
+
+static void spi_qup_block_write(struct spi_qup *controller,
+	struct spi_transfer *xfer)
+{
+	u32 data;
+	u32 writes_per_blk = controller->out_blk_sz >> 2;
+	u32 num_words = (xfer->len - controller->tx_bytes) / controller->w_size;
+	int i;
+
+	do {
+		/* ACK by clearing service flag */
+		writel_relaxed(QUP_OP_OUT_SERVICE_FLAG,
+			controller->base + QUP_OPERATIONAL);
+
+		/* transfer up to a block size of data in a single pass */
+		for (i = 0; num_words && i < writes_per_blk; i++, num_words--) {
+
+			/* swizzle the bytes for output and write out */
+			spi_qup_prepare_write_data(controller, xfer, &data);
+			writel_relaxed(data,
+				controller->base + QUP_OUTPUT_FIFO);
+		}
+
+		/* check to see if next block is ready */
+		if (!(readl_relaxed(controller->base + QUP_OPERATIONAL) &
+			QUP_OP_OUT_BLOCK_WRITE_REQ))
+			break;
+
+	} while (num_words);
 }
 
 static void qup_dma_callback(void *data)
@@ -296,7 +382,7 @@ static int spi_qup_do_dma(struct spi_qup *controller, struct spi_transfer *xfer)
 	u32 bytes_to_xfer = xfer->len;
 	u32 offset = 0;
 	u32 rx_nents = 0, tx_nents = 0;
-	dma_addr_t rx_dma = 0, tx_dma = 0, rx_dummy_dma = 0, tx_dummy_dma = 0;
+	dma_addr_t rx_dma = 0, tx_dma = 0;
 
 
 	if (xfer->rx_buf) {
@@ -307,47 +393,25 @@ static int spi_qup_do_dma(struct spi_qup *controller, struct spi_transfer *xfer)
 			ret = -ENOMEM;
 			return ret;
 		}
-
-		/* check to see if we need dummy buffer for leftover bytes */
-		rx_align = xfer->len % controller->in_blk_sz;
-		if (rx_align) {
-			rx_dummy_dma = dma_map_single(controller->dev,
-				controller->dummy, controller->in_fifo_sz,
-				DMA_FROM_DEVICE);
-
-			if (dma_mapping_error(controller->dev, rx_dummy_dma)) {
-				ret = -ENOMEM;
-				goto err_map_rx_dummy;
-			}
-		}
 	}
 
 	if (xfer->tx_buf) {
+		/* check to see if we need dummy buffer for leftover bytes */
+		tx_align = xfer->len % controller->out_blk_sz;
+
+		if (tx_align) {
+			memset(controller->dummy + controller->in_blk_sz + tx_align,
+				0, controller->out_blk_sz - tx_align);
+			memcpy(controller->dummy + controller->in_blk_sz,
+				xfer->tx_buf + xfer->len - tx_align, tx_align);
+		}
+
 		tx_dma = dma_map_single(controller->dev,
 			(void *)xfer->tx_buf, xfer->len, DMA_TO_DEVICE);
 
 		if (dma_mapping_error(controller->dev, tx_dma)) {
 			ret = -ENOMEM;
 			goto err_map_tx;
-		}
-
-		/* check to see if we need dummy buffer for leftover bytes */
-		tx_align = xfer->len % controller->out_blk_sz;
-		if (tx_align) {
-			memcpy(controller->dummy + SZ_1K,
-				xfer->tx_buf + xfer->len - tx_align,
-				tx_align);
-			memset(controller->dummy + SZ_1K + tx_align, 0,
-				controller->out_blk_sz - tx_align);
-
-			tx_dummy_dma = dma_map_single(controller->dev,
-				controller->dummy + SZ_1K,
-				controller->out_blk_sz, DMA_TO_DEVICE);
-
-			if (dma_mapping_error(controller->dev, tx_dummy_dma)) {
-				ret = -ENOMEM;
-				goto err_map_tx_dummy;
-			}
 		}
 	}
 
@@ -357,6 +421,14 @@ static int spi_qup_do_dma(struct spi_qup *controller, struct spi_transfer *xfer)
 		xfer_len = min_t(u32, bytes_to_xfer, SPI_MAX_XFER);
 		n_words = DIV_ROUND_UP(xfer_len, controller->w_size);
 
+		if (xfer_len == bytes_to_xfer) {
+			tx_align = xfer_len % controller->out_blk_sz;
+			rx_align = xfer_len % controller->in_blk_sz;
+		} else {
+			tx_align = 0;
+			rx_align = 0;
+		}
+
 		/* write out current word count to controller */
 		writel_relaxed(n_words, controller->base + QUP_MX_INPUT_CNT);
 		writel_relaxed(n_words, controller->base + QUP_MX_OUTPUT_CNT);
@@ -364,9 +436,6 @@ static int spi_qup_do_dma(struct spi_qup *controller, struct spi_transfer *xfer)
 		reinit_completion(&controller->done);
 
 		if (xfer->tx_buf) {
-			/* recalc align for each transaction */
-			tx_align = xfer_len % controller->out_blk_sz;
-
 			if (tx_align)
 				tx_nents = 2;
 			else
@@ -380,7 +449,9 @@ static int spi_qup_do_dma(struct spi_qup *controller, struct spi_transfer *xfer)
 			/* account for non block size transfer */
 			if (tx_align) {
 				sg_dma_len(&tx_sg[1]) = controller->out_blk_sz;
-				sg_dma_address(&tx_sg[1]) = tx_dummy_dma;
+				sg_dma_address(&tx_sg[1]) =
+					controller->dummy_phys +
+						controller->in_blk_sz;
 			}
 
 			txd = dmaengine_prep_slave_sg(controller->tx_chan,
@@ -401,9 +472,6 @@ static int spi_qup_do_dma(struct spi_qup *controller, struct spi_transfer *xfer)
 		}
 
 		if (xfer->rx_buf) {
-			/* recalc align for each transaction */
-			rx_align = xfer_len % controller->in_blk_sz;
-
 			if (rx_align)
 				rx_nents = 2;
 			else
@@ -417,7 +485,8 @@ static int spi_qup_do_dma(struct spi_qup *controller, struct spi_transfer *xfer)
 			/* account for non block size transfer */
 			if (rx_align) {
 				sg_dma_len(&rx_sg[1]) = controller->in_blk_sz;
-				sg_dma_address(&rx_sg[1]) = rx_dummy_dma;
+				sg_dma_address(&rx_sg[1]) =
+					controller->dummy_phys;
 			}
 
 			rxd = dmaengine_prep_slave_sg(controller->rx_chan,
@@ -455,10 +524,6 @@ static int spi_qup_do_dma(struct spi_qup *controller, struct spi_transfer *xfer)
 			goto err_unmap;
 		}
 
-		if (rx_align)
-			memcpy(xfer->rx_buf + offset + xfer->len - rx_align,
-				controller->dummy, rx_align);
-
 		/* adjust remaining bytes to transfer */
 		bytes_to_xfer -= xfer_len;
 		offset += xfer_len;
@@ -474,21 +539,18 @@ static int spi_qup_do_dma(struct spi_qup *controller, struct spi_transfer *xfer)
 	ret = 0;
 
 err_unmap:
-	if (tx_align)
-		dma_unmap_single(controller->dev, tx_dummy_dma,
-			controller->out_fifo_sz, DMA_TO_DEVICE);
-err_map_tx_dummy:
 	if (xfer->tx_buf)
 		dma_unmap_single(controller->dev, tx_dma, xfer->len,
-			DMA_TO_DEVICE);
+					DMA_TO_DEVICE);
 err_map_tx:
-	if (rx_align)
-		dma_unmap_single(controller->dev, rx_dummy_dma,
-			controller->in_fifo_sz, DMA_FROM_DEVICE);
-err_map_rx_dummy:
-	if (xfer->rx_buf)
+	if (xfer->rx_buf) {
 		dma_unmap_single(controller->dev, rx_dma, xfer->len,
-			DMA_FROM_DEVICE);
+					DMA_FROM_DEVICE);
+
+		if (rx_align)
+			memcpy(xfer->rx_buf + xfer->len - rx_align,
+				controller->dummy, rx_align);
+	}
 
 	return ret;
 }
@@ -512,9 +574,9 @@ static irqreturn_t spi_qup_qup_irq(int irq, void *dev_id)
 
 	writel_relaxed(qup_err, controller->base + QUP_ERROR_FLAGS);
 	writel_relaxed(spi_err, controller->base + SPI_ERROR_FLAGS);
-	writel_relaxed(opflags, controller->base + QUP_OPERATIONAL);
 
 	if (!xfer) {
+		writel_relaxed(opflags, controller->base + QUP_OPERATIONAL);
 		dev_err_ratelimited(controller->dev, "unexpected irq %08x %08x %08x\n",
 				    qup_err, spi_err, opflags);
 		return IRQ_HANDLED;
@@ -542,12 +604,23 @@ static irqreturn_t spi_qup_qup_irq(int irq, void *dev_id)
 		error = -EIO;
 	}
 
-	if (!controller->use_dma) {
-		if (opflags & QUP_OP_IN_SERVICE_FLAG)
-			spi_qup_fifo_read(controller, xfer);
+	if (controller->use_dma) {
+		writel_relaxed(opflags, controller->base + QUP_OPERATIONAL);
+	} else
+	{
+		if (opflags & QUP_OP_IN_SERVICE_FLAG) {
+			if (opflags & QUP_OP_IN_BLOCK_READ_REQ)
+				spi_qup_block_read(controller, xfer);
+			else
+				spi_qup_fifo_read(controller, xfer);
+		}
 
-		if (opflags & QUP_OP_OUT_SERVICE_FLAG)
-			spi_qup_fifo_write(controller, xfer);
+		if (opflags & QUP_OP_OUT_SERVICE_FLAG) {
+			if (opflags & QUP_OP_OUT_BLOCK_WRITE_REQ)
+				spi_qup_block_write(controller, xfer);
+			else
+				spi_qup_fifo_write(controller, xfer);
+		}
 	}
 
 	spin_lock_irqsave(&controller->lock, flags);
@@ -555,18 +628,18 @@ static irqreturn_t spi_qup_qup_irq(int irq, void *dev_id)
 	controller->xfer = xfer;
 	spin_unlock_irqrestore(&controller->lock, flags);
 
-	if (controller->rx_bytes == xfer->len || error)
+	if ((controller->rx_bytes == xfer->len &&
+		(opflags & QUP_OP_MAX_INPUT_DONE_FLAG)) || error)
 		complete(&controller->done);
 
 	return IRQ_HANDLED;
 }
 
-
 /* set clock freq ... bits per word */
 static int spi_qup_io_config(struct spi_device *spi, struct spi_transfer *xfer)
 {
 	struct spi_qup *controller = spi_master_get_devdata(spi->master);
-	u32 config, iomode, mode;
+	u32 config, iomode;
 	int ret, n_words, w_size;
 	size_t dma_align = dma_get_cache_alignment();
 	u32 dma_available = 0;
@@ -602,11 +675,12 @@ static int spi_qup_io_config(struct spi_device *spi, struct spi_transfer *xfer)
 		IS_ALIGNED((size_t)xfer->tx_buf, dma_align) &&
 		IS_ALIGNED((size_t)xfer->rx_buf, dma_align) &&
 		!is_vmalloc_addr(xfer->tx_buf) &&
-		!is_vmalloc_addr(xfer->rx_buf))
+		!is_vmalloc_addr(xfer->rx_buf) &&
+		(xfer->len > 3*controller->in_blk_sz))
 		dma_available = 1;
 
 	if (n_words <= (controller->in_fifo_sz / sizeof(u32))) {
-		mode = QUP_IO_M_MODE_FIFO;
+		controller->mode = QUP_IO_M_MODE_FIFO;
 		writel_relaxed(n_words, controller->base + QUP_MX_READ_CNT);
 		writel_relaxed(n_words, controller->base + QUP_MX_WRITE_CNT);
 		/* must be zero for FIFO */
@@ -614,7 +688,7 @@ static int spi_qup_io_config(struct spi_device *spi, struct spi_transfer *xfer)
 		writel_relaxed(0, controller->base + QUP_MX_OUTPUT_CNT);
 		controller->use_dma = 0;
 	} else if (!dma_available) {
-		mode = QUP_IO_M_MODE_BLOCK;
+		controller->mode = QUP_IO_M_MODE_BLOCK;
 		writel_relaxed(n_words, controller->base + QUP_MX_INPUT_CNT);
 		writel_relaxed(n_words, controller->base + QUP_MX_OUTPUT_CNT);
 		/* must be zero for BLOCK and BAM */
@@ -622,7 +696,7 @@ static int spi_qup_io_config(struct spi_device *spi, struct spi_transfer *xfer)
 		writel_relaxed(0, controller->base + QUP_MX_WRITE_CNT);
 		controller->use_dma = 0;
 	} else {
-		mode = QUP_IO_M_MODE_DMOV;
+		controller->mode = QUP_IO_M_MODE_DMOV;
 		writel_relaxed(0, controller->base + QUP_MX_READ_CNT);
 		writel_relaxed(0, controller->base + QUP_MX_WRITE_CNT);
 		controller->use_dma = 1;
@@ -631,13 +705,14 @@ static int spi_qup_io_config(struct spi_device *spi, struct spi_transfer *xfer)
 	iomode = readl_relaxed(controller->base + QUP_IO_M_MODES);
 	/* Set input and output transfer mode */
 	iomode &= ~(QUP_IO_M_INPUT_MODE_MASK | QUP_IO_M_OUTPUT_MODE_MASK);
+
 	if (!controller->use_dma)
 		iomode &= ~(QUP_IO_M_PACK_EN | QUP_IO_M_UNPACK_EN);
 	else
 		iomode |= QUP_IO_M_PACK_EN | QUP_IO_M_UNPACK_EN;
 
-	iomode |= (mode << QUP_IO_M_OUTPUT_MODE_MASK_SHIFT);
-	iomode |= (mode << QUP_IO_M_INPUT_MODE_MASK_SHIFT);
+	iomode |= (controller->mode << QUP_IO_M_OUTPUT_MODE_MASK_SHIFT);
+	iomode |= (controller->mode << QUP_IO_M_INPUT_MODE_MASK_SHIFT);
 
 	writel_relaxed(iomode, controller->base + QUP_IO_M_MODES);
 
@@ -723,7 +798,8 @@ static int spi_qup_transfer_one(struct spi_master *master,
 			goto exit;
 		}
 
-		spi_qup_fifo_write(controller, xfer);
+		if (controller->mode == QUP_IO_M_MODE_FIFO)
+			spi_qup_fifo_write(controller, xfer);
 
 		if (spi_qup_set_state(controller, QUP_STATE_RUN)) {
 			dev_warn(controller->dev, "cannot set EXECUTE state\n");
@@ -742,6 +818,7 @@ exit:
 	if (!ret)
 		ret = controller->error;
 	spin_unlock_irqrestore(&controller->lock, flags);
+
 	return ret;
 }
 
@@ -915,8 +992,9 @@ static int spi_qup_probe(struct platform_device *pdev)
 			controller->rx_chan = NULL;
 		}
 
-		controller->dummy = devm_kmalloc(controller->dev, PAGE_SIZE,
-			GFP_KERNEL);
+		controller->dummy = dma_alloc_writecombine(controller->dev,
+				controller->in_blk_sz + controller->out_blk_sz,
+				&controller->dummy_phys, GFP_KERNEL);
 
 		if (!controller->dummy) {
 			dma_release_channel(controller->rx_chan);
@@ -1051,6 +1129,10 @@ static int spi_qup_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(controller->cclk);
 	clk_disable_unprepare(controller->iclk);
+
+	dma_free_writecombine(controller->dev,
+			controller->in_blk_sz + controller->out_blk_sz,
+			controller->dummy, controller->dummy_phys);
 
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
