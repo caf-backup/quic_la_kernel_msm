@@ -82,6 +82,11 @@
 #define EDMA_HW_CHECKSUM 0x00000001
 #define EDMA_VLAN_TX_FLAG 0x00000002
 
+#define EDMA_SW_DESC_FLAG_LAST 0x1
+#define EDMA_SW_DESC_FLAG_SKB_HEAD 0x2
+
+#define EDMA_MAX_SKB_FRAGS (MAX_SKB_FRAGS + 1)
+
 /* edma transmit descriptor */
 struct edma_tx_desc {
 	__le16  len; /* full packet including CRC */
@@ -125,6 +130,7 @@ struct edma_sw_desc {
 	struct sk_buff *skb;
 	dma_addr_t dma; /* dma address */
 	u16 length; /* Tx/Rx buffer length */
+	u32 flags;
 };
 
 /* per core queue related information */
