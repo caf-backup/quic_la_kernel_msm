@@ -171,8 +171,9 @@ static int edma_axi_probe(struct platform_device *pdev)
 	adapter[0]->c_info = c_info;
 	netdev[0]->netdev_ops = &edma_axi_netdev_ops;
 	netdev[0]->features = NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_CTAG_TX
-					| NETIF_F_HW_VLAN_CTAG_RX;
-	netdev[0]->hw_features = NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_CTAG_RX;
+					| NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_SG;
+	netdev[0]->hw_features = NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_CTAG_RX
+					| NETIF_F_SG;
 
 	err = register_netdev(netdev[0]);
 	if (err)
