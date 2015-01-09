@@ -79,7 +79,8 @@
 #define EDMA_TX_CPU_START_SHIFT 0x2
 #define EDMA_RX_CPU_START_SHIFT 0x1
 
-#define EDMA_TX_FLAGS_CSUM 0x1
+#define EDMA_HW_CHECKSUM 0x00000001
+#define EDMA_VLAN_TX_FLAG 0x00000002
 
 /* edma transmit descriptor */
 struct edma_tx_desc {

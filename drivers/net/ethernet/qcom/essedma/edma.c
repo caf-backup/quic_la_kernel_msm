@@ -14,6 +14,7 @@
  */
 
 #include <linux/platform_device.h>
+#include <linux/if_vlan.h>
 #include "ess_edma.h"
 #include "edma.h"
 
@@ -156,6 +157,10 @@ static void edma_configure_rx(struct edma_common_info *c_info)
 
 	/* Set Rx FIFO threshold to start to DMA data to host */
 	rxq_ctrl_data = FIFO_THRESH_128_BYTE;
+
+	/* Set RX remove vlan bit */
+	rxq_ctrl_data |= RXQ_CTRL_RMV_VLAN;
+
 	edma_write_reg(REG_RXQ_CTRL, rxq_ctrl_data);
 }
 
@@ -323,7 +328,7 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 	u8 rrd[16];
 	volatile u32 data = 0;
 	u16 hw_next_to_clean = 0;
-	u16 sw_next_to_clean;
+	u16 sw_next_to_clean, vlan = 0;
 	struct platform_device *pdev = c_info->pdev;
 	struct edma_rfd_desc_ring *erdr = c_info->rfd_ring[queue_id];
 	struct edma_sw_desc *sw_desc, *next_buffer;
@@ -380,6 +385,13 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 		skb->data += 16;
 		skb->protocol = eth_type_trans(skb, c_info->netdev[0]);
 		edma_receive_checksum(rrd, skb);
+		if ((rrd[14] >> EDMA_RRD_CVLAN_SHIFT) & EDMA_RRD_VLAN_MASK) {
+			vlan = rrd[9] << 8 | rrd[8];
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan);
+		} else if ((rrd[3] >> EDMA_RRD_SVLAN_SHIFT) & EDMA_RRD_VLAN_MASK) {
+			vlan = rrd[9] << 8 | rrd[8];
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021AD), vlan);
+		}
 		netif_receive_skb(skb);
 	}
 
@@ -548,10 +560,11 @@ static void edma_tx_update_hw_idx(struct edma_common_info *c_info,
 static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 		struct edma_adapter *adapter, struct sk_buff *skb,
 		struct edma_tx_desc *tpd, int queue_id,
-		bool edma_tx_csum_enabled)
+		unsigned int flags_transmit)
 {
 	struct edma_sw_desc *sw_desc = NULL;
 	struct platform_device *pdev = c_info->pdev;
+	u32 word1 = 0, word3 = 0;
 	u16 buf_len = skb_headlen(skb);
 	struct iphdr *ip = (struct iphdr *) skb_network_header(skb);
 	u8 css;
@@ -566,18 +579,18 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 	tpd->addr = cpu_to_le32(sw_desc->dma);
 	tpd->len  = cpu_to_le16(buf_len);
 
-	if (edma_tx_csum_enabled) {
+	if (flags_transmit & EDMA_HW_CHECKSUM) {
 		css  = skb_transport_offset(skb);
 		switch(ip->protocol) {
 		case IPPROTO_TCP:
-			tpd->word1 |= (EDMA_TCP_CSUM_EN << EDMA_CSUM_SHIFT);
-			tpd->word1 |= (EDMA_IP_CSUM_EN << EDMA_IP_CSUM_SHIFT);
-			tpd->word1 |= (css << EDMA_HDR_OFFSET);
+			word1 |= (EDMA_TCP_CSUM_EN << EDMA_CSUM_SHIFT);
+			word1 |= (EDMA_IP_CSUM_EN << EDMA_IP_CSUM_SHIFT);
+			word1 |= (css << EDMA_HDR_OFFSET);
 			break;
 		case IPPROTO_UDP:
-			tpd->word1 |= (EDMA_UDP_CSUM_EN << EDMA_CSUM_SHIFT);
-			tpd->word1 |= (EDMA_IP_CSUM_EN << EDMA_IP_CSUM_SHIFT);
-			tpd->word1 |= (css << EDMA_HDR_OFFSET);
+			word1 |= (EDMA_UDP_CSUM_EN << EDMA_CSUM_SHIFT);
+			word1 |= (EDMA_IP_CSUM_EN << EDMA_IP_CSUM_SHIFT);
+			word1 |= (css << EDMA_HDR_OFFSET);
 			break;
 		default:
 			dev_dbg(&pdev->dev, "no TCP/UDP header\n");
@@ -585,10 +598,29 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 		}
 	}
 
-	tpd->word3 |= EDMA_PORT_ENABLE_ALL << EDMA_TPD_PORT_BITMAP_SHIFT;
+	if (flags_transmit & EDMA_VLAN_TX_FLAG) {
+		switch(skb->vlan_proto) {
+		case htons(ETH_P_8021Q):
+			word3 |= ((1 << EDMA_TX_CVLAN) | (1 << EDMA_TX_INS_CVLAN));
+			word3 |= vlan_tx_tag_get(skb) << EDMA_TX_CVLAN_TAG_SHIFT;
+			break;
+		case htons(ETH_P_8021AD):
+			word1 |= ((1 << EDMA_TX_SVLAN) | (1 << EDMA_TX_INS_SVLAN));
+			tpd->svlan_tag = vlan_tx_tag_get(skb) << EDMA_TX_SVLAN_TAG_SHIFT;
+			break;
+		default:
+			dev_dbg(&pdev->dev, "no ctag or stag present\n");
+			goto vlan_tag_error;
+		}
+	}
+
+	word3 |= EDMA_PORT_ENABLE_ALL << EDMA_TPD_PORT_BITMAP_SHIFT;
 
 	/* The last tpd */
-	tpd->word1 |= 1 << EDMA_TPD_EOP_SHIFT;
+	word1 |= 1 << EDMA_TPD_EOP_SHIFT;
+
+	tpd->word1 = word1;
+	tpd->word3 = word3;
 
 	/* The last buffer info contain the skb address,
 	 * so it will be free after unmap
@@ -600,6 +632,7 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 
 dma_error:
 	dev_err(&pdev->dev, "TX DMA map failed\n");
+vlan_tag_error:
 	return -ENOMEM;
 }
 
@@ -616,6 +649,7 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 	struct edma_common_info *c_info = adapter->c_info;
 	struct edma_tx_desc_ring *etdr;
 	int ret;
+	unsigned int flags_transmit = 0;
 
 	/* this will be one of the 4 TX queues exposed to linux kernel */
 	u16 txq_id = skb_get_queue_mapping(skb);
@@ -643,13 +677,14 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 
 	tpd = edma_get_next_tpd(c_info, queue_id);
 
-	if (skb->ip_summed != CHECKSUM_PARTIAL)
-		ret = edma_tx_map_and_fill(c_info, adapter, skb, tpd,
-			queue_id, false);
-	else
-		ret = edma_tx_map_and_fill(c_info, adapter, skb, tpd,
-			queue_id, true);
+	if (vlan_tx_tag_present(skb))
+		flags_transmit |= EDMA_VLAN_TX_FLAG;
 
+	if (skb->ip_summed == CHECKSUM_PARTIAL)
+		flags_transmit |= EDMA_HW_CHECKSUM;
+
+	ret = edma_tx_map_and_fill(c_info, adapter, skb, tpd,
+			queue_id, flags_transmit);
 	if (ret) {
 		dev_kfree_skb_any(skb);
 		goto netdev_okay;
