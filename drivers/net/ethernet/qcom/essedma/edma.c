@@ -415,15 +415,18 @@ static inline void edma_tx_unmap_and_free(struct platform_device *pdev,
 {
 	struct sk_buff *skb = sw_desc->skb;
 
-	/* unmap_single or unmap_page */
-	if (sw_desc->dma) {
+	if (likely(sw_desc->flags & EDMA_SW_DESC_FLAG_SKB_HEAD))
+	/* unmap_single for skb head area */
 		dma_unmap_single(&pdev->dev, sw_desc->dma,
 			sw_desc->length, DMA_TO_DEVICE);
-	}
+	else
+		dma_unmap_page(&pdev->dev, sw_desc->dma,
+			sw_desc->length, DMA_TO_DEVICE);
 
-	dev_kfree_skb_any(skb);
-	sw_desc->dma = 0;
-	sw_desc->skb = NULL;
+	if (likely(sw_desc->flags & EDMA_SW_DESC_FLAG_LAST))
+		dev_kfree_skb_any(skb);
+
+	sw_desc->flags = 0;
 }
 
 /*
@@ -536,7 +539,7 @@ static inline int edma_tx_queue_get(struct edma_adapter *adapter,
  *	update the producer index for the ring transmitted
  */
 static void edma_tx_update_hw_idx(struct edma_common_info *c_info,
-		struct sk_buff *skb, struct edma_tx_desc *tpd, int queue_id)
+		struct sk_buff *skb, int queue_id)
 {
 	struct edma_tx_desc_ring *etdr = c_info->tpd_ring[queue_id];
 	volatile u32 tpd_idx_data;
@@ -559,15 +562,18 @@ static void edma_tx_update_hw_idx(struct edma_common_info *c_info,
  */
 static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 		struct edma_adapter *adapter, struct sk_buff *skb,
-		struct edma_tx_desc *tpd, int queue_id,
-		unsigned int flags_transmit)
+		int queue_id, unsigned int flags_transmit)
 {
 	struct edma_sw_desc *sw_desc = NULL;
 	struct platform_device *pdev = c_info->pdev;
+	struct edma_tx_desc *tpd;
+	int i = 0, nr_frags = skb_shinfo(skb)->nr_frags;
 	u32 word1 = 0, word3 = 0;
 	u16 buf_len = skb_headlen(skb);
 	struct iphdr *ip = (struct iphdr *) skb_network_header(skb);
 	u8 css;
+
+	tpd = edma_get_next_tpd(c_info, queue_id);
 
 	sw_desc = edma_get_tx_buffer(c_info, tpd, queue_id);
 	sw_desc->dma = dma_map_single(&adapter->pdev->dev,
@@ -616,9 +622,6 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 
 	word3 |= EDMA_PORT_ENABLE_ALL << EDMA_TPD_PORT_BITMAP_SHIFT;
 
-	/* The last tpd */
-	word1 |= 1 << EDMA_TPD_EOP_SHIFT;
-
 	tpd->word1 = word1;
 	tpd->word3 = word3;
 
@@ -626,7 +629,31 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 	 * so it will be free after unmap
 	 */
 	sw_desc->length = buf_len;
+	sw_desc->flags |= EDMA_SW_DESC_FLAG_SKB_HEAD;
+
+	while (nr_frags--) {
+		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+		buf_len = skb_frag_size(frag);
+		sw_desc = edma_get_tx_buffer(c_info, tpd, queue_id);
+		tpd = edma_get_next_tpd(c_info, queue_id);
+		sw_desc->length = buf_len;
+		sw_desc->dma = skb_frag_dma_map(&pdev->dev, frag, 0, buf_len, DMA_TO_DEVICE);
+
+		if (unlikely(dma_mapping_error(NULL, sw_desc->dma))) {
+			goto dma_error;
+		}
+
+		tpd->addr = cpu_to_le32(sw_desc->dma);
+		tpd->len  = cpu_to_le16(buf_len);
+		tpd->word1 = word1;
+		tpd->word3 = word3;
+		i++;
+	}
+
+	tpd->word1 |= 1 << EDMA_TPD_EOP_SHIFT;
+
 	sw_desc->skb = skb;
+	sw_desc->flags |= EDMA_SW_DESC_FLAG_LAST;
 
 	return 0;
 
@@ -644,15 +671,25 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 		struct net_device *netdev)
 {
 	struct edma_adapter *adapter = netdev_priv(netdev);
-	struct edma_tx_desc *tpd;
 	int queue_id = 0;
 	struct edma_common_info *c_info = adapter->c_info;
 	struct edma_tx_desc_ring *etdr;
-	int ret;
+	int ret, num_tpds_needed;
+	u16 txq_id;
 	unsigned int flags_transmit = 0;
 
+	num_tpds_needed = skb_shinfo(skb)->nr_frags + 1;
+
+	if (unlikely(num_tpds_needed > EDMA_MAX_SKB_FRAGS)) {
+		dev_err(&netdev->dev,
+			"skb received with fragments %d which is more than %d",
+			num_tpds_needed, EDMA_MAX_SKB_FRAGS);
+		dev_kfree_skb_any(skb);
+		return NETDEV_TX_OK;
+	}
+
 	/* this will be one of the 4 TX queues exposed to linux kernel */
-	u16 txq_id = skb_get_queue_mapping(skb);
+	txq_id = skb_get_queue_mapping(skb);
 
 	queue_id = edma_tx_queue_get(adapter, skb);
 	etdr = c_info->tpd_ring[queue_id];
@@ -662,7 +699,7 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 	 */
 	local_bh_disable();
 
-	if (!edma_tpd_available(c_info, queue_id)) {
+	if (unlikely(num_tpds_needed > edma_tpd_available(c_info, queue_id))) {
 
 		/* Get the netdev_queue in order to stop the queue for
 		 * the relvenat core
@@ -672,10 +709,9 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 		/* not enough descriptor, just stop queue */
 		netif_tx_stop_queue(nq);
 		local_bh_enable();
+		dev_warn(&netdev->dev, "Not enough descriptors available");
 		return NETDEV_TX_BUSY;
 	}
-
-	tpd = edma_get_next_tpd(c_info, queue_id);
 
 	if (vlan_tx_tag_present(skb))
 		flags_transmit |= EDMA_VLAN_TX_FLAG;
@@ -683,14 +719,14 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
 		flags_transmit |= EDMA_HW_CHECKSUM;
 
-	ret = edma_tx_map_and_fill(c_info, adapter, skb, tpd,
-			queue_id, flags_transmit);
+	ret = edma_tx_map_and_fill(c_info, adapter, skb, queue_id,
+			flags_transmit);
 	if (ret) {
 		dev_kfree_skb_any(skb);
 		goto netdev_okay;
 	}
 
-	edma_tx_update_hw_idx(c_info, skb, tpd, queue_id);
+	edma_tx_update_hw_idx(c_info, skb, queue_id);
 
 netdev_okay:
 	local_bh_enable();
