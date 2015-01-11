@@ -278,6 +278,7 @@ static struct spi_board_info ipq806x_ap148_1xx_spi_board_info[] __initdata = {
 
 static struct spi_board_info ipq806x_ap160_spi_board_info[] __initdata = {
 	IPQ806X_SPI_INFO("m25p80", SPI_MODE_0, 5, 0, &msm_sf_data, 51200000),
+	IPQ806X_SPI_INFO("ipq_pcm_spi", SPI_MODE_0, 6, 0, &ipq_pcm_spi_reset_gpio, 6000000),
 };
 
 #endif
@@ -2172,9 +2173,7 @@ static void ipq806x_spi_register(void)
 				ARRAY_SIZE(ipq806x_ap148_spi_board_info));
 		}
 	} else if (machine_is_ipq806x_ap160() || machine_is_ipq806x_ap160_2xx()) {
-		ipq806x_device_qup_spi_gsbi2.dev.platform_data =
-			&ipq806x_qup_spi_gsbi2_pdata;
-		platform_device_register(&ipq806x_device_qup_spi_gsbi2);
+		ipq_pcm_spi_reset_gpio = 33;
 		spi_register_board_info(ipq806x_ap160_spi_board_info,
 			ARRAY_SIZE(ipq806x_ap160_spi_board_info));
 	} else
