@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 
 #define TCSR_USB_PORT_SEL	0xb0
+#define TCSR_USB_HSPHY_CONFIG	0xC
 
 static int tcsr_probe(struct platform_device *pdev)
 {
@@ -36,6 +37,11 @@ static int tcsr_probe(struct platform_device *pdev)
 	if (!of_property_read_u32(node, "qcom,usb-ctrl-select", &val)) {
 		dev_err(&pdev->dev, "setting usb port select = %d\n", val);
 		writel(val, base + TCSR_USB_PORT_SEL);
+	}
+
+	if (!of_property_read_u32(node, "qcom,usb-hsphy-mode-select", &val)) {
+		dev_info(&pdev->dev, "setting usb hs phy mode select = %x\n", val);
+		writel(val, base + TCSR_USB_HSPHY_CONFIG);
 	}
 
 	return 0;
