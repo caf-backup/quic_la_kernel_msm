@@ -26,5 +26,10 @@
 #define WIFI1_RADIO_COLD_RESET			9
 #define WIFI1_CORE_WARM_RESET			10
 #define WIFI1_CORE_COLD_RESET			11
+#define USB3_UNIPHY_PHY_ARES			12
+#define USB3_HSPHY_POR_ARES				13
+#define USB3_HSPHY_S_ARES				14
+#define USB2_HSPHY_POR_ARES				15
+#define USB2_HSPHY_S_ARES				16
 
 #endif
