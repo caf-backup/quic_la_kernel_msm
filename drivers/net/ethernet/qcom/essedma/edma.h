@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014 - 2015, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -80,7 +80,7 @@
 #define EDMA_RX_CPU_START_SHIFT 0x1
 
 #define EDMA_HW_CHECKSUM 0x00000001
-#define EDMA_VLAN_TX_FLAG 0x00000002
+#define EDMA_VLAN_TX_TAG_INSERT_FLAG 0x00000002
 
 #define EDMA_SW_DESC_FLAG_LAST 0x1
 #define EDMA_SW_DESC_FLAG_SKB_HEAD 0x2

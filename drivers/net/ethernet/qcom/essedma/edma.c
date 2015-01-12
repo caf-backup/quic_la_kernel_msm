@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014 - 2015, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -334,6 +334,7 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 	struct edma_sw_desc *sw_desc, *next_buffer;
 	struct sk_buff *skb;
 	struct edma_rx_free_desc *rfd_desc, *next_rfd_desc;
+	int proc_id = get_cpu();
 	sw_next_to_clean = erdr->sw_next_to_clean;
 
 	while (1) {
@@ -392,7 +393,7 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 			vlan = rrd[9] << 8 | rrd[8];
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021AD), vlan);
 		}
-		netif_receive_skb(skb);
+		napi_gro_receive(&c_info->q_cinfo[proc_id].napi, skb);
 	}
 
 	erdr->sw_next_to_clean = sw_next_to_clean;
@@ -403,6 +404,8 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 		edma_write_reg(REG_RX_SW_CONS_IDX_Q(queue_id),
 					erdr->sw_next_to_clean);
 	}
+
+	put_cpu();
 }
 
 
@@ -525,8 +528,10 @@ static inline int edma_tx_queue_get(struct edma_adapter *adapter,
 		struct sk_buff *skb)
 {
 	struct edma_common_info *c_info = adapter->c_info;
-	int id = smp_processor_id();
+	int id = get_cpu();
 	struct queue_per_cpu_info *q_cinfo = &c_info->q_cinfo[id];
+
+	put_cpu();
 
 	/* skb->priority is used as an index to skb priority table
 	 * and based on packet priority, correspong queue is assigned.
@@ -568,51 +573,59 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 	struct platform_device *pdev = c_info->pdev;
 	struct edma_tx_desc *tpd;
 	int i = 0, nr_frags = skb_shinfo(skb)->nr_frags;
-	u32 word1 = 0, word3 = 0;
-	u16 buf_len = skb_headlen(skb);
+	u32 word1 = 0, word3 = 0, lso_word1 = 0, svlan_tag = 0;
+	u16 lso_desc_len = 0, buf_len;
 	struct iphdr *ip = (struct iphdr *) skb_network_header(skb);
-	u8 css;
 
-	tpd = edma_get_next_tpd(c_info, queue_id);
+	if (unlikely(skb_is_gso(skb))) {
+		lso_desc_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+		if(!pskb_may_pull(skb, lso_desc_len))
+			return -EINVAL;
 
-	sw_desc = edma_get_tx_buffer(c_info, tpd, queue_id);
-	sw_desc->dma = dma_map_single(&adapter->pdev->dev,
-			skb->data, buf_len, DMA_TO_DEVICE);
+		/* TODO: What additional checks need to be performed here */
+		if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV4) {
+			lso_word1 |= EDMA_TPD_IPV4_EN;
+			ip_hdr(skb)->check = 0;
+			tcp_hdr(skb)->check = ~csum_tcpudp_magic(ip_hdr(skb)->saddr,
+				ip_hdr(skb)->daddr, 0, IPPROTO_TCP, 0);
+		} else if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6) {
+			lso_word1 |= EDMA_TPD_LSO_V2_EN;
+			tcp_hdr(skb)->check = ~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
+				&ipv6_hdr(skb)->daddr, 0, IPPROTO_TCP, 0);
+		} else
+			return -EINVAL;
 
-	if (dma_mapping_error(&pdev->dev, sw_desc->dma))
-		goto dma_error;
-
-	tpd->addr = cpu_to_le32(sw_desc->dma);
-	tpd->len  = cpu_to_le16(buf_len);
-
-	if (flags_transmit & EDMA_HW_CHECKSUM) {
-		css  = skb_transport_offset(skb);
+		/* TODO: Do we need to calculate partial checksum ourselves here */
+		lso_word1 |= EDMA_TPD_LSO_EN | ((skb_shinfo(skb)->gso_size & EDMA_TPD_MSS_MASK) << EDMA_TPD_MSS_SHIFT) |
+				(skb_transport_offset(skb) << EDMA_TPD_HDR_SHIFT);
+	} else if (flags_transmit & EDMA_HW_CHECKSUM) {
 		switch(ip->protocol) {
 		case IPPROTO_TCP:
-			word1 |= (EDMA_TCP_CSUM_EN << EDMA_CSUM_SHIFT);
-			word1 |= (EDMA_IP_CSUM_EN << EDMA_IP_CSUM_SHIFT);
-			word1 |= (css << EDMA_HDR_OFFSET);
+			word1 |= (EDMA_TPD_TCP_CSUM_EN | EDMA_TPD_IP_CSUM_EN);
+			word1 |= (skb_transport_offset(skb) << EDMA_TPD_HDR_SHIFT);
 			break;
 		case IPPROTO_UDP:
-			word1 |= (EDMA_UDP_CSUM_EN << EDMA_CSUM_SHIFT);
-			word1 |= (EDMA_IP_CSUM_EN << EDMA_IP_CSUM_SHIFT);
-			word1 |= (css << EDMA_HDR_OFFSET);
+			word1 |= (EDMA_TPD_UDP_CSUM_EN | EDMA_TPD_IP_CSUM_EN);
+			word1 |= (skb_transport_offset(skb) << EDMA_TPD_HDR_SHIFT);
 			break;
 		default:
+			word1 |= (EDMA_TPD_CUSTOM_CSUM_EN) | (EDMA_TPD_IP_CSUM_EN);
+			word1 |= (skb->csum_start << EDMA_TPD_HDR_SHIFT);
+			word1 |= ((skb->csum_start + skb->csum_offset) << EDMA_TPD_CUSTOM_CSUM_SHIFT);
 			dev_dbg(&pdev->dev, "no TCP/UDP header\n");
 			break;
 		}
 	}
 
-	if (flags_transmit & EDMA_VLAN_TX_FLAG) {
+	if (flags_transmit & EDMA_VLAN_TX_TAG_INSERT_FLAG) {
 		switch(skb->vlan_proto) {
 		case htons(ETH_P_8021Q):
-			word3 |= ((1 << EDMA_TX_CVLAN) | (1 << EDMA_TX_INS_CVLAN));
+			word3 |= (1 << EDMA_TX_INS_CVLAN);
 			word3 |= vlan_tx_tag_get(skb) << EDMA_TX_CVLAN_TAG_SHIFT;
 			break;
 		case htons(ETH_P_8021AD):
-			word1 |= ((1 << EDMA_TX_SVLAN) | (1 << EDMA_TX_INS_SVLAN));
-			tpd->svlan_tag = vlan_tx_tag_get(skb) << EDMA_TX_SVLAN_TAG_SHIFT;
+			word1 |= (1 << EDMA_TX_INS_SVLAN);
+			svlan_tag = vlan_tx_tag_get(skb) << EDMA_TX_SVLAN_TAG_SHIFT;
 			break;
 		default:
 			dev_dbg(&pdev->dev, "no ctag or stag present\n");
@@ -622,14 +635,60 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 
 	word3 |= EDMA_PORT_ENABLE_ALL << EDMA_TPD_PORT_BITMAP_SHIFT;
 
-	tpd->word1 = word1;
-	tpd->word3 = word3;
+	buf_len = skb_headlen(skb);
 
-	/* The last buffer info contain the skb address,
-	 * so it will be free after unmap
-	 */
-	sw_desc->length = buf_len;
-	sw_desc->flags |= EDMA_SW_DESC_FLAG_SKB_HEAD;
+	if (lso_word1) {
+		tpd = edma_get_next_tpd(c_info, queue_id);
+
+		sw_desc = edma_get_tx_buffer(c_info, tpd, queue_id);
+		sw_desc->dma = dma_map_single(&adapter->pdev->dev,
+					skb->data, lso_desc_len, DMA_TO_DEVICE);
+		if (dma_mapping_error(&pdev->dev, sw_desc->dma))
+			goto dma_error;
+
+		tpd->addr = cpu_to_le32(sw_desc->dma);
+		tpd->len  = cpu_to_le16(lso_desc_len);
+
+		tpd->svlan_tag = svlan_tag;
+		tpd->word1 = word1 | lso_word1;
+		tpd->word3 = word3;
+
+		/* The last buffer info contain the skb address,
+		 * tso it will be free after unmap
+		 */
+		sw_desc->length = lso_desc_len;
+		sw_desc->flags |= EDMA_SW_DESC_FLAG_SKB_HEAD;
+
+		buf_len -= lso_desc_len;
+	}
+
+	if (likely (buf_len)) {
+
+		/* TODO Do not dequeue descriptor if there is a potential error */
+		tpd = edma_get_next_tpd(c_info, queue_id);
+
+		sw_desc = edma_get_tx_buffer(c_info, tpd, queue_id);
+		sw_desc->dma = dma_map_single(&adapter->pdev->dev,
+			                        skb->data, buf_len, DMA_TO_DEVICE);
+
+		if (dma_mapping_error(&pdev->dev, sw_desc->dma))
+			goto dma_error;
+
+		tpd->addr = cpu_to_le32(sw_desc->dma);
+		tpd->len  = cpu_to_le16(buf_len);
+
+		word3 |= EDMA_PORT_ENABLE_ALL << EDMA_TPD_PORT_BITMAP_SHIFT;
+
+		tpd->svlan_tag = svlan_tag;
+		tpd->word1 = word1 | lso_word1;
+		tpd->word3 = word3;
+
+		/* The last buffer info contain the skb address,
+	 	 * so it will be free after unmap
+	 	 */
+		sw_desc->length = buf_len;
+		sw_desc->flags |= EDMA_SW_DESC_FLAG_SKB_HEAD;
+	}
 
 	while (nr_frags--) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
@@ -645,7 +704,9 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 
 		tpd->addr = cpu_to_le32(sw_desc->dma);
 		tpd->len  = cpu_to_le16(buf_len);
-		tpd->word1 = word1;
+
+		tpd->svlan_tag = svlan_tag;
+		tpd->word1 = word1 | lso_word1;
 		tpd->word3 = word3;
 		i++;
 	}
@@ -682,7 +743,7 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 
 	if (unlikely(num_tpds_needed > EDMA_MAX_SKB_FRAGS)) {
 		dev_err(&netdev->dev,
-			"skb received with fragments %d which is more than %d",
+			"skb received with fragments %u which is more than %d",
 			num_tpds_needed, EDMA_MAX_SKB_FRAGS);
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
@@ -714,7 +775,7 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 	}
 
 	if (vlan_tx_tag_present(skb))
-		flags_transmit |= EDMA_VLAN_TX_FLAG;
+		flags_transmit |= EDMA_VLAN_TX_TAG_INSERT_FLAG;
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
 		flags_transmit |= EDMA_HW_CHECKSUM;
