@@ -1096,6 +1096,11 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 			if (bond->params.mode == BOND_MODE_8023AD)
 				bond_3ad_handle_link_change(new_active, BOND_LINK_UP);
 
+			if (bond->params.mode == BOND_MODE_XOR) {
+				if (bond_cb && bond_cb->bond_cb_link_up)
+					bond_cb->bond_cb_link_up(new_active->dev);
+			}
+
 			if (bond_is_lb(bond))
 				bond_alb_handle_link_change(bond, new_active, BOND_LINK_UP);
 		} else {
@@ -2520,6 +2525,11 @@ static void bond_miimon_commit(struct bonding *bond)
 			if (bond_is_lb(bond))
 				bond_alb_handle_link_change(bond, slave,
 							    BOND_LINK_UP);
+
+			if (bond->params.mode == BOND_MODE_XOR) {
+				if (bond_cb && bond_cb->bond_cb_link_up)
+					bond_cb->bond_cb_link_up(slave->dev);
+			}
 
 			if (!bond->curr_active_slave ||
 			    (slave == bond->primary_slave))
