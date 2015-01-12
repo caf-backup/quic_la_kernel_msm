@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014 - 2015, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -295,12 +295,17 @@ struct edma_hw;
 
 
 /* TX descriptor checksum offload */
-#define EDMA_IP_CSUM_EN 0x1
-#define EDMA_IP_CSUM_SHIFT 9
-#define EDMA_TCP_CSUM_EN 0x1
-#define EDMA_UDP_CSUM_EN 0x2
-#define EDMA_CSUM_SHIFT 10
-#define EDMA_HDR_OFFSET 0
+#define EDMA_TPD_HDR_SHIFT 0
+#define EDMA_TPD_IP_CSUM_EN 0x00000200
+#define EDMA_TPD_TCP_CSUM_EN 0x0000400
+#define EDMA_TPD_UDP_CSUM_EN 0x00000800
+#define EDMA_TPD_CUSTOM_CSUM_EN 0x00000C00
+#define EDMA_TPD_LSO_EN 0x00001000
+#define EDMA_TPD_LSO_V2_EN 0x00002000
+#define EDMA_TPD_IPV4_EN 0x00010000
+#define EDMA_TPD_MSS_MASK 0x1FFF
+#define EDMA_TPD_MSS_SHIFT 18
+#define EDMA_TPD_CUSTOM_CSUM_SHIFT 18
 
 /* RRD checksum field */
 #define EDMA_RRD_L4_CSUM_OFFSET 0x6
