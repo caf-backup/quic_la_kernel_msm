@@ -355,6 +355,7 @@ struct arm_smmu_device {
 	u32				features;
 
 #define ARM_SMMU_OPT_SECURE_CFG_ACCESS (1 << 0)
+#define ARM_SMMU_OPT_SKIP_INIT		(1 << 2)
 	u32				options;
 	enum arm_smmu_arch_version	version;
 	enum arm_smmu_implementation	model;
@@ -429,6 +430,7 @@ static bool using_legacy_binding, using_generic_binding;
 
 static struct arm_smmu_option_prop arm_smmu_options[] = {
 	{ ARM_SMMU_OPT_SECURE_CFG_ACCESS, "calxeda,smmu-secure-config-access" },
+	{ ARM_SMMU_OPT_SKIP_INIT, "qcom,skip-init" },
 	{ 0, NULL},
 };
 
@@ -1614,23 +1616,13 @@ static struct iommu_ops arm_smmu_ops = {
 	.tlbi_domain		= arm_smmu_tlbi_domain,
 };
 
-static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
+static void arm_smmu_context_bank_reset(struct arm_smmu_device *smmu)
 {
-	void __iomem *gr0_base = ARM_SMMU_GR0(smmu);
-	void __iomem *cb_base;
 	int i;
 	u32 reg, major;
+	void __iomem *gr0_base = ARM_SMMU_GR0(smmu);
+	void __iomem *cb_base;
 
-	/* clear global FSR */
-	reg = readl_relaxed(ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sGFSR);
-	writel(reg, ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sGFSR);
-
-	/*
-	 * Reset stream mapping groups: Initial values mark all SMRn as
-	 * invalid and all S2CRn as bypass unless overridden.
-	 */
-	for (i = 0; i < smmu->num_mapping_groups; ++i)
-		arm_smmu_write_sme(smmu, i);
 
 	if (smmu->model == ARM_MMU500) {
 		/*
@@ -1665,6 +1657,28 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 			reg &= ~ARM_MMU500_ACTLR_CPRE;
 			writel_relaxed(reg, cb_base + ARM_SMMU_CB_ACTLR);
 		}
+	}
+}
+
+static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
+{
+	void __iomem *gr0_base = ARM_SMMU_GR0(smmu);
+	int i;
+	u32 reg;
+
+	/* clear global FSR */
+	reg = readl_relaxed(ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sGFSR);
+	writel_relaxed(reg, ARM_SMMU_GR0_NS(smmu) + ARM_SMMU_GR0_sGFSR);
+
+	if (!(smmu->options & ARM_SMMU_OPT_SKIP_INIT)) {
+		/*
+		 * Reset stream mapping groups: Initial values mark all SMRn as
+		 * invalid and all S2CRn as bypass unless overridden.
+		*/
+		for (i = 0; i < smmu->num_mapping_groups; ++i)
+			arm_smmu_write_sme(smmu, i);
+
+		arm_smmu_context_bank_reset(smmu);
 	}
 
 	/* Invalidate the TLB, just in case */
