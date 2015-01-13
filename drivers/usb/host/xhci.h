@@ -1526,6 +1526,16 @@ struct xhci_hcd {
 #define XHCI_PLAT		(1 << 16)
 #define XHCI_SLOW_SUSPEND	(1 << 17)
 #define XHCI_SPURIOUS_WAKEUP	(1 << 18)
+/*
+ * Section 4.6.1.2 of xHCI 1.0 spec says SW should wait for atleast
+ * 5 seconds for abort operation response. The current handshake function
+ * polls for status every 1us. For an unresponsive host controller, it
+ * is 1us tight loop polling for 5 seconds. This will increase the CPU utilization
+ * to maximum. This might cause side effect to other programs running in
+ * the system. This quirk can be used to poll for 10ms then sleep for 10ms and poll
+ * again.
+ */
+#define XHCI_RELAXED_ABORT	(1 << 19)
 	unsigned int		num_active_eps;
 	unsigned int		limit_active_eps;
 	/* There are two roothubs to keep track of bus suspend info for */

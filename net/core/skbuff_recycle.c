@@ -8,6 +8,7 @@
  *      2 of the License, or (at your option) any later version.
  */
 #include <skbuff_recycle.h>
+#include <trace/events/skb.h>
 
 static DEFINE_PER_CPU(struct sk_buff_head, recycle_list);
 #ifdef CONFIG_SKB_RECYCLER_MULTI_CPU
@@ -158,15 +159,25 @@ inline bool skb_recycler_consume(struct sk_buff *skb) {
 	return false;
 }
 
+static void skb_recycler_free_skb(struct sk_buff_head *list)
+{
+	struct sk_buff *skb = NULL;
+
+	while ((skb = skb_dequeue(list)) != NULL)
+		trace_consume_skb(skb);
+		skb_release_data(skb);
+		kfree_skbmem(skb);
+}
+
 static int skb_cpu_callback(struct notifier_block *nfb,
 		unsigned long action, void *ocpu)
 {
 	unsigned long oldcpu = (unsigned long)ocpu;
 
 	if (action == CPU_DEAD || action == CPU_DEAD_FROZEN) {
-		skb_queue_purge(&per_cpu(recycle_list, oldcpu));
+		skb_recycler_free_skb(&per_cpu(recycle_list, oldcpu));
 #ifdef CONFIG_SKB_RECYCLER_MULTI_CPU
-		skb_queue_purge(&per_cpu(recycle_spare_list, oldcpu));
+		skb_recycler_free_skb(&per_cpu(recycle_spare_list, oldcpu));
 #endif
 	}
 
