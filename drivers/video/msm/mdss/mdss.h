@@ -14,7 +14,9 @@
 #ifndef MDSS_H
 #define MDSS_H
 
+#ifdef CONFIG_ION
 #include <linux/msm_ion.h>
+#endif
 #include <linux/msm_mdp.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
