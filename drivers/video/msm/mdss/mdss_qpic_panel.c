@@ -15,7 +15,6 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/gpio.h>
-#include <linux/qpnp/pin.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/leds.h>
@@ -192,20 +191,22 @@ int mdss_qpic_panel_io_init(struct platform_device *pdev,
 		qpic_panel_io->te_gpio = te_gpio;
 
 	if (!gpio_is_valid(bl_gpio))
-		pr_warn("%s: te gpio not specified\n", __func__);
+		pr_warn("%s: bl gpio not specified\n", __func__);
 	else
 		qpic_panel_io->bl_gpio = bl_gpio;
 
 	vdd_vreg = devm_regulator_get(&pdev->dev, "vdd");
-	if (IS_ERR(vdd_vreg))
+	if (IS_ERR(vdd_vreg)) {
+		qpic_panel_io->vdd_vreg = NULL;
 		pr_err("%s could not get vdd,", __func__);
-	else
+	} else
 		qpic_panel_io->vdd_vreg = vdd_vreg;
 
 	avdd_vreg = devm_regulator_get(&pdev->dev, "avdd");
-	if (IS_ERR(avdd_vreg))
+	if (IS_ERR(avdd_vreg)) {
+		qpic_panel_io->avdd_vreg = NULL;
 		pr_err("%s could not get avdd,", __func__);
-	else
+	} else
 		qpic_panel_io->avdd_vreg = avdd_vreg;
 
 	return 0;

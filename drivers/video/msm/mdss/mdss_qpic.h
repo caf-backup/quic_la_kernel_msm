@@ -15,7 +15,6 @@
 #define MDSS_QPIC_H
 
 #include <linux/list.h>
-#include <mach/scm-io.h>
 #include <linux/msm-sps.h>
 
 #include <linux/pinctrl/consumer.h>

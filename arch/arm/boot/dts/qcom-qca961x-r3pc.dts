@@ -11,6 +11,8 @@
  */
 
 #include "qcom-qca961x.dtsi"
+#include "qcom-qca961x-display.dtsi"
+#include "qpic-panel-ili-qvga.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. QCA961x R3PC";

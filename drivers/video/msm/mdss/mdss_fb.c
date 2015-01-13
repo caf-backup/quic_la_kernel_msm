@@ -49,10 +49,9 @@
 #include <linux/kthread.h>
 #include <linux/dma-buf.h>
 #include <linux/msm_iommu_domains.h>
-
+#ifdef CONFIG_MSM_IOMMU
 #include <linux/qcom_iommu.h>
-#include <linux/msm_iommu_domains.h>
-
+#endif
 #include "mdss_fb.h"
 #include "mdss_mdp_splash_logo.h"
 #define CREATE_TRACE_POINTS
@@ -99,10 +98,12 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 static int mdss_fb_suspend_sub(struct msm_fb_data_type *mfd);
 static int mdss_fb_ioctl(struct fb_info *info, unsigned int cmd,
 			 unsigned long arg);
+#ifdef CONFIG_ION
 static int mdss_fb_fbmem_ion_mmap(struct fb_info *info,
 		struct vm_area_struct *vma);
 static int mdss_fb_alloc_fb_ion_memory(struct msm_fb_data_type *mfd,
 		size_t size);
+#endif
 static void mdss_fb_release_fences(struct msm_fb_data_type *mfd);
 static int __mdss_fb_sync_buf_done_callback(struct notifier_block *p,
 		unsigned long val, void *data);
@@ -1446,6 +1447,7 @@ static int mdss_fb_blank(int blank_mode, struct fb_info *info)
 	return mdss_fb_blank_sub(blank_mode, info, mfd->op_enable);
 }
 
+#ifdef CONFIG_ION
 static inline int mdss_fb_create_ion_client(struct msm_fb_data_type *mfd)
 {
 	mfd->fb_ion_client  = msm_ion_client_create("mdss_fb_iclient");
@@ -1684,7 +1686,7 @@ static int mdss_fb_fbmem_ion_mmap(struct fb_info *info,
 
 	return rc;
 }
-
+#endif
 /*
  * mdss_fb_physical_mmap() - Custom fb mmap() function for MSM driver.
  *
@@ -1741,9 +1743,11 @@ static int mdss_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
 	int rc = 0;
 
+#ifdef CONFIG_ION
 	if (!info->fix.smem_start && !mfd->fb_ion_handle)
 		rc = mdss_fb_fbmem_ion_mmap(info, vma);
 	else
+#endif
 		rc = mdss_fb_physical_mmap(info, vma);
 
 	if (rc < 0)
@@ -2321,8 +2325,10 @@ static int mdss_fb_release_all(struct fb_info *info, bool release_all)
 			      mfd->index, ret, task->comm, current->tgid, pid);
 			return ret;
 		}
+#ifdef CONFIG_ION
 		if (mfd->fb_ion_handle)
 			mdss_fb_free_fb_ion_memory(mfd);
+#endif
 
 		atomic_set(&mfd->ioctl_ref_cnt, 0);
 	} else if (release_needed) {
