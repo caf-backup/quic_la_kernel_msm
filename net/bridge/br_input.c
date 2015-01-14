@@ -230,7 +230,7 @@ forward:
 			skb->pkt_type = PACKET_HOST;
 
 		if (BR_HOOK(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING, skb, skb->dev, NULL,
-			br_handle_local_finish))
+			br_handle_local_finish) != NF_ACCEPT)
 			break;
 
 		BR_INPUT_SKB_CB(skb)->brdev = p->br->dev;
