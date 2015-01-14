@@ -2375,7 +2375,7 @@ static void nss_gmac_init(void)
 		pdata->phy_mdio_addr = 4;
 		pdata->poll_required = 1;
 		pdata->rgmii_delay = 0;
-		pdata->phy_mii_type = GMAC_INTF_RGMII;
+		pdata->phy_mii_type = PHY_INTERFACE_MODE_RGMII;
 		pdata->emulation = 0;
 		pdata->forced_speed = SPEED_1000;
 		pdata->forced_duplex = DUPLEX_FULL;
@@ -2385,7 +2385,7 @@ static void nss_gmac_init(void)
 		pdata->phy_mdio_addr = 0;
 		pdata->poll_required = 0;
 		pdata->rgmii_delay = 0;
-		pdata->phy_mii_type = GMAC_INTF_SGMII;
+		pdata->phy_mii_type = PHY_INTERFACE_MODE_SGMII;
 		pdata->emulation = 0;
 		pdata->forced_speed = SPEED_1000;
 		pdata->forced_duplex = DUPLEX_FULL;
@@ -2395,7 +2395,7 @@ static void nss_gmac_init(void)
 		pdata->phy_mdio_addr = 6;
 		pdata->poll_required = 1;
 		pdata->rgmii_delay = 0;
-		pdata->phy_mii_type = GMAC_INTF_SGMII;
+		pdata->phy_mii_type = PHY_INTERFACE_MODE_SGMII;
 		pdata->emulation = 0;
 		pdata->socver = socinfo_get_version();
 
@@ -2403,7 +2403,7 @@ static void nss_gmac_init(void)
 		pdata->phy_mdio_addr = 7;
 		pdata->poll_required = 1;
 		pdata->rgmii_delay = 0;
-		pdata->phy_mii_type = GMAC_INTF_SGMII;
+		pdata->phy_mii_type = PHY_INTERFACE_MODE_SGMII;
 		pdata->emulation = 0;
 		pdata->socver = socinfo_get_version();
 
@@ -2421,7 +2421,7 @@ static void nss_gmac_init(void)
 		pdata->phy_mdio_addr = 4;
 		pdata->poll_required = 1;
 		pdata->rgmii_delay = 0;
-		pdata->phy_mii_type = GMAC_INTF_RGMII;
+		pdata->phy_mii_type = PHY_INTERFACE_MODE_RGMII;
 		pdata->emulation = 0;
 		pdata->forced_speed = SPEED_1000;
 		pdata->forced_duplex = DUPLEX_FULL;
@@ -2431,7 +2431,7 @@ static void nss_gmac_init(void)
 		pdata->phy_mdio_addr = 0;
 		pdata->poll_required = 0;
 		pdata->rgmii_delay = 0;
-		pdata->phy_mii_type = GMAC_INTF_SGMII;
+		pdata->phy_mii_type = PHY_INTERFACE_MODE_SGMII;
 		pdata->emulation = 0;
 		pdata->forced_speed = SPEED_1000;
 		pdata->forced_duplex = DUPLEX_FULL;
@@ -2453,7 +2453,7 @@ static void nss_gmac_init(void)
 		pdata->phy_mdio_addr = 4;
 		pdata->poll_required = 1;
 		pdata->rgmii_delay = 0;
-		pdata->phy_mii_type = GMAC_INTF_RGMII;
+		pdata->phy_mii_type = PHY_INTERFACE_MODE_RGMII;
 		pdata->emulation = 0;
 		pdata->forced_speed = SPEED_1000;
 		pdata->forced_duplex = DUPLEX_FULL;
@@ -2463,7 +2463,7 @@ static void nss_gmac_init(void)
 		pdata->phy_mdio_addr = 0;
 		pdata->poll_required = 0;
 		pdata->rgmii_delay = 0;
-		pdata->phy_mii_type = GMAC_INTF_SGMII;
+		pdata->phy_mii_type = PHY_INTERFACE_MODE_SGMII;
 		pdata->emulation = 0;
 		pdata->forced_speed = SPEED_1000;
 		pdata->forced_duplex = DUPLEX_FULL;

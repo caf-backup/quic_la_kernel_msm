@@ -285,11 +285,6 @@
 #define SERDES_PLL_ICP_MASK			0x70000000
 #define SERDES_PLL_ICP(x)			(x << 28)
 
-/* Interface between GMAC and PHY */
-#define GMAC_INTF_RGMII				0
-#define GMAC_INTF_SGMII				1
-#define GMAC_INTF_QSGMII			2
-
 /* For MII<->MII Interfaces that do not use an Ethernet PHY */
 #define NSS_GMAC_NO_MDIO_PHY			PHY_MAX_ADDR
 
