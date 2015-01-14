@@ -678,6 +678,53 @@ static struct msm_gpiomux_config ipq806x_ap160_gpiomux[] = {
 	ipq_mux(63, pcie_rst_n,				pcie_rst_n),
 };
 
+static struct msm_gpiomux_config ipq806x_ap161_gpiomux[] = {
+	ipq_mux( 0, mdio_n,				mdio_n),
+	ipq_mux( 1, mdio_n,				mdio_n),
+	ipq_mux( 2, nss_gmac0_rgmii_set0,		nss_gmac0_rgmii_set0),
+	ipq_mux( 3, pcie_rst_n,				pcie_rst_n),
+	ipq_mux( 7, ipq806x_leds_cfg,			ipq806x_leds_cfg),
+	ipq_mux( 8, ipq806x_leds_cfg,			ipq806x_leds_cfg),
+	ipq_mux( 9, ipq806x_power_down_2g,		ipq806x_power_down_2g),
+	ipq_mux(12, gsbi4_active_cfg,			gsbi4_suspended_cfg),
+	ipq_mux(13, gsbi4_active_cfg,			gsbi4_suspended_cfg),
+	ipq_mux(14, pcm_out_act_cfg,			pcm_out_sus_cfg),
+	ipq_mux(15, pcm_in_act_cfg,			pcm_in_sus_cfg),
+	ipq_mux(16, pcm_out_act_cfg,			pcm_out_sus_cfg),
+	ipq_mux(17, pcm_out_act_cfg,			pcm_out_sus_cfg),
+	ipq_mux(18, gsbi5_spi_data_cfg,			gsbi5_spi_data_cfg),
+	ipq_mux(19, gsbi5_spi_data_cfg,			gsbi5_spi_data_cfg),
+	ipq_mux(20, gsbi5_spi_cs_cfg,			gsbi5_spi_cs_cfg),
+	ipq_mux(21, gsbi5_spi_clk_cfg,			gsbi5_spi_clk_cfg),
+	ipq_mux(22, gsbi2_active_cfg,			gsbi2_suspended_cfg),
+	ipq_mux(23, gsbi2_active_cfg,			gsbi2_suspended_cfg),
+	ipq_mux(24, gsbi2_active_cfg,			gsbi2_suspended_cfg),
+	ipq_mux(25, gsbi2_active_cfg,			gsbi2_suspended_cfg),
+	ipq_mux(26, ipq806x_leds_cfg,			ipq806x_leds_cfg),
+	ipq_mux(27, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+	ipq_mux(28, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+	ipq_mux(29, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+	ipq_mux(30, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+	ipq_mux(31, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+	ipq_mux(32, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+	ipq_mux(33, gsbi6_spi_reset_cfg,		gsbi6_spi_reset_cfg),
+	ipq_mux(48, pcie_rst_n,				pcie_rst_n),
+	ipq_mux(51, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+	ipq_mux(52, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+	ipq_mux(55, gsbi6_spi_mosi_cfg,			gsbi6_spi_mosi_cfg),
+	ipq_mux(56, gsbi6_spi_miso_cfg,			gsbi6_spi_miso_cfg),
+	ipq_mux(57, gsbi6_spi_cs_cfg,			gsbi6_spi_cs_cfg),
+	ipq_mux(58, gsbi6_spi_clk_cfg,			gsbi6_spi_clk_cfg),
+	ipq_mux(59, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+	ipq_mux(60, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+	ipq_mux(61, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+	ipq_mux(62, nss_gmac1_rgmii_set,		nss_gmac1_rgmii_set),
+	ipq_mux(63, pcie_rst_n,				pcie_rst_n),
+	ipq_mux(66, ipq806x_power_down_5g,		ipq806x_power_down_5g),
+	ipq_mux(67, ipq806x_power_down_5g,		ipq806x_power_down_5g),
+	ipq_mux(68, ipq806x_buttons_cfg,		ipq806x_buttons_cfg),
+};
+
 void __init ipq806x_init_gpiomux(void)
 {
 	int rc;
@@ -730,6 +777,9 @@ void __init ipq806x_init_gpiomux(void)
 	} else if (machine_is_ipq806x_ap160() || machine_is_ipq806x_ap160_2xx()) {
 		msm_gpiomux_install(ipq806x_ap160_gpiomux,
 			ARRAY_SIZE(ipq806x_ap160_gpiomux));
+	} else if (machine_is_ipq806x_ap161()) {
+		msm_gpiomux_install(ipq806x_ap161_gpiomux,
+			ARRAY_SIZE(ipq806x_ap161_gpiomux));
 	}
 
 }
