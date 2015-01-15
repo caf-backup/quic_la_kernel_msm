@@ -1,4 +1,6 @@
 #include "qcom-ipq8064-v1.0.dtsi"
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "Qualcomm IPQ8064/WHIRLWIND";
@@ -359,7 +361,7 @@
 
 		nss0: nss@40000000 {
 			compatible = "qcom,nss0";
-			interrupts = <0 213 0x4>;
+			interrupts = <GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0x36000000 0x1000 0x39000000 0x20000>;
 			reg-names = "nphys", "vphys";
 			clocks = <&gcc NSS_CORE_CLK>, <&gcc NSSTCM_CLK_SRC>, <&gcc NSSTCM_CLK>;
@@ -396,17 +398,17 @@
 
 		gmac0: ethernet@37000000 {
 			device_type = "network";
-			compatible = "qcom,nss-gmac0";
+			compatible = "qcom,nss-gmac";
 			reg = <0x37000000 0x200000>;
+			interrupts = <GIC_SPI 220 IRQ_TYPE_LEVEL_HIGH>;
+			phy-mode = "rgmii";
 			qcom,id = <0>;			/* gmac0 */
 			qcom,phy_mdio_addr = <1>;	/* phy1 */
 			qcom,poll_required = <1>;	/* enable polling */
 			qcom,rgmii_delay = <0>;
-			qcom,phy_mii_type = <0>;	/* RGMII */
 			qcom,emulation = <0>;
 			qcom,forced_speed = <1000>;	/* Force speed 1G */
 			qcom,forced_duplex = <1>;	/* Force duplex FD */
-			qcom,irq = <252>;
 			qcom,socver = <0>;
 			local-mac-address = [000000000000];
 			mdiobus = <&mdio0>;
@@ -414,17 +416,17 @@
 
 		gmac2: ethernet@37400000 {
 			device_type = "network";
-			compatible = "qcom,nss-gmac2";
+			compatible = "qcom,nss-gmac";
 			reg = <0x37400000 0x200000>;
+			interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>;
+			phy-mode = "sgmii";
 			qcom,id = <2>;
 			qcom,phy_mdio_addr = <0>;
 			qcom,poll_required = <0>;	/* no polling */
 			qcom,rgmii_delay = <0>;
-			qcom,phy_mii_type = <1>;	/* SGMII */
 			qcom,emulation = <0>;
 			qcom,forced_speed = <1000>;	/* Force speed 1G */
 			qcom,forced_duplex = <1>;	/* Force duplex FD */
-			qcom,irq = <258>;
 			qcom,socver = <0>;
 			local-mac-address = [000000000000];
 			mdiobus = <&mdio0>;
