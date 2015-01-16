@@ -155,7 +155,8 @@ struct spi_qup {
 	struct dma_slave_config	rx_conf;
 	struct dma_chan		*tx_chan;
 	struct dma_slave_config tx_conf;
-	void *dummy;
+	void			*dummy;
+	dma_addr_t		dummy_phys;
 	atomic_t		dma_outstanding;
 	int			mode;
 };
@@ -381,7 +382,7 @@ static int spi_qup_do_dma(struct spi_qup *controller, struct spi_transfer *xfer)
 	u32 bytes_to_xfer = xfer->len;
 	u32 offset = 0;
 	u32 rx_nents = 0, tx_nents = 0;
-	dma_addr_t rx_dma = 0, tx_dma = 0, rx_dummy_dma = 0, tx_dummy_dma = 0;
+	dma_addr_t rx_dma = 0, tx_dma = 0;
 
 
 	if (xfer->rx_buf) {
@@ -392,47 +393,25 @@ static int spi_qup_do_dma(struct spi_qup *controller, struct spi_transfer *xfer)
 			ret = -ENOMEM;
 			return ret;
 		}
-
-		/* check to see if we need dummy buffer for leftover bytes */
-		rx_align = xfer->len % controller->in_blk_sz;
-		if (rx_align) {
-			rx_dummy_dma = dma_map_single(controller->dev,
-				controller->dummy, controller->in_fifo_sz,
-				DMA_FROM_DEVICE);
-
-			if (dma_mapping_error(controller->dev, rx_dummy_dma)) {
-				ret = -ENOMEM;
-				goto err_map_rx_dummy;
-			}
-		}
 	}
 
 	if (xfer->tx_buf) {
+		/* check to see if we need dummy buffer for leftover bytes */
+		tx_align = xfer->len % controller->out_blk_sz;
+
+		if (tx_align) {
+			memset(controller->dummy + controller->in_blk_sz + tx_align,
+				0, controller->out_blk_sz - tx_align);
+			memcpy(controller->dummy + controller->in_blk_sz,
+				xfer->tx_buf + xfer->len - tx_align, tx_align);
+		}
+
 		tx_dma = dma_map_single(controller->dev,
 			(void *)xfer->tx_buf, xfer->len, DMA_TO_DEVICE);
 
 		if (dma_mapping_error(controller->dev, tx_dma)) {
 			ret = -ENOMEM;
 			goto err_map_tx;
-		}
-
-		/* check to see if we need dummy buffer for leftover bytes */
-		tx_align = xfer->len % controller->out_blk_sz;
-		if (tx_align) {
-			memcpy(controller->dummy + SZ_1K,
-				xfer->tx_buf + xfer->len - tx_align,
-				tx_align);
-			memset(controller->dummy + SZ_1K + tx_align, 0,
-				controller->out_blk_sz - tx_align);
-
-			tx_dummy_dma = dma_map_single(controller->dev,
-				controller->dummy + SZ_1K,
-				controller->out_blk_sz, DMA_TO_DEVICE);
-
-			if (dma_mapping_error(controller->dev, tx_dummy_dma)) {
-				ret = -ENOMEM;
-				goto err_map_tx_dummy;
-			}
 		}
 	}
 
@@ -442,6 +421,14 @@ static int spi_qup_do_dma(struct spi_qup *controller, struct spi_transfer *xfer)
 		xfer_len = min_t(u32, bytes_to_xfer, SPI_MAX_XFER);
 		n_words = DIV_ROUND_UP(xfer_len, controller->w_size);
 
+		if (xfer_len == bytes_to_xfer) {
+			tx_align = xfer_len % controller->out_blk_sz;
+			rx_align = xfer_len % controller->in_blk_sz;
+		} else {
+			tx_align = 0;
+			rx_align = 0;
+		}
+
 		/* write out current word count to controller */
 		writel_relaxed(n_words, controller->base + QUP_MX_INPUT_CNT);
 		writel_relaxed(n_words, controller->base + QUP_MX_OUTPUT_CNT);
@@ -449,9 +436,6 @@ static int spi_qup_do_dma(struct spi_qup *controller, struct spi_transfer *xfer)
 		reinit_completion(&controller->done);
 
 		if (xfer->tx_buf) {
-			/* recalc align for each transaction */
-			tx_align = xfer_len % controller->out_blk_sz;
-
 			if (tx_align)
 				tx_nents = 2;
 			else
@@ -465,7 +449,9 @@ static int spi_qup_do_dma(struct spi_qup *controller, struct spi_transfer *xfer)
 			/* account for non block size transfer */
 			if (tx_align) {
 				sg_dma_len(&tx_sg[1]) = controller->out_blk_sz;
-				sg_dma_address(&tx_sg[1]) = tx_dummy_dma;
+				sg_dma_address(&tx_sg[1]) =
+					controller->dummy_phys +
+						controller->in_blk_sz;
 			}
 
 			txd = dmaengine_prep_slave_sg(controller->tx_chan,
@@ -486,9 +472,6 @@ static int spi_qup_do_dma(struct spi_qup *controller, struct spi_transfer *xfer)
 		}
 
 		if (xfer->rx_buf) {
-			/* recalc align for each transaction */
-			rx_align = xfer_len % controller->in_blk_sz;
-
 			if (rx_align)
 				rx_nents = 2;
 			else
@@ -502,7 +485,8 @@ static int spi_qup_do_dma(struct spi_qup *controller, struct spi_transfer *xfer)
 			/* account for non block size transfer */
 			if (rx_align) {
 				sg_dma_len(&rx_sg[1]) = controller->in_blk_sz;
-				sg_dma_address(&rx_sg[1]) = rx_dummy_dma;
+				sg_dma_address(&rx_sg[1]) =
+					controller->dummy_phys;
 			}
 
 			rxd = dmaengine_prep_slave_sg(controller->rx_chan,
@@ -540,10 +524,6 @@ static int spi_qup_do_dma(struct spi_qup *controller, struct spi_transfer *xfer)
 			goto err_unmap;
 		}
 
-		if (rx_align)
-			memcpy(xfer->rx_buf + offset + xfer->len - rx_align,
-				controller->dummy, rx_align);
-
 		/* adjust remaining bytes to transfer */
 		bytes_to_xfer -= xfer_len;
 		offset += xfer_len;
@@ -559,21 +539,18 @@ static int spi_qup_do_dma(struct spi_qup *controller, struct spi_transfer *xfer)
 	ret = 0;
 
 err_unmap:
-	if (tx_align)
-		dma_unmap_single(controller->dev, tx_dummy_dma,
-			controller->out_fifo_sz, DMA_TO_DEVICE);
-err_map_tx_dummy:
 	if (xfer->tx_buf)
 		dma_unmap_single(controller->dev, tx_dma, xfer->len,
-			DMA_TO_DEVICE);
+					DMA_TO_DEVICE);
 err_map_tx:
-	if (rx_align)
-		dma_unmap_single(controller->dev, rx_dummy_dma,
-			controller->in_fifo_sz, DMA_FROM_DEVICE);
-err_map_rx_dummy:
-	if (xfer->rx_buf)
+	if (xfer->rx_buf) {
 		dma_unmap_single(controller->dev, rx_dma, xfer->len,
-			DMA_FROM_DEVICE);
+					DMA_FROM_DEVICE);
+
+		if (rx_align)
+			memcpy(xfer->rx_buf + xfer->len - rx_align,
+				controller->dummy, rx_align);
+	}
 
 	return ret;
 }
@@ -627,7 +604,10 @@ static irqreturn_t spi_qup_qup_irq(int irq, void *dev_id)
 		error = -EIO;
 	}
 
-	if (!controller->use_dma) {
+	if (controller->use_dma) {
+		writel_relaxed(opflags, controller->base + QUP_OPERATIONAL);
+	} else
+	{
 		if (opflags & QUP_OP_IN_SERVICE_FLAG) {
 			if (opflags & QUP_OP_IN_BLOCK_READ_REQ)
 				spi_qup_block_read(controller, xfer);
@@ -695,7 +675,8 @@ static int spi_qup_io_config(struct spi_device *spi, struct spi_transfer *xfer)
 		IS_ALIGNED((size_t)xfer->tx_buf, dma_align) &&
 		IS_ALIGNED((size_t)xfer->rx_buf, dma_align) &&
 		!is_vmalloc_addr(xfer->tx_buf) &&
-		!is_vmalloc_addr(xfer->rx_buf))
+		!is_vmalloc_addr(xfer->rx_buf) &&
+		(xfer->len > 3*controller->in_blk_sz))
 		dma_available = 1;
 
 	if (n_words <= (controller->in_fifo_sz / sizeof(u32))) {
@@ -1011,8 +992,9 @@ static int spi_qup_probe(struct platform_device *pdev)
 			controller->rx_chan = NULL;
 		}
 
-		controller->dummy = devm_kmalloc(controller->dev, PAGE_SIZE,
-			GFP_KERNEL);
+		controller->dummy = dma_alloc_writecombine(controller->dev,
+				controller->in_blk_sz + controller->out_blk_sz,
+				&controller->dummy_phys, GFP_KERNEL);
 
 		if (!controller->dummy) {
 			dma_release_channel(controller->rx_chan);
@@ -1147,6 +1129,10 @@ static int spi_qup_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(controller->cclk);
 	clk_disable_unprepare(controller->iclk);
+
+	dma_free_writecombine(controller->dev,
+			controller->in_blk_sz + controller->out_blk_sz,
+			controller->dummy, controller->dummy_phys);
 
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
