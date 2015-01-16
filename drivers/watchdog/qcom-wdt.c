@@ -19,10 +19,14 @@
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
 #include <linux/watchdog.h>
+#include <soc/qcom/scm.h>
 
 #define WDT_RST		0x0
 #define WDT_EN		0x8
+#define WDT_BARK_TIME	0x14
 #define WDT_BITE_TIME	0x24
+
+#define SCM_CMD_SET_REGSAVE  0x2
 
 struct qcom_wdt {
 	struct watchdog_device	wdd;
@@ -38,7 +42,44 @@ struct qcom_wdt *to_qcom_wdt(struct watchdog_device *wdd)
 	return container_of(wdd, struct qcom_wdt, wdd);
 }
 
-static int qcom_wdt_start(struct watchdog_device *wdd)
+static long qcom_wdt_configure_bark_dump(void *arg)
+{
+	long ret = -ENOMEM;
+	struct {
+		unsigned addr;
+		int len;
+	} cmd_buf;
+
+	/* Area for context dump in secure mode */
+	void *scm_regsave = (void *)__get_free_page(GFP_KERNEL);
+
+	if (scm_regsave) {
+		cmd_buf.addr = virt_to_phys(scm_regsave);
+		cmd_buf.len  = PAGE_SIZE;
+
+		ret = scm_call(SCM_SVC_UTIL, SCM_CMD_SET_REGSAVE,
+			       &cmd_buf, sizeof(cmd_buf), NULL, 0);
+	}
+
+	if (ret)
+		pr_err("Setting register save address failed.\n"
+				"Registers won't be dumped on a dog bite\n");
+	return ret;
+}
+
+static int qcom_wdt_start_secure(struct watchdog_device *wdd)
+{
+	struct qcom_wdt *wdt = to_qcom_wdt(wdd);
+
+	writel(0, wdt->base + WDT_EN);
+	writel(1, wdt->base + WDT_RST);
+	writel(wdd->timeout * wdt->rate, wdt->base + WDT_BARK_TIME);
+	writel(0x0FFFFFFF, wdt->base + WDT_BITE_TIME);
+	writel(1, wdt->base + WDT_EN);
+	return 0;
+}
+
+static int qcom_wdt_start_nonsecure(struct watchdog_device *wdd)
 {
 	struct qcom_wdt *wdt = to_qcom_wdt(wdd);
 
@@ -69,11 +110,19 @@ static int qcom_wdt_set_timeout(struct watchdog_device *wdd,
 				unsigned int timeout)
 {
 	wdd->timeout = timeout;
-	return qcom_wdt_start(wdd);
+	return wdd->ops->start(wdd);
 }
 
-static const struct watchdog_ops qcom_wdt_ops = {
-	.start		= qcom_wdt_start,
+static const struct watchdog_ops qcom_wdt_ops_secure = {
+	.start		= qcom_wdt_start_secure,
+	.stop		= qcom_wdt_stop,
+	.ping		= qcom_wdt_ping,
+	.set_timeout	= qcom_wdt_set_timeout,
+	.owner		= THIS_MODULE,
+};
+
+static const struct watchdog_ops qcom_wdt_ops_nonsecure = {
+	.start		= qcom_wdt_start_nonsecure,
 	.stop		= qcom_wdt_stop,
 	.ping		= qcom_wdt_ping,
 	.set_timeout	= qcom_wdt_set_timeout,
@@ -95,12 +144,13 @@ static int qcom_wdt_restart(struct notifier_block *nb, unsigned long action,
 
 	/*
 	 * Trigger watchdog bite:
-	 *    Setup BITE_TIME to be 128ms, and enable WDT.
+	 *    Setup BITE_TIME to be lower than BARK_TIME, and enable WDT.
 	 */
 	timeout = 128 * wdt->rate / 1000;
 
 	writel(0, wdt->base + WDT_EN);
 	writel(1, wdt->base + WDT_RST);
+	writel(5*timeout, wdt->base + WDT_BARK_TIME);
 	writel(timeout, wdt->base + WDT_BITE_TIME);
 	writel(1, wdt->base + WDT_EN);
 
@@ -156,9 +206,14 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 		goto err_clk_unprepare;
 	}
 
+	ret = work_on_cpu(0, qcom_wdt_configure_bark_dump, NULL);
+
 	wdt->wdd.dev = &pdev->dev;
 	wdt->wdd.info = &qcom_wdt_info;
-	wdt->wdd.ops = &qcom_wdt_ops;
+	if (ret)
+		wdt->wdd.ops = &qcom_wdt_ops_nonsecure;
+	else
+		wdt->wdd.ops = &qcom_wdt_ops_secure;
 	wdt->wdd.min_timeout = 1;
 	wdt->wdd.max_timeout = 0x10000000U / wdt->rate;
 
