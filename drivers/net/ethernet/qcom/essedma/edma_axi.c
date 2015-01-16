@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014 - 2015, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -171,9 +171,12 @@ static int edma_axi_probe(struct platform_device *pdev)
 	adapter[0]->c_info = c_info;
 	netdev[0]->netdev_ops = &edma_axi_netdev_ops;
 	netdev[0]->features = NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_CTAG_TX
-					| NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_SG;
+				| NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_SG |
+					NETIF_F_TSO | NETIF_F_TSO6;
 	netdev[0]->hw_features = NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_CTAG_RX
-					| NETIF_F_SG;
+				| NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6;
+	netdev[0]->vlan_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6;
+	netdev[0]->wanted_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6;
 
 	err = register_netdev(netdev[0]);
 	if (err)
@@ -284,7 +287,7 @@ static int edma_axi_remove(struct platform_device *pdev)
 	struct edma_adapter *adapter = netdev_priv(netdev[0]);
 	struct edma_common_info *c_info = adapter->c_info;
 	struct edma_hw *hw = &c_info->hw;
-	int id = smp_processor_id();
+	int id = get_cpu();
 
 	edma_stop_rx_tx(hw);
 	napi_disable(&c_info->q_cinfo[id].napi);
@@ -296,6 +299,7 @@ static int edma_axi_remove(struct platform_device *pdev)
 	edma_free_queues(c_info);
 	unregister_netdev(adapter->netdev[0]);
 	free_netdev(adapter->netdev[0]);
+	put_cpu();
 
 	return 0;
 }
