@@ -281,6 +281,11 @@ static struct spi_board_info ipq806x_ap160_spi_board_info[] __initdata = {
 	IPQ806X_SPI_INFO("ipq_pcm_spi", SPI_MODE_0, 6, 0, &ipq_pcm_spi_reset_gpio, 6000000),
 };
 
+static struct spi_board_info ipq806x_ap161_spi_board_info[] __initdata = {
+	IPQ806X_SPI_INFO("m25p80", SPI_MODE_0, 5, 0, &msm_sf_data, 51200000),
+	IPQ806X_SPI_INFO("ipq_pcm_spi", SPI_MODE_0, 6, 0, &ipq_pcm_spi_reset_gpio, 6000000),
+};
+
 #endif
 
 static struct memtype_reserve ipq806x_reserve_table[] __initdata = {
@@ -1841,6 +1846,12 @@ static struct platform_device *cdp_devices_ap160[] __initdata = {
 	&ipq806x_pc_cntr,
 };
 
+static struct platform_device *cdp_devices_ap161[] __initdata = {
+	&ipq806x_device_uart_gsbi4,
+	&msm_device_sps_ipq806x,
+	&ipq806x_pc_cntr,
+};
+
 #ifdef CONFIG_SPI_QUP
 static int gsbi5_dma_config(void)
 {
@@ -1996,6 +2007,37 @@ static struct platform_device ap160_leds_gpio = {
 	},
 };
 
+static struct gpio_led ap161_gpio_leds[] = {
+	{
+		.name       = "ap161:green:usb_1",
+		.gpio       = 7,
+		.active_low = 0,
+	},
+	{
+		.name       = "ap161:green:usb_3",
+		.gpio       = 8,
+		.active_low = 0,
+	},
+	{
+		.name       = "ap161:green:sata",
+		.gpio       = 26,
+		.active_low = 0,
+	},
+};
+
+static struct gpio_led_platform_data gpio_led_ap161_pdata = {
+	.leds		= ap161_gpio_leds,
+	.num_leds	= ARRAY_SIZE(ap161_gpio_leds),
+};
+
+static struct platform_device ap161_leds_gpio = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &gpio_led_ap161_pdata,
+	},
+};
+
 #define DB149_GPIO_BTN_JUMPSTART	26
 
 #define DB149_KEYS_POLL_INTERVAL	20	/* msecs */
@@ -2135,6 +2177,35 @@ static struct platform_device ap160_kp_pdev = {
 	},
 };
 
+#define AP161_GPIO_BTN_JUMPSTART        68
+#define AP161_KEYS_POLL_INTERVAL        20      /* msecs */
+#define AP161_KEYS_DEBOUNCE_INTERVAL    (3 * AP161_KEYS_POLL_INTERVAL)
+
+static struct gpio_keys_button ap161_gpio_keys[] = {
+	{
+		.desc           = "wps",
+		.type           = EV_KEY,
+		.code           = KEY_WPS_BUTTON,
+		.debounce_interval = AP161_KEYS_DEBOUNCE_INTERVAL,
+		.gpio           = AP161_GPIO_BTN_JUMPSTART,
+		.wakeup         = 1,
+		.active_low     = 1,
+	}
+};
+
+static struct gpio_keys_platform_data ap161_keys_data = {
+	.buttons        = ap161_gpio_keys,
+	.nbuttons       = ARRAY_SIZE(ap161_gpio_keys),
+};
+
+static struct platform_device ap161_kp_pdev = {
+	.name           = "gpio-keys",
+	.id             = -1,
+	.dev            = {
+		.platform_data  = &ap161_keys_data,
+	},
+};
+
 static struct msm_serial_hs_platform_data ipq806x_uart_dm2_pdata = {
 	/* set to 1 if your device needs a character to be injected on wakeup */
 	.inject_rx_on_wakeup	= 0,
@@ -2176,6 +2247,10 @@ static void ipq806x_spi_register(void)
 		ipq_pcm_spi_reset_gpio = 33;
 		spi_register_board_info(ipq806x_ap160_spi_board_info,
 			ARRAY_SIZE(ipq806x_ap160_spi_board_info));
+	} else if (machine_is_ipq806x_ap161()) {
+		ipq_pcm_spi_reset_gpio = 33;
+		spi_register_board_info(ipq806x_ap161_spi_board_info,
+			ARRAY_SIZE(ipq806x_ap161_spi_board_info));
 	} else
 		spi_register_board_info(ipq806x_default_spi_board_info,
 				ARRAY_SIZE(ipq806x_default_spi_board_info));
@@ -2211,7 +2286,8 @@ static void __init ipq806x_common_init(void)
 		machine_is_ipq806x_ap148_1xx() ||
 		machine_is_ipq806x_db149_2xx() ||
 		machine_is_ipq806x_ap160() ||
-		machine_is_ipq806x_ap160_2xx()) {
+		machine_is_ipq806x_ap160_2xx() ||
+		machine_is_ipq806x_ap161()) {
 		BUG_ON(msm_rpm_init(&ipq806x_rpm_data));
 		BUG_ON(msm_rpmrs_levels_init(&msm_rpmrs_data));
 		regulator_suppress_info_printing();
@@ -2222,7 +2298,7 @@ static void __init ipq806x_common_init(void)
 			msm_clock_init(&ipq806x_gsbi4_uart_clks);
 		if (machine_is_ipq806x_ap148_1xx())
 			msm_clock_init(&ipq806x_gsbi2_uart_clks);
-		if (machine_is_ipq806x_ap148())
+		if (machine_is_ipq806x_ap148() || machine_is_ipq806x_ap161())
 			msm_clock_init(&ipq806x_gsbi2_hsuart_clks);
 	} else {
 		if (msm_xo_init())
@@ -2306,8 +2382,8 @@ static void __init ipq806x_common_init(void)
 	*((uint32_t *)(ipq806x_lpass_lpaif.dev.platform_data)) = socinfo_get_version();
 
 	if (machine_is_ipq806x_db149() || machine_is_ipq806x_db149_1xx() ||
-		machine_is_ipq806x_db149_2xx() || machine_is_ipq806x_ap160()
-					|| machine_is_ipq806x_ap160_2xx()) {
+		machine_is_ipq806x_db149_2xx() || machine_is_ipq806x_ap160() ||
+		machine_is_ipq806x_ap160_2xx() || machine_is_ipq806x_ap161()) {
 		platform_add_devices(lpass_clock_devices, ARRAY_SIZE(lpass_clock_devices));
 		platform_add_devices(lpass_dma_devices, ARRAY_SIZE(lpass_dma_devices));
 		platform_add_devices(lpass_alsa_devices, ARRAY_SIZE(lpass_alsa_devices));
@@ -2444,7 +2520,8 @@ static void nss_gmac_init(void)
 		machine_is_ipq806x_ap145_1xx() ||
 		machine_is_ipq806x_ap148_1xx() ||
 		machine_is_ipq806x_ap160() ||
-		machine_is_ipq806x_ap160_2xx()) {
+		machine_is_ipq806x_ap160_2xx() ||
+		machine_is_ipq806x_ap161()) {
 		mdiobus_register_board_info(ipq806x_ap148_mdio_info, IPQ806X_MDIO_BUS_MAX);
 
 		/* GMAC1, GMAC2 connected to switch. Attach to PHY 0 to configure switch. */
@@ -2539,7 +2616,8 @@ int32_t nss_gmac_get_phy_profile(void)
 		|| machine_is_ipq806x_ap145()
 		|| machine_is_ipq806x_ap145_1xx()
 		|| machine_is_ipq806x_ap160()
-		|| machine_is_ipq806x_ap160_2xx()) {
+		|| machine_is_ipq806x_ap160_2xx()
+		|| machine_is_ipq806x_ap161()) {
 		return NSS_GMAC_PHY_PROFILE_2R_2S;
 	}
 
@@ -2585,7 +2663,8 @@ static void __init nss_macsec_register_devices(void)
 	/* GMAC2 is in sgmii mode. MACSEC works in that mode */
 	if(machine_is_ipq806x_db147() || machine_is_ipq806x_ap148() ||
 		machine_is_ipq806x_ap145() || machine_is_ipq806x_ap148_1xx() ||
-		machine_is_ipq806x_ap160() || machine_is_ipq806x_ap160_2xx()) {
+		machine_is_ipq806x_ap160() || machine_is_ipq806x_ap160_2xx() ||
+		machine_is_ipq806x_ap161()) {
 		platform_device_register(&nss_macsec2);
 	}
 }
@@ -2627,6 +2706,11 @@ static void __init ipq806x_init(void)
 		machine_is_ipq806x_ap160_2xx()) {
 		platform_add_devices(cdp_devices_ap160,
 			ARRAY_SIZE(cdp_devices_ap160));
+	} else if (machine_is_ipq806x_ap161()) {
+		ipq806x_device_uartdm_gsbi2.dev.platform_data = &ipq806x_uart_dm2_pdata;
+		platform_device_register(&ipq806x_device_uartdm_gsbi2);
+		platform_add_devices(cdp_devices_ap161,
+			ARRAY_SIZE(cdp_devices_ap161));
 	} else {
 		platform_add_devices(cdp_devices, ARRAY_SIZE(cdp_devices));
 		if (machine_is_ipq806x_db149_2xx()) {
@@ -2649,6 +2733,10 @@ static void __init ipq806x_init(void)
 	if (machine_is_ipq806x_ap160() || machine_is_ipq806x_ap160_2xx()) {
 		platform_device_register(&ap160_kp_pdev);
 		platform_device_register(&ap160_leds_gpio);
+	}
+	if (machine_is_ipq806x_ap161()) {
+		platform_device_register(&ap161_kp_pdev);
+		platform_device_register(&ap161_leds_gpio);
 	}
 }
 
@@ -2798,6 +2886,18 @@ MACHINE_START(IPQ806X_AP160, "Qualcomm Atheros AP160 reference board")
 MACHINE_END
 
 MACHINE_START(IPQ806X_AP160_2XX, "Qualcomm Atheros AP160-2XX reference board")
+	.map_io = ipq806x_map_io,
+	.reserve = ipq806x_reserve,
+	.init_irq = ipq806x_init_irq,
+	.handle_irq = gic_handle_irq,
+	.timer = &msm_timer,
+	.init_machine = ipq806x_init,
+	.init_early = ipq806x_allocate_memory_regions,
+	.init_very_early = ipq806x_early_reserve,
+	.restart = msm_restart,
+MACHINE_END
+
+MACHINE_START(IPQ806X_AP161, "Qualcomm Atheros AP161 reference board")
 	.map_io = ipq806x_map_io,
 	.reserve = ipq806x_reserve,
 	.init_irq = ipq806x_init_irq,

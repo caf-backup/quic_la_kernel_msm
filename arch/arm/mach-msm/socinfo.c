@@ -711,7 +711,8 @@ static void * __init setup_dummy_socinfo(void)
 		machine_is_ipq806x_ap145() ||
 		machine_is_ipq806x_ap145_1xx() ||
 		machine_is_ipq806x_ap160() ||
-		machine_is_ipq806x_ap160_2xx()) {
+		machine_is_ipq806x_ap160_2xx() ||
+		machine_is_ipq806x_ap161()) {
 		dummy_socinfo.id = 202;
 	}
 	strlcat(dummy_socinfo.build_id, "Dummy socinfo",
