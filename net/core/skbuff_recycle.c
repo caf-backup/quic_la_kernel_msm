@@ -119,12 +119,8 @@ inline bool skb_recycler_consume(struct sk_buff *skb) {
 		if (next_tail != glob_recycler.head) {
 			struct sk_buff_head *p = &glob_recycler.pool[cur_tail];
 
-			/* Optimized, inlined SKB List splice */
-			p->next = h->next;
-			h->next->prev = (struct sk_buff *)p;
-			p->prev = h->prev;
-			h->prev->next = (struct sk_buff *)p;
-			p->qlen = SKB_RECYCLE_SPARE_MAX_SKBS;
+			/* Move SKBs from CPU pool to Global pool*/
+			skb_queue_splice_init(h, p);
 
 			/* Done with global list init */
 			glob_recycler.tail = next_tail;
@@ -134,9 +130,7 @@ inline bool skb_recycler_consume(struct sk_buff *skb) {
 			 * We have now cleared room in the spare;
 			 * Intialize and enqueue skb into spare
 			 */
-			skb->next = skb->prev = (struct sk_buff *)h;
-			h->prev = h->next = skb;
-			h->qlen = 1;
+			__skb_queue_head(h, skb);
 
 			local_irq_restore(flags);
 			preempt_enable();
