@@ -1,4 +1,20 @@
 /*
+ **************************************************************************
+ * Copyright (c) 2015, The Linux Foundation.  All rights reserved.
+ * Permission to use, copy, modify, and/or distribute this software for
+ * any purpose with or without fee is hereby granted, provided that the
+ * above copyright notice and this permission notice appear in all copies.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
+ * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ **************************************************************************
+ */
+
+/*
  *  Point-to-Point Tunneling Protocol for Linux
  *
  *	Authors: Dmitry Kozlov <xeb@mail.ru>
@@ -624,9 +640,39 @@ static int pptp_ppp_ioctl(struct ppp_channel *chan, unsigned int cmd,
 	return err;
 }
 
+/*
+ * pptp_hold_chan()
+ */
+static void pptp_hold_chan(struct ppp_channel *chan)
+{
+       struct sock *sk = (struct sock *)chan->private;
+       sock_hold(sk);
+}
+
+/*
+ * pptp_release_chan()
+ */
+static void pptp_release_chan(struct ppp_channel *chan)
+{
+       struct sock *sk = (struct sock *)chan->private;
+       sock_put(sk);
+}
+
+/*
+ * pptp_get_channel_protocol()
+ *     Return the protocol type of the PPTP over PPP protocol
+ */
+static int pptp_get_channel_protocol(struct ppp_channel *chan)
+{
+       return PX_PROTO_PPTP;
+}
+
 static const struct ppp_channel_ops pptp_chan_ops = {
 	.start_xmit = pptp_xmit,
 	.ioctl      = pptp_ppp_ioctl,
+	.get_channel_protocol = pptp_get_channel_protocol,
+	.hold = pptp_hold_chan,
+	.release = pptp_release_chan,
 };
 
 static struct proto pptp_sk_proto __read_mostly = {
