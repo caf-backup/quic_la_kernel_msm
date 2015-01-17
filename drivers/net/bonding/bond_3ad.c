@@ -2007,10 +2007,6 @@ void bond_3ad_unbind_slave(struct slave *slave)
 	__update_lacpdu_from_port(port);
 	ad_lacpdu_send(port);
 
-	if (bond_cb && bond_cb->bond_cb_link_down) {
-		bond_cb->bond_cb_link_down(port->slave->dev);
-	}
-
 	// check if this aggregator is occupied
 	if (aggregator->lag_ports) {
 		// check if there are other ports related to this aggregator except
@@ -2343,10 +2339,6 @@ void bond_3ad_handle_link_change(struct slave *slave, char link)
 		port->actor_admin_port_key &= ~AD_DUPLEX_KEY_BITS;
 		port->actor_oper_port_key = (port->actor_admin_port_key &=
 					     ~AD_SPEED_KEY_BITS);
-
-		if (bond_cb && bond_cb->bond_cb_link_down) {
-			bond_cb->bond_cb_link_down(port->slave->dev);
-		}
 	}
 	//BOND_PRINT_DBG(("Port %d changed link status to %s", port->actor_port_number, ((link == BOND_LINK_UP)?"UP":"DOWN")));
 	// there is no need to reselect a new aggregator, just signal the
