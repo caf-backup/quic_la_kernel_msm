@@ -377,13 +377,13 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 			/* Get the number of RFD from RRD */
 		}
 
-		skb_put(skb, length);
-
 		/* Addition of 16 bytes is required, as in the packet
 		 * first 16 bytes are rrd descriptors, so actual data
 		 * starts from an offset of 16.
 		 */
-		skb->data += 16;
+		skb_reserve(skb, 16);
+		skb_put(skb, length);
+
 		skb->protocol = eth_type_trans(skb, c_info->netdev[0]);
 		edma_receive_checksum(rrd, skb);
 		if ((rrd[14] >> EDMA_RRD_CVLAN_SHIFT) & EDMA_RRD_VLAN_MASK) {
@@ -574,8 +574,7 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 	struct edma_tx_desc *tpd;
 	int i = 0, nr_frags = skb_shinfo(skb)->nr_frags;
 	u32 word1 = 0, word3 = 0, lso_word1 = 0, svlan_tag = 0;
-	u16 lso_desc_len = 0, buf_len;
-	struct iphdr *ip = (struct iphdr *) skb_network_header(skb);
+	u16 buf_len, lso_desc_len = 0, protocol = 0;
 
 	if (unlikely(skb_is_gso(skb))) {
 		lso_desc_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
@@ -589,6 +588,7 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 			tcp_hdr(skb)->check = ~csum_tcpudp_magic(ip_hdr(skb)->saddr,
 				ip_hdr(skb)->daddr, 0, IPPROTO_TCP, 0);
 		} else if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6) {
+			ipv6_hdr(skb)->payload_len = 0;
 			lso_word1 |= EDMA_TPD_LSO_V2_EN;
 			tcp_hdr(skb)->check = ~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
 				&ipv6_hdr(skb)->daddr, 0, IPPROTO_TCP, 0);
@@ -599,20 +599,35 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 		lso_word1 |= EDMA_TPD_LSO_EN | ((skb_shinfo(skb)->gso_size & EDMA_TPD_MSS_MASK) << EDMA_TPD_MSS_SHIFT) |
 				(skb_transport_offset(skb) << EDMA_TPD_HDR_SHIFT);
 	} else if (flags_transmit & EDMA_HW_CHECKSUM) {
-		switch(ip->protocol) {
+		if (skb->protocol == htons(ETH_P_IP)) {
+			protocol = ip_hdr(skb)->protocol;
+			word1 |= EDMA_TPD_IP_CSUM_EN;
+		} else if (skb->protocol == htons(ETH_P_IPV6)) {
+			protocol = ipv6_hdr(skb)->nexthdr;
+		} else {
+			if (unlikely(net_ratelimit())) {
+				dev_dbg(&pdev->dev,
+					"Checksum offload for non IPv4/IPv6: %d\n", skb->protocol);
+			}
+		}
+
+		switch(protocol) {
 		case IPPROTO_TCP:
-			word1 |= (EDMA_TPD_TCP_CSUM_EN | EDMA_TPD_IP_CSUM_EN);
+			word1 |= (EDMA_TPD_TCP_CSUM_EN);
 			word1 |= (skb_transport_offset(skb) << EDMA_TPD_HDR_SHIFT);
 			break;
 		case IPPROTO_UDP:
-			word1 |= (EDMA_TPD_UDP_CSUM_EN | EDMA_TPD_IP_CSUM_EN);
+			word1 |= (EDMA_TPD_UDP_CSUM_EN);
 			word1 |= (skb_transport_offset(skb) << EDMA_TPD_HDR_SHIFT);
 			break;
 		default:
 			word1 |= (EDMA_TPD_CUSTOM_CSUM_EN) | (EDMA_TPD_IP_CSUM_EN);
 			word1 |= (skb->csum_start << EDMA_TPD_HDR_SHIFT);
 			word1 |= ((skb->csum_start + skb->csum_offset) << EDMA_TPD_CUSTOM_CSUM_SHIFT);
-			dev_dbg(&pdev->dev, "no TCP/UDP header\n");
+			if (unlikely(net_ratelimit())) {
+					dev_dbg(&pdev->dev,
+						"Checksum offload for non TCP/UDP: %d\n", protocol);
+			}
 			break;
 		}
 	}
@@ -693,8 +708,8 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 	while (nr_frags--) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 		buf_len = skb_frag_size(frag);
-		sw_desc = edma_get_tx_buffer(c_info, tpd, queue_id);
 		tpd = edma_get_next_tpd(c_info, queue_id);
+		sw_desc = edma_get_tx_buffer(c_info, tpd, queue_id);
 		sw_desc->length = buf_len;
 		sw_desc->dma = skb_frag_dma_map(&pdev->dev, frag, 0, buf_len, DMA_TO_DEVICE);
 
@@ -743,7 +758,7 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 
 	if (unlikely(num_tpds_needed > EDMA_MAX_SKB_FRAGS)) {
 		dev_err(&netdev->dev,
-			"skb received with fragments %u which is more than %d",
+			"skb received with fragments %u which is more than %u",
 			num_tpds_needed, EDMA_MAX_SKB_FRAGS);
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
