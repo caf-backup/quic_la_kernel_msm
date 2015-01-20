@@ -116,7 +116,6 @@ struct ad_info {
 
 #ifdef __KERNEL__
 struct bond_cb {
-	void (*bond_cb_link_down)(struct net_device *slave);
 	void (*bond_cb_link_up)(struct net_device *slave);
 	void (*bond_cb_enslave)(struct net_device *slave);
 	void (*bond_cb_release)(struct net_device *slave);
