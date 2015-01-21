@@ -422,7 +422,7 @@ static inline void edma_tx_unmap_and_free(struct platform_device *pdev,
 	/* unmap_single for skb head area */
 		dma_unmap_single(&pdev->dev, sw_desc->dma,
 			sw_desc->length, DMA_TO_DEVICE);
-	else
+	else if (sw_desc->flags & EDMA_SW_DESC_FLAG_SKB_FRAG)
 		dma_unmap_page(&pdev->dev, sw_desc->dma,
 			sw_desc->length, DMA_TO_DEVICE);
 
@@ -588,8 +588,8 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 			tcp_hdr(skb)->check = ~csum_tcpudp_magic(ip_hdr(skb)->saddr,
 				ip_hdr(skb)->daddr, 0, IPPROTO_TCP, 0);
 		} else if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6) {
-			ipv6_hdr(skb)->payload_len = 0;
 			lso_word1 |= EDMA_TPD_LSO_V2_EN;
+			ipv6_hdr(skb)->payload_len = 0;
 			tcp_hdr(skb)->check = ~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
 				&ipv6_hdr(skb)->daddr, 0, IPPROTO_TCP, 0);
 		} else
@@ -652,10 +652,24 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 
 	buf_len = skb_headlen(skb);
 
-	if (lso_word1) {
-		tpd = edma_get_next_tpd(c_info, queue_id);
+	if (unlikely (lso_word1)) {
+		if (lso_word1 & EDMA_TPD_LSO_V2_EN) {
 
+			/* IPv6 LSOv2 descriptor */
+			tpd = edma_get_next_tpd(c_info, queue_id);
+			sw_desc = edma_get_tx_buffer(c_info, tpd, queue_id);
+			sw_desc->flags |= EDMA_SW_DESC_FLAG_SKB_NONE;
+
+			/* LSOv2 descriptor overrides addr field to pass length */
+			tpd->addr = cpu_to_le16(skb->len);
+			tpd->svlan_tag = svlan_tag;
+			tpd->word1 = word1 | lso_word1;
+			tpd->word3 = word3;
+		}
+
+		tpd = edma_get_next_tpd(c_info, queue_id);
 		sw_desc = edma_get_tx_buffer(c_info, tpd, queue_id);
+
 		sw_desc->dma = dma_map_single(&adapter->pdev->dev,
 					skb->data, lso_desc_len, DMA_TO_DEVICE);
 		if (dma_mapping_error(&pdev->dev, sw_desc->dma))
@@ -723,6 +737,7 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 		tpd->svlan_tag = svlan_tag;
 		tpd->word1 = word1 | lso_word1;
 		tpd->word3 = word3;
+		sw_desc->flags |= EDMA_SW_DESC_FLAG_SKB_FRAG;
 		i++;
 	}
 
