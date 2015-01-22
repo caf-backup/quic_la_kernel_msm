@@ -26,6 +26,8 @@
 #define WDT_EN		0x8
 #define WDT_BARK_TIME	0x14
 #define WDT_BITE_TIME	0x24
+#define TMR_STS		0x50
+#define WDT0_ENABLE	(1 << 24)
 
 struct qcom_wdt {
 	struct watchdog_device	wdd;
@@ -178,11 +180,11 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * If 'timeout-sec' unspecified in devicetree, assume a 30 second
-	 * default, unless the max timeout is less than 30 seconds, then use
+	 * If 'timeout-sec' unspecified in devicetree, assume a 120 second
+	 * default, unless the max timeout is less than 120 seconds, then use
 	 * the max instead.
 	 */
-	wdt->wdd.timeout = min(wdt->wdd.max_timeout, 30U);
+	wdt->wdd.timeout = min(wdt->wdd.max_timeout, 120U);
 
 	ret = watchdog_register_device(&wdt->wdd);
 	if (ret) {
@@ -209,6 +211,18 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 		goto irq_failed;
 	}
 
+	/*
+	 * Typically, the WD is enabled in the boot loaders. In some
+	 * rare situations, the WD can expire before the user space
+	 * WD handling can kick in. Hence, to protect us from spurious
+	 * resets, configure the WD for the default timeout (please see
+	 * above) and restart the timer. The user space WD handling should
+	 * hopefully kick in before this generous default timeout.
+	 */
+	if ((WDT0_ENABLE & readl(wdt->base + TMR_STS)) != 0) {
+		qcom_wdt_stop(&(wdt->wdd));
+		qcom_wdt_start(&(wdt->wdd));
+	}
 irq_failed:
 	return 0;
 }
