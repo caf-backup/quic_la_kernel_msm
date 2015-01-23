@@ -56,6 +56,7 @@
 #include <mach/msm_nss.h>
 #include <mach/msm_nss_crypto.h>
 #include <linux/ar8216_platform.h>
+#include <linux/aq_phy.h>
 #include <linux/qca_85xx_sw.h>
 #include <mach/msm_usb30.h>
 #include <mach/cache_erp.h>
@@ -1272,6 +1273,22 @@ struct platform_device nss_gmac_3 = {
 	.resource			= nss_gmac_3_res,
 };
 
+/* Board specific data for Aquantia PHY */
+struct aq_phy_platform_data ap160_2xx_aq_phy_platform_data = {
+        .phy_addr = 0x10,
+        .mdio_bus_id = 0,
+        .mdio_bus_name = "mdio-gpio",
+};
+
+/* Populate the platform device data for Aquantia PHY driver */
+struct platform_device ap160_2xx_aq_phy = {
+	.name		= "aq-phy",
+	.id		= 0,
+	.dev		= {
+		.platform_data		= (void *)&ap160_2xx_aq_phy_platform_data,
+	},
+};
+
 /* Resources for MACSEC1 */
 static struct resource nss_macsec1_res[] = {
 	[0] = {
@@ -1339,7 +1356,7 @@ struct platform_device nss_macsec3 = {
 };
 
 static struct mdio_gpio_platform_data ipq806x_mdio_platform_data;
-struct platform_device ip806x_mdio_device = {
+struct platform_device ipq806x_mdio_device = {
 	.name   = IPQ806X_MDIO_BUS_NAME,
 	.id     = IPQ806X_MDIO_BUS_NUM,
 	.dev    = {
@@ -1348,7 +1365,7 @@ struct platform_device ip806x_mdio_device = {
 };
 
 static struct mdio_gpio_platform_data ipq806x_mdio_platform_data2;
-struct platform_device ip806x_mdio_device2 = {
+struct platform_device ipq806x_mdio_device2 = {
 	.name   = IPQ806X_MDIO_BUS_NAME,
 	.id     = IPQ806X_MDIO_BUS_NUM + 1,
 	.dev    = {
