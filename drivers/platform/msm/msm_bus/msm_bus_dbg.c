@@ -632,6 +632,7 @@ static const struct file_operations msm_bus_dbg_update_request_fops = {
 	.write = msm_bus_dbg_update_request_write,
 };
 
+#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_MSM_BUS_SCALING)
 /**
  * msm_bus_dbg_client_data() - Add debug data for clients
  * @pdata: Platform data of the client
@@ -680,6 +681,7 @@ void msm_bus_dbg_commit_data(const char *fabname, void *cdata,
 			nslaves, ntslaves);
 }
 EXPORT_SYMBOL(msm_bus_dbg_commit_data);
+#endif
 
 static int __init msm_bus_debugfs_init(void)
 {
