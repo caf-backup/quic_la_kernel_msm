@@ -116,6 +116,11 @@ static const struct qcom_reset_map gcc_qca961x_resets[] = {
 	[WIFI1_RADIO_COLD_RESET] = { 0x20008, 2 },
 	[WIFI1_CORE_WARM_RESET] = { 0x20008, 1 },
 	[WIFI1_CORE_COLD_RESET] = { 0x20008, 0 },
+	[USB3_UNIPHY_PHY_ARES] = { 0x1e038, 5 },
+	[USB3_HSPHY_POR_ARES] = { 0x1e038, 4 },
+	[USB3_HSPHY_S_ARES] = { 0x1e038, 2 },
+	[USB2_HSPHY_POR_ARES] = { 0x1e01c, 4 },
+	[USB2_HSPHY_S_ARES] = { 0x1e01c, 2 },
 };
 
 static const struct regmap_config gcc_qca961x_regmap_config = {
