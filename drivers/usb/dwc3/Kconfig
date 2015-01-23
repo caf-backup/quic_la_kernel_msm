@@ -67,6 +67,14 @@ config USB_DWC3_QCOM
          Recent Qualcomm SoCs ship with one DesignWare Core USB3 IP inside,
          say 'Y' or 'M' if you have one such device.
 
+config USB_DWC3_QCA961X
+	tristate "QCA961X Platforms"
+	default USB_DWC3
+	select USB_QCA961X_PHY
+	help
+	  Recent QCA961x SoC ship with DesignWare Core USB3 IP inside,
+	  say 'Y' or 'M' if you have one such device.
+
 config USB_DWC3_PCI
 	tristate "PCIe-based Platforms"
 	depends on PCI
