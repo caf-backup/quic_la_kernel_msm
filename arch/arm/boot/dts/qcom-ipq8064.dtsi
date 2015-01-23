@@ -154,7 +154,7 @@
 				regulator-min-microvolt = <1050000>;
 				regulator-max-microvolt = <1150000>;
 
-				qcom,switch-mode-frequency = <500000>;
+				qcom,switch-mode-frequency = <1200000>;
 
 			};
 
@@ -165,7 +165,7 @@
 				regulator-min-microvolt = <1050000>;
 				regulator-max-microvolt = <1150000>;
 
-				qcom,switch-mode-frequency = <500000>;
+				qcom,switch-mode-frequency = <1200000>;
 			};
 
 			smb208_s2a: smb208-s2a {
@@ -175,7 +175,7 @@
 				regulator-min-microvolt = < 800000>;
 				regulator-max-microvolt = <1250000>;
 
-				qcom,switch-mode-frequency = <500000>;
+				qcom,switch-mode-frequency = <1200000>;
 			};
 
 			smb208_s2b: smb208-s2b {
@@ -185,7 +185,7 @@
 				regulator-min-microvolt = < 800000>;
 				regulator-max-microvolt = <1250000>;
 
-				qcom,switch-mode-frequency = <500000>;
+				qcom,switch-mode-frequency = <1200000>;
 			};
 		};
 
