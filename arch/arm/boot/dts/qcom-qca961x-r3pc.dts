@@ -25,7 +25,8 @@
 		bootargs = "console=ttyMSM0,115200n8";
 	};
 
-	soc {
+};
+	&soc {
 		serial@78b0000 {
 			status = "ok";
 		};
@@ -36,4 +37,3 @@
 			switch_access_mode = "local bus";
 		};
 	};
-};

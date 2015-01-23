@@ -54,7 +54,12 @@
 		};
 	};
 
-	soc {
+	soc: soc { };
+};
+
+#include "qcom-qca961x-bus.dtsi"
+
+	&soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
@@ -268,4 +273,3 @@
 				"int_pls_link_down", "int_bridge_flush_n","int_wake";
 		};
 	};
-};
