@@ -59,11 +59,6 @@
 #define USB30_HS_PHY_HOST_MODE	(0x01 << 21)
 #define USB20_HS_PHY_HOST_MODE	(0x01 << 5)
 
-#define QSRATCH_BASE		0x08af8800
-#define USB30_HS_PHY_CTRL	0x00000010
-#define SW_SESSVLD			(0x01 << 0x1C)
-#define UTMI_OTG_VBUS_VALID	(0x01 << 0x14)
-
 /* used to differentiate between USB3 HS and USB2 HS PHY */
 struct qca_baldur_hs_data {
 	unsigned int usb3_hs_phy;
@@ -75,7 +70,6 @@ struct qca_baldur_hs_phy {
 	struct usb_phy phy;
 
 	void __iomem *base;
-	void __iomem *qscratch_base;
 
 	struct reset_control *por_rst;
 	struct reset_control *srif_rst;
@@ -125,50 +119,23 @@ static inline void qca_baldur_hs_write_readback(void __iomem *base, u32 offset,
 		pr_err("write: %x to BALDUR PHY: %x FAILED\n", val, offset);
 }
 
-static int qca_baldur_hs_phy_set_vbus(struct usb_phy *x, int on)
-{
-	struct qca_baldur_hs_phy   *phy = phy_to_dw_phy(x);
-
-	/* Set VBUS Valid Signal for device mode */
-	if (phy->data->usb3_hs_phy && !phy->host)
-	{
-		if (on)
-		{
-			qca_baldur_hs_write_readback(phy->qscratch_base, USB30_HS_PHY_CTRL,
-					SW_SESSVLD, SW_SESSVLD);
-			qca_baldur_hs_write_readback(phy->qscratch_base, USB30_HS_PHY_CTRL,
-					UTMI_OTG_VBUS_VALID, UTMI_OTG_VBUS_VALID);
-		}
-		else
-		{
-			qca_baldur_hs_write_readback(phy->qscratch_base, USB30_HS_PHY_CTRL,
-					SW_SESSVLD, 0x0);
-			qca_baldur_hs_write_readback(phy->qscratch_base, USB30_HS_PHY_CTRL,
-					UTMI_OTG_VBUS_VALID, 0x0);
-		}
-	}
-
-	return 0;
-}
-
 static int qca_baldur_hs_phy_init(struct usb_phy *x)
 {
 	struct qca_baldur_hs_phy	*phy = phy_to_dw_phy(x);
 
 	/* assert HS PHY POR reset */
 	reset_control_assert(phy->por_rst);
-	udelay(100);
+	msleep(10);
 
 	/* assert HS PHY SRIF reset */
 	reset_control_assert(phy->srif_rst);
-	udelay(100);
+	msleep(10);
 
 	/* deassert HS PHY SRIF reset and program HS PHY registers */
 	reset_control_deassert(phy->srif_rst);
-	udelay(100);
+	msleep(10);
 
-	if (!phy->emulation)
-	{
+	if (!phy->emulation) {
 		/* perform PHY register writes */
 		qca_baldur_hs_write(phy->base, PHY_CTRL0_ADDR, PHY_CTRL0_VAL);
 		qca_baldur_hs_write(phy->base, PHY_CTRL1_ADDR, PHY_CTRL1_VAL);
@@ -177,9 +144,7 @@ static int qca_baldur_hs_phy_init(struct usb_phy *x)
 		qca_baldur_hs_write(phy->base, PHY_CTRL4_ADDR, PHY_CTRL4_VAL);
 		qca_baldur_hs_write(phy->base, PHY_MISC_ADDR, PHY_MISC_VAL);
 		qca_baldur_hs_write(phy->base, PHY_IPG_ADDR, PHY_IPG_VAL);
-	}
-	else
-	{
+	} else {
 		/* perform PHY register writes */
 		qca_baldur_hs_write(phy->base, PHY_CTRL0_EMU_ADDR, PHY_CTRL0_EMU_VAL);
 		qca_baldur_hs_write(phy->base, PHY_CTRL1_EMU_ADDR, PHY_CTRL1_EMU_VAL);
@@ -190,13 +155,10 @@ static int qca_baldur_hs_phy_init(struct usb_phy *x)
 		qca_baldur_hs_write(phy->base, PHY_IPG_EMU_ADDR, PHY_IPG_EMU_VAL);
 	}
 
-	udelay(100);
+	msleep(10);
 
 	/* de-assert USB3 HS PHY POR reset */
 	reset_control_deassert(phy->por_rst);
-
-	if(!phy->host)
-		qca_baldur_hs_phy_set_vbus(x, 1);
 
 	return 0;
 }
@@ -212,21 +174,16 @@ static int qca_baldur_hs_get_resources(struct qca_baldur_hs_phy *phy)
 	if (IS_ERR(phy->base))
 		return PTR_ERR(phy->base);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	phy->qscratch_base = devm_ioremap_resource(phy->dev, res);
-	if (IS_ERR(phy->qscratch_base))
-		return PTR_ERR(phy->qscratch_base);
-
-	phy->por_rst = devm_reset_control_get(phy->dev, "por");
+	phy->por_rst = devm_reset_control_get(phy->dev, "por_rst");
 	if (IS_ERR(phy->por_rst))
 		return PTR_ERR(phy->por_rst);
 
-	phy->srif_rst = devm_reset_control_get(phy->dev, "srif");
+	phy->srif_rst = devm_reset_control_get(phy->dev, "srif_rst");
 	if (IS_ERR(phy->srif_rst))
 		return PTR_ERR(phy->srif_rst);
 
 	np = of_node_get(pdev->dev.of_node);
-	if ( of_property_read_u32(np, "qca,host", &phy->host)
+	if (of_property_read_u32(np, "qca,host", &phy->host)
 			|| of_property_read_u32(np, "qca,emulation", &phy->emulation)) {
 		pr_err("%s: error reading critical device node properties\n", np->name);
 		return -EFAULT;
@@ -302,7 +259,6 @@ static int qca_baldur_hs_probe(struct platform_device *pdev)
 	phy->phy.label      = "qca-baldur-hsphy";
 	phy->phy.init       = qca_baldur_hs_phy_init;
 	phy->phy.shutdown   = qca_baldur_hs_phy_shutdown;
-	phy->phy.set_vbus   = qca_baldur_hs_phy_set_vbus;
 	phy->phy.type       = USB_PHY_TYPE_USB2;
 
 	err = usb_add_phy_dev(&phy->phy);

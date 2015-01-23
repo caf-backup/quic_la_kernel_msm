@@ -23,10 +23,6 @@
 /**
  *  USB Hardware registers
  */
-#define QSRATCH_BASE		0x08af8800
-#define USB30_SS_PHY_CTRL	0x00000030
-#define LANE0_PWR_PRESENT	(0x01 << 0x18)
-
 #define MDIO_CTRL_0_REG		0x40
 #define MDIO_CTRL_1_REG		0x44
 #define MDIO_CTRL_2_REG		0x48
@@ -38,22 +34,23 @@
 #define MDIO_CLAUSE_22		(0x0 << 8)
 #define MDIO_CLAUSE_45		(0x1 << 8)
 #define MDIO_USB_CLK_DIV	(0xF)
-
 #define MDIO_MMD_ID			(0x1)
 
 #define MDIO_ACCESS_BUSY	(0x1 << 16)
 #define MDIO_ACCESS_START	(0x1 << 8)
-#define MDIO_ACCESS_WRITE	(0x1)
-#define MDIO_ACCESS_READ	(0x0)
-
 #define MDIO_TIMEOUT_STATIC	1000
+
+#define MDIO_ACCESS_22_WRITE		(0x1)
+#define MDIO_ACCESS_22_READ			(0x0)
+#define MDIO_ACCESS_45_WRITE    	(0x2)
+#define MDIO_ACCESS_45_READ     	(0x1)
+#define MDIO_ACCESS_45_READ_ADDR	(0x0)
 
 struct qca_uni_ss_phy {
 	struct usb_phy phy;
 	struct device *dev;
 
 	void __iomem *base;
-	void __iomem *qscratch_base;
 
 	struct reset_control *por_rst;
 
@@ -86,6 +83,7 @@ static u32 qca_uni_ss_read(void __iomem *base, u32 offset)
 static void qca_uni_ss_write(void __iomem *base, u32 offset, u32 val)
 {
 	writel(val, base + offset);
+	udelay(100);
 }
 
 /**
@@ -137,11 +135,11 @@ int mdio_mii_read(void __iomem *base, unsigned char regAddr, unsigned short *dat
 	qca_uni_ss_write(base, MDIO_CTRL_0_REG, mdio_ctl_0);
 	qca_uni_ss_write(base, MDIO_CTRL_1_REG, regAddr);
 
-	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_READ);
-	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_READ| MDIO_ACCESS_START);
+	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_22_READ);
+	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_22_READ| MDIO_ACCESS_START);
 
-	//wait for access busy to be cleared
-	if(mdio_wait(base)) {
+	/* wait for access busy to be cleared */
+	if (mdio_wait(base)) {
 		pr_err("%s MDIO Access Busy Timeout %x\n", __func__, regAddr);
 		return -EFAULT;
 	}
@@ -159,11 +157,11 @@ int mdio_mii_write(void __iomem *base, unsigned char regAddr, unsigned short dat
 	qca_uni_ss_write(base, MDIO_CTRL_0_REG, mdio_ctl_0);
 	qca_uni_ss_write(base, MDIO_CTRL_1_REG, regAddr);
 	qca_uni_ss_write(base, MDIO_CTRL_2_REG, data);
-	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_WRITE);
-	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_WRITE| MDIO_ACCESS_START);
+	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_22_WRITE);
+	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_22_WRITE| MDIO_ACCESS_START);
 
-	//wait for access busy to be cleared
-	if(mdio_wait(base)) {
+	/* wait for access busy to be cleared */
+	if (mdio_wait(base)) {
 		pr_err("%s MDIO Access Busy Timeout %x\n", __func__, regAddr);
 		return -EFAULT;
 	}
@@ -180,20 +178,22 @@ int mdio_mmd_read(void __iomem *base, unsigned short regAddr, unsigned short *da
 	qca_uni_ss_write(base, MDIO_CTRL_0_REG, mdio_ctl_0);
 	qca_uni_ss_write(base, MDIO_CTRL_1_REG, MDIO_MMD_ID);
 	qca_uni_ss_write(base, MDIO_CTRL_2_REG, regAddr);
-	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_WRITE);
-	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_WRITE| MDIO_ACCESS_START);
+	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_READ_ADDR);
+	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_READ_ADDR| MDIO_ACCESS_START);
 
-	//wait for access busy to be cleared
-	if(mdio_wait(base)) {
+	/* wait for access busy to be cleared */
+	if (mdio_wait(base)) {
 		pr_err("%s MDIO Access Busy Timeout %x\n", __func__, regAddr);
 		return -EFAULT;
 	}
 
-	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_READ);
-	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_READ| MDIO_ACCESS_START);
+	qca_uni_ss_write(base, MDIO_CTRL_1_REG, MDIO_MMD_ID);
+	qca_uni_ss_write(base, MDIO_CTRL_2_REG, regAddr);
+	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_WRITE);
+	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_WRITE| MDIO_ACCESS_START);
 
-	//wait for access busy to be cleared
-	if(mdio_wait(base)) {
+	/* wait for access busy to be cleared */
+	if (mdio_wait(base)) {
 		pr_err("%s MDIO Access Busy Timeout %x\n", __func__, regAddr);
 		return -EFAULT;
 	}
@@ -213,21 +213,25 @@ int mdio_mmd_write(void __iomem *base, unsigned short regAddr, unsigned short da
 	qca_uni_ss_write(base, MDIO_CTRL_0_REG, mdio_ctl_0);
 	qca_uni_ss_write(base, MDIO_CTRL_1_REG, MDIO_MMD_ID);
 	qca_uni_ss_write(base, MDIO_CTRL_2_REG, regAddr);
-	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_WRITE);
-	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_WRITE| MDIO_ACCESS_START);
+	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_READ_ADDR);
+	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_READ_ADDR| MDIO_ACCESS_START);
 
-	//wait for access busy to be cleared
-	if(mdio_wait(base)) {
+	/* wait for access busy to be cleared */
+	if (mdio_wait(base)) {
 		pr_err("%s MDIO Access Busy Timeout %x\n", __func__, regAddr);
 		return -EFAULT;
 	}
 
 	qca_uni_ss_write(base, MDIO_CTRL_2_REG, data);
-	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_WRITE);
-	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_WRITE| MDIO_ACCESS_START);
+	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_READ);
+	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_READ| MDIO_ACCESS_START);
 
-	//wait for access busy to be cleared
-	if(mdio_wait(base)) {
+	qca_uni_ss_write(base, MDIO_CTRL_2_REG, regAddr);
+	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_WRITE);
+	qca_uni_ss_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_WRITE| MDIO_ACCESS_START);
+
+	/* wait for access busy to be cleared */
+	if (mdio_wait(base)) {
 		pr_err("%s MDIO Access Busy Timeout %x\n", __func__, regAddr);
 		return -EFAULT;
 	}
@@ -243,23 +247,6 @@ static void qca_uni_ss_phy_shutdown(struct usb_phy *x)
 	reset_control_assert(phy->por_rst);
 }
 
-static int qca_uni_ss_phy_set_vbus(struct usb_phy *x, int on)
-{
-	struct qca_uni_ss_phy  *phy = phy_to_dw_phy(x);
-
-	if (on)
-	{
-		qca_uni_ss_write_readback(phy->qscratch_base, USB30_SS_PHY_CTRL,
-				LANE0_PWR_PRESENT, LANE0_PWR_PRESENT);
-	}
-	else
-	{
-		qca_uni_ss_write_readback(phy->qscratch_base, USB30_SS_PHY_CTRL,
-				LANE0_PWR_PRESENT, 0x0);
-	}
-	return 0;
-}
-
 static int qca_uni_ss_phy_init(struct usb_phy *x)
 {
 	struct qca_uni_ss_phy *phy = phy_to_dw_phy(x);
@@ -267,10 +254,9 @@ static int qca_uni_ss_phy_init(struct usb_phy *x)
 	/* assert SS PHY POR reset */
 	reset_control_assert(phy->por_rst);
 
-	udelay(100);
+	msleep(100);
 
-	if (phy->emulation)
-	{
+	if (phy->emulation) {
 		mdio_mii_write(phy->base, 0x1, 0x8017);
 		mdio_mii_write(phy->base, 0xb, 0x300d);
 		mdio_mmd_write(phy->base, 0x2d, 0x681a);
@@ -286,17 +272,14 @@ static int qca_uni_ss_phy_init(struct usb_phy *x)
 		mdio_mmd_write(phy->base, 0xc, 0x0480);
 		mdio_mmd_write(phy->base, 0x13, 0x8000);
 		mdio_mmd_write(phy->base, 0x7c, 0x82);
+	} else {
+		/* Add ASIC PHY register write here */
 	}
-	else
-	{
 
-	}
+	msleep(10);
 
 	/* deassert SS PHY POR reset */
 	reset_control_deassert(phy->por_rst);
-
-	if(!phy->host)
-		qca_uni_ss_phy_set_vbus(x, 1);
 
 	return 0;
 }
@@ -312,17 +295,12 @@ static int qca_uni_ss_get_resources(struct platform_device *pdev,
 	if (IS_ERR(phy->base))
 		return PTR_ERR(phy->base);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	phy->qscratch_base = devm_ioremap_resource(phy->dev, res);
-	if (IS_ERR(phy->qscratch_base))
-		return PTR_ERR(phy->qscratch_base);
-
-	phy->por_rst = devm_reset_control_get(phy->dev, "por");
+	phy->por_rst = devm_reset_control_get(phy->dev, "por_rst");
 	if (IS_ERR(phy->por_rst))
 		return PTR_ERR(phy->por_rst);
 
 	np = of_node_get(pdev->dev.of_node);
-	if ( of_property_read_u32(np, "qca,host", &phy->host)
+	if (of_property_read_u32(np, "qca,host", &phy->host)
 			|| of_property_read_u32(np, "qca,emulation", &phy->emulation)) {
 		pr_err("%s: error reading critical device node properties\n", np->name);
 		return -EFAULT;
@@ -373,8 +351,7 @@ static int qca_uni_ss_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, phy);
 	phy->dev = &pdev->dev;
 
-	if (of_device_is_compatible(np, "qca,dummy-ssphy"))
-	{
+	if (of_device_is_compatible(np, "qca,dummy-ssphy")) {
 		phy->phy.dev        = phy->dev;
 		phy->phy.label      = "qca-dummy-ssphy";
 		phy->phy.init       = qca_dummy_ss_phy_init;
