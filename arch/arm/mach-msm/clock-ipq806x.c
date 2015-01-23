@@ -3641,7 +3641,6 @@ static struct clk_lookup msm_clocks_ipq806x[] = {
 	//CLK_LOOKUP("core_clk",		gsbi3_uart_clk.c,	""),
 	CLK_LOOKUP("core_clk",		gsbi4_uart_clk.c,	"msm_serial_hsl.1"),
 	CLK_LOOKUP("core_clk",		gsbi5_uart_clk.c,	""),
-	CLK_LOOKUP("core_clk",		gsbi6_uart_clk.c, "msm_serial_hs.0"),
 	CLK_LOOKUP("core_clk",		gsbi7_uart_clk.c, "msm_serial_hsl.0"),
 	CLK_LOOKUP("core_clk",		gsbi1_qup_clk.c,	"qup_i2c.0"),
 	CLK_LOOKUP("core_clk",		gsbi2_qup_clk.c,	"qup_i2c.1"),
