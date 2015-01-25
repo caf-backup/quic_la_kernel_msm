@@ -81,6 +81,8 @@
 #include "bond_3ad.h"
 #include "bond_alb.h"
 
+#define BOND_NAME_PREFIX	"bond"
+
 /*---------------------------- Module parameters ----------------------------*/
 
 /* monitor all links that often (in milliseconds). <=0 disables monitoring */
@@ -191,11 +193,6 @@ static int arp_ip_count;
 static int bond_mode	= BOND_MODE_ROUNDROBIN;
 static int xmit_hashtype = BOND_XMIT_POLICY_LAYER2;
 static int lacp_fast;
-
-/*
- * This counter is used to assign a unique id to a LAG group.
- */
-static unsigned int bond_id_counter;
 
 const struct bond_parm_tbl bond_lacp_tbl[] = {
 {	"slow",		AD_LACP_SLOW},
@@ -4485,8 +4482,6 @@ static void bond_setup(struct net_device *bond_dev)
 	rwlock_init(&bond->curr_slave_lock);
 
 	bond->params = bonding_defaults;
-	bond->id = bond_id_counter;
-	bond_id_counter++;
 
 	/* Initialize pointers */
 	bond->dev = bond_dev;
@@ -4998,6 +4993,8 @@ int bond_create(struct net *net, const char *name)
 {
 	struct net_device *bond_dev;
 	int res;
+	long unsigned int bondid = 0;
+	struct bonding *bond = NULL;
 
 	rtnl_lock();
 
@@ -5020,6 +5017,11 @@ int bond_create(struct net *net, const char *name)
 	rtnl_unlock();
 	if (res < 0)
 		bond_destructor(bond_dev);
+
+	bond = netdev_priv(bond_dev);
+	kstrtoul((bond_dev->name + strlen(BOND_NAME_PREFIX)), 10, &bondid);
+	bond->id = (u32)bondid;
+
 	return res;
 }
 
