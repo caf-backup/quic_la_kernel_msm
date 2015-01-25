@@ -191,11 +191,7 @@ static int arp_ip_count;
 static int bond_mode	= BOND_MODE_ROUNDROBIN;
 static int xmit_hashtype = BOND_XMIT_POLICY_LAYER2;
 static int lacp_fast;
-
-/*
- * This counter is used to assign a unique id to a LAG group.
- */
-static unsigned int bond_id_counter;
+static unsigned long bond_id_mask = 0xFFFFFFFE;
 
 const struct bond_parm_tbl bond_lacp_tbl[] = {
 {	"slow",		AD_LACP_SLOW},
@@ -4473,6 +4469,8 @@ static void bond_destructor(struct net_device *bond_dev)
 	struct bonding *bond = netdev_priv(bond_dev);
 	if (bond->wq)
 		destroy_workqueue(bond->wq);
+
+	clear_bit(bond->id, &bond_id_mask);
 	free_netdev(bond_dev);
 }
 
@@ -4485,8 +4483,6 @@ static void bond_setup(struct net_device *bond_dev)
 	rwlock_init(&bond->curr_slave_lock);
 
 	bond->params = bonding_defaults;
-	bond->id = bond_id_counter;
-	bond_id_counter++;
 
 	/* Initialize pointers */
 	bond->dev = bond_dev;
@@ -4998,6 +4994,7 @@ int bond_create(struct net *net, const char *name)
 {
 	struct net_device *bond_dev;
 	int res;
+	struct bonding *bond = NULL;
 
 	rtnl_lock();
 
@@ -5020,6 +5017,14 @@ int bond_create(struct net *net, const char *name)
 	rtnl_unlock();
 	if (res < 0)
 		bond_destructor(bond_dev);
+
+	bond = netdev_priv(bond_dev);
+	bond->id = ~0U;
+	if (bond_id_mask != (~0UL)) {
+		bond->id = (u32)ffz(bond_id_mask);
+		set_bit(bond->id, &bond_id_mask);
+	}
+
 	return res;
 }
 
