@@ -2216,6 +2216,7 @@ static struct msm_serial_hs_platform_data ipq806x_uart_dm2_pdata = {
 	.uart_rx_gpio		= 23,
 	.uart_cts_gpio		= 24,
 	.uart_rfr_gpio		= 25,
+	.uartdm_rx_buf_size	= 1024,
 };
 
 #ifdef CONFIG_SPI_QUP
