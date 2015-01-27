@@ -1472,6 +1472,7 @@ static void msm_spi_process_transfer(struct msm_spi *dd)
 	dd->rx_bytes_remaining = dd->cur_msg_len;
 	dd->read_buf           = dd->cur_transfer->rx_buf;
 	dd->write_buf          = dd->cur_transfer->tx_buf;
+	dd->cur_msg->actual_length  += dd->cur_msg_len;
 	init_completion(&dd->transfer_complete);
 	if (dd->cur_transfer->bits_per_word)
 		bpw = dd->cur_transfer->bits_per_word;
@@ -1559,6 +1560,7 @@ static void msm_spi_process_transfer(struct msm_spi *dd)
 					"%s: SPI transaction timeout\n",
 					__func__);
 				dd->cur_msg->status = -EIO;
+				dd->cur_msg->actual_length = 0;
 				break;
 		}
 	} while (msm_spi_dma_send_next(dd));
@@ -1859,6 +1861,7 @@ static int msm_spi_transfer_one_message(struct spi_master *master,
 	}
 
 
+	dd->cur_msg->actual_length = 0;
 	if (status_error)
 			dd->cur_msg->status = -EIO;
 	else
@@ -2230,7 +2233,6 @@ static int msm_spi_bam_init(struct msm_spi *dd)
 		bam_props.phys_addr = dd->bam.phys_addr;
 		bam_props.virt_addr = dd->bam.base;
 		bam_props.irq       = dd->bam.irq;
-		bam_props.manage    = SPS_BAM_MGR_DEVICE_REMOTE;
 		bam_props.summing_threshold = 0x10;
 
 		rc = sps_register_bam_device(&bam_props, &bam_handle);

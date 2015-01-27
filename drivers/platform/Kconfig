@@ -7,6 +7,6 @@ endif
 
 source "drivers/platform/chrome/Kconfig"
 
-if ARCH_MSM
+if ARCH_QCOM
 source "drivers/platform/msm/Kconfig"
 endif
