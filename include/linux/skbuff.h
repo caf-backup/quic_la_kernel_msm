@@ -618,7 +618,9 @@ struct sk_buff {
 	__u32			priority;
 	int			skb_iif;
 	__u32			hash;
+#ifdef CONFIG_NF_FLOW_COOKIE
 	__u32			flow_cookie;
+#endif
 	__be16			vlan_proto;
 	__u16			vlan_tci;
 #ifdef CONFIG_NET_RX_BUSY_POLL
