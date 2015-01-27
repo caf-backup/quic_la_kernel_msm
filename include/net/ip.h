@@ -232,6 +232,8 @@ static inline int inet_is_local_reserved_port(struct net *net, int port)
 }
 #endif
 
+extern int sysctl_ip_use_legacy_tos;
+
 /* From inetpeer.c */
 extern int inet_peer_threshold;
 extern int inet_peer_minttl;
