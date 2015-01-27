@@ -530,4 +530,15 @@
 			compatible = "arm,cortex-a7-pmu";
 			interrupts = <1 7 0xf04>;
 		};
+
+		sdhci@7824000 {
+			compatible = "qcom,sdhci-msm-v4";
+			reg = <0x7824900 0x11c>, <0x7824000 0x800>;
+			interrupts = <0 123 0>, <0 138 0>;
+			bus-width = <8>;
+			clocks = <&gcc 0>, <&gcc 0>;
+			clock-names = "core", "iface";
+			status = "disabled";
+		};
+
 	};
