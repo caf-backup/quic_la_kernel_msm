@@ -28,11 +28,9 @@
 #include <linux/uaccess.h>
 #include <linux/bootmem.h>
 #include <linux/dma-mapping.h>
-#include <linux/clk/msm-clk.h>
 
 #include <linux/msm-sps.h>
 #include <linux/msm-bus.h>
-#include <mach/hardware.h>
 
 #include "mdss_fb.h"
 #include "mdss_qpic.h"
@@ -245,7 +243,8 @@ int qpic_init_sps(struct platform_device *pdev,
 	bam.phys_addr = qpic_res->qpic_phys + 0x4000;
 	bam.virt_addr = qpic_res->qpic_base + 0x4000;
 	bam.irq = qpic_res->irq - 4;
-	bam.manage = SPS_BAM_MGR_DEVICE_REMOTE | SPS_BAM_MGR_MULTI_EE;
+	bam.manage = SPS_BAM_MGR_MULTI_EE;
+	bam.summing_threshold = 0x10;
 
 	rc = sps_phy2h(bam.phys_addr, &bam_handle);
 	if (rc)
@@ -448,7 +447,7 @@ static int qpic_wait_for_fifo(void)
 		data &= 0x3F;
 		if (data == 0)
 			return ret;
-		INIT_COMPLETION(qpic_res->fifo_eof_comp);
+		reinit_completion(&qpic_res->fifo_eof_comp);
 		QPIC_OUTP(QPIC_REG_QPIC_LCDC_IRQ_EN, (1 << 4));
 		ret = wait_for_completion_timeout(&qpic_res->fifo_eof_comp,
 				msecs_to_jiffies(QPIC_MAX_VSYNC_WAIT_TIME));
@@ -487,7 +486,7 @@ static int qpic_wait_for_eof(void)
 		data = QPIC_INP(QPIC_REG_QPIC_LCDC_IRQ_STTS);
 		if (data & (1 << 2))
 			return ret;
-		INIT_COMPLETION(qpic_res->fifo_eof_comp);
+		reinit_completion(&qpic_res->fifo_eof_comp);
 		QPIC_OUTP(QPIC_REG_QPIC_LCDC_IRQ_EN, (1 << 2));
 		ret = wait_for_completion_timeout(&qpic_res->fifo_eof_comp,
 				msecs_to_jiffies(QPIC_MAX_VSYNC_WAIT_TIME));
