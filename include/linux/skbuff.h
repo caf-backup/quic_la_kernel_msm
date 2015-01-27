@@ -483,7 +483,9 @@ struct sk_buff {
 	int			skb_iif;
 
 	__u32			rxhash;
+#ifdef CONFIG_NF_FLOW_COOKIE
 	__u32			flow_cookie;
+#endif
 
 	__be16			vlan_proto;
 	__u16			vlan_tci;

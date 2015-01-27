@@ -418,6 +418,14 @@ config NF_NAT_TFTP
 config NETFILTER_SYNPROXY
 	tristate
 
+config NF_FLOW_COOKIE
+        bool "carry flow cookie in packet to accelerate lookup process for connection"
+        default n
+        depends on NF_CONNTRACK
+	help
+	  If this option is enabled, a flow cookie can be carried in packet to accelerate
+	  finding of connection.
+
 endif # NF_CONNTRACK
 
 config NF_TABLES
