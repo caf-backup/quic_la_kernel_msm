@@ -81,8 +81,6 @@
 #include "bond_3ad.h"
 #include "bond_alb.h"
 
-#define BOND_NAME_PREFIX	"bond"
-
 /*---------------------------- Module parameters ----------------------------*/
 
 /* monitor all links that often (in milliseconds). <=0 disables monitoring */
@@ -193,6 +191,7 @@ static int arp_ip_count;
 static int bond_mode	= BOND_MODE_ROUNDROBIN;
 static int xmit_hashtype = BOND_XMIT_POLICY_LAYER2;
 static int lacp_fast;
+static unsigned long bond_id_mask = 0xFFFFFFFE;
 
 const struct bond_parm_tbl bond_lacp_tbl[] = {
 {	"slow",		AD_LACP_SLOW},
@@ -4470,6 +4469,8 @@ static void bond_destructor(struct net_device *bond_dev)
 	struct bonding *bond = netdev_priv(bond_dev);
 	if (bond->wq)
 		destroy_workqueue(bond->wq);
+
+	clear_bit(bond->id, &bond_id_mask);
 	free_netdev(bond_dev);
 }
 
@@ -4993,7 +4994,6 @@ int bond_create(struct net *net, const char *name)
 {
 	struct net_device *bond_dev;
 	int res;
-	long unsigned int bondid = 0;
 	struct bonding *bond = NULL;
 
 	rtnl_lock();
@@ -5019,8 +5019,11 @@ int bond_create(struct net *net, const char *name)
 		bond_destructor(bond_dev);
 
 	bond = netdev_priv(bond_dev);
-	kstrtoul((bond_dev->name + strlen(BOND_NAME_PREFIX)), 10, &bondid);
-	bond->id = (u32)bondid;
+	bond->id = ~0U;
+	if (bond_id_mask != (~0UL)) {
+		bond->id = (u32)ffz(bond_id_mask);
+		set_bit(bond->id, &bond_id_mask);
+	}
 
 	return res;
 }
