@@ -32,9 +32,6 @@
 #include <linux/of_gpio.h>
 #include <linux/clk/msm-clk.h>
 #include <asm/mach/pci.h>
-#include <mach/gpiomux.h>
-#include <mach/hardware.h>
-#include <mach/msm_iomap.h>
 #include <linux/msm-bus.h>
 #include <linux/msm-bus-board.h>
 
@@ -59,6 +56,7 @@
 #define PCIE20_PARF_DBI_BASE_ADDR      0x168
 #define PCIE20_PARF_AXI_MSTR_WR_ADDR_HALT   0x178
 #define PCIE20_PARF_Q2A_FLUSH          0x1AC
+#define PCIE20_PARF_LTSSM              0x1B0
 
 #define PCIE20_ELBI_VERSION            0x00
 #define PCIE20_ELBI_SYS_CTRL           0x04
@@ -66,6 +64,7 @@
 
 #define PCIE20_CAP                     0x70
 #define PCIE20_CAP_LINKCTRLSTATUS      (PCIE20_CAP + 0x10)
+#define PCIE20_CAP_LINK_CAPABILITIES   (PCIE20_CAP + 0xC)
 
 #define PCIE20_COMMAND_STATUS          0x04
 #define PCIE20_BUSNUMBERS              0x18
@@ -76,6 +75,8 @@
 
 #define PCIE20_ACK_F_ASPM_CTRL_REG     0x70C
 #define PCIE20_ACK_N_FTS               0xff00
+#define PCIE20_GEN2_CTRL_REG           0x80C
+#define PCIE20_MISC_CONTROL_1_REG      0x8BC
 
 #define PCIE20_PLR_IATU_VIEWPORT       0x900
 #define PCIE20_PLR_IATU_CTRL1          0x904
@@ -1156,6 +1157,13 @@ int msm_pcie_enable(struct msm_pcie_dev_t *dev, u32 options)
 		goto out;
 	}
 
+	/* detect uni phy before accessing the pcie registers */
+
+	ret = pcie_phy_detect(dev);
+	if (ret) {
+		goto out;
+	}
+
 	/* assert PCIe reset link to keep EP in reset */
 
 	PCIE_INFO(dev, "PCIe: Assert the reset of endpoint of RC%d.\n",
@@ -1202,6 +1210,18 @@ int msm_pcie_enable(struct msm_pcie_dev_t *dev, u32 options)
 
 	/* init PCIe PHY */
 	pcie_phy_init(dev);
+
+	if (dev->is_emulation) {
+		writel_relaxed(0x1b808000, dev->dm_core + PCIE20_ACK_F_ASPM_CTRL_REG);
+		writel_relaxed(0x20280, dev->dm_core + PCIE20_GEN2_CTRL_REG);
+		writel_relaxed(0x4, dev->dm_core + PCIE20_COMMAND_STATUS);
+		writel_relaxed(0x1, dev->dm_core + PCIE20_MISC_CONTROL_1_REG);
+		writel_relaxed(0x2fd7f, dev->dm_core + 0x84);
+		writel_relaxed(0x724011, dev->dm_core + PCIE20_CAP_LINK_CAPABILITIES);
+		writel_relaxed(0x10, dev->dm_core + PCIE20_DEVICE_CONTROL2_STATUS2);
+		writel_relaxed(0x10110008, dev->dm_core + PCIE20_CAP_LINKCTRLSTATUS);
+		writel_relaxed(0x100, dev->parf + PCIE20_PARF_LTSSM);
+	}
 
 	if (options & PM_PIPE_CLK) {
 		usleep_range(PHY_STABILIZATION_DELAY_US_MIN,
@@ -1590,6 +1610,13 @@ static int msm_pcie_probe(struct platform_device *pdev)
 	else
 		PCIE_DBG(&msm_pcie_dev[rc_idx], "n-fts: 0x%x.\n",
 				msm_pcie_dev[rc_idx].n_fts);
+
+	msm_pcie_dev[rc_idx].is_emulation =
+		 of_property_read_bool((&pdev->dev)->of_node,
+				"qcom,is_emulation");
+
+	PCIE_DBG(&msm_pcie_dev[rc_idx], "is_emulation: 0x%x.\n",
+				msm_pcie_dev[rc_idx].is_emulation);
 
 	msm_pcie_dev[rc_idx].ext_ref_clk =
 		of_property_read_bool((&pdev->dev)->of_node,

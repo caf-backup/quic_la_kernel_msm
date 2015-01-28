@@ -219,6 +219,7 @@ struct msm_pcie_dev_t {
 	uint32_t                     msi_gicm_addr;
 	uint32_t                     msi_gicm_base;
 	bool                         use_msi;
+	bool                         is_emulation;
 
 	enum msm_pcie_link_status    link_status;
 	bool                         user_suspend;
@@ -267,5 +268,7 @@ extern bool msm_pcie_confirm_linkup(struct msm_pcie_dev_t *dev,
 
 extern void pcie_phy_init(struct msm_pcie_dev_t *dev);
 extern bool pcie_phy_is_ready(struct msm_pcie_dev_t *dev);
+extern void pcie20_uni_phy_init(struct msm_pcie_dev_t *dev);
+extern bool pcie_phy_detect(struct msm_pcie_dev_t *dev);
 
 #endif
