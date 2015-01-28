@@ -29,7 +29,19 @@
 
 };
 	&soc {
+		pinctrl@0x01000000 {
+			serial_pins: serial_pinmux {
+				mux {
+					pins = "gpio16", "gpio17";
+					function = "blsp_uart0";
+					bias-disable;
+				};
+			};
+		};
+
 		serial@78af000 {
+			pinctrl-0 = <&serial_pins>;
+			pinctrl-names = "default";
 			status = "ok";
 		};
 
