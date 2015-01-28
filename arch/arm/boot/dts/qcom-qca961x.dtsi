@@ -79,7 +79,7 @@
 				     <1 3 0xf08>,
 				     <1 4 0xf08>,
 				     <1 1 0xf08>;
-			clock-frequency = <20833333>;
+			clock-frequency = <2400000>;
 		};
 
 		apcs: a7ss_base@b088000 {
