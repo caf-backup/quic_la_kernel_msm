@@ -48,6 +48,8 @@
 
 #define AR8XXX_MIB_WORK_DELAY	2000 /* msecs */
 
+#define AR8XXX_MAX_FRAME_SIZE   9018
+
 struct ar8xxx_priv;
 
 #define AR8XXX_CAP_GIGE			BIT(0)
@@ -169,6 +171,8 @@ struct ar8xxx_priv {
 	bool mirror_tx;
 	int source_port;
 	int monitor_port;
+
+	int max_frame_size;
 	struct regmap *regmap;
 };
 
@@ -1982,6 +1986,32 @@ ar8216_set_mirror_regs(struct ar8xxx_priv *priv)
 }
 
 static void
+ar8327_set_max_frame_size_regs(struct ar8xxx_priv *priv)
+{
+	ar8xxx_rmw(priv, AR8327_REG_MAX_FRAME_SIZE,
+			AR8327_MAX_FRAME_SIZE_MTU,
+			(priv->max_frame_size + 8 + 2));
+}
+
+static void
+ar8216_set_max_frame_size_regs(struct ar8xxx_priv *priv)
+{
+	if(chip_is_ar8216(priv))
+		ar8xxx_rmw(priv, AR8216_REG_GLOBAL_CTRL,
+				AR8216_GCTRL_MTU,
+				(priv->max_frame_size + 8 + 2));
+	else if(chip_is_ar8316(priv))
+		ar8xxx_rmw(priv, AR8216_REG_GLOBAL_CTRL,
+				AR8316_GCTRL_MTU,
+				(priv->max_frame_size + 8 + 2));
+	else if(chip_is_ar8236(priv))
+		ar8xxx_rmw(priv, AR8216_REG_GLOBAL_CTRL,
+				AR8236_GCTRL_MTU,
+				(priv->max_frame_size + 8 + 2));
+}
+
+
+static void
 ar8xxx_set_mirror_regs(struct ar8xxx_priv *priv)
 {
 	if (chip_is_ar8327(priv) || chip_is_ar8337(priv)) {
@@ -1990,6 +2020,17 @@ ar8xxx_set_mirror_regs(struct ar8xxx_priv *priv)
 		ar8216_set_mirror_regs(priv);
 	}
 }
+
+static void
+ar8xxx_set_max_frame_size_regs(struct ar8xxx_priv *priv)
+{
+	if (chip_is_ar8327(priv) || chip_is_ar8337(priv)) {
+		ar8327_set_max_frame_size_regs(priv);
+	} else {
+		ar8216_set_max_frame_size_regs(priv);
+	}
+}
+
 
 static int
 ar8xxx_sw_hw_apply(struct switch_dev *dev)
@@ -2056,6 +2097,7 @@ ar8xxx_sw_hw_apply(struct switch_dev *dev)
 	}
 
 	ar8xxx_set_mirror_regs(priv);
+	ar8xxx_set_max_frame_size_regs(priv);
 
 	mutex_unlock(&priv->reg_mutex);
 	return 0;
@@ -2082,6 +2124,7 @@ ar8xxx_sw_reset_switch(struct switch_dev *dev)
 	priv->mirror_tx = false;
 	priv->source_port = 0;
 	priv->monitor_port = 0;
+	priv->max_frame_size = AR8XXX_MAX_FRAME_SIZE;
 
 	priv->chip->init_globals(priv);
 
@@ -2296,6 +2339,32 @@ unlock:
 	return ret;
 }
 
+static int
+ar8xxx_sw_set_max_frame_size(struct switch_dev *dev,
+				 const struct switch_attr *attr,
+				 struct switch_val *val)
+{
+	struct ar8xxx_priv *priv = swdev_to_ar8xxx(dev);
+
+	mutex_lock(&priv->reg_mutex);
+	priv->max_frame_size = val->value.i;
+	ar8xxx_set_max_frame_size_regs(priv);
+	mutex_unlock(&priv->reg_mutex);
+
+	return 0;
+}
+
+static int
+ar8xxx_sw_get_max_frame_size(struct switch_dev *dev,
+				 const struct switch_attr *attr,
+				 struct switch_val *val)
+{
+	struct ar8xxx_priv *priv = swdev_to_ar8xxx(dev);
+	val->value.i = priv->max_frame_size;
+	return 0;
+}
+
+
 static struct switch_attr ar8xxx_sw_attr_globals[] = {
 	{
 		.type = SWITCH_TYPE_INT,
@@ -2342,7 +2411,15 @@ static struct switch_attr ar8xxx_sw_attr_globals[] = {
 		.set = ar8xxx_sw_set_mirror_source_port,
 		.get = ar8xxx_sw_get_mirror_source_port,
 		.max = AR8216_NUM_PORTS - 1
- 	},
+	},
+	{
+		.type = SWITCH_TYPE_INT,
+		.name = "max_frame_size",
+		.description = "Max frame size can be received and transmitted by mac",
+		.set = ar8xxx_sw_set_max_frame_size,
+		.get = ar8xxx_sw_get_max_frame_size,
+		.max = AR8XXX_MAX_FRAME_SIZE
+	},
 };
 
 static struct switch_attr ar8327_sw_attr_globals[] = {
@@ -2391,7 +2468,15 @@ static struct switch_attr ar8327_sw_attr_globals[] = {
 		.set = ar8xxx_sw_set_mirror_source_port,
 		.get = ar8xxx_sw_get_mirror_source_port,
 		.max = AR8327_NUM_PORTS - 1
- 	},
+	},
+	{
+		.type = SWITCH_TYPE_INT,
+		.name = "max_frame_size",
+		.description = "Max frame size can be received and transmitted by mac",
+		.set = ar8xxx_sw_set_max_frame_size,
+		.get = ar8xxx_sw_get_max_frame_size,
+		.max = AR8XXX_MAX_FRAME_SIZE
+	},
 };
 
 static struct switch_attr ar8xxx_sw_attr_port[] = {
