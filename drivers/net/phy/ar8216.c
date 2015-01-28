@@ -1569,23 +1569,11 @@ ar8327_hw_config_of(struct ar8xxx_priv *priv, struct device_node *np)
 }
 #endif
 
-static int
-ar8327_hw_init(struct ar8xxx_priv *priv)
+static void
+ar8327_port_phy_init(struct ar8xxx_priv *priv)
 {
 	struct mii_bus *bus;
-	int ret;
 	int i;
-
-	if (priv->phy->dev.of_node)
-		ret = ar8327_hw_config_of(priv, priv->phy->dev.of_node);
-	else
-		ret = ar8327_hw_config_pdata(priv,
-					     priv->phy->dev.platform_data);
-
-	if (ret)
-		return ret;
-
-	ar8327_leds_init(priv);
 
 	bus = priv->mii_bus;
 	for (i = 0; i < AR8327_NUM_PHYS; i++) {
@@ -1600,7 +1588,24 @@ ar8327_hw_init(struct ar8xxx_priv *priv)
 	}
 
 	msleep(1000);
+}
 
+static int
+ar8327_hw_init(struct ar8xxx_priv *priv)
+{
+	int ret;
+
+	if (priv->phy->dev.of_node)
+		ret = ar8327_hw_config_of(priv, priv->phy->dev.of_node);
+	else
+		ret = ar8327_hw_config_pdata(priv,
+					     priv->phy->dev.platform_data);
+
+	if (ret)
+		return ret;
+
+	ar8327_leds_init(priv);
+	ar8327_port_phy_init(priv);
 	return 0;
 }
 
@@ -2789,8 +2794,11 @@ ar8xxx_phy_config_init(struct phy_device *phydev)
 	if (WARN_ON(!priv))
 		return -ENODEV;
 
-	if (chip_is_ar8327(priv) || chip_is_ar8337(priv))
+	if (chip_is_ar8327(priv) || chip_is_ar8337(priv)) {
+		if(phydev->addr == 0)
+			ar8327_port_phy_init(priv);
 		return 0;
+	}
 
 	priv->phy = phydev;
 
