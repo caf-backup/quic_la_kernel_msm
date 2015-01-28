@@ -297,6 +297,9 @@
 #define   AR8316_POSTRIP_RXDELAY_S1		BIT(26)
 #define   AR8316_POSTRIP_POWER_ON_SEL		BIT(31)
 
+#define AR8XXX_MIB_WORK_DELAY	2000 /* msecs */
+#define AR8XXX_MAX_FRAME_SIZE   9018
+
 /* port speed */
 enum {
         AR8216_PORT_SPEED_10M = 0,
@@ -387,6 +390,7 @@ struct ar8xxx_chip {
 	void (*get_arl_entry)(struct ar8xxx_priv *priv, struct arl_entry *a,
 			      u32 *status, enum arl_op op);
 	int (*sw_hw_apply)(struct switch_dev *dev);
+	void (*set_max_frame_size_regs)(struct ar8xxx_priv *priv);
 
 	const struct ar8xxx_mib_desc *mib_decs;
 	unsigned num_mibs;
@@ -436,6 +440,7 @@ struct ar8xxx_priv {
 	bool mirror_tx;
 	int source_port;
 	int monitor_port;
+	int max_frame_size;
 	struct regmap *regmap;
 };
 
@@ -524,6 +529,15 @@ int
 ar8xxx_sw_get_arl_table(struct switch_dev *dev,
 			const struct switch_attr *attr,
 			struct switch_val *val);
+int
+ar8xxx_sw_set_max_frame_size(struct switch_dev *dev,
+				 const struct switch_attr *attr,
+				 struct switch_val *val);
+int
+ar8xxx_sw_get_max_frame_size(struct switch_dev *dev,
+				 const struct switch_attr *attr,
+				 struct switch_val *val);
+
 int
 ar8216_wait_bit(struct ar8xxx_priv *priv, int reg, u32 mask, u32 val);
 

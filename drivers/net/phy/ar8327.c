@@ -33,6 +33,66 @@
 extern const struct ar8xxx_mib_desc ar8236_mibs[39];
 extern const struct switch_attr ar8xxx_sw_attr_vlan[1];
 
+<<<<<<< HEAD
+=======
+static int
+ar8327_atu_dump(struct ar8xxx_priv *priv)
+{
+	u32 ret;
+	u32 i = 0, len = 0, entry_len = 0;
+	volatile u32 reg[4] = {0,0,0,0};
+	u8 addr[ETH_ALEN] = { 0 };
+	char *buf;
+
+	buf = priv->buf;
+	memset(priv->buf, 0, sizeof(priv->buf));
+	do {
+		ret = ar8216_wait_bit(priv, AR8327_REG_ATU_FUNC,
+				      AR8327_ATU_FUNC_BUSY, 0);
+		if(ret != 0)
+			return -ETIMEDOUT;
+
+		reg[3] = AR8327_ATU_FUNC_BUSY | AR8327_ATU_FUNC_OP_GET_NEXT;
+		ar8xxx_write(priv, AR8327_REG_ATU_DATA0, reg[0]);
+		ar8xxx_write(priv, AR8327_REG_ATU_DATA1, reg[1]);
+		ar8xxx_write(priv, AR8327_REG_ATU_DATA2, reg[2]);
+		ar8xxx_write(priv, AR8327_REG_ATU_FUNC, reg[3]);
+
+		ret = ar8216_wait_bit(priv, AR8327_REG_ATU_FUNC,
+				      AR8327_ATU_FUNC_BUSY, 0);
+		if(ret != 0)
+			return -ETIMEDOUT;
+
+		reg[0] = ar8xxx_read(priv, AR8327_REG_ATU_DATA0);
+		reg[1] = ar8xxx_read(priv, AR8327_REG_ATU_DATA1);
+		reg[2] = ar8xxx_read(priv, AR8327_REG_ATU_DATA2);
+		reg[3] = ar8xxx_read(priv, AR8327_REG_ATU_FUNC);
+
+		if((reg[2] & 0xf) == 0)
+			break;
+
+		for(i=2; i<6; i++)
+			addr[i] = (reg[0] >> ((5 - i) << 3)) & 0xff;
+		for(i=0; i<2; i++)
+			addr[i] = (reg[1] >> ((1 - i) << 3)) & 0xff;
+
+		len += snprintf(buf+len, sizeof(priv->buf) - len, "MAC: %02x:%02x:%02x:%02x:%02x:%02x ",
+						addr[0],addr[1],addr[2],addr[3],addr[4],addr[5]);
+		len += snprintf(buf+len, sizeof(priv->buf) - len, "PORTMAP: 0x%02x\n", ((reg[1] >> 16) & 0x7f));
+
+		reg[2] |= 0xf;
+
+		if (!entry_len)
+			entry_len = len;
+
+		if (sizeof(priv->buf) - len <= entry_len)
+			break;
+	}while(1);
+
+	return len;
+}
+
+>>>>>>> c879d50... 977347b9
 static u32
 ar8327_get_pad_cfg(struct ar8327_pad_cfg *cfg)
 {
@@ -617,6 +677,46 @@ ar8327_hw_config_of(struct ar8xxx_priv *priv, struct device_node *np)
 }
 #endif
 
+<<<<<<< HEAD
+=======
+void
+ar8327_port_phy_linkdown(struct ar8xxx_priv *priv)
+{
+	struct mii_bus *bus;
+	int i;
+	u16 val;
+
+	bus = priv->mii_bus;
+	for (i = 0; i < AR8XXX_NUM_PHYS; i++) {
+		mdiobus_write(bus, i, MII_CTRL1000, 0);
+		mdiobus_write(bus, i, MII_ADVERTISE, 0);
+		mdiobus_write(bus, i, MII_BMCR, BMCR_RESET | BMCR_ANENABLE);
+		ar8xxx_phy_dbg_read(priv, i, AR8337_PHY_DEBUG_0, &val);
+		val |= AR8337_PHY_MANU_CTRL_EN;
+		ar8xxx_phy_dbg_write(priv, i, AR8337_PHY_DEBUG_0, val);
+		/*disable transmit*/
+		ar8xxx_phy_dbg_read(priv, i, AR8337_PHY_DEBUG_2, &val);
+		val &= 0xf00f;
+		ar8xxx_phy_dbg_write(priv, i, AR8337_PHY_DEBUG_2, val);
+	}
+}
+
+static int
+ar8xxx_sw_set_linkdown(struct switch_dev *dev,
+			   const struct switch_attr *attr,
+			   struct switch_val *val)
+{
+	struct ar8xxx_priv *priv = swdev_to_ar8xxx(dev);
+
+	if (val->value.i == 1)
+		ar8327_port_phy_linkdown(priv);
+	/* else
+		ar8327_port_phy_init(priv); */
+
+	return 0;
+}
+
+>>>>>>> c879d50... 977347b9
 static int
 ar8327_hw_init(struct ar8xxx_priv *priv)
 {
@@ -692,7 +792,19 @@ ar8327_init_port(struct ar8xxx_priv *priv, int port)
 	else
 		t = AR8216_PORT_STATUS_LINK_AUTO;
 
-	ar8xxx_write(priv, AR8327_REG_PORT_STATUS(port), t);
+	if (port != AR8216_PORT_CPU && port != 6) {
+		/*
+		 * hw limitation:if configure mac when there is traffic,
+		 * port MAC may work abnormal. Need disable lan&wan mac at first
+		 */
+		ar8xxx_write(priv, AR8327_REG_PORT_STATUS(port), 0);
+		msleep(100);
+		t |= AR8216_PORT_STATUS_FLOW_CONTROL;
+		ar8xxx_write(priv, AR8327_REG_PORT_STATUS(port), t);
+	} else {
+		ar8xxx_write(priv, AR8327_REG_PORT_STATUS(port), t);
+	}
+
 	ar8xxx_write(priv, AR8327_REG_PORT_HEADER(port), 0);
 
 	t = 1 << AR8327_PORT_VLAN0_DEF_SVID_S;
@@ -927,6 +1039,14 @@ ar8327_set_mirror_regs(struct ar8xxx_priv *priv)
 			   AR8327_PORT_HOL_CTRL1_EG_MIRROR_EN);
 }
 
+static void
+ar8327_set_max_frame_size_regs(struct ar8xxx_priv *priv)
+{
+	ar8xxx_rmw(priv, AR8327_REG_MAX_FRAME_SIZE,
+			AR8327_MAX_FRAME_SIZE_MTU,
+			(priv->max_frame_size + 8 + 2));
+}
+
 static int
 ar8327_sw_set_eee(struct switch_dev *dev,
 		  const struct switch_attr *attr,
@@ -1144,6 +1264,14 @@ static const struct switch_attr ar8327_sw_attr_port[] = {
 		.get = ar8327_sw_get_eee,
 		.max = 1,
 	},
+	{
+		.type = SWITCH_TYPE_INT,
+		.name = "max_frame_size",
+		.description = "Max frame size can be received and transmitted by mac",
+		.set = ar8xxx_sw_set_max_frame_size,
+		.get = ar8xxx_sw_get_max_frame_size,
+		.max = AR8XXX_MAX_FRAME_SIZE
+	},
 };
 
 static const struct switch_dev_ops ar8327_sw_ops = {
@@ -1195,6 +1323,7 @@ const struct ar8xxx_chip ar8327_chip = {
 	.set_mirror_regs = ar8327_set_mirror_regs,
 	.get_arl_entry = ar8327_get_arl_entry,
 	.sw_hw_apply = ar8327_sw_hw_apply,
+	.set_max_frame_size_regs = ar8327_set_max_frame_size_regs,
 
 	.num_mibs = ARRAY_SIZE(ar8236_mibs),
 	.mib_decs = ar8236_mibs,
