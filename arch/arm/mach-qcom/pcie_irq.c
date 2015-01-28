@@ -22,7 +22,6 @@
 #include <linux/kernel.h>
 #include <linux/msi.h>
 #include <linux/pci.h>
-#include <mach/irqs.h>
 #include <linux/irqdomain.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>

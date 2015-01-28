@@ -15,9 +15,32 @@
  */
 
 #include <linux/io.h>
-#include <mach/msm_iomap.h>
+#include <linux/delay.h>
 #include "pcie.h"
 #include "pcie_phy.h"
+
+#define MDIO_CTRL_0_REG			0x40
+#define MDIO_CTRL_1_REG			0x44
+#define MDIO_CTRL_2_REG			0x48
+#define MDIO_CTRL_3_REG			0x4C
+#define MDIO_CTRL_4_REG			0x50
+
+#define MDIO_PCIE_PHY_ID		(0x5 << 13)
+#define MDC_MODE			(0x1 << 12)
+#define MDIO_CLAUSE_22			(0x0 << 8)
+#define MDIO_CLAUSE_45			(0x1 << 8)
+#define MDIO_PCIE_CLK_DIV		(0xF)
+#define MDIO_MMD_ID			(0x1)
+
+#define MDIO_ACCESS_BUSY		(0x1 << 16)
+#define MDIO_ACCESS_START		(0x1 << 8)
+#define MDIO_TIMEOUT_STATIC		1000
+
+#define MDIO_ACCESS_22_WRITE		(0x1)
+#define MDIO_ACCESS_22_READ		(0x0)
+#define MDIO_ACCESS_45_WRITE		(0x2)
+#define MDIO_ACCESS_45_READ		(0x1)
+#define MDIO_ACCESS_45_READ_ADDR	(0x0)
 
 static inline void write_phy(void *base, u32 offset, u32 value)
 {
@@ -163,16 +186,244 @@ void pcie_phy_init(struct msm_pcie_dev_t *dev)
 #else
 void pcie_phy_init(struct msm_pcie_dev_t *dev)
 {
-
-	pcie20_phy_init_default(dev);
+	if (dev->is_emulation)
+		pcie20_uni_phy_init(dev);
+	else
+		pcie20_phy_init_default(dev);
 }
 
 #endif
 
 bool pcie_phy_is_ready(struct msm_pcie_dev_t *dev)
 {
-	if (readl_relaxed(dev->phy + PCIE_PHY_PCS_STATUS) & BIT(6))
+	if (!dev->is_emulation &&
+	    readl_relaxed(dev->phy + PCIE_PHY_PCS_STATUS) & BIT(6))
 		return false;
 	else
 		return true;
+}
+/**
+ * Write register
+ *
+ * @base - PHY base virtual address.
+ * @offset - register offset.
+ */
+static u32 qca_uni_phy_read(void __iomem *base, u32 offset)
+{
+	u32 value;
+	value = readl_relaxed(base + offset);
+	return value;
+}
+
+/**
+ * Write register
+ * @base - PHY base virtual address.
+ * @offset - register offset.
+ * @val - value to write.
+ */
+static void qca_uni_phy_write(void __iomem *base, u32 offset, u32 val)
+{
+	writel(val, base + offset);
+	udelay(100);
+}
+
+/**
+ * Write register and read back masked value to confirm it is written
+ *
+ * @base - PHY base virtual address.
+ * @offset - register offset.
+ * @mask - register bitmask specifying what should be updated
+ * @val - value to write.
+ */
+static void qca_uni_phy_write_readback(void __iomem *base, u32 offset,
+		const u32 mask, u32 val)
+{
+	u32 write_val, tmp = readl(base + offset);
+
+	tmp &= ~mask;       /* retain other bits */
+	write_val = tmp | val;
+
+	writel(write_val, base + offset);
+
+	/* Read back to see if val was written */
+	tmp = readl(base + offset);
+	tmp &= mask;        /* clear other bits */
+
+	if (tmp != val)
+		pr_err("write: %x to UNI PHY: %x FAILED\n", val, offset);
+}
+
+static int mdio_wait(void __iomem *base)
+{
+	unsigned int mdio_access;
+	unsigned int timeout = MDIO_TIMEOUT_STATIC;
+
+	do {
+		mdio_access = qca_uni_phy_read(base, MDIO_CTRL_4_REG);
+		if (!timeout--)
+			return -EFAULT;
+	} while (mdio_access & MDIO_ACCESS_BUSY);
+
+	return 0;
+}
+
+static int mdio_mii_read(void __iomem *base, unsigned char regAddr,
+			 unsigned short *data)
+{
+	unsigned short mdio_ctl_0 = (MDIO_PCIE_PHY_ID | MDC_MODE |
+					MDIO_CLAUSE_22 | MDIO_PCIE_CLK_DIV);
+	unsigned int regVal;
+
+	qca_uni_phy_write(base, MDIO_CTRL_0_REG, mdio_ctl_0);
+	qca_uni_phy_write(base, MDIO_CTRL_1_REG, regAddr);
+	qca_uni_phy_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_22_READ);
+	qca_uni_phy_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_22_READ |
+						 MDIO_ACCESS_START);
+
+	/* wait for access busy to be cleared */
+	if (mdio_wait(base)) {
+		pr_err("%s MDIO Access Busy Timeout %x\n", __func__, regAddr);
+		return -EFAULT;
+	}
+
+	regVal =  qca_uni_phy_read(base, MDIO_CTRL_3_REG);
+	*data = (unsigned short)regVal;
+	return 0;
+}
+
+static int mdio_mii_write(void __iomem *base, unsigned char regAddr,
+			  unsigned short data)
+{
+	unsigned short mdio_ctl_0 = (MDIO_PCIE_PHY_ID | MDC_MODE |
+					MDIO_CLAUSE_22 | MDIO_PCIE_CLK_DIV);
+
+	qca_uni_phy_write(base, MDIO_CTRL_0_REG, mdio_ctl_0);
+	qca_uni_phy_write(base, MDIO_CTRL_1_REG, regAddr);
+	qca_uni_phy_write(base, MDIO_CTRL_2_REG, data);
+	qca_uni_phy_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_22_WRITE);
+	qca_uni_phy_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_22_WRITE |
+						 MDIO_ACCESS_START);
+
+	/* wait for access busy to be cleared */
+	if (mdio_wait(base)) {
+		pr_err("%s MDIO Access Busy Timeout %x\n", __func__, regAddr);
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+static int mdio_mmd_read(void __iomem *base, unsigned short regAddr,
+			 unsigned short *data)
+{
+	unsigned short mdio_ctl_0 = (MDIO_PCIE_PHY_ID | MDC_MODE |
+					MDIO_CLAUSE_45 | MDIO_PCIE_CLK_DIV);
+	unsigned int regVal;
+
+	qca_uni_phy_write(base, MDIO_CTRL_0_REG, mdio_ctl_0);
+	qca_uni_phy_write(base, MDIO_CTRL_1_REG, MDIO_MMD_ID);
+	qca_uni_phy_write(base, MDIO_CTRL_2_REG, regAddr);
+	qca_uni_phy_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_READ_ADDR);
+	qca_uni_phy_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_READ_ADDR |
+						 MDIO_ACCESS_START);
+
+	/* wait for access busy to be cleared */
+	if (mdio_wait(base)) {
+		pr_err("%s MDIO Access Busy Timeout %x\n", __func__, regAddr);
+		return -EFAULT;
+	}
+
+	qca_uni_phy_write(base, MDIO_CTRL_1_REG, MDIO_MMD_ID);
+	qca_uni_phy_write(base, MDIO_CTRL_2_REG, regAddr);
+	qca_uni_phy_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_WRITE);
+	qca_uni_phy_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_WRITE |
+						 MDIO_ACCESS_START);
+
+	/* wait for access busy to be cleared */
+	if (mdio_wait(base)) {
+		pr_err("%s MDIO Access Busy Timeout %x\n", __func__, regAddr);
+		return -EFAULT;
+	}
+
+	regVal =  qca_uni_phy_read(base, MDIO_CTRL_3_REG);
+	*data = (unsigned short)regVal;
+
+	return 0;
+}
+
+static int mdio_mmd_write(void __iomem *base, unsigned short regAddr,
+			  unsigned short data)
+{
+
+	unsigned short mdio_ctl_0 = (MDIO_PCIE_PHY_ID | MDC_MODE |
+					MDIO_CLAUSE_45 | MDIO_PCIE_CLK_DIV);
+
+	qca_uni_phy_write(base, MDIO_CTRL_0_REG, mdio_ctl_0);
+	qca_uni_phy_write(base, MDIO_CTRL_1_REG, MDIO_MMD_ID);
+	qca_uni_phy_write(base, MDIO_CTRL_2_REG, regAddr);
+	qca_uni_phy_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_READ_ADDR);
+	qca_uni_phy_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_READ_ADDR |
+						 MDIO_ACCESS_START);
+
+	/* wait for access busy to be cleared */
+	if (mdio_wait(base)) {
+		pr_err("%s MDIO Access Busy Timeout %x\n", __func__, regAddr);
+		return -EFAULT;
+	}
+
+	qca_uni_phy_write(base, MDIO_CTRL_2_REG, data);
+	qca_uni_phy_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_READ);
+	qca_uni_phy_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_READ |
+						 MDIO_ACCESS_START);
+
+	qca_uni_phy_write(base, MDIO_CTRL_2_REG, regAddr);
+	qca_uni_phy_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_WRITE);
+	qca_uni_phy_write(base, MDIO_CTRL_4_REG, MDIO_ACCESS_45_WRITE |
+						 MDIO_ACCESS_START);
+
+	/* wait for access busy to be cleared */
+	if (mdio_wait(base)) {
+		pr_err("%s MDIO Access Busy Timeout %x\n", __func__, regAddr);
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+void pcie20_uni_phy_init(struct msm_pcie_dev_t *dev)
+{
+	unsigned short data;
+
+	mdio_mii_write(dev->phy, 0x1, 0x801c);
+	mdio_mii_write(dev->phy, 0xb, 0x300d);
+
+	mdio_mmd_write(dev->phy, 0x2d, 0x681a);
+	mdio_mmd_write(dev->phy, 0x7d, 0x8);
+	mdio_mmd_write(dev->phy, 0x7f, 0x5ed5);
+	mdio_mmd_write(dev->phy, 0x87, 0xaa0a);
+	mdio_mmd_write(dev->phy, 0x4, 0x0802);
+	mdio_mmd_write(dev->phy, 0x8, 0x0280);
+	mdio_mmd_write(dev->phy, 0x9, 0x8854);
+	mdio_mmd_write(dev->phy, 0xa, 0x2815);
+	mdio_mmd_write(dev->phy, 0xb, 0x0120);
+	mdio_mmd_write(dev->phy, 0xc, 0x0480);
+	mdio_mmd_write(dev->phy, 0x13, 0x8000);
+
+	mdio_mmd_read(dev->phy, 0x7e, &data);
+
+	mdio_mii_read(dev->phy, 0x7, &data);
+}
+
+bool pcie_phy_detect(struct msm_pcie_dev_t *dev)
+{
+	unsigned short data;
+
+	mdio_mii_read(dev->phy, 0x0, &data);
+
+	if (data == 0x7f) {
+		pr_info("PCIe UNI PHY detected\n");
+		return true;
+	} else {
+		return false;
+	}
 }
