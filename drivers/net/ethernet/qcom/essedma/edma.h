@@ -54,7 +54,7 @@
 #define EDMA_TPD_PORT_BITMAP_SHIFT 18
 
 /* Enable Tx for all ports */
-#define EDMA_PORT_ENABLE_ALL 0x1E
+#define EDMA_PORT_ENABLE_ALL 0x3E
 
 #define EDMA_RX_RING_SIZE 256
 #define EDMA_TX_RING_SIZE 256
