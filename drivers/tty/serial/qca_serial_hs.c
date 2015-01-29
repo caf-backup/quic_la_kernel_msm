@@ -52,7 +52,6 @@
 #include <linux/sysfs.h>
 #include <linux/stat.h>
 #include <linux/device.h>
-#include <linux/wakelock.h>
 #include <linux/debugfs.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -2902,7 +2901,7 @@ static int msm_hs_sps_init(struct msm_hs_port *msm_uport)
 
 		/* SPS driver wll handle the UART BAM IRQ */
 		bam.irq = (u32)msm_uport->bam_irq;
-		bam.manage = SPS_BAM_MGR_DEVICE_REMOTE;
+		bam.manage = SPS_BAM_MGR_DEVICE_LOCAL;
 
 		MSM_HS_DBG("msm_serial_hs: bam physical base=0x%pa\n",
 							&bam.phys_addr);
