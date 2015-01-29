@@ -1,3 +1,6 @@
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
 / {
 	model = "Qualcomm IPQ8064/AP148";
 	compatible = "qcom,ipq8064-ap148", "qcom,ipq8064";
@@ -262,7 +265,7 @@
 
 		nss0: nss@40000000 {
 			compatible = "qcom,nss0";
-			interrupts = <0 213 0x4>;
+			interrupts = <GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0x36000000 0x1000 0x39000000 0x20000>;
 			reg-names = "nphys", "vphys";
 			clocks = <&gcc NSS_CORE_CLK>, <&gcc NSSTCM_CLK_SRC>, <&gcc NSSTCM_CLK>;
@@ -299,17 +302,17 @@
 
 		gmac1: ethernet@37200000 {
 			device_type = "network";
-			compatible = "qcom,nss-gmac1";
+			compatible = "qcom,nss-gmac";
 			reg = <0x37200000 0x200000>;
+			interrupts = <GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>;
+			phy-mode = "rgmii";
 			qcom,id = <1>;
 			qcom,phy_mdio_addr = <4>;
 			qcom,poll_required = <1>;
 			qcom,rgmii_delay = <0>;
-			qcom,phy_mii_type = <0>;
 			qcom,emulation = <0>;
 			qcom,forced_speed = <1000>;
 			qcom,forced_duplex = <1>;
-			qcom,irq = <255>;
 			qcom,socver = <0>;
 			local-mac-address = [000000000000];
 			mdiobus = <&mdio0>;
@@ -317,17 +320,17 @@
 
 		gmac2: ethernet@37400000 {
 			device_type = "network";
-			compatible = "qcom,nss-gmac2";
+			compatible = "qcom,nss-gmac";
 			reg = <0x37400000 0x200000>;
+			interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>;
+			phy-mode = "sgmii";
 			qcom,id = <2>;
 			qcom,phy_mdio_addr = <0>;
 			qcom,poll_required = <0>;
 			qcom,rgmii_delay = <0>;
-			qcom,phy_mii_type = <1>;
 			qcom,emulation = <0>;
 			qcom,forced_speed = <1000>;
 			qcom,forced_duplex = <1>;
-			qcom,irq = <258>;
 			qcom,socver = <0>;
 			local-mac-address = [000000000000];
 			mdiobus = <&mdio0>;
