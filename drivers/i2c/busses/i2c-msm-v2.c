@@ -2275,7 +2275,6 @@ static int i2c_msm_bam_reg_dev(struct i2c_msm_ctrl *ctrl, ulong *bam_handle)
 	struct sps_bam_props props = {
 		.phys_addr = phy_addr,
 		.irq       = bam->irq,
-		.manage    = SPS_BAM_MGR_DEVICE_REMOTE,
 		.summing_threshold = 0x10,
 	};
 
