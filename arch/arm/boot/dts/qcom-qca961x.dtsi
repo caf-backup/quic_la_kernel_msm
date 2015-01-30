@@ -321,6 +321,14 @@
 			qcom,bam-pipe-pair = <1>;
 			qcom,ce-hw-instance = <0>;
 			qcom,ce-device = <0>;
+
+			clocks = <&gcc 0>,
+				<&gcc 0>,
+				<&gcc 0>,
+				<&gcc 0>;
+
+			clock-names = "core_clk_src", "core_clk",
+					"iface_clk", "bus_clk";
 		};
 
 		qcom_cedev: qcedev@8e20000 {
@@ -332,6 +340,14 @@
 			qcom,bam-pipe-pair = <1>;
 			qcom,ce-hw-instance = <0>;
 			qcom,ce-device = <0>;
+
+			clocks = <&gcc 0>,
+				<&gcc 0>,
+				<&gcc 0>,
+				<&gcc 0>;
+
+			clock-names = "core_clk_src", "core_clk",
+					"iface_clk", "bus_clk";
 		};
 
 		wifi0: wifi@a000000 {
