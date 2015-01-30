@@ -121,6 +121,18 @@ static const struct qcom_reset_map gcc_qca961x_resets[] = {
 	[USB3_HSPHY_S_ARES] = { 0x1e038, 2 },
 	[USB2_HSPHY_POR_ARES] = { 0x1e01c, 4 },
 	[USB2_HSPHY_S_ARES] = { 0x1e01c, 2 },
+	[PCIE_PHY_AHB_ARES] = { 0x1d010, 11 },
+	[PCIE_AHB_ARES] = { 0x1d010, 10 },
+	[PCIE_PWR_ARES] = { 0x1d010, 9 },
+	[PCIE_PIPE_STICKY_ARES] = { 0x1d010, 8 },
+	[PCIE_AXI_M_STICKY_ARES] = { 0x1d010, 7 },
+	[PCIE_PHY_ARES] = { 0x1d010, 6 },
+	[PCIE_PARF_XPU_ARES] = { 0x1d010, 5 },
+	[PCIE_AXI_S_XPU_ARES] = { 0x1d010, 4 },
+	[PCIE_AXI_M_VMIDMT_ARES] = { 0x1d010, 3 },
+	[PCIE_PIPE_ARES] = { 0x1d010, 2 },
+	[PCIE_AXI_S_ARES] = { 0x1d010, 1 },
+	[PCIE_AXI_M_ARES] = { 0x1d010, 0 },
 };
 
 static const struct regmap_config gcc_qca961x_regmap_config = {

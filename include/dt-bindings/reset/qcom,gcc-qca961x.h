@@ -27,9 +27,21 @@
 #define WIFI1_CORE_WARM_RESET			10
 #define WIFI1_CORE_COLD_RESET			11
 #define USB3_UNIPHY_PHY_ARES			12
-#define USB3_HSPHY_POR_ARES				13
-#define USB3_HSPHY_S_ARES				14
-#define USB2_HSPHY_POR_ARES				15
-#define USB2_HSPHY_S_ARES				16
+#define USB3_HSPHY_POR_ARES			13
+#define USB3_HSPHY_S_ARES			14
+#define USB2_HSPHY_POR_ARES			15
+#define USB2_HSPHY_S_ARES			16
+#define PCIE_PHY_AHB_ARES			17
+#define PCIE_AHB_ARES				18
+#define PCIE_PWR_ARES				19
+#define PCIE_PIPE_STICKY_ARES			20
+#define PCIE_AXI_M_STICKY_ARES			21
+#define PCIE_PHY_ARES				22
+#define PCIE_PARF_XPU_ARES			23
+#define PCIE_AXI_S_XPU_ARES			24
+#define PCIE_AXI_M_VMIDMT_ARES			25
+#define PCIE_PIPE_ARES				26
+#define PCIE_AXI_S_ARES 			27
+#define PCIE_AXI_M_ARES 			28
 
 #endif
