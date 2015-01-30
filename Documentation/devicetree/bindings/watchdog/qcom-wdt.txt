@@ -7,6 +7,7 @@ Required properties :
 			"qcom,kpss-wdt-msm8960"
 			"qcom,kpss-wdt-apq8064"
 			"qcom,kpss-wdt-ipq8064"
+			"qcom,kpss-wdt-ipq40xx"
 
 - reg : shall contain base register location and length
 - clocks : shall contain the input clock
