@@ -19,6 +19,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
+#include <linux/clk-provider.h>
 
 #include <asm/mach/arch.h>
 
@@ -61,6 +62,9 @@ static void __init global_counter_enable(void)
 	mb(); /* memory barrier */
 	iounmap(base);
 
+#ifdef CONFIG_COMMON_CLK
+	of_clk_init(NULL);
+#endif
 	clocksource_of_init();
 }
 

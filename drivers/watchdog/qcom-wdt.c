@@ -269,6 +269,7 @@ static int qcom_wdt_remove(struct platform_device *pdev)
 static const struct of_device_id qcom_wdt_of_table[] = {
 	{ .compatible = "qcom,kpss-timer" },
 	{ .compatible = "qcom,scss-timer" },
+	{ .compatible = "qcom,kpss-wdt-ipq40xx", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, qcom_wdt_of_table);
