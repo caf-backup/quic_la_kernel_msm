@@ -31,6 +31,7 @@
 #include <linux/types.h>
 #include <linux/of_gpio.h>
 #include <linux/clk/msm-clk.h>
+#include <linux/reset.h>
 #include <asm/mach/pci.h>
 #include <linux/msm-bus.h>
 #include <linux/msm-bus-board.h>
@@ -178,6 +179,22 @@ static struct msm_pcie_clk_info_t
 	{
 	{NULL, "pcie_1_pipe_clk", 125000000, true},
 	}
+};
+
+/* RESETs */
+static struct msm_pcie_rst_info_t  msm_pcie_rst_info[MSM_PCIE_MAX_RESET] = {
+	{NULL, "pcie_rst_axi_m_ares"},
+	{NULL, "pcie_rst_axi_s_ares"},
+	{NULL, "pcie_rst_pipe_ares"},
+	{NULL, "pcie_rst_axi_m_vmidmt_ares"},
+	{NULL, "pcie_rst_axi_s_xpu_ares"},
+	{NULL, "pcie_rst_parf_xpu_ares"},
+	{NULL, "pcie_rst_phy_ares"},
+	{NULL, "pcie_rst_axi_m_sticky_ares"},
+	{NULL, "pcie_rst_pipe_sticky_ares"},
+	{NULL, "pcie_rst_pwr_ares"},
+	{NULL, "pcie_rst_ahb_res"},
+	{NULL, "pcie_rst_phy_ahb_ares"}
 };
 
 /* resources */
@@ -682,7 +699,6 @@ static int msm_pcie_pipe_clk_init(struct msm_pcie_dev_t *dev)
 		if (!info->hdl)
 			continue;
 
-		clk_reset(info->hdl, CLK_RESET_DEASSERT);
 
 		if (info->freq) {
 			rc = clk_set_rate(info->hdl, info->freq);
@@ -731,6 +747,38 @@ static void msm_pcie_pipe_clk_deinit(struct msm_pcie_dev_t *dev)
 				dev->pipeclk[i].hdl);
 }
 
+static void msm_pcie_controller_reset(struct msm_pcie_dev_t *dev)
+{
+	/* Assert pcie_pipe_ares */
+	reset_control_assert(dev->rst[MSM_PCIE_PIPE_ARES].hdl);
+	reset_control_assert(dev->rst[MSM_PCIE_PIPE_STICKY_ARES].hdl);
+	reset_control_assert(dev->rst[MSM_PCIE_PHY_AHB_ARES].hdl);
+
+	gpio_set_value(dev->gpio[MSM_PCIE_GPIO_PERST].num,
+				dev->gpio[MSM_PCIE_GPIO_PERST].on);
+	usleep_range(PERST_PROPAGATION_DELAY_US_MIN,
+				 PERST_PROPAGATION_DELAY_US_MAX);
+
+	reset_control_assert(dev->rst[MSM_PCIE_AXI_M_ARES].hdl);
+	reset_control_assert(dev->rst[MSM_PCIE_AXI_M_STICKY_ARES].hdl);
+	reset_control_assert(dev->rst[MSM_PCIE_AXI_S_ARES].hdl);
+	reset_control_assert(dev->rst[MSM_PCIE_AHB_ARES].hdl);
+
+	reset_control_deassert(dev->rst[MSM_PCIE_AHB_ARES].hdl);
+	reset_control_deassert(dev->rst[MSM_PCIE_PIPE_ARES].hdl);
+	reset_control_deassert(dev->rst[MSM_PCIE_PIPE_STICKY_ARES].hdl);
+
+	udelay(10);
+	gpio_set_value(dev->gpio[MSM_PCIE_GPIO_PERST].num,
+			1 - dev->gpio[MSM_PCIE_GPIO_PERST].on);
+	usleep_range(LINK_RETRY_TIMEOUT_US_MIN,
+			LINK_RETRY_TIMEOUT_US_MAX);
+
+	reset_control_deassert(dev->rst[MSM_PCIE_AXI_M_ARES].hdl);
+	reset_control_deassert(dev->rst[MSM_PCIE_AXI_M_STICKY_ARES].hdl);
+	reset_control_deassert(dev->rst[MSM_PCIE_AXI_S_ARES].hdl);
+	reset_control_deassert(dev->rst[MSM_PCIE_PHY_AHB_ARES].hdl);
+}
 
 static void msm_pcie_config_controller(struct msm_pcie_dev_t *dev)
 {
@@ -890,6 +938,7 @@ static int msm_pcie_get_resources(struct msm_pcie_dev_t *dev,
 	struct msm_pcie_vreg_info_t *vreg_info;
 	struct msm_pcie_gpio_info_t *gpio_info;
 	struct msm_pcie_clk_info_t  *clk_info;
+	struct msm_pcie_rst_info_t  *rst_info;
 	struct resource *res;
 	struct msm_pcie_res_info_t *res_info;
 	struct msm_pcie_irq_info_t *irq_info;
@@ -954,6 +1003,7 @@ static int msm_pcie_get_resources(struct msm_pcie_dev_t *dev,
 				PCIE_DBG(dev, "%s %s property\n",
 					prop ? "invalid format" :
 					"no", prop_name);
+				vreg_info->hdl = NULL;
 			} else {
 				vreg_info->max_v = be32_to_cpup(&prop[0]);
 				vreg_info->min_v = be32_to_cpup(&prop[1]);
@@ -1041,6 +1091,21 @@ static int msm_pcie_get_resources(struct msm_pcie_dev_t *dev,
 			}
 		}
 	}
+
+
+	for (i = 0; i < MSM_PCIE_MAX_RESET; i++) {
+		rst_info = &dev->rst[i];
+
+		rst_info->hdl = devm_reset_control_get(&pdev->dev, rst_info->name);
+
+		if (IS_ERR(rst_info->hdl)) {
+				PCIE_DBG(dev, "Reset %s isn't available:%ld\n",
+				rst_info->name, PTR_ERR(rst_info->hdl));
+				ret = PTR_ERR(rst_info->hdl);
+				goto out;
+		}
+	}
+
 
 
 	dev->bus_scale_table = msm_bus_cl_get_pdata(pdev);
@@ -1157,10 +1222,12 @@ int msm_pcie_enable(struct msm_pcie_dev_t *dev, u32 options)
 		goto out;
 	}
 
+	/* s/w reset of pcie */
+	 msm_pcie_controller_reset(dev);
+
 	/* detect uni phy before accessing the pcie registers */
 
-	ret = pcie_phy_detect(dev);
-	if (ret) {
+	if (dev->is_emulation && !pcie_phy_detect(dev)) {
 		goto out;
 	}
 
@@ -1688,6 +1755,9 @@ static int msm_pcie_probe(struct platform_device *pdev)
 				sizeof(msm_pcie_clk_info));
 	memcpy(msm_pcie_dev[rc_idx].pipeclk, msm_pcie_pipe_clk_info[rc_idx],
 				sizeof(msm_pcie_pipe_clk_info));
+
+	memcpy(msm_pcie_dev[rc_idx].rst, msm_pcie_rst_info,
+				sizeof(msm_pcie_rst_info));
 	memcpy(msm_pcie_dev[rc_idx].res, msm_pcie_res_info,
 				sizeof(msm_pcie_res_info));
 	memcpy(msm_pcie_dev[rc_idx].irq, msm_pcie_irq_info,

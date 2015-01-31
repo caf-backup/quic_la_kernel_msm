@@ -107,6 +107,22 @@ enum msm_pcie_res {
 	MSM_PCIE_MAX_RES,
 };
 
+enum msm_pcie_rst {
+	MSM_PCIE_AXI_M_ARES,
+	MSM_PCIE_AXI_S_ARES,
+	MSM_PCIE_PIPE_ARES,
+	MSM_PCIE_AXI_M_VMIDMT_ARES,
+	MSM_PCIE_AXI_S_XPU_ARES,
+	MSM_PCIE_PARF_XPU_ARES,
+	MSM_PCIE_PHY_ARES,
+	MSM_PCIE_AXI_M_STICKY_ARES,
+	MSM_PCIE_PIPE_STICKY_ARES,
+	MSM_PCIE_PWR_ARES,
+	MSM_PCIE_AHB_ARES,
+	MSM_PCIE_PHY_AHB_ARES,
+	MSM_PCIE_MAX_RESET,
+};
+
 enum msm_pcie_irq {
 	MSM_PCIE_INT_MSI,
 	MSM_PCIE_INT_A,
@@ -157,6 +173,12 @@ struct msm_pcie_vreg_info_t {
 	bool               required;
 };
 
+/* reset info structure */
+struct msm_pcie_rst_info_t {
+	struct reset_control *hdl;
+	char                 *name;
+};
+
 /* clock info structure */
 struct msm_pcie_clk_info_t {
 	struct clk  *hdl;
@@ -189,6 +211,7 @@ struct msm_pcie_dev_t {
 	struct msm_pcie_clk_info_t   pipeclk[MSM_PCIE_MAX_PIPE_CLK];
 	struct msm_pcie_res_info_t   res[MSM_PCIE_MAX_RES];
 	struct msm_pcie_irq_info_t   irq[MSM_PCIE_MAX_IRQ];
+	struct msm_pcie_rst_info_t   rst[MSM_PCIE_MAX_RESET];
 
 	void __iomem                 *parf;
 	void __iomem                 *phy;
