@@ -168,12 +168,14 @@ static int skb_cpu_callback(struct notifier_block *nfb,
 {
 	unsigned long oldcpu = (unsigned long)ocpu;
 
+	spin_lock(&glob_recycler.lock);
 	if (action == CPU_DEAD || action == CPU_DEAD_FROZEN) {
 		skb_recycler_free_skb(&per_cpu(recycle_list, oldcpu));
 #ifdef CONFIG_SKB_RECYCLER_MULTI_CPU
 		skb_recycler_free_skb(&per_cpu(recycle_spare_list, oldcpu));
 #endif
 	}
+	spin_unlock(&glob_recycler.lock);
 
 	return NOTIFY_OK;
 }
