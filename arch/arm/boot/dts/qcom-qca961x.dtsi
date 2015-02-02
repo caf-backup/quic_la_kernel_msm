@@ -437,9 +437,9 @@
 			qcom,ctrl-amt = <1>;
 
 			reg = <0x80000 0x2000>,
-			      <0x99000 0x800>,
-			      <0x40000000 0xF1d>,
-			      <0x40000f20 0xA8>,
+			      <0x90000 0x64>,
+			      <0x40000000 0xf1d>,
+			      <0x40000f20 0xa8>,
 			      <0x40100000 0x1000>,
 			      <0x40200000 0x100000>,
 			      <0x40300000 0xd00000>;
@@ -468,6 +468,52 @@
 				"int_pls_pme", "int_pme_legacy", "int_pls_err",
 				"int_aer_legacy", "int_pls_link_up",
 				"int_pls_link_down", "int_bridge_flush_n","int_wake";
+
+			qcom,is_emulation;
+			qcom,ep-latency = <10>;
+			perst-gpio = <&tlmm 61 0>;
+			wake-gpio = <&tlmm 65 0>;
+			clkreq-gpio = <&tlmm 64 0>;
+
+			clocks = <&gcc 0>,
+				<&gcc 0>,
+				<&gcc 0>,
+				<&gcc 0>,
+				<&gcc 0>,
+				<&gcc 0>,
+				<&gcc 0>;
+
+			clock-names =  "pcie_0_pipe_clk", "pcie_0_ref_clk_src", "pcie_0_aux_clk",
+				"pcie_0_cfg_ahb_clk", "pcie_0_mstr_axi_clk",
+				"pcie_0_slv_axi_clk", "pcie_0_ldo";
+
+			max-clock-frequency-hz = <125000000>, <0>, <1011000>, <0>, <0>, <0>, <0>, <0>;
+
+			resets = <&gcc PCIE_AXI_M_ARES>,
+				<&gcc PCIE_AXI_S_ARES>,
+				<&gcc PCIE_PIPE_ARES>,
+				<&gcc PCIE_AXI_M_VMIDMT_ARES>,
+				<&gcc PCIE_AXI_S_XPU_ARES>,
+				<&gcc PCIE_PARF_XPU_ARES>,
+				<&gcc PCIE_PHY_ARES>,
+				<&gcc PCIE_AXI_M_STICKY_ARES>,
+				<&gcc PCIE_PIPE_STICKY_ARES>,
+				<&gcc PCIE_PWR_ARES>,
+				<&gcc PCIE_AHB_ARES>,
+				<&gcc PCIE_PHY_AHB_ARES>;
+
+			reset-names = "pcie_rst_axi_m_ares",
+				"pcie_rst_axi_s_ares",
+				"pcie_rst_pipe_ares",
+				"pcie_rst_axi_m_vmidmt_ares",
+				"pcie_rst_axi_s_xpu_ares",
+				"pcie_rst_parf_xpu_ares",
+				"pcie_rst_phy_ares",
+				"pcie_rst_axi_m_sticky_ares",
+				"pcie_rst_pipe_sticky_ares",
+				"pcie_rst_pwr_ares",
+				"pcie_rst_ahb_res",
+				"pcie_rst_phy_ahb_ares";
 		};
 
 		qcom: ledc@1937000  {
