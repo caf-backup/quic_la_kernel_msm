@@ -133,6 +133,7 @@ static const struct qcom_reset_map gcc_qca961x_resets[] = {
 	[PCIE_PIPE_ARES] = { 0x1d010, 2 },
 	[PCIE_AXI_S_ARES] = { 0x1d010, 1 },
 	[PCIE_AXI_M_ARES] = { 0x1d010, 0 },
+	[ESS_RESET] = { 0x12008 },
 };
 
 static const struct regmap_config gcc_qca961x_regmap_config = {
