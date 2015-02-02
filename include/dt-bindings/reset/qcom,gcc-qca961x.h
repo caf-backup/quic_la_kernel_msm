@@ -43,5 +43,6 @@
 #define PCIE_PIPE_ARES				26
 #define PCIE_AXI_S_ARES 			27
 #define PCIE_AXI_M_ARES 			28
+#define ESS_RESET				29
 
 #endif
