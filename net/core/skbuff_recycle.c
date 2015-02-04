@@ -157,10 +157,11 @@ static void skb_recycler_free_skb(struct sk_buff_head *list)
 {
 	struct sk_buff *skb = NULL;
 
-	while ((skb = skb_dequeue(list)) != NULL)
+	while ((skb = skb_dequeue(list)) != NULL) {
 		trace_consume_skb(skb);
 		skb_release_data(skb);
 		kfree_skbmem(skb);
+	}
 }
 
 static int skb_cpu_callback(struct notifier_block *nfb,
