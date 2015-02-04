@@ -463,7 +463,7 @@ void br_refresh_fdb_entry(struct net_device *dev, const char *addr)
 		return;
 
 	if (!is_valid_ether_addr(addr)) {
-		pr_info("bridge: Attempt to refresh with invalid ether address\n");
+		pr_info("bridge: Attempt to refresh with invalid ether address %pM\n", addr);
 		return;
 	}
 
@@ -471,7 +471,6 @@ void br_refresh_fdb_entry(struct net_device *dev, const char *addr)
 	br_fdb_update(p->br, p, addr);
 	rcu_read_unlock();
 }
-
 EXPORT_SYMBOL_GPL(br_refresh_fdb_entry);
 
 static int fdb_to_nud(const struct net_bridge_fdb_entry *fdb)

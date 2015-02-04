@@ -462,7 +462,7 @@ void __net_exit br_net_exit(struct net *net)
 /*
  * br_port_dev_get()
  *	Using the given addr, identify the port to which it is reachable,
- * 	returing a reference to the net device associated with that port.
+ *	returing a reference to the net device associated with that port.
  *
  * NOTE: Return NULL if given dev is not a bridge or the mac has no associated port
  */
@@ -470,38 +470,27 @@ struct net_device *br_port_dev_get(struct net_device *dev, unsigned char *addr)
 {
 	struct net_bridge_fdb_entry *fdbe;
 	struct net_bridge *br;
-	struct net_device *pdev;
+	struct net_device *netdev = NULL;
 
 	/*
 	 * Is this a bridge?
 	 */
-	if (!(dev->priv_flags & IFF_EBRIDGE)) {
+	if (!(dev->priv_flags & IFF_EBRIDGE))
 		return NULL;
-	}
+
+	br = netdev_priv(dev);
 
 	/*
-	 * Lookup the fdb entry
+	 * Lookup the fdb entry and get reference to the port dev
 	 */
-	br = netdev_priv(dev);
 	rcu_read_lock();
 	fdbe = __br_fdb_get(br, addr);
-	if (!fdbe) {
-		rcu_read_unlock();
-		return NULL;
+	if (fdbe && fdbe->dst) {
+		netdev = fdbe->dst->dev; /* port device */
+		dev_hold(netdev);
 	}
-
-	/*
-	 * Get reference to the port dev
-	 */
-	if (!fdbe->dst) {
-		rcu_read_unlock();
-		return NULL;
-	}
-	pdev = fdbe->dst->dev;
-	dev_hold(pdev);
 	rcu_read_unlock();
-
-	return pdev;
+	return netdev;
 }
 EXPORT_SYMBOL_GPL(br_port_dev_get);
 
@@ -514,9 +503,8 @@ void br_dev_update_stats(struct net_device *dev, struct rtnl_link_stats64 *nlsta
 	/*
 	 * Is this a bridge?
 	 */
-	if (!(dev->priv_flags & IFF_EBRIDGE)) {
+	if (!(dev->priv_flags & IFF_EBRIDGE))
 		return;
-	}
 
 	br = netdev_priv(dev);
 	stats = per_cpu_ptr(br->stats, 0);
