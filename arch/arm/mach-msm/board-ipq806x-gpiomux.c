@@ -1,4 +1,4 @@
-/* * Copyright (c) 2012 The Linux Foundation. All rights reserved.* */
+/* * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.* */
 /* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -364,6 +364,11 @@ static struct gpiomux_setting reset_control = {
 
 static struct msm_gpiomux_config ipq806x_db149_2xx_gpiomux_override[] = {
 	ipq_mux(10,	gsbi4_active_cfg,	gsbi4_suspended_cfg),
+};
+
+static struct msm_gpiomux_config ipq806x_ap160_2xx_gpiomux_override[] = {
+	ipq_mux( 2, mdio_n,				mdio_n),
+	ipq_mux(66, mdio_n,				mdio_n),
 };
 
 static struct msm_gpiomux_config ipq806x_db149_gpiomux[] = {
@@ -777,6 +782,10 @@ void __init ipq806x_init_gpiomux(void)
 	} else if (machine_is_ipq806x_ap160() || machine_is_ipq806x_ap160_2xx()) {
 		msm_gpiomux_install(ipq806x_ap160_gpiomux,
 			ARRAY_SIZE(ipq806x_ap160_gpiomux));
+		if (machine_is_ipq806x_ap160_2xx()) {
+			msm_gpiomux_install(ipq806x_ap160_2xx_gpiomux_override,
+			ARRAY_SIZE(ipq806x_ap160_2xx_gpiomux_override));
+		}
 	} else if (machine_is_ipq806x_ap161()) {
 		msm_gpiomux_install(ipq806x_ap161_gpiomux,
 			ARRAY_SIZE(ipq806x_ap161_gpiomux));
