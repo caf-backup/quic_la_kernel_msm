@@ -13,8 +13,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef __ASM_ARCH_MSM_SERIAL_HS_H
-#define __ASM_ARCH_MSM_SERIAL_HS_H
+#ifndef __ASM_ARCH_QCA_SERIAL_HS_H
+#define __ASM_ARCH_QCA_SERIAL_HS_H
 
 #include <linux/serial_core.h>
 

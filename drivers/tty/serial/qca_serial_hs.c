@@ -1,4 +1,4 @@
-/* drivers/serial/msm_serial_hs.c
+/* drivers/serial/qca_serial_hs.c
  *
  * MSM 7k High speed uart driver
  *
@@ -63,10 +63,10 @@
 #include <linux/kthread.h>
 
 #include <linux/msm-sps.h>
-#include <linux/platform_data/msm_serial_hs.h>
+#include <linux/platform_data/qca_serial_hs.h>
 #include <linux/msm-bus.h>
 
-#include "msm_serial_hs_hwreg.h"
+#include "qca_serial_hs_hwreg.h"
 #define UART_SPS_CONS_PERIPHERAL 0
 #define UART_SPS_PROD_PERIPHERAL 1
 
