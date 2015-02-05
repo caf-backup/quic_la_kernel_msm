@@ -397,6 +397,8 @@
 		edma@c080000 {
 			compatible = "qcom,ess-edma";
 			reg = <0xc080000 0x8000>;
+			qcom,page-mode = <0>;
+			qcom,rx_head_buf_size = <1540>;
 			interrupts = <0 65 1>,
 					<0 66 1>,
 					<0 67 1>,
