@@ -1,4 +1,4 @@
-/* drivers/serial/msm_serial_hs_hwreg.h
+/* drivers/serial/qca_serial_hs_hwreg.h
  *
  * Copyright (c) 2007-2009, 2012-2014,The Linux Foundation. All rights reserved.
  * 
@@ -18,8 +18,8 @@
  * along with this program; if not, you can find it at http://www.fsf.org
  */
 
-#ifndef MSM_SERIAL_HS_HWREG_H
-#define MSM_SERIAL_HS_HWREG_H
+#ifndef QCA_SERIAL_HS_HWREG_H
+#define QCA_SERIAL_HS_HWREG_H
 
 #define GSBI_CONTROL_ADDR              0x0
 #define GSBI_PROTOCOL_CODE_MASK        0x30
@@ -280,4 +280,4 @@ enum msm_hs_regs {
 #define UARTDM_ISR_ADDR 0x14
 #define UARTDM_RX_TOTAL_SNAP_ADDR 0x38
 
-#endif /* MSM_SERIAL_HS_HWREG_H */
+#endif /* QCA_SERIAL_HS_HWREG_H */
