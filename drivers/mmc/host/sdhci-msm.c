@@ -27,6 +27,8 @@
 #define HC_MODE_EN		0x1
 #define CORE_POWER		0x0
 #define CORE_SW_RST		BIT(7)
+#define CORE_HC_SELECT_IN_EN   (1 << 18)
+#define CORE_HC_SELECT_IN_MASK (7 << 19)
 
 #define MAX_PHASES		16
 #define CORE_DLL_LOCK		BIT(7)
@@ -41,6 +43,13 @@
 
 #define CORE_VENDOR_SPEC	0x10c
 #define CORE_CLK_PWRSAVE	BIT(1)
+
+#define VENDOR_CAPS0            0x11c
+#define VOLTS_SUPP_1_8V         BIT(26)
+#define VOLTS_SUPP_3_0V         BIT(25)
+
+#define VENDOR_CAPS1            0x120
+#define CAPS_SDR_104_SUPPORT    BIT(1)
 
 #define CDR_SELEXT_SHIFT	20
 #define CDR_SELEXT_MASK		(0xf << CDR_SELEXT_SHIFT)
@@ -73,6 +82,7 @@ struct sdhci_msm_host {
 	struct clk *bus_clk;	/* SDHC bus voter clock */
 	struct mmc_host *mmc;
 	struct sdhci_pltfm_data sdhci_msm_pdata;
+	bool emulation;
 };
 
 /* Platform specific tuning */
@@ -478,6 +488,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	struct resource *core_memres;
 	int ret;
 	u16 host_version;
+	struct device_node *np = pdev->dev.of_node;
 
 	msm_host = devm_kzalloc(&pdev->dev, sizeof(*msm_host), GFP_KERNEL);
 	if (!msm_host)
@@ -492,6 +503,8 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	pltfm_host->priv = msm_host;
 	msm_host->mmc = host->mmc;
 	msm_host->pdev = pdev;
+
+	msm_host->emulation = of_property_read_bool(np, "qca,emulation");
 
 	ret = mmc_of_parse(host->mmc);
 	if (ret)
@@ -544,6 +557,30 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 		goto clk_disable;
 	}
 
+
+	if (msm_host->emulation) {
+		/*Set 1.8V,3V support*/
+		writel_relaxed((readl_relaxed(host->ioaddr + VENDOR_CAPS0)
+					| VOLTS_SUPP_1_8V
+					| VOLTS_SUPP_3_0V),
+				host->ioaddr + VENDOR_CAPS0);
+
+		/*Set timeout caps*/
+		writel_relaxed((readl_relaxed(host->ioaddr + VENDOR_CAPS0)
+					| 0x32),
+				host->ioaddr + VENDOR_CAPS0);
+
+		/*Set base clock 10 MHz*/
+		writel_relaxed((readl_relaxed(host->ioaddr + VENDOR_CAPS0)
+					| ((0xA) << 8)),
+				host->ioaddr + VENDOR_CAPS0);
+
+		/* Remove SDR104 support*/
+		writel_relaxed((readl_relaxed(host->ioaddr + VENDOR_CAPS1)
+					& ~(CAPS_SDR_104_SUPPORT)),
+				host->ioaddr + VENDOR_CAPS1);
+	}
+
 	/* Reset the core and Enable SDHC mode */
 	writel_relaxed(readl_relaxed(msm_host->core_mem + CORE_POWER) |
 		       CORE_SW_RST, msm_host->core_mem + CORE_POWER);
@@ -568,6 +605,13 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 			       SDHCI_VENDOR_VER_SHIFT));
 
 	ret = sdhci_add_host(host);
+
+	if (msm_host->emulation) {
+		/* Enable controller */
+		writel_relaxed(readl_relaxed(msm_host->core_mem + CORE_POWER) |
+			0x1, msm_host->core_mem + CORE_POWER);
+	}
+
 	if (ret)
 		goto clk_disable;
 
