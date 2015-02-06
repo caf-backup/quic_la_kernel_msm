@@ -1,5 +1,4 @@
-/* * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.* */
-/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2015, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -2437,8 +2436,14 @@ static void nss_gmac_init(void)
 	struct mdio_gpio_platform_data *mdata;
 
 	mdata = (struct mdio_gpio_platform_data *)ip806x_mdio_device.dev.platform_data;
-	mdata->mdc = 1;
-	mdata->mdio = 0;
+
+	if (machine_is_ipq806x_ap160_2xx()) {
+		mdata->mdc = 66;
+		mdata->mdio = 2;
+	} else {
+		mdata->mdc = 1;
+		mdata->mdio = 0;
+	}
 	mdata->phy_mask = 0;
 	platform_device_register(&ip806x_mdio_device);
 
@@ -2521,7 +2526,6 @@ static void nss_gmac_init(void)
 		machine_is_ipq806x_ap145_1xx() ||
 		machine_is_ipq806x_ap148_1xx() ||
 		machine_is_ipq806x_ap160() ||
-		machine_is_ipq806x_ap160_2xx() ||
 		machine_is_ipq806x_ap161()) {
 		mdiobus_register_board_info(ipq806x_ap148_mdio_info, IPQ806X_MDIO_BUS_MAX);
 
@@ -2548,6 +2552,54 @@ static void nss_gmac_init(void)
 
 		platform_device_register(&nss_gmac_1);
 		platform_device_register(&nss_gmac_2);
+	}
+
+	if (machine_is_ipq806x_ap160_2xx()) {
+		/* All four GMACs connect to QCA8511 Switch in QSGMII Mode */
+		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_0.dev.platform_data;
+		pdata->phy_mdio_addr = 5;
+		pdata->poll_required = 1;
+		pdata->rgmii_delay = 0;
+		pdata->phy_mii_type = PHY_INTERFACE_MODE_QSGMII;
+		pdata->emulation = 0;
+		pdata->forced_speed = SPEED_1000;
+		pdata->forced_duplex = DUPLEX_FULL;
+		pdata->socver = socinfo_get_version();
+
+		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_1.dev.platform_data;
+		pdata->phy_mdio_addr = NSS_GMAC_NO_MDIO_PHY;
+		pdata->poll_required = 0;
+		pdata->rgmii_delay = 0;
+		pdata->phy_mii_type = PHY_INTERFACE_MODE_QSGMII;
+		pdata->emulation = 0;
+		pdata->forced_speed = SPEED_1000;
+		pdata->forced_duplex = DUPLEX_FULL;
+		pdata->socver = socinfo_get_version();
+
+		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_2.dev.platform_data;
+		pdata->phy_mdio_addr = NSS_GMAC_NO_MDIO_PHY;
+		pdata->poll_required = 0;
+		pdata->rgmii_delay = 0;
+		pdata->phy_mii_type = PHY_INTERFACE_MODE_QSGMII;
+		pdata->emulation = 0;
+		pdata->forced_speed = SPEED_1000;
+		pdata->forced_duplex = DUPLEX_FULL;
+		pdata->socver = socinfo_get_version();
+
+		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_3.dev.platform_data;
+		pdata->phy_mdio_addr = NSS_GMAC_NO_MDIO_PHY;
+		pdata->poll_required = 0;
+		pdata->rgmii_delay = 0;
+		pdata->phy_mii_type = PHY_INTERFACE_MODE_QSGMII;
+		pdata->emulation = 0;
+		pdata->forced_speed = SPEED_1000;
+		pdata->forced_duplex = DUPLEX_FULL;
+		pdata->socver = socinfo_get_version();
+
+		platform_device_register(&nss_gmac_0);
+		platform_device_register(&nss_gmac_1);
+		platform_device_register(&nss_gmac_2);
+		platform_device_register(&nss_gmac_3);
 	}
 
 }
@@ -2617,9 +2669,12 @@ int32_t nss_gmac_get_phy_profile(void)
 		|| machine_is_ipq806x_ap145()
 		|| machine_is_ipq806x_ap145_1xx()
 		|| machine_is_ipq806x_ap160()
-		|| machine_is_ipq806x_ap160_2xx()
 		|| machine_is_ipq806x_ap161()) {
 		return NSS_GMAC_PHY_PROFILE_2R_2S;
+	}
+
+	if (machine_is_ipq806x_ap160_2xx()) {
+		return NSS_GMAC_PHY_PROFILE_QS;
 	}
 
 	return NSS_GMAC_PHY_PROFILE_1R_3S;
