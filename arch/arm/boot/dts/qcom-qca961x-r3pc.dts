@@ -50,12 +50,6 @@
 		};
 
 		ess-switch@c000000 {
-			compatible = "qcom,ess-switch";
-			reg = <0xc000000 0x80000>; /* 512KB */
-			switch_access_mode = "local bus";
-			switch_cpu_bmp = <0x1>;  /* cpu port bitmap */
-			switch_lan_bmp = <0x1e>; /* lan port bitmap */
-			switch_wan_bmp = <0x20>; /* wan port bitmap */
 			switch_mac_mode = <0x0>; /* mac mode for RGMII RMII */
 			switch_initvlas = <
 				0x0007c 0x54     /* PORT0_STATUS */
