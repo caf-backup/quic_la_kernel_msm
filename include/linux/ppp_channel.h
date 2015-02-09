@@ -34,12 +34,8 @@ struct ppp_channel_ops {
 	int	(*start_xmit)(struct ppp_channel *, struct sk_buff *);
 	/* Handle an ioctl call that has come in via /dev/ppp. */
 	int	(*ioctl)(struct ppp_channel *, unsigned int, unsigned long);
-	/* Return the session ID of the connection which is cretaed on the channel. DEPRECATED 20140513 */
-	__be16	(*get_session_id)(struct ppp_channel *);
-	/* Return the net_device of the given channel.  DEPRECATED 20140513 */
+	/* Return the net_device of the given channel. */
 	struct net_device* (*get_netdev)(struct ppp_channel *);
-	/* Return the remote MAC address of the connection which is created on the channel. DEPRECATED 20140513 */
-	unsigned char* (*get_remote_mac)(struct ppp_channel *);
 	/* Register destroy function into PPP channels */
 	bool (*reg_destroy_method)(struct ppp_channel *, ppp_channel_destroy_method_t method, void *);
 	/* Unregister destroy function from PPP channels */
@@ -72,25 +68,6 @@ extern bool ppp_channel_hold(struct ppp_channel *);
 
 /* Call this to release a hold you have upon a channel */
 extern void ppp_channel_release(struct ppp_channel *);
-
-/* Called by upper layers to get the Ethernet (channel) net_device corresponding to
-   the given PPP net_device */
-extern struct net_device *ppp_get_eth_netdev(struct net_device *);
-
-/* Called by upper layers to get the channel session ID corresponding to
-   the given PPP net_device */
-extern __be16 ppp_get_session_id(struct net_device *);
-
-/* Called by upper layers to get the channel remote MAC corresponding to
-   the given PPP net_device */
-extern unsigned char *ppp_get_remote_mac(struct net_device *);
-
-/* Called by upper layers to get the PPP net_device corresponding to
-   the given Ethernet net_device */
-extern struct net_device *ppp_get_ppp_netdev(struct net_device *);
-
-/* Get the ppp net_device associated with a particular session ID (sid) */
-extern struct net_device *ppp_session_to_netdev(uint16_t session_id, uint8_t *remote_mac);
 
 /* Register destroy function into PPP channels */
 extern bool ppp_register_destroy_method(struct net_device *dev, ppp_channel_destroy_method_t method, void *arg);
