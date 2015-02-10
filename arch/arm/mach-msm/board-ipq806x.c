@@ -2525,7 +2525,6 @@ static void nss_gmac_init(void)
 	if (machine_is_ipq806x_ap148() || machine_is_ipq806x_ap145() ||
 		machine_is_ipq806x_ap145_1xx() ||
 		machine_is_ipq806x_ap148_1xx() ||
-		machine_is_ipq806x_ap160() ||
 		machine_is_ipq806x_ap161()) {
 		mdiobus_register_board_info(ipq806x_ap148_mdio_info, IPQ806X_MDIO_BUS_MAX);
 
@@ -2602,6 +2601,44 @@ static void nss_gmac_init(void)
 		platform_device_register(&nss_gmac_3);
 	}
 
+	if (machine_is_ipq806x_ap160()) {
+		mdiobus_register_board_info(ipq806x_ap160_mdio_info, IPQ806X_MDIO_BUS_MAX);
+
+		/* GMAC0 GMAC1, GMAC2 connected to switch. Attach to PHY 0 to configure switch. */
+		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_0.dev.platform_data;
+		pdata->phy_mdio_addr = 4;
+		pdata->poll_required = 1;
+		pdata->rgmii_delay = 0;
+		pdata->phy_mii_type = PHY_INTERFACE_MODE_RGMII;
+		pdata->emulation = 0;
+		pdata->forced_speed = SPEED_UNKNOWN;
+		pdata->forced_duplex = DUPLEX_UNKNOWN;
+		pdata->socver = socinfo_get_version();
+
+		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_1.dev.platform_data;
+		pdata->phy_mdio_addr = 0;
+		pdata->poll_required = 0;
+		pdata->rgmii_delay = 0;
+		pdata->phy_mii_type = PHY_INTERFACE_MODE_RGMII;
+		pdata->emulation = 0;
+		pdata->forced_speed = SPEED_1000;
+		pdata->forced_duplex = DUPLEX_FULL;
+		pdata->socver = socinfo_get_version();
+
+		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_1.dev.platform_data;
+		pdata->phy_mdio_addr = 3;
+		pdata->poll_required = 1;
+		pdata->rgmii_delay = 0;
+		pdata->phy_mii_type = PHY_INTERFACE_MODE_SGMII;
+		pdata->emulation = 0;
+		pdata->forced_speed = SPEED_1000;
+		pdata->forced_duplex = DUPLEX_FULL;
+		pdata->socver = socinfo_get_version();
+
+		platform_device_register(&nss_gmac_0);
+		platform_device_register(&nss_gmac_1);
+		platform_device_register(&nss_gmac_2);
+	}
 }
 
 #define IPQ_MAC_ADDR_PARTITION	"ART"
