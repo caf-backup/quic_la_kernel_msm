@@ -38,7 +38,7 @@ config MARVELL_PHY
 	tristate "Drivers for Marvell PHYs"
 	---help---
 	  Currently has a driver for the 88E1011S
-	
+
 config DAVICOM_PHY
 	tristate "Drivers for Davicom PHYs"
 	---help---
@@ -115,6 +115,12 @@ config AR8216_PHY
 	tristate "Driver for Atheros AR8216 switches"
 	select ETHERNET_PACKET_MANGLE
 	select SWCONFIG
+
+config QCA_85XX_SWITCH
+	tristate "Driver for 841x, 851x, 861x, 871x family of switches"
+	select SWCONFIG
+	---help---
+	  Driver for 841x, 851x, 861x, 871x family of switches
 
 config FIXED_PHY
 	bool "Driver for MDIO Bus/PHY emulation with fixed speed/link PHYs"
