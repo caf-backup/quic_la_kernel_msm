@@ -71,7 +71,7 @@ static void edma_free_tx_ring(struct edma_common_info *c_info,
 	struct platform_device *pdev = c_info->pdev;
 
 	if (etdr->dma)
-		dma_free_coherent(&pdev->dev, etdr->size, &etdr->hw_desc,
+		dma_free_coherent(&pdev->dev, etdr->size, etdr->hw_desc,
 			etdr->dma);
 
 	vfree(etdr->sw_desc);
@@ -117,10 +117,10 @@ static void edma_free_rx_ring(struct edma_common_info *c_info,
 	struct platform_device *pdev = c_info->pdev;
 
 	if (rxdr->dma)
-		dma_free_coherent(&pdev->dev, rxdr->size, &rxdr->hw_desc,
+		dma_free_coherent(&pdev->dev, rxdr->size, rxdr->hw_desc,
 			rxdr->dma);
 
-	kfree(rxdr->sw_desc);
+	vfree(rxdr->sw_desc);
 	rxdr->sw_desc = NULL;
 }
 
@@ -1448,13 +1448,15 @@ void edma_free_irqs(struct edma_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev[0];
 	struct edma_common_info *c_info = adapter->c_info;
-	int i;
+	int i, j;
 
-	for (i = 0; i < c_info->num_tx_queues; i++)
-		free_irq(c_info->tx_irq[i], netdev);
+	for (i = 0; i < EDMA_NR_CPU; i++) {
+		for (j = c_info->q_cinfo[i].tx_start; j < (c_info->q_cinfo[i].tx_start + 4); j++)
+			free_irq(c_info->tx_irq[j], netdev);
 
-	for (i = 0; i < c_info->num_rx_queues; i++)
-		free_irq(c_info->rx_irq[i], netdev);
+		for (j = c_info->q_cinfo[i].rx_start; j < (c_info->q_cinfo[i].rx_start + 2); j++)
+			free_irq(c_info->rx_irq[j], netdev);
+	}
 }
 
 /*
