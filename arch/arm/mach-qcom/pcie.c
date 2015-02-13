@@ -750,6 +750,8 @@ static void msm_pcie_pipe_clk_deinit(struct msm_pcie_dev_t *dev)
 static void msm_pcie_controller_reset(struct msm_pcie_dev_t *dev)
 {
 	/* Assert pcie_pipe_ares */
+	reset_control_assert(dev->rst[MSM_PCIE_AXI_M_ARES].hdl);
+	reset_control_assert(dev->rst[MSM_PCIE_AXI_S_ARES].hdl);
 	reset_control_assert(dev->rst[MSM_PCIE_PIPE_ARES].hdl);
 	reset_control_assert(dev->rst[MSM_PCIE_PIPE_STICKY_ARES].hdl);
 	reset_control_assert(dev->rst[MSM_PCIE_PHY_AHB_ARES].hdl);
@@ -759,11 +761,13 @@ static void msm_pcie_controller_reset(struct msm_pcie_dev_t *dev)
 	usleep_range(PERST_PROPAGATION_DELAY_US_MIN,
 				 PERST_PROPAGATION_DELAY_US_MAX);
 
-	reset_control_assert(dev->rst[MSM_PCIE_AXI_M_ARES].hdl);
 	reset_control_assert(dev->rst[MSM_PCIE_AXI_M_STICKY_ARES].hdl);
-	reset_control_assert(dev->rst[MSM_PCIE_AXI_S_ARES].hdl);
 	reset_control_assert(dev->rst[MSM_PCIE_AHB_ARES].hdl);
+	reset_control_assert(dev->rst[MSM_PCIE_PHY_ARES].hdl);
+	reset_control_assert(dev->rst[MSM_PCIE_PWR_ARES].hdl);
 
+	reset_control_deassert(dev->rst[MSM_PCIE_PWR_ARES].hdl);
+	reset_control_deassert(dev->rst[MSM_PCIE_PHY_ARES].hdl);
 	reset_control_deassert(dev->rst[MSM_PCIE_AHB_ARES].hdl);
 	reset_control_deassert(dev->rst[MSM_PCIE_PIPE_ARES].hdl);
 	reset_control_deassert(dev->rst[MSM_PCIE_PIPE_STICKY_ARES].hdl);
@@ -1154,6 +1158,10 @@ static int msm_pcie_get_resources(struct msm_pcie_dev_t *dev,
 
 	for (i = 0; i < MSM_PCIE_MAX_IRQ; i++) {
 		irq_info = &dev->irq[i];
+
+		/* Skip if wakeirq is not present in device tree */
+		if (!dev->ep_wakeirq && (i == MSM_PCIE_INT_WAKE))
+			continue;
 
 		res = platform_get_resource_byname(pdev, IORESOURCE_IRQ,
 							   irq_info->name);

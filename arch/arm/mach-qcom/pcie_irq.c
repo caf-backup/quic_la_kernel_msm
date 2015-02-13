@@ -505,7 +505,8 @@ int32_t msm_pcie_irq_init(struct msm_pcie_dev_t *dev)
 
 	PCIE_DBG(dev, "RC%d\n", dev->rc_idx);
 
-	wakeup_source_init(&dev->ws, "pcie_wakeup_source");
+	if (dev->ep_wakeirq)
+		wakeup_source_init(&dev->ws, "pcie_wakeup_source");
 
 	/* register handler for linkdown interrupt */
 	rc = devm_request_irq(pdev,
@@ -528,23 +529,25 @@ int32_t msm_pcie_irq_init(struct msm_pcie_dev_t *dev)
 		return rc;
 	}
 
-	/* register handler for PCIE_WAKE_N interrupt line */
-	rc = devm_request_irq(pdev,
-			dev->wake_n, handle_wake_irq, IRQF_TRIGGER_FALLING,
-			 "msm_pcie_wake", dev);
-	if (rc) {
-		PCIE_ERR(dev, "PCIe: RC%d: Unable to request wake interrupt\n",
-			dev->rc_idx);
-		return rc;
-	}
+	if (dev->ep_wakeirq) {
+		/* register handler for PCIE_WAKE_N interrupt line */
+		rc = devm_request_irq(pdev,
+				dev->wake_n, handle_wake_irq, IRQF_TRIGGER_FALLING,
+				 "msm_pcie_wake", dev);
+		if (rc) {
+			PCIE_ERR(dev, "PCIe: RC%d: Unable to request wake interrupt\n",
+				dev->rc_idx);
+			return rc;
+		}
 
-	INIT_WORK(&dev->handle_wake_work, handle_wake_func);
+		INIT_WORK(&dev->handle_wake_work, handle_wake_func);
 
-	rc = enable_irq_wake(dev->wake_n);
-	if (rc) {
-		PCIE_ERR(dev, "PCIe: RC%d: Unable to enable wake interrupt\n",
-			dev->rc_idx);
-		return rc;
+		rc = enable_irq_wake(dev->wake_n);
+		if (rc) {
+			PCIE_ERR(dev, "PCIe: RC%d: Unable to enable wake interrupt\n",
+				dev->rc_idx);
+			return rc;
+		}
 	}
 
 	/* Create a virtual domain of interrupts */
@@ -570,6 +573,8 @@ void msm_pcie_irq_deinit(struct msm_pcie_dev_t *dev)
 {
 	PCIE_DBG(dev, "RC%d\n", dev->rc_idx);
 
-	wakeup_source_trash(&dev->ws);
-	disable_irq(dev->wake_n);
+	if (dev->ep_wakeirq) {
+		wakeup_source_trash(&dev->ws);
+		disable_irq(dev->wake_n);
+	}
 }
