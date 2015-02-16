@@ -56,16 +56,18 @@
 /* Enable Tx for all ports */
 #define EDMA_PORT_ENABLE_ALL 0x3E
 
-#define EDMA_RX_RING_SIZE 256
-#define EDMA_TX_RING_SIZE 256
-#define EDMA_RX_BUFF_SIZE 1540
+#define EDMA_RX_RING_SIZE 512
+#define EDMA_TX_RING_SIZE 512
+
+#define EDMA_RX_HEAD_BUFF_SIZE_JUMBO 256
+#define EDMA_RX_HEAD_BUFF_SIZE 1540
 
 #define EDMA_INTR_CLEAR_TYPE 0
 #define EDMA_INTR_SW_IDX_W_TYPE 0
 #define EDMA_FIFO_THRESH_TYPE 0
 #define EDMA_RSS_TYPE 0
-#define EDMA_RX_IMT 200
-#define EDMA_TX_IMT 1
+#define EDMA_RX_IMT 0x02C0
+#define EDMA_TX_IMT 0x0E00
 #define EDMA_TPD_BURST 5
 #define EDMA_TXF_BURST 0x100
 #define EDMA_RFD_BURST 8
@@ -121,7 +123,7 @@ struct edma_hw {
 	u32 wol_intr_mask; /* wake on lan interrupt mask */
 	bool intr_clear_type; /* interrupt clear */
 	bool intr_sw_idx_w; /* interrupt software index */
-	u16 rx_buff_size; /* Rx buffer size */
+	u32 rx_head_buff_size; /* Rx buffer size */
 	u8 rss_type; /* rss protocol type */
 };
 
@@ -159,7 +161,9 @@ struct edma_common_info {
 	int rx_irq[8]; /* number of rx irq */
 	u16 tx_ring_count; /* Tx ring count */
 	u16 rx_ring_count; /* Rx ring*/
-	u16 rx_buffer_len; /* rx buffer length */
+	u16 rx_head_buffer_len; /* rx buffer length */
+	u16 rx_page_buffer_len; /* rx buffer length */
+	u32 page_mode; /* Jumbo frame supported flag */
 	struct edma_hw hw; /* edma hw specific structure */
 	struct queue_per_cpu_info q_cinfo[EDMA_NR_CPU]; /* per cpu information */
 	spinlock_t int_lock; /* protect interrupt registers access */

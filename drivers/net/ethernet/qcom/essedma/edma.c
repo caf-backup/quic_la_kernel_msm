@@ -189,25 +189,47 @@ static int edma_alloc_rx_buf(struct edma_common_info *c_info,
 
 	while (cleaned_count--) {
 		sw_desc = &erdr->sw_desc[i];
-		length = c_info->rx_buffer_len;
+		length = c_info->rx_head_buffer_len;
 
 		/* alloc skb */
-		skb = netdev_alloc_skb(c_info->netdev[0],
-				length);
+		skb = netdev_alloc_skb(c_info->netdev[0], length);
 		if (unlikely(!skb)) {
 			/* Better luck next round */
 			break;
 		}
 
-		sw_desc->dma = dma_map_single(&pdev->dev, skb->data,
-			length, DMA_FROM_DEVICE);
-		if (dma_mapping_error(&pdev->dev, sw_desc->dma)) {
-			dev_kfree_skb(skb);
-			break; /* while !sw_desc->skb */
+		if (unlikely(c_info->page_mode)) {
+			struct page *pg = alloc_page(GFP_ATOMIC);
+			if (!pg) {
+				dev_kfree_skb_any(skb);
+				break;
+			}
+
+			sw_desc->dma = dma_map_page(&pdev->dev, pg, 0,
+				c_info->rx_page_buffer_len, DMA_FROM_DEVICE);
+			if (dma_mapping_error(&pdev->dev, sw_desc->dma)) {
+				__free_page(pg);
+				dev_kfree_skb_any(skb);
+				break;
+			}
+
+			skb_fill_page_desc(skb, 0, pg, 0, c_info->rx_page_buffer_len);
+			sw_desc->flags = EDMA_SW_DESC_FLAG_SKB_FRAG;
+			sw_desc->length = c_info->rx_page_buffer_len;
+		} else {
+			sw_desc->dma = dma_map_single(&pdev->dev, skb->data,
+				length, DMA_FROM_DEVICE);
+			if (dma_mapping_error(&pdev->dev, sw_desc->dma)) {
+				dev_kfree_skb_any(skb);
+				break;
+			}
+
+			sw_desc->flags = EDMA_SW_DESC_FLAG_SKB_HEAD;
+			sw_desc->length = length;
 		}
+
 		/* Update the buffer info */
 		sw_desc->skb = skb;
-		sw_desc->length = length;
 		rx_desc = (&((struct edma_rx_free_desc *)(erdr->hw_desc))[i]);
 		rx_desc->buffer_addr = cpu_to_le64(sw_desc->dma);
 		if (unlikely(++i == erdr->count))
@@ -274,15 +296,21 @@ static void edma_init_desc(struct edma_common_info *c_info)
 		/* Update Receive Free descriptor ring base address */
 		edma_write_reg(REG_RFD_BASE_ADDR_Q(i),
 			(u32)(rfd_ring->dma & 0xffffffff));
-		edma_read_reg(REG_RFD_BASE_ADDR_Q(i), &data);
 
-		/* Update RFD ring size and RX buffer size */
-		data = (c_info->rx_ring_count & RFD_RING_SIZE_MASK)
-					<< RFD_RING_SIZE_SHIFT;
-		data |= (c_info->rx_buffer_len & RX_BUF_SIZE_MASK)
-					<< RX_BUF_SIZE_SHIFT;
-		edma_write_reg(REG_RX_DESC0, data);
 	}
+
+	if (unlikely(c_info->page_mode))
+		data = (c_info->rx_page_buffer_len & RX_BUF_SIZE_MASK)
+				<< RX_BUF_SIZE_SHIFT;
+	else
+		data = (c_info->rx_head_buffer_len & RX_BUF_SIZE_MASK)
+				<< RX_BUF_SIZE_SHIFT;
+
+	/* Update RFD ring size and RX buffer size */
+	data |= (c_info->rx_ring_count & RFD_RING_SIZE_MASK)
+			<< RFD_RING_SIZE_SHIFT;
+
+	edma_write_reg(REG_RX_DESC0, data);
 
 	/* Disable TX FIFO low watermark and high watermark */
 	edma_write_reg(REG_TXF_WATER_MARK, 0);
@@ -297,7 +325,7 @@ static void edma_init_desc(struct edma_common_info *c_info)
  * edma_receive_checksum
  *	Api to check checksum on receive packets
  */
-static void edma_receive_checksum(u8 *rrd1,
+static void edma_receive_checksum(u16 *rrd1,
 	struct sk_buff *skb)
 {
 	skb_checksum_none_assert(skb);
@@ -306,10 +334,7 @@ static void edma_receive_checksum(u8 *rrd1,
 	 * its set, which in turn indicates checksum
 	 * failure.
 	 */
-	if ((rrd1[13] >> EDMA_RRD_L4_CSUM_OFFSET) & EDMA_RRD_CSUM_MASK)
-		return;
-
-	if ((rrd1[13] >> EDMA_RRD_IP_CSUM_OFFSET) & EDMA_RRD_CSUM_MASK)
+	if (rrd1[6] & EDMA_RRD_CSUM_FAIL_MASK)
 		return;
 
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -322,75 +347,138 @@ static void edma_receive_checksum(u8 *rrd1,
 static void edma_rx_complete(struct edma_common_info *c_info,
 		int *work_done, int work_to_do, int queue_id)
 {
-	u16 cleaned_count = 0;
-	u16 length = 0;
-	int i = 0;
-	u8 rrd[16];
+	u16 cleaned_count = 0, length = 0, num_rfds = 1;
+	int i = 0, j = 0;
+	u16 rrd[8], hash_type;
 	volatile u32 data = 0;
-	u16 hw_next_to_clean = 0;
-	u16 sw_next_to_clean, vlan = 0;
+	u16 sw_next_to_clean, hw_next_to_clean = 0, vlan = 0;
 	struct platform_device *pdev = c_info->pdev;
 	struct edma_rfd_desc_ring *erdr = c_info->rfd_ring[queue_id];
-	struct edma_sw_desc *sw_desc, *next_buffer;
+	struct edma_sw_desc *sw_desc;
 	struct sk_buff *skb;
-	struct edma_rx_free_desc *rfd_desc, *next_rfd_desc;
+	u8 *vaddr;
 	int proc_id = get_cpu();
 	sw_next_to_clean = erdr->sw_next_to_clean;
 
 	while (1) {
-		sw_desc = &erdr->sw_desc[sw_next_to_clean];
-		rfd_desc = (&((struct edma_rx_free_desc *)(erdr->hw_desc))[sw_next_to_clean]);
 		edma_read_reg(REG_RFD_IDX_Q(queue_id), &data);
 		hw_next_to_clean = (data >> RFD_CONS_IDX_SHIFT) &
 				RFD_CONS_IDX_MASK;
 
-		if (hw_next_to_clean == sw_next_to_clean)
+		if (unlikely(hw_next_to_clean == sw_next_to_clean))
 			break;
 
-		if (*work_done >= work_to_do)
+		if (unlikely(*work_done >= work_to_do))
 			break;
 
+		sw_desc = &erdr->sw_desc[sw_next_to_clean];
 		(*work_done)++;
 		skb = sw_desc->skb;
 
 		/* Unmap the allocated buffer */
-		dma_unmap_single(&pdev->dev, sw_desc->dma,
+		if (likely(sw_desc->flags & EDMA_SW_DESC_FLAG_SKB_HEAD))
+			dma_unmap_single(&pdev->dev, sw_desc->dma,
+				sw_desc->length, DMA_FROM_DEVICE);
+		else
+			dma_unmap_page(&pdev->dev, sw_desc->dma,
 				sw_desc->length, DMA_FROM_DEVICE);
 
 		/* Get RRD */
-		for (i = 0; i < 16; i++)
-			rrd[i] = skb->data[i];
+		if (c_info->page_mode) {
+			vaddr = kmap_atomic(skb_frag_page(&skb_shinfo(skb)->frags[0]));
+			memcpy((uint8_t *)&rrd[0], vaddr, 16);
+			kunmap_atomic(vaddr);
+		} else {
+			for (i = 0, j = 0; i < 8; i++, j += 2)
+				rrd[i] = *((unsigned short *)&skb->data[j]);
+		}
 
-		/* use next descriptor */
+		/* Increment SW index */
 		sw_next_to_clean = (sw_next_to_clean + 1) % erdr->count;
 
-		next_rfd_desc = (&((struct edma_rx_free_desc *)(erdr->hw_desc))[sw_next_to_clean]);
-		next_buffer = &erdr->sw_desc[sw_next_to_clean];
 		cleaned_count++;
 
 		/* Check if RRD is valid */
-		if (rrd[15] & 0x80) {
+		if (rrd[7] & EDMA_RRD_DESC_VALID) {
 
 			/* Get the packet size and allocate buffer */
-			length = ((rrd[13] & 0x3f) << 8) + rrd[12];
+			length = rrd[6] & EDMA_RRD_PKT_SIZE_MASK;
 
 			/* Get the number of RFD from RRD */
+			num_rfds = rrd[1] & EDMA_RRD_NUM_RFD_MASK;
+
+		} else
+			continue;
+
+		if (c_info->page_mode) {
+			skb_frag_t *frag = &skb_shinfo(skb)->frags[0];
+
+			/* Setup first fragment */
+			frag->page_offset += 16;
+
+			/* Setup skbuff fields */
+			skb->len = length;
+
+			if (unlikely(num_rfds > 1)) {
+				struct sk_buff *skb_temp;
+				u16 size_remaining;
+
+				frag->size -= 16;
+				skb->data_len = frag->size;
+				size_remaining = length - frag->size;
+
+				/* clean-up all related sw_descs */
+				for (i = 1; i < num_rfds; i++) {
+					sw_desc = &erdr->sw_desc[sw_next_to_clean];
+					skb_temp = sw_desc->skb;
+					frag = &skb_shinfo(skb_temp)->frags[0];
+					dma_unmap_page(&pdev->dev, sw_desc->dma,
+						sw_desc->length, DMA_FROM_DEVICE);
+
+					if (size_remaining < c_info->rx_page_buffer_len)
+						frag->size = size_remaining;
+
+					skb_fill_page_desc(skb, i, skb_frag_page(frag),
+						frag->page_offset, frag->size);
+
+					skb_frag_ref(skb, i);
+					dev_kfree_skb_any(skb_temp);
+
+					skb->data_len += frag->size;
+					skb->truesize += frag->size;
+					size_remaining -= frag->size;
+
+					/* Increment SW index */
+					sw_next_to_clean = (sw_next_to_clean + 1) % erdr->count;
+					cleaned_count++;
+				}
+			} else {
+				frag->size = length;
+				skb->data_len = frag->size;
+			}
+
+			if (!pskb_may_pull(skb, ETH_HLEN)) {
+				dev_kfree_skb_any(skb);
+				continue;
+			}
+		} else {
+			/* Addition of 16 bytes is required, as in the packet
+			 * first 16 bytes are rrd descriptors, so actual data
+			 * starts from an offset of 16.
+			 */
+			skb_reserve(skb, 16);
+			skb_put(skb, length);
 		}
 
-		/* Addition of 16 bytes is required, as in the packet
-		 * first 16 bytes are rrd descriptors, so actual data
-		 * starts from an offset of 16.
-		 */
-		skb_reserve(skb, 16);
-		skb_put(skb, length);
-
 		skb->protocol = eth_type_trans(skb, c_info->netdev[0]);
+		skb->flow_cookie = rrd[3] & EDMA_RRD_FLOW_COOKIE_MASK;
+
 		edma_receive_checksum(rrd, skb);
-		if ((rrd[14] >> EDMA_RRD_CVLAN_SHIFT) & EDMA_RRD_VLAN_MASK) {
-			vlan = rrd[9] << 8 | rrd[8];
+		if (rrd[7] & EDMA_RRD_CVLAN) {
+			vlan = rrd[4];
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan);
-		} else if ((rrd[3] >> EDMA_RRD_SVLAN_SHIFT) & EDMA_RRD_VLAN_MASK) {
-			vlan = rrd[9] << 8 | rrd[8];
+		} else if (rrd[1] & EDMA_RRD_SVLAN) {
+			vlan = rrd[4];
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021AD), vlan);
 		}
 		napi_gro_receive(&c_info->q_cinfo[proc_id].napi, skb);
@@ -571,7 +659,7 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 {
 	struct edma_sw_desc *sw_desc = NULL;
 	struct platform_device *pdev = c_info->pdev;
-	struct edma_tx_desc *tpd;
+	struct edma_tx_desc *tpd = NULL;
 	int i = 0, nr_frags = skb_shinfo(skb)->nr_frags;
 	u32 word1 = 0, word3 = 0, lso_word1 = 0, svlan_tag = 0;
 	u16 buf_len, lso_desc_len = 0, protocol = 0;
@@ -773,7 +861,7 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 
 	if (unlikely(num_tpds_needed > EDMA_MAX_SKB_FRAGS)) {
 		dev_err(&netdev->dev,
-			"skb received with fragments %u which is more than %u",
+			"skb received with fragments %d which is more than %lu",
 			num_tpds_needed, EDMA_MAX_SKB_FRAGS);
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
