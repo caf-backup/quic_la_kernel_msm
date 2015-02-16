@@ -36,18 +36,23 @@ static struct proc_dir_entry *uboot_dir;
 static struct proc_dir_entry *rootfs_dir;
 static struct proc_dir_entry *kernel_dir;
 
+static unsigned int upgrade_in_progress;
+static unsigned int num_parts;
+static unsigned int magic;
+
 static void clear_reboot_counter (void)
 {
 	writel_relaxed(0, REBOOT_COUNTER);
 
 }
 
-int get_partition_idx(const char *part_name, struct sbl_if_dualboot_info_type *sbl_info_t)
+int get_partition_idx(const char *part_name, struct per_part_info *part_info,
+			int num_parts)
 {
 	int i;
 
-	for (i = 0; i < sbl_info_t->numaltpart; i++) {
-		if (strncmp(part_name, sbl_info_t->per_part_entry[i].name,
+	for (i = 0; i < num_parts; i++) {
+		if (strncmp(part_name, part_info[i].name,
 			     ALT_PART_NAME_LENGTH) == 0)
 			return i;
 	}
@@ -59,19 +64,15 @@ static ssize_t part_entry_write(struct file *file,
 				size_t count, loff_t *data,
 				char *partition_name, char field)
 {
-	int i, ret;
+	int ret;
 	char optstr[64];
-	struct sbl_if_dualboot_info_type *sbl_info_t;
+	struct per_part_info *part_entry;
 	unsigned int val;
 
-	sbl_info_t = PDE(file->f_path.dentry->d_inode)->data;
+	part_entry = PDE(file->f_path.dentry->d_inode)->data;
 
 	if (count == 0 || count > sizeof(optstr))
 		return -EINVAL;
-
-	i = get_partition_idx(partition_name, sbl_info_t);
-	if (i < 0)
-		return count;
 
 	ret = copy_from_user(optstr, user, count);
 	if (ret)
@@ -82,8 +83,8 @@ static ssize_t part_entry_write(struct file *file,
 	val = simple_strtoul(optstr, NULL, 0);
 
 	switch (field) {
-		case 'u': sbl_info_t->per_part_entry[i].upgraded = val; break;
-		case 'p': sbl_info_t->per_part_entry[i].primaryboot = val; break;
+		case 'u': part_entry->upgraded = val; break;
+		case 'p': part_entry->primaryboot = val; break;
 		default: return -EINVAL;
 	}
 
@@ -93,16 +94,13 @@ static ssize_t part_entry_write(struct file *file,
 static ssize_t part_entry_show(struct seq_file *m, void *vm,
 				char *partition_name, char field)
 {
-	int i;
-	struct sbl_if_dualboot_info_type *sbl_info_t = m->private;
+	struct per_part_info *part_entry;
 
-	i = get_partition_idx(partition_name, sbl_info_t);
-	if (i < 0)
-		return i;
+	part_entry = m->private;
 
 	switch (field) {
-		case 'u': seq_printf(m, "%x\n", sbl_info_t->per_part_entry[i].upgraded); break;
-		case 'p': seq_printf(m, "%x\n", sbl_info_t->per_part_entry[i].primaryboot); break;
+		case 'u': seq_printf(m, "%x\n", part_entry->upgraded); break;
+		case 'p': seq_printf(m, "%x\n", part_entry->primaryboot); break;
 		default: seq_printf(m, "Unknown Partition\n"); break;
 	}
 
@@ -126,10 +124,10 @@ static ssize_t primaryboot_write(struct file *file, const char __user *user,
 
 static int upgradepartition_show(struct seq_file *m, void *vm, char *partition_name)
 {
-	struct sbl_if_dualboot_info_type *sbl_info_t = m->private;
+	struct per_part_info *part_info_t = m->private;
 	int i;
 
-	i = get_partition_idx(partition_name, sbl_info_t);
+	i = get_partition_idx(partition_name, part_info_t, num_parts);
 	if (i >= 0) {
 		/*
 		 * In case of NOR\NAND, SBLs change the names of paritions in
@@ -142,14 +140,14 @@ static int upgradepartition_show(struct seq_file *m, void *vm, char *partition_n
 		 * here.
 		 */
 
-		if (machine_is_ipq806x_emmc_boot() && (sbl_info_t->per_part_entry[i].primaryboot)) {
-			seq_printf(m, "%s\n", sbl_info_t->per_part_entry[i].name);
+		if (machine_is_ipq806x_emmc_boot() && (part_info_t[i].primaryboot)) {
+			seq_printf(m, "%s\n", part_info_t[i].name);
 		} else if(!machine_is_ipq806x_emmc_boot() &&
-			(strncmp(partition_name, "0:APPSBL", ALT_PART_NAME_LENGTH) == 0))
+				(strncmp(partition_name, "0:APPSBL", ALT_PART_NAME_LENGTH) == 0))
 		{
 			seq_printf(m, "APPSBL_1\n");
 		} else {
-			seq_printf(m, "%s_1\n", sbl_info_t->per_part_entry[i].name);
+			seq_printf(m, "%s_1\n", part_info_t[i].name);
 		}
 	}
 	else
@@ -170,9 +168,21 @@ static int primaryboot_show(struct seq_file *m, void *v, char *partition_name)
 
 static int getbinary_show(struct seq_file *m, void *v)
 {
-	struct sbl_if_dualboot_info_type *sbl_info_t = m->private;
-	memcpy(m->buf + m->count, sbl_info_t, sizeof(struct sbl_if_dualboot_info_type ));
-	m->count += sizeof(struct sbl_if_dualboot_info_type);
+	struct sbl_if_dualboot_info_type *sbl_info;
+	struct sbl_if_dualboot_info_type_v2 *sbl_info_v2;
+
+	if (magic == SMEM_DUAL_BOOTINFO_MAGIC) {
+		sbl_info = m->private;
+		sbl_info->upgradeinprogress = upgrade_in_progress;
+		memcpy(m->buf + m->count, sbl_info, sizeof(struct sbl_if_dualboot_info_type ));
+		m->count += sizeof(struct sbl_if_dualboot_info_type);
+	} else {
+		sbl_info_v2 = m->private;
+		sbl_info_v2->upgradeinprogress = upgrade_in_progress;
+		sbl_info_v2->age++;
+		memcpy(m->buf + m->count, sbl_info_v2, sizeof(struct sbl_if_dualboot_info_type_v2));
+		m->count += sizeof(struct sbl_if_dualboot_info_type_v2);
+	}
 
 	return 0;
 }
@@ -366,32 +376,11 @@ static const struct file_operations appsbl_primaryboot_ops = {
 	.release	= single_release,
 };
 
-static int numaltpart_show(struct seq_file *m, void *v)
-{
-	struct sbl_if_dualboot_info_type *sbl_info_t = m->private;
-
-	seq_printf(m, "%x\n", sbl_info_t->numaltpart);
-
-	return 0;
-}
-
-static int numaltpart_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, numaltpart_show, PDE(inode)->data);
-}
-
-static const struct file_operations numaltpart_ops = {
-	.open		= numaltpart_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static ssize_t upgradeinprogress_write(struct file *file, const char __user *user, size_t count, loff_t *data)
 {
 	char optstr[64];
 	unsigned int upg_in_prg = 0;
-	struct sbl_if_dualboot_info_type *sbl_info_t = PDE(file->f_path.dentry->d_inode)->data;
+	unsigned int *upgradeinprogress = PDE(file->f_path.dentry->d_inode)->data;
 
 	if (count == 0 || count > sizeof(optstr))
 		return -EINVAL;
@@ -399,7 +388,7 @@ static ssize_t upgradeinprogress_write(struct file *file, const char __user *use
 		return -EFAULT;
 	optstr[count - 1] = '\0';
 	upg_in_prg = simple_strtoul(optstr, NULL, 0);
-	sbl_info_t->upgradeinprogress = upg_in_prg;
+	*upgradeinprogress = upg_in_prg;
 	clear_reboot_counter();
 
 	return count;
@@ -407,9 +396,9 @@ static ssize_t upgradeinprogress_write(struct file *file, const char __user *use
 
 static int upgradeinprogress_show(struct seq_file *m, void *v)
 {
-	struct sbl_if_dualboot_info_type *sbl_info_t = m->private;
+	unsigned int *upgradeinprogress = m->private;
 
-	seq_printf(m, "%x\n", sbl_info_t->upgradeinprogress);
+	seq_printf(m, "%x\n", *upgradeinprogress);
 
 	return 0;
 }
@@ -427,97 +416,106 @@ static const struct file_operations upgradeinprogress_ops = {
 	.write		= upgradeinprogress_write,
 };
 
-static int magic_show(struct seq_file *m, void *v)
-{
-	struct sbl_if_dualboot_info_type *sbl_info_t = m->private;
-
-	seq_printf(m, "%x\n", sbl_info_t->magic);
-
-	return 0;
-}
-
-static int magic_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, magic_show, PDE(inode)->data);
-}
-
-static const struct file_operations magic_ops = {
-	.open		= magic_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int get_bootconfig_partition(void)
 {
-	struct sbl_if_dualboot_info_type *sbl_info_t;
+	struct sbl_if_dualboot_info_type *sbl_info;
+	struct sbl_if_dualboot_info_type_v2 *sbl_info_v2;
+	struct per_part_info *part_info;
 	int i;
 
-	sbl_info_t = (struct sbl_if_dualboot_info_type *)
+	sbl_info = (struct sbl_if_dualboot_info_type *)
 	    smem_alloc(SMEM_BOOT_DUALPARTINFO,
 		       sizeof(struct sbl_if_dualboot_info_type));
-	if (!sbl_info_t) {
-		 printk(KERN_WARNING "%s: no dual boot info in shared "
-			"memory\n", __func__);
-	} else if (sbl_info_t->magic != SMEM_DUAL_BOOTINFO_MAGIC) {
-		printk(KERN_WARNING "%s: magic not found\n",__func__);
-	} else {
-		boot_info_dir = proc_mkdir("boot_info", NULL);
-		if (!boot_info_dir)
+
+	if (!sbl_info) {
+
+		sbl_info_v2 = (struct sbl_if_dualboot_info_type_v2 *)
+			   smem_alloc(SMEM_BOOT_DUALPARTINFO,
+		       sizeof(struct sbl_if_dualboot_info_type_v2));
+		if (!sbl_info_v2) {
+			printk(KERN_WARNING "%s: no dual boot v2 info in shared "
+							"memory\n", __func__);
 			return 0;
+		}
 
+		/* its v2 version */
 
-		printk("SMEM boot info %x, %x: %x \n",sbl_info_t->magic,
-				sbl_info_t->upgradeinprogress, sbl_info_t->numaltpart);
-		proc_create_data("magic", S_IRUGO, boot_info_dir,
-				&magic_ops, sbl_info_t);
-		proc_create_data("upgradeinprogress", S_IRUGO, boot_info_dir,
-				&upgradeinprogress_ops, sbl_info_t);
-		proc_create_data("numaltpart", S_IRUGO, boot_info_dir,
-				&numaltpart_ops, sbl_info_t);
+		if ((sbl_info_v2->magic_start != SMEM_DUAL_BOOTINFO_MAGIC_START) ||
+			(sbl_info_v2->magic_end != SMEM_DUAL_BOOTINFO_MAGIC_END)) {
+			printk(KERN_WARNING "%s %x %x : v2 magic not found \n",__func__,
+				sbl_info_v2->magic_start, sbl_info_v2->magic_end);
+			return 0;
+		}
 
-		i = get_partition_idx("0:APPSBL", sbl_info_t);
+		magic = SMEM_DUAL_BOOTINFO_MAGIC_START;
+		num_parts = sbl_info_v2->numaltpart;
+		upgrade_in_progress = sbl_info_v2->upgradeinprogress;
+		part_info = (struct per_part_info *)sbl_info_v2->per_part_entry;
+	} else {
+		/* its v1 version */
+		if (sbl_info->magic != SMEM_DUAL_BOOTINFO_MAGIC) {
+			printk(KERN_WARNING "%s %x: v1 magic not found\n",__func__, sbl_info->magic);
+			return 0;
+		}
+
+		magic = SMEM_DUAL_BOOTINFO_MAGIC;
+		num_parts = sbl_info->numaltpart;
+		upgrade_in_progress = sbl_info->upgradeinprogress;
+		part_info = (struct per_part_info *)sbl_info->per_part_entry;
+	}
+
+	boot_info_dir = proc_mkdir("boot_info", NULL);
+	if (!boot_info_dir)
+		return 0;
+
+	proc_create_data("upgradeinprogress", S_IRUGO, boot_info_dir,
+			&upgradeinprogress_ops, &upgrade_in_progress);
+
+	i = get_partition_idx("0:APPSBL", part_info, num_parts);
+	if (i >= 0) {
+		uboot_dir = proc_mkdir("APPSBL", boot_info_dir);
+		if (uboot_dir != NULL) {
+			proc_create_data("primaryboot", S_IRUGO, uboot_dir,
+					&appsbl_primaryboot_ops, part_info + i );
+			proc_create_data("upgraded", S_IRUGO, uboot_dir,
+					&appsbl_upgraded_ops, part_info + i);
+			proc_create_data("upgradepartition", S_IRUGO, uboot_dir,
+					&appsbl_upgradepartition_ops, part_info + i);
+		}
+	}
+
+	i = get_partition_idx("rootfs", part_info, num_parts);
+	if (i >= 0) {
+		rootfs_dir = proc_mkdir(part_info[i].name, boot_info_dir);
+		if (rootfs_dir != NULL) {
+			proc_create_data("primaryboot", S_IRUGO, rootfs_dir,
+					&rootfs_primaryboot_ops, part_info + i);
+			proc_create_data("upgraded", S_IRUGO, rootfs_dir,
+					&rootfs_upgraded_ops, part_info + i);
+			proc_create_data("upgradepartition", S_IRUGO, rootfs_dir,
+					&rootfs_upgradepartition_ops, part_info + i);
+		}
+	}
+	if (machine_is_ipq806x_emmc_boot()) {
+		i = get_partition_idx("kernel", part_info, num_parts);
 		if (i >= 0) {
-			uboot_dir = proc_mkdir("APPSBL", boot_info_dir);
-			if (uboot_dir != NULL) {
-				proc_create_data("primaryboot", S_IRUGO, uboot_dir,
-						&appsbl_primaryboot_ops, sbl_info_t);
-				proc_create_data("upgraded", S_IRUGO, uboot_dir,
-						&appsbl_upgraded_ops, sbl_info_t);
-				proc_create_data("upgradepartition", S_IRUGO, uboot_dir,
-						&appsbl_upgradepartition_ops, sbl_info_t);
+			kernel_dir = proc_mkdir(part_info[i].name, boot_info_dir);
+			if (kernel_dir != NULL) {
+				proc_create_data("primaryboot", S_IRUGO, kernel_dir,
+						&kernel_primaryboot_ops, part_info + i);
+				proc_create_data("upgraded", S_IRUGO, kernel_dir,
+						&kernel_upgraded_ops, part_info + i);
+				proc_create_data("upgradepartition", S_IRUGO, kernel_dir,
+						&kernel_upgradepartition_ops, part_info + i);
 			}
 		}
-
-		i = get_partition_idx("rootfs", sbl_info_t);
-		if (i >= 0) {
-			rootfs_dir = proc_mkdir(sbl_info_t->per_part_entry[i].name, boot_info_dir);
-			if (rootfs_dir != NULL) {
-				proc_create_data("primaryboot", S_IRUGO, rootfs_dir,
-						&rootfs_primaryboot_ops, sbl_info_t);
-				proc_create_data("upgraded", S_IRUGO, rootfs_dir,
-						&rootfs_upgraded_ops, sbl_info_t);
-				proc_create_data("upgradepartition", S_IRUGO, rootfs_dir,
-						&rootfs_upgradepartition_ops, sbl_info_t);
-			}
-		}
-		if (machine_is_ipq806x_emmc_boot()) {
-			i = get_partition_idx("kernel", sbl_info_t);
-			if (i >= 0) {
-				kernel_dir = proc_mkdir(sbl_info_t->per_part_entry[i].name, boot_info_dir);
-				if (kernel_dir != NULL) {
-					proc_create_data("primaryboot", S_IRUGO, kernel_dir,
-							&kernel_primaryboot_ops, sbl_info_t);
-					proc_create_data("upgraded", S_IRUGO, kernel_dir,
-							&kernel_upgraded_ops, sbl_info_t);
-					proc_create_data("upgradepartition", S_IRUGO, kernel_dir,
-							&kernel_upgradepartition_ops, sbl_info_t);
-				}
-			}
-		}
+	}
+	if (magic == SMEM_DUAL_BOOTINFO_MAGIC) {
 		proc_create_data("getbinary", S_IRUGO, boot_info_dir,
-				&getbinary_ops, sbl_info_t);
-
+			&getbinary_ops, sbl_info);
+	} else {
+		proc_create_data("getbinary", S_IRUGO, boot_info_dir,
+			&getbinary_ops, sbl_info_v2);
 	}
 
 	return 0;
