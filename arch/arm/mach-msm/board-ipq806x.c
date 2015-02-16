@@ -93,6 +93,7 @@
 #include <linux/ar8216_platform.h>
 #include <linux/ethtool.h>
 #include <mach/msm_usb30.h>
+#include <linux/mdio.h>
 
 #define MHL_GPIO_INT           30
 #define MHL_GPIO_RESET         35
@@ -2460,6 +2461,7 @@ static void nss_gmac_init(void)
 		pdata->emulation = 0;
 		pdata->forced_speed = SPEED_1000;
 		pdata->forced_duplex = DUPLEX_FULL;
+		pdata->mmds_mask = 0;
 		pdata->socver = socinfo_get_version();
 
 		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_1.dev.platform_data;
@@ -2470,6 +2472,7 @@ static void nss_gmac_init(void)
 		pdata->emulation = 0;
 		pdata->forced_speed = SPEED_1000;
 		pdata->forced_duplex = DUPLEX_FULL;
+		pdata->mmds_mask = 0;
 		pdata->socver = socinfo_get_version();
 
 		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_2.dev.platform_data;
@@ -2478,6 +2481,7 @@ static void nss_gmac_init(void)
 		pdata->rgmii_delay = 0;
 		pdata->phy_mii_type = PHY_INTERFACE_MODE_SGMII;
 		pdata->emulation = 0;
+		pdata->mmds_mask = 0;
 		pdata->socver = socinfo_get_version();
 
 		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_3.dev.platform_data;
@@ -2486,6 +2490,7 @@ static void nss_gmac_init(void)
 		pdata->rgmii_delay = 0;
 		pdata->phy_mii_type = PHY_INTERFACE_MODE_SGMII;
 		pdata->emulation = 0;
+		pdata->mmds_mask = 0;
 		pdata->socver = socinfo_get_version();
 
 		platform_device_register(&nss_gmac_0);
@@ -2506,6 +2511,7 @@ static void nss_gmac_init(void)
 		pdata->emulation = 0;
 		pdata->forced_speed = SPEED_1000;
 		pdata->forced_duplex = DUPLEX_FULL;
+		pdata->mmds_mask = 0;
 		pdata->socver = socinfo_get_version();
 
 		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_2.dev.platform_data;
@@ -2516,6 +2522,7 @@ static void nss_gmac_init(void)
 		pdata->emulation = 0;
 		pdata->forced_speed = SPEED_1000;
 		pdata->forced_duplex = DUPLEX_FULL;
+		pdata->mmds_mask = 0;
 		pdata->socver = socinfo_get_version();
 
 		platform_device_register(&nss_gmac_1);
@@ -2537,6 +2544,7 @@ static void nss_gmac_init(void)
 		pdata->emulation = 0;
 		pdata->forced_speed = SPEED_1000;
 		pdata->forced_duplex = DUPLEX_FULL;
+		pdata->mmds_mask = 0;
 		pdata->socver = socinfo_get_version();
 
 		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_2.dev.platform_data;
@@ -2547,6 +2555,7 @@ static void nss_gmac_init(void)
 		pdata->emulation = 0;
 		pdata->forced_speed = SPEED_1000;
 		pdata->forced_duplex = DUPLEX_FULL;
+		pdata->mmds_mask = 0;
 		pdata->socver = socinfo_get_version();
 
 		platform_device_register(&nss_gmac_1);
@@ -2563,16 +2572,22 @@ static void nss_gmac_init(void)
 		pdata->emulation = 0;
 		pdata->forced_speed = SPEED_1000;
 		pdata->forced_duplex = DUPLEX_FULL;
+		pdata->mmds_mask = 0;
 		pdata->socver = socinfo_get_version();
 
 		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_1.dev.platform_data;
-		pdata->phy_mdio_addr = NSS_GMAC_NO_MDIO_PHY;
-		pdata->poll_required = 0;
+		pdata->phy_mdio_addr = 16;
+		pdata->poll_required = 1;
 		pdata->rgmii_delay = 0;
 		pdata->phy_mii_type = PHY_INTERFACE_MODE_QSGMII;
 		pdata->emulation = 0;
 		pdata->forced_speed = SPEED_1000;
 		pdata->forced_duplex = DUPLEX_FULL;
+		/* Initialize the MDIO MMDs mask for the valid MMDs this PHY supports */
+		pdata->mmds_mask = (MDIO_DEVS_PMAPMD | MDIO_DEVS_PCS | \
+				    MDIO_DEVS_PHYXS | MDIO_DEVS_AN | \
+				    MDIO_DEVS_C22EXT | MDIO_DEVS_PRESENT(MDIO_MMD_VEND1));
+
 		pdata->socver = socinfo_get_version();
 
 		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_2.dev.platform_data;
@@ -2583,6 +2598,7 @@ static void nss_gmac_init(void)
 		pdata->emulation = 0;
 		pdata->forced_speed = SPEED_1000;
 		pdata->forced_duplex = DUPLEX_FULL;
+		pdata->mmds_mask = 0;
 		pdata->socver = socinfo_get_version();
 
 		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_3.dev.platform_data;
@@ -2593,6 +2609,7 @@ static void nss_gmac_init(void)
 		pdata->emulation = 0;
 		pdata->forced_speed = SPEED_1000;
 		pdata->forced_duplex = DUPLEX_FULL;
+		pdata->mmds_mask = 0;
 		pdata->socver = socinfo_get_version();
 
 		platform_device_register(&nss_gmac_0);
