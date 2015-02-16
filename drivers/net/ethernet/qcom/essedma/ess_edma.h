@@ -162,10 +162,6 @@ struct edma_hw;
 #define EDMA_TX_INS_SVLAN 15
 #define EDMA_TX_SVLAN_TAG_SHIFT 16
 
-#define EDMA_RRD_CVLAN_SHIFT 0
-#define EDMA_RRD_SVLAN_SHIFT 7
-#define EDMA_RRD_VLAN_MASK 0x1
-
 /* Tx Queue Packet Statistic Register */
 #define REG_TX_STAT_PKT_Q(x) (0x700 + ((x) << 2)) /* x = queue id */
 
@@ -294,7 +290,7 @@ struct edma_hw;
 #define PATTERN_PART_REG_OFFSET 0x40
 
 
-/* TX descriptor checksum offload */
+/* TX descriptor fields */
 #define EDMA_TPD_HDR_SHIFT 0
 #define EDMA_TPD_IP_CSUM_EN 0x00000200
 #define EDMA_TPD_TCP_CSUM_EN 0x0000400
@@ -307,7 +303,12 @@ struct edma_hw;
 #define EDMA_TPD_MSS_SHIFT 18
 #define EDMA_TPD_CUSTOM_CSUM_SHIFT 18
 
-/* RRD checksum field */
-#define EDMA_RRD_L4_CSUM_OFFSET 0x6
-#define EDMA_RRD_IP_CSUM_OFFSET 0x7
-#define EDMA_RRD_CSUM_MASK 0x1
+/* RRD descriptor fields */
+#define EDMA_RRD_NUM_RFD_MASK 0x000F
+#define EDMA_RRD_SVLAN 0x8000
+#define EDMA_RRD_FLOW_COOKIE_MASK 0x07FF;
+
+#define EDMA_RRD_PKT_SIZE_MASK 0x3FFF
+#define EDMA_RRD_CSUM_FAIL_MASK 0xC000
+#define EDMA_RRD_CVLAN 0x0001
+#define EDMA_RRD_DESC_VALID 0x8000
