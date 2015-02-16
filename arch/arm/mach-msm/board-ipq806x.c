@@ -1849,6 +1849,7 @@ static struct platform_device *cdp_devices_ap161[] __initdata = {
 	&ipq806x_device_uart_gsbi4,
 	&msm_device_sps_ipq806x,
 	&ipq806x_pc_cntr,
+	&ipq806x_device_qup_i2c_gsbi1,
 };
 
 #ifdef CONFIG_SPI_QUP
