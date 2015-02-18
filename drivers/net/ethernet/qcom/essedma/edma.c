@@ -361,6 +361,7 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 	struct platform_device *pdev = c_info->pdev;
 	struct edma_rfd_desc_ring *erdr = c_info->rfd_ring[queue_id];
 	struct net_device *netdev = c_info->netdev[0];
+	struct edma_adapter *adapter = netdev_priv(netdev);
 	struct edma_sw_desc *sw_desc;
 	struct sk_buff *skb;
 	u8 *vaddr;
@@ -494,6 +495,10 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 			vlan = rrd[4];
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021AD), vlan);
 		}
+
+		/* update rx statistics */
+		adapter->stats.rx_packets++;
+		adapter->stats.rx_bytes += length;
 		napi_gro_receive(&c_info->q_cinfo[proc_id].napi, skb);
 	}
 
@@ -971,6 +976,13 @@ vlan_tag_error:
 	return -ENOMEM;
 }
 
+struct net_device_stats *edma_get_stats(struct net_device *netdev)
+{
+	struct edma_adapter *adapter = netdev_priv(netdev);
+
+	return &adapter->stats;
+}
+
 /*
  * edma_xmit()
  *	Main api to be called by the core for packet transmission
@@ -993,6 +1005,7 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 			"skb received with fragments %d which is more than %lu",
 			num_tpds_needed, EDMA_MAX_SKB_FRAGS);
 		dev_kfree_skb_any(skb);
+		adapter->stats.tx_errors++;
 		return NETDEV_TX_OK;
 	}
 
@@ -1018,6 +1031,7 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 		netif_tx_stop_queue(nq);
 		local_bh_enable();
 		dev_warn(&netdev->dev, "Not enough descriptors available");
+		adapter->stats.tx_errors++;
 		return NETDEV_TX_BUSY;
 	}
 
@@ -1034,11 +1048,16 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 			flags_transmit);
 	if (ret) {
 		dev_kfree_skb_any(skb);
+		adapter->stats.tx_errors++;
 		goto netdev_okay;
 	}
 
 	/* Update SW producer index */
 	edma_tx_update_hw_idx(c_info, skb, queue_id);
+
+	/* update tx statistics */
+	adapter->stats.tx_packets++;
+	adapter->stats.tx_bytes += skb->len;
 
 netdev_okay:
 	local_bh_enable();
