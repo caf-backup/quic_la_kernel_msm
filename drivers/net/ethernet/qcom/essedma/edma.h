@@ -13,8 +13,8 @@
  * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef DACOTA_EDMA_H
-#define DACOTA_EDMA_H
+#ifndef _EDMA_H_
+#define _EDMA_H_
 
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -193,11 +193,32 @@ struct edma_rfd_desc_ring {
 	struct edma_sw_desc *sw_desc; /* buffer associated with ring */
 };
 
+/* edma_rfs_flter_node - rfs filter node in hash table */
+struct edma_rfs_filter_node {
+	struct flow_keys keys;
+	u32 flow_id; /* flow_id of filter provided by kernel */
+	u16 filter_id; /* filter id of filter returned by adaptor */
+	u16 rq_id; /* desired rq index */
+	struct hlist_node node; /* edma rfs list node */
+};
+
+/* edma_rfs_flow_tbl - rfs flow table */
+struct edma_rfs_flow_table {
+	u16 max_num_filter; /* Maximum number of filters edma supports */
+	int filter_available; /* Number of free filters available */
+	u16 hashtoclean; /* hash table index to clean next */
+	struct hlist_head hlist_head[EDMA_RFS_FLOW_ENTRIES];
+	spinlock_t lock;
+	struct timer_list expire_rfs; /* timer function for edma_rps_may_expire_flow */
+};
+
 /* EDMA net device structure */
 struct edma_adapter {
 	struct net_device *netdev[1]; /* netdevice */
 	struct platform_device *pdev; /* platform device */
 	struct edma_common_info *c_info; /* edma common info */
+	struct edma_rfs_flow_table rfs; /* edma rfs flow table */
+	set_rfs_filter_callback_t set_rfs_rule;
 };
 
 int edma_alloc_queues_tx(struct edma_common_info *c_info);
@@ -225,4 +246,9 @@ void edma_write_reg(u16 reg_addr, u32 reg_value);
 void edma_read_reg(u16 reg_addr, volatile u32 *reg_value);
 struct net_device_stats *edma_get_stats(struct net_device *netdev);
 int edma_set_mac_addr(struct net_device *netdev, void *p);
-#endif
+int edma_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
+		u16 rxq, u32 flow_id);
+int edma_register_rfs_filter(struct net_device *netdev,
+		set_rfs_filter_callback_t set_filter);
+void edma_flow_may_expire(unsigned long data);
+#endif /* _EDMA_H_ */
