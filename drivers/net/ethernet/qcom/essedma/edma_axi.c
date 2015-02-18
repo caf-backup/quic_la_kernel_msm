@@ -343,10 +343,11 @@ static int edma_axi_remove(struct platform_device *pdev)
 	struct edma_adapter *adapter = netdev_priv(netdev[0]);
 	struct edma_common_info *c_info = adapter->c_info;
 	struct edma_hw *hw = &c_info->hw;
-	int id = get_cpu();
+	int i;
 
 	edma_stop_rx_tx(hw);
-	napi_disable(&c_info->q_cinfo[id].napi);
+	for (i = 0; i < EDMA_NR_CPU; i++)
+		napi_disable(&c_info->q_cinfo[i].napi);
 	edma_irq_disable(c_info);
 	edma_free_irqs(adapter);
 	edma_reset(c_info);
@@ -355,7 +356,6 @@ static int edma_axi_remove(struct platform_device *pdev)
 	edma_free_queues(c_info);
 	unregister_netdev(adapter->netdev[0]);
 	free_netdev(adapter->netdev[0]);
-	put_cpu();
 
 	return 0;
 }
