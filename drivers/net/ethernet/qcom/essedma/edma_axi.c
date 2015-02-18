@@ -67,6 +67,7 @@ static int edma_axi_probe(struct platform_device *pdev)
 	struct edma_hw *hw;
 	struct edma_adapter *adapter[1];
 	struct resource *res;
+	struct device_node *np = pdev->dev.of_node;
 	int i, j, err = 0, ret = 0;
 
 	/* Use to allocate net devices for multiple TX/RX queues */
@@ -101,7 +102,15 @@ static int edma_axi_probe(struct platform_device *pdev)
 	/* Fill HW defaults */
 	hw->tx_intr_mask = EDMA_TX_IMR_NORMAL_MASK;
 	hw->rx_intr_mask = EDMA_RX_IMR_NORMAL_MASK;
-	hw->rx_buff_size = EDMA_RX_BUFF_SIZE;
+
+	of_property_read_u32(np, "qcom,page-mode", &c_info->page_mode);
+	of_property_read_u32(np, "qcom,rx_head_buf_size", &hw->rx_head_buff_size);
+
+	if (c_info->page_mode)
+		hw->rx_head_buff_size = EDMA_RX_HEAD_BUFF_SIZE_JUMBO;
+	else if (!hw->rx_head_buff_size)
+		hw->rx_head_buff_size = EDMA_RX_HEAD_BUFF_SIZE;
+
 	hw->misc_intr_mask = 0;
 	hw->wol_intr_mask = 0;
 
@@ -138,7 +147,8 @@ static int edma_axi_probe(struct platform_device *pdev)
 			i++, j++)
 		c_info->rx_irq[i] = platform_get_irq(pdev, j);
 
-	c_info->rx_buffer_len = c_info->hw.rx_buff_size;
+	c_info->rx_head_buffer_len = c_info->hw.rx_head_buff_size;
+	c_info->rx_page_buffer_len = PAGE_SIZE;
 
 	err = edma_alloc_queues_tx(c_info);
 	if (err) {
