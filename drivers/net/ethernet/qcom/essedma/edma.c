@@ -18,8 +18,14 @@
 #include "ess_edma.h"
 #include "edma.h"
 
+extern struct net_device *netdev[2];
+
 /* The array values are the tx queue number supported by the core */
 u8 edma_skb_priority_tbl[8] = {0, 0, 1, 1, 2, 2, 3, 3};
+
+extern int ssdk_rfs_ipct_rule_set(__be32 ip_src, __be32 ip_dst,
+		__be16 sport, __be16 dport,
+		uint8_t proto, u16 loadbalance, bool action);
 
 /*
  * edma_alloc_tx_ring()
@@ -354,10 +360,12 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 	u16 sw_next_to_clean, hw_next_to_clean = 0, vlan = 0;
 	struct platform_device *pdev = c_info->pdev;
 	struct edma_rfd_desc_ring *erdr = c_info->rfd_ring[queue_id];
+	struct net_device *netdev = c_info->netdev[0];
 	struct edma_sw_desc *sw_desc;
 	struct sk_buff *skb;
 	u8 *vaddr;
 	int proc_id = get_cpu();
+	u8 queue_to_rxid[8] = {0, 0, 1, 1, 2, 2, 3, 3};
 	sw_next_to_clean = erdr->sw_next_to_clean;
 
 	while (1) {
@@ -471,8 +479,13 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 		}
 
 		skb->protocol = eth_type_trans(skb, c_info->netdev[0]);
+		skb_record_rx_queue(skb, queue_to_rxid[queue_id]);
+		if (netdev->features & NETIF_F_RXHASH) {
+			hash_type = (rrd[11] >> EDMA_HASH_TYPE_SHIFT);
+			if ((hash_type > EDMA_HASH_TYPE_START) && (hash_type < EDMA_HASH_TYPE_END))
+				skb_set_hash(skb, (rrd[5] << 8) | rrd[4], PKT_HASH_TYPE_L4);
+		}
 		skb->flow_cookie = rrd[3] & EDMA_RRD_FLOW_COOKIE_MASK;
-
 		edma_receive_checksum(rrd, skb);
 		if (rrd[7] & EDMA_RRD_CVLAN) {
 			vlan = rrd[4];
@@ -496,6 +509,121 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 	put_cpu();
 }
 
+/*
+ * edma_delete_rfs_filter()
+ *	Remove RFS filter from switch
+ */
+static int edma_delete_rfs_filter(struct edma_adapter *adapter,
+			struct edma_rfs_filter_node *filter_node)
+{
+	int res = -1;
+
+	if (adapter->set_rfs_rule)
+		res = (*adapter->set_rfs_rule)(adapter->netdev[0], filter_node->keys.src, filter_node->keys.dst,
+				filter_node->keys.port16[0], filter_node->keys.port16[1],
+				filter_node->keys.ip_proto, filter_node->rq_id, 0);
+
+	return res;
+}
+
+/*
+ * edma_add_rfs_filter()
+ *	Add RFS filter to switch
+ */
+static int edma_add_rfs_filter(struct edma_adapter *adapter, struct flow_keys *keys, u16 rq,
+				struct edma_rfs_filter_node *filter_node)
+{
+	int res = -1;
+
+	filter_node->keys.src = keys->src;
+	filter_node->keys.dst = keys->dst;
+	filter_node->keys.ports = keys->ports;
+	filter_node->keys.ip_proto = keys->ip_proto;
+
+	/* Call callback registered by ESS driver */
+	if (adapter->set_rfs_rule)
+		res = (*adapter->set_rfs_rule)(adapter->netdev[0], keys->src, keys->dst,
+			keys->port16[0], keys->port16[1], keys->ip_proto, rq, 1);
+
+	return res;
+}
+
+/*
+ * edma_rfs_key_search()
+ *	Look for existing RFS entry
+ */
+static struct edma_rfs_filter_node *edma_rfs_key_search(struct hlist_head *h,
+			struct flow_keys *key)
+{
+	struct edma_rfs_filter_node *p;
+
+	hlist_for_each_entry(p, h, node)
+		if (p->keys.src == key->src &&
+			p->keys.dst == key->dst &&
+			p->keys.ports == key->ports &&
+			p->keys.ip_proto == key->ip_proto)
+				return p;
+	return NULL;
+}
+
+/*
+ * edma_initialise_rfs_flow_table()
+ * 	Initialise EDMA RFS flow table
+ */
+static void edma_initialise_rfs_flow_table(struct edma_adapter *adapter)
+{
+	int i;
+
+	spin_lock_init(&adapter->rfs.lock);
+
+	/* Initialize EDMA flow hash table */
+	for (i = 0; i < EDMA_RFS_FLOW_ENTRIES; i++)
+		INIT_HLIST_HEAD(&adapter->rfs.hlist_head[i]);
+
+	adapter->rfs.max_num_filter = EDMA_RFS_FLOW_ENTRIES;
+	adapter->rfs.filter_available = adapter->rfs.max_num_filter;
+	adapter->rfs.hashtoclean = 0;
+
+	/* Add timer to get periodic RFS updates from OS */
+	init_timer(&adapter->rfs.expire_rfs);
+	adapter->rfs.expire_rfs.function = edma_flow_may_expire;
+	adapter->rfs.expire_rfs.data = (unsigned long)adapter;
+	mod_timer(&adapter->rfs.expire_rfs, jiffies + HZ/4);
+}
+
+/*
+ * edma_free_rfs_flow_table()
+ * 	Free EDMA RFS flow table
+ */
+static void edma_free_rfs_flow_table(struct edma_adapter *adapter)
+{
+	int i, res;
+
+	/* Remove sync timer */
+	del_timer_sync(&adapter->rfs.expire_rfs);
+	spin_lock_bh(&adapter->rfs.lock);
+
+	/* Free EDMA RFS table entries */
+	adapter->rfs.filter_available = 0;
+
+	/* Clean-up EDMA flow hash table */
+	for (i = 0; i < EDMA_RFS_FLOW_ENTRIES; i++) {
+		struct hlist_head *hhead;
+		struct hlist_node *tmp;
+		struct edma_rfs_filter_node *filter_node;
+		hhead = &adapter->rfs.hlist_head[i];
+		hlist_for_each_entry_safe(filter_node, tmp, hhead, node) {
+			res  = edma_delete_rfs_filter(adapter, filter_node);
+			if (res < 0)
+				dev_warn(&adapter->netdev[0]->dev,
+					"EDMA going down but RFS entry %d not allowed to be flushed by Switch",
+							filter_node->flow_id);
+			hlist_del(&filter_node->node);
+			kfree(filter_node);
+		}
+	}
+	spin_unlock_bh(&adapter->rfs.lock);
+}
 
 /*
  * edma_tx_unmap_and_free()
@@ -837,6 +965,7 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 	return 0;
 
 dma_error:
+	/* TODO: Rollback of work done in this call */
 	dev_err(&pdev->dev, "TX DMA map failed\n");
 vlan_tag_error:
 	return -ENOMEM;
@@ -892,12 +1021,15 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 		return NETDEV_TX_BUSY;
 	}
 
+	/* Check and mark VLAN tag offload */
 	if (vlan_tx_tag_present(skb))
 		flags_transmit |= EDMA_VLAN_TX_TAG_INSERT_FLAG;
 
+	/* Check and mark checksum offload */
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
 		flags_transmit |= EDMA_HW_CHECKSUM;
 
+	/* Map and fill descriptor for Tx */
 	ret = edma_tx_map_and_fill(c_info, adapter, skb, queue_id,
 			flags_transmit);
 	if (ret) {
@@ -905,11 +1037,167 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 		goto netdev_okay;
 	}
 
+	/* Update SW producer index */
 	edma_tx_update_hw_idx(c_info, skb, queue_id);
 
 netdev_okay:
 	local_bh_enable();
 	return NETDEV_TX_OK;
+}
+
+/*
+ * edma_flow_may_expire()
+ * 	Timer function called periodically to delete the node
+ */
+void edma_flow_may_expire(unsigned long data)
+{
+	struct edma_adapter *adapter = (struct edma_adapter *)data;
+	bool res;
+	int j;
+
+	spin_lock_bh(&adapter->rfs.lock);
+	for (j = 0; j < EDMA_RFS_EXPIRE_COUNT_PER_CALL; j++) {
+		struct hlist_head *hhead;
+		struct hlist_node *tmp;
+		struct edma_rfs_filter_node *n;
+
+		hhead = &adapter->rfs.hlist_head[adapter->rfs.hashtoclean++];
+		hlist_for_each_entry_safe(n, tmp, hhead, node) {
+			res = rps_may_expire_flow(adapter->netdev[0], n->rq_id,
+					n->flow_id, n->filter_id);
+			if (res) {
+				res = edma_delete_rfs_filter(adapter, n);
+				if (res < 0)
+					dev_dbg(&adapter->netdev[0]->dev,
+							"RFS entry %d not allowed to be flushed by Switch",
+							n->flow_id);
+				else {
+					hlist_del(&n->node);
+					kfree(n);
+					adapter->rfs.filter_available++;
+				}
+			}
+		}
+	}
+
+	adapter->rfs.hashtoclean = adapter->rfs.hashtoclean & (EDMA_RFS_FLOW_ENTRIES - 1);
+	spin_unlock_bh(&adapter->rfs.lock);
+	mod_timer(&adapter->rfs.expire_rfs, jiffies + HZ/4);
+}
+
+/*
+ * edma_rx_flow_steer()
+ *	Called by core to to steer the flow to CPU
+ */
+int edma_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
+		u16 rxq, u32 flow_id)
+{
+	struct flow_keys keys;
+	struct edma_rfs_filter_node *filter_node;
+	struct edma_adapter *adapter;
+	u16 hash_tblid;
+	int res;
+
+	if (skb->protocol == htons(ETH_P_IPV6)) {
+		dev_err(&adapter->pdev->dev, "IPv6 not supported\n");
+		res = -EINVAL;
+		goto no_protocol_err;
+	}
+
+	adapter = netdev_priv(dev);
+
+	/* Dissect flow parameters
+	 * We only support IPv4 + TCP/UDP
+	 */
+	res = skb_flow_dissect(skb, &keys);
+	if (!((keys.ip_proto == IPPROTO_TCP) || (keys.ip_proto == IPPROTO_UDP))) {
+		res = -EPROTONOSUPPORT;
+		goto no_protocol_err;
+	}
+
+	/* Check if table entry exists */
+	hash_tblid = skb_get_hash_raw(skb) & EDMA_RFS_FLOW_ENTRIES_MASK;
+
+	spin_lock_bh(&adapter->rfs.lock);
+	filter_node = edma_rfs_key_search(&adapter->rfs.hlist_head[hash_tblid], &keys);
+
+	if (filter_node) {
+		if (rxq == filter_node->rq_id) {
+			res = -EEXIST;
+			goto out;
+		} else {
+			res = edma_delete_rfs_filter(adapter, filter_node);
+			if (res < 0)
+				dev_warn(&adapter->netdev[0]->dev,
+						"Cannot steer flow %d to different queue",
+						filter_node->flow_id);
+			else {
+				adapter->rfs.filter_available++;
+				res = edma_add_rfs_filter(adapter, &keys, rxq, filter_node);
+				if (res < 0)
+					dev_warn(&adapter->netdev[0]->dev,
+							"Cannot steer flow %d to different queue",
+							filter_node->flow_id);
+				else {
+					adapter->rfs.filter_available--;
+					filter_node->rq_id = rxq;
+					filter_node->filter_id = res;
+				}
+			}
+		}
+	} else {
+		if (adapter->rfs.filter_available == 0) {
+			res = -EBUSY;
+			goto out;
+		}
+
+		filter_node = kmalloc(sizeof(*filter_node), GFP_ATOMIC);
+		if (!filter_node) {
+			res = -ENOMEM;
+			goto out;
+		}
+
+		res = edma_add_rfs_filter(adapter, &keys, rxq, filter_node);
+		if (res < 0) {
+			kfree(filter_node);
+			goto out;
+		}
+
+		adapter->rfs.filter_available--;
+		filter_node->rq_id = rxq;
+		filter_node->filter_id = res;
+		filter_node->flow_id = flow_id;
+		filter_node->keys = keys;
+		INIT_HLIST_NODE(&filter_node->node);
+		hlist_add_head(&filter_node->node, &adapter->rfs.hlist_head[hash_tblid]);
+	}
+
+out:
+	spin_unlock_bh(&adapter->rfs.lock);
+no_protocol_err:
+	return res;
+}
+
+/*
+ * edma_register_rfs_filter()
+ *	Add RFS filter callback
+ */
+int edma_register_rfs_filter(struct net_device *netdev,
+		set_rfs_filter_callback_t set_filter)
+{
+	struct edma_adapter *adapter = netdev_priv(netdev);
+
+	spin_lock_bh(&adapter->rfs.lock);
+
+	if (adapter->set_rfs_rule) {
+		spin_unlock_bh(&adapter->rfs.lock);
+		return -1;
+	}
+
+	adapter->set_rfs_rule = set_filter;
+	spin_unlock_bh(&adapter->rfs.lock);
+
+	return 0;
 }
 
 /*
@@ -1095,8 +1383,11 @@ int edma_configure(struct edma_common_info *c_info)
  */
 int edma_open(struct net_device *netdev)
 {
+	struct edma_adapter *adapter = netdev_priv(netdev);
+
 	netif_carrier_on(netdev);
 	netif_tx_start_all_queues(netdev);
+	edma_initialise_rfs_flow_table(adapter);
 
 	return 0;
 }
@@ -1107,6 +1398,9 @@ int edma_open(struct net_device *netdev)
  */
 int edma_close(struct net_device *netdev)
 {
+	struct edma_adapter *adapter = netdev_priv(netdev);
+
+	edma_free_rfs_flow_table(adapter);
 	netif_carrier_off(netdev);
 	netif_tx_stop_all_queues(netdev);
 
