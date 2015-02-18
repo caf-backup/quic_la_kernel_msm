@@ -218,6 +218,7 @@ struct edma_adapter {
 	struct platform_device *pdev; /* platform device */
 	struct edma_common_info *c_info; /* edma common info */
 	struct edma_rfs_flow_table rfs; /* edma rfs flow table */
+	struct net_device_stats stats; /* netdev statistics */
 	set_rfs_filter_callback_t set_rfs_rule;
 };
 
