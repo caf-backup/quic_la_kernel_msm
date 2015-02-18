@@ -201,6 +201,15 @@ static int edma_axi_probe(struct platform_device *pdev)
 	netdev[0]->wanted_features |= NETIF_F_RXHASH | NETIF_F_NTUPLE;
 #endif
 
+	/*
+	 * This just fill in some default MAC address
+	 */
+	random_ether_addr(netdev[0]->dev_addr);
+	pr_info("EDMA using MAC@ - using %02x:%02x:%02x:%02x:%02x:%02x\n",
+		*(netdev[0]->dev_addr), *(netdev[0]->dev_addr + 1),
+		*(netdev[0]->dev_addr + 2), *(netdev[0]->dev_addr + 3), *(netdev[0]->dev_addr + 4),
+		*(netdev[0]->dev_addr + 5));
+
 	err = register_netdev(netdev[0]);
 	if (err)
 		goto err_register;
