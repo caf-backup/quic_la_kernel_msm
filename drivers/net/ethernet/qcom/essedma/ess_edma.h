@@ -13,6 +13,9 @@
  * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#ifndef _ESS_EDMA_H_
+#define _ESS_EDMA_H_
+
 #include <linux/types.h>
 
 struct edma_adapter;
@@ -178,6 +181,7 @@ struct edma_hw;
 #define LB_RING_ENTRY_BIT_OFFSET 8
 #define LB_RING_ID_OFFSET 0
 #define LB_RING_PROFILE_ID_OFFSET 3
+#define EDMA_LB_REG_VALUE 0x6040200
 
 /* Load Balance Priority Mapping Register */
 #define REG_LB_PRI_START 0x804
@@ -215,6 +219,14 @@ struct edma_hw;
 #define REG_RSS_HASH_VALUE 0x8C0
 
 #define REG_RSS_TYPE_RESULT 0x8C4
+
+#define EDMA_HASH_TYPE_START 0
+#define EDMA_HASH_TYPE_END 5
+#define EDMA_HASH_TYPE_SHIFT 4
+
+#define EDMA_RFS_FLOW_ENTRIES 1024
+#define EDMA_RFS_FLOW_ENTRIES_MASK (EDMA_RFS_FLOW_ENTRIES - 1)
+#define EDMA_RFS_EXPIRE_COUNT_PER_CALL 128
 
 /* RFD Base Address Register */
 #define REG_RFD_BASE_ADDR_Q(x) (0x950 + ((x) << 2)) /* x = queue id */
@@ -312,3 +324,5 @@ struct edma_hw;
 #define EDMA_RRD_CSUM_FAIL_MASK 0xC000
 #define EDMA_RRD_CVLAN 0x0001
 #define EDMA_RRD_DESC_VALID 0x8000
+
+#endif /* _ESS_EDMA_H_ */

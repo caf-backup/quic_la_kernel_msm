@@ -15,6 +15,7 @@
 
 #include "edma.h"
 #include "ess_edma.h"
+#include <linux/cpu_rmap.h>
 
 char edma_axi_driver_name[] = "ess_edma";
 static const u32 default_msg = NETIF_MSG_DRV | NETIF_MSG_PROBE |
@@ -22,9 +23,9 @@ static const u32 default_msg = NETIF_MSG_DRV | NETIF_MSG_PROBE |
 
 static unsigned long edma_hw_addr;
 
-struct net_device *netdev[2];
 char edma_tx_irq[16][64];
 char edma_rx_irq[8][64];
+struct net_device *netdev[2];
 
 void edma_write_reg(u16 reg_addr, u32 reg_value)
 {
@@ -52,6 +53,10 @@ static const struct net_device_ops edma_axi_netdev_ops = {
 	.ndo_stop               = edma_close,
 	.ndo_start_xmit         = edma_xmit,
 	.ndo_set_mac_address    = edma_set_mac_addr,
+#ifdef CONFIG_RFS_ACCEL
+	.ndo_rx_flow_steer      = edma_rx_flow_steer,
+	.ndo_register_rfs_filter = edma_register_rfs_filter,
+#endif
 };
 
 /*
@@ -188,6 +193,13 @@ static int edma_axi_probe(struct platform_device *pdev)
 	netdev[0]->vlan_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6;
 	netdev[0]->wanted_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6;
 
+#ifdef CONFIG_RFS_ACCEL
+	netdev[0]->features |=  NETIF_F_RXHASH | NETIF_F_NTUPLE;
+	netdev[0]->hw_features |=  NETIF_F_RXHASH | NETIF_F_NTUPLE;
+	netdev[0]->vlan_features |= NETIF_F_RXHASH | NETIF_F_NTUPLE;
+	netdev[0]->wanted_features |= NETIF_F_RXHASH | NETIF_F_NTUPLE;
+#endif
+
 	err = register_netdev(netdev[0]);
 	if (err)
 		goto err_register;
@@ -203,6 +215,18 @@ static int edma_axi_probe(struct platform_device *pdev)
 		err = -EIO;
 		goto err_reset;
 	}
+
+	/* Allocate reverse irq cpu mapping structure for
+	 * receive queues
+	 */
+#ifdef CONFIG_RFS_ACCEL
+	adapter[0]->netdev[0]->rx_cpu_rmap =
+		alloc_irq_cpu_rmap(EDMA_NETDEV_RX_QUEUE);
+	if (!adapter[0]->netdev[0]->rx_cpu_rmap) {
+		err = -ENOMEM;
+		goto err_rmap_alloc_fail;
+	}
+#endif
 
 	/* populate per_core_info, do a napi_Add, request 16 TX irqs,
 	 * 8 RX irqs, do a napi enable
@@ -238,6 +262,15 @@ static int edma_axi_probe(struct platform_device *pdev)
 			err = request_irq(c_info->rx_irq[j], edma_interrupt,
 				IRQF_DISABLED, &edma_rx_irq[j][0], &c_info->q_cinfo[i]);
 		}
+
+#ifdef CONFIG_RFS_ACCEL
+		for (j = c_info->q_cinfo[i].rx_start; j < rx_start + 2; j += 2) {
+			err = irq_cpu_rmap_add(adapter[0]->netdev[0]->rx_cpu_rmap,
+				c_info->rx_irq[j]);
+			if (err)
+				goto err_rmap_add_fail;
+		}
+#endif
 	}
 
 	/* Used to clear interrupt status, allocate rx buffer,
@@ -257,6 +290,13 @@ static int edma_axi_probe(struct platform_device *pdev)
 	for (i = 0; i < EDMA_NUM_IDT; i++)
 		edma_write_reg(EDMA_REG_RSS_IDT(i), EDMA_RSS_IDT_VALUE);
 
+	/* Configure load balance mapping table.
+	 * 4 table entry will be configured according to the
+	 * following pattern: load_balance{0,1,2,3} = {Q0,Q1,Q3,Q4}
+	 * respectively.
+	 */
+	edma_write_reg(REG_LB_RING, EDMA_LB_REG_VALUE);
+
 	/* Enable All 16 tx and 8 rx irq mask */
 	edma_irq_enable(c_info);
 	edma_enable_tx_ctrl(&c_info->hw);
@@ -265,9 +305,15 @@ static int edma_axi_probe(struct platform_device *pdev)
 	return 0;
 
 err_configure:
+#ifdef CONFIG_RFS_ACCEL
+	free_irq_cpu_rmap(adapter[0]->netdev[0]->rx_cpu_rmap);
+	adapter[0]->netdev[0]->rx_cpu_rmap = NULL;
+#endif
+err_rmap_add_fail:
 	edma_free_irqs(adapter[0]);
 	for (i = 0; i < EDMA_NR_CPU; i++)
 		napi_disable(&c_info->q_cinfo[i].napi);
+err_rmap_alloc_fail:
 err_reset:
 	unregister_netdev(netdev[0]);
 err_register:
