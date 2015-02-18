@@ -57,6 +57,7 @@ static const struct net_device_ops edma_axi_netdev_ops = {
 	.ndo_rx_flow_steer      = edma_rx_flow_steer,
 	.ndo_register_rfs_filter = edma_register_rfs_filter,
 #endif
+	.ndo_get_stats          = edma_get_stats,
 };
 
 /*
