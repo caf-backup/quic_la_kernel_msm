@@ -1230,14 +1230,6 @@ int msm_pcie_enable(struct msm_pcie_dev_t *dev, u32 options)
 		goto out;
 	}
 
-	/* s/w reset of pcie */
-	 msm_pcie_controller_reset(dev);
-
-	/* detect uni phy before accessing the pcie registers */
-
-	if (dev->is_emulation && !pcie_phy_detect(dev)) {
-		goto out;
-	}
 
 	/* assert PCIe reset link to keep EP in reset */
 
@@ -1785,6 +1777,17 @@ static int msm_pcie_probe(struct platform_device *pdev)
 	ret = msm_pcie_gpio_init(&msm_pcie_dev[rc_idx]);
 	if (ret) {
 		msm_pcie_release_resources(&msm_pcie_dev[rc_idx]);
+		goto decrease_rc_num;
+	}
+
+	/* s/w reset of pcie */
+	msm_pcie_controller_reset(&msm_pcie_dev[rc_idx]);
+
+	/* detect uni phy before accessing the pcie registers */
+	if (msm_pcie_dev[rc_idx].is_emulation && !pcie_phy_detect(&msm_pcie_dev[rc_idx])) {
+		ret = -ENODEV;
+		msm_pcie_release_resources(&msm_pcie_dev[rc_idx]);
+		msm_pcie_gpio_deinit(&msm_pcie_dev[rc_idx]);
 		goto decrease_rc_num;
 	}
 
