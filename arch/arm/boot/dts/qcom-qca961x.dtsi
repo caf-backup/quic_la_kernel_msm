@@ -366,7 +366,26 @@
 				"wifi_core_warm",
 				"wifi_core_cold";
 			/* TBD: Check if 'clocks' entry is required here - if required, add the entries once they are defined in GCC driver */
-			interrupts = <0 0x20 0x1>;
+			interrupts = <0 0x20 0x1>,
+				<0 0x21 0x1>,
+				<0 0x22 0x1>,
+				<0 0x23 0x1>,
+				<0 0x24 0x1>,
+				<0 0x25 0x1>,
+				<0 0x26 0x1>,
+				<0 0x27 0x1>,
+				<0 0x28 0x1>,
+				<0 0x29 0x1>,
+				<0 0x2a 0x1>,
+				<0 0x2b 0x1>,
+				<0 0x2c 0x1>,
+				<0 0x2d 0x1>,
+				<0 0x2e 0x1>,
+				<0 0x2f 0x1>,
+				<0 0xa8 0x0>;
+			interrupt-names = "msi0", "msi1", "msi2", "msi3", "msi4", "msi5", "msi6",
+				"msi7", "msi8", "msi9", "msi10", "msi11", "msi12", "msi13", "msi14",
+				"msi15", "legacy";
 			status = "disabled";
 			qcom,msi_addr = <0x0b006040>;
 			qcom,msi_base = <0x40>;
@@ -388,10 +407,29 @@
 				"wifi_core_warm",
 				"wifi_core_cold";
 			/* TBD: Check if 'clocks' entry is required here - if required, add the entries once they are defined in GCC driver */
-			interrupts = <0 0x2c 0x1>;
+			interrupts = <0 0x30 0x1>,
+				<0 0x31 0x1>,
+				<0 0x32 0x1>,
+				<0 0x33 0x1>,
+				<0 0x34 0x1>,
+				<0 0x35 0x1>,
+				<0 0x36 0x1>,
+				<0 0x37 0x1>,
+				<0 0x38 0x1>,
+				<0 0x39 0x1>,
+				<0 0x3a 0x1>,
+				<0 0x3b 0x1>,
+				<0 0x3c 0x1>,
+				<0 0x3d 0x1>,
+				<0 0x3e 0x1>,
+				<0 0x3f 0x1>,
+				<0 0xa9 0x0>;
+			interrupt-names = "msi0", "msi1", "msi2", "msi3", "msi4", "msi5", "msi6",
+				"msi7", "msi8", "msi9", "msi10", "msi11", "msi12", "msi13", "msi14",
+				"msi15", "legacy";
 			status = "disabled";
 			qcom,msi_addr = <0x0b006040>;
-			qcom,msi_base = <0x4c>;
+			qcom,msi_base = <0x50>;
 		};
 
 		edma@c080000 {
