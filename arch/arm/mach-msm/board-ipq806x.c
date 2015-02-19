@@ -2643,7 +2643,7 @@ static void nss_gmac_init(void)
 		pdata->forced_duplex = DUPLEX_FULL;
 		pdata->socver = socinfo_get_version();
 
-		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_1.dev.platform_data;
+		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_2.dev.platform_data;
 		pdata->phy_mdio_addr = 3;
 		pdata->poll_required = 1;
 		pdata->rgmii_delay = 0;
