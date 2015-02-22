@@ -56,6 +56,7 @@
 #include <mach/msm_nss.h>
 #include <mach/msm_nss_crypto.h>
 #include <linux/ar8216_platform.h>
+#include <linux/qca_85xx_sw.h>
 #include <mach/msm_usb30.h>
 #include <mach/cache_erp.h>
 
@@ -1343,6 +1344,66 @@ struct platform_device ip806x_mdio_device = {
 	.id     = IPQ806X_MDIO_BUS_NUM,
 	.dev    = {
 		.platform_data = &ipq806x_mdio_platform_data,
+	},
+};
+
+static struct mdio_gpio_platform_data ipq806x_mdio_platform_data2;
+struct platform_device ip806x_mdio_device2 = {
+	.name   = IPQ806X_MDIO_BUS_NAME,
+	.id     = IPQ806X_MDIO_BUS_NUM + 1,
+	.dev    = {
+		.platform_data = &ipq806x_mdio_platform_data2,
+	},
+};
+
+static struct qca_85xx_sw_platform_data ap160_2_8511_sw_data = {
+	.eth_dev_name = "eth1",
+	.mdio_bus_name = IPQ806X_MDIO_BUS_NAME,
+	.mdio_bus_id = IPQ806X_MDIO_BUS_NUM + 1,
+	.chip_id = QCA_85XX_SW_ID_QCA8511,
+
+	.qsgmii_cfg = {
+		.port_mode = QCA_85XX_SW_PORT_MODE_QSGMII,
+		.port_base = QCA_85XX_SW_PORT_1,
+		.is_speed_forced = true,
+		.forced_speed = SPEED_1000,
+		.forced_duplex = DUPLEX_FULL,
+	},
+
+	.port_24_cfg = {
+		.port_mode = QCA_85XX_SW_PORT_MODE_NOT_CONFIGURED,
+	},
+
+	.port_25_cfg = {
+		.port_mode = QCA_85XX_SW_PORT_MODE_NOT_CONFIGURED,
+	},
+
+	.port_26_cfg = {
+		.port_mode = QCA_85XX_SW_PORT_MODE_SGMII,
+		.is_speed_forced = false,
+	},
+
+	.port_27_cfg = {
+		.port_mode = QCA_85XX_SW_PORT_MODE_SGMII_PLUS,
+		.is_speed_forced = true,
+		.forced_speed = SPEED_2500,
+		.forced_duplex = DUPLEX_FULL,
+	},
+
+	.port_28_cfg = {
+		.port_mode = QCA_85XX_SW_PORT_MODE_NOT_CONFIGURED,
+	},
+
+	.port_29_cfg = {
+		.port_mode = QCA_85XX_SW_PORT_MODE_NOT_CONFIGURED,
+	},
+};
+
+struct platform_device ap160_2_qca_8511_sw = {
+	.name   = "qca_85xx_sw",
+	.id     = 0,
+	.dev    = {
+		.platform_data = (void *)&ap160_2_8511_sw_data,
 	},
 };
 
