@@ -2435,7 +2435,7 @@ static void __init ipq806x_allocate_memory_regions(void)
 static void nss_gmac_init(void)
 {
 	struct msm_nss_gmac_platform_data *pdata;
-	struct mdio_gpio_platform_data *mdata;
+	struct mdio_gpio_platform_data *mdata, *mdata_qca8511;
 
 	mdata = (struct mdio_gpio_platform_data *)ip806x_mdio_device.dev.platform_data;
 
@@ -2564,6 +2564,14 @@ static void nss_gmac_init(void)
 	}
 
 	if (machine_is_ipq806x_ap160_2xx()) {
+
+		/* Register the second MDIO bus for QCA8511 Switch */
+		mdata_qca8511 = (struct mdio_gpio_platform_data *)ip806x_mdio_device2.dev.platform_data;
+		mdata_qca8511->mdc = 1;
+		mdata_qca8511->mdio = 0;
+		mdata_qca8511->phy_mask = 0;
+		platform_device_register(&ip806x_mdio_device2);
+
 		/* All four GMACs connect to QCA8511 Switch in QSGMII Mode */
 		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_0.dev.platform_data;
 		pdata->phy_mdio_addr = 5;
@@ -2617,6 +2625,8 @@ static void nss_gmac_init(void)
 		platform_device_register(&nss_gmac_1);
 		platform_device_register(&nss_gmac_2);
 		platform_device_register(&nss_gmac_3);
+
+		platform_device_register(&ap160_2_qca_8511_sw);
 	}
 
 	if (machine_is_ipq806x_ap160()) {
