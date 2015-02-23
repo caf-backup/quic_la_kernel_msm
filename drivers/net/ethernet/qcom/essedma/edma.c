@@ -822,37 +822,13 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 		lso_word1 |= EDMA_TPD_LSO_EN | ((skb_shinfo(skb)->gso_size & EDMA_TPD_MSS_MASK) << EDMA_TPD_MSS_SHIFT) |
 				(skb_transport_offset(skb) << EDMA_TPD_HDR_SHIFT);
 	} else if (flags_transmit & EDMA_HW_CHECKSUM) {
-		if (skb->protocol == htons(ETH_P_IP)) {
-			protocol = ip_hdr(skb)->protocol;
-			word1 |= EDMA_TPD_IP_CSUM_EN;
-		} else if (skb->protocol == htons(ETH_P_IPV6)) {
-			protocol = ipv6_hdr(skb)->nexthdr;
-		} else {
-			if (unlikely(net_ratelimit())) {
-				dev_dbg(&pdev->dev,
-					"Checksum offload for non IPv4/IPv6: %d\n", skb->protocol);
-			}
-		}
+			u8 css, cso;
+			cso = skb_checksum_start_offset(skb);
+			css = cso  + skb->csum_offset;
 
-		switch(protocol) {
-		case IPPROTO_TCP:
-			word1 |= (EDMA_TPD_TCP_CSUM_EN);
-			word1 |= (skb_transport_offset(skb) << EDMA_TPD_HDR_SHIFT);
-			break;
-		case IPPROTO_UDP:
-			word1 |= (EDMA_TPD_UDP_CSUM_EN);
-			word1 |= (skb_transport_offset(skb) << EDMA_TPD_HDR_SHIFT);
-			break;
-		default:
-			word1 |= (EDMA_TPD_CUSTOM_CSUM_EN) | (EDMA_TPD_IP_CSUM_EN);
-			word1 |= (skb->csum_start << EDMA_TPD_HDR_SHIFT);
-			word1 |= ((skb->csum_start + skb->csum_offset) << EDMA_TPD_CUSTOM_CSUM_SHIFT);
-			if (unlikely(net_ratelimit())) {
-					dev_dbg(&pdev->dev,
-						"Checksum offload for non TCP/UDP: %d\n", protocol);
-			}
-			break;
-		}
+			word1 |= (EDMA_TPD_CUSTOM_CSUM_EN);
+			word1 |= (cso >> 1) << EDMA_TPD_HDR_SHIFT;
+			word1 |= ((css >> 1) << EDMA_TPD_CUSTOM_CSUM_SHIFT);
 	}
 
 	if (flags_transmit & EDMA_VLAN_TX_TAG_INSERT_FLAG) {
