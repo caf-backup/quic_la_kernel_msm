@@ -501,6 +501,7 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 		/* update rx statistics */
 		adapter->stats.rx_packets++;
 		adapter->stats.rx_bytes += length;
+
 		napi_gro_receive(&c_info->q_cinfo[proc_id].napi, skb);
 	}
 

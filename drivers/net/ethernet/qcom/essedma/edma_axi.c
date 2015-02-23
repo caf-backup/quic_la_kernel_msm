@@ -201,6 +201,8 @@ static int edma_axi_probe(struct platform_device *pdev)
 	netdev[0]->wanted_features |= NETIF_F_RXHASH | NETIF_F_NTUPLE;
 #endif
 
+	edma_set_ethtool_ops(netdev[0]);
+
 	/*
 	 * This just fill in some default MAC address
 	 */

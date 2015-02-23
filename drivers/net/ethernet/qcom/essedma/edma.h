@@ -91,6 +91,19 @@
 
 #define EDMA_MAX_SKB_FRAGS (MAX_SKB_FRAGS + 1)
 
+/* Ethtool specific list of EDMA supported features */
+#define EDMA_SUPPORTED_FEATURES (SUPPORTED_10baseT_Half \
+					| SUPPORTED_10baseT_Full \
+					| SUPPORTED_100baseT_Half \
+					| SUPPORTED_100baseT_Full \
+					| SUPPORTED_1000baseT_Full)
+
+/* link status variable */
+enum edma_link_status {
+	LINKDOWN = 0,
+	LINKUP = 1,
+};
+
 /* edma transmit descriptor */
 struct edma_tx_desc {
 	__le16  len; /* full packet including CRC */
@@ -220,6 +233,9 @@ struct edma_adapter {
 	struct edma_rfs_flow_table rfs; /* edma rfs flow table */
 	struct net_device_stats stats; /* netdev statistics */
 	set_rfs_filter_callback_t set_rfs_rule;
+	int32_t forced_speed; /* link force speed */
+	int32_t forced_duplex; /* link force duplex */
+	int32_t link_state; /* phy link state */
 };
 
 int edma_alloc_queues_tx(struct edma_common_info *c_info);
@@ -252,4 +268,5 @@ int edma_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 int edma_register_rfs_filter(struct net_device *netdev,
 		set_rfs_filter_callback_t set_filter);
 void edma_flow_may_expire(unsigned long data);
+void edma_set_ethtool_ops(struct net_device *netdev);
 #endif /* _EDMA_H_ */
