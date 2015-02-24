@@ -486,7 +486,9 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 			if ((hash_type > EDMA_HASH_TYPE_START) && (hash_type < EDMA_HASH_TYPE_END))
 				skb_set_hash(skb, (rrd[5] << 8) | rrd[4], PKT_HASH_TYPE_L4);
 		}
+#ifdef CONFIG_NF_FLOW_COOKIE
 		skb->flow_cookie = rrd[3] & EDMA_RRD_FLOW_COOKIE_MASK;
+#endif
 		edma_receive_checksum(rrd, skb);
 		if (rrd[7] & EDMA_RRD_CVLAN) {
 			vlan = rrd[4];
