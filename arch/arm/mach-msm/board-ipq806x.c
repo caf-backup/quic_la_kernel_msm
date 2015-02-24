@@ -2457,7 +2457,7 @@ static void nss_gmac_init(void)
 		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_0.dev.platform_data;
 		pdata->phy_mdio_addr = 4;
 		pdata->poll_required = 1;
-		pdata->rgmii_delay = 0;
+		pdata->rgmii_delay = 1;
 		pdata->phy_mii_type = PHY_INTERFACE_MODE_RGMII;
 		pdata->emulation = 0;
 		pdata->forced_speed = SPEED_1000;
@@ -2507,7 +2507,7 @@ static void nss_gmac_init(void)
 		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_1.dev.platform_data;
 		pdata->phy_mdio_addr = 4;
 		pdata->poll_required = 1;
-		pdata->rgmii_delay = 0;
+		pdata->rgmii_delay = 1;
 		pdata->phy_mii_type = PHY_INTERFACE_MODE_RGMII;
 		pdata->emulation = 0;
 		pdata->forced_speed = SPEED_1000;
@@ -2540,7 +2540,7 @@ static void nss_gmac_init(void)
 		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_1.dev.platform_data;
 		pdata->phy_mdio_addr = 4;
 		pdata->poll_required = 1;
-		pdata->rgmii_delay = 0;
+		pdata->rgmii_delay = 1;
 		pdata->phy_mii_type = PHY_INTERFACE_MODE_RGMII;
 		pdata->emulation = 0;
 		pdata->forced_speed = SPEED_1000;
@@ -2636,7 +2636,7 @@ static void nss_gmac_init(void)
 		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_0.dev.platform_data;
 		pdata->phy_mdio_addr = 4;
 		pdata->poll_required = 1;
-		pdata->rgmii_delay = 0;
+		pdata->rgmii_delay = 1;
 		pdata->phy_mii_type = PHY_INTERFACE_MODE_RGMII;
 		pdata->emulation = 0;
 		pdata->forced_speed = SPEED_UNKNOWN;
