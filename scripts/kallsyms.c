@@ -232,17 +232,6 @@ static int symbol_valid(struct sym_entry *s)
 	if (!all_symbols) {
 		if (symbol_valid_tr(s) == 0)
 			return 0;
-		/* Corner case.  Discard any symbols with the same value as
-		 * _etext _einittext; they can move between pass 1 and 2 when
-		 * the kallsyms data are added.  If these symbols move then
-		 * they may get dropped in pass 2, which breaks the kallsyms
-		 * rules.
-		 */
-		if ((s->addr == text_range_text->end &&
-				strcmp((char *)s->sym + offset, text_range_text->etext)) ||
-		    (s->addr == text_range_inittext->end &&
-				strcmp((char *)s->sym + offset, text_range_inittext->etext)))
-			return 0;
 	}
 
 	/* Exclude symbols which vary between passes. */
