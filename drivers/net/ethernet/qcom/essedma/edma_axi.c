@@ -26,6 +26,8 @@ static unsigned long edma_hw_addr;
 char edma_tx_irq[16][64];
 char edma_rx_irq[8][64];
 struct net_device *netdev[2];
+int edma_default_ltag  __read_mostly = EDMA_LAN_DEFAULT;
+int edma_default_wtag  __read_mostly = EDMA_WAN_DEFAULT;
 
 void edma_write_reg(u16 reg_addr, u32 reg_value)
 {
@@ -36,6 +38,52 @@ void edma_read_reg(u16 reg_addr, volatile u32 *reg_value)
 {
 	*reg_value = readl((void __iomem *)(edma_hw_addr + reg_addr));
 }
+
+static int edma_change_default_lan_vlan(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct edma_adapter *adapter = netdev_priv(netdev[1]);
+	int ret;
+
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+
+	if (write)
+		adapter->default_vlan_tag = edma_default_ltag;
+
+	return ret;
+}
+
+static int edma_change_default_wan_vlan(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct edma_adapter *adapter = netdev_priv(netdev[0]);
+	int ret;
+
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+
+	if (write)
+		adapter->default_vlan_tag = edma_default_wtag;
+
+	return ret;
+}
+
+static struct ctl_table edma_table[] = {
+	{
+		.procname       = "default_lan_tag",
+		.data           = &edma_default_ltag,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = edma_change_default_lan_vlan
+	},
+	{
+		.procname       = "default_wan_tag",
+		.data           = &edma_default_wtag,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = edma_change_default_wan_vlan
+	},
+	{}
+};
 
 /*
  * edma_axi_netdev_ops
@@ -71,7 +119,7 @@ static int edma_axi_probe(struct platform_device *pdev)
 {
 	struct edma_common_info *c_info;
 	struct edma_hw *hw;
-	struct edma_adapter *adapter[1];
+	struct edma_adapter *adapter[2];
 	struct resource *res;
 	struct device_node *np = pdev->dev.of_node;
 	int i, j, err = 0, ret = 0;
@@ -84,9 +132,17 @@ static int edma_axi_probe(struct platform_device *pdev)
 		goto err_alloc;
 	}
 
-	SET_NETDEV_DEV(netdev[0], &pdev->dev);
+	netdev[1] = alloc_etherdev_mqs(sizeof(struct edma_adapter),
+			EDMA_NETDEV_TX_QUEUE, EDMA_NETDEV_RX_QUEUE);
+	if (!netdev[1]) {
+		dev_err(&pdev->dev, "net device alloc fails=%p\n", netdev[1]);
+		goto err_alloc;
+	}
 
+	SET_NETDEV_DEV(netdev[0], &pdev->dev);
 	platform_set_drvdata(pdev, netdev[0]);
+	SET_NETDEV_DEV(netdev[1], &pdev->dev);
+	platform_set_drvdata(pdev, netdev[1]);
 
 	c_info = vzalloc(sizeof(struct edma_common_info));
 	if (!c_info) {
@@ -96,6 +152,7 @@ static int edma_axi_probe(struct platform_device *pdev)
 
 	c_info->pdev = pdev;
 	c_info->netdev[0] = netdev[0];
+        c_info->netdev[1] = netdev[1];
 
 	/* Fill ring details */
 	c_info->num_tx_queues = EDMA_MAX_TRANSMIT_QUEUE;
@@ -111,6 +168,7 @@ static int edma_axi_probe(struct platform_device *pdev)
 
 	of_property_read_u32(np, "qcom,page-mode", &c_info->page_mode);
 	of_property_read_u32(np, "qcom,rx_head_buf_size", &hw->rx_head_buff_size);
+	of_property_read_u32(np, "qcom,port_id_wan", &c_info->edma_port_id_wan);
 
 	if (c_info->page_mode)
 		hw->rx_head_buff_size = EDMA_RX_HEAD_BUFF_SIZE_JUMBO;
@@ -181,43 +239,66 @@ static int edma_axi_probe(struct platform_device *pdev)
 	}
 
 	/* Populate the adapter structure register the netdevice */
-	adapter[0] = netdev_priv(netdev[0]);
-	adapter[0]->netdev[0] = netdev[0];
-	adapter[0]->pdev = pdev;
-	adapter[0]->c_info = c_info;
-	netdev[0]->netdev_ops = &edma_axi_netdev_ops;
-	netdev[0]->features = NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_CTAG_TX
+	for (i = 0; i < EDMA_NR_NETDEV; i++) {
+		int j;
+		adapter[i] = netdev_priv(netdev[i]);
+		adapter[i]->netdev = netdev[i];
+		adapter[i]->pdev = pdev;
+		for (j = 0; j < EDMA_NR_CPU; j++)
+			adapter[i]->tx_start_offset[j] = ((j << EDMA_TX_CPU_START_SHIFT) + (i << 1));
+		adapter[i]->c_info = c_info;
+		netdev[i]->netdev_ops = &edma_axi_netdev_ops;
+		netdev[i]->features = NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_CTAG_TX
 				| NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_SG |
 					NETIF_F_TSO | NETIF_F_TSO6;
-	netdev[0]->hw_features = NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_CTAG_RX
+		netdev[i]->hw_features = NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_CTAG_RX
 				| NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6;
-	netdev[0]->vlan_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6;
-	netdev[0]->wanted_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6;
+		netdev[i]->vlan_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6;
+		netdev[i]->wanted_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6;
 
 #ifdef CONFIG_RFS_ACCEL
-	netdev[0]->features |=  NETIF_F_RXHASH | NETIF_F_NTUPLE;
-	netdev[0]->hw_features |=  NETIF_F_RXHASH | NETIF_F_NTUPLE;
-	netdev[0]->vlan_features |= NETIF_F_RXHASH | NETIF_F_NTUPLE;
-	netdev[0]->wanted_features |= NETIF_F_RXHASH | NETIF_F_NTUPLE;
+		netdev[i]->features |=  NETIF_F_RXHASH | NETIF_F_NTUPLE;
+		netdev[i]->hw_features |=  NETIF_F_RXHASH | NETIF_F_NTUPLE;
+		netdev[i]->vlan_features |= NETIF_F_RXHASH | NETIF_F_NTUPLE;
+		netdev[i]->wanted_features |= NETIF_F_RXHASH | NETIF_F_NTUPLE;
 #endif
+		edma_set_ethtool_ops(netdev[i]);
 
-	edma_set_ethtool_ops(netdev[0]);
+		/*
+	 	 * This just fill in some default MAC address
+	 	 */
+		random_ether_addr(netdev[i]->dev_addr);
+		pr_info("EDMA using MAC@ - using %02x:%02x:%02x:%02x:%02x:%02x\n",
+			*(adapter[i]->netdev->dev_addr), *(adapter[i]->netdev->dev_addr + 1),
+			*(adapter[i]->netdev->dev_addr + 2), *(adapter[i]->netdev->dev_addr + 3),
+			*(adapter[i]->netdev->dev_addr + 4), *(adapter[i]->netdev->dev_addr + 5));
 
-	/*
-	 * This just fill in some default MAC address
-	 */
-	random_ether_addr(netdev[0]->dev_addr);
-	pr_info("EDMA using MAC@ - using %02x:%02x:%02x:%02x:%02x:%02x\n",
-		*(netdev[0]->dev_addr), *(netdev[0]->dev_addr + 1),
-		*(netdev[0]->dev_addr + 2), *(netdev[0]->dev_addr + 3), *(netdev[0]->dev_addr + 4),
-		*(netdev[0]->dev_addr + 5));
+		err = register_netdev(netdev[i]);
+		if (err)
+			goto err_register;
 
-	err = register_netdev(netdev[0]);
-	if (err)
-		goto err_register;
+		/* carrier off reporting is important to ethtool even BEFORE open */
+		netif_carrier_off(netdev[i]);
 
-	/* carrier off reporting is important to ethtool even BEFORE open */
-	netif_carrier_off(netdev[0]);
+               /* Allocate reverse irq cpu mapping structure for
+		* receive queues
+		*/
+#ifdef CONFIG_RFS_ACCEL
+		netdev[i]->rx_cpu_rmap =
+			alloc_irq_cpu_rmap(EDMA_NETDEV_RX_QUEUE);
+		if (!netdev[i]->rx_cpu_rmap) {
+			err = -ENOMEM;
+			goto err_rmap_alloc_fail;
+		}
+#endif
+	}
+
+        register_net_sysctl(&init_net, "net/edma", edma_table);
+
+	/* Set default LAN tag */
+	adapter[EDMA_LAN]->default_vlan_tag = EDMA_LAN_DEFAULT;
+	/* Set default WAN tag */
+        adapter[EDMA_WAN]->default_vlan_tag = EDMA_WAN_DEFAULT;
 
 	/* Disable all 16 Tx and 8 rx irqs */
 	edma_irq_disable(c_info);
@@ -227,18 +308,6 @@ static int edma_axi_probe(struct platform_device *pdev)
 		err = -EIO;
 		goto err_reset;
 	}
-
-	/* Allocate reverse irq cpu mapping structure for
-	 * receive queues
-	 */
-#ifdef CONFIG_RFS_ACCEL
-	adapter[0]->netdev[0]->rx_cpu_rmap =
-		alloc_irq_cpu_rmap(EDMA_NETDEV_RX_QUEUE);
-	if (!adapter[0]->netdev[0]->rx_cpu_rmap) {
-		err = -ENOMEM;
-		goto err_rmap_alloc_fail;
-	}
-#endif
 
 	/* populate per_core_info, do a napi_Add, request 16 TX irqs,
 	 * 8 RX irqs, do a napi enable
@@ -277,7 +346,7 @@ static int edma_axi_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_RFS_ACCEL
 		for (j = c_info->q_cinfo[i].rx_start; j < rx_start + 2; j += 2) {
-			err = irq_cpu_rmap_add(adapter[0]->netdev[0]->rx_cpu_rmap,
+			err = irq_cpu_rmap_add(netdev[0]->rx_cpu_rmap,
 				c_info->rx_irq[j]);
 			if (err)
 				goto err_rmap_add_fail;
@@ -318,16 +387,20 @@ static int edma_axi_probe(struct platform_device *pdev)
 
 err_configure:
 #ifdef CONFIG_RFS_ACCEL
-	free_irq_cpu_rmap(adapter[0]->netdev[0]->rx_cpu_rmap);
-	adapter[0]->netdev[0]->rx_cpu_rmap = NULL;
+	for (i = 0; i < EDMA_NR_NETDEV; i++) {
+		free_irq_cpu_rmap(adapter[i]->netdev->rx_cpu_rmap);
+		adapter[i]->netdev->rx_cpu_rmap = NULL;
+	}
 #endif
 err_rmap_add_fail:
-	edma_free_irqs(adapter[0]);
+        for (i = 0; i < EDMA_NR_NETDEV; i++)
+		edma_free_irqs(adapter[i]);
 	for (i = 0; i < EDMA_NR_CPU; i++)
 		napi_disable(&c_info->q_cinfo[i].napi);
 err_rmap_alloc_fail:
 err_reset:
-	unregister_netdev(netdev[0]);
+	for (i = 0; i < EDMA_NR_NETDEV; i++)
+		unregister_netdev(netdev[i]);
 err_register:
 	edma_free_rx_rings(c_info);
 err_rx_rinit:
@@ -340,7 +413,8 @@ err_tx_qinit:
 err_hwaddr:
 	kfree(c_info);
 err_ioremap:
-	free_netdev(netdev[0]);
+	for (i = 0; i < EDMA_NR_NETDEV; i++)
+		free_netdev(netdev[i]);
 err_alloc:
 	return err;
 }
@@ -366,9 +440,10 @@ static int edma_axi_remove(struct platform_device *pdev)
 	edma_free_tx_rings(c_info);
 	edma_free_rx_rings(c_info);
 	edma_free_queues(c_info);
-	unregister_netdev(adapter->netdev[0]);
-	free_netdev(adapter->netdev[0]);
-
+	for (i = 0; i < EDMA_NR_NETDEV; i++) {
+		unregister_netdev(netdev[i]);
+		free_netdev(netdev[i]);
+	}
 	return 0;
 }
 

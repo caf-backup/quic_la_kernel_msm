@@ -33,15 +33,22 @@
 #include <linux/of_device.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
+#include <linux/sysctl.h>
 #include <net/checksum.h>
 #include <net/ip6_checksum.h>
 #include <asm-generic/bug.h>
 #include "ess_edma.h"
 
 #define EDMA_NR_CPU 4
-
+#define EDMA_NR_NETDEV 2
 #define EDMA_MAX_RECEIVE_QUEUE 8
 #define EDMA_MAX_TRANSMIT_QUEUE 16
+#define EDMA_PORT_ID_SHIFT 12
+#define EDMA_WAN 0
+#define EDMA_LAN 1
+#define EDMA_LAN_DEFAULT 1
+#define EDMA_WAN_DEFAULT 2
+#define EDMA_PORT_SHIFT 1
 
 #define EDMA_NETDEV_TX_QUEUE 4 /* TX queue exposed to Linux kernel */
 #define EDMA_NETDEV_RX_QUEUE 4 /* RX queue exposed to Linux kernel */
@@ -83,6 +90,7 @@
 
 #define EDMA_HW_CHECKSUM 0x00000001
 #define EDMA_VLAN_TX_TAG_INSERT_FLAG 0x00000002
+#define EDMA_VLAN_TX_TAG_INSERT_DEFAULT_FLAG 0x00000004
 
 #define EDMA_SW_DESC_FLAG_LAST 0x1
 #define EDMA_SW_DESC_FLAG_SKB_HEAD 0x2
@@ -145,6 +153,7 @@ struct edma_hw {
  */
 struct edma_sw_desc {
 	struct sk_buff *skb;
+	struct netdev_queue *nq;
 	dma_addr_t dma; /* dma address */
 	u16 length; /* Tx/Rx buffer length */
 	u32 flags;
@@ -172,6 +181,7 @@ struct edma_common_info {
 	int num_tx_queues; /* number of tx queue */
 	int tx_irq[16]; /* number of tx irq */
 	int rx_irq[8]; /* number of rx irq */
+	int edma_port_id_wan; /* wan port id */
 	u16 tx_ring_count; /* Tx ring count */
 	u16 rx_ring_count; /* Rx ring*/
 	u16 rx_head_buffer_len; /* rx buffer length */
@@ -227,7 +237,7 @@ struct edma_rfs_flow_table {
 
 /* EDMA net device structure */
 struct edma_adapter {
-	struct net_device *netdev[1]; /* netdevice */
+	struct net_device *netdev; /* netdevice */
 	struct platform_device *pdev; /* platform device */
 	struct edma_common_info *c_info; /* edma common info */
 	struct edma_rfs_flow_table rfs; /* edma rfs flow table */
@@ -236,6 +246,8 @@ struct edma_adapter {
 	int32_t forced_speed; /* link force speed */
 	int32_t forced_duplex; /* link force duplex */
 	int32_t link_state; /* phy link state */
+	u32 tx_start_offset[EDMA_NR_CPU]; /* tx queue start */
+	int default_vlan_tag; /* vlan tag */
 };
 
 int edma_alloc_queues_tx(struct edma_common_info *c_info);
