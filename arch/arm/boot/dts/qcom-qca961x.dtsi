@@ -92,6 +92,11 @@
 			clock-frequency = <2400000>;
 		};
 
+		restart@4ab000 {
+			compatible = "qcom,pshold";
+			reg = <0x4ab000 0x4>;
+		};
+
 		apcs: a7ss_base@b088000 {
 			compatible = "qcom,arm-cortex-acc";
 			reg = <0xb088000 0x1000>;
