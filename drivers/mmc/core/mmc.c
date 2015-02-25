@@ -56,6 +56,18 @@ static const unsigned int tacc_mant[] = {
 		__res & __mask;						\
 	})
 
+#define CID_MANFID_MICRON	0xFE
+
+static const struct mmc_fixup mmc_fixups[] = {
+	/*
+	 * Disable HPI/BKOPS support
+	 */
+	MMC_FIXUP(CID_NAME_ANY, CID_MANFID_MICRON,
+			      0x014e, add_quirk, MMC_QUIRK_BROKEN_HPI),
+
+	END_FIXUP
+};
+
 /*
  * Given the decoded CSD structure, decode the raw CID to our CID structure.
  */
@@ -299,6 +311,8 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 		goto out;
 	}
 
+	mmc_fixup_device(card, mmc_fixups);
+
 	card->ext_csd.raw_sectors[0] = ext_csd[EXT_CSD_SEC_CNT + 0];
 	card->ext_csd.raw_sectors[1] = ext_csd[EXT_CSD_SEC_CNT + 1];
 	card->ext_csd.raw_sectors[2] = ext_csd[EXT_CSD_SEC_CNT + 2];
@@ -464,7 +478,8 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 
 	if (card->ext_csd.rev >= 5) {
 		/* check whether the eMMC card supports BKOPS */
-		if (ext_csd[EXT_CSD_BKOPS_SUPPORT] & 0x1) {
+		if ((ext_csd[EXT_CSD_BKOPS_SUPPORT] & 0x1) &&
+			!(card->quirks & MMC_QUIRK_BROKEN_HPI)) {
 			card->ext_csd.bkops = 1;
 			card->ext_csd.bkops_en = ext_csd[EXT_CSD_BKOPS_EN];
 			card->ext_csd.raw_bkops_status =
@@ -485,7 +500,8 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 		}
 
 		/* check whether the eMMC card supports HPI */
-		if (ext_csd[EXT_CSD_HPI_FEATURES] & 0x1) {
+		if ((ext_csd[EXT_CSD_HPI_FEATURES] & 0x1) &&
+			!(card->quirks & MMC_QUIRK_BROKEN_HPI))	{
 			card->ext_csd.hpi = 1;
 			if (ext_csd[EXT_CSD_HPI_FEATURES] & 0x2)
 				card->ext_csd.hpi_cmd =	MMC_STOP_TRANSMISSION;
