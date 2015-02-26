@@ -1,5 +1,5 @@
 /*
- * AQ105 PHY driver header file
+ * Aquantia PHY driver header file
  *
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
  *
@@ -21,13 +21,13 @@
 
 /* Board specific data structure */
 struct aq_phy_platform_data {
-	uint16_t phy_addr;		/* AQ PHY Address */
+	uint16_t phy_addr;		/* Aqunatia PHY Address */
 	uint32_t mdio_bus_id;		/* MDIO Bus number where AQ
 					   PHY is connected */
 	char *mdio_bus_name;		/* MDIO bus name */
 };
 
-/* Define the AQ device id */
+/* Define the Aqunatia device id */
 #define AQ_DEVICE_ID	0x3a1b4a2
 
 /* PMD Line side Rx signal detect register */

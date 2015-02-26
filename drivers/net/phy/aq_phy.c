@@ -1,5 +1,5 @@
 /*
- * aq_phy.c: AQ105 Phy driver
+ * aq_phy.c: Aquantia Phy driver
  *
  * Copyright (c) 2015 The Linux Foundation. All rights reserved.
  *
@@ -30,12 +30,12 @@
 struct aq_priv {
 	struct phy_device *phydev;	/* Pointer to PHY device */
 	struct device *dev;		/* Pointer to struct device */
-	struct dentry *aq_top_dentry;	/* Top dentry for AQ105 PHY Driver */
+	struct dentry *aq_top_dentry;	/* Top dentry for Aquantia PHY Driver */
 	struct dentry *aq_write_dentry;	/* write-reg file dentry for
-					   AQ105 PHY Driver */
+					   Aquantia PHY Driver */
 	struct dentry *aq_read_dentry;	/* read-reg file dentry for
-					   AQ105 PHY Driver */
-	uint32_t phy_addr;		/* AQ105 PHY Address */
+					   Aquantia PHY Driver */
+	uint32_t phy_addr;		/* Aqunatia PHY Address */
 	uint32_t reg_addr;		/* Previous register address */
 	uint16_t reg_val;		/* Hold the value of the
 					   previous register read */
@@ -257,13 +257,13 @@ static const struct file_operations aq_phy_write_reg_ops = { \
 
 /*
  *  aq_phy_init_debugfs_entries()
- *  Create debug-fs aq-phy dir and files
+ *  Create debug-fs aquantia-phy dir and files
  */
 static int aq_phy_init_debugfs_entries(struct aq_priv *priv)
 {
-	priv->aq_top_dentry = debugfs_create_dir("aq-phy", NULL);
+	priv->aq_top_dentry = debugfs_create_dir("aquantia-phy", NULL);
 	if (priv->aq_top_dentry == NULL) {
-		dev_dbg(priv->dev, "Failed to create aq-phy " \
+		dev_dbg(priv->dev, "Failed to create aquantia-phy " \
 						"directory in debugfs\n");
 		return -1;
 	}
@@ -274,7 +274,7 @@ static int aq_phy_init_debugfs_entries(struct aq_priv *priv)
 
 	if (unlikely(priv->aq_write_dentry == NULL)) {
 		dev_dbg(priv->dev, "Failed to create " \
-				"aq-phy/write-reg file in debugfs\n");
+				"aquantia-phy/write-reg file in debugfs\n");
 		debugfs_remove_recursive(priv->aq_top_dentry);
 		return -1;
 	}
@@ -285,7 +285,7 @@ static int aq_phy_init_debugfs_entries(struct aq_priv *priv)
 
 	if (unlikely(priv->aq_read_dentry == NULL)) {
 		dev_dbg(priv->dev, "Failed to create " \
-				"aq-phy/read-reg file in debugfs\n");
+				"aquantia-phy/read-reg file in debugfs\n");
 		debugfs_remove_recursive(priv->aq_top_dentry);
 		return -1;
 	}
@@ -441,7 +441,7 @@ static int aq_phy_match_phy_device(struct phy_device *phydev)
 
 static struct phy_driver aq_phy_driver = {
 	.phy_id		= AQ_DEVICE_ID,
-	.name		= "AQ105",
+	.name		= "Aquantia",
 	.phy_id_mask	= 0xffff0000,
 	.features	= PHY_BASIC_FEATURES,
 	.probe		= aq_phy_probe,
@@ -581,7 +581,7 @@ static int __devinit aq_driver_probe(struct platform_device *pdev)
 
 	phydev->dev.platform_data = (void *)priv;
 
-	pr_notice("AQ PHY Device registered\n");
+	pr_notice("Aquantia PHY Device registered\n");
 	return 0;
 }
 
@@ -693,4 +693,4 @@ static void __exit aq_driver_exit(void)
 }
 module_exit(aq_driver_exit);
 
-MODULE_LICENSE("Dual BSD/GPL");
+MODULE_LICENSE("GPL");
