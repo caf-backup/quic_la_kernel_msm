@@ -94,6 +94,7 @@
 #include <linux/ethtool.h>
 #include <mach/msm_usb30.h>
 #include <linux/mdio.h>
+#include <linux/aq_phy.h>
 
 #define MHL_GPIO_INT           30
 #define MHL_GPIO_RESET         35
@@ -2408,7 +2409,7 @@ static void nss_gmac_init(void)
 	struct msm_nss_gmac_platform_data *pdata;
 	struct mdio_gpio_platform_data *mdata, *mdata_qca8511;
 
-	mdata = (struct mdio_gpio_platform_data *)ip806x_mdio_device.dev.platform_data;
+	mdata = (struct mdio_gpio_platform_data *)ipq806x_mdio_device.dev.platform_data;
 
 	if (machine_is_ipq806x_ap160_2xx()) {
 		mdata->mdc = 66;
@@ -2418,7 +2419,7 @@ static void nss_gmac_init(void)
 		mdata->mdio = 0;
 	}
 	mdata->phy_mask = 0;
-	platform_device_register(&ip806x_mdio_device);
+	platform_device_register(&ipq806x_mdio_device);
 
 	if (machine_is_ipq806x_db149() || machine_is_ipq806x_db149_1xx() ||
 		machine_is_ipq806x_db149_2xx()) {
@@ -2537,11 +2538,11 @@ static void nss_gmac_init(void)
 	if (machine_is_ipq806x_ap160_2xx()) {
 
 		/* Register the second MDIO bus for QCA8511 Switch */
-		mdata_qca8511 = (struct mdio_gpio_platform_data *)ip806x_mdio_device2.dev.platform_data;
+		mdata_qca8511 = (struct mdio_gpio_platform_data *)ipq806x_mdio_device2.dev.platform_data;
 		mdata_qca8511->mdc = 1;
 		mdata_qca8511->mdio = 0;
 		mdata_qca8511->phy_mask = 0;
-		platform_device_register(&ip806x_mdio_device2);
+		platform_device_register(&ipq806x_mdio_device2);
 
 		/* All four GMACs connect to QCA8511 Switch in QSGMII Mode */
 		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_0.dev.platform_data;
@@ -2596,6 +2597,9 @@ static void nss_gmac_init(void)
 		platform_device_register(&nss_gmac_1);
 		platform_device_register(&nss_gmac_2);
 		platform_device_register(&nss_gmac_3);
+
+		/* Register Aquantia PHY device */
+		platform_device_register(&ap160_2xx_aq_phy);
 
 		platform_device_register(&ap160_2_qca_8511_sw);
 	}
