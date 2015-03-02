@@ -82,5 +82,6 @@
 			status = "ok";
 			vmmc-supply = <&vcc_sd0>;
 			vqmmc-supply = <&vccq_sd0>;
+			non-removable;
 		};
 	};
