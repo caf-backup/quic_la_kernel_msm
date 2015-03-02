@@ -405,7 +405,7 @@
 			qcom,id = <0>;			/* gmac0 */
 			qcom,phy_mdio_addr = <4>;	/* phy4 */
 			qcom,poll_required = <1>;	/* enable polling */
-			qcom,rgmii_delay = <0>;
+			qcom,rgmii_delay = <1>;
 			qcom,emulation = <0>;
 			qcom,forced_speed = <1000>;	/* Force speed 1G */
 			qcom,forced_duplex = <1>;	/* Force duplex FD */
