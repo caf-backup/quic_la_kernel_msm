@@ -73,6 +73,8 @@ enum msm_cpu {
 	MSM_CPU_IPQ8064,
 	MSM_CPU_IPQ8066,
 	MSM_CPU_IPQ8068,
+	MSM_CPU_IPQ8065,
+	MSM_CPU_IPQ8069,
 };
 
 enum pmic_model {
@@ -332,11 +334,30 @@ static inline int cpu_is_ipq8068(void)
 #endif
 }
 
+static inline int cpu_is_ipq8065(void)
+{
+#ifdef CONFIG_ARCH_IPQ806X
+	return (read_msm_cpu_type() == MSM_CPU_IPQ8065);
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq8069(void)
+{
+#ifdef CONFIG_ARCH_IPQ806X
+	return (read_msm_cpu_type() == MSM_CPU_IPQ8069);
+#else
+	return 0;
+#endif
+}
+
 static inline int cpu_is_ipq806x(void)
 {
 #ifdef CONFIG_ARCH_IPQ806X
 	return (cpu_is_ipq8062() || cpu_is_ipq8064() ||
-		cpu_is_ipq8066() || cpu_is_ipq8068());
+		cpu_is_ipq8066() || cpu_is_ipq8068() ||
+		cpu_is_ipq8065() || cpu_is_ipq8069());
 #else
 	return 0;
 #endif
