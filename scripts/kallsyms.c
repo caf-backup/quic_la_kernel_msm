@@ -22,7 +22,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <unistd.h>
 #ifdef __APPLE__
 /* Darwin has no memmem implementation, this one is ripped of the uClibc-0.9.28 source */
 void *memmem (const void *haystack, size_t haystack_len,
@@ -671,12 +670,10 @@ int main(int argc, char **argv)
 	} else if (argc != 1)
 		usage();
 
-	sync();
 	read_map(stdin);
 	sort_symbols();
 	optimize_token_table();
 	write_src();
-	sync();
 
 	return 0;
 }
