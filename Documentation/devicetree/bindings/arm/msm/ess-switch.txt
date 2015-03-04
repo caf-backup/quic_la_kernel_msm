@@ -1,4 +1,4 @@
-* Qualcomm ESS-SWITCH
+* QCA ESS-SWITCH
 
 ESS-SWITCH is used to forward the packet among LAN, WAN and Host processor.
 
