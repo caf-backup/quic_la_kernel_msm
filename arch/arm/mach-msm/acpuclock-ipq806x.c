@@ -202,6 +202,52 @@ static struct pvs_table pvs_tables_lite[NUM_SPEED_BINS][NUM_PVS] __initdata = {
 	[0][PVS_FASTER] = {tbl_superfast_lite, sizeof(tbl_superfast_lite), 0},
 };
 
+static struct acpu_level tbl_slow_tn_3[] __initdata = {
+	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0), 1000000 },
+	{ 1, {   600000, HFPLL, 1, 0x18 }, L2(1), 1050000 },
+	{ 1, {   800000, HFPLL, 1, 0x20 }, L2(1), 1100000 },
+	{ 1, {  1000000, HFPLL, 1, 0x28 }, L2(1), 1150000 },
+	{ 1, {  1400000, HFPLL, 1, 0x38 }, L2(2), 1200000 },
+	{ 1, {  1725000, HFPLL, 1, 0x45 }, L2(2), 1250000 },
+	{ 0, { 0 } }
+};
+
+static struct acpu_level tbl_nominal_tn_3[] __initdata = {
+	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0),  925000 },
+	{ 1, {   600000, HFPLL, 1, 0x18 }, L2(1),  975000 },
+	{ 1, {   800000, HFPLL, 1, 0x20 }, L2(1), 1025000 },
+	{ 1, {  1000000, HFPLL, 1, 0x28 }, L2(1), 1075000 },
+	{ 1, {  1400000, HFPLL, 1, 0x38 }, L2(2), 1125000 },
+	{ 1, {  1725000, HFPLL, 1, 0x45 }, L2(2), 1175000 },
+	{ 0, { 0 } }
+};
+
+static struct acpu_level tbl_fast_tn_3[] __initdata = {
+	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0),  875000 },
+	{ 1, {   600000, HFPLL, 1, 0x18 }, L2(1),  925000 },
+	{ 1, {   800000, HFPLL, 1, 0x20 }, L2(1),  975000 },
+	{ 1, {  1000000, HFPLL, 1, 0x28 }, L2(1), 1025000 },
+	{ 1, {  1400000, HFPLL, 1, 0x38 }, L2(2), 1075000 },
+	{ 1, {  1725000, HFPLL, 1, 0x45 }, L2(2), 1125000 },
+	{ 0, { 0 } }
+};
+static struct acpu_level tbl_superfast_tn_3[] __initdata = {
+	{ 1, {   384000, PLL_8, 0, 0x00 }, L2(0),  800000 },
+	{ 1, {   600000, HFPLL, 1, 0x18 }, L2(1),  850000 },
+	{ 1, {   800000, HFPLL, 1, 0x20 }, L2(1),  900000 },
+	{ 1, {  1000000, HFPLL, 1, 0x28 }, L2(1),  950000 },
+	{ 1, {  1400000, HFPLL, 1, 0x38 }, L2(2), 1000000 },
+	{ 1, {  1725000, HFPLL, 1, 0x45 }, L2(2), 1050000 },
+	{ 0, { 0 } }
+};
+
+static struct pvs_table pvs_tables_tn_3[NUM_SPEED_BINS][NUM_PVS] __initdata = {
+	[0][PVS_SLOW] = {tbl_slow_tn_3, sizeof(tbl_slow_tn_3), 0},
+	[0][PVS_NOMINAL] = {tbl_nominal_tn_3, sizeof(tbl_nominal_tn_3), 0},
+	[0][PVS_FAST] = {tbl_fast_tn_3, sizeof(tbl_fast_tn_3), 0},
+	[0][PVS_FASTER] = {tbl_superfast_tn_3, sizeof(tbl_superfast_tn_3), 0},
+};
+
 static struct acpuclk_krait_params acpuclk_ipq806x_params __initdata = {
 	.scalable = scalable,
 	.scalable_size = sizeof(scalable),
@@ -217,9 +263,10 @@ static struct acpuclk_krait_params acpuclk_ipq806x_params __initdata = {
 static int __init acpuclk_ipq806x_probe(struct platform_device *pdev)
 {
 	/* Fix up the pvs tables for Akronite-Lite based platforms */
-	if (cpu_is_ipq8062() || cpu_is_ipq8066())
-	{
+	if (cpu_is_ipq8062() || cpu_is_ipq8066()) {
 		acpuclk_ipq806x_params.pvs_tables = pvs_tables_lite;
+	} else if (cpu_is_ipq8065() || cpu_is_ipq8069()) {
+		acpuclk_ipq806x_params.pvs_tables = pvs_tables_tn_3;
 	}
 
 	return acpuclk_krait_init(&pdev->dev, &acpuclk_ipq806x_params);

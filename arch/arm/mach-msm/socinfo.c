@@ -277,6 +277,13 @@ static enum msm_cpu cpu_of_id[] = {
 	/* IPQ8068 IDs */
 	[204] = MSM_CPU_IPQ8068,
 
+	/* IPQ8065 IDs */
+	[280] = MSM_CPU_IPQ8065,
+
+	/* IPQ8069 IDs */
+	[281] = MSM_CPU_IPQ8069,
+
+
 	/* Uninitialized IDs are not known to run Linux.
 	   MSM_CPU_UNKNOWN is set to 0 to ensure these IDs are
 	   considered as unknown CPU. */
