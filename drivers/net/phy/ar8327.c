@@ -34,7 +34,10 @@ extern const struct ar8xxx_mib_desc ar8236_mibs[39];
 extern const struct switch_attr ar8xxx_sw_attr_vlan[1];
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> 245e8eb... ar8216: add swconfig attribute to flush and display arl table
 static int
 ar8327_atu_dump(struct ar8xxx_priv *priv)
 {
@@ -53,20 +56,34 @@ ar8327_atu_dump(struct ar8xxx_priv *priv)
 			return -ETIMEDOUT;
 
 		reg[3] = AR8327_ATU_FUNC_BUSY | AR8327_ATU_FUNC_OP_GET_NEXT;
+<<<<<<< HEAD
 		ar8xxx_write(priv, AR8327_REG_ATU_DATA0, reg[0]);
 		ar8xxx_write(priv, AR8327_REG_ATU_DATA1, reg[1]);
 		ar8xxx_write(priv, AR8327_REG_ATU_DATA2, reg[2]);
 		ar8xxx_write(priv, AR8327_REG_ATU_FUNC, reg[3]);
+=======
+		priv->write(priv, AR8327_REG_ATU_DATA0, reg[0]);
+		priv->write(priv, AR8327_REG_ATU_DATA1, reg[1]);
+		priv->write(priv, AR8327_REG_ATU_DATA2, reg[2]);
+		priv->write(priv, AR8327_REG_ATU_FUNC, reg[3]);
+>>>>>>> 245e8eb... ar8216: add swconfig attribute to flush and display arl table
 
 		ret = ar8216_wait_bit(priv, AR8327_REG_ATU_FUNC,
 				      AR8327_ATU_FUNC_BUSY, 0);
 		if(ret != 0)
 			return -ETIMEDOUT;
 
+<<<<<<< HEAD
 		reg[0] = ar8xxx_read(priv, AR8327_REG_ATU_DATA0);
 		reg[1] = ar8xxx_read(priv, AR8327_REG_ATU_DATA1);
 		reg[2] = ar8xxx_read(priv, AR8327_REG_ATU_DATA2);
 		reg[3] = ar8xxx_read(priv, AR8327_REG_ATU_FUNC);
+=======
+		reg[0] = priv->read(priv, AR8327_REG_ATU_DATA0);
+		reg[1] = priv->read(priv, AR8327_REG_ATU_DATA1);
+		reg[2] = priv->read(priv, AR8327_REG_ATU_DATA2);
+		reg[3] = priv->read(priv, AR8327_REG_ATU_FUNC);
+>>>>>>> 245e8eb... ar8216: add swconfig attribute to flush and display arl table
 
 		if((reg[2] & 0xf) == 0)
 			break;
@@ -92,7 +109,10 @@ ar8327_atu_dump(struct ar8xxx_priv *priv)
 	return len;
 }
 
+<<<<<<< HEAD
 >>>>>>> c879d50... 977347b9
+=======
+>>>>>>> 245e8eb... ar8216: add swconfig attribute to flush and display arl table
 static u32
 ar8327_get_pad_cfg(struct ar8327_pad_cfg *cfg)
 {
@@ -677,8 +697,6 @@ ar8327_hw_config_of(struct ar8xxx_priv *priv, struct device_node *np)
 }
 #endif
 
-<<<<<<< HEAD
-=======
 void
 ar8327_port_phy_linkdown(struct ar8xxx_priv *priv)
 {
@@ -716,7 +734,6 @@ ar8xxx_sw_set_linkdown(struct switch_dev *dev,
 	return 0;
 }
 
->>>>>>> c879d50... 977347b9
 static int
 ar8327_hw_init(struct ar8xxx_priv *priv)
 {
@@ -1238,6 +1255,18 @@ static const struct switch_attr ar8327_sw_attr_globals[] = {
 		.set = NULL,
 		.get = ar8xxx_sw_get_arl_table,
 	},
+	{
+		.type = SWITCH_TYPE_NOVAL,
+		.name = "flush_arl",
+		.description = "Flush ARL table",
+		.set = ar8xxx_atu_flush,
+	},
+	{
+		.type = SWITCH_TYPE_STRING,
+		.name = "dump_arl",
+		.description = "Dump ARL table with mac and port map",
+		.get = ar8xxx_atu_dump,
+	},
 };
 
 static const struct switch_attr ar8327_sw_attr_port[] = {
@@ -1317,6 +1346,7 @@ const struct ar8xxx_chip ar8327_chip = {
 	.atu_flush = ar8327_atu_flush,
 	.vtu_flush = ar8327_vtu_flush,
 	.vtu_load_vlan = ar8327_vtu_load_vlan,
+	.atu_dump = ar8327_atu_dump,
 	.phy_fixup = ar8327_phy_fixup,
 	.set_mirror_regs = ar8327_set_mirror_regs,
 	.get_arl_entry = ar8327_get_arl_entry,

@@ -386,6 +386,7 @@ struct ar8xxx_chip {
 	int (*atu_flush)(struct ar8xxx_priv *priv);
 	void (*vtu_flush)(struct ar8xxx_priv *priv);
 	void (*vtu_load_vlan)(struct ar8xxx_priv *priv, u32 vid, u32 port_mask);
+	int (*atu_dump)(struct ar8xxx_priv *priv);
 	void (*phy_fixup)(struct ar8xxx_priv *priv, int phy);
 	void (*set_mirror_regs)(struct ar8xxx_priv *priv);
 	void (*get_arl_entry)(struct ar8xxx_priv *priv, struct arl_entry *a,
@@ -538,6 +539,14 @@ int
 ar8xxx_sw_get_max_frame_size(struct switch_dev *dev,
 				 const struct switch_attr *attr,
 				 struct switch_val *val);
+int
+ar8xxx_atu_dump(struct switch_dev *dev,
+		       const struct switch_attr *attr,
+		       struct switch_val *val);
+int
+ar8xxx_atu_flush(struct switch_dev *dev,
+		       const struct switch_attr *attr,
+		       struct switch_val *val);
 
 int
 ar8216_wait_bit(struct ar8xxx_priv *priv, int reg, u32 mask, u32 val);

@@ -829,6 +829,39 @@ ar8316_init_globals(struct ar8xxx_priv *priv)
 }
 
 int
+ar8xxx_atu_dump(struct switch_dev *dev,
+		       const struct switch_attr *attr,
+		       struct switch_val *val)
+{
+	struct ar8xxx_priv *priv = swdev_to_ar8xxx(dev);
+	int len=0;
+
+	if (priv->chip->atu_dump) {
+		len = priv->chip->atu_dump(priv);
+		if (len >= 0) {
+			val->value.s = priv->buf;
+			val->len = len;
+		} else
+			val->len = -1;
+	}
+
+	return 0;
+}
+
+int
+ar8xxx_atu_flush(struct switch_dev *dev,
+		       const struct switch_attr *attr,
+		       struct switch_val *val)
+{
+	int ret = 0;
+	struct ar8xxx_priv *priv = swdev_to_ar8xxx(dev);
+
+	if (priv->chip->atu_flush)
+		ret = priv->chip->atu_flush(priv);
+	return ret;
+}
+
+int
 ar8xxx_sw_set_vlan(struct switch_dev *dev, const struct switch_attr *attr,
 		   struct switch_val *val)
 {
@@ -1456,6 +1489,18 @@ static const struct switch_attr ar8xxx_sw_attr_globals[] = {
 		.set = ar8xxx_sw_set_max_frame_size,
 		.get = ar8xxx_sw_get_max_frame_size,
 		.max = AR8XXX_MAX_FRAME_SIZE
+	},
+	{
+		.type = SWITCH_TYPE_NOVAL,
+		.name = "flush_arl",
+		.description = "Flush ARL table",
+		.set = ar8xxx_atu_flush,
+	},
+	{
+		.type = SWITCH_TYPE_STRING,
+		.name = "dump_arl",
+		.description = "Dump ARL table with mac and port map",
+		.get = ar8xxx_atu_dump,
 	},
 };
 
