@@ -83,6 +83,7 @@ struct ar8xxx_chip {
 	int (*atu_flush)(struct ar8xxx_priv *priv);
 	void (*vtu_flush)(struct ar8xxx_priv *priv);
 	void (*vtu_load_vlan)(struct ar8xxx_priv *priv, u32 vid, u32 port_mask);
+	int (*atu_dump)(struct ar8xxx_priv *priv);
 
 	const struct ar8xxx_mib_desc *mib_decs;
 	unsigned num_mibs;
@@ -982,6 +983,64 @@ static const struct ar8xxx_chip ar8316_chip = {
 	.mib_decs = ar8236_mibs,
 };
 
+static int
+ar8327_atu_dump(struct ar8xxx_priv *priv)
+{
+	u32 ret;
+	u32 i = 0, len = 0, entry_len = 0;
+	volatile u32 reg[4] = {0,0,0,0};
+	u8 addr[ETH_ALEN] = { 0 };
+	char *buf;
+
+	buf = priv->buf;
+	memset(priv->buf, 0, sizeof(priv->buf));
+	do {
+		ret = ar8216_wait_bit(priv, AR8327_REG_ATU_FUNC,
+				      AR8327_ATU_FUNC_BUSY, 0);
+		if(ret != 0)
+			return -ETIMEDOUT;
+
+		reg[3] = AR8327_ATU_FUNC_BUSY | AR8327_ATU_FUNC_OP_GET_NEXT;
+		priv->write(priv, AR8327_REG_ATU_DATA0, reg[0]);
+		priv->write(priv, AR8327_REG_ATU_DATA1, reg[1]);
+		priv->write(priv, AR8327_REG_ATU_DATA2, reg[2]);
+		priv->write(priv, AR8327_REG_ATU_FUNC, reg[3]);
+
+		ret = ar8216_wait_bit(priv, AR8327_REG_ATU_FUNC,
+				      AR8327_ATU_FUNC_BUSY, 0);
+		if(ret != 0)
+			return -ETIMEDOUT;
+
+		reg[0] = priv->read(priv, AR8327_REG_ATU_DATA0);
+		reg[1] = priv->read(priv, AR8327_REG_ATU_DATA1);
+		reg[2] = priv->read(priv, AR8327_REG_ATU_DATA2);
+		reg[3] = priv->read(priv, AR8327_REG_ATU_FUNC);
+
+		if((reg[2] & 0xf) == 0)
+			break;
+
+		for(i=2; i<6; i++)
+			addr[i] = (reg[0] >> ((5 - i) << 3)) & 0xff;
+		for(i=0; i<2; i++)
+			addr[i] = (reg[1] >> ((1 - i) << 3)) & 0xff;
+
+		len += snprintf(buf+len, sizeof(priv->buf) - len, "MAC: %02x:%02x:%02x:%02x:%02x:%02x ",
+						addr[0],addr[1],addr[2],addr[3],addr[4],addr[5]);
+		len += snprintf(buf+len, sizeof(priv->buf) - len, "PORTMAP: 0x%02x\n", ((reg[1] >> 16) & 0x7f));
+
+		reg[2] |= 0xf;
+
+		if (!entry_len)
+			entry_len = len;
+
+		if (sizeof(priv->buf) - len <= entry_len)
+			break;
+	}while(1);
+
+	return len;
+}
+
+
 static u32
 ar8327_get_pad_cfg(struct ar8327_pad_cfg *cfg)
 {
@@ -1690,7 +1749,7 @@ ar8327_atu_flush(struct ar8xxx_priv *priv)
 			      AR8327_ATU_FUNC_BUSY, 0);
 	if (!ret)
 		priv->write(priv, AR8327_REG_ATU_FUNC,
-			    AR8327_ATU_FUNC_OP_FLUSH);
+			    AR8327_ATU_FUNC_OP_FLUSH | AR8327_ATU_FUNC_BUSY);
 
 	return ret;
 }
@@ -1787,10 +1846,46 @@ static const struct ar8xxx_chip ar8327_chip = {
 	.atu_flush = ar8327_atu_flush,
 	.vtu_flush = ar8327_vtu_flush,
 	.vtu_load_vlan = ar8327_vtu_load_vlan,
+	.atu_dump = ar8327_atu_dump,
 
 	.num_mibs = ARRAY_SIZE(ar8236_mibs),
 	.mib_decs = ar8236_mibs,
 };
+
+static int
+ar8xxx_atu_dump(struct switch_dev *dev,
+		       const struct switch_attr *attr,
+		       struct switch_val *val)
+{
+	struct ar8xxx_priv *priv = swdev_to_ar8xxx(dev);
+	int len=0;
+
+	if(priv->chip->atu_dump) {
+		len = priv->chip->atu_dump(priv);
+		if(len >= 0){
+			val->value.s = priv->buf;
+			val->len = len;
+		}else
+			val->len = -1;
+	}
+
+	return 0;
+}
+
+static int
+ar8xxx_atu_flush(struct switch_dev *dev,
+		       const struct switch_attr *attr,
+		       struct switch_val *val)
+{
+	int ret = 0;
+	struct ar8xxx_priv *priv = swdev_to_ar8xxx(dev);
+
+	if(priv->chip->atu_flush)
+		ret = priv->chip->atu_flush(priv);
+	return ret;
+}
+
+
 
 static int
 ar8xxx_sw_set_vlan(struct switch_dev *dev, const struct switch_attr *attr,
@@ -2433,6 +2528,18 @@ static struct switch_attr ar8xxx_sw_attr_globals[] = {
 		.get = ar8xxx_sw_get_max_frame_size,
 		.max = AR8XXX_MAX_FRAME_SIZE
 	},
+	{
+		.type = SWITCH_TYPE_NOVAL,
+		.name = "flush_arl",
+		.description = "Flush ARL table",
+		.set = ar8xxx_atu_flush,
+	},
+	{
+		.type = SWITCH_TYPE_STRING,
+		.name = "dump_arl",
+		.description = "Dump ARL table with mac and port map",
+		.get = ar8xxx_atu_dump,
+	},
 };
 
 static struct switch_attr ar8327_sw_attr_globals[] = {
@@ -2489,6 +2596,18 @@ static struct switch_attr ar8327_sw_attr_globals[] = {
 		.set = ar8xxx_sw_set_max_frame_size,
 		.get = ar8xxx_sw_get_max_frame_size,
 		.max = AR8XXX_MAX_FRAME_SIZE
+	},
+	{
+		.type = SWITCH_TYPE_NOVAL,
+		.name = "flush_arl",
+		.description = "Flush ARL table",
+		.set = ar8xxx_atu_flush,
+	},
+	{
+		.type = SWITCH_TYPE_STRING,
+		.name = "dump_arl",
+		.description = "Dump ARL table with mac and port map",
+		.get = ar8xxx_atu_dump,
 	},
 };
 
