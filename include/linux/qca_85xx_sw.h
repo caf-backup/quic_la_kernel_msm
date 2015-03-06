@@ -65,9 +65,11 @@ struct qca_85xx_sw_sgmii_cfg {
  * 85xx Switch platform configuration
  */
 struct qca_85xx_sw_platform_data {
-	const char	*eth_dev_name;
 	const char	*mdio_bus_name;
+	const char	*sgmii_plus_if_mdio_bus_name;
 	int		mdio_bus_id;
+	int		sgmii_plus_if_phy_mdio_bus_id;
+	uint32_t	sgmii_plus_if_phy_addr;
 	uint32_t	chip_id;
 	struct qca_85xx_sw_qsgmii_cfg qsgmii_cfg;
 	struct qca_85xx_sw_sgmii_cfg port_24_cfg;
