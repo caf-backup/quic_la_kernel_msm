@@ -161,12 +161,7 @@ EARLYCON_DECLARE(uart, early_serial8250_setup);
 
 int __init setup_early_serial8250_console(char *cmdline)
 {
-	char match[] = "uart8250";
-
-	if (cmdline && cmdline[4] == ',')
-		match[4] = '\0';
-
-	return setup_earlycon(cmdline, match, early_serial8250_setup);
+	return setup_earlycon(cmdline);
 }
 
 int serial8250_find_port_for_earlycon(void)
