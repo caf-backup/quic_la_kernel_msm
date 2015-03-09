@@ -442,6 +442,7 @@
 			reg = <0xc080000 0x8000>;
 			qcom,page-mode = <0>;
 			qcom,rx_head_buf_size = <1540>;
+			qcom,port_id_wan = <0x5>;
 			interrupts = <0 65 1>,
 					<0 66 1>,
 					<0 67 1>,
