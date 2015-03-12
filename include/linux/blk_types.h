@@ -134,6 +134,7 @@ struct bio {
  * at the dm level
  */
 #define BIO_DONTFREE 14
+#define BIO_INLINECRYPT 15
 
 /*
  * top 4 bits of bio flags indicate the pool this bio came from
