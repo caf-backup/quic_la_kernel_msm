@@ -5,5 +5,5 @@
 
 obj-$(CONFIG_ESSEDMA) += essedma.o
 
-essedma-objs := edma_axi.o edma.o
+essedma-objs := edma_axi.o edma.o edma_ethtool.o
 
