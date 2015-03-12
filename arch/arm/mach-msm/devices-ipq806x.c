@@ -1273,6 +1273,10 @@ struct platform_device nss_gmac_3 = {
 	.resource			= nss_gmac_3_res,
 };
 
+struct platform_device *nss_gmac[] = {	&nss_gmac_0, &nss_gmac_1,
+					&nss_gmac_2, &nss_gmac_3,
+					NULL	/* Terminator */ };
+
 /* Board specific data for Aquantia PHY */
 struct aq_phy_platform_data ap160_2xx_aq_phy_platform_data = {
         .phy_addr = 0x10,
