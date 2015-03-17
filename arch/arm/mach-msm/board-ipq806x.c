@@ -2494,6 +2494,11 @@ static void nss_gmac_init(void)
 
 		platform_device_register(&nss_gmac_1);
 		platform_device_register(&nss_gmac_2);
+
+		nss_gmac[0] = &nss_gmac_1;
+		nss_gmac[1] = &nss_gmac_2;
+		nss_gmac[2] = NULL;
+		nss_gmac[3] = NULL;
 	}
 
 	if (machine_is_ipq806x_ap148() || machine_is_ipq806x_ap145() ||
@@ -2525,6 +2530,11 @@ static void nss_gmac_init(void)
 
 		platform_device_register(&nss_gmac_1);
 		platform_device_register(&nss_gmac_2);
+
+		nss_gmac[0] = &nss_gmac_1;
+		nss_gmac[1] = &nss_gmac_2;
+		nss_gmac[2] = NULL;
+		nss_gmac[3] = NULL;
 	}
 
 	if (machine_is_ipq806x_ap160_2xx()) {
@@ -2626,6 +2636,8 @@ static void nss_gmac_init(void)
 		platform_device_register(&nss_gmac_0);
 		platform_device_register(&nss_gmac_1);
 		platform_device_register(&nss_gmac_2);
+
+		nss_gmac[3] = NULL;
 	}
 }
 
@@ -2654,6 +2666,7 @@ static int __init nss_fixup_platform_data(void)
 	struct mtd_info *mtd;
 	struct nss_platform_data *pdata;
 	struct msm_nss_gmac_platform_data *gmac_pdata;
+	int i;
 
 	mtd = get_mtd_device_nm(IPQ_MAC_ADDR_PARTITION);
 	if (IS_ERR_OR_NULL(mtd)) {
@@ -2669,17 +2682,11 @@ static int __init nss_fixup_platform_data(void)
 		pdata->turbo_frequency = NSS_FEATURE_ENABLED;
 	}
 
-	gmac_pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_0.dev.platform_data;
-	ipq_nss_get_mac_addr(mtd, 0, gmac_pdata);
-
-	gmac_pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_1.dev.platform_data;
-	ipq_nss_get_mac_addr(mtd, 1, gmac_pdata);
-
-	gmac_pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_2.dev.platform_data;
-	ipq_nss_get_mac_addr(mtd, 2, gmac_pdata);
-
-	gmac_pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_3.dev.platform_data;
-	ipq_nss_get_mac_addr(mtd, 3, gmac_pdata);
+	for (i = 0; nss_gmac[i]; i++) {
+		gmac_pdata = (struct msm_nss_gmac_platform_data *)
+				(nss_gmac[i]->dev.platform_data);
+		ipq_nss_get_mac_addr(mtd, i, gmac_pdata);
+	}
 
 	return 0;
 }
