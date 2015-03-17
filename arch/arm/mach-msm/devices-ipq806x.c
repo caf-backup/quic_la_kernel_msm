@@ -1374,9 +1374,11 @@ struct platform_device ipq806x_mdio_device2 = {
 };
 
 static struct qca_85xx_sw_platform_data ap160_2_8511_sw_data = {
-	.eth_dev_name = "eth1",
 	.mdio_bus_name = IPQ806X_MDIO_BUS_NAME,
+	.sgmii_plus_if_mdio_bus_name = IPQ806X_MDIO_BUS_NAME,
 	.mdio_bus_id = IPQ806X_MDIO_BUS_NUM + 1,
+	.sgmii_plus_if_phy_mdio_bus_id = IPQ806X_MDIO_BUS_NUM,
+	.sgmii_plus_if_phy_addr = 0x10,
 	.chip_id = QCA_85XX_SW_ID_QCA8511,
 
 	.qsgmii_cfg = {
