@@ -304,6 +304,7 @@ struct edma_hw;
 
 /* TX descriptor fields */
 #define EDMA_TPD_HDR_SHIFT 0
+#define EDMA_TPD_PPPOE_EN 0x00000100
 #define EDMA_TPD_IP_CSUM_EN 0x00000200
 #define EDMA_TPD_TCP_CSUM_EN 0x0000400
 #define EDMA_TPD_UDP_CSUM_EN 0x00000800
