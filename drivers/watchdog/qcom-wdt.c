@@ -43,8 +43,9 @@ struct qcom_wdt *to_qcom_wdt(struct watchdog_device *wdd)
 	return container_of(wdd, struct qcom_wdt, wdd);
 }
 
-static void qcom_wdt_scm_regsave(struct qcom_wdt *wdt)
+static void qcom_wdt_scm_regsave(void *info)
 {
+	struct qcom_wdt *wdt = (struct qcom_wdt *)info;
 	int ret;
 	struct {
 		unsigned addr;
@@ -71,7 +72,7 @@ static int qcom_wdt_start(struct watchdog_device *wdd)
 
 	writel(0, wdt->base + WDT_EN);
 
-	qcom_wdt_scm_regsave(wdt);
+	smp_call_function_single(0, qcom_wdt_scm_regsave, (void *)wdt, true);
 
 	writel(wdd->timeout * wdt->rate / 2, wdt->base + WDT_BARK_TIME);
 	writel(wdd->timeout * wdt->rate, wdt->base + WDT_BITE_TIME);
