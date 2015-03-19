@@ -1426,6 +1426,16 @@ static struct qca_85xx_sw_platform_data ap160_2_8511_sw_data = {
 	.port_29_cfg = {
 		.port_mode = QCA_85XX_SW_PORT_MODE_NOT_CONFIGURED,
 	},
+
+	.trunk_cfg = {
+		.is_trunk_enabled = true,
+		.trunk_id = 0,
+		.trunk_hash_policy = (TRUNK_DST_IP_INCL
+				     | TRUNK_SRC_IP_INCL
+				     | TRUNK_MAC_DA_INCL
+				     | TRUNK_MAC_SA_INCL),
+		.trunk_ports_bit_map = 0x1c,
+	}
 };
 
 struct platform_device ap160_2_qca_8511_sw = {
