@@ -839,6 +839,9 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 			word1 |= ((css >> 1) << EDMA_TPD_CUSTOM_CSUM_SHIFT);
 	}
 
+	if (skb->protocol == htons(ETH_P_PPP_SES))
+		word1 |= EDMA_TPD_PPPOE_EN;
+
 	if (flags_transmit & EDMA_VLAN_TX_TAG_INSERT_FLAG) {
 		switch(skb->vlan_proto) {
 		case htons(ETH_P_8021Q):
