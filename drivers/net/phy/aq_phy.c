@@ -35,16 +35,16 @@ struct aq_priv {
 					   AQ105 PHY Driver */
 	struct dentry *aq_read_dentry;	/* read-reg file dentry for
 					   AQ105 PHY Driver */
+	struct dentry *aq_stats_dentry;	/* Statistics file dentry for
+					   AQ105 PHY Driver */
+	struct aq_stats stats;		/* AQ PHY stats block */
 	uint32_t phy_addr;		/* AQ105 PHY Address */
 	uint32_t reg_addr;		/* Previous register address */
 	uint16_t reg_val;		/* Hold the value of the
 					   previous register read */
 };
 
-/*
- *  aq_phy_check_valid_reg()
- *  Check for a valid range of PHY register
- */
+/* Check for a valid range of PHY register */
 static bool aq_phy_check_valid_reg(unsigned int reg_addr)
 {
 	bool ret = false;
@@ -74,10 +74,99 @@ static bool aq_phy_check_valid_reg(unsigned int reg_addr)
 	return ret;
 }
 
-/*
- * aq_phy_read_reg_get()
- * read from debug-fs file
- */
+/* Read a statistics register address */
+static void aq_phy_read_stats_regs(struct phy_device *phydev,
+				struct aq_stats_reg *st_reg)
+{
+	uint16_t lsw, msw;
+	msw =  phy_read(phydev, MII_ADDR_C45 | st_reg->regaddr_msw);
+	lsw =  phy_read(phydev, MII_ADDR_C45 | st_reg->regaddr_lsw);
+	st_reg->regval = ((msw << 16) | lsw);
+}
+
+/* A debug-fs file read op to print the AQ PHY stats */
+static ssize_t aq_phy_read_stats(struct file *fp, char __user *ubuf,
+				 size_t sz, loff_t *ppos)
+{
+	struct aq_priv *priv = (struct aq_priv *)fp->private_data;
+	struct aq_stats *st;
+	int bytes_read;
+	int size_wr;
+	int size_al = AQ_PHY_STATS_MAX_STR_LENGTH * AQ_PHY_STATS_MAX_OUTPUT_LINE;
+	uint16_t reg_value;
+	uint32_t reg_addr;
+	char *lbuf;
+
+	if (!priv)
+		return -EFAULT;
+
+	/* Check if PHY is out of reset and FW has loaded successfully */
+	reg_addr = MII_ADDR_C45 | MDIO_MMD_PMAPMD << 16 |
+			AQ_PHY_PMA_STANDARD_CTRL_1_REG;
+
+	reg_value = phy_read(priv->phydev, reg_addr);
+	if (reg_value & AQ_PHY_PMA_STANDARD_CTRL_1_MASK) {
+		pr_err("aq105 PHY is not ready\n");
+		return -EIO;
+	}
+
+	lbuf = kzalloc(size_al, GFP_KERNEL);
+	if (unlikely(lbuf == NULL)) {
+		dev_dbg(priv->dev, "%s: Could not allocate memory "
+				   "for local statistics buffer", __func__);
+		return -EIO;
+	}
+
+	st = &priv->stats;
+
+	size_wr = scnprintf(lbuf, size_al, "Link Status: %u\n",
+						priv->phydev->link);
+
+	size_wr += scnprintf(lbuf + size_wr, size_al - size_wr,
+			"Link Speed: %u\n", priv->phydev->speed);
+
+	aq_phy_read_stats_regs(priv->phydev, &st->line_tx_good);
+	size_wr += scnprintf(lbuf + size_wr, size_al - size_wr,
+		"Line Side TX Good: %u\n", st->line_tx_good.regval);
+
+	aq_phy_read_stats_regs(priv->phydev, &st->line_tx_bad);
+	size_wr += scnprintf(lbuf + size_wr, size_al - size_wr,
+		"Line Side TX Bad: %u\n", st->line_tx_bad.regval);
+
+	aq_phy_read_stats_regs(priv->phydev, &st->line_rx_good);
+	size_wr += scnprintf(lbuf + size_wr, size_al - size_wr,
+		"Line Side RX Good: %u\n", st->line_rx_good.regval);
+
+	aq_phy_read_stats_regs(priv->phydev, &st->line_rx_bad);
+	size_wr += scnprintf(lbuf + size_wr, size_al - size_wr,
+		"Line Side RX Bad: %u\n", st->line_rx_bad.regval);
+
+	if ((priv->phydev->speed == SPEED_1000) ||
+		(priv->phydev->speed == SPEED_100)) {
+		aq_phy_read_stats_regs(priv->phydev, &st->sys_tx_good);
+		size_wr += scnprintf(lbuf + size_wr, size_al - size_wr,
+			"System Side TX Good: %u\n", st->sys_tx_good.regval);
+
+		aq_phy_read_stats_regs(priv->phydev, &st->sys_tx_bad);
+		size_wr += scnprintf(lbuf + size_wr, size_al - size_wr,
+			"System Side TX Bad: %u\n", st->sys_tx_bad.regval);
+
+		aq_phy_read_stats_regs(priv->phydev, &st->sys_rx_good);
+		size_wr += scnprintf(lbuf + size_wr, size_al - size_wr,
+			"System Side RX Good: %u\n", st->sys_rx_good.regval);
+
+		aq_phy_read_stats_regs(priv->phydev, &st->sys_rx_bad);
+		size_wr += scnprintf(lbuf + size_wr, size_al - size_wr,
+			"System Side RX Bad: %u\n", st->sys_rx_bad.regval);
+	}
+
+	bytes_read = simple_read_from_buffer(ubuf, sz, ppos,
+						lbuf, strlen(lbuf));
+	kfree(lbuf);
+	return bytes_read;
+}
+
+/* read from debug-fs file */
 static ssize_t aq_phy_read_reg_get(struct file *fp, char __user *ubuf,
 				   size_t sz, loff_t *ppos)
 {
@@ -101,10 +190,7 @@ static ssize_t aq_phy_read_reg_get(struct file *fp, char __user *ubuf,
 	return bytes_read;
 }
 
-/*
- * aq_phy_read_reg_set()
- * Write into the file and read back the PHY register
- */
+/* Write into the file and read back the PHY register */
 static ssize_t aq_phy_read_reg_set(struct file *fp, const char __user *ubuf,
 				   size_t sz, loff_t *ppos)
 {
@@ -145,9 +231,7 @@ static ssize_t aq_phy_read_reg_set(struct file *fp, const char __user *ubuf,
 		return -EINVAL;
 	}
 
-	/*
-	 * Read into PHY reg and store value in previous reg read
-	 */
+	/* Read into PHY reg and store value in previous reg read */
 	is_reabable = aq_phy_check_valid_reg(reg_addr);
 	if (is_reabable) {
 		priv->reg_addr = reg_addr;
@@ -163,10 +247,7 @@ static ssize_t aq_phy_read_reg_set(struct file *fp, const char __user *ubuf,
 	return lbuf_size;
 }
 
-/*
- * aq_phy_write_reg_set()
- * Debug-fs function to write a PHY register
- */
+/* Debug-fs function to write a PHY register */
 static ssize_t aq_phy_write_reg_set(struct file *fp, const char __user *ubuf,
 				    size_t sz, loff_t *ppos)
 {
@@ -216,19 +297,16 @@ static ssize_t aq_phy_write_reg_set(struct file *fp, const char __user *ubuf,
 		return -EINVAL;
 	}
 
-	/*
-	 * Check for 16BIT register value boundary,
-	 * if it cross 16 Bit return error
-	 */
+	 /*
+	  * Check for 16BIT register value boundary,
+	  * if it cross 16 Bit return error
+	  */
 	if (check_16bit_boundary & reg_value) {
 		dev_dbg(priv->dev, "%s: Invalid reg value\n", __func__);
 		return -EINVAL;
 	}
 
-	/*
-	 * Check for a valid Range of register
-	 * and write into AQ Phy device
-	 */
+	 /* Check for a valid Range of register and write into Phy dev */
 	is_writeable = aq_phy_check_valid_reg(reg_addr);
 	if (is_writeable) {
 		reg_addr = MII_ADDR_C45 | reg_addr;
@@ -242,28 +320,31 @@ static ssize_t aq_phy_write_reg_set(struct file *fp, const char __user *ubuf,
 	return lbuf_size;
 }
 
-static const struct file_operations aq_phy_read_reg_ops = { \
-	.open = simple_open, \
-	.read = aq_phy_read_reg_get, \
-	.write = aq_phy_read_reg_set, \
-	.llseek = no_llseek, \
+static const struct file_operations aq_phy_read_reg_ops = {
+	.open = simple_open,
+	.read = aq_phy_read_reg_get,
+	.write = aq_phy_read_reg_set,
+	.llseek = no_llseek,
 };
 
-static const struct file_operations aq_phy_write_reg_ops = { \
-	.open = simple_open, \
-	.write = aq_phy_write_reg_set, \
-	.llseek = no_llseek, \
+static const struct file_operations aq_phy_write_reg_ops = {
+	.open = simple_open,
+	.write = aq_phy_write_reg_set,
+	.llseek = no_llseek,
 };
 
-/*
- *  aq_phy_init_debugfs_entries()
- *  Create debug-fs aq-phy dir and files
- */
+static const struct file_operations aq_phy_stats_ops = {
+	.open = simple_open,
+	.read = aq_phy_read_stats,
+	.llseek = no_llseek,
+};
+
+/* Create debug-fs aq-phy dir and files */
 static int aq_phy_init_debugfs_entries(struct aq_priv *priv)
 {
 	priv->aq_top_dentry = debugfs_create_dir("aq-phy", NULL);
 	if (priv->aq_top_dentry == NULL) {
-		dev_dbg(priv->dev, "Failed to create aq-phy " \
+		dev_dbg(priv->dev, "Failed to create aq-phy "
 						"directory in debugfs\n");
 		return -1;
 	}
@@ -273,7 +354,7 @@ static int aq_phy_init_debugfs_entries(struct aq_priv *priv)
 						priv, &aq_phy_write_reg_ops);
 
 	if (unlikely(priv->aq_write_dentry == NULL)) {
-		dev_dbg(priv->dev, "Failed to create " \
+		dev_dbg(priv->dev, "Failed to create "
 				"aq-phy/write-reg file in debugfs\n");
 		debugfs_remove_recursive(priv->aq_top_dentry);
 		return -1;
@@ -284,8 +365,19 @@ static int aq_phy_init_debugfs_entries(struct aq_priv *priv)
 						priv, &aq_phy_read_reg_ops);
 
 	if (unlikely(priv->aq_read_dentry == NULL)) {
-		dev_dbg(priv->dev, "Failed to create " \
+		dev_dbg(priv->dev, "Failed to create "
 				"aq-phy/read-reg file in debugfs\n");
+		debugfs_remove_recursive(priv->aq_top_dentry);
+		return -1;
+	}
+
+	priv->aq_stats_dentry = debugfs_create_file("stats", 0400,
+						priv->aq_top_dentry,
+						priv, &aq_phy_stats_ops);
+
+	if (unlikely(priv->aq_stats_dentry == NULL)) {
+		dev_dbg(priv->dev, "Failed to create "
+				"aq-phy/stats file in debugfs\n");
 		debugfs_remove_recursive(priv->aq_top_dentry);
 		return -1;
 	}
@@ -295,10 +387,31 @@ static int aq_phy_init_debugfs_entries(struct aq_priv *priv)
 	return 0;
 }
 
-/*
- * aq_phy_read_status()
- * Read the current status of the PHY i.e. Link, Speed, Duplex
- */
+/* Initialize all AQ PHY stats register address */
+static void aq_phy_init_stats(struct aq_stats *st)
+{
+	st->line_tx_good.regaddr_lsw = AQ_LINE_SIDE_TX_GOOD_REG_LSW;
+	st->line_tx_good.regaddr_msw = AQ_LINE_SIDE_TX_GOOD_REG_MSW;
+	st->line_tx_bad.regaddr_lsw = AQ_LINE_SIDE_TX_BAD_REG_LSW;
+	st->line_tx_bad.regaddr_msw = AQ_LINE_SIDE_TX_BAD_REG_MSW;
+
+	st->line_rx_good.regaddr_lsw = AQ_LINE_SIDE_RX_GOOD_REG_LSW;
+	st->line_rx_good.regaddr_msw = AQ_LINE_SIDE_RX_GOOD_REG_MSW;
+	st->line_rx_bad.regaddr_lsw = AQ_LINE_SIDE_RX_BAD_REG_LSW;
+	st->line_rx_bad.regaddr_msw = AQ_LINE_SIDE_RX_BAD_REG_MSW;
+
+	st->sys_tx_good.regaddr_lsw = AQ_SYS_SIDE_TX_GOOD_REG_LSW;
+	st->sys_tx_good.regaddr_msw = AQ_SYS_SIDE_TX_GOOD_REG_MSW;
+	st->sys_tx_bad.regaddr_lsw = AQ_SYS_SIDE_TX_BAD_REG_LSW;
+	st->sys_tx_bad.regaddr_msw = AQ_SYS_SIDE_TX_BAD_REG_MSW;
+
+	st->sys_rx_good.regaddr_lsw = AQ_SYS_SIDE_RX_GOOD_REG_LSW;
+	st->sys_rx_good.regaddr_msw = AQ_SYS_SIDE_RX_GOOD_REG_MSW;
+	st->sys_rx_bad.regaddr_lsw = AQ_SYS_SIDE_RX_BAD_REG_LSW;
+	st->sys_rx_bad.regaddr_msw = AQ_SYS_SIDE_RX_BAD_REG_MSW;
+}
+
+/* Read the current status of the PHY i.e. Link, Speed, Duplex */
 static int
 aq_phy_read_status(struct phy_device *phydev)
 {
@@ -306,11 +419,10 @@ aq_phy_read_status(struct phy_device *phydev)
 	uint32_t reg_addr;
 
 	/*
-	 * Read the PMD Standard Signal Detect register
-	 * to check valid Ethernet signals are present
-	 * on the wire.
+	 * Read the PMD Standard Signal Detect register to check
+	 * valid Ethernet signals are present on the wire.
 	 */
-	reg_addr = MII_ADDR_C45 | MDIO_MMD_PMAPMD << 16 | \
+	reg_addr = MII_ADDR_C45 | MDIO_MMD_PMAPMD << 16 |
 			AQ_PHY_PMD_SIGNAL_DETECT_REG;
 
 	reg_value = phy_read(phydev, reg_addr);
@@ -319,10 +431,8 @@ aq_phy_read_status(struct phy_device *phydev)
 		return 0;
 	}
 
-	/*
-	 * Read the line side current link status register.
-	 */
-	reg_addr = MII_ADDR_C45 | MDIO_MMD_PMAPMD << 16 | \
+	/* Read the line side current link status register. */
+	reg_addr = MII_ADDR_C45 | MDIO_MMD_PMAPMD << 16 |
 		AQ_PHY_PMA_RX_LINK_CURRENT_STATUS_REG;
 
 	reg_value = phy_read(phydev, reg_addr);
@@ -332,8 +442,8 @@ aq_phy_read_status(struct phy_device *phydev)
 	}
 
 	/*
-	 * Find the connect rate. The rate the PHY connected or
-	 * attempting to connect .
+	 * Find the connect rate. The rate the PHY connected
+	 * or attempting to connect.
 	 */
 	reg_addr = MII_ADDR_C45 | MDIO_MMD_AN << 16 | AQ_PHY_LINK_REG;
 	reg_value = phy_read(phydev, reg_addr);
@@ -368,20 +478,14 @@ aq_phy_read_status(struct phy_device *phydev)
 	return 0;
 }
 
-/*
- *  aq_phy_config_aneg()
- *  Function for configuration of auto-negotiation
- */
+/* Function for configuration of auto-negotiation */
 static int
 aq_phy_config_aneg(struct phy_device *phydev)
 {
 	return 0;
 }
 
-/*
- *  aq_phy_config_init()
- *  Initialize the Speed, Link and Duplex
- */
+/* Initialize the Speed, Link and Duplex */
 static int
 aq_phy_config_init(struct phy_device *phydev)
 {
@@ -389,42 +493,33 @@ aq_phy_config_init(struct phy_device *phydev)
 	phydev->link = 0;
 	phydev->duplex = 1;
 	phydev->autoneg = 1;
-	phydev->supported =	SUPPORTED_100baseT_Half | \
-				SUPPORTED_100baseT_Full | \
-				SUPPORTED_1000baseT_Full | \
+	phydev->supported =	SUPPORTED_100baseT_Half |
+				SUPPORTED_100baseT_Full |
+				SUPPORTED_1000baseT_Full |
 				SUPPORTED_2500baseX_Full;
 
-	phydev->advertising =	ADVERTISED_100baseT_Half | \
-				ADVERTISED_100baseT_Full | \
-				ADVERTISED_1000baseT_Full | \
+	phydev->advertising =	ADVERTISED_100baseT_Half |
+				ADVERTISED_100baseT_Full |
+				ADVERTISED_1000baseT_Full |
 				ADVERTISED_2500baseX_Full;
 	return 0;
 }
 
-/*
- *  aq_phy_probe()
- *  PHY driver probe function
- */
+/* PHY driver probe function */
 static int
 aq_phy_probe(struct phy_device *phydev)
 {
 	return 0;
 }
 
-/*
- *  aq_phy_remove()
- *  PHY driver remove function
- */
+/* PHY driver remove function */
 static void
 aq_phy_remove(struct phy_device *pdev)
 {
 	return;
 }
 
-/*
- * aq_match_phy_device()
- * Match the PHY device ID
- */
+/* Match the PHY device ID */
 static int aq_phy_match_phy_device(struct phy_device *phydev)
 {
 	int found = 0;
@@ -453,10 +548,7 @@ static struct phy_driver aq_phy_driver = {
 	.driver		= { .owner = THIS_MODULE },
 };
 
-/*
- * aq_driver_probe()
- * Platform driver probe function
- */
+/* Platform driver probe function */
 static int __devinit aq_driver_probe(struct platform_device *pdev)
 {
 	struct aq_phy_platform_data *aq_pdata;
@@ -476,14 +568,12 @@ static int __devinit aq_driver_probe(struct platform_device *pdev)
 
 	priv = vzalloc(sizeof(struct aq_priv));
 	if (priv == NULL) {
-		dev_dbg(&pdev->dev, "%s: Could not allocate " \
+		dev_dbg(&pdev->dev, "%s: Could not allocate "
 			"private memory for driver\n", __func__);
 		return -EIO;
 	}
 
-	/*
-	 * Register the AQ_PHY PHY Driver
-	 */
+	/* Register the AQ_PHY PHY Driver */
 	ret = phy_driver_register(&aq_phy_driver);
 	if (ret) {
 		dev_dbg(&pdev->dev, "PHY driver register fail\n");
@@ -491,9 +581,7 @@ static int __devinit aq_driver_probe(struct platform_device *pdev)
 		return -EIO;
 	}
 
-	/*
-	 * Get MII BUS pointer
-	 */
+	/* Get MII BUS pointer */
 	snprintf(busid, MII_BUS_ID_SIZE, "%s.%d",
 			aq_pdata->mdio_bus_name,
 			aq_pdata->mdio_bus_id);
@@ -516,10 +604,7 @@ static int __devinit aq_driver_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "mdio bus '%s' OK.\n", miibus->id);
 
-	/*
-	 * Find the Find PHY Device and
-	 * Attach the PHY Device with PHY Driver
-	 */
+	/* Find the PHY Device and Attach with PHY Driver */
 	phydev = get_phy_device(miibus, aq_pdata->phy_addr, true);
 	if (IS_ERR(phydev) || phydev == NULL) {
 		dev_dbg(&pdev->dev, " No phy dev at address 0x%x.\n",
@@ -539,10 +624,7 @@ static int __devinit aq_driver_probe(struct platform_device *pdev)
 		return -EIO;
 	}
 
-	/*
-	 * create a phyid using MDIO bus id
-	 * and MDIO bus address of phy
-	 */
+	/* create a phyid using MDIO bus id and MDIO bus address of phy */
 	snprintf(phy_id, MII_BUS_ID_SIZE + 3,
 				PHY_ID_FMT,
 				miibus->id,
@@ -567,9 +649,7 @@ static int __devinit aq_driver_probe(struct platform_device *pdev)
 
 	priv->dev = dev;
 
-	/*
-	 * Initialize the debug-fs entries
-	 */
+	/* Initialize the debug-fs entries */
 	ret = aq_phy_init_debugfs_entries(priv);
 	if (ret < 0) {
 		phy_driver_unregister(&aq_phy_driver);
@@ -579,17 +659,16 @@ static int __devinit aq_driver_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	/* Initialize AQ Phy Stats Registers addresses */
+	aq_phy_init_stats(&priv->stats);
+
 	phydev->dev.platform_data = (void *)priv;
 
 	pr_notice("AQ PHY Device registered\n");
 	return 0;
 }
 
-/*
- *  aq_driver_remove()
- *  Platform driver remove function
- *  Unregister the PHY device and PHY driver.
- */
+/* Unregister the PHY device and PHY driver. */
 static int __devexit aq_driver_remove(struct platform_device *pdev)
 {
 	struct aq_phy_platform_data *aq_pdata;
@@ -604,9 +683,7 @@ static int __devexit aq_driver_remove(struct platform_device *pdev)
 	if (!aq_pdata)
 		return -EIO;
 
-	/*
-	 * Get MII BUS pointer
-	 */
+	/* Get MII BUS pointer */
 	snprintf(busid, MII_BUS_ID_SIZE, "%s.%d",
 			aq_pdata->mdio_bus_name,
 			aq_pdata->mdio_bus_id);
@@ -619,10 +696,7 @@ static int __devexit aq_driver_remove(struct platform_device *pdev)
 	if (!miibus)
 		return -EIO;
 
-	/*
-	 * create a phyid using MDIO bus id
-	 * and MDIO bus address of phy
-	 */
+	/* create a phyid using MDIO bus id and MDIO bus address of phy */
 	snprintf(phy_id, MII_BUS_ID_SIZE + 3,
 				PHY_ID_FMT,
 				miibus->id,
@@ -644,15 +718,11 @@ static int __devexit aq_driver_remove(struct platform_device *pdev)
 	device_unregister(&phydev->dev);
 	miibus->phy_map[priv->phy_addr] = NULL;
 
-	/*
-	 * Remove debugfs tree
-	 */
+	/* Remove debugfs tree */
 	if (likely(priv->aq_top_dentry != NULL))
 		debugfs_remove_recursive(priv->aq_top_dentry);
 
-	/*
-	 * Free the driver private data
-	 */
+	/* Free the driver private data */
 	vfree(priv);
 
 	dev_dbg(&pdev->dev, "%s: Unregistered AQ PHY device\n", __func__);
@@ -668,10 +738,7 @@ static struct platform_driver aq_driver = {
 	},
 };
 
-/*
- *  aq_driver_init()
- *  Platform driver module init function
- */
+/* Platform driver module init function */
 static int __init aq_driver_init(void)
 {
 	int ret;
@@ -683,10 +750,7 @@ static int __init aq_driver_init(void)
 }
 module_init(aq_driver_init);
 
-/*
- *  aq_driver_exit()
- *  Platform driver module exit function
- */
+/* Platform driver module exit function */
 static void __exit aq_driver_exit(void)
 {
 	platform_driver_unregister(&aq_driver);
