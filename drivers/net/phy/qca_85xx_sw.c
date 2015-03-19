@@ -43,12 +43,99 @@ struct qca_85xx_sw_priv {
 	uint32_t reg_val;			/* Hold the value of the
 						   previous register read op */
 	uint32_t reg_addr;			/* Previous register */
+	uint32_t sgmii_plus_link_speed;		/* SGMII+ if Link speed */
+	uint32_t sgmii_plus_duplex;		/* SFMII+ if Link duplex */
+	uint32_t sgmii_plus_port_num;		/* SGMII+ if number */
 	struct dentry *top_dentry;		/* Top dentry */
 	struct dentry *write_dentry;		/* write-reg file dentry */
 	struct dentry *read_dentry;		/* read-reg file dentry */
 };
 
 struct qca_85xx_sw_priv *priv;
+
+/* Function to identify the previous link speed and duplex setting and set
+ * the new speed and duplex setting */
+static void qca_85xx_sw_sgmii_plus_if_change_speed(struct net_device *dev)
+{
+	uint32_t val, sgmii_ctrl0_val;
+	int curr_speed = dev->phydev->speed;
+	int curr_duplex = dev->phydev->duplex;
+
+	if (curr_speed == priv->sgmii_plus_link_speed &&
+	    curr_duplex == priv->sgmii_plus_duplex)
+		return;
+
+	switch (curr_speed) {
+	case SPEED_2500:
+		/* Set port 27 into SGMII+ Mode(2.5 Gig speed) */
+		val = priv->read(GLOBAL_CTRL_1);
+		val |= GLOBAL_CTRL_1_PORT_27_SGMII_PLUS_EN;
+		val &= ~(GLOBAL_CTRL_1_PORT_27_SGMII_EN);
+		priv->write(GLOBAL_CTRL_1, val);
+		break;
+	case SPEED_1000:
+	case SPEED_100:
+		if (priv->sgmii_plus_link_speed != SPEED_1000 &&
+			priv->sgmii_plus_link_speed != SPEED_100) {
+			/* Set port 27 into SGMII Mode(100/1000Mbps speed) */
+			val = priv->read(GLOBAL_CTRL_1);
+			val |= GLOBAL_CTRL_1_PORT_27_SGMII_EN;
+			val &= ~(GLOBAL_CTRL_1_PORT_27_SGMII_PLUS_EN);
+			priv->write(GLOBAL_CTRL_1, val);
+		}
+		break;
+	default:
+		priv->sgmii_plus_link_speed = SPEED_UNKNOWN;
+		return;
+	}
+
+	sgmii_ctrl0_val = priv->read(SGMII_CTRL0_PORT27);
+	val = priv->read(port_status_cfg(priv->sgmii_plus_port_num));
+
+	/* Clear the previous link speed and duplex setting */
+	if (priv->sgmii_plus_link_speed == SPEED_100 ||
+	    priv->sgmii_plus_link_speed == SPEED_1000 ||
+	    priv->sgmii_plus_link_speed == SPEED_UNKNOWN) {
+		sgmii_ctrl0_val &= ~(SGMII_CTRL0_SGMII_MODE_MAC |
+				     SGMII_CTRL0_FORCE_SPEED_100 |
+				     SGMII_CTRL0_FORCE_SPEED_1000 |
+				     SGMII_CTRL0_FORCE_DUPLEX_FULL);
+
+		val &= ~(PORT_STATUS_FORCE_SPEED_100 |
+			 PORT_STATUS_FORCE_SPEED_1000 |
+			 PORT_STATUS_FORCE_DUPLEX_FULL);
+
+	}
+
+	if(curr_speed == SPEED_1000 || curr_speed == SPEED_2500) {
+		/* Force the 1000Mbps link speed and duplex setting */
+		val |= PORT_STATUS_FORCE_SPEED_1000 |
+		       PORT_STATUS_FORCE_DUPLEX_FULL;
+		sgmii_ctrl0_val |= SGMII_CTRL0_FORCE_SPEED_1000 |
+				   SGMII_CTRL0_FORCE_DUPLEX_FULL;
+	} else {
+		/* Force the 100Mbps link speed and duplex setting */
+		sgmii_ctrl0_val |= SGMII_CTRL0_SGMII_MODE_MAC |
+				   SGMII_CTRL0_FORCE_SPEED_100;
+
+		val |=  PORT_STATUS_FORCE_SPEED_100;
+
+		if (curr_duplex) {
+			/* Set 100Mbps Full Duplex */
+			sgmii_ctrl0_val |= SGMII_CTRL0_FORCE_DUPLEX_FULL;
+			val |=  PORT_STATUS_FORCE_DUPLEX_FULL;
+		}
+		else {
+			/* Set 100Mbps Half Duplex */
+			sgmii_ctrl0_val &= ~SGMII_CTRL0_FORCE_DUPLEX_FULL;
+			val &= ~PORT_STATUS_FORCE_DUPLEX_FULL;
+		}
+	}
+	priv->write(port_status_cfg(priv->sgmii_plus_port_num), val);
+	priv->write(SGMII_CTRL0_PORT27, sgmii_ctrl0_val);
+	priv->sgmii_plus_link_speed = curr_speed;
+	priv->sgmii_plus_duplex = curr_duplex;
+}
 
  /* Configure a QSGMII interface */
 static int qca_85xx_sw_init_qsgmii_port (struct qca_85xx_sw_qsgmii_cfg *qsgmii_cfg)
@@ -300,6 +387,7 @@ static int qca_85xx_sw_init_sgmii_port (enum qca_85xx_sw_gmac_port port, struct 
 	if (sgmii_cfg->port_mode == QCA_85XX_SW_PORT_MODE_SGMII_PLUS) {
 		priv->write(XAUI_SGMII_SERDES13_CTRL0, 0x01e2023e);
 		priv->write(XAUI_SGMII_SERDES13_CTRL1, 0x4c93ff0);
+		priv->sgmii_plus_port_num = port;
 	}
 
 	return 0;
@@ -345,6 +433,31 @@ struct qca_85xx_sw_chip qca8511_chip = {
 	.max_sgmii_plus_if = 4,
 	.max_ge_if = 8,
 };
+
+/* Netdev notifier callback to inform the change of state of a netdevice */
+static int qca_85xx_sw_netdev_notifier_callback(struct notifier_block *this,
+					     unsigned long event, void *ptr)
+{
+	struct net_device *dev __attribute__ ((unused)) = (struct net_device *)ptr;
+
+	if (dev != priv->eth_dev)
+		return NOTIFY_DONE;
+
+	if (!netif_carrier_ok(dev))
+		return NOTIFY_DONE;
+
+	switch (event) {
+	case NETDEV_UP:
+	case NETDEV_CHANGE:
+		qca_85xx_sw_sgmii_plus_if_change_speed(dev);
+		break;
+	case NETDEV_DOWN:
+	default:
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
 
 /* Switch register read routine */
 static uint32_t qca_85xx_sw_mii_read(uint32_t reg_addr)
@@ -588,6 +701,12 @@ static const struct file_operations qca_85xx_sw_write_reg_ops = { \
 	.llseek = no_llseek, \
 };
 
+/* Init Netdev notifier event callback to notify any change in netdevice
+ * attached with an external PHY */
+static struct notifier_block qca_85xx_netdev_notifier __read_mostly = {
+	.notifier_call		= qca_85xx_sw_netdev_notifier_callback,
+};
+
 /* Create debug-fs qca_85xx_sw dir and files */
 static int qca_85xx_sw_init_debugfs_entries(void)
 {
@@ -621,6 +740,45 @@ static int qca_85xx_sw_init_debugfs_entries(void)
 	priv->reg_addr = 0;
 
 	return 0;
+}
+
+static struct net_device * qca_85xx_sw_get_eth_dev(
+		struct qca_85xx_sw_platform_data *pdata)
+{
+	struct mii_bus *miibus;
+	struct phy_device *phydev;
+	struct device *dev;
+	uint8_t busid[MII_BUS_ID_SIZE];
+	uint8_t phy_id[MII_BUS_ID_SIZE + 3];
+
+	/* Get MII BUS pointer`*/
+	snprintf(busid, MII_BUS_ID_SIZE, "%s.%d",
+			pdata->sgmii_plus_if_mdio_bus_name,
+			pdata->sgmii_plus_if_phy_mdio_bus_id);
+
+	dev = bus_find_device_by_name(&platform_bus_type, NULL,	busid);
+	if (!dev)
+		return NULL;
+
+	miibus = dev_get_drvdata(dev);
+	if (!miibus)
+		return NULL;
+
+	 /* create a phyid using MDIO bus id and MDIO bus address of phy */
+	snprintf(phy_id, MII_BUS_ID_SIZE + 3,
+				PHY_ID_FMT,
+				miibus->id,
+				pdata->sgmii_plus_if_phy_addr);
+
+	dev = bus_find_device_by_name(&mdio_bus_type, NULL, phy_id);
+	if (!dev)
+		return NULL;
+
+	phydev = to_phy_device(dev);
+	if (!phydev)
+		return NULL;
+
+	return phydev->attached_dev;
 }
 
 static int __devinit qca_85xx_sw_probe(struct platform_device *pdev)
@@ -671,9 +829,9 @@ static int __devinit qca_85xx_sw_probe(struct platform_device *pdev)
 	priv->mdio_bus = mdio_bus;
 
 	/* Find the ethernet device we are bound to */
-	priv->eth_dev = dev_get_by_name(&init_net, pdata->eth_dev_name);
+	priv->eth_dev = qca_85xx_sw_get_eth_dev(pdata);
 	if (!priv->eth_dev) {
-		pr_debug("Could not find ethernet device from device name %s\n", pdata->eth_dev_name);
+		pr_debug("Could not find ethernet device\n");
 		vfree(priv);
 		return -1;
 	}
@@ -695,6 +853,18 @@ static int __devinit qca_85xx_sw_probe(struct platform_device *pdev)
 		vfree(priv);
 		return ret;
 	}
+
+	ret = register_netdevice_notifier(&qca_85xx_netdev_notifier);
+	if (ret != 0) {
+		pr_debug("Failed to register netdevice notifier %d\n", ret);
+		if (likely(priv->top_dentry != NULL))
+			debugfs_remove_recursive(priv->top_dentry);
+		dev_put(priv->eth_dev);
+		vfree(priv);
+		return -EIO;
+	}
+
+	priv->sgmii_plus_link_speed = SPEED_UNKNOWN;
 
 	pr_debug("85xx switch initialization complete\n");
 
