@@ -21,7 +21,7 @@
 extern struct net_device *netdev[2];
 
 /* The array values are the tx queue number supported by the core */
-u8 edma_skb_priority_tbl[8] = {0, 0, 1, 1, 2, 2, 3, 3};
+u8 edma_skb_priority_tbl[8] = {0, 0, 0, 0, 1, 1, 1, 1};
 
 extern int ssdk_rfs_ipct_rule_set(__be32 ip_src, __be32 ip_dst,
 		__be16 sport, __be16 dport,
@@ -198,7 +198,7 @@ static int edma_alloc_rx_buf(struct edma_common_info *c_info,
 		length = c_info->rx_head_buffer_len;
 
 		/* alloc skb */
-		skb = netdev_alloc_skb(c_info->netdev[0], length);
+		skb = netdev_alloc_skb(netdev[0], length);
 		if (unlikely(!skb)) {
 			/* Better luck next round */
 			break;
@@ -360,12 +360,12 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 	u16 sw_next_to_clean, hw_next_to_clean = 0, vlan = 0;
 	struct platform_device *pdev = c_info->pdev;
 	struct edma_rfd_desc_ring *erdr = c_info->rfd_ring[queue_id];
-	struct net_device *netdev = c_info->netdev[0];
-	struct edma_adapter *adapter = netdev_priv(netdev);
+	struct net_device *netdev;
+	struct edma_adapter *adapter;
 	struct edma_sw_desc *sw_desc;
 	struct sk_buff *skb;
 	u8 *vaddr;
-	int proc_id = get_cpu();
+	int proc_id = get_cpu(), port_id;
 	u8 queue_to_rxid[8] = {0, 0, 1, 1, 2, 2, 3, 3};
 	sw_next_to_clean = erdr->sw_next_to_clean;
 
@@ -408,18 +408,35 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 		cleaned_count++;
 
 		/* Check if RRD is valid */
-		if (rrd[7] & EDMA_RRD_DESC_VALID) {
-
+		if (!(rrd[7] & EDMA_RRD_DESC_VALID))
+			continue;
+		else {
 			/* Get the packet size and allocate buffer */
 			length = rrd[6] & EDMA_RRD_PKT_SIZE_MASK;
 
 			/* Get the number of RFD from RRD */
 			num_rfds = rrd[1] & EDMA_RRD_NUM_RFD_MASK;
+		}
 
-		} else
-			continue;
+		port_id = rrd[1] >> EDMA_PORT_ID_SHIFT;
+		if (!port_id)
+			dev_err(&pdev->dev, "No RRD source port bit set");
+		else {
+			if (port_id == c_info->edma_port_id_wan)
+				netdev = c_info->netdev[0];
+			else
+				netdev = c_info->netdev[1];
+		}
+		adapter = netdev_priv(netdev);
 
-		if (c_info->page_mode) {
+		if (!c_info->page_mode) {
+			/* Addition of 16 bytes is required, as in the packet
+			 * first 16 bytes are rrd descriptors, so actual data
+			 * starts from an offset of 16.
+			 */
+			skb_reserve(skb, 16);
+			skb_put(skb, length);
+		} else {
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[0];
 
 			/* Setup first fragment */
@@ -428,7 +445,10 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 			/* Setup skbuff fields */
 			skb->len = length;
 
-			if (unlikely(num_rfds > 1)) {
+			if (likely(num_rfds <= 1)) {
+				frag->size = length;
+				skb->data_len = frag->size;
+			} else {
 				struct sk_buff *skb_temp;
 				u16 size_remaining;
 
@@ -461,25 +481,15 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 					sw_next_to_clean = (sw_next_to_clean + 1) % erdr->count;
 					cleaned_count++;
 				}
-			} else {
-				frag->size = length;
-				skb->data_len = frag->size;
 			}
 
 			if (!pskb_may_pull(skb, ETH_HLEN)) {
 				dev_kfree_skb_any(skb);
 				continue;
 			}
-		} else {
-			/* Addition of 16 bytes is required, as in the packet
-			 * first 16 bytes are rrd descriptors, so actual data
-			 * starts from an offset of 16.
-			 */
-			skb_reserve(skb, 16);
-			skb_put(skb, length);
 		}
 
-		skb->protocol = eth_type_trans(skb, c_info->netdev[0]);
+		skb->protocol = eth_type_trans(skb, netdev);
 		skb_record_rx_queue(skb, queue_to_rxid[queue_id]);
 		if (netdev->features & NETIF_F_RXHASH) {
 			hash_type = (rrd[11] >> EDMA_HASH_TYPE_SHIFT);
@@ -491,11 +501,15 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 #endif
 		edma_receive_checksum(rrd, skb);
 		if (rrd[7] & EDMA_RRD_CVLAN) {
-			vlan = rrd[4];
-			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan);
+			if (adapter->default_vlan_tag != rrd[4]) {
+				vlan = rrd[4];
+				__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan);
+			}
 		} else if (rrd[1] & EDMA_RRD_SVLAN) {
-			vlan = rrd[4];
-			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021AD), vlan);
+			if (adapter->default_vlan_tag != rrd[4]) {
+				vlan = rrd[4];
+				__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021AD), vlan);
+			}
 		}
 
 		/* update rx statistics */
@@ -527,7 +541,7 @@ static int edma_delete_rfs_filter(struct edma_adapter *adapter,
 	int res = -1;
 
 	if (adapter->set_rfs_rule)
-		res = (*adapter->set_rfs_rule)(adapter->netdev[0], filter_node->keys.src, filter_node->keys.dst,
+		res = (*adapter->set_rfs_rule)(adapter->netdev, filter_node->keys.src, filter_node->keys.dst,
 				filter_node->keys.port16[0], filter_node->keys.port16[1],
 				filter_node->keys.ip_proto, filter_node->rq_id, 0);
 
@@ -550,7 +564,7 @@ static int edma_add_rfs_filter(struct edma_adapter *adapter, struct flow_keys *k
 
 	/* Call callback registered by ESS driver */
 	if (adapter->set_rfs_rule)
-		res = (*adapter->set_rfs_rule)(adapter->netdev[0], keys->src, keys->dst,
+		res = (*adapter->set_rfs_rule)(adapter->netdev, keys->src, keys->dst,
 			keys->port16[0], keys->port16[1], keys->ip_proto, rq, 1);
 
 	return res;
@@ -623,7 +637,7 @@ static void edma_free_rfs_flow_table(struct edma_adapter *adapter)
 		hlist_for_each_entry_safe(filter_node, tmp, hhead, node) {
 			res  = edma_delete_rfs_filter(adapter, filter_node);
 			if (res < 0)
-				dev_warn(&adapter->netdev[0]->dev,
+				dev_warn(&adapter->netdev->dev,
 					"EDMA going down but RFS entry %d not allowed to be flushed by Switch",
 							filter_node->flow_id);
 			hlist_del(&filter_node->node);
@@ -683,15 +697,9 @@ static void edma_tx_complete(struct edma_common_info *c_info, int queue_id)
 	/* update the TPD consumer index register */
 	edma_write_reg(REG_TX_SW_CONS_IDX_Q(queue_id), sw_next_to_clean);
 
-	/* As of now, we are defaulting to use netdev[0],
-	 * we will generalise this, once we decide whether
-	 * we want a single port(with vlan differentiation for
-	 * wan and lan) or not.
-	 */
-	if (netif_queue_stopped(c_info->netdev[0]) &&
-			netif_carrier_ok(c_info->netdev[0])) {
-		netif_wake_queue(c_info->netdev[0]);
-	}
+	if (netif_queue_stopped(sw_desc->skb->dev) &&
+		netif_carrier_ok(sw_desc->skb->dev))
+			netif_tx_wake_queue(etdr->sw_desc->nq);
 }
 
 /*
@@ -753,14 +761,13 @@ static inline int edma_tx_queue_get(struct edma_adapter *adapter,
 {
 	struct edma_common_info *c_info = adapter->c_info;
 	int id = get_cpu();
-	struct queue_per_cpu_info *q_cinfo = &c_info->q_cinfo[id];
 
 	put_cpu();
 
 	/* skb->priority is used as an index to skb priority table
 	 * and based on packet priority, correspong queue is assigned.
 	 */
-	return q_cinfo->tx_start + edma_skb_priority_tbl[skb->priority];
+	return adapter->tx_start_offset[id] + edma_skb_priority_tbl[skb->priority];
 }
 
 /*
@@ -798,7 +805,7 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 	struct edma_tx_desc *tpd = NULL;
 	int i = 0, nr_frags = skb_shinfo(skb)->nr_frags;
 	u32 word1 = 0, word3 = 0, lso_word1 = 0, svlan_tag = 0;
-	u16 buf_len, lso_desc_len = 0, protocol = 0;
+	u16 buf_len, lso_desc_len = 0;
 
 	if (unlikely(skb_is_gso(skb))) {
 		lso_desc_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
@@ -846,6 +853,9 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 			dev_dbg(&pdev->dev, "no ctag or stag present\n");
 			goto vlan_tag_error;
 		}
+	} else if (flags_transmit & EDMA_VLAN_TX_TAG_INSERT_DEFAULT_FLAG) {
+		word3 |= (1 << EDMA_TX_INS_CVLAN);
+		word3 |= (adapter->default_vlan_tag) << EDMA_TX_CVLAN_TAG_SHIFT;
 	}
 
 	word3 |= EDMA_PORT_ENABLE_ALL << EDMA_TPD_PORT_BITMAP_SHIFT;
@@ -955,6 +965,10 @@ vlan_tag_error:
 	return -ENOMEM;
 }
 
+/*
+ * edma_get_stats()
+ *	Statistics api used to retreive the tx/rx statistics
+ */
 struct net_device_stats *edma_get_stats(struct net_device *netdev)
 {
 	struct edma_adapter *adapter = netdev_priv(netdev);
@@ -967,12 +981,13 @@ struct net_device_stats *edma_get_stats(struct net_device *netdev)
  *	Main api to be called by the core for packet transmission
  */
 netdev_tx_t edma_xmit(struct sk_buff *skb,
-		struct net_device *netdev)
+		struct net_device *net_dev)
 {
-	struct edma_adapter *adapter = netdev_priv(netdev);
+	struct edma_adapter *adapter = netdev_priv(net_dev);
 	int queue_id = 0;
 	struct edma_common_info *c_info = adapter->c_info;
 	struct edma_tx_desc_ring *etdr;
+	struct netdev_queue *nq;
 	int ret, num_tpds_needed;
 	u16 txq_id;
 	unsigned int flags_transmit = 0;
@@ -980,7 +995,7 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 	num_tpds_needed = skb_shinfo(skb)->nr_frags + 1;
 
 	if (unlikely(num_tpds_needed > EDMA_MAX_SKB_FRAGS)) {
-		dev_err(&netdev->dev,
+		dev_err(&net_dev->dev,
 			"skb received with fragments %d which is more than %lu",
 			num_tpds_needed, EDMA_MAX_SKB_FRAGS);
 		dev_kfree_skb_any(skb);
@@ -990,9 +1005,11 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 
 	/* this will be one of the 4 TX queues exposed to linux kernel */
 	txq_id = skb_get_queue_mapping(skb);
+	nq = netdev_get_tx_queue(net_dev, txq_id);
 
 	queue_id = edma_tx_queue_get(adapter, skb);
 	etdr = c_info->tpd_ring[queue_id];
+	etdr->sw_desc->nq = nq;
 
 	/* Tx is not handled in bottom half context. Hence, we need to protect
 	 * Tx from tasks and bottom half
@@ -1000,16 +1017,10 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 	local_bh_disable();
 
 	if (unlikely(num_tpds_needed > edma_tpd_available(c_info, queue_id))) {
-
-		/* Get the netdev_queue in order to stop the queue for
-		 * the relvenat core
-		 */
-		struct netdev_queue *nq = netdev_get_tx_queue(netdev, txq_id);
-
 		/* not enough descriptor, just stop queue */
 		netif_tx_stop_queue(nq);
 		local_bh_enable();
-		dev_warn(&netdev->dev, "Not enough descriptors available");
+		dev_warn(&net_dev->dev, "Not enough descriptors available");
 		adapter->stats.tx_errors++;
 		return NETDEV_TX_BUSY;
 	}
@@ -1017,6 +1028,8 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 	/* Check and mark VLAN tag offload */
 	if (vlan_tx_tag_present(skb))
 		flags_transmit |= EDMA_VLAN_TX_TAG_INSERT_FLAG;
+	else if (adapter->default_vlan_tag)
+		flags_transmit |= EDMA_VLAN_TX_TAG_INSERT_DEFAULT_FLAG;
 
 	/* Check and mark checksum offload */
 	if (skb->ip_summed == CHECKSUM_PARTIAL)
@@ -1061,12 +1074,12 @@ void edma_flow_may_expire(unsigned long data)
 
 		hhead = &adapter->rfs.hlist_head[adapter->rfs.hashtoclean++];
 		hlist_for_each_entry_safe(n, tmp, hhead, node) {
-			res = rps_may_expire_flow(adapter->netdev[0], n->rq_id,
+			res = rps_may_expire_flow(adapter->netdev, n->rq_id,
 					n->flow_id, n->filter_id);
 			if (res) {
 				res = edma_delete_rfs_filter(adapter, n);
 				if (res < 0)
-					dev_dbg(&adapter->netdev[0]->dev,
+					dev_dbg(&adapter->netdev->dev,
 							"RFS entry %d not allowed to be flushed by Switch",
 							n->flow_id);
 				else {
@@ -1126,14 +1139,14 @@ int edma_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 		} else {
 			res = edma_delete_rfs_filter(adapter, filter_node);
 			if (res < 0)
-				dev_warn(&adapter->netdev[0]->dev,
+				dev_warn(&adapter->netdev->dev,
 						"Cannot steer flow %d to different queue",
 						filter_node->flow_id);
 			else {
 				adapter->rfs.filter_available++;
 				res = edma_add_rfs_filter(adapter, &keys, rxq, filter_node);
 				if (res < 0)
-					dev_warn(&adapter->netdev[0]->dev,
+					dev_warn(&adapter->netdev->dev,
 							"Cannot steer flow %d to different queue",
 							filter_node->flow_id);
 				else {
@@ -1343,7 +1356,7 @@ int edma_configure(struct edma_common_info *c_info)
 	struct edma_hw *hw = &c_info->hw;
 	u32 intr_modrt_data;
 	u32 intr_ctrl_data = 0;
-	int i = 0;
+	int i;
 
 	edma_read_reg(REG_INTR_CTRL, &intr_ctrl_data);
 	intr_ctrl_data &= ~(1 << INTR_SW_IDX_W_TYP_SHIFT);
@@ -1444,16 +1457,15 @@ void edma_irq_disable(struct edma_common_info *c_info)
  */
 void edma_free_irqs(struct edma_adapter *adapter)
 {
-	struct net_device *netdev = adapter->netdev[0];
 	struct edma_common_info *c_info = adapter->c_info;
 	int i, j;
 
 	for (i = 0; i < EDMA_NR_CPU; i++) {
 		for (j = c_info->q_cinfo[i].tx_start; j < (c_info->q_cinfo[i].tx_start + 4); j++)
-			free_irq(c_info->tx_irq[j], netdev);
+			free_irq(c_info->tx_irq[j], adapter->netdev);
 
 		for (j = c_info->q_cinfo[i].rx_start; j < (c_info->q_cinfo[i].rx_start + 2); j++)
-			free_irq(c_info->rx_irq[j], netdev);
+			free_irq(c_info->rx_irq[j], adapter->netdev);
 	}
 }
 
@@ -1527,11 +1539,6 @@ int edma_reset(struct edma_common_info *c_info)
 /*
  * edma_set_mac()
  *	Change the Ethernet Address of the NIC
- *
- * @netdev: network interface device structure
- * @p: pointer to an address structure
- *
- * Returns 0 on success, negative on failure
  */
 int edma_set_mac_addr(struct net_device *netdev, void *p)
 {
