@@ -1,4 +1,4 @@
-/* * Copyright (c) 2013 The Linux Foundation. All rights reserved.* */
+/* * Copyright (c) 2013, 2015 The Linux Foundation. All rights reserved.* */
 /* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -1077,6 +1077,9 @@ static struct nss_platform_data nss0_pdata = {
 	.rst_addr		= 0x40000000,
 	.load_addr		= NSS_CORE0_LOAD_ADDR,
 	.turbo_frequency	= NSS_FEATURE_NOT_ENABLED,
+	.low_frequency		= 110000000,
+	.mid_frequency		= 550000000,
+	.max_frequency		= 733000000,
 	.ipv4_enabled		= NSS_FEATURE_ENABLED,
 	.ipv4_reasm_enabled	= NSS_FEATURE_ENABLED,
 	.ipv6_enabled		= NSS_FEATURE_ENABLED,
@@ -1120,6 +1123,9 @@ static struct nss_platform_data nss1_pdata = {
 	.rst_addr		= 0x40800000,
 	.load_addr		= NSS_CORE1_LOAD_ADDR,
 	.turbo_frequency	= NSS_FEATURE_NOT_ENABLED,
+	.low_frequency		= 110000000,
+	.mid_frequency		= 550000000,
+	.max_frequency		= 733000000,
 	.ipv4_enabled		= NSS_FEATURE_NOT_ENABLED,
 	.ipv4_reasm_enabled	= NSS_FEATURE_NOT_ENABLED,
 	.ipv6_enabled		= NSS_FEATURE_NOT_ENABLED,
