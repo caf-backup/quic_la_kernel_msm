@@ -23,6 +23,7 @@
 #include <linux/qca_85xx_sw.h>
 #include <linux/debugfs.h>
 #include <linux/phy.h>
+#include "qca_85xx_sw_regdef.h"
 
  /* 85xx chipset specific data */
 struct qca_85xx_sw_chip {
@@ -34,27 +35,34 @@ struct qca_85xx_sw_chip {
 	uint32_t max_ge_if;
 };
 
+/* 85xx private data */
 struct qca_85xx_sw_priv {
 	uint32_t (*read)(uint32_t reg_addr);
 	void (*write)(uint32_t reg_addr, uint32_t val);
 	struct mii_bus *mdio_bus;
 	struct net_device *eth_dev;
 	const struct qca_85xx_sw_chip *chip;
-	uint32_t reg_val;			/* Hold the value of the
-						   previous register read op */
-	uint32_t reg_addr;			/* Previous register */
-	uint32_t sgmii_plus_link_speed;		/* SGMII+ if Link speed */
-	uint32_t sgmii_plus_duplex;		/* SFMII+ if Link duplex */
-	uint32_t sgmii_plus_port_num;		/* SGMII+ if number */
-	struct dentry *top_dentry;		/* Top dentry */
-	struct dentry *write_dentry;		/* write-reg file dentry */
-	struct dentry *read_dentry;		/* read-reg file dentry */
+
+	uint32_t reg_val;		/* Hold the result of the previous
+					   debug-fs based register read op */
+
+	uint32_t reg_addr;		/* Hold the register address for the
+					   previous debug-fs based register
+					   read op */
+	uint32_t sgmii_plus_link_speed;	/* SGMII+ if link speed */
+	uint32_t sgmii_plus_duplex;	/* SFMII+ if link duplex */
+	uint32_t sgmii_plus_port_num;	/* SGMII+ if port number */
+	struct dentry *top_dentry;	/* Top dentry */
+	struct dentry *write_dentry;	/* write-reg file dentry */
+	struct dentry *read_dentry;	/* read-reg file dentry */
 };
 
 struct qca_85xx_sw_priv *priv;
 
-/* Function to identify the previous link speed and duplex setting and set
- * the new speed and duplex setting */
+/*
+ * Identify the new link speed and duplex setting for the SGMII+ if link, and
+ * and force the SGMII+ speed/duplex accordingly
+ */
 static void qca_85xx_sw_sgmii_plus_if_change_speed(struct net_device *dev)
 {
 	uint32_t val, sgmii_ctrl0_val;
@@ -218,14 +226,16 @@ static int qca_85xx_sw_init_qsgmii_port (struct qca_85xx_sw_qsgmii_cfg *qsgmii_c
 	priv->write(ch3_ctrl_addr, val);
 
 	/* Turn off auto-neg in port_status_cfg */
-	val = priv->read(port_status_cfg(qsgmii_cfg->port_base));
+	val = priv->read(port_status_cfg(qsgmii_cfg->port_base + 1));
 
 	if (qsgmii_cfg->is_speed_forced == false) {
 		/* Enable  Auto-negotiation */
 		val |= PORT_STATUS_AUTONEG_EN;
 	} else {
 		/* Disable Auto-negotiation */
-		val &= ~PORT_STATUS_AUTONEG_EN;
+		val &= ~(PORT_STATUS_AUTONEG_EN | PORT_STATUS_AUTO_FLOW_CTRL_EN
+				| PORT_STATUS_TX_HALF_FLOW_EN | PORT_STATUS_RX_FLOW_EN
+				| PORT_STATUS_TX_FLOW_EN);
 		val |= (PORT_STATUS_RXMAC_EN | PORT_STATUS_TXMAC_EN);
 
 		/* Force the speed and duplex as configured */
@@ -246,10 +256,10 @@ static int qca_85xx_sw_init_qsgmii_port (struct qca_85xx_sw_qsgmii_cfg *qsgmii_c
 		}
 	}
 
-	priv->write(port_status_cfg(qsgmii_cfg->port_base), val);
 	priv->write(port_status_cfg(qsgmii_cfg->port_base + 1), val);
 	priv->write(port_status_cfg(qsgmii_cfg->port_base + 2), val);
 	priv->write(port_status_cfg(qsgmii_cfg->port_base + 3), val);
+	priv->write(port_status_cfg(qsgmii_cfg->port_base + 4), val);
 
 	/* Set QSGMII mode in GLOBAL_CTRL_1 */
 	val = priv->read(GLOBAL_CTRL_1);
@@ -393,38 +403,276 @@ static int qca_85xx_sw_init_sgmii_port (enum qca_85xx_sw_gmac_port port, struct 
 	return 0;
 }
 
+/* Configure a trunk (Link-Aggregated) interface */
+static int qca_85xx_sw_trunk_enable (struct qca_85xx_sw_trunk_cfg *trunk_cfg)
+{
+	uint32_t val = 0, i = 0, shift_val = 0;
+	uint32_t trunk_table_entry_no = 0;
+	uint32_t trunk_table_entry_addr, table_entry_val = 0;
+	uint32_t port_bit_map = 0;
+	uint32_t next_port_num = 0;
+
+	if (trunk_cfg->trunk_id > (QCA_85XX_MAX_TRUNKS - 1))
+		return -EINVAL;
+
+	/* Enable trunk failover */
+	val = priv->read(L2_MISC_CTRL);
+	priv->write(L2_MISC_CTRL, val | FAILOVER_EN);
+
+	/* Set the trunk hash key selection method */
+	priv->write(TRUNK_HASH_KEY_SEL, trunk_cfg->trunk_hash_policy);
+
+	/* Enable the trunk slave ports */
+	for (i = QCA_85XX_SW_PORT_1; i <= QCA_85XX_SW_PORT_29; i++) {
+
+		if ((i > priv->chip->max_ge_if) && (i < QCA_85XX_SW_PORT_26))
+			continue;
+
+		if (trunk_cfg->trunk_ports_bit_map & (1 << i)) {
+			priv->write(port_trunk_cfg(i), (PORT_TRUNK_EN | trunk_cfg->trunk_id));
+		}
+	}
+
+	/* Set the trunk member ports in the TRUNK_GROUP_MEM table */
+	port_bit_map = trunk_cfg->trunk_ports_bit_map;
+
+	/*
+	 * The TRUNK_GROUP_MEM table has 8 member slots all of which need to be
+	 * filled. So, cycle through the trunk port members list until we have
+	 * filled all the 8 port entries of the table entry.
+	 */
+	while (trunk_table_entry_no < QCA_85XX_MAX_TRUNKS) {
+		/* Get the next port number */
+		next_port_num = ffs(port_bit_map) - 1;
+		port_bit_map &= ~(1 << next_port_num);
+		shift_val = (trunk_table_entry_no * TRUNK_MEM_PORT_ID_SHIFT_LEN) % 32;
+
+		/* Configure the table entries */
+		switch(trunk_table_entry_no) {
+		case 0:
+		case 1:
+		case 2:
+			trunk_table_entry_addr = trunk_group_mem_0(trunk_cfg->trunk_id);
+			table_entry_val = priv->read(trunk_table_entry_addr);
+			priv->write(trunk_table_entry_addr, table_entry_val | (next_port_num << shift_val));
+			break;
+		case 3:
+		case 4:
+			trunk_table_entry_addr = trunk_group_mem_1(trunk_cfg->trunk_id);
+			table_entry_val = priv->read(trunk_table_entry_addr);
+			priv->write(trunk_table_entry_addr, table_entry_val | (next_port_num << shift_val));
+			break;
+		case 5:
+			trunk_table_entry_addr = trunk_group_mem_1(trunk_cfg->trunk_id);
+			table_entry_val = priv->read(trunk_table_entry_addr);
+			priv->write(trunk_table_entry_addr, table_entry_val | ((next_port_num & 0xF) << shift_val));
+
+			if (next_port_num > 0xF) {
+				trunk_table_entry_addr = trunk_group_mem_2(trunk_cfg->trunk_id);
+				table_entry_val = priv->read(trunk_table_entry_addr);
+				priv->write(trunk_table_entry_addr, table_entry_val | ((next_port_num & 0x30) >> 4));
+			}
+
+			break;
+		case 6:
+		case 7:
+			trunk_table_entry_addr = trunk_group_mem_2(trunk_cfg->trunk_id);
+			table_entry_val = priv->read(trunk_table_entry_addr);
+			priv->write(trunk_table_entry_addr, table_entry_val | (next_port_num << shift_val));
+			break;
+		}
+
+		trunk_table_entry_no++;
+
+		if (port_bit_map == 0)
+			port_bit_map = trunk_cfg->trunk_ports_bit_map;
+	}
+
+	/* Enable the trunk slave ports bit map */
+	priv->write(trunk_local_port_mem(trunk_cfg->trunk_id), trunk_cfg->trunk_ports_bit_map);
+
+	return 0;
+}
+
+/* Enable VLAN filters and STP forwarding */
+void qca_85xx_sw_enable_port_defaults(void)
+{
+	uint32_t stp_grp_reg_val_0 = 0, stp_grp_reg_val_1 = 0;
+	uint32_t port_vlan_fltr = 0;
+	int i;
+
+	/* Enable STP forwarding, and enable VLAN filters */
+	for (i = QCA_85XX_SW_PORT_1; i <= QCA_85XX_SW_PORT_29; i++) {
+		if (i < 16)
+			stp_grp_reg_val_0 |= (PORT_FORWARDING << (i*2));
+		else
+			stp_grp_reg_val_1 |= (PORT_FORWARDING << ((i-16) * 2));
+
+		port_vlan_fltr &=  ~(1 << i);
+	}
+
+	priv->write(spanning_tree_group_reg_0(0), stp_grp_reg_val_0);
+	priv->write(spanning_tree_group_reg_1(0), stp_grp_reg_val_1);
+	priv->write(PORT_VLAN_FLTR, port_vlan_fltr);
+}
+
+/* Configure a Port VLAN group */
+int qca_85xx_port_vlan_group_enable(uint16_t vlan_id, uint32_t port_bit_map)
+{
+	int next_port_num = 0, pbm;
+	uint16_t in_vlan_entry_num;
+	uint32_t in_vlan_w0_addr, in_vlan_w1_addr, in_vlan_w2_addr;
+	uint32_t in_vlan_w0_val = 0, in_vlan_w1_val = 0, in_vlan_w2_val = 0;
+	uint32_t vlan_op_val = 0, vlan_op_data_0_val = 0, vlan_op_data_1_val = 0;
+	uint32_t port_eg_vlan_ctrl_addr, port_eg_vlan_ctrl_val = 0;
+	uint32_t eg_vlan_tag_addr, eg_vlan_tag_val = 0;
+
+	if (vlan_id > QCA_85XX_VLAN_ID_MAX)
+		return -EINVAL;
+
+	/* Program IN_VLAN_TRANSLATION table */
+	in_vlan_entry_num = IN_VLAN_ENTRY_LOWEST_PRIO;
+	pbm = port_bit_map;
+
+	/*
+	 * Cycle through the port members list and update the IN_VLAN_TRANSLATION
+	 * table entry for each port
+	 */
+	while (pbm) {
+		next_port_num = ffs(pbm) - 1;
+		pbm &= ~(1 << next_port_num);
+
+		in_vlan_w0_addr = in_vlan_table_word_0(next_port_num, in_vlan_entry_num);
+		in_vlan_w1_addr = in_vlan_table_word_1(next_port_num, in_vlan_entry_num);
+		in_vlan_w2_addr = in_vlan_table_word_2(next_port_num, in_vlan_entry_num);
+
+		/* Write table entry word 0 */
+		in_vlan_w0_val |= (CVID_SEARCH_KEY_VALUE_UNTAGGED << CKEY_VID_SHIFT_LEN);
+		priv->write(in_vlan_w0_addr, in_vlan_w0_val);
+
+		/* Write table entry word 1 */
+		in_vlan_w1_val |= (vlan_id << XLT_CVID_SHIFT_LEN);
+		in_vlan_w1_val |= (XLT_CVID_EN | CKEY_VID_INCL);
+		priv->write(in_vlan_w1_addr, in_vlan_w1_val);
+
+		/* Write table entry word 2 */
+		in_vlan_w2_val |= (IN_VLAN_TABLE_ENTRY_VALID | SA_LRN_EN | (CVLAN_ASSIGN_ALL_FRAMES << CKEY_FMT_SHIFT_LEN));
+		priv->write(in_vlan_w2_addr, in_vlan_w2_val);
+	}
+
+	/* Program VLAN table entry */
+	vlan_op_data_0_val = port_bit_map;
+	priv->write(VLAN_OP_DATA_0, vlan_op_data_0_val);
+
+	vlan_op_data_1_val |= (LRN_EN | VLAN_TABLE_ENTRY_VALID);
+	priv->write(VLAN_OP_DATA_1, vlan_op_data_1_val);
+
+	vlan_op_val |= (vlan_id | (VLAN_OP_TYPE_ADD_ONE << VLAN_OP_SHIFT_VAL));
+	priv->write(VLAN_OPERATION, vlan_op_val);
+	vlan_op_val |= VLAN_OP_START;
+	priv->write(VLAN_OPERATION, vlan_op_val);
+
+	usleep_range(1000, 10000);
+
+	if (priv->read(VLAN_OPERATION) & VLAN_BUSY) {
+		printk(KERN_ERR "qca_85xx_sw: VLAN entry add operation timed out\n");
+		return -ETIMEDOUT;
+	}
+
+	/* Program Egress VLAN table */
+	eg_vlan_tag_addr = eg_vlan_tag(vlan_id);
+	eg_vlan_tag_val |= EG_VLAN_TAG_TABLE_ENTRY_VALID;
+	priv->write(eg_vlan_tag_addr, eg_vlan_tag_val);
+
+	port_eg_vlan_ctrl_val |= (PORT_TAG_CONTROL_VID_LOOKUP_VID
+				  | PORT_EG_VLAN_CTRL_RESERVED
+				  | (PORT_EG_VLAN_TYPE_MODE_UNTAGGED
+					  << PORT_EG_VLAN_TYPE_MODE_SHIFT_LEN));
+	pbm = port_bit_map;
+	while (pbm) {
+		next_port_num = ffs(pbm) - 1;
+		pbm &= ~(1 << next_port_num);
+		port_eg_vlan_ctrl_addr = port_eg_vlan_ctrl(next_port_num);
+		priv->write(port_eg_vlan_ctrl_addr, port_eg_vlan_ctrl_val);
+	}
+
+	return 0;
+}
+
 /* Initialize the 8511 chipset */
 static int qca8511_hw_init(struct qca_85xx_sw_platform_data *pdata)
 {
-	if (pdata->qsgmii_cfg.port_mode == QCA_85XX_SW_PORT_MODE_QSGMII)
-		if (qca_85xx_sw_init_qsgmii_port(&pdata->qsgmii_cfg) != 0)
-			return -1;
+	uint32_t val = 0;
+	int ret = 0;
 
+	/* Issue software reset and restore registers to default values */
+	val = priv->read(GLOBAL_CTRL_0);
+	val |= (GLOBAL_CTRL_0_REG_RST_EN | GLOBAL_CTRL_0_SOFT_RST);
+	priv->write(GLOBAL_CTRL_0, val);
+
+	usleep_range(1000, 10000);
+
+	/* Is the reset complete? */
+	if (priv->read(GLOBAL_CTRL_0) & GLOBAL_CTRL_0_SOFT_RST) {
+		printk(KERN_ERR "qca_85xx_sw: software reset timed out\n");
+		return -ETIMEDOUT;
+	}
+
+	/* Configuring QSGMII interface */
+	if (pdata->qsgmii_cfg.port_mode == QCA_85XX_SW_PORT_MODE_QSGMII) {
+		if ((ret = qca_85xx_sw_init_qsgmii_port(&pdata->qsgmii_cfg)) != 0)
+			return ret;
+	}
+
+	/* Configure SGMII/SGMII+ interfaces */
 	if (pdata->port_24_cfg.port_mode != QCA_85XX_SW_PORT_MODE_NOT_CONFIGURED)
-		if (qca_85xx_sw_init_sgmii_port(QCA_85XX_SW_PORT_24, &pdata->port_24_cfg) != 0)
-			return -1;
+		if ((ret = qca_85xx_sw_init_sgmii_port(QCA_85XX_SW_PORT_24, &pdata->port_24_cfg)) != 0)
+			return ret;
 
 	if (pdata->port_25_cfg.port_mode != QCA_85XX_SW_PORT_MODE_NOT_CONFIGURED)
-		if (qca_85xx_sw_init_sgmii_port(QCA_85XX_SW_PORT_25, &pdata->port_25_cfg) != 0)
-			return -1;
+		if ((ret = qca_85xx_sw_init_sgmii_port(QCA_85XX_SW_PORT_25, &pdata->port_25_cfg)) != 0)
+			return ret;
 
 	if (pdata->port_26_cfg.port_mode != QCA_85XX_SW_PORT_MODE_NOT_CONFIGURED)
-		if (qca_85xx_sw_init_sgmii_port(QCA_85XX_SW_PORT_26, &pdata->port_26_cfg) != 0)
-			return -1;
+		if ((ret = qca_85xx_sw_init_sgmii_port(QCA_85XX_SW_PORT_26, &pdata->port_26_cfg)) != 0)
+			return ret;
 
 	if (pdata->port_27_cfg.port_mode != QCA_85XX_SW_PORT_MODE_NOT_CONFIGURED)
-		if (qca_85xx_sw_init_sgmii_port(QCA_85XX_SW_PORT_27, &pdata->port_27_cfg) != 0)
-			return -1;
+		if ((ret = qca_85xx_sw_init_sgmii_port(QCA_85XX_SW_PORT_27, &pdata->port_27_cfg)) != 0)
+			return ret;
 
 	if (pdata->port_28_cfg.port_mode != QCA_85XX_SW_PORT_MODE_NOT_CONFIGURED)
-		if (qca_85xx_sw_init_sgmii_port(QCA_85XX_SW_PORT_28, &pdata->port_28_cfg) != 0)
-			return -1;
+		if ((ret = qca_85xx_sw_init_sgmii_port(QCA_85XX_SW_PORT_28, &pdata->port_28_cfg)) != 0)
+			return ret;
 
 	if (pdata->port_29_cfg.port_mode != QCA_85XX_SW_PORT_MODE_NOT_CONFIGURED)
-		if (qca_85xx_sw_init_sgmii_port(QCA_85XX_SW_PORT_29, &pdata->port_29_cfg) != 0)
-			return -1;
+		if ((ret = qca_85xx_sw_init_sgmii_port(QCA_85XX_SW_PORT_29, &pdata->port_29_cfg)) != 0)
+			return ret;
 
-	return 0;
+	/* Configure trunk (Link aggregated) interfaces */
+	if (pdata->trunk_cfg.is_trunk_enabled == true)
+		if ((ret = qca_85xx_sw_trunk_enable(&pdata->trunk_cfg)) != 0)
+			return ret;
+
+	/* Configure port VLANs */
+	qca_85xx_sw_enable_port_defaults();
+
+	/*
+	 * TODO: Enable swconfig support to configure port VLANs,
+	 * to dynamically enable the following port grouping
+	 */
+
+	/* Enable port-vlan group 1 for ports 1, 26 */
+	if ((ret = qca_85xx_port_vlan_group_enable(1, 0x04000002)) != 0)
+		return ret;
+
+	/* Enable port-vlan group 2 for ports 2, 3, 4, 27 */
+	if ((ret = qca_85xx_port_vlan_group_enable(2, 0x0800001C)) != 0)
+		return ret;
+
+	printk(KERN_INFO "qca_85xx_sw: 8511 switch initialized\n");
+
+	return ret;
 }
 
 struct qca_85xx_sw_chip qca8511_chip = {
@@ -712,7 +960,7 @@ static int qca_85xx_sw_init_debugfs_entries(void)
 {
 	priv->top_dentry = debugfs_create_dir("qca-85xx-sw", NULL);
 	if (priv->top_dentry == NULL) {
-		pr_debug("Failed to create qca-85xx-sw directory in debugfs\n");
+		printk(KERN_ERR "qca_85xx_sw: Failed to create qca-85xx-sw directory in debugfs\n");
 		return -1;
 	}
 
@@ -721,7 +969,7 @@ static int qca_85xx_sw_init_debugfs_entries(void)
 						priv, &qca_85xx_sw_write_reg_ops);
 
 	if (unlikely(priv->write_dentry == NULL)) {
-		pr_debug("Failed to create qca-85xx-sw/write-reg file in debugfs\n");
+		printk(KERN_ERR "qca_85xx_sw: Failed to create qca-85xx-sw/write-reg file in debugfs\n");
 		debugfs_remove_recursive(priv->top_dentry);
 		return -1;
 	}
@@ -731,7 +979,7 @@ static int qca_85xx_sw_init_debugfs_entries(void)
 						priv, &qca_85xx_sw_read_reg_ops);
 
 	if (unlikely(priv->read_dentry == NULL)) {
-		pr_debug("Failed to create qca-85xx-sw/read-reg file in debugfs\n");
+		printk(KERN_ERR "qca_85xx_sw: Failed to create qca-85xx-sw/read-reg file in debugfs\n");
 		debugfs_remove_recursive(priv->top_dentry);
 		return -1;
 	}
@@ -787,26 +1035,25 @@ static int __devinit qca_85xx_sw_probe(struct platform_device *pdev)
 	uint8_t busid[MII_BUS_ID_SIZE];
 	struct mii_bus *mdio_bus;
 	struct qca_85xx_sw_platform_data *pdata = pdev->dev.platform_data;
-	int ret;
+	bool sgmii_plus_link_state_notifier_registered = false;
+	int ret = -1;
 
 	if (!pdata)
 		return -ENODEV;
 
 	priv = vzalloc(sizeof(struct qca_85xx_sw_priv));
 	if (priv == NULL) {
-		pr_debug("Could not allocate private memory for 85xx driver\n");
-		return -1;
+		printk(KERN_ERR "qca_85xx_sw: Could not allocate private memory for 85xx driver\n");
+		return ret;
 	}
 
 	if (pdata->chip_id == QCA_85XX_SW_ID_QCA8511) {
-		pr_debug("Initializing 8511 switch chipset\n");
 		priv->chip = &qca8511_chip;
 		priv->read = qca_85xx_sw_mii_read;
 		priv->write = qca_85xx_sw_mii_write;
 	} else {
-		pr_debug("Unsupported 85xx switch chipset\n");
-		vfree(priv);
-		return -1;
+		printk(KERN_ERR "qca_85xx_sw: Unsupported 85xx switch chipset\n");
+		goto err;
 	}
 
 	/* Find the MDIO bus to use */
@@ -814,16 +1061,14 @@ static int __devinit qca_85xx_sw_probe(struct platform_device *pdev)
 
 	miidev = bus_find_device_by_name(&platform_bus_type, NULL, busid);
 	if (!miidev) {
-		pr_debug("mdio bus '%s':: cannot find bus device\n", busid);
-		vfree(priv);
-		return -1;
+		printk(KERN_ERR "qca_85xx_sw: mdio bus '%s':: cannot find bus device\n", busid);
+		goto err;
 	}
 
 	mdio_bus = dev_get_drvdata(miidev);
 	if (!mdio_bus) {
-		pr_debug("mdio bus '%s':: cannot find mdio bus pointer from device\n", busid);
-		vfree(priv);
-		return -1;
+		printk(KERN_ERR "qca_85xx_sw: mdio bus '%s':: cannot find mdio bus pointer from device\n", busid);
+		goto err;
 	}
 
 	priv->mdio_bus = mdio_bus;
@@ -831,44 +1076,49 @@ static int __devinit qca_85xx_sw_probe(struct platform_device *pdev)
 	/* Find the ethernet device we are bound to */
 	priv->eth_dev = qca_85xx_sw_get_eth_dev(pdata);
 	if (!priv->eth_dev) {
-		pr_debug("Could not find ethernet device\n");
-		vfree(priv);
-		return -1;
+		printk(KERN_ERR "qca_85xx_sw: Could not find ethernet device\n");
+		goto err;
 	}
 
 	/* Initialize the debug-fs entries */
 	ret = qca_85xx_sw_init_debugfs_entries();
 	if (ret < 0) {
-		pr_debug("Could not initialize debugfs entries\n");
-		dev_put(priv->eth_dev);
-		vfree(priv);
-		return ret;
-	}
-
-	if (priv->chip->hw_init(pdata) != 0) {
-		pr_debug("Error initializing 85xx chipset\n");
-		if (likely(priv->top_dentry != NULL))
-			debugfs_remove_recursive(priv->top_dentry);
-		dev_put(priv->eth_dev);
-		vfree(priv);
-		return ret;
+		printk(KERN_ERR "qca_85xx_sw: Could not initialize debugfs entries\n");
+		goto err;
 	}
 
 	ret = register_netdevice_notifier(&qca_85xx_netdev_notifier);
 	if (ret != 0) {
-		pr_debug("Failed to register netdevice notifier %d\n", ret);
-		if (likely(priv->top_dentry != NULL))
-			debugfs_remove_recursive(priv->top_dentry);
-		dev_put(priv->eth_dev);
-		vfree(priv);
-		return -EIO;
+		printk(KERN_ERR "qca_85xx_sw: Failed to register netdevice notifier %d\n", ret);
+		goto err;
+	}
+
+	sgmii_plus_link_state_notifier_registered = true;
+
+	ret = priv->chip->hw_init(pdata);
+	if (ret != 0) {
+		printk(KERN_ERR "qca_85xx_sw: Error initializing 85xx chipset\n");
+		goto err;
 	}
 
 	priv->sgmii_plus_link_speed = SPEED_UNKNOWN;
 
-	pr_debug("85xx switch initialization complete\n");
-
 	return 0;
+
+err:
+	if (sgmii_plus_link_state_notifier_registered)
+		unregister_netdevice_notifier(&qca_85xx_netdev_notifier);
+
+	if (priv->top_dentry != NULL)
+		debugfs_remove_recursive(priv->top_dentry);
+
+	if (priv->eth_dev)
+		dev_put(priv->eth_dev);
+
+	if (priv)
+		vfree(priv);
+
+	return ret;
 }
 
 static int __devexit qca_85xx_sw_remove(struct platform_device *pdev)
@@ -880,6 +1130,8 @@ static int __devexit qca_85xx_sw_remove(struct platform_device *pdev)
 	dev_put(priv->eth_dev);
 
 	vfree(priv);
+
+	unregister_netdevice_notifier(&qca_85xx_netdev_notifier);
 
 	return 0;
 }
