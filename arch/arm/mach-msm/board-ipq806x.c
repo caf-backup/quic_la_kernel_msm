@@ -95,6 +95,7 @@
 #include <mach/msm_usb30.h>
 #include <linux/mdio.h>
 #include <linux/aq_phy.h>
+#include <mach/scm.h>
 
 #define MHL_GPIO_INT           30
 #define MHL_GPIO_RESET         35
@@ -2192,6 +2193,33 @@ static struct msm_serial_hs_platform_data ipq806x_uart_dm2_pdata = {
 	.uartdm_rx_buf_size	= 1024,
 };
 
+/* scm call to pass CRCI mux configuration for GSBI */
+static void adm_crci_mux_cfg(uint16_t tcsr_reg, uint32_t mask, uint16_t set)
+{
+	uint32_t ret_status;
+	int ret;
+
+	struct tcsr {
+		uint32_t mask;
+		uint32_t status;
+		uint16_t tcsr_reg;
+		uint16_t set;
+	} tcsr_cmd;
+
+	tcsr_cmd.tcsr_reg = tcsr_reg;
+	tcsr_cmd.mask = mask;
+	tcsr_cmd.set = set;
+	tcsr_cmd.status = virt_to_phys(&ret_status);
+
+	ret = scm_call(SCM_SVC_INFO, SCM_GSBI_ADM_MUX_SEL_CMD,
+		&tcsr_cmd, sizeof(tcsr_cmd), NULL, 0);
+
+	if (ret || ret_status) {
+		pr_err("%s: Error in CRCI_MUX write (%d, 0x%x)\n",
+			__func__, ret, ret_status);
+	}
+}
+
 #ifdef CONFIG_SPI_QUP
 static void ipq806x_spi_register(void)
 {
@@ -2272,8 +2300,13 @@ static void __init ipq806x_common_init(void)
 			msm_clock_init(&ipq806x_gsbi4_uart_clks);
 		if (machine_is_ipq806x_ap148_1xx())
 			msm_clock_init(&ipq806x_gsbi2_uart_clks);
-		if (machine_is_ipq806x_ap148() || machine_is_ipq806x_ap161())
+		if (machine_is_ipq806x_ap161()) {
 			msm_clock_init(&ipq806x_gsbi2_hsuart_clks);
+			/* Configuring CRCI of GSBI2 as UART */
+			adm_crci_mux_cfg(IPQ806X_TCSR_REG_A_ADM_CRCI_MUX_SEL,
+				IPQ806X_GSBI2_ADM_CRCI_MUX_SEL_MASK,
+				IPQ806X_TCSR_REG_ADM_CRCI_MUX_SEL_UART);
+		}
 	} else {
 		if (msm_xo_init())
 			pr_err("Failed to initialize XO votes\n");
