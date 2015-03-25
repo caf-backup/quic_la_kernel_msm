@@ -189,7 +189,7 @@ static struct gpiomux_setting ipq806x_buttons_cfg = {
 static struct gpiomux_setting ipq806x_leds_cfg = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_2MA,
-	.pull = GPIOMUX_PULL_UP,
+	.pull = GPIOMUX_PULL_DOWN,
 };
 static struct gpiomux_setting usb30_pwr_en_n = {
 	.func = GPIOMUX_FUNC_GPIO,
