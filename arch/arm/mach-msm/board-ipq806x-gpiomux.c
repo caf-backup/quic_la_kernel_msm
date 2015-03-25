@@ -691,7 +691,7 @@ static struct msm_gpiomux_config ipq806x_ap161_gpiomux[] = {
 	ipq_mux( 3, pcie_rst_n,				pcie_rst_n),
 	ipq_mux( 7, ipq806x_leds_cfg,			ipq806x_leds_cfg),
 	ipq_mux( 8, ipq806x_leds_cfg,			ipq806x_leds_cfg),
-	ipq_mux( 9, ipq806x_power_down_2g,		ipq806x_power_down_2g),
+	ipq_mux( 9, ipq806x_leds_cfg,			ipq806x_leds_cfg),
 	ipq_mux(12, gsbi4_active_cfg,			gsbi4_suspended_cfg),
 	ipq_mux(13, gsbi4_active_cfg,			gsbi4_suspended_cfg),
 	ipq_mux(14, pcm_out_act_cfg,			pcm_out_sus_cfg),
