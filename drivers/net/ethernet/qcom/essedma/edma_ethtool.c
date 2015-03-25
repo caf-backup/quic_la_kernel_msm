@@ -76,7 +76,6 @@ static void edma_get_strings(struct net_device *netdev, uint32_t stringset,
 	}
 }
 
-
 /*
  * edma_get_ethtool_stats()
  *	Get ethtool statistics
@@ -143,16 +142,74 @@ static uint32_t edma_get_msglevel(struct net_device *netdev)
 static int32_t edma_get_settings(struct net_device *netdev,
 			     struct ethtool_cmd *ecmd)
 {
+	struct edma_adapter *adapter = netdev_priv(netdev);
 
-	/* set speed and duplex */
-	ecmd->speed = SPEED_1000;
-        ecmd->duplex = DUPLEX_FULL;
+	if (adapter->poll_required) {
+		struct phy_device *phydev = NULL;
+		uint16_t phyreg;
 
-        /* Populate capabilities advertised by self */
-        ecmd->advertising = 0;
-	ecmd->autoneg = 0;
-	ecmd->port = PORT_TP;
-	ecmd->transceiver = XCVR_EXTERNAL;
+		if ((adapter->forced_speed != SPEED_UNKNOWN)
+			&& !(adapter->poll_required))
+			return -EPERM;
+
+		phydev = adapter->phydev;
+
+		ecmd->advertising = phydev->advertising;
+		ecmd->autoneg = phydev->autoneg;
+
+		if (adapter->link_state == __EDMA_LINKDOWN) {
+			ecmd->speed =  SPEED_UNKNOWN;
+			ecmd->duplex = DUPLEX_UNKNOWN;
+		} else {
+			ecmd->speed = phydev->speed;
+			ecmd->duplex = phydev->duplex;
+		}
+
+		ecmd->phy_address = adapter->phy_mdio_addr;
+
+		phyreg = (uint16_t)phy_read(adapter->phydev, MII_LPA);
+		if (phyreg & LPA_10HALF)
+			ecmd->lp_advertising |= ADVERTISED_10baseT_Half;
+
+		if (phyreg & LPA_10FULL)
+			ecmd->lp_advertising |= ADVERTISED_10baseT_Full;
+
+		if (phyreg & LPA_100HALF)
+			ecmd->lp_advertising |= ADVERTISED_100baseT_Half;
+
+		if (phyreg & LPA_100FULL)
+			ecmd->lp_advertising |= ADVERTISED_100baseT_Full;
+
+		phyreg = (uint16_t)phy_read(adapter->phydev, MII_STAT1000);
+		if (phyreg & LPA_1000HALF)
+			ecmd->lp_advertising |= ADVERTISED_1000baseT_Half;
+
+		if (phyreg & LPA_1000FULL)
+			ecmd->lp_advertising |= ADVERTISED_1000baseT_Full;
+	} else {
+		/* If the speed/duplex for this GMAC is forced and we
+		 * are not polling for link state changes, return the
+		 * values as specified by platform. This will be true
+		 * for GMACs connected to switch, and interfaces that
+		 * do not use a PHY.
+		 */
+		if (!(adapter->poll_required)) {
+			if (adapter->forced_speed != SPEED_UNKNOWN) {
+				/* set speed and duplex */
+				ethtool_cmd_speed_set(ecmd, SPEED_1000);
+				ecmd->duplex = DUPLEX_FULL;
+
+				/* Populate capabilities advertised by self */
+				ecmd->advertising = 0;
+				ecmd->autoneg = 0;
+				ecmd->port = PORT_TP;
+				ecmd->transceiver = XCVR_EXTERNAL;
+			} else {
+				/* non link polled and non forced speed/duplex interface */
+				return -EIO;
+			}
+		}
+	}
 
 	return 0;
 }
@@ -164,6 +221,23 @@ static int32_t edma_get_settings(struct net_device *netdev,
 static int32_t edma_set_settings(struct net_device *netdev,
 		struct ethtool_cmd *ecmd)
 {
+	struct edma_adapter *adapter = netdev_priv(netdev);
+
+	if (adapter->poll_required) {
+		struct phy_device *phydev = NULL;
+
+		if ((adapter->forced_speed != SPEED_UNKNOWN))
+			return -EPERM;
+
+		phydev = adapter->phydev;
+		phydev->advertising = ecmd->advertising;
+		phydev->autoneg = ecmd->autoneg;
+		phydev->speed = ethtool_cmd_speed(ecmd);
+		phydev->duplex = ecmd->duplex;
+
+		genphy_config_aneg(phydev);
+	}
+
 	return 0;
 }
 
