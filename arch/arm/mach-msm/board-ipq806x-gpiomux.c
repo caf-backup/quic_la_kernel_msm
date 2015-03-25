@@ -353,6 +353,13 @@ static struct gpiomux_setting reset_control = {
 	.dir = GPIOMUX_OUT_LOW,
 };
 
+static struct gpiomux_setting dect_reset_cfg = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_10MA,
+	.pull = GPIOMUX_PULL_DOWN,
+	.dir = GPIOMUX_OUT_HIGH,
+};
+
 #define ipq_mux(g, a, s)			\
 {						\
 	.gpio = g,				\
@@ -689,6 +696,7 @@ static struct msm_gpiomux_config ipq806x_ap161_gpiomux[] = {
 	ipq_mux( 1, mdio_n,				mdio_n),
 	ipq_mux( 2, nss_gmac0_rgmii_set0,		nss_gmac0_rgmii_set0),
 	ipq_mux( 3, pcie_rst_n,				pcie_rst_n),
+	ipq_mux( 6, dect_reset_cfg,			dect_reset_cfg),
 	ipq_mux( 7, ipq806x_leds_cfg,			ipq806x_leds_cfg),
 	ipq_mux( 8, ipq806x_leds_cfg,			ipq806x_leds_cfg),
 	ipq_mux( 9, ipq806x_leds_cfg,			ipq806x_leds_cfg),
