@@ -215,6 +215,17 @@ int msm_dmov_exec_cmd(unsigned id, unsigned int cmdptr);
 #define DMOV_HSUART_GSBI9_RX_CRCI	12
 
 #elif defined(CONFIG_ARCH_IPQ806X)
+
+/* Primary CRCI definitions */
+#define DMOV_GSBI1_RX_CRCI	12
+#define DMOV_GSBI1_TX_CRCI	13
+#define DMOV_GSBI2_RX_CRCI	14
+#define DMOV_GSBI2_TX_CRCI	4
+#define DMOV_GSBI4_RX_CRCI	7
+#define DMOV_GSBI4_TX_CRCI	8
+#define DMOV_GSBI5_RX_CRCI	9
+#define DMOV_GSBI5_TX_CRCI	10
+
 #define DMOV_GP_CHAN           9
 
 #define DMOV_CE_IN_CHAN        0
@@ -248,13 +259,13 @@ int msm_dmov_exec_cmd(unsigned id, unsigned int cmdptr);
 #define DMOV_NAND_CRCI_CMD		15
 #define DMOV_NAND_CRCI_DATA		3
 
-#define DMOV_SPI_GSBI5_RX_CRCI		9
-#define DMOV_SPI_GSBI5_TX_CRCI		10
+#define DMOV_SPI_GSBI5_RX_CRCI		DMOV_GSBI5_RX_CRCI
+#define DMOV_SPI_GSBI5_TX_CRCI		DMOV_GSBI5_TX_CRCI
 #define DMOV_SPI_GSBI5_RX_CHAN		6
 #define DMOV_SPI_GSBI5_TX_CHAN		5
 
-#define DMOV_HSUART_GSBI2_RX_CRCI	14
-#define DMOV_HSUART_GSBI2_TX_CRCI	4
+#define DMOV_HSUART_GSBI2_RX_CRCI	DMOV_GSBI2_RX_CRCI
+#define DMOV_HSUART_GSBI2_TX_CRCI	DMOV_GSBI2_TX_CRCI
 #define DMOV_HSUART_GSBI2_RX_CHAN	8
 #define DMOV_HSUART_GSBI2_TX_CHAN	7
 
