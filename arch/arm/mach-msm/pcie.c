@@ -74,6 +74,11 @@
 #define PCIE20_MEMORY_BASE_LIMIT       0x20
 #define PCIE20_LNK_CAS2                0xA0
 
+#define PCIE20_DEV_CAS			0x78
+#define PCIE20_MRRS_MASK		__mask(14, 12)
+#define PCIE20_MRRS(x)			__set(x, 14, 12)
+#define PCIE20_MPS_MASK			__mask(7, 5)
+#define PCIE20_MPS(x)			__set(x, 7, 5)
 #define PCIE20_AXI_MSTR_RESP_COMP_CTRL0 0x818
 #define PCIE20_AXI_MSTR_RESP_COMP_CTRL1 0x81c
 #define PCIE20_PLR_IATU_VIEWPORT        0x900
@@ -944,3 +949,32 @@ static void msm_pcie_fixup_resume(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_RESUME(PCIE_VENDOR_ID_RCP, PCIE_DEVICE_ID_RCP,
 			 msm_pcie_fixup_resume);
+
+static void __devinit msm_pcie_fixup_final(struct pci_dev *dev)
+{
+	int cap, err;
+	u16 ctl, reg_val;
+
+	cap = pci_pcie_cap(dev);
+	if (!cap)
+		return;
+
+	err = pci_read_config_word(dev, cap + PCI_EXP_DEVCTL, &ctl);
+
+	if (err)
+		return;
+
+	reg_val = ctl;
+
+	if (((reg_val & PCIE20_MRRS_MASK) >> 12) > 1)
+		reg_val = (reg_val & ~(PCIE20_MRRS_MASK)) | PCIE20_MRRS(0x1);
+
+	if (((ctl & PCIE20_MPS_MASK) >> 5) > 1)
+		reg_val = (reg_val & ~(PCIE20_MPS_MASK)) | PCIE20_MPS(0x1);
+
+	err = pci_write_config_word(dev, cap + PCI_EXP_DEVCTL, reg_val);
+
+	if (err)
+		pr_err("pcie config write failed %d\n", err);
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_ANY_ID, PCI_ANY_ID, msm_pcie_fixup_final);
