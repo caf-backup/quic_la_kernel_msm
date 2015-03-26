@@ -433,6 +433,44 @@ int br_fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
 	return ret;
 }
 
+static void br_fdb_refresh_stats(struct net_bridge *br,
+				struct net_bridge_port *source,
+				const unsigned char *addr)
+{
+	struct hlist_head *head = &br->hash[br_mac_hash(addr)];
+	struct net_bridge_fdb_entry *fdb;
+
+	/* some users want to always flood. */
+	if (hold_time(br) == 0)
+		return;
+
+	/* ignore packets unless we are using this port */
+	if (!(source->state == BR_STATE_LEARNING ||
+	      source->state == BR_STATE_FORWARDING))
+		return;
+
+	fdb = fdb_find_rcu(head, addr);
+	if (likely(fdb)) {
+		/* attempt to update an entry for a local interface */
+		if (unlikely(fdb->is_local)) {
+			if (net_ratelimit())
+				br_warn(br, "stats update for %s interface with"
+					" own address as source address\n",
+					source->dev->name);
+		} else {
+			if (unlikely(source != fdb->dst)) {
+				/* don't have to update stats; as it is
+				 * responsibility of linux bridge to add
+				 * new port info
+				 */
+			} else {
+				fdb->updated = jiffies;
+			}
+		}
+	}
+}
+
+
 void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 		   const unsigned char *addr)
 {
@@ -494,7 +532,13 @@ void br_refresh_fdb_entry(struct net_device *dev, const char *addr)
 	}
 
 	rcu_read_lock();
-	br_fdb_update(p->br, p, addr);
+
+	/*
+	 * port modification/addition will only be done in linux stack path
+	 * through br_fdb_update() function; which is called in softirq context
+	 * by br_handle_frame_finish()
+	 */
+	br_fdb_refresh_stats(p->br, p, addr);
 	rcu_read_unlock();
 }
 
