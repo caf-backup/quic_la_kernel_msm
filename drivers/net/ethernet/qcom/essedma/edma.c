@@ -44,7 +44,7 @@ static int edma_alloc_tx_ring(struct edma_common_info *c_info,
 
 	/* Allocate SW descriptors */
 	etdr->sw_desc = vzalloc(etdr->size);
-	if (!etdr->sw_desc) {
+	if (!unlikely(etdr->sw_desc)) {
 		dev_err(&pdev->dev, "buffer alloc of tx ring failed=%p", etdr);
 		return -ENOMEM;
 	}
@@ -52,7 +52,7 @@ static int edma_alloc_tx_ring(struct edma_common_info *c_info,
 	/* Allocate HW descriptors */
 	etdr->hw_desc = dma_alloc_coherent(&pdev->dev, etdr->size, &etdr->dma,
 				GFP_KERNEL);
-	if (!etdr->hw_desc) {
+	if (!unlikely(etdr->hw_desc)) {
 		dev_err(&pdev->dev, "descriptor allocation for tx ring failed");
 		vfree(etdr->sw_desc);
 		return -ENOMEM;
@@ -70,7 +70,7 @@ static void edma_free_tx_ring(struct edma_common_info *c_info,
 {
 	struct platform_device *pdev = c_info->pdev;
 
-	if (etdr->dma)
+	if (likely(etdr->dma))
 		dma_free_coherent(&pdev->dev, etdr->size, etdr->hw_desc,
 			etdr->dma);
 
@@ -93,13 +93,13 @@ static int edma_alloc_rx_ring(struct edma_common_info *c_info,
 
 	/* Allocate SW descriptors */
 	erxd->sw_desc = vzalloc(erxd->size);
-	if (!erxd->sw_desc)
+	if (!unlikely(erxd->sw_desc))
 		return -ENOMEM;
 
 	/* Alloc HW descriptors */
 	erxd->hw_desc = dma_alloc_coherent(&pdev->dev, erxd->size, &erxd->dma,
 			GFP_KERNEL);
-	if (!erxd->hw_desc) {
+	if (!unlikely(erxd->hw_desc)) {
 		vfree(erxd->sw_desc);
 		return -ENOMEM;
 	}
@@ -116,7 +116,7 @@ static void edma_free_rx_ring(struct edma_common_info *c_info,
 {
 	struct platform_device *pdev = c_info->pdev;
 
-	if (rxdr->dma)
+	if (likely(rxdr->dma))
 		dma_free_coherent(&pdev->dev, rxdr->size, rxdr->hw_desc,
 			rxdr->dma);
 
@@ -174,7 +174,7 @@ static void edma_configure_rx(struct edma_common_info *c_info)
  * edma_alloc_rx_buf()
  *	does skb allocation for the received packets.
  */
-static int edma_alloc_rx_buf(struct edma_common_info *c_info,
+static __always_inline int edma_alloc_rx_buf(struct edma_common_info *c_info,
 	struct edma_rfd_desc_ring *erdr, int cleaned_count, int queue_id)
 {
 	struct platform_device *pdev = c_info->pdev;
@@ -185,7 +185,7 @@ static int edma_alloc_rx_buf(struct edma_common_info *c_info,
 	u16 prod_idx, length;
 	u32 reg_data;
 
-	if (cleaned_count > erdr->count) {
+	if (unlikely(cleaned_count > erdr->count)) {
 		dev_err(&pdev->dev, "Incorrect cleaned_count %d",
 				cleaned_count);
 		return -1;
@@ -213,7 +213,7 @@ static int edma_alloc_rx_buf(struct edma_common_info *c_info,
 
 			sw_desc->dma = dma_map_page(&pdev->dev, pg, 0,
 				c_info->rx_page_buffer_len, DMA_FROM_DEVICE);
-			if (dma_mapping_error(&pdev->dev, sw_desc->dma)) {
+			if (unlikely(dma_mapping_error(&pdev->dev, sw_desc->dma))) {
 				__free_page(pg);
 				dev_kfree_skb_any(skb);
 				break;
@@ -225,7 +225,7 @@ static int edma_alloc_rx_buf(struct edma_common_info *c_info,
 		} else {
 			sw_desc->dma = dma_map_single(&pdev->dev, skb->data,
 				length, DMA_FROM_DEVICE);
-			if (dma_mapping_error(&pdev->dev, sw_desc->dma)) {
+			if (unlikely(dma_mapping_error(&pdev->dev, sw_desc->dma))) {
 				dev_kfree_skb_any(skb);
 				break;
 			}
@@ -331,7 +331,7 @@ static void edma_init_desc(struct edma_common_info *c_info)
  * edma_receive_checksum
  *	Api to check checksum on receive packets
  */
-static void edma_receive_checksum(u16 *rrd1,
+static __always_inline void edma_receive_checksum(u16 *rrd1,
 	struct sk_buff *skb)
 {
 	skb_checksum_none_assert(skb);
@@ -340,7 +340,7 @@ static void edma_receive_checksum(u16 *rrd1,
 	 * its set, which in turn indicates checksum
 	 * failure.
 	 */
-	if (rrd1[6] & EDMA_RRD_CSUM_FAIL_MASK)
+	if (unlikely(rrd1[6] & EDMA_RRD_CSUM_FAIL_MASK))
 		return;
 
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -393,7 +393,7 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 				sw_desc->length, DMA_FROM_DEVICE);
 
 		/* Get RRD */
-		if (c_info->page_mode) {
+		if (unlikely(c_info->page_mode)) {
 			vaddr = kmap_atomic(skb_frag_page(&skb_shinfo(skb)->frags[0]));
 			memcpy((uint8_t *)&rrd[0], vaddr, 16);
 			kunmap_atomic(vaddr);
@@ -408,7 +408,7 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 		cleaned_count++;
 
 		/* Check if RRD is valid */
-		if (!(rrd[7] & EDMA_RRD_DESC_VALID))
+		if (!unlikely(rrd[7] & EDMA_RRD_DESC_VALID))
 			continue;
 		else {
 			/* Get the packet size and allocate buffer */
@@ -419,7 +419,7 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 		}
 
 		port_id = rrd[1] >> EDMA_PORT_ID_SHIFT;
-		if (!port_id)
+		if (!unlikely(port_id))
 			dev_err(&pdev->dev, "No RRD source port bit set");
 		else {
 			if (port_id == c_info->edma_port_id_wan)
@@ -500,7 +500,7 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 		skb->flow_cookie = rrd[3] & EDMA_RRD_FLOW_COOKIE_MASK;
 #endif
 		edma_receive_checksum(rrd, skb);
-		if (rrd[7] & EDMA_RRD_CVLAN) {
+		if (likely(rrd[7] & EDMA_RRD_CVLAN)) {
 			if (adapter->default_vlan_tag != rrd[4]) {
 				vlan = rrd[4];
 				__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan);
@@ -522,7 +522,7 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 	erdr->sw_next_to_clean = sw_next_to_clean;
 
 	/* alloc_rx_buf */
-	if (cleaned_count) {
+	if (likely(cleaned_count)) {
 		edma_alloc_rx_buf(c_info, erdr, cleaned_count, queue_id);
 		edma_write_reg(REG_RX_SW_CONS_IDX_Q(queue_id),
 					erdr->sw_next_to_clean);
@@ -540,7 +540,7 @@ static int edma_delete_rfs_filter(struct edma_adapter *adapter,
 {
 	int res = -1;
 
-	if (adapter->set_rfs_rule)
+	if (likely(adapter->set_rfs_rule))
 		res = (*adapter->set_rfs_rule)(adapter->netdev, filter_node->keys.src, filter_node->keys.dst,
 				filter_node->keys.port16[0], filter_node->keys.port16[1],
 				filter_node->keys.ip_proto, filter_node->rq_id, 0);
@@ -563,7 +563,7 @@ static int edma_add_rfs_filter(struct edma_adapter *adapter, struct flow_keys *k
 	filter_node->keys.ip_proto = keys->ip_proto;
 
 	/* Call callback registered by ESS driver */
-	if (adapter->set_rfs_rule)
+	if (likely(adapter->set_rfs_rule))
 		res = (*adapter->set_rfs_rule)(adapter->netdev, keys->src, keys->dst,
 			keys->port16[0], keys->port16[1], keys->ip_proto, rq, 1);
 
@@ -636,7 +636,7 @@ static void edma_free_rfs_flow_table(struct edma_adapter *adapter)
 		hhead = &adapter->rfs.hlist_head[i];
 		hlist_for_each_entry_safe(filter_node, tmp, hhead, node) {
 			res  = edma_delete_rfs_filter(adapter, filter_node);
-			if (res < 0)
+			if (unlikely(res < 0))
 				dev_warn(&adapter->netdev->dev,
 					"EDMA going down but RFS entry %d not allowed to be flushed by Switch",
 							filter_node->flow_id);
@@ -839,10 +839,10 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 			word1 |= ((css >> 1) << EDMA_TPD_CUSTOM_CSUM_SHIFT);
 	}
 
-	if (skb->protocol == htons(ETH_P_PPP_SES))
+	if (unlikely(skb->protocol == htons(ETH_P_PPP_SES)))
 		word1 |= EDMA_TPD_PPPOE_EN;
 
-	if (flags_transmit & EDMA_VLAN_TX_TAG_INSERT_FLAG) {
+	if (unlikely(flags_transmit & EDMA_VLAN_TX_TAG_INSERT_FLAG)) {
 		switch(skb->vlan_proto) {
 		case htons(ETH_P_8021Q):
 			word3 |= (1 << EDMA_TX_INS_CVLAN);
@@ -885,7 +885,7 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 
 		sw_desc->dma = dma_map_single(&adapter->pdev->dev,
 					skb->data, lso_desc_len, DMA_TO_DEVICE);
-		if (dma_mapping_error(&pdev->dev, sw_desc->dma))
+		if (unlikely(dma_mapping_error(&pdev->dev, sw_desc->dma)))
 			goto dma_error;
 
 		tpd->addr = cpu_to_le32(sw_desc->dma);
@@ -913,7 +913,7 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 		sw_desc->dma = dma_map_single(&adapter->pdev->dev,
 			                        skb->data, buf_len, DMA_TO_DEVICE);
 
-		if (dma_mapping_error(&pdev->dev, sw_desc->dma))
+		if (unlikely(dma_mapping_error(&pdev->dev, sw_desc->dma)))
 			goto dma_error;
 
 		tpd->addr = cpu_to_le32(sw_desc->dma);
@@ -1035,13 +1035,13 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 		flags_transmit |= EDMA_VLAN_TX_TAG_INSERT_DEFAULT_FLAG;
 
 	/* Check and mark checksum offload */
-	if (skb->ip_summed == CHECKSUM_PARTIAL)
+	if (likely(skb->ip_summed == CHECKSUM_PARTIAL))
 		flags_transmit |= EDMA_HW_CHECKSUM;
 
 	/* Map and fill descriptor for Tx */
 	ret = edma_tx_map_and_fill(c_info, adapter, skb, queue_id,
 			flags_transmit);
-	if (ret) {
+	if (unlikely(ret)) {
 		dev_kfree_skb_any(skb);
 		adapter->stats.tx_errors++;
 		goto netdev_okay;
@@ -1610,7 +1610,7 @@ int edma_poll(struct napi_struct *napi, int budget)
 		edma_rx_complete(c_info, &work_done,
 			budget, queue_id);
 
-		if (work_done < budget)
+		if (likely(work_done < budget))
 			q_cinfo->rx_status &= ~(1 << queue_id);
 		else
 			break;
@@ -1626,7 +1626,7 @@ int edma_poll(struct napi_struct *napi, int budget)
 	edma_write_reg(REG_TX_ISR, shadow_tx_status);
 
 	/* If budget not fully consumed, exit the polling mode */
-	if (work_done < budget) {
+	if (likely(work_done < budget)) {
 		napi_complete(napi);
 
 		/* re-enable the interrupts */
