@@ -800,6 +800,8 @@ void __init ipq806x_init_gpiomux(void)
 	} else if (machine_is_ipq806x_ap161()) {
 		msm_gpiomux_install(ipq806x_ap161_gpiomux,
 			ARRAY_SIZE(ipq806x_ap161_gpiomux));
+		/* GSBI6 needs copy B */
+		msm_gpiomux_gsbi_select_copy(IPQ806X_GSBI6_PORT_SEL_BASE, GPIOMUX_COPY_B);
 	}
 
 }
