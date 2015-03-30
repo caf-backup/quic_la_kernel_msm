@@ -15,6 +15,10 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/clocksource.h>
+#include <linux/err.h>
+#include <linux/io.h>
+#include <linux/module.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/mach/arch.h>
 
@@ -64,3 +68,19 @@ DT_MACHINE_START(QCOM_QCA_DT, "Qualcomm (Flattened Device Tree)")
 	.dt_compat = qcom_qca_dt_match,
 	.init_time = global_counter_enable,
 MACHINE_END
+
+
+static int __init qcom_atomic_pool_size_set(void)
+{
+#define ATOMIC_DMA_COHERENT_POOL_SIZE	SZ_2M
+
+	init_dma_coherent_pool_size(ATOMIC_DMA_COHERENT_POOL_SIZE);
+
+	return 0;
+}
+
+/*
+ * This should happen before atomic_pool_init(), which is a
+ * postcore_initcall.
+ */
+core_initcall(qcom_atomic_pool_size_set);
