@@ -596,5 +596,10 @@
 			switch_lan_bmp = <0x1e>; /* lan port bitmap */
 			switch_wan_bmp = <0x20>; /* wan port bitmap */
 		};
+		ess-psgmii@98000 {
+			compatible = "qcom,ess-psgmii";
+			reg = <0x98000 0x800>; /* 2k */
+			psgmii_access_mode = "local bus";
+		};
 
 	};
