@@ -807,10 +807,6 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 	u16 buf_len, lso_desc_len = 0;
 
 	if (unlikely(skb_is_gso(skb))) {
-		lso_desc_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
-		if(!pskb_may_pull(skb, lso_desc_len))
-			return -EINVAL;
-
 		/* TODO: What additional checks need to be performed here */
 		if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV4) {
 			lso_word1 |= EDMA_TPD_IPV4_EN;
@@ -883,12 +879,12 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 		sw_desc = edma_get_tx_buffer(c_info, tpd, queue_id);
 
 		sw_desc->dma = dma_map_single(&adapter->pdev->dev,
-					skb->data, lso_desc_len, DMA_TO_DEVICE);
+					skb->data, buf_len, DMA_TO_DEVICE);
 		if (unlikely(dma_mapping_error(&pdev->dev, sw_desc->dma)))
 			goto dma_error;
 
 		tpd->addr = cpu_to_le32(sw_desc->dma);
-		tpd->len  = cpu_to_le16(lso_desc_len);
+		tpd->len  = cpu_to_le16(buf_len);
 
 		tpd->svlan_tag = svlan_tag;
 		tpd->word1 = word1 | lso_word1;
@@ -900,7 +896,7 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 		sw_desc->length = lso_desc_len;
 		sw_desc->flags |= EDMA_SW_DESC_FLAG_SKB_HEAD;
 
-		buf_len -= lso_desc_len;
+		buf_len = 0;
 	}
 
 	if (likely (buf_len)) {
