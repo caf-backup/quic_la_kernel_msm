@@ -15,6 +15,20 @@
 
 #include <linux/netdevice.h>
 #include <uapi/linux/if_bridge.h>
+#include <linux/bitops.h>
+
+#define BR_HAIRPIN_MODE		BIT(0)
+#define BR_BPDU_GUARD           BIT(1)
+#define BR_ROOT_BLOCK		BIT(2)
+#define BR_MULTICAST_FAST_LEAVE	BIT(3)
+#define BR_ADMIN_COST		BIT(4)
+#define BR_LEARNING		BIT(5)
+#define BR_FLOOD		BIT(6)
+#define BR_AUTO_MASK		(BR_FLOOD | BR_LEARNING)
+#define BR_PROMISC		BIT(7)
+#define BR_ISOLATE_MODE		BIT(8)
+#define BR_MULTICAST_TO_UCAST	BIT(9)
+#define BR_PROXYARP		BIT(10)
 
 struct br_ip {
 	union {
