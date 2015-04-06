@@ -69,6 +69,8 @@
 #define EDMA_RX_HEAD_BUFF_SIZE_JUMBO 256
 #define EDMA_RX_HEAD_BUFF_SIZE 1540
 
+#define EDMA_MAX_JUMBO_FRAME_SIZE 9000
+
 #define EDMA_INTR_CLEAR_TYPE 0
 #define EDMA_INTR_SW_IDX_W_TYPE 0
 #define EDMA_FIFO_THRESH_TYPE 0
@@ -281,4 +283,5 @@ int edma_register_rfs_filter(struct net_device *netdev,
 		set_rfs_filter_callback_t set_filter);
 void edma_flow_may_expire(unsigned long data);
 void edma_set_ethtool_ops(struct net_device *netdev);
+int edma_change_mtu(struct net_device *netdev, int new_mtu);
 #endif /* _EDMA_H_ */
