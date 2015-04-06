@@ -1540,6 +1540,32 @@ int edma_reset(struct edma_common_info *c_info)
 }
 
 /*
+ * edma_change_mtu()
+ *	change the MTU of the NIC.
+ */
+int edma_change_mtu(struct net_device *netdev, int new_mtu)
+{
+	struct edma_adapter *adapter = netdev_priv(netdev);
+	struct edma_common_info *c_info = adapter->c_info;
+	int old_mtu = netdev->mtu;
+	int max_frame_size = new_mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
+
+	if ((max_frame_size < ETH_ZLEN + ETH_FCS_LEN) ||
+		(max_frame_size > EDMA_MAX_JUMBO_FRAME_SIZE)) {
+			dev_err(&c_info->pdev->dev, "MTU setting not correct\n");
+			return -EINVAL;
+	}
+
+	/* set MTU */
+	if (old_mtu != new_mtu) {
+		netdev->mtu = new_mtu;
+		netdev_update_features(netdev);
+	}
+
+	return 0;
+}
+
+/*
  * edma_set_mac()
  *	Change the Ethernet Address of the NIC
  */
