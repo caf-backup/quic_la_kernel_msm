@@ -107,9 +107,16 @@ struct edma_hw;
 #define TXQ_CTRL_BURST_MODE_EN 0x80000000
 
 /* WRR Control Register */
-#define REG_WRR_CTRL(x) (0x40c + ((x) << 2)) /* x is the queue id */
+#define REG_WRR_CTRL_Q0_Q3 0x40c
+#define REG_WRR_CTRL_Q4_Q7 0x410
+#define REG_WRR_CTRL_Q8_Q11 0x414
+#define REG_WRR_CTRL_Q12_Q15 0x418
 
-#define WRR_WEIGHT_Q_SHIFT(x) (((x) * 5) % 20)
+/* Weight round robin(WRR), it takes queue as input, and computes
+ * starting bits where we need to write the weight for a particular
+ * queue
+ */
+#define EDMA_WRR_SHIFT(x) (((x) * 5) % 20)
 
 /* Tx Descriptor Control Register */
 #define REG_TPD_RING_SIZE 0x41C
@@ -132,23 +139,11 @@ struct edma_hw;
 /* TX Virtual Queue Mapping Control Register */
 #define REG_VQ_CTRL0 0x4A0
 #define REG_VQ_CTRL1 0x4A4
-#define VQ_ID_MASK 0x7
-#define VQ0_ID_SHIFT 0
-#define VQ1_ID_SHIFT 3
-#define VQ2_ID_SHIFT 6
-#define VQ3_ID_SHIFT 9
-#define VQ4_ID_SHIFT 12
-#define VQ5_ID_SHIFT 15
-#define VQ6_ID_SHIFT 18
-#define VQ7_ID_SHIFT 21
-#define VQ8_ID_SHIFT 0
-#define VQ9_ID_SHIFT 3
-#define VQ10_ID_SHIFT 6
-#define VQ11_ID_SHIFT 9
-#define VQ12_ID_SHIFT 12
-#define VQ13_ID_SHIFT 15
-#define VQ14_ID_SHIFT 18
-#define VQ15_ID_SHIFT 21
+
+/* Virtual QID shift, it takes queue as input, and computes
+ * Virtual QID position in virtual qid control register
+ */
+#define VQ_ID_SHIFT(i) (((i) * 3) % 24)
 
 /* Tx side Port Interface Control Register */
 #define REG_PORT_CTRL 0x4A8
