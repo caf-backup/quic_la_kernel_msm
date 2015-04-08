@@ -20,7 +20,9 @@
 #define QCA_85XX_SW_H
 
 #define QCA_85XX_MAX_TRUNKS 	8
+#define QCA_85XX_MAX_PORTS	30
 #define QCA_85XX_VLAN_ID_MAX	4094
+#define QCA_85XX_MAX_VLANS	4095
 
 /* Device IDS for the 85xx switch family */
 enum {

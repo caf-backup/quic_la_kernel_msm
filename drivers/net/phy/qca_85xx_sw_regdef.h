@@ -32,6 +32,9 @@
 #define L2_MISC_CTRL				0x6000
 #define TRUNK_HASH_KEY_SEL			0x600c
 #define PORT_TRUNK_CFG_PORT0			0x6800
+#define MIB_OPERATION				0xe000
+#define MIB_RX_DATA				0xe010
+#define MIB_TX_DATA				0xe080
 #define QSGMII_CTRL_GRP0_BASE			0x13000
 #define SGMII_CTRL0_PORT26			0x13200	/* Control for SGMII ports  - Port 26 */
 #define SGMII_CTRL0_PORT27			0x13220	/* Control for SGMII ports  - Port 27 */
@@ -100,6 +103,7 @@
 /* Bit definitions for PORT_EG_VLAN_CTRL */
 #define port_eg_vlan_ctrl(n)	PORT_EG_VLAN_CTRL + (n * 0x10)
 #define PORT_EG_VLAN_TYPE_MODE_UNTAGGED		0x0
+#define PORT_EG_VLAN_TYPE_MODE_UNMODIFIED	0x2
 #define PORT_EG_VLAN_TYPE_MODE_SHIFT_LEN	0
 #define PORT_TAG_CONTROL_VID_LOOKUP_VID		0x8
 #define PORT_EG_VLAN_CTRL_RESERVED		0x30000
@@ -156,6 +160,61 @@
 #define port_trunk_cfg(n)	(PORT_TRUNK_CFG_PORT0 + (n * 0x10))
 #define PORT_TRUNK_ID_MASK	0x7
 #define PORT_TRUNK_EN		0x20
+
+/* Bit definitions for MIB_OPERATION */
+#define MIB_OP_TYPE_SHIFT_LEN	29
+#define MIB_OP_TYPE_CAPTURE		(0x0 << MIB_OP_TYPE_SHIFT_LEN)
+#define MIB_OP_TYPE_CAPTURE_AND_CLEAR	(0x1 << MIB_OP_TYPE_SHIFT_LEN)
+#define MIB_OP_TYPE_FLUSH		(0x2 << MIB_OP_TYPE_SHIFT_LEN)
+#define MIB_BUSY			0x80000000
+
+/* MIB Statistic Rx counters offsets from MIB_RX_DATA */
+#define MIB_STATS_RX_BROAD		0x0
+#define MIB_STATS_RX_PAUSE		0x4
+#define MIB_STATS_RX_MULTI		0x8
+#define MIB_STATS_RX_FCS_ERR		0xc
+#define MIB_STATS_RX_ALIGN_ERR		0x10
+#define MIB_STATS_RX_RESERVED0		0x14
+#define MIB_STATS_RX_RESERVED1		0x18
+#define MIB_STATS_RX_JUMBO_FCS_ERR	0x1c
+#define MIB_STATS_RX_JUMBO_ALIGN_ERR	0x20
+#define MIB_STATS_RX_PKT_64B		0x24
+#define MIB_STATS_RX_PKT_65_127B	0x28
+#define MIB_STATS_RX_PKT_128_255B	0x2c
+#define MIB_STATS_RX_PKT_256_511B	0x30
+#define MIB_STATS_RX_PKT_512_1023B	0x34
+#define MIB_STATS_RX_PKT_1024_1518B	0x38
+#define MIB_STATS_RX_PKT_1519_XB	0x3c
+#define MIB_STATS_RX_TOO_LONG		0x40
+#define MIB_STATS_RX_GOOD_BYTE		0x44
+#define MIB_STATS_RX_BAD_BYTE		0x4c
+#define MIB_STATS_RX_OVER_FLOW		0x54
+#define MIB_STATS_RX_RUNT_NUM		0x170
+#define MIB_STATS_RX_RUNT_BYTE		0x174
+#define MIB_STATS_RX_FRAG_NUM		0x178
+#define MIB_STATS_RX_FRAG_BYTE		0x17c
+
+/* MIB Statistic Tx counters offsets from MIB_RX_DATA */
+#define MIB_STATS_TX_BROAD		0x70
+#define MIB_STATS_TX_PAUSE		0x74
+#define MIB_STATS_TX_MULTI		0x78
+#define MIB_STATS_TX_UNDER_RUN		0x7c
+#define MIB_STATS_TX_PKT_64B		0x80
+#define MIB_STATS_TX_PKT_65_127B	0x84
+#define MIB_STATS_TX_PKT_128_255B	0x88
+#define MIB_STATS_TX_PKT_256_511B	0x8c
+#define MIB_STATS_TX_PKT_512_1023B	0x90
+#define MIB_STATS_TX_PKT_1024_1518B	0x94
+#define MIB_STATS_TX_PKT_1519_XB	0x98
+#define MIB_STATS_TX_RESERVED0		0x9c
+#define MIB_STATS_TX_BYTE		0xa0
+#define MIB_STATS_TX_COLLISION		0xa8
+#define MIB_STATS_TX_ABORTCOL		0xac
+#define MIB_STATS_TX_MULTICOL		0xb0
+#define MIB_STATS_TX_SINGLECOL		0xb4
+#define MIB_STATS_TX_EXCESSIVE_DEFER	0xb8
+#define MIB_STATS_TX_DEFER		0xbc
+#define MIB_STATS_TX_LATE_COL		0xc0
 
 /* CH0 Control for QSGMII0/QSGMII2/QSGMII4 */
 #define QSGMII_1_CTRL0(group)	(QSGMII_CTRL_GRP0_BASE + (0x50*group) + 0x0)
@@ -216,5 +275,19 @@
 #define SGMII_CTRL0_SGMII_MODE_1000BASE_X	0x0
 #define SGMII_CTRL0_SGMII_MODE_PHY		0x400000
 #define SGMII_CTRL0_SGMII_MODE_MAC		0x800000
+
+/* MIB Operations */
+enum qca_85xx_sw_mib_op {
+	MIB_CAPTURE = 0,
+	MIB_CAPTURE_AND_CLEAR = 1,
+	MIB_FLUSH = 2,
+};
+
+#define MIB_DESC(_s , _o, _n)	\
+	{			\
+		.size = (_s),	\
+		.offset = (_o),	\
+		.name = (_n),	\
+	}
 
 #endif
