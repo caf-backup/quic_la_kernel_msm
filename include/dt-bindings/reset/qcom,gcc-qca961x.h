@@ -44,5 +44,6 @@
 #define PCIE_AXI_S_ARES 			27
 #define PCIE_AXI_M_ARES 			28
 #define ESS_RESET				29
+#define AUDIO_BLK_ARES				30
 
 #endif
