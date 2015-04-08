@@ -23,13 +23,19 @@
 #include <linux/qca_85xx_sw.h>
 #include <linux/debugfs.h>
 #include <linux/phy.h>
+#include <net/switch.h>
 #include "qca_85xx_sw_regdef.h"
+
+/* MIB Descriptor */
+struct qca_85xx_sw_mib_desc {
+	unsigned int size;
+	unsigned int offset;
+	const char *name;
+};
 
  /* 85xx chipset specific data */
 struct qca_85xx_sw_chip {
 	int (*hw_init)(struct qca_85xx_sw_platform_data *pdata);
-	const struct qca_85xx_sw_mib_desc *mib_decs;
-	uint32_t num_mibs;
 	uint32_t max_qsgmii_if;
 	uint32_t max_sgmii_plus_if;
 	uint32_t max_ge_if;
@@ -37,6 +43,7 @@ struct qca_85xx_sw_chip {
 
 /* 85xx private data */
 struct qca_85xx_sw_priv {
+	struct switch_dev dev;
 	uint32_t (*read)(uint32_t reg_addr);
 	void (*write)(uint32_t reg_addr, uint32_t val);
 	struct mii_bus *mdio_bus;
@@ -55,9 +62,79 @@ struct qca_85xx_sw_priv {
 	struct dentry *top_dentry;	/* Top dentry */
 	struct dentry *write_dentry;	/* write-reg file dentry */
 	struct dentry *read_dentry;	/* read-reg file dentry */
+
+	/* VLAN enable */
+	bool vlan_enable;
+
+	/* VLAN tag ID configured for VLANs */
+	uint16_t vlan_tag_id[QCA_85XX_MAX_VLANS];
+
+	/* Member ports for port VLANs */
+	uint32_t vlan_port_map[QCA_85XX_MAX_VLANS];
+
+	/* Bitmap of tagged ports */
+	uint32_t vlan_tagged_ports_bm;
+
+	/* Port VLAN ID for each port */
+	uint16_t port_vlan_id[QCA_85XX_MAX_PORTS];
+
+	/* MIB Descritor table */
+	const struct qca_85xx_sw_mib_desc *mib;
+
+	/* Number of MIB counters */
+	unsigned num_mib_counters;
+
+	/* Buffer used for MIB get op */
+	char port_mib[2048];
+
 };
 
 struct qca_85xx_sw_priv *priv;
+
+/* MIB Descriptor table */
+static const struct qca_85xx_sw_mib_desc qca_85xx_mib[] = {
+	MIB_DESC(1, MIB_STATS_RX_BROAD, "RxBroad"),
+	MIB_DESC(1, MIB_STATS_RX_PAUSE, "RxPause"),
+	MIB_DESC(1, MIB_STATS_RX_MULTI, "RxMulti"),
+	MIB_DESC(1, MIB_STATS_RX_FCS_ERR, "RxFcsErr"),
+	MIB_DESC(1, MIB_STATS_RX_ALIGN_ERR, "RxAlignErr"),
+	MIB_DESC(1, MIB_STATS_RX_JUMBO_FCS_ERR, "RxJumboFcsErr"),
+	MIB_DESC(1, MIB_STATS_RX_JUMBO_ALIGN_ERR, "RxJumboAlignErr"),
+	MIB_DESC(1, MIB_STATS_RX_PKT_64B, "Rx64Byte"),
+	MIB_DESC(1, MIB_STATS_RX_PKT_65_127B, "Rx_65_to_127_Byte"),
+	MIB_DESC(1, MIB_STATS_RX_PKT_128_255B, "Rx_128_to_255_Byte"),
+	MIB_DESC(1, MIB_STATS_RX_PKT_256_511B, "Rx_256_to_511_Byte"),
+	MIB_DESC(1, MIB_STATS_RX_PKT_512_1023B, "Rx_512_to_1023_Byte"),
+	MIB_DESC(1, MIB_STATS_RX_PKT_1024_1518B, "Rx_1024_to_1518_Byte"),
+	MIB_DESC(1, MIB_STATS_RX_PKT_1519_XB, "Rx_1519_or more_Byte"),
+	MIB_DESC(1, MIB_STATS_RX_TOO_LONG, "RxTooLong"),
+	MIB_DESC(2, MIB_STATS_RX_GOOD_BYTE, "RxGoodByte"),
+	MIB_DESC(2, MIB_STATS_RX_BAD_BYTE, "RxBadByte"),
+	MIB_DESC(1, MIB_STATS_RX_OVER_FLOW, "RxOverFlow"),
+	MIB_DESC(1, MIB_STATS_RX_RUNT_NUM, "RxRuntNum"),
+	MIB_DESC(1, MIB_STATS_RX_RUNT_BYTE, "RxRuntByte"),
+	MIB_DESC(1, MIB_STATS_RX_FRAG_NUM, "RxFragNum"),
+	MIB_DESC(1, MIB_STATS_RX_FRAG_BYTE, "RxFragByte"),
+	MIB_DESC(1, MIB_STATS_TX_BROAD, "TxBroad"),
+	MIB_DESC(1, MIB_STATS_TX_PAUSE, "TxPause"),
+	MIB_DESC(1, MIB_STATS_TX_MULTI, "TxMulti"),
+	MIB_DESC(1, MIB_STATS_TX_UNDER_RUN, "TxUnderRun"),
+	MIB_DESC(1, MIB_STATS_TX_PKT_64B, "Tx64Byte"),
+	MIB_DESC(1, MIB_STATS_TX_PKT_65_127B, "Tx_65_to_127_Byte"),
+	MIB_DESC(1, MIB_STATS_TX_PKT_128_255B, "Tx_128_to_255_Byte"),
+	MIB_DESC(1, MIB_STATS_TX_PKT_256_511B, "Tx_256_to_511_Byte"),
+	MIB_DESC(1, MIB_STATS_TX_PKT_512_1023B, "Tx_512_to_1023_Byte"),
+	MIB_DESC(1, MIB_STATS_TX_PKT_1024_1518B, "Tx_1024_to_1518_Byte"),
+	MIB_DESC(1, MIB_STATS_TX_PKT_1519_XB, "Tx_1519_or more_Byte"),
+	MIB_DESC(2, MIB_STATS_TX_BYTE, "TxByte"),
+	MIB_DESC(1, MIB_STATS_TX_COLLISION, "TxCollision"),
+	MIB_DESC(1, MIB_STATS_TX_ABORTCOL, "TxAbortCol"),
+	MIB_DESC(1, MIB_STATS_TX_MULTICOL, "TxMultiCol"),
+	MIB_DESC(1, MIB_STATS_TX_SINGLECOL, "TxSingleCol"),
+	MIB_DESC(1, MIB_STATS_TX_EXCESSIVE_DEFER, "TxExcDefer"),
+	MIB_DESC(1, MIB_STATS_TX_DEFER, "TxDefer"),
+	MIB_DESC(1, MIB_STATS_TX_LATE_COL, "TxLateCol"),
+};
 
 /*
  * Identify the new link speed and duplex setting for the SGMII+ if link, and
@@ -146,17 +223,17 @@ static void qca_85xx_sw_sgmii_plus_if_change_speed(struct net_device *dev)
 }
 
  /* Configure a QSGMII interface */
-static int qca_85xx_sw_init_qsgmii_port (struct qca_85xx_sw_qsgmii_cfg *qsgmii_cfg)
+static int qca_85xx_sw_init_qsgmii_port(struct qca_85xx_sw_qsgmii_cfg *qcfg)
 {
 	uint32_t val, ch0_val, sd_clk_sel_val;
 	uint32_t ch0_ctrl_addr, ch1_ctrl_addr, ch2_ctrl_addr, ch3_ctrl_addr;
 	bool part_b = false;
 	int group_num;
 
-	if (qsgmii_cfg->port_base > (priv->chip->max_qsgmii_if * 4))
+	if (qcfg->port_base > (priv->chip->max_qsgmii_if * 4))
 		return -EINVAL;
 
-	switch (qsgmii_cfg->port_base) {
+	switch (qcfg->port_base) {
 		case QCA_85XX_SW_PORT_1:
 			group_num = 0;
 			break;
@@ -195,21 +272,21 @@ static int qca_85xx_sw_init_qsgmii_port (struct qca_85xx_sw_qsgmii_cfg *qsgmii_c
 	}
 
 	val = priv->read(ch0_ctrl_addr);
-	if (qsgmii_cfg->is_speed_forced == false)
+	if (qcfg->is_speed_forced == false)
 		val &= ~(QSGMII_CTRL_FORCE_SPEED | QSGMII_CTRL_FORCE_LINK_UP);
 	else {
 		val |= QSGMII_CTRL_FORCE_SPEED | QSGMII_CTRL_FORCE_LINK_UP;
-		if (qsgmii_cfg->forced_speed == SPEED_1000)
+		if (qcfg->forced_speed == SPEED_1000)
 			val |= QSGMII_CTRL_FORCE_SPEED_1000 | QSGMII_CTRL_FORCE_DUPLEX_FULL;
-		else if (qsgmii_cfg->forced_speed == SPEED_100)
+		else if (qcfg->forced_speed == SPEED_100)
 			val |= QSGMII_CTRL_FORCE_SPEED_100;
-		else if (qsgmii_cfg->forced_speed == SPEED_10)
+		else if (qcfg->forced_speed == SPEED_10)
 			val |= QSGMII_CTRL_FORCE_SPEED_10;
 		else
 			return -EINVAL;
 
-		if (qsgmii_cfg->forced_speed != SPEED_1000) {
-			if (qsgmii_cfg->forced_duplex == DUPLEX_FULL)
+		if (qcfg->forced_speed != SPEED_1000) {
+			if (qcfg->forced_duplex == DUPLEX_FULL)
 				val |= QSGMII_CTRL_FORCE_DUPLEX_FULL;
 			else
 				val &= ~QSGMII_CTRL_FORCE_DUPLEX_FULL;
@@ -226,9 +303,9 @@ static int qca_85xx_sw_init_qsgmii_port (struct qca_85xx_sw_qsgmii_cfg *qsgmii_c
 	priv->write(ch3_ctrl_addr, val);
 
 	/* Turn off auto-neg in port_status_cfg */
-	val = priv->read(port_status_cfg(qsgmii_cfg->port_base + 1));
+	val = priv->read(port_status_cfg(qcfg->port_base + 1));
 
-	if (qsgmii_cfg->is_speed_forced == false) {
+	if (qcfg->is_speed_forced == false) {
 		/* Enable  Auto-negotiation */
 		val |= PORT_STATUS_AUTONEG_EN;
 	} else {
@@ -239,43 +316,44 @@ static int qca_85xx_sw_init_qsgmii_port (struct qca_85xx_sw_qsgmii_cfg *qsgmii_c
 		val |= (PORT_STATUS_RXMAC_EN | PORT_STATUS_TXMAC_EN);
 
 		/* Force the speed and duplex as configured */
-		if (qsgmii_cfg->forced_speed == SPEED_1000)
+		if (qcfg->forced_speed == SPEED_1000)
 			val |= PORT_STATUS_FORCE_SPEED_1000 | PORT_STATUS_FORCE_DUPLEX_FULL;
-		else if (qsgmii_cfg->forced_speed == SPEED_100)
+		else if (qcfg->forced_speed == SPEED_100)
 			val |= PORT_STATUS_FORCE_SPEED_100;
-		else if (qsgmii_cfg->forced_speed == SPEED_10)
+		else if (qcfg->forced_speed == SPEED_10)
 			val |= PORT_STATUS_FORCE_SPEED_10;
 		else
 			return -EINVAL;
 
-		if (qsgmii_cfg->forced_speed != SPEED_1000) {
-			if (qsgmii_cfg->forced_duplex == DUPLEX_FULL)
+		if (qcfg->forced_speed != SPEED_1000) {
+			if (qcfg->forced_duplex == DUPLEX_FULL)
 				val |= PORT_STATUS_FORCE_DUPLEX_FULL;
 			else
 				val &= ~PORT_STATUS_FORCE_DUPLEX_FULL;
 		}
 	}
 
-	priv->write(port_status_cfg(qsgmii_cfg->port_base + 1), val);
-	priv->write(port_status_cfg(qsgmii_cfg->port_base + 2), val);
-	priv->write(port_status_cfg(qsgmii_cfg->port_base + 3), val);
-	priv->write(port_status_cfg(qsgmii_cfg->port_base + 4), val);
+	priv->write(port_status_cfg(qcfg->port_base + 1), val);
+	priv->write(port_status_cfg(qcfg->port_base + 2), val);
+	priv->write(port_status_cfg(qcfg->port_base + 3), val);
+	priv->write(port_status_cfg(qcfg->port_base + 4), val);
 
 	/* Set QSGMII mode in GLOBAL_CTRL_1 */
 	val = priv->read(GLOBAL_CTRL_1);
-	val &= ~(GLOBAL_CTRL_1_MAC1_SGMII_EN << (qsgmii_cfg->port_base/4));
+	val &= ~(GLOBAL_CTRL_1_MAC1_SGMII_EN << (qcfg->port_base/4));
 	priv->write(GLOBAL_CTRL_1, val);
 
 	 /* Enable SD clock selects for the QSGMII port */
 	sd_clk_sel_val = priv->read(SD_CLK_SEL);
-	sd_clk_sel_val |= (SD_CLK_SEL_QSGMII_1_RX << (qsgmii_cfg->port_base/4));
+	sd_clk_sel_val |= (SD_CLK_SEL_QSGMII_1_RX << (qcfg->port_base/4));
 	priv->write(SD_CLK_SEL, sd_clk_sel_val);
 
 	return 0;
 }
 
 /* Configure a SGMII/SGMII+ interface */
-static int qca_85xx_sw_init_sgmii_port (enum qca_85xx_sw_gmac_port port, struct qca_85xx_sw_sgmii_cfg *sgmii_cfg)
+static int qca_85xx_sw_init_sgmii_port(enum qca_85xx_sw_gmac_port port,
+					struct qca_85xx_sw_sgmii_cfg *sgmii_cfg)
 {
 	uint32_t val, sgmii_ctrl0_reg, sgmii_ctrl0_val, sd_clk_sel_val;
 
@@ -404,7 +482,7 @@ static int qca_85xx_sw_init_sgmii_port (enum qca_85xx_sw_gmac_port port, struct 
 }
 
 /* Configure a trunk (Link-Aggregated) interface */
-static int qca_85xx_sw_trunk_enable (struct qca_85xx_sw_trunk_cfg *trunk_cfg)
+static int qca_85xx_sw_trunk_enable(struct qca_85xx_sw_trunk_cfg *trunk_cfg)
 {
 	uint32_t val = 0, i = 0, shift_val = 0;
 	uint32_t trunk_table_entry_no = 0;
@@ -527,6 +605,9 @@ int qca_85xx_port_vlan_group_enable(uint16_t vlan_id, uint32_t port_bit_map)
 	uint32_t port_eg_vlan_ctrl_addr, port_eg_vlan_ctrl_val = 0;
 	uint32_t eg_vlan_tag_addr, eg_vlan_tag_val = 0;
 
+	pr_debug("qca_85xx_sw: VLAN enable for vlan_id = %d, port_bit_map = 0x%x\n",
+			vlan_id, port_bit_map);
+
 	if (vlan_id > QCA_85XX_VLAN_ID_MAX)
 		return -EINVAL;
 
@@ -582,11 +663,20 @@ int qca_85xx_port_vlan_group_enable(uint16_t vlan_id, uint32_t port_bit_map)
 	/* Program Egress VLAN table */
 	eg_vlan_tag_addr = eg_vlan_tag(vlan_id);
 	eg_vlan_tag_val |= EG_VLAN_TAG_TABLE_ENTRY_VALID;
+
+	pbm = port_bit_map;
+	while (pbm) {
+		next_port_num = ffs(pbm) - 1;
+		if (priv->vlan_tagged_ports_bm & (1 << next_port_num))
+			eg_vlan_tag_val |= (1 << next_port_num);
+		pbm &= ~(1 << next_port_num);
+	}
+
 	priv->write(eg_vlan_tag_addr, eg_vlan_tag_val);
 
 	port_eg_vlan_ctrl_val |= (PORT_TAG_CONTROL_VID_LOOKUP_VID
 				  | PORT_EG_VLAN_CTRL_RESERVED
-				  | (PORT_EG_VLAN_TYPE_MODE_UNTAGGED
+				  | (PORT_EG_VLAN_TYPE_MODE_UNMODIFIED
 					  << PORT_EG_VLAN_TYPE_MODE_SHIFT_LEN));
 	pbm = port_bit_map;
 	while (pbm) {
@@ -597,6 +687,22 @@ int qca_85xx_port_vlan_group_enable(uint16_t vlan_id, uint32_t port_bit_map)
 	}
 
 	return 0;
+}
+
+/* Initialize VLAN information tables */
+static void qca_85xx_sw_init_vlan_tables(void)
+{
+	int i;
+
+	priv->vlan_tagged_ports_bm = 0;
+
+	for (i = 0; i < QCA_85XX_MAX_PORTS; i++)
+		priv->port_vlan_id[i] = 0;
+
+	for (i = 0; i < QCA_85XX_MAX_VLANS; i++) {
+		priv->vlan_port_map[i] = 0;
+		priv->vlan_tag_id[i] = 0;
+	}
 }
 
 /* Initialize the 8511 chipset */
@@ -657,19 +763,6 @@ static int qca8511_hw_init(struct qca_85xx_sw_platform_data *pdata)
 	/* Configure port VLANs */
 	qca_85xx_sw_enable_port_defaults();
 
-	/*
-	 * TODO: Enable swconfig support to configure port VLANs,
-	 * to dynamically enable the following port grouping
-	 */
-
-	/* Enable port-vlan group 1 for ports 1, 26 */
-	if ((ret = qca_85xx_port_vlan_group_enable(1, 0x04000002)) != 0)
-		return ret;
-
-	/* Enable port-vlan group 2 for ports 2, 3, 4, 27 */
-	if ((ret = qca_85xx_port_vlan_group_enable(2, 0x0800001C)) != 0)
-		return ret;
-
 	printk(KERN_INFO "qca_85xx_sw: 8511 switch initialized\n");
 
 	return ret;
@@ -684,7 +777,7 @@ struct qca_85xx_sw_chip qca8511_chip = {
 
 /* Netdev notifier callback to inform the change of state of a netdevice */
 static int qca_85xx_sw_netdev_notifier_callback(struct notifier_block *this,
-					     unsigned long event, void *ptr)
+						unsigned long event, void *ptr)
 {
 	struct net_device *dev __attribute__ ((unused)) = (struct net_device *)ptr;
 
@@ -821,7 +914,7 @@ static bool qca_85xx_sw_check_valid_reg(uint32_t reg_addr)
 
 /* read from debug-fs file */
 static ssize_t qca_85xx_sw_read_reg_get(struct file *fp, char __user *ubuf,
-				   size_t sz, loff_t *ppos)
+					size_t sz, loff_t *ppos)
 {
 	char lbuf[40];
 	int bytes_read;
@@ -838,7 +931,7 @@ static ssize_t qca_85xx_sw_read_reg_get(struct file *fp, char __user *ubuf,
 
 /* Write into the file and read back the switch register */
 static ssize_t qca_85xx_sw_read_reg_set(struct file *fp, const char __user *ubuf,
-				   size_t sz, loff_t *ppos)
+					size_t sz, loff_t *ppos)
 {
 	char lbuf[32];
 	size_t lbuf_size;
@@ -885,7 +978,7 @@ static ssize_t qca_85xx_sw_read_reg_set(struct file *fp, const char __user *ubuf
 
 /* Debug-fs function to write a switch register */
 static ssize_t qca_85xx_sw_write_reg_set(struct file *fp, const char __user *ubuf,
-				    size_t sz, loff_t *ppos)
+					 size_t sz, loff_t *ppos)
 {
 	char lbuf[32];
 	size_t lbuf_size;
@@ -1029,6 +1122,360 @@ static struct net_device * qca_85xx_sw_get_eth_dev(
 	return phydev->attached_dev;
 }
 
+/* Set VLAN enable flag */
+static int qca_85xx_sw_set_vlan(struct switch_dev *dev,
+				const struct switch_attr *attr,
+				struct switch_val *val)
+{
+	if (val->value.i)
+		priv->vlan_enable = true;
+	else
+		priv->vlan_enable = false;
+
+	return 0;
+}
+
+/* Get VLAN enable flag */
+static int qca_85xx_sw_get_vlan(struct switch_dev *dev,
+				const struct switch_attr *attr,
+				struct switch_val *val)
+{
+	if (priv->vlan_enable == true)
+		val->value.i = 1;
+	else
+		val->value.i = 0;
+
+	return 0;
+}
+
+/* Issue MIB operation on a port */
+static int qca_85xx_sw_issue_mib_op(int port, enum qca_85xx_sw_mib_op mib_op)
+{
+	uint32_t op, val;
+
+	switch (mib_op) {
+	case MIB_CAPTURE:
+		op = MIB_OP_TYPE_CAPTURE;
+		break;
+	case MIB_CAPTURE_AND_CLEAR:
+		op = MIB_OP_TYPE_CAPTURE_AND_CLEAR;
+		break;
+	case MIB_FLUSH:
+		op = MIB_OP_TYPE_FLUSH;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	val = port;
+	priv->write(MIB_OPERATION, val);
+	val |= (op | MIB_BUSY);
+	priv->write(MIB_OPERATION, val);
+
+	usleep_range(1000, 10000);
+
+	if (priv->read(MIB_OPERATION) & MIB_BUSY) {
+		pr_debug(KERN_ERR "qca_85xx_sw: MIB flush operation timed out\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
+/* Reset MIB counters for all ports */
+static int qca_85xx_sw_set_reset_mibs(struct switch_dev *dev,
+				      const struct switch_attr *attr,
+				      struct switch_val *val)
+{
+	int ret = 0, i;
+
+	for (i = 0; i < QCA_85XX_MAX_PORTS; i++) {
+		ret = qca_85xx_sw_issue_mib_op(i, MIB_FLUSH);
+		if (ret != 0)
+			return ret;
+	}
+
+	return ret;
+}
+
+/* Reset MIB counters for a port */
+static int qca_85xx_sw_set_port_reset_mib(struct switch_dev *dev,
+					  const struct switch_attr *attr,
+					  struct switch_val *val)
+{
+	int port = val->port_vlan;
+
+	if (port > dev->ports)
+		return -EINVAL;
+
+	return qca_85xx_sw_issue_mib_op(port, MIB_FLUSH);
+}
+
+/* Read MIB counters for a port */
+static int qca_85xx_sw_get_port_mib(struct switch_dev *dev,
+				    const struct switch_attr *attr,
+				    struct switch_val *val)
+{
+	int port;
+	int i, len = 0, ret = 0;
+	char *buf = priv->port_mib;
+	uint64_t counter_val, counter_high;
+	uint32_t counter_addr = 0;
+
+	port = val->port_vlan;
+
+	if (port > dev->ports)
+		return -EINVAL;
+
+	len += snprintf(buf + len, sizeof(priv->port_mib) - len,
+			"Port %d MIB counters:\n\n",
+			port);
+
+	ret = qca_85xx_sw_issue_mib_op(port, MIB_CAPTURE);
+	if (ret != 0)
+		return ret;
+
+	for (i = 0; i < priv->num_mib_counters; i++) {
+		counter_val = priv->read(MIB_RX_DATA + priv->mib[i].offset);
+		if (priv->mib[i].size > 1) {
+			counter_addr = MIB_RX_DATA + priv->mib[i].offset + 4;
+			counter_high = priv->read(counter_addr);
+			counter_val |= (counter_high << 32);
+		}
+
+		len += snprintf(buf + len, sizeof(priv->port_mib) - len,
+				"%-25s: %llu\n",
+				priv->mib[i].name,
+				counter_val);
+	}
+
+	val->value.s = buf;
+	val->len = len;
+
+	return 0;
+}
+
+/* Set VLAN Tag ID for a VLAN */
+static int qca_85xx_sw_set_vid(struct switch_dev *dev,
+				const struct switch_attr *attr,
+				struct switch_val *val)
+{
+	if (val->port_vlan > dev->vlans)
+		return -EINVAL;
+
+	if (val->value.i > dev->vlans)
+		return -EINVAL;
+
+	priv->vlan_tag_id[val->port_vlan] = val->value.i;
+
+	return 0;
+}
+
+/* Get the VLAN Tag ID for a VLAN */
+static int qca_85xx_sw_get_vid(struct switch_dev *dev,
+				const struct switch_attr *attr,
+				struct switch_val *val)
+{
+	if (val->port_vlan > dev->vlans)
+		return -EINVAL;
+
+	val->value.i = priv->vlan_tag_id[val->port_vlan];
+
+	return 0;
+}
+
+/* Switch device global attributes */
+static struct switch_attr qca_85xx_sw_globals[] = {
+	{
+		.type = SWITCH_TYPE_INT,
+		.name = "enable_vlan",
+		.description = "Enable VLAN mode",
+		.set = qca_85xx_sw_set_vlan,
+		.get = qca_85xx_sw_get_vlan,
+		.max = 1
+	},
+	{
+		.type = SWITCH_TYPE_NOVAL,
+		.name = "reset_mibs",
+		.description = "Reset all MIB counters",
+		.set = qca_85xx_sw_set_reset_mibs,
+		.get = NULL,
+	},
+};
+
+/* Switch device per-port attributes */
+static struct switch_attr qca_85xx_sw_port[] = {
+	{
+		.type = SWITCH_TYPE_NOVAL,
+		.name = "reset_mib",
+		.description = "Reset single port MIB counters",
+		.set = qca_85xx_sw_set_port_reset_mib,
+		.get = NULL,
+	},
+	{
+		.type = SWITCH_TYPE_STRING,
+		.name = "mib",
+		.description = "Get port's MIB counters",
+		.set = NULL,
+		.get = qca_85xx_sw_get_port_mib,
+	},
+};
+
+/* Switch device per-vlan attributes */
+static struct switch_attr qca_85xx_sw_vlan[] = {
+	{
+		.type = SWITCH_TYPE_INT,
+		.name = "vid",
+		.description = "VLAN ID (0-4094)",
+		.set = qca_85xx_sw_set_vid,
+		.get = qca_85xx_sw_get_vid,
+		.max = 4094,
+	},
+};
+
+/* Set Port VLAN ID for a port */
+static int qca_85xx_sw_set_pvid(struct switch_dev *dev, int port, int vlan)
+{
+	int i;
+
+	if (vlan >= dev->vlans)
+		return -EINVAL;
+
+	if (port >= QCA_85XX_MAX_PORTS)
+		return -EINVAL;
+
+	priv->port_vlan_id[port] = vlan;
+
+	/*
+	 * Make sure that this port does not
+	 * appear in other vlans
+	 */
+	for (i = 0; i < QCA_85XX_MAX_VLANS; i++) {
+		if (i == vlan)
+			continue;
+		priv->vlan_port_map[i] &= ~(1 << port);
+	}
+
+	return 0;
+}
+
+/* Get Port VLAN ID for a port */
+static int qca_85xx_sw_get_pvid(struct switch_dev *dev, int port, int *vlan)
+{
+	if (port >= QCA_85XX_MAX_PORTS)
+		return -EINVAL;
+
+	*vlan = priv->port_vlan_id[port];
+
+	return 0;
+}
+
+/* Get the member ports for a port VLAN ID */
+static int qca_85xx_sw_get_ports(struct switch_dev *dev, struct switch_val *val)
+{
+	uint32_t ports = priv->vlan_port_map[val->port_vlan];
+	int i;
+
+	val->len = 0;
+	for (i = 1; i <= dev->ports; i++) {
+		struct switch_port *p;
+
+		if (!(ports & (1 << i)))
+			continue;
+
+		p = &val->value.ports[val->len++];
+		p->id = i;
+		if (priv->vlan_tagged_ports_bm & (1 << i))
+			p->flags = (1 << SWITCH_PORT_FLAG_TAGGED);
+		else
+			p->flags = 0;
+	}
+	return 0;
+}
+
+/* Set the member ports for a port-VLAN */
+static int qca_85xx_sw_set_ports(struct switch_dev *dev, struct switch_val *val)
+{
+	uint32_t *vt = &priv->vlan_port_map[val->port_vlan];
+	int i, j;
+
+	*vt = 0;
+	for (i = 0; i < val->len; i++) {
+		struct switch_port *p = &val->value.ports[i];
+
+		if (p->flags & (1 << SWITCH_PORT_FLAG_TAGGED)) {
+			priv->vlan_tagged_ports_bm |= (1 << p->id);
+		} else {
+			priv->vlan_tagged_ports_bm &= ~(1 << p->id);
+			priv->port_vlan_id[p->id] = val->port_vlan;
+
+			/*
+			 * Make sure that an untagged port does not
+			 * appear in other vlans
+			 */
+			for (j = 0; j < QCA_85XX_MAX_VLANS; j++) {
+				if (j == val->port_vlan)
+					continue;
+				priv->vlan_port_map[j] &= ~(1 << p->id);
+			}
+		}
+
+		*vt |= 1 << p->id;
+	}
+	return 0;
+}
+
+/* Apply the configured settings */
+static int qca_85xx_sw_hw_apply(struct switch_dev *dev)
+{
+	int i, ret = 0;
+
+	for (i = 0; i < QCA_85XX_MAX_VLANS; i++) {
+		if (priv->vlan_port_map[i] == 0)
+			continue;
+		ret = qca_85xx_port_vlan_group_enable(i,
+							priv->vlan_port_map[i]);
+		if (ret != 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+/* Switch software reset */
+static int qca_85xx_sw_reset_switch(struct switch_dev *dev)
+{
+	/* Initialize VLAN tables */
+	qca_85xx_sw_init_vlan_tables();
+
+	return 0;
+}
+
+/* switch device operations */
+static const struct switch_dev_ops qca_85xx_sw_ops = {
+	.attr_global = {
+		.attr = qca_85xx_sw_globals,
+		.n_attr = ARRAY_SIZE(qca_85xx_sw_globals),
+	},
+	.attr_port = {
+		.attr = qca_85xx_sw_port,
+		.n_attr = ARRAY_SIZE(qca_85xx_sw_port),
+	},
+	.attr_vlan = {
+		.attr = qca_85xx_sw_vlan,
+		.n_attr = ARRAY_SIZE(qca_85xx_sw_vlan),
+	},
+	.get_port_pvid = qca_85xx_sw_get_pvid,
+	.set_port_pvid = qca_85xx_sw_set_pvid,
+	.get_vlan_ports = qca_85xx_sw_get_ports,
+	.set_vlan_ports = qca_85xx_sw_set_ports,
+	.apply_config = qca_85xx_sw_hw_apply,
+	.reset_switch = qca_85xx_sw_reset_switch,
+	.get_port_link = NULL,
+	.get_reg_val = NULL,
+	.set_reg_val = NULL,
+};
+
 static int __devinit qca_85xx_sw_probe(struct platform_device *pdev)
 {
 	struct device *miidev;
@@ -1036,6 +1483,8 @@ static int __devinit qca_85xx_sw_probe(struct platform_device *pdev)
 	struct mii_bus *mdio_bus;
 	struct qca_85xx_sw_platform_data *pdata = pdev->dev.platform_data;
 	bool sgmii_plus_link_state_notifier_registered = false;
+	bool qca_85xx_sw_dev_registered = false;
+	struct switch_dev *swdev;
 	int ret = -1;
 
 	if (!pdata)
@@ -1095,6 +1544,30 @@ static int __devinit qca_85xx_sw_probe(struct platform_device *pdev)
 
 	sgmii_plus_link_state_notifier_registered = true;
 
+	/* Initialize VLAN tables */
+	qca_85xx_sw_init_vlan_tables();
+
+	/* Initialize MIB */
+	priv->mib = qca_85xx_mib;
+	priv->num_mib_counters = ARRAY_SIZE(qca_85xx_mib);
+	priv->vlan_enable = true;
+
+	swdev = &priv->dev;
+	swdev->cpu_port = 0;
+	swdev->ops = &qca_85xx_sw_ops;
+	swdev->ports = QCA_85XX_MAX_PORTS;
+	swdev->vlans = QCA_85XX_MAX_VLANS;
+	if (pdata->chip_id == QCA_85XX_SW_ID_QCA8511)
+		swdev->name = "QCA8511 Switch";
+
+	ret = register_switch(&priv->dev, priv->eth_dev);
+	if (ret) {
+		printk(KERN_ERR "qca_85xx_sw: Error registering 85xx switch chipset\n");
+		goto err;
+	}
+
+	qca_85xx_sw_dev_registered = true;
+
 	ret = priv->chip->hw_init(pdata);
 	if (ret != 0) {
 		printk(KERN_ERR "qca_85xx_sw: Error initializing 85xx chipset\n");
@@ -1106,6 +1579,9 @@ static int __devinit qca_85xx_sw_probe(struct platform_device *pdev)
 	return 0;
 
 err:
+	if (qca_85xx_sw_dev_registered)
+		unregister_switch(&priv->dev);
+
 	if (sgmii_plus_link_state_notifier_registered)
 		unregister_netdevice_notifier(&qca_85xx_netdev_notifier);
 
@@ -1123,6 +1599,8 @@ err:
 
 static int __devexit qca_85xx_sw_remove(struct platform_device *pdev)
 {
+	unregister_switch(&priv->dev);
+
 	/* Remove debugfs tree */
 	if (likely(priv->top_dentry != NULL))
 		debugfs_remove_recursive(priv->top_dentry);
