@@ -29,6 +29,8 @@
 #define TMR_STS		0x50
 #define WDT0_ENABLE	(1 << 24)
 
+static unsigned long long last_pet;
+
 struct qcom_wdt {
 	struct watchdog_device	wdd;
 	struct device		*dev;
@@ -99,7 +101,7 @@ static int qcom_wdt_stop(struct watchdog_device *wdd)
 static int qcom_wdt_ping(struct watchdog_device *wdd)
 {
 	struct qcom_wdt *wdt = to_qcom_wdt(wdd);
-
+	last_pet = sched_clock();
 	writel(1, wdt->base + WDT_RST);
 	return 0;
 }
