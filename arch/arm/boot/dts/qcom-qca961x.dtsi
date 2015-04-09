@@ -356,7 +356,7 @@
 		};
 
 		wifi0: wifi@a000000 {
-			compatible = "qcom,wifi-qca961x";
+			compatible = "qca,wifi-qca961x";
 			reg = <0xa000000 0x200000>;
 			resets = <&gcc WIFI0_CPU_INIT_RESET>,
 				<&gcc WIFI0_RADIO_SRIF_RESET>,
@@ -392,12 +392,12 @@
 				"msi7", "msi8", "msi9", "msi10", "msi11", "msi12", "msi13", "msi14",
 				"msi15", "legacy";
 			status = "disabled";
-			qcom,msi_addr = <0x0b006040>;
-			qcom,msi_base = <0x40>;
+			qca,msi_addr = <0x0b006040>;
+			qca,msi_base = <0x40>;
 		};
 
 		wifi1: wifi@a800000 {
-			compatible = "qcom,wifi-qca961x";
+			compatible = "qca,wifi-qca961x";
 			reg = <0xa800000 0x200000>;
 			resets = <&gcc WIFI1_CPU_INIT_RESET>,
 				<&gcc WIFI1_RADIO_SRIF_RESET>,
@@ -433,8 +433,8 @@
 				"msi7", "msi8", "msi9", "msi10", "msi11", "msi12", "msi13", "msi14",
 				"msi15", "legacy";
 			status = "disabled";
-			qcom,msi_addr = <0x0b006040>;
-			qcom,msi_base = <0x50>;
+			qca,msi_addr = <0x0b006040>;
+			qca,msi_base = <0x50>;
 		};
 
 		edma@c080000 {
