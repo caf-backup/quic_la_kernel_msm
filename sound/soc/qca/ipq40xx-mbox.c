@@ -24,56 +24,67 @@
 #include <sound/core.h>
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
+#include <asm/bitops.h>
 
+#include "ipq40xx-mbox.h"
 
-#include "qca961x-mbox.h"
-
-static unsigned char ioremap_cnt;
-volatile void __iomem *mbox_base;
-spinlock_t qca961x_mbox_lock;
-
-struct qca961x_mbox_rt_priv *mbox_rtime[ADSS_MBOX_NR_CHANNELS];
-
-unsigned int mbox_irqs[ADSS_MBOX_NR_CHANNELS] = {
-	[ADSS_MBOX_SPDIF_CHANNEL]	= ADSS_MBOX_SPDIF_IRQ,
-	[ADSS_MBOX_STEREO0_CHANNEL]	= ADSS_MBOX0_IRQ,
-	[ADSS_MBOX_STEREO1_CHANNEL]	= ADSS_MBOX1_IRQ,
-	[ADSS_MBOX_STEREO2_CHANNEL]	= ADSS_MBOX2_IRQ,
-	[ADSS_MBOX_STEREO3_CHANNEL]	= ADSS_MBOX3_IRQ
+enum {
+	CHN_DISABLED = 0x00,
+	CHN_ENABLED = 0x01, /* from dtsi */
+	CHN_STARTED = 0x02, /* dma inited */
+	CHN_STATUS_DISABLE = 0xFF,
 };
 
-int qca961x_mbox_fifo_reset(int channel)
+struct ipq40xx_mbox_rt_priv *mbox_rtime[ADSS_MBOX_NR_CHANNELS];
+
+int ipq40xx_mbox_fifo_reset(int channel_id)
 {
 	volatile void __iomem *mbox_reg;
-	unsigned int mask = MBOX_FIFO_RESET_TX_INIT |
-				MBOX_FIFO_RESET_RX_INIT;
+	uint32_t index, dir;
 
-	if (!mbox_rtime[channel])
+	index = ipq40xx_convert_id_to_channel(channel_id);
+	dir = ipq40xx_convert_id_to_dir(channel_id);
+
+	if (!mbox_rtime[index])
 		return -ENOMEM;
 
-	mbox_reg = mbox_rtime[channel]->mbox_reg_base;
-	writel(mask, mbox_reg + ADSS_MBOXn_MBOX_FIFO_RESET_REG);
+	mbox_reg = mbox_rtime[index]->mbox_reg_base;
+
+	switch (dir) {
+	case PLAYBACK:
+		writel(MBOX_FIFO_RESET_TX_INIT,
+			 mbox_reg + ADSS_MBOXn_MBOX_FIFO_RESET_REG);
+		break;
+	case CAPTURE:
+		writel(MBOX_FIFO_RESET_RX_INIT,
+			 mbox_reg + ADSS_MBOXn_MBOX_FIFO_RESET_REG);
+		break;
+	}
 
 	return 0;
 }
-EXPORT_SYMBOL(qca961x_mbox_fifo_reset);
+EXPORT_SYMBOL(ipq40xx_mbox_fifo_reset);
 
-int qca961x_mbox_dma_start(int channel)
+int ipq40xx_mbox_dma_start(int channel_id)
 {
 	volatile void __iomem *mbox_reg;
+	uint32_t index, dir;
 
-	if (!mbox_rtime[channel])
+	index = ipq40xx_convert_id_to_channel(channel_id);
+	dir = ipq40xx_convert_id_to_dir(channel_id);
+
+	if (!mbox_rtime[index])
 		return -ENOMEM;
 
-	mbox_reg = mbox_rtime[channel]->mbox_reg_base;
+	mbox_reg = mbox_rtime[index]->mbox_reg_base;
 
-	switch (mbox_rtime[channel]->direction) {
-	case SNDRV_PCM_STREAM_PLAYBACK:
+	switch (dir) {
+	case PLAYBACK:
 		writel(ADSS_MBOXn_DMA_RX_CONTROL_START,
 			mbox_reg + ADSS_MBOXn_MBOXn_DMA_RX_CONTROL_REG);
 		break;
 
-	case SNDRV_PCM_STREAM_CAPTURE:
+	case CAPTURE:
 		writel(ADSS_MBOXn_DMA_TX_CONTROL_START,
 			mbox_reg + ADSS_MBOXn_MBOXn_DMA_TX_CONTROL_REG);
 		break;
@@ -81,24 +92,28 @@ int qca961x_mbox_dma_start(int channel)
 
 	return 0;
 }
-EXPORT_SYMBOL(qca961x_mbox_dma_start);
+EXPORT_SYMBOL(ipq40xx_mbox_dma_start);
 
-int qca961x_mbox_dma_stop(int channel)
+int ipq40xx_mbox_dma_stop(int channel_id)
 {
 	volatile void __iomem *mbox_reg;
+	uint32_t index, dir;
 
-	if (!mbox_rtime[channel])
+	index = ipq40xx_convert_id_to_channel(channel_id);
+	dir = ipq40xx_convert_id_to_dir(channel_id);
+
+	if (!mbox_rtime[index])
 		return -ENOMEM;
 
-	mbox_reg = mbox_rtime[channel]->mbox_reg_base;
+	mbox_reg = mbox_rtime[index]->mbox_reg_base;
 
-	switch (mbox_rtime[channel]->direction) {
-	case SNDRV_PCM_STREAM_PLAYBACK:
+	switch (dir) {
+	case PLAYBACK:
 		writel(ADSS_MBOXn_DMA_RX_CONTROL_STOP,
 			mbox_reg + ADSS_MBOXn_MBOXn_DMA_RX_CONTROL_REG);
 		break;
 
-	case SNDRV_PCM_STREAM_CAPTURE:
+	case CAPTURE:
 		writel(ADSS_MBOXn_DMA_TX_CONTROL_STOP,
 			mbox_reg + ADSS_MBOXn_MBOXn_DMA_TX_CONTROL_REG);
 		break;
@@ -113,40 +128,57 @@ int qca961x_mbox_dma_stop(int channel)
 	return 0;
 
 }
-EXPORT_SYMBOL(qca961x_mbox_dma_stop);
+EXPORT_SYMBOL(ipq40xx_mbox_dma_stop);
 
-int qca961x_mbox_dma_prepare(int channel)
+static inline bool ipq40xx_is_chn_already_inited(uint32_t index, uint32_t dir)
 {
-	struct qca961x_mbox_desc *desc;
+	if (dir == PLAYBACK)
+		return (test_bit(CHN_STARTED,
+			&mbox_rtime[index]->dir_priv[CAPTURE].status));
+	else
+		return (test_bit(CHN_STARTED,
+			&mbox_rtime[index]->dir_priv[PLAYBACK].status));
+}
+
+int ipq40xx_mbox_dma_prepare(int channel_id)
+{
+	struct ipq40xx_mbox_desc *desc;
 	unsigned int val;
 	int err;
 	volatile void __iomem *mbox_reg;
 	dma_addr_t phys_addr;
+	uint32_t index, dir;
 
-	if (!mbox_rtime[channel])
+	index = ipq40xx_convert_id_to_channel(channel_id);
+	dir = ipq40xx_convert_id_to_dir(channel_id);
+
+	if (!mbox_rtime[index])
 		return -ENOMEM;
 
-	mbox_reg = mbox_rtime[channel]->mbox_reg_base;
+	mbox_reg = mbox_rtime[index]->mbox_reg_base;
 
+	/* do not reset DMA registers if the other direction is active */
+	if (!ipq40xx_is_chn_already_inited(index, dir)) {
+
+		val = readl(mbox_reg + ADSS_MBOXn_MBOX_DMA_POLICY_REG);
+		val |= MBOX_DMA_POLICY_SW_RESET;
+		writel(val, mbox_reg + ADSS_MBOXn_MBOX_DMA_POLICY_REG);
+
+		mdelay(10);
+
+		val &= ~(MBOX_DMA_POLICY_SW_RESET);
+		writel(val, mbox_reg + ADSS_MBOXn_MBOX_DMA_POLICY_REG);
+	}
+
+	desc = mbox_rtime[index]->dir_priv[dir].dma_virt_head;
+	phys_addr = mbox_rtime[index]->dir_priv[dir].dma_phys_head;
 	val = readl(mbox_reg + ADSS_MBOXn_MBOX_DMA_POLICY_REG);
-	val |= MBOX_DMA_POLICY_SW_RESET;
-	writel(val, mbox_reg + ADSS_MBOXn_MBOX_DMA_POLICY_REG);
 
-	mdelay(10);
-
-	val &= ~(MBOX_DMA_POLICY_SW_RESET);
-	writel(val, mbox_reg + ADSS_MBOXn_MBOX_DMA_POLICY_REG);
-
-	desc = mbox_rtime[channel]->dma_virt_head;
-	phys_addr = mbox_rtime[channel]->dma_phys_head;
-
-
-	if (mbox_rtime[channel]->direction == SNDRV_PCM_STREAM_PLAYBACK) {
+	if (dir == PLAYBACK) {
 		/* Request the DMA channel to the controller */
 
 		val |= MBOX_DMA_POLICY_RX_INT_TYPE;
 		writel(val, mbox_reg + ADSS_MBOXn_MBOX_DMA_POLICY_REG);
-
 
 		/* The direction is indicated from the DMA engine perspective
 		 * i.e. we'll be using the RX registers for Playback and
@@ -157,7 +189,7 @@ int qca961x_mbox_dma_prepare(int channel)
 		writel(phys_addr & 0xfffffff,
 			mbox_reg + ADSS_MBOXn_MBOXn_DMA_RX_DESCRIPTOR_BASE_REG);
 
-		err = qca961x_mbox_interrupt_enable(channel,
+		err = ipq40xx_mbox_interrupt_enable(index,
 				MBOX_INT_ENABLE_RX_DMA_COMPLETE);
 	} else {
 
@@ -173,40 +205,43 @@ int qca961x_mbox_dma_prepare(int channel)
 		writel(phys_addr & 0xfffffff,
 			mbox_reg + ADSS_MBOXn_MBOXn_DMA_TX_DESCRIPTOR_BASE_REG);
 
-
-		err = qca961x_mbox_interrupt_enable(channel,
+		err = ipq40xx_mbox_interrupt_enable(index,
 				MBOX_INT_ENABLE_TX_DMA_COMPLETE);
 	}
 
 	return err;
 }
-EXPORT_SYMBOL(qca961x_mbox_dma_prepare);
+EXPORT_SYMBOL(ipq40xx_mbox_dma_prepare);
 
-int qca961x_mbox_form_ring(int channel, dma_addr_t baseaddr, int period_bytes,
-				int bufsize)
+int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr,
+				int period_bytes, int bufsize)
 {
-	struct qca961x_mbox_desc *desc, *_desc_p;
+	struct ipq40xx_mbox_desc *desc, *_desc_p;
 	dma_addr_t desc_p;
 	unsigned int i, ndescs;
+	uint32_t index, dir;
 
-	if (!mbox_rtime[channel])
+	index = ipq40xx_convert_id_to_channel(channel_id);
+	dir = ipq40xx_convert_id_to_dir(channel_id);
+
+	if (!mbox_rtime[index])
 		return -ENOMEM;
 
 	ndescs = (bufsize + (period_bytes - 1)) / period_bytes;
 
-	desc = dma_alloc_coherent(mbox_rtime[channel]->dev,
-				(ndescs * sizeof(struct qca961x_mbox_desc)),
+	desc = dma_alloc_coherent(mbox_rtime[index]->dir_priv[dir].dev,
+				(ndescs * sizeof(struct ipq40xx_mbox_desc)),
 				&desc_p, GFP_KERNEL);
 	if (!desc) {
-		printk("Mem alloc failed for MBOX RX DMA desc \n");
+		pr_err("Mem alloc failed for MBOX DMA desc \n");
 		return -ENOMEM;
 	}
 
-	memset(desc, 0, ndescs * sizeof(struct qca961x_mbox_desc));
-	mbox_rtime[channel]->ndescs = ndescs;
-	mbox_rtime[channel]->dma_virt_head = desc;
-	mbox_rtime[channel]->dma_phys_head = desc_p;
-	_desc_p = (struct qca961x_mbox_desc *)desc_p;
+	memset(desc, 0, ndescs * sizeof(struct ipq40xx_mbox_desc));
+	mbox_rtime[index]->dir_priv[dir].ndescs = ndescs;
+	mbox_rtime[index]->dir_priv[dir].dma_virt_head = desc;
+	mbox_rtime[index]->dir_priv[dir].dma_phys_head = desc_p;
+	_desc_p = (struct ipq40xx_mbox_desc *)desc_p;
 
 	for (i = 0; i < ndescs; i++) {
 
@@ -230,124 +265,227 @@ int qca961x_mbox_form_ring(int channel, dma_addr_t baseaddr, int period_bytes,
 
 	return 0;
 }
-EXPORT_SYMBOL(qca961x_mbox_form_ring);
+EXPORT_SYMBOL(ipq40xx_mbox_form_ring);
 
-int qca961x_mbox_dma_release(int channel)
+int ipq40xx_mbox_dma_release(int channel_id)
 {
 	unsigned long flags;
+	uint32_t index, dir;
 
-	spin_lock_irqsave(&qca961x_mbox_lock, flags);
+	index = ipq40xx_convert_id_to_channel(channel_id);
+	dir = ipq40xx_convert_id_to_dir(channel_id);
 
-	if (!mbox_rtime[channel]) {
+	if (!mbox_rtime[index]) {
 		/* Handling an error condition where same channel
 		 * is been forced to release more than once */
-		spin_unlock_irqrestore(&qca961x_mbox_lock, flags);
 		return -EINVAL;
 	}
 
-	dma_free_coherent(mbox_rtime[channel]->dev,
-		mbox_rtime[channel]->ndescs * sizeof(struct qca961x_mbox_desc),
-		mbox_rtime[channel]->dma_virt_head,
-		mbox_rtime[channel]->dma_phys_head);
+	if (test_bit(CHN_STARTED, &mbox_rtime[index]->dir_priv[dir].status)) {
+		dma_free_coherent(mbox_rtime[index]->dir_priv[dir].dev,
+			(mbox_rtime[index]->dir_priv[dir].ndescs *
+				sizeof(struct ipq40xx_mbox_desc)),
+			mbox_rtime[index]->dir_priv[dir].dma_virt_head,
+			mbox_rtime[index]->dir_priv[dir].dma_phys_head);
+		clear_bit(CHN_STARTED,
+				&mbox_rtime[index]->dir_priv[dir].status);
+		return 0;
+	}
 
-	free_irq(mbox_rtime[channel]->irq_no, mbox_rtime[channel]);
-	kfree(mbox_rtime[channel]);
-	mbox_rtime[channel] = NULL;
-
-	if (--ioremap_cnt == 0)
-		iounmap(mbox_base);
-
-	spin_unlock_irqrestore(&qca961x_mbox_lock, flags);
-
-	return 0;
+	return -ENXIO;
 }
-EXPORT_SYMBOL(qca961x_mbox_dma_release);
+EXPORT_SYMBOL(ipq40xx_mbox_dma_release);
 
-static irqreturn_t qca961x_mbox_dma_irq(int irq, void *dev_id)
+static irqreturn_t ipq40xx_mbox_dma_irq(int irq, void *dev_id)
 {
+	uint32_t ret = IRQ_NONE;
 	unsigned int status;
-	struct qca961x_mbox_rt_priv *curr_rtime =
-				(struct qca961x_mbox_rt_priv *)dev_id;
+	struct ipq40xx_mbox_rt_priv *curr_rtime =
+				(struct ipq40xx_mbox_rt_priv*)dev_id;
 
 	status = readl(curr_rtime->mbox_reg_base +
 			ADSS_MBOXn_MBOX_INT_STATUS_REG);
 
-	switch (curr_rtime->direction) {
-	case SNDRV_PCM_STREAM_PLAYBACK:
-		if (status & MBOX_INT_STATUS_RX_DMA_COMPLETE) {
-			qca961x_mbox_interrupt_ack(curr_rtime->channel,
-					MBOX_INT_STATUS_RX_DMA_COMPLETE);
+	if (status & MBOX_INT_STATUS_RX_DMA_COMPLETE) {
+		ipq40xx_mbox_interrupt_ack(
+			curr_rtime->dir_priv[PLAYBACK].channel_id,
+			MBOX_INT_STATUS_RX_DMA_COMPLETE);
 
-			if (curr_rtime->callback)
-				curr_rtime->callback(irq, curr_rtime->dai_priv);
-
-		} else if ((status & MBOX_INT_STATUS_RX_UNDERFLOW) ||
-				(status & MBOX_INT_STATUS_RX_FIFO_UNDERFLOW))
-			printk("Play back underrun\n");
-
-		break;
-
-	case SNDRV_PCM_STREAM_CAPTURE:
-		if (status & MBOX_INT_STATUS_TX_DMA_COMPLETE) {
-			qca961x_mbox_interrupt_ack(curr_rtime->channel,
-					MBOX_INT_STATUS_TX_DMA_COMPLETE);
-
-			if (curr_rtime->callback)
-				curr_rtime->callback(irq, curr_rtime->dai_priv);
-
-		} else if ((status & MBOX_INT_STATUS_TX_OVERFLOW) ||
-				(status & MBOX_INT_STATUS_TX_FIFO_OVERFLOW))
-			printk("Capture overrun\n");
-		break;
+		if (curr_rtime->dir_priv[PLAYBACK].callback)
+			curr_rtime->dir_priv[PLAYBACK].callback(irq,
+				curr_rtime->dir_priv[PLAYBACK].dai_priv);
+		ret = IRQ_HANDLED;
 	}
 
-	return IRQ_HANDLED;
+	if (status & MBOX_INT_STATUS_TX_DMA_COMPLETE) {
+		ipq40xx_mbox_interrupt_ack(
+			curr_rtime->dir_priv[CAPTURE].channel_id,
+			MBOX_INT_STATUS_TX_DMA_COMPLETE);
+
+		if (curr_rtime->dir_priv[CAPTURE].callback)
+			curr_rtime->dir_priv[CAPTURE].callback(irq,
+				curr_rtime->dir_priv[CAPTURE].dai_priv);
+		ret = IRQ_HANDLED;
+	}
+
+	if ((status & MBOX_INT_STATUS_RX_UNDERFLOW) ||
+			(status & MBOX_INT_STATUS_RX_FIFO_UNDERFLOW)) {
+		curr_rtime->dir_priv[PLAYBACK].err_stats++;
+		ret = IRQ_HANDLED;
+	}
+
+	if ((status & MBOX_INT_STATUS_TX_OVERFLOW) ||
+			(status & MBOX_INT_STATUS_TX_FIFO_OVERFLOW)) {
+		curr_rtime->dir_priv[CAPTURE].err_stats++;
+		ret = IRQ_HANDLED;
+	}
+
+	return ret;
 }
 
-int qca961x_mbox_dma_init(struct device *dev, int channel, int direction,
-	irq_handler_t callback, void *private_data)
+int ipq40xx_mbox_dma_init(struct device *dev, int channel_id,
+			irq_handler_t callback, void *private_data)
 {
-	int err;
-	unsigned long flags;
+	uint32_t index;
+	uint32_t dir;
 
-	if (channel > ADSS_MBOX_NR_CHANNELS)
+	index = ipq40xx_convert_id_to_channel(channel_id);
+	dir = ipq40xx_convert_id_to_dir(channel_id);
+
+	if (index  > ADSS_MBOX_NR_CHANNELS)
 		return -EINVAL;
 
-	spin_lock_irqsave(&qca961x_mbox_lock, flags);
-
-	if (++ioremap_cnt == 1)
-		mbox_base = ioremap_nocache(ADSS_MBOX_REG_BASE,
-						ADSS_MBOX_RANGE);
-	if (!mbox_rtime[channel]) {
-		mbox_rtime[channel] =
-			kzalloc(sizeof(struct qca961x_mbox_priv_t *),
-				GFP_KERNEL);
-	} else {
-		/* Handling an error condition where same channel
-		 * is been requested more than once */
-		spin_unlock_irqrestore(&qca961x_mbox_lock, flags);
-		return -EBUSY;
-	}
-	spin_unlock_irqrestore(&qca961x_mbox_lock, flags);
-
-	if (!mbox_rtime[channel] && !mbox_base)
+	if (!mbox_rtime[index])
 		return -ENOMEM;
 
-	mbox_rtime[channel]->channel = channel;
-	mbox_rtime[channel]->irq_no = mbox_irqs[channel];
-	mbox_rtime[channel]->dai_priv = private_data;
-	mbox_rtime[channel]->callback = callback;
-	mbox_rtime[channel]->mbox_reg_base = mbox_base + (channel * 0x2000);
-	mbox_rtime[channel]->direction = direction;
-	mbox_rtime[channel]->dev = dev;
+	if (!(mbox_rtime[index]->dir_priv[dir].status & CHN_ENABLED))
+		return -EINVAL;
 
-	err = request_irq(mbox_rtime[channel]->irq_no, qca961x_mbox_dma_irq, 0,
-				"qca961x-mbox", mbox_rtime[channel]);
+	if (test_and_set_bit(CHN_STARTED, &mbox_rtime[index]->dir_priv[dir].status)) {
+		return -EBUSY;
+	}
 
-	if (err)
-		return err;
-
+	mbox_rtime[index]->dir_priv[dir].dai_priv = private_data;
+	mbox_rtime[index]->dir_priv[dir].callback = callback;
+	mbox_rtime[index]->dir_priv[dir].dev = dev;
 
 	return 0;
 }
-EXPORT_SYMBOL(qca961x_mbox_dma_init);
+EXPORT_SYMBOL(ipq40xx_mbox_dma_init);
+
+static int ipq40xx_mbox_probe(struct platform_device *pdev)
+{
+	struct device_node *np = NULL;
+	int irq;
+	uint32_t tx_channel;
+	uint32_t rx_channel;
+	uint32_t id;
+	void __iomem *reg_base;
+	struct resource *res;
+	int rc;
+
+	if (!pdev)
+		return -ENODEV;
+
+	np = of_node_get(pdev->dev.of_node);
+	if ((of_property_read_u32(np, "dma-index", &id))) {
+		pr_err("%s: error reading critical device "
+				"node properties\n", np->name);
+		rc = -EINVAL;
+		goto init_err;
+	}
+
+	if (id > ADSS_MBOX_NR_CHANNELS) {
+		rc = -EINVAL;
+		goto init_err;
+	}
+
+	if ((of_property_read_u32(np, "tx-channel", &tx_channel)))
+		tx_channel = CHN_STATUS_DISABLE;
+
+	if ((of_property_read_u32(np, "rx-channel", &rx_channel)))
+		rx_channel = CHN_STATUS_DISABLE;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(&pdev->dev, "%s: %d: Error getting mbox resource\n",
+						__func__, __LINE__);
+		return -ENODEV;
+	}
+
+	/* Read interrupt and store */
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		dev_err(&pdev->dev, "%s: MBOX %d IRQ is not provided\n",
+						__func__, id);
+		rc = -EINVAL;
+		goto init_err;
+	}
+
+	reg_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(reg_base)) {
+		of_node_put(pdev->dev.of_node);
+		return PTR_ERR(reg_base);
+	}
+
+	if (!mbox_rtime[id])
+		mbox_rtime[id] = kzalloc(sizeof(struct ipq40xx_mbox_rt_priv),
+								GFP_KERNEL);
+
+	rc = request_irq(irq, ipq40xx_mbox_dma_irq, 0, "ipq40xx-mbox",
+					mbox_rtime[id]);
+	if (rc) {
+		of_node_put(pdev->dev.of_node);
+		kfree(mbox_rtime[id]);
+		return rc;
+	}
+
+	mbox_rtime[id]->mbox_reg_base = reg_base;
+	mbox_rtime[id]->dir_priv[PLAYBACK].channel_id = tx_channel;
+	mbox_rtime[id]->dir_priv[CAPTURE].channel_id = rx_channel;
+	mbox_rtime[id]->dir_priv[PLAYBACK].status =
+		(tx_channel == CHN_STATUS_DISABLE) ? CHN_DISABLED : CHN_ENABLED;
+	mbox_rtime[id]->dir_priv[CAPTURE].status =
+		(rx_channel == CHN_STATUS_DISABLE) ? CHN_DISABLED : CHN_ENABLED;
+	mbox_rtime[id]->irq_no = irq;
+init_err:
+	of_node_put(pdev->dev.of_node);
+	return rc;
+}
+
+static int ipq40xx_mbox_remove(struct platform_device *pdev)
+{
+	uint32_t i;
+
+	for (i = 0; i < ADSS_MBOX_NR_CHANNELS; i++) {
+		if (mbox_rtime[i]) {
+			free_irq(mbox_rtime[i]->irq_no, mbox_rtime[i]);
+			ipq40xx_mbox_dma_release(i * 2 + PLAYBACK);
+			ipq40xx_mbox_dma_release(i * 2 + CAPTURE);
+			kfree(mbox_rtime[i]);
+			mbox_rtime[i] = NULL;
+		}
+	}
+	return 0;
+}
+
+static const struct of_device_id ipq40xx_mbox_table[] = {
+	{ .compatible = "qca,ipq40xx-mbox" },
+	{},
+};
+
+static struct platform_driver ipq40xx_mbox_driver = {
+	.probe = ipq40xx_mbox_probe,
+	.remove = ipq40xx_mbox_remove,
+	.driver = {
+		.name = "ipq40xx-mbox",
+		.owner = THIS_MODULE,
+		.of_match_table = ipq40xx_mbox_table,
+	},
+};
+
+module_platform_driver(ipq40xx_mbox_driver);
+
+MODULE_ALIAS("platform:ipq40xx-mbox");
+MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("IPQ40xx MBOX DRIVER");
