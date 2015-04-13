@@ -221,6 +221,7 @@ void br_flood_deliver(struct net_bridge *br, struct sk_buff *skb, bool unicast)
 {
 	br_flood(br, skb, NULL, __br_deliver, unicast, false);
 }
+EXPORT_SYMBOL_GPL(br_deliver);
 
 /* called under bridge lock */
 void br_flood_forward(struct net_bridge *br, struct sk_buff *skb,
@@ -228,6 +229,7 @@ void br_flood_forward(struct net_bridge *br, struct sk_buff *skb,
 {
 	br_flood(br, skb, skb2, __br_forward, unicast, true);
 }
+EXPORT_SYMBOL_GPL(br_forward);
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 /* called with rcu_read_lock */
