@@ -246,6 +246,7 @@ void br_flood_forward(struct net_bridge *br, struct sk_buff *skb,
 {
 	br_flood(br, skb, skb2, __br_forward, unicast, true);
 }
+EXPORT_SYMBOL_GPL(br_forward);
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 /* called with rcu_read_lock */

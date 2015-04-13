@@ -47,6 +47,8 @@ struct br_ip_list {
 	struct br_ip addr;
 };
 
+struct net_bridge_port;
+
 extern void brioctl_set(int (*ioctl_hook)(struct net *, unsigned int, void __user *));
 extern struct net_device *br_port_dev_get(struct net_device *dev, unsigned char *addr);
 extern void br_refresh_fdb_entry(struct net_device *dev, const char *addr);
@@ -80,5 +82,9 @@ static inline bool br_multicast_has_querier_adjacent(struct net_device *dev,
 	return false;
 }
 #endif
+
+typedef int (br_multicast_handle_hook_t)(const struct net_bridge_port *src,
+		struct sk_buff *skb);
+extern br_multicast_handle_hook_t __rcu *br_multicast_handle_hook;
 
 #endif
