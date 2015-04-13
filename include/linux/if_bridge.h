@@ -27,6 +27,7 @@
 #define BR_AUTO_MASK		(BR_FLOOD | BR_LEARNING)
 #define BR_PROMISC		BIT(7)
 #define BR_PROXYARP		BIT(8)
+#define BR_PROXYARP_WIFI	BIT(10)
 #define BR_ISOLATE_MODE		BIT(11)
 
 extern void brioctl_set(int (*ioctl_hook)(struct net *, unsigned int, void __user *));
