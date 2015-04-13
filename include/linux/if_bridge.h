@@ -15,6 +15,19 @@
 
 #include <linux/netdevice.h>
 #include <uapi/linux/if_bridge.h>
+#include <linux/bitops.h>
+
+#define BR_HAIRPIN_MODE		BIT(0)
+#define BR_BPDU_GUARD		BIT(1)
+#define BR_ROOT_BLOCK		BIT(2)
+#define BR_MULTICAST_FAST_LEAVE	BIT(3)
+#define BR_ADMIN_COST		BIT(4)
+#define BR_LEARNING		BIT(5)
+#define BR_FLOOD		BIT(6)
+#define BR_AUTO_MASK		(BR_FLOOD | BR_LEARNING)
+#define BR_PROMISC		BIT(7)
+#define BR_PROXYARP		BIT(8)
+#define BR_ISOLATE_MODE		BIT(11)
 
 extern void brioctl_set(int (*ioctl_hook)(struct net *, unsigned int, void __user *));
 extern struct net_device *br_port_dev_get(struct net_device *dev, unsigned char *addr);
