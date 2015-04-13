@@ -1116,8 +1116,12 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 		}
 	}
 
-	if (!ret)
+	if (!ret) {
+		dev_warn(device, "Firmware loaded from user helper succesfully\n");
 		ret = assign_firmware_buf(fw, device, opt_flags);
+	} else {
+		dev_warn(device, "Firmware failed to load from user helper\n");
+	}
 
 	usermodehelper_read_unlock();
 
