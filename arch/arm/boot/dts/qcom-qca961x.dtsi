@@ -59,6 +59,14 @@
 		};
 	};
 
+	clocks {
+		sleep_clk: sleep_clk {
+			compatible = "fixed-clock";
+			clock-frequency = <32768>;
+			#clock-cells = <0>;
+		};
+	};
+
 	soc: soc { };
 };
 
@@ -96,6 +104,14 @@
 		restart@4ab000 {
 			compatible = "qcom,pshold";
 			reg = <0x4ab000 0x4>;
+		};
+
+		watchdog@b017000 {
+			compatible = "qcom,kpss-wdt-ipq40xx";
+			reg = <0xb017000 0x40>;
+			clocks = <&sleep_clk>;
+			timeout-sec = <10>;
+			status = "disabled";
 		};
 
 		apcs: a7ss_base@b088000 {

@@ -261,6 +261,7 @@ static const struct of_device_id qcom_wdt_of_table[] = {
 	{ .compatible = "qcom,kpss-wdt-msm8960", },
 	{ .compatible = "qcom,kpss-wdt-apq8064", },
 	{ .compatible = "qcom,kpss-wdt-ipq8064", },
+	{ .compatible = "qcom,kpss-wdt-ipq40xx", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, qcom_wdt_of_table);
