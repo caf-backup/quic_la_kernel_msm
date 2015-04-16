@@ -43,7 +43,11 @@ endif
    zreladdr-$(CONFIG_ARCH_APQ8064)	:= 0x80208000
 
 # IPQ806x
+ifeq ($(CONFIG_MSM_DLOAD_MODE_APPSBL),y)
    zreladdr-$(CONFIG_ARCH_IPQ806X)	:= 0x41508000
+else
+   zreladdr-$(CONFIG_ARCH_IPQ806X)	:= 0x41208000
+endif
 
 # FSM9XXX
    zreladdr-$(CONFIG_ARCH_FSM9XXX)	:= 0x10008000
