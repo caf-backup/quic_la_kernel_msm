@@ -22,6 +22,9 @@
 #define TCSR_USB_PORT_SEL	0xb0
 #define TCSR_USB_HSPHY_CONFIG	0xC
 
+#define TCSR_ESS_INTERFACE_SEL_OFFSET   0x0
+#define TCSR_ESS_INTERFACE_SEL_MASK     0xf
+
 static int tcsr_probe(struct platform_device *pdev)
 {
 	struct resource *res;
@@ -43,6 +46,15 @@ static int tcsr_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "setting usb hs phy mode select = %x\n", val);
 		writel(val, base + TCSR_USB_HSPHY_CONFIG);
 	}
+
+	if (!of_property_read_u32(node, "qcom,ess-interface-select", &val)) {
+		u32 tmp = 0;
+		dev_info(&pdev->dev, "setting ess interface select = %x\n", val);
+		tmp = readl(base + TCSR_ESS_INTERFACE_SEL_OFFSET);
+		tmp = tmp & (~TCSR_ESS_INTERFACE_SEL_MASK);
+		tmp = tmp | (val&TCSR_ESS_INTERFACE_SEL_MASK);
+		writel(tmp, base + TCSR_ESS_INTERFACE_SEL_OFFSET);
+        }
 
 	return 0;
 }
