@@ -25,7 +25,7 @@
 #include <sound/pcm.h>
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/reset.h>
 
@@ -293,7 +293,7 @@ void ipq40xx_glb_tdm_ctrl_ch_num(uint32_t val, uint32_t dir)
 
 	cfg = readl(adss_audio_local_base + ADSS_GLB_TDM_CTRL_REG);
 
-	if(dir == PLAYBACK) {
+	if (dir == PLAYBACK) {
 		cfg &= ~(GLB_TDM_CTRL_TX_CHAN_NUM_MASK);
 		cfg |= GLB_TDM_CTRL_TX_CHAN_NUM(val);
 	} else if (dir == CAPTURE) {
@@ -311,7 +311,7 @@ void ipq40xx_glb_tdm_ctrl_sync_num(uint32_t val, uint32_t dir)
 
 	cfg = readl(adss_audio_local_base + ADSS_GLB_TDM_CTRL_REG);
 
-	if(dir == PLAYBACK) {
+	if (dir == PLAYBACK) {
 		cfg &= ~(GLB_TDM_CTRL_TX_SYNC_NUM_MASK);
 		cfg |= GLB_TDM_CTRL_TX_SYNC_NUM(val);
 	} else if (dir == CAPTURE) {
@@ -329,7 +329,7 @@ void ipq40xx_glb_tdm_ctrl_delay(uint32_t delay, uint32_t dir)
 
 	cfg = readl(adss_audio_local_base + ADSS_GLB_TDM_CTRL_REG);
 
-	if(dir == PLAYBACK) {
+	if (dir == PLAYBACK) {
 		cfg &= ~(GLB_TDM_CTRL_TX_DELAY);
 		if (delay)
 			cfg |= GLB_TDM_CTRL_TX_DELAY;
@@ -341,6 +341,60 @@ void ipq40xx_glb_tdm_ctrl_delay(uint32_t delay, uint32_t dir)
 	writel(cfg, adss_audio_local_base + ADSS_GLB_TDM_CTRL_REG);
 }
 EXPORT_SYMBOL(ipq40xx_glb_tdm_ctrl_delay);
+
+/* PCM RAW clock configuration */
+void ipq40xx_pcm_clk_cfg(void)
+{
+	uint32_t reg_val;
+
+	/* set ADSS_AUDIO_PLL_CONFIG_REG as required */
+	reg_val = readl(adss_audio_local_base + ADSS_AUDIO_PLL_CONFIG_REG);
+	reg_val &= ~AUDIO_PLL_CONFIG_POSTPLLDIV_MASK;
+	reg_val |= AUDIO_PLL_CONFIG_POSTPLLDIV(6);
+	writel(reg_val, adss_audio_local_base + ADSS_AUDIO_PLL_CONFIG_REG);
+
+	/*set ADSS_AUDIO_PLL_MODULATION_REG as required */
+	reg_val = readl(adss_audio_local_base + ADSS_AUDIO_PLL_MODULATION_REG);
+	reg_val &= ~AUDIO_PLL_MODULATION_TGT_DIV_MASK;
+	reg_val |= AUDIO_PLL_MODULATION_TGT_DIV_FRAC(0x9BA6);
+	reg_val |= AUDIO_PLL_MODULATION_TGT_DIV_INT(49);
+	writel(reg_val, adss_audio_local_base + ADSS_AUDIO_PLL_MODULATION_REG);
+
+	/* set ADSS_AUDIO_PCM_CFG_RCGR_REG as required */
+	reg_val = readl(adss_audio_local_base + ADSS_AUDIO_PCM_CFG_RCGR_REG);
+	reg_val |= AUDIO_PCM_CFG_RCGR_SRC_SEL(1)
+			| AUDIO_PCM_CFG_RGCR_SRC_DIV(0);
+	writel(reg_val, adss_audio_local_base + ADSS_AUDIO_PCM_CFG_RCGR_REG);
+
+	/* set ADSS_AUDIO_PCM_MISC_REG  as required */
+	reg_val = AUDIO_PCM_MISC_AUTO_SCALE_DIV(7);
+	writel(reg_val, adss_audio_local_base + ADSS_AUDIO_PCM_MISC_REG);
+
+	/* set ADSS_AUDIO_PCM_CMD_RCGR_REG as required */
+	reg_val = 3;
+	writel(reg_val, adss_audio_local_base + ADSS_AUDIO_PCM_CMD_RCGR_REG);
+
+	/* write ADSS_PCM_OFFSET_REG */
+	reg_val = readl(adss_audio_local_base + ADSS_GLB_AUDIO_MODE_REG);
+	reg_val |= GLB_AUDIO_MODE_B1K;
+	writel(reg_val, adss_audio_local_base + ADSS_GLB_AUDIO_MODE_REG);
+
+}
+EXPORT_SYMBOL(ipq40xx_pcm_clk_cfg);
+
+/* PCM RAW ADSS_GLB_PCM_RST_REG register */
+void ipq40xx_glb_pcm_rst(uint32_t enable)
+{
+	uint32_t reg_val;
+
+	if (enable)
+		reg_val = GLB_PCM_RST_CTRL(1);
+	else
+		reg_val = GLB_PCM_RST_CTRL(0);
+
+	writel(reg_val, adss_audio_local_base + ADSS_GLB_PCM_RST_REG);
+}
+EXPORT_SYMBOL(ipq40xx_glb_pcm_rst);
 
 static const struct of_device_id ipq40xx_audio_adss_id_table[] = {
 	{ .compatible = "qca,ipq40xx-audio-adss" },
@@ -354,14 +408,12 @@ static int ipq40xx_audio_adss_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	adss_audio_local_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(adss_audio_local_base)) {
+	if (IS_ERR(adss_audio_local_base))
 		return PTR_ERR(adss_audio_local_base);
-	}
 
 	audio_blk_rst = devm_reset_control_get(&pdev->dev, "blk_rst");
-	if (IS_ERR(audio_blk_rst)) {
+	if (IS_ERR(audio_blk_rst))
 		return PTR_ERR(audio_blk_rst);
-	}
 
 	return 0;
 }

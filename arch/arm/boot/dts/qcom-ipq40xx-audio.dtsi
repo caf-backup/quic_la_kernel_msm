@@ -139,4 +139,8 @@
 		compatible = "qca,ipq40xx-audio";
 	};
 
+	pcm_lb: pcm_lb@0 {
+		compatible = "qca,ipq40xx-pcm-lb";
+	};
+
 };
