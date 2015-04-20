@@ -76,7 +76,34 @@ static struct snd_soc_dai_driver ipq40xx_codec_dais[] = {
 				SNDRV_PCM_FMTBIT_S32,
 		},
 	},
-
+	{
+		.name = "qca-i2s1-codec-dai",
+		.playback = {
+			.stream_name = "qca-i2s1-playback",
+			.channels_min = CH_STEREO,
+			.channels_max = CH_STEREO,
+			.rates = SNDRV_PCM_RATE_32000 |
+				SNDRV_PCM_RATE_44100 |
+				SNDRV_PCM_RATE_48000 |
+				SNDRV_PCM_RATE_96000,
+			.formats = SNDRV_PCM_FMTBIT_S16 |
+				SNDRV_PCM_FMTBIT_S32,
+		},
+	},
+	{
+		.name = "qca-i2s2-codec-dai",
+		.playback = {
+			.stream_name = "qca-i2s2-playback",
+			.channels_min = CH_STEREO,
+			.channels_max = CH_STEREO,
+			.rates = SNDRV_PCM_RATE_32000 |
+				SNDRV_PCM_RATE_44100 |
+				SNDRV_PCM_RATE_48000 |
+				SNDRV_PCM_RATE_96000,
+			.formats = SNDRV_PCM_FMTBIT_S16 |
+				SNDRV_PCM_FMTBIT_S32,
+		},
+	},
 };
 
 static int ipq40xx_info(struct snd_kcontrol *kcontrol,
@@ -126,7 +153,7 @@ struct platform_driver ipq40xx_codec_driver = {
 	.probe = ipq40xx_codec_probe,
 	.remove = ipq40xx_codec_remove,
 	.driver = {
-		.name = "qca-codec.3",
+		.name = "50.qca-codec",
 		.owner = THIS_MODULE,
 		.of_match_table = ipq40xx_codec_id_table,
 	},

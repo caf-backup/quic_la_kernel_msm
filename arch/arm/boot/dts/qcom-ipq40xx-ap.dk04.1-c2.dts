@@ -31,15 +31,31 @@
 		status = "ok";
 	};
 
-	qcacodec: qca-codec@0 {
+	qcacodec: qca-codec@50 {
 		status = "ok";
 	};
 
-	i2splatform: qca-pcm-i2s@0 {
+	i2splatform: qca-pcm-i2s@7709000 {
 		status = "ok";
 	};
 
-	tdmplatform: qca-pcm-tdm@0 {
+	tdmplatform: qca-pcm-tdm@7709000 {
+		status = "ok";
+	};
+
+	i2s1platform: qca-pcm-i2s1@770b000 {
+		status = "ok";
+	};
+
+	i2s1: ipq40xx-pcm-i2s1@0 {
+		status = "ok";
+	};
+
+	i2s2platform: qca-pcm-i2s2@770d000 {
+		status = "ok";
+	};
+
+	i2s2: ipq40xx-pcm-i2s2@0 {
 		status = "ok";
 	};
 
