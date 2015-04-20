@@ -37,21 +37,36 @@ static struct snd_soc_dai_link ipq40xx_snd_dai[] = {
 		/* Front End DAI Name */
 		.cpu_dai_name	= "qca-i2s-dai",
 		/* Platform Driver Name */
-		.platform_name	= "qca-pcm-i2s.4",
+		.platform_name	= "7709000.qca-pcm-i2s",
 		/* Codec DAI Name */
 		.codec_dai_name	= "qca-i2s-codec-dai",
 		/*Codec Driver Name */
-		.codec_name	= "qca-codec.3",
+		.codec_name	= "50.qca-codec",
 	},
 	{
 		.name		= "IPQ40xx Media2",
 		.stream_name	= "TDM",
 		.cpu_dai_name	= "qca-tdm-dai",
-		.platform_name	= "qca-pcm-tdm.5",
+		.platform_name	= "7709000.qca-pcm-tdm",
 		.codec_dai_name	= "qca-tdm-codec-dai",
-		.codec_name	= "qca-codec.3",
+		.codec_name	= "50.qca-codec",
 	},
-
+	{
+		.name		= "IPQ40xx Media3",
+		.stream_name	= "I2S1",
+		.cpu_dai_name	= "qca-i2s1-dai",
+		.platform_name	= "770b000.qca-pcm-i2s1",
+		.codec_dai_name	= "qca-i2s1-codec-dai",
+		.codec_name	= "50.qca-codec",
+	},
+	{
+		.name		= "IPQ40xx Media4",
+		.stream_name	= "I2S2",
+		.cpu_dai_name	= "qca-i2s2-dai",
+		.platform_name	= "770d000.qca-pcm-i2s2",
+		.codec_dai_name	= "qca-i2s2-codec-dai",
+		.codec_name	= "50.qca-codec",
+	},
 };
 
 static struct snd_soc_card snd_soc_card_qca = {

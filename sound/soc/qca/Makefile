@@ -1,6 +1,8 @@
 #QCA SND CARD
 snd-soc-ipq40xx-objs := ipq40xx.o
 snd-soc-ipq40xx-pcm-i2s-objs := ipq40xx-pcm-i2s.o
+snd-soc-ipq40xx-pcm-i2s-objs += ipq40xx-pcm-i2s1.o
+snd-soc-ipq40xx-pcm-i2s-objs += ipq40xx-pcm-i2s2.o
 snd-soc-ipq40xx-pcm-tdm-objs := ipq40xx-pcm-tdm.o
 snd-soc-ipq40xx-codec-objs := ipq40xx-codec.o
 snd-soc-ipq40xx-cpu-dai-objs := ipq40xx-cpu-dai.o

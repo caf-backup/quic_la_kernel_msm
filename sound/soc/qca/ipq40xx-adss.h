@@ -448,6 +448,8 @@ enum intf {
 	I2S,
 	TDM,
 	SPDIF,
+	I2S1,
+	I2S2,
 	MAX_INTF
 };
 
