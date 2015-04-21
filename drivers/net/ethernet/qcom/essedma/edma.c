@@ -759,7 +759,6 @@ static inline u16 edma_tpd_available(struct edma_common_info *c_info,
 static inline int edma_tx_queue_get(struct edma_adapter *adapter,
 		struct sk_buff *skb)
 {
-	struct edma_common_info *c_info = adapter->c_info;
 	int id = get_cpu();
 
 	put_cpu();
