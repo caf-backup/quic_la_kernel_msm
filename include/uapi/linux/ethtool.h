@@ -523,7 +523,7 @@ struct ethtool_pauseparam {
 	__u32	tx_pause;
 };
 
-#define ETH_GSTRING_LEN		32
+#define ETH_GSTRING_LEN		((size_t)32)
 
 /**
  * enum ethtool_stringset - string set ID
