@@ -90,32 +90,6 @@ static void qca_uni_ss_write(void __iomem *base, u32 offset, u32 val)
 	udelay(100);
 }
 
-/**
- * Write register and read back masked value to confirm it is written
- *
- * @base - PHY base virtual address.
- * @offset - register offset.
- * @mask - register bitmask specifying what should be updated
- * @val - value to write.
- */
-static void qca_uni_ss_write_readback(void __iomem *base, u32 offset,
-		const u32 mask, u32 val)
-{
-	u32 write_val, tmp = readl(base + offset);
-
-	tmp &= ~mask;       /* retain other bits */
-	write_val = tmp | val;
-
-	writel(write_val, base + offset);
-
-	/* Read back to see if val was written */
-	tmp = readl(base + offset);
-	tmp &= mask;        /* clear other bits */
-
-	if (tmp != val)
-		pr_err("write: %x to UNI PHY: %x FAILED\n", val, offset);
-}
-
 int mdio_wait(void __iomem *base)
 {
 	unsigned int mdio_access;
