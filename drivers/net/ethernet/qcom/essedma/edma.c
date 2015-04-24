@@ -492,9 +492,9 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 		skb->protocol = eth_type_trans(skb, netdev);
 		skb_record_rx_queue(skb, queue_to_rxid[queue_id]);
 		if (netdev->features & NETIF_F_RXHASH) {
-			hash_type = (rrd[11] >> EDMA_HASH_TYPE_SHIFT);
+			hash_type = (rrd[5] >> EDMA_HASH_TYPE_SHIFT);
 			if ((hash_type > EDMA_HASH_TYPE_START) && (hash_type < EDMA_HASH_TYPE_END))
-				skb_set_hash(skb, (rrd[5] << 8) | rrd[4], PKT_HASH_TYPE_L4);
+				skb_set_hash(skb, rrd[2], PKT_HASH_TYPE_L4);
 		}
 #ifdef CONFIG_NF_FLOW_COOKIE
 		skb->flow_cookie = rrd[3] & EDMA_RRD_FLOW_COOKIE_MASK;
