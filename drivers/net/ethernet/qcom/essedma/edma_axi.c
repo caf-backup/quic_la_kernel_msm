@@ -106,6 +106,7 @@ static const struct net_device_ops edma_axi_netdev_ops = {
 	.ndo_register_rfs_filter = edma_register_rfs_filter,
 #endif
 	.ndo_get_stats          = edma_get_stats,
+	.ndo_change_mtu		= edma_change_mtu,
 };
 
 /*
