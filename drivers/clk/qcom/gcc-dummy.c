@@ -21,7 +21,7 @@
 #include <linux/regmap.h>
 
 #include <linux/reset-controller.h>
-#include <dt-bindings/reset/qcom,gcc-qca961x.h>
+#include <dt-bindings/reset/qcom,gcc-ipq40xx.h>
 #include <dt-bindings/clock/qcom,gcc-dummy.h>
 
 #include "common.h"
