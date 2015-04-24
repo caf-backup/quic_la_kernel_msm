@@ -17,6 +17,12 @@
 #include "ess_edma.h"
 #include <linux/cpu_rmap.h>
 
+/* Weight round robin and virtual QID mask */
+#define EDMA_WRR_VID_SCTL_MASK 0xFFFF
+
+/* Weight round robin and virtual QID shift */
+#define EDMA_WRR_VID_SCTL_SHIFT 16
+
 char edma_axi_driver_name[] = "ess_edma";
 static const u32 default_msg = NETIF_MSG_DRV | NETIF_MSG_PROBE |
 	NETIF_MSG_LINK | NETIF_MSG_TIMER | NETIF_MSG_IFDOWN | NETIF_MSG_IFUP;
@@ -28,6 +34,8 @@ char edma_rx_irq[8][64];
 struct net_device *netdev[2];
 int edma_default_ltag  __read_mostly = EDMA_LAN_DEFAULT;
 int edma_default_wtag  __read_mostly = EDMA_WAN_DEFAULT;
+int weight_assigned_to_queues __read_mostly;
+int queue_to_virtual_queue __read_mostly;
 
 void edma_write_reg(u16 reg_addr, u32 reg_value)
 {
@@ -67,6 +75,84 @@ static int edma_change_default_wan_vlan(struct ctl_table *table, int write,
 	return ret;
 }
 
+static int edma_weight_assigned_to_queues(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int ret, queue_id, weight;
+	u32 reg_data, data;
+
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+	if (write) {
+		queue_id = weight_assigned_to_queues & EDMA_WRR_VID_SCTL_MASK;
+		if (queue_id < 0 || queue_id > 15) {
+			pr_err("queue_id not within desired range\n");
+			return -EINVAL;
+		}
+
+		weight = weight_assigned_to_queues >> EDMA_WRR_VID_SCTL_SHIFT;
+		if (weight < 0 || weight > 0xF) {
+			pr_err("queue_id not within desired range\n");
+			return -EINVAL;
+		}
+
+		data = weight << EDMA_WRR_SHIFT(queue_id);
+		if (queue_id <= 3) {
+			edma_read_reg(REG_WRR_CTRL_Q0_Q3, &reg_data);
+			reg_data &= ~(1 << EDMA_WRR_SHIFT(queue_id));
+			edma_write_reg(REG_WRR_CTRL_Q0_Q3, data | reg_data);
+		} else if (queue_id <= 7) {
+			edma_read_reg(REG_WRR_CTRL_Q4_Q7, &reg_data);
+			reg_data &= ~(1 << EDMA_WRR_SHIFT(queue_id));
+			edma_write_reg(REG_WRR_CTRL_Q4_Q7, data | reg_data);
+		} else if (queue_id <= 11) {
+			edma_read_reg(REG_WRR_CTRL_Q8_Q11, &reg_data);
+			reg_data &= ~(1 << EDMA_WRR_SHIFT(queue_id));
+			edma_write_reg(REG_WRR_CTRL_Q8_Q11, data | reg_data);
+		} else {
+			edma_read_reg(REG_WRR_CTRL_Q12_Q15, &reg_data);
+			reg_data &= ~(1 << EDMA_WRR_SHIFT(queue_id));
+			edma_write_reg(REG_WRR_CTRL_Q12_Q15, data | reg_data);
+		}
+	}
+
+	return ret;
+}
+
+static int edma_queue_to_virtual_queue_map(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int ret, queue_id, virtual_qid;
+	u32 reg_data, data;
+
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+	if (write) {
+		queue_id = queue_to_virtual_queue & EDMA_WRR_VID_SCTL_MASK;
+		if (queue_id < 0 || queue_id > 15) {
+			pr_err("queue_id not within desired range\n");
+			return -EINVAL;
+		}
+
+		virtual_qid = queue_to_virtual_queue >> EDMA_WRR_VID_SCTL_SHIFT;
+		if (virtual_qid < 0 || virtual_qid > 8) {
+			pr_err("queue_id not within desired range\n");
+			return -EINVAL;
+		}
+
+		data = virtual_qid << VQ_ID_SHIFT(queue_id);
+		if (queue_id <= 7) {
+			edma_read_reg(REG_VQ_CTRL0, &reg_data);
+			reg_data &= ~(1 << VQ_ID_SHIFT(queue_id));
+			edma_write_reg(REG_VQ_CTRL0, data | reg_data);
+		} else {
+			edma_read_reg(REG_VQ_CTRL1, &reg_data);
+			reg_data &= ~(1 << VQ_ID_SHIFT(queue_id));
+			edma_write_reg(REG_VQ_CTRL1, data | reg_data);
+		}
+	}
+
+	return ret;
+}
+
 static struct ctl_table edma_table[] = {
 	{
 		.procname       = "default_lan_tag",
@@ -81,6 +167,20 @@ static struct ctl_table edma_table[] = {
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
 		.proc_handler   = edma_change_default_wan_vlan
+	},
+	{
+		.procname       = "weight_assigned_to_queues",
+		.data           = &weight_assigned_to_queues,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = edma_weight_assigned_to_queues
+	},
+	{
+		.procname       = "queue_to_virtual_queue_map",
+		.data           = &queue_to_virtual_queue,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = edma_queue_to_virtual_queue_map
 	},
 	{}
 };
