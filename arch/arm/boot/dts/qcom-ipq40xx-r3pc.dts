@@ -28,6 +28,7 @@
 		bootargs = "console=ttyMSM0,115200n8";
 	};
 
+};
 	&soc {
 		pinctrl@0x01000000 {
 			serial_pins: serial_pinmux {
@@ -84,4 +85,3 @@
 			non-removable;
 		};
 	};
-};
