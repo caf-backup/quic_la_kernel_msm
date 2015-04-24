@@ -368,9 +368,8 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-msm8960-cdp.dtb \
 	qcom-msm8974-sony-xperia-honami.dtb \
 	qcom-msm8960-cdp.dtb \
-	qcom-qca961x-r3pc.dtb \
-	qcom-qca961x-r3pc-wifi.dtb \
-	qcom-qca961x-virtio.dtb
+	qcom-ipq40xx-r3pc.dtb \
+	qcom-ipq40xx-r3pc-wifi.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3066a-bqcurie2.dtb \
 	rk3188-radxarock.dtb \

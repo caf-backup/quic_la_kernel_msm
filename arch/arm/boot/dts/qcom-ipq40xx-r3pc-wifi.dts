@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  */
 
-#include "qcom-qca961x-r3pc.dts"
+#include "qcom-ipq40xx-r3pc.dts"
 
 / {
 	soc {

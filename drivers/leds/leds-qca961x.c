@@ -251,7 +251,7 @@ static int __exit qca961x_led_remove(struct platform_device *pdev)
 }
 
 static struct of_device_id qca961x_match_table[] = {
-	{.compatible = "qca961x,ledc"},
+	{.compatible = "qca,ledc"},
 	{},
 };
 

@@ -11,8 +11,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef _DT_BINDINGS_RESET_QCA_961X_H
-#define _DT_BINDINGS_RESET_QCA_961X_H
+#ifndef _DT_BINDINGS_RESET_IPQ_40XX_H
+#define _DT_BINDINGS_RESET_IPQ_40XX_H
 
 #define WIFI0_CPU_INIT_RESET			0
 #define WIFI0_RADIO_SRIF_RESET			1
@@ -41,8 +41,8 @@
 #define PCIE_AXI_S_XPU_ARES			24
 #define PCIE_AXI_M_VMIDMT_ARES			25
 #define PCIE_PIPE_ARES				26
-#define PCIE_AXI_S_ARES 			27
-#define PCIE_AXI_M_ARES 			28
+#define PCIE_AXI_S_ARES				27
+#define PCIE_AXI_M_ARES				28
 #define ESS_RESET				29
 #define AUDIO_BLK_ARES				30
 

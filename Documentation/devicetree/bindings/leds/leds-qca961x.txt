@@ -1,7 +1,7 @@
-QCA961x LED Controller Driver.
+QCA LED Controller Driver.
 
 Required properties:
-- compatible: "qca961x,ledc"
+- compatible: "qca,ledc"
 - reg: Base address for LED registers.
 - reg-names: Register name for reference.
 - qcom,tcsr_ledc_values: The values with which the 12 LED Control registers needs to be initialized with.
@@ -11,7 +11,7 @@ Required properties:
 Examples:
 
 qcom: ledc@1937000 {
-	compatible = "qca961x,ledc";
+	compatible = "qca,ledc";
 	reg = <0x1937000 0x20070>;
 	reg-names = "ledc_base_addr";
 	qcom,tcsr_ledc_values = <0x320195 0xA418820 0x16A4A0E6 0x2307B9AC 0x16AD272 \

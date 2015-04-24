@@ -200,7 +200,7 @@ static int dwc3_qca961x_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id of_dwc3_match[] = {
-	{ .compatible = "qca961x,dwc3" },
+	{ .compatible = "qca,dwc3" },
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, of_dwc3_match);
@@ -209,7 +209,7 @@ static struct platform_driver dwc3_qca961x_driver = {
 	.probe		= dwc3_qca961x_probe,
 	.remove		= dwc3_qca961x_remove,
 	.driver		= {
-		.name	= "qca961x-dwc3",
+		.name	= "qca-dwc3",
 		.owner	= THIS_MODULE,
 		.of_match_table	= of_dwc3_match,
 	},
@@ -217,6 +217,6 @@ static struct platform_driver dwc3_qca961x_driver = {
 
 module_platform_driver(dwc3_qca961x_driver);
 
-MODULE_ALIAS("platform:qca961x-dwc3");
+MODULE_ALIAS("platform:qca-dwc3");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_DESCRIPTION("DesignWare USB3 QCA961x Glue Layer");
+MODULE_DESCRIPTION("DesignWare USB3 QCA Glue Layer");

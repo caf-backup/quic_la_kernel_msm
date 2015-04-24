@@ -84,6 +84,11 @@ Required properties:
 
 - interrupts : VGIC maintenance interrupt.
 
+- arm,routable-irqs : Total number of gic irq inputs which are not directly
+		  connected from the peripherals, but are routed dynamically
+		  by a crossbar/multiplexer preceding the GIC. The GIC irq
+		  input line is assigned dynamically when the corresponding
+		  peripheral's crossbar line is mapped.
 Example:
 
 	interrupt-controller@2c001000 {
