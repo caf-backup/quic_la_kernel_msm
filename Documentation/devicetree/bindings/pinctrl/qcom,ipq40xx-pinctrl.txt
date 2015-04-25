@@ -1,7 +1,7 @@
-Qualcomm Atheros QCA961x TLMM block
+Qualcomm Atheros IPQ40xx TLMM block
 
 Required properties:
-- compatible: "qcom,qca961x-pinctrl"
+- compatible: "qcom,ipq40xx-pinctrl"
 - reg: Should be the base address and length of the TLMM block.
 - interrupts: Should be the parent IRQ of the TLMM block.
 - interrupt-controller: Marks the device node as an interrupt controller.
@@ -47,7 +47,7 @@ Valid values for qcom,pins are:
     Supports mux, bias and drive-strength
 
     sdio_cd, sdio_clk, sdio_cmd, sdio_data1, sdio_data1, sdio_data1, sdio_data1,
-    sdio_data5, sdio_data6, sdio_data7 
+    sdio_data5, sdio_data6, sdio_data7
 
 Valid values for qcom,function are:
 smart0, jtag, audio0, mdio0, wcss0_dbg18, wcss1_dbg18, qdss_tracedata_a, mdc,
@@ -83,7 +83,7 @@ wcss1_dbg13
 Example:
 
 	msmgpio: pinctrl@1000000 {
-		compatible = "qcom,qca961x-pinctrl";
+		compatible = "qcom,ipq40xx-pinctrl";
 		reg = <0x1000000 0x300000>;
 
 		gpio-controller;
