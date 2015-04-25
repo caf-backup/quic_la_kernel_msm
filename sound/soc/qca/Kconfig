@@ -14,13 +14,16 @@
 
 config SND_QCA_SOC
 	tristate "SoC Audio for QCA based platforms"
-	depends on ARCH_QCA961x
+	depends on ARCH_QCOM
 	help
 	  Say Y or M if you want to add support for QCA platforms
+	  QCA SoC supports following interfaces
+	  I2S, TDM and SPDIF
+	  Also select IPQ40xx platform
 
 config SND_QCA_SOC_IPQ40XX
 	tristate "SoC Audio support for IPQ40xx (Dakota) based platforms"
-	depends on ARCH_QCA961x && SND_QCA_SOC
+	depends on ARCH_QCOM && SND_QCA_SOC
 	select SND_IPQ40XX_SOC_PCM_I2S
 	select SND_IPQ40XX_SOC_PCM_TDM
 	select SND_IPQ40XX_SOC_CODEC
