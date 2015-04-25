@@ -99,11 +99,11 @@ static const struct of_device_id gcc_dummy_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, gcc_dummy_match_table);
 
-static struct clk_regmap *gcc_qca961x_clks[] = {
+static struct clk_regmap *gcc_ipq40xx_clks[] = {
 	[GCC_DUMMY_CLK] = &dummy,
 };
 
-static const struct qcom_reset_map gcc_qca961x_resets[] = {
+static const struct qcom_reset_map gcc_ipq40xx_resets[] = {
 	[WIFI0_CPU_INIT_RESET] = { 0x1f008, 5 },
 	[WIFI0_RADIO_SRIF_RESET] = { 0x1f008, 4 },
 	[WIFI0_RADIO_WARM_RESET] = { 0x1f008, 3 },
@@ -137,7 +137,7 @@ static const struct qcom_reset_map gcc_qca961x_resets[] = {
 	[AUDIO_BLK_ARES] = { 0x1B008 },
 };
 
-static const struct regmap_config gcc_qca961x_regmap_config = {
+static const struct regmap_config gcc_ipq40xx_regmap_config = {
 	.reg_bits	= 32,
 	.reg_stride	= 4,
 	.val_bits	= 32,
@@ -145,12 +145,12 @@ static const struct regmap_config gcc_qca961x_regmap_config = {
 	.fast_io	= true,
 };
 
-static const struct qcom_cc_desc gcc_qca961x_desc = {
-	.config = &gcc_qca961x_regmap_config,
-	.clks = gcc_qca961x_clks,
-	.num_clks = ARRAY_SIZE(gcc_qca961x_clks),
-	.resets = gcc_qca961x_resets,
-	.num_resets = ARRAY_SIZE(gcc_qca961x_resets),
+static const struct qcom_cc_desc gcc_ipq40xx_desc = {
+	.config = &gcc_ipq40xx_regmap_config,
+	.clks = gcc_ipq40xx_clks,
+	.num_clks = ARRAY_SIZE(gcc_ipq40xx_clks),
+	.resets = gcc_ipq40xx_resets,
+	.num_resets = ARRAY_SIZE(gcc_ipq40xx_resets),
 };
 
 static int gcc_dummy_probe(struct platform_device *pdev)
@@ -162,7 +162,7 @@ static int gcc_dummy_probe(struct platform_device *pdev)
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
-	ret = qcom_cc_probe(pdev, &gcc_qca961x_desc);
+	ret = qcom_cc_probe(pdev, &gcc_ipq40xx_desc);
 
 	dev_dbg(&pdev->dev, "Registered dummy clock provider\n");
 	return ret;
