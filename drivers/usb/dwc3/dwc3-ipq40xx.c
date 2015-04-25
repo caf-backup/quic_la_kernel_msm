@@ -30,7 +30,7 @@
 #define USB30_SS_PHY_CTRL	0x00000030
 #define LANE0_PWR_PRESENT	(0x01 << 0x18)
 
-struct dwc3_qca961x {
+struct dwc3_ipq40xx {
 	struct device *dev;
 
 	void __iomem *qscratch_base;
@@ -82,7 +82,7 @@ static inline void qscratch_write_readback(void __iomem *base, u32 offset,
 		pr_err("write: %x to QSCRATCH: %x FAILED\n", val, offset);
 }
 
-static void dwc_qca961x_enable_vbus_valid(struct dwc3_qca961x *mdwc)
+static void dwc3_ipq40xx_enable_vbus_valid(struct dwc3_ipq40xx *mdwc)
 {
 	if (!mdwc->host) {
 		/* Enable VBUS valid for HS PHY*/
@@ -97,10 +97,10 @@ static void dwc_qca961x_enable_vbus_valid(struct dwc3_qca961x *mdwc)
 	}
 }
 
-static int dwc3_qca961x_probe(struct platform_device *pdev)
+static int dwc3_ipq40xx_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
-	struct dwc3_qca961x *mdwc;
+	struct dwc3_ipq40xx *mdwc;
 	int ret = 0;
 	struct resource *res;
 	struct device_node *np = NULL;
@@ -154,11 +154,12 @@ static int dwc3_qca961x_probe(struct platform_device *pdev)
 
 	np = of_node_get(pdev->dev.of_node);
 	if (of_property_read_u32(np, "qca,host", &mdwc->host)) {
-		dev_err(mdwc->dev,"%s: error reading critical device node properties\n", np->name);
+		dev_err(mdwc->dev, "%s: error reading critical
+			device node properties\n", np->name);
 		return -EFAULT;
 	}
 
-	dwc_qca961x_enable_vbus_valid(mdwc);
+	dwc3_ipq40xx_enable_vbus_valid(mdwc);
 
 	clk_prepare_enable(mdwc->master_clk);
 	clk_prepare_enable(mdwc->mock_utmi_clk);
@@ -185,10 +186,10 @@ dis_clks:
 	return ret;
 }
 
-static int dwc3_qca961x_remove(struct platform_device *pdev)
+static int dwc3_ipq40xx_remove(struct platform_device *pdev)
 {
 	int ret = 0;
-	struct dwc3_qca961x *mdwc = platform_get_drvdata(pdev);
+	struct dwc3_ipq40xx *mdwc = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(mdwc->srif_ahb_clk);
 	clk_disable_unprepare(mdwc->srif_25m_clk);
@@ -205,9 +206,9 @@ static const struct of_device_id of_dwc3_match[] = {
 };
 MODULE_DEVICE_TABLE(of, of_dwc3_match);
 
-static struct platform_driver dwc3_qca961x_driver = {
-	.probe		= dwc3_qca961x_probe,
-	.remove		= dwc3_qca961x_remove,
+static struct platform_driver dwc3_ipq40xx_driver = {
+	.probe		= dwc3_ipq40xx_probe,
+	.remove		= dwc3_ipq40xx_remove,
 	.driver		= {
 		.name	= "qca-dwc3",
 		.owner	= THIS_MODULE,
@@ -215,7 +216,7 @@ static struct platform_driver dwc3_qca961x_driver = {
 	},
 };
 
-module_platform_driver(dwc3_qca961x_driver);
+module_platform_driver(dwc3_ipq40xx_driver);
 
 MODULE_ALIAS("platform:qca-dwc3");
 MODULE_LICENSE("Dual BSD/GPL");
