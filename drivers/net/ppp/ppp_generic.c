@@ -2,7 +2,7 @@
  * Generic PPP layer for Linux.
  *
  * Copyright 1999-2002 Paul Mackerras.
- * Copyright (c) 2013-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013 The Linux Foundation. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -2964,10 +2964,212 @@ static void *unit_find(struct idr *p, int n)
 }
 
 /*
+ * PPP API`s for getting info from channels corresponding to the given
+ * net_device. We do not support multilink, so we just use the first channel
+ * in the list. We use "type" field of net_dev to verify that this is a PPP
+ * net_dev. "type" is set to "ARPHRD_PPP" in "ppp_setup" callback during PPP
+ * net_dev allocation.
+ */
+struct net_device *ppp_get_eth_netdev(struct net_device *dev)
+{
+	struct channel *pch;
+	struct list_head *list;
+	struct ppp *ppp;
+	struct net_device *ret = NULL;
+
+	if (!dev)
+		return NULL;
+
+	if (dev->type != ARPHRD_PPP)
+		return NULL;
+
+	ppp = netdev_priv(dev);
+
+	rcu_read_lock();
+	list = &ppp->channels;
+	if (list_empty(list)) {
+		printk(KERN_NOTICE "There is no channel registered to PPP module\n");
+		rcu_read_unlock();
+		return NULL;
+	}
+
+	list = list->next;
+
+	pch = list_entry(list, struct channel, clist);
+	if (pch->chan && pch->chan->ops->get_netdev) {
+		ret =  pch->chan->ops->get_netdev(pch->chan);
+		if (ret)
+			dev_hold(ret);
+
+		rcu_read_unlock();
+		return ret;
+	}
+	rcu_read_unlock();
+
+	return NULL;
+}
+
+/*
+ * Returns the session id of the PPP net_device.
+ */
+__be16 ppp_get_session_id(struct net_device *dev)
+{
+	struct channel *pch;
+	struct list_head *list;
+	struct ppp *ppp;
+
+	if (!dev)
+		return 0;
+
+	if (dev->type != ARPHRD_PPP)
+		return 0;
+
+	ppp = netdev_priv(dev);
+
+	rcu_read_lock();
+	list = &ppp->channels;
+	if (list_empty(list)) {
+		printk(KERN_NOTICE "There is no channel registered to PPP module\n");
+		rcu_read_unlock();
+		return 0;
+	}
+
+	list = list->next;
+
+	pch = list_entry(list, struct channel, clist);
+	if (pch->chan && pch->chan->ops->get_session_id) {
+		rcu_read_unlock();
+		return pch->chan->ops->get_session_id(pch->chan);
+	}
+	rcu_read_unlock();
+
+	return 0;
+}
+EXPORT_SYMBOL(ppp_get_session_id);
+
+/*
+ * Returns the remote server's MAC address associated with this PPP net_device.
+ */
+unsigned char *ppp_get_remote_mac(struct net_device *dev)
+{
+	struct channel *pch;
+	struct list_head *list;
+	struct ppp *ppp;
+
+	if (!dev)
+		return NULL;
+
+	if (dev->type != ARPHRD_PPP)
+		return NULL;
+
+	ppp = netdev_priv(dev);
+
+	list = &ppp->channels;
+	if (list_empty(list)) {
+		printk(KERN_NOTICE "There is no channel registered to PPP module\n");
+		return NULL;
+	}
+
+	list = list->next;
+
+	pch = list_entry(list, struct channel, clist);
+	if (pch->chan && pch->chan->ops->get_remote_mac)
+		return pch->chan->ops->get_remote_mac(pch->chan);
+
+	return NULL;
+}
+EXPORT_SYMBOL(ppp_get_remote_mac);
+
+/*
+ * Returns the PPP net_device from the physical net_device.
+ * XXX: There may be more than 1 PPP interfaces on a physical net_device.
+ * This function doesn't support that case. It just returns the first found
+ * PPP device. This effects the multiple PPP session implementations,
+ * if we want to use this function.
+ */
+struct net_device *ppp_get_ppp_netdev(struct net_device *eth_dev)
+{
+	struct net_device *dev;
+	struct ppp *ppp;
+	struct list_head *list;
+	struct channel *pch;
+
+	for_each_netdev_rcu(&init_net, dev) {
+		if (dev->type != ARPHRD_PPP)
+			continue;
+
+		ppp = netdev_priv(dev);
+		list = &ppp->channels;
+
+		if (list_empty(list))
+			continue;
+
+		list = list->next;
+		pch = list_entry(list, struct channel, clist);
+		if (!pch->chan || !pch->chan->ops->get_netdev)
+			continue;
+
+		if (pch->chan->ops->get_netdev(pch->chan) == eth_dev) {
+			dev_hold(dev);
+			return dev;
+		}
+	}
+	return NULL;
+}
+EXPORT_SYMBOL(ppp_get_ppp_netdev);
+
+/*
+ * Finds and returns the PPP net_device from the session ID and the
+ * remote MAC addresses.
+ */
+struct net_device *ppp_session_to_netdev(uint16_t session_id,
+						uint8_t *remote_mac)
+{
+	struct net_device *dev;
+	struct ppp *ppp;
+	struct list_head *list;
+	struct channel *pch;
+
+	if (unlikely(!remote_mac))
+		return NULL;
+
+	for_each_netdev_rcu(&init_net, dev) {
+		if (dev->type != ARPHRD_PPP)
+			continue;
+
+		ppp = netdev_priv(dev);
+		list = &ppp->channels;
+
+		if (list_empty(list))
+			continue;
+
+		list = list->next;
+		pch = list_entry(list, struct channel, clist);
+		if (!pch->chan || !pch->chan->ops->get_session_id)
+			continue;
+
+		if (pch->chan->ops->get_session_id(pch->chan) !=
+						cpu_to_be16(session_id))
+			continue;
+
+		if (pch->chan->ops->get_remote_mac &&
+			!memcmp(pch->chan->ops->get_remote_mac(pch->chan),
+						remote_mac, ETH_ALEN)) {
+			dev_hold(dev);
+			return dev;
+		}
+	}
+	return NULL;
+}
+EXPORT_SYMBOL(ppp_session_to_netdev);
+
+/*
  * Updates the PPP interface statistics.
  */
 void ppp_update_stats(struct net_device *dev, unsigned long rx_packets,
-		unsigned long rx_bytes, unsigned long tx_packets, unsigned long tx_bytes)
+			unsigned long rx_bytes,
+			unsigned long tx_packets,
+			unsigned long tx_bytes)
 {
 	struct ppp *ppp;
 
@@ -2991,7 +3193,9 @@ void ppp_update_stats(struct net_device *dev, unsigned long rx_packets,
  * Registers a destroy method to the channel. When a PPP interface goes down,
  * this destroy method is called if it is registered.
  */
-bool ppp_register_destroy_method(struct net_device *dev, ppp_channel_destroy_method_t method, void *arg)
+bool ppp_register_destroy_method(struct net_device *dev,
+				ppp_channel_destroy_method_t method,
+				void *arg)
 {
 	struct channel *pch;
 	struct ppp *ppp;
@@ -3012,15 +3216,19 @@ bool ppp_register_destroy_method(struct net_device *dev, ppp_channel_destroy_met
 
 	spin_lock_bh(&pn->all_channels_lock);
 	list_for_each_entry(pch, &ppp->channels, clist) {
-		if (pch->chan && pch->chan->ops->reg_destroy_method) {
-			if (!pch->chan->ops->reg_destroy_method(pch->chan, method, arg)) {
-				/*
-				 * One of the channels has failed to register the destroy method.
-				 */
-				spin_unlock_bh(&pn->all_channels_lock);
-				printk(KERN_NOTICE "PPP channel %p failed to register destroy method\n", pch->chan);
-				return false;
-			}
+		if (!pch->chan || !pch->chan->ops->reg_destroy_method)
+			continue;
+
+		if (!pch->chan->ops->reg_destroy_method(pch->chan,
+							method, arg)) {
+			/*
+			 * One of the channels has failed to register
+			 * the destroy method.
+			 */
+			spin_unlock_bh(&pn->all_channels_lock);
+			printk(KERN_NOTICE "PPP channel %p failed to register destroy method\n"
+					, pch->chan);
+			return false;
 		}
 	}
 	spin_unlock_bh(&pn->all_channels_lock);
@@ -3055,7 +3263,8 @@ bool ppp_unregister_destroy_method(struct net_device *dev)
 	list_for_each_entry(pch, &ppp->channels, clist) {
 		if (pch->chan && pch->chan->ops->unreg_destroy_method) {
 			/*
-			 * unregister function just sets the fields to NULL, so there is not any failure case.
+			 * unregister function just sets the fields to NULL,
+			 * so there is not any failure case.
 			 */
 			pch->chan->ops->unreg_destroy_method(pch->chan);
 		}
@@ -3067,7 +3276,9 @@ bool ppp_unregister_destroy_method(struct net_device *dev)
 
 /*
  * ppp_is_multilink()
- *	Returns >0 if the device is a multilink PPP netdevice, 0 if not or < 0 if the device is not PPP
+ *
+ * Returns >0 if the device is a multilink PPP netdevice,
+ * 0 if not or < 0 if the device is not PPP
  */
 int ppp_is_multilink(struct net_device *dev)
 {
@@ -3093,12 +3304,14 @@ int ppp_is_multilink(struct net_device *dev)
 
 /*
  * ppp_channel_get_protocol()
- *	Call this to obtain the underlying protocol of the PPP channel, e.g. PX_PROTO_OE
+ *	Call this to obtain the underlying protocol of the PPP channel,
+ * e.g. PX_PROTO_OE
  *
- * NOTE: Some channels do not use PX sockets so the protocol value may be very different for them.
- * NOTE: -1 indicates failure.
- * NOTE: Once you know the channel protocol you may then either cast 'chan' to its sub-class or
- * use the channel protocol specific API's as provided by that channel sub type.
+ * NOTE: Some channels do not use PX sockets so the protocol value may be very
+ * different for them. NOTE: -1 indicates failure.
+ * NOTE: Once you know the channel protocol you may then either cast 'chan'
+ * to its sub-class or use the channel protocol specific API's as provided by
+ * that channel sub type.
  */
 int ppp_channel_get_protocol(struct ppp_channel *chan)
 {
@@ -3138,7 +3351,8 @@ void ppp_channel_release(struct ppp_channel *chan)
 
 /*
  * ppp_hold_channels()
- *	Returns the PPP channels of the PPP device, storing each one into channels[].
+ *	Returns the PPP channels of the PPP device, storing each one into
+ *	channels[].
  *
  * channels[] has chan_sz elements.
  * This function returns the number of channels stored, up to chan_sz.
@@ -3146,7 +3360,9 @@ void ppp_channel_release(struct ppp_channel *chan)
  *
  * You MUST release the channels using ppp_release_channels().
  */
-int ppp_hold_channels(struct net_device *dev, struct ppp_channel *channels[], unsigned int chan_sz)
+int ppp_hold_channels(struct net_device *dev,
+			struct ppp_channel *channels[],
+			unsigned int chan_sz)
 {
 	struct ppp *ppp;
 	int c;
@@ -3228,6 +3444,7 @@ EXPORT_SYMBOL(ppp_input_error);
 EXPORT_SYMBOL(ppp_output_wakeup);
 EXPORT_SYMBOL(ppp_register_compressor);
 EXPORT_SYMBOL(ppp_unregister_compressor);
+EXPORT_SYMBOL(ppp_get_eth_netdev);
 EXPORT_SYMBOL(ppp_update_stats);
 EXPORT_SYMBOL(ppp_register_destroy_method);
 EXPORT_SYMBOL(ppp_unregister_destroy_method);
