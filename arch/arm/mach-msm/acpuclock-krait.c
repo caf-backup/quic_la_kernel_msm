@@ -1121,10 +1121,19 @@ static int __init get_pvs_bin(u32 pte_efuse)
 {
 	uint32_t pvs_bin;
 
-	/* Default to NOMINAL setting if PVS is not blown */
+	/*
+	 * For IPQ8065 and IPQ8069 : Default to SLOW if PVS is not blown
+	 * For Others : Default to NOMINAL if PVS is not blown
+	 */
 	if ((pte_efuse & PVS_BLOW_STATUS) == 0) {
-		dev_warn(drv.dev, "ACPU PVS: Defaulting to nominal\n");
-		return PVS_NOMINAL;
+
+		if (cpu_is_ipq8065() || cpu_is_ipq8069()) {
+			dev_warn(drv.dev, "ACPU PVS: Defaulting to slow\n");
+			return PVS_SLOW;
+		} else {
+			dev_warn(drv.dev, "ACPU PVS: Defaulting to nominal\n");
+			return PVS_NOMINAL;
+		}
 	}
 
 	pvs_bin = (pte_efuse >> 10) & 0x7;
