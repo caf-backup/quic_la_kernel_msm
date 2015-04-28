@@ -1,19 +1,3 @@
-/*
- **************************************************************************
- * Copyright (c) 2015, The Linux Foundation.  All rights reserved.
- * Permission to use, copy, modify, and/or distribute this software for
- * any purpose with or without fee is hereby granted, provided that the
- * above copyright notice and this permission notice appear in all copies.
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
- * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- **************************************************************************
- */
-
 /***************************************************************************
  * Linux PPP over X - Generic PPP transport layer sockets
  * Linux PPP over Ethernet (PPPoE) Socket Implementation (RFC 2516)
@@ -272,9 +256,6 @@ struct pppoe_channel_ops {
 
 /* Return PPPoE channel specific addressing information */
 extern void pppoe_channel_addressing_get(struct ppp_channel *chan, struct pppoe_opt *addressing);
-
-/* Return netdevice associated with the session id and remote mac address */
-extern struct net_device *pppoe_get_and_hold_netdev_from_session_info(uint16_t sid, uint8_t *mac);
 
 #endif /* __KERNEL__ */
 

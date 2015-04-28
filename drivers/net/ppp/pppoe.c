@@ -1,7 +1,7 @@
 /** -*- linux-c -*- ***********************************************************
  * Linux PPP over Ethernet (PPPoX/PPPoE) Sockets
  *
- * Copyright (c) 2013-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013 The Linux Foundation. All rights reserved.
  *
  * PPPoX --- Generic PPP encapsulation socket family
  * PPPoE --- PPP over Ethernet (RFC 2516)
@@ -69,7 +69,6 @@
 #include <linux/inetdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/if_arp.h>
 #include <linux/init.h>
 #include <linux/if_ether.h>
 #include <linux/if_pppox.h>
@@ -1023,6 +1022,48 @@ static int pppoe_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 
 /************************************************************************
  *
+ * function called by generic PPP driver to get the PPPoE session ID
+ * corresponding to the given channel
+ *
+ ***********************************************************************/
+static __be16 pppoe_get_session_id(struct ppp_channel *chan)
+{
+	struct sock *sk = (struct sock *)chan->private;
+	struct pppox_sock *po = pppox_sk(sk);
+
+	return po->num;
+}
+
+/************************************************************************
+ *
+ * function called by generic PPP driver to get the net_device
+ * corresponding to the given channel
+ *
+ ***********************************************************************/
+static struct net_device *pppoe_get_netdev(struct ppp_channel *chan)
+{
+	struct sock *sk = (struct sock *)chan->private;
+	struct pppox_sock *po = pppox_sk(sk);
+
+	return po->pppoe_dev;
+}
+
+/************************************************************************
+ *
+ * function called by generic PPP driver to get the remote MAC address
+ * corresponding to the given channel
+ *
+ ***********************************************************************/
+static unsigned char *pppoe_get_remote_mac(struct ppp_channel *chan)
+{
+	struct sock *sk = (struct sock *)chan->private;
+	struct pppox_sock *po = pppox_sk(sk);
+
+	return po->pppoe_pa.remote;
+}
+
+/************************************************************************
+ *
  * function called by generic PPP driver to register destroy methods
  *
  ***********************************************************************/
@@ -1117,64 +1158,18 @@ void pppoe_channel_addressing_get(struct ppp_channel *chan, struct pppoe_opt *ad
 }
 EXPORT_SYMBOL(pppoe_channel_addressing_get);
 
-/*
- * pppoe_get_and_hold_netdev_from_session_info()
- *	Return netdevice associated with the session id and the remote mac
- *	address passed in the parameter list.
- *
- *	NOTE: The caller of this API should release the netdev (dev_put())
- *	after finishing its job with the net device.
- */
-struct net_device *pppoe_get_and_hold_netdev_from_session_info(uint16_t sid, uint8_t *mac)
-{
-	struct net_device *dev;
-	struct ppp_channel *ppp_chan[1];
-	int channel_protocol;
-	struct pppoe_opt addressing;
-
-	for_each_netdev_rcu(&init_net, dev) {
-		if (dev->type != ARPHRD_PPP) {
-			continue;
-		}
-
-		/*
-		 * Get the ppp channel form the net device. Currently we only support
-		 * single channel on each netdevice.
-		 */
-		if (ppp_hold_channels(dev, ppp_chan, 1) != 1) {
-			continue;
-		}
-
-		/*
-		 * Check if the protocol is PPPoE.
-		 */
-		channel_protocol = ppp_channel_get_protocol(ppp_chan[0]);
-		if (channel_protocol != PX_PROTO_OE) {
-			ppp_release_channels(ppp_chan, 1);
-			continue;
-		}
-
-		/*
-		 * Get the addressing information from the channel.
-		 */
-		pppoe_channel_addressing_get(ppp_chan[0], &addressing);
-		if ((addressing.pa.sid == cpu_to_be16(sid)) && !memcmp(addressing.pa.remote, mac, ETH_ALEN)) {
-			ppp_release_channels(ppp_chan, 1);
-			dev_hold(dev);
-			return dev;
-		}
-		ppp_release_channels(ppp_chan, 1);
-	}
-
-	return NULL;
-}
-EXPORT_SYMBOL(pppoe_get_and_hold_netdev_from_session_info);
-
 static const struct pppoe_channel_ops pppoe_chan_ops = {
 	/* PPPoE specific channel ops */
 	.get_addressing = pppoe_get_addressing,
 	/* General ppp channel ops */
 	.ops.start_xmit = pppoe_xmit,
+	/*
+	 * The below 3 methods are deprecated 20140416,
+	 * use pppoe channel specific get_addressing()
+	 */
+	.ops.get_session_id = pppoe_get_session_id,
+	.ops.get_netdev = pppoe_get_netdev,
+	.ops.get_remote_mac = pppoe_get_remote_mac,
 	.ops.reg_destroy_method = pppoe_register_destroy_method,
 	.ops.unreg_destroy_method = pppoe_unregister_destroy_method,
 	.ops.get_channel_protocol = pppoe_get_channel_protocol,
