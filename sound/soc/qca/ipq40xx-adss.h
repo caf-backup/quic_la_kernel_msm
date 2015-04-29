@@ -28,6 +28,7 @@
 /* ADSS_AUDIO_LOCAL_REG Registers */
 
 #define ADSS_GLB_PCM_RST_REG			0x0
+#define GLB_PCM_RST_CTRL(x)			(x << 0)
 
 #define ADSS_GLB_PCM_MBOX_CTRL_REG		0x0C
 
@@ -167,8 +168,11 @@
 #define ADSS_AUDIO_PCM_CMD_RCGR_REG		0x1A0
 
 #define ADSS_AUDIO_PCM_CFG_RCGR_REG		0x1A4
+#define AUDIO_PCM_CFG_RCGR_SRC_SEL(x)		(x << 8)
+#define AUDIO_PCM_CFG_RGCR_SRC_DIV(x)		(x << 0)
 
 #define ADSS_AUDIO_PCM_MISC_REG			0x1A8
+#define AUDIO_PCM_MISC_AUTO_SCALE_DIV(x)	(x << 4)
 
 #define ADSS_AUDIO_PCM_CBCR_REG			0x1AC
 
@@ -208,33 +212,43 @@
 
 #define ADSS_AUDIO_PCM_REG_BASE 	ADSS_BASE + 0x4000
 
-#define AADSS_PCM_BITMAP_REG		ADSS_AUDIO_PCM_REG_BASE + 0x0
+#define AADSS_PCM_BITMAP_REG		0x0
 
-#define AADSS_PCM_CTRL_REG		ADSS_AUDIO_PCM_REG_BASE + 0x04
+#define AADSS_PCM_CTRL_REG		0x04
+#define PCM_CTRL_TX2RX_LP_EN(x)		(x << 31)
+#define PCM_CTRL_RX2TX_LP_EN(x)		(x << 30)
+#define PCM_CTRL_CPU_MODE(x)		(x << 29)
+#define PCM_CTRL_PCM_GCLK_EN(x)		(x << 28)
+#define PCM_CTRL_FRAME_SYNC_LEN(x)	(x << 26)
+#define PCM_CTRL_PCM_CLK_MODE(x)	(x << 25)
+#define PCM_CTRL_PCM_SLOT_MODE(x)	(x << 24)
+#define PCM_CTRL_PCM_DCLK_MODE(x)	(x << 4)
+#define PCM_CTRL_PCM_TX_PHASE(x)	(x << 2)
+#define PCM_CTRL_PCM_RX_PHASE(x)	(x << 0)
 
-#define AADSS_PCM_OFFSET_REG		ADSS_AUDIO_PCM_REG_BASE + 0x08
+#define AADSS_PCM_OFFSET_REG		0x08
 
-#define AADSS_PCM_START_REG		ADSS_AUDIO_PCM_REG_BASE + 0x0C
+#define AADSS_PCM_START_REG		0x0C
 
-#define AADSS_PCM_INT_STATUS_REG	ADSS_AUDIO_PCM_REG_BASE + 0x10
+#define AADSS_PCM_INT_STATUS_REG	0x10
 
-#define AADSS_PCM_INT_ENABLE_REG	ADSS_AUDIO_PCM_REG_BASE + 0x14
+#define AADSS_PCM_INT_ENABLE_REG	0x14
 
-#define AADSS_PCM_RX_DATA_8BIT_REG	ADSS_AUDIO_PCM_REG_BASE + 0x18
+#define AADSS_PCM_RX_DATA_8BIT_REG	0x18
 
-#define AADSS_PCM_TX_DATA_8BIT_REG	ADSS_AUDIO_PCM_REG_BASE + 0x1C
+#define AADSS_PCM_TX_DATA_8BIT_REG	0x1C
 
-#define AADSS_PCM_DIVIDER_REG		ADSS_AUDIO_PCM_REG_BASE + 0x20
+#define AADSS_PCM_DIVIDER_REG		0x20
 
-#define AADSS_PCM_TH_REG		ADSS_AUDIO_PCM_REG_BASE + 0x24
+#define AADSS_PCM_TH_REG		0x24
 
-#define AADSS_PCM_FIFO_CNT_REG		ADSS_AUDIO_PCM_REG_BASE + 0x28
+#define AADSS_PCM_FIFO_CNT_REG		0x28
 
-#define AADSS_PCM_FIFO_ERR_SLOT_REG	ADSS_AUDIO_PCM_REG_BASE + 0x2C
+#define AADSS_PCM_FIFO_ERR_SLOT_REG	0x2C
 
-#define AADSS_PCM_RX_DATA_16BIT_REG	ADSS_AUDIO_PCM_REG_BASE + 0x30
+#define AADSS_PCM_RX_DATA_16BIT_REG	0x30
 
-#define AADSS_PCM_TX_DATA_16BIT_REG	ADSS_AUDIO_PCM_REG_BASE + 0x34
+#define AADSS_PCM_TX_DATA_16BIT_REG	0x34
 
 
 /* ADSS_MBOXSPDIFIN_AUDIO_MBOX_REG Registers */
@@ -415,9 +429,9 @@
 #define IPQ40xx_I2S_NO_OF_PERIODS	(130)
 #define IPQ40xx_I2S_PERIOD_BYTES_MIN	(4032)
 #define IPQ40xx_I2S_BUFF_SIZE		(IPQ40xx_I2S_PERIOD_BYTES_MIN * \
-                                        IPQ40xx_I2S_NO_OF_PERIODS)
+						IPQ40xx_I2S_NO_OF_PERIODS)
 #define IPQ40xx_I2S_CAPTURE_BUFF_SIZE	(IPQ40xx_I2S_PERIOD_BYTES_MIN * \
-                                        IPQ40xx_I2S_NO_OF_PERIODS)
+						IPQ40xx_I2S_NO_OF_PERIODS)
 
 /* TDM Parameters */
 #define IPQ40xx_TDM_NO_OF_PERIODS	IPQ40xx_I2S_NO_OF_PERIODS
@@ -491,6 +505,8 @@ extern void ipq40xx_glb_tdm_ctrl_ch_num(uint32_t val, uint32_t dir);
 extern void ipq40xx_glb_tdm_ctrl_sync_num(uint32_t val, uint32_t dir);
 extern void ipq40xx_glb_tdm_ctrl_delay(uint32_t delay, uint32_t dir);
 extern void ipq40xx_gcc_audio_blk_rst(void);
+extern void ipq40xx_pcm_clk_cfg(void);
+extern void ipq40xx_glb_pcm_rst(uint32_t enable);
 
 /* Stereo APIs */
 extern void ipq40xx_stereo_config_reset(uint32_t reset, uint32_t stereo_offset);
