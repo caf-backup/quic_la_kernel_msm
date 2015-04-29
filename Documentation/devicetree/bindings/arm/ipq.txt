@@ -1,0 +1,16 @@
+Qualcomm IPQ device tree bindings
+---------------------------------
+
+System on Chip
+
+Device tree must specify which SoC it uses, with one of the
+following compatible strings
+
+	"qcom,qca961x"
+
+Platform
+
+Device tree must specify which Platform it uses, with one of the
+following compatible strings
+
+	"qcom,qca961x-r3pc"
