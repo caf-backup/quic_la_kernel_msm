@@ -16,11 +16,11 @@
 #define TCSR_USB_SELECT_USB3_P1		0x2
 #define TCSR_USB_SELECT_USB3_DUAL	0x3
 
-/* QCA961x HS PHY Mode Select */
+/* IPQ40xx HS PHY Mode Select */
 #define TCSR_USB_HSPHY_HOST_MODE	0x00E700E7
 #define TCSR_USB_HSPHY_DEVICE_MODE	0x00C700E7
 
-/* QCA961x ess interface mode select */
+/* IPQ40xx ess interface mode select */
 #define TCSR_ESS_PSGMII              0
 #define TCSR_ESS_PSGMII_RGMII5       1
 #define TCSR_ESS_PSGMII_RMII0        2
