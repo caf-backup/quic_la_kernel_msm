@@ -29,8 +29,8 @@ config ARCH_MSM8974
 	bool "Enable support for MSM8974"
 	select HAVE_ARM_ARCH_TIMER
 
-config ARCH_QCA961x
-	bool "Enable support for QCA961x"
+config ARCH_IPQ40XX
+	bool "Enable support for IPQ40XX"
 	select HAVE_ARM_ARCH_TIMER
 
 endmenu
