@@ -194,6 +194,12 @@
 			status = "disabled";
 		};
 
+		ess_tcsr: ess_tcsr@1953000 {
+			compatible = "qcom,tcsr";
+			reg = <0x1953000 0x1000>;
+			qcom,ess-interface-select = <TCSR_ESS_PSGMII>;
+		};
+
 		usb3_ss_phy: ssphy@90000 {
 			compatible = "qca,uni-ssphy";
 			reg = <0x00090000 0x800>;
