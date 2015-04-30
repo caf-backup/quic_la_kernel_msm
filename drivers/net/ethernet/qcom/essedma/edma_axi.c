@@ -16,6 +16,7 @@
 #include "edma.h"
 #include "ess_edma.h"
 #include <linux/cpu_rmap.h>
+#include <linux/of_net.h>
 
 /* Weight round robin and virtual QID mask */
 #define EDMA_WRR_VID_SCTL_MASK 0xFFFF
@@ -223,6 +224,7 @@ static int edma_axi_probe(struct platform_device *pdev)
 	struct edma_adapter *adapter[2];
 	struct resource *res;
 	struct device_node *np = pdev->dev.of_node;
+	struct device_node *pnp;
 	int i, j, err = 0, ret = 0;
 
 	/* Use to allocate net devices for multiple TX/RX queues */
@@ -339,6 +341,19 @@ static int edma_axi_probe(struct platform_device *pdev)
 		goto err_rx_rinit;
 	}
 
+	for_each_available_child_of_node(np, pnp) {
+		const char *mac_addr;
+		mac_addr = of_get_mac_address(pnp);
+		if (mac_addr) {
+			if (!strcmp(pnp->name, "gmac0"))
+				memcpy(netdev[EDMA_WAN]->dev_addr, mac_addr,
+					ETH_ALEN);
+			else
+				memcpy(netdev[EDMA_LAN]->dev_addr, mac_addr,
+					ETH_ALEN);
+		}
+	}
+
 	/* Populate the adapter structure register the netdevice */
 	for (i = 0; i < EDMA_NR_NETDEV; i++) {
 		int j;
@@ -368,11 +383,13 @@ static int edma_axi_probe(struct platform_device *pdev)
 		/*
 	 	 * This just fill in some default MAC address
 	 	 */
-		random_ether_addr(netdev[i]->dev_addr);
-		pr_info("EDMA using MAC@ - using %02x:%02x:%02x:%02x:%02x:%02x\n",
-			*(adapter[i]->netdev->dev_addr), *(adapter[i]->netdev->dev_addr + 1),
-			*(adapter[i]->netdev->dev_addr + 2), *(adapter[i]->netdev->dev_addr + 3),
-			*(adapter[i]->netdev->dev_addr + 4), *(adapter[i]->netdev->dev_addr + 5));
+		if (!is_valid_ether_addr(netdev[i]->dev_addr)) {
+			random_ether_addr(netdev[i]->dev_addr);
+			pr_info("EDMA using MAC@ - using %02x:%02x:%02x:%02x:%02x:%02x\n",
+			*(netdev[i]->dev_addr), *(netdev[i]->dev_addr + 1),
+			*(netdev[i]->dev_addr + 2), *(netdev[i]->dev_addr + 3),
+			*(netdev[i]->dev_addr + 4), *(netdev[i]->dev_addr + 5));
+		}
 
 		err = register_netdev(netdev[i]);
 		if (err)
