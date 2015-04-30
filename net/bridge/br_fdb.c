@@ -218,6 +218,21 @@ out:
 	spin_unlock_bh(&br->hash_lock);
 }
 
+ATOMIC_NOTIFIER_HEAD(br_fdb_update_notifier_list);
+
+void br_fdb_update_register_notify(struct notifier_block *nb)
+{
+	atomic_notifier_chain_register(&br_fdb_update_notifier_list, nb);
+}
+EXPORT_SYMBOL_GPL(br_fdb_update_register_notify);
+
+void br_fdb_update_unregister_notify(struct notifier_block *nb)
+{
+	atomic_notifier_chain_unregister(&br_fdb_update_notifier_list, nb);
+}
+EXPORT_SYMBOL_GPL(br_fdb_update_unregister_notify);
+
+
 void br_fdb_cleanup(unsigned long _data)
 {
 	struct net_bridge *br = (struct net_bridge *)_data;
@@ -235,9 +250,12 @@ void br_fdb_cleanup(unsigned long _data)
 			if (f->is_static)
 				continue;
 			this_timer = f->updated + delay;
-			if (time_before_eq(this_timer, jiffies))
+			if (time_before_eq(this_timer, jiffies)) {
+				atomic_notifier_call_chain(
+					&br_fdb_update_notifier_list, 0,
+					(void *)f->addr.addr);
 				fdb_delete(br, f);
-			else if (time_before(this_timer, next_timer))
+			} else if (time_before(this_timer, next_timer))
 				next_timer = this_timer;
 		}
 	}
@@ -482,44 +500,6 @@ int br_fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
 	return ret;
 }
 
-static void br_fdb_refresh_stats(struct net_bridge *br,
-				struct net_bridge_port *source,
-				const unsigned char *addr)
-{
-	struct hlist_head *head = &br->hash[br_mac_hash(addr, 0)];
-	struct net_bridge_fdb_entry *fdb;
-
-	/* some users want to always flood. */
-	if (hold_time(br) == 0)
-		return;
-
-	/* ignore packets unless we are using this port */
-	if (!(source->state == BR_STATE_LEARNING ||
-	      source->state == BR_STATE_FORWARDING))
-		return;
-
-	fdb = fdb_find_rcu(head, addr, 0);
-	if (likely(fdb)) {
-		/* attempt to update an entry for a local interface */
-		if (unlikely(fdb->is_local)) {
-			if (net_ratelimit())
-				br_warn(br, "stats update for %s interface with "
-					"own address as source address\n",
-					source->dev->name);
-		} else {
-			if (unlikely(source != fdb->dst)) {
-				/* don't have to do anything; new port additon
-				 * and its stats updation are taken care by
-				 * br_fdb_update() function
-				 */
-			} else {
-				fdb->updated = jiffies;
-			}
-		}
-	}
-}
-
-
 void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 		   const unsigned char *addr, u16 vid, bool added_by_user)
 {
@@ -545,7 +525,12 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 					source->dev->name);
 		} else {
 			/* fastpath: update of existing entry */
-			fdb->dst = source;
+			if (unlikely(source != fdb->dst)) {
+
+				atomic_notifier_call_chain(
+					&br_fdb_update_notifier_list, 0, addr);
+				fdb->dst = source;
+			}
 			fdb->updated = jiffies;
 			if (unlikely(added_by_user))
 				fdb->added_by_user = 1;
@@ -581,12 +566,7 @@ void br_refresh_fdb_entry(struct net_device *dev, const char *addr)
 	}
 
 	rcu_read_lock();
-
-	/* port modification/addition will only be done in linux stack path
-	 * through br_fdb_update() function; which is called in softirq
-	 * context by br_handle_frame_finish()
-	 */
-	br_fdb_refresh_stats(p->br, p, addr);
+	br_fdb_update(p->br, p, addr, 0, true);
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(br_refresh_fdb_entry);
