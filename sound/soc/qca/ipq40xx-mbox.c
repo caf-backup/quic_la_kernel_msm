@@ -189,7 +189,7 @@ int ipq40xx_mbox_dma_prepare(int channel_id)
 		writel(phys_addr & 0xfffffff,
 			mbox_reg + ADSS_MBOXn_MBOXn_DMA_RX_DESCRIPTOR_BASE_REG);
 
-		err = ipq40xx_mbox_interrupt_enable(index,
+		err = ipq40xx_mbox_interrupt_enable(channel_id,
 				MBOX_INT_ENABLE_RX_DMA_COMPLETE);
 	} else {
 
@@ -205,7 +205,7 @@ int ipq40xx_mbox_dma_prepare(int channel_id)
 		writel(phys_addr & 0xfffffff,
 			mbox_reg + ADSS_MBOXn_MBOXn_DMA_TX_DESCRIPTOR_BASE_REG);
 
-		err = ipq40xx_mbox_interrupt_enable(index,
+		err = ipq40xx_mbox_interrupt_enable(channel_id,
 				MBOX_INT_ENABLE_TX_DMA_COMPLETE);
 	}
 
@@ -269,7 +269,6 @@ EXPORT_SYMBOL(ipq40xx_mbox_form_ring);
 
 int ipq40xx_mbox_dma_release(int channel_id)
 {
-	unsigned long flags;
 	uint32_t index, dir;
 
 	index = ipq40xx_convert_id_to_channel(channel_id);
@@ -282,11 +281,15 @@ int ipq40xx_mbox_dma_release(int channel_id)
 	}
 
 	if (test_bit(CHN_STARTED, &mbox_rtime[index]->dir_priv[dir].status)) {
-		dma_free_coherent(mbox_rtime[index]->dir_priv[dir].dev,
-			(mbox_rtime[index]->dir_priv[dir].ndescs *
-				sizeof(struct ipq40xx_mbox_desc)),
-			mbox_rtime[index]->dir_priv[dir].dma_virt_head,
-			mbox_rtime[index]->dir_priv[dir].dma_phys_head);
+		if (mbox_rtime[index]->dir_priv[dir].dma_virt_head) {
+			dma_free_coherent(mbox_rtime[index]->dir_priv[dir].dev,
+				(mbox_rtime[index]->dir_priv[dir].ndescs *
+					sizeof(struct ipq40xx_mbox_desc)),
+				mbox_rtime[index]->dir_priv[dir].dma_virt_head,
+				mbox_rtime[index]->dir_priv[dir].dma_phys_head);
+
+			mbox_rtime[index]->dir_priv[dir].dma_virt_head = NULL;
+		}
 		clear_bit(CHN_STARTED,
 				&mbox_rtime[index]->dir_priv[dir].status);
 		return 0;

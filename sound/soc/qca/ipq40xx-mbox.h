@@ -250,4 +250,52 @@ static inline struct ipq40xx_mbox_desc
 	/* If we didn't find the last played buffer, return NULL */
 	return NULL;
 }
+
+static inline uint32_t ipq40xx_mbox_get_played_offset(uint32_t channel_id)
+{
+	struct ipq40xx_mbox_desc *desc, *prev, *last_played;
+	unsigned int ndescs, i;
+	uint32_t index;
+	uint32_t dir;
+	uint32_t desc_own;
+	uint32_t played_size;
+
+	index = ipq40xx_convert_id_to_channel(channel_id);
+	dir = ipq40xx_convert_id_to_dir(channel_id);
+
+	if (!mbox_rtime[index])
+		return 0;
+
+	ndescs = mbox_rtime[index]->dir_priv[dir].ndescs;
+	played_size = 0;
+	last_played = NULL;
+
+	/* Point to the last desc */
+	prev = &mbox_rtime[index]->dir_priv[dir].dma_virt_head[ndescs - 1];
+	desc_own = prev->OWN;
+
+	/* Point to the first desc */
+	desc = &mbox_rtime[index]->dir_priv[dir].dma_virt_head[0];
+
+	for (i = 0; i < ndescs; i++) {
+		if (prev->OWN == 0) {
+			if ((i == (ndescs - 1)) && (desc_own == 1))
+				last_played = desc;
+			else if (desc->OWN == 1)
+				last_played = desc;
+			prev->OWN = 1;
+			prev->ei = 1;
+			played_size += prev->size;
+		}
+		prev = desc;
+		desc += 1;
+	}
+	if (last_played) {
+		desc = &mbox_rtime[index]->dir_priv[dir].dma_virt_head[0];
+		played_size = last_played->BufPtr - desc->BufPtr;
+	}
+
+	return played_size;
+}
+
 #endif /* _IPQ40XX_MBOX_H_ */
