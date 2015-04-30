@@ -25,12 +25,12 @@
 static struct proc_dir_entry *proc_net_skbrecycler;
 
 static DEFINE_PER_CPU(struct sk_buff_head, recycle_list);
-static volatile int skb_recycle_max_skbs = SKB_RECYCLE_MAX_SKBS;
+static int skb_recycle_max_skbs = SKB_RECYCLE_MAX_SKBS;
 
 #ifdef CONFIG_SKB_RECYCLER_MULTI_CPU
 static DEFINE_PER_CPU(struct sk_buff_head, recycle_spare_list);
 static struct global_recycler glob_recycler;
-static volatile int skb_recycle_spare_max_skbs = SKB_RECYCLE_SPARE_MAX_SKBS;
+static int skb_recycle_spare_max_skbs = SKB_RECYCLE_SPARE_MAX_SKBS;
 #endif
 
 inline struct sk_buff *skb_recycler_alloc(struct net_device *dev, unsigned int length) {
@@ -70,8 +70,7 @@ inline struct sk_buff *skb_recycler_alloc(struct net_device *dev, unsigned int l
 	if (likely(skb)) {
 		struct skb_shared_info *shinfo;
 
-		/*
-		 * We're about to write a large amount to the skb to
+		/* We're about to write a large amount to the skb to
 		 * zero most of the structure so prefetch the start
 		 * of the shinfo region now so it's in the D-cache
 		 * before we start to write that.
@@ -106,8 +105,7 @@ inline bool skb_recycler_consume(struct sk_buff *skb) {
 					      SKB_RECYCLE_MAX_SIZE)))
 		return false;
 
-	/*
-	 * If we can, then it will be much faster for us to recycle this one
+	/* If we can, then it will be much faster for us to recycle this one
 	 * later than to allocate a new one from scratch.
 	 */
 	preempt_disable();
@@ -142,8 +140,7 @@ inline bool skb_recycler_consume(struct sk_buff *skb) {
 			glob_recycler.tail = next_tail;
 			spin_unlock(&glob_recycler.lock);
 
-			/*
-			 * We have now cleared room in the spare;
+			/* We have now cleared room in the spare;
 			 * Intialize and enqueue skb into spare
 			 */
 			__skb_queue_head(h, skb);
@@ -197,8 +194,7 @@ static int skb_cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-/*
-   procfs: count
+/* procfs: count
  */
 static int proc_skb_count_show(struct seq_file *seq, void *v)
 {
@@ -250,8 +246,7 @@ static const struct file_operations proc_skb_count_fops = {
 	.release = single_release,
 };
 
-/*
-   procfs: flush
+/* procfs: flush
  */
 static void skb_recycler_flush_task(struct work_struct *work)
 {
@@ -302,8 +297,7 @@ static const struct file_operations proc_skb_flush_fops = {
 	.llseek  = noop_llseek,
 };
 
-/*
-   procfs: max_skbs
+/* procfs: max_skbs
  */
 static int proc_skb_max_skbs_show(struct seq_file *seq, void *v)
 {
@@ -345,8 +339,7 @@ static const struct file_operations proc_skb_max_skbs_fops = {
 };
 
 #ifdef CONFIG_SKB_RECYCLER_MULTI_CPU
-/*
-   procfs: max_spare_skbs
+/* procfs: max_spare_skbs
  */
 static int proc_skb_max_spare_skbs_show(struct seq_file *seq, void *v)
 {
