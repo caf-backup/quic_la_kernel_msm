@@ -139,6 +139,20 @@ void br_fdb_change_mac_address(struct net_bridge *br, const u8 *newaddr)
 	fdb_insert(br, NULL, newaddr);
 }
 
+ATOMIC_NOTIFIER_HEAD(br_fdb_update_notifier_list);
+
+void br_fdb_update_register_notify(struct notifier_block *nb)
+{
+	atomic_notifier_chain_register(&br_fdb_update_notifier_list, nb);
+}
+EXPORT_SYMBOL_GPL(br_fdb_update_register_notify);
+
+void br_fdb_update_unregister_notify(struct notifier_block *nb)
+{
+	atomic_notifier_chain_unregister(&br_fdb_update_notifier_list, nb);
+}
+EXPORT_SYMBOL_GPL(br_fdb_update_unregister_notify);
+
 void br_fdb_cleanup(unsigned long _data)
 {
 	struct net_bridge *br = (struct net_bridge *)_data;
@@ -156,9 +170,16 @@ void br_fdb_cleanup(unsigned long _data)
 			if (f->is_static)
 				continue;
 			this_timer = f->updated + delay;
-			if (time_before_eq(this_timer, jiffies))
+			if (time_before_eq(this_timer, jiffies)) {
+				/* bridge "ageing timer expire" event call back
+				 * to registered modules
+				 */
+				atomic_notifier_call_chain(
+						&br_fdb_update_notifier_list,
+						0, (void *)f->addr.addr);
+
 				fdb_delete(br, f);
-			else if (time_before(this_timer, next_timer))
+			} else if (time_before(this_timer, next_timer))
 				next_timer = this_timer;
 		}
 	}
@@ -437,7 +458,12 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 					source->dev->name);
 		} else {
 			/* fastpath: update of existing entry */
-			fdb->dst = source;
+			if (unlikely(source != fdb->dst)) {
+				atomic_notifier_call_chain(
+						&br_fdb_update_notifier_list,
+						0, addr);
+				fdb->dst = source;
+			}
 			fdb->updated = jiffies;
 		}
 	} else {
