@@ -252,19 +252,24 @@ static void skb_recycler_flush_task(struct work_struct *work)
 {
 	unsigned long flags;
 	struct sk_buff_head *h;
+	struct sk_buff_head tmp;
+
+	skb_queue_head_init(&tmp);
 
 	h = &get_cpu_var(recycle_list);
 	local_irq_save(flags);
-	skb_recycler_free_skb(h);
+	skb_queue_splice_init(h, &tmp);
 	local_irq_restore(flags);
 	put_cpu_var(recycle_list);
+	skb_recycler_free_skb(&tmp);
 
 #ifdef CONFIG_SKB_RECYCLER_MULTI_CPU
 	h = &get_cpu_var(recycle_spare_list);
 	local_irq_save(flags);
-	skb_recycler_free_skb(h);
+	skb_queue_splice_init(h, &tmp);
 	local_irq_restore(flags);
 	put_cpu_var(recycle_spare_list);
+	skb_recycler_free_skb(&tmp);
 #endif
 }
 
@@ -275,16 +280,17 @@ static ssize_t proc_skb_flush_write(struct file *file,
 {
 #ifdef CONFIG_SKB_RECYCLER_MULTI_CPU
 	unsigned int i;
+	unsigned long flags;
 #endif
 	schedule_on_each_cpu(&skb_recycler_flush_task);
 
 #ifdef CONFIG_SKB_RECYCLER_MULTI_CPU
-	spin_lock(&glob_recycler.lock);
+	spin_lock_irqsave(&glob_recycler.lock, flags);
 	for (i = 0; i < SKB_RECYCLE_MAX_SHARED_POOLS; i++)
 		skb_recycler_free_skb(&glob_recycler.pool[i]);
 	glob_recycler.head = 0;
 	glob_recycler.tail = 0;
-	spin_unlock(&glob_recycler.lock);
+	spin_unlock_irqrestore(&glob_recycler.lock, flags);
 #endif
 	return count;
 
