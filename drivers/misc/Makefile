@@ -51,3 +51,6 @@ obj-$(CONFIG_USB_SWITCH_FSA9480) += fsa9480.o
 obj-$(CONFIG_ALTERA_STAPL)	+=altera-stapl/
 obj-$(CONFIG_MAX8997_MUIC)	+= max8997-muic.o
 obj-$(CONFIG_TSIF) += msm_tsif.o
+
+CFLAGS_fw_auth.o += -I$(srctree)/crypto/asymmetric_keys
+obj-$(CONFIG_FW_AUTH) += fw_auth.o
