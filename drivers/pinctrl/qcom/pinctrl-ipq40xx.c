@@ -70,7 +70,7 @@
 		.intr_detection_width = 2,	\
 	}
 
-static const struct pinctrl_pin_desc qca961x_pins[] = {
+static const struct pinctrl_pin_desc ipq40xx_pins[] = {
 	PINCTRL_PIN(0, "GPIO_0"),
 	PINCTRL_PIN(1, "GPIO_1"),
 	PINCTRL_PIN(2, "GPIO_2"),
@@ -229,7 +229,7 @@ static const unsigned int sdc2_clk_pins[] = { 73 };
 static const unsigned int sdc2_cmd_pins[] = { 74 };
 static const unsigned int sdc2_data_pins[] = { 75 };
 
-enum qca961x_functions {
+enum ipq40xx_functions {
 	qca_mux_smart0,
 	qca_mux_jtag,
 	qca_mux_audio0,
@@ -974,7 +974,7 @@ static const char * const wcss1_dbg13_groups[] = {
 	"gpio69",
 };
 
-static const struct msm_function qca961x_functions[] = {
+static const struct msm_function ipq40xx_functions[] = {
 	FUNCTION(smart0),
 	FUNCTION(jtag),
 	FUNCTION(audio0),
@@ -1160,7 +1160,7 @@ static const struct msm_function qca961x_functions[] = {
 	FUNCTION(wcss1_dbg13),
 };
 
-static const struct msm_pingroup qca961x_groups[] = {
+static const struct msm_pingroup ipq40xx_groups[] = {
 	PINGROUP(0, jtag, smart0, audio0, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(1, jtag, smart0, audio0, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(2, jtag, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
@@ -1233,48 +1233,48 @@ static const struct msm_pingroup qca961x_groups[] = {
 	PINGROUP(69, qpic_pad, audio_pwm3, NA, wcss0_dbg13, wcss1_dbg13, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 };
 
-static const struct msm_pinctrl_soc_data qca961x_pinctrl = {
-	.pins = qca961x_pins,
-	.npins = ARRAY_SIZE(qca961x_pins),
-	.functions = qca961x_functions,
-	.nfunctions = ARRAY_SIZE(qca961x_functions),
-	.groups = qca961x_groups,
-	.ngroups = ARRAY_SIZE(qca961x_groups),
+static const struct msm_pinctrl_soc_data ipq40xx_pinctrl = {
+	.pins = ipq40xx_pins,
+	.npins = ARRAY_SIZE(ipq40xx_pins),
+	.functions = ipq40xx_functions,
+	.nfunctions = ARRAY_SIZE(ipq40xx_functions),
+	.groups = ipq40xx_groups,
+	.ngroups = ARRAY_SIZE(ipq40xx_groups),
 	.ngpios = 70,
 };
 
-static int qca961x_pinctrl_probe(struct platform_device *pdev)
+static int ipq40xx_pinctrl_probe(struct platform_device *pdev)
 {
-	return msm_pinctrl_probe(pdev, &qca961x_pinctrl);
+	return msm_pinctrl_probe(pdev, &ipq40xx_pinctrl);
 }
 
-static const struct of_device_id qca961x_pinctrl_of_match[] = {
-	{ .compatible = "qcom,qca961x-pinctrl", },
+static const struct of_device_id ipq40xx_pinctrl_of_match[] = {
+	{ .compatible = "qcom,ipq40xx-pinctrl", },
 	{ },
 };
 
-static struct platform_driver qca961x_pinctrl_driver = {
+static struct platform_driver ipq40xx_pinctrl_driver = {
 	.driver = {
-		.name = "qca961x-pinctrl",
+		.name = "ipq40xx-pinctrl",
 		.owner = THIS_MODULE,
-		.of_match_table = qca961x_pinctrl_of_match,
+		.of_match_table = ipq40xx_pinctrl_of_match,
 	},
-	.probe = qca961x_pinctrl_probe,
+	.probe = ipq40xx_pinctrl_probe,
 	.remove = msm_pinctrl_remove,
 };
 
-static int __init qca961x_pinctrl_init(void)
+static int __init ipq40xx_pinctrl_init(void)
 {
-	return platform_driver_register(&qca961x_pinctrl_driver);
+	return platform_driver_register(&ipq40xx_pinctrl_driver);
 }
-arch_initcall(qca961x_pinctrl_init);
+arch_initcall(ipq40xx_pinctrl_init);
 
-static void __exit qca961x_pinctrl_exit(void)
+static void __exit ipq40xx_pinctrl_exit(void)
 {
-	platform_driver_unregister(&qca961x_pinctrl_driver);
+	platform_driver_unregister(&ipq40xx_pinctrl_driver);
 }
-module_exit(qca961x_pinctrl_exit);
+module_exit(ipq40xx_pinctrl_exit);
 
-MODULE_DESCRIPTION("Qualcomm qca961x pinctrl driver");
+MODULE_DESCRIPTION("Qualcomm ipq40xx pinctrl driver");
 MODULE_LICENSE("GPL v2");
-MODULE_DEVICE_TABLE(of, qca961x_pinctrl_of_match);
+MODULE_DEVICE_TABLE(of, ipq40xx_pinctrl_of_match);

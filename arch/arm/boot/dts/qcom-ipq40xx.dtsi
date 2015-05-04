@@ -122,7 +122,7 @@
 		};
 
 		tlmm: pinctrl@0x01000000 {
-			compatible = "qcom,qca961x-pinctrl";
+			compatible = "qcom,ipq40xx-pinctrl";
 			reg = <0x01000000 0x300000>;
 			gpio-controller;
 			#gpio-cells = <2>;
