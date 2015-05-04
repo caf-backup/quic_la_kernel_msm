@@ -347,6 +347,22 @@ static __always_inline void edma_receive_checksum(u16 *rrd1,
 }
 
 /*
+ * edma_clean_rfd()
+ *	clean up rx resourcers on error
+ */
+static void edma_clean_rfd(struct edma_rfd_desc_ring *erdr)
+{
+	struct edma_rx_free_desc *rx_desc;
+	struct edma_sw_desc *sw_desc;
+	int index = erdr->sw_next_to_clean;
+
+	rx_desc = (&((struct edma_rx_free_desc *)(erdr->hw_desc))[index]);
+	sw_desc = &erdr->sw_desc[index];
+	dev_kfree_skb_any(sw_desc->skb);
+	memset(rx_desc, 0, sizeof(struct edma_rx_free_desc));
+}
+
+/*
  * edma_rx_complete()
  *	Main api called from the poll function to process rx packets.
  */
@@ -408,9 +424,10 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 		cleaned_count++;
 
 		/* Check if RRD is valid */
-		if (!unlikely(rrd[7] & EDMA_RRD_DESC_VALID))
+		if (!unlikely(rrd[7] & EDMA_RRD_DESC_VALID)) {
+			edma_clean_rfd(erdr);
 			continue;
-		else {
+		} else {
 			/* Get the packet size and allocate buffer */
 			length = rrd[6] & EDMA_RRD_PKT_SIZE_MASK;
 
@@ -789,6 +806,32 @@ static void edma_tx_update_hw_idx(struct edma_common_info *c_info,
 }
 
 /*
+ * edma_rollback_tx()
+ *	Function to retrieve tx resources in case of error
+ */
+static void edma_rollback_tx(struct edma_adapter *adapter,
+		struct edma_tx_desc *start_tpd, int queue_id)
+{
+	struct edma_tx_desc_ring *etdr = adapter->c_info->tpd_ring[queue_id];
+	struct edma_sw_desc *sw_desc;
+	struct edma_tx_desc *tpd = NULL;
+	u16 start_index, index;
+
+	start_index = start_tpd - (struct edma_tx_desc *)(etdr->hw_desc);
+
+	index = start_index;
+	while (index != etdr->sw_next_to_fill) {
+		tpd = (&((struct edma_tx_desc *)(etdr->hw_desc))[index]);
+		sw_desc = &etdr->sw_desc[index];
+		edma_tx_unmap_and_free(adapter->pdev, sw_desc);
+		memset(tpd, 0, sizeof(struct edma_tx_desc));
+		if (++index == etdr->count)
+			index = 0;
+	}
+	etdr->sw_next_to_fill = start_index;
+}
+
+/*
  * edma_tx_map_and_fill()
  *	gets called from edma_xmit_frame
  *
@@ -801,7 +844,7 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 {
 	struct edma_sw_desc *sw_desc = NULL;
 	struct platform_device *pdev = c_info->pdev;
-	struct edma_tx_desc *tpd = NULL;
+	struct edma_tx_desc *tpd, *start_tpd = NULL;
 	int i = 0, nr_frags = skb_shinfo(skb)->nr_frags;
 	u32 word1 = 0, word3 = 0, lso_word1 = 0, svlan_tag = 0;
 	u16 buf_len, lso_desc_len = 0;
@@ -860,11 +903,11 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 
 	buf_len = skb_headlen(skb);
 
-	if (unlikely (lso_word1)) {
+	if (unlikely(lso_word1)) {
 		if (lso_word1 & EDMA_TPD_LSO_V2_EN) {
 
 			/* IPv6 LSOv2 descriptor */
-			tpd = edma_get_next_tpd(c_info, queue_id);
+			start_tpd = tpd = edma_get_next_tpd(c_info, queue_id);
 			sw_desc = edma_get_tx_buffer(c_info, tpd, queue_id);
 			sw_desc->flags |= EDMA_SW_DESC_FLAG_SKB_NONE;
 
@@ -876,7 +919,15 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 		}
 
 		tpd = edma_get_next_tpd(c_info, queue_id);
+		if (!start_tpd)
+			start_tpd = tpd;
 		sw_desc = edma_get_tx_buffer(c_info, tpd, queue_id);
+
+		/* The last buffer info contain the skb address,
+		 * tso it will be free after unmap
+		 */
+		sw_desc->length = lso_desc_len;
+		sw_desc->flags |= EDMA_SW_DESC_FLAG_SKB_HEAD;
 
 		sw_desc->dma = dma_map_single(&adapter->pdev->dev,
 					skb->data, buf_len, DMA_TO_DEVICE);
@@ -899,15 +950,23 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 		buf_len = 0;
 	}
 
-	if (likely (buf_len)) {
+	if (likely(buf_len)) {
 
 		/* TODO Do not dequeue descriptor if there is a potential error */
 		tpd = edma_get_next_tpd(c_info, queue_id);
 
-		sw_desc = edma_get_tx_buffer(c_info, tpd, queue_id);
-		sw_desc->dma = dma_map_single(&adapter->pdev->dev,
-			                        skb->data, buf_len, DMA_TO_DEVICE);
+		if (!start_tpd)
+			start_tpd = tpd;
 
+		sw_desc = edma_get_tx_buffer(c_info, tpd, queue_id);
+
+		/* The last buffer info contain the skb address,
+		 * so it will be free after unmap
+		 */
+		sw_desc->length = buf_len;
+		sw_desc->flags |= EDMA_SW_DESC_FLAG_SKB_HEAD;
+		sw_desc->dma = dma_map_single(&adapter->pdev->dev,
+			skb->data, buf_len, DMA_TO_DEVICE);
 		if (unlikely(dma_mapping_error(&pdev->dev, sw_desc->dma)))
 			goto dma_error;
 
@@ -919,12 +978,6 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 		tpd->svlan_tag = svlan_tag;
 		tpd->word1 = word1 | lso_word1;
 		tpd->word3 = word3;
-
-		/* The last buffer info contain the skb address,
-	 	 * so it will be free after unmap
-	 	 */
-		sw_desc->length = buf_len;
-		sw_desc->flags |= EDMA_SW_DESC_FLAG_SKB_HEAD;
 	}
 
 	while (nr_frags--) {
@@ -933,6 +986,8 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 		tpd = edma_get_next_tpd(c_info, queue_id);
 		sw_desc = edma_get_tx_buffer(c_info, tpd, queue_id);
 		sw_desc->length = buf_len;
+		sw_desc->flags |= EDMA_SW_DESC_FLAG_SKB_FRAG;
+
 		sw_desc->dma = skb_frag_dma_map(&pdev->dev, frag, 0, buf_len, DMA_TO_DEVICE);
 
 		if (unlikely(dma_mapping_error(NULL, sw_desc->dma))) {
@@ -945,7 +1000,6 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 		tpd->svlan_tag = svlan_tag;
 		tpd->word1 = word1 | lso_word1;
 		tpd->word3 = word3;
-		sw_desc->flags |= EDMA_SW_DESC_FLAG_SKB_FRAG;
 		i++;
 	}
 
@@ -957,7 +1011,7 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 	return 0;
 
 dma_error:
-	/* TODO: Rollback of work done in this call */
+	edma_rollback_tx(adapter, start_tpd, queue_id);
 	dev_err(&pdev->dev, "TX DMA map failed\n");
 vlan_tag_error:
 	return -ENOMEM;
