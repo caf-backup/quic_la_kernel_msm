@@ -631,8 +631,21 @@ static irqreturn_t spi_qup_qup_irq(int irq, void *dev_id)
 	spin_unlock_irqrestore(&controller->lock, flags);
 
 	if ((controller->rx_bytes == xfer->len &&
-		(opflags & QUP_OP_MAX_INPUT_DONE_FLAG)) || error)
+		(opflags & QUP_OP_MAX_INPUT_DONE_FLAG)) || error) {
 		complete(&controller->done);
+	} else if (controller->rx_bytes == xfer->len &&
+		   !controller->use_dma && xfer->len >= 0x10000) {
+		/*
+		 * xxx_COUNT registers are 16 bits wide. Hence, the
+		 * maximum count value that can be programmed in them is
+		 * 0xffff. If the transfer length is greater than 0xffff,
+		 * the registers get set to zero, implying infinite read
+		 * mode. In these cases, the QUP_OP_MAX_INPUT_DONE_FLAG
+		 * will not get set. Hence, terminate here if we have Rx-ed
+		 * enough no. of bytes.
+		 */
+		complete(&controller->done);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -811,7 +824,7 @@ static int spi_qup_transfer_one(struct spi_master *master,
 		if (!ret && !wait_for_completion_timeout(&controller->done,
 				timeout))
 			ret = -ETIMEDOUT;
-	}
+		}
 exit:
 
 	spi_qup_set_state(controller, QUP_STATE_RESET);
