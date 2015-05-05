@@ -191,6 +191,108 @@ static struct gpiomux_setting ipq806x_leds_cfg = {
 	.drv = GPIOMUX_DRV_2MA,
 	.pull = GPIOMUX_PULL_DOWN,
 };
+
+static struct gpiomux_setting ak01_1xx_eth_interrupt = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_8MA,
+	.pull = GPIOMUX_PULL_NONE,
+	.dir = GPIOMUX_OUT_HIGH,
+};
+
+static struct gpiomux_setting ak01_1xx_11ac_leds_cfg = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_12MA,
+	.pull = GPIOMUX_PULL_DOWN,
+	.dir = GPIOMUX_IN,
+};
+
+static struct gpiomux_setting ak01_1xx_fp_leds_cfg = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_DOWN,
+	.dir = GPIOMUX_OUT_LOW,
+};
+
+static struct gpiomux_setting ak01_1xx_usb_enable = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_12MA,
+	.pull = GPIOMUX_PULL_UP,
+	.dir = GPIOMUX_OUT_HIGH
+};
+
+static struct gpiomux_setting ak01_1xx_dl_reset = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_12MA,
+	.pull = GPIOMUX_PULL_UP,
+	.dir = GPIOMUX_OUT_HIGH
+};
+
+static struct gpiomux_setting ak01_1xx_hub_reset = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_12MA,
+	.pull = GPIOMUX_PULL_UP,
+	.dir = GPIOMUX_OUT_HIGH
+};
+
+static struct gpiomux_setting ak01_1xx_11ac_disable = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_12MA,
+	.pull = GPIOMUX_PULL_UP,
+	.dir = GPIOMUX_OUT_HIGH
+};
+
+static struct gpiomux_setting ak01_1xx_eth_reset = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_12MA,
+	.pull = GPIOMUX_PULL_UP,
+	.dir = GPIOMUX_OUT_HIGH
+};
+
+static struct gpiomux_setting ak01_1xx_dl_uart_tx = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_12MA,
+	.pull = GPIOMUX_PULL_UP,
+};
+
+static struct gpiomux_setting ak01_1xx_rst_cfg = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_12MA,
+	.pull = GPIOMUX_PULL_UP,
+	.dir = GPIOMUX_IN,
+};
+
+static struct gpiomux_setting ak01_1xx_11ad_led_cfg = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_12MA,
+	.pull = GPIOMUX_PULL_UP,
+};
+
+static struct gpiomux_setting ak01_1xx_wifi_led_cfg = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_12MA,
+	.pull = GPIOMUX_PULL_UP,
+};
+
+static struct gpiomux_setting ak01_1xx_wps_switch = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_12MA,
+	.pull = GPIOMUX_PULL_UP,
+	.dir = GPIOMUX_IN,
+};
+
+static struct gpiomux_setting ak01_1xx_11ad_disable = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_12MA,
+	.pull = GPIOMUX_PULL_UP,
+	.dir = GPIOMUX_OUT_HIGH
+};
+
+static struct gpiomux_setting ak01_1xx_wifi_pwrdn = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_12MA,
+	.pull = GPIOMUX_PULL_UP,
+};
+
 static struct gpiomux_setting usb30_pwr_en_n = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_12MA,
@@ -741,6 +843,43 @@ static struct msm_gpiomux_config ipq806x_ap161_gpiomux[] = {
 	ipq_mux(68, ipq806x_buttons_cfg,		ipq806x_buttons_cfg),
 };
 
+static struct msm_gpiomux_config ipq806x_ak01_1xx_gpiomux[] = {
+	ipq_mux(0, mdio_n,				mdio_n),
+	ipq_mux(1, mdio_n,				mdio_n),
+	ipq_mux(2, ak01_1xx_eth_interrupt,		ak01_1xx_eth_interrupt),
+	ipq_mux(3, pcie_rst_n,				pcie_rst_n),
+	ipq_mux(6, ak01_1xx_11ac_leds_cfg,		ak01_1xx_11ac_leds_cfg),
+	ipq_mux(7, ak01_1xx_fp_leds_cfg,		ak01_1xx_fp_leds_cfg),
+	ipq_mux(8, ak01_1xx_fp_leds_cfg,		ak01_1xx_fp_leds_cfg),
+	ipq_mux(9, ak01_1xx_fp_leds_cfg,		ak01_1xx_fp_leds_cfg),
+	ipq_mux(12, gsbi4_active_cfg,			gsbi4_suspended_cfg),
+	ipq_mux(13, gsbi4_active_cfg,			gsbi4_suspended_cfg),
+	ipq_mux(18, gsbi5_spi_data_cfg,			gsbi5_spi_data_cfg),
+	ipq_mux(19, gsbi5_spi_data_cfg,			gsbi5_spi_data_cfg),
+	ipq_mux(20, gsbi5_spi_cs_cfg,			gsbi5_spi_cs_cfg),
+	ipq_mux(21, gsbi5_spi_clk_cfg,			gsbi5_spi_clk_cfg),
+	ipq_mux(27, ak01_1xx_usb_enable,		ak01_1xx_usb_enable),
+	ipq_mux(28, ak01_1xx_dl_reset,			ak01_1xx_dl_reset),
+	ipq_mux(29, ak01_1xx_hub_reset,			ak01_1xx_hub_reset),
+	ipq_mux(30, ak01_1xx_11ac_disable,		ak01_1xx_11ac_disable),
+	ipq_mux(32, ak01_1xx_eth_reset,			ak01_1xx_eth_reset),
+	ipq_mux(48, pcie_rst_n,				pcie_rst_n),
+	ipq_mux(52, ak01_1xx_dl_uart_tx,		ak01_1xx_dl_uart_tx),
+	ipq_mux(53, ipq806x_leds_cfg,			ipq806x_leds_cfg),
+	ipq_mux(54, ak01_1xx_rst_cfg,			ak01_1xx_rst_cfg),
+	ipq_mux(55, gsbi6_spi_mosi_cfg,			gsbi6_spi_mosi_cfg),
+	ipq_mux(56, gsbi6_spi_miso_cfg,			gsbi6_spi_miso_cfg),
+	ipq_mux(57, gsbi6_spi_cs_cfg,			gsbi6_spi_cs_cfg),
+	ipq_mux(58, gsbi6_spi_clk_cfg,			gsbi6_spi_clk_cfg),
+	ipq_mux(60, ak01_1xx_11ad_led_cfg,		ak01_1xx_11ad_led_cfg),
+	ipq_mux(61, ak01_1xx_wifi_led_cfg,		ak01_1xx_wifi_led_cfg),
+	ipq_mux(62, ak01_1xx_wps_switch,		ak01_1xx_wps_switch),
+	ipq_mux(63, reset_control,			reset_control),
+	ipq_mux(65, ipq806x_buttons_cfg,		ipq806x_buttons_cfg),
+	ipq_mux(67, ak01_1xx_11ad_disable,		ak01_1xx_11ad_disable),
+	ipq_mux(68, ak01_1xx_wifi_pwrdn,		ak01_1xx_wifi_pwrdn),
+};
+
 void __init ipq806x_init_gpiomux(void)
 {
 	int rc;
@@ -802,6 +941,12 @@ void __init ipq806x_init_gpiomux(void)
 			ARRAY_SIZE(ipq806x_ap161_gpiomux));
 		/* GSBI6 needs copy B */
 		msm_gpiomux_gsbi_select_copy(IPQ806X_GSBI6_PORT_SEL_BASE, GPIOMUX_COPY_B);
+	} else if (machine_is_ipq806x_ak01_1xx()) {
+		msm_gpiomux_install(ipq806x_ak01_1xx_gpiomux,
+			ARRAY_SIZE(ipq806x_ak01_1xx_gpiomux));
+		/* GSBI6 needs copy B */
+		msm_gpiomux_gsbi_select_copy(IPQ806X_GSBI6_PORT_SEL_BASE,
+			GPIOMUX_COPY_B);
 	}
 
 }

@@ -1,5 +1,4 @@
-/* * Copyright (c) 2012 The Linux Foundation. All rights reserved.* */
-/* Copyright (c) 2009-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2009-2015, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -719,7 +718,8 @@ static void * __init setup_dummy_socinfo(void)
 		machine_is_ipq806x_ap145_1xx() ||
 		machine_is_ipq806x_ap160() ||
 		machine_is_ipq806x_ap160_2xx() ||
-		machine_is_ipq806x_ap161()) {
+		machine_is_ipq806x_ap161() ||
+		machine_is_ipq806x_ak01_1xx()) {
 		dummy_socinfo.id = 202;
 	}
 	strlcat(dummy_socinfo.build_id, "Dummy socinfo",

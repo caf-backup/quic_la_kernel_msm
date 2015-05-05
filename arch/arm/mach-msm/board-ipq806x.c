@@ -288,6 +288,11 @@ static struct spi_board_info ipq806x_ap161_spi_board_info[] __initdata = {
 	IPQ806X_SPI_INFO("ipq_pcm_spi", SPI_MODE_0, 6, 0, &ipq_pcm_spi_reset_gpio, 6000000),
 };
 
+static struct spi_board_info ipq806x_ak01_1xx_spi_board_info[] __initdata = {
+	IPQ806X_SPI_INFO("ipq_pcm_spi", SPI_MODE_0, 6, 0,
+		&ipq_pcm_spi_reset_gpio, 6000000),
+};
+
 #endif
 
 static struct memtype_reserve ipq806x_reserve_table[] __initdata = {
@@ -1855,6 +1860,12 @@ static struct platform_device *cdp_devices_ap161[] __initdata = {
 	&ipq806x_device_qup_i2c_gsbi1,
 };
 
+static struct platform_device *cdp_devices_ak01_1xx[] __initdata = {
+	&ipq806x_device_uart_gsbi4,
+	&msm_device_sps_ipq806x,
+	&ipq806x_pc_cntr,
+};
+
 #ifdef CONFIG_SPI_QUP
 static int gsbi5_dma_config(void)
 {
@@ -2041,6 +2052,57 @@ static struct platform_device ap161_leds_gpio = {
 	},
 };
 
+static struct gpio_led ak01_gpio_leds[] = {
+	{
+		.name       = "ak01:11ac_led",
+		.gpio       = 6,
+		.active_low = 0,
+	},
+	{
+		.name       = "ak01:blue:fp",
+		.gpio       = 7,
+		.active_low = 0,
+	},
+	{
+		.name       = "ak01:green:fp",
+		.gpio       = 8,
+		.active_low = 0,
+	},
+	{
+		.name       = "ak01:red:fp",
+		.gpio       = 9,
+		.active_low = 0,
+	},
+	{
+		.name       = "ak01:green:status",
+		.gpio       = 53,
+		.active_low = 0,
+	},
+	{
+		.name       = "ak01:11ad_led",
+		.gpio       = 60,
+		.active_low = 0,
+	},
+	{
+		.name       = "ak01:wifi_hmc_led",
+		.gpio       = 61,
+		.active_low = 0,
+	},
+};
+
+static struct gpio_led_platform_data gpio_led_ak01_pdata = {
+	.leds           = ak01_gpio_leds,
+	.num_leds       = ARRAY_SIZE(ak01_gpio_leds),
+};
+
+static struct platform_device ak01_leds_gpio = {
+	.name   = "leds-gpio",
+	.id     = -1,
+	.dev    = {
+		.platform_data  = &gpio_led_ak01_pdata,
+	},
+};
+
 #define DB149_GPIO_BTN_JUMPSTART	26
 
 #define DB149_KEYS_POLL_INTERVAL	20	/* msecs */
@@ -2180,6 +2242,45 @@ static struct platform_device ap160_kp_pdev = {
 	},
 };
 
+#define AK01_GPIO_BTN_FACTORY_RESET	54
+#define AK01_GPIO_BTN_JUMPSTART		62
+#define AK01_KEYS_POLL_INTERVAL		20	/* msecs */
+#define AK01_KEYS_DEBOUNCE_INTERVAL	(3 * AK01_KEYS_POLL_INTERVAL)
+
+static struct gpio_keys_button ak01_gpio_keys[] = {
+	{
+		.desc           = "wps",
+		.type           = EV_KEY,
+		.code           = KEY_WPS_BUTTON,
+		.debounce_interval = AK01_KEYS_DEBOUNCE_INTERVAL,
+		.gpio           = AK01_GPIO_BTN_JUMPSTART,
+		.wakeup         = 1,
+		.active_low     = 1,
+	},
+	{
+		.desc           = "factory_reset",
+		.type           = EV_KEY,
+		.code           = KEY_RESTART,
+		.debounce_interval = AK01_KEYS_DEBOUNCE_INTERVAL,
+		.gpio           = AK01_GPIO_BTN_FACTORY_RESET,
+		.wakeup         = 1,
+		.active_low     = 1,
+	}
+};
+
+static struct gpio_keys_platform_data ak01_keys_data = {
+	.buttons        = ak01_gpio_keys,
+	.nbuttons       = ARRAY_SIZE(ak01_gpio_keys),
+};
+
+static struct platform_device ak01_kp_pdev = {
+	.name           = "gpio-keys",
+	.id             = -1,
+	.dev            = {
+		.platform_data  = &ak01_keys_data,
+	},
+};
+
 static struct msm_serial_hs_platform_data ipq806x_uart_dm2_pdata = {
 	/* set to 1 if your device needs a character to be injected on wakeup */
 	.inject_rx_on_wakeup	= 0,
@@ -2289,7 +2390,8 @@ static void __init ipq806x_common_init(void)
 		machine_is_ipq806x_db149_2xx() ||
 		machine_is_ipq806x_ap160() ||
 		machine_is_ipq806x_ap160_2xx() ||
-		machine_is_ipq806x_ap161()) {
+		machine_is_ipq806x_ap161() ||
+		machine_is_ipq806x_ak01_1xx()) {
 		BUG_ON(msm_rpm_init(&ipq806x_rpm_data));
 		BUG_ON(msm_rpmrs_levels_init(&msm_rpmrs_data));
 		regulator_suppress_info_printing();
@@ -2403,7 +2505,8 @@ static void __init ipq806x_common_init(void)
 		}
 	}
 
-	if (machine_is_ipq806x_ap148() || machine_is_ipq806x_ap148_1xx()) {
+	if (machine_is_ipq806x_ap148() || machine_is_ipq806x_ap148_1xx() ||
+		machine_is_ipq806x_ak01_1xx()) {
 		platform_add_devices(lpass_clock_devices, ARRAY_SIZE(lpass_clock_devices));
 		platform_add_devices(lpass_dma_devices, ARRAY_SIZE(lpass_dma_devices));
 		platform_add_devices(lpass_pcm_devices, ARRAY_SIZE(lpass_pcm_devices));
@@ -2848,6 +2951,9 @@ static void __init ipq806x_init(void)
 		platform_device_register(&ipq806x_device_uartdm_gsbi2);
 		platform_add_devices(cdp_devices_ap161,
 			ARRAY_SIZE(cdp_devices_ap161));
+	} else if (machine_is_ipq806x_ak01_1xx()) {
+		platform_add_devices(cdp_devices_ak01_1xx,
+			ARRAY_SIZE(cdp_devices_ak01_1xx));
 	} else {
 		platform_add_devices(cdp_devices, ARRAY_SIZE(cdp_devices));
 		if (machine_is_ipq806x_db149_2xx()) {
@@ -2873,6 +2979,10 @@ static void __init ipq806x_init(void)
 	}
 	if (machine_is_ipq806x_ap161()) {
 		platform_device_register(&ap161_leds_gpio);
+	}
+	if (machine_is_ipq806x_ak01_1xx()) {
+		platform_device_register(&ak01_kp_pdev);
+		platform_device_register(&ak01_leds_gpio);
 	}
 }
 
@@ -3045,3 +3155,14 @@ MACHINE_START(IPQ806X_AP161, "Qualcomm Atheros AP161 reference board")
 	.restart = msm_restart,
 MACHINE_END
 
+MACHINE_START(IPQ806X_AK01_1XX, "Qualcomm Atheros AK01-1XX reference board")
+	.map_io = ipq806x_map_io,
+	.reserve = ipq806x_reserve,
+	.init_irq = ipq806x_init_irq,
+	.handle_irq = gic_handle_irq,
+	.timer = &msm_timer,
+	.init_machine = ipq806x_init,
+	.init_early = ipq806x_allocate_memory_regions,
+	.init_very_early = ipq806x_early_reserve,
+	.restart = msm_restart,
+MACHINE_END

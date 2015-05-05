@@ -1,4 +1,4 @@
-/* * Copyright (c) 2012 The Linux Foundation. All rights reserved.* */
+/* * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.* */
 /*
  * Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  *
@@ -317,7 +317,8 @@ void __init fixup_ipq806x_smb_power_grid(void)
 			machine_is_ipq806x_ap148_1xx() ||
 			machine_is_ipq806x_ap160() ||
 			machine_is_ipq806x_ap160_2xx() ||
-			machine_is_ipq806x_ap161()) {
+			machine_is_ipq806x_ap161() ||
+			machine_is_ipq806x_ak01_1xx()) {
 		ipq806x_rpm_regulator_smb_pdata.consumer_map =
 			msm_rpm_regulator_smb_ap148_consumer_mapping;
 		ipq806x_rpm_regulator_smb_pdata.consumer_map_len =
