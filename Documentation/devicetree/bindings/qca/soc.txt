@@ -10,7 +10,7 @@ Example:
 
 	soc {
 		compatible = "simple-bus";
-		model = "Qualcomm IPQ40xx";
+		model = "Qualcomm Technologies, Inc. IPQ40xx";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		...

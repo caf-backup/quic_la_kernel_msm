@@ -1,4 +1,4 @@
-Qualcomm Global Counter
+QCA Global Counter
 ------------------------------------------------
 
 Required properties :
