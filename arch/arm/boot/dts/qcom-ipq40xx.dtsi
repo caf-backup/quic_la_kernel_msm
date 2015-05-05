@@ -18,7 +18,7 @@
 #include <dt-bindings/clock/qcom,gcc-dummy.h>
 #include <dt-bindings/soc/qcom,tcsr.h>
 / {
-	model = "Qualcomm IPQ40xx";
+	model = "Qualcomm Technologies, Inc. IPQ40xx";
 	compatible = "qcom,qca961x";
 	interrupt-parent = <&intc>;
 

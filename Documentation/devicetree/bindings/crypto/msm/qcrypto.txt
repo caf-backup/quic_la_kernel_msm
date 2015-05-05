@@ -1,4 +1,4 @@
-* QCRYPTO (Qualcomm Crypto)
+* QCRYPTO (Qualcomm Technologies, Inc. Crypto)
 
 Required properties:
   - compatible : should be "qcom,qcrypto"

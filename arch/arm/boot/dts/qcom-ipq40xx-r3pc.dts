@@ -16,7 +16,7 @@
 #include "qcom-ipq40xx-hsuart.dtsi"
 
 / {
-	model = "Qualcomm IPQ40xx R3PC";
+	model = "Qualcomm Technologies, Inc. IPQ40xx R3PC";
 	compatible = "qcom,qca961x-r3pc", "qcom,qca961x";
 
 	memory {

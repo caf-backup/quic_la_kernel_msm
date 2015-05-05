@@ -1,4 +1,4 @@
-* Qualcomm MSM HSUART
+* Qualcomm Technologies, Inc. MSM HSUART
 
 Required properties:
 - compatible :
