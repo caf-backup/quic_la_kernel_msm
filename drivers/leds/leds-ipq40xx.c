@@ -26,7 +26,8 @@
 #define BUF_NAME_LEN	25
 #define MAX_BLINK_IDX	4
 #define LEDC_DRV_NAME	"qca961x-leds"
-#define LEDC_ADDR(x)	(ledc_base_addr + LEDC_BASE_REG_OFFSET + (LEDC_REG_SIZE * (x)))
+#define LEDC_ADDR(x)	(ledc_base_addr + LEDC_BASE_REG_OFFSET + \
+				(LEDC_REG_SIZE * (x)))
 
 enum ledc_offsets {
 	LEDC_CG0_OFFSET,
@@ -44,7 +45,7 @@ enum ledc_offsets {
 	LEDC_MAX_OFFSET
 };
 
-enum blink_freq_values{
+enum blink_freq_values {
 	BLINK_2HZ,
 	BLINK_4HZ,
 	BLINK_8HZ,
@@ -53,7 +54,7 @@ enum blink_freq_values{
 	BLINK_64HZ
 };
 
-enum blink_duty_values{
+enum blink_duty_values {
 	BLINK_DUTY_50,
 	BLINK_DUTY_25,
 	BLINK_DUTY_33,
@@ -75,8 +76,10 @@ static int led_blink_array[MAX_BLINK_IDX];
 static int qca961x_set_led_blink_set(struct led_classdev *led_cdev,
 		unsigned long *delay_on, unsigned long *delay_off)
 {
-	struct qca961x_led_data *led_dat = container_of(led_cdev, struct qca961x_led_data, cdev);
-	int blink_enable, blink_freq, blink_duty, blink_value, duty_cycle, total_on_off;
+	struct qca961x_led_data *led_dat = container_of(led_cdev,
+					struct qca961x_led_data, cdev);
+	int blink_enable, blink_freq, blink_duty, blink_value,
+					duty_cycle, total_on_off;
 	int reg, mask;
 
 	if (*delay_on <= 0)
@@ -131,7 +134,8 @@ static int qca961x_set_led_blink_set(struct led_classdev *led_cdev,
 static void qca961x_set_led_brightness_set(struct led_classdev *led_cdev,
 		enum led_brightness brightness)
 {
-	struct qca961x_led_data *led_dat = container_of(led_cdev, struct qca961x_led_data, cdev);
+	struct qca961x_led_data *led_dat = container_of(led_cdev,
+					struct qca961x_led_data, cdev);
 	int reg, mask;
 	unsigned long delay_on, delay_off;
 	delay_on = 0;
@@ -149,19 +153,19 @@ static void qca961x_set_led_brightness_set(struct led_classdev *led_cdev,
 
 static int __init qca961x_led_probe(struct platform_device *pdev)
 {
-	int ret,i;
+	int ret, i;
 	uint32_t val_arr[LEDC_MAX_OFFSET];
 	char buf[BUF_NAME_LEN];
 	struct resource *res;
 	struct device_node *of_node = pdev->dev.of_node;
 
-	if (!of_node) {
+	if (!of_node)
 		return -ENODEV;
-	}
 
-	res = platform_get_resource_byname(pdev,IORESOURCE_MEM, "ledc_base_addr");
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+					"ledc_base_addr");
 	if (!res) {
-		dev_err(&pdev->dev,"Could not get ledc base addr.\n");
+		dev_err(&pdev->dev, "Could not get ledc base addr.\n");
 		return -EINVAL;
 	}
 	ledc_base_addr = ioremap(res->start, res->end - res->start + 1);
@@ -173,15 +177,16 @@ static int __init qca961x_led_probe(struct platform_device *pdev)
 	res = of_property_read_u32_array(of_node, "qcom,tcsr_ledc_values",
 		val_arr, LEDC_MAX_OFFSET);
 	if (res) {
-		dev_err(&pdev->dev, "invalid or missing property: qcom,tcsr_ledc_values\n");
+		dev_err(&pdev->dev,
+		"invalid or missing property: qcom,tcsr_ledc_values\n");
 		return -ENODEV;
 	};
 
-	for (i = 0; i < LEDC_MAX_OFFSET; i++) {
+	for (i = 0; i < LEDC_MAX_OFFSET; i++)
 		writel(val_arr[i] , LEDC_ADDR(i));
-	}
 
-	ret = of_property_read_u32(of_node, "qcom,ledc_blink_indices_cnt", &blink_idx_cnt);
+	ret = of_property_read_u32(of_node, "qcom,ledc_blink_indices_cnt",
+					&blink_idx_cnt);
 	if (ret) {
 		dev_err(&pdev->dev, "missing blink idx count.\n");
 		return -ENODEV;
@@ -192,7 +197,8 @@ static int __init qca961x_led_probe(struct platform_device *pdev)
 	res = of_property_read_u32_array(of_node, "qcom,ledc_blink_indices",
 		led_blink_array, blink_idx_cnt);
 	if (res) {
-		dev_err(&pdev->dev, "invalid or missing property: blink indices\n");
+		dev_err(&pdev->dev,
+			"invalid or missing property: blink indices\n");
 		return -ENODEV;
 	};
 
@@ -209,7 +215,7 @@ static int __init qca961x_led_probe(struct platform_device *pdev)
 		leds[i].cdev.brightness_set = qca961x_set_led_brightness_set;
 		leds[i].cdev.blink_set = qca961x_set_led_blink_set;
 
-		memset( buf, 0, BUF_NAME_LEN);
+		memset(buf, 0, BUF_NAME_LEN);
 		snprintf(buf, BUF_NAME_LEN, "qca961x::led%d", i);
 		leds[i].cdev.name = buf;
 

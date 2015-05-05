@@ -487,12 +487,14 @@ config LEDS_BLINKM
 	  This option enables support for the BlinkM RGB LED connected
 	  through I2C. Say Y to enable support for the BlinkM LED.
 
-config LEDS_QCA961X
-	tristate "LED Support for QCA961X"
+config LEDS_IPQ40XX
+	tristate "LED Support for IPQ40XX"
 	depends on LEDS_CLASS
 	help
-	  This option enables support for the LEDs on QCA961X. There is support
-	  for ESS, WIFI and configurable LEDs. Say Y to enable LEDs on QCA961X.
+	  This option enables support for the LEDs on IPQ40XX.
+	  There is support for ESS, WIFI and configurable LEDs.
+	  Supports 2 and 3 wire mode.
+	  Say Y to enable LEDs on QCA961X.
 
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
