@@ -1,0 +1,184 @@
+/* Copyright (c) 2015, The Linux Foundation. All rights reserved.
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ */
+
+#include "qcom-ipq40xx.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. IPQ40xx/AP-DK04.1";
+	compatible = "qcom,ipq40xx-apdk04.1", "qcom,qca961x";
+
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x10000000>; /* 256MB */
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		/* Reserved for other subsystem */
+		reg = <0x87000000 0x01000000>;
+		no-map;
+	};
+
+	chosen {
+		bootargs = "console=ttyMSM0,115200n8";
+	};
+
+};
+	&soc {
+		pinctrl@0x01000000 {
+			serial_0_pins: serial0_pinmux {
+				mux {
+					pins = "gpio16", "gpio17";
+					function = "blsp_uart0";
+					bias-disable;
+				};
+			};
+
+			serial_1_pins: serial1_pinmux {
+				mux {
+					pins = "gpio8", "gpio9";
+					function = "blsp_uart1";
+					bias-disable;
+				};
+			};
+
+			spi_0_pins: spi_0_pinmux {
+				mux {
+					pins = "gpio12", "gpio13", "gpio14", "gpio15";
+					function = "blsp_spi0";
+					bias-disable;
+				};
+			};
+
+			i2c_0_pins: i2c_0_pinmux {
+				mux {
+					pins = "gpio12", "gpio13";
+					function = "blsp_spi0";
+					bias-disable;
+				};
+			};
+		};
+
+		serial@78af000 {
+			pinctrl-0 = <&serial_0_pins>;
+			pinctrl-names = "default";
+			status = "ok";
+		};
+
+		serial@78b0000 {
+			pinctrl-0 = <&serial_1_pins>;
+			pinctrl-names = "default";
+			status = "ok";
+		};
+
+		spi_0: spi@78b5000 { /* BLSP1 QUP1 */
+			pinctrl-0 = <&spi_0_pins>;
+			pinctrl-names = "default";
+			status = "ok";
+		};
+
+		tcsr: tcsr@194b000 {
+			status = "ok";
+		};
+
+		usb3_ss_phy: ssphy@90000 {
+			status = "ok";
+		};
+
+		dummy_ss_phy: ssphy@0 {
+			status = "ok";
+		};
+
+		usb3_hs_phy: hsphy@a6000 {
+			status = "ok";
+		};
+
+		usb2_hs_phy: hsphy@a8000 {
+			status = "ok";
+		};
+
+		usb3: usb3@8a00000 {
+			status = "ok";
+		};
+
+		usb2: usb2@6000000 {
+			status = "ok";
+		};
+
+		i2c_0: i2c@78b67000 { /* BLSP1 QUP2 */
+			pinctrl-0 = <&i2c_0_pins>;
+			pinctrl-names = "default";
+			status = "ok";
+		};
+
+		qcom_crypto: qcrypto@8e20000 {
+			status = "ok";
+		};
+
+		qcom_cedev: qcedev@8e20000 {
+			status = "ok";
+		};
+
+		pcie0: qcom,pcie@80000 {
+			status = "ok";
+			perst-gpio = <&tlmm 61 0>;
+			wake-gpio = <&tlmm 65 0>;
+			clkreq-gpio = <&tlmm 64 0>;
+		};
+
+		qcom: ledc@1937000  {
+			 status = "ok";
+		};
+
+		ess-switch@c000000 {
+			switch_mac_mode = <0x0>; /* mac mode for RGMII RMII */
+			switch_initvlas = <
+				0x0007c 0x54 /* PORT0_STATUS */
+			>;
+		};
+
+		vcc_sd0: regulator@0 {
+			compatible = "regulator-fixed";
+			regulator-name = "SDHI0 Vcc";
+			regulator-min-microvolt = <3000000>;
+			regulator-max-microvolt = <3000000>;
+			gpio = <&tlmm 6 0>;
+		};
+
+		vccq_sd0: regulator@1 {
+			compatible = "regulator-gpio";
+			regulator-name = "SD0 VccQ";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <3000000>;
+			gpios = <&tlmm 7 0>;
+			states = <3000000 0
+				1800000 1>;
+			enable-active-high;
+		};
+
+		sdhci@7824000 {
+			status = "ok";
+			vmmc-supply = <&vcc_sd0>;
+			vqmmc-supply = <&vccq_sd0>;
+			non-removable;
+		};
+
+		qcom,nand@7980000 {
+			status = "disabled";
+		};
+	};
