@@ -1,4 +1,4 @@
-* QCEDEV (Qualcomm Crypto Engine Device)
+* QCEDEV (Qualcomm Technologies, Inc. Crypto Engine Device)
 
 Required properties:
   - compatible : should be "qcom,qcedev"

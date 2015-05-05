@@ -1,4 +1,4 @@
-Qualcomm IPQ device tree bindings
+QCA IPQ device tree bindings
 ---------------------------------
 
 System on Chip
