@@ -104,6 +104,31 @@ static struct snd_soc_dai_driver ipq40xx_codec_dais[] = {
 				SNDRV_PCM_FMTBIT_S32,
 		},
 	},
+	{
+		.name = "qca-spdif-codec-dai",
+		.playback = {
+			.stream_name = "qca-spdif-playback",
+			.channels_min = CH_STEREO,
+			.channels_max = CH_STEREO,
+			.rates = SNDRV_PCM_RATE_32000 |
+				SNDRV_PCM_RATE_44100 |
+				SNDRV_PCM_RATE_48000 |
+				SNDRV_PCM_RATE_96000,
+			.formats = SNDRV_PCM_FMTBIT_S16 |
+				SNDRV_PCM_FMTBIT_S24,
+		},
+		.capture = {
+			.stream_name = "qca-spdif-capture",
+			.channels_min = CH_STEREO,
+			.channels_max = CH_STEREO,
+			.rates = SNDRV_PCM_RATE_32000 |
+				SNDRV_PCM_RATE_44100 |
+				SNDRV_PCM_RATE_48000 |
+				SNDRV_PCM_RATE_96000,
+			.formats = SNDRV_PCM_FMTBIT_S16 |
+				SNDRV_PCM_FMTBIT_S24,
+		},
+	},
 };
 
 static int ipq40xx_info(struct snd_kcontrol *kcontrol,

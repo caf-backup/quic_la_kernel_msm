@@ -272,6 +272,10 @@
 			status = "ok";
 		};
 
+		spdifplatform: qca-pcm-spdif@7707000 {
+			status = "ok";
+		};
+
 		sound: sound@0 {
 			status = "ok";
 		};

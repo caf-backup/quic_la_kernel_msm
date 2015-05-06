@@ -83,9 +83,10 @@
 		reg = <0x770F000 0x1000>;
 	};
 
-	audio: audio@7709000 {
+	audio: audio@7700000 {
 		compatible = "qca,ipq40xx-audio-adss";
-		reg = <0x7700000 0x300>;
+		reg = <0x7700000 0x300>,
+			<0x7707000 0x20>;
 		resets = <&gcc AUDIO_BLK_ARES>;
 		reset-names = "blk_rst";
 	};
@@ -118,9 +119,8 @@
 		status = "disabled";
 	};
 
-	spdif: spdif@7707000 {
+	spdif {
 		compatible = "qca,ipq40xx-spdif";
-		reg = <0x7707000 0x14>;
 		dma-tx-channel = <MBOX0_TX_ID>;
 		dma-rx-channel = <MBOX_SPDIF_RX_ID>;
 		stereo-tx-port = <STEREO0_ID>;
@@ -168,6 +168,12 @@
 		compatible = "qca,ipq40xx-i2s2";
 		dma-tx-channel = <MBOX2_TX_ID>;
 		stereo-tx-port = <STEREO2_ID>;
+		status = "disabled";
+	};
+
+	spdifplatform: qca-pcm-spdif@7707000 {
+		compatible = "qca,ipq40xx-pcm-spdif";
+		reg = <0x7707000 0x1000>;
 		status = "disabled";
 	};
 

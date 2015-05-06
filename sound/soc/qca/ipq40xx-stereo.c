@@ -92,6 +92,22 @@ void ipq40xx_stereo_config_enable(uint32_t enable, uint32_t stereo_id)
 }
 EXPORT_SYMBOL(ipq40xx_stereo_config_enable);
 
+/* Enable the SPDIF Stereo block for operation */
+void ipq40xx_stereo_spdif_enable(uint32_t enable, uint32_t stereo_id)
+{
+	uint32_t cfg;
+
+	cfg = readl(stereo_priv[stereo_id].stereo_base
+			+ ADSS_STEREOn_STEREO0_CONFIG_REG);
+	cfg &= ~(STEREOn_CONFIG_SPDIF_ENABLE);
+	if (enable)
+		cfg |= STEREOn_CONFIG_SPDIF_ENABLE;
+	writel(cfg, stereo_priv[stereo_id].stereo_base
+			+ ADSS_STEREOn_STEREO0_CONFIG_REG);
+}
+EXPORT_SYMBOL(ipq40xx_stereo_spdif_enable);
+
+
 /* Configure
  * Data word size : Word size loaded into the PCM
  *			register from the MBOX FIFO.
@@ -110,6 +126,12 @@ int ipq40xx_cfg_bit_width(uint32_t bit_width, uint32_t stereo_id)
 	case SNDRV_PCM_FORMAT_S16_BE:
 		mask |= (STEREOn_CONFIG_DATA_WORD_SIZE(1) |
 			STEREOn_CONFIG_I2S_WORD_SIZE_16 |
+			STEREOn_CONFIG_MIC_WORD_SIZE_16);
+		break;
+	case SNDRV_PCM_FORMAT_S24_LE:
+	case SNDRV_PCM_FORMAT_S24_BE:
+		mask |= (STEREOn_CONFIG_DATA_WORD_SIZE(2) |
+			STEREOn_CONFIG_I2S_WORD_SIZE_32 |
 			STEREOn_CONFIG_MIC_WORD_SIZE_16);
 		break;
 	case SNDRV_PCM_FORMAT_S32_LE:

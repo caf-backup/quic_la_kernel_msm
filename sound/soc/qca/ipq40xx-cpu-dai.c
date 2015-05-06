@@ -25,7 +25,7 @@
 #include <sound/pcm.h>
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/of_device.h>
 
@@ -182,12 +182,119 @@ static int ipq40xx_audio_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
+static int ipq40xx_spdif_hw_params(struct snd_pcm_substream *substream,
+					struct snd_pcm_hw_params *params,
+					struct snd_soc_dai *dai)
+{
+	uint32_t bit_width, channels;
+	uint32_t ret;
+	uint32_t stereo_id = get_stereo_id(substream, SPDIF);
+
+	bit_width = params_format(params);
+	channels = params_channels(params);
+
+	ipq40xx_i2s_intf_clk_cfg(SPDIF);
+
+	if (substream->stream == PLAYBACK) {
+		ipq40xx_config_master(substream->stream, stereo_id);
+
+		ret = ipq40xx_cfg_bit_width(bit_width, stereo_id);
+		if (ret) {
+			pr_err("%s: BitWidth %d not supported\n",
+				__func__, bit_width);
+			return ret;
+		}
+	}
+	return 0;
+}
+
+static int ipq40xx_spdif_prepare(struct snd_pcm_substream *substream,
+					struct snd_soc_dai *dai)
+{
+	dev_dbg(dai->dev, "%s:%d\n", __func__, __LINE__);
+	return 0;
+}
+
+static int ipq40xx_spdif_startup(struct snd_pcm_substream *substream,
+					struct snd_soc_dai *dai)
+{
+	/* Check if the direction is enabled for the DMA/Stereo channel */
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		if (dai_priv[SPDIF].tx_enabled != ENABLE)
+			goto error;
+	} else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+		if (dai_priv[SPDIF].rx_enabled != ENABLE)
+			goto error;
+	}
+
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+		ipq40xx_spdifin_ctrl_spdif_en(DISABLE);
+
+	if (!dai->active) {
+		ipq40xx_gcc_audio_blk_rst();
+		/* I2S in reset */
+		ipq40xx_glb_i2s_reset(1);
+
+		/* Enable I2S interface */
+		ipq40xx_glb_i2s_interface_en(ENABLE);
+
+		ipq40xx_glb_audio_mode_B1K();
+	}
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		ipq40xx_glb_tx_data_port_en(ENABLE);
+		ipq40xx_glb_tx_framesync_port_en(ENABLE);
+		ipq40xx_glb_spdif_out_en(ENABLE);
+		/* Select I2S/TDM */
+		ipq40xx_glb_audio_mode(I2S, substream->stream);
+	} else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+		ipq40xx_glb_rx_data_port_en(ENABLE);
+		ipq40xx_glb_rx_framesync_port_en(ENABLE);
+		ipq40xx_glb_audio_mode(I2S, substream->stream);
+		ipq40xx_spdifin_cfg();
+	}
+
+	return 0;
+error:
+	pr_err("%s: Direction not enabled\n", __func__);
+	return -EFAULT;
+}
+
+static void ipq40xx_spdif_shutdown(struct snd_pcm_substream *substream,
+					struct snd_soc_dai *dai)
+{
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		ipq40xx_glb_tx_data_port_en(DISABLE);
+		ipq40xx_glb_tx_framesync_port_en(DISABLE);
+	} else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+		ipq40xx_glb_rx_data_port_en(DISABLE);
+		ipq40xx_glb_rx_framesync_port_en(DISABLE);
+	}
+
+	if (!dai->active)
+		ipq40xx_glb_i2s_interface_en(DISABLE);
+}
+
+static int ipq40xx_spdif_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
+{
+	dev_dbg(dai->dev, "%s:%d\n", __func__, __LINE__);
+	return 0;
+}
+
 static struct snd_soc_dai_ops ipq40xx_audio_ops = {
 	.startup	= ipq40xx_audio_startup,
 	.prepare	= ipq40xx_audio_prepare,
 	.hw_params	= ipq40xx_audio_hw_params,
 	.shutdown	= ipq40xx_audio_shutdown,
 	.set_fmt	= ipq40xx_audio_set_fmt,
+};
+
+static struct snd_soc_dai_ops ipq40xx_spdif_ops = {
+	.startup	= ipq40xx_spdif_startup,
+	.prepare	= ipq40xx_spdif_prepare,
+	.hw_params	= ipq40xx_spdif_hw_params,
+	.shutdown	= ipq40xx_spdif_shutdown,
+	.set_fmt	= ipq40xx_spdif_set_fmt,
 };
 
 static struct snd_soc_dai_driver ipq40xx_cpu_dais[] = {
@@ -283,6 +390,34 @@ static struct snd_soc_dai_driver ipq40xx_cpu_dais[] = {
 		.id = I2S2,
 		.name = "qca-i2s2-dai"
 	},
+	{
+		.playback = {
+			.rates          = SNDRV_PCM_RATE_32000 |
+					SNDRV_PCM_RATE_44100 |
+					SNDRV_PCM_RATE_48000 |
+					SNDRV_PCM_RATE_96000,
+			.formats        = SNDRV_PCM_FMTBIT_S16 |
+					SNDRV_PCM_FMTBIT_S24,
+			.channels_min   = CH_STEREO,
+			.channels_max   = CH_STEREO,
+			.rate_min       = FREQ_32000,
+			.rate_max       = FREQ_96000,
+		},
+		.capture = {
+			.rates          = SNDRV_PCM_RATE_32000 |
+					SNDRV_PCM_RATE_44100 |
+					SNDRV_PCM_RATE_48000 |
+					SNDRV_PCM_RATE_96000,
+			.formats        = SNDRV_PCM_FMTBIT_S16 |
+					SNDRV_PCM_FMTBIT_S24,
+			.channels_min   = CH_STEREO,
+			.channels_max   = CH_STEREO,
+			.rate_min       = FREQ_32000,
+			.rate_max       = FREQ_96000,
+		},
+		.ops = &ipq40xx_spdif_ops,
+		.name = "qca-spdif-dai"
+	},
 };
 
 static const struct snd_soc_component_driver ipq40xx_i2s_component = {
@@ -335,13 +470,17 @@ static int ipq40xx_dai_probe(struct platform_device *pdev)
 	}
 
 	/* RX is enabled only when both DMA and Stereo RX channel
-	 * is specified in the DTSi
+	 * is specified in the DTSi, except in case of SPDIF RX
 	 */
 	if (!(of_property_read_u32(np, "dma-rx-channel",
-					&dai_priv[intf].mbox_rx)
-		|| of_property_read_u32(np, "stereo-rx-port",
+					&dai_priv[intf].mbox_rx))) {
+		if (intf == SPDIF) {
+			dai_priv[intf].rx_enabled = ENABLE;
+			dai_priv[intf].stereo_rx = MAX_STEREO_ENTRIES;
+		} else if (!(of_property_read_u32(np, "stereo-rx-port",
 					&dai_priv[intf].stereo_rx))) {
-		dai_priv[intf].rx_enabled = ENABLE;
+			dai_priv[intf].rx_enabled = ENABLE;
+		}
 	}
 
 	/* Either TX or Rx should have been enabled for a DMA/Stereo Channel */

@@ -33,6 +33,7 @@
 #include "ipq40xx-adss.h"
 
 void __iomem *adss_audio_local_base;
+void __iomem *adss_audio_spdifin_base;
 struct reset_control *audio_blk_rst;
 static spinlock_t i2s_ctrl_lock;
 static spinlock_t tdm_ctrl_lock;
@@ -213,6 +214,8 @@ void ipq40xx_i2s_intf_clk_cfg(uint32_t mode)
 	uint32_t RXB_Src_Sel, RXB_Misc_Div;
 	uint32_t TXM_Src_Sel, TXM_Div, TXM_Misc_Div;
 	uint32_t TXB_Src_Sel, TXB_Misc_Div;
+	uint32_t Spdif_Misc_Div, Spdif_Misc2_Div;
+	uint32_t Spdif_Src_Sel, Spdif_Src_Div;
 
 	PLL_Out_Div	= 6;	/* ADSS_AUDIO_PLL_CONFIG_REG */
 	PLL_Div_Frac	= 0x9BA6;	/* ADSS_AUDIO_PLL_MODULATION_REG */
@@ -252,8 +255,30 @@ void ipq40xx_i2s_intf_clk_cfg(uint32_t mode)
 
 		RXM_Misc_Div	= 0;	/* ADSS_AUDIO_RXM_MISC_REG  */
 		TXM_Misc_Div	= 0;	/* ADSS_AUDIO_TXM_MISC_REG */
-	}
+	} else if (mode == SPDIF) {
+		PLL_Out_Div	= 4;	/* ADSS_AUDIO_PLL_CONFIG_REG */
 
+		RXM_Src_Sel	= 1;	/* ADSS_AUDIO_RXM_CFG_RCGR_REG  */
+		RXM_Div		= 0;	/* "" */
+
+		TXM_Src_Sel	= 1;	/* ADSS_AUDIO_TXM_CFG_RCGR_REG */
+		TXM_Div		= 0;	/* "" */
+
+		RXB_Src_Sel	= 2;	/* ADSS_AUDIO_RXB_CFG_MUXR_REG  */
+		RXB_Misc_Div	= 0;	/* ADSS_AUDIO_RXB_MISC_REG  */
+
+		TXB_Src_Sel	= 1;	/* ADSS_AUDIO_TXB_CFG_MUXR_REG */
+		TXB_Misc_Div	= 127;	/* ADSS_AUDIO_TXB_MISC_REG */
+
+		RXM_Misc_Div	= 0;	/* ADSS_AUDIO_RXM_MISC_REG  */
+		TXM_Misc_Div	= 0;	/* ADSS_AUDIO_TXM_MISC_REG */
+
+		Spdif_Misc_Div	= 63;	/* ADSS_AUDIO_SPDIF_MISC_REG */
+		Spdif_Misc2_Div	= 127;	/* ADSS_AUDIO_SPDIFDIV2_MISC_REG */
+
+		Spdif_Src_Sel	= 1; /* ADSS_AUDIO_SPDIFINFAST_CFG_RCGR_REG */
+		Spdif_Src_Div	= 0; /* "" */
+	}
 	val = readl(adss_audio_local_base + ADSS_AUDIO_PLL_CONFIG_REG);
 	val &= ~(AUDIO_PLL_CONFIG_POSTPLLDIV_MASK);
 	val |= AUDIO_PLL_CONFIG_POSTPLLDIV(PLL_Out_Div);
@@ -308,6 +333,32 @@ void ipq40xx_i2s_intf_clk_cfg(uint32_t mode)
 
 	writel(AUDIO_TXB_MISC_AUTO_SCALE_DIV(TXB_Misc_Div),
 			adss_audio_local_base + ADSS_AUDIO_TXB_MISC_REG);
+
+	if (mode == SPDIF) {
+		val = readl(adss_audio_local_base +
+					ADSS_AUDIO_SPDIF_MISC_REG);
+		val &= ~AUDIO_SPDIF_MISC_AUTO_SCALE_DIV_MASK;
+		val |= AUDIO_SPDIF_MISC_AUTO_SCALE_DIV(Spdif_Misc_Div);
+		writel(val, adss_audio_local_base + ADSS_AUDIO_SPDIF_MISC_REG);
+
+		val = readl(adss_audio_local_base +
+					ADSS_AUDIO_SPDIFDIV2_MISC_REG);
+		val &= ~AUDIO_SPDIFDIV2_MISC_AUTO_SCALE_DIV_MASK;
+		val |= AUDIO_SPDIFDIV2_MISC_AUTO_SCALE_DIV(Spdif_Misc2_Div);
+		writel(val, adss_audio_local_base +
+				ADSS_AUDIO_SPDIFDIV2_MISC_REG);
+
+		val = (AUDIO_SPDIFINFAST_CFG_RCGR_SRC_SEL(Spdif_Src_Sel) |
+				AUDIO_SPDIFINFAST_CFG_RCGR_SRC_DIV(
+							Spdif_Src_Div));
+		writel(val, adss_audio_local_base +
+				ADSS_AUDIO_SPDIFINFAST_CFG_RCGR_REG);
+
+		val = AUDIO_SPDIFINFAST_CMD_RCGR_ROOT_EN |
+				AUDIO_SPDIFINFAST_CMD_RCGR_UPDATE;
+		writel(val, adss_audio_local_base +
+				ADSS_AUDIO_SPDIFINFAST_CMD_RCGR_REG);
+	}
 }
 EXPORT_SYMBOL(ipq40xx_i2s_intf_clk_cfg);
 
@@ -432,6 +483,49 @@ void ipq40xx_glb_pcm_rst(uint32_t enable)
 }
 EXPORT_SYMBOL(ipq40xx_glb_pcm_rst);
 
+void ipq40xx_spdifin_ctrl_spdif_en(uint32_t enable)
+{
+	uint32_t reg_val;
+
+	reg_val = readl(adss_audio_spdifin_base + ADSS_SPDIFIN_SPDIF_CTRL_REG);
+
+	if (enable)
+		reg_val |= SPDIF_CTRL_SPDIF_ENABLE;
+	else
+		reg_val &= ~SPDIF_CTRL_SPDIF_ENABLE;
+
+	writel(reg_val, adss_audio_spdifin_base + ADSS_SPDIFIN_SPDIF_CTRL_REG);
+
+}
+EXPORT_SYMBOL(ipq40xx_spdifin_ctrl_spdif_en);
+
+void ipq40xx_spdifin_cfg(void)
+{
+	uint32_t reg_val;
+
+	reg_val = readl(adss_audio_spdifin_base + ADSS_SPDIFIN_SPDIF_CTRL_REG);
+	reg_val &= ~(SPDIF_CTRL_CHANNEL_MODE
+			| SPDIF_CTRL_VALIDITYCHECK
+			| SPDIF_CTRL_PARITYCHECK);
+	reg_val |= (SPDIF_CTRL_USE_FIFO_IF
+			| SPDIF_CTRL_SFR_ENABLE
+			| SPDIF_CTRL_FIFO_ENABLE);
+	writel(reg_val, adss_audio_spdifin_base + ADSS_SPDIFIN_SPDIF_CTRL_REG);
+}
+EXPORT_SYMBOL(ipq40xx_spdifin_cfg);
+
+void ipq40xx_glb_spdif_out_en(uint32_t enable)
+{
+	int32_t cfg;
+
+	cfg = readl(adss_audio_local_base + ADSS_GLB_AUDIO_MODE_REG);
+	cfg &= ~(GLB_AUDIO_MODE_SPDIF_OUT_OE);
+	if (enable)
+		cfg |= GLB_AUDIO_MODE_SPDIF_OUT_OE;
+	writel(cfg, adss_audio_local_base + ADSS_GLB_AUDIO_MODE_REG);
+}
+EXPORT_SYMBOL(ipq40xx_glb_spdif_out_en);
+
 static const struct of_device_id ipq40xx_audio_adss_id_table[] = {
 	{ .compatible = "qca,ipq40xx-audio-adss" },
 	{},
@@ -446,6 +540,11 @@ static int ipq40xx_audio_adss_probe(struct platform_device *pdev)
 	adss_audio_local_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(adss_audio_local_base))
 		return PTR_ERR(adss_audio_local_base);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	adss_audio_spdifin_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(adss_audio_spdifin_base))
+		return PTR_ERR(adss_audio_spdifin_base);
 
 	audio_blk_rst = devm_reset_control_get(&pdev->dev, "blk_rst");
 	if (IS_ERR(audio_blk_rst))
