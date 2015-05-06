@@ -204,6 +204,7 @@ struct msm_pcie_irq_info_t {
 struct msm_pcie_dev_t {
 	struct platform_device       *pdev;
 	struct pci_dev *dev;
+	struct msi_chip *msi_chip;
 	struct regulator *gdsc;
 	struct msm_pcie_vreg_info_t  vreg[MSM_PCIE_MAX_VREG];
 	struct msm_pcie_gpio_info_t  gpio[MSM_PCIE_MAX_GPIO];

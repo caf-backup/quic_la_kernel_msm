@@ -25,6 +25,7 @@
 #include <linux/irqdomain.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include "pcie.h"
 
 /* Any address will do here, as it won't be dereferenced */
@@ -267,13 +268,13 @@ void msm_pcie_destroy_irq(unsigned int irq, struct msm_pcie_dev_t *pcie_dev)
 }
 
 /* hookup to linux pci msi framework */
-void arch_teardown_msi_irq(unsigned int irq)
+void msm_pcie_teardown_msi_irq(struct msi_chip *chip, unsigned int irq)
 {
 	pr_debug("irq %d deallocated\n", irq);
 	msm_pcie_destroy_irq(irq, NULL);
 }
 
-void arch_teardown_msi_irqs(struct pci_dev *dev)
+void msm_pcie_teardown_msi_irqs(struct pci_dev *dev)
 {
 	struct msi_desc *entry;
 	struct msm_pcie_dev_t *pcie_dev = PCIE_BUS_PRIV_DATA(dev);
@@ -423,7 +424,8 @@ static int arch_setup_msi_irq_qgic(struct pci_dev *pdev,
 	return 0;
 }
 
-int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
+int msm_pcie_setup_msi_irq(struct msi_chip *chip, struct pci_dev *pdev,
+					 struct msi_desc *desc)
 {
 	struct msm_pcie_dev_t *dev = PCIE_BUS_PRIV_DATA(pdev);
 
@@ -449,7 +451,7 @@ static int msm_pcie_get_msi_multiple(int nvec)
 	return msi_multiple - 1;
 }
 
-int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
+int msm_pcie_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
 	struct msi_desc *entry;
 	int ret;
@@ -504,6 +506,13 @@ int32_t msm_pcie_irq_init(struct msm_pcie_dev_t *dev)
 	struct device *pdev = &dev->pdev->dev;
 
 	PCIE_DBG(dev, "RC%d\n", dev->rc_idx);
+
+	dev->msi_chip = kzalloc(sizeof(struct msi_chip), GFP_KERNEL);
+	if (!dev->msi_chip)
+		return -ENOMEM;
+
+	dev->msi_chip->setup_irq = msm_pcie_setup_msi_irq;
+	dev->msi_chip->teardown_irq = msm_pcie_teardown_msi_irq;
 
 	if (dev->ep_wakeirq)
 		wakeup_source_init(&dev->ws, "pcie_wakeup_source");
@@ -572,6 +581,8 @@ int32_t msm_pcie_irq_init(struct msm_pcie_dev_t *dev)
 void msm_pcie_irq_deinit(struct msm_pcie_dev_t *dev)
 {
 	PCIE_DBG(dev, "RC%d\n", dev->rc_idx);
+
+	kfree(dev->msi_chip);
 
 	if (dev->ep_wakeirq) {
 		wakeup_source_trash(&dev->ws);
