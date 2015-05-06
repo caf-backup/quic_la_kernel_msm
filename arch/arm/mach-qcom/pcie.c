@@ -1526,6 +1526,14 @@ static int msm_pcie_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	return ret;
 }
 
+static void msm_pcie_add_bus(struct pci_bus *bus)
+{
+	struct pci_sys_data *sys = bus->sysdata;
+	struct msm_pcie_dev_t *dev =
+			 (struct msm_pcie_dev_t *)(sys->private_data);
+
+	bus->msi = dev->msi_chip;
+}
 
 static struct hw_pci msm_pci[MAX_RC_NUM] = {
 	{
@@ -1535,6 +1543,7 @@ static struct hw_pci msm_pci[MAX_RC_NUM] = {
 	.setup		= msm_pcie_setup,
 	.scan		= msm_pcie_scan_bus,
 	.map_irq	= msm_pcie_map_irq,
+	.add_bus	= msm_pcie_add_bus,
 	},
 	{
 	.domain = 1,
@@ -1543,6 +1552,7 @@ static struct hw_pci msm_pci[MAX_RC_NUM] = {
 	.setup		= msm_pcie_setup,
 	.scan		= msm_pcie_scan_bus,
 	.map_irq	= msm_pcie_map_irq,
+	.add_bus	= msm_pcie_add_bus,
 	},
 };
 
