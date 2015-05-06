@@ -143,10 +143,14 @@
 #define ADSS_AUDIO_TXB_CBCR_REG			0x14C
 
 #define ADSS_AUDIO_SPDIF_MISC_REG		0x150
+#define AUDIO_SPDIF_MISC_AUTO_SCALE_DIV_MASK	(0xF << 1)
+#define AUDIO_SPDIF_MISC_AUTO_SCALE_DIV(x)	(x << 1)
 
 #define ADSS_AUDIO_SPDIF_CBCR_REG		0x154
 
 #define ADSS_AUDIO_SPDIFDIV2_MISC_REG		0x158
+#define AUDIO_SPDIFDIV2_MISC_AUTO_SCALE_DIV_MASK	(0xF << 1)
+#define AUDIO_SPDIFDIV2_MISC_AUTO_SCALE_DIV(x)	(x << 1)
 
 #define ADSS_AUDIO_SPDIFDIV2_CBCR_REG		0x15C
 
@@ -179,8 +183,12 @@
 #define ADSS_AUDIO_XO_CBCR_REG			0x1CC
 
 #define ADSS_AUDIO_SPDIFINFAST_CMD_RCGR_REG	0x1E0
+#define AUDIO_SPDIFINFAST_CMD_RCGR_ROOT_EN	(1 << 1)
+#define AUDIO_SPDIFINFAST_CMD_RCGR_UPDATE	(1 << 0)
 
 #define ADSS_AUDIO_SPDIFINFAST_CFG_RCGR_REG	0x1E4
+#define AUDIO_SPDIFINFAST_CFG_RCGR_SRC_SEL(x)	(x << 8)
+#define AUDIO_SPDIFINFAST_CFG_RCGR_SRC_DIV(x)	(x << 0)
 
 #define ADSS_AUDIO_SPDIFINFAST_CBCR_REG		0x1EC
 
@@ -303,7 +311,42 @@
 #define AADSS_MBOXSPDIFIN_MBOX_DEBUG_CHAIN1_SIGNALS_REG \\
 	ADSS_MBOXSPDIFIN_AUDIO_MBOX_REG_BASE + 0x6C
 
-/* Registers */
+/* ADSS_SPDIFIN_AUDIO_SPDIF_BASE Registers */
+
+#define ADSS_SPDIFIN_SPDIF_CTRL_REG			(0x00)
+#define SPDIF_CTRL_INTREQ_MASK				(1 << 31)
+#define SPDIF_CTRL_BEGIN_MASK				(1 << 30)
+#define SPDIF_CTRL_LOCK_MASK				(1 << 29)
+#define SPDIF_CTRL_SYNCERR_MASK				(1 << 28)
+#define SPDIF_CTRL_AFULL_MASK				(1 << 27)
+#define SPDIF_CTRL_FULL_MASK				(1 << 26)
+#define SPDIF_CTRL_AEMPTY_MASK				(1 << 25)
+#define SPDIF_CTRL_EMPTY_MASK				(1 << 24)
+#define SPDIF_CTRL_OVRERR_MASK				(1 << 23)
+#define SPDIF_CTRL_UNDERR_MASK				(1 << 22)
+#define SPDIF_CTRL_PARITY_MASK				(1 << 21)
+#define SPDIF_CTRL_USE_FIFO_IF				(1 << 19)
+#define SPDIF_CTRL_SETPREAMBB				(1 << 18)
+#define SPDIF_CTRL_DUPLICATE				(1 << 17)
+#define SPDIF_CTRL_CHANNEL_MODE				(1 << 16)
+#define SPDIF_CTRL_VALIDITYCHECK			(1 << 15)
+#define SPDIF_CTRL_PARITYGEN				(1 << 14)
+#define SPDIF_CTRL_PARITYCHECK				(1 << 13)
+#define SPDIF_CTRL_TR_MODE				(1 << 12)
+#define SPDIF_CTRL_CLK_ENABLE				(1 << 11)
+#define SPDIF_CTRL_FIFO_ENABLE				(1 << 10)
+#define SPDIF_CTRL_SPDIF_ENABLE				(1 << 9)
+#define SPDIF_CTRL_SFR_ENABLE				(1 << 8)
+#define SPDIF_CTRL_TSAMPLERATE				(1 << 7)
+
+#define ADSS_SPDIFIN_STEREO0_VOLUME			(0x04)
+
+#define ADSS_SPDIFIN_FIFO_CTRL_REG			(0x08)
+
+#define ADSS_SPDIFIN_START_REG_REG			(0x0C)
+
+#define ADSS_SPDIFIN_SELFIFO_REG			(0x10)
+
 
 #define ADSS_MBOX_STEREO_AUDIO_BASE			ADSS_BASE + 0x8000
 
@@ -489,7 +532,8 @@ enum ipq40xx_samp_freq {
 enum stereo_ch {
 	STEREO0,
 	STEREO1,
-	STEREO2
+	STEREO2,
+	STEREO3
 };
 
 /* ADSS APIs */
@@ -509,7 +553,9 @@ extern void ipq40xx_glb_tdm_ctrl_delay(uint32_t delay, uint32_t dir);
 extern void ipq40xx_gcc_audio_blk_rst(void);
 extern void ipq40xx_pcm_clk_cfg(void);
 extern void ipq40xx_glb_pcm_rst(uint32_t enable);
-
+extern void ipq40xx_spdifin_ctrl_spdif_en(uint32_t enable);
+extern void ipq40xx_glb_spdif_out_en(uint32_t enable);
+extern void ipq40xx_spdifin_cfg(void);
 /* Stereo APIs */
 extern void ipq40xx_stereo_config_reset(uint32_t reset, uint32_t stereo_offset);
 extern void ipq40xx_stereo_config_mic_reset(uint32_t reset, uint32_t stereo_offset);
@@ -519,6 +565,7 @@ extern void ipq40xx_config_stereo_mode(uint32_t mode, uint32_t stereo_offset);
 extern void ipq40xx_config_master(uint32_t dir, uint32_t stereo_offset);
 extern void ipq40xx_config_mclk_sel(uint32_t stereo_offset, uint32_t val);
 extern void ipq40xx_config_sample_cnt_clear_type(uint32_t stereo_offset);
+extern void ipq40xx_stereo_spdif_enable(uint32_t enable, uint32_t stereo_id);
 
 /* APIs in DAI driver */
 extern uint32_t get_mbox_id(struct snd_pcm_substream *substream, int intf);

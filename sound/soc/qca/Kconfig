@@ -26,6 +26,7 @@ config SND_QCA_SOC_IPQ40XX
 	depends on ARCH_QCOM && SND_QCA_SOC
 	select SND_IPQ40XX_SOC_PCM_I2S
 	select SND_IPQ40XX_SOC_PCM_TDM
+	select SND_IPQ40XX_SOC_PCM_SPDIF
 	select SND_IPQ40XX_SOC_CODEC
 	select SND_IPQ40XX_SOC_CPU_DAI
 	select SND_IPQ40XX_SOC_PCM_RAW
@@ -40,6 +41,10 @@ config SND_IPQ40XX_SOC_PCM_I2S
 	depends on SND_QCA_SOC
 
 config SND_IPQ40XX_SOC_PCM_TDM
+	tristate
+	depends on SND_QCA_SOC
+
+config SND_IPQ40XX_SOC_PCM_SPDIF
 	tristate
 	depends on SND_QCA_SOC
 

@@ -67,6 +67,14 @@ static struct snd_soc_dai_link ipq40xx_snd_dai[] = {
 		.codec_dai_name	= "qca-i2s2-codec-dai",
 		.codec_name	= "50.qca-codec",
 	},
+	{
+		.name           = "IPQ40xx Media5",
+		.stream_name    = "SPDIF",
+		.cpu_dai_name   = "qca-spdif-dai",
+		.platform_name  = "7707000.qca-pcm-spdif",
+		.codec_dai_name = "qca-spdif-codec-dai",
+		.codec_name	= "50.qca-codec",
+	},
 };
 
 static struct snd_soc_card snd_soc_card_qca = {
