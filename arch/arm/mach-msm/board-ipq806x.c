@@ -2723,20 +2723,6 @@ static int __init nss_fixup_platform_data(void)
 		ipq_nss_get_mac_addr(mtd, i, gmac_pdata);
 	}
 
-	if (cpu_is_ipq8062() || cpu_is_ipq8066()) {
-		pdata->low_frequency = 110000000;
-		pdata->mid_frequency = 275000000;
-		pdata->max_frequency = 550000000;
-	} else if (cpu_is_ipq8065() || cpu_is_ipq8069()) {
-		pdata->low_frequency = 110000000;
-		pdata->mid_frequency = 600000000;
-		pdata->max_frequency = 800000000;
-	} else {
-		pdata->low_frequency = 110000000;
-		pdata->mid_frequency = 550000000;
-		pdata->max_frequency = 733000000;
-	}
-
 	return 0;
 }
 

@@ -43,9 +43,6 @@ struct nss_platform_data {
 	uint32_t rst_addr;	/* Reset address of NSS core */
 	uint32_t load_addr;	/* Load address of NSS firmware */
 	enum nss_feature_enabled turbo_frequency;	/* Does this core support turbo frequencies */
-	uint32_t low_frequency;	/* The low frequency of NSS core */
-	uint32_t mid_frequency;	/* The mid frequency of NSS core */
-	uint32_t max_frequency;	/* The max frequency of NSS core */
 	enum nss_feature_enabled ipv4_enabled;	/* Does this core handle IPv4? */
 	enum nss_feature_enabled ipv4_reasm_enabled;	/* Does this core handle IPv4? */
 	enum nss_feature_enabled ipv6_enabled;	/* Does this core handle IPv6? */
