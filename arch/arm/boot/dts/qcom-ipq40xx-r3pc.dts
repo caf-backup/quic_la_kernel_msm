@@ -227,4 +227,40 @@
 			clocks = <&gcc GCC_DUMMY_CLK>, <&gcc GCC_DUMMY_CLK>;
 			clock-names = "core", "iface";
 		};
+
+		pcm: pcm@7704000 {
+			status = "ok";
+		};
+
+		i2s: ipq40xx-pcm-i2s@0 {
+			status = "ok";
+		};
+
+		tdm: tdm@0 {
+			status = "ok";
+		};
+
+		spdif: spdif@7707000 {
+			status = "ok";
+		};
+
+		qcacodec: qca-codec@0 {
+			status = "ok";
+		};
+
+		i2splatform: qca-pcm-i2s@0 {
+			status = "ok";
+		};
+
+		tdmplatform: qca-pcm-tdm@0 {
+			status = "ok";
+		};
+
+		sound: sound@0 {
+			status = "ok";
+		};
+
+		pcm_lb: pcm_lb@0 {
+			status = "ok";
+		};
 	};
