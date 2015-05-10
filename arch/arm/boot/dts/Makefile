@@ -242,7 +242,12 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-msm8660-surf.dtb \
 	qcom-msm8960-cdp.dtb \
 	qcom-ipq40xx-r3pc.dtb \
-	qcom-ipq40xx-r3pc-wifi.dtb
+	qcom-ipq40xx-r3pc-wifi.dtb \
+	qcom-ipq40xx-ap.dk01.1-c1.dtb \
+	qcom-ipq40xx-ap.dk01.1-c2.dtb \
+	qcom-ipq40xx-ap.dk04.1-c1.dtb \
+	qcom-ipq40xx-ap.dk04.1-c2.dtb \
+	qcom-ipq40xx-ap.dk04.1-c3.dtb
 dtb-$(CONFIG_ARCH_U8500) += ste-snowball.dtb \
 	ste-hrefprev60-stuib.dtb \
 	ste-hrefprev60-tvk.dtb \
