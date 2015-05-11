@@ -27,7 +27,7 @@
 #define WDT_BITE_TIME	0x24
 
 #define SCM_CMD_SET_REGSAVE  0x2
-
+static int in_panic;
 struct qcom_wdt {
 	struct watchdog_device	wdd;
 	struct clk		*clk;
@@ -42,6 +42,16 @@ struct qcom_wdt *to_qcom_wdt(struct watchdog_device *wdd)
 	return container_of(wdd, struct qcom_wdt, wdd);
 }
 
+static int panic_prep_restart(struct notifier_block *this,
+			      unsigned long event, void *ptr)
+{
+	in_panic = 1;
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block panic_blk = {
+	.notifier_call  = panic_prep_restart,
+};
 static long qcom_wdt_configure_bark_dump(void *arg)
 {
 	long ret = -ENOMEM;
@@ -143,15 +153,26 @@ static int qcom_wdt_restart(struct notifier_block *nb, unsigned long action,
 	u32 timeout;
 
 	/*
-	 * Trigger watchdog bite:
-	 *    Setup BITE_TIME to be lower than BARK_TIME, and enable WDT.
+	 * Trigger watchdog bite/bark:
+	 *
+	 * For regular reboot case: Trigger watchdog bite:
+	 * Setup BITE_TIME to be lower than BARK_TIME, and enable WDT.
+	 *
+	 * For panic reboot case: Trigger WDT bark
+	 * So that TZ can save CPU registers:
+	 * Setup BARK_TIME to be lower than BITE_TIME, and enable WDT.
 	 */
 	timeout = 128 * wdt->rate / 1000;
 
 	writel(0, wdt->base + WDT_EN);
 	writel(1, wdt->base + WDT_RST);
-	writel(5*timeout, wdt->base + WDT_BARK_TIME);
-	writel(timeout, wdt->base + WDT_BITE_TIME);
+	if (in_panic) {
+		writel(timeout, wdt->base + WDT_BARK_TIME);
+		writel(2 * timeout, wdt->base + WDT_BITE_TIME);
+	} else {
+		writel(5 * timeout, wdt->base + WDT_BARK_TIME);
+		writel(timeout, wdt->base + WDT_BITE_TIME);
+	}
 	writel(1, wdt->base + WDT_EN);
 
 	/*
@@ -235,6 +256,7 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	 * WDT restart notifier has priority 0 (use as a last resort)
 	 */
 	wdt->restart_nb.notifier_call = qcom_wdt_restart;
+	atomic_notifier_chain_register(&panic_notifier_list, &panic_blk);
 	ret = register_restart_handler(&wdt->restart_nb);
 	if (ret)
 		dev_err(&pdev->dev, "failed to setup restart handler\n");
