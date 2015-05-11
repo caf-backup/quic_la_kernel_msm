@@ -28,11 +28,15 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/reset.h>
+#include <linux/spinlock.h>
 
 #include "ipq40xx-adss.h"
 
 void __iomem *adss_audio_local_base;
 struct reset_control *audio_blk_rst;
+static spinlock_t i2s_ctrl_lock;
+static spinlock_t tdm_ctrl_lock;
+static spinlock_t glb_mode_lock;
 
 void ipq40xx_gcc_audio_blk_rst(void)
 {
@@ -46,12 +50,15 @@ EXPORT_SYMBOL(ipq40xx_gcc_audio_blk_rst);
 void ipq40xx_glb_i2s_interface_en(int enable)
 {
 	uint32_t cfg;
+	unsigned long flags;
 
+	spin_lock_irqsave(&i2s_ctrl_lock, flags);
 	cfg = readl(adss_audio_local_base + ADSS_GLB_CHIP_CTRL_I2S_REG);
 	cfg &= ~(GLB_CHIP_CTRL_I2S_INTERFACE_EN);
 	if (enable)
 		cfg |= GLB_CHIP_CTRL_I2S_INTERFACE_EN;
 	writel(cfg, adss_audio_local_base + ADSS_GLB_CHIP_CTRL_I2S_REG);
+	spin_unlock_irqrestore(&i2s_ctrl_lock, flags);
 	mdelay(5);
 }
 EXPORT_SYMBOL(ipq40xx_glb_i2s_interface_en);
@@ -60,7 +67,9 @@ EXPORT_SYMBOL(ipq40xx_glb_i2s_interface_en);
 void ipq40xx_glb_stereo_ch_en(int enable, int stereo_ch)
 {
 	uint32_t cfg;
+	unsigned long flags;
 
+	spin_lock_irqsave(&i2s_ctrl_lock, flags);
 	cfg = readl(adss_audio_local_base + ADSS_GLB_CHIP_CTRL_I2S_REG);
 	if (stereo_ch == STEREO0) {
 		cfg &= ~(GLB_CHIP_CTRL_I2S_STEREO0_GLB_EN);
@@ -73,6 +82,7 @@ void ipq40xx_glb_stereo_ch_en(int enable, int stereo_ch)
 		cfg |= GLB_CHIP_CTRL_I2S_STEREO2_GLB_EN;
 	}
 	writel(cfg, adss_audio_local_base + ADSS_GLB_CHIP_CTRL_I2S_REG);
+	spin_unlock_irqrestore(&i2s_ctrl_lock, flags);
 }
 EXPORT_SYMBOL(ipq40xx_glb_stereo_ch_en);
 
@@ -89,7 +99,9 @@ EXPORT_SYMBOL(ipq40xx_glb_i2s_reset);
 void ipq40xx_glb_audio_mode(int mode, int dir)
 {
 	uint32_t cfg;
+	unsigned long flags;
 
+	spin_lock_irqsave(&glb_mode_lock, flags);
 	cfg = readl(adss_audio_local_base + ADSS_GLB_AUDIO_MODE_REG);
 	if (mode == I2S && dir == PLAYBACK) {
 		cfg &= ~(1);
@@ -105,6 +117,7 @@ void ipq40xx_glb_audio_mode(int mode, int dir)
 		cfg |= GLB_AUDIO_MODE_RECV_TDM;
 	}
 	writel(cfg, adss_audio_local_base + ADSS_GLB_AUDIO_MODE_REG);
+	spin_unlock_irqrestore(&glb_mode_lock, flags);
 }
 EXPORT_SYMBOL(ipq40xx_glb_audio_mode);
 
@@ -114,12 +127,15 @@ EXPORT_SYMBOL(ipq40xx_glb_audio_mode);
 void ipq40xx_glb_tx_data_port_en(uint32_t enable)
 {
 	uint32_t cfg;
+	unsigned long flags;
 
+	spin_lock_irqsave(&glb_mode_lock, flags);
 	cfg = readl(adss_audio_local_base + ADSS_GLB_AUDIO_MODE_REG);
 	cfg &= ~(GLB_AUDIO_MODE_I2S0_TXD_OE);
 	if (enable)
 		cfg |= GLB_AUDIO_MODE_I2S0_TXD_OE;
 	writel(cfg, adss_audio_local_base + ADSS_GLB_AUDIO_MODE_REG);
+	spin_unlock_irqrestore(&glb_mode_lock, flags);
 }
 EXPORT_SYMBOL(ipq40xx_glb_tx_data_port_en);
 
@@ -127,12 +143,15 @@ EXPORT_SYMBOL(ipq40xx_glb_tx_data_port_en);
 void ipq40xx_glb_rx_data_port_en(uint32_t enable)
 {
 	uint32_t cfg;
+	unsigned long flags;
 
+	spin_lock_irqsave(&glb_mode_lock, flags);
 	cfg = readl(adss_audio_local_base + ADSS_GLB_AUDIO_MODE_REG);
 	cfg &= ~(GLB_AUDIO_MODE_I2S3_RXD_OE);
 	if (enable)
 		cfg |= GLB_AUDIO_MODE_I2S3_RXD_OE;
 	writel(cfg, adss_audio_local_base + ADSS_GLB_AUDIO_MODE_REG);
+	spin_unlock_irqrestore(&glb_mode_lock, flags);
 }
 EXPORT_SYMBOL(ipq40xx_glb_rx_data_port_en);
 
@@ -140,11 +159,14 @@ EXPORT_SYMBOL(ipq40xx_glb_rx_data_port_en);
 void ipq40xx_glb_audio_mode_B1K(void)
 {
 	uint32_t cfg;
+	unsigned long flags;
 
+	spin_lock_irqsave(&glb_mode_lock, flags);
 	cfg =  readl(adss_audio_local_base + ADSS_GLB_AUDIO_MODE_REG);
 	cfg &= ~(GLB_AUDIO_MODE_B1K);
 	cfg |= GLB_AUDIO_MODE_B1K;
 	writel(cfg, adss_audio_local_base + ADSS_GLB_AUDIO_MODE_REG);
+	spin_unlock_irqrestore(&glb_mode_lock, flags);
 }
 EXPORT_SYMBOL(ipq40xx_glb_audio_mode_B1K);
 
@@ -152,12 +174,15 @@ EXPORT_SYMBOL(ipq40xx_glb_audio_mode_B1K);
 void ipq40xx_glb_tx_framesync_port_en(uint32_t enable)
 {
 	uint32_t cfg;
+	unsigned long flags;
 
+	spin_lock_irqsave(&glb_mode_lock, flags);
 	cfg =  readl(adss_audio_local_base + ADSS_GLB_AUDIO_MODE_REG);
 	cfg &= ~(GLB_AUDIO_MODE_I2S0_FS_OE);
 	if (enable)
 		cfg |= GLB_AUDIO_MODE_I2S0_FS_OE;
 	writel(cfg, adss_audio_local_base + ADSS_GLB_AUDIO_MODE_REG);
+	spin_unlock_irqrestore(&glb_mode_lock, flags);
 }
 EXPORT_SYMBOL(ipq40xx_glb_tx_framesync_port_en);
 
@@ -165,12 +190,15 @@ EXPORT_SYMBOL(ipq40xx_glb_tx_framesync_port_en);
 void ipq40xx_glb_rx_framesync_port_en(uint32_t enable)
 {
 	uint32_t cfg;
+	unsigned long flags;
 
+	spin_lock_irqsave(&glb_mode_lock, flags);
 	cfg =  readl(adss_audio_local_base + ADSS_GLB_AUDIO_MODE_REG);
 	cfg &= ~(GLB_AUDIO_MODE_I2S3_FS_OE);
 	if (enable)
 		cfg |= GLB_AUDIO_MODE_I2S3_FS_OE;
 	writel(cfg, adss_audio_local_base + ADSS_GLB_AUDIO_MODE_REG);
+	spin_unlock_irqrestore(&glb_mode_lock, flags);
 }
 EXPORT_SYMBOL(ipq40xx_glb_rx_framesync_port_en);
 
@@ -180,7 +208,6 @@ EXPORT_SYMBOL(ipq40xx_glb_rx_framesync_port_en);
 void ipq40xx_i2s_intf_clk_cfg(uint32_t mode)
 {
 	uint32_t val;
-
 	uint32_t PLL_Out_Div, PLL_Div_Frac, PLL_Div_Int;
 	uint32_t RXM_Src_Sel, RXM_Div, RXM_Misc_Div;
 	uint32_t RXB_Src_Sel, RXB_Misc_Div;
@@ -290,7 +317,9 @@ EXPORT_SYMBOL(ipq40xx_i2s_intf_clk_cfg);
 void ipq40xx_glb_tdm_ctrl_ch_num(uint32_t val, uint32_t dir)
 {
 	uint32_t cfg;
+	unsigned long flags;
 
+	spin_lock_irqsave(&tdm_ctrl_lock, flags);
 	cfg = readl(adss_audio_local_base + ADSS_GLB_TDM_CTRL_REG);
 
 	if (dir == PLAYBACK) {
@@ -301,6 +330,7 @@ void ipq40xx_glb_tdm_ctrl_ch_num(uint32_t val, uint32_t dir)
 		cfg |= GLB_TDM_CTRL_RX_CHAN_NUM(val);
 	}
 	writel(cfg, adss_audio_local_base + ADSS_GLB_TDM_CTRL_REG);
+	spin_unlock_irqrestore(&tdm_ctrl_lock, flags);
 }
 EXPORT_SYMBOL(ipq40xx_glb_tdm_ctrl_ch_num);
 
@@ -308,7 +338,9 @@ EXPORT_SYMBOL(ipq40xx_glb_tdm_ctrl_ch_num);
 void ipq40xx_glb_tdm_ctrl_sync_num(uint32_t val, uint32_t dir)
 {
 	uint32_t cfg;
+	unsigned long flags;
 
+	spin_lock_irqsave(&tdm_ctrl_lock, flags);
 	cfg = readl(adss_audio_local_base + ADSS_GLB_TDM_CTRL_REG);
 
 	if (dir == PLAYBACK) {
@@ -319,6 +351,7 @@ void ipq40xx_glb_tdm_ctrl_sync_num(uint32_t val, uint32_t dir)
 		cfg |= GLB_TDM_CTRL_RX_SYNC_NUM(val);
 	}
 	writel(cfg, adss_audio_local_base + ADSS_GLB_TDM_CTRL_REG);
+	spin_unlock_irqrestore(&tdm_ctrl_lock, flags);
 }
 EXPORT_SYMBOL(ipq40xx_glb_tdm_ctrl_sync_num);
 
@@ -326,7 +359,9 @@ EXPORT_SYMBOL(ipq40xx_glb_tdm_ctrl_sync_num);
 void ipq40xx_glb_tdm_ctrl_delay(uint32_t delay, uint32_t dir)
 {
 	uint32_t cfg;
+	unsigned long flags;
 
+	spin_lock_irqsave(&tdm_ctrl_lock, flags);
 	cfg = readl(adss_audio_local_base + ADSS_GLB_TDM_CTRL_REG);
 
 	if (dir == PLAYBACK) {
@@ -339,6 +374,7 @@ void ipq40xx_glb_tdm_ctrl_delay(uint32_t delay, uint32_t dir)
 			cfg |= GLB_TDM_CTRL_RX_DELAY;
 	}
 	writel(cfg, adss_audio_local_base + ADSS_GLB_TDM_CTRL_REG);
+	spin_unlock_irqrestore(&tdm_ctrl_lock, flags);
 }
 EXPORT_SYMBOL(ipq40xx_glb_tdm_ctrl_delay);
 
@@ -415,11 +451,25 @@ static int ipq40xx_audio_adss_probe(struct platform_device *pdev)
 	if (IS_ERR(audio_blk_rst))
 		return PTR_ERR(audio_blk_rst);
 
+	ipq40xx_gcc_audio_blk_rst();
+	/* I2S in reset */
+	ipq40xx_glb_i2s_reset(1);
+
+	/* Enable I2S interface */
+	ipq40xx_glb_i2s_interface_en(ENABLE);
+
+	ipq40xx_glb_audio_mode_B1K();
+
+	spin_lock_init(&i2s_ctrl_lock);
+	spin_lock_init(&tdm_ctrl_lock);
+	spin_lock_init(&glb_mode_lock);
+
 	return 0;
 }
 
 static int ipq40xx_audio_adss_remove(struct platform_device *pdev)
 {
+	ipq40xx_glb_i2s_interface_en(DISABLE);
 	return 0;
 }
 

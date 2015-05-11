@@ -27,23 +27,32 @@
 #include <sound/pcm_params.h>
 #include <asm/io.h>
 #include <linux/delay.h>
+#include <linux/spinlock.h>
 
 #include "ipq40xx-adss.h"
 
-void __iomem *stereo_base[MAX_STEREO_ENTRIES] = {0};
+struct stereo_priv_data {
+	void __iomem *stereo_base;
+	spinlock_t stereo_lock;
+};
+
+struct stereo_priv_data stereo_priv[MAX_STEREO_ENTRIES];
 
 /* Stereo buffers and I2S state reset */
 void ipq40xx_stereo_config_reset(uint32_t reset, uint32_t stereo_id)
 {
 	uint32_t cfg;
+	unsigned long flags;
 
-	cfg = readl(stereo_base[stereo_id]
+	spin_lock_irqsave(&stereo_priv[stereo_id].stereo_lock, flags);
+	cfg = readl(stereo_priv[stereo_id].stereo_base
 			+ ADSS_STEREOn_STEREO0_CONFIG_REG);
 	cfg &= ~(STEREOn_CONFIG_RESET);
 	if (reset)
 		cfg |= STEREOn_CONFIG_RESET;
-	writel(cfg, stereo_base[stereo_id]
+	writel(cfg, stereo_priv[stereo_id].stereo_base
 			+ ADSS_STEREOn_STEREO0_CONFIG_REG);
+	spin_unlock_irqrestore(&stereo_priv[stereo_id].stereo_lock, flags);
 }
 EXPORT_SYMBOL(ipq40xx_stereo_config_reset);
 
@@ -51,14 +60,17 @@ EXPORT_SYMBOL(ipq40xx_stereo_config_reset);
 void ipq40xx_stereo_config_mic_reset(uint32_t reset, uint32_t stereo_id)
 {
 	uint32_t cfg;
+	unsigned long flags;
 
-	cfg = readl(stereo_base[stereo_id]
+	spin_lock_irqsave(&stereo_priv[stereo_id].stereo_lock, flags);
+	cfg = readl(stereo_priv[stereo_id].stereo_base
 			+ ADSS_STEREOn_STEREO0_CONFIG_REG);
 	cfg &= ~(STEREOn_CONFIG_MIC_RESET);
 	if (reset)
 		cfg |= STEREOn_CONFIG_MIC_RESET;
-	writel(cfg, stereo_base[stereo_id]
+	writel(cfg, stereo_priv[stereo_id].stereo_base
 			+ ADSS_STEREOn_STEREO0_CONFIG_REG);
+	spin_unlock_irqrestore(&stereo_priv[stereo_id].stereo_lock, flags);
 }
 EXPORT_SYMBOL(ipq40xx_stereo_config_mic_reset);
 
@@ -66,14 +78,17 @@ EXPORT_SYMBOL(ipq40xx_stereo_config_mic_reset);
 void ipq40xx_stereo_config_enable(uint32_t enable, uint32_t stereo_id)
 {
 	uint32_t cfg;
+	unsigned long flags;
 
-	cfg = readl(stereo_base[stereo_id]
+	spin_lock_irqsave(&stereo_priv[stereo_id].stereo_lock, flags);
+	cfg = readl(stereo_priv[stereo_id].stereo_base
 			+ ADSS_STEREOn_STEREO0_CONFIG_REG);
 	cfg &= ~(STEREOn_CONFIG_ENABLE);
 	if (enable)
 		cfg |= STEREOn_CONFIG_ENABLE;
-	writel(cfg, stereo_base[stereo_id]
+	writel(cfg, stereo_priv[stereo_id].stereo_base
 			+ ADSS_STEREOn_STEREO0_CONFIG_REG);
+	spin_unlock_irqrestore(&stereo_priv[stereo_id].stereo_lock, flags);
 }
 EXPORT_SYMBOL(ipq40xx_stereo_config_enable);
 
@@ -87,7 +102,9 @@ EXPORT_SYMBOL(ipq40xx_stereo_config_enable);
 int ipq40xx_cfg_bit_width(uint32_t bit_width, uint32_t stereo_id)
 {
 	uint32_t cfg, mask = 0;
+	unsigned long flags;
 
+	spin_lock_irqsave(&stereo_priv[stereo_id].stereo_lock, flags);
 	switch(bit_width) {
 	case SNDRV_PCM_FORMAT_S16_LE:
 	case SNDRV_PCM_FORMAT_S16_BE:
@@ -102,17 +119,20 @@ int ipq40xx_cfg_bit_width(uint32_t bit_width, uint32_t stereo_id)
 			STEREOn_CONFIG_MIC_WORD_SIZE_32);
 		break;
 	default:
+		spin_unlock_irqrestore(&stereo_priv[stereo_id].stereo_lock,
+					flags);
 		return -ENOTSUPP;
 	}
 
-	cfg = readl(stereo_base[stereo_id]
+	cfg = readl(stereo_priv[stereo_id].stereo_base
 			+ ADSS_STEREOn_STEREO0_CONFIG_REG);
 	cfg &= ~(STEREOn_CONFIG_DATA_WORD_SIZE_MASK);
 	cfg &= ~(STEREOn_CONFIG_I2S_WORD_SIZE_32);
 	cfg &= ~(STEREOn_CONFIG_MIC_WORD_SIZE_32);
 	cfg |= mask;
-	writel(cfg, stereo_base[stereo_id]
+	writel(cfg, stereo_priv[stereo_id].stereo_base
 			+ ADSS_STEREOn_STEREO0_CONFIG_REG);
+	spin_unlock_irqrestore(&stereo_priv[stereo_id].stereo_lock, flags);
 
 	return 0;
 }
@@ -122,14 +142,17 @@ EXPORT_SYMBOL(ipq40xx_cfg_bit_width);
 void ipq40xx_config_stereo_mode(uint32_t mode, uint32_t stereo_id)
 {
 	uint32_t cfg;
+	unsigned long flags;
 
-	cfg = readl(stereo_base[stereo_id]
+	spin_lock_irqsave(&stereo_priv[stereo_id].stereo_lock, flags);
+	cfg = readl(stereo_priv[stereo_id].stereo_base
 			+ ADSS_STEREOn_STEREO0_CONFIG_REG);
 	cfg &= ~(STEREOn_CONFIG_STEREO_MONO_MASK);
 	if (mode == CH_STEREO)
 		cfg |= STEREOn_CONFIG_STEREO_MODE;
-	writel(cfg, stereo_base[stereo_id]
+	writel(cfg, stereo_priv[stereo_id].stereo_base
 			+ ADSS_STEREOn_STEREO0_CONFIG_REG);
+	spin_unlock_irqrestore(&stereo_priv[stereo_id].stereo_lock, flags);
 }
 EXPORT_SYMBOL(ipq40xx_config_stereo_mode);
 
@@ -137,14 +160,17 @@ EXPORT_SYMBOL(ipq40xx_config_stereo_mode);
 void ipq40xx_config_master(uint32_t dir, uint32_t stereo_id)
 {
 	uint32_t cfg;
+	unsigned long flags;
 
-	cfg = readl(stereo_base[stereo_id]
+	spin_lock_irqsave(&stereo_priv[stereo_id].stereo_lock, flags);
+	cfg = readl(stereo_priv[stereo_id].stereo_base
 			+ ADSS_STEREOn_STEREO0_CONFIG_REG);
 	cfg &= ~(STEREOn_CONFIG_MASTER);
 	if (dir == PLAYBACK)
 		cfg |= STEREOn_CONFIG_MASTER;
-	writel(cfg, stereo_base[stereo_id]
+	writel(cfg, stereo_priv[stereo_id].stereo_base
 			+ ADSS_STEREOn_STEREO0_CONFIG_REG);
+	spin_unlock_irqrestore(&stereo_priv[stereo_id].stereo_lock, flags);
 }
 EXPORT_SYMBOL(ipq40xx_config_master);
 
@@ -156,13 +182,16 @@ EXPORT_SYMBOL(ipq40xx_config_master);
 void ipq40xx_config_mclk_sel(uint32_t stereo_id, uint32_t val)
 {
 	uint32_t cfg;
+	unsigned long flags;
 
-	cfg = readl(stereo_base[stereo_id]
+	spin_lock_irqsave(&stereo_priv[stereo_id].stereo_lock, flags);
+	cfg = readl(stereo_priv[stereo_id].stereo_base
 			+ ADSS_STEREOn_STEREO0_CONFIG_REG);
 	cfg &= ~(STEREOn_CONFIG_MCK_SEL);
 	cfg |= val;
-	writel(cfg, stereo_base[stereo_id]
+	writel(cfg, stereo_priv[stereo_id].stereo_base
 			+ ADSS_STEREOn_STEREO0_CONFIG_REG);
+	spin_unlock_irqrestore(&stereo_priv[stereo_id].stereo_lock, flags);
 
 }
 EXPORT_SYMBOL(ipq40xx_config_mclk_sel);
@@ -171,8 +200,10 @@ EXPORT_SYMBOL(ipq40xx_config_mclk_sel);
 void ipq40xx_config_sample_cnt_clear_type(uint32_t stereo_id)
 {
 	uint32_t cfg;
+	unsigned long flags;
 
-	cfg = readl(stereo_base[stereo_id]
+	spin_lock_irqsave(&stereo_priv[stereo_id].stereo_lock, flags);
+	cfg = readl(stereo_priv[stereo_id].stereo_base
 			+ ADSS_STEREOn_STEREO0_CONFIG_REG);
 	/* 0 - write an explicit zero data through software
 	 *	to the TX and RX sample counter registers
@@ -180,8 +211,9 @@ void ipq40xx_config_sample_cnt_clear_type(uint32_t stereo_id)
 	 *	registers clears the counter registers
 	 */
 	cfg |= STEREOn_CONFIG_SAMPLE_CNT_CLEAR_TYPE; /* Write 1 */
-	writel(cfg, stereo_base[stereo_id]
+	writel(cfg, stereo_priv[stereo_id].stereo_base
 			+ ADSS_STEREOn_STEREO0_CONFIG_REG);
+	spin_unlock_irqrestore(&stereo_priv[stereo_id].stereo_lock, flags);
 }
 EXPORT_SYMBOL(ipq40xx_config_sample_cnt_clear_type);
 
@@ -205,11 +237,11 @@ static int ipq40xx_audio_stereo_probe(struct platform_device *pdev)
 		}
 
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		stereo_base[stereo_port_id] =
+		stereo_priv[stereo_port_id].stereo_base =
 			devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(stereo_base[stereo_port_id])) {
+		if (IS_ERR(stereo_priv[stereo_port_id].stereo_base)) {
 			of_node_put(pdev->dev.of_node);
-			return PTR_ERR(stereo_base[stereo_port_id]);
+			return PTR_ERR(stereo_priv[stereo_port_id].stereo_base);
 		}
 	} else {
 		pr_err("%s: error reading critical device"
@@ -217,6 +249,8 @@ static int ipq40xx_audio_stereo_probe(struct platform_device *pdev)
 		of_node_put(pdev->dev.of_node);
 		return -EFAULT;
 	}
+
+	spin_lock_init(&stereo_priv[stereo_port_id].stereo_lock);
 
 	of_node_put(pdev->dev.of_node);
 	return 0;
