@@ -14,7 +14,7 @@
 #include "qcom-ipq40xx-display.dtsi"
 #include "qpic-panel-ili-qvga.dtsi"
 #include "qcom-ipq40xx-hsuart.dtsi"
-
+#include "qcom-ipq40xx-audio.dtsi"
 / {
 	model = "Qualcomm Technologies, Inc. IPQ40xx R3PC";
 	compatible = "qcom,qca961x-r3pc", "qcom,qca961x";

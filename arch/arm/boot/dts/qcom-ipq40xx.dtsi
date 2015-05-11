@@ -73,7 +73,6 @@
 };
 
 #include "qcom-ipq40xx-bus.dtsi"
-#include "qcom-ipq40xx-audio.dtsi"
 
 	&soc {
 		#address-cells = <1>;
