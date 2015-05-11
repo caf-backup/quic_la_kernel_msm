@@ -154,8 +154,9 @@ static int dwc3_ipq40xx_probe(struct platform_device *pdev)
 
 	np = of_node_get(pdev->dev.of_node);
 	if (of_property_read_u32(np, "qca,host", &mdwc->host)) {
-		dev_err(mdwc->dev, "%s: error reading critical
-			device node properties\n", np->name);
+		dev_err(mdwc->dev,
+			"%s: error reading critical device node properties\n",
+			np->name);
 		return -EFAULT;
 	}
 

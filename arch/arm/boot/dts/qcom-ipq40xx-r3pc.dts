@@ -83,23 +83,26 @@
 			status = "ok";
 		};
 
-		usb3_ss_phy: ssphy@90000 {
+		usb3_ss_phy: ssphy@0 {
 			status = "ok";
+			reg = <0x00090000 0x800>;
 			qca,emulation = <1>;
 		};
 
-		dummy_ss_phy: ssphy@0 {
+		dummy_ss_phy: ssphy@1 {
 			status = "ok";
 			compatible = "qca,dummy-ssphy";
 		};
 
 		usb3_hs_phy: hsphy@a6000 {
 			status = "ok";
+			reg = <0xa6000 0x1c0>;
 			qca,emulation = <1>;
 		};
 
 		usb2_hs_phy: hsphy@a8000 {
 			status = "ok";
+			reg = <0xa8000 0x1c0>;
 			qca,emulation = <1>;
 		};
 
