@@ -63,7 +63,6 @@ static spinlock_t pcm_lock;
 static struct pcm_context context;
 
 static uint32_t rx_size_count;
-static uint32_t rx_fail_stats;
 
 static DECLARE_WAIT_QUEUE_HEAD(pcm_q);
 
@@ -85,19 +84,18 @@ static int voice_free_dma_buffer(struct device *dev,
 static irqreturn_t pcm_rx_irq_handler(int intrsrc, void *data)
 {
 	uint32_t dma_at;
+	uint32_t rx_size;
 
-	rx_size_count +=
-		ipq40xx_mbox_get_elapsed_size(rx_dma_buffer->channel_id);
+	rx_size = ipq40xx_mbox_get_played_offset(rx_dma_buffer->channel_id);
 
-	dma_at = (rx_size_count / (rx_dma_buffer->size / NUM_BUFFERS))
-								% NUM_BUFFERS;
+	/* the buffer number calculated would actually point to the next
+	 * buffer to be played. We need to go to the previous buffer, keeping
+	 * ring buffer in picture.
+	 */
+	dma_at = (rx_size / (rx_dma_buffer->size / NUM_BUFFERS)) % NUM_BUFFERS;
+	dma_at = (dma_at + NUM_BUFFERS - 1) % NUM_BUFFERS;
 
-	if (dma_at > (NUM_BUFFERS - 1)) {
-		rx_fail_stats++;
-		/* some error, get out */
-		return IRQ_HANDLED;
-	}
-	atomic_set(&data_at, (dma_at + NUM_BUFFERS - 1) % NUM_BUFFERS);
+	atomic_set(&data_at, dma_at);
 	atomic_set(&data_avail, 1);
 
 	wake_up_interruptible(&pcm_q);
@@ -508,7 +506,6 @@ static int ipq40xx_pcm_driver_probe(struct platform_device *pdev)
 	tx_dma_buffer->channel_id = tx_channel;
 
 	memset(&context, 0, sizeof(struct pcm_context));
-	rx_fail_stats = 0;
 	spin_lock_init(&pcm_lock);
 
 	return 0;
