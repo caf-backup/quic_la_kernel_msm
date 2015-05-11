@@ -96,11 +96,11 @@
 			status = "ok";
 		};
 
-		usb3_ss_phy: ssphy@90000 {
+		usb3_ss_phy: ssphy@0 {
 			status = "ok";
 		};
 
-		dummy_ss_phy: ssphy@0 {
+		dummy_ss_phy: ssphy@1 {
 			status = "ok";
 		};
 
