@@ -61,8 +61,13 @@
 /* tpd word 3 bit 18-28 */
 #define EDMA_TPD_PORT_BITMAP_SHIFT 18
 
+#define EDMA_TPD_FROM_CPU_SHIFT 25
+
 /* Enable Tx for all ports */
 #define EDMA_PORT_ENABLE_ALL 0x3E
+
+#define EDMA_FROM_CPU_MASK 0x80
+#define EDMA_SKB_PRIORITY_MASK 0x38
 
 #define EDMA_RX_RING_SIZE 512
 #define EDMA_TX_RING_SIZE 512
@@ -108,6 +113,19 @@
 					| SUPPORTED_100baseT_Half \
 					| SUPPORTED_100baseT_Full \
 					| SUPPORTED_1000baseT_Full)
+
+#define EDMA_RX_ATH_HDR_VERSION 0x2
+#define EDMA_RX_ATH_HDR_VERSION_SHIFT 14
+#define EDMA_RX_ATH_HDR_PRIORITY_SHIFT 11
+#define EDMA_RX_ATH_PORT_TYPE_SHIFT 6
+#define EDMA_RX_ATH_HDR_RSTP_PORT_TYPE 0x4
+
+#define EDMA_ETH_HDR_LEN 12
+#define EDMA_ETH_TYPE_MASK 0xFFFF
+
+#define EDMA_TX_ATH_HDR_PORT_BITMAP_MASK 0x7F
+#define EDMA_TX_ATH_HDR_FROM_CPU_MASK 0x80
+#define EDMA_TX_ATH_HDR_FROM_CPU_SHIFT 7
 
 /* link status variable */
 enum edma_link_status {
@@ -185,6 +203,8 @@ struct edma_common_info {
 	int tx_irq[16]; /* number of tx irq */
 	int rx_irq[8]; /* number of rx irq */
 	int edma_port_id_wan; /* wan port id */
+	int from_cpu; /* from CPU TPD field */
+	int dp_bitmap; /* port bitmap */
 	u16 tx_ring_count; /* Tx ring count */
 	u16 rx_ring_count; /* Rx ring*/
 	u16 rx_head_buffer_len; /* rx buffer length */
@@ -285,4 +305,6 @@ int edma_register_rfs_filter(struct net_device *netdev,
 void edma_flow_may_expire(unsigned long data);
 void edma_set_ethtool_ops(struct net_device *netdev);
 int edma_change_mtu(struct net_device *netdev, int new_mtu);
+void edma_set_stp_rstp(bool tag);
+void edma_assign_ath_hdr_type(int tag);
 #endif /* _EDMA_H_ */

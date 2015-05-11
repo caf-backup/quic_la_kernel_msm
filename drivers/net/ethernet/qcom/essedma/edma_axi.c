@@ -36,8 +36,10 @@ char edma_rx_irq[8][64];
 struct net_device *netdev[2];
 int edma_default_ltag  __read_mostly = EDMA_LAN_DEFAULT;
 int edma_default_wtag  __read_mostly = EDMA_WAN_DEFAULT;
-int weight_assigned_to_queues __read_mostly;
-int queue_to_virtual_queue __read_mostly;
+int edma_weight_assigned_to_q __read_mostly;
+int edma_queue_to_virtual_q __read_mostly;
+bool edma_enable_rstp  __read_mostly;
+int edma_athr_hdr_eth_type __read_mostly;
 
 void edma_write_reg(u16 reg_addr, u32 reg_value)
 {
@@ -47,6 +49,30 @@ void edma_write_reg(u16 reg_addr, u32 reg_value)
 void edma_read_reg(u16 reg_addr, volatile u32 *reg_value)
 {
 	*reg_value = readl((void __iomem *)(edma_hw_addr + reg_addr));
+}
+
+static int edma_enable_stp_rstp(struct ctl_table *table, int write,
+	void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int ret;
+
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+	if (write)
+		edma_set_stp_rstp(edma_enable_rstp);
+
+	return ret;
+}
+
+static int edma_ath_hdr_eth_type(struct ctl_table *table, int write,
+	void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	int ret;
+
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+	if (write)
+		edma_assign_ath_hdr_type(edma_athr_hdr_eth_type);
+
+	return ret;
 }
 
 static int edma_change_default_lan_vlan(struct ctl_table *table, int write,
@@ -85,13 +111,13 @@ static int edma_weight_assigned_to_queues(struct ctl_table *table, int write,
 
 	ret = proc_dointvec(table, write, buffer, lenp, ppos);
 	if (write) {
-		queue_id = weight_assigned_to_queues & EDMA_WRR_VID_SCTL_MASK;
+		queue_id = edma_weight_assigned_to_q & EDMA_WRR_VID_SCTL_MASK;
 		if (queue_id < 0 || queue_id > 15) {
 			pr_err("queue_id not within desired range\n");
 			return -EINVAL;
 		}
 
-		weight = weight_assigned_to_queues >> EDMA_WRR_VID_SCTL_SHIFT;
+		weight = edma_weight_assigned_to_q >> EDMA_WRR_VID_SCTL_SHIFT;
 		if (weight < 0 || weight > 0xF) {
 			pr_err("queue_id not within desired range\n");
 			return -EINVAL;
@@ -128,13 +154,13 @@ static int edma_queue_to_virtual_queue_map(struct ctl_table *table, int write,
 
 	ret = proc_dointvec(table, write, buffer, lenp, ppos);
 	if (write) {
-		queue_id = queue_to_virtual_queue & EDMA_WRR_VID_SCTL_MASK;
+		queue_id = edma_queue_to_virtual_q & EDMA_WRR_VID_SCTL_MASK;
 		if (queue_id < 0 || queue_id > 15) {
 			pr_err("queue_id not within desired range\n");
 			return -EINVAL;
 		}
 
-		virtual_qid = queue_to_virtual_queue >> EDMA_WRR_VID_SCTL_SHIFT;
+		virtual_qid = edma_queue_to_virtual_q >> EDMA_WRR_VID_SCTL_SHIFT;
 		if (virtual_qid < 0 || virtual_qid > 8) {
 			pr_err("queue_id not within desired range\n");
 			return -EINVAL;
@@ -172,17 +198,31 @@ static struct ctl_table edma_table[] = {
 	},
 	{
 		.procname       = "weight_assigned_to_queues",
-		.data           = &weight_assigned_to_queues,
+		.data           = &edma_weight_assigned_to_q,
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
 		.proc_handler   = edma_weight_assigned_to_queues
 	},
 	{
 		.procname       = "queue_to_virtual_queue_map",
-		.data           = &queue_to_virtual_queue,
+		.data           = &edma_queue_to_virtual_q,
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
 		.proc_handler   = edma_queue_to_virtual_queue_map
+	},
+	{
+		.procname       = "enable_stp_rstp",
+		.data           = &edma_enable_rstp,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = edma_enable_stp_rstp
+	},
+	{
+		.procname       = "athr_hdr_eth_type",
+		.data           = &edma_athr_hdr_eth_type,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = edma_ath_hdr_eth_type
 	},
 	{}
 };
