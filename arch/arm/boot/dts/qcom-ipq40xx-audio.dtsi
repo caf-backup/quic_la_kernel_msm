@@ -97,6 +97,7 @@
 		dma-rx-channel = <MBOX0_RX_ID>;
 		stereo-tx-port = <STEREO3_ID>;
 		stereo-rx-port = <STEREO0_ID>;
+		status = "disabled";
 	};
 
 	i2s: ipq40xx-pcm-i2s@0 {
@@ -105,6 +106,7 @@
 		stereo-tx-port = <STEREO0_ID>;
 		dma-rx-channel = <MBOX3_RX_ID>;
 		stereo-rx-port = <STEREO3_ID>;
+		status = "disabled";
 	};
 
 	tdm: tdm@0 {
@@ -113,6 +115,7 @@
 		dma-rx-channel = <MBOX3_RX_ID>;
 		stereo-tx-port = <STEREO0_ID>;
 		stereo-rx-port = <STEREO3_ID>;
+		status = "disabled";
 	};
 
 	spdif: spdif@7707000 {
@@ -121,26 +124,32 @@
 		dma-tx-channel = <MBOX0_TX_ID>;
 		dma-rx-channel = <MBOX_SPDIF_RX_ID>;
 		stereo-tx-port = <STEREO0_ID>;
+		status = "disabled";
 	};
 
 	qcacodec: qca-codec@0 {
 		compatible = "qca,ipq40xx-codec";
+		status = "disabled";
 	};
 
 	i2splatform: qca-pcm-i2s@0 {
 		compatible = "qca,ipq40xx-pcm-i2s";
+		status = "disabled";
 	};
 
 	tdmplatform: qca-pcm-tdm@0 {
 		compatible = "qca,ipq40xx-pcm-tdm";
+		status = "disabled";
 	};
 
 	sound: sound@0 {
 		compatible = "qca,ipq40xx-audio";
+		status = "disabled";
 	};
 
 	pcm_lb: pcm_lb@0 {
 		compatible = "qca,ipq40xx-pcm-lb";
+		status = "disabled";
 	};
 
 };
