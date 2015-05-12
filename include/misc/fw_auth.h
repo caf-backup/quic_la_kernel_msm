@@ -13,6 +13,8 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+#ifndef _FW_AUTH_H
+#define _FW_AUTH_H
 
 #include <crypto/public_key.h>
 
@@ -28,15 +30,6 @@ enum hash_algo {
 	HASH_ALGO__LAST
 };
 
-const char *const hash_algo_name[HASH_ALGO__LAST] = {
-	[HASH_ALGO_MD5]     = "md5",
-	[HASH_ALGO_SHA1]    = "sha1",
-	[HASH_ALGO_SHA256]  = "sha256",
-	[HASH_ALGO_SHA384]  = "sha384",
-	[HASH_ALGO_SHA512]  = "sha512",
-	[HASH_ALGO_SHA224]  = "sha224",
-};
-
 struct auth_input {
 	uint8_t *certBuffer;
 	uint8_t *signature;
@@ -50,3 +43,4 @@ struct auth_input {
 };
 
 int authenticate_fw(struct auth_input *ai);
+#endif /* _FW_AUTH_H */

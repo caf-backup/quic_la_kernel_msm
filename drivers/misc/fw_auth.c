@@ -28,6 +28,15 @@
 #include "public_key.h"
 #include "x509_parser.h"
 
+const char *const hash_algo_name[HASH_ALGO__LAST] = {
+	[HASH_ALGO_MD5]     = "md5",
+	[HASH_ALGO_SHA1]    = "sha1",
+	[HASH_ALGO_SHA256]  = "sha256",
+	[HASH_ALGO_SHA384]  = "sha384",
+	[HASH_ALGO_SHA512]  = "sha512",
+	[HASH_ALGO_SHA224]  = "sha224",
+};
+
 static int check_input(struct auth_input *ai)
 {
 	if (ai &&
