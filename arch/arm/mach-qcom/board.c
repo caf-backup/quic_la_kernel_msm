@@ -32,6 +32,8 @@ static const char * const qcom_dt_match[] __initconst = {
 	"qcom,msm8660-surf",
 	"qcom,msm8960-cdp",
 	"qcom,qca961x-r3pc",
+	"qcom,ipq40xx-apdk01.1",
+	"qcom,ipq40xx-apdk04.1",
 	NULL
 };
 
@@ -41,6 +43,8 @@ MACHINE_END
 
 static const char * const qcom_qca_dt_match[] __initconst = {
 	"qcom,qca961x-r3pc",
+	"qcom,ipq40xx-apdk01.1",
+	"qcom,ipq40xx-apdk04.1",
 	NULL
 };
 
