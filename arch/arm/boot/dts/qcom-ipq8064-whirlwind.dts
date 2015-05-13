@@ -395,7 +395,8 @@
 			qcom,gmac3_enabled = <1>;
 		};
 
-		nss-gmac-common {
+		nss-gmac-common@03000000 {
+			compatible = "qcom,nss-gmac-common";
 			reg = <0x03000000 0x0000FFFF 0x1bb00000 0x0000FFFF 0x00900000 0x00004000>;
 			reg-names = "nss_reg_base" , "qsgmii_reg_base", "clk_ctl_base";
 		};
@@ -407,12 +408,12 @@
 			interrupts = <GIC_SPI 220 IRQ_TYPE_LEVEL_HIGH>;
 			phy-mode = "rgmii";
 			qcom,id = <0>;			/* gmac0 */
-			qcom,phy_mdio_addr = <1>;	/* phy1 */
-			qcom,poll_required = <1>;	/* enable polling */
-			qcom,rgmii_delay = <0>;
+			qcom,phy-mdio-addr = <1>;	/* phy1 */
+			qcom,poll-required = <1>;	/* enable polling */
+			qcom,rgmii-delay = <0>;
 			qcom,emulation = <0>;
-			qcom,forced_speed = <1000>;	/* Force speed 1G */
-			qcom,forced_duplex = <1>;	/* Force duplex FD */
+			qcom,forced-speed = <1000>;	/* Force speed 1G */
+			qcom,forced-duplex = <1>;	/* Force duplex FD */
 			qcom,socver = <0>;
 			local-mac-address = [000000000000];
 			mdiobus = <&mdio0>;
@@ -425,12 +426,12 @@
 			interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>;
 			phy-mode = "sgmii";
 			qcom,id = <2>;
-			qcom,phy_mdio_addr = <0>;
-			qcom,poll_required = <0>;	/* no polling */
-			qcom,rgmii_delay = <0>;
+			qcom,phy-mdio-addr = <0>;
+			qcom,poll-required = <0>;	/* no polling */
+			qcom,rgmii-delay = <0>;
 			qcom,emulation = <0>;
-			qcom,forced_speed = <1000>;	/* Force speed 1G */
-			qcom,forced_duplex = <1>;	/* Force duplex FD */
+			qcom,forced-speed = <1000>;	/* Force speed 1G */
+			qcom,forced-duplex = <1>;	/* Force duplex FD */
 			qcom,socver = <0>;
 			local-mac-address = [000000000000];
 			mdiobus = <&mdio0>;
