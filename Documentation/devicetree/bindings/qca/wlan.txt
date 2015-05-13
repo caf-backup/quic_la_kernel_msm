@@ -5,7 +5,18 @@ This driver adds support for the WLAN subsystem for supporting
 integrated WLAN module
 
 Required properties:
-  - compatible = "qca,wifi-qca961x";
+  - compatible = "qca,wifi-ipq40xx";
+  - reg = <baseaddr length>
+  - resets = <list of wifi resets>.
+  - reset-names = <list of reset's string name defined in the resets field>.
+  - interrupts = <list of msi and legacy interrupts>
+  - interrupt-names = <list of interrupt's string name defined in the interrupts field. Please
+    ensure the order of the interrupts and the interrupts name matches with each other.
+  - status = ok or disabled.
+  - qca,msi_addr = <msiaddr>
+  - qca,msi_base = <msidata>
+    Please refer below example.
+
 
 Optional properties:
 
