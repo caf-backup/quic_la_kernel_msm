@@ -180,24 +180,39 @@ static inline int msm_spi_request_cs_gpio(struct msm_spi *dd)
 {
 	int cs_num;
 	int rc;
+	u32 spi_ioc;
+	u32 mask;
+	int gpio_num;
+
+	if (dd->cur_msg->spi->mode & SPI_LOOP)
+		return 0;
+
+	if (dd->pdata->use_pinctrl)
+		return 0;
 
 	cs_num = dd->cur_msg->spi->chip_select;
-	if (!(dd->cur_msg->spi->mode & SPI_LOOP)) {
-		if (!dd->pdata->use_pinctrl) {
-			if ((!(dd->cs_gpios[cs_num].valid)) &&
-				(dd->cs_gpios[cs_num].gpio_num >= 0)) {
-				rc = gpio_request(dd->cs_gpios[cs_num].gpio_num,
+
+	if ((!dd->cs_gpios[cs_num].valid) &&
+	    (dd->cs_gpios[cs_num].gpio_num >= 0)) {
+		gpio_num = dd->cs_gpios[cs_num].gpio_num;
+
+		spi_ioc = readl_relaxed(dd->base + SPI_IO_CONTROL);
+		mask = SPI_IO_C_CS_N_POLARITY_0 << cs_num;
+		spi_ioc |= mask;
+
+		writel_relaxed(spi_ioc, dd->base + SPI_IO_CONTROL);
+
+		rc = gpio_request_one(gpio_num, GPIOF_DIR_OUT | GPIOF_INIT_HIGH,
 					spi_cs_rsrcs[cs_num]);
 
-				if (rc) {
-					dev_err(dd->dev,
-					"gpio_request for pin %d failed,error %d\n",
-					dd->cs_gpios[cs_num].gpio_num, rc);
-					return rc;
-				}
-				dd->cs_gpios[cs_num].valid = 1;
-			}
+		if (rc) {
+			dev_err(dd->dev,
+				"gpio_request for pin %d failed,error %d\n",
+				dd->cs_gpios[cs_num].gpio_num, rc);
+			return rc;
 		}
+		gpio_set_value(gpio_num, 0);
+		dd->cs_gpios[cs_num].valid = 1;
 	}
 	return 0;
 }
