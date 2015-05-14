@@ -208,38 +208,41 @@
 			qcom,ess-interface-select = <TCSR_ESS_PSGMII>;
 		};
 
-		usb3_ss_phy: ssphy@90000 {
+		usb3_ss_phy: ssphy@0 {
 			compatible = "qca,uni-ssphy";
-			reg = <0x00090000 0x800>;
+			reg = <0x9a000 0x800>;
 			reg-names = "phy_base";
 			resets = <&gcc USB3_UNIPHY_PHY_ARES>;
 			reset-names = "por_rst";
 			qca,host = <1>;
+			qca,emulation = <0>;
 			status = "disabled";
 		};
 
-		dummy_ss_phy: ssphy@0 {
+		dummy_ss_phy: ssphy@1 {
 			compatible = "qca,dummy-ssphy";
 			status = "disabled";
 		};
 
 		usb3_hs_phy: hsphy@a6000 {
 			compatible = "qca,baldur-usb3-hsphy";
-			reg = <0xa6000 0x1c0>;
+			reg = <0xa6000 0x40>;
 			reg-names = "phy_base";
 			resets = <&gcc USB3_HSPHY_POR_ARES>, <&gcc USB3_HSPHY_S_ARES>;
 			reset-names = "por_rst", "srif_rst";
 			qca,host = <1>;
+			qca,emulation = <0>;
 			status = "disabled";
 		};
 
 		usb2_hs_phy: hsphy@a8000 {
 			compatible = "qca,baldur-usb2-hsphy";
-			reg = <0xa8000 0x1c0>;
+			reg = <0xa8000 0x40>;
 			reg-names = "phy_base";
 			resets = <&gcc USB2_HSPHY_POR_ARES>, <&gcc USB2_HSPHY_S_ARES>;
 			reset-names = "por_rst", "srif_rst";
 			qca,host = <1>;
+			qca,emulation = <0>;
 			status = "disabled";
 		};
 
