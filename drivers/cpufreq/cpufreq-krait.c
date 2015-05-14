@@ -23,6 +23,8 @@
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/thermal.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 
 static unsigned int transition_latency;
 static unsigned int voltage_tolerance; /* in percentage */
@@ -205,8 +207,60 @@ static struct cpufreq_driver krait_cpufreq_driver = {
 	.attr = cpufreq_generic_attr,
 };
 
+static int krait_cpufreq_get_speed_pvs(struct device_node *np,
+				       u8 *speed, u8 *pvs)
+{
+	struct regmap *regmap;
+	unsigned int val;
+	int ret;
+
+	regmap = syscon_regmap_lookup_by_phandle(np, "qcom,imem");
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
+
+	ret = regmap_read(regmap, 0xC0, &val);
+	if (ret)
+		return ret;
+
+	/*
+	 * If the fuse isn't blown, then setup defaults.
+	 */
+	if (!(val & BIT(31))) {
+		*speed = 0;
+		*pvs = 1;
+		pr_warn("SPEED BIN: Defaulting to 0\n");
+		pr_warn("ACPU PVS: Defaulting to 1\n");
+		return 0;
+	}
+
+	*speed = val;
+	if (*speed == 0xF)
+		*speed = val >> 4;
+
+	if (*speed == 0xF) {
+		*speed = 0;
+		pr_warn("SPEED BIN: Unknown value. Defaulting to 0\n");
+	} else {
+		pr_info("SPEED BIN: %d\n", *speed);
+	}
+
+	*pvs = (val >> 10) & 0x7;
+	if (*pvs == 0x7)
+		*pvs = (val >> 13) & 0x7;
+
+	if (*pvs == 0x7) {
+		*pvs = 0;
+		pr_warn("ACPU PVS: Unknown value. Defaulting to 0\n");
+	} else {
+		pr_info("ACPU PVS: %d\n", *pvs);
+	}
+
+	return 0;
+}
+
 static int krait_cpufreq_probe(struct platform_device *pdev)
 {
+	char opp_name[sizeof("operating-points-N-M")];
 	struct device_node *np, *cache;
 	int ret, i;
 	unsigned int cpu;
@@ -216,6 +270,7 @@ static int krait_cpufreq_probe(struct platform_device *pdev)
 	unsigned long freq_Hz, freq, max_cpu_freq;
 	struct dev_pm_opp *opp;
 	unsigned long volt, tol;
+	u8 speed = 0, pvs = 0;
 
 	cpu_dev = get_cpu_device(0);
 	if (!cpu_dev) {
@@ -229,7 +284,15 @@ static int krait_cpufreq_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	ret = of_init_opp_table(cpu_dev);
+	ret = krait_cpufreq_get_speed_pvs(np, &speed, &pvs);
+	if (ret) {
+		pr_err("failed to retrieve chip characteristics\n");
+		goto out_put_node;
+	}
+
+	sprintf(opp_name, "operating-points-%x-%x", speed & 0xF, pvs & 0xF);
+
+	ret = of_init_opp_table_named(cpu_dev, opp_name);
 	if (ret) {
 		pr_err("failed to init OPP table: %d\n", ret);
 		goto out_put_node;
@@ -253,13 +316,19 @@ static int krait_cpufreq_probe(struct platform_device *pdev)
 		vdd = of_parse_phandle(cache, "vdd_dig-supply", 0);
 		if (vdd) {
 			l2_reg = regulator_get(NULL, vdd->name);
-			if (!l2_reg)
+			if (!l2_reg || IS_ERR(l2_reg)) {
 				pr_warn("failed to get l2 vdd_dig supply\n");
+				l2_reg = NULL;
+			}
 			of_node_put(vdd);
 		}
 
 		l2_clk = of_clk_get(cache, 0);
-		ret = krait_parse_cache_points(&pdev->dev, cache);
+		if (!IS_ERR(l2_clk)) {
+			ret = krait_parse_cache_points(&pdev->dev, cache);
+			if (ret)
+				clk_put(l2_clk);
+		}
 		if (ret || IS_ERR(l2_clk))
 			l2_clk = NULL;
 	}
@@ -356,6 +425,8 @@ static int krait_cpufreq_probe(struct platform_device *pdev)
 	return 0;
 
 out_free_table:
+	regulator_put(l2_reg);
+	clk_put(l2_clk);
 	dev_pm_opp_free_cpufreq_table(cpu_dev, &freq_table);
 out_put_node:
 	of_node_put(np);
@@ -367,6 +438,8 @@ static int krait_cpufreq_remove(struct platform_device *pdev)
 	cpufreq_cooling_unregister(cdev);
 	cpufreq_unregister_driver(&krait_cpufreq_driver);
 	dev_pm_opp_free_cpufreq_table(cpu_dev, &freq_table);
+	clk_put(l2_clk);
+	regulator_put(l2_reg);
 
 	return 0;
 }
