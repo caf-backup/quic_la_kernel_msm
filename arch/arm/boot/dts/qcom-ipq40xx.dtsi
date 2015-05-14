@@ -329,7 +329,7 @@
 		};
 
 		wifi0: wifi@a000000 {
-			compatible = "qca,wifi-qca961x";
+			compatible = "qca,wifi-ipq40xx";
 			reg = <0xa000000 0x200000>;
 			resets = <&gcc WIFI0_CPU_INIT_RESET>,
 				<&gcc WIFI0_RADIO_SRIF_RESET>,
@@ -364,13 +364,13 @@
 			interrupt-names = "msi0", "msi1", "msi2", "msi3", "msi4", "msi5", "msi6",
 				"msi7", "msi8", "msi9", "msi10", "msi11", "msi12", "msi13", "msi14",
 				"msi15", "legacy";
-			status = "disabled";
+			status = "ok";
 			qca,msi_addr = <0x0b006040>;
 			qca,msi_base = <0x40>;
 		};
 
 		wifi1: wifi@a800000 {
-			compatible = "qca,wifi-qca961x";
+			compatible = "qca,wifi-ipq40xx";
 			reg = <0xa800000 0x200000>;
 			resets = <&gcc WIFI1_CPU_INIT_RESET>,
 				<&gcc WIFI1_RADIO_SRIF_RESET>,
@@ -405,7 +405,7 @@
 			interrupt-names = "msi0", "msi1", "msi2", "msi3", "msi4", "msi5", "msi6",
 				"msi7", "msi8", "msi9", "msi10", "msi11", "msi12", "msi13", "msi14",
 				"msi15", "legacy";
-			status = "disabled";
+			status = "ok";
 			qca,msi_addr = <0x0b006040>;
 			qca,msi_base = <0x50>;
 		};
