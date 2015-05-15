@@ -28,4 +28,8 @@
 	pcm_lb: pcm_lb@0 {
 		status = "ok";
 	};
+
+	qcom,nand@7980000 {
+		status = "ok";
+	};
 };
