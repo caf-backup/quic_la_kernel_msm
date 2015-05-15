@@ -604,14 +604,26 @@ int qca_85xx_port_vlan_group_enable(uint16_t vlan_id, uint32_t port_bit_map)
 	uint32_t port_eg_vlan_ctrl_addr, port_eg_vlan_ctrl_val = 0;
 	uint32_t eg_vlan_tag_addr, eg_vlan_tag_val = 0;
 
-	pr_debug("qca_85xx_sw: VLAN enable for vlan_id = %d, port_bit_map = 0x%x\n",
-			vlan_id, port_bit_map);
+	pr_debug("qca_85xx_sw: VLAN enable for vlan_id = %d, port-map = 0x%x, vlan-tagged-ports map = 0x%x\n",
+			vlan_id, port_bit_map, priv->vlan_tagged_ports_bm);
 
 	if (vlan_id > QCA_85XX_VLAN_ID_MAX)
 		return -EINVAL;
 
 	/* Program IN_VLAN_TRANSLATION table */
 	in_vlan_entry_num = IN_VLAN_ENTRY_LOWEST_PRIO;
+
+	/*
+	 * If the VLAN is not a tagged VLAN group, then we assign
+	 * a default ingress port VLAN translation for all the ports
+	 * in the VLAN
+	 */
+	if ((port_bit_map & priv->vlan_tagged_ports_bm) == port_bit_map) {
+		pr_debug("qca_85xx_sw: No ingress VLAN translation for vlan-id %d, port-map = 0x%x\n",
+				vlan_id, port_bit_map);
+		goto post_ingress;
+	}
+
 	pbm = port_bit_map;
 
 	/*
@@ -640,6 +652,7 @@ int qca_85xx_port_vlan_group_enable(uint16_t vlan_id, uint32_t port_bit_map)
 		priv->write(in_vlan_w2_addr, in_vlan_w2_val);
 	}
 
+post_ingress:
 	/* Program VLAN table entry */
 	vlan_op_data_0_val = port_bit_map;
 	priv->write(VLAN_OP_DATA_0, vlan_op_data_0_val);
@@ -655,7 +668,7 @@ int qca_85xx_port_vlan_group_enable(uint16_t vlan_id, uint32_t port_bit_map)
 	usleep_range(1000, 10000);
 
 	if (priv->read(VLAN_OPERATION) & VLAN_BUSY) {
-		printk(KERN_ERR "qca_85xx_sw: VLAN entry add operation timed out\n");
+		pr_debug(KERN_ERR "qca_85xx_sw: VLAN entry add operation timed out\n");
 		return -ETIMEDOUT;
 	}
 
@@ -1391,13 +1404,20 @@ static int qca_85xx_sw_get_ports(struct switch_dev *dev, struct switch_val *val)
 static int qca_85xx_sw_set_ports(struct switch_dev *dev, struct switch_val *val)
 {
 	uint32_t *vt = &priv->vlan_port_map[val->port_vlan];
+	uint32_t *vt_tagged, vid;
 	int i, j;
 
+	vid = priv->vlan_tag_id[val->port_vlan];
+	vt_tagged = &priv->vlan_port_map[vid];
+
 	*vt = 0;
+	*vt_tagged = 0;
+
 	for (i = 0; i < val->len; i++) {
 		struct switch_port *p = &val->value.ports[i];
 
 		if (p->flags & (1 << SWITCH_PORT_FLAG_TAGGED)) {
+			*vt_tagged |= 1 << p->id;
 			priv->vlan_tagged_ports_bm |= (1 << p->id);
 		} else {
 			priv->vlan_tagged_ports_bm &= ~(1 << p->id);
@@ -1412,10 +1432,11 @@ static int qca_85xx_sw_set_ports(struct switch_dev *dev, struct switch_val *val)
 					continue;
 				priv->vlan_port_map[j] &= ~(1 << p->id);
 			}
-		}
 
-		*vt |= 1 << p->id;
+			*vt |= 1 << p->id;
+		}
 	}
+
 	return 0;
 }
 
