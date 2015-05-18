@@ -250,8 +250,23 @@ void msm_restart(char mode, const char *cmd)
 #endif
 
 	__raw_writel(1, msm_tmr0_base + WDT0_RST);
-	__raw_writel(5*0x31F3, msm_tmr0_base + WDT0_BARK_TIME);
-	__raw_writel(0x31F3, msm_tmr0_base + WDT0_BITE_TIME);
+	/*
+	 * Trigger watchdog bite/bark:
+	 *
+	 * For regular reboot case: Trigger watchdog bite:
+	 * Setup BITE_TIME to be lower than BARK_TIME, and enable WDT.
+	 *
+	 * For panic reboot case: Trigger WDT bark
+	 * So that TZ can save CPU registers:
+	 * Setup BARK_TIME to be lower than BITE_TIME, and enable WDT.
+	 */
+	if (in_panic) {
+		__raw_writel(0x31F3, msm_tmr0_base + WDT0_BARK_TIME);
+		__raw_writel(2 * 0x31F3, msm_tmr0_base + WDT0_BITE_TIME);
+	} else {
+		__raw_writel(5 * 0x31F3, msm_tmr0_base + WDT0_BARK_TIME);
+		__raw_writel(0x31F3, msm_tmr0_base + WDT0_BITE_TIME);
+	}
 	__raw_writel(1, msm_tmr0_base + WDT0_EN);
 
 #ifndef CONFIG_MSM_SCM
