@@ -369,7 +369,7 @@ static void edma_clean_rfd(struct edma_rfd_desc_ring *erdr)
  *	Main api called from the poll function to process rx packets.
  */
 static void edma_rx_complete(struct edma_common_info *c_info,
-		int *work_done, int work_to_do, int queue_id)
+	int *work_done, int work_to_do, int queue_id, struct napi_struct *napi)
 {
 	u16 cleaned_count = 0, length = 0, num_rfds = 1;
 	int i = 0, j = 0;
@@ -383,7 +383,7 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 	struct edma_sw_desc *sw_desc;
 	struct sk_buff *skb;
 	u8 *vaddr;
-	int proc_id = get_cpu(), port_id, priority;
+	int port_id, priority;
 	u8 queue_to_rxid[8] = {0, 0, 1, 1, 2, 2, 3, 3};
 	sw_next_to_clean = erdr->sw_next_to_clean;
 
@@ -569,7 +569,7 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 		adapter->stats.rx_packets++;
 		adapter->stats.rx_bytes += length;
 
-		napi_gro_receive(&c_info->q_cinfo[proc_id].napi, skb);
+		napi_gro_receive(napi, skb);
 	}
 
 	erdr->sw_next_to_clean = sw_next_to_clean;
@@ -580,8 +580,6 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 		edma_write_reg(REG_RX_SW_CONS_IDX_Q(queue_id),
 					erdr->sw_next_to_clean);
 	}
-
-	put_cpu();
 }
 
 /*
@@ -812,14 +810,16 @@ static inline u16 edma_tpd_available(struct edma_common_info *c_info,
 static inline int edma_tx_queue_get(struct edma_adapter *adapter,
 		struct sk_buff *skb)
 {
-	int id = get_cpu();
+	int id = get_cpu(), ret;
 
 	put_cpu();
 
 	/* skb->priority is used as an index to skb priority table
 	 * and based on packet priority, correspong queue is assigned.
 	 */
-	return adapter->tx_start_offset[id] + edma_skb_priority_tbl[skb->priority];
+	ret = adapter->tx_start_offset[id] + edma_skb_priority_tbl[skb->priority];
+
+	return ret;
 }
 
 /*
@@ -1775,7 +1775,7 @@ int edma_poll(struct napi_struct *napi, int budget)
 	while (q_cinfo->rx_status) {
 		queue_id = ffs(q_cinfo->rx_status) - 1;
 		edma_rx_complete(c_info, &work_done,
-			budget, queue_id);
+			budget, queue_id, napi);
 
 		if (likely(work_done < budget))
 			q_cinfo->rx_status &= ~(1 << queue_id);
