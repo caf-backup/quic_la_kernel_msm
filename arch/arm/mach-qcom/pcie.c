@@ -66,6 +66,7 @@
 #define PCIE20_CAP                     0x70
 #define PCIE20_CAP_LINKCTRLSTATUS      (PCIE20_CAP + 0x10)
 #define PCIE20_CAP_LINK_CAPABILITIES   (PCIE20_CAP + 0xC)
+#define PCIE20_CAP_LINK_1		(PCIE20_CAP + 0x14)
 
 #define PCIE20_COMMAND_STATUS          0x04
 #define PCIE20_BUSNUMBERS              0x18
@@ -111,6 +112,13 @@
 #define MAX_BUS_NUM 3
 #define MAX_PROP_SIZE 32
 #define MAX_RC_NAME_LEN 15
+
+#define CMD_BME_VAL					0x4
+#define DBI_RO_WR_EN					1
+#define PCIE_CAP_CPL_TIMEOUT_DISABLE			0x10
+#define LTSSM_EN					(1 << 8)
+#define PCIE_CAP_ACTIVE_STATE_LINK_PM_SUPPORT_MASK	0xc00
+#define PCIE_CAP_LINK1_VAL				0x2fd7f
 
 /* Config Space Offsets */
 #define BDF_OFFSET(bus, device, function) \
@@ -752,36 +760,32 @@ static void msm_pcie_controller_reset(struct msm_pcie_dev_t *dev)
 	/* Assert pcie_pipe_ares */
 	reset_control_assert(dev->rst[MSM_PCIE_AXI_M_ARES].hdl);
 	reset_control_assert(dev->rst[MSM_PCIE_AXI_S_ARES].hdl);
+	usleep_range(10000, 12000); /* wait 12ms */
+
 	reset_control_assert(dev->rst[MSM_PCIE_PIPE_ARES].hdl);
 	reset_control_assert(dev->rst[MSM_PCIE_PIPE_STICKY_ARES].hdl);
+	reset_control_assert(dev->rst[MSM_PCIE_PHY_ARES].hdl);
 	reset_control_assert(dev->rst[MSM_PCIE_PHY_AHB_ARES].hdl);
-
-	gpio_set_value(dev->gpio[MSM_PCIE_GPIO_PERST].num,
-				dev->gpio[MSM_PCIE_GPIO_PERST].on);
-	usleep_range(PERST_PROPAGATION_DELAY_US_MIN,
-				 PERST_PROPAGATION_DELAY_US_MAX);
+	usleep_range(10000, 12000); /* wait 12ms */
 
 	reset_control_assert(dev->rst[MSM_PCIE_AXI_M_STICKY_ARES].hdl);
-	reset_control_assert(dev->rst[MSM_PCIE_AHB_ARES].hdl);
-	reset_control_assert(dev->rst[MSM_PCIE_PHY_ARES].hdl);
 	reset_control_assert(dev->rst[MSM_PCIE_PWR_ARES].hdl);
+	reset_control_assert(dev->rst[MSM_PCIE_AHB_ARES].hdl);
+	usleep_range(10000, 12000); /* wait 12ms */
 
-	reset_control_deassert(dev->rst[MSM_PCIE_PWR_ARES].hdl);
+	reset_control_deassert(dev->rst[MSM_PCIE_PHY_AHB_ARES].hdl);
 	reset_control_deassert(dev->rst[MSM_PCIE_PHY_ARES].hdl);
-	reset_control_deassert(dev->rst[MSM_PCIE_AHB_ARES].hdl);
 	reset_control_deassert(dev->rst[MSM_PCIE_PIPE_ARES].hdl);
 	reset_control_deassert(dev->rst[MSM_PCIE_PIPE_STICKY_ARES].hdl);
-
-	udelay(10);
-	gpio_set_value(dev->gpio[MSM_PCIE_GPIO_PERST].num,
-			1 - dev->gpio[MSM_PCIE_GPIO_PERST].on);
-	usleep_range(LINK_RETRY_TIMEOUT_US_MIN,
-			LINK_RETRY_TIMEOUT_US_MAX);
+	usleep_range(10000, 12000); /* wait 12ms */
 
 	reset_control_deassert(dev->rst[MSM_PCIE_AXI_M_ARES].hdl);
 	reset_control_deassert(dev->rst[MSM_PCIE_AXI_M_STICKY_ARES].hdl);
 	reset_control_deassert(dev->rst[MSM_PCIE_AXI_S_ARES].hdl);
-	reset_control_deassert(dev->rst[MSM_PCIE_PHY_AHB_ARES].hdl);
+	reset_control_deassert(dev->rst[MSM_PCIE_PWR_ARES].hdl);
+	reset_control_deassert(dev->rst[MSM_PCIE_AHB_ARES].hdl);
+	usleep_range(10000, 12000); /* wait 12ms */
+	wmb(); /* ensure data is written to hw register */
 }
 
 static void msm_pcie_config_controller(struct msm_pcie_dev_t *dev)
@@ -1276,19 +1280,18 @@ int msm_pcie_enable(struct msm_pcie_dev_t *dev, u32 options)
 	}
 
 	/* init PCIe PHY */
-	pcie_phy_init(dev);
+	if (dev->is_emulation)
+		pcie_phy_init(dev);
 
-	if (dev->is_emulation) {
-		writel_relaxed(0x1b808000, dev->dm_core + PCIE20_ACK_F_ASPM_CTRL_REG);
-		writel_relaxed(0x20280, dev->dm_core + PCIE20_GEN2_CTRL_REG);
-		writel_relaxed(0x4, dev->dm_core + PCIE20_COMMAND_STATUS);
-		writel_relaxed(0x1, dev->dm_core + PCIE20_MISC_CONTROL_1_REG);
-		writel_relaxed(0x2fd7f, dev->dm_core + 0x84);
-		writel_relaxed(0x724011, dev->dm_core + PCIE20_CAP_LINK_CAPABILITIES);
-		writel_relaxed(0x10, dev->dm_core + PCIE20_DEVICE_CONTROL2_STATUS2);
-		writel_relaxed(0x10110008, dev->dm_core + PCIE20_CAP_LINKCTRLSTATUS);
-		writel_relaxed(0x100, dev->parf + PCIE20_PARF_LTSSM);
-	}
+	writel_relaxed(CMD_BME_VAL, dev->dm_core + PCIE20_COMMAND_STATUS);
+	writel_relaxed(DBI_RO_WR_EN,
+				 dev->dm_core + PCIE20_MISC_CONTROL_1_REG);
+	writel_relaxed(PCIE_CAP_LINK1_VAL, dev->dm_core + PCIE20_CAP_LINK_1);
+	msm_pcie_write_mask(dev->dm_core + PCIE20_CAP_LINK_CAPABILITIES,
+						 BIT(10) | BIT(11), 0);
+	writel_relaxed(PCIE_CAP_CPL_TIMEOUT_DISABLE,
+			 dev->dm_core + PCIE20_DEVICE_CONTROL2_STATUS2);
+	writel_relaxed(LTSSM_EN, dev->parf + PCIE20_PARF_LTSSM);
 
 	if (options & PM_PIPE_CLK) {
 		usleep_range(PHY_STABILIZATION_DELAY_US_MIN,
