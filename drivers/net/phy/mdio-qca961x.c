@@ -32,6 +32,7 @@
 #define MDIO_CTRL_4_ACCESS_START	(1<<8)
 #define MDIO_CTRL_4_ACCESS_CODE_READ	(0)
 #define MDIO_CTRL_4_ACCESS_CODE_WRITE	(1)
+#define CTRL_0_REG_DEFAULT_VALUE	(0x150FF)
 
 #define QCA961X_MDIO_RETRY	1000
 #define QCA961X_MDIO_DELAY	5
@@ -145,6 +146,8 @@ static int qca961x_mdio_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_iounmap;
 	}
+
+	writel(CTRL_0_REG_DEFAULT_VALUE, am->membase + MDIO_CTRL_0_REG);
 
 	am->mii_bus->name = "qca961x_mdio";
 	am->mii_bus->read = &qca961x_mdio_read;
