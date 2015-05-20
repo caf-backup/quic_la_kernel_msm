@@ -34,6 +34,11 @@ static unsigned long edma_hw_addr;
 char edma_tx_irq[16][64];
 char edma_rx_irq[8][64];
 struct net_device *netdev[2];
+u16 tx_start[4] = {EDMA_TXQ_START_CORE0, EDMA_TXQ_START_CORE1,
+			EDMA_TXQ_START_CORE2, EDMA_TXQ_START_CORE3};
+u32 tx_mask[4] = {EDMA_TXQ_IRQ_MASK_CORE0, EDMA_TXQ_IRQ_MASK_CORE1,
+			EDMA_TXQ_IRQ_MASK_CORE2, EDMA_TXQ_IRQ_MASK_CORE3};
+
 int edma_default_ltag  __read_mostly = EDMA_LAN_DEFAULT;
 int edma_default_wtag  __read_mostly = EDMA_WAN_DEFAULT;
 int edma_weight_assigned_to_q __read_mostly;
@@ -486,18 +491,15 @@ static int edma_axi_probe(struct platform_device *pdev)
 	 * 8 RX irqs, do a napi enable
 	 */
 	for (i = 0; i < EDMA_NR_CPU; i++) {
-		u16 tx_start;
 		u8 rx_start;
 		c_info->q_cinfo[i].napi.state = 0;
 		netif_napi_add(netdev[0], &c_info->q_cinfo[i].napi,
 					edma_poll, 64);
 		napi_enable(&c_info->q_cinfo[i].napi);
-		c_info->q_cinfo[i].tx_mask = EDMA_TX_PER_CPU_MASK <<
-					(i << EDMA_TX_PER_CPU_MASK_SHIFT);
+		c_info->q_cinfo[i].tx_mask = tx_mask[i];
 		c_info->q_cinfo[i].rx_mask = EDMA_RX_PER_CPU_MASK <<
 					(i << EDMA_RX_PER_CPU_MASK_SHIFT);
-		c_info->q_cinfo[i].tx_start = tx_start =
-					i << EDMA_TX_CPU_START_SHIFT;
+		c_info->q_cinfo[i].tx_start = tx_start[i];
 		c_info->q_cinfo[i].rx_start =  rx_start =
 					i << EDMA_RX_CPU_START_SHIFT;
 		c_info->q_cinfo[i].tx_status = 0;
@@ -505,7 +507,7 @@ static int edma_axi_probe(struct platform_device *pdev)
 		c_info->q_cinfo[i].c_info = c_info;
 
 		/* Request irq per core */
-		for (j = c_info->q_cinfo[i].tx_start; j < (tx_start + 4); j++) {
+		for (j = c_info->q_cinfo[i].tx_start; j < tx_start[i] + 4; j++) {
 			sprintf(&edma_tx_irq[j][0], "edma_eth_tx%d", j);
 			err = request_irq(c_info->tx_irq[j], edma_interrupt,
 				IRQF_DISABLED, &edma_tx_irq[j][0], &c_info->q_cinfo[i]);
