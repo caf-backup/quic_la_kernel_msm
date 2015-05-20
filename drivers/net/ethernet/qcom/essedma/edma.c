@@ -487,7 +487,7 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 					skb_fill_page_desc(skb, i, skb_frag_page(frag),
 						frag->page_offset, frag->size);
 
-					skb_frag_ref(skb, i);
+					skb_shinfo(skb_temp)->nr_frags = 0;
 					dev_kfree_skb_any(skb_temp);
 
 					skb->data_len += frag->size;
