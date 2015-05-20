@@ -30,6 +30,10 @@
 
 };
 	&soc {
+		timer {
+			clock-frequency = <2400000>;
+		};
+
 		pinctrl@0x01000000 {
 			serial_pins: serial_pinmux {
 				mux {
