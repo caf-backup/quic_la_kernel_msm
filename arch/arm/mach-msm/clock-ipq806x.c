@@ -3263,34 +3263,27 @@ static struct pll_clk pll18_clk = {
 };
 
 static struct pll_rate pll18_rate[] = {
-	[0] = NSS_PLL_RATE( 0x4000042C, 0x00, 0x01, 0x1, 0x2, 0x01495625),	/*  PLL Values for 550Mhz */
-	[1] = NSS_PLL_RATE( 0x4000043A, 0x10, 0x19, 0x1, 0x2, 0x014B5625),	/*  PLL Values for 733Mhz */
-	[2] = NSS_PLL_RATE( 0x40000440, 0x00, 0x01, 0x1, 0x2, 0x01495625),	/*  PLL Values for 800Mhz */
-	[3] = NSS_PLL_RATE( 0x40000430, 0x00, 0x01, 0x1, 0x2, 0x01495625),	/*  PLL Values for 600Mhz */
-};
-
-static struct clk_freq_tbl clk_tbl_nss_lite[] = {
-	F_NSS_CORE( 110000000, pll18, 0x0100fa, 0xfb0141, &pll18_rate[0]),	/* 110Mhz */
-	F_NSS_CORE( 275000000, pll18, 0x0100fd, 0xfe0141, &pll18_rate[0]),	/* 275Mhz */
-	F_NSS_CORE( 550000000, pll18, 0xff00ff, 0xff0001, &pll18_rate[0]),	/* 550Mhz */
-	F_END
+	[0] = NSS_PLL_RATE(0x4000042C, 0x00, 0x01, 0x1, 0x2, 0x01495625),	/*  PLL Values for 550Mhz */
+	[1] = NSS_PLL_RATE(0x4000043A, 0x10, 0x19, 0x1, 0x2, 0x014B5625),	/*  PLL Values for 733Mhz */
+	[2] = NSS_PLL_RATE(0x40000440, 0x00, 0x01, 0x1, 0x2, 0x01495625),	/*  PLL Values for 800Mhz */
+	[3] = NSS_PLL_RATE(0x40000430, 0x00, 0x01, 0x1, 0x2, 0x01495625),	/*  PLL Values for 600Mhz */
 };
 
 static struct clk_freq_tbl clk_tbl_nss[] = {
-	F_NSS_CORE( 110000000, pll18, 0x0100fa, 0xfb0141, &pll18_rate[0]),	/* 110Mhz */
-	F_NSS_CORE( 550000000, pll18, 0xff00ff, 0xff0001, &pll18_rate[0]),	/* 550Mhz */
-	F_NSS_CORE( 733000000, pll18, 0xff00ff, 0xff0001, &pll18_rate[1]),	/* 733Mhz */
+	F_NSS_CORE(110000000, pll18, 0x0100fa, 0xfb0141, &pll18_rate[0]),	/* 110Mhz */
+	F_NSS_CORE(275000000, pll18, 0x0100fd, 0xfe0141, &pll18_rate[0]),	/* 275Mhz */
+	F_NSS_CORE(550000000, pll18, 0xff00ff, 0xff0001, &pll18_rate[0]),	/* 550Mhz */
+	F_NSS_CORE(733000000, pll18, 0xff00ff, 0xff0001, &pll18_rate[1]),	/* 733Mhz */
 	F_END
 };
 
 static struct clk_freq_tbl clk_tbl_nss_fast[] = {
-	F_NSS_CORE( 110000000, pll18, 0x0100fa, 0xfb0141, &pll18_rate[0]),	/* 110Mhz */
-	F_NSS_CORE( 600000000, pll18, 0xff00ff, 0xff0001, &pll18_rate[3]),	/* 600Mhz */
-	F_NSS_CORE( 800000000, pll18, 0xff00ff, 0xff0001, &pll18_rate[2]),	/* 800Mhz */
+	F_NSS_CORE(110000000, pll18, 0x0100fa, 0xfb0141, &pll18_rate[0]),	/* 110Mhz */
+	F_NSS_CORE(275000000, pll18, 0x0100fd, 0xfe0141, &pll18_rate[0]),	/* 275Mhz */
+	F_NSS_CORE(600000000, pll18, 0xff00ff, 0xff0001, &pll18_rate[3]),	/* 600Mhz */
+	F_NSS_CORE(800000000, pll18, 0xff00ff, 0xff0001, &pll18_rate[2]),	/* 800Mhz */
 	F_END
 };
-
-
 
 /*
  * Custom Table to handle programming both cores at same time
@@ -4184,10 +4177,7 @@ static void __init ipq806x_clock_pre_init(void)
 
 	clk_ops_local_pll.enable = sr_pll_clk_enable;
 
-	if (cpu_is_ipq8062() || cpu_is_ipq8066()) {
-		nss_core_clk.freq_tbl = clk_tbl_nss_lite;
-		printk("clk_tbl_nss_lite - loaded\n");
-	} else if (cpu_is_ipq8065() || cpu_is_ipq8069()) {
+	if (cpu_is_ipq8065() || cpu_is_ipq8069()) {
 		nss_core_clk.freq_tbl = clk_tbl_nss_fast;
 		printk("clk_tbl_nss_fast - loaded\n");
 	} else {
