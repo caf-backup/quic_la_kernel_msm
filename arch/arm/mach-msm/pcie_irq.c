@@ -254,7 +254,7 @@ int msm_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc, int msi_idx)
 	return 0;
 }
 
-static int msm_alloc_msi_entries(struct pci_dev *dev, int nvec)
+static int msm_alloc_msi_entries(struct pci_dev *dev, int nvec, int type)
 {
 	struct msi_desc *head;
 	int i;
@@ -265,25 +265,26 @@ static int msm_alloc_msi_entries(struct pci_dev *dev, int nvec)
 	/* msi_capability_init created the zeroth entry */
 	head = list_first_entry(&dev->msi_list, struct msi_desc, list);
 
-	for (i = 1; i < nvec; i++) {
-		struct msi_desc *entry;
+	if (type != PCI_CAP_ID_MSIX) {
+		for (i = 1; i < nvec; i++) {
+			struct msi_desc *entry;
 
-		entry = kzalloc(sizeof(*entry) * (nvec - 1), GFP_KERNEL);
-		if (!entry) {
-			/*
-			 * If this failed midway, msi_capability_init's
-			 * error handling will clean it up
-			 */
-			return -ENOMEM;
+			entry = kzalloc(sizeof(*entry) * (nvec - 1), GFP_KERNEL);
+			if (!entry) {
+				/*
+				 * If this failed midway, msi_capability_init's
+				 * error handling will clean it up
+				 */
+				return -ENOMEM;
+			}
+			entry->msi_attrib = head->msi_attrib;
+			entry->mask_pos = head->mask_pos;
+			entry->msi_attrib.entry_nr = i;
+			entry->dev = dev;
+			INIT_LIST_HEAD(&entry->list);
+			list_add_tail(&entry->list, &dev->msi_list);
 		}
-		entry->msi_attrib = head->msi_attrib;
-		entry->mask_pos = head->mask_pos;
-		entry->msi_attrib.entry_nr = i;
-		entry->dev = dev;
-		INIT_LIST_HEAD(&entry->list);
-		list_add_tail(&entry->list, &dev->msi_list);
 	}
-
 	head->msi_attrib.multiple = nvec;
 
 	return 0;
@@ -309,7 +310,8 @@ int msm_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	if (msi_idx < 0)
 		return -ENOSPC;
 
-	if ((ret = msm_alloc_msi_entries(dev, nvec)) != 0)
+	ret = msm_alloc_msi_entries(dev, nvec, type);
+	if (ret != 0)
 		return ret;
 
 	list_for_each_entry(entry, &dev->msi_list, list) {
