@@ -208,11 +208,14 @@ static struct cpufreq_driver krait_cpufreq_driver = {
 static int krait_cpufreq_probe(struct platform_device *pdev)
 {
 	struct device_node *np, *cache;
-	int ret;
+	int ret, i;
 	unsigned int cpu;
 	struct device *dev;
 	struct clk *clk;
 	struct regulator *core;
+	unsigned long freq_Hz, freq, max_cpu_freq;
+	struct dev_pm_opp *opp;
+	unsigned long volt, tol;
 
 	cpu_dev = get_cpu_device(0);
 	if (!cpu_dev) {
@@ -224,27 +227,6 @@ static int krait_cpufreq_probe(struct platform_device *pdev)
 	if (!np) {
 		pr_err("failed to find krait node\n");
 		return -ENOENT;
-	}
-
-	for_each_possible_cpu(cpu) {
-		dev = get_cpu_device(cpu);
-		if (!dev) {
-			pr_err("failed to get krait device\n");
-			ret = -ENOENT;
-			goto out_put_node;
-		}
-		per_cpu(krait_cpu_clks, cpu) = clk = devm_clk_get(dev, NULL);
-		if (IS_ERR(clk)) {
-			ret = PTR_ERR(clk);
-			goto out_put_node;
-		}
-		core = devm_regulator_get(dev, "core");
-		if (IS_ERR(core)) {
-			pr_debug("failed to get core regulator\n");
-			ret = PTR_ERR(core);
-			goto out_put_node;
-		}
-		per_cpu(krait_supply_core, cpu) = core;
 	}
 
 	ret = of_init_opp_table(cpu_dev);
@@ -280,6 +262,72 @@ static int krait_cpufreq_probe(struct platform_device *pdev)
 		ret = krait_parse_cache_points(&pdev->dev, cache);
 		if (ret || IS_ERR(l2_clk))
 			l2_clk = NULL;
+	}
+
+	for_each_possible_cpu(cpu) {
+		dev = get_cpu_device(cpu);
+		if (!dev) {
+			pr_err("failed to get krait device\n");
+			ret = -ENOENT;
+			goto out_free_table;
+		}
+		per_cpu(krait_cpu_clks, cpu) = clk = devm_clk_get(dev, NULL);
+		if (IS_ERR(clk)) {
+			ret = PTR_ERR(clk);
+			goto out_free_table;
+		}
+		core = devm_regulator_get(dev, "core");
+		if (IS_ERR(core)) {
+			pr_debug("failed to get core regulator\n");
+			ret = PTR_ERR(core);
+			goto out_free_table;
+		}
+		per_cpu(krait_supply_core, cpu) = core;
+
+		freq_Hz = clk_get_rate(clk);
+
+		rcu_read_lock();
+		opp = dev_pm_opp_find_freq_ceil(cpu_dev, &freq_Hz);
+		if (IS_ERR(opp)) {
+			rcu_read_unlock();
+			pr_err("failed to find OPP for %ld\n", freq_Hz);
+			ret = PTR_ERR(opp);
+			goto out_free_table;
+		}
+		volt = dev_pm_opp_get_voltage(opp);
+		rcu_read_unlock();
+
+		tol = volt * voltage_tolerance / 100;
+		ret = regulator_set_voltage_tol(core, volt, tol);
+		if (ret) {
+			pr_err("failed to scale voltage up: %d\n", ret);
+			goto out_free_table;
+		}
+		ret = regulator_enable(core);
+		if (ret) {
+			pr_err("failed to enable regulator: %d\n", ret);
+			goto out_free_table;
+		}
+		max_cpu_freq = max(max_cpu_freq, freq);
+	}
+
+	for (i = 0; i < nr_krait_l2_points; i++) {
+		if (max_cpu_freq >= krait_l2_points[i].cpu_freq) {
+			if (l2_reg) {
+				ret = regulator_set_voltage_tol(l2_reg,
+						krait_l2_points[i].cache_volt,
+						tol);
+				if (ret)
+					pr_err("failed to scale l2 voltage: %d\n",
+							ret);
+				ret = regulator_enable(l2_reg);
+				if (ret)
+					pr_err("failed to enable l2 voltage: %d\n",
+							ret);
+			}
+			break;
+		}
+
 	}
 
 	ret = cpufreq_register_driver(&krait_cpufreq_driver);
