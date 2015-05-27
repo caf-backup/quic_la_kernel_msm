@@ -199,23 +199,23 @@ static int a7ss_release_secondary(unsigned int cpu)
 	if (!base)
 		return -ENOMEM;
 
+	/* Enable Clamp signal and assert core reset */
+	writel_relaxed(0x00000033, base + 0x04);
+	mb(); /* barrier */
 
-	printk("Fix me, the below initializations should be done by rom ?");
+	/* Set GDHS and delay counter */
+	writel_relaxed(0x20000001, base + 0x14);
+	mb(); /* barrier */
 
-	if (0) {
-		writel_relaxed(0x00000033, base + 0x04);
-		mb(); /* barrier */
+	udelay(2);
 
-		writel_relaxed(0x10000001, base + 0x14);
-		mb(); /* barrier */
-		udelay(2);
+	/* Enable Core memory HS */
+	writel_relaxed(0x00020008, base + 0x04);
+	mb(); /* barrier */
 
-		writel_relaxed(0x00020008, base + 0x04);
-		mb(); /* barrier */
-
-		writel_relaxed(0x00020088, base + 0x04);
-		mb(); /* barrier */
-	}
+	/* Report that the CPU is powered up */
+	writel_relaxed(0x00020088, base + 0x04);
+	mb(); /* barrier */
 
 	iounmap(base);
 	return 0;
