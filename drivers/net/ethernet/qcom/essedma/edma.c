@@ -435,7 +435,7 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 			num_rfds = rrd[1] & EDMA_RRD_NUM_RFD_MASK;
 		}
 
-		port_id = rrd[1] >> EDMA_PORT_ID_SHIFT;
+		port_id = (rrd[1] >> EDMA_PORT_ID_SHIFT) & EDMA_PORT_ID_MASK;
 		if (!unlikely(port_id))
 			dev_err(&pdev->dev, "No RRD source port bit set");
 		else {
