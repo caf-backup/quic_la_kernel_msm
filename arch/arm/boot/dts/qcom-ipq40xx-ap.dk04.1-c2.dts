@@ -17,49 +17,53 @@
 #include "qcom-ipq40xx-ap.dk04.1.dtsi"
 #include "qcom-ipq40xx-audio.dtsi"
 
-&soc {
-	/* Enable Audio Interfaces */
-	i2s: ipq40xx-pcm-i2s@0 {
-		status = "ok";
-	};
+/ {
+	model = "Qualcomm Technologies, Inc. IPQ40xx/AP-DK04.1-C2";
 
-	tdm: tdm@0 {
-		status = "ok";
-	};
+	soc {
+		/* Enable Audio Interfaces */
+		i2s: ipq40xx-pcm-i2s@0 {
+			status = "ok";
+		};
 
-	spdif: spdif@7707000 {
-		status = "ok";
-	};
+		tdm: tdm@0 {
+			status = "ok";
+		};
 
-	qcacodec: qca-codec@50 {
-		status = "ok";
-	};
+		spdif: spdif@7707000 {
+			status = "ok";
+		};
 
-	i2splatform: qca-pcm-i2s@7709000 {
-		status = "ok";
-	};
+		qcacodec: qca-codec@50 {
+			status = "ok";
+		};
 
-	tdmplatform: qca-pcm-tdm@7709000 {
-		status = "ok";
-	};
+		i2splatform: qca-pcm-i2s@7709000 {
+			status = "ok";
+		};
 
-	i2s1platform: qca-pcm-i2s1@770b000 {
-		status = "ok";
-	};
+		tdmplatform: qca-pcm-tdm@7709000 {
+			status = "ok";
+		};
 
-	i2s1: ipq40xx-pcm-i2s1@0 {
-		status = "ok";
-	};
+		i2s1platform: qca-pcm-i2s1@770b000 {
+			status = "ok";
+		};
 
-	i2s2platform: qca-pcm-i2s2@770d000 {
-		status = "ok";
-	};
+		i2s1: ipq40xx-pcm-i2s1@0 {
+			status = "ok";
+		};
 
-	i2s2: ipq40xx-pcm-i2s2@0 {
-		status = "ok";
-	};
+		i2s2platform: qca-pcm-i2s2@770d000 {
+			status = "ok";
+		};
 
-	sound: sound@0 {
-		status = "ok";
+		i2s2: ipq40xx-pcm-i2s2@0 {
+			status = "ok";
+		};
+
+		sound: sound@0 {
+			status = "ok";
+		};
 	};
 };
