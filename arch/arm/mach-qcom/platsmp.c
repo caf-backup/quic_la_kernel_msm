@@ -184,19 +184,22 @@ static int __cpuinit a7ss_release_secondary(unsigned int cpu)
 		return -ENOMEM;
 
 
-	printk("Fix me, the below initializations should be done by rom ?");
-
-	if (0) {
+	if (!of_board_is_sim()) {
+		/* Enable Clamp signal and assert core reset */
 		writel_relaxed(0x00000033, base + 0x04);
 		mb(); /* barrier */
 
-		writel_relaxed(0x10000001, base + 0x14);
+		/* Set GDHS and delay counter */
+		writel_relaxed(0x20000001, base + 0x14);
 		mb(); /* barrier */
+
 		udelay(2);
 
+		/* Enable Core memory HS */
 		writel_relaxed(0x00020008, base + 0x04);
 		mb(); /* barrier */
 
+		/* Report that the CPU is powered up */
 		writel_relaxed(0x00020088, base + 0x04);
 		mb(); /* barrier */
 	}
