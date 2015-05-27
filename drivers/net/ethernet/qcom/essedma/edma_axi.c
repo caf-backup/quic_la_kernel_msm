@@ -17,6 +17,7 @@
 #include "ess_edma.h"
 #include <linux/cpu_rmap.h>
 #include <linux/of_net.h>
+#include <linux/reset.h>
 
 /* Weight round robin and virtual QID mask */
 #define EDMA_WRR_VID_SCTL_MASK 0xFFFF
@@ -225,7 +226,20 @@ static int edma_axi_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *pnp;
+	struct device dev;
 	int i, j, err = 0, ret = 0;
+
+	/* Do a ESS-EDMA Reset */
+	dev.of_node = of_find_node_by_name(NULL, "ess-switch");
+	if (!dev.of_node) {
+		dev_err(&dev, "ess-edma device not found\n");
+		return -ENODEV;
+	}
+
+	if (device_reset(&dev)) {
+		dev_err(&dev, "ess-edma reset failed\n");
+		return -EINVAL;
+	}
 
 	/* Use to allocate net devices for multiple TX/RX queues */
 	netdev[0] = alloc_etherdev_mqs(sizeof(struct edma_adapter),
