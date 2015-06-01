@@ -167,30 +167,21 @@
 			>;
 		};
 
-		vcc_sd0: regulator@0 {
-			compatible = "regulator-fixed";
-			regulator-name = "SDHI0 Vcc";
-			regulator-min-microvolt = <3000000>;
-			regulator-max-microvolt = <3000000>;
-			gpio = <&tlmm 6 0>;
-		};
-
-		vccq_sd0: regulator@1 {
-			compatible = "regulator-gpio";
+		vccq_sd0: regulator@0 {
+			compatible = "qcom,regulator-ipq40xx";
 			regulator-name = "SD0 VccQ";
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <3000000>;
-			gpios = <&tlmm 7 0>;
-			states = <3000000 0
-				1800000 1>;
-			enable-active-high;
+			states = <3000000 0x3
+				1800000 0x1>;
+			reg = <0x01948000 0x4>;
+			mask = <0x3>;
 		};
 
 		sdhci@7824000 {
 			status = "ok";
-			vmmc-supply = <&vcc_sd0>;
 			vqmmc-supply = <&vccq_sd0>;
-			non-removable;
+			cd-gpios = <&tlmm 22 0x1>;
 		};
 
 		qcom,nand@7980000 {

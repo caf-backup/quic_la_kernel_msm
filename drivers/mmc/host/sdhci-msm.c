@@ -65,7 +65,6 @@
 #define SDHCI_SUPPORT_8_BIT		BIT(18)
 #define SDHCI_MAX_BLK_LENGTH		BIT(16)
 #define SDHCI_BASE_SDCLK_FREQ		0xc800
-#define SDHCI_TIMEOUT_CLK_UNIT		BIT(7)
 #define SDHCI_TIMEOUT_CLK_FREQ		0xb2
 
 static const u32 tuning_block_64[] = {
@@ -627,7 +626,6 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	/* Set HC_MODE_EN bit in HC_MODE register */
 	writel_relaxed(HC_MODE_EN, (msm_host->core_mem + CORE_HC_MODE));
 
-	host->quirks |= SDHCI_QUIRK_BROKEN_CARD_DETECTION;
 	host->quirks |= SDHCI_QUIRK_SINGLE_POWER_WRITE;
 
 	host_version = readw_relaxed((host->ioaddr + SDHCI_HOST_VERSION));
