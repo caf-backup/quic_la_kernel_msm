@@ -269,7 +269,7 @@ static int msm_alloc_msi_entries(struct pci_dev *dev, int nvec, int type)
 		for (i = 1; i < nvec; i++) {
 			struct msi_desc *entry;
 
-			entry = kzalloc(sizeof(*entry) * (nvec - 1), GFP_KERNEL);
+			entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 			if (!entry) {
 				/*
 				 * If this failed midway, msi_capability_init's
