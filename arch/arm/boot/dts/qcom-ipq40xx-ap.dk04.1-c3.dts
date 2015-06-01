@@ -19,17 +19,21 @@
 #include "qpic-panel-ili-qvga.dtsi"
 #include "qcom-ipq40xx-audio.dtsi"
 
-&soc {
-	/* Enable VOIP Interfaces */
-	pcm: pcm@7704000 {
-		status = "ok";
-	};
+/ {
+	model = "Qualcomm Technologies, Inc. IPQ40xx/AP-DK04.1-C3";
 
-	pcm_lb: pcm_lb@0 {
-		status = "ok";
-	};
+	soc {
+		/* Enable VOIP Interfaces */
+		pcm: pcm@7704000 {
+			status = "ok";
+		};
 
-	qcom,nand@7980000 {
-		status = "ok";
+		pcm_lb: pcm_lb@0 {
+			status = "ok";
+		};
+
+		qcom,nand@7980000 {
+			status = "ok";
+		};
 	};
 };
