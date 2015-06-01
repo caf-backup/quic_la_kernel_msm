@@ -603,4 +603,6 @@ static inline unsigned long to_bytes(sector_t n)
 	return (n << SECTOR_SHIFT);
 }
 
+void dm_end_request(struct request *clone, int error);
+
 #endif	/* _LINUX_DEVICE_MAPPER_H */
