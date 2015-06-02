@@ -246,6 +246,7 @@ static const struct net_device_ops edma_axi_netdev_ops = {
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer      = edma_rx_flow_steer,
 	.ndo_register_rfs_filter = edma_register_rfs_filter,
+	.ndo_get_default_vlan_tag = edma_get_default_vlan_tag,
 #endif
 	.ndo_get_stats          = edma_get_stats,
 	.ndo_change_mtu		= edma_change_mtu,

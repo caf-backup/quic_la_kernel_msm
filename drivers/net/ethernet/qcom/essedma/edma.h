@@ -307,4 +307,5 @@ void edma_set_ethtool_ops(struct net_device *netdev);
 int edma_change_mtu(struct net_device *netdev, int new_mtu);
 void edma_set_stp_rstp(bool tag);
 void edma_assign_ath_hdr_type(int tag);
+int edma_get_default_vlan_tag(struct net_device *netdev);
 #endif /* _EDMA_H_ */

@@ -1324,6 +1324,20 @@ int edma_register_rfs_filter(struct net_device *netdev,
 }
 
 /*
+ * edma_get_default_vlan_tag()
+ *	Used by other modules to get the default vlan tag
+ */
+int edma_get_default_vlan_tag(struct net_device *netdev)
+{
+	struct edma_adapter *adapter = netdev_priv(netdev);
+
+	if (adapter->default_vlan_tag)
+		return adapter->default_vlan_tag;
+
+	return 0;
+}
+
+/*
  * edma_free_queues()
  *	Free the queues allocaated
  */
