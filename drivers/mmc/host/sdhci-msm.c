@@ -40,6 +40,8 @@
 #define CORE_DLL_RST		BIT(30)
 #define CORE_DLL_CONFIG		0x100
 #define CORE_DLL_STATUS		0x108
+#define CORE_DLL_CONFIG2	0x1b4
+#define CORE_DLL_CLK_DISABLE	BIT(21)
 
 #define CORE_VENDOR_SPEC	0x10c
 #define CORE_CLK_PWRSAVE	BIT(1)
@@ -55,6 +57,16 @@
 #define CDR_SELEXT_MASK		(0xf << CDR_SELEXT_SHIFT)
 #define CMUX_SHIFT_PHASE_SHIFT	24
 #define CMUX_SHIFT_PHASE_MASK	(7 << CMUX_SHIFT_PHASE_SHIFT)
+#define SDHCI_RETUNING_MODE		BIT(15)
+#define SDHCI_ASYNC_INT_SUPPORT		BIT(29)
+#define SDHCI_SYS_BUS_SUPPORT_64_BIT	BIT(28)
+#define SDHCI_HS_SUPPORT		BIT(21)
+#define SDHCI_ADMA2_SUPPORT		BIT(19)
+#define SDHCI_SUPPORT_8_BIT		BIT(18)
+#define SDHCI_MAX_BLK_LENGTH		BIT(16)
+#define SDHCI_BASE_SDCLK_FREQ		0xc800
+#define SDHCI_TIMEOUT_CLK_UNIT		BIT(7)
+#define SDHCI_TIMEOUT_CLK_FREQ		0xb2
 
 static const u32 tuning_block_64[] = {
 	0x00ff0fff, 0xccc3ccff, 0xffcc3cc3, 0xeffefffe,
@@ -348,6 +360,10 @@ static int msm_init_cm_dll(struct sdhci_host *host)
 	writel_relaxed((readl_relaxed(host->ioaddr + CORE_DLL_CONFIG)
 			| CORE_CK_OUT_EN), host->ioaddr + CORE_DLL_CONFIG);
 
+	/* Write 0 to DLL_CLOCK_DISABLE bit of DLL_CONFIG_2 register */
+	writel_relaxed((readl_relaxed(host->ioaddr + CORE_DLL_CONFIG2)
+		& ~CORE_DLL_CLK_DISABLE), host->ioaddr + CORE_DLL_CONFIG2);
+
 	/* Wait until DLL_LOCK bit of DLL_STATUS register becomes '1' */
 	while (!(readl_relaxed(host->ioaddr + CORE_DLL_STATUS) &
 		 CORE_DLL_LOCK)) {
@@ -580,6 +596,21 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 					& ~(CAPS_SDR_104_SUPPORT)),
 				host->ioaddr + VENDOR_CAPS1);
 	}
+
+	/* Set missing caps quirks */
+	host->quirks  |= SDHCI_QUIRK_MISSING_CAPS;
+
+	/* Enable SDCC supported capabilities */
+	host->caps = SDHCI_CAN_VDD_300 | SDHCI_CAN_VDD_180 |
+			SDHCI_ASYNC_INT_SUPPORT |
+			SDHCI_SYS_BUS_SUPPORT_64_BIT | SDHCI_HS_SUPPORT |
+			SDHCI_ADMA2_SUPPORT | SDHCI_SUPPORT_8_BIT |
+			SDHCI_MAX_BLK_LENGTH | SDHCI_TIMEOUT_CLK_UNIT |
+			SDHCI_BASE_SDCLK_FREQ | SDHCI_TIMEOUT_CLK_FREQ;
+
+	/* Enable SD card supported modes */
+	host->caps1 = SDHCI_SUPPORT_SDR104 | SDHCI_SUPPORT_SDR50 |
+		SDHCI_SUPPORT_DDR50 | SDHCI_RETUNING_MODE;
 
 	/* Reset the core and Enable SDHC mode */
 	writel_relaxed(readl_relaxed(msm_host->core_mem + CORE_POWER) |
