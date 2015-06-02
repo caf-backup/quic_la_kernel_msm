@@ -948,6 +948,11 @@ typedef int (*set_rfs_filter_callback_t)(struct net_device *dev,
  *	Register callback to handle commands for low layer RFS filter engine.
  *	Return 0 on success, or a negative error code.
  *
+ *	Get Default VLAN tag
+ * int (*ndo_get_default_vlan_tag)(struct net_device *net);
+ *	This api can be called by other module to get
+ *	the default vlan tag
+ *
  *	Slave management functions (for bridge, bonding, etc).
  * int (*ndo_add_slave)(struct net_device *dev, struct net_device *slave_dev);
  *	Called to make another netdev an underling.
@@ -1125,6 +1130,7 @@ struct net_device_ops {
 						     u32 flow_id);
 	int			(*ndo_register_rfs_filter)(struct net_device *dev,
 							      set_rfs_filter_callback_t set_filter);
+	int			(*ndo_get_default_vlan_tag)(struct net_device *net);
 #endif
 	int			(*ndo_add_slave)(struct net_device *dev,
 						 struct net_device *slave_dev);
