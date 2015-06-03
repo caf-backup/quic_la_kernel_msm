@@ -51,7 +51,6 @@ void br_fdb_fini(void)
 	kmem_cache_destroy(br_fdb_cache);
 }
 
-
 /* if topology_changing then use forward_delay (default 15 sec)
  * otherwise keep longer (default 5 minutes)
  */
@@ -470,7 +469,6 @@ static void br_fdb_refresh_stats(struct net_bridge *br,
 	}
 }
 
-
 void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 		   const unsigned char *addr)
 {
@@ -497,10 +495,10 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 		} else {
 			/* fastpath: update of existing entry */
 			if (unlikely(source != fdb->dst)) {
+				fdb->dst = source;
 				atomic_notifier_call_chain(
 						&br_fdb_update_notifier_list,
 						0, addr);
-				fdb->dst = source;
 			}
 			fdb->updated = jiffies;
 		}
