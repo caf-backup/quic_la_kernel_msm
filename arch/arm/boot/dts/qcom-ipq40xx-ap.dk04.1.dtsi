@@ -149,9 +149,9 @@
 
 		pcie0: qcom,pcie@80000 {
 			status = "ok";
-			perst-gpio = <&tlmm 61 0>;
-			wake-gpio = <&tlmm 65 0>;
-			clkreq-gpio = <&tlmm 64 0>;
+			perst-gpio = <&tlmm 38 0>;
+			wake-gpio = <&tlmm 40 0>;
+			clkreq-gpio = <&tlmm 39 0>;
 		};
 
 		qcom: ledc@1937000  {
