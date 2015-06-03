@@ -19,6 +19,8 @@
 #include "edma.h"
 
 extern struct net_device *netdev[2];
+bool edma_stp_rstp;
+u16 edma_ath_eth_type;
 
 /* The array values are the tx queue number supported by the core */
 u8 edma_skb_priority_tbl[8] = {0, 0, 0, 0, 1, 1, 1, 1};
@@ -381,7 +383,7 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 	struct edma_sw_desc *sw_desc;
 	struct sk_buff *skb;
 	u8 *vaddr;
-	int proc_id = get_cpu(), port_id;
+	int proc_id = get_cpu(), port_id, priority;
 	u8 queue_to_rxid[8] = {0, 0, 1, 1, 2, 2, 3, 3};
 	sw_next_to_clean = erdr->sw_next_to_clean;
 
@@ -455,8 +457,6 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 			skb_put(skb, length);
 		} else {
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[0];
-
-			/* Setup first fragment */
 			frag->page_offset += 16;
 
 			/* Setup skbuff fields */
@@ -503,6 +503,42 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 			if (!pskb_may_pull(skb, ETH_HLEN)) {
 				dev_kfree_skb_any(skb);
 				continue;
+			}
+		}
+
+		if (unlikely(edma_stp_rstp)) {
+			u8 mac_addr[EDMA_ETH_HDR_LEN];
+			int i;
+			u16 port_type = (rrd[1] >> EDMA_RRD_PORT_TYPE_SHIFT)
+				& EDMA_RRD_PORT_TYPE_MASK;
+
+			/* if port type is 0x4, then only proceed with
+			 * other stp/rstp calculation
+			 */
+			if (port_type == EDMA_RX_ATH_HDR_RSTP_PORT_TYPE) {
+				u8 bpdu_mac[6] = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x00};
+
+				/* calculate the frame priority */
+				priority = (rrd[1] >> EDMA_RRD_PRIORITY_SHIFT)
+					& EDMA_RRD_PRIORITY_MASK;
+
+				for (i = 0; i < EDMA_ETH_HDR_LEN; i++)
+					mac_addr[i] = skb->data[i];
+
+				/* Check if destination mac addr is bpdu addr */
+				if (!memcmp(mac_addr, bpdu_mac, 6)) {
+					/* destination mac address is BPDU
+					 * destination mac address, then add
+					 * atheros header to the packet.
+					 */
+					u16 athr_hdr = (EDMA_RX_ATH_HDR_VERSION << EDMA_RX_ATH_HDR_VERSION_SHIFT) |
+						(priority << EDMA_RX_ATH_HDR_PRIORITY_SHIFT) |
+						(EDMA_RX_ATH_HDR_RSTP_PORT_TYPE << EDMA_RX_ATH_PORT_TYPE_SHIFT) | port_id;
+					skb_push(skb, 4);
+					memcpy(skb->data, mac_addr, EDMA_ETH_HDR_LEN);
+					*(uint16_t *)&skb->data[12] = htons(edma_ath_eth_type);
+					*(uint16_t *)&skb->data[14] = htons(athr_hdr);
+				}
 			}
 		}
 
@@ -839,8 +875,9 @@ static void edma_rollback_tx(struct edma_adapter *adapter,
  * gets mapped
  */
 static int edma_tx_map_and_fill(struct edma_common_info *c_info,
-		struct edma_adapter *adapter, struct sk_buff *skb,
-		int queue_id, unsigned int flags_transmit)
+	struct edma_adapter *adapter, struct sk_buff *skb, int queue_id,
+	unsigned int flags_transmit, u16 from_cpu, u16 dp_bitmap,
+	bool packet_is_rstp)
 {
 	struct edma_sw_desc *sw_desc = NULL;
 	struct platform_device *pdev = c_info->pdev;
@@ -899,7 +936,11 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 		word3 |= (adapter->default_vlan_tag) << EDMA_TX_CVLAN_TAG_SHIFT;
 	}
 
-	word3 |= EDMA_PORT_ENABLE_ALL << EDMA_TPD_PORT_BITMAP_SHIFT;
+	if (unlikely(packet_is_rstp)) {
+		word3 |= dp_bitmap << EDMA_TPD_PORT_BITMAP_SHIFT;
+		word3 |= from_cpu << EDMA_TPD_FROM_CPU_SHIFT;
+	} else
+		word3 |= EDMA_PORT_ENABLE_ALL << EDMA_TPD_PORT_BITMAP_SHIFT;
 
 	buf_len = skb_headlen(skb);
 
@@ -973,8 +1014,6 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 		tpd->addr = cpu_to_le32(sw_desc->dma);
 		tpd->len  = cpu_to_le16(buf_len);
 
-		word3 |= EDMA_PORT_ENABLE_ALL << EDMA_TPD_PORT_BITMAP_SHIFT;
-
 		tpd->svlan_tag = svlan_tag;
 		tpd->word1 = word1 | lso_word1;
 		tpd->word3 = word3;
@@ -1041,8 +1080,9 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 	struct edma_tx_desc_ring *etdr;
 	struct netdev_queue *nq;
 	int ret, num_tpds_needed;
-	u16 txq_id;
+	u16 txq_id, from_cpu, dp_bitmap;
 	unsigned int flags_transmit = 0;
+	bool packet_is_rstp = false;
 
 	num_tpds_needed = skb_shinfo(skb)->nr_frags + 1;
 
@@ -1053,6 +1093,28 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 		dev_kfree_skb_any(skb);
 		adapter->stats.tx_errors++;
 		return NETDEV_TX_OK;
+	}
+
+	if (unlikely(edma_stp_rstp)) {
+		u16 ath_hdr, ath_eth_type;
+		u8 mac_addr[EDMA_ETH_HDR_LEN];
+		int i;
+		ath_eth_type = ntohs(*(uint16_t *)&skb->data[12]);
+		if (ath_eth_type == edma_ath_eth_type) {
+			packet_is_rstp = true;
+			ath_hdr = htons(*(uint16_t *)&skb->data[14]);
+			dp_bitmap = ath_hdr & EDMA_TX_ATH_HDR_PORT_BITMAP_MASK;
+			from_cpu = (ath_hdr & EDMA_TX_ATH_HDR_FROM_CPU_MASK) >> EDMA_TX_ATH_HDR_FROM_CPU_SHIFT;
+			for (i = 0; i < EDMA_ETH_HDR_LEN; i++)
+				mac_addr[i] = skb->data[i];
+
+			skb_pull(skb, 4);
+
+			for (i = 0; i < EDMA_ETH_HDR_LEN; i++)
+				skb->data[i] = mac_addr[i];
+		} else {
+			dev_dbg(&adapter->pdev->dev, "atheros ether type not matched\n");
+		}
 	}
 
 	/* this will be one of the 4 TX queues exposed to linux kernel */
@@ -1089,7 +1151,7 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 
 	/* Map and fill descriptor for Tx */
 	ret = edma_tx_map_and_fill(c_info, adapter, skb, queue_id,
-			flags_transmit);
+		flags_transmit, from_cpu, dp_bitmap, packet_is_rstp);
 	if (unlikely(ret)) {
 		dev_kfree_skb_any(skb);
 		adapter->stats.tx_errors++;
@@ -1157,7 +1219,7 @@ int edma_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 {
 	struct flow_keys keys;
 	struct edma_rfs_filter_node *filter_node;
-	struct edma_adapter *adapter;
+	struct edma_adapter *adapter = netdev_priv(dev);
 	u16 hash_tblid;
 	int res;
 
@@ -1166,8 +1228,6 @@ int edma_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 		res = -EINVAL;
 		goto no_protocol_err;
 	}
-
-	adapter = netdev_priv(dev);
 
 	/* Dissect flow parameters
 	 * We only support IPv4 + TCP/UDP
@@ -1259,6 +1319,20 @@ int edma_register_rfs_filter(struct net_device *netdev,
 
 	adapter->set_rfs_rule = set_filter;
 	spin_unlock_bh(&adapter->rfs.lock);
+
+	return 0;
+}
+
+/*
+ * edma_get_default_vlan_tag()
+ *	Used by other modules to get the default vlan tag
+ */
+int edma_get_default_vlan_tag(struct net_device *netdev)
+{
+	struct edma_adapter *adapter = netdev_priv(netdev);
+
+	if (adapter->default_vlan_tag)
+		return adapter->default_vlan_tag;
 
 	return 0;
 }
@@ -1630,6 +1704,24 @@ int edma_set_mac_addr(struct net_device *netdev, void *p)
 
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 	return 0;
+}
+
+/*
+ * edma_set_stp_rstp()
+ *	set stp/rstp
+ */
+void edma_set_stp_rstp(bool rstp)
+{
+	edma_stp_rstp = rstp;
+}
+
+/*
+ * edma_assign_ath_hdr_type()
+ *	assign atheros header eth type
+ */
+void edma_assign_ath_hdr_type(int eth_type)
+{
+	edma_ath_eth_type = eth_type & EDMA_ETH_TYPE_MASK;
 }
 
 /*
