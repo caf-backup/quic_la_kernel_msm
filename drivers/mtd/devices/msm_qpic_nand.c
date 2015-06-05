@@ -2826,12 +2826,6 @@ static int msm_nand_parse_smem_ptable(int *nr_parts)
 out:
 	return -EINVAL;
 }
-#else
-static int msm_nand_parse_smem_ptable(int *nr_parts)
-{
-	*nr_parts = 0;
-	return 0;
-}
 #endif
 
 /*
@@ -2848,7 +2842,12 @@ static int msm_nand_probe(struct platform_device *pdev)
 {
 	struct msm_nand_info *info;
 	struct resource *res;
-	int i, err, nr_parts;
+	int i, err;
+#ifdef CONFIG_MSM_SMD
+	int nr_parts;
+#else
+	struct mtd_part_parser_data ppdata;
+#endif
 
 	/*
 	 * The partition information can also be passed from kernel command
@@ -2945,14 +2944,15 @@ static int msm_nand_probe(struct platform_device *pdev)
 		pr_err("Failed to enable DMA in NANDc\n");
 		goto free_bam;
 	}
-	err = msm_nand_parse_smem_ptable(&nr_parts);
-	if (err < 0) {
-		pr_err("Failed to parse partition table in SMEM\n");
-		goto free_bam;
-	}
 	if (msm_nand_scan(&info->mtd)) {
 		pr_err("No nand device found\n");
 		err = -ENXIO;
+		goto free_bam;
+	}
+#ifdef CONFIG_MSM_SMD
+	err = msm_nand_parse_smem_ptable(&nr_parts);
+	if (err < 0) {
+		pr_err("Failed to parse partition table in SMEM\n");
 		goto free_bam;
 	}
 	for (i = 0; i < nr_parts; i++) {
@@ -2961,6 +2961,10 @@ static int msm_nand_probe(struct platform_device *pdev)
 	}
 	err = mtd_device_parse_register(&info->mtd, NULL, NULL,
 		&mtd_part[0], nr_parts);
+#else
+	ppdata.of_node = pdev->dev.of_node;
+	err = mtd_device_parse_register(&info->mtd, NULL, &ppdata, NULL, 0);
+#endif
 	if (err < 0) {
 		pr_err("Unable to register MTD partitions %d\n", err);
 		goto free_bam;
