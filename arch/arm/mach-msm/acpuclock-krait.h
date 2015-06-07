@@ -54,6 +54,19 @@ enum pvs {
 };
 
 /**
+ * enum pvs_tn3 - IDs to distinguish between Akronite 3.0 CPU frequency tables.
+ */
+enum pvs_tn3 {
+	PVS_0 = 0,
+	PVS_1 = 1,
+	PVS_2 = 2,
+	PVS_3 = 3,
+	PVS_4 = 4,
+	PVS_5 = 5,
+	PVS_6 = 6
+};
+
+/**
  * The maximum number of speed bins.
  */
 #define NUM_SPEED_BINS (16)
