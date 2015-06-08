@@ -34,6 +34,8 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/sysctl.h>
+#include <linux/phy.h>
+#include <linux/of_net.h>
 #include <net/checksum.h>
 #include <net/ip6_checksum.h>
 #include <asm-generic/bug.h>
@@ -137,10 +139,23 @@
 #define EDMA_TXQ_IRQ_MASK_CORE2 0x000F
 #define EDMA_TXQ_IRQ_MASK_CORE3 0x00F0
 
-/* link status variable */
-enum edma_link_status {
-	LINKDOWN = 0,
-	LINKUP = 1,
+#define EDMA_GMAC_NO_MDIO_PHY	PHY_MAX_ADDR
+
+struct edma_mdio_data {
+	struct mii_bus          *mii_bus;
+	void __iomem            *membase;
+	int phy_irq[PHY_MAX_ADDR];
+};
+
+/* EDMA LINK state */
+enum edma_link_flag {
+	__EDMA_LINKUP, /* Indicate whether link is UP */
+	__EDMA_LINKDOWN /* Indicate whether link is down */
+};
+
+/* EDMA GMAC state */
+enum edma_state {
+	__EDMA_UP /* use to indicate whether GMAC is up */
 };
 
 /* edma transmit descriptor */
@@ -275,10 +290,15 @@ struct edma_adapter {
 	struct edma_common_info *c_info; /* edma common info */
 	struct edma_rfs_flow_table rfs; /* edma rfs flow table */
 	struct net_device_stats stats; /* netdev statistics */
+	struct phy_device *phydev; /* Phy device */
 	set_rfs_filter_callback_t set_rfs_rule;
+	unsigned long int flags;/* status flags */
+	unsigned long int state_flags; /* GMAC up/down flags */
 	int32_t forced_speed; /* link force speed */
 	int32_t forced_duplex; /* link force duplex */
 	int32_t link_state; /* phy link state */
+	uint32_t phy_mdio_addr; /* PHY device address on MII interface */
+	bool poll_required; /* check if link polling is required */
 	u32 tx_start_offset[EDMA_NR_CPU]; /* tx queue start */
 	int default_vlan_tag; /* vlan tag */
 };
@@ -318,4 +338,5 @@ int edma_change_mtu(struct net_device *netdev, int new_mtu);
 void edma_set_stp_rstp(bool tag);
 void edma_assign_ath_hdr_type(int tag);
 int edma_get_default_vlan_tag(struct net_device *netdev);
+void edma_adjust_link(struct net_device *netdev);
 #endif /* _EDMA_H_ */
