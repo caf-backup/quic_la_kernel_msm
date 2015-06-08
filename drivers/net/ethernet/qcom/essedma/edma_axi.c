@@ -273,7 +273,13 @@ static int edma_axi_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *pnp;
 	struct device dev;
+	struct device_node *mdio_node = NULL;
+	struct platform_device *mdio_plat = NULL;
+	struct mii_bus *miibus = NULL;
+	struct edma_mdio_data *mdio_data = NULL;
 	int i, j, err = 0, ret = 0;
+	uint8_t phy_id[MII_BUS_ID_SIZE + 3];
+	const __be32 *prop = NULL;
 
 	/* Do a ESS-EDMA Reset */
 	dev.of_node = of_find_node_by_name(NULL, "ess-switch");
@@ -404,6 +410,7 @@ static int edma_axi_probe(struct platform_device *pdev)
 	for_each_available_child_of_node(np, pnp) {
 		const char *mac_addr;
 		mac_addr = of_get_mac_address(pnp);
+
 		if (mac_addr) {
 			if (!strcmp(pnp->name, "gmac0"))
 				memcpy(netdev[EDMA_WAN]->dev_addr, mac_addr,
@@ -477,6 +484,53 @@ static int edma_axi_probe(struct platform_device *pdev)
 	adapter[EDMA_LAN]->default_vlan_tag = EDMA_LAN_DEFAULT;
 	/* Set default WAN tag */
         adapter[EDMA_WAN]->default_vlan_tag = EDMA_WAN_DEFAULT;
+
+
+	if (of_property_read_bool(np, "qcom,mdio_supported")) {
+		adapter[EDMA_WAN]->poll_required =
+			of_property_read_bool(np, "qcom,poll_required");
+		of_property_read_u32(np, "qcom,phy_mdio_addr",
+				&adapter[EDMA_WAN]->phy_mdio_addr);
+		of_property_read_u32(np, "qcom,forced_speed",
+				&adapter[EDMA_WAN]->forced_speed);
+		of_property_read_u32(np, "qcom,forced_duplex",
+				&adapter[EDMA_WAN]->forced_duplex);
+		if ((adapter[EDMA_WAN]->forced_speed != SPEED_10) &&
+				(adapter[EDMA_WAN]->forced_speed != SPEED_100)
+			&& (adapter[EDMA_WAN]->forced_speed != SPEED_1000)) {
+			adapter[EDMA_WAN]->forced_speed = SPEED_UNKNOWN;
+			adapter[EDMA_WAN]->forced_duplex = DUPLEX_UNKNOWN;
+		}
+
+		mdio_node = of_find_compatible_node(NULL, NULL, "qcom,qca961x-mdio");;
+		if (!mdio_node) {
+			dev_dbg(&pdev->dev, "cannot find mdio node by phandle");
+			ret = -EIO;
+			goto mdiobus_init_fail;
+		}
+
+		mdio_plat = of_find_device_by_node(mdio_node);
+		if (!mdio_plat) {
+			dev_dbg(&pdev->dev, "cannot find platform device from mdio node");
+			of_node_put(mdio_node);
+			ret = -EIO;
+			goto mdiobus_init_fail;
+		}
+
+		mdio_data = dev_get_drvdata(&mdio_plat->dev);
+		if (!mdio_data) {
+			dev_dbg(&pdev->dev, "cannot get mii bus reference from device data");
+			of_node_put(mdio_node);
+			ret = -EIO;
+			goto mdiobus_init_fail;
+		}
+
+		miibus = mdio_data->mii_bus;
+
+		/* create a phyid using MDIO bus id and MDIO bus address */
+		snprintf(phy_id, MII_BUS_ID_SIZE + 3, PHY_ID_FMT,
+			miibus->id, adapter[EDMA_WAN]->phy_mdio_addr);
+	}
 
 	/* Disable all 16 Tx and 8 rx irqs */
 	edma_irq_disable(c_info);
@@ -558,8 +612,21 @@ static int edma_axi_probe(struct platform_device *pdev)
 	edma_enable_tx_ctrl(&c_info->hw);
 	edma_enable_rx_ctrl(&c_info->hw);
 
+	if (adapter[EDMA_WAN]->poll_required) {
+		adapter[EDMA_WAN]->phydev =
+			phy_connect(netdev[EDMA_WAN], (const char *)phy_id,
+				&edma_adjust_link, PHY_INTERFACE_MODE_SGMII);
+		if (IS_ERR(adapter[EDMA_WAN]->phydev)) {
+			dev_dbg(&pdev->dev, "PHY attach FAIL");
+			ret = -EIO;
+			goto edma_phy_attach_fail;
+		}
+	}
+
 	return 0;
 
+edma_phy_attach_fail:
+	miibus = NULL;
 err_configure:
 #ifdef CONFIG_RFS_ACCEL
 	for (i = 0; i < EDMA_NR_NETDEV; i++) {
@@ -577,6 +644,8 @@ err_reset:
 	for (i = 0; i < EDMA_NR_NETDEV; i++)
 		unregister_netdev(netdev[i]);
 err_register:
+	phy_disconnect(adapter[EDMA_WAN]->phydev);
+mdiobus_init_fail:
 	edma_free_rx_rings(c_info);
 err_rx_rinit:
 	edma_free_tx_rings(c_info);

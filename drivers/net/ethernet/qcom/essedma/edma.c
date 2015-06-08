@@ -1057,6 +1057,50 @@ vlan_tag_error:
 }
 
 /*
+ * edma_check_link()
+ *	check Link status
+ */
+static int32_t edma_check_link(struct edma_adapter *adapter)
+{
+	struct phy_device *phydev = adapter->phydev;
+
+	if (!(adapter->poll_required))
+		return __EDMA_LINKUP;
+
+	if (phydev->link)
+		return __EDMA_LINKUP;
+
+	return __EDMA_LINKDOWN;
+}
+
+/* edma_adjust_link()
+ *	check for edma link status
+ */
+void edma_adjust_link(struct net_device *netdev)
+{
+	int32_t status = 0;
+	struct edma_adapter *adapter = netdev_priv(netdev);
+
+	if (!test_bit(__EDMA_UP, &adapter->state_flags))
+		return;
+
+	status = edma_check_link(adapter);
+
+	if (status == __EDMA_LINKUP && adapter->link_state == __EDMA_LINKDOWN) {
+		dev_info(&adapter->pdev->dev, "%s: GMAC Link is up", netdev->name);
+		adapter->link_state = __EDMA_LINKUP;
+		netif_carrier_on(netdev);
+		if (netif_running(netdev))
+			netif_tx_wake_all_queues(netdev);
+	} else if (status == __EDMA_LINKDOWN && adapter->link_state == __EDMA_LINKUP) {
+		dev_info(&adapter->pdev->dev, "%s: GMAC Link is down", netdev->name);
+		adapter->link_state = __EDMA_LINKDOWN;
+		netif_carrier_off(netdev);
+		netif_tx_stop_all_queues(netdev);
+	}
+}
+
+/*
  * edma_get_stats()
  *	Statistics api used to retreive the tx/rx statistics
  */
@@ -1521,10 +1565,28 @@ int edma_configure(struct edma_common_info *c_info)
 int edma_open(struct net_device *netdev)
 {
 	struct edma_adapter *adapter = netdev_priv(netdev);
+	struct platform_device *pdev = adapter->c_info->pdev;
 
-	netif_carrier_on(netdev);
 	netif_tx_start_all_queues(netdev);
 	edma_initialise_rfs_flow_table(adapter);
+	set_bit(__EDMA_UP, &adapter->state_flags);
+
+	/* if Link polling is enabled, in our case enabled for WAN, then
+	 * do a phy start, else always set link as UP
+	 */
+	if (adapter->poll_required) {
+		if (!IS_ERR(adapter->phydev)) {
+			phy_start(adapter->phydev);
+			phy_start_aneg(adapter->phydev);
+			adapter->link_state = __EDMA_LINKDOWN;
+		} else {
+			dev_dbg(&pdev->dev, "Invalid PHY device for a link polled interface\n");
+		}
+		return;
+	} else {
+		adapter->link_state = __EDMA_LINKUP;
+		netif_carrier_on(netdev);
+	}
 
 	return 0;
 }
@@ -1540,6 +1602,17 @@ int edma_close(struct net_device *netdev)
 	edma_free_rfs_flow_table(adapter);
 	netif_carrier_off(netdev);
 	netif_tx_stop_all_queues(netdev);
+
+	if (adapter->poll_required) {
+		if (!IS_ERR(adapter->phydev))
+			phy_stop(adapter->phydev);
+	}
+
+	adapter->link_state = __EDMA_LINKDOWN;
+
+	/* Set GMAC state to UP before link state is checked
+	 */
+	clear_bit(__EDMA_UP, &adapter->state_flags);
 
 	return 0;
 }
