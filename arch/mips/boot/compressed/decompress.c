@@ -11,6 +11,8 @@
  * option) any later version.
  */
 #include <linux/types.h>
+#include <linux/kernel.h>
+#include <linux/string.h>
 
 #include <asm/addrspace.h>
 
