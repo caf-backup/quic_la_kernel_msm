@@ -957,7 +957,8 @@ uint32_t flash_onfi_probe(struct msm_nand_chip *chip)
 	return err;
 }
 
-static int msm_nand_read_oob(struct mtd_info *mtd, loff_t from,
+static int _msm_nand_read_oob(struct mtd_info *mtd,
+			     struct mtd_ecc_stats *ecc_stats, loff_t from,
 			     struct mtd_oob_ops *ops)
 {
 	struct msm_nand_chip *chip = mtd->priv;
@@ -1303,8 +1304,7 @@ static int msm_nand_read_oob(struct mtd_info *mtd, loff_t from,
 			for (n = start_sector; n < cwperpage; n++) {
 				if (dma_buffer->data.result[n].buffer_status &
 					chip->uncorrectable_bit_mask) {
-					/* not thread safe */
-					mtd->ecc_stats.failed++;
+					ecc_stats->failed++;
 					pageerr = -EBADMSG;
 					break;
 				}
@@ -1317,8 +1317,7 @@ static int msm_nand_read_oob(struct mtd_info *mtd, loff_t from,
 				 & chip->num_err_mask);
 				if (ecc_errors) {
 					total_ecc_errors += ecc_errors;
-					/* not thread safe */
-					mtd->ecc_stats.corrected += ecc_errors;
+					ecc_stats->corrected += ecc_errors;
 					if (ecc_errors > 1)
 						pageerr = -EUCLEAN;
 				}
@@ -1378,8 +1377,14 @@ err_dma_map_oobbuf_failed:
 #endif
 	return err;
 }
+static int msm_nand_read_oob(struct mtd_info *mtd, loff_t from,
+			     struct mtd_oob_ops *ops)
+{
+	return _msm_nand_read_oob(mtd, &mtd->ecc_stats, from, ops);
+}
 
-static int msm_nand_read_oob_dualnandc(struct mtd_info *mtd, loff_t from,
+static int _msm_nand_read_oob_dualnandc(struct mtd_info *mtd,
+			struct mtd_ecc_stats *ecc_stats, loff_t from,
 			struct mtd_oob_ops *ops)
 {
 	struct msm_nand_chip *chip = mtd->priv;
@@ -2085,8 +2090,7 @@ static int msm_nand_read_oob_dualnandc(struct mtd_info *mtd, loff_t from,
 			for (n = start_sector; n < cwperpage; n++) {
 				if (dma_buffer->data.result[n].buffer_status
 					& chip->uncorrectable_bit_mask) {
-					/* not thread safe */
-					mtd->ecc_stats.failed++;
+					ecc_stats->failed++;
 					pageerr = -EBADMSG;
 					break;
 				}
@@ -2099,8 +2103,7 @@ static int msm_nand_read_oob_dualnandc(struct mtd_info *mtd, loff_t from,
 					& chip->num_err_mask;
 				if (ecc_errors) {
 					total_ecc_errors += ecc_errors;
-					/* not thread safe */
-					mtd->ecc_stats.corrected += ecc_errors;
+					ecc_stats->corrected += ecc_errors;
 					if (ecc_errors > 1)
 						pageerr = -EUCLEAN;
 				}
@@ -2174,19 +2177,26 @@ err_dma_map_oobbuf_failed:
 	return err;
 }
 
+static int msm_nand_read_oob_dualnandc(struct mtd_info *mtd, loff_t from,
+			struct mtd_oob_ops *ops)
+{
+	return _msm_nand_read_oob_dualnandc(mtd, &mtd->ecc_stats, from, ops);
+}
+
 static int
 msm_nand_read(struct mtd_info *mtd, loff_t from, size_t len,
 	      size_t *retlen, u_char *buf)
 {
 	int ret;
-	struct mtd_ecc_stats stats;
+	struct mtd_ecc_stats stats = { 0 };
 	struct mtd_oob_ops ops;
-	int (*read_oob)(struct mtd_info *, loff_t, struct mtd_oob_ops *);
+	int (*read_oob)(struct mtd_info *, struct mtd_ecc_stats *, loff_t,
+			struct mtd_oob_ops *);
 
 	if (!dual_nand_ctlr_present)
-		read_oob = msm_nand_read_oob;
+		read_oob = _msm_nand_read_oob;
 	else
-		read_oob = msm_nand_read_oob_dualnandc;
+		read_oob = _msm_nand_read_oob_dualnandc;
 
 	ops.mode = MTD_OPS_PLACE_OOB;
 	ops.retlen = 0;
@@ -2194,13 +2204,12 @@ msm_nand_read(struct mtd_info *mtd, loff_t from, size_t len,
 	ops.oobbuf = NULL;
 	ret = 0;
 	*retlen = 0;
-	stats = mtd->ecc_stats;
 
 	if ((from & (mtd->writesize - 1)) == 0 && len == mtd->writesize) {
 		/* reading a page on page boundary */
 		ops.len = len;
 		ops.datbuf = buf;
-		ret = read_oob(mtd, from, &ops);
+		ret = read_oob(mtd, &stats, from, &ops);
 		*retlen = ops.retlen;
 	} else if (len > 0) {
 		/* reading any size on any offset. partial page is supported */
@@ -2235,7 +2244,7 @@ msm_nand_read(struct mtd_info *mtd, loff_t from, size_t len,
 			 * be read even if uncorrectable or
 			 * correctable ECC errors occur.
 			 */
-			ret = read_oob(mtd, aligned_from, &ops);
+			ret = read_oob(mtd, &stats, aligned_from, &ops);
 			if (ret == -EBADMSG || ret == -EUCLEAN)
 				ret = 0;
 
@@ -2262,12 +2271,15 @@ out:
 	if (ret)
 		return ret;
 
-	if (mtd->ecc_stats.failed - stats.failed)
+	if (stats.failed) {
+		mtd->ecc_stats.failed += stats.failed;
 		return -EBADMSG;
+	}
 
-	if (mtd->ecc_stats.corrected - stats.corrected)
+	if (stats.corrected) {
+		mtd->ecc_stats.corrected += stats.corrected;
 		return -EUCLEAN;
-
+	}
 	return 0;
 }
 
@@ -7158,7 +7170,7 @@ int msm_nand_scan(struct mtd_info *mtd, int maxchips)
 	pr_info("CFG1 Init  : 0x%08x\n", chip->CFG1);
 	pr_info("ECCBUFCFG  : 0x%08x\n", chip->ecc_buf_cfg);
 
-	if (mtd->oobsize == 64) {
+	if ((mtd->oobsize == 64) || (mtd->oobsize == 112)) {
 		mtd->oobavail = msm_nand_oob_64.oobavail;
 		mtd->ecclayout = &msm_nand_oob_64;
 	} else if (mtd->oobsize == 128) {
