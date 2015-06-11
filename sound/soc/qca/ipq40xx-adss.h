@@ -96,7 +96,7 @@
 #define ADSS_AUDIO_PLL_CONFIG_REG	0x38
 #define AUDIO_PLL_CONFIG_REFDIV(x)	(x << 0)
 #define AUDIO_PLL_CONFIG_REFDIV_MASK	(0x7 << 0)
-#define AUDIO_PLL_CONFIG_PLLPWD		(0 << 5)
+#define AUDIO_PLL_CONFIG_PLLPWD		(1 << 5)
 #define AUDIO_PLL_CONFIG_POSTPLLDIV(x)	(x << 7)
 #define AUDIO_PLL_CONFIG_POSTPLLDIV_MASK	(0x7 << 7)
 
@@ -110,6 +110,7 @@
 #define ADSS_CURRENT_AUDIO_PLL_MODULATION_REG	0x44
 
 #define ADSS_AUDIO_PLL_CONFIG1_REG		0x48
+#define AUDIO_PLL_CONFIG1_SRESET_L(x)		(x << 0)
 
 #define ADSS_AUDIO_ATB_SETTING_REG		0x4C
 
@@ -465,7 +466,7 @@
 #define AADSS_STEREOn_STEREO0_RX_COMPLETE_CNT_REG(n)	0x28
 
 #define MAX_STEREO_ENTRIES	4
-#define TDM_SYNC_NUM		5
+#define TDM_SYNC_NUM		2
 #define TDM_DELAY		0
 
 /* I2S Parameters */
@@ -562,7 +563,7 @@ extern void ipq40xx_stereo_config_mic_reset(uint32_t reset, uint32_t stereo_offs
 extern void ipq40xx_stereo_config_enable(uint32_t enable, uint32_t stereo_offset);
 extern int ipq40xx_cfg_bit_width(uint32_t bit_width, uint32_t stereo_offset);
 extern void ipq40xx_config_stereo_mode(uint32_t mode, uint32_t stereo_offset);
-extern void ipq40xx_config_master(uint32_t dir, uint32_t stereo_offset);
+extern void ipq40xx_config_master(uint32_t enable, uint32_t stereo_offset);
 extern void ipq40xx_config_mclk_sel(uint32_t stereo_offset, uint32_t val);
 extern void ipq40xx_config_sample_cnt_clear_type(uint32_t stereo_offset);
 extern void ipq40xx_stereo_spdif_enable(uint32_t enable, uint32_t stereo_id);

@@ -134,7 +134,7 @@ static int ipq40xx_audio_hw_params(struct snd_pcm_substream *substream,
 		ipq40xx_i2s_intf_clk_cfg(TDM);
 	}
 
-	ipq40xx_config_master(substream->stream, stereo_id);
+	ipq40xx_config_master(DISABLE, stereo_id);
 
 	ret = ipq40xx_cfg_bit_width(bit_width, stereo_id);
 	if (ret) {
@@ -196,7 +196,7 @@ static int ipq40xx_spdif_hw_params(struct snd_pcm_substream *substream,
 	ipq40xx_i2s_intf_clk_cfg(SPDIF);
 
 	if (substream->stream == PLAYBACK) {
-		ipq40xx_config_master(substream->stream, stereo_id);
+		ipq40xx_config_master(ENABLE, stereo_id);
 
 		ret = ipq40xx_cfg_bit_width(bit_width, stereo_id);
 		if (ret) {
