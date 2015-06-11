@@ -119,7 +119,7 @@
 		status = "disabled";
 	};
 
-	spdif {
+	spdif: spdif@0 {
 		compatible = "qca,ipq40xx-spdif";
 		dma-tx-channel = <MBOX0_TX_ID>;
 		dma-rx-channel = <MBOX_SPDIF_RX_ID>;

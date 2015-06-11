@@ -256,7 +256,7 @@
 			status = "ok";
 		};
 
-		spdif: spdif@7707000 {
+		spdif: spdif@0 {
 			status = "ok";
 		};
 
