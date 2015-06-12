@@ -1217,13 +1217,30 @@ static irqreturn_t msm_spi_error_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static int msm_spi_bam_map_vmalloc_addr(struct msm_spi *dd, void *addr,
+				u32 len, enum dma_data_direction dir)
+{
+	struct page *page;
+	unsigned long offset;
+	struct device *dev = dd->dev;
+
+	offset = ((unsigned long)addr & ~PAGE_MASK);
+
+	if ((offset + len) > PAGE_SIZE)
+		return DMA_ERROR_CODE;
+
+	page = vmalloc_to_page(addr);
+
+	return dma_map_page(dev, page, 0, PAGE_SIZE, dir);
+}
+
 static int msm_spi_bam_map_buffers(struct msm_spi *dd)
 {
 	int ret = -EINVAL;
 	struct device *dev;
 	struct spi_transfer *xfr;
 	void *tx_buf, *rx_buf;
-	u32 tx_len, rx_len;
+	u32 tx_len, rx_len, tx_vmalloc_buf = 0;
 
 	dev = dd->dev;
 	xfr = dd->cur_transfer;
@@ -1232,8 +1249,15 @@ static int msm_spi_bam_map_buffers(struct msm_spi *dd)
 	rx_buf = xfr->rx_buf;
 	tx_len = rx_len = xfr->len;
 	if (tx_buf != NULL) {
-		xfr->tx_dma = dma_map_single(dev, tx_buf,
+		if (is_vmalloc_addr(tx_buf)) {
+			xfr->tx_dma =
+				msm_spi_bam_map_vmalloc_addr(dd, tx_buf,
+					tx_len, DMA_TO_DEVICE);
+			tx_vmalloc_buf = 1;
+		} else {
+			xfr->tx_dma = dma_map_single(dev, tx_buf,
 						tx_len, DMA_TO_DEVICE);
+		}
 		if (dma_mapping_error(dev, xfr->tx_dma)) {
 			ret = -ENOMEM;
 			goto error;
@@ -1241,13 +1265,25 @@ static int msm_spi_bam_map_buffers(struct msm_spi *dd)
 	}
 
 	if (rx_buf != NULL) {
-		xfr->rx_dma = dma_map_single(dev, rx_buf, rx_len,
+		if (is_vmalloc_addr(rx_buf)) {
+			xfr->rx_dma = msm_spi_bam_map_vmalloc_addr(dd, rx_buf,
+					rx_len, DMA_FROM_DEVICE);
+		} else {
+			xfr->rx_dma = dma_map_single(dev, rx_buf, rx_len,
 						DMA_FROM_DEVICE);
+		}
 		if (dma_mapping_error(dev, xfr->rx_dma)) {
-			if (tx_buf != NULL)
-				dma_unmap_single(dev,
+			if (tx_buf != NULL) {
+				if (tx_vmalloc_buf) {
+					dma_unmap_page(dev,
 						xfr->tx_dma,
 						tx_len, DMA_TO_DEVICE);
+				} else {
+					dma_unmap_single(dev,
+						xfr->tx_dma,
+						tx_len, DMA_TO_DEVICE);
+				}
+			}
 			ret = -ENOMEM;
 			goto error;
 		}
@@ -1280,13 +1316,25 @@ static void msm_spi_bam_unmap_buffers(struct msm_spi *dd)
 	tx_buf = (void *)xfr->tx_buf;
 	rx_buf = xfr->rx_buf;
 	tx_len = rx_len = xfr->len;
-	if (tx_buf != NULL)
-		dma_unmap_single(dev, xfr->tx_dma,
-				tx_len, DMA_TO_DEVICE);
+	if (tx_buf != NULL) {
+		if (is_vmalloc_addr(tx_buf)) {
+			dma_unmap_page(dev, xfr->tx_dma,
+					tx_len, DMA_TO_DEVICE);
+		} else {
+			dma_unmap_single(dev, xfr->tx_dma,
+					tx_len, DMA_TO_DEVICE);
+		}
+	}
 
-	if (rx_buf != NULL)
-		dma_unmap_single(dev, xfr->rx_dma,
-				rx_len, DMA_FROM_DEVICE);
+	if (rx_buf != NULL) {
+		if (is_vmalloc_addr(rx_buf)) {
+			dma_unmap_page(dev, xfr->rx_dma,
+					rx_len, DMA_FROM_DEVICE);
+		} else {
+			dma_unmap_single(dev, xfr->rx_dma,
+					rx_len, DMA_FROM_DEVICE);
+		}
+	}
 }
 
 static inline void msm_spi_dma_unmap_buffers(struct msm_spi *dd)
