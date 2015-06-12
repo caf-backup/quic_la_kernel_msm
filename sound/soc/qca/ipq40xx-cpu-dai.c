@@ -397,7 +397,8 @@ static struct snd_soc_dai_driver ipq40xx_cpu_dais[] = {
 					SNDRV_PCM_RATE_48000 |
 					SNDRV_PCM_RATE_96000,
 			.formats        = SNDRV_PCM_FMTBIT_S16 |
-					SNDRV_PCM_FMTBIT_S24,
+					SNDRV_PCM_FMTBIT_S24 |
+					SNDRV_PCM_FMTBIT_S32,
 			.channels_min   = CH_STEREO,
 			.channels_max   = CH_STEREO,
 			.rate_min       = FREQ_32000,
@@ -409,7 +410,8 @@ static struct snd_soc_dai_driver ipq40xx_cpu_dais[] = {
 					SNDRV_PCM_RATE_48000 |
 					SNDRV_PCM_RATE_96000,
 			.formats        = SNDRV_PCM_FMTBIT_S16 |
-					SNDRV_PCM_FMTBIT_S24,
+					SNDRV_PCM_FMTBIT_S24 |
+					SNDRV_PCM_FMTBIT_S32,
 			.channels_min   = CH_STEREO,
 			.channels_max   = CH_STEREO,
 			.rate_min       = FREQ_32000,
