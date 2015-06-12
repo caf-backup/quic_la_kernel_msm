@@ -209,7 +209,7 @@ EXPORT_SYMBOL(ipq40xx_glb_rx_framesync_port_en);
 void ipq40xx_i2s_intf_clk_cfg(uint32_t mode)
 {
 	uint32_t val;
-	uint32_t PLL_Out_Div, PLL_Div_Frac, PLL_Div_Int;
+	uint32_t PLL_Out_Div, PLL_Ref_Div, PLL_Div_Frac, PLL_Div_Int;
 	uint32_t RXM_Src_Sel, RXM_Div, RXM_Misc_Div;
 	uint32_t RXB_Src_Sel, RXB_Misc_Div;
 	uint32_t TXM_Src_Sel, TXM_Div, TXM_Misc_Div;
@@ -217,71 +217,81 @@ void ipq40xx_i2s_intf_clk_cfg(uint32_t mode)
 	uint32_t Spdif_Misc_Div, Spdif_Misc2_Div;
 	uint32_t Spdif_Src_Sel, Spdif_Src_Div;
 
-	PLL_Out_Div	= 6;	/* ADSS_AUDIO_PLL_CONFIG_REG */
-	PLL_Div_Frac	= 0x9BA6;	/* ADSS_AUDIO_PLL_MODULATION_REG */
+	PLL_Out_Div	= 1;	/* ADSS_AUDIO_PLL_CONFIG_REG */
+	PLL_Ref_Div	= 5;
+	PLL_Div_Frac	= 0x9BA5;	/* ADSS_AUDIO_PLL_MODULATION_REG */
 	PLL_Div_Int	= 49;	/* "" */
 
 	if (mode == I2S) {
-		PLL_Out_Div	= 4;	/* ADSS_AUDIO_PLL_CONFIG_REG */
+		/* Clock Dividers for stereo 48Khz 32bit */
+		TXM_Src_Sel	= 1;	/* ADSS_AUDIO_TXM_CFG_RCGR_REG */
+		TXM_Div		= 1;	/* "" */
+		TXM_Misc_Div	= 7;	/* ADSS_AUDIO_TXM_MISC_REG */
+
+		TXB_Src_Sel	= 2;	/* ADSS_AUDIO_TXB_CFG_MUXR_REG */
+		TXB_Misc_Div	= 0;	/* ADSS_AUDIO_TXB_MISC_REG */
 
 		RXM_Src_Sel	= 1;	/* ADSS_AUDIO_RXM_CFG_RCGR_REG  */
-		RXM_Div		= 0;	/* "" */
-
-		TXM_Src_Sel	= 1;	/* ADSS_AUDIO_TXM_CFG_RCGR_REG */
-		TXM_Div		= 3;	/* "" */
+		RXM_Div		= 1;	/* "" */
+		RXM_Misc_Div	= 7;	/* ADSS_AUDIO_RXM_MISC_REG  */
 
 		RXB_Src_Sel	= 2;	/* ADSS_AUDIO_RXB_CFG_MUXR_REG  */
 		RXB_Misc_Div	= 0;	/* ADSS_AUDIO_RXB_MISC_REG  */
 
-		TXB_Src_Sel	= 1;	/* ADSS_AUDIO_TXB_CFG_MUXR_REG */
-		TXB_Misc_Div	= 31;	/* ADSS_AUDIO_TXB_MISC_REG */
-
-		RXM_Misc_Div	= 0;	/* ADSS_AUDIO_RXM_MISC_REG  */
-		TXM_Misc_Div	= 3;	/* ADSS_AUDIO_TXM_MISC_REG */
 	} else if (mode == TDM) {
-		PLL_Out_Div     = 4;    /* ADSS_AUDIO_PLL_CONFIG_REG */
+		/* Clock Dividers for 8 channel 96Khz 32bit */
+		TXM_Src_Sel	= 1;	/* ADSS_AUDIO_TXM_CFG_RCGR_REG */
+		TXM_Div		= 1;	/* "" */
+		TXM_Misc_Div	= 7;	/* ADSS_AUDIO_TXM_MISC_REG */
+
+		TXB_Src_Sel	= 2;	/* ADSS_AUDIO_TXB_CFG_MUXR_REG */
+		TXB_Misc_Div	= 0;	/* ADSS_AUDIO_TXB_MISC_REG */
 
 		RXM_Src_Sel	= 1;	/* ADSS_AUDIO_RXM_CFG_RCGR_REG  */
-		RXM_Div		= 0;	/* "" */
-
-		TXM_Src_Sel	= 1;	/* ADSS_AUDIO_TXM_CFG_RCGR_REG */
-		TXM_Div		= 0;	/* "" */
+		RXM_Div		= 1;	/* "" */
+		RXM_Misc_Div	= 7;	/* ADSS_AUDIO_RXM_MISC_REG  */
 
 		RXB_Src_Sel	= 2;	/* ADSS_AUDIO_RXB_CFG_MUXR_REG  */
 		RXB_Misc_Div	= 0;	/* ADSS_AUDIO_RXB_MISC_REG  */
 
-		TXB_Src_Sel	= 1;	/* ADSS_AUDIO_TXB_CFG_MUXR_REG */
-		TXB_Misc_Div	= 31;	/* ADSS_AUDIO_TXB_MISC_REG */
-
-		RXM_Misc_Div	= 0;	/* ADSS_AUDIO_RXM_MISC_REG  */
-		TXM_Misc_Div	= 0;	/* ADSS_AUDIO_TXM_MISC_REG */
 	} else if (mode == SPDIF) {
-		PLL_Out_Div	= 4;	/* ADSS_AUDIO_PLL_CONFIG_REG */
+		TXM_Src_Sel     = 1;    /* ADSS_AUDIO_TXM_CFG_RCGR_REG */
+		TXM_Div         = 1;    /* "" */
+		TXM_Misc_Div    = 15;   /* ADSS_AUDIO_TXM_MISC_REG */
 
-		RXM_Src_Sel	= 1;	/* ADSS_AUDIO_RXM_CFG_RCGR_REG  */
-		RXM_Div		= 0;	/* "" */
+		TXB_Src_Sel     = 1;    /* ADSS_AUDIO_TXB_CFG_MUXR_REG */
+		TXB_Misc_Div    = 63;   /* ADSS_AUDIO_TXB_MISC_REG */
 
-		TXM_Src_Sel	= 1;	/* ADSS_AUDIO_TXM_CFG_RCGR_REG */
-		TXM_Div		= 0;	/* "" */
+		RXM_Src_Sel     = 1;    /* ADSS_AUDIO_RXM_CFG_RCGR_REG  */
+		RXM_Div         = 0;    /* "" */
+		RXM_Misc_Div    = 0;    /* ADSS_AUDIO_RXM_MISC_REG  */
 
-		RXB_Src_Sel	= 2;	/* ADSS_AUDIO_RXB_CFG_MUXR_REG  */
-		RXB_Misc_Div	= 0;	/* ADSS_AUDIO_RXB_MISC_REG  */
+		RXB_Src_Sel     = 1;    /* ADSS_AUDIO_RXB_CFG_MUXR_REG  */
+		RXB_Misc_Div    = 0;    /* ADSS_AUDIO_RXB_MISC_REG  */
 
-		TXB_Src_Sel	= 1;	/* ADSS_AUDIO_TXB_CFG_MUXR_REG */
-		TXB_Misc_Div	= 127;	/* ADSS_AUDIO_TXB_MISC_REG */
+		Spdif_Misc_Div  = 31;   /* ADSS_AUDIO_SPDIF_MISC_REG */
+		Spdif_Misc2_Div = 63;   /* ADSS_AUDIO_SPDIFDIV2_MISC_REG */
 
-		RXM_Misc_Div	= 0;	/* ADSS_AUDIO_RXM_MISC_REG  */
-		TXM_Misc_Div	= 0;	/* ADSS_AUDIO_TXM_MISC_REG */
-
-		Spdif_Misc_Div	= 63;	/* ADSS_AUDIO_SPDIF_MISC_REG */
-		Spdif_Misc2_Div	= 127;	/* ADSS_AUDIO_SPDIFDIV2_MISC_REG */
-
-		Spdif_Src_Sel	= 1; /* ADSS_AUDIO_SPDIFINFAST_CFG_RCGR_REG */
-		Spdif_Src_Div	= 0; /* "" */
+		Spdif_Src_Sel   = 1; /* ADSS_AUDIO_SPDIFINFAST_CFG_RCGR_REG */
+		Spdif_Src_Div   = 3; /* "" */
 	}
+
+	val = readl(adss_audio_local_base + ADSS_AUDIO_PLL_CONFIG1_REG);
+	val |= AUDIO_PLL_CONFIG1_SRESET_L(1);
+	writel(val, adss_audio_local_base + ADSS_AUDIO_PLL_CONFIG1_REG);
+
+	val = readl(adss_audio_local_base + ADSS_AUDIO_PLL_CONFIG_REG);
+	val &= ~AUDIO_PLL_CONFIG_REFDIV_MASK;
+	val |= AUDIO_PLL_CONFIG_REFDIV(PLL_Ref_Div);
+	writel(val, adss_audio_local_base + ADSS_AUDIO_PLL_CONFIG_REG);
+
 	val = readl(adss_audio_local_base + ADSS_AUDIO_PLL_CONFIG_REG);
 	val &= ~(AUDIO_PLL_CONFIG_POSTPLLDIV_MASK);
 	val |= AUDIO_PLL_CONFIG_POSTPLLDIV(PLL_Out_Div);
+	writel(val, adss_audio_local_base + ADSS_AUDIO_PLL_CONFIG_REG);
+
+	val = readl(adss_audio_local_base + ADSS_AUDIO_PLL_CONFIG_REG);
+	val &= ~AUDIO_PLL_CONFIG_PLLPWD;
 	writel(val, adss_audio_local_base + ADSS_AUDIO_PLL_CONFIG_REG);
 
 	val = readl(adss_audio_local_base + ADSS_AUDIO_PLL_MODULATION_REG);
@@ -434,27 +444,42 @@ void ipq40xx_pcm_clk_cfg(void)
 {
 	uint32_t reg_val;
 
+	/* set ADSS_AUDIO_PLL_CONFIG1_REG as required */
+	reg_val = readl(adss_audio_local_base + ADSS_AUDIO_PLL_CONFIG1_REG);
+	reg_val |= AUDIO_PLL_CONFIG1_SRESET_L(1);
+	writel(reg_val, adss_audio_local_base + ADSS_AUDIO_PLL_CONFIG1_REG);
+
+	/* set ADSS_AUDIO_PLL_CONFIG_REG as required */
+	reg_val = readl(adss_audio_local_base + ADSS_AUDIO_PLL_CONFIG_REG);
+	reg_val &= ~AUDIO_PLL_CONFIG_REFDIV_MASK;
+	reg_val |= AUDIO_PLL_CONFIG_REFDIV(5);
+	writel(reg_val, adss_audio_local_base + ADSS_AUDIO_PLL_CONFIG_REG);
+
 	/* set ADSS_AUDIO_PLL_CONFIG_REG as required */
 	reg_val = readl(adss_audio_local_base + ADSS_AUDIO_PLL_CONFIG_REG);
 	reg_val &= ~AUDIO_PLL_CONFIG_POSTPLLDIV_MASK;
-	reg_val |= AUDIO_PLL_CONFIG_POSTPLLDIV(6);
+	reg_val |= AUDIO_PLL_CONFIG_POSTPLLDIV(1);
+	writel(reg_val, adss_audio_local_base + ADSS_AUDIO_PLL_CONFIG_REG);
+
+	reg_val = readl(adss_audio_local_base + ADSS_AUDIO_PLL_CONFIG_REG);
+	reg_val &= ~AUDIO_PLL_CONFIG_PLLPWD;
 	writel(reg_val, adss_audio_local_base + ADSS_AUDIO_PLL_CONFIG_REG);
 
 	/*set ADSS_AUDIO_PLL_MODULATION_REG as required */
 	reg_val = readl(adss_audio_local_base + ADSS_AUDIO_PLL_MODULATION_REG);
 	reg_val &= ~AUDIO_PLL_MODULATION_TGT_DIV_MASK;
-	reg_val |= AUDIO_PLL_MODULATION_TGT_DIV_FRAC(0x9BA6);
+	reg_val |= AUDIO_PLL_MODULATION_TGT_DIV_FRAC(0x9BA5);
 	reg_val |= AUDIO_PLL_MODULATION_TGT_DIV_INT(49);
 	writel(reg_val, adss_audio_local_base + ADSS_AUDIO_PLL_MODULATION_REG);
 
 	/* set ADSS_AUDIO_PCM_CFG_RCGR_REG as required */
 	reg_val = readl(adss_audio_local_base + ADSS_AUDIO_PCM_CFG_RCGR_REG);
 	reg_val |= AUDIO_PCM_CFG_RCGR_SRC_SEL(1)
-			| AUDIO_PCM_CFG_RGCR_SRC_DIV(0);
+			| AUDIO_PCM_CFG_RGCR_SRC_DIV(3);
 	writel(reg_val, adss_audio_local_base + ADSS_AUDIO_PCM_CFG_RCGR_REG);
 
 	/* set ADSS_AUDIO_PCM_MISC_REG  as required */
-	reg_val = AUDIO_PCM_MISC_AUTO_SCALE_DIV(7);
+	reg_val = AUDIO_PCM_MISC_AUTO_SCALE_DIV(11);
 	writel(reg_val, adss_audio_local_base + ADSS_AUDIO_PCM_MISC_REG);
 
 	/* set ADSS_AUDIO_PCM_CMD_RCGR_REG as required */
@@ -550,6 +575,10 @@ static int ipq40xx_audio_adss_probe(struct platform_device *pdev)
 	if (IS_ERR(audio_blk_rst))
 		return PTR_ERR(audio_blk_rst);
 
+	spin_lock_init(&i2s_ctrl_lock);
+	spin_lock_init(&tdm_ctrl_lock);
+	spin_lock_init(&glb_mode_lock);
+
 	ipq40xx_gcc_audio_blk_rst();
 	/* I2S in reset */
 	ipq40xx_glb_i2s_reset(1);
@@ -558,10 +587,6 @@ static int ipq40xx_audio_adss_probe(struct platform_device *pdev)
 	ipq40xx_glb_i2s_interface_en(ENABLE);
 
 	ipq40xx_glb_audio_mode_B1K();
-
-	spin_lock_init(&i2s_ctrl_lock);
-	spin_lock_init(&tdm_ctrl_lock);
-	spin_lock_init(&glb_mode_lock);
 
 	return 0;
 }

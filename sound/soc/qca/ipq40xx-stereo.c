@@ -179,7 +179,7 @@ void ipq40xx_config_stereo_mode(uint32_t mode, uint32_t stereo_id)
 EXPORT_SYMBOL(ipq40xx_config_stereo_mode);
 
 /* Configure master mode */
-void ipq40xx_config_master(uint32_t dir, uint32_t stereo_id)
+void ipq40xx_config_master(uint32_t enable, uint32_t stereo_id)
 {
 	uint32_t cfg;
 	unsigned long flags;
@@ -188,7 +188,7 @@ void ipq40xx_config_master(uint32_t dir, uint32_t stereo_id)
 	cfg = readl(stereo_priv[stereo_id].stereo_base
 			+ ADSS_STEREOn_STEREO0_CONFIG_REG);
 	cfg &= ~(STEREOn_CONFIG_MASTER);
-	if (dir == PLAYBACK)
+	if (enable)
 		cfg |= STEREOn_CONFIG_MASTER;
 	writel(cfg, stereo_priv[stereo_id].stereo_base
 			+ ADSS_STEREOn_STEREO0_CONFIG_REG);
