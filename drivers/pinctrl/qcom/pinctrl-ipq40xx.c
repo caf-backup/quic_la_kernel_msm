@@ -425,7 +425,7 @@ static const char * const jtag_groups[] = {
 };
 static const char * const audio0_groups[] = {
 	"gpio0", "gpio1", "gpio4", "gpio20", "gpio24", "gpio25", "gpio26",
-	"gpio34",
+	"gpio34", "gpio58", "gpio60", "gpio61", "gpio62",
 };
 static const char * const mdio0_groups[] = {
 	"gpio6",
@@ -1213,18 +1213,18 @@ static const struct msm_pingroup ipq40xx_groups[] = {
 	PINGROUP(49, rmii1_rx, aud_pin, smart2, led10, NA, NA, wcss0_dbg28, wcss1_dbg28, NA, NA, NA, NA, NA, NA),
 	PINGROUP(50, rmii10, aud_pin, wifi0_rfsilient1, wifi1_rfsilient1, led11, NA, NA, wcss0_dbg29, wcss1_dbg29, NA, NA, NA, NA, NA),
 	PINGROUP(51, rmii11, aud_pin, wifi0_cal, wifi1_cal, NA, NA, wcss0_dbg30, wcss1_dbg30, NA, NA, NA, NA, NA, NA),
-	PINGROUP(52, qpic_pad, mdc, audio1, NA, NA, wcss0_dbg31, wcss1_dbg31, NA, NA, qdss_cti_trig_in_a0, NA, NA, NA, NA),
+	PINGROUP(52, qpic_pad, mdc, NA, audio1, NA, wcss0_dbg31, wcss1_dbg31, NA, NA, qdss_cti_trig_in_a0, NA, NA, NA, NA),
 	PINGROUP(53, qpic_pad, mdio1, audio2, dbg_out, wcss0_dbg, wcss1_dbg, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(54, qpic_pad, blsp_spi0, audio_spdifout, atest_char3, pmu0, NA, wcss0_dbg0, wcss1_dbg0, NA, NA, NA, NA, NA, NA),
 	PINGROUP(55, qpic_pad, blsp_spi0, audio_td2, atest_char2, pmu1, NA, wcss0_dbg1, wcss1_dbg1, NA, NA, NA, NA, NA, NA),
 	PINGROUP(56, qpic_pad, blsp_spi0, audio_td3, atest_char1, NA, wcss0_dbg2, wcss1_dbg2, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(57, qpic_pad4, blsp_spi0, audio1, atest_char0, NA, wcss0_dbg3, wcss1_dbg3, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(58, qpic_pad5, led2, blsp_i2c0, smart3, smart1, NA, wcss0_dbg14, wcss1_dbg14, NA, qdss_tracedata_a, NA, NA, NA, NA),
+	PINGROUP(58, qpic_pad5, led2, blsp_i2c0, smart3, smart1, audio0, wcss0_dbg14, wcss1_dbg14, NA, qdss_tracedata_a, NA, NA, NA, NA),
 	PINGROUP(59, qpic_pad6, blsp_i2c0, smart3, smart1, audio2, NA, wcss0_dbg15, wcss1_dbg15, NA, qdss_tracectl_a, NA, NA, NA, NA),
-	PINGROUP(60, qpic_pad7, blsp_uart0, smart1, smart3, led0, audio1, atest_char, NA, wcss0_dbg4, wcss1_dbg4, NA, qdss_traceclk_a, NA, NA),
-	PINGROUP(61, qpic_pad8, blsp_uart0, smart1, smart3, led1, audio1, NA, NA, wcss0_dbg5, wcss1_dbg5, NA, qdss_cti_trig_out_a0, NA, NA),
-	PINGROUP(62, qpic_pad, chip_rst, wifi0_uart, wifi1_uart, NA, NA, wcss0_dbg6, wcss1_dbg6, NA, qdss_cti_trig_out_b0, NA, NA, NA, NA),
-	PINGROUP(63, qpic_pad0, wifi0_uart1, wifi1_uart1, wifi1_uart, audio_td1, NA, NA, wcss0_dbg7, wcss1_dbg7, NA, qdss_cti_trig_in_b0, NA, NA, NA),
+	PINGROUP(60, qpic_pad7, blsp_uart0, smart1, smart3, led0, audio1, audio0, atest_char, wcss0_dbg4, wcss1_dbg4, NA, qdss_traceclk_a, NA, NA),
+	PINGROUP(61, qpic_pad8, blsp_uart0, smart1, smart3, led1, audio1, audio0, NA, wcss0_dbg5, wcss1_dbg5, NA, qdss_cti_trig_out_a0, NA, NA),
+	PINGROUP(62, qpic_pad, chip_rst, wifi0_uart, wifi1_uart, audio0, NA, wcss0_dbg6, wcss1_dbg6, NA, qdss_cti_trig_out_b0, NA, NA, NA, NA),
+	PINGROUP(63, qpic_pad0, wifi0_uart1, wifi1_uart1, wifi1_uart, NA, audio_td1, NA, wcss0_dbg7, wcss1_dbg7, NA, qdss_cti_trig_in_b0, NA, NA, NA),
 	PINGROUP(64, qpic_pad1, audio1, NA, wcss0_dbg8, wcss1_dbg8, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(65, qpic_pad2, audio2, NA, wcss0_dbg9, wcss1_dbg9, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(66, qpic_pad3, audio_pwm0, NA, wcss0_dbg10, wcss1_dbg10, NA, NA, NA, NA, NA, NA, NA, NA, NA),

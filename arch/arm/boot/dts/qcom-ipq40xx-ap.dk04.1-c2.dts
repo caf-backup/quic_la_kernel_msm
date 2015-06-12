@@ -21,6 +21,52 @@
 	model = "Qualcomm Technologies, Inc. IPQ40xx/AP-DK04.1-C2";
 
 	soc {
+		pinctrl@0x01000000 {
+			audio_pins: audio_pinmux {
+				mux_1 {
+					pins = "gpio58", "gpio60", "gpio61", "gpio62";
+					function = "audio0";
+					bias-pull,up;
+				};
+
+				mux_2 {
+					pins = "gpio54";
+					function = "audio_spdifout";
+					bias-pull,up;
+				};
+
+				mux_3 {
+					pins = "gpio52", "gpio57";
+					function = "audio1";
+					bias-pull,up;
+				};
+
+				mux_4 {
+					pins = "gpio55";
+					function = "audio_td2";
+					bias-pull,up;
+				};
+
+				mux_5 {
+					pins = "gpio56";
+					function = "audio_td3";
+					bias-pull,up;
+				};
+
+				mux_6 {
+					pins = "gpio53", "gpio59";
+					function = "audio2";
+					bias-pull,up;
+				};
+
+				mux_7 {
+					pins = "gpio63";
+					function = "audio_td1";
+					bias-pull,up;
+				};
+			};
+		};
+
 		/* Enable Audio Interfaces */
 		i2s: ipq40xx-pcm-i2s@0 {
 			status = "ok";
@@ -68,7 +114,8 @@
 
 		sound: sound@0 {
 			status = "ok";
-
+			pinctrl-0 = <&audio_pins>;
+			pinctrl-names = "default";
 		};
 
 		spi_0: spi@78b5000 { /* BLSP1 QUP1 */
