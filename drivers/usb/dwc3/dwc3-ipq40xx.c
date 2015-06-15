@@ -187,6 +187,14 @@ dis_clks:
 	return ret;
 }
 
+static int dwc3_ipq40xx_remove_core(struct device *dev, void *c)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+
+	of_device_unregister(pdev);
+	return 0;
+}
+
 static int dwc3_ipq40xx_remove(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -197,6 +205,8 @@ static int dwc3_ipq40xx_remove(struct platform_device *pdev)
 	clk_disable_unprepare(mdwc->sleep_clk);
 	clk_disable_unprepare(mdwc->mock_utmi_clk);
 	clk_disable_unprepare(mdwc->master_clk);
+
+	device_for_each_child(&pdev->dev, NULL, dwc3_ipq40xx_remove_core);
 
 	return ret;
 }
