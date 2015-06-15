@@ -56,7 +56,6 @@ static void pcm_fill_data(int32_t *tx_buff, uint32_t size);
 
 #define LOOPBACK_SKIP_COUNT		30
 #define LOOPBACK_FAIL_THRESHOLD		20
-#define PCM_LB_EMULATION_TEST		1
 
 struct pcm_lb_test_ctx {
 	uint32_t failed;
@@ -301,20 +300,17 @@ int pcm_test_rw(void *data)
 	/* struct sched_param param; */
 	uint32_t ret;
 	uint32_t size;
+	struct sched_param param;
 
 	/*
 	 * set test thread priority as 90, this is to align with what
 	 * D2 VOIP stack does.
 	 */
-#ifdef PCM_LB_EMULATION_TEST
-	struct sched_param param;
-
 	param.sched_priority = 90;
 	ret = sched_setscheduler(ctx.task, SCHED_FIFO, &param);
 	if (ret)
 		pr_err("%s : Error setting priority, error: %d\n",
 						__func__, ret);
-#endif
 
 	ret = pcm_init();
 	if (ret) {
