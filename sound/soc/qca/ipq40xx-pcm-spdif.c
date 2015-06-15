@@ -43,7 +43,8 @@ static struct snd_pcm_hardware ipq40xx_pcm_hardware_playback = {
 					SNDRV_PCM_INFO_PAUSE |
 					SNDRV_PCM_INFO_RESUME,
 	.formats		=	SNDRV_PCM_FMTBIT_S16 |
-					SNDRV_PCM_FMTBIT_S24,
+					SNDRV_PCM_FMTBIT_S24 |
+					SNDRV_PCM_FMTBIT_S32,
 	.rates			=	SNDRV_PCM_RATE_32000 |
 					SNDRV_PCM_RATE_44100 |
 					SNDRV_PCM_RATE_48000 |
@@ -66,7 +67,8 @@ static struct snd_pcm_hardware ipq40xx_pcm_hardware_capture = {
 					SNDRV_PCM_INFO_MMAP_VALID |
 					SNDRV_PCM_INFO_INTERLEAVED,
 	.formats		=	SNDRV_PCM_FMTBIT_S16 |
-					SNDRV_PCM_FMTBIT_S24,
+					SNDRV_PCM_FMTBIT_S24 |
+					SNDRV_PCM_FMTBIT_S32,
 	.rates			=	SNDRV_PCM_RATE_32000 |
 					SNDRV_PCM_RATE_44100 |
 					SNDRV_PCM_RATE_48000 |
@@ -126,6 +128,9 @@ static void ipq40xx_pcm_free_dma_buffer(struct snd_pcm *pcm, int stream)
 static irqreturn_t ipq40xx_pcm_irq(int intrsrc, void *data)
 {
 	uint32_t processed_size;
+	int offset;
+	uint32_t *ptr;
+	uint32_t i;
 
 	struct snd_pcm_substream *substream = data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -138,10 +143,38 @@ static irqreturn_t ipq40xx_pcm_irq(int intrsrc, void *data)
 
 	/* Set the OWN bits */
 	processed_size = ipq40xx_mbox_get_elapsed_size(pcm_rtpriv->channel);
+	pcm_rtpriv->processed_size = processed_size;
 
 	if (processed_size > pcm_rtpriv->period_size)
 		snd_printd("Processed more than one period bytes : %d\n",
 						processed_size);
+
+	/* Need to extract the data part alone in case of Rx */
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+		if (pcm_rtpriv->last_played == NULL)
+			offset = 0;
+		else
+			offset = (pcm_rtpriv->last_played->BufPtr -
+					(runtime->dma_addr & 0xFFFFFFF));
+
+		if (offset > 0) {
+			ptr = (uint32_t *)((char *)runtime->dma_area + offset -
+						processed_size);
+
+			if (ptr < (uint32_t *)runtime->dma_area)
+				goto ack;
+
+			/* The data in the buffer is present from bits 4 to 23.
+			 * The other bits are V, U, C, P and channel flags
+			 * Ignoring those bits for now.
+			 */
+			for (i = 0; i < (processed_size/4); i++) {
+				*ptr = ((*ptr & 0xFFFFFF) << 8);
+				ptr++;
+			}
+
+		}
+	}
 
 	snd_pcm_period_elapsed(substream);
 

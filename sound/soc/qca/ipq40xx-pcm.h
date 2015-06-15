@@ -27,7 +27,7 @@ struct ipq40xx_pcm_rt_priv {
 	int channel;
 	struct device *dev;
 	struct ipq40xx_mbox_desc *last_played;
-	unsigned int elapsed_size;
+	unsigned int processed_size;
 	uint32_t period_size;
 };
 
