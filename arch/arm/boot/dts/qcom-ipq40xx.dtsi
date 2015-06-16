@@ -119,7 +119,11 @@
 			reg = <0xb017000 0x40>;
 			clocks = <&sleep_clk>;
 			timeout-sec = <10>;
-			status = "disabled";
+			wdt_res = <0x4>;
+			wdt_en = <0x8>;
+			wdt_bark_time = <0x10>;
+			wdt_bite_time = <0x14>;
+			status = "ok";
 		};
 
 		apcs: a7ss_base@b088000 {

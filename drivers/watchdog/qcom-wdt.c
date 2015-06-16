@@ -34,6 +34,10 @@ struct qcom_wdt {
 	unsigned long		rate;
 	struct notifier_block	restart_nb;
 	void __iomem		*base;
+	void __iomem		*wdt_reset;
+	void __iomem		*wdt_enable;
+	void __iomem		*wdt_bark_time;
+	void __iomem		*wdt_bite_time;
 };
 
 static inline
@@ -81,11 +85,11 @@ static int qcom_wdt_start_secure(struct watchdog_device *wdd)
 {
 	struct qcom_wdt *wdt = to_qcom_wdt(wdd);
 
-	writel(0, wdt->base + WDT_EN);
-	writel(1, wdt->base + WDT_RST);
-	writel(wdd->timeout * wdt->rate, wdt->base + WDT_BARK_TIME);
-	writel(0x0FFFFFFF, wdt->base + WDT_BITE_TIME);
-	writel(1, wdt->base + WDT_EN);
+	writel(0, wdt->wdt_enable);
+	writel(1, wdt->wdt_reset);
+	writel(wdd->timeout * wdt->rate, wdt->wdt_bark_time);
+	writel(0x0FFFFFFF, wdt->wdt_bite_time);
+	writel(1, wdt->wdt_enable);
 	return 0;
 }
 
@@ -93,10 +97,10 @@ static int qcom_wdt_start_nonsecure(struct watchdog_device *wdd)
 {
 	struct qcom_wdt *wdt = to_qcom_wdt(wdd);
 
-	writel(0, wdt->base + WDT_EN);
-	writel(1, wdt->base + WDT_RST);
-	writel(wdd->timeout * wdt->rate, wdt->base + WDT_BITE_TIME);
-	writel(1, wdt->base + WDT_EN);
+	writel(0, wdt->wdt_enable);
+	writel(1, wdt->wdt_reset);
+	writel(wdd->timeout * wdt->rate, wdt->wdt_bite_time);
+	writel(1, wdt->wdt_enable);
 	return 0;
 }
 
@@ -104,7 +108,7 @@ static int qcom_wdt_stop(struct watchdog_device *wdd)
 {
 	struct qcom_wdt *wdt = to_qcom_wdt(wdd);
 
-	writel(0, wdt->base + WDT_EN);
+	writel(0, wdt->wdt_enable);
 	return 0;
 }
 
@@ -112,7 +116,7 @@ static int qcom_wdt_ping(struct watchdog_device *wdd)
 {
 	struct qcom_wdt *wdt = to_qcom_wdt(wdd);
 
-	writel(1, wdt->base + WDT_RST);
+	writel(1, wdt->wdt_reset);
 	return 0;
 }
 
@@ -164,16 +168,16 @@ static int qcom_wdt_restart(struct notifier_block *nb, unsigned long action,
 	 */
 	timeout = 128 * wdt->rate / 1000;
 
-	writel(0, wdt->base + WDT_EN);
-	writel(1, wdt->base + WDT_RST);
+	writel(0, wdt->wdt_enable);
+	writel(1, wdt->wdt_reset);
 	if (in_panic) {
-		writel(timeout, wdt->base + WDT_BARK_TIME);
-		writel(2 * timeout, wdt->base + WDT_BITE_TIME);
+		writel(timeout, wdt->wdt_bark_time);
+		writel(2 * timeout, wdt->wdt_bite_time);
 	} else {
-		writel(5 * timeout, wdt->base + WDT_BARK_TIME);
-		writel(timeout, wdt->base + WDT_BITE_TIME);
+		writel(5 * timeout, wdt->wdt_bark_time);
+		writel(timeout, wdt->wdt_bite_time);
 	}
-	writel(1, wdt->base + WDT_EN);
+	writel(1, wdt->wdt_enable);
 
 	/*
 	 * Actually make sure the above sequence hits hardware before sleeping.
@@ -186,9 +190,11 @@ static int qcom_wdt_restart(struct notifier_block *nb, unsigned long action,
 
 static int qcom_wdt_probe(struct platform_device *pdev)
 {
+	struct device_node *np;
 	struct qcom_wdt *wdt;
 	struct resource *res;
 	int ret;
+	uint32_t val;
 
 	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
@@ -198,6 +204,28 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	wdt->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(wdt->base))
 		return PTR_ERR(wdt->base);
+
+	np = of_node_get(pdev->dev.of_node);
+
+	if (of_property_read_u32(np, "wdt_res", &val))
+		wdt->wdt_reset = wdt->base + WDT_RST;
+	else
+		wdt->wdt_reset = wdt->base + val;
+
+	if (of_property_read_u32(np, "wdt_en", &val))
+		wdt->wdt_enable = wdt->base + WDT_EN;
+	else
+		wdt->wdt_enable = wdt->base + val;
+
+	if (of_property_read_u32(np, "wdt_bark_time", &val))
+		wdt->wdt_bark_time = wdt->base + WDT_BARK_TIME;
+	else
+		wdt->wdt_bark_time = wdt->base + val;
+
+	if (of_property_read_u32(np, "wdt_bite_time", &val))
+		wdt->wdt_bite_time = wdt->base + WDT_BITE_TIME;
+	else
+		wdt->wdt_bite_time = wdt->base + val;
 
 	wdt->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(wdt->clk)) {
