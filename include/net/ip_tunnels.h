@@ -182,4 +182,6 @@ static inline void iptunnel_xmit_stats(int err,
 
 #endif /* CONFIG_INET */
 
+void ipip6_update_offload_stats(struct net_device *dev, void *ptr);
+void ip6_update_offload_stats(struct net_device *dev, void *ptr);
 #endif /* __NET_IP_TUNNELS_H */

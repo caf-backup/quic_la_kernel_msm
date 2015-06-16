@@ -129,6 +129,23 @@ static struct net_device_stats *ip6_get_stats(struct net_device *dev)
 }
 
 /*
+ * Update offload stats
+ */
+void ip6_update_offload_stats(struct net_device *dev, void *ptr)
+{
+	struct pcpu_sw_netstats *tstats = per_cpu_ptr(dev->tstats, 0);
+	const struct pcpu_sw_netstats *offload_stats = (struct pcpu_sw_netstats *)ptr;
+
+	u64_stats_update_begin(&tstats->syncp);
+	tstats->tx_packets += offload_stats->tx_packets;
+	tstats->tx_bytes   += offload_stats->tx_bytes;
+	tstats->rx_packets += offload_stats->rx_packets;
+	tstats->rx_bytes   += offload_stats->rx_bytes;
+	u64_stats_update_end(&tstats->syncp);
+}
+EXPORT_SYMBOL(ip6_update_offload_stats);
+
+/*
  * Locking : hash tables are protected by RCU and RTNL
  */
 
@@ -833,6 +850,8 @@ static int ip6_tnl_rcv(struct sk_buff *skb, __u16 protocol,
 		tstats->rx_bytes += skb->len;
 		u64_stats_update_end(&tstats->syncp);
 
+		/* Reset the skb_iif to Tunnels interface index */
+		skb->skb_iif = t->dev->ifindex;
 		netif_rx(skb);
 
 		rcu_read_unlock();
@@ -1048,6 +1067,9 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 	ipv6h->nexthdr = proto;
 	ipv6h->saddr = fl6->saddr;
 	ipv6h->daddr = fl6->daddr;
+
+	/* Reset the skb_iif to Tunnels interface index */
+	skb->skb_iif = dev->ifindex;
 	ip6tunnel_xmit(skb, dev);
 	if (ndst)
 		ip6_tnl_dst_store(t, ndst);
