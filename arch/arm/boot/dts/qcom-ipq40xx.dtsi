@@ -663,4 +663,8 @@
 				reg = <4>;
 			};
 		};
+
+		qca,scm_restart_reason {
+			compatible = "qca,scm_restart_reason";
+		};
 	};
