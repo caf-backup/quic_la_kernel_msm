@@ -28,7 +28,14 @@
 #define VOICE_PERIOD_SIZE	(VOICE_BUFF_SIZE / NUM_BUFFERS)
 
 #define IPQ40xx_PCM_SAMPLES_PER_10MS(rate) ((rate / 1000) * 10)
-#define IPQ40xx_PCM_BYTES_PER_SAMPLE(bit_width) (bit_width / 8)
+
+/* if the bit width is 16, two more bytes are required for the slot
+ * information, which makes the bytes_per_sample as 4.
+ * if the bit width is 8, one more byte is required for the slot
+ * information and valid bit. The rest two bytes of the 32 bit data is
+ * unused. So in this case too, So the number of bytes is 4
+ */
+#define IPQ40xx_PCM_BYTES_PER_SAMPLE(bit_width) (4)
 
 struct pcm_context {
 	uint32_t pcm_started;
