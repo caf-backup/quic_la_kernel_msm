@@ -309,6 +309,18 @@ ar8xxx_phy_dbg_write(struct ar8xxx_priv *priv, int phy_addr,
 }
 
 void
+ar8xxx_phy_dbg_read(struct ar8xxx_priv *priv, int phy_addr,
+		     u16 dbg_addr, u16 *dbg_data)
+{
+	struct mii_bus *bus = priv->mii_bus;
+
+	mutex_lock(&bus->mdio_lock);
+	bus->write(bus, phy_addr, MII_ATH_DBG_ADDR, dbg_addr);
+	*dbg_data = bus->read(bus, phy_addr, MII_ATH_DBG_DATA);
+	mutex_unlock(&bus->mdio_lock);
+}
+
+void
 ar8xxx_phy_mmd_write(struct ar8xxx_priv *priv, int phy_addr, u16 addr, u16 data)
 {
 	struct mii_bus *bus = priv->mii_bus;
