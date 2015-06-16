@@ -422,6 +422,18 @@ ar8xxx_phy_dbg_write(struct ar8xxx_priv *priv, int phy_addr,
 }
 
 static void
+ar8xxx_phy_dbg_read(struct ar8xxx_priv *priv, int phy_addr,
+		     u16 dbg_addr, u16 *dbg_data)
+{
+	struct mii_bus *bus = priv->mii_bus;
+
+	mutex_lock(&bus->mdio_lock);
+	bus->write(bus, phy_addr, MII_ATH_DBG_ADDR, dbg_addr);
+	*dbg_data = bus->read(bus, phy_addr, MII_ATH_DBG_DATA);
+	mutex_unlock(&bus->mdio_lock);
+}
+
+static void
 ar8xxx_phy_mmd_write(struct ar8xxx_priv *priv, int phy_addr, u16 addr, u16 data)
 {
 	struct mii_bus *bus = priv->mii_bus;
@@ -1138,6 +1150,7 @@ ar8327_get_pad_cfg(struct ar8327_pad_cfg *cfg)
 static void
 ar8327_phy_fixup(struct ar8xxx_priv *priv, int phy)
 {
+	u16 val;
 	switch (priv->chip_rev) {
 	case 1:
 		/* For 100M waveform */
@@ -1157,6 +1170,9 @@ ar8327_phy_fixup(struct ar8xxx_priv *priv, int phy)
 		ar8xxx_phy_dbg_write(priv, phy, 0x3d, 0x6860);
 		ar8xxx_phy_dbg_write(priv, phy, 0x5, 0x2c46);
 		ar8xxx_phy_dbg_write(priv, phy, 0x3c, 0x6000);
+		ar8xxx_phy_dbg_read(priv, phy, 0, &val);
+		val &= ~AR8337_PHY_MANU_CTRL_EN;
+		ar8xxx_phy_dbg_write(priv, phy, 0, val);
 		break;
 	}
 }
@@ -1629,6 +1645,28 @@ ar8327_hw_config_of(struct ar8xxx_priv *priv, struct device_node *np)
 #endif
 
 static void
+ar8327_port_phy_linkdown(struct ar8xxx_priv *priv)
+{
+	struct mii_bus *bus;
+	int i;
+	u16 val;
+
+	bus = priv->mii_bus;
+	for (i = 0; i < AR8327_NUM_PHYS; i++) {
+		mdiobus_write(bus, i, MII_CTRL1000, 0);
+		mdiobus_write(bus, i, MII_ADVERTISE, 0);
+		mdiobus_write(bus, i, MII_BMCR, BMCR_RESET | BMCR_ANENABLE);
+		ar8xxx_phy_dbg_read(priv, i, AR8337_PHY_DEBUG_0, &val);
+		val |= AR8337_PHY_MANU_CTRL_EN;
+		ar8xxx_phy_dbg_write(priv, i, AR8337_PHY_DEBUG_0, val);
+		/*disable transmit*/
+		ar8xxx_phy_dbg_read(priv, i, AR8337_PHY_DEBUG_2, &val);
+		val &= 0xf00f;
+		ar8xxx_phy_dbg_write(priv, i, AR8337_PHY_DEBUG_2, val);
+	}
+}
+
+static void
 ar8327_port_phy_init(struct ar8xxx_priv *priv)
 {
 	struct mii_bus *bus;
@@ -1925,6 +1963,21 @@ ar8xxx_sw_get_pvid(struct switch_dev *dev, int port, int *vlan)
 {
 	struct ar8xxx_priv *priv = swdev_to_ar8xxx(dev);
 	*vlan = priv->pvid[port];
+	return 0;
+}
+
+static int
+ar8xxx_sw_set_linkdown(struct switch_dev *dev,
+			   const struct switch_attr *attr,
+			   struct switch_val *val)
+{
+	struct ar8xxx_priv *priv = swdev_to_ar8xxx(dev);
+
+	if (val->value.i == 1)
+		ar8327_port_phy_linkdown(priv);
+	else
+		ar8327_port_phy_init(priv);
+
 	return 0;
 }
 
@@ -2608,6 +2661,13 @@ static struct switch_attr ar8327_sw_attr_globals[] = {
 		.name = "dump_arl",
 		.description = "Dump ARL table with mac and port map",
 		.get = ar8xxx_atu_dump,
+	},
+	{
+		.type = SWITCH_TYPE_INT,
+		.name = "linkdown",
+		.description = "Link down all the PHYs",
+		.set = ar8xxx_sw_set_linkdown,
+		.max = 1
 	},
 };
 
