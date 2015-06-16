@@ -469,6 +469,12 @@
 			qcom,page-mode = <0>;
 			qcom,rx_head_buf_size = <1540>;
 			qcom,port_id_wan = <0x5>;
+			qcom,mdio_supported;
+			qcom,phy_mdio_addr = <4>;
+			qcom,poll_required = <1>;
+			qcom,forced_speed = <1000>;
+			qcom,forced_duplex = <1>;
+
 			interrupts = <0 65 1>,
 					<0 66 1>,
 					<0 67 1>,
@@ -653,5 +659,4 @@
 				reg = <4>;
 			};
 		};
-
 	};
