@@ -380,7 +380,9 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-ipq8064-ap161.dtb \
 	qcom-ipq8064-v2.0-ap161.dtb \
 	qcom-ipq8064-ap160.dtb \
-	qcom-ipq8064-v2.0-ap160.dtb
+	qcom-ipq8064-v2.0-ap160.dtb \
+	qcom-ipq8064-ap160_2xx.dtb \
+	qcom-ipq8064-v2.0-ap160_2xx.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3066a-bqcurie2.dtb \
 	rk3188-radxarock.dtb \
