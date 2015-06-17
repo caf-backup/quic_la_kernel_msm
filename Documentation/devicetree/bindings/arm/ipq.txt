@@ -19,3 +19,4 @@ following compatible strings
 	"qcom,ipq40xx-apdk04.1"
 	"qcom,ipq8062-ap145"
 	"qcom,ipq8064-ap161"
+	"qcom,ipq8064-ap160"
