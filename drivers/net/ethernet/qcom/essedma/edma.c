@@ -748,7 +748,7 @@ static void edma_tx_complete(struct edma_common_info *c_info, int queue_id)
 	/* update the TPD consumer index register */
 	edma_write_reg(REG_TX_SW_CONS_IDX_Q(queue_id), sw_next_to_clean);
 
-	if (netif_queue_stopped(sw_desc->skb->dev) &&
+	if (netif_tx_queue_stopped(etdr->sw_desc->nq) &&
 		netif_carrier_ok(sw_desc->skb->dev))
 			netif_tx_wake_queue(etdr->sw_desc->nq);
 }
@@ -1178,7 +1178,8 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 		/* not enough descriptor, just stop queue */
 		netif_tx_stop_queue(nq);
 		local_bh_enable();
-		dev_warn(&net_dev->dev, "Not enough descriptors available");
+		if (net_ratelimit())
+			dev_warn(&net_dev->dev, "Not enough descriptors available");
 		adapter->stats.tx_errors++;
 		return NETDEV_TX_BUSY;
 	}
