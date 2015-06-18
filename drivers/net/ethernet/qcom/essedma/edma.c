@@ -1745,7 +1745,7 @@ int edma_change_mtu(struct net_device *netdev, int new_mtu)
 	struct edma_adapter *adapter = netdev_priv(netdev);
 	struct edma_common_info *c_info = adapter->c_info;
 	int old_mtu = netdev->mtu;
-	int max_frame_size = new_mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
+	int max_frame_size = new_mtu + ETH_HLEN + ETH_FCS_LEN + (2 * VLAN_HLEN);
 
 	if ((max_frame_size < ETH_ZLEN + ETH_FCS_LEN) ||
 		(max_frame_size > EDMA_MAX_JUMBO_FRAME_SIZE)) {
