@@ -2660,6 +2660,19 @@ static void nss_gmac_init(void)
 		platform_device_register(&nss_gmac_1);
 		platform_device_register(&nss_gmac_2);
 	}
+
+	if (machine_is_ipq806x_ak01_1xx()) {
+		/* GMAC3 connected to AR8033 PHY */
+		pdata = (struct msm_nss_gmac_platform_data *)nss_gmac_3.dev.platform_data;
+		pdata->phy_mdio_addr = 5;
+		pdata->poll_required = 1;
+		pdata->rgmii_delay = 0;
+		pdata->phy_mii_type = PHY_INTERFACE_MODE_SGMII;
+		pdata->mmds_mask = 0;
+		pdata->socver = socinfo_get_version();
+
+		platform_device_register(&nss_gmac_3);
+	}
 }
 
 #define IPQ_MAC_ADDR_PARTITION	"ART"
