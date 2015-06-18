@@ -60,6 +60,11 @@ void dwc3_set_mode(struct dwc3 *dwc, u32 mode)
 	reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(0));
 	reg |= DWC3_GUSB2PHYCFG_SUSPHY;
 	dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(0), reg);
+
+	/* Enable Suspend USB3.0 SS PHY (Suspend_en) */
+	reg = dwc3_readl(dwc->regs, DWC3_GUSB3PIPECTL(0));
+	reg &= ~DWC3_GUSB3PIPECTL_SUSPHY;
+	dwc3_writel(dwc->regs, DWC3_GUSB3PIPECTL(0), reg);
 }
 
 /**
