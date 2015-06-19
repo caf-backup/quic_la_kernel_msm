@@ -148,7 +148,16 @@ static const unsigned int regmap[][UARTDM_LAST] = {
 };
 
 static struct of_device_id msm_hsl_match_table[] = {
-	{	.compatible = "qcom,msm-lsuart-v14",
+	{	.compatible = "qcom,msm-uartdm-v1.1",
+		.data = (void *)UARTDM_VERSION_11_13,
+	},
+	{	.compatible = "qcom,msm-uartdm-v1.2",
+		.data = (void *)UARTDM_VERSION_11_13,
+	},
+	{	.compatible = "qcom,msm-uartdm-v1.3",
+		.data = (void *)UARTDM_VERSION_11_13,
+	},
+	{	.compatible = "qcom,msm-uartdm-v1.4",
 		.data = (void *)UARTDM_VERSION_14,
 	},
 	{}
@@ -165,17 +174,12 @@ static inline void wait_for_xmitr(struct uart_port *port);
 static inline void msm_hsl_write(struct uart_port *port,
 				 unsigned int val, unsigned int off)
 {
-	__iowmb();
-	__raw_writel_no_log((__force __u32)cpu_to_le32(val),
-		port->membase + off);
+	writel_relaxed(val, port->membase + off);
 }
 static inline unsigned int msm_hsl_read(struct uart_port *port,
 		     unsigned int off)
 {
-	unsigned int v = le32_to_cpu((__force __le32)__raw_readl_no_log(
-		port->membase + off));
-	__iormb();
-	return v;
+	return readl_relaxed(port->membase + off);
 }
 
 static unsigned int msm_serial_hsl_has_gsbi(struct uart_port *port)
@@ -1740,7 +1744,7 @@ static int msm_serial_hsl_probe(struct platform_device *pdev)
 	port->uartclk = 7372800;
 	msm_hsl_port = UART_TO_MSM(port);
 
-	msm_hsl_port->clk = clk_get(&pdev->dev, "core_clk");
+	msm_hsl_port->clk = clk_get(&pdev->dev, "core");
 	if (unlikely(IS_ERR(msm_hsl_port->clk))) {
 		ret = PTR_ERR(msm_hsl_port->clk);
 		if (ret != -EPROBE_DEFER)
@@ -1753,7 +1757,7 @@ static int msm_serial_hsl_probe(struct platform_device *pdev)
 	 * do not require interface clock. Hence, do not fail probe with
 	 * iface clk_get failure.
 	 */
-	msm_hsl_port->pclk = clk_get(&pdev->dev, "iface_clk");
+	msm_hsl_port->pclk = clk_get(&pdev->dev, "iface");
 	if (unlikely(IS_ERR(msm_hsl_port->pclk))) {
 		ret = PTR_ERR(msm_hsl_port->pclk);
 		if (ret == -EPROBE_DEFER) {
