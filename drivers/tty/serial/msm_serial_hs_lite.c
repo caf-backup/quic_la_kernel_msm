@@ -180,7 +180,7 @@ static inline unsigned int msm_hsl_read(struct uart_port *port,
 
 static unsigned int msm_serial_hsl_has_gsbi(struct uart_port *port)
 {
-	return (UART_TO_MSM(port)->uart_type == GSBI_HSUART);
+	return UART_TO_MSM(port)->uart_type == GSBI_HSUART;
 }
 
 /**
@@ -1235,9 +1235,8 @@ static int msm_hsl_request_port(struct uart_port *port)
 		size = gsbi_resource->end - gsbi_resource->start + 1;
 		msm_hsl_port->mapped_gsbi = ioremap(gsbi_resource->start,
 						    size);
-		if (!msm_hsl_port->mapped_gsbi) {
+		if (!msm_hsl_port->mapped_gsbi)
 			return -EBUSY;
-		}
 	}
 
 	return 0;
@@ -1413,7 +1412,15 @@ static inline void wait_for_xmitr(struct uart_port *port)
 								 __func__);
 				msm_hsl_write(port, RESET_TX,
 					regmap[vid][UARTDM_CR]);
+				/*
+				 * Since UART TX is stuck, TX is reset and
+				 * the UARTDM_CR register is updated.
+				 */
 				mb();
+				/*
+				 * The value in the registers are stored
+				 * and printed.
+				 */
 				dump_hsl_regs(port);
 				break;
 			}
@@ -1939,7 +1946,7 @@ static int msm_hsl_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops msm_hsl_dev_pm_ops = {
+static const struct dev_pm_ops msm_hsl_dev_pm_ops = {
 	.suspend = msm_serial_hsl_suspend,
 	.resume = msm_serial_hsl_resume,
 	.runtime_suspend = msm_hsl_runtime_suspend,
