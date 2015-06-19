@@ -105,6 +105,15 @@
 			pinctrl-0 = <&spi_0_pins>;
 			pinctrl-names = "default";
 			status = "ok";
+
+			m25p80@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0>;
+				compatible = "n25q128a11";
+				linux,modalias = "m25p80", "n25q128a11";
+				spi-max-frequency = <24000000>;
+			};
 		};
 
 		tcsr: tcsr@194b000 {
