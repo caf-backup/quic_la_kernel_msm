@@ -31,9 +31,11 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
-		/* Reserved for other subsystem */
-		reg = <0x87000000 0x01000000>;
-		no-map;
+		rsvd@87000000 {
+			/* Reserved for other subsystem */
+			reg = <0x87000000 0x01000000>;
+			no-map;
+		};
 	};
 
 	chosen {
