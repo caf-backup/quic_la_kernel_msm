@@ -20,6 +20,7 @@
 #include <linux/err.h>
 #include <linux/of_device.h>
 #include <linux/slab.h>
+#include "leds-ipq40xx.h"
 
 #define LEDC_BASE_REG_OFFSET	0x20040
 #define LEDC_REG_SIZE	4
@@ -150,6 +151,25 @@ static void ipq40xx_set_led_brightness_set(struct led_classdev *led_cdev,
 	ipq40xx_set_led_blink_set(led_cdev, &delay_on, &delay_off);
 	writel(reg, LEDC_ADDR(LEDC_CG6_OFFSET));
 }
+
+int ipq40xx_led_source_select(int led_num, enum led_source src_type)
+{
+	int val, cg_reg;
+
+	cg_reg = (led_num / NUM_LED_IN_REG) + 1;
+
+	if (cg_reg > LEDC_CG4_OFFSET)
+		return -EINVAL;
+
+	val = readl(LEDC_ADDR(cg_reg));
+	val &= LED_MASK(led_num);
+	val |=  SET_LED(led_num, src_type);
+
+	writel(val, LEDC_ADDR(cg_reg));
+
+	return 0;
+}
+EXPORT_SYMBOL(ipq40xx_led_source_select);
 
 static int __init ipq40xx_led_probe(struct platform_device *pdev)
 {
