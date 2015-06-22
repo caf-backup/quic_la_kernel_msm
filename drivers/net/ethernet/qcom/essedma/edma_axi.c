@@ -45,6 +45,13 @@ int edma_weight_assigned_to_q __read_mostly;
 int edma_queue_to_virtual_q __read_mostly;
 bool edma_enable_rstp  __read_mostly;
 int edma_athr_hdr_eth_type __read_mostly;
+int page_mode __read_mostly;
+int overwrite_mode __read_mostly;
+
+module_param(page_mode, int, 0);
+module_param(overwrite_mode, int, 0);
+MODULE_PARM_DESC(page_mode, "enable page mode");
+MODULE_PARM_DESC(overwrite_mode, "overwrite default page_mode setting");
 
 void edma_write_reg(u16 reg_addr, u32 reg_value)
 {
@@ -338,6 +345,11 @@ static int edma_axi_probe(struct platform_device *pdev)
 	of_property_read_u32(np, "qcom,page-mode", &c_info->page_mode);
 	of_property_read_u32(np, "qcom,rx_head_buf_size", &hw->rx_head_buff_size);
 	of_property_read_u32(np, "qcom,port_id_wan", &c_info->edma_port_id_wan);
+
+	if (overwrite_mode) {
+		dev_info(&pdev->dev, "page mode overwritten");
+		c_info->page_mode = page_mode;
+	}
 
 	if (c_info->page_mode)
 		hw->rx_head_buff_size = EDMA_RX_HEAD_BUFF_SIZE_JUMBO;
