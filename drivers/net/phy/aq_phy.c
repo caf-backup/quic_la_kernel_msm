@@ -523,10 +523,15 @@ aq_phy_remove(struct phy_device *pdev)
 static int aq_phy_match_phy_device(struct phy_device *phydev)
 {
 	int found = 0;
-	if ((phydev->c45_ids.device_ids[0] == AQ_DEVICE_ID) ||
-	    (phydev->c45_ids.device_ids[1] == AQ_DEVICE_ID) ||
-	    (phydev->c45_ids.device_ids[2] == AQ_DEVICE_ID) ||
-	    (phydev->c45_ids.device_ids[3] == AQ_DEVICE_ID)) {
+
+	if (((phydev->c45_ids.device_ids[0] & AQ_DEVICE_ID_MASK)
+			== AQ_DEVICE_ID) ||
+	    ((phydev->c45_ids.device_ids[1] & AQ_DEVICE_ID_MASK)
+			== AQ_DEVICE_ID) ||
+	    ((phydev->c45_ids.device_ids[2] & AQ_DEVICE_ID_MASK)
+			== AQ_DEVICE_ID) ||
+	    ((phydev->c45_ids.device_ids[3] & AQ_DEVICE_ID_MASK)
+			== AQ_DEVICE_ID)) {
 
 		found = 1;
 	}
@@ -537,7 +542,7 @@ static int aq_phy_match_phy_device(struct phy_device *phydev)
 static struct phy_driver aq_phy_driver = {
 	.phy_id		= AQ_DEVICE_ID,
 	.name		= "AQ105",
-	.phy_id_mask	= 0xffff0000,
+	.phy_id_mask	= AQ_DEVICE_ID_MASK,
 	.features	= PHY_BASIC_FEATURES,
 	.probe		= aq_phy_probe,
 	.remove		= aq_phy_remove,
