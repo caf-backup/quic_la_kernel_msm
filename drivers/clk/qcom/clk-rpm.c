@@ -34,8 +34,8 @@ static int clk_rpm_set_active_rate(struct rpm_clk *r, u32 value)
 				r->rpm_clk_id, &value, 1);
 
 	/* Upon success save newly set rate in Hz*/
-	if (ret == 0)
-		r->rate = value;
+	if (ret == 0 && !r->branch)
+		r->rate = value * 1000;
 
 	return ret;
 }
@@ -137,9 +137,7 @@ rpm_clk_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 static long rpm_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 				 unsigned long *p_rate)
 {
-	struct rpm_clk *r = to_rpm_clk(hw);
-
-	return r->rate;
+	return rate;
 }
 
 const struct clk_ops clk_rpm_ops = {
@@ -231,6 +229,13 @@ static int rpm_clk_probe(struct platform_device *pdev)
 	ret = rpm_clk_prepare(&clk->hw);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to prepare %d\n", clk->rpm_clk_id);
+		return ret;
+	}
+
+	ret = of_clk_add_provider(dev->of_node, of_clk_src_simple_get, clock);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to add of_clk_provider for %d\n",
+			clk->rpm_clk_id);
 		return ret;
 	}
 
