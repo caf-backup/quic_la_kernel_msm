@@ -708,11 +708,16 @@ static inline void edma_tx_unmap_and_free(struct platform_device *pdev,
 	struct sk_buff *skb = sw_desc->skb;
 
 	if (likely(sw_desc->flags & EDMA_SW_DESC_FLAG_SKB_HEAD))
-	/* unmap_single for skb head area */
+		/* unmap_single for skb head area */
 		dma_unmap_single(&pdev->dev, sw_desc->dma,
 			sw_desc->length, DMA_TO_DEVICE);
 	else if (sw_desc->flags & EDMA_SW_DESC_FLAG_SKB_FRAG)
+		/* unmap page for paged fragments */
 		dma_unmap_page(&pdev->dev, sw_desc->dma,
+			sw_desc->length, DMA_TO_DEVICE);
+	else if (sw_desc->flags & EDMA_SW_DESC_FLAG_SKB_FRAGLIST)
+		/* unmap single for fraglist skb */
+		dma_unmap_single(&pdev->dev, sw_desc->dma,
 			sw_desc->length, DMA_TO_DEVICE);
 
 	if (likely(sw_desc->flags & EDMA_SW_DESC_FLAG_LAST))
@@ -877,14 +882,18 @@ static void edma_rollback_tx(struct edma_adapter *adapter,
 static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 	struct edma_adapter *adapter, struct sk_buff *skb, int queue_id,
 	unsigned int flags_transmit, u16 from_cpu, u16 dp_bitmap,
-	bool packet_is_rstp)
+	bool packet_is_rstp, int nr_frags)
 {
 	struct edma_sw_desc *sw_desc = NULL;
 	struct platform_device *pdev = c_info->pdev;
 	struct edma_tx_desc *tpd, *start_tpd = NULL;
-	int i = 0, nr_frags = skb_shinfo(skb)->nr_frags;
+	struct sk_buff *iter_skb;
+	int i = 0;
 	u32 word1 = 0, word3 = 0, lso_word1 = 0, svlan_tag = 0;
 	u16 buf_len, lso_desc_len = 0;
+
+	/* It should either be a nr_frags skb or fraglist skb but not both */
+	BUG_ON(nr_frags && skb_has_frag_list(skb));
 
 	if (unlikely(skb_is_gso(skb))) {
 		/* TODO: What additional checks need to be performed here */
@@ -1019,6 +1028,7 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 		tpd->word3 = word3;
 	}
 
+	/* Walk through all paged fragments */
 	while (nr_frags--) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 		buf_len = skb_frag_size(frag);
@@ -1029,9 +1039,8 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 
 		sw_desc->dma = skb_frag_dma_map(&pdev->dev, frag, 0, buf_len, DMA_TO_DEVICE);
 
-		if (unlikely(dma_mapping_error(NULL, sw_desc->dma))) {
+		if (unlikely(dma_mapping_error(NULL, sw_desc->dma)))
 			goto dma_error;
-		}
 
 		tpd->addr = cpu_to_le32(sw_desc->dma);
 		tpd->len  = cpu_to_le16(buf_len);
@@ -1040,6 +1049,26 @@ static int edma_tx_map_and_fill(struct edma_common_info *c_info,
 		tpd->word1 = word1 | lso_word1;
 		tpd->word3 = word3;
 		i++;
+	}
+
+	/* Walk through all fragist skbs */
+	skb_walk_frags(skb, iter_skb) {
+		buf_len = iter_skb->len;
+		tpd = edma_get_next_tpd(c_info, queue_id);
+		sw_desc = edma_get_tx_buffer(c_info, tpd, queue_id);
+		sw_desc->length = buf_len;
+		sw_desc->dma =  dma_map_single(&adapter->pdev->dev,
+				iter_skb->data, buf_len, DMA_TO_DEVICE);
+
+		if (unlikely(dma_mapping_error(NULL, sw_desc->dma)))
+			goto dma_error;
+
+		tpd->addr = cpu_to_le32(sw_desc->dma);
+		tpd->len  = cpu_to_le16(buf_len);
+		tpd->svlan_tag = svlan_tag;
+		tpd->word1 = word1 | lso_word1;
+		tpd->word3 = word3;
+		sw_desc->flags |= EDMA_SW_DESC_FLAG_SKB_FRAGLIST;
 	}
 
 	tpd->word1 |= 1 << EDMA_TPD_EOP_SHIFT;
@@ -1123,12 +1152,20 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 	struct edma_common_info *c_info = adapter->c_info;
 	struct edma_tx_desc_ring *etdr;
 	struct netdev_queue *nq;
-	int ret, num_tpds_needed;
 	u16 txq_id, from_cpu, dp_bitmap;
+	int ret, nr_frags = 0, num_tpds_needed = 1;
 	unsigned int flags_transmit = 0;
 	bool packet_is_rstp = false;
 
-	num_tpds_needed = skb_shinfo(skb)->nr_frags + 1;
+	if (skb_shinfo(skb)->nr_frags) {
+		nr_frags = skb_shinfo(skb)->nr_frags;
+		num_tpds_needed += nr_frags;
+	} else if (skb_has_frag_list(skb)) {
+		struct sk_buff *iter_skb;
+
+		skb_walk_frags(skb, iter_skb)
+			num_tpds_needed++;
+	}
 
 	if (unlikely(num_tpds_needed > EDMA_MAX_SKB_FRAGS)) {
 		dev_err(&net_dev->dev,
@@ -1196,7 +1233,7 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 
 	/* Map and fill descriptor for Tx */
 	ret = edma_tx_map_and_fill(c_info, adapter, skb, queue_id,
-		flags_transmit, from_cpu, dp_bitmap, packet_is_rstp);
+		flags_transmit, from_cpu, dp_bitmap, packet_is_rstp, nr_frags);
 	if (unlikely(ret)) {
 		dev_kfree_skb_any(skb);
 		adapter->stats.tx_errors++;
