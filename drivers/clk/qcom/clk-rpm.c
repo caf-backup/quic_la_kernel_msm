@@ -240,7 +240,7 @@ static int rpm_clk_probe(struct platform_device *pdev)
 static struct platform_driver rpm_clk_driver = {
 	.probe		= rpm_clk_probe,
 	.driver		= {
-		.name	= "qcom-rpm-clk",
+		.name	= "qcom,rpm-clk",
 		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(clk_rpm_of_match),
 	},
