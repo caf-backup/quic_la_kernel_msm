@@ -310,6 +310,14 @@ static const struct spi_device_id m25p_ids[] = {
 };
 MODULE_DEVICE_TABLE(spi, m25p_ids);
 
+static void m25p_shutdown(struct spi_device *spi)
+{
+	struct m25p	*flash = spi_get_drvdata(spi);
+	struct spi_nor	*nor = &flash->spi_nor;
+
+	/* Ensure no pending flash operation in progress */
+	nor->wait_till_ready(nor);
+}
 
 static struct spi_driver m25p80_driver = {
 	.driver = {
@@ -319,6 +327,7 @@ static struct spi_driver m25p80_driver = {
 	.id_table	= m25p_ids,
 	.probe	= m25p_probe,
 	.remove	= m25p_remove,
+	.shutdown	= m25p_shutdown,
 
 	/* REVISIT: many of these chips have deep power-down modes, which
 	 * should clearly be entered on suspend() to minimize power use.
