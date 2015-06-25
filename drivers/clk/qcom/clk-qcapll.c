@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013, 2015 The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -22,210 +22,183 @@
 
 #include <asm/div64.h>
 
-#include "clk-pll.h"
+#include "clk-qcapll.h"
 
-#define PLL_OUTCTRL		BIT(0)
-#define PLL_BYPASSNL		BIT(1)
-#define PLL_RESET_N		BIT(2)
-#define PLL_LOCK_COUNT_SHIFT	8
-#define PLL_LOCK_COUNT_MASK	0x3f
-#define PLL_BIAS_COUNT_SHIFT	14
-#define PLL_BIAS_COUNT_MASK	0x3f
-#define PLL_VOTE_FSM_ENA	BIT(20)
-#define PLL_VOTE_FSM_RESET	BIT(21)
+#define PLL_CONFIG1_SRESET_L		BIT(0)
+#define PLL_CONFIG1_REG_BYPASS		BIT(2)
+#define PLL_MODULATION_START		BIT(0)
 
-static int clk_pll_enable(struct clk_hw *hw)
+#define PLL_POSTDIV_MASK	0x380
+#define PLL_POSTDIV_SHFT	7
+#define PLL_REFDIV_MASK		0x7
+#define PLL_REFDIV_SHFT		0
+#define PLL_TGT_INT_SHFT	1
+#define PLL_TGT_INT_MASK	0x3FE
+#define PLL_TGT_FRAC_MASK	0x1FFFF800
+#define PLL_TGT_FRAC_SHFT	11
+
+#define PLL_CONFIG_PLLPWD BIT(1)
+
+static int clk_qcapll_enable(struct clk_hw *hw)
 {
-	struct clk_pll *pll = to_clk_pll(hw);
+	struct clk_qcapll *pll = to_clk_qcapll(hw);
 	int ret;
-	u32 mask, val;
-
-	mask = PLL_OUTCTRL | PLL_RESET_N | PLL_BYPASSNL;
-	ret = regmap_read(pll->clkr.regmap, pll->mode_reg, &val);
-	if (ret)
-		return ret;
-
-	/* Skip if already enabled or in FSM mode */
-	if ((val & mask) == mask || val & PLL_VOTE_FSM_ENA)
-		return 0;
 
 	/* Disable PLL bypass mode. */
-	ret = regmap_update_bits(pll->clkr.regmap, pll->mode_reg, PLL_BYPASSNL,
-				 PLL_BYPASSNL);
-	if (ret)
-		return ret;
-
-	/*
-	 * H/W requires a 5us delay between disabling the bypass and
-	 * de-asserting the reset. Delay 10us just to be safe.
-	 */
-	udelay(10);
-
-	/* De-assert active-low PLL reset. */
-	ret = regmap_update_bits(pll->clkr.regmap, pll->mode_reg, PLL_RESET_N,
-				 PLL_RESET_N);
-	if (ret)
-		return ret;
-
-	/* Wait until PLL is locked. */
-	udelay(50);
-
-	/* Enable PLL output. */
-	ret = regmap_update_bits(pll->clkr.regmap, pll->mode_reg, PLL_OUTCTRL,
-				 PLL_OUTCTRL);
+	ret = regmap_update_bits(pll->clkr.regmap, pll->config_reg,
+				 PLL_CONFIG_PLLPWD, PLL_CONFIG_PLLPWD);
 	if (ret)
 		return ret;
 
 	return 0;
 }
 
-static void clk_pll_disable(struct clk_hw *hw)
+static void clk_qcapll_disable(struct clk_hw *hw)
 {
-	struct clk_pll *pll = to_clk_pll(hw);
-	u32 mask;
-	u32 val;
+	struct clk_qcapll *pll = to_clk_qcapll(hw);
 
-	regmap_read(pll->clkr.regmap, pll->mode_reg, &val);
-	/* Skip if in FSM mode */
-	if (val & PLL_VOTE_FSM_ENA)
-		return;
-	mask = PLL_OUTCTRL | PLL_RESET_N | PLL_BYPASSNL;
-	regmap_update_bits(pll->clkr.regmap, pll->mode_reg, mask, 0);
+	/* Enable PLL bypass mode. */
+	regmap_update_bits(pll->clkr.regmap, pll->config_reg, PLL_CONFIG_PLLPWD,
+			   0);
 }
 
 static unsigned long
-clk_pll_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
+clk_qcapll_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 {
-	struct clk_pll *pll = to_clk_pll(hw);
-	u32 l, m, n;
-	unsigned long rate;
-	u64 tmp;
+	struct clk_qcapll *pll = to_clk_qcapll(hw);
+	u32 ref_div, post_plldiv, tgt_div_frac, tgt_div_int;
+	u32 rate, config, mod_reg;
 
-	regmap_read(pll->clkr.regmap, pll->l_reg, &l);
-	regmap_read(pll->clkr.regmap, pll->m_reg, &m);
-	regmap_read(pll->clkr.regmap, pll->n_reg, &n);
+	regmap_read(pll->clkr.regmap, pll->config_reg, &config);
+	regmap_read(pll->clkr.regmap, pll->current_mod_pll_reg, &mod_reg);
 
-	l &= 0x3ff;
-	m &= 0x7ffff;
-	n &= 0x7ffff;
+	ref_div = (config >> PLL_REFDIV_SHFT) & PLL_REFDIV_MASK;
+	post_plldiv = (config >> PLL_POSTDIV_SHFT) & PLL_POSTDIV_MASK;
+	tgt_div_frac = (mod_reg >> PLL_TGT_FRAC_SHFT) & PLL_TGT_FRAC_MASK;
+	tgt_div_int = (mod_reg >> PLL_TGT_INT_SHFT) & PLL_TGT_INT_MASK;
 
-	rate = parent_rate * l;
-	if (n) {
-		tmp = parent_rate;
-		tmp *= m;
-		do_div(tmp, n);
-		rate += tmp;
+	/*FICO = (Fref / (refdiv+1)) * (Ninv + Nfrac[17:5]/2^13
+	   + Nfrac[4:0]/(25*2^13)). */
+	rate = parent_rate / (ref_div + 1);
+
+	if ((tgt_div_frac & 0x1f) && (tgt_div_frac >> 5)) {
+		rate *= tgt_div_int + ((tgt_div_frac >> 5) / 8192) +
+		    ((tgt_div_frac & 0x1f) / (8192 * 25));
+	} else {
+		rate *= tgt_div_int;
 	}
 	return rate;
 }
 
-const struct clk_ops clk_pll_ops = {
-	.enable = clk_pll_enable,
-	.disable = clk_pll_disable,
-	.recalc_rate = clk_pll_recalc_rate,
-};
-EXPORT_SYMBOL_GPL(clk_pll_ops);
-
-static int wait_for_pll(struct clk_pll *pll)
+static const
+struct pll_freq_tbl *find_freq(const struct pll_freq_tbl *f, unsigned long rate)
 {
-	u32 val;
-	int count;
-	int ret;
-	const char *name = __clk_get_name(pll->clkr.hw.clk);
+	if (!f)
+		return NULL;
 
-	/* Wait for pll to enable. */
-	for (count = 200; count > 0; count--) {
-		ret = regmap_read(pll->clkr.regmap, pll->status_reg, &val);
-		if (ret)
-			return ret;
-		if (val & BIT(pll->status_bit))
-			return 0;
-		udelay(1);
-	}
+	for (; f->freq; f++)
+		if (rate <= f->freq)
+			return f;
 
-	WARN(1, "%s didn't enable after voting for it!\n", name);
-	return -ETIMEDOUT;
+	return NULL;
 }
 
-static int clk_pll_vote_enable(struct clk_hw *hw)
+static long
+clk_qcapll_determine_rate(struct clk_hw *hw, unsigned long rate,
+			  unsigned long *p_rate, struct clk **p)
 {
-	int ret;
-	struct clk_pll *p = to_clk_pll(__clk_get_hw(__clk_get_parent(hw->clk)));
+	struct clk_qcapll *pll = to_clk_qcapll(hw);
+	const struct pll_freq_tbl *f;
 
-	ret = clk_enable_regmap(hw);
+	f = find_freq(pll->freq_tbl, rate);
+	if (!f)
+		return clk_qcapll_recalc_rate(hw, *p_rate);
+
+	return f->freq;
+}
+
+static int
+clk_qcapll_set_rate(struct clk_hw *hw, unsigned long rate, unsigned long p_rate)
+{
+	struct clk_qcapll *pll = to_clk_qcapll(hw);
+	const struct pll_freq_tbl *f;
+	u32 val, mask;
+	int ret;
+
+	f = find_freq(pll->freq_tbl, rate);
+	if (!f)
+		return -EINVAL;
+
+	val = f->postplldiv << PLL_POSTDIV_SHFT;
+	val |= f->refdiv << PLL_REFDIV_SHFT;
+
+	mask = PLL_POSTDIV_MASK | PLL_REFDIV_MASK;
+	ret = regmap_update_bits(pll->clkr.regmap, pll->config_reg, mask, val);
 	if (ret)
 		return ret;
 
-	return wait_for_pll(p);
+	val = f->tgt_div_int << PLL_TGT_INT_SHFT;
+	val |= f->tgt_div_frac << PLL_TGT_FRAC_SHFT;
+
+	mask = PLL_TGT_FRAC_MASK | PLL_TGT_INT_MASK;
+	regmap_update_bits(pll->clkr.regmap, pll->mod_reg, mask, val);
+	if (ret)
+		return ret;
+
+	/* Start the PLL start the Modulation. */
+	ret = regmap_update_bits(pll->clkr.regmap, pll->mod_reg,
+				 PLL_MODULATION_START, 1);
+	if (ret)
+		return ret;
+
+	/* Wait until PLL is locked. */
+	udelay(50);
+
+	return 0;
 }
 
-const struct clk_ops clk_pll_vote_ops = {
-	.enable = clk_pll_vote_enable,
-	.disable = clk_disable_regmap,
+const struct clk_ops clk_qcapll_ops = {
+	.enable = clk_qcapll_enable,
+	.disable = clk_qcapll_disable,
+	.recalc_rate = clk_qcapll_recalc_rate,
+	.determine_rate = clk_qcapll_determine_rate,
+	.set_rate = clk_qcapll_set_rate,
 };
-EXPORT_SYMBOL_GPL(clk_pll_vote_ops);
 
-static void
-clk_pll_set_fsm_mode(struct clk_pll *pll, struct regmap *regmap, u8 lock_count)
+EXPORT_SYMBOL_GPL(clk_qcapll_ops);
+
+static void clk_qcapll_configure(struct clk_qcapll *pll, struct regmap *regmap,
+				 const struct qcapll_config *config)
 {
 	u32 val;
 	u32 mask;
 
-	/* De-assert reset to FSM */
-	regmap_update_bits(regmap, pll->mode_reg, PLL_VOTE_FSM_RESET, 0);
+	/*Reset the QCAPLL */
+	regmap_write(regmap, pll->config1_reg,
+		     !(config->audio_pll_config1_sreset_l_mask));
+	udelay(2);
+	regmap_write(regmap, pll->config1_reg,
+		     config->audio_pll_config1_sreset_l_mask);
 
-	/* Program bias count and lock count */
-	val = 1 << PLL_BIAS_COUNT_SHIFT | lock_count << PLL_LOCK_COUNT_SHIFT;
-	mask = PLL_BIAS_COUNT_MASK << PLL_BIAS_COUNT_SHIFT;
-	mask |= PLL_LOCK_COUNT_MASK << PLL_LOCK_COUNT_SHIFT;
-	regmap_update_bits(regmap, pll->mode_reg, mask, val);
+	val = config->pll_config_postplldiv;
+	val |= config->pll_config_refdiv;
 
-	/* Enable PLL FSM voting */
-	regmap_update_bits(regmap, pll->mode_reg, PLL_VOTE_FSM_ENA,
-		PLL_VOTE_FSM_ENA);
-}
-
-static void clk_pll_configure(struct clk_pll *pll, struct regmap *regmap,
-	const struct pll_config *config)
-{
-	u32 val;
-	u32 mask;
-
-	regmap_write(regmap, pll->l_reg, config->l);
-	regmap_write(regmap, pll->m_reg, config->m);
-	regmap_write(regmap, pll->n_reg, config->n);
-
-	val = config->vco_val;
-	val |= config->pre_div_val;
-	val |= config->post_div_val;
-	val |= config->mn_ena_mask;
-	val |= config->main_output_mask;
-	val |= config->aux_output_mask;
-
-	mask = config->vco_mask;
-	mask |= config->pre_div_mask;
-	mask |= config->post_div_mask;
-	mask |= config->mn_ena_mask;
-	mask |= config->main_output_mask;
-	mask |= config->aux_output_mask;
-
+	mask = config->pll_config_postplldiv_mask;
+	mask |= config->pll_config_refdiv_mask;
 	regmap_update_bits(regmap, pll->config_reg, mask, val);
+
+	val = config->pll_modulation_tgt_div_frac;
+	val |= config->pll_modulation_tgt_div_int;
+
+	mask = config->pll_modulation_tgt_div_frac_mask;
+	mask |= config->pll_modulation_tgt_div_int_mask;
+	regmap_update_bits(regmap, pll->mod_reg, mask, val);
 }
 
-void clk_pll_configure_sr(struct clk_pll *pll, struct regmap *regmap,
-		const struct pll_config *config, bool fsm_mode)
+void clk_qcapll_configure_adss(struct clk_qcapll *pll, struct regmap *regmap,
+			       const struct qcapll_config *config)
 {
-	clk_pll_configure(pll, regmap, config);
-	if (fsm_mode)
-		clk_pll_set_fsm_mode(pll, regmap, 8);
+	clk_qcapll_configure(pll, regmap, config);
 }
-EXPORT_SYMBOL_GPL(clk_pll_configure_sr);
 
-void clk_pll_configure_sr_hpm_lp(struct clk_pll *pll, struct regmap *regmap,
-		const struct pll_config *config, bool fsm_mode)
-{
-	clk_pll_configure(pll, regmap, config);
-	if (fsm_mode)
-		clk_pll_set_fsm_mode(pll, regmap, 0);
-}
-EXPORT_SYMBOL_GPL(clk_pll_configure_sr_hpm_lp);
+EXPORT_SYMBOL_GPL(clk_qcapll_configure_adss);
