@@ -94,6 +94,35 @@ int ipq40xx_mbox_dma_start(int channel_id)
 }
 EXPORT_SYMBOL(ipq40xx_mbox_dma_start);
 
+int ipq40xx_mbox_dma_resume(int channel_id)
+{
+	volatile void __iomem *mbox_reg;
+	uint32_t index, dir;
+
+	index = ipq40xx_convert_id_to_channel(channel_id);
+	dir = ipq40xx_convert_id_to_dir(channel_id);
+
+	if (!mbox_rtime[index])
+		return -ENOMEM;
+
+	mbox_reg = mbox_rtime[index]->mbox_reg_base;
+
+	switch (dir) {
+	case PLAYBACK:
+		writel(ADSS_MBOXn_DMA_RX_CONTROL_RESUME,
+			mbox_reg + ADSS_MBOXn_MBOXn_DMA_RX_CONTROL_REG);
+		break;
+
+	case CAPTURE:
+		writel(ADSS_MBOXn_DMA_TX_CONTROL_RESUME,
+			mbox_reg + ADSS_MBOXn_MBOXn_DMA_TX_CONTROL_REG);
+		break;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(ipq40xx_mbox_dma_resume);
+
 int ipq40xx_mbox_dma_stop(int channel_id)
 {
 	volatile void __iomem *mbox_reg;
