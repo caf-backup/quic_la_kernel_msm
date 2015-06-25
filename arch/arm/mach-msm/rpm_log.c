@@ -64,6 +64,15 @@ msm_rpm_log_read(const struct msm_rpm_log_platform_data *pdata, u32 page,
 				+ reg * 4);
 }
 
+static void
+msm_rpm_log_write(const struct msm_rpm_log_platform_data *pdata, u32 page,
+                 u32 reg, u32 val)
+{
+	writel_relaxed(val, pdata->reg_base + pdata->reg_offsets[page]
+				+ reg * 4);
+}
+
+
 /*
  * msm_rpm_log_copy() - Copies messages from a volatile circular buffer in
  *			the RPM's shared memory into a private local buffer
@@ -109,6 +118,8 @@ static u32 msm_rpm_log_copy(const struct msm_rpm_log_platform_data *pdata,
 	while (tail_idx - head_idx > 0 && tail_idx - *read_idx > 0) {
 		head_idx = msm_rpm_log_read(pdata, MSM_RPM_LOG_PAGE_INDICES,
 					    MSM_RPM_LOG_HEAD);
+		tail_idx = msm_rpm_log_read(pdata, MSM_RPM_LOG_PAGE_INDICES,
+					    MSM_RPM_LOG_TAIL);
 		/* check if the message to be read is valid */
 		if (tail_idx - *read_idx > tail_idx - head_idx) {
 			*read_idx = head_idx;
@@ -123,7 +134,8 @@ static u32 msm_rpm_log_copy(const struct msm_rpm_log_platform_data *pdata,
 			break;
 
 		msg_len = msm_rpm_log_read(pdata, MSM_RPM_LOG_PAGE_BUFFER,
-					(*read_idx >> 2) & pdata->log_len_mask);
+					((*read_idx) & pdata->log_len_mask) >> 2);
+
 
 		/* handle messages that claim to be longer than the log */
 		if (PADDED_LENGTH(msg_len) > tail_idx - *read_idx - 4)
@@ -134,7 +146,9 @@ static u32 msm_rpm_log_copy(const struct msm_rpm_log_platform_data *pdata,
 			break;
 
 		pos_start = pos;
-		pos += scnprintf(msg_buffer + pos, buf_len - pos, "- ");
+
+		if (msg_len)
+			pos += scnprintf(msg_buffer + pos, buf_len - pos, "- ");
 
 		/* copy message payload to local buffer */
 		for (i = 0; i < msg_len; i++) {
@@ -142,17 +156,24 @@ static u32 msm_rpm_log_copy(const struct msm_rpm_log_platform_data *pdata,
 			if (IS_ALIGNED(i, 4))
 				*((u32 *)temp) = msm_rpm_log_read(pdata,
 						MSM_RPM_LOG_PAGE_BUFFER,
-						((*read_idx + 4 + i) >> 2) &
-							pdata->log_len_mask);
+						((*read_idx + 4 + i) &
+							pdata->log_len_mask) >> 2);
 
 			pos += scnprintf(msg_buffer + pos, buf_len - pos,
 					 "0x%02X, ", temp[i & 0x03]);
 		}
 
-		pos += scnprintf(msg_buffer + pos, buf_len - pos, "\n");
+		/* Set msg len to 0 after reading to avoid duplication */
+		msm_rpm_log_write(pdata, MSM_RPM_LOG_PAGE_BUFFER,
+					((*read_idx) & pdata->log_len_mask) >> 2, 0);
+
+		if (msg_len)
+			pos += scnprintf(msg_buffer + pos, buf_len - pos, "\n");
 
 		head_idx = msm_rpm_log_read(pdata, MSM_RPM_LOG_PAGE_INDICES,
 					    MSM_RPM_LOG_HEAD);
+		tail_idx = msm_rpm_log_read(pdata, MSM_RPM_LOG_PAGE_INDICES,
+					    MSM_RPM_LOG_TAIL);
 
 		/* roll back if message that was read is not still valid */
 		if (tail_idx - *read_idx > tail_idx - head_idx)
@@ -184,14 +205,16 @@ static ssize_t msm_rpm_log_file_read(struct file *file, char __user *bufu,
 	struct msm_rpm_log_buffer *buf;
 
 	buf = file->private_data;
-	pdata = buf->pdata;
-	if (!pdata)
-		return -EINVAL;
 	if (!buf)
 		return -ENOMEM;
+
+	pdata = buf->pdata;
+	if (!pdata)
+                return -EINVAL;
+
 	if (!buf->data)
 		return -ENOMEM;
-	if (!bufu || count < 0)
+	if (!bufu || count == 0)
 		return -EINVAL;
 	if (!access_ok(VERIFY_WRITE, bufu, count))
 		return -EFAULT;
