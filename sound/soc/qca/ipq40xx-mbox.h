@@ -88,6 +88,7 @@ int ipq40xx_mbox_fifo_reset(int channel_id);
 int ipq40xx_mbox_dma_start(int channel_id);
 int ipq40xx_mbox_dma_stop(int channel_id);
 int ipq40xx_mbox_dma_prepare(int channel_id);
+int ipq40xx_mbox_dma_resume(int channel_id);
 int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr,
 				int period_bytes, int bufsize);
 int ipq40xx_mbox_dma_release(int channel);
