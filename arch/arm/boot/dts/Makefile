@@ -247,7 +247,11 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-ipq40xx-ap.dk01.1-c2.dtb \
 	qcom-ipq40xx-ap.dk04.1-c1.dtb \
 	qcom-ipq40xx-ap.dk04.1-c2.dtb \
-	qcom-ipq40xx-ap.dk04.1-c3.dtb
+	qcom-ipq40xx-ap.dk04.1-c3.dtb \
+	qcom-ipq8064-ap145.dtb \
+	qcom-ipq8064-v2.0-ap145.dtb \
+	qcom-ipq8064-ap161.dtb \
+	qcom-ipq8064-v2.0-ap161.dtb
 dtb-$(CONFIG_ARCH_U8500) += ste-snowball.dtb \
 	ste-hrefprev60-stuib.dtb \
 	ste-hrefprev60-tvk.dtb \
