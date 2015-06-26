@@ -25,7 +25,6 @@ enum {
 struct msm_rpm_log_platform_data {
 	u32 reg_offsets[MSM_RPM_LOG_PAGE_COUNT];
 	u32 log_len;
-	u32 log_len_mask;
 	phys_addr_t phys_addr_base;
 	u32 phys_size;
 	void __iomem *reg_base;

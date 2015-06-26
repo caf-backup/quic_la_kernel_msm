@@ -2175,6 +2175,8 @@ struct platform_device ipq806x_rpm_master_stat_device = {
 	},
 };
 
+#define RPM_LOG_BUF_LEN		(1536 * sizeof(uint32_t)) /* in bytes */
+
 static struct msm_rpm_log_platform_data msm_rpm_log_pdata = {
 	.phys_addr_base = 0x0010C0C8,
 	.reg_offsets = {
@@ -2182,8 +2184,7 @@ static struct msm_rpm_log_platform_data msm_rpm_log_pdata = {
 		[MSM_RPM_LOG_PAGE_BUFFER]  = 0x000000A0,
 	},
 	.phys_size = SZ_8K,
-	.log_len = 4096,		  /* log's buffer length in bytes */
-	.log_len_mask = (4096 >> 2) - 1,  /* length mask in units of u32 */
+	.log_len = RPM_LOG_BUF_LEN,
 };
 
 struct platform_device ipq806x_rpm_log_device = {
