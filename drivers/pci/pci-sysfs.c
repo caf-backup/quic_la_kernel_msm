@@ -32,6 +32,8 @@
 #include "pci.h"
 
 static int sysfs_initialized;	/* = 0 */
+extern int msm_pcie_rescan(void);
+extern void msm_pcie_remove_bus(void);
 
 /* show configuration fields */
 #define pci_config_attr(field, format_string)				\
@@ -297,6 +299,24 @@ msi_bus_store(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RW(msi_bus);
 
+static ssize_t msm_bus_rescan_store(struct bus_type *bus, const char *buf,
+					size_t count)
+{
+	unsigned long val;
+
+	if (kstrtoul(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	if (val) {
+		pci_lock_rescan_remove();
+		msm_pcie_rescan();
+		pci_unlock_rescan_remove();
+	}
+	return count;
+}
+
+static BUS_ATTR(rcrescan, (S_IWUSR|S_IWGRP), NULL, msm_bus_rescan_store);
+
 static ssize_t bus_rescan_store(struct bus_type *bus, const char *buf,
 				size_t count)
 {
@@ -318,6 +338,7 @@ static BUS_ATTR(rescan, (S_IWUSR|S_IWGRP), NULL, bus_rescan_store);
 
 static struct attribute *pci_bus_attrs[] = {
 	&bus_attr_rescan.attr,
+	&bus_attr_rcrescan.attr,
 	NULL,
 };
 
@@ -378,6 +399,30 @@ remove_store(struct device *dev, struct device_attribute *dummy,
 static struct device_attribute dev_remove_attr = __ATTR(remove,
 							(S_IWUSR|S_IWGRP),
 							NULL, remove_store);
+
+static void msm_remove_callback(struct device *dev)
+{
+	msm_pcie_remove_bus();
+}
+
+static ssize_t
+msm_bus_remove_store(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	unsigned long val;
+	int ret = 0;
+
+	if (kstrtoul(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	if (val)
+		ret = device_schedule_callback(dev, msm_remove_callback);
+	if (ret)
+		count = ret;
+
+	return count;
+}
+static DEVICE_ATTR(rcremove, (S_IWUSR|S_IWGRP), NULL, msm_bus_remove_store);
 
 static ssize_t
 dev_bus_rescan_store(struct device *dev, struct device_attribute *attr,
@@ -546,6 +591,7 @@ const struct attribute_group *pci_dev_groups[] = {
 
 static struct attribute *pcibus_attrs[] = {
 	&dev_attr_rescan.attr,
+	&dev_attr_rcremove.attr,
 	&dev_attr_cpuaffinity.attr,
 	&dev_attr_cpulistaffinity.attr,
 	NULL,
