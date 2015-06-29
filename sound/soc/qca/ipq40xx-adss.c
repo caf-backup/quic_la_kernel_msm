@@ -226,17 +226,17 @@ void ipq40xx_i2s_intf_clk_cfg(uint32_t mode)
 		/* Clock Dividers for stereo 48Khz 32bit */
 		TXM_Src_Sel	= 1;	/* ADSS_AUDIO_TXM_CFG_RCGR_REG */
 		TXM_Div		= 1;	/* "" */
-		TXM_Misc_Div	= 7;	/* ADSS_AUDIO_TXM_MISC_REG */
+		TXM_Misc_Div	= 15;	/* ADSS_AUDIO_TXM_MISC_REG */
 
-		TXB_Src_Sel	= 2;	/* ADSS_AUDIO_TXB_CFG_MUXR_REG */
-		TXB_Misc_Div	= 0;	/* ADSS_AUDIO_TXB_MISC_REG */
+		TXB_Src_Sel	= 1;	/* ADSS_AUDIO_TXB_CFG_MUXR_REG */
+		TXB_Misc_Div	= 63;	/* ADSS_AUDIO_TXB_MISC_REG */
 
 		RXM_Src_Sel	= 1;	/* ADSS_AUDIO_RXM_CFG_RCGR_REG  */
 		RXM_Div		= 1;	/* "" */
-		RXM_Misc_Div	= 7;	/* ADSS_AUDIO_RXM_MISC_REG  */
+		RXM_Misc_Div	= 15;	/* ADSS_AUDIO_RXM_MISC_REG  */
 
-		RXB_Src_Sel	= 2;	/* ADSS_AUDIO_RXB_CFG_MUXR_REG  */
-		RXB_Misc_Div	= 0;	/* ADSS_AUDIO_RXB_MISC_REG  */
+		RXB_Src_Sel	= 1;	/* ADSS_AUDIO_RXB_CFG_MUXR_REG  */
+		RXB_Misc_Div	= 63;	/* ADSS_AUDIO_RXB_MISC_REG  */
 
 	} else if (mode == TDM) {
 		/* Clock Dividers for 8 channel 96Khz 32bit */
@@ -244,15 +244,15 @@ void ipq40xx_i2s_intf_clk_cfg(uint32_t mode)
 		TXM_Div		= 1;	/* "" */
 		TXM_Misc_Div	= 7;	/* ADSS_AUDIO_TXM_MISC_REG */
 
-		TXB_Src_Sel	= 2;	/* ADSS_AUDIO_TXB_CFG_MUXR_REG */
-		TXB_Misc_Div	= 0;	/* ADSS_AUDIO_TXB_MISC_REG */
+		TXB_Src_Sel	= 1;	/* ADSS_AUDIO_TXB_CFG_MUXR_REG */
+		TXB_Misc_Div	= 7;	/* ADSS_AUDIO_TXB_MISC_REG */
 
 		RXM_Src_Sel	= 1;	/* ADSS_AUDIO_RXM_CFG_RCGR_REG  */
 		RXM_Div		= 1;	/* "" */
 		RXM_Misc_Div	= 7;	/* ADSS_AUDIO_RXM_MISC_REG  */
 
-		RXB_Src_Sel	= 2;	/* ADSS_AUDIO_RXB_CFG_MUXR_REG  */
-		RXB_Misc_Div	= 0;	/* ADSS_AUDIO_RXB_MISC_REG  */
+		RXB_Src_Sel	= 1;	/* ADSS_AUDIO_RXB_CFG_MUXR_REG  */
+		RXB_Misc_Div	= 7;	/* ADSS_AUDIO_RXB_MISC_REG  */
 
 	} else if (mode == SPDIF) {
 		TXM_Src_Sel     = 1;    /* ADSS_AUDIO_TXM_CFG_RCGR_REG */
