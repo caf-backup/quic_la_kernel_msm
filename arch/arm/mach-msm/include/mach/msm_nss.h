@@ -44,8 +44,9 @@ struct nss_platform_data {
 	uint32_t load_addr;	/* Load address of NSS firmware */
 	enum nss_feature_enabled turbo_frequency;	/* Does this core support turbo frequencies */
 	enum nss_feature_enabled ipv4_enabled;	/* Does this core handle IPv4? */
-	enum nss_feature_enabled ipv4_reasm_enabled;	/* Does this core handle IPv4? */
+	enum nss_feature_enabled ipv4_reasm_enabled;	/* Does this core handle IPv4 reassembly? */
 	enum nss_feature_enabled ipv6_enabled;	/* Does this core handle IPv6? */
+	enum nss_feature_enabled ipv6_reasm_enabled;	/* Does this core handle IPv6 reassembly? */
 	enum nss_feature_enabled l2switch_enabled;	/* Does this core handle L2 switch? */
 	enum nss_feature_enabled crypto_enabled;	/* Does this core handle crypto? */
 	enum nss_feature_enabled ipsec_enabled;	/* Does this core handle IPsec? */
