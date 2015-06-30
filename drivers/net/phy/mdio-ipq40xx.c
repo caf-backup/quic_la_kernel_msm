@@ -28,35 +28,35 @@
 #define MDIO_CTRL_2_REG		(0x48)
 #define MDIO_CTRL_3_REG		(0x4c)
 #define MDIO_CTRL_4_REG		(0x50)
-#define MDIO_CTRL_4_ACCESS_BUSY 	(1<<16)
+#define MDIO_CTRL_4_ACCESS_BUSY		(1<<16)
 #define MDIO_CTRL_4_ACCESS_START	(1<<8)
 #define MDIO_CTRL_4_ACCESS_CODE_READ	(0)
 #define MDIO_CTRL_4_ACCESS_CODE_WRITE	(1)
 #define CTRL_0_REG_DEFAULT_VALUE	(0x150FF)
 
-#define QCA961X_MDIO_RETRY	1000
-#define QCA961X_MDIO_DELAY	5
+#define IPQ40XX_MDIO_RETRY	1000
+#define IPQ40XX_MDIO_DELAY	5
 
-struct qca961x_mdio_data {
+struct ipq40xx_mdio_data {
 	struct mii_bus		*mii_bus;
 	void __iomem		*membase;
 	int phy_irq[PHY_MAX_ADDR];
 };
 
-static int qca961x_mdio_wait_busy(struct qca961x_mdio_data *am)
+static int ipq40xx_mdio_wait_busy(struct ipq40xx_mdio_data *am)
 {
 	int i;
 
-	for (i = 0; i < QCA961X_MDIO_RETRY; i++) {
+	for (i = 0; i < IPQ40XX_MDIO_RETRY; i++) {
 		unsigned int busy;
 
-		udelay(QCA961X_MDIO_DELAY);
+		udelay(IPQ40XX_MDIO_DELAY);
 
 		busy = readl(am->membase + MDIO_CTRL_4_REG)&MDIO_CTRL_4_ACCESS_BUSY;
 		if (!busy)
 			return 0;
 
-		udelay(QCA961X_MDIO_DELAY);
+		udelay(IPQ40XX_MDIO_DELAY);
 	}
 
 	pr_err("%s: MDIO operation timed out\n", am->mii_bus->name);
@@ -64,13 +64,13 @@ static int qca961x_mdio_wait_busy(struct qca961x_mdio_data *am)
 	return -ETIMEDOUT;
 }
 
-static int qca961x_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
+static int ipq40xx_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 {
-	struct qca961x_mdio_data *am = bus->priv;
+	struct ipq40xx_mdio_data *am = bus->priv;
 	int value = 0;
 	unsigned int cmd = 0;
 
-	if(qca961x_mdio_wait_busy(am))
+	if (ipq40xx_mdio_wait_busy(am))
 		return 0xffff;
 
 	/* issue the phy address and reg */
@@ -82,7 +82,7 @@ static int qca961x_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 	writel(cmd, am->membase + MDIO_CTRL_4_REG);
 
 	/* Wait read complete */
-	if(qca961x_mdio_wait_busy(am))
+	if (ipq40xx_mdio_wait_busy(am))
 		return 0xffff;
 
 	/* Read data */
@@ -91,13 +91,13 @@ static int qca961x_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 	return value;
 }
 
-static int qca961x_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
+static int ipq40xx_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 			    u16 value)
 {
-	struct qca961x_mdio_data *am = bus->priv;
+	struct ipq40xx_mdio_data *am = bus->priv;
 	unsigned int cmd = 0;
 
-	if(qca961x_mdio_wait_busy(am))
+	if (ipq40xx_mdio_wait_busy(am))
 		return 0xffff;
 
 	/* issue the phy address and reg */
@@ -111,15 +111,15 @@ static int qca961x_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 	writel(cmd, am->membase + MDIO_CTRL_4_REG);
 
 	/* Wait write complete */
-	if(qca961x_mdio_wait_busy(am))
+	if (ipq40xx_mdio_wait_busy(am))
 		return -ETIMEDOUT;
 
 	return 0;
 }
 
-static int qca961x_mdio_probe(struct platform_device *pdev)
+static int ipq40xx_mdio_probe(struct platform_device *pdev)
 {
-	struct qca961x_mdio_data *am;
+	struct ipq40xx_mdio_data *am;
 	struct resource *res;
 	int ret, i;
 
@@ -149,9 +149,9 @@ static int qca961x_mdio_probe(struct platform_device *pdev)
 
 	writel(CTRL_0_REG_DEFAULT_VALUE, am->membase + MDIO_CTRL_0_REG);
 
-	am->mii_bus->name = "qca961x_mdio";
-	am->mii_bus->read = &qca961x_mdio_read;
-	am->mii_bus->write = &qca961x_mdio_write;
+	am->mii_bus->name = "ipq40xx_mdio";
+	am->mii_bus->read = &ipq40xx_mdio_read;
+	am->mii_bus->write = &ipq40xx_mdio_write;
 	am->mii_bus->irq = am->phy_irq;
 	am->mii_bus->priv = am;
 	am->mii_bus->parent = &pdev->dev;
@@ -166,7 +166,7 @@ static int qca961x_mdio_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_free_bus;
 
-	dev_info(&pdev->dev, "qca961x-mdio driver was registered\n");
+	dev_info(&pdev->dev, "ipq40xx-mdio driver was registered\n");
 
 	return 0;
 
@@ -180,11 +180,11 @@ err_out:
 	return ret;
 }
 
-static int qca961x_mdio_remove(struct platform_device *pdev)
+static int ipq40xx_mdio_remove(struct platform_device *pdev)
 {
-	struct qca961x_mdio_data *am = platform_get_drvdata(pdev);
+	struct ipq40xx_mdio_data *am = platform_get_drvdata(pdev);
 
-	if(am) {
+	if (am) {
 		mdiobus_unregister(am->mii_bus);
 		mdiobus_free(am->mii_bus);
 		iounmap(am->membase);
@@ -195,22 +195,22 @@ static int qca961x_mdio_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id qca961x_mdio_dt_ids[] = {
-	{ .compatible = "qcom,qca961x-mdio" },
+static const struct of_device_id ipq40xx_mdio_dt_ids[] = {
+	{ .compatible = "qcom,ipq40xx-mdio" },
 	{ }
 };
-MODULE_DEVICE_TABLE(of, qca961x_mdio_dt_ids);
+MODULE_DEVICE_TABLE(of, ipq40xx_mdio_dt_ids);
 
-static struct platform_driver qca961x_mdio_driver = {
-	.probe = qca961x_mdio_probe,
-	.remove = qca961x_mdio_remove,
+static struct platform_driver ipq40xx_mdio_driver = {
+	.probe = ipq40xx_mdio_probe,
+	.remove = ipq40xx_mdio_remove,
 	.driver = {
-		.name = "qca961x-mdio",
-		.of_match_table = qca961x_mdio_dt_ids,
+		.name = "ipq40xx-mdio",
+		.of_match_table = ipq40xx_mdio_dt_ids,
 	},
 };
 
-module_platform_driver(qca961x_mdio_driver);
+module_platform_driver(ipq40xx_mdio_driver);
 
-MODULE_DESCRIPTION("QCA961X MDIO interface driver");
+MODULE_DESCRIPTION("IPQ40XX MDIO interface driver");
 MODULE_LICENSE("Dual BSD/GPL");
