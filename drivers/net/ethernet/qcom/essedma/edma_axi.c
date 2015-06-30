@@ -284,6 +284,7 @@ static int edma_axi_probe(struct platform_device *pdev)
 	struct platform_device *mdio_plat = NULL;
 	struct mii_bus *miibus = NULL;
 	struct edma_mdio_data *mdio_data = NULL;
+	struct reset_control *ess_rst;
 	int i, j, err = 0, ret = 0;
 	uint8_t phy_id[MII_BUS_ID_SIZE + 3];
 	const __be32 *prop = NULL;
@@ -295,10 +296,15 @@ static int edma_axi_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (device_reset(&dev)) {
-		dev_err(&dev, "ess-edma reset failed\n");
-		return -EINVAL;
+	ess_rst = devm_reset_control_get(&pdev->dev, "ess_rst");
+	if (IS_ERR(ess_rst)) {
+		dev_err(&pdev->dev, "ess-edma reset failed\n");
+		return PTR_ERR(ess_rst);
 	}
+
+	reset_control_assert(ess_rst);
+	udelay(200);
+	reset_control_deassert(ess_rst);
 
 	/* Use to allocate net devices for multiple TX/RX queues */
 	netdev[0] = alloc_etherdev_mqs(sizeof(struct edma_adapter),
