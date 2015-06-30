@@ -92,7 +92,7 @@ Example:
 ----------------------
 
 Required properties:
-  - compatible = "qcom,qca961x-mdio";
+  - compatible = "qcom,ipq40xx-mdio";
 
 Optional properties:
 
@@ -101,7 +101,7 @@ Example:
 	mdio@90000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "qcom,qca961x-mdio";
+		compatible = "qcom,ipq40xx-mdio";
 		reg = <0x90000 0x64>;
 	};
 
