@@ -352,11 +352,10 @@ static __always_inline void edma_receive_checksum(u16 *rrd1,
  * edma_clean_rfd()
  *	clean up rx resourcers on error
  */
-static void edma_clean_rfd(struct edma_rfd_desc_ring *erdr)
+static void edma_clean_rfd(struct edma_rfd_desc_ring *erdr, u16 index)
 {
 	struct edma_rx_free_desc *rx_desc;
 	struct edma_sw_desc *sw_desc;
-	int index = erdr->sw_next_to_clean;
 
 	rx_desc = (&((struct edma_rx_free_desc *)(erdr->hw_desc))[index]);
 	sw_desc = &erdr->sw_desc[index];
@@ -375,7 +374,7 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 	int i = 0, j = 0;
 	u16 rrd[8], hash_type;
 	volatile u32 data = 0;
-	u16 sw_next_to_clean, hw_next_to_clean = 0, vlan = 0;
+	u16 sw_next_to_clean, hw_next_to_clean = 0, vlan = 0, index;
 	struct platform_device *pdev = c_info->pdev;
 	struct edma_rfd_desc_ring *erdr = c_info->rfd_ring[queue_id];
 	struct net_device *netdev;
@@ -427,7 +426,8 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 
 		/* Check if RRD is valid */
 		if (!unlikely(rrd[7] & EDMA_RRD_DESC_VALID)) {
-			edma_clean_rfd(erdr);
+			index = (sw_next_to_clean - 1) % erdr->count;
+			edma_clean_rfd(erdr, index);
 			continue;
 		} else {
 			/* Get the packet size and allocate buffer */
@@ -438,9 +438,12 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 		}
 
 		port_id = (rrd[1] >> EDMA_PORT_ID_SHIFT) & EDMA_PORT_ID_MASK;
-		if (!unlikely(port_id))
+		if (!unlikely(port_id)) {
 			dev_err(&pdev->dev, "No RRD source port bit set");
-		else {
+			index = (sw_next_to_clean - 1) % erdr->count;
+			edma_clean_rfd(erdr, index);
+			continue;
+		} else {
 			if (port_id == c_info->edma_port_id_wan)
 				netdev = c_info->netdev[0];
 			else

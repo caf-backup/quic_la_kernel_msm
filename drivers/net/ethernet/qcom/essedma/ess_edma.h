@@ -145,6 +145,9 @@ struct edma_hw;
  */
 #define VQ_ID_SHIFT(i) (((i) * 3) % 24)
 
+/* Virtual Queue Default Value */
+#define EDMA_VQ_REG_VALUE 0x688688
+
 /* Tx side Port Interface Control Register */
 #define REG_PORT_CTRL 0x4A8
 #define PAD_EN_SHIFT 15
