@@ -19,7 +19,7 @@
 #include <dt-bindings/soc/qcom,tcsr.h>
 / {
 	model = "Qualcomm Technologies, Inc. IPQ40xx";
-	compatible = "qcom,qca961x";
+	compatible = "qcom,ipq40xx";
 	interrupt-parent = <&intc>;
 
 	aliases {
