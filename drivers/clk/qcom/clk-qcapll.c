@@ -25,8 +25,8 @@
 #include "clk-qcapll.h"
 
 #define PLL_CONFIG1_SRESET_L		BIT(0)
-#define PLL_CONFIG1_REG_BYPASS		BIT(2)
 #define PLL_MODULATION_START		BIT(0)
+#define PLL_CONFIG_PLLPWD		BIT(5)
 
 #define PLL_POSTDIV_MASK	0x380
 #define PLL_POSTDIV_SHFT	7
@@ -37,7 +37,6 @@
 #define PLL_TGT_FRAC_MASK	0x1FFFF800
 #define PLL_TGT_FRAC_SHFT	11
 
-#define PLL_CONFIG_PLLPWD BIT(1)
 
 static int clk_qcapll_enable(struct clk_hw *hw)
 {
@@ -46,7 +45,7 @@ static int clk_qcapll_enable(struct clk_hw *hw)
 
 	/* Disable PLL bypass mode. */
 	ret = regmap_update_bits(pll->clkr.regmap, pll->config_reg,
-				 PLL_CONFIG_PLLPWD, PLL_CONFIG_PLLPWD);
+				 PLL_CONFIG_PLLPWD, 0);
 	if (ret)
 		return ret;
 
@@ -59,7 +58,7 @@ static void clk_qcapll_disable(struct clk_hw *hw)
 
 	/* Enable PLL bypass mode. */
 	regmap_update_bits(pll->clkr.regmap, pll->config_reg, PLL_CONFIG_PLLPWD,
-			   0);
+			   0x1);
 }
 
 static unsigned long
@@ -70,24 +69,33 @@ clk_qcapll_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 	u32 rate, config, mod_reg;
 
 	regmap_read(pll->clkr.regmap, pll->config_reg, &config);
-	regmap_read(pll->clkr.regmap, pll->current_mod_pll_reg, &mod_reg);
+	regmap_read(pll->clkr.regmap, pll->mod_reg, &mod_reg);
 
-	ref_div = (config >> PLL_REFDIV_SHFT) & PLL_REFDIV_MASK;
-	post_plldiv = (config >> PLL_POSTDIV_SHFT) & PLL_POSTDIV_MASK;
-	tgt_div_frac = (mod_reg >> PLL_TGT_FRAC_SHFT) & PLL_TGT_FRAC_MASK;
-	tgt_div_int = (mod_reg >> PLL_TGT_INT_SHFT) & PLL_TGT_INT_MASK;
+	ref_div = (config & PLL_REFDIV_MASK) >> PLL_REFDIV_SHFT;
+	post_plldiv = (config & PLL_POSTDIV_SHFT) >> PLL_POSTDIV_SHFT;
+	tgt_div_frac = (mod_reg & PLL_TGT_FRAC_MASK) >>  PLL_TGT_FRAC_SHFT;
+	tgt_div_int = (mod_reg & PLL_TGT_INT_MASK) >> PLL_TGT_INT_SHFT;
 
 	/*FICO = (Fref / (refdiv+1)) * (Ninv + Nfrac[17:5]/2^13
 	   + Nfrac[4:0]/(25*2^13)). */
-	rate = parent_rate / (ref_div + 1);
 
-	if ((tgt_div_frac & 0x1f) && (tgt_div_frac >> 5)) {
-		rate *= tgt_div_int + ((tgt_div_frac >> 5) / 8192) +
-		    ((tgt_div_frac & 0x1f) / (8192 * 25));
-	} else {
-		rate *= tgt_div_int;
-	}
-	return rate;
+	/* we use this Lookups to get the precise frequencies as we need
+	the calculation would need use of some math functions to get precise
+	values which will add to the complexity. Hence, a simple lookup table
+	based on the Fract values*/
+
+	if (tgt_div_frac == 0x3D708)
+		return 163840000;
+	else if (tgt_div_frac == 0xA234)
+		return 180633600;
+	else if (tgt_div_frac == 0x51E9)
+		return 184320000;
+	else if (tgt_div_frac == 0x9bA6)
+		return 196608000;
+	else if (tgt_div_frac == 0x19168)
+		return 197568000;
+
+	return -1;
 }
 
 static const
@@ -129,6 +137,10 @@ clk_qcapll_set_rate(struct clk_hw *hw, unsigned long rate, unsigned long p_rate)
 	if (!f)
 		return -EINVAL;
 
+	regmap_write(pll->clkr.regmap, pll->config1_reg, 0xc);
+	udelay(2);
+	regmap_write(pll->clkr.regmap, pll->config1_reg, 0xd);
+
 	val = f->postplldiv << PLL_POSTDIV_SHFT;
 	val |= f->refdiv << PLL_REFDIV_SHFT;
 
@@ -147,7 +159,7 @@ clk_qcapll_set_rate(struct clk_hw *hw, unsigned long rate, unsigned long p_rate)
 
 	/* Start the PLL start the Modulation. */
 	ret = regmap_update_bits(pll->clkr.regmap, pll->mod_reg,
-				 PLL_MODULATION_START, 1);
+				 PLL_MODULATION_START, 0);
 	if (ret)
 		return ret;
 
@@ -164,41 +176,4 @@ const struct clk_ops clk_qcapll_ops = {
 	.determine_rate = clk_qcapll_determine_rate,
 	.set_rate = clk_qcapll_set_rate,
 };
-
 EXPORT_SYMBOL_GPL(clk_qcapll_ops);
-
-static void clk_qcapll_configure(struct clk_qcapll *pll, struct regmap *regmap,
-				 const struct qcapll_config *config)
-{
-	u32 val;
-	u32 mask;
-
-	/*Reset the QCAPLL */
-	regmap_write(regmap, pll->config1_reg,
-		     !(config->audio_pll_config1_sreset_l_mask));
-	udelay(2);
-	regmap_write(regmap, pll->config1_reg,
-		     config->audio_pll_config1_sreset_l_mask);
-
-	val = config->pll_config_postplldiv;
-	val |= config->pll_config_refdiv;
-
-	mask = config->pll_config_postplldiv_mask;
-	mask |= config->pll_config_refdiv_mask;
-	regmap_update_bits(regmap, pll->config_reg, mask, val);
-
-	val = config->pll_modulation_tgt_div_frac;
-	val |= config->pll_modulation_tgt_div_int;
-
-	mask = config->pll_modulation_tgt_div_frac_mask;
-	mask |= config->pll_modulation_tgt_div_int_mask;
-	regmap_update_bits(regmap, pll->mod_reg, mask, val);
-}
-
-void clk_qcapll_configure_adss(struct clk_qcapll *pll, struct regmap *regmap,
-			       const struct qcapll_config *config)
-{
-	clk_qcapll_configure(pll, regmap, config);
-}
-
-EXPORT_SYMBOL_GPL(clk_qcapll_configure_adss);

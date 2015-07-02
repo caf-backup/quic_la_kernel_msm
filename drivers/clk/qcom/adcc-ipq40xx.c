@@ -18,6 +18,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/clk-provider.h>
+#include <linux/delay.h>
 #include <linux/regmap.h>
 #include <linux/reset-controller.h>
 
@@ -30,95 +31,69 @@
 #include "clk-branch.h"
 #include "reset.h"
 
-#define AUDIO_PLL_CONFIG_REG				0x00038
-#define AUDIO_PLL_MODULATION_REG			0x0003C
-#define AUDIO_PLL_MOD_STEP_REG				0x00040
-#define CURRENT_AUDIO_PLL_MODULATION_REG		0x00044
-#define AUDIO_PLL_CONFIG1_REG				0x00048
-#define AUDIO_ATB_SETTING_REG				0x0004C
-#define AUDIO_RXB_CFG_MUXR_REG				0x00104
-#define AUDIO_RXB_MISC_REG				0x00108
-#define AUDIO_RXB_CBCR_REG				0x0010C
-#define AUDIO_RXM_CMD_RCGR_REG				0x00120
-#define AUDIO_RXM_CFG_RCGR_REG				0x00124
-#define AUDIO_RXM_MISC_REG				0x00128
-#define AUDIO_RXM_CBCR_REG				0x0012C
-#define AUDIO_TXB_CFG_MUXR_REG				0x00144
-#define AUDIO_TXB_MISC_REG				0x00148
-#define AUDIO_TXB_CBCR_REG				0x0014C
-#define AUDIO_SPDIF_MISC_REG				0x00150
-#define AUDIO_SPDIF_CBCR_REG				0x00154
-#define AUDIO_SPDIFDIV2_MISC_REG			0x00158
-#define AUDIO_SPDIFDIV2_CBCR_REG			0x0015C
-#define AUDIO_TXM_CMD_RCGR_REG				0x00160
-#define AUDIO_TXM_CFG_RCGR_REG				0x00164
-#define AUDIO_TXM_MISC_REG				0x00168
-#define AUDIO_TXM_CBCR_REG				0x0016C
-#define AUDIO_SAMPLE_CBCR_REG				0x0018C
-#define AUDIO_PCM_CMD_RCGR_REG				0x001A0
-#define AUDIO_PCM_CFG_RCGR_REG				0x001A4
-#define AUDIO_PCM_MISC_REG				0x001A8
-#define AUDIO_PCM_CBCR_REG				0x001AC
-#define AUDIO_XO_CBCR_REG				0x001CC
-#define AUDIO_SPDIFINFAST_CMD_RCGR_REG			0x001E0
-#define AUDIO_SPDIFINFAST_CFG_RCGR_REG			0x001E4
-#define AUDIO_SPDIFINFAST_CBCR_REG			0x001EC
-#define AUDIO_AHB_CBCR_REG				0x00200
-#define AUDIO_AHB_I2S0_CBCR_REG				0x00204
-#define AUDIO_AHB_I2S3_CBCR_REG				0x00208
-#define AUDIO_AHB_MBOX0_CBCR_REG			0x0020C
-#define AUDIO_AHB_MBOX3_CBCR_REG			0x00210
+#define AUDIO_PLL_CONFIG_REG				0x00000
+#define AUDIO_PLL_MODULATION_REG			0x00004
+#define AUDIO_PLL_MOD_STEP_REG				0x00008
+#define CURRENT_AUDIO_PLL_MODULATION_REG		0x0000c
+#define AUDIO_PLL_CONFIG1_REG				0x00010
+#define AUDIO_ATB_SETTING_REG				0x00014
+#define AUDIO_RXB_CFG_MUXR_REG				0x000cc
+#define AUDIO_RXB_MISC_REG				0x000d0
+#define AUDIO_RXB_CBCR_REG				0x000D4
+#define AUDIO_RXM_CMD_RCGR_REG				0x000e8
+#define AUDIO_RXM_CFG_RCGR_REG				0x000ec
+#define AUDIO_RXM_MISC_REG				0x000f0
+#define AUDIO_RXM_CBCR_REG				0x000F4
+#define AUDIO_TXB_CFG_MUXR_REG				0x0010c
+#define AUDIO_TXB_MISC_REG				0x00110
+#define AUDIO_TXB_CBCR_REG				0x00114
+#define AUDIO_SPDIF_MISC_REG				0x00118
+#define AUDIO_SPDIF_CBCR_REG				0x0011c
+#define AUDIO_SPDIFDIV2_MISC_REG			0x00120
+#define AUDIO_SPDIFDIV2_CBCR_REG			0x00124
+#define AUDIO_TXM_CMD_RCGR_REG				0x00128
+#define AUDIO_TXM_CFG_RCGR_REG				0x0012c
+#define AUDIO_TXM_MISC_REG				0x00130
+#define AUDIO_TXM_CBCR_REG				0x00134
+#define AUDIO_SAMPLE_CBCR_REG				0x00154
+#define AUDIO_PCM_CMD_RCGR_REG				0x00168
+#define AUDIO_PCM_CFG_RCGR_REG				0x0016C
+#define AUDIO_PCM_MISC_REG				0x00170
+#define AUDIO_PCM_CBCR_REG				0x00174
+#define AUDIO_XO_CBCR_REG				0x00194
+#define AUDIO_SPDIFINFAST_CMD_RCGR_REG			0x001A8
+#define AUDIO_SPDIFINFAST_CFG_RCGR_REG			0x001AC
+#define AUDIO_SPDIFINFAST_CBCR_REG			0x001B4
+#define AUDIO_AHB_CBCR_REG				0x001c8
+#define AUDIO_AHB_I2S0_CBCR_REG				0x001cc
+#define AUDIO_AHB_I2S3_CBCR_REG				0x001d0
+#define AUDIO_AHB_MBOX0_CBCR_REG			0x001D4
+#define AUDIO_AHB_MBOX3_CBCR_REG			0x001d8
 
-static const u8 adcc_xo_adpll_rxmpadclk_map[] = {
+static const u8 adcc_xo_adpll_padmclk_map[] = {
 	[0]		= 0,
 	[1]		= 1,
 	[2]		= 2,
 };
 
-static const char *adcc_xo_adpll_rxmpadclk[] = {
+static const char *adcc_xo_adpll_padmclk[] = {
 	"xo",
-	"apll",
-	"rxmpadclk",
+	"adss_pll",
+	"padmclk",
 };
 
-static const u8 adcc_xo_adpll_rxbpadclk_rxmpadclk_map[] = {
-	[0]		= 0,
-	[1]		= 1,
-	[2]		= 2,
-	[3]		= 3,
-};
-
-static const char *adcc_xo_adpll_rxbpadclk_rxmpadclk[] = {
-	"xo",
-	"apll",
-	"rxbpadclk",
-	"rxmpadclk",
-};
-
-static const u8 adcc_xo_adpll_txmpadclk_map[] = {
-	[0]		= 0,
-	[1]		= 1,
-	[2]		= 2,
-};
-
-static const char *adcc_xo_adpll_txmpadclk[] = {
-	"xo",
-	"apll",
-	"txmpadclk",
-};
-
-static const u8 adcc_xo_adpll_txbpadclk_txmpadclk_map[] = {
+static const u8 adcc_xo_adpll_padbclk_padmclk_map[] = {
 	[0]		= 0,
 	[1]		= 1,
 	[2]		= 2,
 	[3]		= 3,
 };
 
-static const char *adcc_xo_adpll_txbpadclk_txmpadclk[] = {
+static const char *adcc_xo_adpll_padbclk_padmclk[] = {
 	"xo",
-	"apll",
-	"txbpadclk",
-	"txmpadclk",
+	"adss_pll",
+	"padbclk",
+	"padmclk",
 };
 
 static const u8 adcc_xo_adpll_map[] = {
@@ -128,11 +103,10 @@ static const u8 adcc_xo_adpll_map[] = {
 
 static const char *adcc_xo_adpll[] = {
 	"xo",
-	"apll",
+	"adss_pll",
 };
 
-#define F(f, s, h, m, n) { (unsigned long)(f), (s), \
-				(h & 0xff00)|(2 * (h&0xff) - 1), (m), (n) }
+#define F(f, s, h, m, n) { (f), (s), (2 * (h) - 1), (m), (n) }
 #define P_XO 0
 #define ADSS_PLL 1
 #define MCLK_MCLK_IN 2
@@ -141,44 +115,44 @@ static const char *adcc_xo_adpll[] = {
 
 
 static const struct pll_freq_tbl adss_freq_tbl[] = {
-	{327680000, 1, 5, 40, 0x3D708},
-	{361267200, 1, 5, 45, 0xA234},
-	{368641000, 1, 5, 46, 0x51E9},
-	{393216000, 1, 5, 49, 0x9bA6},
-	{395136000, 1, 5, 49, 0x19168},
+	{163840000, 1, 5, 40, 0x3D708},
+	{180633600, 1, 5, 45, 0xA234},
+	{184320000, 1, 5, 46, 0x51E9},
+	{196608000, 1, 5, 49, 0x9bA6},
+	{197568000, 1, 5, 49, 0x19168},
 	{}
 };
 
 static struct clk_qcapll adss_pll_src = {
-	.config_reg		= 0x0004,
-	.mod_reg		= 0x0008,
-	.modstep_reg	= 0x000c,
-	.current_mod_pll_reg = 0x0014,
-	.config1_reg = 0x0000,
+	.config_reg		= AUDIO_PLL_CONFIG_REG,
+	.mod_reg		= AUDIO_PLL_MODULATION_REG,
+	.modstep_reg		= AUDIO_PLL_MOD_STEP_REG,
+	.current_mod_pll_reg	= CURRENT_AUDIO_PLL_MODULATION_REG,
+	.config1_reg		= AUDIO_PLL_CONFIG1_REG,
 	.freq_tbl = adss_freq_tbl,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "adss_pll",
 		.parent_names = (const char *[]){ "xo" },
 		.num_parents = 1,
 		.ops = &clk_qcapll_ops,
-		.flags = CLK_SET_PARENT_GATE,
 	},
 };
 
 static const struct freq_tbl ftbl_m_clk[] = {
-	F(4096000, ADSS_PLL, 0xB04, 0, 0),
-	F(5645000, ADSS_PLL, 0x704, 0, 0),
-	F(6144000, ADSS_PLL, 0x704, 0, 0),
-	F(8192000, ADSS_PLL, 0x504, 0, 0),
-	F(11290000, ADSS_PLL, 0xF01, 0, 0),
-	F(12288000, ADSS_PLL, 0xF01, 0, 0),
-	F(14112000, ADSS_PLL, 0xD01, 0, 0),
-	F(15360000, ADSS_PLL, 0xB01, 0, 0),
-	F(16384000, ADSS_PLL, 0xB01, 0, 0),
-	F(20480000, ADSS_PLL, 0x701, 0, 0),
-	F(22579200, ADSS_PLL, 0x701, 0, 0),
-	F(24576000, ADSS_PLL, 0x701, 0, 0),
-	F(30720000, ADSS_PLL, 0x701, 0, 0),
+	{255, MCLK_MCLK_IN, 1, 0, 0},
+	{4096000, ADSS_PLL, 48, 0, 0},
+	{5645000, ADSS_PLL, 32, 0, 0},
+	{6144000, ADSS_PLL, 32, 0, 0},
+	{8192000, ADSS_PLL, 24, 0, 0},
+	{11289600, ADSS_PLL, 16, 0, 0},
+	{12288000, ADSS_PLL, 16, 0, 0},
+	{14112000, ADSS_PLL, 14, 0, 0},
+	{15360000, ADSS_PLL, 12, 0, 0},
+	{16384000, ADSS_PLL, 12, 0, 0},
+	{20480000, ADSS_PLL, 8, 0, 0},
+	{22579200, ADSS_PLL, 8, 0, 0},
+	{24576000, ADSS_PLL, 8, 0, 0},
+	{30720000, ADSS_PLL, 6, 0, 0},
 	{ }
 };
 
@@ -188,11 +162,11 @@ static struct clk_cdiv_rcg2 rxm_clk_src = {
 	.cdiv.mask = 0xf,
 	.cmd_rcgr = AUDIO_RXM_CMD_RCGR_REG,
 	.hid_width = 5,
-	.parent_map = adcc_xo_adpll_rxmpadclk_map,
+	.parent_map = adcc_xo_adpll_padmclk_map,
 	.freq_tbl = ftbl_m_clk,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "rxm_clk_src",
-		.parent_names = adcc_xo_adpll_rxmpadclk,
+		.parent_names = adcc_xo_adpll_padmclk,
 		.num_parents = 3,
 		.ops = &clk_cdiv_rcg2_ops,
 		.flags = CLK_SET_RATE_PARENT,
@@ -201,6 +175,7 @@ static struct clk_cdiv_rcg2 rxm_clk_src = {
 
 static struct clk_branch adcc_rxm_clk_src = {
 	.halt_reg = AUDIO_RXM_CBCR_REG,
+	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_RXM_CBCR_REG,
 		.enable_mask = BIT(0),
@@ -209,6 +184,7 @@ static struct clk_branch adcc_rxm_clk_src = {
 			.parent_names = (const char *[]){"rxm_clk_src"},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
+			.flags = CLK_SET_RATE_PARENT,
 		},
 	},
 };
@@ -219,11 +195,11 @@ static struct clk_cdiv_rcg2 txm_clk_src = {
 	.cdiv.mask = 0xf,
 	.cmd_rcgr = AUDIO_TXM_CMD_RCGR_REG,
 	.hid_width = 5,
-	.parent_map = adcc_xo_adpll_txmpadclk_map,
+	.parent_map = adcc_xo_adpll_padmclk_map,
 	.freq_tbl = ftbl_m_clk,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "txm_clk_src",
-		.parent_names = adcc_xo_adpll_txmpadclk,
+		.parent_names = adcc_xo_adpll_padmclk,
 		.num_parents = 3,
 		.ops = &clk_cdiv_rcg2_ops,
 		.flags = CLK_SET_RATE_PARENT,
@@ -232,6 +208,7 @@ static struct clk_cdiv_rcg2 txm_clk_src = {
 
 static struct clk_branch adcc_txm_clk_src = {
 	.halt_reg = AUDIO_TXM_CBCR_REG,
+	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_TXM_CBCR_REG,
 		.enable_mask = BIT(0),
@@ -242,46 +219,49 @@ static struct clk_branch adcc_txm_clk_src = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
+			.flags = CLK_SET_RATE_PARENT,
 		},
 	},
 };
 
 static const struct freq_tbl ftbl_bclk_clk[] = {
-	F(1024000, ADSS_PLL, 191, 0, 0),
-	F(1411200, ADSS_PLL, 127, 0, 0),
-	F(1536000, ADSS_PLL, 127, 0, 0),
-	F(2048000, ADSS_PLL, 95, 0, 0),
-	F(2822400, ADSS_PLL, 63, 0, 0),
-	F(3072000, ADSS_PLL, 63, 0, 0),
-	F(4096000, ADSS_PLL, 47, 0, 0),
-	F(5120000, ADSS_PLL, 31, 0, 0),
-	F(5644800, ADSS_PLL, 31, 0, 0),
-	F(6144000, ADSS_PLL, 31, 0, 0),
-	F(7056000, ADSS_PLL, 23, 0, 0),
-	F(7680000, ADSS_PLL, 23, 0, 0),
-	F(8192000, ADSS_PLL, 23, 0, 0),
-	F(10240000, ADSS_PLL, 15, 0, 0),
-	F(11290000, ADSS_PLL, 15, 0, 0),
-	F(12288000, ADSS_PLL, 15, 0, 0),
-	F(14112000, ADSS_PLL, 15, 0, 0),
-	F(15360000, ADSS_PLL, 11, 0, 0),
-	F(24576000, ADSS_PLL,  7, 0, 0),
-	F(30720000, ADSS_PLL,  5, 0, 0),
+	{254, BCLK_BCLK_IN, 1, 0, 0},
+	{255, BCLK_MCLK_IN, 1, 0, 0},
+	{1024000, ADSS_PLL, 192, 0, 0},
+	{1411200, ADSS_PLL, 128, 0, 0},
+	{1536000, ADSS_PLL, 128, 0, 0},
+	{2048000, ADSS_PLL, 96, 0, 0},
+	{2822400, ADSS_PLL, 64, 0, 0},
+	{3072000, ADSS_PLL, 64, 0, 0},
+	{4096000, ADSS_PLL, 48, 0, 0},
+	{5120000, ADSS_PLL, 32, 0, 0},
+	{5644800, ADSS_PLL, 32, 0, 0},
+	{6144000, ADSS_PLL, 32, 0, 0},
+	{7056000, ADSS_PLL, 24, 0, 0},
+	{7680000, ADSS_PLL, 24, 0, 0},
+	{8192000, ADSS_PLL, 24, 0, 0},
+	{10240000, ADSS_PLL, 16, 0, 0},
+	{11289600, ADSS_PLL, 16, 0, 0},
+	{12288000, ADSS_PLL, 16, 0, 0},
+	{14112000, ADSS_PLL, 16, 0, 0},
+	{15360000, ADSS_PLL, 12, 0, 0},
+	{24576000, ADSS_PLL,  8, 0, 0},
+	{30720000, ADSS_PLL,  6, 0, 0},
 	{ }
 };
 
 static struct clk_muxr_misc txb_clk_src = {
 	.misc.offset = AUDIO_TXB_MISC_REG,
 	.misc.shift = 1,
-	.misc.mask = 0x3FF,
+	.misc.mask = 0x3FE,
 	.muxr.offset = AUDIO_TXB_CFG_MUXR_REG,
 	.muxr.shift = 8,
 	.muxr.mask = 0x7,
-	.parent_map = adcc_xo_adpll_txbpadclk_txmpadclk_map,
+	.parent_map = adcc_xo_adpll_padbclk_padmclk_map,
 	.freq_tbl = ftbl_bclk_clk,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "txb_clk_src",
-		.parent_names = adcc_xo_adpll_txbpadclk_txmpadclk,
+		.parent_names = adcc_xo_adpll_padbclk_padmclk,
 		.num_parents = 4,
 		.ops = &clk_muxr_misc_ops,
 		.flags = CLK_SET_RATE_PARENT,
@@ -290,6 +270,7 @@ static struct clk_muxr_misc txb_clk_src = {
 
 static struct clk_branch adcc_txb_clk_src = {
 	.halt_reg = AUDIO_TXB_CBCR_REG,
+	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_TXB_CBCR_REG,
 		.enable_mask = BIT(0),
@@ -300,6 +281,7 @@ static struct clk_branch adcc_txb_clk_src = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
+			.flags = CLK_SET_RATE_PARENT,
 		},
 	},
 };
@@ -307,24 +289,25 @@ static struct clk_branch adcc_txb_clk_src = {
 static struct clk_muxr_misc rxb_clk_src = {
 	.misc.offset = AUDIO_RXB_MISC_REG,
 	.misc.shift = 1,
-	.misc.mask = 0x3FF,
+	.misc.mask = 0x3FE,
 	.muxr.offset = AUDIO_RXB_CFG_MUXR_REG,
 	.muxr.shift = 8,
 	.muxr.mask = 0x7,
-	.parent_map = adcc_xo_adpll_rxbpadclk_rxmpadclk_map,
+	.parent_map = adcc_xo_adpll_padbclk_padmclk_map,
 	.freq_tbl = ftbl_bclk_clk,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "rxb_clk_src",
-		.parent_names = adcc_xo_adpll_rxbpadclk_rxmpadclk,
+		.parent_names = adcc_xo_adpll_padbclk_padmclk,
 		.num_parents = 4,
 		.ops = &clk_muxr_misc_ops,
-		.flags = CLK_SET_PARENT_GATE,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
 
 static struct clk_branch adcc_rxb_clk_src = {
 	.halt_reg = AUDIO_RXB_CBCR_REG,
+	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_RXB_CBCR_REG,
 		.enable_mask = BIT(0),
@@ -335,7 +318,7 @@ static struct clk_branch adcc_rxb_clk_src = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
-			.flags = CLK_SET_PARENT_GATE,
+			.flags = CLK_SET_RATE_PARENT,
 		},
 	},
 };
@@ -343,7 +326,8 @@ static struct clk_branch adcc_rxb_clk_src = {
 
 
 static const struct freq_tbl ftbl_adcc_pcm_clk[] = {
-	F(8192000, ADSS_PLL, 0x504, 0, 0),
+	{8192000, ADSS_PLL, 24, 0, 0},
+	{16384000, ADSS_PLL, 12, 0, 0},
 	{ }
 };
 
@@ -360,7 +344,7 @@ static struct clk_cdiv_rcg2 pcm_clk_src = {
 		.parent_names = adcc_xo_adpll,
 		.num_parents = 2,
 		.ops = &clk_cdiv_rcg2_ops,
-		.flags = CLK_SET_PARENT_GATE,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -368,6 +352,7 @@ static struct clk_cdiv_rcg2 pcm_clk_src = {
 
 static struct clk_branch adcc_pcm_clk_src = {
 	.halt_reg = AUDIO_PCM_CBCR_REG,
+	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_PCM_CBCR_REG,
 		.enable_mask = BIT(0),
@@ -378,7 +363,7 @@ static struct clk_branch adcc_pcm_clk_src = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
-			.flags = CLK_SET_PARENT_GATE,
+			.flags = CLK_SET_RATE_PARENT,
 		},
 	},
 };
@@ -390,7 +375,7 @@ static const struct freq_tbl ftbl_adcc_spdifinfast_clk[] = {
 	{ }
 };
 
-static struct clk_cdiv_rcg2 spdifinfast_src = {
+static struct clk_rcg2 spdifinfast_src = {
 	.cmd_rcgr = AUDIO_SPDIFINFAST_CMD_RCGR_REG,
 	.hid_width = 5,
 	.parent_map = adcc_xo_adpll_map,
@@ -399,13 +384,14 @@ static struct clk_cdiv_rcg2 spdifinfast_src = {
 		.name = "spdifinfast_src",
 		.parent_names = adcc_xo_adpll,
 		.num_parents = 2,
-		.ops = &clk_cdiv_rcg2_ops,
-		.flags = CLK_SET_PARENT_GATE,
+		.ops = &clk_rcg2_ops,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
 static struct clk_branch adcc_spdifinfast_src = {
 	.halt_reg = AUDIO_SPDIFINFAST_CBCR_REG,
+	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_SPDIFINFAST_CBCR_REG,
 		.enable_mask = BIT(0),
@@ -416,13 +402,13 @@ static struct clk_branch adcc_spdifinfast_src = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
-			.flags = CLK_SET_PARENT_GATE,
+			.flags = CLK_SET_RATE_PARENT,
 		},
 	},
 };
 
 static const struct freq_tbl spdif_src_tbl[] = {
-	F(0xFFFFFFFF, ADSS_PLL, 0x0, 0, 0),
+	{6144000, ADSS_PLL, 32, 0, 0},
 	{ }
 };
 
@@ -430,19 +416,20 @@ static struct clk_muxr_misc spdif_src = {
 	.misc.offset = AUDIO_SPDIF_MISC_REG,
 	.misc.shift = 1,
 	.misc.mask = 0x3FF,
-	.parent_map = adcc_xo_adpll_rxbpadclk_rxmpadclk_map,
+	.parent_map = adcc_xo_adpll_padbclk_padmclk_map,
 	.freq_tbl = spdif_src_tbl,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "spdif_src",
-		.parent_names = adcc_xo_adpll_rxbpadclk_rxmpadclk,
+		.parent_names = adcc_xo_adpll_padbclk_padmclk,
 		.num_parents = 3,
 		.ops = &clk_muxr_misc_ops,
-		.flags = CLK_SET_PARENT_GATE,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
 static struct clk_branch adcc_spdif_src = {
 	.halt_reg = AUDIO_SPDIF_CBCR_REG,
+	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_SPDIF_CBCR_REG,
 		.enable_mask = BIT(0),
@@ -453,13 +440,13 @@ static struct clk_branch adcc_spdif_src = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
-			.flags = CLK_SET_PARENT_GATE,
+			.flags = CLK_SET_RATE_PARENT,
 		},
 	},
 };
 
 static const struct freq_tbl spdif2_src_tbl[] = {
-	F(0xFFFFFFFF, ADSS_PLL, 0x0, 0, 0),
+	{3072000, ADSS_PLL, 64, 0, 0},
 	{ }
 };
 
@@ -467,19 +454,20 @@ static struct clk_muxr_misc spdifdiv2_src = {
 	.misc.offset = AUDIO_SPDIFDIV2_MISC_REG,
 	.misc.shift = 1,
 	.misc.mask = 0x3FF,
-	.parent_map = adcc_xo_adpll_rxbpadclk_rxmpadclk_map,
+	.parent_map = adcc_xo_adpll_padbclk_padmclk_map,
 	.freq_tbl = spdif2_src_tbl,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "spdifdiv2_src",
-		.parent_names = adcc_xo_adpll_rxbpadclk_rxmpadclk,
+		.parent_names = adcc_xo_adpll_padbclk_padmclk,
 		.num_parents = 3,
 		.ops = &clk_muxr_misc_ops,
-		.flags = CLK_SET_PARENT_GATE,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
 static struct clk_branch adcc_spdifdiv2_src = {
 	.halt_reg = AUDIO_SPDIFDIV2_CBCR_REG,
+	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_SPDIFDIV2_CBCR_REG,
 		.enable_mask = BIT(0),
@@ -490,13 +478,14 @@ static struct clk_branch adcc_spdifdiv2_src = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
-			.flags = CLK_SET_PARENT_GATE,
+			.flags = CLK_SET_RATE_PARENT,
 		},
 	},
 };
 
 static struct clk_branch adcc_sample_src = {
 	.halt_reg = AUDIO_SAMPLE_CBCR_REG,
+	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_SAMPLE_CBCR_REG,
 		.enable_mask = BIT(0),
@@ -507,13 +496,14 @@ static struct clk_branch adcc_sample_src = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
-			.flags = CLK_SET_PARENT_GATE,
+			.flags = CLK_SET_RATE_PARENT,
 		},
 	},
 };
 
 static struct clk_branch adcc_xo_src = {
 	.halt_reg = AUDIO_XO_CBCR_REG,
+	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_XO_CBCR_REG,
 		.enable_mask = BIT(0),
@@ -524,7 +514,7 @@ static struct clk_branch adcc_xo_src = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
-			.flags = CLK_SET_PARENT_GATE,
+			.flags = CLK_SET_RATE_PARENT,
 		},
 	},
 };
@@ -532,6 +522,7 @@ static struct clk_branch adcc_xo_src = {
 
 static struct clk_branch adcc_ahb_src = {
 	.halt_reg = AUDIO_AHB_CBCR_REG,
+	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_AHB_CBCR_REG,
 		.enable_mask = BIT(0),
@@ -548,6 +539,7 @@ static struct clk_branch adcc_ahb_src = {
 
 static struct clk_branch adcc_ahb_i2s0_src = {
 	.halt_reg = AUDIO_AHB_I2S0_CBCR_REG,
+	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_AHB_I2S0_CBCR_REG,
 		.enable_mask = BIT(0),
@@ -564,6 +556,7 @@ static struct clk_branch adcc_ahb_i2s0_src = {
 
 static struct clk_branch adcc_ahb_i2s3_src = {
 	.halt_reg = AUDIO_AHB_I2S3_CBCR_REG,
+	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_AHB_I2S3_CBCR_REG,
 		.enable_mask = BIT(0),
@@ -580,6 +573,7 @@ static struct clk_branch adcc_ahb_i2s3_src = {
 
 static struct clk_branch adcc_ahb_mbox0_src = {
 	.halt_reg = AUDIO_AHB_MBOX0_CBCR_REG,
+	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_AHB_MBOX0_CBCR_REG,
 		.enable_mask = BIT(0),
@@ -674,6 +668,7 @@ static int adcc_ipq40xx_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct of_device_id *id;
+	struct regmap *regmap;
 
 	id = of_match_device(adcc_ipq40xx_match_table, dev);
 	if (!id)
@@ -684,8 +679,14 @@ static int adcc_ipq40xx_probe(struct platform_device *pdev)
 	/* External sleep clock */
 	clk_register_fixed_rate(dev, "adcc_sleep_clk_src", NULL,
 							CLK_IS_ROOT, 32768);
-
-	return qcom_cc_probe(pdev, &adcc_ipq40xx_desc);
+	/* External padbclk clock */
+	clk_register_fixed_rate(dev, "padbclk", NULL,
+							CLK_IS_ROOT, 254);
+	/* External padmclk clock */
+	clk_register_fixed_rate(dev, "padmclk", NULL,
+							CLK_IS_ROOT, 255);
+	regmap = qcom_cc_map(pdev, &adcc_ipq40xx_desc);
+	return qcom_cc_really_probe(pdev, &adcc_ipq40xx_desc, regmap);
 }
 
 static int adcc_ipq40xx_remove(struct platform_device *pdev)

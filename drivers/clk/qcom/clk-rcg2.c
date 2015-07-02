@@ -95,7 +95,8 @@ static int update_config(struct clk_rcg2 *rcg)
 
 	/* Wait for update to take effect */
 	for (count = 500; count > 0; count--) {
-		ret = regmap_read(rcg->clkr.regmap, rcg->cmd_rcgr + CMD_REG, &cmd);
+		ret = regmap_read(rcg->clkr.regmap, rcg->cmd_rcgr + CMD_REG,
+									&cmd);
 		if (ret)
 			return ret;
 		if (!(cmd & CMD_UPDATE))
@@ -548,6 +549,40 @@ const struct clk_ops clk_pixel_ops = {
 EXPORT_SYMBOL_GPL(clk_pixel_ops);
 
 
+static int clk_cdiv_rcg2_is_enabled(struct clk_hw *hw)
+{
+	struct clk_cdiv_rcg2 *rcg = to_clk_cdiv_rcg2(hw);
+	u32 cmd;
+	int ret;
+
+	ret = regmap_read(rcg->clkr.regmap, rcg->cmd_rcgr + CMD_REG, &cmd);
+	if (ret)
+		return ret;
+
+	return (cmd & CMD_ROOT_OFF) == 0;
+}
+
+static u8 clk_cdiv_rcg2_get_parent(struct clk_hw *hw)
+{
+	struct clk_cdiv_rcg2 *rcg = to_clk_cdiv_rcg2(hw);
+	int num_parents = __clk_get_num_parents(hw->clk);
+	u32 cfg;
+	int i, ret;
+
+	ret = regmap_read(rcg->clkr.regmap, rcg->cmd_rcgr + CFG_REG, &cfg);
+	if (ret)
+		return ret;
+
+	cfg &= CFG_SRC_SEL_MASK;
+	cfg >>= CFG_SRC_SEL_SHIFT;
+
+	for (i = 0; i < num_parents; i++)
+		if (cfg == rcg->parent_map[i])
+			return i;
+
+	return -EINVAL;
+}
+
 static int cdiv_update_config(struct clk_cdiv_rcg2 *rcg)
 {
 	int count, ret;
@@ -574,6 +609,24 @@ static int cdiv_update_config(struct clk_cdiv_rcg2 *rcg)
 	WARN(1, "%s: rcg didn't update its configuration.", name);
 	return 0;
 }
+
+
+static int clk_cdiv_rcg2_set_parent(struct clk_hw *hw, u8 index)
+{
+	struct clk_cdiv_rcg2 *rcg = to_clk_cdiv_rcg2(hw);
+	int ret;
+
+	ret = regmap_update_bits(rcg->clkr.regmap, rcg->cmd_rcgr + CFG_REG,
+				 CFG_SRC_SEL_MASK,
+				 rcg->parent_map[index] << CFG_SRC_SEL_SHIFT);
+	if (ret)
+		return ret;
+
+	return cdiv_update_config(rcg);
+}
+
+
+
 
 static unsigned long
 clk_cdiv_rcg2_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
@@ -602,8 +655,9 @@ clk_cdiv_rcg2_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 
 	regmap_read(rcg->clkr.regmap, rcg->cdiv.offset, &cdiv);
 	cdiv &= (rcg->cdiv.mask << rcg->cdiv.shift);
+	cdiv =  (cdiv >> rcg->cdiv.shift) + 1;
 	if (cdiv)
-		do_div(rate , cdiv);
+		rate *= cdiv + 1;
 	return rate;
 }
 
@@ -620,12 +674,8 @@ static long _cdiv_rcg2_freq_tbl_determine_rate(struct clk_hw *hw,
 	clk_flags = __clk_get_flags(hw->clk);
 	*p = clk_get_parent_by_index(hw->clk, f->src);
 	if (clk_flags & CLK_SET_RATE_PARENT) {
-		if (f->pre_div) {
-			rate /= 2;
-			rate *= (f->pre_div & 0xff) + 1;
-			rate *= ((f->pre_div & 0xff00)>>8) + 1;
-		}
-
+		if (f->pre_div)
+			rate *= f->pre_div;
 		if (f->n) {
 			u64 tmp = rate;
 			tmp = tmp * f->n;
@@ -643,7 +693,7 @@ static long _cdiv_rcg2_freq_tbl_determine_rate(struct clk_hw *hw,
 static long clk_cdiv_rcg2_determine_rate(struct clk_hw *hw, unsigned long rate,
 		unsigned long *p_rate, struct clk **p)
 {
-	struct clk_rcg2 *rcg = to_clk_rcg2(hw);
+	struct clk_cdiv_rcg2 *rcg = to_clk_cdiv_rcg2(hw);
 
 	return _cdiv_rcg2_freq_tbl_determine_rate(hw, rcg->freq_tbl,
 							rate, p_rate, p);
@@ -653,6 +703,7 @@ static int clk_cdiv_rcg2_configure(struct clk_cdiv_rcg2 *rcg,
 						const struct freq_tbl *f)
 {
 	u32 cfg, mask;
+	u32 i;
 	int ret;
 
 	if (rcg->mnd_width && f->n) {
@@ -673,9 +724,31 @@ static int clk_cdiv_rcg2_configure(struct clk_cdiv_rcg2 *rcg,
 			return ret;
 	}
 
+
+	if ((rcg->cdiv.mask) && (f->pre_div > 16)) {
+		for (i = 2; i <= 16; i++) {
+			if (f->pre_div % i == 0)
+				cfg = i;
+		}
+
+		if (f->pre_div/cfg > 16)
+			return -EINVAL;
+		mask = (rcg->cdiv.mask)<<rcg->cdiv.shift;
+		ret = regmap_update_bits(rcg->clkr.regmap,
+					rcg->cdiv.offset, mask,
+				((cfg - 1) << rcg->cdiv.shift) & mask);
+		if (ret)
+			return ret;
+		cfg = (2 * (f->pre_div / cfg)) - 1;
+	} else {
+		ret = regmap_write(rcg->clkr.regmap, rcg->cdiv.offset, 0x0);
+		if (ret)
+			return ret;
+		cfg = ((2 * f->pre_div) - 1) << CFG_SRC_DIV_SHIFT;
+	}
+
 	mask = BIT(rcg->hid_width) - 1;
 	mask |= CFG_SRC_SEL_MASK | CFG_MODE_MASK;
-	cfg = (f->pre_div & 0xff) << CFG_SRC_DIV_SHIFT;
 	cfg |= rcg->parent_map[f->src] << CFG_SRC_SEL_SHIFT;
 	if (rcg->mnd_width && f->n)
 		cfg |= CFG_MODE_DUAL_EDGE;
@@ -683,14 +756,6 @@ static int clk_cdiv_rcg2_configure(struct clk_cdiv_rcg2 *rcg,
 			rcg->cmd_rcgr + CFG_REG, mask, cfg);
 	if (ret)
 		return ret;
-
-	cfg = ((f->pre_div & 0xff00)>>8);
-	if (cfg) {
-		cfg = (cfg << rcg->cdiv.shift) & rcg->cdiv.mask;
-		mask = (rcg->cdiv.mask)<<rcg->cdiv.shift;
-		ret = regmap_update_bits(rcg->clkr.regmap,
-				rcg->cdiv.offset, mask, cfg);
-	}
 
 	return cdiv_update_config(rcg);
 }
@@ -720,9 +785,9 @@ static int clk_cdiv_rcg2_set_rate_and_parent(struct clk_hw *hw,
 }
 
 const struct clk_ops clk_cdiv_rcg2_ops = {
-	.is_enabled			= clk_rcg2_is_enabled,
-	.get_parent			= clk_rcg2_get_parent,
-	.set_parent			= clk_rcg2_set_parent,
+	.is_enabled			= clk_cdiv_rcg2_is_enabled,
+	.get_parent			= clk_cdiv_rcg2_get_parent,
+	.set_parent			= clk_cdiv_rcg2_set_parent,
 	.recalc_rate			= clk_cdiv_rcg2_recalc_rate,
 	.determine_rate			= clk_cdiv_rcg2_determine_rate,
 	.set_rate			= clk_cdiv_rcg2_set_rate,
@@ -776,7 +841,7 @@ clk_muxr_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 	u32 misc;
 
 	regmap_read(rcg->clkr.regmap, rcg->misc.offset, &misc);
-	misc = (misc >> rcg->misc.shift)&rcg->misc.mask;
+	misc = (misc >> rcg->misc.shift) & (rcg->misc.mask >> rcg->misc.shift);
 
 	return parent_rate * (misc+1);
 }
@@ -790,11 +855,10 @@ static long clk_muxr_determine_rate(struct clk_hw *hw, unsigned long rate,
 
 	f = qcom_find_freq(rcg->freq_tbl, rate);
 	clk_flags = __clk_get_flags(hw->clk);
+	*p = clk_get_parent_by_index(hw->clk, f->src);
 	if (clk_flags & CLK_SET_RATE_PARENT) {
-		if (f->pre_div) {
-			rate /= 2;
-			rate *= f->pre_div + 1;
-		}
+		if (f->pre_div)
+			rate *= f->pre_div;
 	} else {
 		rate =	__clk_get_rate(*p);
 	}
@@ -821,7 +885,7 @@ static int __clk_muxr_set_rate(struct clk_hw *hw, unsigned long rate)
 
 	ret = regmap_update_bits(rcg->clkr.regmap, rcg->misc.offset,
 				rcg->misc.mask << rcg->misc.shift,
-				(f->pre_div + 1 / 2) << rcg->misc.shift);
+				(f->pre_div - 1) << rcg->misc.shift);
 	if (ret)
 		return ret;
 
