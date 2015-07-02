@@ -9,6 +9,7 @@ following compatible strings
 	"qcom,qca961x"
 	"qcom,ipq8064"
 	"qcom,ipq8062"
+	"qcom,ipq40xx"
 Platform
 
 Device tree must specify which Platform it uses, with one of the
