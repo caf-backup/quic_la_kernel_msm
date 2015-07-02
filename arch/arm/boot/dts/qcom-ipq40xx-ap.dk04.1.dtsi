@@ -39,7 +39,7 @@
 	};
 
 	chosen {
-		bootargs = "console=ttyMSM0,115200n8";
+		bootargs-append = " clk_ignore_unused";
 	};
 
 };
