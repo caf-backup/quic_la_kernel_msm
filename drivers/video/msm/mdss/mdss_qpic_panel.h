@@ -132,5 +132,7 @@ int mdss_qpic_panel_io_init(struct platform_device *pdev,
 u32 qpic_panel_get_cmd(u32 command, u32 size);
 int ili9341_on(struct qpic_panel_io_desc *qpic_panel_io);
 void ili9341_off(struct qpic_panel_io_desc *qpic_panel_io);
+extern int (*qpic_panel_on)(struct qpic_panel_io_desc *qpic_panel_io);
+extern void (*qpic_panel_off)(struct qpic_panel_io_desc *qpic_panel_io);
 
 #endif /* MDSS_QPIC_PANEL_H */

@@ -28,129 +28,18 @@
 #include "mdss_qpic.h"
 #include "mdss_qpic_panel.h"
 
-static int mdss_qpic_pinctrl_set_state(struct qpic_panel_io_desc *qpic_panel_io,
-		bool active);
-static int panel_io_init(struct qpic_panel_io_desc *panel_io)
-{
-	int rc;
-	if (panel_io->vdd_vreg) {
-		rc = regulator_set_voltage(panel_io->vdd_vreg,
-			1800000, 1800000);
-		if (rc) {
-			pr_err("vdd_vreg->set_voltage failed, rc=%d\n", rc);
-			return -EINVAL;
-		}
-	}
-	if (panel_io->avdd_vreg) {
-		rc = regulator_set_voltage(panel_io->avdd_vreg,
-			2700000, 2700000);
-		if (rc) {
-			pr_err("vdd_vreg->set_voltage failed, rc=%d\n", rc);
-			return -EINVAL;
-		}
-	}
-	return 0;
-}
 
-static void panel_io_off(struct qpic_panel_io_desc *qpic_panel_io)
-{
-	if (mdss_qpic_pinctrl_set_state(qpic_panel_io, false))
-		pr_warn("%s panel on: pinctrl not enabled\n", __func__);
-
-	if (qpic_panel_io->ad8_gpio)
-		gpio_free(qpic_panel_io->ad8_gpio);
-	if (qpic_panel_io->cs_gpio)
-		gpio_free(qpic_panel_io->cs_gpio);
-	if (qpic_panel_io->rst_gpio)
-		gpio_free(qpic_panel_io->rst_gpio);
-	if (qpic_panel_io->te_gpio)
-		gpio_free(qpic_panel_io->te_gpio);
-	if (qpic_panel_io->bl_gpio)
-		gpio_free(qpic_panel_io->bl_gpio);
-	if (qpic_panel_io->vdd_vreg)
-		regulator_disable(qpic_panel_io->vdd_vreg);
-	if (qpic_panel_io->avdd_vreg)
-		regulator_disable(qpic_panel_io->avdd_vreg);
-}
 
 void ili9341_off(struct qpic_panel_io_desc *qpic_panel_io)
 {
-	panel_io_off(qpic_panel_io);
-}
+	/* TBD */
 
-static int panel_io_on(struct qpic_panel_io_desc *qpic_panel_io)
-{
-	int rc;
-	if (qpic_panel_io->vdd_vreg) {
-		rc = regulator_enable(qpic_panel_io->vdd_vreg);
-		if (rc) {
-			pr_err("enable vdd failed, rc=%d\n", rc);
-			return -ENODEV;
-		}
-	}
-
-	if (qpic_panel_io->avdd_vreg) {
-		rc = regulator_enable(qpic_panel_io->avdd_vreg);
-		if (rc) {
-			pr_err("enable avdd failed, rc=%d\n", rc);
-			goto power_on_error;
-		}
-	}
-
-	/* GPIO settings using pinctrl */
-	if (mdss_qpic_pinctrl_set_state(qpic_panel_io, true)) {
-		pr_warn("%s panel on: pinctrl not enabled\n", __func__);
-
-		if ((qpic_panel_io->rst_gpio) &&
-			(gpio_request(qpic_panel_io->rst_gpio, "disp_rst_n"))) {
-			pr_err("%s request reset gpio failed\n", __func__);
-			goto power_on_error;
-		}
-
-		if ((qpic_panel_io->cs_gpio) &&
-			(gpio_request(qpic_panel_io->cs_gpio, "disp_cs_n"))) {
-			pr_err("%s request cs gpio failed\n", __func__);
-			goto power_on_error;
-		}
-
-		if ((qpic_panel_io->ad8_gpio) &&
-			(gpio_request(qpic_panel_io->ad8_gpio, "disp_ad8_n"))) {
-			pr_err("%s request ad8 gpio failed\n", __func__);
-			goto power_on_error;
-		}
-
-		if ((qpic_panel_io->te_gpio) &&
-			(gpio_request(qpic_panel_io->te_gpio, "disp_te_n"))) {
-			pr_err("%s request te gpio failed\n", __func__);
-			goto power_on_error;
-		}
-
-		if ((qpic_panel_io->bl_gpio) &&
-			(gpio_request(qpic_panel_io->bl_gpio, "disp_bl_n"))) {
-			pr_err("%s request bl gpio failed\n", __func__);
-			goto power_on_error;
-		}
-	}
-
-	/* wait for 20 ms after enable gpio as suggested by hw */
-	msleep(20);
-	return 0;
-power_on_error:
-	panel_io_off(qpic_panel_io);
-	return -EINVAL;
 }
 
 int ili9341_on(struct qpic_panel_io_desc *qpic_panel_io)
 {
 	u8 param[4];
-	int ret;
-	if (!qpic_panel_io->init) {
-		panel_io_init(qpic_panel_io);
-		qpic_panel_io->init = true;
-	}
-	ret = panel_io_on(qpic_panel_io);
-	if (ret)
-		return ret;
+
 	qpic_send_pkt(OP_SOFT_RESET, NULL, 0);
 	/* wait for 120 ms after reset as panel spec suggests */
 	msleep(120);
@@ -202,28 +91,17 @@ int ili9341_on(struct qpic_panel_io_desc *qpic_panel_io)
 	return 0;
 }
 
-static int mdss_qpic_pinctrl_set_state(struct qpic_panel_io_desc *qpic_panel_io,
-		bool active)
+static int mdss_qpic_ili9341_panel_init(void)
 {
-	struct pinctrl_state *pin_state;
-	int rc = -EFAULT;
-
-	if (IS_ERR_OR_NULL(qpic_panel_io->pin_res.pinctrl))
-		return PTR_ERR(qpic_panel_io->pin_res.pinctrl);
-
-	pin_state = active ? qpic_panel_io->pin_res.gpio_state_active
-		: qpic_panel_io->pin_res.gpio_state_suspend;
-	if (!IS_ERR_OR_NULL(pin_state)) {
-		rc = pinctrl_select_state(qpic_panel_io->pin_res.pinctrl,
-				pin_state);
-		if (rc)
-			pr_err("%s: can not set %s pins\n", __func__,
-					active ? MDSS_PINCTRL_STATE_DEFAULT
-					: MDSS_PINCTRL_STATE_SLEEP);
-	} else {
-		pr_err("%s: invalid '%s' pinstate\n", __func__,
-				active ? MDSS_PINCTRL_STATE_DEFAULT
-				: MDSS_PINCTRL_STATE_SLEEP);
-	}
-	return rc;
+	qpic_panel_on = ili9341_on;
+	qpic_panel_off = ili9341_off;
+	return 0;
 }
+static void mdss_qpic_ili9341_panel_exit(void)
+{
+	qpic_panel_on = NULL;
+	qpic_panel_off = NULL;
+	return;
+}
+module_init(mdss_qpic_ili9341_panel_init);
+module_exit(mdss_qpic_ili9341_panel_exit);
