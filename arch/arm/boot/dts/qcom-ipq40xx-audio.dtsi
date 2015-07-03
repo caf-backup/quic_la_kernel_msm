@@ -15,6 +15,7 @@
  */
 
 #include <dt-bindings/sound/ipq40xx-audio.h>
+#include <dt-bindings/clock/qca,adcc-ipq40xx.h>
 
 &soc {
 	mbox0: mbox@7708000 {
@@ -85,7 +86,7 @@
 
 	audio: audio@7700000 {
 		compatible = "qca,ipq40xx-audio-adss";
-		reg = <0x7700000 0x300>,
+		reg = <0x7700000 0x34>,
 			<0x7707000 0x20>;
 		resets = <&gcc AUDIO_BLK_ARES>;
 		reset-names = "blk_rst";
@@ -98,6 +99,8 @@
 		dma-rx-channel = <MBOX0_RX_ID>;
 		stereo-tx-port = <STEREO3_ID>;
 		stereo-rx-port = <STEREO0_ID>;
+		clocks = <&adcc ADCC_PCM_CLK_SRC>;
+		clock-names = "audio_pcm_clk";
 		status = "disabled";
 	};
 
@@ -107,6 +110,14 @@
 		stereo-tx-port = <STEREO0_ID>;
 		dma-rx-channel = <MBOX3_RX_ID>;
 		stereo-rx-port = <STEREO3_ID>;
+		clocks = <&adcc ADCC_TXB_CLK_SRC>,
+			<&adcc ADCC_TXM_CLK_SRC>,
+			<&adcc ADCC_RXB_CLK_SRC>,
+			<&adcc ADCC_RXM_CLK_SRC>;
+		clock-names = "audio_tx_bclk",
+			"audio_tx_mclk",
+			"audio_rx_bclk",
+			"audio_rx_mclk";
 		status = "disabled";
 	};
 
@@ -116,6 +127,14 @@
 		dma-rx-channel = <MBOX3_RX_ID>;
 		stereo-tx-port = <STEREO0_ID>;
 		stereo-rx-port = <STEREO3_ID>;
+		clocks = <&adcc ADCC_TXB_CLK_SRC>,
+			<&adcc ADCC_TXM_CLK_SRC>,
+			<&adcc ADCC_RXB_CLK_SRC>,
+			<&adcc ADCC_RXM_CLK_SRC>;
+		clock-names = "audio_tx_bclk",
+			"audio_tx_mclk",
+			"audio_rx_bclk",
+			"audio_rx_mclk";
 		status = "disabled";
 	};
 
@@ -124,6 +143,16 @@
 		dma-tx-channel = <MBOX0_TX_ID>;
 		dma-rx-channel = <MBOX_SPDIF_RX_ID>;
 		stereo-tx-port = <STEREO0_ID>;
+		clocks = <&adcc ADCC_TXB_CLK_SRC>,
+			<&adcc ADCC_TXM_CLK_SRC>,
+			<&adcc ADCC_SPDIF_SRC>,
+			<&adcc ADCC_SPDIFDIV2_SRC >,
+			<&adcc ADCC_AUDIO_SPDIFINFAST_SRC>;
+		clock-names = "audio_tx_bclk",
+			"audio_tx_mclk",
+			"audio_spdif_src",
+			"audio_spdif_div2",
+			"audio_spdifinfast_src";
 		status = "disabled";
 	};
 
