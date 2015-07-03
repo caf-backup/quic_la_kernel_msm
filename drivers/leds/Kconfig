@@ -494,7 +494,7 @@ config LEDS_IPQ40XX
 	  This option enables support for the LEDs on IPQ40XX.
 	  There is support for ESS, WIFI and configurable LEDs.
 	  Supports 2 and 3 wire mode.
-	  Say Y to enable LEDs on QCA961X.
+	  Say Y to enable LEDs on IPQ40XX.
 
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
