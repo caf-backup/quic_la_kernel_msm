@@ -31,9 +31,16 @@
 #include <linux/dma-mapping.h>
 
 #define QFPROM_ROW_READ_CMD			0x8
-#define QFPROM_ROW_ROLLBACK_WRITE_CMD		0x9
+#define QFPROM_ROW_WRITE_CMD			0x9
 #define QFPROM_IS_AUTHENTICATE_CMD		0x7
 #define QFPROM_IS_AUTHENTICATE_CMD_RSP_SIZE	0x2
+
+#define SW_TYPE_DEFAULT				0xFF
+#define SW_TYPE_SBL				0x0
+#define SW_TYPE_TZ				0x7
+#define SW_TYPE_APPSBL				0x9
+#define SW_TYPE_HLOS				0x17
+#define SW_TYPE_RPM				0xA
 
 static ssize_t
 qfprom_show_authenticate(struct device *dev,
@@ -61,122 +68,239 @@ qfprom_show_authenticate(struct device *dev,
 	return QFPROM_IS_AUTHENTICATE_CMD_RSP_SIZE;
 }
 
-static ssize_t
-qfprom_show_version(struct device *dev,
-			struct device_attribute *attr,
-			char *buf)
+int write_version(uint32_t type, uint32_t version)
 {
-	uint64_t version __aligned(32);
-	uint32_t qfprom_api_status __aligned(32);
-	int32_t ret, ret1, ret2;
+	int ret;
+	uint32_t *qfprom_api_status = kzalloc(sizeof(uint32_t), GFP_KERNEL);
 
-	struct qfprom_read_ip {
-		uint32_t row_data_addr;
-		uint32_t addr_type;
+	if (!qfprom_api_status)
+		return -ENOMEM;
+
+	struct qfprom_write {
+		uint32_t sw_type;
+		uint32_t value;
+		uint32_t qfprom_ret_ptr;
+	} wrip;
+
+	wrip.value = version;
+	wrip.sw_type = type;
+	wrip.qfprom_ret_ptr = dma_map_single(NULL, &qfprom_api_status,
+			sizeof(*qfprom_api_status), DMA_FROM_DEVICE);
+
+	ret = dma_mapping_error(NULL, wrip.qfprom_ret_ptr);
+	if (ret) {
+		pr_err("DMA Mapping Error(api_status)\n");
+		goto err_write;
+	}
+
+	ret = scm_call(SCM_SVC_FUSE, QFPROM_ROW_WRITE_CMD,
+				&wrip, sizeof(wrip), NULL, 0);
+
+	dma_unmap_single(NULL, wrip.qfprom_ret_ptr,
+			sizeof(*qfprom_api_status), DMA_FROM_DEVICE);
+
+	if (ret || *qfprom_api_status) {
+		pr_err("%s: Error in QFPROM write (%d, %d)\n",
+				__func__, ret, *qfprom_api_status);
+	}
+
+err_write:
+	kfree(qfprom_api_status);
+	return ret;
+}
+
+int read_version(int type, uint32_t **version_ptr)
+{
+	int ret, ret1, ret2;
+
+	uint32_t *qfprom_api_status = kzalloc(sizeof(uint32_t), GFP_KERNEL);
+
+	if (!qfprom_api_status)
+		return -ENOMEM;
+
+	struct qfprom_read {
+		uint32_t sw_type;
+		uint32_t value;
 		uint32_t qfprom_ret_ptr;
 	} rdip;
 
-	rdip.addr_type = 0;
-	rdip.row_data_addr = dma_map_single(NULL, &version,
-			sizeof(version), DMA_FROM_DEVICE);
+	rdip.sw_type = type;
+	rdip.value = dma_map_single(NULL, *version_ptr,
+		sizeof(uint32_t), DMA_FROM_DEVICE);
 
-	rdip.qfprom_ret_ptr = dma_map_single(NULL, &qfprom_api_status,
-			sizeof(qfprom_api_status), DMA_FROM_DEVICE);
+	rdip.qfprom_ret_ptr = dma_map_single(NULL, qfprom_api_status,
+		sizeof(*qfprom_api_status), DMA_FROM_DEVICE);
 
-	ret1 = dma_mapping_error(NULL, rdip.row_data_addr);
+	ret1 = dma_mapping_error(NULL, rdip.value);
 	ret2 = dma_mapping_error(NULL, rdip.qfprom_ret_ptr);
 
 	if (ret1 == 0 && ret2 == 0) {
 		ret = scm_call(SCM_SVC_FUSE, QFPROM_ROW_READ_CMD,
-				&rdip, sizeof(rdip), NULL, 0);
+			&rdip, sizeof(rdip), NULL, 0);
 	}
 	if (ret1 == 0) {
-		dma_unmap_single(NULL, rdip.row_data_addr,
-				sizeof(version), DMA_FROM_DEVICE);
+		dma_unmap_single(NULL, rdip.value,
+			sizeof(uint32_t), DMA_FROM_DEVICE);
 	}
 	if (ret2 == 0) {
 		dma_unmap_single(NULL, rdip.qfprom_ret_ptr,
-				sizeof(qfprom_api_status), DMA_FROM_DEVICE);
+			sizeof(*qfprom_api_status), DMA_FROM_DEVICE);
 	}
 	if (ret1 || ret2) {
 		pr_err("DMA Mapping Error",
 			"(version)\n" ? ret1 : "(api_status)\n");
-		return ret1 ? ret1 : ret2;
+		ret = ret1 ? ret1 : ret2;
+		goto err_read;
 	}
 
-	if (ret && qfprom_api_status) {
-		pr_err("%s: Error in QFPROM read (%d, 0x%x)\n",
-				__func__, ret, qfprom_api_status);
-		return ret;
+	if (ret || *qfprom_api_status) {
+		pr_err("%s: Error in QFPROM read (%d, %d)\n",
+			 __func__, ret, *qfprom_api_status);
 	}
-	return snprintf(buf, 20, "0x%llX\n", version);
+err_read:
+	kfree(qfprom_api_status);
+	return ret;
+}
+
+static ssize_t generic_version(char *buf,
+		uint32_t sw_type, int op, size_t count)
+{
+	int ret = 0;
+	uint32_t *version = kzalloc(sizeof(uint32_t), GFP_KERNEL);
+
+	if (!version)
+		return -ENOMEM;
+
+	/*
+	 * Operation Type: Read: 1 and Write: 2
+	 */
+	switch (op) {
+	case 1:
+		ret = read_version(sw_type, &version);
+		if (ret) {
+			pr_err("\n Error in reading version: %d", ret);
+			goto err_generic;
+		}
+		ret = snprintf(buf, 10, "%d\n", *version);
+		break;
+	case 2:
+		/* Input validation handled here */
+		ret = kstrtouint(buf, 0, version);
+		if (ret)
+			goto err_generic;
+
+		ret = write_version(sw_type, *version);
+		if (ret) {
+			pr_err("\n Error in writing version: %d", ret);
+			goto err_generic;
+		}
+		ret = count;
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+err_generic:
+	kfree(version);
+	return ret;
+}
+static ssize_t
+show_sbl_version(struct device *dev,
+			struct device_attribute *attr,
+			char *buf)
+{
+	return generic_version(buf, SW_TYPE_SBL, 1, 0);
 }
 
 static ssize_t
-qfprom_store_version(struct device *dev,
+store_sbl_version(struct device *dev,
 			struct device_attribute *attr,
 			const char *buf, size_t count)
 {
-	uint64_t version __aligned(32);
-	uint32_t qfprom_api_status __aligned(32);
-	int32_t ret, ret1, ret2;
-
-	struct qfprom_write_ip {
-		uint32_t row_data_addr;
-		uint32_t bus_clk;
-		uint32_t qfprom_ret_ptr;
-	} wrip;
-
-	/* Input validation handled here */
-	ret = kstrtoull(buf, 0, &version);
-	if (ret)
-		return ret;
-
-	wrip.bus_clk = (64 * 1000);
-	wrip.row_data_addr = dma_map_single(NULL, &version,
-			sizeof(version), DMA_TO_DEVICE);
-	wrip.qfprom_ret_ptr = dma_map_single(NULL, &qfprom_api_status,
-			sizeof(qfprom_api_status), DMA_TO_DEVICE);
-
-
-	ret1 = dma_mapping_error(NULL, wrip.row_data_addr);
-	ret2 = dma_mapping_error(NULL, wrip.qfprom_ret_ptr);
-
-	if (ret1 == 0 && ret2 == 0) {
-		ret = scm_call(SCM_SVC_FUSE, QFPROM_ROW_ROLLBACK_WRITE_CMD,
-				&wrip, sizeof(wrip), NULL, 0);
-	}
-	if (ret1 == 0) {
-		dma_unmap_single(NULL, wrip.row_data_addr,
-				sizeof(version), DMA_TO_DEVICE);
-	}
-
-	if (ret2 == 0) {
-		dma_unmap_single(NULL, wrip.qfprom_ret_ptr,
-				sizeof(qfprom_api_status), DMA_TO_DEVICE);
-	}
-
-	if (ret1 || ret2) {
-		pr_err("DMA Mapping Error",
-				"(version)\n" ? ret1 : "(api_status)\n");
-		return ret1 ? ret1 : ret2;
-	}
-
-	if (ret && qfprom_api_status) {
-		pr_err("%s: Error in QFPROM write (%d, 0x%x)\n",
-				__func__, ret, qfprom_api_status);
-		return ret;
-	}
-
-	/* Return the count argument since entire buffer is used */
-	return count;
+	return generic_version(buf, SW_TYPE_SBL, 2, count);
 }
 
+static ssize_t
+show_tz_version(struct device *dev,
+			struct device_attribute *attr,
+			char *buf)
+{
+	return generic_version(buf, SW_TYPE_TZ, 1, 0);
+}
+
+static ssize_t
+store_tz_version(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	return generic_version(buf, SW_TYPE_TZ, 2, count);
+}
+
+static ssize_t
+show_appsbl_version(struct device *dev,
+			struct device_attribute *attr,
+			char *buf)
+{
+	return generic_version(buf, SW_TYPE_APPSBL, 1, 0);
+}
+
+static ssize_t
+store_appsbl_version(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	return generic_version(buf, SW_TYPE_APPSBL, 2, count);
+}
+
+static ssize_t
+show_hlos_version(struct device *dev,
+			struct device_attribute *attr,
+			char *buf)
+{
+	return generic_version(buf, SW_TYPE_HLOS, 1, 0);
+}
+
+static ssize_t
+store_hlos_version(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	return generic_version(buf, SW_TYPE_HLOS, 2, count);
+}
+
+static ssize_t
+show_rpm_version(struct device *dev,
+			struct device_attribute *attr,
+			char *buf)
+{
+	return generic_version(buf, SW_TYPE_RPM, 1, 0);
+}
+
+static ssize_t
+store_rpm_version(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	return generic_version(buf, SW_TYPE_RPM, 2, count);
+}
+
+/*
+ * Do not change the order of attributes.
+ * New types should be added at the end
+ */
 static struct device_attribute qfprom_attrs[] = {
-	__ATTR(version, 0666, qfprom_show_version,
-					qfprom_store_version),
 	__ATTR(authenticate, 0444, qfprom_show_authenticate,
 					NULL),
+	__ATTR(sbl_version, 0666, show_sbl_version,
+					store_sbl_version),
+	__ATTR(tz_version, 0666, show_tz_version,
+					store_tz_version),
+	__ATTR(appsbl_version, 0666, show_appsbl_version,
+					store_appsbl_version),
+	__ATTR(hlos_version, 0666, show_hlos_version,
+					store_hlos_version),
+	__ATTR(rpm_version, 0666, show_rpm_version,
+					store_rpm_version),
 };
 
 static struct bus_type qfprom_subsys = {
@@ -189,11 +313,26 @@ static struct device device_qfprom = {
 	.bus = &qfprom_subsys,
 };
 
-static int __init qfprom_create_files(int size)
+static int __init qfprom_create_files(int size, int16_t sw_bitmap)
 {
 	int i;
+	int err;
+	int sw_bit;
+
 	for (i = 0; i < size; i++) {
-		int err = device_create_file(&device_qfprom, &qfprom_attrs[i]);
+		/* authenticate sysfs entry is mandatory */
+		err = memcmp(qfprom_attrs[i].attr.name, "authenticate", 12);
+		if (err != 0) {
+			/*
+			 * Following is the BitMap adapted:
+			 * SBL:0 TZ:1 APPSBL:2 HLOS:3 RPM:4. New types should
+			 * be added at the end of "qfprom_attrs" variable.
+			 */
+			sw_bit = i - 1;
+			if (!(sw_bitmap & (1 << sw_bit)))
+				break;
+		}
+		err = device_create_file(&device_qfprom, &qfprom_attrs[i]);
 		if (err) {
 			pr_err("%s: device_create_file(%s)=%d\n",
 				__func__, qfprom_attrs[i].attr.name, err);
@@ -203,9 +342,43 @@ static int __init qfprom_create_files(int size)
 	return 0;
 }
 
+int is_version_rlbk_enabled(int16_t *sw_bitmap)
+{
+	int ret;
+	uint32_t *version_enable = kzalloc(sizeof(uint32_t), GFP_KERNEL);
+	if (!version_enable)
+		return -ENOMEM;
+
+	ret = read_version(SW_TYPE_DEFAULT, &version_enable);
+	if (ret) {
+		pr_err("\n Version Read Failed with error %d", ret);
+		goto err_ver;
+	}
+
+	*sw_bitmap = ((*version_enable & 0xFFFF0000) >> 16);
+
+	ret = (*version_enable & 0x1);
+
+err_ver:
+	kfree(version_enable);
+	return ret;
+}
+
 static int __init qfprom_init(void)
 {
 	int err;
+	int16_t sw_bitmap = 0;
+
+	err = is_version_rlbk_enabled(&sw_bitmap);
+
+	if (err < 1)
+		return err;
+
+	if (err == 0) {
+		pr_info("\n Version Rollback Feature Disabled\n");
+		return 0;
+	}
+
 	/*
 	 * Registering under "/sys/devices/system"
 	 */
@@ -215,14 +388,8 @@ static int __init qfprom_init(void)
 			__func__, err);
 		return err;
 	}
-
 	err = device_register(&device_qfprom);
-	if (err) {
-		pr_err("%s: device_register fail (%d)\n",
-			__func__, err);
-		return err;
-	}
-	return qfprom_create_files(ARRAY_SIZE(qfprom_attrs));
-}
 
+	return qfprom_create_files(ARRAY_SIZE(qfprom_attrs), sw_bitmap);
+}
 arch_initcall(qfprom_init);
