@@ -591,6 +591,7 @@ int qpic_send_pkt(u32 cmd, u8 *param, u32 len)
 	else
 		return qpic_send_pkt_bam(cmd, len, param);
 }
+EXPORT_SYMBOL(qpic_send_pkt);
 
 int mdss_qpic_init(void)
 {
@@ -656,6 +657,7 @@ u32 qpic_read_data(u32 cmd_index, u32 size)
 	}
 	return data;
 }
+EXPORT_SYMBOL(qpic_read_data);
 
 static int msm_qpic_bus_register(struct platform_device *pdev)
 {
