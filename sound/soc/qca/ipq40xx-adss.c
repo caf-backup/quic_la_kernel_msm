@@ -372,6 +372,23 @@ void ipq40xx_i2s_intf_clk_cfg(uint32_t mode)
 }
 EXPORT_SYMBOL(ipq40xx_i2s_intf_clk_cfg);
 
+void ipq40xx_glb_clk_enable_oe(uint32_t dir)
+{
+	uint32_t cfg;
+
+	cfg = readl(adss_audio_local_base + ADSS_GLB_CLK_I2S_CTRL_REG);
+
+	if (dir == PLAYBACK) {
+		cfg |= (GLB_CLK_I2S_CTRL_TX_BCLK_OE |
+			GLB_CLK_I2S_CTRL_TX_MCLK_OE);
+	} else {
+		cfg |= (GLB_CLK_I2S_CTRL_RX_BCLK_OE |
+			GLB_CLK_I2S_CTRL_RX_MCLK_OE);
+	}
+	writel(cfg, adss_audio_local_base + ADSS_GLB_CLK_I2S_CTRL_REG);
+}
+EXPORT_SYMBOL(ipq40xx_glb_clk_enable_oe);
+
 /* Channel Number Per Frame for Transmitter/Receiver
  * Real value = val + 1
  */
