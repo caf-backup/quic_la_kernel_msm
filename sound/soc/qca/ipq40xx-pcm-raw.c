@@ -166,9 +166,9 @@ uint32_t ipq40xx_pcm_validate_params(struct ipq_pcm_params *params)
 
 	/* Number of active slots should be less than or same as max slots */
 	if ((!params->active_slot_count) ||
-			params->active_slot_count > params->slot_count) {
+			(params->active_slot_count > IPQ40xx_PCM_MAX_SLOTS)) {
 		pr_err("%s: Active slots should be less than or same as %d\n",
-				__func__, params->slot_count);
+				__func__, IPQ40xx_PCM_MAX_SLOTS);
 		return -EINVAL;
 	}
 
@@ -234,10 +234,7 @@ int ipq_pcm_init(struct ipq_pcm_params *params)
 	ipq40xx_glb_audio_mode_B1K();
 
 	/* set ADSS_PCM_CTRL_REG */
-	reg_val = 0
-		| PCM_CTRL_CPU_MODE(0)
-		| PCM_CTRL_FRAME_SYNC_LEN(0)
-		| PCM_CTRL_TX2RX_LP_EN(1);
+	reg_val = PCM_CTRL_CPU_MODE(0) | PCM_CTRL_FRAME_SYNC_LEN(0);
 
 	if (params->bit_width == IPQ40xx_PCM_BIT_WIDTH_16)
 		reg_val |= PCM_CTRL_PCM_SLOT_MODE(1);

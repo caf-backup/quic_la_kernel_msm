@@ -37,6 +37,8 @@
  */
 #define IPQ40xx_PCM_BYTES_PER_SAMPLE(bit_width) (4)
 
+#define IPQ40xx_PCM_MAX_SLOTS	4
+
 struct pcm_context {
 	uint32_t pcm_started;
 	uint8_t needs_deinit;
@@ -75,8 +77,8 @@ struct ipq_pcm_params {
 	uint32_t rate;
 	uint32_t slot_count;
 	uint32_t active_slot_count;
-	uint32_t tx_slots[4];
-	uint32_t rx_slots[4];
+	uint32_t tx_slots[IPQ40xx_PCM_MAX_SLOTS];
+	uint32_t rx_slots[IPQ40xx_PCM_MAX_SLOTS];
 };
 
 int ipq_pcm_init(struct ipq_pcm_params *params);
