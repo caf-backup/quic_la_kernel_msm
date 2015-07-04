@@ -109,6 +109,7 @@
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 			reg = <0x7700038 0x1DC>;
+			status = "disabled";
 		};
 
 		timer {
