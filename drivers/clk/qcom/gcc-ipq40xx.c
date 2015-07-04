@@ -612,7 +612,7 @@ static struct clk_branch gcc_blsp1_qup2_spi_apps_clk = {
 static const struct freq_tbl ftbl_gcc_blsp1_uart1_2_apps_clk[] = {
 	F(1843200, FE_PLL_200, 1, 144, 15625),
 	F(3686400, FE_PLL_200, 1, 288, 15625),
-	F(7372800, FE_PLL_200, 1, 566, 15625),
+	F(7372800, FE_PLL_200, 1, 576, 15625),
 	F(14745600, FE_PLL_200, 1, 1152, 15625),
 	F(16000000, FE_PLL_200, 1, 2, 25),
 	F(24000000, P_XO, 1, 1, 2),
