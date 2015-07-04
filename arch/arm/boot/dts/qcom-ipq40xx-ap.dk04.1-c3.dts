@@ -33,6 +33,10 @@
 			};
 		};
 
+		adcc: clock-controller@7700038 {
+			status = "ok";
+		};
+
 		/* Enable VOIP Interfaces */
 		pcm: pcm@7704000 {
 			status = "ok";

@@ -67,6 +67,10 @@
 			};
 		};
 
+		adcc: clock-controller@7700038 {
+			status = "ok";
+		};
+
 		/* Enable Audio Interfaces */
 		i2s: ipq40xx-pcm-i2s@0 {
 			status = "ok";
