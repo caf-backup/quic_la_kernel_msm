@@ -36,6 +36,11 @@
 #define PHY_1P8_VOL_MAX			1800000 /* uV */
 #define PHY_1P8_HPM_LOAD		23000	/* uA */
 
+#define PHY_RX_EQ_VALUE			4   /* Override value for rx_eq */
+#define PHY_TX_DEEMPH_3_5DB		23  /* Override value for
+						transmit preemphasis */
+#define PHY_MPLL_VALUE			0   /* Override value for mpll */
+
 /* TODO: these are suspicious */
 #define USB_VDDCX_NO			1	/* index */
 #define USB_VDDCX_MIN			5	/* index */
@@ -51,10 +56,24 @@ struct qcom_dwc3_ss_phy {
 
 	struct clk		*xo_clk;
 	struct clk		*ref_clk;
+
+	u32			rx_eq;
+	u32			tx_deamp_3_5db;
+	u32			mpll;
 };
 
 #define	phy_to_dw_phy(x)	container_of((x), struct qcom_dwc3_ss_phy, phy)
 
+/**
+ * Read register
+ *
+ * @base - QCOM DWC3 PHY base virtual address.
+ * @offset - register offset.
+ **/
+static inline u32 qcom_dwc3_ss_read(void __iomem *base, u32 offset)
+{
+	return readl(base + offset);
+}
 
 /**
  * Write register
@@ -252,38 +271,54 @@ static int qcom_dwc3_ss_phy_init(struct usb_phy *x)
 	 * Fix RX Equalization setting as follows
 	 * LANE0.RX_OVRD_IN_HI. RX_EQ_EN set to 0
 	 * LANE0.RX_OVRD_IN_HI.RX_EQ_EN_OVRD set to 1
-	 * LANE0.RX_OVRD_IN_HI.RX_EQ set to 3
+	 * LANE0.RX_OVRD_IN_HI.RX_EQ set based on SoC version
 	 * LANE0.RX_OVRD_IN_HI.RX_EQ_OVRD set to 1
 	 */
 	data = qcom_dwc3_ss_read_phycreg(phy->base, 0x1006);
 	data &= ~(1 << 6);
 	data |= (1 << 7);
 	data &= ~(0x7 << 8);
-	data |= (0x3 << 8);
+	data |= (phy->rx_eq << 8);
 	data |= (0x1 << 11);
 	qcom_dwc3_ss_write_phycreg(phy->base, 0x1006, data);
 
 	/*
 	 * Set EQ and TX launch amplitudes as follows
-	 * LANE0.TX_OVRD_DRV_LO.PREEMPH set to 22
-	 * LANE0.TX_OVRD_DRV_LO.AMPLITUDE set to 127
+	 * LANE0.TX_OVRD_DRV_LO.PREEMPH set based on SoC version
+	 * LANE0.TX_OVRD_DRV_LO.AMPLITUDE set to 110
 	 * LANE0.TX_OVRD_DRV_LO.EN set to 1.
 	 */
 	data = qcom_dwc3_ss_read_phycreg(phy->base, 0x1002);
 	data &= ~0x3f80;
-	data |= (0x16 << 7);
+	data |= (phy->tx_deamp_3_5db << 7);
 	data &= ~0x7f;
-	data |= (0x7f | (1 << 14));
+	data |= (0x6e | (1 << 14));
 	qcom_dwc3_ss_write_phycreg(phy->base, 0x1002, data);
 
 	/*
-	 * Set the QSCRATCH PHY_PARAM_CTRL1 parameters as follows
-	 * TX_FULL_SWING [26:20] amplitude to 127
-	 * TX_DEEMPH_3_5DB [13:8] to 22
-	 * LOS_BIAS [2:0] to 0x5
+	 * Set mpll value as follows
+	 * mpll value set based on SoC version
 	 */
+	qcom_dwc3_ss_write_phycreg(phy->base, 0x30, phy->mpll);
+
+	/*
+	 * Set the QSCRATCH PHY_PARAM_CTRL1 parameters as follows
+	 * TX_FULL_SWING [26:20] amplitude to 110
+	 * TX_DEEMPH_6DB [19:14] to 32
+	 * TX_DEEMPH_3_5DB [13:8] set based on SoC version
+	 * LOS_LEVEL [7:3] to 9
+	 */
+	data = qcom_dwc3_ss_read(phy->base, PHY_PARAM_CTRL_1);
+	data &= ~0x07f00000;
+	data |= (0x6e << 20);
+	data &= ~0x000fc000;
+	data |= (0x20 << 14);
+	data &= ~0x00003f00;
+	data |= (phy->tx_deamp_3_5db << 8);
+	data &= ~0x000000f8;
+	data |= (0x9 << 3);
 	qcom_dwc3_ss_write_readback(phy->base, PHY_PARAM_CTRL_1,
-				   0x07f03f07, 0x07f01605);
+				   0x07fffff8, data);
 	return 0;
 }
 
@@ -326,38 +361,56 @@ static int qcom_dwc3_ss_set_suspend(struct usb_phy *x, int suspend)
 		 * Fix RX Equalization setting as follows
 		 * LANE0.RX_OVRD_IN_HI. RX_EQ_EN set to 0
 		 * LANE0.RX_OVRD_IN_HI.RX_EQ_EN_OVRD set to 1
-		 * LANE0.RX_OVRD_IN_HI.RX_EQ set to 3
+		 * LANE0.RX_OVRD_IN_HI.RX_EQ set based on SoC version
 		 * LANE0.RX_OVRD_IN_HI.RX_EQ_OVRD set to 1
 		 */
 		data = qcom_dwc3_ss_read_phycreg(phy->base, 0x1006);
 		data &= ~(1 << 6);
 		data |= (1 << 7);
 		data &= ~(0x7 << 8);
-		data |= (0x3 << 8);
+		data |= (phy->rx_eq << 8);
 		data |= (0x1 << 11);
 		qcom_dwc3_ss_write_phycreg(phy->base, 0x1006, data);
 
 		/*
 		 * Set EQ and TX launch amplitudes as follows
-		 * LANE0.TX_OVRD_DRV_LO.PREEMPH set to 22
-		 * LANE0.TX_OVRD_DRV_LO.AMPLITUDE set to 127
+		 * LANE0.TX_OVRD_DRV_LO.PREEMPH set based on SoC version
+		 * LANE0.TX_OVRD_DRV_LO.AMPLITUDE set to 110
 		 * LANE0.TX_OVRD_DRV_LO.EN set to 1.
 		 */
 		data = qcom_dwc3_ss_read_phycreg(phy->base, 0x1002);
 		data &= ~0x3f80;
-		data |= (0x16 << 7);
+		data |= (phy->tx_deamp_3_5db << 7);
 		data &= ~0x7f;
-		data |= (0x7f | (1 << 14));
+		data |= (0x6e | (1 << 14));
 		qcom_dwc3_ss_write_phycreg(phy->base, 0x1002, data);
 
 		/*
-		 * Set the QSCRATCH PHY_PARAM_CTRL1 parameters as follows
-		 * TX_FULL_SWING [26:20] amplitude to 127
-		 * TX_DEEMPH_3_5DB [13:8] to 22
-		 * LOS_BIAS [2:0] to 0x5
+		 * Set mpll value as follows
+		 * mpll value set based on SoC version
 		 */
+		qcom_dwc3_ss_write_phycreg(phy->base, 0x30, phy->mpll);
+
+
+		/*
+		 * Set the QSCRATCH PHY_PARAM_CTRL1 parameters as follows
+		 * TX_FULL_SWING [26:20] amplitude to 110
+		 * TX_DEEMPH_6DB [19:14] to 32
+		 * TX_DEEMPH_3_5DB [13:8] set based on SoC version
+		 * LOS_LEVEL [7:3] to 9
+		 */
+		data = qcom_dwc3_ss_read(phy->base, PHY_PARAM_CTRL_1);
+		data &= ~0x07f00000;
+		data |= (0x6e << 20);
+		data &= ~0x000fc000;
+		data |= (0x20 << 14);
+		data &= ~0x00003f00;
+		data |= (phy->tx_deamp_3_5db << 8);
+		data &= ~0x000000f8;
+		data |= (0x9 << 3);
 		qcom_dwc3_ss_write_readback(phy->base, PHY_PARAM_CTRL_1,
-					   0x07f03f07, 0x07f01605);
+					    0x07fffff8, data);
+
 	}
 	return 0;
 }
@@ -368,6 +421,7 @@ static int qcom_dwc3_ss_probe(struct platform_device *pdev)
 	struct resource		*res;
 	void __iomem		*base;
 	int ret;
+	struct device_node *np;
 
 	phy = devm_kzalloc(&pdev->dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
@@ -409,6 +463,21 @@ static int qcom_dwc3_ss_probe(struct platform_device *pdev)
 	clk_set_rate(phy->ref_clk, 125000000);
 	if (phy->xo_clk)
 		clk_prepare_enable(phy->xo_clk);
+
+
+	/* Parse device node to probe HSIO settings */
+	np = of_node_get(pdev->dev.of_node);
+	if (of_property_read_u32(np, "rx_eq", &phy->rx_eq) ||
+	    of_property_read_u32(np, "tx_deamp_3_5db", &phy->tx_deamp_3_5db) ||
+	    of_property_read_u32(np, "mpll", &phy->mpll)) {
+
+		dev_err(phy->dev, "cannot get HSIO settings from device node, using default values\n");
+
+		/* Default HSIO settings */
+		phy->rx_eq = PHY_RX_EQ_VALUE;
+		phy->tx_deamp_3_5db = PHY_TX_DEEMPH_3_5DB;
+		phy->mpll = PHY_MPLL_VALUE;
+	}
 
 	phy->base		= base;
 	phy->phy.dev		= phy->dev;
