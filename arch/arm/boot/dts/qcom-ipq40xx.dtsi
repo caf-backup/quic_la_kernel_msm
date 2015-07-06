@@ -479,8 +479,6 @@
 		edma@c080000 {
 			compatible = "qcom,ess-edma";
 			reg = <0xc080000 0x8000>;
-			resets = <&gcc ESS_RESET>;
-			reset-names = "ess_rst";
 			qcom,page-mode = <0>;
 			qcom,rx_head_buf_size = <1540>;
 			qcom,port_id_wan = <0x5>;
@@ -646,6 +644,8 @@
 			compatible = "qcom,ess-switch";
 			reg = <0xc000000 0x80000>; /* 512KB */
 			switch_access_mode = "local bus";
+			resets = <&gcc ESS_RESET>;
+			reset-names = "ess_rst";
 			switch_cpu_bmp = <0x1>;  /* cpu port bitmap */
 			switch_lan_bmp = <0x1e>; /* lan port bitmap */
 			switch_wan_bmp = <0x20>; /* wan port bitmap */

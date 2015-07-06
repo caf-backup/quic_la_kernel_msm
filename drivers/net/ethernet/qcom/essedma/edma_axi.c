@@ -17,7 +17,6 @@
 #include "ess_edma.h"
 #include <linux/cpu_rmap.h>
 #include <linux/of_net.h>
-#include <linux/reset.h>
 
 /* Weight round robin and virtual QID mask */
 #define EDMA_WRR_VID_SCTL_MASK 0xFFFF
@@ -279,32 +278,14 @@ static int edma_axi_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *pnp;
-	struct device dev;
 	struct device_node *mdio_node = NULL;
 	struct platform_device *mdio_plat = NULL;
 	struct mii_bus *miibus = NULL;
 	struct edma_mdio_data *mdio_data = NULL;
-	struct reset_control *ess_rst;
 	int i, j, err = 0, ret = 0;
 	uint8_t phy_id[MII_BUS_ID_SIZE + 3];
 	const __be32 *prop = NULL;
 
-	/* Do a ESS-EDMA Reset */
-	dev.of_node = of_find_node_by_name(NULL, "ess-switch");
-	if (!dev.of_node) {
-		dev_err(&dev, "ess-edma device not found\n");
-		return -ENODEV;
-	}
-
-	ess_rst = devm_reset_control_get(&pdev->dev, "ess_rst");
-	if (IS_ERR(ess_rst)) {
-		dev_err(&pdev->dev, "ess-edma reset failed\n");
-		return PTR_ERR(ess_rst);
-	}
-
-	reset_control_assert(ess_rst);
-	udelay(200);
-	reset_control_deassert(ess_rst);
 
 	/* Use to allocate net devices for multiple TX/RX queues */
 	netdev[0] = alloc_etherdev_mqs(sizeof(struct edma_adapter),
