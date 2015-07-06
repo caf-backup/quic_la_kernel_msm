@@ -158,6 +158,7 @@ void br_fdb_cleanup(unsigned long _data)
 	unsigned long delay = hold_time(br);
 	unsigned long next_timer = jiffies + br->ageing_time;
 	int i;
+	u8 mac_addr[6];
 
 	spin_lock(&br->hash_lock);
 	for (i = 0; i < BR_HASH_SIZE; i++) {
@@ -173,11 +174,12 @@ void br_fdb_cleanup(unsigned long _data)
 				/* bridge "ageing timer expire" event call back
 				 * to registered modules
 				 */
+				memcpy(mac_addr, f->addr.addr, ETH_ALEN);
+				fdb_delete(br, f);
 				atomic_notifier_call_chain(
 						&br_fdb_update_notifier_list,
-						0, (void *)f->addr.addr);
+						0, (void *)mac_addr);
 
-				fdb_delete(br, f);
 			} else if (time_before(this_timer, next_timer))
 				next_timer = this_timer;
 		}
@@ -498,7 +500,7 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 				fdb->dst = source;
 				atomic_notifier_call_chain(
 						&br_fdb_update_notifier_list,
-						0, addr);
+						0, (void *)addr);
 			}
 			fdb->updated = jiffies;
 		}
