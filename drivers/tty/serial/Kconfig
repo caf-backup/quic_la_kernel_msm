@@ -1040,6 +1040,22 @@ config SERIAL_MSM_CONSOLE
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON
 
+config SERIAL_MSM_HSL
+	tristate "MSM UART High Speed : Legacy mode Serial Driver"
+	depends on ARCH_MSM || ARCH_QCOM
+	select SERIAL_CORE
+	default n
+	help
+		Select this module to enable MSM high speed UART driver.
+
+config SERIAL_MSM_HSL_CONSOLE
+	bool "MSM High speed serial legacy mode console support"
+	depends on SERIAL_MSM_HSL=y
+	select SERIAL_CORE_CONSOLE
+	default n
+	help
+		Select this option to use msm_hsl serial port as console.
+
 config SERIAL_MSM_HS
 	tristate "MSM UART High Speed: Serial Driver"
 	depends on ARCH_MSM7X00A || ARCH_MSM7X30 || ARCH_QSD8X50
