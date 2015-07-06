@@ -282,8 +282,8 @@ config PSB6970_PHY
 	select SWCONFIG
 	select ETHERNET_PACKET_MANGLE
 
-config MDIO_QCA961X
-	tristate "Qualcomm Atheros qca961x MDIO interface"
+config MDIO_IPQ40XX
+	tristate "Qualcomm Atheros ipq40xx MDIO interface"
 	help
 	  This driver supports the MDIO interface found in Qualcomm
-	  Atheros qca961x Soc chip.
+	  Atheros ipq40xx Soc chip.

@@ -659,7 +659,7 @@
 		mdio@90000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
-			compatible = "qcom,qca961x-mdio";
+			compatible = "qcom,ipq40xx-mdio";
 			reg = <0x90000 0x64>;
 			phy0: ethernet-phy@0 {
 				reg = <0>;
