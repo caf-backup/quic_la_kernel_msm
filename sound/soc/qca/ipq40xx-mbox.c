@@ -28,6 +28,23 @@
 
 #include "ipq40xx-mbox.h"
 
+/* When the mailbox operation is started, the mailbox would get one descriptor
+ * for the current data transfer and prefetch one more descriptor. When less
+ * than 3 descriptors are configured, then it is possible that before the CPU
+ * handles the interrupt, the mailbox could check the pre fetched descriptor
+ * and stop the DMA transfer.
+ * To handle this, the design is use multiple descriptors, but they would
+ * point to the same buffer address. This way  more number of descriptors
+ * would satisfy the mbox requirement, and reusing the buffer address would
+ * satisfy the upper layer's buffer requirement
+ *
+ * The value of 5 of repetition times was derived from trial and error testing
+ * for minimum number of repetitions that would result in MBOX operations
+ * without stopping.
+ */
+#define MBOX_MIN_DESC_NUM       3
+#define MBOX_DESC_REPEAT_NUM    5
+
 enum {
 	CHN_DISABLED = 0x00,
 	CHN_ENABLED = 0x01, /* from dtsi */
@@ -246,7 +263,7 @@ int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr,
 				int period_bytes, int bufsize)
 {
 	struct ipq40xx_mbox_desc *desc, *_desc_p;
-	dma_addr_t desc_p;
+	dma_addr_t desc_p, baseaddr_const;
 	unsigned int i, ndescs;
 	uint32_t index, dir;
 
@@ -256,7 +273,10 @@ int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr,
 	if (!mbox_rtime[index])
 		return -ENOMEM;
 
-	ndescs = (bufsize + (period_bytes - 1)) / period_bytes;
+	ndescs = ((bufsize + (period_bytes - 1)) / period_bytes);
+
+	if (ndescs < MBOX_MIN_DESC_NUM)
+		ndescs *= MBOX_DESC_REPEAT_NUM;
 
 	desc = dma_alloc_coherent(mbox_rtime[index]->dir_priv[dir].dev,
 				(ndescs * sizeof(struct ipq40xx_mbox_desc)),
@@ -272,6 +292,8 @@ int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr,
 	mbox_rtime[index]->dir_priv[dir].dma_phys_head = desc_p;
 	_desc_p = (struct ipq40xx_mbox_desc *)desc_p;
 
+	baseaddr_const = baseaddr;
+
 	for (i = 0; i < ndescs; i++) {
 
 		desc->OWN = 1;
@@ -283,14 +305,16 @@ int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr,
 		desc->size = period_bytes;
 		desc->length = desc->size;
 		baseaddr += period_bytes;
+		if (baseaddr >= (baseaddr_const + bufsize)) {
+			if (bufsize % period_bytes)
+				desc->size = bufsize % period_bytes;
+			else
+				desc->size = period_bytes;
+
+			baseaddr = baseaddr_const;
+		}
 		desc += 1;
 	}
-
-	desc--;
-	if (bufsize % period_bytes)
-		desc->size = bufsize % period_bytes;
-	else
-		desc->size = period_bytes;
 
 	return 0;
 }
@@ -310,6 +334,9 @@ int ipq40xx_mbox_dma_release(int channel_id)
 	}
 
 	if (test_bit(CHN_STARTED, &mbox_rtime[index]->dir_priv[dir].status)) {
+		ipq40xx_mbox_interrupt_disable(channel_id,
+				(MBOX_INT_ENABLE_TX_DMA_COMPLETE |
+					MBOX_INT_ENABLE_RX_DMA_COMPLETE));
 		if (mbox_rtime[index]->dir_priv[dir].dma_virt_head) {
 			dma_free_coherent(mbox_rtime[index]->dir_priv[dir].dev,
 				(mbox_rtime[index]->dir_priv[dir].ndescs *
