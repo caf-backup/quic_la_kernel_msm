@@ -150,6 +150,12 @@
 			pinctrl-0 = <&i2c_0_pins>;
 			pinctrl-names = "default";
 			status = "ok";
+
+			qca_codec: qca_codec@10 {
+				compatible = "qca,ipq40xx-codec";
+				reg = <0x10>;
+				status = "disabled";
+			};
 		};
 
 		qcom_crypto: qcrypto@8e20000 {
