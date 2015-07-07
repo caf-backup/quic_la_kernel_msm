@@ -32,8 +32,10 @@
 static u32 panel_is_on;
 static u32 panel_refresh_rate;
 
-static int (*qpic_panel_on)(struct qpic_panel_io_desc *qpic_panel_io);
-static void (*qpic_panel_off)(struct qpic_panel_io_desc *qpic_panel_io);
+int (*qpic_panel_on)(struct qpic_panel_io_desc *qpic_panel_io);
+EXPORT_SYMBOL(qpic_panel_on);
+void (*qpic_panel_off)(struct qpic_panel_io_desc *qpic_panel_io);
+EXPORT_SYMBOL(qpic_panel_off);
 
 static int mdss_qpic_pinctrl_init(struct platform_device *pdev,
 		struct qpic_panel_io_desc *qpic_panel_io);
@@ -125,6 +127,139 @@ static int mdss_qpic_pinctrl_init(struct platform_device *pdev,
 	return 0;
 }
 
+static int mdss_qpic_pinctrl_set_state(struct qpic_panel_io_desc *qpic_panel_io,
+		bool active)
+{
+	struct pinctrl_state *pin_state;
+	int rc = -EFAULT;
+
+	if (IS_ERR_OR_NULL(qpic_panel_io->pin_res.pinctrl))
+		return PTR_ERR(qpic_panel_io->pin_res.pinctrl);
+
+	pin_state = active ? qpic_panel_io->pin_res.gpio_state_active
+		: qpic_panel_io->pin_res.gpio_state_suspend;
+	if (!IS_ERR_OR_NULL(pin_state)) {
+		rc = pinctrl_select_state(qpic_panel_io->pin_res.pinctrl,
+				pin_state);
+		if (rc)
+			pr_err("%s: can not set %s pins\n", __func__,
+					active ? MDSS_PINCTRL_STATE_DEFAULT
+					: MDSS_PINCTRL_STATE_SLEEP);
+	} else {
+		pr_err("%s: invalid '%s' pinstate\n", __func__,
+					active ? MDSS_PINCTRL_STATE_DEFAULT
+					: MDSS_PINCTRL_STATE_SLEEP);
+	}
+
+	return rc;
+}
+
+static int mdss_panel_io_init(struct qpic_panel_io_desc *panel_io)
+{
+	int rc;
+	if (panel_io->vdd_vreg) {
+		rc = regulator_set_voltage(panel_io->vdd_vreg,
+			1800000, 1800000);
+		if (rc) {
+			pr_err("vdd_vreg->set_voltage failed, rc=%d\n", rc);
+			return -EINVAL;
+		}
+	}
+	if (panel_io->avdd_vreg) {
+		rc = regulator_set_voltage(panel_io->avdd_vreg,
+			2700000, 2700000);
+		if (rc) {
+			pr_err("vdd_vreg->set_voltage failed, rc=%d\n", rc);
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
+static void mdss_panel_io_off(struct qpic_panel_io_desc *qpic_panel_io)
+{
+	if (mdss_qpic_pinctrl_set_state(qpic_panel_io, false))
+		pr_warn("%s panel on: pinctrl not enabled\n", __func__);
+
+	if (qpic_panel_io->ad8_gpio)
+		gpio_free(qpic_panel_io->ad8_gpio);
+	if (qpic_panel_io->cs_gpio)
+		gpio_free(qpic_panel_io->cs_gpio);
+	if (qpic_panel_io->rst_gpio)
+		gpio_free(qpic_panel_io->rst_gpio);
+	if (qpic_panel_io->te_gpio)
+		gpio_free(qpic_panel_io->te_gpio);
+	if (qpic_panel_io->bl_gpio)
+		gpio_free(qpic_panel_io->bl_gpio);
+	if (qpic_panel_io->vdd_vreg)
+		regulator_disable(qpic_panel_io->vdd_vreg);
+	if (qpic_panel_io->avdd_vreg)
+		regulator_disable(qpic_panel_io->avdd_vreg);
+}
+
+
+static int mdss_panel_io_on(struct qpic_panel_io_desc *qpic_panel_io)
+{
+	int rc;
+	if (qpic_panel_io->vdd_vreg) {
+		rc = regulator_enable(qpic_panel_io->vdd_vreg);
+		if (rc) {
+			pr_err("enable vdd failed, rc=%d\n", rc);
+			return -ENODEV;
+		}
+	}
+
+	if (qpic_panel_io->avdd_vreg) {
+		rc = regulator_enable(qpic_panel_io->avdd_vreg);
+		if (rc) {
+			pr_err("enable avdd failed, rc=%d\n", rc);
+			goto power_on_error;
+		}
+	}
+
+	/* GPIO settings using pinctrl */
+	if (mdss_qpic_pinctrl_set_state(qpic_panel_io, true)) {
+		pr_warn("%s panel on: pinctrl not enabled\n", __func__);
+
+		if ((qpic_panel_io->rst_gpio) &&
+			(gpio_request(qpic_panel_io->rst_gpio, "disp_rst_n"))) {
+			pr_err("%s request reset gpio failed\n", __func__);
+			goto power_on_error;
+		}
+
+		if ((qpic_panel_io->cs_gpio) &&
+			(gpio_request(qpic_panel_io->cs_gpio, "disp_cs_n"))) {
+			pr_err("%s request cs gpio failed\n", __func__);
+			goto power_on_error;
+		}
+
+		if ((qpic_panel_io->ad8_gpio) &&
+			(gpio_request(qpic_panel_io->ad8_gpio, "disp_ad8_n"))) {
+			pr_err("%s request ad8 gpio failed\n", __func__);
+			goto power_on_error;
+		}
+
+		if ((qpic_panel_io->te_gpio) &&
+			(gpio_request(qpic_panel_io->te_gpio, "disp_te_n"))) {
+			pr_err("%s request te gpio failed\n", __func__);
+			goto power_on_error;
+		}
+
+		if ((qpic_panel_io->bl_gpio) &&
+			(gpio_request(qpic_panel_io->bl_gpio, "disp_bl_n"))) {
+			pr_err("%s request bl gpio failed\n", __func__);
+			goto power_on_error;
+		}
+	}
+
+	/* wait for 20 ms after enable gpio as suggested by hw */
+	msleep(20);
+	return 0;
+power_on_error:
+	mdss_panel_io_off(qpic_panel_io);
+	return -EINVAL;
+}
+
 int mdss_qpic_panel_on(struct mdss_panel_data *pdata,
 	struct qpic_panel_io_desc *panel_io)
 {
@@ -134,6 +269,11 @@ int mdss_qpic_panel_on(struct mdss_panel_data *pdata,
 		return 0;
 	mdss_qpic_init();
 
+	if (!panel_io->init) {
+		mdss_panel_io_init(panel_io);
+		panel_io->init = true;
+	}
+	mdss_panel_io_on(panel_io);
 	if (qpic_panel_on)
 		rc = qpic_panel_on(panel_io);
 	if (rc)
@@ -147,6 +287,7 @@ int mdss_qpic_panel_off(struct mdss_panel_data *pdata,
 {
 	if (qpic_panel_off)
 		qpic_panel_off(panel_io);
+	mdss_panel_io_off(panel_io);
 	panel_is_on = false;
 	return 0;
 }
@@ -262,22 +403,6 @@ static int mdss_qpic_panel_probe(struct platform_device *pdev)
 	rc = mdss_panel_parse_dt(pdev, &vendor_pdata);
 	if (rc)
 		return rc;
-
-	/* select panel according to label */
-	if (panel_name && !strcmp(panel_name, "ili qvga lcdc panel")) {
-		qpic_panel_on = ili9341_on;
-		qpic_panel_off = ili9341_off;
-	} else {
-		/* select default panel driver */
-		pr_info("%s: select default panel driver\n", __func__);
-		qpic_panel_on = ili9341_on;
-		qpic_panel_off = ili9341_off;
-	}
-
-	if (qpic_panel_on == ili9341_on) {
-		vendor_pdata.panel_info.xres = 240;
-		vendor_pdata.panel_info.yres = 320;
-	}
 
 	rc = qpic_register_panel(&vendor_pdata);
 	if (rc)

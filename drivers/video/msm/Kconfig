@@ -519,7 +519,7 @@ config FB_MSM_EBI2_PANEL_DETECT
 	  Support for EBI2 panel auto detect
 
 config FB_MSM_QPIC_ILI_QVGA_PANEL
-	bool "Qpic MIPI ILI QVGA Panel"
+	tristate "Qpic MIPI ILI QVGA Panel"
 	select FB_MSM_QPIC
 	---help---
 	  Support for MIPI ILI QVGA (240x320) panel
