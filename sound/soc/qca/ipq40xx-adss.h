@@ -468,6 +468,7 @@
 #define MAX_STEREO_ENTRIES	4
 #define TDM_SYNC_NUM		2
 #define TDM_DELAY		0
+#define MCLK_MULTI		4
 
 /* I2S Parameters */
 #define IPQ40xx_I2S_NO_OF_PERIODS	(130)
@@ -537,6 +538,19 @@ enum stereo_ch {
 	STEREO3
 };
 
+enum bit_width {
+	__BIT_8 = 8,
+	__BIT_16 = 16,
+	__BIT_24 = 24,
+	__BIT_32 = 32,
+	__BIT_INVAL = -1
+};
+
+/* SPDIF clocks */
+#define AUDIO_SPDIF_SRC		6144000
+#define AUDIO_SPDIF_DIV2	3072000
+#define AUDIO_SPDIFINFAST	49152000
+
 /* ADSS APIs */
 extern void ipq40xx_glb_i2s_interface_en(int enable);
 extern void ipq40xx_glb_stereo_ch_en(int enable, int stereo_ch);
@@ -557,6 +571,7 @@ extern void ipq40xx_glb_pcm_rst(uint32_t enable);
 extern void ipq40xx_spdifin_ctrl_spdif_en(uint32_t enable);
 extern void ipq40xx_glb_spdif_out_en(uint32_t enable);
 extern void ipq40xx_spdifin_cfg(void);
+extern void ipq40xx_glb_clk_enable_oe(uint32_t dir);
 /* Stereo APIs */
 extern void ipq40xx_stereo_config_reset(uint32_t reset, uint32_t stereo_offset);
 extern void ipq40xx_stereo_config_mic_reset(uint32_t reset, uint32_t stereo_offset);

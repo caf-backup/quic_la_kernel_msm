@@ -42,17 +42,26 @@ static void pcm_start_test(void);
 static void pcm_fill_data(int32_t *tx_buff, uint32_t size);
 
 /* the test configurations supported */
-#define PCM_LBTEST_8BIT_8KHZ_2CH_TX_TO_RX	1
-#define PCM_LBTEST_8BIT_8KHZ_2CH_RX_TO_TX	101
+#define PCM_LBTEST_8BIT_8KHZ_4CH_TX_TO_RX	1
+#define PCM_LBTEST_8BIT_8KHZ_4CH_RX_TO_TX	101
 #define PCM_LBTEST_16BIT_8KHZ_2CH_TX_TO_RX	2
 #define PCM_LBTEST_16BIT_8KHZ_2CH_RX_TO_TX	201
 #define PCM_LBTEST_16BIT_8KHZ_4CH_TX_TO_RX	3
 #define PCM_LBTEST_16BIT_8KHZ_4CH_RX_TO_TX	301
+#define PCM_LBTEST_8BIT_16KHZ_4CH_TX_TO_RX	4
+#define PCM_LBTEST_8BIT_16KHZ_4CH_RX_TO_TX	401
+#define PCM_LBTEST_16BIT_16KHZ_2CH_TX_TO_RX	5
+#define PCM_LBTEST_16BIT_16KHZ_2CH_RX_TO_TX	501
+#define PCM_LBTEST_16BIT_16KHZ_4CH_TX_TO_RX	6
+#define PCM_LBTEST_16BIT_16KHZ_4CH_RX_TO_TX	601
 
 #define IS_PCM_LBTEST_RX_TO_TX(config)					\
-		((config == PCM_LBTEST_8BIT_8KHZ_2CH_RX_TO_TX) ||	\
+		((config == PCM_LBTEST_8BIT_8KHZ_4CH_RX_TO_TX) ||	\
 		(config == PCM_LBTEST_16BIT_8KHZ_2CH_RX_TO_TX) ||	\
-		(config == PCM_LBTEST_16BIT_8KHZ_4CH_RX_TO_TX))
+		(config == PCM_LBTEST_16BIT_8KHZ_4CH_RX_TO_TX) ||	\
+		(config == PCM_LBTEST_8BIT_16KHZ_4CH_RX_TO_TX) ||	\
+		(config == PCM_LBTEST_16BIT_16KHZ_2CH_RX_TO_TX) ||	\
+		(config == PCM_LBTEST_16BIT_16KHZ_4CH_RX_TO_TX))
 
 #define LOOPBACK_SKIP_COUNT		30
 #define LOOPBACK_FAIL_THRESHOLD		20
@@ -129,8 +138,8 @@ uint32_t pcm_init(void)
 	uint32_t ret = 0;
 
 	switch (start) {
-	case PCM_LBTEST_8BIT_8KHZ_2CH_TX_TO_RX:
-	case PCM_LBTEST_8BIT_8KHZ_2CH_RX_TO_TX:
+	case PCM_LBTEST_8BIT_8KHZ_4CH_TX_TO_RX:
+	case PCM_LBTEST_8BIT_8KHZ_4CH_RX_TO_TX:
 		cfg_params.bit_width = 8;
 		cfg_params.rate = 8000;
 		cfg_params.slot_count = 32;
@@ -163,6 +172,53 @@ uint32_t pcm_init(void)
 	case PCM_LBTEST_16BIT_8KHZ_4CH_RX_TO_TX:
 		cfg_params.bit_width = 16;
 		cfg_params.rate = 8000;
+		cfg_params.slot_count = 16;
+		cfg_params.active_slot_count = 4;
+		cfg_params.tx_slots[0] = 0;
+		cfg_params.tx_slots[1] = 1;
+		cfg_params.tx_slots[2] = 8;
+		cfg_params.tx_slots[3] = 9;
+		cfg_params.rx_slots[0] = 0;
+		cfg_params.rx_slots[1] = 1;
+		cfg_params.rx_slots[2] = 8;
+		cfg_params.rx_slots[3] = 9;
+		ret = ipq_pcm_init(&cfg_params);
+		break;
+
+	case PCM_LBTEST_8BIT_16KHZ_4CH_TX_TO_RX:
+	case PCM_LBTEST_8BIT_16KHZ_4CH_RX_TO_TX:
+		cfg_params.bit_width = 8;
+		cfg_params.rate = 16000;
+		cfg_params.slot_count = 32;
+		cfg_params.active_slot_count = 4;
+		cfg_params.tx_slots[0] = 0;
+		cfg_params.tx_slots[1] = 1;
+		cfg_params.rx_slots[0] = 0;
+		cfg_params.rx_slots[1] = 1;
+		cfg_params.tx_slots[2] = 2;
+		cfg_params.tx_slots[3] = 3;
+		cfg_params.rx_slots[2] = 2;
+		cfg_params.rx_slots[3] = 3;
+		ret = ipq_pcm_init(&cfg_params);
+		break;
+
+	case PCM_LBTEST_16BIT_16KHZ_2CH_TX_TO_RX:
+	case PCM_LBTEST_16BIT_16KHZ_2CH_RX_TO_TX:
+		cfg_params.bit_width = 16;
+		cfg_params.rate = 16000;
+		cfg_params.slot_count = 16;
+		cfg_params.active_slot_count = 2;
+		cfg_params.tx_slots[0] = 0;
+		cfg_params.tx_slots[1] = 3;
+		cfg_params.rx_slots[0] = 0;
+		cfg_params.rx_slots[1] = 3;
+		ret = ipq_pcm_init(&cfg_params);
+		break;
+
+	case PCM_LBTEST_16BIT_16KHZ_4CH_TX_TO_RX:
+	case PCM_LBTEST_16BIT_16KHZ_4CH_RX_TO_TX:
+		cfg_params.bit_width = 16;
+		cfg_params.rate = 16000;
 		cfg_params.slot_count = 16;
 		cfg_params.active_slot_count = 4;
 		cfg_params.tx_slots[0] = 0;

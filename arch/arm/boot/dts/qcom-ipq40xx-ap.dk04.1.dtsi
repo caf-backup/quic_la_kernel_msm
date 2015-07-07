@@ -20,7 +20,7 @@
 
 / {
 	model = "Qualcomm Technologies, Inc. IPQ40xx/AP-DK04.1";
-	compatible = "qcom,ipq40xx-apdk04.1", "qcom,qca961x";
+	compatible = "qcom,ipq40xx-apdk04.1", "qcom,ipq40xx";
 
 	memory {
 		device_type = "memory";
@@ -39,7 +39,7 @@
 	};
 
 	chosen {
-		bootargs = "console=ttyMSM0,115200n8";
+		bootargs-append = " clk_ignore_unused";
 	};
 
 };

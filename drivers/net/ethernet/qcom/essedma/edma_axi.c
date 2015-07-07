@@ -450,12 +450,12 @@ static int edma_axi_probe(struct platform_device *pdev)
 		adapter[i]->c_info = c_info;
 		netdev[i]->netdev_ops = &edma_axi_netdev_ops;
 		netdev[i]->features = NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_CTAG_TX
-				| NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_SG |
-					NETIF_F_TSO | NETIF_F_TSO6;
+				| NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_SG | NETIF_F_TSO |
+					NETIF_F_TSO6 | NETIF_F_GRO;
 		netdev[i]->hw_features = NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_CTAG_RX
-				| NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6;
-		netdev[i]->vlan_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6;
-		netdev[i]->wanted_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6;
+				| NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GRO;
+		netdev[i]->vlan_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GRO;
+		netdev[i]->wanted_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GRO;
 
 #ifdef CONFIG_RFS_ACCEL
 		netdev[i]->features |=  NETIF_F_RXHASH | NETIF_F_NTUPLE;
@@ -520,7 +520,7 @@ static int edma_axi_probe(struct platform_device *pdev)
 			adapter[EDMA_WAN]->forced_duplex = DUPLEX_UNKNOWN;
 		}
 
-		mdio_node = of_find_compatible_node(NULL, NULL, "qcom,qca961x-mdio");;
+		mdio_node = of_find_compatible_node(NULL, NULL, "qcom,ipq40xx-mdio");
 		if (!mdio_node) {
 			dev_dbg(&pdev->dev, "cannot find mdio node by phandle");
 			ret = -EIO;
@@ -624,6 +624,13 @@ static int edma_axi_probe(struct platform_device *pdev)
 	 * respectively.
 	 */
 	edma_write_reg(REG_LB_RING, EDMA_LB_REG_VALUE);
+
+	/* Configure Virtual queue for Tx rings
+	 * User can also change this value runtime through
+	 * a sysctl
+	 */
+	edma_write_reg(REG_VQ_CTRL0, EDMA_VQ_REG_VALUE);
+	edma_write_reg(REG_VQ_CTRL1, EDMA_VQ_REG_VALUE);
 
 	/* Enable All 16 tx and 8 rx irq mask */
 	edma_irq_enable(c_info);

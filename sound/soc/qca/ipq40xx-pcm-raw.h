@@ -37,6 +37,8 @@
  */
 #define IPQ40xx_PCM_BYTES_PER_SAMPLE(bit_width) (4)
 
+#define IPQ40xx_PCM_MAX_SLOTS	4
+
 struct pcm_context {
 	uint32_t pcm_started;
 	uint8_t needs_deinit;
@@ -60,8 +62,9 @@ enum ipq40xx_pcm_bit_width {
 
 enum ipq40xx_pcm_sampling_rate {
 	IPQ40xx_PCM_SAMPLING_RATE_8KHZ = 8000,
+	IPQ40xx_PCM_SAMPLING_RATE_16KHZ = 16000,
 	IPQ40xx_PCM_SAMPLING_RATE_MIN = IPQ40xx_PCM_SAMPLING_RATE_8KHZ,
-	IPQ40xx_PCM_SAMPLING_RATE_MAX = IPQ40xx_PCM_SAMPLING_RATE_8KHZ,
+	IPQ40xx_PCM_SAMPLING_RATE_MAX = IPQ40xx_PCM_SAMPLING_RATE_16KHZ,
 };
 
 enum ipq40xx_pcm_slots_per_frame {
@@ -74,8 +77,8 @@ struct ipq_pcm_params {
 	uint32_t rate;
 	uint32_t slot_count;
 	uint32_t active_slot_count;
-	uint32_t tx_slots[4];
-	uint32_t rx_slots[4];
+	uint32_t tx_slots[IPQ40xx_PCM_MAX_SLOTS];
+	uint32_t rx_slots[IPQ40xx_PCM_MAX_SLOTS];
 };
 
 int ipq_pcm_init(struct ipq_pcm_params *params);

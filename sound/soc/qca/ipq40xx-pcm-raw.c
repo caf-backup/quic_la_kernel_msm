@@ -46,6 +46,7 @@
 #define PCM_START_VAL		1
 #define PCM_STOP_VAL		0
 
+#define PCM_MULT_FACTOR		4
 /*
  * Global Constant Definitions
  */
@@ -61,6 +62,7 @@ static struct voice_dma_buffer *tx_dma_buffer;
 static struct platform_device *pcm_pdev;
 static spinlock_t pcm_lock;
 static struct pcm_context context;
+static struct clk *pcm_clk;
 
 static uint32_t rx_size_count;
 
@@ -164,9 +166,9 @@ uint32_t ipq40xx_pcm_validate_params(struct ipq_pcm_params *params)
 
 	/* Number of active slots should be less than or same as max slots */
 	if ((!params->active_slot_count) ||
-			params->active_slot_count > params->slot_count) {
+			(params->active_slot_count > IPQ40xx_PCM_MAX_SLOTS)) {
 		pr_err("%s: Active slots should be less than or same as %d\n",
-				__func__, params->slot_count);
+				__func__, IPQ40xx_PCM_MAX_SLOTS);
 		return -EINVAL;
 	}
 
@@ -200,9 +202,9 @@ uint32_t ipq40xx_pcm_validate_params(struct ipq_pcm_params *params)
  */
 int ipq_pcm_init(struct ipq_pcm_params *params)
 {
-	uint32_t ret;
+	int ret;
 	uint32_t single_buf_size;
-	uint32_t bits_in_frame;
+	uint32_t clk_rate;
 	uint32_t i;
 	uint32_t reg_val;
 
@@ -210,17 +212,29 @@ int ipq_pcm_init(struct ipq_pcm_params *params)
 	if (ret)
 		return ret;
 
-	bits_in_frame = params->slot_count * params->bit_width;
 	atomic_set(&data_avail, 0);
 	atomic_set(&data_at, 0);
 
-	ipq40xx_pcm_clk_cfg();
+	clk_rate = params->slot_count * params->bit_width
+					* params->rate * PCM_MULT_FACTOR;
+
+	ret = clk_set_rate(pcm_clk, clk_rate);
+	if (IS_ERR_VALUE(ret)) {
+		pr_err("%s : clk_set_rate failed for pcm clock\n", __func__);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(pcm_clk);
+	if (IS_ERR_VALUE(ret)) {
+		pr_err("%s : clk_prepare_enable failed for pcm clock\n",
+					__func__);
+		return ret;
+	}
+
+	ipq40xx_glb_audio_mode_B1K();
 
 	/* set ADSS_PCM_CTRL_REG */
-	reg_val = 0
-		| PCM_CTRL_CPU_MODE(0)
-		| PCM_CTRL_FRAME_SYNC_LEN(0)
-		| PCM_CTRL_TX2RX_LP_EN(1);
+	reg_val = PCM_CTRL_CPU_MODE(0) | PCM_CTRL_FRAME_SYNC_LEN(0);
 
 	if (params->bit_width == IPQ40xx_PCM_BIT_WIDTH_16)
 		reg_val |= PCM_CTRL_PCM_SLOT_MODE(1);
@@ -410,6 +424,8 @@ void ipq_pcm_deinit(void)
 		ipq40xx_mbox_dma_release(rx_dma_buffer->channel_id);
 		ipq40xx_mbox_dma_release(tx_dma_buffer->channel_id);
 		memset(&context, 0, sizeof(struct pcm_context));
+
+		clk_disable_unprepare(pcm_clk);
 	}
 
 	if (tx_dma_buffer)
@@ -495,6 +511,12 @@ static int ipq40xx_pcm_driver_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	pcm_clk = devm_clk_get(&pdev->dev, "audio_pcm_clk");
+	if (IS_ERR(pcm_clk)) {
+		pr_err("%s: Error in getting PCM Clk\n", __func__);
+		return PTR_ERR(pcm_clk);
+	}
+
 	if (!pdev->dev.coherent_dma_mask)
 		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 
@@ -521,6 +543,7 @@ static int ipq40xx_pcm_driver_probe(struct platform_device *pdev)
 static int ipq40xx_pcm_driver_remove(struct platform_device *pdev)
 {
 	ipq_pcm_deinit();
+	devm_clk_put(&pdev->dev, pcm_clk);
 	return 0;
 }
 
