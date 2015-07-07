@@ -84,10 +84,6 @@
 			status = "ok";
 		};
 
-		qcacodec: qca-codec@50 {
-			status = "ok";
-		};
-
 		i2splatform: qca-pcm-i2s@7709000 {
 			status = "ok";
 		};
@@ -122,5 +118,12 @@
 			pinctrl-names = "default";
 		};
 
+		i2c_0: i2c@78b67000 { /* BLSP1 QUP2 */
+			status = "ok";
+
+			qca_codec: qca_codec@10 {
+				status = "ok";
+			};
+		};
 	};
 };

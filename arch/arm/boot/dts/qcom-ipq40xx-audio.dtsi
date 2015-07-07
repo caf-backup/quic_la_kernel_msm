@@ -156,12 +156,6 @@
 		status = "disabled";
 	};
 
-	qcacodec: qca-codec@50 {
-		compatible = "qca,ipq40xx-codec";
-		reg = <0x50 0>;
-		status = "disabled";
-	};
-
 	i2splatform: qca-pcm-i2s@7709000 {
 		compatible = "qca,ipq40xx-pcm-i2s";
 		reg = <0x7709000 0x1000>;

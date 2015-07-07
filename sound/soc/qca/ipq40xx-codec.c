@@ -22,8 +22,12 @@
 #include <sound/control.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
+#include <linux/i2c.h>
 
 #include "ipq40xx-adss.h"
+
+#define IPQ40XX_ADAPTER_INDEX	0
+static struct i2c_client *ipq40xx_i2c_client;
 
 static struct snd_soc_dai_driver ipq40xx_codec_dais[] = {
 	{
@@ -157,37 +161,102 @@ static const struct of_device_id ipq40xx_codec_id_table[] = {
 };
 MODULE_DEVICE_TABLE(of, ipq40xx_codec_id_table);
 
-static int ipq40xx_codec_probe(struct platform_device *pdev)
+static int ipq40xx_codec_i2c_probe(struct i2c_client *i2c,
+					const struct i2c_device_id *id)
 {
 	int ret;
 
-	ret = snd_soc_register_codec(&pdev->dev,
+	ret = snd_soc_register_codec(&i2c->dev,
 			&ipq40xx_codec, ipq40xx_codec_dais,
 			ARRAY_SIZE(ipq40xx_codec_dais));
 	if (ret < 0) {
-		pr_err("\nsnd_soc_register_codec failed \n");
+		pr_err("\nsnd_soc_register_codec failed (%d)\n", ret);
 	}
+
 	return ret;
 }
 
-static int ipq40xx_codec_remove(struct platform_device *pdev)
+static int ipq40xx_codec_i2c_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
 }
 
-struct platform_driver ipq40xx_codec_driver = {
-	.probe = ipq40xx_codec_probe,
-	.remove = ipq40xx_codec_remove,
-	.driver = {
-		.name = "50.qca-codec",
-		.owner = THIS_MODULE,
-		.of_match_table = ipq40xx_codec_id_table,
-	},
+static const struct of_device_id ipq40xx_codec_of_match[] = {
+	{ .compatible = "qca,ipq40xx-codec" },
+	{},
 };
 
-module_platform_driver(ipq40xx_codec_driver);
+static const struct i2c_device_id ipq40xx_codec_i2c_id[] = {
+	{ "qca_codec", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, ipq40xx_codec_i2c_id);
 
-MODULE_ALIAS("platform:qca-codec");
+static struct i2c_driver ipq40xx_codec_i2c_driver = {
+	.driver = {
+		.name = "qca_codec",
+		.owner = THIS_MODULE,
+		.of_match_table = ipq40xx_codec_of_match,
+	},
+	.probe = ipq40xx_codec_i2c_probe,
+	.remove = ipq40xx_codec_i2c_remove,
+	.id_table = ipq40xx_codec_i2c_id,
+};
+
+static struct i2c_board_info ipq40xx_codec_i2c_info = {
+	.type = "qca_codec",
+	.addr = 0x10,
+};
+
+static int ipq40xx_codec_init(void)
+{
+	struct i2c_adapter *adapter;
+	struct i2c_client *client;
+	int ret;
+
+	adapter = i2c_get_adapter(IPQ40XX_ADAPTER_INDEX);
+	if (adapter == NULL) {
+		pr_err("%s: %d: I2C failed to get adapter", __func__, __LINE__);
+		ret = -ENODEV;
+		goto out_exit;
+	}
+
+	client = i2c_new_device(adapter, &ipq40xx_codec_i2c_info);
+	if (client == NULL) {
+		pr_err("%s: %d: Failed to add I2C device", __func__, __LINE__);
+		ret = -ENODEV;
+		goto out_put_adapter;
+	}
+	ipq40xx_i2c_client = client;
+
+	ret = i2c_add_driver(&ipq40xx_codec_i2c_driver);
+	if (ret < 0) {
+		pr_err("%s: %d: Failed to add I2C driver", __func__, __LINE__);
+		goto unregister_client;
+	}
+
+	i2c_put_adapter(adapter);
+
+	return 0;
+
+unregister_client:
+	i2c_unregister_device(client);
+	ipq40xx_i2c_client = NULL;
+out_put_adapter:
+	i2c_put_adapter(adapter);
+out_exit:
+	return ret;
+}
+module_init(ipq40xx_codec_init);
+
+static void ipq40xx_codec_exit(void)
+{
+	i2c_del_driver(&ipq40xx_codec_i2c_driver);
+	if (ipq40xx_i2c_client)
+		i2c_unregister_device(ipq40xx_i2c_client);
+}
+module_exit(ipq40xx_codec_exit);
+
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("IPQ40xx Codec Driver");
