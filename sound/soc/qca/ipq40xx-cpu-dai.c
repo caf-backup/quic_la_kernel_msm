@@ -478,27 +478,21 @@ static struct snd_soc_dai_ops ipq40xx_spdif_ops = {
 static struct snd_soc_dai_driver ipq40xx_cpu_dais[] = {
 	{
 		.playback = {
-			.rates		= SNDRV_PCM_RATE_32000 |
-					SNDRV_PCM_RATE_44100 |
-					SNDRV_PCM_RATE_48000 |
-					SNDRV_PCM_RATE_96000,
+			.rates		= RATE_16000_96000,
 			.formats	= SNDRV_PCM_FMTBIT_S16 |
 					SNDRV_PCM_FMTBIT_S32,
 			.channels_min	= CH_STEREO,
 			.channels_max	= CH_STEREO,
-			.rate_min	= FREQ_32000,
+			.rate_min	= FREQ_16000,
 			.rate_max	= FREQ_96000,
 		},
 		.capture = {
-			.rates		= SNDRV_PCM_RATE_32000 |
-					SNDRV_PCM_RATE_44100 |
-					SNDRV_PCM_RATE_48000 |
-					SNDRV_PCM_RATE_96000,
+			.rates		= RATE_16000_96000,
 			.formats	= SNDRV_PCM_FMTBIT_S16 |
 					SNDRV_PCM_FMTBIT_S32,
 			.channels_min	= CH_STEREO,
 			.channels_max	= CH_STEREO,
-			.rate_min	= FREQ_32000,
+			.rate_min	= FREQ_16000,
 			.rate_max	= FREQ_96000,
 		},
 		.ops = &ipq40xx_audio_ops,
@@ -507,27 +501,21 @@ static struct snd_soc_dai_driver ipq40xx_cpu_dais[] = {
 	},
 	{
 		.playback = {
-			.rates		= SNDRV_PCM_RATE_32000 |
-					SNDRV_PCM_RATE_44100 |
-					SNDRV_PCM_RATE_48000 |
-					SNDRV_PCM_RATE_96000,
+			.rates		= RATE_16000_96000,
 			.formats	= SNDRV_PCM_FMTBIT_S16 |
 					SNDRV_PCM_FMTBIT_S32,
 			.channels_min	= CH_STEREO,
 			.channels_max	= CH_7_1,
-			.rate_min	= FREQ_32000,
+			.rate_min	= FREQ_16000,
 			.rate_max	= FREQ_96000,
 		},
 		.capture = {
-			.rates		= SNDRV_PCM_RATE_32000 |
-					SNDRV_PCM_RATE_44100 |
-					SNDRV_PCM_RATE_48000 |
-					SNDRV_PCM_RATE_96000,
+			.rates		= RATE_16000_96000,
 			.formats	= SNDRV_PCM_FMTBIT_S16 |
 					SNDRV_PCM_FMTBIT_S32,
 			.channels_min	= CH_STEREO,
 			.channels_max	= CH_7_1,
-			.rate_min	= FREQ_32000,
+			.rate_min	= FREQ_16000,
 			.rate_max	= FREQ_96000,
 		},
 		.ops = &ipq40xx_audio_ops,
@@ -536,15 +524,12 @@ static struct snd_soc_dai_driver ipq40xx_cpu_dais[] = {
 	},
 	{
 		.playback = {
-			.rates		= SNDRV_PCM_RATE_32000 |
-					SNDRV_PCM_RATE_44100 |
-					SNDRV_PCM_RATE_48000 |
-					SNDRV_PCM_RATE_96000,
+			.rates		= RATE_16000_96000,
 			.formats	= SNDRV_PCM_FMTBIT_S16 |
 					SNDRV_PCM_FMTBIT_S32,
 			.channels_min	= 2,
 			.channels_max	= 2,
-			.rate_min	= FREQ_32000,
+			.rate_min	= FREQ_16000,
 			.rate_max	= FREQ_96000,
 		},
 		.ops = &ipq40xx_audio_ops,
@@ -553,15 +538,12 @@ static struct snd_soc_dai_driver ipq40xx_cpu_dais[] = {
 	},
 	{
 		.playback = {
-			.rates		= SNDRV_PCM_RATE_32000 |
-					SNDRV_PCM_RATE_44100 |
-					SNDRV_PCM_RATE_48000 |
-					SNDRV_PCM_RATE_96000,
+			.rates		= RATE_16000_96000,
 			.formats	= SNDRV_PCM_FMTBIT_S16 |
 					SNDRV_PCM_FMTBIT_S32,
 			.channels_min	= 2,
 			.channels_max	= 2,
-			.rate_min	= FREQ_32000,
+			.rate_min	= FREQ_16000,
 			.rate_max	= FREQ_96000,
 		},
 		.ops = &ipq40xx_audio_ops,
@@ -570,29 +552,23 @@ static struct snd_soc_dai_driver ipq40xx_cpu_dais[] = {
 	},
 	{
 		.playback = {
-			.rates          = SNDRV_PCM_RATE_32000 |
-					SNDRV_PCM_RATE_44100 |
-					SNDRV_PCM_RATE_48000 |
-					SNDRV_PCM_RATE_96000,
+			.rates		= RATE_16000_96000,
 			.formats        = SNDRV_PCM_FMTBIT_S16 |
 					SNDRV_PCM_FMTBIT_S24 |
 					SNDRV_PCM_FMTBIT_S32,
 			.channels_min   = CH_STEREO,
 			.channels_max   = CH_STEREO,
-			.rate_min       = FREQ_32000,
+			.rate_min       = FREQ_16000,
 			.rate_max       = FREQ_96000,
 		},
 		.capture = {
-			.rates          = SNDRV_PCM_RATE_32000 |
-					SNDRV_PCM_RATE_44100 |
-					SNDRV_PCM_RATE_48000 |
-					SNDRV_PCM_RATE_96000,
+			.rates		= RATE_16000_96000,
 			.formats        = SNDRV_PCM_FMTBIT_S16 |
 					SNDRV_PCM_FMTBIT_S24 |
 					SNDRV_PCM_FMTBIT_S32,
 			.channels_min   = CH_STEREO,
 			.channels_max   = CH_STEREO,
-			.rate_min       = FREQ_32000,
+			.rate_min       = FREQ_16000,
 			.rate_max       = FREQ_96000,
 		},
 		.ops = &ipq40xx_spdif_ops,

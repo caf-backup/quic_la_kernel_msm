@@ -36,10 +36,7 @@ static struct snd_soc_dai_driver ipq40xx_codec_dais[] = {
 			.stream_name = "qca-i2s-playback",
 			.channels_min = CH_STEREO,
 			.channels_max = CH_STEREO,
-			.rates = SNDRV_PCM_RATE_32000 |
-				SNDRV_PCM_RATE_44100 |
-				SNDRV_PCM_RATE_48000 |
-				SNDRV_PCM_RATE_96000,
+			.rates = RATE_16000_96000,
 			.formats = SNDRV_PCM_FMTBIT_S16 |
 				SNDRV_PCM_FMTBIT_S32,
 		},
@@ -47,10 +44,7 @@ static struct snd_soc_dai_driver ipq40xx_codec_dais[] = {
 			.stream_name = "qca-i2s-capture",
 			.channels_min = CH_STEREO,
 			.channels_max = CH_STEREO,
-			.rates = SNDRV_PCM_RATE_32000 |
-				SNDRV_PCM_RATE_44100 |
-				SNDRV_PCM_RATE_48000 |
-				SNDRV_PCM_RATE_96000,
+			.rates = RATE_16000_96000,
 			.formats = SNDRV_PCM_FMTBIT_S16 |
 				SNDRV_PCM_FMTBIT_S32,
 		},
@@ -61,10 +55,7 @@ static struct snd_soc_dai_driver ipq40xx_codec_dais[] = {
 			.stream_name = "qca-tdm-playback",
 			.channels_min = CH_STEREO,
 			.channels_max = CH_7_1,
-			.rates = SNDRV_PCM_RATE_32000 |
-				SNDRV_PCM_RATE_44100 |
-				SNDRV_PCM_RATE_48000 |
-				SNDRV_PCM_RATE_96000,
+			.rates = RATE_16000_96000,
 			.formats = SNDRV_PCM_FMTBIT_S16 |
 				SNDRV_PCM_FMTBIT_S32,
 		},
@@ -72,10 +63,7 @@ static struct snd_soc_dai_driver ipq40xx_codec_dais[] = {
 			.stream_name = "qca-tdm-capture",
 			.channels_min = CH_STEREO,
 			.channels_max = CH_7_1,
-			.rates = SNDRV_PCM_RATE_32000 |
-				SNDRV_PCM_RATE_44100 |
-				SNDRV_PCM_RATE_48000 |
-				SNDRV_PCM_RATE_96000,
+			.rates = RATE_16000_96000,
 			.formats = SNDRV_PCM_FMTBIT_S16 |
 				SNDRV_PCM_FMTBIT_S32,
 		},
@@ -86,10 +74,7 @@ static struct snd_soc_dai_driver ipq40xx_codec_dais[] = {
 			.stream_name = "qca-i2s1-playback",
 			.channels_min = CH_STEREO,
 			.channels_max = CH_STEREO,
-			.rates = SNDRV_PCM_RATE_32000 |
-				SNDRV_PCM_RATE_44100 |
-				SNDRV_PCM_RATE_48000 |
-				SNDRV_PCM_RATE_96000,
+			.rates = RATE_16000_96000,
 			.formats = SNDRV_PCM_FMTBIT_S16 |
 				SNDRV_PCM_FMTBIT_S32,
 		},
@@ -100,10 +85,7 @@ static struct snd_soc_dai_driver ipq40xx_codec_dais[] = {
 			.stream_name = "qca-i2s2-playback",
 			.channels_min = CH_STEREO,
 			.channels_max = CH_STEREO,
-			.rates = SNDRV_PCM_RATE_32000 |
-				SNDRV_PCM_RATE_44100 |
-				SNDRV_PCM_RATE_48000 |
-				SNDRV_PCM_RATE_96000,
+			.rates = RATE_16000_96000,
 			.formats = SNDRV_PCM_FMTBIT_S16 |
 				SNDRV_PCM_FMTBIT_S32,
 		},
@@ -114,10 +96,7 @@ static struct snd_soc_dai_driver ipq40xx_codec_dais[] = {
 			.stream_name = "qca-spdif-playback",
 			.channels_min = CH_STEREO,
 			.channels_max = CH_STEREO,
-			.rates = SNDRV_PCM_RATE_32000 |
-				SNDRV_PCM_RATE_44100 |
-				SNDRV_PCM_RATE_48000 |
-				SNDRV_PCM_RATE_96000,
+			.rates = RATE_16000_96000,
 			.formats = SNDRV_PCM_FMTBIT_S16 |
 				SNDRV_PCM_FMTBIT_S24 |
 				SNDRV_PCM_FMTBIT_S32,
@@ -126,10 +105,7 @@ static struct snd_soc_dai_driver ipq40xx_codec_dais[] = {
 			.stream_name = "qca-spdif-capture",
 			.channels_min = CH_STEREO,
 			.channels_max = CH_STEREO,
-			.rates = SNDRV_PCM_RATE_32000 |
-				SNDRV_PCM_RATE_44100 |
-				SNDRV_PCM_RATE_48000 |
-				SNDRV_PCM_RATE_96000,
+			.rates = RATE_16000_96000,
 			.formats = SNDRV_PCM_FMTBIT_S16 |
 				SNDRV_PCM_FMTBIT_S24 |
 				SNDRV_PCM_FMTBIT_S32,
