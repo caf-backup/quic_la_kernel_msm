@@ -825,7 +825,7 @@ static const struct freq_tbl ftbl_gcc_apps_clk[] = {
 	F(48000000 , P_XO,	   1, 0, 0),
 	F(200000000, FE_PLL_200,   1, 0, 0),
 	F(500000000, FE_PLL_500,   1, 0, 0),
-	F(666000000, DDRC_PLL_666, 1, 0, 0),
+	F(626000000, DDRC_PLL_666, 1, 0, 0),
 	{ }
 };
 
@@ -1707,7 +1707,7 @@ static int gcc_ipq40xx_probe(struct platform_device *pdev)
 	clk_register_fixed_rate(dev, "ddrpllsdcc1", NULL, CLK_IS_ROOT,
 				      409800000);
 	clk_register_fixed_rate(dev, "ddrpllapss", NULL, CLK_IS_ROOT,
-				      666000000);
+				      626000000);
 	clk_register_fixed_rate(dev, "pcnoc_clk_src", NULL, CLK_IS_ROOT,
 				      100000000);
 

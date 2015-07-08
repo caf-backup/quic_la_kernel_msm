@@ -30,18 +30,16 @@ enum efreq_lvl {
 };
 
 static struct cpufreq_frequency_table qca_ipq40xx_freq_table[] = {
-	{L0, 666000000},
-	{L1, 500000000},
-	{L2, 200000000},
-	{L3, 48000000},
+	{L0, 626000},
+	{L1, 500000},
+	{L2, 200000},
+	{L3, 48000},
 	{L_INVALID, CPUFREQ_TABLE_END},
 };
 
 static unsigned int transition_latency;
-
 static DEFINE_PER_CPU(struct clk *, cpu_clks);
 static struct cpufreq_frequency_table *freq_table;
-
 
 static int ipq40xx_set_target(struct cpufreq_policy *policy, unsigned int index)
 {
@@ -51,9 +49,9 @@ static int ipq40xx_set_target(struct cpufreq_policy *policy, unsigned int index)
 	struct clk *cpu_clk;
 
 	cpu_clk = per_cpu(cpu_clks, policy->cpu);
-	freq_Hz = clk_round_rate(cpu_clk, freq_table[index].frequency);
+	freq_Hz = clk_round_rate(cpu_clk, freq_table[index].frequency * 1000);
 	if (freq_Hz <= 0)
-		freq_Hz = freq_table[index].frequency;
+		freq_Hz = freq_table[index].frequency * 1000;
 
 	freq_exact = freq_Hz;
 	new_freq = freq_Hz;
