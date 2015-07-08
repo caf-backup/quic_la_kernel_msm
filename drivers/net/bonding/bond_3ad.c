@@ -1017,6 +1017,20 @@ static void ad_mux_machine(struct port *port)
 			port->actor_oper_port_state &= ~AD_STATE_DISTRIBUTING;
 			ad_disable_collecting_distributing(port);
 			port->ntt = true;
+
+			/*
+			 * Send a notificaton about change in state of this
+			 * port. We only want to handle case where port moves
+			 * from AD_MUX_COLLECTING_DISTRIBUTING ->
+			 * AD_MUX_ATTACHED. Link down and interface down events
+			 * are handled by ECM.
+			 */
+			if (IS_UP(port->slave->dev) &&
+			    (last_state == AD_MUX_COLLECTING_DISTRIBUTING)) {
+				if (bond_cb && bond_cb->bond_cb_link_down)
+					bond_cb->bond_cb_link_down(port->slave->dev);
+			}
+
 			break;
 		case AD_MUX_COLLECTING_DISTRIBUTING:
 			port->actor_oper_port_state |= AD_STATE_COLLECTING;
