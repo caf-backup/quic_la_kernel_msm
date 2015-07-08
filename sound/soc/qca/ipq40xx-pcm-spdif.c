@@ -45,11 +45,8 @@ static struct snd_pcm_hardware ipq40xx_pcm_hardware_playback = {
 	.formats		=	SNDRV_PCM_FMTBIT_S16 |
 					SNDRV_PCM_FMTBIT_S24 |
 					SNDRV_PCM_FMTBIT_S32,
-	.rates			=	SNDRV_PCM_RATE_32000 |
-					SNDRV_PCM_RATE_44100 |
-					SNDRV_PCM_RATE_48000 |
-					SNDRV_PCM_RATE_96000,
-	.rate_min		=	FREQ_32000,
+	.rates			=	RATE_16000_96000,
+	.rate_min		=	FREQ_16000,
 	.rate_max		=	FREQ_96000,
 	.channels_min		=	CH_STEREO,
 	.channels_max		=	CH_STEREO,
@@ -69,11 +66,8 @@ static struct snd_pcm_hardware ipq40xx_pcm_hardware_capture = {
 	.formats		=	SNDRV_PCM_FMTBIT_S16 |
 					SNDRV_PCM_FMTBIT_S24 |
 					SNDRV_PCM_FMTBIT_S32,
-	.rates			=	SNDRV_PCM_RATE_32000 |
-					SNDRV_PCM_RATE_44100 |
-					SNDRV_PCM_RATE_48000 |
-					SNDRV_PCM_RATE_96000,
-	.rate_min		=	FREQ_32000,
+	.rates			=	RATE_16000_96000,
+	.rate_min		=	FREQ_16000,
 	.rate_max		=	FREQ_96000,
 	.channels_min		=	CH_STEREO,
 	.channels_max		=	CH_STEREO,
