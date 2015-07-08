@@ -15,14 +15,22 @@
  */
 
 #include "qcom-ipq40xx-ap.dk04.1.dtsi"
-#include "qcom-ipq40xx-display.dtsi"
-#include "qpic-panel-ili-qvga.dtsi"
+#include "qcom-ipq40xx-lcdc.dtsi"
+#include "qcom-ipq40xx-lcdpanel.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. IPQ40xx/AP-DK04.1-C1";
 
 	soc {
 		qcom,nand@7980000 {
+			status = "ok";
+		};
+
+		qcom,msm_qpic@7980000 {
+			status = "ok";
+		};
+
+		qcom,mdss_lcdc_ili9341_qvga {
 			status = "ok";
 		};
 
