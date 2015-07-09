@@ -10,4 +10,14 @@
 	pci@1b900000 {
 		compatible = "qcom,pcie-ipq8064-v2", "qcom,pcie-ipq8064";
 	};
+	ss_phy_0: phy@110f8830 {
+		rx_eq = <2>;
+		tx_deamp_3_5db = <32>;
+		mpll = <0xa0>;
+	};
+	ss_phy_1: phy@100f8830 {
+		rx_eq = <2>;
+		tx_deamp_3_5db = <32>;
+		mpll = <0xa0>;
+	};
 };
