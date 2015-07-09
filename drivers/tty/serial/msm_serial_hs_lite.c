@@ -1514,7 +1514,7 @@ static int msm_hsl_console_setup(struct console *co, char *options)
 static struct uart_driver msm_hsl_uart_driver;
 
 static struct console msm_hsl_console = {
-	.name = "ttyHSL",
+	.name = "ttyMSM",
 	.write = msm_hsl_console_write,
 	.device = uart_console_device,
 	.setup = msm_hsl_console_setup,
@@ -1618,7 +1618,7 @@ static DEVICE_ATTR(console, S_IWUSR | S_IRUGO, show_msm_console,
 static struct uart_driver msm_hsl_uart_driver = {
 	.owner = THIS_MODULE,
 	.driver_name = "msm_serial_hsl",
-	.dev_name = "ttyHSL",
+	.dev_name = "ttyMSM",
 	.nr = UART_NR,
 	.cons = MSM_HSL_CONSOLE,
 };
@@ -1689,7 +1689,7 @@ static int msm_serial_hsl_probe(struct platform_device *pdev)
 	if (pdev->id == -1)
 		pdev->id = atomic_inc_return(&msm_serial_hsl_next_id) - 1;
 
-	/* Use line (ttyHSLx) number from pdata or device tree if specified */
+	/* Use line (ttyMSMx) number from pdata or device tree if specified */
 	pdata = pdev->dev.platform_data;
 	if (pdata)
 		line = pdata->line;
@@ -1713,7 +1713,7 @@ static int msm_serial_hsl_probe(struct platform_device *pdev)
 	if (unlikely(line < 0 || line >= UART_NR))
 		return -ENXIO;
 
-	pr_info("detected port #%d (ttyHSL%d)\n", pdev->id, line);
+	pr_info("detected port #%d (ttyMSM%d)\n", pdev->id, line);
 
 	port = get_port_from_line(line);
 	port->dev = &pdev->dev;
