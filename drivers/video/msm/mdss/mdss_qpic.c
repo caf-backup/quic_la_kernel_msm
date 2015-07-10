@@ -128,8 +128,18 @@ static void mdss_qpic_pan_display(struct msm_fb_data_type *mfd)
 	mdss_qpic_panel_on(qpic_res->panel_data, &qpic_res->panel_io);
 	size = fbi->var.xres * fbi->var.yres * bpp;
 
-	qpic_send_frame(0, 0, fbi->var.xres - 1, fbi->var.yres - 1,
-		(u32 *)fb_offset, size);
+	if (size < (1024 * 1024)) {
+		qpic_send_frame(0, 0, fbi->var.xres - 1, fbi->var.yres - 1,
+			(u32 *)fb_offset, size);
+	} else {
+		/* LCDC BAM can't trnasfer more than 1MB */
+		qpic_send_frame(0, 0, fbi->var.xres - 1, fbi->var.yres - 1,
+			(u32 *)fb_offset, size / 2);
+
+		qpic_send_frame(0,  fbi->var.yres / 2, fbi->var.xres - 1,
+			 fbi->var.yres - 1, (u32 *)(fb_offset + (size / 2)),
+			 size / 2);
+	}
 	msm_qpic_bus_set_vote(0);
 }
 
@@ -242,7 +252,7 @@ int qpic_init_sps(struct platform_device *pdev,
 		return 0;
 	bam.phys_addr = qpic_res->qpic_phys + 0x4000;
 	bam.virt_addr = qpic_res->qpic_base + 0x4000;
-	bam.irq = qpic_res->irq - 4;
+	bam.irq = qpic_res->bam_irq;
 	bam.manage = SPS_BAM_MGR_MULTI_EE;
 	bam.summing_threshold = 0x10;
 
@@ -519,10 +529,9 @@ static int qpic_wait_for_eof(void)
 
 static int qpic_send_pkt_sw(u32 cmd, u32 len, u8 *param)
 {
-	u32 bytes_left, space, data, cfg2;
+	u32 bytes_left, data, cfg2;
 	int i, ret = 0;
 	if (len <= 4) {
-		len = (len + 3) / 4; /* len in dwords */
 		data = 0;
 		if (param) {
 			for (i = 0; i < len; i++)
@@ -552,27 +561,17 @@ static int qpic_send_pkt_sw(u32 cmd, u32 len, u8 *param)
 	QPIC_OUTP(QPIC_REG_QPIC_LCDC_FIFO_SOF, 0x0);
 	bytes_left = len;
 
+	i = 0;
 	while (bytes_left > 0) {
 		ret = qpic_wait_for_fifo();
 		if (ret)
 			goto exit_send_cmd_sw;
 
-		space = 16;
+		data = (u32)param[i];
 
-		while ((space > 0) && (bytes_left > 0)) {
-			/* write to fifo */
-			if (bytes_left >= 4) {
-				QPIC_OUTP(QPIC_REG_QPIC_LCDC_FIFO_DATA_PORT0,
-					*(u32 *)param);
-				param += 4;
-				bytes_left -= 4;
-				space--;
-			} else if (bytes_left == 2) {
-				QPIC_OUTPW(QPIC_REG_QPIC_LCDC_FIFO_DATA_PORT0,
-					*(u16 *)param);
-				bytes_left -= 2;
-			}
-		}
+		QPIC_OUTP(QPIC_REG_QPIC_LCDC_FIFO_DATA_PORT0, data);
+		bytes_left--;
+		i++;
 	}
 	/* finished */
 	QPIC_OUTP(QPIC_REG_QPIC_LCDC_FIFO_EOF, 0x0);
@@ -732,14 +731,18 @@ static int mdss_qpic_probe(struct platform_device *pdev)
 		(int) res->start,
 		(int) qpic_res->qpic_base);
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		pr_err("unable to get QPIC irq\n");
-		rc = -ENOMEM;
-		goto probe_done;
+	qpic_res->irq = platform_get_irq_byname(pdev, "lcdc_irq");
+	if (qpic_res->irq < 0) {
+		dev_warn(&pdev->dev, "missing 'lcdc_irq' resource entry");
+		return -EINVAL;
 	}
 
-	qpic_res->irq = res->start;
+	qpic_res->bam_irq = platform_get_irq_byname(pdev, "bam_irq");
+	if (qpic_res->bam_irq < 0) {
+		dev_warn(&pdev->dev, "missing 'bam_irq' resource entry");
+		return -EINVAL;
+	}
+
 	qpic_res->res_init = true;
 
 	mdss_qpic_panel_io_init(pdev, &qpic_res->panel_io);
