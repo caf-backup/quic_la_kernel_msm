@@ -245,16 +245,21 @@ static void ipmr_sync_entry_update(struct mr_table *mrt, struct mfc_cache *cache
 
 	memset(dest_dev, 0, sizeof(dest_dev));
 
-	read_lock(&mrt_lock);
 	origin = cache->mfc_origin;
 	group = cache->mfc_mcastgrp;
 
+	read_lock(&mrt_lock);
 	for (vifi = 0; vifi < cache->mfc_un.res.maxvif; vifi++) {
 		if (!((cache->mfc_un.res.ttls[vifi] > 0) &&
 					(cache->mfc_un.res.ttls[vifi] < 255))) {
 			continue;
 		}
 		if (dest_if_count == MAXVIFS) {
+			read_unlock(&mrt_lock);
+			return;
+		}
+
+		if (!VIF_EXISTS(mrt, vifi)) {
 			read_unlock(&mrt_lock);
 			return;
 		}
@@ -354,13 +359,14 @@ int ipmr_find_mfc_entry(struct net *net, __be32 origin, __be32 group,
 	if (mrt == NULL)
 		return -ENOENT;
 
-	read_lock(&mrt_lock);
+	rcu_read_lock();
 	cache = ipmr_cache_find(mrt, origin, group);
 	if (cache == NULL) {
-		read_unlock(&mrt_lock);
+		rcu_read_unlock();
 		return -ENOENT;
 	}
 
+	read_lock(&mrt_lock);
 	for (vifi = 0; vifi < cache->mfc_un.res.maxvif; vifi++) {
 		if (!((cache->mfc_un.res.ttls[vifi] > 0) &&
 					(cache->mfc_un.res.ttls[vifi] < 255))) {
@@ -374,12 +380,21 @@ int ipmr_find_mfc_entry(struct net *net, __be32 origin, __be32 group,
 		 */
 		if (dest_if_count == max_dest_cnt) {
 			read_unlock(&mrt_lock);
+			rcu_read_unlock();
 			return -EINVAL;
 		}
+
+		if (!VIF_EXISTS(mrt, vifi)) {
+			read_unlock(&mrt_lock);
+			rcu_read_unlock();
+			return -EINVAL;
+		}
+
 		dest_dev[dest_if_count] = mrt->vif_table[vifi].dev->ifindex;
 		dest_if_count++;
 	}
 	read_unlock(&mrt_lock);
+	rcu_read_unlock();
 
 	return dest_if_count;
 }
@@ -401,14 +416,22 @@ int ipmr_mfc_stats_update(struct net *net, __be32 origin, __be32 group,
 	if (mrt == NULL)
 		return -ENOENT;
 
-	read_lock(&mrt_lock);
+	rcu_read_lock();
 	cache = ipmr_cache_find(mrt, origin, group);
 	if (cache == NULL) {
-		read_unlock(&mrt_lock);
+		rcu_read_unlock();
 		return -ENOENT;
 	}
 
 	vif = cache->mfc_parent;
+
+	read_lock(&mrt_lock);
+	if (!VIF_EXISTS(mrt, vif)) {
+		read_unlock(&mrt_lock);
+		rcu_read_unlock();
+		return -EINVAL;
+	}
+
 	mrt->vif_table[vif].pkt_in += pkts_in;
 	mrt->vif_table[vif].bytes_in += bytes_in;
 	cache->mfc_un.res.pkt  += pkts_out;
@@ -416,12 +439,17 @@ int ipmr_mfc_stats_update(struct net *net, __be32 origin, __be32 group,
 
 	for (vifi = cache->mfc_un.res.minvif; vifi < cache->mfc_un.res.maxvif; vifi++) {
 		if ((cache->mfc_un.res.ttls[vifi] > 0) && (cache->mfc_un.res.ttls[vifi] < 255)) {
+			if (!VIF_EXISTS(mrt, vifi)) {
+				read_unlock(&mrt_lock);
+				rcu_read_unlock();
+				return -EINVAL;
+			}
 			mrt->vif_table[vifi].pkt_out += pkts_out;
 			mrt->vif_table[vifi].bytes_out += bytes_out;
 		}
 	}
-
 	read_unlock(&mrt_lock);
+	rcu_read_unlock();
 
 	return 0;
 }
