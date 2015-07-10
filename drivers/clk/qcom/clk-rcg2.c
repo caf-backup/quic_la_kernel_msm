@@ -726,7 +726,7 @@ static int clk_cdiv_rcg2_configure(struct clk_cdiv_rcg2 *rcg,
 
 
 	if ((rcg->cdiv.mask) && (f->pre_div > 16)) {
-		for (i = 2; i <= 16; i++) {
+		for (i = 2; i <= 32; i++) {
 			if (f->pre_div % i == 0)
 				cfg = i;
 		}

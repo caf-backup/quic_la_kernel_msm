@@ -140,6 +140,8 @@ static struct clk_qcapll adss_pll_src = {
 
 static const struct freq_tbl ftbl_m_clk[] = {
 	{255, MCLK_MCLK_IN, 1, 0, 0},
+	{2048000, ADSS_PLL, 96, 0, 0},
+	{2822500, ADSS_PLL, 64, 0, 0},
 	{4096000, ADSS_PLL, 48, 0, 0},
 	{5645000, ADSS_PLL, 32, 0, 0},
 	{6144000, ADSS_PLL, 32, 0, 0},
@@ -227,6 +229,8 @@ static struct clk_branch adcc_txm_clk_src = {
 static const struct freq_tbl ftbl_bclk_clk[] = {
 	{254, BCLK_BCLK_IN, 1, 0, 0},
 	{255, BCLK_MCLK_IN, 1, 0, 0},
+	{512000, ADSS_PLL, 384, 0, 0},
+	{705600, ADSS_PLL, 256, 0, 0},
 	{1024000, ADSS_PLL, 192, 0, 0},
 	{1411200, ADSS_PLL, 128, 0, 0},
 	{1536000, ADSS_PLL, 128, 0, 0},
@@ -245,6 +249,8 @@ static const struct freq_tbl ftbl_bclk_clk[] = {
 	{12288000, ADSS_PLL, 16, 0, 0},
 	{14112000, ADSS_PLL, 16, 0, 0},
 	{15360000, ADSS_PLL, 12, 0, 0},
+	{16384000, ADSS_PLL, 12, 0, 0},
+	{22579200, ADSS_PLL, 8, 0, 0},
 	{24576000, ADSS_PLL,  8, 0, 0},
 	{30720000, ADSS_PLL,  6, 0, 0},
 	{ }
@@ -253,7 +259,7 @@ static const struct freq_tbl ftbl_bclk_clk[] = {
 static struct clk_muxr_misc txb_clk_src = {
 	.misc.offset = AUDIO_TXB_MISC_REG,
 	.misc.shift = 1,
-	.misc.mask = 0x3FE,
+	.misc.mask = 0x1FF,
 	.muxr.offset = AUDIO_TXB_CFG_MUXR_REG,
 	.muxr.shift = 8,
 	.muxr.mask = 0x7,
@@ -289,7 +295,7 @@ static struct clk_branch adcc_txb_clk_src = {
 static struct clk_muxr_misc rxb_clk_src = {
 	.misc.offset = AUDIO_RXB_MISC_REG,
 	.misc.shift = 1,
-	.misc.mask = 0x3FE,
+	.misc.mask = 0x1FF,
 	.muxr.offset = AUDIO_RXB_CFG_MUXR_REG,
 	.muxr.shift = 8,
 	.muxr.mask = 0x7,
@@ -415,13 +421,16 @@ static const struct freq_tbl spdif_src_tbl[] = {
 static struct clk_muxr_misc spdif_src = {
 	.misc.offset = AUDIO_SPDIF_MISC_REG,
 	.misc.shift = 1,
-	.misc.mask = 0x3FF,
+	.misc.mask = 0x1FF,
+	.muxr.offset = AUDIO_TXB_CFG_MUXR_REG,
+	.muxr.shift = 8,
+	.muxr.mask = 0x7,
 	.parent_map = adcc_xo_adpll_padbclk_padmclk_map,
 	.freq_tbl = spdif_src_tbl,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "spdif_src",
 		.parent_names = adcc_xo_adpll_padbclk_padmclk,
-		.num_parents = 3,
+		.num_parents = 4,
 		.ops = &clk_muxr_misc_ops,
 		.flags = CLK_SET_RATE_PARENT,
 	},
@@ -453,13 +462,16 @@ static const struct freq_tbl spdif2_src_tbl[] = {
 static struct clk_muxr_misc spdifdiv2_src = {
 	.misc.offset = AUDIO_SPDIFDIV2_MISC_REG,
 	.misc.shift = 1,
-	.misc.mask = 0x3FF,
+	.misc.mask = 0x1FF,
 	.parent_map = adcc_xo_adpll_padbclk_padmclk_map,
+	.muxr.offset = AUDIO_TXB_CFG_MUXR_REG,
+	.muxr.shift = 8,
+	.muxr.mask = 0x7,
 	.freq_tbl = spdif2_src_tbl,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "spdifdiv2_src",
 		.parent_names = adcc_xo_adpll_padbclk_padmclk,
-		.num_parents = 3,
+		.num_parents = 4,
 		.ops = &clk_muxr_misc_ops,
 		.flags = CLK_SET_RATE_PARENT,
 	},
