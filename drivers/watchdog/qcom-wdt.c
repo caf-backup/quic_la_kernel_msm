@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/watchdog.h>
 #include <linux/interrupt.h>
+#include <linux/workqueue.h>
 #include <linux/irq.h>
 #include <linux/sched.h>
 #include <mach/scm.h>
@@ -47,17 +48,17 @@ struct qcom_wdt *to_qcom_wdt(struct watchdog_device *wdd)
 	return container_of(wdd, struct qcom_wdt, wdd);
 }
 
-static void qcom_wdt_scm_regsave(void *info)
+static long qcom_wdt_scm_regsave(void *info)
 {
 	struct qcom_wdt *wdt = (struct qcom_wdt *)info;
-	int ret;
+	long ret = -ENOMEM;
 	struct {
 		unsigned addr;
 		int len;
 	} cmd_buf;
 
 	if (!wdt->scm_regsave)
-		return;
+		return ret;
 
 	cmd_buf.addr = __pa(wdt->scm_regsave);
 	cmd_buf.len  = PAGE_SIZE;
@@ -68,6 +69,7 @@ static void qcom_wdt_scm_regsave(void *info)
 	if (ret) {
 		dev_err(wdt->dev, "Setting register save address failed");
 	}
+	return ret;
 }
 
 static int qcom_wdt_start(struct watchdog_device *wdd)
@@ -75,8 +77,6 @@ static int qcom_wdt_start(struct watchdog_device *wdd)
 	struct qcom_wdt *wdt = to_qcom_wdt(wdd);
 
 	writel(0, wdt->base + WDT_EN);
-
-	smp_call_function_single(0, qcom_wdt_scm_regsave, (void *)wdt, true);
 
 	writel(wdd->timeout * wdt->rate / 2, wdt->base + WDT_BARK_TIME);
 	writel(wdd->timeout * wdt->rate, wdt->base + WDT_BITE_TIME);
@@ -181,7 +181,7 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	if (!wdt->scm_regsave) {
 		dev_warn(&pdev->dev, "Allocating register save space failed\n");
 	}
-
+	ret = work_on_cpu(0, qcom_wdt_scm_regsave, (void *)wdt);
 	/*
 	 * If 'timeout-sec' unspecified in devicetree, assume a 120 second
 	 * default, unless the max timeout is less than 120 seconds, then use
