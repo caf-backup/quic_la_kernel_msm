@@ -11,8 +11,8 @@
  */
 
 #include "qcom-ipq40xx.dtsi"
-#include "qcom-ipq40xx-display.dtsi"
-#include "qpic-panel-ili-qvga.dtsi"
+#include "qcom-ipq40xx-lcdc.dtsi"
+#include "qcom-ipq40xx-lcdpanel.dtsi"
 #include "qcom-ipq40xx-hsuart.dtsi"
 #include "qcom-ipq40xx-audio.dtsi"
 / {
