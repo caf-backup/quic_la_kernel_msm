@@ -10,12 +10,13 @@
  * GNU General Public License for more details.
  */
 
-/ {
+&soc {
 	qcom,msm_qpic@7980000 {
 		compatible = "qcom,mdss_qpic";
 		reg = <0x7980000 0x24000>;
 		reg-names = "qpic_base";
-		interrupts = <0 105 0>;
+		interrupt-names = "lcdc_irq", "bam_irq";
+		interrupts = <0 106 0>, <0 101 0>;
 
 		qcom,msm-bus,name = "mdss_qpic";
 		qcom,msm-bus,num-cases = <2>;

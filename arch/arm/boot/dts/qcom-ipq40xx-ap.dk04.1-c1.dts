@@ -30,9 +30,8 @@
 			status = "ok";
 		};
 
-		qcom,mdss_lcdc_ili9341_qvga {
+		qcom,mdss_lcd_qpic_panel {
 			status = "ok";
 		};
-
 	};
 };

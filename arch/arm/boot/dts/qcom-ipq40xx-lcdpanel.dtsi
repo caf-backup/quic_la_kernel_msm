@@ -10,11 +10,11 @@
  * GNU General Public License for more details.
  */
 
-/ {
-	qcom,mdss_lcdc_ili9341_qvga {
+&soc {
+	qcom,mdss_lcd_qpic_panel {
 		compatible = "qcom,mdss-qpic-panel";
-		label = "ili qvga lcdc panel";
-		qcom,mdss-pan-res = <240 320>;
+		label = "qpic lcd panel";
+		qcom,mdss-pan-res = <800 480>;
 		qcom,mdss-pan-bpp = <18>;
 		qcom,refresh_rate = <60>;
 		status = "disabled";
