@@ -404,7 +404,7 @@ static struct clk_branch adcc_spdifinfast_src = {
 		.hw.init = &(struct clk_init_data){
 			.name = "adcc_spdifinfast_src",
 			.parent_names = (const char *[]){
-				"XO",
+				"spdifinfast_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
