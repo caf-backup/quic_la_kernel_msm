@@ -67,8 +67,13 @@ struct aq_phy_platform_data {
 #define AQ_SYS_SIDE_RX_BAD_REG_LSW  0X1DD284
 #define AQ_SYS_SIDE_RX_BAD_REG_MSW  0X1DD285
 
-/* Define the AQ device id */
-#define AQ_DEVICE_ID	0x3a1b4a2
+/*
+ * The AQ device mask and ID. The last four bits comprise
+ * the revision ID, while the rest of the bits comprise
+ * the organization ID and the model ID
+ */
+#define AQ_DEVICE_ID_MASK 0xFFFFFFF0
+#define AQ_DEVICE_ID 0x03a1b4a0
 
 /* PMD Line side Rx signal detect register */
 #define AQ_PHY_PMD_SIGNAL_DETECT_REG	0xa

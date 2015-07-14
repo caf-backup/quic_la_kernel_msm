@@ -1080,6 +1080,7 @@ static struct nss_platform_data nss0_pdata = {
 	.ipv4_enabled		= NSS_FEATURE_ENABLED,
 	.ipv4_reasm_enabled	= NSS_FEATURE_ENABLED,
 	.ipv6_enabled		= NSS_FEATURE_ENABLED,
+	.ipv6_reasm_enabled	= NSS_FEATURE_ENABLED,
 	.l2switch_enabled	= NSS_FEATURE_ENABLED,
 	.crypto_enabled		= NSS_FEATURE_NOT_ENABLED,
 	.ipsec_enabled		= NSS_FEATURE_NOT_ENABLED,
@@ -1092,6 +1093,7 @@ static struct nss_platform_data nss0_pdata = {
 	.gmac_enabled[1]	= NSS_FEATURE_ENABLED,
 	.gmac_enabled[2]	= NSS_FEATURE_ENABLED,
 	.gmac_enabled[3]	= NSS_FEATURE_ENABLED,
+	.wifioffload_enabled	= NSS_FEATURE_ENABLED,
 };
 
 struct platform_device ipq806x_device_nss0 = {
@@ -1123,6 +1125,7 @@ static struct nss_platform_data nss1_pdata = {
 	.ipv4_enabled		= NSS_FEATURE_NOT_ENABLED,
 	.ipv4_reasm_enabled	= NSS_FEATURE_NOT_ENABLED,
 	.ipv6_enabled		= NSS_FEATURE_NOT_ENABLED,
+	.ipv6_reasm_enabled	= NSS_FEATURE_NOT_ENABLED,
 	.l2switch_enabled	= NSS_FEATURE_NOT_ENABLED,
 	.crypto_enabled		= NSS_FEATURE_ENABLED,
 	.ipsec_enabled		= NSS_FEATURE_ENABLED,
@@ -1135,6 +1138,7 @@ static struct nss_platform_data nss1_pdata = {
 	.gmac_enabled[1]	= NSS_FEATURE_NOT_ENABLED,
 	.gmac_enabled[2]	= NSS_FEATURE_NOT_ENABLED,
 	.gmac_enabled[3]	= NSS_FEATURE_NOT_ENABLED,
+	.wifioffload_enabled	= NSS_FEATURE_NOT_ENABLED,
 };
 
 struct platform_device ipq806x_device_nss1 = {
@@ -2332,6 +2336,8 @@ struct platform_device ipq806x_rpm_master_stat_device = {
 	},
 };
 
+#define RPM_LOG_BUF_LEN		(1536 * sizeof(uint32_t)) /* in bytes */
+
 static struct msm_rpm_log_platform_data msm_rpm_log_pdata = {
 	.phys_addr_base = 0x0010C0C8,
 	.reg_offsets = {
@@ -2339,8 +2345,7 @@ static struct msm_rpm_log_platform_data msm_rpm_log_pdata = {
 		[MSM_RPM_LOG_PAGE_BUFFER]  = 0x000000A0,
 	},
 	.phys_size = SZ_8K,
-	.log_len = 4096,		  /* log's buffer length in bytes */
-	.log_len_mask = (4096 >> 2) - 1,  /* length mask in units of u32 */
+	.log_len = RPM_LOG_BUF_LEN,
 };
 
 struct platform_device ipq806x_rpm_log_device = {
