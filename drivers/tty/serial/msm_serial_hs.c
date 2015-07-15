@@ -727,7 +727,7 @@ reg_event_err:
  *
  * Interrupts should be disabled before we are called, as
  * we modify Set Baud rate
- * Set receive stale interrupt level, dependant on Bit Rate
+ * Set receive stale interrupt level, dependent on Bit Rate
  * Goal is to have around 8 ms before indicate stale.
  * roundup (((Bit Rate * .008) / 10) + 1
  */
@@ -2170,7 +2170,7 @@ static irqreturn_t msm_hs_wakeup_isr(int irq, void *dev)
 
 	spin_lock_irqsave(&uport->lock, flags);
 	if (msm_uport->clk_state == MSM_HS_CLK_OFF)  {
-		/* ignore the first irq - it is a pending irq that occured
+		/* ignore the first irq - it is a pending irq that occurred
 		 * before enable_irq() */
 		if (msm_uport->wakeup.ignore)
 			msm_uport->wakeup.ignore = 0;
