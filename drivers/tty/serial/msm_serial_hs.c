@@ -53,7 +53,7 @@
 #include <linux/sysfs.h>
 #include <linux/stat.h>
 #include <linux/device.h>
-#include <linux/wakelock.h>
+#include <linux/pm_wakeup.h>
 #include <linux/debugfs.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -109,6 +109,21 @@ enum msm_hs_clk_req_off_state_e {
 	CLK_REQ_OFF_RXSTALE_ISSUED,
 	CLK_REQ_OFF_FLUSH_ISSUED,
 	CLK_REQ_OFF_RXSTALE_FLUSHED,
+};
+
+/*
+ * A wake_lock prevents the system from entering suspend or other low power
+ * states when active. If the type is set to WAKE_LOCK_SUSPEND, the wake_lock
+ * prevents a full system suspend.
+ */
+
+enum {
+	WAKE_LOCK_SUSPEND, /* Prevent suspend */
+	WAKE_LOCK_TYPE_COUNT
+};
+
+struct wake_lock {
+	struct wakeup_source ws;
 };
 
 /* SPS data structures to support HSUART with BAM
@@ -594,8 +609,8 @@ static int msm_hs_remove(struct platform_device *pdev)
 	dma_unmap_single(dev, msm_uport->tx.mapped_cmd_ptr, sizeof(dmov_box),
 			 DMA_TO_DEVICE);
 
-	wake_lock_destroy(&msm_uport->rx.wake_lock);
-	wake_lock_destroy(&msm_uport->dma_wake_lock);
+	wakeup_source_trash(&msm_uport->rx.wake_lock.ws);
+	wakeup_source_trash(&msm_uport->dma_wake_lock.ws);
 	destroy_workqueue(msm_uport->hsuart_wq);
 	mutex_destroy(&msm_uport->clk_mutex);
 
@@ -1039,7 +1054,7 @@ static void msm_hs_set_termios(struct uart_port *uport,
 	msm_hs_write(uport, UARTDM_CR_ADDR, RESET_TX);
 
 	if (msm_uport->rx.flush == FLUSH_NONE) {
-		wake_lock(&msm_uport->rx.wake_lock);
+		__pm_stay_awake(&msm_uport->rx.wake_lock.ws);
 		msm_uport->rx.flush = FLUSH_IGNORE;
 		/*
 		 * Before using dmov APIs make sure that
@@ -1132,7 +1147,7 @@ static void hsuart_disconnect_rx_endpoint_work(struct work_struct *w)
 	if (ret)
 		pr_err("%s(): sps_disconnect failed\n", __func__);
 
-	wake_lock_timeout(&msm_uport->rx.wake_lock, HZ / 2);
+	__pm_wakeup_event(&msm_uport->rx.wake_lock.ws, jiffies_to_msecs(HZ / 2));
 	msm_uport->rx.flush = FLUSH_SHUTDOWN;
 	wake_up(&msm_uport->rx.wait);
 }
@@ -1165,7 +1180,7 @@ static void msm_hs_stop_rx_locked(struct uart_port *uport)
 	mb();
 	/* Disable the receiver */
 	if (msm_uport->rx.flush == FLUSH_NONE) {
-		wake_lock(&msm_uport->rx.wake_lock);
+		__pm_stay_awake(&msm_uport->rx.wake_lock.ws);
 		if (is_blsp_uart(msm_uport)) {
 			msm_uport->rx.flush = FLUSH_STOP;
 			/* workqueue for BAM rx endpoint disconnect */
@@ -1514,7 +1529,7 @@ out:
 	}
 	/* release wakelock in 500ms, not immediately, because higher layers
 	 * don't always take wakelocks when they should */
-	wake_lock_timeout(&msm_uport->rx.wake_lock, HZ / 2);
+	__pm_wakeup_event(&msm_uport->rx.wake_lock.ws, jiffies_to_msecs(HZ / 2));
 	/* tty_flip_buffer_push() might call msm_hs_start(), so unlock */
 	spin_unlock_irqrestore(&uport->lock, flags);
 	if (flush < FLUSH_DATA_INVALID)
@@ -1930,7 +1945,7 @@ static int msm_hs_check_clock_off(struct uart_port *uport)
 		msm_uport->wakeup.ignore = 1;
 		enable_irq(msm_uport->wakeup.irq);
 	}
-	wake_unlock(&msm_uport->dma_wake_lock);
+	__pm_relax(&msm_uport->dma_wake_lock.ws);
 
 	spin_unlock_irqrestore(&uport->lock, flags);
 
@@ -1979,7 +1994,7 @@ static irqreturn_t msm_hs_isr(int irq, void *dev)
 
 	/* Uart RX starting */
 	if (isr_status & UARTDM_ISR_RXLEV_BMSK) {
-		wake_lock(&rx->wake_lock);  /* hold wakelock while rx dma */
+		__pm_stay_awake(&rx->wake_lock.ws);  /* hold wakelock while rx dma */
 		msm_uport->imr_reg &= ~UARTDM_ISR_RXLEV_BMSK;
 		msm_hs_write(uport, UARTDM_IMR_ADDR, msm_uport->imr_reg);
 		/* Complete device write for IMR. Hence mb() requires. */
@@ -2109,7 +2124,7 @@ void msm_hs_request_clock_on(struct uart_port *uport)
 
 	switch (msm_uport->clk_state) {
 	case MSM_HS_CLK_OFF:
-		wake_lock(&msm_uport->dma_wake_lock);
+		__pm_stay_awake(&msm_uport->dma_wake_lock.ws);
 		if (use_low_power_wakeup(msm_uport))
 			disable_irq_nosync(msm_uport->wakeup.irq);
 		spin_unlock_irqrestore(&uport->lock, flags);
@@ -2320,12 +2335,12 @@ static int msm_hs_startup(struct uart_port *uport)
 	tx->dma_base = dma_map_single(uport->dev, tx_buf->buf, UART_XMIT_SIZE,
 				      DMA_TO_DEVICE);
 
-	wake_lock(&msm_uport->dma_wake_lock);
+	__pm_stay_awake(&msm_uport->dma_wake_lock.ws);
 	/* turn on uart clk */
 	ret = msm_hs_init_clk(uport);
 	if (unlikely(ret)) {
 		pr_err("Turning ON uartclk error\n");
-		wake_unlock(&msm_uport->dma_wake_lock);
+		__pm_relax(&msm_uport->dma_wake_lock.ws);
 		return ret;
 	}
 
@@ -2490,7 +2505,7 @@ unconfig_uart_gpios:
 		msm_hs_unconfig_uart_gpios(uport);
 deinit_uart_clk:
 	msm_hs_clock_unvote(msm_uport);
-	wake_unlock(&msm_uport->dma_wake_lock);
+	__pm_relax(&msm_uport->dma_wake_lock.ws);
 
 	return ret;
 }
@@ -2505,9 +2520,8 @@ static int uartdm_init_port(struct uart_port *uport)
 
 	init_waitqueue_head(&rx->wait);
 	init_waitqueue_head(&tx->wait);
-	wake_lock_init(&rx->wake_lock, WAKE_LOCK_SUSPEND, "msm_serial_hs_rx");
-	wake_lock_init(&msm_uport->dma_wake_lock, WAKE_LOCK_SUSPEND,
-		       "msm_serial_hs_dma");
+	wakeup_source_init(&rx->wake_lock.ws, "msm_serial_hs_rx");
+	wakeup_source_init(&msm_uport->dma_wake_lock.ws, "msm_serial_hs_dma");
 
 	tasklet_init(&rx->tlet, msm_serial_hs_rx_tlet,
 			(unsigned long) &rx->tlet);
@@ -2622,8 +2636,8 @@ free_pool:
 	dma_pool_destroy(msm_uport->rx.pool);
 
 exit_tasket_init:
-	wake_lock_destroy(&msm_uport->rx.wake_lock);
-	wake_lock_destroy(&msm_uport->dma_wake_lock);
+	wakeup_source_trash(&msm_uport->rx.wake_lock.ws);
+	wakeup_source_trash(&msm_uport->dma_wake_lock.ws);
 	tasklet_kill(&msm_uport->tx.tlet);
 	tasklet_kill(&msm_uport->rx.tlet);
 	return ret;
@@ -3328,7 +3342,7 @@ static void msm_hs_shutdown(struct uart_port *uport)
 	if (msm_uport->clk_state != MSM_HS_CLK_OFF) {
 		/* to balance clk_state */
 		msm_hs_clock_unvote(msm_uport);
-		wake_unlock(&msm_uport->dma_wake_lock);
+		__pm_relax(&msm_uport->dma_wake_lock.ws);
 	}
 
 	msm_uport->clk_state = MSM_HS_CLK_PORT_OFF;
