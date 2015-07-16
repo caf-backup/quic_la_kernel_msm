@@ -48,7 +48,6 @@ static int msm_restart_probe(struct platform_device *pdev)
 		return PTR_ERR(msm_ps_hold);
 
 	pm_power_off = do_msm_poweroff;
-	arm_pm_restart = do_msm_restart;
 	return 0;
 }
 
