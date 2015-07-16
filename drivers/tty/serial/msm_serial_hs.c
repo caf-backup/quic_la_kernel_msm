@@ -72,6 +72,9 @@
 #define UART_SPS_CONS_PERIPHERAL 0
 #define UART_SPS_PROD_PERIPHERAL 1
 
+#define UARTDM_VERSION_13 0
+#define UARTDM_VERSION_14 1
+
 static int hs_serial_debug_mask = 1;
 module_param_named(debug_mask, hs_serial_debug_mask,
 		   int, S_IRUGO | S_IWUSR | S_IWGRP);
@@ -262,6 +265,15 @@ static void msm_hs_bus_voting(struct msm_hs_port *msm_uport, unsigned int vote);
 #define UARTDM_TO_MSM(uart_port) \
 	container_of((uart_port), struct msm_hs_port, uport)
 
+static struct of_device_id msm_hs_match_table[] = {
+	{	.compatible = "qcom,msm-hsuart-v13",
+		.data = (void *)UARTDM_VERSION_13,
+	},
+	{	.compatible = "qcom,msm-hsuart-v14",
+		.data = (void *)UARTDM_VERSION_14,
+	},
+	{}
+};
 
 static int msm_hs_ioctl(struct uart_port *uport, unsigned int cmd,
 						unsigned long arg)
@@ -406,7 +418,7 @@ static inline unsigned int use_low_power_wakeup(struct msm_hs_port *msm_uport)
 static inline int is_gsbi_uart(struct msm_hs_port *msm_uport)
 {
 	/* assume gsbi uart if gsbi resource found in pdata */
-	return ((msm_uport->mapped_gsbi != NULL));
+	return (msm_uport->uart_type == GSBI_HSUART);
 }
 static unsigned int is_blsp_uart(struct msm_hs_port *msm_uport)
 {
@@ -452,6 +464,9 @@ static void msm_hs_release_port(struct uart_port *port)
 		gsbi_resource = platform_get_resource_byname(pdev,
 							     IORESOURCE_MEM,
 							     "gsbi_resource");
+		if (!gsbi_resource)
+			gsbi_resource = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+
 		if (unlikely(!gsbi_resource))
 			return;
 
@@ -472,6 +487,9 @@ static int msm_hs_request_port(struct uart_port *port)
 	gsbi_resource = platform_get_resource_byname(pdev,
 						     IORESOURCE_MEM,
 						     "gsbi_resource");
+	if (!gsbi_resource)
+		gsbi_resource = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+
 	if (gsbi_resource) {
 		size = resource_size(gsbi_resource);
 		if (unlikely(!request_mem_region(gsbi_resource->start, size,
@@ -2648,7 +2666,10 @@ struct msm_serial_hs_platform_data
 {
 	struct device_node *node = pdev->dev.of_node;
 	struct msm_serial_hs_platform_data *pdata;
+	const struct of_device_id *match;
 	int rx_to_inject, ret;
+
+	match = of_match_device(msm_hs_match_table, &pdev->dev);
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
@@ -2693,38 +2714,39 @@ struct msm_serial_hs_platform_data
 		pdata->rx_to_inject = (char)rx_to_inject;
 	}
 
-	ret = of_property_read_u32(node, "qcom,bam-tx-ep-pipe-index",
-				&pdata->bam_tx_ep_pipe_index);
-	if (ret < 0) {
-		pr_err("Error: Getting UART BAM TX EP Pipe Index.\n");
-		return ERR_PTR(ret);
+	if(match->data) {
+		ret = of_property_read_u32(node, "qcom,bam-tx-ep-pipe-index",
+						&pdata->bam_tx_ep_pipe_index);
+		if (ret < 0) {
+			pr_err("Error: Getting UART BAM TX EP Pipe Index.\n");
+			return ERR_PTR(ret);
+		}
+
+		if (!(pdata->bam_tx_ep_pipe_index >= BAM_PIPE_MIN &&
+			pdata->bam_tx_ep_pipe_index <= BAM_PIPE_MAX)) {
+			pr_err("Error: Invalid UART BAM TX EP Pipe Index.\n");
+			return ERR_PTR(-EINVAL);
+		}
+
+		ret = of_property_read_u32(node, "qcom,bam-rx-ep-pipe-index",
+						&pdata->bam_rx_ep_pipe_index);
+		if (ret < 0) {
+			pr_err("Error: Getting UART BAM RX EP Pipe Index.\n");
+			return ERR_PTR(ret);
+		}
+
+		if (!(pdata->bam_rx_ep_pipe_index >= BAM_PIPE_MIN &&
+			pdata->bam_rx_ep_pipe_index <= BAM_PIPE_MAX)) {
+			pr_err("Error: Invalid UART BAM RX EP Pipe Index.\n");
+			return ERR_PTR(-EINVAL);
+		}
+
+		pr_debug("tx_ep_pipe_index:%d rx_ep_pipe_index:%d\n"
+			"tx_gpio:%d rx_gpio:%d rfr_gpio:%d cts_gpio:%d",
+			pdata->bam_tx_ep_pipe_index, pdata->bam_rx_ep_pipe_index,
+			pdata->uart_tx_gpio, pdata->uart_rx_gpio, pdata->uart_cts_gpio,
+			pdata->uart_rfr_gpio);
 	}
-
-	if (!(pdata->bam_tx_ep_pipe_index >= BAM_PIPE_MIN &&
-		pdata->bam_tx_ep_pipe_index <= BAM_PIPE_MAX)) {
-		pr_err("Error: Invalid UART BAM TX EP Pipe Index.\n");
-		return ERR_PTR(-EINVAL);
-	}
-
-	ret = of_property_read_u32(node, "qcom,bam-rx-ep-pipe-index",
-					&pdata->bam_rx_ep_pipe_index);
-	if (ret < 0) {
-		pr_err("Error: Getting UART BAM RX EP Pipe Index.\n");
-		return ERR_PTR(ret);
-	}
-
-	if (!(pdata->bam_rx_ep_pipe_index >= BAM_PIPE_MIN &&
-		pdata->bam_rx_ep_pipe_index <= BAM_PIPE_MAX)) {
-		pr_err("Error: Invalid UART BAM RX EP Pipe Index.\n");
-		return ERR_PTR(-EINVAL);
-	}
-
-	pr_debug("tx_ep_pipe_index:%d rx_ep_pipe_index:%d\n"
-		"tx_gpio:%d rx_gpio:%d rfr_gpio:%d cts_gpio:%d",
-		pdata->bam_tx_ep_pipe_index, pdata->bam_rx_ep_pipe_index,
-		pdata->uart_tx_gpio, pdata->uart_rx_gpio, pdata->uart_cts_gpio,
-		pdata->uart_rfr_gpio);
-
 	return pdata;
 }
 
@@ -2927,14 +2949,17 @@ static atomic_t msm_serial_hs_next_id = ATOMIC_INIT(0);
 
 static int msm_hs_probe(struct platform_device *pdev)
 {
+	int err;
 	int ret = 0, alias_num = -1;
 	struct uart_port *uport;
 	struct msm_hs_port *msm_uport;
 	struct resource *core_resource;
 	struct resource *bam_resource;
 	struct resource *resource;
+	const struct of_device_id *match;
 	int core_irqres, bam_irqres;
 	struct msm_serial_hs_platform_data *pdata = pdev->dev.platform_data;
+	struct device_node *node = pdev->dev.of_node;
 
 	if (pdev->dev.of_node) {
 		dev_dbg(&pdev->dev, "device tree enabled\n");
@@ -2950,7 +2975,7 @@ static int msm_hs_probe(struct platform_device *pdev)
 		/* Use alias from device tree if present
 		 * Alias is used as an optional property
 		 */
-		alias_num = of_alias_get_id(pdev->dev.of_node, "uart");
+		alias_num = of_alias_get_id(pdev->dev.of_node, "hs_uart");
 		if (alias_num >= 0) {
 			/* If alias_num is between 0 and 11, check that it not
 			 * equal to previous incremented pdev-ids. If it is
@@ -2981,8 +3006,13 @@ static int msm_hs_probe(struct platform_device *pdev)
 	uport = &msm_uport->uport;
 	uport->dev = &pdev->dev;
 
-	if (pdev->dev.of_node)
-		msm_uport->uart_type = BLSP_HSUART;
+	if (pdev->dev.of_node) {
+		match = of_match_device(msm_hs_match_table, &pdev->dev);
+		if (!(match->data))
+			msm_uport->uart_type = GSBI_HSUART;
+		else
+			msm_uport->uart_type = BLSP_HSUART;
+	}
 
 	/* Get required resources for BAM HSUART */
 	if (is_blsp_uart(msm_uport)) {
@@ -3087,26 +3117,22 @@ static int msm_hs_probe(struct platform_device *pdev)
 	}
 
 	if (!is_blsp_uart(msm_uport)) {
-
-		resource = platform_get_resource_byname(pdev,
-					IORESOURCE_DMA, "uartdm_channels");
-		if (unlikely(!resource)) {
-			ret =  -ENXIO;
-			goto deregister_bus_client;
-		}
-
-		msm_uport->dma_tx_channel = resource->start;
-		msm_uport->dma_rx_channel = resource->end;
-
-		resource = platform_get_resource_byname(pdev,
-					IORESOURCE_DMA, "uartdm_crci");
-		if (unlikely(!resource)) {
-			ret = -ENXIO;
-			goto deregister_bus_client;
-		}
-
-		msm_uport->dma_tx_crci = resource->start;
-		msm_uport->dma_rx_crci = resource->end;
+		err = of_property_read_u32(node, "qcom,rx-chan",
+					&msm_uport->dma_rx_channel);
+		if (err != 0)
+			return -ENXIO;
+		err = of_property_read_u32(node, "qcom,tx-chan",
+					&msm_uport->dma_tx_channel);
+		if (err != 0)
+			return -ENXIO;
+		err = of_property_read_u32(node, "qcom,rx-crci",
+					&msm_uport->dma_rx_crci);
+		if (err != 0)
+			return -ENXIO;
+		err = of_property_read_u32(node, "qcom,tx-crci",
+					&msm_uport->dma_tx_crci);
+		if (err != 0)
+			return -ENXIO;
 	}
 
 	uport->iotype = UPIO_MEM;
@@ -3116,13 +3142,13 @@ static int msm_hs_probe(struct platform_device *pdev)
 	uport->uartclk = 7372800;
 	msm_uport->imr_reg = 0x0;
 
-	msm_uport->clk = clk_get(&pdev->dev, "core_clk");
+	msm_uport->clk = clk_get(&pdev->dev, "core");
 	if (IS_ERR(msm_uport->clk)) {
 		ret = PTR_ERR(msm_uport->clk);
 		goto deregister_bus_client;
 	}
 
-	msm_uport->pclk = clk_get(&pdev->dev, "iface_clk");
+	msm_uport->pclk = clk_get(&pdev->dev, "iface");
 	/*
 	 * Some configurations do not require explicit pclk control so
 	 * do not flag error on pclk get failure.
@@ -3405,11 +3431,6 @@ static const struct dev_pm_ops msm_hs_dev_pm_ops = {
 	.runtime_suspend = msm_hs_runtime_suspend,
 	.runtime_resume  = msm_hs_runtime_resume,
 	.runtime_idle    = msm_hs_runtime_idle,
-};
-
-static struct of_device_id msm_hs_match_table[] = {
-	{ .compatible = "qcom,msm-hsuart-v14" },
-	{}
 };
 
 static struct platform_driver msm_serial_hs_platform_driver = {
