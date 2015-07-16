@@ -592,5 +592,5 @@ extern void ipq40xx_stereo_spdif_enable(uint32_t enable, uint32_t stereo_id);
 /* APIs in DAI driver */
 extern uint32_t get_mbox_id(struct snd_pcm_substream *substream, int intf);
 extern uint32_t get_stereo_id(struct snd_pcm_substream *substream, int intf);
-
+extern uint32_t ipq40xx_get_act_bit_width(uint32_t bit_width);
 #endif

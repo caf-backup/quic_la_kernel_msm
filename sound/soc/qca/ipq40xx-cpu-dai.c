@@ -75,7 +75,7 @@ uint32_t get_mbox_id(struct snd_pcm_substream *substream, int intf)
 }
 EXPORT_SYMBOL(get_mbox_id);
 
-static uint32_t ipq40xx_get_act_bit_width(uint32_t bit_width)
+uint32_t ipq40xx_get_act_bit_width(uint32_t bit_width)
 {
 	switch (bit_width) {
 	case SNDRV_PCM_FORMAT_S8:
@@ -101,6 +101,7 @@ static uint32_t ipq40xx_get_act_bit_width(uint32_t bit_width)
 		return __BIT_INVAL;
 	}
 }
+EXPORT_SYMBOL(ipq40xx_get_act_bit_width);
 
 static int ipq40xx_audio_clk_get(struct clk **clk, struct snd_soc_dai *dai,
 					const char *id)
