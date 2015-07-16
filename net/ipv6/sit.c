@@ -87,6 +87,21 @@ struct sit_net {
 	struct net_device *fb_tunnel_dev;
 };
 
+void ipip6_update_offload_stats(struct net_device *dev, void *ptr)
+{
+	struct pcpu_sw_netstats *tstats = per_cpu_ptr(dev->tstats, 0);
+	const struct pcpu_sw_netstats *offload_stats
+		= (struct pcpu_sw_netstats *)ptr;
+
+	u64_stats_update_begin(&tstats->syncp);
+	tstats->tx_packets += offload_stats->tx_packets;
+	tstats->tx_bytes   += offload_stats->tx_bytes;
+	tstats->rx_packets += offload_stats->rx_packets;
+	tstats->rx_bytes   += offload_stats->rx_bytes;
+	u64_stats_update_end(&tstats->syncp);
+}
+EXPORT_SYMBOL(ipip6_update_offload_stats);
+
 /*
  * Must be invoked with rcu_read_lock
  */
@@ -707,6 +722,8 @@ static int ipip6_rcv(struct sk_buff *skb)
 		tstats->rx_bytes += skb->len;
 		u64_stats_update_end(&tstats->syncp);
 
+		/* Reset the skb_iif to Tunnels interface index */
+		skb->skb_iif = tunnel->dev->ifindex;
 		netif_rx(skb);
 
 		return 0;
@@ -973,6 +990,8 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		goto out;
 	}
 
+	/* Reset the skb_iif to Tunnels interface index */
+	skb->skb_iif = tunnel->dev->ifindex;
 	err = iptunnel_xmit(rt, skb, fl4.saddr, fl4.daddr, IPPROTO_IPV6, tos,
 			    ttl, df, !net_eq(tunnel->net, dev_net(dev)));
 	iptunnel_xmit_stats(err, &dev->stats, dev->tstats);

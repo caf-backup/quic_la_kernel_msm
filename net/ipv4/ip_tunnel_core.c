@@ -53,6 +53,10 @@ int iptunnel_xmit(struct rtable *rt, struct sk_buff *skb,
 	int pkt_len = skb->len;
 	struct iphdr *iph;
 	int err;
+	int skb_iif;
+
+	/* Save input interface index */
+	skb_iif = skb->skb_iif;
 
 	skb_scrub_packet(skb, xnet);
 
@@ -75,6 +79,9 @@ int iptunnel_xmit(struct rtable *rt, struct sk_buff *skb,
 	iph->saddr	=	src;
 	iph->ttl	=	ttl;
 	__ip_select_ident(iph, skb_shinfo(skb)->gso_segs ?: 1);
+
+	if (proto == IPPROTO_IPV6)
+		skb->skb_iif = skb_iif;
 
 	err = ip_local_out(skb);
 	if (unlikely(net_xmit_eval(err)))
