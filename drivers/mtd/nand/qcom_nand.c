@@ -30,7 +30,7 @@
 #include <asm/dma.h>
 #include <asm/mach/flash.h>
 
-#include "qcom_adm_dma.h"
+#include <linux/qcom_adm_dma.h>
 
 #include "qcom_nand.h"
 unsigned long msm_nand_phys = 0;
