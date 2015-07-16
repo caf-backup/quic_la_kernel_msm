@@ -285,6 +285,14 @@ static int krait_cpufreq_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
+	if (dev_pm_opp_get_opp_count(cpu_dev) <= 0) {
+		ret = of_init_opp_table_named(cpu_dev, opp_name);
+		if (ret) {
+			pr_err("failed to init OPP table: %d\n", ret);
+			goto out_put_node;
+		}
+ 	}
+
 	ret = dev_pm_opp_init_cpufreq_table(cpu_dev, &freq_table);
 	if (ret) {
 		pr_err("failed to init cpufreq table: %d\n", ret);
