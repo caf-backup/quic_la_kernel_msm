@@ -1645,44 +1645,59 @@ ar8327_hw_config_of(struct ar8xxx_priv *priv, struct device_node *np)
 #endif
 
 static void
-ar8327_port_phy_linkdown(struct ar8xxx_priv *priv)
+ar8327_port_phy_linkdown(struct ar8xxx_priv *priv, int port)
 {
 	struct mii_bus *bus;
-	int i;
 	u16 val;
 
 	bus = priv->mii_bus;
-	for (i = 0; i < AR8327_NUM_PHYS; i++) {
-		mdiobus_write(bus, i, MII_CTRL1000, 0);
-		mdiobus_write(bus, i, MII_ADVERTISE, 0);
-		mdiobus_write(bus, i, MII_BMCR, BMCR_RESET | BMCR_ANENABLE);
-		ar8xxx_phy_dbg_read(priv, i, AR8337_PHY_DEBUG_0, &val);
-		val |= AR8337_PHY_MANU_CTRL_EN;
-		ar8xxx_phy_dbg_write(priv, i, AR8337_PHY_DEBUG_0, val);
-		/*disable transmit*/
-		ar8xxx_phy_dbg_read(priv, i, AR8337_PHY_DEBUG_2, &val);
-		val &= 0xf00f;
-		ar8xxx_phy_dbg_write(priv, i, AR8337_PHY_DEBUG_2, val);
-	}
+
+	mdiobus_write(bus, port - 1, MII_CTRL1000, 0);
+	mdiobus_write(bus, port - 1, MII_ADVERTISE, 0);
+	mdiobus_write(bus, port - 1, MII_BMCR, BMCR_RESET | BMCR_ANENABLE);
+	ar8xxx_phy_dbg_read(priv, port - 1, AR8337_PHY_DEBUG_0, &val);
+	val |= AR8337_PHY_MANU_CTRL_EN;
+	ar8xxx_phy_dbg_write(priv, port - 1, AR8337_PHY_DEBUG_0, val);
+	/*disable transmit*/
+	ar8xxx_phy_dbg_read(priv, port - 1, AR8337_PHY_DEBUG_2, &val);
+	val &= 0xf00f;
+	ar8xxx_phy_dbg_write(priv, port - 1, AR8337_PHY_DEBUG_2, val);
+
 }
 
 static void
-ar8327_port_phy_init(struct ar8xxx_priv *priv)
+ar8327_phy_linkdown(struct ar8xxx_priv *priv)
 {
-	struct mii_bus *bus;
 	int i;
 
-	bus = priv->mii_bus;
-	for (i = 0; i < AR8327_NUM_PHYS; i++) {
-		ar8327_phy_fixup(priv, i);
+	for (i = 0; i < AR8327_NUM_PHYS; i++)
+		ar8327_port_phy_linkdown(priv, i + 1);
+}
 
-		/* start aneg on the PHY */
-		mdiobus_write(bus, i, MII_ADVERTISE, ADVERTISE_ALL |
-						     ADVERTISE_PAUSE_CAP |
-						     ADVERTISE_PAUSE_ASYM);
-		mdiobus_write(bus, i, MII_CTRL1000, ADVERTISE_1000FULL);
-		mdiobus_write(bus, i, MII_BMCR, BMCR_RESET | BMCR_ANENABLE);
-	}
+static void
+ar8327_port_phy_init(struct ar8xxx_priv *priv, int port)
+{
+	struct mii_bus *bus;
+
+	bus = priv->mii_bus;
+	ar8327_phy_fixup(priv, port - 1);
+
+	/* start aneg on the PHY */
+	mdiobus_write(bus, port - 1, MII_ADVERTISE, ADVERTISE_ALL |
+					     ADVERTISE_PAUSE_CAP |
+					     ADVERTISE_PAUSE_ASYM);
+	mdiobus_write(bus, port - 1, MII_CTRL1000, ADVERTISE_1000FULL);
+	mdiobus_write(bus, port - 1, MII_BMCR, BMCR_RESET | BMCR_ANENABLE);
+
+}
+
+static void
+ar8327_phy_init(struct ar8xxx_priv *priv)
+{
+	int i;
+
+	for (i = 0; i < AR8327_NUM_PHYS; i++)
+		ar8327_port_phy_init(priv, i + 1);
 
 	msleep(1000);
 }
@@ -1702,7 +1717,7 @@ ar8327_hw_init(struct ar8xxx_priv *priv)
 		return ret;
 
 	ar8327_leds_init(priv);
-	ar8327_port_phy_init(priv);
+	ar8327_phy_init(priv);
 	return 0;
 }
 
@@ -1967,6 +1982,21 @@ ar8xxx_sw_get_pvid(struct switch_dev *dev, int port, int *vlan)
 }
 
 static int
+ar8xxx_sw_set_port_linkdown(struct switch_dev *dev,
+			   const struct switch_attr *attr,
+			   struct switch_val *val)
+{
+	struct ar8xxx_priv *priv = swdev_to_ar8xxx(dev);
+
+	if (val->value.i == 1)
+		ar8327_port_phy_linkdown(priv, val->port_vlan);
+	else
+		ar8327_port_phy_init(priv, val->port_vlan);
+
+	return 0;
+}
+
+static int
 ar8xxx_sw_set_linkdown(struct switch_dev *dev,
 			   const struct switch_attr *attr,
 			   struct switch_val *val)
@@ -1974,9 +2004,9 @@ ar8xxx_sw_set_linkdown(struct switch_dev *dev,
 	struct ar8xxx_priv *priv = swdev_to_ar8xxx(dev);
 
 	if (val->value.i == 1)
-		ar8327_port_phy_linkdown(priv);
+		ar8327_phy_linkdown(priv);
 	else
-		ar8327_port_phy_init(priv);
+		ar8327_phy_init(priv);
 
 	return 0;
 }
@@ -2685,6 +2715,13 @@ static struct switch_attr ar8xxx_sw_attr_port[] = {
 		.set = NULL,
 		.get = ar8xxx_sw_get_port_mib,
 	},
+	{
+		.type = SWITCH_TYPE_INT,
+		.name = "linkdown",
+		.description = "Link down single phy",
+		.set = ar8xxx_sw_set_port_linkdown,
+		.max = 1
+	},
 };
 
 static struct switch_attr ar8xxx_sw_attr_vlan[] = {
@@ -2983,7 +3020,7 @@ ar8xxx_phy_config_init(struct phy_device *phydev)
 
 	if (chip_is_ar8327(priv) || chip_is_ar8337(priv)) {
 		if(phydev->addr == 0)
-			ar8327_port_phy_init(priv);
+			ar8327_phy_init(priv);
 		return 0;
 	}
 
