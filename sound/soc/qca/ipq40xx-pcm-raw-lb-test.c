@@ -71,7 +71,8 @@ struct pcm_lb_test_ctx {
 	uint32_t passed;
 	unsigned char *last_rx_buff;
 	int running;
-	unsigned char tx_data;
+	uint16_t tx_data;
+	uint16_t expected_rx_seq;
 	int read_count;
 	struct task_struct *task;
 };
@@ -89,11 +90,8 @@ static ssize_t show_pcm_lb_value(struct device_driver *driver,
 static ssize_t store_pcm_lb_value(struct device_driver *driver,
 				const char *buff, size_t count)
 {
-	int i;
-	i = sscanf(buff, "%d", &start);
-	if (i > 0)
-		pcm_start_test();
-
+	sscanf(buff, "%d", &start);
+	pcm_start_test();
 	return count;
 }
 
@@ -252,64 +250,53 @@ void process_read(uint32_t size)
 	uint32_t index;
 	static uint32_t continuous_failures;
 	uint32_t *data_u32;
-	uint16_t *data_u16;
-	char val;
-	uint32_t expected_val_u32, rec_val_u32;
-	uint16_t expected_val_u16, rec_val_u16;
+	uint16_t val;
+	uint16_t expected_val, rec_val;
 
 	/* get out if test stopped */
 	if (start == 0)
 		return;
 
 	ctx.read_count++;
-	if (ctx.read_count  <= LOOPBACK_SKIP_COUNT) {
+	if (ctx.read_count <= LOOPBACK_SKIP_COUNT) {
 		/*
 		 * As soon as do pcm init, the DMA would start. So the initial
 		 * few rw till the 1st Rx is called will be 0's, so we skip
-		 * 10 reads so that our loopback settles down.
+		 * few reads so that our loopback settles down.
 		 * Note: our 1st loopback Tx is only after an RX is called.
 		 */
 		return;
+	} else if (ctx.read_count == (LOOPBACK_SKIP_COUNT + 1)) {
+		/*
+		 * our loopback should have settled, so start looking for the
+		 * sequence from here. we check only for the data, not for slot
+		 */
+		ctx.expected_rx_seq = ((uint32_t *)ctx.last_rx_buff)[0] &
+									0xFFFF;
 	}
-	/*
-	 * our loopback should have settled, so start looking for the
-	 * sequence from here. we check only for the data and not for slot
-	 */
-	if (cfg_params.bit_width == 16) {
-		data_u32 = (uint32_t *)ctx.last_rx_buff;
-		val = data_u32[0] & 0xFF;
-		size = size / 4; /* as we are checking data as uint32 */
-		for (index = 0; index < size; index++) {
-			expected_val_u32 = val;
-			rec_val_u32 = data_u32[index] & (0xFFFF);
-			if (expected_val_u32 != rec_val_u32) {
-				pr_err("\nRx(%d) Failed at index %d: Expected : 0x%x, Received : 0x%x\n ",
-					ctx.read_count, index,
-					expected_val_u32, rec_val_u32);
-				break;
-			}
-			val++;
+
+	data_u32 = (uint32_t *)ctx.last_rx_buff;
+	val = ctx.expected_rx_seq;
+	size = size / 4; /* as we are checking data as uint32 */
+	for (index = 0; index < size; index++) {
+		if (cfg_params.bit_width == 16) {
+			expected_val = val;
+			rec_val = data_u32[index] & (0xFFFF);
+		} else {
+			expected_val = val % 256;
+			rec_val = data_u32[index] & (0xFF);
 		}
-	} else {
-		data_u16 = (uint16_t *)ctx.last_rx_buff;
-		val = data_u16[0] & 0xFF;
-		size = size / 2; /* as we are checking as uint16 */
-		for (index = 0; index < size; index++) {
-			rec_val_u16 = data_u16[index];
-			/* check for validity flag */
-			if (rec_val_u16 & 0x8000) {
-				expected_val_u16 = val;
-				rec_val_u16 &= 0xFF;
-				val++;
-				if (expected_val_u16 != rec_val_u16) {
-					pr_err(KERN_INFO "\nRx(%d) Failed at index %d: Expected : 0x%x, Received : 0x%x\n ",
-						ctx.read_count, index,
-						expected_val_u16, rec_val_u16);
-					break;
-				}
-			}
+
+		if (expected_val != rec_val) {
+			pr_err("\nRx(%d) Failed at index %d: Expected : 0x%x, Received : 0x%x Data: 0x%x\n",
+				ctx.read_count, index,
+				expected_val, rec_val, data_u32[index]);
+			break;
 		}
+		val++;
 	}
+
+	ctx.expected_rx_seq += size;
 
 	if (index == size) {
 		ctx.passed++;
@@ -331,22 +318,23 @@ static void pcm_fill_data(int32_t *tx_buff, uint32_t size)
 {
 	uint32_t i, slot;
 
-	if (cfg_params.bit_width == 16) {
-		slot = cfg_params.active_slot_count;
-		for (i = 0; i < size / 4; i++) {
-			tx_buff[i] = ctx.tx_data;
-			tx_buff[i] |=
-				cfg_params.tx_slots[(ctx.tx_data % slot)] << 16;
+	/* get out if test stopped */
+	if (ctx.running == 0)
+		return;
+
+	slot = cfg_params.active_slot_count;
+	for (i = 0; i < size / 4; ) {
+		for (slot = 0; slot < cfg_params.active_slot_count; slot++) {
+			if (cfg_params.bit_width == 16) {
+				tx_buff[i] = ctx.tx_data;
+				tx_buff[i] |= cfg_params.tx_slots[slot] << 16;
+			} else {
+				tx_buff[i] = ctx.tx_data % 256;
+				tx_buff[i] |= cfg_params.tx_slots[slot] << 8;
+				tx_buff[i] |= 1 << 15; /* valid bit */
+			}
 			ctx.tx_data++;
-		}
-	} else {
-		slot = cfg_params.active_slot_count;
-		for (i = 0; i < size / 4; i++) {
-			tx_buff[i] = ctx.tx_data;
-			tx_buff[i] |=
-				cfg_params.tx_slots[(ctx.tx_data % slot)] << 8;
-			tx_buff[i] |= 1 << 15; /* valid bit */
-			ctx.tx_data++;
+			i++;
 		}
 	}
 }
@@ -407,6 +395,8 @@ static void pcm_start_test(void)
 		if (ctx.running) {
 			pr_notice("%s : Stopping test\n", __func__);
 			ctx.running = 0;
+			start = 0;
+			ipq_pcm_send_event();
 			/* wait sufficient time for test thread to finish */
 			mdelay(2000);
 		} else

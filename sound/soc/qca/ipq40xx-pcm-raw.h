@@ -22,7 +22,7 @@
 #define CHANNEL_SAMPLING_RATE	8000
 #define CHANNEL_BYTE_WIDTH	(CHANNEL_BIT_WIDTH / 8)
 #define SAMPLES_PER_TXN		800
-#define NUM_BUFFERS		10
+#define NUM_BUFFERS		2
 #define VOICE_BUFF_SIZE		(CHANNEL_BYTE_WIDTH *			\
 					SAMPLES_PER_TXN * NUM_BUFFERS)
 #define VOICE_PERIOD_SIZE	(VOICE_BUFF_SIZE / NUM_BUFFERS)
@@ -85,5 +85,6 @@ int ipq_pcm_init(struct ipq_pcm_params *params);
 void ipq_pcm_deinit(void);
 uint32_t ipq_pcm_data(char **rx_buf, char **tx_buf);
 void ipq_pcm_done(void);
+void ipq_pcm_send_event(void);
 
 #endif /*_IPQ40xx_PCM_RAW_H */
