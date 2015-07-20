@@ -37,10 +37,23 @@ static void do_msm_poweroff(void)
 	do_msm_restart(REBOOT_HARD, NULL);
 }
 
+static int do_msm_reboot_notifier(struct notifier_block *nb,
+				unsigned long action, void *data)
+{
+	/* Normal Reboot Enable PS HOLD reset sequence */
+	arm_pm_restart = do_msm_restart;
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block reboot_nb = {
+	.notifier_call = do_msm_reboot_notifier,
+};
+
 static int msm_restart_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct resource *mem;
+	int ret;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	msm_ps_hold = devm_ioremap_resource(dev, mem);
@@ -48,7 +61,10 @@ static int msm_restart_probe(struct platform_device *pdev)
 		return PTR_ERR(msm_ps_hold);
 
 	pm_power_off = do_msm_poweroff;
-	return 0;
+
+	ret = register_reboot_notifier(&reboot_nb);
+
+	return ret;
 }
 
 static const struct of_device_id of_msm_restart_match[] = {
