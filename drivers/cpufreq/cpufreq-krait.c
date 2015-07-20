@@ -292,10 +292,12 @@ static int krait_cpufreq_probe(struct platform_device *pdev)
 
 	sprintf(opp_name, "operating-points-%x-%x", speed & 0xF, pvs & 0xF);
 
-	ret = of_init_opp_table_named(cpu_dev, opp_name);
-	if (ret) {
-		pr_err("failed to init OPP table: %d\n", ret);
-		goto out_put_node;
+	if (dev_pm_opp_get_opp_count(cpu_dev) <= 0) {
+		ret = of_init_opp_table_named(cpu_dev, opp_name);
+		if (ret) {
+			pr_err("failed to init OPP table: %d\n", ret);
+			goto out_put_node;
+		}
 	}
 
 	ret = dev_pm_opp_init_cpufreq_table(cpu_dev, &freq_table);
