@@ -174,6 +174,7 @@ retry:
 static void qcom_dwc3_ss_phy_shutdown(struct usb_phy *x)
 {
 	struct qcom_dwc3_ss_phy *phy = phy_to_dw_phy(x);
+	struct device_node *np;
 	int ret;
 
 	/* Sequence to put SSPHY in low power state:
@@ -183,12 +184,21 @@ static void qcom_dwc3_ss_phy_shutdown(struct usb_phy *x)
 	 * 4. Disable SSPHY ref clk
 	 */
 	qcom_dwc3_ss_write_readback(phy->base, PHY_CTRL_REG, (1 << 8), 0x0);
-	qcom_dwc3_ss_write_readback(phy->base, PHY_CTRL_REG, (1 << 28), 0x0);
-	qcom_dwc3_ss_write_readback(phy->base, PHY_CTRL_REG,
-				    (1 << 26), (1 << 26));
+
+	np = of_node_get(phy->dev->of_node);
+
+	if (!of_device_is_compatible(np, "qcom,dwc3-ssphy-ipq8064")) {
+		qcom_dwc3_ss_write_readback(phy->base, PHY_CTRL_REG,
+					    (1 << 28), 0x0);
+		qcom_dwc3_ss_write_readback(phy->base, PHY_CTRL_REG,
+					    (1 << 26), (1 << 26));
+	}
 
 	usleep_range(1000, 1200);
-	clk_disable_unprepare(phy->ref_clk);
+
+	if (!of_device_is_compatible(np, "qcom,dwc3-ssphy-ipq8064")) {
+		clk_disable_unprepare(phy->ref_clk);
+	}
 
 	ret = regulator_set_voltage(phy->vddcx, USB_VDDCX_NO, USB_VDDCX_MAX);
 	if (ret)
@@ -235,7 +245,6 @@ static int qcom_dwc3_ss_phy_init(struct usb_phy *x)
 		dev_err(phy->dev, "cannot enable v1p8\n");
 		return ret;
 	}
-
 	clk_prepare_enable(phy->ref_clk);
 	usleep_range(1000, 1200);
 
@@ -494,9 +503,15 @@ static int qcom_dwc3_ss_probe(struct platform_device *pdev)
 static int qcom_dwc3_ss_remove(struct platform_device *pdev)
 {
 	struct qcom_dwc3_ss_phy *phy = platform_get_drvdata(pdev);
+	struct device_node *np;
 
-	if (phy->xo_clk)
-		clk_disable_unprepare(phy->xo_clk);
+	np = of_node_get(phy->dev->of_node);
+
+	if (!of_device_is_compatible(np, "qcom,dwc3-ssphy-ipq8064")) {
+		if (phy->xo_clk)
+			clk_disable_unprepare(phy->xo_clk);
+	}
+
 	usb_remove_phy(&phy->phy);
 	return 0;
 }

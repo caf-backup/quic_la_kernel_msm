@@ -14,6 +14,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/reset.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
@@ -31,12 +32,15 @@ struct dwc3_qcom {
 	struct clk		*sleep_clk;
 
 	struct regulator	*gdsc;
+
+	struct reset_control	*mstr_rst;
 };
 
 static int dwc3_qcom_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
 	struct dwc3_qcom *mdwc;
+	struct device *dev = &pdev->dev;
 	int ret = 0;
 
 	mdwc = devm_kzalloc(&pdev->dev, sizeof(*mdwc), GFP_KERNEL);
@@ -81,6 +85,14 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
 	if (mdwc->sleep_clk)
 		clk_prepare_enable(mdwc->sleep_clk);
 
+	mdwc->mstr_rst = devm_reset_control_get(dev, "usb30_mstr_rst");
+
+	if (!IS_ERR(mdwc->mstr_rst)) {
+		reset_control_deassert(mdwc->mstr_rst);
+	} else {
+		dev_dbg(mdwc->dev, "cannot get handle for master reset control\n");
+	}
+
 	ret = of_platform_populate(node, NULL, NULL, mdwc->dev);
 	if (ret) {
 		dev_err(mdwc->dev, "failed to register core - %d\n", ret);
@@ -111,9 +123,18 @@ dis_clks:
 	return ret;
 }
 
+static int dwc3_qcom_remove_core(struct device *dev, void *c)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+
+	of_device_unregister(pdev);
+
+	return 0;
+}
 static int dwc3_qcom_remove(struct platform_device *pdev)
 {
 	int ret = 0;
+	struct device_node *node = pdev->dev.of_node;
 
 	struct dwc3_qcom *mdwc = platform_get_drvdata(pdev);
 
@@ -130,6 +151,13 @@ static int dwc3_qcom_remove(struct platform_device *pdev)
 		if (ret)
 			dev_dbg(mdwc->dev, "cannot disable gdsc\n");
 	}
+
+	if (!IS_ERR(mdwc->mstr_rst)) {
+		reset_control_assert(mdwc->mstr_rst);
+	}
+
+	device_for_each_child(&pdev->dev, NULL, dwc3_qcom_remove_core);
+
 	return ret;
 }
 

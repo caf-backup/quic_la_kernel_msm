@@ -122,7 +122,10 @@ static int qcom_dwc3_hs_notify_disconnect(struct usb_phy *x,
 static void qcom_dwc3_hs_phy_shutdown(struct usb_phy *x)
 {
 	struct qcom_dwc3_hs_phy *phy = phy_to_dw_phy(x);
+	struct device_node *np;
 	int ret;
+
+	np = of_node_get(phy->dev->of_node);
 
 	ret = regulator_set_voltage(phy->v3p3, 0, PHY_3P3_VOL_MAX);
 	if (ret)
@@ -148,7 +151,9 @@ static void qcom_dwc3_hs_phy_shutdown(struct usb_phy *x)
 	if (ret)
 		dev_err(phy->dev, "cannot enable vddcx\n");
 
-	clk_disable_unprepare(phy->utmi_clk);
+	if (!of_device_is_compatible(np, "qcom,dwc3-hsphy-ipq8064")) {
+		clk_disable_unprepare(phy->utmi_clk);
+	}
 }
 
 static int qcom_dwc3_hs_phy_init(struct usb_phy *x)
@@ -310,9 +315,15 @@ static int qcom_dwc3_hs_probe(struct platform_device *pdev)
 static int qcom_dwc3_hs_remove(struct platform_device *pdev)
 {
 	struct qcom_dwc3_hs_phy *phy = platform_get_drvdata(pdev);
+        struct device_node *np;
 
-	if (phy->xo_clk)
-		clk_disable_unprepare(phy->xo_clk);
+	np = of_node_get(phy->dev->of_node);
+
+	if (!of_device_is_compatible(np, "qcom,dwc3-hsphy-ipq8064")) {
+		if (phy->xo_clk)
+			clk_disable_unprepare(phy->xo_clk);
+	}
+
 	usb_remove_phy(&phy->phy);
 	return 0;
 }
