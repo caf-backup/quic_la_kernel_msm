@@ -388,8 +388,8 @@
 			ranges;
 			status = "disabled";
 
-			serial@12490000 {
-				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
+			hs_uart@12490000 {
+				compatible = "qcom,msm-hsuart-v13";
 				reg = <0x12490000 0x1000>,
 				      <0x12480000 0x1000>;
 				interrupts = <0 195 0x0>;

@@ -110,12 +110,37 @@
 					input-disable;
 				};
 			};
+
+			hs_uart_pins: hs_uart_pins {
+				mux {
+					pins = "gpio22", "gpio23", "gpio24", "gpio25" ;
+					function = "gsbi2";
+					drive-strength = <12>;
+					bias-disable;
+				};
+			};
+
 		};
 
 		gsbi@16300000 {
 			qcom,mode = <GSBI_PROT_I2C_UART>;
 			status = "ok";
 			serial@16340000 {
+				status = "ok";
+			};
+		};
+
+		gsbi2: gsbi@12480000 {
+			qcom,mode = <GSBI_PROT_UART_W_FC>;
+			status = "ok";
+			hs_uart@12490000 {
+				qcom,rx-chan = <8>;
+				qcom,tx-chan = <7>;
+				qcom,rx-crci = <14>;
+				qcom,tx-crci = <4>;
+				pinctrl-0 = <&hs_uart_pins>;
+				pinctrl-names = "default";
+
 				status = "ok";
 			};
 		};
