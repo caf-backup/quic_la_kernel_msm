@@ -1220,6 +1220,7 @@ enum netdev_priv_flags {
 	IFF_LIVE_ADDR_CHANGE		= 1<<20,
 	IFF_MACVLAN			= 1<<21,
 	IFF_XMIT_DST_RELEASE_PERM	= 1<<22,
+	IFF_NO_IP_ALIGN			= 1<<23,
 };
 
 #define IFF_802_1Q_VLAN			IFF_802_1Q_VLAN
@@ -1245,6 +1246,7 @@ enum netdev_priv_flags {
 #define IFF_LIVE_ADDR_CHANGE		IFF_LIVE_ADDR_CHANGE
 #define IFF_MACVLAN			IFF_MACVLAN
 #define IFF_XMIT_DST_RELEASE_PERM	IFF_XMIT_DST_RELEASE_PERM
+#define IFF_NO_IP_ALIGN		IFF_NO_IP_ALIGN
 
 /**
  *	struct net_device - The DEVICE structure.
@@ -1515,6 +1517,11 @@ struct net_device {
 	const struct ethtool_ops *ethtool_ops;
 	const struct forwarding_accel_ops *fwd_ops;
 
+#ifdef CONFIG_ETHERNET_PACKET_MANGLE
+	void (*eth_mangle_rx)(struct net_device *dev, struct sk_buff *skb);
+	struct sk_buff *(*eth_mangle_tx)(struct net_device *dev, struct sk_buff *skb);
+#endif
+
 	const struct header_ops *header_ops;
 
 	unsigned int		flags;
@@ -1578,6 +1585,10 @@ struct net_device {
 	struct inet6_dev __rcu	*ip6_ptr;
 	void			*ax25_ptr;
 	struct wireless_dev	*ieee80211_ptr;
+
+#ifdef CONFIG_ETHERNET_PACKET_MANGLE
+	void			*phy_ptr; /* PHY device specific data */
+#endif
 
 /*
  * Cache lines mostly used on receive path (including eth_type_trans())
