@@ -117,13 +117,18 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 	struct device_node *np = pdev->dev.of_node;
 	struct stmmac_dma_cfg *dma_cfg;
 	const struct of_device_id *device;
+	int ret;
 
-	if (!np)
-		return -ENODEV;
+	if (!np) {
+		ret = -ENODEV;
+		goto err;
+	}
 
 	device = of_match_device(stmmac_dt_ids, &pdev->dev);
-	if (!device)
-		return -ENODEV;
+	if (!device) {
+		ret = -ENODEV;
+		goto err;
+	}
 
 	if (device->data) {
 		const struct stmmac_of_data *data = device->data;
@@ -219,8 +224,10 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 	if (of_find_property(np, "snps,pbl", NULL)) {
 		dma_cfg = devm_kzalloc(&pdev->dev, sizeof(*dma_cfg),
 				       GFP_KERNEL);
-		if (!dma_cfg)
-			return -ENOMEM;
+		if (!dma_cfg) {
+			ret = -ENOMEM;
+			goto err;
+		}
 		plat->dma_cfg = dma_cfg;
 		of_property_read_u32(np, "snps,pbl", &dma_cfg->pbl);
 		dma_cfg->fixed_burst =
@@ -235,6 +242,9 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 	}
 
 	return 0;
+
+err:
+	return ret;
 }
 #else
 static int stmmac_probe_config_dt(struct platform_device *pdev,
