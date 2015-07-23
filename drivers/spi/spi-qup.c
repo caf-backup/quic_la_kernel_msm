@@ -298,7 +298,7 @@ static void spi_qup_fifo_write(struct spi_qup *controller,
 }
 
 static void spi_qup_block_read(struct spi_qup *controller,
-	struct spi_transfer *xfer)
+	struct spi_transfer *xfer, u32 *opflags)
 {
 	u32 data;
 	u32 reads_per_blk = controller->in_blk_sz >> 2;
@@ -327,10 +327,12 @@ static void spi_qup_block_read(struct spi_qup *controller,
 
 	/*
 	 * Due to extra stickiness of the QUP_OP_IN_SERVICE_FLAG during block
-	 * reads, it has to be cleared again at the very end
+	 * reads, it has to be cleared again at the very end.  However, be sure
+	 * to refresh opflags value because MAX_INPUT_DONE_FLAG may now be
+	 * present and this is used to determine if transaction is complete
 	 */
-	if (readl_relaxed(controller->base + QUP_OPERATIONAL) &
-		QUP_OP_MAX_INPUT_DONE_FLAG)
+	*opflags = readl_relaxed(controller->base + QUP_OPERATIONAL);
+	if (*opflags & QUP_OP_MAX_INPUT_DONE_FLAG)
 		writel_relaxed(QUP_OP_IN_SERVICE_FLAG,
 			controller->base + QUP_OPERATIONAL);
 
@@ -633,7 +635,7 @@ static irqreturn_t spi_qup_qup_irq(int irq, void *dev_id)
 	if (!controller->use_dma) {
 		if (opflags & QUP_OP_IN_SERVICE_FLAG) {
 			if (opflags & QUP_OP_IN_BLOCK_READ_REQ)
-				spi_qup_block_read(controller, xfer);
+				spi_qup_block_read(controller, xfer, &opflags);
 			else
 				spi_qup_fifo_read(controller, xfer);
 		}
