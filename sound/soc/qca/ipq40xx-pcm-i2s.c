@@ -230,12 +230,16 @@ static int ipq40xx_pcm_i2s_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct ipq40xx_pcm_rt_priv *pcm_rtpriv =
 				substream->runtime->private_data;
 
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *dai = rtd->cpu_dai;
+	uint32_t intf = dai->driver->id;
+
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 		/* Enable the I2S Stereo block for operation */
 		ipq40xx_stereo_config_enable(ENABLE,
-					get_stereo_id(substream, I2S));
+					get_stereo_id(substream, intf));
 
 		ret = ipq40xx_mbox_dma_start(pcm_rtpriv->channel);
 		if (ret) {
@@ -256,7 +260,7 @@ static int ipq40xx_pcm_i2s_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		/* Disable the I2S Stereo block */
 		ipq40xx_stereo_config_enable(DISABLE,
-					get_stereo_id(substream, I2S));
+					get_stereo_id(substream, intf));
 
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		ret = ipq40xx_mbox_dma_stop(pcm_rtpriv->channel);
@@ -316,6 +320,10 @@ static int ipq40xx_pcm_i2s_open(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct ipq40xx_pcm_rt_priv *pcm_rtpriv;
 
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *dai = rtd->cpu_dai;
+	uint32_t intf = dai->driver->id;
+
 	pr_debug("%s %d\n", __func__, __LINE__);
 
 	pcm_rtpriv = kmalloc(sizeof(struct ipq40xx_pcm_rt_priv), GFP_KERNEL);
@@ -326,7 +334,7 @@ static int ipq40xx_pcm_i2s_open(struct snd_pcm_substream *substream)
 			__FUNCTION__, sizeof(*pcm_rtpriv), (u32) pcm_rtpriv);
 	pcm_rtpriv->last_played = NULL;
 	pcm_rtpriv->dev = substream->pcm->card->dev;
-	pcm_rtpriv->channel = get_mbox_id(substream, I2S);
+	pcm_rtpriv->channel = get_mbox_id(substream, intf);
 	substream->runtime->private_data = pcm_rtpriv;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -431,6 +439,8 @@ static struct snd_soc_platform_driver ipq40xx_asoc_pcm_i2s_platform = {
 
 static const struct of_device_id ipq40xx_pcm_i2s_id_table[] = {
 	{ .compatible = "qca,ipq40xx-pcm-i2s" },
+	{ .compatible = "qca,ipq40xx-pcm-i2s1" },
+	{ .compatible = "qca,ipq40xx-pcm-i2s2" },
 	{ /* Sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, ipq40xx_pcm_i2s_id_table);
