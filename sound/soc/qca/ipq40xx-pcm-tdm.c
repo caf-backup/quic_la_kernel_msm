@@ -119,32 +119,16 @@ static void ipq40xx_pcm_free_dma_buffer(struct snd_pcm *pcm, int stream)
 
 static irqreturn_t ipq40xx_pcm_irq(int intrsrc, void *data)
 {
-	uint32_t processed_size;
-
 	struct snd_pcm_substream *substream = data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct ipq40xx_pcm_rt_priv *pcm_rtpriv =
 		(struct ipq40xx_pcm_rt_priv *)runtime->private_data;
 
-	/* Store the last played buffer in the runtime priv struct */
-	pcm_rtpriv->last_played =
-		ipq40xx_mbox_get_last_played(pcm_rtpriv->channel);
-
-	/* Set the OWN bits */
-	processed_size = ipq40xx_mbox_get_elapsed_size(pcm_rtpriv->channel);
-
-	if (processed_size > pcm_rtpriv->period_size)
-		snd_printd("Processed more than one"
-			"period bytes : %d\n", processed_size);
+	pcm_rtpriv->curr_pos =
+		ipq40xx_mbox_get_played_offset(pcm_rtpriv->channel);
 
 	snd_pcm_period_elapsed(substream);
 
-	if (pcm_rtpriv->last_played == NULL) {
-		snd_printd("BUG: ISR called but no played buf found\n");
-		goto ack;
-	}
-
-ack:
 	return IRQ_HANDLED;
 }
 
@@ -157,12 +141,7 @@ static snd_pcm_uframes_t ipq40xx_pcm_tdm_pointer(
 
 	pcm_rtpriv = runtime->private_data;
 
-	if (pcm_rtpriv->last_played == NULL)
-		ret = 0;
-	else
-		ret = (pcm_rtpriv->last_played->BufPtr -
-				(runtime->dma_addr & 0xFFFFFFF));
-	ret = bytes_to_frames(runtime, ret);
+	ret = bytes_to_frames(runtime, pcm_rtpriv->curr_pos);
 	return ret;
 }
 
