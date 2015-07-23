@@ -33,6 +33,7 @@
 /* Magics */
 #define BOARD_DATA_MAGIC		0x5246504D	/* MPFR */
 #define BOARD_DATA_MAGIC2		0xBD0D0BBD
+#define BOARD_DATA_XIAOMI_MAGIC		0x474D4442	/* GMDB */
 #define CFE_MAGIC			0x43464531	/* 1EFC */
 #define FACTORY_MAGIC			0x59544346	/* FCTY */
 #define NVRAM_HEADER			0x48534C46	/* FLSH */
@@ -262,7 +263,8 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 		}
 
 		/* Some devices (ex. WNDR3700v3) don't have a standard 'MPFR' */
-		if (buf[0x000 / 4] == BOARD_DATA_MAGIC2) {
+		if (buf[0x000 / 4] == BOARD_DATA_MAGIC2 ||
+		    le32_to_cpu(buf[0x000 / 4]) == BOARD_DATA_XIAOMI_MAGIC) {
 			bcm47xxpart_add_part(&parts[curr_part++], "board_data",
 					     offset, MTD_WRITEABLE);
 			continue;
