@@ -178,6 +178,14 @@
 		compatible = "qca,ipq40xx-i2s1";
 		dma-tx-channel = <MBOX1_TX_ID>;
 		stereo-tx-port = <STEREO1_ID>;
+		clocks = <&adcc ADCC_TXB_CLK_SRC>,
+			<&adcc ADCC_TXM_CLK_SRC>,
+			<&adcc ADCC_RXB_CLK_SRC>,
+			<&adcc ADCC_RXM_CLK_SRC>;
+		clock-names = "audio_tx_bclk",
+			"audio_tx_mclk",
+			"audio_rx_bclk",
+			"audio_rx_mclk";
 		status = "disabled";
 	};
 
@@ -191,6 +199,14 @@
 		compatible = "qca,ipq40xx-i2s2";
 		dma-tx-channel = <MBOX2_TX_ID>;
 		stereo-tx-port = <STEREO2_ID>;
+		clocks = <&adcc ADCC_TXB_CLK_SRC>,
+			<&adcc ADCC_TXM_CLK_SRC>,
+			<&adcc ADCC_RXB_CLK_SRC>,
+			<&adcc ADCC_RXM_CLK_SRC>;
+		clock-names = "audio_tx_bclk",
+			"audio_tx_mclk",
+			"audio_rx_bclk",
+			"audio_rx_mclk";
 		status = "disabled";
 	};
 
