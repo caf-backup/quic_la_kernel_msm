@@ -778,6 +778,24 @@ static inline void br_nf_core_fini(void) {}
 #define br_netfilter_rtable_init(x)
 #endif
 
+#if IS_BUILTIN(CONFIG_BRIDGE_NETFILTER)
+extern int brnf_call_ebtables;
+bool br_netfilter_run_hooks(void);
+#else
+#define br_netfilter_run_hooks()	false
+#endif
+
+static inline int
+BR_HOOK(uint8_t pf, unsigned int hook, struct sk_buff *skb,
+	struct net_device *in, struct net_device *out,
+	int (*okfn)(struct sk_buff *))
+{
+	if (!br_netfilter_run_hooks())
+		return okfn(skb);
+
+	return NF_HOOK(pf, hook, skb, in, out, okfn);
+}
+
 /* br_stp.c */
 void br_log_state(const struct net_bridge_port *p);
 void br_set_state(struct net_bridge_port *p, unsigned int state);
