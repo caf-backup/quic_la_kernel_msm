@@ -30,6 +30,30 @@
 				bias-disable;
 			};
 
+			pcie1_pins: pcie1_pinmux {
+				mux {
+					pins = "gpio3";
+					drive-strength = <2>;
+					bias-disable;
+				};
+			};
+
+			pcie2_pins: pcie2_pinmux {
+				mux {
+					pins = "gpio48";
+					drive-strength = <2>;
+					bias-disable;
+				};
+			};
+
+			pcie3_pins: pcie3_pinmux {
+				mux {
+					pins = "gpio63";
+					drive-strength = <2>;
+					bias-disable;
+				};
+			};
+
 			spi_pins: spi_pins {
 				mux {
 					pins = "gpio18", "gpio19", "gpio21";
@@ -127,6 +151,27 @@
 
 		usb30@1 {
 			status = "ok";
+		};
+
+		pcie0: pci@1b500000 {
+			status = "ok";
+			reset-gpio = <&qcom_pinmux 3 0>;
+			pinctrl-0 = <&pcie1_pins>;
+			pinctrl-names = "default";
+		};
+
+		pcie1: pci@1b700000 {
+			status = "ok";
+			reset-gpio = <&qcom_pinmux 48 0>;
+			pinctrl-0 = <&pcie2_pins>;
+			pinctrl-names = "default";
+		};
+
+		pcie2: pci@1b900000 {
+			status = "ok";
+			reset-gpio = <&qcom_pinmux 63 0>;
+			pinctrl-0 = <&pcie3_pins>;
+			pinctrl-names = "default";
 		};
 	};
 };
