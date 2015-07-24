@@ -45,7 +45,6 @@
 #include <linux/timer.h>
 #include <linux/clk.h>
 #include <linux/platform_device.h>
-#include <linux/pm_runtime.h>
 #include <linux/dma-mapping.h>
 #include <linux/tty_flip.h>
 #include <linux/wait.h>
@@ -397,15 +396,12 @@ static void msm_hs_resource_unvote(struct msm_hs_port *msm_uport)
 		return;
 	}
 	atomic_dec(&msm_uport->clk_count);
-	pm_runtime_mark_last_busy(uport->dev);
-	pm_runtime_put_autosuspend(uport->dev);
 }
 
  /* Vote for resources before accessing them */
 static void msm_hs_resource_vote(struct msm_hs_port *msm_uport)
 {
 	struct uart_port *uport = &(msm_uport->uport);
-	pm_runtime_get_sync(uport->dev);
 	atomic_inc(&msm_uport->clk_count);
 }
 
@@ -2980,128 +2976,6 @@ static int device_id_set_used(int index)
 	return ret;
 }
 
-static void msm_hs_pm_suspend(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct msm_hs_port *msm_uport = get_matching_hs_port(pdev);
-
-	if (!msm_uport)
-		goto err_suspend;
-
-	msm_uport->pm_state = MSM_HS_PM_SUSPENDED;
-	msm_hs_resource_off(msm_uport);
-	msm_hs_clk_bus_unvote(msm_uport);
-	if (!atomic_read(&msm_uport->client_req_state))
-		toggle_wakeup_interrupt(msm_uport);
-	MSM_HS_DBG("%s(): return suspend\n", __func__);
-	return;
-err_suspend:
-	MSM_HS_ERR("%s(): invalid uport", __func__);
-	return;
-}
-
-static int msm_hs_pm_resume(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct msm_hs_port *msm_uport = get_matching_hs_port(pdev);
-
-	if (!msm_uport)
-		goto err_resume;
-	if (!atomic_read(&msm_uport->client_req_state))
-		toggle_wakeup_interrupt(msm_uport);
-	msm_hs_clk_bus_vote(msm_uport);
-	msm_uport->pm_state = MSM_HS_PM_ACTIVE;
-	msm_hs_resource_on(msm_uport);
-	MSM_HS_DBG("%s(): return resume\n", __func__);
-	return 0;
-err_resume:
-	MSM_HS_ERR("%s(): invalid uport", __func__);
-	return 0;
-}
-
-#ifdef CONFIG_PM
-static int msm_hs_pm_sys_suspend_noirq(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct msm_hs_port *msm_uport = get_matching_hs_port(pdev);
-	enum msm_hs_pm_state prev_pwr_state;
-	struct uart_port *uport;
-
-	if (IS_ERR_OR_NULL(msm_uport))
-		return -ENODEV;
-
-	prev_pwr_state = msm_uport->pm_state;
-	uport	= &(msm_uport->uport);
-	mutex_lock(&msm_uport->mtx);
-	msm_uport->pm_state = MSM_HS_PM_SYS_SUSPENDED;
-	mutex_unlock(&msm_uport->mtx);
-
-	if (prev_pwr_state == MSM_HS_PM_ACTIVE) {
-		msm_hs_pm_suspend(dev);
-		/*
-		 * Synchronize runtime pm and system pm states:
-		 * at this point we are already suspended. However
-		 * the RT PM framework still thinks that we are active.
-		 * The calls below let RT PM know that we are suspended
-		 * without re-invoking the suspend callback
-		 */
-		pm_runtime_disable(uport->dev);
-		pm_runtime_set_suspended(uport->dev);
-		pm_runtime_enable(uport->dev);
-	}
-	return 0;
-};
-
-static int msm_hs_pm_sys_resume_noirq(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct msm_hs_port *msm_uport = get_matching_hs_port(pdev);
-
-	if (IS_ERR_OR_NULL(msm_uport))
-		return -ENODEV;
-	/*
-	 * Note system-pm resume and update the state
-	 * variable. Resource activation will be done
-	 * when transfer is requested.
-	 */
-	MSM_HS_DBG("%s(): system resume", __func__);
-	msm_uport->pm_state = MSM_HS_PM_SUSPENDED;
-	return 0;
-}
-#endif
-
-#ifdef CONFIG_PM_RUNTIME
-static void  msm_serial_hs_rt_init(struct uart_port *uport)
-{
-	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
-
-	MSM_HS_INFO("%s(): Enabling runtime pm", __func__);
-	pm_runtime_set_suspended(uport->dev);
-	pm_runtime_set_autosuspend_delay(uport->dev, 100);
-	pm_runtime_use_autosuspend(uport->dev);
-	mutex_lock(&msm_uport->mtx);
-	msm_uport->pm_state = MSM_HS_PM_SUSPENDED;
-	mutex_unlock(&msm_uport->mtx);
-	pm_runtime_enable(uport->dev);
-}
-
-static int msm_hs_runtime_suspend(struct device *dev)
-{
-	msm_hs_pm_suspend(dev);
-	return 0;
-}
-
-static int msm_hs_runtime_resume(struct device *dev)
-{
-	return msm_hs_pm_resume(dev);
-}
-#else
-static void  msm_serial_hs_rt_init(struct uart_port *uport) {}
-static int msm_hs_runtime_suspend(struct device *dev) {}
-static int msm_hs_runtime_resume(struct device *dev) {}
-#endif
-
-
 static int msm_hs_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -3318,7 +3192,6 @@ static int msm_hs_probe(struct platform_device *pdev)
 	ret = uart_add_one_port(&msm_hs_driver, uport);
 	if (!ret) {
 		msm_hs_clk_bus_unvote(msm_uport);
-		msm_serial_hs_rt_init(uport);
 		return ret;
 	}
 
@@ -3480,20 +3353,11 @@ static void __exit msm_serial_hs_exit(void)
 	uart_unregister_driver(&msm_hs_driver);
 }
 
-static const struct dev_pm_ops msm_hs_dev_pm_ops = {
-	.runtime_suspend = msm_hs_runtime_suspend,
-	.runtime_resume = msm_hs_runtime_resume,
-	.runtime_idle = NULL,
-	.suspend_noirq = msm_hs_pm_sys_suspend_noirq,
-	.resume_noirq = msm_hs_pm_sys_resume_noirq,
-};
-
 static struct platform_driver msm_serial_hs_platform_driver = {
 	.probe	= msm_hs_probe,
 	.remove = msm_hs_remove,
 	.driver = {
 		.name = "msm_serial_hs",
-		.pm   = &msm_hs_dev_pm_ops,
 		.of_match_table = msm_hs_match_table,
 	},
 };
