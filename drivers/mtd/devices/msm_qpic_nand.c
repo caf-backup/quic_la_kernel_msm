@@ -2235,7 +2235,7 @@ out:
  * the uninitialized function pointers with the defaults. The flash ID is
  * read and the mtd/chip structures are filled with the appropriate values.
  */
-int msm_nand_scan(struct mtd_info *mtd)
+static int msm_nand_scan(struct mtd_info *mtd)
 {
 	struct msm_nand_info *info = mtd->priv;
 	struct msm_nand_chip *chip = &info->nand_chip;
