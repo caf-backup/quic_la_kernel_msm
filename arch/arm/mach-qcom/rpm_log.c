@@ -21,12 +21,12 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <linux/of_device.h>
 
 #include <asm/uaccess.h>
 
-#include <mach/msm_iomap.h>
-
 #include "rpm_log.h"
+struct msm_rpm_log_platform_data rpm_log_data;
 
 /* registers in MSM_RPM_LOG_PAGE_INDICES */
 enum {
@@ -304,27 +304,51 @@ static const struct file_operations msm_rpm_log_file_fops = {
 	.release = msm_rpm_log_file_close,
 };
 
-static int __devinit msm_rpm_log_probe(struct platform_device *pdev)
+static int __init msm_rpm_log_probe(struct platform_device *pdev)
 {
 	struct dentry *dent;
-	struct msm_rpm_log_platform_data *pdata;
+	struct resource *res;
+	struct device_node *of_node = pdev->dev.of_node;
 
-	pdata = pdev->dev.platform_data;
-	if (!pdata)
+	if (!of_node)
+		return -ENODEV;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+					"rpm_log_base_addr");
+	if (!res) {
+		dev_err(&pdev->dev, "Could not get rpm log base addr.\n");
 		return -EINVAL;
+	}
 
-	pdata->reg_base = ioremap(pdata->phys_addr_base, pdata->phys_size);
-	if (!pdata->reg_base) {
+	rpm_log_data.reg_base = ioremap(res->start, res->end - res->start + 1);
+	rpm_log_data.phys_size = res->end - res->start;
+
+	if (!rpm_log_data.reg_base) {
 		pr_err("%s: ERROR could not ioremap: start=%p, len=%u\n",
-			__func__, (void *) pdata->phys_addr_base,
-			pdata->phys_size);
+			__func__, (void *) rpm_log_data.reg_base,
+			rpm_log_data.phys_size);
 		return -EBUSY;
 	}
 
+	res = of_property_read_u32_array(of_node, "reg-offsets",
+				rpm_log_data.reg_offsets, MSM_RPM_LOG_PAGE_COUNT);
+	if (res) {
+		dev_err(&pdev->dev, "Invalid or missing property: reg-offsets\n");
+		iounmap(rpm_log_data.reg_base);
+		return -ENODEV;
+        };
+
+	if (of_property_read_u32(of_node, "rpm_log_len", &rpm_log_data.log_len)) {
+		dev_err(&pdev->dev, "Invalid or missing property: log_len\n");
+		iounmap(rpm_log_data.reg_base);
+		return -ENODEV;
+	}
+
 	dent = debugfs_create_file("rpm_log", S_IRUGO, NULL,
-			pdev->dev.platform_data, &msm_rpm_log_file_fops);
+			&rpm_log_data, &msm_rpm_log_file_fops);
 	if (!dent) {
 		pr_err("%s: ERROR debugfs_create_file failed\n", __func__);
+		iounmap(rpm_log_data.reg_base);
 		return -ENOMEM;
 	}
 
@@ -334,15 +358,11 @@ static int __devinit msm_rpm_log_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit msm_rpm_log_remove(struct platform_device *pdev)
+static int __exit msm_rpm_log_remove(struct platform_device *pdev)
 {
 	struct dentry *dent;
-	struct msm_rpm_log_platform_data *pdata;
 
-	pdata = pdev->dev.platform_data;
-
-	iounmap(pdata->reg_base);
-
+	iounmap(rpm_log_data.reg_base);
 	dent = platform_get_drvdata(pdev);
 	debugfs_remove(dent);
 	platform_set_drvdata(pdev, NULL);
@@ -351,27 +371,22 @@ static int __devexit msm_rpm_log_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static struct of_device_id ipq806x_match_table[] = {
+	{.compatible = "qcom,rpm_log"},
+	{},
+};
+
 static struct platform_driver msm_rpm_log_driver = {
 	.probe		= msm_rpm_log_probe,
-	.remove		= __devexit_p(msm_rpm_log_remove),
+	.remove		= msm_rpm_log_remove,
 	.driver		= {
 		.name = "msm_rpm_log",
 		.owner = THIS_MODULE,
+		.of_match_table = ipq806x_match_table,
 	},
 };
 
-static int __init msm_rpm_log_init(void)
-{
-	return platform_driver_register(&msm_rpm_log_driver);
-}
-
-static void __exit msm_rpm_log_exit(void)
-{
-	platform_driver_unregister(&msm_rpm_log_driver);
-}
-
-module_init(msm_rpm_log_init);
-module_exit(msm_rpm_log_exit);
+module_platform_driver(msm_rpm_log_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("MSM RPM Log driver");

@@ -21,6 +21,15 @@ config MSM_PCIE
 	  Enables the PCIe functionality by configures PCIe core on
 	  MSM chipset and by enabling the ARM PCI framework extension.
 
+config MSM_RPM_LOG
+	tristate "MSM Resource Power Manager Log Driver"
+	depends on MFD_QCOM_RPM
+	help
+	  This option enables a driver which can read from a circular buffer
+	  of messages produced by the RPM. These messages provide diagnostic
+	  information about RPM operation. The driver outputs the messages
+	  via a debugfs node.
+
 if ARCH_QCOM
 
 menu "Qualcomm SoC Selection"
