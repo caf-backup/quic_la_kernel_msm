@@ -491,9 +491,6 @@ static int msm_hs_request_port(struct uart_port *port)
 
 	if (gsbi_resource) {
 		size = resource_size(gsbi_resource);
-		if (unlikely(!request_mem_region(gsbi_resource->start, size,
-						 "msm_serial_hs")))
-			return -EBUSY;
 		msm_uport->mapped_gsbi = ioremap(gsbi_resource->start,
 						 size);
 		if (!msm_uport->mapped_gsbi) {
