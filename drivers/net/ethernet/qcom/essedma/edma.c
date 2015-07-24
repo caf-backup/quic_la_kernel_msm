@@ -1112,6 +1112,7 @@ void edma_adjust_link(struct net_device *netdev)
 {
 	int32_t status = 0;
 	struct edma_adapter *adapter = netdev_priv(netdev);
+	struct phy_device *phydev = adapter->phydev;
 
 	if (!test_bit(__EDMA_UP, &adapter->state_flags))
 		return;
@@ -1119,13 +1120,13 @@ void edma_adjust_link(struct net_device *netdev)
 	status = edma_check_link(adapter);
 
 	if (status == __EDMA_LINKUP && adapter->link_state == __EDMA_LINKDOWN) {
-		dev_info(&adapter->pdev->dev, "%s: GMAC Link is up", netdev->name);
+		dev_info(&adapter->pdev->dev, "%s: GMAC Link is up with phy_speed=%d\n", netdev->name, phydev->speed);
 		adapter->link_state = __EDMA_LINKUP;
 		netif_carrier_on(netdev);
 		if (netif_running(netdev))
 			netif_tx_wake_all_queues(netdev);
 	} else if (status == __EDMA_LINKDOWN && adapter->link_state == __EDMA_LINKUP) {
-		dev_info(&adapter->pdev->dev, "%s: GMAC Link is down", netdev->name);
+		dev_info(&adapter->pdev->dev, "%s: GMAC Link is down with phy speed=%d\n", netdev->name, phydev->speed);
 		adapter->link_state = __EDMA_LINKDOWN;
 		netif_carrier_off(netdev);
 		netif_tx_stop_all_queues(netdev);
@@ -1219,7 +1220,7 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 		netif_tx_stop_queue(nq);
 		local_bh_enable();
 		if (net_ratelimit())
-			dev_warn(&net_dev->dev, "Not enough descriptors available");
+			dev_dbg(&net_dev->dev, "Not enough descriptors available");
 		adapter->stats.tx_errors++;
 		return NETDEV_TX_BUSY;
 	}
@@ -1309,7 +1310,7 @@ int edma_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	int res;
 
 	if (skb->protocol == htons(ETH_P_IPV6)) {
-		dev_err(&adapter->pdev->dev, "IPv6 not supported\n");
+		dev_dbg(&adapter->pdev->dev, "IPv6 not supported\n");
 		res = -EINVAL;
 		goto no_protocol_err;
 	}
