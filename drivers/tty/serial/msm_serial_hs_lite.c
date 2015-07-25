@@ -1751,7 +1751,7 @@ static int msm_serial_hsl_probe(struct platform_device *pdev)
 		msm_hsl_port->func_mode = UART_TWO_WIRE;
 
 	match = of_match_device(msm_hsl_match_table, &pdev->dev);
-	if (!match) {
+	if (!match || !match->data) {
 		msm_hsl_port->ver_id = UARTDM_VERSION_11_13;
 	} else {
 		msm_hsl_port->ver_id = (unsigned long)match->data;
