@@ -29,6 +29,7 @@ struct ipq40xx_pcm_rt_priv {
 	struct ipq40xx_mbox_desc *last_played;
 	unsigned int processed_size;
 	uint32_t period_size;
+	uint32_t curr_pos;
 };
 
 #endif /* _IPQ40XX_PCM_H_ */
