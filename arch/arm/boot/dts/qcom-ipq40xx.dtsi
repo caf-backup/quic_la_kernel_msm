@@ -225,8 +225,8 @@
 				/* Voting for max b/w on PNOC bus for now */
 				<91 512 400000 800000>;
 			clock-names = "iface_clk", "core_clk";
-			clocks = <&gcc 0>,
-				<&gcc 0>;
+			clocks = <&gcc GCC_QPIC_AHB_CLK>,
+				<&gcc GCC_QPIC_CLK>;
 			status = "disabled";
 		};
 

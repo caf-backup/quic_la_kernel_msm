@@ -149,120 +149,15 @@ out:
 	return ret;
 }
 
-#ifdef CONFIG_PM_RUNTIME
-static int msm_nand_runtime_suspend(struct device *dev)
-{
-	int ret = 0;
-	struct msm_nand_info *info = dev_get_drvdata(dev);
-
-	ret = msm_nand_setup_clocks_and_bus_bw(info, false);
-
-	return ret;
-}
-
-static int msm_nand_runtime_resume(struct device *dev)
-{
-	int ret = 0;
-	struct msm_nand_info *info = dev_get_drvdata(dev);
-
-	ret = msm_nand_setup_clocks_and_bus_bw(info, true);
-
-	return ret;
-}
-
-static void msm_nand_print_rpm_info(struct device *dev)
-{
-	pr_err("RPM: runtime_status=%d, usage_count=%d," \
-		" is_suspended=%d, disable_depth=%d, runtime_error=%d," \
-		" request_pending=%d, request=%d\n",
-		dev->power.runtime_status, atomic_read(&dev->power.usage_count),
-		dev->power.is_suspended, dev->power.disable_depth,
-		dev->power.runtime_error, dev->power.request_pending,
-		dev->power.request);
-}
-#else
-static int msm_nand_runtime_suspend(struct device *dev)
-{
-	return 0;
-}
-
-static int msm_nand_runtime_resume(struct device *dev)
-{
-	return 0;
-}
-
-static void msm_nand_print_rpm_info(struct device *dev)
-{
-}
-#endif
-
-#ifdef CONFIG_PM
-static int msm_nand_suspend(struct device *dev)
-{
-	int ret = 0;
-
-	if (!pm_runtime_suspended(dev))
-		ret = msm_nand_runtime_suspend(dev);
-
-	return ret;
-}
-
-static int msm_nand_resume(struct device *dev)
-{
-	int ret = 0;
-
-	if (!pm_runtime_suspended(dev))
-		ret = msm_nand_runtime_resume(dev);
-
-	return ret;
-}
-#else
-static int msm_nand_suspend(struct device *dev)
-{
-	return 0;
-}
-
-static int msm_nand_resume(struct device *dev)
-{
-	return 0;
-}
-#endif
-
 static int msm_nand_get_device(struct device *dev)
 {
-	int ret = 0;
-
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0) {
-		pr_err("Failed to resume with %d\n", ret);
-		msm_nand_print_rpm_info(dev);
-	} else { /* Reset to success */
-		ret = 0;
-	}
-	return ret;
+	return 0;
 }
 
-#ifdef CONFIG_PM_RUNTIME
-static int msm_nand_put_device(struct device *dev)
-{
-	int ret = 0;
-
-	pm_runtime_mark_last_busy(dev);
-	ret = pm_runtime_put_autosuspend(dev);
-	if (ret < 0) {
-		pr_err("Failed to suspend with %d\n", ret);
-		msm_nand_print_rpm_info(dev);
-	} else { /* Reset to success */
-		ret = 0;
-	}
-	return ret;
-}
-#else
 static int msm_nand_put_device(struct device *dev)
 {
 	return 0;
 }
-#endif
 
 #ifdef CONFIG_MSM_BUS_SCALING
 static int msm_nand_bus_register(struct platform_device *pdev,
@@ -2927,12 +2822,6 @@ static int msm_nand_probe(struct platform_device *pdev)
 	if (err)
 		goto bus_unregister;
 	dev_set_drvdata(&pdev->dev, info);
-	err = pm_runtime_set_active(&pdev->dev);
-	if (err)
-		pr_err("pm_runtime_set_active() failed with error %d", err);
-	pm_runtime_enable(&pdev->dev);
-	pm_runtime_use_autosuspend(&pdev->dev);
-	pm_runtime_set_autosuspend_delay(&pdev->dev, MSM_NAND_IDLE_TIMEOUT);
 
 	err = msm_nand_bam_init(info);
 	if (err) {
@@ -2979,8 +2868,6 @@ free_bam:
 	msm_nand_bam_free(info);
 clk_rpm_disable:
 	msm_nand_setup_clocks_and_bus_bw(info, false);
-	pm_runtime_disable(&(pdev)->dev);
-	pm_runtime_set_suspended(&(pdev)->dev);
 bus_unregister:
 	msm_nand_bus_unregister(info);
 out:
@@ -2995,14 +2882,9 @@ static int msm_nand_remove(struct platform_device *pdev)
 {
 	struct msm_nand_info *info = dev_get_drvdata(&pdev->dev);
 
-	if (pm_runtime_suspended(&(pdev)->dev))
-		pm_runtime_resume(&(pdev)->dev);
-
 	if (info->clk_data.client_handle)
 		msm_nand_bus_unregister(info);
 
-	pm_runtime_disable(&(pdev)->dev);
-	pm_runtime_set_suspended(&(pdev)->dev);
 	msm_nand_setup_clocks_and_bus_bw(info, false);
 
 	dev_set_drvdata(&pdev->dev, NULL);
@@ -3019,22 +2901,12 @@ static const struct of_device_id msm_nand_match_table[] = {
 	{},
 };
 
-static const struct dev_pm_ops msm_nand_pm_ops = {
-	.suspend		= msm_nand_suspend,
-	.resume			= msm_nand_resume,
-	.runtime_suspend	= msm_nand_runtime_suspend,
-	.runtime_resume		= msm_nand_runtime_resume,
-};
-
 static struct platform_driver msm_nand_driver = {
 	.probe		= msm_nand_probe,
 	.remove		= msm_nand_remove,
 	.driver = {
 		.name		= DRIVER_NAME,
 		.of_match_table = msm_nand_match_table,
-#ifdef CONFIG_PM_RUNTIME
-		.pm		= &msm_nand_pm_ops,
-#endif
 	},
 };
 
