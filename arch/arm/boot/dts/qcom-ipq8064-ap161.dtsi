@@ -120,6 +120,25 @@
 				};
 			};
 
+			i2c_pins: i2c_pins {
+				mux {
+					pins = "gpio53", "gpio54" ;
+					function = "gsbi1";
+					drive-strength = <12>;
+					bias-disable;
+				};
+			};
+
+		};
+
+		gsbi1: gsbi@12440000 {
+			qcom,mode = <GSBI_PROT_I2C>;
+			status = "ok";
+			i2c@12460000 {
+				pinctrl-0 = <&i2c_pins>;
+				pinctrl-names = "default";
+				status = "ok";
+			};
 		};
 
 		gsbi@16300000 {
