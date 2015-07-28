@@ -25,6 +25,17 @@ config MMC_QCOM_DML
 
 	  if unsure, say N.
 
+config MMC_QCOM_TUNING
+	tristate "Qualcomm Atheros SD Card Tuning for UHS"
+	depends on MMC_ARMMMCI
+	default y
+	help
+	  Special tuning is needed for the MMC controller to be able
+	  to operate with Ultra High Speed (UHS) SD cards. Without tuning,
+	  UHS cards will be detected as high-speed cards and operate at
+	  lesser speeds.
+	  if unsure, say Y.
+
 config MMC_PXA
 	tristate "Intel PXA25x/26x/27x Multimedia Card Interface support"
 	depends on ARCH_PXA
