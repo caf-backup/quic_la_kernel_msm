@@ -45,6 +45,7 @@
 #define MCI_QCOM_CLK_WIDEBUS_8	(BIT(10) | BIT(11))
 #define MCI_QCOM_CLK_FLOWENA	BIT(12)
 #define MCI_QCOM_CLK_INVERTOUT	BIT(13)
+#define MCI_QCOM_IO_PAD_PWR_SWITCH	BIT(21)
 
 /* select in latch data and command in */
 #define MCI_QCOM_CLK_SELECT_IN_FBCLK	BIT(15)
@@ -171,6 +172,21 @@
 
 #define MMCIMASK1		0x040
 #define MMCIFIFOCNT		0x048
+#define MMCIVERSION		0x050
+#define MCIDLL_CONFIG		0x060
+#define MCI_DLL_EN		(1 << 16)
+#define MCI_CDR_EN		(1 << 17)
+#define MCI_CK_OUT_EN		(1 << 18)
+#define MCI_CDR_EXT_EN		(1 << 19)
+#define MCI_DLL_PDN		(1 << 29)
+#define MCI_DLL_RST		(1 << 30)
+
+#define MCI_DLL_STATUS		0x068
+#define MCI_DLL_LOCK		(1 << 7)
+
+#define MMCISTATUS2		0x06C
+#define MCI_MCLK_REG_WR_ACTIVE	(1 << 0)
+
 #define MMCIFIFO		0x080 /* to 0x0bc */
 
 #define MCI_IRQENABLE	\
@@ -297,6 +313,13 @@ struct variant_data {
 	bool			explicit_mclk_control;
 	bool			qcom_fifo;
 	bool			qcom_dml;
+#ifdef CONFIG_MMC_QCOM_TUNING
+	bool			qcom_tuning;
+	int			qcom_uhs_gpio;
+	unsigned int		qcom_hw_caps;
+	int			saved_tuning_phase;
+	bool			tuning_in_progress;
+	bool			tuning_done;
+#endif /* CONFIG_MMC_QCOM_TUNING */
 	bool			reversed_irq_handling;
 };
-

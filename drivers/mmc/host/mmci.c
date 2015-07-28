@@ -44,6 +44,9 @@
 
 #include "mmci.h"
 #include "mmci_qcom_dml.h"
+#ifdef CONFIG_MMC_QCOM_TUNING
+#include "mmci_qcom_tuning.h"
+#endif
 
 #define DRIVER_NAME "mmci-pl18x"
 
@@ -157,6 +160,9 @@ static struct variant_data variant_qcom = {
 	.explicit_mclk_control	= true,
 	.qcom_fifo		= true,
 	.qcom_dml		= true,
+#ifdef CONFIG_MMC_QCOM_TUNING
+	.qcom_tuning		= true,
+#endif /* CONFIG_MMC_QCOM_TUNING */
 };
 
 static int mmci_card_busy(struct mmc_host *mmc)
@@ -305,6 +311,11 @@ static void mmci_set_clkreg(struct mmci_host *host, unsigned int desired)
 	if (host->mmc->ios.timing == MMC_TIMING_UHS_DDR50 ||
 	    host->mmc->ios.timing == MMC_TIMING_MMC_DDR52)
 		clk |= variant->clkreg_neg_edge_enable;
+
+#ifdef CONFIG_MMC_QCOM_TUNING
+	if (variant->qcom_uhs_gpio >= 0)
+		clk |= MCI_QCOM_IO_PAD_PWR_SWITCH;
+#endif /* CONFIG_MMC_QCOM_TUNING */
 
 	mmci_write_clkreg(host, clk);
 }
@@ -1580,6 +1591,13 @@ static int mmci_probe(struct amba_device *dev,
 	}
 
 	mmc->ops = &mmci_ops;
+
+#ifdef CONFIG_MMC_QCOM_TUNING
+	if (variant->qcom_tuning) {
+		mmci_qtune_init(host, np);
+		mmci_ops.execute_tuning = mmci_qtune_execute_tuning;
+	}
+#endif /* CONFIG_MMC_QCOM_TUNING */
 
 	/* We support these PM capabilities. */
 	mmc->pm_caps |= MMC_PM_KEEP_POWER;
