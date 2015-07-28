@@ -34,9 +34,6 @@
 #include "ipq40xx-adss.h"
 #include "ipq40xx-codec.h"
 
-#define IPQ40XX_ADAPTER_INDEX	0
-static struct i2c_client *ipq40xx_i2c_client;
-
 struct audio_hw_params audio_params;
 
 static const u8 akd4613_reg[AK4613_MAX_REG] = {
@@ -459,48 +456,14 @@ static struct i2c_driver ipq40xx_codec_i2c_driver = {
 	.id_table = ipq40xx_codec_i2c_id,
 };
 
-static struct i2c_board_info ipq40xx_codec_i2c_info = {
-	.type = "qca_codec",
-	.addr = 0x10,
-};
-
 static int ipq40xx_codec_init(void)
 {
-	struct i2c_adapter *adapter;
-	struct i2c_client *client;
 	int ret;
 
-	adapter = i2c_get_adapter(IPQ40XX_ADAPTER_INDEX);
-	if (adapter == NULL) {
-		pr_err("%s: %d: I2C failed to get adapter", __func__, __LINE__);
-		ret = -ENODEV;
-		goto out_exit;
-	}
-
-	client = i2c_new_device(adapter, &ipq40xx_codec_i2c_info);
-	if (client == NULL) {
-		pr_err("%s: %d: Failed to add I2C device", __func__, __LINE__);
-		ret = -ENODEV;
-		goto out_put_adapter;
-	}
-	ipq40xx_i2c_client = client;
-
 	ret = i2c_add_driver(&ipq40xx_codec_i2c_driver);
-	if (ret < 0) {
+	if (ret < 0)
 		pr_err("%s: %d: Failed to add I2C driver", __func__, __LINE__);
-		goto unregister_client;
-	}
 
-	i2c_put_adapter(adapter);
-
-	return 0;
-
-unregister_client:
-	i2c_unregister_device(client);
-	ipq40xx_i2c_client = NULL;
-out_put_adapter:
-	i2c_put_adapter(adapter);
-out_exit:
 	return ret;
 }
 module_init(ipq40xx_codec_init);
@@ -508,8 +471,6 @@ module_init(ipq40xx_codec_init);
 static void ipq40xx_codec_exit(void)
 {
 	i2c_del_driver(&ipq40xx_codec_i2c_driver);
-	if (ipq40xx_i2c_client)
-		i2c_unregister_device(ipq40xx_i2c_client);
 }
 module_exit(ipq40xx_codec_exit);
 
