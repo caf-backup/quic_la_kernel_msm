@@ -23,6 +23,7 @@
 
 #define WDT_RST		0x38
 #define WDT_EN		0x40
+#define WDT_BARK_TIME	0x4C
 #define WDT_BITE_TIME	0x5C
 
 #define SCM_CMD_SET_REGSAVE  0x2

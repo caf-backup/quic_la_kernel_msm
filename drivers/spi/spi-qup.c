@@ -235,26 +235,6 @@ static void spi_qup_prepare_write_data(struct spi_qup *controller,
 	controller->tx_bytes += controller->w_size;
 }
 
-static void spi_qup_fifo_read(struct spi_qup *controller,
-			    struct spi_transfer *xfer)
-{
-	u32 data;
-
-	/* clear service request */
-	writel_relaxed(QUP_OP_IN_SERVICE_FLAG,
-			controller->base + QUP_OPERATIONAL);
-
-	while (controller->rx_bytes < xfer->len) {
-		if (!(readl_relaxed(controller->base + QUP_OPERATIONAL) &
-		    QUP_OP_IN_FIFO_NOT_EMPTY))
-			break;
-
-		data = readl_relaxed(controller->base + QUP_INPUT_FIFO);
-
-		spi_qup_fill_read_buffer(controller, xfer, data);
-	}
-}
-
 static void spi_qup_fill_read_buffer(struct spi_qup *controller,
 	struct spi_transfer *xfer, u32 data)
 {
@@ -273,6 +253,28 @@ static void spi_qup_fill_read_buffer(struct spi_qup *controller,
 			shift *= (controller->w_size - idx - 1);
 			rx_buf[controller->rx_bytes + idx] = data >> shift;
 		}
+
+	controller->rx_bytes += controller->w_size;
+}
+
+static void spi_qup_fifo_read(struct spi_qup *controller,
+			    struct spi_transfer *xfer)
+{
+	u32 data;
+
+	/* clear service request */
+	writel_relaxed(QUP_OP_IN_SERVICE_FLAG,
+			controller->base + QUP_OPERATIONAL);
+
+	while (controller->rx_bytes < xfer->len) {
+		if (!(readl_relaxed(controller->base + QUP_OPERATIONAL) &
+		    QUP_OP_IN_FIFO_NOT_EMPTY))
+			break;
+
+		data = readl_relaxed(controller->base + QUP_INPUT_FIFO);
+
+		spi_qup_fill_read_buffer(controller, xfer, data);
+	}
 }
 
 static void spi_qup_fifo_write(struct spi_qup *controller,
@@ -398,16 +400,6 @@ static int spi_qup_do_dma(struct spi_qup *controller, struct spi_transfer *xfer)
 
 		/* check to see if we need dummy buffer for leftover bytes */
 		rx_align = xfer->len % controller->in_blk_sz;
-		if (rx_align) {
-			rx_dummy_dma = dma_map_single(controller->dev,
-				controller->dummy, controller->in_fifo_sz,
-				DMA_FROM_DEVICE);
-
-			if (dma_mapping_error(controller->dev, rx_dummy_dma)) {
-				ret = -ENOMEM;
-				goto err_map_rx_dummy;
-			}
-		}
 	}
 
 	if (xfer->tx_buf) {
@@ -841,7 +833,7 @@ static int spi_qup_transfer_one(struct spi_master *master,
 
 		if (!wait_for_completion_timeout(&controller->done, timeout))
 			ret = -ETIMEDOUT;
-		}
+	}
 exit:
 	spi_qup_set_state(controller, QUP_STATE_RESET);
 	spin_lock_irqsave(&controller->lock, flags);

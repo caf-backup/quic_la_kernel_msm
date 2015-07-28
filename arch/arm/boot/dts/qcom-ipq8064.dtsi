@@ -73,8 +73,6 @@
 			cooling-min-state = <0>;
 			cooling-max-state = <10>;
 			#cooling-cells = <2>;
-			core-supply = <&smb208_s2a>;
-			voltage-tolerance = <5>;
 		};
 
 		cpu1: cpu@1 {
@@ -132,7 +130,6 @@
 			cooling-min-state = <0>;
 			cooling-max-state = <10>;
 			#cooling-cells = <2>;
-			core-supply = <&smb208_s2b>;
 		};
 
 		L2: l2-cache {
@@ -241,63 +238,6 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x00700000 0x1000>;
-		};
-
-		rpm@108000 {
-			compatible = "qcom,rpm-ipq8064";
-			reg = <0x108000 0x1000>;
-			qcom,ipc = <&l2cc 0x8 2>;
-
-			interrupts = <0 19 0>,
-				     <0 21 0>,
-				     <0 22 0>;
-			interrupt-names = "ack",
-					  "err",
-					  "wakeup";
-
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			smb208_s1a: smb208-s1a {
-				compatible = "qcom,rpm-smb208";
-				reg = <QCOM_RPM_SMB208_S1a>;
-
-				regulator-min-microvolt = <1050000>;
-				regulator-max-microvolt = <1150000>;
-
-				qcom,switch-mode-frequency = <1200000>;
-
-			};
-
-			smb208_s1b: smb208-s1b {
-				compatible = "qcom,rpm-smb208";
-				reg = <QCOM_RPM_SMB208_S1b>;
-
-				regulator-min-microvolt = <1050000>;
-				regulator-max-microvolt = <1150000>;
-
-				qcom,switch-mode-frequency = <1200000>;
-			};
-
-			smb208_s2a: smb208-s2a {
-				compatible = "qcom,rpm-smb208";
-				reg = <QCOM_RPM_SMB208_S2a>;
-
-				regulator-min-microvolt = < 800000>;
-				regulator-max-microvolt = <1250000>;
-
-				qcom,switch-mode-frequency = <1200000>;
-			};
-
-			smb208_s2b: smb208-s2b {
-				compatible = "qcom,rpm-smb208";
-				reg = <QCOM_RPM_SMB208_S2b>;
-
-				regulator-min-microvolt = < 800000>;
-				regulator-max-microvolt = <1250000>;
-
-				qcom,switch-mode-frequency = <1200000>;
-			};
 		};
 
 		rpm@108000 {
@@ -999,95 +939,6 @@
 
 
 			status = "disabled";
-		};
-
-		tcsr: tcsr@1a400000 {
-			compatible = "qcom,tcsr";
-			reg = <0x1a400000 0x100>;
-
-			status = "disabled";
-		};
-
-		hs_phy_1: phy@100f8800 {
-			compatible = "qcom,dwc3-hsphy";
-			reg = <0x100f8800 0x30>;
-			clocks = <&gcc USB30_1_UTMI_CLK>;
-			clock-names = "utmi";
-
-			status = "disabled";
-		};
-
-		ss_phy_1: phy@100f8830 {
-			compatible = "qcom,dwc3-ssphy";
-			reg = <0x100f8830 0x30>;
-
-			clocks = <&gcc USB30_1_MASTER_CLK>;
-			clock-names = "ref";
-
-			status = "disabled";
-		};
-
-		hs_phy_0: phy@110f8800 {
-			compatible = "qcom,dwc3-hsphy";
-			reg = <0x110f8800 0x30>;
-			clocks = <&gcc USB30_0_UTMI_CLK>;
-			clock-names = "utmi";
-
-			status = "disabled";
-		};
-
-		ss_phy_0: phy@110f8830 {
-			compatible = "qcom,dwc3-ssphy";
-			reg = <0x110f8830 0x30>;
-
-			clocks = <&gcc USB30_0_MASTER_CLK>;
-			clock-names = "ref";
-
-			status = "disabled";
-		};
-
-		usb3_0: usb30@0 {
-			compatible = "qcom,dwc3";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			clocks = <&gcc USB30_0_MASTER_CLK>;
-			clock-names = "core";
-
-			ranges;
-
-			status = "disabled";
-
-			dwc3@11000000 {
-				compatible = "snps,dwc3";
-				reg = <0x11000000 0xcd00>;
-				interrupts = <0 110 0x4>;
-				usb-phy = <&hs_phy_0>, <&ss_phy_0>;
-				phy-names = "usb2-phy", "usb3-phy";
-				tx-fifo-resize;
-				dr_mode = "host";
-			};
-		};
-
-		usb3_1: usb30@1 {
-			compatible = "qcom,dwc3";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			clocks = <&gcc USB30_1_MASTER_CLK>;
-			clock-names = "core";
-
-			ranges;
-
-			status = "disabled";
-
-			dwc3@10000000 {
-				compatible = "snps,dwc3";
-				reg = <0x10000000 0xcd00>;
-				interrupts = <0 205 0x4>;
-				usb-phy = <&hs_phy_1>, <&ss_phy_1>;
-				phy-names = "usb2-phy", "usb3-phy";
-				tx-fifo-resize;
-				dr_mode = "host";
-			};
 		};
 
 		rng@1a500000 {
