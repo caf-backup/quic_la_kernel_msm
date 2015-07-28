@@ -688,9 +688,7 @@ static int adcc_ipq40xx_probe(struct platform_device *pdev)
 
 	/* High speed external clock */
 	clk_register_fixed_rate(dev, "xo", NULL, CLK_IS_ROOT, 48000000);
-	/* External sleep clock */
-	clk_register_fixed_rate(dev, "adcc_sleep_clk_src", NULL,
-							CLK_IS_ROOT, 32768);
+
 	/* External padbclk clock */
 	clk_register_fixed_rate(dev, "padbclk", NULL,
 							CLK_IS_ROOT, 254);

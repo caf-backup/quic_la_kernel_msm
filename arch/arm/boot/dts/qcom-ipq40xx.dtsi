@@ -38,6 +38,7 @@
 			enable-method = "qcom,arm-cortex-acc";
 			reg = <0>;
 			clocks = <&gcc GCC_APPS_CLK_SRC>;
+			clock-frequency = <0>;
 		};
 
 		cpu@1 {
@@ -46,6 +47,7 @@
 			enable-method = "qcom,arm-cortex-acc";
 			reg = <1>;
 			clocks = <&gcc GCC_APPS_CLK_SRC>;
+			clock-frequency = <0>;
 		};
 
 		cpu@2 {
@@ -54,6 +56,7 @@
 			enable-method = "qcom,arm-cortex-acc";
 			reg = <2>;
 			clocks = <&gcc GCC_APPS_CLK_SRC>;
+			clock-frequency = <0>;
 		};
 
 		cpu@3 {
@@ -62,14 +65,18 @@
 			enable-method = "qcom,arm-cortex-acc";
 			reg = <3>;
 			clocks = <&gcc GCC_APPS_CLK_SRC>;
+			clock-frequency = <0>;
 		};
 	};
 
 	clocks {
-		sleep_clk: sleep_clk {
+		gcc_sleep_clk_src: gcc_sleep_clk_src {
 			compatible = "fixed-clock";
-			clock-frequency = <32768>;
-			#clock-cells = <0>;
+			clock-frequency = <32000>;
+		};
+		xo: xo {
+			compatible = "fixed-clock";
+			clock-frequency = <48000000>;
 		};
 	};
 
@@ -129,7 +136,7 @@
 		watchdog@b017000 {
 			compatible = "qcom,kpss-wdt-ipq40xx";
 			reg = <0xb017000 0x40>;
-			clocks = <&sleep_clk>;
+			clocks = <&gcc_sleep_clk_src>;
 			timeout-sec = <10>;
 			wdt_res = <0x4>;
 			wdt_en = <0x8>;

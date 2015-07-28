@@ -792,12 +792,6 @@ static struct clk_branch gcc_gp3_clk = {
 
 
 static const struct freq_tbl ftbl_gcc_sdcc1_apps_clk[] = {
-	F(144000,    P_XO,		(10<<8)|1,  3, 240),
-	F(400000,    P_XO,	       (120<<8)|1,  1, 0),
-	F(20000000,  FE_PLL_500,		1,  1, 25),
-	F(25000000,  FE_PLL_500,		1,  1, 20),
-	F(50000000,  FE_PLL_500,		1,  1, 10),
-	F(100000000, FE_PLL_500,		1,  1, 5),
 	F(193000000, DDRC_PLL_666_SDCC,		1,  0, 0),
 	{ }
 };
@@ -890,25 +884,6 @@ static struct clk_branch gcc_blsp1_ahb_clk = {
 			.name = "gcc_blsp1_ahb_clk",
 			.parent_names = (const char *[]){
 				"pcnoc_clk_src",
-			},
-			.num_parents = 1,
-			.ops = &clk_branch2_ops,
-		},
-	},
-};
-
-
-
-
-static struct clk_branch gcc_dcd_xo_clk = {
-	.halt_reg = DCD_XO_CBCR,
-	.clkr = {
-		.enable_reg = DCD_XO_CBCR,
-		.enable_mask = BIT(0),
-		.hw.init = &(struct clk_init_data){
-			.name = "gcc_dcd_xo_clk",
-			.parent_names = (const char *[]){
-				"xo",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -1427,7 +1402,7 @@ static struct clk_branch gcc_wcss2g_rtc_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_wcss2g_rtc_clk",
 			.parent_names = (const char *[]){
-				"gcc_sleep_clk_src",
+				"wifi_rtc_clk_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -1499,7 +1474,7 @@ static struct clk_branch gcc_wcss5g_rtc_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_wcss5g_rtc_clk",
 			.parent_names = (const char *[]){
-				"gcc_sleep_clk_src",
+				"wifi_rtc_clk_src",
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
@@ -1540,7 +1515,6 @@ static struct clk_regmap *gcc_ipq40xx_clocks[] = {
 	[GCC_BLSP1_QUP2_SPI_APPS_CLK] = &gcc_blsp1_qup2_spi_apps_clk.clkr,
 	[GCC_BLSP1_UART1_APPS_CLK] = &gcc_blsp1_uart1_apps_clk.clkr,
 	[GCC_BLSP1_UART2_APPS_CLK] = &gcc_blsp1_uart2_apps_clk.clkr,
-	[GCC_DCD_XO_CLK] = &gcc_dcd_xo_clk.clkr,
 	[GCC_GP1_CLK] = &gcc_gp1_clk.clkr,
 	[GCC_GP2_CLK] = &gcc_gp2_clk.clkr,
 	[GCC_GP3_CLK] = &gcc_gp3_clk.clkr,
@@ -1682,11 +1656,8 @@ static int gcc_ipq40xx_probe(struct platform_device *pdev)
 	if (!id)
 		return -ENODEV;
 
-	/* High speed external clock */
-	clk_register_fixed_rate(dev, "xo", NULL,
-					 CLK_IS_ROOT, 48000000);
-	/* External sleep clock */
-	clk_register_fixed_rate(dev, "gcc_sleep_clk_src", NULL,
+	/*RTC sleep clock */
+	clk_register_fixed_rate(dev, "wifi_rtc_clk_src", NULL,
 					 CLK_IS_ROOT, 32768);
 
 	/* FE PLL post dividers */
