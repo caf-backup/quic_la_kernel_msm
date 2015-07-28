@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include "ipq40xx-adss.h"
 
+#define ADSS_MBOX_INVALID_PCM			(0xFFFFFFFF)
 #define ADSS_MBOX_REG_BASE			(0x7700000 + 0x6000)
 #define ADSS_MBOX_RANGE				(0xFA000)
 #define ADSS_MBOX_SPDIF_IRQ			(163 + 32)
@@ -29,6 +30,35 @@
 #define ADSS_MBOX1_IRQ				(157 + 32)
 #define ADSS_MBOX2_IRQ				(158 + 32)
 #define ADSS_MBOX3_IRQ				(159 + 32)
+
+#define CHANNEL_A_VDWORD_START 0
+#define CHANNEL_B_VDWORD_START 18
+
+#define CHANNEL_A_VDWORD_1 (CHANNEL_A_VDWORD_START + 0)
+#define CHANNEL_A_VDWORD_2 (CHANNEL_A_VDWORD_START + 1)
+#define CHANNEL_A_VDWORD_3 (CHANNEL_A_VDWORD_START + 2)
+#define CHANNEL_A_VDWORD_4 (CHANNEL_A_VDWORD_START + 3)
+#define CHANNEL_A_VDWORD_5 (CHANNEL_A_VDWORD_START + 4)
+#define CHANNEL_A_VDWORD_6 (CHANNEL_A_VDWORD_START + 5)
+
+#define CHANNEL_B_VDWORD_1 (CHANNEL_B_VDWORD_START + 0)
+#define CHANNEL_B_VDWORD_2 (CHANNEL_B_VDWORD_START + 1)
+#define CHANNEL_B_VDWORD_3 (CHANNEL_B_VDWORD_START + 2)
+#define CHANNEL_B_VDWORD_4 (CHANNEL_B_VDWORD_START + 3)
+#define CHANNEL_B_VDWORD_5 (CHANNEL_B_VDWORD_START + 4)
+#define CHANNEL_B_VDWORD_6 (CHANNEL_B_VDWORD_START + 5)
+
+#define CHANNEL_A_CDWORD_START 12
+#define CHANNEL_B_CDWORD_START 30
+
+#define CHANNEL_A_CDWORD_1 (CHANNEL_A_CDWORD_START + 0)
+#define CHANNEL_B_CDWORD_2 (CHANNEL_B_CDWORD_START + 0)
+
+/* Acc to IEC 60958-3, bit 0.0 = 0 is consumer
+ *		       bit 0.1 = 1is compressed playback
+ *		       bit 3.0 = 1 is sampling freq No specified
+ */
+#define SPDIF_CONSUMER_COMPRESD 0x01000006;
 
 enum {
 	ADSS_MBOX_NR_CHANNELS = 5,
@@ -50,7 +80,7 @@ struct ipq40xx_mbox_desc {
 			NextPtr	: 28,   /* bit 27-00 */
 			rsvd3	:  4;   /* bit 31-28 */
 
-	unsigned int vuc_dword[38];
+	unsigned int vuc_dword[36];
 
 };
 
@@ -94,6 +124,7 @@ int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr,
 int ipq40xx_mbox_dma_release(int channel);
 int ipq40xx_mbox_dma_init(struct device *dev, int channel_id,
 	irq_handler_t callback, void *private_data);
+void ipq40xx_mbox_vuc_setup(int channel_id);
 
 static inline uint32_t ipq40xx_convert_id_to_channel(uint32_t id)
 {
