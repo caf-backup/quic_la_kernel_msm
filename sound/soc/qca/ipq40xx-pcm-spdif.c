@@ -157,16 +157,6 @@ static irqreturn_t ipq40xx_pcm_irq(int intrsrc, void *data)
 
 			if (ptr < (uint32_t *)runtime->dma_area)
 				goto ack;
-
-			/* The data in the buffer is present from bits 4 to 23.
-			 * The other bits are V, U, C, P and channel flags
-			 * Ignoring those bits for now.
-			 */
-			for (i = 0; i < (processed_size/4); i++) {
-				*ptr = ((*ptr & 0xFFFFFF) << 8);
-				ptr++;
-			}
-
 		}
 	}
 
@@ -340,6 +330,12 @@ static int ipq40xx_pcm_spdif_hw_params(struct snd_pcm_substream *substream,
 	frames = period_size / (sample_size * channels);
 
 	pcm_rtpriv->period_size = params_period_bytes(hw_params);
+
+	/* Check whether this is a compressed play or not
+	 * if its a compressed play set VUC
+	 */
+	if (hw_params->reserved[0])
+		ipq40xx_mbox_vuc_setup(pcm_rtpriv->channel);
 
 	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 
