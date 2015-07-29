@@ -279,6 +279,7 @@ int mdss_qpic_panel_on(struct mdss_panel_data *pdata,
 	if (rc)
 		return rc;
 	panel_is_on = true;
+	mdss_qpic_set_cfg0();
 	return 0;
 }
 
