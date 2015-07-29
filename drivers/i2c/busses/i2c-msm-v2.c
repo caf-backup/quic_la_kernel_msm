@@ -2771,7 +2771,7 @@ static irqreturn_t i2c_msm_qup_isr(int irq, void *devid)
 
 	/* check for FIFO over/under runs error */
 	if (err_flags & QUP_ERR_FLGS_MASK)
-		ctrl->xfer.err = BIT(I2C_MSM_ERR_OVR_UNDR_RUN);
+		ctrl->xfer.err |= BIT(I2C_MSM_ERR_OVR_UNDR_RUN);
 
 	/* Dump the register values before reset the core */
 	if (ctrl->xfer.err && ctrl->dbgfs.dbg_lvl >= MSM_DBG)
