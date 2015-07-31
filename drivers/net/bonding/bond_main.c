@@ -205,6 +205,10 @@ static int arp_ip_count;
 static int bond_mode	= BOND_MODE_ROUNDROBIN;
 static int xmit_hashtype = BOND_XMIT_POLICY_LAYER2;
 static int lacp_fast;
+static unsigned long bond_id_mask = 0xFFFFFFF0;
+
+/*-------------------------- External variables -----------------------------*/
+extern struct bond_cb *bond_cb;
 
 /*-------------------------- Forward declarations ---------------------------*/
 
@@ -230,6 +234,20 @@ const char *bond_mode_name(int mode)
 
 	return names[mode];
 }
+
+/*---------------------------- Exported APIs --------------------------------*/
+int bond_get_id(struct net_device *bond_dev)
+{
+	struct bonding *bond = NULL;
+
+	if (!((bond_dev->priv_flags & IFF_BONDING) && (bond_dev->flags & IFF_MASTER))) {
+		return -EINVAL;
+	}
+
+	bond = netdev_priv(bond_dev);
+	return bond->id;
+}
+EXPORT_SYMBOL(bond_get_id);
 
 /*---------------------------------- VLAN -----------------------------------*/
 
@@ -812,6 +830,11 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 
 			if (bond->params.mode == BOND_MODE_8023AD)
 				bond_3ad_handle_link_change(new_active, BOND_LINK_UP);
+
+			if (bond->params.mode == BOND_MODE_XOR) {
+				if (bond_cb && bond_cb->bond_cb_link_up)
+					bond_cb->bond_cb_link_up(new_active->dev);
+			}
 
 			if (bond_is_lb(bond))
 				bond_alb_handle_link_change(bond, new_active, BOND_LINK_UP);
@@ -1560,6 +1583,10 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		unblock_netpoll_tx();
 	}
 
+	if (bond_cb && bond_cb->bond_cb_enslave) {
+		bond_cb->bond_cb_enslave(slave_dev);
+	}
+
 	pr_info("%s: enslaving %s as a%s interface with a%s link.\n",
 		bond_dev->name, slave_dev->name,
 		bond_is_active_slave(new_slave) ? "n active" : " backup",
@@ -1620,6 +1647,10 @@ err_undo_flags:
 	    ether_addr_equal_64bits(bond_dev->dev_addr, slave_dev->dev_addr))
 		eth_hw_addr_random(bond_dev);
 
+	if (bond_cb && bond_cb->bond_cb_release) {
+		bond_cb->bond_cb_release(slave_dev);
+	}
+
 	return res;
 }
 
@@ -1664,9 +1695,14 @@ static int __bond_release_one(struct net_device *bond_dev,
 		return -EINVAL;
 	}
 
+	if (bond_cb && bond_cb->bond_cb_release) {
+		bond_cb->bond_cb_release(slave_dev);
+	}
+
 	bond_sysfs_slave_del(slave);
 
 	bond_upper_dev_unlink(bond_dev, slave_dev);
+
 	/* unregister rx_handler early so bond_handle_frame wouldn't be called
 	 * for this slave anymore.
 	 */
@@ -1975,6 +2011,7 @@ static void bond_miimon_commit(struct bonding *bond)
 {
 	struct list_head *iter;
 	struct slave *slave;
+	struct net_device *slave_dev = NULL;
 
 	bond_for_each_slave(bond, slave, iter) {
 		switch (slave->new_link) {
@@ -2008,6 +2045,10 @@ static void bond_miimon_commit(struct bonding *bond)
 			if (bond_is_lb(bond))
 				bond_alb_handle_link_change(bond, slave,
 							    BOND_LINK_UP);
+
+			if ((bond->params.mode == BOND_MODE_XOR) && (slave_dev == NULL)) {
+				slave_dev = slave->dev;
+			}
 
 			if (!bond->curr_active_slave ||
 			    (slave == bond->primary_slave))
@@ -2061,6 +2102,10 @@ do_failover:
 	}
 
 	bond_set_carrier(bond);
+
+	if (slave_dev && bond_cb && bond_cb->bond_cb_link_up)
+	    	bond_cb->bond_cb_link_up(slave_dev);
+
 }
 
 /*
@@ -2953,6 +2998,45 @@ static inline u32 bond_eth_hash(struct sk_buff *skb)
 	return 0;
 }
 
+static inline u32 bond_ipv6_addr_to_hash(const uint32_t *a)
+{
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && BITS_PER_LONG == 64
+	const unsigned long *ul = (const unsigned long *)a;
+	unsigned long x = ul[0] ^ ul[1];
+
+	return (u32)(x ^ (x >> 32));
+#else
+	return (__force u32)(a[0] ^ a[1] ^ a[2] ^ a[3]);
+#endif
+}
+
+/* Extract the appropriate headers based on bond's xmit policy */
+static bool bond_flow_dissect_without_skb(struct bonding *bond, uint8_t *src_mac, uint8_t *dst_mac,
+                                          void *psrc, void *pdst, uint16_t protocol, __be16 *layer4hdr,
+					  struct flow_keys *fk)
+{
+        uint32_t *src = NULL;
+        uint32_t *dst = NULL;
+
+	fk->ports = 0;
+        src = (uint32_t *)psrc;
+        dst = (uint32_t *)pdst;
+
+	if (protocol == htons(ETH_P_IP)) {
+		fk->src = src[0];
+		fk->dst = dst[0];
+	} else if (protocol == htons(ETH_P_IPV6)) {
+		fk->src = (__force __be32)bond_ipv6_addr_to_hash((const uint32_t*)src);
+		fk->dst = (__force __be32)bond_ipv6_addr_to_hash((const uint32_t*)dst);
+	} else {
+		return false;
+	}
+	if ((bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER34) && (layer4hdr != NULL))
+		fk->ports = *layer4hdr;
+
+	return true;
+}
+
 /* Extract the appropriate headers based on bond's xmit policy */
 static bool bond_flow_dissect(struct bonding *bond, struct sk_buff *skb,
 			      struct flow_keys *fk)
@@ -3655,21 +3739,167 @@ static int bond_xmit_activebackup(struct sk_buff *skb, struct net_device *bond_d
 	return NETDEV_TX_OK;
 }
 
+/*
+ * bond_xmit_hash_without_skb - Applies load balancing algorithm for a packet,
+ * to calculate hash for a given set of L2/L3 addresses. Does not
+ * calculate egress interface.
+ */
+uint32_t bond_xmit_hash_without_skb(uint8_t *src_mac, uint8_t *dst_mac, void *psrc,
+			            void *pdst, uint16_t protocol, struct net_device *bond_dev,
+				    __be16 *layer4hdr)
+{
+	struct bonding *bond = netdev_priv(bond_dev);
+	struct flow_keys flow;
+        u32 hash;
+
+	if (bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER2 ||
+	    !bond_flow_dissect_without_skb(bond, src_mac, dst_mac, psrc, pdst, protocol, layer4hdr, &flow))
+		return (dst_mac[5] ^ src_mac[5]);
+
+	if (bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER23)
+                hash = dst_mac[5] ^ src_mac[5];
+	else if (layer4hdr != NULL)
+		hash = (__force u32)flow.ports;
+
+	hash ^= (__force u32)flow.dst ^ (__force u32)flow.src;
+	hash ^= (hash >> 16);
+	hash ^= (hash >> 8);
+
+        return hash;
+}
+
+/*
+ * bond_xor_get_tx_dev - Calculate egress interface for a given packet for a LAG
+ * 			 that is configured in balance-xor mode
+ * @skb: pointer to skb to be egressed
+ * @src_mac: pointer to source L2 address
+ * @dst_mac: pointer to destination L2 address
+ * @src: pointer to source L3 address in network order
+ * @dst: pointer to destination L3 address in network order
+ * @protocol: L3 protocol
+ * @bond_dev: pointer to bond master device
+ *
+ * If @skb is NULL, bond_xmit_hash_without_skb is used to calculate hash using L2/L3
+ *  addresses.
+ *
+ * Returns: Either valid slave device, or NULL otherwise
+ */
+struct net_device *bond_xor_get_tx_dev(struct sk_buff *skb, uint8_t *src_mac,
+                                      uint8_t *dst_mac, void *src,
+                                      void *dst, uint16_t protocol,
+                                      struct net_device *bond_dev,
+				      __be16 *layer4hdr)
+{
+	struct bonding *bond = netdev_priv(bond_dev);
+	int slave_cnt = ACCESS_ONCE(bond->slave_cnt);
+	int slave_id = 0, i = 0;
+	struct list_head *iter;
+	struct slave *slave;
+
+        if (slave_cnt == 0) {
+                pr_debug("%s: Error: No slave is attached to the interface\n", bond_dev->name);
+                return NULL;
+        }
+
+	if (skb) {
+		slave_id = bond_xmit_hash(bond, skb, slave_cnt);
+	} else {
+		uint32_t hash;
+
+		if (bond->params.xmit_policy != BOND_XMIT_POLICY_LAYER23
+				&& bond->params.xmit_policy != BOND_XMIT_POLICY_LAYER2
+				&& bond->params.xmit_policy != BOND_XMIT_POLICY_LAYER34) {
+			pr_debug("%s: Error: Unsupported hash policy for balance-XOR fast path\n", bond_dev->name);
+			return NULL;
+		}
+
+		hash = bond_xmit_hash_without_skb(src_mac, dst_mac, src, dst, protocol, bond_dev, layer4hdr);
+		slave_id = hash % slave_cnt;
+	}
+
+	i = slave_id;
+
+	/* Here we start from the slave with slave_id */
+	bond_for_each_slave_rcu(bond, slave, iter) {
+		if (--i < 0) {
+			if (slave_can_tx(slave)) {
+				return slave->dev;
+			}
+		}
+	}
+
+	/* Here we start from the first slave up to slave_id */
+	i = slave_id;
+	bond_for_each_slave_rcu(bond, slave, iter) {
+		if (--i < 0)
+			break;
+		if (slave_can_tx(slave)) {
+			return slave->dev;
+		}
+	}
+
+	return NULL;
+}
+
+/*
+ * bond_get_tx_dev - Calculate egress interface for a given packet.
+ *
+ * Supports 802.3AD and balance-xor modes
+ *
+ * @skb: pointer to skb to be egressed, if valid
+ * @src_mac: pointer to source L2 address
+ * @dst_mac: pointer to destination L2 address
+ * @src: pointer to source L3 address in network order
+ * @dst: pointer to destination L3 address in network order
+ * @protocol: L3 protocol id from L2 header
+ * @bond_dev: pointer to bond master device
+ *
+ * Returns: Either valid slave device, or NULL for un-supported LAG modes
+ */
+struct net_device *bond_get_tx_dev(struct sk_buff *skb, uint8_t *src_mac,
+		                   uint8_t *dst_mac, void *src,
+		                   void *dst, uint16_t protocol,
+		                   struct net_device *bond_dev, __be16 *layer4hdr)
+{
+	struct bonding *bond = netdev_priv(bond_dev);
+
+	if (!bond) {
+		return NULL;
+	}
+
+	switch (bond->params.mode) {
+		case BOND_MODE_XOR:
+			return bond_xor_get_tx_dev(skb, src_mac, dst_mac, src, dst, protocol, bond_dev, layer4hdr);
+		case BOND_MODE_8023AD:
+			return bond_3ad_get_tx_dev(skb, src_mac, dst_mac, src, dst, protocol, bond_dev, layer4hdr);
+		default:
+			return NULL;
+	}
+}
+EXPORT_SYMBOL(bond_get_tx_dev);
+
 /* In bond_xmit_xor() , we determine the output device by using a pre-
  * determined xmit_hash_policy(), If the selected device is not enabled,
  * find the next active slave.
  */
-static int bond_xmit_xor(struct sk_buff *skb, struct net_device *bond_dev)
+static int bond_xmit_xor(struct sk_buff *skb, struct net_device *dev)
 {
-	struct bonding *bond = netdev_priv(bond_dev);
-	int slave_cnt = ACCESS_ONCE(bond->slave_cnt);
+        struct bonding *bond = netdev_priv(dev);
+	struct net_device *outdev;
 
-	if (likely(slave_cnt))
-		bond_xmit_slave_id(bond, skb,
-				   bond_xmit_hash(bond, skb, bond->slave_cnt));
-	else
-		dev_kfree_skb_any(skb);
+        outdev = bond_xor_get_tx_dev(skb, NULL, NULL, NULL, NULL, 0, dev, NULL);
 
+	if (!outdev) {
+		goto out;
+	}
+
+        bond_dev_queue_xmit(bond, skb, outdev);
+
+        goto final;
+out:
+	/* no suitable interface, frame not sent */
+	dev_kfree_skb(skb);
+final:
 	return NETDEV_TX_OK;
 }
 
@@ -3894,6 +4124,10 @@ static void bond_destructor(struct net_device *bond_dev)
 	struct bonding *bond = netdev_priv(bond_dev);
 	if (bond->wq)
 		destroy_workqueue(bond->wq);
+
+	if (bond->id != (~0U))
+	        clear_bit(bond->id, &bond_id_mask);
+
 	free_netdev(bond_dev);
 }
 
@@ -4454,6 +4688,7 @@ int bond_create(struct net *net, const char *name)
 {
 	struct net_device *bond_dev;
 	int res;
+	struct bonding *bond = NULL;
 
 	rtnl_lock();
 
@@ -4476,6 +4711,14 @@ int bond_create(struct net *net, const char *name)
 	rtnl_unlock();
 	if (res < 0)
 		bond_destructor(bond_dev);
+
+	bond = netdev_priv(bond_dev);
+        bond->id = ~0U;
+	if (bond_id_mask != (~0UL)) {
+		bond->id = (u32)ffz(bond_id_mask);
+		set_bit(bond->id, &bond_id_mask);
+	}
+
 	return res;
 }
 

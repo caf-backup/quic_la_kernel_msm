@@ -30,7 +30,9 @@
 #include <linux/etherdevice.h>
 #include <linux/if_bonding.h>
 #include <linux/pkt_sched.h>
+#include <linux/export.h>
 #include <net/net_namespace.h>
+#include <net/ip.h>
 #include "bonding.h"
 #include "bond_3ad.h"
 
@@ -119,6 +121,24 @@ static void ad_marker_info_received(struct bond_marker *marker_info,
 				    struct port *port);
 static void ad_marker_response_received(struct bond_marker *marker,
 					struct port *port);
+
+/*------------------------------- Exported APIs -----------------------------*/
+static struct bond_cb nss_cb;
+struct bond_cb *bond_cb;
+
+void bond_register_cb(struct bond_cb *cb)
+{
+	memcpy((void *)&nss_cb, (void *)cb, sizeof(*cb));
+	bond_cb = &nss_cb;
+}
+EXPORT_SYMBOL(bond_register_cb);
+
+void bond_unregister_cb(void)
+{
+	bond_cb = NULL;
+	memset((void *)&nss_cb, 0, sizeof(nss_cb));
+}
+EXPORT_SYMBOL(bond_unregister_cb);
 
 
 /* ================= api to bonding and kernel code ================== */
@@ -946,6 +966,19 @@ static void ad_mux_machine(struct port *port)
 			port->actor_oper_port_state &= ~AD_STATE_DISTRIBUTING;
 			ad_disable_collecting_distributing(port);
 			port->ntt = true;
+
+			/*
+			 * Send a notificaton about change in state of this
+			 * port. We only want to handle case where port moves
+			 * from AD_MUX_COLLECTING_DISTRIBUTING ->
+			 * AD_MUX_ATTACHED. Link down and interface down events
+			 * are handled by ECM.
+			 */
+			if (IS_UP(port->slave->dev) &&
+			     (last_state == AD_MUX_COLLECTING_DISTRIBUTING)) {
+				if (bond_cb && bond_cb->bond_cb_link_down)
+					bond_cb->bond_cb_link_down(port->slave->dev);
+			}
 			break;
 		case AD_MUX_COLLECTING_DISTRIBUTING:
 			port->actor_oper_port_state |= AD_STATE_COLLECTING;
@@ -1720,6 +1753,10 @@ static void ad_enable_collecting_distributing(struct port *port)
 			 port->actor_port_number,
 			 port->aggregator->aggregator_identifier);
 		__enable_port(port);
+
+		if (bond_cb && bond_cb->bond_cb_link_up) {
+			bond_cb->bond_cb_link_up(port->slave->dev);
+		}
 	}
 }
 
@@ -2415,32 +2452,66 @@ int bond_3ad_get_active_agg_info(struct bonding *bond, struct ad_info *ad_info)
 	return ret;
 }
 
-int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev)
+/*
+ * bond_3ad_get_tx_dev - Calculate egress interface for a given packet,
+ * 			 for a LAG that is configured in 802.3AD mode
+ * @skb: pointer to skb to be egressed
+ * @src_mac: pointer to source L2 address
+ * @dst_mac: pointer to destination L2 address
+ * @src: pointer to source L3 address
+ * @dst: pointer to destination L3 address
+ * @protocol: L3 protocol id from L2 header
+ * @bond_dev: pointer to bond master device
+ *
+ * If @skb is NULL, bond_xmit_hash is used to calculate hash using L2/L3
+ * addresses.
+ *
+ * Returns: Either valid slave device, or NULL otherwise
+ */
+struct net_device *bond_3ad_get_tx_dev(struct sk_buff *skb, uint8_t *src_mac,
+		                       uint8_t *dst_mac, void *src,
+		                       void *dst, uint16_t protocol,
+		                       struct net_device *bond_dev,
+				       __be16 *layer4hdr)
 {
-	struct bonding *bond = netdev_priv(dev);
+	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave, *first_ok_slave;
 	struct aggregator *agg;
 	struct ad_info ad_info;
 	struct list_head *iter;
 	int slaves_in_agg;
-	int slave_agg_no;
+	int slave_agg_no = 0;
 	int agg_id;
 
 	if (__bond_3ad_get_active_agg_info(bond, &ad_info)) {
 		pr_debug("%s: Error: __bond_3ad_get_active_agg_info failed\n",
-			 dev->name);
-		goto err_free;
+			 bond_dev->name);
+		return NULL;
 	}
 
 	slaves_in_agg = ad_info.ports;
 	agg_id = ad_info.aggregator_id;
 
 	if (slaves_in_agg == 0) {
-		pr_debug("%s: Error: active aggregator is empty\n", dev->name);
-		goto err_free;
+		pr_debug("%s: Error: active aggregator is empty\n", bond_dev->name);
+		return NULL;
 	}
 
-	slave_agg_no = bond_xmit_hash(bond, skb, slaves_in_agg);
+	if (skb) {
+	        slave_agg_no = bond_xmit_hash(bond, skb, slaves_in_agg);
+	} else {
+		uint32_t hash;
+
+		if (bond->params.xmit_policy != BOND_XMIT_POLICY_LAYER23
+			&& bond->params.xmit_policy != BOND_XMIT_POLICY_LAYER2) {
+			pr_debug("%s: Error: Unsupported hash policy for 802.3AD fast path\n", bond_dev->name);
+			return NULL;
+		}
+
+		hash = bond_xmit_hash_without_skb(src_mac, dst_mac, src, dst, protocol, bond_dev, layer4hdr);
+		slave_agg_no = hash % slaves_in_agg;
+	}
+
 	first_ok_slave = NULL;
 
 	bond_for_each_slave_rcu(bond, slave, iter) {
@@ -2455,32 +2526,44 @@ int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev)
 			continue;
 		}
 
-		if (SLAVE_IS_OK(slave)) {
-			bond_dev_queue_xmit(bond, skb, slave->dev);
-			goto out;
-		}
+		if (SLAVE_IS_OK(slave))
+		        return slave->dev;
 	}
 
 	if (slave_agg_no >= 0) {
 		pr_err("%s: Error: Couldn't find a slave to tx on for aggregator ID %d\n",
-		       dev->name, agg_id);
-		goto err_free;
+		       bond_dev->name, agg_id);
+		return NULL;
 	}
 
 	/* we couldn't find any suitable slave after the agg_no, so use the
 	 * first suitable found, if found.
 	 */
 	if (first_ok_slave)
-		bond_dev_queue_xmit(bond, skb, first_ok_slave->dev);
-	else
-		goto err_free;
+		return first_ok_slave->dev;
+
+        return NULL;
+}
+
+int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev)
+{
+        struct bonding *bond = netdev_priv(dev);
+	struct net_device *outdev = NULL;
+
+	outdev = bond_3ad_get_tx_dev(skb, NULL, NULL, NULL, NULL, 0, dev, NULL);
+
+	if (!outdev) {
+		goto out;
+	}
+
+	bond_dev_queue_xmit(bond, skb, outdev);
+	goto final;
 
 out:
+	dev_kfree_skb(skb);
+
+final:
 	return NETDEV_TX_OK;
-err_free:
-	/* no suitable interface, frame not sent */
-	dev_kfree_skb_any(skb);
-	goto out;
 }
 
 int bond_3ad_lacpdu_recv(const struct sk_buff *skb, struct bonding *bond,
