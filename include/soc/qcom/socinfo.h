@@ -30,6 +30,13 @@
 #define SOCINFO_VERSION_MAJOR(ver) ((ver & 0xffff0000) >> 16)
 #define SOCINFO_VERSION_MINOR(ver) (ver & 0x0000ffff)
 
+#define CPU_IPQ8062 201
+#define CPU_IPQ8064 202
+#define CPU_IPQ8066 203
+#define CPU_IPQ8065 280
+#define CPU_IPQ8068 204
+#define CPU_IPQ8069 281
+
 #ifdef CONFIG_OF
 #define of_board_is_cdp()	of_machine_is_compatible("qcom,cdp")
 #define of_board_is_sim()	of_machine_is_compatible("qcom,sim")
@@ -594,6 +601,83 @@ static inline int soc_class_is_msm8974(void)
 {
 	return cpu_is_msm8974() || cpu_is_msm8974pro_aa() ||
 	       cpu_is_msm8974pro_ab() || cpu_is_msm8974pro_ac();
+}
+
+static inline int read_ipq_cpu_type(void)
+{
+	const int *prop;
+	prop = of_get_property(of_find_node_by_path("/"), "cpu_type", NULL);
+	/*
+	 * Return Default CPU type if "cpu_type" property is not found in DTSI
+	 */
+	if (!prop)
+		return CPU_IPQ8064;
+	return *prop;
+}
+
+static inline int cpu_is_ipq8062(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ8062;
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq8064(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ8064;
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq8066(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ8066;
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq8068(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ8068;
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq8065(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ8065;
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq8069(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ8069;
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq806x(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return  cpu_is_ipq8062() || cpu_is_ipq8064() ||
+		cpu_is_ipq8066() || cpu_is_ipq8068() ||
+		cpu_is_ipq8065() || cpu_is_ipq8069();
+#else
+	return 0;
+#endif
 }
 
 #endif
