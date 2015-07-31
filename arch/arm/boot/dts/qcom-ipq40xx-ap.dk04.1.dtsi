@@ -148,7 +148,8 @@
 
 		i2c_0: i2c@78b67000 { /* BLSP1 QUP2 */
 			pinctrl-0 = <&i2c_0_pins>;
-			pinctrl-names = "default";
+			pinctrl-1 = <&i2c_0_pins>;
+			pinctrl-names = "i2c_active", "i2c_sleep";
 			status = "ok";
 
 			qca_codec: qca_codec@10 {
