@@ -335,6 +335,16 @@ out:
 	return rc;
 }
 
+void mdss_qpic_set_cfg0(void)
+{
+	/*
+	 * RD_CS_HOLD=1,RD_ACTIVE=8,CS_WR_RD_SETUP=1,
+	 * WR_CS_HOLD,WR_ACTIVE,ADDR_CS_SETUP=1,
+	 * CMD_BUS_ALIGNMENT=0.
+	 */
+	QPIC_OUTP(QPIC_REG_QPIC_LCDC_CFG0, 0x02108501);
+}
+
 void mdss_qpic_reset(void)
 {
 	u32 time_end;
@@ -624,7 +634,6 @@ int mdss_qpic_init(void)
 
 	qpic_interrupt_en(use_irq);
 
-	QPIC_OUTP(QPIC_REG_QPIC_LCDC_CFG0, 0x02108501);
 	data = QPIC_INP(QPIC_REG_QPIC_LCDC_CFG2);
 	data &= ~(0xFFF);
 	data |= 0x200; /* XRGB */

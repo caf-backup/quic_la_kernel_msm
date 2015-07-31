@@ -48,6 +48,7 @@
 #define QPIC_MAX_CMD_BUF_SIZE				512
 
 int mdss_qpic_init(void);
+void mdss_qpic_set_cfg0(void);
 int qpic_send_pkt(u32 cmd, u8 *param, u32 len);
 u32 qpic_read_data(u32 cmd_index, u32 size);
 u32 msm_qpic_get_bam_hdl(struct sps_bam_props *bam);
