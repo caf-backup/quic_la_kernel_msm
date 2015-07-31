@@ -422,12 +422,19 @@ static int edma_axi_probe(struct platform_device *pdev)
 
 	/* Populate the adapter structure register the netdevice */
 	for (i = 0; i < EDMA_NR_NETDEV; i++) {
-		int j;
+		int k;
 		adapter[i] = netdev_priv(netdev[i]);
 		adapter[i]->netdev = netdev[i];
 		adapter[i]->pdev = pdev;
-		for (j = 0; j < EDMA_NR_CPU; j++)
+		for (j = 0; j < EDMA_NR_CPU; j++) {
 			adapter[i]->tx_start_offset[j] = ((j << EDMA_TX_CPU_START_SHIFT) + (i << 1));
+			/* Map each ring netdev to either LAN or WAN netdevice
+			 * q0,q1,q4,q5,q8,q9,q12,q13 goes to WAN, others to LAN
+			 */
+			for (k = adapter[i]->tx_start_offset[j]; k < (adapter[i]->tx_start_offset[j] + 2); k++) {
+				edma_fill_netdev(c_info, k, i);
+			}
+		}
 		adapter[i]->c_info = c_info;
 		netdev[i]->netdev_ops = &edma_axi_netdev_ops;
 		netdev[i]->features = NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_CTAG_TX

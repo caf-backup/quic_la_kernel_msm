@@ -201,7 +201,6 @@ struct edma_hw {
  */
 struct edma_sw_desc {
 	struct sk_buff *skb;
-	struct netdev_queue *nq;
 	dma_addr_t dma; /* dma address */
 	u16 length; /* Tx/Rx buffer length */
 	u32 flags;
@@ -244,7 +243,8 @@ struct edma_common_info {
 
 /* transimit packet descriptor (tpd) ring */
 struct edma_tx_desc_ring {
-	u8 queue_index; /* queue index */
+        struct netdev_queue *nq; /* Linux queue index */
+	struct net_device netdev;
 	u16 size; /* descriptor ring length in bytes */
 	u16 count; /* number of descriptors in the ring */
 	void *hw_desc; /* descriptor ring virtual address */
@@ -341,4 +341,5 @@ void edma_set_stp_rstp(bool tag);
 void edma_assign_ath_hdr_type(int tag);
 int edma_get_default_vlan_tag(struct net_device *netdev);
 void edma_adjust_link(struct net_device *netdev);
+void edma_fill_netdev(struct edma_common_info *c_info, int qid, int num);
 #endif /* _EDMA_H_ */
