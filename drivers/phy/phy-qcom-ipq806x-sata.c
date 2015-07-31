@@ -27,6 +27,10 @@ struct qcom_ipq806x_sata_phy {
 	void __iomem *mmio;
 	struct clk *cfg_clk;
 	struct device *dev;
+	u32 tx_preemph_gen3;
+	u32 rx_eq;
+	u32 mpll;
+	u32 term_off;
 };
 
 #define __set(v, a, b)	(((v) << (b)) & GENMASK(a, b))
@@ -57,6 +61,13 @@ struct qcom_ipq806x_sata_phy {
 #define SATA_PHY_P0_PARAM4		0x210
 #define SATA_PHY_REF_SSP_EN		0x2
 #define SATA_PHY_RESET			0x1
+#define SATA_PHY_MPLL                   0x0C0
+#define SATA_PHY_TX_DRIV_CTRL2          0x10C
+
+#define SATA_PHY_TX_PREEMPH_GEN3	0x0F
+#define SATA_PHY_RX_EQ_VALUE		0x03
+#define SATA_PHY_TERM_OFFSET		0x00
+#define SATA_PHY_MPLL_VALUE		0x00
 
 static int qcom_ipq806x_sata_phy_init(struct phy *generic_phy)
 {
@@ -72,7 +83,7 @@ static int qcom_ipq806x_sata_phy_init(struct phy *generic_phy)
 			~(SATA_PHY_P0_PARAM0_P0_TX_PREEMPH_GEN3_MASK |
 			  SATA_PHY_P0_PARAM0_P0_TX_PREEMPH_GEN2_MASK |
 			  SATA_PHY_P0_PARAM0_P0_TX_PREEMPH_GEN1_MASK);
-	reg |= SATA_PHY_P0_PARAM0_P0_TX_PREEMPH_GEN3(0xf);
+	reg |= SATA_PHY_P0_PARAM0_P0_TX_PREEMPH_GEN3(phy->tx_preemph_gen3);
 	writel_relaxed(reg, phy->mmio + SATA_PHY_P0_PARAM0);
 
 	reg = readl_relaxed(phy->mmio + SATA_PHY_P0_PARAM1) &
@@ -86,7 +97,7 @@ static int qcom_ipq806x_sata_phy_init(struct phy *generic_phy)
 
 	reg = readl_relaxed(phy->mmio + SATA_PHY_P0_PARAM2) &
 		~SATA_PHY_P0_PARAM2_RX_EQ_MASK;
-	reg |= SATA_PHY_P0_PARAM2_RX_EQ(0x3);
+	reg |= SATA_PHY_P0_PARAM2_RX_EQ(phy->rx_eq);
 	writel_relaxed(reg, phy->mmio + SATA_PHY_P0_PARAM2);
 
 	/* Setting PHY_RESET to 1 */
@@ -109,6 +120,14 @@ static int qcom_ipq806x_sata_phy_init(struct phy *generic_phy)
 	reg = readl_relaxed(phy->mmio + SATA_PHY_P0_PARAM4);
 	reg = reg & ~SATA_PHY_RESET;
 	writel_relaxed(reg, phy->mmio + SATA_PHY_P0_PARAM4);
+
+	usleep_range(1000, 500000);
+
+	/* MPLL setting */
+	writel_relaxed(phy->mpll, phy->mmio + SATA_PHY_MPLL);
+
+	/* Term Offset */
+	writel_relaxed(phy->term_off, phy->mmio + SATA_PHY_TX_DRIV_CTRL2);
 
 	return 0;
 }
@@ -139,6 +158,7 @@ static int qcom_ipq806x_sata_phy_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct phy_provider *phy_provider;
 	struct phy *generic_phy;
+	struct device_node *np;
 	int ret;
 
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
@@ -175,6 +195,22 @@ static int qcom_ipq806x_sata_phy_probe(struct platform_device *pdev)
 		clk_disable_unprepare(phy->cfg_clk);
 		dev_err(dev, "%s: failed to register phy\n", __func__);
 		return PTR_ERR(phy_provider);
+	}
+
+	/* Parse device node to probe HSIO settings */
+	np = of_node_get(pdev->dev.of_node);
+	if (of_property_read_u32(np, "tx_preemph_gen3", &phy->tx_preemph_gen3)
+	    || of_property_read_u32(np, "rx_eq", &phy->rx_eq)
+	    || of_property_read_u32(np, "term_off", &phy->term_off)
+	    || of_property_read_u32(np, "mpll", &phy->mpll)) {
+
+		dev_err(phy->dev, "cannot get HSIO settings from device node, using default values\n");
+
+		/* Default HSIO settings */
+		phy->tx_preemph_gen3 = SATA_PHY_TX_PREEMPH_GEN3;
+		phy->rx_eq = SATA_PHY_RX_EQ_VALUE;
+		phy->term_off = SATA_PHY_TERM_OFFSET;
+		phy->mpll = SATA_PHY_MPLL_VALUE;
 	}
 
 	return 0;

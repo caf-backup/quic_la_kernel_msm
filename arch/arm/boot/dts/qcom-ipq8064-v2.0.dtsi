@@ -20,4 +20,12 @@
 		tx_deamp_3_5db = <32>;
 		mpll = <0xa0>;
 	};
+
+	sata_phy: sata-phy@1b400000 {
+		tx_preemph_gen3 = <0x15>;
+		rx_eq = <4>;
+		mpll = <0xa0>;
+		term_off = <7>;
+	};
+
 };
