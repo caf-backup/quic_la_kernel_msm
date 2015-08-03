@@ -171,13 +171,12 @@ static struct clk_cdiv_rcg2 rxm_clk_src = {
 		.parent_names = adcc_xo_adpll_padmclk,
 		.num_parents = 3,
 		.ops = &clk_cdiv_rcg2_ops,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_RCG2_NO_WAIT,
 	},
 };
 
 static struct clk_branch adcc_rxm_clk_src = {
 	.halt_reg = AUDIO_RXM_CBCR_REG,
-	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_RXM_CBCR_REG,
 		.enable_mask = BIT(0),
@@ -204,13 +203,12 @@ static struct clk_cdiv_rcg2 txm_clk_src = {
 		.parent_names = adcc_xo_adpll_padmclk,
 		.num_parents = 3,
 		.ops = &clk_cdiv_rcg2_ops,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_RCG2_NO_WAIT,
 	},
 };
 
 static struct clk_branch adcc_txm_clk_src = {
 	.halt_reg = AUDIO_TXM_CBCR_REG,
-	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_TXM_CBCR_REG,
 		.enable_mask = BIT(0),
@@ -276,7 +274,6 @@ static struct clk_muxr_misc txb_clk_src = {
 
 static struct clk_branch adcc_txb_clk_src = {
 	.halt_reg = AUDIO_TXB_CBCR_REG,
-	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_TXB_CBCR_REG,
 		.enable_mask = BIT(0),
@@ -313,7 +310,6 @@ static struct clk_muxr_misc rxb_clk_src = {
 
 static struct clk_branch adcc_rxb_clk_src = {
 	.halt_reg = AUDIO_RXB_CBCR_REG,
-	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_RXB_CBCR_REG,
 		.enable_mask = BIT(0),
@@ -350,7 +346,7 @@ static struct clk_cdiv_rcg2 pcm_clk_src = {
 		.parent_names = adcc_xo_adpll,
 		.num_parents = 2,
 		.ops = &clk_cdiv_rcg2_ops,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_RCG2_NO_WAIT,
 	},
 };
 
@@ -358,7 +354,6 @@ static struct clk_cdiv_rcg2 pcm_clk_src = {
 
 static struct clk_branch adcc_pcm_clk_src = {
 	.halt_reg = AUDIO_PCM_CBCR_REG,
-	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_PCM_CBCR_REG,
 		.enable_mask = BIT(0),
@@ -391,13 +386,12 @@ static struct clk_rcg2 spdifinfast_src = {
 		.parent_names = adcc_xo_adpll,
 		.num_parents = 2,
 		.ops = &clk_rcg2_ops,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_RCG2_NO_WAIT,
 	},
 };
 
 static struct clk_branch adcc_spdifinfast_src = {
 	.halt_reg = AUDIO_SPDIFINFAST_CBCR_REG,
-	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_SPDIFINFAST_CBCR_REG,
 		.enable_mask = BIT(0),
@@ -438,7 +432,6 @@ static struct clk_muxr_misc spdif_src = {
 
 static struct clk_branch adcc_spdif_src = {
 	.halt_reg = AUDIO_SPDIF_CBCR_REG,
-	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_SPDIF_CBCR_REG,
 		.enable_mask = BIT(0),
@@ -479,7 +472,6 @@ static struct clk_muxr_misc spdifdiv2_src = {
 
 static struct clk_branch adcc_spdifdiv2_src = {
 	.halt_reg = AUDIO_SPDIFDIV2_CBCR_REG,
-	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_SPDIFDIV2_CBCR_REG,
 		.enable_mask = BIT(0),
@@ -497,7 +489,6 @@ static struct clk_branch adcc_spdifdiv2_src = {
 
 static struct clk_branch adcc_sample_src = {
 	.halt_reg = AUDIO_SAMPLE_CBCR_REG,
-	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_SAMPLE_CBCR_REG,
 		.enable_mask = BIT(0),
@@ -515,7 +506,6 @@ static struct clk_branch adcc_sample_src = {
 
 static struct clk_branch adcc_xo_src = {
 	.halt_reg = AUDIO_XO_CBCR_REG,
-	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_XO_CBCR_REG,
 		.enable_mask = BIT(0),
@@ -534,7 +524,6 @@ static struct clk_branch adcc_xo_src = {
 
 static struct clk_branch adcc_ahb_src = {
 	.halt_reg = AUDIO_AHB_CBCR_REG,
-	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_AHB_CBCR_REG,
 		.enable_mask = BIT(0),
@@ -551,7 +540,6 @@ static struct clk_branch adcc_ahb_src = {
 
 static struct clk_branch adcc_ahb_i2s0_src = {
 	.halt_reg = AUDIO_AHB_I2S0_CBCR_REG,
-	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_AHB_I2S0_CBCR_REG,
 		.enable_mask = BIT(0),
@@ -568,7 +556,6 @@ static struct clk_branch adcc_ahb_i2s0_src = {
 
 static struct clk_branch adcc_ahb_i2s3_src = {
 	.halt_reg = AUDIO_AHB_I2S3_CBCR_REG,
-	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_AHB_I2S3_CBCR_REG,
 		.enable_mask = BIT(0),
@@ -585,7 +572,6 @@ static struct clk_branch adcc_ahb_i2s3_src = {
 
 static struct clk_branch adcc_ahb_mbox0_src = {
 	.halt_reg = AUDIO_AHB_MBOX0_CBCR_REG,
-	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = AUDIO_AHB_MBOX0_CBCR_REG,
 		.enable_mask = BIT(0),
