@@ -406,6 +406,7 @@
 		wifi0: wifi@a000000 {
 			compatible = "qca,wifi-ipq40xx";
 			reg = <0xa000000 0x200000>;
+			core-id = <0x0>;
 			resets = <&gcc WIFI0_CPU_INIT_RESET>,
 				<&gcc WIFI0_RADIO_SRIF_RESET>,
 				<&gcc WIFI0_RADIO_WARM_RESET>,
@@ -418,7 +419,10 @@
 				"wifi_radio_cold",
 				"wifi_core_warm",
 				"wifi_core_cold";
-			/* TBD: Check if 'clocks' entry is required here - if required, add the entries once they are defined in GCC driver */
+			clocks = <&gcc GCC_WCSS2G_CLK>,
+				<&gcc GCC_WCSS2G_REF_CLK>,
+				<&gcc GCC_WCSS2G_RTC_CLK>;
+			clock-names = "wifi_wcss_cmd", "wifi_wcss_ref", "wifi_wcss_rtc";
 			interrupts = <0 0x20 0x1>,
 				<0 0x21 0x1>,
 				<0 0x22 0x1>,
@@ -447,6 +451,7 @@
 		wifi1: wifi@a800000 {
 			compatible = "qca,wifi-ipq40xx";
 			reg = <0xa800000 0x200000>;
+			core-id = <0x1>;
 			resets = <&gcc WIFI1_CPU_INIT_RESET>,
 				<&gcc WIFI1_RADIO_SRIF_RESET>,
 				<&gcc WIFI1_RADIO_WARM_RESET>,
@@ -459,7 +464,10 @@
 				"wifi_radio_cold",
 				"wifi_core_warm",
 				"wifi_core_cold";
-			/* TBD: Check if 'clocks' entry is required here - if required, add the entries once they are defined in GCC driver */
+			clocks = <&gcc GCC_WCSS5G_CLK>,
+				<&gcc GCC_WCSS5G_REF_CLK>,
+				<&gcc GCC_WCSS5G_RTC_CLK>;
+			clock-names = "wifi_wcss_cmd", "wifi_wcss_ref", "wifi_wcss_rtc";
 			interrupts = <0 0x30 0x1>,
 				<0 0x31 0x1>,
 				<0 0x32 0x1>,
