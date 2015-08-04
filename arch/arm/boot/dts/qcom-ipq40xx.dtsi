@@ -73,10 +73,12 @@
 		gcc_sleep_clk_src: gcc_sleep_clk_src {
 			compatible = "fixed-clock";
 			clock-frequency = <32000>;
+			#clock-cells = <0>;
 		};
 		xo: xo {
 			compatible = "fixed-clock";
 			clock-frequency = <48000000>;
+			#clock-cells = <0>;
 		};
 	};
 
