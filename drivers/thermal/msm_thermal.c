@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2013, 2015 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -15,20 +15,20 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/msm_tsens.h>
 #include <linux/workqueue.h>
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
-#include <linux/msm_tsens.h>
+#include <linux/qcom-tsens.h>
 #include <linux/msm_thermal.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
-#include <mach/cpufreq.h>
+#include <linux/notifier.h>
 
-#define MIN_MITIGATION_FREQ	800000
+#define MSM_CPUFREQ_NO_LIMIT	UINT_MAX
 
 static int enabled;
 static struct msm_thermal_data msm_thermal_info;
+static uint32_t limited_min_freq = MSM_CPUFREQ_NO_LIMIT;
 static uint32_t limited_max_freq = MSM_CPUFREQ_NO_LIMIT;
 static struct delayed_work check_temp_work;
 static bool core_control_enabled;
@@ -39,6 +39,8 @@ static int limit_idx;
 static int limit_idx_low;
 static int limit_idx_high;
 static struct cpufreq_frequency_table *table;
+struct msm_thermal_data data;
+static bool ktm_status;
 
 static int msm_thermal_get_freq_table(void)
 {
@@ -62,7 +64,8 @@ fail:
 	return ret;
 }
 
-static int  msm_thermal_cpufreq_callback(struct notifier_block *nfb, unsigned long event, void *data)
+static int  msm_thermal_cpufreq_callback(struct notifier_block *nfb,
+					unsigned long event, void *data)
 {
 	struct cpufreq_policy *policy = data;
 
@@ -70,16 +73,16 @@ static int  msm_thermal_cpufreq_callback(struct notifier_block *nfb, unsigned lo
 		pr_err("Frequency table not initialized.\n");
 		return NOTIFY_OK;
 	}
+	limited_min_freq = policy->min;
 	if (MSM_CPUFREQ_NO_LIMIT == limited_max_freq)
 		limited_max_freq = table[limit_idx_high].frequency;
 
-	if (policy->min > limited_max_freq) {
-		pr_err("Invalid frequency request Max:%u Min:%u. "
-			"Resetting min freq...\n",
-			limited_max_freq, policy->min);
+	cpufreq_verify_within_limits(policy,
+				limited_min_freq, limited_max_freq);
+	if (limited_min_freq > limited_max_freq) {
+		pr_err("Invalid frequency request Max:%u Min:%u\n",
+				limited_max_freq, limited_min_freq);
 	}
-
-	cpufreq_verify_within_limits(policy, policy->min, limited_max_freq);
 	return NOTIFY_OK;
 }
 
@@ -92,15 +95,12 @@ static int update_cpu_max_freq(int cpu, uint32_t max_freq)
 	int ret = 0;
 
 	limited_max_freq = max_freq;
-	if (max_freq != MSM_CPUFREQ_NO_LIMIT) {
-		if (MIN_MITIGATION_FREQ > limited_max_freq) {
-			limited_max_freq = MIN_MITIGATION_FREQ;
-			pr_debug("%s: Not capping max freq below %d due to performance constraints." , __func__ , MIN_MITIGATION_FREQ );
-		}
-		pr_info("%s: Limiting cpu%d max frequency to %d\n", KBUILD_MODNAME, cpu, limited_max_freq);
-	}
+	if (max_freq != MSM_CPUFREQ_NO_LIMIT)
+		pr_info("%s: Limiting cpu%d max frequency to %d\n",
+				KBUILD_MODNAME, cpu, limited_max_freq);
 	else
-		pr_info("%s: Max frequency reset for cpu%d\n", KBUILD_MODNAME, cpu);
+		pr_info("%s: Max frequency reset for cpu%d\n",
+						KBUILD_MODNAME, cpu);
 
 	ret = cpufreq_update_policy(cpu);
 	return ret;
@@ -210,8 +210,11 @@ static void __cpuinit check_temp(struct work_struct *work)
 		if (limit_idx >= limit_idx_high) {
 			limit_idx = limit_idx_high;
 			max_freq = MSM_CPUFREQ_NO_LIMIT;
-		} else
+		} else {
 			max_freq = table[limit_idx].frequency;
+			pr_debug("%s: Max freq to %d\n",
+					KBUILD_MODNAME, max_freq);
+		}
 	}
 	if (max_freq == limited_max_freq)
 		goto reschedule;
@@ -281,11 +284,15 @@ static int __cpuinit set_enabled(const char *val, const struct kernel_param *kp)
 	int ret = 0;
 
 	ret = param_set_bool(val, kp);
-	if (!enabled)
+	if (!enabled) {
+		ktm_status == false;
 		disable_msm_thermal();
-	else
-		pr_info("%s: no action for enabled = %d\n",
-				KBUILD_MODNAME, enabled);
+	} else {
+		if (ktm_status == false) {
+			ktm_status = true;
+			msm_thermal_init(&data);
+		}
+	}
 
 	pr_info("%s: enabled = %d\n", KBUILD_MODNAME, enabled);
 
@@ -411,7 +418,7 @@ static __cpuinitdata struct attribute_group cc_attr_group = {
 	.attrs = cc_attrs,
 };
 
-static __init int msm_thermal_add_cc_nodes(void)
+int msm_thermal_add_cc_nodes(void)
 {
 	struct kobject *module_kobj = NULL;
 	struct kobject *cc_kobj = NULL;
@@ -447,7 +454,7 @@ done_cc_nodes:
 	return ret;
 }
 
-int __devinit msm_thermal_init(struct msm_thermal_data *pdata)
+int msm_thermal_init(struct msm_thermal_data *pdata)
 {
 	int ret = 0;
 
@@ -457,7 +464,13 @@ int __devinit msm_thermal_init(struct msm_thermal_data *pdata)
 
 	enabled = 1;
 	core_control_enabled = 1;
-	cpufreq_register_notifier(&msm_thermal_cpufreq_notifier, CPUFREQ_POLICY_NOTIFIER);
+
+	ret = cpufreq_register_notifier(&msm_thermal_cpufreq_notifier,
+						CPUFREQ_POLICY_NOTIFIER);
+	if (ret)
+		pr_err("cannot register cpufreq notifier. err:%d\n", ret);
+
+	ktm_status = true;
 	INIT_DELAYED_WORK(&check_temp_work, check_temp);
 	schedule_delayed_work(&check_temp_work, 0);
 
@@ -466,12 +479,11 @@ int __devinit msm_thermal_init(struct msm_thermal_data *pdata)
 	return ret;
 }
 
-static int __devinit msm_thermal_dev_probe(struct platform_device *pdev)
+static int msm_thermal_dev_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	char *key = NULL;
 	struct device_node *node = pdev->dev.of_node;
-	struct msm_thermal_data data;
 
 	memset(&data, 0, sizeof(struct msm_thermal_data));
 	key = "qcom,sensor-id";
@@ -522,6 +534,9 @@ fail:
 	else
 		ret = msm_thermal_init(&data);
 
+	if (ret == 0)
+		ret = msm_thermal_add_cc_nodes();
+
 	return ret;
 }
 
@@ -539,13 +554,4 @@ static struct platform_driver msm_thermal_device_driver = {
 	},
 };
 
-int __init msm_thermal_device_init(void)
-{
-	return platform_driver_register(&msm_thermal_device_driver);
-}
-
-int __init msm_thermal_late_init(void)
-{
-	return msm_thermal_add_cc_nodes();
-}
-module_init(msm_thermal_late_init);
+module_platform_driver(msm_thermal_device_driver);

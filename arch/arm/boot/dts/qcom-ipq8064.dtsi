@@ -593,6 +593,18 @@
 			qcom,slope = <1176 1176 1154 1176 1111 1132 1132 1199 1132 1199 1132>;
 		};
 
+		qcom,msm-thermal {
+			compatible = "qcom,msm-thermal";
+			qcom,sensor-id = <0>;
+			qcom,poll-ms = <250>;
+			qcom,limit-temp = <105>;
+			qcom,temp-hysteresis = <10>;
+			qcom,freq-step = <2>;
+			qcom,core-limit-temp = <115>;
+			qcom,core-temp-hysteresis = <10>;
+			qcom,core-control-mask = <0xe>;
+		};
+
 		gcc: clock-controller@900000 {
 			compatible = "qcom,gcc-ipq8064";
 			reg = <0x00900000 0x4000>;
