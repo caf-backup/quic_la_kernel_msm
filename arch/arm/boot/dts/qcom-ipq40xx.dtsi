@@ -352,7 +352,7 @@
 			clock-names = "core";
 		};
 
-		i2c_0: i2c@78b67000 { /* BLSP1 QUP2 */
+		i2c_0: i2c@78b7000 { /* BLSP1 QUP2 */
 			compatible = "qcom,i2c-msm-v2";
 			#address-cells = <1>;
 			#size-cells = <0>;
