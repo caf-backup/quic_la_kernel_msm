@@ -71,16 +71,16 @@ qfprom_show_authenticate(struct device *dev,
 int write_version(uint32_t type, uint32_t version)
 {
 	int ret;
-	uint32_t *qfprom_api_status = kzalloc(sizeof(uint32_t), GFP_KERNEL);
-
-	if (!qfprom_api_status)
-		return -ENOMEM;
-
 	struct qfprom_write {
 		uint32_t sw_type;
 		uint32_t value;
 		uint32_t qfprom_ret_ptr;
 	} wrip;
+
+	uint32_t *qfprom_api_status = kzalloc(sizeof(uint32_t), GFP_KERNEL);
+
+	if (!qfprom_api_status)
+		return -ENOMEM;
 
 	wrip.value = version;
 	wrip.sw_type = type;
@@ -112,17 +112,16 @@ err_write:
 int read_version(int type, uint32_t **version_ptr)
 {
 	int ret, ret1, ret2;
-
-	uint32_t *qfprom_api_status = kzalloc(sizeof(uint32_t), GFP_KERNEL);
-
-	if (!qfprom_api_status)
-		return -ENOMEM;
-
 	struct qfprom_read {
 		uint32_t sw_type;
 		uint32_t value;
 		uint32_t qfprom_ret_ptr;
 	} rdip;
+
+	uint32_t *qfprom_api_status = kzalloc(sizeof(uint32_t), GFP_KERNEL);
+
+	if (!qfprom_api_status)
+		return -ENOMEM;
 
 	rdip.sw_type = type;
 	rdip.value = dma_map_single(NULL, *version_ptr,
@@ -147,8 +146,8 @@ int read_version(int type, uint32_t **version_ptr)
 			sizeof(*qfprom_api_status), DMA_FROM_DEVICE);
 	}
 	if (ret1 || ret2) {
-		pr_err("DMA Mapping Error",
-			"(version)\n" ? ret1 : "(api_status)\n");
+		pr_err("DMA Mapping Error version ret %d api_status ret %d\n",
+							ret1, ret2);
 		ret = ret1 ? ret1 : ret2;
 		goto err_read;
 	}
@@ -162,7 +161,7 @@ err_read:
 	return ret;
 }
 
-static ssize_t generic_version(char *buf,
+static ssize_t generic_version(const char *buf,
 		uint32_t sw_type, int op, size_t count)
 {
 	int ret = 0;
@@ -181,7 +180,7 @@ static ssize_t generic_version(char *buf,
 			pr_err("\n Error in reading version: %d", ret);
 			goto err_generic;
 		}
-		ret = snprintf(buf, 10, "%d\n", *version);
+		ret = snprintf((char *)buf, 10, "%d\n", *version);
 		break;
 	case 2:
 		/* Input validation handled here */
@@ -289,17 +288,17 @@ store_rpm_version(struct device *dev,
  * New types should be added at the end
  */
 static struct device_attribute qfprom_attrs[] = {
-	__ATTR(authenticate, 0444, qfprom_show_authenticate,
+	__ATTR(authenticate, 0644, qfprom_show_authenticate,
 					NULL),
-	__ATTR(sbl_version, 0666, show_sbl_version,
+	__ATTR(sbl_version, 0644, show_sbl_version,
 					store_sbl_version),
-	__ATTR(tz_version, 0666, show_tz_version,
+	__ATTR(tz_version, 0644, show_tz_version,
 					store_tz_version),
-	__ATTR(appsbl_version, 0666, show_appsbl_version,
+	__ATTR(appsbl_version, 0644, show_appsbl_version,
 					store_appsbl_version),
-	__ATTR(hlos_version, 0666, show_hlos_version,
+	__ATTR(hlos_version, 0644, show_hlos_version,
 					store_hlos_version),
-	__ATTR(rpm_version, 0666, show_rpm_version,
+	__ATTR(rpm_version, 0644, show_rpm_version,
 					store_rpm_version),
 };
 

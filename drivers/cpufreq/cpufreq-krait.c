@@ -25,6 +25,7 @@
 #include <linux/thermal.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
+#include <soc/qcom/socinfo.h>
 
 static unsigned int transition_latency;
 static unsigned int voltage_tolerance; /* in percentage */
@@ -227,9 +228,12 @@ static int krait_cpufreq_get_speed_pvs(struct device_node *np,
 	 */
 	if (!(val & BIT(31))) {
 		*speed = 0;
-		*pvs = 1;
+		if (cpu_is_ipq8065() || cpu_is_ipq8069())
+			*pvs = 0;
+		else
+			*pvs = 1;
 		pr_warn("SPEED BIN: Defaulting to 0\n");
-		pr_warn("ACPU PVS: Defaulting to 1\n");
+		pr_warn("ACPU PVS: Defaulting to %d\n", *pvs);
 		return 0;
 	}
 
