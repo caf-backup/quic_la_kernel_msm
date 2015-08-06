@@ -655,7 +655,7 @@ clk_cdiv_rcg2_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 
 	regmap_read(rcg->clkr.regmap, rcg->cdiv.offset, &cdiv);
 	cdiv &= (rcg->cdiv.mask << rcg->cdiv.shift);
-	cdiv =  (cdiv >> rcg->cdiv.shift) + 1;
+	cdiv =  (cdiv >> rcg->cdiv.shift);
 	if (cdiv)
 		rate *= cdiv + 1;
 	return rate;
