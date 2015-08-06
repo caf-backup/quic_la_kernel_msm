@@ -345,6 +345,13 @@
 			};
 		};
 
+		rng@0x00022000 {
+			compatible = "qcom,prng";
+			reg = <0x00022000 0x140>;
+			clocks = <&gcc GCC_PRNG_AHB_CLK>;
+			clock-names = "core";
+		};
+
 		i2c_0: i2c@78b67000 { /* BLSP1 QUP2 */
 			compatible = "qcom,i2c-msm-v2";
 			#address-cells = <1>;
