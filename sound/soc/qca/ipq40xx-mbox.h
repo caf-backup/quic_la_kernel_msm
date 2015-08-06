@@ -97,6 +97,7 @@ struct ipq40xx_mbox_rt_dir_priv {
 	uint32_t status;
 	uint32_t channel_id;
 	uint32_t err_stats;
+	uint32_t last_played_is_null;
 };
 
 struct ipq40xx_mbox_rt_priv {
@@ -311,13 +312,14 @@ static inline uint32_t ipq40xx_mbox_get_played_offset(uint32_t channel_id)
 
 	for (i = 0; i < ndescs; i++) {
 		if (prev->OWN == 0) {
-			if ((i == (ndescs - 1)) && (desc_own == 1))
+			if (i == (ndescs - 1)) {
+				if (desc_own == 1)
+					last_played = desc;
+			} else if (desc->OWN == 1) {
 				last_played = desc;
-			else if (desc->OWN == 1)
-				last_played = desc;
+			}
 			prev->OWN = 1;
 			prev->ei = 1;
-			played_size += prev->size;
 		}
 		prev = desc;
 		desc += 1;
@@ -325,6 +327,9 @@ static inline uint32_t ipq40xx_mbox_get_played_offset(uint32_t channel_id)
 	if (last_played) {
 		desc = &mbox_rtime[index]->dir_priv[dir].dma_virt_head[0];
 		played_size = last_played->BufPtr - desc->BufPtr;
+	} else {
+		pr_debug("%s last played buf not found\n", __func__);
+		mbox_rtime[index]->dir_priv[dir].last_played_is_null++;
 	}
 
 	return played_size;
