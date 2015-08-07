@@ -49,7 +49,7 @@ static struct scalable scalable[] __initdata = {
 		.aux_clk_sel = 3,
 		.sec_clk_sel = 2,
 		.l2cpmr_iaddr = 0x4501,
-		.vreg[VREG_CORE] = { "krait0", 1250000 },
+		.vreg[VREG_CORE] = { "krait0", 1275000 },
 		.vreg[VREG_MEM]  = { "krait0_mem", 1150000 },
 		.vreg[VREG_DIG]  = { "krait0_dig", 1150000 },
 		.vreg[VREG_HFPLL_A] = { "krait0_hfpll", 1100000 },
@@ -62,7 +62,7 @@ static struct scalable scalable[] __initdata = {
 		.aux_clk_sel = 3,
 		.sec_clk_sel = 2,
 		.l2cpmr_iaddr = 0x5501,
-		.vreg[VREG_CORE] = { "krait1", 1250000 },
+		.vreg[VREG_CORE] = { "krait1", 1275000 },
 		.vreg[VREG_MEM]  = { "krait1_mem", 1150000 },
 		.vreg[VREG_DIG]  = { "krait1_dig", 1150000 },
 		.vreg[VREG_HFPLL_A] = { "krait1_hfpll", 1100000 },
@@ -208,7 +208,7 @@ static struct acpu_level tbl_pvs0_tn_3[] __initdata = {
 	{ 1, {   800000, HFPLL, 1, 0x20 }, L2(1), 1050000 },
 	{ 1, {  1000000, HFPLL, 1, 0x28 }, L2(1), 1100000 },
 	{ 1, {  1400000, HFPLL, 1, 0x38 }, L2(1), 1175000 },
-	{ 1, {  1725000, HFPLL, 1, 0x45 }, L2(2), 1250000 },
+	{ 1, {  1725000, HFPLL, 1, 0x45 }, L2(2), 1262500 },
 	{ 0, { 0 } }
 };
 
