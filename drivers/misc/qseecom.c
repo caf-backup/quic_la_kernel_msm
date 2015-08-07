@@ -406,8 +406,13 @@ static int tzapp_test(void *input, void *output, int input_len, int option)
 			goto fn_exit;
 		}
 	}
-	if (option == 1)
+	if (option == 1) {
+		if (msgrsp->status) {
+			pr_err("Input size exceeded supported range\n");
+			ret = -EINVAL;
+		}
 		basic_output = msgrsp->data;
+	}
 fn_exit:
 	free_page(pg_addr);
 	return ret;
@@ -498,7 +503,7 @@ static ssize_t
 show_basic_output(struct sys_device *dev, struct sysdev_attribute *attr,
 					char *buf)
 {
-	return snprintf(buf, (basic_data_len + 1), "%d", basic_output);
+	return snprintf(buf, (basic_data_len + 1), "%u", basic_output);
 }
 
 /* Basic multiplication App*/
@@ -507,6 +512,7 @@ store_basic_input(struct sys_device *dev, struct sysdev_attribute *attr,
 					const char *buf, size_t count)
 {
 	uint32_t basic_input = 0;
+	uint32_t ret = 0;
 
 	basic_data_len = count;
 	if ((count - 1) == 0) {
@@ -516,8 +522,8 @@ store_basic_input(struct sys_device *dev, struct sysdev_attribute *attr,
 	if (kstrtouint(buf, 10, &basic_input))
 		pr_err("\n Please enter a valid unsigned integer");
 	else
-		tzapp_test(&basic_input, NULL, 0, 1);
-	return count;
+		ret = tzapp_test(&basic_input, NULL, 0, 1);
+	return ret ? ret : count;
 }
 
 /* To show encrypted plain text*/
