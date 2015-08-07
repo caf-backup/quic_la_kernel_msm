@@ -371,6 +371,12 @@ static void ip6mr_sync_entry_update(struct mr6_table *mrt, struct mfc6_cache *ca
 			read_unlock(&mrt_lock);
 			return;
 		}
+
+		if (!MIF_EXISTS(mrt, vifi)) {
+			read_unlock(&mrt_lock);
+			return;
+		}
+
 		dest_dev[dest_if_count] = mrt->vif6_table[vifi].dev->ifindex;
 		dest_if_count++;
 	}
@@ -917,6 +923,12 @@ int ip6mr_find_mfc_entry(struct net *net, struct in6_addr *origin,
 			read_unlock(&mrt_lock);
 			return -EINVAL;
 		}
+
+		if (!MIF_EXISTS(mrt, vifi)) {
+			read_unlock(&mrt_lock);
+			return -EINVAL;
+		}
+
 		dest_dev[dest_if_count] = mrt->vif6_table[vifi].dev->ifindex;
 		dest_if_count++;
 	}
@@ -952,6 +964,12 @@ int ip6mr_mfc_stats_update(struct net *net, struct in6_addr *origin,
 	}
 
 	vif = cache->mf6c_parent;
+
+	if (!MIF_EXISTS(mrt, vif)) {
+		read_unlock(&mrt_lock);
+		return -EINVAL;
+	}
+
 	mrt->vif6_table[vif].pkt_in += pkts_in;
 	mrt->vif6_table[vif].bytes_in += bytes_in;
 	cache->mfc_un.res.pkt += pkts_out;
@@ -960,6 +978,10 @@ int ip6mr_mfc_stats_update(struct net *net, struct in6_addr *origin,
 	for (vifi = cache->mfc_un.res.minvif; vifi < cache->mfc_un.res.maxvif; vifi++) {
 		if ((cache->mfc_un.res.ttls[vifi] > 0) &&
 				(cache->mfc_un.res.ttls[vifi] < 255)) {
+			if (!MIF_EXISTS(mrt, vifi)) {
+				read_unlock(&mrt_lock);
+				return -EINVAL;
+			}
 			mrt->vif6_table[vifi].pkt_out += pkts_out;
 			mrt->vif6_table[vifi].bytes_out += bytes_out;
 		}

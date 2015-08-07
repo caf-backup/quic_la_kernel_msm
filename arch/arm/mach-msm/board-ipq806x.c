@@ -2037,6 +2037,11 @@ static struct gpio_led ap161_gpio_leds[] = {
 		.gpio       = 26,
 		.active_low = 0,
 	},
+	{
+		.name       = "ap161:green:status",
+		.gpio       = 9,
+		.active_low = 0,
+	},
 };
 
 static struct gpio_led_platform_data gpio_led_ap161_pdata = {
@@ -2239,6 +2244,35 @@ static struct platform_device ap160_kp_pdev = {
 	.id             = -1,
 	.dev            = {
 		.platform_data  = &ap160_keys_data,
+	},
+};
+
+#define AP161_GPIO_BTN_JUMPSTART        68
+#define AP161_KEYS_POLL_INTERVAL        20      /* msecs */
+#define AP161_KEYS_DEBOUNCE_INTERVAL    (3 * AP161_KEYS_POLL_INTERVAL)
+
+static struct gpio_keys_button ap161_gpio_keys[] = {
+	{
+		.desc           = "wps",
+		.type           = EV_KEY,
+		.code           = KEY_WPS_BUTTON,
+		.debounce_interval = AP161_KEYS_DEBOUNCE_INTERVAL,
+		.gpio           = AP161_GPIO_BTN_JUMPSTART,
+		.wakeup         = 1,
+		.active_low     = 1,
+	}
+};
+
+static struct gpio_keys_platform_data ap161_keys_data = {
+	.buttons        = ap161_gpio_keys,
+	.nbuttons       = ARRAY_SIZE(ap161_gpio_keys),
+};
+
+static struct platform_device ap161_kp_pdev = {
+	.name           = "gpio-keys",
+	.id             = -1,
+	.dev            = {
+		.platform_data  = &ap161_keys_data,
 	},
 };
 
@@ -2982,6 +3016,7 @@ static void __init ipq806x_init(void)
 		platform_device_register(&ap160_leds_gpio);
 	}
 	if (machine_is_ipq806x_ap161()) {
+		platform_device_register(&ap161_kp_pdev);
 		platform_device_register(&ap161_leds_gpio);
 	}
 	if (machine_is_ipq806x_ak01_1xx()) {
