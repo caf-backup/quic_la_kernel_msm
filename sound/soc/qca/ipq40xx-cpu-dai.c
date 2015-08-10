@@ -324,6 +324,8 @@ static int ipq40xx_spdif_hw_params(struct snd_pcm_substream *substream,
 	uint32_t stereo_id = get_stereo_id(substream, SPDIF);
 	uint32_t mclk, bclk;
 	struct device *dev = &(dai_priv[SPDIF].pdev->dev);
+	uint32_t spdif_bclk;
+	uint32_t spdif_mclk;
 
 	bit_width = params_format(params);
 	channels = params_channels(params);
@@ -332,6 +334,10 @@ static int ipq40xx_spdif_hw_params(struct snd_pcm_substream *substream,
 
 	bclk = rate * bit_act * channels;
 	mclk = bclk * MCLK_MULTI;
+
+	/* SPDIF subframe is always 32 bit and 2 channels */
+	spdif_bclk = rate * 32 * 2;
+	spdif_mclk = spdif_bclk * 2;
 
 	if (substream->stream == PLAYBACK) {
 		/* Set the clocks */
@@ -344,12 +350,12 @@ static int ipq40xx_spdif_hw_params(struct snd_pcm_substream *substream,
 			return ret;
 
 		ret = ipq40xx_audio_clk_set(audio_spdif_src, dev,
-						AUDIO_SPDIF_SRC);
+						spdif_mclk);
 		if (ret)
 			return ret;
 
 		ret = ipq40xx_audio_clk_set(audio_spdif_div2, dev,
-						AUDIO_SPDIF_DIV2);
+						spdif_bclk);
 		if (ret)
 			return ret;
 

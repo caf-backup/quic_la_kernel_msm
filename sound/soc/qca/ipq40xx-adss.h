@@ -555,8 +555,6 @@ enum bit_width {
 };
 
 /* SPDIF clocks */
-#define AUDIO_SPDIF_SRC		6144000
-#define AUDIO_SPDIF_DIV2	3072000
 #define AUDIO_SPDIFINFAST	49152000
 
 /* ADSS APIs */
