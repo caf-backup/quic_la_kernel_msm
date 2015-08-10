@@ -70,6 +70,7 @@
 #define PCIE20_PLR_IATU_LAR		0x914
 #define PCIE20_PLR_IATU_LTAR		0x918
 #define PCIE20_PLR_IATU_UTAR		0x91c
+#define PCIE20_LNK_CAS2		0xA0
 
 #define MSM_PCIE_DEV_CFG_ADDR		0x01000000
 
@@ -573,6 +574,7 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	struct hw_pci *hw;
 	int ret;
 	u32 val;
+	uint32_t force_gen1 = 0;
 
 	qcom_pcie = devm_kzalloc(&pdev->dev, sizeof(*qcom_pcie), GFP_KERNEL);
 	if (!qcom_pcie) {
@@ -662,6 +664,18 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	/* de-assert PCIe reset link to bring EP out of reset */
 	gpio_set_value(qcom_pcie->reset_gpio, 1);
 	usleep_range(10000, 15000);
+
+	/*
+	 * Force Gen1 in Gen1 marked PCIe SLOT
+	 */
+	if (of_device_is_compatible(np, "qcom,pcie-ipq8064")) {
+		ret = of_property_read_u32(np, "force_gen1", &force_gen1);
+		if (!ret && force_gen1) {
+			writel_relaxed((readl_relaxed(
+				qcom_pcie->dwc_base + PCIE20_LNK_CAS2) | 1),
+				qcom_pcie->dwc_base + PCIE20_LNK_CAS2);
+		}
+	}
 
 	/* enable link training */
 	val = qcom_elbi_readl_relaxed(qcom_pcie, PCIE20_ELBI_SYS_CTRL);
