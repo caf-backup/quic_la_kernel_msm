@@ -107,6 +107,22 @@ void ipq40xx_stereo_spdif_enable(uint32_t enable, uint32_t stereo_id)
 }
 EXPORT_SYMBOL(ipq40xx_stereo_spdif_enable);
 
+/* Enable/disable the swap within PCM sample */
+void ipq40xx_stereo_spdif_pcmswap(uint32_t enable, uint32_t stereo_id)
+{
+	uint32_t cfg;
+
+	cfg = readl(stereo_priv[stereo_id].stereo_base
+		+ ADSS_STEREOn_STEREO0_CONFIG_REG);
+
+	cfg &= ~(STEREOn_CONFIG_PCM_SWAP);
+	if (enable)
+		cfg |= STEREOn_CONFIG_PCM_SWAP;
+
+	writel(cfg, stereo_priv[stereo_id].stereo_base
+		+ ADSS_STEREOn_STEREO0_CONFIG_REG);
+}
+EXPORT_SYMBOL(ipq40xx_stereo_spdif_pcmswap);
 
 /* Configure
  * Data word size : Word size loaded into the PCM
@@ -128,8 +144,8 @@ int ipq40xx_cfg_bit_width(uint32_t bit_width, uint32_t stereo_id)
 			STEREOn_CONFIG_I2S_WORD_SIZE_16 |
 			STEREOn_CONFIG_MIC_WORD_SIZE_16);
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
-	case SNDRV_PCM_FORMAT_S24_BE:
+	case SNDRV_PCM_FORMAT_S24_3LE:
+	case SNDRV_PCM_FORMAT_S24_3BE:
 		mask |= (STEREOn_CONFIG_DATA_WORD_SIZE(2) |
 			STEREOn_CONFIG_I2S_WORD_SIZE_32 |
 			STEREOn_CONFIG_MIC_WORD_SIZE_16);
