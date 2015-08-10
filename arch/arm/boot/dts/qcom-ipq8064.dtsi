@@ -633,6 +633,7 @@
 				 <&gcc PCIE_PHY_CLK>;
 			clock-names = "core", "iface", "phy";
 			status = "disabled";
+			force_gen1 = <0>;
 		};
 
 		pci@1b700000 {
@@ -664,6 +665,7 @@
 				 <&gcc PCIE_1_PHY_CLK>;
 			clock-names = "core", "iface", "phy";
 			status = "disabled";
+			force_gen1 = <0>;
 		};
 
 		pci@1b900000 {
@@ -695,6 +697,7 @@
 				 <&gcc PCIE_2_PHY_CLK>;
 			clock-names = "core", "iface", "phy";
 			status = "disabled";
+			force_gen1 = <0>;
 		};
 
 		adm_dma: dma@18300000 {
