@@ -359,8 +359,7 @@ static struct snd_soc_dai_driver ipq40xx_codec_dais[] = {
 			.channels_max = CH_STEREO,
 			.rates = RATE_16000_96000,
 			.formats = SNDRV_PCM_FMTBIT_S16 |
-				SNDRV_PCM_FMTBIT_S24 |
-				SNDRV_PCM_FMTBIT_S32,
+				SNDRV_PCM_FMTBIT_S24_3,
 		},
 		.capture = {
 			.stream_name = "qca-spdif-capture",
@@ -368,8 +367,7 @@ static struct snd_soc_dai_driver ipq40xx_codec_dais[] = {
 			.channels_max = CH_STEREO,
 			.rates = RATE_16000_96000,
 			.formats = SNDRV_PCM_FMTBIT_S16 |
-				SNDRV_PCM_FMTBIT_S24 |
-				SNDRV_PCM_FMTBIT_S32,
+				SNDRV_PCM_FMTBIT_S24_3,
 		},
 	},
 };
