@@ -1756,6 +1756,66 @@ static int mdss_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	return rc;
 }
 
+static void mdss_fb_kthread_notify(struct msm_fb_data_type *mfd)
+{
+	atomic_inc(&mfd->commits_pending);
+	wake_up_all(&mfd->commit_wait_q);
+}
+
+static ssize_t mdss_fb_write(struct fb_info *info, const char __user *buf,
+		size_t count, loff_t *ppos)
+{
+	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
+	unsigned long total_size;
+	unsigned long p = *ppos;
+	u8 __iomem *dst;
+
+	total_size = info->fix.smem_len;
+
+	if (p > total_size)
+		return -EINVAL;
+
+	if (count + p > total_size)
+		count = total_size - p;
+
+	if (!count)
+		return -EINVAL;
+
+	dst = (u8 __force __iomem *) (info->screen_base + p);
+
+	if (copy_from_user(dst, buf, count))
+		return -EFAULT;
+
+	mdss_fb_kthread_notify(mfd);
+	*ppos += count;
+
+	return count;
+}
+
+static void mdss_fb_fillrect(struct fb_info *info,
+		const struct fb_fillrect *rect)
+{
+	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
+	cfb_fillrect(info, rect);
+	mdss_fb_kthread_notify(mfd);
+}
+
+static void mdss_fb_copyarea(struct fb_info *info,
+		const struct fb_copyarea *area)
+{
+	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
+	cfb_copyarea(info, area);
+	mdss_fb_kthread_notify(mfd);
+}
+
+static void mdss_fb_imageblit(struct fb_info *info,
+		const struct fb_image *image)
+{
+	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
+	cfb_imageblit(info, image);
+	mdss_fb_kthread_notify(mfd);
+}
+
 static struct fb_ops mdss_fb_ops = {
 	.owner = THIS_MODULE,
 	.fb_open = mdss_fb_open,
@@ -1769,6 +1829,11 @@ static struct fb_ops mdss_fb_ops = {
 	.fb_compat_ioctl = mdss_fb_compat_ioctl,
 #endif
 	.fb_mmap = mdss_fb_mmap,
+	.fb_read	= fb_sys_read,
+	.fb_write	= mdss_fb_write,
+	.fb_fillrect	= mdss_fb_fillrect,
+	.fb_copyarea	= mdss_fb_copyarea,
+	.fb_imageblit	= mdss_fb_imageblit,
 };
 
 static int mdss_fb_alloc_fbmem_iommu(struct msm_fb_data_type *mfd, int dom)
