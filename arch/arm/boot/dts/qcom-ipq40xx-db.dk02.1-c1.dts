@@ -33,5 +33,13 @@
 		qcom,mdss_lcd_qpic_panel {
 			status = "ok";
 		};
+
+		i2c_0: i2c@78b7000 { /* BLSP1 QUP2 */
+			eeprom@50 {
+				compatible = "atmel,24c128";
+				pagesize = <32>;
+				reg = <0x50>;
+			};
+		};
 	};
 };
