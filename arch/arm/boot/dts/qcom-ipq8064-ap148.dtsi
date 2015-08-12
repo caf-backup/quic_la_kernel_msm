@@ -1,5 +1,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "Qualcomm IPQ8064/AP148";
@@ -106,7 +108,13 @@
 					bias-bus-hold;
 				};
 			};
-
+			buttons_pins: buttons_pins {
+				mux {
+					pins = "gpio54";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+			};
 			mdio0_pins_default: mdio0_pins_default {
 				mux {
 					pins = "gpio0", "gpio1";
@@ -253,6 +261,19 @@
 
 		usb30@1 {
 			status = "ok";
+		};
+		gpio_keys {
+			compatible = "gpio-keys";
+			pinctrl-0 = <&buttons_pins>;
+			pinctrl-names = "default";
+
+			button@1 {
+				label = "reset";
+				linux,code = <KEY_RESTART>;
+				gpios = <&qcom_pinmux 54 GPIO_ACTIVE_LOW>;
+				linux,input-type = <1>;
+				debounce-interval = <60>;
+			};
 		};
 
 		mdio0: mdio {
