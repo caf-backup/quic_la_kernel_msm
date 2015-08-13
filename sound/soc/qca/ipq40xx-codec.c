@@ -244,7 +244,7 @@ static int ipq40xx_codec_audio_hw_params(struct snd_pcm_substream *substream,
 		dfs = NORMAL_SPEED;
 		cks = FS_512;
 		tdm_mode = STEREO;
-		dif = AKD4613_DIF_I2S_MODE;
+		dif = DIF_I2S_MODE;
 
 	} else if (intf == TDM) {
 		/* Codec settings for 8 channels */
