@@ -44,7 +44,7 @@ static int check_input(struct auth_input *ai)
 	    /* To ignore allocated but empty buffers */
 	    ai->cert_len > 0 && ai->sig_len > 0 &&
 	    ai->data_len > 0 &&
-	    ai->certBuffer[0] && ai->signature[0]) {
+	    ai->certBuffer[0]) {
 		return 0;
 	}
 
