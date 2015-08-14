@@ -32,6 +32,7 @@
 #include "clk-branch.h"
 #include "clk-hfpll.h"
 #include "reset.h"
+#include "nss-volt-ipq806x.h"
 
 static struct clk_pll pll0 = {
 	.l_reg = 0x30c4,
@@ -2764,13 +2765,32 @@ static int nss_core_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	int ret;
 
+	/*
+	When ramping up voltage, it needs to be done first. This ensures that
+	the volt required will be available when you step up the frequency.
+	*/
+	ret = nss_ramp_voltage(rate, true);
+	if (ret)
+		return ret;
+
 	ret = clk_dyn_rcg_ops.set_rate(&ubi32_core1_src_clk.clkr.hw, rate,
 				    parent_rate);
 	if (ret)
 		return ret;
 
-	return clk_dyn_rcg_ops.set_rate(&ubi32_core2_src_clk.clkr.hw, rate,
+	ret = clk_dyn_rcg_ops.set_rate(&ubi32_core2_src_clk.clkr.hw, rate,
 				    parent_rate);
+
+	if (ret)
+		return ret;
+
+	/*
+	When ramping down voltage, it needs to be set first. This ensures that
+	the volt required will be available until you step down the frequency.
+	*/
+	ret = nss_ramp_voltage(rate, false);
+
+	return ret;
 }
 
 static int
@@ -2779,6 +2799,14 @@ nss_core_clk_set_rate_and_parent(struct clk_hw *hw, unsigned long rate,
 {
 	int ret;
 
+	/*
+	When ramping up voltage needs to be done first. This ensures that
+	the voltage required will be available when you step up the frequency.
+	*/
+	ret = nss_ramp_voltage(rate, true);
+	if (ret)
+		return ret;
+
 	ret = clk_dyn_rcg_ops.set_rate_and_parent(
 			&ubi32_core1_src_clk.clkr.hw, rate, parent_rate, index);
 	if (ret)
@@ -2786,6 +2814,16 @@ nss_core_clk_set_rate_and_parent(struct clk_hw *hw, unsigned long rate,
 
 	ret = clk_dyn_rcg_ops.set_rate_and_parent(
 			&ubi32_core2_src_clk.clkr.hw, rate, parent_rate, index);
+
+	if (ret)
+		return ret;
+
+	/*
+	When ramping down voltage needs to be done last. This ensures that
+	the voltage required will be available when you step down the frequency.
+	*/
+	ret = nss_ramp_voltage(rate, false);
+
 	return ret;
 }
 
