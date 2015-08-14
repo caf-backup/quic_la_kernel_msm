@@ -1126,7 +1126,7 @@ void edma_adjust_link(struct net_device *netdev)
 		if (netif_running(netdev))
 			netif_tx_wake_all_queues(netdev);
 	} else if (status == __EDMA_LINKDOWN && adapter->link_state == __EDMA_LINKUP) {
-		dev_info(&adapter->pdev->dev, "%s: GMAC Link is down with phy speed=%d\n", netdev->name, phydev->speed);
+		dev_info(&adapter->pdev->dev, "%s: GMAC Link is down\n", netdev->name);
 		adapter->link_state = __EDMA_LINKDOWN;
 		netif_carrier_off(netdev);
 		netif_tx_stop_all_queues(netdev);
