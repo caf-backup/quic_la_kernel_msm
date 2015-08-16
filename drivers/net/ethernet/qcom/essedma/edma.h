@@ -71,6 +71,8 @@
 #define EDMA_FROM_CPU_MASK 0x80
 #define EDMA_SKB_PRIORITY_MASK 0x38
 
+/* TX/RX descriptor ring count */
+/* should be a power of 2 */
 #define EDMA_RX_RING_SIZE 512
 #define EDMA_TX_RING_SIZE 512
 
@@ -171,10 +173,14 @@ struct edma_tx_desc {
 
 /* edma receive return descriptor */
 struct edma_rx_return_desc {
-	__le32  word0;
-	__le32  word1;
-	__le32  word2;
-	__le32  word3;
+	u16 rrd0;
+	u16 rrd1;
+	u16 rrd2;
+	u16 rrd3;
+	u16 rrd4;
+	u16 rrd5;
+	u16 rrd6;
+	u16 rrd7;
 };
 
 /* RFD descriptor */
