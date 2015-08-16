@@ -1086,6 +1086,7 @@ static struct nss_platform_data nss0_pdata = {
 	.ipsec_enabled		= NSS_FEATURE_NOT_ENABLED,
 	.wlanredirect_enabled	= NSS_FEATURE_ENABLED,
 	.tun6rd_enabled		= NSS_FEATURE_ENABLED,
+	.l2tpv2_enabled		= NSS_FEATURE_ENABLED,
 	.tunipip6_enabled	= NSS_FEATURE_ENABLED,
 	.gre_redir_enabled	= NSS_FEATURE_ENABLED,
 	.shaping_enabled	= NSS_FEATURE_ENABLED,
@@ -1131,6 +1132,7 @@ static struct nss_platform_data nss1_pdata = {
 	.ipsec_enabled		= NSS_FEATURE_ENABLED,
 	.wlanredirect_enabled	= NSS_FEATURE_NOT_ENABLED,
 	.tun6rd_enabled		= NSS_FEATURE_NOT_ENABLED,
+	.l2tpv2_enabled		= NSS_FEATURE_NOT_ENABLED,
 	.tunipip6_enabled	= NSS_FEATURE_NOT_ENABLED,
 	.gre_redir_enabled	= NSS_FEATURE_NOT_ENABLED,
 	.shaping_enabled	= NSS_FEATURE_NOT_ENABLED,
@@ -1172,7 +1174,6 @@ static struct resource nss_gmac_0_res[] = {
 	},
 };
 
-
 static struct msm_nss_gmac_platform_data ipq806x_gmac0_platform_data;
 struct platform_device nss_gmac_0 = {
 	.name		= "nss-gmac",		/* This should be same as used
@@ -1203,7 +1204,6 @@ static struct resource nss_gmac_1_res[] = {
 	},
 };
 
-
 static struct msm_nss_gmac_platform_data ipq806x_gmac1_platform_data;
 struct platform_device nss_gmac_1 = {
 	.name		= "nss-gmac",
@@ -1233,7 +1233,6 @@ static struct resource nss_gmac_2_res[] = {
 	},
 };
 
-
 static struct msm_nss_gmac_platform_data ipq806x_gmac2_platform_data;
 struct platform_device nss_gmac_2 = {
 	.name		= "nss-gmac",
@@ -1262,7 +1261,6 @@ static struct resource nss_gmac_3_res[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 };
-
 
 static struct msm_nss_gmac_platform_data ipq806x_gmac3_platform_data;
 struct platform_device nss_gmac_3 = {
@@ -1307,7 +1305,6 @@ static struct resource nss_macsec1_res[] = {
 	},
 };
 
-
 struct platform_device nss_macsec1 = {
 	.name		= "nss-macsec",
 	.id		= 0,
@@ -1329,7 +1326,6 @@ static struct resource nss_macsec2_res[] = {
 	},
 };
 
-
 struct platform_device nss_macsec2 = {
 	.name		= "nss-macsec",
 	.id		= 1,
@@ -1350,7 +1346,6 @@ static struct resource nss_macsec3_res[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 };
-
 
 struct platform_device nss_macsec3 = {
 	.name		= "nss-macsec",

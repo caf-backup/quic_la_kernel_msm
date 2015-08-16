@@ -52,6 +52,8 @@ struct nss_platform_data {
 	enum nss_feature_enabled ipsec_enabled;	/* Does this core handle IPsec? */
 	enum nss_feature_enabled wlanredirect_enabled;	/* Does this core handle WLAN redirect? */
 	enum nss_feature_enabled tun6rd_enabled;	/* Does this core handle 6rd Tunnel ? */
+	enum nss_feature_enabled l2tpv2_enabled; /* Does this core handle l2tpv2
+						    Tunnel */
 	enum nss_feature_enabled tunipip6_enabled;	/* Does this core handle ipip6 Tunnel ? */
 	enum nss_feature_enabled gre_redir_enabled;	/* Does this core handle gre_redir Tunnel ? */
 	enum nss_feature_enabled shaping_enabled;	/* Does this core handle shaping ? */
