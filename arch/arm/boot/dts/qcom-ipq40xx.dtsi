@@ -680,6 +680,8 @@
 			compatible = "qcom,ess-psgmii";
 			reg = <0x98000 0x800>; /* 2k */
 			psgmii_access_mode = "local bus";
+			resets = <&gcc ESS_PSGMII_ARES>;
+			reset-names = "psgmii_rst";
 		};
 
 		mdio@90000 {
