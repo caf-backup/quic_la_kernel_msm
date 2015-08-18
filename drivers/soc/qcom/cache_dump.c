@@ -20,10 +20,13 @@
 #include <linux/notifier.h>
 #include <linux/dma-mapping.h>
 #include <soc/qcom/scm.h>
+#include <linux/slab.h>
 
-#define SCM_CMD_L1C_BUFFER_SET    0x4
-#define SCM_CMD_CACHE_BUFFER_DUMP 0x5
-#define SCM_CMD_L2C_BUFFER_SET    0x7
+#define SCM_CMD_L1C_BUFFER_SET		0x4
+#define SCM_CMD_CACHE_BUFFER_DUMP	0x5
+#define SCM_CMD_L2C_BUFFER_SET		0x7
+#define SCM_CMD_QUERY_L1C_SIZE		0x6
+#define SCM_CMD_QUERY_L2C_SIZE		0x8
 
 static void *l2_dump_offset;
 static int qcom_cache_dump_panic(struct notifier_block *this,
@@ -56,11 +59,13 @@ static int qcom_cache_dump_probe(struct platform_device *pdev)
 		unsigned long buf;
 		unsigned long size;
 	} cache_data;
-	u32 l1_size, l2_size;
+
+	u32 l1_size = 0, l2_size = 0;
 	unsigned long total_size;
 	void *qcom_cache_dump_vaddr;
 	dma_addr_t qcom_cache_dump_addr;
 	struct device_node *np;
+	u32 *cache_size_p;
 
 	np = of_find_compatible_node(NULL, NULL,
 		"qcom,msm-imem-l2_dump_offset");
@@ -74,17 +79,50 @@ static int qcom_cache_dump_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = of_property_read_u32(pdev->dev.of_node,
-		"qcom,l1-dump-size", &l1_size);
-	if (ret)
-		return ret;
+	cache_size_p = kzalloc(sizeof(uint32_t), GFP_KERNEL);
 
-	ret = of_property_read_u32(pdev->dev.of_node,
-		"qcom,l2-dump-size", &l2_size);
-	if (ret)
-		return ret;
+	if (!cache_size_p)
+		goto of_read;
 
+	/*
+	 * Get L1 Dump Size from TZ
+	 */
+	ret = scm_call(SCM_SVC_UTIL, SCM_CMD_QUERY_L1C_SIZE,
+			NULL, 0, cache_size_p, sizeof(*cache_size_p));
+	if (ret == 0) {
+		/*
+		 * This should be page aligned since L2 dump address
+		 * starts from "qcom_cache_dump_vaddr + l1_size" offset
+		 * and TZ expects the dump addresses to be page aligned
+		 */
+		l1_size = PAGE_ALIGN(*cache_size_p);
+	}
+	/*
+	 * Get L2 Dump Size from TZ
+	 */
+	ret = scm_call(SCM_SVC_UTIL, SCM_CMD_QUERY_L2C_SIZE,
+			NULL, 0, cache_size_p, sizeof(*cache_size_p));
+	if (ret == 0)
+		l2_size = *cache_size_p;
+
+of_read:
+	if (!l1_size) {
+		ret = of_property_read_u32(pdev->dev.of_node,
+			"qcom,l1-dump-size", &l1_size);
+	}
+	if (!l2_size) {
+		ret = of_property_read_u32(pdev->dev.of_node,
+			"qcom,l2-dump-size", &l2_size);
+	}
 	total_size = l1_size + l2_size;
+	/*
+	 * Return If L1/L2 cache size are unavailable from both DT and TZ
+	 */
+	if (total_size == 0) {
+		pr_err("\nL1/L2 dump size unavailable");
+		ret = -EINVAL;
+		goto err_free;
+	}
 	qcom_cache_dump_vaddr = dma_alloc_coherent(&pdev->dev,
 		total_size, &qcom_cache_dump_addr,
 		GFP_KERNEL);
@@ -92,38 +130,48 @@ static int qcom_cache_dump_probe(struct platform_device *pdev)
 	if (!qcom_cache_dump_vaddr) {
 		pr_err("%s: Could not get memory for cache dumping\n",
 			__func__);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_free;
 	}
 
 	memset(qcom_cache_dump_vaddr, 0xFF, total_size);
+	/*
+	 * Send L1 dump address only if l1_size is not zero
+	 */
+	if (l1_size) {
+		cache_data.buf = qcom_cache_dump_addr;
+		cache_data.size = l1_size;
+		ret = scm_call(SCM_SVC_UTIL, SCM_CMD_L1C_BUFFER_SET,
+			&cache_data, sizeof(cache_data), NULL, 0);
 
-	cache_data.buf = qcom_cache_dump_addr;
-	cache_data.size = l1_size;
-
-	ret = scm_call(SCM_SVC_UTIL, SCM_CMD_L1C_BUFFER_SET,
-		&cache_data, sizeof(cache_data), NULL, 0);
-
-	if (ret)
-		pr_err("%s: could not register L1 buffer ret = %d.\n",
-			__func__, ret);
+		if (ret)
+			pr_err("%s: could not register L1 buffer ret = %d.\n",
+				__func__, ret);
+	}
 
 #if defined(CONFIG_QCOM_CACHE_DUMP_ON_PANIC)
-	cache_data.buf = qcom_cache_dump_addr + l1_size;
-	cache_data.size = l2_size;
+	/*
+	 * Send L2 dump address only if l2_size is not zero
+	 */
+	if (l2_size) {
+		cache_data.buf = qcom_cache_dump_addr + l1_size;
+		cache_data.size = l2_size;
+		ret = scm_call(SCM_SVC_UTIL, SCM_CMD_L2C_BUFFER_SET,
+			&cache_data, sizeof(cache_data), NULL, 0);
 
-	ret = scm_call(SCM_SVC_UTIL, SCM_CMD_L2C_BUFFER_SET,
-		&cache_data, sizeof(cache_data), NULL, 0);
-
-	if (ret)
-		pr_err("%s: could not register L2 buffer ret = %d.\n",
-			__func__, ret);
+		if (ret)
+			pr_err("%s: could not register L2 buffer ret = %d.\n",
+				__func__, ret);
+	}
 #endif
 
 	writel_relaxed(qcom_cache_dump_addr + l1_size, l2_dump_offset);
 	atomic_notifier_chain_register(&panic_notifier_list,
 		&qcom_cache_dump_blk);
 
-	return 0;
+err_free:
+	kfree(cache_size_p);
+	return ret;
 }
 
 static int qcom_cache_dump_remove(struct platform_device *pdev)
