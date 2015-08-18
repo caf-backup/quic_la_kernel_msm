@@ -30,6 +30,10 @@ EXPORT_SYMBOL(br_should_route_hook);
 br_multicast_handle_hook_t __rcu *br_multicast_handle_hook __read_mostly;
 EXPORT_SYMBOL_GPL(br_multicast_handle_hook);
 
+/* Hook for external forwarding logic */
+br_get_dst_hook_t __rcu *br_get_dst_hook __read_mostly;
+EXPORT_SYMBOL_GPL(br_get_dst_hook);
+
 int br_pass_frame_up(struct sk_buff *skb)
 {
 	struct net_device *indev, *brdev = BR_INPUT_SKB_CB(skb)->brdev;
@@ -132,6 +136,8 @@ int br_handle_frame_finish(struct sk_buff *skb)
 	struct net_bridge_fdb_entry *dst;
 	struct net_bridge_mdb_entry *mdst;
 	struct sk_buff *skb2;
+	struct net_bridge_port *pdst = NULL;
+	br_get_dst_hook_t *get_dst_hook = rcu_dereference(br_get_dst_hook);
 	bool unicast = true;
 	u16 vid = 0;
 
@@ -190,6 +196,9 @@ int br_handle_frame_finish(struct sk_buff *skb)
 
 		unicast = false;
 		br->dev->stats.multicast++;
+	} else if ((pdst = __br_get(get_dst_hook, NULL, p, &skb))) {
+		if (!skb)
+			goto out;
 	} else if ((p->flags & BR_ISOLATE_MODE) ||
 		   ((dst = __br_fdb_get(br, dest, vid)) && dst->is_local)) {
 		skb2 = skb;
@@ -200,8 +209,12 @@ int br_handle_frame_finish(struct sk_buff *skb)
 	if (skb) {
 		if (dst) {
 			dst->used = jiffies;
-			br_forward(dst->dst, skb, skb2);
-		} else
+			pdst = dst->dst;
+		}
+
+		if (pdst)
+			br_forward(pdst, skb, skb2);
+		else
 			br_flood_forward(br, skb, skb2, unicast);
 	}
 
