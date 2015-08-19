@@ -238,6 +238,7 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-ipq8064-ap148.dtb \
 	qcom-ipq8064-db149.dtb \
 	qcom-ipq8064-v2.0-ap148.dtb \
+	qcom-ipq8064-v3.0-ap148.dtb \
 	qcom-ipq8064-storm.dtb \
 	qcom-ipq8064-whirlwind.dtb \
 	qcom-msm8660-surf.dtb \
@@ -253,14 +254,19 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-ipq40xx-db.dk02.1-c1.dtb \
 	qcom-ipq8064-ap145.dtb \
 	qcom-ipq8064-v2.0-ap145.dtb \
+	qcom-ipq8064-v3.0-ap145.dtb \
 	qcom-ipq8064-ap161.dtb \
 	qcom-ipq8064-v2.0-ap161.dtb \
+	qcom-ipq8064-v3.0-ap161.dtb \
 	qcom-ipq8064-ap160.dtb \
 	qcom-ipq8064-v2.0-ap160.dtb \
+	qcom-ipq8064-v3.0-ap160.dtb \
 	qcom-ipq8064-ap160_2xx.dtb \
 	qcom-ipq8064-v2.0-ap160_2xx.dtb \
+	qcom-ipq8064-v3.0-ap160_2xx.dtb \
 	qcom-ipq8064-ak01.dtb \
-	qcom-ipq8064-v2.0-ak01.dtb
+	qcom-ipq8064-v2.0-ak01.dtb \
+	qcom-ipq8064-v3.0-ak01.dtb
 dtb-$(CONFIG_ARCH_U8500) += ste-snowball.dtb \
 	ste-hrefprev60-stuib.dtb \
 	ste-hrefprev60-tvk.dtb \
