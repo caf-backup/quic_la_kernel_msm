@@ -25,79 +25,21 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#define CPUFREQ_TABLE_END ~1
+enum efreq_lvl {
+	L0, L1, L2, L3, L_INVALID
+};
+
+static struct cpufreq_frequency_table qca_ipq40xx_freq_table[] = {
+	{L0, 626000},
+	{L1, 500000},
+	{L2, 200000},
+	{L3, 48000},
+	{L_INVALID, CPUFREQ_TABLE_END},
+};
 
 static unsigned int transition_latency;
 static DEFINE_PER_CPU(struct clk *, cpu_clks);
-struct cpufreq_frequency_table *ftbl;
-
-
-static struct cpufreq_frequency_table *cpufreq_parse_dt(struct device *dev,
-						char *tbl_name, int cpu)
-{
-	u32 ret, nf, i;
-	u32 *data;
-
-	/* Parse list of usable CPU frequencies. */
-	if (!of_find_property(dev->of_node, tbl_name, &nf))
-		return ERR_PTR(-EINVAL);
-	nf /= sizeof(*data);
-
-	if (nf == 0)
-		return ERR_PTR(-EINVAL);
-
-	data = devm_kzalloc(dev, nf * sizeof(*data), GFP_KERNEL);
-	if (!data)
-		return ERR_PTR(-ENOMEM);
-
-	ret = of_property_read_u32_array(dev->of_node, tbl_name, data, nf);
-	if (ret)
-		return ERR_PTR(ret);
-
-	ftbl = devm_kzalloc(dev, (nf + 1) * sizeof(*ftbl), GFP_KERNEL);
-	if (!ftbl)
-		return ERR_PTR(-ENOMEM);
-
-	for (i = 0; i < nf; i++) {
-		unsigned long f;
-		struct clk *cpu_clk;
-
-		cpu_clk = per_cpu(cpu_clks, cpu);
-
-		f = clk_round_rate(cpu_clk, data[i] * 1000);
-		if (IS_ERR_VALUE(f))
-			break;
-		f /= 1000;
-
-		/*
-		 * Check if this is the last feasible frequency in the table.
-		 *
-		 * The table listing frequencies higher than what the HW can
-		 * support is not an error since the table might be shared
-		 * across CPUs in different speed bins. It's also not
-		 * sufficient to check if the rounded rate is lower than the
-		 * requested rate as it doesn't cover the following example:
-		 *
-		 * Table lists: 2.2 GHz and 2.5 GHz.
-		 * Rounded rate returns: 2.2 GHz and 2.3 GHz.
-		 *
-		 * In this case, we can CPUfreq to use 2.2 GHz and 2.3 GHz
-		 * instead of rejecting the 2.5 GHz table entry.
-		 */
-		if (i > 0 && f <= ftbl[i-1].frequency)
-			break;
-
-		ftbl[i].driver_data = i;
-		ftbl[i].frequency = f;
-	}
-
-	ftbl[i].driver_data = i;
-	ftbl[i].frequency = CPUFREQ_TABLE_END;
-
-	devm_kfree(dev, data);
-
-	return ftbl;
-}
+static struct cpufreq_frequency_table *freq_table;
 
 static int ipq40xx_set_target(struct cpufreq_policy *policy, unsigned int index)
 {
@@ -107,9 +49,9 @@ static int ipq40xx_set_target(struct cpufreq_policy *policy, unsigned int index)
 	struct clk *cpu_clk;
 
 	cpu_clk = per_cpu(cpu_clks, policy->cpu);
-	freq_Hz = clk_round_rate(cpu_clk, ftbl[index].frequency * 1000);
+	freq_Hz = clk_round_rate(cpu_clk, freq_table[index].frequency * 1000);
 	if (freq_Hz <= 0)
-		freq_Hz = ftbl[index].frequency * 1000;
+		freq_Hz = freq_table[index].frequency * 1000;
 
 	freq_exact = freq_Hz;
 	new_freq = freq_Hz;
@@ -137,12 +79,12 @@ static int ipq40xx_cpufreq_init(struct cpufreq_policy *policy)
 {
 	policy->clk = per_cpu(cpu_clks, policy->cpu);
 
-	if (!ftbl) {
+	if (!freq_table) {
 		pr_err("Freq table not initialized.\n");
 		return -ENODEV;
 	}
-	cpufreq_frequency_table_get_attr(ftbl, 0);
-	return cpufreq_generic_init(policy, ftbl, transition_latency);
+	cpufreq_frequency_table_get_attr(freq_table, 0);
+	return cpufreq_generic_init(policy, freq_table, transition_latency);
 }
 
 static struct cpufreq_driver qca_ipq40xx_cpufreq_driver = {
@@ -157,11 +99,11 @@ static struct cpufreq_driver qca_ipq40xx_cpufreq_driver = {
 
 static int __init ipq40xx_cpufreq_probe(struct platform_device *pdev)
 {
+	struct device_node *np;
 	struct clk *clk;
 	unsigned int cpu;
-	int ret;
-	struct device_node *np = NULL;
 	struct device *dev;
+	int ret;
 
 	for_each_possible_cpu(cpu) {
 		dev = get_cpu_device(cpu);
@@ -178,12 +120,9 @@ static int __init ipq40xx_cpufreq_probe(struct platform_device *pdev)
 		}
 	}
 
-	ftbl = cpufreq_parse_dt(&pdev->dev, "qcom,cpufreq-table", 0);
+	freq_table = qca_ipq40xx_freq_table;
 
-	np = of_node_get(pdev->dev.of_node);
-	of_property_read_u32(np, "clock-latency", &transition_latency);
-
-	if (!transition_latency) {
+	if (!of_property_read_u32(np, "clock-latency", &transition_latency)) {
 		pr_info("%s: Clock latency not found. Defaults...\n"
 			, __func__);
 		transition_latency = CPUFREQ_ETERNAL;
