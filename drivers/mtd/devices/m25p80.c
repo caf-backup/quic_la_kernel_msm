@@ -887,6 +887,7 @@ struct flash_info {
  * more flash chips.  This current list focusses on newer chips, which
  * have been converging on command sets which including JEDEC ID.
  */
+static struct spi_device_id def_id;
 static const struct spi_device_id m25p_ids[] = {
 	/* Atmel -- some are (confusingly) marketed as "DataFlash" */
 	{ "at25fs010",  INFO(0x1f6601, 0, 32 * 1024,   4, SECT_4K) },
@@ -1052,7 +1053,8 @@ static const struct spi_device_id m25p_ids[] = {
 };
 MODULE_DEVICE_TABLE(spi, m25p_ids);
 
-static const struct spi_device_id *jedec_probe(struct spi_device *spi)
+static const struct spi_device_id *jedec_probe(struct spi_device *spi,
+						struct device_node *np)
 {
 	int			tmp;
 	u8			code = OPCODE_RDID;
@@ -1060,6 +1062,10 @@ static const struct spi_device_id *jedec_probe(struct spi_device *spi)
 	u32			jedec;
 	u16                     ext_jedec;
 	struct flash_info	*info;
+	u32			sector_size_def = 0;
+	u32			num_sectors_def = 0;
+	u32			density_def = 0;
+	bool			use_def_sizes;
 
 	/* JEDEC also defines an optional "extended device information"
 	 * string for after vendor-specific data, after the three bytes
@@ -1087,8 +1093,31 @@ static const struct spi_device_id *jedec_probe(struct spi_device *spi)
 			return &m25p_ids[tmp];
 		}
 	}
-	dev_err(&spi->dev, "unrecognized JEDEC id %06x\n", jedec);
-	return ERR_PTR(-ENODEV);
+
+	use_def_sizes = of_property_read_bool(np, "use-default-sizes");
+
+	if (!use_def_sizes) {
+		dev_err(&spi->dev, "unrecognized JEDEC id %06x\n", jedec);
+		return ERR_PTR(-ENODEV);
+	} else {
+		if (of_property_read_u32(np, "sector-size",
+					&sector_size_def) < 0) {
+			dev_err(&spi->dev, "Failed to find sector-size\n");
+			return ERR_PTR(-ENODEV);
+		}
+
+		if (of_property_read_u32(np, "density", &density_def) < 0) {
+			dev_err(&spi->dev, "Failed to find density\n");
+			return ERR_PTR(-ENODEV);
+		}
+
+		num_sectors_def = (u32) (density_def/sector_size_def);
+		/* Fall back to Default Configuration */
+		def_id.driver_data = (INFO(jedec, 0, sector_size_def,
+						num_sectors_def, 0));
+		strcpy(def_id.name, "default");
+		return &def_id;
+	}
 }
 
 
@@ -1135,7 +1164,7 @@ static int m25p_probe(struct spi_device *spi)
 	if (info->jedec_id) {
 		const struct spi_device_id *jid;
 
-		jid = jedec_probe(spi);
+		jid = jedec_probe(spi, np);
 		if (IS_ERR(jid)) {
 			return PTR_ERR(jid);
 		} else if (jid != id) {
