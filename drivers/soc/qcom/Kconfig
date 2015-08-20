@@ -76,10 +76,3 @@ config QCOM_CACHE_DUMP_ON_PANIC
           look at them in a RAM dump will give useless data. Select this if you
           want to dump the L1 and L2 caches on panic before any flush occurs.
           If unsure, say N
-
-config QCOM_QFPROM
-        tristate "QCOM QFPROM Interface"
-        depends on ARCH_QCOM && OF
-        help
-          Say y here to enable QFPROM support. The QFPROM provides access
-          functions for QFPROM data to rest of the drivers via syscon wrappers.
