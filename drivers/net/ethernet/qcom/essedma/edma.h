@@ -143,6 +143,7 @@
 #define EDMA_TXQ_IRQ_MASK_CORE2 0x000F
 #define EDMA_TXQ_IRQ_MASK_CORE3 0x00F0
 
+#define EDMA_RX_BUFFER_WRITE 16
 #define EDMA_GMAC_NO_MDIO_PHY	PHY_MAX_ADDR
 
 struct edma_mdio_data {
@@ -348,4 +349,6 @@ void edma_assign_ath_hdr_type(int tag);
 int edma_get_default_vlan_tag(struct net_device *netdev);
 void edma_adjust_link(struct net_device *netdev);
 void edma_fill_netdev(struct edma_common_info *c_info, int qid, int num);
+int edma_select_xps_queue(struct net_device *dev, struct sk_buff *skb,
+	void *accel_priv, select_queue_fallback_t fallback);
 #endif /* _EDMA_H_ */
