@@ -51,7 +51,6 @@ void br_fdb_fini(void)
 	kmem_cache_destroy(br_fdb_cache);
 }
 
-
 /* if topology_changing then use forward_delay (default 15 sec)
  * otherwise keep longer (default 5 minutes)
  */
@@ -139,6 +138,20 @@ void br_fdb_change_mac_address(struct net_bridge *br, const u8 *newaddr)
 	fdb_insert(br, NULL, newaddr);
 }
 
+ATOMIC_NOTIFIER_HEAD(br_fdb_update_notifier_list);
+
+void br_fdb_update_register_notify(struct notifier_block *nb)
+{
+	atomic_notifier_chain_register(&br_fdb_update_notifier_list, nb);
+}
+EXPORT_SYMBOL_GPL(br_fdb_update_register_notify);
+
+void br_fdb_update_unregister_notify(struct notifier_block *nb)
+{
+	atomic_notifier_chain_unregister(&br_fdb_update_notifier_list, nb);
+}
+EXPORT_SYMBOL_GPL(br_fdb_update_unregister_notify);
+
 void br_fdb_cleanup(unsigned long _data)
 {
 	struct net_bridge *br = (struct net_bridge *)_data;
@@ -156,9 +169,16 @@ void br_fdb_cleanup(unsigned long _data)
 			if (f->is_static)
 				continue;
 			this_timer = f->updated + delay;
-			if (time_before_eq(this_timer, jiffies))
+			if (time_before_eq(this_timer, jiffies)) {
+				/* bridge "ageing timer expire" event call back
+				 * to registered modules
+				 */
+				atomic_notifier_call_chain(
+						&br_fdb_update_notifier_list,
+						0, (void *)f->addr.addr);
+
 				fdb_delete(br, f);
-			else if (time_before(this_timer, next_timer))
+			} else if (time_before(this_timer, next_timer))
 				next_timer = this_timer;
 		}
 	}
@@ -412,6 +432,43 @@ int br_fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
 	return ret;
 }
 
+static void br_fdb_refresh_stats(struct net_bridge *br,
+				struct net_bridge_port *source,
+				const unsigned char *addr)
+{
+	struct hlist_head *head = &br->hash[br_mac_hash(addr)];
+	struct net_bridge_fdb_entry *fdb;
+
+	/* some users want to always flood. */
+	if (hold_time(br) == 0)
+		return;
+
+	/* ignore packets unless we are using this port */
+	if (!(source->state == BR_STATE_LEARNING ||
+	      source->state == BR_STATE_FORWARDING))
+		return;
+
+	fdb = fdb_find_rcu(head, addr);
+	if (likely(fdb)) {
+		/* attempt to update an entry for a local interface */
+		if (unlikely(fdb->is_local)) {
+			if (net_ratelimit())
+				br_warn(br, "stats update for %s interface with"
+					" own address as source address\n",
+					source->dev->name);
+		} else {
+			if (unlikely(source != fdb->dst)) {
+				/* don't have to update stats; as it is
+				 * responsibility of linux bridge to add
+				 * new port info
+				 */
+			} else {
+				fdb->updated = jiffies;
+			}
+		}
+	}
+}
+
 void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 		   const unsigned char *addr)
 {
@@ -437,7 +494,12 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 					source->dev->name);
 		} else {
 			/* fastpath: update of existing entry */
-			fdb->dst = source;
+			if (unlikely(source != fdb->dst)) {
+				fdb->dst = source;
+				atomic_notifier_call_chain(
+						&br_fdb_update_notifier_list,
+						0, addr);
+			}
 			fdb->updated = jiffies;
 		}
 	} else {
@@ -468,7 +530,13 @@ void br_refresh_fdb_entry(struct net_device *dev, const char *addr)
 	}
 
 	rcu_read_lock();
-	br_fdb_update(p->br, p, addr);
+
+	/*
+	 * port modification/addition will only be done in linux stack path
+	 * through br_fdb_update() function; which is called in softirq context
+	 * by br_handle_frame_finish()
+	 */
+	br_fdb_refresh_stats(p->br, p, addr);
 	rcu_read_unlock();
 }
 
