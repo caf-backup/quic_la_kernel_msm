@@ -571,6 +571,12 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 			adapter->stats.rx_bytes += length;
 
 			napi_gro_receive(napi, skb);
+			if (unlikely(cleaned_count == EDMA_RX_BUFFER_WRITE)) {
+				edma_alloc_rx_buf(c_info, erdr, cleaned_count, queue_id);
+				edma_write_reg(REG_RX_SW_CONS_IDX_Q(queue_id),
+					sw_next_to_clean);
+				cleaned_count = 0;
+			}
 		}
 
 		if (unlikely(!work_to_do))
@@ -1225,8 +1231,7 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 		/* not enough descriptor, just stop queue */
 		netif_tx_stop_queue(etdr->nq);
 		local_bh_enable();
-		if (net_ratelimit())
-			dev_dbg(&net_dev->dev, "Not enough descriptors available");
+		dev_dbg(&net_dev->dev, "Not enough descriptors available");
 		adapter->stats.tx_errors++;
 		return NETDEV_TX_BUSY;
 	}
@@ -1413,6 +1418,15 @@ int edma_register_rfs_filter(struct net_device *netdev,
 	spin_unlock_bh(&adapter->rfs.lock);
 
 	return 0;
+}
+
+/* edma_select_xps_queue()
+ *	Called by Linux TX stack to populate Linux TX queue
+ */
+int edma_select_xps_queue(struct net_device *dev, struct sk_buff *skb,
+		void *accel_priv, select_queue_fallback_t fallback)
+{
+	return smp_processor_id();
 }
 
 /*
