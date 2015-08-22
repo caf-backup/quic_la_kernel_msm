@@ -30,6 +30,7 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/otg.h>
+#include <linux/usb/suspend.h>
 
 #include <linux/phy/phy.h>
 
@@ -771,6 +772,10 @@ struct dwc3 {
 	unsigned		setup_packet_pending:1;
 	unsigned		start_config_issued:1;
 	unsigned		three_stage_setup:1;
+	unsigned		enable_usb2susphy_quirk:1;
+
+	struct usb_susphy	susphy;
+
 };
 
 /* -------------------------------------------------------------------------- */
