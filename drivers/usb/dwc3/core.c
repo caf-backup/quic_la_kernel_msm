@@ -47,6 +47,31 @@
 
 /* -------------------------------------------------------------------------- */
 
+void dwc3_usb2phy_suspend(void *priv,
+				enum usb_device_speed speed, bool suspend)
+{
+	struct dwc3 *dwc = (struct dwc3 *) priv;
+	u32 reg;
+
+	if (speed > USB_SPEED_HIGH)
+		return;
+
+	if (!dwc->enable_usb2susphy_quirk)
+		return;
+
+	if (suspend) {
+		/* Enable Suspend USB2.0 HS/FS/LS PHY (SusPHY) */
+		reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(0));
+		reg |= DWC3_GUSB2PHYCFG_SUSPHY;
+		dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(0), reg);
+	} else {
+		/* Disable Suspend USB2.0 HS/FS/LS PHY (SusPHY) */
+		reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(0));
+		reg &= ~DWC3_GUSB2PHYCFG_SUSPHY;
+		dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(0), reg);
+	}
+}
+
 void dwc3_set_mode(struct dwc3 *dwc, u32 mode)
 {
 	u32 reg;
@@ -413,6 +438,9 @@ static int dwc3_probe(struct platform_device *pdev)
 		dwc->usb3_phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 1);
 
 		dwc->needs_fifo_resize = of_property_read_bool(node, "tx-fifo-resize");
+		dwc->enable_usb2susphy_quirk = of_property_read_bool(node,
+							"usb2-susphy-quirk");
+
 		dwc->dr_mode = of_usb_get_dr_mode(node);
 	} else if (pdata) {
 		dwc->maximum_speed = pdata->maximum_speed;
@@ -425,6 +453,11 @@ static int dwc3_probe(struct platform_device *pdev)
 	} else {
 		dwc->usb2_phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
 		dwc->usb3_phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB3);
+	}
+
+	if (dwc->enable_usb2susphy_quirk) {
+		dwc->susphy.priv = (void *)dwc;
+		dwc->susphy.set_suspend = &dwc3_usb2phy_suspend;
 	}
 
 	/* default to superspeed if no maximum_speed passed */

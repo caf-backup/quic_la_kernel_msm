@@ -16,6 +16,7 @@
  */
 
 #include <linux/platform_device.h>
+#include <linux/usb/pdriver.h>
 
 #include "core.h"
 
@@ -23,6 +24,7 @@ int dwc3_host_init(struct dwc3 *dwc)
 {
 	struct platform_device	*xhci;
 	int			ret;
+	struct usb_pdata	pdata;
 
 	xhci = platform_device_alloc("xhci-hcd", PLATFORM_DEVID_AUTO);
 	if (!xhci) {
@@ -43,6 +45,16 @@ int dwc3_host_init(struct dwc3 *dwc)
 						DWC3_XHCI_RESOURCES_NUM);
 	if (ret) {
 		dev_err(dwc->dev, "couldn't add resources to xHCI device\n");
+		goto err1;
+	}
+
+	memset(&pdata, 0, sizeof(pdata));
+
+	pdata.usb2_susphy_quirk = dwc->enable_usb2susphy_quirk;
+	pdata.susphy = &dwc->susphy;
+	ret = platform_device_add_data(xhci, &pdata, sizeof(pdata));
+	if (ret) {
+		dev_err(dwc->dev, "couldn't add pdata to xHCI device\n");
 		goto err1;
 	}
 

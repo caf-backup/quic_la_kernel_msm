@@ -27,6 +27,7 @@
 #include <linux/freezer.h>
 #include <linux/random.h>
 #include <linux/pm_qos.h>
+#include <linux/usb/suspend.h>
 
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
@@ -2998,6 +2999,7 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 	int		port1 = udev->portnum;
 	int		status;
 	bool		really_suspend = true;
+	struct		usb_hcd *hcd = bus_to_hcd(hub->hdev->bus);
 
 	/* enable remote wakeup when appropriate; this lets the device
 	 * wake up the upstream hub (including maybe the root hub).
@@ -3085,6 +3087,11 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 			/* device has up to 10 msec to fully suspend */
 			msleep(10);
 		}
+
+		if (!hub->hdev->parent)
+			usb_suspend_phy(hcd->primary_hcd->susphy,
+						udev->speed, true);
+
 		usb_set_device_state(udev, USB_STATE_SUSPENDED);
 	}
 
@@ -4304,6 +4311,8 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	if (hcd->phy && !hdev->parent)
 		usb_phy_notify_connect(hcd->phy, udev->speed);
 
+	usb_suspend_phy(hcd->primary_hcd->susphy, udev->speed, false);
+
 	/*
 	 * Some superspeed devices have finished the link training process
 	 * and attached to a superspeed hub port, but the device descriptor
@@ -4516,6 +4525,10 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 				!(portstatus & USB_PORT_STAT_CONNECTION))
 			usb_phy_notify_disconnect(hcd->phy, udev->speed);
 		usb_disconnect(&hub->ports[port1 - 1]->child);
+
+		if (!hdev->parent && !(portstatus & USB_PORT_STAT_CONNECTION))
+			usb_suspend_phy(hcd->primary_hcd->susphy,
+						udev->speed, true);
 	}
 	clear_bit(port1, hub->change_bits);
 
