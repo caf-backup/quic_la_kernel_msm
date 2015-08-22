@@ -240,7 +240,7 @@ static void qca_uni_ss_phy_shutdown(struct usb_phy *x)
 }
 
 /* Function to read the value from OTP through scm call */
-int qca_uni_ss_read_otp(void)
+int qca_uni_ss_read_otp(uint32_t *otp_read_data)
 {
 	int ret;
 	uint32_t *otp_value = kzalloc(sizeof(uint32_t), GFP_KERNEL);
@@ -257,7 +257,7 @@ int qca_uni_ss_read_otp(void)
 
 	ret = dma_mapping_error(NULL, rdip.value);
 	if (ret != 0) {
-		pr_err("\nDMA Mapping Error");
+		pr_err("DMA Mapping Error\n");
 		goto err_write;
 	}
 
@@ -268,11 +268,11 @@ int qca_uni_ss_read_otp(void)
 		sizeof(uint32_t), DMA_FROM_DEVICE);
 
 	if (ret != 0) {
-		pr_err("\n Error in reading value: %d", ret);
+		pr_err("Error in reading value: %d\n", ret);
 		goto err_write;
 	}
 
-	ret = *otp_value;
+	*otp_read_data = *otp_value;
 err_write:
 	kfree(otp_value);
 	return ret;
@@ -280,13 +280,14 @@ err_write:
 
 int qca_uni_ss_phy_usb_los_calibration(uint32_t base)
 {
-	uint32_t remap, data, otp_val;
+	uint32_t data, otp_val = 0;
+
 	/* Get OTP value */
-	otp_val = qca_uni_ss_read_otp();
-	if (otp_val < 0) {
-		pr_err("\n USB Calibration Falied with error %d", otp_val);
+	if ((qca_uni_ss_read_otp(&otp_val) < 0) && (!otp_val)) {
+		pr_err("USB Calibration Falied with error %d\n", otp_val);
 		return 0;
 	}
+
 	/*
 	 * Read the USB3PHY_SPARE_1 register and
 	 * set bit 14 to 0
