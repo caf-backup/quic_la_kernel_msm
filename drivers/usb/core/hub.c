@@ -4952,8 +4952,16 @@ static void hub_events(void)
 					status = hub_port_reset(hub, i,
 							NULL, HUB_BH_RESET_TIME,
 							true);
-					if (status < 0)
+					if (status < 0) {
 						hub_port_disable(hub, i, 1);
+					} else {
+						hub_port_status(hub, i,
+							&portstatus,
+							&portchange);
+						dev_err(hub_dev,
+							"force connect change port %d\n", i);
+						connect_change = 1;
+					}
 				} else {
 					usb_lock_device(udev);
 					status = usb_reset_device(udev);
