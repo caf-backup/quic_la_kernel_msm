@@ -4969,8 +4969,14 @@ static void port_event(struct usb_hub *hub, int port1)
 		if (!udev || !(portstatus & USB_PORT_STAT_CONNECTION)
 				|| udev->state == USB_STATE_NOTATTACHED) {
 			if (hub_port_reset(hub, port1, NULL,
-					HUB_BH_RESET_TIME, true) < 0)
+					HUB_BH_RESET_TIME, true) < 0) {
 				hub_port_disable(hub, port1, 1);
+			} else {
+				struct device *hub_dev = &port_dev->dev;
+				hub_port_status(hub, port1, &portstatus, &portchange);
+				dev_err(hub_dev, "force connect change port %d\n", port1);
+				connect_change = 1;
+			}
 		} else
 			reset_device = 1;
 	}
