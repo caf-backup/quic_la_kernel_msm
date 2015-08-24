@@ -84,7 +84,7 @@ int write_version(uint32_t type, uint32_t version)
 
 	wrip.value = version;
 	wrip.sw_type = type;
-	wrip.qfprom_ret_ptr = dma_map_single(NULL, &qfprom_api_status,
+	wrip.qfprom_ret_ptr = dma_map_single(NULL, qfprom_api_status,
 			sizeof(*qfprom_api_status), DMA_FROM_DEVICE);
 
 	ret = dma_mapping_error(NULL, wrip.qfprom_ret_ptr);
@@ -288,7 +288,7 @@ store_rpm_version(struct device *dev,
  * New types should be added at the end
  */
 static struct device_attribute qfprom_attrs[] = {
-	__ATTR(authenticate, 0644, qfprom_show_authenticate,
+	__ATTR(authenticate, 0444, qfprom_show_authenticate,
 					NULL),
 	__ATTR(sbl_version, 0644, show_sbl_version,
 					store_sbl_version),
