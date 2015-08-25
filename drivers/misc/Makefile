@@ -58,3 +58,4 @@ obj-$(CONFIG_QSEECOM)		+= qseecom.o
 
 CFLAGS_fw_auth.o += -I$(srctree)/crypto/asymmetric_keys
 obj-$(CONFIG_FW_AUTH) += fw_auth.o
+obj-$(CONFIG_FW_AUTH_TEST) += fw_auth_test.o

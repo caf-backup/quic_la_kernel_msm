@@ -531,6 +531,15 @@ config FW_AUTH
 	  This driver provides API to authenticate binaries signed using
 	  RSA PKCS signature scheme with public key embedded in X.509 certificate.
 
+config FW_AUTH_TEST
+	tristate "Test module for FW authentication API"
+	depends on FW_AUTH
+	default m
+	---help---
+	  This kernel module provides an interface through sysfs to test
+	  the firmware authentication API defined under FW_AUTH config.
+
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
