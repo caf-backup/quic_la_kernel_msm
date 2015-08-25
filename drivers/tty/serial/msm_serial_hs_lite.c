@@ -927,7 +927,7 @@ static void msm_hsl_set_baud_rate(struct uart_port *port,
 	msm_hsl_write(port, 0, regmap[vid][UARTDM_TFWR]);
 
 	msm_hsl_write(port, CR_PROTECTION_EN, regmap[vid][UARTDM_CR]);
-	msm_hsl_reset(port);
+	msm_hsl_write(port, RESET_RX, regmap[vid][UARTDM_CR]);
 
 	data = UARTDM_CR_TX_EN_BMSK;
 	data |= UARTDM_CR_RX_EN_BMSK;
