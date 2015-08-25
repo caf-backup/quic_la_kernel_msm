@@ -523,6 +523,14 @@ config QSEECOM
 	  between userspace and Qualcomm Secure Execution Environment (QSEE)
 	  using Secure Channel Manager (SCM) interface.
 
+config FW_AUTH
+	bool "Authentication Support for RSA signed binaries"
+	depends on ASYMMETRIC_KEY_TYPE
+	default n
+	---help---
+	  This driver provides API to authenticate binaries signed using
+	  RSA PKCS signature scheme with public key embedded in X.509 certificate.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
