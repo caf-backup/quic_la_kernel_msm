@@ -1399,6 +1399,9 @@ static inline void msm_spi_dma_unmap_buffers(struct msm_spi *dd)
 static inline bool
 msm_spi_use_dma(struct msm_spi *dd, struct spi_transfer *tr, u8 bpw)
 {
+	unsigned long rx = (unsigned long)tr->rx_buf;
+	unsigned long tx = (unsigned long)tr->tx_buf;
+
 	if (!dd->use_dma)
 		return false;
 
@@ -1411,6 +1414,13 @@ msm_spi_use_dma(struct msm_spi *dd, struct spi_transfer *tr, u8 bpw)
 
 	if ((dd->qup_ver != SPI_QUP_VERSION_BFAM) &&
 		dd->multi_xfr && !dd->read_len && !dd->write_len)
+		return false;
+
+	if (is_vmalloc_addr(rx) &&
+		(rx & PAGE_MASK) != ((rx + tr->len) & PAGE_MASK))
+		return false;
+	else if (is_vmalloc_addr(tx) &&
+		(tx & PAGE_MASK) != ((tx + tr->len) & PAGE_MASK))
 		return false;
 
 	if (dd->qup_ver == SPI_QUP_VERSION_NONE) {
