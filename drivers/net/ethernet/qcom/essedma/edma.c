@@ -835,7 +835,7 @@ static inline int edma_tx_queue_get(struct edma_adapter *adapter,
 	/* skb->priority is used as an index to skb priority table
 	 * and based on packet priority, correspong queue is assigned.
 	 */
-	return adapter->tx_start_offset[txq_id] + edma_skb_priority_tbl[skb->priority];
+	return adapter->tx_start_offset[txq_id] + edma_skb_priority_tbl[skb->priority & 0x7];
 }
 
 /*
@@ -1226,7 +1226,7 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 		netif_tx_stop_queue(etdr->nq);
 		local_bh_enable();
 		dev_dbg(&net_dev->dev, "Not enough descriptors available");
-		adapter->stats.tx_errors++;
+		c_info->edma_ethstats.tx_desc_error++;
 		return NETDEV_TX_BUSY;
 	}
 
