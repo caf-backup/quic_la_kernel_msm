@@ -2672,6 +2672,7 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 {
 	int i, status;
 	u16 portchange, portstatus;
+	struct usb_hcd *hcd = bus_to_hcd(hub->hdev->bus);
 
 	if (!hub_is_superspeed(hub->hdev)) {
 		if (warm) {
@@ -2679,6 +2680,10 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 						"warm reset\n");
 			return -EINVAL;
 		}
+
+		if (!hub->hdev->parent)
+			usb_host_discon(hcd->primary_hcd->susphy, true);
+
 		/* Block EHCI CF initialization during the port reset.
 		 * Some companion controllers don't like it when they mix.
 		 */
@@ -2757,8 +2762,12 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 		port1);
 
 done:
-	if (!hub_is_superspeed(hub->hdev))
+	if (!hub_is_superspeed(hub->hdev)) {
+		if (!hub->hdev->parent)
+			usb_host_discon(hcd->primary_hcd->susphy, false);
+
 		up_read(&ehci_cf_port_reset_rwsem);
+	}
 
 	return status;
 }
