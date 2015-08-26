@@ -30,6 +30,7 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/otg.h>
+#include <linux/usb/suspend.h>
 
 /* Global constants */
 #define DWC3_EP0_BOUNCE_SIZE	512
@@ -706,6 +707,7 @@ struct dwc3 {
 	unsigned		needs_fifo_resize:1;
 	unsigned		resize_fifos:1;
 	unsigned		pullups_connected:1;
+	unsigned		enable_usb2susphy_quirk:1;
 
 	enum dwc3_ep0_next	ep0_next_event;
 	enum dwc3_ep0_state	ep0state;
@@ -730,6 +732,8 @@ struct dwc3 {
 
 	u8			test_mode;
 	u8			test_mode_nr;
+
+	struct usb_susphy	susphy;
 };
 
 /* -------------------------------------------------------------------------- */

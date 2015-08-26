@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/dma-mapping.h>
+#include <linux/usb/pdriver.h>
 
 #include "xhci.h"
 
@@ -93,6 +94,8 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	struct usb_hcd		*hcd;
 	int			ret;
 	int			irq;
+	struct usb_pdata *pdata =
+		(struct usb_pdata *)dev_get_platdata(&pdev->dev);
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -122,6 +125,10 @@ static int xhci_plat_probe(struct platform_device *pdev)
 
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
+
+	if (pdata->usb2_susphy_quirk) {
+		hcd->susphy = pdata->susphy;
+	}
 
 	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len,
 				driver->description)) {
