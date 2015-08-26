@@ -98,6 +98,20 @@ static inline void qca_baldur_hs_write(void __iomem *base, u32 offset, u32 val)
 }
 
 /**
+ * Read register.
+ *
+ * @base - PHY base virtual address.
+ * @offset - register offset.
+ */
+static inline u32 qca_baldur_hs_read(void __iomem *base, u32 offset)
+{
+	u32 val;
+
+	val = readl(base + offset);
+	return val;
+}
+
+/**
  * Write register and read back masked value to confirm it is written
  *
  * @base - PHY base virtual address.
@@ -121,6 +135,21 @@ static inline void qca_baldur_hs_write_readback(void __iomem *base, u32 offset,
 
 	if (tmp != val)
 		pr_err("write: %x to BALDUR PHY: %x FAILED\n", val, offset);
+}
+
+static int qca_baldur_phy_read(struct usb_phy *x, u32 reg)
+{
+	struct qca_baldur_hs_phy *phy = phy_to_dw_phy(x);
+
+	return qca_baldur_hs_read(phy->base, reg);
+}
+
+static int qca_baldur_phy_write(struct usb_phy *x, u32 val, u32 reg)
+{
+	struct qca_baldur_hs_phy *phy = phy_to_dw_phy(x);
+
+	qca_baldur_hs_write(phy->base, reg, val);
+	return 0;
 }
 
 static int qca_baldur_hs_phy_init(struct usb_phy *x)
@@ -217,6 +246,11 @@ static void qca_baldur_hs_phy_shutdown(struct usb_phy *x)
 	qca_baldur_hs_put_resources(phy);
 }
 
+static struct usb_phy_io_ops qca_baldur_io_ops = {
+	.read = qca_baldur_phy_read,
+	.write = qca_baldur_phy_write,
+};
+
 static const struct qca_baldur_hs_data usb3_hs_data = {
 	.usb3_hs_phy = 1,
 	.phy_config_offset = USB30_HS_PHY_HOST_MODE,
@@ -259,11 +293,12 @@ static int qca_baldur_hs_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	phy->phy.dev        = phy->dev;
-	phy->phy.label      = "qca-baldur-hsphy";
-	phy->phy.init       = qca_baldur_hs_phy_init;
-	phy->phy.shutdown   = qca_baldur_hs_phy_shutdown;
-	phy->phy.type       = USB_PHY_TYPE_USB2;
+	phy->phy.dev		= phy->dev;
+	phy->phy.label		= "qca-baldur-hsphy";
+	phy->phy.init		= qca_baldur_hs_phy_init;
+	phy->phy.shutdown	= qca_baldur_hs_phy_shutdown;
+	phy->phy.type		= USB_PHY_TYPE_USB2;
+	phy->phy.io_ops		= &qca_baldur_io_ops;
 
 	err = usb_add_phy_dev(&phy->phy);
 	return err;

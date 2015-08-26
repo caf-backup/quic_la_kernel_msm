@@ -25,6 +25,7 @@ struct usb_susphy {
 
 	void (*set_suspend)(void *x,
 		enum usb_device_speed speed, bool suspend);
+	void (*set_host_discon)(void *x, bool enable);
 };
 
 static inline void
@@ -34,4 +35,12 @@ usb_suspend_phy(struct usb_susphy *x,
 	if (x && x->set_suspend != NULL)
 		x->set_suspend(x->priv, speed, suspend);
 }
+
+static inline void
+usb_host_discon(struct usb_susphy *x, int enable)
+{
+	if (x && x->set_host_discon != NULL)
+		x->set_host_discon(x->priv, enable);
+}
+
 #endif /* __LINUX_USB__SUSPEND_H */
