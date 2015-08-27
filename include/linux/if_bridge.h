@@ -128,6 +128,13 @@ extern br_multicast_handle_hook_t __rcu *br_multicast_handle_hook;
 typedef void (br_notify_hook_t)(int group, int event, const void *ptr);
 extern br_notify_hook_t __rcu *br_notify_hook;
 
-#endif
-
+#define BR_FDB_EVENT_ADD     0x01
+#define BR_FDB_EVENT_DEL     0x02
+struct br_fdb_event {
+	struct net_device *dev;
+	unsigned char      addr[6];
+	unsigned char      is_local;
+};
+extern void br_fdb_register_notify(struct notifier_block *nb);
+extern void br_fdb_unregister_notify(struct notifier_block *nb);
 #endif
