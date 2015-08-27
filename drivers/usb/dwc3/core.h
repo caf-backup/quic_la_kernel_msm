@@ -708,6 +708,7 @@ struct dwc3 {
 	unsigned		resize_fifos:1;
 	unsigned		pullups_connected:1;
 	unsigned		enable_usb2susphy_quirk:1;
+	unsigned		enable_usb2_host_discon_quirk:1;
 
 	enum dwc3_ep0_next	ep0_next_event;
 	enum dwc3_ep0_state	ep0state;
@@ -734,6 +735,9 @@ struct dwc3 {
 	u8			test_mode_nr;
 
 	struct usb_susphy	susphy;
+
+	u32			phy_misc_reg;
+	u32			phy_host_disc_on;
 };
 
 /* -------------------------------------------------------------------------- */
