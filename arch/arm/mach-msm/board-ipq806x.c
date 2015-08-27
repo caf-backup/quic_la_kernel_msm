@@ -2247,7 +2247,7 @@ static struct platform_device ap160_kp_pdev = {
 	},
 };
 
-#define AP161_GPIO_BTN_JUMPSTART        68
+#define AP161_GPIO_BTN_JUMPSTART        54
 #define AP161_KEYS_POLL_INTERVAL        20      /* msecs */
 #define AP161_KEYS_DEBOUNCE_INTERVAL    (3 * AP161_KEYS_POLL_INTERVAL)
 
