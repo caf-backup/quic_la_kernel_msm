@@ -283,7 +283,7 @@ int qca_uni_ss_phy_usb_los_calibration(uint32_t base)
 	uint32_t data, otp_val = 0;
 
 	/* Get OTP value */
-	if ((qca_uni_ss_read_otp(&otp_val) < 0) && (!otp_val)) {
+	if ((qca_uni_ss_read_otp(&otp_val) < 0) || (!otp_val)) {
 		pr_err("USB Calibration Falied with error %d\n", otp_val);
 		return 0;
 	}
