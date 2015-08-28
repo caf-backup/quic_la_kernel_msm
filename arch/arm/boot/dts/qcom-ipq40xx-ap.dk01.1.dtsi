@@ -131,11 +131,10 @@
 			compatible = "gpio-keys";
 
 			button@1 {
-				label = "reset";
-				linux,code = <KEY_RESTART>;
+				label = "wps";
+				linux,code = <KEY_WPS_BUTTON>;
 				gpios = <&tlmm 63 0x0>;
 				linux,input-type = <1>;
-				debounce-interval = <60>;
 			};
 		};
 
