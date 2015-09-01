@@ -133,7 +133,7 @@
 			button@1 {
 				label = "wps";
 				linux,code = <KEY_WPS_BUTTON>;
-				gpios = <&tlmm 63 0x0>;
+				gpios = <&tlmm 63 GPIO_ACTIVE_LOW>;
 				linux,input-type = <1>;
 			};
 		};
