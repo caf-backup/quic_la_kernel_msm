@@ -159,9 +159,11 @@ int authenticate_fw(struct auth_input *ai)
 	if (check_input(ai))
 		return -EINVAL;
 
-	if (ai->sig_hash_algo != HASH_ALGO_SHA256)
+	if (ai->sig_hash_algo != HASH_ALGO_SHA256 &&
+	    ai->sig_hash_algo != HASH_ALGO_SHA1) {
+		pr_info("\nSHA1/SHA256 are the supported hash algorithms\n");
 		return -ENOTSUPP;
-
+	}
 	if (ai->pk_algo != PKEY_ALGO_RSA)
 		return -ENOTSUPP;
 
