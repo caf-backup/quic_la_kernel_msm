@@ -634,6 +634,9 @@ static int edma_axi_probe(struct platform_device *pdev)
 			dev_dbg(&pdev->dev, "PHY attach FAIL");
 			ret = -EIO;
 			goto edma_phy_attach_fail;
+		} else {
+			adapter[EDMA_WAN]->phydev->advertising |= ADVERTISED_Pause | ADVERTISED_Asym_Pause;
+			adapter[EDMA_WAN]->phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
 		}
 	}
 
