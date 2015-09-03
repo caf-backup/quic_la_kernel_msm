@@ -367,6 +367,8 @@
 #define MBOX_DMA_POLICY_SW_RESET			(1 << 31)
 #define MBOX_DMA_POLICY_TX_INT_TYPE			(1 << 17)
 #define MBOX_DMA_POLICY_RX_INT_TYPE			(1 << 16)
+#define MBOX_DMA_POLICY_RXD_16BIT_SWAP			(1 << 10)
+#define MBOX_DMA_POLICY_RXD_END_SWAP			(1 << 8)
 #define ADSS_MBOX_DMA_POLICY_SRAM_AC(x)		(((x >> 28) & 0xf) << 12)
 #define ADSS_MBOX_DMA_POLICY_TX_FIFO_THRESHOLD(x)	(((x & 0xf) << 4))
 
@@ -588,6 +590,7 @@ extern void ipq40xx_config_master(uint32_t enable, uint32_t stereo_offset);
 extern void ipq40xx_config_mclk_sel(uint32_t stereo_offset, uint32_t val);
 extern void ipq40xx_config_sample_cnt_clear_type(uint32_t stereo_offset);
 extern void ipq40xx_stereo_spdif_enable(uint32_t enable, uint32_t stereo_id);
+extern void ipq40xx_stereo_spdif_pcmswap(uint32_t enable, uint32_t stereo_id);
 
 /* APIs in DAI driver */
 extern uint32_t get_mbox_id(struct snd_pcm_substream *substream, int intf);
