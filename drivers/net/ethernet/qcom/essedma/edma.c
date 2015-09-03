@@ -830,18 +830,12 @@ static inline u16 edma_tpd_available(struct edma_common_info *c_info,
  *	Get the starting number of  the queue
  */
 static inline int edma_tx_queue_get(struct edma_adapter *adapter,
-		struct sk_buff *skb)
+		struct sk_buff *skb, int txq_id)
 {
-	int id = get_cpu(), ret;
-
-	put_cpu();
-
 	/* skb->priority is used as an index to skb priority table
 	 * and based on packet priority, correspong queue is assigned.
 	 */
-	ret = adapter->tx_start_offset[id] + edma_skb_priority_tbl[skb->priority];
-
-	return ret;
+	return adapter->tx_start_offset[txq_id] + edma_skb_priority_tbl[skb->priority];
 }
 
 /*
@@ -1218,7 +1212,7 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 	/* this will be one of the 4 TX queues exposed to linux kernel */
 	txq_id = skb_get_queue_mapping(skb);
 
-	queue_id = edma_tx_queue_get(adapter, skb);
+	queue_id = edma_tx_queue_get(adapter, skb, txq_id);
 	etdr = c_info->tpd_ring[queue_id];
         etdr->nq = netdev_get_tx_queue(net_dev, txq_id);
 
