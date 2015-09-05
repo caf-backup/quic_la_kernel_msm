@@ -2072,6 +2072,7 @@ static struct gpio_led ak01_gpio_leds[] = {
 		.name       = "ak01:red:fp",
 		.gpio       = 9,
 		.active_low = 0,
+		.default_state = LEDS_GPIO_DEFSTATE_ON,
 	},
 	{
 		.name       = "ak01:green:status",
