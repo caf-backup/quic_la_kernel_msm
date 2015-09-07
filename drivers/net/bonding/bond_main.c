@@ -191,7 +191,7 @@ static int arp_ip_count;
 static int bond_mode	= BOND_MODE_ROUNDROBIN;
 static int xmit_hashtype = BOND_XMIT_POLICY_LAYER2;
 static int lacp_fast;
-static unsigned long bond_id_mask = 0xFFFFFFFE;
+static unsigned long bond_id_mask = 0xFFFFFFF0;
 
 const struct bond_parm_tbl bond_lacp_tbl[] = {
 {	"slow",		AD_LACP_SLOW},
