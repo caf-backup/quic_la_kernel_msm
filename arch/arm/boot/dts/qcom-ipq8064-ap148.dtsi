@@ -274,6 +274,13 @@
 				linux,input-type = <1>;
 				debounce-interval = <60>;
 			};
+			button@2 {
+				label = "wps";
+				linux,code = <KEY_WPS_BUTTON>;
+				gpios = <&qcom_pinmux 65 GPIO_ACTIVE_LOW>;
+				linux,input-type = <1>;
+				debounce-interval = <60>;
+			};
 		};
 
 		mdio0: mdio {
