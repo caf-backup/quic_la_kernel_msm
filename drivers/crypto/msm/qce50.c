@@ -2681,7 +2681,10 @@ static int qce_sps_get_bam(struct qce_device *pce_dev)
 	 * Set flag to indicate BAM global device control is managed
 	 * remotely.
 	 */
-	bam.manage = SPS_BAM_MGR_LOCAL;
+	if ((pce_dev->support_cmd_dscr == false) || (pce_dev->is_shared))
+		bam.manage = SPS_BAM_MGR_DEVICE_REMOTE;
+	else
+		bam.manage = SPS_BAM_MGR_LOCAL;
 
 	bam.ee = 1;
 
