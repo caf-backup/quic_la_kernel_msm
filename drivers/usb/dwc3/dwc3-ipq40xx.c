@@ -38,8 +38,6 @@ struct dwc3_ipq40xx {
 	struct clk *master_clk;
 	struct clk *mock_utmi_clk;
 	struct clk *sleep_clk;
-	struct clk *srif_ahb_clk;
-	struct clk *srif_25m_clk;
 
 	unsigned int host;
 };
@@ -140,18 +138,6 @@ static int dwc3_ipq40xx_probe(struct platform_device *pdev)
 		return PTR_ERR(mdwc->sleep_clk);
 	}
 
-	mdwc->srif_ahb_clk = devm_clk_get(mdwc->dev, "srif_ahb");
-	if (IS_ERR(mdwc->srif_ahb_clk)) {
-		dev_err(mdwc->dev, "failed to get srif_ahb clock\n");
-		return PTR_ERR(mdwc->srif_ahb_clk);
-	}
-
-	mdwc->srif_25m_clk = devm_clk_get(mdwc->dev, "srif_25m");
-	if (IS_ERR(mdwc->srif_25m_clk)) {
-		dev_err(mdwc->dev, "failed to get srif_25m clock\n");
-		return PTR_ERR(mdwc->srif_25m_clk);
-	}
-
 	np = of_node_get(pdev->dev.of_node);
 	if (of_property_read_u32(np, "qca,host", &mdwc->host)) {
 		dev_err(mdwc->dev,
@@ -165,8 +151,6 @@ static int dwc3_ipq40xx_probe(struct platform_device *pdev)
 	clk_prepare_enable(mdwc->master_clk);
 	clk_prepare_enable(mdwc->mock_utmi_clk);
 	clk_prepare_enable(mdwc->sleep_clk);
-	clk_prepare_enable(mdwc->srif_ahb_clk);
-	clk_prepare_enable(mdwc->srif_25m_clk);
 
 	ret = of_platform_populate(node, NULL, NULL, mdwc->dev);
 	if (ret) {
@@ -178,8 +162,6 @@ static int dwc3_ipq40xx_probe(struct platform_device *pdev)
 
 dis_clks:
 	dev_err(mdwc->dev, "disabling clocks\n");
-	clk_disable_unprepare(mdwc->srif_ahb_clk);
-	clk_disable_unprepare(mdwc->srif_25m_clk);
 	clk_disable_unprepare(mdwc->sleep_clk);
 	clk_disable_unprepare(mdwc->mock_utmi_clk);
 	clk_disable_unprepare(mdwc->master_clk);
@@ -200,8 +182,6 @@ static int dwc3_ipq40xx_remove(struct platform_device *pdev)
 	int ret = 0;
 	struct dwc3_ipq40xx *mdwc = platform_get_drvdata(pdev);
 
-	clk_disable_unprepare(mdwc->srif_ahb_clk);
-	clk_disable_unprepare(mdwc->srif_25m_clk);
 	clk_disable_unprepare(mdwc->sleep_clk);
 	clk_disable_unprepare(mdwc->mock_utmi_clk);
 	clk_disable_unprepare(mdwc->master_clk);

@@ -23,10 +23,10 @@
 #include <mach/msm_pcie.h>
 
 #define MSM_PCIE_MAX_VREG 3
-#define MSM_PCIE_MAX_CLK 6
+#define MSM_PCIE_MAX_CLK 3
 #define MSM_PCIE_MAX_PIPE_CLK 1
 
-#define MAX_RC_NUM 2
+#define MAX_RC_NUM 1
 
 #ifdef CONFIG_ARM_LPAE
 #define PCIE_UPPER_ADDR(addr) ((u32)((addr) >> 32))
@@ -209,7 +209,6 @@ struct msm_pcie_dev_t {
 	struct msm_pcie_vreg_info_t  vreg[MSM_PCIE_MAX_VREG];
 	struct msm_pcie_gpio_info_t  gpio[MSM_PCIE_MAX_GPIO];
 	struct msm_pcie_clk_info_t   clk[MSM_PCIE_MAX_CLK];
-	struct msm_pcie_clk_info_t   pipeclk[MSM_PCIE_MAX_PIPE_CLK];
 	struct msm_pcie_res_info_t   res[MSM_PCIE_MAX_RES];
 	struct msm_pcie_irq_info_t   irq[MSM_PCIE_MAX_IRQ];
 	struct msm_pcie_rst_info_t   rst[MSM_PCIE_MAX_RESET];
