@@ -41,7 +41,7 @@ static struct snd_soc_dai_link ipq40xx_snd_dai[] = {
 		/* Codec DAI Name */
 		.codec_dai_name	= "qca-i2s-codec-dai",
 		/*Codec Driver Name */
-		.codec_name	= "qca_codec.0-0010",
+		.codec_name	= "qca_codec.0-0012",
 	},
 	{
 		.name		= "IPQ40xx Media2",
@@ -49,7 +49,7 @@ static struct snd_soc_dai_link ipq40xx_snd_dai[] = {
 		.cpu_dai_name	= "qca-tdm-dai",
 		.platform_name	= "7709000.qca-pcm-tdm",
 		.codec_dai_name	= "qca-tdm-codec-dai",
-		.codec_name	= "qca_codec.0-0010",
+		.codec_name	= "qca_codec.0-0012",
 	},
 	{
 		.name		= "IPQ40xx Media3",
@@ -57,7 +57,7 @@ static struct snd_soc_dai_link ipq40xx_snd_dai[] = {
 		.cpu_dai_name	= "qca-i2s1-dai",
 		.platform_name	= "770b000.qca-pcm-i2s1",
 		.codec_dai_name	= "qca-i2s1-codec-dai",
-		.codec_name	= "qca_codec.0-0010",
+		.codec_name	= "qca_codec.0-0012",
 	},
 	{
 		.name		= "IPQ40xx Media4",
@@ -65,7 +65,7 @@ static struct snd_soc_dai_link ipq40xx_snd_dai[] = {
 		.cpu_dai_name	= "qca-i2s2-dai",
 		.platform_name	= "770d000.qca-pcm-i2s2",
 		.codec_dai_name	= "qca-i2s2-codec-dai",
-		.codec_name	= "qca_codec.0-0010",
+		.codec_name	= "qca_codec.0-0012",
 	},
 	{
 		.name           = "IPQ40xx Media5",
@@ -73,7 +73,7 @@ static struct snd_soc_dai_link ipq40xx_snd_dai[] = {
 		.cpu_dai_name   = "qca-spdif-dai",
 		.platform_name  = "7707000.qca-pcm-spdif",
 		.codec_dai_name = "qca-spdif-codec-dai",
-		.codec_name	= "qca_codec.0-0010",
+		.codec_name	= "qca_codec.0-0012",
 	},
 };
 

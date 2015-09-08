@@ -121,7 +121,7 @@
 		i2c_0: i2c@78b7000 { /* BLSP1 QUP2 */
 			status = "ok";
 
-			qca_codec: qca_codec@10 {
+			qca_codec: qca_codec@12 {
 				status = "ok";
 			};
 		};
