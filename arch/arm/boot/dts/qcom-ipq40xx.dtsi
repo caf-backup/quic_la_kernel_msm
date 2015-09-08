@@ -292,14 +292,10 @@
 			reg-names = "qscratch_base";
 			clocks = <&gcc GCC_USB3_MASTER_CLK>,
 				<&gcc GCC_USB3_SLEEP_CLK>,
-				<&gcc GCC_USB3_MOCK_UTMI_CLK>,
-				<&gcc 0>,
-				<&gcc 0>;
+				<&gcc GCC_USB3_MOCK_UTMI_CLK>;
 			clock-names = "master",
 				"sleep",
-				"mock_utmi",
-				"srif_ahb",
-				"srif_25m";
+				"mock_utmi";
 			qca,host = <1>;
 			status = "disabled";
 
@@ -327,14 +323,10 @@
 			reg-names = "qscratch_base";
 			clocks = <&gcc GCC_USB2_MASTER_CLK>,
 				<&gcc GCC_USB2_SLEEP_CLK>,
-				<&gcc GCC_USB2_MOCK_UTMI_CLK>,
-				<&gcc 0>,
-				<&gcc 0>;
+				<&gcc GCC_USB2_MOCK_UTMI_CLK>;
 			clock-names = "master",
 				"sleep",
-				"mock_utmi",
-				"srif_ahb",
-				"srif_25m";
+				"mock_utmi";
 			qca,host = <1>;
 			status = "disabled";
 
@@ -604,21 +596,13 @@
 
 			clocks = <&gcc GCC_PCIE_AHB_CLK>,
 				<&gcc GCC_PCIE_AXI_M_CLK>,
-				<&gcc GCC_PCIE_AXI_S_CLK>,
-				<&gcc 0>,
-				<&gcc 0>,
-				<&gcc 0>,
-				<&gcc 0>;
+				<&gcc GCC_PCIE_AXI_S_CLK>;
 
 			clock-names =	"pcie_0_cfg_ahb_clk",
 					"pcie_0_mstr_axi_clk",
-					"pcie_0_slv_axi_clk",
-					"pcie_0_pipe_clk",
-					"pcie_0_ref_clk_src",
-					"pcie_0_aux_clk",
-					"pcie_0_ldo";
+					"pcie_0_slv_axi_clk";
 
-			max-clock-frequency-hz = <100000000>, <200000000>, <200000000>, <0>, <0>, <0>, <0>;
+			max-clock-frequency-hz = <0>, <0>, <0>;
 
 			resets = <&gcc PCIE_AXI_M_ARES>,
 				<&gcc PCIE_AXI_S_ARES>,
