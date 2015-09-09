@@ -412,6 +412,20 @@
 			reg-names = "nss_reg_base" , "qsgmii_reg_base", "clk_ctl_base";
 		};
 
+		nss-macsec0@37800000{
+			compatible = "qcom,nss-macsec";
+			reg = <0x37800000 0x00200000>;
+		};
+
+		nss-macsec1@37a00000{
+			compatible = "qcom,nss-macsec";
+			reg = <0x37A00000 0x00200000>;
+		};
+
+		nss-macsec2@37c00000{
+			compatible = "qcom,nss-macsec";
+			reg = <0x37C00000 0x00200000>;
+		};
 		gmac0: ethernet@37000000 {
 			device_type = "network";
 			compatible = "qcom,nss-gmac";
