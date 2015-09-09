@@ -153,6 +153,7 @@
 			qcom,mode = <GSBI_PROT_UART_W_FC>;
 			status = "ok";
 			hs_uart@12490000 {
+				uartdm_rx_buf_size = <1024>;
 				qcom,rx-chan = <8>;
 				qcom,tx-chan = <7>;
 				qcom,rx-crci = <14>;

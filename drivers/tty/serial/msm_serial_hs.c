@@ -242,6 +242,7 @@ struct msm_hs_port {
 	bool rx_bam_inprogress;
 	bool is_shutdown;
 	bool termios_in_progress;
+	int rx_buf_size;
 };
 
 #define MSM_UARTDM_BURST_SIZE 16   /* DM burst size (in bytes) */
@@ -1417,9 +1418,9 @@ static void msm_hs_start_rx_locked(struct uart_port *uport)
 	 * Zeroed out UART RX software buffer which would help to
 	 * check how much data is copied if there is any RX stall.
 	 */
-	memset(msm_uport->rx.buffer, 0x00, UARTDM_RX_BUF_SIZE);
+	memset(msm_uport->rx.buffer, 0x00, msm_uport->rx_buf_size);
 	msm_hs_write(uport, UARTDM_CR_ADDR, RESET_STALE_INT);
-	msm_hs_write(uport, UARTDM_DMRX_ADDR, UARTDM_RX_BUF_SIZE);
+	msm_hs_write(uport, UARTDM_DMRX_ADDR, msm_uport->rx_buf_size);
 	msm_hs_write(uport, UARTDM_CR_ADDR, STALE_EVENT_ENABLE);
 	msm_uport->imr_reg |= UARTDM_ISR_RXLEV_BMSK;
 
@@ -2758,7 +2759,7 @@ static int uartdm_init_port(struct uart_port *uport)
 			(unsigned long) &tx->tlet);
 
 	rx->pool = dma_pool_create("rx_buffer_pool", uport->dev,
-				   UARTDM_RX_BUF_SIZE, 16, 0);
+				   msm_uport->rx_buf_size, 16, 0);
 	if (!rx->pool) {
 		pr_err("%s(): cannot allocate rx_buffer_pool", __func__);
 		ret = -ENOMEM;
@@ -2818,8 +2819,8 @@ static int uartdm_init_port(struct uart_port *uport)
 		goto free_rx_command_ptr;
 	}
 
-	rx->command_ptr->num_rows = ((UARTDM_RX_BUF_SIZE >> 4) << 16) |
-					 (UARTDM_RX_BUF_SIZE >> 4);
+	rx->command_ptr->num_rows = ((msm_uport->rx_buf_size >> 4) << 16) |
+					(msm_uport->rx_buf_size >> 4);
 
 	rx->command_ptr->dst_row_addr = rx->rbuffer;
 
@@ -2879,7 +2880,7 @@ struct msm_serial_hs_platform_data
 	struct device_node *node = pdev->dev.of_node;
 	struct msm_serial_hs_platform_data *pdata;
 	const struct of_device_id *match;
-	int rx_to_inject, ret;
+	int rx_to_inject, ret, uartdm_rx_buf_size;
 
 	match = of_match_device(msm_hs_match_table, &pdev->dev);
 
@@ -2912,6 +2913,11 @@ struct msm_serial_hs_platform_data
 					"qcom,rfr-gpio", 0);
 	if (pdata->uart_rfr_gpio < 0)
 		pr_debug("uart_rfr_gpio is not available\n");
+
+	ret = of_property_read_u32(node, "uartdm_rx_buf_size",
+			&uartdm_rx_buf_size);
+	if (ret == 0)
+		pdata->uartdm_rx_buf_size = uartdm_rx_buf_size;
 
 	pdata->inject_rx_on_wakeup = of_property_read_bool(node,
 				"qcom,inject-rx-on-wakeup");
@@ -3225,6 +3231,11 @@ static int msm_hs_probe(struct platform_device *pdev)
 		else
 			msm_uport->uart_type = BLSP_HSUART;
 	}
+
+	if (pdata && pdata->uartdm_rx_buf_size)
+		msm_uport->rx_buf_size = pdata->uartdm_rx_buf_size;
+	else
+		msm_uport->rx_buf_size = UARTDM_RX_BUF_SIZE;
 
 	/* Get required resources for BAM HSUART */
 	if (is_blsp_uart(msm_uport)) {
