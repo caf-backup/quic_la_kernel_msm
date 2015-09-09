@@ -368,7 +368,7 @@
 		amba {
 			/* eMMC */
 			sdcc1: sdcc@12400000 {
-				status = "disabled";
+				status = "ok";
 				pinctrl-0 = <&sdcc1_pins>;
 				pinctrl-names = "default";
 			};
