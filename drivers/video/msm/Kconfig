@@ -527,6 +527,15 @@ config FB_MSM_QPIC_ILI_QVGA_PANEL
 	  with on-chip full display RAM
 	  use parallel interface
 
+config FB_MSM_QPIC_ER_SSD1963_PANEL
+	tristate "Qpic MIPI ER ssd1963 Panel"
+	select FB_MSM_QPIC
+	---help---
+	  Support for MIPI ER ssd1963  (800x480) panel
+	  EAST Rising TECHNOLOGY ssd1963
+	  with on-chip full display RAM
+	  use 9-bit  parallel interface
+
 config FB_MSM_QPIC_PANEL_DETECT
 	bool "Qpic Panel Detect"
 	select FB_MSM_QPIC_ILI_QVGA_PANEL
