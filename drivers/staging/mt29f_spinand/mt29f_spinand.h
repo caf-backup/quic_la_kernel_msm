@@ -77,6 +77,17 @@
 #define BL_1_64_LOCKED     0x08
 #define BL_ALL_UNLOCKED    0
 
+struct spinand_cmd {
+	u8		cmd;
+	u32		n_addr;		/* Number of address */
+	u8		addr[3];	/* Reg Offset */
+	u32		n_dummy;	/* Dummy use */
+	u32		n_tx;		/* Number of tx bytes */
+	u8		*tx_buf;	/* Tx buf */
+	u32		n_rx;		/* Number of rx bytes */
+	u8		*rx_buf;	/* Rx buf */
+};
+
 struct spinand_ops {
 	u8   maf_id;
 	u8   dev_id;
@@ -104,17 +115,6 @@ struct spinand_state {
 	uint32_t	row;
 	int		buf_ptr;
 	u8		*buf;
-};
-
-struct spinand_cmd {
-	u8		cmd;
-	u32		n_addr;		/* Number of address */
-	u8		addr[3];	/* Reg Offset */
-	u32		n_dummy;	/* Dummy use */
-	u32		n_tx;		/* Number of tx bytes */
-	u8		*tx_buf;	/* Tx buf */
-	u32		n_rx;		/* Number of rx bytes */
-	u8		*rx_buf;	/* Rx buf */
 };
 
 extern int spinand_mtd(struct mtd_info *mtd);

@@ -153,9 +153,9 @@
 			pinctrl-names = "i2c_active", "i2c_sleep";
 			status = "ok";
 
-			qca_codec: qca_codec@10 {
+			qca_codec: qca_codec@12 {
 				compatible = "qca,ipq40xx-codec";
-				reg = <0x10>;
+				reg = <0x12>;
 				status = "disabled";
 			};
 		};
@@ -245,7 +245,7 @@
 			button@1 {
 				label = "wps";
 				linux,code = <KEY_WPS_BUTTON>;
-				gpios = <&tlmm 18 0x0>;
+				gpios = <&tlmm 18 GPIO_ACTIVE_LOW>;
 				linux,input-type = <1>;
 			};
 		};
