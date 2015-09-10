@@ -559,7 +559,6 @@ extern void kfree_skb(struct sk_buff *skb);
 extern void kfree_skbmem(struct sk_buff *skb);
 extern void skb_release_data(struct sk_buff *skb);
 extern void consume_skb(struct sk_buff *skb);
-void recycle_skb(struct sk_buff *skb);
 extern void	       __kfree_skb(struct sk_buff *skb);
 extern struct sk_buff *__alloc_skb(unsigned int size,
 				   gfp_t priority, int fclone, int node);
@@ -602,7 +601,7 @@ extern int	       skb_to_sgvec(struct sk_buff *skb,
 extern int	       skb_cow_data(struct sk_buff *skb, int tailbits,
 				    struct sk_buff **trailer);
 extern int	       skb_pad(struct sk_buff *skb, int pad);
-#define dev_kfree_skb(a)	 recycle_skb(a)
+#define dev_kfree_skb(a)	consume_skb(a)
 
 extern int skb_append_datato_frags(struct sock *sk, struct sk_buff *skb,
 			int getfrag(void *from, char *to, int offset,

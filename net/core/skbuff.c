@@ -568,25 +568,6 @@ void consume_skb(struct sk_buff *skb)
 {
 	if (unlikely(!skb))
 		return;
-	if (likely(atomic_read(&skb->users) == 1))
-		smp_rmb(); /* Memory barrier */
-	else if (likely(!atomic_dec_and_test(&skb->users)))
-		return;
-	trace_consume_skb(skb);
-	__kfree_skb(skb);
-}
-EXPORT_SYMBOL(consume_skb);
-
-
-/**
- *	recycle_skb - recycle an skbuff
- *	@skb: buffer to free
- *
- */
-void recycle_skb(struct sk_buff *skb)
-{
-	if (unlikely(!skb))
-		return;
 
 	prefetch(&skb->destructor);
 
@@ -622,7 +603,7 @@ void recycle_skb(struct sk_buff *skb)
 	skb_release_data(skb);
 	kfree_skbmem(skb);
 }
-EXPORT_SYMBOL(recycle_skb);
+EXPORT_SYMBOL(consume_skb);
 
 /**
  * 	skb_recycle - clean up an skb for reuse
