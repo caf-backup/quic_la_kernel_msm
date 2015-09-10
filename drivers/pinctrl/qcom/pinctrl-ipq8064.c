@@ -216,6 +216,9 @@ static const unsigned int sdc3_data_pins[] = { 71 };
 		.intr_polarity_bit = 1,			\
 		.intr_detection_bit = 2,		\
 		.intr_detection_width = 1,		\
+		.extra_val = 0,				\
+		.extra_mask = 0,			\
+		.extra_func = IPQ_MUX_NA,		\
 	}
 
 #define SDC_PINGROUP(pg_name, ctl, pull, drv)		\
@@ -242,6 +245,9 @@ static const unsigned int sdc3_data_pins[] = { 71 };
 		.intr_polarity_bit = -1,                \
 		.intr_detection_bit = -1,               \
 		.intr_detection_width = -1,             \
+		.extra_val = 0,				\
+		.extra_mask = 0,			\
+		.extra_func = IPQ_MUX_NA,		\
 	}
 
 enum ipq8064_functions {
