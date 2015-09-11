@@ -30,6 +30,7 @@
 #include <asm/cacheflush.h>
 #include <linux/dma-mapping.h>
 
+#define QFPROM_MAX_VERSION_EXCEEDED             0x10
 #define QFPROM_ROW_READ_CMD			0x8
 #define QFPROM_ROW_WRITE_CMD			0x9
 #define QFPROM_IS_AUTHENTICATE_CMD		0x7
@@ -101,10 +102,12 @@ int write_version(uint32_t type, uint32_t version)
 	dma_unmap_single(NULL, wrip.qfprom_ret_ptr,
 			sizeof(*qfprom_api_status), DMA_FROM_DEVICE);
 
-	if (ret || *qfprom_api_status) {
+	if(ret)
 		pr_err("%s: Error in QFPROM write (%d, %d)\n",
-				__func__, ret, *qfprom_api_status);
-	}
+					__func__, ret, *qfprom_api_status);
+	if (*qfprom_api_status == QFPROM_MAX_VERSION_EXCEEDED)
+		pr_err("Version %u exceeds maximum limit. All fuses blown.\n",
+							    version);
 
 err_write:
 	kfree(qfprom_api_status);
