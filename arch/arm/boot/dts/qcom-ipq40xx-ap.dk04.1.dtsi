@@ -89,6 +89,59 @@
 					bias-disable;
 				};
 			};
+			sd_0_pins: sd_0_pinmux {
+				sd0 {
+					pins = "gpio23";
+					function = "sdio0";
+					drive-strength = <10>;
+				};
+				sd1 {
+					pins = "gpio24";
+					function = "sdio1";
+					drive-strength = <10>;
+				};
+				sd2 {
+					pins = "gpio25";
+					function = "sdio2";
+					drive-strength = <10>;
+				};
+				sd3 {
+					pins = "gpio26";
+					function = "sdio3";
+					drive-strength = <10>;
+				};
+				sdclk {
+					pins = "gpio27";
+					function = "sdio_clk";
+					drive-strength = <16>;
+				};
+				sdcmd {
+					pins = "gpio28";
+					function = "sdio_cmd";
+					drive-strength = <10>;
+				};
+				sd4 {
+					pins = "gpio29";
+					function = "sdio4";
+					drive-strength = <10>;
+				};
+				sd5 {
+					pins = "gpio30";
+					function = "sdio5";
+					drive-strength = <10>;
+				};
+				sd6 {
+					pins = "gpio31";
+					function = "sdio6";
+					drive-strength = <10>;
+				};
+				sd7 {
+					pins = "gpio32";
+					function = "sdio7";
+					drive-strength = <10>;
+					bias-disable;
+				};
+			};
 		};
 
 		serial@78af000 {
@@ -231,6 +284,8 @@
 
 		sdhci@7824000 {
 			status = "ok";
+			pinctrl-0 = <&sd_0_pins>;
+			pinctrl-names = "default";
 			vqmmc-supply = <&vccq_sd0>;
 			cd-gpios = <&tlmm 22 0x1>;
 		};
