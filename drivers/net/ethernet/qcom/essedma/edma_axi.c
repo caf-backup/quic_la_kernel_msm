@@ -41,8 +41,8 @@ u16 tx_start[4] = {EDMA_TXQ_START_CORE0, EDMA_TXQ_START_CORE1,
 u32 tx_mask[4] = {EDMA_TXQ_IRQ_MASK_CORE0, EDMA_TXQ_IRQ_MASK_CORE1,
 			EDMA_TXQ_IRQ_MASK_CORE2, EDMA_TXQ_IRQ_MASK_CORE3};
 
-int edma_default_ltag  __read_mostly = EDMA_LAN_DEFAULT;
-int edma_default_wtag  __read_mostly = EDMA_WAN_DEFAULT;
+int edma_default_ltag  __read_mostly = EDMA_LAN_DEFAULT_VLAN;
+int edma_default_wtag  __read_mostly = EDMA_WAN_DEFAULT_VLAN;
 int edma_weight_assigned_to_q __read_mostly;
 int edma_queue_to_virtual_q __read_mostly;
 bool edma_enable_rstp  __read_mostly;
@@ -65,46 +65,46 @@ void edma_read_reg(u16 reg_addr, volatile u32 *reg_value)
 	*reg_value = readl((void __iomem *)(edma_hw_addr + reg_addr));
 }
 
-void edma_read_append_stats(struct edma_common_info *c_info)
+void edma_read_append_stats(struct edma_common_info *edma_cinfo)
 {
-	uint8_t *p = (uint8_t *)&(c_info->edma_ethstats);
-	int i, j;
+	uint8_t *p = (uint8_t *)&(edma_cinfo->edma_ethstats);
+	int i;
 	u32 stat;
 
-	spin_lock(&c_info->stats_lock);
+	spin_lock(&edma_cinfo->stats_lock);
 
 	for (i = 0; i < EDMA_MAX_TRANSMIT_QUEUE; i++) {
-		edma_read_reg(REG_TX_STAT_PKT_Q(i), &stat);
+		edma_read_reg(EDMA_REG_TX_STAT_PKT_Q(i), &stat);
 		*(uint32_t *)p += stat;
 		p += sizeof(uint32_t);
 	}
 
 	for (i = 0; i < EDMA_MAX_TRANSMIT_QUEUE; i++) {
-		edma_read_reg(REG_TX_STAT_BYTE_Q(i), &stat);
+		edma_read_reg(EDMA_REG_TX_STAT_BYTE_Q(i), &stat);
 		*(uint32_t *)p += stat;
 		p += sizeof(uint32_t);
 	}
 
 	for (i = 0; i < EDMA_MAX_RECEIVE_QUEUE; i++) {
-		edma_read_reg(REG_RX_STAT_PKT_Q(i), &stat);
+		edma_read_reg(EDMA_REG_RX_STAT_PKT_Q(i), &stat);
 		*(uint32_t *)p += stat;
 		p += sizeof(uint32_t);
 	}
 
 	for (i = 0; i < EDMA_MAX_RECEIVE_QUEUE; i++) {
-		edma_read_reg(REG_RX_STAT_BYTE_Q(i), &stat);
+		edma_read_reg(EDMA_REG_RX_STAT_BYTE_Q(i), &stat);
 		*(uint32_t *)p += stat;
 		p += sizeof(uint32_t);
 	}
 
-	spin_unlock(&c_info->stats_lock);
+	spin_unlock(&edma_cinfo->stats_lock);
 }
 
 static void edma_statistics_timer(unsigned long data)
 {
-	struct edma_common_info *c_info = (struct edma_common_info *)data;
+	struct edma_common_info *edma_cinfo = (struct edma_common_info *)data;
 
-	edma_read_append_stats(c_info);
+	edma_read_append_stats(edma_cinfo);
 
 	mod_timer(&edma_stats_timer, jiffies + 1*HZ);
 }
@@ -183,21 +183,21 @@ static int edma_weight_assigned_to_queues(struct ctl_table *table, int write,
 
 		data = weight << EDMA_WRR_SHIFT(queue_id);
 		if (queue_id <= 3) {
-			edma_read_reg(REG_WRR_CTRL_Q0_Q3, &reg_data);
+			edma_read_reg(EDMA_REG_WRR_CTRL_Q0_Q3, &reg_data);
 			reg_data &= ~(1 << EDMA_WRR_SHIFT(queue_id));
-			edma_write_reg(REG_WRR_CTRL_Q0_Q3, data | reg_data);
+			edma_write_reg(EDMA_REG_WRR_CTRL_Q0_Q3, data | reg_data);
 		} else if (queue_id <= 7) {
-			edma_read_reg(REG_WRR_CTRL_Q4_Q7, &reg_data);
+			edma_read_reg(EDMA_REG_WRR_CTRL_Q4_Q7, &reg_data);
 			reg_data &= ~(1 << EDMA_WRR_SHIFT(queue_id));
-			edma_write_reg(REG_WRR_CTRL_Q4_Q7, data | reg_data);
+			edma_write_reg(EDMA_REG_WRR_CTRL_Q4_Q7, data | reg_data);
 		} else if (queue_id <= 11) {
-			edma_read_reg(REG_WRR_CTRL_Q8_Q11, &reg_data);
+			edma_read_reg(EDMA_REG_WRR_CTRL_Q8_Q11, &reg_data);
 			reg_data &= ~(1 << EDMA_WRR_SHIFT(queue_id));
-			edma_write_reg(REG_WRR_CTRL_Q8_Q11, data | reg_data);
+			edma_write_reg(EDMA_REG_WRR_CTRL_Q8_Q11, data | reg_data);
 		} else {
-			edma_read_reg(REG_WRR_CTRL_Q12_Q15, &reg_data);
+			edma_read_reg(EDMA_REG_WRR_CTRL_Q12_Q15, &reg_data);
 			reg_data &= ~(1 << EDMA_WRR_SHIFT(queue_id));
-			edma_write_reg(REG_WRR_CTRL_Q12_Q15, data | reg_data);
+			edma_write_reg(EDMA_REG_WRR_CTRL_Q12_Q15, data | reg_data);
 		}
 	}
 
@@ -224,15 +224,15 @@ static int edma_queue_to_virtual_queue_map(struct ctl_table *table, int write,
 			return -EINVAL;
 		}
 
-		data = virtual_qid << VQ_ID_SHIFT(queue_id);
+		data = virtual_qid << EDMA_VQ_ID_SHIFT(queue_id);
 		if (queue_id <= 7) {
-			edma_read_reg(REG_VQ_CTRL0, &reg_data);
-			reg_data &= ~(1 << VQ_ID_SHIFT(queue_id));
-			edma_write_reg(REG_VQ_CTRL0, data | reg_data);
+			edma_read_reg(EDMA_REG_VQ_CTRL0, &reg_data);
+			reg_data &= ~(1 << EDMA_VQ_ID_SHIFT(queue_id));
+			edma_write_reg(EDMA_REG_VQ_CTRL0, data | reg_data);
 		} else {
-			edma_read_reg(REG_VQ_CTRL1, &reg_data);
-			reg_data &= ~(1 << VQ_ID_SHIFT(queue_id));
-			edma_write_reg(REG_VQ_CTRL1, data | reg_data);
+			edma_read_reg(EDMA_REG_VQ_CTRL1, &reg_data);
+			reg_data &= ~(1 << EDMA_VQ_ID_SHIFT(queue_id));
+			edma_write_reg(EDMA_REG_VQ_CTRL1, data | reg_data);
 		}
 	}
 
@@ -320,7 +320,7 @@ static const struct net_device_ops edma_axi_netdev_ops = {
  */
 static int edma_axi_probe(struct platform_device *pdev)
 {
-	struct edma_common_info *c_info;
+	struct edma_common_info *edma_cinfo;
 	struct edma_hw *hw;
 	struct edma_adapter *adapter[2];
 	struct resource *res;
@@ -332,8 +332,6 @@ static int edma_axi_probe(struct platform_device *pdev)
 	struct edma_mdio_data *mdio_data = NULL;
 	int i, j, err = 0, ret = 0;
 	uint8_t phy_id[MII_BUS_ID_SIZE + 3];
-	const __be32 *prop = NULL;
-
 
 	/* Use to allocate net devices for multiple TX/RX queues */
 	netdev[0] = alloc_etherdev_mqs(sizeof(struct edma_adapter),
@@ -355,38 +353,38 @@ static int edma_axi_probe(struct platform_device *pdev)
 	SET_NETDEV_DEV(netdev[1], &pdev->dev);
 	platform_set_drvdata(pdev, netdev[1]);
 
-	c_info = vzalloc(sizeof(struct edma_common_info));
-	if (!c_info) {
+	edma_cinfo = vzalloc(sizeof(struct edma_common_info));
+	if (!edma_cinfo) {
 		err = -ENOMEM;
 		goto err_ioremap;
 	}
 
-	c_info->pdev = pdev;
-	c_info->netdev[0] = netdev[0];
-        c_info->netdev[1] = netdev[1];
+	edma_cinfo->pdev = pdev;
+	edma_cinfo->netdev[0] = netdev[0];
+        edma_cinfo->netdev[1] = netdev[1];
 
 	/* Fill ring details */
-	c_info->num_tx_queues = EDMA_MAX_TRANSMIT_QUEUE;
-	c_info->tx_ring_count = EDMA_TX_RING_SIZE;
-	c_info->num_rx_queues = EDMA_MAX_RECEIVE_QUEUE;
-	c_info->rx_ring_count = EDMA_RX_RING_SIZE;
+	edma_cinfo->num_tx_queues = EDMA_MAX_TRANSMIT_QUEUE;
+	edma_cinfo->tx_ring_count = EDMA_TX_RING_SIZE;
+	edma_cinfo->num_rx_queues = EDMA_MAX_RECEIVE_QUEUE;
+	edma_cinfo->rx_ring_count = EDMA_RX_RING_SIZE;
 
-	hw = &c_info->hw;
+	hw = &edma_cinfo->hw;
 
 	/* Fill HW defaults */
 	hw->tx_intr_mask = EDMA_TX_IMR_NORMAL_MASK;
 	hw->rx_intr_mask = EDMA_RX_IMR_NORMAL_MASK;
 
-	of_property_read_u32(np, "qcom,page-mode", &c_info->page_mode);
+	of_property_read_u32(np, "qcom,page-mode", &edma_cinfo->page_mode);
 	of_property_read_u32(np, "qcom,rx_head_buf_size", &hw->rx_head_buff_size);
-	of_property_read_u32(np, "qcom,port_id_wan", &c_info->edma_port_id_wan);
+	of_property_read_u32(np, "qcom,port_id_wan", &edma_cinfo->edma_port_id_wan);
 
 	if (overwrite_mode) {
 		dev_info(&pdev->dev, "page mode overwritten");
-		c_info->page_mode = page_mode;
+		edma_cinfo->page_mode = page_mode;
 	}
 
-	if (c_info->page_mode)
+	if (edma_cinfo->page_mode)
 		hw->rx_head_buff_size = EDMA_RX_HEAD_BUFF_SIZE_JUMBO;
 	else if (!hw->rx_head_buff_size)
 		hw->rx_head_buff_size = EDMA_RX_HEAD_BUFF_SIZE;
@@ -406,49 +404,49 @@ static int edma_axi_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	c_info->hw.hw_addr = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(c_info->hw.hw_addr)) {
-		ret = PTR_ERR(c_info->hw.hw_addr);
+	edma_cinfo->hw.hw_addr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(edma_cinfo->hw.hw_addr)) {
+		ret = PTR_ERR(edma_cinfo->hw.hw_addr);
 		goto err_hwaddr;
 	}
 
-	edma_hw_addr = (unsigned long)c_info->hw.hw_addr;
+	edma_hw_addr = (unsigned long)edma_cinfo->hw.hw_addr;
 
 	/* Parse tx queue interrupt number from device tree */
-	for (i = 0; i < c_info->num_tx_queues; i++)
-		c_info->tx_irq[i] = platform_get_irq(pdev, i);
+	for (i = 0; i < edma_cinfo->num_tx_queues; i++)
+		edma_cinfo->tx_irq[i] = platform_get_irq(pdev, i);
 
 	/* Parse rx queue interrupt number from device tree
 	 * Here we are setting j to point to the point where we
 	 * left tx interrupt parsing(i.e 16) and run run the loop
 	 * from 0 to 7 to parse rx interrupt number.
 	 */
-	for (i = 0, j = c_info->num_tx_queues; i < c_info->num_rx_queues;
+	for (i = 0, j = edma_cinfo->num_tx_queues; i < edma_cinfo->num_rx_queues;
 			i++, j++)
-		c_info->rx_irq[i] = platform_get_irq(pdev, j);
+		edma_cinfo->rx_irq[i] = platform_get_irq(pdev, j);
 
-	c_info->rx_head_buffer_len = c_info->hw.rx_head_buff_size;
-	c_info->rx_page_buffer_len = PAGE_SIZE;
+	edma_cinfo->rx_head_buffer_len = edma_cinfo->hw.rx_head_buff_size;
+	edma_cinfo->rx_page_buffer_len = PAGE_SIZE;
 
-	err = edma_alloc_queues_tx(c_info);
+	err = edma_alloc_queues_tx(edma_cinfo);
 	if (err) {
 		dev_err(&pdev->dev, "Allocation of TX queue failed\n");
 		goto err_tx_qinit;
 	}
 
-	err = edma_alloc_queues_rx(c_info);
+	err = edma_alloc_queues_rx(edma_cinfo);
 	if (err) {
 		dev_err(&pdev->dev, "Allocation of RX queue failed\n");
 		goto err_rx_qinit;
 	}
 
-	err = edma_alloc_tx_rings(c_info);
+	err = edma_alloc_tx_rings(edma_cinfo);
 	if (err) {
 		dev_err(&pdev->dev, "Allocation of TX resources failed\n");
 		goto err_tx_rinit;
 	}
 
-	err = edma_alloc_rx_rings(c_info);
+	err = edma_alloc_rx_rings(edma_cinfo);
 	if (err) {
 		dev_err(&pdev->dev, "Allocation of RX resources failed\n");
 		goto err_rx_rinit;
@@ -480,10 +478,10 @@ static int edma_axi_probe(struct platform_device *pdev)
 			 * q0,q1,q4,q5,q8,q9,q12,q13 goes to WAN, others to LAN
 			 */
 			for (k = adapter[i]->tx_start_offset[j]; k < (adapter[i]->tx_start_offset[j] + 2); k++) {
-				edma_fill_netdev(c_info, k, i);
+				edma_fill_netdev(edma_cinfo, k, i);
 			}
 		}
-		adapter[i]->c_info = c_info;
+		adapter[i]->edma_cinfo = edma_cinfo;
 		netdev[i]->netdev_ops = &edma_axi_netdev_ops;
 		netdev[i]->features = NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_CTAG_TX
 				| NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_SG | NETIF_F_TSO |
@@ -532,16 +530,16 @@ static int edma_axi_probe(struct platform_device *pdev)
 #endif
 	}
 
-	c_info->edma_ctl_table_hdr = register_net_sysctl(&init_net, "net/edma", edma_table);
-	if (!c_info->edma_ctl_table_hdr) {
+	edma_cinfo->edma_ctl_table_hdr = register_net_sysctl(&init_net, "net/edma", edma_table);
+	if (!edma_cinfo->edma_ctl_table_hdr) {
 		dev_err(&pdev->dev, "edma sysctl table hdr not registered\n");
 		goto err_unregister_sysctl_tbl;
 	}
 
 	/* Set default LAN tag */
-	adapter[EDMA_LAN]->default_vlan_tag = EDMA_LAN_DEFAULT;
+	adapter[EDMA_LAN]->default_vlan_tag = EDMA_LAN_DEFAULT_VLAN;
 	/* Set default WAN tag */
-        adapter[EDMA_WAN]->default_vlan_tag = EDMA_WAN_DEFAULT;
+        adapter[EDMA_WAN]->default_vlan_tag = EDMA_WAN_DEFAULT_VLAN;
 
 
 	if (of_property_read_bool(np, "qcom,mdio_supported")) {
@@ -591,9 +589,9 @@ static int edma_axi_probe(struct platform_device *pdev)
 	}
 
 	/* Disable all 16 Tx and 8 rx irqs */
-	edma_irq_disable(c_info);
+	edma_irq_disable(edma_cinfo);
 
-	err = edma_reset(c_info);
+	err = edma_reset(edma_cinfo);
 	if (err) {
 		err = -EIO;
 		goto err_reset;
@@ -604,37 +602,37 @@ static int edma_axi_probe(struct platform_device *pdev)
 	 */
 	for (i = 0; i < EDMA_NR_CPU; i++) {
 		u8 rx_start;
-		c_info->q_cinfo[i].napi.state = 0;
-		netif_napi_add(netdev[0], &c_info->q_cinfo[i].napi,
+		edma_cinfo->edma_percpu_info[i].napi.state = 0;
+		netif_napi_add(netdev[0], &edma_cinfo->edma_percpu_info[i].napi,
 					edma_poll, 64);
-		napi_enable(&c_info->q_cinfo[i].napi);
-		c_info->q_cinfo[i].tx_mask = tx_mask[i];
-		c_info->q_cinfo[i].rx_mask = EDMA_RX_PER_CPU_MASK <<
+		napi_enable(&edma_cinfo->edma_percpu_info[i].napi);
+		edma_cinfo->edma_percpu_info[i].tx_mask = tx_mask[i];
+		edma_cinfo->edma_percpu_info[i].rx_mask = EDMA_RX_PER_CPU_MASK <<
 					(i << EDMA_RX_PER_CPU_MASK_SHIFT);
-		c_info->q_cinfo[i].tx_start = tx_start[i];
-		c_info->q_cinfo[i].rx_start =  rx_start =
+		edma_cinfo->edma_percpu_info[i].tx_start = tx_start[i];
+		edma_cinfo->edma_percpu_info[i].rx_start =  rx_start =
 					i << EDMA_RX_CPU_START_SHIFT;
-		c_info->q_cinfo[i].tx_status = 0;
-		c_info->q_cinfo[i].rx_status = 0;
-		c_info->q_cinfo[i].c_info = c_info;
+		edma_cinfo->edma_percpu_info[i].tx_status = 0;
+		edma_cinfo->edma_percpu_info[i].rx_status = 0;
+		edma_cinfo->edma_percpu_info[i].edma_cinfo = edma_cinfo;
 
 		/* Request irq per core */
-		for (j = c_info->q_cinfo[i].tx_start; j < tx_start[i] + 4; j++) {
+		for (j = edma_cinfo->edma_percpu_info[i].tx_start; j < tx_start[i] + 4; j++) {
 			sprintf(&edma_tx_irq[j][0], "edma_eth_tx%d", j);
-			err = request_irq(c_info->tx_irq[j], edma_interrupt,
-				IRQF_DISABLED, &edma_tx_irq[j][0], &c_info->q_cinfo[i]);
+			err = request_irq(edma_cinfo->tx_irq[j], edma_interrupt,
+				IRQF_DISABLED, &edma_tx_irq[j][0], &edma_cinfo->edma_percpu_info[i]);
 		}
 
-		for (j = c_info->q_cinfo[i].rx_start; j < rx_start + 2; j++) {
+		for (j = edma_cinfo->edma_percpu_info[i].rx_start; j < rx_start + 2; j++) {
 			sprintf(&edma_rx_irq[j][0], "edma_eth_rx%d", j);
-			err = request_irq(c_info->rx_irq[j], edma_interrupt,
-				IRQF_DISABLED, &edma_rx_irq[j][0], &c_info->q_cinfo[i]);
+			err = request_irq(edma_cinfo->rx_irq[j], edma_interrupt,
+				IRQF_DISABLED, &edma_rx_irq[j][0], &edma_cinfo->edma_percpu_info[i]);
 		}
 
 #ifdef CONFIG_RFS_ACCEL
-		for (j = c_info->q_cinfo[i].rx_start; j < rx_start + 2; j += 2) {
+		for (j = edma_cinfo->edma_percpu_info[i].rx_start; j < rx_start + 2; j += 2) {
 			err = irq_cpu_rmap_add(netdev[0]->rx_cpu_rmap,
-				c_info->rx_irq[j]);
+				edma_cinfo->rx_irq[j]);
 			if (err)
 				goto err_rmap_add_fail;
 		}
@@ -644,7 +642,7 @@ static int edma_axi_probe(struct platform_device *pdev)
 	/* Used to clear interrupt status, allocate rx buffer,
 	 * configure edma descriptors registers
 	 */
-	err = edma_configure(c_info);
+	err = edma_configure(edma_cinfo);
 	if (err) {
 		err = -EIO;
 		goto err_configure;
@@ -663,19 +661,19 @@ static int edma_axi_probe(struct platform_device *pdev)
 	 * following pattern: load_balance{0,1,2,3} = {Q0,Q1,Q3,Q4}
 	 * respectively.
 	 */
-	edma_write_reg(REG_LB_RING, EDMA_LB_REG_VALUE);
+	edma_write_reg(EDMA_REG_LB_RING, EDMA_LB_REG_VALUE);
 
 	/* Configure Virtual queue for Tx rings
 	 * User can also change this value runtime through
 	 * a sysctl
 	 */
-	edma_write_reg(REG_VQ_CTRL0, EDMA_VQ_REG_VALUE);
-	edma_write_reg(REG_VQ_CTRL1, EDMA_VQ_REG_VALUE);
+	edma_write_reg(EDMA_REG_VQ_CTRL0, EDMA_VQ_REG_VALUE);
+	edma_write_reg(EDMA_REG_VQ_CTRL1, EDMA_VQ_REG_VALUE);
 
 	/* Enable All 16 tx and 8 rx irq mask */
-	edma_irq_enable(c_info);
-	edma_enable_tx_ctrl(&c_info->hw);
-	edma_enable_rx_ctrl(&c_info->hw);
+	edma_irq_enable(edma_cinfo);
+	edma_enable_tx_ctrl(&edma_cinfo->hw);
+	edma_enable_rx_ctrl(&edma_cinfo->hw);
 
 	if (adapter[EDMA_WAN]->poll_required) {
 		adapter[EDMA_WAN]->phydev =
@@ -691,11 +689,11 @@ static int edma_axi_probe(struct platform_device *pdev)
 		}
 	}
 
-	spin_lock_init(&c_info->stats_lock);
+	spin_lock_init(&edma_cinfo->stats_lock);
 
         init_timer(&edma_stats_timer);
         edma_stats_timer.expires = jiffies + 1*HZ;
-        edma_stats_timer.data = (unsigned long)c_info;
+        edma_stats_timer.data = (unsigned long)edma_cinfo;
         edma_stats_timer.function = edma_statistics_timer;                              /* timer handler */
         add_timer(&edma_stats_timer);
 
@@ -715,23 +713,23 @@ err_reset:
 	for (i = 0; i < EDMA_NR_NETDEV; i++)
 		edma_free_irqs(adapter[i]);
 	for (i = 0; i < EDMA_NR_CPU; i++)
-		napi_disable(&c_info->q_cinfo[i].napi);
+		napi_disable(&edma_cinfo->edma_percpu_info[i].napi);
 err_mdiobus_init_fail:
 err_unregister_sysctl_tbl:
 err_rmap_alloc_fail:
 	for (i = 0; i < EDMA_NR_NETDEV; i++)
 		unregister_netdev(netdev[i]);
 err_register:
-	edma_free_rx_rings(c_info);
+	edma_free_rx_rings(edma_cinfo);
 err_rx_rinit:
-	edma_free_tx_rings(c_info);
+	edma_free_tx_rings(edma_cinfo);
 err_tx_rinit:
-	edma_free_queues(c_info);
+	edma_free_queues(edma_cinfo);
 err_rx_qinit:
 err_tx_qinit:
-	iounmap(c_info->hw.hw_addr);
+	iounmap(edma_cinfo->hw.hw_addr);
 err_hwaddr:
-	vfree(c_info);
+	vfree(edma_cinfo);
 err_ioremap:
 	for (i = 0; i < EDMA_NR_NETDEV; i++)
 		free_netdev(netdev[i]);
@@ -749,8 +747,8 @@ err_alloc:
 static int edma_axi_remove(struct platform_device *pdev)
 {
 	struct edma_adapter *adapter = netdev_priv(netdev[0]);
-	struct edma_common_info *c_info = adapter->c_info;
-	struct edma_hw *hw = &c_info->hw;
+	struct edma_common_info *edma_cinfo = adapter->edma_cinfo;
+	struct edma_hw *hw = &edma_cinfo->hw;
 	int i;
 
 	for (i = 0; i < EDMA_NR_NETDEV; i++)
@@ -758,11 +756,11 @@ static int edma_axi_remove(struct platform_device *pdev)
 
 	edma_stop_rx_tx(hw);
 	for (i = 0; i < EDMA_NR_CPU; i++)
-		napi_disable(&c_info->q_cinfo[i].napi);
+		napi_disable(&edma_cinfo->edma_percpu_info[i].napi);
 
-	edma_irq_disable(c_info);
-	edma_write_reg(REG_RX_ISR, 0xff);
-	edma_write_reg(REG_TX_ISR, 0xffff);
+	edma_irq_disable(edma_cinfo);
+	edma_write_reg(EDMA_REG_RX_ISR, 0xff);
+	edma_write_reg(EDMA_REG_TX_ISR, 0xffff);
 #ifdef CONFIG_RFS_ACCEL
 	for (i = 0; i < EDMA_NR_NETDEV; i++) {
 		free_irq_cpu_rmap(netdev[0]->rx_cpu_rmap);
@@ -773,16 +771,16 @@ static int edma_axi_remove(struct platform_device *pdev)
 	phy_disconnect(adapter->phydev);
 	del_timer_sync(&edma_stats_timer);
 	edma_free_irqs(adapter);
-	unregister_net_sysctl_table(c_info->edma_ctl_table_hdr);
-        edma_free_tx_resources(c_info);
-        edma_free_rx_resources(c_info);
-	edma_free_tx_rings(c_info);
-	edma_free_rx_rings(c_info);
-	edma_free_queues(c_info);
+	unregister_net_sysctl_table(edma_cinfo->edma_ctl_table_hdr);
+        edma_free_tx_resources(edma_cinfo);
+        edma_free_rx_resources(edma_cinfo);
+	edma_free_tx_rings(edma_cinfo);
+	edma_free_rx_rings(edma_cinfo);
+	edma_free_queues(edma_cinfo);
 	for (i = 0; i < EDMA_NR_NETDEV; i++)
 		free_netdev(netdev[i]);
 
-	vfree(c_info);
+	vfree(edma_cinfo);
 
 	return 0;
 }

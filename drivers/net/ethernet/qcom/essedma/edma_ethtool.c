@@ -129,14 +129,14 @@ static void edma_get_ethtool_stats(struct net_device *netdev,
 		struct ethtool_stats *stats, uint64_t *data)
 {
 	struct edma_adapter *adapter = netdev_priv(netdev);
-	struct edma_common_info *c_info = adapter->c_info;
-	int32_t i, j;
+	struct edma_common_info *edma_cinfo = adapter->edma_cinfo;
+	int32_t i;
 	uint8_t *p = NULL;
 
-	edma_read_append_stats(c_info);
+	edma_read_append_stats(edma_cinfo);
 
 	for(i = 0; i < EDMA_STATS_LEN; i++) {
-		p = (uint8_t *)&(c_info->edma_ethstats) +
+		p = (uint8_t *)&(edma_cinfo->edma_ethstats) +
 			edma_gstrings_stats[i].stat_offset;
 		data[i] = *(uint32_t *)p;
 	}
