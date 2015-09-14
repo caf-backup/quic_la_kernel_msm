@@ -95,6 +95,9 @@ struct msm_pingroup {
 	unsigned intr_polarity_bit:5;
 	unsigned intr_detection_bit:5;
 	unsigned intr_detection_width:5;
+	unsigned extra_func;
+	unsigned extra_val;
+	unsigned extra_mask;
 };
 
 /**

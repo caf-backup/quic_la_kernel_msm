@@ -30,6 +30,7 @@
 #include <asm/cacheflush.h>
 #include <linux/dma-mapping.h>
 
+#define QFPROM_MAX_VERSION_EXCEEDED             0x10
 #define QFPROM_ROW_READ_CMD			0x8
 #define QFPROM_ROW_WRITE_CMD			0x9
 #define QFPROM_IS_AUTHENTICATE_CMD		0x7
@@ -41,6 +42,8 @@
 #define SW_TYPE_APPSBL				0x9
 #define SW_TYPE_HLOS				0x17
 #define SW_TYPE_RPM				0xA
+
+static int gl_version_enable;
 
 static ssize_t
 qfprom_show_authenticate(struct device *dev,
@@ -99,10 +102,12 @@ int write_version(uint32_t type, uint32_t version)
 	dma_unmap_single(NULL, wrip.qfprom_ret_ptr,
 			sizeof(*qfprom_api_status), DMA_FROM_DEVICE);
 
-	if (ret || *qfprom_api_status) {
+	if(ret)
 		pr_err("%s: Error in QFPROM write (%d, %d)\n",
-				__func__, ret, *qfprom_api_status);
-	}
+					__func__, ret, *qfprom_api_status);
+	if (*qfprom_api_status == QFPROM_MAX_VERSION_EXCEEDED)
+		pr_err("Version %u exceeds maximum limit. All fuses blown.\n",
+							    version);
 
 err_write:
 	kfree(qfprom_api_status);
@@ -177,7 +182,7 @@ static ssize_t generic_version(const char *buf,
 	case 1:
 		ret = read_version(sw_type, &version);
 		if (ret) {
-			pr_err("\n Error in reading version: %d", ret);
+			pr_err("Error in reading version: %d\n", ret);
 			goto err_generic;
 		}
 		ret = snprintf((char *)buf, 10, "%d\n", *version);
@@ -190,7 +195,7 @@ static ssize_t generic_version(const char *buf,
 
 		ret = write_version(sw_type, *version);
 		if (ret) {
-			pr_err("\n Error in writing version: %d", ret);
+			pr_err("Error in writing version: %d\n", ret);
 			goto err_generic;
 		}
 		ret = count;
@@ -317,11 +322,18 @@ static int __init qfprom_create_files(int size, int16_t sw_bitmap)
 	int i;
 	int err;
 	int sw_bit;
+	/* authenticate sysfs entry is mandatory */
+	err = device_create_file(&device_qfprom, &qfprom_attrs[0]);
+	if (err) {
+		pr_err("%s: device_create_file(%s)=%d\n",
+			__func__, qfprom_attrs[0].attr.name, err);
+		return err;
+	}
 
-	for (i = 0; i < size; i++) {
-		/* authenticate sysfs entry is mandatory */
-		err = memcmp(qfprom_attrs[i].attr.name, "authenticate", 12);
-		if (err != 0) {
+	if (gl_version_enable != 1)
+		return 0;
+
+	for (i = 1; i < size; i++) {
 			/*
 			 * Following is the BitMap adapted:
 			 * SBL:0 TZ:1 APPSBL:2 HLOS:3 RPM:4. New types should
@@ -330,7 +342,6 @@ static int __init qfprom_create_files(int size, int16_t sw_bitmap)
 			sw_bit = i - 1;
 			if (!(sw_bitmap & (1 << sw_bit)))
 				break;
-		}
 		err = device_create_file(&device_qfprom, &qfprom_attrs[i]);
 		if (err) {
 			pr_err("%s: device_create_file(%s)=%d\n",
@@ -368,16 +379,9 @@ static int __init qfprom_init(void)
 	int err;
 	int16_t sw_bitmap = 0;
 
-	err = is_version_rlbk_enabled(&sw_bitmap);
-
-	if (err < 1)
-		return err;
-
-	if (err == 0) {
-		pr_info("\n Version Rollback Feature Disabled\n");
-		return 0;
-	}
-
+	gl_version_enable = is_version_rlbk_enabled(&sw_bitmap);
+	if (gl_version_enable == 0)
+		pr_info("\nVersion Rollback Feature Disabled\n");
 	/*
 	 * Registering under "/sys/devices/system"
 	 */
