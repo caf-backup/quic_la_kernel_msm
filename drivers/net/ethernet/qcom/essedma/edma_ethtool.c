@@ -23,17 +23,62 @@ struct edma_ethtool_stats {
 	uint32_t stat_offset;
 };
 
+#define EDMA_STAT(m)    offsetof(struct edma_ethtool_statistics, m)
 #define DRVINFO_LEN	32
-#define EDMA_STAT(m)	offsetof(struct net_device_stats, m)
 
 /**
  * @brief Array of strings describing statistics
  */
 static const struct edma_ethtool_stats edma_gstrings_stats[] = {
-	{"rx_packets", EDMA_STAT(rx_packets)},
-	{"tx_packets", EDMA_STAT(tx_packets)},
-	{"rx_bytes", EDMA_STAT(rx_bytes)},
-	{"tx_bytes", EDMA_STAT(tx_bytes)},
+	{"tx_q0_pkt", EDMA_STAT(tx_q0_pkt)},
+        {"tx_q1_pkt", EDMA_STAT(tx_q1_pkt)},
+        {"tx_q2_pkt", EDMA_STAT(tx_q2_pkt)},
+        {"tx_q3_pkt", EDMA_STAT(tx_q3_pkt)},
+        {"tx_q4_pkt", EDMA_STAT(tx_q4_pkt)},
+        {"tx_q5_pkt", EDMA_STAT(tx_q5_pkt)},
+        {"tx_q6_pkt", EDMA_STAT(tx_q6_pkt)},
+        {"tx_q7_pkt", EDMA_STAT(tx_q7_pkt)},
+        {"tx_q8_pkt", EDMA_STAT(tx_q8_pkt)},
+        {"tx_q9_pkt", EDMA_STAT(tx_q9_pkt)},
+        {"tx_q10_pkt", EDMA_STAT(tx_q10_pkt)},
+        {"tx_q11_pkt", EDMA_STAT(tx_q11_pkt)},
+        {"tx_q12_pkt", EDMA_STAT(tx_q12_pkt)},
+        {"tx_q13_pkt", EDMA_STAT(tx_q13_pkt)},
+	{"tx_q14_pkt", EDMA_STAT(tx_q14_pkt)},
+	{"tx_q15_pkt", EDMA_STAT(tx_q15_pkt)},
+        {"tx_q0_byte", EDMA_STAT(tx_q0_byte)},
+        {"tx_q1_byte", EDMA_STAT(tx_q1_byte)},
+        {"tx_q2_byte", EDMA_STAT(tx_q2_byte)},
+        {"tx_q3_byte", EDMA_STAT(tx_q3_byte)},
+        {"tx_q4_byte", EDMA_STAT(tx_q4_byte)},
+        {"tx_q5_byte", EDMA_STAT(tx_q5_byte)},
+        {"tx_q6_byte", EDMA_STAT(tx_q6_byte)},
+        {"tx_q7_byte", EDMA_STAT(tx_q7_byte)},
+        {"tx_q8_byte", EDMA_STAT(tx_q8_byte)},
+        {"tx_q9_byte", EDMA_STAT(tx_q9_byte)},
+	{"tx_q10_byte", EDMA_STAT(tx_q10_byte)},
+	{"tx_q11_byte", EDMA_STAT(tx_q11_byte)},
+	{"tx_q12_byte", EDMA_STAT(tx_q12_byte)},
+        {"tx_q13_byte", EDMA_STAT(tx_q13_byte)},
+	{"tx_q14_byte", EDMA_STAT(tx_q14_byte)},
+	{"tx_q15_byte", EDMA_STAT(tx_q15_byte)},
+	{"rx_q0_pkt", EDMA_STAT(rx_q0_pkt)},
+        {"rx_q1_pkt", EDMA_STAT(rx_q1_pkt)},
+        {"rx_q2_pkt", EDMA_STAT(rx_q2_pkt)},
+        {"rx_q3_pkt", EDMA_STAT(rx_q3_pkt)},
+        {"rx_q4_pkt", EDMA_STAT(rx_q4_pkt)},
+        {"rx_q5_pkt", EDMA_STAT(rx_q5_pkt)},
+        {"rx_q6_pkt", EDMA_STAT(rx_q6_pkt)},
+        {"rx_q7_pkt", EDMA_STAT(rx_q7_pkt)},
+        {"rx_q0_byte", EDMA_STAT(rx_q0_byte)},
+        {"rx_q1_byte", EDMA_STAT(rx_q1_byte)},
+        {"rx_q2_byte", EDMA_STAT(rx_q2_byte)},
+        {"rx_q3_byte", EDMA_STAT(rx_q3_byte)},
+        {"rx_q4_byte", EDMA_STAT(rx_q4_byte)},
+        {"rx_q5_byte", EDMA_STAT(rx_q5_byte)},
+        {"rx_q6_byte", EDMA_STAT(rx_q6_byte)},
+        {"rx_q7_byte", EDMA_STAT(rx_q7_byte)},
+	{"tx_desc_error", EDMA_STAT(tx_desc_error)},
 };
 
 #define EDMA_STATS_LEN ARRAY_SIZE(edma_gstrings_stats)
@@ -84,16 +129,18 @@ static void edma_get_ethtool_stats(struct net_device *netdev,
 		struct ethtool_stats *stats, uint64_t *data)
 {
 	struct edma_adapter *adapter = netdev_priv(netdev);
-	int32_t i;
+	struct edma_common_info *c_info = adapter->c_info;
+	int32_t i, j;
 	uint8_t *p = NULL;
 
-	for (i = 0; i < EDMA_STATS_LEN; i++) {
-		p = (uint8_t *)&(adapter->stats) +
+	edma_read_append_stats(c_info);
+
+	for(i = 0; i < EDMA_STATS_LEN; i++) {
+		p = (uint8_t *)&(c_info->edma_ethstats) +
 			edma_gstrings_stats[i].stat_offset;
 		data[i] = *(uint32_t *)p;
 	}
 }
-
 
 /**
  * edma_get_drvinfo()
