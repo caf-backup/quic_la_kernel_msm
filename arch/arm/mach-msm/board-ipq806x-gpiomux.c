@@ -213,6 +213,13 @@ static struct gpiomux_setting ak01_1xx_fp_leds_cfg = {
 	.dir = GPIOMUX_OUT_LOW,
 };
 
+static struct gpiomux_setting ak01_1xx_fp_red_led_cfg = {
+	.func = GPIOMUX_FUNC_GPIO,
+	.drv = GPIOMUX_DRV_2MA,
+	.pull = GPIOMUX_PULL_DOWN,
+	.dir = GPIOMUX_OUT_HIGH,
+};
+
 static struct gpiomux_setting ak01_1xx_usb_enable = {
 	.func = GPIOMUX_FUNC_GPIO,
 	.drv = GPIOMUX_DRV_12MA,
@@ -850,7 +857,7 @@ static struct msm_gpiomux_config ipq806x_ak01_1xx_gpiomux[] = {
 	ipq_mux(6, ak01_1xx_11ac_leds_cfg,		ak01_1xx_11ac_leds_cfg),
 	ipq_mux(7, ak01_1xx_fp_leds_cfg,		ak01_1xx_fp_leds_cfg),
 	ipq_mux(8, ak01_1xx_fp_leds_cfg,		ak01_1xx_fp_leds_cfg),
-	ipq_mux(9, ak01_1xx_fp_leds_cfg,		ak01_1xx_fp_leds_cfg),
+	ipq_mux(9, ak01_1xx_fp_red_led_cfg,		ak01_1xx_fp_red_led_cfg),
 	ipq_mux(12, gsbi4_active_cfg,			gsbi4_suspended_cfg),
 	ipq_mux(13, gsbi4_active_cfg,			gsbi4_suspended_cfg),
 	ipq_mux(18, gsbi5_spi_data_cfg,			gsbi5_spi_data_cfg),

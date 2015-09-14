@@ -688,6 +688,7 @@ static const struct spi_device_id m25p_ids[] = {
 	{ "mx25l12855e", INFO(0xc22618, 0, 64 * 1024, 256, 0) },
 	{ "mx25l25635e", INFO(0xc22019, 0, 64 * 1024, 512, 0) },
 	{ "mx25l25655e", INFO(0xc22619, 0, 64 * 1024, 512, 0) },
+	{ "mx25u12835f", INFO(0xc22538, 0, 64 * 1024, 256, 0) },
 	{ "mx25u25635f", INFO(0xc22539, 0, 64 * 1024, 512, 0) },
 	{ "mx25u3235f", INFO(0xc22536, 0, 64 * 1024, 64, 0) },
 	{ "mx25u6435f", INFO(0xc22537, 0, 64 * 1024, 128, 0) },
@@ -712,9 +713,9 @@ static const struct spi_device_id m25p_ids[] = {
 	{ "s25sl12800", INFO(0x012018, 0x0300, 256 * 1024,  64, 0) },
 	{ "s25sl12801", INFO(0x012018, 0x0301,  64 * 1024, 256, 0) },
 	{ "s25fl129p0", INFO(0x012018, 0x4d00, 256 * 1024,  64, 0) },
-	{ "s25fl129p1", INFO(0x012018, 0x4d01,  64 * 1024, 256, 0) },
 	{ "s25fl016k",  INFO(0xef4015,      0,  64 * 1024,  32, SECT_4K) },
 	{ "s25fl064k",  INFO(0xef4017,      0,  64 * 1024, 128, SECT_4K) },
+	{ "s25fl128s",  INFO(0x012018, 0x4d01,  64 * 1024, 256, 0) },
 
 	/* SST -- large erase sizes are "overlays", "sectors" are 4K */
 	{ "sst25vf040b", INFO(0xbf258d, 0, 64 * 1024,  8, SECT_4K) },
@@ -774,6 +775,7 @@ static const struct spi_device_id m25p_ids[] = {
 	{ "w25q128", INFO(0xef4018, 0, 64 * 1024, 256, SECT_4K) },
 	{ "w25q32", INFO(0xef6016, 0, 64 * 1024, 64, 0) },
 	{ "w25q64", INFO(0xef6017, 0, 64 * 1024, 128, 0) },
+	{ "w25q128fw", INFO(0xef6018, 0, 64 * 1024, 256, SECT_4K) },
 
 	/* Catalyst / On Semiconductor -- non-JEDEC */
 	{ "cat25c11", CAT25_INFO(  16, 8, 16, 1) },
