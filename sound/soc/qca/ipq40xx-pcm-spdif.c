@@ -43,8 +43,7 @@ static struct snd_pcm_hardware ipq40xx_pcm_hardware_playback = {
 					SNDRV_PCM_INFO_PAUSE |
 					SNDRV_PCM_INFO_RESUME,
 	.formats		=	SNDRV_PCM_FMTBIT_S16 |
-					SNDRV_PCM_FMTBIT_S24 |
-					SNDRV_PCM_FMTBIT_S32,
+					SNDRV_PCM_FMTBIT_S24_3,
 	.rates			=	RATE_16000_96000,
 	.rate_min		=	FREQ_16000,
 	.rate_max		=	FREQ_96000,
@@ -64,8 +63,7 @@ static struct snd_pcm_hardware ipq40xx_pcm_hardware_capture = {
 					SNDRV_PCM_INFO_MMAP_VALID |
 					SNDRV_PCM_INFO_INTERLEAVED,
 	.formats		=	SNDRV_PCM_FMTBIT_S16 |
-					SNDRV_PCM_FMTBIT_S24 |
-					SNDRV_PCM_FMTBIT_S32,
+					SNDRV_PCM_FMTBIT_S24_3,
 	.rates			=	RATE_16000_96000,
 	.rate_min		=	FREQ_16000,
 	.rate_max		=	FREQ_96000,
@@ -222,6 +220,24 @@ static int ipq40xx_pcm_spdif_prepare(struct snd_pcm_substream *substream)
 		return ret;
 	}
 
+	/* Set to swap the words */
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		ret = ipq40xx_mbox_dma_swap(pcm_rtpriv->channel,
+			runtime->format);
+		if (ret) {
+			pr_err("%s: %d: Error in dma swap : channel : %d\n",
+				__func__, __LINE__, pcm_rtpriv->channel);
+			ipq40xx_mbox_dma_release(pcm_rtpriv->channel);
+			return ret;
+		}
+
+		/* SWAP at PCM level for 24 bit samples */
+		if ((substream->runtime->format == SNDRV_PCM_FORMAT_S24_3LE) ||
+		    (substream->runtime->format == SNDRV_PCM_FORMAT_S24_3BE))
+			ipq40xx_stereo_spdif_pcmswap(ENABLE,
+				get_stereo_id(substream, SPDIF));
+	}
+
 	/* Set the ownership bits */
 	ipq40xx_mbox_get_elapsed_size(pcm_rtpriv->channel);
 
@@ -241,9 +257,24 @@ static int ipq40xx_pcm_spdif_close(struct snd_pcm_substream *substream)
 		pr_err("%s: %d: Error in dma release\n",
 					__func__, __LINE__);
 	}
+
+	/* Reset the swap */
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		ret = ipq40xx_mbox_dma_reset_swap(pcm_rtpriv->channel);
+		if (ret) {
+			pr_err("%s: %d: Error in dma release\n",
+				__func__, __LINE__);
+		}
+
+		if ((substream->runtime->format == SNDRV_PCM_FORMAT_S24_3LE) ||
+		    (substream->runtime->format == SNDRV_PCM_FORMAT_S24_3BE))
+			ipq40xx_stereo_spdif_pcmswap(DISABLE,
+				get_stereo_id(substream, SPDIF));
+	}
+
 	kfree(pcm_rtpriv);
 
-	return 0;
+	return ret;
 }
 
 static int ipq40xx_pcm_spdif_trigger(struct snd_pcm_substream *substream,

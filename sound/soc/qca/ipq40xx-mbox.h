@@ -118,6 +118,8 @@ extern struct snd_soc_platform_driver ipq40xx_soc_platform;
 int ipq40xx_mbox_fifo_reset(int channel_id);
 int ipq40xx_mbox_dma_start(int channel_id);
 int ipq40xx_mbox_dma_stop(int channel_id);
+int ipq40xx_mbox_dma_reset_swap(int channel_id);
+int ipq40xx_mbox_dma_swap(int channel_id, snd_pcm_format_t format);
 int ipq40xx_mbox_dma_prepare(int channel_id);
 int ipq40xx_mbox_dma_resume(int channel_id);
 int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr,
