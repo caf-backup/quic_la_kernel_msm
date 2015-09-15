@@ -146,6 +146,59 @@
 #define EDMA_RX_BUFFER_WRITE 16
 #define EDMA_GMAC_NO_MDIO_PHY	PHY_MAX_ADDR
 
+
+struct edma_ethtool_statistics {
+	uint32_t tx_q0_pkt;
+	uint32_t tx_q1_pkt;
+	uint32_t tx_q2_pkt;
+	uint32_t tx_q3_pkt;
+	uint32_t tx_q4_pkt;
+	uint32_t tx_q5_pkt;
+	uint32_t tx_q6_pkt;
+	uint32_t tx_q7_pkt;
+	uint32_t tx_q8_pkt;
+	uint32_t tx_q9_pkt;
+	uint32_t tx_q10_pkt;
+	uint32_t tx_q11_pkt;
+        uint32_t tx_q12_pkt;
+        uint32_t tx_q13_pkt;
+        uint32_t tx_q14_pkt;
+        uint32_t tx_q15_pkt;
+        uint32_t tx_q0_byte;
+        uint32_t tx_q1_byte;
+	uint32_t tx_q2_byte;
+	uint32_t tx_q3_byte;
+	uint32_t tx_q4_byte;
+        uint32_t tx_q5_byte;
+	uint32_t tx_q6_byte;
+        uint32_t tx_q7_byte;
+        uint32_t tx_q8_byte;
+        uint32_t tx_q9_byte;
+        uint32_t tx_q10_byte;
+        uint32_t tx_q11_byte;
+	uint32_t tx_q12_byte;
+        uint32_t tx_q13_byte;
+        uint32_t tx_q14_byte;
+        uint32_t tx_q15_byte;
+        uint32_t rx_q0_pkt;
+        uint32_t rx_q1_pkt;
+        uint32_t rx_q2_pkt;
+        uint32_t rx_q3_pkt;
+        uint32_t rx_q4_pkt;
+        uint32_t rx_q5_pkt;
+        uint32_t rx_q6_pkt;
+        uint32_t rx_q7_pkt;
+	uint32_t rx_q0_byte;
+	uint32_t rx_q1_byte;
+        uint32_t rx_q2_byte;
+        uint32_t rx_q3_byte;
+        uint32_t rx_q4_byte;
+        uint32_t rx_q5_byte;
+        uint32_t rx_q6_byte;
+        uint32_t rx_q7_byte;
+	uint32_t tx_desc_error;
+};
+
 struct edma_mdio_data {
 	struct mii_bus          *mii_bus;
 	void __iomem            *membase;
@@ -231,6 +284,7 @@ struct edma_common_info {
 	struct edma_rfd_desc_ring *rfd_ring[8]; /* 8 Rx queues */
 	struct platform_device *pdev; /* device structure */
 	struct net_device *netdev[2]; /* net device */
+	struct edma_ethtool_statistics edma_ethstats; /* ethtool stats */
 	int num_rx_queues; /* number of rx queue */
 	int num_tx_queues; /* number of tx queue */
 	int tx_irq[16]; /* number of tx irq */
@@ -245,7 +299,7 @@ struct edma_common_info {
 	u32 page_mode; /* Jumbo frame supported flag */
 	struct edma_hw hw; /* edma hw specific structure */
 	struct queue_per_cpu_info q_cinfo[EDMA_NR_CPU]; /* per cpu information */
-	spinlock_t int_lock; /* protect interrupt registers access */
+	spinlock_t stats_lock; /* protect interrupt registers access */
 };
 
 /* transimit packet descriptor (tpd) ring */
@@ -351,4 +405,5 @@ void edma_adjust_link(struct net_device *netdev);
 void edma_fill_netdev(struct edma_common_info *c_info, int qid, int num);
 int edma_select_xps_queue(struct net_device *dev, struct sk_buff *skb,
 	void *accel_priv, select_queue_fallback_t fallback);
+void edma_read_append_stats(c_info);
 #endif /* _EDMA_H_ */
