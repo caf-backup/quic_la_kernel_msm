@@ -141,6 +141,31 @@ static int ipq_ahci_resume(struct device *dev)
 	return ret;
 }
 
+static ssize_t ipq_ahci_display_power_status(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	if (ipqpriv->pstate == SATA_PWR_STATE_UP)
+		pr_info("\nSATA interface in full power state\n");
+	else if (ipqpriv->pstate == SATA_PWR_STATE_DOWN)
+		pr_info("\nSATA interface in suspended state\n");
+
+	return 0;
+}
+
+static ssize_t ipq_ahci_process_power_request(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	if (buf[0] == '1')
+		ipq_ahci_suspend(dev);
+	else if (buf[0] == '0')
+		ipq_ahci_resume(dev);
+
+	return count;
+}
+
+static DEVICE_ATTR(ipq_ahci_suspend, S_IRUGO | S_IWUSR,
+	ipq_ahci_display_power_status, ipq_ahci_process_power_request);
+
 static int ipq_ahci_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -183,6 +208,11 @@ static int ipq_ahci_probe(struct platform_device *pdev)
 		dev_err(dev, "can't ioremap for preg_reset\n");
 		rc =  -ENOMEM;
 		goto pdata_exit;
+	}
+
+	rc = device_create_file(dev, &dev_attr_ipq_ahci_suspend);
+	if (rc < 0) {
+		dev_err(dev, "SATA failed to create suspend /sys endpoint err=%d\n", rc);
 	}
 
 	return 0;
