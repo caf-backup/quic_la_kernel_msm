@@ -97,6 +97,14 @@ config SATA_AHCI_PLATFORM
 
 	  If unsure, say N.
 
+config AHCI_IPQ
+	tristate "Qualcomm Atheros IPQ806X AHCI SATA support"
+	help
+	This option enables support for the IPQ806X SoC's
+	onboard AHCI SATA.
+
+	If unsure, say N.
+
 config AHCI_IMX
 	tristate "Freescale i.MX AHCI SATA support"
 	depends on MFD_SYSCON
