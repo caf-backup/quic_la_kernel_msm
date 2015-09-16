@@ -562,7 +562,7 @@
 		};
 
 		sata@29000000 {
-			compatible = "qcom,ipq806x-ahci", "generic-ahci";
+			compatible = "qcom,ipq806x-ahci";
 			reg = <0x29000000 0x180>;
 
 			interrupts = <0 209 0x0>;
@@ -570,9 +570,10 @@
 			clocks = <&gcc SFAB_SATA_S_H_CLK>,
 				 <&gcc SATA_H_CLK>,
 				 <&gcc SATA_A_CLK>,
+				 <&gcc SATA_CLK_SRC>,
 				 <&gcc SATA_RXOOB_CLK>,
 				 <&gcc SATA_PMALIVE_CLK>;
-			clock-names = "slave_face", "iface", "core",
+			clock-names = "slave_face", "iface", "core", "src",
 					"rxoob", "pmalive";
 
 			assigned-clocks = <&gcc SATA_RXOOB_CLK>, <&gcc SATA_PMALIVE_CLK>;
