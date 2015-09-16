@@ -16,6 +16,8 @@
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "QCA IPQ8064/AK01";
@@ -227,6 +229,25 @@
 
 		usb30@1 {
 			status = "ok";
+		};
+
+		gpio_keys {
+			compatible = "gpio-keys";
+
+			button@1 {
+				label = "reset";
+				linux,code = <KEY_RESTART>;
+				gpios = <&qcom_pinmux 54 GPIO_ACTIVE_LOW>;
+				linux,input-type = <1>;
+				debounce-interval = <60>;
+			};
+			button@2 {
+				label = "wps";
+				linux,code = <KEY_WPS_BUTTON>;
+				gpios = <&qcom_pinmux 62 GPIO_ACTIVE_LOW>;
+				linux,input-type = <1>;
+				debounce-interval = <60>;
+			};
 		};
 
 		rpm@108000 {
