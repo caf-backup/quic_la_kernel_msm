@@ -4068,16 +4068,30 @@ static int bond_xmit_activebackup(struct sk_buff *skb, struct net_device *bond_d
  * calculate egress interface.
  */
 uint32_t bond_xmit_hash(uint8_t *src_mac, uint8_t *dst_mac, void *psrc,
-			void *pdst, uint16_t protocol, struct net_device *bond_dev)
+			void *pdst, uint16_t protocol, struct net_device *bond_dev,
+			__be16 *layer4hdr)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	uint32_t src = *(uint32_t *)psrc;
 	uint32_t dst = *(uint32_t *)pdst;
+	int layer4_xor = 0;
 
 	if (bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER23) {
 		if (protocol == htons(ETH_P_IP)) {
 			return ((ntohl((uint32_t)src ^ (uint32_t)dst) & 0xffff) ^
 				(dst_mac[5] ^ src_mac[5]));
+		}
+	}
+
+        /* L4 address is not NULL for UDP and TCP.
+	 * L4 address is NULL for IPv6 and non-ported packets
+	*/
+	if (bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER34) {
+		if (protocol == htons(ETH_P_IP)) {
+			if (layer4hdr) {
+				layer4_xor = ntohs((*layer4hdr ^ *(layer4hdr + 1)));
+			}
+			return layer4_xor ^ (ntohl((uint32_t)src ^ (uint32_t)dst) & 0xffff);
 		}
 	}
 
@@ -4106,7 +4120,8 @@ uint32_t bond_xmit_hash(uint8_t *src_mac, uint8_t *dst_mac, void *psrc,
 struct net_device *bond_xor_get_tx_dev(struct sk_buff *skb, uint8_t *src_mac,
 					uint8_t *dst_mac, void *src,
 					void *dst, uint16_t protocol,
-					struct net_device *bond_dev)
+					struct net_device *bond_dev,
+					__be16 *layer4hdr)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave, *start_at;
@@ -4119,12 +4134,13 @@ struct net_device *bond_xor_get_tx_dev(struct sk_buff *skb, uint8_t *src_mac,
 		uint32_t hash;
 
 		if (bond->params.xmit_policy != BOND_XMIT_POLICY_LAYER23
+		    && bond->params.xmit_policy != BOND_XMIT_POLICY_LAYER34
 		    && bond->params.xmit_policy != BOND_XMIT_POLICY_LAYER2) {
 			pr_debug("%s: Error: Unsupported hash policy for balance-XOR fast path\n", bond_dev->name);
 			return NULL;
 		}
 
-		hash = bond_xmit_hash(src_mac, dst_mac, src, dst, protocol, bond_dev);
+		hash = bond_xmit_hash(src_mac, dst_mac, src, dst, protocol, bond_dev, layer4hdr);
 		slave_no = hash % bond->slave_cnt;
 	}
 
@@ -4165,7 +4181,8 @@ struct net_device *bond_xor_get_tx_dev(struct sk_buff *skb, uint8_t *src_mac,
 struct net_device *bond_get_tx_dev(struct sk_buff *skb, uint8_t *src_mac,
 				 uint8_t *dst_mac, void *src,
 				 void *dst, uint16_t protocol,
-				 struct net_device *bond_dev)
+				 struct net_device *bond_dev,
+				 __be16 *layer4hdr)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 
@@ -4175,9 +4192,9 @@ struct net_device *bond_get_tx_dev(struct sk_buff *skb, uint8_t *src_mac,
 
 	switch (bond->params.mode) {
 	case BOND_MODE_XOR:
-		return bond_xor_get_tx_dev(skb, src_mac, dst_mac, src, dst, protocol, bond_dev);
+		return bond_xor_get_tx_dev(skb, src_mac, dst_mac, src, dst, protocol, bond_dev, layer4hdr);
 	case BOND_MODE_8023AD:
-		return bond_3ad_get_tx_dev(skb, src_mac, dst_mac, src, dst, protocol, bond_dev);
+		return bond_3ad_get_tx_dev(skb, src_mac, dst_mac, src, dst, protocol, bond_dev, layer4hdr);
 	default:
 		return NULL;
 	}
@@ -4195,7 +4212,7 @@ static int bond_xmit_xor(struct sk_buff *skb, struct net_device *bond_dev)
 	int res = 1;
 
 	struct net_device *outdev = NULL;
-	outdev = bond_xor_get_tx_dev(skb, NULL, NULL, NULL, NULL, 0, bond_dev);
+	outdev = bond_xor_get_tx_dev(skb, NULL, NULL, NULL, NULL, 0, bond_dev, NULL);
 
 	if (!outdev) {
 		goto out;

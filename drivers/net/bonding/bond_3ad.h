@@ -282,6 +282,7 @@ void bond_3ad_update_lacp_rate(struct bonding *bond);
 struct net_device *bond_3ad_get_tx_dev(struct sk_buff *skb, uint8_t *src_mac,
 					uint8_t *dst_mac, void *src,
 					void *dst, uint16_t protocol,
-					struct net_device *bond_dev);
+					struct net_device *bond_dev,
+					__be16 *layer4hdr);
 #endif //__BOND_3AD_H__
 
