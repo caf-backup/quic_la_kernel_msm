@@ -95,7 +95,11 @@ static ssize_t show_pcm_lb_value(struct device_driver *driver,
 static ssize_t store_pcm_lb_value(struct device_driver *driver,
 				const char *buff, size_t count)
 {
-	sscanf(buff, "%d", &start);
+	if (sscanf(buff, "%u", &start) != 1) {
+		pr_err("%s: invalid lb value\n", __func__);
+		return -EINVAL;
+	}
+
 	pcm_start_test();
 	return count;
 }

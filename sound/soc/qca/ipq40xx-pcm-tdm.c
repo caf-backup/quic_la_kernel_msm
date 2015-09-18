@@ -191,6 +191,9 @@ static int ipq40xx_pcm_tdm_close(struct snd_pcm_substream *substream)
 	uint32_t ret;
 
 	pcm_rtpriv = substream->runtime->private_data;
+	if (!pcm_rtpriv)
+		return -EINVAL;
+
 	ret = ipq40xx_mbox_dma_release(pcm_rtpriv->channel);
 	if (ret) {
 		pr_err("%s: %d: Error in dma release\n",
