@@ -134,6 +134,7 @@
 #include <linux/if_macvlan.h>
 
 #include "net-sysfs.h"
+#include "skbuff_debug.h"
 
 /* Instead of increasing this, you should create a hash table. */
 #define MAX_GRO_SKBS 8
@@ -4062,9 +4063,10 @@ static gro_result_t napi_skb_finish(gro_result_t ret, struct sk_buff *skb)
 		break;
 
 	case GRO_MERGED_FREE:
-		if (NAPI_GRO_CB(skb)->free == NAPI_GRO_FREE_STOLEN_HEAD)
+		if (NAPI_GRO_CB(skb)->free == NAPI_GRO_FREE_STOLEN_HEAD) {
 			kmem_cache_free(skbuff_head_cache, skb);
-		else
+			skbuff_debugobj_deactivate(skb);
+		} else
 			__kfree_skb(skb);
 		break;
 
