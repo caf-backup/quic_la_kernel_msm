@@ -22,3 +22,4 @@ obj-$(CONFIG_NET_DROP_MONITOR) += drop_monitor.o
 obj-$(CONFIG_NETWORK_PHY_TIMESTAMPING) += timestamping.o
 obj-$(CONFIG_NETPRIO_CGROUP) += netprio_cgroup.o
 obj-$(CONFIG_SKB_RECYCLER) += skbuff_recycle.o
+obj-$(CONFIG_DEBUG_OBJECTS_SKBUFF) += skbuff_debug.o
