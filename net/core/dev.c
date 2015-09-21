@@ -139,6 +139,7 @@
 #include <linux/netfilter_ingress.h>
 
 #include "net-sysfs.h"
+#include "skbuff_debug.h"
 
 /* Instead of increasing this, you should create a hash table. */
 #define MAX_GRO_SKBS 8
@@ -4418,6 +4419,7 @@ static gro_result_t napi_skb_finish(gro_result_t ret, struct sk_buff *skb)
 		if (NAPI_GRO_CB(skb)->free == NAPI_GRO_FREE_STOLEN_HEAD) {
 			skb_dst_drop(skb);
 			kmem_cache_free(skbuff_head_cache, skb);
+			skbuff_debugobj_deactivate(skb);
 		} else {
 			__kfree_skb(skb);
 		}
