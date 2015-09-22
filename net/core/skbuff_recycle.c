@@ -22,6 +22,8 @@
 #include <linux/proc_fs.h>
 #include <linux/string.h>
 
+#include "skbuff_debug.h"
+
 static struct proc_dir_entry *proc_net_skbrecycler;
 
 static DEFINE_PER_CPU(struct sk_buff_head, recycle_list);
@@ -91,6 +93,8 @@ inline struct sk_buff *skb_recycler_alloc(struct net_device *dev, unsigned int l
 		if (dev) {
 			skb->dev = dev;
 		}
+
+		skbuff_debugobj_activate(skb);
 	}
 
 	return skb;
@@ -114,6 +118,7 @@ inline bool skb_recycler_consume(struct sk_buff *skb) {
 	/* Attempt to enqueue the CPU hot recycle list first */
 	if (likely(skb_queue_len(h) < skb_recycle_max_skbs)) {
 		__skb_queue_head(h, skb);
+		skbuff_debugobj_deactivate(skb);
 		local_irq_restore(flags);
 		preempt_enable();
 		return true;
@@ -144,6 +149,7 @@ inline bool skb_recycler_consume(struct sk_buff *skb) {
 			 * Intialize and enqueue skb into spare
 			 */
 			__skb_queue_head(h, skb);
+			skbuff_debugobj_deactivate(skb);
 
 			local_irq_restore(flags);
 			preempt_enable();
@@ -154,6 +160,7 @@ inline bool skb_recycler_consume(struct sk_buff *skb) {
 	} else {
 		/* We have room in the spare list; enqueue to spare list */
 		__skb_queue_head(h, skb);
+		skbuff_debugobj_deactivate(skb);
 		local_irq_restore(flags);
 		preempt_enable();
 		return true;
