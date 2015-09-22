@@ -22,7 +22,7 @@
 	soc {
 		spi_0: spi@78b5000 { /* BLSP1 QUP1 */
 			status = "ok";
-			qcom,gpio-cs1 = <&tlmm 62 0>;
+			qcom,gpio-cs1 = <&tlmm 59 0>;
 
 			mt29f@1 {
 				#address-cells = <1>;
