@@ -383,6 +383,16 @@
 				device_type = "ethernet-phy";
 				reg = <4>;
 			};
+
+			phy6: ethernet-phy@6 {
+				device_type = "ethernet-phy";
+				reg = <6>;
+			};
+
+			phy7: ethernet-phy@7 {
+				device_type = "ethernet-phy";
+				reg = <7>;
+			};
 		};
 
 		nss0: nss@40000000 {
@@ -422,6 +432,7 @@
 		};
 
 		nss-gmac-common {
+			compatible = "qcom,nss-gmac-common";
 			reg = <0x03000000 0x0000FFFF 0x1bb00000 0x0000FFFF 0x00900000 0x00004000>;
 			reg-names = "nss_reg_base" , "qsgmii_reg_base", "clk_ctl_base";
 		};
@@ -447,12 +458,14 @@
 			interrupts = <GIC_SPI 220 IRQ_TYPE_LEVEL_HIGH>;
 			phy-mode = "rgmii";
 			qcom,id = <0>;
-			qcom,phy_mdio_addr = <4>;
-			qcom,poll_required = <1>;
-			qcom,rgmii_delay = <1>;
+			qcom,pcs-chanid = <0>;
+			qcom,phy-mdio-addr = <4>;
+			qcom,poll-required = <1>;
+			qcom,rgmii-delay = <1>;
 			qcom,emulation = <0>;
-			qcom,forced_speed = <1000>;
-			qcom,forced_duplex = <1>;
+			qcom,forced-speed = <1000>;
+			qcom,forced-duplex = <1>;
+			qcom,mmds-mask = <0>;
 			qcom,socver = <0>;
 			local-mac-address = [000000000000];
 			mdiobus = <&mdio0>;
@@ -465,12 +478,14 @@
 			interrupts = <GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>;
 			phy-mode = "sgmii";
 			qcom,id = <1>;
-			qcom,phy_mdio_addr = <4>;
-			qcom,poll_required = <1>;
-			qcom,rgmii_delay = <1>;
+			qcom,pcs-chanid = <1>;
+			qcom,phy-mdio-addr = <0>;
+			qcom,poll-required = <0>;
+			qcom,rgmii-delay = <0>;
 			qcom,emulation = <0>;
-			qcom,forced_speed = <1000>;
-			qcom,forced_duplex = <1>;
+			qcom,forced-speed = <1000>;
+			qcom,forced-duplex = <1>;
+			qcom,mmds-mask = <0>;
 			qcom,socver = <0>;
 			local-mac-address = [000000000000];
 			mdiobus = <&mdio0>;
@@ -483,10 +498,14 @@
 			interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>;
 			phy-mode = "sgmii";
 			qcom,id = <2>;
-			qcom,phy_mdio_addr = <0>;
-			qcom,poll_required = <0>;
-			qcom,rgmii_delay = <0>;
+			qcom,pcs-chanid = <2>;
+			qcom,phy-mdio-addr = <6>;
+			qcom,poll-required = <1>;
+			qcom,rgmii-delay = <0>;
 			qcom,emulation = <0>;
+			qcom,forced-speed = <0>;
+			qcom,forced-duplex = <0xFF>;
+			qcom,mmds-mask = <0>;
 			qcom,socver = <0>;
 			local-mac-address = [000000000000];
 			mdiobus = <&mdio0>;
@@ -499,10 +518,14 @@
 			interrupts = <GIC_SPI 229 IRQ_TYPE_LEVEL_HIGH>;
 			phy-mode = "sgmii";
 			qcom,id = <3>;
-			qcom,phy_mdio_addr = <0>;
-			qcom,poll_required = <0>;
-			qcom,rgmii_delay = <0>;
+			qcom,pcs-chanid = <3>;
+			qcom,phy-mdio-addr = <7>;
+			qcom,poll-required = <1>;
+			qcom,rgmii-delay = <0>;
 			qcom,emulation = <0>;
+			qcom,forced-speed = <0>;
+			qcom,forced-duplex = <0xFF>;
+			qcom,mmds-mask = <0>;
 			qcom,socver = <0>;
 			local-mac-address = [000000000000];
 			mdiobus = <&mdio0>;
