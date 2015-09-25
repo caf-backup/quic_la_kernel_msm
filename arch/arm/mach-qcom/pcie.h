@@ -277,7 +277,6 @@ struct msm_pcie_dev_t {
 	bool                         power_on;
 	void                         *ipc_log;
 	void                         *ipc_log_long;
-	struct pci_bus               *pci_bus;
 };
 
 extern int msm_pcie_enumerate(u32 rc_idx);

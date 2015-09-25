@@ -128,7 +128,6 @@
 static int msm_pcie_debug_mask;
 module_param_named(debug_mask, msm_pcie_debug_mask,
 			    int, S_IRUGO | S_IWUSR | S_IWGRP);
-static atomic_t rc_removed;
 
 /**
  *  PCIe driver state
@@ -1486,32 +1485,6 @@ static int msm_pcie_setup(int nr, struct pci_sys_data *sys)
 	return 1;
 }
 
-static int msm_rc_remove(struct msm_pcie_dev_t *dev)
-{
-	msm_pcie_disable(dev, PM_PIPE_CLK | PM_CLK | PM_VREG);
-	pci_stop_root_bus(dev->pci_bus);
-	pci_remove_root_bus(dev->pci_bus);
-	dev->pci_bus = NULL;
-	dev->enumerated = false;
-	return 0;
-}
-
-void msm_pcie_remove_bus(void)
-{
-	int i;
-
-	if (atomic_read(&rc_removed))
-		return;
-
-	for (i = 0; i < pcie_drv.rc_num; i++) {
-		pr_notice("---> Removing %d", i);
-		msm_rc_remove(&msm_pcie_dev[i]);
-		pr_notice(" ... done<---\n");
-	}
-
-	atomic_set(&rc_removed, 1);
-}
-
 static struct pci_bus *msm_pcie_scan_bus(int nr,
 						struct pci_sys_data *sys)
 {
@@ -1523,7 +1496,6 @@ static struct pci_bus *msm_pcie_scan_bus(int nr,
 
 	bus = pci_scan_root_bus(NULL, sys->busnr, &msm_pcie_ops, sys,
 					&sys->resources);
-	dev->pci_bus = bus;
 
 	return bus;
 }
@@ -1586,24 +1558,6 @@ static struct hw_pci msm_pci[MAX_RC_NUM] = {
 	.add_bus	= msm_pcie_add_bus,
 	},
 };
-
-int msm_pcie_rescan(void)
-{
-	int i;
-
-	if (!atomic_read(&rc_removed))
-		return 0;
-
-	for (i = 0; i < pcie_drv.rc_num; i++) {
-		/* s/w reset of pcie */
-		msm_pcie_controller_reset(&msm_pcie_dev[i]);
-		msm_pcie_enumerate(i);
-	}
-
-	atomic_set(&rc_removed, 0);
-
-	return 0;
-}
 
 int msm_pcie_enumerate(u32 rc_idx)
 {
