@@ -2,13 +2,13 @@
 
 &soc {
 	pci@1b500000 {
-		compatible = "qcom,pcie-ipq8064-v2", "qcom,pcie-ipq8064";
+		compatible = "qcom,pcie-ipq8064-v2";
 	};
 	pci@1b700000 {
-		compatible = "qcom,pcie-ipq8064-v2", "qcom,pcie-ipq8064";
+		compatible = "qcom,pcie-ipq8064-v2";
 	};
 	pci@1b900000 {
-		compatible = "qcom,pcie-ipq8064-v2", "qcom,pcie-ipq8064";
+		compatible = "qcom,pcie-ipq8064-v2";
 	};
 	ss_phy_0: phy@110f8830 {
 		rx_eq = <2>;

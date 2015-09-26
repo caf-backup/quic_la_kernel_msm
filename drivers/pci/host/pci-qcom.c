@@ -20,6 +20,7 @@
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/of_address.h>
+#include <linux/of_platform.h>
 #include <linux/clk.h>
 #include <linux/reset.h>
 #include <linux/delay.h>
@@ -124,10 +125,18 @@ struct qcom_pcie {
 	struct resource		conf;
 	struct resource		io;
 	struct resource		mem;
+	int			phy_txterm_offset;
+	int			force_gen1;
+	struct pci_bus		*pci_bus;
 };
 
+static atomic_t rc_removed;
 static int nr_controllers;
+static struct qcom_pcie *qcom_pcie_dev[MAX_RC_NUM];
+
 static DEFINE_SPINLOCK(qcom_hw_pci_lock);
+
+static int qcom_pcie_enumerate(struct qcom_pcie *dev);
 
 static inline struct qcom_pcie *sys_to_pcie(struct pci_sys_data *sys)
 {
@@ -145,6 +154,30 @@ static int qcom_pcie_is_link_up(struct qcom_pcie *dev)
 {
 	return readl_relaxed(dev->dwc_base + PCIE20_CAP_LINKCTRLSTATUS) &
 			     BIT(29);
+}
+
+static struct of_device_id qcom_pcie_match[] = {
+	{
+		.compatible = "qcom,pcie-ipq8064",
+		.data       =
+			(void *)PCIE20_PARF_PHY_CTRL_PHY_TX0_TERM_OFFST(7),
+	},
+	{
+		.compatible = "qcom,pcie-ipq8064-v2",
+		.data       =
+			(void *)PCIE20_PARF_PHY_CTRL_PHY_TX0_TERM_OFFST(0),
+	},
+	{}
+};
+
+static u32 qcom_get_phy_tx0_term_offset(struct platform_device *pdev)
+{
+	const struct of_device_id *of_id =
+			of_match_device(qcom_pcie_match, &pdev->dev);
+	if (!of_id)
+		return PCIE20_PARF_PHY_CTRL_PHY_TX0_TERM_OFFST(7);
+
+	return (u32)of_id->data;
 }
 
 inline int msm_pcie_get_cfgtype(struct pci_bus *bus)
@@ -305,6 +338,7 @@ static struct pci_bus *qcom_pcie_scan_bus(int nr, struct pci_sys_data *sys)
 		bus = NULL;
 		BUG();
 	}
+	qcom_pcie->pci_bus = bus;
 
 	return bus;
 }
@@ -568,13 +602,11 @@ static int qcom_pcie_parse_dt(struct qcom_pcie *qcom_pcie,
 
 static int qcom_pcie_probe(struct platform_device *pdev)
 {
-	unsigned long flags;
-	struct qcom_pcie *qcom_pcie;
 	struct device_node *np = pdev->dev.of_node;
-	struct hw_pci *hw;
+	struct qcom_pcie *qcom_pcie;
 	int ret;
-	u32 val;
 	uint32_t force_gen1 = 0;
+	static int rc_idx;
 
 	qcom_pcie = devm_kzalloc(&pdev->dev, sizeof(*qcom_pcie), GFP_KERNEL);
 	if (!qcom_pcie) {
@@ -588,11 +620,36 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 		return ret;
 
 	qcom_pcie->cfg_base = devm_ioremap_resource(&pdev->dev,
-						    &qcom_pcie->conf);
+						&qcom_pcie->conf);
 	if (IS_ERR(qcom_pcie->cfg_base)) {
 		dev_err(&pdev->dev, "Failed to ioremap PCIe cfg space\n");
 		return PTR_ERR(qcom_pcie->cfg_base);
 	}
+	/* get tx termination offset */
+	qcom_pcie->phy_txterm_offset =
+				qcom_get_phy_tx0_term_offset(pdev);
+
+	/*
+	 * Force Gen1 in Gen1 marked PCIe SLOT
+	 */
+	ret = of_property_read_u32(np, "force_gen1", &force_gen1);
+	if (!ret && force_gen1)
+		qcom_pcie->force_gen1 = 1;
+
+	platform_set_drvdata(pdev, qcom_pcie);
+
+	qcom_pcie_enumerate(qcom_pcie);
+
+	qcom_pcie_dev[rc_idx++] = qcom_pcie;
+	return 0;
+}
+
+static int qcom_pcie_enumerate(struct qcom_pcie *qcom_pcie)
+{
+	unsigned long flags;
+	struct hw_pci *hw;
+	int ret;
+	u32 val;
 
 	gpio_set_value(qcom_pcie->reset_gpio, 0);
 	usleep_range(10000, 15000);
@@ -624,11 +681,7 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 
 	/* Set Tx Termination Offset */
 	val = qcom_parf_readl_relaxed(qcom_pcie, PCIE20_PARF_PHY_CTRL);
-	if (of_device_is_compatible(np, "qcom,pcie-ipq8064-v2"))
-		val |= PCIE20_PARF_PHY_CTRL_PHY_TX0_TERM_OFFST(0);
-	else
-		val |= PCIE20_PARF_PHY_CTRL_PHY_TX0_TERM_OFFST(7);
-
+	val |= qcom_pcie->phy_txterm_offset;
 	qcom_parf_writel_relaxed(qcom_pcie, val, PCIE20_PARF_PHY_CTRL);
 
 	/* PARF programming */
@@ -666,15 +719,12 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	usleep_range(10000, 15000);
 
 	/*
-	 * Force Gen1 in Gen1 marked PCIe SLOT
-	 */
-	if (of_device_is_compatible(np, "qcom,pcie-ipq8064")) {
-		ret = of_property_read_u32(np, "force_gen1", &force_gen1);
-		if (!ret && force_gen1) {
-			writel_relaxed((readl_relaxed(
-				qcom_pcie->dwc_base + PCIE20_LNK_CAS2) | 1),
-				qcom_pcie->dwc_base + PCIE20_LNK_CAS2);
-		}
+	* Force Gen1 in Gen1 marked PCIe SLOT
+	*/
+	if (qcom_pcie->force_gen1) {
+		writel_relaxed((readl_relaxed(
+			qcom_pcie->dwc_base + PCIE20_LNK_CAS2) | 1),
+			qcom_pcie->dwc_base + PCIE20_LNK_CAS2);
 	}
 
 	/* enable link training */
@@ -688,11 +738,8 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 			(qcom_pcie->dwc_base + PCIE20_CAP_LINKCTRLSTATUS),
 			val, (val & BIT(29)), 10000, 100000);
 
-	dev_info(&pdev->dev, "link initialized %d\n", ret);
-
+	dev_info(qcom_pcie->dev, "link initialized %d\n", ret);
 	qcom_pcie_config_controller(qcom_pcie);
-
-	platform_set_drvdata(pdev, qcom_pcie);
 
 	spin_lock_irqsave(&qcom_hw_pci_lock, flags);
 	qcom_hw_pci[nr_controllers].private_data = (void **)&qcom_pcie;
@@ -705,15 +752,59 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int qcom_rc_remove(struct qcom_pcie *qcom_pcie)
+{
+	gpio_set_value(qcom_pcie->reset_gpio, 0);
+	usleep_range(10000, 15000);
+
+	/* disable clocks */
+	clk_disable_unprepare(qcom_pcie->iface_clk);
+	clk_disable_unprepare(qcom_pcie->phy_clk);
+	clk_disable_unprepare(qcom_pcie->bus_clk);
+	pci_stop_root_bus(qcom_pcie->pci_bus);
+	pci_remove_root_bus(qcom_pcie->pci_bus);
+	qcom_pcie->pci_bus = NULL;
+	return 0;
+}
+
+int qcom_pcie_rescan(void)
+{
+	int i;
+
+	if (!atomic_read(&rc_removed))
+		return 0;
+
+	for (i = 0; i < MAX_RC_NUM; i++) {
+		/* reset and enumerate the pcie devices */
+		if (qcom_pcie_dev[i])
+			qcom_pcie_enumerate(qcom_pcie_dev[i]);
+	}
+	atomic_set(&rc_removed, 0);
+
+	return 0;
+}
+
+void qcom_pcie_remove_bus(void)
+{
+	int i;
+
+	if (atomic_read(&rc_removed))
+		return;
+
+	for (i = 0; i < MAX_RC_NUM; i++) {
+		if (qcom_pcie_dev[i]) {
+			pr_notice("---> Removing %d", i);
+			qcom_rc_remove(qcom_pcie_dev[i]);
+			pr_notice(" ... done<---\n");
+		}
+	}
+	atomic_set(&rc_removed, 1);
+}
+
 static int __exit qcom_pcie_remove(struct platform_device *pdev)
 {
 	return 0;
 }
-
-static struct of_device_id qcom_pcie_match[] = {
-	{	.compatible = "qcom,pcie-ipq8064", },
-	{}
-};
 
 static struct platform_driver qcom_pcie_driver = {
 	.probe	= qcom_pcie_probe,
