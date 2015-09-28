@@ -426,9 +426,9 @@ static int ipq40xx_codec_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static int ipq40xx_codec_i2c_remove(struct platform_device *pdev)
+static int ipq40xx_codec_i2c_remove(struct i2c_client *client)
 {
-	snd_soc_unregister_codec(&pdev->dev);
+	snd_soc_unregister_codec(&client->dev);
 	return 0;
 }
 
