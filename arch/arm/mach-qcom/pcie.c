@@ -128,6 +128,7 @@
 static int msm_pcie_debug_mask;
 module_param_named(debug_mask, msm_pcie_debug_mask,
 			    int, S_IRUGO | S_IWUSR | S_IWGRP);
+static atomic_t rc_removed;
 
 /**
  *  PCIe driver state
@@ -1485,6 +1486,32 @@ static int msm_pcie_setup(int nr, struct pci_sys_data *sys)
 	return 1;
 }
 
+static int msm_rc_remove(struct msm_pcie_dev_t *dev)
+{
+	msm_pcie_disable(dev, PM_PIPE_CLK | PM_CLK | PM_VREG);
+	pci_stop_root_bus(dev->pci_bus);
+	pci_remove_root_bus(dev->pci_bus);
+	dev->pci_bus = NULL;
+	dev->enumerated = false;
+	return 0;
+}
+
+void msm_pcie_remove_bus(void)
+{
+	int i;
+
+	if (atomic_read(&rc_removed))
+		return;
+
+	for (i = 0; i < pcie_drv.rc_num; i++) {
+		pr_notice("---> Removing %d", i);
+		msm_rc_remove(&msm_pcie_dev[i]);
+		pr_notice(" ... done<---\n");
+	}
+
+	atomic_set(&rc_removed, 1);
+}
+
 static struct pci_bus *msm_pcie_scan_bus(int nr,
 						struct pci_sys_data *sys)
 {
@@ -1496,6 +1523,7 @@ static struct pci_bus *msm_pcie_scan_bus(int nr,
 
 	bus = pci_scan_root_bus(NULL, sys->busnr, &msm_pcie_ops, sys,
 					&sys->resources);
+	dev->pci_bus = bus;
 
 	return bus;
 }
@@ -1559,6 +1587,24 @@ static struct hw_pci msm_pci[MAX_RC_NUM] = {
 	},
 };
 
+int msm_pcie_rescan(void)
+{
+	int i;
+
+	if (!atomic_read(&rc_removed))
+		return 0;
+
+	for (i = 0; i < pcie_drv.rc_num; i++) {
+		/* reset the RC and enumurate devices */
+		msm_pcie_controller_reset(&msm_pcie_dev[i]);
+		msm_pcie_enumerate(i);
+	}
+
+	atomic_set(&rc_removed, 0);
+
+	return 0;
+}
+
 int msm_pcie_enumerate(u32 rc_idx)
 {
 	int ret = 0;
@@ -1616,6 +1662,40 @@ int msm_pcie_enumerate(u32 rc_idx)
 
 	return ret;
 }
+
+static ssize_t msm_bus_rescan_store(struct bus_type *bus, const char *buf,
+					size_t count)
+{
+	unsigned long val;
+
+	if (kstrtoul(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	if (val) {
+		pci_lock_rescan_remove();
+		msm_pcie_rescan();
+		pci_unlock_rescan_remove();
+	}
+	return count;
+}
+static BUS_ATTR(rcrescan, (S_IWUSR|S_IWGRP), NULL, msm_bus_rescan_store);
+
+static ssize_t msm_bus_remove_store(struct bus_type *bus, const char *buf,
+					size_t count)
+{
+	unsigned long val;
+
+	if (kstrtoul(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	if (val) {
+		pci_lock_rescan_remove();
+		msm_pcie_remove_bus();
+		pci_unlock_rescan_remove();
+	}
+	return count;
+}
+static BUS_ATTR(rcremove, (S_IWUSR|S_IWGRP), NULL, msm_bus_remove_store);
 
 static int msm_pcie_probe(struct platform_device *pdev)
 {
@@ -1831,6 +1911,26 @@ static int msm_pcie_probe(struct platform_device *pdev)
 
 	PCIE_DBG(&msm_pcie_dev[rc_idx], "PCIE probed %s\n",
 		dev_name(&(pdev->dev)));
+
+	/* create sysfs files to support power save mode */
+	if (!rc_idx) {
+		ret = bus_create_file(&pci_bus_type, &bus_attr_rcrescan);
+		if (ret != 0) {
+			PCIE_ERR(&msm_pcie_dev[rc_idx],
+				"RC%d failed to create sysfs rcrescan file\n",
+				rc_idx);
+			return ret;
+		}
+
+		ret = bus_create_file(&pci_bus_type, &bus_attr_rcremove);
+		if (ret != 0) {
+			PCIE_ERR(&msm_pcie_dev[rc_idx],
+				"RC%d failed to create sysfs rcremove file\n",
+				rc_idx);
+			return ret;
+		}
+	}
+
 	mutex_unlock(&pcie_drv.drv_lock);
 	return 0;
 
