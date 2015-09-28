@@ -364,7 +364,11 @@ static void edma_clean_rfd(struct edma_rfd_desc_ring *erdr, u16 index)
 
 	rx_desc = (&((struct edma_rx_free_desc *)(erdr->hw_desc))[index]);
 	sw_desc = &erdr->sw_desc[index];
-	dev_kfree_skb_any(sw_desc->skb);
+	if (sw_desc->skb) {
+		dev_kfree_skb_any(sw_desc->skb);
+		sw_desc->skb = NULL;
+	}
+
 	memset(rx_desc, 0, sizeof(struct edma_rx_free_desc));
 }
 
@@ -1545,6 +1549,28 @@ void edma_free_tx_rings(struct edma_common_info *c_info)
 }
 
 /*
+ * edma_free_tx_resources()
+ *	Free buffers associated with tx rings
+ */
+void edma_free_tx_resources(struct edma_common_info *c_info)
+{
+	struct edma_tx_desc_ring *etdr;
+	struct edma_sw_desc *sw_desc;
+	struct platform_device *pdev = c_info->pdev;
+	int i, j;
+
+	for (i = 0; i < c_info->num_tx_queues; i++) {
+		etdr = c_info->tpd_ring[i];
+		for (j = 0; j < EDMA_TX_RING_SIZE; j++) {
+			sw_desc = &etdr->sw_desc[j];
+			if (sw_desc->flags & (EDMA_SW_DESC_FLAG_SKB_HEAD |
+				EDMA_SW_DESC_FLAG_SKB_FRAG | EDMA_SW_DESC_FLAG_SKB_FRAGLIST))
+				edma_tx_unmap_and_free(pdev, sw_desc);
+		}
+	}
+}
+
+/*
  * edma_alloc_rx_rings()
  *	Allocate rx rings
  */
@@ -1574,6 +1600,34 @@ void edma_free_rx_rings(struct edma_common_info *c_info)
 
 	for (i = 0; i < c_info->num_rx_queues; i++)
 		edma_free_rx_ring(c_info, c_info->rfd_ring[i]);
+}
+
+/*
+ * edma_free_rx_resources()
+ *	Free buffers associated with tx rings
+ */
+void edma_free_rx_resources(struct edma_common_info *c_info)
+{
+        struct edma_rfd_desc_ring *erdr;
+	struct edma_sw_desc *sw_desc;
+	struct platform_device *pdev = c_info->pdev;
+	int i, j;
+
+	for (i = 0; i < c_info->num_rx_queues; i++) {
+		erdr = c_info->rfd_ring[i];
+		for (j = 0; j < EDMA_RX_RING_SIZE; j++) {
+			sw_desc = &erdr->sw_desc[j];
+			if (likely(sw_desc->flags & EDMA_SW_DESC_FLAG_SKB_HEAD)) {
+				dma_unmap_single(&pdev->dev, sw_desc->dma,
+					sw_desc->length, DMA_FROM_DEVICE);
+				edma_clean_rfd(erdr, j);
+			} else if ((sw_desc->flags & EDMA_SW_DESC_FLAG_SKB_FRAG)) {
+				dma_unmap_page(&pdev->dev, sw_desc->dma,
+					sw_desc->length, DMA_FROM_DEVICE);
+				edma_clean_rfd(erdr, j);
+			}
+		}
+	}
 }
 
 /*
@@ -1770,10 +1824,10 @@ void edma_free_irqs(struct edma_adapter *adapter)
 
 	for (i = 0; i < EDMA_NR_CPU; i++) {
 		for (j = c_info->q_cinfo[i].tx_start; j < (c_info->q_cinfo[i].tx_start + 4); j++)
-			free_irq(c_info->tx_irq[j], adapter->netdev);
+			free_irq(c_info->tx_irq[j], &c_info->q_cinfo[i]);
 
 		for (j = c_info->q_cinfo[i].rx_start; j < (c_info->q_cinfo[i].rx_start + 2); j++)
-			free_irq(c_info->rx_irq[j], adapter->netdev);
+			free_irq(c_info->rx_irq[j], &c_info->q_cinfo[i]);
 	}
 }
 

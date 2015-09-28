@@ -302,6 +302,7 @@ struct edma_common_info {
 	u32 page_mode; /* Jumbo frame supported flag */
 	struct edma_hw hw; /* edma hw specific structure */
 	struct queue_per_cpu_info q_cinfo[EDMA_NR_CPU]; /* per cpu information */
+	struct ctl_table_header *edma_ctl_table_hdr;
 	spinlock_t stats_lock; /* protect interrupt registers access */
 };
 
@@ -377,6 +378,8 @@ int edma_alloc_tx_rings(struct edma_common_info *c_info);
 int edma_alloc_rx_rings(struct edma_common_info *c_info);
 void edma_free_tx_rings(struct edma_common_info *c_info);
 void edma_free_rx_rings(struct edma_common_info *c_info);
+void edma_free_tx_resources(struct edma_common_info *c_info);
+void edma_free_rx_resources(struct edma_common_info *c_info);
 void edma_free_queues(struct edma_common_info *c_info);
 void edma_irq_disable(struct edma_common_info *c_info);
 int edma_reset(struct edma_common_info *c_info);

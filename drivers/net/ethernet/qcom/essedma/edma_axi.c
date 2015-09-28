@@ -532,7 +532,11 @@ static int edma_axi_probe(struct platform_device *pdev)
 #endif
 	}
 
-        register_net_sysctl(&init_net, "net/edma", edma_table);
+	c_info->edma_ctl_table_hdr = register_net_sysctl(&init_net, "net/edma", edma_table);
+	if (!c_info->edma_ctl_table_hdr) {
+		dev_err(&pdev->dev, "edma sysctl table hdr not registered\n");
+		goto err_unregister_sysctl_tbl;
+	}
 
 	/* Set default LAN tag */
 	adapter[EDMA_LAN]->default_vlan_tag = EDMA_LAN_DEFAULT;
@@ -560,7 +564,7 @@ static int edma_axi_probe(struct platform_device *pdev)
 		if (!mdio_node) {
 			dev_dbg(&pdev->dev, "cannot find mdio node by phandle");
 			ret = -EIO;
-			goto mdiobus_init_fail;
+			goto err_mdiobus_init_fail;
 		}
 
 		mdio_plat = of_find_device_by_node(mdio_node);
@@ -568,7 +572,7 @@ static int edma_axi_probe(struct platform_device *pdev)
 			dev_dbg(&pdev->dev, "cannot find platform device from mdio node");
 			of_node_put(mdio_node);
 			ret = -EIO;
-			goto mdiobus_init_fail;
+			goto err_mdiobus_init_fail;
 		}
 
 		mdio_data = dev_get_drvdata(&mdio_plat->dev);
@@ -576,7 +580,7 @@ static int edma_axi_probe(struct platform_device *pdev)
 			dev_dbg(&pdev->dev, "cannot get mii bus reference from device data");
 			of_node_put(mdio_node);
 			ret = -EIO;
-			goto mdiobus_init_fail;
+			goto err_mdiobus_init_fail;
 		}
 
 		miibus = mdio_data->mii_bus;
@@ -707,17 +711,17 @@ err_configure:
 	}
 #endif
 err_rmap_add_fail:
-        for (i = 0; i < EDMA_NR_NETDEV; i++)
+err_reset:
+	for (i = 0; i < EDMA_NR_NETDEV; i++)
 		edma_free_irqs(adapter[i]);
 	for (i = 0; i < EDMA_NR_CPU; i++)
 		napi_disable(&c_info->q_cinfo[i].napi);
+err_mdiobus_init_fail:
+err_unregister_sysctl_tbl:
 err_rmap_alloc_fail:
-err_reset:
 	for (i = 0; i < EDMA_NR_NETDEV; i++)
 		unregister_netdev(netdev[i]);
 err_register:
-	phy_disconnect(adapter[EDMA_WAN]->phydev);
-mdiobus_init_fail:
 	edma_free_rx_rings(c_info);
 err_rx_rinit:
 	edma_free_tx_rings(c_info);
@@ -727,7 +731,7 @@ err_rx_qinit:
 err_tx_qinit:
 	iounmap(c_info->hw.hw_addr);
 err_hwaddr:
-	kfree(c_info);
+	vfree(c_info);
 err_ioremap:
 	for (i = 0; i < EDMA_NR_NETDEV; i++)
 		free_netdev(netdev[i]);
@@ -736,9 +740,11 @@ err_alloc:
 }
 
 /*
- * edma_axi_remove - Device Removal Routine
- *	edma_axi_remove is called by the platform subsystem to alert the driver
- *	that it should release a platform device.
+ * edma_axi_remove()
+ * 	Device Removal Routine
+ *
+ * edma_axi_remove is called by the platform subsystem to alert the driver
+ * that it should release a platform device.
  */
 static int edma_axi_remove(struct platform_device *pdev)
 {
@@ -747,20 +753,36 @@ static int edma_axi_remove(struct platform_device *pdev)
 	struct edma_hw *hw = &c_info->hw;
 	int i;
 
+	for (i = 0; i < EDMA_NR_NETDEV; i++)
+		unregister_netdev(netdev[i]);
+
 	edma_stop_rx_tx(hw);
 	for (i = 0; i < EDMA_NR_CPU; i++)
 		napi_disable(&c_info->q_cinfo[i].napi);
+
 	edma_irq_disable(c_info);
+	edma_write_reg(REG_RX_ISR, 0xff);
+	edma_write_reg(REG_TX_ISR, 0xffff);
+#ifdef CONFIG_RFS_ACCEL
+	for (i = 0; i < EDMA_NR_NETDEV; i++) {
+		free_irq_cpu_rmap(netdev[0]->rx_cpu_rmap);
+		netdev[0]->rx_cpu_rmap = NULL;
+	}
+#endif
+
+	phy_disconnect(adapter->phydev);
+	del_timer_sync(&edma_stats_timer);
 	edma_free_irqs(adapter);
-	edma_reset(c_info);
+	unregister_net_sysctl_table(c_info->edma_ctl_table_hdr);
+        edma_free_tx_resources(c_info);
+        edma_free_rx_resources(c_info);
 	edma_free_tx_rings(c_info);
 	edma_free_rx_rings(c_info);
 	edma_free_queues(c_info);
-	for (i = 0; i < EDMA_NR_NETDEV; i++) {
-		unregister_netdev(netdev[i]);
+	for (i = 0; i < EDMA_NR_NETDEV; i++)
 		free_netdev(netdev[i]);
-	}
-	del_timer_sync(&edma_stats_timer);
+
+	vfree(c_info);
 
 	return 0;
 }
