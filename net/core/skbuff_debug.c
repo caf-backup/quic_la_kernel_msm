@@ -34,15 +34,19 @@ static struct debug_obj_descr skbuff_debug_descr = {
 	.fixup_free	= skbuff_debugobj_fixup,
 };
 
+inline void skbuff_debugobj_activate(struct sk_buff *skb)
+{
+	int ret = debug_object_activate(skb, &skbuff_debug_descr);
+
+	if (ret)
+		WARN(1, "skb_debug: failed to activate err = %d skb = 0x%p\n",
+		     ret, skb);
+}
+
 inline void skbuff_debugobj_init_and_activate(struct sk_buff *skb)
 {
 	debug_object_init(skb, &skbuff_debug_descr);
-	debug_object_activate(skb, &skbuff_debug_descr);
-}
-
-inline void skbuff_debugobj_activate(struct sk_buff *skb)
-{
-	debug_object_activate(skb, &skbuff_debug_descr);
+	skbuff_debugobj_activate(skb);
 }
 
 inline void skbuff_debugobj_deactivate(struct sk_buff *skb)
