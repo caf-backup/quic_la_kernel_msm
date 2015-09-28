@@ -4470,7 +4470,9 @@ static void bond_destructor(struct net_device *bond_dev)
 	if (bond->wq)
 		destroy_workqueue(bond->wq);
 
-	clear_bit(bond->id, &bond_id_mask);
+	if (bond->id != (~0U))
+		clear_bit(bond->id, &bond_id_mask);
+
 	free_netdev(bond_dev);
 }
 
