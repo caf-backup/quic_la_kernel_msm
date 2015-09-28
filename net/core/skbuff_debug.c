@@ -47,7 +47,15 @@ inline void skbuff_debugobj_activate(struct sk_buff *skb)
 
 inline void skbuff_debugobj_deactivate(struct sk_buff *skb)
 {
-	debug_object_deactivate(skb, &skbuff_debug_descr);
+	int obj_state = debug_object_get_state(skb);
+
+	if (obj_state == ODEBUG_STATE_ACTIVE) {
+		debug_object_deactivate(skb, &skbuff_debug_descr);
+		return;
+	}
+
+	WARN(1, "skbuff_debug: deactivating inactive object skb 0x%p state=%d\n",
+	     skb, obj_state);
 }
 
 inline void skbuff_debugobj_destroy(struct sk_buff *skb)
