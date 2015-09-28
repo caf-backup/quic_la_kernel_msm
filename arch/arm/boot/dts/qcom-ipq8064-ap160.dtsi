@@ -112,6 +112,19 @@
 					input-disable;
 				};
 			};
+
+			sdcc3_pins: sdcc3_pinmux {
+				mux {
+					pins = "gpio6";
+					drive-strength = <2>;
+					bias-pull-down;
+				};
+				card_det {
+					pins = "gpio8";
+					drive-strength = <16>;
+					bias-pull-none;
+				};
+			};
 		};
 
 		gsbi@16300000 {
@@ -247,6 +260,31 @@
 				gpios = <&qcom_pinmux 22 GPIO_ACTIVE_LOW>;
 				linux,input-type = <1>;
 				debounce-interval = <60>;
+			};
+		};
+
+		vcc_sdc3: regulator@0 {
+			compatible = "regulator-gpio";
+			regulator-name = "SDC3 GPIO Regulator";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <3000000>;
+
+			gpios = <&qcom_pinmux 8 0>;
+			states = <3000000 0
+				1800000 1>;
+			enable-active-high;
+		};
+
+		amba {
+		/* External micro SD card */
+			sdcc3: sdcc@12180000 {
+				status = "ok";
+				pinctrl-0 = <&sdcc3_pins>;
+				pinctrl-names = "default";
+				vmmc-supply = <&vcc_sdc3>;
+				cd-gpios  = <&qcom_pinmux 6 0>;
+				cd-inverted;
+				qcom-uhs-gpio = <8>;
 			};
 		};
 
