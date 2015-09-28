@@ -396,9 +396,8 @@ struct flash_partition_table {
 
 #ifdef CONFIG_MSM_SMD
 static struct flash_partition_table ptable;
-#endif
-
 static struct mtd_partition mtd_part[FLASH_PTABLE_MAX_PARTS_V4];
+#endif
 
 static inline bool is_buffer_in_page(const void *buf, size_t len)
 {

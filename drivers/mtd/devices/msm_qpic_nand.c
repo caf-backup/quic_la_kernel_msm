@@ -2737,9 +2737,9 @@ static int msm_nand_probe(struct platform_device *pdev)
 {
 	struct msm_nand_info *info;
 	struct resource *res;
-	int i, err;
+	int err;
 #ifdef CONFIG_MSM_SMD
-	int nr_parts;
+	int i, nr_parts;
 #else
 	struct mtd_part_parser_data ppdata;
 #endif
