@@ -122,7 +122,6 @@ static irqreturn_t ipq40xx_pcm_irq(int intrsrc, void *data)
 	uint32_t processed_size;
 	int offset;
 	uint32_t *ptr;
-	uint32_t i;
 
 	struct snd_pcm_substream *substream = data;
 	struct snd_pcm_runtime *runtime = substream->runtime;

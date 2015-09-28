@@ -94,7 +94,7 @@ struct ipq40xx_mbox_rt_dir_priv {
 	unsigned int ndescs;
 	irq_handler_t callback;
 	void *dai_priv;
-	uint32_t status;
+	unsigned long status;
 	uint32_t channel_id;
 	uint32_t err_stats;
 	uint32_t last_played_is_null;
