@@ -1376,10 +1376,10 @@ msm_spi_use_dma(struct msm_spi *dd, struct spi_transfer *tr, u8 bpw)
 		 !dd->read_len && !dd->write_len)
 		return false;
 
-	if (is_vmalloc_addr(rx) &&
+	if (is_vmalloc_addr((void *)rx) &&
 		(rx & PAGE_MASK) != ((rx + tr->len) & PAGE_MASK))
 		return false;
-	else if (is_vmalloc_addr(tx) &&
+	else if (is_vmalloc_addr((void *)tx) &&
 		(tx & PAGE_MASK) != ((tx + tr->len) & PAGE_MASK))
 		return false;
 
