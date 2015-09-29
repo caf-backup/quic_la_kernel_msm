@@ -41,6 +41,7 @@ static int get_num(const char *const str[], const char *name)
 	return -EINVAL;
 }
 
+#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_MSM_BUS_SCALING)
 static struct msm_bus_scale_pdata *get_pdata(struct platform_device *pdev,
 	struct device_node *of_node)
 {
@@ -148,7 +149,6 @@ err:
 	return NULL;
 }
 
-#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_MSM_BUS_SCALING)
 /**
  * msm_bus_cl_get_pdata() - Generate bus client data from device tree
  * provided by clients.
