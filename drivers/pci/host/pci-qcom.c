@@ -600,6 +600,89 @@ static int qcom_pcie_parse_dt(struct qcom_pcie *qcom_pcie,
 	return 0;
 }
 
+static int qcom_rc_remove(struct qcom_pcie *qcom_pcie)
+{
+	gpio_set_value(qcom_pcie->reset_gpio, 0);
+	usleep_range(10000, 15000);
+
+	/* disable clocks */
+	clk_disable_unprepare(qcom_pcie->iface_clk);
+	clk_disable_unprepare(qcom_pcie->phy_clk);
+	clk_disable_unprepare(qcom_pcie->bus_clk);
+	pci_stop_root_bus(qcom_pcie->pci_bus);
+	pci_remove_root_bus(qcom_pcie->pci_bus);
+	qcom_pcie->pci_bus = NULL;
+	return 0;
+}
+
+int qcom_pcie_rescan(void)
+{
+	int i;
+
+	if (!atomic_read(&rc_removed))
+		return 0;
+
+	for (i = 0; i < MAX_RC_NUM; i++) {
+		/* reset and enumerate the pcie devices */
+		if (qcom_pcie_dev[i])
+			qcom_pcie_enumerate(qcom_pcie_dev[i]);
+	}
+	atomic_set(&rc_removed, 0);
+
+	return 0;
+}
+
+void qcom_pcie_remove_bus(void)
+{
+	int i;
+
+	if (atomic_read(&rc_removed))
+		return;
+
+	for (i = 0; i < MAX_RC_NUM; i++) {
+		if (qcom_pcie_dev[i]) {
+			pr_notice("---> Removing %d", i);
+			qcom_rc_remove(qcom_pcie_dev[i]);
+			pr_notice(" ... done<---\n");
+		}
+	}
+	atomic_set(&rc_removed, 1);
+}
+
+static ssize_t qcom_bus_rescan_store(struct bus_type *bus, const char *buf,
+					size_t count)
+{
+	unsigned long val;
+
+	if (kstrtoul(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	if (val) {
+		pci_lock_rescan_remove();
+		qcom_pcie_rescan();
+		pci_unlock_rescan_remove();
+	}
+	return count;
+}
+static BUS_ATTR(rcrescan, (S_IWUSR|S_IWGRP), NULL, qcom_bus_rescan_store);
+
+static ssize_t qcom_bus_remove_store(struct bus_type *bus, const char *buf,
+					size_t count)
+{
+	unsigned long val;
+
+	if (kstrtoul(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	if (val) {
+		pci_lock_rescan_remove();
+		qcom_pcie_remove_bus();
+		pci_unlock_rescan_remove();
+	}
+	return count;
+}
+static BUS_ATTR(rcremove, (S_IWUSR|S_IWGRP), NULL, qcom_bus_remove_store);
+
 static int qcom_pcie_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -639,6 +722,23 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, qcom_pcie);
 
 	qcom_pcie_enumerate(qcom_pcie);
+
+	/* create sysfs files to support power save mode */
+	if (!rc_idx) {
+		ret = bus_create_file(&pci_bus_type, &bus_attr_rcrescan);
+		if (ret != 0) {
+			dev_err(&pdev->dev,
+				"Failed to create sysfs rcrescan file\n");
+			return ret;
+		}
+
+		ret = bus_create_file(&pci_bus_type, &bus_attr_rcremove);
+		if (ret != 0) {
+			dev_err(&pdev->dev,
+				"Failed to create sysfs rcremove file\n");
+			return ret;
+		}
+	}
 
 	qcom_pcie_dev[rc_idx++] = qcom_pcie;
 	return 0;
@@ -752,54 +852,7 @@ static int qcom_pcie_enumerate(struct qcom_pcie *qcom_pcie)
 	return 0;
 }
 
-static int qcom_rc_remove(struct qcom_pcie *qcom_pcie)
-{
-	gpio_set_value(qcom_pcie->reset_gpio, 0);
-	usleep_range(10000, 15000);
 
-	/* disable clocks */
-	clk_disable_unprepare(qcom_pcie->iface_clk);
-	clk_disable_unprepare(qcom_pcie->phy_clk);
-	clk_disable_unprepare(qcom_pcie->bus_clk);
-	pci_stop_root_bus(qcom_pcie->pci_bus);
-	pci_remove_root_bus(qcom_pcie->pci_bus);
-	qcom_pcie->pci_bus = NULL;
-	return 0;
-}
-
-int qcom_pcie_rescan(void)
-{
-	int i;
-
-	if (!atomic_read(&rc_removed))
-		return 0;
-
-	for (i = 0; i < MAX_RC_NUM; i++) {
-		/* reset and enumerate the pcie devices */
-		if (qcom_pcie_dev[i])
-			qcom_pcie_enumerate(qcom_pcie_dev[i]);
-	}
-	atomic_set(&rc_removed, 0);
-
-	return 0;
-}
-
-void qcom_pcie_remove_bus(void)
-{
-	int i;
-
-	if (atomic_read(&rc_removed))
-		return;
-
-	for (i = 0; i < MAX_RC_NUM; i++) {
-		if (qcom_pcie_dev[i]) {
-			pr_notice("---> Removing %d", i);
-			qcom_rc_remove(qcom_pcie_dev[i]);
-			pr_notice(" ... done<---\n");
-		}
-	}
-	atomic_set(&rc_removed, 1);
-}
 
 static int __exit qcom_pcie_remove(struct platform_device *pdev)
 {
