@@ -1595,7 +1595,7 @@ int msm_pcie_rescan(void)
 		return 0;
 
 	for (i = 0; i < pcie_drv.rc_num; i++) {
-		/* s/w reset of pcie */
+		/* reset the RC and enumurate devices */
 		msm_pcie_controller_reset(&msm_pcie_dev[i]);
 		msm_pcie_enumerate(i);
 	}
@@ -1662,6 +1662,40 @@ int msm_pcie_enumerate(u32 rc_idx)
 
 	return ret;
 }
+
+static ssize_t msm_bus_rescan_store(struct bus_type *bus, const char *buf,
+					size_t count)
+{
+	unsigned long val;
+
+	if (kstrtoul(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	if (val) {
+		pci_lock_rescan_remove();
+		msm_pcie_rescan();
+		pci_unlock_rescan_remove();
+	}
+	return count;
+}
+static BUS_ATTR(rcrescan, (S_IWUSR|S_IWGRP), NULL, msm_bus_rescan_store);
+
+static ssize_t msm_bus_remove_store(struct bus_type *bus, const char *buf,
+					size_t count)
+{
+	unsigned long val;
+
+	if (kstrtoul(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	if (val) {
+		pci_lock_rescan_remove();
+		msm_pcie_remove_bus();
+		pci_unlock_rescan_remove();
+	}
+	return count;
+}
+static BUS_ATTR(rcremove, (S_IWUSR|S_IWGRP), NULL, msm_bus_remove_store);
 
 static int msm_pcie_probe(struct platform_device *pdev)
 {
@@ -1877,6 +1911,26 @@ static int msm_pcie_probe(struct platform_device *pdev)
 
 	PCIE_DBG(&msm_pcie_dev[rc_idx], "PCIE probed %s\n",
 		dev_name(&(pdev->dev)));
+
+	/* create sysfs files to support power save mode */
+	if (!rc_idx) {
+		ret = bus_create_file(&pci_bus_type, &bus_attr_rcrescan);
+		if (ret != 0) {
+			PCIE_ERR(&msm_pcie_dev[rc_idx],
+				"RC%d failed to create sysfs rcrescan file\n",
+				rc_idx);
+			return ret;
+		}
+
+		ret = bus_create_file(&pci_bus_type, &bus_attr_rcremove);
+		if (ret != 0) {
+			PCIE_ERR(&msm_pcie_dev[rc_idx],
+				"RC%d failed to create sysfs rcremove file\n",
+				rc_idx);
+			return ret;
+		}
+	}
+
 	mutex_unlock(&pcie_drv.drv_lock);
 	return 0;
 
