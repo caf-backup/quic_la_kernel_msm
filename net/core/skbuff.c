@@ -487,7 +487,7 @@ void kfree_skbmem(struct sk_buff *skb)
 		skb->fclone = SKB_FCLONE_UNAVAILABLE;
 
 		if (atomic_dec_and_test(fclone_ref)) {
-			skbuff_debugobj_deactivate(skb);
+			skbuff_debugobj_deactivate(other);
 			kmem_cache_free(skbuff_fclone_cache, other);
 		}
 		break;
