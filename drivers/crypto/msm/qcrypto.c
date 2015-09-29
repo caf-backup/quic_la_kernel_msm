@@ -3773,6 +3773,7 @@ static int _qcrypto_prefix_alg_cra_name(char cra_name[], unsigned int size)
  * Fill up fips_selftest_data structure
  */
 
+#ifdef CONFIG_FIPS_ENABLE
 static void _qcrypto_fips_selftest_d(struct fips_selftest_data *selftest_d,
 					struct ce_hw_support *ce_support,
 					char *prefix)
@@ -3786,6 +3787,7 @@ static void _qcrypto_fips_selftest_d(struct fips_selftest_data *selftest_d,
 	selftest_d->prefix_aead_algo = ce_support->use_sw_aead_algo;
 	selftest_d->ce_device = ce_support->ce_device;
 }
+#endif
 
 int qcrypto_cipher_set_device(struct ablkcipher_request *req, unsigned int dev)
 {
@@ -4466,10 +4468,11 @@ static int  _qcrypto_probe(struct platform_device *pdev)
 	struct crypto_engine *pengine;
 	unsigned long flags;
 
+#ifdef CONFIG_FIPS_ENABLE
 	/* For FIPS140-2 Power on self tests */
 	struct fips_selftest_data selftest_d;
 	char prefix[10] = "";
-
+#endif
 	pengine = kzalloc(sizeof(*pengine), GFP_KERNEL);
 	if (!pengine) {
 		pr_err("qcrypto Memory allocation of q_alg FAIL, error %ld\n",
