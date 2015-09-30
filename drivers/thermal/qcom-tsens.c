@@ -467,7 +467,7 @@ static int tsens_tz_notify(struct thermal_zone_device *thermal,
 }
 
 static int tsens_tz_set_trip_temp(struct thermal_zone_device *thermal,
-				   int trip, long temp)
+				   int trip, unsigned long temp)
 {
 	struct tsens_tm_device_sensor *tm_sensor = thermal->devdata;
 	unsigned int reg_th, reg_cntl;
