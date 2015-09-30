@@ -22,6 +22,11 @@
 #include <linux/of_device.h>
 #include "nss-volt-ipq806x.h"
 
+static struct regulator *nss_reg;
+static u32 nss_core_vdd_nominal;
+static u32 nss_core_vdd_high;
+static u32 nss_core_threshold_freq;
+
 static int get_required_vdd_nss_core(unsigned long rate)
 {
 	if (rate >= nss_core_threshold_freq)
@@ -73,7 +78,7 @@ static int nss_ipq806x_probe(struct platform_device *pdev)
 	if (!np)
 		return -ENODEV;
 
-	vdd = of_parse_phandle(np, "nss_core-supply", NULL);
+	vdd = of_parse_phandle(np, "nss_core-supply", 0);
 	if (vdd)
 		nss_reg = regulator_get(NULL, vdd->name);
 	else
