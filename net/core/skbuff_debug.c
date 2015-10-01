@@ -21,7 +21,8 @@
 static int skbuff_debugobj_fixup(void *addr, enum debug_obj_state state)
 {
 	ftrace_dump(DUMP_ALL);
-	WARN(1, "skbuff_debug: state = %d, skb = 0x%p\n", state, addr);
+	pr_emerg("skbuff_debug: state = %d, skb = 0x%p\n", state, addr);
+	BUG();
 
 	return 0;
 }
@@ -40,8 +41,9 @@ inline void skbuff_debugobj_activate(struct sk_buff *skb)
 
 	if (ret) {
 		ftrace_dump(DUMP_ALL);
-		WARN(1, "skb_debug: failed to activate err = %d skb = 0x%p\n",
+		pr_emerg("skb_debug: failed to activate err = %d skb = 0x%p\n",
 				ret, skb);
+		BUG();
 	}
 }
 
@@ -61,8 +63,9 @@ inline void skbuff_debugobj_deactivate(struct sk_buff *skb)
 	}
 
 	ftrace_dump(DUMP_ALL);
-	WARN(1, "skbuff_debug: deactivating inactive object skb=0x%p state=%d\n",
+	pr_emerg("skbuff_debug: deactivating inactive object skb=0x%p state=%d\n",
 			skb, obj_state);
+	BUG();
 }
 
 inline void skbuff_debugobj_destroy(struct sk_buff *skb)
