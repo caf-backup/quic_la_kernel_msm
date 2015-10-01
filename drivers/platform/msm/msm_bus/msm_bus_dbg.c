@@ -323,6 +323,7 @@ struct dentry *msm_bus_dbg_create(const char *name, mode_t mode,
 		&client_data_fops);
 }
 
+#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_MSM_BUS_SCALING)
 static int msm_bus_dbg_record_client(const struct msm_bus_scale_pdata *pdata,
 	int index, uint32_t clid, struct dentry *file)
 {
@@ -425,6 +426,7 @@ static int msm_bus_dbg_fill_cl_buffer(const struct msm_bus_scale_pdata *pdata,
 	cldata->size = i;
 	return i;
 }
+#endif
 
 static int msm_bus_dbg_update_request(struct msm_bus_cldata *cldata, int index)
 {
@@ -543,6 +545,7 @@ static const struct file_operations rules_dbg_fops = {
 	.read		= rules_dbg_read,
 };
 
+#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_MSM_BUS_SCALING)
 static int msm_bus_dbg_record_fabric(const char *fabname, struct dentry *file)
 {
 	struct msm_bus_fab_list *fablist;
@@ -626,6 +629,7 @@ static int msm_bus_dbg_fill_fab_buffer(const char *fabname,
 	mutex_unlock(&msm_bus_dbg_fablist_lock);
 	return 0;
 }
+#endif
 
 static const struct file_operations msm_bus_dbg_update_request_fops = {
 	.open = client_data_open,

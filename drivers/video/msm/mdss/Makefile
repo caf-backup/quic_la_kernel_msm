@@ -1,7 +1,6 @@
 ccflags-y += -I$(src)
 ccflags-y += -I$(srctree)/arch/arm/mach-qcom/include
 ccflags-y += -I$(srctree)/arch/arm/mach-qcom
-ccflags-y += -I$(srctree)/drivers/staging/android
 
 mdss-qpic-objs := mdss_qpic.o mdss_fb.o mdss_qpic_panel.o
 obj-$(CONFIG_FB_MSM_QPIC) += mdss-qpic.o

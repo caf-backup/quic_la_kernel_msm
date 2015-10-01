@@ -386,7 +386,6 @@ static void qca_hs_clk_bus_unvote(struct msm_hs_port *msm_uport)
  /* Remove vote for resources when done */
 static void qca_hs_resource_unvote(struct msm_hs_port *msm_uport)
 {
-	struct uart_port *uport = &(msm_uport->uport);
 	int rc = atomic_read(&msm_uport->clk_count);
 
 	MSM_HS_DBG("%s(): power usage count %d", __func__, rc);
@@ -401,7 +400,6 @@ static void qca_hs_resource_unvote(struct msm_hs_port *msm_uport)
  /* Vote for resources before accessing them */
 static void qca_hs_resource_vote(struct msm_hs_port *msm_uport)
 {
-	struct uart_port *uport = &(msm_uport->uport);
 	atomic_inc(&msm_uport->clk_count);
 }
 

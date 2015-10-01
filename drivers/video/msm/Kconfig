@@ -34,10 +34,9 @@ config FB_MSM_LCDC_HW
 config FB_MSM_MDSS_COMMON
 	bool
 
-choice
-
 config FB_MSM_MDSS
 	bool "MDSS HW"
+	default n
 	select FB_MSM_MDSS_COMMON
 	---help---
 	The Mobile Display Sub System (MDSS) driver supports devices which
@@ -46,8 +45,6 @@ config FB_MSM_MDSS
 	The MDSS driver implements frame buffer interface to provide access to
 	the display hardware and provide a way for users to display graphics
 	on connected display panels.
-
-endchoice
 
 config FB_MSM_QPIC
 	bool

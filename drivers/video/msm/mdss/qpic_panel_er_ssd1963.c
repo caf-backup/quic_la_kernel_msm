@@ -40,7 +40,6 @@ void ertft_off(struct qpic_panel_io_desc *qpic_panel_io)
 int ertft_on(struct qpic_panel_io_desc *qpic_panel_io)
 {
 	u8 param[8];
-	int ret;
 
 	/* Set PLL MN */
 	param[0] = 0x23;
@@ -170,18 +169,17 @@ int ertft_on(struct qpic_panel_io_desc *qpic_panel_io)
 	return 0;
 }
 
-static int mdss_qpic_ertft_panel_init(void)
+static int __init mdss_qpic_ertft_panel_init(void)
 {
 	qpic_panel_on = ertft_on;
 	qpic_panel_off = ertft_off;
 	return 0;
 }
 
-static int mdss_qpic_ertft_panel_exit(void)
+static void __exit mdss_qpic_ertft_panel_exit(void)
 {
 	qpic_panel_on = NULL;
 	qpic_panel_off = NULL;
-	return;
 }
 module_init(mdss_qpic_ertft_panel_init);
 module_exit(mdss_qpic_ertft_panel_exit);
