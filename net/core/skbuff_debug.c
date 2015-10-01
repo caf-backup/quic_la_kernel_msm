@@ -13,6 +13,9 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <asm/stacktrace.h>
+#include <linux/module.h>
+
 #include "skbuff_debug.h"
 
 static int skbuff_debugobj_enabled __read_mostly = 1;
@@ -23,8 +26,10 @@ static int skbuff_debugobj_enabled __read_mostly = 1;
  */
 static int skbuff_debugobj_fixup(void *addr, enum debug_obj_state state)
 {
+	struct sk_buff *skb = (struct sk_buff *)addr;
 	ftrace_dump(DUMP_ALL);
-	WARN(1, "skbuff_debug: state = %d, skb = 0x%p\n", state, addr);
+	WARN(1, "skbuff_debug: state = %d, skb = 0x%p last free = %pS\n",
+	     state, skb, skb->free_addr);
 
 	return 0;
 }
@@ -48,8 +53,8 @@ inline void skbuff_debugobj_activate(struct sk_buff *skb)
 
 	if (ret) {
 		ftrace_dump(DUMP_ALL);
-		WARN(1, "skb_debug: failed to activate err = %d skb = 0x%p\n",
-		     ret, skb);
+		WARN(1, "skb_debug: failed to activate err = %d skb = 0x%p last free=%pS\n",
+		     ret, skb, skb->free_addr);
 	}
 }
 
@@ -62,6 +67,48 @@ inline void skbuff_debugobj_init_and_activate(struct sk_buff *skb)
 	skbuff_debugobj_activate(skb);
 }
 
+static int skbuff_debugobj_walkstack(struct stackframe *frame, void *d)
+{
+	u32 *pc = d;
+
+	*pc = frame->pc;
+
+	/* walk to outside kernel address space (e.g. module)
+	 * for the time being, need a whitelist here in the
+	 * future most likely
+	 */
+	if (is_module_text_address(*pc))
+		return -1;
+
+	return 0;
+}
+
+#ifdef CONFIG_ARM
+static void *skbuff_debugobj_get_free_addr(void)
+{
+	struct stackframe frame;
+
+	register unsigned long current_sp asm ("sp");
+	void *ret = NULL;
+
+	frame.fp = (unsigned long)__builtin_frame_address(0);
+	frame.sp = current_sp;
+	frame.lr = (unsigned long)__builtin_return_address(0);
+	frame.pc = (unsigned long)skbuff_debugobj_get_free_addr;
+
+	walk_stackframe(&frame, skbuff_debugobj_walkstack, &ret);
+
+	return ret;
+}
+#else
+#error
+static void *skbuff_debugobj_get_free_addr(void)
+{
+	/* not supported */
+	return 0xdeadbeef;
+}
+#endif
+
 inline void skbuff_debugobj_deactivate(struct sk_buff *skb)
 {
 	int obj_state;
@@ -73,12 +120,13 @@ inline void skbuff_debugobj_deactivate(struct sk_buff *skb)
 
 	if (obj_state == ODEBUG_STATE_ACTIVE) {
 		debug_object_deactivate(skb, &skbuff_debug_descr);
+		skb->free_addr = skbuff_debugobj_get_free_addr();
 		return;
 	}
 
 	ftrace_dump(DUMP_ALL);
-	WARN(1, "skbuff_debug: deactivating inactive object skb 0x%p state=%d\n",
-	     skb, obj_state);
+	WARN(1, "skbuff_debug: deactivating inactive object skb=0x%p state=%d last free=%pS\n",
+	     skb, obj_state, skb->free_addr);
 }
 
 inline void skbuff_debugobj_destroy(struct sk_buff *skb)

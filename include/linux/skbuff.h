@@ -710,6 +710,9 @@ struct sk_buff {
 				*data;
 	unsigned int		truesize;
 	atomic_t		users;
+#ifdef CONFIG_DEBUG_OBJECTS_SKBUFF
+	void			*free_addr;
+#endif
 };
 
 #ifdef __KERNEL__
