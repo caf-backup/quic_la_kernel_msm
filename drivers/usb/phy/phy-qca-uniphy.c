@@ -76,6 +76,10 @@ struct qca_uni_ss_phy {
 	unsigned int emulation;
 };
 
+struct qf_read {
+	uint32_t value;
+};
+
 #define	phy_to_dw_phy(x)	container_of((x), struct qca_uni_ss_phy, phy)
 
 /**
@@ -244,13 +248,10 @@ int qca_uni_ss_read_otp(uint32_t *otp_read_data)
 {
 	int ret;
 	uint32_t *otp_value = kzalloc(sizeof(uint32_t), GFP_KERNEL);
+	struct qf_read rdip;
 
 	if (!otp_value)
 		return -ENOMEM;
-
-	struct qf_read {
-		uint32_t value;
-	} rdip;
 
 	rdip.value = dma_map_single(NULL, otp_value,
 			sizeof(uint32_t), DMA_FROM_DEVICE);
@@ -278,7 +279,7 @@ err_write:
 	return ret;
 }
 
-int qca_uni_ss_phy_usb_los_calibration(uint32_t base)
+int qca_uni_ss_phy_usb_los_calibration(void __iomem *base)
 {
 	uint32_t data, otp_val = 0;
 
