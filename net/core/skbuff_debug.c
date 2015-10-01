@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -20,6 +20,7 @@
  */
 static int skbuff_debugobj_fixup(void *addr, enum debug_obj_state state)
 {
+	ftrace_dump(DUMP_ALL);
 	WARN(1, "skbuff_debug: state = %d, skb = 0x%p\n", state, addr);
 
 	return 0;
@@ -33,20 +34,35 @@ static struct debug_obj_descr skbuff_debug_descr = {
 	.fixup_free	= skbuff_debugobj_fixup,
 };
 
+inline void skbuff_debugobj_activate(struct sk_buff *skb)
+{
+	int ret = debug_object_activate(skb, &skbuff_debug_descr);
+
+	if (ret) {
+		ftrace_dump(DUMP_ALL);
+		WARN(1, "skb_debug: failed to activate err = %d skb = 0x%p\n",
+				ret, skb);
+	}
+}
+
 inline void skbuff_debugobj_init_and_activate(struct sk_buff *skb)
 {
 	debug_object_init(skb, &skbuff_debug_descr);
-	debug_object_activate(skb, &skbuff_debug_descr);
-}
-
-inline void skbuff_debugobj_activate(struct sk_buff *skb)
-{
-	debug_object_activate(skb, &skbuff_debug_descr);
+	skbuff_debugobj_activate(skb);
 }
 
 inline void skbuff_debugobj_deactivate(struct sk_buff *skb)
 {
-	debug_object_deactivate(skb, &skbuff_debug_descr);
+	int obj_state = debug_object_get_state(skb);
+
+	if (obj_state == ODEBUG_STATE_ACTIVE) {
+		debug_object_deactivate(skb, &skbuff_debug_descr);
+		return;
+	}
+
+	ftrace_dump(DUMP_ALL);
+	WARN(1, "skbuff_debug: deactivating inactive object skb=0x%p state=%d\n",
+			skb, obj_state);
 }
 
 inline void skbuff_debugobj_destroy(struct sk_buff *skb)
