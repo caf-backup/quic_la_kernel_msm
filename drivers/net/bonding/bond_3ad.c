@@ -2447,7 +2447,8 @@ int bond_3ad_get_active_agg_info(struct bonding *bond, struct ad_info *ad_info)
 struct net_device *bond_3ad_get_tx_dev(struct sk_buff *skb, uint8_t *src_mac,
 				 uint8_t *dst_mac, void *src,
 				 void *dst, uint16_t protocol,
-				 struct net_device *bond_dev)
+				 struct net_device *bond_dev,
+				 __be16 *layer4hdr)
 {
 	struct slave *slave, *start_at;
 	struct bonding *bond = netdev_priv(bond_dev);
@@ -2478,12 +2479,13 @@ struct net_device *bond_3ad_get_tx_dev(struct sk_buff *skb, uint8_t *src_mac,
 		uint32_t hash;
 
 		if (bond->params.xmit_policy != BOND_XMIT_POLICY_LAYER23
+		    && bond->params.xmit_policy != BOND_XMIT_POLICY_LAYER34
 		    && bond->params.xmit_policy != BOND_XMIT_POLICY_LAYER2) {
 			pr_debug("%s: Error: Unsupported hash policy for 802.3AD fast path\n", bond_dev->name);
 			return NULL;
 		}
 
-		hash = bond_xmit_hash(src_mac, dst_mac, src, dst, protocol, bond_dev);
+		hash = bond_xmit_hash(src_mac, dst_mac, src, dst, protocol, bond_dev, layer4hdr);
 		slave_agg_no = hash % slaves_in_agg;
 	}
 
@@ -2526,7 +2528,7 @@ int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev)
 	struct net_device *outdev = NULL;
 	int res = 1;
 
-	outdev = bond_3ad_get_tx_dev(skb, NULL, NULL, NULL, NULL, 0, dev);
+	outdev = bond_3ad_get_tx_dev(skb, NULL, NULL, NULL, NULL, 0, dev, NULL);
 
 	if (!outdev) {
 		goto out;

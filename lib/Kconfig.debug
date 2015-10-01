@@ -362,6 +362,12 @@ config DEBUG_OBJECTS_RCU_HEAD
 	help
 	  Enable this to turn on debugging of RCU list heads (call_rcu() usage).
 
+config DEBUG_OBJECTS_SKBUFF
+	bool "Debug sk_buff allocations"
+	depends on DEBUG_OBJECTS
+	help
+	  Enable this to turn on debugging of sk_buff's (incl. recycler)
+
 config DEBUG_OBJECTS_PERCPU_COUNTER
 	bool "Debug percpu counter objects"
 	depends on DEBUG_OBJECTS
