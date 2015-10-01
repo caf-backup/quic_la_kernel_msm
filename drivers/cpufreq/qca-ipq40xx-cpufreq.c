@@ -99,7 +99,7 @@ static struct cpufreq_driver qca_ipq40xx_cpufreq_driver = {
 
 static int __init ipq40xx_cpufreq_probe(struct platform_device *pdev)
 {
-	struct device_node *np;
+	struct device_node *np = NULL;
 	struct clk *clk;
 	unsigned int cpu;
 	struct device *dev;
