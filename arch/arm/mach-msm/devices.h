@@ -394,6 +394,7 @@ extern struct platform_device nss_gmac_0;
 extern struct platform_device nss_gmac_1;
 extern struct platform_device nss_gmac_2;
 extern struct platform_device nss_gmac_3;
+extern struct platform_device *nss_gmac[];
 extern struct platform_device nss_macsec1;
 extern struct platform_device nss_macsec2;
 extern struct platform_device nss_macsec3;
