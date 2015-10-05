@@ -77,6 +77,28 @@ enum {
 	PPPOL2TP_MSG_DATA	= (1 << 3),	/* data packets */
 };
 
+/*
+ * structure to hold information about a l2tp
+ * channel
+ */
+struct  pppol2tp_common_addr {
+	int tunnel_version;				/* v2 or v3 */
+	__u32 local_tunnel_id, remote_tunnel_id;	/* tunnel id */
+	__u32 local_session_id, remote_session_id;	/* session id */
+	struct sockaddr_in local_addr, remote_addr;	/* ip address and port */
+};
 
+/*
+ * ppp over l2tp channel ops structure
+ */
+struct pppol2tp_channel_ops {
+	struct ppp_channel_ops ops;	/* ppp channel ops */
+};
+
+/*
+ * exported function which calls pppol2tp channel's get addressing
+ * function
+ */
+extern int pppol2tp_channel_addressing_get(struct ppp_channel *, struct pppol2tp_common_addr *);
 
 #endif
