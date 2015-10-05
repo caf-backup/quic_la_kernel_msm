@@ -649,13 +649,17 @@
 				 <&gcc PCIE_HCLK_RESET>,
 				 <&gcc PCIE_POR_RESET>,
 				 <&gcc PCIE_PCI_RESET>,
-				 <&gcc PCIE_PHY_RESET>;
-			reset-names = "axi", "ahb", "por", "pci", "phy";
+				 <&gcc PCIE_PHY_RESET>,
+				 <&gcc PCIE_EXT_RESET>;
+			reset-names = "axi", "ahb", "por", "pci", "phy", "ext";
 
 			clocks = <&gcc PCIE_A_CLK>,
 				 <&gcc PCIE_H_CLK>,
-				 <&gcc PCIE_PHY_CLK>;
-			clock-names = "core", "iface", "phy";
+				 <&gcc PCIE_PHY_CLK>,
+				 <&gcc PCIE_ALT_REF_SRC>,
+				 <&gcc PCIE_ALT_REF_CLK>,
+				 <&gcc PCIE_AUX_CLK>;
+			clock-names = "core", "iface", "phy", "alt_src", "alt_clk", "aux";
 			status = "disabled";
 			force_gen1 = <0>;
 		};
@@ -681,13 +685,17 @@
 				 <&gcc PCIE_1_HCLK_RESET>,
 				 <&gcc PCIE_1_POR_RESET>,
 				 <&gcc PCIE_1_PCI_RESET>,
-				 <&gcc PCIE_1_PHY_RESET>;
-			reset-names = "axi", "ahb", "por", "pci", "phy";
+				 <&gcc PCIE_1_PHY_RESET>,
+				 <&gcc PCIE_1_EXT_RESET>;
+			reset-names = "axi", "ahb", "por", "pci", "phy", "ext";
 
 			clocks = <&gcc PCIE_1_A_CLK>,
 				 <&gcc PCIE_1_H_CLK>,
-				 <&gcc PCIE_1_PHY_CLK>;
-			clock-names = "core", "iface", "phy";
+				 <&gcc PCIE_1_PHY_CLK>,
+				 <&gcc PCIE_1_ALT_REF_SRC>,
+				 <&gcc PCIE_1_ALT_REF_CLK>,
+				 <&gcc PCIE_1_AUX_CLK>;
+			clock-names = "core", "iface", "phy", "alt_src", "alt_clk", "aux";
 			status = "disabled";
 			force_gen1 = <0>;
 		};
@@ -713,13 +721,17 @@
 				 <&gcc PCIE_2_HCLK_RESET>,
 				 <&gcc PCIE_2_POR_RESET>,
 				 <&gcc PCIE_2_PCI_RESET>,
-				 <&gcc PCIE_2_PHY_RESET>;
-			reset-names = "axi", "ahb", "por", "pci", "phy";
+				 <&gcc PCIE_2_PHY_RESET>,
+				 <&gcc PCIE_2_EXT_RESET>;
+			reset-names = "axi", "ahb", "por", "pci", "phy", "ext";
 
 			clocks = <&gcc PCIE_2_A_CLK>,
 				 <&gcc PCIE_2_H_CLK>,
-				 <&gcc PCIE_2_PHY_CLK>;
-			clock-names = "core", "iface", "phy";
+				 <&gcc PCIE_2_PHY_CLK>,
+				 <&gcc PCIE_2_ALT_REF_SRC>,
+				 <&gcc PCIE_2_ALT_REF_CLK>,
+				 <&gcc PCIE_2_AUX_CLK>;
+			clock-names = "core", "iface", "phy", "alt_src", "alt_clk", "aux";
 			status = "disabled";
 			force_gen1 = <0>;
 		};

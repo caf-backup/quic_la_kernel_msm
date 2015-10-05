@@ -114,6 +114,9 @@ struct qcom_pcie {
 	struct clk		*iface_clk;
 	struct clk		*bus_clk;
 	struct clk		*phy_clk;
+	struct clk		*alt_clk;
+	struct clk		*alt_src;
+	struct clk		*aux_clk;
 	int			irq_int[4];
 	int			root_bus_nr;
 	struct reset_control	*axi_reset;
@@ -121,6 +124,7 @@ struct qcom_pcie {
 	struct reset_control	*por_reset;
 	struct reset_control	*pci_reset;
 	struct reset_control	*phy_reset;
+	struct reset_control	*ext_reset;
 
 	struct resource		conf;
 	struct resource		io;
@@ -559,6 +563,24 @@ static int qcom_pcie_parse_dt(struct qcom_pcie *qcom_pcie,
 		return PTR_ERR(qcom_pcie->bus_clk);
 	}
 
+	qcom_pcie->alt_clk = devm_clk_get(&pdev->dev, "alt_clk");
+	if (IS_ERR(qcom_pcie->alt_clk)) {
+		dev_err(&pdev->dev, "Failed to get pcie alt ref clock\n");
+		return PTR_ERR(qcom_pcie->alt_clk);
+	}
+
+	qcom_pcie->alt_src = devm_clk_get(&pdev->dev, "alt_src");
+	if (IS_ERR(qcom_pcie->alt_src)) {
+		dev_err(&pdev->dev, "Failed to get pcie alt ref src clock\n");
+		return PTR_ERR(qcom_pcie->alt_src);
+	}
+
+	qcom_pcie->aux_clk = devm_clk_get(&pdev->dev, "aux");
+	if (IS_ERR(qcom_pcie->aux_clk)) {
+		dev_err(&pdev->dev, "Failed to get pcie aux clock\n");
+		return PTR_ERR(qcom_pcie->aux_clk);
+	}
+
 	qcom_pcie->axi_reset = devm_reset_control_get(&pdev->dev, "axi");
 	if (IS_ERR(qcom_pcie->axi_reset)) {
 		dev_err(&pdev->dev, "Failed to get axi reset\n");
@@ -589,6 +611,12 @@ static int qcom_pcie_parse_dt(struct qcom_pcie *qcom_pcie,
 		return PTR_ERR(qcom_pcie->phy_reset);
 	}
 
+	qcom_pcie->ext_reset = devm_reset_control_get(&pdev->dev, "ext");
+	if (IS_ERR(qcom_pcie->ext_reset)) {
+		dev_err(&pdev->dev, "Failed to get ext reset\n");
+		return PTR_ERR(qcom_pcie->ext_reset);
+	}
+
 	for (i = 0; i < 4; i++) {
 		qcom_pcie->irq_int[i] = platform_get_irq(pdev, i+1);
 		if (qcom_pcie->irq_int[i] < 0) {
@@ -605,13 +633,30 @@ static int qcom_rc_remove(struct qcom_pcie *qcom_pcie)
 	gpio_set_value(qcom_pcie->reset_gpio, 0);
 	usleep_range(10000, 15000);
 
+	/* assert PICe PHY, Core, POR, Ahb, Ext and AXI clk domain resets */
+	reset_control_assert(qcom_pcie->axi_reset);
+	reset_control_assert(qcom_pcie->ahb_reset);
+	reset_control_assert(qcom_pcie->por_reset);
+	reset_control_assert(qcom_pcie->pci_reset);
+	reset_control_assert(qcom_pcie->phy_reset);
+	reset_control_assert(qcom_pcie->ext_reset);
+
+	/* wait 150ms for clock acquisition */
+	usleep_range(10000, 15000);
+
+	qcom_parf_writel_relaxed(qcom_pcie, 0x1, PCIE20_PARF_PHY_CTRL);
+
 	/* disable clocks */
 	clk_disable_unprepare(qcom_pcie->iface_clk);
-	clk_disable_unprepare(qcom_pcie->phy_clk);
 	clk_disable_unprepare(qcom_pcie->bus_clk);
+	clk_disable_unprepare(qcom_pcie->aux_clk);
+	clk_disable_unprepare(qcom_pcie->alt_src);
+	clk_disable_unprepare(qcom_pcie->alt_clk);
 	pci_stop_root_bus(qcom_pcie->pci_bus);
 	pci_remove_root_bus(qcom_pcie->pci_bus);
 	qcom_pcie->pci_bus = NULL;
+	nr_controllers--;
+
 	return 0;
 }
 
@@ -767,6 +812,15 @@ static int qcom_pcie_enumerate(struct qcom_pcie *qcom_pcie)
 	ret = clk_prepare_enable(qcom_pcie->bus_clk);
 	if (ret)
 		return ret;
+	ret = clk_prepare_enable(qcom_pcie->aux_clk);
+	if (ret)
+		return ret;
+	ret = clk_prepare_enable(qcom_pcie->alt_src);
+	if (ret)
+		return ret;
+	ret = clk_prepare_enable(qcom_pcie->alt_clk);
+	if (ret)
+		return ret;
 
 	/*
 	 * de-assert PCIe PARF reset;
@@ -810,6 +864,7 @@ static int qcom_pcie_enumerate(struct qcom_pcie *qcom_pcie)
 	reset_control_deassert(qcom_pcie->pci_reset);
 	reset_control_deassert(qcom_pcie->por_reset);
 	reset_control_deassert(qcom_pcie->axi_reset);
+	reset_control_deassert(qcom_pcie->ext_reset);
 
 	/* wait 150ms for clock acquisition */
 	usleep_range(10000, 15000);
