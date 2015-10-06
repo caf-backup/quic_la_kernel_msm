@@ -3156,7 +3156,7 @@ static int msm_hs_sps_init(struct msm_hs_port *msm_uport)
 {
 	int rc = 0;
 	struct sps_bam_props bam = {0};
-	u32 bam_handle;
+	unsigned long bam_handle;
 
 	rc = sps_phy2h(msm_uport->bam_mem, &bam_handle);
 	if (rc || !bam_handle) {
