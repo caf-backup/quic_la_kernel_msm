@@ -844,6 +844,11 @@ static void msm_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 	u32 val;
 	int i;
 
+	if (!chip) {
+		dev_err(pctrl->dev, "Failed to get chip\n");
+		return;
+	}
+
 	chained_irq_enter(chip, desc);
 
 	/*
