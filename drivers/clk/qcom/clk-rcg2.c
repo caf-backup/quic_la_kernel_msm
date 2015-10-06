@@ -868,6 +868,9 @@ static long clk_muxr_determine_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long clk_flags;
 
 	f = qcom_find_freq(rcg->freq_tbl, rate);
+	if (!f)
+		return -EINVAL;
+
 	clk_flags = __clk_get_flags(hw->clk);
 	*p = clk_get_parent_by_index(hw->clk, f->src);
 	if (clk_flags & CLK_SET_RATE_PARENT) {
