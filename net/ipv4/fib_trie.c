@@ -1179,6 +1179,11 @@ done:
 }
 
 /*
+ * Define route change notification chain.
+ */
+static BLOCKING_NOTIFIER_HEAD(iproute_chain);
+
+/*
  * Caller must hold RTNL.
  */
 int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
@@ -1338,6 +1343,8 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 	rtmsg_fib(RTM_NEWROUTE, htonl(key), new_fa, plen, tb->tb_id,
 		  &cfg->fc_nlinfo, 0);
 succeeded:
+	blocking_notifier_call_chain(&iproute_chain,
+					RTM_NEWROUTE, fi);
 	return 0;
 
 out_free_new_fa:
@@ -1711,6 +1718,8 @@ int fib_table_delete(struct fib_table *tb, struct fib_config *cfg)
 	if (fa->fa_state & FA_S_ACCESSED)
 		rt_cache_flush(cfg->fc_nlinfo.nl_net, -1);
 
+	blocking_notifier_call_chain(&iproute_chain,
+					RTM_DELROUTE, fa->fa_info);
 	fib_release_info(fa->fa_info);
 	alias_free_mem_rcu(fa);
 	return 0;
@@ -1975,6 +1984,18 @@ void __init fib_trie_init(void)
 					   0, SLAB_PANIC, NULL);
 }
 
+
+int ip_rt_register_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&iproute_chain, nb);
+}
+EXPORT_SYMBOL(ip_rt_register_notifier);
+
+int ip_rt_unregister_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&iproute_chain, nb);
+}
+EXPORT_SYMBOL(ip_rt_unregister_notifier);
 
 struct fib_table *fib_trie_table(u32 id)
 {

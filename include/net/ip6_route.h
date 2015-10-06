@@ -154,6 +154,8 @@ extern void rt6_ifdown(struct net *net, struct net_device *dev);
 extern void rt6_mtu_change(struct net_device *dev, unsigned mtu);
 extern void rt6_remove_prefsrc(struct inet6_ifaddr *ifp);
 
+extern int rt6_register_notifier(struct notifier_block *nb);
+extern int rt6_unregister_notifier(struct notifier_block *nb);
 
 /*
  *	Store a destination cache entry in a socket
