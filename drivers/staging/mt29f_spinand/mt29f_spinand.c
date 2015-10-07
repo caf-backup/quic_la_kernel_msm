@@ -79,6 +79,18 @@ struct spinand_ops spinand_dev[] = {
 		macronix_parse_id,
 		macronix_verify_ecc,
 	},
+	{
+		NAND_MFR_WINBOND,
+		0xaa21,
+		gigadevice_set_defaults,
+		gigadevice_read_cmd,
+		winbond_read_data,
+		gigadevice_write_cmd,
+		winbond_write_data,
+		gigadevice_erase_blk,
+		winbond_parse_id,
+		macronix_verify_ecc,
+	},
 	{ },
 };
 
@@ -268,11 +280,11 @@ static int spinand_cmd(struct spi_device *spi, struct spinand_cmd *cmd)
 static int spinand_read_id(struct spi_device *spi_nand, u8 *id)
 {
 	int retval;
-	u8 nand_id[3];
+	u8 nand_id[4];
 	struct spinand_cmd cmd = {0};
 
 	cmd.cmd = CMD_READ_ID;
-	cmd.n_rx = 3;
+	cmd.n_rx = 4;
 	cmd.rx_buf = &nand_id[0];
 
 	retval = spinand_cmd(spi_nand, &cmd);
@@ -282,6 +294,7 @@ static int spinand_read_id(struct spi_device *spi_nand, u8 *id)
 	}
 	id[0] = nand_id[1];
 	id[1] = nand_id[2];
+	id[2] = nand_id[3];
 	spinand_parse_id(spi_nand, nand_id, id);
 	return retval;
 }
