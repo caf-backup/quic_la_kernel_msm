@@ -665,10 +665,10 @@ trip_point_type_activate(struct device *dev, struct device_attribute *attr,
 	if (!sscanf(attr->attr.name, "trip_point_%d_type", &trip))
 		return -EINVAL;
 
-	if (!strncmp(buf, enabled, sizeof(enabled)))
+	if (!strncmp(buf, enabled, strlen(enabled)))
 		result = tz->ops->activate_trip_type(tz, trip,
 					THERMAL_TRIP_ACTIVATION_ENABLED);
-	else if (!strncmp(buf, disabled, sizeof(disabled)))
+	else if (!strncmp(buf, disabled, strlen(disabled)))
 		result = tz->ops->activate_trip_type(tz, trip,
 					THERMAL_TRIP_ACTIVATION_DISABLED);
 	else
