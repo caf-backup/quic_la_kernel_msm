@@ -66,7 +66,7 @@ clk_qcapll_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 {
 	struct clk_qcapll *pll = to_clk_qcapll(hw);
 	u32 ref_div, post_plldiv, tgt_div_frac, tgt_div_int;
-	u32 rate, config, mod_reg;
+	u32 config, mod_reg;
 
 	regmap_read(pll->clkr.regmap, pll->config_reg, &config);
 	regmap_read(pll->clkr.regmap, pll->mod_reg, &mod_reg);

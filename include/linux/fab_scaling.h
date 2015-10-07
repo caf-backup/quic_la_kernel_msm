@@ -20,7 +20,7 @@
 
 struct fab_scaling_info {
 	struct clk *clk;
-	unsigned long idle_freq;
+	u32 idle_freq;
 };
 
 /**
