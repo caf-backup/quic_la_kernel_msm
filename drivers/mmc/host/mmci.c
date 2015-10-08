@@ -309,8 +309,14 @@ static void mmci_set_clkreg(struct mmci_host *host, unsigned int desired)
 		clk |= variant->clkreg_8bit_bus_enable;
 
 	if (host->mmc->ios.timing == MMC_TIMING_UHS_DDR50 ||
-	    host->mmc->ios.timing == MMC_TIMING_MMC_DDR52)
+	    host->mmc->ios.timing == MMC_TIMING_MMC_DDR52) {
+#ifndef CONFIG_MMC_QCOM_TUNING
 		clk |= variant->clkreg_neg_edge_enable;
+#else
+		clk |= variant->datactrl_mask_ddrmode;
+		mmci_qcom_ddr_tuning(host);
+#endif
+	}
 
 #ifdef CONFIG_MMC_QCOM_TUNING
 	if (variant->qcom_uhs_gpio >= 0)
@@ -742,7 +748,16 @@ static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 	host->size = data->blksz * data->blocks;
 	data->bytes_xfered = 0;
 
+#ifdef CONFIG_MMC_QCOM_TUNING
+	if (host->mmc->ios.timing == MMC_TIMING_UHS_DDR50)
+		clks = (unsigned long long)data->timeout_ns *
+			(host->cclk / 2);
+	else
+		clks = (unsigned long long)data->timeout_ns * host->cclk;
+#else
 	clks = (unsigned long long)data->timeout_ns * host->cclk;
+#endif
+
 	do_div(clks, NSEC_PER_SEC);
 
 	timeout = data->timeout_clks + (unsigned int)clks;
@@ -790,10 +805,11 @@ static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 
 			mmci_write_clkreg(host, clk);
 		}
-
+#ifndef CONFIG_MMC_QCOM_TUNING
 	if (host->mmc->ios.timing == MMC_TIMING_UHS_DDR50 ||
 	    host->mmc->ios.timing == MMC_TIMING_MMC_DDR52)
 		datactrl |= variant->datactrl_mask_ddrmode;
+#endif
 
 	/*
 	 * Attempt to use DMA operation mode, if this
@@ -1391,7 +1407,6 @@ static int mmci_get_cd(struct mmc_host *mmc)
 static int mmci_sig_volt_switch(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	int ret = 0;
-
 	if (!IS_ERR(mmc->supply.vqmmc)) {
 
 		pm_runtime_get_sync(mmc_dev(mmc));
