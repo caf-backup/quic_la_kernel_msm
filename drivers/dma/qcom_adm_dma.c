@@ -280,8 +280,11 @@ static void msm_dmov_enqueue_cmd_ext_work(struct work_struct *work)
 		PRINT_IO("msm_dmov_enqueue_cmd(%d), start command, status %x\n",
 			id, status);
 		cmd = start_ready_cmd(ch, adm);
-		if (cmd == NULL)
+		if (cmd == NULL) {
+			spin_unlock_irqrestore(&dmov_conf[adm].list_lock,
+									flags);
 			goto error;
+		}
 		/*
 		 * We added something to the ready list, and still hold the
 		 * list lock. Thus, no need to check for cmd == NULL
@@ -392,6 +395,7 @@ int msm_dmov_exec_cmd(unsigned id, unsigned int cmdptr)
 	cmd.dmov_cmd.exec_func = NULL;
 	cmd.id = id;
 	cmd.result = 0;
+	memset(cmd.err.flush, 0, sizeof(cmd.err.flush));
 	INIT_WORK_ONSTACK(&cmd.dmov_cmd.work, msm_dmov_enqueue_cmd_ext_work);
 	init_completion(&cmd.complete);
 
@@ -680,12 +684,12 @@ static int msm_dmov_probe(struct platform_device *pdev)
 	struct resource *mres =
 		platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
+	if (!irqres || !mres)
+		return -ENODEV;
+
         dmov_conf[adm].sd=0;
         dmov_conf[adm].sd_size=0x800;
 	   
-	if (!irqres)
-		return -ENODEV;
-
 	dmov_conf[adm].irq = irqres->start;
 
 	dmov_conf[adm].base = devm_ioremap_resource(&pdev->dev, mres);
