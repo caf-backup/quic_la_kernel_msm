@@ -248,6 +248,12 @@ static int mmci_qtune_config_cm_sdc4_dll_phase(struct mmci_host *host,
 	if (rc)
 		goto err_out;
 
+	if (phase >= ARRAY_SIZE(grey_coded_phase_table)) {
+		pr_warn("%s: out of bound access - grey_coded_phase_table[%d]\n",
+				__func__, phase);
+		return -EINVAL;
+	}
+
 	/*
 	 * Write the selected DLL clock output phase (0 ... 15)
 	 * to CDR_SELEXT bit field of MCIDLL_CONFIG register.
