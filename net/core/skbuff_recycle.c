@@ -197,6 +197,26 @@ static int skb_cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
+#ifdef CONFIG_SKB_RECYCLER_PREALLOC
+static int __init skb_prealloc_init_list(void)
+{
+	int i;
+	struct sk_buff *skb;
+
+	for (i = 0; i < SKB_RECYCLE_MAX_PREALLOC_SKBS; i++) {
+		skb = __alloc_skb(SKB_RECYCLE_MAX_SIZE + NET_SKB_PAD,
+				  GFP_KERNEL, 0, NUMA_NO_NODE);
+		if (unlikely(!skb))
+			return -ENOMEM;
+
+		skb_reserve(skb, NET_SKB_PAD);
+
+		skb_recycler_consume(skb);
+	}
+	return 0;
+}
+#endif
+
 /* procfs: count
  * Show skb counts
  */
@@ -453,6 +473,11 @@ void __init skb_recycler_init(void)
 		skb_queue_head_init(&glob_recycler.pool[i]);
 	glob_recycler.head = 0;
 	glob_recycler.tail = 0;
+#endif
+
+#ifdef CONFIG_SKB_RECYCLER_PREALLOC
+	if (skb_prealloc_init_list())
+		pr_err("Failed to preallocate SKBs for recycle list\n");
 #endif
 
 	hotcpu_notifier(skb_cpu_callback, 0);
