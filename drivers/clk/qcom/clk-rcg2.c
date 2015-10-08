@@ -1124,7 +1124,10 @@ static int clk_cpu_rcg2_configure(struct clk_cdiv_rcg2 *rcg,
 	}
 
 	if ((rcg->parent_map[f->src] == 0x01)) {
+		mask = (BIT(rcg->hid_width) - 1);
+		mask |= CFG_SRC_SEL_MASK | CFG_MODE_MASK;
 		cfg = FEPLL_500_SRC << CFG_SRC_SEL_SHIFT;
+		cfg |= (1 << CFG_SRC_DIV_SHIFT);
 		ret = regmap_update_bits(rcg->clkr.regmap,
 					rcg->cmd_rcgr + CFG_REG, mask, cfg);
 		if (ret)
@@ -1139,10 +1142,6 @@ static int clk_cpu_rcg2_configure(struct clk_cdiv_rcg2 *rcg,
 		mask |= CFG_SRC_SEL_MASK | CFG_MODE_MASK;
 		cfg = 1 << CFG_SRC_DIV_SHIFT;
 	} else {
-		mask = (rcg->cdiv.mask)<<rcg->cdiv.shift;
-		ret = regmap_update_bits(rcg->clkr.regmap,
-					rcg->cdiv.offset, mask, 0x0);
-
 		mask = BIT(rcg->hid_width) - 1;
 		mask |= CFG_SRC_SEL_MASK | CFG_MODE_MASK;
 		cfg = f->pre_div << CFG_SRC_DIV_SHIFT;
