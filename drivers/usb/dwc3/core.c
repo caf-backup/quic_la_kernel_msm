@@ -153,6 +153,8 @@ static void dwc3_core_soft_reset(struct dwc3 *dwc)
 	/* Enable Suspend USB3.0 SS PHY (Suspend_en) */
 	reg = dwc3_readl(dwc->regs, DWC3_GUSB3PIPECTL(0));
 	reg |= DWC3_GUSB3PIPECTL_SUSPHY;
+	if (dwc->dis_u3_susphy_quirk)
+		reg &= ~DWC3_GUSB3PIPECTL_SUSPHY;
 	dwc3_writel(dwc->regs, DWC3_GUSB3PIPECTL(0), reg);
 }
 
@@ -475,6 +477,8 @@ static int dwc3_probe(struct platform_device *pdev)
 		}
 
 		dwc->dr_mode = of_usb_get_dr_mode(node);
+		dwc->dis_u3_susphy_quirk =  of_property_read_bool(node,
+							"dis_u3_susphy_quirk");
 	} else if (pdata) {
 		dwc->maximum_speed = pdata->maximum_speed;
 
