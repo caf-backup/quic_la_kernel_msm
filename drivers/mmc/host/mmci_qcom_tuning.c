@@ -566,6 +566,20 @@ out:
 	return rc;
 }
 
+void mmci_qcom_ddr_tuning(struct mmci_host *host)
+{
+	/* Write 1 to DLL_RST bit of MCI_DLL_CONFIG register */
+	writel_relaxed((readl_relaxed(host->base +
+			MCIDLL_CONFIG) | MCI_DLL_RST),
+			host->base + MCIDLL_CONFIG);
+
+	/* Write 1 to DLL_PDN bit of MCI_DLL_CONFIG register */
+	writel_relaxed((readl_relaxed(host->base +
+			MCIDLL_CONFIG) | MCI_DLL_PDN),
+			host->base + MCIDLL_CONFIG);
+
+}
+
 void set_default_hw_caps(struct mmci_host *host)
 {
 	u32 version;

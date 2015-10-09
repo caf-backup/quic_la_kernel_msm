@@ -968,6 +968,7 @@
 				max-frequency   = <192000000>;
 				#mmc-ddr-1_8v;
 				sd-uhs-sdr104;
+				sd-uhs-ddr50;
 				vmmc-supply = <&vsdcc_fixed>;
 				#dmas = <&sdcc3bam 2>, <&sdcc3bam 1>;
 				#dma-names = "tx", "rx";

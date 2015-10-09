@@ -53,6 +53,7 @@
 
 int mmci_qtune_execute_tuning(struct mmc_host *mmc, u32 opcode);
 void set_default_hw_caps(struct mmci_host *host);
+void mmci_qcom_ddr_tuning(struct mmci_host *host);
 int mmci_qtune_init(struct mmci_host *host, struct device_node *np);
 
 #endif /* __MMCI_QCOM_TUNING_H_ */
