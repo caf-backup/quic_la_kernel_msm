@@ -82,7 +82,7 @@ debug_object_active_state(void *addr, struct debug_obj_descr *descr,
 extern void debug_objects_early_init(void);
 extern void debug_objects_mem_init(void);
 #else
-struct inline int debug_object_get_state(void *addr) { }
+static inline int debug_object_get_state(void *addr) { }
 static inline void
 debug_object_init      (void *addr, struct debug_obj_descr *descr) { }
 static inline void
