@@ -462,11 +462,7 @@ static void edma_rx_complete(struct edma_common_info *c_info,
 			priority = (rd->rrd1 >> EDMA_RRD_PRIORITY_SHIFT)
 				& EDMA_RRD_PRIORITY_MASK;
 			if (likely(!priority && !c_info->page_mode)) {
-				u32 hw_rfd_used;
-				edma_read_reg(REG_RFD_IDX_Q(queue_id), &data);
-				hw_rfd_used = (data >> RFD_CONS_IDX_SHIFT) &
-						RFD_CONS_IDX_MASK;
-				rfd_avail = (count + sw_next_to_clean - hw_rfd_used - 1) & (count - 1);
+				rfd_avail = (count + sw_next_to_clean - hw_next_to_clean - 1) & (count - 1);
 				if (rfd_avail < EDMA_RFD_AVAIL_THR) {
 					sw_desc->flags = EDMA_SW_DESC_FLAG_SKB_REUSE;
 					sw_next_to_clean = (sw_next_to_clean + 1) & (erdr->count - 1);
