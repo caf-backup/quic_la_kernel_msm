@@ -55,6 +55,11 @@ static void pcm_fill_data(int32_t *tx_buff, uint32_t size);
 #define PCM_LBTEST_16BIT_16KHZ_4CH_TX_TO_RX	6
 #define PCM_LBTEST_16BIT_16KHZ_4CH_RX_TO_TX	601
 
+/* The max value for loopback test config is 601(3 digits + 1 null byte)
+ * This macro needs to be updated when more configs are added.
+ */
+#define PCM_LBTEST_CFG_MAX_DIG_COUNT		4
+
 #define IS_PCM_LBTEST_RX_TO_TX(config)					\
 		((config == PCM_LBTEST_8BIT_8KHZ_4CH_RX_TO_TX) ||	\
 		(config == PCM_LBTEST_16BIT_8KHZ_2CH_RX_TO_TX) ||	\
@@ -84,7 +89,7 @@ struct ipq_pcm_params cfg_params;
 static ssize_t show_pcm_lb_value(struct device_driver *driver,
 						char *buff)
 {
-	return sprintf(buff, "%d", start);
+	return snprintf(buff, PCM_LBTEST_CFG_MAX_DIG_COUNT, "%d", start);
 }
 
 static ssize_t store_pcm_lb_value(struct device_driver *driver,

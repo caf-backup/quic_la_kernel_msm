@@ -155,7 +155,7 @@ static int ipq40xx_audio_startup(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
 	uint32_t intf = dai->driver->id;
-	int ret;
+	int ret = 0;
 	struct device *dev = &(dai_priv[intf].pdev->dev);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -397,7 +397,7 @@ static int ipq40xx_spdif_prepare(struct snd_pcm_substream *substream,
 static int ipq40xx_spdif_startup(struct snd_pcm_substream *substream,
 					struct snd_soc_dai *dai)
 {
-	int ret;
+	int ret = 0;
 	struct device *dev = &(dai_priv[SPDIF].pdev->dev);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
