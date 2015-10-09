@@ -349,7 +349,7 @@ static ssize_t mdss_fb_store_split(struct device *dev,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)fbi->par;
 
-	if (2 != sscanf(buf, "%d %d", &data[0], &data[1])) {
+	if (2 != sscanf(buf, "%u %u", &data[0], &data[1])) {
 		pr_debug("Not able to read split values\n");
 	} else if (!mdss_fb_validate_split(data[0], data[1], mfd)) {
 		mfd->mdss_fb_split_stored = 1;

@@ -72,8 +72,8 @@ struct qpic_data_type {
 	size_t qpic_reg_size;
 	u32 qpic_phys;
 	char __iomem *qpic_base;
-	u32 irq;
-	u32 bam_irq;
+	int irq;
+	int bam_irq;
 	u32 irq_ena;
 	u32 res_init;
 	void *fb_virt;
