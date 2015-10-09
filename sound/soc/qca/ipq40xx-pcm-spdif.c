@@ -453,7 +453,7 @@ static int ipq40xx_asoc_pcm_spdif_new(struct snd_soc_pcm_runtime *prtd)
 	struct snd_card *card = prtd->card->snd_card;
 	struct snd_pcm *pcm = prtd->pcm;
 
-	int ret;
+	int ret = 0;
 
 	if (!card->dev->coherent_dma_mask)
 		card->dev->coherent_dma_mask = DMA_BIT_MASK(32);
