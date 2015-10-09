@@ -85,12 +85,13 @@ enum {
 };
 
 /* Default IPC log level INFO */
-static int hs_serial_debug_mask = INFO_LEV;
+static int hs_serial_debug_mask = WARN_LEV;
 module_param_named(debug_mask, hs_serial_debug_mask,
 		   int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 #define MSM_HS_DBG(x...) do { \
 	if (hs_serial_debug_mask >= DBG_LEV) { \
+		pr_debug(x); \
 		if (ipc_msm_hs_log_ctxt) \
 			ipc_log_string(ipc_msm_hs_log_ctxt, x); \
 	} \
@@ -98,6 +99,7 @@ module_param_named(debug_mask, hs_serial_debug_mask,
 
 #define MSM_HS_INFO(x...) do { \
 	if (hs_serial_debug_mask >= INFO_LEV) {\
+		pr_info(x); \
 		if (ipc_msm_hs_log_ctxt) \
 			ipc_log_string(ipc_msm_hs_log_ctxt, x); \
 	} \
@@ -3222,9 +3224,10 @@ static int __init qca_serial_hs_init(void)
 
 	ipc_msm_hs_log_ctxt = ipc_log_context_create(IPC_MSM_HS_LOG_PAGES,
 							"qca_serial_hs", 0);
+#if defined(CONFIG_IPC_LOGGING)
 	if (!ipc_msm_hs_log_ctxt)
 		MSM_HS_WARN("%s: error creating logging context", __func__);
-
+#endif
 	ret = uart_register_driver(&msm_hs_driver);
 	if (unlikely(ret)) {
 		MSM_HS_ERR("%s failed to load\n", __func__);
