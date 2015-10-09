@@ -162,32 +162,10 @@ static struct msm_pcie_gpio_info_t msm_pcie_gpio_info[MSM_PCIE_MAX_GPIO] = {
 static struct msm_pcie_clk_info_t
 	msm_pcie_clk_info[MAX_RC_NUM][MSM_PCIE_MAX_CLK] = {
 	{
-	{NULL, "pcie_0_ref_clk_src", 0, false},
-	{NULL, "pcie_0_aux_clk", 1010000, true},
 	{NULL, "pcie_0_cfg_ahb_clk", 0, true},
 	{NULL, "pcie_0_mstr_axi_clk", 0, true},
 	{NULL, "pcie_0_slv_axi_clk", 0, true},
-	{NULL, "pcie_0_ldo", 0, true}
 	},
-	{
-	{NULL, "pcie_1_ref_clk_src", 0, false},
-	{NULL, "pcie_1_aux_clk", 1010000, true},
-	{NULL, "pcie_1_cfg_ahb_clk", 0, true},
-	{NULL, "pcie_1_mstr_axi_clk", 0, true},
-	{NULL, "pcie_1_slv_axi_clk", 0, true},
-	{NULL, "pcie_1_ldo", 0, true}
-	}
-};
-
-/* Pipe Clocks */
-static struct msm_pcie_clk_info_t
-	msm_pcie_pipe_clk_info[MAX_RC_NUM][MSM_PCIE_MAX_PIPE_CLK] = {
-	{
-	{NULL, "pcie_0_pipe_clk", 125000000, true},
-	},
-	{
-	{NULL, "pcie_1_pipe_clk", 125000000, true},
-	}
 };
 
 /* RESETs */
@@ -695,67 +673,6 @@ static void msm_pcie_clk_deinit(struct msm_pcie_dev_t *dev)
 	regulator_disable(dev->gdsc);
 }
 
-static int msm_pcie_pipe_clk_init(struct msm_pcie_dev_t *dev)
-{
-	int i, rc = 0;
-	struct msm_pcie_clk_info_t *info;
-
-	PCIE_DBG(dev, "RC%d\n", dev->rc_idx);
-
-	for (i = 0; i < MSM_PCIE_MAX_PIPE_CLK; i++) {
-		info = &dev->pipeclk[i];
-
-		if (!info->hdl)
-			continue;
-
-
-		if (info->freq) {
-			rc = clk_set_rate(info->hdl, info->freq);
-			if (rc) {
-				PCIE_ERR(dev,
-					"PCIe: RC%d can't set rate for clk %s: %d.\n",
-					dev->rc_idx, info->name, rc);
-				break;
-			} else {
-				PCIE_DBG2(dev,
-					"PCIe: RC%d set rate for clk %s: %d.\n",
-					dev->rc_idx, info->name, rc);
-			}
-		}
-
-		rc = clk_prepare_enable(info->hdl);
-
-		if (rc)
-			PCIE_ERR(dev, "PCIe: RC%d failed to enable clk %s.\n",
-				dev->rc_idx, info->name);
-		else
-			PCIE_DBG2(dev, "RC%d enabled pipe clk %s.\n",
-				dev->rc_idx, info->name);
-	}
-
-	if (rc) {
-		PCIE_DBG(dev, "RC%d disable pipe clocks for error handling.\n",
-			dev->rc_idx);
-		while (i--)
-			if (dev->pipeclk[i].hdl)
-				clk_disable_unprepare(dev->pipeclk[i].hdl);
-	}
-
-	return rc;
-}
-
-static void msm_pcie_pipe_clk_deinit(struct msm_pcie_dev_t *dev)
-{
-	int i;
-
-	PCIE_DBG(dev, "RC%d\n", dev->rc_idx);
-
-	for (i = 0; i < MSM_PCIE_MAX_PIPE_CLK; i++)
-		if (dev->pipeclk[i].hdl)
-			clk_disable_unprepare(
-				dev->pipeclk[i].hdl);
-}
-
 static void msm_pcie_controller_reset(struct msm_pcie_dev_t *dev)
 {
 	/* Assert pcie_pipe_ares */
@@ -1076,32 +993,6 @@ static int msm_pcie_get_resources(struct msm_pcie_dev_t *dev,
 		}
 	}
 
-	for (i = 0; i < MSM_PCIE_MAX_PIPE_CLK; i++) {
-		clk_info = &dev->pipeclk[i];
-
-		clk_info->hdl = devm_clk_get(&pdev->dev, clk_info->name);
-
-		if (IS_ERR(clk_info->hdl)) {
-			if (clk_info->required) {
-				PCIE_DBG(dev, "Clock %s isn't available:%ld\n",
-				clk_info->name, PTR_ERR(clk_info->hdl));
-				ret = PTR_ERR(clk_info->hdl);
-				goto out;
-			} else {
-				PCIE_DBG(dev, "Ignoring Clock %s\n",
-					clk_info->name);
-				clk_info->hdl = NULL;
-			}
-		} else {
-			if (clkfreq != NULL) {
-				clk_info->freq = clkfreq[i];
-				PCIE_DBG(dev, "Freq of Clock %s is:%d\n",
-					clk_info->name, clk_info->freq);
-			}
-		}
-	}
-
-
 	for (i = 0; i < MSM_PCIE_MAX_RESET; i++) {
 		rst_info = &dev->rst[i];
 
@@ -1294,16 +1185,6 @@ int msm_pcie_enable(struct msm_pcie_dev_t *dev, u32 options)
 			 dev->dm_core + PCIE20_DEVICE_CONTROL2_STATUS2);
 	writel_relaxed(LTSSM_EN, dev->parf + PCIE20_PARF_LTSSM);
 
-	if (options & PM_PIPE_CLK) {
-		usleep_range(PHY_STABILIZATION_DELAY_US_MIN,
-					 PHY_STABILIZATION_DELAY_US_MAX);
-		/* Enable the pipe clock */
-		ret = msm_pcie_pipe_clk_init(dev);
-		wmb();
-		if (ret)
-			goto link_fail;
-	}
-
 	PCIE_DBG(dev, "RC%d: waiting for phy ready...\n", dev->rc_idx);
 
 	do {
@@ -1422,7 +1303,6 @@ link_fail:
 	msm_pcie_clk_deinit(dev);
 clk_fail:
 	msm_pcie_vreg_deinit(dev);
-	msm_pcie_pipe_clk_deinit(dev);
 out:
 	mutex_unlock(&dev->setup_lock);
 
@@ -1461,9 +1341,6 @@ void msm_pcie_disable(struct msm_pcie_dev_t *dev, u32 options)
 
 	if (options & PM_VREG)
 		msm_pcie_vreg_deinit(dev);
-
-	if (options & PM_PIPE_CLK)
-		msm_pcie_pipe_clk_deinit(dev);
 
 	mutex_unlock(&dev->setup_lock);
 }
@@ -1569,15 +1446,6 @@ static void msm_pcie_add_bus(struct pci_bus *bus)
 static struct hw_pci msm_pci[MAX_RC_NUM] = {
 	{
 	.domain = 0,
-	.nr_controllers	= 1,
-	.swizzle	= pci_common_swizzle,
-	.setup		= msm_pcie_setup,
-	.scan		= msm_pcie_scan_bus,
-	.map_irq	= msm_pcie_map_irq,
-	.add_bus	= msm_pcie_add_bus,
-	},
-	{
-	.domain = 1,
 	.nr_controllers	= 1,
 	.swizzle	= pci_common_swizzle,
 	.setup		= msm_pcie_setup,
@@ -1846,8 +1714,6 @@ static int msm_pcie_probe(struct platform_device *pdev)
 				sizeof(msm_pcie_gpio_info));
 	memcpy(msm_pcie_dev[rc_idx].clk, msm_pcie_clk_info[rc_idx],
 				sizeof(msm_pcie_clk_info));
-	memcpy(msm_pcie_dev[rc_idx].pipeclk, msm_pcie_pipe_clk_info[rc_idx],
-				sizeof(msm_pcie_pipe_clk_info));
 
 	memcpy(msm_pcie_dev[rc_idx].rst, msm_pcie_rst_info,
 				sizeof(msm_pcie_rst_info));
