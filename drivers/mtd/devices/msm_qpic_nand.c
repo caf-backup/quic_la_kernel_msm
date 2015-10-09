@@ -2880,6 +2880,9 @@ static int msm_nand_remove(struct platform_device *pdev)
 {
 	struct msm_nand_info *info = dev_get_drvdata(&pdev->dev);
 
+	if (!info)
+		return -EINVAL;
+
 	if (info->clk_data.client_handle)
 		msm_nand_bus_unregister(info);
 
