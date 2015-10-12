@@ -101,20 +101,18 @@
 					bias-bus-hold;
 				};
 			};
-
 			rgmii2_pins_default: rgmii2_pins_default {
 				mux {
-					pins = "gpio27", "gpio28", "gpio29", "gpio30", "gpio31", "gpio32",
-					       "gpio51", "gpio52", "gpio59", "gpio60", "gpio61", "gpio62";
+					pins = "gpio2", "gpio27", "gpio28",
+						"gpio29", "gpio30", "gpio31",
+						"gpio32", "gpio51", "gpio52",
+						"gpio59", "gpio60", "gpio61",
+						 "gpio62", "gpio66" ;
 					function = "rgmii2";
 					drive-strength = <8>;
 					bias-disable;
 				};
 
-				tx {
-					pins = "gpio27", "gpio28", "gpio29", "gpio30", "gpio31", "gpio32" ;
-					input-disable;
-				};
 			};
 
 			hs_uart_pins: hs_uart_pins {
