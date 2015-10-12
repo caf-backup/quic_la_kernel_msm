@@ -15,6 +15,8 @@
 
 #include "skbuff_debug.h"
 
+static int skbuff_debugobj_enabled __read_mostly = 1;
+
 /* skbuff_debugobj_fixup():
  *	Called when an error is detected in the state machine for
  *	the objects
@@ -37,7 +39,12 @@ static struct debug_obj_descr skbuff_debug_descr = {
 
 inline void skbuff_debugobj_activate(struct sk_buff *skb)
 {
-	int ret = debug_object_activate(skb, &skbuff_debug_descr);
+	int ret;
+
+	if (!skbuff_debugobj_enabled)
+		return;
+
+	ret = debug_object_activate(skb, &skbuff_debug_descr);
 
 	if (ret) {
 		ftrace_dump(DUMP_ALL);
@@ -48,13 +55,21 @@ inline void skbuff_debugobj_activate(struct sk_buff *skb)
 
 inline void skbuff_debugobj_init_and_activate(struct sk_buff *skb)
 {
+	if (!skbuff_debugobj_enabled)
+		return;
+
 	debug_object_init(skb, &skbuff_debug_descr);
 	skbuff_debugobj_activate(skb);
 }
 
 inline void skbuff_debugobj_deactivate(struct sk_buff *skb)
 {
-	int obj_state = debug_object_get_state(skb);
+	int obj_state;
+
+	if (!skbuff_debugobj_enabled)
+		return;
+
+	obj_state = debug_object_get_state(skb);
 
 	if (obj_state == ODEBUG_STATE_ACTIVE) {
 		debug_object_deactivate(skb, &skbuff_debug_descr);
@@ -68,5 +83,18 @@ inline void skbuff_debugobj_deactivate(struct sk_buff *skb)
 
 inline void skbuff_debugobj_destroy(struct sk_buff *skb)
 {
+	if (!skbuff_debugobj_enabled)
+		return;
+
 	debug_object_destroy(skb, &skbuff_debug_descr);
 }
+
+static int __init disable_object_debug(char *str)
+{
+	skbuff_debugobj_enabled = 0;
+
+	pr_info("skbuff_debug: debug objects is disabled\n");
+	return 0;
+}
+
+early_param("no_skbuff_debug_objects", disable_object_debug);
