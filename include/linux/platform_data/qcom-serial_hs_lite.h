@@ -30,11 +30,11 @@
  * @line: Used to set UART Port number.
  */
 struct msm_serial_hslite_platform_data {
-	unsigned config_gpio;
-	unsigned uart_tx_gpio;
-	unsigned uart_rx_gpio;
-	unsigned uart_cts_gpio;
-	unsigned uart_rfr_gpio;
+	int config_gpio;
+	int uart_tx_gpio;
+	int uart_rx_gpio;
+	int uart_cts_gpio;
+	int uart_rfr_gpio;
 	bool set_uart_clk_zero;
 	bool use_pm;
 	int line;

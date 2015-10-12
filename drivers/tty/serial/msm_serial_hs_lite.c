@@ -1683,8 +1683,7 @@ static int msm_serial_hsl_probe(struct platform_device *pdev)
 	struct uart_port *port;
 	struct msm_serial_hslite_platform_data *pdata;
 	const struct of_device_id *match;
-	u32 line;
-	int ret;
+	int line, ret;
 
 	if (pdev->id == -1)
 		pdev->id = atomic_inc_return(&msm_serial_hsl_next_id) - 1;
