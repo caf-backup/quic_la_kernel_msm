@@ -552,7 +552,7 @@ type_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct thermal_zone_device *tz = to_thermal_zone(dev);
 
-	return sprintf(buf, "%s\n", tz->type);
+	return snprintf(buf, PAGE_SIZE, "%s\n", tz->type);
 }
 
 static ssize_t
@@ -567,7 +567,7 @@ temp_show(struct device *dev, struct device_attribute *attr, char *buf)
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%ld\n", temperature);
+	return snprintf(buf, PAGE_SIZE, "%ld\n", temperature);
 }
 
 static ssize_t
@@ -584,8 +584,8 @@ mode_show(struct device *dev, struct device_attribute *attr, char *buf)
 	if (result)
 		return result;
 
-	return sprintf(buf, "%s\n", mode == THERMAL_DEVICE_ENABLED ? "enabled"
-		       : "disabled");
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+		mode == THERMAL_DEVICE_ENABLED ? "enabled" : "disabled");
 }
 
 static ssize_t
@@ -631,22 +631,22 @@ trip_point_type_show(struct device *dev, struct device_attribute *attr,
 
 	switch (type) {
 	case THERMAL_TRIP_CRITICAL:
-		return sprintf(buf, "critical\n");
+		return snprintf(buf, PAGE_SIZE, "critical\n");
 	case THERMAL_TRIP_HOT:
-		return sprintf(buf, "hot\n");
+		return snprintf(buf, PAGE_SIZE, "hot\n");
 	case THERMAL_TRIP_PASSIVE:
-		return sprintf(buf, "passive\n");
+		return snprintf(buf, PAGE_SIZE, "passive\n");
 	case THERMAL_TRIP_ACTIVE:
-		return sprintf(buf, "active\n");
+		return snprintf(buf, PAGE_SIZE, "active\n");
 	case THERMAL_TRIP_CONFIGURABLE_HI:
-		return sprintf(buf, "configurable_hi\n");
+		return snprintf(buf, PAGE_SIZE, "configurable_hi\n");
 	case THERMAL_TRIP_CONFIGURABLE_LOW:
-		return sprintf(buf, "configurable_low\n");
+		return snprintf(buf, PAGE_SIZE, "configurable_low\n");
 	case THERMAL_TRIP_CRITICAL_LOW:
-		return sprintf(buf, "critical_low\n");
+		return snprintf(buf, PAGE_SIZE, "critical_low\n");
 
 	default:
-		return sprintf(buf, "unknown\n");
+		return snprintf(buf, PAGE_SIZE, "unknown\n");
 	}
 }
 
@@ -721,7 +721,7 @@ trip_point_temp_show(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%ld\n", temperature);
+	return snprintf(buf, PAGE_SIZE, "%ld\n", temperature);
 }
 
 static ssize_t
@@ -767,7 +767,7 @@ trip_point_hyst_show(struct device *dev, struct device_attribute *attr,
 
 	ret = tz->ops->get_trip_hyst(tz, trip, &temperature);
 
-	return ret ? ret : sprintf(buf, "%ld\n", temperature);
+	return ret ? ret : snprintf(buf, PAGE_SIZE, "%ld\n", temperature);
 }
 
 static ssize_t
@@ -826,7 +826,7 @@ passive_show(struct device *dev, struct device_attribute *attr,
 {
 	struct thermal_zone_device *tz = to_thermal_zone(dev);
 
-	return sprintf(buf, "%d\n", tz->forced_passive);
+	return snprintf(buf, PAGE_SIZE, "%d\n", tz->forced_passive);
 }
 
 static ssize_t
@@ -854,7 +854,7 @@ policy_show(struct device *dev, struct device_attribute *devattr, char *buf)
 {
 	struct thermal_zone_device *tz = to_thermal_zone(dev);
 
-	return sprintf(buf, "%s\n", tz->governor->name);
+	return snprintf(buf, PAGE_SIZE, "%s\n", tz->governor->name);
 }
 
 static ssize_t
@@ -867,8 +867,9 @@ available_policies_show(struct device *dev, struct device_attribute *devattr,
 	mutex_lock(&thermal_governor_lock);
 
 	list_for_each_entry(pos, &thermal_governor_list, governor_list)
-		count += sprintf(buf + count, "%s ", pos->name);
-	count += sprintf(buf + count, "\n");
+		count += snprintf(buf + count, PAGE_SIZE - count,
+							"%s ", pos->name);
+	count += snprintf(buf + count, PAGE_SIZE - count, "\n");
 
 	mutex_unlock(&thermal_governor_lock);
 
@@ -920,7 +921,7 @@ thermal_cooling_device_type_show(struct device *dev,
 {
 	struct thermal_cooling_device *cdev = to_cooling_device(dev);
 
-	return sprintf(buf, "%s\n", cdev->type);
+	return snprintf(buf, PAGE_SIZE, "%s\n", cdev->type);
 }
 
 static ssize_t
@@ -934,7 +935,7 @@ thermal_cooling_device_max_state_show(struct device *dev,
 	ret = cdev->ops->get_max_state(cdev, &state);
 	if (ret)
 		return ret;
-	return sprintf(buf, "%ld\n", state);
+	return snprintf(buf, PAGE_SIZE, "%ld\n", state);
 }
 
 static ssize_t
@@ -948,7 +949,7 @@ thermal_cooling_device_cur_state_show(struct device *dev,
 	ret = cdev->ops->get_cur_state(cdev, &state);
 	if (ret)
 		return ret;
-	return sprintf(buf, "%ld\n", state);
+	return snprintf(buf, PAGE_SIZE, "%ld\n", state);
 }
 
 static ssize_t
@@ -960,7 +961,7 @@ thermal_cooling_device_cur_state_store(struct device *dev,
 	unsigned long state;
 	int result;
 
-	if (!sscanf(buf, "%ld\n", &state))
+	if (!sscanf(buf, "%lu\n", &state))
 		return -EINVAL;
 
 	if ((long)state < 0)
@@ -990,9 +991,9 @@ thermal_cooling_device_trip_point_show(struct device *dev,
 	    container_of(attr, struct thermal_instance, attr);
 
 	if (instance->trip == THERMAL_TRIPS_NONE)
-		return sprintf(buf, "-1\n");
+		return snprintf(buf, PAGE_SIZE, "-1\n");
 	else
-		return sprintf(buf, "%d\n", instance->trip);
+		return snprintf(buf, PAGE_SIZE, "%d\n", instance->trip);
 }
 
 /* Device management */
@@ -1052,8 +1053,8 @@ int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
 	if (lower > upper || upper > max_state)
 		return -EINVAL;
 
-	dev =
-	    kzalloc(sizeof(struct thermal_instance), GFP_KERNEL);
+	dev = devm_kzalloc(&cdev->device,
+			sizeof(struct thermal_instance), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
 	dev->tz = tz;
@@ -1262,6 +1263,7 @@ __thermal_cooling_device_register(struct device_node *np,
 unregister:
 	release_idr(&thermal_cdev_idr, &thermal_idr_lock, cdev->id);
 	device_unregister(&cdev->device);
+	kfree(cdev);
 	return ERR_PTR(result);
 }
 
@@ -1366,6 +1368,8 @@ void thermal_cooling_device_unregister(struct thermal_cooling_device *cdev)
 
 	release_idr(&thermal_cdev_idr, &thermal_idr_lock, cdev->id);
 	device_unregister(&cdev->device);
+	kfree(cdev);
+
 	return;
 }
 EXPORT_SYMBOL_GPL(thermal_cooling_device_unregister);
@@ -1694,6 +1698,7 @@ unregister:
 	tz->governor = NULL;
 	release_idr(&thermal_tz_idr, &thermal_idr_lock, tz->id);
 	device_unregister(&tz->device);
+	kfree(tz);
 	return ERR_PTR(result);
 }
 EXPORT_SYMBOL_GPL(thermal_zone_device_register);
@@ -1765,6 +1770,8 @@ void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 	idr_destroy(&tz->idr);
 	mutex_destroy(&tz->lock);
 	device_unregister(&tz->device);
+	kfree(tz);
+
 	return;
 }
 EXPORT_SYMBOL_GPL(thermal_zone_device_unregister);
