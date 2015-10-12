@@ -655,12 +655,15 @@ static int rpm_reg_probe(struct platform_device *pdev)
 	struct regulator_dev *rdev;
 	struct qcom_rpm_reg *vreg;
 	const char *key;
-	u32 force_mode;
+	int force_mode;
 	bool pwm;
 	u32 val;
 	int ret;
 
 	match = of_match_device(rpm_of_match, &pdev->dev);
+	if (!match)
+		return -EINVAL;
+
 	template = match->data;
 
 	initdata = of_get_regulator_init_data(&pdev->dev, pdev->dev.of_node);
