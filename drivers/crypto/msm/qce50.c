@@ -168,8 +168,10 @@ static int count_sg(struct scatterlist *sg, int nbytes)
 {
 	int i;
 
-	for (i = 0; nbytes > 0; i++, sg = scatterwalk_sg_next(sg))
+	for (i = 0; nbytes > 0 && sg != NULL; i++,
+		sg = scatterwalk_sg_next(sg)) {
 		nbytes -= sg->length;
+	}
 	return i;
 }
 
@@ -178,7 +180,7 @@ static int qce_dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 {
 	int i;
 
-	for (i = 0; i < nents; ++i) {
+	for (i = 0; ((i < nents) && (sg != NULL)); ++i) {
 		dma_map_sg(dev, sg, 1, direction);
 		sg = scatterwalk_sg_next(sg);
 	}
@@ -191,7 +193,7 @@ static int qce_dma_unmap_sg(struct device *dev, struct scatterlist *sg,
 {
 	int i;
 
-	for (i = 0; i < nents; ++i) {
+	for (i = 0; ((i < nents) && (sg != NULL)); ++i) {
 		dma_unmap_sg(dev, sg, 1, direction);
 		sg = scatterwalk_sg_next(sg);
 	}
@@ -2332,7 +2334,7 @@ static int _qce_sps_add_sg_data(struct qce_device *pce_dev,
 	struct sps_iovec *iovec = sps_bam_pipe->iovec +
 						sps_bam_pipe->iovec_count;
 
-	while (nbytes > 0) {
+	while ((nbytes > 0) && (sg_src != NULL)) {
 		len = min(nbytes, sg_dma_len(sg_src));
 		nbytes -= len;
 		addr = sg_dma_address(sg_src);

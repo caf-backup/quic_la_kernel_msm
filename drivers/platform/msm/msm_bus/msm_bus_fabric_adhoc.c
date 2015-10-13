@@ -225,8 +225,8 @@ static int flush_bw_data(struct device *node_device, int ctx)
 
 	node_info = node_device->platform_data;
 	if (!node_info) {
-		MSM_BUS_ERR("%s: Unable to find bus device for device %d",
-			__func__, node_info->node_info->id);
+		MSM_BUS_ERR("%s: Unable to find bus device for device",
+			__func__);
 		ret = -ENODEV;
 		goto exit_flush_bw_data;
 	}

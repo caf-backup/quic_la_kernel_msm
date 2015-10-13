@@ -370,7 +370,7 @@ struct i2c_msm_xfer_mode_bam {
 	struct resource         *mem;
 	void __iomem            *base;
 	ulong                    handle;
-	u32                      irq;
+	int                      irq;
 	struct i2c_msm_bam_pipe  pipe[2];
 };
 

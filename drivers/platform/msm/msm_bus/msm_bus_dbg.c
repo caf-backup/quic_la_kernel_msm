@@ -454,10 +454,14 @@ static ssize_t  msm_bus_dbg_update_request_write(struct file *file,
 		MSM_BUS_ERR("Memory allocation for buffer failed\n");
 		return -ENOMEM;
 	}
-	if (cnt == 0)
+	if (cnt == 0) {
+		kfree(buf);
 		return 0;
-	if (copy_from_user(buf, ubuf, cnt))
+	}
+	if (copy_from_user(buf, ubuf, cnt)) {
+		kfree(buf);
 		return -EFAULT;
+	}
 	buf[cnt] = '\0';
 	chid = buf;
 	MSM_BUS_DBG("buffer: %s\n size: %zu\n", buf, sizeof(ubuf));
