@@ -727,7 +727,13 @@ static int clk_cdiv_rcg2_configure(struct clk_cdiv_rcg2 *rcg,
 
 
 	if ((rcg->cdiv.mask) && (f->pre_div > 16)) {
-		for (i = 2; i <= 32; i++) {
+
+		/* The division is handled by two dividers. Both of which can
+		 * divide by a maximum value of 16. To achieve a division of
+		 * 256 = 16 * 16, we use a divider of 16 in the RCGR and the
+		 * other divider of 16 in the MISC Register.
+		 */
+		for (i = 2; i <= 16; i++) {
 			if (f->pre_div % i == 0)
 				cfg = i;
 		}
