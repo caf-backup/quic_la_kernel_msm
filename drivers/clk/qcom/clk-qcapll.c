@@ -30,6 +30,8 @@
 
 #define PLL_POSTDIV_MASK	0x380
 #define PLL_POSTDIV_SHFT	7
+#define PLL_PLLPWD_MASK         0x20
+#define PLL_PLLPWD_SHFT         5
 #define PLL_REFDIV_MASK		0x7
 #define PLL_REFDIV_SHFT		0
 #define PLL_TGT_INT_SHFT	1
@@ -43,7 +45,7 @@ static int clk_qcapll_enable(struct clk_hw *hw)
 	struct clk_qcapll *pll = to_clk_qcapll(hw);
 	int ret;
 
-	/* Disable PLL bypass mode. */
+	/* Enable PLL bypass mode. */
 	ret = regmap_update_bits(pll->clkr.regmap, pll->config_reg,
 				 PLL_CONFIG_PLLPWD, 0);
 	if (ret)
@@ -56,9 +58,18 @@ static void clk_qcapll_disable(struct clk_hw *hw)
 {
 	struct clk_qcapll *pll = to_clk_qcapll(hw);
 
-	/* Enable PLL bypass mode. */
+	/* Disable PLL bypass mode. */
 	regmap_update_bits(pll->clkr.regmap, pll->config_reg, PLL_CONFIG_PLLPWD,
 			   0x1);
+}
+
+static int clk_qcapll_is_enabled(struct clk_hw *hw)
+{
+	u32 config;
+
+	struct clk_qcapll *pll = to_clk_qcapll(hw);
+	regmap_read(pll->clkr.regmap, pll->config_reg, &config);
+	return config & PLL_PLLPWD_MASK;
 }
 
 static unsigned long
@@ -137,6 +148,9 @@ clk_qcapll_set_rate(struct clk_hw *hw, unsigned long rate, unsigned long p_rate)
 	if (!f)
 		return -EINVAL;
 
+	if (clk_qcapll_is_enabled(hw))
+		clk_qcapll_disable(hw);
+
 	regmap_write(pll->clkr.regmap, pll->config1_reg, 0xc);
 	udelay(2);
 	regmap_write(pll->clkr.regmap, pll->config1_reg, 0xd);
@@ -148,6 +162,8 @@ clk_qcapll_set_rate(struct clk_hw *hw, unsigned long rate, unsigned long p_rate)
 	ret = regmap_update_bits(pll->clkr.regmap, pll->config_reg, mask, val);
 	if (ret)
 		return ret;
+
+	clk_qcapll_enable(hw);
 
 	val = f->tgt_div_int << PLL_TGT_INT_SHFT;
 	val |= f->tgt_div_frac << PLL_TGT_FRAC_SHFT;
@@ -172,6 +188,7 @@ clk_qcapll_set_rate(struct clk_hw *hw, unsigned long rate, unsigned long p_rate)
 const struct clk_ops clk_qcapll_ops = {
 	.enable = clk_qcapll_enable,
 	.disable = clk_qcapll_disable,
+	.is_enabled = clk_qcapll_is_enabled,
 	.recalc_rate = clk_qcapll_recalc_rate,
 	.determine_rate = clk_qcapll_determine_rate,
 	.set_rate = clk_qcapll_set_rate,

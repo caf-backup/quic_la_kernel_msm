@@ -171,7 +171,7 @@ static struct clk_cdiv_rcg2 rxm_clk_src = {
 		.parent_names = adcc_xo_adpll_padmclk,
 		.num_parents = 3,
 		.ops = &clk_cdiv_rcg2_ops,
-		.flags = CLK_SET_RATE_PARENT | CLK_RCG2_NO_WAIT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -203,7 +203,7 @@ static struct clk_cdiv_rcg2 txm_clk_src = {
 		.parent_names = adcc_xo_adpll_padmclk,
 		.num_parents = 3,
 		.ops = &clk_cdiv_rcg2_ops,
-		.flags = CLK_SET_RATE_PARENT | CLK_RCG2_NO_WAIT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -346,7 +346,7 @@ static struct clk_cdiv_rcg2 pcm_clk_src = {
 		.parent_names = adcc_xo_adpll,
 		.num_parents = 2,
 		.ops = &clk_cdiv_rcg2_ops,
-		.flags = CLK_SET_RATE_PARENT | CLK_RCG2_NO_WAIT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -386,7 +386,7 @@ static struct clk_rcg2 spdifinfast_src = {
 		.parent_names = adcc_xo_adpll,
 		.num_parents = 2,
 		.ops = &clk_rcg2_ops,
-		.flags = CLK_SET_RATE_PARENT | CLK_RCG2_NO_WAIT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
