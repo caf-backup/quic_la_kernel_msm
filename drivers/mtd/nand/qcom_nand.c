@@ -4336,7 +4336,7 @@ uint32_t flash_onenand_probe(struct msm_nand_chip *chip)
 int msm_onenand_read_oob(struct mtd_info *mtd,
 		loff_t from, struct mtd_oob_ops *ops)
 {
-	struct msm_nand_chip *chip = mtd->priv;
+	struct msm_nand_chip *chip;
 
 	struct {
 		dmov_s cmd[53];
@@ -4397,6 +4397,8 @@ int msm_onenand_read_oob(struct mtd_info *mtd,
 				(uint32_t)mtd);
 		return -EINVAL;
 	}
+	chip = mtd->priv;
+
 	if (from & (mtd->writesize - 1)) {
 		pr_err("%s: unsupported from, 0x%llx\n", __func__,
 				from);
@@ -5017,7 +5019,7 @@ int msm_onenand_read(struct mtd_info *mtd, loff_t from, size_t len,
 static int msm_onenand_write_oob(struct mtd_info *mtd, loff_t to,
 		struct mtd_oob_ops *ops)
 {
-	struct msm_nand_chip *chip = mtd->priv;
+	struct msm_nand_chip *chip;
 
 	struct {
 		dmov_s cmd[53];
@@ -5082,6 +5084,8 @@ static int msm_onenand_write_oob(struct mtd_info *mtd, loff_t to,
 				(uint32_t)mtd);
 		return -EINVAL;
 	}
+	chip = mtd->priv;
+
 	if (to & (mtd->writesize - 1)) {
 		pr_err("%s: unsupported to, 0x%llx\n", __func__, to);
 		return -EINVAL;
@@ -5195,7 +5199,8 @@ static int msm_onenand_write_oob(struct mtd_info *mtd, loff_t to,
 		if (dma_mapping_error(chip->dev, data_dma_addr)) {
 			pr_err("%s: failed to get dma addr for %p\n",
 					__func__, ops->datbuf);
-			return -EIO;
+			err = -EIO;
+			goto free;
 		}
 	}
 	if (ops->oobbuf) {
@@ -5740,6 +5745,7 @@ err_dma_map_oobbuf_failed:
 	pr_info("================================================="
 			"================\n");
 #endif
+free:
 	kfree(init_spare_bytes);
 	return err;
 }
@@ -7303,7 +7309,10 @@ static ssize_t boot_layout_store(struct device *dev,
 	unsigned int spare_size;
 	unsigned int ecc_num_data_bytes;
 
-	sscanf(buf, "%d", &boot_layout);
+	if (sscanf(buf, "%u", &boot_layout) != 1) {
+		pr_err("%s: invalid boot_layout\n", __func__);
+		return -EINVAL;
+	}
 
 	ud_size = boot_layout? 512: 516;
 	spare_size = boot_layout? (chip->cw_size -
