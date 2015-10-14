@@ -170,7 +170,7 @@ static int ipq40xx_regulator_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct ipq40xx_regulator_data *drvdata;
 	struct regulator_config cfg = { };
-	int ret;
+	int ret = -1;
 	struct resource *res;
 
 	if (np) {
