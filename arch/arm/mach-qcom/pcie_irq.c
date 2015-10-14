@@ -242,10 +242,13 @@ void msm_pcie_destroy_irq(unsigned int irq, struct msm_pcie_dev_t *pcie_dev)
 	int pos;
 	struct msm_pcie_dev_t *dev;
 
-	if (pcie_dev)
+	if (pcie_dev) {
 		dev = pcie_dev;
-	else
+	} else {
 		dev = irq_get_chip_data(irq);
+		if (!dev)
+			return;
+	}
 
 	if (dev->msi_gicm_addr) {
 		PCIE_DBG(dev, "destroy QGIC based irq %d\n", irq);
