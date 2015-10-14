@@ -506,7 +506,7 @@ int ipq40xx_mbox_dma_init(struct device *dev, int channel_id,
 	index = ipq40xx_convert_id_to_channel(channel_id);
 	dir = ipq40xx_convert_id_to_dir(channel_id);
 
-	if (index  > ADSS_MBOX_NR_CHANNELS)
+	if (index  >= ADSS_MBOX_NR_CHANNELS)
 		return -EINVAL;
 
 	if (!mbox_rtime[index])
@@ -549,7 +549,7 @@ static int ipq40xx_mbox_probe(struct platform_device *pdev)
 		goto init_err;
 	}
 
-	if (id > ADSS_MBOX_NR_CHANNELS) {
+	if (id >= ADSS_MBOX_NR_CHANNELS) {
 		rc = -EINVAL;
 		goto init_err;
 	}

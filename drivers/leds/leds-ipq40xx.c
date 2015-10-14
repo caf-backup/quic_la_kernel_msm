@@ -70,7 +70,6 @@ struct ipq40xx_led_data {
 
 static struct ipq40xx_led_data *leds;
 static void *ledc_base_addr;
-static int ledc_base_reg_offset;
 static int blink_idx_cnt;
 static int led_blink_array[MAX_BLINK_IDX];
 
@@ -194,9 +193,9 @@ static int __init ipq40xx_led_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	res = of_property_read_u32_array(of_node, "qcom,tcsr_ledc_values",
+	ret = of_property_read_u32_array(of_node, "qcom,tcsr_ledc_values",
 		val_arr, LEDC_MAX_OFFSET);
-	if (res) {
+	if (ret) {
 		dev_err(&pdev->dev,
 		"invalid or missing property: qcom,tcsr_ledc_values\n");
 		return -ENODEV;
@@ -214,9 +213,9 @@ static int __init ipq40xx_led_probe(struct platform_device *pdev)
 	if (blink_idx_cnt > MAX_BLINK_IDX)
 		blink_idx_cnt = MAX_BLINK_IDX;
 
-	res = of_property_read_u32_array(of_node, "qcom,ledc_blink_indices",
+	ret = of_property_read_u32_array(of_node, "qcom,ledc_blink_indices",
 		led_blink_array, blink_idx_cnt);
-	if (res) {
+	if (ret) {
 		dev_err(&pdev->dev,
 			"invalid or missing property: blink indices\n");
 		return -ENODEV;

@@ -269,7 +269,7 @@ static int ipq40xx_audio_stereo_probe(struct platform_device *pdev)
 
 	np = of_node_get(pdev->dev.of_node);
 	if (!(of_property_read_u32(np, "stereo-index", &stereo_port_id))) {
-		if (stereo_port_id > MAX_STEREO_ENTRIES) {
+		if (stereo_port_id >= MAX_STEREO_ENTRIES) {
 			of_node_put(pdev->dev.of_node);
 			return -EFAULT;
 		}
