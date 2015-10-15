@@ -330,6 +330,7 @@
 			qcom,ipsec_enabled = <0>;
 			qcom,wlanredirect_enabled = <1>;
 			qcom,tun6rd_enabled = <1>;
+			qcom,l2tpv2_enabled = <1>;
 			qcom,tunipip6_enabled = <1>;
 			qcom,shaping_enabled = <1>;
 			qcom,gmac0_enabled = <1>;
