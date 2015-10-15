@@ -569,7 +569,6 @@ extern void ipq40xx_glb_rx_data_port_en(uint32_t enable);
 extern void ipq40xx_glb_audio_mode_B1K(void);
 extern void ipq40xx_glb_tx_framesync_port_en(uint32_t enable);
 extern void ipq40xx_glb_rx_framesync_port_en(uint32_t enable);
-extern void ipq40xx_i2s_intf_clk_cfg(uint32_t mode);
 extern void ipq40xx_glb_tdm_ctrl_ch_num(uint32_t val, uint32_t dir);
 extern void ipq40xx_glb_tdm_ctrl_sync_num(uint32_t val, uint32_t dir);
 extern void ipq40xx_glb_tdm_ctrl_delay(uint32_t delay, uint32_t dir);
