@@ -3191,7 +3191,6 @@ static int qca_hs_probe(struct platform_device *pdev)
 		uport->line = pdata->userid;
 	ret = uart_add_one_port(&msm_hs_driver, uport);
 	if (!ret) {
-		qca_hs_clk_bus_unvote(msm_uport);
 		return ret;
 	}
 
