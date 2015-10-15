@@ -39,6 +39,8 @@ static struct regulator *l2_reg;
 static struct cpufreq_frequency_table *freq_table;
 static struct thermal_cooling_device *cdev;
 
+#define OPERATING_PT_FMT	"operating-points-%x-%x"
+
 struct cache_points {
 	unsigned long cache_freq;
 	unsigned long cpu_freq;
@@ -267,14 +269,14 @@ static int krait_cpufreq_get_speed_pvs(struct device_node *np,
 
 static int krait_cpufreq_probe(struct platform_device *pdev)
 {
-	char opp_name[sizeof("operating-points-N-M")];
+	char opp_name[strlen(OPERATING_PT_FMT) + 1];
 	struct device_node *np, *cache;
 	int ret, i;
 	unsigned int cpu;
 	struct device *dev;
 	struct clk *clk;
 	struct regulator *core;
-	unsigned long freq_Hz, freq, max_cpu_freq;
+	unsigned long freq_Hz, max_cpu_freq = 0;
 	struct dev_pm_opp *opp;
 	unsigned long volt, tol;
 	u8 speed = 0, pvs = 0;
@@ -298,7 +300,8 @@ static int krait_cpufreq_probe(struct platform_device *pdev)
 		goto out_put_node;
 	}
 
-	sprintf(opp_name, "operating-points-%x-%x", speed & 0xF, pvs & 0xF);
+	snprintf(opp_name, strlen(OPERATING_PT_FMT), OPERATING_PT_FMT,
+						speed & 0xF, pvs & 0xF);
 
 	if (dev_pm_opp_get_opp_count(cpu_dev) <= 0) {
 		ret = of_init_opp_table_named(cpu_dev, opp_name);
@@ -387,7 +390,7 @@ static int krait_cpufreq_probe(struct platform_device *pdev)
 			pr_err("failed to enable regulator: %d\n", ret);
 			goto out_free_table;
 		}
-		max_cpu_freq = max(max_cpu_freq, freq);
+		max_cpu_freq = max(max_cpu_freq, freq_Hz);
 
 		if (!of_property_read_u32(np, "cpu_freq_idle",
 						&fab_data.idle_freq)) {
@@ -428,6 +431,12 @@ static int krait_cpufreq_probe(struct platform_device *pdev)
 	 */
 	for_each_possible_cpu(cpu) {
 		dev = get_cpu_device(cpu);
+		if (!dev) {
+			pr_err("failed to get krait device\n");
+			ret = -ENOENT;
+			goto out_free_table;
+		}
+
 		np = of_node_get(dev->of_node);
 		if (of_find_property(np, "#cooling-cells", NULL)) {
 			cdev = of_cpufreq_cooling_register(np, cpumask_of(cpu));
