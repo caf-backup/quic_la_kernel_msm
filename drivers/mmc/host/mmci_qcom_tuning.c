@@ -236,6 +236,9 @@ static int mmci_qtune_config_cm_sdc4_dll_phase(struct mmci_host *host,
 	unsigned long flags;
 	u32 config;
 
+	if (!host)
+		return -EINVAL;
+
 	spin_lock_irqsave(&host->lock, flags);
 
 	config = readl_relaxed(host->base + MCIDLL_CONFIG);
