@@ -2983,7 +2983,10 @@ static void *unit_find(struct idr *p, int n)
  * Updates the PPP interface statistics.
  */
 void ppp_update_stats(struct net_device *dev, unsigned long rx_packets,
-		unsigned long rx_bytes, unsigned long tx_packets, unsigned long tx_bytes)
+			unsigned long rx_bytes, unsigned long tx_packets,
+			unsigned long tx_bytes, unsigned long rx_errors,
+			unsigned long tx_errors, unsigned long rx_dropped,
+						unsigned long tx_dropped)
 {
 	struct ppp *ppp;
 
@@ -3000,6 +3003,10 @@ void ppp_update_stats(struct net_device *dev, unsigned long rx_packets,
 	dev->stats.tx_bytes += tx_bytes;
 	dev->stats.rx_packets += rx_packets;
 	dev->stats.rx_bytes += rx_bytes;
+	dev->stats.rx_errors += rx_errors;
+	dev->stats.tx_errors += tx_errors;
+	dev->stats.rx_dropped += rx_dropped;
+	dev->stats.tx_dropped += tx_dropped;
 	ppp_unlock(ppp);
 }
 
