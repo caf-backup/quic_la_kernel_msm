@@ -7296,7 +7296,7 @@ static ssize_t boot_layout_show(struct device *dev,
                                   struct device_attribute *attr,
                                   char *buf)
 {
-	return sprintf(buf, "%d\n", boot_layout);
+	return snprintf(buf, PAGE_SIZE, "%d\n", boot_layout);
 }
 
 static ssize_t boot_layout_store(struct device *dev,
