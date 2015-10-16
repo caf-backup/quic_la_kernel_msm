@@ -20,7 +20,7 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "QCA IPQ8064/AK01";
+	model = "QCA IPQ8064/AK01-1XX";
 	compatible = "qcom,ipq8064-ak01", "qcom,ipq8064";
 
 	reserved-memory {
