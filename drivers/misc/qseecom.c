@@ -453,8 +453,13 @@ static int tzapp_test(void *input, void *output, int input_len, int option)
 			goto fn_exit;
 		}
 	}
-	if (option == 1)
+	if (option == 1) {
+		if (msgrsp->status) {
+			pr_err("Input size exceeded supported range\n");
+			ret = -EINVAL;
+		}
 		basic_output = msgrsp->data;
+	}
 fn_exit:
 	free_page(pg_addr);
 	return ret;
@@ -510,16 +515,15 @@ static int load_app(void)
 	load_req.mdt_len = mdt_size;
 	load_req.img_len = img_size;
 	load_req.phy_addr = dma_map_single(NULL, qsee_sbuffer,
-				sizeof(qsee_sbuffer), DMA_TO_DEVICE);
+				img_size, DMA_TO_DEVICE);
 	ret1 = dma_mapping_error(NULL, load_req.phy_addr);
-
 	if (ret1 == 0) {
 		/* SCM_CALL to load the app and get the app_id back */
 		ret = scm_call(SCM_SVC_TZSCHEDULER, 1,	&load_req,
 			sizeof(struct qseecom_load_app_ireq),
 			&resp, sizeof(resp));
 		dma_unmap_single(NULL, load_req.phy_addr,
-				sizeof(qsee_sbuffer), DMA_TO_DEVICE);
+				img_size, DMA_TO_DEVICE);
 	}
 	if (ret1) {
 		pr_err("\nDMA Mapping error (qsee_sbuffer)");
@@ -555,7 +559,7 @@ static ssize_t
 show_basic_output(struct device *dev, struct device *attr,
 					char *buf)
 {
-	return snprintf(buf, (basic_data_len + 1), "%d", basic_output);
+	return snprintf(buf, (basic_data_len + 1), "%u", basic_output);
 }
 
 /* Basic multiplication App*/
@@ -564,19 +568,19 @@ store_basic_input(struct device *dev, struct device *attr,
 					const char *buf, size_t count)
 {
 	uint32_t basic_input __aligned(32);
-
+	uint32_t ret = 0;
 	basic_data_len = count;
 	if ((count - 1) == 0) {
 		pr_err("\n Input cannot be NULL!");
 		return -EINVAL;
 	}
 	if (kstrtouint(buf, 10, &basic_input))
-		pr_info("\n Please enter a valid unsigned integer");
+		pr_err("\n Please enter a valid unsigned integer");
 
 	else
-		tzapp_test(&basic_input, NULL, 0, 1);
+		ret = tzapp_test(&basic_input, NULL, 0, 1);
 
-	return count;
+	return ret ? ret : count;
 }
 
 /* To show encrypted plain text*/
