@@ -297,6 +297,8 @@ enum ipq8064_functions {
 	IPQ_MUX_pcie3_pwren,
 	IPQ_MUX_pcie3_clk_req,
 	IPQ_MUX_ps_hold,
+	IPQ_MUX_pcie_2g_pwrdwn,
+	IPQ_MUX_pcie_5g_pwrdwn,
 	IPQ_MUX_NA,
 };
 
@@ -502,6 +504,14 @@ static const char * const ps_hold_groups[] = {
 	"gpio26",
 };
 
+static const char * const pcie_2g_pwrdwn_groups[] = {
+	"gpio9",
+};
+
+static const char * const pcie_5g_pwrdwn_groups[] = {
+	"gpio26",
+};
+
 static const struct msm_function ipq8064_functions[] = {
 	FUNCTION(gpio),
 	FUNCTION(mdio),
@@ -549,6 +559,8 @@ static const struct msm_function ipq8064_functions[] = {
 	FUNCTION(pcie3_pwrflt),
 	FUNCTION(pcie3_clk_req),
 	FUNCTION(ps_hold),
+	FUNCTION(pcie_2g_pwrdwn),
+	FUNCTION(pcie_5g_pwrdwn),
 };
 
 static const struct msm_pingroup ipq8064_groups[] = {
@@ -561,7 +573,7 @@ static const struct msm_pingroup ipq8064_groups[] = {
 	PINGROUP(6, gsbi7, usb_fs, gsbi5_spi_cs1, usb_fs_n, NA, NA, NA, NA, NA, NA),
 	PINGROUP(7, gsbi7, usb_fs, gsbi5_spi_cs2, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(8, gsbi7, usb_fs, NA, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(9, gsbi7, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(9, gsbi7, pcie_2g_pwrdwn, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(10, gsbi4, spdif, sata, ssbi, mdio, spmi, NA, NA, NA, NA),
 	PINGROUP(11, gsbi4, pcie2_prsnt, pcie1_prsnt, pcie3_prsnt, ssbi, mdio, spmi, NA, NA, NA),
 	PINGROUP(12, gsbi4, pcie2_pwren_n, pcie1_pwren_n, pcie3_pwren_n, pcie2_pwren, pcie1_pwren, pcie3_pwren, NA, NA, NA),
@@ -578,7 +590,7 @@ static const struct msm_pingroup ipq8064_groups[] = {
 	PINGROUP(23, gsbi2, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(24, gsbi2, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(25, gsbi2, NA, NA, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(26, ps_hold, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(26, ps_hold, pcie_5g_pwrdwn, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(27, mi2s, rgmii2, gsbi6, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(28, mi2s, rgmii2, gsbi6, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(29, mi2s, rgmii2, gsbi6, NA, NA, NA, NA, NA, NA, NA),
