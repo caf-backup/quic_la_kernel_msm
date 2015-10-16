@@ -1901,13 +1901,15 @@ static int msm_pcie_probe(struct platform_device *pdev)
 
 	ret = msm_pcie_enumerate(rc_idx);
 
-	if (ret)
+	if (ret) {
 		PCIE_ERR(&msm_pcie_dev[rc_idx],
 			"PCIe: RC%d is not enabled during bootup; it will be enumerated upon WAKE signal.\n",
 			rc_idx);
-	else
+		goto decrease_rc_num;
+	} else {
 		PCIE_ERR(&msm_pcie_dev[rc_idx], "RC%d is enabled in bootup\n",
 			rc_idx);
+	}
 
 	PCIE_DBG(&msm_pcie_dev[rc_idx], "PCIE probed %s\n",
 		dev_name(&(pdev->dev)));
@@ -1919,7 +1921,6 @@ static int msm_pcie_probe(struct platform_device *pdev)
 			PCIE_ERR(&msm_pcie_dev[rc_idx],
 				"RC%d failed to create sysfs rcrescan file\n",
 				rc_idx);
-			return ret;
 		}
 
 		ret = bus_create_file(&pci_bus_type, &bus_attr_rcremove);
@@ -1927,7 +1928,6 @@ static int msm_pcie_probe(struct platform_device *pdev)
 			PCIE_ERR(&msm_pcie_dev[rc_idx],
 				"RC%d failed to create sysfs rcremove file\n",
 				rc_idx);
-			return ret;
 		}
 	}
 
