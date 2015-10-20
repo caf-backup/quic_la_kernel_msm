@@ -202,13 +202,13 @@ static void qcom_dwc3_ss_phy_shutdown(struct usb_phy *x)
 
 	ret = regulator_set_voltage(phy->vddcx, USB_VDDCX_NO, USB_VDDCX_MAX);
 	if (ret)
-		dev_err(phy->dev, "cannot set voltage for vddcx\n");
+		dev_dbg(phy->dev, "cannot set voltage for vddcx\n");
 
 	regulator_disable(phy->vddcx);
 
 	ret = regulator_set_voltage(phy->v1p8, 0, PHY_1P8_VOL_MAX);
 	if (ret)
-		dev_err(phy->dev, "cannot set v1p8\n");
+		dev_dbg(phy->dev, "cannot set v1p8\n");
 
 	regulator_disable(phy->v1p8);
 }

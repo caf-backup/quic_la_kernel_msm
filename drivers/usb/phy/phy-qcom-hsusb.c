@@ -129,27 +129,27 @@ static void qcom_dwc3_hs_phy_shutdown(struct usb_phy *x)
 
 	ret = regulator_set_voltage(phy->v3p3, 0, PHY_3P3_VOL_MAX);
 	if (ret)
-		dev_err(phy->dev, "cannot set voltage for v3p3\n");
+		dev_dbg(phy->dev, "cannot set voltage for v3p3\n");
 
 	ret = regulator_set_voltage(phy->v1p8, 0, PHY_1P8_VOL_MAX);
 	if (ret)
-		dev_err(phy->dev, "cannot set voltage for v1p8\n");
+		dev_dbg(phy->dev, "cannot set voltage for v1p8\n");
 
 	ret = regulator_disable(phy->v1p8);
 	if (ret)
-		dev_err(phy->dev, "cannot disable v1p8\n");
+		dev_dbg(phy->dev, "cannot disable v1p8\n");
 
 	ret = regulator_disable(phy->v3p3);
 	if (ret)
-		dev_err(phy->dev, "cannot disable v3p3\n");
+		dev_dbg(phy->dev, "cannot disable v3p3\n");
 
 	ret = regulator_set_voltage(phy->vddcx, USB_VDDCX_NO, USB_VDDCX_MAX);
 	if (ret)
-		dev_err(phy->dev, "cannot set voltage for vddcx\n");
+		dev_dbg(phy->dev, "cannot set voltage for vddcx\n");
 
 	ret = regulator_disable(phy->vddcx);
 	if (ret)
-		dev_err(phy->dev, "cannot enable vddcx\n");
+		dev_dbg(phy->dev, "cannot enable vddcx\n");
 
 	if (!of_device_is_compatible(np, "qcom,dwc3-hsphy-ipq8064")) {
 		clk_disable_unprepare(phy->utmi_clk);
@@ -166,37 +166,37 @@ static int qcom_dwc3_hs_phy_init(struct usb_phy *x)
 
 	ret = regulator_set_voltage(phy->vddcx, USB_VDDCX_MIN, USB_VDDCX_MAX);
 	if (ret)
-		dev_err(phy->dev, "cannot set voltage for vddcx\n");
+		dev_dbg(phy->dev, "cannot set voltage for vddcx\n");
 
 	ret = regulator_enable(phy->vddcx);
 	if (ret)
-		dev_err(phy->dev, "cannot enable vddcx\n");
+		dev_dbg(phy->dev, "cannot enable vddcx\n");
 
 	ret = regulator_set_voltage(phy->v3p3, PHY_3P3_VOL_MIN,
 				    PHY_3P3_VOL_MAX);
 	if (ret)
-		dev_err(phy->dev, "cannot set voltage for v3p3\n");
+		dev_dbg(phy->dev, "cannot set voltage for v3p3\n");
 
 	ret = regulator_set_voltage(phy->v1p8, PHY_1P8_VOL_MIN,
 				    PHY_1P8_VOL_MAX);
 	if (ret)
-		dev_err(phy->dev, "cannot set voltage for v1p8\n");
+		dev_dbg(phy->dev, "cannot set voltage for v1p8\n");
 
 	ret = regulator_set_optimum_mode(phy->v1p8, PHY_1P8_HPM_LOAD);
 	if (ret < 0)
-		dev_err(phy->dev, "cannot set HPM of regulator v1p8\n");
+		dev_dbg(phy->dev, "cannot set HPM of regulator v1p8\n");
 
 	ret = regulator_enable(phy->v1p8);
 	if (ret)
-		dev_err(phy->dev, "cannot enable v1p8\n");
+		dev_dbg(phy->dev, "cannot enable v1p8\n");
 
 	ret = regulator_set_optimum_mode(phy->v3p3, PHY_3P3_HPM_LOAD);
 	if (ret < 0)
-		dev_err(phy->dev, "cannot set HPM of regulator v3p3\n");
+		dev_dbg(phy->dev, "cannot set HPM of regulator v3p3\n");
 
 	ret = regulator_enable(phy->v3p3);
 	if (ret)
-		dev_err(phy->dev, "cannot enable v3p3\n");
+		dev_dbg(phy->dev, "cannot enable v3p3\n");
 
 	/*
 	 * HSPHY Initialization: Enable UTMI clock and clamp enable HVINTs,
