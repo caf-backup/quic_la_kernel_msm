@@ -195,7 +195,7 @@ static __always_inline int edma_alloc_rx_buf(struct edma_common_info *c_info,
 
 	i = erdr->sw_next_to_fill;
 
-	while (cleaned_count--) {
+	while (cleaned_count) {
 		sw_desc = &erdr->sw_desc[i];
 		length = c_info->rx_head_buffer_len;
 
@@ -205,7 +205,6 @@ static __always_inline int edma_alloc_rx_buf(struct edma_common_info *c_info,
 			/* alloc skb */
 			skb = netdev_alloc_skb(netdev[0], length);
 			if (unlikely(!skb)) {
-				cleaned_count++;
 				/* Better luck next round */
 				break;
 			}
@@ -215,7 +214,6 @@ static __always_inline int edma_alloc_rx_buf(struct edma_common_info *c_info,
 			struct page *pg = alloc_page(GFP_ATOMIC);
 			if (!pg) {
 				dev_kfree_skb_any(skb);
-				cleaned_count++;
 				break;
 			}
 
@@ -224,7 +222,6 @@ static __always_inline int edma_alloc_rx_buf(struct edma_common_info *c_info,
 			if (unlikely(dma_mapping_error(&pdev->dev, sw_desc->dma))) {
 				__free_page(pg);
 				dev_kfree_skb_any(skb);
-				cleaned_count++;
 				break;
 			}
 
@@ -236,7 +233,6 @@ static __always_inline int edma_alloc_rx_buf(struct edma_common_info *c_info,
 				length, DMA_FROM_DEVICE);
 			if (unlikely(dma_mapping_error(&pdev->dev, sw_desc->dma))) {
 				dev_kfree_skb_any(skb);
-				cleaned_count++;
 				break;
 			}
 
@@ -250,6 +246,7 @@ static __always_inline int edma_alloc_rx_buf(struct edma_common_info *c_info,
 		rx_desc->buffer_addr = cpu_to_le64(sw_desc->dma);
 		if (unlikely(++i == erdr->count))
 			i = 0;
+		cleaned_count--;
 	}
 
 	erdr->sw_next_to_fill = i;
