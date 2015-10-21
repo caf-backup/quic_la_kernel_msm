@@ -164,12 +164,12 @@ struct edma_hw;
 #define EDMA_TX_SVLAN_TAG_SHIFT 16
 
 /* Tx Queue Packet Statistic Register */
-#define REG_TX_STAT_PKT_Q(x) (0x700 + ((x) << 2)) /* x = queue id */
+#define REG_TX_STAT_PKT_Q(x) (0x700 + ((x) << 3)) /* x = queue id */
 
 #define TX_STAT_PKT_MASK 0xFFFFFF
 
 /* Tx Queue Byte Statistic Register */
-#define REG_TX_STAT_BYTE_Q(x) (0x704 + ((x) << 2)) /* x = queue id */
+#define REG_TX_STAT_BYTE_Q(x) (0x704 + ((x) << 3)) /* x = queue id */
 
 /* Load Balance Based Ring Offset Register */
 #define REG_LB_RING 0x800

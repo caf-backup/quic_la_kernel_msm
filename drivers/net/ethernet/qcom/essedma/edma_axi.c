@@ -17,6 +17,7 @@
 #include "ess_edma.h"
 #include <linux/cpu_rmap.h>
 #include <linux/of_net.h>
+#include <linux/timer.h>
 
 /* Weight round robin and virtual QID mask */
 #define EDMA_WRR_VID_SCTL_MASK 0xFFFF
@@ -29,6 +30,8 @@ static const u32 default_msg = NETIF_MSG_DRV | NETIF_MSG_PROBE |
 	NETIF_MSG_LINK | NETIF_MSG_TIMER | NETIF_MSG_IFDOWN | NETIF_MSG_IFUP;
 
 static unsigned long edma_hw_addr;
+
+struct timer_list edma_stats_timer;
 
 char edma_tx_irq[16][64];
 char edma_rx_irq[8][64];
@@ -60,6 +63,50 @@ void edma_write_reg(u16 reg_addr, u32 reg_value)
 void edma_read_reg(u16 reg_addr, volatile u32 *reg_value)
 {
 	*reg_value = readl((void __iomem *)(edma_hw_addr + reg_addr));
+}
+
+void edma_read_append_stats(struct edma_common_info *c_info)
+{
+	uint8_t *p = (uint8_t *)&(c_info->edma_ethstats);
+	int i, j;
+	u32 stat;
+
+	spin_lock(&c_info->stats_lock);
+
+	for (i = 0; i < EDMA_MAX_TRANSMIT_QUEUE; i++) {
+		edma_read_reg(REG_TX_STAT_PKT_Q(i), &stat);
+		*(uint32_t *)p += stat;
+		p += sizeof(uint32_t);
+	}
+
+	for (i = 0; i < EDMA_MAX_TRANSMIT_QUEUE; i++) {
+		edma_read_reg(REG_TX_STAT_BYTE_Q(i), &stat);
+		*(uint32_t *)p += stat;
+		p += sizeof(uint32_t);
+	}
+
+	for (i = 0; i < EDMA_MAX_RECEIVE_QUEUE; i++) {
+		edma_read_reg(REG_RX_STAT_PKT_Q(i), &stat);
+		*(uint32_t *)p += stat;
+		p += sizeof(uint32_t);
+	}
+
+	for (i = 0; i < EDMA_MAX_RECEIVE_QUEUE; i++) {
+		edma_read_reg(REG_RX_STAT_BYTE_Q(i), &stat);
+		*(uint32_t *)p += stat;
+		p += sizeof(uint32_t);
+	}
+
+	spin_unlock(&c_info->stats_lock);
+}
+
+static void edma_statistics_timer(unsigned long data)
+{
+	struct edma_common_info *c_info = (struct edma_common_info *)data;
+
+	edma_read_append_stats(c_info);
+
+	mod_timer(&edma_stats_timer, jiffies + 1*HZ);
 }
 
 static int edma_enable_stp_rstp(struct ctl_table *table, int write,
@@ -640,6 +687,14 @@ static int edma_axi_probe(struct platform_device *pdev)
 		}
 	}
 
+	spin_lock_init(&c_info->stats_lock);
+
+        init_timer(&edma_stats_timer);
+        edma_stats_timer.expires = jiffies + 1*HZ;
+        edma_stats_timer.data = (unsigned long)c_info;
+        edma_stats_timer.function = edma_statistics_timer;                              /* timer handler */
+        add_timer(&edma_stats_timer);
+
 	return 0;
 
 edma_phy_attach_fail:
@@ -705,6 +760,8 @@ static int edma_axi_remove(struct platform_device *pdev)
 		unregister_netdev(netdev[i]);
 		free_netdev(netdev[i]);
 	}
+	del_timer_sync(&edma_stats_timer);
+
 	return 0;
 }
 
@@ -734,6 +791,7 @@ static int __init edma_axi_init_module(void)
 	int ret;
 	pr_info("edma module_init\n");
 	ret = platform_driver_register(&edma_axi_driver);
+
 	return ret;
 }
 module_init(edma_axi_init_module);
