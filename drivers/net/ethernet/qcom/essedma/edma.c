@@ -756,9 +756,9 @@ static void edma_tx_complete(struct edma_common_info *c_info, int queue_id)
 	/* update the TPD consumer index register */
 	edma_write_reg(REG_TX_SW_CONS_IDX_Q(queue_id), sw_next_to_clean);
 
-	if (netif_tx_queue_stopped(etdr->sw_desc->nq) &&
-		netif_carrier_ok(sw_desc->skb->dev))
-			netif_tx_wake_queue(etdr->sw_desc->nq);
+	if (netif_tx_queue_stopped(etdr->nq) &&
+		netif_carrier_ok(&(etdr->netdev)))
+			netif_tx_wake_queue(etdr->nq);
 }
 
 /*
@@ -1155,7 +1155,6 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 	int queue_id = 0;
 	struct edma_common_info *c_info = adapter->c_info;
 	struct edma_tx_desc_ring *etdr;
-	struct netdev_queue *nq;
 	u16 txq_id, from_cpu, dp_bitmap;
 	int ret, nr_frags = 0, num_tpds_needed = 1;
 	unsigned int flags_transmit = 0;
@@ -1204,11 +1203,10 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 
 	/* this will be one of the 4 TX queues exposed to linux kernel */
 	txq_id = skb_get_queue_mapping(skb);
-	nq = netdev_get_tx_queue(net_dev, txq_id);
 
 	queue_id = edma_tx_queue_get(adapter, skb);
 	etdr = c_info->tpd_ring[queue_id];
-	etdr->sw_desc->nq = nq;
+        etdr->nq = netdev_get_tx_queue(net_dev, txq_id);
 
 	/* Tx is not handled in bottom half context. Hence, we need to protect
 	 * Tx from tasks and bottom half
@@ -1217,7 +1215,7 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 
 	if (unlikely(num_tpds_needed > edma_tpd_available(c_info, queue_id))) {
 		/* not enough descriptor, just stop queue */
-		netif_tx_stop_queue(nq);
+		netif_tx_stop_queue(etdr->nq);
 		local_bh_enable();
 		if (net_ratelimit())
 			dev_dbg(&net_dev->dev, "Not enough descriptors available");
@@ -1550,7 +1548,6 @@ int edma_alloc_queues_rx(struct edma_common_info *c_info)
 		if (!rfd_ring)
 			goto err;
 		rfd_ring->count = c_info->rx_ring_count;
-		rfd_ring->queue_index = i;
 		c_info->rfd_ring[i] = rfd_ring;
 	}
 	return 0;
@@ -1776,6 +1773,18 @@ int edma_reset(struct edma_common_info *c_info)
 	edma_stop_rx_tx(hw);
 
 	return 0;
+}
+
+/*
+ * edma_fill_netdev()
+ * 	Fill netdev for each etdr
+ */
+void edma_fill_netdev(struct edma_common_info *c_info, int queue_id, int dev)
+{
+	struct edma_tx_desc_ring *etdr;
+
+	etdr = c_info->tpd_ring[queue_id];
+	etdr->netdev = *netdev[dev];
 }
 
 /*
