@@ -1467,7 +1467,10 @@ int edma_register_rfs_filter(struct net_device *netdev,
 int edma_select_xps_queue(struct net_device *dev, struct sk_buff *skb,
 		void *accel_priv, select_queue_fallback_t fallback)
 {
-	return smp_processor_id();
+	int cpu = get_cpu();
+	put_cpu();
+
+	return cpu;
 }
 
 /*
