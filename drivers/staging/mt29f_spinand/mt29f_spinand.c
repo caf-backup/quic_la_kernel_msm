@@ -638,14 +638,14 @@ static int spinand_program_execute(struct spi_device *spi_nand, u16 page_id)
 static int spinand_program_page(struct spi_device *spi_nand,
 		u16 page_id, u16 offset, u16 len, u8 *buf)
 {
-	int retval;
+	int retval = 0;
 	u8 status = 0;
 	uint8_t *wbuf;
 #ifdef CONFIG_MTD_SPINAND_ONDIEECC
 	unsigned int i, j;
 
 	enable_read_hw_ecc = 0;
-	wbuf = devm_kzalloc(&spi_nand->dev, CACHE_BUF, GFP_KERNEL);
+	wbuf = kzalloc(CACHE_BUF, GFP_KERNEL);
 	if (!wbuf)
 		return -ENOMEM;
 
@@ -658,7 +658,7 @@ static int spinand_program_page(struct spi_device *spi_nand,
 		retval = spinand_enable_ecc(spi_nand);
 		if (retval < 0) {
 			dev_err(&spi_nand->dev, "enable ecc failed!!\n");
-			return retval;
+			goto exit;
 		}
 	}
 #else
@@ -667,7 +667,7 @@ static int spinand_program_page(struct spi_device *spi_nand,
 	retval = spinand_write_enable(spi_nand);
 	if (retval < 0) {
 		dev_err(&spi_nand->dev, "write enable failed!!\n");
-		return retval;
+		goto exit;
 	}
 	if (wait_till_ready(spi_nand))
 		dev_err(&spi_nand->dev, "wait timedout!!!\n");
@@ -675,26 +675,29 @@ static int spinand_program_page(struct spi_device *spi_nand,
 	retval = spinand_program_data_to_cache(spi_nand, page_id,
 			offset, len, wbuf);
 	if (retval < 0)
-		return retval;
+		goto exit;
+
 	retval = spinand_program_execute(spi_nand, page_id);
 	if (retval < 0)
-		return retval;
+		goto exit;
+
 	while (1) {
 		retval = spinand_read_status(spi_nand, &status);
 		if (retval < 0) {
 			dev_err(&spi_nand->dev,
 					"error %d reading status register\n",
 					retval);
-			return retval;
+			goto exit;
 		}
 
 		if ((status & STATUS_OIP_MASK) == STATUS_READY) {
 			if ((status & STATUS_P_FAIL_MASK) == STATUS_P_FAIL) {
 				dev_err(&spi_nand->dev,
 					"program error, page %d\n", page_id);
-				return -1;
-			}
-			break;
+				retval = -1;
+				goto exit;
+			} else
+				break;
 		}
 	}
 #ifdef CONFIG_MTD_SPINAND_ONDIEECC
@@ -702,7 +705,7 @@ static int spinand_program_page(struct spi_device *spi_nand,
 		retval = spinand_disable_ecc(spi_nand);
 		if (retval < 0) {
 			dev_err(&spi_nand->dev, "disable ecc failed!!\n");
-			return retval;
+			goto exit;
 		}
 		enable_hw_ecc = 0;
 	}
@@ -710,12 +713,16 @@ static int spinand_program_page(struct spi_device *spi_nand,
 	retval = spinand_write_disable(spi_nand);
 	if (retval < 0) {
 		dev_err(&spi_nand->dev, "write disable failed!!\n");
-		return retval;
+		goto exit;
 	}
 	if (wait_till_ready(spi_nand))
 		dev_err(&spi_nand->dev, "wait timedout!!!\n");
 
-	return 0;
+exit:
+#ifdef CONFIG_MTD_SPINAND_ONDIEECC
+	kfree(wbuf);
+#endif
+	return retval;
 }
 
 /**
