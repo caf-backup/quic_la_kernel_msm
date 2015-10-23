@@ -20,7 +20,7 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "Qualcomm Atheros IPQ8062/AP145_1XX";
+	model = "Qualcomm Atheros IPQ8062/AP145-1XX";
 	compatible = "qcom,ipq8062-ap145_1xx", "qcom,ipq8062";
 
 	reserved-memory {
