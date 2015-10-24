@@ -28,4 +28,17 @@
 #define TCSR_ESS_PSGMII_RMII0_RMII1  6
 #define TCSR_ESS_PSGMII_RGMII4       9
 
+/*
+ * IPQ40xx WiFi Global Config
+ * Bit 30:AXID_EN
+ * Enable AXI master bus Axid translating to confirm all txn submitted by order
+ * Bit 24: Use locally generated socslv_wxi_bvalid
+ * 1:  use locally generate socslv_wxi_bvalid for performance.
+ * 0:  use SNOC socslv_wxi_bvalid.
+ */
+#define TCSR_WIFI_GLB_CFG		0x41000000
+
+/* IPQ40xx MEM_TYPE_SEL_M0_M2 Select Bit 26:24 - 2 NORMAL */
+#define TCSR_WIFI_NOC_MEMTYPE_M0_M2	0x02222222
+
 #endif
