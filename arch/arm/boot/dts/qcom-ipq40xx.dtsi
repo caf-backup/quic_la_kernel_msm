@@ -412,6 +412,18 @@
 			status = "disabled";
 		};
 
+		wifi_glb_tcsr: tcsr@1949000 {
+			compatible = "qcom,tcsr";
+			reg = <0x1949000 0x100>;
+			qcom,wifi_glb_cfg = <TCSR_WIFI_GLB_CFG>;
+		};
+
+		wifi_noc_memtype_m0_m2_tcsr: tcsr@1957000 {
+			compatible = "qcom,tcsr";
+			reg = <0x1957000 0x100>;
+			qcom,wifi_noc_memtype_m0_m2 = <TCSR_WIFI_NOC_MEMTYPE_M0_M2>;
+		};
+
 		wifi0: wifi@a000000 {
 			compatible = "qca,wifi-ipq40xx";
 			reg = <0xa000000 0x200000>;

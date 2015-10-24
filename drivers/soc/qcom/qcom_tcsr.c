@@ -25,6 +25,10 @@
 #define TCSR_ESS_INTERFACE_SEL_OFFSET   0x0
 #define TCSR_ESS_INTERFACE_SEL_MASK     0xf
 
+#define TCSR_WIFI0_GLB_CFG_OFFSET	0x0
+#define TCSR_WIFI1_GLB_CFG_OFFSET	0x4
+#define TCSR_PNOC_SNOC_MEMTYPE_M0_M2	0x4
+
 static int tcsr_probe(struct platform_device *pdev)
 {
 	struct resource *res;
@@ -55,6 +59,18 @@ static int tcsr_probe(struct platform_device *pdev)
 		tmp = tmp | (val&TCSR_ESS_INTERFACE_SEL_MASK);
 		writel(tmp, base + TCSR_ESS_INTERFACE_SEL_OFFSET);
         }
+
+	if (!of_property_read_u32(node, "qcom,wifi_glb_cfg", &val)) {
+		dev_info(&pdev->dev, "setting wifi_glb_cfg = %x\n", val);
+		writel(val, base + TCSR_WIFI0_GLB_CFG_OFFSET);
+		writel(val, base + TCSR_WIFI1_GLB_CFG_OFFSET);
+	}
+
+	if (!of_property_read_u32(node, "qcom,wifi_noc_memtype_m0_m2", &val)) {
+		dev_info(&pdev->dev,
+			"setting wifi_noc_memtype_m0_m2 = %x\n", val);
+		writel(val, base + TCSR_PNOC_SNOC_MEMTYPE_M0_M2);
+	}
 
 	return 0;
 }
