@@ -246,6 +246,7 @@
 #define MPM_SLEEP_CBCR				0x2400C
 #define SPDM_BCR				0x25000
 #define MDIO_AHB_CBCR				0x26000
+#define GCC_DDRC_PLL_DIV			0x2E020
 
 
 static const u8 gcc_xo_200_500_map[] = {
@@ -811,19 +812,32 @@ static struct clk_cdiv_rcg2  sdcc1_apps_clk_src = {
 	},
 };
 
-
-
-
 /*APPS CLOCKS*/
 static const struct freq_tbl ftbl_gcc_apps_clk[] = {
-	F(48000000 , P_XO,	   1, 0, 0),
-	F(200000000, FE_PLL_200,   1, 0, 0),
-	F(500000000, FE_PLL_500,   1, 0, 0),
-	F(626000000, DDRC_PLL_666, 1, 0, 0),
-	{ }
+	{48000000, P_XO,          1, 0, 0},
+	{200000000, FE_PLL_200,   1, 0, 0},
+	{380000000, DDRC_PLL_666, 0xD, 0},
+	{409000000, DDRC_PLL_666, 0xC, 0, 0},
+	{444000000, DDRC_PLL_666, 0xB, 0, 0},
+	{484000000, DDRC_PLL_666, 0xA, 0, 0},
+	{500000000, FE_PLL_500,   1, 0, 0},
+	{507000000, DDRC_PLL_666, 0x9, 0, 0},
+	{532000000, DDRC_PLL_666, 0x8, 0, 0},
+	{560000000, DDRC_PLL_666, 0x7, 0, 0},
+	{592000000, DDRC_PLL_666, 0x6, 0, 0},
+	{626000000, DDRC_PLL_666, 0x5, 0, 0},
+	{666000000, DDRC_PLL_666, 0x4, 0, 0},
+	{710000000, DDRC_PLL_666, 0x3, 0, 0},
+	{761000000, DDRC_PLL_666, 0x2, 0, 0},
+	{819000000, DDRC_PLL_666, 0x1, 0, 0},
+	{888000000, DDRC_PLL_666, 0x0, 0, 0},
+	{}
 };
 
-static struct clk_rcg2 apps_clk_src = {
+static struct clk_cdiv_rcg2 apps_clk_src = {
+	.cdiv.offset = GCC_DDRC_PLL_DIV,
+	.cdiv.shift = 4,
+	.cdiv.mask = 0xf,
 	.cmd_rcgr = APSS_CMD_RCGR,
 	.hid_width = 5,
 	.freq_tbl = ftbl_gcc_apps_clk,
@@ -832,7 +846,7 @@ static struct clk_rcg2 apps_clk_src = {
 		.name = "apps_clk_src",
 		.parent_names = gcc_xo_ddr_500_200,
 		.num_parents = 4,
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_cpu_rcg2_ops,
 	},
 };
 
@@ -1640,7 +1654,7 @@ static const struct regmap_config gcc_ipq40xx_regmap_config = {
 	.reg_bits	= 32,
 	.reg_stride	= 4,
 	.val_bits	= 32,
-	.max_register	= 0x2DFFF,
+	.max_register	= 0x2FFFF,
 	.fast_io	= true,
 };
 
@@ -1689,7 +1703,7 @@ static int gcc_ipq40xx_probe(struct platform_device *pdev)
 	clk_register_fixed_rate(dev, "ddrpllsdcc1", NULL, CLK_IS_ROOT,
 				      409800000);
 	clk_register_fixed_rate(dev, "ddrpllapss", NULL, CLK_IS_ROOT,
-				      626000000);
+				      666000000);
 	clk_register_fixed_rate(dev, "pcnoc_clk_src", NULL, CLK_IS_ROOT,
 				      100000000);
 
