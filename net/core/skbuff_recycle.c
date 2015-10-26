@@ -180,6 +180,7 @@ static void skb_recycler_free_skb(struct sk_buff_head *list)
 	while ((skb = skb_dequeue(list)) != NULL) {
 		trace_consume_skb(skb);
 		skb_release_data(skb);
+		skbuff_debugobj_activate(skb);
 		kfree_skbmem(skb);
 	}
 }
