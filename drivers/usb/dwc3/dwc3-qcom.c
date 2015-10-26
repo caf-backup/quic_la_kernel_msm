@@ -134,8 +134,6 @@ static int dwc3_qcom_remove_core(struct device *dev, void *c)
 static int dwc3_qcom_remove(struct platform_device *pdev)
 {
 	int ret = 0;
-	struct device_node *node = pdev->dev.of_node;
-
 	struct dwc3_qcom *mdwc = platform_get_drvdata(pdev);
 
 	if (mdwc->sleep_clk)
