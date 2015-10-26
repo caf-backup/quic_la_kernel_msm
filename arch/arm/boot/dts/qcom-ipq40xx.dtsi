@@ -708,8 +708,8 @@
 			compatible = "qca,ipq40xx_freq";
 			clock-latency = <0x100>;
 			qcom,cpufreq-table =
+			< 48000 >,
 			< 200000 >,
-			< 409000 >,
 			< 500000 >,
 			< 710000 >;
 		};

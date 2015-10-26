@@ -814,6 +814,7 @@ static struct clk_cdiv_rcg2  sdcc1_apps_clk_src = {
 
 /*APPS CLOCKS*/
 static const struct freq_tbl ftbl_gcc_apps_clk[] = {
+	{48000000, P_XO,          1, 0, 0},
 	{200000000, FE_PLL_200,   1, 0, 0},
 	{380000000, DDRC_PLL_666, 0xD, 0},
 	{409000000, DDRC_PLL_666, 0xC, 0, 0},
