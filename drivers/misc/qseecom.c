@@ -104,9 +104,9 @@ __packed struct qseecom_command_scm_resp {
 __packed struct qseecom_client_send_data_ireq {
 	uint32_t qsee_cmd_id;
 	uint32_t app_id;
-	void *req_ptr;
+	dma_addr_t req_ptr;
 	uint32_t req_len;
-	void *rsp_ptr;	 /* First 4 bytes should always be the return status */
+	dma_addr_t rsp_ptr;	 /* First 4 bytes should always be the return status */
 	uint32_t rsp_len;
 };
 
@@ -394,8 +394,8 @@ static int tzapp_test(void *input, void *output, int input_len, int option)
 		ret1 = dma_mapping_error(NULL, msgreq->data);
 		ret2 = dma_mapping_error(NULL, msgreq->data2);
 		if (ret1 || ret2) {
-			pr_err("\nDMA Mapping Error"
-				"(input data)" ? ret1 : "(output data)");
+			pr_err("\nDMA Mapping Error Return Values:"
+				"input data %d output data %d", ret1, ret2) ;
 			return ret1 ? ret1 : ret2;
 		}
 
@@ -431,8 +431,8 @@ static int tzapp_test(void *input, void *output, int input_len, int option)
 			sizeof(*msgrsp), DMA_FROM_DEVICE);
 	}
 	if (ret1 || ret2) {
-		pr_err("\nDMA Mapping Error"
-			"(req_Ptr)" ? ret1 : "(rsp_ptr)");
+		pr_err("\nDMA Mapping Error Return values:"
+			"req_ptr %d rsp_ptr %d", ret1, ret2);
 		return ret1 ? ret1 : ret2;
 	}
 
@@ -556,7 +556,7 @@ static int load_app(void)
 
 /* To show basic multiplication output */
 static ssize_t
-show_basic_output(struct device *dev, struct device *attr,
+show_basic_output(struct device *dev, struct device_attribute *attr,
 					char *buf)
 {
 	return snprintf(buf, (basic_data_len + 1), "%u", basic_output);
@@ -564,7 +564,7 @@ show_basic_output(struct device *dev, struct device *attr,
 
 /* Basic multiplication App*/
 static ssize_t
-store_basic_input(struct device *dev, struct device *attr,
+store_basic_input(struct device *dev, struct device_attribute *attr,
 					const char *buf, size_t count)
 {
 	uint32_t basic_input __aligned(32);
@@ -585,7 +585,7 @@ store_basic_input(struct device *dev, struct device *attr,
 
 /* To show encrypted plain text*/
 static ssize_t
-show_encrypt_output(struct device *dev, struct device *attr,
+show_encrypt_output(struct device *dev, struct device_attribute *attr,
 					char *buf)
 {
 	return snprintf(buf, (enc_len + 1), "%s", (char *) encrypt_text);
@@ -593,7 +593,7 @@ show_encrypt_output(struct device *dev, struct device *attr,
 
 /* To Encrypt input plain text */
 static ssize_t
-store_encrypt_input(struct device *dev, struct device *attr,
+store_encrypt_input(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	int32_t ret = -EINVAL;
@@ -633,7 +633,7 @@ store_encrypt_input(struct device *dev, struct device *attr,
 
 /* To show decrypted cipher text */
 static ssize_t
-show_decrypt_output(struct device *dev, struct device *attr,
+show_decrypt_output(struct device *dev, struct device_attribute *attr,
 		 char *buf)
 {
 	return snprintf(buf, (dec_len + 1), "%s", (char *) decrypt_text);
@@ -641,7 +641,7 @@ show_decrypt_output(struct device *dev, struct device *attr,
 
 /* To decrypt input cipher text */
 static ssize_t
-store_decrypt_input(struct device *dev, struct device *attr,
+store_decrypt_input(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	int32_t ret = -EINVAL;
@@ -680,7 +680,7 @@ store_decrypt_input(struct device *dev, struct device *attr,
 }
 
 static ssize_t
-store_load_start(struct device *dev, struct device *attr,
+store_load_start(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	int load_cmd;
@@ -698,13 +698,13 @@ store_load_start(struct device *dev, struct device *attr,
 	return count;
 }
 
-static	DEVICE_ATTR(encrypt, 0666, show_encrypt_output,
+static DEVICE_ATTR(encrypt, 0644, show_encrypt_output,
 					store_encrypt_input);
-static	DEVICE_ATTR(decrypt, 0666, show_decrypt_output,
+static DEVICE_ATTR(decrypt, 0644, show_decrypt_output,
 					store_decrypt_input);
-static	DEVICE_ATTR(basic_data, 0666, show_basic_output,
+static DEVICE_ATTR(basic_data, 0644, show_basic_output,
 					store_basic_input);
-static	DEVICE_ATTR(load_start, 0222, NULL,
+static DEVICE_ATTR(load_start, 0222, NULL,
 					store_load_start);
 
 static struct attribute *tzapp_attrs[] = {
