@@ -105,7 +105,7 @@ static int dwc3_ipq40xx_probe(struct platform_device *pdev)
 
 	mdwc = devm_kzalloc(&pdev->dev, sizeof(*mdwc), GFP_KERNEL);
 	if (!mdwc) {
-		dev_err(mdwc->dev, "failed to get memory\n");
+		pr_err("%s: failed to get memory\n", __func__);
 		return -ENOMEM;
 	}
 
