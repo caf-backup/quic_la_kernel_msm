@@ -309,6 +309,7 @@ static int __init msm_rpm_log_probe(struct platform_device *pdev)
 	struct dentry *dent;
 	struct resource *res;
 	struct device_node *of_node = pdev->dev.of_node;
+	int result;
 
 	if (!of_node)
 		return -ENODEV;
@@ -330,9 +331,9 @@ static int __init msm_rpm_log_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	res = of_property_read_u32_array(of_node, "reg-offsets",
+	result = of_property_read_u32_array(of_node, "reg-offsets",
 				rpm_log_data.reg_offsets, MSM_RPM_LOG_PAGE_COUNT);
-	if (res) {
+	if (result) {
 		dev_err(&pdev->dev, "Invalid or missing property: reg-offsets\n");
 		iounmap(rpm_log_data.reg_base);
 		return -ENODEV;
