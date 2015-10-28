@@ -39,8 +39,10 @@
 		 * U-Boot searches for these entries and patches
 		 * 'local-mac-address'
 		 */
-		ethernet0 = &gmac1;
-		ethernet1 = &gmac2;
+		ethernet0 = &gmac0;
+		ethernet1 = &gmac1;
+		ethernet3 = &gmac2;
+		ethernet4 = &gmac3;
 	};
 
 	soc {

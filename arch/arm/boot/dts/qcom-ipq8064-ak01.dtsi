@@ -35,6 +35,11 @@
 
 	aliases {
 		mdio-gpio0 = &mdio0;
+		/*
+		 * U-Boot searches for these entries and patches
+		 * 'local-mac-address'
+		 */
+		ethernet0 = &gmac3;
 	};
 
 	soc {
