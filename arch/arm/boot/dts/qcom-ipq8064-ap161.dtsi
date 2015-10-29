@@ -170,6 +170,9 @@
 				qcom,tx-chan = <7>;
 				qcom,rx-crci = <14>;
 				qcom,tx-crci = <4>;
+				qcom,tcsr_adm_mux_sel_reg = <IPQ806X_TCSR_REG_A_ADM_CRCI_MUX_SEL>;
+				qcom,tcsr_adm_mux_sel_reg_mask = <IPQ806X_GSBI2_ADM_CRCI_MUX_SEL_MASK>;
+				qcom,tcsr_adm_mux_sel_reg_value = <GSBI_CRCI_UART>;
 				pinctrl-0 = <&hs_uart_pins>;
 				pinctrl-names = "default";
 
