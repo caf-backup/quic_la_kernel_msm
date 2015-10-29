@@ -2998,16 +2998,23 @@ void ppp_update_stats(struct net_device *dev, unsigned long rx_packets,
 
 	ppp = netdev_priv(dev);
 
-	ppp_lock(ppp);
+	ppp_xmit_lock(ppp);
 	dev->stats.tx_packets += tx_packets;
 	dev->stats.tx_bytes += tx_bytes;
+	dev->stats.tx_errors += tx_errors;
+	dev->stats.tx_dropped += tx_dropped;
+	if (tx_packets)
+		ppp->last_xmit = jiffies;
+	ppp_xmit_unlock(ppp);
+
+	ppp_recv_lock(ppp);
 	dev->stats.rx_packets += rx_packets;
 	dev->stats.rx_bytes += rx_bytes;
 	dev->stats.rx_errors += rx_errors;
-	dev->stats.tx_errors += tx_errors;
 	dev->stats.rx_dropped += rx_dropped;
-	dev->stats.tx_dropped += tx_dropped;
-	ppp_unlock(ppp);
+	if (rx_packets)
+		ppp->last_recv = jiffies;
+	ppp_recv_unlock(ppp);
 }
 
 /*
