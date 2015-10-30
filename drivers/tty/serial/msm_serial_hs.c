@@ -67,8 +67,11 @@
 #include <linux/msm-sps.h>
 #include <linux/platform_data/msm_serial_hs.h>
 #include <linux/msm-bus.h>
+#include <soc/qcom/scm.h>
 
 #include "msm_serial_hs_hwreg.h"
+#include "linux/dma-mapping.h"
+
 #define UART_SPS_CONS_PERIPHERAL 0
 #define UART_SPS_PROD_PERIPHERAL 1
 
@@ -243,6 +246,10 @@ struct msm_hs_port {
 	bool is_shutdown;
 	bool termios_in_progress;
 	int rx_buf_size;
+	/* adm crci mux cfg */
+	uint16_t tcsr_adm_mux_sel_reg;
+	uint32_t tcsr_adm_mux_sel_reg_mask;
+	uint16_t tcsr_adm_mux_sel_reg_value;
 };
 
 #define MSM_UARTDM_BURST_SIZE 16   /* DM burst size (in bytes) */
@@ -279,6 +286,45 @@ static struct of_device_id msm_hs_match_table[] = {
 	},
 	{}
 };
+
+/* scm call to pass CRCI mux configuration for GSBI */
+static void adm_crci_mux_cfg(uint16_t tcsr_adm_mux_sel_reg, uint32_t tcsr_adm_mux_sel_reg_mask, uint16_t tcsr_adm_mux_sel_reg_value)
+{
+	uint32_t *ret_status = kzalloc(sizeof(uint32_t), GFP_KERNEL);
+	int ret;
+
+	struct tcsr {
+		uint32_t tcsr_adm_mux_sel_reg_mask;
+		uint32_t status;
+		uint16_t tcsr_adm_mux_sel_reg;
+		uint16_t tcsr_adm_mux_sel_reg_value;
+	} tcsr_cmd;
+
+	tcsr_cmd.tcsr_adm_mux_sel_reg = tcsr_adm_mux_sel_reg;
+	tcsr_cmd.tcsr_adm_mux_sel_reg_mask = tcsr_adm_mux_sel_reg_mask;
+	tcsr_cmd.tcsr_adm_mux_sel_reg_value = tcsr_adm_mux_sel_reg_value;
+	tcsr_cmd.status = dma_map_single(NULL, ret_status,
+		sizeof(*ret_status), DMA_FROM_DEVICE);
+	ret = dma_mapping_error(NULL, tcsr_cmd.status);
+	if (ret) {
+		pr_err("DMA Mapping Error(api_status)\n");
+		goto exit_err;
+	}
+
+	ret = scm_call(SCM_SVC_INFO, SCM_GSBI_ADM_MUX_SEL_CMD,
+		&tcsr_cmd, sizeof(tcsr_cmd), NULL, 0);
+
+	dma_unmap_single(NULL, tcsr_cmd.status,
+		sizeof(*ret_status), DMA_FROM_DEVICE);
+
+	if (ret || *(ret_status)) {
+		pr_err("%s: Error in CRCI_MUX write (%d, 0x%x)\n",
+			__func__, ret, *(ret_status));
+	}
+exit_err:
+	kfree(ret_status);
+	return;
+}
 
 static int msm_hs_ioctl(struct uart_port *uport, unsigned int cmd,
 						unsigned long arg)
@@ -3406,6 +3452,20 @@ static int msm_hs_probe(struct platform_device *pdev)
 					&msm_uport->dma_tx_crci);
 		if (err != 0)
 			return -ENXIO;
+		/* adm crci mux cfg*/
+		if (of_property_read_u32(node, "qcom,tcsr_adm_mux_sel_reg",
+					&msm_uport->tcsr_adm_mux_sel_reg) ||
+		   of_property_read_u32(node, "qcom,tcsr_adm_mux_sel_reg_mask",
+					&msm_uport->tcsr_adm_mux_sel_reg_mask) ||
+		   of_property_read_u32(node, "qcom,tcsr_adm_mux_sel_reg_value",
+					&msm_uport->tcsr_adm_mux_sel_reg_value)) {
+			dev_err(msm_uport->uport.dev,
+				"adm crici mux configuration not done\n");
+		} else {
+			adm_crci_mux_cfg(msm_uport->tcsr_adm_mux_sel_reg,
+				msm_uport->tcsr_adm_mux_sel_reg_mask,
+				msm_uport->tcsr_adm_mux_sel_reg_value);
+		}
 	}
 
 	uport->iotype = UPIO_MEM;
