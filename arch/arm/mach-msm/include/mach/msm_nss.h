@@ -61,6 +61,7 @@ struct nss_platform_data {
 	enum nss_feature_enabled gmac_enabled[4];	/* Does this core handle GMACs? */
 	enum nss_feature_enabled wifioffload_enabled;	/* Does this core handle wifi
 							   data plane ? */
+	enum nss_feature_enabled portid_enabled;	/* Does this core handle portid? */
 };
 
 #endif /* __MSM_NSS__H */
