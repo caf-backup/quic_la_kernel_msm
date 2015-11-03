@@ -97,7 +97,7 @@ struct spinand_cmd {
 
 struct spinand_ops {
 	u8   maf_id;
-	u8   dev_id;
+	u16   dev_id;
 	void (*spinand_set_defaults)(struct spi_device *spi_nand);
 	void (*spinand_read_cmd)(struct spinand_cmd *cmd, u32 page_id);
 	void (*spinand_read_data)(struct spinand_cmd *cmd, u16 column,
