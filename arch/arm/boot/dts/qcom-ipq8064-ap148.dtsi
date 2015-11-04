@@ -333,10 +333,11 @@
 			qcom,l2tpv2_enabled = <1>;
 			qcom,tunipip6_enabled = <1>;
 			qcom,shaping_enabled = <1>;
-			qcom,gmac0_enabled = <1>;
+			qcom,gmac0_enabled = <0>;
 			qcom,gmac1_enabled = <1>;
 			qcom,gmac2_enabled = <1>;
-			qcom,gmac3_enabled = <1>;
+			qcom,gmac3_enabled = <0>;
+			qcom,wlan_dataplane_offload_enabled = <1>;
 		};
 
 		nss1: nss@40800000 {
@@ -371,6 +372,7 @@
 			qcom,gmac1_enabled = <0>;
 			qcom,gmac2_enabled = <0>;
 			qcom,gmac3_enabled = <0>;
+			qcom,wlan_dataplane_offload_enabled = <0>;
 		};
 
 		nss-gmac-common@03000000 {
