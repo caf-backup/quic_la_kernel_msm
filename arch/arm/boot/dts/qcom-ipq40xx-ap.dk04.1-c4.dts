@@ -1,0 +1,120 @@
+/* Copyright (c) 2015, The Linux Foundation. All rights reserved.
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ */
+
+#include "qcom-ipq40xx-ap.dk04.1.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. IPQ40xx/AP-DK04.1-C4";
+
+	soc {
+		pinctrl@0x01000000 {
+			audio_pins: audio_pinmux {
+				status = "disabled";
+			};
+
+			nhost_int {
+				pins = "gpio6";
+				bias-pull,up;
+			};
+
+			nwake {
+				pins = "gpio7";
+				bias-pull,up;
+			};
+
+			mcu_int_pins: mcu_pin_mux {
+				mux {
+					pins = "gpio18", "gpio41";
+					bias-pull,down;
+				};
+			};
+
+			emmc_reset {
+				pins = "gpio34";
+				bias-pull,up;
+			};
+
+			tpm_davint {
+				pins = "gpio39";
+				bias-pull,up;
+			};
+
+			zb_reset { /* Zigbee reset */
+				pins = "gpio40";
+				bias-pull,up;
+			};
+
+			rx_active {
+				pins = "gpio43";
+				bias-pull,down;
+			};
+
+			spi_1_pins: spi_1_pinmux { /* mapped to Zigbee */
+				mux {
+					pins = "gpio44", "gpio45",
+							 "gpio46", "gpio47";
+					function = "blsp_spi1";
+					bias-pull,down;
+				};
+			};
+
+			host_wake {
+				pins = "gpio48";
+				bias-pull,down;
+			};
+
+			bt_pins: bt_mux {
+				bt_wake {
+					pins = "gpio49";
+					bias-pull,down;
+				};
+
+				bt_disable {
+					pins = "gpio50";
+					bias-pull,up;
+				};
+
+				bt_reset {
+					pins = "gpio62";
+					bias-pull,down;
+				};
+			};
+
+			wlan_active {
+				pins = "gpio57";
+				bias-pull,down;
+			};
+
+			i2c_0_pins: i2c_0_pinmux {
+				mux {
+					pins = "gpio58", "gpio59";
+					function = "blsp_i2c0";
+					bias-disable;
+				};
+			};
+
+			sys_rst_out {
+				pins = "gpio60";
+				bias-pull,down;
+			};
+
+			nssel_int {
+				pins = "gpio61";
+				bias-pull,down;
+			};
+		};
+	};
+};
