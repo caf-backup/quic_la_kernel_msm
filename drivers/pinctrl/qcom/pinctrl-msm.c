@@ -184,9 +184,6 @@ static void msm_pinmux_disable(struct pinctrl_dev *pctldev,
 
 	g = &pctrl->soc->groups[group];
 
-	if (WARN_ON(g->mux_bit < 0))
-		return;
-
 	spin_lock_irqsave(&pctrl->lock, flags);
 
 	/* Clear the mux bits to select gpio mode */
