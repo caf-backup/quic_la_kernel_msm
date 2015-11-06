@@ -475,7 +475,7 @@ static int msm_bus_apply_rules(struct list_head *list, bool after_clk_commit)
 
 	list_for_each_entry(rule, list, link) {
 		if (!rule)
-			continue;
+			break;
 
 		if (rule && (rule->after_clk_commit != after_clk_commit))
 			continue;
