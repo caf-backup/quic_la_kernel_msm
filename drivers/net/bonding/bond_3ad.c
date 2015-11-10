@@ -2503,7 +2503,8 @@ struct net_device *bond_3ad_get_tx_dev(struct sk_buff *skb, uint8_t *src_mac,
 		uint32_t hash;
 
 		if (bond->params.xmit_policy != BOND_XMIT_POLICY_LAYER23
-			&& bond->params.xmit_policy != BOND_XMIT_POLICY_LAYER2) {
+			&& bond->params.xmit_policy != BOND_XMIT_POLICY_LAYER2
+			&& bond->params.xmit_policy != BOND_XMIT_POLICY_LAYER34) {
 			pr_debug("%s: Error: Unsupported hash policy for 802.3AD fast path\n", bond_dev->name);
 			return NULL;
 		}
