@@ -178,7 +178,8 @@
 
 		uart1:uart@78b0000 {
 			pinctrl-0 = <&uart1_pins>;
-			pinctrl-names = "default";
+			pinctrl-1 = <&uart1_pins>;
+			pinctrl-names = "default", "sleep";
 			status = "disabled";
 		};
 
