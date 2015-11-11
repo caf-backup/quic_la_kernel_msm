@@ -41,5 +41,17 @@
 				reg = <0x50>;
 			};
 		};
+
+		ess_tcsr: ess_tcsr@1953000 {
+			qcom,ess-interface-select = <TCSR_ESS_PSGMII_RGMII4>;
+		};
+
+		sdhci@7824000 {
+			status = "disabled";
+		};
+
+		ess-switch@c000000 {
+			switch_mac_mode = <0xa>; /* mac mode for RGMII MAC4 */
+		};
 	};
 };
