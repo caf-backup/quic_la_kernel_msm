@@ -30,6 +30,7 @@
 #define PCIE_DEVICE_ID_RCP		0x0101
 
 #define __set(v, a, b)	(((v) << (b)) & GENMASK(a, b))
+#define __mask(a, b)	(((1 << ((a) + 1)) - 1) & ~((1 << (b)) - 1))
 
 #define PCIE20_PARF_PCS_DEEMPH		0x34
 #define PCIE20_PARF_PCS_DEEMPH_TX_DEEMPH_GEN1(x)	__set(x, 21, 16)
@@ -60,6 +61,12 @@
 #define PCIE20_COMMAND_STATUS		0x04
 #define PCIE20_BUSNUMBERS		0x18
 #define PCIE20_MEMORY_BASE_LIMIT	0x20
+
+#define PCIE20_DEV_CAS			0x78
+#define PCIE20_MRRS_MASK		__mask(14, 12)
+#define PCIE20_MRRS(x)			__set(x, 14, 12)
+#define PCIE20_MPS_MASK			__mask(7, 5)
+#define PCIE20_MPS(x)			__set(x, 7, 5)
 
 #define PCIE20_AXI_MSTR_RESP_COMP_CTRL0 0x818
 #define PCIE20_AXI_MSTR_RESP_COMP_CTRL1 0x81c
@@ -937,3 +944,32 @@ static void msm_pcie_fixup_early(struct pci_dev *dev)
 		dev->class = (dev->class & 0xff) | (PCI_CLASS_BRIDGE_PCI << 8);
 }
 DECLARE_PCI_FIXUP_EARLY(PCIE_VENDOR_ID_RCP, PCIE_DEVICE_ID_RCP, msm_pcie_fixup_early);
+
+static void msm_pcie_fixup_final(struct pci_dev *dev)
+{
+	int cap, err;
+	u16 ctl, reg_val;
+
+	cap = pci_pcie_cap(dev);
+	if (!cap)
+		return;
+
+	err = pci_read_config_word(dev, cap + PCI_EXP_DEVCTL, &ctl);
+
+	if (err)
+		return;
+
+	reg_val = ctl;
+
+	if (((reg_val & PCIE20_MRRS_MASK) >> 12) > 1)
+		reg_val = (reg_val & ~(PCIE20_MRRS_MASK)) | PCIE20_MRRS(0x1);
+
+	if (((ctl & PCIE20_MPS_MASK) >> 5) > 1)
+		reg_val = (reg_val & ~(PCIE20_MPS_MASK)) | PCIE20_MPS(0x1);
+
+	err = pci_write_config_word(dev, cap + PCI_EXP_DEVCTL, reg_val);
+
+	if (err)
+		pr_err("pcie config write failed %d\n", err);
+}
+DECLARE_PCI_FIXUP_FINAL(PCIE_VENDOR_ID_RCP, PCIE_DEVICE_ID_RCP, msm_pcie_fixup_final);
