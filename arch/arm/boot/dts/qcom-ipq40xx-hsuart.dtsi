@@ -14,7 +14,7 @@
  *
  */
 
-/ {
+&soc {
 	uart1:uart@78b0000 {
 		compatible = "qcom,msm-hsuart-v14";
 		reg = <0x78b0000 0x200>,
@@ -31,8 +31,8 @@
 		qcom,bam-tx-ep-pipe-index = <2>;
 		qcom,bam-rx-ep-pipe-index = <3>;
 		qcom,master-id = <86>;
-		clocks = <&gcc 0>,
-			<&gcc 0>;
+		clocks = <&gcc GCC_BLSP1_AHB_CLK>,
+			<&gcc GCC_BLSP1_UART2_APPS_CLK>;
 		clock-names = "iface_clk", "core_clk";
 		status = "disabled";
 		};
