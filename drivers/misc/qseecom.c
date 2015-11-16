@@ -531,7 +531,8 @@ static ssize_t
 show_encrypt_output(struct sys_device *dev, struct sysdev_attribute *attr,
 					char *buf)
 {
-	return snprintf(buf, (enc_len + 1), "%s", (char *) encrypt_text);
+	memcpy(buf, encrypt_text, enc_len);
+	return enc_len;
 }
 
 /* To Encrypt input plain text */
@@ -543,13 +544,13 @@ store_encrypt_input(struct sys_device *dev, struct sysdev_attribute *attr,
 	uint8_t *input_pt;
 	uint8_t *output_pt;
 
-	enc_len = count - 1;
+	enc_len = count;
 	if (enc_len == 0) {
 		pr_err("\n Input cannot be NULL!");
 		return -EINVAL;
 	}
-	if ((enc_len % 16 != 0) && (enc_len <= MAX_INPUT_SIZE)) {
-		pr_err("\n Input Length must be multiple of 16 & < 4096 bytes");
+	if ((enc_len % 16 != 0) || (enc_len > MAX_INPUT_SIZE)) {
+		pr_info("\n Input Length must be multiple of 16 & < 4096 bytes");
 		return -EINVAL;
 	}
 
@@ -579,7 +580,8 @@ static ssize_t
 show_decrypt_output(struct sys_device *dev, struct sysdev_attribute *attr,
 		 char *buf)
 {
-	return snprintf(buf, (dec_len + 1), "%s", (char *) decrypt_text);
+	memcpy(buf, decrypt_text, dec_len);
+	return dec_len;
 }
 
 /* To decrypt input cipher text */
@@ -591,14 +593,14 @@ store_decrypt_input(struct sys_device *dev, struct sysdev_attribute *attr,
 	uint8_t *input_pt;
 	uint8_t *output_pt;
 
-	dec_len = count - 1;
+	dec_len = count;
 	if (dec_len == 0) {
 		pr_err("\n Input cannot be NULL!");
 		return -EINVAL;
 	}
 
-	if ((dec_len % 16 != 0) && (dec_len <= MAX_INPUT_SIZE)) {
-		pr_err("\n Input Length must be multiple of 16 & < 4096 bytes");
+	if ((dec_len % 16 != 0) || (dec_len > MAX_INPUT_SIZE)) {
+		pr_info("\n Input Length must be multiple of 16 & < 4096 bytes");
 		return -EINVAL;
 	}
 
