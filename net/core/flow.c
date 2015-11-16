@@ -448,7 +448,7 @@ static int __init flow_cache_init(struct flow_cache *fc)
 {
 	int i;
 
-	fc->hash_shift = 10;
+	fc->hash_shift = 12;
 	fc->low_watermark = 2 * flow_cache_hash_size(fc);
 	fc->high_watermark = 4 * flow_cache_hash_size(fc);
 
