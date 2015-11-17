@@ -33,6 +33,19 @@
 		};
 	};
 
+	aliases {
+		mdio-gpio0 = &mdio0;
+		mdio-gpio1 = &mdio1;
+		/*
+		 * U-Boot searches for these entries and patches
+		 * 'local-mac-address'
+		 */
+		ethernet0 = &gmac0;
+		ethernet1 = &gmac1;
+		ethernet2 = &gmac2;
+		ethernet3 = &gmac3;
+	};
+
 	soc {
 		pinmux@800000 {
 			pinctrl-0 = <&mdio0_pins_default &mdio1_pins_default &rgmii2_pins_default>;
@@ -97,6 +110,7 @@
 					bias-bus-hold;
 				};
 			};
+
 			mdio0_pins_default: mdio0_pins_default {
 				mux {
 					pins = "gpio0", "gpio1";
@@ -110,6 +124,7 @@
 					input-disable;
 				};
 			};
+
 			mdio1_pins_default: mdio1_pins_default {
 				mux {
 					pins = "gpio2", "gpio66";
@@ -274,6 +289,256 @@
 				linux,input-type = <1>;
 				debounce-interval = <60>;
 			};
+		};
+
+		mdio0: mdio0 {
+			compatible = "virtual,mdio-gpio";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			gpios = <&qcom_pinmux 1 0 &qcom_pinmux 0 0>;
+		};
+
+		mdio1: mdio1 {
+			compatible = "virtual,mdio-gpio";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			gpios = <&qcom_pinmux 66 0 &qcom_pinmux 2 0>;
+
+			phy5: ethernet-phy@5 {
+				device_type = "ethernet-phy";
+				reg = <5>;
+			};
+		};
+
+		nss0: nss@40000000 {
+			compatible = "qcom,nss0";
+			interrupts = <GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH
+					GIC_SPI 232 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0x36000000 0x1000 0x39000000 0x20000>;
+			reg-names = "nphys", "vphys";
+			clocks = <&gcc NSS_CORE_CLK>, <&gcc NSSTCM_CLK_SRC>, <&gcc NSSTCM_CLK>,  <&nss_fabric0_clk>, <&nss_fabric1_clk>;
+			clock-names = "nss_core_clk", "nss_tcm_src", "nss_tcm_clk", "nss-fab0-clk", "nss-fab1-clk";
+			resets = <&gcc UBI32_CORE1_CLKRST_CLAMP_RESET>,
+				<&gcc UBI32_CORE1_CLAMP_RESET>,
+				<&gcc UBI32_CORE1_AHB_RESET>,
+				<&gcc UBI32_CORE1_AXI_RESET>;
+			reset-names = "clkrst_clamp", "clamp", "ahb", "axi";
+			qcom,id = <0>;
+			qcom,num_irq = <2>;
+			qcom,rst_addr = <0x40000000>;
+			qcom,load_addr = <0x40000000>;
+			qcom,turbo_frequency = <1>;
+			qcom,low_frequency = <110000000>;
+			qcom,mid_frequency = <550000000>;
+			qcom,max_frequency = <733000000>;
+			qcom,ipv4_enabled = <1>;
+			qcom,ipv6_enabled = <1>;
+			qcom,l2switch_enabled = <1>;
+			qcom,crypto_enabled = <0>;
+			qcom,ipsec_enabled = <0>;
+			qcom,wlanredirect_enabled = <1>;
+			qcom,tun6rd_enabled = <1>;
+			qcom,l2tpv2_enabled = <1>;
+			qcom,tunipip6_enabled = <1>;
+			qcom,shaping_enabled = <1>;
+			qcom,gmac0_enabled = <1>;
+			qcom,gmac1_enabled = <1>;
+			qcom,gmac2_enabled = <1>;
+			qcom,gmac3_enabled = <1>;
+			qcom,wlan_dataplane_offload_enabled = <1>;
+		};
+
+		nss1: nss@40800000 {
+			compatible = "qcom,nss1";
+			interrupts = <GIC_SPI 214 IRQ_TYPE_LEVEL_HIGH
+				      GIC_SPI 233 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0x36400000 0x1000 0x39010000 0x10000>;
+			reg-names = "nphys", "vphys";
+			resets = <&gcc UBI32_CORE2_CLKRST_CLAMP_RESET>,
+				 <&gcc UBI32_CORE2_CLAMP_RESET>,
+				 <&gcc UBI32_CORE2_AHB_RESET>,
+				 <&gcc UBI32_CORE2_AXI_RESET>;
+			reset-names = "clkrst_clamp", "clamp", "ahb", "axi";
+			qcom,id = <1>;
+			qcom,num_irq = <2>;
+			qcom,rst_addr = <0x40800000>;
+			qcom,load_addr = <0x40800000>;
+			qcom,turbo_frequency = <1>;
+			qcom,low_frequency = <110000000>;
+			qcom,mid_frequency = <550000000>;
+			qcom,max_frequency = <733000000>;
+			qcom,ipv4_enabled = <0>;
+			qcom,ipv6_enabled = <0>;
+			qcom,l2switch_enabled = <0>;
+			qcom,crypto_enabled = <1>;
+			qcom,ipsec_enabled = <1>;
+			qcom,wlanredirect_enabled = <0>;
+			qcom,tun6rd_enabled = <0>;
+			qcom,l2tpv2_enabled = <0>;
+			qcom,tunipip6_enabled = <0>;
+			qcom,shaping_enabled = <0>;
+			qcom,gmac0_enabled = <0>;
+			qcom,gmac1_enabled = <0>;
+			qcom,gmac2_enabled = <0>;
+			qcom,gmac3_enabled = <0>;
+			qcom,wlan_dataplane_offload_enabled = <0>;
+		};
+
+		 nss-gmac-common {
+			compatible = "qcom,nss-gmac-common";
+			reg = <0x03000000 0x0000FFFF 0x1bb00000 0x0000FFFF 0x00900000 0x00004000>;
+			reg-names = "nss_reg_base" , "qsgmii_reg_base", "clk_ctl_base";
+			qcom,gmac-phy-profile = <2>;
+		};
+
+		gmac0: ethernet@37000000 {
+			device_type = "network";
+			compatible = "qcom,nss-gmac";
+			reg = <0x37000000 0x200000>;
+			interrupts = <GIC_SPI 220 IRQ_TYPE_LEVEL_HIGH>;
+			phy-mode = "qsgmii";
+			qcom,id = <0>;
+			qcom,pcs-chanid = <0>;
+			qcom,phy-mdio-addr = <5>;
+			qcom,poll-required = <1>;
+			qcom,rgmii-delay = <0>;
+			qcom,emulation = <0>;
+			qcom,forced-speed = <1000>;
+			qcom,forced-duplex = <1>;
+			qcom,mmds-mask = <0>;
+			qcom,socver = <0>;
+			local-mac-address = [000000000000];
+			mdiobus = <&mdio1>;
+		};
+
+                gmac1: ethernet@37200000 {
+			device_type = "network";
+			compatible = "qcom,nss-gmac";
+			reg = <0x37200000 0x200000>;
+			interrupts = <GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>;
+			phy-mode = "qsgmii";
+			qcom,id = <1>;
+			qcom,pcs-chanid = <1>;
+			qcom,phy-mdio-addr = <16>;
+			qcom,poll-required = <1>;
+			qcom,rgmii-delay = <0>;
+			qcom,emulation = <0>;
+			qcom,forced-speed = <1000>;
+			qcom,forced-duplex = <1>;
+			qcom,mmds-mask = <0x6000009a>;
+			qcom,socver = <0>;
+			local-mac-address = [000000000000];
+			mdiobus = <&mdio1>;
+		};
+
+                gmac2: ethernet@37400000 {
+			device_type = "network";
+			compatible = "qcom,nss-gmac";
+			reg = <0x37400000 0x200000>;
+			interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>;
+			phy-mode = "qsgmii";
+			qcom,id = <2>;
+			qcom,pcs-chanid = <2>;
+			qcom,phy-mdio-addr = <32>;
+			qcom,poll-required = <0>;
+			qcom,rgmii-delay = <0>;
+			qcom,emulation = <0>;
+			qcom,forced-speed = <1000>;
+			qcom,forced-duplex = <1>;
+			qcom,mmds-mask = <0>;
+			qcom,socver = <0>;
+			local-mac-address = [000000000000];
+			mdiobus = <&mdio1>;
+		};
+
+                gmac3: ethernet@37600000 {
+			device_type = "network";
+			compatible = "qcom,nss-gmac";
+			reg = <0x37600000 0x200000>;
+			interrupts = <GIC_SPI 229 IRQ_TYPE_LEVEL_HIGH>;
+			phy-mode = "qsgmii";
+			qcom,id = <3>;
+			qcom,pcs-chanid = <3>;
+			qcom,phy-mdio-addr = <32>;
+			qcom,poll-required = <0>;
+			qcom,rgmii-delay = <0>;
+			qcom,emulation = <0>;
+			qcom,forced-speed = <1000>;
+			qcom,forced-duplex = <1>;
+			qcom,mmds-mask = <0>;
+			qcom,socver = <0>;
+			local-mac-address = [000000000000];
+			mdiobus = <&mdio1>;
+		};
+
+		aq-phy {
+			compatible = "qcom,aq-phy";
+			qcom,phy-addr = <0x10>;
+			mdiobus = <&mdio1>;
+		};
+
+		 qca-85xx-sw {
+			compatible = "qcom,qca-85xx-sw";
+			qcom,sgmii-plus-if-phy-addr = <0x10>;
+			qcom,chip-id = <1>;
+			qcom,qsgmii-cfg-port-mode = <1>;
+			qcom,qsgmii-cfg-port-base = <1>;
+			qcom,qsgmii-cfg-is-speed-forced = <1>;
+			qcom,qsgmii-cfg-forced-speed = <1000>;
+			qcom,qsgmii-cfg-forced-duplex = <1>;
+			qcom,port-26-cfg-port-mode = <2>;
+			qcom,port-26-cfg-is-speed-forced = <0>;
+			qcom,port-27-cfg-port-mode = <3>;
+			qcom,port-27-cfg-is-speed-forced = <1>;
+			qcom,port-27-cfg-forced-speed = <2500>;
+			qcom,port-27-cfg-forced-duplex = <1>;
+			qcom,trunk-cfg-is-trunk-enabled = <1>;
+			qcom,trunk-cfg-trunk-id = <0>;
+			qcom,trunk-cfg-trunk-hash-policy = <0x6c>;
+			qcom,trunk-cfg-trunk-ports-bit-map = <0x1c>;
+			mdiobus = <&mdio0>;
+			sgmii-plus-if-phy-mdiobus = <&mdio1>;
+		};
+
+		crypto1: crypto@38000000 {
+			compatible = "qcom,nss-crypto";
+			reg-names = "crypto_pbase", "bam_base";
+			reg = <0x38000000 0x20000>,
+			    <0x38004000 0x22000>;
+                        resets = <&gcc CRYPTO_ENG1_RESET>,
+                                 <&gcc CRYPTO_AHB_RESET>;
+                        reset-names = "rst_eng", "rst_ahb";
+			qcom,ee = <0>;
+		};
+
+		crypto2: crypto@38400000 {
+			compatible = "qcom,nss-crypto";
+			reg-names = "crypto_pbase", "bam_base";
+			reg = <0x38400000 0x20000>,
+			    <0x38404000 0x22000>;
+                        resets = <&gcc CRYPTO_ENG2_RESET>;
+                        reset-names = "rst_eng";
+			qcom,ee = <0>;
+		};
+
+		crypto3: crypto@38800000 {
+			compatible = "qcom,nss-crypto";
+			reg-names = "crypto_pbase", "bam_base";
+			reg = <0x38800000 0x20000>,
+			    <0x38804000 0x22000>;
+                        resets = <&gcc CRYPTO_ENG3_RESET>;
+                        reset-names = "rst_eng";
+			qcom,ee = <0>;
+		};
+
+		crypto4: crypto@38C00000 {
+			compatible = "qcom,nss-crypto";
+			reg-names = "crypto_pbase", "bam_base";
+			reg = <0x38C00000 0x20000>,
+			    <0x38C04000 0x22000>;
+                        resets = <&gcc CRYPTO_ENG4_RESET>;
+                        reset-names = "rst_eng";
+			qcom,ee = <0>;
 		};
 
 		rpm@108000 {

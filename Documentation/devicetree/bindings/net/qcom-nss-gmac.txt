@@ -12,6 +12,13 @@ Required properties:
 		These correspond to different register bases of GMAC.
 - reg: physical address and length of the register set for the device.
 
+Optional properties:
+- gmac-phy-profile: Indicates different phy profiles, depending on the board.
+			RGMII,SGMII, QSGMII and also can be combination of the three.
+			0 -> 2 RGMII, 2 SGMII
+			1 -> 1 RGMII, 3 SGMII
+			2 -> 4 QSGMII
+
 Example:
 nss-gmac-common@fc800000 {
 	compatible = "qcom,nss-gmac-common";
