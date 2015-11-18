@@ -125,5 +125,10 @@ extern void pppoe_channel_addressing_get(struct ppp_channel *chan, struct pppoe_
 /* Return netdevice associated with the session id and remote mac address */
 extern struct net_device *pppoe_get_and_hold_netdev_from_session_info(uint16_t sid, uint8_t *mac);
 
+/* Lookup PPTP session info and return PPTP session */
+extern int pptp_session_find(struct pptp_opt *opt, __be16 peer_call_id, __be32 peer_ip_addr);
+
+/* Return PPTP session information given the channel */
+extern void pptp_channel_addressing_get(struct pptp_opt *opt, struct ppp_channel *chan);
 
 #endif /* !(__LINUX_IF_PPPOX_H) */
