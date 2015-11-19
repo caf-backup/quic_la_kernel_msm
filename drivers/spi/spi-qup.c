@@ -971,14 +971,10 @@ static int spi_qup_probe(struct platform_device *pdev)
 
 	/* allocate dma resources, if available */
 	controller->rx_chan = dma_request_slave_channel(&pdev->dev, "rx");
-	if (controller->rx_chan) {
-		controller->tx_chan =
-			dma_request_slave_channel(&pdev->dev, "tx");
+	controller->tx_chan = dma_request_slave_channel(&pdev->dev, "tx");
 
-		if (!controller->tx_chan) {
-			dev_err(&pdev->dev, "Failed to allocate dma tx chan");
-			dma_release_channel(controller->rx_chan);
-		}
+	if (controller->rx_chan && controller->tx_chan) {
+
 
 		/* set DMA parameters */
 		controller->rx_conf.device_fc = 1;
@@ -1016,6 +1012,19 @@ static int spi_qup_probe(struct platform_device *pdev)
 			dma_release_channel(controller->tx_chan);
 			controller->tx_chan = NULL;
 			controller->rx_chan = NULL;
+		}
+	} else {
+		if (controller->rx_chan) {
+			dma_release_channel(controller->rx_chan);
+			controller->rx_chan = NULL;
+		} else {
+			dev_err(&pdev->dev, "Failed to allocate dma rx chan");
+		}
+		if (controller->tx_chan) {
+			dma_release_channel(controller->tx_chan);
+			controller->tx_chan = NULL;
+		} else {
+			dev_err(&pdev->dev, "Failed to allocate dma tx chan");
 		}
 	}
 
