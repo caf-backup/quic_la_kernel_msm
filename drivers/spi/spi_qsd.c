@@ -164,6 +164,7 @@ static inline void msm_spi_free_gpios(struct msm_spi *dd)
 
 		for (i = 0; i < ARRAY_SIZE(spi_cs_rsrcs); ++i) {
 			if (dd->cs_gpios[i].valid) {
+				gpio_set_value((dd->cs_gpios[i].gpio_num), 1);
 				gpio_free(dd->cs_gpios[i].gpio_num);
 				dd->cs_gpios[i].valid = 0;
 			}
@@ -224,6 +225,7 @@ static inline void msm_spi_free_cs_gpio(struct msm_spi *dd)
 	cs_num = dd->cur_msg->spi->chip_select;
 	if (!dd->pdata->use_pinctrl) {
 		if (dd->cs_gpios[cs_num].valid) {
+			gpio_set_value((dd->cs_gpios[cs_num].gpio_num), 1);
 			gpio_free(dd->cs_gpios[cs_num].gpio_num);
 			dd->cs_gpios[cs_num].valid = 0;
 		}
@@ -1736,6 +1738,7 @@ static void msm_spi_process_message(struct msm_spi *dd)
 {
 	int xfrs_grped = 0;
 	int rc;
+	int cs_num;
 
 	dd->num_xfrs_grped = 0;
 	dd->bam.curr_rx_bytes_recvd = dd->bam.curr_tx_bytes_sent = 0;
@@ -1803,6 +1806,14 @@ static void msm_spi_process_message(struct msm_spi *dd)
 	}
 	if (dd->qup_ver)
 		write_force_cs(dd, 0);
+
+	cs_num = dd->cur_msg->spi->chip_select;
+
+	if ((dd->cs_gpios[cs_num].valid) &&
+		(dd->cs_gpios[cs_num].gpio_num >= 0)) {
+		gpio_set_value(dd->cs_gpios[cs_num].gpio_num, 1);
+	}
+
 	return;
 error:
 	msm_spi_free_cs_gpio(dd);
