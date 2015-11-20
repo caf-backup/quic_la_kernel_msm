@@ -2979,7 +2979,10 @@ struct msm_serial_hs_platform_data
 	int rx_to_inject, ret, uartdm_rx_buf_size;
 
 	match = of_match_device(msm_hs_match_table, &pdev->dev);
-
+	if (!match) {
+		pr_err("Plaform device ID mismatch = %d\n", pdev->id);
+		return -EINVAL;
+	}
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
 		pr_err("unable to allocate memory for platform data\n");
@@ -3322,6 +3325,10 @@ static int msm_hs_probe(struct platform_device *pdev)
 
 	if (pdev->dev.of_node) {
 		match = of_match_device(msm_hs_match_table, &pdev->dev);
+		if (!match) {
+			pr_err("Plaform device ID mismatch = %d\n", pdev->id);
+			return -EINVAL;
+		}
 		if (!(match->data))
 			msm_uport->uart_type = GSBI_HSUART;
 		else
