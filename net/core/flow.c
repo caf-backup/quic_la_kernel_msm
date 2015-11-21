@@ -204,6 +204,27 @@ static int flow_key_compare(const struct flowi *key1, const struct flowi *key2,
 	return 0;
 }
 
+/* Take one entry back from the flow cache garbage, it will
+ * avoid that the flow cache become every large in some
+ * situation, e.g: heavy load delay the collect of the garbage
+ */
+static struct flow_cache_entry *flow_cache_reuse_entry(void)
+{
+	struct flow_cache_entry *fce = NULL;
+
+	spin_lock_bh(&flow_cache_gc_lock);
+	if (!list_empty(&flow_cache_gc_list)) {
+		fce = list_last_entry(&flow_cache_gc_list,
+				struct flow_cache_entry, u.gc_list);
+		list_del(&fce->u.gc_list);
+	}
+	spin_unlock_bh(&flow_cache_gc_lock);
+	if (fce && fce->object)
+		fce->object->ops->delete(fce->object);
+
+	return fce;
+}
+
 struct flow_cache_object *
 flow_cache_lookup(struct net *net, const struct flowi *key, u16 family, u8 dir,
 		  flow_resolve_t resolver, void *ctx)
@@ -248,7 +269,9 @@ flow_cache_lookup(struct net *net, const struct flowi *key, u16 family, u8 dir,
 		if (fcp->hash_count > fc->high_watermark)
 			flow_cache_shrink(fc, fcp);
 
-		fle = kmem_cache_alloc(flow_cachep, GFP_ATOMIC);
+		fle = flow_cache_reuse_entry();
+		if (!fle)
+			fle = kmem_cache_alloc(flow_cachep, GFP_ATOMIC);
 		if (fle) {
 			fle->net = net;
 			fle->family = family;
