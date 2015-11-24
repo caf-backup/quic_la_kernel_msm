@@ -387,15 +387,24 @@ static int tzapp_test(void *input, void *output, int input_len, int option)
 	}
 	if (option != 1) {
 		msgreq->data = dma_map_single(NULL, input,
-				sizeof(*input), DMA_TO_DEVICE);
+				input_len, DMA_TO_DEVICE);
 		msgreq->data2 = dma_map_single(NULL, output,
-				sizeof(*output), DMA_FROM_DEVICE);
+				input_len, DMA_FROM_DEVICE);
 
 		ret1 = dma_mapping_error(NULL, msgreq->data);
 		ret2 = dma_mapping_error(NULL, msgreq->data2);
+
 		if (ret1 || ret2) {
 			pr_err("\nDMA Mapping Error Return Values:"
 				"input data %d output data %d", ret1, ret2) ;
+			if (!ret1) {
+				dma_unmap_single(NULL, msgreq->data,
+					input_len, DMA_TO_DEVICE);
+			}
+			if (!ret2) {
+				dma_unmap_single(NULL, msgreq->data2,
+					input_len, DMA_FROM_DEVICE);
+			}
 			return ret1 ? ret1 : ret2;
 		}
 
@@ -410,9 +419,9 @@ static int tzapp_test(void *input, void *output, int input_len, int option)
 				sizeof(*msgreq), DMA_TO_DEVICE);
 	send_data_req.rsp_ptr = dma_map_single(NULL, msgrsp,
 				sizeof(*msgrsp), DMA_FROM_DEVICE);
-
 	ret1 = dma_mapping_error(NULL, send_data_req.req_ptr);
 	ret2 = dma_mapping_error(NULL, send_data_req.rsp_ptr);
+
 
 	if (!ret1 && !ret2) {
 		send_data_req.req_len = sizeof(struct qsc_send_cmd);
@@ -422,6 +431,12 @@ static int tzapp_test(void *input, void *output, int input_len, int option)
 					sizeof(send_data_req),
 					&resp, sizeof(resp));
 	}
+
+	dma_unmap_single(NULL, msgreq->data,
+				input_len, DMA_TO_DEVICE);
+	dma_unmap_single(NULL, msgreq->data2,
+				input_len, DMA_FROM_DEVICE);
+
 	if (!ret1) {
 		dma_unmap_single(NULL, send_data_req.req_ptr,
 			sizeof(*msgreq), DMA_TO_DEVICE);
