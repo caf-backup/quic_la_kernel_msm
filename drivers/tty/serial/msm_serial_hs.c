@@ -2981,7 +2981,7 @@ struct msm_serial_hs_platform_data
 	match = of_match_device(msm_hs_match_table, &pdev->dev);
 	if (!match) {
 		pr_err("Plaform device ID mismatch = %d\n", pdev->id);
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	}
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
@@ -3461,11 +3461,11 @@ static int msm_hs_probe(struct platform_device *pdev)
 			return -ENXIO;
 		/* adm crci mux cfg*/
 		if (of_property_read_u32(node, "qcom,tcsr_adm_mux_sel_reg",
-					&msm_uport->tcsr_adm_mux_sel_reg) ||
+					(u32 *)&msm_uport->tcsr_adm_mux_sel_reg) ||
 		   of_property_read_u32(node, "qcom,tcsr_adm_mux_sel_reg_mask",
 					&msm_uport->tcsr_adm_mux_sel_reg_mask) ||
 		   of_property_read_u32(node, "qcom,tcsr_adm_mux_sel_reg_value",
-					&msm_uport->tcsr_adm_mux_sel_reg_value)) {
+					(u32 *)&msm_uport->tcsr_adm_mux_sel_reg_value)) {
 			dev_err(msm_uport->uport.dev,
 				"adm crici mux configuration not done\n");
 		} else {
