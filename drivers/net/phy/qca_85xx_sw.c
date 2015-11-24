@@ -150,6 +150,7 @@ static void qca_85xx_sw_sgmii_plus_if_change_speed(struct net_device *dev)
 	    curr_duplex == priv->sgmii_plus_duplex)
 		return;
 
+	/* Place the MAC into SGMII or SGMII+ Mode */
 	switch (curr_speed) {
 	case SPEED_2500:
 		/* Set port 27 into SGMII+ Mode(2.5 Gig speed) */
@@ -174,48 +175,55 @@ static void qca_85xx_sw_sgmii_plus_if_change_speed(struct net_device *dev)
 		return;
 	}
 
+	/*
+	 * Configure MAC<->PHY auto-negotiation/speed settings.
+	 * Speed 2500 => Auto-negotiation is off, force speed is on
+	 * Speed 100/1000 => Auto-negotiation is on, force speed is off
+	 */
 	sgmii_ctrl0_val = priv->read(SGMII_CTRL0_PORT27);
 	val = priv->read(port_status_cfg(priv->sgmii_plus_port_num));
 
-	/* Clear the previous link speed and duplex setting */
-	if (priv->sgmii_plus_link_speed == SPEED_100 ||
-	    priv->sgmii_plus_link_speed == SPEED_1000 ||
-	    priv->sgmii_plus_link_speed == SPEED_UNKNOWN) {
-		sgmii_ctrl0_val &= ~(SGMII_CTRL0_SGMII_MODE_MAC |
-				     SGMII_CTRL0_FORCE_SPEED_100 |
-				     SGMII_CTRL0_FORCE_SPEED_1000 |
-				     SGMII_CTRL0_FORCE_DUPLEX_FULL);
+	/* Clear the previous speed, duplex, settings */
+	sgmii_ctrl0_val &= ~(SGMII_CTRL0_SGMII_MODE_MAC |
+			     SGMII_CTRL0_FORCE_SPEED_100 |
+			     SGMII_CTRL0_FORCE_SPEED_1000 |
+			     SGMII_CTRL0_FORCE_DUPLEX_FULL |
+			     SGMII_CTRL0_MR_AN_EN |
+			     SGMII_CTRL0_FORCE_MODE_EN);
 
-		val &= ~(PORT_STATUS_FORCE_SPEED_100 |
-			 PORT_STATUS_FORCE_SPEED_1000 |
-			 PORT_STATUS_FORCE_DUPLEX_FULL);
+	val &= ~(PORT_STATUS_FORCE_SPEED_100 |
+		 PORT_STATUS_FORCE_SPEED_1000 |
+		 PORT_STATUS_FORCE_DUPLEX_FULL);
 
-	}
-
-	if(curr_speed == SPEED_1000 || curr_speed == SPEED_2500) {
-		/* Force the 1000Mbps link speed and duplex setting */
+	if (curr_speed != SPEED_100) {
+		/* Enable 1000Mbps speed and duplex setting */
 		val |= PORT_STATUS_FORCE_SPEED_1000 |
 		       PORT_STATUS_FORCE_DUPLEX_FULL;
 		sgmii_ctrl0_val |= SGMII_CTRL0_FORCE_SPEED_1000 |
 				   SGMII_CTRL0_FORCE_DUPLEX_FULL;
+	}
+
+	if (curr_speed == SPEED_2500) {
+		/* Disable auto-neg, enable force mode */
+		sgmii_ctrl0_val |= SGMII_CTRL0_FORCE_MODE_EN;
+	} else if (curr_speed == SPEED_1000) {
+		/* Enable auto-neg, disable force mode */
+		sgmii_ctrl0_val |= SGMII_CTRL0_MR_AN_EN;
 	} else {
 		/* Force the 100Mbps link speed and duplex setting */
 		sgmii_ctrl0_val |= SGMII_CTRL0_SGMII_MODE_MAC |
-				   SGMII_CTRL0_FORCE_SPEED_100;
+				   SGMII_CTRL0_FORCE_SPEED_100 |
+				   SGMII_CTRL0_MR_AN_EN;
 
-		val |=  PORT_STATUS_FORCE_SPEED_100;
+		val |= PORT_STATUS_FORCE_SPEED_100;
 
 		if (curr_duplex) {
 			/* Set 100Mbps Full Duplex */
 			sgmii_ctrl0_val |= SGMII_CTRL0_FORCE_DUPLEX_FULL;
 			val |=  PORT_STATUS_FORCE_DUPLEX_FULL;
 		}
-		else {
-			/* Set 100Mbps Half Duplex */
-			sgmii_ctrl0_val &= ~SGMII_CTRL0_FORCE_DUPLEX_FULL;
-			val &= ~PORT_STATUS_FORCE_DUPLEX_FULL;
-		}
 	}
+
 	priv->write(port_status_cfg(priv->sgmii_plus_port_num), val);
 	priv->write(SGMII_CTRL0_PORT27, sgmii_ctrl0_val);
 	priv->sgmii_plus_link_speed = curr_speed;
@@ -427,17 +435,19 @@ static int qca_85xx_sw_init_sgmii_port(enum qca_85xx_sw_gmac_port port,
 	val = priv->read(port_status_cfg(port));
 
 	/* Settings to force speed if configured */
-	if (sgmii_cfg->is_speed_forced == false)
+	if (sgmii_cfg->is_speed_forced == false) {
 		val |= PORT_STATUS_AUTONEG_EN;
-	else {
+		sgmii_ctrl0_val |= SGMII_CTRL0_MR_AN_EN;
+		sgmii_ctrl0_val &= ~SGMII_CTRL0_FORCE_MODE_EN;
+	} else {
 		/* Disable Auto-negotiation */
 		val &= ~(PORT_STATUS_AUTONEG_EN | PORT_STATUS_AUTO_FLOW_CTRL_EN
 				| PORT_STATUS_TX_HALF_FLOW_EN | PORT_STATUS_RX_FLOW_EN
 				| PORT_STATUS_TX_FLOW_EN);
 		val |= (PORT_STATUS_RXMAC_EN | PORT_STATUS_TXMAC_EN);
 
-		if (sgmii_cfg->port_mode != QCA_85XX_SW_PORT_MODE_SGMII_PLUS)
-			sgmii_ctrl0_val |= SGMII_CTRL0_FORCE_MODE_EN;
+		sgmii_ctrl0_val &= ~SGMII_CTRL0_MR_AN_EN;
+		sgmii_ctrl0_val |= SGMII_CTRL0_FORCE_MODE_EN;
 
 		/* Force the speed and duplex as configured */
 		switch (sgmii_cfg->forced_speed) {
