@@ -33,5 +33,13 @@
 		qcom,mdss_lcd_qpic_panel {
 			status = "ok";
 		};
+
+		serial@78b0000 {
+			status = "disabled";
+		};
+
+		uart1:uart@78b0000 {
+			status = "ok";
+		};
 	};
 };
