@@ -100,6 +100,12 @@ struct sdhci_host {
 #define SDHCI_QUIRK2_BROKEN_DDR50			(1<<7)
 /* Stop command (CMD12) can set Transfer Complete when not using MMC_RSP_BUSY */
 #define SDHCI_QUIRK2_STOP_WITH_TC			(1<<8)
+/*
+ * Dont use the max_busy_timeout in sdhci driver so that the maximum discard
+ * unit gets picked by the mmc queue. Otherwise, it takes a long time for
+ * secure discard kind of operations to complete.
+ */
+#define SDHCI_QUIRK2_USE_MAX_DISCARD_SIZE		(1<<9)
 
 	int irq;		/* Device IRQ */
 	void __iomem *ioaddr;	/* Mapped address */

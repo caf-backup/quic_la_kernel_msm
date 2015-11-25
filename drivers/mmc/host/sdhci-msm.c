@@ -629,6 +629,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	writel_relaxed(HC_MODE_EN, (msm_host->core_mem + CORE_HC_MODE));
 
 	host->quirks |= SDHCI_QUIRK_SINGLE_POWER_WRITE;
+	host->quirks2 |= SDHCI_QUIRK2_USE_MAX_DISCARD_SIZE;
 
 	host_version = readw_relaxed((host->ioaddr + SDHCI_HOST_VERSION));
 	dev_dbg(&pdev->dev, "Host Version: 0x%x Vendor Version 0x%x\n",
