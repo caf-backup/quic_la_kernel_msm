@@ -62,7 +62,7 @@ static ssize_t
 name_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct thermal_hwmon_device *hwmon = dev_get_drvdata(dev);
-	return sprintf(buf, "%s\n", hwmon->type);
+	return snprintf(buf, PAGE_SIZE, "%s\n", hwmon->type);
 }
 static DEVICE_ATTR(name, 0444, name_show, NULL);
 
@@ -83,7 +83,7 @@ temp_input_show(struct device *dev, struct device_attribute *attr, char *buf)
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%ld\n", temperature);
+	return snprintf(buf, PAGE_SIZE, "%ld\n", temperature);
 }
 
 static ssize_t
@@ -102,7 +102,7 @@ temp_crit_show(struct device *dev, struct device_attribute *attr, char *buf)
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%ld\n", temperature);
+	return snprintf(buf, PAGE_SIZE, "%ld\n", temperature);
 }
 
 
