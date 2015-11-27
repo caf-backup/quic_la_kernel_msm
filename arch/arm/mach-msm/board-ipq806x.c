@@ -2332,7 +2332,7 @@ static struct msm_serial_hs_platform_data ipq806x_uart_dm2_pdata = {
 /* scm call to pass CRCI mux configuration for GSBI */
 static void adm_crci_mux_cfg(uint16_t tcsr_reg, uint32_t mask, uint16_t set)
 {
-	uint32_t ret_status;
+	uint32_t ret_status = 0;
 	int ret;
 
 	struct tcsr {
@@ -2955,7 +2955,10 @@ static void __init ipq806x_init(void)
 		pr_err("meminfo_init() failed!\n");
 
 	flash_type_ptr = smem_alloc(SMEM_BOOT_FLASH_TYPE, sizeof(u32));
-	ipq_boot_flash_type = *flash_type_ptr;
+	if (flash_type_ptr)
+		ipq_boot_flash_type = *flash_type_ptr;
+	else
+		pr_err("smem_alloc() failed!\n");
 
 	ipq806x_common_init();
 	ipq806x_pcie_init();
