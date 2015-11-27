@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2014, The Linux foundation. All rights reserved.
+ * Copyright (c) 2008-2015, The Linux foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License rev 2 and
@@ -850,6 +850,9 @@ static int spi_qup_probe(struct platform_device *pdev)
 
 	dev = &pdev->dev;
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (res == NULL)
+		return -EINVAL;
+
 	base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
@@ -1001,17 +1004,21 @@ static int spi_qup_probe(struct platform_device *pdev)
 			dma_release_channel(controller->tx_chan);
 			controller->tx_chan = NULL;
 			controller->rx_chan = NULL;
-		}
-
-		controller->dummy = dma_alloc_writecombine(controller->dev,
+		} else {
+			controller->dummy = dma_alloc_writecombine(
+				controller->dev,
 				controller->in_blk_sz + controller->out_blk_sz,
 				&controller->dummy_phys, GFP_KERNEL);
 
-		if (!controller->dummy) {
-			dma_release_channel(controller->rx_chan);
-			dma_release_channel(controller->tx_chan);
-			controller->tx_chan = NULL;
-			controller->rx_chan = NULL;
+			if (!controller->dummy) {
+				dev_err(&pdev->dev,
+					"failed to allocate DMA memory\n");
+
+				dma_release_channel(controller->rx_chan);
+				dma_release_channel(controller->tx_chan);
+				controller->tx_chan = NULL;
+				controller->rx_chan = NULL;
+			}
 		}
 	} else {
 		if (controller->rx_chan) {
