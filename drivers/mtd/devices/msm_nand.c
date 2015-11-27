@@ -4334,7 +4334,7 @@ uint32_t flash_onenand_probe(struct msm_nand_chip *chip)
 int msm_onenand_read_oob(struct mtd_info *mtd,
 		loff_t from, struct mtd_oob_ops *ops)
 {
-	struct msm_nand_chip *chip = mtd->priv;
+	struct msm_nand_chip *chip = NULL;
 
 	struct {
 		dmov_s cmd[53];
@@ -4394,6 +4394,8 @@ int msm_onenand_read_oob(struct mtd_info *mtd,
 		pr_err("%s: invalid mtd pointer, 0x%x\n", __func__,
 				(uint32_t)mtd);
 		return -EINVAL;
+	} else {
+		chip = mtd->priv;
 	}
 	if (from & (mtd->writesize - 1)) {
 		pr_err("%s: unsupported from, 0x%llx\n", __func__,
@@ -5015,7 +5017,7 @@ int msm_onenand_read(struct mtd_info *mtd, loff_t from, size_t len,
 static int msm_onenand_write_oob(struct mtd_info *mtd, loff_t to,
 		struct mtd_oob_ops *ops)
 {
-	struct msm_nand_chip *chip = mtd->priv;
+	struct msm_nand_chip *chip = NULL;
 
 	struct {
 		dmov_s cmd[53];
@@ -5079,7 +5081,10 @@ static int msm_onenand_write_oob(struct mtd_info *mtd, loff_t to,
 		pr_err("%s: invalid mtd pointer, 0x%x\n", __func__,
 				(uint32_t)mtd);
 		return -EINVAL;
+	} else {
+		chip = mtd->priv;
 	}
+
 	if (to & (mtd->writesize - 1)) {
 		pr_err("%s: unsupported to, 0x%llx\n", __func__, to);
 		return -EINVAL;
@@ -5193,6 +5198,7 @@ static int msm_onenand_write_oob(struct mtd_info *mtd, loff_t to,
 		if (dma_mapping_error(chip->dev, data_dma_addr)) {
 			pr_err("%s: failed to get dma addr for %p\n",
 					__func__, ops->datbuf);
+			kfree(init_spare_bytes);
 			return -EIO;
 		}
 	}
@@ -7322,7 +7328,7 @@ static ssize_t boot_layout_store(struct device *dev,
 	unsigned int spare_size;
 	unsigned int ecc_num_data_bytes;
 
-	sscanf(buf, "%d", &boot_layout);
+	sscanf(buf, "%d", (int *)&boot_layout);
 
 	ud_size = boot_layout? 512: 516;
 	spare_size = boot_layout? (chip->cw_size -
