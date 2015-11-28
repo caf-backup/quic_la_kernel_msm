@@ -539,13 +539,16 @@ int phy_init_hw(struct phy_device *phydev)
 	if (!phydev->drv || !phydev->drv->config_init)
 		return 0;
 
-	ret = phy_write(phydev, MII_BMCR, BMCR_RESET);
-	if (ret < 0)
-		return ret;
+	/* Reset PHYs that are not C45 */
+	if (!phydev->is_c45) {
+		ret = phy_write(phydev, MII_BMCR, BMCR_RESET);
+		if (ret < 0)
+			return ret;
 
-	ret = phy_poll_reset(phydev);
-	if (ret < 0)
-		return ret;
+		ret = phy_poll_reset(phydev);
+		if (ret < 0)
+			return ret;
+	}
 
 	ret = phy_scan_fixups(phydev);
 	if (ret < 0)
