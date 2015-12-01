@@ -463,6 +463,8 @@ static int pppol2tp_get_addressing(struct ppp_channel *chan, struct pppol2tp_com
 	addr->local_addr.sin_addr.s_addr = isk->inet_saddr;
 	addr->remote_addr.sin_addr.s_addr = isk->inet_daddr;
 
+	addr->tunnel_version = tunnel->version;
+
 	sock_put(sk_tun);
 	sock_put(sk);
 	return 0;
