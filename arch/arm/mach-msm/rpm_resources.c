@@ -688,7 +688,7 @@ static ssize_t msm_rpmrs_resource_attr_store(struct kobject *kobj,
 {
 	struct kernel_param kp;
 	unsigned long flags;
-	unsigned int temp;
+	unsigned int temp = 0;
 	int rc;
 
 	kp.arg = &temp;
