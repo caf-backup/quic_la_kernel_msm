@@ -180,7 +180,6 @@ static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	unsigned char *data;
 	__u32 seq_recv;
 
-
 	struct rtable *rt;
 	struct net_device *tdev;
 	struct iphdr  *iph;
@@ -283,6 +282,10 @@ static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	skb->ip_summed = CHECKSUM_NONE;
 	ip_select_ident(skb, NULL);
 	ip_send_check(iph);
+
+	/* set incoming interface as the ppp interface */
+	if (skb->skb_iif)
+		skb->skb_iif = ppp_dev_index(chan);
 
 	ip_local_out(skb);
 	return 1;
@@ -426,6 +429,7 @@ static int pptp_rcv(struct sk_buff *skb)
 	if (po) {
 		skb_dst_drop(skb);
 		nf_reset(skb);
+		skb->skb_iif = ppp_dev_index(&po->chan);
 		return sk_receive_skb(sk_pppox(po), skb, 0);
 	}
 drop:

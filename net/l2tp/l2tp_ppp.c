@@ -263,6 +263,7 @@ static void pppol2tp_recv(struct l2tp_session *session, struct sk_buff *skb, int
 		nf_reset(skb);
 
 		po = pppox_sk(sk);
+		skb->skb_iif = ppp_dev_index(&po->chan);
 		ppp_input(&po->chan, skb);
 	} else {
 		PRINTK(session->debug, PPPOL2TP_MSG_DATA, KERN_INFO,
@@ -467,6 +468,10 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	skb->data[0] = ppph[0];
 	skb->data[1] = ppph[1];
 
+	/* set incoming interface as the ppp interface */
+	if (skb->skb_iif)
+		skb->skb_iif = ppp_dev_index(chan);
+
 	local_bh_disable();
 	l2tp_xmit_skb(session, skb, session->hdr_len);
 	local_bh_enable();
@@ -516,7 +521,6 @@ static struct net_device *pppol2tp_get_netdev(struct ppp_channel *chan)
 
 	return dev;
 }
-
 
 /*****************************************************************************
  * Session (and tunnel control) socket create/destroy.
