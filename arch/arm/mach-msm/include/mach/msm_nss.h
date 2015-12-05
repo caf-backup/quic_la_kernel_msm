@@ -64,6 +64,8 @@ struct nss_platform_data {
 	enum nss_feature_enabled portid_enabled;	/* Does this core handle portid? */
 	enum nss_feature_enabled dtls_enabled;
 					/* Does the core handle DTLS? */
+	enum nss_feature_enabled capwap_enabled;
+					/* Does this core handle capwap? */
 };
 
 #endif /* __MSM_NSS__H */

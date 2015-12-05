@@ -1098,6 +1098,7 @@ static struct nss_platform_data nss0_pdata = {
 	.wifioffload_enabled	= NSS_FEATURE_ENABLED,
 	.portid_enabled		= NSS_FEATURE_ENABLED,
 	.dtls_enabled		= NSS_FEATURE_NOT_ENABLED,
+	.capwap_enabled		= NSS_FEATURE_NOT_ENABLED,
 };
 
 struct platform_device ipq806x_device_nss0 = {
@@ -1147,6 +1148,7 @@ static struct nss_platform_data nss1_pdata = {
 	.wifioffload_enabled	= NSS_FEATURE_NOT_ENABLED,
 	.portid_enabled		= NSS_FEATURE_NOT_ENABLED,
 	.dtls_enabled		= NSS_FEATURE_ENABLED,
+	.capwap_enabled		= NSS_FEATURE_ENABLED,
 };
 
 struct platform_device ipq806x_device_nss1 = {
