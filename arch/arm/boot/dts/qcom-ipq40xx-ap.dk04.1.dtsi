@@ -152,6 +152,27 @@
 					bias-disable;
 				};
 			};
+
+			wifi1_0_pins: wifi1_pinmux {
+				mux_1 {
+					pins = "gpio37";
+					function = "wifi1_wci";
+					bias-pull-up;
+					drive-strength = <6>;
+				};
+				mux_2 {
+					pins = "gpio42";
+					function = "wifi_wci0";
+					bias-pull-up;
+					drive-strength = <6>;
+				};
+				mux_3 {
+					pins = "gpio43";
+					function = "wifi_wci1";
+					bias-pull-up;
+					drive-strength = <6>;
+				};
+			};
 		};
 
 		serial@78af000 {
@@ -215,6 +236,11 @@
 
 		usb2: usb2@6000000 {
 			status = "ok";
+		};
+
+		wifi1: wifi@a800000 {
+			pinctrl-0 = <&wifi1_0_pins>;
+			pinctrl-names = "default";
 		};
 
 		i2c_0: i2c@78b7000 { /* BLSP1 QUP2 */
