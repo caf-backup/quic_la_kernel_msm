@@ -1107,7 +1107,7 @@ remove_symbol_link:
 release_idr:
 	release_idr(&tz->idr, &tz->lock, dev->id);
 free_mem:
-	kfree(dev);
+	devm_kfree(&cdev->device, dev);
 	return result;
 }
 EXPORT_SYMBOL_GPL(thermal_zone_bind_cooling_device);
@@ -1368,7 +1368,6 @@ void thermal_cooling_device_unregister(struct thermal_cooling_device *cdev)
 
 	release_idr(&thermal_cdev_idr, &thermal_idr_lock, cdev->id);
 	device_unregister(&cdev->device);
-	kfree(cdev);
 
 	return;
 }
