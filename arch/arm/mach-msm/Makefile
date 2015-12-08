@@ -76,7 +76,6 @@ ifndef CONFIG_ARCH_MSM8X60
 ifndef CONFIG_ARCH_APQ8064
 	obj-y += nand_partitions.o
 	obj-$(CONFIG_SPI_QUP) += sf_partitions.o
-	obj-y += bootconfig_partition.o
 endif
 endif
 endif

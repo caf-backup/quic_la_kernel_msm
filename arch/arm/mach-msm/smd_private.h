@@ -337,21 +337,25 @@ struct msm_ptbl_entry {
 #ifdef CONFIG_ARCH_IPQ806X
 #define SMEM_LINUX_FS_PARTS					\
 	{							\
-		"0:SBL1",	"0:MIBIB",	"0:BOOTCONFIG",	\
-		"0:SBL2",	"0:SBL3",	"0:DDRCONFIG",	\
-		"0:SSD",	"0:TZ",		"0:RPM",	\
-		"0:APPSBL",	"0:APPSBL_1",	"0:APPSBLENV",	\
-		"0:ART",	"0:VENDORDATA", "0:HLOS",	\
-		"rootfs",       "rootfs_1"			\
+		"0:SBL1",	 "0:MIBIB",	"0:BOOTCONFIG",	\
+		"0:BOOTCONFIG1", "0:SBL2",	"0:SBL2_1",	\
+		"0:SBL3",	 "0:SBL3_1",	"0:DDRCONFIG",	\
+		"0:DDRCONFIG_1", "0:SSD",	"0:TZ",		\
+		"0:TZ_1",	 "0:RPM",	"0:RPM_1",	\
+		"0:APPSBL",	 "0:APPSBL_1",	"0:APPSBLENV",	\
+		"0:ART",	 "0:VENDORDATA", "0:HLOS",	\
+		"rootfs",        "rootfs_1"			\
 	}
 #define SMEM_LINUX_MTD_NAME					\
 	{							\
-		"SBL1",		"MIBIB",	"BOOTCONFIG",	\
-		"SBL2",		"SBL3",		"DDRCONFIG",		\
-		"SSD",		"TZ",		"RPM",		\
-		"APPSBL",	"APPSBL_1",	"APPSBLENV",	\
-		"ART",		"vendordata",   "kernel",	\
-		"rootfs",	"rootfs_1"			\
+		"SBL1",		 "MIBIB",	"BOOTCONFIG",	\
+		"BOOTCONFIG1",   "SBL2",	"SBL2_1",	\
+		"SBL3",		 "SBL3_1",	"DDRCONFIG",	\
+		"DDRCONFIG_1",	 "SSD",		"TZ",		\
+		"TZ_1",		 "RPM",		"RPM_1",	\
+		"APPSBL",	 "APPSBL_1",	"APPSBLENV",	\
+		"ART",		 "vendordata",   "kernel",	\
+		"rootfs",	 "rootfs_1"			\
 	}
 
 #else
