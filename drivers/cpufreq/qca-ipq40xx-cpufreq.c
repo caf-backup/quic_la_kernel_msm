@@ -29,12 +29,15 @@ enum efreq_lvl {
 	L0, L1, L2, L3, L_INVALID
 };
 
+#define freq_entry(a, b, c)	\
+	{ .flags = a, .driver_data = b, .frequency = c, }
+
 static struct cpufreq_frequency_table qca_ipq40xx_freq_table[] = {
-	{L0, 626000},
-	{L1, 500000},
-	{L2, 200000},
-	{L3, 48000},
-	{L_INVALID, CPUFREQ_TABLE_END},
+	freq_entry(0,	L0,		626000),
+	freq_entry(0,	L1,		500000),
+	freq_entry(0,	L2,		200000),
+	freq_entry(0,	L3,		48000),
+	freq_entry(0,	L_INVALID,	CPUFREQ_TABLE_END),
 };
 
 static unsigned int transition_latency;
