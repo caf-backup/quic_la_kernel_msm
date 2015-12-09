@@ -82,6 +82,9 @@ extern void ppp_release_channels(struct ppp_channel *channels[], unsigned int ch
 /* Hold PPP channels for the PPP device */
 extern int ppp_hold_channels(struct net_device *dev, struct ppp_channel *channels[], unsigned int chan_sz);
 
+/* Hold PPP channels for the PPP device */
+extern int __ppp_hold_channels(struct net_device *dev, struct ppp_channel *channels[], unsigned int chan_sz);
+
 /* Test if the ppp device is a multi-link ppp device */
 extern int ppp_is_multilink(struct net_device *dev);
 
