@@ -972,4 +972,4 @@ static void msm_pcie_fixup_final(struct pci_dev *dev)
 	if (err)
 		pr_err("pcie config write failed %d\n", err);
 }
-DECLARE_PCI_FIXUP_FINAL(PCIE_VENDOR_ID_RCP, PCIE_DEVICE_ID_RCP, msm_pcie_fixup_final);
+DECLARE_PCI_FIXUP_FINAL(PCI_ANY_ID, PCI_ANY_ID, msm_pcie_fixup_final);
