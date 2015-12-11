@@ -551,6 +551,7 @@ struct usb_device {
 #ifdef CONFIG_PM
 	unsigned long connect_time;
 
+	unsigned force_remote_wakeup:1;
 	unsigned do_remote_wakeup:1;
 	unsigned reset_resume:1;
 #endif

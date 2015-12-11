@@ -2950,6 +2950,12 @@ int usb_remote_wakeup(struct usb_device *udev)
 		clear_bit(HCD_FLAG_WAKEUP_PENDING, &hcd->flags);
 	}
 
+	if (udev->force_remote_wakeup) {
+	   status = usb_resume(&udev->dev, PMSG_RESUME);
+	   dev_info(&udev->dev, "usb force wakeup: Resume status=%d\n", status);
+	   udev->force_remote_wakeup = 0;
+	}
+
 	return status;
 }
 
