@@ -2726,6 +2726,7 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 	usb_mark_last_busy(hub->hdev);
 	return status;
 }
+EXPORT_SYMBOL_GPL(usb_port_suspend);
 
 /*
  * If the USB "suspend" state is in use (rather than "global suspend"),
@@ -2929,6 +2930,7 @@ int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 
 	return status;
 }
+EXPORT_SYMBOL_GPL(usb_port_resume);
 
 /* caller has locked udev */
 int usb_remote_wakeup(struct usb_device *udev)

@@ -583,6 +583,8 @@ extern struct usb_device *usb_find_device_by_name(const char *name);
 
 /* USB autosuspend and autoresume */
 #ifdef CONFIG_USB_SUSPEND
+extern int usb_port_suspend(struct usb_device *dev, pm_message_t msg);
+extern int usb_port_resume(struct usb_device *dev, pm_message_t msg);
 extern void usb_enable_autosuspend(struct usb_device *udev);
 extern void usb_disable_autosuspend(struct usb_device *udev);
 
