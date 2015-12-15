@@ -286,7 +286,6 @@
 		};
 
 		nss0: nss@40000000 {
-			compatible = "qcom,nss0";
 			pinctrl-names = "default";
 			interrupts = <GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH
 				GIC_SPI 232 IRQ_TYPE_LEVEL_HIGH>;
@@ -304,9 +303,6 @@
 			qcom,rst_addr = <0x40000000>;
 			qcom,load_addr = <0x40000000>;
 			qcom,turbo_frequency = <1>;
-			qcom,low_frequency = <110000000>;
-			qcom,mid_frequency = <550000000>;
-			qcom,max_frequency = <733000000>;
 			qcom,ipv4_enabled = <1>;
 			qcom,ipv6_enabled = <1>;
 			qcom,l2switch_enabled = <1>;

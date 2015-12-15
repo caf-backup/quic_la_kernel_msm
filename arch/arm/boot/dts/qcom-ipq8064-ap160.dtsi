@@ -370,7 +370,6 @@
 		};
 
 		nss0: nss@40000000 {
-			compatible = "qcom,nss0";
 			interrupts = <GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH
 				      GIC_SPI 232 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0x36000000 0x1000 0x39000000 0x20000>;
@@ -387,9 +386,6 @@
 			qcom,rst_addr = <0x40000000>;
 			qcom,load_addr = <0x40000000>;
 			qcom,turbo_frequency = <0>;
-			qcom,low_frequency = <110000000>;
-			qcom,mid_frequency = <550000000>;
-			qcom,max_frequency = <733000000>;
 			qcom,ipv4_enabled = <1>;
 			qcom,ipv6_enabled = <1>;
 			qcom,l2switch_enabled = <1>;
@@ -410,7 +406,6 @@
 		};
 
 		nss1: nss@40800000 {
-			compatible = "qcom,nss1";
 			interrupts = <GIC_SPI 214 IRQ_TYPE_LEVEL_HIGH
 				      GIC_SPI 233 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0x36400000 0x1000 0x39010000 0x10000>;
@@ -425,9 +420,6 @@
 			qcom,rst_addr = <0x40800000>;
 			qcom,load_addr = <0x40800000>;
 			qcom,turbo_frequency = <1>;
-			qcom,low_frequency = <110000000>;
-			qcom,mid_frequency = <550000000>;
-			qcom,max_frequency = <733000000>;
 			qcom,ipv4_enabled = <0>;
 			qcom,ipv6_enabled = <0>;
 			qcom,l2switch_enabled = <0>;
