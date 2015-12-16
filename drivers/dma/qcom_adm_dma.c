@@ -400,7 +400,7 @@ int msm_dmov_exec_cmd(unsigned id, unsigned int cmdptr)
 	init_completion(&cmd.complete);
 
 	__msm_dmov_enqueue_cmd_ext(id, &cmd.dmov_cmd);
-	wait_for_completion_timeout(&cmd.complete, msecs_to_jiffies(1000));
+	wait_for_completion(&cmd.complete);
 	flush_work(&cmd.dmov_cmd.work);
 
 	if (cmd.result != 0x80000002) {
