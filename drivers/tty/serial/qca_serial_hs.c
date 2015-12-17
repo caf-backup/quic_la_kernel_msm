@@ -1760,6 +1760,9 @@ static void qca_hs_start_tx_locked(struct uart_port *uport)
 	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
 	struct msm_hs_tx *tx = &msm_uport->tx;
 
+	if (uart_circ_empty(&uport->state->xmit))
+		return;
+
 	/* Bail if transfer in progress */
 	if (tx->flush < FLUSH_STOP || tx->dma_in_flight) {
 		MSM_HS_DBG("%s(): retry, flush %d, dma_in_flight %d\n",
