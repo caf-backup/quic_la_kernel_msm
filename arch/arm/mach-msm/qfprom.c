@@ -67,8 +67,8 @@ qfprom_show_version(struct sys_device *dev,
 			struct sysdev_attribute *attr,
 			char *buf)
 {
-	uint64_t version;
-	uint32_t qfprom_api_status;
+	uint64_t version = 0;
+	uint32_t qfprom_api_status = 0;
 	int32_t ret;
 
 	struct qfprom_read_ip {
@@ -101,7 +101,7 @@ qfprom_store_version(struct sys_device *dev,
 			const char *buf, size_t count)
 {
 	uint64_t version;
-	uint32_t qfprom_api_status;
+	uint32_t qfprom_api_status = 0;
 	int32_t ret;
 
 	struct qfprom_write_ip {
