@@ -659,7 +659,7 @@ static void msm_hsl_set_baud_rate(struct uart_port *port, unsigned int baud)
 	 * whereas it is consider to be in Bytes for UART Core.
 	 * Hence configuring Rx Watermark as 12 Words.
 	 */
-	watermark = (port->fifosize * 3) / (4*4);
+	watermark = (port->fifosize * 3) / 4;
 	msm_hsl_write(port, watermark, regmap[vid][UARTDM_RFWR]);
 
 	/* set TX watermark */
@@ -750,7 +750,6 @@ static int msm_hsl_startup(struct uart_port *port)
 	 * Use rfr_level value in Words to program
 	 * MR1 register for UARTDM Core.
 	 */
-	rfr_level = (rfr_level / 4);
 
 	spin_lock_irqsave(&port->lock, flags);
 
@@ -1239,8 +1238,7 @@ static int msm_hsl_console_setup(struct console *co, char *options)
 	mr2 |= UARTDM_MR2_RX_ERROR_CHAR_OFF;
 	mr2 |= UARTDM_MR2_RX_BREAK_ZERO_CHAR_OFF;
 	msm_hsl_write(port, mr2, regmap[vid][UARTDM_MR2]);
-
-	msm_hsl_reset(port);
+	msm_hsl_write(port, RESET_RX, regmap[vid][UARTDM_CR]);
 	/* Enable transmitter */
 	msm_hsl_write(port, CR_PROTECTION_EN, regmap[vid][UARTDM_CR]);
 	msm_hsl_write(port, UARTDM_CR_TX_EN_BMSK, regmap[vid][UARTDM_CR]);
