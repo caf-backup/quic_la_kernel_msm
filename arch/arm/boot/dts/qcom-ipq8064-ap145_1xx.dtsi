@@ -265,11 +265,6 @@
 					drive-strength = <8>;
 					bias-disable;
 				};
-
-				tx {
-					pins = "gpio27", "gpio28", "gpio29", "gpio30", "gpio31", "gpio32" ;
-					input-disable;
-				};
 			};
 		};
 
