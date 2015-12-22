@@ -159,7 +159,13 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, wdt);
 	wdt->dev = &pdev->dev;
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	wdt->base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
+	if (res)
+		wdt->base = devm_ioremap(&pdev->dev, res->start,
+					resource_size(res));
+	else {
+		dev_err(&pdev->dev, "Invalid mem resource.\n");
+		return -ENODEV;
+	}
 	if (IS_ERR(wdt->base))
 		return PTR_ERR(wdt->base);
 
