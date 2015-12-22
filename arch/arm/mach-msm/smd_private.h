@@ -354,7 +354,7 @@ struct msm_ptbl_entry {
 		"DDRCONFIG_1",	 "SSD",		"TZ",		\
 		"TZ_1",		 "RPM",		"RPM_1",	\
 		"APPSBL",	 "APPSBL_1",	"APPSBLENV",	\
-		"ART",		 "vendordata",   "kernel",	\
+		"ART",		 "vendordata",	"HLOS",		\
 		"rootfs",	 "rootfs_1"			\
 	}
 
