@@ -296,8 +296,8 @@ static void mmci_set_clkreg(struct mmci_host *host, unsigned int desired)
 
 		clk |= variant->clkreg_enable;
 		clk |= MCI_CLK_ENABLE;
-		/* This hasn't proven to be worthwhile */
-		/* clk |= MCI_CLK_PWRSAVE; */
+		/* Enable power save mode (needed for UHS card support) */
+		clk |= MCI_CLK_PWRSAVE;
 	}
 
 	/* Set actual clock for debug */
