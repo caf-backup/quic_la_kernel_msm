@@ -170,6 +170,7 @@ struct sk_buff *__alloc_skb_head(gfp_t gfp_mask, int node)
 				    gfp_mask & ~__GFP_DMA, node);
 	if (!skb)
 		goto out;
+	skbuff_debugobj_init_and_activate(skb);
 
 	/*
 	 * Only clear those fields we need to clear, not those that we will
@@ -182,7 +183,6 @@ struct sk_buff *__alloc_skb_head(gfp_t gfp_mask, int node)
 	atomic_set(&skb->users, 1);
 
 	skb->mac_header = (typeof(skb->mac_header))~0U;
-	skbuff_debugobj_init_and_activate(skb);
 out:
 	return skb;
 }
@@ -223,6 +223,7 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 	skb = kmem_cache_alloc_node(cache, gfp_mask & ~__GFP_DMA, node);
 	if (!skb)
 		goto out;
+	skbuff_debugobj_init_and_activate(skb);
 	prefetchw(skb);
 
 	/* We do our best to align skb_shared_info on a separate cache
@@ -277,10 +278,10 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 		fclones->skb2.fclone = SKB_FCLONE_CLONE;
 		fclones->skb2.pfmemalloc = pfmemalloc;
 	}
-	skbuff_debugobj_init_and_activate(skb);
 out:
 	return skb;
 nodata:
+	skbuff_debugobj_deactivate(skb);
 	kmem_cache_free(cache, skb);
 	skb = NULL;
 	goto out;
@@ -315,6 +316,7 @@ struct sk_buff *__build_skb(void *data, unsigned int frag_size)
 	skb = kmem_cache_alloc(skbuff_head_cache, GFP_ATOMIC);
 	if (!skb)
 		return NULL;
+	skbuff_debugobj_init_and_activate(skb);
 
 	size -= SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
@@ -333,8 +335,6 @@ struct sk_buff *__build_skb(void *data, unsigned int frag_size)
 	memset(shinfo, 0, offsetof(struct skb_shared_info, dataref));
 	atomic_set(&shinfo->dataref, 1);
 	kmemcheck_annotate_variable(shinfo->destructor_arg);
-
-	skbuff_debugobj_init_and_activate(skb);
 
 	return skb;
 }
@@ -1025,10 +1025,10 @@ struct sk_buff *skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 		n = kmem_cache_alloc(skbuff_head_cache, gfp_mask);
 		if (!n)
 			return NULL;
+		skbuff_debugobj_init_and_activate(n);
 
 		kmemcheck_annotate_bitfield(n, flags1);
 		n->fclone = SKB_FCLONE_UNAVAILABLE;
-		skbuff_debugobj_init_and_activate(n);
 	}
 
 	return __skb_clone(n, skb);
@@ -4186,8 +4186,8 @@ void kfree_skb_partial(struct sk_buff *skb, bool head_stolen)
 {
 	if (head_stolen) {
 		skb_release_head_state(skb);
-		kmem_cache_free(skbuff_head_cache, skb);
 		skbuff_debugobj_deactivate(skb);
+		kmem_cache_free(skbuff_head_cache, skb);
 	} else {
 		__kfree_skb(skb);
 	}
