@@ -714,6 +714,7 @@ struct sk_buff {
 #define DEBUG_OBJECTS_SKBUFF_STACKSIZE	20
 	void			*free_addr[DEBUG_OBJECTS_SKBUFF_STACKSIZE];
 	void			*alloc_addr[DEBUG_OBJECTS_SKBUFF_STACKSIZE];
+	u32			sum;
 #endif
 };
 

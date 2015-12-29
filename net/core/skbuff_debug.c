@@ -22,6 +22,17 @@
 
 static int skbuff_debugobj_enabled __read_mostly = 1;
 
+inline u32 skbuff_debugobj_sum(struct sk_buff *skb)
+{
+	int pos = offsetof(struct sk_buff, free_addr);
+	u32 sum = 0;
+
+	while (pos--)
+		sum += ((u8 *)skb)[pos];
+
+	return sum;
+}
+
 struct skbuff_debugobj_walking {
 	int pos;
 	void **d;
@@ -93,8 +104,8 @@ static int skbuff_debugobj_fixup(void *addr, enum debug_obj_state state)
 {
 	struct sk_buff *skb = (struct sk_buff *)addr;
 	ftrace_dump(DUMP_ALL);
-	WARN(1, "skbuff_debug: state = %d, skb = 0x%p\n",
-	     state, skb);
+	WARN(1, "skbuff_debug: state = %d, skb = 0x%p sum = %d (%d)\n",
+	     state, skb, skb->sum, skbuff_debugobj_sum(skb));
 	skbuff_debugobj_print_skb(skb);
 
 	return 0;
@@ -120,12 +131,15 @@ inline void skbuff_debugobj_activate(struct sk_buff *skb)
 	if (ret)
 		goto err_act;
 
-	return;
+	if (skb->sum == skbuff_debugobj_sum(skb))
+		return;
+
+	pr_emerg("skb_debug: skb changed while deactive\n");
 
 err_act:
 	ftrace_dump(DUMP_ALL);
-	WARN(1, "skb_debug: failed to activate err = %d skb = 0x%p\n",
-	     ret, skb);
+	WARN(1, "skb_debug: failed to activate err = %d skb = 0x%p sum = %d (%d)\n",
+	     ret, skb, skb->sum, skbuff_debugobj_sum(skb));
 	skbuff_debugobj_print_skb(skb);
 }
 
@@ -133,6 +147,11 @@ inline void skbuff_debugobj_init_and_activate(struct sk_buff *skb)
 {
 	if (!skbuff_debugobj_enabled)
 		return;
+
+	/* if we're coming from the slab, the skb->sum might
+	 * be invalid anyways
+	 */
+	skb->sum = skbuff_debugobj_sum(skb);
 
 	debug_object_init(skb, &skbuff_debug_descr);
 	skbuff_debugobj_activate(skb);
@@ -145,6 +164,8 @@ inline void skbuff_debugobj_deactivate(struct sk_buff *skb)
 	if (!skbuff_debugobj_enabled)
 		return;
 
+	skb->sum = skbuff_debugobj_sum(skb);
+
 	obj_state = debug_object_get_state(skb);
 
 	skbuff_debugobj_get_stack(skb->free_addr);
@@ -154,8 +175,8 @@ inline void skbuff_debugobj_deactivate(struct sk_buff *skb)
 	}
 
 	ftrace_dump(DUMP_ALL);
-	WARN(1, "skbuff_debug: deactivating inactive object skb=0x%p state=%d\n",
-	     skb, obj_state);
+	WARN(1, "skbuff_debug: deactivating inactive object skb=0x%p state=%d sum = %d (%d)\n",
+	     skb, obj_state, skb->sum, skbuff_debugobj_sum(skb));
 	skbuff_debugobj_print_skb(skb);
 }
 
