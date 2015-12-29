@@ -964,7 +964,7 @@
 				non-removable;
 				cap-sd-highspeed;
 				cap-mmc-highspeed;
-				vmmc-supply = <&vsdcc_fixed>;
+				vqmmc-supply = <&vsdcc_fixed>;
 				#dmas = <&sdcc1bam 2>, <&sdcc1bam 1>;
 				#dma-names = "tx", "rx";
 			};
@@ -985,7 +985,7 @@
 				#mmc-ddr-1_8v;
 				sd-uhs-sdr104;
 				sd-uhs-ddr50;
-				vmmc-supply = <&vsdcc_fixed>;
+				vqmmc-supply = <&vsdcc_fixed>;
 				#dmas = <&sdcc3bam 2>, <&sdcc3bam 1>;
 				#dma-names = "tx", "rx";
 			};

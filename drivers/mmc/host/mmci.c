@@ -1406,6 +1406,7 @@ static int mmci_get_cd(struct mmc_host *mmc)
 
 static int mmci_sig_volt_switch(struct mmc_host *mmc, struct mmc_ios *ios)
 {
+	struct mmci_host *host = mmc_priv(mmc);
 	int ret = 0;
 	if (!IS_ERR(mmc->supply.vqmmc)) {
 
@@ -1413,11 +1414,17 @@ static int mmci_sig_volt_switch(struct mmc_host *mmc, struct mmc_ios *ios)
 
 		switch (ios->signal_voltage) {
 		case MMC_SIGNAL_VOLTAGE_330:
-			ret = regulator_set_voltage(mmc->supply.vqmmc,
+			if (gpio_is_valid(host->variant->qcom_uhs_gpio))
+				ret = mmci_qcom_set_uhs_gpio(mmc, 0);
+			else
+				ret = regulator_set_voltage(mmc->supply.vqmmc,
 						2700000, 3600000);
 			break;
 		case MMC_SIGNAL_VOLTAGE_180:
-			ret = regulator_set_voltage(mmc->supply.vqmmc,
+			if (gpio_is_valid(host->variant->qcom_uhs_gpio))
+				ret = mmci_qcom_set_uhs_gpio(mmc, 1);
+			else
+				ret = regulator_set_voltage(mmc->supply.vqmmc,
 						1700000, 1950000);
 			break;
 		case MMC_SIGNAL_VOLTAGE_120:

@@ -589,6 +589,66 @@ void mmci_qcom_ddr_tuning(struct mmci_host *host)
 
 }
 
+int mmci_qcom_set_uhs_gpio(struct mmc_host *mmc, unsigned int val)
+{
+	struct mmci_host *host = mmc_priv(mmc);
+	unsigned long flags = 0;
+	int rc = 0;
+
+	spin_lock_irqsave(&host->lock, flags);
+
+	/* Stop SD CLK output. */
+	writel_relaxed((readl_relaxed(host->base + MMCICLOCK) |
+			MCI_CLK_PWRSAVE), host->base + MMCICLOCK);
+	udelay(30);
+
+	spin_unlock_irqrestore(&host->lock, flags);
+
+	/*
+	 * Switch VDD Io from high voltage range (2.7v - 3.6v) to
+	 * low voltage range (1.7v - 1.95v).
+	 */
+	rc = gpio_direction_output(host->variant->qcom_uhs_gpio, val);
+	if (rc) {
+		pr_err("gpio direction failed\n");
+		gpio_free(host->variant->qcom_uhs_gpio);
+		rc = -EAGAIN;
+		goto out;
+	}
+	spin_lock_irqsave(&host->lock, flags);
+	writel_relaxed((readl_relaxed(host->base + MMCICLOCK)
+			| MCI_QCOM_IO_PAD_PWR_SWITCH), host->base
+			+ MMCICLOCK);
+	spin_unlock_irqrestore(&host->lock, flags);
+
+	/* Wait 5 ms for the voltage regulater in the card to become stable. */
+	usleep_range(5000, 5500);
+
+	spin_lock_irqsave(&host->lock, flags);
+	/* Disable PWRSAVE would make sure that SD CLK is always running */
+	writel_relaxed((readl_relaxed(host->base + MMCICLOCK)
+			& ~MCI_CLK_PWRSAVE), host->base + MMCICLOCK);
+	udelay(30);
+	spin_unlock_irqrestore(&host->lock, flags);
+
+	/*
+	 * If MCIDATIN_3_0 and MCICMDIN bits of MCI_TEST_INPUT register
+	 * don't become all ones within 1 ms then a Voltage Switch
+	 * sequence has failed and a power cycle to the card is required.
+	 * Otherwise Voltage Switch sequence is completed successfully.
+	 */
+	usleep_range(1000, 1500);
+
+	spin_lock_irqsave(&host->lock, flags);
+	/* Enable PWRSAVE */
+	writel_relaxed((readl_relaxed(host->base + MMCICLOCK) |
+			MCI_CLK_PWRSAVE), host->base + MMCICLOCK);
+	udelay(30);
+	spin_unlock_irqrestore(&host->lock, flags);
+out:
+	return rc;
+}
+
 void set_default_hw_caps(struct mmci_host *host)
 {
 	u32 version;
@@ -624,7 +684,6 @@ void set_default_hw_caps(struct mmci_host *host)
 int mmci_qtune_init(struct mmci_host *host, struct device_node *np)
 {
 	uint32_t gpio;
-	int ret;
 
 	if (of_property_read_u32(np, "qcom-uhs-gpio", &gpio))
 		host->variant->qcom_uhs_gpio = -1;
@@ -634,18 +693,6 @@ int mmci_qtune_init(struct mmci_host *host, struct device_node *np)
 	set_default_hw_caps(host);
 
 	host->variant->saved_tuning_phase = INVALID_TUNING_PHASE;
-
-	if (gpio_is_valid(host->variant->qcom_uhs_gpio)) {
-		ret = gpio_direction_output(host->variant->qcom_uhs_gpio, 1);
-		if (ret) {
-			pr_err("gpio direction failed\n");
-			gpio_free(host->variant->qcom_uhs_gpio);
-			return ret;
-		}
-		writel_relaxed((readl_relaxed(host->base + MMCICLOCK) |
-				MCI_QCOM_IO_PAD_PWR_SWITCH),
-				host->base + MMCICLOCK);
-	}
 
 	return 0;
 }
