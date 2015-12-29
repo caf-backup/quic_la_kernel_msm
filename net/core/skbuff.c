@@ -186,6 +186,7 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 	skb = kmem_cache_alloc_node(cache, gfp_mask & ~__GFP_DMA, node);
 	if (!skb)
 		goto out;
+	skbuff_debugobj_init_and_activate(skb);
 	prefetchw(skb);
 
 	/* We do our best to align skb_shared_info on a separate cache
@@ -239,7 +240,6 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 
 		child->fclone = SKB_FCLONE_UNAVAILABLE;
 	}
-	skbuff_debugobj_init_and_activate(skb);
 out:
 	return skb;
 nodata:
@@ -274,6 +274,7 @@ struct sk_buff *build_skb(void *data)
 	skb = kmem_cache_alloc(skbuff_head_cache, GFP_ATOMIC);
 	if (!skb)
 		return NULL;
+	skbuff_debugobj_init_and_activate(skb);
 
 	size = ksize(data) - SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
@@ -293,8 +294,6 @@ struct sk_buff *build_skb(void *data)
 	memset(shinfo, 0, offsetof(struct skb_shared_info, dataref));
 	atomic_set(&shinfo->dataref, 1);
 	kmemcheck_annotate_variable(shinfo->destructor_arg);
-
-	skbuff_debugobj_init_and_activate(skb);
 
 	return skb;
 }
@@ -847,11 +846,11 @@ struct sk_buff *skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 		n = kmem_cache_alloc(skbuff_head_cache, gfp_mask);
 		if (!n)
 			return NULL;
+		skbuff_debugobj_init_and_activate(n);
 
 		kmemcheck_annotate_bitfield(n, flags1);
 		kmemcheck_annotate_bitfield(n, flags2);
 		n->fclone = SKB_FCLONE_UNAVAILABLE;
-		skbuff_debugobj_init_and_activate(n);
 	}
 
 	return __skb_clone(n, skb);
