@@ -29,6 +29,7 @@
 
 #include <uapi/linux/psci.h>
 
+#include <asm/cacheflush.h>
 #include <asm/cpuidle.h>
 #include <asm/cputype.h>
 #include <asm/system_misc.h>
@@ -255,7 +256,11 @@ static int get_set_conduit_method(struct device_node *np)
 static void psci_sys_reset(enum reboot_mode reboot_mode, const char *cmd)
 {
 	// HACK!
-	void __iomem *pshold = ioremap(0xC264000, 4);
+	void __iomem *pshold;
+
+	flush_cache_all();
+
+	pshold = ioremap(0xC264000, 4);
 	writel(0, pshold);
 
 	invoke_psci_fn(PSCI_0_2_FN_SYSTEM_RESET, 0, 0, 0);
