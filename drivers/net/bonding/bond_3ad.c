@@ -125,18 +125,23 @@ static void ad_marker_response_received(struct bond_marker *marker,
 /*------------------------------- Exported APIs -----------------------------*/
 static struct bond_cb nss_cb;
 struct bond_cb *bond_cb;
+DEFINE_SPINLOCK(bond_cb_lock);
 
 void bond_register_cb(struct bond_cb *cb)
 {
+	spin_lock_bh(&bond_cb_lock);
 	memcpy((void *)&nss_cb, (void *)cb, sizeof(*cb));
 	bond_cb = &nss_cb;
+	spin_unlock_bh(&bond_cb_lock);
 }
 EXPORT_SYMBOL(bond_register_cb);
 
 void bond_unregister_cb(void)
 {
+	spin_lock_bh(&bond_cb_lock);
 	bond_cb = NULL;
 	memset((void *)&nss_cb, 0, sizeof(nss_cb));
+	spin_unlock_bh(&bond_cb_lock);
 }
 EXPORT_SYMBOL(bond_unregister_cb);
 
