@@ -393,6 +393,7 @@
 			qcom,ipsec_enabled = <0>;
 			qcom,wlanredirect_enabled = <1>;
 			qcom,tun6rd_enabled = <1>;
+			qcom,map_t_enabled = <1>;
 			qcom,l2tpv2_enabled = <1>;
 			qcom,pptp_enabled = <1>;
 			qcom,portid_enabled = <1>;
@@ -427,6 +428,7 @@
 			qcom,ipsec_enabled = <1>;
 			qcom,wlanredirect_enabled = <0>;
 			qcom,tun6rd_enabled = <0>;
+			qcom,map_t_enabled = <0>;
 			qcom,l2tpv2_enabled = <0>;
 			qcom,pptp_enabled = <0>;
 			qcom,portid_enabled = <0>;
