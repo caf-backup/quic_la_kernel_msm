@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 - 2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014 - 2016, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -272,7 +272,7 @@ static void edma_init_desc(struct edma_common_info *edma_cinfo)
 {
 	struct edma_rfd_desc_ring *rfd_ring;
 	struct edma_tx_desc_ring *etdr;
-	int i = 0;
+	int i = 0, j = 0;
 	volatile u32 data = 0;
 	u16 hw_cons_idx = 0;
 
@@ -303,13 +303,12 @@ static void edma_init_desc(struct edma_common_info *edma_cinfo)
 			(u32)(edma_cinfo->tx_ring_count & EDMA_TPD_RING_SIZE_MASK));
 	}
 
-	for (i = 0; i < edma_cinfo->num_rx_queues; i++) {
-		rfd_ring = edma_cinfo->rfd_ring[i];
-
+	for (i = 0, j = 0; i < edma_cinfo->num_rx_queues; i++) {
+		rfd_ring = edma_cinfo->rfd_ring[j];
 		/* Update Receive Free descriptor ring base address */
-		edma_write_reg(EDMA_REG_RFD_BASE_ADDR_Q(i),
+		edma_write_reg(EDMA_REG_RFD_BASE_ADDR_Q(j),
 			(u32)(rfd_ring->dma & 0xffffffff));
-
+		j += ((edma_cinfo->num_rx_queues == 4) ? 2 : 1);
 	}
 
 	if (unlikely(edma_cinfo->page_mode))
@@ -394,6 +393,7 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 	u16 count = erdr->count, rfd_avail;
 	u8 queue_to_rxid[8] = {0, 0, 1, 1, 2, 2, 3, 3};
 	sw_next_to_clean = erdr->sw_next_to_clean;
+
         edma_read_reg(EDMA_REG_RFD_IDX_Q(queue_id), &data);
         hw_next_to_clean = (data >> EDMA_RFD_CONS_IDX_SHIFT) &
                         EDMA_RFD_CONS_IDX_MASK;
@@ -1528,14 +1528,15 @@ void edma_free_tx_resources(struct edma_common_info *edma_cinfo)
 int edma_alloc_rx_rings(struct edma_common_info *edma_cinfo)
 {
 	struct platform_device *pdev = edma_cinfo->pdev;
-	int i, err = 0;
+	int i, j, err = 0;
 
-	for (i = 0; i < edma_cinfo->num_rx_queues; i++) {
-		err = edma_alloc_rx_ring(edma_cinfo, edma_cinfo->rfd_ring[i]);
+	for (i = 0, j = 0; i < edma_cinfo->num_rx_queues; i++) {
+		err = edma_alloc_rx_ring(edma_cinfo, edma_cinfo->rfd_ring[j]);
 		if (err) {
 			dev_err(&pdev->dev, "Rx Queue alloc%u failed\n", i);
 			return err;
 		}
+		j += ((edma_cinfo->num_rx_queues == 4) ? 2 : 1);
 	}
 
 	return 0;
@@ -1547,10 +1548,12 @@ int edma_alloc_rx_rings(struct edma_common_info *edma_cinfo)
  */
 void edma_free_rx_rings(struct edma_common_info *edma_cinfo)
 {
-	int i;
+	int i, j;
 
-	for (i = 0; i < edma_cinfo->num_rx_queues; i++)
-		edma_free_rx_ring(edma_cinfo, edma_cinfo->rfd_ring[i]);
+	for (i = 0, j = 0; i < edma_cinfo->num_rx_queues; i++) {
+		edma_free_rx_ring(edma_cinfo, edma_cinfo->rfd_ring[j]);
+		j += ((edma_cinfo->num_rx_queues == 4) ? 2 : 1);
+	}
 }
 
 /*
@@ -1559,7 +1562,7 @@ void edma_free_rx_rings(struct edma_common_info *edma_cinfo)
  */
 void edma_free_queues(struct edma_common_info *edma_cinfo)
 {
-	int i;
+	int i , j;
 
 	for (i = 0; i < edma_cinfo->num_tx_queues; i++) {
 		if (edma_cinfo->tpd_ring[i])
@@ -1567,10 +1570,11 @@ void edma_free_queues(struct edma_common_info *edma_cinfo)
 		edma_cinfo->tpd_ring[i] = NULL;
 	}
 
-	for (i = 0; i < edma_cinfo->num_rx_queues; i++) {
-		if (edma_cinfo->rfd_ring[i])
-			kfree(edma_cinfo->rfd_ring[i]);
-		edma_cinfo->rfd_ring[i] = NULL;
+	for (i = 0, j = 0; i < edma_cinfo->num_rx_queues; i++) {
+		if (edma_cinfo->rfd_ring[j])
+			kfree(edma_cinfo->rfd_ring[j]);
+		edma_cinfo->rfd_ring[j] = NULL;
+		j += ((edma_cinfo->num_rx_queues == 4) ? 2 : 1);
 	}
 
 	edma_cinfo->num_rx_queues = 0;
@@ -1588,10 +1592,10 @@ void edma_free_rx_resources(struct edma_common_info *edma_cinfo)
         struct edma_rfd_desc_ring *erdr;
 	struct edma_sw_desc *sw_desc;
 	struct platform_device *pdev = edma_cinfo->pdev;
-	int i, j;
+	int i, j, k;
 
-	for (i = 0; i < edma_cinfo->num_rx_queues; i++) {
-		erdr = edma_cinfo->rfd_ring[i];
+	for (i = 0, k = 0; i < edma_cinfo->num_rx_queues; i++) {
+		erdr = edma_cinfo->rfd_ring[k];
 		for (j = 0; j < EDMA_RX_RING_SIZE; j++) {
 			sw_desc = &erdr->sw_desc[j];
 			if (likely(sw_desc->flags & EDMA_SW_DESC_FLAG_SKB_HEAD)) {
@@ -1604,6 +1608,8 @@ void edma_free_rx_resources(struct edma_common_info *edma_cinfo)
 				edma_clean_rfd(erdr, j);
 			}
 		}
+		k += ((edma_cinfo->num_rx_queues == 4) ? 2 : 1);
+
 	}
 }
 
@@ -1636,16 +1642,17 @@ err:
  */
 int edma_alloc_queues_rx(struct edma_common_info *edma_cinfo)
 {
-	int i;
+	int i, j;
 
-	for (i = 0; i < edma_cinfo->num_rx_queues; i++) {
+	for (i = 0, j = 0; i < edma_cinfo->num_rx_queues; i++) {
 		struct edma_rfd_desc_ring *rfd_ring;
 		rfd_ring = kzalloc(sizeof(struct edma_rfd_desc_ring),
 				GFP_KERNEL);
 		if (!rfd_ring)
 			goto err;
 		rfd_ring->count = edma_cinfo->rx_ring_count;
-		edma_cinfo->rfd_ring[i] = rfd_ring;
+		edma_cinfo->rfd_ring[j] = rfd_ring;
+		j += ((edma_cinfo->num_rx_queues == 4) ? 2 : 1);
 	}
 	return 0;
 err:
@@ -1662,7 +1669,7 @@ int edma_configure(struct edma_common_info *edma_cinfo)
 	struct edma_hw *hw = &edma_cinfo->hw;
 	u32 intr_modrt_data;
 	u32 intr_ctrl_data = 0;
-	int i, ret_count;
+	int i, j, ret_count;
 
 	edma_read_reg(EDMA_REG_INTR_CTRL, &intr_ctrl_data);
 	intr_ctrl_data &= ~(1 << EDMA_INTR_SW_IDX_W_TYP_SHIFT);
@@ -1684,12 +1691,13 @@ int edma_configure(struct edma_common_info *edma_cinfo)
 	edma_configure_rx(edma_cinfo);
 
 	/* Allocate the RX buffer */
-	for (i = 0; i < edma_cinfo->num_rx_queues; i++) {
-		struct edma_rfd_desc_ring *ring = edma_cinfo->rfd_ring[i];
-		ret_count = edma_alloc_rx_buf(edma_cinfo, ring, ring->count, i);
+	for (i = 0, j = 0; i < edma_cinfo->num_rx_queues; i++) {
+		struct edma_rfd_desc_ring *ring = edma_cinfo->rfd_ring[j];
+		ret_count = edma_alloc_rx_buf(edma_cinfo, ring, ring->count, j);
 		if (ret_count) {
 			dev_dbg(&edma_cinfo->pdev->dev, "not all rx buffers allocated\n");
 		}
+		j += ((edma_cinfo->num_rx_queues == 4) ? 2 : 1);
 	}
 
 	/* Configure descriptor Ring */
@@ -1704,11 +1712,13 @@ int edma_configure(struct edma_common_info *edma_cinfo)
 void edma_irq_enable(struct edma_common_info *edma_cinfo)
 {
 	struct edma_hw *hw = &edma_cinfo->hw;
-	int i;
+	int i, j;
 
 	edma_write_reg(EDMA_REG_RX_ISR, 0xFF);
-	for (i = 0; i < edma_cinfo->num_rx_queues; i++)
-		edma_write_reg(EDMA_REG_RX_INT_MASK_Q(i), hw->rx_intr_mask);
+	for (i = 0, j = 0; i < edma_cinfo->num_rx_queues; i++) {
+		edma_write_reg(EDMA_REG_RX_INT_MASK_Q(j), hw->rx_intr_mask);
+		j += ((edma_cinfo->num_rx_queues == 4) ? 2 : 1);
+	}
 	edma_write_reg(EDMA_REG_TX_ISR, 0xFFFF);
 	for (i = 0; i < edma_cinfo->num_tx_queues; i++)
 		edma_write_reg(EDMA_REG_TX_INT_MASK_Q(i), hw->tx_intr_mask);
@@ -1722,9 +1732,10 @@ void edma_irq_disable(struct edma_common_info *edma_cinfo)
 {
 	int i;
 
-	for (i = 0; i < edma_cinfo->num_rx_queues; i++)
+	for (i = 0; i < EDMA_MAX_RECEIVE_QUEUE; i++)
 		edma_write_reg(EDMA_REG_RX_INT_MASK_Q(i), 0x0);
-	for (i = 0; i < edma_cinfo->num_tx_queues; i++)
+
+	for (i = 0; i < EDMA_MAX_TRANSMIT_QUEUE; i++)
 		edma_write_reg(EDMA_REG_TX_INT_MASK_Q(i), 0x0);
 	edma_write_reg(EDMA_REG_MISC_IMR, 0);
 	edma_write_reg(EDMA_REG_WOL_IMR, 0);
@@ -1738,13 +1749,14 @@ void edma_free_irqs(struct edma_adapter *adapter)
 {
 	struct edma_common_info *edma_cinfo = adapter->edma_cinfo;
 	int i, j;
+	int k = ((edma_cinfo->num_rx_queues == 4) ? 1 : 2);
 
 	for (i = 0; i < EDMA_NR_CPU; i++) {
 		for (j = edma_cinfo->edma_percpu_info[i].tx_start; j < (edma_cinfo->edma_percpu_info[i].tx_start + 4); j++)
-			free_irq(edma_cinfo->tx_irq[j], adapter->netdev);
+			free_irq(edma_cinfo->tx_irq[j], &edma_cinfo->edma_percpu_info[i]);
 
-		for (j = edma_cinfo->edma_percpu_info[i].rx_start; j < (edma_cinfo->edma_percpu_info[i].rx_start + 2); j++)
-			free_irq(edma_cinfo->rx_irq[j], adapter->netdev);
+		for (j = edma_cinfo->edma_percpu_info[i].rx_start; j < (edma_cinfo->edma_percpu_info[i].rx_start + k); j++)
+			free_irq(edma_cinfo->rx_irq[j], &edma_cinfo->edma_percpu_info[i]);
 	}
 }
 
@@ -1799,9 +1811,9 @@ int edma_reset(struct edma_common_info *edma_cinfo)
 	struct edma_hw *hw = &edma_cinfo->hw;
 	int i;
 
-	for (i = 0; i < edma_cinfo->num_rx_queues; i++)
+	for (i = 0; i < EDMA_MAX_RECEIVE_QUEUE; i++)
 		edma_write_reg(EDMA_REG_RX_INT_MASK_Q(i), 0);
-	for (i = 0; i < edma_cinfo->num_tx_queues; i++)
+	for (i = 0; i < EDMA_MAX_TRANSMIT_QUEUE; i++)
 		edma_write_reg(EDMA_REG_TX_INT_MASK_Q(i), 0);
 	edma_write_reg(EDMA_REG_MISC_IMR, 0);
 	edma_write_reg(EDMA_REG_WOL_IMR, 0);
@@ -2036,9 +2048,9 @@ int edma_poll(struct napi_struct *napi, int budget)
 		napi_complete(napi);
 
 		/* re-enable the interrupts */
-		for (i = 0; i < 2; i++)
+		for (i = 0; i < edma_cinfo->num_rxq_per_core; i++)
 			edma_write_reg(EDMA_REG_RX_INT_MASK_Q(edma_percpu_info->rx_start + i), 0x1);
-		for (i = 0; i < 4; i++)
+		for (i = 0; i < edma_cinfo->num_txq_per_core; i++)
 			edma_write_reg(EDMA_REG_TX_INT_MASK_Q(edma_percpu_info->tx_start + i), 0x1);
 	}
 
@@ -2052,13 +2064,14 @@ int edma_poll(struct napi_struct *napi, int budget)
 irqreturn_t edma_interrupt(int irq, void *dev)
 {
 	struct edma_per_cpu_queues_info *edma_percpu_info = (struct edma_per_cpu_queues_info *) dev;
+	struct edma_common_info *edma_cinfo = edma_percpu_info->edma_cinfo;
 	int i;
 
 	/* Unmask the TX/RX interrupt register */
-	for (i = 0; i < 2; i++)
+	for (i = 0; i < edma_cinfo->num_rxq_per_core; i++)
 		edma_write_reg(EDMA_REG_RX_INT_MASK_Q(edma_percpu_info->rx_start + i), 0x0);
 
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < edma_cinfo->num_txq_per_core; i++)
 		edma_write_reg(EDMA_REG_TX_INT_MASK_Q(edma_percpu_info->tx_start + i), 0x0);
 
 	napi_schedule(&edma_percpu_info->napi);

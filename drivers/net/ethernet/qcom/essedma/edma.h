@@ -309,6 +309,8 @@ struct edma_common_info {
 	int edma_port_id_wan; /* wan port id */
 	int from_cpu; /* from CPU TPD field */
 	int dp_bitmap; /* port bitmap */
+	int num_rxq_per_core; /* Rx queues per core */
+	int num_txq_per_core; /* Tx queues per core */
 	u16 tx_ring_count; /* Tx ring count */
 	u16 rx_ring_count; /* Rx ring*/
 	u16 rx_head_buffer_len; /* rx buffer length */

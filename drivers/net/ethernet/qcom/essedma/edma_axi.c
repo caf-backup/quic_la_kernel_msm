@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 - 2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014 - 2016, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -47,13 +47,18 @@ int edma_weight_assigned_to_q __read_mostly;
 int edma_queue_to_virtual_q __read_mostly;
 bool edma_enable_rstp  __read_mostly;
 int edma_athr_hdr_eth_type __read_mostly;
-int page_mode __read_mostly;
-int overwrite_mode __read_mostly;
 
+static int page_mode;
 module_param(page_mode, int, 0);
-module_param(overwrite_mode, int, 0);
 MODULE_PARM_DESC(page_mode, "enable page mode");
+
+static int overwrite_mode;
+module_param(overwrite_mode, int, 0);
 MODULE_PARM_DESC(overwrite_mode, "overwrite default page_mode setting");
+
+static int num_rxq = 4;
+module_param(num_rxq, int, 0);
+MODULE_PARM_DESC(num_rxq, "change the number of rx queues");
 
 void edma_write_reg(u16 reg_addr, u32 reg_value)
 {
@@ -330,8 +335,13 @@ static int edma_axi_probe(struct platform_device *pdev)
 	struct platform_device *mdio_plat = NULL;
 	struct mii_bus *miibus = NULL;
 	struct edma_mdio_data *mdio_data = NULL;
-	int i, j, err = 0, ret = 0;
+	int i, j, k, err = 0, ret = 0;
 	uint8_t phy_id[MII_BUS_ID_SIZE + 3];
+
+	if ((num_rxq != 4) && (num_rxq != 8)) {
+		dev_err(&pdev->dev, "Invalid RX queue, edma probe failed\n");
+		return -EINVAL;
+	}
 
 	/* Use to allocate net devices for multiple TX/RX queues */
 	netdev[0] = alloc_etherdev_mqs(sizeof(struct edma_adapter),
@@ -365,8 +375,13 @@ static int edma_axi_probe(struct platform_device *pdev)
 
 	/* Fill ring details */
 	edma_cinfo->num_tx_queues = EDMA_MAX_TRANSMIT_QUEUE;
+	edma_cinfo->num_txq_per_core = (EDMA_MAX_TRANSMIT_QUEUE / 4);
 	edma_cinfo->tx_ring_count = EDMA_TX_RING_SIZE;
-	edma_cinfo->num_rx_queues = EDMA_MAX_RECEIVE_QUEUE;
+
+	/* Update num rx queues based on module parameter */
+	edma_cinfo->num_rx_queues = num_rxq;
+	edma_cinfo->num_rxq_per_core = ((num_rxq == 4) ? 1 : 2);
+
 	edma_cinfo->rx_ring_count = EDMA_RX_RING_SIZE;
 
 	hw = &edma_cinfo->hw;
@@ -421,9 +436,11 @@ static int edma_axi_probe(struct platform_device *pdev)
 	 * left tx interrupt parsing(i.e 16) and run run the loop
 	 * from 0 to 7 to parse rx interrupt number.
 	 */
-	for (i = 0, j = edma_cinfo->num_tx_queues; i < edma_cinfo->num_rx_queues;
-			i++, j++)
-		edma_cinfo->rx_irq[i] = platform_get_irq(pdev, j);
+	for (i = 0, j = edma_cinfo->num_tx_queues, k = 0; i < edma_cinfo->num_rx_queues; i++) {
+		edma_cinfo->rx_irq[k] = platform_get_irq(pdev, j);
+		k += ((num_rxq == 4) ?  2 : 1);
+		j += ((num_rxq == 4) ?  2 : 1);
+	}
 
 	edma_cinfo->rx_head_buffer_len = edma_cinfo->hw.rx_head_buff_size;
 	edma_cinfo->rx_page_buffer_len = PAGE_SIZE;
@@ -623,7 +640,7 @@ static int edma_axi_probe(struct platform_device *pdev)
 				IRQF_DISABLED, &edma_tx_irq[j][0], &edma_cinfo->edma_percpu_info[i]);
 		}
 
-		for (j = edma_cinfo->edma_percpu_info[i].rx_start; j < rx_start + 2; j++) {
+		for (j = edma_cinfo->edma_percpu_info[i].rx_start; j < (rx_start + ((edma_cinfo->num_rx_queues == 4) ? 1 : 2)); j++) {
 			sprintf(&edma_rx_irq[j][0], "edma_eth_rx%d", j);
 			err = request_irq(edma_cinfo->rx_irq[j], edma_interrupt,
 				IRQF_DISABLED, &edma_rx_irq[j][0], &edma_cinfo->edma_percpu_info[i]);
