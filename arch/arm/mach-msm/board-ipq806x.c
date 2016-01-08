@@ -1727,7 +1727,6 @@ static struct platform_device *early_common_devices[] __initdata = {
 };
 
 static struct platform_device *common_devices[] __initdata = {
-	&msm_device_smd_ipq806x,
 	&ipq806x_device_gadget_peripheral,
 	&ipq806x_device_hsusb_host,
 	&ipq806x_device_dwc3_host1,
