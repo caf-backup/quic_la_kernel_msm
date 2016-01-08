@@ -229,6 +229,9 @@ static int msm_mpm_enable_irq_exclusive(
 		uint32_t index = MSM_MPM_IRQ_INDEX(mpm_irq);
 		uint32_t mask = MSM_MPM_IRQ_MASK(mpm_irq);
 
+		if (index >= MSM_MPM_REG_WIDTH)
+			return -EINVAL;
+
 		if (enable)
 			mpm_irq_masks[index] |= mask;
 		else
