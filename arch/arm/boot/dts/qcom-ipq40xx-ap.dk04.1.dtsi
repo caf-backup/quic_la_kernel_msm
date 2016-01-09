@@ -331,6 +331,7 @@
 			pinctrl-names = "default";
 			vqmmc-supply = <&vccq_sd0>;
 			cd-gpios = <&tlmm 22 0x1>;
+			sd-ldo-gpios = <&tlmm 33 0x1>;
 		};
 
 		qcom,nand@7980000 {
