@@ -66,13 +66,14 @@
 
 #define	RESRX_VALUE_EN	0x80000000
 
+#define MAX_PMU_CODES	64
 /*
  * The L2 PMU is shared between all CPU's, so protect
  * its bitmap access.
  */
 struct pmu_constraints {
 	u64 pmu_bitmap;
-	u8 codes[64];
+	u8 codes[MAX_PMU_CODES];
 	raw_spinlock_t lock;
 } l2_pmu_constraints = {
 	.pmu_bitmap = 0,
@@ -460,7 +461,7 @@ static int msm_l2_test_set_ev_constraint(struct perf_event *event)
 	u8 group = evt_type & 0x0000F;
 	u8 code = (evt_type & 0x00FF0) >> 4;
 	unsigned long flags;
-	u32 err = 0;
+	int err = 0;
 	u64 bitmap_t;
 	u32 shift_idx;
 
@@ -474,6 +475,10 @@ static int msm_l2_test_set_ev_constraint(struct perf_event *event)
 	raw_spin_lock_irqsave(&l2_pmu_constraints.lock, flags);
 
 	shift_idx = ((reg * 4) + group);
+	if (shift_idx >= MAX_PMU_CODES) {
+		err = -EPERM;
+		goto out;
+	}
 
 	bitmap_t = 1 << shift_idx;
 
@@ -512,10 +517,15 @@ static int msm_l2_clear_ev_constraint(struct perf_event *event)
 	unsigned long flags;
 	u64 bitmap_t;
 	u32 shift_idx;
+	int err = 0;
 
 	raw_spin_lock_irqsave(&l2_pmu_constraints.lock, flags);
 
 	shift_idx = ((reg * 4) + group);
+	if (shift_idx >= MAX_PMU_CODES) {
+		err = -EPERM;
+		goto out;
+	}
 
 	bitmap_t = 1 << shift_idx;
 
@@ -525,8 +535,9 @@ static int msm_l2_clear_ev_constraint(struct perf_event *event)
 	/* Clear code. */
 	l2_pmu_constraints.codes[shift_idx] = -1;
 
+out:
 	raw_spin_unlock_irqrestore(&l2_pmu_constraints.lock, flags);
-	return 1;
+	return err;
 }
 
 int get_num_events(void)
