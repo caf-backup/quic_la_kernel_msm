@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015 - 2016, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -306,7 +306,21 @@ static uint32_t edma_get_priv_flags(struct net_device *netdev)
 	return 0;
 }
 
-/**
+/*
+ * edma_get_ringparam()
+ *	get ring size
+ */
+static int edma_get_ringparam(struct net_device *netdev,
+		struct ethtool_ringparam *ring)
+{
+	struct edma_adapter *adapter = netdev_priv(netdev);
+	struct edma_common_info *edma_cinfo = adapter->edma_cinfo;
+
+	ring->tx_max_pending = edma_cinfo->tx_ring_count;
+	ring->rx_max_pending = edma_cinfo->rx_ring_count;
+}
+
+/*
  * Ethtool operations
  */
 struct ethtool_ops edma_ethtool_ops = {
@@ -322,6 +336,7 @@ struct ethtool_ops edma_ethtool_ops = {
 	.get_ethtool_stats = &edma_get_ethtool_stats,
 	.get_priv_flags = edma_get_priv_flags,
 	.set_priv_flags = edma_set_priv_flags,
+	.get_ringparam = edma_get_ringparam,
 };
 
 /*
