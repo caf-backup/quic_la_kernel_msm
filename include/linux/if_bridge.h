@@ -33,7 +33,8 @@
 struct net_bridge_port;
 
 extern void brioctl_set(int (*ioctl_hook)(struct net *, unsigned int, void __user *));
-extern struct net_device *br_port_dev_get(struct net_device *dev, unsigned char *addr);
+extern struct net_device *br_port_dev_get(struct net_device *dev, unsigned char *addr,
+		struct sk_buff *skb);
 extern void br_refresh_fdb_entry(struct net_device *dev, const char *addr);
 extern void br_dev_update_stats(struct net_device *dev, struct rtnl_link_stats64 *nlstats);
 extern bool br_fdb_has_entry(struct net_device *dev, const char *addr, __u16 vid);
@@ -61,6 +62,10 @@ typedef struct net_bridge_port *br_get_dst_hook_t(
 		const struct net_bridge_port *src,
 		struct sk_buff **skb);
 extern br_get_dst_hook_t __rcu *br_get_dst_hook;
+
+typedef struct net_bridge_port *br_port_dev_get_hook_t(struct net_device *dev,
+		struct sk_buff *skb);
+extern br_port_dev_get_hook_t __rcu *br_port_dev_get_hook;
 
 typedef void (br_notify_hook_t)(int group, int event, const void *ptr);
 extern br_notify_hook_t __rcu *br_notify_hook;
