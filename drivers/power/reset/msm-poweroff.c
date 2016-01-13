@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -21,26 +21,31 @@
 #include <linux/module.h>
 #include <linux/reboot.h>
 #include <linux/pm.h>
+#include <asm/system_misc.h>
 
 static void __iomem *msm_ps_hold;
-static int do_msm_restart(struct notifier_block *nb, unsigned long action,
-			   void *data)
+
+static void do_msm_restart(enum reboot_mode reboot_mode, const char *cmd)
 {
 	writel(0, msm_ps_hold);
 	mdelay(10000);
+}
 
+static int do_msm_restart_notifier(struct notifier_block *nb,
+				   unsigned long action, void *data)
+{
 	return NOTIFY_DONE;
 }
 
 static struct notifier_block restart_nb = {
-	.notifier_call = do_msm_restart,
+	.notifier_call = do_msm_restart_notifier,
 	.priority = 128,
 };
 
 static void do_msm_poweroff(void)
 {
 	/* TODO: Add poweroff capability */
-	do_msm_restart(&restart_nb, 0, NULL);
+	do_msm_restart(0, NULL);
 }
 
 static int msm_restart_probe(struct platform_device *pdev)
@@ -56,6 +61,7 @@ static int msm_restart_probe(struct platform_device *pdev)
 	register_restart_handler(&restart_nb);
 
 	pm_power_off = do_msm_poweroff;
+	arm_pm_restart = do_msm_restart;
 
 	return 0;
 }

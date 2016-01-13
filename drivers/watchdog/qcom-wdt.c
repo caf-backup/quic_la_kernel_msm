@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -20,6 +20,7 @@
 #include <linux/reboot.h>
 #include <linux/watchdog.h>
 #include <soc/qcom/scm.h>
+#include <asm/system_misc.h>
 
 #define WDT_RST		0x38
 #define WDT_EN		0x40
@@ -33,6 +34,7 @@ struct qcom_wdt {
 	struct clk		*clk;
 	unsigned long		rate;
 	struct notifier_block	restart_nb;
+	struct notifier_block	panic_nb;
 	void __iomem		*base;
 	void __iomem		*wdt_reset;
 	void __iomem		*wdt_enable;
@@ -46,16 +48,42 @@ struct qcom_wdt *to_qcom_wdt(struct watchdog_device *wdd)
 	return container_of(wdd, struct qcom_wdt, wdd);
 }
 
-static int panic_prep_restart(struct notifier_block *this,
+static int panic_prep_restart(struct notifier_block *nb,
 			      unsigned long event, void *ptr)
 {
-	in_panic = 1;
+	struct qcom_wdt *wdt = container_of(nb, struct qcom_wdt, panic_nb);
+	u32 timeout;
+
+	/*
+	 * Setting arm_pm_restart to NULL, will make sure
+	 * after panic, WDT bark will happen and TZ will save the CPU registers.
+	 */
+	arm_pm_restart = NULL;
+
+	/*
+	 * Trigger watchdog bark:
+	 *
+	 * For panic reboot case: Trigger WDT bark
+	 * So that TZ can save CPU registers:
+	 * Setup BARK_TIME to be lower than BITE_TIME, and enable WDT.
+	 */
+	timeout = 128 * wdt->rate / 1000;
+
+	writel(0, wdt->wdt_enable);
+	writel(1, wdt->wdt_reset);
+	writel(timeout, wdt->wdt_bark_time);
+	writel(2 * timeout, wdt->wdt_bite_time);
+	writel(1, wdt->wdt_enable);
+
+	/*
+	 * Actually make sure the above sequence hits hardware before sleeping.
+	 */
+	wmb();
+
+	msleep(150);
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block panic_blk = {
-	.notifier_call  = panic_prep_restart,
-};
 static long qcom_wdt_configure_bark_dump(void *arg)
 {
 	long ret = -ENOMEM;
@@ -153,38 +181,6 @@ static const struct watchdog_info qcom_wdt_info = {
 static int qcom_wdt_restart(struct notifier_block *nb, unsigned long action,
 			    void *data)
 {
-	struct qcom_wdt *wdt = container_of(nb, struct qcom_wdt, restart_nb);
-	u32 timeout;
-
-	/*
-	 * Trigger watchdog bite/bark:
-	 *
-	 * For regular reboot case: Trigger watchdog bite:
-	 * Setup BITE_TIME to be lower than BARK_TIME, and enable WDT.
-	 *
-	 * For panic reboot case: Trigger WDT bark
-	 * So that TZ can save CPU registers:
-	 * Setup BARK_TIME to be lower than BITE_TIME, and enable WDT.
-	 */
-	timeout = 128 * wdt->rate / 1000;
-
-	writel(0, wdt->wdt_enable);
-	writel(1, wdt->wdt_reset);
-	if (in_panic) {
-		writel(timeout, wdt->wdt_bark_time);
-		writel(2 * timeout, wdt->wdt_bite_time);
-	} else {
-		writel(5 * timeout, wdt->wdt_bark_time);
-		writel(timeout, wdt->wdt_bite_time);
-	}
-	writel(1, wdt->wdt_enable);
-
-	/*
-	 * Actually make sure the above sequence hits hardware before sleeping.
-	 */
-	wmb();
-
-	msleep(150);
 	return NOTIFY_DONE;
 }
 
@@ -293,7 +289,8 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	 * WDT restart notifier has priority 0 (use as a last resort)
 	 */
 	wdt->restart_nb.notifier_call = qcom_wdt_restart;
-	atomic_notifier_chain_register(&panic_notifier_list, &panic_blk);
+	wdt->panic_nb.notifier_call = panic_prep_restart;
+	atomic_notifier_chain_register(&panic_notifier_list, &wdt->panic_nb);
 	ret = register_restart_handler(&wdt->restart_nb);
 	if (ret)
 		dev_err(&pdev->dev, "failed to setup restart handler\n");
