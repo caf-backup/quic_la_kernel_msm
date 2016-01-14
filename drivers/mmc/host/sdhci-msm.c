@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/mmc/mmc.h>
 #include <linux/slab.h>
+#include <linux/of_gpio.h>
 
 #include "sdhci-pltfm.h"
 
@@ -519,6 +520,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	struct sdhci_msm_host *msm_host;
 	struct resource *core_memres;
 	int ret;
+	int sd_ldo;
 	u16 host_version;
 	struct device_node *np = pdev->dev.of_node;
 
@@ -535,6 +537,24 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	pltfm_host->priv = msm_host;
 	msm_host->mmc = host->mmc;
 	msm_host->pdev = pdev;
+
+	sd_ldo = of_get_named_gpio(np, "sd-ldo-gpios", 0);
+	if (gpio_is_valid(sd_ldo)) {
+		ret = devm_gpio_request(&pdev->dev, sd_ldo, "sd-ldo-gpios");
+		if (ret) {
+			dev_err(&pdev->dev,
+				"failed to request sd-ldo-gpios %d\n",
+				sd_ldo);
+			return ret;
+		}
+		dev_info(&pdev->dev, "Got SD LDO GPIO #%d\n", sd_ldo);
+
+		/* Toggle SD LDO GPIO on Init */
+		gpio_direction_output(sd_ldo, 1);
+		gpio_set_value(sd_ldo, 0);
+		mdelay(100);
+		gpio_set_value(sd_ldo, 1);
+	}
 
 	msm_host->emulation = of_property_read_bool(np, "qca,emulation");
 
