@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -159,15 +159,15 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, wdt);
 	wdt->dev = &pdev->dev;
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res)
-		wdt->base = devm_ioremap(&pdev->dev, res->start,
-					resource_size(res));
-	else {
+	if (!res) {
 		dev_err(&pdev->dev, "Invalid mem resource.\n");
 		return -ENODEV;
 	}
-	if (IS_ERR(wdt->base))
-		return PTR_ERR(wdt->base);
+
+	wdt->base = devm_ioremap(&pdev->dev, res->start,
+					resource_size(res));
+	if (!(wdt->base))
+		return -ENOMEM;
 
 	/* Bypass COMMON_CLK and hardcode rate */
 	wdt->rate = 32768;
