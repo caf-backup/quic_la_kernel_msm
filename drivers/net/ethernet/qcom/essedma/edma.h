@@ -428,4 +428,7 @@ void edma_fill_netdev(struct edma_common_info *edma_cinfo, int qid, int num);
 u16 edma_select_xps_queue(struct net_device *dev, struct sk_buff *skb,
 	void *accel_priv, select_queue_fallback_t fallback);
 void edma_read_append_stats(edma_cinfo);
+void edma_change_tx_coalesce(int usecs);
+void edma_change_rx_coalesce(int usecs);
+void edma_get_tx_rx_coalesce(u32 *reg_val);
 #endif /* _EDMA_H_ */
