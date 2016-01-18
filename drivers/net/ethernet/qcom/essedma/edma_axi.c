@@ -70,6 +70,49 @@ void edma_read_reg(u16 reg_addr, volatile u32 *reg_value)
 	*reg_value = readl((void __iomem *)(edma_hw_addr + reg_addr));
 }
 
+/*
+ * edma_change_tx_coalesce()
+ *	change tx interrupt moderation timer
+ */
+void edma_change_tx_coalesce(int usecs)
+{
+	u32 reg_value;
+
+	/* Here, we right shift the value from the user by 1, this is
+	 * done because IMT resolution timer is 2usecs. 1 count
+	 * of this register corresponds to 2 usecs.
+	 */
+	edma_read_reg(EDMA_REG_IRQ_MODRT_TIMER_INIT, &reg_value);
+	reg_value = ((reg_value & 0xffff) | ((usecs >> 1) << 16));
+	edma_write_reg(EDMA_REG_IRQ_MODRT_TIMER_INIT, reg_value);
+}
+
+/*
+ * edma_change_rx_coalesce()
+ *	change rx interrupt moderation timer
+ */
+void edma_change_rx_coalesce(int usecs)
+{
+	u32 reg_value;
+
+	/* Here, we right shift the value from the user by 1, this is
+	 * done because IMT resolution timer is 2usecs. 1 count
+	 * of this register corresponds to 2 usecs.
+	 */
+	edma_read_reg(EDMA_REG_IRQ_MODRT_TIMER_INIT, &reg_value);
+	reg_value = ((reg_value & 0xffff0000) | (usecs >> 1));
+	edma_write_reg(EDMA_REG_IRQ_MODRT_TIMER_INIT, reg_value);
+}
+
+/*
+ * edma_get_tx_rx_coalesce()
+ *	Get tx/rx interupt moderation value
+ */
+void edma_get_tx_rx_coalesce(u32 *reg_val)
+{
+	edma_read_reg(EDMA_REG_IRQ_MODRT_TIMER_INIT, reg_val);
+}
+
 void edma_read_append_stats(struct edma_common_info *edma_cinfo)
 {
 	uint8_t *p = (uint8_t *)&(edma_cinfo->edma_ethstats);
