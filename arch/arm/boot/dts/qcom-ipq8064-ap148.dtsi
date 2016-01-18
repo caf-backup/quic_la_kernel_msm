@@ -76,14 +76,22 @@
 
 			spi_pins: spi_pins {
 				mux {
-					pins = "gpio18", "gpio19", "gpio21";
+					pins = "gpio18", "gpio19";
 					function = "gsbi5";
 					drive-strength = <10>;
-					bias-none;
+					bias-pull-down;
+				};
+				clk {
+					pins = "gpio21";
+					function = "gsbi5";
+					drive-strength = <12>;
+					bias-pull-down;
 				};
 				cs {
 					pins = "gpio20";
-					drive-strength = <12>;
+					function = "gpio";
+					drive-strength = <10>;
+					bias-pull-up;
 				};
 			};
 			nand_pins: nand_pins {
