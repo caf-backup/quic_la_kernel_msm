@@ -24,6 +24,7 @@
 #include <linux/spi/spi.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
+#include <linux/gpio.h>
 
 #define QUP_CONFIG			0x0000
 #define QUP_STATE			0x0004
@@ -837,6 +838,20 @@ exit:
 	return ret;
 }
 
+static int spi_qup_setup(struct spi_device *spi)
+{
+	if (spi->cs_gpio >= 0) {
+		if (spi->mode & SPI_CS_HIGH)
+			gpio_set_value(spi->cs_gpio, 0);
+		else
+			gpio_set_value(spi->cs_gpio, 1);
+
+		udelay(10);
+	}
+
+	return 0;
+}
+
 static int spi_qup_probe(struct platform_device *pdev)
 {
 	struct spi_master *master;
@@ -910,6 +925,7 @@ static int spi_qup_probe(struct platform_device *pdev)
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
 	master->max_speed_hz = max_freq;
 	master->transfer_one = spi_qup_transfer_one;
+	master->setup = spi_qup_setup;
 	master->dev.of_node = pdev->dev.of_node;
 	master->auto_runtime_pm = true;
 	master->dma_alignment = dma_get_cache_alignment();
