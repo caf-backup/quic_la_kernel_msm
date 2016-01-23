@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015 - 2016, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -289,6 +289,40 @@ static int32_t edma_set_settings(struct net_device *netdev,
 }
 
 /*
+ * edma_get_coalesce
+ *	get interrupt mitigation
+ */
+static int edma_get_coalesce(struct net_device *netdev,
+	struct ethtool_coalesce *ec)
+{
+	u32 reg_val;
+
+	edma_get_tx_rx_coalesce(&reg_val);
+
+	/* We read the Interrupt Moderation Timer(IMT) register value,
+	 * use lower 16 bit for rx and higher 16 bit for Tx. We do a
+	 * left shift by 1, because IMT resolution timer is 2usecs.
+	 * Hence the value given by the register is multiplied by 2 to
+	 * get the actual time in usecs.
+	 */
+	ec->tx_coalesce_usecs = (((reg_val >> 16) & 0xFFFF) << 1);
+	ec->rx_coalesce_usecs = ((reg_val & 0xFFFF) << 1);
+}
+
+/*
+ * edma_set_coalesce
+ *	set interrupt mitigation
+ */
+static int edma_set_coalesce(struct net_device *netdev,
+	struct ethtool_coalesce *ec)
+{
+	if (ec->tx_coalesce_usecs)
+		edma_change_tx_coalesce(ec->tx_coalesce_usecs);
+	if (ec->rx_coalesce_usecs)
+		edma_change_rx_coalesce(ec->rx_coalesce_usecs);
+}
+
+/*
  * edma_set_priv_flags()
  *	Set EDMA private flags
  */
@@ -306,7 +340,21 @@ static uint32_t edma_get_priv_flags(struct net_device *netdev)
 	return 0;
 }
 
-/**
+/*
+ * edma_get_ringparam()
+ *	get ring size
+ */
+static int edma_get_ringparam(struct net_device *netdev,
+		struct ethtool_ringparam *ring)
+{
+	struct edma_adapter *adapter = netdev_priv(netdev);
+	struct edma_common_info *edma_cinfo = adapter->edma_cinfo;
+
+	ring->tx_max_pending = edma_cinfo->tx_ring_count;
+	ring->rx_max_pending = edma_cinfo->rx_ring_count;
+}
+
+/*
  * Ethtool operations
  */
 struct ethtool_ops edma_ethtool_ops = {
@@ -320,8 +368,11 @@ struct ethtool_ops edma_ethtool_ops = {
 	.get_strings = &edma_get_strings,
 	.get_sset_count = &edma_get_strset_count,
 	.get_ethtool_stats = &edma_get_ethtool_stats,
+	.get_coalesce = &edma_get_coalesce,
+	.set_coalesce = &edma_set_coalesce,
 	.get_priv_flags = edma_get_priv_flags,
 	.set_priv_flags = edma_set_priv_flags,
+	.get_ringparam = edma_get_ringparam,
 };
 
 /*
