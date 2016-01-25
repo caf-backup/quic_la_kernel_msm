@@ -269,21 +269,18 @@ static int32_t edma_set_settings(struct net_device *netdev,
 		struct ethtool_cmd *ecmd)
 {
 	struct edma_adapter *adapter = netdev_priv(netdev);
+	struct phy_device *phydev = NULL;
 
-	if (adapter->poll_required) {
-		struct phy_device *phydev = NULL;
+	if ((adapter->forced_speed != SPEED_UNKNOWN) && !adapter->poll_required)
+		return -EPERM;
 
-		if ((adapter->forced_speed != SPEED_UNKNOWN))
-			return -EPERM;
+	phydev = adapter->phydev;
+	phydev->advertising = ecmd->advertising;
+	phydev->autoneg = ecmd->autoneg;
+	phydev->speed = ethtool_cmd_speed(ecmd);
+	phydev->duplex = ecmd->duplex;
 
-		phydev = adapter->phydev;
-		phydev->advertising = ecmd->advertising;
-		phydev->autoneg = ecmd->autoneg;
-		phydev->speed = ethtool_cmd_speed(ecmd);
-		phydev->duplex = ecmd->duplex;
-
-		genphy_config_aneg(phydev);
-	}
+	genphy_config_aneg(phydev);
 
 	return 0;
 }
