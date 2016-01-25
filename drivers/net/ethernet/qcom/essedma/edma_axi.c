@@ -541,6 +541,17 @@ static int edma_axi_probe(struct platform_device *pdev)
 				edma_fill_netdev(edma_cinfo, k, i);
 			}
 		}
+		of_property_read_u32(np, "qcom,forced_speed",
+				&adapter[i]->forced_speed);
+		of_property_read_u32(np, "qcom,forced_duplex",
+				&adapter[i]->forced_duplex);
+		if ((adapter[i]->forced_speed != SPEED_10) &&
+			(adapter[i]->forced_speed != SPEED_100)
+			&& (adapter[i]->forced_speed != SPEED_1000)) {
+			adapter[i]->forced_speed = SPEED_UNKNOWN;
+			adapter[i]->forced_duplex = DUPLEX_UNKNOWN;
+		}
+
 		adapter[i]->edma_cinfo = edma_cinfo;
 		netdev[i]->netdev_ops = &edma_axi_netdev_ops;
 		netdev[i]->features = NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_CTAG_TX
@@ -601,22 +612,11 @@ static int edma_axi_probe(struct platform_device *pdev)
 	/* Set default WAN tag */
         adapter[EDMA_WAN]->default_vlan_tag = EDMA_WAN_DEFAULT_VLAN;
 
-
 	if (of_property_read_bool(np, "qcom,mdio_supported")) {
 		adapter[EDMA_WAN]->poll_required =
 			of_property_read_bool(np, "qcom,poll_required");
 		of_property_read_u32(np, "qcom,phy_mdio_addr",
 				&adapter[EDMA_WAN]->phy_mdio_addr);
-		of_property_read_u32(np, "qcom,forced_speed",
-				&adapter[EDMA_WAN]->forced_speed);
-		of_property_read_u32(np, "qcom,forced_duplex",
-				&adapter[EDMA_WAN]->forced_duplex);
-		if ((adapter[EDMA_WAN]->forced_speed != SPEED_10) &&
-				(adapter[EDMA_WAN]->forced_speed != SPEED_100)
-			&& (adapter[EDMA_WAN]->forced_speed != SPEED_1000)) {
-			adapter[EDMA_WAN]->forced_speed = SPEED_UNKNOWN;
-			adapter[EDMA_WAN]->forced_duplex = DUPLEX_UNKNOWN;
-		}
 
 		mdio_node = of_find_compatible_node(NULL, NULL, "qcom,ipq40xx-mdio");
 		if (!mdio_node) {
