@@ -57,8 +57,16 @@ inline struct sk_buff *skb_recycler_alloc(struct net_device *dev,
 		if (unlikely(head == glob_recycler.tail)) {
 			spin_unlock(&glob_recycler.lock);
 		} else {
+			struct sk_buff *gn = glob_recycler.pool[head].next;
+			struct sk_buff *gp = glob_recycler.pool[head].prev;
+
 			/* Move SKBs from global list to CPU pool */
+			skbuff_debugobj_activate(gn);
+			skbuff_debugobj_activate(gp);
 			skb_queue_splice_init(&glob_recycler.pool[head], h);
+			skbuff_debugobj_deactivate(gn);
+			skbuff_debugobj_deactivate(gp);
+
 			head = (head + 1) & SKB_RECYCLE_MAX_SHARED_POOLS_MASK;
 			glob_recycler.head = head;
 			spin_unlock(&glob_recycler.lock);
@@ -139,9 +147,14 @@ inline bool skb_recycler_consume(struct sk_buff *skb)
 		next_tail = (cur_tail + 1) & SKB_RECYCLE_MAX_SHARED_POOLS_MASK;
 		if (next_tail != glob_recycler.head) {
 			struct sk_buff_head *p = &glob_recycler.pool[cur_tail];
+			struct sk_buff *hn = h->next, *hp = h->prev;
 
 			/* Move SKBs from CPU pool to Global pool*/
+			skbuff_debugobj_activate(hp);
+			skbuff_debugobj_activate(hn);
 			skb_queue_splice_init(h, p);
+			skbuff_debugobj_deactivate(hp);
+			skbuff_debugobj_deactivate(hn);
 
 			/* Done with global list init */
 			glob_recycler.tail = next_tail;
