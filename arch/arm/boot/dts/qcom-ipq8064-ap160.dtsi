@@ -46,7 +46,7 @@
 
 	soc {
 		pinmux@800000 {
-			pinctrl-0 = <&rgmii2_pins_default &pcie_2g_pwrdwn_default &pcie_5g_pwrdwn_default>;
+			pinctrl-0 = <&rgmii2_pins_default &pcie_2g_pwrdwn_default &pcie_5g_pwrdwn_default &leds_pins>;
 			pinctrl-names = "default";
 
 			rpm_i2c_pinmux: rpm_i2c_pinmux {
@@ -158,6 +158,16 @@
 					pins = "gpio8";
 					drive-strength = <16>;
 					bias-pull-none;
+				};
+			};
+
+			leds_pins: leds_pins {
+				mux {
+					pins = "gpio7", "gpio53";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-pull-down;
+					output-low;
 				};
 			};
 		};
