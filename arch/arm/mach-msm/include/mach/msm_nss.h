@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -62,6 +62,8 @@ struct nss_platform_data {
 	enum nss_feature_enabled wifioffload_enabled;	/* Does this core handle wifi
 							   data plane ? */
 	enum nss_feature_enabled portid_enabled;	/* Does this core handle portid? */
+	enum nss_feature_enabled dtls_enabled;
+					/* Does the core handle DTLS? */
 };
 
 #endif /* __MSM_NSS__H */

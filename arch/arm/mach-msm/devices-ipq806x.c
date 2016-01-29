@@ -1,5 +1,5 @@
-/* * Copyright (c) 2013, 2015 The Linux Foundation. All rights reserved.* */
-/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2016,
+ * The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1097,6 +1097,7 @@ static struct nss_platform_data nss0_pdata = {
 	.gmac_enabled[3]	= NSS_FEATURE_ENABLED,
 	.wifioffload_enabled	= NSS_FEATURE_ENABLED,
 	.portid_enabled		= NSS_FEATURE_ENABLED,
+	.dtls_enabled		= NSS_FEATURE_NOT_ENABLED,
 };
 
 struct platform_device ipq806x_device_nss0 = {
@@ -1145,6 +1146,7 @@ static struct nss_platform_data nss1_pdata = {
 	.gmac_enabled[3]	= NSS_FEATURE_NOT_ENABLED,
 	.wifioffload_enabled	= NSS_FEATURE_NOT_ENABLED,
 	.portid_enabled		= NSS_FEATURE_NOT_ENABLED,
+	.dtls_enabled		= NSS_FEATURE_ENABLED,
 };
 
 struct platform_device ipq806x_device_nss1 = {
