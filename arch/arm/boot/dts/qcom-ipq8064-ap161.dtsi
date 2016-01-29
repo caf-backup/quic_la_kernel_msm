@@ -46,7 +46,7 @@
 
 	soc {
 		pinmux@800000 {
-			pinctrl-0 = <&rgmii2_pins_default>;
+			pinctrl-0 = <&rgmii2_pins_default &leds_pins>;
 			pinctrl-names = "default";
 
 			rpm_i2c_pinmux: rpm_i2c_pinmux {
@@ -148,6 +148,15 @@
 				};
 			};
 
+			leds_pins: leds_pins {
+				mux {
+					pins = "gpio7", "gpio8", "gpio9", "gpio26";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-pull-down;
+					output-low;
+				};
+			};
 		};
 
 		gsbi1: gsbi@12440000 {
