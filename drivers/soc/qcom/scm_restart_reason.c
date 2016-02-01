@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -30,11 +30,15 @@
 #define SCM_CMD_TZ_CONFIG_HW_FOR_RAM_DUMP_ID	0x9
 #define SCM_CMD_TZ_FORCE_DLOAD_ID		0x10
 
+static int dload_dis;
+
 static void scm_restart_dload_mode_enable(void)
 {
-	unsigned int magic_cookie = SET_MAGIC;
-	scm_call(SCM_SVC_BOOT, SCM_CMD_TZ_FORCE_DLOAD_ID, &magic_cookie,
-		sizeof(magic_cookie), NULL, 0);
+	if (!dload_dis) {
+		unsigned int magic_cookie = SET_MAGIC;
+		scm_call(SCM_SVC_BOOT, SCM_CMD_TZ_FORCE_DLOAD_ID, &magic_cookie,
+			sizeof(magic_cookie), NULL, 0);
+	}
 }
 
 static void scm_restart_dload_mode_disable(void)
@@ -78,11 +82,36 @@ static struct notifier_block reboot_nb = {
 	.notifier_call = scm_restart_reason_reboot,
 };
 
+int is_dload_enabled(struct platform_device *pdev)
+{
+	struct device_node *np;
+	uint32_t val;
+	int res;
+
+	np = of_node_get(pdev->dev.of_node);
+	if (!np)
+		return 0;
+	res = of_property_read_u32(np, "dload_status", &val);
+	if (res)
+		return 0;
+	else
+		return val;
+}
+
+
 static int scm_restart_reason_probe(struct platform_device *pdev)
 {
 	int ret;
+	dload_dis = is_dload_enabled(pdev);
 
-	scm_restart_dload_mode_enable();
+	/* Ensure Disable before enabling the dload and sdi bits
+	 * to make sure they are disabled during boot */
+	if (dload_dis) {
+		scm_restart_dload_mode_disable();
+		scm_restart_sdi_disable();
+	} else {
+		scm_restart_dload_mode_enable();
+	}
 
 	ret = atomic_notifier_chain_register(&panic_notifier_list, &panic_nb);
 	if (ret) {
