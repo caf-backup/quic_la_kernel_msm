@@ -718,7 +718,7 @@
 
 		cpu_freq_ipq40xx {
 			compatible = "qca,ipq40xx_freq";
-			clock-latency = <0x100>;
+			clock-latency = <100000>;
 			qcom,cpufreq-table =
 			< 48000 >,
 			< 200000 >,
