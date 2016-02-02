@@ -33,5 +33,10 @@
 		qcom,mdss_lcd_qpic_panel {
 			status = "ok";
 		};
+
+		ess-switch@c000000 {
+			switch_lan_bmp = <0xe>; /* lan port bitmap */
+			switch_wan_bmp = <0x30>; /* wan port bitmap */
+		};
 	};
 };
