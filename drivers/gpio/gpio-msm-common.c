@@ -351,8 +351,14 @@ static int msm_gpio_irq_set_type(struct irq_data *d, unsigned int flow_type)
 static irqreturn_t msm_summary_irq_handler(int irq, void *data)
 {
 	unsigned long i;
-	struct irq_desc *desc = irq_to_desc(irq);
-	struct irq_chip *chip = irq_desc_get_chip(desc);
+	struct irq_desc *desc;
+	struct irq_chip *chip;
+
+	desc = irq_to_desc(irq);
+	if (!desc)
+		return IRQ_NONE;
+
+	chip = irq_desc_get_chip(desc);
 
 	chained_irq_enter(chip, desc);
 
