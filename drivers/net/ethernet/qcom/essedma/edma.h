@@ -316,6 +316,7 @@ struct edma_common_info {
 	u16 rx_head_buffer_len; /* rx buffer length */
 	u16 rx_page_buffer_len; /* rx buffer length */
 	u32 page_mode; /* Jumbo frame supported flag */
+	u32 fraglist_mode; /* fraglist supported flag */
 	struct edma_hw hw; /* edma hw specific structure */
 	struct ctl_table_header *edma_ctl_table_hdr;
 	struct edma_per_cpu_queues_info edma_percpu_info[EDMA_NR_CPU]; /* per cpu information */

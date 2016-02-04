@@ -56,6 +56,10 @@ static int overwrite_mode;
 module_param(overwrite_mode, int, 0);
 MODULE_PARM_DESC(overwrite_mode, "overwrite default page_mode setting");
 
+static int fraglist_mode;
+module_param(fraglist_mode, int, 0);
+MODULE_PARM_DESC(fraglist_mode, "enable fraglist mode");
+
 static int num_rxq = 4;
 module_param(num_rxq, int, 0);
 MODULE_PARM_DESC(num_rxq, "change the number of rx queues");
@@ -427,6 +431,8 @@ static int edma_axi_probe(struct platform_device *pdev)
 
 	edma_cinfo->rx_ring_count = EDMA_RX_RING_SIZE;
 
+	edma_cinfo->fraglist_mode = fraglist_mode;
+
 	hw = &edma_cinfo->hw;
 
 	/* Fill HW defaults */
@@ -568,6 +574,14 @@ static int edma_axi_probe(struct platform_device *pdev)
 		netdev[i]->vlan_features |= NETIF_F_RXHASH | NETIF_F_NTUPLE;
 		netdev[i]->wanted_features |= NETIF_F_RXHASH | NETIF_F_NTUPLE;
 #endif
+
+		if (edma_cinfo->fraglist_mode) {
+			netdev[i]->features |= NETIF_F_FRAGLIST;
+			netdev[i]->hw_features |= NETIF_F_FRAGLIST;
+			netdev[i]->vlan_features |= NETIF_F_FRAGLIST;
+			netdev[i]->wanted_features |= NETIF_F_FRAGLIST;
+		}
+
 		edma_set_ethtool_ops(netdev[i]);
 
 		/*
