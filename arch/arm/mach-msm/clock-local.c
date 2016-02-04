@@ -1,4 +1,4 @@
-/* Copyright (c) 2009-2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2009-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -348,7 +348,9 @@ u32 __branch_disable_reg(const struct branch *b, const char *name)
 	reg_val = b->ctl_reg ? readl_relaxed(b->ctl_reg) : 0;
 	if (b->en_mask) {
 		reg_val &= ~(b->en_mask);
-		writel_relaxed(reg_val, b->ctl_reg);
+		if (b->ctl_reg)
+			writel_relaxed(reg_val, b->ctl_reg);
+		WARN(b->ctl_reg == NULL, "%s value of ctl_reg is NULL\n", name);
 	}
 
 	/*
