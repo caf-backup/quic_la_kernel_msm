@@ -459,7 +459,7 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 			 */
 			priority = (rd->rrd1 >> EDMA_RRD_PRIORITY_SHIFT)
 				& EDMA_RRD_PRIORITY_MASK;
-			if (likely(!priority && !edma_cinfo->page_mode)) {
+			if (likely(!priority && !edma_cinfo->page_mode && !edma_cinfo->fraglist_mode)) {
 				rfd_avail = (count + sw_next_to_clean - hw_next_to_clean - 1) & (count - 1);
 				if (rfd_avail < EDMA_RFD_AVAIL_THR) {
 					sw_desc->flags = EDMA_SW_DESC_FLAG_SKB_REUSE;
@@ -503,7 +503,56 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 			 	 * starts from an offset of 16.
 			 	 */
 				skb_reserve(skb, 16);
-				skb_put(skb, length);
+				if (likely(!edma_cinfo->fraglist_mode)) {
+					skb_put(skb, length);
+				} else {
+					if (likely(num_rfds <= 1)) {
+						skb_put(skb, length);
+					} else {
+						struct sk_buff *skb_temp;
+						struct edma_hw *hw = &edma_cinfo->hw;
+						u16 size_remaining;
+
+						skb->data_len = 0;
+						skb->tail += (hw->rx_head_buff_size - 16);
+						skb->len = skb->truesize = length;
+						size_remaining = length - (hw->rx_head_buff_size - 16);
+
+						/* clean-up all related sw_descs */
+						for (i = 1; i < num_rfds; i++) {
+							struct sk_buff *skb_prev;
+							sw_desc = &erdr->sw_desc[sw_next_to_clean];
+							skb_temp = sw_desc->skb;
+
+							dma_unmap_single(&pdev->dev, sw_desc->dma,
+								sw_desc->length, DMA_FROM_DEVICE);
+
+							if (size_remaining < hw->rx_head_buff_size)
+								skb_put(skb_temp, size_remaining);
+							else
+								skb_put(skb_temp, hw->rx_head_buff_size);
+
+							/*
+							 * If we are processing the first rfd, we link
+							 * skb->frag_list to the skb corresponding to the
+							 * first RFD
+						 	 */
+							if (i == 1)
+								skb_shinfo(skb)->frag_list = skb_temp;
+							else
+								skb_prev->next = skb_temp;
+							skb_prev = skb_temp;
+							skb_temp->next = NULL;
+
+							skb->data_len += skb_temp->len;
+							size_remaining -= skb_temp->len;
+
+							/* Increment SW index */
+							sw_next_to_clean = (sw_next_to_clean + 1) & (erdr->count - 1);
+							cleaned_count++;
+						}
+					}
+				}
 			} else {
 				skb_frag_t *frag = &skb_shinfo(skb)->frags[0];
 				frag->page_offset += 16;
