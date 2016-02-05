@@ -887,9 +887,6 @@ static int __ip6_ins_rt(struct rt6_info *rt, struct nl_info *info)
 	err = fib6_add(&table->tb6_root, rt, info);
 	write_unlock_bh(&table->tb6_lock);
 
-	if (!err)
-		atomic_notifier_call_chain(&ip6route_chain,
-						RTM_NEWROUTE, rt);
 	return err;
 }
 
@@ -1722,7 +1719,11 @@ install_route:
 
 	cfg->fc_nlinfo.nl_net = dev_net(dev);
 
-	return __ip6_ins_rt(rt, &cfg->fc_nlinfo);
+	err = __ip6_ins_rt(rt, &cfg->fc_nlinfo);
+	if (!err)
+		atomic_notifier_call_chain(&ip6route_chain, RTM_NEWROUTE, rt);
+
+	return err;
 
 out:
 	if (dev)
