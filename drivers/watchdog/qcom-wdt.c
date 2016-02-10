@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014, 2016 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
 #include <linux/watchdog.h>
@@ -26,12 +27,16 @@
 #define WDT_BARK_TIME	0x14
 #define WDT_BITE_TIME	0x24
 
+#define USE_BITE_TIME	1UL
+
 #define SCM_CMD_SET_REGSAVE  0x2
 static int in_panic;
+
 struct qcom_wdt {
 	struct watchdog_device	wdd;
 	struct clk		*clk;
 	unsigned long		rate;
+	unsigned int		bite;
 	struct notifier_block	restart_nb;
 	void __iomem		*base;
 	void __iomem		*wdt_reset;
@@ -88,7 +93,12 @@ static int qcom_wdt_start_secure(struct watchdog_device *wdd)
 	writel(0, wdt->wdt_enable);
 	writel(1, wdt->wdt_reset);
 	writel(wdd->timeout * wdt->rate, wdt->wdt_bark_time);
-	writel(0x0FFFFFFF, wdt->wdt_bite_time);
+
+	if (wdt->bite)
+		writel(wdd->timeout * wdt->rate, wdt->wdt_bite_time);
+	else
+		writel(0x0FFFFFFF, wdt->wdt_bite_time);
+
 	writel(1, wdt->wdt_enable);
 	return 0;
 }
@@ -150,6 +160,15 @@ static const struct watchdog_info qcom_wdt_info = {
 	.identity	= KBUILD_MODNAME,
 };
 
+static const struct of_device_id qcom_wdt_of_table[] = {
+	{ .compatible = "qcom,kpss-wdt-msm8960", },
+	{ .compatible = "qcom,kpss-wdt-apq8064", },
+	{ .compatible = "qcom,kpss-wdt-ipq8064", },
+	{ .compatible = "qcom,kpss-wdt-ipq40xx", .data = (void *)USE_BITE_TIME},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, qcom_wdt_of_table);
+
 static int qcom_wdt_restart(struct notifier_block *nb, unsigned long action,
 			    void *data)
 {
@@ -190,6 +209,7 @@ static int qcom_wdt_restart(struct notifier_block *nb, unsigned long action,
 
 static int qcom_wdt_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *id;
 	struct device_node *np;
 	struct qcom_wdt *wdt;
 	struct resource *res;
@@ -226,6 +246,13 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 		wdt->wdt_bite_time = wdt->base + WDT_BITE_TIME;
 	else
 		wdt->wdt_bite_time = wdt->base + val;
+
+	id = of_match_device(qcom_wdt_of_table, &pdev->dev);
+	if (!id)
+		return -ENODEV;
+
+	if (id->data)
+		wdt->bite = 1;
 
 	wdt->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(wdt->clk)) {
@@ -306,15 +333,6 @@ static int qcom_wdt_remove(struct platform_device *pdev)
 	clk_disable_unprepare(wdt->clk);
 	return 0;
 }
-
-static const struct of_device_id qcom_wdt_of_table[] = {
-	{ .compatible = "qcom,kpss-wdt-msm8960", },
-	{ .compatible = "qcom,kpss-wdt-apq8064", },
-	{ .compatible = "qcom,kpss-wdt-ipq8064", },
-	{ .compatible = "qcom,kpss-wdt-ipq40xx", },
-	{ },
-};
-MODULE_DEVICE_TABLE(of, qcom_wdt_of_table);
 
 static struct platform_driver qcom_watchdog_driver = {
 	.probe	= qcom_wdt_probe,
