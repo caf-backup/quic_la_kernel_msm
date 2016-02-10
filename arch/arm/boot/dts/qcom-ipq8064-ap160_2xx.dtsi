@@ -48,7 +48,7 @@
 
 	soc {
 		pinmux@800000 {
-			pinctrl-0 = <&mdio0_pins_default &mdio1_pins_default &rgmii2_pins_default>;
+			pinctrl-0 = <&mdio0_pins_default &mdio1_pins_default &rgmii2_pins_default &pcie_2g_pwrdwn_default &pcie_5g_pwrdwn_default>;
 			pinctrl-names = "default";
 
 			rpm_i2c_pinmux: rpm_i2c_pinmux {
@@ -73,6 +73,32 @@
 					pins = "gpio48";
 					drive-strength = <2>;
 					bias-disable;
+				};
+			};
+
+			pcie3_pins: pcie3_pinmux {
+				mux {
+					pins = "gpio63";
+					drive-strength = <2>;
+					bias-disable;
+				};
+			};
+
+			pcie_2g_pwrdwn_default: pcie_2g_pwrdwn_default {
+				mux {
+					pins = "gpio9";
+					drive-strength = <12>;
+					bias-pull-up;
+					output-high;
+				};
+			};
+
+			pcie_5g_pwrdwn_default: pcie_5g_pwrdwn_default {
+				mux {
+					pins = "gpio26";
+					drive-strength = <12>;
+					bias-pull-up;
+					output-high;
 				};
 			};
 
@@ -200,6 +226,18 @@
 			ranges = <0x00000000 0 0x00000000 0x31f00000 0 0x00100000   /* configuration space */
 				  0x81000000 0 0	  0x31e00000 0 0x00100000   /* downstream I/O */
 				  0x82000000 0 0x00000000 0x2e000000 0 0x03e00000>; /* non-prefetchable memory */
+
+		};
+
+		pci@1b900000 {
+			status = "ok";
+			reset-gpio = <&qcom_pinmux 63 0>;
+			pinctrl-0 = <&pcie3_pins>;
+			pinctrl-names = "default";
+
+			ranges = <0x00000000 0 0x00000000 0x35f00000 0 0x00100000   /* configuration space */
+				  0x81000000 0 0          0x35e00000 0 0x00100000   /* downstream I/O */
+				  0x82000000 0 0x00000000 0x32000000 0 0x03e00000>; /* non-prefetchable memory */
 
 		};
 
