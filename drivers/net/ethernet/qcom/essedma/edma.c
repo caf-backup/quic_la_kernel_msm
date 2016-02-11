@@ -1989,7 +1989,6 @@ int edma_open(struct net_device *netdev)
 		} else {
 			dev_dbg(&pdev->dev, "Invalid PHY device for a link polled interface\n");
 		}
-		return;
 	} else {
 		adapter->link_state = __EDMA_LINKUP;
 		netif_carrier_on(netdev);
