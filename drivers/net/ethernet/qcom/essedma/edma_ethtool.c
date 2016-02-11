@@ -304,6 +304,8 @@ static int edma_get_coalesce(struct net_device *netdev,
 	 */
 	ec->tx_coalesce_usecs = (((reg_val >> 16) & 0xFFFF) << 1);
 	ec->rx_coalesce_usecs = ((reg_val & 0xFFFF) << 1);
+
+	return 0;
 }
 
 /*
@@ -317,6 +319,8 @@ static int edma_set_coalesce(struct net_device *netdev,
 		edma_change_tx_coalesce(ec->tx_coalesce_usecs);
 	if (ec->rx_coalesce_usecs)
 		edma_change_rx_coalesce(ec->rx_coalesce_usecs);
+
+	return 0;
 }
 
 /*
@@ -332,7 +336,7 @@ static int32_t edma_set_priv_flags(struct net_device *netdev, u32 flags)
  * edma_get_priv_flags()
  *	get edma driver flags
  */
-static uint32_t edma_get_priv_flags(struct net_device *netdev)
+static u32 edma_get_priv_flags(struct net_device *netdev)
 {
 	return 0;
 }
@@ -341,7 +345,7 @@ static uint32_t edma_get_priv_flags(struct net_device *netdev)
  * edma_get_ringparam()
  *	get ring size
  */
-static int edma_get_ringparam(struct net_device *netdev,
+static void edma_get_ringparam(struct net_device *netdev,
 		struct ethtool_ringparam *ring)
 {
 	struct edma_adapter *adapter = netdev_priv(netdev);
