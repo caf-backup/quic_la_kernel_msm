@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2015, The Linux foundation. All rights reserved.
+ * Copyright (c) 2008-2016, The Linux foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License rev 2 and
@@ -840,14 +840,15 @@ exit:
 
 static int spi_qup_setup(struct spi_device *spi)
 {
-	if (spi->cs_gpio >= 0) {
-		if (spi->mode & SPI_CS_HIGH)
-			gpio_set_value(spi->cs_gpio, 0);
-		else
-			gpio_set_value(spi->cs_gpio, 1);
+	if (!gpio_is_valid(spi->cs_gpio))
+		return 0;
 
-		udelay(10);
-	}
+	if (spi->mode & SPI_CS_HIGH)
+		gpio_set_value(spi->cs_gpio, 0);
+	else
+		gpio_set_value(spi->cs_gpio, 1);
+
+	udelay(10);
 
 	return 0;
 }
