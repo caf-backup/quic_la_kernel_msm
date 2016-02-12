@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -471,8 +471,7 @@ static struct clk_branch gcc_audio_pwm_clk = {
 
 
 static const struct freq_tbl ftbl_gcc_blsp1_qup1_2_i2c_apps_clk[] = {
-	F(19200000, P_XO, 1, 2, 5),
-	F(24000000, P_XO, 1, 1, 2),
+	{19050000, FE_PLL_200, 20, 0, 0},
 	{ }
 };
 
