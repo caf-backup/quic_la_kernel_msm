@@ -392,7 +392,7 @@ static int krait_cpufreq_probe(struct platform_device *pdev)
 		}
 		max_cpu_freq = max(max_cpu_freq, freq_Hz);
 
-		if (!of_property_read_u32(np, "cpu_freq_idle",
+		if (!of_property_read_u32(np, "cpu_fab_threshold",
 						&fab_data.idle_freq)) {
 			fab_data.clk = clk;
 			fab_scaling_register(&fab_data);

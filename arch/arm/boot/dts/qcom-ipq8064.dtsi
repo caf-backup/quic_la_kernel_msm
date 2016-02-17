@@ -69,7 +69,7 @@
 
 			clock-latency = <100000>;
 			voltage-tolerance = <5>;
-			cpu_freq_idle = <800000000>;
+			cpu_fab_threshold = <1000000000>;
 
 			cooling-min-state = <0>;
 			cooling-max-state = <10>;
@@ -127,7 +127,7 @@
 			>;
 
 			clock-latency = <100000>;
-			cpu_freq_idle = <800000000>;
+			cpu_fab_threshold = <1000000000>;
 
 			cooling-min-state = <0>;
 			cooling-max-state = <10>;
