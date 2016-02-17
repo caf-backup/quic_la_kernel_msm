@@ -56,9 +56,9 @@ static int overwrite_mode;
 module_param(overwrite_mode, int, 0);
 MODULE_PARM_DESC(overwrite_mode, "overwrite default page_mode setting");
 
-static int fraglist_mode;
-module_param(fraglist_mode, int, 0);
-MODULE_PARM_DESC(fraglist_mode, "enable fraglist mode");
+static int jumbo_mru;
+module_param(jumbo_mru, int, 0);
+MODULE_PARM_DESC(jumbo_mru, "enable fraglist support");
 
 static int num_rxq = 4;
 module_param(num_rxq, int, 0);
@@ -431,8 +431,6 @@ static int edma_axi_probe(struct platform_device *pdev)
 
 	edma_cinfo->rx_ring_count = EDMA_RX_RING_SIZE;
 
-	edma_cinfo->fraglist_mode = fraglist_mode;
-
 	hw = &edma_cinfo->hw;
 
 	/* Fill HW defaults */
@@ -448,8 +446,14 @@ static int edma_axi_probe(struct platform_device *pdev)
 		edma_cinfo->page_mode = page_mode;
 	}
 
+	if (jumbo_mru) {
+		edma_cinfo->fraglist_mode = 1;
+	}
+
 	if (edma_cinfo->page_mode)
 		hw->rx_head_buff_size = EDMA_RX_HEAD_BUFF_SIZE_JUMBO;
+	else if (edma_cinfo->fraglist_mode)
+		hw->rx_head_buff_size = jumbo_mru;
 	else if (!hw->rx_head_buff_size)
 		hw->rx_head_buff_size = EDMA_RX_HEAD_BUFF_SIZE;
 
