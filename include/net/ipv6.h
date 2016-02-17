@@ -484,8 +484,7 @@ static inline int ipv6_addr_diff(const struct in6_addr *a1, const struct in6_add
 	return __ipv6_addr_diff(a1, a2, sizeof(struct in6_addr));
 }
 
-extern void ipv6_select_ident(struct frag_hdr *fhdr, struct in6_addr *daddr,
-			      struct in6_addr *saddr);
+extern void ipv6_select_ident(struct frag_hdr *fhdr, struct rt6_info *rt);
 
 /*
  *	Prototypes exported by ipv6
