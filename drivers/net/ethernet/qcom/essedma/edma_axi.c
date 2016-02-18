@@ -551,7 +551,7 @@ static int edma_axi_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* Populate the adapter structure register the netdevice */
+	/* Populate adapter and netdev structure here */
 	for (i = 0; i < EDMA_NR_NETDEV; i++) {
 		int k;
 		adapter[i] = netdev_priv(netdev[i]);
@@ -607,39 +607,12 @@ static int edma_axi_probe(struct platform_device *pdev)
 			*(netdev[i]->dev_addr + 2), *(netdev[i]->dev_addr + 3),
 			*(netdev[i]->dev_addr + 4), *(netdev[i]->dev_addr + 5));
 		}
-
-		err = register_netdev(netdev[i]);
-		if (err)
-			goto err_register;
-
-		/* carrier off reporting is important to ethtool even BEFORE open */
-		netif_carrier_off(netdev[i]);
-
-               /* Allocate reverse irq cpu mapping structure for
-		* receive queues
-		*/
-#ifdef CONFIG_RFS_ACCEL
-		netdev[i]->rx_cpu_rmap =
-			alloc_irq_cpu_rmap(EDMA_NETDEV_RX_QUEUE);
-		if (!netdev[i]->rx_cpu_rmap) {
-			err = -ENOMEM;
-			goto err_rmap_alloc_fail;
-		}
-#endif
-	}
-
-	edma_cinfo->edma_ctl_table_hdr = register_net_sysctl(&init_net, "net/edma", edma_table);
-	if (!edma_cinfo->edma_ctl_table_hdr) {
-		dev_err(&pdev->dev, "edma sysctl table hdr not registered\n");
-		goto err_unregister_sysctl_tbl;
 	}
 
 	/* Set default LAN tag*/
 	adapter[EDMA_LAN]->default_vlan_tag = EDMA_LAN_DEFAULT_VLAN;
-
-	/* Set default WAN tag & flags */
-        adapter[EDMA_WAN]->default_vlan_tag = EDMA_WAN_DEFAULT_VLAN;
-        adapter[EDMA_WAN]->flags = EDMA_ADAPTER_FLAG_WAN;
+	/* Set default WAN tag */
+	adapter[EDMA_WAN]->default_vlan_tag = EDMA_WAN_DEFAULT_VLAN;
 
 	if (of_property_read_bool(np, "qcom,mdio_supported")) {
 		adapter[EDMA_WAN]->poll_required =
@@ -675,6 +648,50 @@ static int edma_axi_probe(struct platform_device *pdev)
 		/* create a phyid using MDIO bus id and MDIO bus address */
 		snprintf(phy_id, MII_BUS_ID_SIZE + 3, PHY_ID_FMT,
 			miibus->id, adapter[EDMA_WAN]->phy_mdio_addr);
+	}
+
+	if (adapter[EDMA_WAN]->poll_required) {
+		adapter[EDMA_WAN]->phydev =
+			phy_connect(netdev[EDMA_WAN], (const char *)phy_id,
+				&edma_adjust_link, PHY_INTERFACE_MODE_SGMII);
+		if (IS_ERR(adapter[EDMA_WAN]->phydev)) {
+			dev_dbg(&pdev->dev, "PHY attach FAIL");
+			ret = -EIO;
+			goto edma_phy_attach_fail;
+		} else {
+			adapter[EDMA_WAN]->phydev->advertising |= ADVERTISED_Pause | ADVERTISED_Asym_Pause;
+			adapter[EDMA_WAN]->phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+		}
+	}
+
+	/* Register the netdevice */
+	for (i = 0; i < EDMA_NR_NETDEV; i++) {
+		int err;
+
+		err = register_netdev(netdev[i]);
+		if (err)
+			goto err_register;
+
+		/* carrier off reporting is important to ethtool even BEFORE open */
+		netif_carrier_off(netdev[i]);
+
+               /* Allocate reverse irq cpu mapping structure for
+		* receive queues
+		*/
+#ifdef CONFIG_RFS_ACCEL
+		netdev[i]->rx_cpu_rmap =
+			alloc_irq_cpu_rmap(EDMA_NETDEV_RX_QUEUE);
+		if (!netdev[i]->rx_cpu_rmap) {
+			err = -ENOMEM;
+			goto err_rmap_alloc_fail;
+		}
+#endif
+	}
+
+	edma_cinfo->edma_ctl_table_hdr = register_net_sysctl(&init_net, "net/edma", edma_table);
+	if (!edma_cinfo->edma_ctl_table_hdr) {
+		dev_err(&pdev->dev, "edma sysctl table hdr not registered\n");
+		goto err_unregister_sysctl_tbl;
 	}
 
 	/* Disable all 16 Tx and 8 rx irqs */
@@ -764,20 +781,6 @@ static int edma_axi_probe(struct platform_device *pdev)
 	edma_enable_tx_ctrl(&edma_cinfo->hw);
 	edma_enable_rx_ctrl(&edma_cinfo->hw);
 
-	if (adapter[EDMA_WAN]->poll_required) {
-		adapter[EDMA_WAN]->phydev =
-			phy_connect(netdev[EDMA_WAN], (const char *)phy_id,
-				&edma_adjust_link, PHY_INTERFACE_MODE_SGMII);
-		if (IS_ERR(adapter[EDMA_WAN]->phydev)) {
-			dev_dbg(&pdev->dev, "PHY attach FAIL");
-			ret = -EIO;
-			goto edma_phy_attach_fail;
-		} else {
-			adapter[EDMA_WAN]->phydev->advertising |= ADVERTISED_Pause | ADVERTISED_Asym_Pause;
-			adapter[EDMA_WAN]->phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
-		}
-	}
-
 	spin_lock_init(&edma_cinfo->stats_lock);
 
         init_timer(&edma_stats_timer);
@@ -788,8 +791,6 @@ static int edma_axi_probe(struct platform_device *pdev)
 
 	return 0;
 
-edma_phy_attach_fail:
-	miibus = NULL;
 err_configure:
 #ifdef CONFIG_RFS_ACCEL
 	for (i = 0; i < EDMA_NR_NETDEV; i++) {
@@ -803,12 +804,14 @@ err_reset:
 		edma_free_irqs(adapter[i]);
 	for (i = 0; i < EDMA_NR_CPU; i++)
 		napi_disable(&edma_cinfo->edma_percpu_info[i].napi);
-err_mdiobus_init_fail:
 err_unregister_sysctl_tbl:
 err_rmap_alloc_fail:
 	for (i = 0; i < EDMA_NR_NETDEV; i++)
 		unregister_netdev(netdev[i]);
 err_register:
+edma_phy_attach_fail:
+	miibus = NULL;
+err_mdiobus_init_fail:
 	edma_free_rx_rings(edma_cinfo);
 err_rx_rinit:
 	edma_free_tx_rings(edma_cinfo);

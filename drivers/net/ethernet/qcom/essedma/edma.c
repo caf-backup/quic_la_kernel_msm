@@ -2019,7 +2019,6 @@ int edma_open(struct net_device *netdev)
 	 */
 	if (adapter->poll_required) {
 		if (!IS_ERR(adapter->phydev)) {
-			genphy_resume(adapter->phydev);
 			phy_start(adapter->phydev);
 			phy_start_aneg(adapter->phydev);
 			adapter->link_state = __EDMA_LINKDOWN;
