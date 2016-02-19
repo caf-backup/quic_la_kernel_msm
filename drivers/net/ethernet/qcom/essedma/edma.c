@@ -441,7 +441,7 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 				continue;
 			}
 
-			if (port_id == edma_cinfo->edma_port_id_wan)
+			if (edma_cinfo->wan_portid_lookup_tbl[port_id] == EDMA_WAN)
 				netdev = edma_cinfo->netdev[0];
 			else
 				netdev = edma_cinfo->netdev[1];

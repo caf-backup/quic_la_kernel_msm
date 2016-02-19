@@ -384,6 +384,7 @@ static int edma_axi_probe(struct platform_device *pdev)
 	struct edma_mdio_data *mdio_data = NULL;
 	int i, j, k, err = 0, ret = 0;
 	uint8_t phy_id[MII_BUS_ID_SIZE + 3];
+	u32 edma_wan_port_id_mask;
 
 	if ((num_rxq != 4) && (num_rxq != 8)) {
 		dev_err(&pdev->dev, "Invalid RX queue, edma probe failed\n");
@@ -431,6 +432,14 @@ static int edma_axi_probe(struct platform_device *pdev)
 
 	edma_cinfo->rx_ring_count = EDMA_RX_RING_SIZE;
 
+	/* we initialise wan_portid_lookup_tbl to -1. Later when
+	 * we check for wan port bitmask set by the user, we will
+	 * replace the corresponding entries in the array with EDMA_WAN
+	 */
+	for (i = 0; i < 6; i++) {
+		edma_cinfo->wan_portid_lookup_tbl[i] = -1;
+	}
+
 	hw = &edma_cinfo->hw;
 
 	/* Fill HW defaults */
@@ -439,7 +448,13 @@ static int edma_axi_probe(struct platform_device *pdev)
 
 	of_property_read_u32(np, "qcom,page-mode", &edma_cinfo->page_mode);
 	of_property_read_u32(np, "qcom,rx_head_buf_size", &hw->rx_head_buff_size);
-	of_property_read_u32(np, "qcom,port_id_wan", &edma_cinfo->edma_port_id_wan);
+	of_property_read_u32(np, "qcom,wan_port_id_mask", &edma_wan_port_id_mask);
+
+	while (edma_wan_port_id_mask) {
+		int port_bit_set = ffs(edma_wan_port_id_mask);
+		edma_cinfo->wan_portid_lookup_tbl[port_bit_set] = EDMA_WAN;
+		edma_wan_port_id_mask &= ~(1 << (port_bit_set - 1));
+	}
 
 	if (overwrite_mode) {
 		dev_info(&pdev->dev, "page mode overwritten");
