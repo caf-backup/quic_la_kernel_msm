@@ -306,7 +306,7 @@ struct edma_common_info {
 	int num_tx_queues; /* number of tx queue */
 	int tx_irq[16]; /* number of tx irq */
 	int rx_irq[8]; /* number of rx irq */
-	int edma_port_id_wan; /* wan port id */
+	int wan_portid_lookup_tbl[6]; /* wan port lookup tbl */
 	int from_cpu; /* from CPU TPD field */
 	int dp_bitmap; /* port bitmap */
 	int num_rxq_per_core; /* Rx queues per core */
