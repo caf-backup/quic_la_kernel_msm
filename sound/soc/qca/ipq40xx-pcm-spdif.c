@@ -43,8 +43,7 @@ static struct snd_pcm_hardware ipq40xx_pcm_hardware_playback = {
 					SNDRV_PCM_INFO_PAUSE |
 					SNDRV_PCM_INFO_RESUME,
 	.formats		=	SNDRV_PCM_FMTBIT_S16 |
-					SNDRV_PCM_FMTBIT_S24 |
-					SNDRV_PCM_FMTBIT_S32,
+					SNDRV_PCM_FMTBIT_S24_3,
 	.rates			=	RATE_16000_96000,
 	.rate_min		=	FREQ_16000,
 	.rate_max		=	FREQ_96000,
@@ -64,8 +63,7 @@ static struct snd_pcm_hardware ipq40xx_pcm_hardware_capture = {
 					SNDRV_PCM_INFO_MMAP_VALID |
 					SNDRV_PCM_INFO_INTERLEAVED,
 	.formats		=	SNDRV_PCM_FMTBIT_S16 |
-					SNDRV_PCM_FMTBIT_S24 |
-					SNDRV_PCM_FMTBIT_S32,
+					SNDRV_PCM_FMTBIT_S24_3,
 	.rates			=	RATE_16000_96000,
 	.rate_min		=	FREQ_16000,
 	.rate_max		=	FREQ_96000,
@@ -124,7 +122,6 @@ static irqreturn_t ipq40xx_pcm_irq(int intrsrc, void *data)
 	uint32_t processed_size;
 	int offset;
 	uint32_t *ptr;
-	uint32_t i;
 
 	struct snd_pcm_substream *substream = data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -157,16 +154,6 @@ static irqreturn_t ipq40xx_pcm_irq(int intrsrc, void *data)
 
 			if (ptr < (uint32_t *)runtime->dma_area)
 				goto ack;
-
-			/* The data in the buffer is present from bits 4 to 23.
-			 * The other bits are V, U, C, P and channel flags
-			 * Ignoring those bits for now.
-			 */
-			for (i = 0; i < (processed_size/4); i++) {
-				*ptr = ((*ptr & 0xFFFFFF) << 8);
-				ptr++;
-			}
-
 		}
 	}
 
@@ -232,6 +219,24 @@ static int ipq40xx_pcm_spdif_prepare(struct snd_pcm_substream *substream)
 		return ret;
 	}
 
+	/* Set to swap the words */
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		ret = ipq40xx_mbox_dma_swap(pcm_rtpriv->channel,
+			runtime->format);
+		if (ret) {
+			pr_err("%s: %d: Error in dma swap : channel : %d\n",
+				__func__, __LINE__, pcm_rtpriv->channel);
+			ipq40xx_mbox_dma_release(pcm_rtpriv->channel);
+			return ret;
+		}
+
+		/* SWAP at PCM level for 24 bit samples */
+		if ((substream->runtime->format == SNDRV_PCM_FORMAT_S24_3LE) ||
+		    (substream->runtime->format == SNDRV_PCM_FORMAT_S24_3BE))
+			ipq40xx_stereo_spdif_pcmswap(ENABLE,
+				get_stereo_id(substream, SPDIF));
+	}
+
 	/* Set the ownership bits */
 	ipq40xx_mbox_get_elapsed_size(pcm_rtpriv->channel);
 
@@ -251,9 +256,24 @@ static int ipq40xx_pcm_spdif_close(struct snd_pcm_substream *substream)
 		pr_err("%s: %d: Error in dma release\n",
 					__func__, __LINE__);
 	}
+
+	/* Reset the swap */
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		ret = ipq40xx_mbox_dma_reset_swap(pcm_rtpriv->channel);
+		if (ret) {
+			pr_err("%s: %d: Error in dma release\n",
+				__func__, __LINE__);
+		}
+
+		if ((substream->runtime->format == SNDRV_PCM_FORMAT_S24_3LE) ||
+		    (substream->runtime->format == SNDRV_PCM_FORMAT_S24_3BE))
+			ipq40xx_stereo_spdif_pcmswap(DISABLE,
+				get_stereo_id(substream, SPDIF));
+	}
+
 	kfree(pcm_rtpriv);
 
-	return 0;
+	return ret;
 }
 
 static int ipq40xx_pcm_spdif_trigger(struct snd_pcm_substream *substream,
@@ -341,6 +361,12 @@ static int ipq40xx_pcm_spdif_hw_params(struct snd_pcm_substream *substream,
 
 	pcm_rtpriv->period_size = params_period_bytes(hw_params);
 
+	/* Check whether this is a compressed play or not
+	 * if its a compressed play set VUC
+	 */
+	if (hw_params->reserved[0])
+		ipq40xx_mbox_vuc_setup(pcm_rtpriv->channel);
+
 	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 
 	runtime->dma_bytes = params_buffer_bytes(hw_params);
@@ -427,7 +453,7 @@ static int ipq40xx_asoc_pcm_spdif_new(struct snd_soc_pcm_runtime *prtd)
 	struct snd_card *card = prtd->card->snd_card;
 	struct snd_pcm *pcm = prtd->pcm;
 
-	int ret;
+	int ret = 0;
 
 	if (!card->dev->coherent_dma_mask)
 		card->dev->coherent_dma_mask = DMA_BIT_MASK(32);

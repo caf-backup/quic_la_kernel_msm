@@ -186,6 +186,61 @@ static inline bool ipq40xx_is_chn_already_inited(uint32_t index, uint32_t dir)
 			&mbox_rtime[index]->dir_priv[PLAYBACK].status));
 }
 
+int ipq40xx_mbox_dma_reset_swap(int channel_id)
+{
+	unsigned int val;
+	volatile void __iomem *mbox_reg;
+	uint32_t index;
+
+	index = ipq40xx_convert_id_to_channel(channel_id);
+
+	if (!mbox_rtime[index])
+		return -EINVAL;
+
+	mbox_reg = mbox_rtime[index]->mbox_reg_base;
+
+	val = readl(mbox_reg + ADSS_MBOXn_MBOX_DMA_POLICY_REG);
+	val &= ~(MBOX_DMA_POLICY_RXD_END_SWAP | MBOX_DMA_POLICY_RXD_16BIT_SWAP);
+
+	writel(val, mbox_reg + ADSS_MBOXn_MBOX_DMA_POLICY_REG);
+
+	return 0;
+}
+EXPORT_SYMBOL(ipq40xx_mbox_dma_reset_swap);
+
+int ipq40xx_mbox_dma_swap(int channel_id, snd_pcm_format_t format)
+{
+	unsigned int val;
+	volatile void __iomem *mbox_reg;
+	uint32_t index;
+
+	index = ipq40xx_convert_id_to_channel(channel_id);
+
+	if (!mbox_rtime[index])
+		return -ENOMEM;
+
+	mbox_reg = mbox_rtime[index]->mbox_reg_base;
+
+	val = readl(mbox_reg + ADSS_MBOXn_MBOX_DMA_POLICY_REG);
+	switch (format) {
+	case SNDRV_PCM_FORMAT_S16_LE:
+	case SNDRV_PCM_FORMAT_S16_BE:
+		val |= MBOX_DMA_POLICY_RXD_16BIT_SWAP;
+		break;
+	case SNDRV_PCM_FORMAT_S24_3LE:
+	case SNDRV_PCM_FORMAT_S24_3BE:
+		val |= MBOX_DMA_POLICY_RXD_END_SWAP;
+		break;
+	default:
+		/* Nothing to do */
+		break;
+	}
+	writel(val, mbox_reg + ADSS_MBOXn_MBOX_DMA_POLICY_REG);
+
+	return 0;
+}
+EXPORT_SYMBOL(ipq40xx_mbox_dma_swap);
+
 int ipq40xx_mbox_dma_prepare(int channel_id)
 {
 	struct ipq40xx_mbox_desc *desc;
@@ -258,6 +313,46 @@ int ipq40xx_mbox_dma_prepare(int channel_id)
 	return err;
 }
 EXPORT_SYMBOL(ipq40xx_mbox_dma_prepare);
+
+void ipq40xx_mbox_vuc_setup(int channel_id)
+{
+	uint32_t index, dir;
+	struct ipq40xx_mbox_desc *desc;
+	int ndescs;
+	int i;
+
+	index = ipq40xx_convert_id_to_channel(channel_id);
+	dir = ipq40xx_convert_id_to_dir(channel_id);
+	ndescs = mbox_rtime[index]->dir_priv[dir].ndescs;
+	desc = mbox_rtime[index]->dir_priv[dir].dma_virt_head;
+
+	/* Copy VUC from previous descriptors */
+	for (i = 0; i < ndescs; i++) {
+		/* Setup V bits as 1, Acc to IEC 60958-3 Standard
+		 *    for non PCM data, we need to set invalid for
+		 *     both channels
+		 * There are 6 DWORDS (192 bits) for Channel A
+		 * and 6 DWORDS (192 bits) for channel B
+		 */
+		desc[i].vuc_dword[CHANNEL_A_VDWORD_1] = ADSS_MBOX_INVALID_PCM;
+		desc[i].vuc_dword[CHANNEL_A_VDWORD_2] = ADSS_MBOX_INVALID_PCM;
+		desc[i].vuc_dword[CHANNEL_A_VDWORD_3] = ADSS_MBOX_INVALID_PCM;
+		desc[i].vuc_dword[CHANNEL_A_VDWORD_4] = ADSS_MBOX_INVALID_PCM;
+		desc[i].vuc_dword[CHANNEL_A_VDWORD_5] = ADSS_MBOX_INVALID_PCM;
+		desc[i].vuc_dword[CHANNEL_A_VDWORD_6] = ADSS_MBOX_INVALID_PCM;
+		desc[i].vuc_dword[CHANNEL_B_VDWORD_1] = ADSS_MBOX_INVALID_PCM;
+		desc[i].vuc_dword[CHANNEL_B_VDWORD_2] = ADSS_MBOX_INVALID_PCM;
+		desc[i].vuc_dword[CHANNEL_B_VDWORD_3] = ADSS_MBOX_INVALID_PCM;
+		desc[i].vuc_dword[CHANNEL_B_VDWORD_4] = ADSS_MBOX_INVALID_PCM;
+		desc[i].vuc_dword[CHANNEL_B_VDWORD_5] = ADSS_MBOX_INVALID_PCM;
+		desc[i].vuc_dword[CHANNEL_B_VDWORD_6] = ADSS_MBOX_INVALID_PCM;
+
+		/* Now setup C bits, acc to IEC-60958-3 */
+		desc[i].vuc_dword[CHANNEL_A_CDWORD_1] = SPDIF_CONSUMER_COMPRESD;
+		desc[i].vuc_dword[CHANNEL_B_CDWORD_2] = SPDIF_CONSUMER_COMPRESD;
+	}
+}
+EXPORT_SYMBOL(ipq40xx_mbox_vuc_setup);
 
 int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr,
 				int period_bytes, int bufsize)
@@ -411,7 +506,7 @@ int ipq40xx_mbox_dma_init(struct device *dev, int channel_id,
 	index = ipq40xx_convert_id_to_channel(channel_id);
 	dir = ipq40xx_convert_id_to_dir(channel_id);
 
-	if (index  > ADSS_MBOX_NR_CHANNELS)
+	if (index  >= ADSS_MBOX_NR_CHANNELS)
 		return -EINVAL;
 
 	if (!mbox_rtime[index])
@@ -454,7 +549,7 @@ static int ipq40xx_mbox_probe(struct platform_device *pdev)
 		goto init_err;
 	}
 
-	if (id > ADSS_MBOX_NR_CHANNELS) {
+	if (id >= ADSS_MBOX_NR_CHANNELS) {
 		rc = -EINVAL;
 		goto init_err;
 	}

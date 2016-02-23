@@ -244,7 +244,7 @@ static int ipq40xx_codec_audio_hw_params(struct snd_pcm_substream *substream,
 		dfs = NORMAL_SPEED;
 		cks = FS_512;
 		tdm_mode = STEREO;
-		dif = AKD4613_DIF_I2S_MODE;
+		dif = DIF_I2S_MODE;
 
 	} else if (intf == TDM) {
 		/* Codec settings for 8 channels */
@@ -359,8 +359,7 @@ static struct snd_soc_dai_driver ipq40xx_codec_dais[] = {
 			.channels_max = CH_STEREO,
 			.rates = RATE_16000_96000,
 			.formats = SNDRV_PCM_FMTBIT_S16 |
-				SNDRV_PCM_FMTBIT_S24 |
-				SNDRV_PCM_FMTBIT_S32,
+				SNDRV_PCM_FMTBIT_S24_3,
 		},
 		.capture = {
 			.stream_name = "qca-spdif-capture",
@@ -368,8 +367,7 @@ static struct snd_soc_dai_driver ipq40xx_codec_dais[] = {
 			.channels_max = CH_STEREO,
 			.rates = RATE_16000_96000,
 			.formats = SNDRV_PCM_FMTBIT_S16 |
-				SNDRV_PCM_FMTBIT_S24 |
-				SNDRV_PCM_FMTBIT_S32,
+				SNDRV_PCM_FMTBIT_S24_3,
 		},
 	},
 };
@@ -428,9 +426,9 @@ static int ipq40xx_codec_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static int ipq40xx_codec_i2c_remove(struct platform_device *pdev)
+static int ipq40xx_codec_i2c_remove(struct i2c_client *client)
 {
-	snd_soc_unregister_codec(&pdev->dev);
+	snd_soc_unregister_codec(&client->dev);
 	return 0;
 }
 

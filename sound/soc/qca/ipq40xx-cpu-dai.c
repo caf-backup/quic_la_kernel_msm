@@ -87,8 +87,12 @@ uint32_t ipq40xx_get_act_bit_width(uint32_t bit_width)
 	case SNDRV_PCM_FORMAT_U16_LE:
 	case SNDRV_PCM_FORMAT_U16_BE:
 		return __BIT_16;
-	case SNDRV_PCM_FORMAT_S24_LE:
 	case SNDRV_PCM_FORMAT_S24_3LE:
+	case SNDRV_PCM_FORMAT_S24_3BE:
+	case SNDRV_PCM_FORMAT_U24_3LE:
+	case SNDRV_PCM_FORMAT_U24_3BE:
+		return __BIT_32;
+	case SNDRV_PCM_FORMAT_S24_LE:
 	case SNDRV_PCM_FORMAT_S24_BE:
 	case SNDRV_PCM_FORMAT_U24_LE:
 	case SNDRV_PCM_FORMAT_U24_BE:
@@ -151,7 +155,7 @@ static int ipq40xx_audio_startup(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
 	uint32_t intf = dai->driver->id;
-	int ret;
+	int ret = 0;
 	struct device *dev = &(dai_priv[intf].pdev->dev);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -324,6 +328,8 @@ static int ipq40xx_spdif_hw_params(struct snd_pcm_substream *substream,
 	uint32_t stereo_id = get_stereo_id(substream, SPDIF);
 	uint32_t mclk, bclk;
 	struct device *dev = &(dai_priv[SPDIF].pdev->dev);
+	uint32_t spdif_bclk;
+	uint32_t spdif_mclk;
 
 	bit_width = params_format(params);
 	channels = params_channels(params);
@@ -332,6 +338,10 @@ static int ipq40xx_spdif_hw_params(struct snd_pcm_substream *substream,
 
 	bclk = rate * bit_act * channels;
 	mclk = bclk * MCLK_MULTI;
+
+	/* SPDIF subframe is always 32 bit and 2 channels */
+	spdif_bclk = rate * 32 * 2;
+	spdif_mclk = spdif_bclk * 2;
 
 	if (substream->stream == PLAYBACK) {
 		/* Set the clocks */
@@ -344,12 +354,12 @@ static int ipq40xx_spdif_hw_params(struct snd_pcm_substream *substream,
 			return ret;
 
 		ret = ipq40xx_audio_clk_set(audio_spdif_src, dev,
-						AUDIO_SPDIF_SRC);
+						spdif_mclk);
 		if (ret)
 			return ret;
 
 		ret = ipq40xx_audio_clk_set(audio_spdif_div2, dev,
-						AUDIO_SPDIF_DIV2);
+						spdif_bclk);
 		if (ret)
 			return ret;
 
@@ -387,7 +397,7 @@ static int ipq40xx_spdif_prepare(struct snd_pcm_substream *substream,
 static int ipq40xx_spdif_startup(struct snd_pcm_substream *substream,
 					struct snd_soc_dai *dai)
 {
-	int ret;
+	int ret = 0;
 	struct device *dev = &(dai_priv[SPDIF].pdev->dev);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -563,8 +573,7 @@ static struct snd_soc_dai_driver ipq40xx_cpu_dais[] = {
 		.playback = {
 			.rates		= RATE_16000_96000,
 			.formats        = SNDRV_PCM_FMTBIT_S16 |
-					SNDRV_PCM_FMTBIT_S24 |
-					SNDRV_PCM_FMTBIT_S32,
+					SNDRV_PCM_FMTBIT_S24_3,
 			.channels_min   = CH_STEREO,
 			.channels_max   = CH_STEREO,
 			.rate_min       = FREQ_16000,
@@ -573,8 +582,7 @@ static struct snd_soc_dai_driver ipq40xx_cpu_dais[] = {
 		.capture = {
 			.rates		= RATE_16000_96000,
 			.formats        = SNDRV_PCM_FMTBIT_S16 |
-					SNDRV_PCM_FMTBIT_S24 |
-					SNDRV_PCM_FMTBIT_S32,
+					SNDRV_PCM_FMTBIT_S24_3,
 			.channels_min   = CH_STEREO,
 			.channels_max   = CH_STEREO,
 			.rate_min       = FREQ_16000,

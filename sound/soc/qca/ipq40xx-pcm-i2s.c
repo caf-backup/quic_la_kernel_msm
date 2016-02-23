@@ -194,11 +194,11 @@ static int ipq40xx_pcm_i2s_close(struct snd_pcm_substream *substream)
 	pcm_rtpriv = substream->runtime->private_data;
 	ret = ipq40xx_mbox_dma_release(pcm_rtpriv->channel);
 	if (ret) {
-		pr_err("%s: %d: Error in dma release \n",
+		pr_err("%s: %d: Error in dma release\n",
 					__func__, __LINE__);
 	}
-	if (pcm_rtpriv)
-		kfree(pcm_rtpriv);
+
+	kfree(pcm_rtpriv);
 
 	return 0;
 }
@@ -376,7 +376,7 @@ static int ipq40xx_asoc_pcm_i2s_new(struct snd_soc_pcm_runtime *prtd)
 	struct snd_card *card = prtd->card->snd_card;
 	struct snd_pcm *pcm = prtd->pcm;
 
-	int ret;
+	int ret = 0;
 
 	if (!card->dev->coherent_dma_mask)
 		card->dev->coherent_dma_mask = DMA_BIT_MASK(32);

@@ -367,6 +367,8 @@
 #define MBOX_DMA_POLICY_SW_RESET			(1 << 31)
 #define MBOX_DMA_POLICY_TX_INT_TYPE			(1 << 17)
 #define MBOX_DMA_POLICY_RX_INT_TYPE			(1 << 16)
+#define MBOX_DMA_POLICY_RXD_16BIT_SWAP			(1 << 10)
+#define MBOX_DMA_POLICY_RXD_END_SWAP			(1 << 8)
 #define ADSS_MBOX_DMA_POLICY_SRAM_AC(x)		(((x >> 28) & 0xf) << 12)
 #define ADSS_MBOX_DMA_POLICY_TX_FIFO_THRESHOLD(x)	(((x & 0xf) << 4))
 
@@ -555,8 +557,6 @@ enum bit_width {
 };
 
 /* SPDIF clocks */
-#define AUDIO_SPDIF_SRC		6144000
-#define AUDIO_SPDIF_DIV2	3072000
 #define AUDIO_SPDIFINFAST	49152000
 
 /* ADSS APIs */
@@ -569,7 +569,6 @@ extern void ipq40xx_glb_rx_data_port_en(uint32_t enable);
 extern void ipq40xx_glb_audio_mode_B1K(void);
 extern void ipq40xx_glb_tx_framesync_port_en(uint32_t enable);
 extern void ipq40xx_glb_rx_framesync_port_en(uint32_t enable);
-extern void ipq40xx_i2s_intf_clk_cfg(uint32_t mode);
 extern void ipq40xx_glb_tdm_ctrl_ch_num(uint32_t val, uint32_t dir);
 extern void ipq40xx_glb_tdm_ctrl_sync_num(uint32_t val, uint32_t dir);
 extern void ipq40xx_glb_tdm_ctrl_delay(uint32_t delay, uint32_t dir);
@@ -590,6 +589,7 @@ extern void ipq40xx_config_master(uint32_t enable, uint32_t stereo_offset);
 extern void ipq40xx_config_mclk_sel(uint32_t stereo_offset, uint32_t val);
 extern void ipq40xx_config_sample_cnt_clear_type(uint32_t stereo_offset);
 extern void ipq40xx_stereo_spdif_enable(uint32_t enable, uint32_t stereo_id);
+extern void ipq40xx_stereo_spdif_pcmswap(uint32_t enable, uint32_t stereo_id);
 
 /* APIs in DAI driver */
 extern uint32_t get_mbox_id(struct snd_pcm_substream *substream, int intf);

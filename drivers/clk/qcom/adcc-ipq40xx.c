@@ -141,9 +141,9 @@ static struct clk_qcapll adss_pll_src = {
 static const struct freq_tbl ftbl_m_clk[] = {
 	{255, MCLK_MCLK_IN, 1, 0, 0},
 	{2048000, ADSS_PLL, 96, 0, 0},
-	{2822500, ADSS_PLL, 64, 0, 0},
+	{2822400, ADSS_PLL, 64, 0, 0},
 	{4096000, ADSS_PLL, 48, 0, 0},
-	{5645000, ADSS_PLL, 32, 0, 0},
+	{5644800, ADSS_PLL, 32, 0, 0},
 	{6144000, ADSS_PLL, 32, 0, 0},
 	{8192000, ADSS_PLL, 24, 0, 0},
 	{11289600, ADSS_PLL, 16, 0, 0},
@@ -413,11 +413,6 @@ static struct clk_branch adcc_spdifinfast_src = {
 	},
 };
 
-static const struct freq_tbl spdif_src_tbl[] = {
-	{6144000, ADSS_PLL, 32, 0, 0},
-	{ }
-};
-
 static struct clk_muxr_misc spdif_src = {
 	.misc.offset = AUDIO_SPDIF_MISC_REG,
 	.misc.shift = 1,
@@ -426,7 +421,7 @@ static struct clk_muxr_misc spdif_src = {
 	.muxr.shift = 8,
 	.muxr.mask = 0x7,
 	.parent_map = adcc_xo_adpll_padbclk_padmclk_map,
-	.freq_tbl = spdif_src_tbl,
+	.freq_tbl = ftbl_m_clk,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "spdif_src",
 		.parent_names = adcc_xo_adpll_padbclk_padmclk,
@@ -454,11 +449,6 @@ static struct clk_branch adcc_spdif_src = {
 	},
 };
 
-static const struct freq_tbl spdif2_src_tbl[] = {
-	{3072000, ADSS_PLL, 64, 0, 0},
-	{ }
-};
-
 static struct clk_muxr_misc spdifdiv2_src = {
 	.misc.offset = AUDIO_SPDIFDIV2_MISC_REG,
 	.misc.shift = 1,
@@ -467,7 +457,7 @@ static struct clk_muxr_misc spdifdiv2_src = {
 	.muxr.offset = AUDIO_TXB_CFG_MUXR_REG,
 	.muxr.shift = 8,
 	.muxr.mask = 0x7,
-	.freq_tbl = spdif2_src_tbl,
+	.freq_tbl = ftbl_bclk_clk,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "spdifdiv2_src",
 		.parent_names = adcc_xo_adpll_padbclk_padmclk,
