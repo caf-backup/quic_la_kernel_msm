@@ -21,6 +21,8 @@
 #include <linux/reboot.h>
 #include <linux/watchdog.h>
 #include <soc/qcom/scm.h>
+#include <linux/interrupt.h>
+#include <linux/sched.h>
 
 #define WDT_RST		0x0
 #define WDT_EN		0x8
@@ -92,12 +94,14 @@ static int qcom_wdt_start_secure(struct watchdog_device *wdd)
 
 	writel(0, wdt->wdt_enable);
 	writel(1, wdt->wdt_reset);
-	writel(wdd->timeout * wdt->rate, wdt->wdt_bark_time);
 
-	if (wdt->bite)
+	if (wdt->bite) {
+		writel((wdd->timeout - 1) * wdt->rate, wdt->wdt_bark_time);
 		writel(wdd->timeout * wdt->rate, wdt->wdt_bite_time);
-	else
+	} else {
+		writel(wdd->timeout * wdt->rate, wdt->wdt_bark_time);
 		writel(0x0FFFFFFF, wdt->wdt_bite_time);
+	}
 
 	writel(1, wdt->wdt_enable);
 	return 0;
@@ -207,19 +211,55 @@ static int qcom_wdt_restart(struct notifier_block *nb, unsigned long action,
 	return NOTIFY_DONE;
 }
 
+static irqreturn_t wdt_bark_isr(int irq, void *wdd)
+{
+	struct qcom_wdt *wdt = to_qcom_wdt(wdd);
+	unsigned long nanosec_rem;
+	unsigned long long t = sched_clock();
+
+	nanosec_rem = do_div(t, 1000000000);
+	pr_info("Watchdog bark! Now = %lu.%06lu\n", (unsigned long) t,
+							nanosec_rem / 1000);
+	pr_info("Causing a watchdog bite!");
+	writel(0, wdt->wdt_enable);
+	writel(1, wdt->wdt_bite_time);
+	mb(); /* Avoid unpredictable behaviour in concurrent executions */
+	writel(1, wdt->wdt_reset);
+	writel(1, wdt->wdt_enable);
+	mb(); /* Make sure the above sequence hits hardware before Reboot. */
+
+	mdelay(1);
+	pr_err("Wdog - CTL: 0x%x, BARK TIME: 0x%x, BITE TIME: 0x%x",
+		readl(wdt->wdt_enable),
+		readl(wdt->wdt_bark_time),
+		readl(wdt->wdt_bite_time));
+	return IRQ_HANDLED;
+}
+
+void register_wdt_bark_irq(int irq, struct qcom_wdt *wdt)
+{
+	int ret;
+	ret = request_irq(irq, wdt_bark_isr, IRQF_TRIGGER_HIGH,
+						"watchdog bark", wdt);
+	if (ret)
+		dev_err("error request_irq(irq_num:%d ) ret:%d\n",
+								irq, ret);
+}
+
 static int qcom_wdt_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *id;
 	struct device_node *np;
 	struct qcom_wdt *wdt;
 	struct resource *res;
-	int ret;
+	int ret, irq = 0;
 	uint32_t val;
 
 	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
 		return -ENOMEM;
 
+	irq = platform_get_irq_byname(pdev, "bark_irq");
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	wdt->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(wdt->base))
@@ -253,6 +293,9 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 
 	if (id->data)
 		wdt->bite = 1;
+
+	if (irq > 0)
+		register_wdt_bark_irq(irq, wdt);
 
 	wdt->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(wdt->clk)) {
