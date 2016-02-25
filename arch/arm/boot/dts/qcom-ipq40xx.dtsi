@@ -564,12 +564,8 @@
 			reg = <0xc080000 0x8000>;
 			qcom,page-mode = <0>;
 			qcom,rx_head_buf_size = <1540>;
-			qcom,wan_port_id_mask = <0x10>;
+			qcom,num_gmac = <2>;
 			qcom,mdio_supported;
-			qcom,phy_mdio_addr = <4>;
-			qcom,poll_required = <1>;
-			qcom,forced_speed = <1000>;
-			qcom,forced_duplex = <1>;
 
 			interrupts = <0 65 1>,
 					<0 66 1>,
@@ -605,9 +601,15 @@
 					<0 255 1>;
 			gmac0 {
 				local-mac-address = [000000000000];
+				qcom,phy_mdio_addr = <4>;
+				qcom,poll_required = <1>;
+				qcom,forced_speed = <1000>;
+				qcom,forced_duplex = <1>;
+				vlan_tag = <2 0x20>;
 			};
 			gmac1 {
 				local-mac-address = [000000000000];
+				vlan_tag = <1 0x1e>;
 			};
 		};
 
