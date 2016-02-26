@@ -56,9 +56,9 @@ static int overwrite_mode;
 module_param(overwrite_mode, int, 0);
 MODULE_PARM_DESC(overwrite_mode, "overwrite default page_mode setting");
 
-static int fraglist_mode;
-module_param(fraglist_mode, int, 0);
-MODULE_PARM_DESC(fraglist_mode, "enable fraglist mode");
+static int jumbo_mru;
+module_param(jumbo_mru, int, 0);
+MODULE_PARM_DESC(jumbo_mru, "enable fraglist support");
 
 static int num_rxq = 4;
 module_param(num_rxq, int, 0);
@@ -384,6 +384,7 @@ static int edma_axi_probe(struct platform_device *pdev)
 	struct edma_mdio_data *mdio_data = NULL;
 	int i, j, k, err = 0, ret = 0;
 	uint8_t phy_id[MII_BUS_ID_SIZE + 3];
+	u32 edma_wan_port_id_mask;
 
 	if ((num_rxq != 4) && (num_rxq != 8)) {
 		dev_err(&pdev->dev, "Invalid RX queue, edma probe failed\n");
@@ -431,7 +432,13 @@ static int edma_axi_probe(struct platform_device *pdev)
 
 	edma_cinfo->rx_ring_count = EDMA_RX_RING_SIZE;
 
-	edma_cinfo->fraglist_mode = fraglist_mode;
+	/* we initialise wan_portid_lookup_tbl to -1. Later when
+	 * we check for wan port bitmask set by the user, we will
+	 * replace the corresponding entries in the array with EDMA_WAN
+	 */
+	for (i = 0; i < 6; i++) {
+		edma_cinfo->wan_portid_lookup_tbl[i] = -1;
+	}
 
 	hw = &edma_cinfo->hw;
 
@@ -441,15 +448,27 @@ static int edma_axi_probe(struct platform_device *pdev)
 
 	of_property_read_u32(np, "qcom,page-mode", &edma_cinfo->page_mode);
 	of_property_read_u32(np, "qcom,rx_head_buf_size", &hw->rx_head_buff_size);
-	of_property_read_u32(np, "qcom,port_id_wan", &edma_cinfo->edma_port_id_wan);
+	of_property_read_u32(np, "qcom,wan_port_id_mask", &edma_wan_port_id_mask);
+
+	while (edma_wan_port_id_mask) {
+		int port_bit_set = ffs(edma_wan_port_id_mask);
+		edma_cinfo->wan_portid_lookup_tbl[port_bit_set] = EDMA_WAN;
+		edma_wan_port_id_mask &= ~(1 << (port_bit_set - 1));
+	}
 
 	if (overwrite_mode) {
 		dev_info(&pdev->dev, "page mode overwritten");
 		edma_cinfo->page_mode = page_mode;
 	}
 
+	if (jumbo_mru) {
+		edma_cinfo->fraglist_mode = 1;
+	}
+
 	if (edma_cinfo->page_mode)
 		hw->rx_head_buff_size = EDMA_RX_HEAD_BUFF_SIZE_JUMBO;
+	else if (edma_cinfo->fraglist_mode)
+		hw->rx_head_buff_size = jumbo_mru;
 	else if (!hw->rx_head_buff_size)
 		hw->rx_head_buff_size = EDMA_RX_HEAD_BUFF_SIZE;
 
