@@ -243,6 +243,7 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 out:
 	return skb;
 nodata:
+	skbuff_debugobj_deactivate(skb);
 	kmem_cache_free(cache, skb);
 	skb = NULL;
 	goto out;
