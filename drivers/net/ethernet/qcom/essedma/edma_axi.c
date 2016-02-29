@@ -56,7 +56,7 @@ static int overwrite_mode;
 module_param(overwrite_mode, int, 0);
 MODULE_PARM_DESC(overwrite_mode, "overwrite default page_mode setting");
 
-static int jumbo_mru;
+static int jumbo_mru = EDMA_RX_HEAD_BUFF_SIZE;
 module_param(jumbo_mru, int, 0);
 MODULE_PARM_DESC(jumbo_mru, "enable fraglist support");
 
