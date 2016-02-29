@@ -2851,6 +2851,19 @@ static u8 nss_core_clk_get_parent(struct clk_hw *hw)
 static int nss_core_clk_set_parent(struct clk_hw *hw, u8 i)
 {
 	int ret;
+	struct clk_dyn_rcg *rcg;
+	struct freq_tbl f = {  200000000, P_PLL0, 2,  1, 2 };
+
+	/* P_PLL0 is 800 Mhz which needs to be divided for 200 Mhz */
+	if (i == P_PLL0) {
+		rcg = to_clk_dyn_rcg(&ubi32_core1_src_clk.clkr.hw);
+		clk_dyn_configure_bank(rcg, &f);
+
+		rcg = to_clk_dyn_rcg(&ubi32_core2_src_clk.clkr.hw);
+		clk_dyn_configure_bank(rcg, &f);
+
+		return 0;
+	}
 
 	ret = clk_dyn_rcg_ops.set_parent(&ubi32_core1_src_clk.clkr.hw, i);
 	if (ret)
@@ -2861,7 +2874,7 @@ static int nss_core_clk_set_parent(struct clk_hw *hw, u8 i)
 
 static struct clk *nss_core_clk_get_safe_parent(struct clk_hw *hw)
 {
-	return clk_get_parent_by_index(hw->clk, P_PLL8);
+	return clk_get_parent_by_index(hw->clk, P_PLL0);
 }
 
 static const struct clk_ops clk_ops_nss_core = {
