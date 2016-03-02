@@ -118,7 +118,7 @@ typedef struct net_bridge_port *br_get_dst_hook_t(const struct net_bridge_port *
 extern br_get_dst_hook_t __rcu *br_get_dst_hook;
 
 typedef struct net_bridge_port *br_port_dev_get_hook_t(struct net_device *dev,
-		struct sk_buff *skb);
+		struct sk_buff *skb, unsigned char *addr);
 extern br_port_dev_get_hook_t __rcu *br_port_dev_get_hook;
 
 typedef int (br_multicast_handle_hook_t)(const struct net_bridge_port *src,
