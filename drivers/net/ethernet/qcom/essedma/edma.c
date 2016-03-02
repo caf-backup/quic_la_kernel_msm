@@ -19,7 +19,7 @@
 #include "ess_edma.h"
 #include "edma.h"
 
-extern struct net_device *netdev[2];
+extern struct net_device *netdev[EDMA_MAX_PORTID_SUPPORTED];
 bool edma_stp_rstp;
 u16 edma_ath_eth_type;
 
@@ -434,18 +434,15 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 			}
 
 			port_id = (rd->rrd1 >> EDMA_PORT_ID_SHIFT) & EDMA_PORT_ID_MASK;
-			if (!unlikely(port_id)) {
-				dev_err(&pdev->dev, "No RRD source port bit set");
+			if ((unlikely(!port_id)) || (unlikely(port_id > EDMA_MAX_PORTID_SUPPORTED))) {
+				dev_err(&pdev->dev, "Invalid RRD source port bit set");
 				edma_clean_rfd(erdr, sw_next_to_clean);
 				sw_next_to_clean = (sw_next_to_clean + 1) & (erdr->count - 1);
 				cleaned_count++;
 				continue;
 			}
 
-			if (edma_cinfo->wan_portid_lookup_tbl[port_id] == EDMA_WAN)
-				netdev = edma_cinfo->netdev[0];
-			else
-				netdev = edma_cinfo->netdev[1];
+			netdev = edma_cinfo->portid_netdev_lookup_tbl[port_id];
 			adapter = netdev_priv(netdev);
 
 			/* Get the number of RFD from RRD */
@@ -845,6 +842,8 @@ static void edma_tx_complete(struct edma_common_info *edma_cinfo, int queue_id)
 	struct edma_tx_desc_ring *etdr = edma_cinfo->tpd_ring[queue_id];
 	struct edma_sw_desc *sw_desc;
 	struct platform_device *pdev = edma_cinfo->pdev;
+	struct net_device *netdev;
+	int i;
 
 	u16 sw_next_to_clean = etdr->sw_next_to_clean;
 	u16 hw_next_to_clean = 0;
@@ -864,9 +863,16 @@ static void edma_tx_complete(struct edma_common_info *edma_cinfo, int queue_id)
 	/* update the TPD consumer index register */
 	edma_write_reg(EDMA_REG_TX_SW_CONS_IDX_Q(queue_id), sw_next_to_clean);
 
-	if (netif_tx_queue_stopped(etdr->nq) &&
-		netif_carrier_ok(&(etdr->netdev)))
-			netif_tx_wake_queue(etdr->nq);
+	/* Wake the queue if queue is stopped and netdev link is up */
+	for (i = 0; i < EDMA_MAX_NETDEV_SUPPORTED_PER_QUEUE; i++) {
+		if (etdr->nq[i]) {
+			if (netif_tx_queue_stopped(etdr->nq[i])) {
+				if ((etdr->netdev[i]) && netif_carrier_ok(etdr->netdev[i]))
+					netif_tx_wake_queue(etdr->nq[i]);
+			}
+		} else
+			break;
+	}
 }
 
 /*
@@ -1054,7 +1060,7 @@ static int edma_tx_map_and_fill(struct edma_common_info *edma_cinfo,
 		word3 |= dp_bitmap << EDMA_TPD_PORT_BITMAP_SHIFT;
 		word3 |= from_cpu << EDMA_TPD_FROM_CPU_SHIFT;
 	} else
-		word3 |= EDMA_PORT_ENABLE_ALL << EDMA_TPD_PORT_BITMAP_SHIFT;
+		word3 |= adapter->dp_bitmap << EDMA_TPD_PORT_BITMAP_SHIFT;
 
 	buf_len = skb_headlen(skb);
 
@@ -1260,6 +1266,7 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 	int ret, nr_frags = 0, num_tpds_needed = 1, queue_id = 0;
 	unsigned int flags_transmit = 0;
 	bool packet_is_rstp = false;
+	struct netdev_queue *nq = NULL;
 
 	if (unlikely(skb_shinfo(skb)->nr_frags)) {
 		nr_frags = skb_shinfo(skb)->nr_frags;
@@ -1304,16 +1311,16 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 	txq_id = skb_get_queue_mapping(skb);
 	queue_id = edma_tx_queue_get(adapter, skb, txq_id);
 	etdr = edma_cinfo->tpd_ring[queue_id];
-        etdr->nq = netdev_get_tx_queue(net_dev, txq_id);
+	nq = netdev_get_tx_queue(net_dev, txq_id);
 
+	local_bh_disable();
 	/* Tx is not handled in bottom half context. Hence, we need to protect
 	 * Tx from tasks and bottom half
 	 */
-	local_bh_disable();
 
 	if (unlikely(num_tpds_needed > edma_tpd_available(edma_cinfo, queue_id))) {
 		/* not enough descriptor, just stop queue */
-		netif_tx_stop_queue(etdr->nq);
+		netif_tx_stop_queue(nq);
 		local_bh_enable();
 		dev_dbg(&net_dev->dev, "Not enough descriptors available");
 		edma_cinfo->edma_ethstats.tx_desc_error++;
@@ -1880,12 +1887,24 @@ int edma_reset(struct edma_common_info *edma_cinfo)
  * edma_fill_netdev()
  * 	Fill netdev for each etdr
  */
-void edma_fill_netdev(struct edma_common_info *edma_cinfo, int queue_id, int dev)
+int edma_fill_netdev(struct edma_common_info *edma_cinfo, int queue_id, int dev, int txq_id)
 {
 	struct edma_tx_desc_ring *etdr;
+	int i = 0;
 
 	etdr = edma_cinfo->tpd_ring[queue_id];
-	etdr->netdev = *netdev[dev];
+
+	while (etdr->netdev[i])
+		i++;
+
+	if (i >= EDMA_MAX_NETDEV_SUPPORTED_PER_QUEUE)
+		return -1;
+
+	/* Populate the netdev associated with the tpd ring */
+	etdr->netdev[i] = netdev[dev];
+	etdr->nq[i] = netdev_get_tx_queue(netdev[dev], txq_id);
+
+	return 0;
 }
 
 /*
