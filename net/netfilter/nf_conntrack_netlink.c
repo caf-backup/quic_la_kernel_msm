@@ -621,14 +621,14 @@ ctnetlink_conntrack_event(unsigned int events, struct nf_ct_event *item)
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
 	struct nlattr *nest_parms;
+#ifdef CONFIG_NF_CONNTRACK_CHAIN_EVENTS
+	struct nf_ct_event *item = (struct nf_ct_event *)ptr;
+#endif
 	struct nf_conn *ct = item->ct;
 	struct sk_buff *skb;
 	unsigned int type;
 	unsigned int flags = 0, group;
 	int err;
-#ifdef CONFIG_NF_CONNTRACK_CHAIN_EVENTS
-	struct nf_ct_event *item = (struct nf_ct_event *)ptr;
-#endif
 
 	/* ignore our fake conntrack entry */
 	if (nf_ct_is_untracked(ct))
