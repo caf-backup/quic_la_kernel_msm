@@ -617,6 +617,9 @@ static int spinand_program_page(struct spi_device *spi_nand,
 
 	enable_read_hw_ecc = 0;
 	wbuf = devm_kzalloc(&spi_nand->dev, CACHE_BUF, GFP_KERNEL);
+	if (!wbuf)
+		return -ENOMEM;
+
 	spinand_read_page(spi_nand, page_id, 0, CACHE_BUF, wbuf);
 
 	for (i = offset, j = 0; i < len; i++, j++)
@@ -778,7 +781,7 @@ static int spinand_write_page_hwecc(struct mtd_info *mtd,
 static int spinand_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 		uint8_t *buf, int oob_required, int page)
 {
-	u8 retval, status;
+	u8 retval, status = 0;
 	uint8_t *p = buf;
 	int eccsize = chip->ecc.size;
 	int eccsteps = chip->ecc.steps;
@@ -828,7 +831,7 @@ static int spinand_wait(struct mtd_info *mtd, struct nand_chip *chip)
 
 	unsigned long timeo = jiffies;
 	int retval, state = chip->state;
-	u8 status;
+	u8 status = 0;
 
 	if (state == FL_ERASING)
 		timeo += (HZ * 400) / 1000;
