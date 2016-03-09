@@ -83,7 +83,7 @@ static int ipq40xx_set_led_blink_set(struct led_classdev *led_cdev,
 	int reg, mask;
 
 	if (*delay_on <= 0)
-		blink_enable = 0;
+		blink_enable = blink_freq = blink_duty = 0;
 	else
 		blink_enable = 1;
 

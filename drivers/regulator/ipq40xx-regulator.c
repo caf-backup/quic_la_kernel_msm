@@ -204,8 +204,10 @@ static int ipq40xx_regulator_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	drvdata->config->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(drvdata->config->base))
+	if (IS_ERR(drvdata->config->base)) {
+		ret = PTR_ERR(drvdata->config->base);
 		goto err_state;
+	}
 
 	cfg.dev = &pdev->dev;
 	cfg.init_data = config->init_data;
