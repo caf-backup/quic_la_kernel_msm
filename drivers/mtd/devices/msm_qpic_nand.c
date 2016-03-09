@@ -2476,9 +2476,8 @@ static int msm_nand_init_endpoint(struct msm_nand_info *info,
 				SPS_O_ACK_TRANSFERS;
 
 	if (pipe_index == SPS_DATA_PROD_PIPE_INDEX ||
-			pipe_index == SPS_DATA_CONS_PIPE_INDEX)
-		sps_config->lock_group = BAM_APPS_PIPE_LOCK_GRP0;
-	else if (pipe_index == SPS_CMD_CONS_PIPE_INDEX)
+	    pipe_index == SPS_DATA_CONS_PIPE_INDEX ||
+	    pipe_index == SPS_CMD_CONS_PIPE_INDEX)
 		sps_config->lock_group = BAM_APPS_PIPE_LOCK_GRP1;
 
 	/*
@@ -2567,7 +2566,6 @@ static int msm_nand_bam_init(struct msm_nand_info *nand_info)
 	 * NANDc BAM device supports 2 execution environments - Modem and Apps
 	 * and thus the flag SPS_BAM_MGR_MULTI_EE is set.
 	 */
-	bam.manage = SPS_BAM_MGR_MULTI_EE;
 	/* Setting to default threshold */
 	bam.summing_threshold = 0x4;
 
