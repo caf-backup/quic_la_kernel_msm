@@ -165,7 +165,7 @@
 			i2c@12460000 {
 				pinctrl-0 = <&i2c_pins>;
 				pinctrl-names = "default";
-				status = "ok";
+				status = "disabled";
 			};
 		};
 
