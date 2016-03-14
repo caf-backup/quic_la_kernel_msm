@@ -132,10 +132,9 @@ inline void skbuff_debugobj_activate(struct sk_buff *skb)
 	if (ret)
 		goto err_act;
 
-	if (skb->sum == skbuff_debugobj_sum(skb))
-		return;
+	skbuff_debugobj_sum_validate(skb);
 
-	pr_emerg("skb_debug: skb changed while deactive\n");
+	return;
 
 err_act:
 	ftrace_dump(DUMP_ALL);
@@ -180,6 +179,30 @@ inline void skbuff_debugobj_deactivate(struct sk_buff *skb)
 			skb, obj_state, skb->sum, skbuff_debugobj_sum(skb));
 	skbuff_debugobj_print_skb(skb);
 	BUG();
+}
+
+inline void skbuff_debugobj_sum_validate(struct sk_buff *skb)
+{
+
+	if (!skbuff_debugobj_enabled || skb == NULL)
+		return;
+
+	if (skb->sum == skbuff_debugobj_sum(skb))
+		return;
+
+	ftrace_dump(DUMP_ALL);
+	pr_emerg("skb_debug: skb changed while deactive skb = 0x%p sum = %d (%d)\n",
+			skb, skb->sum, skbuff_debugobj_sum(skb));
+	skbuff_debugobj_print_skb(skb);
+	BUG();
+}
+
+inline void skbuff_debugobj_sum_update(struct sk_buff *skb)
+{
+	if (!skbuff_debugobj_enabled || skb == NULL)
+		return;
+
+	skb->sum = skbuff_debugobj_sum(skb);
 }
 
 inline void skbuff_debugobj_destroy(struct sk_buff *skb)

@@ -24,11 +24,15 @@ void skbuff_debugobj_init_and_activate(struct sk_buff *skb);
 void skbuff_debugobj_activate(struct sk_buff *skb);
 void skbuff_debugobj_deactivate(struct sk_buff *skb);
 void skbuff_debugobj_destroy(struct sk_buff *skb);
+void skbuff_debugobj_sum_validate(struct sk_buff *skb);
+void skbuff_debugobj_sum_update(struct sk_buff *skb);
 #else
 static inline void skbuff_debugobj_init_and_activate(struct sk_buff *skb) { }
 static inline void skbuff_debugobj_activate(struct sk_buff *skb) { }
 static inline void skbuff_debugobj_deactivate(struct sk_buff *skb) { }
 static inline void skbuff_debugobj_destroy(struct sk_buff *skb) { }
+static inline void skbuff_debugobj_sum_validate(struct sk_buff *skb) { }
+static inline void skbuff_debugobj_sum_update(struct sk_buff *skb) { }
 #endif
 
 #endif /* _LINUX_SKBBUFF_DEBUG_OBJECTS */

@@ -40,6 +40,7 @@ inline struct sk_buff *skb_recycler_alloc(struct net_device *dev, unsigned int l
 	unsigned long flags;
 	struct sk_buff_head *h;
 	struct sk_buff *skb = NULL;
+	struct sk_buff *ln = NULL;
 
 	if (unlikely(length > SKB_RECYCLE_SIZE)) {
 		return NULL;
@@ -49,8 +50,14 @@ inline struct sk_buff *skb_recycler_alloc(struct net_device *dev, unsigned int l
 	local_irq_save(flags);
 	skb = skb_peek(h);
 	if (skb) {
+		ln = skb_peek_next(skb, h);
 		skbuff_debugobj_activate(skb);
+		/* Recalculate the sum for skb->next as next and prev pointers
+		 * of skb->next will be updated in __skb_unlink
+		 */
+		skbuff_debugobj_sum_validate(ln);
 		__skb_unlink(skb, h);
+		skbuff_debugobj_sum_update(ln);
 	}
 #ifdef CONFIG_SKB_RECYCLER_MULTI_CPU
 	if (unlikely(!skb)) {
@@ -63,11 +70,11 @@ inline struct sk_buff *skb_recycler_alloc(struct net_device *dev, unsigned int l
 			struct sk_buff *gp = glob_recycler.pool[head].prev;
 
 			/* Move SKBs from global list to CPU pool */
-			skbuff_debugobj_activate(gn);
-			skbuff_debugobj_activate(gp);
+			skbuff_debugobj_sum_validate(gn);
+			skbuff_debugobj_sum_validate(gp);
 			skb_queue_splice_init(&glob_recycler.pool[head], h);
-			skbuff_debugobj_deactivate(gn);
-			skbuff_debugobj_deactivate(gp);
+			skbuff_debugobj_sum_update(gn);
+			skbuff_debugobj_sum_update(gp);
 
 			head = (head + 1) & SKB_RECYCLE_MAX_SHARED_POOLS_MASK;
 			glob_recycler.head = head;
@@ -75,8 +82,15 @@ inline struct sk_buff *skb_recycler_alloc(struct net_device *dev, unsigned int l
 			/* We have refilled the CPU pool - dequeue */
 			skb = skb_peek(h);
 			if (skb) {
+				/* Recalculate the sum for skb->next as next and
+				 * prev pointers of skb->next will be updated
+				 * in __skb_unlink
+				 */
+				ln = skb_peek_next(skb, h);
 				skbuff_debugobj_activate(skb);
+				skbuff_debugobj_sum_validate(ln);
 				__skb_unlink(skb, h);
+				skbuff_debugobj_sum_update(ln);
 			}
 		} else {
 			spin_unlock(&glob_recycler.lock);
@@ -117,7 +131,7 @@ inline bool skb_recycler_consume(struct sk_buff *skb)
 {
 	unsigned long flags;
 	struct sk_buff_head *h;
-
+	struct sk_buff *ln = NULL;
 	/* Can we recycle this skb?  If not, simply return that we cannot */
 	if (unlikely(!consume_skb_can_recycle(skb, SKB_RECYCLE_MIN_SIZE,
 					      SKB_RECYCLE_MAX_SIZE)))
@@ -131,8 +145,14 @@ inline bool skb_recycler_consume(struct sk_buff *skb)
 	local_irq_save(flags);
 	/* Attempt to enqueue the CPU hot recycle list first */
 	if (likely(skb_queue_len(h) < skb_recycle_max_skbs)) {
+		ln = skb_peek(h);
+		/* Recalculate the sum for peek of list as next and prev
+		 * pointers of skb->next will be updated in __skb_queue_head
+		 */
+		skbuff_debugobj_sum_validate(ln);
 		__skb_queue_head(h, skb);
 		skbuff_debugobj_deactivate(skb);
+		skbuff_debugobj_sum_update(ln);
 		local_irq_restore(flags);
 		preempt_enable();
 		return true;
@@ -154,20 +174,27 @@ inline bool skb_recycler_consume(struct sk_buff *skb)
 			struct sk_buff *hn = h->next, *hp = h->prev;
 
 			/* Move SKBs from CPU pool to Global pool*/
-			skbuff_debugobj_activate(hp);
-			skbuff_debugobj_activate(hn);
+			skbuff_debugobj_sum_validate(hp);
+			skbuff_debugobj_sum_validate(hn);
 			skb_queue_splice_init(h, p);
-			skbuff_debugobj_deactivate(hp);
-			skbuff_debugobj_deactivate(hn);
+			skbuff_debugobj_sum_update(hp);
+			skbuff_debugobj_sum_update(hn);
 
 			/* Done with global list init */
 			glob_recycler.tail = next_tail;
 			spin_unlock(&glob_recycler.lock);
 
+			/* Recalculate the sum for peek of list as next and prev
+			 * pointers of skb->next will be updated in
+			 * __skb_queue_head
+			 */
+			ln = skb_peek(h);
+			skbuff_debugobj_sum_validate(ln);
 			/* We have now cleared room in the spare;
 			 * Intialize and enqueue skb into spare
 			 */
 			__skb_queue_head(h, skb);
+			skbuff_debugobj_sum_update(ln);
 			skbuff_debugobj_deactivate(skb);
 
 			local_irq_restore(flags);
@@ -178,8 +205,14 @@ inline bool skb_recycler_consume(struct sk_buff *skb)
 		spin_unlock(&glob_recycler.lock);
 	} else {
 		/* We have room in the spare list; enqueue to spare list */
+		ln = skb_peek(h);
+		/* Recalculate the sum for peek of list as next and prev
+		 * pointers of skb->next will be updated in __skb_queue_head
+		 */
+		skbuff_debugobj_sum_validate(ln);
 		__skb_queue_head(h, skb);
 		skbuff_debugobj_deactivate(skb);
+		skbuff_debugobj_sum_update(ln);
 		local_irq_restore(flags);
 		preempt_enable();
 		return true;
