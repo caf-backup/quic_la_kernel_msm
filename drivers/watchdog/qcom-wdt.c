@@ -242,7 +242,7 @@ void register_wdt_bark_irq(int irq, struct qcom_wdt *wdt)
 	ret = request_irq(irq, wdt_bark_isr, IRQF_TRIGGER_HIGH,
 						"watchdog bark", wdt);
 	if (ret)
-		dev_err("error request_irq(irq_num:%d ) ret:%d\n",
+		pr_err("error request_irq(irq_num:%d ) ret:%d\n",
 								irq, ret);
 }
 
