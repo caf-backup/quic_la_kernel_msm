@@ -687,7 +687,7 @@ void neigh_destroy(struct neighbour *neigh)
 	NEIGH_CACHE_STAT_INC(neigh->tbl, destroys);
 
 	if (!neigh->dead) {
-		pr_warn("Destroying alive neighbour %p\n", neigh);
+		pr_warn("Destroying alive neighbour %pK\n", neigh);
 		dump_stack();
 		return;
 	}
@@ -3247,4 +3247,3 @@ static int __init neigh_init(void)
 }
 
 subsys_initcall(neigh_init);
-
