@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -47,7 +47,11 @@ inline struct sk_buff *skb_recycler_alloc(struct net_device *dev, unsigned int l
 
 	h = &get_cpu_var(recycle_list);
 	local_irq_save(flags);
-	skb = __skb_dequeue(h);
+	skb = skb_peek(h);
+	if (skb) {
+		skbuff_debugobj_activate(skb);
+		__skb_unlink(skb, h);
+	}
 #ifdef CONFIG_SKB_RECYCLER_MULTI_CPU
 	if (unlikely(!skb)) {
 		uint8_t head;
@@ -55,13 +59,25 @@ inline struct sk_buff *skb_recycler_alloc(struct net_device *dev, unsigned int l
 		/* If global recycle list is not empty, use global buffers */
 		head = glob_recycler.head;
 		if (likely(head != glob_recycler.tail)) {
+			struct sk_buff *gn = glob_recycler.pool[head].next;
+			struct sk_buff *gp = glob_recycler.pool[head].prev;
+
 			/* Move SKBs from global list to CPU pool */
+			skbuff_debugobj_activate(gn);
+			skbuff_debugobj_activate(gp);
 			skb_queue_splice_init(&glob_recycler.pool[head], h);
+			skbuff_debugobj_deactivate(gn);
+			skbuff_debugobj_deactivate(gp);
+
 			head = (head + 1) & SKB_RECYCLE_MAX_SHARED_POOLS_MASK;
 			glob_recycler.head = head;
 			spin_unlock(&glob_recycler.lock);
 			/* We have refilled the CPU pool - dequeue */
-			skb = __skb_dequeue(h);
+			skb = skb_peek(h);
+			if (skb) {
+				skbuff_debugobj_activate(skb);
+				__skb_unlink(skb, h);
+			}
 		} else {
 			spin_unlock(&glob_recycler.lock);
 		}
@@ -92,7 +108,6 @@ inline struct sk_buff *skb_recycler_alloc(struct net_device *dev, unsigned int l
 		skb_reset_tail_pointer(skb);
 
 		skb->dev = dev;
-		skbuff_debugobj_activate(skb);
 	}
 
 	return skb;
@@ -136,9 +151,14 @@ inline bool skb_recycler_consume(struct sk_buff *skb)
 		next_tail = (cur_tail + 1) & SKB_RECYCLE_MAX_SHARED_POOLS_MASK;
 		if (next_tail != glob_recycler.head) {
 			struct sk_buff_head *p = &glob_recycler.pool[cur_tail];
+			struct sk_buff *hn = h->next, *hp = h->prev;
 
 			/* Move SKBs from CPU pool to Global pool*/
+			skbuff_debugobj_activate(hp);
+			skbuff_debugobj_activate(hn);
 			skb_queue_splice_init(h, p);
+			skbuff_debugobj_deactivate(hp);
+			skbuff_debugobj_deactivate(hn);
 
 			/* Done with global list init */
 			glob_recycler.tail = next_tail;
@@ -175,14 +195,18 @@ inline bool skb_recycler_consume(struct sk_buff *skb)
 static void skb_recycler_free_skb(struct sk_buff_head *list)
 {
 	struct sk_buff *skb = NULL;
+	unsigned long flags;
 
-	while ((skb = skb_dequeue(list)) != NULL) {
-		skb_release_data(skb);
+	spin_lock_irqsave(&list->lock, flags);
+	while ((skb = skb_peek(list)) != NULL) {
 		skbuff_debugobj_activate(skb);
+		__skb_unlink(skb, list);
+		skb_release_data(skb);
 		kfree_skbmem(skb);
 	}
-
+	spin_unlock_irqrestore(&list->lock, flags);
 }
+
 static int skb_cpu_callback(struct notifier_block *nfb,
 		unsigned long action, void *ocpu)
 {
