@@ -122,6 +122,8 @@ struct bond_cb {
 	void (*bond_cb_link_down)(struct net_device *slave);
 	void (*bond_cb_enslave)(struct net_device *slave);
 	void (*bond_cb_release)(struct net_device *slave);
+	void (*bond_cb_delete_by_slave)(struct net_device *slave);
+	void (*bond_cb_delete_by_mac)(uint8_t *mac_addr);
 };
 
 extern void bond_register_cb(struct bond_cb *cb);
