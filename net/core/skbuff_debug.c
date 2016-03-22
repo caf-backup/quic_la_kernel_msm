@@ -167,9 +167,9 @@ inline void skbuff_debugobj_deactivate(struct sk_buff *skb)
 
 	obj_state = debug_object_get_state(skb);
 
-	skbuff_debugobj_get_stack(skb->free_addr);
 	if (obj_state == ODEBUG_STATE_ACTIVE) {
 		debug_object_deactivate(skb, &skbuff_debug_descr);
+		skbuff_debugobj_get_stack(skb->free_addr);
 		return;
 	}
 
