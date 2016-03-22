@@ -739,7 +739,7 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct qcom_pcie *qcom_pcie;
-	int ret;
+	int ret, rc_enum;
 	uint32_t force_gen1 = 0;
 	static int rc_idx;
 
@@ -773,10 +773,10 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, qcom_pcie);
 
-	qcom_pcie_enumerate(qcom_pcie);
+	rc_enum = qcom_pcie_enumerate(qcom_pcie);
 
 	/* create sysfs files to support power save mode */
-	if (!rc_idx) {
+	if ((!rc_idx) && (!rc_enum)) {
 		ret = bus_create_file(&pci_bus_type, &bus_attr_rcrescan);
 		if (ret != 0) {
 			dev_err(&pdev->dev,
@@ -792,8 +792,13 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 		}
 	}
 
-	qcom_pcie_dev[rc_idx++] = qcom_pcie;
-	return 0;
+	if (!rc_enum) {
+		qcom_pcie_dev[rc_idx++] = qcom_pcie;
+		ret = 0;
+	} else
+		ret = -ENODEV;
+
+	return ret;
 }
 
 static int qcom_pcie_enumerate(struct qcom_pcie *qcom_pcie)
@@ -900,6 +905,12 @@ static int qcom_pcie_enumerate(struct qcom_pcie *qcom_pcie)
 			(qcom_pcie->dwc_base + PCIE20_CAP_LINKCTRLSTATUS),
 			val, (val & BIT(29)), 10000, 100000);
 
+	if (ret) {
+		dev_err(qcom_pcie->dev, "link down(%d)\n", ret);
+		qcom_pcie->pci_bus = NULL;
+		goto link_fail;
+	}
+
 	dev_info(qcom_pcie->dev, "link initialized %d\n", ret);
 	qcom_pcie_config_controller(qcom_pcie);
 
@@ -911,7 +922,8 @@ static int qcom_pcie_enumerate(struct qcom_pcie *qcom_pcie)
 
 	pci_common_init_dev(qcom_pcie->dev, hw);
 
-	return 0;
+link_fail:
+	return ret;
 }
 
 
