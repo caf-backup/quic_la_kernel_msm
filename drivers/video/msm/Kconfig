@@ -8,6 +8,7 @@ config FB_MSM
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	select FB_SYS_FOPS
+	select FB_DEFERRED_IO
 	select SYNC
 	select SW_SYNC
 	---help---
