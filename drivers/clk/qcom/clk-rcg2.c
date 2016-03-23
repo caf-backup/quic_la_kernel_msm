@@ -717,7 +717,7 @@ static long clk_cdiv_rcg2_determine_rate(struct clk_hw *hw, unsigned long rate,
 static int clk_cdiv_rcg2_configure(struct clk_cdiv_rcg2 *rcg,
 						const struct freq_tbl *f)
 {
-	u32 cfg, mask;
+	u32 cfg = -1, mask;
 	u32 i;
 	int ret;
 
@@ -750,6 +750,10 @@ static int clk_cdiv_rcg2_configure(struct clk_cdiv_rcg2 *rcg,
 		for (i = 2; i <= 16; i++) {
 			if (f->pre_div % i == 0)
 				cfg = i;
+		}
+		if (cfg == -1) {
+			pr_err("%s: invalid divider\n", __func__);
+			return -EINVAL;
 		}
 
 		if (f->pre_div/cfg > 16)
