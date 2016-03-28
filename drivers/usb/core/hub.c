@@ -2565,11 +2565,11 @@ static int check_port_resume_type(struct usb_device *udev,
  * interface. FIXME if the interface association
  * descriptor shows there's more than one function.
  */
-static int usb_disable_function_remotewakeup(struct usb_device *udev)
+static int usb_disable_function_remotewakeup(struct usb_device *udev, int intf)
 {
 	return usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				USB_REQ_CLEAR_FEATURE, USB_RECIP_INTERFACE,
-				USB_INTRF_FUNC_SUSPEND,	0, NULL, 0,
+				USB_INTRF_FUNC_SUSPEND | intf,	0, NULL, 0,
 				USB_CTRL_SET_TIMEOUT);
 }
 
@@ -2652,13 +2652,28 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 					USB_INTRF_FUNC_SUSPEND_LP,
 					NULL, 0,
 					USB_CTRL_SET_TIMEOUT);
-		}
-		if (status) {
-			dev_dbg(&udev->dev, "won't remote wakeup, status %d\n",
-					status);
-			/* bail if autosuspend is requested */
-			if (PMSG_IS_AUTO(msg))
+			if (status) {
+				dev_dbg(&udev->dev, "won't remote wakeup, status %d\n",
+						status);
+				/* bail if autosuspend is requested */
+				if (PMSG_IS_AUTO(msg))
 				return status;
+			}
+			status = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+					USB_REQ_SET_FEATURE,
+					USB_RECIP_INTERFACE,
+					USB_INTRF_FUNC_SUSPEND,
+					USB_INTRF_FUNC_SUSPEND_RW |
+					USB_INTRF_FUNC_SUSPEND_LP | 0x2,	/* audio */
+					NULL, 0,
+					USB_CTRL_SET_TIMEOUT);
+			if (status) {
+				dev_dbg(&udev->dev, "won't remote wakeup, status %d\n",
+						status);
+				/* bail if autosuspend is requested */
+				if (PMSG_IS_AUTO(msg))
+					return status;
+			}
 		}
 	}
 #ifdef CONFIG_USB_OTG
@@ -2703,9 +2718,10 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 						USB_DEVICE_REMOTE_WAKEUP, 0,
 						NULL, 0,
 						USB_CTRL_SET_TIMEOUT);
-			} else
-				(void) usb_disable_function_remotewakeup(udev);
-
+			} else {
+				(void) usb_disable_function_remotewakeup(udev, 0);
+				(void) usb_disable_function_remotewakeup(udev, 2);
+			}
 		}
 
 		/* Try to enable USB2 hardware LPM again */
@@ -2811,7 +2827,15 @@ static int finish_port_resume(struct usb_device *udev)
 			if (!status && devstatus & (USB_INTRF_STAT_FUNC_RW_CAP
 					| USB_INTRF_STAT_FUNC_RW))
 				status =
-					usb_disable_function_remotewakeup(udev);
+					usb_disable_function_remotewakeup(udev, 0);
+
+			status = usb_get_status(udev, USB_RECIP_INTERFACE, 0 | 0x2,
+					&devstatus);
+			le16_to_cpus(&devstatus);
+			if (!status && devstatus & (USB_INTRF_STAT_FUNC_RW_CAP
+					| USB_INTRF_STAT_FUNC_RW))
+				status =
+					usb_disable_function_remotewakeup(udev, 0x2);
 		}
 
 		if (status)
