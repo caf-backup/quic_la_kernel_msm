@@ -388,8 +388,8 @@
 		};
 
 		nss0: nss@40000000 {
-			interrupts = <GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 232 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 232 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0x36000000 0x1000 0x39000000 0x20000>;
 			reg-names = "nphys", "vphys";
 			clocks = <&gcc NSS_CORE_CLK>, <&gcc NSSTCM_CLK_SRC>, <&gcc NSSTCM_CLK>, <&nss_fabric0_clk>, <&nss_fabric1_clk>;
@@ -428,8 +428,8 @@
 
 		nss1: nss@40800000 {
 			compatible = "qcom,nss1";
-			interrupts = <GIC_SPI 214 IRQ_TYPE_LEVEL_HIGH
-				      GIC_SPI 233 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 214 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 233 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0x36400000 0x1000 0x39010000 0x10000>;
 			reg-names = "nphys", "vphys";
 			clocks = <&gcc NSS_CORE_CLK>, <&gcc NSSTCM_CLK_SRC>, <&gcc NSSTCM_CLK>;
