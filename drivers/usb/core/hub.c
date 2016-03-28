@@ -2659,20 +2659,22 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 				if (PMSG_IS_AUTO(msg))
 				return status;
 			}
-			status = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-					USB_REQ_SET_FEATURE,
-					USB_RECIP_INTERFACE,
-					USB_INTRF_FUNC_SUSPEND,
-					USB_INTRF_FUNC_SUSPEND_RW |
-					USB_INTRF_FUNC_SUSPEND_LP | 0x2,	/* audio */
-					NULL, 0,
-					USB_CTRL_SET_TIMEOUT);
-			if (status) {
-				dev_dbg(&udev->dev, "won't remote wakeup, status %d\n",
-						status);
-				/* bail if autosuspend is requested */
-				if (PMSG_IS_AUTO(msg))
-					return status;
+			if (udev->actconfig->desc.bNumInterfaces > 2) {
+				status = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+						USB_REQ_SET_FEATURE,
+						USB_RECIP_INTERFACE,
+						USB_INTRF_FUNC_SUSPEND,
+						USB_INTRF_FUNC_SUSPEND_RW |
+						USB_INTRF_FUNC_SUSPEND_LP | 0x2,	/* audio */
+						NULL, 0,
+						USB_CTRL_SET_TIMEOUT);
+				if (status) {
+					dev_dbg(&udev->dev, "won't remote wakeup, status %d\n",
+							status);
+					/* bail if autosuspend is requested */
+					if (PMSG_IS_AUTO(msg))
+						return status;
+				}
 			}
 		}
 	}
@@ -2720,7 +2722,9 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 						USB_CTRL_SET_TIMEOUT);
 			} else {
 				(void) usb_disable_function_remotewakeup(udev, 0);
-				(void) usb_disable_function_remotewakeup(udev, 2);
+				if (udev->actconfig->desc.bNumInterfaces > 2) {
+					(void) usb_disable_function_remotewakeup(udev, 0x2);
+				}
 			}
 		}
 
@@ -2829,13 +2833,15 @@ static int finish_port_resume(struct usb_device *udev)
 				status =
 					usb_disable_function_remotewakeup(udev, 0);
 
-			status = usb_get_status(udev, USB_RECIP_INTERFACE, 0 | 0x2,
-					&devstatus);
-			le16_to_cpus(&devstatus);
-			if (!status && devstatus & (USB_INTRF_STAT_FUNC_RW_CAP
-					| USB_INTRF_STAT_FUNC_RW))
-				status =
-					usb_disable_function_remotewakeup(udev, 0x2);
+			if (udev->actconfig->desc.bNumInterfaces > 2) {
+				status = usb_get_status(udev, USB_RECIP_INTERFACE, 0 | 0x2,
+						&devstatus);
+				le16_to_cpus(&devstatus);
+				if (!status && devstatus & (USB_INTRF_STAT_FUNC_RW_CAP
+						| USB_INTRF_STAT_FUNC_RW))
+					status =
+						usb_disable_function_remotewakeup(udev, 0x2);
+			}
 		}
 
 		if (status)
