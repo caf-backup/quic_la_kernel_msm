@@ -2294,7 +2294,7 @@ static int msm_nand_scan(struct mtd_info *mtd)
 		}
 		dev_found = 1;
 		if (!flashdev->pagesize) {
-			pr_err("missing page size info - extract from NAND ID\n");
+			pr_info("missing page size info - extract from NAND ID\n");
 			supported_flash->widebus = devcfg & (1 << 6) ? 1 : 0;
 			supported_flash->pagesize = 1024 << (devcfg & 0x3);
 			supported_flash->blksize = (64 * 1024) <<

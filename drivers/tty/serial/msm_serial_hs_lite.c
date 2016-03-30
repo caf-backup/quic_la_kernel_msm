@@ -1762,7 +1762,7 @@ static int msm_serial_hsl_probe(struct platform_device *pdev)
 
 		msm_hsl_port->bus_scale_table = msm_bus_cl_get_pdata(pdev);
 		if (!msm_hsl_port->bus_scale_table) {
-			pr_err("Bus scaling is disabled\n");
+			pr_info("Bus scaling is disabled\n");
 		} else {
 			msm_hsl_port->bus_perf_client =
 				msm_bus_scale_register_client(
