@@ -1928,7 +1928,7 @@ static int qcedev_probe(struct platform_device *pdev)
 			(struct msm_bus_scale_pdata *)
 					msm_bus_cl_get_pdata(pdev);
 		if (!podev->platform_support.bus_scale_table)
-			pr_err("bus_scale_table is NULL\n");
+			pr_info("bus_scale_table is NULL\n");
 	} else {
 		platform_support =
 			(struct msm_ce_hw_support *)pdev->dev.platform_data;
