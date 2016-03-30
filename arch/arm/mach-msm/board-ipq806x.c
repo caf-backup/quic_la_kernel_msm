@@ -43,6 +43,8 @@
 #include <asm/mach/mmc.h>
 #include <linux/platform_data/qcom_wcnss_device.h>
 #include <linux/platform_device.h>
+#include <linux/major.h>
+#include <linux/blkdev.h>
 
 #include <mach/board.h>
 #include <mach/msm_iomap.h>
@@ -2832,6 +2834,84 @@ static void nss_gmac_init(void)
 }
 
 #define IPQ_MAC_ADDR_PARTITION	"ART"
+#define IPQ_MAC_ADDR_PARTITION_EMMC	"0:ART"
+
+static uint8_t *ipq_read_emmc_part(struct gendisk *disk, struct hd_struct *part)
+{
+	struct block_device *bdev;
+	unsigned char *data;
+	u_char *part_buf;
+	unsigned ssz;
+	Sector sect;
+	sector_t n;
+
+	bdev = bdget_disk(disk, 0);
+	if (!bdev)
+		return NULL;
+
+	bdev->bd_invalidated = 1;
+	if (blkdev_get(bdev, FMODE_READ , NULL))
+		return NULL;
+
+	ssz = bdev_logical_block_size(bdev);
+	part_buf = kmalloc(ssz, GFP_KERNEL);
+	if (!part_buf)
+		return NULL;
+
+	n =  part->start_sect * (bdev_logical_block_size(bdev) / 512);
+	data = read_dev_sector(bdev, n, &sect);
+	put_dev_sector(sect);
+	blkdev_put(bdev, FMODE_READ);
+	if (!data) {
+		kfree(part_buf);
+		return NULL;
+	}
+
+	memcpy(part_buf, data, ssz);
+
+	return part_buf;
+}
+
+static int ipq_read_emmc_macaddr(u_char *part_name, int id,
+				struct msm_nss_gmac_platform_data *pdata)
+{
+	loff_t off = id * sizeof(pdata->mac_addr);
+	struct gendisk *disk;
+	struct disk_part_iter piter;
+	struct hd_struct *part;
+	u_char *part_buf = NULL;
+	int partno;
+	int ret = -ENODEV;
+
+	disk = get_gendisk(MKDEV(MMC_BLOCK_MAJOR, 0), &partno);
+	if (!disk)
+		return ret;
+
+	disk_part_iter_init(&piter, disk, DISK_PITER_INCL_PART0);
+
+	while ((part = disk_part_iter_next(&piter))) {
+		if (part->info) {
+			if (!strcmp((char *)part->info->volname,
+				    part_name)) {
+				part_buf = ipq_read_emmc_part(disk, part);
+				break;
+			}
+
+		}
+	}
+	disk_part_iter_exit(&piter);
+
+	if (part_buf) {
+		memcpy(pdata->mac_addr, part_buf + off,
+		       sizeof(pdata->mac_addr));
+		kfree(part_buf);
+		ret = 0;
+	} else {
+		pr_info("ipq_read_emmc_part failed\n");
+	}
+
+	return ret;
+}
 
 inline void ipq_nss_get_mac_addr(struct mtd_info *mtd, int id,
 				struct msm_nss_gmac_platform_data *pdata)
@@ -2840,43 +2920,67 @@ inline void ipq_nss_get_mac_addr(struct mtd_info *mtd, int id,
 	loff_t off = id * sizeof(pdata->mac_addr);
 	uint8_t *mac = pdata->mac_addr;
 
-	if ((ret = mtd_read(mtd, off, sizeof(pdata->mac_addr), &len,
-		pdata->mac_addr)) || (len != sizeof(pdata->mac_addr))) {
-		printk("%s: Couldn't get MAC address for %d (%d)\n",
-				__func__, id, ret);
-		return;
+	if (machine_is_ipq806x_emmc_boot()) {
+		ret = ipq_read_emmc_macaddr(IPQ_MAC_ADDR_PARTITION_EMMC,
+					    id, pdata);
+		if (ret) {
+			pr_info("%s: Couldn't get MAC address from eMMC for %d (%d)\n",
+					__func__, id, ret);
+			return;
+		}
+	} else {
+		ret = mtd_read(mtd, off, sizeof(pdata->mac_addr), &len,
+			       pdata->mac_addr);
+		if (ret  || (len != sizeof(pdata->mac_addr))) {
+			pr_info("%s: Couldn't get MAC address for %d (%d)\n",
+					__func__, id, ret);
+			return;
+		}
 	}
 
 	printk("%s: MAC[%d]: %02x:%02x:%02x:%02x:%02x:%02x\n", __func__, id,
 			mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 }
 
-static int __init nss_fixup_platform_data(void)
+int nss_gmac_fixup_platform_data(void)
 {
 	struct mtd_info *mtd;
 	struct nss_platform_data *pdata;
 	struct msm_nss_gmac_platform_data *gmac_pdata;
 	int i;
 
-	mtd = get_mtd_device_nm(IPQ_MAC_ADDR_PARTITION);
-	if (IS_ERR_OR_NULL(mtd)) {
-		printk("%s: " IPQ_MAC_ADDR_PARTITION " not found\n", __func__);
-		return -ENXIO;
+	if (!machine_is_ipq806x_emmc_boot()) {
+		mtd = get_mtd_device_nm(IPQ_MAC_ADDR_PARTITION);
+		if (IS_ERR_OR_NULL(mtd)) {
+			pr_info("%s: " IPQ_MAC_ADDR_PARTITION " not found\n",
+							__func__);
+			return -ENXIO;
+		}
 	}
 
 	pdata = (struct nss_platform_data *)ipq806x_device_nss0.dev.platform_data;
-
-	if (cpu_is_ipq8062() || cpu_is_ipq8066()) {
-		pdata->turbo_frequency = NSS_FEATURE_NOT_ENABLED;
-	} else {
-		pdata->turbo_frequency = NSS_FEATURE_ENABLED;
-	}
 
 	for (i = 0; nss_gmac[i]; i++) {
 		gmac_pdata = (struct msm_nss_gmac_platform_data *)
 				(nss_gmac[i]->dev.platform_data);
 		ipq_nss_get_mac_addr(mtd, i, gmac_pdata);
 	}
+
+	return 0;
+}
+EXPORT_SYMBOL(nss_gmac_fixup_platform_data);
+
+static int __init nss_fixup_platform_data(void)
+{
+	struct nss_platform_data *pdata;
+
+	pdata = (struct nss_platform_data *)
+			ipq806x_device_nss0.dev.platform_data;
+
+	if (cpu_is_ipq8062() || cpu_is_ipq8066())
+		pdata->turbo_frequency = NSS_FEATURE_NOT_ENABLED;
+	else
+		pdata->turbo_frequency = NSS_FEATURE_ENABLED;
 
 	return 0;
 }

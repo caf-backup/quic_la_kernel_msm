@@ -296,6 +296,7 @@
 #define NSS_GMAC_PHY_PROFILE_QS		2	/* 4 QSGMII */
 
 extern int32_t nss_gmac_get_phy_profile(void);
+extern int nss_gmac_fixup_platform_data(void);
 
 struct msm_nss_gmac_platform_data {
 	uint32_t phy_mdio_addr;			/* MDIO address of the connected PHY */
