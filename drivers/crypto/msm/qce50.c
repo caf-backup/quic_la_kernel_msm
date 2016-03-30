@@ -5266,7 +5266,7 @@ static int __qce_init_clk(struct qce_device *pce_dev)
 			pr_err("Unable to get CE core src clk\n");
 			return rc;
 		} else {
-			pr_warn("Unable to get CE core src clk, set to NULL\n");
+			pr_info("Unable to get CE core src clk, set to NULL\n");
 			pce_dev->ce_core_src_clk = NULL;
 		}
 	}

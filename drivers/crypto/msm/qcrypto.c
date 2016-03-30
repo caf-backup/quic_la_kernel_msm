@@ -4529,7 +4529,7 @@ static int  _qcrypto_probe(struct platform_device *pdev)
 			(struct msm_bus_scale_pdata *)
 					msm_bus_cl_get_pdata(pdev);
 		if (!cp->platform_support.bus_scale_table)
-			pr_warn("bus_scale_table is NULL\n");
+			pr_info("bus_scale_table is NULL\n");
 
 		pengine->ce_device = cp->ce_support.ce_device;
 
