@@ -347,7 +347,7 @@
 				compatible = "qcom,rpm-clk";
 				reg = <QCOM_RPM_NSS_FABRIC_1_CLK>;
 				qcom,rpm-clk-name = "nss-fabric1";
-				qcom,rpm-clk-freq = <266000000>;
+				qcom,rpm-clk-freq = <266500000>;
 				qcom,rpm-clk-active-only;
 			};
 		};
