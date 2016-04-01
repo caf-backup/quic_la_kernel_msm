@@ -29,6 +29,7 @@
 #define CLEAR_MAGIC	0x0
 #define SCM_CMD_TZ_CONFIG_HW_FOR_RAM_DUMP_ID	0x9
 #define SCM_CMD_TZ_FORCE_DLOAD_ID		0x10
+#define SCM_CMD_TZ_SET_DLOAD_FOR_SECURE_BOOT	0x14
 
 static int dload_dis;
 
@@ -83,27 +84,27 @@ static struct notifier_block reboot_nb = {
 	.notifier_call = scm_restart_reason_reboot,
 };
 
-int is_dload_enabled(struct platform_device *pdev)
+static int scm_restart_reason_probe(struct platform_device *pdev)
 {
+	int ret, dload_dis_sec;
 	struct device_node *np;
-	uint32_t val;
-	int res;
 
 	np = of_node_get(pdev->dev.of_node);
 	if (!np)
 		return 0;
-	res = of_property_read_u32(np, "dload_status", &val);
-	if (res)
-		return 0;
-	else
-		return val;
-}
 
+	ret = of_property_read_u32(np, "dload_status", &dload_dis);
+	if (ret)
+		dload_dis = 0;
 
-static int scm_restart_reason_probe(struct platform_device *pdev)
-{
-	int ret;
-	dload_dis = is_dload_enabled(pdev);
+	ret = of_property_read_u32(np, "dload_sec_status", &dload_dis_sec);
+	if (ret)
+		dload_dis_sec = 0;
+
+	if (dload_dis_sec) {
+		scm_call(SCM_SVC_BOOT, SCM_CMD_TZ_SET_DLOAD_FOR_SECURE_BOOT,
+							NULL, 0, NULL, 0);
+	}
 
 	/* Ensure Disable before enabling the dload and sdi bits
 	 * to make sure they are disabled during boot */
