@@ -503,6 +503,9 @@
 			qcom,rst_addr = <0x40800000>;
 			qcom,load_addr = <0x40800000>;
 			qcom,turbo_frequency = <0>;
+			qcom,low_frequency = <110000000>;
+			qcom,mid_frequency = <275000000>;
+			qcom,max_frequency = <550000000>;
 			qcom,ipv4_enabled = <0>;
 			qcom,ipv6_enabled = <0>;
 			qcom,l2switch_enabled = <0>;
