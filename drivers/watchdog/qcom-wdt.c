@@ -80,7 +80,7 @@ static int panic_prep_restart(struct notifier_block *nb,
 	 */
 	wmb();
 
-	msleep(150);
+	mdelay(150);
 	return NOTIFY_DONE;
 }
 
