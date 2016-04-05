@@ -365,7 +365,7 @@ static unsigned int get_bus_node_device_data(
 							"qcom,ap-owned");
 
 	if (node_device->node_info->is_fab_dev) {
-		dev_err(&pdev->dev, "Dev %d\n", node_device->node_info->id);
+		dev_dbg(&pdev->dev, "Dev %d\n", node_device->node_info->id);
 
 		if (!node_device->node_info->virt_dev) {
 			node_device->fabdev =
@@ -381,7 +381,7 @@ static unsigned int get_bus_node_device_data(
 							"bus_clk");
 
 		if (IS_ERR_OR_NULL(node_device->clk[DUAL_CTX].clk))
-			dev_err(&pdev->dev,
+			dev_dbg(&pdev->dev,
 				"%s:Failed to get bus clk for bus%d ctx%d",
 				__func__, node_device->node_info->id,
 								DUAL_CTX);
