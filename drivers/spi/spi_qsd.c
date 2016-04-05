@@ -1242,7 +1242,7 @@ static int msm_spi_bam_map_vmalloc_addr(struct msm_spi *dd, void *addr,
 
 	page = vmalloc_to_page(addr);
 
-	return dma_map_page(dev, page, 0, PAGE_SIZE, dir);
+	return dma_map_page(dev, page, 0, PAGE_SIZE, dir) + offset;
 }
 
 static int msm_spi_bam_map_buffers(struct msm_spi *dd)
