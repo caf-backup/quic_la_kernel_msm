@@ -24,6 +24,20 @@
 #include <linux/usb/phy.h>
 #include <linux/reset.h>
 #include <linux/of_device.h>
+#include <linux/dma-mapping.h>
+#include <soc/qcom/scm.h>
+#include <linux/slab.h>
+
+#define USB_CALIBRATION_CMD	0x10
+#define USB3PHY_SPARE_1		0x7FC
+#define RX_LOS_1		0x7C8
+#define MISC_SOURCE_REG		0x21c
+#define CDR_CONTROL_REG_1	0x80
+#define PCS_INTERNAL_CONTROL14	0x364
+#define MMD1_REG_REG_MASK	(0x7F << 8)
+#define OTP_MASK		(0x7F << 5)
+#define MMD1_REG_AUTOLOAD_MASK	(0x1 << 7)
+#define SPARE_1_BIT14_MASK	(0x1 << 14)
 /**
  *  USB Hardware registers
  */
@@ -225,8 +239,91 @@ static void qca_uni_ss_phy_shutdown(struct usb_phy *x)
 	reset_control_assert(phy->por_rst);
 }
 
+/* Function to read the value from OTP through scm call */
+int qca_uni_ss_read_otp(void)
+{
+	int ret;
+	uint32_t *otp_value = kzalloc(sizeof(uint32_t), GFP_KERNEL);
+
+	if (!otp_value)
+		return -ENOMEM;
+
+	struct qf_read {
+		uint32_t value;
+	} rdip;
+
+	rdip.value = dma_map_single(NULL, otp_value,
+			sizeof(uint32_t), DMA_FROM_DEVICE);
+
+	ret = dma_mapping_error(NULL, rdip.value);
+	if (ret != 0) {
+		pr_err("\nDMA Mapping Error");
+		goto err_write;
+	}
+
+	ret = scm_call(SCM_SVC_FUSE, USB_CALIBRATION_CMD,
+		&rdip, sizeof(struct qf_read), NULL, 0);
+
+	dma_unmap_single(NULL, rdip.value,
+		sizeof(uint32_t), DMA_FROM_DEVICE);
+
+	if (ret != 0) {
+		pr_err("\n Error in reading value: %d", ret);
+		goto err_write;
+	}
+
+	ret = *otp_value;
+err_write:
+	kfree(otp_value);
+	return ret;
+}
+
+int qca_uni_ss_phy_usb_los_calibration(uint32_t base)
+{
+	uint32_t remap, data, otp_val;
+	/* Get OTP value */
+	otp_val = qca_uni_ss_read_otp();
+	if (otp_val < 0) {
+		pr_err("\n USB Calibration Falied with error %d", otp_val);
+		return 0;
+	}
+	/*
+	 * Read the USB3PHY_SPARE_1 register and
+	 * set bit 14 to 0
+	 */
+	data = qca_uni_ss_read(base, USB3PHY_SPARE_1);
+	data = data & (~SPARE_1_BIT14_MASK);
+	qca_uni_ss_write(base, USB3PHY_SPARE_1, data);
+
+	/*
+	 * Get bit 11:5 value, add with 0x14 and set to the
+	 * register USB3PHY_RX_LOS_1 bit MMD1_REG_REG
+	 */
+	data = qca_uni_ss_read(base, RX_LOS_1);
+	otp_val = ((otp_val & OTP_MASK) >> 5) + 0x14;
+	otp_val = otp_val << 8;
+	data = data & (~MMD1_REG_REG_MASK);
+	data = data | otp_val;
+	qca_uni_ss_write(base, RX_LOS_1, data);
+
+	/*
+	 * Set bit MMD1_REG_AUTOLOAD_SEL_RX_LOS_THRES in
+	 * USB3PHY_RX_LOS_1 to 1
+	 */
+	data = qca_uni_ss_read(base, RX_LOS_1);
+	data = data | MMD1_REG_AUTOLOAD_MASK;
+	qca_uni_ss_write(base, RX_LOS_1, data);
+
+	qca_uni_ss_write(base, PCS_INTERNAL_CONTROL14, 0x4000);
+	qca_uni_ss_write(base, MISC_SOURCE_REG, 0xaa0a);
+	qca_uni_ss_write(base, CDR_CONTROL_REG_1, 0x0202);
+
+	return 0;
+}
+
 static int qca_uni_ss_phy_init(struct usb_phy *x)
 {
+	int ret;
 	struct qca_uni_ss_phy *phy = phy_to_dw_phy(x);
 
 	/* assert SS PHY POR reset */
@@ -259,7 +356,10 @@ static int qca_uni_ss_phy_init(struct usb_phy *x)
 	/* deassert SS PHY POR reset */
 	reset_control_deassert(phy->por_rst);
 
-	return 0;
+	/* USB LOS Calibration */
+	ret = qca_uni_ss_phy_usb_los_calibration(phy->base);
+
+	return ret;
 }
 
 static int qca_uni_ss_get_resources(struct platform_device *pdev,
