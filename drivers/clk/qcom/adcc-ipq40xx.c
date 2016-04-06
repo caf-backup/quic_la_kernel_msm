@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014 - 2016 The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -135,6 +135,7 @@ static struct clk_qcapll adss_pll_src = {
 		.parent_names = (const char *[]){ "xo" },
 		.num_parents = 1,
 		.ops = &clk_qcapll_ops,
+		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -171,7 +172,7 @@ static struct clk_cdiv_rcg2 rxm_clk_src = {
 		.parent_names = adcc_xo_adpll_padmclk,
 		.num_parents = 3,
 		.ops = &clk_cdiv_rcg2_ops,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -185,7 +186,7 @@ static struct clk_branch adcc_rxm_clk_src = {
 			.parent_names = (const char *[]){"rxm_clk_src"},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 		},
 	},
 };
@@ -203,7 +204,7 @@ static struct clk_cdiv_rcg2 txm_clk_src = {
 		.parent_names = adcc_xo_adpll_padmclk,
 		.num_parents = 3,
 		.ops = &clk_cdiv_rcg2_ops,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -219,7 +220,7 @@ static struct clk_branch adcc_txm_clk_src = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 		},
 	},
 };
@@ -268,7 +269,7 @@ static struct clk_muxr_misc txb_clk_src = {
 		.parent_names = adcc_xo_adpll_padbclk_padmclk,
 		.num_parents = 4,
 		.ops = &clk_muxr_misc_ops,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -284,7 +285,7 @@ static struct clk_branch adcc_txb_clk_src = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 		},
 	},
 };
@@ -303,7 +304,7 @@ static struct clk_muxr_misc rxb_clk_src = {
 		.parent_names = adcc_xo_adpll_padbclk_padmclk,
 		.num_parents = 4,
 		.ops = &clk_muxr_misc_ops,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -320,7 +321,7 @@ static struct clk_branch adcc_rxb_clk_src = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 		},
 	},
 };
@@ -346,7 +347,7 @@ static struct clk_cdiv_rcg2 pcm_clk_src = {
 		.parent_names = adcc_xo_adpll,
 		.num_parents = 2,
 		.ops = &clk_cdiv_rcg2_ops,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -364,7 +365,7 @@ static struct clk_branch adcc_pcm_clk_src = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 		},
 	},
 };
@@ -386,7 +387,7 @@ static struct clk_rcg2 spdifinfast_src = {
 		.parent_names = adcc_xo_adpll,
 		.num_parents = 2,
 		.ops = &clk_rcg2_ops,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -402,7 +403,7 @@ static struct clk_branch adcc_spdifinfast_src = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 		},
 	},
 };
@@ -421,7 +422,7 @@ static struct clk_muxr_misc spdif_src = {
 		.parent_names = adcc_xo_adpll_padbclk_padmclk,
 		.num_parents = 4,
 		.ops = &clk_muxr_misc_ops,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -437,7 +438,7 @@ static struct clk_branch adcc_spdif_src = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 		},
 	},
 };
@@ -456,7 +457,7 @@ static struct clk_muxr_misc spdifdiv2_src = {
 		.parent_names = adcc_xo_adpll_padbclk_padmclk,
 		.num_parents = 4,
 		.ops = &clk_muxr_misc_ops,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -472,7 +473,7 @@ static struct clk_branch adcc_spdifdiv2_src = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 		},
 	},
 };
@@ -489,7 +490,7 @@ static struct clk_branch adcc_sample_src = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 		},
 	},
 };
@@ -506,7 +507,7 @@ static struct clk_branch adcc_xo_src = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 		},
 	},
 };
@@ -524,6 +525,7 @@ static struct clk_branch adcc_ahb_src = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
+			.flags = CLK_IGNORE_UNUSED,
 		},
 	},
 };
@@ -540,6 +542,7 @@ static struct clk_branch adcc_ahb_i2s0_src = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
+			.flags = CLK_IGNORE_UNUSED,
 		},
 	},
 };
@@ -556,6 +559,7 @@ static struct clk_branch adcc_ahb_i2s3_src = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
+			.flags = CLK_IGNORE_UNUSED,
 		},
 	},
 };
@@ -572,6 +576,7 @@ static struct clk_branch adcc_ahb_mbox0_src = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
+			.flags = CLK_IGNORE_UNUSED,
 		},
 	},
 };
@@ -588,6 +593,7 @@ static struct clk_branch adcc_ahb_mbox3_src = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
+			.flags = CLK_IGNORE_UNUSED,
 		},
 	},
 };
