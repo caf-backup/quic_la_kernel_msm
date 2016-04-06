@@ -1267,19 +1267,21 @@ static int ipmr_mfc_delete(struct mr_table *mrt, struct mfcctl *mfc)
 {
 	int line;
 	struct mfc_cache *c, *next;
+	uint32_t origin, group;
 
 	line = MFC_HASH(mfc->mfcc_mcastgrp.s_addr, mfc->mfcc_origin.s_addr);
 
 	list_for_each_entry_safe(c, next, &mrt->mfc_cache_array[line], list) {
 		if (c->mfc_origin == mfc->mfcc_origin.s_addr &&
 		    c->mfc_mcastgrp == mfc->mfcc_mcastgrp.s_addr) {
-			/*
-			 * Inform offload modules of the delete event
-			 */
-			ipmr_sync_entry_delete(c->mfc_origin, c->mfc_mcastgrp);
-			list_del_rcu(&c->list);
+			origin = c->mfc_origin;
+			group = c->mfc_mcastgrp;
 
+			list_del_rcu(&c->list);
 			ipmr_cache_free(c);
+
+			 /* Inform offload modules of the delete event */
+			ipmr_sync_entry_delete(origin, group);
 			return 0;
 		}
 	}
