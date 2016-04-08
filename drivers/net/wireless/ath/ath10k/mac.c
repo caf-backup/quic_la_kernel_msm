@@ -7325,6 +7325,13 @@ ath10k_mac_update_rx_channel(struct ath10k *ar,
 		ar->rx_channel = NULL;
 	}
 	rcu_read_unlock();
+
+	if (ar->rx_channel == NULL) {
+		ath10k_info(ar, "rx_channel set to NULL\n");
+	} else {
+		ath10k_info(ar, "rx_channel set to freq %d\n",
+			    ar->rx_channel->center_freq);
+	}
 }
 
 static void
