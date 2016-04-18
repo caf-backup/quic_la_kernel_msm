@@ -83,6 +83,7 @@ static u32 mdss_fb_pseudo_palette[16] = {
 };
 
 static struct msm_mdp_interface *mdp_instance;
+static struct fb_deferred_io mdss_fb_defio;
 
 static int mdss_fb_register(struct msm_fb_data_type *mfd);
 static int mdss_fb_open(struct fb_info *info, int user);
@@ -711,6 +712,7 @@ static int mdss_fb_probe(struct platform_device *pdev)
 	mfd->ad_bl_level = 0;
 	mfd->fb_imgType = MDP_RGBA_8888;
 
+	mfd->fbi->fbdefio = &mdss_fb_defio;
 	mfd->pdev = pdev;
 
 	mfd->split_mode = MDP_SPLIT_MODE_NONE;
@@ -755,6 +757,7 @@ static int mdss_fb_probe(struct platform_device *pdev)
 			lcd_backlight_registered = 1;
 	}
 
+	fb_deferred_io_init(mfd->fbi);
 	mdss_fb_create_sysfs(mfd);
 	mdss_fb_send_panel_event(mfd, MDSS_EVENT_FB_REGISTERED, fbi);
 
@@ -1763,7 +1766,11 @@ static void mdss_fb_kthread_notify(struct msm_fb_data_type *mfd)
 	atomic_inc(&mfd->commits_pending);
 	wake_up_all(&mfd->commit_wait_q);
 }
-
+static void mdss_fb_deferred_io(struct fb_info *info,
+				struct list_head *pagelist)
+{
+	mdss_fb_pan_display(&info->var, info);
+}
 static ssize_t mdss_fb_write(struct fb_info *info, const char __user *buf,
 		size_t count, loff_t *ppos)
 {
@@ -1836,6 +1843,11 @@ static struct fb_ops mdss_fb_ops = {
 	.fb_fillrect	= mdss_fb_fillrect,
 	.fb_copyarea	= mdss_fb_copyarea,
 	.fb_imageblit	= mdss_fb_imageblit,
+};
+
+static struct fb_deferred_io mdss_fb_defio = {
+	.delay		= HZ,
+	.deferred_io	= mdss_fb_deferred_io,
 };
 
 static int mdss_fb_alloc_fbmem_iommu(struct msm_fb_data_type *mfd, int dom)
@@ -2318,6 +2330,7 @@ static int mdss_fb_release_all(struct fb_info *info, bool release_all)
 
 	pr_debug("release_all = %s\n", release_all ? "true" : "false");
 
+	fb_deferred_io_cleanup(mfd->fbi);
 	list_for_each_entry_safe(pinfo, temp_pinfo, &mfd->proc_list, list) {
 		if (!release_all && (pinfo->pid != pid))
 			continue;
