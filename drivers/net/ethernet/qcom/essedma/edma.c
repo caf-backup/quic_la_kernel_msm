@@ -448,6 +448,9 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 				netdev = edma_cinfo->netdev[1];
 			adapter = netdev_priv(netdev);
 
+			/* Get the number of RFD from RRD */
+			num_rfds = rd->rrd1 & EDMA_RRD_NUM_RFD_MASK;
+
 			/* This code is added to handle a usecase where high priority stream
 			 * and a low priority stream are received simultaneously on DUT.
 			 * The problem occurs if one of the  Rx rings is full and the
@@ -460,7 +463,7 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 			 */
 			priority = (rd->rrd1 >> EDMA_RRD_PRIORITY_SHIFT)
 				& EDMA_RRD_PRIORITY_MASK;
-			if (likely(!priority && !edma_cinfo->page_mode && !edma_cinfo->fraglist_mode)) {
+			if (likely(!priority && !edma_cinfo->page_mode && (num_rfds <= 1))) {
 				rfd_avail = (count + sw_next_to_clean - hw_next_to_clean - 1) & (count - 1);
 				if (rfd_avail < EDMA_RFD_AVAIL_THR) {
 					sw_desc->flags = EDMA_SW_DESC_FLAG_SKB_REUSE;
@@ -494,9 +497,6 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 
 			/* Get the packet size and allocate buffer */
                         length = rd->rrd6 & EDMA_RRD_PKT_SIZE_MASK;
-
-                        /* Get the number of RFD from RRD */
-                        num_rfds = rd->rrd1 & EDMA_RRD_NUM_RFD_MASK;
 
 			if (likely(!edma_cinfo->page_mode)) {
 				/* Addition of 16 bytes is required, as in the packet
