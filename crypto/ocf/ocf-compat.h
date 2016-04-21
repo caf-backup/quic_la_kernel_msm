@@ -81,7 +81,7 @@ struct ocf_device {
 
 #define	softc_device_init(_sc, _name, _unit, _methods) \
 	if (1) {\
-	strncpy((_sc)->_device.name, _name, sizeof((_sc)->_device.name) - 1); \
+	strlcpy((_sc)->_device.name, _name, sizeof((_sc)->_device.name) - 1); \
 	snprintf((_sc)->_device.nameunit, sizeof((_sc)->_device.name), "%s%d", _name, _unit); \
 	(_sc)->_device.unit = _unit; \
 	(_sc)->_device.methods = _methods; \
