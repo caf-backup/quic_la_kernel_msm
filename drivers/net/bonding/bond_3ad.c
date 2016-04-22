@@ -2474,7 +2474,7 @@ struct net_device *bond_3ad_get_tx_dev(struct sk_buff *skb, uint8_t *src_mac,
 	}
 
 	if (skb) {
-		slave_agg_no = bond->xmit_hash_policy(skb, slaves_in_agg);
+		slave_agg_no = bond_xmit_hash(bond, skb, slaves_in_agg);
 	} else {
 		uint32_t hash;
 
@@ -2485,7 +2485,9 @@ struct net_device *bond_3ad_get_tx_dev(struct sk_buff *skb, uint8_t *src_mac,
 			return NULL;
 		}
 
-		hash = bond_xmit_hash(src_mac, dst_mac, src, dst, protocol, bond_dev, layer4hdr);
+		hash = bond_xmit_hash_without_skb(src_mac, dst_mac, src,
+						  dst, protocol, bond_dev,
+						  layer4hdr);
 		slave_agg_no = hash % slaves_in_agg;
 	}
 
