@@ -23,6 +23,7 @@
 #include <soc/qcom/scm.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <linux/utsname.h>
 
 #define WDT_RST		0x0
 #define WDT_EN		0x8
@@ -47,6 +48,68 @@ struct qcom_wdt {
 	void __iomem		*wdt_bite_time;
 };
 
+struct qcom_wdt_scm_tlv_msg {
+	unsigned char *msg_buffer;
+	unsigned char *cur_msg_buffer_pos;
+	unsigned int len;
+};
+
+#define CFG_TLV_MSG_OFFSET 2048
+#define QCOM_WDT_SCM_TLV_TYPE_SIZE 1
+#define QCOM_WDT_SCM_TLV_LEN_SIZE 2
+#define QCOM_WDT_SCM_TLV_TYPE_LEN_SIZE (QCOM_WDT_SCM_TLV_TYPE_SIZE +\
+						QCOM_WDT_SCM_TLV_LEN_SIZE)
+enum {
+	QCOM_WDT_LOG_DUMP_TYPE_INVALID,
+	QCOM_WDT_LOG_DUMP_TYPE_UNAME,
+};
+
+static int qcom_wdt_scm_add_tlv(struct qcom_wdt_scm_tlv_msg *scm_tlv_msg,
+			unsigned char type, unsigned int size, const char *data)
+{
+	unsigned char *x = scm_tlv_msg->cur_msg_buffer_pos;
+	unsigned char *y = scm_tlv_msg->msg_buffer + scm_tlv_msg->len;
+
+	if ((x + QCOM_WDT_SCM_TLV_TYPE_LEN_SIZE + size) >= y)
+		return -ENOBUFS;
+
+	x[0] = type;
+	x[1] = size;
+	x[2] = size >> 8;
+
+	memcpy(x + 3, data, size);
+
+	scm_tlv_msg->cur_msg_buffer_pos +=
+		(size + QCOM_WDT_SCM_TLV_TYPE_LEN_SIZE);
+
+	return 0;
+}
+
+static int qcom_wdt_scm_fill_log_dump_tlv(
+			struct qcom_wdt_scm_tlv_msg *scm_tlv_msg)
+{
+	struct new_utsname *uname;
+	int ret_val;
+
+	uname = utsname();
+
+	ret_val = qcom_wdt_scm_add_tlv(scm_tlv_msg,
+			QCOM_WDT_LOG_DUMP_TYPE_UNAME,
+			sizeof(*uname),
+			(unsigned char *)uname);
+
+	if (ret_val)
+		return ret_val;
+
+	if (scm_tlv_msg->cur_msg_buffer_pos >=
+		scm_tlv_msg->msg_buffer + scm_tlv_msg->len)
+		return -ENOBUFS;
+
+	*scm_tlv_msg->cur_msg_buffer_pos++ = QCOM_WDT_LOG_DUMP_TYPE_INVALID;
+
+	return 0;
+}
+
 static inline
 struct qcom_wdt *to_qcom_wdt(struct watchdog_device *wdd)
 {
@@ -70,6 +133,7 @@ static long qcom_wdt_configure_bark_dump(void *arg)
 		unsigned addr;
 		int len;
 	} cmd_buf;
+	struct qcom_wdt_scm_tlv_msg tlv_msg;
 
 	/* Area for context dump in secure mode */
 	void *scm_regsave = (void *)__get_free_page(GFP_KERNEL);
@@ -80,11 +144,25 @@ static long qcom_wdt_configure_bark_dump(void *arg)
 
 		ret = scm_call(SCM_SVC_UTIL, SCM_CMD_SET_REGSAVE,
 			       &cmd_buf, sizeof(cmd_buf), NULL, 0);
+		if (ret) {
+			pr_err("Setting register save address failed.\n"
+				"Registers won't be dumped on a dog bite\n");
+			return ret;
+		}
+
+		/* Initialize the tlv and fill all the details */
+		tlv_msg.msg_buffer = scm_regsave + CFG_TLV_MSG_OFFSET;
+		tlv_msg.cur_msg_buffer_pos = tlv_msg.msg_buffer;
+		tlv_msg.len = PAGE_SIZE - CFG_TLV_MSG_OFFSET;
+
+		ret = qcom_wdt_scm_fill_log_dump_tlv(&tlv_msg);
+
+		if (ret) {
+			pr_err("log dump initialization failed");
+			return ret;
+		}
 	}
 
-	if (ret)
-		pr_err("Setting register save address failed.\n"
-				"Registers won't be dumped on a dog bite\n");
 	return ret;
 }
 
