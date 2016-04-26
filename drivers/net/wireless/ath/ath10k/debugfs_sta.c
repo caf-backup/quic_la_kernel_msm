@@ -17,6 +17,280 @@
 #include "core.h"
 #include "wmi-ops.h"
 #include "debug.h"
+#include "wmi.h"
+#include "txrx.h"
+#include "htt.h"
+#include <linux/nl80211.h>
+
+static char ath10k_map_rate_code_number(u8 rate, u8 pream)
+{
+	u8 i;
+	u8 legacy_rates[] = {TX_CCK_RATE_1_MBPS, TX_CCK_RATE_2_MBPS,
+			     TX_CCK_RATE_5_5_MBPS, TX_CCK_RATE_11_MBPS,
+			     TX_OFDM_RATE_6_MBPS, TX_OFDM_RATE_9_MBPS,
+			     TX_OFDM_RATE_12_MBPS, TX_OFDM_RATE_18_MBPS,
+			     TX_OFDM_RATE_24_MBPS, TX_OFDM_RATE_36_MBPS,
+			     TX_OFDM_RATE_48_MBPS, TX_OFDM_RATE_54_MBPS};
+
+	/* For CCK 5.5Mbps firmware sends rate as 6 */
+	if (pream == WMI_RATE_PREAMBLE_CCK && rate == 6)
+		rate = TX_CCK_RATE_5_5_MBPS;
+
+	for (i = 0; i < LEGACY_RATE_NUM; i++) {
+		if (rate == legacy_rates[i])
+			break;
+	}
+
+	return i;
+}
+
+static void ath10k_fill_tx_bitrate(struct ieee80211_hw *hw,
+				   struct ieee80211_sta *sta,
+				   struct rate_info *txrate,
+				   u8 rate, u8 sgi, u8 success, u8 failed,
+				   u8 retries, bool skip_auto_rate)
+{
+	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
+	struct ieee80211_chanctx_conf *conf = NULL;
+	struct ieee80211_tx_info info;
+
+	memset(&info, 0, sizeof(info));
+	info.status.rates[0].count = retries;
+
+	switch (txrate->flags) {
+	case WMI_RATE_PREAMBLE_OFDM:
+		if (arsta->arvif && arsta->arvif->vif)
+			conf = rcu_dereference(arsta->arvif->vif->chanctx_conf);
+		if (conf && conf->def.chan->band == NL80211_BAND_5GHZ)
+			info.status.rates[0].idx = txrate->mcs - 4;
+		break;
+	case WMI_RATE_PREAMBLE_CCK:
+		info.status.rates[0].idx = txrate->mcs;
+		if (sgi)
+			info.status.rates[0].flags |=
+				(IEEE80211_TX_RC_USE_SHORT_PREAMBLE |
+				 IEEE80211_TX_RC_SHORT_GI);
+		break;
+	case WMI_RATE_PREAMBLE_HT:
+		info.status.rates[0].idx =
+				txrate->mcs + ((txrate->nss - 1) * 8);
+		if (sgi) {
+			arsta->txrate.flags |=
+				RATE_INFO_FLAGS_SHORT_GI;
+			info.status.rates[0].flags |= IEEE80211_TX_RC_SHORT_GI;
+		}
+		info.status.rates[0].flags |= IEEE80211_TX_RC_MCS;
+		break;
+	case WMI_RATE_PREAMBLE_VHT:
+		ieee80211_rate_set_vht(&info.status.rates[0], txrate->mcs,
+				       txrate->nss);
+		if (sgi) {
+			info.status.rates[0].flags |= IEEE80211_TX_RC_SHORT_GI;
+		}
+		info.status.rates[0].flags |= IEEE80211_TX_RC_VHT_MCS;
+		break;
+	}
+
+	switch (arsta->txrate.bw) {
+	case RATE_INFO_BW_40:
+		info.status.rates[0].flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
+		break;
+	case RATE_INFO_BW_80:
+		info.status.rates[0].flags |= IEEE80211_TX_RC_80_MHZ_WIDTH;
+		break;
+	default:
+		break;
+	}
+
+	if (success && !skip_auto_rate) {
+		info.flags = IEEE80211_TX_STAT_ACK;
+		ieee80211_tx_status_noskb(hw, sta, &info);
+	}
+}
+
+void ath10k_accumulate_per_peer_tx_stats(struct ath10k *ar,
+				 struct ieee80211_sta *sta,
+				 struct ath10k_per_peer_tx_stats *peer_stats,
+				 struct rate_info *txrate)
+{
+	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
+	u8 pream, bw, mcs, nss, rate, gi;
+	int idx, ht_idx;
+	struct ath10k_tx_stats *tx_stats = &arsta->tx_stats;
+	bool legacy_rate, skip_auto_rate;
+
+	pream = ATH10K_HW_PREAMBLE(peer_stats->ratecode);
+	legacy_rate = ((pream == WMI_RATE_PREAMBLE_CCK) ||
+		       (pream == WMI_RATE_PREAMBLE_OFDM));
+
+	gi = ATH10K_HW_GI(peer_stats->flags);
+	skip_auto_rate = ATH10K_HW_DATA_PKT(peer_stats->flags);
+
+	if (legacy_rate) {
+		rate = ATH10K_HW_LEGACY_RATE(peer_stats->ratecode);
+		mcs = ath10k_map_rate_code_number(rate, pream);
+		if (mcs == LEGACY_RATE_NUM)
+			return;
+
+		tx_stats->succ_bytes_legacy_rates[mcs] +=
+				(peer_stats->succ_bytes);
+		tx_stats->succ_pkts_legacy_rates[mcs] +=
+				(peer_stats->succ_pkts);
+		tx_stats->fail_bytes_legacy_rates[mcs] +=
+				(peer_stats->failed_bytes);
+		tx_stats->fail_pkts_legacy_rates[mcs] +=
+				(peer_stats->failed_pkts);
+		tx_stats->retry_bytes_legacy_rates[mcs] +=
+				(peer_stats->retry_bytes);
+		tx_stats->retry_pkts_legacy_rates[mcs] +=
+				(peer_stats->retry_pkts);
+		tx_stats->ack_fails +=
+				ATH10K_HW_BA_FAIL(peer_stats->flags);
+	} else {
+		bw = ATH10K_HW_BW(peer_stats->flags);
+		nss = ATH10K_HW_NSS(peer_stats->ratecode) - 1;
+		mcs = ATH10K_HW_MCS_RATE(peer_stats->ratecode);
+		idx = mcs * 8 + 8 * 10 * (nss);
+		idx += bw * 2 + gi;
+
+		if (nss >= VHT_NSS_NUM || bw >= VHT_BW_NUM ||
+			mcs >= VHT_MCS_NUM)
+			return;
+
+		if (pream == WMI_RATE_PREAMBLE_HT)
+			ht_idx = mcs + nss * 8;
+
+		if (ATH10K_HW_AMPDU(peer_stats->flags)) {
+			tx_stats->ba_fails +=
+				ATH10K_HW_BA_FAIL(peer_stats->flags);
+			if (pream == WMI_RATE_PREAMBLE_HT) {
+				tx_stats->ampdu_bytes_ht[ht_idx] +=
+					(peer_stats->succ_bytes) +
+					(peer_stats->retry_bytes);
+				tx_stats->ampdu_pkts_ht[ht_idx] +=
+					(peer_stats->succ_pkts +
+					 peer_stats->retry_pkts);
+
+			} else {
+				tx_stats->ampdu_bytes_vht[mcs] +=
+					(peer_stats->succ_bytes) +
+					(peer_stats->retry_bytes);
+				tx_stats->ampdu_pkts_vht[mcs] +=
+					(peer_stats->succ_pkts +
+					 peer_stats->retry_pkts);
+			}
+			tx_stats->ampdu_bytes_bw[bw] +=
+				(peer_stats->succ_bytes) +
+				(peer_stats->retry_bytes);
+			tx_stats->ampdu_bytes_nss[nss] +=
+				(peer_stats->succ_bytes) +
+				(peer_stats->retry_bytes);
+			tx_stats->ampdu_bytes_gi[gi] +=
+				(peer_stats->succ_bytes) +
+				(peer_stats->retry_bytes);
+			tx_stats->ampdu_bytes_rate_num[idx] +=
+				(peer_stats->succ_bytes) +
+				(peer_stats->retry_bytes);
+			tx_stats->ampdu_pkts_bw[bw] +=
+					(peer_stats->succ_pkts +
+					 peer_stats->retry_pkts);
+			tx_stats->ampdu_pkts_nss[nss] +=
+					(peer_stats->succ_pkts +
+					 peer_stats->retry_pkts);
+			tx_stats->ampdu_pkts_gi[gi] +=
+					(peer_stats->succ_pkts +
+					 peer_stats->retry_pkts);
+			tx_stats->ampdu_pkts_rate_num[idx] +=
+					(peer_stats->succ_pkts +
+					 peer_stats->retry_pkts);
+		} else {
+			tx_stats->ack_fails +=
+				ATH10K_HW_BA_FAIL(peer_stats->flags);
+		}
+		if (pream == WMI_RATE_PREAMBLE_HT) {
+			tx_stats->succ_bytes_ht[ht_idx] +=
+				(peer_stats->succ_bytes);
+			tx_stats->succ_pkts_ht[ht_idx] +=
+				(peer_stats->succ_pkts);
+			tx_stats->fail_bytes_ht[ht_idx] +=
+				(peer_stats->failed_bytes);
+			tx_stats->fail_pkts_ht[ht_idx] +=
+				(peer_stats->failed_pkts);
+			tx_stats->retry_bytes_ht[ht_idx] +=
+				(peer_stats->retry_bytes);
+			tx_stats->retry_pkts_ht[ht_idx] +=
+				(peer_stats->retry_pkts);
+		} else {
+			tx_stats->succ_bytes_vht[mcs] +=
+				(peer_stats->succ_bytes);
+			tx_stats->succ_pkts_vht[mcs] +=
+				(peer_stats->succ_pkts);
+			tx_stats->fail_bytes_vht[mcs] +=
+				(peer_stats->failed_bytes);
+			tx_stats->fail_pkts_vht[mcs] +=
+				(peer_stats->failed_pkts);
+			tx_stats->retry_bytes_vht[mcs] +=
+				(peer_stats->retry_bytes);
+			tx_stats->retry_pkts_vht[mcs] +=
+				(peer_stats->retry_pkts);
+		}
+		tx_stats->succ_bytes_bw[bw] +=
+			(peer_stats->succ_bytes);
+		tx_stats->succ_bytes_nss[nss] +=
+			(peer_stats->succ_bytes);
+		tx_stats->succ_bytes_gi[gi] +=
+			(peer_stats->succ_bytes);
+		tx_stats->succ_bytes_rate_num[idx] +=
+			(peer_stats->succ_bytes);
+		tx_stats->succ_pkts_bw[bw] +=
+			(peer_stats->succ_pkts);
+		tx_stats->succ_pkts_nss[nss] +=
+			(peer_stats->succ_pkts);
+		tx_stats->succ_pkts_gi[gi] +=
+			(peer_stats->succ_pkts);
+		tx_stats->succ_pkts_rate_num[idx] +=
+			(peer_stats->succ_pkts);
+		tx_stats->fail_bytes_bw[bw] +=
+			(peer_stats->failed_bytes);
+		tx_stats->fail_bytes_nss[nss] +=
+			(peer_stats->failed_bytes);
+		tx_stats->fail_bytes_gi[gi] +=
+			(peer_stats->failed_bytes);
+		tx_stats->fail_bytes_rate_num[idx] +=
+			(peer_stats->failed_bytes);
+		tx_stats->fail_pkts_bw[bw] +=
+			(peer_stats->failed_pkts);
+		tx_stats->fail_pkts_nss[nss] +=
+			(peer_stats->failed_pkts);
+		tx_stats->fail_pkts_gi[gi] +=
+			(peer_stats->failed_pkts);
+		tx_stats->fail_pkts_rate_num[idx] +=
+			(peer_stats->failed_pkts);
+		tx_stats->retry_bytes_bw[bw] +=
+			(peer_stats->retry_bytes);
+		tx_stats->retry_bytes_nss[nss] +=
+			(peer_stats->retry_bytes);
+		tx_stats->retry_bytes_gi[gi] +=
+			(peer_stats->retry_bytes);
+		tx_stats->retry_bytes_rate_num[idx] +=
+			(peer_stats->retry_bytes);
+		tx_stats->retry_pkts_bw[bw] +=
+			(peer_stats->retry_pkts);
+		tx_stats->retry_pkts_nss[nss] +=
+			(peer_stats->retry_pkts);
+		tx_stats->retry_pkts_gi[gi] +=
+			(peer_stats->retry_pkts);
+		tx_stats->retry_pkts_rate_num[idx] +=
+			(peer_stats->retry_pkts);
+	}
+	ath10k_fill_tx_bitrate(ar->hw, sta, txrate, rate, gi,
+			       peer_stats->succ_pkts,
+			       peer_stats->failed_pkts,
+			       peer_stats->retry_pkts,
+			       skip_auto_rate);
+
+
+}
 
 static void ath10k_sta_update_extd_stats_rx_duration(struct ath10k *ar,
 						     struct ath10k_fw_stats *stats)
@@ -342,6 +616,106 @@ static const struct file_operations fops_peer_debug_trigger = {
 	.llseek = default_llseek,
 };
 
+#define str(s) #s
+#define STATS_OUTPUT_FORMAT(name) 					\
+	do {								\
+	len += scnprintf(buf + len, size - len, "%s\n", str(name));	\
+	len += scnprintf(buf + len, size - len, " VHT MCS %s\n  ",	\
+		(strstr(str(name), "pkts")) ? "packets" : "bytes");	\
+	for (i = 0; i < VHT_MCS_NUM; i++)				\
+		len += scnprintf(buf + len, size - len, "%llu ",	\
+				arsta->tx_stats.name## _vht[i]);	\
+	len += scnprintf(buf + len, size - len, "\n");			\
+	len += scnprintf(buf + len, size - len, " HT MCS %s\n  ",	\
+		(strstr(str(name), "pkts")) ? "packets" : "bytes");	\
+	for (i = 0; i < HT_MCS_NUM; i++)				\
+		len += scnprintf(buf + len, size - len, "%llu ",	\
+				arsta->tx_stats.name## _ht[i]);		\
+	len += scnprintf(buf + len, size - len, "\n");			\
+	len += scnprintf(buf + len, size - len,				\
+			" BW %s (20,40,80,160 MHz)\n  ",		\
+		(strstr(str(name), "pkts")) ? "packets" : "bytes");	\
+	len += scnprintf(buf + len, size - len, "%llu %llu %llu %llu\n",\
+			arsta->tx_stats.name## _bw[0],			\
+			arsta->tx_stats.name## _bw[1],			\
+			arsta->tx_stats.name## _bw[2],			\
+			arsta->tx_stats.name## _bw[3]);			\
+	len += scnprintf(buf + len, size - len,				\
+			" NSS %s (1x1,2x2,3x3,4x4)\n  ",		\
+		(strstr(str(name), "pkts")) ? "packets" : "bytes");	\
+	len += scnprintf(buf + len, size - len, "%llu %llu %llu %llu\n",\
+			arsta->tx_stats.name## _nss[0],			\
+			arsta->tx_stats.name## _nss[1],			\
+			arsta->tx_stats.name## _nss[2],			\
+			arsta->tx_stats.name## _nss[3]);		\
+	len += scnprintf(buf + len, size - len, " GI %s (LGI,SGI)\n  ",	\
+		(strstr(str(name), "pkts")) ? "packets" : "bytes");	\
+	len += scnprintf(buf + len, size - len, "%llu %llu\n",	\
+			arsta->tx_stats.name## _gi[0],			\
+			arsta->tx_stats.name## _gi[1]);			\
+	len += scnprintf(buf + len, size - len,				\
+			" legacy rate %s (1,2 ... Mbps)\n  ",		\
+		(strstr(str(name), "pkts")) ? "packets" : "bytes");	\
+	for (i = 0; i < LEGACY_RATE_NUM; i++)				\
+		len += scnprintf(buf + len, size - len, "%llu ",	\
+			arsta->tx_stats.name## _legacy_rates[i]);	\
+	len += scnprintf(buf + len, size - len, "\n");			\
+	len += scnprintf(buf + len, size - len, " Rate table %s\n  ",	\
+		(strstr(str(name), "pkts")) ? "packets" : "bytes");	\
+	for (i = 0; i < VHT_RATE_NUM; i++) {				\
+		len += scnprintf(buf + len, size - len, "%llu\t",	\
+			arsta->tx_stats.name## _rate_num[i]);		\
+		if (!((i + 1) % 8))					\
+			len += scnprintf(buf + len, size - len, "\n  ");\
+	}								\
+	len += scnprintf(buf + len, size - len, "\n");			\
+	} while (0)
+
+static ssize_t ath10k_dbg_sta_dump_tx_stats(struct file *file,
+					       char __user *user_buf,
+					       size_t count, loff_t *ppos)
+{
+
+	struct ieee80211_sta *sta = file->private_data;
+	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
+	char *buf;
+	int len = 0, i, retval = 0, size = 16 * 1024;
+
+	buf = kzalloc(size, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+
+	STATS_OUTPUT_FORMAT(succ_pkts);
+	STATS_OUTPUT_FORMAT(succ_bytes);
+	STATS_OUTPUT_FORMAT(ampdu_pkts);
+	STATS_OUTPUT_FORMAT(ampdu_bytes);
+	STATS_OUTPUT_FORMAT(fail_pkts);
+	STATS_OUTPUT_FORMAT(fail_bytes);
+	STATS_OUTPUT_FORMAT(retry_pkts);
+	STATS_OUTPUT_FORMAT(retry_bytes);
+
+	len += scnprintf(buf + len, size - len,
+			"\nTX duration\n %llu usecs\n", arsta->tx_stats.tx_duration);
+	len += scnprintf(buf + len, size - len,
+			"BA fails\n %llu\n", arsta->tx_stats.ba_fails);
+	len += scnprintf(buf + len, size - len,
+			"ack fails\n %llu\n", arsta->tx_stats.ack_fails);
+
+	if (len > size)
+		len = size;
+	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	kfree(buf);
+
+	return retval;
+}
+
+static const struct file_operations fops_tx_stats = {
+	.read = ath10k_dbg_sta_dump_tx_stats,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 void ath10k_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, struct dentry *dir)
 {
@@ -351,4 +725,6 @@ void ath10k_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	debugfs_create_file("delba", 0200, dir, sta, &fops_delba);
 	debugfs_create_file("peer_debug_trigger", 0600, dir, sta,
 			    &fops_peer_debug_trigger);
+	debugfs_create_file("tx_stats", S_IRUGO, dir, sta,
+			    &fops_tx_stats);
 }

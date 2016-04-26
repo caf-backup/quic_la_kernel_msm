@@ -2478,6 +2478,7 @@ ath10k_update_per_peer_tx_stats(struct ath10k *ar,
 
 	arsta->txrate.nss = txrate.nss;
 	arsta->txrate.bw = txrate.bw + RATE_INFO_BW_20;
+	ath10k_accumulate_per_peer_tx_stats(ar, sta, peer_stats, &txrate);
 }
 
 static void ath10k_htt_fetch_peer_stats(struct ath10k *ar,
@@ -2487,6 +2488,7 @@ static void ath10k_htt_fetch_peer_stats(struct ath10k *ar,
 	struct ath10k_per_peer_tx_stats *p_tx_stats = &ar->peer_tx_stats;
 	struct htt_per_peer_tx_stats_ind *tx_stats;
 	struct ieee80211_sta *sta;
+	struct ath10k_sta *arsta;
 	struct ath10k_peer *peer;
 	int peer_id, i;
 	u8 ppdu_len, num_ppdu;
@@ -2513,6 +2515,8 @@ static void ath10k_htt_fetch_peer_stats(struct ath10k *ar,
 	}
 
 	sta = peer->sta;
+	arsta = (struct ath10k_sta *)sta->drv_priv;
+
 	for (i = 0; i < num_ppdu; i++) {
 		tx_stats = (struct htt_per_peer_tx_stats_ind *)
 			   (resp->peer_tx_stats.payload + i * ppdu_len);
@@ -2527,6 +2531,7 @@ static void ath10k_htt_fetch_peer_stats(struct ath10k *ar,
 		p_tx_stats->retry_pkts = __le16_to_cpu(tx_stats->retry_pkts);
 		p_tx_stats->failed_pkts = __le16_to_cpu(tx_stats->failed_pkts);
 
+		arsta->tx_stats.tx_duration += __le16_to_cpu(tx_stats->tx_duration);
 		ath10k_update_per_peer_tx_stats(ar, sta, p_tx_stats);
 	}
 
@@ -2541,6 +2546,7 @@ static void ath10k_fetch_10_2_tx_stats(struct ath10k *ar, u8 *data)
 	struct ath10k_per_peer_tx_stats *p_tx_stats = &ar->peer_tx_stats;
 	struct ath10k_10_2_peer_tx_stats *tx_stats;
 	struct ieee80211_sta *sta;
+	struct ath10k_sta *arsta;
 	struct ath10k_peer *peer;
 	u16 log_type = __le16_to_cpu(hdr->log_type);
 	u32 peer_id = 0, i;
@@ -2566,6 +2572,8 @@ static void ath10k_fetch_10_2_tx_stats(struct ath10k *ar, u8 *data)
 	}
 
 	sta = peer->sta;
+	arsta = (struct ath10k_sta *)sta->drv_priv;
+
 	for (i = 0; i < tx_stats->tx_ppdu_cnt; i++) {
 		p_tx_stats->succ_bytes =
 			__le16_to_cpu(tx_stats->success_bytes[i]);
@@ -2581,6 +2589,8 @@ static void ath10k_fetch_10_2_tx_stats(struct ath10k *ar, u8 *data)
 
 		ath10k_update_per_peer_tx_stats(ar, sta, p_tx_stats);
 	}
+	arsta->tx_stats.tx_duration += __le32_to_cpu(tx_stats->tx_duration);
+
 	spin_unlock_bh(&ar->data_lock);
 	rcu_read_unlock();
 

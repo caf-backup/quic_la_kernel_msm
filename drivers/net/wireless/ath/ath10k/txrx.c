@@ -133,6 +133,7 @@ int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 	if (txq)
 		ath10k_update_latency_stats(htt->ar, msdu, txq->ac);
 	memset(&info->status, 0, sizeof(info->status));
+	info->status.rates[0].idx = -1;
 	trace_ath10k_txrx_tx_unref(ar, tx_done->msdu_id);
 
 	if (tx_done->status == HTT_TX_COMPL_STATE_DISCARD) {

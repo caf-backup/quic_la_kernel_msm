@@ -359,6 +359,76 @@ struct ath10k_txq {
 	unsigned long num_push_allowed;
 };
 
+struct ath10k_tx_stats {
+	u64 succ_bytes_vht[VHT_MCS_NUM];
+	u64 succ_bytes_ht[HT_MCS_NUM];
+	u64 succ_bytes_bw[VHT_BW_NUM];
+	u64 succ_bytes_nss[VHT_NSS_NUM];
+	u64 succ_bytes_legacy_rates[LEGACY_RATE_NUM];
+	u64 succ_bytes_gi[VHT_GI_NUM];
+	u64 succ_bytes_rate_num[VHT_RATE_NUM];
+
+	u64 succ_pkts_vht[VHT_MCS_NUM];
+	u64 succ_pkts_ht[HT_MCS_NUM];
+	u64 succ_pkts_bw[VHT_BW_NUM];
+	u64 succ_pkts_nss[VHT_NSS_NUM];
+	u64 succ_pkts_legacy_rates[LEGACY_RATE_NUM];
+	u64 succ_pkts_gi[VHT_GI_NUM];
+	u64 succ_pkts_rate_num[VHT_RATE_NUM];
+
+	u64 fail_bytes_vht[VHT_MCS_NUM];
+	u64 fail_bytes_ht[HT_MCS_NUM];
+	u64 fail_bytes_bw[VHT_BW_NUM];
+	u64 fail_bytes_nss[VHT_NSS_NUM];
+	u64 fail_bytes_legacy_rates[LEGACY_RATE_NUM];
+	u64 fail_bytes_gi[VHT_GI_NUM];
+	u64 fail_bytes_rate_num[VHT_RATE_NUM];
+
+	u64 fail_pkts_vht[VHT_MCS_NUM];
+	u64 fail_pkts_ht[HT_MCS_NUM];
+	u64 fail_pkts_bw[VHT_BW_NUM];
+	u64 fail_pkts_nss[VHT_NSS_NUM];
+	u64 fail_pkts_legacy_rates[LEGACY_RATE_NUM];
+	u64 fail_pkts_gi[VHT_GI_NUM];
+	u64 fail_pkts_rate_num[VHT_RATE_NUM];
+
+	u64 ampdu_bytes_vht[VHT_MCS_NUM];
+	u64 ampdu_bytes_ht[HT_MCS_NUM];
+	u64 ampdu_bytes_bw[VHT_BW_NUM];
+	u64 ampdu_bytes_nss[VHT_NSS_NUM];
+	u64 ampdu_bytes_legacy_rates[LEGACY_RATE_NUM];
+	u64 ampdu_bytes_gi[VHT_GI_NUM];
+	u64 ampdu_bytes_rate_num[VHT_RATE_NUM];
+
+	u64 ampdu_pkts_vht[VHT_MCS_NUM];
+	u64 ampdu_pkts_ht[HT_MCS_NUM];
+	u64 ampdu_pkts_bw[VHT_BW_NUM];
+	u64 ampdu_pkts_nss[VHT_NSS_NUM];
+	u64 ampdu_pkts_legacy_rates[LEGACY_RATE_NUM];
+	u64 ampdu_pkts_gi[VHT_GI_NUM];
+	u64 ampdu_pkts_rate_num[VHT_RATE_NUM];
+
+	u64 retry_bytes_vht[VHT_MCS_NUM];
+	u64 retry_bytes_ht[HT_MCS_NUM];
+	u64 retry_bytes_bw[VHT_BW_NUM];
+	u64 retry_bytes_nss[VHT_NSS_NUM];
+	u64 retry_bytes_legacy_rates[LEGACY_RATE_NUM];
+	u64 retry_bytes_gi[VHT_GI_NUM];
+	u64 retry_bytes_rate_num[VHT_RATE_NUM];
+
+	u64 retry_pkts_vht[VHT_MCS_NUM];
+	u64 retry_pkts_ht[HT_MCS_NUM];
+	u64 retry_pkts_bw[VHT_BW_NUM];
+	u64 retry_pkts_nss[VHT_NSS_NUM];
+	u64 retry_pkts_legacy_rates[LEGACY_RATE_NUM];
+	u64 retry_pkts_gi[VHT_GI_NUM];
+	u64 retry_pkts_rate_num[VHT_RATE_NUM];
+
+	u64 tx_duration;
+	u64 ba_fails;
+	u64 ack_fails;
+};
+
 struct ath10k_sta {
 	struct ath10k_vif *arvif;
 
@@ -376,6 +446,7 @@ struct ath10k_sta {
 #ifdef CONFIG_MAC80211_DEBUGFS
 	/* protected by conf_mutex */
 	bool aggr_mode;
+	struct ath10k_tx_stats tx_stats;
 #endif
 };
 
