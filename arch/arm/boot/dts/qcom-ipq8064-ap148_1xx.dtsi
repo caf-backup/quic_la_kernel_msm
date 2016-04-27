@@ -457,6 +457,8 @@
                         resets = <&gcc CRYPTO_ENG1_RESET>,
                                  <&gcc CRYPTO_AHB_RESET>;
                         reset-names = "rst_eng", "rst_ahb";
+			clocks = <&gcc CE5_CORE_CLK>, <&gcc CE5_A_CLK>, <&gcc CE5_H_CLK>;
+			clock-names = "ce5_core", "ce5_aclk", "ce5_hclk";
 			qcom,ee = <0>;
 		};
 
