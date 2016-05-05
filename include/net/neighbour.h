@@ -180,6 +180,11 @@ struct neigh_table {
 	struct pneigh_entry	**phash_buckets;
 };
 
+struct neigh_mac_update {
+	unsigned char old_mac[ALIGN(MAX_ADDR_LEN, sizeof(unsigned long))];
+	unsigned char update_mac[ALIGN(MAX_ADDR_LEN, sizeof(unsigned long))];
+};
+
 #define NEIGH_PRIV_ALIGN	sizeof(long long)
 
 static inline void *neighbour_priv(const struct neighbour *n)
@@ -250,6 +255,9 @@ extern void neigh_app_ns(struct neighbour *n);
 extern void neigh_for_each(struct neigh_table *tbl, void (*cb)(struct neighbour *, void *), void *cookie);
 extern void __neigh_for_each_release(struct neigh_table *tbl, int (*cb)(struct neighbour *));
 extern void pneigh_for_each(struct neigh_table *tbl, void (*cb)(struct pneigh_entry *));
+
+extern void neigh_mac_update_register_notify(struct notifier_block *nb);
+extern void neigh_mac_update_unregister_notify(struct notifier_block *nb);
 
 struct neigh_seq_state {
 	struct seq_net_private p;
