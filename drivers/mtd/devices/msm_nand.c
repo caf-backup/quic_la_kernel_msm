@@ -7458,12 +7458,11 @@ no_dual_nand_ctlr_support:
 	if (dual_nand_ctlr_present)
 		msm_nand_nc10_xfr_settings(&info->mtd);
 
-	if (msm_nand_scan(&info->mtd, 1))
-		if (msm_onenand_scan(&info->mtd, 1)) {
-			pr_err("%s: No nand device found\n", __func__);
-			err = -ENXIO;
-			goto out_free_dma_buffer;
-		}
+	if (msm_nand_scan(&info->mtd, 1)) {
+		pr_err("%s: No nand device found\n", __func__);
+		err = -ENXIO;
+		goto out_free_dma_buffer;
+	}
 
 #ifdef CONFIG_ARCH_IPQ806X
 	flash_wr_reg(&info->msm_nand, MSM_NAND_DEV_CMD_VLD,
