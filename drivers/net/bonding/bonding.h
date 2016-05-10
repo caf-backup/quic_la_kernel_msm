@@ -28,6 +28,7 @@
 #include "bond_3ad.h"
 #include "bond_alb.h"
 #include "bond_options.h"
+#include "bond_l2da.h"
 
 #define DRV_VERSION	"3.7.1"
 #define DRV_RELDATE	"April 27, 2011"
@@ -246,6 +247,7 @@ struct bonding {
 	u32      rr_tx_counter;
 	struct   ad_bond_info ad_info;
 	struct   alb_bond_info alb_info;
+	struct	 l2da_bond_info l2da_info;
 	struct   bond_params params;
 	struct   workqueue_struct *wq;
 	struct   delayed_work mii_work;
@@ -287,6 +289,11 @@ static inline struct bonding *bond_get_bond_by_slave(struct slave *slave)
 static inline bool bond_is_lb(const struct bonding *bond)
 {
 	return BOND_MODE_IS_LB(bond->params.mode);
+}
+
+static inline bool bond_is_l2da(const struct bonding *bond)
+{
+	return bond->params.mode == BOND_MODE_L2DA;
 }
 
 static inline void bond_set_active_slave(struct slave *slave)
@@ -479,6 +486,7 @@ struct bond_net;
 
 int bond_arp_rcv(const struct sk_buff *skb, struct bonding *bond, struct slave *slave);
 void bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb, struct net_device *slave_dev);
+int bond_xmit_all_slaves(struct bonding *bond, struct sk_buff *skb);
 int bond_create(struct net *net, const char *name);
 int bond_create_sysfs(struct bond_net *net);
 void bond_destroy_sysfs(struct bond_net *net);

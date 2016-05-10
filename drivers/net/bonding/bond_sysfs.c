@@ -41,9 +41,19 @@
 #include <linux/nsproxy.h>
 
 #include "bonding.h"
+#include "bond_l2da_ctrl.h"
 
 #define to_dev(obj)	container_of(obj, struct device, kobj)
 #define to_bond(cd)	((struct bonding *)(netdev_priv(to_net_dev(cd))))
+
+/*
+ * Used for internal use of bonding_show_l2da_table and
+ * bonding_show_l2da_table_clb
+*/
+struct bonding_show_l2da_table_clb_ctx {
+	char *buf; /* save the updated result data */
+	int   res; /* save the updated result */
+};
 
 /*
  * "show" function for the bond_masters attribute.
@@ -1067,6 +1077,175 @@ static DEVICE_ATTR(packets_per_slave, S_IRUGO | S_IWUSR,
 		   bonding_show_packets_per_slave,
 		   bonding_store_packets_per_slave);
 
+static ssize_t bonding_show_l2da_default_slave(struct device *d,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct bonding *bond = to_bond(d);
+	char ifname[IFNAMSIZ + 1];
+	int ret;
+
+	ret = bond_l2da_ctrl_get_default(bond, ifname, sizeof(ifname));
+	return ret ? ret : snprintf(buf, PAGE_SIZE, "%s\n", ifname);
+}
+
+static ssize_t bonding_store_l2da_default_slave(struct device *d,
+					 struct device_attribute *attr,
+					 const char *buf, size_t count)
+{
+	struct bonding *bond = to_bond(d);
+	int ret = -EINVAL;
+	char ifname[IFNAMSIZ];
+	if (sscanf(buf, "%15s", ifname) != 1) {/* IFNAMSIZ */
+		pr_info("%s: no L2DA slave name specified\n",
+			netdev_name(bond->dev));
+		return -EINVAL;
+	}
+
+	ret = bond_l2da_ctrl_set_default(bond, ifname);
+	return ret ? ret : count;
+}
+
+static DEVICE_ATTR(l2da_default_slave, S_IRUGO | S_IWUSR,
+		   bonding_show_l2da_default_slave,
+		   bonding_store_l2da_default_slave);
+
+static int bonding_show_l2da_table_clb(const unsigned char *da,
+		struct slave *slave, void *_ctx)
+{
+	struct bonding_show_l2da_table_clb_ctx *ctx = _ctx;
+
+	/* Each entry reported as xx:xx:xx:xx:xx:xx@ifname,
+	 * so we have to make sure that we have enough space
+	 * before we put the next one
+	 */
+	if (ctx->res > (PAGE_SIZE - sizeof("xx:xx:xx:xx:xx:xx") + IFNAMSIZ)) {
+		/* not enough space for another da@interface_name pair */
+		if ((PAGE_SIZE - ctx->res) > sizeof("++more++"))
+			ctx->res = PAGE_SIZE - sizeof("++more++");
+		ctx->res += snprintf(ctx->buf + ctx->res, PAGE_SIZE - ctx->res,
+				     "++more++");
+		return 1;
+	}
+	ctx->res += snprintf(ctx->buf + ctx->res, PAGE_SIZE - ctx->res,
+			     "%pM@%s\n", da, netdev_name(slave->dev));
+	return 0;
+}
+
+static ssize_t bonding_show_l2da_table(struct device *d,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct bonding *bond = to_bond(d);
+	struct bonding_show_l2da_table_clb_ctx ctx = {
+		.buf = buf,
+		.res = 0,
+	};
+	int ret;
+
+	ret = _bond_l2da_ctrl_try_lock(bond, false);
+	if (ret)
+		return ret;
+
+	bond_l2da_call_foreach(bond, bonding_show_l2da_table_clb, &ctx);
+
+	_bond_l2da_ctrl_unlock(bond, false);
+
+	if (ctx.res)
+		buf[ctx.res-1] = '\n'; /* eat the leftover space */
+
+	return ctx.res;
+}
+
+static ssize_t bonding_store_l2da_table(struct device *d,
+					 struct device_attribute *attr,
+					 const char *buf, size_t count)
+{
+	struct bonding *bond = to_bond(d);
+	int ret = -EINVAL;
+	char *delim;
+	unsigned char da[ETH_ALEN];
+	unsigned char ifname[IFNAMSIZ] = {0};
+	char *slave_ifname = NULL;
+
+	/* Check command syntax and extract parameters */
+	if (buf[0] == '+') {
+		/* delim will point to slave interface name if successful */
+		delim = strchr(buf, '@');
+		if (!delim) {
+			pr_err("%s: Invalid L2DA command string: %s\n",
+			       netdev_name(bond->dev), buf);
+			return -EINVAL;
+		}
+		/* Terminate string that points to da and bump it up one, so we
+		 * can read the device name there.
+		 */
+		*delim = '\0';
+		if (sscanf(delim + 1, "%15s", ifname) != 1) { /* IFNAMSIZ */
+			pr_err("%s: no L2DA slave name specified\n",
+			       netdev_name(bond->dev));
+			return -EINVAL;
+		}
+		slave_ifname = ifname;
+	} else if (buf[0] != '-') {
+		pr_err("%s: Invalid L2DA command string: %s\n",
+		       netdev_name(bond->dev), buf);
+		return -EINVAL;
+	} else if (buf[1] == '*') {
+		bond_l2da_ctrl_reset_map(bond);
+		return count;
+	}
+
+	if (!mac_pton(buf + 1, da)) {
+		pr_err("%s: Invalid L2DA MAC address string: %s\n",
+		       netdev_name(bond->dev), buf + 1);
+		return -EINVAL;
+	}
+
+	ret = bond_l2da_ctrl_change_map_entry(bond, da, slave_ifname);
+	return ret ? ret : count;
+}
+
+static DEVICE_ATTR(l2da_table, S_IRUGO | S_IWUSR,
+		   bonding_show_l2da_table, bonding_store_l2da_table);
+
+static ssize_t bonding_show_l2da_opts(struct device *d,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	struct bonding *bond = to_bond(d);
+	u32 opts;
+	int ret;
+
+	ret = bond_l2da_ctrl_get_opts(bond, &opts);
+	return ret ? ret : snprintf(buf, PAGE_SIZE, "0x%08x\n", opts);
+}
+
+static ssize_t bonding_store_l2da_opts(struct device *d,
+				       struct device_attribute *attr,
+				       const char *buf, size_t count)
+{
+	struct bonding *bond = to_bond(d);
+	int ret = -EINVAL;
+	unsigned int new_value;
+
+	ret = kstrtouint(buf, 0, &new_value);
+	if (ret < 0) {
+		pr_err("%s: Ignoring invalid opts value %s.\n",
+		       bond->dev->name, buf);
+		return ret;
+	}
+
+	pr_info("%s: Setting opts value to 0x%08x\n",
+		bond->dev->name, new_value);
+	ret = bond_l2da_ctrl_set_opts(bond, new_value);
+	return ret ? ret : count;
+}
+
+static DEVICE_ATTR(l2da_opts, S_IRUGO | S_IWUSR,
+		   bonding_show_l2da_opts,
+		   bonding_store_l2da_opts);
+
 static struct attribute *per_bond_attrs[] = {
 	&dev_attr_slaves.attr,
 	&dev_attr_mode.attr,
@@ -1099,6 +1278,9 @@ static struct attribute *per_bond_attrs[] = {
 	&dev_attr_min_links.attr,
 	&dev_attr_lp_interval.attr,
 	&dev_attr_packets_per_slave.attr,
+	&dev_attr_l2da_default_slave.attr,
+	&dev_attr_l2da_table.attr,
+	&dev_attr_l2da_opts.attr,
 	NULL,
 };
 
