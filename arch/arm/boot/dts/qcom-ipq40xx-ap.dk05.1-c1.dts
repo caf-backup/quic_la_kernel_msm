@@ -19,6 +19,9 @@
 / {
 	model = "Qualcomm Technologies, Inc. IPQ40xx/AP-DK05.1-C1";
 
+	aliases {
+		ethernet0 = "/soc/edma/gmac0";
+	};
 	soc {
 		spi_0: spi@78b5000 { /* BLSP1 QUP1 */
 			status = "ok";
@@ -32,6 +35,13 @@
 				spi-max-frequency = <24000000>;
 			};
 
+		};
+		edma@c080000 {
+			qcom,num_gmac = <1>;
+			gmac0 {
+				qcom,poll_required = <0>;
+				vlan_tag = <0 0x3e>;
+			};
 		};
 	};
 };
