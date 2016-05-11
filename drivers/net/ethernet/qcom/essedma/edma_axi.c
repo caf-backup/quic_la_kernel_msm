@@ -194,8 +194,15 @@ static int edma_ath_hdr_eth_type(struct ctl_table *table, int write,
 static int edma_change_default_lan_vlan(struct ctl_table *table, int write,
 		void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct edma_adapter *adapter = netdev_priv(netdev[1]);
+	struct edma_adapter *adapter;
 	int ret;
+
+	if (!netdev[1]) {
+		pr_err("Netdevice for default_lan does not exist\n");
+		return -1;
+	}
+
+	adapter = netdev_priv(netdev[1]);
 
 	ret = proc_dointvec(table, write, buffer, lenp, ppos);
 
@@ -208,8 +215,15 @@ static int edma_change_default_lan_vlan(struct ctl_table *table, int write,
 static int edma_change_default_wan_vlan(struct ctl_table *table, int write,
 		void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct edma_adapter *adapter = netdev_priv(netdev[0]);
+	struct edma_adapter *adapter;
 	int ret;
+
+	if (!netdev[0]) {
+		pr_err("Netdevice for default_wan does not exist\n");
+		return -1;
+	}
+
+	adapter = netdev_priv(netdev[0]);
 
 	ret = proc_dointvec(table, write, buffer, lenp, ppos);
 
