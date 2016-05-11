@@ -438,6 +438,7 @@ config SLUB_STATS
 
 config HAVE_DEBUG_KMEMLEAK
 	bool
+	default y
 
 config DEBUG_KMEMLEAK
 	bool "Kernel memory leak detector"
