@@ -738,9 +738,19 @@ static int edma_axi_probe(struct platform_device *pdev)
 
 	for_each_available_child_of_node(np, pnp) {
 		const char *mac_addr;
+
+		/*
+		 * this check is needed if parent and daughter dts have
+		 * different number of gmac nodes
+		 */
+		if (idx_mac == edma_cinfo->num_gmac)
+			break;
+
 		mac_addr = of_get_mac_address(pnp);
 		if (mac_addr)
-			memcpy(netdev[idx_mac++]->dev_addr, mac_addr, ETH_ALEN);
+			memcpy(netdev[idx_mac]->dev_addr, mac_addr, ETH_ALEN);
+
+		idx_mac++;
 	}
 
 	/* Populate the adapter structure register the netdevice */
