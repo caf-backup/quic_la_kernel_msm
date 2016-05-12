@@ -154,6 +154,7 @@ header-y += if_alg.h
 header-y += if_arcnet.h
 header-y += if_arp.h
 header-y += if_bonding.h
+header-y += if_bonding_genl.h
 header-y += if_bridge.h
 header-y += if_cablemodem.h
 header-y += if_eql.h

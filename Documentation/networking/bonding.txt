@@ -620,6 +620,92 @@ mode
 		swapped with the new curr_active_slave that was
 		chosen.
 
+	l2da or 7
+
+		L2 Destination Address (L2DA) based mode allows bonding to
+		send packets using different slaves according to L2 Destination
+		Address of the packets.
+
+		In L2DA mode, the bonding maintains a default slave and
+		DA/slave map.
+
+		Upon a packet transmission, the bonding examines the DA of the
+		packet and searches for a slave assigned to the DA within the
+		DA/slave map. If such mapping exists, the bonding uses this
+		slave for sending of the packet.Otherwise, it uses default
+		slave.
+
+		For multicast packet, if BOND_L2DA_OPT_DUP_MC_TX is set,
+		L2DA mode duplicates it to all slaves upon transmission.
+
+		For RX packets, if BOND_L2DA_OPT_DEDUP_RX is set, L2DA examines
+		L2 source address and search for slave interface assigned to
+		the transmitting STA. L2DA then implements following logic based
+		on the interface that the packet was received on:
+		1. RX EAPOLs are unconditionally allowed
+		2. if DA/slave map has an entry for the transmitting STA, allow
+		the RX packet if received from the assigned slave interface.
+		Drop the RX packet if received from other interface.
+		3. else (no slave interface assigned to the transmitting STA),
+		if default slave configured (l2da_default_slave), allow the Rx
+		packet if it was received from it.
+		4. else (slave interface not assigned and default slave not
+		configured), allow the RX packet unconditionally.
+
+		In case BOND_L2DA_OPT_DEDUP_RX is not set, L2DA allows all Rx packets.
+
+		L2DA mode implements packet forwarding for received packets
+		according to the following logic:
+		1. for Rx multicast packets: clone and send to all slaves
+		(except the one it came from) and also deliver to local network
+		stack.
+		2. for Rx unicast packets: search packet's destination address
+		in L2DA map. If found, send the packet to the corresponding
+		slave; otherwise - deliver to local network stack.
+		L2DA packet forwarding functionality is disabled by default and
+		can be enabled with BOND_L2DA_OPT_FORWARD_RX bond L2DA option.
+
+		New sysfs entries added - l2da_default_slave, l2da_table and
+		l2da_opts. Here is their usage:
+
+		l2da_default_slave entry - set an interface as default:
+		echo interface_name > l2da_default_slave
+
+		l2da_default_slave entry - show the default interface:
+		cat l2da_default_slave
+
+		l2da_table entry - add a new entry into the table:
+		echo "+xx:xx:xx:xx:xx:xx@interface_name" > l2da_table
+
+		l2da_table entry - remove an entry from the table:
+		echo "-xx:xx:xx:xx:xx:xx" > l2da_table
+
+		l2da_table entry - remove all entries from the table:
+		echo "-*" > l2da_table
+
+		l2da_table entry - show the table:
+		cat l2da_table
+
+		l2da_opts entry - set options:
+		echo options > l2da_opts
+
+		l2da_opts entry - show enabled options:
+		cat l2da_opts
+
+		New bonding specific GENL family ("bond") added. It can be used
+		to add custom GENL commands (rather than extend the standard
+		rtnl_link_ops's changelink and fill_info callbacks).
+
+		Following list of GENL commands introduced for L2DA:
+		BOND_GENL_CMD_L2DA_SET_DEFAULT
+		BOND_GENL_CMD_L2DA_GET_DEFAULT
+		BOND_GENL_CMD_L2DA_ADD_MAP_ENTRY
+		BOND_GENL_CMD_L2DA_DEL_MAP_ENTRY
+		BOND_GENL_CMD_L2DA_GET_MAP_ENTRY
+		BOND_GENL_CMD_L2DA_RESET_MAP
+		BOND_GENL_CMD_L2DA_SET_OPTS
+		BOND_GENL_CMD_L2DA_GET_OPTS
+
 num_grat_arp
 num_unsol_na
 

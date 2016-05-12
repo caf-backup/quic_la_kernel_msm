@@ -28,6 +28,7 @@ static struct bond_opt_value bond_mode_tbl[] = {
 	{ "802.3ad",       BOND_MODE_8023AD,       0},
 	{ "balance-tlb",   BOND_MODE_TLB,          0},
 	{ "balance-alb",   BOND_MODE_ALB,          0},
+	{ "l2da",          BOND_MODE_L2DA,         0},
 	{ NULL,            -1,                     0},
 };
 
@@ -177,7 +178,7 @@ static struct bond_option bond_opts[] = {
 		.name = "arp_interval",
 		.desc = "arp interval in milliseconds",
 		.unsuppmodes = BIT(BOND_MODE_8023AD) | BIT(BOND_MODE_TLB) |
-			       BIT(BOND_MODE_ALB),
+			       BIT(BOND_MODE_ALB) | BIT(BOND_MODE_L2DA),
 		.values = bond_intmax_tbl,
 		.set = bond_option_arp_interval_set
 	},
@@ -584,7 +585,8 @@ struct bond_option *bond_opt_get(unsigned int option)
 
 int bond_option_mode_set(struct bonding *bond, struct bond_opt_value *newval)
 {
-	if (BOND_NO_USES_ARP(newval->value) && bond->params.arp_interval) {
+	if ((BOND_NO_USES_ARP(newval->value) || bond_is_l2da(bond)) &&
+	    bond->params.arp_interval) {
 		pr_info("%s: %s mode is incompatible with arp monitoring, start mii monitoring\n",
 			bond->dev->name, newval->string);
 		/* disable arp monitoring */
@@ -593,6 +595,19 @@ int bond_option_mode_set(struct bonding *bond, struct bond_opt_value *newval)
 		bond->params.miimon = BOND_DEFAULT_MIIMON;
 		pr_info("%s: Setting MII monitoring interval to %d.\n",
 			bond->dev->name, bond->params.miimon);
+	}
+
+	if (bond->params.mode != newval->value) {
+		if (newval->value == BOND_MODE_L2DA) {
+			int ret = bond_l2da_initialize(bond);
+			if (ret) {
+				pr_err("%s: l2da mode cannot be initialized\n",
+				       bond->dev->name);
+				return ret;
+			}
+		} else if (bond_is_l2da(bond)) {
+			bond_l2da_deinitialize(bond);
+		}
 	}
 
 	/* don't cache arp_validate between modes */
