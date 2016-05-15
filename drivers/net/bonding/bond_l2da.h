@@ -54,5 +54,6 @@ void bond_l2da_call_foreach(struct bonding *bond,
 				       struct slave *slave,
 				       void *ctx),
 			    void *ctx);
-
+struct net_device *bond_l2da_get_tx_dev(uint8_t *dest_mac,
+					struct net_device *bond_dev);
 #endif /* __BOND_L2DA_H__ */

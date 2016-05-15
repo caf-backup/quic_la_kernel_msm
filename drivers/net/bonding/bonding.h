@@ -127,6 +127,9 @@
 #define bond_for_each_slave_rcu(bond, pos, iter) \
 	netdev_for_each_lower_private_rcu((bond)->dev, pos, iter)
 
+extern spinlock_t bond_cb_lock;
+extern struct bond_cb *bond_cb;
+
 #ifdef CONFIG_NET_POLL_CONTROLLER
 extern atomic_t netpoll_block_tx;
 
@@ -517,7 +520,7 @@ struct net_device *bond_option_active_slave_get(struct bonding *bond);
 const char *bond_slave_link_status(s8 link);
 uint32_t bond_xmit_hash_without_skb(uint8_t *src_mac, uint8_t *dst_mac, void *psrc,
                                     void *pdst, uint16_t protocol, struct net_device *bond_dev, __be16 *layer4hdr);
-
+void bond_notify_l2da(uint8_t *slave_mac_addr);
 
 struct bond_net {
 	struct net *		net;	/* Associated network namespace */
