@@ -69,6 +69,16 @@
 					bias-disable;
 				};
 			};
+
+			wps_pins: wps_pinmux {
+				/* In ipq40xx, gpio config 0x2 corresponds to
+				 * internal pull up. In pinctrl driver,
+				 * bias-bus-hold corresponds to 0x2 */
+				mux {
+					pins = "gpio63";
+					bias-bus-hold;
+				};
+			};
 		};
 
 		serial@78af000 {
@@ -137,6 +147,8 @@
 		};
 
 		gpio_keys {
+			pinctrl-0 = <&wps_pins>;
+			pinctrl-names = "default";
 			compatible = "gpio-keys";
 
 			button@1 {
