@@ -859,19 +859,19 @@ static int edma_axi_probe(struct platform_device *pdev)
 			portid_bmp &= ~(1 << (port_bit - 1));
 		}
 
-		if (of_property_read_bool(pnp, "qcom,poll_required") == 1) {
-			adapter[idx]->poll_required =
-				of_property_read_bool(pnp, "qcom,poll_required");
-			of_property_read_u32(pnp, "qcom,phy_mdio_addr",
-				&adapter[idx]->phy_mdio_addr);
-			of_property_read_u32(pnp, "qcom,forced_speed",
-				&adapter[idx]->forced_speed);
-			of_property_read_u32(pnp, "qcom,forced_duplex",
-				&adapter[idx]->forced_duplex);
+		if (!of_property_read_u32(pnp, "qcom,poll_required", &adapter[idx]->poll_required)) {
+			if (adapter[idx]->poll_required) {
+				of_property_read_u32(pnp, "qcom,phy_mdio_addr",
+					&adapter[idx]->phy_mdio_addr);
+				of_property_read_u32(pnp, "qcom,forced_speed",
+					&adapter[idx]->forced_speed);
+				of_property_read_u32(pnp, "qcom,forced_duplex",
+					&adapter[idx]->forced_duplex);
 
-			/* create a phyid using MDIO bus id and MDIO bus address */
-			snprintf(adapter[idx]->phy_id, MII_BUS_ID_SIZE + 3, PHY_ID_FMT,
-				miibus->id, adapter[idx]->phy_mdio_addr);
+				/* create a phyid using MDIO bus id and MDIO bus address */
+				snprintf(adapter[idx]->phy_id, MII_BUS_ID_SIZE + 3, PHY_ID_FMT,
+					miibus->id, adapter[idx]->phy_mdio_addr);
+			}
 		} else {
 			adapter[idx]->poll_required = 0;
 			adapter[idx]->forced_speed = SPEED_1000;
