@@ -448,6 +448,7 @@ struct ath10k_sta {
 	bool aggr_mode;
 	struct ath10k_tx_stats tx_stats;
 #endif
+	u8 tpc;
 };
 
 #define ATH10K_VDEV_SETUP_TIMEOUT_HZ (5 * HZ)
