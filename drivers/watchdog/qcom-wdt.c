@@ -30,8 +30,6 @@
 #define WDT_BARK_TIME	0x14
 #define WDT_BITE_TIME	0x24
 
-#define USE_BITE_TIME	1UL
-
 #define SCM_CMD_SET_REGSAVE  0x2
 static int in_panic;
 
@@ -53,6 +51,13 @@ struct qcom_wdt_scm_tlv_msg {
 	unsigned char *cur_msg_buffer_pos;
 	unsigned int len;
 };
+
+struct qcom_crashdump_tlv_info {
+	unsigned int tlv_base;
+	unsigned int tlv_size;
+};
+
+struct qcom_crashdump_tlv_info ipq40xx_tlv = { 0x87B70000u, 0x10000u };
 
 #define CFG_TLV_MSG_OFFSET 2048
 #define QCOM_WDT_SCM_TLV_TYPE_SIZE 1
@@ -126,6 +131,7 @@ static int panic_prep_restart(struct notifier_block *this,
 static struct notifier_block panic_blk = {
 	.notifier_call  = panic_prep_restart,
 };
+
 static long qcom_wdt_configure_bark_dump(void *arg)
 {
 	long ret = -ENOMEM;
@@ -134,32 +140,74 @@ static long qcom_wdt_configure_bark_dump(void *arg)
 		int len;
 	} cmd_buf;
 	struct qcom_wdt_scm_tlv_msg tlv_msg;
+	struct qcom_crashdump_tlv_info *tlv_info =
+					(struct qcom_crashdump_tlv_info *)arg;
+	struct resource *res;
+	void *tlv_ptr;
+	unsigned int tlv_base;
+	unsigned int tlv_size;
+	void *scm_regsave;
 
 	/* Area for context dump in secure mode */
-	void *scm_regsave = (void *)__get_free_page(GFP_KERNEL);
+	scm_regsave = (void *)__get_free_page(GFP_KERNEL);
+	if (!scm_regsave) {
+		pr_err("Failed to allocate 4K page\n");
+		return ret;
+	}
 
-	if (scm_regsave) {
+	if (!arg) {
 		cmd_buf.addr = virt_to_phys(scm_regsave);
 		cmd_buf.len  = PAGE_SIZE;
 
 		ret = scm_call(SCM_SVC_UTIL, SCM_CMD_SET_REGSAVE,
-			       &cmd_buf, sizeof(cmd_buf), NULL, 0);
+				&cmd_buf, sizeof(cmd_buf), NULL, 0);
 		if (ret) {
 			pr_err("Setting register save address failed.\n"
 				"Registers won't be dumped on a dog bite\n");
 			return ret;
 		}
-
-		/* Initialize the tlv and fill all the details */
-		tlv_msg.msg_buffer = scm_regsave + CFG_TLV_MSG_OFFSET;
-		tlv_msg.cur_msg_buffer_pos = tlv_msg.msg_buffer;
-		tlv_msg.len = PAGE_SIZE - CFG_TLV_MSG_OFFSET;
-
-		ret = qcom_wdt_scm_fill_log_dump_tlv(&tlv_msg);
-
-		if (ret)
-			pr_err("log dump initialization failed\n");
 	}
+
+	/* Initialize the tlv and fill all the details */
+	tlv_msg.msg_buffer = scm_regsave + CFG_TLV_MSG_OFFSET;
+	tlv_msg.cur_msg_buffer_pos = tlv_msg.msg_buffer;
+	tlv_msg.len = PAGE_SIZE - CFG_TLV_MSG_OFFSET;
+
+	ret = qcom_wdt_scm_fill_log_dump_tlv(&tlv_msg);
+
+	/* if failed, we still return 0 because it should not
+	 * affect the boot flow. The return value 0 does not
+	 * necessarily indicate success in this function.
+	 */
+	if (ret) {
+		pr_err("log dump initialization failed\n");
+		return 0;
+	}
+
+	if (arg) {
+		tlv_base = tlv_info->tlv_base;
+		tlv_size = tlv_info->tlv_size;
+
+		res = request_mem_region(tlv_base, tlv_size, "tlv_dump");
+
+		if (!res) {
+			pr_err("requesting memory region failed\n");
+			return 0;
+		}
+
+		tlv_ptr = ioremap(tlv_base, tlv_size);
+
+		if (!tlv_ptr) {
+			pr_err("mapping physical mem failed\n");
+			release_mem_region(tlv_base, tlv_size);
+			return 0;
+		}
+
+		memcpy_toio(tlv_ptr, tlv_msg.msg_buffer, tlv_msg.len);
+		iounmap(tlv_ptr);
+		release_mem_region(tlv_base, tlv_size);
+	}
+
 	return 0;
 }
 
@@ -243,7 +291,7 @@ static const struct of_device_id qcom_wdt_of_table[] = {
 	{ .compatible = "qcom,kpss-wdt-msm8960", },
 	{ .compatible = "qcom,kpss-wdt-apq8064", },
 	{ .compatible = "qcom,kpss-wdt-ipq8064", },
-	{ .compatible = "qcom,kpss-wdt-ipq40xx", .data = (void *)USE_BITE_TIME},
+	{ .compatible = "qcom,kpss-wdt-ipq40xx", .data = &ipq40xx_tlv},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, qcom_wdt_of_table);
@@ -402,7 +450,7 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 		goto err_clk_unprepare;
 	}
 
-	ret = work_on_cpu(0, qcom_wdt_configure_bark_dump, NULL);
+	ret = work_on_cpu(0, qcom_wdt_configure_bark_dump, id->data);
 
 	wdt->wdd.dev = &pdev->dev;
 	wdt->wdd.info = &qcom_wdt_info;
