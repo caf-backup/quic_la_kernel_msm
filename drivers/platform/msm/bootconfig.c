@@ -167,6 +167,14 @@ struct sbl_if_dualboot_info_type_v2 *read_bootconfig_mtd(
 	struct sbl_if_dualboot_info_type_v2 *bootconfig_mtd;
 	int ret;
 
+	while (mtd_block_isbad(master, offset)) {
+		offset += master->erasesize;
+		if (offset >= master->size) {
+			pr_alert("Bad blocks occured while reading from \"%s\"\n",
+					master->name);
+			return NULL;
+		}
+	}
 	bootconfig_mtd = kmalloc(sizeof(struct sbl_if_dualboot_info_type_v2),
 				   GFP_ATOMIC);
 
