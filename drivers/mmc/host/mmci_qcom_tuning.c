@@ -446,6 +446,52 @@ static int find_most_appropriate_phase(struct mmci_host *host,
 	return ret;
 }
 
+/*
+ * Enable a CDR circuit in CM_SDC4_DLL block to enable automatic
+ * calibration sequence. This function should be called before
+ * enabling AUTO_CMD19 bit in MCI_CMD register for block read
+ * commands (CMD17/CMD18).
+ *
+ * This function gets called when host spinlock acquired.
+ */
+int mmci_enable_cdr_cm_sdc4_dll(struct mmci_host *host)
+{
+	int rc;
+	u32 config;
+
+	config = readl_relaxed(host->base + MCIDLL_CONFIG);
+	config |= MCI_CDR_EN;
+	config |= MCI_CDR_EXT_EN;
+	config &= ~MCI_CK_OUT_EN;
+	writel_relaxed(config, host->base + MCIDLL_CONFIG);
+
+	/* Wait until CK_OUT_EN bit of MCI_DLL_CONFIG register becomes '0' */
+	rc = mmci_qtune_dll_poll_ck_out_en(host, 0);
+	if (rc) {
+		pr_err("%s: %s: sdc4_dll config failed\n",
+		       mmc_hostname(host->mmc), __func__);
+		return rc;
+	}
+
+	/* Set CK_OUT_EN bit of MCI_DLL_CONFIG register to 1. */
+	writel_relaxed((readl_relaxed(host->base + MCIDLL_CONFIG)
+			| MCI_CK_OUT_EN), host->base + MCIDLL_CONFIG);
+
+	/* Wait until CK_OUT_EN bit of MCI_DLL_CONFIG register becomes '1' */
+	rc = mmci_qtune_dll_poll_ck_out_en(host, 1);
+	if (rc)
+		goto err_out;
+
+	goto out;
+
+err_out:
+	pr_err("%s: %s: Enabling sdc4_dll failed\n",
+	       mmc_hostname(host->mmc), __func__);
+out:
+	return rc;
+}
+
+
 int mmci_qtune_execute_tuning(struct mmc_host *mmc, u32 opcode)
 {
 	int rc = 0;
