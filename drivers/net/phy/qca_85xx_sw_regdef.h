@@ -1,7 +1,7 @@
 /*
  * QCA 85xx switch register definitions
  *
- * Copyright (c) 2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2016 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -270,6 +270,7 @@
 #define SGMII_CTRL0_FORCE_SPEED_10	0x0
 #define SGMII_CTRL0_FORCE_SPEED_100	0x4
 #define SGMII_CTRL0_FORCE_SPEED_1000	0x8
+#define SGMII_CTRL0_MR_AN_EN		0x400
 #define SGMII_CTRL0_FORCE_MODE_EN	0x200000
 
 #define SGMII_CTRL0_SGMII_MODE_1000BASE_X	0x0
