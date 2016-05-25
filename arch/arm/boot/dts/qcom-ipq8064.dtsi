@@ -991,8 +991,8 @@
 				sd-uhs-sdr104;
 				sd-uhs-ddr50;
 				vqmmc-supply = <&vsdcc_fixed>;
-				#dmas = <&sdcc3bam 2>, <&sdcc3bam 1>;
-				#dma-names = "tx", "rx";
+				dmas = <&sdcc3bam 2>, <&sdcc3bam 1>;
+				dma-names = "tx", "rx";
 			};
 		};
 	};
