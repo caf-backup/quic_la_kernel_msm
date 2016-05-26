@@ -1,7 +1,7 @@
 /*
  * qca_85xx_sw.c: QCA 85xx switch driver
  *
- * Copyright (c) 2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2016 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -189,47 +189,55 @@ static void qca_85xx_sw_sgmii_plus_if_change_speed(struct net_device *dev)
 		return;
 	}
 
+	/*
+	 * Configure MAC<->PHY auto-negotiation/speed settings.
+	 * Speed 2500 => Auto-negotiation is off, force speed is on
+	 * Speed 100/1000 => Auto-negotiation is on, force speed is off
+	 */
 	sgmii_ctrl0_val = priv->read(SGMII_CTRL0_PORT27);
 	val = priv->read(port_status_cfg(priv->sgmii_plus_port_num));
 
-	/* Clear the previous link speed and duplex setting */
-	if (priv->sgmii_plus_link_speed == SPEED_100 ||
-	    priv->sgmii_plus_link_speed == SPEED_1000 ||
-	    priv->sgmii_plus_link_speed == SPEED_UNKNOWN) {
-		sgmii_ctrl0_val &= ~(SGMII_CTRL0_SGMII_MODE_MAC |
-				     SGMII_CTRL0_FORCE_SPEED_100 |
-				     SGMII_CTRL0_FORCE_SPEED_1000 |
-				     SGMII_CTRL0_FORCE_DUPLEX_FULL);
+	/* Clear the previous speed, duplex, settings */
+	sgmii_ctrl0_val &= ~(SGMII_CTRL0_SGMII_MODE_MAC |
+			     SGMII_CTRL0_FORCE_SPEED_100 |
+			     SGMII_CTRL0_FORCE_SPEED_1000 |
+			     SGMII_CTRL0_FORCE_DUPLEX_FULL |
+			     SGMII_CTRL0_MR_AN_EN |
+			     SGMII_CTRL0_FORCE_MODE_EN);
 
-		val &= ~(PORT_STATUS_FORCE_SPEED_100 |
-			 PORT_STATUS_FORCE_SPEED_1000 |
-			 PORT_STATUS_FORCE_DUPLEX_FULL);
+	val &= ~(PORT_STATUS_FORCE_SPEED_100 |
+		 PORT_STATUS_FORCE_SPEED_1000 |
+		 PORT_STATUS_FORCE_DUPLEX_FULL);
 
-	}
-
-	if (curr_speed == SPEED_1000 || curr_speed == SPEED_2500) {
-		/* Force the 1000Mbps link speed and duplex setting */
+	if (curr_speed != SPEED_100) {
+		/* Enable 1000Mbps speed and duplex setting */
 		val |= PORT_STATUS_FORCE_SPEED_1000 |
 		       PORT_STATUS_FORCE_DUPLEX_FULL;
 		sgmii_ctrl0_val |= SGMII_CTRL0_FORCE_SPEED_1000 |
 				   SGMII_CTRL0_FORCE_DUPLEX_FULL;
+	}
+
+	if (curr_speed == SPEED_2500) {
+		/* Disable auto-neg, enable force mode */
+		sgmii_ctrl0_val |= SGMII_CTRL0_FORCE_MODE_EN;
+	} else if (curr_speed == SPEED_1000) {
+		/* Enable auto-neg, disable force mode */
+		sgmii_ctrl0_val |= SGMII_CTRL0_MR_AN_EN;
 	} else {
 		/* Force the 100Mbps link speed and duplex setting */
 		sgmii_ctrl0_val |= SGMII_CTRL0_SGMII_MODE_MAC |
-				   SGMII_CTRL0_FORCE_SPEED_100;
+				   SGMII_CTRL0_FORCE_SPEED_100 |
+				   SGMII_CTRL0_MR_AN_EN;
 
-		val |=  PORT_STATUS_FORCE_SPEED_100;
+		val |= PORT_STATUS_FORCE_SPEED_100;
 
 		if (curr_duplex) {
 			/* Set 100Mbps Full Duplex */
 			sgmii_ctrl0_val |= SGMII_CTRL0_FORCE_DUPLEX_FULL;
 			val |=  PORT_STATUS_FORCE_DUPLEX_FULL;
-		} else {
-			/* Set 100Mbps Half Duplex */
-			sgmii_ctrl0_val &= ~SGMII_CTRL0_FORCE_DUPLEX_FULL;
-			val &= ~PORT_STATUS_FORCE_DUPLEX_FULL;
 		}
 	}
+
 	priv->write(port_status_cfg(priv->sgmii_plus_port_num), val);
 	priv->write(SGMII_CTRL0_PORT27, sgmii_ctrl0_val);
 	priv->sgmii_plus_link_speed = curr_speed;
@@ -447,8 +455,11 @@ static int qca_85xx_sw_init_sgmii_port(enum qca_85xx_sw_gmac_port port,
 	val = priv->read(port_status_cfg(port));
 
 	/* Settings to force speed if configured */
-	if (sgmii_cfg->is_speed_forced == false)
+	if (sgmii_cfg->is_speed_forced == false) {
 		val |= PORT_STATUS_AUTONEG_EN;
+		sgmii_ctrl0_val |= SGMII_CTRL0_MR_AN_EN;
+		sgmii_ctrl0_val &= ~SGMII_CTRL0_FORCE_MODE_EN;
+	}
 	else {
 		/* Disable Auto-negotiation */
 		val &= ~(PORT_STATUS_AUTONEG_EN
@@ -458,8 +469,8 @@ static int qca_85xx_sw_init_sgmii_port(enum qca_85xx_sw_gmac_port port,
 				| PORT_STATUS_TX_FLOW_EN);
 		val |= (PORT_STATUS_RXMAC_EN | PORT_STATUS_TXMAC_EN);
 
-		if (sgmii_cfg->port_mode != QCA_85XX_SW_PORT_MODE_SGMII_PLUS)
-			sgmii_ctrl0_val |= SGMII_CTRL0_FORCE_MODE_EN;
+		sgmii_ctrl0_val &= ~SGMII_CTRL0_MR_AN_EN;
+		sgmii_ctrl0_val |= SGMII_CTRL0_FORCE_MODE_EN;
 
 		/* Force the speed and duplex as configured */
 		switch (sgmii_cfg->forced_speed) {
@@ -1168,25 +1179,25 @@ static struct net_device *qca_85xx_sw_get_eth_dev(
 	/* Get MDIO BUS pointer */
 	prop = of_get_property(np, "sgmii-plus-if-phy-mdiobus", NULL);
 	if (!prop) {
-		dev_dbg(&pdev->dev, "cannot get 'mdiobus' property\n", __func__);
+		pr_debug("%s: cannot get 'mdiobus' property\n", __func__);
 		return NULL;
 	}
 
 	mdio_node = of_find_node_by_phandle(be32_to_cpup(prop));
 	if (!mdio_node) {
-		dev_dbg(&pdev->dev, "cannot find mdio node by phandle\n", __func__);
+		pr_debug("%s: cannot find mdio node by phandle\n", __func__);
 		return NULL;
 	}
 
 	mdio_plat = of_find_device_by_node(mdio_node);
 	if (!mdio_plat) {
-		dev_dbg(&pdev->dev, "cannot find platform device from mdio node\n", __func__);
+		pr_debug("%s: cannot find platform device from mdio node\n", __func__);
 		return NULL;
 	}
 
 	miibus = dev_get_drvdata(&mdio_plat->dev);
 	if (!miibus) {
-		dev_dbg(&pdev->dev, "cannot get mdio bus reference from device data\n", __func__);
+		pr_debug("%s: cannot get mdio bus reference from device data\n", __func__);
 		return NULL;
 	}
 
@@ -1696,25 +1707,25 @@ static int qca_85xx_sw_probe(struct platform_device *pdev)
 	/* Get MDIO BUS pointer */
 	prop = of_get_property(np, "mdiobus", NULL);
 	if (!prop) {
-		dev_dbg(&pdev->dev, "cannot get 'mdiobus' property\n", __func__);
+		pr_debug("%s: cannot get 'mdiobus' property\n", __func__);
 		goto err;
 	}
 
 	mdio_node = of_find_node_by_phandle(be32_to_cpup(prop));
 	if (!mdio_node) {
-		dev_dbg(&pdev->dev, "cannot find mdio node by phandle\n", __func__);
+		pr_debug("%s: cannot find mdio node by phandle\n", __func__);
 		goto err;
 	}
 
 	mdio_plat = of_find_device_by_node(mdio_node);
 	if (!mdio_plat) {
-		dev_dbg(&pdev->dev, "cannot find platform device from mdio node\n", __func__);
+		pr_debug("%s: cannot find platform device from mdio node\n", __func__);
 		goto err;
 	}
 
 	mdio_bus = dev_get_drvdata(&mdio_plat->dev);
 	if (!mdio_bus) {
-		dev_dbg(&pdev->dev, "cannot get mdio bus reference from device data\n", __func__);
+		pr_debug("%s: cannot get mdio bus reference from device data\n", __func__);
 		goto err;
 	}
 	of_node_put(np);

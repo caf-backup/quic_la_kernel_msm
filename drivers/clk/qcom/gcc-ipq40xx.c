@@ -815,18 +815,18 @@ static struct clk_cdiv_rcg2  sdcc1_apps_clk_src = {
 static const struct freq_tbl ftbl_gcc_apps_clk[] = {
 	{48000000, P_XO,          1, 0, 0},
 	{200000000, FE_PLL_200,   1, 0, 0},
-	{380000000, DDRC_PLL_666, 0xD, 0},
-	{409000000, DDRC_PLL_666, 0xC, 0, 0},
-	{444000000, DDRC_PLL_666, 0xB, 0, 0},
-	{484000000, DDRC_PLL_666, 0xA, 0, 0},
+	{384000000, DDRC_PLL_666, 0xD, 0},
+	{413000000, DDRC_PLL_666, 0xC, 0, 0},
+	{448000000, DDRC_PLL_666, 0xB, 0, 0},
+	{488000000, DDRC_PLL_666, 0xA, 0, 0},
 	{500000000, FE_PLL_500,   1, 0, 0},
-	{507000000, DDRC_PLL_666, 0x9, 0, 0},
-	{532000000, DDRC_PLL_666, 0x8, 0, 0},
-	{560000000, DDRC_PLL_666, 0x7, 0, 0},
-	{592000000, DDRC_PLL_666, 0x6, 0, 0},
-	{626000000, DDRC_PLL_666, 0x5, 0, 0},
-	{666000000, DDRC_PLL_666, 0x4, 0, 0},
-	{710000000, DDRC_PLL_666, 0x3, 0, 0},
+	{512000000, DDRC_PLL_666, 0x9, 0, 0},
+	{537000000, DDRC_PLL_666, 0x8, 0, 0},
+	{565000000, DDRC_PLL_666, 0x7, 0, 0},
+	{597000000, DDRC_PLL_666, 0x6, 0, 0},
+	{632000000, DDRC_PLL_666, 0x5, 0, 0},
+	{672000000, DDRC_PLL_666, 0x4, 0, 0},
+	{716000000, DDRC_PLL_666, 0x3, 0, 0},
 	{761000000, DDRC_PLL_666, 0x2, 0, 0},
 	{819000000, DDRC_PLL_666, 0x1, 0, 0},
 	{888000000, DDRC_PLL_666, 0x0, 0, 0},
@@ -1702,7 +1702,7 @@ static int gcc_ipq40xx_probe(struct platform_device *pdev)
 	clk_register_fixed_rate(dev, "ddrpllsdcc1", NULL, CLK_IS_ROOT,
 				      409800000);
 	clk_register_fixed_rate(dev, "ddrpllapss", NULL, CLK_IS_ROOT,
-				      666000000);
+				      672000000);
 	clk_register_fixed_rate(dev, "pcnoc_clk_src", NULL, CLK_IS_ROOT,
 				      100000000);
 
