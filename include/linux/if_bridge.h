@@ -29,6 +29,7 @@
 #define BR_ISOLATE_MODE		BIT(8)
 #define BR_MULTICAST_TO_UCAST	BIT(9)
 #define BR_PROXYARP		BIT(10)
+#define BR_PROXYARP_WIFI	BIT(11)
 
 struct br_ip {
 	union {

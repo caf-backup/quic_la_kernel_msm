@@ -214,6 +214,10 @@ static void br_flood(struct net_bridge *br, struct sk_buff *skb,
 		if (p->flags & BR_PROXYARP)
 			continue;
 
+		if ((p->flags & BR_PROXYARP_WIFI) &&
+		    BR_INPUT_SKB_CB(skb)->proxyarp_replied)
+			continue;
+
 		prev = maybe_deliver(prev, p, skb, __packet_hook);
 		if (IS_ERR(prev))
 			goto out;
