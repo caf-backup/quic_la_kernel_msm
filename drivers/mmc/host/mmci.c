@@ -765,7 +765,8 @@ static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 	data->bytes_xfered = 0;
 
 #ifdef CONFIG_MMC_QCOM_TUNING
-	if (host->mmc->ios.timing == MMC_TIMING_UHS_DDR50)
+	if ((host->mmc->ios.timing == MMC_TIMING_UHS_DDR50) ||
+		(host->mmc->ios.timing == MMC_TIMING_MMC_DDR52))
 		clks = (unsigned long long)data->timeout_ns *
 			(host->cclk / 2);
 	else
@@ -1409,6 +1410,18 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	if (!ios->clock && variant->pwrreg_clkgate)
 		pwr &= ~MCI_PWR_ON;
 
+	if (host->mmc->ios.timing == MMC_TIMING_UHS_DDR50 ||
+			host->mmc->ios.timing == MMC_TIMING_MMC_DDR52) {
+		u32 clk;
+
+		clk = readl(host->base + MMCICLOCK);
+		clk &= ~(0x7 << 14); /* clear SELECT_IN field */
+		clk |= (3 << 14); /* set DDR timing mode */
+		writel_relaxed(clk, host->base + MMCICLOCK);
+		mmci_reg_delay(host);
+		if (mmc->f_max < (ios->clock * 2))
+			ios->clock = mmc->f_max;
+	}
 	if (host->variant->explicit_mclk_control &&
 	    ios->clock != host->clock_cache) {
 		ret = clk_set_rate(host->clk, ios->clock);
@@ -1523,6 +1536,8 @@ static int mmci_of_parse(struct device_node *np, struct mmc_host *mmc)
 		mmc->caps |= MMC_CAP_SD_HIGHSPEED;
 	if (of_get_property(np, "sd-uhs-sdr104", NULL))
 		mmc->caps |= MMC_CAP_UHS_SDR104;
+	if (of_get_property(np, "mmc-ddr-1_8v", NULL))
+		mmc->caps |= MMC_CAP_1_8V_DDR;
 
 	return 0;
 }
