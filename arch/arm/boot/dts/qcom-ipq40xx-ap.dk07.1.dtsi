@@ -242,36 +242,6 @@
 			switch_initvlas = <
 				0x0007c 0x54 /* PORT0_STATUS */
 			>;
-			led_source@0 {
-				source = <0x1>;  /*source id 1 */
-				mode = "normal"; /*on,off,blink,normal */
-				speed = "all";   /*10M,100M,1000M,all */
-				freq = "auto";   /*2Hz,4Hz,8Hz,auto*/
-			};
-			led_source@1 {
-				source = <0x4>;  /*source id 4 */
-				mode = "normal"; /*on,off,blink,normal */
-				speed = "all";   /*10M,100M,1000M,all */
-				freq = "auto";   /*2Hz,4Hz,8Hz,auto*/
-			};
-			led_source@2 {
-				source = <0x7>;  /*source id 7 */
-				mode = "normal"; /*on,off,blink,normal */
-				speed = "all";   /*10M,100M,1000M,all */
-				freq = "auto";   /*2Hz,4Hz,8Hz,auto*/
-			};
-			led_source@3 {
-				source = <0xa>;  /*source id 10 */
-				mode = "normal"; /*on,off,blink,normal */
-				speed = "all";   /*10M,100M,1000M,all */
-				freq = "auto";   /*2Hz,4Hz,8Hz,auto*/
-			};
-			led_source@4 {
-				source = <0xd>;  /*source id 13 */
-				mode = "normal"; /*on,off,blink,normal */
-				speed = "all";   /*10M,100M,1000M,all */
-				freq = "auto";   /*2Hz,4Hz,8Hz,auto*/
-			};
 		};
 
 		vccq_sd0: regulator@0 {
