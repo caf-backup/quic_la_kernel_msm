@@ -56,5 +56,6 @@ void set_default_hw_caps(struct mmci_host *host);
 void mmci_qcom_ddr_tuning(struct mmci_host *host);
 int mmci_qcom_set_uhs_gpio(struct mmc_host *mmc, unsigned int val);
 int mmci_qtune_init(struct mmci_host *host, struct device_node *np);
+int mmci_enable_cdr_cm_sdc4_dll(struct mmci_host *host);
 
 #endif /* __MMCI_QCOM_TUNING_H_ */

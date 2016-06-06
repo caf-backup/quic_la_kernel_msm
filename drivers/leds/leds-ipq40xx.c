@@ -157,7 +157,7 @@ int ipq40xx_led_source_select(int led_num, enum led_source src_type)
 
 	cg_reg = (led_num / NUM_LED_IN_REG) + 1;
 
-	if (cg_reg > LEDC_CG4_OFFSET)
+	if (cg_reg > LEDC_CG4_OFFSET || !ledc_base_addr)
 		return -EINVAL;
 
 	val = readl(LEDC_ADDR(cg_reg));

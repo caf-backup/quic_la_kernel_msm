@@ -22,6 +22,7 @@
 #include <linux/highmem.h>
 #include <linux/log2.h>
 #include <linux/mmc/pm.h>
+#include <linux/mmc/mmc.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/slot-gpio.h>
@@ -319,6 +320,21 @@ static void mmci_set_clkreg(struct mmci_host *host, unsigned int desired)
 	}
 
 #ifdef CONFIG_MMC_QCOM_TUNING
+	/*
+	 * Select the controller timing mode according
+	 * to current bus speed mode
+	 */
+	if ((desired > (100 * 1000 * 1000)) &&
+	     (host->mmc->ios.timing == MMC_TIMING_UHS_SDR104)) {
+		/* Card clock frequency must be > 100MHz to enable tuning */
+		clk &= (~(MCI_QCOM_CLK_SELECT_IN_MASK));
+		clk |= MCI_QCOM_CLK_SELECT_IN_UHS;
+	}
+
+	/* Select free running MCLK as input clock of cm_dll_sdc4 */
+	clk &= (~(MCI_QCOM_CLK_SDC4_MCLK_SEL_MASK));
+	clk |= MCI_QCOM_CLK_SDC4_MCLK_SEL_FMCLK;
+
 	if (variant->qcom_uhs_gpio >= 0)
 		clk |= MCI_QCOM_IO_PAD_PWR_SWITCH;
 #endif /* CONFIG_MMC_QCOM_TUNING */
@@ -749,7 +765,8 @@ static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 	data->bytes_xfered = 0;
 
 #ifdef CONFIG_MMC_QCOM_TUNING
-	if (host->mmc->ios.timing == MMC_TIMING_UHS_DDR50)
+	if ((host->mmc->ios.timing == MMC_TIMING_UHS_DDR50) ||
+		(host->mmc->ios.timing == MMC_TIMING_MMC_DDR52))
 		clks = (unsigned long long)data->timeout_ns *
 			(host->cclk / 2);
 	else
@@ -856,6 +873,33 @@ mmci_start_command(struct mmci_host *host, struct mmc_command *cmd, u32 c)
 		writel(0, base + MMCICOMMAND);
 		mmci_reg_delay(host);
 	}
+
+#ifdef CONFIG_MMC_QCOM_TUNING
+	/*
+	 * For open ended block read operation (without CMD23),
+	 * AUTO_CMD19 bit should be set while sending the READ command.
+	 * For close ended block read operation (with CMD23),
+	 * AUTO_CMD19 bit should be set while sending CMD23.
+	 */
+	if (host->mmc->ios.timing == MMC_TIMING_UHS_SDR104) {
+		if ((cmd->opcode == MMC_SET_BLOCK_COUNT &&
+		   host->mrq->cmd->opcode == MMC_READ_MULTIPLE_BLOCK) ||
+		   (!host->mrq->sbc && (cmd->opcode == MMC_READ_SINGLE_BLOCK ||
+		   cmd->opcode == MMC_READ_MULTIPLE_BLOCK))) {
+			mmci_enable_cdr_cm_sdc4_dll(host);
+			c |= cmd->opcode | MCI_CSPM_AUTO_CMD19;
+		}
+	}
+	if (cmd->mrq && cmd->mrq->data &&
+	    (cmd->mrq->data->flags & MMC_DATA_READ))
+		writel((readl(base + MCIDLL_CONFIG) | MCI_CDR_EN),
+		       base + MCIDLL_CONFIG);
+	else
+		/* Clear CDR_EN bit for non read operations */
+		writel((readl(base + MCIDLL_CONFIG) & ~MCI_CDR_EN),
+		       base + MCIDLL_CONFIG);
+	mmci_reg_delay(host);
+#endif
 
 	c |= cmd->opcode | MCI_CPSM_ENABLE;
 	if (cmd->flags & MMC_RSP_PRESENT) {
@@ -1366,6 +1410,18 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	if (!ios->clock && variant->pwrreg_clkgate)
 		pwr &= ~MCI_PWR_ON;
 
+	if (host->mmc->ios.timing == MMC_TIMING_UHS_DDR50 ||
+			host->mmc->ios.timing == MMC_TIMING_MMC_DDR52) {
+		u32 clk;
+
+		clk = readl(host->base + MMCICLOCK);
+		clk &= ~(0x7 << 14); /* clear SELECT_IN field */
+		clk |= (3 << 14); /* set DDR timing mode */
+		writel_relaxed(clk, host->base + MMCICLOCK);
+		mmci_reg_delay(host);
+		if (mmc->f_max < (ios->clock * 2))
+			ios->clock = mmc->f_max;
+	}
 	if (host->variant->explicit_mclk_control &&
 	    ios->clock != host->clock_cache) {
 		ret = clk_set_rate(host->clk, ios->clock);
@@ -1478,6 +1534,10 @@ static int mmci_of_parse(struct device_node *np, struct mmc_host *mmc)
 		mmc->caps |= MMC_CAP_MMC_HIGHSPEED;
 	if (of_get_property(np, "mmc-cap-sd-highspeed", NULL))
 		mmc->caps |= MMC_CAP_SD_HIGHSPEED;
+	if (of_get_property(np, "sd-uhs-sdr104", NULL))
+		mmc->caps |= MMC_CAP_UHS_SDR104;
+	if (of_get_property(np, "mmc-ddr-1_8v", NULL))
+		mmc->caps |= MMC_CAP_1_8V_DDR;
 
 	return 0;
 }

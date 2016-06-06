@@ -48,8 +48,14 @@
 #define MCI_QCOM_IO_PAD_PWR_SWITCH	BIT(21)
 
 /* select in latch data and command in */
+#define MCI_QCOM_CLK_SELECT_IN_MASK	(BIT(16) | BIT(15) | BIT(14))
 #define MCI_QCOM_CLK_SELECT_IN_FBCLK	BIT(15)
 #define MCI_QCOM_CLK_SELECT_IN_DDR_MODE	(BIT(14) | BIT(15))
+#define MCI_QCOM_CLK_SELECT_IN_UHS	BIT(16)
+
+/* Select SDC4_MCLK_SEL */
+#define MCI_QCOM_CLK_SDC4_MCLK_SEL_MASK		(BIT(24) | BIT(23))
+#define MCI_QCOM_CLK_SDC4_MCLK_SEL_FMCLK	BIT(24)
 
 #define MMCIARGUMENT		0x008
 #define MMCICOMMAND		0x00c
@@ -58,6 +64,7 @@
 #define MCI_CPSM_INTERRUPT	(1 << 8)
 #define MCI_CPSM_PENDING	(1 << 9)
 #define MCI_CPSM_ENABLE		(1 << 10)
+#define MCI_CSPM_AUTO_CMD19     (1 << 16)
 /* Argument flag extenstions in the ST Micro versions */
 #define MCI_ST_SDIO_SUSP	(1 << 11)
 #define MCI_ST_ENCMD_COMPL	(1 << 12)

@@ -14,7 +14,7 @@
  *
  */
 
-#include "qcom-ipq40xx-ap.dk04.1.dtsi"
+#include "qcom-ipq40xx-ap.dk07.1.dtsi"
 #include "qcom-ipq40xx-lcdc.dtsi"
 #include "qcom-ipq40xx-lcdpanel.dtsi"
 
