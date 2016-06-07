@@ -39,14 +39,6 @@ static spinlock_t i2s_ctrl_lock;
 static spinlock_t tdm_ctrl_lock;
 static spinlock_t glb_mode_lock;
 
-void ipq40xx_gcc_audio_blk_rst(void)
-{
-	reset_control_assert(audio_blk_rst);
-	mdelay(5);
-	reset_control_deassert(audio_blk_rst);
-}
-EXPORT_SYMBOL(ipq40xx_gcc_audio_blk_rst);
-
 /* I2S Interface Enable */
 void ipq40xx_glb_i2s_interface_en(int enable)
 {
@@ -427,7 +419,6 @@ static int ipq40xx_audio_adss_probe(struct platform_device *pdev)
 	spin_lock_init(&tdm_ctrl_lock);
 	spin_lock_init(&glb_mode_lock);
 
-	ipq40xx_gcc_audio_blk_rst();
 	/* I2S in reset */
 	ipq40xx_glb_i2s_reset(1);
 
