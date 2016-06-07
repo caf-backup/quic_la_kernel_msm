@@ -190,10 +190,6 @@ static int mmci_qtune_init_cm_sdc4_dll(struct mmci_host *host)
 	}
 
 out:
-	/* re-enable PWRSAVE */
-	writel_relaxed((readl_relaxed(host->base + MMCICLOCK) |
-			MCI_CLK_PWRSAVE), host->base + MMCICLOCK);
-	mmci_qtune_sync_reg_wr(host);
 	spin_unlock_irqrestore(&host->lock, flags);
 
 	return rc;
@@ -670,6 +666,7 @@ int mmci_qcom_set_uhs_gpio(struct mmc_host *mmc, unsigned int val)
 	/* Wait 5 ms for the voltage regulater in the card to become stable. */
 	usleep_range(5000, 5500);
 
+out:
 	spin_lock_irqsave(&host->lock, flags);
 	/* Disable PWRSAVE would make sure that SD CLK is always running */
 	writel_relaxed((readl_relaxed(host->base + MMCICLOCK)
@@ -685,13 +682,6 @@ int mmci_qcom_set_uhs_gpio(struct mmc_host *mmc, unsigned int val)
 	 */
 	usleep_range(1000, 1500);
 
-	spin_lock_irqsave(&host->lock, flags);
-	/* Enable PWRSAVE */
-	writel_relaxed((readl_relaxed(host->base + MMCICLOCK) |
-			MCI_CLK_PWRSAVE), host->base + MMCICLOCK);
-	udelay(30);
-	spin_unlock_irqrestore(&host->lock, flags);
-out:
 	return rc;
 }
 
