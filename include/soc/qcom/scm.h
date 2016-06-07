@@ -15,9 +15,14 @@
 #define SCM_SVC_BOOT			0x1
 #define SCM_SVC_PIL			0x2
 #define SCM_SVC_UTIL			0x3
+#define SCM_SVC_IO_ACCESS		0x5
 #define SCM_SVC_INFO			0x6
 #define SCM_SVC_FUSE			0x8
 #define SCM_SVC_TZSCHEDULER		0xFC
+
+#define SCM_IO_READ	1
+#define SCM_IO_WRITE	2
+
 extern int scm_call(u32 svc_id, u32 cmd_id, const void *cmd_buf, size_t cmd_len,
 		void *resp_buf, size_t resp_len);
 
