@@ -237,6 +237,12 @@ struct sbl_if_dualboot_info_type_v2 *read_bootconfig_emmc(struct gendisk *disk,
 
 	memcpy(bootconfig_emmc, data, 512);
 
+	if (bootconfig_emmc->magic_start != SMEM_DUAL_BOOTINFO_MAGIC_START) {
+		pr_alert("Magic not found\n");
+		kfree(bootconfig_emmc);
+		return NULL;
+	}
+
 	return bootconfig_emmc;
 }
 
