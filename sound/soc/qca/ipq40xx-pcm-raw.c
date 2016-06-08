@@ -294,6 +294,7 @@ int ipq_pcm_init(struct ipq_pcm_params *params)
 
 	ret = ipq40xx_mbox_form_ring(tx_dma_buffer->channel_id,
 			tx_dma_buffer->addr,
+			tx_dma_buffer->area,
 			single_buf_size,
 			tx_dma_buffer->size);
 	if (ret) {
@@ -322,6 +323,7 @@ int ipq_pcm_init(struct ipq_pcm_params *params)
 
 	ret = ipq40xx_mbox_form_ring(rx_dma_buffer->channel_id,
 			rx_dma_buffer->addr,
+			rx_dma_buffer->area,
 			single_buf_size,
 			rx_dma_buffer->size);
 	if (ret) {

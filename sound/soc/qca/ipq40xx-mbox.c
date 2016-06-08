@@ -432,7 +432,7 @@ void ipq40xx_mbox_vuc_setup(int channel_id)
 }
 EXPORT_SYMBOL(ipq40xx_mbox_vuc_setup);
 
-int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr,
+int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr, u8 *area,
 				int period_bytes, int bufsize)
 {
 	struct ipq40xx_mbox_desc *desc, *_desc_p;
@@ -453,13 +453,8 @@ int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr,
 	if (ndescs < MBOX_MIN_DESC_NUM)
 		ndescs *= MBOX_DESC_REPEAT_NUM;
 
-	desc = dma_alloc_coherent(mbox_rtime[index]->dir_priv[dir].dev,
-				(ndescs * sizeof(struct ipq40xx_mbox_desc)),
-				&desc_p, GFP_KERNEL);
-	if (!desc) {
-		pr_err("Mem alloc failed for MBOX DMA desc \n");
-		return -ENOMEM;
-	}
+	desc = (struct ipq40xx_mbox_desc *)(area + (ndescs * period_bytes));
+	desc_p = baseaddr + (ndescs * period_bytes);
 
 	memset(desc, 0, ndescs * sizeof(struct ipq40xx_mbox_desc));
 	mbox_cb->read = 0;
@@ -514,15 +509,8 @@ int ipq40xx_mbox_dma_release(int channel_id)
 		ipq40xx_mbox_interrupt_disable(channel_id,
 				(MBOX_INT_ENABLE_TX_DMA_COMPLETE |
 					MBOX_INT_ENABLE_RX_DMA_COMPLETE));
-		if (mbox_rtime[index]->dir_priv[dir].dma_virt_head) {
-			dma_free_coherent(mbox_rtime[index]->dir_priv[dir].dev,
-				(mbox_rtime[index]->dir_priv[dir].ndescs *
-					sizeof(struct ipq40xx_mbox_desc)),
-				mbox_rtime[index]->dir_priv[dir].dma_virt_head,
-				mbox_rtime[index]->dir_priv[dir].dma_phys_head);
 
-			mbox_rtime[index]->dir_priv[dir].dma_virt_head = NULL;
-		}
+		mbox_rtime[index]->dir_priv[dir].dma_virt_head = NULL;
 		clear_bit(CHN_STARTED,
 				&mbox_rtime[index]->dir_priv[dir].status);
 		return 0;

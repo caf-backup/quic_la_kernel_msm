@@ -124,7 +124,7 @@ int ipq40xx_mbox_dma_reset_swap(int channel_id);
 int ipq40xx_mbox_dma_swap(int channel_id, snd_pcm_format_t format);
 int ipq40xx_mbox_dma_prepare(int channel_id);
 int ipq40xx_mbox_dma_resume(int channel_id);
-int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr,
+int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr, u8 *base,
 				int period_bytes, int bufsize);
 int ipq40xx_mbox_dma_release(int channel);
 int ipq40xx_mbox_dma_init(struct device *dev, int channel_id,

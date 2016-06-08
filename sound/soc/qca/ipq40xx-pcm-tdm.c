@@ -268,6 +268,7 @@ static int ipq40xx_pcm_tdm_hw_params(struct snd_pcm_substream *substream,
 
 	ret = ipq40xx_mbox_form_ring(pcm_rtpriv->channel,
 			substream->dma_buffer.addr,
+			substream->dma_buffer.area,
 			params_period_bytes(hw_params),
 			params_buffer_bytes(hw_params));
 	if (ret) {
