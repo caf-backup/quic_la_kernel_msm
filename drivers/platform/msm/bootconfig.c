@@ -38,7 +38,7 @@ static struct proc_dir_entry *boot_info_dir;
 static struct proc_dir_entry *partname_dir[NUM_ALT_PARTITION];
 
 static unsigned int num_parts;
-static unsigned int flash_type;
+static unsigned int flash_type_emmc;
 
 struct sbl_if_dualboot_info_type_v2 *bootconfig1;
 struct sbl_if_dualboot_info_type_v2 *bootconfig2;
@@ -83,7 +83,7 @@ static int part_upgradepartition_show(struct seq_file *m, void *v)
 	 * we will take care of it here.
 	 */
 
-	if (flash_type && (part_info_t->primaryboot))
+	if (flash_type_emmc && (part_info_t->primaryboot))
 		seq_printf(m, "%s\n", part_info_t->name);
 	else
 		seq_printf(m, "%s_1\n", part_info_t->name);
@@ -248,6 +248,7 @@ struct sbl_if_dualboot_info_type_v2 *read_bootconfig_emmc(struct gendisk *disk,
 
 #define BOOTCONFIG_PARTITION	"0:BOOTCONFIG"
 #define BOOTCONFIG_PARTITION1	"0:BOOTCONFIG1"
+#define ROOTFS_PARTITION	"rootfs"
 
 static int __init bootconfig_partition_init(void)
 {
@@ -259,6 +260,16 @@ static int __init bootconfig_partition_init(void)
 	struct mtd_info *mtd;
 	int partno;
 
+	/*
+	 * In case of NOR\NAND boot, there is a chance that emmc
+	 * might have bootconfig paritions. This will try to read
+	 * the bootconfig partitions and create a proc entry which
+	 * is not correct since it is not booting from emmc.
+	 */
+
+	mtd = get_mtd_device_nm(ROOTFS_PARTITION);
+	if (IS_ERR(mtd))
+		flash_type_emmc = 1;
 	mtd = get_mtd_device_nm(BOOTCONFIG_PARTITION);
 	if (!IS_ERR(mtd)) {
 
@@ -271,7 +282,8 @@ static int __init bootconfig_partition_init(void)
 		}
 
 		bootconfig2 = read_bootconfig_mtd(mtd, 0);
-	} else {
+	} else if (flash_type_emmc == 1) {
+		flash_type_emmc = 0;
 		disk = get_gendisk(MKDEV(MMC_BLOCK_MAJOR, 0), &partno);
 		if (!disk)
 			return 0;
@@ -290,7 +302,7 @@ static int __init bootconfig_partition_init(void)
 						BOOTCONFIG_PARTITION1)) {
 					bootconfig2 = read_bootconfig_emmc(disk,
 									 part);
-					flash_type = 1;
+					flash_type_emmc = 1;
 				}
 			}
 		}
@@ -323,7 +335,7 @@ static int __init bootconfig_partition_init(void)
 		return 0;
 
 	for (i = 0; i < num_parts; i++) {
-		if (!flash_type &&
+		if (!flash_type_emmc &&
 				(strncmp(part_info[i].name, "kernel",
 					ALT_PART_NAME_LENGTH) == 0))
 			continue;
@@ -363,7 +375,7 @@ static void __exit bootconfig_partition_exit(void)
 
 	part_info = (struct per_part_info *)bootconfig1->per_part_entry;
 	for (i = 0; i < num_parts; i++) {
-		if (!flash_type &&
+		if (!flash_type_emmc &&
 				(strncmp(part_info[i].name, "kernel",
 					ALT_PART_NAME_LENGTH) == 0))
 			continue;
