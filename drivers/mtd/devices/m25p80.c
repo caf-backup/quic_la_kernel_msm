@@ -924,6 +924,7 @@ static const struct spi_device_id m25p_ids[] = {
 	{ "gd25q64", INFO(0xc84017, 0, 64 * 1024, 128, SECT_4K) },
 	{ "gd25q16", INFO(0xc84015, 0, 64 * 1024, 32, SECT_4K) },
 	{ "gd25q128", INFO(0xc84018, 0, 64 * 1024, 256, SECT_4K) },
+	{ "gd25q256", INFO(0xc84019, 0, 64 * 1024, 512, SECT_4K) },
 
 	/* Intel/Numonyx -- xxxs33b */
 	{ "160s33b",  INFO(0x898911, 0, 64 * 1024,  32, 0) },
