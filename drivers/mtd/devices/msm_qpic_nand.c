@@ -1444,6 +1444,7 @@ static int msm_nand_read_partial_page(struct mtd_info *mtd,
 	loff_t offset;
 	size_t len;
 	size_t actual_len, ret_len;
+	int ecc_status = 0;
 
 	actual_len = ops->len;
 	ret_len = 0;
@@ -1477,7 +1478,22 @@ static int msm_nand_read_partial_page(struct mtd_info *mtd,
 
 		ops->datbuf = no_copy ? actual_buf : bounce_buf;
 		err = msm_nand_read_oob(mtd, aligned_from, ops);
+
+		/*
+		 * If current error is EBADMSG or EUCLEAN then store this error
+		 * in ecc_status and continue the reading of data. This
+		 * ecc_status will be checked before returning from this
+		 * function and the same will be returned if it is non zero.
+		 */
+		if ((err == -EBADMSG) || (err == -EUCLEAN)) {
+			if (ecc_status != -EBADMSG)
+				ecc_status = err;
+
+			err = 0;
+		}
+
 		if (err < 0) {
+			ecc_status = 0;
 			ret_len = ops->retlen;
 			break;
 		}
@@ -1499,6 +1515,9 @@ static int msm_nand_read_partial_page(struct mtd_info *mtd,
 	ops->retlen = ret_len;
 	kfree(bounce_buf);
 out:
+	if (ecc_status)
+		err = ecc_status;
+
 	return err;
 }
 
@@ -1512,6 +1531,7 @@ static int msm_nand_read(struct mtd_info *mtd, loff_t from, size_t len,
 	int ret;
 	struct mtd_oob_ops ops;
 	unsigned char *bounce_buf = NULL;
+	int ecc_status = 0;
 
 	ops.mode = MTD_OPS_AUTO_OOB;
 	ops.retlen = 0;
@@ -1546,8 +1566,26 @@ static int msm_nand_read(struct mtd_info *mtd, loff_t from, size_t len,
 					no_copy = true;
 				}
 				ret = msm_nand_read_oob(mtd, from, &ops);
-				if (ret < 0)
+
+				/*
+				 * If current error is EBADMSG or EUCLEAN then
+				 * store this error in ecc_status and continue
+				 * the reading of data. This ecc_status will be
+				 * checked before returning from this function
+				 * and the same will be returned if it is non
+				 * zero.
+				 */
+				if ((ret == -EBADMSG) || (ret == -EUCLEAN)) {
+					if (ecc_status != -EBADMSG)
+						ecc_status = ret;
+
+					ret = 0;
+				}
+
+				if (ret < 0) {
+					ecc_status = 0;
 					break;
+				}
 
 				if (!no_copy)
 					memcpy(buf, bounce_buf, ops.retlen);
@@ -1582,6 +1620,9 @@ static int msm_nand_read(struct mtd_info *mtd, loff_t from, size_t len,
 		*retlen = ops.retlen;
 	}
 out:
+	if (ecc_status)
+		ret = ecc_status;
+
 	return ret;
 }
 
