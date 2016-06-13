@@ -31,6 +31,8 @@
 #include <linux/irqchip/chained_irq.h>
 #include <linux/spinlock.h>
 #include <linux/reboot.h>
+#include <soc/qcom/scm.h>
+#include <linux/io.h>
 
 #include "../core.h"
 #include "../pinconf.h"
@@ -39,7 +41,6 @@
 
 #define MAX_NR_GPIO 300
 #define PS_HOLD_OFFSET 0x820
-
 /**
  * struct msm_pinctrl - state for a pinctrl-msm device
  * @dev:            device handle.
@@ -696,7 +697,9 @@ static int msm_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	struct msm_pinctrl *pctrl;
 	unsigned long flags;
 	u32 val;
-
+	u32 addr;
+	int ret = 0;
+	const __be32 *reg;
 	pctrl = irq_data_get_irq_chip_data(d);
 	g = &pctrl->soc->groups[d->hwirq];
 
@@ -710,12 +713,32 @@ static int msm_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	else
 		clear_bit(d->hwirq, pctrl->dual_edge_irqs);
 
+	ret = of_device_is_compatible(pctrl->dev->of_node,
+					"qcom,ipq8064-pinctrl");
 	/* Route interrupts to application cpu */
-	val = readl(pctrl->regs + g->intr_target_reg);
-	val &= ~(7 << g->intr_target_bit);
-	val |= g->intr_target_kpss_val << g->intr_target_bit;
-	writel(val, pctrl->regs + g->intr_target_reg);
+	if (!ret) {
+		val = readl(pctrl->regs + g->intr_target_reg);
+		val &= ~(7 << g->intr_target_bit);
+		val |= g->intr_target_kpss_val << g->intr_target_bit;
+		writel(val, pctrl->regs + g->intr_target_reg);
+	} else {
+		reg = of_get_property(pctrl->dev->of_node, "reg", NULL);
+		if (reg) {
+			addr = be32_to_cpup(reg) + g->intr_target_reg;
+			val = scm_call_atomic1(SCM_SVC_IO_ACCESS,
+						SCM_IO_READ, addr);
+			__iormb();
 
+			val &= ~(7 << g->intr_target_bit);
+			val |= g->intr_target_kpss_val << g->intr_target_bit;
+
+			__iowmb();
+			ret = scm_call_atomic2(SCM_SVC_IO_ACCESS,
+						SCM_IO_WRITE, addr, val);
+		}
+		if (ret)
+			pr_err("\n Routing interrupts to Apps proc failed");
+	}
 	/* Update configuration for gpio.
 	 * RAW_STATUS_EN is left on for all gpio irqs. Due to the
 	 * internal circuitry of TLMM, toggling the RAW_STATUS
