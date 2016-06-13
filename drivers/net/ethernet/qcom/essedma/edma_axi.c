@@ -979,6 +979,9 @@ static int edma_axi_probe(struct platform_device *pdev)
 	edma_write_reg(EDMA_REG_VQ_CTRL0, EDMA_VQ_REG_VALUE);
 	edma_write_reg(EDMA_REG_VQ_CTRL1, EDMA_VQ_REG_VALUE);
 
+	/* Configure Max AXI Burst write size to 128 bytes*/
+	edma_write_reg(EDMA_REG_AXIW_CTRL_MAXWRSIZE, EDMA_AXIW_MAXWRSIZE_VALUE);
+
 	/* Enable All 16 tx and 8 rx irq mask */
 	edma_irq_enable(edma_cinfo);
 	edma_enable_tx_ctrl(&edma_cinfo->hw);
