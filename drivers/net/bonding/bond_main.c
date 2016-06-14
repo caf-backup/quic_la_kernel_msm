@@ -73,10 +73,12 @@
 #include <linux/if_bonding.h>
 #include <linux/jiffies.h>
 #include <linux/preempt.h>
+#include <net/ipv6.h>
 #include <net/route.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 #include <net/pkt_sched.h>
+#include <net/flow_keys.h>
 #include "bonding.h"
 #include "bond_3ad.h"
 #include "bond_alb.h"
@@ -3449,6 +3451,168 @@ static int bond_xmit_hash_policy_l2(struct sk_buff *skb, int count)
 	return (data->h_dest[5] ^ data->h_source[5]) % count;
 }
 
+/* L2 hash helper */
+static inline u32 bond_eth_hash(struct sk_buff *skb)
+{
+	struct ethhdr *data = (struct ethhdr *)skb->data;
+
+	if (skb_headlen(skb) >= offsetof(struct ethhdr, h_proto))
+		return data->h_dest[5] ^ data->h_source[5];
+
+	return 0;
+}
+
+/* Calculate a hash based on IPv6 address */
+static inline u32 ipv6_addr_hash(const struct in6_addr *a)
+{
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && BITS_PER_LONG == 64
+	const unsigned long *ul = (const unsigned long *)a;
+	unsigned long x = ul[0] ^ ul[1];
+
+	return (u32)(x ^ (x >> 32));
+#else
+	return (__force u32)(a->s6_addr32[0] ^ a->s6_addr32[1] ^
+			     a->s6_addr32[2] ^ a->s6_addr32[3]);
+#endif
+}
+
+static inline u32 bond_ipv6_addr_to_hash(const uint32_t *a)
+{
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && BITS_PER_LONG == 64
+	const unsigned long *ul = (const unsigned long *)a;
+	unsigned long x = ul[0] ^ ul[1];
+
+	return (u32)(x ^ (x >> 32));
+#else
+	return (__force u32)(a[0] ^ a[1] ^ a[2] ^ a[3]);
+#endif
+}
+
+/* This function extract the upper layer ports and return them */
+static __be32 bond_flow_get_ports(const struct sk_buff *skb, int noff, u8 ip_proto)
+{
+	__be32 *ports, _ports;
+	int poff;
+
+	poff = proto_ports_offset(ip_proto);
+	if (poff < 0)
+		return 0;
+
+	ports = skb_header_pointer(skb, noff + poff,
+					   sizeof(_ports), &_ports);
+	if (ports)
+		return *ports;
+
+	return 0;
+}
+
+/* Extract the appropriate headers based on bond's xmit policy */
+static bool bond_flow_dissect_without_skb(struct bonding *bond,
+					  uint8_t *src_mac, uint8_t *dst_mac,
+					  void *psrc, void *pdst,
+					  uint16_t protocol, __be16 *layer4hdr,
+					  struct flow_keys *fk)
+{
+	uint32_t *src = NULL;
+	uint32_t *dst = NULL;
+
+	fk->ports = 0;
+	src = (uint32_t *)psrc;
+	dst = (uint32_t *)pdst;
+
+	if (protocol == htons(ETH_P_IP)) {
+		fk->src = src[0];
+		fk->dst = dst[0];
+	} else if (protocol == htons(ETH_P_IPV6)) {
+		fk->src = (__force __be32)
+			   bond_ipv6_addr_to_hash((const uint32_t *)src);
+		fk->dst = (__force __be32)
+			   bond_ipv6_addr_to_hash((const uint32_t *)dst);
+	} else {
+		return false;
+	}
+	if ((bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER34) &&
+	    (layer4hdr != NULL))
+		fk->ports = *layer4hdr;
+
+	return true;
+}
+
+/* Extract the appropriate headers based on bond's xmit policy */
+static bool bond_flow_dissect(struct bonding *bond, struct sk_buff *skb,
+			      struct flow_keys *fk)
+{
+	const struct ipv6hdr *iph6;
+	const struct iphdr *iph;
+	int noff, proto = -1;
+
+	if (bond->params.xmit_policy > BOND_XMIT_POLICY_LAYER23)
+		return skb_flow_dissect(skb, fk);
+
+	fk->ports = 0;
+	noff = skb_network_offset(skb);
+	if (skb->protocol == htons(ETH_P_IP)) {
+		if (!pskb_may_pull(skb, noff + sizeof(*iph)))
+			return false;
+
+		iph = ip_hdr(skb);
+		fk->src = iph->saddr;
+		fk->dst = iph->daddr;
+		noff += iph->ihl << 2;
+		if (!ip_is_fragment(iph))
+			proto = iph->protocol;
+	} else if (skb->protocol == htons(ETH_P_IPV6)) {
+		if (!pskb_may_pull(skb, noff + sizeof(*iph6)))
+			return false;
+
+		iph6 = ipv6_hdr(skb);
+		fk->src = (__force __be32)ipv6_addr_hash(&iph6->saddr);
+		fk->dst = (__force __be32)ipv6_addr_hash(&iph6->daddr);
+		noff += sizeof(*iph6);
+		proto = iph6->nexthdr;
+	} else {
+		return false;
+	}
+
+	if (bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER34 &&
+							proto >= 0) {
+		fk->ports = bond_flow_get_ports(skb, noff, proto);
+	}
+
+	return true;
+}
+
+/**
+ * bond_xmit_hash - generate a hash value based on the xmit policy
+ * @bond: bonding device
+ * @skb: buffer to use for headers
+ * @count: modulo value
+ *
+ * This function will extract the necessary headers from the skb buffer and use
+ * them to generate a hash based on the xmit_policy set in the bonding device
+ * which will be reduced modulo count before returning.
+ */
+int bond_xmit_hash(struct bonding *bond, struct sk_buff *skb, int count)
+{
+	struct flow_keys flow;
+	u32 hash;
+
+	if (bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER2 ||
+	    !bond_flow_dissect(bond, skb, &flow))
+		return bond_eth_hash(skb) % count;
+
+	if (bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER23)
+		hash = bond_eth_hash(skb);
+	else
+		hash = (__force u32)flow.ports;
+
+	hash ^= (__force u32)flow.dst ^ (__force u32)flow.src;
+	hash ^= (hash >> 16);
+	hash ^= (hash >> 8);
+
+	return hash % count;
+}
+
 /*-------------------------- Device entry points ----------------------------*/
 
 static void bond_work_init_all(struct bonding *bond)
@@ -4063,42 +4227,35 @@ static int bond_xmit_activebackup(struct sk_buff *skb, struct net_device *bond_d
 }
 
 /*
- * bond_xmit_hash - Applies load balancing algorithm for a packet,
+ * bond_xmit_hash_without_skb - Applies load balancing algorithm for a packet,
  * to calculate hash for a given set of L2/L3 addresses. Does not
  * calculate egress interface.
  */
-uint32_t bond_xmit_hash(uint8_t *src_mac, uint8_t *dst_mac, void *psrc,
-			void *pdst, uint16_t protocol, struct net_device *bond_dev,
-			__be16 *layer4hdr)
+uint32_t bond_xmit_hash_without_skb(uint8_t *src_mac, uint8_t *dst_mac,
+				    void *psrc, void *pdst, uint16_t protocol,
+				    struct net_device *bond_dev,
+				    __be16 *layer4hdr)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
-	uint32_t src = *(uint32_t *)psrc;
-	uint32_t dst = *(uint32_t *)pdst;
-	int layer4_xor = 0;
+	struct flow_keys flow;
+	u32 hash;
 
-	if (bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER23) {
-		if (protocol == htons(ETH_P_IP)) {
-			return ((ntohl((uint32_t)src ^ (uint32_t)dst) & 0xffff) ^
-				(dst_mac[5] ^ src_mac[5]));
-		}
-	}
+	if (bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER2 ||
+	    !bond_flow_dissect_without_skb(bond, src_mac, dst_mac,
+					   psrc, pdst, protocol,
+					   layer4hdr, &flow))
+		return dst_mac[5] ^ src_mac[5];
 
-        /* L4 address is not NULL for UDP and TCP.
-	 * L4 address is NULL for IPv6 and non-ported packets
-	*/
-	if (bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER34) {
-		if (protocol == htons(ETH_P_IP)) {
-			if (layer4hdr) {
-				layer4_xor = ntohs((*layer4hdr ^ *(layer4hdr + 1)));
-			}
-			return layer4_xor ^ (ntohl((uint32_t)src ^ (uint32_t)dst) & 0xffff);
-		}
-	}
+	if (bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER23)
+		hash = dst_mac[5] ^ src_mac[5];
+	else if (layer4hdr != NULL)
+		hash = (__force u32)flow.ports;
 
-	/*
-	 * Use L2 addresses for non-IPv4 packets and for all other xmit policies
-	 */
-	return (dst_mac[5] ^ src_mac[5]);
+	hash ^= (__force u32)flow.dst ^ (__force u32)flow.src;
+	hash ^= (hash >> 16);
+	hash ^= (hash >> 8);
+
+	return hash;
 }
 
 /*
@@ -4124,12 +4281,13 @@ struct net_device *bond_xor_get_tx_dev(struct sk_buff *skb, uint8_t *src_mac,
 					__be16 *layer4hdr)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
+	int slave_cnt = ACCESS_ONCE(bond->slave_cnt);
 	struct slave *slave, *start_at;
 	int slave_no;
 	int i;
 
 	if (skb) {
-		slave_no = bond->xmit_hash_policy(skb, bond->slave_cnt);
+		slave_no = bond_xmit_hash(bond, skb, slave_cnt);
 	} else {
 		uint32_t hash;
 
@@ -4140,7 +4298,9 @@ struct net_device *bond_xor_get_tx_dev(struct sk_buff *skb, uint8_t *src_mac,
 			return NULL;
 		}
 
-		hash = bond_xmit_hash(src_mac, dst_mac, src, dst, protocol, bond_dev, layer4hdr);
+		hash = bond_xmit_hash_without_skb(src_mac, dst_mac, src,
+						  dst, protocol, bond_dev,
+						  layer4hdr);
 		slave_no = hash % bond->slave_cnt;
 	}
 
@@ -4192,9 +4352,11 @@ struct net_device *bond_get_tx_dev(struct sk_buff *skb, uint8_t *src_mac,
 
 	switch (bond->params.mode) {
 	case BOND_MODE_XOR:
-		return bond_xor_get_tx_dev(skb, src_mac, dst_mac, src, dst, protocol, bond_dev, layer4hdr);
+		return bond_xor_get_tx_dev(skb, src_mac, dst_mac, src,
+					   dst, protocol, bond_dev, layer4hdr);
 	case BOND_MODE_8023AD:
-		return bond_3ad_get_tx_dev(skb, src_mac, dst_mac, src, dst, protocol, bond_dev, layer4hdr);
+		return bond_3ad_get_tx_dev(skb, src_mac, dst_mac, src,
+					   dst, protocol, bond_dev, layer4hdr);
 	default:
 		return NULL;
 	}
