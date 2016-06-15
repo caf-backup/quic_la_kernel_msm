@@ -77,6 +77,11 @@ static struct snd_pcm_hardware ipq40xx_pcm_hardware_capture = {
 	.fifo_size		=	0,
 };
 
+static struct device *ss2dev(struct snd_pcm_substream *substream)
+{
+	return substream->pcm->card->dev;
+}
+
 static int ipq40xx_pcm_preallocate_dma_buffer(struct snd_pcm *pcm,
 						int stream)
 {
@@ -143,6 +148,44 @@ static snd_pcm_uframes_t ipq40xx_pcm_i2s_pointer(
 
 	ret = bytes_to_frames(runtime, pcm_rtpriv->curr_pos);
 	return ret;
+}
+
+static int ipq40xx_pcm_i2s_copy(struct snd_pcm_substream *substream, int chan,
+				snd_pcm_uframes_t hwoff, void __user *ubuf,
+				snd_pcm_uframes_t frames)
+{
+	struct snd_dma_buffer *buf = &substream->dma_buffer;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct ipq40xx_pcm_rt_priv *pcm_rtpriv = runtime->private_data;
+	char *hwbuf;
+	u32 offset, size;
+
+	offset = frames_to_bytes(runtime, hwoff);
+	size = frames_to_bytes(runtime, frames);
+
+	hwbuf = buf->area + offset;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+
+		if (copy_from_user(hwbuf, ubuf, size))
+			return -EFAULT;
+
+		dma_sync_single_for_device(ss2dev(substream),
+						buf->addr + offset,
+						size, DMA_TO_DEVICE);
+	} else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+		dma_sync_single_for_cpu(ss2dev(substream),
+						buf->addr + offset,
+						size, DMA_FROM_DEVICE);
+		if (copy_to_user(ubuf, hwbuf, size))
+			return -EFAULT;
+	}
+
+	ipq40xx_mbox_desc_own(pcm_rtpriv->channel, offset / size, 1);
+
+	ipq40xx_mbox_dma_resume(pcm_rtpriv->channel);
+
+	return 0;
 }
 
 static int ipq40xx_pcm_i2s_mmap(struct snd_pcm_substream *substream,
@@ -352,6 +395,7 @@ static struct snd_pcm_ops ipq40xx_asoc_pcm_i2s_ops = {
 	.prepare	= ipq40xx_pcm_i2s_prepare,
 	.mmap		= ipq40xx_pcm_i2s_mmap,
 	.pointer	= ipq40xx_pcm_i2s_pointer,
+	.copy		= ipq40xx_pcm_i2s_copy,
 };
 
 static void ipq40xx_asoc_pcm_i2s_free(struct snd_pcm *pcm)

@@ -54,6 +54,79 @@ enum {
 
 struct ipq40xx_mbox_rt_priv *mbox_rtime[ADSS_MBOX_NR_CHANNELS];
 
+static struct ipq40xx_mbox_desc *get_next(
+				struct ipq40xx_mbox_rt_dir_priv *rtdir,
+				struct ipq40xx_mbox_desc *desc)
+{
+	struct ipq40xx_mbox_desc *end;
+
+	end = rtdir->dma_virt_head + rtdir->ndescs;
+
+	desc++;
+
+	if (desc >= end)
+		desc = rtdir->dma_virt_head;
+
+	return desc;
+}
+
+void ipq40xx_mbox_desc_own(u32 channel_id, int desc_no, int own)
+{
+	struct ipq40xx_mbox_desc *desc;
+	struct ipq40xx_mbox_rt_dir_priv *rtdir;
+	u32 chan;
+	u32 dir;
+
+	chan = ipq40xx_convert_id_to_channel(channel_id);
+	dir = ipq40xx_convert_id_to_dir(channel_id);
+
+	rtdir = &mbox_rtime[chan]->dir_priv[dir];
+
+	desc = rtdir->dma_virt_head;
+	desc += desc_no;
+
+	rtdir->write = desc_no;
+
+	desc->OWN = own;
+	desc->ei = 1;
+}
+EXPORT_SYMBOL(ipq40xx_mbox_desc_own);
+
+uint32_t ipq40xx_mbox_get_played_offset(u32 channel_id)
+{
+	struct ipq40xx_mbox_desc *desc, *write;
+	struct ipq40xx_mbox_rt_dir_priv *rtdir;
+	unsigned int i, size_played = 0;
+	u32 chan;
+	u32 dir;
+
+	chan = ipq40xx_convert_id_to_channel(channel_id);
+	dir = ipq40xx_convert_id_to_dir(channel_id);
+
+	rtdir = &mbox_rtime[chan]->dir_priv[dir];
+
+	desc = rtdir->dma_virt_head;
+	write = &rtdir->dma_virt_head[rtdir->write];
+
+	desc += rtdir->read;
+
+	for (i = 0; i < rtdir->ndescs; i++) {
+		if (desc->OWN == 0) {
+			size_played = desc->size;
+			rtdir->read = (rtdir->read + 1) % rtdir->ndescs;
+		} else {
+			break;
+		}
+
+		if (desc == write)
+			break;
+
+		desc = get_next(rtdir, desc);
+	}
+
+	return size_played * rtdir->read;
+}
+
 int ipq40xx_mbox_fifo_reset(int channel_id)
 {
 	volatile void __iomem *mbox_reg;
@@ -143,6 +216,7 @@ EXPORT_SYMBOL(ipq40xx_mbox_dma_resume);
 int ipq40xx_mbox_dma_stop(int channel_id)
 {
 	volatile void __iomem *mbox_reg;
+	struct ipq40xx_mbox_rt_dir_priv *mbox_cb;
 	uint32_t index, dir;
 
 	index = ipq40xx_convert_id_to_channel(channel_id);
@@ -170,6 +244,10 @@ int ipq40xx_mbox_dma_stop(int channel_id)
 	DMA engine will be truly idle. */
 
 	mdelay(10);
+
+	mbox_cb = &mbox_rtime[index]->dir_priv[dir];
+	mbox_cb->read = 0;
+	mbox_cb->write = 0;
 
 	return 0;
 
@@ -361,6 +439,7 @@ int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr,
 	dma_addr_t desc_p, baseaddr_const;
 	unsigned int i, ndescs;
 	uint32_t index, dir;
+	struct ipq40xx_mbox_rt_dir_priv *mbox_cb;
 
 	index = ipq40xx_convert_id_to_channel(channel_id);
 	dir = ipq40xx_convert_id_to_dir(channel_id);
@@ -368,6 +447,7 @@ int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr,
 	if (!mbox_rtime[index])
 		return -ENOMEM;
 
+	mbox_cb = &mbox_rtime[index]->dir_priv[dir];
 	ndescs = ((bufsize + (period_bytes - 1)) / period_bytes);
 
 	if (ndescs < MBOX_MIN_DESC_NUM)
@@ -382,6 +462,8 @@ int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr,
 	}
 
 	memset(desc, 0, ndescs * sizeof(struct ipq40xx_mbox_desc));
+	mbox_cb->read = 0;
+	mbox_cb->write = 0;
 	mbox_rtime[index]->dir_priv[dir].ndescs = ndescs;
 	mbox_rtime[index]->dir_priv[dir].dma_virt_head = desc;
 	mbox_rtime[index]->dir_priv[dir].dma_phys_head = desc_p;
@@ -391,7 +473,7 @@ int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr,
 
 	for (i = 0; i < ndescs; i++) {
 
-		desc->OWN = 1;
+		desc->OWN = (dir == CAPTURE);
 		desc->ei = 1;
 		desc->rsvd1 = desc->rsvd2 = desc->rsvd3 = desc->EOM = 0;
 		desc->BufPtr = (baseaddr & 0xfffffff);
