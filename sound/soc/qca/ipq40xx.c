@@ -28,6 +28,7 @@
 #include <sound/pcm.h>
 #include <sound/jack.h>
 #include <asm/io.h>
+#include <linux/pinctrl/consumer.h>
 
 static struct snd_soc_dai_link ipq40xx_snd_dai[] = {
 	/* Front end DAI Links */
@@ -93,14 +94,32 @@ static int ipq40xx_audio_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct snd_soc_card *card = &snd_soc_card_qca;
+	struct dev_pin_info *pins;
+	struct pinctrl_state *pin_state;
 
 	card->dev = &pdev->dev;
+	pins = card->dev->pins;
+
+/*
+ * If the sound card registration fails, then the audio TLMM change
+ * is also reverted. Due to this, the pins are seen to toggle causing
+ * pop noise. To avoid this, the pins are set to GPIO state and moved
+ * to audio functionality only when the sound card registration is
+ * successful.
+ */
+	pin_state = pinctrl_lookup_state(pins->p, "audio");
+	if (IS_ERR(pin_state)) {
+		pr_err("audio pinctrl state not available\n");
+		return PTR_ERR(pin_state);
+	}
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret) {
 		pr_err("\nsnd_soc_register_card() failed:%d\n", ret);
 		return ret;
 	}
+
+	pinctrl_select_state(pins->p, pin_state);
 
 	return ret;
 }
