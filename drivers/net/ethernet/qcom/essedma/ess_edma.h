@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 - 2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014 - 2016, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -258,6 +258,10 @@ struct edma_hw;
 #define EDMA_FIFO_THRESH_64_BYTE 0x1
 #define EDMA_RXQ_CTRL_RMV_VLAN 0x00000002
 #define EDMA_RXQ_CTRL_EN 0x0000FF00
+
+/* AXI Burst Size Config */
+#define EDMA_REG_AXIW_CTRL_MAXWRSIZE 0xA1C
+#define EDMA_AXIW_MAXWRSIZE_VALUE 0x0
 
 /* Rx Statistics Register */
 #define EDMA_REG_RX_STAT_BYTE_Q(x) (0xA30 + ((x) << 2)) /* x = queue id */
