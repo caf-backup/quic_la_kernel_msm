@@ -3742,7 +3742,7 @@ static int _sha_update(struct ahash_request  *req, uint32_t sha_block_size)
 	sg_last = req->src;
 
 	while (len < nbytes) {
-		if ((len + sg_last->length) > nbytes)
+		if (!sg_last || (len + sg_last->length) > nbytes)
 			break;
 		len += sg_last->length;
 		sg_last = sg_next(sg_last);
