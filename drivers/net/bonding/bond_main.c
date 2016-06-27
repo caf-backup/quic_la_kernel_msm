@@ -1243,7 +1243,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	struct slave *new_slave = NULL, *prev_slave;
 	struct sockaddr addr;
 	int link_reporting;
-	int res = 0, i, mac_stolen = 0;
+	int res = 0, i, mac_stolen = 0, same_addr;
 
 	if (!bond->params.use_carrier &&
 	    slave_dev->ethtool_ops->get_link == NULL &&
@@ -1338,6 +1338,9 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		goto err_undo_flags;
 	}
 
+	same_addr = (memcmp(bond_dev->dev_addr, slave_dev->dev_addr,
+			    ETH_ALEN) == 0);
+
 	if (slave_ops->ndo_set_mac_address == NULL) {
 		if (!bond_has_slaves(bond)) {
 			pr_warn("%s: Warning: The first slave device specified does not support setting the MAC address.\n",
@@ -1347,6 +1350,9 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 				pr_warn("%s: Setting fail_over_mac to active for active-backup mode.\n",
 					bond_dev->name);
 			}
+		} else if (bond_is_l2da(bond) && same_addr) {
+			pr_warn("%s: Warning: Slave device does not support setting the MAC address. ignore due to same address.\n",
+				bond_dev->name);
 		} else if (bond->params.fail_over_mac != BOND_FOM_ACTIVE) {
 			pr_err("%s: Error: The slave device specified does not support setting the MAC address, but fail_over_mac is not set to active.\n",
 			       bond_dev->name);
@@ -1393,8 +1399,10 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	if ((!bond->params.fail_over_mac ||
 	     bond->params.mode != BOND_MODE_ACTIVEBACKUP) &&
-	    /* skip for first slave in l2da mode */
-	    !(mac_stolen && bond_is_l2da(bond))) {
+	    /* In l2da mode, skip for first slave and skip if
+	     * slave's address is already same as bond's address.
+	     */
+	    !(bond_is_l2da(bond) && (mac_stolen || same_addr))) {
 		/*
 		 * Set slave to master's mac address.  The application already
 		 * set the master's mac address to that of the first slave
