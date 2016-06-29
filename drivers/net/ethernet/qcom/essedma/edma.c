@@ -15,6 +15,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/if_vlan.h>
+#include <linux/kernel.h>
 #include "ess_edma.h"
 #include "edma.h"
 
@@ -389,7 +390,7 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 	    sw_next_to_clean, hw_next_to_clean = 0, vlan = 0, ret_count = 0;
         volatile u32 data = 0;
 	u8 *vaddr;
-	int port_id, priority, i, drop_count = 0;
+	int port_id, priority, i, drop_count = 0, non_linear = 0;
 	u16 count = erdr->count, rfd_avail;
 	u8 queue_to_rxid[8] = {0, 0, 1, 1, 2, 2, 3, 3};
 	sw_next_to_clean = erdr->sw_next_to_clean;
@@ -503,56 +504,55 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 			 	 * starts from an offset of 16.
 			 	 */
 				skb_reserve(skb, 16);
-				if (likely(!edma_cinfo->fraglist_mode)) {
+				if (likely(num_rfds <= 1)) {
 					skb_put(skb, length);
 				} else {
-					if (likely(num_rfds <= 1)) {
-						skb_put(skb, length);
-					} else {
-						struct sk_buff *skb_temp;
-						struct edma_hw *hw = &edma_cinfo->hw;
-						u16 size_remaining;
+					struct sk_buff *skb_temp;
+					struct edma_hw *hw = &edma_cinfo->hw;
+					u16 size_remaining;
 
-						skb->data_len = 0;
-						skb->tail += (hw->rx_head_buff_size - 16);
-						skb->len = skb->truesize = length;
-						size_remaining = length - (hw->rx_head_buff_size - 16);
+					skb->data_len = 0;
+					skb->tail += (hw->rx_head_buff_size - 16);
+					skb->len = skb->truesize = length;
+					size_remaining = length - (hw->rx_head_buff_size - 16);
 
-						/* clean-up all related sw_descs */
-						for (i = 1; i < num_rfds; i++) {
-							struct sk_buff *skb_prev;
-							sw_desc = &erdr->sw_desc[sw_next_to_clean];
-							skb_temp = sw_desc->skb;
+					/* clean-up all related sw_descs */
+					for (i = 1; i < num_rfds; i++) {
+						struct sk_buff *skb_prev;
+						sw_desc = &erdr->sw_desc[sw_next_to_clean];
+						skb_temp = sw_desc->skb;
 
-							dma_unmap_single(&pdev->dev, sw_desc->dma,
-								sw_desc->length, DMA_FROM_DEVICE);
+						dma_unmap_single(&pdev->dev, sw_desc->dma,
+							sw_desc->length, DMA_FROM_DEVICE);
 
-							if (size_remaining < hw->rx_head_buff_size)
-								skb_put(skb_temp, size_remaining);
-							else
-								skb_put(skb_temp, hw->rx_head_buff_size);
+						if (size_remaining < hw->rx_head_buff_size)
+							skb_put(skb_temp, size_remaining);
+						else
+							skb_put(skb_temp, hw->rx_head_buff_size);
 
-							/*
-							 * If we are processing the first rfd, we link
-							 * skb->frag_list to the skb corresponding to the
-							 * first RFD
-						 	 */
-							if (i == 1)
-								skb_shinfo(skb)->frag_list = skb_temp;
-							else
-								skb_prev->next = skb_temp;
-							skb_prev = skb_temp;
-							skb_temp->next = NULL;
+						/*
+						 * If we are processing the first rfd, we link
+						 * skb->frag_list to the skb corresponding to the
+						 * first RFD
+						 */
+						if (i == 1)
+							skb_shinfo(skb)->frag_list = skb_temp;
+						else
+							skb_prev->next = skb_temp;
+						skb_prev = skb_temp;
+						skb_temp->next = NULL;
 
-							skb->data_len += skb_temp->len;
-							size_remaining -= skb_temp->len;
+						skb->data_len += skb_temp->len;
+						size_remaining -= skb_temp->len;
 
-							/* Increment SW index */
-							sw_next_to_clean = (sw_next_to_clean + 1) & (erdr->count - 1);
-							cleaned_count++;
-						}
+						/* Increment SW index */
+						sw_next_to_clean = (sw_next_to_clean + 1) & (erdr->count - 1);
+						cleaned_count++;
 					}
 				}
+
+				if ((non_linear && (netdev->features & NETIF_F_FRAGLIST)) == 0)
+					skb_linearize(skb);
 			} else {
 				skb_frag_t *frag = &skb_shinfo(skb)->frags[0];
 				frag->page_offset += 16;
@@ -1892,11 +1892,13 @@ void edma_fill_netdev(struct edma_common_info *edma_cinfo, int queue_id, int dev
  * edma_change_mtu()
  *	change the MTU of the NIC.
  */
-int edma_change_mtu(struct net_device *netdev, int new_mtu)
+int edma_change_mtu(struct net_device *dev, int new_mtu)
 {
-	struct edma_adapter *adapter = netdev_priv(netdev);
+	struct edma_adapter *adapter = netdev_priv(dev);
+	struct edma_adapter *adap_wan = netdev_priv(netdev[0]);
+	struct edma_adapter *adap_lan = netdev_priv(netdev[1]);
 	struct edma_common_info *edma_cinfo = adapter->edma_cinfo;
-	int old_mtu = netdev->mtu;
+	int old_mtu = dev->mtu;
 	int max_frame_size = new_mtu + ETH_HLEN + ETH_FCS_LEN + (2 * VLAN_HLEN);
 
 	if ((max_frame_size < ETH_ZLEN + ETH_FCS_LEN) ||
@@ -1907,8 +1909,43 @@ int edma_change_mtu(struct net_device *netdev, int new_mtu)
 
 	/* set MTU */
 	if (old_mtu != new_mtu) {
-		netdev->mtu = new_mtu;
-		netdev_update_features(netdev);
+		dev->mtu = new_mtu;
+		netdev_update_features(dev);
+	}
+
+	if (!edma_cinfo->fraglist_mode && !edma_cinfo->page_mode) {
+		u16 new_frame_size = new_mtu + EDMA_RX_DEFAULT_PAD;
+		volatile u32 data;
+		int i, j, ret_count;
+
+		edma_read_reg(EDMA_REG_RXQ_CTRL, &data);
+		data &= ~EDMA_RXQ_CTRL_EN;
+		edma_write_reg(EDMA_REG_RXQ_CTRL, data);
+
+		if (adapter->flags & EDMA_ADAPTER_FLAG_WAN) {
+			edma_cinfo->rx_head_buffer_len = max(new_frame_size, adap_lan->rx_buf_len);
+			adap_wan->rx_buf_len = new_frame_size;
+		} else {
+			edma_cinfo->rx_head_buffer_len = max(new_frame_size, adap_wan->rx_buf_len);
+			adap_lan->rx_buf_len = new_frame_size;
+		}
+
+		for (i = 0, j = 0; i < edma_cinfo->num_rx_queues; i++) {
+			struct edma_rfd_desc_ring *ring = edma_cinfo->rfd_ring[j];
+			ret_count = edma_alloc_rx_buf(edma_cinfo, ring, ring->count, j);
+			if (ret_count) {
+				dev_dbg(&edma_cinfo->pdev->dev, "not all rx buffers allocated\n");
+			}
+			j += ((edma_cinfo->num_rx_queues == 4) ? 2 : 1);
+		}
+
+		edma_read_reg(EDMA_REG_RX_DESC0, &data);
+		data |= (edma_cinfo->rx_head_buffer_len & EDMA_RX_BUF_SIZE_MASK)
+				<< EDMA_RX_BUF_SIZE_SHIFT;
+
+		edma_read_reg(EDMA_REG_RXQ_CTRL, &data);
+		data |= EDMA_RXQ_CTRL_EN;
+		edma_write_reg(EDMA_REG_RXQ_CTRL, data);
 	}
 
 	return 0;

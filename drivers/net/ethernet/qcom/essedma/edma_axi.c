@@ -56,7 +56,7 @@ static int overwrite_mode;
 module_param(overwrite_mode, int, 0);
 MODULE_PARM_DESC(overwrite_mode, "overwrite default page_mode setting");
 
-static int jumbo_mru = EDMA_RX_HEAD_BUFF_SIZE;
+static int jumbo_mru = 0;
 module_param(jumbo_mru, int, 0);
 MODULE_PARM_DESC(jumbo_mru, "enable fraglist support");
 
@@ -577,15 +577,16 @@ static int edma_axi_probe(struct platform_device *pdev)
 			adapter[i]->forced_duplex = DUPLEX_UNKNOWN;
 		}
 
+		adapter[i]->rx_buf_len = EDMA_RX_HEAD_BUFF_SIZE;
 		adapter[i]->edma_cinfo = edma_cinfo;
 		netdev[i]->netdev_ops = &edma_axi_netdev_ops;
 		netdev[i]->features = NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_CTAG_TX
 				| NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_SG | NETIF_F_TSO |
-					NETIF_F_TSO6 | NETIF_F_GRO;
+					NETIF_F_TSO6 | NETIF_F_GRO | NETIF_F_FRAGLIST;
 		netdev[i]->hw_features = NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_CTAG_RX
-				| NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GRO;
-		netdev[i]->vlan_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GRO;
-		netdev[i]->wanted_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GRO;
+				| NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GRO | NETIF_F_FRAGLIST;
+		netdev[i]->vlan_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GRO | NETIF_F_FRAGLIST;
+		netdev[i]->wanted_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GRO | NETIF_F_FRAGLIST;
 
 #ifdef CONFIG_RFS_ACCEL
 		netdev[i]->features |=  NETIF_F_RXHASH | NETIF_F_NTUPLE;
@@ -593,13 +594,6 @@ static int edma_axi_probe(struct platform_device *pdev)
 		netdev[i]->vlan_features |= NETIF_F_RXHASH | NETIF_F_NTUPLE;
 		netdev[i]->wanted_features |= NETIF_F_RXHASH | NETIF_F_NTUPLE;
 #endif
-
-		if (edma_cinfo->fraglist_mode) {
-			netdev[i]->features |= NETIF_F_FRAGLIST;
-			netdev[i]->hw_features |= NETIF_F_FRAGLIST;
-			netdev[i]->vlan_features |= NETIF_F_FRAGLIST;
-			netdev[i]->wanted_features |= NETIF_F_FRAGLIST;
-		}
 
 		edma_set_ethtool_ops(netdev[i]);
 
@@ -640,10 +634,12 @@ static int edma_axi_probe(struct platform_device *pdev)
 		goto err_unregister_sysctl_tbl;
 	}
 
-	/* Set default LAN tag */
+	/* Set default LAN tag*/
 	adapter[EDMA_LAN]->default_vlan_tag = EDMA_LAN_DEFAULT_VLAN;
-	/* Set default WAN tag */
+
+	/* Set default WAN tag & flags */
         adapter[EDMA_WAN]->default_vlan_tag = EDMA_WAN_DEFAULT_VLAN;
+        adapter[EDMA_WAN]->flags = EDMA_ADAPTER_FLAG_WAN;
 
 	if (of_property_read_bool(np, "qcom,mdio_supported")) {
 		adapter[EDMA_WAN]->poll_required =

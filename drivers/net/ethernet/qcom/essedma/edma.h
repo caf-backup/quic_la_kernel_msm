@@ -88,6 +88,9 @@
 #define EDMA_RX_HEAD_BUFF_SIZE_JUMBO 256
 #define EDMA_RX_HEAD_BUFF_SIZE 1540
 
+/* This is the extra byte required above default MTU(1500) */
+#define EDMA_RX_DEFAULT_PAD 40
+
 /* MAX frame size supported by switch */
 #define EDMA_MAX_JUMBO_FRAME_SIZE 9216
 
@@ -124,6 +127,7 @@
 #define EDMA_SW_DESC_FLAG_SKB_NONE 0x10
 #define EDMA_SW_DESC_FLAG_SKB_REUSE 0x20
 
+#define EDMA_ADAPTER_FLAG_WAN 0x1
 
 #define EDMA_MAX_SKB_FRAGS (MAX_SKB_FRAGS + 1)
 
@@ -385,6 +389,7 @@ struct edma_adapter {
 	bool poll_required; /* check if link polling is required */
 	u32 tx_start_offset[EDMA_NR_CPU]; /* tx queue start */
 	int default_vlan_tag; /* vlan tag */
+	u16 rx_buf_len; /* rx default buffer len lan */
 };
 
 int edma_alloc_queues_tx(struct edma_common_info *edma_cinfo);
