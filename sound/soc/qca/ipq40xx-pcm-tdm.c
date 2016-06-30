@@ -76,44 +76,117 @@ static struct snd_pcm_hardware ipq40xx_pcm_hardware_capture = {
 	.periods_max		=	IPQ40xx_TDM_NO_OF_PERIODS,
 	.fifo_size		=	0,
 };
+static size_t ip40xx_dma_buffer_size(struct snd_pcm_hardware *pcm_hw)
+{
+	return pcm_hw->buffer_bytes_max +
+		(pcm_hw->periods_min * sizeof(struct ipq40xx_mbox_desc));
+}
+
+/*
+ * The MBOX descriptors and buffers should lie within the same 256MB
+ * region. Because, the buffer address pointer (in the descriptor structure)
+ * and descriptor base address pointer register share the same MSB 4 bits
+ * which is configured in MBOX DMA Policy register.
+ *
+ * Hence ensure that the entire allocated region falls in a 256MB region.
+ */
+static int ipq40xx_mbox_buf_is_aligned(void *c_ptr, ssize_t size)
+{
+	u32 ptr = (u32)c_ptr;
+
+	return (ptr & 0xF0000000) == ((ptr + size - 1) & 0xF0000000);
+}
+
+static struct device *ss2dev(struct snd_pcm_substream *substream)
+{
+	return substream->pcm->card->dev;
+}
 
 static int ipq40xx_pcm_preallocate_dma_buffer(struct snd_pcm *pcm,
 						int stream)
 {
 	struct snd_pcm_substream *substream = pcm->streams[stream].substream;
+	struct snd_pcm_hardware *pcm_hw;
 	struct snd_dma_buffer *buf = &substream->dma_buffer;
 	size_t size;
+	u8 *area;
+	dma_addr_t addr;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		size = ipq40xx_pcm_hardware_playback.buffer_bytes_max;
+		pcm_hw = &ipq40xx_pcm_hardware_playback;
 	else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
-		size = ipq40xx_pcm_hardware_capture.buffer_bytes_max;
+		pcm_hw = &ipq40xx_pcm_hardware_capture;
 	else
 		return -EINVAL;
 
+	size = ip40xx_dma_buffer_size(pcm_hw);
 	buf->dev.type = SNDRV_DMA_TYPE_DEV;
 	buf->dev.dev = pcm->card->dev;
 	buf->private_data = NULL;
-	buf->area = dma_alloc_coherent(pcm->card->dev, size,
-					&buf->addr, GFP_KERNEL);
-	if (!buf->area)
+	/*
+	 * Currently payload uses uncached memory.
+	 * TODO: Eventually we will move to cached memory for payload
+	 * and dma_map_single() will be used for Invalidating/Flushing
+	 * the buffers.
+	 */
+
+	area = dma_alloc_coherent(pcm->card->dev, size, &addr, GFP_KERNEL);
+
+	if (!area) {
+		dev_info(ss2dev(substream), "Alloc coherent memory failed\n");
 		return -ENOMEM;
-	buf->bytes = size;
+	}
+
+	if (!ipq40xx_mbox_buf_is_aligned(area, size)) {
+		dev_info(ss2dev(substream),
+			 "First allocation %p not within 256M region\n", area);
+
+		buf->area = dma_alloc_coherent(pcm->card->dev, size,
+						&buf->addr, GFP_KERNEL);
+		/*
+		 * If we are here, the previously allocated buffer is not
+		 * usable for the driver. Have to free it anyway regardless
+		 * of the success/failure of the second allocation.
+		 */
+		dma_free_coherent(pcm->card->dev, size, area, addr);
+		if (!buf->area) {
+			dev_info(ss2dev(substream),
+				 "Second Alloc coherent memory failed\n");
+			return -ENOMEM;
+		}
+	} else {
+		buf->area = area;
+		buf->addr = addr;
+	}
+
+	buf->bytes = pcm_hw->buffer_bytes_max;
 
 	return 0;
+
 }
 
 static void ipq40xx_pcm_free_dma_buffer(struct snd_pcm *pcm, int stream)
 {
 	struct snd_pcm_substream *substream;
+	struct snd_pcm_hardware *pcm_hw;
 	struct snd_dma_buffer *buf;
+	size_t size;
 
 	substream = pcm->streams[stream].substream;
 	buf = &substream->dma_buffer;
-	if (buf->area) {
-		dma_free_coherent(pcm->card->dev, buf->bytes,
-					buf->area, buf->addr);
+	switch (stream) {
+	case SNDRV_PCM_STREAM_PLAYBACK:
+		pcm_hw = &ipq40xx_pcm_hardware_playback;
+		break;
+	case SNDRV_PCM_STREAM_CAPTURE:
+		pcm_hw = &ipq40xx_pcm_hardware_capture;
+		break;
 	}
+
+	size = ip40xx_dma_buffer_size(pcm_hw);
+
+	dma_free_coherent(pcm->card->dev, size, buf->area, buf->addr);
+
 	buf->area = NULL;
 }
 
@@ -143,6 +216,36 @@ static snd_pcm_uframes_t ipq40xx_pcm_tdm_pointer(
 
 	ret = bytes_to_frames(runtime, pcm_rtpriv->curr_pos);
 	return ret;
+}
+
+static int ipq40xx_pcm_tdm_copy(struct snd_pcm_substream *substream, int chan,
+				snd_pcm_uframes_t hwoff, void __user *ubuf,
+				snd_pcm_uframes_t frames)
+{
+	struct snd_dma_buffer *buf = &substream->dma_buffer;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct ipq40xx_pcm_rt_priv *pcm_rtpriv = runtime->private_data;
+	char *hwbuf;
+	u32 offset, size;
+
+	offset = frames_to_bytes(runtime, hwoff);
+	size = frames_to_bytes(runtime, frames);
+
+	hwbuf = buf->area + offset;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		if (copy_from_user(hwbuf, ubuf, size))
+			return -EFAULT;
+	} else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+		if (copy_to_user(ubuf, hwbuf, size))
+			return -EFAULT;
+	}
+
+	ipq40xx_mbox_desc_own(pcm_rtpriv->channel, offset / size, 1);
+
+	ipq40xx_mbox_dma_resume(pcm_rtpriv->channel);
+
+	return 0;
 }
 
 static int ipq40xx_pcm_tdm_mmap(struct snd_pcm_substream *substream,
@@ -188,8 +291,12 @@ static int ipq40xx_pcm_tdm_prepare(struct snd_pcm_substream *substream)
 static int ipq40xx_pcm_tdm_close(struct snd_pcm_substream *substream)
 {
 	struct ipq40xx_pcm_rt_priv *pcm_rtpriv;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *dai = rtd->cpu_dai;
+	u32 intf = dai->driver->id;
 	uint32_t ret;
 
+	ipq40xx_stereo_config_enable(DISABLE, get_stereo_id(substream, intf));
 	pcm_rtpriv = substream->runtime->private_data;
 	if (!pcm_rtpriv)
 		return -EINVAL;
@@ -214,10 +321,6 @@ static int ipq40xx_pcm_tdm_trigger(struct snd_pcm_substream *substream, int cmd)
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
-		/* Enable the I2S Stereo block for operation */
-		ipq40xx_stereo_config_enable(ENABLE,
-					get_stereo_id(substream, TDM));
-
 		ret = ipq40xx_mbox_dma_start(pcm_rtpriv->channel);
 		if (ret) {
 			pr_err("%s: %d: Error in dma start\n",
@@ -235,10 +338,6 @@ static int ipq40xx_pcm_tdm_trigger(struct snd_pcm_substream *substream, int cmd)
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
-		/* Disable the I2S Stereo block */
-		ipq40xx_stereo_config_enable(DISABLE,
-					get_stereo_id(substream, TDM));
-
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		ret = ipq40xx_mbox_dma_stop(pcm_rtpriv->channel);
 		if (ret) {
@@ -359,6 +458,7 @@ static struct snd_pcm_ops ipq40xx_asoc_pcm_tdm_ops = {
 	.prepare	= ipq40xx_pcm_tdm_prepare,
 	.mmap		= ipq40xx_pcm_tdm_mmap,
 	.pointer	= ipq40xx_pcm_tdm_pointer,
+	.copy		= ipq40xx_pcm_tdm_copy,
 };
 
 static void ipq40xx_asoc_pcm_tdm_free(struct snd_pcm *pcm)

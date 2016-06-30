@@ -106,6 +106,7 @@ struct ipq40xx_mbox_rt_priv {
 	int irq_no;
 	volatile void __iomem *mbox_reg_base;
 	struct ipq40xx_mbox_rt_dir_priv dir_priv[2];
+	int mbox_started;
 };
 
 /* Replaces struct ath_i2s_softc */
