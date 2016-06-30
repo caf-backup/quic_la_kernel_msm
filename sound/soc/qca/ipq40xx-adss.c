@@ -39,6 +39,27 @@ static spinlock_t i2s_ctrl_lock;
 static spinlock_t tdm_ctrl_lock;
 static spinlock_t glb_mode_lock;
 
+/* API to write ADSS registers */
+void ipq40xx_audio_adss_writel(uint32_t val, uint32_t offset)
+{
+	if (!adss_audio_local_base) {
+		pr_err("adss_audio_local_base not mapped\n");
+		return;
+	}
+	writel(val, adss_audio_local_base + offset);
+}
+EXPORT_SYMBOL(ipq40xx_audio_adss_writel);
+
+/* API to read ADSS regitsers */
+uint32_t ipq40xx_audio_adss_readl(uint32_t offset)
+{
+	if (adss_audio_local_base)
+		return readl(adss_audio_local_base + offset);
+	pr_err("adss_audio_local_base not mapped\n");
+	return 0;
+}
+EXPORT_SYMBOL(ipq40xx_audio_adss_readl);
+
 /* I2S Interface Enable */
 void ipq40xx_glb_i2s_interface_en(int enable)
 {
@@ -391,6 +412,22 @@ void ipq40xx_glb_spdif_out_en(uint32_t enable)
 }
 EXPORT_SYMBOL(ipq40xx_glb_spdif_out_en);
 
+void ipq40xx_audio_adss_init(void)
+{
+	spin_lock_init(&i2s_ctrl_lock);
+	spin_lock_init(&tdm_ctrl_lock);
+	spin_lock_init(&glb_mode_lock);
+
+	/* I2S in reset */
+	ipq40xx_glb_i2s_reset(1);
+
+	/* Enable I2S interface */
+	ipq40xx_glb_i2s_interface_en(ENABLE);
+
+	ipq40xx_glb_audio_mode_B1K();
+}
+EXPORT_SYMBOL(ipq40xx_audio_adss_init);
+
 static const struct of_device_id ipq40xx_audio_adss_id_table[] = {
 	{ .compatible = "qca,ipq40xx-audio-adss" },
 	{},
@@ -414,18 +451,6 @@ static int ipq40xx_audio_adss_probe(struct platform_device *pdev)
 	audio_blk_rst = devm_reset_control_get(&pdev->dev, "blk_rst");
 	if (IS_ERR(audio_blk_rst))
 		return PTR_ERR(audio_blk_rst);
-
-	spin_lock_init(&i2s_ctrl_lock);
-	spin_lock_init(&tdm_ctrl_lock);
-	spin_lock_init(&glb_mode_lock);
-
-	/* I2S in reset */
-	ipq40xx_glb_i2s_reset(1);
-
-	/* Enable I2S interface */
-	ipq40xx_glb_i2s_interface_en(ENABLE);
-
-	ipq40xx_glb_audio_mode_B1K();
 
 	return 0;
 }

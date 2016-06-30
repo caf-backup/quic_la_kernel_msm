@@ -693,6 +693,15 @@
 			status = "disabled";
 		};
 
+		pwm {
+			compatible = "qca,ipq4019-pwm";
+			clocks = <&gcc GCC_AUDIO_PWM_CLK>;
+			clock-names = "core";
+			pwm-base-index = <0>;
+			used-pwm-indices = <1>, <1>, <1>, <1>;
+			status = "disabled";
+		};
+
 		qcom: ledc@1937000  {
 			compatible = "qca,ledc";
 			reg = <0x1937000 0x20070>;

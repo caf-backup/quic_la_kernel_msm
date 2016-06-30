@@ -579,6 +579,9 @@ extern void ipq40xx_spdifin_ctrl_spdif_en(uint32_t enable);
 extern void ipq40xx_glb_spdif_out_en(uint32_t enable);
 extern void ipq40xx_spdifin_cfg(void);
 extern void ipq40xx_glb_clk_enable_oe(uint32_t dir);
+extern void ipq40xx_audio_adss_init(void);
+extern void ipq40xx_audio_adss_writel(uint32_t val, uint32_t offset);
+extern uint32_t ipq40xx_audio_adss_readl(uint32_t offset);
 /* Stereo APIs */
 extern void ipq40xx_stereo_config_reset(uint32_t reset, uint32_t stereo_offset);
 extern void ipq40xx_stereo_config_mic_reset(uint32_t reset, uint32_t stereo_offset);
