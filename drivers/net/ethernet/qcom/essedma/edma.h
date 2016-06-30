@@ -41,24 +41,32 @@
 #include <asm-generic/bug.h>
 #include "ess_edma.h"
 
+/* Number of Core/queues */
 #define EDMA_NR_CPU 4
 #define EDMA_NR_NETDEV 2
 #define EDMA_MAX_RECEIVE_QUEUE 8
 #define EDMA_MAX_TRANSMIT_QUEUE 16
-#define EDMA_PORT_ID_SHIFT 12
-#define EDMA_PORT_ID_MASK 0x7
+
+/* WAN/LAN adapter number */
 #define EDMA_WAN 0
 #define EDMA_LAN 1
-#define EDMA_LAN_DEFAULT 1
-#define EDMA_WAN_DEFAULT 2
-#define EDMA_PORT_SHIFT 1
 
-#define EDMA_NETDEV_TX_QUEUE 4 /* TX queue exposed to Linux kernel */
-#define EDMA_NETDEV_RX_QUEUE 4 /* RX queue exposed to Linux kernel */
+/* VLAN tag */
+#define EDMA_LAN_DEFAULT_VLAN 1
+#define EDMA_WAN_DEFAULT_VLAN 2
 
+/* Queues exposed to linux kernel */
+#define EDMA_NETDEV_TX_QUEUE 4
+#define EDMA_NETDEV_RX_QUEUE 4
+
+/* Number of queues per core */
 #define EDMA_NUM_TXQ_PER_CORE 4
 #define EDMA_NUM_RXQ_PER_CORE 2
+
 #define EDMA_TPD_EOP_SHIFT 31
+
+#define EDMA_PORT_ID_SHIFT 12
+#define EDMA_PORT_ID_MASK 0x7
 
 /* tpd word 3 bit 18-28 */
 #define EDMA_TPD_PORT_BITMAP_SHIFT 18
@@ -76,16 +84,19 @@
 #define EDMA_RX_RING_SIZE 512
 #define EDMA_TX_RING_SIZE 512
 
+/* Flags used in paged/non paged mode */
 #define EDMA_RX_HEAD_BUFF_SIZE_JUMBO 256
 #define EDMA_RX_HEAD_BUFF_SIZE 1540
 
+/* MAX frame size supported by switch */
 #define EDMA_MAX_JUMBO_FRAME_SIZE 9216
 
+/* Configurations */
 #define EDMA_INTR_CLEAR_TYPE 0
 #define EDMA_INTR_SW_IDX_W_TYPE 0
 #define EDMA_FIFO_THRESH_TYPE 0
 #define EDMA_RSS_TYPE 0
-#define EDMA_RX_IMT 0x0008
+#define EDMA_RX_IMT 0x0020
 #define EDMA_TX_IMT 0x0050
 #define EDMA_TPD_BURST 5
 #define EDMA_TXF_BURST 0x100
@@ -93,6 +104,7 @@
 #define EDMA_RFD_THR 16
 #define EDMA_RFD_LTHR 0
 
+/* RX/TX per CPU based mask/shift */
 #define EDMA_TX_PER_CPU_MASK 0xF
 #define EDMA_RX_PER_CPU_MASK 0x3
 #define EDMA_TX_PER_CPU_MASK_SHIFT 0x2
@@ -100,6 +112,7 @@
 #define EDMA_TX_CPU_START_SHIFT 0x2
 #define EDMA_RX_CPU_START_SHIFT 0x1
 
+/* FLags used in transmit direction */
 #define EDMA_HW_CHECKSUM 0x00000001
 #define EDMA_VLAN_TX_TAG_INSERT_FLAG 0x00000002
 #define EDMA_VLAN_TX_TAG_INSERT_DEFAULT_FLAG 0x00000004
@@ -121,15 +134,14 @@
 					| SUPPORTED_100baseT_Full \
 					| SUPPORTED_1000baseT_Full)
 
+/* Recevie side atheros Header */
 #define EDMA_RX_ATH_HDR_VERSION 0x2
 #define EDMA_RX_ATH_HDR_VERSION_SHIFT 14
 #define EDMA_RX_ATH_HDR_PRIORITY_SHIFT 11
 #define EDMA_RX_ATH_PORT_TYPE_SHIFT 6
 #define EDMA_RX_ATH_HDR_RSTP_PORT_TYPE 0x4
 
-#define EDMA_ETH_HDR_LEN 12
-#define EDMA_ETH_TYPE_MASK 0xFFFF
-
+/* Transmit side atheros Header */
 #define EDMA_TX_ATH_HDR_PORT_BITMAP_MASK 0x7F
 #define EDMA_TX_ATH_HDR_FROM_CPU_MASK 0x80
 #define EDMA_TX_ATH_HDR_FROM_CPU_SHIFT 7
@@ -144,11 +156,13 @@
 #define EDMA_TXQ_IRQ_MASK_CORE2 0x000F
 #define EDMA_TXQ_IRQ_MASK_CORE3 0x00F0
 
+#define EDMA_ETH_HDR_LEN 12
+#define EDMA_ETH_TYPE_MASK 0xFFFF
+
 #define EDMA_RX_BUFFER_WRITE 16
 #define EDMA_RFD_AVAIL_THR 80
 
 #define EDMA_GMAC_NO_MDIO_PHY	PHY_MAX_ADDR
-
 
 struct edma_ethtool_statistics {
 	uint32_t tx_q0_pkt;
@@ -269,8 +283,8 @@ struct edma_sw_desc {
 	u32 flags;
 };
 
-/* per core queue related information */
-struct queue_per_cpu_info {
+/* per core related information */
+struct edma_per_cpu_queues_info {
 	struct napi_struct napi; /* napi associated with the core */
 	u32 tx_mask; /* tx interrupt mask */
 	u32 rx_mask; /* rx interrupt mask */
@@ -278,7 +292,7 @@ struct queue_per_cpu_info {
 	u32 rx_status; /* rx interrupt status */
 	u32 tx_start; /* tx queue start */
 	u32 rx_start; /* rx queue start */
-	struct edma_common_info *c_info; /* edma common info */
+	struct edma_common_info *edma_cinfo; /* edma common info */
 };
 
 /* edma specific common info */
@@ -295,19 +309,22 @@ struct edma_common_info {
 	int edma_port_id_wan; /* wan port id */
 	int from_cpu; /* from CPU TPD field */
 	int dp_bitmap; /* port bitmap */
+	int num_rxq_per_core; /* Rx queues per core */
+	int num_txq_per_core; /* Tx queues per core */
 	u16 tx_ring_count; /* Tx ring count */
 	u16 rx_ring_count; /* Rx ring*/
 	u16 rx_head_buffer_len; /* rx buffer length */
 	u16 rx_page_buffer_len; /* rx buffer length */
 	u32 page_mode; /* Jumbo frame supported flag */
 	struct edma_hw hw; /* edma hw specific structure */
-	struct queue_per_cpu_info q_cinfo[EDMA_NR_CPU]; /* per cpu information */
+	struct ctl_table_header *edma_ctl_table_hdr;
+	struct edma_per_cpu_queues_info edma_percpu_info[EDMA_NR_CPU]; /* per cpu information */
 	spinlock_t stats_lock; /* protect interrupt registers access */
 };
 
 /* transimit packet descriptor (tpd) ring */
 struct edma_tx_desc_ring {
-        struct netdev_queue *nq; /* Linux queue index */
+	struct netdev_queue *nq; /* Linux queue index */
 	struct net_device netdev;
 	u16 size; /* descriptor ring length in bytes */
 	u16 count; /* number of descriptors in the ring */
@@ -353,7 +370,7 @@ struct edma_rfs_flow_table {
 struct edma_adapter {
 	struct net_device *netdev; /* netdevice */
 	struct platform_device *pdev; /* platform device */
-	struct edma_common_info *c_info; /* edma common info */
+	struct edma_common_info *edma_cinfo; /* edma common info */
 	struct edma_rfs_flow_table rfs; /* edma rfs flow table */
 	struct net_device_stats stats; /* netdev statistics */
 	struct phy_device *phydev; /* Phy device */
@@ -369,22 +386,24 @@ struct edma_adapter {
 	int default_vlan_tag; /* vlan tag */
 };
 
-int edma_alloc_queues_tx(struct edma_common_info *c_info);
-int edma_alloc_queues_rx(struct edma_common_info *c_info);
+int edma_alloc_queues_tx(struct edma_common_info *edma_cinfo);
+int edma_alloc_queues_rx(struct edma_common_info *edma_cinfo);
 int edma_open(struct net_device *netdev);
 int edma_close(struct net_device *netdev);
-int edma_alloc_tx_rings(struct edma_common_info *c_info);
-int edma_alloc_rx_rings(struct edma_common_info *c_info);
-void edma_free_tx_rings(struct edma_common_info *c_info);
-void edma_free_rx_rings(struct edma_common_info *c_info);
-void edma_free_queues(struct edma_common_info *c_info);
-void edma_irq_disable(struct edma_common_info *c_info);
-int edma_reset(struct edma_common_info *c_info);
+void edma_free_tx_resources(struct edma_common_info *edma_c_info);
+void edma_free_rx_resources(struct edma_common_info *edma_c_info);
+int edma_alloc_tx_rings(struct edma_common_info *edma_cinfo);
+int edma_alloc_rx_rings(struct edma_common_info *edma_cinfo);
+void edma_free_tx_rings(struct edma_common_info *edma_cinfo);
+void edma_free_rx_rings(struct edma_common_info *edma_cinfo);
+void edma_free_queues(struct edma_common_info *edma_cinfo);
+void edma_irq_disable(struct edma_common_info *edma_cinfo);
+int edma_reset(struct edma_common_info *edma_cinfo);
 int edma_poll(struct napi_struct *napi, int budget);
 netdev_tx_t edma_xmit(struct sk_buff *skb,
 		struct net_device *netdev);
-int edma_configure(struct edma_common_info *c_info);
-void edma_irq_enable(struct edma_common_info *c_info);
+int edma_configure(struct edma_common_info *edma_cinfo);
+void edma_irq_enable(struct edma_common_info *edma_cinfo);
 void edma_enable_tx_ctrl(struct edma_hw *hw);
 void edma_enable_rx_ctrl(struct edma_hw *hw);
 void edma_stop_rx_tx(struct edma_hw *hw);
@@ -405,8 +424,11 @@ void edma_set_stp_rstp(bool tag);
 void edma_assign_ath_hdr_type(int tag);
 int edma_get_default_vlan_tag(struct net_device *netdev);
 void edma_adjust_link(struct net_device *netdev);
-void edma_fill_netdev(struct edma_common_info *c_info, int qid, int num);
-int edma_select_xps_queue(struct net_device *dev, struct sk_buff *skb,
+void edma_fill_netdev(struct edma_common_info *edma_cinfo, int qid, int num);
+u16 edma_select_xps_queue(struct net_device *dev, struct sk_buff *skb,
 	void *accel_priv, select_queue_fallback_t fallback);
-void edma_read_append_stats(c_info);
+void edma_read_append_stats(edma_cinfo);
+void edma_change_tx_coalesce(int usecs);
+void edma_change_rx_coalesce(int usecs);
+void edma_get_tx_rx_coalesce(u32 *reg_val);
 #endif /* _EDMA_H_ */
