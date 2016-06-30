@@ -60,6 +60,23 @@
  */
 #define SPDIF_CONSUMER_COMPRESD 0x01000006;
 
+/* When the mailbox operation is started, the mailbox would get one descriptor
+ * for the current data transfer and prefetch one more descriptor. When less
+ * than 3 descriptors are configured, then it is possible that before the CPU
+ * handles the interrupt, the mailbox could check the pre fetched descriptor
+ * and stop the DMA transfer.
+ * To handle this, the design is use multiple descriptors, but they would
+ * point to the same buffer address. This way  more number of descriptors
+ * would satisfy the mbox requirement, and reusing the buffer address would
+ * satisfy the upper layer's buffer requirement
+ *
+ * The value of 5 of repetition times was derived from trial and error testing
+ * for minimum number of repetitions that would result in MBOX operations
+ * without stopping.
+ */
+#define MBOX_MIN_DESC_NUM       3
+#define MBOX_DESC_REPEAT_NUM    5
+
 enum {
 	ADSS_MBOX_NR_CHANNELS = 5,
 };
@@ -126,7 +143,7 @@ int ipq40xx_mbox_dma_swap(int channel_id, snd_pcm_format_t format);
 int ipq40xx_mbox_dma_prepare(int channel_id);
 int ipq40xx_mbox_dma_resume(int channel_id);
 int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr, u8 *base,
-				int period_bytes, int bufsize);
+				int period_bytes, int bufsize, int own_bit);
 int ipq40xx_mbox_dma_release(int channel);
 int ipq40xx_mbox_dma_init(struct device *dev, int channel_id,
 	irq_handler_t callback, void *private_data);
@@ -135,9 +152,6 @@ void ipq40xx_mbox_desc_own(u32 channel_id, int desc_no, int own);
 
 uint32_t ipq40xx_mbox_get_played_offset(u32 channel_id);
 uint32_t ipq40xx_mbox_get_played_offset_set_own(u32 channel_id);
-static struct ipq40xx_mbox_desc *get_next(
-	struct ipq40xx_mbox_rt_dir_priv *rtdir,
-		struct ipq40xx_mbox_desc *desc);
 
 static inline uint32_t ipq40xx_convert_id_to_channel(uint32_t id)
 {
@@ -294,6 +308,18 @@ static inline struct ipq40xx_mbox_desc
 
 	/* If we didn't find the last played buffer, return NULL */
 	return NULL;
+}
+
+/* If number of mbox descriptors are less than MBOX_MIN_DESC_NUM
+ * there should be duplicate mbox descriptors in order to compliant
+ * with the mbox operation logic described at the definitions of
+ * macros MBOX_MIN_DESC_NUM and MBOX_DESC_REPEAT_NUM in this file */
+static inline int ipq40xx_get_mbox_descs_duplicate(int ndescs)
+{
+	if (ndescs < MBOX_MIN_DESC_NUM)
+		ndescs *= MBOX_DESC_REPEAT_NUM;
+
+	return ndescs;
 }
 
 #endif /* _IPQ40XX_MBOX_H_ */

@@ -369,9 +369,10 @@ static int ipq40xx_pcm_tdm_hw_params(struct snd_pcm_substream *substream,
 			substream->dma_buffer.addr,
 			substream->dma_buffer.area,
 			params_period_bytes(hw_params),
-			params_buffer_bytes(hw_params));
+			params_buffer_bytes(hw_params),
+			(substream->stream == SNDRV_PCM_STREAM_CAPTURE));
 	if (ret) {
-		pr_err("%s: %d: Error dma form ring \n",
+		pr_err("%s: %d: Error dma form ring\n",
 				__func__, __LINE__);
 		ipq40xx_mbox_dma_release(pcm_rtpriv->channel);
 		return ret;
