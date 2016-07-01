@@ -194,8 +194,15 @@ static int edma_ath_hdr_eth_type(struct ctl_table *table, int write,
 static int edma_change_default_lan_vlan(struct ctl_table *table, int write,
 		void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct edma_adapter *adapter = netdev_priv(netdev[1]);
+	struct edma_adapter *adapter;
 	int ret;
+
+	if (!netdev[1]) {
+		pr_err("Netdevice for default_lan does not exist\n");
+		return -1;
+	}
+
+	adapter = netdev_priv(netdev[1]);
 
 	ret = proc_dointvec(table, write, buffer, lenp, ppos);
 
@@ -208,8 +215,15 @@ static int edma_change_default_lan_vlan(struct ctl_table *table, int write,
 static int edma_change_default_wan_vlan(struct ctl_table *table, int write,
 		void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct edma_adapter *adapter = netdev_priv(netdev[0]);
+	struct edma_adapter *adapter;
 	int ret;
+
+	if (!netdev[0]) {
+		pr_err("Netdevice for default_wan does not exist\n");
+		return -1;
+	}
+
+	adapter = netdev_priv(netdev[0]);
 
 	ret = proc_dointvec(table, write, buffer, lenp, ppos);
 
@@ -724,9 +738,19 @@ static int edma_axi_probe(struct platform_device *pdev)
 
 	for_each_available_child_of_node(np, pnp) {
 		const char *mac_addr;
+
+		/*
+		 * this check is needed if parent and daughter dts have
+		 * different number of gmac nodes
+		 */
+		if (idx_mac == edma_cinfo->num_gmac)
+			break;
+
 		mac_addr = of_get_mac_address(pnp);
 		if (mac_addr)
-			memcpy(netdev[idx_mac++]->dev_addr, mac_addr, ETH_ALEN);
+			memcpy(netdev[idx_mac]->dev_addr, mac_addr, ETH_ALEN);
+
+		idx_mac++;
 	}
 
 	/* Populate the adapter structure register the netdevice */
@@ -835,19 +859,19 @@ static int edma_axi_probe(struct platform_device *pdev)
 			portid_bmp &= ~(1 << (port_bit - 1));
 		}
 
-		if (of_property_read_bool(pnp, "qcom,poll_required") == 1) {
-			adapter[idx]->poll_required =
-				of_property_read_bool(pnp, "qcom,poll_required");
-			of_property_read_u32(pnp, "qcom,phy_mdio_addr",
-				&adapter[idx]->phy_mdio_addr);
-			of_property_read_u32(pnp, "qcom,forced_speed",
-				&adapter[idx]->forced_speed);
-			of_property_read_u32(pnp, "qcom,forced_duplex",
-				&adapter[idx]->forced_duplex);
+		if (!of_property_read_u32(pnp, "qcom,poll_required", &adapter[idx]->poll_required)) {
+			if (adapter[idx]->poll_required) {
+				of_property_read_u32(pnp, "qcom,phy_mdio_addr",
+					&adapter[idx]->phy_mdio_addr);
+				of_property_read_u32(pnp, "qcom,forced_speed",
+					&adapter[idx]->forced_speed);
+				of_property_read_u32(pnp, "qcom,forced_duplex",
+					&adapter[idx]->forced_duplex);
 
-			/* create a phyid using MDIO bus id and MDIO bus address */
-			snprintf(adapter[idx]->phy_id, MII_BUS_ID_SIZE + 3, PHY_ID_FMT,
-				miibus->id, adapter[idx]->phy_mdio_addr);
+				/* create a phyid using MDIO bus id and MDIO bus address */
+				snprintf(adapter[idx]->phy_id, MII_BUS_ID_SIZE + 3, PHY_ID_FMT,
+					miibus->id, adapter[idx]->phy_mdio_addr);
+			}
 		} else {
 			adapter[idx]->poll_required = 0;
 			adapter[idx]->forced_speed = SPEED_1000;
@@ -948,6 +972,9 @@ static int edma_axi_probe(struct platform_device *pdev)
 	 */
 	edma_write_reg(EDMA_REG_VQ_CTRL0, EDMA_VQ_REG_VALUE);
 	edma_write_reg(EDMA_REG_VQ_CTRL1, EDMA_VQ_REG_VALUE);
+
+	/* Configure Max AXI Burst write size to 128 bytes*/
+	edma_write_reg(EDMA_REG_AXIW_CTRL_MAXWRSIZE, EDMA_AXIW_MAXWRSIZE_VALUE);
 
 	/* Enable All 16 tx and 8 rx irq mask */
 	edma_irq_enable(edma_cinfo);
