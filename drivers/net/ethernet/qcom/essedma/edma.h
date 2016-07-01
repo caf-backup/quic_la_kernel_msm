@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 - 2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014 - 2016, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -43,7 +43,13 @@
 
 /* Number of Core/queues */
 #define EDMA_NR_CPU 4
-#define EDMA_NR_NETDEV 2
+
+#define EDMA_MAX_PORTID_SUPPORTED 5
+#define EDMA_MAX_VLAN_SUPPORTED  EDMA_MAX_PORTID_SUPPORTED
+#define EDMA_MAX_PORTID_BITMAP_INDEX (EDMA_MAX_PORTID_SUPPORTED + 1)
+#define EDMA_MAX_PORTID_BITMAP_SUPPORTED 0x1f	/* 0001_1111 = 0x1f */
+#define EDMA_MAX_NETDEV_SUPPORTED_PER_QUEUE 4 /* 3 Netdev per queue, 1 space for indexing */
+
 #define EDMA_MAX_RECEIVE_QUEUE 8
 #define EDMA_MAX_TRANSMIT_QUEUE 16
 
@@ -54,6 +60,12 @@
 /* VLAN tag */
 #define EDMA_LAN_DEFAULT_VLAN 1
 #define EDMA_WAN_DEFAULT_VLAN 2
+
+#define EDMA_DEFAULT_GROUP1_VLAN 1
+#define EDMA_DEFAULT_GROUP2_VLAN 2
+#define EDMA_DEFAULT_GROUP3_VLAN 3
+#define EDMA_DEFAULT_GROUP4_VLAN 4
+#define EDMA_DEFAULT_GROUP5_VLAN 5
 
 /* Queues exposed to linux kernel */
 #define EDMA_NETDEV_TX_QUEUE 4
@@ -73,9 +85,6 @@
 
 #define EDMA_TPD_FROM_CPU_SHIFT 25
 
-/* Enable Tx for all ports */
-#define EDMA_PORT_ENABLE_ALL 0x3E
-
 #define EDMA_FROM_CPU_MASK 0x80
 #define EDMA_SKB_PRIORITY_MASK 0x38
 
@@ -87,6 +96,9 @@
 /* Flags used in paged/non paged mode */
 #define EDMA_RX_HEAD_BUFF_SIZE_JUMBO 256
 #define EDMA_RX_HEAD_BUFF_SIZE 1540
+
+/* This is the extra byte required above default MTU(1500) */
+#define EDMA_RX_DEFAULT_PAD 40
 
 /* MAX frame size supported by switch */
 #define EDMA_MAX_JUMBO_FRAME_SIZE 9216
@@ -124,6 +136,7 @@
 #define EDMA_SW_DESC_FLAG_SKB_NONE 0x10
 #define EDMA_SW_DESC_FLAG_SKB_REUSE 0x20
 
+#define EDMA_ADAPTER_FLAG_WAN 0x1
 
 #define EDMA_MAX_SKB_FRAGS (MAX_SKB_FRAGS + 1)
 
@@ -300,15 +313,15 @@ struct edma_common_info {
 	struct edma_tx_desc_ring *tpd_ring[16]; /* 16 Tx queues */
 	struct edma_rfd_desc_ring *rfd_ring[8]; /* 8 Rx queues */
 	struct platform_device *pdev; /* device structure */
-	struct net_device *netdev[2]; /* net device */
+	struct net_device *netdev[EDMA_MAX_PORTID_SUPPORTED];
+	int num_gmac;
+	struct net_device *portid_netdev_lookup_tbl[EDMA_MAX_PORTID_BITMAP_INDEX];
 	struct edma_ethtool_statistics edma_ethstats; /* ethtool stats */
 	int num_rx_queues; /* number of rx queue */
 	int num_tx_queues; /* number of tx queue */
 	int tx_irq[16]; /* number of tx irq */
 	int rx_irq[8]; /* number of rx irq */
-	int edma_port_id_wan; /* wan port id */
 	int from_cpu; /* from CPU TPD field */
-	int dp_bitmap; /* port bitmap */
 	int num_rxq_per_core; /* Rx queues per core */
 	int num_txq_per_core; /* Tx queues per core */
 	u16 tx_ring_count; /* Tx ring count */
@@ -316,6 +329,7 @@ struct edma_common_info {
 	u16 rx_head_buffer_len; /* rx buffer length */
 	u16 rx_page_buffer_len; /* rx buffer length */
 	u32 page_mode; /* Jumbo frame supported flag */
+	u32 fraglist_mode; /* fraglist supported flag */
 	struct edma_hw hw; /* edma hw specific structure */
 	struct ctl_table_header *edma_ctl_table_hdr;
 	struct edma_per_cpu_queues_info edma_percpu_info[EDMA_NR_CPU]; /* per cpu information */
@@ -324,8 +338,10 @@ struct edma_common_info {
 
 /* transimit packet descriptor (tpd) ring */
 struct edma_tx_desc_ring {
-	struct netdev_queue *nq; /* Linux queue index */
-	struct net_device netdev;
+	struct netdev_queue *nq[EDMA_MAX_NETDEV_SUPPORTED_PER_QUEUE]; /* Linux queue index */
+	struct net_device *netdev[EDMA_MAX_NETDEV_SUPPORTED_PER_QUEUE];
+			/* Array of netdevs associated with the tpd ring */
+	int netdev_bmp; /* Bitmap for per-ring netdevs */
 	u16 size; /* descriptor ring length in bytes */
 	u16 count; /* number of descriptors in the ring */
 	void *hw_desc; /* descriptor ring virtual address */
@@ -384,6 +400,9 @@ struct edma_adapter {
 	bool poll_required; /* check if link polling is required */
 	u32 tx_start_offset[EDMA_NR_CPU]; /* tx queue start */
 	int default_vlan_tag; /* vlan tag */
+	u16 rx_buf_len; /* rx default buffer len lan */
+	uint8_t phy_id[MII_BUS_ID_SIZE + 3];
+	uint32_t dp_bitmap;
 };
 
 int edma_alloc_queues_tx(struct edma_common_info *edma_cinfo);
@@ -424,10 +443,10 @@ void edma_set_stp_rstp(bool tag);
 void edma_assign_ath_hdr_type(int tag);
 int edma_get_default_vlan_tag(struct net_device *netdev);
 void edma_adjust_link(struct net_device *netdev);
-void edma_fill_netdev(struct edma_common_info *edma_cinfo, int qid, int num);
+int edma_fill_netdev(struct edma_common_info *edma_cinfo, int qid, int num, int txq_id);
 u16 edma_select_xps_queue(struct net_device *dev, struct sk_buff *skb,
 	void *accel_priv, select_queue_fallback_t fallback);
-void edma_read_append_stats(edma_cinfo);
+void edma_read_append_stats(struct edma_common_info *edma_cinfo);
 void edma_change_tx_coalesce(int usecs);
 void edma_change_rx_coalesce(int usecs);
 void edma_get_tx_rx_coalesce(u32 *reg_val);

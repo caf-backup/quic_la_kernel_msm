@@ -35,7 +35,7 @@ struct timer_list edma_stats_timer;
 
 char edma_tx_irq[16][64];
 char edma_rx_irq[8][64];
-struct net_device *netdev[2];
+struct net_device *netdev[EDMA_MAX_PORTID_SUPPORTED];
 u16 tx_start[4] = {EDMA_TXQ_START_CORE0, EDMA_TXQ_START_CORE1,
 			EDMA_TXQ_START_CORE2, EDMA_TXQ_START_CORE3};
 u32 tx_mask[4] = {EDMA_TXQ_IRQ_MASK_CORE0, EDMA_TXQ_IRQ_MASK_CORE1,
@@ -43,6 +43,12 @@ u32 tx_mask[4] = {EDMA_TXQ_IRQ_MASK_CORE0, EDMA_TXQ_IRQ_MASK_CORE1,
 
 int edma_default_ltag  __read_mostly = EDMA_LAN_DEFAULT_VLAN;
 int edma_default_wtag  __read_mostly = EDMA_WAN_DEFAULT_VLAN;
+int edma_default_group1_vtag  __read_mostly = EDMA_DEFAULT_GROUP1_VLAN;
+int edma_default_group2_vtag  __read_mostly = EDMA_DEFAULT_GROUP2_VLAN;
+int edma_default_group3_vtag  __read_mostly = EDMA_DEFAULT_GROUP3_VLAN;
+int edma_default_group4_vtag  __read_mostly = EDMA_DEFAULT_GROUP4_VLAN;
+int edma_default_group5_vtag  __read_mostly = EDMA_DEFAULT_GROUP5_VLAN;
+
 int edma_weight_assigned_to_q __read_mostly;
 int edma_queue_to_virtual_q __read_mostly;
 bool edma_enable_rstp  __read_mostly;
@@ -55,6 +61,10 @@ MODULE_PARM_DESC(page_mode, "enable page mode");
 static int overwrite_mode;
 module_param(overwrite_mode, int, 0);
 MODULE_PARM_DESC(overwrite_mode, "overwrite default page_mode setting");
+
+static int jumbo_mru = 0;
+module_param(jumbo_mru, int, 0);
+MODULE_PARM_DESC(jumbo_mru, "enable fraglist support");
 
 static int num_rxq = 4;
 module_param(num_rxq, int, 0);
@@ -209,6 +219,121 @@ static int edma_change_default_wan_vlan(struct ctl_table *table, int write,
 	return ret;
 }
 
+static int edma_change_group1_vtag(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct edma_adapter *adapter;
+	struct edma_common_info *edma_cinfo;
+	int ret;
+
+	if (!netdev[0]) {
+		pr_err("Netdevice for Group 1 does not exist\n");
+		return -1;
+	}
+
+	adapter = netdev_priv(netdev[0]);
+	edma_cinfo = adapter->edma_cinfo;
+
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+
+	if (write)
+		adapter->default_vlan_tag = edma_default_group1_vtag;
+
+	return ret;
+}
+
+static int edma_change_group2_vtag(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct edma_adapter *adapter;
+	struct edma_common_info *edma_cinfo;
+	int ret;
+
+	if (!netdev[1]) {
+		pr_err("Netdevice for Group 2 does not exist\n");
+		return -1;
+	}
+
+	adapter = netdev_priv(netdev[1]);
+	edma_cinfo = adapter->edma_cinfo;
+
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+
+	if (write)
+		adapter->default_vlan_tag = edma_default_group2_vtag;
+
+	return ret;
+}
+
+static int edma_change_group3_vtag(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct edma_adapter *adapter;
+	struct edma_common_info *edma_cinfo;
+	int ret;
+
+	if (!netdev[2]) {
+		pr_err("Netdevice for Group 3 does not exist\n");
+		return -1;
+	}
+
+	adapter = netdev_priv(netdev[2]);
+	edma_cinfo = adapter->edma_cinfo;
+
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+
+	if (write)
+		adapter->default_vlan_tag = edma_default_group3_vtag;
+
+	return ret;
+}
+
+static int edma_change_group4_vtag(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct edma_adapter *adapter;
+	struct edma_common_info *edma_cinfo;
+	int ret;
+
+	if (!netdev[3]) {
+		pr_err("Netdevice for Group 4 does not exist\n");
+		return -1;
+	}
+
+	adapter = netdev_priv(netdev[3]);
+	edma_cinfo = adapter->edma_cinfo;
+
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+
+	if (write)
+		adapter->default_vlan_tag = edma_default_group4_vtag;
+
+	return ret;
+}
+
+static int edma_change_group5_vtag(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct edma_adapter *adapter;
+	struct edma_common_info *edma_cinfo;
+	int ret;
+
+	if (!netdev[4]) {
+		pr_err("Netdevice for Group 5 does not exist\n");
+		return -1;
+	}
+
+	adapter = netdev_priv(netdev[4]);
+	edma_cinfo = adapter->edma_cinfo;
+
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+
+	if (write)
+		adapter->default_vlan_tag = edma_default_group5_vtag;
+
+	return ret;
+}
+
 static int edma_weight_assigned_to_queues(struct ctl_table *table, int write,
 		void __user *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -330,6 +455,41 @@ static struct ctl_table edma_table[] = {
 		.mode           = 0644,
 		.proc_handler   = edma_ath_hdr_eth_type
 	},
+	{
+		.procname       = "default_group1_vlan_tag",
+		.data           = &edma_default_group1_vtag,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = edma_change_group1_vtag
+	},
+	{
+		.procname       = "default_group2_vlan_tag",
+		.data           = &edma_default_group2_vtag,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = edma_change_group2_vtag
+	},
+	{
+		.procname       = "default_group3_vlan_tag",
+		.data           = &edma_default_group3_vtag,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = edma_change_group3_vtag
+	},
+	{
+		.procname       = "default_group4_vlan_tag",
+		.data           = &edma_default_group4_vtag,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = edma_change_group4_vtag
+	},
+	{
+		.procname       = "default_group5_vlan_tag",
+		.data           = &edma_default_group5_vtag,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = edma_change_group5_vtag
+	},
 	{}
 };
 
@@ -370,7 +530,7 @@ static int edma_axi_probe(struct platform_device *pdev)
 {
 	struct edma_common_info *edma_cinfo;
 	struct edma_hw *hw;
-	struct edma_adapter *adapter[2];
+	struct edma_adapter *adapter[EDMA_MAX_PORTID_SUPPORTED];
 	struct resource *res;
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *pnp;
@@ -380,41 +540,46 @@ static int edma_axi_probe(struct platform_device *pdev)
 	struct edma_mdio_data *mdio_data = NULL;
 	int i, j, k, err = 0, ret = 0;
 	uint8_t phy_id[MII_BUS_ID_SIZE + 3];
+	int num_gmac, portid_bmp;
+	int idx = 0, idx_mac = 0;
 
 	if ((num_rxq != 4) && (num_rxq != 8)) {
 		dev_err(&pdev->dev, "Invalid RX queue, edma probe failed\n");
 		return -EINVAL;
 	}
-
-	/* Use to allocate net devices for multiple TX/RX queues */
-	netdev[0] = alloc_etherdev_mqs(sizeof(struct edma_adapter),
-			EDMA_NETDEV_TX_QUEUE, EDMA_NETDEV_RX_QUEUE);
-	if (!netdev[0]) {
-		dev_err(&pdev->dev, "net device alloc fails=%p\n", netdev[0]);
-		goto err_alloc;
-	}
-
-	netdev[1] = alloc_etherdev_mqs(sizeof(struct edma_adapter),
-			EDMA_NETDEV_TX_QUEUE, EDMA_NETDEV_RX_QUEUE);
-	if (!netdev[1]) {
-		dev_err(&pdev->dev, "net device alloc fails=%p\n", netdev[1]);
-		goto err_alloc;
-	}
-
-	SET_NETDEV_DEV(netdev[0], &pdev->dev);
-	platform_set_drvdata(pdev, netdev[0]);
-	SET_NETDEV_DEV(netdev[1], &pdev->dev);
-	platform_set_drvdata(pdev, netdev[1]);
-
 	edma_cinfo = vzalloc(sizeof(struct edma_common_info));
 	if (!edma_cinfo) {
 		err = -ENOMEM;
-		goto err_ioremap;
+		goto err_alloc;
 	}
 
 	edma_cinfo->pdev = pdev;
-	edma_cinfo->netdev[0] = netdev[0];
-        edma_cinfo->netdev[1] = netdev[1];
+
+	of_property_read_u32(np, "qcom,num_gmac", &edma_cinfo->num_gmac);
+	if (edma_cinfo->num_gmac > EDMA_MAX_PORTID_SUPPORTED) {
+		pr_err("Invalid DTSI Entry for qcom,num_gmac\n");
+		err = -EINVAL;
+		goto err_cinfo;
+	}
+
+	/* Initialize the netdev array before allocation to avoid double free */
+	for (i = 0 ; i < edma_cinfo->num_gmac ; i++)
+		netdev[i] = NULL;
+
+	for (i = 0 ; i < edma_cinfo->num_gmac ; i++) {
+		netdev[i] = alloc_etherdev_mqs(sizeof(struct edma_adapter),
+			EDMA_NETDEV_TX_QUEUE, EDMA_NETDEV_RX_QUEUE);
+
+		if (!netdev[i]) {
+			dev_err(&pdev->dev, "net device alloc fails for index=%d\n", i);
+			err = -ENODEV;
+			goto err_ioremap;
+		}
+
+		SET_NETDEV_DEV(netdev[i], &pdev->dev);
+		platform_set_drvdata(pdev, netdev[i]);
+		edma_cinfo->netdev[i] = netdev[i];
+	}
 
 	/* Fill ring details */
 	edma_cinfo->num_tx_queues = EDMA_MAX_TRANSMIT_QUEUE;
@@ -435,15 +600,20 @@ static int edma_axi_probe(struct platform_device *pdev)
 
 	of_property_read_u32(np, "qcom,page-mode", &edma_cinfo->page_mode);
 	of_property_read_u32(np, "qcom,rx_head_buf_size", &hw->rx_head_buff_size);
-	of_property_read_u32(np, "qcom,port_id_wan", &edma_cinfo->edma_port_id_wan);
 
 	if (overwrite_mode) {
 		dev_info(&pdev->dev, "page mode overwritten");
 		edma_cinfo->page_mode = page_mode;
 	}
 
+	if (jumbo_mru) {
+		edma_cinfo->fraglist_mode = 1;
+	}
+
 	if (edma_cinfo->page_mode)
 		hw->rx_head_buff_size = EDMA_RX_HEAD_BUFF_SIZE_JUMBO;
+	else if (edma_cinfo->fraglist_mode)
+		hw->rx_head_buff_size = jumbo_mru;
 	else if (!hw->rx_head_buff_size)
 		hw->rx_head_buff_size = EDMA_RX_HEAD_BUFF_SIZE;
 
@@ -464,8 +634,8 @@ static int edma_axi_probe(struct platform_device *pdev)
 
 	edma_cinfo->hw.hw_addr = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(edma_cinfo->hw.hw_addr)) {
-		ret = PTR_ERR(edma_cinfo->hw.hw_addr);
-		goto err_hwaddr;
+		err = PTR_ERR(edma_cinfo->hw.hw_addr);
+		goto err_ioremap;
 	}
 
 	edma_hw_addr = (unsigned long)edma_cinfo->hw.hw_addr;
@@ -512,55 +682,83 @@ static int edma_axi_probe(struct platform_device *pdev)
 		goto err_rx_rinit;
 	}
 
-	for_each_available_child_of_node(np, pnp) {
-		const char *mac_addr;
-		mac_addr = of_get_mac_address(pnp);
+	/* Initialize netdev and netdev bitmap for transmit descriptor rings */
+	for (i = 0; i < edma_cinfo->num_tx_queues; i++) {
+		struct edma_tx_desc_ring *etdr =  edma_cinfo->tpd_ring[i];
+		int j;
 
-		if (mac_addr) {
-			if (!strcmp(pnp->name, "gmac0"))
-				memcpy(netdev[EDMA_WAN]->dev_addr, mac_addr,
-					ETH_ALEN);
-			else
-				memcpy(netdev[EDMA_LAN]->dev_addr, mac_addr,
-					ETH_ALEN);
+		etdr->netdev_bmp = 0;
+		for (j = 0; j < EDMA_MAX_NETDEV_SUPPORTED_PER_QUEUE; j++) {
+			etdr->netdev[j] = NULL;
+			etdr->nq[j] = NULL;
 		}
 	}
 
+	if (of_property_read_bool(np, "qcom,mdio_supported")) {
+
+		mdio_node = of_find_compatible_node(NULL, NULL, "qcom,ipq40xx-mdio");
+		if (!mdio_node) {
+			dev_dbg(&pdev->dev, "cannot find mdio node by phandle");
+			err = -EIO;
+			goto err_mdiobus_init_fail;
+		}
+
+		mdio_plat = of_find_device_by_node(mdio_node);
+		if (!mdio_plat) {
+			dev_dbg(&pdev->dev, "cannot find platform device from mdio node");
+			of_node_put(mdio_node);
+			err = -EIO;
+			goto err_mdiobus_init_fail;
+		}
+
+		mdio_data = dev_get_drvdata(&mdio_plat->dev);
+		if (!mdio_data) {
+			dev_dbg(&pdev->dev, "cannot get mii bus reference from device data");
+			of_node_put(mdio_node);
+			err = -EIO;
+			goto err_mdiobus_init_fail;
+		}
+
+		miibus = mdio_data->mii_bus;
+	}
+
+	for_each_available_child_of_node(np, pnp) {
+		const char *mac_addr;
+		mac_addr = of_get_mac_address(pnp);
+		if (mac_addr)
+			memcpy(netdev[idx_mac++]->dev_addr, mac_addr, ETH_ALEN);
+	}
+
 	/* Populate the adapter structure register the netdevice */
-	for (i = 0; i < EDMA_NR_NETDEV; i++) {
-		int k;
+	for (i = 0; i < edma_cinfo->num_gmac; i++) {
+		int k, m;
 		adapter[i] = netdev_priv(netdev[i]);
 		adapter[i]->netdev = netdev[i];
 		adapter[i]->pdev = pdev;
 		for (j = 0; j < EDMA_NR_CPU; j++) {
-			adapter[i]->tx_start_offset[j] = ((j << EDMA_TX_CPU_START_SHIFT) + (i << 1));
-			/* Map each ring netdev to either LAN or WAN netdevice
-			 * q0,q1,q4,q5,q8,q9,q12,q13 goes to WAN, others to LAN
+			m = i % 2;
+			adapter[i]->tx_start_offset[j] = ((j << EDMA_TX_CPU_START_SHIFT) + (m << 1));
+			/* Share the queues with available net-devices. For instance , with 5 net-devices
+			 * eth0/eth2/eth4 will share q0,q1,q4,q5,q8,q9,q12,q13 and eth1/eth3 will get the remaining.
 			 */
 			for (k = adapter[i]->tx_start_offset[j]; k < (adapter[i]->tx_start_offset[j] + 2); k++) {
-				edma_fill_netdev(edma_cinfo, k, i);
+				if (edma_fill_netdev(edma_cinfo, k, i, j)) {
+					pr_err("Netdev overflow Error\n");
+					goto err_register;
+				}
 			}
 		}
-		of_property_read_u32(np, "qcom,forced_speed",
-				&adapter[i]->forced_speed);
-		of_property_read_u32(np, "qcom,forced_duplex",
-				&adapter[i]->forced_duplex);
-		if ((adapter[i]->forced_speed != SPEED_10) &&
-			(adapter[i]->forced_speed != SPEED_100)
-			&& (adapter[i]->forced_speed != SPEED_1000)) {
-			adapter[i]->forced_speed = SPEED_UNKNOWN;
-			adapter[i]->forced_duplex = DUPLEX_UNKNOWN;
-		}
 
+		adapter[i]->rx_buf_len = EDMA_RX_HEAD_BUFF_SIZE;
 		adapter[i]->edma_cinfo = edma_cinfo;
 		netdev[i]->netdev_ops = &edma_axi_netdev_ops;
 		netdev[i]->features = NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_CTAG_TX
 				| NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_SG | NETIF_F_TSO |
-					NETIF_F_TSO6 | NETIF_F_GRO;
+					NETIF_F_TSO6 | NETIF_F_GRO | NETIF_F_FRAGLIST;
 		netdev[i]->hw_features = NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_CTAG_RX
-				| NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GRO;
-		netdev[i]->vlan_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GRO;
-		netdev[i]->wanted_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GRO;
+				| NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GRO | NETIF_F_FRAGLIST;
+		netdev[i]->vlan_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GRO | NETIF_F_FRAGLIST;
+		netdev[i]->wanted_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GRO | NETIF_F_FRAGLIST;
 
 #ifdef CONFIG_RFS_ACCEL
 		netdev[i]->features |=  NETIF_F_RXHASH | NETIF_F_NTUPLE;
@@ -568,6 +766,7 @@ static int edma_axi_probe(struct platform_device *pdev)
 		netdev[i]->vlan_features |= NETIF_F_RXHASH | NETIF_F_NTUPLE;
 		netdev[i]->wanted_features |= NETIF_F_RXHASH | NETIF_F_NTUPLE;
 #endif
+
 		edma_set_ethtool_ops(netdev[i]);
 
 		/*
@@ -588,7 +787,7 @@ static int edma_axi_probe(struct platform_device *pdev)
 		/* carrier off reporting is important to ethtool even BEFORE open */
 		netif_carrier_off(netdev[i]);
 
-               /* Allocate reverse irq cpu mapping structure for
+		/* Allocate reverse irq cpu mapping structure for
 		* receive queues
 		*/
 #ifdef CONFIG_RFS_ACCEL
@@ -601,51 +800,67 @@ static int edma_axi_probe(struct platform_device *pdev)
 #endif
 	}
 
+	for (i = 0; i < EDMA_MAX_PORTID_BITMAP_INDEX; i++)
+		edma_cinfo->portid_netdev_lookup_tbl[i] = NULL;
+
+	for_each_available_child_of_node(np, pnp) {
+		const uint32_t *vlan_tag = NULL;
+		int len;
+
+		/*
+		 * this check is needed if parent and daughter dts have
+		 * different number of gmac nodes
+		 */
+		if (idx == edma_cinfo->num_gmac)
+			break;
+
+		/* Populate port-id to netdev lookup table */
+		vlan_tag = of_get_property(pnp, "vlan_tag", &len);
+		if (!vlan_tag) {
+			pr_err("Vlan tag parsing Failed.\n");
+			goto err_rmap_alloc_fail;
+		}
+
+		adapter[idx]->default_vlan_tag = of_read_number(vlan_tag, 1);
+		vlan_tag++;
+		portid_bmp = of_read_number(vlan_tag, 1);
+		adapter[idx]->dp_bitmap = portid_bmp;
+
+		portid_bmp = portid_bmp >> 1; /* We ignore the bit for CPU Port */
+		while (portid_bmp) {
+			int port_bit = ffs(portid_bmp);
+			if (port_bit > EDMA_MAX_PORTID_SUPPORTED)
+				goto err_rmap_alloc_fail;
+			edma_cinfo->portid_netdev_lookup_tbl[port_bit] = netdev[idx];
+			portid_bmp &= ~(1 << (port_bit - 1));
+		}
+
+		if (of_property_read_bool(pnp, "qcom,poll_required") == 1) {
+			adapter[idx]->poll_required =
+				of_property_read_bool(pnp, "qcom,poll_required");
+			of_property_read_u32(pnp, "qcom,phy_mdio_addr",
+				&adapter[idx]->phy_mdio_addr);
+			of_property_read_u32(pnp, "qcom,forced_speed",
+				&adapter[idx]->forced_speed);
+			of_property_read_u32(pnp, "qcom,forced_duplex",
+				&adapter[idx]->forced_duplex);
+
+			/* create a phyid using MDIO bus id and MDIO bus address */
+			snprintf(adapter[idx]->phy_id, MII_BUS_ID_SIZE + 3, PHY_ID_FMT,
+				miibus->id, adapter[idx]->phy_mdio_addr);
+		} else {
+			adapter[idx]->poll_required = 0;
+			adapter[idx]->forced_speed = SPEED_1000;
+			adapter[idx]->forced_duplex = DUPLEX_FULL;
+		}
+
+		idx++;
+	}
+
 	edma_cinfo->edma_ctl_table_hdr = register_net_sysctl(&init_net, "net/edma", edma_table);
 	if (!edma_cinfo->edma_ctl_table_hdr) {
 		dev_err(&pdev->dev, "edma sysctl table hdr not registered\n");
 		goto err_unregister_sysctl_tbl;
-	}
-
-	/* Set default LAN tag */
-	adapter[EDMA_LAN]->default_vlan_tag = EDMA_LAN_DEFAULT_VLAN;
-	/* Set default WAN tag */
-        adapter[EDMA_WAN]->default_vlan_tag = EDMA_WAN_DEFAULT_VLAN;
-
-	if (of_property_read_bool(np, "qcom,mdio_supported")) {
-		adapter[EDMA_WAN]->poll_required =
-			of_property_read_bool(np, "qcom,poll_required");
-		of_property_read_u32(np, "qcom,phy_mdio_addr",
-				&adapter[EDMA_WAN]->phy_mdio_addr);
-
-		mdio_node = of_find_compatible_node(NULL, NULL, "qcom,ipq40xx-mdio");
-		if (!mdio_node) {
-			dev_dbg(&pdev->dev, "cannot find mdio node by phandle");
-			ret = -EIO;
-			goto err_mdiobus_init_fail;
-		}
-
-		mdio_plat = of_find_device_by_node(mdio_node);
-		if (!mdio_plat) {
-			dev_dbg(&pdev->dev, "cannot find platform device from mdio node");
-			of_node_put(mdio_node);
-			ret = -EIO;
-			goto err_mdiobus_init_fail;
-		}
-
-		mdio_data = dev_get_drvdata(&mdio_plat->dev);
-		if (!mdio_data) {
-			dev_dbg(&pdev->dev, "cannot get mii bus reference from device data");
-			of_node_put(mdio_node);
-			ret = -EIO;
-			goto err_mdiobus_init_fail;
-		}
-
-		miibus = mdio_data->mii_bus;
-
-		/* create a phyid using MDIO bus id and MDIO bus address */
-		snprintf(phy_id, MII_BUS_ID_SIZE + 3, PHY_ID_FMT,
-			miibus->id, adapter[EDMA_WAN]->phy_mdio_addr);
 	}
 
 	/* Disable all 16 Tx and 8 rx irqs */
@@ -681,12 +896,16 @@ static int edma_axi_probe(struct platform_device *pdev)
 			sprintf(&edma_tx_irq[j][0], "edma_eth_tx%d", j);
 			err = request_irq(edma_cinfo->tx_irq[j], edma_interrupt,
 				IRQF_DISABLED, &edma_tx_irq[j][0], &edma_cinfo->edma_percpu_info[i]);
+			if (err)
+				goto err_reset;
 		}
 
 		for (j = edma_cinfo->edma_percpu_info[i].rx_start; j < (rx_start + ((edma_cinfo->num_rx_queues == 4) ? 1 : 2)); j++) {
 			sprintf(&edma_rx_irq[j][0], "edma_eth_rx%d", j);
 			err = request_irq(edma_cinfo->rx_irq[j], edma_interrupt,
 				IRQF_DISABLED, &edma_rx_irq[j][0], &edma_cinfo->edma_percpu_info[i]);
+			if (err)
+				goto err_reset;
 		}
 
 #ifdef CONFIG_RFS_ACCEL
@@ -735,18 +954,21 @@ static int edma_axi_probe(struct platform_device *pdev)
 	edma_enable_tx_ctrl(&edma_cinfo->hw);
 	edma_enable_rx_ctrl(&edma_cinfo->hw);
 
-	if (adapter[EDMA_WAN]->poll_required) {
-		adapter[EDMA_WAN]->phydev =
-			phy_connect(netdev[EDMA_WAN], (const char *)phy_id,
-				&edma_adjust_link, PHY_INTERFACE_MODE_SGMII);
-		if (IS_ERR(adapter[EDMA_WAN]->phydev)) {
-			dev_dbg(&pdev->dev, "PHY attach FAIL");
-			ret = -EIO;
-			goto edma_phy_attach_fail;
-		} else {
-			adapter[EDMA_WAN]->phydev->advertising |= ADVERTISED_Pause | ADVERTISED_Asym_Pause;
-			adapter[EDMA_WAN]->phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
-		}
+	for (i = 0; i < edma_cinfo->num_gmac; i++) {
+		if (adapter[i]->poll_required) {
+			adapter[i]->phydev =
+				phy_connect(netdev[i], (const char *)adapter[i]->phy_id,
+					&edma_adjust_link, PHY_INTERFACE_MODE_SGMII);
+			if (IS_ERR(adapter[i]->phydev)) {
+				dev_dbg(&pdev->dev, "PHY attach FAIL");
+				err = -EIO;
+				goto edma_phy_attach_fail;
+			} else {
+				adapter[i]->phydev->advertising |= ADVERTISED_Pause | ADVERTISED_Asym_Pause;
+				adapter[i]->phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+			}
+		} else
+			adapter[i]->phydev = NULL;
 	}
 
 	spin_lock_init(&edma_cinfo->stats_lock);
@@ -763,23 +985,22 @@ edma_phy_attach_fail:
 	miibus = NULL;
 err_configure:
 #ifdef CONFIG_RFS_ACCEL
-	for (i = 0; i < EDMA_NR_NETDEV; i++) {
+	for (i = 0; i < edma_cinfo->num_gmac; i++) {
 		free_irq_cpu_rmap(adapter[i]->netdev->rx_cpu_rmap);
 		adapter[i]->netdev->rx_cpu_rmap = NULL;
 	}
 #endif
 err_rmap_add_fail:
-err_reset:
-	for (i = 0; i < EDMA_NR_NETDEV; i++)
-		edma_free_irqs(adapter[i]);
+	edma_free_irqs(adapter[0]);
 	for (i = 0; i < EDMA_NR_CPU; i++)
 		napi_disable(&edma_cinfo->edma_percpu_info[i].napi);
-err_mdiobus_init_fail:
+err_reset:
 err_unregister_sysctl_tbl:
 err_rmap_alloc_fail:
-	for (i = 0; i < EDMA_NR_NETDEV; i++)
+	for (i = 0; i < edma_cinfo->num_gmac; i++)
 		unregister_netdev(netdev[i]);
 err_register:
+err_mdiobus_init_fail:
 	edma_free_rx_rings(edma_cinfo);
 err_rx_rinit:
 	edma_free_tx_rings(edma_cinfo);
@@ -788,11 +1009,13 @@ err_tx_rinit:
 err_rx_qinit:
 err_tx_qinit:
 	iounmap(edma_cinfo->hw.hw_addr);
-err_hwaddr:
-	vfree(edma_cinfo);
 err_ioremap:
-	for (i = 0; i < EDMA_NR_NETDEV; i++)
-		free_netdev(netdev[i]);
+	for (i = 0; i < edma_cinfo->num_gmac; i++) {
+		if (netdev[i])
+			free_netdev(netdev[i]);
+	}
+err_cinfo:
+	vfree(edma_cinfo);
 err_alloc:
 	return err;
 }
@@ -810,8 +1033,7 @@ static int edma_axi_remove(struct platform_device *pdev)
 	struct edma_common_info *edma_cinfo = adapter->edma_cinfo;
 	struct edma_hw *hw = &edma_cinfo->hw;
 	int i;
-
-	for (i = 0; i < EDMA_NR_NETDEV; i++)
+	for (i = 0; i < edma_cinfo->num_gmac; i++)
 		unregister_netdev(netdev[i]);
 
 	edma_stop_rx_tx(hw);
@@ -822,22 +1044,27 @@ static int edma_axi_remove(struct platform_device *pdev)
 	edma_write_reg(EDMA_REG_RX_ISR, 0xff);
 	edma_write_reg(EDMA_REG_TX_ISR, 0xffff);
 #ifdef CONFIG_RFS_ACCEL
-	for (i = 0; i < EDMA_NR_NETDEV; i++) {
+	for (i = 0; i < edma_cinfo->num_gmac; i++) {
 		free_irq_cpu_rmap(netdev[0]->rx_cpu_rmap);
 		netdev[0]->rx_cpu_rmap = NULL;
 	}
 #endif
 
-	phy_disconnect(adapter->phydev);
+	for (i = 0; i < edma_cinfo->num_gmac; i++) {
+		struct edma_adapter *adapter = netdev_priv(netdev[i]);
+		if (adapter->phydev)
+			phy_disconnect(adapter->phydev);
+	}
+
 	del_timer_sync(&edma_stats_timer);
 	edma_free_irqs(adapter);
 	unregister_net_sysctl_table(edma_cinfo->edma_ctl_table_hdr);
-        edma_free_tx_resources(edma_cinfo);
-        edma_free_rx_resources(edma_cinfo);
+	edma_free_tx_resources(edma_cinfo);
+	edma_free_rx_resources(edma_cinfo);
 	edma_free_tx_rings(edma_cinfo);
 	edma_free_rx_rings(edma_cinfo);
 	edma_free_queues(edma_cinfo);
-	for (i = 0; i < EDMA_NR_NETDEV; i++)
+	for (i = 0; i < edma_cinfo->num_gmac; i++)
 		free_netdev(netdev[i]);
 
 	vfree(edma_cinfo);
