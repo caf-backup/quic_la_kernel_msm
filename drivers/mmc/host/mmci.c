@@ -498,6 +498,26 @@ static void mmci_dma_unmap(struct mmci_host *host, struct mmc_data *data)
 	dma_unmap_sg(chan->device->dev, data->sg, data->sg_len, dir);
 }
 
+/**
+ *
+ * This function resets & restores DMA.
+ *
+ * This function should be called to recover from error
+ * conditions encountered during CMD/DATA tranfsers with card.
+ *
+ * @host - Pointer to driver's host structure
+ *
+ */
+static void mmci_dma_reset_and_restore(struct mmci_host *host)
+{
+	dev_dbg(mmc_dev(host->mmc), "Trying to reset & restore dma.\n");
+
+	mmci_dma_release(host);
+	mmci_dma_setup(host);
+
+	host->reset_dma = false;
+}
+
 static void mmci_dma_finalize(struct mmci_host *host, struct mmc_data *data)
 {
 	u32 status;
@@ -936,6 +956,13 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 		if (dma_inprogress(host)) {
 			mmci_dma_data_error(host);
 			mmci_dma_unmap(host, data);
+
+			/*
+			 * Delay the dma reset in thread context as
+			 * dma channel release APIs can be called
+			 * only from non-atomic context.
+			 */
+			host->reset_dma = true;
 		}
 
 		/*
@@ -1047,6 +1074,7 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 			if (dma_inprogress(host)) {
 				mmci_dma_data_error(host);
 				mmci_dma_unmap(host, host->data);
+				host->reset_dma = true;
 			}
 			mmci_stop_data(host);
 		}
@@ -1297,6 +1325,10 @@ static void mmci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	unsigned long flags;
 
 	WARN_ON(host->mrq != NULL);
+
+	/* check if dma needs to be reset */
+	if (host->reset_dma)
+		mmci_dma_reset_and_restore(host);
 
 	mrq->cmd->error = mmci_validate_data(host, mrq->data);
 	if (mrq->cmd->error) {
