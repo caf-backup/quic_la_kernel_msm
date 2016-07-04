@@ -432,20 +432,22 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 				continue;
 			}
 
+			/* Get the number of RFD from RRD */
+			num_rfds = rd->rrd1 & EDMA_RRD_NUM_RFD_MASK;
+
 			port_id = (rd->rrd1 >> EDMA_PORT_ID_SHIFT) & EDMA_PORT_ID_MASK;
 			if ((unlikely(!port_id)) || (unlikely(port_id > EDMA_MAX_PORTID_SUPPORTED))) {
 				dev_err(&pdev->dev, "Invalid RRD source port bit set");
-				edma_clean_rfd(erdr, sw_next_to_clean);
-				sw_next_to_clean = (sw_next_to_clean + 1) & (erdr->count - 1);
-				cleaned_count++;
+				for (i = 0; i < num_rfds; i++) {
+					edma_clean_rfd(erdr, sw_next_to_clean);
+					sw_next_to_clean = (sw_next_to_clean + 1) & (erdr->count - 1);
+					cleaned_count++;
+				}
 				continue;
 			}
 
 			netdev = edma_cinfo->portid_netdev_lookup_tbl[port_id];
 			adapter = netdev_priv(netdev);
-
-			/* Get the number of RFD from RRD */
-			num_rfds = rd->rrd1 & EDMA_RRD_NUM_RFD_MASK;
 
 			/* This code is added to handle a usecase where high priority stream
 			 * and a low priority stream are received simultaneously on DUT.
