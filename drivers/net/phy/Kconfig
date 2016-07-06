@@ -161,6 +161,12 @@ config AR8216_PHY_LEDS
 	bool "Atheros AR8216 switch LED support"
 	depends on (AR8216_PHY && LEDS_CLASS)
 
+config AR40XX_PHY
+	tristate "Driver for Qualcomm Atheros IPQ40XX switches"
+	select SWCONFIG
+	---help---
+	  This is the driver for Qualcomm Atheros IPQ40XX ESS switches.
+
 config RTL8306_PHY
 	tristate "Driver for Realtek RTL8306S switches"
 	select SWCONFIG
