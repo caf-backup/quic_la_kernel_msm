@@ -163,10 +163,17 @@ static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
 	u8 *iv;
 	u8 *tail;
 	__be32 *seqhi;
+	bool nosupp_sg;
 
 	/* skb is pure payload to encrypt */
 	aead = x->data;
 	alen = crypto_aead_authsize(aead);
+
+	nosupp_sg = crypto_tfm_alg_flags(&aead->base) & CRYPTO_ALG_NOSUPP_SG;
+	if (nosupp_sg && skb_linearize(skb)) {
+		err = -ENOMEM;
+		goto error;
+	}
 
 	tfclen = 0;
 	if (x->tfcpad) {
@@ -334,6 +341,7 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 	u8 *iv;
 	struct scatterlist *sg;
 	struct scatterlist *asg;
+	bool nosupp_sg;
 
 	if (!pskb_may_pull(skb, sizeof(*esph) + crypto_aead_ivsize(aead))) {
 		ret = -EINVAL;
@@ -342,6 +350,12 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	if (elen <= 0) {
 		ret = -EINVAL;
+		goto out;
+	}
+
+	nosupp_sg = crypto_tfm_alg_flags(&aead->base) & CRYPTO_ALG_NOSUPP_SG;
+	if (nosupp_sg && skb_linearize(skb)) {
+		ret = -ENOMEM;
 		goto out;
 	}
 
