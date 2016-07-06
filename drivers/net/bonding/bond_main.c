@@ -1905,7 +1905,6 @@ static int bond_slave_info_query(struct net_device *bond_dev, struct ifslave *in
 
 /*-------------------------------- Monitoring -------------------------------*/
 
-
 static int bond_miimon_inspect(struct bonding *bond)
 {
 	int link_state, commit = 0;
@@ -2209,7 +2208,6 @@ static void bond_arp_send(struct net_device *slave_dev, int arp_op, __be32 dest_
 	}
 	arp_xmit(skb);
 }
-
 
 static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 {
@@ -3031,8 +3029,10 @@ static bool bond_flow_dissect_without_skb(struct bonding *bond, uint8_t *src_mac
 	} else {
 		return false;
 	}
-	if ((bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER34) && (layer4hdr != NULL))
-		fk->ports = *layer4hdr;
+	if ((bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER34) && (layer4hdr != NULL)) {
+		fk->port16[0] = *layer4hdr;
+		fk->port16[1] = *(layer4hdr + 1);
+	}
 
 	return true;
 }
@@ -3276,7 +3276,6 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 		if (!mii)
 			return -EINVAL;
 
-
 		if (mii->reg_num == 1) {
 			mii->val_out = 0;
 			read_lock(&bond->lock);
@@ -3377,7 +3376,6 @@ static void bond_set_rx_mode(struct net_device *bond_dev)
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct list_head *iter;
 	struct slave *slave;
-
 
 	rcu_read_lock();
 	if (USES_PRIMARY(bond->params.mode)) {
@@ -3537,7 +3535,6 @@ static int bond_set_mac_address(struct net_device *bond_dev, void *addr)
 
 	if (bond->params.mode == BOND_MODE_ALB)
 		return bond_alb_set_mac_address(bond_dev, addr);
-
 
 	pr_debug("bond=%p, name=%s\n",
 		 bond, bond_dev ? bond_dev->name : "None");
@@ -3961,7 +3958,6 @@ static inline int bond_slave_override(struct bonding *bond,
 
 	return 1;
 }
-
 
 static u16 bond_select_queue(struct net_device *dev, struct sk_buff *skb,
 			     void *accel_priv, select_queue_fallback_t fallback)
