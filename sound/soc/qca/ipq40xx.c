@@ -30,6 +30,8 @@
 #include <asm/io.h>
 #include <linux/pinctrl/consumer.h>
 
+#include "ipq40xx-adss.h"
+
 static struct snd_soc_dai_link ipq40xx_snd_dai[] = {
 	/* Front end DAI Links */
 	{
@@ -118,6 +120,8 @@ static int ipq40xx_audio_probe(struct platform_device *pdev)
 		pr_err("\nsnd_soc_register_card() failed:%d\n", ret);
 		return ret;
 	}
+
+	ipq40xx_audio_adss_init();
 
 	pinctrl_select_state(pins->p, pin_state);
 
