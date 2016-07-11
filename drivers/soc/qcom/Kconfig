@@ -84,10 +84,3 @@ config QCOM_TZ_LOG
 	  This option enables a driver with a debugfs interface for messages
 	  produced by the Secure code (Trust zone). These messages provide
 	  diagnostic information about TZ operation.
-
-config QCOM_QFPROM
-        tristate "QCOM QFPROM Interface"
-        depends on ARCH_QCOM && OF
-        help
-          Say y here to enable QFPROM support. The QFPROM provides access
-          functions for QFPROM data to rest of the drivers via syscon wrappers.
