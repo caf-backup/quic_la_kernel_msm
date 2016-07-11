@@ -51,6 +51,10 @@
 
 #define DRIVER_NAME "mmci-pl18x"
 
+#define MMCI_DMA_CTRL_NONE	0x00
+#define MMCI_DMA_CTRL_RELEASE	0x01
+#define MMCI_DMA_CTRL_RESET	0x02
+
 static unsigned int fmax = 515633;
 
 static struct variant_data variant_arm = {
@@ -512,10 +516,12 @@ static void mmci_dma_reset_and_restore(struct mmci_host *host)
 {
 	dev_dbg(mmc_dev(host->mmc), "Trying to reset & restore dma.\n");
 
-	mmci_dma_release(host);
-	mmci_dma_setup(host);
+	if (host->dma_control)
+		mmci_dma_release(host);
+	if (host->dma_control == MMCI_DMA_CTRL_RESET)
+		mmci_dma_setup(host);
 
-	host->reset_dma = false;
+	host->dma_control = MMCI_DMA_CTRL_NONE;
 }
 
 static void mmci_dma_finalize(struct mmci_host *host, struct mmc_data *data)
@@ -552,7 +558,7 @@ static void mmci_dma_finalize(struct mmci_host *host, struct mmc_data *data)
 	 */
 	if (status & MCI_RXDATAAVLBLMASK) {
 		dev_err(mmc_dev(host->mmc), "buggy DMA detected. Taking evasive action.\n");
-		mmci_dma_release(host);
+		host->dma_control = MMCI_DMA_CTRL_RELEASE;
 	}
 
 	host->dma_current = NULL;
@@ -962,7 +968,7 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 			 * dma channel release APIs can be called
 			 * only from non-atomic context.
 			 */
-			host->reset_dma = true;
+			host->dma_control = MMCI_DMA_CTRL_RESET;
 		}
 
 		/*
@@ -1074,7 +1080,7 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 			if (dma_inprogress(host)) {
 				mmci_dma_data_error(host);
 				mmci_dma_unmap(host, host->data);
-				host->reset_dma = true;
+				host->dma_control = MMCI_DMA_CTRL_RESET;
 			}
 			mmci_stop_data(host);
 		}
@@ -1327,7 +1333,7 @@ static void mmci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	WARN_ON(host->mrq != NULL);
 
 	/* check if dma needs to be reset */
-	if (host->reset_dma)
+	if (host->dma_control)
 		mmci_dma_reset_and_restore(host);
 
 	mrq->cmd->error = mmci_validate_data(host, mrq->data);
