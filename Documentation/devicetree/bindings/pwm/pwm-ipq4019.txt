@@ -1,4 +1,4 @@
-Qualcomm Pulse Width Modulation (PWM)
+Qualcomm Atheros, Inc Pulse Width Modulation (PWM)
 
 Required properties:
 - compatible : Should contain "qca,ipq4019-pwm".
