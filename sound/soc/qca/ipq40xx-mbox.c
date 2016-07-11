@@ -97,8 +97,7 @@ uint32_t ipq40xx_mbox_get_played_offset(u32 channel_id)
 	struct ipq40xx_mbox_desc *desc, *write;
 	struct ipq40xx_mbox_rt_dir_priv *rtdir;
 	unsigned int i, size_played = 0;
-	u32 chan;
-	u32 dir;
+	u32 chan, dir;
 
 	chan = ipq40xx_convert_id_to_channel(channel_id);
 	dir = ipq40xx_convert_id_to_dir(channel_id);
@@ -107,7 +106,6 @@ uint32_t ipq40xx_mbox_get_played_offset(u32 channel_id)
 
 	desc = rtdir->dma_virt_head;
 	write = &rtdir->dma_virt_head[rtdir->write];
-
 	desc += rtdir->read;
 
 	for (i = 0; i < rtdir->ndescs; i++) {
@@ -125,6 +123,51 @@ uint32_t ipq40xx_mbox_get_played_offset(u32 channel_id)
 	}
 
 	return size_played * rtdir->read;
+}
+
+uint32_t ipq40xx_mbox_get_played_offset_set_own(u32 channel_id)
+{
+	struct ipq40xx_mbox_desc *desc, *last_played, *prev;
+	struct ipq40xx_mbox_rt_dir_priv *rtdir;
+	unsigned int i, desc_own, size_played = 0;
+	u32 chan, dir;
+
+	chan = ipq40xx_convert_id_to_channel(channel_id);
+	dir = ipq40xx_convert_id_to_dir(channel_id);
+
+	rtdir = &mbox_rtime[chan]->dir_priv[dir];
+	last_played = NULL;
+
+	/* Point to the last desc */
+	prev = &rtdir->dma_virt_head[rtdir->ndescs - 1];
+	desc_own = prev->OWN;
+
+	/* point to first desc */
+	desc = &rtdir->dma_virt_head[0];
+
+	for (i = 0; i < rtdir->ndescs; i++) {
+		if (prev->OWN == 0) {
+			if (i == (rtdir->ndescs - 1)) {
+				if (desc_own == 1)
+					last_played = desc;
+			} else if (desc->OWN == 1) {
+				last_played = desc;
+			}
+			prev->OWN = 1;
+			prev->ei = 1;
+		}
+		prev = desc;
+		desc += 1;
+	}
+	if (last_played) {
+		desc = &rtdir->dma_virt_head[0];
+		size_played = last_played->BufPtr - desc->BufPtr;
+	} else {
+		pr_debug("%s last played buf not found\n", __func__);
+		rtdir->last_played_is_null++;
+	}
+
+	return size_played;
 }
 
 int ipq40xx_mbox_fifo_reset(int channel_id)

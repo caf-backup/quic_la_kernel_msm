@@ -197,8 +197,13 @@ static irqreturn_t ipq40xx_pcm_irq(int intrsrc, void *data)
 	struct ipq40xx_pcm_rt_priv *pcm_rtpriv =
 		(struct ipq40xx_pcm_rt_priv *)runtime->private_data;
 
-	pcm_rtpriv->curr_pos =
-		ipq40xx_mbox_get_played_offset(pcm_rtpriv->channel);
+	if (pcm_rtpriv->mmap_flag)
+		pcm_rtpriv->curr_pos =
+			ipq40xx_mbox_get_played_offset_set_own(
+					pcm_rtpriv->channel);
+	else
+		pcm_rtpriv->curr_pos =
+			ipq40xx_mbox_get_played_offset(pcm_rtpriv->channel);
 
 	snd_pcm_period_elapsed(substream);
 
@@ -242,7 +247,6 @@ static int ipq40xx_pcm_i2s_copy(struct snd_pcm_substream *substream, int chan,
 	}
 
 	ipq40xx_mbox_desc_own(pcm_rtpriv->channel, offset / size, 1);
-
 	ipq40xx_mbox_dma_resume(pcm_rtpriv->channel);
 
 	return 0;
@@ -252,6 +256,10 @@ static int ipq40xx_pcm_i2s_mmap(struct snd_pcm_substream *substream,
 				struct vm_area_struct *vma)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct ipq40xx_pcm_rt_priv *pcm_rtpriv =
+		(struct ipq40xx_pcm_rt_priv *)runtime->private_data;
+
+	pcm_rtpriv->mmap_flag = 1;
 
 	return dma_mmap_coherent(substream->pcm->card->dev, vma,
 		runtime->dma_area, runtime->dma_addr, runtime->dma_bytes);
@@ -293,8 +301,9 @@ static int ipq40xx_pcm_i2s_close(struct snd_pcm_substream *substream)
 {
 	struct ipq40xx_pcm_rt_priv *pcm_rtpriv;
 	uint32_t ret;
-
 	pcm_rtpriv = substream->runtime->private_data;
+	pcm_rtpriv->mmap_flag = 0;
+
 	ret = ipq40xx_mbox_dma_release(pcm_rtpriv->channel);
 	if (ret) {
 		pr_err("%s: %d: Error in dma release\n",
@@ -408,6 +417,7 @@ static int ipq40xx_pcm_i2s_open(struct snd_pcm_substream *substream)
 	pcm_rtpriv->dev = substream->pcm->card->dev;
 	pcm_rtpriv->channel = get_mbox_id(substream, intf);
 	substream->runtime->private_data = pcm_rtpriv;
+	pcm_rtpriv->mmap_flag = 0;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		runtime->dma_bytes =

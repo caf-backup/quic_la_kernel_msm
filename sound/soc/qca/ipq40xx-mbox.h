@@ -134,6 +134,7 @@ void ipq40xx_mbox_vuc_setup(int channel_id);
 void ipq40xx_mbox_desc_own(u32 channel_id, int desc_no, int own);
 
 uint32_t ipq40xx_mbox_get_played_offset(u32 channel_id);
+uint32_t ipq40xx_mbox_get_played_offset_set_own(u32 channel_id);
 static struct ipq40xx_mbox_desc *get_next(
 	struct ipq40xx_mbox_rt_dir_priv *rtdir,
 		struct ipq40xx_mbox_desc *desc);
