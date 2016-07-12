@@ -28,23 +28,6 @@
 
 #include "ipq40xx-mbox.h"
 
-/* When the mailbox operation is started, the mailbox would get one descriptor
- * for the current data transfer and prefetch one more descriptor. When less
- * than 3 descriptors are configured, then it is possible that before the CPU
- * handles the interrupt, the mailbox could check the pre fetched descriptor
- * and stop the DMA transfer.
- * To handle this, the design is use multiple descriptors, but they would
- * point to the same buffer address. This way  more number of descriptors
- * would satisfy the mbox requirement, and reusing the buffer address would
- * satisfy the upper layer's buffer requirement
- *
- * The value of 5 of repetition times was derived from trial and error testing
- * for minimum number of repetitions that would result in MBOX operations
- * without stopping.
- */
-#define MBOX_MIN_DESC_NUM       3
-#define MBOX_DESC_REPEAT_NUM    5
-
 enum {
 	CHN_DISABLED = 0x00,
 	CHN_ENABLED = 0x01, /* from dtsi */
@@ -482,7 +465,7 @@ void ipq40xx_mbox_vuc_setup(int channel_id)
 EXPORT_SYMBOL(ipq40xx_mbox_vuc_setup);
 
 int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr, u8 *area,
-				int period_bytes, int bufsize)
+				int period_bytes, int bufsize, int own_bit)
 {
 	struct ipq40xx_mbox_desc *desc, *_desc_p;
 	dma_addr_t desc_p, baseaddr_const;
@@ -499,11 +482,14 @@ int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr, u8 *area,
 	mbox_cb = &mbox_rtime[index]->dir_priv[dir];
 	ndescs = ((bufsize + (period_bytes - 1)) / period_bytes);
 
-	if (ndescs < MBOX_MIN_DESC_NUM)
-		ndescs *= MBOX_DESC_REPEAT_NUM;
-
 	desc = (struct ipq40xx_mbox_desc *)(area + (ndescs * period_bytes));
 	desc_p = baseaddr + (ndescs * period_bytes);
+
+	/* Finding whether duplicate desc entries are required or not should
+	 * be done after desc is initialized else if ndescs are less than
+	 * MBOX_MIN_DESC_NUM and this if condition is before desc initialization
+	 * then desc will point to a region beyond allocated coherent memory */
+	ndescs = ipq40xx_get_mbox_descs_duplicate(ndescs);
 
 	memset(desc, 0, ndescs * sizeof(struct ipq40xx_mbox_desc));
 	mbox_cb->read = 0;
@@ -517,7 +503,7 @@ int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr, u8 *area,
 
 	for (i = 0; i < ndescs; i++) {
 
-		desc->OWN = (dir == CAPTURE);
+		desc->OWN = own_bit;
 		desc->ei = 1;
 		desc->rsvd1 = desc->rsvd2 = desc->rsvd3 = desc->EOM = 0;
 		desc->BufPtr = (baseaddr & 0xfffffff);
