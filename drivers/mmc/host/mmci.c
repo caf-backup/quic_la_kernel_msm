@@ -51,6 +51,10 @@
 
 #define DRIVER_NAME "mmci-pl18x"
 
+#define MMCI_DMA_CTRL_NONE	0x00
+#define MMCI_DMA_CTRL_RELEASE	0x01
+#define MMCI_DMA_CTRL_RESET	0x02
+
 static unsigned int fmax = 515633;
 
 static struct variant_data variant_arm = {
@@ -498,6 +502,28 @@ static void mmci_dma_unmap(struct mmci_host *host, struct mmc_data *data)
 	dma_unmap_sg(chan->device->dev, data->sg, data->sg_len, dir);
 }
 
+/**
+ *
+ * This function resets & restores DMA.
+ *
+ * This function should be called to recover from error
+ * conditions encountered during CMD/DATA tranfsers with card.
+ *
+ * @host - Pointer to driver's host structure
+ *
+ */
+static void mmci_dma_reset_and_restore(struct mmci_host *host)
+{
+	dev_dbg(mmc_dev(host->mmc), "Trying to reset & restore dma.\n");
+
+	if (host->dma_control)
+		mmci_dma_release(host);
+	if (host->dma_control == MMCI_DMA_CTRL_RESET)
+		mmci_dma_setup(host);
+
+	host->dma_control = MMCI_DMA_CTRL_NONE;
+}
+
 static void mmci_dma_finalize(struct mmci_host *host, struct mmc_data *data)
 {
 	u32 status;
@@ -532,7 +558,7 @@ static void mmci_dma_finalize(struct mmci_host *host, struct mmc_data *data)
 	 */
 	if (status & MCI_RXDATAAVLBLMASK) {
 		dev_err(mmc_dev(host->mmc), "buggy DMA detected. Taking evasive action.\n");
-		mmci_dma_release(host);
+		host->dma_control = MMCI_DMA_CTRL_RELEASE;
 	}
 
 	host->dma_current = NULL;
@@ -936,6 +962,13 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 		if (dma_inprogress(host)) {
 			mmci_dma_data_error(host);
 			mmci_dma_unmap(host, data);
+
+			/*
+			 * Delay the dma reset in thread context as
+			 * dma channel release APIs can be called
+			 * only from non-atomic context.
+			 */
+			host->dma_control = MMCI_DMA_CTRL_RESET;
 		}
 
 		/*
@@ -1047,6 +1080,7 @@ mmci_cmd_irq(struct mmci_host *host, struct mmc_command *cmd,
 			if (dma_inprogress(host)) {
 				mmci_dma_data_error(host);
 				mmci_dma_unmap(host, host->data);
+				host->dma_control = MMCI_DMA_CTRL_RESET;
 			}
 			mmci_stop_data(host);
 		}
@@ -1297,6 +1331,10 @@ static void mmci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	unsigned long flags;
 
 	WARN_ON(host->mrq != NULL);
+
+	/* check if dma needs to be reset */
+	if (host->dma_control)
+		mmci_dma_reset_and_restore(host);
 
 	mrq->cmd->error = mmci_validate_data(host, mrq->data);
 	if (mrq->cmd->error) {

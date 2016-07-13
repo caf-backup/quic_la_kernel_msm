@@ -155,6 +155,10 @@
 			smb208_s2a: smb208-s2a {
 				regulator-max-microvolt = <1275000>;
 			};
+
+			smb208_s2b: smb208-s2b {
+				regulator-max-microvolt = <1275000>;
+			};
 		};
 
 		nss0: nss@40000000 {

@@ -46,6 +46,9 @@ struct nand_flash_dev nand_flash_ids[] = {
 	{"W25N01GV 128MiB 3.3V",
 		{ .id = {0xef, 0xaa} }, SZ_2K, 128, SZ_128K, 0, 2, 64},
 
+	{"W25M02GV 256MiB 3.3V(Dual die)",
+		{ .id = {0xef, 0xab} }, SZ_2K, 256, SZ_128K, 0, 2, 64},
+
 	{"GD5F1GQ1RC 128MiB 1.8V",
 		{ .id = {0xc8, 0xA1} }, SZ_2K, 128, SZ_128K, 0, 2, 64},
 

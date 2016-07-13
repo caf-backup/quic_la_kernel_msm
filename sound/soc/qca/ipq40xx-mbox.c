@@ -54,6 +54,122 @@ enum {
 
 struct ipq40xx_mbox_rt_priv *mbox_rtime[ADSS_MBOX_NR_CHANNELS];
 
+static struct ipq40xx_mbox_desc *get_next(
+				struct ipq40xx_mbox_rt_dir_priv *rtdir,
+				struct ipq40xx_mbox_desc *desc)
+{
+	struct ipq40xx_mbox_desc *end;
+
+	end = rtdir->dma_virt_head + rtdir->ndescs;
+
+	desc++;
+
+	if (desc >= end)
+		desc = rtdir->dma_virt_head;
+
+	return desc;
+}
+
+void ipq40xx_mbox_desc_own(u32 channel_id, int desc_no, int own)
+{
+	struct ipq40xx_mbox_desc *desc;
+	struct ipq40xx_mbox_rt_dir_priv *rtdir;
+	u32 chan;
+	u32 dir;
+
+	chan = ipq40xx_convert_id_to_channel(channel_id);
+	dir = ipq40xx_convert_id_to_dir(channel_id);
+
+	rtdir = &mbox_rtime[chan]->dir_priv[dir];
+
+	desc = rtdir->dma_virt_head;
+	desc += desc_no;
+
+	rtdir->write = desc_no;
+
+	desc->OWN = own;
+	desc->ei = 1;
+}
+EXPORT_SYMBOL(ipq40xx_mbox_desc_own);
+
+uint32_t ipq40xx_mbox_get_played_offset(u32 channel_id)
+{
+	struct ipq40xx_mbox_desc *desc, *write;
+	struct ipq40xx_mbox_rt_dir_priv *rtdir;
+	unsigned int i, size_played = 0;
+	u32 chan, dir;
+
+	chan = ipq40xx_convert_id_to_channel(channel_id);
+	dir = ipq40xx_convert_id_to_dir(channel_id);
+
+	rtdir = &mbox_rtime[chan]->dir_priv[dir];
+
+	desc = rtdir->dma_virt_head;
+	write = &rtdir->dma_virt_head[rtdir->write];
+	desc += rtdir->read;
+
+	for (i = 0; i < rtdir->ndescs; i++) {
+		if (desc->OWN == 0) {
+			size_played = desc->size;
+			rtdir->read = (rtdir->read + 1) % rtdir->ndescs;
+		} else {
+			break;
+		}
+
+		if (desc == write)
+			break;
+
+		desc = get_next(rtdir, desc);
+	}
+
+	return size_played * rtdir->read;
+}
+
+uint32_t ipq40xx_mbox_get_played_offset_set_own(u32 channel_id)
+{
+	struct ipq40xx_mbox_desc *desc, *last_played, *prev;
+	struct ipq40xx_mbox_rt_dir_priv *rtdir;
+	unsigned int i, desc_own, size_played = 0;
+	u32 chan, dir;
+
+	chan = ipq40xx_convert_id_to_channel(channel_id);
+	dir = ipq40xx_convert_id_to_dir(channel_id);
+
+	rtdir = &mbox_rtime[chan]->dir_priv[dir];
+	last_played = NULL;
+
+	/* Point to the last desc */
+	prev = &rtdir->dma_virt_head[rtdir->ndescs - 1];
+	desc_own = prev->OWN;
+
+	/* point to first desc */
+	desc = &rtdir->dma_virt_head[0];
+
+	for (i = 0; i < rtdir->ndescs; i++) {
+		if (prev->OWN == 0) {
+			if (i == (rtdir->ndescs - 1)) {
+				if (desc_own == 1)
+					last_played = desc;
+			} else if (desc->OWN == 1) {
+				last_played = desc;
+			}
+			prev->OWN = 1;
+			prev->ei = 1;
+		}
+		prev = desc;
+		desc += 1;
+	}
+	if (last_played) {
+		desc = &rtdir->dma_virt_head[0];
+		size_played = last_played->BufPtr - desc->BufPtr;
+	} else {
+		pr_debug("%s last played buf not found\n", __func__);
+		rtdir->last_played_is_null++;
+	}
+
+	return size_played;
+}
+
 int ipq40xx_mbox_fifo_reset(int channel_id)
 {
 	volatile void __iomem *mbox_reg;
@@ -94,6 +210,7 @@ int ipq40xx_mbox_dma_start(int channel_id)
 		return -ENOMEM;
 
 	mbox_reg = mbox_rtime[index]->mbox_reg_base;
+	mbox_rtime[index]->mbox_started = 1;
 
 	switch (dir) {
 	case PLAYBACK:
@@ -122,6 +239,10 @@ int ipq40xx_mbox_dma_resume(int channel_id)
 	if (!mbox_rtime[index])
 		return -ENOMEM;
 
+	/* resume is meaningful only when dma is started. */
+	if (!mbox_rtime[index]->mbox_started)
+		return 0;
+
 	mbox_reg = mbox_rtime[index]->mbox_reg_base;
 
 	switch (dir) {
@@ -143,6 +264,7 @@ EXPORT_SYMBOL(ipq40xx_mbox_dma_resume);
 int ipq40xx_mbox_dma_stop(int channel_id)
 {
 	volatile void __iomem *mbox_reg;
+	struct ipq40xx_mbox_rt_dir_priv *mbox_cb;
 	uint32_t index, dir;
 
 	index = ipq40xx_convert_id_to_channel(channel_id);
@@ -152,6 +274,7 @@ int ipq40xx_mbox_dma_stop(int channel_id)
 		return -ENOMEM;
 
 	mbox_reg = mbox_rtime[index]->mbox_reg_base;
+	mbox_rtime[index]->mbox_started = 0;
 
 	switch (dir) {
 	case PLAYBACK:
@@ -170,6 +293,10 @@ int ipq40xx_mbox_dma_stop(int channel_id)
 	DMA engine will be truly idle. */
 
 	mdelay(10);
+
+	mbox_cb = &mbox_rtime[index]->dir_priv[dir];
+	mbox_cb->read = 0;
+	mbox_cb->write = 0;
 
 	return 0;
 
@@ -354,13 +481,14 @@ void ipq40xx_mbox_vuc_setup(int channel_id)
 }
 EXPORT_SYMBOL(ipq40xx_mbox_vuc_setup);
 
-int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr,
+int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr, u8 *area,
 				int period_bytes, int bufsize)
 {
 	struct ipq40xx_mbox_desc *desc, *_desc_p;
 	dma_addr_t desc_p, baseaddr_const;
 	unsigned int i, ndescs;
 	uint32_t index, dir;
+	struct ipq40xx_mbox_rt_dir_priv *mbox_cb;
 
 	index = ipq40xx_convert_id_to_channel(channel_id);
 	dir = ipq40xx_convert_id_to_dir(channel_id);
@@ -368,20 +496,18 @@ int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr,
 	if (!mbox_rtime[index])
 		return -ENOMEM;
 
+	mbox_cb = &mbox_rtime[index]->dir_priv[dir];
 	ndescs = ((bufsize + (period_bytes - 1)) / period_bytes);
 
 	if (ndescs < MBOX_MIN_DESC_NUM)
 		ndescs *= MBOX_DESC_REPEAT_NUM;
 
-	desc = dma_alloc_coherent(mbox_rtime[index]->dir_priv[dir].dev,
-				(ndescs * sizeof(struct ipq40xx_mbox_desc)),
-				&desc_p, GFP_KERNEL);
-	if (!desc) {
-		pr_err("Mem alloc failed for MBOX DMA desc \n");
-		return -ENOMEM;
-	}
+	desc = (struct ipq40xx_mbox_desc *)(area + (ndescs * period_bytes));
+	desc_p = baseaddr + (ndescs * period_bytes);
 
 	memset(desc, 0, ndescs * sizeof(struct ipq40xx_mbox_desc));
+	mbox_cb->read = 0;
+	mbox_cb->write = 0;
 	mbox_rtime[index]->dir_priv[dir].ndescs = ndescs;
 	mbox_rtime[index]->dir_priv[dir].dma_virt_head = desc;
 	mbox_rtime[index]->dir_priv[dir].dma_phys_head = desc_p;
@@ -391,7 +517,7 @@ int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr,
 
 	for (i = 0; i < ndescs; i++) {
 
-		desc->OWN = 1;
+		desc->OWN = (dir == CAPTURE);
 		desc->ei = 1;
 		desc->rsvd1 = desc->rsvd2 = desc->rsvd3 = desc->EOM = 0;
 		desc->BufPtr = (baseaddr & 0xfffffff);
@@ -399,7 +525,7 @@ int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr,
 			(dma_addr_t)(&_desc_p[(i + 1) % ndescs]) & 0xfffffff;
 		desc->size = period_bytes;
 		desc->length = desc->size;
-		baseaddr += period_bytes;
+		baseaddr += ALIGN(period_bytes, L1_CACHE_BYTES);
 		if (baseaddr >= (baseaddr_const + bufsize)) {
 			if (bufsize % period_bytes)
 				desc->size = bufsize % period_bytes;
@@ -432,15 +558,8 @@ int ipq40xx_mbox_dma_release(int channel_id)
 		ipq40xx_mbox_interrupt_disable(channel_id,
 				(MBOX_INT_ENABLE_TX_DMA_COMPLETE |
 					MBOX_INT_ENABLE_RX_DMA_COMPLETE));
-		if (mbox_rtime[index]->dir_priv[dir].dma_virt_head) {
-			dma_free_coherent(mbox_rtime[index]->dir_priv[dir].dev,
-				(mbox_rtime[index]->dir_priv[dir].ndescs *
-					sizeof(struct ipq40xx_mbox_desc)),
-				mbox_rtime[index]->dir_priv[dir].dma_virt_head,
-				mbox_rtime[index]->dir_priv[dir].dma_phys_head);
 
-			mbox_rtime[index]->dir_priv[dir].dma_virt_head = NULL;
-		}
+		mbox_rtime[index]->dir_priv[dir].dma_virt_head = NULL;
 		clear_bit(CHN_STARTED,
 				&mbox_rtime[index]->dir_priv[dir].status);
 		return 0;

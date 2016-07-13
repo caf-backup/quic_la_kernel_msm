@@ -98,12 +98,15 @@ struct ipq40xx_mbox_rt_dir_priv {
 	uint32_t channel_id;
 	uint32_t err_stats;
 	uint32_t last_played_is_null;
+	u32 write;
+	u32 read;
 };
 
 struct ipq40xx_mbox_rt_priv {
 	int irq_no;
 	volatile void __iomem *mbox_reg_base;
 	struct ipq40xx_mbox_rt_dir_priv dir_priv[2];
+	int mbox_started;
 };
 
 /* Replaces struct ath_i2s_softc */
@@ -122,12 +125,19 @@ int ipq40xx_mbox_dma_reset_swap(int channel_id);
 int ipq40xx_mbox_dma_swap(int channel_id, snd_pcm_format_t format);
 int ipq40xx_mbox_dma_prepare(int channel_id);
 int ipq40xx_mbox_dma_resume(int channel_id);
-int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr,
+int ipq40xx_mbox_form_ring(int channel_id, dma_addr_t baseaddr, u8 *base,
 				int period_bytes, int bufsize);
 int ipq40xx_mbox_dma_release(int channel);
 int ipq40xx_mbox_dma_init(struct device *dev, int channel_id,
 	irq_handler_t callback, void *private_data);
 void ipq40xx_mbox_vuc_setup(int channel_id);
+void ipq40xx_mbox_desc_own(u32 channel_id, int desc_no, int own);
+
+uint32_t ipq40xx_mbox_get_played_offset(u32 channel_id);
+uint32_t ipq40xx_mbox_get_played_offset_set_own(u32 channel_id);
+static struct ipq40xx_mbox_desc *get_next(
+	struct ipq40xx_mbox_rt_dir_priv *rtdir,
+		struct ipq40xx_mbox_desc *desc);
 
 static inline uint32_t ipq40xx_convert_id_to_channel(uint32_t id)
 {
@@ -284,57 +294,6 @@ static inline struct ipq40xx_mbox_desc
 
 	/* If we didn't find the last played buffer, return NULL */
 	return NULL;
-}
-
-static inline uint32_t ipq40xx_mbox_get_played_offset(uint32_t channel_id)
-{
-	struct ipq40xx_mbox_desc *desc, *prev, *last_played;
-	unsigned int ndescs, i;
-	uint32_t index;
-	uint32_t dir;
-	uint32_t desc_own;
-	uint32_t played_size;
-
-	index = ipq40xx_convert_id_to_channel(channel_id);
-	dir = ipq40xx_convert_id_to_dir(channel_id);
-
-	if (!mbox_rtime[index])
-		return 0;
-
-	ndescs = mbox_rtime[index]->dir_priv[dir].ndescs;
-	played_size = 0;
-	last_played = NULL;
-
-	/* Point to the last desc */
-	prev = &mbox_rtime[index]->dir_priv[dir].dma_virt_head[ndescs - 1];
-	desc_own = prev->OWN;
-
-	/* Point to the first desc */
-	desc = &mbox_rtime[index]->dir_priv[dir].dma_virt_head[0];
-
-	for (i = 0; i < ndescs; i++) {
-		if (prev->OWN == 0) {
-			if (i == (ndescs - 1)) {
-				if (desc_own == 1)
-					last_played = desc;
-			} else if (desc->OWN == 1) {
-				last_played = desc;
-			}
-			prev->OWN = 1;
-			prev->ei = 1;
-		}
-		prev = desc;
-		desc += 1;
-	}
-	if (last_played) {
-		desc = &mbox_rtime[index]->dir_priv[dir].dma_virt_head[0];
-		played_size = last_played->BufPtr - desc->BufPtr;
-	} else {
-		pr_debug("%s last played buf not found\n", __func__);
-		mbox_rtime[index]->dir_priv[dir].last_played_is_null++;
-	}
-
-	return played_size;
 }
 
 #endif /* _IPQ40XX_MBOX_H_ */

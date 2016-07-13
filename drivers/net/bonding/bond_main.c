@@ -1243,7 +1243,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	struct slave *new_slave = NULL, *prev_slave;
 	struct sockaddr addr;
 	int link_reporting;
-	int res = 0, i, mac_stolen = 0;
+	int res = 0, i, mac_stolen = 0, same_addr;
 
 	if (!bond->params.use_carrier &&
 	    slave_dev->ethtool_ops->get_link == NULL &&
@@ -1338,6 +1338,9 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		goto err_undo_flags;
 	}
 
+	same_addr = (memcmp(bond_dev->dev_addr, slave_dev->dev_addr,
+			    ETH_ALEN) == 0);
+
 	if (slave_ops->ndo_set_mac_address == NULL) {
 		if (!bond_has_slaves(bond)) {
 			pr_warn("%s: Warning: The first slave device specified does not support setting the MAC address.\n",
@@ -1347,6 +1350,9 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 				pr_warn("%s: Setting fail_over_mac to active for active-backup mode.\n",
 					bond_dev->name);
 			}
+		} else if (bond_is_l2da(bond) && same_addr) {
+			pr_warn("%s: Warning: Slave device does not support setting the MAC address. ignore due to same address.\n",
+				bond_dev->name);
 		} else if (bond->params.fail_over_mac != BOND_FOM_ACTIVE) {
 			pr_err("%s: Error: The slave device specified does not support setting the MAC address, but fail_over_mac is not set to active.\n",
 			       bond_dev->name);
@@ -1393,8 +1399,10 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	if ((!bond->params.fail_over_mac ||
 	     bond->params.mode != BOND_MODE_ACTIVEBACKUP) &&
-	    /* skip for first slave in l2da mode */
-	    !(mac_stolen && bond_is_l2da(bond))) {
+	    /* In l2da mode, skip for first slave and skip if
+	     * slave's address is already same as bond's address.
+	     */
+	    !(bond_is_l2da(bond) && (mac_stolen || same_addr))) {
 		/*
 		 * Set slave to master's mac address.  The application already
 		 * set the master's mac address to that of the first slave
@@ -1952,7 +1960,6 @@ static int bond_slave_info_query(struct net_device *bond_dev, struct ifslave *in
 
 /*-------------------------------- Monitoring -------------------------------*/
 
-
 static int bond_miimon_inspect(struct bonding *bond)
 {
 	int link_state, commit = 0;
@@ -2262,7 +2269,6 @@ static void bond_arp_send(struct net_device *slave_dev, int arp_op, __be32 dest_
 	}
 	arp_xmit(skb);
 }
-
 
 static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 {
@@ -3084,8 +3090,10 @@ static bool bond_flow_dissect_without_skb(struct bonding *bond, uint8_t *src_mac
 	} else {
 		return false;
 	}
-	if ((bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER34) && (layer4hdr != NULL))
-		fk->ports = *layer4hdr;
+	if ((bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER34) && (layer4hdr != NULL)) {
+		fk->port16[0] = *layer4hdr;
+		fk->port16[1] = *(layer4hdr + 1);
+	}
 
 	return true;
 }
@@ -3329,7 +3337,6 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 		if (!mii)
 			return -EINVAL;
 
-
 		if (mii->reg_num == 1) {
 			mii->val_out = 0;
 			read_lock(&bond->lock);
@@ -3430,7 +3437,6 @@ static void bond_set_rx_mode(struct net_device *bond_dev)
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct list_head *iter;
 	struct slave *slave;
-
 
 	rcu_read_lock();
 	if (USES_PRIMARY(bond->params.mode)) {
@@ -3590,7 +3596,6 @@ static int bond_set_mac_address(struct net_device *bond_dev, void *addr)
 
 	if (bond->params.mode == BOND_MODE_ALB)
 		return bond_alb_set_mac_address(bond_dev, addr);
-
 
 	pr_debug("bond=%p, name=%s\n",
 		 bond, bond_dev ? bond_dev->name : "None");
@@ -3993,7 +3998,6 @@ static inline int bond_slave_override(struct bonding *bond,
 
 	return 1;
 }
-
 
 static u16 bond_select_queue(struct net_device *dev, struct sk_buff *skb,
 			     void *accel_priv, select_queue_fallback_t fallback)
