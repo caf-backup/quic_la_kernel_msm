@@ -595,7 +595,7 @@ static int spinand_disable_ecc(struct spi_device *spi_nand)
  */
 static int spinand_write_enable(struct spi_device *spi_nand)
 {
-	int ret;
+	int ret = 0;
 	int i;
 	struct spinand_ops *dev_ops = get_dev_ops(spi_nand);
 	struct spinand_cmd cmd = {0};
@@ -624,7 +624,7 @@ static int spinand_write_enable(struct spi_device *spi_nand)
  */
 static int spinand_write_disable(struct spi_device *spi_nand)
 {
-	int ret;
+	int ret = 0;
 	int i;
 	struct spinand_ops *dev_ops = get_dev_ops(spi_nand);
 	struct spinand_cmd cmd = {0};
