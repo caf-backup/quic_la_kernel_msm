@@ -789,13 +789,14 @@ static int edma_axi_probe(struct platform_device *pdev)
 		netdev[i]->vlan_features |= NETIF_F_RXHASH | NETIF_F_NTUPLE;
 		netdev[i]->wanted_features |= NETIF_F_RXHASH | NETIF_F_NTUPLE;
 #endif
-
+#ifdef EDMA_FRAGLIST_USED
 		if (edma_cinfo->fraglist_mode) {
 			netdev[i]->features |= NETIF_F_FRAGLIST;
 			netdev[i]->hw_features |= NETIF_F_FRAGLIST;
 			netdev[i]->vlan_features |= NETIF_F_FRAGLIST;
 			netdev[i]->wanted_features |= NETIF_F_FRAGLIST;
 		}
+#endif
 
 		edma_set_ethtool_ops(netdev[i]);
 
