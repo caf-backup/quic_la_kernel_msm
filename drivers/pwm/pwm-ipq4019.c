@@ -28,6 +28,10 @@
 #define SRC_FREQ		(200*1000*1000)
 #define MAX_PWM_DEVICES		4
 
+/* The default period and duty cycle values to be configured. */
+#define DEFAULT_PERIOD_NS	10
+#define DEFAULT_DUTY_CYCLE_NS	5
+
 /* The max value specified for each field is based on the number of bits
  * in the pwm control regitser for that filed
  */
@@ -154,10 +158,10 @@ static int ipq4019_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 	if (!used_pwm[pwm->hwpwm])
 		return -EINVAL;
 
-	pwm->period = NSEC_PER_SEC / clk_get_rate(ipq4019_chip->clk);
-	pwm->duty_cycle = 0;
+	pwm->period = DEFAULT_PERIOD_NS;
+	pwm->duty_cycle = DEFAULT_DUTY_CYCLE_NS;
 
-	ipq4019_pwm_enable(chip, pwm);
+	ipq4019_pwm_config(chip, pwm, pwm->duty_cycle, pwm->period);
 
 	return 0;
 }
