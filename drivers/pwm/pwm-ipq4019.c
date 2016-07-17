@@ -32,6 +32,10 @@
 #define DEFAULT_PERIOD_NS	10
 #define DEFAULT_DUTY_CYCLE_NS	5
 
+/* The frequency range supported is 762Hz to 100MHz. */
+#define MIN_PERIOD_NS		10
+#define MAX_PERIOD_NS		1312335
+
 /* The max value specified for each field is based on the number of bits
  * in the pwm control regitser for that filed
  */
@@ -121,9 +125,18 @@ static int ipq4019_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	/* freq in Hz for period in nano second*/
 	freq = NSEC_PER_SEC / period_ns;
 
+	if (period_ns > MAX_PERIOD_NS || period_ns < MIN_PERIOD_NS) {
+		pr_err("PWM Frequency range supported is 762Hz to 100MHz\n"
+			"Switching to default configuration values\n");
+		period_ns = DEFAULT_PERIOD_NS;
+		duty_ns = DEFAULT_DUTY_CYCLE_NS;
+		pwm->period = period_ns;
+		pwm->duty_cycle = duty_ns;
+	}
+
 	ipq4019_pwm_disable(chip, pwm);
 
-	while (pwm_div >= 0 && diff) {
+	do {
 		pre_div = 0;
 		while (pre_div <= MAX_PRE_DIV) {
 			diff = rate - (freq * (pre_div + 1) * (pwm_div + 1));
@@ -142,7 +155,7 @@ static int ipq4019_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			pre_div++;
 		}
 		pwm_div--;
-	}
+	} while (pwm_div >= 0 && diff);
 
 	/* config divider values for the closest possible frequency */
 	config_div_and_duty(pwm, close_pre_div, close_pwm_div,
@@ -154,7 +167,6 @@ static int ipq4019_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 static int ipq4019_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 {
-	struct ipq4019_pwm_chip *ipq4019_chip = to_ipq4019_pwm_chip(chip);
 	if (!used_pwm[pwm->hwpwm])
 		return -EINVAL;
 
