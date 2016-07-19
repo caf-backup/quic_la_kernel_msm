@@ -844,7 +844,6 @@ static void edma_tx_complete(struct edma_common_info *edma_cinfo, int queue_id)
 	struct edma_tx_desc_ring *etdr = edma_cinfo->tpd_ring[queue_id];
 	struct edma_sw_desc *sw_desc;
 	struct platform_device *pdev = edma_cinfo->pdev;
-	struct net_device *netdev;
 	int i;
 
 	u16 sw_next_to_clean = etdr->sw_next_to_clean;

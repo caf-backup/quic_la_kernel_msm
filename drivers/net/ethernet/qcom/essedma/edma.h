@@ -393,7 +393,7 @@ struct edma_adapter {
 	int32_t forced_duplex; /* link force duplex */
 	int32_t link_state; /* phy link state */
 	uint32_t phy_mdio_addr; /* PHY device address on MII interface */
-	bool poll_required; /* check if link polling is required */
+	uint32_t poll_required; /* check if link polling is required */
 	u32 tx_start_offset[EDMA_NR_CPU]; /* tx queue start */
 	int default_vlan_tag; /* vlan tag */
 	uint8_t phy_id[MII_BUS_ID_SIZE + 3];
