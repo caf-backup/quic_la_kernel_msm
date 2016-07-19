@@ -215,7 +215,12 @@ static void br_flood(struct net_bridge *br, struct sk_buff *skb,
 			continue;
 
 		if ((p->flags & BR_PROXYARP_WIFI) &&
+		    skb->protocol == htons(ETH_P_ARP) &&
 		    BR_INPUT_SKB_CB(skb)->proxyarp_replied)
+			continue;
+
+		if ((p->flags & BR_PROXYARP_WIFI) &&
+		    BR_INPUT_SKB_CB(skb)->proxyndisc_replied)
 			continue;
 
 		prev = maybe_deliver(prev, p, skb, __packet_hook);

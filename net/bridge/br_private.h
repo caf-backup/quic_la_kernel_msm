@@ -306,6 +306,7 @@ struct br_input_skb_cb {
 	int mrouters_only;
 #endif
 	bool proxyarp_replied;
+	bool proxyndisc_replied;
 
 	u16 frag_max_size;
 

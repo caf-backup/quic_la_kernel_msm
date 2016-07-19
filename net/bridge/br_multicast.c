@@ -1852,7 +1852,7 @@ static void br_do_proxy_ndisc(struct sk_buff *skb, struct net_bridge *br,
 	const struct in6_addr *daddr_na;
 	const u8 *dest_hw = NULL;
 
-	BR_INPUT_SKB_CB(skb)->proxyarp_replied = false;
+	BR_INPUT_SKB_CB(skb)->proxyndisc_replied = false;
 
 	if (!p)
 		return;
@@ -1918,7 +1918,7 @@ static void br_do_proxy_ndisc(struct sk_buff *skb, struct net_bridge *br,
 
 	br_ndisc_send_na(dev, daddr_na, &msg->target, n->ha, solicited,
 			 override, dest_hw);
-	BR_INPUT_SKB_CB(skb)->proxyarp_replied = true;
+	BR_INPUT_SKB_CB(skb)->proxyndisc_replied = true;
 
 out:
 	neigh_release(n);
