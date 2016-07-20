@@ -43,7 +43,6 @@ static int edma_alloc_tx_ring(struct edma_common_info *edma_cinfo,
 	etdr->sw_next_to_fill = 0;
 	etdr->sw_next_to_clean = 0;
 
-
 	/* Allocate SW descriptors */
 	etdr->sw_desc = vzalloc(etdr->size);
 	if (!unlikely(etdr->sw_desc)) {
@@ -678,7 +677,6 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 			EDMA_RFD_CONS_IDX_MASK;
 	} while (hw_next_to_clean != sw_next_to_clean);
 
-
 	erdr->sw_next_to_clean = sw_next_to_clean;
 
 	/* alloc_rx_buf */
@@ -1264,7 +1262,7 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 	struct edma_adapter *adapter = netdev_priv(net_dev);
 	struct edma_common_info *edma_cinfo = adapter->edma_cinfo;
 	struct edma_tx_desc_ring *etdr;
-	u16 from_cpu, dp_bitmap, txq_id;
+	u16 from_cpu = 0, dp_bitmap = 0, txq_id;
 	int ret, nr_frags = 0, num_tpds_needed = 1, queue_id = 0;
 	unsigned int flags_transmit = 0;
 	bool packet_is_rstp = false;
