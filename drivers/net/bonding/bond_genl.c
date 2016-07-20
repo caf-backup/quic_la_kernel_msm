@@ -205,6 +205,8 @@ static int bond_genl_ops_l2da_get_map_clb(const unsigned char *da,
 	struct nlattr *nl_entry;
 
 	nl_entry = nla_nest_start(ctx->msg, ctx->cnt + 1);
+	if (!nl_entry)
+		goto nla_put_failure;
 
 	if (nla_put_string(ctx->msg, BOND_GENL_ATTR_SLAVE_NAME,
 			   netdev_name(slave->dev)))
@@ -249,6 +251,8 @@ static int bond_genl_ops_l2da_get_map(struct sk_buff *skb,
 	memset(&ctx, 0, sizeof(ctx));
 
 	nl_nodes = nla_nest_start(msg, BOND_GENL_ATTR_L2DA_MAP);
+	if (!nl_nodes)
+		goto out;
 
 	ret = _bond_l2da_ctrl_try_lock(bond, false);
 	if (ret)
