@@ -17,15 +17,7 @@
 #ifndef _IPQ40xx_PCM_RAW_H
 #define _IPQ40xx_PCM_RAW_H
 
-/* 8 bit 1 channel configuration */
-#define CHANNEL_BIT_WIDTH	8
-#define CHANNEL_SAMPLING_RATE	8000
-#define CHANNEL_BYTE_WIDTH	(CHANNEL_BIT_WIDTH / 8)
-#define SAMPLES_PER_TXN		800
 #define NUM_BUFFERS		2
-#define VOICE_BUFF_SIZE		(CHANNEL_BYTE_WIDTH *			\
-					SAMPLES_PER_TXN * NUM_BUFFERS)
-#define VOICE_PERIOD_SIZE	(VOICE_BUFF_SIZE / NUM_BUFFERS)
 
 #define IPQ40xx_PCM_SAMPLES_PER_10MS(rate) ((rate / 1000) * 10)
 

@@ -12,12 +12,12 @@
  */
 
  /*
- * Qualcomm TSENS Header file
+ * Qualcomm Atheros TSENS Header file
  *
  */
 
-#ifndef __QCOM_TSENS_H
-#define __QCOM_TSENS_H
+#ifndef __QCA_TSENS_H
+#define __QCA_TSENS_H
 
 #define TSENS_MAX_SENSORS	11
 
@@ -39,4 +39,4 @@ struct tsens_device {
 int32_t tsens_get_temp(struct tsens_device *dev, unsigned long *temp);
 int msm_tsens_early_init(struct tsens_platform_data *pdata);
 
-#endif /*QCOM_TSENS_H */
+#endif /*QCA_TSENS_H */
