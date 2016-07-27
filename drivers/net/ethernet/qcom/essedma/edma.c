@@ -553,21 +553,26 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 				}
 			} else {
 				skb_frag_t *frag = &skb_shinfo(skb)->frags[0];
-				frag->page_offset += 16;
 
 				/* Setup skbuff fields */
 				skb->len = length;
 
 				if (likely(num_rfds <= 1)) {
-					frag->size = length;
-					skb->data_len = frag->size;
+					skb->data_len = length;
+					skb->truesize += edma_cinfo->rx_page_buffer_len;
+					skb_fill_page_desc(skb, 0, skb_frag_page(frag),
+							16, length);
 				} else {
 					struct sk_buff *skb_temp;
 					u16 size_remaining;
 
 					frag->size -= 16;
 					skb->data_len = frag->size;
+					skb->truesize += edma_cinfo->rx_page_buffer_len;
 					size_remaining = length - frag->size;
+
+					skb_fill_page_desc(skb, 0, skb_frag_page(frag),
+							16, frag->size);
 
 					/* clean-up all related sw_descs */
 					for (i = 1; i < num_rfds; i++) {
@@ -581,13 +586,13 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 							frag->size = size_remaining;
 
 						skb_fill_page_desc(skb, i, skb_frag_page(frag),
-							frag->page_offset, frag->size);
+								0, frag->size);
 
 						skb_shinfo(skb_temp)->nr_frags = 0;
 						dev_kfree_skb_any(skb_temp);
 
 						skb->data_len += frag->size;
-						skb->truesize += frag->size;
+						skb->truesize += edma_cinfo->rx_page_buffer_len;
 						size_remaining -= frag->size;
 
 						/* Increment SW index */
