@@ -815,14 +815,17 @@ swconfig_set_attr(struct sk_buff *skb, struct genl_info *info)
 	err = attr->set(dev, attr, &val);
 
 error:
-	/* free memory if necessary */
-	switch(attr->type) {
-	case SWITCH_TYPE_EXT:
-		switch_ext_p = val.value.ext_val;
-		while(switch_ext_p) {
-			struct switch_ext *ext_value_p = switch_ext_p;
-			switch_ext_p = switch_ext_p->next;
-			kfree(ext_value_p);
+	if (attr) {
+		/* free memory if necessary */
+		switch (attr->type) {
+		case SWITCH_TYPE_EXT:
+			switch_ext_p = val.value.ext_val;
+			while (switch_ext_p) {
+				struct switch_ext *ext_value_p = switch_ext_p;
+
+				switch_ext_p = switch_ext_p->next;
+				kfree(ext_value_p);
+			}
 		}
 	}
 
