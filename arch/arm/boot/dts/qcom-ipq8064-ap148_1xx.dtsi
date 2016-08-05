@@ -405,6 +405,8 @@
 			qcom,gmac1_enabled = <0>;
 			qcom,gmac2_enabled = <0>;
 			qcom,gmac3_enabled = <0>;
+			qcom,capwap_enabled = <1>;
+			qcom,dtls_enabled = <1>;
 		};
 
 		nss-gmac-common@03000000 {
