@@ -538,7 +538,9 @@ skip_nl_seq:
 	else {
 		/* Can't expect this?  Best to drop packet now. */
 		if (nf_ct_expect_related(exp) != 0) {
-			nf_ct_helper_log(skb, ct, "cannot add expectation");
+			if (net_ratelimit())
+				nf_ct_helper_log(skb, ct,
+					"cannot add expectation");
 			ret = NF_DROP;
 		} else
 			ret = NF_ACCEPT;

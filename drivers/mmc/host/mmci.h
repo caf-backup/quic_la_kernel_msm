@@ -248,6 +248,7 @@ struct mmci_host {
 
 	struct timer_list	timer;
 	unsigned int		oldstat;
+	unsigned int		dma_control;
 
 	/* pio stuff */
 	struct sg_mapping_iter	sg_miter;

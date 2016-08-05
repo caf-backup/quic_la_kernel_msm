@@ -732,7 +732,6 @@ static int aq_driver_remove(struct platform_device *pdev)
 	if (!prop) {
 		dev_dbg(&pdev->dev, "cannot get 'mdiobus' property\n", __func__);
 		phy_driver_unregister(&aq_phy_driver);
-		vfree(priv);
 		return -EIO;
 	}
 
@@ -740,7 +739,6 @@ static int aq_driver_remove(struct platform_device *pdev)
 	if (!mdio_node) {
 		dev_dbg(&pdev->dev, "cannot find mdio node by phandle\n", __func__);
 		phy_driver_unregister(&aq_phy_driver);
-		vfree(priv);
 		return -EIO;
 	}
 
@@ -748,7 +746,6 @@ static int aq_driver_remove(struct platform_device *pdev)
 	if (!mdio_plat) {
 		dev_dbg(&pdev->dev, "cannot find platform device from mdio node\n", __func__);
 		phy_driver_unregister(&aq_phy_driver);
-		vfree(priv);
 		return -EIO;
 	}
 
@@ -756,7 +753,6 @@ static int aq_driver_remove(struct platform_device *pdev)
 	if (!miibus) {
 		dev_dbg(&pdev->dev, "cannot get mii bus reference from device data\n", __func__);
 		phy_driver_unregister(&aq_phy_driver);
-		vfree(priv);
 		return -EIO;
 	}
 

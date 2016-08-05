@@ -552,9 +552,8 @@ static int edma_axi_probe(struct platform_device *pdev)
 	struct platform_device *mdio_plat = NULL;
 	struct mii_bus *miibus = NULL;
 	struct edma_mdio_data *mdio_data = NULL;
-	int i, j, k, err = 0, ret = 0;
-	uint8_t phy_id[MII_BUS_ID_SIZE + 3];
-	int num_gmac, portid_bmp;
+	int i, j, k, err = 0;
+	int portid_bmp;
 	int idx = 0, idx_mac = 0;
 
 	if ((num_rxq != 4) && (num_rxq != 8)) {

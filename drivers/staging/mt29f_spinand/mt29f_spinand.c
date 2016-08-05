@@ -27,11 +27,17 @@
 #define BUFSIZE (10 * 64 * 4096)
 #define CACHE_BUF 4352
 
+static int spinand_disable_ecc(struct spi_device *spi_nand);
+static int spinand_lock_block(struct spi_device *spi_nand, u8 lock);
+
 struct spinand_ops spinand_dev[] = {
 #ifdef CONFIG_MTD_SPINAND_GIGADEVICE
 	{
 		NAND_MFR_GIGA,
+		1,
 		0xb1,
+		INT_MAX,
+		0x10000,
 		gigadevice_set_defaults,
 		gigadevice_read_cmd,
 		gigadevice_read_data,
@@ -40,10 +46,14 @@ struct spinand_ops spinand_dev[] = {
 		gigadevice_erase_blk,
 		gigadevice_parse_id,
 		gigadevice_verify_ecc,
+		NULL,
 	},
 	{
 		NAND_MFR_GIGA,
+		1,
 		0xb4,
+		INT_MAX,
+		0x20000,
 		gigadevice_set_defaults_512mb,
 		gigadevice_read_cmd,
 		gigadevice_read_data,
@@ -52,10 +62,14 @@ struct spinand_ops spinand_dev[] = {
 		gigadevice_erase_blk,
 		gigadevice_parse_id,
 		gigadevice_verify_ecc,
+		NULL,
 	},
 	{
 		NAND_MFR_GIGA,
+		1,
 		0xa1,
+		INT_MAX,
+		0x10000,
 		gigadevice_set_defaults,
 		gigadevice_read_cmd,
 		gigadevice_read_data,
@@ -64,10 +78,14 @@ struct spinand_ops spinand_dev[] = {
 		gigadevice_erase_blk,
 		gigadevice_parse_id,
 		gigadevice_verify_ecc,
+		NULL,
 	},
 	{
 		NAND_MFR_ATO,
+		1,
 		0x12,
+		INT_MAX,
+		0x10000,
 		gigadevice_set_defaults,
 		gigadevice_read_cmd,
 		gigadevice_read_data,
@@ -76,11 +94,15 @@ struct spinand_ops spinand_dev[] = {
 		gigadevice_erase_blk,
 		gigadevice_parse_id,
 		dummy_verify_ecc,
+		NULL,
 	},
 #endif
 	{
 		NAND_MFR_MACRONIX,
+		1,
 		0x12,
+		INT_MAX,
+		0x10000,
 		gigadevice_set_defaults,
 		gigadevice_read_cmd,
 		macronix_read_data,
@@ -89,10 +111,14 @@ struct spinand_ops spinand_dev[] = {
 		gigadevice_erase_blk,
 		macronix_parse_id,
 		macronix_verify_ecc,
+		NULL,
 	},
 	{
 		NAND_MFR_WINBOND,
+		1,
 		0xaa,
+		INT_MAX,
+		0x10000,
 		gigadevice_set_defaults,
 		gigadevice_read_cmd,
 		winbond_read_data,
@@ -101,6 +127,23 @@ struct spinand_ops spinand_dev[] = {
 		gigadevice_erase_blk,
 		winbond_parse_id,
 		macronix_verify_ecc,
+		NULL,
+	},
+	{
+		NAND_MFR_WINBOND,
+		2,
+		0xab,
+		INT_MAX,
+		0x10000,
+		gigadevice_set_defaults,
+		gigadevice_read_cmd,
+		winbond_read_data,
+		gigadevice_write_cmd,
+		winbond_write_data,
+		gigadevice_erase_blk,
+		winbond_parse_id,
+		macronix_verify_ecc,
+		winbond_die_select,
 	},
 	{ },
 };
@@ -154,6 +197,9 @@ int mt29f_verify_ecc(u8 status)
 
 struct spinand_ops mt29f_spinand_ops = {
 		NAND_MFR_MICRON,
+		1,
+		0x0,
+		INT_MAX,
 		0x0,
 		NULL,
 		mt29f_read_page_to_cache,
@@ -163,6 +209,7 @@ struct spinand_ops mt29f_spinand_ops = {
 		mt29f_erase_block_erase,
 		NULL,
 		mt29f_verify_ecc,
+		NULL,
 };
 
 
@@ -284,6 +331,58 @@ static int spinand_cmd(struct spi_device *spi, struct spinand_cmd *cmd)
 	return spi_sync(spi, &message);
 }
 
+static int get_die_id(struct spinand_ops *dev_ops, u32 page_id)
+{
+	do_div(page_id, dev_ops->pages_per_die);
+	if (page_id > dev_ops->no_of_dies) {
+		pr_info("invalid die id : %d\n", page_id);
+		return -EINVAL;
+	}
+
+	return page_id;
+}
+
+/*
+ * winbond_die_select - send command 0xc2 to select die
+ * Description:
+ *   Die select function.
+ *   Die ID is given as either 0 or 1 to select die 0 or 1
+ *   respectively
+ */
+int winbond_die_select(struct spi_device *spi_nand,
+		struct spinand_ops *dev_ops, u8 die_id)
+{
+	int retval;
+	struct spinand_cmd cmd = {0};
+
+	if (die_id < 0)
+		return -1;
+
+	if (dev_ops->prev_die_id == die_id)
+		return 0;
+
+	cmd.cmd = CMD_DIE_SELECT,
+	cmd.n_addr = 1,
+	cmd.addr[0] = die_id,
+	retval = spinand_cmd(spi_nand, &cmd);
+	if (retval < 0)
+		dev_err(&spi_nand->dev, "error %d in die select\n", retval);
+	else
+		dev_ops->prev_die_id = die_id;
+
+	return retval;
+}
+
+static inline int do_die_select(struct spi_device *spi_nand,
+		struct spinand_ops *dev_ops, u32 page_id)
+{
+	if (dev_ops->spinand_die_select == NULL)
+		return 0;
+
+	return dev_ops->spinand_die_select(spi_nand,
+		dev_ops, get_die_id(dev_ops, page_id));
+}
+
 /*
  * spinand_read_id- Read SPI Nand ID
  * Description:
@@ -292,8 +391,10 @@ static int spinand_cmd(struct spi_device *spi, struct spinand_cmd *cmd)
 static int spinand_read_id(struct spi_device *spi_nand, u8 *id)
 {
 	int retval;
+	int i;
 	u8 nand_id[3];
 	struct spinand_cmd cmd = {0};
+	struct spinand_ops *dev_ops;
 
 	cmd.cmd = CMD_READ_ID;
 	cmd.n_rx = 3;
@@ -307,6 +408,19 @@ static int spinand_read_id(struct spi_device *spi_nand, u8 *id)
 	id[0] = nand_id[1];
 	id[1] = nand_id[2];
 	spinand_parse_id(spi_nand, nand_id, id);
+	dev_ops = get_dev_ops(spi_nand);
+	if (dev_ops->spinand_die_select != NULL) {
+		for (i = 0; i < dev_ops->no_of_dies; i++) {
+			retval = dev_ops->spinand_die_select(spi_nand,
+						dev_ops, i);
+			if (retval < 0)
+				return retval;
+			spinand_lock_block(spi_nand, BL_ALL_UNLOCKED);
+			if (spinand_disable_ecc(spi_nand) < 0)
+				pr_info("%s: disable ecc failed!\n", __func__);
+		}
+	}
+
 	return retval;
 }
 
@@ -421,21 +535,33 @@ static int spinand_set_otp(struct spi_device *spi_nand, u8 *otp)
 static int spinand_enable_ecc(struct spi_device *spi_nand)
 {
 	int retval;
+	int i;
+	struct spinand_ops *dev_ops = get_dev_ops(spi_nand);
 	u8 otp = 0;
 
-	retval = spinand_get_otp(spi_nand, &otp);
-	if (retval < 0)
-		return retval;
-
-	if ((otp & OTP_ECC_MASK) == OTP_ECC_MASK) {
-		return 0;
-	} else {
-		otp |= OTP_ECC_MASK;
-		retval = spinand_set_otp(spi_nand, &otp);
+	for (i = 0; i < dev_ops->no_of_dies; i++) {
+		if (dev_ops->spinand_die_select != NULL) {
+			retval = dev_ops->spinand_die_select(spi_nand,
+						dev_ops, i);
+			if (retval < 0)
+				return retval;
+		}
+		retval = spinand_get_otp(spi_nand, &otp);
 		if (retval < 0)
 			return retval;
-		return spinand_get_otp(spi_nand, &otp);
+
+		if ((otp & OTP_ECC_MASK) != OTP_ECC_MASK) {
+			otp |= OTP_ECC_MASK;
+			retval = spinand_set_otp(spi_nand, &otp);
+			if (retval < 0)
+				return retval;
+			retval = spinand_get_otp(spi_nand, &otp);
+			if (retval < 0)
+				return retval;
+		}
 	}
+
+	return 0;
 }
 #endif
 
@@ -469,10 +595,25 @@ static int spinand_disable_ecc(struct spi_device *spi_nand)
  */
 static int spinand_write_enable(struct spi_device *spi_nand)
 {
+	int ret = 0;
+	int i;
+	struct spinand_ops *dev_ops = get_dev_ops(spi_nand);
 	struct spinand_cmd cmd = {0};
 
-	cmd.cmd = CMD_WR_ENABLE;
-	return spinand_cmd(spi_nand, &cmd);
+	for (i = 0; i < dev_ops->no_of_dies; i++) {
+		if (dev_ops->spinand_die_select != NULL) {
+			ret = dev_ops->spinand_die_select(spi_nand,
+						dev_ops, i);
+			if (ret < 0)
+				return ret;
+		}
+		cmd.cmd = CMD_WR_ENABLE;
+		ret = spinand_cmd(spi_nand, &cmd);
+		if (ret < 0)
+			return ret;
+	}
+
+	return ret;
 }
 
 /**
@@ -483,22 +624,37 @@ static int spinand_write_enable(struct spi_device *spi_nand)
  */
 static int spinand_write_disable(struct spi_device *spi_nand)
 {
+	int ret = 0;
+	int i;
+	struct spinand_ops *dev_ops = get_dev_ops(spi_nand);
 	struct spinand_cmd cmd = {0};
 
-	cmd.cmd = CMD_WR_DISABLE;
-	return spinand_cmd(spi_nand, &cmd);
+	for (i = 0; i < dev_ops->no_of_dies; i++) {
+		if (dev_ops->spinand_die_select != NULL) {
+			ret = dev_ops->spinand_die_select(spi_nand,
+						dev_ops, i);
+			if (ret < 0)
+				return ret;
+		}
+		cmd.cmd = CMD_WR_DISABLE;
+		ret = spinand_cmd(spi_nand, &cmd);
+		if (ret < 0)
+			return ret;
+	}
+
+	return ret;
 }
 
 static int spinand_read_page_to_cache(struct spi_device *spi_nand, u32 page_id)
 {
 	struct spinand_cmd cmd = {0};
-	u16 row;
 	struct spinand_ops *dev_ops = get_dev_ops(spi_nand);
 
-	row = page_id;
+	do_die_select(spi_nand, dev_ops, page_id);
+
 	cmd.cmd = CMD_READ;
 	cmd.n_addr = 3;
-	dev_ops->spinand_read_cmd(&cmd, row);
+	dev_ops->spinand_read_cmd(&cmd, page_id);
 
 	return spinand_cmd(spi_nand, &cmd);
 }
@@ -511,7 +667,7 @@ static int spinand_read_page_to_cache(struct spi_device *spi_nand, u32 page_id)
  *   locations.
  *   No tRd delay.
  */
-static int spinand_read_from_cache(struct spi_device *spi_nand, u16 page_id,
+static int spinand_read_from_cache(struct spi_device *spi_nand, u32 page_id,
 		u16 byte_id, u16 len, u8 *rbuf)
 {
 	struct spinand_cmd cmd = {0};
@@ -627,6 +783,8 @@ static int spinand_program_data_to_cache(struct spi_device *spi_nand,
 	u16 column;
 	struct spinand_ops *dev_ops = get_dev_ops(spi_nand);
 
+	do_die_select(spi_nand, dev_ops, page_id);
+
 	column = byte_id;
 	cmd.cmd = CMD_PROG_PAGE_CLRCACHE;
 	cmd.n_addr = 2;
@@ -649,13 +807,13 @@ static int spinand_program_data_to_cache(struct spi_device *spi_nand,
 static int spinand_program_execute(struct spi_device *spi_nand, u32 page_id)
 {
 	struct spinand_cmd cmd = {0};
-	u32 row;
 	struct spinand_ops *dev_ops = get_dev_ops(spi_nand);
 
-	row = page_id;
+	do_die_select(spi_nand, dev_ops, page_id);
+
 	cmd.cmd = CMD_PROG_PAGE_EXC;
 	cmd.n_addr = 3;
-	dev_ops->spinand_write_cmd(&cmd, row);
+	dev_ops->spinand_write_cmd(&cmd, page_id);
 
 	return spinand_cmd(spi_nand, &cmd);
 }
@@ -775,13 +933,13 @@ exit:
 static int spinand_erase_block_erase(struct spi_device *spi_nand, u32 block_id)
 {
 	struct spinand_cmd cmd = {0};
-	u16 row;
 	struct spinand_ops *dev_ops = get_dev_ops(spi_nand);
 
-	row = block_id;
+	do_die_select(spi_nand, dev_ops, block_id);
+
 	cmd.cmd = CMD_ERASE_BLK;
 	cmd.n_addr = 3;
-	dev_ops->spinand_erase_blk(&cmd, row);
+	dev_ops->spinand_erase_blk(&cmd, block_id);
 
 	return spinand_cmd(spi_nand, &cmd);
 }

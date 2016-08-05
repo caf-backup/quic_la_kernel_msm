@@ -55,6 +55,7 @@ obj-$(CONFIG_SRAM)		+= sram.o
 obj-y				+= mic/
 obj-$(CONFIG_GENWQE)		+= genwqe/
 obj-$(CONFIG_QSEECOM)		+= qseecom.o
+obj-$(CONFIG_QSEECOM)           += ipq40xx_qseecom.o
 
 CFLAGS_fw_auth.o += -I$(srctree)/crypto/asymmetric_keys
 obj-$(CONFIG_FW_AUTH) += fw_auth.o

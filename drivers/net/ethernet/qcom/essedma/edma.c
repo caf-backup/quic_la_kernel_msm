@@ -43,7 +43,6 @@ static int edma_alloc_tx_ring(struct edma_common_info *edma_cinfo,
 	etdr->sw_next_to_fill = 0;
 	etdr->sw_next_to_clean = 0;
 
-
 	/* Allocate SW descriptors */
 	etdr->sw_desc = vzalloc(etdr->size);
 	if (!unlikely(etdr->sw_desc)) {
@@ -432,20 +431,22 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 				continue;
 			}
 
+			/* Get the number of RFD from RRD */
+			num_rfds = rd->rrd1 & EDMA_RRD_NUM_RFD_MASK;
+
 			port_id = (rd->rrd1 >> EDMA_PORT_ID_SHIFT) & EDMA_PORT_ID_MASK;
 			if ((unlikely(!port_id)) || (unlikely(port_id > EDMA_MAX_PORTID_SUPPORTED))) {
 				dev_err(&pdev->dev, "Invalid RRD source port bit set");
-				edma_clean_rfd(erdr, sw_next_to_clean);
-				sw_next_to_clean = (sw_next_to_clean + 1) & (erdr->count - 1);
-				cleaned_count++;
+				for (i = 0; i < num_rfds; i++) {
+					edma_clean_rfd(erdr, sw_next_to_clean);
+					sw_next_to_clean = (sw_next_to_clean + 1) & (erdr->count - 1);
+					cleaned_count++;
+				}
 				continue;
 			}
 
 			netdev = edma_cinfo->portid_netdev_lookup_tbl[port_id];
 			adapter = netdev_priv(netdev);
-
-			/* Get the number of RFD from RRD */
-			num_rfds = rd->rrd1 & EDMA_RRD_NUM_RFD_MASK;
 
 			/* This code is added to handle a usecase where high priority stream
 			 * and a low priority stream are received simultaneously on DUT.
@@ -552,21 +553,26 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 				}
 			} else {
 				skb_frag_t *frag = &skb_shinfo(skb)->frags[0];
-				frag->page_offset += 16;
 
 				/* Setup skbuff fields */
 				skb->len = length;
 
 				if (likely(num_rfds <= 1)) {
-					frag->size = length;
-					skb->data_len = frag->size;
+					skb->data_len = length;
+					skb->truesize += edma_cinfo->rx_page_buffer_len;
+					skb_fill_page_desc(skb, 0, skb_frag_page(frag),
+							16, length);
 				} else {
 					struct sk_buff *skb_temp;
 					u16 size_remaining;
 
 					frag->size -= 16;
 					skb->data_len = frag->size;
+					skb->truesize += edma_cinfo->rx_page_buffer_len;
 					size_remaining = length - frag->size;
+
+					skb_fill_page_desc(skb, 0, skb_frag_page(frag),
+							16, frag->size);
 
 					/* clean-up all related sw_descs */
 					for (i = 1; i < num_rfds; i++) {
@@ -580,13 +586,13 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 							frag->size = size_remaining;
 
 						skb_fill_page_desc(skb, i, skb_frag_page(frag),
-							frag->page_offset, frag->size);
+								0, frag->size);
 
 						skb_shinfo(skb_temp)->nr_frags = 0;
 						dev_kfree_skb_any(skb_temp);
 
 						skb->data_len += frag->size;
-						skb->truesize += frag->size;
+						skb->truesize += edma_cinfo->rx_page_buffer_len;
 						size_remaining -= frag->size;
 
 						/* Increment SW index */
@@ -675,7 +681,6 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 		hw_next_to_clean = (data >> EDMA_RFD_CONS_IDX_SHIFT) &
 			EDMA_RFD_CONS_IDX_MASK;
 	} while (hw_next_to_clean != sw_next_to_clean);
-
 
 	erdr->sw_next_to_clean = sw_next_to_clean;
 
@@ -842,7 +847,6 @@ static void edma_tx_complete(struct edma_common_info *edma_cinfo, int queue_id)
 	struct edma_tx_desc_ring *etdr = edma_cinfo->tpd_ring[queue_id];
 	struct edma_sw_desc *sw_desc;
 	struct platform_device *pdev = edma_cinfo->pdev;
-	struct net_device *netdev;
 	int i;
 
 	u16 sw_next_to_clean = etdr->sw_next_to_clean;
@@ -1262,7 +1266,7 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 	struct edma_adapter *adapter = netdev_priv(net_dev);
 	struct edma_common_info *edma_cinfo = adapter->edma_cinfo;
 	struct edma_tx_desc_ring *etdr;
-	u16 from_cpu, dp_bitmap, txq_id;
+	u16 from_cpu = 0, dp_bitmap = 0, txq_id;
 	int ret, nr_frags = 0, num_tpds_needed = 1, queue_id = 0;
 	unsigned int flags_transmit = 0;
 	bool packet_is_rstp = false;

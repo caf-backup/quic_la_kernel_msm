@@ -114,7 +114,7 @@ static void edma_get_strings(struct net_device *netdev, uint32_t stringset,
 	case ETH_SS_STATS:
 		for (i = 0; i < EDMA_STATS_LEN; i++) {
 			memcpy(p, edma_gstrings_stats[i].stat_string,
-				min(ETH_GSTRING_LEN, strlen(edma_gstrings_stats[i].stat_string) + 1));
+				min((size_t)ETH_GSTRING_LEN, strlen(edma_gstrings_stats[i].stat_string) + 1));
 			p += ETH_GSTRING_LEN;
 		}
 		break;

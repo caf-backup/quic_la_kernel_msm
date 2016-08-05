@@ -129,6 +129,27 @@
 					bias-pull,up;
 				};
 			};
+
+			pwm_pins: pwm_pinmux {
+				mux_1 {
+					/* function is audio_pwm0 */
+					pins = "gpio64";
+					function = "audio1";
+				};
+
+				mux_2 {
+					/* function is audio_pwm1 */
+					pins = "gpio65";
+					function = "audio2";
+				};
+
+				mux_3 {
+					/* function is audio_pwm2 */
+					pins = "gpio66";
+					function = "audio_pwm0";
+				};
+			};
+
 		};
 
 		adcc: clock-controller@7700038 {
@@ -197,6 +218,13 @@
 		};
 
 		pcm_lb: pcm_lb@0 {
+			status = "ok";
+		};
+
+		pwm {
+			pinctrl-0 = <&pwm_pins>;
+			pinctrl-names = "default";
+			used-pwm-indices = <1>, <1>, <1>, <0>;
 			status = "ok";
 		};
 
