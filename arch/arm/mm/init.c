@@ -34,6 +34,7 @@
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/cp15.h>
 
 #include "mm.h"
 
