@@ -258,6 +258,7 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-ipq40xx-ap.dk04.1-c2.dtb \
 	qcom-ipq40xx-ap.dk04.1-c3.dtb \
 	qcom-ipq40xx-ap.dk04.1-c4.dtb \
+	qcom-ipq40xx-ap.dk04.1-c5.dtb \
 	qcom-ipq40xx-ap.dk05.1-c1.dtb \
 	qcom-ipq40xx-db.dk01.1-c1.dtb \
 	qcom-ipq40xx-db.dk02.1-c1.dtb \
