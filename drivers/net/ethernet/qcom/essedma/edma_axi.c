@@ -1038,9 +1038,6 @@ err_rx_rinit:
 	edma_free_tx_rings(edma_cinfo);
 err_tx_rinit:
 	edma_free_queues(edma_cinfo);
-err_rx_qinit:
-err_tx_qinit:
-	iounmap(edma_cinfo->hw.hw_addr);
 err_ioremap:
 	for (i = 0; i < edma_cinfo->num_gmac; i++) {
 		if (netdev[i])
