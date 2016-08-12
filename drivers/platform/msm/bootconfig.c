@@ -82,8 +82,6 @@ char  *get_part_name(char *part_name)
 		return "TZ";
 	if (strncmp(part_name, "0:RPM", ALT_PART_NAME_LENGTH) == 0)
 		return "RPM";
-	if (strncmp(part_name, "0:HLOS", ALT_PART_NAME_LENGTH) == 0)
-		return "HLOS";
 
 	return part_name;
 }
