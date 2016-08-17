@@ -48,7 +48,6 @@ static int getbinary_show(struct seq_file *m, void *v)
 	struct sbl_if_dualboot_info_type_v2 *sbl_info_v2;
 
 	sbl_info_v2 = m->private;
-	sbl_info_v2->age++;
 	memcpy(m->buf + m->count, sbl_info_v2,
 		sizeof(struct sbl_if_dualboot_info_type_v2));
 	m->count += sizeof(struct sbl_if_dualboot_info_type_v2);
@@ -310,26 +309,34 @@ static int __init bootconfig_partition_init(void)
 
 	}
 
-	if (!bootconfig1)
-		return 0;
-
-	if (!bootconfig2)
-		return 0;
-
-	if (bootconfig1->age > bootconfig2->age) {
-		part_info = (struct per_part_info *)bootconfig1->per_part_entry;
-		bootconfig2->age ^= bootconfig1->age;
-		bootconfig1->age ^= bootconfig2->age;
-		bootconfig2->age ^= bootconfig1->age;
-		num_parts = bootconfig1->numaltpart;
-	} else {
-		part_info = (struct per_part_info *)bootconfig2->per_part_entry;
-		bootconfig1->age ^= bootconfig2->age;
-		bootconfig2->age ^= bootconfig1->age;
-		bootconfig1->age ^= bootconfig2->age;
-		num_parts = bootconfig2->numaltpart;
+	if (!bootconfig1) {
+		if (bootconfig2)
+			bootconfig1 = bootconfig2;
+		else
+			return 0;
 	}
 
+	if (!bootconfig2) {
+		if (bootconfig1)
+			bootconfig2 = bootconfig1;
+		else
+			return 0;
+	}
+/*
+ * The following check is to handle the case when an image without
+ * apps upgrade support is upgraded to the image that supports APPS
+ * upgrade. Earlier, the bootconfig file will be chosen based on age,
+ * but now bootconfig1 only is considered and bootconfig2 is a backup.
+ * When bootconfig2 is active in the older image and sysupgrade
+ * is done to it, we copy the bootconfig2 to bootconfig1 so that the
+ * failsafe parameters can be retained.
+ */
+	if (bootconfig2->age > bootconfig1->age)
+		bootconfig1 = bootconfig2;
+
+	num_parts = bootconfig1->numaltpart;
+	bootconfig1->age++;
+	part_info = (struct per_part_info *)bootconfig1->per_part_entry;
 	boot_info_dir = proc_mkdir("boot_info", NULL);
 	if (!boot_info_dir)
 		return 0;
@@ -356,7 +363,7 @@ static int __init bootconfig_partition_init(void)
 	proc_create_data("getbinary_bootconfig", S_IRUGO, boot_info_dir,
 			&getbinary_ops, bootconfig1);
 	proc_create_data("getbinary_bootconfig1", S_IRUGO, boot_info_dir,
-			&getbinary_ops, bootconfig2);
+			&getbinary_ops, bootconfig1);
 
 	return 0;
 }
