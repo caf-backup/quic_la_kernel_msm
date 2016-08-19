@@ -49,7 +49,7 @@
 		};
 
 		qcom,nand@7980000 {
-			status = "ok";
+			status = "disabled";
 		};
 
 	};
