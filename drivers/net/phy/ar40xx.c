@@ -24,6 +24,7 @@
 #include <linux/lockdep.h>
 #include <linux/workqueue.h>
 #include <linux/of_device.h>
+#include <linux/of_address.h>
 #include <linux/mdio.h>
 
 #include "ar40xx.h"
@@ -78,28 +79,6 @@ static const struct ar40xx_mib_desc ar40xx_mibs[] = {
 	MIB_DESC(1, AR40XX_STATS_TXDEFER, "TxDefer"),
 	MIB_DESC(1, AR40XX_STATS_TXLATECOL, "TxLateCol"),
 };
-
-#define AR40XX_PORT_LINK_UP 1
-#define AR40XX_PORT_LINK_DOWN 0
-#define AR40XX_QM_NOT_EMPTY  1
-#define AR40XX_QM_EMPTY  0
-
-static u32 port_link_down[AR40XX_NUM_PORTS] = {0, 0, 0, 0, 0, 0};
-
-static u32 port_link_up[AR40XX_NUM_PORTS] = {0, 0, 0, 0, 0, 0};
-
-static u32 ar40xx_port_old_link[AR40XX_NUM_PORTS] = {0, 0, 0, 0, 0, 0};
-static u32 ar40xx_port_old_speed[AR40XX_NUM_PORTS] = {
-							AR40XX_PORT_SPEED_10M,
-							AR40XX_PORT_SPEED_10M,
-							AR40XX_PORT_SPEED_10M,
-							AR40XX_PORT_SPEED_10M,
-							AR40XX_PORT_SPEED_10M,
-							AR40XX_PORT_SPEED_10M,
-						     };
-static u32 ar40xx_port_old_duplex[AR40XX_NUM_PORTS] = {0, 0, 0, 0, 0, 0};
-static u32 ar40xx_port_old_phy_status[AR40XX_NUM_PORTS] = {0, 0, 0, 0, 0, 0};
-static u32 ar40xx_port_qm_buf[AR40XX_NUM_PORTS] = {0, 0, 0, 0, 0, 0};
 
 static u32
 ar40xx_read(struct ar40xx_priv *priv, int reg)
@@ -202,6 +181,40 @@ ar40xx_phy_mmd_read(struct ar40xx_priv *priv, u32 phy_id,
 
 /* Start of swconfig support */
 
+static int
+ar40xx_phy_poll_reset(struct ar40xx_priv *priv)
+{
+	struct mii_bus *bus;
+	u32 reset_done = 0;
+	u32 retries = 500, i;
+
+	bus = priv->mii_bus;
+
+	while (reset_done != GENMASK(AR40XX_NUM_PHYS - 1, 0)) {
+		if (retries-- == 0)
+			return -ETIMEDOUT;
+
+		usleep_range(1000, 2000);
+
+		for (i = 0; i < AR40XX_NUM_PHYS; i++) {
+			int val;
+
+			/* skip devices which have completed reset */
+			if (reset_done & BIT(i))
+				continue;
+
+			val = mdiobus_read(bus, i, MII_BMCR);
+			if (val < 0)
+				return val;
+
+			if (!(val & BMCR_RESET))
+				reset_done |= BIT(i);
+		}
+	}
+
+	return 0;
+}
+
 static void
 ar40xx_phy_init(struct ar40xx_priv *priv)
 {
@@ -222,7 +235,7 @@ ar40xx_phy_init(struct ar40xx_priv *priv)
 		mdiobus_write(bus, i, MII_BMCR, BMCR_RESET | BMCR_ANENABLE);
 	}
 
-	msleep(1000);
+	ar40xx_phy_poll_reset(priv);
 }
 
 static void
@@ -295,14 +308,14 @@ ar40xx_sw_get_ports(struct switch_dev *dev, struct switch_val *val)
 	for (i = 0; i < dev->ports; i++) {
 		struct switch_port *p;
 
-		if (!(ports & (1 << i)))
+		if (!(ports & BIT(i)))
 			continue;
 
 		p = &val->value.ports[val->len++];
 		p->id = i;
-		if ((priv->vlan_tagged & (1 << i)) ||
+		if ((priv->vlan_tagged & BIT(i)) ||
 		    (priv->pvid[i] != val->port_vlan))
-			p->flags = (1 << SWITCH_PORT_FLAG_TAGGED);
+			p->flags = BIT(SWITCH_PORT_FLAG_TAGGED);
 		else
 			p->flags = 0;
 	}
@@ -320,15 +333,15 @@ ar40xx_sw_set_ports(struct switch_dev *dev, struct switch_val *val)
 	for (i = 0; i < val->len; i++) {
 		struct switch_port *p = &val->value.ports[i];
 
-		if (p->flags & (1 << SWITCH_PORT_FLAG_TAGGED)) {
+		if (p->flags & BIT(SWITCH_PORT_FLAG_TAGGED)) {
 			if (val->port_vlan == priv->pvid[p->id])
-				priv->vlan_tagged |= (1 << p->id);
+				priv->vlan_tagged |= BIT(p->id);
 		} else {
-			priv->vlan_tagged &= ~(1 << p->id);
+			priv->vlan_tagged &= ~BIT(p->id);
 			priv->pvid[p->id] = val->port_vlan;
 		}
 
-		*vt |= 1 << p->id;
+		*vt |= BIT(p->id);
 	}
 	return 0;
 }
@@ -386,6 +399,13 @@ ar40xx_mib_fetch_port_stat(struct ar40xx_priv *priv, int port, bool flush)
 	       AR40XX_REG_PORT_STATS_LEN * port;
 
 	mib_stats = &priv->mib_stats[port * num_mibs];
+	if (flush) {
+		u32 len;
+
+		len = num_mibs * sizeof(*mib_stats);
+		memset(mib_stats, 0, len);
+		return;
+	}
 	for (i = 0; i < num_mibs; i++) {
 		const struct ar40xx_mib_desc *mib;
 		u64 t;
@@ -399,10 +419,7 @@ ar40xx_mib_fetch_port_stat(struct ar40xx_priv *priv, int port, bool flush)
 			t |= hi << 32;
 		}
 
-		if (flush)
-			mib_stats[i] = 0;
-		else
-			mib_stats[i] += t;
+		mib_stats[i] += t;
 	}
 }
 
@@ -418,7 +435,7 @@ ar40xx_mib_flush(struct ar40xx_priv *priv)
 	return ar40xx_mib_op(priv, AR40XX_MIB_FUNC_FLUSH);
 }
 
-int
+static int
 ar40xx_sw_set_reset_mibs(struct switch_dev *dev,
 			 const struct switch_attr *attr,
 			 struct switch_val *val)
@@ -431,14 +448,14 @@ ar40xx_sw_set_reset_mibs(struct switch_dev *dev,
 	mutex_lock(&priv->mib_lock);
 
 	len = priv->dev.ports * num_mibs * sizeof(*priv->mib_stats);
-	memset(priv->mib_stats, '\0', len);
+	memset(priv->mib_stats, 0, len);
 	ret = ar40xx_mib_flush(priv);
 
 	mutex_unlock(&priv->mib_lock);
 	return ret;
 }
 
-int
+static int
 ar40xx_sw_set_vlan(struct switch_dev *dev, const struct switch_attr *attr,
 		   struct switch_val *val)
 {
@@ -448,7 +465,7 @@ ar40xx_sw_set_vlan(struct switch_dev *dev, const struct switch_attr *attr,
 	return 0;
 }
 
-int
+static int
 ar40xx_sw_get_vlan(struct switch_dev *dev, const struct switch_attr *attr,
 		   struct switch_val *val)
 {
@@ -458,7 +475,7 @@ ar40xx_sw_get_vlan(struct switch_dev *dev, const struct switch_attr *attr,
 	return 0;
 }
 
-int
+static int
 ar40xx_sw_set_mirror_rx_enable(struct switch_dev *dev,
 			       const struct switch_attr *attr,
 			       struct switch_val *val)
@@ -473,18 +490,20 @@ ar40xx_sw_set_mirror_rx_enable(struct switch_dev *dev,
 	return 0;
 }
 
-int
+static int
 ar40xx_sw_get_mirror_rx_enable(struct switch_dev *dev,
 			       const struct switch_attr *attr,
 			       struct switch_val *val)
 {
 	struct ar40xx_priv *priv = swdev_to_ar40xx(dev);
 
+	mutex_lock(&priv->reg_mutex);
 	val->value.i = priv->mirror_rx;
+	mutex_unlock(&priv->reg_mutex);
 	return 0;
 }
 
-int
+static int
 ar40xx_sw_set_mirror_tx_enable(struct switch_dev *dev,
 			       const struct switch_attr *attr,
 			       struct switch_val *val)
@@ -499,18 +518,20 @@ ar40xx_sw_set_mirror_tx_enable(struct switch_dev *dev,
 	return 0;
 }
 
-int
+static int
 ar40xx_sw_get_mirror_tx_enable(struct switch_dev *dev,
 			       const struct switch_attr *attr,
 			       struct switch_val *val)
 {
 	struct ar40xx_priv *priv = swdev_to_ar40xx(dev);
 
+	mutex_lock(&priv->reg_mutex);
 	val->value.i = priv->mirror_tx;
+	mutex_unlock(&priv->reg_mutex);
 	return 0;
 }
 
-int
+static int
 ar40xx_sw_set_mirror_monitor_port(struct switch_dev *dev,
 				  const struct switch_attr *attr,
 				  struct switch_val *val)
@@ -525,18 +546,20 @@ ar40xx_sw_set_mirror_monitor_port(struct switch_dev *dev,
 	return 0;
 }
 
-int
+static int
 ar40xx_sw_get_mirror_monitor_port(struct switch_dev *dev,
 				  const struct switch_attr *attr,
 				  struct switch_val *val)
 {
 	struct ar40xx_priv *priv = swdev_to_ar40xx(dev);
 
+	mutex_lock(&priv->reg_mutex);
 	val->value.i = priv->monitor_port;
+	mutex_unlock(&priv->reg_mutex);
 	return 0;
 }
 
-int
+static int
 ar40xx_sw_set_mirror_source_port(struct switch_dev *dev,
 				 const struct switch_attr *attr,
 				 struct switch_val *val)
@@ -551,18 +574,20 @@ ar40xx_sw_set_mirror_source_port(struct switch_dev *dev,
 	return 0;
 }
 
-int
+static int
 ar40xx_sw_get_mirror_source_port(struct switch_dev *dev,
 				 const struct switch_attr *attr,
 				 struct switch_val *val)
 {
 	struct ar40xx_priv *priv = swdev_to_ar40xx(dev);
 
+	mutex_lock(&priv->reg_mutex);
 	val->value.i = priv->source_port;
+	mutex_unlock(&priv->reg_mutex);
 	return 0;
 }
 
-int
+static int
 ar40xx_sw_set_linkdown(struct switch_dev *dev,
 		       const struct switch_attr *attr,
 		       struct switch_val *val)
@@ -577,7 +602,7 @@ ar40xx_sw_set_linkdown(struct switch_dev *dev,
 	return 0;
 }
 
-int
+static int
 ar40xx_sw_set_port_reset_mib(struct switch_dev *dev,
 			     const struct switch_attr *attr,
 			     struct switch_val *val)
@@ -597,14 +622,12 @@ ar40xx_sw_set_port_reset_mib(struct switch_dev *dev,
 
 	ar40xx_mib_fetch_port_stat(priv, port, true);
 
-	ret = 0;
-
 unlock:
 	mutex_unlock(&priv->mib_lock);
 	return ret;
 }
 
-int
+static int
 ar40xx_sw_get_port_mib(struct switch_dev *dev,
 		       const struct switch_attr *attr,
 		       struct switch_val *val)
@@ -667,7 +690,7 @@ ar40xx_sw_get_vid(struct switch_dev *dev, const struct switch_attr *attr,
 	return 0;
 }
 
-int
+static int
 ar40xx_sw_get_pvid(struct switch_dev *dev, int port, int *vlan)
 {
 	struct ar40xx_priv *priv = swdev_to_ar40xx(dev);
@@ -675,7 +698,7 @@ ar40xx_sw_get_pvid(struct switch_dev *dev, int port, int *vlan)
 	return 0;
 }
 
-int
+static int
 ar40xx_sw_set_pvid(struct switch_dev *dev, int port, int vlan)
 {
 	struct ar40xx_priv *priv = swdev_to_ar40xx(dev);
@@ -695,7 +718,7 @@ ar40xx_read_port_link(struct ar40xx_priv *priv, int port,
 	u32 status;
 	u32 speed;
 
-	memset(link, '\0', sizeof(*link));
+	memset(link, 0, sizeof(*link));
 
 	status = ar40xx_read(priv, AR40XX_REG_PORT_STATUS(port));
 
@@ -731,7 +754,7 @@ ar40xx_read_port_link(struct ar40xx_priv *priv, int port,
 	}
 }
 
-int
+static int
 ar40xx_sw_get_port_link(struct switch_dev *dev, int port,
 			struct switch_port_link *link)
 {
@@ -869,14 +892,16 @@ ar40xx_ess_reset(struct ar40xx_priv *priv)
 	reset_control_assert(priv->ess_rst);
 	mdelay(10);
 	reset_control_deassert(priv->ess_rst);
-	mdelay(100);
+	/* To wait for the end of ess reset
+	  * it cost 5~10ms for all inner tables init done
+	  */
+	mdelay(10);
 
 	pr_info("ESS reset ok!\n");
 }
 
 /* Start of psgmii self test */
 
-static u32 phy_t_status;
 static void
 ar40xx_malibu_psgmii_ess_reset(struct ar40xx_priv *priv)
 {
@@ -896,9 +921,14 @@ ar40xx_malibu_psgmii_ess_reset(struct ar40xx_priv *priv)
 		status = ar40xx_phy_mmd_read(priv, 5, 1, 0x28);
 		if (status & BIT(0))
 			break;
-		mdelay(10);
+		/* Polling interval to check PSGMII PLL in malibu is ready
+		  * the worst time is 8.67ms
+		  * for 25MHz reference clock
+		  * [512+(128+2048)*49]*80ns+100us
+		  */
+		mdelay(2);
 	}
-	mdelay(50);
+
 	/*check malibu psgmii calibration done end..*/
 
 	/*freeze phy psgmii RX CDR*/
@@ -913,16 +943,16 @@ ar40xx_malibu_psgmii_ess_reset(struct ar40xx_priv *priv)
 		status = ar40xx_psgmii_read((struct ar40xx_priv *)priv, 0xa0);
 		if (status & BIT(0))
 			break;
-		mdelay(10);
+		/* Polling interval to check PSGMII PLL in ESS is ready */
+		mdelay(2);
 	}
-	mdelay(50);
+
 	/* check dakota psgmii calibration done end..*/
 
 	/* relesae phy psgmii RX CDR */
 	mdiobus_write(bus, 5, 0x1a, 0x3230);
 	/* release phy psgmii RX 20bit */
 	mdiobus_write(bus, 5, 0x0, 0x005f);
-	mdelay(200);
 }
 
 static void
@@ -943,9 +973,15 @@ ar40xx_psgmii_single_phy_testing(struct ar40xx_priv *priv, int phy)
 		u16 status;
 
 		status = bus->read(bus, phy, 0x11);
-		if (status & (1 << 10))
+		if (status & AR40XX_PHY_SPEC_STATUS_LINK)
 			break;
-		mdelay(10);
+		/* the polling interval to check if the PHY link up or not
+		  * maxwait_timer: 750 ms +/-10 ms
+		  * minwait_timer : 1 us +/- 0.1us
+		  * time resides in minwait_timer ~ maxwait_timer
+		  * see IEEE 802.3 section 40.4.5.2
+		  */
+		mdelay(8);
 	}
 
 	/* enable check */
@@ -954,7 +990,10 @@ ar40xx_psgmii_single_phy_testing(struct ar40xx_priv *priv, int phy)
 
 	/* start traffic */
 	ar40xx_phy_mmd_write(priv, phy, 7, 0x8020, 0xa000);
-	mdelay(200);
+	/* wait for all traffic end
+	  * 4096(pkt num)*1524(size)*8ns(125MHz)=49.9ms
+	  */
+	mdelay(50);
 
 	/* check counter */
 	tx_ok = ar40xx_phy_mmd_read(priv, phy, 7, 0x802e);
@@ -965,12 +1004,12 @@ ar40xx_psgmii_single_phy_testing(struct ar40xx_priv *priv, int phy)
 	rx_error = ar40xx_phy_mmd_read(priv, phy, 7, 0x802c);
 	tx_all_ok = tx_ok + (tx_ok_high16 << 16);
 	rx_all_ok = rx_ok + (rx_ok_high16 << 16);
-	if (tx_all_ok == 0x3000 && tx_error == 0) {
+	if (tx_all_ok == 0x1000 && tx_error == 0) {
 		/* success */
-		phy_t_status &= (~(1 << phy));
+		priv->phy_t_status &= (~BIT(phy));
 	} else {
 		pr_info("PHY %d single test PSGMII issue happen!\n", phy);
-		phy_t_status |= (1 << phy);
+		priv->phy_t_status |= BIT(phy);
 	}
 
 	mdiobus_write(bus, phy, 0x0, 0x1840);
@@ -990,13 +1029,14 @@ ar40xx_psgmii_all_phy_testing(struct ar40xx_priv *priv)
 			u16 status;
 
 			status = bus->read(bus, phy, 0x11);
-			if (!(status & (1 << 10)))
+			if (!(status & BIT(10)))
 				break;
 		}
 
 		if (phy >= (AR40XX_NUM_PORTS - 1))
 			break;
-		mdelay(10);
+		/* The polling interva to check if the PHY link up or not */
+		mdelay(8);
 	}
 	/* enable check */
 	ar40xx_phy_mmd_write(priv, 0x1f, 7, 0x8029, 0x0000);
@@ -1004,7 +1044,11 @@ ar40xx_psgmii_all_phy_testing(struct ar40xx_priv *priv)
 
 	/* start traffic */
 	ar40xx_phy_mmd_write(priv, 0x1f, 7, 0x8020, 0xa000);
-	mdelay(200);
+	/* wait for all traffic end
+	  * 4096(pkt num)*1524(size)*8ns(125MHz)=49.9ms
+	  */
+	mdelay(50);
+
 	for (phy = 0; phy < AR40XX_NUM_PORTS - 1; phy++) {
 		u32 tx_ok, tx_error;
 		u32 rx_ok, rx_error;
@@ -1021,47 +1065,47 @@ ar40xx_psgmii_all_phy_testing(struct ar40xx_priv *priv)
 		rx_error = ar40xx_phy_mmd_read(priv, phy, 7, 0x802c);
 		tx_all_ok = tx_ok + (tx_ok_high16<<16);
 		rx_all_ok = rx_ok + (rx_ok_high16<<16);
-		if (tx_all_ok == 0x3000 && tx_error == 0) {
+		if (tx_all_ok == 0x1000 && tx_error == 0) {
 			/* success */
-			phy_t_status &= (~(1 << (phy + 8)));
+			priv->phy_t_status &= ~BIT(phy + 8);
 		} else {
 			pr_info("PHY%d test see issue!\n", phy);
-			phy_t_status |= (1 << (phy + 8));
+			priv->phy_t_status |= BIT(phy + 8);
 		}
 	}
 
-	pr_debug("PHY all test 0x%x \r\n", phy_t_status);
+	pr_debug("PHY all test 0x%x \r\n", priv->phy_t_status);
 }
 
 void
 ar40xx_psgmii_self_test(struct ar40xx_priv *priv)
 {
-	u32 i, phy, value;
+	u32 i, phy;
 	struct mii_bus *bus = priv->mii_bus;
 
 	ar40xx_malibu_psgmii_ess_reset(priv);
 
 	/* switch to access MII reg for copper */
 	mdiobus_write(bus, 4, 0x1f, 0x8500);
-	for (phy = 0; phy < 5; phy++) {
+	for (phy = 0; phy < AR40XX_NUM_PORTS - 1; phy++) {
 		/*enable phy mdio broadcast write*/
 		ar40xx_phy_mmd_write(priv, phy, 7, 0x8028, 0x801f);
 	}
 	/* force no link by power down */
 	mdiobus_write(bus, 0x1f, 0x0, 0x1840);
 	/*packet number*/
-	ar40xx_phy_mmd_write(priv, 0x1f, 7, 0x8021, 0x3000);
+	ar40xx_phy_mmd_write(priv, 0x1f, 7, 0x8021, 0x1000);
 	ar40xx_phy_mmd_write(priv, 0x1f, 7, 0x8062, 0x05e0);
 
 	/*fix mdi status */
 	mdiobus_write(bus, 0x1f, 0x10, 0x6800);
 	for (i = 0; i < AR40XX_PSGMII_CALB_NUM; i++) {
-		phy_t_status = 0;
+		priv->phy_t_status = 0;
 
 		for (phy = 0; phy < AR40XX_NUM_PORTS - 1; phy++) {
-			value = ar40xx_read(priv, 0x66c + phy * 0xc);
-			ar40xx_write(priv, 0x66c + phy * 0xc,
-				     (value | (1 << 21)));
+			ar40xx_rmw(priv, AR40XX_REG_PORT_LOOKUP(phy + 1),
+				AR40XX_PORT_LOOKUP_LOOPBACK,
+				AR40XX_PORT_LOOKUP_LOOPBACK);
 		}
 
 		for (phy = 0; phy < AR40XX_NUM_PORTS - 1; phy++)
@@ -1069,7 +1113,7 @@ ar40xx_psgmii_self_test(struct ar40xx_priv *priv)
 
 		ar40xx_psgmii_all_phy_testing(priv);
 
-		if (phy_t_status)
+		if (priv->phy_t_status)
 			ar40xx_malibu_psgmii_ess_reset(priv);
 		else
 			break;
@@ -1093,7 +1137,6 @@ void
 ar40xx_psgmii_self_test_clean(struct ar40xx_priv *priv)
 {
 	int phy;
-	u32 value;
 	struct mii_bus *bus = priv->mii_bus;
 
 	/* disable phy internal loopback */
@@ -1102,9 +1145,8 @@ ar40xx_psgmii_self_test_clean(struct ar40xx_priv *priv)
 
 	for (phy = 0; phy < AR40XX_NUM_PORTS - 1; phy++) {
 		/* disable mac loop back */
-		value = ar40xx_read(priv, 0x66c+phy*0xc);
-		ar40xx_write(priv, (0x66c + phy * 0xc),
-			     (value & (~(1 << 21))));
+		ar40xx_rmw(priv, AR40XX_REG_PORT_LOOKUP(phy + 1),
+				AR40XX_PORT_LOOKUP_LOOPBACK, 0);
 		/* disable phy mdio broadcast write */
 		ar40xx_phy_mmd_write(priv, phy, 7, 0x8028, 0x001f);
 	}
@@ -1149,9 +1191,8 @@ ar40xx_init_port(struct ar40xx_priv *priv, int port)
 {
 	u32 t;
 
-	t = ar40xx_read(priv, AR40XX_REG_PORT_STATUS(port));
-	t &= ~AR40XX_PORT_AUTO_LINK_EN;
-	ar40xx_write(priv, AR40XX_REG_PORT_STATUS(port), t);
+	ar40xx_rmw(priv, AR40XX_REG_PORT_STATUS(port),
+			AR40XX_PORT_AUTO_LINK_EN, 0);
 
 	ar40xx_write(priv, AR40XX_REG_PORT_HEADER(port), 0);
 
@@ -1264,18 +1305,14 @@ ar40xx_hw_init(struct ar40xx_priv *priv)
 static
 int ar40xx_force_1g_full(struct ar40xx_priv *priv, u32 port_id)
 {
-	u32 reg, value;
+	u32 reg;
 
 	if (port_id < 0 || port_id > 6)
 		return -1;
 
 	reg = AR40XX_REG_PORT_STATUS(port_id);
-	value = ar40xx_read(priv, reg);
-	value &= ~(AR40XX_PORT_DUPLEX | AR40XX_PORT_SPEED);
-	value |= (AR40XX_PORT_SPEED_1000M | AR40XX_PORT_DUPLEX);
-	ar40xx_write(priv, reg, value);
-
-	return 0;
+	return ar40xx_rmw(priv, reg, AR40XX_PORT_SPEED,
+			(AR40XX_PORT_SPEED_1000M | AR40XX_PORT_DUPLEX));
 }
 
 static
@@ -1320,48 +1357,45 @@ ar40xx_sw_mac_polling_task(struct ar40xx_priv *priv)
 	static u32 link_cnt[AR40XX_NUM_PORTS] = {0, 0, 0, 0, 0, 0};
 	struct mii_bus *bus = NULL;
 
-	if (priv != NULL) {
-		bus = priv->mii_bus;
-		if (bus == NULL)
-			return;
-	} else {
+	if (!priv || !priv->mii_bus)
 		return;
-	}
+
+	bus = priv->mii_bus;
 
 	++task_count;
 
 	for (i = 1; i < AR40XX_NUM_PORTS; ++i) {
 		port_phy_status[i] =
 			mdiobus_read(bus, i-1, AR40XX_PHY_SPEC_STATUS);
-		speed =	(u32)((port_phy_status[i] &
-				AR40XX_PHY_SPEC_STATUS_SPEED) >> 14);
-		link = (u32)((port_phy_status[i] &
-				AR40XX_PHY_SPEC_STATUS_LINK) >> 10);
-		duplex = (u32)((port_phy_status[i] &
-				AR40XX_PHY_SPEC_STATUS_DUPLEX) >> 13);
+		speed = link = duplex = port_phy_status[i];
+		speed &= AR40XX_PHY_SPEC_STATUS_SPEED;
+		speed >>= 14;
+		link &= AR40XX_PHY_SPEC_STATUS_LINK;
+		link >>= 10;
+		duplex &= AR40XX_PHY_SPEC_STATUS_DUPLEX;
+		duplex >>= 13;
 
-		if (link != ar40xx_port_old_link[i]) {
+		if (link != priv->ar40xx_port_old_link[i]) {
 			++link_cnt[i];
 			/* Up --> Down */
-			if ((ar40xx_port_old_link[i] == AR40XX_PORT_LINK_UP) &&
+			if ((priv->ar40xx_port_old_link[i] ==
+					AR40XX_PORT_LINK_UP) &&
 			    (link == AR40XX_PORT_LINK_DOWN)) {
 				/* LINK_EN disable(MAC force mode)*/
 				reg = AR40XX_REG_PORT_STATUS(i);
-				value = ar40xx_read(priv, reg);
-				value &= (~(AR40XX_PORT_AUTO_LINK_EN));
-				ar40xx_write(priv, reg, value);
-				port_link_down[i] = 0;
+				ar40xx_rmw(priv, reg,
+						AR40XX_PORT_AUTO_LINK_EN, 0);
 
 				/* Check queue buffer */
 				qm_err_cnt[i] = 0;
 				ar40xx_get_qm_status(priv, i, &qm_buffer_err);
 				if (qm_buffer_err) {
-					ar40xx_port_qm_buf[i] =
+					priv->ar40xx_port_qm_buf[i] =
 						AR40XX_QM_NOT_EMPTY;
 				} else {
 					u16 phy_val = 0;
 
-					ar40xx_port_qm_buf[i] =
+					priv->ar40xx_port_qm_buf[i] =
 						AR40XX_QM_EMPTY;
 					ar40xx_force_1g_full(priv, i);
 					/* Ref:QCA8337 Datasheet,Clearing
@@ -1377,17 +1411,18 @@ ar40xx_sw_mac_polling_task(struct ar40xx_priv *priv)
 							     AR40XX_PHY_DEBUG_0,
 							     phy_val);
 				}
-			} else if ((ar40xx_port_old_link[i] ==
+				priv->ar40xx_port_old_link[i] = link;
+			} else if ((priv->ar40xx_port_old_link[i] ==
 						AR40XX_PORT_LINK_DOWN) &&
 					(link == AR40XX_PORT_LINK_UP)) {
 				/* Down --> Up */
-				if (port_link_up[i] < 1) {
-					++port_link_up[i];
+				if (priv->port_link_up[i] < 1) {
+					++priv->port_link_up[i];
 				} else {
 					/* Change port status */
 					reg = AR40XX_REG_PORT_STATUS(i);
 					value = ar40xx_read(priv, reg);
-					port_link_up[i] = 0;
+					priv->port_link_up[i] = 0;
 
 					value &= ~(AR40XX_PORT_DUPLEX |
 						   AR40XX_PORT_SPEED);
@@ -1405,7 +1440,7 @@ ar40xx_sw_mac_polling_task(struct ar40xx_priv *priv)
 					 */
 					usleep_range(100, 200);
 
-					if (speed == 0x01) {
+					if (speed == AR40XX_PORT_SPEED_100M) {
 						u16 phy_val = 0;
 						/* Enable @100M, if down to 10M
 						 * clock will change smoothly
@@ -1419,28 +1454,19 @@ ar40xx_sw_mac_polling_task(struct ar40xx_priv *priv)
 								     0,
 								     phy_val);
 					}
+					priv->ar40xx_port_old_link[i] = link;
 				}
-			}
-
-			if ((port_link_down[i] == 0) &&
-			    (port_link_up[i] == 0)) {
-				/* Save the current status */
-				ar40xx_port_old_speed[i] = speed;
-				ar40xx_port_old_link[i] = link;
-				ar40xx_port_old_duplex[i] = duplex;
-				ar40xx_port_old_phy_status[i] =
-					port_phy_status[i];
 			}
 		}
 
-		if (ar40xx_port_qm_buf[i] == AR40XX_QM_NOT_EMPTY) {
+		if (priv->ar40xx_port_qm_buf[i] == AR40XX_QM_NOT_EMPTY) {
 			/* Check QM */
 			ar40xx_get_qm_status(priv, i, &qm_buffer_err);
 			if (qm_buffer_err) {
-				ar40xx_port_qm_buf[i] = AR40XX_QM_NOT_EMPTY;
 				++qm_err_cnt[i];
 			} else {
-				ar40xx_port_qm_buf[i] = AR40XX_QM_EMPTY;
+				priv->ar40xx_port_qm_buf[i] =
+						AR40XX_QM_EMPTY;
 				qm_err_cnt[i] = 0;
 				ar40xx_force_1g_full(priv, i);
 			}
@@ -1464,7 +1490,7 @@ ar40xx_qm_err_check_work_task(struct work_struct *work)
 			      msecs_to_jiffies(AR40XX_QM_WORK_DELAY));
 }
 
-int
+static int
 ar40xx_qm_err_check_work_start(struct ar40xx_priv *priv)
 {
 	mutex_init(&priv->qm_lock);
@@ -1477,32 +1503,26 @@ ar40xx_qm_err_check_work_start(struct ar40xx_priv *priv)
 	return 0;
 }
 
-void
-ar40xx_qm_err_check_work_stop(struct ar40xx_priv *priv)
-{
-	cancel_delayed_work_sync(&priv->qm_dwork);
-}
-
 /* End of qm error WAR */
 
 static int
 ar40xx_vlan_init(struct ar40xx_priv *priv)
 {
 	int port;
+	unsigned long bmp;
 
 	/* By default Enable VLAN */
 	priv->vlan = 1;
 	priv->vlan_table[AR40XX_LAN_VLAN] = priv->cpu_bmp | priv->lan_bmp;
 	priv->vlan_table[AR40XX_WAN_VLAN] = priv->cpu_bmp | priv->wan_bmp;
 	priv->vlan_tagged = priv->cpu_bmp;
-	for_each_set_bit(port, (const unsigned long *)&priv->lan_bmp,
-			 AR40XX_NUM_PORTS) {
+	bmp = priv->lan_bmp;
+	for_each_set_bit(port, &bmp, AR40XX_NUM_PORTS)
 			priv->pvid[port] = AR40XX_LAN_VLAN;
-	}
-	for_each_set_bit(port, (const unsigned long *)&priv->wan_bmp,
-			 AR40XX_NUM_PORTS) {
+
+	bmp = priv->wan_bmp;
+	for_each_set_bit(port, &bmp, AR40XX_NUM_PORTS)
 			priv->pvid[port] = AR40XX_WAN_VLAN;
-	}
 
 	return 0;
 }
@@ -1529,37 +1549,9 @@ next_port:
 		priv->mib_next_port = 0;
 
 	mutex_unlock(&priv->mib_lock);
+
 	schedule_delayed_work(&priv->mib_work,
 			      msecs_to_jiffies(AR40XX_MIB_WORK_DELAY));
-}
-
-static int
-ar40xx_mib_init(struct ar40xx_priv *priv)
-{
-	unsigned int len;
-	u32 num_mibs = ARRAY_SIZE(ar40xx_mibs);
-
-	len = priv->dev.ports * num_mibs *
-	      sizeof(*priv->mib_stats);
-	priv->mib_stats = kzalloc(len, GFP_KERNEL);
-
-	if (!priv->mib_stats)
-		return -ENOMEM;
-
-	return 0;
-}
-
-static void
-ar40xx_mib_start(struct ar40xx_priv *priv)
-{
-	schedule_delayed_work(&priv->mib_work,
-			      msecs_to_jiffies(AR40XX_MIB_WORK_DELAY));
-}
-
-static void
-ar40xx_mib_stop(struct ar40xx_priv *priv)
-{
-	cancel_delayed_work(&priv->mib_work);
 }
 
 static void
@@ -1633,13 +1625,13 @@ ar40xx_vtu_load_vlan(struct ar40xx_priv *priv, u32 vid, u32 port_mask)
 	ar40xx_vtu_op(priv, op, val);
 }
 
-void
+static void
 ar40xx_vtu_flush(struct ar40xx_priv *priv)
 {
 	ar40xx_vtu_op(priv, AR40XX_VTU_FUNC1_OP_FLUSH, 0);
 }
 
-int
+static int
 ar40xx_sw_hw_apply(struct switch_dev *dev)
 {
 	struct ar40xx_priv *priv = swdev_to_ar40xx(dev);
@@ -1651,7 +1643,7 @@ ar40xx_sw_hw_apply(struct switch_dev *dev)
 	ar40xx_vtu_flush(priv);
 
 	memset(portmask, 0, sizeof(portmask));
-	if (!priv->initializing || priv->vlan) {
+	if (priv->vlan) {
 		for (j = 0; j < AR40XX_MAX_VLANS; j++) {
 			u8 vp = priv->vlan_table[j];
 
@@ -1659,7 +1651,7 @@ ar40xx_sw_hw_apply(struct switch_dev *dev)
 				continue;
 
 			for (i = 0; i < dev->ports; i++) {
-				u8 mask = (1 << i);
+				u8 mask = BIT(i);
 
 				if (vp & mask)
 					portmask[i] |= vp & ~mask;
@@ -1674,8 +1666,8 @@ ar40xx_sw_hw_apply(struct switch_dev *dev)
 			if (i == AR40XX_PORT_CPU)
 				continue;
 
-			portmask[i] = 1 << AR40XX_PORT_CPU;
-			portmask[AR40XX_PORT_CPU] |= (1 << i);
+			portmask[i] = BIT(AR40XX_PORT_CPU);
+			portmask[AR40XX_PORT_CPU] |= BIT(i);
 		}
 	}
 
@@ -1720,8 +1712,6 @@ ar40xx_start(struct ar40xx_priv *priv)
 {
 	int ret;
 
-	priv->initializing = true;
-
 	ret = ar40xx_hw_init(priv);
 	if (ret)
 		return ret;
@@ -1735,15 +1725,15 @@ ar40xx_start(struct ar40xx_priv *priv)
 	if (ret)
 		return ret;
 
-	priv->initializing = false;
+	schedule_delayed_work(&priv->mib_work,
+			      msecs_to_jiffies(AR40XX_MIB_WORK_DELAY));
 
-	ar40xx_mib_start(priv);
 	ar40xx_qm_err_check_work_start(priv);
 
 	return 0;
 }
 
-const struct switch_dev_ops ar40xx_sw_ops = {
+static const struct switch_dev_ops ar40xx_sw_ops = {
 	.attr_global = {
 		.attr = ar40xx_sw_attr_globals,
 		.n_attr = ARRAY_SIZE(ar40xx_sw_attr_globals),
@@ -1785,7 +1775,7 @@ ar40xx_phy_match(u32 phy_id)
 }
 
 static bool
-ar40xx_is_possible(struct mii_bus *bus)
+is_ar40xx_phy(struct mii_bus *bus)
 {
 	unsigned i;
 
@@ -1804,15 +1794,15 @@ ar40xx_is_possible(struct mii_bus *bus)
 static int
 ar40xx_phy_probe(struct phy_device *phydev)
 {
-	if (!ar40xx_is_possible(phydev->bus))
+	if (!is_ar40xx_phy(phydev->bus))
 		return -ENODEV;
 
 	ar40xx_priv->mii_bus = phydev->bus;
 	phydev->priv = ar40xx_priv;
 	if (phydev->addr == 0)
 		ar40xx_priv->phy = phydev;
-	phydev->supported = SUPPORTED_1000baseT_Full;
-	phydev->advertising = ADVERTISED_1000baseT_Full;
+	phydev->supported |= SUPPORTED_1000baseT_Full;
+	phydev->advertising |= ADVERTISED_1000baseT_Full;
 	return 0;
 }
 
@@ -1829,21 +1819,7 @@ ar40xx_phy_config_init(struct phy_device *phydev)
 	return 0;
 }
 
-void
-ar40xx_phy_detach(struct phy_device *phydev)
-{
-	struct net_device *dev = phydev->attached_dev;
-
-	if (!dev)
-		return;
-
-	dev->phy_ptr = NULL;
-	dev->priv_flags &= ~IFF_NO_IP_ALIGN;
-	dev->eth_mangle_rx = NULL;
-	dev->eth_mangle_tx = NULL;
-}
-
-int
+static int
 ar40xx_phy_read_status(struct phy_device *phydev)
 {
 	if (phydev->addr != 0)
@@ -1852,7 +1828,7 @@ ar40xx_phy_read_status(struct phy_device *phydev)
 	return 0;
 }
 
-int
+static int
 ar40xx_phy_config_aneg(struct phy_device *phydev)
 {
 	if (phydev->addr == 0)
@@ -1868,7 +1844,6 @@ static struct phy_driver ar40xx_phy_driver = {
 	.features	= PHY_BASIC_FEATURES,
 	.probe		= ar40xx_phy_probe,
 	.remove		= ar40xx_phy_remove,
-	.detach		= ar40xx_phy_detach,
 	.config_init	= ar40xx_phy_config_init,
 	.config_aneg	= ar40xx_phy_config_aneg,
 	.read_status	= ar40xx_phy_read_status,
@@ -1881,67 +1856,54 @@ static struct phy_driver ar40xx_phy_driver = {
 
 static int ar40xx_probe(struct platform_device *pdev)
 {
-	struct device_node *switch_node = NULL;
-	struct device_node *psgmii_node = NULL;
-	const __be32 *reg_cfg, *mac_mode;
-	u32 len;
-	u32 reg_base;
-	u32 reg_size;
-	struct clk *ess_clk = NULL;
+	struct device_node *switch_node;
+	struct device_node *psgmii_node;
+	const __be32 *mac_mode;
+	struct clk *ess_clk;
 	struct switch_dev *swdev;
-	struct ar40xx_priv *priv = NULL;
+	struct ar40xx_priv *priv;
+	u32 len;
+	u32 num_mibs;
+	struct resource psgmii_base = {0};
+	struct resource switch_base = {0};
 	int ret;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (priv == NULL)
-		goto err_out;
+	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
 	ar40xx_priv = priv;
 
-	ret = phy_driver_register(&ar40xx_phy_driver);
-	if (ret) {
-		pr_info("Register ar40xx phy driver fail!\n");
-		goto err_free_priv;
-	}
-
 	switch_node = of_node_get(pdev->dev.of_node);
-	reg_cfg = of_get_property(switch_node, "reg", &len);
-	if (!reg_cfg) {
-		pr_info("%s: error reading reg property\n", switch_node->name);
-		goto err_unregister_phy;
-	}
-	reg_base = be32_to_cpup(reg_cfg);
-	reg_size = be32_to_cpup(reg_cfg + 1);
-	priv->hw_addr = ioremap_nocache(reg_base, reg_size);
-	if (!priv->hw_addr) {
-		pr_err("ESS ioremap fail!\n");
-		goto err_unregister_phy;
+	if (of_address_to_resource(switch_node, 0, &switch_base) != 0)
+		return -EIO;
+
+	priv->hw_addr = devm_ioremap_resource(&pdev->dev, &switch_base);
+	if (IS_ERR(priv->hw_addr)) {
+		dev_err(&pdev->dev, "Failed to ioremap switch_base!\n");
+		return PTR_ERR(priv->hw_addr);
 	}
 
 	/*psgmii dts get*/
 	psgmii_node = of_find_node_by_name(NULL, "ess-psgmii");
 	if (!psgmii_node) {
-		pr_err("Not find psgmii node!\n");
-		goto err_unmap_base;
+		dev_err(&pdev->dev, "Failed to find ess-psgmii node!\n");
+		return -EINVAL;
 	}
 
-	reg_cfg = of_get_property(psgmii_node, "reg", &len);
-	if (!reg_cfg) {
-		pr_err("%s: error reading reg property\n", psgmii_node->name);
-		goto err_unmap_base;
-	}
+	if (of_address_to_resource(psgmii_node, 0, &psgmii_base) != 0)
+		return -EIO;
 
-	reg_base = be32_to_cpup(reg_cfg);
-	reg_size = be32_to_cpup(reg_cfg + 1);
-	priv->psgmii_hw_addr = ioremap_nocache(reg_base, reg_size);
-	if (!priv->psgmii_hw_addr) {
-		pr_err("psgmii ioremap fail!\n");
-		goto err_unmap_base;
+	priv->psgmii_hw_addr = devm_ioremap_resource(&pdev->dev, &psgmii_base);
+	if (IS_ERR(priv->psgmii_hw_addr)) {
+		dev_err(&pdev->dev, "psgmii ioremap fail!\n");
+		return PTR_ERR(priv->psgmii_hw_addr);
 	}
 
 	mac_mode = of_get_property(switch_node, "switch_mac_mode", &len);
 	if (!mac_mode) {
-		pr_err("%s: error reading mac mode\n", switch_node->name);
-		goto err_unmap_psgmii_base;
+		dev_err(&pdev->dev, "Failed to read switch_mac_mode\n");
+		return -EINVAL;
 	}
 	priv->mac_mode = be32_to_cpup(mac_mode);
 
@@ -1950,9 +1912,9 @@ static int ar40xx_probe(struct platform_device *pdev)
 		clk_prepare_enable(ess_clk);
 
 	priv->ess_rst = devm_reset_control_get(&pdev->dev, "ess_rst");
-	if (!priv->ess_rst) {
-		pr_err("Get ess rst control fail!\n");
-		goto err_unmap_psgmii_base;
+	if (IS_ERR(priv->ess_rst)) {
+		dev_err(&pdev->dev, "Failed to get ess_rst control!\n");
+		return PTR_ERR(priv->ess_rst);
 	}
 
 	if (of_property_read_u32(switch_node, "switch_cpu_bmp",
@@ -1961,14 +1923,21 @@ static int ar40xx_probe(struct platform_device *pdev)
 				 &priv->lan_bmp) ||
 	    of_property_read_u32(switch_node, "switch_wan_bmp",
 				 &priv->wan_bmp)) {
-		pr_err("%s: error read port properties\n", switch_node->name);
-		goto err_unmap_psgmii_base;
+		dev_err(&pdev->dev, "Failed to read port properties\n");
+		return -EIO;
+	}
+
+	ret = phy_driver_register(&ar40xx_phy_driver);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to register ar40xx phy driver!\n");
+		return -EIO;
 	}
 
 	mutex_init(&priv->reg_mutex);
 	mutex_init(&priv->mib_lock);
 	INIT_DELAYED_WORK(&priv->mib_work, ar40xx_mib_work_func);
 
+	/* register switch */
 	swdev = &priv->dev;
 	swdev->alias = dev_name(&priv->mii_bus->dev);
 	swdev->cpu_port = AR40XX_PORT_CPU;
@@ -1976,11 +1945,18 @@ static int ar40xx_probe(struct platform_device *pdev)
 	swdev->vlans = AR40XX_MAX_VLANS;
 	swdev->ports = AR40XX_NUM_PORTS;
 	swdev->ops = &ar40xx_sw_ops,
-	register_switch(swdev, NULL);
-
-	ret = ar40xx_mib_init(priv);
+	ret = register_switch(swdev, NULL);
 	if (ret)
+		goto err_unregister_phy;
+
+	num_mibs = ARRAY_SIZE(ar40xx_mibs);
+	len = priv->dev.ports * num_mibs *
+	      sizeof(*priv->mib_stats);
+	priv->mib_stats = devm_kzalloc(&pdev->dev, len, GFP_KERNEL);
+	if (!priv->mib_stats) {
+		ret = -ENOMEM;
 		goto err_unregister_switch;
+	}
 
 	ar40xx_start(priv);
 
@@ -1988,35 +1964,22 @@ static int ar40xx_probe(struct platform_device *pdev)
 
 err_unregister_switch:
 	unregister_switch(&priv->dev);
-err_unmap_psgmii_base:
-	iounmap(priv->psgmii_hw_addr);
-err_unmap_base:
-	iounmap(priv->hw_addr);
 err_unregister_phy:
 	phy_driver_unregister(&ar40xx_phy_driver);
-err_free_priv:
-	kfree(priv);
-err_out:
-	return -1;
+	return ret;
 }
 
 static int ar40xx_remove(struct platform_device *pdev)
 {
 	struct ar40xx_priv *priv = ar40xx_priv;
 
-	ar40xx_qm_err_check_work_stop(priv);
+	cancel_delayed_work_sync(&priv->qm_dwork);
+	cancel_delayed_work_sync(&priv->mib_work);
 
 	unregister_switch(&priv->dev);
 
-	ar40xx_mib_stop(priv);
-	kfree(priv->mib_stats);
-
-	iounmap(priv->psgmii_hw_addr);
-	iounmap(priv->hw_addr);
-
 	phy_driver_unregister(&ar40xx_phy_driver);
 
-	kfree(priv);
 	return 0;
 }
 
@@ -2030,25 +1993,11 @@ struct platform_driver ar40xx_drv = {
 	.remove = ar40xx_remove,
 	.driver = {
 		.name    = "ar40xx",
-		.owner   = THIS_MODULE,
 		.of_match_table = ar40xx_of_mtable,
 	},
 };
 
-int __init
-ar40xx_init(void)
-{
-	return platform_driver_register(&ar40xx_drv);
-}
-
-void __exit
-ar40xx_exit(void)
-{
-	platform_driver_unregister(&ar40xx_drv);
-}
-
-module_init(ar40xx_init);
-module_exit(ar40xx_exit);
+module_platform_driver(ar40xx_drv);
 
 MODULE_DESCRIPTION("IPQ40XX ESS driver");
 MODULE_LICENSE("Dual BSD/GPL");
