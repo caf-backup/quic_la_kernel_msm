@@ -29,6 +29,14 @@
 			};
 		};
 
+		mdio@90000 {
+			status = "ok";
+			pinctrl-0 = <&mdio_pins>;
+			pinctrl-names = "default";
+			phy-reset-gpio = <&tlmm 59 0>;
+			bias-disable;
+		};
+
 		i2c_0: i2c@78b7000 { /* BLSP1 QUP2 */
 			pinctrl-0 = <&i2c_0_pins>;
 			pinctrl-1 = <&i2c_0_pins>;

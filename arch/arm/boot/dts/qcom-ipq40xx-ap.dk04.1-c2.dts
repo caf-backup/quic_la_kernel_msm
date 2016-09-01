@@ -73,6 +73,14 @@
 			};
 		};
 
+		mdio@90000 {
+			status = "ok";
+			pinctrl-0 = <&mdio_pins>;
+			pinctrl-names = "default";
+			phy-reset-gpio = <&tlmm 67 0>;
+			bias-disable;
+		};
+
 		adcc: clock-controller@7700038 {
 			status = "ok";
 		};

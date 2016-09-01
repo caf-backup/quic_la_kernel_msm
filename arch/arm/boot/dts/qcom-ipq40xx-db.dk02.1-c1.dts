@@ -22,6 +22,13 @@
 	model = "Qualcomm Technologies, Inc. IPQ40xx/DB-DK02.1-C1";
 
 	soc {
+		mdio@90000 {
+			status = "ok";
+			pinctrl-0 = <&mdio_pins>;
+			pinctrl-names = "default";
+			bias-diable;
+		};
+
 		qcom,nand@7980000 {
 			status = "ok";
 		};
