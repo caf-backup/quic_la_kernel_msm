@@ -674,13 +674,13 @@ static int edma_axi_probe(struct platform_device *pdev)
 	err = edma_alloc_queues_tx(edma_cinfo);
 	if (err) {
 		dev_err(&pdev->dev, "Allocation of TX queue failed\n");
-		goto err_tx_qinit;
+		goto err_ioremap;
 	}
 
 	err = edma_alloc_queues_rx(edma_cinfo);
 	if (err) {
 		dev_err(&pdev->dev, "Allocation of RX queue failed\n");
-		goto err_rx_qinit;
+		goto err_ioremap;
 	}
 
 	err = edma_alloc_tx_rings(edma_cinfo);
@@ -1005,11 +1005,11 @@ static int edma_axi_probe(struct platform_device *pdev)
 
 	spin_lock_init(&edma_cinfo->stats_lock);
 
-        init_timer(&edma_stats_timer);
-        edma_stats_timer.expires = jiffies + 1*HZ;
-        edma_stats_timer.data = (unsigned long)edma_cinfo;
-        edma_stats_timer.function = edma_statistics_timer;                              /* timer handler */
-        add_timer(&edma_stats_timer);
+	init_timer(&edma_stats_timer);
+	edma_stats_timer.expires = jiffies + 1*HZ;
+	edma_stats_timer.data = (unsigned long)edma_cinfo;
+	edma_stats_timer.function = edma_statistics_timer;	/* timer handler */
+	add_timer(&edma_stats_timer);
 
 	return 0;
 
@@ -1038,9 +1038,6 @@ err_rx_rinit:
 	edma_free_tx_rings(edma_cinfo);
 err_tx_rinit:
 	edma_free_queues(edma_cinfo);
-err_rx_qinit:
-err_tx_qinit:
-	iounmap(edma_cinfo->hw.hw_addr);
 err_ioremap:
 	for (i = 0; i < edma_cinfo->num_gmac; i++) {
 		if (netdev[i])
