@@ -17,6 +17,14 @@
 /{
 	model = "Qualcomm Technologies, Inc. IPQ40xx/AP-DK06.1-C1";
 	soc {
+		mdio@90000 {
+			status = "ok";
+			pinctrl-0 = <&mdio_pins>;
+			pinctrl-names = "default";
+			phy-reset-gpio = <&tlmm 19 0>;
+			bias-disable;
+		};
+
 		qcom,nand@7980000 {
 			status = "ok";
 		};

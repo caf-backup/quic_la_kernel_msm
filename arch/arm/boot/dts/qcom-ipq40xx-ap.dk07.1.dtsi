@@ -56,6 +56,19 @@
 };
 	&soc {
 		pinctrl@0x01000000 {
+			mdio_pins: mdio_pinmux {
+				mux_1 {
+					pins = "gpio6";
+					function = "mdio0";
+					bias-bus-hold;
+				};
+				mux_2 {
+					pins = "gpio7";
+					function = "mdc";
+					bias-bus-hold;
+				};
+			};
+
 			serial_0_pins: serial0_pinmux {
 				mux {
 					pins = "gpio16", "gpio17";
