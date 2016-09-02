@@ -18,6 +18,7 @@
 
 #define AR40XX_MAX_VLANS	128
 #define AR40XX_NUM_PORTS	6
+#define AR40XX_NUM_PHYS	5
 
 #define BITS(_s, _n)	(((1UL << (_n)) - 1) << _s)
 
@@ -38,6 +39,11 @@ struct ar40xx_priv {
 	/* mutex for qm task */
 	struct mutex qm_lock;
 	struct delayed_work qm_dwork;
+	u32 port_link_up[AR40XX_NUM_PORTS];
+	u32 ar40xx_port_old_link[AR40XX_NUM_PORTS];
+	u32 ar40xx_port_qm_buf[AR40XX_NUM_PORTS];
+
+	u32 phy_t_status;
 
 	/* mutex for switch reg access */
 	struct mutex reg_mutex;
@@ -47,8 +53,6 @@ struct ar40xx_priv {
 	struct delayed_work mib_work;
 	int mib_next_port;
 	u64 *mib_stats;
-
-	bool initializing;
 
 	char buf[2048];
 
@@ -65,6 +69,11 @@ struct ar40xx_priv {
 	int source_port;
 	int monitor_port;
 };
+
+#define AR40XX_PORT_LINK_UP 1
+#define AR40XX_PORT_LINK_DOWN 0
+#define AR40XX_QM_NOT_EMPTY  1
+#define AR40XX_QM_EMPTY  0
 
 #define AR40XX_LAN_VLAN	1
 #define AR40XX_WAN_VLAN	2
@@ -226,6 +235,7 @@ struct ar40xx_mib_desc {
 #define   AR40XX_PORT_LOOKUP_STATE		BITS(16, 3)
 #define   AR40XX_PORT_LOOKUP_STATE_S		16
 #define   AR40XX_PORT_LOOKUP_LEARN		BIT(20)
+#define   AR40XX_PORT_LOOKUP_LOOPBACK		BIT(21)
 #define   AR40XX_PORT_LOOKUP_ING_MIRROR_EN	BIT(25)
 
 #define AR40XX_REG_ATU_FUNC			0x60c
