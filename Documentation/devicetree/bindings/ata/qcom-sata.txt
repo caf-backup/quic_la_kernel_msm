@@ -25,6 +25,7 @@ Required properties for "qcom,ipq806x-ahci" compatible:
 - assigned-clock-rates	: Shall be:
 				100Mhz (100000000) for SATA_RXOOB_CLK
 				100Mhz (100000000) for SATA_PMALIVE_CLK
+- portmap		: portmap supported in the Host controller.
 
 Example:
 	sata@29000000 {
@@ -42,6 +43,7 @@ Example:
 				"rxoob", "pmalive";
 		assigned-clocks = <&gcc SATA_RXOOB_CLK>, <&gcc SATA_PMALIVE_CLK>;
 		assigned-clock-rates = <100000000>, <100000000>;
+		portmap = <1>;
 
 		phys = <&sata_phy>;
 		phy-names = "sata-phy";
