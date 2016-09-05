@@ -54,6 +54,14 @@ struct ar40xx_priv {
 	int mib_next_port;
 	u64 *mib_stats;
 
+	struct dentry *top_dentry;
+	struct dentry *write_dentry;
+	struct dentry *read_dentry;
+	u32 phy_addr;
+	u32 reg_type;
+	u32 reg_addr;
+	u16 reg_val;
+
 	char buf[2048];
 
 	/* all fields below will be cleared on reset */
@@ -303,6 +311,13 @@ enum {
 	AR40XX_PORT_SPEED_100M = 1,
 	AR40XX_PORT_SPEED_1000M = 2,
 	AR40XX_PORT_SPEED_ERR = 3,
+};
+
+enum {
+	AR40XX_PHY_STD = 0,
+	AR40XX_PHY_MMD1 = 1,
+	AR40XX_PHY_MMD3 = 3,
+	AR40XX_PHY_MMD7 = 7,
 };
 
 #define AR40XX_MIB_WORK_DELAY	2000 /* msecs */
