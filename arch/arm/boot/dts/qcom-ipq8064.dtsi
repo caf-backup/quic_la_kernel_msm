@@ -607,6 +607,7 @@
 
 			assigned-clocks = <&gcc SATA_RXOOB_CLK>, <&gcc SATA_PMALIVE_CLK>;
 			assigned-clock-rates = <100000000>, <100000000>;
+			portmap = <1>;
 
 			phys = <&sata_phy>;
 			phy-names = "sata-phy";

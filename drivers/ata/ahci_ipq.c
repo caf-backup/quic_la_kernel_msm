@@ -171,7 +171,7 @@ static int ipq_ahci_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct ahci_platform_data *pdata = dev_get_platdata(dev);
 	struct ahci_host_priv *hpriv;
-	int rc;
+	int rc, force_port_map = 0;
 
 	hpriv = ahci_platform_get_resources(pdev);
 	if (IS_ERR(hpriv))
@@ -187,7 +187,15 @@ static int ipq_ahci_probe(struct platform_device *pdev)
 			goto disable_resources;
 	}
 
-	rc = ahci_platform_init_host(pdev, hpriv, &ipq_ahci_port_info, 0, 0);
+	rc = of_property_read_u32(dev->of_node,
+					"portmap", &force_port_map);
+	if (rc < 0)
+		dev_warn(dev,
+			"dts property portmap not found, using force_port_map = 0x%x\n",
+			force_port_map);
+
+	rc = ahci_platform_init_host(pdev, hpriv, &ipq_ahci_port_info,
+					force_port_map, 0);
 	if (rc)
 		goto pdata_exit;
 
