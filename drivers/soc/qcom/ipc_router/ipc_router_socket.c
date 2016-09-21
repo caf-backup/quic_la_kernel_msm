@@ -533,10 +533,18 @@ static unsigned int msm_ipc_router_poll(struct file *file,
 static int msm_ipc_router_close(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
-	struct msm_ipc_port *port_ptr = msm_ipc_sk_port(sk);
+	struct msm_ipc_port *port_ptr;
 	int ret;
 
+	if (!sk)
+		return -EINVAL;
+
 	lock_sock(sk);
+	port_ptr = msm_ipc_sk_port(sk);
+	if (!port_ptr) {
+		release_sock(sk);
+		return -EINVAL;
+	}
 	ret = msm_ipc_router_close_port(port_ptr);
 	release_sock(sk);
 	sock_put(sk);
