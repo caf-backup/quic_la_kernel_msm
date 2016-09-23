@@ -41,14 +41,12 @@
 #include <asm-generic/bug.h>
 #include "ess_edma.h"
 
-/* Number of Core/queues */
-#define EDMA_NR_CPU 4
-
+#define EDMA_CPU_CORES_SUPPORTED 4
 #define EDMA_MAX_PORTID_SUPPORTED 5
 #define EDMA_MAX_VLAN_SUPPORTED  EDMA_MAX_PORTID_SUPPORTED
 #define EDMA_MAX_PORTID_BITMAP_INDEX (EDMA_MAX_PORTID_SUPPORTED + 1)
 #define EDMA_MAX_PORTID_BITMAP_SUPPORTED 0x1f	/* 0001_1111 = 0x1f */
-#define EDMA_MAX_NETDEV_SUPPORTED_PER_QUEUE 4 /* 3 Netdev per queue, 1 space for indexing */
+#define EDMA_MAX_NETDEV_PER_QUEUE 4 /* 3 Netdev per queue, 1 space for indexing */
 
 #define EDMA_MAX_RECEIVE_QUEUE 8
 #define EDMA_MAX_TRANSMIT_QUEUE 16
@@ -173,73 +171,76 @@
 
 #define EDMA_GMAC_NO_MDIO_PHY	PHY_MAX_ADDR
 
+extern int ssdk_rfs_ipct_rule_set(__be32 ip_src, __be32 ip_dst,
+				  __be16 sport, __be16 dport,
+				  uint8_t proto, u16 loadbalance, bool action);
 struct edma_ethtool_statistics {
-	uint32_t tx_q0_pkt;
-	uint32_t tx_q1_pkt;
-	uint32_t tx_q2_pkt;
-	uint32_t tx_q3_pkt;
-	uint32_t tx_q4_pkt;
-	uint32_t tx_q5_pkt;
-	uint32_t tx_q6_pkt;
-	uint32_t tx_q7_pkt;
-	uint32_t tx_q8_pkt;
-	uint32_t tx_q9_pkt;
-	uint32_t tx_q10_pkt;
-	uint32_t tx_q11_pkt;
-        uint32_t tx_q12_pkt;
-        uint32_t tx_q13_pkt;
-        uint32_t tx_q14_pkt;
-        uint32_t tx_q15_pkt;
-        uint32_t tx_q0_byte;
-        uint32_t tx_q1_byte;
-	uint32_t tx_q2_byte;
-	uint32_t tx_q3_byte;
-	uint32_t tx_q4_byte;
-        uint32_t tx_q5_byte;
-	uint32_t tx_q6_byte;
-        uint32_t tx_q7_byte;
-        uint32_t tx_q8_byte;
-        uint32_t tx_q9_byte;
-        uint32_t tx_q10_byte;
-        uint32_t tx_q11_byte;
-	uint32_t tx_q12_byte;
-        uint32_t tx_q13_byte;
-        uint32_t tx_q14_byte;
-        uint32_t tx_q15_byte;
-        uint32_t rx_q0_pkt;
-        uint32_t rx_q1_pkt;
-        uint32_t rx_q2_pkt;
-        uint32_t rx_q3_pkt;
-        uint32_t rx_q4_pkt;
-        uint32_t rx_q5_pkt;
-        uint32_t rx_q6_pkt;
-        uint32_t rx_q7_pkt;
-	uint32_t rx_q0_byte;
-	uint32_t rx_q1_byte;
-        uint32_t rx_q2_byte;
-        uint32_t rx_q3_byte;
-        uint32_t rx_q4_byte;
-        uint32_t rx_q5_byte;
-        uint32_t rx_q6_byte;
-        uint32_t rx_q7_byte;
-	uint32_t tx_desc_error;
+	u32 tx_q0_pkt;
+	u32 tx_q1_pkt;
+	u32 tx_q2_pkt;
+	u32 tx_q3_pkt;
+	u32 tx_q4_pkt;
+	u32 tx_q5_pkt;
+	u32 tx_q6_pkt;
+	u32 tx_q7_pkt;
+	u32 tx_q8_pkt;
+	u32 tx_q9_pkt;
+	u32 tx_q10_pkt;
+	u32 tx_q11_pkt;
+	u32 tx_q12_pkt;
+	u32 tx_q13_pkt;
+	u32 tx_q14_pkt;
+	u32 tx_q15_pkt;
+	u32 tx_q0_byte;
+	u32 tx_q1_byte;
+	u32 tx_q2_byte;
+	u32 tx_q3_byte;
+	u32 tx_q4_byte;
+	u32 tx_q5_byte;
+	u32 tx_q6_byte;
+	u32 tx_q7_byte;
+	u32 tx_q8_byte;
+	u32 tx_q9_byte;
+	u32 tx_q10_byte;
+	u32 tx_q11_byte;
+	u32 tx_q12_byte;
+	u32 tx_q13_byte;
+	u32 tx_q14_byte;
+	u32 tx_q15_byte;
+	u32 rx_q0_pkt;
+	u32 rx_q1_pkt;
+	u32 rx_q2_pkt;
+	u32 rx_q3_pkt;
+	u32 rx_q4_pkt;
+	u32 rx_q5_pkt;
+	u32 rx_q6_pkt;
+	u32 rx_q7_pkt;
+	u32 rx_q0_byte;
+	u32 rx_q1_byte;
+	u32 rx_q2_byte;
+	u32 rx_q3_byte;
+	u32 rx_q4_byte;
+	u32 rx_q5_byte;
+	u32 rx_q6_byte;
+	u32 rx_q7_byte;
+	u32 tx_desc_error;
 };
 
 struct edma_mdio_data {
-	struct mii_bus          *mii_bus;
-	void __iomem            *membase;
+	struct mii_bus	*mii_bus;
+	void __iomem	*membase;
 	int phy_irq[PHY_MAX_ADDR];
 };
 
 /* EDMA LINK state */
-enum edma_link_flag {
-	__EDMA_LINKUP, /* Indicate whether link is UP */
-	__EDMA_LINKDOWN /* Indicate whether link is down */
+enum edma_link_state {
+	__EDMA_LINKUP, /* Indicate link is UP */
+	__EDMA_LINKDOWN /* Indicate link is down */
 };
 
 /* EDMA GMAC state */
-enum edma_state {
-	__EDMA_UP /* use to indicate whether GMAC is up */
+enum edma_gmac_state {
+	__EDMA_UP /* use to indicate GMAC is up */
 };
 
 /* edma transmit descriptor */
@@ -270,7 +271,7 @@ struct edma_rx_free_desc {
 
 /* edma hw specific data */
 struct edma_hw {
-	unsigned long  __iomem *hw_addr; /* inner register address */
+	u32  __iomem *hw_addr; /* inner register address */
 	struct edma_adapter *adapter; /* netdevice adapter */
 	u32 rx_intr_mask; /*rx interrupt mask */
 	u32 tx_intr_mask; /* tx interrupt nask */
@@ -310,16 +311,17 @@ struct edma_common_info {
 	struct edma_rfd_desc_ring *rfd_ring[8]; /* 8 Rx queues */
 	struct platform_device *pdev; /* device structure */
 	struct net_device *netdev[EDMA_MAX_PORTID_SUPPORTED];
-	int num_gmac;
 	struct net_device *portid_netdev_lookup_tbl[EDMA_MAX_PORTID_BITMAP_INDEX];
+	struct ctl_table_header *edma_ctl_table_hdr;
+	int num_gmac;
 	struct edma_ethtool_statistics edma_ethstats; /* ethtool stats */
 	int num_rx_queues; /* number of rx queue */
-	int num_tx_queues; /* number of tx queue */
-	int tx_irq[16]; /* number of tx irq */
-	int rx_irq[8]; /* number of rx irq */
-	int from_cpu; /* from CPU TPD field */
-	int num_rxq_per_core; /* Rx queues per core */
-	int num_txq_per_core; /* Tx queues per core */
+	u32 num_tx_queues; /* number of tx queue */
+	u32 tx_irq[16]; /* number of tx irq */
+	u32 rx_irq[8]; /* number of rx irq */
+	u32 from_cpu; /* from CPU TPD field */
+	u32 num_rxq_per_core; /* Rx queues per core */
+	u32 num_txq_per_core; /* Tx queues per core */
 	u16 tx_ring_count; /* Tx ring count */
 	u16 rx_ring_count; /* Rx ring*/
 	u16 rx_head_buffer_len; /* rx buffer length */
@@ -327,36 +329,34 @@ struct edma_common_info {
 	u32 page_mode; /* Jumbo frame supported flag */
 	u32 fraglist_mode; /* fraglist supported flag */
 	struct edma_hw hw; /* edma hw specific structure */
-	struct ctl_table_header *edma_ctl_table_hdr;
-	struct edma_per_cpu_queues_info edma_percpu_info[EDMA_NR_CPU]; /* per cpu information */
-	spinlock_t stats_lock; /* protect interrupt registers access */
+	struct edma_per_cpu_queues_info edma_percpu_info[CONFIG_NR_CPUS]; /* per cpu information */
+	spinlock_t stats_lock; /* protect edma stats area for updation */
 };
 
 /* transimit packet descriptor (tpd) ring */
 struct edma_tx_desc_ring {
-	struct netdev_queue *nq[EDMA_MAX_NETDEV_SUPPORTED_PER_QUEUE]; /* Linux queue index */
-	struct net_device *netdev[EDMA_MAX_NETDEV_SUPPORTED_PER_QUEUE];
+	struct netdev_queue *nq[EDMA_MAX_NETDEV_PER_QUEUE]; /* Linux queue index */
+	struct net_device *netdev[EDMA_MAX_NETDEV_PER_QUEUE];
 			/* Array of netdevs associated with the tpd ring */
-	int netdev_bmp; /* Bitmap for per-ring netdevs */
-	u16 size; /* descriptor ring length in bytes */
-	u16 count; /* number of descriptors in the ring */
 	void *hw_desc; /* descriptor ring virtual address */
+	struct edma_sw_desc *sw_desc; /* buffer associated with ring */
+	int netdev_bmp; /* Bitmap for per-ring netdevs */
+	u32 size; /* descriptor ring length in bytes */
+	u16 count; /* number of descriptors in the ring */
 	dma_addr_t dma; /* descriptor ring physical address */
 	u16 sw_next_to_fill; /* next Tx descriptor to fill */
 	u16 sw_next_to_clean; /* next Tx descriptor to clean */
-	struct edma_sw_desc *sw_desc; /* buffer associated with ring */
 };
 
 /* receive free descriptor (rfd) ring */
 struct edma_rfd_desc_ring {
-	u8 queue_index; /* queue index */
-	u16 size; /* descriptor ring length in bytes */
+	struct edma_rx_free_desc *hw_desc; /* descriptor ring virtual address */
+	struct edma_sw_desc *sw_desc; /* buffer associated with ring */
+	u16 size; /* bytes allocated to sw_desc */
 	u16 count; /* number of descriptors in the ring */
-	void *hw_desc; /* descriptor ring virtual address */
 	dma_addr_t dma; /* descriptor ring physical address */
 	u16 sw_next_to_fill; /* next descriptor to fill */
 	u16 sw_next_to_clean; /* next descriptor to clean */
-	struct edma_sw_desc *sw_desc; /* buffer associated with ring */
 };
 
 /* edma_rfs_flter_node - rfs filter node in hash table */
@@ -371,10 +371,10 @@ struct edma_rfs_filter_node {
 /* edma_rfs_flow_tbl - rfs flow table */
 struct edma_rfs_flow_table {
 	u16 max_num_filter; /* Maximum number of filters edma supports */
-	int filter_available; /* Number of free filters available */
 	u16 hashtoclean; /* hash table index to clean next */
+	int filter_available; /* Number of free filters available */
 	struct hlist_head hlist_head[EDMA_RFS_FLOW_ENTRIES];
-	spinlock_t lock;
+	spinlock_t rfs_ftab_lock;
 	struct timer_list expire_rfs; /* timer function for edma_rps_may_expire_flow */
 };
 
@@ -383,21 +383,21 @@ struct edma_adapter {
 	struct net_device *netdev; /* netdevice */
 	struct platform_device *pdev; /* platform device */
 	struct edma_common_info *edma_cinfo; /* edma common info */
+	struct phy_device *phydev; /* Phy device */
 	struct edma_rfs_flow_table rfs; /* edma rfs flow table */
 	struct net_device_stats stats; /* netdev statistics */
-	struct phy_device *phydev; /* Phy device */
 	set_rfs_filter_callback_t set_rfs_rule;
-	unsigned long int flags;/* status flags */
-	unsigned long int state_flags; /* GMAC up/down flags */
-	int32_t forced_speed; /* link force speed */
-	int32_t forced_duplex; /* link force duplex */
-	int32_t link_state; /* phy link state */
-	uint32_t phy_mdio_addr; /* PHY device address on MII interface */
-	uint32_t poll_required; /* check if link polling is required */
-	u32 tx_start_offset[EDMA_NR_CPU]; /* tx queue start */
-	int default_vlan_tag; /* vlan tag */
+	u32 flags;/* status flags */
+	unsigned long state_flags; /* GMAC up/down flags */
+	u32 forced_speed; /* link force speed */
+	u32 forced_duplex; /* link force duplex */
+	u32 link_state; /* phy link state */
+	u32 phy_mdio_addr; /* PHY device address on MII interface */
+	u32 poll_required; /* check if link polling is required */
+	u32 tx_start_offset[CONFIG_NR_CPUS]; /* tx queue start */
+	u32 default_vlan_tag; /* vlan tag */
+	u32 dp_bitmap;
 	uint8_t phy_id[MII_BUS_ID_SIZE + 3];
-	uint32_t dp_bitmap;
 };
 
 int edma_alloc_queues_tx(struct edma_common_info *edma_cinfo);
@@ -445,4 +445,5 @@ void edma_read_append_stats(struct edma_common_info *edma_cinfo);
 void edma_change_tx_coalesce(int usecs);
 void edma_change_rx_coalesce(int usecs);
 void edma_get_tx_rx_coalesce(u32 *reg_val);
+void edma_clear_irq_status(void);
 #endif /* _EDMA_H_ */
