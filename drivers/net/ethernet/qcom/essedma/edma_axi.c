@@ -675,13 +675,13 @@ static int edma_axi_probe(struct platform_device *pdev)
 	err = edma_alloc_queues_tx(edma_cinfo);
 	if (err) {
 		dev_err(&pdev->dev, "Allocation of TX queue failed\n");
-		goto err_tx_qinit;
+		goto err_ioremap;
 	}
 
 	err = edma_alloc_queues_rx(edma_cinfo);
 	if (err) {
 		dev_err(&pdev->dev, "Allocation of RX queue failed\n");
-		goto err_rx_qinit;
+		goto err_ioremap;
 	}
 
 	err = edma_alloc_tx_rings(edma_cinfo);
