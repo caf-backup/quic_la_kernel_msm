@@ -15,12 +15,17 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/module.h>
 #include <linux/etherdevice.h>
 #include <linux/if_bonding_genl.h>
 #include "bonding.h"
 #include "bond_l2da.h"
 
 #define L2DA_OPTS_DEFAULT 0
+
+static int l2da_multimac;
+module_param(l2da_multimac, int, 0);
+MODULE_PARM_DESC(l2da_multimac, "Slaves will keep their own MAC addresses in L2DA mode. 0 for disabled (default), 1 for enabled.");
 
 struct l2da_bond_matrix_entry {
 	struct hlist_node hnode;
@@ -286,6 +291,7 @@ int bond_l2da_initialize(struct bonding *bond)
 	rwlock_init(&bond_info->lock);
 	bond_info->default_slave = NULL;
 	atomic_set(&bond_info->opts, L2DA_OPTS_DEFAULT);
+	bond_info->multimac = l2da_multimac;
 	pr_info("bond_l2da initialized\n");
 	return 0;
 }

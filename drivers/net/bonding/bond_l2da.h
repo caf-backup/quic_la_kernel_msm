@@ -30,6 +30,7 @@ struct l2da_bond_info {
 	struct slave *default_slave; /* Default slave */
 	rwlock_t lock;
 	atomic_t opts;
+	int multimac;
 };
 
 /* l2DA Exported functions to the main bonding code */

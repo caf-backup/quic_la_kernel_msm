@@ -126,6 +126,12 @@ static struct bond_opt_value bond_lp_interval_tbl[] = {
 	{ NULL,      -1,      0},
 };
 
+static struct bond_opt_value bond_l2da_multimac_tbl[] = {
+	{ "off", 0,  BOND_VALFLAG_DEFAULT},
+	{ "on",  1,  0},
+	{ NULL,  -1, 0}
+};
+
 static struct bond_option bond_opts[] = {
 	[BOND_OPT_MODE] = {
 		.id = BOND_OPT_MODE,
@@ -309,6 +315,14 @@ static struct bond_option bond_opts[] = {
 		.desc = "Slave membership management",
 		.flags = BOND_OPTFLAG_RAWVAL,
 		.set = bond_option_slaves_set
+	},
+	[BOND_OPT_L2DA_MULTIMAC] = {
+		.id = BOND_OPT_L2DA_MULTIMAC,
+		.name = "l2da_multimac",
+		.desc = "Keeps MAC addresses of slaves in L2DA mode",
+		.flags = BOND_OPTFLAG_NOSLAVES,
+		.values = bond_l2da_multimac_tbl,
+		.set = bond_option_l2da_multimac_set
 	},
 	{ }
 };
@@ -1301,3 +1315,13 @@ err_no_cmd:
 	ret = -EPERM;
 	goto out;
 }
+
+int bond_option_l2da_multimac_set(struct bonding *bond,
+				  struct bond_opt_value *newval)
+{
+	pr_info("%s: Setting l2da_multimac to (%llu).\n",
+		bond->dev->name, newval->value);
+	bond->l2da_info.multimac = newval->value;
+	return 0;
+}
+

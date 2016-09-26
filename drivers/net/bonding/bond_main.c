@@ -1369,8 +1369,10 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 				pr_warn("%s: Setting fail_over_mac to active for active-backup mode.\n",
 					bond_dev->name);
 			}
-		} else if (bond_is_l2da(bond) && same_addr) {
-			pr_warn("%s: Warning: Slave device does not support setting the MAC address. ignore due to same address.\n",
+		} else if (bond_is_l2da(bond) && (same_addr ||
+						  bond->l2da_info.multimac)) {
+			pr_warn("%s: Warning: Slave device does not support setting the MAC address. ignore due to %s.\n",
+				same_addr ? "same address" : "L2DA multimac",
 				bond_dev->name);
 		} else if (bond->params.fail_over_mac != BOND_FOM_ACTIVE) {
 			pr_err("%s: Error: The slave device specified does not support setting the MAC address, but fail_over_mac is not set to active.\n",
@@ -1421,7 +1423,8 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	    /* In l2da mode, skip for first slave and skip if
 	     * slave's address is already same as bond's address.
 	     */
-	    !(bond_is_l2da(bond) && (mac_stolen || same_addr))) {
+	    !(bond_is_l2da(bond) &&
+	      (mac_stolen || same_addr || bond->l2da_info.multimac))) {
 		/*
 		 * Set slave to master's mac address.  The application already
 		 * set the master's mac address to that of the first slave
