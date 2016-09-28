@@ -1246,6 +1246,40 @@ static DEVICE_ATTR(l2da_opts, S_IRUGO | S_IWUSR,
 		   bonding_show_l2da_opts,
 		   bonding_store_l2da_opts);
 
+/* Show and store l2da_multimac.  User only allowed to change the
+ * value when there are no slaves.
+ */
+static ssize_t bonding_show_l2da_multimac(struct device *d,
+					  struct device_attribute *attr,
+					  char *buf)
+{
+	struct bonding *bond = to_bond(d);
+	struct bond_opt_value *val;
+
+	val = bond_opt_get_val(BOND_OPT_L2DA_MULTIMAC,
+			       bond->l2da_info.multimac);
+
+	return sprintf(buf, "%s %d\n", val->string, bond->l2da_info.multimac);
+}
+
+static ssize_t bonding_store_l2da_multimac(struct device *d,
+					   struct device_attribute *attr,
+					   const char *buf, size_t count)
+{
+	struct bonding *bond = to_bond(d);
+	int ret;
+
+	ret = bond_opt_tryset_rtnl(bond, BOND_OPT_L2DA_MULTIMAC, (char *)buf);
+	if (!ret)
+		ret = count;
+
+	return ret;
+}
+
+static DEVICE_ATTR(l2da_multimac, S_IRUGO | S_IWUSR,
+		   bonding_show_l2da_multimac, bonding_store_l2da_multimac);
+
+
 static struct attribute *per_bond_attrs[] = {
 	&dev_attr_slaves.attr,
 	&dev_attr_mode.attr,
@@ -1281,6 +1315,7 @@ static struct attribute *per_bond_attrs[] = {
 	&dev_attr_l2da_default_slave.attr,
 	&dev_attr_l2da_table.attr,
 	&dev_attr_l2da_opts.attr,
+	&dev_attr_l2da_multimac.attr,
 	NULL,
 };
 

@@ -62,6 +62,7 @@ enum {
 	BOND_OPT_RESEND_IGMP,
 	BOND_OPT_LP_INTERVAL,
 	BOND_OPT_SLAVES,
+	BOND_OPT_L2DA_MULTIMAC,
 	BOND_OPT_LAST
 };
 
@@ -167,4 +168,6 @@ int bond_option_resend_igmp_set(struct bonding *bond,
 int bond_option_lp_interval_set(struct bonding *bond,
 				struct bond_opt_value *newval);
 int bond_option_slaves_set(struct bonding *bond, struct bond_opt_value *newval);
+int bond_option_l2da_multimac_set(struct bonding *bond,
+				  struct bond_opt_value *newval);
 #endif /* _BOND_OPTIONS_H */
