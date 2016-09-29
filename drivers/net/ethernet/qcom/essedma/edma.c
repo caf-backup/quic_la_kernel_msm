@@ -1003,12 +1003,9 @@ static int edma_tx_map_and_fill(struct edma_common_info *edma_cinfo,
 	struct platform_device *pdev = edma_cinfo->pdev;
 	struct edma_tx_desc *tpd, *start_tpd = NULL;
 	struct sk_buff *iter_skb;
-	int i = 0;
+	int i;
 	u32 word1 = 0, word3 = 0, lso_word1 = 0, svlan_tag = 0;
 	u16 buf_len, lso_desc_len = 0;
-
-	/* It should either be a nr_frags skb or fraglist skb but not both */
-	BUG_ON(nr_frags && skb_has_frag_list(skb));
 
 	if (unlikely(skb_is_gso(skb))) {
 		/* TODO: What additional checks need to be performed here */
@@ -1031,7 +1028,7 @@ static int edma_tx_map_and_fill(struct edma_common_info *edma_cinfo,
 	} else if (flags_transmit & EDMA_HW_CHECKSUM) {
 			u8 css, cso;
 			cso = skb_checksum_start_offset(skb);
-			css = cso  + skb->csum_offset;
+			css = cso + skb->csum_offset;
 
 			word1 |= (EDMA_TPD_CUSTOM_CSUM_EN);
 			word1 |= (cso >> 1) << EDMA_TPD_HDR_SHIFT;
@@ -1143,7 +1140,9 @@ static int edma_tx_map_and_fill(struct edma_common_info *edma_cinfo,
 		tpd->word3 = word3;
 	}
 
-	/* Walk through all paged fragments */
+	i = 0;
+
+	/* Walk through paged frags for head skb */
 	while (nr_frags--) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 		buf_len = skb_frag_size(frag);
@@ -1184,6 +1183,32 @@ static int edma_tx_map_and_fill(struct edma_common_info *edma_cinfo,
 		tpd->word1 = word1 | lso_word1;
 		tpd->word3 = word3;
 		sw_desc->flags |= EDMA_SW_DESC_FLAG_SKB_FRAGLIST;
+
+		i = 0;
+
+		nr_frags = skb_shinfo(iter_skb)->nr_frags;
+
+		/* Walk through paged frags for this fraglist skb */
+		while (nr_frags--) {
+			skb_frag_t *frag = &skb_shinfo(iter_skb)->frags[i];
+			buf_len = skb_frag_size(frag);
+			tpd = edma_get_next_tpd(edma_cinfo, queue_id);
+			sw_desc = edma_get_tx_buffer(edma_cinfo, tpd, queue_id);
+			sw_desc->length = buf_len;
+			sw_desc->flags |= EDMA_SW_DESC_FLAG_SKB_FRAG;
+
+			sw_desc->dma = skb_frag_dma_map(&pdev->dev, frag,
+					0, buf_len, DMA_TO_DEVICE);
+			if (unlikely(dma_mapping_error(NULL, sw_desc->dma)))
+				goto dma_error;
+
+			tpd->addr = cpu_to_le32(sw_desc->dma);
+			tpd->len  = cpu_to_le16(buf_len);
+			tpd->svlan_tag = svlan_tag;
+			tpd->word1 = word1 | lso_word1;
+			tpd->word3 = word3;
+			i++;
+		}
 	}
 
 	tpd->word1 |= 1 << EDMA_TPD_EOP_SHIFT;
@@ -1267,19 +1292,24 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 	struct edma_common_info *edma_cinfo = adapter->edma_cinfo;
 	struct edma_tx_desc_ring *etdr;
 	u16 from_cpu = 0, dp_bitmap = 0, txq_id;
-	int ret, nr_frags = 0, num_tpds_needed = 1, queue_id = 0;
+	int ret, nr_frags_first = 0, num_tpds_needed = 1, queue_id = 0;
 	unsigned int flags_transmit = 0;
 	bool packet_is_rstp = false;
 	struct netdev_queue *nq = NULL;
 
 	if (unlikely(skb_shinfo(skb)->nr_frags)) {
-		nr_frags = skb_shinfo(skb)->nr_frags;
-		num_tpds_needed += nr_frags;
-	} else if (unlikely(skb_has_frag_list(skb))) {
+		nr_frags_first = skb_shinfo(skb)->nr_frags;
+		num_tpds_needed += nr_frags_first;
+	}
+
+	if (unlikely(skb_has_frag_list(skb))) {
 		struct sk_buff *iter_skb;
 
-		skb_walk_frags(skb, iter_skb)
-			num_tpds_needed++;
+		/* Walh through fraglist skbs making a note of nr_frags */
+		skb_walk_frags(skb, iter_skb) {
+			/* One TPD for skb->data and more for nr_frags */
+			num_tpds_needed += (1 + skb_shinfo(iter_skb)->nr_frags);
+		}
 	}
 
 	if (unlikely(num_tpds_needed > EDMA_MAX_SKB_FRAGS)) {
@@ -1343,7 +1373,8 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 
 	/* Map and fill descriptor for Tx */
 	ret = edma_tx_map_and_fill(edma_cinfo, adapter, skb, queue_id,
-		flags_transmit, from_cpu, dp_bitmap, packet_is_rstp, nr_frags);
+		flags_transmit, from_cpu, dp_bitmap,
+		packet_is_rstp, nr_frags_first);
 	if (unlikely(ret)) {
 		dev_kfree_skb_any(skb);
 		adapter->stats.tx_errors++;

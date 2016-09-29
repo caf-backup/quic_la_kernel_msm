@@ -422,6 +422,8 @@
 			qcom,gmac2_enabled = <0>;
 			qcom,gmac3_enabled = <0>;
 			qcom,wlan_dataplane_offload_enabled = <0>;
+			qcom,capwap_enabled = <1>;
+			qcom,dtls_enabled = <1>;
 		};
 
 		nss-gmac-common {

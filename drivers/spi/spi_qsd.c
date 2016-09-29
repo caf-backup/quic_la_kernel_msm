@@ -43,6 +43,7 @@
 #include <linux/msm-sps.h>
 #include <linux/msm-bus.h>
 #include <linux/msm-bus-board.h>
+#include <linux/highmem.h>
 #include "spi_qsd.h"
 
 static int msm_spi_pm_resume_runtime(struct device *device);
@@ -1423,6 +1424,12 @@ msm_spi_use_dma(struct msm_spi *dd, struct spi_transfer *tr, u8 bpw)
 		return false;
 	else if (is_vmalloc_addr((void *)tx) &&
 		(tx & PAGE_MASK) != ((tx + tr->len) & PAGE_MASK))
+		return false;
+
+	if (rx >= PKMAP_ADDR(0) && rx < PKMAP_ADDR(LAST_PKMAP))
+		return false;
+
+	if (tx >= PKMAP_ADDR(0) && tx < PKMAP_ADDR(LAST_PKMAP))
 		return false;
 
 	if (dd->qup_ver == SPI_QUP_VERSION_NONE) {

@@ -377,9 +377,11 @@ refill:
 		for (order = NETDEV_FRAG_PAGE_MAX_ORDER; ;) {
 			gfp_t gfp = gfp_mask;
 
-			if (order)
+			if (order) {
 				gfp |= __GFP_COMP | __GFP_NOWARN |
 				       __GFP_NOMEMALLOC;
+				gfp &= ~__GFP_WAIT;
+			}
 			nc->frag.page = alloc_pages(gfp, order);
 			if (likely(nc->frag.page))
 				break;
@@ -2936,11 +2938,12 @@ EXPORT_SYMBOL(skb_append_datato_frags);
  */
 unsigned char *skb_pull_rcsum(struct sk_buff *skb, unsigned int len)
 {
+	unsigned char *data = skb->data;
+
 	BUG_ON(len > skb->len);
-	skb->len -= len;
-	BUG_ON(skb->len < skb->data_len);
-	skb_postpull_rcsum(skb, skb->data, len);
-	return skb->data += len;
+	__skb_pull(skb, len);
+	skb_postpull_rcsum(skb, data, len);
+	return skb->data;
 }
 EXPORT_SYMBOL_GPL(skb_pull_rcsum);
 
@@ -4072,7 +4075,8 @@ static struct sk_buff *skb_reorder_vlan_header(struct sk_buff *skb)
 		return NULL;
 	}
 
-	memmove(skb->data - ETH_HLEN, skb->data - VLAN_ETH_HLEN, 2 * ETH_ALEN);
+	memmove(skb->data - ETH_HLEN, skb->data - skb->mac_len - VLAN_HLEN,
+		2 * ETH_ALEN);
 	skb->mac_header += VLAN_HLEN;
 	return skb;
 }
