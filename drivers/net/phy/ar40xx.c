@@ -1782,6 +1782,7 @@ static ssize_t ar40xx_phy_read_reg_set(struct file *fp, const char __user *ubuf,
 	size_t lbuf_size;
 	char *options = lbuf;
 	char *this_opt;
+	int ret;
 	unsigned int reg_addr, phy_addr, reg_type;
 
 	if (!priv || !priv->mii_bus)
@@ -1798,23 +1799,25 @@ static ssize_t ar40xx_phy_read_reg_set(struct file *fp, const char __user *ubuf,
 	if (!this_opt)
 		goto fail;
 
-	kstrtouint(this_opt, 0, &phy_addr);
-	if ((options - lbuf) >= (lbuf_size - 1))
+	ret = kstrtouint(this_opt, 0, &phy_addr);
+	if (ret || (options - lbuf) >= (lbuf_size - 1))
 		goto fail;
 
 	this_opt = strsep(&options, " ");
 	if (!this_opt)
 		goto fail;
 
-	kstrtouint(this_opt, 0, &reg_type);
-	if ((options - lbuf) >= (lbuf_size - 1))
+	ret = kstrtouint(this_opt, 0, &reg_type);
+	if (ret || (options - lbuf) >= (lbuf_size - 1))
 		goto fail;
 
 	this_opt = strsep(&options, " ");
 	if (!this_opt)
 		goto fail;
 
-	kstrtouint(this_opt, 0, &reg_addr);
+	ret = kstrtouint(this_opt, 0, &reg_addr);
+	if (ret)
+		goto fail;
 
 	/* reg read */
 	priv->phy_addr = (u32)phy_addr;
@@ -1844,6 +1847,7 @@ static ssize_t ar40xx_phy_write_reg_set(struct file *fp,
 	size_t lbuf_size;
 	char *options = lbuf;
 	char *this_opt;
+	int ret;
 	unsigned int phy_addr, reg_type, reg_addr, reg_value;
 
 	if (!priv || !priv->mii_bus)
@@ -1860,31 +1864,33 @@ static ssize_t ar40xx_phy_write_reg_set(struct file *fp,
 	if (!this_opt)
 		goto fail;
 
-	kstrtouint(this_opt, 0, &phy_addr);
-	if ((options - lbuf) >= (lbuf_size - 1))
+	ret = kstrtouint(this_opt, 0, &phy_addr);
+	if (ret || (options - lbuf) >= (lbuf_size - 1))
 		goto fail;
 
 	this_opt = strsep(&options, " ");
 	if (!this_opt)
 		goto fail;
 
-	kstrtouint(this_opt, 0, &reg_type);
-	if ((options - lbuf) >= (lbuf_size - 1))
+	ret = kstrtouint(this_opt, 0, &reg_type);
+	if (ret || (options - lbuf) >= (lbuf_size - 1))
 		goto fail;
 
 	this_opt = strsep(&options, " ");
 	if (!this_opt)
 		goto fail;
 
-	kstrtouint(this_opt, 0, &reg_addr);
-	if ((options - lbuf) >= (lbuf_size - 1))
+	ret = kstrtouint(this_opt, 0, &reg_addr);
+	if (ret || (options - lbuf) >= (lbuf_size - 1))
 		goto fail;
 
 	this_opt = strsep(&options, " ");
 	if (!this_opt)
 		goto fail;
 
-	kstrtouint(this_opt, 0, &reg_value);
+	ret = kstrtouint(this_opt, 0, &reg_value);
+	if (ret)
+		goto fail;
 
 	if (phy_addr > (AR40XX_NUM_PHYS - 1))
 		return -EINVAL;
