@@ -188,8 +188,11 @@ ar40xx_phy_poll_reset(struct ar40xx_priv *priv)
 	struct mii_bus *bus = priv->mii_bus;
 
 	while (reset_done != GENMASK(AR40XX_NUM_PHYS - 1, 0)) {
-		if (retries-- == 0)
+		if (retries-- == 0) {
+			pr_warn("Failed to reset all phys, result = 0x%x!\n",
+				reset_done);
 			return;
+		}
 
 		/* 1ms should be plenty of time.
 		  * 802.3 spec allows for a max wait time of 500ms
