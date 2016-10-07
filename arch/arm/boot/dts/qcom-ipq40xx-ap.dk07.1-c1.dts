@@ -38,15 +38,27 @@
 			status = "disabled";
 		};
 
-		uart1:uart@78b0000 {
-			status = "ok";
-		};
-
 		spi_1: spi@78b6000 { /* BLSP1 QUP2 */
 			status = "ok";
 		};
 
 		pinctrl@0x01000000 {
+			uart1_pins: uart1_pinmux {
+				mux {
+					pins = "gpio8", "gpio9", "gpio10", "gpio11";
+					function = "blsp_uart1";
+					bias-disable;
+				};
+			};
+
+			spi_0_pins: spi_0_pinmux {
+				mux {
+					pins = "gpio12", "gpio13", "gpio14", "gpio15";
+					function = "blsp_spi0";
+					bias-disable;
+				};
+			};
+
 			wifi_0_pins: wifi1_pinmux {
 				mux_1 {
 					pins = "gpio37";
@@ -68,6 +80,29 @@
 					bias-pull-up;
 					drive-strength = <6>;
 				};
+			};
+		};
+
+		uart1:uart@78b0000 {
+			pinctrl-0 = <&uart1_pins>;
+			pinctrl-1 = <&uart1_pins>;
+			pinctrl-names = "default", "sleep";
+			status = "ok";
+		};
+
+		spi_0: spi@78b5000 { /* BLSP1 QUP1 */
+			pinctrl-0 = <&spi_0_pins>;
+			pinctrl-names = "default";
+			status = "ok";
+
+			m25p80@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0>;
+				compatible = "n25q128a11";
+				linux,modalias = "m25p80", "n25q128a11";
+				spi-max-frequency = <24000000>;
+				use-default-sizes;
 			};
 		};
 
