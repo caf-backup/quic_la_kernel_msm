@@ -59,11 +59,14 @@
 #define EDMA_LAN_DEFAULT_VLAN 1
 #define EDMA_WAN_DEFAULT_VLAN 2
 
-#define EDMA_DEFAULT_GROUP1_VLAN 1
-#define EDMA_DEFAULT_GROUP2_VLAN 2
+#define EDMA_DEFAULT_GROUP1_VLAN 2
+#define EDMA_DEFAULT_GROUP2_VLAN 1
 #define EDMA_DEFAULT_GROUP3_VLAN 3
 #define EDMA_DEFAULT_GROUP4_VLAN 4
 #define EDMA_DEFAULT_GROUP5_VLAN 5
+
+#define EDMA_DEFAULT_GROUP1_BMP 0x20
+#define EDMA_DEFAULT_GROUP2_BMP 0x1e
 
 /* Queues exposed to linux kernel */
 #define EDMA_NETDEV_TX_QUEUE 4
@@ -394,6 +397,7 @@ struct edma_adapter {
 	u32 link_state; /* phy link state */
 	u32 phy_mdio_addr; /* PHY device address on MII interface */
 	u32 poll_required; /* check if link polling is required */
+	u32 poll_required_saved; /* poll state saved for dynamic switch */
 	u32 tx_start_offset[CONFIG_NR_CPUS]; /* tx queue start */
 	u32 default_vlan_tag; /* vlan tag */
 	u32 dp_bitmap;
