@@ -16,3 +16,8 @@
 
 #include "qcom-ipq8064-v1.0.dtsi"
 #include "qcom-ipq8064-ap145.dtsi"
+/ {
+	model = "QCA IPQ8062/AP145";
+	/* Here 1.0 indicates the board revision not SOC revision */
+	compatible = "qcom,ipq8062-ap145-v1.0", "qcom,ipq8062";
+};
