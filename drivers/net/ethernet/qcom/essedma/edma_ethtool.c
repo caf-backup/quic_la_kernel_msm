@@ -26,69 +26,66 @@ struct edma_ethtool_stats {
 #define EDMA_STAT(m)    offsetof(struct edma_ethtool_statistics, m)
 #define DRVINFO_LEN	32
 
-/**
- * @brief Array of strings describing statistics
- */
+/* Array of strings describing statistics */
 static const struct edma_ethtool_stats edma_gstrings_stats[] = {
 	{"tx_q0_pkt", EDMA_STAT(tx_q0_pkt)},
-        {"tx_q1_pkt", EDMA_STAT(tx_q1_pkt)},
-        {"tx_q2_pkt", EDMA_STAT(tx_q2_pkt)},
-        {"tx_q3_pkt", EDMA_STAT(tx_q3_pkt)},
-        {"tx_q4_pkt", EDMA_STAT(tx_q4_pkt)},
-        {"tx_q5_pkt", EDMA_STAT(tx_q5_pkt)},
-        {"tx_q6_pkt", EDMA_STAT(tx_q6_pkt)},
-        {"tx_q7_pkt", EDMA_STAT(tx_q7_pkt)},
-        {"tx_q8_pkt", EDMA_STAT(tx_q8_pkt)},
-        {"tx_q9_pkt", EDMA_STAT(tx_q9_pkt)},
-        {"tx_q10_pkt", EDMA_STAT(tx_q10_pkt)},
-        {"tx_q11_pkt", EDMA_STAT(tx_q11_pkt)},
-        {"tx_q12_pkt", EDMA_STAT(tx_q12_pkt)},
-        {"tx_q13_pkt", EDMA_STAT(tx_q13_pkt)},
+	{"tx_q1_pkt", EDMA_STAT(tx_q1_pkt)},
+	{"tx_q2_pkt", EDMA_STAT(tx_q2_pkt)},
+	{"tx_q3_pkt", EDMA_STAT(tx_q3_pkt)},
+	{"tx_q4_pkt", EDMA_STAT(tx_q4_pkt)},
+	{"tx_q5_pkt", EDMA_STAT(tx_q5_pkt)},
+	{"tx_q6_pkt", EDMA_STAT(tx_q6_pkt)},
+	{"tx_q7_pkt", EDMA_STAT(tx_q7_pkt)},
+	{"tx_q8_pkt", EDMA_STAT(tx_q8_pkt)},
+	{"tx_q9_pkt", EDMA_STAT(tx_q9_pkt)},
+	{"tx_q10_pkt", EDMA_STAT(tx_q10_pkt)},
+	{"tx_q11_pkt", EDMA_STAT(tx_q11_pkt)},
+	{"tx_q12_pkt", EDMA_STAT(tx_q12_pkt)},
+	{"tx_q13_pkt", EDMA_STAT(tx_q13_pkt)},
 	{"tx_q14_pkt", EDMA_STAT(tx_q14_pkt)},
 	{"tx_q15_pkt", EDMA_STAT(tx_q15_pkt)},
-        {"tx_q0_byte", EDMA_STAT(tx_q0_byte)},
-        {"tx_q1_byte", EDMA_STAT(tx_q1_byte)},
-        {"tx_q2_byte", EDMA_STAT(tx_q2_byte)},
-        {"tx_q3_byte", EDMA_STAT(tx_q3_byte)},
-        {"tx_q4_byte", EDMA_STAT(tx_q4_byte)},
-        {"tx_q5_byte", EDMA_STAT(tx_q5_byte)},
-        {"tx_q6_byte", EDMA_STAT(tx_q6_byte)},
-        {"tx_q7_byte", EDMA_STAT(tx_q7_byte)},
-        {"tx_q8_byte", EDMA_STAT(tx_q8_byte)},
-        {"tx_q9_byte", EDMA_STAT(tx_q9_byte)},
+	{"tx_q0_byte", EDMA_STAT(tx_q0_byte)},
+	{"tx_q1_byte", EDMA_STAT(tx_q1_byte)},
+	{"tx_q2_byte", EDMA_STAT(tx_q2_byte)},
+	{"tx_q3_byte", EDMA_STAT(tx_q3_byte)},
+	{"tx_q4_byte", EDMA_STAT(tx_q4_byte)},
+	{"tx_q5_byte", EDMA_STAT(tx_q5_byte)},
+	{"tx_q6_byte", EDMA_STAT(tx_q6_byte)},
+	{"tx_q7_byte", EDMA_STAT(tx_q7_byte)},
+	{"tx_q8_byte", EDMA_STAT(tx_q8_byte)},
+	{"tx_q9_byte", EDMA_STAT(tx_q9_byte)},
 	{"tx_q10_byte", EDMA_STAT(tx_q10_byte)},
 	{"tx_q11_byte", EDMA_STAT(tx_q11_byte)},
 	{"tx_q12_byte", EDMA_STAT(tx_q12_byte)},
-        {"tx_q13_byte", EDMA_STAT(tx_q13_byte)},
+	{"tx_q13_byte", EDMA_STAT(tx_q13_byte)},
 	{"tx_q14_byte", EDMA_STAT(tx_q14_byte)},
 	{"tx_q15_byte", EDMA_STAT(tx_q15_byte)},
 	{"rx_q0_pkt", EDMA_STAT(rx_q0_pkt)},
-        {"rx_q1_pkt", EDMA_STAT(rx_q1_pkt)},
-        {"rx_q2_pkt", EDMA_STAT(rx_q2_pkt)},
-        {"rx_q3_pkt", EDMA_STAT(rx_q3_pkt)},
-        {"rx_q4_pkt", EDMA_STAT(rx_q4_pkt)},
-        {"rx_q5_pkt", EDMA_STAT(rx_q5_pkt)},
-        {"rx_q6_pkt", EDMA_STAT(rx_q6_pkt)},
-        {"rx_q7_pkt", EDMA_STAT(rx_q7_pkt)},
-        {"rx_q0_byte", EDMA_STAT(rx_q0_byte)},
-        {"rx_q1_byte", EDMA_STAT(rx_q1_byte)},
-        {"rx_q2_byte", EDMA_STAT(rx_q2_byte)},
-        {"rx_q3_byte", EDMA_STAT(rx_q3_byte)},
-        {"rx_q4_byte", EDMA_STAT(rx_q4_byte)},
-        {"rx_q5_byte", EDMA_STAT(rx_q5_byte)},
-        {"rx_q6_byte", EDMA_STAT(rx_q6_byte)},
-        {"rx_q7_byte", EDMA_STAT(rx_q7_byte)},
+	{"rx_q1_pkt", EDMA_STAT(rx_q1_pkt)},
+	{"rx_q2_pkt", EDMA_STAT(rx_q2_pkt)},
+	{"rx_q3_pkt", EDMA_STAT(rx_q3_pkt)},
+	{"rx_q4_pkt", EDMA_STAT(rx_q4_pkt)},
+	{"rx_q5_pkt", EDMA_STAT(rx_q5_pkt)},
+	{"rx_q6_pkt", EDMA_STAT(rx_q6_pkt)},
+	{"rx_q7_pkt", EDMA_STAT(rx_q7_pkt)},
+	{"rx_q0_byte", EDMA_STAT(rx_q0_byte)},
+	{"rx_q1_byte", EDMA_STAT(rx_q1_byte)},
+	{"rx_q2_byte", EDMA_STAT(rx_q2_byte)},
+	{"rx_q3_byte", EDMA_STAT(rx_q3_byte)},
+	{"rx_q4_byte", EDMA_STAT(rx_q4_byte)},
+	{"rx_q5_byte", EDMA_STAT(rx_q5_byte)},
+	{"rx_q6_byte", EDMA_STAT(rx_q6_byte)},
+	{"rx_q7_byte", EDMA_STAT(rx_q7_byte)},
 	{"tx_desc_error", EDMA_STAT(tx_desc_error)},
 };
 
 #define EDMA_STATS_LEN ARRAY_SIZE(edma_gstrings_stats)
 
-/*
- * edma_get_strset_count()
+/* edma_get_strset_count()
  *	Get strset count
  */
-static int32_t edma_get_strset_count(struct net_device *netdev,
-			int32_t sset)
+static int edma_get_strset_count(struct net_device *netdev,
+				 int sset)
 {
 	switch (sset) {
 	case ETH_SS_STATS:
@@ -100,12 +97,11 @@ static int32_t edma_get_strset_count(struct net_device *netdev,
 }
 
 
-/*
- * edma_get_strings()
+/* edma_get_strings()
  *	get stats string
  */
 static void edma_get_strings(struct net_device *netdev, uint32_t stringset,
-			  uint8_t *data)
+			     uint8_t *data)
 {
 	uint8_t *p = data;
 	uint32_t i;
@@ -114,23 +110,24 @@ static void edma_get_strings(struct net_device *netdev, uint32_t stringset,
 	case ETH_SS_STATS:
 		for (i = 0; i < EDMA_STATS_LEN; i++) {
 			memcpy(p, edma_gstrings_stats[i].stat_string,
-				min((size_t)ETH_GSTRING_LEN, strlen(edma_gstrings_stats[i].stat_string) + 1));
+				min((size_t)ETH_GSTRING_LEN,
+				    strlen(edma_gstrings_stats[i].stat_string)
+				    + 1));
 			p += ETH_GSTRING_LEN;
 		}
 		break;
 	}
 }
 
-/*
- * edma_get_ethtool_stats()
+/* edma_get_ethtool_stats()
  *	Get ethtool statistics
  */
 static void edma_get_ethtool_stats(struct net_device *netdev,
-		struct ethtool_stats *stats, uint64_t *data)
+				   struct ethtool_stats *stats, uint64_t *data)
 {
 	struct edma_adapter *adapter = netdev_priv(netdev);
 	struct edma_common_info *edma_cinfo = adapter->edma_cinfo;
-	int32_t i;
+	int i;
 	uint8_t *p = NULL;
 
 	edma_read_append_stats(edma_cinfo);
@@ -142,19 +139,17 @@ static void edma_get_ethtool_stats(struct net_device *netdev,
 	}
 }
 
-/**
- * edma_get_drvinfo()
+/* edma_get_drvinfo()
  *	get edma driver info
  */
 static void edma_get_drvinfo(struct net_device *dev,
-		struct ethtool_drvinfo *info)
+			     struct ethtool_drvinfo *info)
 {
 	strlcpy(info->driver, "ess_edma", DRVINFO_LEN);
 	strlcpy(info->bus_info, "axi", ETHTOOL_BUSINFO_LEN);
 }
 
-/*
- * edma_nway_reset()
+/* edma_nway_reset()
  *	Reset the phy, if available.
  */
 static int edma_nway_reset(struct net_device *netdev)
@@ -162,19 +157,17 @@ static int edma_nway_reset(struct net_device *netdev)
 	return -EINVAL;
 }
 
-/*
- * edma_get_wol()
+/* edma_get_wol()
  *	get wake on lan info
  */
 static void edma_get_wol(struct net_device *netdev,
-			     struct ethtool_wolinfo *wol)
+			 struct ethtool_wolinfo *wol)
 {
 	wol->supported = 0;
 	wol->wolopts = 0;
 }
 
-/*
- * edma_get_msglevel()
+/* edma_get_msglevel()
  *	get message level.
  */
 static uint32_t edma_get_msglevel(struct net_device *netdev)
@@ -182,11 +175,10 @@ static uint32_t edma_get_msglevel(struct net_device *netdev)
 	return 0;
 }
 
-/*
- * edma_get_settings()
+/* edma_get_settings()
  *	Get edma settings
  */
-static int32_t edma_get_settings(struct net_device *netdev,
+static int edma_get_settings(struct net_device *netdev,
 			     struct ethtool_cmd *ecmd)
 {
 	struct edma_adapter *adapter = netdev_priv(netdev);
@@ -252,7 +244,9 @@ static int32_t edma_get_settings(struct net_device *netdev,
 				ecmd->port = PORT_TP;
 				ecmd->transceiver = XCVR_EXTERNAL;
 			} else {
-				/* non link polled and non forced speed/duplex interface */
+				/* non link polled and non
+				 * forced speed/duplex interface
+				 */
 				return -EIO;
 			}
 		}
@@ -261,17 +255,17 @@ static int32_t edma_get_settings(struct net_device *netdev,
 	return 0;
 }
 
-/*
- * edma_set_settings()
+/* edma_set_settings()
  *	Set EDMA settings
  */
-static int32_t edma_set_settings(struct net_device *netdev,
-		struct ethtool_cmd *ecmd)
+static int edma_set_settings(struct net_device *netdev,
+			     struct ethtool_cmd *ecmd)
 {
 	struct edma_adapter *adapter = netdev_priv(netdev);
 	struct phy_device *phydev = NULL;
 
-	if ((adapter->forced_speed != SPEED_UNKNOWN) && !adapter->poll_required)
+	if ((adapter->forced_speed != SPEED_UNKNOWN) &&
+	     !adapter->poll_required)
 		return -EPERM;
 
 	phydev = adapter->phydev;
@@ -285,12 +279,11 @@ static int32_t edma_set_settings(struct net_device *netdev,
 	return 0;
 }
 
-/*
- * edma_get_coalesce
+/* edma_get_coalesce
  *	get interrupt mitigation
  */
 static int edma_get_coalesce(struct net_device *netdev,
-	struct ethtool_coalesce *ec)
+			     struct ethtool_coalesce *ec)
 {
 	u32 reg_val;
 
@@ -302,18 +295,17 @@ static int edma_get_coalesce(struct net_device *netdev,
 	 * Hence the value given by the register is multiplied by 2 to
 	 * get the actual time in usecs.
 	 */
-	ec->tx_coalesce_usecs = (((reg_val >> 16) & 0xFFFF) << 1);
-	ec->rx_coalesce_usecs = ((reg_val & 0xFFFF) << 1);
+	ec->tx_coalesce_usecs = (((reg_val >> 16) & 0xffff) << 1);
+	ec->rx_coalesce_usecs = ((reg_val & 0xffff) << 1);
 
 	return 0;
 }
 
-/*
- * edma_set_coalesce
+/* edma_set_coalesce
  *	set interrupt mitigation
  */
 static int edma_set_coalesce(struct net_device *netdev,
-	struct ethtool_coalesce *ec)
+			     struct ethtool_coalesce *ec)
 {
 	if (ec->tx_coalesce_usecs)
 		edma_change_tx_coalesce(ec->tx_coalesce_usecs);
@@ -323,17 +315,15 @@ static int edma_set_coalesce(struct net_device *netdev,
 	return 0;
 }
 
-/*
- * edma_set_priv_flags()
+/* edma_set_priv_flags()
  *	Set EDMA private flags
  */
-static int32_t edma_set_priv_flags(struct net_device *netdev, u32 flags)
+static int edma_set_priv_flags(struct net_device *netdev, u32 flags)
 {
 	return 0;
 }
 
-/*
- * edma_get_priv_flags()
+/* edma_get_priv_flags()
  *	get edma driver flags
  */
 static u32 edma_get_priv_flags(struct net_device *netdev)
@@ -341,12 +331,11 @@ static u32 edma_get_priv_flags(struct net_device *netdev)
 	return 0;
 }
 
-/*
- * edma_get_ringparam()
+/* edma_get_ringparam()
  *	get ring size
  */
 static void edma_get_ringparam(struct net_device *netdev,
-		struct ethtool_ringparam *ring)
+			       struct ethtool_ringparam *ring)
 {
 	struct edma_adapter *adapter = netdev_priv(netdev);
 	struct edma_common_info *edma_cinfo = adapter->edma_cinfo;
@@ -355,10 +344,9 @@ static void edma_get_ringparam(struct net_device *netdev,
 	ring->rx_max_pending = edma_cinfo->rx_ring_count;
 }
 
-/*
- * Ethtool operations
+/* Ethtool operations
  */
-struct ethtool_ops edma_ethtool_ops = {
+static const struct ethtool_ops edma_ethtool_ops = {
 	.get_drvinfo = &edma_get_drvinfo,
 	.get_link = &ethtool_op_get_link,
 	.get_msglevel = &edma_get_msglevel,
@@ -376,11 +364,10 @@ struct ethtool_ops edma_ethtool_ops = {
 	.get_ringparam = edma_get_ringparam,
 };
 
-/*
- * edma_set_ethtool_ops
+/* edma_set_ethtool_ops
  *	Set ethtool operations
  */
 void edma_set_ethtool_ops(struct net_device *netdev)
 {
-	SET_ETHTOOL_OPS(netdev, &edma_ethtool_ops);
+	netdev->ethtool_ops = &edma_ethtool_ops;
 }

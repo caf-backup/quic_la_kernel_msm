@@ -18,115 +18,117 @@
 #include "ess_edma.h"
 #include "edma.h"
 
-extern struct net_device *netdev[EDMA_MAX_PORTID_SUPPORTED];
+extern struct net_device *edma_netdev[EDMA_MAX_PORTID_SUPPORTED];
 bool edma_stp_rstp;
 u16 edma_ath_eth_type;
 
-/* The array values are the tx queue number supported by the core */
-u8 edma_skb_priority_tbl[8] = {0, 0, 0, 0, 1, 1, 1, 1};
+/* edma_skb_priority_offset()
+ * 	get edma skb priority
+ */
+static unsigned int edma_skb_priority_offset(struct sk_buff *skb)
+{
+	return (skb->priority >> 2) & 1;
+}
 
-extern int ssdk_rfs_ipct_rule_set(__be32 ip_src, __be32 ip_dst,
-		__be16 sport, __be16 dport,
-		uint8_t proto, u16 loadbalance, bool action);
-
-/*
- * edma_alloc_tx_ring()
+/* edma_alloc_tx_ring()
  *	Allocate Tx descriptors ring
  */
 static int edma_alloc_tx_ring(struct edma_common_info *edma_cinfo,
-		struct edma_tx_desc_ring *etdr)
+			      struct edma_tx_desc_ring *etdr)
 {
 	struct platform_device *pdev = edma_cinfo->pdev;
+	u16 sw_size = sizeof(struct edma_sw_desc) * etdr->count;
 
 	/* Initialize ring */
-	etdr->size = sizeof(struct edma_sw_desc) * etdr->count;
+	etdr->size = sizeof(struct edma_tx_desc) * etdr->count;
 	etdr->sw_next_to_fill = 0;
 	etdr->sw_next_to_clean = 0;
 
 	/* Allocate SW descriptors */
-	etdr->sw_desc = vzalloc(etdr->size);
-	if (!unlikely(etdr->sw_desc)) {
+	etdr->sw_desc = vzalloc(sw_size);
+	if (!etdr->sw_desc) {
 		dev_err(&pdev->dev, "buffer alloc of tx ring failed=%p", etdr);
 		return -ENOMEM;
 	}
 
 	/* Allocate HW descriptors */
 	etdr->hw_desc = dma_alloc_coherent(&pdev->dev, etdr->size, &etdr->dma,
-				GFP_KERNEL);
-	if (!unlikely(etdr->hw_desc)) {
+					  GFP_KERNEL);
+	if (!etdr->hw_desc) {
 		dev_err(&pdev->dev, "descriptor allocation for tx ring failed");
 		vfree(etdr->sw_desc);
+		etdr->sw_desc = NULL;
 		return -ENOMEM;
 	}
 
 	return 0;
 }
 
-/*
- * edma_free_tx_ring()
+/* edma_free_tx_ring()
  *	Free tx rings allocated by edma_alloc_tx_rings
  */
 static void edma_free_tx_ring(struct edma_common_info *edma_cinfo,
-		struct edma_tx_desc_ring *etdr)
+			      struct edma_tx_desc_ring *etdr)
 {
 	struct platform_device *pdev = edma_cinfo->pdev;
 
-	if (likely(etdr->dma))
+	if (likely(etdr->hw_desc)) {
 		dma_free_coherent(&pdev->dev, etdr->size, etdr->hw_desc,
-			etdr->dma);
+				 etdr->dma);
 
-	vfree(etdr->sw_desc);
-	etdr->sw_desc = NULL;
+		vfree(etdr->sw_desc);
+		etdr->sw_desc = NULL;
+	}
 }
 
-/*
- * edma_alloc_rx_ring()
+/* edma_alloc_rx_ring()
  *	allocate rx descriptor ring
  */
 static int edma_alloc_rx_ring(struct edma_common_info *edma_cinfo,
-		struct edma_rfd_desc_ring *erxd)
+			     struct edma_rfd_desc_ring *erxd)
 {
 	struct platform_device *pdev = edma_cinfo->pdev;
+	u16 sw_size = sizeof(struct edma_sw_desc) * erxd->count;
 
 	erxd->size = sizeof(struct edma_sw_desc) * erxd->count;
 	erxd->sw_next_to_fill = 0;
 	erxd->sw_next_to_clean = 0;
 
 	/* Allocate SW descriptors */
-	erxd->sw_desc = vzalloc(erxd->size);
-	if (!unlikely(erxd->sw_desc))
+	erxd->sw_desc = vzalloc(sw_size);
+	if (!erxd->sw_desc)
 		return -ENOMEM;
 
 	/* Alloc HW descriptors */
 	erxd->hw_desc = dma_alloc_coherent(&pdev->dev, erxd->size, &erxd->dma,
 			GFP_KERNEL);
-	if (!unlikely(erxd->hw_desc)) {
+	if (!erxd->hw_desc) {
 		vfree(erxd->sw_desc);
+		erxd->sw_desc = NULL;
 		return -ENOMEM;
 	}
 
 	return 0;
 }
 
-/*
- * edma_free_rx_ring()
+/* edma_free_rx_ring()
  *	Free rx ring allocated by alloc_rx_ring
  */
 static void edma_free_rx_ring(struct edma_common_info *edma_cinfo,
-		struct edma_rfd_desc_ring *rxdr)
+			     struct edma_rfd_desc_ring *erxd)
 {
 	struct platform_device *pdev = edma_cinfo->pdev;
 
-	if (likely(rxdr->dma))
-		dma_free_coherent(&pdev->dev, rxdr->size, rxdr->hw_desc,
-			rxdr->dma);
+	if (likely(erxd->hw_desc)) {
+		dma_free_coherent(&pdev->dev, erxd->size, erxd->hw_desc,
+				 erxd->dma);
 
-	vfree(rxdr->sw_desc);
-	rxdr->sw_desc = NULL;
+		vfree(erxd->sw_desc);
+		erxd->sw_desc = NULL;
+	}
 }
 
-/*
- * edma_configure_tx()
+/* edma_configure_tx()
  *	Configure transmission control data
  */
 static void edma_configure_tx(struct edma_common_info *edma_cinfo)
@@ -139,8 +141,8 @@ static void edma_configure_tx(struct edma_common_info *edma_cinfo)
 	edma_write_reg(EDMA_REG_TXQ_CTRL, txq_ctrl_data);
 }
 
-/*
- * edma_configure_rx()
+
+/* edma_configure_rx()
  *	configure reception control data
  */
 static void edma_configure_rx(struct edma_common_info *edma_cinfo)
@@ -171,12 +173,13 @@ static void edma_configure_rx(struct edma_common_info *edma_cinfo)
 	edma_write_reg(EDMA_REG_RXQ_CTRL, rxq_ctrl_data);
 }
 
-/*
- * edma_alloc_rx_buf()
+/* edma_alloc_rx_buf()
  *	does skb allocation for the received packets.
  */
-static __always_inline int edma_alloc_rx_buf(struct edma_common_info *edma_cinfo,
-	struct edma_rfd_desc_ring *erdr, int cleaned_count, int queue_id)
+static int edma_alloc_rx_buf(struct edma_common_info
+			     *edma_cinfo,
+			     struct edma_rfd_desc_ring *erdr,
+			     int cleaned_count, int queue_id)
 {
 	struct platform_device *pdev = edma_cinfo->pdev;
 	struct edma_rx_free_desc *rx_desc;
@@ -186,9 +189,9 @@ static __always_inline int edma_alloc_rx_buf(struct edma_common_info *edma_cinfo
 	u16 prod_idx, length;
 	u32 reg_data;
 
-	if (unlikely(cleaned_count > erdr->count)) {
+	if (cleaned_count > erdr->count) {
 		dev_err(&pdev->dev, "Incorrect cleaned_count %d",
-				cleaned_count);
+		       cleaned_count);
 		return -1;
 	}
 
@@ -198,39 +201,44 @@ static __always_inline int edma_alloc_rx_buf(struct edma_common_info *edma_cinfo
 		sw_desc = &erdr->sw_desc[i];
 		length = edma_cinfo->rx_head_buffer_len;
 
-		if (sw_desc->flags & EDMA_SW_DESC_FLAG_SKB_REUSE)
+		if (sw_desc->flags & EDMA_SW_DESC_FLAG_SKB_REUSE) {
 			skb = sw_desc->skb;
-		else {
+		} else {
 			/* alloc skb */
-			skb = netdev_alloc_skb(netdev[0], length);
-			if (unlikely(!skb)) {
+			skb = netdev_alloc_skb(edma_netdev[0], length);
+			if (!skb) {
 				/* Better luck next round */
 				break;
 			}
 		}
 
-		if (unlikely(edma_cinfo->page_mode)) {
+		if (edma_cinfo->page_mode) {
 			struct page *pg = alloc_page(GFP_ATOMIC);
+
 			if (!pg) {
 				dev_kfree_skb_any(skb);
 				break;
 			}
 
 			sw_desc->dma = dma_map_page(&pdev->dev, pg, 0,
-				edma_cinfo->rx_page_buffer_len, DMA_FROM_DEVICE);
-			if (unlikely(dma_mapping_error(&pdev->dev, sw_desc->dma))) {
+						   edma_cinfo->rx_page_buffer_len,
+						   DMA_FROM_DEVICE);
+			if (dma_mapping_error(&pdev->dev,
+				    sw_desc->dma)) {
 				__free_page(pg);
 				dev_kfree_skb_any(skb);
 				break;
 			}
 
-			skb_fill_page_desc(skb, 0, pg, 0, edma_cinfo->rx_page_buffer_len);
+			skb_fill_page_desc(skb, 0, pg, 0,
+					   edma_cinfo->rx_page_buffer_len);
 			sw_desc->flags = EDMA_SW_DESC_FLAG_SKB_FRAG;
 			sw_desc->length = edma_cinfo->rx_page_buffer_len;
 		} else {
 			sw_desc->dma = dma_map_single(&pdev->dev, skb->data,
-				length, DMA_FROM_DEVICE);
-			if (unlikely(dma_mapping_error(&pdev->dev, sw_desc->dma))) {
+						     length, DMA_FROM_DEVICE);
+			if (dma_mapping_error(&pdev->dev,
+			   sw_desc->dma)) {
 				dev_kfree_skb_any(skb);
 				break;
 			}
@@ -241,16 +249,16 @@ static __always_inline int edma_alloc_rx_buf(struct edma_common_info *edma_cinfo
 
 		/* Update the buffer info */
 		sw_desc->skb = skb;
-		rx_desc = (&((struct edma_rx_free_desc *)(erdr->hw_desc))[i]);
+		rx_desc = (&(erdr->hw_desc)[i]);
 		rx_desc->buffer_addr = cpu_to_le64(sw_desc->dma);
-		if (unlikely(++i == erdr->count))
+		if (++i == erdr->count)
 			i = 0;
 		cleaned_count--;
 	}
 
 	erdr->sw_next_to_fill = i;
 
-	if (unlikely(i == 0))
+	if (i == 0)
 		prod_idx = erdr->count - 1;
 	else
 		prod_idx = i - 1;
@@ -263,8 +271,7 @@ static __always_inline int edma_alloc_rx_buf(struct edma_common_info *edma_cinfo
 	return cleaned_count;
 }
 
-/*
- * edma_init_desc()
+/* edma_init_desc()
  *	update descriptor ring size, buffer and producer/consumer index
  */
 static void edma_init_desc(struct edma_common_info *edma_cinfo)
@@ -272,7 +279,7 @@ static void edma_init_desc(struct edma_common_info *edma_cinfo)
 	struct edma_rfd_desc_ring *rfd_ring;
 	struct edma_tx_desc_ring *etdr;
 	int i = 0, j = 0;
-	volatile u32 data = 0;
+	u32 data = 0;
 	u16 hw_cons_idx = 0;
 
 	/* Set the base address of every TPD ring. */
@@ -280,8 +287,7 @@ static void edma_init_desc(struct edma_common_info *edma_cinfo)
 		etdr = edma_cinfo->tpd_ring[i];
 
 		/* Update descriptor ring base address */
-		edma_write_reg(EDMA_REG_TPD_BASE_ADDR_Q(i),
-			(u32)(etdr->dma & 0xffffffff));
+		edma_write_reg(EDMA_REG_TPD_BASE_ADDR_Q(i), (u32)etdr->dma);
 		edma_read_reg(EDMA_REG_TPD_IDX_Q(i), &data);
 
 		/* Calculate hardware consumer index */
@@ -299,27 +305,28 @@ static void edma_init_desc(struct edma_common_info *edma_cinfo)
 
 		/* Set TPD ring size */
 		edma_write_reg(EDMA_REG_TPD_RING_SIZE,
-			(u32)(edma_cinfo->tx_ring_count & EDMA_TPD_RING_SIZE_MASK));
+			       edma_cinfo->tx_ring_count &
+				    EDMA_TPD_RING_SIZE_MASK);
 	}
 
 	for (i = 0, j = 0; i < edma_cinfo->num_rx_queues; i++) {
 		rfd_ring = edma_cinfo->rfd_ring[j];
 		/* Update Receive Free descriptor ring base address */
 		edma_write_reg(EDMA_REG_RFD_BASE_ADDR_Q(j),
-			(u32)(rfd_ring->dma & 0xffffffff));
+			(u32)(rfd_ring->dma));
 		j += ((edma_cinfo->num_rx_queues == 4) ? 2 : 1);
 	}
 
-	if (unlikely(edma_cinfo->page_mode))
-		data = (edma_cinfo->rx_page_buffer_len & EDMA_RX_BUF_SIZE_MASK)
-				<< EDMA_RX_BUF_SIZE_SHIFT;
-	else
-		data = (edma_cinfo->rx_head_buffer_len & EDMA_RX_BUF_SIZE_MASK)
-				<< EDMA_RX_BUF_SIZE_SHIFT;
+	data = edma_cinfo->rx_head_buffer_len;
+	if (edma_cinfo->page_mode)
+		data = edma_cinfo->rx_page_buffer_len;
+
+	data &= EDMA_RX_BUF_SIZE_MASK;
+	data <<= EDMA_RX_BUF_SIZE_SHIFT;
 
 	/* Update RFD ring size and RX buffer size */
 	data |= (edma_cinfo->rx_ring_count & EDMA_RFD_RING_SIZE_MASK)
-			<< EDMA_RFD_RING_SIZE_SHIFT;
+		<< EDMA_RFD_RING_SIZE_SHIFT;
 
 	edma_write_reg(EDMA_REG_RX_DESC0, data);
 
@@ -332,12 +339,11 @@ static void edma_init_desc(struct edma_common_info *edma_cinfo)
 	edma_write_reg(EDMA_REG_TX_SRAM_PART, data);
 }
 
-/*
- * edma_receive_checksum
+/* edma_receive_checksum
  *	Api to check checksum on receive packets
  */
-static __always_inline void edma_receive_checksum(struct edma_rx_return_desc *rd,
-	struct sk_buff *skb)
+static void edma_receive_checksum(struct edma_rx_return_desc *rd,
+						 struct sk_buff *skb)
 {
 	skb_checksum_none_assert(skb);
 
@@ -345,14 +351,13 @@ static __always_inline void edma_receive_checksum(struct edma_rx_return_desc *rd
 	 * its set, which in turn indicates checksum
 	 * failure.
 	 */
-	if (unlikely(rd->rrd6 & EDMA_RRD_CSUM_FAIL_MASK))
+	if (rd->rrd6 & EDMA_RRD_CSUM_FAIL_MASK)
 		return;
 
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 }
 
-/*
- * edma_clean_rfd()
+/* edma_clean_rfd()
  *	clean up rx resourcers on error
  */
 static void edma_clean_rfd(struct edma_rfd_desc_ring *erdr, u16 index)
@@ -360,7 +365,7 @@ static void edma_clean_rfd(struct edma_rfd_desc_ring *erdr, u16 index)
 	struct edma_rx_free_desc *rx_desc;
 	struct edma_sw_desc *sw_desc;
 
-	rx_desc = (&((struct edma_rx_free_desc *)(erdr->hw_desc))[index]);
+	rx_desc = (&((erdr->hw_desc))[index]);
 	sw_desc = &erdr->sw_desc[index];
 	if (sw_desc->skb) {
 		dev_kfree_skb_any(sw_desc->skb);
@@ -370,36 +375,197 @@ static void edma_clean_rfd(struct edma_rfd_desc_ring *erdr, u16 index)
 	memset(rx_desc, 0, sizeof(struct edma_rx_free_desc));
 }
 
+/* edma_rx_complete_fraglist()
+ *	Complete Rx processing for fraglist skbs
+ */
+static void edma_rx_complete_stp_rstp(struct sk_buff *skb, int port_id, struct edma_rx_return_desc *rd)
+{
+	int i;
+	u32 priority;
+	u16 port_type;
+	u8 mac_addr[EDMA_ETH_HDR_LEN];
+
+	port_type = (rd->rrd1 >> EDMA_RRD_PORT_TYPE_SHIFT)
+				& EDMA_RRD_PORT_TYPE_MASK;
+	/* if port type is 0x4, then only proceed with
+	 * other stp/rstp calculation
+	 */
+	if (port_type == EDMA_RX_ATH_HDR_RSTP_PORT_TYPE) {
+		u8 bpdu_mac[6] = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x00};
+
+		/* calculate the frame priority */
+		priority = (rd->rrd1 >> EDMA_RRD_PRIORITY_SHIFT)
+			& EDMA_RRD_PRIORITY_MASK;
+
+		for (i = 0; i < EDMA_ETH_HDR_LEN; i++)
+			mac_addr[i] = skb->data[i];
+
+		/* Check if destination mac addr is bpdu addr */
+		if (!memcmp(mac_addr, bpdu_mac, 6)) {
+			/* destination mac address is BPDU
+			 * destination mac address, then add
+			 * atheros header to the packet.
+			 */
+			u16 athr_hdr = (EDMA_RX_ATH_HDR_VERSION << EDMA_RX_ATH_HDR_VERSION_SHIFT) |
+				(priority << EDMA_RX_ATH_HDR_PRIORITY_SHIFT) |
+				(EDMA_RX_ATH_HDR_RSTP_PORT_TYPE << EDMA_RX_ATH_PORT_TYPE_SHIFT) | port_id;
+			skb_push(skb, 4);
+			memcpy(skb->data, mac_addr, EDMA_ETH_HDR_LEN);
+			*(uint16_t *)&skb->data[12] = htons(edma_ath_eth_type);
+			*(uint16_t *)&skb->data[14] = htons(athr_hdr);
+		}
+	}
+}
+
+/* edma_rx_complete_fraglist()
+ *	Complete Rx processing for fraglist skbs
+ */
+static int edma_rx_complete_fraglist(struct sk_buff *skb, u16 num_rfds, u16 length, u32 sw_next_to_clean,
+					struct edma_rfd_desc_ring *erdr, struct edma_common_info *edma_cinfo)
+{
+	struct platform_device *pdev = edma_cinfo->pdev;
+	struct edma_hw *hw = &edma_cinfo->hw;
+	struct sk_buff *skb_temp;
+	struct edma_sw_desc *sw_desc;
+	int i;
+	u16 size_remaining;
+
+	skb->data_len = 0;
+	skb->tail += (hw->rx_head_buff_size - 16);
+	skb->len = skb->truesize = length;
+	size_remaining = length - (hw->rx_head_buff_size - 16);
+
+	/* clean-up all related sw_descs */
+	for (i = 1; i < num_rfds; i++) {
+		struct sk_buff *skb_prev;
+		sw_desc = &erdr->sw_desc[sw_next_to_clean];
+		skb_temp = sw_desc->skb;
+
+		dma_unmap_single(&pdev->dev, sw_desc->dma,
+			sw_desc->length, DMA_FROM_DEVICE);
+
+		if (size_remaining < hw->rx_head_buff_size)
+			skb_put(skb_temp, size_remaining);
+		else
+			skb_put(skb_temp, hw->rx_head_buff_size);
+
+		 /* If we are processing the first rfd, we link
+		 * skb->frag_list to the skb corresponding to the
+		 * first RFD
+		 */
+		if (i == 1)
+			skb_shinfo(skb)->frag_list = skb_temp;
+		else
+			skb_prev->next = skb_temp;
+		skb_prev = skb_temp;
+		skb_temp->next = NULL;
+
+		skb->data_len += skb_temp->len;
+		size_remaining -= skb_temp->len;
+
+		/* Increment SW index */
+		sw_next_to_clean = (sw_next_to_clean + 1) & (erdr->count - 1);
+	}
+
+	return sw_next_to_clean;
+}
+
+/* edma_rx_complete_paged()
+ *	Complete Rx processing for paged skbs
+ */
+static int edma_rx_complete_paged(struct sk_buff *skb, u16 num_rfds,
+				u16 length, u32 sw_next_to_clean,
+				struct edma_rfd_desc_ring *erdr,
+				struct edma_common_info *edma_cinfo)
+{
+	struct platform_device *pdev = edma_cinfo->pdev;
+	struct sk_buff *skb_temp;
+	struct edma_sw_desc *sw_desc;
+	int i;
+	u16 size_remaining;
+
+	skb_frag_t *frag = &skb_shinfo(skb)->frags[0];
+
+	/* Setup skbuff fields */
+	skb->len = length;
+
+	if (likely(num_rfds <= 1)) {
+		skb->data_len = length;
+		skb->truesize += edma_cinfo->rx_page_buffer_len;
+		skb_fill_page_desc(skb, 0, skb_frag_page(frag),
+				16, length);
+	} else {
+		frag->size -= 16;
+		skb->data_len = frag->size;
+		skb->truesize += edma_cinfo->rx_page_buffer_len;
+		size_remaining = length - frag->size;
+
+		skb_fill_page_desc(skb, 0, skb_frag_page(frag),
+				16, frag->size);
+
+		/* clean-up all related sw_descs */
+		for (i = 1; i < num_rfds; i++) {
+			sw_desc = &erdr->sw_desc[sw_next_to_clean];
+			skb_temp = sw_desc->skb;
+			frag = &skb_shinfo(skb_temp)->frags[0];
+			dma_unmap_page(&pdev->dev, sw_desc->dma,
+				sw_desc->length, DMA_FROM_DEVICE);
+
+			if (size_remaining < edma_cinfo->rx_page_buffer_len)
+				frag->size = size_remaining;
+
+			skb_fill_page_desc(skb, i, skb_frag_page(frag),
+					0, frag->size);
+
+			skb_shinfo(skb_temp)->nr_frags = 0;
+			dev_kfree_skb_any(skb_temp);
+
+			skb->data_len += frag->size;
+			skb->truesize += edma_cinfo->rx_page_buffer_len;
+			size_remaining -= frag->size;
+
+			/* Increment SW index */
+			sw_next_to_clean = (sw_next_to_clean + 1) & (erdr->count - 1);
+		}
+	}
+
+	return sw_next_to_clean;
+}
+
 /*
  * edma_rx_complete()
  *	Main api called from the poll function to process rx packets.
  */
 static void edma_rx_complete(struct edma_common_info *edma_cinfo,
-	int *work_done, int work_to_do, int queue_id, struct napi_struct *napi)
+			    int *work_done, int work_to_do, int queue_id,
+			    struct napi_struct *napi)
 {
 	struct platform_device *pdev = edma_cinfo->pdev;
 	struct edma_rfd_desc_ring *erdr = edma_cinfo->rfd_ring[queue_id];
-	struct net_device *netdev;
-	struct edma_adapter *adapter;
-	struct edma_sw_desc *sw_desc;
-	struct sk_buff *skb;
-	struct edma_rx_return_desc *rd;
 	u16 hash_type, rrd[8], cleaned_count = 0, length = 0, num_rfds = 1,
 	    sw_next_to_clean, hw_next_to_clean = 0, vlan = 0, ret_count = 0;
-        volatile u32 data = 0;
-	u8 *vaddr;
-	int port_id, priority, i, drop_count = 0;
+	u32 data = 0;
 	u16 count = erdr->count, rfd_avail;
 	u8 queue_to_rxid[8] = {0, 0, 1, 1, 2, 2, 3, 3};
+
 	sw_next_to_clean = erdr->sw_next_to_clean;
 
-        edma_read_reg(EDMA_REG_RFD_IDX_Q(queue_id), &data);
-        hw_next_to_clean = (data >> EDMA_RFD_CONS_IDX_SHIFT) &
-                        EDMA_RFD_CONS_IDX_MASK;
+	edma_read_reg(EDMA_REG_RFD_IDX_Q(queue_id), &data);
+	hw_next_to_clean = (data >> EDMA_RFD_CONS_IDX_SHIFT) &
+			EDMA_RFD_CONS_IDX_MASK;
 
 	do {
 		while (sw_next_to_clean != hw_next_to_clean) {
-			if (unlikely(!work_to_do))
+			struct net_device *netdev;
+			struct edma_adapter *adapter;
+			struct edma_sw_desc *sw_desc;
+			struct sk_buff *skb;
+			struct edma_rx_return_desc *rd;
+			u8 *vaddr;
+			int port_id, i, drop_count = 0;
+			u32 priority;
+
+			if (!work_to_do)
 				break;
 
 			sw_desc = &erdr->sw_desc[sw_next_to_clean];
@@ -408,13 +574,13 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 			/* Unmap the allocated buffer */
 			if (likely(sw_desc->flags & EDMA_SW_DESC_FLAG_SKB_HEAD))
 				dma_unmap_single(&pdev->dev, sw_desc->dma,
-					sw_desc->length, DMA_FROM_DEVICE);
+						sw_desc->length, DMA_FROM_DEVICE);
 			else
 				dma_unmap_page(&pdev->dev, sw_desc->dma,
-					sw_desc->length, DMA_FROM_DEVICE);
+					      sw_desc->length, DMA_FROM_DEVICE);
 
 			/* Get RRD */
-			if (unlikely(edma_cinfo->page_mode)) {
+			if (edma_cinfo->page_mode) {
 				vaddr = kmap_atomic(skb_frag_page(&skb_shinfo(skb)->frags[0]));
 				memcpy((uint8_t *)&rrd[0], vaddr, 16);
 				rd = (struct edma_rx_return_desc *)rrd;
@@ -424,18 +590,20 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 			}
 
 			/* Check if RRD is valid */
-			if (!unlikely(rd->rrd7 & EDMA_RRD_DESC_VALID)) {
+			if (!(rd->rrd7 & EDMA_RRD_DESC_VALID)) {
 				edma_clean_rfd(erdr, sw_next_to_clean);
-				sw_next_to_clean = (sw_next_to_clean + 1) & (erdr->count - 1);
+				sw_next_to_clean = (sw_next_to_clean + 1) &
+						   (erdr->count - 1);
 				cleaned_count++;
 				continue;
 			}
 
-			/* Get the number of RFD from RRD */
+			/* Get the number of RFDs from RRD */
 			num_rfds = rd->rrd1 & EDMA_RRD_NUM_RFD_MASK;
 
+			/* Get Rx port ID from switch */
 			port_id = (rd->rrd1 >> EDMA_PORT_ID_SHIFT) & EDMA_PORT_ID_MASK;
-			if ((unlikely(!port_id)) || (unlikely(port_id > EDMA_MAX_PORTID_SUPPORTED))) {
+			if ((!port_id) || (port_id > EDMA_MAX_PORTID_SUPPORTED)) {
 				dev_err(&pdev->dev, "Invalid RRD source port bit set");
 				for (i = 0; i < num_rfds; i++) {
 					edma_clean_rfd(erdr, sw_next_to_clean);
@@ -446,17 +614,29 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 			}
 
 			netdev = edma_cinfo->portid_netdev_lookup_tbl[port_id];
+			if (!netdev) {
+				dev_err(&pdev->dev, "Invalid netdev");
+				for (i = 0; i < num_rfds; i++) {
+					edma_clean_rfd(erdr, sw_next_to_clean);
+					sw_next_to_clean = (sw_next_to_clean + 1) & (erdr->count - 1);
+					cleaned_count++;
+				}
+					continue;
+			}
 			adapter = netdev_priv(netdev);
 
-			/* This code is added to handle a usecase where high priority stream
-			 * and a low priority stream are received simultaneously on DUT.
-			 * The problem occurs if one of the  Rx rings is full and the
-			 * corresponding core is busy with other stuff. This causes ESS CPU port
-			 * to backpressure all incoming traffic including high priority one.
-			 * We monitor free descriptor count on each CPU and whenever it reaches
-			 * threshold (< 80), we drop all low priority traffic and let only high
-			 * priotiy traffic pass through. We can hence avoid ESS CPU port to send
-			 * backpressure on high priroity stream.
+			/* This code is added to handle a usecase where high
+			 * priority stream and a low priority stream are
+			 * received simultaneously on DUT. The problem occurs
+			 * if one of the  Rx rings is full and the corresponding
+			 * core is busy with other stuff. This causes ESS CPU
+			 * port to backpressure all incoming traffic including
+			 * high priority one. We monitor free descriptor count
+			 * on each CPU and whenever it reaches threshold (< 80),
+			 * we drop all low priority traffic and let only high
+			 * priotiy traffic pass through. We can hence avoid
+			 * ESS CPU port to send backpressure on high priroity
+			 * stream.
 			 */
 			priority = (rd->rrd1 >> EDMA_RRD_PRIORITY_SHIFT)
 				& EDMA_RRD_PRIORITY_MASK;
@@ -477,7 +657,7 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 						/* If buffer clean count reaches 16, we replenish HW buffers. */
 						ret_count = edma_alloc_rx_buf(edma_cinfo, erdr, cleaned_count, queue_id);
 						edma_write_reg(EDMA_REG_RX_SW_CONS_IDX_Q(queue_id),
-							sw_next_to_clean);
+							      sw_next_to_clean);
 						cleaned_count = ret_count;
 					}
 					continue;
@@ -488,173 +668,59 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 			(*work_done)++;
 
 			/* Increment SW index */
-			sw_next_to_clean = (sw_next_to_clean + 1) & (erdr->count - 1);
-
-			cleaned_count++;
+			sw_next_to_clean = (sw_next_to_clean + 1) &
+					   (erdr->count - 1);
 
 			/* Get the packet size and allocate buffer */
-                        length = rd->rrd6 & EDMA_RRD_PKT_SIZE_MASK;
+			length = rd->rrd6 & EDMA_RRD_PKT_SIZE_MASK;
 
-			if (likely(!edma_cinfo->page_mode)) {
+			if (edma_cinfo->page_mode) {
+				/* paged skb */
+				sw_next_to_clean = edma_rx_complete_paged(skb, num_rfds, length,
+							sw_next_to_clean, erdr, edma_cinfo);
+				if (!pskb_may_pull(skb, ETH_HLEN)) {
+					cleaned_count += num_rfds;
+					dev_kfree_skb_any(skb);
+					continue;
+				}
+			} else {
+				/* single or fraglist skb */
+
 				/* Addition of 16 bytes is required, as in the packet
 			 	 * first 16 bytes are rrd descriptors, so actual data
 			 	 * starts from an offset of 16.
 			 	 */
 				skb_reserve(skb, 16);
-				if (likely(!edma_cinfo->fraglist_mode)) {
+				if (likely((num_rfds <= 1) || !edma_cinfo->fraglist_mode))
 					skb_put(skb, length);
-				} else {
-					if (likely(num_rfds <= 1)) {
-						skb_put(skb, length);
-					} else {
-						struct sk_buff *skb_temp;
-						struct edma_hw *hw = &edma_cinfo->hw;
-						u16 size_remaining;
-
-						skb->data_len = 0;
-						skb->tail += (hw->rx_head_buff_size - 16);
-						skb->len = skb->truesize = length;
-						size_remaining = length - (hw->rx_head_buff_size - 16);
-
-						/* clean-up all related sw_descs */
-						for (i = 1; i < num_rfds; i++) {
-							struct sk_buff *skb_prev;
-							sw_desc = &erdr->sw_desc[sw_next_to_clean];
-							skb_temp = sw_desc->skb;
-
-							dma_unmap_single(&pdev->dev, sw_desc->dma,
-								sw_desc->length, DMA_FROM_DEVICE);
-
-							if (size_remaining < hw->rx_head_buff_size)
-								skb_put(skb_temp, size_remaining);
-							else
-								skb_put(skb_temp, hw->rx_head_buff_size);
-
-							/*
-						 	 * If we are processing the first rfd, we link
-							 * skb->frag_list to the skb corresponding to the
-							 * first RFD
-						 	 */
-							if (i == 1)
-								skb_shinfo(skb)->frag_list = skb_temp;
-							else
-								skb_prev->next = skb_temp;
-							skb_prev = skb_temp;
-							skb_temp->next = NULL;
-
-							skb->data_len += skb_temp->len;
-							size_remaining -= skb_temp->len;
-
-							/* Increment SW index */
-							sw_next_to_clean = (sw_next_to_clean + 1) & (erdr->count - 1);
-							cleaned_count++;
-						}
-					}
-				}
-			} else {
-				skb_frag_t *frag = &skb_shinfo(skb)->frags[0];
-
-				/* Setup skbuff fields */
-				skb->len = length;
-
-				if (likely(num_rfds <= 1)) {
-					skb->data_len = length;
-					skb->truesize += edma_cinfo->rx_page_buffer_len;
-					skb_fill_page_desc(skb, 0, skb_frag_page(frag),
-							16, length);
-				} else {
-					struct sk_buff *skb_temp;
-					u16 size_remaining;
-
-					frag->size -= 16;
-					skb->data_len = frag->size;
-					skb->truesize += edma_cinfo->rx_page_buffer_len;
-					size_remaining = length - frag->size;
-
-					skb_fill_page_desc(skb, 0, skb_frag_page(frag),
-							16, frag->size);
-
-					/* clean-up all related sw_descs */
-					for (i = 1; i < num_rfds; i++) {
-						sw_desc = &erdr->sw_desc[sw_next_to_clean];
-						skb_temp = sw_desc->skb;
-						frag = &skb_shinfo(skb_temp)->frags[0];
-						dma_unmap_page(&pdev->dev, sw_desc->dma,
-							sw_desc->length, DMA_FROM_DEVICE);
-
-						if (size_remaining < edma_cinfo->rx_page_buffer_len)
-							frag->size = size_remaining;
-
-						skb_fill_page_desc(skb, i, skb_frag_page(frag),
-								0, frag->size);
-
-						skb_shinfo(skb_temp)->nr_frags = 0;
-						dev_kfree_skb_any(skb_temp);
-
-						skb->data_len += frag->size;
-						skb->truesize += edma_cinfo->rx_page_buffer_len;
-						size_remaining -= frag->size;
-
-						/* Increment SW index */
-						sw_next_to_clean = (sw_next_to_clean + 1) & (erdr->count - 1);
-						cleaned_count++;
-					}
-				}
-
-				if (!pskb_may_pull(skb, ETH_HLEN)) {
-					dev_kfree_skb_any(skb);
-					continue;
-				}
+				else
+					sw_next_to_clean = edma_rx_complete_fraglist(skb, num_rfds, length,
+								sw_next_to_clean, erdr, edma_cinfo);
 			}
 
-			if (unlikely(edma_stp_rstp)) {
-				u8 mac_addr[EDMA_ETH_HDR_LEN];
-				int i;
-				u16 port_type = (rd->rrd1 >> EDMA_RRD_PORT_TYPE_SHIFT)
-					& EDMA_RRD_PORT_TYPE_MASK;
+			cleaned_count += num_rfds;
 
-				/* if port type is 0x4, then only proceed with
-			 	 * other stp/rstp calculation
-			 	 */
-				if (port_type == EDMA_RX_ATH_HDR_RSTP_PORT_TYPE) {
-					u8 bpdu_mac[6] = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x00};
-
-					/* calculate the frame priority */
-					priority = (rd->rrd1 >> EDMA_RRD_PRIORITY_SHIFT)
-						& EDMA_RRD_PRIORITY_MASK;
-
-					for (i = 0; i < EDMA_ETH_HDR_LEN; i++)
-						mac_addr[i] = skb->data[i];
-
-					/* Check if destination mac addr is bpdu addr */
-					if (!memcmp(mac_addr, bpdu_mac, 6)) {
-						/* destination mac address is BPDU
-					 	 * destination mac address, then add
-					 	 * atheros header to the packet.
-					 	 */
-						u16 athr_hdr = (EDMA_RX_ATH_HDR_VERSION << EDMA_RX_ATH_HDR_VERSION_SHIFT) |
-							(priority << EDMA_RX_ATH_HDR_PRIORITY_SHIFT) |
-							(EDMA_RX_ATH_HDR_RSTP_PORT_TYPE << EDMA_RX_ATH_PORT_TYPE_SHIFT) | port_id;
-						skb_push(skb, 4);
-						memcpy(skb->data, mac_addr, EDMA_ETH_HDR_LEN);
-						*(uint16_t *)&skb->data[12] = htons(edma_ath_eth_type);
-						*(uint16_t *)&skb->data[14] = htons(athr_hdr);
-					}
-				}
+			if (edma_stp_rstp) {
+				edma_rx_complete_stp_rstp(skb, port_id, rd);
 			}
 
 			skb->protocol = eth_type_trans(skb, netdev);
+
+			/* Record Rx queue for RFS/RPS and fill flow hash from HW */
 			skb_record_rx_queue(skb, queue_to_rxid[queue_id]);
 			if (netdev->features & NETIF_F_RXHASH) {
 				hash_type = (rd->rrd5 >> EDMA_HASH_TYPE_SHIFT);
 				if ((hash_type > EDMA_HASH_TYPE_START) && (hash_type < EDMA_HASH_TYPE_END))
 					skb_set_hash(skb, rd->rrd2, PKT_HASH_TYPE_L4);
 			}
+
 #ifdef CONFIG_NF_FLOW_COOKIE
 			skb->flow_cookie = rd->rrd3 & EDMA_RRD_FLOW_COOKIE_MASK;
 #endif
 			edma_receive_checksum(rd, skb);
-			if (unlikely(adapter->default_vlan_tag != rd->rrd4)) {
+
+			/* Process VLAN HW acceleration indication provided by HW */
+			if (adapter->default_vlan_tag != rd->rrd4) {
 				vlan = rd->rrd4;
 				if (likely(rd->rrd7 & EDMA_RRD_CVLAN))
 					__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan);
@@ -662,21 +728,27 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 					__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021AD), vlan);
 			}
 
-			/* update rx statistics */
+			/* Update rx statistics */
 			adapter->stats.rx_packets++;
 			adapter->stats.rx_bytes += length;
+
+			/* Check if we reached refill threshold */
 			if (cleaned_count == EDMA_RX_BUFFER_WRITE) {
 				ret_count = edma_alloc_rx_buf(edma_cinfo, erdr, cleaned_count, queue_id);
 				edma_write_reg(EDMA_REG_RX_SW_CONS_IDX_Q(queue_id),
-						sw_next_to_clean);
+					      sw_next_to_clean);
 				cleaned_count = ret_count;
 			}
+
+			/* At this point skb should go to stack */
 			napi_gro_receive(napi, skb);
 		}
 
-		if (unlikely(!work_to_do))
+		/* Check if we still have NAPI budget */
+		if (!work_to_do)
 			break;
 
+		/* Read index once again since we still have NAPI budget */
 		edma_read_reg(EDMA_REG_RFD_IDX_Q(queue_id), &data);
 		hw_next_to_clean = (data >> EDMA_RFD_CONS_IDX_SHIFT) &
 			EDMA_RFD_CONS_IDX_MASK;
@@ -684,38 +756,41 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 
 	erdr->sw_next_to_clean = sw_next_to_clean;
 
-	/* alloc_rx_buf */
+	/* Refill here in case refill threshold wasn't reached */
 	if (likely(cleaned_count)) {
 		ret_count = edma_alloc_rx_buf(edma_cinfo, erdr, cleaned_count, queue_id);
-		if (unlikely(ret_count))
+		if (ret_count)
 			dev_dbg(&pdev->dev, "Not all buffers was reallocated");
 		edma_write_reg(EDMA_REG_RX_SW_CONS_IDX_Q(queue_id),
-				erdr->sw_next_to_clean);
+			      erdr->sw_next_to_clean);
 	}
 }
 
-/*
- * edma_delete_rfs_filter()
+/* edma_delete_rfs_filter()
  *	Remove RFS filter from switch
  */
 static int edma_delete_rfs_filter(struct edma_adapter *adapter,
-			struct edma_rfs_filter_node *filter_node)
+				 struct edma_rfs_filter_node *filter_node)
 {
 	int res = -1;
 
 	if (likely(adapter->set_rfs_rule))
-		res = (*adapter->set_rfs_rule)(adapter->netdev, filter_node->keys.src, filter_node->keys.dst,
-				filter_node->keys.port16[0], filter_node->keys.port16[1],
-				filter_node->keys.ip_proto, filter_node->rq_id, 0);
+		res = (*adapter->set_rfs_rule)(adapter->netdev,
+				filter_node->keys.src,
+				filter_node->keys.dst, filter_node->keys.port16[0],
+				filter_node->keys.port16[1],
+				filter_node->keys.ip_proto,
+				filter_node->rq_id,
+				0);
 
 	return res;
 }
 
-/*
- * edma_add_rfs_filter()
+/* edma_add_rfs_filter()
  *	Add RFS filter to switch
  */
-static int edma_add_rfs_filter(struct edma_adapter *adapter, struct flow_keys *keys, u16 rq,
+static int edma_add_rfs_filter(struct edma_adapter *adapter,
+				struct flow_keys *keys, u16 rq,
 				struct edma_rfs_filter_node *filter_node)
 {
 	int res = -1;
@@ -727,18 +802,18 @@ static int edma_add_rfs_filter(struct edma_adapter *adapter, struct flow_keys *k
 
 	/* Call callback registered by ESS driver */
 	if (likely(adapter->set_rfs_rule))
-		res = (*adapter->set_rfs_rule)(adapter->netdev, keys->src, keys->dst,
-			keys->port16[0], keys->port16[1], keys->ip_proto, rq, 1);
+		res = (*adapter->set_rfs_rule)(adapter->netdev, keys->src,
+		      keys->dst, keys->port16[0], keys->port16[1],
+		      keys->ip_proto, rq, 1);
 
 	return res;
 }
 
-/*
- * edma_rfs_key_search()
+/* edma_rfs_key_search()
  *	Look for existing RFS entry
  */
 static struct edma_rfs_filter_node *edma_rfs_key_search(struct hlist_head *h,
-			struct flow_keys *key)
+							struct flow_keys *key)
 {
 	struct edma_rfs_filter_node *p;
 
@@ -751,15 +826,14 @@ static struct edma_rfs_filter_node *edma_rfs_key_search(struct hlist_head *h,
 	return NULL;
 }
 
-/*
- * edma_initialise_rfs_flow_table()
+/* edma_initialise_rfs_flow_table()
  * 	Initialise EDMA RFS flow table
  */
 static void edma_initialise_rfs_flow_table(struct edma_adapter *adapter)
 {
 	int i;
 
-	spin_lock_init(&adapter->rfs.lock);
+	spin_lock_init(&adapter->rfs.rfs_ftab_lock);
 
 	/* Initialize EDMA flow hash table */
 	for (i = 0; i < EDMA_RFS_FLOW_ENTRIES; i++)
@@ -776,17 +850,16 @@ static void edma_initialise_rfs_flow_table(struct edma_adapter *adapter)
 	mod_timer(&adapter->rfs.expire_rfs, jiffies + HZ/4);
 }
 
-/*
- * edma_free_rfs_flow_table()
+/* edma_free_rfs_flow_table()
  * 	Free EDMA RFS flow table
  */
 static void edma_free_rfs_flow_table(struct edma_adapter *adapter)
 {
-	int i, res;
+	int i;
 
 	/* Remove sync timer */
 	del_timer_sync(&adapter->rfs.expire_rfs);
-	spin_lock_bh(&adapter->rfs.lock);
+	spin_lock_bh(&adapter->rfs.rfs_ftab_lock);
 
 	/* Free EDMA RFS table entries */
 	adapter->rfs.filter_available = 0;
@@ -796,41 +869,39 @@ static void edma_free_rfs_flow_table(struct edma_adapter *adapter)
 		struct hlist_head *hhead;
 		struct hlist_node *tmp;
 		struct edma_rfs_filter_node *filter_node;
+		int res;
+
 		hhead = &adapter->rfs.hlist_head[i];
 		hlist_for_each_entry_safe(filter_node, tmp, hhead, node) {
-			res  = edma_delete_rfs_filter(adapter, filter_node);
-			if (unlikely(res < 0))
+			res = edma_delete_rfs_filter(adapter, filter_node);
+			if (res < 0)
 				dev_warn(&adapter->netdev->dev,
 					"EDMA going down but RFS entry %d not allowed to be flushed by Switch",
-							filter_node->flow_id);
+					filter_node->flow_id);
 			hlist_del(&filter_node->node);
 			kfree(filter_node);
 		}
 	}
-	spin_unlock_bh(&adapter->rfs.lock);
+	spin_unlock_bh(&adapter->rfs.rfs_ftab_lock);
 }
 
-/*
- * edma_tx_unmap_and_free()
+/* edma_tx_unmap_and_free()
  *	clean TX buffer
  */
 static inline void edma_tx_unmap_and_free(struct platform_device *pdev,
-		struct edma_sw_desc *sw_desc)
+					 struct edma_sw_desc *sw_desc)
 {
 	struct sk_buff *skb = sw_desc->skb;
 
-	if (likely(sw_desc->flags & EDMA_SW_DESC_FLAG_SKB_HEAD))
+	if (likely((sw_desc->flags & EDMA_SW_DESC_FLAG_SKB_HEAD) ||
+			(sw_desc->flags & EDMA_SW_DESC_FLAG_SKB_FRAGLIST)))
 		/* unmap_single for skb head area */
 		dma_unmap_single(&pdev->dev, sw_desc->dma,
-			sw_desc->length, DMA_TO_DEVICE);
+				sw_desc->length, DMA_TO_DEVICE);
 	else if (sw_desc->flags & EDMA_SW_DESC_FLAG_SKB_FRAG)
 		/* unmap page for paged fragments */
 		dma_unmap_page(&pdev->dev, sw_desc->dma,
-			sw_desc->length, DMA_TO_DEVICE);
-	else if (sw_desc->flags & EDMA_SW_DESC_FLAG_SKB_FRAGLIST)
-		/* unmap single for fraglist skb */
-		dma_unmap_single(&pdev->dev, sw_desc->dma,
-			sw_desc->length, DMA_TO_DEVICE);
+				sw_desc->length, DMA_TO_DEVICE);
 
 	if (likely(sw_desc->flags & EDMA_SW_DESC_FLAG_LAST))
 		dev_kfree_skb_any(skb);
@@ -838,8 +909,7 @@ static inline void edma_tx_unmap_and_free(struct platform_device *pdev,
 	sw_desc->flags = 0;
 }
 
-/*
- * edma_tx_complete()
+/* edma_tx_complete()
  *	Used to clean tx queues and update hardware and consumer index
  */
 static void edma_tx_complete(struct edma_common_info *edma_cinfo, int queue_id)
@@ -850,8 +920,9 @@ static void edma_tx_complete(struct edma_common_info *edma_cinfo, int queue_id)
 	int i;
 
 	u16 sw_next_to_clean = etdr->sw_next_to_clean;
-	u16 hw_next_to_clean = 0;
-	volatile u32 data = 0;
+	u16 hw_next_to_clean;
+	u32 data = 0;
+
 	edma_read_reg(EDMA_REG_TPD_IDX_Q(queue_id), &data);
 	hw_next_to_clean = (data >> EDMA_TPD_CONS_IDX_SHIFT) & EDMA_TPD_CONS_IDX_MASK;
 
@@ -868,34 +939,30 @@ static void edma_tx_complete(struct edma_common_info *edma_cinfo, int queue_id)
 	edma_write_reg(EDMA_REG_TX_SW_CONS_IDX_Q(queue_id), sw_next_to_clean);
 
 	/* Wake the queue if queue is stopped and netdev link is up */
-	for (i = 0; i < EDMA_MAX_NETDEV_SUPPORTED_PER_QUEUE; i++) {
-		if (etdr->nq[i]) {
-			if (netif_tx_queue_stopped(etdr->nq[i])) {
-				if ((etdr->netdev[i]) && netif_carrier_ok(etdr->netdev[i]))
-					netif_tx_wake_queue(etdr->nq[i]);
-			}
-		} else
-			break;
+	for (i = 0; i < EDMA_MAX_NETDEV_PER_QUEUE && etdr->nq[i] ; i++) {
+		if (netif_tx_queue_stopped(etdr->nq[i])) {
+			if ((etdr->netdev[i]) && netif_carrier_ok(etdr->netdev[i]))
+				netif_tx_wake_queue(etdr->nq[i]);
+		}
 	}
 }
 
-/*
- * edma_get_tx_buffer()
+/* edma_get_tx_buffer()
  *	Get sw_desc corresponding to the TPD
  */
 static struct edma_sw_desc *edma_get_tx_buffer(struct edma_common_info *edma_cinfo,
-		struct edma_tx_desc *tpd, int queue_id)
+					       struct edma_tx_desc *tpd, int queue_id)
 {
 	struct edma_tx_desc_ring *etdr = edma_cinfo->tpd_ring[queue_id];
+
 	return &etdr->sw_desc[tpd - (struct edma_tx_desc *)etdr->hw_desc];
 }
 
-/*
- * edma_get_next_tpd()
+/* edma_get_next_tpd()
  *	Return a TPD descriptor for transfer
  */
 static struct edma_tx_desc *edma_get_next_tpd(struct edma_common_info *edma_cinfo,
-		int queue_id)
+						int queue_id)
 {
 	struct edma_tx_desc_ring *etdr = edma_cinfo->tpd_ring[queue_id];
 	u16 sw_next_to_fill = etdr->sw_next_to_fill;
@@ -907,17 +974,16 @@ static struct edma_tx_desc *edma_get_next_tpd(struct edma_common_info *edma_cinf
 	return tpd_desc;
 }
 
-/*
- * edma_tpd_available()
+/* edma_tpd_available()
  *	Check number of free TPDs
  */
 static inline u16 edma_tpd_available(struct edma_common_info *edma_cinfo,
-		int queue_id)
+				    int queue_id)
 {
 	struct edma_tx_desc_ring *etdr = edma_cinfo->tpd_ring[queue_id];
 
-	u16 sw_next_to_fill = 0;
-	u16 sw_next_to_clean = 0;
+	u16 sw_next_to_fill;
+	u16 sw_next_to_clean;
 	u16 count = 0;
 
 	sw_next_to_clean = etdr->sw_next_to_clean;
@@ -929,28 +995,26 @@ static inline u16 edma_tpd_available(struct edma_common_info *edma_cinfo,
 	return count + sw_next_to_clean - sw_next_to_fill - 1;
 }
 
-/*
- * edma_tx_queue_get()
+/* edma_tx_queue_get()
  *	Get the starting number of  the queue
  */
 static inline int edma_tx_queue_get(struct edma_adapter *adapter,
-		struct sk_buff *skb, int txq_id)
+				   struct sk_buff *skb, int txq_id)
 {
 	/* skb->priority is used as an index to skb priority table
 	 * and based on packet priority, correspong queue is assigned.
 	 */
-	return adapter->tx_start_offset[txq_id] + edma_skb_priority_tbl[skb->priority & 0x7];
+	return adapter->tx_start_offset[txq_id] + edma_skb_priority_offset(skb);
 }
 
-/*
- * edma_tx_update_hw_idx()
+/* edma_tx_update_hw_idx()
  *	update the producer index for the ring transmitted
  */
 static void edma_tx_update_hw_idx(struct edma_common_info *edma_cinfo,
-		struct sk_buff *skb, int queue_id)
+				struct sk_buff *skb, int queue_id)
 {
 	struct edma_tx_desc_ring *etdr = edma_cinfo->tpd_ring[queue_id];
-	volatile u32 tpd_idx_data;
+	u32 tpd_idx_data;
 
 	/* Read and update the producer index */
 	edma_read_reg(EDMA_REG_TPD_IDX_Q(queue_id), &tpd_idx_data);
@@ -961,12 +1025,11 @@ static void edma_tx_update_hw_idx(struct edma_common_info *edma_cinfo,
 	edma_write_reg(EDMA_REG_TPD_IDX_Q(queue_id), tpd_idx_data);
 }
 
-/*
- * edma_rollback_tx()
+/* edma_rollback_tx()
  *	Function to retrieve tx resources in case of error
  */
 static void edma_rollback_tx(struct edma_adapter *adapter,
-		struct edma_tx_desc *start_tpd, int queue_id)
+			    struct edma_tx_desc *start_tpd, int queue_id)
 {
 	struct edma_tx_desc_ring *etdr = adapter->edma_cinfo->tpd_ring[queue_id];
 	struct edma_sw_desc *sw_desc;
@@ -987,17 +1050,18 @@ static void edma_rollback_tx(struct edma_adapter *adapter,
 	etdr->sw_next_to_fill = start_index;
 }
 
-/*
- * edma_tx_map_and_fill()
+/* edma_tx_map_and_fill()
  *	gets called from edma_xmit_frame
  *
  * This is where the dma of the buffer to be transmitted
  * gets mapped
  */
 static int edma_tx_map_and_fill(struct edma_common_info *edma_cinfo,
-	struct edma_adapter *adapter, struct sk_buff *skb, int queue_id,
-	unsigned int flags_transmit, u16 from_cpu, u16 dp_bitmap,
-	bool packet_is_rstp, int nr_frags)
+				struct edma_adapter *adapter,
+				struct sk_buff *skb, int queue_id,
+				unsigned int flags_transmit,
+				u16 from_cpu, u16 dp_bitmap,
+				bool packet_is_rstp, int nr_frags)
 {
 	struct edma_sw_desc *sw_desc = NULL;
 	struct platform_device *pdev = edma_cinfo->pdev;
@@ -1007,7 +1071,7 @@ static int edma_tx_map_and_fill(struct edma_common_info *edma_cinfo,
 	u32 word1 = 0, word3 = 0, lso_word1 = 0, svlan_tag = 0;
 	u16 buf_len, lso_desc_len = 0;
 
-	if (unlikely(skb_is_gso(skb))) {
+	if (skb_is_gso(skb)) {
 		/* TODO: What additional checks need to be performed here */
 		if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV4) {
 			lso_word1 |= EDMA_TPD_IPV4_EN;
@@ -1022,7 +1086,6 @@ static int edma_tx_map_and_fill(struct edma_common_info *edma_cinfo,
 		} else
 			return -EINVAL;
 
-		/* TODO: Do we need to calculate partial checksum ourselves here */
 		lso_word1 |= EDMA_TPD_LSO_EN | ((skb_shinfo(skb)->gso_size & EDMA_TPD_MSS_MASK) << EDMA_TPD_MSS_SHIFT) |
 				(skb_transport_offset(skb) << EDMA_TPD_HDR_SHIFT);
 	} else if (flags_transmit & EDMA_HW_CHECKSUM) {
@@ -1035,10 +1098,10 @@ static int edma_tx_map_and_fill(struct edma_common_info *edma_cinfo,
 			word1 |= ((css >> 1) << EDMA_TPD_CUSTOM_CSUM_SHIFT);
 	}
 
-	if (unlikely(skb->protocol == htons(ETH_P_PPP_SES)))
+	if (skb->protocol == htons(ETH_P_PPP_SES))
 		word1 |= EDMA_TPD_PPPOE_EN;
 
-	if (unlikely(flags_transmit & EDMA_VLAN_TX_TAG_INSERT_FLAG)) {
+	if (flags_transmit & EDMA_VLAN_TX_TAG_INSERT_FLAG) {
 		switch(skb->vlan_proto) {
 		case htons(ETH_P_8021Q):
 			word3 |= (1 << EDMA_TX_INS_CVLAN);
@@ -1049,7 +1112,7 @@ static int edma_tx_map_and_fill(struct edma_common_info *edma_cinfo,
 			svlan_tag = vlan_tx_tag_get(skb) << EDMA_TX_SVLAN_TAG_SHIFT;
 			break;
 		default:
-			dev_dbg(&pdev->dev, "no ctag or stag present\n");
+			dev_err(&pdev->dev, "no ctag or stag present\n");
 			goto vlan_tag_error;
 		}
 	} else if (flags_transmit & EDMA_VLAN_TX_TAG_INSERT_DEFAULT_FLAG) {
@@ -1057,15 +1120,16 @@ static int edma_tx_map_and_fill(struct edma_common_info *edma_cinfo,
 		word3 |= (adapter->default_vlan_tag) << EDMA_TX_CVLAN_TAG_SHIFT;
 	}
 
-	if (unlikely(packet_is_rstp)) {
+	if (packet_is_rstp) {
 		word3 |= dp_bitmap << EDMA_TPD_PORT_BITMAP_SHIFT;
 		word3 |= from_cpu << EDMA_TPD_FROM_CPU_SHIFT;
-	} else
+	} else {
 		word3 |= adapter->dp_bitmap << EDMA_TPD_PORT_BITMAP_SHIFT;
+	}
 
 	buf_len = skb_headlen(skb);
 
-	if (unlikely(lso_word1)) {
+	if (lso_word1) {
 		if (lso_word1 & EDMA_TPD_LSO_V2_EN) {
 
 			/* IPv6 LSOv2 descriptor */
@@ -1086,14 +1150,14 @@ static int edma_tx_map_and_fill(struct edma_common_info *edma_cinfo,
 		sw_desc = edma_get_tx_buffer(edma_cinfo, tpd, queue_id);
 
 		/* The last buffer info contain the skb address,
-		 * tso it will be free after unmap
+		 * so skb will be freed after unmap
 		 */
 		sw_desc->length = lso_desc_len;
 		sw_desc->flags |= EDMA_SW_DESC_FLAG_SKB_HEAD;
 
 		sw_desc->dma = dma_map_single(&adapter->pdev->dev,
 					skb->data, buf_len, DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(&pdev->dev, sw_desc->dma)))
+		if (dma_mapping_error(&pdev->dev, sw_desc->dma))
 			goto dma_error;
 
 		tpd->addr = cpu_to_le32(sw_desc->dma);
@@ -1104,7 +1168,7 @@ static int edma_tx_map_and_fill(struct edma_common_info *edma_cinfo,
 		tpd->word3 = word3;
 
 		/* The last buffer info contain the skb address,
-		 * tso it will be free after unmap
+		 * so it will be freed after unmap
 		 */
 		sw_desc->length = lso_desc_len;
 		sw_desc->flags |= EDMA_SW_DESC_FLAG_SKB_HEAD;
@@ -1129,7 +1193,7 @@ static int edma_tx_map_and_fill(struct edma_common_info *edma_cinfo,
 		sw_desc->flags |= EDMA_SW_DESC_FLAG_SKB_HEAD;
 		sw_desc->dma = dma_map_single(&adapter->pdev->dev,
 			skb->data, buf_len, DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(&pdev->dev, sw_desc->dma)))
+		if (dma_mapping_error(&pdev->dev, sw_desc->dma))
 			goto dma_error;
 
 		tpd->addr = cpu_to_le32(sw_desc->dma);
@@ -1153,7 +1217,7 @@ static int edma_tx_map_and_fill(struct edma_common_info *edma_cinfo,
 
 		sw_desc->dma = skb_frag_dma_map(&pdev->dev, frag, 0, buf_len, DMA_TO_DEVICE);
 
-		if (unlikely(dma_mapping_error(NULL, sw_desc->dma)))
+		if (dma_mapping_error(NULL, sw_desc->dma))
 			goto dma_error;
 
 		tpd->addr = cpu_to_le32(sw_desc->dma);
@@ -1165,7 +1229,7 @@ static int edma_tx_map_and_fill(struct edma_common_info *edma_cinfo,
 		i++;
 	}
 
-	/* Walk through all fragist skbs */
+	/* Walk through all fraglist skbs */
 	skb_walk_frags(skb, iter_skb) {
 		buf_len = iter_skb->len;
 		tpd = edma_get_next_tpd(edma_cinfo, queue_id);
@@ -1174,7 +1238,7 @@ static int edma_tx_map_and_fill(struct edma_common_info *edma_cinfo,
 		sw_desc->dma =  dma_map_single(&adapter->pdev->dev,
 				iter_skb->data, buf_len, DMA_TO_DEVICE);
 
-		if (unlikely(dma_mapping_error(NULL, sw_desc->dma)))
+		if (dma_mapping_error(NULL, sw_desc->dma))
 			goto dma_error;
 
 		tpd->addr = cpu_to_le32(sw_desc->dma);
@@ -1199,7 +1263,7 @@ static int edma_tx_map_and_fill(struct edma_common_info *edma_cinfo,
 
 			sw_desc->dma = skb_frag_dma_map(&pdev->dev, frag,
 					0, buf_len, DMA_TO_DEVICE);
-			if (unlikely(dma_mapping_error(NULL, sw_desc->dma)))
+			if (dma_mapping_error(NULL, sw_desc->dma))
 				goto dma_error;
 
 			tpd->addr = cpu_to_le32(sw_desc->dma);
@@ -1225,11 +1289,10 @@ vlan_tag_error:
 	return -ENOMEM;
 }
 
-/*
- * edma_check_link()
+/* edma_check_link()
  *	check Link status
  */
-static int32_t edma_check_link(struct edma_adapter *adapter)
+static int edma_check_link(struct edma_adapter *adapter)
 {
 	struct phy_device *phydev = adapter->phydev;
 
@@ -1247,7 +1310,7 @@ static int32_t edma_check_link(struct edma_adapter *adapter)
  */
 void edma_adjust_link(struct net_device *netdev)
 {
-	int32_t status = 0;
+	int status;
 	struct edma_adapter *adapter = netdev_priv(netdev);
 	struct phy_device *phydev = adapter->phydev;
 
@@ -1270,8 +1333,7 @@ void edma_adjust_link(struct net_device *netdev)
 	}
 }
 
-/*
- * edma_get_stats()
+/* edma_get_stats()
  *	Statistics api used to retreive the tx/rx statistics
  */
 struct net_device_stats *edma_get_stats(struct net_device *netdev)
@@ -1281,12 +1343,11 @@ struct net_device_stats *edma_get_stats(struct net_device *netdev)
 	return &adapter->stats;
 }
 
-/*
- * edma_xmit()
+/* edma_xmit()
  *	Main api to be called by the core for packet transmission
  */
 netdev_tx_t edma_xmit(struct sk_buff *skb,
-		struct net_device *net_dev)
+		     struct net_device *net_dev)
 {
 	struct edma_adapter *adapter = netdev_priv(net_dev);
 	struct edma_common_info *edma_cinfo = adapter->edma_cinfo;
@@ -1297,22 +1358,22 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 	bool packet_is_rstp = false;
 	struct netdev_queue *nq = NULL;
 
-	if (unlikely(skb_shinfo(skb)->nr_frags)) {
+	if (skb_shinfo(skb)->nr_frags) {
 		nr_frags_first = skb_shinfo(skb)->nr_frags;
 		num_tpds_needed += nr_frags_first;
 	}
 
-	if (unlikely(skb_has_frag_list(skb))) {
+	if (skb_has_frag_list(skb)) {
 		struct sk_buff *iter_skb;
 
-		/* Walh through fraglist skbs making a note of nr_frags */
+		/* Walk through fraglist skbs making a note of nr_frags */
 		skb_walk_frags(skb, iter_skb) {
 			/* One TPD for skb->data and more for nr_frags */
 			num_tpds_needed += (1 + skb_shinfo(iter_skb)->nr_frags);
 		}
 	}
 
-	if (unlikely(num_tpds_needed > EDMA_MAX_SKB_FRAGS)) {
+	if (num_tpds_needed > EDMA_MAX_SKB_FRAGS) {
 		dev_err(&net_dev->dev,
 			"skb received with fragments %d which is more than %lu",
 			num_tpds_needed, EDMA_MAX_SKB_FRAGS);
@@ -1321,23 +1382,20 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 		return NETDEV_TX_OK;
 	}
 
-	if (unlikely(edma_stp_rstp)) {
+	if (edma_stp_rstp) {
 		u16 ath_hdr, ath_eth_type;
 		u8 mac_addr[EDMA_ETH_HDR_LEN];
-		int i;
 		ath_eth_type = ntohs(*(uint16_t *)&skb->data[12]);
-		if (unlikely(ath_eth_type == edma_ath_eth_type)) {
+		if (ath_eth_type == edma_ath_eth_type) {
 			packet_is_rstp = true;
 			ath_hdr = htons(*(uint16_t *)&skb->data[14]);
 			dp_bitmap = ath_hdr & EDMA_TX_ATH_HDR_PORT_BITMAP_MASK;
 			from_cpu = (ath_hdr & EDMA_TX_ATH_HDR_FROM_CPU_MASK) >> EDMA_TX_ATH_HDR_FROM_CPU_SHIFT;
-			for (i = 0; i < EDMA_ETH_HDR_LEN; i++)
-				mac_addr[i] = skb->data[i];
+			memcpy(mac_addr, skb->data, EDMA_ETH_HDR_LEN);
 
 			skb_pull(skb, 4);
 
-			for (i = 0; i < EDMA_ETH_HDR_LEN; i++)
-				skb->data[i] = mac_addr[i];
+			memcpy(skb->data, mac_addr, EDMA_ETH_HDR_LEN);
 		}
 	}
 
@@ -1352,7 +1410,7 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 	 * Tx from tasks and bottom half
 	 */
 
-	if (unlikely(num_tpds_needed > edma_tpd_available(edma_cinfo, queue_id))) {
+	if (num_tpds_needed > edma_tpd_available(edma_cinfo, queue_id)) {
 		/* not enough descriptor, just stop queue */
 		netif_tx_stop_queue(nq);
 		local_bh_enable();
@@ -1362,7 +1420,7 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 	}
 
 	/* Check and mark VLAN tag offload */
-	if (unlikely(vlan_tx_tag_present(skb)))
+	if (vlan_tx_tag_present(skb))
 		flags_transmit |= EDMA_VLAN_TX_TAG_INSERT_FLAG;
 	else if (adapter->default_vlan_tag)
 		flags_transmit |= EDMA_VLAN_TX_TAG_INSERT_DEFAULT_FLAG;
@@ -1375,7 +1433,7 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 	ret = edma_tx_map_and_fill(edma_cinfo, adapter, skb, queue_id,
 		flags_transmit, from_cpu, dp_bitmap,
 		packet_is_rstp, nr_frags_first);
-	if (unlikely(ret)) {
+	if (ret) {
 		dev_kfree_skb_any(skb);
 		adapter->stats.tx_errors++;
 		goto netdev_okay;
@@ -1400,14 +1458,14 @@ netdev_okay:
 void edma_flow_may_expire(unsigned long data)
 {
 	struct edma_adapter *adapter = (struct edma_adapter *)data;
-	bool res;
 	int j;
 
-	spin_lock_bh(&adapter->rfs.lock);
+	spin_lock_bh(&adapter->rfs.rfs_ftab_lock);
 	for (j = 0; j < EDMA_RFS_EXPIRE_COUNT_PER_CALL; j++) {
 		struct hlist_head *hhead;
 		struct hlist_node *tmp;
 		struct edma_rfs_filter_node *n;
+		bool res;
 
 		hhead = &adapter->rfs.hlist_head[adapter->rfs.hashtoclean++];
 		hlist_for_each_entry_safe(n, tmp, hhead, node) {
@@ -1429,16 +1487,15 @@ void edma_flow_may_expire(unsigned long data)
 	}
 
 	adapter->rfs.hashtoclean = adapter->rfs.hashtoclean & (EDMA_RFS_FLOW_ENTRIES - 1);
-	spin_unlock_bh(&adapter->rfs.lock);
+	spin_unlock_bh(&adapter->rfs.rfs_ftab_lock);
 	mod_timer(&adapter->rfs.expire_rfs, jiffies + HZ/4);
 }
 
-/*
- * edma_rx_flow_steer()
+/* edma_rx_flow_steer()
  *	Called by core to to steer the flow to CPU
  */
 int edma_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
-		u16 rxq, u32 flow_id)
+			u16 rxq, u32 flow_id)
 {
 	struct flow_keys keys;
 	struct edma_rfs_filter_node *filter_node;
@@ -1447,7 +1504,7 @@ int edma_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	int res;
 
 	if (skb->protocol == htons(ETH_P_IPV6)) {
-		dev_dbg(&adapter->pdev->dev, "IPv6 not supported\n");
+		dev_err(&adapter->pdev->dev, "IPv6 not supported\n");
 		res = -EINVAL;
 		goto no_protocol_err;
 	}
@@ -1464,7 +1521,7 @@ int edma_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	/* Check if table entry exists */
 	hash_tblid = skb_get_hash_raw(skb) & EDMA_RFS_FLOW_ENTRIES_MASK;
 
-	spin_lock_bh(&adapter->rfs.lock);
+	spin_lock_bh(&adapter->rfs.rfs_ftab_lock);
 	filter_node = edma_rfs_key_search(&adapter->rfs.hlist_head[hash_tblid], &keys);
 
 	if (filter_node) {
@@ -1480,11 +1537,11 @@ int edma_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 			else {
 				adapter->rfs.filter_available++;
 				res = edma_add_rfs_filter(adapter, &keys, rxq, filter_node);
-				if (res < 0)
+				if (res < 0) {
 					dev_warn(&adapter->netdev->dev,
 							"Cannot steer flow %d to different queue",
 							filter_node->flow_id);
-				else {
+				} else {
 					adapter->rfs.filter_available--;
 					filter_node->rq_id = rxq;
 					filter_node->filter_id = res;
@@ -1519,29 +1576,28 @@ int edma_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	}
 
 out:
-	spin_unlock_bh(&adapter->rfs.lock);
+	spin_unlock_bh(&adapter->rfs.rfs_ftab_lock);
 no_protocol_err:
 	return res;
 }
 
-/*
- * edma_register_rfs_filter()
+/* edma_register_rfs_filter()
  *	Add RFS filter callback
  */
 int edma_register_rfs_filter(struct net_device *netdev,
-		set_rfs_filter_callback_t set_filter)
+			    set_rfs_filter_callback_t set_filter)
 {
 	struct edma_adapter *adapter = netdev_priv(netdev);
 
-	spin_lock_bh(&adapter->rfs.lock);
+	spin_lock_bh(&adapter->rfs.rfs_ftab_lock);
 
 	if (adapter->set_rfs_rule) {
-		spin_unlock_bh(&adapter->rfs.lock);
+		spin_unlock_bh(&adapter->rfs.rfs_ftab_lock);
 		return -1;
 	}
 
 	adapter->set_rfs_rule = set_filter;
-	spin_unlock_bh(&adapter->rfs.lock);
+	spin_unlock_bh(&adapter->rfs.rfs_ftab_lock);
 
 	return 0;
 }
@@ -1550,13 +1606,12 @@ int edma_register_rfs_filter(struct net_device *netdev,
  *	Called by Linux TX stack to populate Linux TX queue
  */
 u16 edma_select_xps_queue(struct net_device *dev, struct sk_buff *skb,
-		void *accel_priv, select_queue_fallback_t fallback)
+				void *accel_priv, select_queue_fallback_t fallback)
 {
 	return smp_processor_id();
 }
 
-/*
- * edma_alloc_tx_rings()
+/* edma_alloc_tx_rings()
  *	Allocate rx rings
  */
 int edma_alloc_tx_rings(struct edma_common_info *edma_cinfo)
@@ -1575,8 +1630,7 @@ int edma_alloc_tx_rings(struct edma_common_info *edma_cinfo)
 	return 0;
 }
 
-/*
- * edma_free_tx_rings()
+/* edma_free_tx_rings()
  *	Free tx rings
  */
 void edma_free_tx_rings(struct edma_common_info *edma_cinfo)
@@ -1587,8 +1641,7 @@ void edma_free_tx_rings(struct edma_common_info *edma_cinfo)
 		edma_free_tx_ring(edma_cinfo, edma_cinfo->tpd_ring[i]);
 }
 
-/*
- * edma_free_tx_resources()
+/* edma_free_tx_resources()
  *	Free buffers associated with tx rings
  */
 void edma_free_tx_resources(struct edma_common_info *edma_cinfo)
@@ -1609,8 +1662,7 @@ void edma_free_tx_resources(struct edma_common_info *edma_cinfo)
 	}
 }
 
-/*
- * edma_alloc_rx_rings()
+/* edma_alloc_rx_rings()
  *	Allocate rx rings
  */
 int edma_alloc_rx_rings(struct edma_common_info *edma_cinfo)
@@ -1630,8 +1682,7 @@ int edma_alloc_rx_rings(struct edma_common_info *edma_cinfo)
 	return 0;
 }
 
-/*
- * edma_free_rx_rings()
+/* edma_free_rx_rings()
  *	free rx rings
  */
 void edma_free_rx_rings(struct edma_common_info *edma_cinfo)
@@ -1644,8 +1695,7 @@ void edma_free_rx_rings(struct edma_common_info *edma_cinfo)
 	}
 }
 
-/*
- * edma_free_queues()
+/* edma_free_queues()
  *	Free the queues allocaated
  */
 void edma_free_queues(struct edma_common_info *edma_cinfo)
@@ -1671,13 +1721,12 @@ void edma_free_queues(struct edma_common_info *edma_cinfo)
 	return;
 }
 
-/*
- * edma_free_rx_resources()
+/* edma_free_rx_resources()
  *	Free buffers associated with tx rings
  */
 void edma_free_rx_resources(struct edma_common_info *edma_cinfo)
 {
-        struct edma_rfd_desc_ring *erdr;
+	struct edma_rfd_desc_ring *erdr;
 	struct edma_sw_desc *sw_desc;
 	struct platform_device *pdev = edma_cinfo->pdev;
 	int i, j, k;
@@ -1701,8 +1750,7 @@ void edma_free_rx_resources(struct edma_common_info *edma_cinfo)
 	}
 }
 
-/*
- * edma_alloc_queues_tx()
+/* edma_alloc_queues_tx()
  *	Allocate memory for all rings
  */
 int edma_alloc_queues_tx(struct edma_common_info *edma_cinfo)
@@ -1724,8 +1772,7 @@ err:
 	return -1;
 }
 
-/*
- * edma_alloc_queues_rx()
+/* edma_alloc_queues_rx()
  *	Allocate memory for all rings
  */
 int edma_alloc_queues_rx(struct edma_common_info *edma_cinfo)
@@ -1748,8 +1795,18 @@ err:
 	return -1;
 }
 
-/*
- * edma_configure()
+/* edma_clear_irq_status()
+ *	Clear interrupt status
+ */
+void edma_clear_irq_status(void)
+{
+	edma_write_reg(EDMA_REG_RX_ISR, 0xff);
+	edma_write_reg(EDMA_REG_TX_ISR, 0xffff);
+	edma_write_reg(EDMA_REG_MISC_ISR, 0x1fff);
+	edma_write_reg(EDMA_REG_WOL_ISR, 0x1);
+};
+
+/* edma_configure()
  *	Configure skb, edma interrupts and control register.
  */
 int edma_configure(struct edma_common_info *edma_cinfo)
@@ -1764,11 +1821,7 @@ int edma_configure(struct edma_common_info *edma_cinfo)
 	intr_ctrl_data |= hw->intr_sw_idx_w << EDMA_INTR_SW_IDX_W_TYP_SHIFT;
 	edma_write_reg(EDMA_REG_INTR_CTRL, intr_ctrl_data);
 
-	/* clear interrupt status */
-	edma_write_reg(EDMA_REG_RX_ISR, 0xff);
-	edma_write_reg(EDMA_REG_TX_ISR, 0xffff);
-	edma_write_reg(EDMA_REG_MISC_ISR, 0x1fff);
-	edma_write_reg(EDMA_REG_WOL_ISR, 0x1);
+	edma_clear_irq_status();
 
 	/* Clear any WOL status */
 	edma_write_reg(EDMA_REG_WOL_CTRL, 0);
@@ -1793,8 +1846,7 @@ int edma_configure(struct edma_common_info *edma_cinfo)
 	return 0;
 }
 
-/*
- * edma_irq_enable()
+/* edma_irq_enable()
  *	Enable default interrupt generation settings
  */
 void edma_irq_enable(struct edma_common_info *edma_cinfo)
@@ -1802,18 +1854,17 @@ void edma_irq_enable(struct edma_common_info *edma_cinfo)
 	struct edma_hw *hw = &edma_cinfo->hw;
 	int i, j;
 
-	edma_write_reg(EDMA_REG_RX_ISR, 0xFF);
+	edma_write_reg(EDMA_REG_RX_ISR, 0xff);
 	for (i = 0, j = 0; i < edma_cinfo->num_rx_queues; i++) {
 		edma_write_reg(EDMA_REG_RX_INT_MASK_Q(j), hw->rx_intr_mask);
 		j += ((edma_cinfo->num_rx_queues == 4) ? 2 : 1);
 	}
-	edma_write_reg(EDMA_REG_TX_ISR, 0xFFFF);
+	edma_write_reg(EDMA_REG_TX_ISR, 0xffff);
 	for (i = 0; i < edma_cinfo->num_tx_queues; i++)
 		edma_write_reg(EDMA_REG_TX_INT_MASK_Q(i), hw->tx_intr_mask);
 }
 
-/*
- * edma_irq_disable()
+/* edma_irq_disable()
  *	Disable Interrupt
  */
 void edma_irq_disable(struct edma_common_info *edma_cinfo)
@@ -1829,8 +1880,7 @@ void edma_irq_disable(struct edma_common_info *edma_cinfo)
 	edma_write_reg(EDMA_REG_WOL_IMR, 0);
 }
 
-/*
- * edma_free_irqs()
+/* edma_free_irqs()
  *	Free All IRQs
  */
 void edma_free_irqs(struct edma_adapter *adapter)
@@ -1839,7 +1889,7 @@ void edma_free_irqs(struct edma_adapter *adapter)
 	int i, j;
 	int k = ((edma_cinfo->num_rx_queues == 4) ? 1 : 2);
 
-	for (i = 0; i < EDMA_NR_CPU; i++) {
+	for (i = 0; i < CONFIG_NR_CPUS; i++) {
 		for (j = edma_cinfo->edma_percpu_info[i].tx_start; j < (edma_cinfo->edma_percpu_info[i].tx_start + 4); j++)
 			free_irq(edma_cinfo->tx_irq[j], &edma_cinfo->edma_percpu_info[i]);
 
@@ -1848,39 +1898,37 @@ void edma_free_irqs(struct edma_adapter *adapter)
 	}
 }
 
-/*
- * edma_enable_rx_ctrl()
+/* edma_enable_rx_ctrl()
  *	Enable RX queue control
  */
 void edma_enable_rx_ctrl(struct edma_hw *hw)
 {
-	volatile u32 data;
+	u32 data;
 
 	edma_read_reg(EDMA_REG_RXQ_CTRL, &data);
 	data |= EDMA_RXQ_CTRL_EN;
 	edma_write_reg(EDMA_REG_RXQ_CTRL, data);
 }
 
-/*
- * edma_emable_tx_ctrl()
+
+/* edma_enable_tx_ctrl()
  *	Enable TX queue control
  */
 void edma_enable_tx_ctrl(struct edma_hw *hw)
 {
-	volatile u32 data;
+	u32 data;
 
 	edma_read_reg(EDMA_REG_TXQ_CTRL, &data);
 	data |= EDMA_TXQ_CTRL_TXQ_EN;
 	edma_write_reg(EDMA_REG_TXQ_CTRL, data);
 }
 
-/*
- * edma_stop_rx_tx()
+/* edma_stop_rx_tx()
  *	Disable RX/TQ Queue control
  */
 void edma_stop_rx_tx(struct edma_hw *hw)
 {
-	volatile u32 data;
+	u32 data;
 
 	edma_read_reg(EDMA_REG_RXQ_CTRL, &data);
 	data &= ~EDMA_RXQ_CTRL_EN;
@@ -1890,36 +1938,27 @@ void edma_stop_rx_tx(struct edma_hw *hw)
 	edma_write_reg(EDMA_REG_TXQ_CTRL, data);
 }
 
-/*
- * edma_reset()
+/* edma_reset()
  *	Reset the EDMA
  */
 int edma_reset(struct edma_common_info *edma_cinfo)
 {
 	struct edma_hw *hw = &edma_cinfo->hw;
-	int i;
 
-	for (i = 0; i < EDMA_MAX_RECEIVE_QUEUE; i++)
-		edma_write_reg(EDMA_REG_RX_INT_MASK_Q(i), 0);
-	for (i = 0; i < EDMA_MAX_TRANSMIT_QUEUE; i++)
-		edma_write_reg(EDMA_REG_TX_INT_MASK_Q(i), 0);
-	edma_write_reg(EDMA_REG_MISC_IMR, 0);
-	edma_write_reg(EDMA_REG_WOL_IMR, 0);
-	edma_write_reg(EDMA_REG_RX_ISR, 0xff);
-	edma_write_reg(EDMA_REG_TX_ISR, 0xffff);
-	edma_write_reg(EDMA_REG_MISC_ISR, 0x1fff);
-	edma_write_reg(EDMA_REG_WOL_ISR, 0x1);
+	edma_irq_disable(edma_cinfo);
+
+	edma_clear_irq_status();
 
 	edma_stop_rx_tx(hw);
 
 	return 0;
 }
 
-/*
- * edma_fill_netdev()
+/* edma_fill_netdev()
  * 	Fill netdev for each etdr
  */
-int edma_fill_netdev(struct edma_common_info *edma_cinfo, int queue_id, int dev, int txq_id)
+int edma_fill_netdev(struct edma_common_info *edma_cinfo, int queue_id,
+		    int dev, int txq_id)
 {
 	struct edma_tx_desc_ring *etdr;
 	int i = 0;
@@ -1929,18 +1968,17 @@ int edma_fill_netdev(struct edma_common_info *edma_cinfo, int queue_id, int dev,
 	while (etdr->netdev[i])
 		i++;
 
-	if (i >= EDMA_MAX_NETDEV_SUPPORTED_PER_QUEUE)
+	if (i >= EDMA_MAX_NETDEV_PER_QUEUE)
 		return -1;
 
 	/* Populate the netdev associated with the tpd ring */
-	etdr->netdev[i] = netdev[dev];
-	etdr->nq[i] = netdev_get_tx_queue(netdev[dev], txq_id);
+	etdr->netdev[i] = edma_netdev[dev];
+	etdr->nq[i] = netdev_get_tx_queue(edma_netdev[dev], txq_id);
 
 	return 0;
 }
 
-/*
- * edma_change_mtu()
+/* edma_change_mtu()
  *	change the MTU of the NIC.
  */
 int edma_change_mtu(struct net_device *netdev, int new_mtu)
@@ -1965,8 +2003,7 @@ int edma_change_mtu(struct net_device *netdev, int new_mtu)
 	return 0;
 }
 
-/*
- * edma_set_mac()
+/* edma_set_mac()
  *	Change the Ethernet Address of the NIC
  */
 int edma_set_mac_addr(struct net_device *netdev, void *p)
@@ -1983,8 +2020,7 @@ int edma_set_mac_addr(struct net_device *netdev, void *p)
 	return 0;
 }
 
-/*
- * edma_set_stp_rstp()
+/* edma_set_stp_rstp()
  *	set stp/rstp
  */
 void edma_set_stp_rstp(bool rstp)
@@ -1992,8 +2028,7 @@ void edma_set_stp_rstp(bool rstp)
 	edma_stp_rstp = rstp;
 }
 
-/*
- * edma_assign_ath_hdr_type()
+/* edma_assign_ath_hdr_type()
  *	assign atheros header eth type
  */
 void edma_assign_ath_hdr_type(int eth_type)
@@ -2001,8 +2036,7 @@ void edma_assign_ath_hdr_type(int eth_type)
 	edma_ath_eth_type = eth_type & EDMA_ETH_TYPE_MASK;
 }
 
-/*
- * edma_get_default_vlan_tag()
+/* edma_get_default_vlan_tag()
  *	Used by other modules to get the default vlan tag
  */
 int edma_get_default_vlan_tag(struct net_device *netdev)
@@ -2015,8 +2049,7 @@ int edma_get_default_vlan_tag(struct net_device *netdev)
 	return 0;
 }
 
-/*
- * edma_open()
+/* edma_open()
  *	gets called when netdevice is up, start the queue.
  */
 int edma_open(struct net_device *netdev)
@@ -2047,8 +2080,8 @@ int edma_open(struct net_device *netdev)
 	return 0;
 }
 
-/*
- * edma_close()
+
+/* edma_close()
  *	gets called when netdevice is down, stops the queue.
  */
 int edma_close(struct net_device *netdev)
@@ -2073,8 +2106,7 @@ int edma_close(struct net_device *netdev)
 	return 0;
 }
 
-/*
- * edma_poll
+/* edma_poll
  *	polling function that gets called when the napi gets scheduled.
  *
  * Main sequence of task performed in this api
@@ -2086,7 +2118,7 @@ int edma_poll(struct napi_struct *napi, int budget)
 	struct edma_per_cpu_queues_info *edma_percpu_info = container_of(napi,
 		struct edma_per_cpu_queues_info, napi);
 	struct edma_common_info *edma_cinfo = edma_percpu_info->edma_cinfo;
-	volatile u32 reg_data;
+	u32 reg_data;
 	u32 shadow_rx_status, shadow_tx_status;
 	int queue_id;
 	int i, work_done = 0;
@@ -2124,7 +2156,7 @@ int edma_poll(struct napi_struct *napi, int budget)
 	while (edma_percpu_info->rx_status) {
 		queue_id = ffs(edma_percpu_info->rx_status) - 1;
 		edma_rx_complete(edma_cinfo, &work_done,
-			budget, queue_id, napi);
+					budget, queue_id, napi);
 
 		if (likely(work_done < budget))
 			edma_percpu_info->rx_status &= ~(1 << queue_id);
@@ -2155,8 +2187,7 @@ int edma_poll(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
-/*
- * edma interrupt()
+/* edma interrupt()
  *	interrupt handler
  */
 irqreturn_t edma_interrupt(int irq, void *dev)
