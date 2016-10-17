@@ -223,7 +223,7 @@ static int qcom_wdt_start_secure(struct watchdog_device *wdd)
 		writel(wdd->timeout * wdt->rate, wdt->wdt_bite_time);
 	} else {
 		writel(wdd->timeout * wdt->rate, wdt->wdt_bark_time);
-		writel(0x0FFFFFFF, wdt->wdt_bite_time);
+		writel((wdd->timeout * wdt->rate) * 2, wdt->wdt_bite_time);
 	}
 
 	writel(1, wdt->wdt_enable);
