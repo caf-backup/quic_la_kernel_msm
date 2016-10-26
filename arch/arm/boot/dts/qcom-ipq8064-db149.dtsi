@@ -194,20 +194,6 @@
 			};
 		};
 
-		gsbi4: gsbi@16300000 {
-			qcom,mode = <GSBI_PROT_I2C>;
-			status = "ok";
-
-			i2c4: i2c@16380000 {
-				status = "ok";
-
-				clock-frequency = <200000>;
-
-				pinctrl-0 = <&i2c4_pins>;
-				pinctrl-names = "default";
-			};
-		};
-
 		gsbi5: gsbi@1a200000 {
 			qcom,mode = <GSBI_PROT_SPI>;
 			status = "ok";
