@@ -316,14 +316,15 @@ static inline void bond_set_backup_slave(struct slave *slave)
 }
 
 static inline void bond_set_slave_state(struct slave *slave,
-					int slave_state, bool notify)
+					int slave_state,
+					bool notify, gfp_t flg)
 {
 	if (slave->backup == slave_state)
 		return;
 
 	slave->backup = slave_state;
 	if (notify) {
-		rtmsg_ifinfo(RTM_NEWLINK, slave->dev, 0, GFP_KERNEL);
+		rtmsg_ifinfo(RTM_NEWLINK, slave->dev, 0, flg);
 		slave->should_notify = 0;
 	} else {
 		if (slave->should_notify)
@@ -441,18 +442,18 @@ static inline void bond_netpoll_send_skb(const struct slave *slave,
 #endif
 
 static inline void bond_set_slave_inactive_flags(struct slave *slave,
-						 bool notify)
+						 bool notify, gfp_t flg)
 {
 	if (!bond_is_lb(slave->bond))
-		bond_set_slave_state(slave, BOND_STATE_BACKUP, notify);
+		bond_set_slave_state(slave, BOND_STATE_BACKUP, notify, flg);
 	if (!slave->bond->params.all_slaves_active)
 		slave->inactive = 1;
 }
 
 static inline void bond_set_slave_active_flags(struct slave *slave,
-					       bool notify)
+					       bool notify, gfp_t flg)
 {
-	bond_set_slave_state(slave, BOND_STATE_ACTIVE, notify);
+	bond_set_slave_state(slave, BOND_STATE_ACTIVE, notify, flg);
 	slave->inactive = 0;
 }
 
