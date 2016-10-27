@@ -64,6 +64,7 @@ extern void debug_object_init      (void *addr, struct debug_obj_descr *descr);
 extern void
 debug_object_init_on_stack(void *addr, struct debug_obj_descr *descr);
 extern int debug_object_activate  (void *addr, struct debug_obj_descr *descr);
+extern int debug_object_get_state(void *addr);
 extern void debug_object_deactivate(void *addr, struct debug_obj_descr *descr);
 extern void debug_object_destroy   (void *addr, struct debug_obj_descr *descr);
 extern void debug_object_free      (void *addr, struct debug_obj_descr *descr);
@@ -81,6 +82,7 @@ debug_object_active_state(void *addr, struct debug_obj_descr *descr,
 extern void debug_objects_early_init(void);
 extern void debug_objects_mem_init(void);
 #else
+static inline int debug_object_get_state(void *addr) { return 0; }
 static inline void
 debug_object_init      (void *addr, struct debug_obj_descr *descr) { }
 static inline void

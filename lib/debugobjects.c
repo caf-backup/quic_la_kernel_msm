@@ -248,6 +248,29 @@ static struct debug_bucket *get_bucket(unsigned long addr)
 	return &obj_hash[hash];
 }
 
+/*
+ * debug_object_get_state():
+ *   returns the state of an object given an address
+ */
+int debug_object_get_state(void *addr)
+{
+	struct debug_bucket *db;
+	struct debug_obj *obj;
+	unsigned long flags;
+	enum debug_obj_state state = ODEBUG_STATE_NOTAVAILABLE;
+
+	db = get_bucket((unsigned long) addr);
+
+	raw_spin_lock_irqsave(&db->lock, flags);
+	obj = lookup_object(addr, db);
+	if (obj)
+		state = obj->state;
+	raw_spin_unlock_irqrestore(&db->lock, flags);
+
+	return state;
+}
+EXPORT_SYMBOL(debug_object_get_state);
+
 static void debug_print_object(struct debug_obj *obj, char *msg)
 {
 	struct debug_obj_descr *descr = obj->descr;

@@ -26,4 +26,4 @@ obj-$(CONFIG_CGROUP_NET_PRIO) += netprio_cgroup.o
 obj-$(CONFIG_CGROUP_NET_CLASSID) += netclassid_cgroup.o
 obj-$(CONFIG_LWTUNNEL) += lwtunnel.o
 obj-$(CONFIG_SKB_RECYCLER) += skbuff_recycle.o
-obj-$(CONFIG_DEBUG_OBJECTS_SKBUFF) += skbuff_debug.o
+obj-$(CONFIG_DEBUG_OBJECTS_SKBUFF) += skbuff_debug.o skbuff_notifier.o
