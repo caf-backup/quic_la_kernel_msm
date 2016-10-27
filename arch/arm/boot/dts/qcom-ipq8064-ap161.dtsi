@@ -237,6 +237,23 @@
 			ranges = <0x00000000 0 0x00000000 0x0ff00000 0 0x00100000   /* configuration space */
 				  0x81000000 0 0	  0x0fe00000 0 0x00100000   /* downstream I/O */
 				  0x82000000 0 0x00000000 0x08000000 0 0x07e00000>; /* non-prefetchable memory */
+
+			pcie@0 {
+				reg = <0 0 0 0 0>;
+				#interrupt-cells = <1>;
+				#size-cells = <2>;
+				#address-cells = <3>;
+				device_type = "pci";
+
+				ath10k@0,0 {
+					reg = <0 0 0 0 0>;
+					device_type = "pci";
+					qcom,mtd-name = "0:ART";
+					qcom,cal-offset = <0x1000>;
+					qcom,cal-len = <12064>;
+				};
+			};
+
 		};
 
 		pci@1b700000 {
@@ -249,6 +266,21 @@
 				  0x81000000 0 0	  0x31e00000 0 0x00100000   /* downstream I/O */
 				  0x82000000 0 0x00000000 0x2e000000 0 0x03e00000>; /* non-prefetchable memory */
 
+			pcie@0 {
+				reg = <0 0 0 0 0>;
+				#interrupt-cells = <1>;
+				#size-cells = <2>;
+				#address-cells = <3>;
+				device_type = "pci";
+
+				ath10k@0,0 {
+					reg = <0 0 0 0 0>;
+					device_type = "pci";
+					qcom,mtd-name = "0:ART";
+					qcom,cal-offset = <0x5000>;
+					qcom,cal-len = <12064>;
+				};
+			};
 		};
 
 		pci@1b900000 {
@@ -260,6 +292,22 @@
 			ranges = <0x00000000 0 0x00000000 0x35f00000 0 0x00100000   /* configuration space */
 				  0x81000000 0 0          0x35e00000 0 0x00100000   /* downstream I/O */
 				  0x82000000 0 0x00000000 0x32000000 0 0x03e00000>; /* non-prefetchable memory */
+
+			pcie@0 {
+				reg = <0 0 0 0 0>;
+				#interrupt-cells = <1>;
+				#size-cells = <2>;
+				#address-cells = <3>;
+				device_type = "pci";
+
+				ath10k@0,0 {
+					reg = <0 0 0 0 0>;
+					device_type = "pci";
+					qcom,mtd-name = "0:ART";
+					qcom,cal-offset = <0x9000>;
+					qcom,cal-len = <2116>;
+				};
+			};
 		};
 
 		sata@29000000 {
