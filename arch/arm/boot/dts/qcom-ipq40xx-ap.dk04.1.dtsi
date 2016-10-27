@@ -237,9 +237,18 @@
 			status = "ok";
 		};
 
+		wifi0: wifi@a000000 {
+			qcom,mtd-name = "0:ART";
+			qcom,cal-offset = <0x1000>;
+			qcom,cal-len = <12064>;
+		};
+
 		wifi1: wifi@a800000 {
 			pinctrl-0 = <&wifi1_0_pins>;
 			pinctrl-names = "default";
+			qcom,mtd-name = "0:ART";
+			qcom,cal-offset = <0x5000>;
+			qcom,cal-len = <12064>;
 		};
 
 		i2c_0: i2c@78b7000 { /* BLSP1 QUP2 */
