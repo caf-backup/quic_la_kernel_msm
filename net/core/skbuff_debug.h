@@ -27,6 +27,9 @@ void skbuff_debugobj_destroy(struct sk_buff *skb);
 void skbuff_debugobj_sum_validate(struct sk_buff *skb);
 void skbuff_debugobj_sum_update(struct sk_buff *skb);
 void skbuff_debugobj_print_skb(const struct sk_buff *skb);
+void skbuff_debugobj_print_skb_list(const struct sk_buff *skb_list,
+				    const char *list_title);
+void skbuff_debugobj_register_callback(void);
 #else
 static inline void skbuff_debugobj_init_and_activate(struct sk_buff *skb) { }
 static inline void skbuff_debugobj_activate(struct sk_buff *skb) { }
@@ -35,6 +38,9 @@ static inline void skbuff_debugobj_destroy(struct sk_buff *skb) { }
 static inline void skbuff_debugobj_sum_validate(struct sk_buff *skb) { }
 static inline void skbuff_debugobj_sum_update(struct sk_buff *skb) { }
 static inline void skbuff_debugobj_print_skb(const struct sk_buff *skb) { }
+static inline void skbuff_debugobj_print_skb_list
+		   (const struct sk_buff *skb_list, const char *list_title) { }
+static inline void skbuff_debugobj_register_callback(void) { }
 #endif
 
 #endif /* _LINUX_SKBBUFF_DEBUG_OBJECTS */
