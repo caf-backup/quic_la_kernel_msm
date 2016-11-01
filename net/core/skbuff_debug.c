@@ -19,6 +19,7 @@
 #include <linux/module.h>
 
 #include "skbuff_debug.h"
+#include "skbuff_notifier.h"
 
 static int skbuff_debugobj_enabled __read_mostly = 1;
 
@@ -107,6 +108,7 @@ static int skbuff_debugobj_fixup(void *addr, enum debug_obj_state state)
 	pr_emerg("skbuff_debug: state = %d, skb = 0x%p sum = %d (%d)\n",
 			state, skb, skb->sum, skbuff_debugobj_sum(skb));
 	skbuff_debugobj_print_skb(skb);
+	skb_recycler_notifier_send_event(SKB_RECYCLER_NOTIFIER_FSM, skb);
 	BUG();
 
 	return 0;
@@ -141,6 +143,7 @@ err_act:
 	pr_emerg("skb_debug: failed to activate err = %d skb = 0x%p sum = %d (%d)\n",
 			ret, skb, skb->sum, skbuff_debugobj_sum(skb));
 	skbuff_debugobj_print_skb(skb);
+	skb_recycler_notifier_send_event(SKB_RECYCLER_NOTIFIER_DBLALLOC, skb);
 	BUG();
 }
 
@@ -178,6 +181,7 @@ inline void skbuff_debugobj_deactivate(struct sk_buff *skb)
 	pr_emerg("skbuff_debug: deactivating inactive object skb=0x%p state=%d sum = %d (%d)\n",
 			skb, obj_state, skb->sum, skbuff_debugobj_sum(skb));
 	skbuff_debugobj_print_skb(skb);
+	skb_recycler_notifier_send_event(SKB_RECYCLER_NOTIFIER_DBLFREE, skb);
 	BUG();
 }
 
@@ -194,6 +198,7 @@ inline void skbuff_debugobj_sum_validate(struct sk_buff *skb)
 	pr_emerg("skb_debug: skb changed while deactive skb = 0x%p sum = %d (%d)\n",
 			skb, skb->sum, skbuff_debugobj_sum(skb));
 	skbuff_debugobj_print_skb(skb);
+	skb_recycler_notifier_send_event(SKB_RECYCLER_NOTIFIER_SUMERR, skb);
 	BUG();
 }
 
