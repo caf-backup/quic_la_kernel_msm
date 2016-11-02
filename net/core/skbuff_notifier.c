@@ -37,6 +37,5 @@ int skb_recycler_notifier_send_event(unsigned long action, struct sk_buff *skb)
 
 	ret = blocking_notifier_call_chain(&skb_recycler_notifier, action, skb);
 
-	BUG();
 	return 0;
 }
