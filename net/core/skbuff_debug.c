@@ -20,8 +20,16 @@
 
 #include "skbuff_debug.h"
 #include "skbuff_notifier.h"
+#include "skbuff_recycle.h"
 
 static int skbuff_debugobj_enabled __read_mostly = 1;
+
+static int skbuff_debug_event_handler(struct notifier_block *nb,
+				      unsigned long action, void *data);
+static struct notifier_block skbuff_debug_notify = {
+	.notifier_call = skbuff_debug_event_handler,
+	.priority = 0
+};
 
 inline u32 skbuff_debugobj_sum(struct sk_buff *skb)
 {
@@ -78,7 +86,7 @@ static void skbuff_debugobj_get_stack(void **ret)
 }
 #endif
 
-void skbuff_debugobj_print_stack(void **stack)
+void skbuff_debugobj_print_stack(void *const *stack)
 {
 	int i;
 
@@ -86,15 +94,41 @@ void skbuff_debugobj_print_stack(void **stack)
 		pr_emerg("\t %pS (0x%p)\n", stack[i], stack[i]);
 }
 
-void skbuff_debugobj_print_skb(struct sk_buff *skb)
+static const char *skbuff_debugobj_state_name(const struct sk_buff *skb)
+{
+	int obj_state;
+
+	obj_state = debug_object_get_state((struct sk_buff *)skb);
+	switch (obj_state) {
+	case ODEBUG_STATE_NONE:
+		return "none";
+	case ODEBUG_STATE_INIT:
+		return "init";
+	case ODEBUG_STATE_INACTIVE:
+		return "inactive";
+	case ODEBUG_STATE_ACTIVE:
+		return "active";
+	case ODEBUG_STATE_DESTROYED:
+		return "destroyed";
+	case ODEBUG_STATE_NOTAVAILABLE:
+		return "not available";
+	default:
+		return "invalid";
+	}
+}
+
+void skbuff_debugobj_print_skb(const struct sk_buff *skb)
 {
 	pr_emerg("skb_debug: current process = %s (pid %i)\n",
-			current->comm, current->pid);
-	pr_emerg("skbuff_debug: free stack:\n");
+		 current->comm, current->pid);
+	pr_emerg("skb_debug: skb 0x%p, next 0x%p, prev 0x%p, state = %s\n", skb,
+		 skb->next, skb->prev, skbuff_debugobj_state_name(skb));
+	pr_emerg("skb_debug: free stack:\n");
 	skbuff_debugobj_print_stack(skb->free_addr);
-	pr_emerg("skbuff_debug: alloc stack:\n");
+	pr_emerg("skb_debug: alloc stack:\n");
 	skbuff_debugobj_print_stack(skb->alloc_addr);
 }
+EXPORT_SYMBOL(skbuff_debugobj_print_skb);
 
 /*
  * skbuff_debugobj_fixup():
@@ -105,9 +139,8 @@ static int skbuff_debugobj_fixup(void *addr, enum debug_obj_state state)
 {
 	struct sk_buff *skb = (struct sk_buff *)addr;
 	ftrace_dump(DUMP_ALL);
-	pr_emerg("skbuff_debug: state = %d, skb = 0x%p sum = %d (%d)\n",
+	pr_emerg("skb_debug: state = %d, skb = 0x%p sum = %d (now %d)\n",
 			state, skb, skb->sum, skbuff_debugobj_sum(skb));
-	skbuff_debugobj_print_skb(skb);
 	skb_recycler_notifier_send_event(SKB_RECYCLER_NOTIFIER_FSM, skb);
 	BUG();
 
@@ -140,9 +173,8 @@ inline void skbuff_debugobj_activate(struct sk_buff *skb)
 
 err_act:
 	ftrace_dump(DUMP_ALL);
-	pr_emerg("skb_debug: failed to activate err = %d skb = 0x%p sum = %d (%d)\n",
+	pr_emerg("skb_debug: failed to activate err = %d skb = 0x%p sum = %d (now %d)\n",
 			ret, skb, skb->sum, skbuff_debugobj_sum(skb));
-	skbuff_debugobj_print_skb(skb);
 	skb_recycler_notifier_send_event(SKB_RECYCLER_NOTIFIER_DBLALLOC, skb);
 	BUG();
 }
@@ -178,9 +210,8 @@ inline void skbuff_debugobj_deactivate(struct sk_buff *skb)
 	}
 
 	ftrace_dump(DUMP_ALL);
-	pr_emerg("skbuff_debug: deactivating inactive object skb=0x%p state=%d sum = %d (%d)\n",
+	pr_emerg("skb_debug: deactivating inactive object skb=0x%p state=%d sum = %d (now %d)\n",
 			skb, obj_state, skb->sum, skbuff_debugobj_sum(skb));
-	skbuff_debugobj_print_skb(skb);
 	skb_recycler_notifier_send_event(SKB_RECYCLER_NOTIFIER_DBLFREE, skb);
 	BUG();
 }
@@ -195,9 +226,8 @@ inline void skbuff_debugobj_sum_validate(struct sk_buff *skb)
 		return;
 
 	ftrace_dump(DUMP_ALL);
-	pr_emerg("skb_debug: skb changed while deactive skb = 0x%p sum = %d (%d)\n",
+	pr_emerg("skb_debug: skb sum changed skb = 0x%p sum = %d (now %d)\n",
 			skb, skb->sum, skbuff_debugobj_sum(skb));
-	skbuff_debugobj_print_skb(skb);
 	skb_recycler_notifier_send_event(SKB_RECYCLER_NOTIFIER_SUMERR, skb);
 	BUG();
 }
@@ -222,8 +252,46 @@ static int __init disable_object_debug(char *str)
 {
 	skbuff_debugobj_enabled = 0;
 
-	pr_info("skbuff_debug: debug objects is disabled\n");
+	pr_info("skb_debug: debug objects is disabled\n");
 	return 0;
 }
 
 early_param("no_skbuff_debug_objects", disable_object_debug);
+
+void skbuff_debugobj_print_skb_list(const struct sk_buff *skb_list,
+				    const char *list_title)
+{
+	int count;
+	const struct sk_buff *skb_i;
+
+	pr_emerg("skb_debug: start skb list '%s'\n", list_title);
+	skb_i = skb_list;
+	count = 0;
+	if (skb_list != NULL) {
+		do {
+			pr_emerg("skb_debug: [%02d] skb 0x%p, next 0x%p, prev 0x%p, state %s\n",
+				 count, skb_i, skb_i->next, skb_i->prev,
+				 skbuff_debugobj_state_name(skb_i));
+			skb_i = skb_i->next;
+			count++;
+		} while (skb_list != skb_i);
+	}
+	pr_emerg("skb_debug: end skb list '%s'\n", list_title);
+}
+
+void skbuff_debugobj_register_callback(void)
+{
+	skb_recycler_notifier_register(&skbuff_debug_notify);
+}
+
+int skbuff_debug_event_handler(struct notifier_block *nb, unsigned long action,
+				void *data)
+{
+	struct sk_buff *skb = (struct sk_buff *)data;
+
+	pr_emerg("skb_debug: notifier event %lu\n", action);
+	skbuff_debugobj_print_skb(skb);
+	skb_recycler_print_all_lists();
+
+	return NOTIFY_DONE;
+}
