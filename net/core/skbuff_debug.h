@@ -24,11 +24,14 @@ void skbuff_debugobj_init_and_activate(struct sk_buff *skb);
 void skbuff_debugobj_activate(struct sk_buff *skb);
 void skbuff_debugobj_deactivate(struct sk_buff *skb);
 void skbuff_debugobj_destroy(struct sk_buff *skb);
-void skbuff_debugobj_sum_validate(struct sk_buff *skb);
+#define skbuff_debugobj_sum_validate(skb) _skbuff_debugobj_sum_validate(skb, \
+		#skb, __FILE__, __LINE__, __func__)
+void _skbuff_debugobj_sum_validate(struct sk_buff *skb, const char *var,
+				   const char *src, int line, const char *fxn);
 void skbuff_debugobj_sum_update(struct sk_buff *skb);
 void skbuff_debugobj_print_skb(const struct sk_buff *skb);
 void skbuff_debugobj_print_skb_list(const struct sk_buff *skb_list,
-				    const char *list_title);
+				    const char *list_title, int cpu);
 void skbuff_debugobj_register_callback(void);
 #else
 static inline void skbuff_debugobj_init_and_activate(struct sk_buff *skb) { }
@@ -39,7 +42,7 @@ static inline void skbuff_debugobj_sum_validate(struct sk_buff *skb) { }
 static inline void skbuff_debugobj_sum_update(struct sk_buff *skb) { }
 static inline void skbuff_debugobj_print_skb(const struct sk_buff *skb) { }
 static inline void skbuff_debugobj_print_skb_list
-		   (const struct sk_buff *skb_list, const char *list_title) { }
+	(const struct sk_buff *skb_list, const char *list_title, int cpu) { }
 static inline void skbuff_debugobj_register_callback(void) { }
 #endif
 

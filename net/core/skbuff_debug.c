@@ -17,6 +17,7 @@
 #include <asm/current.h>
 #include <linux/sched.h>
 #include <linux/module.h>
+#include <linux/smp.h>
 
 #include "skbuff_debug.h"
 #include "skbuff_notifier.h"
@@ -214,7 +215,9 @@ inline void skbuff_debugobj_deactivate(struct sk_buff *skb)
 	skb_recycler_notifier_send_event(SKB_RECYCLER_NOTIFIER_DBLFREE, skb);
 }
 
-inline void skbuff_debugobj_sum_validate(struct sk_buff *skb)
+inline void _skbuff_debugobj_sum_validate(struct sk_buff *skb,
+					  const char *var, const char *src,
+					  int line, const char *fxn)
 {
 	if (!skbuff_debugobj_enabled || !skb)
 		return;
@@ -225,6 +228,7 @@ inline void skbuff_debugobj_sum_validate(struct sk_buff *skb)
 	ftrace_dump(DUMP_ALL);
 	WARN(1, "skb_debug: skb sum changed skb = 0x%p sum = %d (now %d)\n",
 	     skb, skb->sum, skbuff_debugobj_sum(skb));
+	pr_emerg("skb_debug: %s() checking %s in %s:%d\n", fxn, var, src, line);
 	skb_recycler_notifier_send_event(SKB_RECYCLER_NOTIFIER_SUMERR, skb);
 }
 
@@ -255,19 +259,35 @@ static int __init disable_object_debug(char *str)
 early_param("no_skbuff_debug_objects", disable_object_debug);
 
 void skbuff_debugobj_print_skb_list(const struct sk_buff *skb_list,
-				    const char *list_title)
+				    const char *list_title, int cpu)
 {
 	int count;
 	const struct sk_buff *skb_i;
+	u32 sum_i, sum_now;
+	int obj_state;
 
-	pr_emerg("skb_debug: start skb list '%s'\n", list_title);
+	if (cpu < 0) {
+		cpu = get_cpu();
+		put_cpu();
+	}
+	pr_emerg("skb_debug: start skb list '%s' [CPU#%d]\n", list_title, cpu);
 	skb_i = skb_list;
 	count = 0;
 	if (skb_list) {
 		do {
-			pr_emerg("skb_debug: [%02d] skb 0x%p, next 0x%p, prev 0x%p, state %s\n",
+			obj_state =
+				debug_object_get_state((struct sk_buff *)skb_i);
+			if (obj_state < ODEBUG_STATE_NOTAVAILABLE) {
+				sum_i = skb_i->sum;
+				sum_now = skbuff_debugobj_sum(skb_i);
+			} else {
+				sum_i = 0;
+				sum_now = 0;
+			}
+			pr_emerg("skb_debug: [%02d] skb 0x%p, next 0x%p, prev 0x%p, state %d (%s), sum %d (now %d)\n",
 				 count, skb_i, skb_i->next, skb_i->prev,
-				 skbuff_debugobj_state_name(skb_i));
+				 obj_state, skbuff_debugobj_state_name(skb_i),
+				 sum_i, sum_now);
 			skb_i = skb_i->next;
 			count++;
 		} while (skb_list != skb_i);
