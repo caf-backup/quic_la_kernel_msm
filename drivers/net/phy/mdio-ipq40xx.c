@@ -22,6 +22,8 @@
 #include <linux/of_mdio.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
+#include <linux/of_gpio.h>
+#include <linux/of_mdio.h>
 
 #define MDIO_CTRL_0_REG		(0x40)
 #define MDIO_CTRL_1_REG		(0x44)
@@ -117,11 +119,60 @@ static int ipq40xx_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 	return 0;
 }
 
+static int ipq40xx_phy_reset(struct platform_device *pdev)
+{
+	struct device_node *mdio_node;
+	int phy_reset_gpio_number;
+	int ret;
+
+	mdio_node = of_find_node_by_name(NULL, "mdio");
+	if (!mdio_node) {
+		dev_err(&pdev->dev, "Could not find mdio node\n");
+		return -ENOENT;
+	}
+
+	ret = of_get_named_gpio(mdio_node, "phy-reset-gpio", 0);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Could not find phy-reset-gpio\n");
+		return ret;
+	}
+
+	phy_reset_gpio_number = ret;
+
+	ret = gpio_request(phy_reset_gpio_number, "phy-reset-gpio");
+	if (ret) {
+		dev_err(&pdev->dev, "Can't get phy-reset-gpio %d\n", ret);
+		return ret;
+	}
+
+	ret = gpio_direction_output(phy_reset_gpio_number, 0x0);
+	if (ret) {
+		dev_err(&pdev->dev,
+			"Can't set direction for phy-reset-gpio %d\n", ret);
+		goto phy_reset_out;
+	}
+
+	usleep_range(1000, 10005);
+
+	gpio_set_value(phy_reset_gpio_number, 0x01);
+
+phy_reset_out:
+	gpio_free(phy_reset_gpio_number);
+
+	return ret;
+}
+
 static int ipq40xx_mdio_probe(struct platform_device *pdev)
 {
 	struct ipq40xx_mdio_data *am;
 	struct resource *res;
 	int ret, i;
+
+	ret = ipq40xx_phy_reset(pdev);
+	if (ret) {
+		dev_err(&pdev->dev, "Could not find qca8075 reset gpio\n");
+		goto err_out;
+	}
 
 	am = devm_kzalloc(&pdev->dev, sizeof(*am), GFP_KERNEL);
 	if (!am)
