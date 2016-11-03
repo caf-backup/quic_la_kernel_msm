@@ -317,6 +317,8 @@ struct edma_hw;
 
 /* RRD descriptor fields */
 #define EDMA_RRD_NUM_RFD_MASK 0x000F
+#define EDMA_RRD_PKT_SIZE_MASK 0x3FFF
+#define EDMA_RRD_SRC_PORT_NUM_MASK 0x4000
 #define EDMA_RRD_SVLAN 0x8000
 #define EDMA_RRD_FLOW_COOKIE_MASK 0x07FF;
 

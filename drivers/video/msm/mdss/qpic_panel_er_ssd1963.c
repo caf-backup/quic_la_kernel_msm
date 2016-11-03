@@ -183,3 +183,5 @@ static void __exit mdss_qpic_ertft_panel_exit(void)
 }
 module_init(mdss_qpic_ertft_panel_init);
 module_exit(mdss_qpic_ertft_panel_exit);
+
+MODULE_LICENSE("Dual BSD/GPL");

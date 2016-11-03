@@ -203,19 +203,42 @@ static int edma_alloc_rx_buf(struct edma_common_info
 
 		if (sw_desc->flags & EDMA_SW_DESC_FLAG_SKB_REUSE) {
 			skb = sw_desc->skb;
+
+			/* Clear REUSE flag */
+			sw_desc->flags &= ~EDMA_SW_DESC_FLAG_SKB_REUSE;
 		} else {
 			/* alloc skb */
 			skb = netdev_alloc_skb(edma_netdev[0], length);
 			if (!skb) {
 				/* Better luck next round */
+				sw_desc->flags = 0;
 				break;
 			}
 		}
 
-		if (edma_cinfo->page_mode) {
-			struct page *pg = alloc_page(GFP_ATOMIC);
+		if (!edma_cinfo->page_mode) {
+			sw_desc->dma = dma_map_single(&pdev->dev, skb->data,
+							length, DMA_FROM_DEVICE);
+				if (dma_mapping_error(&pdev->dev, sw_desc->dma)) {
+					WARN_ONCE(0, "EDMA DMA mapping failed for linear address %x", sw_desc->dma);
+					sw_desc->flags = 0;
+					sw_desc->skb = NULL;
+					dev_kfree_skb_any(skb);
+					break;
+				}
 
+				/*
+				 * We should not exit from here with REUSE flag set
+				 * This is to avoid re-using same sk_buff for next
+				 * time around
+				 */
+				sw_desc->flags = EDMA_SW_DESC_FLAG_SKB_HEAD;
+				sw_desc->length = length;
+		} else {
+			struct page *pg = alloc_page(GFP_ATOMIC);
 			if (!pg) {
+				sw_desc->flags = 0;
+				sw_desc->skb = NULL;
 				dev_kfree_skb_any(skb);
 				break;
 			}
@@ -223,8 +246,10 @@ static int edma_alloc_rx_buf(struct edma_common_info
 			sw_desc->dma = dma_map_page(&pdev->dev, pg, 0,
 						   edma_cinfo->rx_page_buffer_len,
 						   DMA_FROM_DEVICE);
-			if (dma_mapping_error(&pdev->dev,
-				    sw_desc->dma)) {
+			if (dma_mapping_error(&pdev->dev, sw_desc->dma)) {
+				WARN_ONCE(0, "EDMA DMA mapping failed for page address %x", sw_desc->dma);
+				sw_desc->flags = 0;
+				sw_desc->skb = NULL;
 				__free_page(pg);
 				dev_kfree_skb_any(skb);
 				break;
@@ -234,17 +259,6 @@ static int edma_alloc_rx_buf(struct edma_common_info
 					   edma_cinfo->rx_page_buffer_len);
 			sw_desc->flags = EDMA_SW_DESC_FLAG_SKB_FRAG;
 			sw_desc->length = edma_cinfo->rx_page_buffer_len;
-		} else {
-			sw_desc->dma = dma_map_single(&pdev->dev, skb->data,
-						     length, DMA_FROM_DEVICE);
-			if (dma_mapping_error(&pdev->dev,
-			   sw_desc->dma)) {
-				dev_kfree_skb_any(skb);
-				break;
-			}
-
-			sw_desc->flags = EDMA_SW_DESC_FLAG_SKB_HEAD;
-			sw_desc->length = length;
 		}
 
 		/* Update the buffer info */
@@ -360,23 +374,35 @@ static void edma_receive_checksum(struct edma_rx_return_desc *rd,
 /* edma_clean_rfd()
  *	clean up rx resourcers on error
  */
-static void edma_clean_rfd(struct edma_rfd_desc_ring *erdr, u16 index)
+static void edma_clean_rfd(struct platform_device *pdev,
+			struct edma_rfd_desc_ring *erdr,
+			u16 index,
+			int pos)
 {
-	struct edma_rx_free_desc *rx_desc;
-	struct edma_sw_desc *sw_desc;
+	struct edma_rx_free_desc *rx_desc = &(erdr->hw_desc[index]);
+	struct edma_sw_desc *sw_desc = &erdr->sw_desc[index];
 
-	rx_desc = (&((erdr->hw_desc))[index]);
-	sw_desc = &erdr->sw_desc[index];
+	/* Unmap non-first RFD positions in packet */
+	if (pos) {
+		if (likely(sw_desc->flags & EDMA_SW_DESC_FLAG_SKB_HEAD))
+			dma_unmap_single(&pdev->dev, sw_desc->dma,
+					sw_desc->length, DMA_FROM_DEVICE);
+		else
+			dma_unmap_page(&pdev->dev, sw_desc->dma,
+					sw_desc->length, DMA_FROM_DEVICE);
+	}
+
 	if (sw_desc->skb) {
 		dev_kfree_skb_any(sw_desc->skb);
 		sw_desc->skb = NULL;
 	}
 
+	sw_desc->flags = 0;
 	memset(rx_desc, 0, sizeof(struct edma_rx_free_desc));
 }
 
-/* edma_rx_complete_fraglist()
- *	Complete Rx processing for fraglist skbs
+/* edma_rx_complete_stp_rstp()
+ *	Complete Rx processing for STP RSTP packets
  */
 static void edma_rx_complete_stp_rstp(struct sk_buff *skb, int port_id, struct edma_rx_return_desc *rd)
 {
@@ -517,6 +543,7 @@ static int edma_rx_complete_paged(struct sk_buff *skb, u16 num_rfds,
 			skb_fill_page_desc(skb, i, skb_frag_page(frag),
 					0, frag->size);
 
+			/* We used frag pages from skb_temp in skb */
 			skb_shinfo(skb_temp)->nr_frags = 0;
 			dev_kfree_skb_any(skb_temp);
 
@@ -571,27 +598,25 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 			sw_desc = &erdr->sw_desc[sw_next_to_clean];
 			skb = sw_desc->skb;
 
-			/* Unmap the allocated buffer */
-			if (likely(sw_desc->flags & EDMA_SW_DESC_FLAG_SKB_HEAD))
+			/* Get RRD */
+			if (!edma_cinfo->page_mode) {
 				dma_unmap_single(&pdev->dev, sw_desc->dma,
 						sw_desc->length, DMA_FROM_DEVICE);
-			else
-				dma_unmap_page(&pdev->dev, sw_desc->dma,
-					      sw_desc->length, DMA_FROM_DEVICE);
+				rd = (struct edma_rx_return_desc *)skb->data;
 
-			/* Get RRD */
-			if (edma_cinfo->page_mode) {
+			} else {
+				dma_unmap_page(&pdev->dev, sw_desc->dma,
+						sw_desc->length, DMA_FROM_DEVICE);
 				vaddr = kmap_atomic(skb_frag_page(&skb_shinfo(skb)->frags[0]));
 				memcpy((uint8_t *)&rrd[0], vaddr, 16);
 				rd = (struct edma_rx_return_desc *)rrd;
 				kunmap_atomic(vaddr);
-			} else {
-				rd = (struct edma_rx_return_desc *)skb->data;
 			}
 
 			/* Check if RRD is valid */
 			if (!(rd->rrd7 & EDMA_RRD_DESC_VALID)) {
-				edma_clean_rfd(erdr, sw_next_to_clean);
+				dev_err(&pdev->dev, "Incorrect RRD DESC valid bit set");
+				edma_clean_rfd(pdev, erdr, sw_next_to_clean, 0);
 				sw_next_to_clean = (sw_next_to_clean + 1) &
 						   (erdr->count - 1);
 				cleaned_count++;
@@ -604,12 +629,19 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 			/* Get Rx port ID from switch */
 			port_id = (rd->rrd1 >> EDMA_PORT_ID_SHIFT) & EDMA_PORT_ID_MASK;
 			if ((!port_id) || (port_id > EDMA_MAX_PORTID_SUPPORTED)) {
-				dev_err(&pdev->dev, "Invalid RRD source port bit set");
+				dev_err(&pdev->dev, "Incorrect RRD source port bit set");
+				dev_err(&pdev->dev,
+					"RRD Dump \n rrd0:%x rrd1: %x rrd2: %x rrd3: %x rrd4: %x rrd5: %x rrd6: %x rrd7: %x",
+					rd->rrd0, rd->rrd1, rd->rrd2, rd->rrd3, rd->rrd4, rd->rrd5, rd->rrd6, rd->rrd7);
+				dev_err(&pdev->dev, "Num_rfds: %d, src_port: %d, pkt_size: %d, cvlan_tag: %d\n",
+						num_rfds, rd->rrd1 & EDMA_RRD_SRC_PORT_NUM_MASK,
+						rd->rrd6 & EDMA_RRD_PKT_SIZE_MASK, rd->rrd7 & EDMA_RRD_CVLAN);
 				for (i = 0; i < num_rfds; i++) {
-					edma_clean_rfd(erdr, sw_next_to_clean);
+					edma_clean_rfd(pdev, erdr, sw_next_to_clean, i);
 					sw_next_to_clean = (sw_next_to_clean + 1) & (erdr->count - 1);
-					cleaned_count++;
 				}
+
+				cleaned_count += num_rfds;
 				continue;
 			}
 
@@ -617,11 +649,12 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 			if (!netdev) {
 				dev_err(&pdev->dev, "Invalid netdev");
 				for (i = 0; i < num_rfds; i++) {
-					edma_clean_rfd(erdr, sw_next_to_clean);
+					edma_clean_rfd(pdev, erdr, sw_next_to_clean, i);
 					sw_next_to_clean = (sw_next_to_clean + 1) & (erdr->count - 1);
-					cleaned_count++;
 				}
-					continue;
+
+				cleaned_count += num_rfds;
+				continue;
 			}
 			adapter = netdev_priv(netdev);
 
@@ -643,7 +676,7 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 			if (likely(!priority && !edma_cinfo->page_mode && (num_rfds <= 1))) {
 				rfd_avail = (count + sw_next_to_clean - hw_next_to_clean - 1) & (count - 1);
 				if (rfd_avail < EDMA_RFD_AVAIL_THR) {
-					sw_desc->flags = EDMA_SW_DESC_FLAG_SKB_REUSE;
+					sw_desc->flags |= EDMA_SW_DESC_FLAG_SKB_REUSE;
 					sw_next_to_clean = (sw_next_to_clean + 1) & (erdr->count - 1);
 					adapter->stats.rx_dropped++;
 					cleaned_count++;
@@ -1727,23 +1760,14 @@ void edma_free_queues(struct edma_common_info *edma_cinfo)
 void edma_free_rx_resources(struct edma_common_info *edma_cinfo)
 {
 	struct edma_rfd_desc_ring *erdr;
-	struct edma_sw_desc *sw_desc;
 	struct platform_device *pdev = edma_cinfo->pdev;
 	int i, j, k;
 
 	for (i = 0, k = 0; i < edma_cinfo->num_rx_queues; i++) {
 		erdr = edma_cinfo->rfd_ring[k];
 		for (j = 0; j < EDMA_RX_RING_SIZE; j++) {
-			sw_desc = &erdr->sw_desc[j];
-			if (likely(sw_desc->flags & EDMA_SW_DESC_FLAG_SKB_HEAD)) {
-				dma_unmap_single(&pdev->dev, sw_desc->dma,
-					sw_desc->length, DMA_FROM_DEVICE);
-				edma_clean_rfd(erdr, j);
-			} else if ((sw_desc->flags & EDMA_SW_DESC_FLAG_SKB_FRAG)) {
-				dma_unmap_page(&pdev->dev, sw_desc->dma,
-					sw_desc->length, DMA_FROM_DEVICE);
-				edma_clean_rfd(erdr, j);
-			}
+			/* unmap all descriptors while cleaning */
+			edma_clean_rfd(pdev, erdr, j, 1);
 		}
 		k += ((edma_cinfo->num_rx_queues == 4) ? 2 : 1);
 

@@ -38,15 +38,50 @@
 			status = "disabled";
 		};
 
-		uart1:uart@78b0000 {
-			status = "ok";
-		};
-
 		pcie0: qcom,pcie@80000 {
 			status = "disabled";
 		};
 
 		pinctrl@0x01000000 {
+			uart1_pins: uart1_pinmux {
+				mux {
+					pins = "gpio8", "gpio9";
+					function = "blsp_uart1";
+					bias-disable;
+				};
+			};
+
+			spi_0_pins: spi_0_pinmux {
+				mux {
+					pins = "gpio13", "gpio14", "gpio15";
+					function = "blsp_spi0";
+					bias-disable;
+				};
+				cs1 {
+					pins = "gpio12";
+					function = "gpio";
+				};
+				host_int1 {
+					pins = "gpio10";
+					function = "gpio";
+					input;
+				};
+				cs2 {
+					pins = "gpio45";
+					function = "gpio";
+				};
+				host_int2 {
+					pins = "gpio61";
+					function = "gpio";
+					input;
+				};
+				rst {
+					pins = "gpio36";
+					function = "gpio";
+					output-high;
+				};
+			};
+
 			wifi_0_pins: wifi1_pinmux {
 				mux_1 {
 					pins = "gpio37";
@@ -73,6 +108,31 @@
 					drive-strength = <2>;
 				};
 			};
+		};
+
+		uart1:uart@78b0000 {
+			pinctrl-0 = <&uart1_pins>;
+			pinctrl-1 = <&uart1_pins>;
+			pinctrl-names = "default", "sleep";
+			status = "ok";
+		};
+
+		spi_0: spi@78b5000 { /* BLSP1 QUP1 */
+			pinctrl-0 = <&spi_0_pins>;
+			pinctrl-names = "default";
+			status = "ok";
+
+			spidev0_0 {
+				compatible = "spidev";
+				reg = <0>;
+				spi-max-frequency = <24000000>;
+			};
+			spidev0_1 {
+				compatible = "spidev";
+				reg = <1>;
+				spi-max-frequency = <24000000>;
+			};
+
 		};
 
 		wifi0: wifi@a000000 {
