@@ -23,6 +23,14 @@
 		ethernet0 = "/soc/edma/gmac0";
 	};
 	soc {
+		mdio@90000 {
+			status = "ok";
+			pinctrl-0 = <&mdio_pins>;
+			pinctrl-names = "default";
+			phy-reset-gpio = <&tlmm 62 0>;
+			bias-disable;
+		};
+
 		spi_0: spi@78b5000 { /* BLSP1 QUP1 */
 			status = "ok";
 			qcom,gpio-cs1 = <&tlmm 59 0>;

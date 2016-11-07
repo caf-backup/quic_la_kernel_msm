@@ -106,6 +106,15 @@
 			};
 		};
 
+		mdio@90000 {
+			status = "ok";
+			pinctrl-0 = <&mdio_pins>;
+			pinctrl-names = "default";
+			phy-reset-gpio = <&tlmm 41 0>;
+			status = "ok";
+			bias-disable;
+		};
+
 		wifi0: wifi@a000000 {
 			pinctrl-0 = <&wifi_0_pins>;
 			pinctrl-names = "default";

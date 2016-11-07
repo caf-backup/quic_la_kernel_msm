@@ -150,7 +150,7 @@ inline bool skb_recycler_consume(struct sk_buff *skb)
 		 * pointers of skb->next will be updated in __skb_queue_head
 		 */
 		skbuff_debugobj_sum_validate(ln);
-		__skb_queue_tail(h, skb);
+		__skb_queue_head(h, skb);
 		skbuff_debugobj_deactivate(skb);
 		skbuff_debugobj_sum_update(ln);
 		local_irq_restore(flags);
@@ -186,14 +186,14 @@ inline bool skb_recycler_consume(struct sk_buff *skb)
 
 			/* Recalculate the sum for peek of list as next and prev
 			 * pointers of skb->next will be updated in
-			 * __skb_queue_tail
+			 * __skb_queue_head
 			 */
 			ln = skb_peek(h);
 			skbuff_debugobj_sum_validate(ln);
 			/* We have now cleared room in the spare;
 			 * Intialize and enqueue skb into spare
 			 */
-			__skb_queue_tail(h, skb);
+			__skb_queue_head(h, skb);
 			skbuff_debugobj_sum_update(ln);
 			skbuff_debugobj_deactivate(skb);
 
@@ -207,10 +207,10 @@ inline bool skb_recycler_consume(struct sk_buff *skb)
 		/* We have room in the spare list; enqueue to spare list */
 		ln = skb_peek(h);
 		/* Recalculate the sum for peek of list as next and prev
-		 * pointers of skb->next will be updated in __skb_queue_tail
+		 * pointers of skb->next will be updated in __skb_queue_head
 		 */
 		skbuff_debugobj_sum_validate(ln);
-		__skb_queue_tail(h, skb);
+		__skb_queue_head(h, skb);
 		skbuff_debugobj_deactivate(skb);
 		skbuff_debugobj_sum_update(ln);
 		local_irq_restore(flags);
@@ -542,5 +542,45 @@ void __init skb_recycler_init()
 #endif
 
 	hotcpu_notifier(skb_cpu_callback, 0);
+	skbuff_debugobj_register_callback();
 	skb_recycler_init_procfs();
+}
+
+void skb_recycler_print_all_lists(void)
+{
+	int cpu;
+#ifdef CONFIG_SKB_RECYCLER_MULTI_CPU
+	int i;
+	unsigned long flags;
+
+	spin_lock_irqsave(&glob_recycler.lock, flags);
+	for (i = 0; i < SKB_RECYCLE_MAX_SHARED_POOLS; i++)
+		skbuff_debugobj_print_skb_list((&glob_recycler.pool[i])->next,
+						"Global Pool", -1);
+	spin_unlock_irqrestore(&glob_recycler.lock, flags);
+
+	preempt_disable();
+	local_irq_save(flags);
+	for_each_possible_cpu(cpu) {
+		unsigned long flags;
+		struct sk_buff_head *h;
+
+		h = &per_cpu(recycle_spare_list, cpu);
+		skbuff_debugobj_print_skb_list(h->next, "Recycle Spare", cpu);
+	}
+	local_irq_restore(flags);
+	preempt_enable();
+#endif
+
+	preempt_disable();
+	local_irq_save(flags);
+	for_each_possible_cpu(cpu) {
+		unsigned long flags;
+		struct sk_buff_head *h;
+
+		h = &per_cpu(recycle_list, cpu);
+		skbuff_debugobj_print_skb_list(h->next, "Recycle List", cpu);
+	}
+	local_irq_restore(flags);
+	preempt_enable();
 }
