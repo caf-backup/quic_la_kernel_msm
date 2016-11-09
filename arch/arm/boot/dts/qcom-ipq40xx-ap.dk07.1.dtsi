@@ -165,6 +165,15 @@
 			};
 		};
 
+		mdio@90000 {
+			status = "ok";
+			pinctrl-0 = <&mdio_pins>;
+			pinctrl-names = "default";
+			phy-reset-gpio = <&tlmm 41 0>;
+			status = "ok";
+			bias-disable;
+		};
+
 		serial@78af000 {
 			pinctrl-0 = <&serial_0_pins>;
 			pinctrl-names = "default";
