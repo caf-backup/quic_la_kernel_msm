@@ -629,13 +629,15 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 			/* Get Rx port ID from switch */
 			port_id = (rd->rrd1 >> EDMA_PORT_ID_SHIFT) & EDMA_PORT_ID_MASK;
 			if ((!port_id) || (port_id > EDMA_MAX_PORTID_SUPPORTED)) {
-				dev_err(&pdev->dev, "Incorrect RRD source port bit set");
-				dev_err(&pdev->dev,
-					"RRD Dump \n rrd0:%x rrd1: %x rrd2: %x rrd3: %x rrd4: %x rrd5: %x rrd6: %x rrd7: %x",
-					rd->rrd0, rd->rrd1, rd->rrd2, rd->rrd3, rd->rrd4, rd->rrd5, rd->rrd6, rd->rrd7);
-				dev_err(&pdev->dev, "Num_rfds: %d, src_port: %d, pkt_size: %d, cvlan_tag: %d\n",
+				if (net_ratelimit()) {
+					dev_err(&pdev->dev, "Incorrect RRD source port bit set");
+					dev_err(&pdev->dev,
+						"RRD Dump \n rrd0:%x rrd1: %x rrd2: %x rrd3: %x rrd4: %x rrd5: %x rrd6: %x rrd7: %x",
+						rd->rrd0, rd->rrd1, rd->rrd2, rd->rrd3, rd->rrd4, rd->rrd5, rd->rrd6, rd->rrd7);
+					dev_err(&pdev->dev, "Num_rfds: %d, src_port: %d, pkt_size: %d, cvlan_tag: %d\n",
 						num_rfds, rd->rrd1 & EDMA_RRD_SRC_PORT_NUM_MASK,
 						rd->rrd6 & EDMA_RRD_PKT_SIZE_MASK, rd->rrd7 & EDMA_RRD_CVLAN);
+				}
 				for (i = 0; i < num_rfds; i++) {
 					edma_clean_rfd(pdev, erdr, sw_next_to_clean, i);
 					sw_next_to_clean = (sw_next_to_clean + 1) & (erdr->count - 1);
@@ -1537,7 +1539,8 @@ int edma_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	int res;
 
 	if (skb->protocol == htons(ETH_P_IPV6)) {
-		dev_err(&adapter->pdev->dev, "IPv6 not supported\n");
+		if (net_ratelimit())
+			dev_err(&adapter->pdev->dev, "IPv6 not supported\n");
 		res = -EINVAL;
 		goto no_protocol_err;
 	}
