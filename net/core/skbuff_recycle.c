@@ -98,6 +98,7 @@ inline struct sk_buff *skb_recycler_alloc(struct net_device *dev,
 
 	if (likely(skb)) {
 		struct skb_shared_info *shinfo;
+		bool pfmemalloc = skb->pfmemalloc;
 
 		/* We're about to write a large amount to the skb to
 		 * zero most of the structure so prefetch the start
@@ -108,9 +109,10 @@ inline struct sk_buff *skb_recycler_alloc(struct net_device *dev,
 		prefetchw(shinfo);
 
 		zero_struct(skb, offsetof(struct sk_buff, tail));
-#ifdef NET_SKBUFF_DATA_USES_OFFSET
-		skb->mac_header = ~0U;
-#endif
+		atomic_set(&skb->users, 1);
+		skb->pfmemalloc = pfmemalloc;
+		skb->mac_header = (typeof(skb->mac_header))~0U;
+		skb->transport_header = (typeof(skb->transport_header))~0U;
 		zero_struct(shinfo, offsetof(struct skb_shared_info, dataref));
 		atomic_set(&shinfo->dataref, 1);
 
