@@ -113,11 +113,17 @@ enum bond_genl_attrs {
  *           - for unicast packets: search packet's destination address in
  *             L2DA map; if found, send the packet to the corresponding slave;
  *             otherwise - deliver to local network stack
+ * @BOND_L2DA_OPT_REPLACE_MAC: replace source MAC on TX and dest MAC on RX in
+ *      ETH header. In case of ARP packet, replace in payload as well.
+ * @BOND_L2DA_OPT_AUTO_ARP_ANNOUNCE: automatically send ARP after active slave
+ *      has been modified.
  */
 enum bond_genl_l2da_opts {
 	BOND_L2DA_OPT_DUP_MC_TX = 1<<0,
 	BOND_L2DA_OPT_DEDUP_RX  = 1<<1,
 	BOND_L2DA_OPT_FORWARD_RX  = 1<<2,
+	BOND_L2DA_OPT_REPLACE_MAC  = 1<<3,
+	BOND_L2DA_OPT_AUTO_ARP_ANNOUNCE  = 1<<4,
 };
 
 #endif /* __LINUX_IF_BONDING_GENL_H */
