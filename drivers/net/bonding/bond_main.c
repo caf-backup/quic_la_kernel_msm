@@ -271,40 +271,6 @@ void bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb,
 		dev_queue_xmit(skb);
 }
 
-/**
- * bond_xmit_all_slaves - send packet via all slaves at once.
- *
- * @bond: bond device that got this skb for tx.
- * @skb: hw accel VLAN tagged skb to transmit
- */
-int bond_xmit_all_slaves(struct bonding *bond, struct sk_buff *skb)
-{
-	struct slave *slave = NULL;
-	struct list_head *iter;
-
-	bond_for_each_slave_rcu(bond, slave, iter) {
-		if (bond_is_last_slave(bond, slave))
-			break;
-		if (IS_UP(slave->dev) && slave->link == BOND_LINK_UP) {
-			struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
-
-			if (!skb2) {
-				pr_err("%s: Error: bond_xmit_all_slaves(): skb_clone() failed\n",
-				       bond->dev->name);
-				continue;
-			}
-			/* bond_dev_queue_xmit always returns 0 */
-			bond_dev_queue_xmit(bond, skb2, slave->dev);
-		}
-	}
-	if (slave && IS_UP(slave->dev) && slave->link == BOND_LINK_UP)
-		bond_dev_queue_xmit(bond, skb, slave->dev);
-	else
-		dev_kfree_skb_any(skb);
-
-	return NETDEV_TX_OK;
-}
-
 /*
  * In the following 2 functions, bond_vlan_rx_add_vid and bond_vlan_rx_kill_vid,
  * We don't protect the slave list iteration with a lock because:
@@ -4013,7 +3979,30 @@ final:
 static int bond_xmit_broadcast(struct sk_buff *skb, struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
-	return bond_xmit_all_slaves(bond, skb);
+	struct slave *slave = NULL;
+	struct list_head *iter;
+
+	bond_for_each_slave_rcu(bond, slave, iter) {
+		if (bond_is_last_slave(bond, slave))
+			break;
+		if (IS_UP(slave->dev) && slave->link == BOND_LINK_UP) {
+			struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
+
+			if (!skb2) {
+				pr_err("%s: Error: bond_xmit_broadcast(): skb_clone() failed\n",
+				       bond_dev->name);
+				continue;
+			}
+			/* bond_dev_queue_xmit always returns 0 */
+			bond_dev_queue_xmit(bond, skb2, slave->dev);
+		}
+	}
+	if (slave && IS_UP(slave->dev) && slave->link == BOND_LINK_UP)
+		bond_dev_queue_xmit(bond, skb, slave->dev);
+	else
+		dev_kfree_skb_any(skb);
+
+	return NETDEV_TX_OK;
 }
 
 /*------------------------- Device initialization ---------------------------*/

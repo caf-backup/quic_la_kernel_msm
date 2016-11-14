@@ -16,8 +16,10 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
+#include <linux/timer.h>
 #include <linux/etherdevice.h>
 #include <linux/if_bonding_genl.h>
+#include <net/arp.h>
 #include "bonding.h"
 #include "bond_l2da.h"
 
@@ -38,6 +40,10 @@ struct l2da_bond_matrix_entry {
 #define SLAVE_CAN_XMIT(slave) (IS_UP((slave)->dev) && \
 				((slave)->link == BOND_LINK_UP) && \
 				bond_is_active_slave(slave))
+
+static void _bond_l2da_arp_timer_handler(unsigned long data);
+static DEFINE_TIMER(arp_timer, _bond_l2da_arp_timer_handler, 0, 0);
+#define ARP_TIMER_TIMEOUT_TICKS (HZ + 2)
 
 /**
  * _bond_l2da_slave_name - returns slave name
@@ -88,13 +94,110 @@ _bond_l2da_find_entry_unsafe(struct l2da_bond_info *bond_info,
 }
 
 /**
- * _bond_l2da_select_default_slave_unsafe - selects default slave
+ * create_and_xmit_arp - Creates a skb with the bonding IP ARP announcement
+ * and sends the skb to the slave
+ * @slave: The slave to send the ARP on
+ */
+static void bond_l2da_create_and_xmit_arp(struct slave *slave)
+{
+	struct sk_buff *skb;
+	struct in_device *in_dev;
+	struct in_ifaddr *if_addr;
+	__be32 bond_ip_addr = 0;
+
+	rcu_read_lock();
+	in_dev = rcu_dereference(slave->bond->dev->ip_ptr);
+	if_addr = in_dev->ifa_list;
+	if (if_addr)
+		bond_ip_addr = if_addr->ifa_address;
+
+	if (!bond_ip_addr) {
+		rcu_read_unlock();
+		pr_info("bond_l2da: cannot find bonding IP address. Skipping ARP xmit\n");
+		return;
+	}
+
+	skb = arp_create(ARPOP_REQUEST, ETH_P_ARP, bond_ip_addr, slave->dev,
+			bond_ip_addr, NULL, NULL, NULL);
+
+	pr_debug("bond_l2da: xmit ARP announcement for %s [%pM] with IP address %pi4\n",
+		slave->dev->name, slave->dev->dev_addr, &bond_ip_addr);
+	rcu_read_unlock();
+
+	if (!skb) {
+		pr_err("bond_l2da: failed to create an ARP packet\n");
+		return;
+	}
+
+	bond_dev_queue_xmit(slave->bond, skb, slave->dev);
+}
+
+/**
+ * _bond_l2da_arp_timer_handler - ARP timer handler
+ * @data: The timer data, should be the pointer to bond_info
+ */
+static void _bond_l2da_arp_timer_handler(unsigned long data)
+{
+	struct l2da_bond_info *bond_info = (struct l2da_bond_info *)data;
+	struct slave *slave = bond_info->default_slave;
+	if (slave) {
+		bond_l2da_create_and_xmit_arp(slave);
+		pr_info("bond_l2da ARP timer invoked for slave %s\n",
+			_bond_l2da_slave_name(slave));
+	}
+}
+
+/**
+ * bond_l2da_announce_arp - Send ARP announcement for the slave, if the options allow
+ * ARP announcements
+ * @slave: The slave to announce for
+ */
+static void bond_l2da_announce_arp(struct slave *slave)
+{
+	struct l2da_bond_info *bond_info = &BOND_L2DA_INFO(slave->bond);
+	u32 opts = atomic_read(&bond_info->opts);
+
+	if (opts & BOND_L2DA_OPT_AUTO_ARP_ANNOUNCE) {
+		del_timer_sync(&arp_timer);
+		bond_l2da_create_and_xmit_arp(slave);
+		arp_timer.data = (unsigned long)&BOND_L2DA_INFO(slave->bond);
+		mod_timer(&arp_timer, jiffies + ARP_TIMER_TIMEOUT_TICKS);
+	}
+}
+
+/**
+ * _bond_l2da_assign_default_slave
+ * @bond: bonding struct to work on
+ * @slave: new default slave (can be NULL)
+ */
+static void
+_bond_l2da_assign_default_slave(struct bonding *bond, struct slave *slave)
+{
+	struct l2da_bond_info *bond_info = &BOND_L2DA_INFO(bond);
+	struct slave *prev_default_slave = bond_info->default_slave;
+
+	bond_info->default_slave = slave;
+	if (prev_default_slave && slave && prev_default_slave != slave) {
+		if (memcmp(prev_default_slave->dev->dev_addr,
+			   slave->dev->dev_addr, ETH_ALEN))
+			bond_l2da_announce_arp(slave);
+	} else if (!slave) {
+		del_timer_sync(&arp_timer);
+	}
+	pr_info("bond_l2da default slave set to %s\n",
+		_bond_l2da_slave_name(slave));
+}
+
+/**
+ * _bond_l2da_check_default_slave_unsafe - Checks if the default slave is set
+ * and up, otherwise tries to select another existing and running slave as
+ * the default slave.
  * @bond: bonding struct to work on
  *
  * The function must be called under the L2DA bonding struct lock.
  */
 static void
-_bond_l2da_select_default_slave_unsafe(struct bonding *bond)
+_bond_l2da_check_default_slave_unsafe(struct bonding *bond)
 {
 	struct l2da_bond_info *bond_info = &BOND_L2DA_INFO(bond);
 	struct slave *slave;
@@ -109,9 +212,9 @@ _bond_l2da_select_default_slave_unsafe(struct bonding *bond)
 	bond_for_each_slave(bond, slave, iter) {
 		if (slave != bond_info->default_slave &&
 		    SLAVE_CAN_XMIT(slave)) {
-			pr_info("bond_l2da default slave set to %s\n",
+			pr_info("bond_l2da default slave changed to %s\n",
 				_bond_l2da_slave_name(slave));
-			bond_info->default_slave = slave;
+			_bond_l2da_assign_default_slave(bond, slave);
 			break;
 		}
 	}
@@ -138,6 +241,11 @@ static void _bond_l2da_remove_entries_unsafe(struct l2da_bond_info *bond_info,
 			kfree(entry);
 		}
 	}
+
+	if (bond_info->default_slave &&
+	    (!slave || memcmp(bond_info->default_slave->dev->dev_addr,
+			      slave->dev->dev_addr, ETH_ALEN)))
+		bond_l2da_announce_arp(bond_info->default_slave);
 }
 
 /**
@@ -305,6 +413,7 @@ void bond_l2da_deinitialize(struct bonding *bond)
 	struct l2da_bond_info *bond_info = &BOND_L2DA_INFO(bond);
 
 	bond_l2da_purge(bond);
+	del_timer_sync(&arp_timer);
 	BUG_ON(!hash_empty(bond_info->da_matrix));
 	memset(bond_info, 0, sizeof(*bond_info)); /* for debugging purposes */
 	pr_info("bond_l2da de-initialized\n");
@@ -322,11 +431,11 @@ int bond_l2da_bind_slave(struct bonding *bond, struct slave *slave)
 	struct l2da_bond_info *bond_info = &BOND_L2DA_INFO(bond);
 	write_lock_bh(&bond_info->lock);
 	if (!bond_info->default_slave) {
-		bond_info->default_slave = slave;
+		_bond_l2da_assign_default_slave(bond, slave);
 		pr_info("bond_l2da default slave initially set to %s\n",
 			_bond_l2da_slave_name(slave));
 	}
-	_bond_l2da_select_default_slave_unsafe(bond);
+	_bond_l2da_check_default_slave_unsafe(bond);
 	write_unlock_bh(&bond_info->lock);
 	return 0;
 }
@@ -344,16 +453,99 @@ void bond_l2da_unbind_slave(struct bonding *bond, struct slave *slave)
 
 	write_lock_bh(&bond_info->lock);
 	if (slave == bond_info->default_slave) {
-		/* default slave has gone, so let's use some other slave as
-		* a new default
-		*/
-		bond_info->default_slave = bond_first_slave(bond);
-		pr_info("bond_l2da default slave set to %s\n",
-			_bond_l2da_slave_name(bond_info->default_slave));
+		/* default slave has gone, clear it */
+		 _bond_l2da_assign_default_slave(bond, NULL);
 	}
 	_bond_l2da_remove_entries_unsafe(bond_info, slave);
-	_bond_l2da_select_default_slave_unsafe(bond);
+	/* Check the default slave. If cleared, then choose another slave as
+	 * the default one
+	 */
+	_bond_l2da_check_default_slave_unsafe(bond);
 	write_unlock_bh(&bond_info->lock);
+}
+
+/**
+ * _replace_src_mac - Replaces src mac address with the slave address. Also
+ * in case of a ARP packet replaces src mac in the payload.
+ *
+ * @skb: skb to transmit
+ * @slave: slave to send on
+ * @eth_data: pointer to Ethernet header
+ */
+static void _replace_src_mac(struct sk_buff *skb, struct slave *slave,
+			     struct ethhdr *eth_data)
+{
+	if (!memcmp(eth_data->h_source, slave->dev->dev_addr, ETH_ALEN))
+		return;
+	/* do not replace if h_source is not bond's mac */
+	if (memcmp(eth_data->h_source, slave->bond->dev->dev_addr, ETH_ALEN))
+		return;
+	ether_addr_copy(eth_data->h_source, slave->dev->dev_addr);
+	if (skb->protocol == htons(ETH_P_ARP)) {
+		struct arp_pkt *arp = (struct arp_pkt *)skb_network_header(skb);
+		if (!memcmp(arp->mac_src, slave->bond->dev->dev_addr, ETH_ALEN))
+			ether_addr_copy(arp->mac_src, slave->dev->dev_addr);
+	}
+}
+
+/**
+ * _replace_dst_mac - Replaces packet's dst mac address with the bonding address
+ *
+ * @skb: received skb
+ * @slave: slave the packet received on
+ * @eth_data: pointer to Ethernet header
+ */
+static void _replace_dst_mac(struct sk_buff *skb, struct slave *slave,
+			     struct ethhdr *eth_data)
+{
+	if (memcmp(eth_data->h_dest, slave->bond->dev->dev_addr, ETH_ALEN) &&
+	    !memcmp(eth_data->h_dest, slave->dev->dev_addr, ETH_ALEN)) {
+		ether_addr_copy(eth_data->h_dest, slave->bond->dev->dev_addr);
+	}
+}
+
+/**
+ * bond_l2da_xmit_all_slaves - send packet via all slaves at once.
+ *
+ * @bond: bond device that got this skb for tx.
+ * @skb: hw accel VLAN tagged skb to transmit
+ */
+static int bond_l2da_xmit_all_slaves(struct bonding *bond, struct sk_buff *skb)
+{
+	struct slave *slave = NULL;
+	struct list_head *iter;
+	struct ethhdr *eth_data;
+	struct l2da_bond_info *bond_info = &BOND_L2DA_INFO(bond);
+	u32 opts = atomic_read(&bond_info->opts);
+
+	eth_data = eth_hdr(skb);
+
+	bond_for_each_slave_rcu(bond, slave, iter) {
+		if (bond_is_last_slave(bond, slave))
+			break;
+		if (IS_UP(slave->dev) && slave->link == BOND_LINK_UP) {
+			struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
+
+			if (!skb2) {
+				pr_err("%s: Error: bond_xmit_all_slaves(): skb_clone() failed\n",
+					bond->dev->name);
+				continue;
+			}
+			/* bond_dev_queue_xmit always returns 0 */
+			if (opts & BOND_L2DA_OPT_REPLACE_MAC)
+				_replace_src_mac(skb2, slave, eth_data);
+			bond_dev_queue_xmit(bond, skb2, slave->dev);
+		}
+	}
+	if (slave && IS_UP(slave->dev) && slave->link == BOND_LINK_UP) {
+		if (opts & BOND_L2DA_OPT_REPLACE_MAC)
+			_replace_src_mac(skb, slave, eth_data);
+		bond_dev_queue_xmit(bond, skb, slave->dev);
+	} else {
+		dev_kfree_skb_any(skb);
+	}
+
+	return NETDEV_TX_OK;
 }
 
 /**
@@ -411,15 +603,20 @@ int bond_l2da_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if ((opts & BOND_L2DA_OPT_DUP_MC_TX) &&
 	    is_multicast_ether_addr(eth_data->h_dest))
-		return bond_xmit_all_slaves(bond, skb);
+		return bond_l2da_xmit_all_slaves(bond, skb);
 
 	read_lock_bh(&bond_info->lock);
 	entry = _bond_l2da_find_entry_unsafe(bond_info, eth_data->h_dest);
 	if (entry && entry->slave && SLAVE_CAN_XMIT(entry->slave)) {
+		if (opts & BOND_L2DA_OPT_REPLACE_MAC)
+			_replace_src_mac(skb, entry->slave, eth_data);
 		/* if a slave configured for this DA and it's OK - use it */
 		bond_dev_queue_xmit(bond, skb, entry->slave->dev);
 	} else if (bond_info->default_slave &&
 		   SLAVE_CAN_XMIT(bond_info->default_slave)) {
+		if (opts & BOND_L2DA_OPT_REPLACE_MAC)
+			_replace_src_mac(skb, bond_info->default_slave,
+					 eth_data);
 		/* otherwise, if default slave is configured - use it */
 		bond_dev_queue_xmit(bond, skb, bond_info->default_slave->dev);
 	} else {
@@ -473,11 +670,27 @@ bool bond_l2da_handle_rx_frame(struct bonding *bond, struct slave *slave,
 		read_unlock_bh(&bond_info->lock);
 	}
 
+	if (res && (opts & BOND_L2DA_OPT_REPLACE_MAC))
+		_replace_dst_mac(skb, slave, eth_data);
+
 	/* DEDUP takes precedence over FORWARD, i.e. we only flood packets which
 	 * are allowed for RX
 	 */
 	if (res && (opts & BOND_L2DA_OPT_FORWARD_RX))
-		return _bond_l2da_bridge_flood(bond, slave, skb);
+		res = _bond_l2da_bridge_flood(bond, slave, skb);
+
+	/* Fix skb packet type if our destination is bonding */
+	if (res && bond_info->multimac &&
+	   !memcmp(eth_data->h_dest, bond->dev->dev_addr, ETH_ALEN))
+		skb->pkt_type = PACKET_HOST;
+
+	if (res && (bond->dev->priv_flags & IFF_BRIDGE_PORT) &&
+	    skb->pkt_type == PACKET_HOST) {
+		if (unlikely(skb_cow_head(skb,
+					  skb->data - skb_mac_header(skb))))
+			return false;
+		_replace_dst_mac(skb, slave, eth_data);
+	}
 
 	return res;
 }
@@ -496,12 +709,12 @@ int bond_l2da_set_default_slave(struct bonding *bond, struct slave *slave)
 
 	write_lock_bh(&bond_info->lock);
 	if (SLAVE_CAN_XMIT(slave)) {
-		bond_info->default_slave = slave;
+		_bond_l2da_assign_default_slave(bond, slave);
 		pr_info("bond_l2da default slave set to %s\n",
 			_bond_l2da_slave_name(slave));
 		res = 0;
 	} else {
-		_bond_l2da_select_default_slave_unsafe(bond);
+		_bond_l2da_check_default_slave_unsafe(bond);
 	}
 	write_unlock_bh(&bond_info->lock);
 	return res;
@@ -569,7 +782,9 @@ int bond_l2da_set_da_slave(struct bonding *bond, const unsigned char *da,
 	pr_info("bond_l2da: pair %s [%pM:%s]\n",
 		prev_slave ? "changed" : "added",
 		da, _bond_l2da_slave_name(slave));
-
+	if (prev_slave &&
+	    memcmp(prev_slave->dev->dev_addr, slave->dev->dev_addr, ETH_ALEN))
+		bond_l2da_announce_arp(slave);
 	return 0;
 }
 
@@ -654,7 +869,7 @@ void bond_l2da_handle_link_change(struct bonding *bond, struct slave *slave)
 
 	write_lock_bh(&bond_info->lock);
 	prev_default_slave = bond_info->default_slave;
-	_bond_l2da_select_default_slave_unsafe(bond);
+	_bond_l2da_check_default_slave_unsafe(bond);
 
 	spin_lock_bh(&bond_cb_lock);
 	if (prev_default_slave && bond_cb && bond_cb->bond_cb_delete_by_slave)

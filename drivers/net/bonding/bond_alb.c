@@ -62,18 +62,6 @@ struct learning_pkt {
 	__be16 type;
 	u8 padding[ETH_ZLEN - ETH_HLEN];
 };
-
-struct arp_pkt {
-	__be16  hw_addr_space;
-	__be16  prot_addr_space;
-	u8      hw_addr_len;
-	u8      prot_addr_len;
-	__be16  op_code;
-	u8      mac_src[ETH_ALEN];	/* sender hardware address */
-	__be32  ip_src;			/* sender IP address */
-	u8      mac_dst[ETH_ALEN];	/* target hardware address */
-	__be32  ip_dst;			/* target IP address */
-};
 #pragma pack()
 
 static inline struct arp_pkt *arp_pkt(const struct sk_buff *skb)
