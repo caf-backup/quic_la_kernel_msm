@@ -648,7 +648,7 @@ static void fdb_notify(struct net_bridge *br,
 			event = BR_FDB_EVENT_DEL;
 
 		fdb_event.dev = fdb->dst->dev;
-		ether_addr_copy(fdb_event.addr, fdb->addr.addr);
+		memcpy(fdb_event.addr, fdb->addr.addr, ETH_ALEN);
 		fdb_event.is_local = fdb->is_local;
 		atomic_notifier_call_chain(&br_fdb_notifier_list,
 					   event,

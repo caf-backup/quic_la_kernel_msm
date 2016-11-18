@@ -137,4 +137,5 @@ struct br_fdb_event {
 };
 extern void br_fdb_register_notify(struct notifier_block *nb);
 extern void br_fdb_unregister_notify(struct notifier_block *nb);
-#endif
+#endif /*__KERNEL__*/
+#endif /*_LINUX_IF_BRIDGE_H*/
