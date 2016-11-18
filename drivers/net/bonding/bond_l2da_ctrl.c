@@ -147,7 +147,7 @@ int bond_l2da_ctrl_change_map_entry(struct bonding *bond,
 
 	_bond_l2da_ctrl_unlock(bond, true);
 
-	bond_notify_l2da(da);
+	bond_notify_l2da((uint8_t *)da);
 
 	return ret;
 }

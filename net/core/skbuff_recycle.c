@@ -112,9 +112,9 @@ inline struct sk_buff *skb_recycler_alloc(struct net_device *dev, unsigned int l
 		prefetchw(shinfo);
 
 		zero_struct(skb, offsetof(struct sk_buff, tail));
-#ifdef NET_SKBUFF_DATA_USES_OFFSET
-		skb->mac_header = ~0U;
-#endif
+		atomic_set(&skb->users, 1);
+		skb->mac_header = (typeof(skb->mac_header))~0U;
+		skb->transport_header = (typeof(skb->transport_header))~0U;
 		zero_struct(shinfo, offsetof(struct skb_shared_info, dataref));
 		atomic_set(&shinfo->dataref, 1);
 
@@ -145,12 +145,12 @@ inline bool skb_recycler_consume(struct sk_buff *skb)
 	local_irq_save(flags);
 	/* Attempt to enqueue the CPU hot recycle list first */
 	if (likely(skb_queue_len(h) < skb_recycle_max_skbs)) {
-		ln = skb_peek_tail(h);
+		ln = skb_peek(h);
 		/* Recalculate the sum for peek of list as next and prev
-		 * pointers of skb->next will be updated in __skb_queue_tail
+		 * pointers of skb->next will be updated in __skb_queue_head
 		 */
 		skbuff_debugobj_sum_validate(ln);
-		__skb_queue_tail(h, skb);
+		__skb_queue_head(h, skb);
 		skbuff_debugobj_deactivate(skb);
 		skbuff_debugobj_sum_update(ln);
 		local_irq_restore(flags);
@@ -186,14 +186,14 @@ inline bool skb_recycler_consume(struct sk_buff *skb)
 
 			/* Recalculate the sum for peek of list as next and prev
 			 * pointers of skb->next will be updated in
-			 * __skb_queue_tail
+			 * __skb_queue_head
 			 */
-			ln = skb_peek_tail(h);
+			ln = skb_peek(h);
 			skbuff_debugobj_sum_validate(ln);
 			/* We have now cleared room in the spare;
 			 * Intialize and enqueue skb into spare
 			 */
-			__skb_queue_tail(h, skb);
+			__skb_queue_head(h, skb);
 			skbuff_debugobj_sum_update(ln);
 			skbuff_debugobj_deactivate(skb);
 
@@ -205,12 +205,12 @@ inline bool skb_recycler_consume(struct sk_buff *skb)
 		spin_unlock(&glob_recycler.lock);
 	} else {
 		/* We have room in the spare list; enqueue to spare list */
-		ln = skb_peek_tail(h);
+		ln = skb_peek(h);
 		/* Recalculate the sum for peek of list as next and prev
-		 * pointers of skb->next will be updated in __skb_queue_tail
+		 * pointers of skb->next will be updated in __skb_queue_head
 		 */
 		skbuff_debugobj_sum_validate(ln);
-		__skb_queue_tail(h, skb);
+		__skb_queue_head(h, skb);
 		skbuff_debugobj_deactivate(skb);
 		skbuff_debugobj_sum_update(ln);
 		local_irq_restore(flags);

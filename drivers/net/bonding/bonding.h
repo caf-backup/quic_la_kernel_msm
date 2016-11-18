@@ -265,6 +265,20 @@ struct bonding {
 	u32      id;
 };
 
+#pragma pack(1)
+struct arp_pkt {
+	__be16  hw_addr_space;
+	__be16  prot_addr_space;
+	u8      hw_addr_len;
+	u8      prot_addr_len;
+	__be16  op_code;
+	u8      mac_src[ETH_ALEN];	/* sender hardware address */
+	__be32  ip_src;			/* sender IP address */
+	u8      mac_dst[ETH_ALEN];	/* target hardware address */
+	__be32  ip_dst;			/* target IP address */
+};
+#pragma pack()
+
 #define bond_slave_get_rcu(dev) \
 	((struct slave *) rcu_dereference(dev->rx_handler_data))
 
@@ -490,7 +504,6 @@ struct bond_net;
 
 int bond_arp_rcv(const struct sk_buff *skb, struct bonding *bond, struct slave *slave);
 void bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb, struct net_device *slave_dev);
-int bond_xmit_all_slaves(struct bonding *bond, struct sk_buff *skb);
 int bond_create(struct net *net, const char *name);
 int bond_create_sysfs(struct bond_net *net);
 void bond_destroy_sysfs(struct bond_net *net);
