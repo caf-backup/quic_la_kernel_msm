@@ -50,12 +50,6 @@
 			pinctrl-0 = <&mdio0_pins_default &rgmii2_pins_default>;
 			pinctrl-names = "default";
 
-			i2c4_pins: i2c4_pinmux {
-				pins = "gpio12", "gpio13";
-				function = "gsbi4";
-				bias-disable;
-			};
-
 			uart2_pins: uart2_pinmux {
 				pins = "gpio22", "gpio23";
 				function = "gsbi2";
@@ -266,7 +260,6 @@
 
 		tcsr@1a400000 {
 			status = "ok";
-			qcom,usb-ctrl-select = <TCSR_USB_SELECT_USB3_DUAL>;
 		};
 
 		phy@100f8800 {		/* USB3 port 1 HS phy */
