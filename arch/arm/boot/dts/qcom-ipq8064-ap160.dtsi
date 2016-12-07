@@ -49,15 +49,6 @@
 			pinctrl-0 = <&rgmii2_pins_default &pcie_2g_pwrdwn_default &pcie_5g_pwrdwn_default &leds_pins>;
 			pinctrl-names = "default";
 
-			rpm_i2c_pinmux: rpm_i2c_pinmux {
-				mux {
-					pins = "gpio12", "gpio13";
-					function = "gsbi4";
-					drive-strength = <12>;
-					bias-disable;
-				};
-			};
-
 			pcie1_pins: pcie1_pinmux {
 				mux {
 					pins = "gpio3";
@@ -264,7 +255,6 @@
 
 		tcsr@1a400000 {
 			status = "ok";
-			qcom,usb-ctrl-select = <TCSR_USB_SELECT_USB3_DUAL>;
 		};
 
 		phy@100f8800 {		/* USB3 port 1 HS phy */
@@ -536,9 +526,5 @@
 			qcom,ee = <0>;
 		};
 
-		rpm@108000 {
-			pinctrl-0 = <&rpm_i2c_pinmux>;
-			pinctrl-names = "default";
-		};
 	};
 };

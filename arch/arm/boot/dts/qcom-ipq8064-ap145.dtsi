@@ -373,7 +373,6 @@
 
 		tcsr@1a400000 {
 			status = "ok";
-			qcom,usb-ctrl-select = <TCSR_USB_SELECT_USB3_DUAL>;
 		};
 
 		phy@100f8800 {		/* USB3 port 1 HS phy */
