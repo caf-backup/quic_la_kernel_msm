@@ -1859,7 +1859,7 @@ static struct fb_ops mdss_fb_ops = {
 };
 
 static struct fb_deferred_io mdss_fb_defio = {
-	.delay		= HZ,
+	.delay		= HZ / 25,
 	.deferred_io	= mdss_fb_deferred_io,
 };
 
