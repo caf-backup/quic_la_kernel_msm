@@ -290,6 +290,22 @@
 			perst-gpio = <&tlmm 38 0>;
 			wake-gpio = <&tlmm 40 0>;
 			clkreq-gpio = <&tlmm 39 0>;
+
+			pcie@0 {
+				reg = <0 0 0 0 0>;
+				#interrupt-cells = <1>;
+				#size-cells = <2>;
+				#address-cells = <3>;
+				device_type = "pci";
+
+				ath10k@0,0 {
+					reg = <0 0 0 0 0>;
+					device_type = "pci";
+					qcom,mtd-name = "0:ART";
+					qcom,cal-offset = <0x9000>;
+					qcom,cal-len = <12064>;
+				};
+			};
 		};
 
 		qcom: ledc@1937000  {
