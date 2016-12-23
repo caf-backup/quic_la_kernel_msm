@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 - 2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014 - 2017, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -318,7 +318,7 @@ struct edma_common_info {
 	struct ctl_table_header *edma_ctl_table_hdr;
 	int num_gmac;
 	struct edma_ethtool_statistics edma_ethstats; /* ethtool stats */
-	int num_rx_queues; /* number of rx queue */
+	u32 num_rx_queues; /* number of rx queue */
 	u32 num_tx_queues; /* number of tx queue */
 	u32 tx_irq[16]; /* number of tx irq */
 	u32 rx_irq[8]; /* number of rx irq */
