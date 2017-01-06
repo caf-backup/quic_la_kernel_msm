@@ -68,6 +68,10 @@
 #define EDMA_DEFAULT_GROUP1_BMP 0x20
 #define EDMA_DEFAULT_GROUP2_BMP 0x1e
 
+#define EDMA_DEFAULT_DISABLE_RSS 0
+#define EDMA_RSS_DISABLE 1
+#define EDMA_RSS_ENABLE 0
+
 /* Queues exposed to linux kernel */
 #define EDMA_NETDEV_TX_QUEUE 4
 #define EDMA_NETDEV_RX_QUEUE 4
