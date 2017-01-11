@@ -2915,37 +2915,26 @@ ppp_connect_channel(struct channel *pch, int unit)
 	pch->ppp = ppp;
 	atomic_inc(&ppp->file.refcnt);
 
-	if (pch->chan) {
-		ppp_proto = ppp_channel_get_protocol(pch->chan);
-		switch (ppp_proto) {
-		case PX_PROTO_OL2TP:
-			version = ppp_channel_get_proto_version(pch->chan);
-			switch (version) {
-			case 2:
-				ppp->dev->priv_flags |= IFF_PPP_L2TPV2;
-				ret = 0;
-				break;
-			case 3:
-				ppp->dev->priv_flags |= IFF_PPP_L2TPV3;
-				ret = 0;
-				break;
-			default:
-				break;
-			}
-			break;
-
-		case PX_PROTO_PPTP:
-			ppp->dev->priv_flags |= IFF_PPP_PPTP;
-			ret = 0;
-			break;
-
-		default:
-			break;
-		}
+	/* Set the netdev priv flag if the prototype
+	 * is L2TP or PPTP. Return success in all cases */
+	if (!pch->chan) {
+		goto out2;
 	}
 
-	ppp_unlock(ppp);
+	ppp_proto = ppp_channel_get_protocol(pch->chan);
+	if (ppp_proto == PX_PROTO_PPTP) {
+		ppp->dev->priv_flags |= IFF_PPP_PPTP;
+	} else if (ppp_proto == PX_PROTO_OL2TP) {
+		version = ppp_channel_get_proto_version(pch->chan);
+		if (version == 2)
+			ppp->dev->priv_flags |= IFF_PPP_L2TPV2;
+		else if (version == 3)
+			ppp->dev->priv_flags |= IFF_PPP_L2TPV3;
+	}
 
+ out2:
+	ppp_unlock(ppp);
+	ret = 0;
  outl:
 	write_unlock_bh(&pch->upl);
  out:
