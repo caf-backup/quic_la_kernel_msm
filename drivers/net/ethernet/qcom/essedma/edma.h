@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 - 2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014 - 2017, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -59,11 +59,18 @@
 #define EDMA_LAN_DEFAULT_VLAN 1
 #define EDMA_WAN_DEFAULT_VLAN 2
 
-#define EDMA_DEFAULT_GROUP1_VLAN 1
-#define EDMA_DEFAULT_GROUP2_VLAN 2
+#define EDMA_DEFAULT_GROUP1_VLAN 2
+#define EDMA_DEFAULT_GROUP2_VLAN 1
 #define EDMA_DEFAULT_GROUP3_VLAN 3
 #define EDMA_DEFAULT_GROUP4_VLAN 4
 #define EDMA_DEFAULT_GROUP5_VLAN 5
+
+#define EDMA_DEFAULT_GROUP1_BMP 0x20
+#define EDMA_DEFAULT_GROUP2_BMP 0x1e
+
+#define EDMA_DEFAULT_DISABLE_RSS 0
+#define EDMA_RSS_DISABLE 1
+#define EDMA_RSS_ENABLE 0
 
 /* Queues exposed to linux kernel */
 #define EDMA_NETDEV_TX_QUEUE 4
@@ -315,7 +322,7 @@ struct edma_common_info {
 	struct ctl_table_header *edma_ctl_table_hdr;
 	int num_gmac;
 	struct edma_ethtool_statistics edma_ethstats; /* ethtool stats */
-	int num_rx_queues; /* number of rx queue */
+	u32 num_rx_queues; /* number of rx queue */
 	u32 num_tx_queues; /* number of tx queue */
 	u32 tx_irq[16]; /* number of tx irq */
 	u32 rx_irq[8]; /* number of rx irq */
@@ -394,6 +401,7 @@ struct edma_adapter {
 	u32 link_state; /* phy link state */
 	u32 phy_mdio_addr; /* PHY device address on MII interface */
 	u32 poll_required; /* check if link polling is required */
+	u32 poll_required_saved; /* poll state saved for dynamic switch */
 	u32 tx_start_offset[CONFIG_NR_CPUS]; /* tx queue start */
 	u32 default_vlan_tag; /* vlan tag */
 	u32 dp_bitmap;
