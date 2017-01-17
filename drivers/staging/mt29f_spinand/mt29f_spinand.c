@@ -806,7 +806,6 @@ static int spinand_program_page(struct spi_device *spi_nand,
 	u8 status = 0;
 	uint8_t *wbuf;
 #ifdef CONFIG_MTD_SPINAND_ONDIEECC
-	unsigned int i, j;
 
 	enable_read_hw_ecc = 0;
 	wbuf = kzalloc(CACHE_BUF, GFP_KERNEL);
@@ -815,8 +814,7 @@ static int spinand_program_page(struct spi_device *spi_nand,
 
 	spinand_read_page(spi_nand, page_id, 0, CACHE_BUF, wbuf);
 
-	for (i = offset, j = 0; i < (offset + len); i++, j++)
-		wbuf[i] &= buf[j];
+	memcpy(wbuf + offset, buf, len);
 
 	if (enable_hw_ecc) {
 		retval = spinand_enable_ecc(spi_nand);
