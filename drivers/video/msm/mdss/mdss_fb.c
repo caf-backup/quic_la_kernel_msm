@@ -85,6 +85,7 @@ static u32 mdss_fb_pseudo_palette[16] = {
 static struct msm_mdp_interface *mdp_instance;
 static struct fb_deferred_io mdss_fb_defio;
 
+static int mdss_fb_mmap(struct fb_info *info, struct vm_area_struct *vma);
 static int mdss_fb_register(struct msm_fb_data_type *mfd);
 static int mdss_fb_open(struct fb_info *info, int user);
 static int mdss_fb_release(struct fb_info *info, int user);
@@ -758,6 +759,8 @@ static int mdss_fb_probe(struct platform_device *pdev)
 	}
 
 	fb_deferred_io_init(mfd->fbi);
+	mfd->fbi->fbops->fb_mmap = mdss_fb_mmap;
+
 	mdss_fb_create_sysfs(mfd);
 	mdss_fb_send_panel_event(mfd, MDSS_EVENT_FB_REGISTERED, fbi);
 
@@ -1752,13 +1755,18 @@ static int mdss_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
 #endif
 	int rc = 0;
+#ifdef CONFIG_FB_DEFERRED_IO
+	rc = fb_deferred_io_mmap(info, vma);
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
-#ifdef CONFIG_ION
+#elif defined CONFIG_ION
 	if (!info->fix.smem_start && !mfd->fb_ion_handle)
 		rc = mdss_fb_fbmem_ion_mmap(info, vma);
 	else
-#endif
 		rc = mdss_fb_physical_mmap(info, vma);
+#else
+	rc = mdss_fb_physical_mmap(info, vma);
+#endif
 
 	if (rc < 0)
 		pr_err("fb mmap failed with rc = %d\n", rc);
