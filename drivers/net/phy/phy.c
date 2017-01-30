@@ -482,6 +482,7 @@ void phy_start_machine(struct phy_device *phydev)
 {
 	queue_delayed_work(system_power_efficient_wq, &phydev->state_queue, HZ);
 }
+EXPORT_SYMBOL(phy_start_machine);
 
 /**
  * phy_stop_machine - stop the PHY state machine tracking
@@ -500,6 +501,7 @@ void phy_stop_machine(struct phy_device *phydev)
 		phydev->state = PHY_UP;
 	mutex_unlock(&phydev->lock);
 }
+EXPORT_SYMBOL(phy_stop_machine);
 
 /**
  * phy_error - enter HALTED state for this PHY device
