@@ -244,6 +244,40 @@ void sdhci_msm_ice_update_cfg(struct sdhci_host *host, u64 lba,
 	mb();
 }
 
+static
+void sdhci_msm_ice_hci_update_noncq_cfg(struct sdhci_host *host,
+		u64 dun, unsigned int bypass, short key_index)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_msm_host *msm_host = pltfm_host->priv;
+	unsigned int crypto_params = 0;
+	/*
+	 * The naming convention got changed between ICE2.0 and ICE3.0
+	 * registers fields. Below is the equivalent names for
+	 * ICE3.0 Vs ICE2.0:
+	 *   Data Unit Number(DUN) == Logical Base address(LBA)
+	 *   Crypto Configuration index (CCI) == Key Index
+	 *   Crypto Enable (CE) == !BYPASS
+	 */
+	/* Configure ICE bypass mode */
+	crypto_params |=
+		(!bypass & MASK_SDHCI_MSM_ICE_HCI_PARAM_CE)
+			<< OFFSET_SDHCI_MSM_ICE_HCI_PARAM_CE;
+	/* Configure Crypto Configure Index (CCI) */
+	crypto_params |= (key_index &
+			 MASK_SDHCI_MSM_ICE_HCI_PARAM_CCI)
+			 << OFFSET_SDHCI_MSM_ICE_HCI_PARAM_CCI;
+
+	writel_relaxed((crypto_params & 0xFFFFFFFF),
+		msm_host->cryptoio + ICE_NONCQ_CRYPTO_PARAMS);
+
+	/* Update DUN */
+	writel_relaxed((dun & 0xFFFFFFFF),
+		msm_host->cryptoio + ICE_NONCQ_CRYPTO_DUN);
+	/* Ensure ICE registers are configured before issuing SDHCI request */
+	mb();
+}
+
 int sdhci_msm_ice_cfg(struct sdhci_host *host, struct mmc_request *mrq,
 			u32 slot)
 {
@@ -294,8 +328,15 @@ int sdhci_msm_ice_cfg(struct sdhci_host *host, struct mmc_request *mrq,
 				ice_set.crypto_data.key_index);
 	}
 
-	sdhci_msm_ice_update_cfg(host, lba, slot, bypass,
-				ice_set.crypto_data.key_index);
+	if (msm_host->ice_hci_support) {
+		/* For ICE HCI / ICE3.0 */
+		sdhci_msm_ice_hci_update_noncq_cfg(host, lba, bypass,
+						ice_set.crypto_data.key_index);
+	} else {
+		/* For ICE versions earlier to ICE3.0 */
+		sdhci_msm_ice_update_cfg(host, lba, slot, bypass,
+						ice_set.crypto_data.key_index);
+	}
 	return 0;
 }
 
