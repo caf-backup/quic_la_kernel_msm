@@ -218,8 +218,13 @@ static int msm_config_reg(struct msm_pinctrl *pctrl,
 		*mask = 3;
 		break;
 	case PIN_CONFIG_DRIVE_STRENGTH:
+	case PIN_CONFIG_DRIVE_CAP:
 		*bit = g->drv_bit;
 		*mask = 7;
+		break;
+	case PIN_CONFIG_DRIVE_TYPE:
+		*bit = g->drv_bit;
+		*mask = 0x27;
 		break;
 	case PIN_CONFIG_OUTPUT:
 		*bit = g->oe_bit;
@@ -228,6 +233,15 @@ static int msm_config_reg(struct msm_pinctrl *pctrl,
 	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
 		*bit = g->od_bit;
 		*mask = 1;
+		break;
+	case PIN_CONFIG_POWER_SOURCE:
+	case PIN_CONFIG_LOW_POWER_MODE:
+		*bit = g->vm_bit;
+		*mask = 1;
+		break;
+	case PIN_CONFIG_PULL_RES:
+		*bit = g->pull_res;
+		*mask = 3;
 		break;
 	default:
 		dev_err(pctrl->dev, "Invalid config param %04x\n", param);
@@ -307,6 +321,26 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
 		arg = arg == 1;
 		break;
+	case PIN_CONFIG_POWER_SOURCE:
+		if (arg == HP_1_8V)
+			arg = 1.8;
+		else
+			/* 2.8 or 3.3 */
+			arg = 2.8;
+		break;
+	case PIN_CONFIG_LOW_POWER_MODE:
+		arg = arg == 1;
+		break;
+	case PIN_CONFIG_PULL_RES:
+		if (arg == RES_10_KOHM)
+			arg = 10;
+		else if (arg == RES_1_5_KOHM)
+			arg = 1.5;
+		else if (arg == RES_35_KOHM)
+			arg = 35;
+		else
+			arg = 20;
+		break;
 	default:
 		dev_err(pctrl->dev, "Unsupported config parameter: %x\n",
 			param);
@@ -364,6 +398,12 @@ static int msm_config_group_set(struct pinctrl_dev *pctldev,
 				arg = -1;
 			else
 				arg = (arg / 2) - 1;
+			break;
+		case PIN_CONFIG_DRIVE_TYPE:
+		case PIN_CONFIG_DRIVE_CAP:
+		case PIN_CONFIG_PULL_RES:
+		case PIN_CONFIG_POWER_SOURCE:
+		case PIN_CONFIG_LOW_POWER_MODE:
 			break;
 		case PIN_CONFIG_OUTPUT:
 			/* set output value */

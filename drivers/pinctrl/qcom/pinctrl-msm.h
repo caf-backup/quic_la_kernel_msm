@@ -86,6 +86,8 @@ struct msm_pingroup {
 	unsigned in_bit:5;
 	unsigned out_bit:5;
 	unsigned od_bit:5;
+	unsigned vm_bit:5;
+	unsigned pull_res:5;
 
 	unsigned intr_enable_bit:5;
 	unsigned intr_status_bit:5;
@@ -140,6 +142,29 @@ static const struct msm_pinctrl_gpio_pull msm_gpio_pull = {
 	.keeper = 2,
 	.pull_up = 3,
 };
+
+#define DRV_TYPE_D		0x20
+#define DRV_TYPE_C		0x21
+#define DRV_TYPE_B		0x23
+#define DRV_TYPE_A		0x27
+#define DRV_TYPE_OPTIONAL	7
+
+enum drv_cap {
+	DRV_CAP_HIGH,
+	DRV_CAP_HALF,
+	DRV_CAP_QUARTER,
+};
+
+enum pull_res {
+	RES_10_KOHM,
+	RES_1_5_KOHM,
+	RES_35_KOHM,
+	RES_20_KOHM,
+};
+
+#define HP_1_8V		1
+#define HP_2_8V		0
+#define HP_3_3V		0
 
 int msm_pinctrl_probe(struct platform_device *pdev,
 		      const struct msm_pinctrl_soc_data *soc_data);

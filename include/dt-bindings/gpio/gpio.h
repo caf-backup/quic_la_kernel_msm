@@ -12,4 +12,19 @@
 #define GPIO_ACTIVE_HIGH 0
 #define GPIO_ACTIVE_LOW 1
 
+#define DRV_TYPE_D		0x20
+#define DRV_TYPE_C		0x21
+#define DRV_TYPE_B		0x23
+#define DRV_TYPE_A		0x27
+#define DRV_TYPE_OPTIONAL	7
+
+#define DRV_CAP_HIGH	0
+#define DRV_CAP_HALF	1
+#define DRV_CAP_QUARTER	2
+
+#define RES_10_KOHM	0
+#define RES_1_5_KOHM	1
+#define RES_35_KOHM	2
+#define RES_20_KOHM	3
+
 #endif
