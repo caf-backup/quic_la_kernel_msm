@@ -62,6 +62,8 @@
 		.in_bit = 0,			\
 		.out_bit = 1,			\
 		.od_bit = 12,			\
+		.pull_res = 13,			\
+		.vm_bit = 11,			\
 		.intr_enable_bit = 0,		\
 		.intr_status_bit = 0,		\
 		.intr_target_bit = 5,		\
