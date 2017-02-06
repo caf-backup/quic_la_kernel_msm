@@ -80,6 +80,12 @@
 					bias-pull-up;
 					drive-strength = <6>;
 				};
+				mux_4 {
+					pins = "gpio61";
+					output-high;
+					function="gpio";
+					bias-pull-down;
+				};
 			};
 		};
 
@@ -112,6 +118,7 @@
 			pinctrl-names = "default";
 			btcoex_support = <1>;
 			wlan_prio_gpio = <52>;
+			dual_band_switch_gpio = <61>;
 		};
 
 		wifi1: wifi@a800000 {
