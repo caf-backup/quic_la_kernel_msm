@@ -1257,6 +1257,14 @@ static const struct msm_pingroup ipq40xx_groups[] = {
 	PINGROUP(69, qpic_pad, audio_pwm3, NA, wcss0_dbg13, wcss1_dbg13, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 };
 
+static const struct msm_pinctrl_gpio_pull ipq40xx_gpio_pull = {
+	.no_pull = 0,
+	.pull_down = 1,
+	.pull_up = 2,
+	/* keeper is not supported in ipq40xx. Hence configure it as no pull */
+	.keeper = 0,
+};
+
 static const struct msm_pinctrl_soc_data ipq40xx_pinctrl = {
 	.pins = ipq40xx_pins,
 	.npins = ARRAY_SIZE(ipq40xx_pins),
@@ -1265,6 +1273,7 @@ static const struct msm_pinctrl_soc_data ipq40xx_pinctrl = {
 	.groups = ipq40xx_groups,
 	.ngroups = ARRAY_SIZE(ipq40xx_groups),
 	.ngpios = 70,
+	.gpio_pull = &ipq40xx_gpio_pull,
 };
 
 static int ipq40xx_pinctrl_probe(struct platform_device *pdev)

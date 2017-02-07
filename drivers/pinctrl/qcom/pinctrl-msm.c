@@ -252,11 +252,6 @@ static int msm_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 	return -ENOTSUPP;
 }
 
-#define MSM_NO_PULL	0
-#define MSM_PULL_DOWN	1
-#define MSM_KEEPER	2
-#define MSM_PULL_UP	3
-
 static unsigned msm_regval_to_drive(u32 val)
 {
 	return (val + 1) * 2;
@@ -287,16 +282,16 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 	/* Convert register value to pinconf value */
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
-		arg = arg == MSM_NO_PULL;
+		arg = arg == pctrl->soc->gpio_pull->no_pull;
 		break;
 	case PIN_CONFIG_BIAS_PULL_DOWN:
-		arg = arg == MSM_PULL_DOWN;
+		arg = arg == pctrl->soc->gpio_pull->pull_down;
 		break;
 	case PIN_CONFIG_BIAS_BUS_HOLD:
-		arg = arg == MSM_KEEPER;
+		arg = arg == pctrl->soc->gpio_pull->keeper;
 		break;
 	case PIN_CONFIG_BIAS_PULL_UP:
-		arg = arg == MSM_PULL_UP;
+		arg = arg == pctrl->soc->gpio_pull->pull_up;
 		break;
 	case PIN_CONFIG_DRIVE_STRENGTH:
 		arg = msm_regval_to_drive(arg);
@@ -352,16 +347,16 @@ static int msm_config_group_set(struct pinctrl_dev *pctldev,
 		/* Convert pinconf values to register values */
 		switch (param) {
 		case PIN_CONFIG_BIAS_DISABLE:
-			arg = MSM_NO_PULL;
+			arg = pctrl->soc->gpio_pull->no_pull;
 			break;
 		case PIN_CONFIG_BIAS_PULL_DOWN:
-			arg = MSM_PULL_DOWN;
+			arg = pctrl->soc->gpio_pull->pull_down;
 			break;
 		case PIN_CONFIG_BIAS_BUS_HOLD:
-			arg = MSM_KEEPER;
+			arg = pctrl->soc->gpio_pull->keeper;
 			break;
 		case PIN_CONFIG_BIAS_PULL_UP:
-			arg = MSM_PULL_UP;
+			arg = pctrl->soc->gpio_pull->pull_up;
 			break;
 		case PIN_CONFIG_DRIVE_STRENGTH:
 			/* Check for invalid values */
