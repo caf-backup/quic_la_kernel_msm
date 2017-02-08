@@ -1400,6 +1400,10 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 
 	if (skb_shinfo(skb)->nr_frags) {
 		nr_frags_first = skb_shinfo(skb)->nr_frags;
+
+		/* It is unlikely below check hits, BUG_ON */
+		BUG_ON(nr_frags_first > MAX_SKB_FRAGS);
+
 		num_tpds_needed += nr_frags_first;
 	}
 
@@ -1408,18 +1412,14 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 
 		/* Walk through fraglist skbs making a note of nr_frags */
 		skb_walk_frags(skb, iter_skb) {
-			/* One TPD for skb->data and more for nr_frags */
-			num_tpds_needed += (1 + skb_shinfo(iter_skb)->nr_frags);
-		}
-	}
+			unsigned char nr_frags = skb_shinfo(iter_skb)->nr_frags;
 
-	if (num_tpds_needed > EDMA_MAX_SKB_FRAGS) {
-		dev_err(&net_dev->dev,
-			"skb received with fragments %d which is more than %lu",
-			num_tpds_needed, EDMA_MAX_SKB_FRAGS);
-		dev_kfree_skb_any(skb);
-		adapter->stats.tx_errors++;
-		return NETDEV_TX_OK;
+			/* It is unlikely below check hits, BUG_ON */
+			BUG_ON(nr_frags > MAX_SKB_FRAGS);
+
+			/* One TPD for skb->data and more for nr_frags */
+			num_tpds_needed += (1 + nr_frags);
+		}
 	}
 
 	if (edma_stp_rstp) {
@@ -1544,9 +1544,7 @@ int edma_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	int res;
 
 	if (skb->protocol == htons(ETH_P_IPV6)) {
-		if (net_ratelimit())
-			dev_err(&adapter->pdev->dev, "IPv6 not supported\n");
-		res = -EINVAL;
+		res = -EPROTONOSUPPORT;
 		goto no_protocol_err;
 	}
 
