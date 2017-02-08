@@ -304,6 +304,11 @@ static ssize_t sps_set_bam_addr(struct file *file, const char __user *buf,
 	u32 num_pipes = 0;
 	void *vir_addr;
 
+	if (sps == NULL || !sps->is_ready) {
+		SPS_DBG2("sps:%s:sps driver is not ready.\n", __func__);
+		return -EPROBE_DEFER;
+	}
+
 	memset(str, 0, sizeof(str));
 	missing = copy_from_user(str, buf, sizeof(str));
 	if (missing)
