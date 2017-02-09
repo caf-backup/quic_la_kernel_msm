@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -17,6 +17,8 @@
 #include <linux/vmalloc.h>
 #include <asm/cacheflush.h>
 #include <linux/dma-iommu.h>
+#include <linux/slab.h>
+#include <linux/vmalloc.h>
 
 /* some redundant definitions... :( TODO: move to io-pgtable-fast.h */
 #define FAST_PAGE_SHIFT		12
@@ -674,7 +676,7 @@ static void __fast_smmu_mapped_over_stale(struct dma_fast_smmu_mapping *fast,
 	dev_err(fast->dev, "Mapped over stale tlb at %pa\n", &iova);
 	dev_err(fast->dev, "bitmap (failure at idx %lu):\n", bitmap_idx);
 	dev_err(fast->dev, "ptep: %p pmds: %p diff: %lu\n", ptep,
-		fast->pgtbl_pmds, ptep - fast->pgtbl_pmds);
+		fast->pgtbl_pmds, bitmap_idx);
 	print_hex_dump(KERN_ERR, "bmap: ", DUMP_PREFIX_ADDRESS,
 		       32, 8, fast->bitmap, fast->bitmap_size, false);
 }
@@ -724,7 +726,7 @@ const struct dma_map_ops fast_smmu_dma_ops = {
  * fast_smmu_attach_device function.
  */
 static struct dma_fast_smmu_mapping *__fast_smmu_create_mapping_sized(
-	dma_addr_t base, size_t size)
+	dma_addr_t base, u64 size)
 {
 	struct dma_fast_smmu_mapping *fast;
 
@@ -767,7 +769,7 @@ int fast_smmu_attach_device(struct device *dev,
 	int atomic_domain = 1;
 	struct iommu_domain *domain = mapping->domain;
 	struct iommu_pgtbl_info info;
-	size_t size = mapping->bits << PAGE_SHIFT;
+	u64 size = (u64)mapping->bits << PAGE_SHIFT;
 
 	if (mapping->base + size > (SZ_1G * 4ULL))
 		return -EINVAL;
