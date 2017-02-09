@@ -62,15 +62,14 @@
 			wifi_0_pins: wifi1_pinmux {
 				mux_1 {
 					pins = "gpio37";
-					output-high;
 					function="wcss0_dbg16";
-					bias-pull-up;
+					bias-pull-down;
 					drive-strength = <6>;
 				};
 				mux_2 {
 					pins = "gpio43";
 					function="wifi_wci1";
-					bias-pull-up;
+					bias-pull-down;
 					drive-strength = <6>;
 				};
 				mux_3 {
