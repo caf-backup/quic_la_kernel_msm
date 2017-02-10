@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 - 2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014 - 2017, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -1100,7 +1100,8 @@ static int edma_tx_map_and_fill(struct edma_common_info *edma_cinfo,
 {
 	struct edma_sw_desc *sw_desc = NULL;
 	struct platform_device *pdev = edma_cinfo->pdev;
-	struct edma_tx_desc *tpd, *start_tpd = NULL;
+	struct edma_tx_desc *tpd = NULL;
+	struct edma_tx_desc *start_tpd = NULL;
 	struct sk_buff *iter_skb;
 	int i;
 	u32 word1 = 0, word3 = 0, lso_word1 = 0, svlan_tag = 0;
@@ -1309,6 +1310,10 @@ static int edma_tx_map_and_fill(struct edma_common_info *edma_cinfo,
 			i++;
 		}
 	}
+
+	/* If tpd or sw_desc is still unitiialized then we need to return */
+	if ((!tpd) || (!sw_desc))
+		return -EINVAL;
 
 	tpd->word1 |= 1 << EDMA_TPD_EOP_SHIFT;
 
@@ -1739,15 +1744,17 @@ void edma_free_queues(struct edma_common_info *edma_cinfo)
 	int i , j;
 
 	for (i = 0; i < edma_cinfo->num_tx_queues; i++) {
-		if (edma_cinfo->tpd_ring[i])
+		if (edma_cinfo->tpd_ring[i]) {
 			kfree(edma_cinfo->tpd_ring[i]);
-		edma_cinfo->tpd_ring[i] = NULL;
+			edma_cinfo->tpd_ring[i] = NULL;
+		}
 	}
 
 	for (i = 0, j = 0; i < edma_cinfo->num_rx_queues; i++) {
-		if (edma_cinfo->rfd_ring[j])
+		if (edma_cinfo->rfd_ring[j]) {
 			kfree(edma_cinfo->rfd_ring[j]);
-		edma_cinfo->rfd_ring[j] = NULL;
+			edma_cinfo->rfd_ring[j] = NULL;
+		}
 		j += ((edma_cinfo->num_rx_queues == 4) ? 2 : 1);
 	}
 

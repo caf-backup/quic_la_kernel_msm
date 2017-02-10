@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 - 2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014 - 2017, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -53,6 +53,7 @@ static u32 edma_default_group5_vtag  __read_mostly = EDMA_DEFAULT_GROUP5_VLAN;
 
 static u32 edma_default_group1_bmp  __read_mostly = EDMA_DEFAULT_GROUP1_BMP;
 static u32 edma_default_group2_bmp  __read_mostly = EDMA_DEFAULT_GROUP2_BMP;
+static u32 edma_disable_rss __read_mostly = EDMA_DEFAULT_DISABLE_RSS;
 
 static int edma_weight_assigned_to_q __read_mostly;
 static int edma_queue_to_virtual_q __read_mostly;
@@ -497,6 +498,52 @@ out:
 	return ret;
 }
 
+static int edma_disable_rss_func(struct ctl_table *table, int write,
+				   void __user *buffer, size_t *lenp,
+				   loff_t *ppos)
+{
+	struct edma_adapter *adapter;
+	struct edma_common_info *edma_cinfo;
+	struct edma_hw *hw;
+	int ret;
+
+	if (!edma_netdev[0]) {
+		pr_err("Invalid Netdevice\n");
+		return -1;
+	}
+
+	adapter = netdev_priv(edma_netdev[0]);
+	edma_cinfo = adapter->edma_cinfo;
+	hw = &edma_cinfo->hw;
+
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+
+	if ((!write) || (ret))
+		return ret;
+
+	switch (edma_disable_rss) {
+	case EDMA_RSS_DISABLE:
+		hw->rss_type = 0;
+		edma_write_reg(EDMA_REG_RSS_TYPE, hw->rss_type);
+		break;
+	case EDMA_RSS_ENABLE:
+		hw->rss_type = EDMA_RSS_TYPE_IPV4TCP |
+				EDMA_RSS_TYPE_IPV6_TCP |
+				EDMA_RSS_TYPE_IPV4_UDP |
+				EDMA_RSS_TYPE_IPV6UDP |
+				EDMA_RSS_TYPE_IPV4 |
+				EDMA_RSS_TYPE_IPV6;
+		edma_write_reg(EDMA_REG_RSS_TYPE, hw->rss_type);
+		break;
+	default:
+		pr_err("Invalid input\n");
+		ret = -1;
+		break;
+	}
+
+	return ret;
+}
+
 static int edma_weight_assigned_to_queues(struct ctl_table *table, int write,
 					  void __user *buffer, size_t *lenp,
 					  loff_t *ppos)
@@ -653,6 +700,13 @@ static struct ctl_table edma_table[] = {
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
 		.proc_handler   = edma_change_group2_bmp
+	},
+	{
+		.procname       = "edma_disable_rss",
+		.data           = &edma_disable_rss,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = edma_disable_rss_func
 	},
 	{}
 };
