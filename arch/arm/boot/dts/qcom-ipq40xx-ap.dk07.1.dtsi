@@ -124,32 +124,38 @@
 				sd0 {
 					pins = "gpio23";
 					function = "sdio0";
-					drive-strength = <10>;
+					pull-res = <RES_35_KOHM>;
+					drive-type = <DRV_TYPE_C>;
 				};
 				sd1 {
 					pins = "gpio24";
 					function = "sdio1";
-					drive-strength = <10>;
+					pull-res = <RES_35_KOHM>;
+					drive-type = <DRV_TYPE_C>;
 				};
 				sd2 {
 					pins = "gpio25";
 					function = "sdio2";
-					drive-strength = <10>;
+					pull-res = <RES_35_KOHM>;
+					drive-type = <DRV_TYPE_C>;
 				};
 				sd3 {
 					pins = "gpio26";
 					function = "sdio3";
-					drive-strength = <10>;
+					pull-res = <RES_35_KOHM>;
+					drive-type = <DRV_TYPE_C>;
 				};
 				sdclk {
 					pins = "gpio27";
 					function = "sdio_clk";
-					drive-strength = <16>;
+					pull-res = <RES_35_KOHM>;
+					drive-type = <DRV_TYPE_A>;
 				};
 				sdcmd {
 					pins = "gpio28";
 					function = "sdio_cmd";
-					drive-strength = <10>;
+					pull-res = <RES_35_KOHM>;
+					drive-type = <DRV_TYPE_C>;
 				};
 			};
 			ts_0_pins: ts_0_pinmux {
