@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -605,12 +605,14 @@
 				local-mac-address = [000000000000];
 				qcom,phy_mdio_addr = <4>;
 				qcom,poll_required = <1>;
+				qcom,poll_required_dynamic = <1>;
 				qcom,forced_speed = <1000>;
 				qcom,forced_duplex = <1>;
 				vlan_tag = <2 0x20>;
 			};
 			gmac1 {
 				local-mac-address = [000000000000];
+				qcom,poll_required_dynamic = <1>;
 				vlan_tag = <1 0x1e>;
 			};
 		};
