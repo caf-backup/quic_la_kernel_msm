@@ -161,12 +161,6 @@ static int msm_pinmux_enable(struct pinctrl_dev *pctldev,
 	val = readl(pctrl->regs + g->ctl_reg);
 	val &= ~(0x7 << g->mux_bit);
 	val |= i << g->mux_bit;
-
-	if (function == g->extra_func) {
-		val &= ~(g->extra_mask);
-		val |= g->extra_val;
-	}
-
 	writel(val, pctrl->regs + g->ctl_reg);
 
 	spin_unlock_irqrestore(&pctrl->lock, flags);
