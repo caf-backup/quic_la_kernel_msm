@@ -46,7 +46,7 @@
 
 	soc {
 		pinmux@800000 {
-			pinctrl-0 = <&rgmii2_pins_default &pcie_2g_pwrdwn_default &pcie_5g_pwrdwn_default &leds_pins>;
+			pinctrl-0 = <&rgmii2_pins_default &pcie_2g_pwrdwn_default &pcie_5g_pwrdwn_default>;
 			pinctrl-names = "default";
 
 			pcie1_pins: pcie1_pinmux {
@@ -297,6 +297,25 @@
 				gpios = <&qcom_pinmux 22 GPIO_ACTIVE_LOW>;
 				linux,input-type = <1>;
 				debounce-interval = <60>;
+			};
+		};
+
+		leds {
+			compatible = "gpio-leds";
+			pinctrl-0 = <&leds_pins>;
+			pinctrl-names = "default";
+
+			led@7 {
+				label = "led_usb1";
+				gpios = <&qcom_pinmux 7 GPIO_ACTIVE_HIGH>;
+				linux,default-trigger = "usbdev";
+				default-state = "off";
+			};
+
+			led@53 {
+				label = "status_led_pass";
+				gpios = <&qcom_pinmux 53 GPIO_ACTIVE_HIGH>;
+				default-state = "off";
 			};
 		};
 
