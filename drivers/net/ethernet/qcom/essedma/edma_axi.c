@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 - 2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014 - 2017, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -775,13 +775,20 @@ static int edma_axi_probe(struct platform_device *pdev)
 
 		adapter[i]->edma_cinfo = edma_cinfo;
 		netdev[i]->netdev_ops = &edma_axi_netdev_ops;
-		netdev[i]->features = NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_CTAG_TX
-				| NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_SG | NETIF_F_TSO |
-					NETIF_F_TSO6 | NETIF_F_GRO;
-		netdev[i]->hw_features = NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_HW_VLAN_CTAG_RX
-				| NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GRO;
-		netdev[i]->vlan_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GRO;
-		netdev[i]->wanted_features = NETIF_F_HW_CSUM | NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GRO;
+		netdev[i]->features = NETIF_F_HW_CSUM | NETIF_F_RXCSUM
+				| NETIF_F_HW_VLAN_CTAG_TX
+				| NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_SG |
+				NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GRO;
+		netdev[i]->hw_features = NETIF_F_HW_CSUM | NETIF_F_RXCSUM |
+				NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_CTAG_TX
+				| NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 |
+				NETIF_F_GRO;
+		netdev[i]->vlan_features = NETIF_F_HW_CSUM | NETIF_F_SG |
+					NETIF_F_TSO | NETIF_F_TSO6 |
+					NETIF_F_GRO;
+		netdev[i]->wanted_features = NETIF_F_HW_CSUM | NETIF_F_SG |
+					NETIF_F_TSO | NETIF_F_TSO6 |
+					NETIF_F_GRO;
 
 #ifdef CONFIG_RFS_ACCEL
 		netdev[i]->features |=  NETIF_F_RXHASH | NETIF_F_NTUPLE;
