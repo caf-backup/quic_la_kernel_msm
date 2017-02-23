@@ -1242,7 +1242,7 @@ static int edma_axi_probe(struct platform_device *pdev)
 				| NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_SG |
 				NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GRO;
 		edma_netdev[i]->hw_features = NETIF_F_HW_CSUM | NETIF_F_RXCSUM |
-				NETIF_F_HW_VLAN_CTAG_RX
+				NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_CTAG_TX
 				| NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 |
 				NETIF_F_GRO;
 		edma_netdev[i]->vlan_features = NETIF_F_HW_CSUM | NETIF_F_SG |
