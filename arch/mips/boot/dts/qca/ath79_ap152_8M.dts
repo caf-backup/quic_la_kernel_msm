@@ -89,8 +89,8 @@
 					<1 1>;
 				reg-names = "cfg_base","ctrl_base","crp_base",
 						"mem_base","io_base";
-				interrupt-parent = <&ip2_int>;
-				interrupts = <0>;
+				interrupt-parent = <&ip3_int>;
+				interrupts = <2>;
 				status = "okay";
 			};
 		};
