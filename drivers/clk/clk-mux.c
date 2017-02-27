@@ -100,8 +100,6 @@ static int clk_mux_set_parent(struct clk_hw *hw, u8 index)
 
 	index = clk_mux_reindex(index, mux->table, mux->flags);
 
-	index = clk_mux_reindex(index, mux->table, mux->flags);
-
 	if (mux->lock)
 		spin_lock_irqsave(mux->lock, flags);
 	else
