@@ -56,3 +56,8 @@ obj-$(CONFIG_GENWQE)		+= genwqe/
 obj-$(CONFIG_ECHO)		+= echo/
 obj-$(CONFIG_VEXPRESS_SYSCFG)	+= vexpress-syscfg.o
 obj-$(CONFIG_CXL_BASE)		+= cxl/
+
+CFLAGS_fw_auth.o += -I$(srctree)/crypto/asymmetric_keys
+obj-$(CONFIG_FW_AUTH) += fw_auth.o
+obj-$(CONFIG_QSEECOM)		+= qseecom.o
+obj-$(CONFIG_FW_AUTH_TEST) += fw_auth_test.o

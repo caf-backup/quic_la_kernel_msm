@@ -49,5 +49,6 @@ extern u32 qcom_scm_get_version(void);
 extern int qcom_scm_tzsched(u32 svc_id, u32 cmdid, const void *req,
 				size_t req_size, void *resp, size_t resp_size);
 
-
+extern s32 qcom_scm_pinmux_read(u32 arg1);
+extern s32 qcom_scm_pinmux_write(u32 arg1, u32 arg2);
 #endif

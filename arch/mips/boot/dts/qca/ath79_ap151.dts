@@ -266,7 +266,7 @@
 		core-id = <0x0>;
 
 		interrupt-parent = <&ip2_int>;
-		interrupts = <0x2f>;
+		interrupts = <1>;
 		interrupt-names = "legacy";
 		status = "ok";
 	};

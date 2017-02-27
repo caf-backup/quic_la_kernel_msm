@@ -221,7 +221,7 @@ static int qcom_wdt_start_secure(struct watchdog_device *wdd)
 		writel(wdd->timeout * wdt->rate, wdt_addr(wdt, WDT_BITE_TIME));
 	} else {
 		writel(wdd->timeout * wdt->rate, wdt_addr(wdt, WDT_BARK_TIME));
-		writel(0x0FFFFFFF, wdt_addr(wdt, WDT_BITE_TIME));
+		writel((wdd->timeout * wdt->rate) * 2, wdt_addr(wdt, WDT_BITE_TIME));
 	}
 
 	writel(1, wdt_addr(wdt, WDT_EN));
@@ -322,7 +322,7 @@ static int qcom_wdt_restart(struct notifier_block *nb, unsigned long action,
 	 */
 	wmb();
 
-	msleep(150);
+	mdelay(150);
 	return NOTIFY_DONE;
 }
 
@@ -339,9 +339,11 @@ static irqreturn_t wdt_bark_isr(int irq, void *wdd)
 	writel(0, wdt_addr(wdt, WDT_EN));
 	writel(1, wdt_addr(wdt, WDT_BITE_TIME));
 	mb(); /* Avoid unpredictable behaviour in concurrent executions */
+	pr_info("Configuring Watchdog Timer\n");
 	writel(1, wdt_addr(wdt, WDT_RST));
 	writel(1, wdt_addr(wdt, WDT_EN));
 	mb(); /* Make sure the above sequence hits hardware before Reboot. */
+	pr_info("Waiting for Reboot\n");
 
 	mdelay(1);
 	pr_err("Wdog - CTL: 0x%x, BARK TIME: 0x%x, BITE TIME: 0x%x",

@@ -505,3 +505,16 @@ int qcom_scm_tzsched(u32 svc_id, u32 cmdid, const void *req,
 	return ret;
 }
 EXPORT_SYMBOL(qcom_scm_tzsched);
+
+int qcom_scm_pinmux_read(u32 arg1)
+{
+	return __qcom_scm_pinmux_read(SCM_SVC_IO_ACCESS, SCM_IO_READ, arg1);
+}
+EXPORT_SYMBOL(qcom_scm_pinmux_read);
+
+int qcom_scm_pinmux_write(u32 arg1, u32 arg2)
+{
+	return __qcom_scm_pinmux_write(SCM_SVC_IO_ACCESS, SCM_IO_WRITE,
+					arg1, arg2);
+}
+EXPORT_SYMBOL(qcom_scm_pinmux_write);

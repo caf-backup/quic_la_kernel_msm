@@ -3209,12 +3209,10 @@ static int sdhci_msm_remove(struct platform_device *pdev)
 	pr_debug("%s: %s\n", dev_name(&pdev->dev), __func__);
 	if (!gpio_is_valid(msm_host->pdata->status_gpio))
 		device_remove_file(&pdev->dev, &msm_host->polling);
+	device_remove_file(&pdev->dev, &msm_host->auto_cmd21_attr);
 	pm_runtime_disable(&pdev->dev);
 	sdhci_remove_host(host, dead);
 	sdhci_pltfm_free(pdev);
-
-	if (gpio_is_valid(msm_host->pdata->status_gpio))
-		sdhci_msm_gpio_free_cd(msm_host);
 
 	sdhci_msm_vreg_init(&pdev->dev, msm_host->pdata, false);
 

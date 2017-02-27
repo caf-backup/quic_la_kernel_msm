@@ -129,14 +129,13 @@ Example:
 			status = "ok";
 		};
 
-
 		wifi0: wifi@b8100000 {
 			compatible = "qca,wifi-ar955x";
 			reg = <0xb8100000 0x20000>;
 			core-id = <0x0>;
 
 			interrupt-parent = <&ip2_int>;
-			interrupts = <0x2f>;
+			interrupts = <1>;
 			interrupt-names = "legacy";
 			status = "ok";
 		};
@@ -147,7 +146,7 @@ Example:
 			core-id = <0x0>;
 
 			interrupt-parent = <&ip2_int>;
-			interrupts = <0x2f>;
+			interrupts = <1>;
 			interrupt-names = "legacy";
 			status = "ok";
 		};
@@ -158,7 +157,7 @@ Example:
 			core-id = <0x0>;
 
 			interrupt-parent = <&ip2_int>;
-			interrupts = <0x2f>;
+			interrupts = <1>;
 			interrupt-names = "legacy";
 			status = "ok";
 		};

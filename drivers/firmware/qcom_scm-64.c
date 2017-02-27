@@ -381,3 +381,12 @@ int __qcom_scm_tzsched(struct device *dev, u32 svc_id, u32 cmd_id,
 {
 	return -ENOTSUPP;
 }
+int __qcom_scm_pinmux_read(u32 svc_id, u32 cmd_id, u32 arg1)
+{
+	return -ENOTSUPP;
+}
+
+int __qcom_scm_pinmux_write(u32 svc_id, u32 cmd_id, u32 arg1, u32 arg2)
+{
+	return -ENOTSUPP;
+}
