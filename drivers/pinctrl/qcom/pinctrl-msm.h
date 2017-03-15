@@ -143,11 +143,10 @@ static const struct msm_pinctrl_gpio_pull msm_gpio_pull = {
 	.pull_up = 3,
 };
 
-#define DRV_TYPE_D		0x20
-#define DRV_TYPE_C		0x21
-#define DRV_TYPE_B		0x23
-#define DRV_TYPE_A		0x27
-#define DRV_TYPE_OPTIONAL	7
+#define DRV_TYPE_D		0
+#define DRV_TYPE_C		1
+#define DRV_TYPE_B		3
+#define DRV_TYPE_A		7
 
 enum drv_cap {
 	DRV_CAP_HIGH,

@@ -219,12 +219,9 @@ static int msm_config_reg(struct msm_pinctrl *pctrl,
 		break;
 	case PIN_CONFIG_DRIVE_STRENGTH:
 	case PIN_CONFIG_DRIVE_CAP:
-		*bit = g->drv_bit;
-		*mask = 7;
-		break;
 	case PIN_CONFIG_DRIVE_TYPE:
 		*bit = g->drv_bit;
-		*mask = 0x27;
+		*mask = 0x7;
 		break;
 	case PIN_CONFIG_OUTPUT:
 		*bit = g->oe_bit;
@@ -234,8 +231,7 @@ static int msm_config_reg(struct msm_pinctrl *pctrl,
 		*bit = g->od_bit;
 		*mask = 1;
 		break;
-	case PIN_CONFIG_POWER_SOURCE:
-	case PIN_CONFIG_LOW_POWER_MODE:
+	case PIN_CONFIG_VM:
 		*bit = g->vm_bit;
 		*mask = 1;
 		break;
@@ -310,6 +306,9 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 	case PIN_CONFIG_DRIVE_STRENGTH:
 		arg = msm_regval_to_drive(arg);
 		break;
+	case PIN_CONFIG_DRIVE_TYPE:
+	case PIN_CONFIG_DRIVE_CAP:
+		break;
 	case PIN_CONFIG_OUTPUT:
 		/* Pin is not output */
 		if (!arg)
@@ -319,16 +318,7 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 		arg = !!(val & BIT(g->in_bit));
 		break;
 	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
-		arg = arg == 1;
-		break;
-	case PIN_CONFIG_POWER_SOURCE:
-		if (arg == HP_1_8V)
-			arg = 1.8;
-		else
-			/* 2.8 or 3.3 */
-			arg = 2.8;
-		break;
-	case PIN_CONFIG_LOW_POWER_MODE:
+	case PIN_CONFIG_VM:
 		arg = arg == 1;
 		break;
 	case PIN_CONFIG_PULL_RES:
@@ -402,8 +392,7 @@ static int msm_config_group_set(struct pinctrl_dev *pctldev,
 		case PIN_CONFIG_DRIVE_TYPE:
 		case PIN_CONFIG_DRIVE_CAP:
 		case PIN_CONFIG_PULL_RES:
-		case PIN_CONFIG_POWER_SOURCE:
-		case PIN_CONFIG_LOW_POWER_MODE:
+		case PIN_CONFIG_VM:
 			break;
 		case PIN_CONFIG_OUTPUT:
 			/* set output value */
