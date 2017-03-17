@@ -401,7 +401,7 @@ struct edma_adapter {
 	u32 link_state; /* phy link state */
 	u32 phy_mdio_addr; /* PHY device address on MII interface */
 	u32 poll_required; /* check if link polling is required */
-	u32 poll_required_saved; /* poll state saved for dynamic switch */
+	u32 poll_required_dynamic; /* dynamic polling flag */
 	u32 tx_start_offset[CONFIG_NR_CPUS]; /* tx queue start */
 	u32 default_vlan_tag; /* vlan tag */
 	u32 dp_bitmap;
