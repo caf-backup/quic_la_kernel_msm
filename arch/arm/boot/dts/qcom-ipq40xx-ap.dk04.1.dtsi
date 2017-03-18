@@ -114,60 +114,70 @@
 					function = "sdio0";
 					pull-res = <RES_35_KOHM>;
 					drive-type = <DRV_TYPE_C>;
+					vm-enable;
 				};
 				sd1 {
 					pins = "gpio24";
 					function = "sdio1";
 					pull-res = <RES_35_KOHM>;
 					drive-type = <DRV_TYPE_C>;
+					vm-enable;
 				};
 				sd2 {
 					pins = "gpio25";
 					function = "sdio2";
 					pull-res = <RES_35_KOHM>;
 					drive-type = <DRV_TYPE_C>;
+					vm-enable;
 				};
 				sd3 {
 					pins = "gpio26";
 					function = "sdio3";
 					pull-res = <RES_35_KOHM>;
 					drive-type = <DRV_TYPE_C>;
+					vm-enable;
 				};
 				sdclk {
 					pins = "gpio27";
 					function = "sdio_clk";
 					pull-res = <RES_35_KOHM>;
 					drive-type = <DRV_TYPE_A>;
+					vm-enable;
 				};
 				sdcmd {
 					pins = "gpio28";
 					function = "sdio_cmd";
 					pull-res = <RES_35_KOHM>;
 					drive-type = <DRV_TYPE_C>;
+					vm-enable;
 				};
 				sd4 {
 					pins = "gpio29";
 					function = "sdio4";
 					pull-res = <RES_35_KOHM>;
 					drive-type = <DRV_TYPE_C>;
+					vm-enable;
 				};
 				sd5 {
 					pins = "gpio30";
 					function = "sdio5";
 					pull-res = <RES_35_KOHM>;
 					drive-type = <DRV_TYPE_C>;
+					vm-enable;
 				};
 				sd6 {
 					pins = "gpio31";
 					function = "sdio6";
 					pull-res = <RES_35_KOHM>;
 					drive-type = <DRV_TYPE_C>;
+					vm-enable;
 				};
 				sd7 {
 					pins = "gpio32";
 					function = "sdio7";
 					pull-res = <RES_35_KOHM>;
 					drive-type = <DRV_TYPE_C>;
+					vm-enable;
 				};
 			};
 			ts_0_pins: ts_0_pinmux {
