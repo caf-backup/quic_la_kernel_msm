@@ -1817,6 +1817,8 @@ struct ieee80211_sta_rates {
  * @support_p2p_ps: indicates whether the STA supports P2P PS mechanism or not.
  * @max_rc_amsdu_len: Maximum A-MSDU size in bytes recommended by rate control.
  * @txq: per-TID data TX queues (if driver uses the TXQ abstraction)
+ * @last_tx_bitrate: PHY rate for last successful data packet transmission. In
+ *	the unit of 100Kbps.
  */
 struct ieee80211_sta {
 	u32 supp_rates[NUM_NL80211_BANDS];
@@ -1857,6 +1859,7 @@ struct ieee80211_sta {
 	u16 max_rc_amsdu_len;
 
 	struct ieee80211_txq *txq[IEEE80211_NUM_TIDS];
+	u32 last_tx_bitrate; /* in the unit of 100Kbps */
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));

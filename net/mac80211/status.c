@@ -694,6 +694,14 @@ void ieee80211_tx_monitor(struct ieee80211_local *local, struct sk_buff *skb,
 	dev_kfree_skb(skb);
 }
 
+static void ieee80211_tx_upd_rateinfo(struct sta_info *sta)
+{
+	struct rate_info rinfo;
+
+	sta_set_rate_info_tx(sta, &sta->tx_stats.last_rate, &rinfo);
+	sta->sta.last_tx_bitrate = cfg80211_calculate_bitrate(&rinfo);
+}
+
 static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 				  struct ieee80211_tx_status *status)
 {
@@ -747,9 +755,11 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 
 		if (ieee80211_hw_check(&local->hw, HAS_RATE_CONTROL) &&
 		    (ieee80211_is_data(hdr->frame_control)) &&
-		    (rates_idx != -1))
+		    (rates_idx != -1)) {
 			sta->tx_stats.last_rate =
 				info->status.rates[rates_idx];
+			ieee80211_tx_upd_rateinfo(sta);
+		}
 
 		if ((info->flags & IEEE80211_TX_STAT_AMPDU_NO_BACK) &&
 		    (ieee80211_is_data_qos(fc))) {
