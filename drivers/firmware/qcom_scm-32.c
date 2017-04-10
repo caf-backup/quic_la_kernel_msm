@@ -816,3 +816,13 @@ int __qcom_scm_send_cache_dump_addr(struct device *dev, u32 cmd_id,
 
 	return ret;
 }
+
+int __qcom_scm_tz_log(struct device *dev, u32 svc_id, u32 cmd_id,
+						void *log_buf, u32 log_size)
+{
+	long ret;
+
+	ret = qcom_scm_call(dev, svc_id, cmd_id, log_buf, log_size, NULL, 0);
+
+	return ret;
+}

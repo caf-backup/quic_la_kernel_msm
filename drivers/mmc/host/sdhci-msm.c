@@ -542,7 +542,7 @@ static inline void msm_cm_dll_set_freq(struct sdhci_host *host)
 		mclk_freq = 5;
 	else if (host->clock <= 187000000)
 		mclk_freq = 6;
-	else if (host->clock <= 200000000)
+	else
 		mclk_freq = 7;
 
 	writel_relaxed(((readl_relaxed(host->ioaddr + CORE_DLL_CONFIG)
@@ -1595,6 +1595,9 @@ struct sdhci_msm_pltfm_data *sdhci_msm_populate_pdata(struct device *dev,
 	pdata->largeaddressbus =
 		of_property_read_bool(np, "qcom,large-address-bus");
 
+	pdata->disable_aggressive_pm =
+		of_property_read_bool(np, "qcom,disable-aggressive-pm");
+
 	if (of_get_property(np, "qcom,core_3_0v_support", NULL))
 		pdata->core_3_0v_support = true;
 
@@ -2612,6 +2615,7 @@ static struct sdhci_ops sdhci_msm_ops = {
 	.set_bus_width = sdhci_set_bus_width,
 	.reset = sdhci_msm_reset,
 	.platform_init = sdhci_msm_init,
+	.toggle_cdr = sdhci_msm_toggle_cdr,
 };
 
 static void sdhci_set_default_hw_caps(struct sdhci_msm_host *msm_host,
@@ -2982,6 +2986,8 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 			SDHCI_CAN_DO_ADMA2 | SDHCI_CAN_DO_8BIT |
 			SDHCI_MAX_BLK_LENGTH | SDHCI_TIMEOUT_CLK_UNIT |
 			SDHCI_BASE_SDCLK_FREQ | SDHCI_TIMEOUT_CLK_FREQ;
+	host->caps1 = SDHCI_SUPPORT_SDR104 | SDHCI_SUPPORT_SDR50 |
+			SDHCI_SUPPORT_DDR50;
 	host->quirks  |= SDHCI_QUIRK_MISSING_CAPS;
 
 	/*
@@ -3055,7 +3061,6 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	/* Set host capabilities */
 	msm_host->mmc->caps |= msm_host->pdata->mmc_bus_width;
 	msm_host->mmc->caps |= msm_host->pdata->caps;
-	msm_host->mmc->caps |= MMC_CAP_AGGRESSIVE_PM;
 	msm_host->mmc->caps |= MMC_CAP_WAIT_WHILE_BUSY;
 	msm_host->mmc->caps2 |= msm_host->pdata->caps2;
 	msm_host->mmc->caps2 |= MMC_CAP2_BOOTPART_NOACC;
@@ -3064,6 +3069,9 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 
 	if (msm_host->pdata->nonremovable)
 		msm_host->mmc->caps |= MMC_CAP_NONREMOVABLE;
+
+	if (!msm_host->pdata->disable_aggressive_pm)
+		msm_host->mmc->caps |= MMC_CAP_AGGRESSIVE_PM;
 
 	init_completion(&msm_host->pwr_irq_completion);
 

@@ -265,6 +265,9 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 	case PIN_CONFIG_DRIVE_STRENGTH:
 		arg = msm_regval_to_drive(arg);
 		break;
+	case PIN_CONFIG_DRIVE_TYPE:
+	case PIN_CONFIG_DRIVE_CAP:
+		break;
 	case PIN_CONFIG_OUTPUT:
 		/* Pin is not output */
 		if (!arg)
@@ -280,14 +283,8 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 		arg = 1;
 		break;
 	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
-		arg = arg == 1;
-		break;
 	case PIN_CONFIG_VM:
-		if (arg == HP_1_8V)
-			arg = 1.8;
-		else
-			/* 2.8 or 3.3 */
-			arg = 2.8;
+		arg = arg == 1;
 		break;
 	case PIN_CONFIG_PULL_RES:
 		if (arg == RES_10_KOHM)

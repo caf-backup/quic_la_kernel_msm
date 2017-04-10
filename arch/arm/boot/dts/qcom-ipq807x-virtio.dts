@@ -167,7 +167,7 @@
         };
 
 	chosen {
-		bootargs = "console=ttyMSM0,115200,n8 root=/dev/ram0 rw init=/init";
+		bootargs = "console=ttyMSM0,115200,n8 clk_ignore_unused root=/dev/ram0 rw init=/init";
 	};
 };
 

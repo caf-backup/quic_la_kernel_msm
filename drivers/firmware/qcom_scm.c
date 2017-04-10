@@ -538,3 +538,10 @@ int qcom_scm_send_cache_dump_addr(u32 cmd_id, void *cmd_buf, u32 size)
 					cmd_buf, size);
 }
 EXPORT_SYMBOL(qcom_scm_send_cache_dump_addr);
+
+int qcom_scm_tz_log(struct device *dev, u32 svc_id, u32 cmd_id,
+						void *log_buf, u32 log_size)
+{
+	return __qcom_scm_tz_log(dev, svc_id, cmd_id, log_buf, log_size);
+}
+EXPORT_SYMBOL(qcom_scm_tz_log);

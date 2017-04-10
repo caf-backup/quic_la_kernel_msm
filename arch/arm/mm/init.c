@@ -152,7 +152,8 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max_low,
 	 */
 	zone_size[0] = max_low - min;
 #ifdef CONFIG_HIGHMEM
-	zone_size[ZONE_HIGHMEM] = max_high - max_low;
+	if (max_high >= max_low)
+		zone_size[ZONE_HIGHMEM] = max_high - max_low;
 #endif
 
 	/*

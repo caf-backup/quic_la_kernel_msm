@@ -96,6 +96,7 @@ struct sdhci_msm_pltfm_data {
 	bool nonremovable;
 	bool nonhotplug;
 	bool largeaddressbus;
+	bool disable_aggressive_pm;
 	bool pin_cfg_sts;
 	struct sdhci_msm_pin_data *pin_data;
 	struct sdhci_pinctrl_data *pctrl_data;

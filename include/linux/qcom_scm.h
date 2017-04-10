@@ -35,6 +35,12 @@ extern int qcom_scm_pas_shutdown(u32 peripheral);
 
 extern int qcom_scm_regsave(u32 svc_id, u32 cmd_id, void *);
 
+#define TZ_INFO_GET_DIAG_ID	0x2
+#define SCM_SVC_INFO		0x6
+
+extern int qcom_scm_tz_log(struct device *, u32 svc_id, u32 cmd_id,
+					void *log_buf, u32 log_size);
+
 #define QCOM_SCM_CPU_PWR_DOWN_L2_ON	0x0
 #define QCOM_SCM_CPU_PWR_DOWN_L2_OFF	0x1
 

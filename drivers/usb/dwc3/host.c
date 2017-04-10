@@ -51,6 +51,9 @@ int dwc3_host_init(struct dwc3 *dwc)
 
 	pdata.usb3_lpm_capable = dwc->usb3_lpm_capable;
 
+	pdata.usb2_susphy_quirk = dwc->enable_usb2susphy_quirk;
+	pdata.susphy = &dwc->susphy;
+
 	ret = platform_device_add_data(xhci, &pdata, sizeof(pdata));
 	if (ret) {
 		dev_err(dwc->dev, "couldn't add platform data to xHCI device\n");

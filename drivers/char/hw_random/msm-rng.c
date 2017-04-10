@@ -35,10 +35,19 @@
 #define MAX_HW_FIFO_SIZE	(MAX_HW_FIFO_DEPTH * 4)
 #define WORD_SZ			4
 
+struct prng_init_params {
+	unsigned char secured_init;
+};
+
 struct msm_rng {
 	void __iomem *base;
 	struct clk *clk;
 	struct hwrng hwrng;
+	const struct prng_init_params *init_params;
+};
+
+static const struct prng_init_params ipq807x_params = {
+	.secured_init = 1,
 };
 
 #define to_msm_rng(p)	container_of(p, struct msm_rng, hwrng)
@@ -52,6 +61,9 @@ static int msm_rng_enable(struct hwrng *hwrng, int enable)
 	ret = clk_prepare_enable(rng->clk);
 	if (ret)
 		return ret;
+
+	if (rng->init_params && rng->init_params->secured_init)
+		return 0;
 
 	if (enable) {
 		/* Enable PRNG only if it is not already enabled */
@@ -131,10 +143,18 @@ static void msm_rng_cleanup(struct hwrng *hwrng)
 	msm_rng_enable(hwrng, 0);
 }
 
+static const struct of_device_id msm_rng_of_match[] = {
+	{ .compatible = "qcom,prng",},
+	{ .compatible = "qcom,prng-ipq807x", .data = &ipq807x_params},
+	{}
+};
+MODULE_DEVICE_TABLE(of, msm_rng_of_match);
+
 static int msm_rng_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct msm_rng *rng;
+	const struct of_device_id *of_id;
 	int ret;
 
 	rng = devm_kzalloc(&pdev->dev, sizeof(*rng), GFP_KERNEL);
@@ -147,6 +167,11 @@ static int msm_rng_probe(struct platform_device *pdev)
 	rng->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(rng->base))
 		return PTR_ERR(rng->base);
+
+	of_id = of_match_node(msm_rng_of_match, pdev->dev.of_node);
+	if (!of_id)
+		return -EINVAL;
+	rng->init_params = of_id->data;
 
 	rng->clk = devm_clk_get(&pdev->dev, "core");
 	if (IS_ERR(rng->clk))
@@ -165,12 +190,6 @@ static int msm_rng_probe(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id msm_rng_of_match[] = {
-	{ .compatible = "qcom,prng", },
-	{}
-};
-MODULE_DEVICE_TABLE(of, msm_rng_of_match);
 
 static struct platform_driver msm_rng_driver = {
 	.probe = msm_rng_probe,

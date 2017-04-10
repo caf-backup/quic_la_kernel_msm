@@ -149,6 +149,14 @@ config AHCI_IMX
 
 	  If unsure, say N.
 
+config AHCI_IPQ
+	tristate "Qualcomm Atheros IPQ806X AHCI SATA support"
+	help
+	  This option enables support for the IPQ806X SoC's
+	  onboard AHCI SATA.
+
+	  If unsure, say N.
+
 config AHCI_CEVA
 	tristate "CEVA AHCI SATA support"
 	depends on OF

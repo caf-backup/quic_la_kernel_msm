@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2008-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -22,6 +22,8 @@
 #include <linux/sched.h>
 #include <linux/ratelimit.h>
 #include <linux/timer.h>
+#include <linux/platform_device.h>
+#include <linux/msm_mhi.h>
 #ifdef CONFIG_DIAG_OVER_USB
 #include <linux/usb/usbdiag.h>
 #endif
@@ -3241,16 +3243,25 @@ static int diagchar_cleanup(void)
 	return 0;
 }
 
-static int __init diagchar_init(void)
+static int diag_probe(struct platform_device *pdev)
 {
 	dev_t dev;
 	int error, ret;
 
 	pr_debug("diagfwd initializing ..\n");
+
+#ifdef CONFIG_MSM_MHI
+	if (!mhi_is_device_ready(&pdev->dev, "qcom,mhi"))
+		return -EPROBE_DEFER;
+
+	pr_debug("mhi device is ready\n");
+#endif
+
 	ret = 0;
 	driver = kzalloc(sizeof(struct diagchar_dev) + 5, GFP_KERNEL);
 	if (!driver)
 		return -ENOMEM;
+	driver->pdev = pdev;
 	kmemleak_not_leak(driver);
 
 	timer_in_progress = 0;
@@ -3328,9 +3339,6 @@ static int __init diagchar_init(void)
 	ret = diag_remote_init();
 	if (ret)
 		goto fail;
-	ret = diagfwd_bridge_init();
-	if (ret)
-		goto fail;
 	ret = diagfwd_cntl_init();
 	if (ret)
 		goto fail;
@@ -3361,6 +3369,9 @@ static int __init diagchar_init(void)
 		goto fail;
 
 	pr_debug("diagchar initialized now");
+	ret = diagfwd_bridge_init();
+	if (ret)
+		diagfwd_bridge_exit();
 	return 0;
 
 fail:
@@ -3376,6 +3387,25 @@ fail:
 	diag_masks_exit();
 	diag_remote_exit();
 	return -1;
+}
+
+static struct of_device_id diag_table[] = {
+	{.compatible = "qcom,diag"},
+	{},
+};
+
+static struct platform_driver diag_driver = {
+	.probe = diag_probe,
+	.driver = {
+		.name = "DIAG Platform",
+		.owner = THIS_MODULE,
+		.of_match_table = diag_table,
+	},
+};
+
+static int __init diagchar_init(void)
+{
+	return platform_driver_register(&diag_driver);
 }
 
 static void diagchar_exit(void)

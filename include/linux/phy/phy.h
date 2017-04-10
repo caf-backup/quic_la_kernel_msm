@@ -35,6 +35,8 @@ struct phy_ops {
 	int	(*exit)(struct phy *phy);
 	int	(*power_on)(struct phy *phy);
 	int	(*power_off)(struct phy *phy);
+	int	(*read)(struct phy *phy, u32 reg);
+	int	(*write)(struct phy *phy, u32 val, u32 reg);
 	struct module *owner;
 };
 
@@ -106,6 +108,22 @@ static inline void phy_set_drvdata(struct phy *phy, void *data)
 static inline void *phy_get_drvdata(struct phy *phy)
 {
 	return dev_get_drvdata(&phy->dev);
+}
+
+static inline int phy_io_read(struct phy *phy, u32 reg)
+{
+	if (phy && phy->ops->read)
+		return phy->ops->read(phy, reg);
+
+	return -EINVAL;
+}
+
+static inline int phy_io_write(struct phy *phy, u32 val, u32 reg)
+{
+	if (phy && phy->ops->write)
+		return phy->ops->write(phy, val, reg);
+
+	return -EINVAL;
 }
 
 #if IS_ENABLED(CONFIG_GENERIC_PHY)

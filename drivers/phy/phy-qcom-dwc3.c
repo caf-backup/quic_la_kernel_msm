@@ -66,6 +66,33 @@
 #define SSPHY_CTRL_RX_OVRD_IN_HI(lane)	(0x1006 + 0x100 * lane)
 #define SSPHY_CTRL_TX_OVRD_DRV_LO(lane)	(0x1002 + 0x100 * lane)
 
+/* SSPHY SoC version specific values */
+#define SSPHY_RX_EQ_VALUE		4	/* Override value for rx_eq */
+#define SSPHY_TX_DEEMPH_3_5DB		23	/* Override value for transmit
+						   preemphasis */
+#define SSPHY_MPLL_VALUE		0	/* Override value for mpll */
+
+/* QSCRATCH PHY_PARAM_CTRL1 fields */
+#define PHY_PARAM_CTRL1_TX_FULL_SWING_MASK	0x07f00000u
+#define PHY_PARAM_CTRL1_TX_DEEMPH_6DB_MASK	0x000fc000u
+#define PHY_PARAM_CTRL1_TX_DEEMPH_3_5DB_MASK	0x00003f00u
+#define PHY_PARAM_CTRL1_LOS_BIAS_MASK		0x000000f8u
+
+#define PHY_PARAM_CTRL1_MASK				\
+		(PHY_PARAM_CTRL1_TX_FULL_SWING_MASK |	\
+		 PHY_PARAM_CTRL1_TX_DEEMPH_6DB_MASK |	\
+		 PHY_PARAM_CTRL1_TX_DEEMPH_3_5DB_MASK |	\
+		 PHY_PARAM_CTRL1_LOS_BIAS_MASK)
+
+#define PHY_PARAM_CTRL1_TX_FULL_SWING(x)	\
+		(((x) << 20) & PHY_PARAM_CTRL1_TX_FULL_SWING_MASK)
+#define PHY_PARAM_CTRL1_TX_DEEMPH_6DB(x)	\
+		(((x) << 14) & PHY_PARAM_CTRL1_TX_DEEMPH_6DB_MASK)
+#define PHY_PARAM_CTRL1_TX_DEEMPH_3_5DB(x)	\
+		(((x) <<  8) & PHY_PARAM_CTRL1_TX_DEEMPH_3_5DB_MASK)
+#define PHY_PARAM_CTRL1_LOS_BIAS(x)	\
+		(((x) <<  3) & PHY_PARAM_CTRL1_LOS_BIAS_MASK)
+
 /* RX OVRD IN HI bits */
 #define RX_OVRD_IN_HI_RX_RESET_OVRD		BIT(13)
 #define RX_OVRD_IN_HI_RX_RX_RESET		BIT(12)
@@ -96,6 +123,9 @@ struct qcom_dwc3_usb_phy {
 	struct device		*dev;
 	struct clk		*xo_clk;
 	struct clk		*ref_clk;
+	u32			rx_eq;
+	u32			tx_deamp_3_5db;
+	u32			mpll;
 };
 
 struct qcom_dwc3_phy_drvdata {
@@ -312,7 +342,7 @@ static int qcom_dwc3_ss_phy_init(struct phy *phy)
 	 * Fix RX Equalization setting as follows
 	 * LANE0.RX_OVRD_IN_HI. RX_EQ_EN set to 0
 	 * LANE0.RX_OVRD_IN_HI.RX_EQ_EN_OVRD set to 1
-	 * LANE0.RX_OVRD_IN_HI.RX_EQ set to 3
+	 * LANE0.RX_OVRD_IN_HI.RX_EQ set based on SoC version
 	 * LANE0.RX_OVRD_IN_HI.RX_EQ_OVRD set to 1
 	 */
 	ret = qcom_dwc3_ss_read_phycreg(phy_dwc3->base,
@@ -323,7 +353,7 @@ static int qcom_dwc3_ss_phy_init(struct phy *phy)
 	data &= ~RX_OVRD_IN_HI_RX_EQ_EN;
 	data |= RX_OVRD_IN_HI_RX_EQ_EN_OVRD;
 	data &= ~RX_OVRD_IN_HI_RX_EQ_MASK;
-	data |= 0x3 << RX_OVRD_IN_HI_RX_EQ_SHIFT;
+	data |= phy_dwc3->rx_eq << RX_OVRD_IN_HI_RX_EQ_SHIFT;
 	data |= RX_OVRD_IN_HI_RX_EQ_OVRD;
 	ret = qcom_dwc3_ss_write_phycreg(phy_dwc3,
 		SSPHY_CTRL_RX_OVRD_IN_HI(0), data);
@@ -332,8 +362,8 @@ static int qcom_dwc3_ss_phy_init(struct phy *phy)
 
 	/*
 	 * Set EQ and TX launch amplitudes as follows
-	 * LANE0.TX_OVRD_DRV_LO.PREEMPH set to 22
-	 * LANE0.TX_OVRD_DRV_LO.AMPLITUDE set to 127
+	 * LANE0.TX_OVRD_DRV_LO.PREEMPH set based on SoC version
+	 * LANE0.TX_OVRD_DRV_LO.AMPLITUDE set to 110
 	 * LANE0.TX_OVRD_DRV_LO.EN set to 1.
 	 */
 	ret = qcom_dwc3_ss_read_phycreg(phy_dwc3->base,
@@ -342,23 +372,35 @@ static int qcom_dwc3_ss_phy_init(struct phy *phy)
 		goto err_phy_trans;
 
 	data &= ~TX_OVRD_DRV_LO_PREEMPH_MASK;
-	data |= 0x16 << TX_OVRD_DRV_LO_PREEMPH_SHIFT;
+	data |= phy_dwc3->tx_deamp_3_5db << TX_OVRD_DRV_LO_PREEMPH_SHIFT;
 	data &= ~TX_OVRD_DRV_LO_AMPLITUDE_MASK;
-	data |= 0x7f;
+	data |= 0x6E;
 	data |= TX_OVRD_DRV_LO_EN;
 	ret = qcom_dwc3_ss_write_phycreg(phy_dwc3,
 		SSPHY_CTRL_TX_OVRD_DRV_LO(0), data);
 	if (ret)
 		goto err_phy_trans;
 
+	qcom_dwc3_ss_write_phycreg(phy_dwc3, 0x30, phy_dwc3->mpll);
+
 	/*
 	 * Set the QSCRATCH PHY_PARAM_CTRL1 parameters as follows
-	 * TX_FULL_SWING [26:20] amplitude to 127
-	 * TX_DEEMPH_3_5DB [13:8] to 22
-	 * LOS_BIAS [2:0] to 0x5
+	 * TX_FULL_SWING [26:20] amplitude to 110
+	 * TX_DEEMPH_6DB [19:14] to 32
+	 * TX_DEEMPH_3_5DB [13:8] set based on SoC version
+	 * LOS_BIAS [7:3] to 9
 	 */
+	data = readl(phy_dwc3->base + SSUSB_PHY_PARAM_CTRL_1);
+
+	data &= ~PHY_PARAM_CTRL1_MASK;
+
+	data |= PHY_PARAM_CTRL1_TX_FULL_SWING(0x6e) |
+		PHY_PARAM_CTRL1_TX_DEEMPH_6DB(0x20) |
+		PHY_PARAM_CTRL1_TX_DEEMPH_3_5DB(phy_dwc3->tx_deamp_3_5db) |
+		PHY_PARAM_CTRL1_LOS_BIAS(0x9);
+
 	qcom_dwc3_phy_write_readback(phy_dwc3, SSUSB_PHY_PARAM_CTRL_1,
-				   0x07f03f07, 0x07f01605);
+				     PHY_PARAM_CTRL1_MASK, data);
 
 err_phy_trans:
 	return ret;
@@ -419,6 +461,7 @@ static int qcom_dwc3_phy_probe(struct platform_device *pdev)
 	struct resource			*res;
 	const struct of_device_id *match;
 	const struct qcom_dwc3_phy_drvdata *data;
+	struct device_node *np;
 
 	phy_dwc3 = devm_kzalloc(&pdev->dev, sizeof(*phy_dwc3), GFP_KERNEL);
 	if (!phy_dwc3)
@@ -446,6 +489,25 @@ static int qcom_dwc3_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(phy_dwc3->xo_clk)) {
 		dev_dbg(phy_dwc3->dev, "cannot get TCXO clock\n");
 		phy_dwc3->xo_clk = NULL;
+	}
+
+	/* Parse device node to probe HSIO settings */
+	np = of_node_get(pdev->dev.of_node);
+	if (!of_compat_cmp(match->compatible, "qcom,dwc3-ss-usb-phy",
+			   strlen(match->compatible))) {
+
+		if (of_property_read_u32(np, "rx_eq", &phy_dwc3->rx_eq) ||
+		    of_property_read_u32(np, "tx_deamp_3_5db",
+					 &phy_dwc3->tx_deamp_3_5db) ||
+		    of_property_read_u32(np, "mpll", &phy_dwc3->mpll)) {
+
+			dev_err(phy_dwc3->dev, "cannot get HSIO settings from device node, using default values\n");
+
+			/* Default HSIO settings */
+			phy_dwc3->rx_eq = SSPHY_RX_EQ_VALUE;
+			phy_dwc3->tx_deamp_3_5db = SSPHY_TX_DEEMPH_3_5DB;
+			phy_dwc3->mpll = SSPHY_MPLL_VALUE;
+		}
 	}
 
 	generic_phy = devm_phy_create(phy_dwc3->dev, pdev->dev.of_node,

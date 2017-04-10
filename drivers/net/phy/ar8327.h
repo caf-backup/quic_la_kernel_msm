@@ -18,6 +18,23 @@
 #ifndef __AR8327_H
 #define __AR8327_H
 
+#include <linux/workqueue.h>
+#include <linux/leds.h>
+#include <linux/ar8216_platform.h>
+#include "ar8216.h"
+
+enum {
+	AR8327_SPEED_10M = 0,
+	AR8327_SPEED_100M = 1,
+	AR8327_SPEED_1000M = 2,
+	AR8327_SPEED_NONE = 3,
+};
+
+enum {
+	AR8327_DUPLEX_HALF = 0,
+	AR8327_DUPLEX_FULL = 1,
+};
+
 #define AR8327_NUM_PORTS	7
 #define AR8327_NUM_LEDS		15
 #define AR8327_PORTS_ALL	0x7f
@@ -85,6 +102,14 @@
 #define   AR8327_MAX_FRAME_SIZE_MTU		BITS(0, 14)
 
 #define AR8327_REG_PORT_STATUS(_i)		(0x07c + (_i) * 4)
+#define   AR8327_PORT_STATUS_SPEED	    BITS(0, 2)
+#define   AR8327_PORT_STATUS_TXMAC	    BIT(2)
+#define   AR8327_PORT_STATUS_RXMAC	    BIT(3)
+#define   AR8327_PORT_STATUS_TXFLOW	    BIT(4)
+#define   AR8327_PORT_STATUS_RXFLOW	    BIT(5)
+#define   AR8327_PORT_STATUS_DUPLEX	    BIT(6)
+#define   AR8327_PORT_STATUS_LINK_UP	BIT(8)
+#define   AR8327_PORT_STATUS_LINK_AUTO	BIT(9)
 #define   AR8327_PORT_STATUS_TXFLOW_AUTO	BIT(10)
 #define   AR8327_PORT_STATUS_RXFLOW_AUTO	BIT(11)
 
@@ -214,6 +239,28 @@
 
 #define AR8337_PAD_MAC06_EXCHANGE_EN		BIT(31)
 
+#define AR8327_REG_QM_DEBUG_ADDR		0x820
+#define AR8327_REG_QM_DEBUG_VALUE		0x824
+#define   AR8327_REG_QM_PORT0_3_QNUM		0x1d
+#define   AR8327_REG_QM_PORT4_6_QNUM		0x1e
+
+#define AR8327_PHY_SPEC_STATUS 0x11
+#define   AR8327_PHY_SPEC_STATUS_LINK		BIT(10)
+#define   AR8327_PHY_SPEC_STATUS_DUPLEX		BIT(13)
+#define   AR8327_PHY_SPEC_STATUS_SPEED		BITS(14, 2)
+
+#define AR8327_PHY_DEBUG_GREEN   0x3d
+#define   AR8327_PHY_GATE_CLK_IN1000   BIT(6)
+
+#define AR8327_PHY_DEBUG_HIB_CTRL   0x0b
+#define   AR8327_PHY_HIB_CTRL_SEL_RST_80U	BIT(10)
+#define   AR8327_PHY_HIB_CTRL_EN_ANY_CHANGE	BIT(13)
+
+#define AR8327_PHY_DEBUG_0   0
+#define AR8327_PHY_MANU_CTRL_EN  BIT(12)
+
+#define AR8327_PHY_DEBUG_2   2
+
 enum ar8327_led_pattern {
 	AR8327_LED_PATTERN_OFF = 0,
 	AR8327_LED_PATTERN_BLINK,
@@ -252,5 +299,10 @@ struct ar8327_data {
 	/* all fields below are cleared on reset */
 	bool eee[AR8XXX_NUM_PHYS];
 };
+
+typedef int (*port_link_notify_func)(unsigned char port_id,
+				     unsigned char link,
+				     unsigned char speed, unsigned char duplex);
+void ar8327_port_link_notify_register(port_link_notify_func func);
 
 #endif

@@ -1144,6 +1144,335 @@ ar8327_sw_get_max_frame_size(struct switch_dev *dev,
 	return 0;
 }
 
+#define AR8327_PORT_LINK_UP 1
+#define AR8327_PORT_LINK_DOWN 0
+
+#define AR8327_QM_NOT_EMPTY  1
+#define AR8327_QM_EMPTY  0
+
+static u32 port_link_up[AR8327_NUM_PORTS] = {0};
+
+static u32 ar8327_port_old_link[AR8327_NUM_PORTS] = {0};
+static u32 ar8327_port_old_speed[AR8327_NUM_PORTS] = {0};
+static u32 ar8327_port_old_duplex[AR8327_NUM_PORTS] = {0};
+
+static port_link_notify_func port_link_callback;
+void ar8327_port_link_notify_register(port_link_notify_func func)
+{
+	u32 port_id = 0;
+
+	port_link_callback = func;
+
+	for (port_id = 1; port_id < AR8327_NUM_PORTS - 1; port_id++) {
+		if (ar8327_port_old_link[port_id] == AR8327_PORT_LINK_UP)
+			(*func)(port_id, ar8327_port_old_link[port_id],
+				ar8327_port_old_speed[port_id],
+				ar8327_port_old_duplex[port_id]);
+	}
+}
+EXPORT_SYMBOL(ar8327_port_link_notify_register);
+
+static void ar8327_phy_manu_ctrl_en(struct ar8xxx_priv *priv,
+				    int phy_addr, bool enable)
+{
+	u16 phy_val = 0;
+
+	ar8xxx_phy_dbg_read(priv, phy_addr, AR8327_PHY_DEBUG_0, &phy_val);
+	if (enable)
+		phy_val |= AR8327_PHY_MANU_CTRL_EN;
+	else
+		phy_val &= (~AR8327_PHY_MANU_CTRL_EN);
+	ar8xxx_phy_dbg_write(priv, phy_addr, AR8327_PHY_DEBUG_0, phy_val);
+}
+
+static void ar8327_phy_enable(struct ar8xxx_priv *priv)
+{
+	int phy_id = 0;
+	struct mii_bus *bus;
+
+	bus = priv->mii_bus;
+
+	for (phy_id = 1; phy_id < AR8327_NUM_PORTS - 1; phy_id++) {
+		u16 value = 0;
+
+		if (priv->chip_ver == AR8XXX_VER_AR8327)
+			ar8327_phy_fixup(priv, phy_id);
+
+		/* start autoneg*/
+		mdiobus_write(0, phy_id, MII_ADVERTISE, ADVERTISE_ALL |
+				ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM);
+		/*phy reg 0x9, b10,1 = Prefer multi-port device (master)*/
+		mdiobus_write(0, phy_id, MII_CTRL1000,
+			      0x0400 | ADVERTISE_1000FULL);
+
+		mdiobus_write(0, phy_id, MII_BMCR, BMCR_RESET | BMCR_ANENABLE);
+
+		ar8xxx_phy_dbg_read(0, phy_id, 0, &value);
+		value &= (~(1 << 12));
+		ar8xxx_phy_dbg_write(0, phy_id, 0, value);
+
+		msleep(100);
+	}
+}
+
+static int
+ar8327_sw_reset_switch_after_qm_err(struct ar8xxx_priv *priv)
+{
+	int i;
+	int ret;
+	u32 value;
+	struct mii_bus *bus;
+
+	bus = priv->phy->bus;
+
+	mutex_lock(&priv->reg_mutex);
+
+	ar8327_init_globals(priv);
+
+	for (i = 0; i < priv->dev.ports; i++)
+		ar8327_init_port(priv, i);
+
+	mutex_unlock(&priv->reg_mutex);
+
+	ret = ar8327_sw_hw_apply(&priv->dev);
+
+	ar8327_phy_enable(priv);
+
+	value = ar8xxx_read(priv, AR8327_REG_PORT_STATUS(0));
+	value |= AR8216_PORT_STATUS_TXMAC | AR8216_PORT_STATUS_RXMAC;
+	ar8xxx_write(priv, AR8327_REG_PORT_STATUS(0), value);
+
+	return ret;
+}
+
+static
+int ar8327_get_qm_status(struct ar8xxx_priv *priv, u32 port_id, u32 *qm_buffer)
+{
+	u32 reg;
+	u32 qm_val;
+
+	if (port_id < 0 || port_id > 6) {
+		*qm_buffer = 0;
+		return -1;
+	}
+
+	if (port_id < 4) {
+		reg = AR8327_REG_QM_PORT0_3_QNUM;
+		ar8xxx_write(priv, AR8327_REG_QM_DEBUG_ADDR, reg);
+		qm_val = ar8xxx_read(priv, AR8327_REG_QM_DEBUG_VALUE);
+		/*every 8 bits for each port*/
+		*qm_buffer = (qm_val >> (port_id * 8)) & 0xFF;
+	} else {
+		reg = AR8327_REG_QM_PORT4_6_QNUM;
+		ar8xxx_write(priv, AR8327_REG_QM_DEBUG_ADDR, reg);
+		qm_val = ar8xxx_read(priv, AR8327_REG_QM_DEBUG_VALUE);
+		/*every 8 bits for each port*/
+		*qm_buffer = (qm_val >> ((port_id - 4) * 8)) & 0xFF;
+	}
+
+	return 0;
+}
+
+static void ar8327_phy_status_get(struct ar8xxx_priv *priv, u32 port_id,
+				  u32 *speed, u32 *link, u32 *duplex)
+{
+	int port_phy_status = 0;
+	struct mii_bus *bus = priv->mii_bus;
+
+	port_phy_status = mdiobus_read(bus, port_id - 1,
+				       AR8327_PHY_SPEC_STATUS);
+
+	*speed = ((port_phy_status & AR8327_PHY_SPEC_STATUS_SPEED) >> 14);
+	*link = ((port_phy_status & AR8327_PHY_SPEC_STATUS_LINK) >> 10);
+	*duplex = ((port_phy_status & AR8327_PHY_SPEC_STATUS_DUPLEX) >> 13);
+}
+
+static void ar8327_phy_powerdown(struct ar8xxx_priv *priv)
+{
+	int i;
+	u16 phy_val;
+	struct mii_bus *bus;
+
+	bus = priv->phy->bus;
+
+	for (i = 1; i < AR8327_NUM_PORTS - 1; i++) {
+		mdiobus_write(bus, i, MII_BMCR, BMCR_SPEED1000 | BMCR_FULLDPLX);
+
+		ar8xxx_phy_dbg_read(priv, i, AR8327_PHY_DEBUG_GREEN, &phy_val);
+		phy_val &= (~(AR8327_PHY_GATE_CLK_IN1000));
+		ar8xxx_phy_dbg_write(priv, i, AR8327_PHY_DEBUG_GREEN, phy_val);
+
+		/*PHY will stop the tx clock for a while when link is down
+		 *	1. bit13 = 0,speed up link down tx_clk
+		 *	2. bit10 = 0,speed up speed mode change to 2'b10 tx_clk
+		 */
+		ar8xxx_phy_dbg_read(priv, i,
+				    AR8327_PHY_DEBUG_HIB_CTRL, &phy_val);
+		phy_val &= ~(AR8327_PHY_HIB_CTRL_SEL_RST_80U |
+				AR8327_PHY_HIB_CTRL_EN_ANY_CHANGE);
+		ar8xxx_phy_dbg_write(priv, i,
+				     AR8327_PHY_DEBUG_HIB_CTRL, phy_val);
+	}
+}
+
+static int ar8327_force_mac_speed_duplex(struct ar8xxx_priv *priv,
+					 u32 port_id, u32 speed, u32 duplex)
+{
+	u32 reg, value = 0;
+
+	if (port_id < 1 || port_id > 5)
+		return -1;
+	if (priv->chip_ver == AR8XXX_VER_AR8337 ||
+	    priv->chip_ver == AR8XXX_VER_AR8327) {
+		reg = AR8327_REG_PORT_STATUS(port_id);
+		value = ar8xxx_read(priv, reg);
+		value &= ~(AR8327_PORT_STATUS_DUPLEX |
+				AR8327_PORT_STATUS_SPEED);
+		value |= speed;
+		if (duplex == AR8327_DUPLEX_FULL)
+			value |= AR8327_PORT_STATUS_DUPLEX;
+		ar8xxx_write(priv, reg, value);
+	}
+
+	return 0;
+}
+
+static int ar8327_force_mac_status(struct ar8xxx_priv *priv,
+				   u32 port_id, bool link_en)
+{
+	u32 reg, value = 0;
+
+	if (port_id < 1 || port_id > 5)
+		return -1;
+	if (priv->chip_ver == AR8XXX_VER_AR8337 ||
+	    priv->chip_ver == AR8XXX_VER_AR8327) {
+		reg = AR8327_REG_PORT_STATUS(port_id);
+		value = ar8xxx_read(priv, reg);
+		if (link_en)
+			value |= AR8216_PORT_STATUS_LINK_AUTO;
+		else
+			value &= (~(AR8216_PORT_STATUS_LINK_AUTO));
+		ar8xxx_write(priv, reg, value);
+	}
+
+	return 0;
+}
+
+static int ar8327_qm_error_check(struct ar8xxx_priv *priv)
+{
+	u32 value, qm_err_int = 0;
+
+	value = ar8xxx_read(priv, 0x24);
+	qm_err_int = value & BIT(14);/*b14-QM_ERR_INT*/
+
+	if (qm_err_int)
+		return 1;
+
+	ar8xxx_write(priv, 0x820, 0x0);
+	value = ar8xxx_read(priv, 0x824);
+
+	return value;
+}
+
+static int ar8327_qm_err_recovery(struct ar8xxx_priv *priv)
+{
+	memset(port_link_up, 0, sizeof(port_link_up));
+	memset(ar8327_port_old_link, 0, sizeof(ar8327_port_old_link));
+	memset(ar8327_port_old_speed, 0, sizeof(ar8327_port_old_speed));
+	memset(ar8327_port_old_duplex, 0, sizeof(ar8327_port_old_duplex));
+
+	/* in soft reset recoverty procedure */
+	ar8327_phy_powerdown(priv);
+
+	ar8327_hw_init(priv);
+
+	ar8327_sw_reset_switch_after_qm_err(priv);
+
+	return 0;
+}
+
+static void ar8327_sw_port_link_change(struct ar8xxx_priv *priv,
+				       u32 port_id, u32 link,
+				       u32 speed, u32 duplex)
+{
+	u32 qm_buffer = 0;
+	/* Up --> Down */
+	if ((ar8327_port_old_link[port_id] == AR8327_PORT_LINK_UP) &&
+	    (link == AR8327_PORT_LINK_DOWN)) {
+		/* LINK_EN disable(MAC force mode)*/
+		ar8327_force_mac_status(priv, port_id, false);
+
+		ar8327_phy_manu_ctrl_en(priv, port_id - 1, false);
+
+		/* Check queue buffer */
+		ar8327_get_qm_status(priv, port_id, &qm_buffer);
+		if (qm_buffer == 0) {
+			ar8327_force_mac_speed_duplex(priv, port_id,
+						      AR8327_SPEED_1000M,
+						      AR8327_DUPLEX_FULL);
+		}
+	} else if ((ar8327_port_old_link[port_id] == AR8327_PORT_LINK_DOWN) &&
+		   (link == AR8327_PORT_LINK_UP)) {
+		/* Down --> Up */
+		if (port_link_up[port_id] < 1) {
+			/*linkup need to wait for next cycle*/
+			++port_link_up[port_id];
+			ar8327_get_qm_status(priv, port_id, &qm_buffer);
+			if (qm_buffer) {
+				ar8327_qm_err_recovery(priv);
+				return;
+			}
+		} else {
+			port_link_up[port_id] = 0;
+			ar8327_force_mac_speed_duplex(priv, port_id,
+						      speed, duplex);
+			usleep_range(100, 200);
+			ar8327_force_mac_status(priv, port_id, true);
+
+			if (speed == 0x01) {
+				/*PHY is link up 100M*/
+				ar8327_phy_manu_ctrl_en(priv, port_id - 1,
+							false);
+			}
+		}
+	}
+}
+
+static void ar8327_sw_link_function(struct ar8xxx_priv *priv)
+{
+	u32 port_id = 0;
+	u32 value = 0;
+	u32 link = 0, speed = 0, duplex = 0;
+
+	if (!priv)
+		return;
+	/* if QM error, then do SW recovery, check link the next time */
+	value = ar8327_qm_error_check(priv);
+	if (value) {
+		ar8327_qm_err_recovery(priv);
+		return;
+	}
+
+	for (port_id = 1; port_id < AR8327_NUM_PORTS - 1; port_id++) {
+		ar8327_phy_status_get(priv, port_id, &speed, &link, &duplex);
+
+		if (link != ar8327_port_old_link[port_id]) {
+			ar8327_sw_port_link_change(priv, port_id,
+						   link, speed, duplex);
+
+			if (port_link_up[port_id] == 0) {
+				/* Save the current status */
+				ar8327_port_old_speed[port_id] = speed;
+				ar8327_port_old_link[port_id] = link;
+				ar8327_port_old_duplex[port_id] = duplex;
+				if (port_link_callback)
+					(*port_link_callback)(port_id, link,
+							      speed, duplex);
+			}
+		}
+	}
+}
+
 static const struct switch_attr ar8327_sw_attr_globals[] = {
 	{
 		.type = SWITCH_TYPE_INT,
@@ -1294,6 +1623,7 @@ const struct ar8xxx_chip ar8327_chip = {
 	.set_mirror_regs = ar8327_set_mirror_regs,
 	.get_arl_entry = ar8327_get_arl_entry,
 	.sw_hw_apply = ar8327_sw_hw_apply,
+	.sw_link_function = ar8327_sw_link_function,
 
 	.num_mibs = ARRAY_SIZE(ar8236_mibs),
 	.mib_decs = ar8236_mibs,
@@ -1328,6 +1658,7 @@ const struct ar8xxx_chip ar8337_chip = {
 	.set_mirror_regs = ar8327_set_mirror_regs,
 	.get_arl_entry = ar8327_get_arl_entry,
 	.sw_hw_apply = ar8327_sw_hw_apply,
+	.sw_link_function = ar8327_sw_link_function,
 
 	.num_mibs = ARRAY_SIZE(ar8236_mibs),
 	.mib_decs = ar8236_mibs,

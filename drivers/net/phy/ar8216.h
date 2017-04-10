@@ -407,7 +407,7 @@ struct ar8xxx_chip {
 	void (*get_arl_entry)(struct ar8xxx_priv *priv, struct arl_entry *a,
 			      u32 *status, enum arl_op op);
 	int (*sw_hw_apply)(struct switch_dev *dev);
-
+	void (*sw_link_function)(struct ar8xxx_priv *priv);
 	const struct ar8xxx_mib_desc *mib_decs;
 	unsigned num_mibs;
 	unsigned mib_func;
@@ -444,6 +444,9 @@ struct ar8xxx_priv {
 	struct list_head list;
 	unsigned int use_count;
 
+	struct mutex link_polling_lock;/*lock for link polling workqueue*/
+	struct delayed_work link_polling_work; /*workqueue for link polling*/
+
 	/* all fields below are cleared on reset */
 	bool vlan;
 	u16 vlan_id[AR8X16_MAX_VLANS];
@@ -471,6 +474,9 @@ ar8xxx_rmw(struct ar8xxx_priv *priv, int reg, u32 mask, u32 val);
 u32
 ar8xxx_rmr(struct ar8xxx_priv *priv, int reg, u32 mask);
 
+void
+ar8xxx_phy_dbg_read(struct ar8xxx_priv *priv, int phy_addr,
+		    u16 dbg_addr, u16 *dbg_data);
 void
 ar8xxx_phy_dbg_write(struct ar8xxx_priv *priv, int phy_addr,
 		     u16 dbg_addr, u16 dbg_data);

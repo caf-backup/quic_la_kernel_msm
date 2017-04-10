@@ -73,6 +73,14 @@ static int qcom_ipq806x_sata_phy_init(struct phy *generic_phy)
 {
 	struct qcom_ipq806x_sata_phy *phy = phy_get_drvdata(generic_phy);
 	u32 reg;
+	int ret;
+
+	/* Enable sata phy cfg clock */
+	ret = clk_prepare_enable(phy->cfg_clk);
+	if (ret) {
+		dev_err(phy->dev, "Failed to enable sata cfg clock\n");
+		return ret;
+	}
 
 	/* Setting SSC_EN to 1 */
 	reg = readl_relaxed(phy->mmio + SATA_PHY_P0_PARAM3);
@@ -141,6 +149,8 @@ static int qcom_ipq806x_sata_phy_exit(struct phy *generic_phy)
 	reg = readl_relaxed(phy->mmio + SATA_PHY_P0_PARAM4);
 	reg = reg | SATA_PHY_RESET;
 	writel_relaxed(reg, phy->mmio + SATA_PHY_P0_PARAM4);
+
+	clk_disable_unprepare(phy->cfg_clk);
 
 	return 0;
 }

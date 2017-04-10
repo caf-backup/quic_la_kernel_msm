@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -18,11 +18,15 @@
 #include <linux/workqueue.h>
 #include <linux/ratelimit.h>
 #include <linux/platform_device.h>
+#ifdef USB_QCOM_DIAG_BRIDGE
 #include <linux/smux.h>
+#endif
 #include "diag_mux.h"
 #include "diagfwd_bridge.h"
+#ifdef USB_QCOM_DIAG_BRIDGE
 #include "diagfwd_hsic.h"
 #include "diagfwd_smux.h"
+#endif
 #include "diagfwd_mhi.h"
 #include "diag_dci.h"
 
@@ -233,8 +237,8 @@ int diag_remote_dev_write_done(int id, unsigned char *buf, int len, int ctxt)
 		return -EINVAL;
 
 	if (bridge_info[id].type == DIAG_DATA_TYPE) {
-		if (buf == driver->cb_buf)
-			driver->cb_buf_len = 0;
+		if (buf == driver->hdlc_encode_buf)
+			driver->hdlc_encode_buf_len = 0;
 		if (buf == driver->user_space_data_buf)
 			driver->user_space_data_busy = 0;
 		err = diag_mux_queue_read(BRIDGE_TO_MUX(id));
@@ -251,9 +255,11 @@ int diagfwd_bridge_init()
 	err = diag_mdm_init();
 	if (err)
 		goto fail;
+#ifdef USB_QCOM_DIAG_BRIDGE
 	err = diag_smux_init();
 	if (err)
 		goto fail;
+#endif
 	return 0;
 
 fail:
@@ -263,8 +269,10 @@ fail:
 
 void diagfwd_bridge_exit()
 {
+#ifdef USB_QCOM_DIAG_BRIDGE
 	diag_hsic_exit();
 	diag_smux_exit();
+#endif
 }
 
 int diagfwd_bridge_close(int id)

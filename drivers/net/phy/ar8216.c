@@ -320,6 +320,18 @@ ar8xxx_rmr(struct ar8xxx_priv *priv, int reg, u32 mask)
 }
 
 void
+ar8xxx_phy_dbg_read(struct ar8xxx_priv *priv, int phy_addr,
+		    u16 dbg_addr, u16 *dbg_data)
+{
+	struct mii_bus *bus = priv->mii_bus;
+
+	mutex_lock(&bus->mdio_lock);
+	bus->write(bus, phy_addr, MII_ATH_DBG_ADDR, dbg_addr);
+	*dbg_data = bus->read(bus, phy_addr, MII_ATH_DBG_DATA);
+	mutex_unlock(&bus->mdio_lock);
+}
+
+void
 ar8xxx_phy_dbg_write(struct ar8xxx_priv *priv, int phy_addr,
 		     u16 dbg_addr, u16 dbg_data)
 {
@@ -1815,6 +1827,37 @@ ar8xxx_mib_stop(struct ar8xxx_priv *priv)
 	cancel_delayed_work(&priv->mib_work);
 }
 
+#define AR8XXX_LINK_POLLING_DELAY	100
+
+static void
+ar8xxx_link_polling_work_task(struct work_struct *work)
+{
+	struct ar8xxx_priv *priv = NULL;
+
+	priv = container_of(work, struct ar8xxx_priv, link_polling_work.work);
+	mutex_lock(&priv->link_polling_lock);
+	priv->chip->sw_link_function(priv);
+	mutex_unlock(&priv->link_polling_lock);
+	schedule_delayed_work(&priv->link_polling_work,
+			      msecs_to_jiffies(AR8XXX_LINK_POLLING_DELAY));
+}
+
+int ar8xxx_link_polling_work_start(struct ar8xxx_priv *priv)
+{
+	if (!priv->chip->sw_link_function)
+		return -1;
+	schedule_delayed_work(&priv->link_polling_work,
+			      msecs_to_jiffies(AR8XXX_LINK_POLLING_DELAY));
+
+	return 0;
+}
+
+static void
+ar8xxx_link_polling_work_stop(struct ar8xxx_priv *priv)
+{
+	cancel_delayed_work_sync(&priv->link_polling_work);
+}
+
 static struct ar8xxx_priv *
 ar8xxx_create(void)
 {
@@ -1827,6 +1870,10 @@ ar8xxx_create(void)
 	mutex_init(&priv->reg_mutex);
 	mutex_init(&priv->mib_lock);
 	INIT_DELAYED_WORK(&priv->mib_work, ar8xxx_mib_work_func);
+
+	mutex_init(&priv->link_polling_lock);
+	INIT_DELAYED_WORK(&priv->link_polling_work,
+			  ar8xxx_link_polling_work_task);
 
 	return priv;
 }
@@ -1887,7 +1934,7 @@ ar8xxx_start(struct ar8xxx_priv *priv)
 	priv->init = false;
 
 	ar8xxx_mib_start(priv);
-
+	ar8xxx_link_polling_work_start(priv);
 	return 0;
 }
 
@@ -2174,6 +2221,7 @@ ar8xxx_phy_remove(struct phy_device *phydev)
 
 	unregister_switch(&priv->dev);
 	ar8xxx_mib_stop(priv);
+	ar8xxx_link_polling_work_stop(priv);
 	ar8xxx_free(priv);
 }
 

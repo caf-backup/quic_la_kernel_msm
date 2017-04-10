@@ -508,7 +508,7 @@
 			qcom,port-27-cfg-forced-duplex = <1>;
 			qcom,trunk-cfg-is-trunk-enabled = <1>;
 			qcom,trunk-cfg-trunk-id = <0>;
-			qcom,trunk-cfg-trunk-hash-policy = <0x6c>;
+			qcom,trunk-cfg-trunk-hash-policy = <0x6f>;
 			qcom,trunk-cfg-trunk-ports-bit-map = <0x1c>;
 			mdiobus = <&mdio0>;
 			sgmii-plus-if-phy-mdiobus = <&mdio1>;

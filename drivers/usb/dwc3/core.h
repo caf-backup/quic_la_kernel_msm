@@ -31,6 +31,7 @@
 #include <linux/usb/gadget.h>
 #include <linux/usb/otg.h>
 #include <linux/ulpi/interface.h>
+#include <linux/usb/suspend.h>
 
 #include <linux/phy/phy.h>
 
@@ -872,6 +873,13 @@ struct dwc3 {
 	unsigned		tx_de_emphasis_quirk:1;
 	unsigned		tx_de_emphasis:2;
 	atomic_t		in_lpm;
+
+	unsigned		enable_usb2susphy_quirk:1;
+	struct usb_susphy	susphy;
+
+	unsigned		enable_usb2_host_discon_quirk:1;
+	u32			phy_misc_reg;
+	u32			phy_host_disc_on;
 };
 
 /* -------------------------------------------------------------------------- */

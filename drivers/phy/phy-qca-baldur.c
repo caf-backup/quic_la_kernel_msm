@@ -43,16 +43,23 @@
 #define PHY_CTRL3_VAL	0x6DB6DCD6
 #define PHY_CTRL4_VAL	0x836DB6DB
 #define PHY_MISC_VAL	0x3803FB0C
-#define PHY_IPG_VAL		0x47323232
+#define PHY_IPG_VAL	0x47323232
 
 #define USB30_HS_PHY_HOST_MODE	(0x01 << 21)
 #define USB20_HS_PHY_HOST_MODE	(0x01 << 5)
+
+#define USB30_HS_PHY_CTRL	0x10
+#define SW_SESSVLD		(0x01 << 0x1C)
+#define UTMI_OTG_VBUS_VALID	(0x01 << 0x14)
+#define USB30_SS_PHY_CTRL	0x30
+#define LANE0_PWR_PRESENT	(0x01 << 0x18)
 
 struct qca_baldur_hs_phy {
 	struct device *dev;
 	struct phy phy;
 
 	void __iomem *base;
+	void __iomem *qscratch_base;
 
 	struct reset_control *por_rst;
 	struct reset_control *srif_rst;
@@ -86,6 +93,21 @@ static inline u32 qca_baldur_hs_read(void __iomem *base, u32 offset)
 
 	val = readl(base + offset);
 	return val;
+}
+
+static int qca_baldur_phy_read(struct phy *x, u32 reg)
+{
+	struct qca_baldur_hs_phy *phy = phy_get_drvdata(x);
+
+	return qca_baldur_hs_read(phy->base, reg);
+}
+
+static int qca_baldur_phy_write(struct phy *x, u32 val, u32 reg)
+{
+	struct qca_baldur_hs_phy *phy = phy_get_drvdata(x);
+
+	qca_baldur_hs_write(phy->base, reg, val);
+	return 0;
 }
 
 static int qca_baldur_hs_phy_init(struct phy *x)
@@ -129,6 +151,7 @@ static int qca_baldur_hs_get_resources(struct qca_baldur_hs_phy *phy)
 	struct platform_device *pdev = to_platform_device(phy->dev);
 	struct resource *res;
 	struct device_node *np = NULL;
+	uint32_t write_val;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	phy->base = devm_ioremap_resource(phy->dev, res);
@@ -148,6 +171,31 @@ static int qca_baldur_hs_get_resources(struct qca_baldur_hs_phy *phy)
 		pr_err("%s: error reading critical device node properties\n",
 				np->name);
 		return -EFAULT;
+	} else {
+		if (!phy->host) {
+			res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+			phy->qscratch_base = devm_ioremap_nocache(phy->dev,
+					res->start, resource_size(res));
+			if (IS_ERR(phy->qscratch_base)) {
+				pr_err("%s: error mapping QSCRATCH addr\n",
+						np->name);
+				return PTR_ERR(phy->qscratch_base );
+			}
+
+			/* Enable VBUS valid for HS PHY*/
+			write_val = readl(phy->qscratch_base + USB30_HS_PHY_CTRL);
+			write_val = write_val | SW_SESSVLD;
+			writel(write_val, phy->qscratch_base + USB30_HS_PHY_CTRL);
+
+			write_val = readl(phy->qscratch_base + USB30_HS_PHY_CTRL);
+			write_val = write_val | UTMI_OTG_VBUS_VALID;
+			writel(write_val, phy->qscratch_base + USB30_HS_PHY_CTRL);
+
+			/* Enable VBUS valid for SS PHY*/
+			write_val = readl(phy->qscratch_base + USB30_SS_PHY_CTRL);
+			write_val = write_val | LANE0_PWR_PRESENT;
+			writel(write_val, phy->qscratch_base + USB30_SS_PHY_CTRL);
+		}
 	}
 
 	return 0;
@@ -176,6 +224,8 @@ MODULE_DEVICE_TABLE(of, qca_baldur_hs_id_table);
 static const struct phy_ops ops = {
 	.init           = qca_baldur_hs_phy_init,
 	.exit           = qca_baldur_hs_phy_shutdown,
+	.read		= qca_baldur_phy_read,
+	.write		= qca_baldur_phy_write,
 	.owner          = THIS_MODULE,
 };
 

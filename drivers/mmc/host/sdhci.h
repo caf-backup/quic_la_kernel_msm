@@ -553,6 +553,7 @@ struct sdhci_ops {
 					 struct mmc_card *card,
 					 unsigned int max_dtr, int host_drv,
 					 int card_drv, int *drv_type);
+	void	(*toggle_cdr)(struct sdhci_host *host, bool enable);
 };
 
 #ifdef CONFIG_MMC_SDHCI_IO_ACCESSORS

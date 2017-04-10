@@ -140,6 +140,8 @@ extern int qcom_scm_send_cache_dump_addr(u32 cmd_id, void *cmd_buf, u32 size);
 extern int __qcom_scm_tzsched(struct device *, const void *req,
 				size_t req_size, void *resp,
 				size_t resp_size);
+extern int __qcom_scm_tz_log(struct device *, u32 svc_id, u32 cmd_id,
+						void *log_buf, u32 log_size);
 
 /* common error codes */
 #define QCOM_SCM_V2_EBUSY	-12

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,5 +14,33 @@
  *
  */
 
-#include "qcom-ipq8064-v3.0.dtsi"
-#include "qcom-ipq8064-ap145_1xx.dtsi"
+#ifndef __LINUX_USB__SUSPEND_H
+#define __LINUX_USB__SUSPEND_H
+
+#include <linux/notifier.h>
+#include <linux/usb.h>
+
+struct usb_susphy {
+	void *priv;
+
+	void (*set_suspend)(void *x,
+		enum usb_device_speed speed, bool suspend);
+	void (*set_host_discon)(void *x, bool enable);
+};
+
+static inline void
+usb_suspend_phy(struct usb_susphy *x,
+				enum usb_device_speed speed, int suspend)
+{
+	if (x && x->set_suspend != NULL)
+		x->set_suspend(x->priv, speed, suspend);
+}
+
+static inline void
+usb_host_discon(struct usb_susphy *x, int enable)
+{
+	if (x && x->set_host_discon != NULL)
+		x->set_host_discon(x->priv, enable);
+}
+
+#endif /* __LINUX_USB__SUSPEND_H */

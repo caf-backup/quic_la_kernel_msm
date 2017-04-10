@@ -1,4 +1,5 @@
-/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+/*
+ * Copyright (c) 2016, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -11,8 +12,25 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- *
  */
 
-#include "qcom-ipq8064-v3.0.dtsi"
-#include "qcom-ipq8064-ap145.dtsi"
+#include <dt-bindings/spmi/spmi.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+&spmi_bus {
+	qcom,pmd9655@1 {
+		compatible ="qcom,spmi-pmic";
+		reg = <0x1 SPMI_USID>;
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		regulators {
+			compatible = "qcom,pmd9655-regulators";
+			s3: s3 {
+				regulator-name = "pmd9655_s3";
+				regulator-min-microvolt = <660000>;
+				regulator-max-microvolt = <990000>;
+			};
+		};
+	};
+};

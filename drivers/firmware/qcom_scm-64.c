@@ -407,3 +407,9 @@ int __qcom_scm_send_cache_dump_addr(struct device *dev, u32 cmd_id,
 {
 	return -ENOTSUPP;
 }
+
+int __qcom_scm_tz_log(struct device *dev, u32 svc_id, u32 cmd_id,
+					void *log_buf, u32 log_size)
+{
+	return -ENOTSUPP;
+}

@@ -1,6 +1,6 @@
-/* Qualcomm Secure Execution Environment Communicator (QSEECOM) driver
+/* Qualcomm Technologies, Inc Secure Execution Environment Communicator (QSEECOM) driver
  *
- * Copyright (c) 2012, 2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012, 2015-2017 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -28,17 +28,8 @@
  *
  *(3) Step 3:
  *
- * To give input to Encryption:
- * echo '6bc1bee22e409f96' > /sys/firmware/tzapp/encrypt
- *
- * To view encryption output:
- * cat /sys/firmware/tzapp/encrypt
- *
- * To give input to Decryption:
- * echo `cat /sys/firmware/tzapp/encrypt` > /sys/firmware/tzapp/decrypt
- *
- * To view decryption output:
- * cat /sys/firmware/tzapp/decrypt
+ * To test Crypto functionality:
+ * echo 1 > /sys/firmware/tzapp/crypto
  *
  * To give input to Multiplication op:
  * echo 100 > /sys/firmware/tzapp/basic_data
@@ -65,10 +56,20 @@
 #include <linux/dma-mapping.h>
 
 #define CLIENT_CMD1_BASIC_DATA	1
-#define CLIENT_CMD8_RUN_CRYPTO_ENCRYPT	8
-#define CLIENT_CMD9_RUN_CRYPTO_DECRYPT	9
+#define CLIENT_CMD8_RUN_CRYPTO_TEST	3
 #define MAX_APP_NAME_SIZE	32
 #define MAX_INPUT_SIZE	4096
+#define SCM_SVC_TZSCHEDULER	0xFC
+#define QSEE_APP_NOTIFY_COMMAND	13
+#define TZAPP_START_ADDRESS	0x87b80000
+#define TZAPP_SIZE	0x27FFFF
+
+struct qsee_notify_app {
+	uint32_t cmd_id;
+	uint32_t applications_region_addr;
+	uint32_t applications_region_size;
+};
+
 
 struct qsc_send_cmd {
 	uint32_t cmd_id;
@@ -104,9 +105,9 @@ __packed struct qseecom_command_scm_resp {
 __packed struct qseecom_client_send_data_ireq {
 	uint32_t qsee_cmd_id;
 	uint32_t app_id;
-	dma_addr_t req_ptr;
+	dma_addr_t *req_ptr;
 	uint32_t req_len;
-	dma_addr_t rsp_ptr;	 /* First 4 bytes should always be the return status */
+	dma_addr_t rsp_ptr;	/* First 4 bytes should be the return status */
 	uint32_t rsp_len;
 };
 
@@ -140,8 +141,6 @@ enum qseecom_qceos_cmd_id {
 static uint32_t qsee_app_id;
 static void *qsee_sbuffer;
 static int32_t basic_output;
-static int enc_len;
-static int dec_len;
 static int basic_data_len;
 static int mdt_size;
 static int seg0_size;
@@ -154,18 +153,12 @@ static uint8_t *seg1_file;
 static uint8_t *seg2_file;
 static uint8_t *seg3_file;
 
-/*
- * Array Length is 4096 bytes, since 4MB is the max input size
- * that can be passed to SCM call
- */
-static uint8_t encrypt_text[MAX_INPUT_SIZE];
-static uint8_t decrypt_text[MAX_INPUT_SIZE];
-
 static ssize_t mdt_write(struct file *filp, struct kobject *kobj,
 	struct bin_attribute *bin_attr,
 	char *buf, loff_t pos, size_t count)
 {
 	uint8_t *tmp;
+
 	/*
 	 * Position '0' means new file being written,
 	 * Hence allocate new memory after freeing already allocated mem if any
@@ -177,6 +170,8 @@ static ssize_t mdt_write(struct file *filp, struct kobject *kobj,
 		tmp = mdt_file;
 		mdt_file = krealloc(tmp,
 			(pos + count) * sizeof(uint8_t), GFP_KERNEL);
+		if (!mdt_file)
+			kfree(tmp);
 	}
 
 	if (!mdt_file)
@@ -192,6 +187,7 @@ static ssize_t seg0_write(struct file *filp, struct kobject *kobj,
 	char *buf, loff_t pos, size_t count)
 {
 	uint8_t *tmp;
+
 	if (pos == 0) {
 		kfree(seg0_file);
 		seg0_file = kzalloc((count) * sizeof(uint8_t), GFP_KERNEL);
@@ -199,6 +195,8 @@ static ssize_t seg0_write(struct file *filp, struct kobject *kobj,
 		tmp = seg0_file;
 		seg0_file = krealloc(tmp, (pos + count) * sizeof(uint8_t),
 					GFP_KERNEL);
+		if (!seg0_file)
+			kfree(tmp);
 	}
 
 	if (!seg0_file)
@@ -214,6 +212,7 @@ static ssize_t seg1_write(struct file *filp, struct kobject *kobj,
 	char *buf, loff_t pos, size_t count)
 {
 	uint8_t *tmp;
+
 	if (pos == 0) {
 		kfree(seg1_file);
 		seg1_file = kzalloc((count) * sizeof(uint8_t), GFP_KERNEL);
@@ -221,6 +220,8 @@ static ssize_t seg1_write(struct file *filp, struct kobject *kobj,
 		tmp = seg1_file;
 		seg1_file = krealloc(tmp, (pos + count) * sizeof(uint8_t),
 					GFP_KERNEL);
+		if (!seg1_file)
+			kfree(tmp);
 	}
 
 	if (!seg1_file)
@@ -236,6 +237,7 @@ static ssize_t seg2_write(struct file *filp, struct kobject *kobj,
 	char *buf, loff_t pos, size_t count)
 {
 	uint8_t *tmp;
+
 	if (pos == 0) {
 		kfree(seg2_file);
 		seg2_file = kzalloc((count) * sizeof(uint8_t), GFP_KERNEL);
@@ -243,6 +245,8 @@ static ssize_t seg2_write(struct file *filp, struct kobject *kobj,
 		tmp = seg2_file;
 		seg2_file = krealloc(tmp, (pos + count) * sizeof(uint8_t),
 					GFP_KERNEL);
+		if (!seg2_file)
+			kfree(tmp);
 	}
 
 	if (!seg2_file)
@@ -258,6 +262,7 @@ static ssize_t seg3_write(struct file *filp, struct kobject *kobj,
 	char *buf, loff_t pos, size_t count)
 {
 	uint8_t *tmp;
+
 	if (pos == 0) {
 		kfree(seg3_file);
 		seg3_file = kzalloc((count) * sizeof(uint8_t), GFP_KERNEL);
@@ -265,6 +270,8 @@ static ssize_t seg3_write(struct file *filp, struct kobject *kobj,
 		tmp = seg3_file;
 		seg3_file = krealloc(tmp, (pos + count) * sizeof(uint8_t),
 					GFP_KERNEL);
+		if (!seg3_file)
+			kfree(tmp);
 	}
 
 	if (!seg3_file)
@@ -312,7 +319,7 @@ static int qseecom_unload_app(void)
 
 	/* SCM_CALL to unload the app */
 	ret = qcom_scm_tzsched(&req, sizeof(struct qseecom_unload_app_ireq),
-				&resp, sizeof(resp));
+			&resp, sizeof(resp));
 	if (ret)
 		pr_err("scm_call to unload app (id = %d) failed\n", req.app_id);
 
@@ -342,7 +349,7 @@ static int tzapp_test(void *input, void *output, int input_len, int option)
 	 */
 	pg_tmp = alloc_page(GFP_KERNEL);
 	if (!pg_tmp) {
-		pr_err("\nFailed to allocate page");
+		pr_err("\nFailed to allocate page\n");
 		return -ENOMEM;
 	}
 	/*
@@ -366,8 +373,7 @@ static int tzapp_test(void *input, void *output, int input_len, int option)
 	}
 
 	/*
-	 * option = 1 -> Basic Multiplication, option = 2 -> Encryption,
-	 * option = 3 -> Decryption
+	 * option = 1 -> Basic Multiplication, option = 2 -> Crypto Function
 	 */
 	switch (option) {
 	case 1:
@@ -375,40 +381,11 @@ static int tzapp_test(void *input, void *output, int input_len, int option)
 		msgreq->data = *((uint32_t *)input);
 		break;
 	case 2:
-		msgreq->cmd_id = CLIENT_CMD8_RUN_CRYPTO_ENCRYPT;
-		break;
-	case 3:
-		msgreq->cmd_id = CLIENT_CMD9_RUN_CRYPTO_DECRYPT;
+		msgreq->cmd_id = CLIENT_CMD8_RUN_CRYPTO_TEST;
 		break;
 	default:
-		pr_err("\n Invalid Option");
+		pr_err("\n Invalid Option\n");
 		goto fn_exit;
-	}
-	if (option != 1) {
-		msgreq->data = dma_map_single(NULL, input,
-				input_len, DMA_TO_DEVICE);
-		msgreq->data2 = dma_map_single(NULL, output,
-				input_len, DMA_FROM_DEVICE);
-
-		ret1 = dma_mapping_error(NULL, msgreq->data);
-		ret2 = dma_mapping_error(NULL, msgreq->data2);
-
-		if (ret1 || ret2) {
-			pr_err("\nDMA Mapping Error Return Values:"
-				"input data %d output data %d", ret1, ret2) ;
-			if (!ret1) {
-				dma_unmap_single(NULL, msgreq->data,
-					input_len, DMA_TO_DEVICE);
-			}
-			if (!ret2) {
-				dma_unmap_single(NULL, msgreq->data2,
-					input_len, DMA_FROM_DEVICE);
-			}
-			return ret1 ? ret1 : ret2;
-		}
-
-		msgreq->test_buf_size = input_len;
-		msgreq->len = input_len;
 	}
 
 	send_data_req.qsee_cmd_id = QSEOS_CLIENT_SEND_DATA_COMMAND;
@@ -418,9 +395,9 @@ static int tzapp_test(void *input, void *output, int input_len, int option)
 				sizeof(*msgreq), DMA_TO_DEVICE);
 	send_data_req.rsp_ptr = dma_map_single(NULL, msgrsp,
 				sizeof(*msgrsp), DMA_FROM_DEVICE);
+
 	ret1 = dma_mapping_error(NULL, send_data_req.req_ptr);
 	ret2 = dma_mapping_error(NULL, send_data_req.rsp_ptr);
-
 
 	if (!ret1 && !ret2) {
 		send_data_req.req_len = sizeof(struct qsc_send_cmd);
@@ -428,14 +405,6 @@ static int tzapp_test(void *input, void *output, int input_len, int option)
 		ret = qcom_scm_tzsched((const void *) &send_data_req,
 					sizeof(send_data_req),
 					&resp, sizeof(resp));
-	}
-
-	if (option != 1) {
-		dma_unmap_single(NULL, msgreq->data,
-					input_len, DMA_TO_DEVICE);
-		dma_unmap_single(NULL, msgreq->data2,
-					input_len, DMA_FROM_DEVICE);
-
 	}
 
 	if (!ret1) {
@@ -447,8 +416,8 @@ static int tzapp_test(void *input, void *output, int input_len, int option)
 			sizeof(*msgrsp), DMA_FROM_DEVICE);
 	}
 	if (ret1 || ret2) {
-		pr_err("\nDMA Mapping Error Return values:"
-			"req_ptr %d rsp_ptr %d", ret1, ret2);
+		pr_err("\nDMA Mapping Error Return values:req_ptr %d rsp_ptr %d\n",
+				ret1, ret2);
 		return ret1 ? ret1 : ret2;
 	}
 
@@ -467,6 +436,9 @@ static int tzapp_test(void *input, void *output, int input_len, int option)
 							resp.result);
 			ret = -EINVAL;
 			goto fn_exit;
+		} else {
+			if (option == 2)
+				pr_info("Crypto functionality test successful\n");
 		}
 	}
 	if (option == 1) {
@@ -518,6 +490,17 @@ static int load_app(void)
 	struct qseecom_command_scm_resp resp;
 	int ret, ret1;
 	int img_size;
+	struct qsee_notify_app notify_app;
+
+	notify_app.cmd_id = QSEE_APP_NOTIFY_COMMAND;
+	notify_app.applications_region_addr = TZAPP_START_ADDRESS;
+	notify_app.applications_region_size = TZAPP_SIZE;
+	ret = qcom_scm_tzsched(&notify_app, sizeof(struct qsee_notify_app),
+			&resp, sizeof(resp));
+	if (ret) {
+		pr_err("Notify App failed\n");
+		return -1;
+	}
 
 	ret = copy_files(&img_size);
 	if (ret) {
@@ -533,6 +516,7 @@ static int load_app(void)
 	load_req.phy_addr = dma_map_single(NULL, qsee_sbuffer,
 				img_size, DMA_TO_DEVICE);
 	ret1 = dma_mapping_error(NULL, load_req.phy_addr);
+
 	if (ret1 == 0) {
 		/* SCM_CALL to load the app and get the app_id back */
 		ret = qcom_scm_tzsched(&load_req,
@@ -542,9 +526,10 @@ static int load_app(void)
 				img_size, DMA_TO_DEVICE);
 	}
 	if (ret1) {
-		pr_err("\nDMA Mapping error (qsee_sbuffer)");
+		pr_err("\nDMA Mapping error (qsee_sbuffer)\n");
 		return ret1;
 	}
+
 	if (ret) {
 		pr_err("SCM_CALL to load app failed\n");
 		return ret;
@@ -564,7 +549,7 @@ static int load_app(void)
 		return -EFAULT;
 	}
 
-	pr_info("\n Loaded Sampleapp Succesfully!\n");
+	pr_info("\n Loaded Sampleapp Successfully!\n");
 
 	qsee_app_id = resp.data;
 	return 0;
@@ -572,162 +557,68 @@ static int load_app(void)
 
 /* To show basic multiplication output */
 static ssize_t
-show_basic_output(struct device *dev, struct device_attribute *attr,
+show_basic_output(struct device *dev, struct device *attr,
 					char *buf)
 {
-	return snprintf(buf, (basic_data_len + 1), "%u", basic_output);
+	return snprintf(buf, (basic_data_len + 1), "%d", basic_output);
 }
 
 /* Basic multiplication App*/
 static ssize_t
-store_basic_input(struct device *dev, struct device_attribute *attr,
+store_basic_input(struct device *dev, struct device *attr,
 					const char *buf, size_t count)
 {
 	uint32_t basic_input __aligned(32);
-	uint32_t ret = 0;
+
 	basic_data_len = count;
 	if ((count - 1) == 0) {
-		pr_err("\n Input cannot be NULL!");
+		pr_err("\n Input cannot be NULL!\n");
 		return -EINVAL;
 	}
 	if (kstrtouint(buf, 10, &basic_input))
-		pr_err("\n Please enter a valid unsigned integer");
-
+		pr_info("\n Please enter a valid unsigned integer\n");
 	else
-		ret = tzapp_test(&basic_input, NULL, 0, 1);
+		tzapp_test(&basic_input, NULL, 0, 1);
 
-	return ret ? ret : count;
-}
-
-/* To show encrypted plain text*/
-static ssize_t
-show_encrypt_output(struct device *dev, struct device_attribute *attr,
-					char *buf)
-{
-	memcpy(buf, encrypt_text, enc_len);
-	return enc_len;
-}
-
-/* To Encrypt input plain text */
-static ssize_t
-store_encrypt_input(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
-{
-	int32_t ret = -EINVAL;
-	uint8_t *input_pt;
-	uint8_t *output_pt;
-
-	enc_len = count;
-	if (enc_len == 0) {
-		pr_err("\n Input cannot be NULL!");
-		return -EINVAL;
-	}
-	if ((enc_len % 16 != 0) || (enc_len > MAX_INPUT_SIZE)) {
-		pr_info("\n Input Length must be multiple of 16 & < 4096 bytes");
-		return -EINVAL;
-	}
-
-	input_pt = kzalloc(enc_len * sizeof(uint8_t *), GFP_KERNEL);
-	if (!input_pt)
-		return -ENOMEM;
-	memcpy(input_pt, buf, count);
-
-	output_pt = kzalloc(enc_len * sizeof(uint8_t *), GFP_KERNEL);
-	if (!output_pt) {
-		kfree(input_pt);
-		return -ENOMEM;
-	}
-
-	ret = tzapp_test((uint8_t *)input_pt, (uint8_t *)output_pt, enc_len, 2);
-
-	if (!ret)
-		memcpy(encrypt_text, output_pt, enc_len);
-
-	kfree(input_pt);
-	kfree(output_pt);
 	return count;
 }
 
-/* To show decrypted cipher text */
+/* Crypto Test*/
 static ssize_t
-show_decrypt_output(struct device *dev, struct device_attribute *attr,
-		 char *buf)
-{
-	memcpy(buf, decrypt_text, dec_len);
-	return dec_len;
-}
-
-/* To decrypt input cipher text */
-static ssize_t
-store_decrypt_input(struct device *dev, struct device_attribute *attr,
+store_crypto_input(struct device *dev, struct device *attr,
 		const char *buf, size_t count)
 {
-	int32_t ret = -EINVAL;
-	uint8_t *input_pt;
-	uint8_t *output_pt;
-
-	dec_len = count;
-	if (dec_len == 0) {
-		pr_err("\n Input cannot be NULL!");
-		return -EINVAL;
-	}
-
-	if ((dec_len % 16 != 0) || (dec_len > MAX_INPUT_SIZE)) {
-		pr_info("\n Input Length must be multiple of 16 & < 4096 bytes");
-		return -EINVAL;
-	}
-
-	input_pt = kzalloc(dec_len * sizeof(uint8_t *), GFP_KERNEL);
-	if (!input_pt)
-		return -ENOMEM;
-	memcpy(input_pt, buf, dec_len);
-
-	output_pt = kzalloc(dec_len * sizeof(uint8_t *), GFP_KERNEL);
-	if (!output_pt) {
-		kfree(input_pt);
-		return -ENOMEM;
-	}
-
-	ret = tzapp_test((uint8_t *)input_pt, (uint8_t *)output_pt, dec_len, 3);
-	if (!ret)
-		memcpy(decrypt_text, output_pt, dec_len);
-
-	kfree(input_pt);
-	kfree(output_pt);
+	tzapp_test(NULL, NULL, 0, 2);
 	return count;
 }
 
 static ssize_t
-store_load_start(struct device *dev, struct device_attribute *attr,
+store_load_start(struct device *dev, struct device *attr,
 		const char *buf, size_t count)
 {
 	int load_cmd;
 
 	if (kstrtouint(buf, 10, &load_cmd)) {
-		pr_err("\n Provide valid integer input!");
-		pr_err("Echo 1 to start loading app");
+		pr_err("\n Provide valid integer input!\n");
+		pr_err("Echo 1 to start loading app\n");
 		return -EINVAL;
 	}
 	if (load_cmd == 1)
 		load_app();
 	else
-		pr_info("\nEcho 1 to start loading app");
+		pr_info("\nEcho 1 to start loading app\n");
 
 	return count;
 }
 
-static DEVICE_ATTR(encrypt, 0644, show_encrypt_output,
-					store_encrypt_input);
-static DEVICE_ATTR(decrypt, 0644, show_decrypt_output,
-					store_decrypt_input);
-static DEVICE_ATTR(basic_data, 0644, show_basic_output,
+static	DEVICE_ATTR(crypto, 0644, NULL, store_crypto_input);
+static	DEVICE_ATTR(basic_data, 0644, show_basic_output,
 					store_basic_input);
-static DEVICE_ATTR(load_start, S_IWUSR, NULL,
+static	DEVICE_ATTR(load_start, S_IWUSR, NULL,
 					store_load_start);
 
 static struct attribute *tzapp_attrs[] = {
-	&dev_attr_encrypt.attr,
-	&dev_attr_decrypt.attr,
+	&dev_attr_crypto.attr,
 	&dev_attr_basic_data.attr,
 	&dev_attr_load_start.attr,
 	NULL,

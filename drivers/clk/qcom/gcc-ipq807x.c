@@ -418,7 +418,6 @@ static struct clk_alpha_pll gpll0 = {
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_ops,
-			.flags = CLK_IS_CRITICAL,
 		},
 	},
 };
@@ -450,7 +449,6 @@ static struct clk_alpha_pll ubi32_pll = {
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_huayra_ops,
-			.flags = CLK_IS_CRITICAL,
 		},
 	},
 };
@@ -467,7 +465,6 @@ static struct clk_alpha_pll gpll6 = {
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_brammo_ops,
-			.flags = CLK_IS_CRITICAL,
 		},
 	},
 };
@@ -484,7 +481,6 @@ static struct clk_alpha_pll gpll4 = {
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_ops,
-			.flags = CLK_IS_CRITICAL,
 		},
 	},
 };
@@ -501,7 +497,6 @@ static struct clk_alpha_pll audio_pll = {
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_brammo_ops,
-			.flags = CLK_IS_CRITICAL,
 		},
 	},
 };
@@ -552,7 +547,6 @@ static struct clk_alpha_pll gpll2 = {
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_ops,
-			.flags = CLK_IS_CRITICAL,
 		},
 	},
 };
@@ -569,7 +563,6 @@ static struct clk_alpha_pll nss_crypto_pll = {
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_ops,
-			.flags = CLK_IS_CRITICAL,
 		},
 	},
 };

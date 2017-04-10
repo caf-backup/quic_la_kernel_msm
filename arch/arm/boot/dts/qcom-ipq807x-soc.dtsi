@@ -60,7 +60,7 @@
 	 * |        |              |                         |
 	 * |        |              |                         |
 	 * |        |              |                         |
-	 * |   Q6   |  0x4B000000  |          50MB           |
+	 * |   Q6   |  0x4B000000  |          80MB           |
 	 * |        |              |                         |
 	 * |        |              |                         |
 	 * |        |              |                         |
@@ -103,7 +103,7 @@
 
 		wcnss@4b000000 {
 			no-map;
-			reg = <0x0 0x4b000000 0x0 0x03200000>;
+			reg = <0x0 0x4b000000 0x0 0x05000000>;
 		};
 	};
 
@@ -237,8 +237,8 @@
 		};
 
 		qcom_rng: qrng@e1000 {
-			compatible = "qcom,prng";
-			reg = <0xe1000 0x1000>;
+			compatible = "qcom,prng-ipq807x";
+			reg = <0xe3000 0x1000>;
 			clocks = <&gcc GCC_DUMMY_CLK>;
 			clock-names = "core";
 		};

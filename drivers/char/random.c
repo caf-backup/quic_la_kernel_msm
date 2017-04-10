@@ -988,8 +988,6 @@ void random_input_words(__u32 *buf, size_t wordcount, int ent_count)
 
 	credit_entropy_bits(&input_pool, ent_count);
 
-	pr_notice("crediting %d bits => %d\n",
-		  ent_count, input_pool.entropy_count);
 	/*
 	 * Wake up waiting processes if we have enough
 	 * entropy.
