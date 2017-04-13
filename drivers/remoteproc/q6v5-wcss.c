@@ -56,7 +56,6 @@ struct q6v5_rproc_pdata {
 	struct rproc *rproc;
 	struct subsys_device *subsys;
 	struct subsys_desc subsys_desc;
-	struct completion start_done;
 	struct completion stop_done;
 	struct qcom_smem_state *state;
 	unsigned stop_bit;
@@ -91,7 +90,7 @@ static int q6_rproc_stop(struct rproc *rproc)
 	struct device *dev = rproc->dev.parent;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct q6v5_rproc_pdata *pdata = platform_get_drvdata(pdev);
-	int ret;
+	int ret = 0;
 
 	pdata->running = false;
 	if (pdata->secure) {
@@ -188,15 +187,6 @@ static int q6_rproc_start(struct rproc *rproc)
 	writel(0x1, pdata->q6_base + QDSP6SS_SLEEP_CBCR);
 
 skip_reset:
-	ret = wait_for_completion_timeout(&pdata->start_done,
-					msecs_to_jiffies(10000));
-	if (ret == 0) {
-		pr_err("Handover message not received\n");
-		if (pdata->secure)
-			qcom_scm_pas_shutdown(WCNSS_PAS_ID);
-		return -ETIMEDOUT;
-	}
-
 	pdata->running = true;
 
 	return 0;
@@ -234,15 +224,6 @@ static irqreturn_t wcss_err_fatal_intr_handler(int irq, void *dev_id)
 
 	subsys_set_crash_status(pdata->subsys, CRASH_STATUS_ERR_FATAL);
 	subsystem_restart_dev(pdata->subsys);
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t wcss_handover_intr_handler(int irq, void *dev_id)
-{
-	struct q6v5_rproc_pdata *pdata = subsys_to_pdata(dev_id);
-
-	pr_info("Received handover interrupt from wcss\n");
-	complete(&pdata->start_done);
 	return IRQ_HANDLED;
 }
 
@@ -325,30 +306,6 @@ static int stop_q6(const struct subsys_desc *subsys, bool force_stop)
 	rproc_del(rproc);
 
 	return 0;
-}
-
-static int q6v5_request_irq(struct q6v5_rproc_pdata *pdata,
-				struct platform_device *pdev,
-				const char *name,
-				irq_handler_t thread_fn)
-{
-	int ret;
-	unsigned int irq;
-
-	irq = platform_get_irq_byname(pdev, name);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "no %s IRQ defined\n", name);
-		return ret;
-	}
-
-	ret = devm_request_threaded_irq(&pdev->dev, irq,
-			NULL, thread_fn,
-			IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-			"wcss", pdata);
-	if (ret)
-		dev_err(&pdev->dev, "request %s IRQ failed\n", name);
-
-	return ret;
 }
 
 static void wcss_panic_handler(const struct subsys_desc *subsys)
@@ -462,6 +419,15 @@ static int q6_rproc_probe(struct platform_device *pdev)
 	struct rproc *rproc;
 	int ret;
 	struct resource *resource;
+	struct qcom_smem_state *state;
+	unsigned stop_bit;
+
+	state = qcom_smem_state_get(&pdev->dev, "stop",
+					&stop_bit);
+	if (IS_ERR(state)) {
+		/* Wait till SMP2P is registered and up */
+		return -EPROBE_DEFER;
+	}
 
 	ret = dma_set_coherent_mask(&pdev->dev,
 			DMA_BIT_MASK(sizeof(dma_addr_t) * 8));
@@ -518,11 +484,6 @@ static int q6_rproc_probe(struct platform_device *pdev)
 		goto free_rproc;
 	}
 
-	ret = q6v5_request_irq(q6v5_rproc_pdata, pdev, "handover",
-			wcss_handover_intr_handler);
-	if (ret < 0)
-		goto free_rproc;
-
 	q6v5_rproc_pdata->state = qcom_smem_state_get(&pdev->dev, "shutdown",
 			&q6v5_rproc_pdata->shutdown_bit);
 	if (IS_ERR(q6v5_rproc_pdata->state)) {
@@ -552,9 +513,6 @@ static int q6_rproc_probe(struct platform_device *pdev)
 		goto free_rproc;
 	}
 
-
-
-	init_completion(&q6v5_rproc_pdata->start_done);
 	init_completion(&q6v5_rproc_pdata->stop_done);
 	q6v5_rproc_pdata->running = false;
 

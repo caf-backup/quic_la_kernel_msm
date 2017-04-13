@@ -26,6 +26,11 @@ Required properties:
 - qcom,smem-states	Output from APPS to Q6 processor
 - qcom,smem-state-names Names of the output values from APPS to Q6 processor
 - qca,emulation		States that this driver is used on emulation platform
+- qca,auto-restart      states that q6 is restarted after receiving error fatal
+			from q6
+- qca,extended-intc	notifies that virtual interrupt controller is used
+			instead of virtual GPIOs
+- qca,secure		notifies that TZ is used for bringing q6 out of reset
 
 Example:
 --------

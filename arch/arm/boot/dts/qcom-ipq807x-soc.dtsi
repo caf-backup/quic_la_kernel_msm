@@ -220,16 +220,18 @@
 
 		q6v5_wcss: q6v5_wcss@CD00000 {
 			compatible = "qca,q6v5-wcss-rproc";
-			firmware = "IPQ8074/M8074QCAHKAWPLQ00010_WLANFW.elf";
+			firmware = "IPQ8074/M8074QCAHKAWPLQ_WLANFW.mdt";
 			reg = <0xCD00000 0x4040>;
+			qca,auto-restart;
+			qca,extended-intc;
 			interrupts-extended = <&intc 0 325 1>,
 					<&wcss_smp2p_in 0 0>,
 					<&wcss_smp2p_in 1 0>,
 					<&wcss_smp2p_in 3 0>;
 			interrupt-names = "wdog",
-					  "fatal",
-					  "handover",
-					  "stop-ack";
+					  "qcom,gpio-err-fatal",
+					  "qcom,gpio-err-ready",
+					  "qcom,gpio-stop-ack";
 			qcom,smem-states = <&wcss_smp2p_out 0>,
 					   <&wcss_smp2p_out 1>;
 			qcom,smem-state-names = "shutdown",

@@ -168,7 +168,7 @@ int mdss_qpic_alloc_fb_mem(struct msm_fb_data_type *mfd)
 
 	if (!qpic_res->cmd_buf_virt) {
 		qpic_res->cmd_buf_virt = dma_alloc_writecombine(
-			NULL, QPIC_MAX_CMD_BUF_SIZE,
+			&qpic_res->pdev->dev, QPIC_MAX_CMD_BUF_SIZE,
 			&qpic_res->cmd_buf_phys, GFP_KERNEL);
 		pr_debug("%s cmd_buf virt=%x phys=%x", __func__,
 			(int)qpic_res->cmd_buf_virt,

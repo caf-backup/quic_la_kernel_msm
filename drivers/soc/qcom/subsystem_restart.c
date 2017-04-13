@@ -1376,6 +1376,20 @@ static int __get_irq(struct subsys_desc *desc, const char *prop,
 {
 	int ret, gpiol, irql;
 
+	if (of_property_read_bool(desc->dev->of_node, "qca,extended-intc")) {
+		struct platform_device *pdev = container_of(desc->dev,
+				struct platform_device, dev);
+
+		irql = platform_get_irq_byname(pdev, prop);
+		if (irql < 0) {
+			pr_err("[%s]: Error getting IRQ \"%s\"\n", desc->name,
+				prop);
+			return irql;
+		}
+		*irq = irql;
+		return 0;
+	}
+
 	ret = __get_gpio(desc, prop, &gpiol);
 	if (ret)
 		return ret;
@@ -1434,7 +1448,11 @@ static int subsys_parse_devicetree(struct subsys_desc *desc)
 	if (ret && ret != -ENOENT)
 		return ret;
 
-	ret = platform_get_irq(pdev, 0);
+	if (of_property_read_bool(desc->dev->of_node, "qca,extended-intc"))
+		ret = platform_get_irq_byname(pdev, "wdog");
+	else
+		ret = platform_get_irq(pdev, 0); /* There is only one irq */
+
 	if (ret > 0)
 		desc->wdog_bite_irq = ret;
 
@@ -1454,9 +1472,10 @@ static int subsys_setup_irqs(struct subsys_device *subsys)
 	int ret;
 
 	if (desc->err_fatal_irq && desc->err_fatal_handler) {
-		ret = devm_request_irq(desc->dev, desc->err_fatal_irq,
-				desc->err_fatal_handler,
-				IRQF_TRIGGER_RISING, desc->name, desc);
+		ret = devm_request_threaded_irq(desc->dev, desc->err_fatal_irq,
+				NULL, desc->err_fatal_handler,
+				IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+				"err_fatal_interrupt", desc);
 		if (ret < 0) {
 			dev_err(desc->dev, "[%s]: Unable to register error fatal IRQ handler!: %d\n",
 				desc->name, ret);
@@ -1466,9 +1485,10 @@ static int subsys_setup_irqs(struct subsys_device *subsys)
 	}
 
 	if (desc->stop_ack_irq && desc->stop_ack_handler) {
-		ret = devm_request_irq(desc->dev, desc->stop_ack_irq,
-			desc->stop_ack_handler,
-			IRQF_TRIGGER_RISING, desc->name, desc);
+		ret = devm_request_threaded_irq(desc->dev, desc->stop_ack_irq,
+				NULL, desc->stop_ack_handler,
+				IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+				"stop_ack_interrupt", desc);
 		if (ret < 0) {
 			dev_err(desc->dev, "[%s]: Unable to register stop ack handler!: %d\n",
 				desc->name, ret);
@@ -1478,9 +1498,10 @@ static int subsys_setup_irqs(struct subsys_device *subsys)
 	}
 
 	if (desc->wdog_bite_irq && desc->wdog_bite_handler) {
-		ret = devm_request_irq(desc->dev, desc->wdog_bite_irq,
-			desc->wdog_bite_handler,
-			IRQF_TRIGGER_RISING, desc->name, desc);
+		ret = devm_request_threaded_irq(desc->dev, desc->wdog_bite_irq,
+				NULL, desc->wdog_bite_handler,
+				IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+				"q6_wdog_interrupt", desc);
 		if (ret < 0) {
 			dev_err(desc->dev, "[%s]: Unable to register wdog bite handler!: %d\n",
 				desc->name, ret);
@@ -1490,10 +1511,10 @@ static int subsys_setup_irqs(struct subsys_device *subsys)
 	}
 
 	if (desc->err_ready_irq) {
-		ret = devm_request_irq(desc->dev,
+		ret = devm_request_threaded_irq(desc->dev,
 					desc->err_ready_irq,
-					subsys_err_ready_intr_handler,
-					IRQF_TRIGGER_RISING,
+					NULL, subsys_err_ready_intr_handler,
+					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 					"error_ready_interrupt", subsys);
 		if (ret < 0) {
 			dev_err(desc->dev,
@@ -1602,6 +1623,9 @@ struct subsys_device *subsys_register(struct subsys_desc *desc)
 		if (!subsys->desc->edge)
 			pr_debug("Reading qcom,edge for %s failed\n",
 								desc->name);
+		if (of_property_read_bool(desc->dev->of_node,
+					"qca,auto-restart"))
+			subsys->restart_level = RESET_SUBSYS_COUPLED;
 	}
 
 	mutex_lock(&subsys_list_lock);

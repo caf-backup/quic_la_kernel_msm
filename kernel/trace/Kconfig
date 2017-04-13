@@ -667,6 +667,19 @@ config TRACING_EVENTS_GPIO
 	help
 	  Enable tracing events for gpio subsystem
 
+config SRD_TRACE
+	bool "Record trace events in coherent memory"
+	depends on FTRACE
+	default n
+	help
+	  Normal tracing records the information in cacheable memory. In some
+	  scenarios where the system reboots unexpectedly, the cache is not
+	  flushed and the recorded information is lost. While doing the core
+	  dump analysis, the developer doesn't have the details about the
+	  functions that executed during the final moments before the reboot.
+	  With this option the information is recorded to coherent memory and
+	  the information is not lost even during an unexpected reboot.
+
 endif # FTRACE
 
 endif # TRACING_SUPPORT
