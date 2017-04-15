@@ -756,6 +756,39 @@
 			qca,msi_base = <0x50>;
 		};
 
+		qcom,msm-imem@86074b0 {
+			compatible = "qcom,msm-imem";
+			reg = <0x86074b0 0xa50>; /* Address and size of IMEM */
+			ranges = <0x0 0x86074b0 0xa50>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mem_dump_table@10 {
+				compatible = "qcom,msm-imem-mem_dump_table";
+				reg = <0x10 8>;
+			};
+
+			dload_type@18 {
+				compatible = "qcom,msm-imem-dload-type";
+				reg = <0x18 4>;
+			};
+
+			restart_reason@65c {
+				compatible = "qcom,msm-imem-restart_reason";
+				reg = <0x65c 4>;
+			};
+
+			boot_stats@6b0 {
+				compatible = "qcom,msm-imem-boot_stats";
+				reg = <0x6b0 32>;
+			};
+
+			pil@94c {
+				compatible = "qcom,msm-imem-pil";
+				reg = <0x94c 200>;
+			};
+		};
+
 		qcom_mdss_qpic@7980000 {
 			compatible = "qcom,mdss_qpic";
 			reg = <0x7980000 0x24000>;
