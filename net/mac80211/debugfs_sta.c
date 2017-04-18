@@ -17,6 +17,7 @@
 #include "debugfs_sta.h"
 #include "sta_info.h"
 #include "driver-ops.h"
+#include "mesh.h"
 
 /* sta attributtes */
 
@@ -616,6 +617,28 @@ static ssize_t sta_vht_capa_read(struct file *file, char __user *userbuf,
 }
 STA_OPS(vht_capa);
 
+#ifdef CONFIG_MAC80211_MESH
+static ssize_t sta_mesh_link_metric_read(struct file *file,
+					 char __user *userbuf,
+					 size_t count, loff_t *ppos)
+{
+	char buf[12], *p = buf;
+	struct sta_info *sta = file->private_data;
+	struct ieee80211_local *local = sta->local;
+	u32 metric;
+
+	rcu_read_lock();
+	metric = airtime_link_metric_get(local, sta);
+	rcu_read_unlock();
+
+	p += scnprintf(p, sizeof(buf) + buf - p, "%d\n", metric);
+
+	return simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
+}
+
+STA_OPS(mesh_link_metric);
+
+#endif
 
 #define DEBUGFS_ADD(name) \
 	debugfs_create_file(#name, 0400, \
@@ -772,6 +795,10 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	DEBUGFS_ADD_COUNTER(rx_duplicates, rx_stats.num_duplicates);
 	DEBUGFS_ADD_COUNTER(rx_fragments, rx_stats.fragments);
 	DEBUGFS_ADD_COUNTER(tx_filtered, status_stats.filtered);
+
+#ifdef CONFIG_MAC80211_MESH
+	DEBUGFS_ADD(mesh_link_metric);
+#endif
 
 	if (local->ops->wake_tx_queue)
 		DEBUGFS_ADD(aqm);
