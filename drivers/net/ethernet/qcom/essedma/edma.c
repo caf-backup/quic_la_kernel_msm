@@ -2098,6 +2098,7 @@ int edma_open(struct net_device *netdev)
 	/* if Link polling is enabled, in our case enabled for WAN, then
 	 * do a phy start, else always set link as UP
 	 */
+	mutex_lock(&adapter->poll_mutex);
 	if (adapter->poll_required) {
 		if (!IS_ERR(adapter->phydev)) {
 			phy_start(adapter->phydev);
@@ -2110,6 +2111,7 @@ int edma_open(struct net_device *netdev)
 		adapter->link_state = __EDMA_LINKUP;
 		netif_carrier_on(netdev);
 	}
+	mutex_unlock(&adapter->poll_mutex);
 
 	return 0;
 }
@@ -2126,10 +2128,12 @@ int edma_close(struct net_device *netdev)
 	netif_carrier_off(netdev);
 	netif_tx_stop_all_queues(netdev);
 
+	mutex_lock(&adapter->poll_mutex);
 	if (adapter->poll_required) {
 		if (!IS_ERR(adapter->phydev))
 			phy_stop(adapter->phydev);
 	}
+	mutex_unlock(&adapter->poll_mutex);
 
 	adapter->link_state = __EDMA_LINKDOWN;
 

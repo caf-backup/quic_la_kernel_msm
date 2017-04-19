@@ -183,13 +183,16 @@ static int edma_get_settings(struct net_device *netdev,
 {
 	struct edma_adapter *adapter = netdev_priv(netdev);
 
+	mutex_lock(&adapter->poll_mutex);
 	if (adapter->poll_required) {
 		struct phy_device *phydev = NULL;
 		uint16_t phyreg;
 
 		if ((adapter->forced_speed != SPEED_UNKNOWN)
-			&& !(adapter->poll_required))
+			&& !(adapter->poll_required)) {
+			mutex_unlock(&adapter->poll_mutex);
 			return -EPERM;
+		}
 
 		phydev = adapter->phydev;
 
@@ -247,11 +250,13 @@ static int edma_get_settings(struct net_device *netdev,
 				/* non link polled and non
 				 * forced speed/duplex interface
 				 */
+				mutex_unlock(&adapter->poll_mutex);
 				return -EIO;
 			}
 		}
 	}
 
+	mutex_unlock(&adapter->poll_mutex);
 	return 0;
 }
 
@@ -264,9 +269,12 @@ static int edma_set_settings(struct net_device *netdev,
 	struct edma_adapter *adapter = netdev_priv(netdev);
 	struct phy_device *phydev = NULL;
 
+	mutex_lock(&adapter->poll_mutex);
 	if ((adapter->forced_speed != SPEED_UNKNOWN) &&
-	     !adapter->poll_required)
+	     !adapter->poll_required) {
+		mutex_unlock(&adapter->poll_mutex);
 		return -EPERM;
+	}
 
 	phydev = adapter->phydev;
 	phydev->advertising = ecmd->advertising;
@@ -275,6 +283,7 @@ static int edma_set_settings(struct net_device *netdev,
 	phydev->duplex = ecmd->duplex;
 
 	genphy_config_aneg(phydev);
+	mutex_unlock(&adapter->poll_mutex);
 
 	return 0;
 }

@@ -406,6 +406,7 @@ struct edma_adapter {
 	u32 default_vlan_tag; /* vlan tag */
 	u32 dp_bitmap;
 	uint8_t phy_id[MII_BUS_ID_SIZE + 3];
+	struct mutex poll_mutex;        /* Lock to protect polling flag change */
 };
 
 int edma_alloc_queues_tx(struct edma_common_info *edma_cinfo);

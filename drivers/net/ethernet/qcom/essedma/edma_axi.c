@@ -429,7 +429,9 @@ static int edma_change_group1_bmp(struct ctl_table *table, int write,
 	if (!port_bit) {
 		adapter->dp_bitmap = edma_default_group1_bmp;
 		if (adapter->poll_required) {
+			mutex_lock(&adapter->poll_mutex);
 			adapter->poll_required = 0;
+			mutex_unlock(&adapter->poll_mutex);
 			adapter->link_state = __EDMA_LINKDOWN;
 			netif_carrier_off(ndev);
 			netif_tx_stop_all_queues(ndev);
@@ -450,6 +452,7 @@ static int edma_change_group1_bmp(struct ctl_table *table, int write,
 	 * phy adapter attached to group and start the queues
 	 */
 	if (num_ports_enabled > 1) {
+		mutex_lock(&adapter->poll_mutex);
 		if (adapter->poll_required) {
 			adapter->poll_required = 0;
 			if (adapter->phydev) {
@@ -477,10 +480,14 @@ static int edma_change_group1_bmp(struct ctl_table *table, int write,
 				netif_carrier_on(ndev);
 			}
 		}
+		mutex_unlock(&adapter->poll_mutex);
+
 		goto set_bitmap;
 	}
 
+	mutex_lock(&adapter->poll_mutex);
 	adapter->poll_required = adapter->poll_required_dynamic;
+	mutex_unlock(&adapter->poll_mutex);
 
 	if (!adapter->poll_required)
 		goto set_bitmap;
@@ -549,7 +556,9 @@ static int edma_change_group1_bmp(struct ctl_table *table, int write,
 		}
 	}
 
+	mutex_lock(&adapter->poll_mutex);
 	adapter->poll_required = 1;
+	mutex_unlock(&adapter->poll_mutex);
 	adapter->link_state = __EDMA_LINKDOWN;
 
 set_bitmap:
@@ -601,7 +610,9 @@ static int edma_change_group2_bmp(struct ctl_table *table, int write,
 	if (!port_bit) {
 		adapter->dp_bitmap = edma_default_group2_bmp;
 		if (adapter->poll_required) {
+			mutex_lock(&adapter->poll_mutex);
 			adapter->poll_required = 0;
+			mutex_unlock(&adapter->poll_mutex);
 			adapter->link_state = __EDMA_LINKDOWN;
 			netif_carrier_off(ndev);
 			netif_tx_stop_all_queues(ndev);
@@ -621,6 +632,7 @@ static int edma_change_group2_bmp(struct ctl_table *table, int write,
 	 * phy adapter attached to group and start the queues
 	 */
 	if (num_ports_enabled > 1) {
+		mutex_lock(&adapter->poll_mutex);
 		if (adapter->poll_required) {
 			adapter->poll_required = 0;
 			if (adapter->phydev) {
@@ -651,10 +663,13 @@ static int edma_change_group2_bmp(struct ctl_table *table, int write,
 				netif_tx_start_all_queues(ndev);
 			}
 		}
+		mutex_unlock(&adapter->poll_mutex);
 		goto set_bitmap;
 	}
 
+	mutex_lock(&adapter->poll_mutex);
 	adapter->poll_required = adapter->poll_required_dynamic;
+	mutex_unlock(&adapter->poll_mutex);
 
 	if (!adapter->poll_required)
 		goto set_bitmap;
@@ -726,7 +741,9 @@ static int edma_change_group2_bmp(struct ctl_table *table, int write,
 		}
 	}
 
+	mutex_lock(&adapter->poll_mutex);
 	adapter->poll_required = 1;
+	mutex_unlock(&adapter->poll_mutex);
 	adapter->link_state = __EDMA_LINKDOWN;
 
 set_bitmap:
@@ -1217,6 +1234,7 @@ static int edma_axi_probe(struct platform_device *pdev)
 		adapter[i] = netdev_priv(edma_netdev[i]);
 		adapter[i]->netdev = edma_netdev[i];
 		adapter[i]->pdev = pdev;
+		mutex_init(&adapter[i]->poll_mutex);
 		for (j = 0; j < CONFIG_NR_CPUS; j++) {
 			m = i % 2;
 			adapter[i]->tx_start_offset[j] =
