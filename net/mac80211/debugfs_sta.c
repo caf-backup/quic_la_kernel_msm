@@ -875,7 +875,8 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	DEBUGFS_ADD_COUNTER(tx_filtered, status_stats.filtered);
 
 #ifdef CONFIG_MAC80211_MESH
-	DEBUGFS_ADD(mesh_link_metric);
+	if (sdata->vif.type == NL80211_IFTYPE_MESH_POINT)
+		DEBUGFS_ADD(mesh_link_metric);
 #endif
 
 	if (local->ops->wake_tx_queue)
