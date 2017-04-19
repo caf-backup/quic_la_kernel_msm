@@ -2490,7 +2490,8 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 					mppath->exp_time = jiffies;
 			}
 
-			if (mppath && mpath)
+			if (mppath && mpath &&
+			    !ether_addr_equal(mppath->mpp, mpath->dst))
 				mesh_path_del(sdata, mpath->dst);
 		}
 
