@@ -102,6 +102,7 @@ extern char core_pattern[];
 extern unsigned int core_pipe_limit;
 extern int pid_max;
 extern int min_free_kbytes;
+extern int low_free_kbytes_ratio;
 extern int min_free_order_shift;
 extern int pid_max_min, pid_max_max;
 extern int sysctl_drop_caches;
@@ -1233,6 +1234,14 @@ static struct ctl_table vm_table[] = {
 		.maxlen		= sizeof(min_free_kbytes),
 		.mode		= 0644,
 		.proc_handler	= min_free_kbytes_sysctl_handler,
+		.extra1		= &zero,
+	},
+	{
+		.procname	= "low_free_kbytes_ratio",
+		.data		= &low_free_kbytes_ratio,
+		.maxlen		= sizeof(low_free_kbytes_ratio),
+		.mode		= 0644,
+		.proc_handler	= low_free_kbytes_ratio_sysctl_handler,
 		.extra1		= &zero,
 	},
 	{
