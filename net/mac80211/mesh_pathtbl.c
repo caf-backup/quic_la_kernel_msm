@@ -632,8 +632,9 @@ void mesh_plink_broken(struct sta_info *sta)
 			++paths_deactivated;
 		}
 	}
-	mpath_dbg(sta->sdata, " MESH MPL the link to %pM is broken and %d path deactivated\n",
-		  sta->addr, paths_deactivated);
+	if (paths_deactivated > 0)
+		mpath_dbg(sta->sdata, " MESH MPL the link to %pM is broken and %d path deactivated\n",
+			  sta->addr, paths_deactivated);
 out:
 	rhashtable_walk_stop(&iter);
 	rhashtable_walk_exit(&iter);
