@@ -89,7 +89,8 @@
 #define IFF_PPP_L2TPV2 0x1000000
 #define IFF_PPP_L2TPV3 0x2000000
 #define IFF_PPP_PPTP 0x4000000
-
+#define IFF_GRE_V4_TAP 0x08000000	/* GRE v4 tap device */
+#define IFF_GRE_V6_TAP 0x20000000	/* GRE v6 tap device */
 
 #define IF_GET_IFACE	0x0001		/* for querying only */
 #define IF_GET_PROTO	0x0002
