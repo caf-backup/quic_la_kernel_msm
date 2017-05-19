@@ -360,6 +360,7 @@
 			qcom,gre-enabled;
 			qcom,map-t-enabled;
 			qcom,portid-enabled;
+			qcom,pppoe-enabled;
 			qcom,pptp-enabled;
 			qcom,tunipip6-enabled;
 			qcom,shaping-enabled;
