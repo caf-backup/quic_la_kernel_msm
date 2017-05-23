@@ -269,7 +269,6 @@ static int ipq40xx_audio_hw_params(struct snd_pcm_substream *substream,
 
 	ipq40xx_stereo_config_reset(DISABLE, stereo_id);
 	ipq40xx_stereo_config_mic_reset(DISABLE, stereo_id);
-	ipq40xx_stereo_config_enable(ENABLE, stereo_id);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		ret = ipq40xx_audio_clk_set(audio_tx_mclk, dev, mclk);
@@ -314,7 +313,6 @@ static void ipq40xx_audio_shutdown(struct snd_pcm_substream *substream,
 		ipq40xx_audio_clk_disable(&audio_rx_mclk, dev);
 	}
 	/* Disable the I2S Stereo block */
-	ipq40xx_stereo_config_enable(DISABLE, get_stereo_id(substream, intf));
 }
 
 static int ipq40xx_audio_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
