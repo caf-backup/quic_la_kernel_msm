@@ -14,9 +14,6 @@
 #ifndef MDSS_FB_H
 #define MDSS_FB_H
 
-#ifdef CONFIG_ION
-#include <linux/msm_ion.h>
-#endif
 #include <linux/list.h>
 #include <linux/msm_mdp.h>
 #include <linux/types.h>
