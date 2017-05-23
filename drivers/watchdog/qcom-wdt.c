@@ -371,6 +371,7 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	u32 percpu_offset;
 	int ret, irq;
+	uint32_t val;
 
 	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
@@ -438,7 +439,10 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	wdt->wdd.dev = &pdev->dev;
 	wdt->wdd.info = &qcom_wdt_info;
 	wdt->wdd.min_timeout = 1;
-	wdt->wdd.max_timeout = 0x10000000U / wdt->rate;
+	if (!of_property_read_u32(np, "wdt-max-timeout", &val))
+		wdt->wdd.max_timeout = val;
+	else
+		wdt->wdd.max_timeout = 0x10000000U / wdt->rate;
 	wdt->wdd.parent = &pdev->dev;
 	wdt->layout = id->data;
 

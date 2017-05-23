@@ -902,6 +902,9 @@ static int rpm_reg_probe(struct platform_device *pdev)
 	}
 
 	match = of_match_device(rpm_of_match, &pdev->dev);
+	if (!match)
+		return -EINVAL;
+
 	for (reg = match->data; reg->name; reg++) {
 		vreg = devm_kmalloc(&pdev->dev, sizeof(*vreg), GFP_KERNEL);
 		if (!vreg)

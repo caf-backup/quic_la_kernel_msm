@@ -529,7 +529,7 @@ alpha_pll_huayra_round_rate(unsigned long rate, unsigned long prate,
 static unsigned long
 clk_alpha_pll_huayra_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 {
-	u32 l, alpha, ctl, alpha_m, alpha_n;
+	u32 l, alpha = 0, ctl, alpha_m, alpha_n;
 	u64 rate = parent_rate, tmp;
 	struct clk_alpha_pll *pll = to_clk_alpha_pll(hw);
 
@@ -583,11 +583,14 @@ static int clk_alpha_pll_huayra_set_rate(struct clk_hw *hw, unsigned long rate,
 				  unsigned long prate)
 {
 	struct clk_alpha_pll *pll = to_clk_alpha_pll(hw);
-	u32 l, a, cur_alpha;
+	u32 l, a, ctl, cur_alpha = 0;
 
 	rate = alpha_pll_huayra_round_rate(rate, prate, &l, &a);
 
-	regmap_read(pll->clkr.regmap, PLL_ALPHA_REG(pll), &cur_alpha);
+	regmap_read(pll->clkr.regmap, PLL_USER_CTL_REG(pll), &ctl);
+
+	if (ctl & PLL_ALPHA_EN)
+		regmap_read(pll->clkr.regmap, PLL_ALPHA_REG(pll), &cur_alpha);
 
 	/*
 	 * Huayra PLL supports PLL dynamic programming. User can change L_VAL,

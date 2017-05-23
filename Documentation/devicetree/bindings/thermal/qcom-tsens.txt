@@ -6,6 +6,7 @@ Required properties:
  - "qcom,msm8974-tsens" : For 8974 Family of SoCs
  - "qcom,msm8996-tsens" : For 8996 Family of SoCs
  - "qcom,ipq8064-tsens" : For IPQ8064
+ - "qcom,ipq807x-tsens" : For IPQ807x
 
 - reg: Address range of the thermal registers
 - #thermal-sensor-cells : Should be 1. See ./thermal.txt for a description.

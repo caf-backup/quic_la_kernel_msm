@@ -106,6 +106,12 @@
 		};
 	};
 
+	firmware {
+		scm {
+			compatible = "qcom,scm-ipq807x";
+		};
+	};
+
 	soc: soc {
 		#address-cells = <0x1>;
 		#size-cells = <0x1>;
@@ -211,6 +217,39 @@
 			status = "disabled";
 		};
 
+		qcom,nss_crypto {
+			compatible = "qcom,nss-crypto";
+			qcom,max-contexts = <16>;
+			qcom,max-context-size = <32>;
+			ranges;
+
+			eip197_node {
+				compatible = "qcom,eip197";
+				reg-names = "crypto_pbase";
+				reg = <0x39800000 0x7ffff>;
+				qcom,dma-queue-depth = <256>;
+				qcom,dma-mask = <0xff>;
+				qcom,transform-enabled;
+				qcom,aes128-cbc;
+				qcom,aes192-cbc;
+				qcom,aes256-cbc;
+				qcom,3des-cbc;
+				qcom,sha1-hmac;
+				qcom,aes128-cbc-sha1-hmac;
+				qcom,aes192-cbc-sha1-hmac;
+				qcom,aes256-cbc-sha1-hmac;
+				qcom,3des-cbc-sha1-hmac;
+
+				engine0 {
+					reg_offset = <0x80000>;
+					qcom,ifpp-enabled;
+					qcom,ipue-enabled;
+					qcom,ofpp-enabled;
+					qcom,opue-enabled;
+				};
+			};
+		};
+
 		watchdog@b017000 {
 			compatible = "qcom,kpss-wdt-ipq807x";
 			reg = <0xb017000 0x1000>;
@@ -258,6 +297,14 @@
 			hwlocks = <&tcsr_mutex 0>;
 		};
 
+		glink_mpss: qcom,glink-ssr-modem {
+			compatible = "qcom,glink_ssr";
+			label = "q6v5-wcss";
+			qcom,edge = "mpss";
+			qca,no-notify-edges;
+			qcom,xprt = "smem";
+		};
+
 		qcom,glink-smem-native-xprt-modem@4AB00000 {
 			compatible = "qcom,glink-smem-native-xprt";
 			reg = <0x4AB00000 0x100000>, <0x0b111008 0x4>;
@@ -283,6 +330,19 @@
 			qcom,xprt-linkid = <1>;
 			qcom,xprt-version = <1>;
 			qcom,fragmented-data;
+		};
+
+		qcom,msm-imem@8600000 {
+			compatible = "qcom,msm-imem";
+			reg = <0x08600000 0x1000>;
+			ranges = <0x0 0x08600000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mem_dump_table@10 {
+				compatible = "qcom,msm-imem-mem_dump_table";
+				reg = <0x10 8>;
+			};
 		};
 
 		ssphy_0: ssphy@78000 {
@@ -1151,18 +1211,29 @@
 
 		q6v5_wcss: q6v5_wcss@CD00000 {
 			compatible = "qca,q6v5-wcss-rproc";
-			firmware = "IPQ8074/M8074QCAHKAWPLQ00010_WLANFW.elf";
-			reg = <0xCD00000 0x4040>;
+			firmware = "IPQ8074/M8074QCAHKAWPLQ_WLANFW.mdt";
+			reg = <0xCD00000 0x4040>,
+				<0x1952000 0x10>,
+				<0x4ab000 0x10>,
+				<0x1818000 0x110>,
+				<0x1859000 0x10>;
+			reg-names = "wcss-base",
+					"tcsr-base",
+					"mpm-base",
+					"gcc-wcss-bcr-base",
+					"gcc-wcss-misc-base";
+			qca,auto-restart;
+			qca,extended-intc;
 			interrupts-extended = <&intc 0 325 1>,
 					<&wcss_smp2p_in 0 0>,
 					<&wcss_smp2p_in 1 0>,
 					<&wcss_smp2p_in 3 0>;
 			interrupt-names = "wdog",
-					"fatal",
-					"handover",
-					"stop-ack";
+					  "qcom,gpio-err-fatal",
+					  "qcom,gpio-err-ready",
+					  "qcom,gpio-stop-ack";
 			qcom,smem-states = <&wcss_smp2p_out 0>,
-					<&wcss_smp2p_out 1>;
+					   <&wcss_smp2p_out 1>;
 			qcom,smem-state-names = "shutdown",
 						"stop";
 		};

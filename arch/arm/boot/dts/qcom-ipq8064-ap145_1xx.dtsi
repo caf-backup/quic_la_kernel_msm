@@ -147,7 +147,6 @@
 				};
 			};
 
-
 			spi_pins: spi_pins {
 				mux {
 					pins = "gpio18", "gpio19", "gpio21";
@@ -402,6 +401,7 @@
 			qcom,ipv4-enabled;
 			qcom,ipv6-enabled;
 			qcom,l2tpv2-enabled;
+			qcom,gre-enabled;
 			qcom,portid-enabled;
 			qcom,pppoe-enabled;
 			qcom,pptp-enabled;

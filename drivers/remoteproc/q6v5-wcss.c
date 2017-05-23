@@ -53,6 +53,10 @@ static struct q6v5_rtable q6v5_rtable = {
 
 struct q6v5_rproc_pdata {
 	void __iomem *q6_base;
+	void __iomem *tcsr_base;
+	void __iomem *mpm_base;
+	void __iomem *gcc_bcr_base;
+	void __iomem *gcc_misc_base;
 	struct rproc *rproc;
 	struct subsys_device *subsys;
 	struct subsys_desc subsys_desc;
@@ -90,14 +94,130 @@ static int q6_rproc_stop(struct rproc *rproc)
 	struct device *dev = rproc->dev.parent;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct q6v5_rproc_pdata *pdata = platform_get_drvdata(pdev);
+	unsigned long val = 0;
 	int ret = 0;
+	unsigned int nretry = 0;
 
 	pdata->running = false;
 	if (pdata->secure) {
 		ret = qcom_scm_pas_shutdown(WCNSS_PAS_ID);
 		if (ret)
 			dev_err(dev, "failted to shutdown %d\n", ret);
+		return ret;
 	}
+
+	/* Non secure */
+#define TCSR_HALTREQ 0x0
+#define TCSR_HALTACK 0x4
+#define QDSP6SS_INTF_HALTREQ 0x88
+#define QDSP6SS_INTF_HALTACK 0x8c
+#define SSCAON_CONFIG 0x8
+#define GCC_WCSS_BCR 0x0
+#define GCC_WCSS_Q6_BCR 0x100
+#define GCC_MISC_RESET_ADDR 0x8
+#define HALTACK BIT(0)
+
+	/* Assert WCSS/Q6 HALTREQ */
+	val = readl(pdata->tcsr_base + TCSR_HALTREQ);
+	val |= BIT(0);
+	writel(val, pdata->tcsr_base + TCSR_HALTREQ);
+
+	val = readl(pdata->q6_base + QDSP6SS_INTF_HALTREQ);
+	val |= BIT(0);
+	writel(val, pdata->q6_base + QDSP6SS_INTF_HALTREQ);
+
+	/* Check HALTACK */
+	if (pdata->emulation == 1) {
+		val = readl(pdata->tcsr_base + TCSR_HALTACK);
+		mdelay(100);
+		val = readl(pdata->q6_base + QDSP6SS_INTF_HALTACK);
+		mdelay(100);
+	} else {
+		while (1) {
+			val = readl(pdata->tcsr_base + TCSR_HALTACK);
+			if (val & HALTACK)
+				break;
+			mdelay(1);
+			nretry++;
+			if (nretry >= 10) {
+				pr_err("Can't bring q6 to halt\n");
+				return -EIO;
+			}
+		}
+		nretry = 0;
+		while (1) {
+			val = readl(pdata->q6_base + QDSP6SS_INTF_HALTACK);
+			if (val & HALTACK)
+				break;
+			mdelay(1);
+			nretry++;
+			if (nretry >= 10) {
+				pr_err("Can't bring q6 to halt\n");
+				return -EIO;
+			}
+		}
+	}
+
+	/* Set MPM_SSCAON_CONFIG 1 */
+	val = readl(pdata->mpm_base + SSCAON_CONFIG);
+	val |= BIT(1);
+	writel(val, pdata->mpm_base + SSCAON_CONFIG);
+	mdelay(100);
+
+	/* Set MPM_SSCAON_CONFIG 0 */
+	val = readl(pdata->mpm_base + SSCAON_CONFIG);
+	val &= ~(BIT(0));
+	writel(val, pdata->mpm_base + SSCAON_CONFIG);
+	mdelay(100);
+
+	/* Set MPM_SSCAON_CONFIG 1 */
+	val = readl(pdata->mpm_base + SSCAON_CONFIG);
+	val &= ~(BIT(1));
+	writel(val, pdata->mpm_base + SSCAON_CONFIG);
+	mdelay(100);
+
+	/* Enable Q6/WCSS BLOCK ARES */
+	val = readl(pdata->gcc_bcr_base + GCC_WCSS_BCR);
+	val |= BIT(0);
+	writel(val, pdata->gcc_bcr_base + GCC_WCSS_BCR);
+
+	val = readl(pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
+	val |= BIT(0);
+	writel(val, pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
+
+	/* Enable A2AB/ACMT/ECHAB ARES */
+	val = readl(pdata->gcc_misc_base + GCC_MISC_RESET_ADDR);
+	val |= 0xe;
+	writel(val, pdata->gcc_misc_base + GCC_MISC_RESET_ADDR);
+
+	/* De-assert WCSS/Q6 HALTREQ */
+	val = readl(pdata->tcsr_base + TCSR_HALTREQ);
+	val &= ~(BIT(0));
+	writel(val, pdata->tcsr_base + TCSR_HALTREQ);
+
+	val = readl(pdata->q6_base + QDSP6SS_INTF_HALTREQ);
+	val &= ~(BIT(0));
+	writel(val, pdata->q6_base + QDSP6SS_INTF_HALTREQ);
+
+	/* Release A2AB/ACMT/ECHAB ARES */
+	val = readl(pdata->gcc_misc_base + GCC_MISC_RESET_ADDR);
+	val &= (~0xf);
+	writel(val, pdata->gcc_misc_base + GCC_MISC_RESET_ADDR);
+
+	/* Release Q6/WCSS BLOCK ARES */
+	val = readl(pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
+	val &= ~(BIT(0));
+	writel(val, pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
+
+	val = readl(pdata->gcc_bcr_base + GCC_WCSS_BCR);
+	val &= ~(BIT(0));
+	writel(val, pdata->gcc_bcr_base + GCC_WCSS_BCR);
+
+	/* Set MPM_SSCAON_CONFIG 0 */
+	val = readl(pdata->mpm_base + SSCAON_CONFIG);
+	val |= BIT(0);
+	writel(val, pdata->mpm_base + SSCAON_CONFIG);
+	mdelay(100);
 
 	return ret;
 }
@@ -463,7 +583,8 @@ static int q6_rproc_probe(struct platform_device *pdev)
 	q6_fw_ops.load = q6v5_load;
 
 	if (!q6v5_rproc_pdata->secure) {
-		resource = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		resource = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						"wcss-base");
 		if (unlikely(!resource))
 			goto free_rproc;
 
@@ -471,6 +592,47 @@ static int q6_rproc_probe(struct platform_device *pdev)
 				resource_size(resource));
 		if (!q6v5_rproc_pdata->q6_base)
 			goto free_rproc;
+
+		resource = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						"tcsr-base");
+		if (unlikely(!resource))
+			goto free_rproc;
+
+		q6v5_rproc_pdata->tcsr_base = ioremap(resource->start,
+				resource_size(resource));
+		if (!q6v5_rproc_pdata->tcsr_base)
+			goto free_rproc;
+
+		resource = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						"mpm-base");
+		if (unlikely(!resource))
+			goto free_rproc;
+
+		q6v5_rproc_pdata->mpm_base = ioremap(resource->start,
+				resource_size(resource));
+		if (!q6v5_rproc_pdata->mpm_base)
+			goto free_rproc;
+
+		resource = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						"gcc-wcss-bcr-base");
+		if (unlikely(!resource))
+			goto free_rproc;
+
+		q6v5_rproc_pdata->gcc_bcr_base = ioremap(resource->start,
+				resource_size(resource));
+		if (!q6v5_rproc_pdata->gcc_bcr_base)
+			goto free_rproc;
+
+		resource = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						"gcc-wcss-misc-base");
+		if (unlikely(!resource))
+			goto free_rproc;
+
+		q6v5_rproc_pdata->gcc_misc_base = ioremap(resource->start,
+				resource_size(resource));
+		if (!q6v5_rproc_pdata->gcc_misc_base)
+			goto free_rproc;
+
 	}
 
 	platform_set_drvdata(pdev, q6v5_rproc_pdata);
@@ -519,6 +681,21 @@ static int q6_rproc_probe(struct platform_device *pdev)
 	return 0;
 
 free_rproc:
+	if (q6v5_rproc_pdata->gcc_misc_base)
+		iounmap(q6v5_rproc_pdata->gcc_misc_base);
+
+	if (q6v5_rproc_pdata->gcc_bcr_base)
+		iounmap(q6v5_rproc_pdata->gcc_bcr_base);
+
+	if (q6v5_rproc_pdata->mpm_base)
+		iounmap(q6v5_rproc_pdata->mpm_base);
+
+	if (q6v5_rproc_pdata->tcsr_base)
+		iounmap(q6v5_rproc_pdata->tcsr_base);
+
+	if (q6v5_rproc_pdata->q6_base)
+		iounmap(q6v5_rproc_pdata->q6_base);
+
 	rproc_put(rproc);
 	return -EIO;
 }

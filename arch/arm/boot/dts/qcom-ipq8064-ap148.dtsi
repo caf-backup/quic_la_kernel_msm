@@ -248,6 +248,8 @@
 					0x0007c 0x4e        /* PORT0_STATUS */
 					0x00094 0x4e        /* PORT6_STATUS */
 					>;
+				link-polling-required = <0>;
+				link-intr-gpio = <2>;
 			};
 
 			phy4: ethernet-phy@4 {
@@ -288,6 +290,7 @@
 			qcom,wlanredirect-enabled;
 			qcom,tun6rd-enabled;
 			qcom,l2tpv2-enabled;
+			qcom,gre-enabled;
 			qcom,map-t-enabled;
 			qcom,tunipip6-enabled;
 			qcom,pppoe-enabled;

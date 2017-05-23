@@ -22,6 +22,7 @@
  */
 DEFINE_PER_CPU(u64, cpu_hardirq_time);
 DEFINE_PER_CPU(u64, cpu_softirq_time);
+DEFINE_PER_CPU(u64, cpu_ksoftirqd_time);
 
 static DEFINE_PER_CPU(u64, irq_start_time);
 static int sched_clock_irqtime;
@@ -68,8 +69,19 @@ void irqtime_account_irq(struct task_struct *curr)
 	 */
 	if (hardirq_count())
 		__this_cpu_add(cpu_hardirq_time, delta);
-	else if (in_serving_softirq() && curr != this_cpu_ksoftirqd())
-		__this_cpu_add(cpu_softirq_time, delta);
+	else if (in_serving_softirq()) {
+		/*
+		 * With the original IRQ time accounting patch, As
+		 * cpu_softirq_time does not account for softirq time when
+		 * ksoftirqd is running, we store it in cpu_ksoftirqd_time.
+		 * We later use this along with cpu_softirq_time to update
+		 * cpustat[CPUTIME_SOFTIRQ]
+		 */
+		if (curr == this_cpu_ksoftirqd())
+			__this_cpu_add(cpu_ksoftirqd_time, delta);
+		else
+			__this_cpu_add(cpu_softirq_time, delta);
+	}
 
 	irq_time_write_end();
 	local_irq_restore(flags);
@@ -99,7 +111,22 @@ static int irqtime_account_si_update(void)
 	int ret = 0;
 
 	local_irq_save(flags);
-	latest_ns = this_cpu_read(cpu_softirq_time);
+	/*
+	 * When ksoftirqd runs, cpu_sotfirq_time is not updated (to account
+	 * time correctly to the ksoftirqd task), but
+	 * cpustat[CPUTIME_SOFTIRQ] continues to be incremented. So the
+	 * difference in the values of cpustat[CPUTIME_SOFTIRQ] and
+	 * cpu_softirq_time increases, and is propotional to the duration
+	 * ksoftirqd runs. After ksoftirqd sleeps, the cpu_softirq_time starts
+	 * being updated again, but because of the previous difference in
+	 * values it takes time to match the value in cpustat[CPUTIME_SOFTIRQ].
+	 * So during this period, this function returns 0 which causes incorrect
+	 * softirq values in /proc/stat. So the solution is to plug the
+	 * difference in values using another variable (cpu_ksoftirqd_time)
+	 * which is updated when ksofitrqd runs.
+	 */
+	latest_ns = this_cpu_read(cpu_softirq_time) +
+			this_cpu_read(cpu_ksoftirqd_time);
 	if (nsecs_to_cputime64(latest_ns) > cpustat[CPUTIME_SOFTIRQ])
 		ret = 1;
 	local_irq_restore(flags);

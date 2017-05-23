@@ -86,7 +86,7 @@ int ath79_get_wlan_fw_dump_buffer(void **dump_buff, u32 *buff_size)
 EXPORT_SYMBOL(ath79_get_wlan_fw_dump_buffer);
 EXPORT_SYMBOL(ath79_wlan_fw_dump_addr);
 
-static void ath79_init_wlan_fw_dump_buffer(void)
+void ath79_init_wlan_fw_dump_buffer(void)
 {
 	ath79_wlan_fw_dump_addr = kmalloc(ATH79_FW_DUMP_MEM_SIZE, GFP_ATOMIC);
 	if (ath79_wlan_fw_dump_addr)

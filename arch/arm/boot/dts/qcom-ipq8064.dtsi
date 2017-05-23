@@ -1040,6 +1040,9 @@
 
 			ranges;
 
+			resets = <&gcc USB30_0_MASTER_RESET>;
+			reset-names = "usb30_mstr_rst";
+
 			status = "disabled";
 
 			dwc3@11000000 {
@@ -1050,6 +1053,7 @@
 				phy-names = "usb2-phy", "usb3-phy";
 				tx-fifo-resize;
 				dr_mode = "host";
+				snps,dis_u3_susphy_quirk;
 			};
 		};
 
@@ -1093,6 +1097,7 @@
 				phy-names = "usb2-phy", "usb3-phy";
 				tx-fifo-resize;
 				dr_mode = "host";
+				snps,dis_u3_susphy_quirk;
 			};
 		};
 

@@ -2878,13 +2878,6 @@ static int qcom_nandc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_setup;
 
-	if (nandc->create_sys_boot_layout) {
-		ret = sysfs_create_file(&pdev->dev.kobj,
-					&dev_attr_boot_layout.attr);
-		if (ret)
-			goto err_setup;
-	}
-
 	for_each_available_child_of_node(dn, child) {
 		if (of_device_is_compatible(child, "qcom,nandcs")) {
 			host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
@@ -2907,6 +2900,13 @@ static int qcom_nandc_probe(struct platform_device *pdev)
 	if (list_empty(&nandc->host_list)) {
 		ret = -ENODEV;
 		goto err_cs_init;
+	}
+
+	if (nandc->create_sys_boot_layout) {
+		ret = sysfs_create_file(&pdev->dev.kobj,
+					&dev_attr_boot_layout.attr);
+		if (ret)
+			goto err_cs_init;
 	}
 
 	return 0;

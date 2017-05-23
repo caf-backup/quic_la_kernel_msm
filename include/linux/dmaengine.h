@@ -742,6 +742,7 @@ struct dma_device {
 	int (*device_pause)(struct dma_chan *chan);
 	int (*device_resume)(struct dma_chan *chan);
 	int (*device_terminate_all)(struct dma_chan *chan);
+	int (*device_terminate_all_graceful)(struct dma_chan *chan, bool graceful);
 
 	enum dma_status (*device_tx_status)(struct dma_chan *chan,
 					    dma_cookie_t cookie,
@@ -846,6 +847,14 @@ static inline int dmaengine_terminate_all(struct dma_chan *chan)
 {
 	if (chan->device->device_terminate_all)
 		return chan->device->device_terminate_all(chan);
+
+	return -ENOSYS;
+}
+
+static inline int dmaengine_terminate_all_graceful(struct dma_chan *chan, bool graceful)
+{
+	if (chan->device->device_terminate_all)
+		return chan->device->device_terminate_all_graceful(chan, graceful);
 
 	return -ENOSYS;
 }

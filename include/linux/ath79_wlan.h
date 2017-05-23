@@ -24,6 +24,7 @@
 #define ATH79_FW_DUMP_MEM_SIZE          ((2*1024*1024))
 
 int ath79_get_wlan_fw_dump_buffer(void **dump_buff, u32 *buff_size);
+void ath79_init_wlan_fw_dump_buffer(void);
 #endif /* ATH79_WLAN_FW_DUMP */
 
 #endif /* _ATH79_WLAN_H_ */

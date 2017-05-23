@@ -463,6 +463,33 @@ static void dwc3_cache_hwparams(struct dwc3 *dwc)
 }
 
 /**
+ * dwc3_read_revision - Reads the revision number
+ * @dwc: Pointer to our controller context structure
+ *
+ * Returns 0 on success.
+ */
+static int dwc3_read_revision(struct dwc3 *dwc)
+{
+	u32 reg;
+
+	reg = dwc3_readl(dwc->regs, DWC3_GSNPSID);
+	/* This should read as U3 followed by revision number */
+	if ((reg & DWC3_GSNPSID_MASK) == 0x55330000) {
+		/* Detected DWC_usb3 IP */
+		dwc->revision = reg;
+	} else if ((reg & DWC3_GSNPSID_MASK) == 0x33310000) {
+		/* Detected DWC_usb31 IP */
+		dwc->revision = dwc3_readl(dwc->regs, DWC3_VER_NUMBER);
+		dwc->revision |= DWC3_REVISION_IS_DWC31;
+	} else {
+		dev_err(dwc->dev, "this is not a DesignWare USB3 DRD Core\n");
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
+/**
  * dwc3_phy_setup - Configure USB PHY Interface of DWC3 Core
  * @dwc: Pointer to our controller context structure
  *
@@ -578,21 +605,6 @@ static int dwc3_core_init(struct dwc3 *dwc)
 	u32			hwparams4 = dwc->hwparams.hwparams4;
 	u32			reg;
 	int			ret;
-
-	reg = dwc3_readl(dwc->regs, DWC3_GSNPSID);
-	/* This should read as U3 followed by revision number */
-	if ((reg & DWC3_GSNPSID_MASK) == 0x55330000) {
-		/* Detected DWC_usb3 IP */
-		dwc->revision = reg;
-	} else if ((reg & DWC3_GSNPSID_MASK) == 0x33310000) {
-		/* Detected DWC_usb31 IP */
-		dwc->revision = dwc3_readl(dwc->regs, DWC3_VER_NUMBER);
-		dwc->revision |= DWC3_REVISION_IS_DWC31;
-	} else {
-		dev_err(dwc->dev, "this is not a DesignWare USB3 DRD Core\n");
-		ret = -ENODEV;
-		goto err0;
-	}
 
 	/*
 	 * Write Linux Version Code to our GUID register so it's easy to figure
@@ -1055,6 +1067,10 @@ static int dwc3_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dwc);
 	dwc3_cache_hwparams(dwc);
+
+	ret = dwc3_read_revision(dwc);
+	if (ret)
+		goto err0;
 
 	ret = dwc3_phy_setup(dwc);
 	if (ret)

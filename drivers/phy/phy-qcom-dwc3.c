@@ -257,36 +257,21 @@ err_wait:
 	return ret;
 }
 
-static int qcom_dwc3_phy_power_on(struct phy *phy)
+static int qcom_dwc3_hs_phy_init(struct phy *phy)
 {
-	int ret;
 	struct qcom_dwc3_usb_phy *phy_dwc3 = phy_get_drvdata(phy);
+	int ret;
+	u32 val;
 
 	ret = clk_prepare_enable(phy_dwc3->xo_clk);
 	if (ret)
 		return ret;
 
 	ret = clk_prepare_enable(phy_dwc3->ref_clk);
-	if (ret)
+	if (ret) {
 		clk_disable_unprepare(phy_dwc3->xo_clk);
-
-	return ret;
-}
-
-static int qcom_dwc3_phy_power_off(struct phy *phy)
-{
-	struct qcom_dwc3_usb_phy *phy_dwc3 = phy_get_drvdata(phy);
-
-	clk_disable_unprepare(phy_dwc3->ref_clk);
-	clk_disable_unprepare(phy_dwc3->xo_clk);
-
-	return 0;
-}
-
-static int qcom_dwc3_hs_phy_init(struct phy *phy)
-{
-	struct qcom_dwc3_usb_phy *phy_dwc3 = phy_get_drvdata(phy);
-	u32 val;
+		return ret;
+	}
 
 	/*
 	 * HSPHY Initialization: Enable UTMI clock, select 19.2MHz fsel
@@ -311,11 +296,31 @@ static int qcom_dwc3_hs_phy_init(struct phy *phy)
 	return 0;
 }
 
+static int qcom_dwc3_hs_phy_exit(struct phy *phy)
+{
+	struct qcom_dwc3_usb_phy *phy_dwc3 = phy_get_drvdata(phy);
+
+	clk_disable_unprepare(phy_dwc3->ref_clk);
+	clk_disable_unprepare(phy_dwc3->xo_clk);
+
+	return 0;
+}
+
 static int qcom_dwc3_ss_phy_init(struct phy *phy)
 {
 	struct qcom_dwc3_usb_phy *phy_dwc3 = phy_get_drvdata(phy);
 	int ret;
 	u32 data = 0;
+
+	ret = clk_prepare_enable(phy_dwc3->xo_clk);
+	if (ret)
+		return ret;
+
+	ret = clk_prepare_enable(phy_dwc3->ref_clk);
+	if (ret) {
+		clk_disable_unprepare(phy_dwc3->xo_clk);
+		return ret;
+	}
 
 	/* reset phy */
 	data = readl(phy_dwc3->base + SSUSB_PHY_CTRL_REG);
@@ -337,6 +342,30 @@ static int qcom_dwc3_ss_phy_init(struct phy *phy)
 
 	data |= SSUSB_CTRL_SS_PHY_EN | SSUSB_CTRL_LANE0_PWR_PRESENT;
 	writel(data, phy_dwc3->base + SSUSB_PHY_CTRL_REG);
+
+	/*
+	 * WORKAROUND: There is SSPHY suspend bug due to which USB enumerates
+	 * in HS mode instead of SS mode. Workaround it by asserting
+	 * LANE0.TX_ALT_BLOCK.EN_ALT_BUS to enable TX to use alt bus mode
+	 */
+	ret = qcom_dwc3_ss_read_phycreg(phy_dwc3->base, 0x102D, &data);
+	if (ret)
+		goto err_phy_trans;
+
+	data |= (1 << 7);
+	ret = qcom_dwc3_ss_write_phycreg(phy_dwc3, 0x102D, data);
+	if (ret)
+		goto err_phy_trans;
+
+	ret = qcom_dwc3_ss_read_phycreg(phy_dwc3->base, 0x1010, &data);
+	if (ret)
+		goto err_phy_trans;
+
+	data &= ~0xff0;
+	data |= 0x20;
+	ret = qcom_dwc3_ss_write_phycreg(phy_dwc3, 0x1010, data);
+	if (ret)
+		goto err_phy_trans;
 
 	/*
 	 * Fix RX Equalization setting as follows
@@ -420,7 +449,10 @@ static int qcom_dwc3_ss_phy_exit(struct phy *phy)
 	qcom_dwc3_phy_write_readback(phy_dwc3, SSUSB_PHY_CTRL_REG,
 		SSUSB_CTRL_REF_USE_PAD, 0x0);
 	qcom_dwc3_phy_write_readback(phy_dwc3, SSUSB_PHY_CTRL_REG,
-		0x0, SSUSB_CTRL_TEST_POWERDOWN);
+		SSUSB_CTRL_TEST_POWERDOWN, 0x0);
+
+	clk_disable_unprepare(phy_dwc3->ref_clk);
+	clk_disable_unprepare(phy_dwc3->xo_clk);
 
 	return 0;
 }
@@ -428,8 +460,7 @@ static int qcom_dwc3_ss_phy_exit(struct phy *phy)
 static const struct qcom_dwc3_phy_drvdata qcom_dwc3_hs_drvdata = {
 	.ops = {
 		.init		= qcom_dwc3_hs_phy_init,
-		.power_on	= qcom_dwc3_phy_power_on,
-		.power_off	= qcom_dwc3_phy_power_off,
+		.exit		= qcom_dwc3_hs_phy_exit,
 		.owner		= THIS_MODULE,
 	},
 	.clk_rate = 60000000,
@@ -439,8 +470,6 @@ static const struct qcom_dwc3_phy_drvdata qcom_dwc3_ss_drvdata = {
 	.ops = {
 		.init		= qcom_dwc3_ss_phy_init,
 		.exit		= qcom_dwc3_ss_phy_exit,
-		.power_on	= qcom_dwc3_phy_power_on,
-		.power_off	= qcom_dwc3_phy_power_off,
 		.owner		= THIS_MODULE,
 	},
 	.clk_rate = 125000000,

@@ -200,6 +200,8 @@
 #define SDHCI_BASE_SDCLK_FREQ		0xc800
 #define SDHCI_TIMEOUT_CLK_FREQ		0xb2
 
+#define SDHC_EMU_MAX_CLOCKS	4
+
 static const u32 tuning_block_64[] = {
 	0x00FF0FFF, 0xCCC3CCFF, 0xFFCC3CC3, 0xEFFEFFFE,
 	0xDDFFDFFF, 0xFBFFFBFF, 0xFF7FFFBF, 0xEFBDF777,
@@ -2189,6 +2191,9 @@ static unsigned int sdhci_msm_get_max_clock(struct sdhci_host *host)
 	struct sdhci_msm_host *msm_host = pltfm_host->priv;
 	int max_clk_index = msm_host->pdata->sup_clk_cnt;
 
+	if(msm_host->emulation)
+		max_clk_index = SDHC_EMU_MAX_CLOCKS;
+
 	return msm_host->pdata->sup_clk_table[max_clk_index - 1];
 }
 
@@ -2777,6 +2782,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	void __iomem *tlmm_mem;
 	unsigned long flags;
 	struct device_node *np;
+	struct device *dev = &pdev->dev;
 	u32 max_clk;
 
 	pr_debug("%s: Enter %s\n", dev_name(&pdev->dev), __func__);
@@ -2799,6 +2805,8 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	msm_host->mmc = host->mmc;
 	msm_host->pdev = pdev;
 
+	msm_host->emulation = of_property_read_bool(dev->of_node,
+						"qcom,emulation");
 
 	/* Extract platform data */
 	if (pdev->dev.of_node) {
@@ -3064,7 +3072,6 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	msm_host->mmc->caps |= MMC_CAP_WAIT_WHILE_BUSY;
 	msm_host->mmc->caps2 |= msm_host->pdata->caps2;
 	msm_host->mmc->caps2 |= MMC_CAP2_BOOTPART_NOACC;
-	msm_host->mmc->caps2 |= MMC_CAP2_FULL_PWR_CYCLE;
 	msm_host->mmc->pm_caps |= MMC_PM_KEEP_POWER | MMC_PM_WAKE_SDIO_IRQ;
 
 	if (msm_host->pdata->nonremovable)

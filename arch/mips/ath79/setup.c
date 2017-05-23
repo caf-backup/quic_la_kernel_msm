@@ -33,6 +33,7 @@
 #include "common.h"
 #include "dev-common.h"
 #include "machtypes.h"
+#include <linux/ath79_wlan.h>
 
 #define ATH79_SYS_TYPE_LEN	64
 
@@ -290,8 +291,10 @@ __setup("board=", mips_machtype_setup);
 static int __init ath79_setup(void)
 {
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
-	if  (mips_machtype == ATH79_MACH_GENERIC_OF)
+	if (mips_machtype == ATH79_MACH_GENERIC_OF) {
+		ath79_init_wlan_fw_dump_buffer();
 		return 0;
+	}
 
 	ath79_gpio_init();
 	ath79_register_uart();

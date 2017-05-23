@@ -24,6 +24,8 @@
 
 #include <dt-bindings/mfd/qcom-rpm.h>
 
+static u32 fw_version[3];
+
 struct qcom_rpm_resource {
 	unsigned target_id;
 	unsigned status_id;
@@ -41,6 +43,7 @@ struct qcom_rpm_data {
 	unsigned int ack_sel_off;
 	unsigned int req_sel_size;
 	unsigned int ack_sel_size;
+	unsigned disable_mpm;
 };
 
 struct qcom_rpm {
@@ -388,6 +391,7 @@ static const struct qcom_rpm_data ipq806x_template = {
 	.ack_sel_off = 23,
 	.req_sel_size = 4,
 	.ack_sel_size = 7,
+	.disable_mpm = 1,
 };
 
 static const struct of_device_id qcom_rpm_of_match[] = {
@@ -483,13 +487,23 @@ static irqreturn_t qcom_rpm_wakeup_interrupt(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
+static ssize_t fw_version_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%u.%u.%u\n",
+			((fw_version[2] >> 24) & 0xff),
+			((fw_version[2] >> 16) & 0xff),
+			(fw_version[2] & 0xffff));
+}
+
+static struct kobj_attribute fw_version_attr = __ATTR_RO(fw_version);
+
 static int qcom_rpm_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	struct device_node *syscon_np;
 	struct resource *res;
 	struct qcom_rpm *rpm;
-	u32 fw_version[3];
 	int irq_wakeup;
 	int irq_ack;
 	int irq_err;
@@ -522,12 +536,20 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 	}
 
 	match = of_match_device(qcom_rpm_of_match, &pdev->dev);
+	if (!match || !match->data) {
+		dev_err(&pdev->dev, "match data missing\n");
+		return -EINVAL;
+	}
+
 	rpm->data = match->data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	rpm->status_regs = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(rpm->status_regs))
+	if (IS_ERR(rpm->status_regs)) {
+		dev_err(&pdev->dev, "ioremap failed\n");
 		return PTR_ERR(rpm->status_regs);
+	}
+
 	rpm->ctrl_regs = rpm->status_regs + 0x400;
 	rpm->req_regs = rpm->status_regs + 0x600;
 
@@ -588,9 +610,11 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = irq_set_irq_wake(irq_ack, 1);
-	if (ret)
-		dev_warn(&pdev->dev, "failed to mark ack irq as wakeup\n");
+	if (!rpm->data->disable_mpm) {
+		ret = irq_set_irq_wake(irq_ack, 1);
+		if (ret)
+			dev_warn(&pdev->dev, "failed to mark ack irq as wakeup\n");
+	}
 
 	ret = devm_request_irq(&pdev->dev,
 			       irq_err,
@@ -614,15 +638,22 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = irq_set_irq_wake(irq_wakeup, 1);
-	if (ret)
-		dev_warn(&pdev->dev, "failed to mark wakeup irq as wakeup\n");
+	if (!rpm->data->disable_mpm) {
+		ret = irq_set_irq_wake(irq_wakeup, 1);
+		if (ret)
+			dev_warn(&pdev->dev, "failed to mark wakeup irq as wakeup\n");
+	}
+
+	ret = sysfs_create_file(&pdev->dev.kobj, &fw_version_attr.attr);
+	if(ret)
+		dev_warn(&pdev->dev, "Failed to create fw_version sysfs entry\n");
 
 	return of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
 }
 
 static int qcom_rpm_remove(struct platform_device *pdev)
 {
+	sysfs_remove_file(&pdev->dev.kobj, &fw_version_attr.attr);
 	of_platform_depopulate(&pdev->dev);
 	return 0;
 }

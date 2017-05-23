@@ -154,7 +154,12 @@
 			uart2: serial@12490000 {
 
 				serial_clk = <1843200>;
-
+				dmas = <&adm_dma 8>,
+					<&adm_dma 7>;
+				dma-names = "rx", "tx";
+				qcom,rx-crci = <14>;
+				qcom,tx-crci = <4>;
+ 
 				pinctrl-0 = <&hs_uart_pins>;
 				pinctrl-names = "default";
 
@@ -316,6 +321,8 @@
 					0x0007c 0x4e        /* PORT0_STATUS */
 					0x00094 0x4e        /* PORT6_STATUS */
 				>;
+				link-polling-required = <0>;
+				link-intr-gpio = <2>;
 			};
 
 			phy4: ethernet-phy@4 {
@@ -359,6 +366,7 @@
 			qcom,ipv4-enabled;
 			qcom,ipv6-enabled;
 			qcom,l2tpv2-enabled;
+			qcom,gre-enabled;
 			qcom,map-t-enabled;
 			qcom,pptp-enabled;
 			qcom,portid-enabled;

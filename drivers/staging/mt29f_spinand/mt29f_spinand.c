@@ -806,7 +806,6 @@ static int spinand_program_page(struct spi_device *spi_nand,
 	u8 status = 0;
 	u8 *wbuf;
 #ifdef CONFIG_MTD_SPINAND_ONDIEECC
-	unsigned int i, j;
 
 	enable_read_hw_ecc = 0;
 	wbuf = kzalloc(CACHE_BUF, GFP_KERNEL);
@@ -815,8 +814,7 @@ static int spinand_program_page(struct spi_device *spi_nand,
 
 	spinand_read_page(spi_nand, page_id, 0, CACHE_BUF, wbuf);
 
-	for (i = offset, j = 0; i < (offset + len); i++, j++)
-		wbuf[i] &= buf[j];
+	memcpy(wbuf + offset, buf, len);
 
 	if (enable_hw_ecc) {
 		retval = spinand_enable_ecc(spi_nand);
@@ -988,8 +986,11 @@ static int spinand_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 	int eccsteps = chip->ecc.steps;
 	struct spinand_info *info = (struct spinand_info *)chip->priv;
 	struct spinand_ops *dev_ops = info->dev_ops;
+	struct spinand_state *state = (struct spinand_state *)info->priv;
 
 	enable_read_hw_ecc = 1;
+	spinand_read_page(info->spi, page, state->col,
+		(mtd->writesize + mtd->oobsize), state->buf);
 
 	chip->read_buf(mtd, p, eccsize * eccsteps);
 	if (oob_required)
@@ -1017,6 +1018,20 @@ static int spinand_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 		}
 	}
 	return retval;
+}
+
+static int spinand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
+			      uint8_t *buf, int oob_required, int page)
+{
+	struct spinand_info *info = (struct spinand_info *)chip->priv;
+	struct spinand_state *state = (struct spinand_state *)info->priv;
+
+	spinand_read_page(info->spi, page, state->col,
+		(mtd->writesize + mtd->oobsize), state->buf);
+	chip->read_buf(mtd, buf, mtd->writesize);
+	if (oob_required)
+		chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
+	return 0;
 }
 #endif
 
@@ -1111,10 +1126,9 @@ static void spinand_cmdfunc(struct mtd_info *mtd, unsigned int command,
 	 */
 	case NAND_CMD_READ1:
 	case NAND_CMD_READ0:
+		state->col = column;
+		state->row = page;
 		state->buf_ptr = 0;
-		spinand_read_page(info->spi, page, 0x0,
-				  (mtd->writesize + mtd->oobsize),
-				  state->buf);
 		break;
 	/* READOOB reads only the OOB because no ECC is performed. */
 	case NAND_CMD_READOOB:
@@ -1247,6 +1261,7 @@ static int spinand_probe(struct spi_device *spi_nand)
 	chip->ecc.total	= chip->ecc.steps * chip->ecc.bytes;
 	chip->ecc.layout = &spinand_oob_64;
 	chip->ecc.read_page = spinand_read_page_hwecc;
+	chip->ecc.read_page_raw = spinand_read_page_raw;
 	chip->ecc.write_page = spinand_write_page_hwecc;
 #else
 	chip->ecc.mode	= NAND_ECC_SOFT;

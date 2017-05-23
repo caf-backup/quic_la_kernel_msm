@@ -19,7 +19,13 @@ Required properties:
 - qcom,dma-queue-depth: Max descriptor in a ring
 - qcom,dma-mask: Max dma rings supported, each bit represent a ring number
 - qcom,transform-enabled: Whether Packet for tranformation will be sent from host or not.
+- qcom,aes128-cbc: Enable crypto algorithm
+- qcom,aes192-cbc: Enable crypto algorithm
+- qcom,aes256-cbc: Enable crypto algorithm
+- qcom,3des-cbc: Enable crypto algorithm
+- qcom,sha1-hmac: Enable crypto algorithm
 - qcom,aes128-cbc-sha1-hmac: Enable crypto algorithm
+- qcom,aes192-cbc-sha1-hmac: Enable crypto algorithm
 - qcom,aes256-cbc-sha1-hmac: Enable crypto algorithm
 - qcom,3des-cbc-sha1-hmac: Enable crypto algorithm
 
@@ -46,7 +52,13 @@ example:
 			qcom,dma-queue-depth = <256>;
 			qcom,dma-mask = <0xff>;
 			qcom,transform-enabled;
+			qcom,aes128-cbc;
+			qcom,aes192-cbc;
+			qcom,aes256-cbc;
+			qcom,3des-cbc;
+			qcom,sha1-hmac;
 			qcom,aes128-cbc-sha1-hmac;
+			qcom,aes192-cbc-sha1-hmac;
 			qcom,aes256-cbc-sha1-hmac;
 			qcom,3des-cbc-sha1-hmac;
 

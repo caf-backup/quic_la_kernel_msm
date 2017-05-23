@@ -61,7 +61,7 @@
 			gmac1 {
 				local-mac-address = [000000000000];
 				qcom,poll-required-dynamic = <1>;
-				vlan-tag = <1 0x2e>;
+				vlan-tag = <1 0x1e>;
 			};
 		};
 	};

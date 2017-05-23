@@ -365,6 +365,12 @@ int __qcom_scm_regsave(struct device *dev, u32 svc_id, u32 cmd_id,
 	return -ENOTSUPP;
 }
 
+int __qcom_scm_tcsr(struct device *dev, u32 svc_id, u32 cmd_id,
+			struct qcom_scm_tcsr_req *tcsr_cmd)
+{
+	return -ENOTSUPP;
+}
+
 int __qcom_scm_dload(struct device *dev, u32 svc_id, u32 cmd_id, void *cmd_buf)
 {
 	return -ENOTSUPP;
@@ -410,6 +416,12 @@ int __qcom_scm_send_cache_dump_addr(struct device *dev, u32 cmd_id,
 
 int __qcom_scm_tz_log(struct device *dev, u32 svc_id, u32 cmd_id,
 					void *log_buf, u32 log_size)
+{
+	return -ENOTSUPP;
+}
+
+int __qcom_los_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
+					void *cmd_buf, size_t size)
 {
 	return -ENOTSUPP;
 }

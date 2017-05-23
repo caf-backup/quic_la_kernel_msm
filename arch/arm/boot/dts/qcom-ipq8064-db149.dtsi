@@ -357,6 +357,7 @@
 			qcom,wlanredirect-enabled;
 			qcom,tun6rd-enabled;
 			qcom,l2tpv2-enabled;
+			qcom,gre-enabled;
 			qcom,map-t-enabled;
 			qcom,portid-enabled;
 			qcom,pptp-enabled;

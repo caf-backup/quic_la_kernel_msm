@@ -243,6 +243,7 @@
 			clock-names = "bam_clk";
 			#dma-cells = <1>;
 			qcom,ee = <1>;
+			qcom,controlled-remotely;
 		};
 
 		qcom_crypto: qcrypto@8e3a000 {
@@ -334,6 +335,7 @@
 			interrupts = <0 3 0>;
 			clocks = <&sleep_clk>;
 			timeout-sec = <10>;
+			wdt-max-timeout = <32>;
 			status = "ok";
 		};
 

@@ -1332,7 +1332,9 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 	else if (mtd->size > 0x1000000) {
 		/* enable 4-byte addressing if the device exceeds 16MiB */
 		nor->addr_width = 4;
-		if (JEDEC_MFR(info) == SNOR_MFR_SPANSION) {
+		if ((JEDEC_MFR(info) == SNOR_MFR_SPANSION) ||
+			(JEDEC_MFR(info) == SNOR_MFR_MACRONIX) ||
+			(JEDEC_MFR(info) == SNOR_MFR_MICRON)) {
 			/* Dedicated 4-byte command set */
 			switch (nor->flash_read) {
 			case SPI_NOR_QUAD:

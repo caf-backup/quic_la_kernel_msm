@@ -475,6 +475,38 @@ static struct dma_async_tx_descriptor *adm_prep_slave_sg(struct dma_chan *chan,
 }
 
 /**
+ * adm_terminate_all_graceful - Gracefully terminate all transactions on a channel
+ * @achan: adm dma channel
+ *
+ * Dequeues and frees all transactions, aborts current transaction
+ * No callbacks are done
+ *
+ */
+static int adm_terminate_all_graceful(struct dma_chan *chan, bool graceful)
+{
+	struct adm_chan *achan = to_adm_chan(chan);
+	struct adm_device *adev = achan->adev;
+	unsigned long flags;
+	LIST_HEAD(head);
+
+	spin_lock_irqsave(&achan->vc.lock, flags);
+	vchan_get_all_descriptors(&achan->vc, &head);
+
+	/* send flush command to terminate current transaction */
+	if (graceful)
+		writel_relaxed((1 << 31),
+			adev->regs + ADM_CH_FLUSH_STATE0(achan->id, adev->ee));
+	else
+		writel_relaxed(0x0,
+			adev->regs + ADM_CH_FLUSH_STATE0(achan->id, adev->ee));
+	spin_unlock_irqrestore(&achan->vc.lock, flags);
+
+	vchan_dma_desc_free_list(&achan->vc, &head);
+
+	return 0;
+}
+
+/**
  * adm_terminate_all - terminate all transactions on a channel
  * @achan: adm dma channel
  *
@@ -830,9 +862,9 @@ static int adm_dma_probe(struct platform_device *pdev)
 	/* configure client interfaces */
 	writel(ADM_CI_RANGE_START(0x40) | ADM_CI_RANGE_END(0xb0) |
 		ADM_CI_BURST_8_WORDS, adev->regs + ADM_CI_CONF(0));
-	writel(ADM_CI_RANGE_START(0x2a) | ADM_CI_RANGE_END(0x2c) |
+	writel(ADM_CI_RANGE_START(0x12) | ADM_CI_RANGE_END(0x14) |
 		ADM_CI_BURST_8_WORDS, adev->regs + ADM_CI_CONF(1));
-	writel(ADM_CI_RANGE_START(0x12) | ADM_CI_RANGE_END(0x28) |
+	writel(ADM_CI_RANGE_START(0x15) | ADM_CI_RANGE_END(0x28) |
 		ADM_CI_BURST_8_WORDS, adev->regs + ADM_CI_CONF(2));
 	writel(ADM_GP_CTL_LP_EN | ADM_GP_CTL_LP_CNT(0xf),
 		adev->regs + ADM_GP_CTL);
@@ -862,6 +894,7 @@ static int adm_dma_probe(struct platform_device *pdev)
 	adev->common.device_issue_pending = adm_issue_pending;
 	adev->common.device_tx_status = adm_tx_status;
 	adev->common.device_terminate_all = adm_terminate_all;
+	adev->common.device_terminate_all_graceful = adm_terminate_all_graceful;
 	adev->common.device_config = adm_slave_config;
 
 	ret = dma_async_device_register(&adev->common);

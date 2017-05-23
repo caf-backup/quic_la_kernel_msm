@@ -354,7 +354,6 @@ static int qcom_smp2p_outbound_entry(struct qcom_smp2p *smp2p,
 	entry->value = &out->entries[out->valid_entries].value;
 
 	if (of_property_read_bool(node, "qcom,smp2p-feature-ssr-ack")) {
-		out->features = SMP2P_FEATURE_SSR_ACK;
 		smp2p->need_ssr_ack = SMP2P_FEATURE_SSR_ACK;
 	} else {
 		smp2p->need_ssr_ack = 0;

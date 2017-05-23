@@ -1242,9 +1242,9 @@ static struct clk_regmap_div nss_port6_tx_div_clk_src = {
 
 struct freq_tbl ftbl_nss_ubi_clk_src[] = {
 	F(19200000, P_XO, 1, 0, 0),
-	F(833400000, P_UBI32_PLL, 2, 0, 0),
+	F(187200000, P_UBI32_PLL, 8, 0, 0),
+	F(748800000, P_UBI32_PLL, 2, 0, 0),
 	F(1497600000, P_UBI32_PLL, 1, 0, 0),
-	F(1593600000, P_UBI32_PLL, 1, 0, 0),
 	F(1689600000, P_UBI32_PLL, 1, 0, 0),
 	{ }
 };
@@ -1695,7 +1695,7 @@ static struct clk_regmap_div nss_ubi0_div_clk_src = {
 				"nss_ubi0_clk_src"
 			},
 			.num_parents = 1,
-			.ops = &clk_regmap_div_ops,
+			.ops = &clk_regmap_div_ro_ops,
 			.flags = CLK_SET_RATE_PARENT,
 		},
 	},
@@ -1712,7 +1712,7 @@ static struct clk_regmap_div nss_ubi1_div_clk_src = {
 				"nss_ubi1_clk_src"
 			},
 			.num_parents = 1,
-			.ops = &clk_regmap_div_ops,
+			.ops = &clk_regmap_div_ro_ops,
 			.flags = CLK_SET_RATE_PARENT,
 		},
 	},

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -32,7 +32,11 @@
 #define MDIO_CTRL_4_ACCESS_START	BIT(8)
 #define MDIO_CTRL_4_ACCESS_CODE_READ	0
 #define MDIO_CTRL_4_ACCESS_CODE_WRITE	1
-#define CTRL_0_REG_DEFAULT_VALUE	0x150FF
+#define MDIO_CTRL_4_ACCESS_CODE_C45_ADDR	0
+#define MDIO_CTRL_4_ACCESS_CODE_C45_WRITE	1
+#define MDIO_CTRL_4_ACCESS_CODE_C45_READ	2
+#define CTRL_0_REG_DEFAULT_VALUE	0x1500F
+#define CTRL_0_REG_C45_DEFAULT_VALUE	0x1510F
 
 #define IPQ40XX_MDIO_RETRY	1000
 #define IPQ40XX_MDIO_DELAY	10
@@ -72,17 +76,39 @@ static int ipq40xx_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 	if (ipq40xx_mdio_wait_busy(am))
 		return 0xffff;
 
-	/* issue the phy address and reg */
-	writel((mii_id << 8) | regnum, am->membase + MDIO_CTRL_1_REG);
+	if (regnum & MII_ADDR_C45) {
+		unsigned int mmd = (regnum >> 16) & 0x1F;
+		unsigned int reg = regnum & 0xFFFF;
 
-	cmd = MDIO_CTRL_4_ACCESS_START | MDIO_CTRL_4_ACCESS_CODE_READ;
+		writel(CTRL_0_REG_C45_DEFAULT_VALUE,
+		       am->membase + MDIO_CTRL_0_REG);
+		/* issue the phy address and mmd */
+		writel((mii_id << 8) | mmd, am->membase + MDIO_CTRL_1_REG);
+		/* issue reg */
+		writel(reg, am->membase + MDIO_CTRL_2_REG);
+		cmd = MDIO_CTRL_4_ACCESS_START |
+			MDIO_CTRL_4_ACCESS_CODE_C45_ADDR;
+	} else {
+		writel(CTRL_0_REG_DEFAULT_VALUE, am->membase + MDIO_CTRL_0_REG);
+		/* issue the phy address and reg */
+		writel((mii_id << 8) | regnum, am->membase + MDIO_CTRL_1_REG);
+		cmd = MDIO_CTRL_4_ACCESS_START | MDIO_CTRL_4_ACCESS_CODE_READ;
+	}
 
-	/* issue read command */
+	/* issue command */
 	writel(cmd, am->membase + MDIO_CTRL_4_REG);
 
-	/* Wait read complete */
+	/* Wait complete */
 	if (ipq40xx_mdio_wait_busy(am))
 		return 0xffff;
+
+	if (regnum & MII_ADDR_C45) {
+		cmd = MDIO_CTRL_4_ACCESS_START |
+			MDIO_CTRL_4_ACCESS_CODE_C45_READ;
+		writel(cmd, am->membase + MDIO_CTRL_4_REG);
+		if (ipq40xx_mdio_wait_busy(am))
+			return 0xffff;
+	}
 
 	/* Read data */
 	value = readl(am->membase + MDIO_CTRL_3_REG);
@@ -99,14 +125,36 @@ static int ipq40xx_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 	if (ipq40xx_mdio_wait_busy(am))
 		return 0xffff;
 
-	/* issue the phy address and reg */
-	writel((mii_id << 8) | regnum, am->membase + MDIO_CTRL_1_REG);
+	if (regnum & MII_ADDR_C45) {
+		unsigned int mmd = (regnum >> 16) & 0x1F;
+		unsigned int reg = regnum & 0xFFFF;
+
+		writel(CTRL_0_REG_C45_DEFAULT_VALUE,
+		       am->membase + MDIO_CTRL_0_REG);
+		/* issue the phy address and mmd */
+		writel((mii_id << 8) | mmd, am->membase + MDIO_CTRL_1_REG);
+		/* issue reg */
+		writel(reg, am->membase + MDIO_CTRL_2_REG);
+		cmd = MDIO_CTRL_4_ACCESS_START |
+			MDIO_CTRL_4_ACCESS_CODE_C45_ADDR;
+		writel(cmd, am->membase + MDIO_CTRL_4_REG);
+		if (ipq40xx_mdio_wait_busy(am))
+			return -ETIMEDOUT;
+	} else {
+		writel(CTRL_0_REG_DEFAULT_VALUE, am->membase + MDIO_CTRL_0_REG);
+		/* issue the phy address and reg */
+		writel((mii_id << 8) | regnum, am->membase + MDIO_CTRL_1_REG);
+	}
 
 	/* issue write data */
 	writel(value, am->membase + MDIO_CTRL_2_REG);
 
 	/* issue write command */
-	cmd = MDIO_CTRL_4_ACCESS_START | MDIO_CTRL_4_ACCESS_CODE_WRITE;
+	if (regnum & MII_ADDR_C45)
+		cmd = MDIO_CTRL_4_ACCESS_START |
+			MDIO_CTRL_4_ACCESS_CODE_C45_WRITE;
+	else
+		cmd = MDIO_CTRL_4_ACCESS_START | MDIO_CTRL_4_ACCESS_CODE_WRITE;
 	writel(cmd, am->membase + MDIO_CTRL_4_REG);
 
 	/* Wait write complete */
@@ -166,10 +214,8 @@ static int ipq40xx_mdio_probe(struct platform_device *pdev)
 	int ret, i;
 
 	ret = ipq40xx_phy_reset(pdev);
-	if (ret) {
+	if (ret)
 		dev_err(&pdev->dev, "Could not find qca8075 reset gpio\n");
-		goto err_out;
-	}
 
 	am = devm_kzalloc(&pdev->dev, sizeof(*am), GFP_KERNEL);
 	if (!am)

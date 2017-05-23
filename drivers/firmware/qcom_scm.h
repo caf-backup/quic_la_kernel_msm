@@ -12,6 +12,7 @@
 #ifndef __QCOM_SCM_INT_H
 #define __QCOM_SCM_INT_H
 
+#include <linux/qcom_scm.h>
 #define QCOM_SCM_SVC_BOOT		0x1
 #define QCOM_SCM_BOOT_ADDR		0x1
 #define QCOM_SCM_BOOT_ADDR_MC		0x11
@@ -114,6 +115,8 @@ extern int __qcom_scm_regsave(struct device *, u32 svc_id, u32 cmd_id, void *);
 extern int __qcom_scm_dload(struct device *, u32 svc_id, u32 cmd_id,
 				void *cmd_buf);
 extern int qcom_scm_dload(u32 svc_id, u32 cmd_id, void *cmd_buf);
+extern int __qcom_scm_tcsr(struct device *, u32 svc_id, u32 cmd_id,
+			struct qcom_scm_tcsr_req *tcsr_cmd);
 
 extern int __qcom_scm_sdi(struct device *, u32 svc_id, u32 cmd_id);
 extern int qcom_scm_sdi(u32 svc_id, u32 cmd_id);
@@ -142,6 +145,8 @@ extern int __qcom_scm_tzsched(struct device *, const void *req,
 				size_t resp_size);
 extern int __qcom_scm_tz_log(struct device *, u32 svc_id, u32 cmd_id,
 						void *log_buf, u32 log_size);
+extern int __qcom_los_scm_call(struct device *, u32 svc_id, u32 cmd_id,
+			void *cmd_buf, size_t size);
 
 /* common error codes */
 #define QCOM_SCM_V2_EBUSY	-12

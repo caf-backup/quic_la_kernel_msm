@@ -257,6 +257,39 @@
 		local-mac-address = [000000000000];
 	};
 
+	serial_blsp2: serial@78B1000 {
+			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
+			reg = <0x78B1000 0x200>;
+			interrupts = <0x0 306 0x0>;
+			clocks = <&gcc GCC_DUMMY_CLK>,
+				 <&gcc GCC_DUMMY_CLK>;
+			clock-names = "core", "iface";
+			dmas = <&blsp_dma 4>,
+				 <&blsp_dma 5>;
+			dma-names = "tx", "rx";
+
+			pinctrl-0 = <&hsuart_pins>;
+			pinctrl-names = "default";
+			status = "disabled";
+	};
+
+	spi_2: spi@78b8000 { /* BLSP1 QUP3 */
+			compatible = "qcom,spi-qup-v2.2.1";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x78b8000 0x600>;
+			interrupts = <0 98 0>;
+			spi-max-frequency = <24000000>;
+			clocks = <&gcc GCC_DUMMY_CLK>,
+				<&gcc GCC_DUMMY_CLK>;
+			clock-names = "core", "iface";
+			dmas = <&blsp_dma 18>, <&blsp_dma 19>;
+			dma-names = "tx", "rx";
+			pinctrl-0 = <&spi_2_pins>;
+			pinctrl-names = "default";
+			status = "disabled";
+	};
+
 	edma@3ab00000 {
 		compatible = "qcom,edma";
 		reg = <0x3ab00000 0x76900>;
@@ -275,6 +308,32 @@
 			   <0 344 4>;
 	};
 
+	mdio@90000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "qcom,ipq40xx-mdio";
+		reg = <0x90000 0x64>;
+		phy0: ethernet-phy@0 {
+			reg = <0>;
+		};
+		phy1: ethernet-phy@1 {
+			reg = <1>;
+		};
+		phy2: ethernet-phy@2 {
+			reg = <2>;
+		};
+		phy3: ethernet-phy@3 {
+			reg = <3>;
+		};
+		phy4: ethernet-phy@4 {
+			reg = <4>;
+		};
+		phy5: ethernet-phy@5 {
+			compatible ="ethernet-phy-ieee802.3-c45";
+			reg = <7>;
+		};
+	};
+
 	ess-switch@3a000000 {
 		compatible = "qcom,ess-switch";
 		reg = <0x3a000000 0x1000000>;
@@ -282,6 +341,8 @@
 		switch_mac_mode = <0x0>; /* mac mode for uniphy instance0*/
 		switch_mac_mode1 = <0xff>; /* mac mode for uniphy instance1*/
 		switch_mac_mode2 = <0xd>; /* mac mode for uniphy instance2*/
+		bm_tick_mode = <0>; /* bm tick mode */
+		tm_tick_mode = <0>; /* tm tick mode */
 		port_scheduler_resource {
 			port@0 {
 				port_id = <0>;
@@ -555,6 +616,7 @@
 		qcom,wlanredirect-enabled;
 		qcom,tun6rd-enabled;
 		qcom,l2tpv2-enabled;
+		qcom,gre-enabled;
 		qcom,map-t-enabled;
 		qcom,portid-enabled;
 		qcom,ppe-enabled;
@@ -564,7 +626,6 @@
 		qcom,shaping-enabled;
 		qcom,wlan-dataplane-offload-enabled;
 		qcom,vlan-enabled;
-		qcom,crypto-eip197-enabled;
 	};
 
 	nss1: nss@40800000 {
@@ -589,6 +650,7 @@
 		qcom,load-addr = <0x40800000>;
 		qcom,capwap-enabled;
 		qcom,dtls-enabled;
+		qcom,crypto-enabled;
 		qcom,ipsec-enabled;
 	};
 
@@ -651,10 +713,34 @@
 &tlmm {
 	hsuart_pins: hsuart_pins {
 		mux {
-			pins = "gpio50", "gpio51", "gpio52", "gpio53";
-			function = "blsp3_uart";
+			pins = "gpio46", "gpio47", "gpio48", "gpio49";
+			function = "blsp2_uart";
 			bias-disable;
 		};
+	};
+
+	uart_pins: uart_pins {
+		mux {
+			pins = "gpio23", "gpio24";
+			function = "blsp4_uart1";
+			bias-disable;
+		};
+	};
+
+	spi_2_pins: spi_2_pinmux {
+				mux {
+					pins = "gpio50", "gpio51", "gpio52", "gpio52";
+					function = "blsp3_spi";
+					bias-disable;
+				};
+	};
+
+	i2c_0_pins: i2c_0_pinmux {
+				mux {
+					pins = "gpio42", "gpio43";
+					function = "blsp1_i2c";
+					bias-disable;
+				};
 	};
 
 	audio_gpio_pins: audio_gpio_pinmux {
@@ -796,6 +882,12 @@
 	qca,emulation = <1>;
 };
 
+&serial_blsp4 {
+	pinctrl-0 = <&uart_pins>;
+	pinctrl-names = "default";
+	status = "ok";
+};
+
 &spi_0 { /* BLSP1 QUP1 */
 	#pinctrl-0 = <&spi_0_pins>;
 	#pinctrl-names = "default";
@@ -812,10 +904,10 @@
 	};
 };
 
-&serial_1 {
-	pinctrl-0 = <&hsuart_pins>;
+&i2c_0 {
+	pinctrl-0 = <&i2c_0_pins>;
 	pinctrl-names = "default";
-	status = "ok";
+	status = "disabled";
 };
 
 &qpic_bam {
@@ -871,6 +963,7 @@
 			 192000000 384000000>;
 	qcom,bus-speed-mode = "DDR_1p8v";
 	qcom,nonremovable;
+	qcom,emulation = <1>;
 	status = "ok";
 };
 
@@ -878,5 +971,6 @@
 	qcom,clk-rates = <400000 25000000 50000000 100000000 \
 			 192000000 384000000>;
 	qcom,bus-speed-mode = "HS200_1p8v", "DDR_1p8v";
+	qcom,emulation = <1>;
 	status = "disabled";
 };
