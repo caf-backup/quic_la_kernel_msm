@@ -100,12 +100,6 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 static int mdss_fb_suspend_sub(struct msm_fb_data_type *mfd);
 static int mdss_fb_ioctl(struct fb_info *info, unsigned int cmd,
 			 unsigned long arg);
-#ifdef CONFIG_ION
-static int mdss_fb_fbmem_ion_mmap(struct fb_info *info,
-		struct vm_area_struct *vma);
-static int mdss_fb_alloc_fb_ion_memory(struct msm_fb_data_type *mfd,
-		size_t size);
-#endif
 static void mdss_fb_release_fences(struct msm_fb_data_type *mfd);
 static int __mdss_fb_sync_buf_done_callback(struct notifier_block *p,
 		unsigned long val, void *data);
@@ -1453,251 +1447,6 @@ static int mdss_fb_blank(int blank_mode, struct fb_info *info)
 	return mdss_fb_blank_sub(blank_mode, info, mfd->op_enable);
 }
 
-#ifdef CONFIG_ION
-static inline int mdss_fb_create_ion_client(struct msm_fb_data_type *mfd)
-{
-	mfd->fb_ion_client  = msm_ion_client_create("mdss_fb_iclient");
-	if (IS_ERR_OR_NULL(mfd->fb_ion_client)) {
-		pr_err("Err:client not created, val %d\n",
-				PTR_RET(mfd->fb_ion_client));
-		mfd->fb_ion_client = NULL;
-		return PTR_RET(mfd->fb_ion_client);
-	}
-	return 0;
-}
-
-void mdss_fb_free_fb_ion_memory(struct msm_fb_data_type *mfd)
-{
-	if (!mfd) {
-		pr_err("no mfd\n");
-		return;
-	}
-
-	if (!mfd->fbi->screen_base)
-		return;
-
-	if (!mfd->fb_ion_client || !mfd->fb_ion_handle) {
-		pr_err("invalid input parameters for fb%d\n", mfd->index);
-		return;
-	}
-
-	mfd->fbi->screen_base = NULL;
-	mfd->fbi->fix.smem_start = 0;
-
-	ion_unmap_kernel(mfd->fb_ion_client, mfd->fb_ion_handle);
-
-	if (mfd->mdp.fb_mem_get_iommu_domain) {
-		msm_unmap_dma_buf(mfd->fb_table,
-				mfd->mdp.fb_mem_get_iommu_domain(), 0);
-		dma_buf_unmap_attachment(mfd->fb_attachment, mfd->fb_table,
-					DMA_BIDIRECTIONAL);
-		dma_buf_detach(mfd->fbmem_buf, mfd->fb_attachment);
-		dma_buf_put(mfd->fbmem_buf);
-	}
-
-	ion_free(mfd->fb_ion_client, mfd->fb_ion_handle);
-	mfd->fb_ion_handle = NULL;
-}
-
-int mdss_fb_alloc_fb_ion_memory(struct msm_fb_data_type *mfd, size_t fb_size)
-{
-	unsigned long buf_size;
-	int rc;
-	void *vaddr;
-
-	if (!mfd) {
-		pr_err("Invalid input param - no mfd\n");
-		return -EINVAL;
-	}
-
-	if (!mfd->fb_ion_client) {
-		rc = mdss_fb_create_ion_client(mfd);
-		if (rc < 0) {
-			pr_err("fb ion client couldn't be created - %d\n", rc);
-			return rc;
-		}
-	}
-
-	pr_debug("size for mmap = %zu\n", fb_size);
-	mfd->fb_ion_handle = ion_alloc(mfd->fb_ion_client, fb_size, SZ_4K,
-			ION_HEAP(ION_SYSTEM_HEAP_ID), 0);
-	if (IS_ERR_OR_NULL(mfd->fb_ion_handle)) {
-		pr_err("unable to alloc fbmem from ion - %ld\n",
-				PTR_ERR(mfd->fb_ion_handle));
-		return PTR_ERR(mfd->fb_ion_handle);
-	}
-
-	if (mfd->mdp.fb_mem_get_iommu_domain) {
-		mfd->fbmem_buf = ion_share_dma_buf(mfd->fb_ion_client,
-							mfd->fb_ion_handle);
-		if (IS_ERR(mfd->fbmem_buf)) {
-			rc = PTR_ERR(mfd->fbmem_buf);
-			goto fb_mmap_failed;
-		}
-
-		mfd->fb_attachment = dma_buf_attach(mfd->fbmem_buf,
-							&mfd->pdev->dev);
-		if (IS_ERR(mfd->fb_attachment)) {
-			rc = PTR_ERR(mfd->fb_attachment);
-			goto err_put;
-		}
-
-		mfd->fb_table = dma_buf_map_attachment(mfd->fb_attachment,
-							DMA_BIDIRECTIONAL);
-		if (IS_ERR(mfd->fb_table)) {
-			rc = PTR_ERR(mfd->fb_table);
-			goto err_detach;
-		}
-
-		rc = msm_map_dma_buf(mfd->fbmem_buf, mfd->fb_table,
-				mfd->mdp.fb_mem_get_iommu_domain(), 0, SZ_4K, 0,
-				&mfd->iova, &buf_size, 0, 0);
-		if (rc) {
-			pr_err("Cannot map fb_mem to IOMMU. rc=%d\n", rc);
-			goto err_unmap;
-		}
-	} else {
-		pr_err("No IOMMU Domain\n");
-		rc = -EINVAL;
-		goto fb_mmap_failed;
-	}
-
-	vaddr  = ion_map_kernel(mfd->fb_ion_client, mfd->fb_ion_handle);
-	if (IS_ERR_OR_NULL(vaddr)) {
-		pr_err("ION memory mapping failed - %ld\n", PTR_ERR(vaddr));
-		rc = PTR_ERR(vaddr);
-		if (mfd->mdp.fb_mem_get_iommu_domain) {
-			goto err_unmap;
-		}
-		goto fb_mmap_failed;
-	}
-
-	pr_debug("alloc 0x%zuB vaddr = %p (%pa iova) for fb%d\n", fb_size,
-			vaddr, &mfd->iova, mfd->index);
-
-	mfd->fbi->screen_base = (char *) vaddr;
-	mfd->fbi->fix.smem_start = (unsigned int) mfd->iova;
-	mfd->fbi->fix.smem_len = fb_size;
-
-	return rc;
-
-err_unmap:
-	dma_buf_unmap_attachment(mfd->fb_attachment, mfd->fb_table,
-					DMA_BIDIRECTIONAL);
-err_detach:
-	dma_buf_detach(mfd->fbmem_buf, mfd->fb_attachment);
-err_put:
-	dma_buf_put(mfd->fbmem_buf);
-fb_mmap_failed:
-	ion_free(mfd->fb_ion_client, mfd->fb_ion_handle);
-	mfd->fb_attachment = NULL;
-	mfd->fb_table = NULL;
-	mfd->fb_ion_handle = NULL;
-	mfd->fbmem_buf = NULL;
-	return rc;
-}
-
-/**
- * mdss_fb_fbmem_ion_mmap() -  Custom fb  mmap() function for MSM driver.
- *
- * @info -  Framebuffer info.
- * @vma  -  VM area which is part of the process virtual memory.
- *
- * This framebuffer mmap function differs from standard mmap() function by
- * allowing for customized page-protection and dynamically allocate framebuffer
- * memory from system heap and map to iommu virtual address.
- *
- * Return: virtual address is returned through vma
- */
-static int mdss_fb_fbmem_ion_mmap(struct fb_info *info,
-		struct vm_area_struct *vma)
-{
-	int rc = 0;
-	size_t req_size, fb_size;
-	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
-	struct sg_table *table;
-	unsigned long addr = vma->vm_start;
-	unsigned long offset = vma->vm_pgoff * PAGE_SIZE;
-	struct scatterlist *sg;
-	unsigned int i;
-	struct page *page;
-
-	if (!mfd || !mfd->pdev || !mfd->pdev->dev.of_node) {
-		pr_err("Invalid device node\n");
-		return -ENODEV;
-	}
-
-	req_size = vma->vm_end - vma->vm_start;
-	fb_size = mfd->fbi->fix.smem_len;
-	if (req_size > fb_size) {
-		pr_warn("requested map is greater than framebuffer\n");
-		return -EOVERFLOW;
-	}
-
-	if (!mfd->fbi->screen_base) {
-		rc = mdss_fb_alloc_fb_ion_memory(mfd, fb_size);
-		if (rc < 0) {
-			pr_err("fb mmap failed!!!!\n");
-			return rc;
-		}
-	}
-
-	table = mfd->fb_table;
-	if (IS_ERR(table)) {
-		pr_err("Unable to get sg_table from ion:%ld\n", PTR_ERR(table));
-		mfd->fbi->screen_base = NULL;
-		return PTR_ERR(table);
-	} else if (!table) {
-		pr_err("sg_list is NULL\n");
-		mfd->fbi->screen_base = NULL;
-		return -EINVAL;
-	}
-
-	page = sg_page(table->sgl);
-	if (page) {
-		for_each_sg(table->sgl, sg, table->nents, i) {
-			unsigned long remainder = vma->vm_end - addr;
-			unsigned long len = sg->length;
-
-			page = sg_page(sg);
-
-			if (offset >= sg->length) {
-				offset -= sg->length;
-				continue;
-			} else if (offset) {
-				page += offset / PAGE_SIZE;
-				len = sg->length - offset;
-				offset = 0;
-			}
-			len = min(len, remainder);
-
-			if (mfd->mdp_fb_page_protection ==
-					MDP_FB_PAGE_PROTECTION_WRITECOMBINE)
-				vma->vm_page_prot =
-					pgprot_writecombine(vma->vm_page_prot);
-
-			pr_debug("vma=%p, addr=%x len=%ld",
-					vma, (unsigned int)addr, len);
-			pr_cont("vm_start=%x vm_end=%x vm_page_prot=%ld\n",
-					(unsigned int)vma->vm_start,
-					(unsigned int)vma->vm_end,
-					(unsigned long int)vma->vm_page_prot);
-
-			io_remap_pfn_range(vma, addr, page_to_pfn(page), len,
-					vma->vm_page_prot);
-			addr += len;
-			if (addr >= vma->vm_end)
-				break;
-		}
-	} else {
-		pr_err("PAGE is null\n");
-		mdss_fb_free_fb_ion_memory(mfd);
-		return -ENOMEM;
-	}
-
-	return rc;
-}
-#endif
 /*
  * mdss_fb_physical_mmap() - Custom fb mmap() function for MSM driver.
  *
@@ -1751,20 +1500,11 @@ static int mdss_fb_physical_mmap(struct fb_info *info,
 
 static int mdss_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
-#ifdef CONFIG_ION
-	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
-#endif
 	int rc = 0;
 #ifdef CONFIG_FB_DEFERRED_IO
 	rc = fb_deferred_io_mmap(info, vma);
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
-#elif defined CONFIG_ION
-	if (!info->fix.smem_start && !mfd->fb_ion_handle)
-		rc = mdss_fb_fbmem_ion_mmap(info, vma);
-	else
-		rc = mdss_fb_physical_mmap(info, vma);
-#else
 	rc = mdss_fb_physical_mmap(info, vma);
 #endif
 
@@ -2418,10 +2158,6 @@ static int mdss_fb_release_all(struct fb_info *info, bool release_all)
 			      mfd->index, ret, task->comm, current->tgid, pid);
 			return ret;
 		}
-#ifdef CONFIG_ION
-		if (mfd->fb_ion_handle)
-			mdss_fb_free_fb_ion_memory(mfd);
-#endif
 
 		atomic_set(&mfd->ioctl_ref_cnt, 0);
 	} else if (release_needed) {
