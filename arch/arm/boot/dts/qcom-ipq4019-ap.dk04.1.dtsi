@@ -281,6 +281,85 @@
 				};
 			};
 
+			nand_pins: nand_pins {
+
+				mux_1 {
+					pins = "gpio52", "gpio53", "gpio54",
+						"gpio55", "gpio56", "gpio61",
+						"gpio62", "gpio63", "gpio69";
+					function = "qpic_pad";
+					bias-disable;
+				};
+
+				mux_2 {
+					pins = "gpio67";
+					function = "qpic_pad0";
+					bias-disable;
+				};
+
+				mux_3 {
+					pins = "gpio64";
+					function = "qpic_pad1";
+					bias-disable;
+				};
+
+				mux_4 {
+					pins = "gpio65";
+					function = "qpic_pad2";
+					bias-disable;
+				};
+
+				mux_5 {
+					pins = "gpio66";
+					function = "qpic_pad3";
+					bias-disable;
+				};
+
+				mux_6 {
+					pins = "gpio57";
+					function = "qpic_pad4";
+					bias-disable;
+				};
+
+				mux_7 {
+					pins = "gpio58";
+					function = "qpic_pad5";
+					bias-disable;
+				};
+
+				mux_8 {
+					pins = "gpio59";
+					function = "qpic_pad6";
+					bias-disable;
+				};
+
+				mux_9 {
+					pins = "gpio60";
+					function = "qpic_pad7";
+					bias-disable;
+				};
+
+				mux_10 {
+					pins = "gpio68";
+					function = "qpic_pad8";
+					bias-disable;
+				};
+
+				pullups {
+					pins = "gpio52", "gpio53", "gpio58",
+						"gpio59";
+					bias-pull-up;
+				};
+
+				pulldowns {
+					pins = "gpio54", "gpio55", "gpio56",
+						"gpio57", "gpio60", "gpio61",
+						"gpio62", "gpio63", "gpio64",
+						"gpio65", "gpio66", "gpio67",
+						"gpio68", "gpio69";
+					bias-pull-down;
+				};
+			};
 		};
 
 		mdio@90000 {
@@ -438,6 +517,8 @@
 		};
 
 		nand: qpic-nand@79b0000 {
+			pinctrl-0 = <&nand_pins>;
+			pinctrl-names = "default";
 			status = "ok";
 		};
 

@@ -191,14 +191,15 @@ ar8xxx_phy_init(struct ar8xxx_priv *priv)
 
 	bus = priv->mii_bus;
 	for (i = 0; i < AR8XXX_NUM_PHYS; i++) {
-		if (priv->chip->phy_fixup)
-			priv->chip->phy_fixup(priv, i);
-
 		/* initialize the port itself */
 		mdiobus_write(bus, i, MII_ADVERTISE,
 			ADVERTISE_ALL | ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM);
 		if (ar8xxx_has_gige(priv))
 			mdiobus_write(bus, i, MII_CTRL1000, ADVERTISE_1000FULL);
+
+		if (priv->chip->phy_fixup)
+			priv->chip->phy_fixup(priv, i);
+
 		mdiobus_write(bus, i, MII_BMCR, BMCR_RESET | BMCR_ANENABLE);
 	}
 
@@ -1832,7 +1833,7 @@ ar8xxx_mib_stop(struct ar8xxx_priv *priv)
 static void
 ar8xxx_link_polling_work_task(struct work_struct *work)
 {
-	struct ar8xxx_priv *priv = NULL;
+	struct ar8xxx_priv *priv;
 
 	priv = container_of(work, struct ar8xxx_priv, link_polling_work.work);
 	mutex_lock(&priv->link_polling_lock);
@@ -1935,6 +1936,9 @@ ar8xxx_start(struct ar8xxx_priv *priv)
 
 	ar8xxx_mib_start(priv);
 	ar8xxx_link_polling_work_start(priv);
+
+	ar8xxx_phy_init(priv);
+
 	return 0;
 }
 

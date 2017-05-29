@@ -24,8 +24,10 @@
 #define QMI_WLFW_FW_MEM_READY_IND_V01 0x0037
 #define QMI_WLFW_INITIATE_CAL_UPDATE_IND_V01 0x002A
 #define QMI_WLFW_HOST_CAP_REQ_V01 0x0034
+#define QMI_WLFW_M3_INFO_REQ_V01 0x003C
 #define QMI_WLFW_CAP_REQ_V01 0x0024
 #define QMI_WLFW_CAL_REPORT_REQ_V01 0x0026
+#define QMI_WLFW_M3_INFO_RESP_V01 0x003C
 #define QMI_WLFW_CAL_UPDATE_RESP_V01 0x0029
 #define QMI_WLFW_CAL_DOWNLOAD_RESP_V01 0x0027
 #define QMI_WLFW_INI_RESP_V01 0x002F
@@ -563,4 +565,18 @@ struct wlfw_cold_boot_cal_done_ind_msg_v01 {
 #define WLFW_COLD_BOOT_CAL_DONE_IND_MSG_V01_MAX_MSG_LEN 0
 extern struct elem_info wlfw_cold_boot_cal_done_ind_msg_v01_ei[];
 
+struct wlfw_m3_info_req_msg_v01 {
+	uint64_t addr;
+	uint32_t size;
+};
+
+#define WLFW_M3_INFO_REQ_MSG_V01_MAX_MSG_LEN 18
+extern struct elem_info wlfw_m3_info_req_msg_v01_ei[];
+
+struct wlfw_m3_info_resp_msg_v01 {
+	struct qmi_response_type_v01 resp;
+};
+
+#define WLFW_M3_INFO_RESP_MSG_V01_MAX_MSG_LEN 7
+extern struct elem_info wlfw_m3_info_resp_msg_v01_ei[];
 #endif

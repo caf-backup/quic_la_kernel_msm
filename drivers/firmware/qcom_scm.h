@@ -14,6 +14,12 @@
 
 #include <linux/qcom_scm.h>
 #define QCOM_SCM_SVC_BOOT		0x1
+#define SET_MAGIC				0x1
+#define CLEAR_MAGIC				0x0
+#define SCM_CMD_TZ_CONFIG_HW_FOR_RAM_DUMP_ID	0x9
+#define SCM_CMD_TZ_FORCE_DLOAD_ID		0x10
+#define SCM_CMD_TZ_SET_DLOAD_FOR_SECURE_BOOT	0x14
+
 #define QCOM_SCM_BOOT_ADDR		0x1
 #define QCOM_SCM_BOOT_ADDR_MC		0x11
 
@@ -147,6 +153,9 @@ extern int __qcom_scm_tz_log(struct device *, u32 svc_id, u32 cmd_id,
 						void *log_buf, u32 log_size);
 extern int __qcom_los_scm_call(struct device *, u32 svc_id, u32 cmd_id,
 			void *cmd_buf, size_t size);
+
+#define QCOM_SCM_SVC_REGSAVE		0x3
+#define QCOM_SCM_REGSAVE_CMD		0x2
 
 /* common error codes */
 #define QCOM_SCM_V2_EBUSY	-12

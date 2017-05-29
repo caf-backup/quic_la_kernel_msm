@@ -4695,7 +4695,12 @@ static const struct qcom_cc_desc gcc_ipq807x_desc = {
 static int gcc_ipq807x_probe(struct platform_device *pdev)
 {
 	int ret, i;
+	struct regmap *regmap;
 	struct clk *clk;
+
+	regmap = qcom_cc_map(pdev, &gcc_ipq807x_desc);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
 
 	for (i = 0; i < ARRAY_SIZE(gcc_ipq807x_hws); i++) {
 		clk = devm_clk_register(&pdev->dev, gcc_ipq807x_hws[i]);
@@ -4703,7 +4708,12 @@ static int gcc_ipq807x_probe(struct platform_device *pdev)
 			return PTR_ERR(clk);
 	}
 
-	ret = qcom_cc_probe(pdev, &gcc_ipq807x_desc);
+	/* Enable SW_COLLAPSE for USB0 GDSCR */
+	regmap_update_bits(regmap, 0x3e078, BIT(0), 0x0);
+	/* Enable SW_COLLAPSE for USB1 GDSCR */
+	regmap_update_bits(regmap, 0x3f078, BIT(0), 0x0);
+
+	ret = qcom_cc_really_probe(pdev, &gcc_ipq807x_desc, regmap);
 
 	dev_dbg(&pdev->dev, "Registered dummy clock provider\n");
 	return ret;

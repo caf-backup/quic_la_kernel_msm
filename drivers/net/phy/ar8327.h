@@ -85,6 +85,9 @@ enum {
 
 #define AR8327_REG_MODULE_EN			0x030
 #define   AR8327_MODULE_EN_MIB			BIT(0)
+#define   AR8327_MODULE_EN_QM_ERR		BIT(8)
+#define   AR8327_MODULE_EN_LOOKUP_ERR		BIT(9)
+
 
 #define AR8327_REG_MIB_FUNC			0x034
 #define   AR8327_MIB_CPU_KEEP			BIT(20)
@@ -260,6 +263,8 @@ enum {
 #define AR8327_PHY_MANU_CTRL_EN  BIT(12)
 
 #define AR8327_PHY_DEBUG_2   2
+
+#define ADVERTISE_MULTI_PORT_PREFER	0x0400
 
 enum ar8327_led_pattern {
 	AR8327_LED_PATTERN_OFF = 0,

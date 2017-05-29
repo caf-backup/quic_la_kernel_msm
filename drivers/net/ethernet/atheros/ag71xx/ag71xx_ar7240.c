@@ -1295,9 +1295,10 @@ static u16 ar7240_phy_link[AR7240_NUM_PHYS] = {0};
 static u16 ar7240_phy_speed[AR7240_NUM_PHYS] = {0};
 static u16 ar7240_phy_duplex[AR7240_NUM_PHYS] = {0};
 static port_link_notify_func ar7240_port_link_callback;
+
 void ar7240_port_link_notify_register(port_link_notify_func func)
 {
-	u32 phy_id = 0;
+	u32 phy_id;
 
 	ar7240_port_link_callback = func;
 

@@ -642,11 +642,23 @@ out:
 }
 EXPORT_SYMBOL(cnss_auto_resume);
 
-int cnss_pci_alloc_fw_mem(struct cnss_pci_data *pci_priv)
+int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv )
 {
-	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
+	struct cnss_pci_data *pci_priv = plat_priv->bus_priv;
 	struct cnss_fw_mem *fw_mem = &plat_priv->fw_mem;
 
+	if (plat_priv->device_id == QCA8074_DEVICE_ID) {
+		/*
+		 * No memory allocation need to be done for IPQ8074
+		 * However, a dummy mem response need to be sent to
+		 * make the state machine move to next state on the Q6
+		 * target side.
+		 */
+		fw_mem->pa = 0;
+		fw_mem->va = 0;
+		fw_mem->size = 0;
+		return 0;
+	}
 	if (!fw_mem->va && fw_mem->size) {
 #ifdef CONFIG_CNSS2_SMMU
 		fw_mem->va = dma_alloc_coherent(&pci_priv->pci_dev->dev,
@@ -1003,7 +1015,7 @@ static int cnss_pci_register_mhi(struct cnss_pci_data *pci_priv)
 
 	mhi_dev->pm_runtime_get = cnss_mhi_pm_runtime_get;
 	mhi_dev->pm_runtime_noidle = cnss_mhi_pm_runtime_put_noidle;
-
+#ifdef CONFIG_MSM_MHI
 	ret = mhi_register_device(mhi_dev, MHI_NODE_NAME,
 				  (unsigned long)pci_priv);
 	if (ret) {
@@ -1011,6 +1023,7 @@ static int cnss_pci_register_mhi(struct cnss_pci_data *pci_priv)
 			    ret);
 		return ret;
 	}
+#endif
 
 	cnss_pci_start_mhi(pci_priv);
 
@@ -1131,12 +1144,14 @@ int cnss_pci_set_mhi_state(struct cnss_pci_data *pci_priv,
 
 	cnss_pr_dbg("Setting MHI DEV state: %s(%d)\n",
 		    mhi_dev_state_to_str(mhi_dev_state), mhi_dev_state);
+#ifdef CONFIG_MSM_MHI
 	ret = mhi_pm_control_device(&pci_priv->mhi_dev, mhi_dev_state);
 	if (ret) {
 		cnss_pr_err("Failed to set MHI DEV state: %s(%d)\n",
 			    mhi_dev_state_to_str(mhi_dev_state), mhi_dev_state);
 		goto out;
 	}
+#endif
 
 	cnss_pci_set_mhi_state_bit(pci_priv, mhi_dev_state);
 
@@ -1190,13 +1205,17 @@ int cnss_pci_probe(struct pci_dev *pci_dev,
 
 	cnss_pr_dbg("PCI is probing, vendor ID: 0x%x, device ID: 0x%x\n",
 		    id->vendor, pci_dev->device);
-
+#ifdef CONFIG_MSM_MHI
 	if (pci_dev->device == QCA6290_DEVICE_ID &&
 	    !mhi_is_device_ready(&plat_priv->plat_dev->dev, MHI_NODE_NAME)) {
 		cnss_pr_err("MHI driver is not ready, defer PCI probe!\n");
 		ret = -EPROBE_DEFER;
 		goto out;
 	}
+#else
+	ret = -EINVAL;
+	goto out;
+#endif
 
 	pci_priv = devm_kzalloc(&pci_dev->dev, sizeof(*pci_priv),
 				GFP_KERNEL);
@@ -1264,11 +1283,13 @@ int cnss_pci_probe(struct pci_dev *pci_dev,
 		ret = cnss_pci_enable_msi(pci_priv);
 		if (ret)
 			goto disable_bus;
+#ifdef CONFIG_MSM_MHI
 		ret = cnss_pci_register_mhi(pci_priv);
 		if (ret) {
 			cnss_pci_disable_msi(pci_priv);
 			goto disable_bus;
 		}
+#endif
 		break;
 	default:
 		cnss_pr_err("Unknown PCI device found: 0x%x\n",

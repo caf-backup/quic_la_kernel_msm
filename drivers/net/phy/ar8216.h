@@ -444,8 +444,8 @@ struct ar8xxx_priv {
 	struct list_head list;
 	unsigned int use_count;
 
-	struct mutex link_polling_lock;/*lock for link polling workqueue*/
-	struct delayed_work link_polling_work; /*workqueue for link polling*/
+	struct mutex link_polling_lock; /* lock for link polling workqueue */
+	struct delayed_work link_polling_work; /* workqueue for link polling */
 
 	/* all fields below are cleared on reset */
 	bool vlan;

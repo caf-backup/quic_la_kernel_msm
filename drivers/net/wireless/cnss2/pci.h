@@ -27,6 +27,7 @@
 #define QCA6174_REV3_2_VERSION		0x5030000
 #define QCA6290_VENDOR_ID		0x168C
 #define QCA6290_DEVICE_ID		0xABCD
+#define QCA8074_DEVICE_ID		0xFFFF
 #define QCA6290_PAGING_MEM		0x87500000
 
 enum cnss_mhi_state {
@@ -123,7 +124,7 @@ int cnss_suspend_pci_link(struct cnss_pci_data *pci_priv);
 int cnss_resume_pci_link(struct cnss_pci_data *pci_priv);
 int cnss_pci_init(struct cnss_plat_data *plat_priv);
 void cnss_pci_deinit(struct cnss_plat_data *plat_priv);
-int cnss_pci_alloc_fw_mem(struct cnss_pci_data *pci_priv);
+int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv);
 int cnss_pci_get_bar_info(struct cnss_pci_data *pci_priv, void __iomem **va,
 			  phys_addr_t *pa);
 int cnss_pci_set_mhi_state(struct cnss_pci_data *pci_priv,

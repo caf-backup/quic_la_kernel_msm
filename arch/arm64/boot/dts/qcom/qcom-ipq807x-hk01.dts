@@ -25,10 +25,6 @@
 	interrupt-parent = <&intc>;
 	qcom,board-id = <0x10 0x0>;
 
-	aliases {
-		sdhc1 = &sdhc_1; /* SDC1 eMMC slot */
-	};
-
 	chosen {
 		bootargs = "console=ttyMSM0,115200,n8 clk_ignore_unused \
 						root=/dev/ram0 rw init=/init";
@@ -40,14 +36,6 @@
 		mux {
 			pins = "gpio23", "gpio24";
 			function = "blsp4_uart1";
-			bias-disable;
-		};
-	};
-
-	i2c_0_pins: i2c_0_pinmux {
-		mux {
-			pins = "gpio42", "gpio43";
-			function = "blsp1_i2c";
 			bias-disable;
 		};
 	};
@@ -105,7 +93,7 @@
 };
 
 &watchdog {
-	status = "ok";
+	status = "disabled";
 };
 
 &glink_mpss_ssr {
@@ -137,19 +125,9 @@
 };
 
 &i2c_0 {
-	pinctrl-0 = <&i2c_0_pins>;
-	pinctrl-names = "default";
-	status = "ok";
+	status = "disabled";
 };
 
 &i2c_1 {
 	status = "disabled";
-};
-
-&sdhc_1 {
-	qcom,clk-rates = <400000 25000000 50000000 100000000 \
-			 192000000 384000000>;
-	qcom,bus-speed-mode = "HS200_1p8v", "DDR_1p8v";
-	qcom,nonremovable;
-	status = "ok";
 };

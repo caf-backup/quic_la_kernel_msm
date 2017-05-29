@@ -23,6 +23,7 @@
 #include "debug.h"
 #include "main.h"
 #include "pci.h"
+#include "qmi.h"
 
 #define CNSS_DUMP_FORMAT_VER		0x11
 #define CNSS_DUMP_MAGIC_VER_V2		0x42445953
@@ -49,6 +50,7 @@ module_param(qmi_bypass, bool, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(qmi_bypass, "Bypass QMI from platform driver");
 #endif
 
+extern int wlfw_service_instance_id;
 static bool enable_waltest;
 #ifdef CONFIG_CNSS2_DEBUG
 module_param(enable_waltest, bool, S_IRUSR | S_IWUSR);
@@ -84,6 +86,8 @@ static enum cnss_dev_bus_type cnss_get_dev_bus_type(struct device *dev)
 
 	if (memcmp(dev->bus->name, "pci", 3) == 0)
 		return CNSS_BUS_PCI;
+	else if (memcmp(dev->bus->name, "platform", 8) == 0)
+		return CNSS_BUS_AHB;
 	else
 		return CNSS_BUS_NONE;
 }
@@ -108,6 +112,8 @@ void *cnss_bus_dev_to_bus_priv(struct device *dev)
 	switch (cnss_get_dev_bus_type(dev)) {
 	case CNSS_BUS_PCI:
 		return cnss_get_pci_priv(to_pci_dev(dev));
+	case CNSS_BUS_AHB:
+		return NULL;
 	default:
 		return NULL;
 	}
@@ -121,12 +127,14 @@ struct cnss_plat_data *cnss_bus_dev_to_plat_priv(struct device *dev)
 		return cnss_get_plat_priv(NULL);
 
 	bus_priv = cnss_bus_dev_to_bus_priv(dev);
-	if (!bus_priv)
+	if (!bus_priv && cnss_get_dev_bus_type(dev) == CNSS_BUS_PCI)
 		return NULL;
 
 	switch (cnss_get_dev_bus_type(dev)) {
 	case CNSS_BUS_PCI:
 		return cnss_pci_priv_to_plat_priv(bus_priv);
+	case CNSS_BUS_AHB:
+		return plat_env;
 	default:
 		return NULL;
 	}
@@ -409,7 +417,7 @@ EXPORT_SYMBOL(cnss_wlan_disable);
 
 static int cnss_fw_mem_ready_hdlr(struct cnss_plat_data *plat_priv)
 {
-	int ret = 0;
+	int ret;
 
 	if (!plat_priv)
 		return -ENODEV;
@@ -424,7 +432,8 @@ static int cnss_fw_mem_ready_hdlr(struct cnss_plat_data *plat_priv)
 	if (ret)
 		goto out;
 
-	return 0;
+	if (plat_priv->device_id == QCA8074_DEVICE_ID)
+		ret = cnss_wlfw_m3_dnld_send_sync(plat_priv);
 out:
 	return ret;
 }
@@ -534,7 +543,7 @@ static void cnss_driver_event_work(struct work_struct *work)
 			ret = cnss_wlfw_server_exit(plat_priv);
 			break;
 		case CNSS_DRIVER_EVENT_REQUEST_MEM:
-			ret = cnss_pci_alloc_fw_mem(plat_priv->bus_priv);
+			ret = cnss_pci_alloc_fw_mem(plat_priv);
 			if (ret)
 				break;
 			ret = cnss_wlfw_respond_mem_send_sync(plat_priv);
@@ -1606,6 +1615,7 @@ static void cnss_event_work_deinit(struct cnss_plat_data *plat_priv)
 static const struct platform_device_id cnss_platform_id_table[] = {
 	{ .name = "qca6174", .driver_data = QCA6174_DEVICE_ID, },
 	{ .name = "qca6290", .driver_data = QCA6290_DEVICE_ID, },
+	{ .name = "qca8074", .driver_data = QCA8074_DEVICE_ID, },
 };
 
 static const struct of_device_id cnss_of_match_table[] = {
@@ -1615,6 +1625,9 @@ static const struct of_device_id cnss_of_match_table[] = {
 	{
 		.compatible = "qcom,cnss-qca6290",
 		.data = (void *)&cnss_platform_id_table[1]},
+	{
+		.compatible = "qcom,cnss-qca8074",
+		.data = (void *)&cnss_platform_id_table[2]},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, cnss_of_match_table);
@@ -1650,6 +1663,18 @@ static int cnss_probe(struct platform_device *plat_dev)
 
 	plat_priv->plat_dev = plat_dev;
 	plat_priv->device_id = device_id->driver_data;
+
+	switch(plat_priv->device_id) {
+		case QCA6290_DEVICE_ID:
+			wlfw_service_instance_id = WLFW_SERVICE_INS_ID_V01_QCA6290;
+			break;
+		case QCA8074_DEVICE_ID:
+			wlfw_service_instance_id = WLFW_SERVICE_INS_ID_V01_QCA8074;
+			break;
+		default:
+			cnss_pr_err("No such device id %d\n",device_id);
+			return -ENODEV;
+	}
 	cnss_set_plat_priv(plat_dev, plat_priv);
 	platform_set_drvdata(plat_dev, plat_priv);
 

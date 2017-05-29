@@ -600,13 +600,26 @@ int __qcom_scm_regsave(struct device *dev,
 		int len;
 	} cmd_buf;
 
-	if (scm_regsave) {
+	if (!scm_regsave)
+		return -EINVAL;
+
+	if (is_scm_armv8()) {
+		__le32 scm_ret;
+		struct scm_desc desc = {0};
+
+		desc.args[0] = (u64)virt_to_phys(scm_regsave);
+		desc.args[1] = PAGE_SIZE;
+		desc.arginfo = SCM_ARGS(2, SCM_RW, SCM_VAL);
+		ret = qcom_scm_call2(SCM_SIP_FNID(QCOM_SCM_SVC_REGSAVE,
+				QCOM_SCM_REGSAVE_CMD), &desc);
+		scm_ret = desc.ret[0];
+		if (!ret)
+			return le32_to_cpu(scm_ret);
+	} else {
 		cmd_buf.addr = virt_to_phys(scm_regsave);
 		cmd_buf.len = PAGE_SIZE;
 		ret = qcom_scm_call(dev, svc_id, cmd_id, &cmd_buf,
 				sizeof(cmd_buf), NULL, 0);
-	} else {
-		ret = -EINVAL;
 	}
 
 	return ret;
@@ -746,9 +759,31 @@ int __qcom_scm_tcsr(struct device *dev, u32 svc_id, u32 cmd_id,
 	return ret;
 }
 
+static int __qcom_scm_dload_v8(struct device *dev)
+{
+	struct scm_desc desc = {0};
+	int ret;
+
+#define TCSR_BOOT_MISC_REG		0x193d100ull
+#define DLOAD_MODE_BITMASK		0x10ull
+
+	desc.args[0] = TCSR_BOOT_MISC_REG;
+	desc.args[1] = DLOAD_MODE_BITMASK;
+	desc.arginfo = SCM_ARGS(2, SCM_VAL, SCM_VAL);
+	ret = qcom_scm_call2(SCM_SIP_FNID(SCM_SVC_IO_ACCESS,
+					SCM_IO_WRITE), &desc);
+	if (ret)
+		return ret;
+
+	return le32_to_cpu(desc.ret[0]);
+}
+
 int __qcom_scm_dload(struct device *dev, u32 svc_id, u32 cmd_id, void *cmd_buf)
 {
 	long ret;
+
+	if (is_scm_armv8())
+		return __qcom_scm_dload_v8(dev);
 
 	if (cmd_buf)
 		ret = qcom_scm_call(dev, svc_id, cmd_id, cmd_buf,
@@ -759,11 +794,31 @@ int __qcom_scm_dload(struct device *dev, u32 svc_id, u32 cmd_id, void *cmd_buf)
 	return ret;
 }
 
+static int __qcom_scm_sdi_v8(struct device *dev)
+{
+	struct scm_desc desc = {0};
+	int ret;
+
+	desc.args[0] = 1ull;	/* Disable wdog debug */
+	desc.args[1] = 0ull;	/* SDI Enable */
+	desc.arginfo = SCM_ARGS(2, SCM_VAL, SCM_VAL);
+	ret = qcom_scm_call2(SCM_SIP_FNID(QCOM_SCM_SVC_BOOT,
+				SCM_CMD_TZ_CONFIG_HW_FOR_RAM_DUMP_ID), &desc);
+
+	if (ret)
+		return ret;
+
+	return le32_to_cpu(desc.ret[0]);
+}
+
 int __qcom_scm_sdi(struct device *dev, u32 svc_id, u32 cmd_id)
 {
 	long ret;
 	unsigned int clear_info[] = {
 		1 /* Disable wdog debug */, 0 /* SDI enable*/, };
+
+	if (is_scm_armv8())
+		return __qcom_scm_sdi_v8(dev);
 
 	ret = qcom_scm_call(dev, svc_id, cmd_id, &clear_info,
 				sizeof(clear_info), NULL, 0);

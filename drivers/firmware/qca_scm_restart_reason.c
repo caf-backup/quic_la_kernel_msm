@@ -25,12 +25,6 @@
 #include <linux/reboot.h>
 #include "qcom_scm.h"
 
-#define SET_MAGIC	0x1
-#define CLEAR_MAGIC	0x0
-#define SCM_CMD_TZ_CONFIG_HW_FOR_RAM_DUMP_ID	0x9
-#define SCM_CMD_TZ_FORCE_DLOAD_ID		0x10
-#define SCM_CMD_TZ_SET_DLOAD_FOR_SECURE_BOOT	0x14
-
 static int dload_dis;
 
 static void scm_restart_dload_mode_enable(void)

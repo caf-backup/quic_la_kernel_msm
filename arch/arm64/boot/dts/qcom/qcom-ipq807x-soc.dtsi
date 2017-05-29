@@ -19,6 +19,79 @@
 #include <dt-bindings/clock/qcom,gcc-ipq807x.h>
 
 / {
+	cpus: cpus {
+		#address-cells = <0x1>;
+		#size-cells = <0x0>;
+
+		CPU0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <0x0>;
+			clocks = <&gcc GCC_DUMMY_CLK>;
+			clock-names = "cpu";
+			enable-method = "qcom,arm-cortex-acc";
+			qcom,acc = <&acc0>;
+			next-level-cache = <&L2_0>;
+			cpu-idle-states = <>;
+
+			L2_0: l2-cache {
+				compatible = "arm,arch-cache";
+				cache-level = <0x2>;
+			};
+		};
+
+		CPU1: cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			enable-method = "qcom,arm-cortex-acc";
+			reg = <0x1>;
+			clocks = <&gcc GCC_DUMMY_CLK>;
+			clock-names = "cpu";
+			qcom,acc = <&acc1>;
+			next-level-cache = <&L2_0>;
+			cpu-idle-states = <&cpu_hotplug>;
+		};
+
+		CPU2: cpu@2 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			enable-method = "qcom,arm-cortex-acc";
+			reg = <0x2>;
+			clocks = <&gcc GCC_DUMMY_CLK>;
+			clock-names = "cpu";
+			qcom,acc = <&acc2>;
+			next-level-cache = <&L2_0>;
+			cpu-idle-states = <&cpu_hotplug>;
+		};
+
+		CPU3: cpu@3 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			enable-method = "qcom,arm-cortex-acc";
+			reg = <0x3>;
+			clocks = <&gcc GCC_DUMMY_CLK>;
+			clock-names = "cpu";
+			qcom,acc = <&acc3>;
+			next-level-cache = <&L2_0>;
+			cpu-idle-states = <&cpu_hotplug>;
+		};
+
+		idle-states {
+			entry-method = "psci";
+
+			cpu_hotplug: cpu-hotplug {
+				compatible = "arm,idle-state";
+				local-timer-stop;
+				entry-latency-us = <100>;
+				exit-latency-us = <700>;
+				min-residency-us = <2000>;
+				arm,psci-suspend-param = <0x0010000>;
+				status = "disabled";
+			};
+		};
+
+	};
+
 	memory {
 		device_type = "memory";
 		reg = <0x0 0x40000000 0x0 0x20000000>;
@@ -118,6 +191,26 @@
 		ranges = <0x0 0x0 0x0 0xffffffff>;
 		compatible = "simple-bus";
 
+		acc0:clock-controller@b188000 {
+			compatible = "qcom,arm-cortex-acc";
+			reg = <0x0b188000 0x1000>;
+		};
+
+		acc1:clock-controller@b198000 {
+			compatible = "qcom,arm-cortex-acc";
+			reg = <0x0b198000 0x1000>;
+		};
+
+		acc2:clock-controller@b1a8000 {
+			compatible = "qcom,arm-cortex-acc";
+			reg = <0x0b1a8000 0x1000>;
+		};
+
+		acc3:clock-controller@b1b8000 {
+			compatible = "qcom,arm-cortex-acc";
+			reg = <0x0b1b8000 0x1000>;
+		};
+
 		tlmm: pinctrl@1000000 {
 			compatible = "qcom,ipq807x-pinctrl";
 			reg = <0x1000000 0x300000>;
@@ -129,8 +222,8 @@
 
 			spi_0_pins: spi_0_pinmux {
 				mux {
-					pins = "gpio0", "gpio1", "gpio2", "gpio3";
-					function = "blsp_spi1";
+					pins = "gpio38", "gpio39", "gpio40", "gpio41";
+					function = "blsp0_spi";
 					bias-disable;
 				};
 			};
@@ -168,7 +261,7 @@
 			#reset-cells = <1>;
 		};
 
-		blsp_bam: dma@7884000 {
+		blsp_dma: dma@7884000 {
 			compatible = "qcom,bam-v1.7.0";
 			reg = <0x07884000 0x2b000>;
 			interrupts = <GIC_SPI 238 0>;
@@ -179,30 +272,27 @@
 			status = "disabled";
 		};
 
-		serial@78af000 {
+		serial_blsp0: serial@78af000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0x78af000 0x200>;
 			interrupts = <0x0 0x6b 0x0>;
-			status = "ok";
 			clocks = <&gcc GCC_DUMMY_CLK>,
 				 <&gcc GCC_DUMMY_CLK>;
 			clock-names = "core", "iface";
-		};
-
-		hsuart: serial@78B2000 {
-			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
-			reg = <0x78B2000 0x200>;
-			interrupts = <0x0 307 0x0>;
-			clocks = <&gcc GCC_DUMMY_CLK>,
-				 <&gcc GCC_DUMMY_CLK>;
-			clock-names = "core", "iface";
-			dmas = <&blsp_bam 6>,
-				 <&blsp_bam 7>;
-			dma-names = "tx", "rx";
 			status = "disabled";
 		};
 
-		spi_0: spi@78b5000 { /* BLSP1 QUP1 */
+		serial_blsp4: serial@78B3000 {
+			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
+			reg = <0x78B3000 0x200>;
+			interrupts = <0x0 308 0x0>;
+			clocks = <&gcc GCC_DUMMY_CLK>,
+				 <&gcc GCC_DUMMY_CLK>;
+			clock-names = "core", "iface";
+			status = "disabled";
+		};
+
+		spi_0: spi@78b5000 { /* BLSP1 QUP0 */
 			compatible = "qcom,spi-qup-v2.2.1";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -212,12 +302,10 @@
 			clocks = <&gcc GCC_DUMMY_CLK>,
 				<&gcc GCC_DUMMY_CLK>;
 			clock-names = "core", "iface";
-			dmas = <&blsp_bam 12>, <&blsp_bam 13>;
-			dma-names = "tx", "rx";
 			status = "disabled";
 		};
 
-		qcom,nss_crypto {
+		nss_crypto: qcom,nss_crypto {
 			compatible = "qcom,nss-crypto";
 			qcom,max-contexts = <16>;
 			qcom,max-context-size = <32>;
@@ -250,7 +338,7 @@
 			};
 		};
 
-		watchdog@b017000 {
+		watchdog: watchdog@b017000 {
 			compatible = "qcom,kpss-wdt-ipq807x";
 			reg = <0xb017000 0x1000>;
 			interrupt-names = "bark_irq";
@@ -269,7 +357,7 @@
 			qcom,ee = <1>;
 		};
 
-		crypto@8e3a000 {
+		crypto: crypto@8e3a000 {
 			compatible = "qcom,crypto-v5.1";
 			reg = <0x0073a000 0x6000>;
 			clocks = <&gcc GCC_DUMMY_CLK>,
@@ -291,13 +379,13 @@
 			#hwlock-cells = <1>;
 		};
 
-		qcom,smem@4AB00000 {
+		smem: qcom,smem@4AB00000 {
 			compatible = "qcom,smem";
 			memory-region = <&smem_region>;
 			hwlocks = <&tcsr_mutex 0>;
 		};
 
-		glink_mpss: qcom,glink-ssr-modem {
+		glink_mpss_ssr: qcom,glink-ssr-modem {
 			compatible = "qcom,glink_ssr";
 			label = "q6v5-wcss";
 			qcom,edge = "mpss";
@@ -305,7 +393,7 @@
 			qcom,xprt = "smem";
 		};
 
-		qcom,glink-smem-native-xprt-modem@4AB00000 {
+		glink_modem: qcom,glink-smem-native-xprt-modem@4AB00000 {
 			compatible = "qcom,glink-smem-native-xprt";
 			reg = <0x4AB00000 0x100000>, <0x0b111008 0x4>;
 			reg-names = "smem", "irq-reg-base";
@@ -317,12 +405,12 @@
 			smem-entry-names = "ch", "tx_fifo", "rx_fifo";
 		};
 
-		qcom,ipc_router {
+		ipc_router: qcom,ipc_router {
 			compatible = "qcom,ipc_router";
 			qcom,node-id = <1>;
 		};
 
-		qcom,ipc_router_modem_xprt {
+		ipc_router_modem: qcom,ipc_router_modem_xprt {
 			compatible = "qcom,ipc_router_glink_xprt";
 			qcom,ch-name = "IPCRTR";
 			qcom,xprt-remote = "mpss";
@@ -332,7 +420,7 @@
 			qcom,fragmented-data;
 		};
 
-		qcom,msm-imem@8600000 {
+		msm_imem: qcom,msm-imem@8600000 {
 			compatible = "qcom,msm-imem";
 			reg = <0x08600000 0x1000>;
 			ranges = <0x0 0x08600000 0x1000>;
@@ -1048,7 +1136,7 @@
 				<&gcc GCC_DUMMY_I2C_CLK>;
 			clock-names = "iface", "core";
 			clock-frequency  = <100000>;
-			dmas = <&blsp_bam 15>, <&blsp_bam 14>;
+			dmas = <&blsp_dma 15>, <&blsp_dma 14>;
 			dma-names = "rx", "tx";
 		};
 
@@ -1062,7 +1150,7 @@
 				<&gcc GCC_DUMMY_I2C_CLK>;
 			clock-names = "iface", "core";
 			clock-frequency  = <100000>;
-			dmas = <&blsp_bam 17>, <&blsp_bam 16>;
+			dmas = <&blsp_dma 17>, <&blsp_dma 16>;
 			dma-names = "rx", "tx";
 
 			qca_codec: qca_codec@12 {
@@ -1243,7 +1331,7 @@
 			reg = <0x0B111000 0x1000>;
 		};
 
-		smp2p-wcss {
+		wcss: smp2p-wcss {
 			compatible = "qcom,smp2p";
 			qcom,smem = <435>, <428>;
 
@@ -1299,7 +1387,7 @@
 			cell-index = <0>;
 		};
 
-		qcom,glink-rpm-native-xprt@60000 {
+		glink_rpm: qcom,glink-rpm-native-xprt@60000 {
 			compatible = "qcom,glink-rpm-native-xprt";
 			reg = <0x60000 0x6000>,
 				<0x0b111008 0x4>;

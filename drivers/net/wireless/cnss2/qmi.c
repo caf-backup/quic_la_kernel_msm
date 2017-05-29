@@ -18,13 +18,14 @@
 #include "debug.h"
 #include "main.h"
 #include "qmi.h"
+#include "pci.h"
 
-#define WLFW_SERVICE_INS_ID_V01		1
 #define WLFW_CLIENT_ID			0x4b4e454c
 #define MAX_BDF_FILE_NAME		11
 #define DEFAULT_BDF_FILE_NAME		"bdwlan.bin"
 #define BDF_FILE_NAME_PREFIX		"bdwlan.b"
 
+unsigned int wlfw_service_instance_id;
 #ifdef CONFIG_CNSS2_DEBUG
 static unsigned long qmi_timeout = 3000;
 module_param(qmi_timeout, ulong, S_IRUSR | S_IWUSR);
@@ -130,7 +131,7 @@ static int cnss_wlfw_host_cap_send_sync(struct cnss_plat_data *plat_priv)
 	memset(&req, 0, sizeof(req));
 	memset(&resp, 0, sizeof(resp));
 
-	req.daemon_support_valid = 1;
+	req.daemon_support_valid = 0;
 	req.daemon_support = daemon_support;
 
 	cnss_pr_dbg("daemon_support is %d\n", req.daemon_support);
@@ -256,20 +257,19 @@ int cnss_wlfw_respond_mem_send_sync(struct cnss_plat_data *plat_priv)
 
 	cnss_pr_dbg("Sending respond memory message, state: 0x%lx\n",
 		    plat_priv->driver_state);
-
-	if (!fw_mem->pa || !fw_mem->size) {
-		cnss_pr_err("Memory for FW is not available!\n");
-		goto out;
-	}
-
-	cnss_pr_dbg("Memory for FW, va: 0x%pK, pa: %pa, size: 0x%zx\n",
-		    fw_mem->va, &fw_mem->pa, fw_mem->size);
-
 	memset(&req, 0, sizeof(req));
 	memset(&resp, 0, sizeof(resp));
 
-	req.addr = fw_mem->pa;
-	req.size = fw_mem->size;
+	if(plat_priv->device_id == QCA6290_DEVICE_ID) {
+		cnss_pr_dbg("Memory for FW, va: 0x%pK, pa: %pa, size: 0x%zx\n",
+				fw_mem->va, &fw_mem->pa, fw_mem->size);
+
+		req.addr = fw_mem->pa;
+		req.size = fw_mem->size;
+	} else {
+		req.addr = 0;
+		req.size = 0;
+	}
 
 	req_desc.max_msg_len = WLFW_RESPOND_MEM_REQ_MSG_V01_MAX_MSG_LEN;
 	req_desc.msg_id = QMI_WLFW_RESPOND_MEM_REQ_V01;
@@ -469,6 +469,56 @@ out:
 	return ret;
 }
 
+int cnss_wlfw_m3_dnld_send_sync(struct cnss_plat_data *plat_priv)
+{
+	struct wlfw_m3_info_req_msg_v01 req;
+	struct wlfw_m3_info_resp_msg_v01 resp;
+	struct msg_desc req_desc, resp_desc;
+	struct cnss_fw_mem *m3_mem = &plat_priv->m3_mem;
+	int ret = 0;
+
+	cnss_pr_dbg("Sending M3 information message, state: 0x%lx\n",
+		    plat_priv->driver_state);
+
+	cnss_pr_dbg("M3 memory, va: 0x%pK, pa: %pa, size: 0x%zx\n",
+		    m3_mem->va, &m3_mem->pa, m3_mem->size);
+
+	memset(&req, 0, sizeof(req));
+	memset(&resp, 0, sizeof(resp));
+	req.addr = 0;
+	req.size = 0;
+
+	req_desc.max_msg_len = WLFW_M3_INFO_REQ_MSG_V01_MAX_MSG_LEN;
+	req_desc.msg_id = QMI_WLFW_M3_INFO_REQ_V01;
+	req_desc.ei_array = wlfw_m3_info_req_msg_v01_ei;
+
+	resp_desc.max_msg_len = WLFW_M3_INFO_RESP_MSG_V01_MAX_MSG_LEN;
+	resp_desc.msg_id = QMI_WLFW_M3_INFO_RESP_V01;
+	resp_desc.ei_array = wlfw_m3_info_resp_msg_v01_ei;
+
+	ret = qmi_send_req_wait(plat_priv->qmi_wlfw_clnt, &req_desc, &req,
+				sizeof(req), &resp_desc, &resp, sizeof(resp),
+				QMI_WLFW_TIMEOUT_MS);
+	if (ret < 0) {
+		cnss_pr_err("Failed to send M3 information request, err = %d\n",
+			    ret);
+		goto out;
+	}
+
+	if (resp.resp.result != QMI_RESULT_SUCCESS_V01) {
+		cnss_pr_err("M3 information request failed, result: %d, err: %d\n",
+			    resp.resp.result, resp.resp.error);
+		ret = resp.resp.result;
+		goto out;
+	}
+
+	return 0;
+
+out:
+	CNSS_ASSERT(0);
+	return ret;
+}
+
 int cnss_wlfw_wlan_mode_send_sync(struct cnss_plat_data *plat_priv,
 				  enum wlfw_driver_mode_enum_v01 mode)
 {
@@ -633,7 +683,7 @@ int cnss_wlfw_server_arrive(struct cnss_plat_data *plat_priv)
 	ret = qmi_connect_to_service(plat_priv->qmi_wlfw_clnt,
 				     WLFW_SERVICE_ID_V01,
 				     WLFW_SERVICE_VERS_V01,
-				     WLFW_SERVICE_INS_ID_V01);
+				     wlfw_service_instance_id);
 	if (ret < 0) {
 		cnss_pr_err("Failed to connect to QMI WLFW service, err = %d\n",
 			    ret);
@@ -697,7 +747,7 @@ int cnss_qmi_init(struct cnss_plat_data *plat_priv)
 
 	ret = qmi_svc_event_notifier_register(WLFW_SERVICE_ID_V01,
 					      WLFW_SERVICE_VERS_V01,
-					      WLFW_SERVICE_INS_ID_V01,
+					      wlfw_service_instance_id,
 					      &plat_priv->qmi_wlfw_clnt_nb);
 	if (ret < 0)
 		cnss_pr_err("Failed to register QMI event notifier, err = %d\n",
@@ -710,6 +760,6 @@ void cnss_qmi_deinit(struct cnss_plat_data *plat_priv)
 {
 	qmi_svc_event_notifier_unregister(WLFW_SERVICE_ID_V01,
 					  WLFW_SERVICE_VERS_V01,
-					  WLFW_SERVICE_INS_ID_V01,
+					  wlfw_service_instance_id,
 					  &plat_priv->qmi_wlfw_clnt_nb);
 }

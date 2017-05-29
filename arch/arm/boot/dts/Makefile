@@ -551,7 +551,8 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-ipq807x-virtio.dtb \
 	qcom-ipq807x-hk01.dtb \
 	qcom-ipq807x-hk02.dtb \
-	qcom-ipq807x-hk05.dtb
+	qcom-ipq807x-hk05.dtb \
+	qcom-ipq807x-hk06.dtb
 dtb-$(CONFIG_ARCH_REALVIEW) += \
 	arm-realview-pb1176.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += \
