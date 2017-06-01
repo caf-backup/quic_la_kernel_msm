@@ -658,11 +658,6 @@ static int fast_smmu_mmap_attrs(struct device *dev, struct vm_area_struct *vma,
 	return ret;
 }
 
-static int fast_smmu_dma_supported(struct device *dev, u64 mask)
-{
-	return mask <= 0xffffffff;
-}
-
 static int fast_smmu_mapping_error(struct device *dev,
 				   dma_addr_t dma_addr)
 {
@@ -714,7 +709,6 @@ const struct dma_map_ops fast_smmu_dma_ops = {
 	.unmap_sg = fast_smmu_unmap_sg,
 	.sync_sg_for_cpu = fast_smmu_sync_sg_for_cpu,
 	.sync_sg_for_device = fast_smmu_sync_sg_for_device,
-	.dma_supported = fast_smmu_dma_supported,
 	.mapping_error = fast_smmu_mapping_error,
 };
 
