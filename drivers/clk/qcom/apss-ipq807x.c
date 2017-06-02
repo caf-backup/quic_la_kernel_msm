@@ -49,7 +49,7 @@ enum {
 
 static struct clk_alpha_pll apss_pll_early = {
 	.offset = 0x5000,
-	.flags = SUPPORTS_16BIT_ALPHA,
+	.flags = SUPPORTS_16BIT_ALPHA | SUPPORTS_64BIT_CTL,
 	.l_offset = 0x4,
 	.alpha_offset = 0x8,
 	.clkr = {
@@ -62,7 +62,6 @@ static struct clk_alpha_pll apss_pll_early = {
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_huayra_ops,
-			.flags = CLK_IS_CRITICAL,
 		},
 	},
 };
@@ -76,10 +75,9 @@ static struct clk_alpha_pll_postdiv apss_pll = {
 		.name = "apss_pll",
 		.parent_names = (const char *[]){ "apss_pll_early" },
 		.num_parents = 1,
-		.ops = &clk_alpha_pll_postdiv_ops,
+		.ops = &clk_alpha_pll_postdiv_ro_ops,
 	},
 };
-
 
 static const char * const parents_apcs_alias0_clk_src[] = {
 	"xo",
@@ -152,6 +150,13 @@ static struct clk_regmap *apss_ipq807x_clks[] = {
 	[APCS_ALIAS0_CORE_CLK] = &apcs_alias0_core_clk.clkr,
 };
 
+static const struct alpha_pll_config apss_pll_config = {
+	.l = 0x58,
+	.config_ctl_val = 0x200d4828,
+	.config_ctl_hi_val = 0x6,
+	.early_output_mask = BIT(3),
+};
+
 static const struct of_device_id apss_ipq807x_match_table[] = {
 	{ .compatible = "qcom,apss-ipq807x" },
 	{ }
@@ -175,8 +180,15 @@ static const struct qcom_cc_desc apss_ipq807x_desc = {
 static int apss_ipq807x_probe(struct platform_device *pdev)
 {
 	int ret;
+	struct regmap *regmap;
 
-	ret = qcom_cc_probe(pdev, &apss_ipq807x_desc);
+	regmap = qcom_cc_map(pdev, &apss_ipq807x_desc);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
+
+	clk_alpha_pll_configure(&apss_pll_early, regmap, &apss_pll_config);
+
+	ret = qcom_cc_really_probe(pdev, &apss_ipq807x_desc, regmap);
 
 	dev_dbg(&pdev->dev, "Registered ipq807x apss clock provider\n");
 

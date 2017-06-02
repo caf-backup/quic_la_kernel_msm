@@ -18,6 +18,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/sound/ipq8074-audio.h>
 #include <dt-bindings/clock/qcom,gcc-ipq807x.h>
+#include <dt-bindings/clock/qca,apss-ipq807x.h>
 
 / {
 	cpus: cpus {
@@ -28,7 +29,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x0>;
-			clocks = <&gcc GCC_DUMMY_CLK>;
+			clocks = <&apss_clk APCS_ALIAS0_CORE_CLK>;
 			clock-names = "cpu";
 			enable-method = "qcom,arm-cortex-acc";
 			qcom,acc = <&acc0>;
@@ -46,7 +47,7 @@
 			compatible = "arm,cortex-a53";
 			enable-method = "qcom,arm-cortex-acc";
 			reg = <0x1>;
-			clocks = <&gcc GCC_DUMMY_CLK>;
+			clocks = <&apss_clk APCS_ALIAS0_CORE_CLK>;
 			clock-names = "cpu";
 			qcom,acc = <&acc1>;
 			next-level-cache = <&L2_0>;
@@ -58,7 +59,7 @@
 			compatible = "arm,cortex-a53";
 			enable-method = "qcom,arm-cortex-acc";
 			reg = <0x2>;
-			clocks = <&gcc GCC_DUMMY_CLK>;
+			clocks = <&apss_clk APCS_ALIAS0_CORE_CLK>;
 			clock-names = "cpu";
 			qcom,acc = <&acc2>;
 			next-level-cache = <&L2_0>;
@@ -70,7 +71,7 @@
 			compatible = "arm,cortex-a53";
 			enable-method = "qcom,arm-cortex-acc";
 			reg = <0x3>;
-			clocks = <&gcc GCC_DUMMY_CLK>;
+			clocks = <&apss_clk APCS_ALIAS0_CORE_CLK>;
 			clock-names = "cpu";
 			qcom,acc = <&acc3>;
 			next-level-cache = <&L2_0>;
@@ -220,14 +221,6 @@
 			#gpio-cells = <0x2>;
 			interrupt-controller;
 			#interrupt-cells = <0x2>;
-
-			spi_0_pins: spi_0_pinmux {
-				mux {
-					pins = "gpio38", "gpio39", "gpio40", "gpio41";
-					function = "blsp0_spi";
-					bias-disable;
-				};
-			};
 		};
 
 		intc: interrupt-controller@b000000 {
@@ -283,14 +276,26 @@
 			status = "disabled";
 		};
 
-
 		serial_blsp4: serial@78B3000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0x78B3000 0x200>;
 			interrupts = <0x0 308 0x0>;
-			clocks = <&gcc GCC_DUMMY_CLK>,
+			clocks = <&gcc GCC_BLSP1_UART5_APPS_CLK>,
 				 <&gcc GCC_DUMMY_CLK>;
 			clock-names = "core", "iface";
+			status = "disabled";
+		};
+
+		serial_blsp2: serial@78B1000 {
+			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
+			reg = <0x78B1000 0x200>;
+			interrupts = <0x0 306 0x0>;
+			clocks = <&gcc GCC_DUMMY_CLK>,
+				<&gcc GCC_DUMMY_CLK>;
+			clock-names = "core", "iface";
+			dmas = <&blsp_dma 4>,
+				<&blsp_dma 5>;
+			dma-names = "tx", "rx";
 			status = "disabled";
 		};
 
@@ -304,6 +309,8 @@
 			clocks = <&gcc GCC_DUMMY_CLK>,
 				<&gcc GCC_DUMMY_CLK>;
 			clock-names = "core", "iface";
+			dmas = <&blsp_dma 12>, <&blsp_dma 13>;
+			dma-names = "tx", "rx";
 			status = "disabled";
 		};
 
@@ -341,7 +348,7 @@
 			reg = <0xe3000 0x1000>;
 			clocks = <&gcc GCC_DUMMY_CLK>;
 			clock-names = "core";
-			status = "disabled";
+			status = "ok";
 		};
 
 		restart@4ab000 {
@@ -417,7 +424,7 @@
 
 			qcom,bus-width = <4>;
 			qcom,dedicated-io = <1>;
-
+			qcom,max_clk = <192000000>;
 			/* device core power supply */
 			qcom,vdd-voltage-level = <2950000 2950000>;
 			qcom,vdd-current-level = <15000 400000>;
@@ -1494,7 +1501,7 @@
 
 		bias_pll_cc_clk {
 			compatible = "fixed-clock";
-			clock-frequency = <600000000>;
+			clock-frequency = <300000000>;
 			#clock-cells = <0>;
 		};
 

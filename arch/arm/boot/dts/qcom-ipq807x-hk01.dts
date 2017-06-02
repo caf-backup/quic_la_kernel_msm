@@ -15,6 +15,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include "qcom-ipq807x-soc.dtsi"
+#include "qcom-ipq807x-spmi-regulator.dtsi"
 
 / {
 	#address-cells = <0x2>;
@@ -27,11 +28,49 @@
 
 	aliases {
 		sdhc1 = &sdhc_1; /* SDC1 eMMC slot */
+		sdhc2 = &sdhc_2; /* SDC2 SD slot */
 	};
 
 	chosen {
-		bootargs = "console=ttyMSM0,115200,n8 clk_ignore_unused \
-						root=/dev/ram0 rw init=/init";
+		bootargs = "console=ttyMSM0,115200,n8 root=/dev/ram0 rw init=/init";
+		bootargs-append = " clk_ignore_unused";
+	};
+};
+
+&CPU0 {
+	operating-points-v2 = <&cpu0_opp_table>;
+	voltage-tolerance = <1>;
+	cpu0-supply = <&s3>;
+};
+
+&CPU1 {
+	operating-points-v2 = <&cpu0_opp_table>;
+	voltage-tolerance = <1>;
+	cpu-supply = <&s3>;
+};
+
+&CPU2 {
+	operating-points-v2 = <&cpu0_opp_table>;
+	voltage-tolerance = <1>;
+	cpu-supply = <&s3>;
+};
+
+&CPU3 {
+	operating-points-v2 = <&cpu0_opp_table>;
+	voltage-tolerance = <1>;
+	cpu-supply = <&s3>;
+};
+
+&cpus {
+	cpu0_opp_table: opp_table0 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp00 {
+			opp-hz = /bits/ 64 <1689600000>;
+			opp-microvolt = <864000>;
+			clock-latency-ns = <200000>;
+		};
 	};
 };
 
@@ -51,6 +90,76 @@
 			bias-disable;
 		};
 	};
+
+	spi_0_pins: spi_0_pins {
+		mux {
+			pins = "gpio38", "gpio39", "gpio40", "gpio41";
+			function = "blsp0_spi";
+			bias-disable;
+		};
+	};
+
+	qpic_pins: qpic_pins {
+		data_0 {
+			pins = "gpio15";
+			function = "qpic_pad0";
+			bias-disable;
+		};
+		data_1 {
+			pins = "gpio12";
+			function = "qpic_pad1";
+			bias-disable;
+		};
+		data_2 {
+			pins = "gpio13";
+			function = "qpic_pad2";
+			bias-disable;
+		};
+		data_3 {
+			pins = "gpio14";
+			function = "qpic_pad3";
+			bias-disable;
+		};
+		data_4 {
+			pins = "gpio5";
+			function = "qpic_pad4";
+			bias-disable;
+		};
+		data_5 {
+			pins = "gpio6";
+			function = "qpic_pad5";
+			bias-disable;
+		};
+		data_6 {
+			pins = "gpio7";
+			function = "qpic_pad6";
+			bias-disable;
+		};
+		data_7 {
+			pins = "gpio8";
+			function = "qpic_pad7";
+			bias-disable;
+		};
+		data_8 {
+			pins = "gpio16";
+			function = "qpic_pad8";
+			bias-disable;
+		};
+		qpic_pad {
+			pins = "gpio0", "gpio1", "gpio2", "gpio3", "gpio4",
+			       "gpio9", "gpio10", "gpio11", "gpio17";
+			function = "qpic_pad";
+			bias-disable;
+		};
+	};
+
+	hsuart_pins: hsuart_pins {
+		mux {
+			pins = "gpio46", "gpio47", "gpio48", "gpio49";
+			function = "blsp2_uart";
+			bias-disable;
+		};
+	};
 };
 
 &soc {
@@ -62,17 +171,39 @@
 
 
 &apss_clk {
-	status = "disabled";
+	status = "ok";
 };
 
 &blsp_dma {
-	status = "disabled";
+	status = "ok";
 };
 
 &serial_blsp4 {
        pinctrl-0 = <&uart_pins>;
        pinctrl-names = "default";
        status = "ok";
+};
+
+&spi_0 { /* BLSP1 QUP1 */
+	pinctrl-0 = <&spi_0_pins>;
+	pinctrl-names = "default";
+	status = "ok";
+
+	m25p80@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0>;
+		compatible = "n25q128a11";
+		linux,modalias = "m25p80", "n25q128a11";
+		spi-max-frequency = <24000000>;
+		use-default-sizes;
+	};
+};
+
+&serial_blsp2 {
+	pinctrl-0 = <&hsuart_pins>;
+	pinctrl-names = "default";
+	status = "ok";
 };
 
 &q6v5_wcss {
@@ -89,7 +220,7 @@
 };
 
 &smem {
-	status = "disabled";
+	status = "ok";
 };
 
 &tcsr_mutex_block {
@@ -97,7 +228,7 @@
 };
 
 &tcsr_mutex {
-	status = "disabled";
+	status = "ok";
 };
 
 &nss_crypto {
@@ -113,15 +244,15 @@
 };
 
 &glink_modem {
-	status = "disabled";
+	status = "ok";
 };
 
 &ipc_router {
-	status = "disabled";
+	status = "ok";
 };
 
 &ipc_router_modem {
-	status = "disabled";
+	status = "ok";
 };
 
 &msm_imem {
@@ -151,5 +282,22 @@
 			 192000000 384000000>;
 	qcom,bus-speed-mode = "HS200_1p8v", "DDR_1p8v";
 	qcom,nonremovable;
+	status = "ok";
+};
+
+&qpic_bam {
+	status = "ok";
+};
+
+&nand {
+	pinctrl-0 = <&qpic_pins>;
+	pinctrl-names = "default";
+	status = "ok";
+};
+
+&sdhc_2 {
+	qcom,clk-rates = <400000 25000000 50000000 100000000 \
+			 192000000 384000000>;
+	qcom,bus-speed-mode = "HS200_1p8v", "DDR_1p8v";
 	status = "ok";
 };

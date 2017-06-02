@@ -121,17 +121,19 @@ static int q6_rproc_stop(struct rproc *rproc)
 	val = readl(pdata->tcsr_base + TCSR_HALTREQ);
 	val |= BIT(0);
 	writel(val, pdata->tcsr_base + TCSR_HALTREQ);
+	mdelay(1000);
 
 	val = readl(pdata->q6_base + QDSP6SS_INTF_HALTREQ);
 	val |= BIT(0);
 	writel(val, pdata->q6_base + QDSP6SS_INTF_HALTREQ);
+	mdelay(1000);
 
 	/* Check HALTACK */
 	if (pdata->emulation == 1) {
 		val = readl(pdata->tcsr_base + TCSR_HALTACK);
-		mdelay(100);
+		mdelay(1000);
 		val = readl(pdata->q6_base + QDSP6SS_INTF_HALTACK);
-		mdelay(100);
+		mdelay(1000);
 	} else {
 		while (1) {
 			val = readl(pdata->tcsr_base + TCSR_HALTACK);
@@ -162,28 +164,30 @@ static int q6_rproc_stop(struct rproc *rproc)
 	val = readl(pdata->mpm_base + SSCAON_CONFIG);
 	val |= BIT(1);
 	writel(val, pdata->mpm_base + SSCAON_CONFIG);
-	mdelay(100);
+	mdelay(1000);
 
 	/* Set MPM_SSCAON_CONFIG 0 */
 	val = readl(pdata->mpm_base + SSCAON_CONFIG);
 	val &= ~(BIT(0));
 	writel(val, pdata->mpm_base + SSCAON_CONFIG);
-	mdelay(100);
+	mdelay(1000);
 
 	/* Set MPM_SSCAON_CONFIG 1 */
 	val = readl(pdata->mpm_base + SSCAON_CONFIG);
 	val &= ~(BIT(1));
 	writel(val, pdata->mpm_base + SSCAON_CONFIG);
-	mdelay(100);
+	mdelay(1000);
 
 	/* Enable Q6/WCSS BLOCK ARES */
 	val = readl(pdata->gcc_bcr_base + GCC_WCSS_BCR);
 	val |= BIT(0);
 	writel(val, pdata->gcc_bcr_base + GCC_WCSS_BCR);
+	mdelay(1000);
 
 	val = readl(pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
 	val |= BIT(0);
 	writel(val, pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
+	mdelay(1000);
 
 	/* Enable A2AB/ACMT/ECHAB ARES */
 	val = readl(pdata->gcc_misc_base + GCC_MISC_RESET_ADDR);
@@ -217,7 +221,6 @@ static int q6_rproc_stop(struct rproc *rproc)
 	val = readl(pdata->mpm_base + SSCAON_CONFIG);
 	val |= BIT(0);
 	writel(val, pdata->mpm_base + SSCAON_CONFIG);
-	mdelay(100);
 
 	return ret;
 }
@@ -287,7 +290,7 @@ static int q6_rproc_start(struct rproc *rproc)
 		val = val | 1 << temp;
 		writel(val, pdata->q6_base + QDSP6SS_MEM_PWR_CTL);
 		val = readl(pdata->q6_base + QDSP6SS_MEM_PWR_CTL);
-		udelay(2);
+		mdelay(10);
 		temp -= 1;
 	}
 	/* Remove the QDSP6 core memory word line clamp */
@@ -303,8 +306,8 @@ static int q6_rproc_start(struct rproc *rproc)
 	writel(0x102, pdata->q6_base + QDSP6SS_GFMUX_CTL);
 	/* Enable the core to run */
 	writel(0x4, pdata->q6_base + QDSP6SS_RESET);
-	/* Enable QDSP6SS Sleep clock */
-	writel(0x1, pdata->q6_base + QDSP6SS_SLEEP_CBCR);
+	/* QDSP6SS_QDSP6SS Scalar bring-up completed */
+	val = readl(pdata->q6_base + QDSP6SS_MEM_PWR_CTL);
 
 skip_reset:
 	pdata->running = true;

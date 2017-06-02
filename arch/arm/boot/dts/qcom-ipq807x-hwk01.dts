@@ -33,8 +33,8 @@
 	};
 
 	chosen {
-		bootargs = "console=ttyMSM0,115200,n8 clk_ignore_unused \
-						root=/dev/ram0 rw init=/init";
+		bootargs = "console=ttyMSM0,115200,n8 root=/dev/ram0 rw init=/init";
+		bootargs-append = " clk_ignore_unused";
 	};
 };
 
@@ -776,6 +776,14 @@
 			pins = "gpio36";
 			function = "pcm_pclk";
 			bias-pull,up;
+		};
+	};
+
+	spi_0_pins: spi_0_pins {
+		mux {
+			pins = "gpio38", "gpio39", "gpio40", "gpio41";
+			function = "blsp0_spi";
+			bias-disable;
 		};
 	};
 };

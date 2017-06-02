@@ -233,6 +233,19 @@
 #define GCC_GP1_CLK				213
 #define GCC_GP2_CLK				214
 #define GCC_GP3_CLK				215
-#define GCC_DUMMY_I2C_CLK			216
+#define SYSTEM_NOC_BFDCD_CLK_SRC		216
+#define GCC_NSSNOC_SNOC_CLK			217
+#define GCC_UBI0_NC_AXI_CLK			218
+#define GCC_UBI1_NC_AXI_CLK			219
+#define GPLL0_MAIN				220
+#define UBI32_PLL_MAIN				221
+#define GPLL6_MAIN				222
+#define GPLL4_MAIN				223
+#define GPLL2_MAIN				224
+#define NSS_CRYPTO_PLL_MAIN			225
+#define AUDIO_PLL_MAIN				226
+#define GCC_CMN_12GPLL_AHB_CLK			227
+#define GCC_CMN_12GPLL_SYS_CLK			228
+#define GCC_DUMMY_I2C_CLK			229
 
 #endif

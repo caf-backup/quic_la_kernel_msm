@@ -201,8 +201,8 @@ struct edge_info {
 	struct channel_desc *rx_ch_desc;
 	void __iomem *tx_fifo;
 	void __iomem *rx_fifo;
-	uint32_t tx_fifo_size;
-	uint32_t rx_fifo_size;
+	size_t tx_fifo_size;
+	size_t rx_fifo_size;
 	void * (*read_from_fifo)(void *dest, const void *src, size_t num_bytes);
 	void * (*write_to_fifo)(void *dest, const void *src, size_t num_bytes);
 	spinlock_t write_lock;
