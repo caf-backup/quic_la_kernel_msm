@@ -940,10 +940,16 @@ ar8327_setup_port(struct ar8xxx_priv *priv, int port, u32 members)
 	u32 egress, ingress;
 	u32 pvid = priv->vlan_id[priv->pvid[port]];
 
+	egress = AR8327_PORT_VLAN1_OUT_MODE_UNMOD;
 	if (priv->vlan) {
-		egress = AR8327_PORT_VLAN1_OUT_MODE_UNMOD;
+		pvid = priv->vlan_id[priv->pvid[port]];
+		if (priv->vlan_tagged & (1 << port))
+			egress = AR8327_PORT_VLAN1_OUT_MODE_TAG;
+		else
+			egress = AR8327_PORT_VLAN1_OUT_MODE_UNTAG;
 		ingress = AR8216_IN_SECURE;
 	} else {
+		pvid = 0;
 		egress = AR8327_PORT_VLAN1_OUT_MODE_UNTOUCH;
 		ingress = AR8216_IN_PORT_ONLY;
 	}
@@ -961,6 +967,11 @@ ar8327_setup_port(struct ar8xxx_priv *priv, int port, u32 members)
 	t |= ingress << AR8327_PORT_LOOKUP_IN_MODE_S;
 	t |= AR8216_PORT_STATE_FORWARD << AR8327_PORT_LOOKUP_STATE_S;
 	ar8xxx_write(priv, AR8327_REG_PORT_LOOKUP(port), t);
+
+	t = ar8xxx_read(priv, AR8327_REG_ROUTE_EG_MODE);
+	t &= (~(0x3 << AR8327_ROUTE_EG_MODE_S(port)));
+	t |= egress << AR8327_ROUTE_EG_MODE_S(port);
+	ar8xxx_write(priv, AR8327_REG_ROUTE_EG_MODE, t);
 }
 
 static int
