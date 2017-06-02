@@ -237,29 +237,47 @@
 			status = "disabled";
 		};
 
-		cryptobam: dma@8e04000 {
-			compatible = "qcom,bam-v1.7.0";
-			reg = <0x08e04000 0x20000>;
-			interrupts = <GIC_SPI 207 0>;
-			clocks = <&gcc GCC_CRYPTO_AHB_CLK>;
-			clock-names = "bam_clk";
-			#dma-cells = <1>;
-			qcom,ee = <1>;
-			qcom,controlled-remotely;
+		qcom,sps {
+			compatible = "qcom,msm_sps_4k";
+			qcom,device-type = <3>;
+			qcom,pipe-attr-ee;
 		};
 
-		qcom_crypto: qcrypto@8e3a000 {
-			compatible = "qcom,crypto-v5.1";
-			reg = <0x8e3a000 0x6000>;
-			reg-names = "crypto-base";
-			interrupts = <0 207 0>;
+		qcom_crypto: qcrypto@8e20000 {
+			compatible = "qcom,qcrypto";
+			reg = <0x8e20000 0x20000>,
+				<0x8e04000 0x20000>;
+			reg-names = "crypto-base","crypto-bam-base";
+			interrupts = <GIC_SPI 207 0>;
+			qcom,bam-pipe-pair = <1>;
+			qcom,ce-hw-instance = <0>;
+			qcom,ce-hw-shared = <1>;
+			qcom,ce-device = <0>;
+			qcom,ce-opp-freq= <125000000>;
 			clocks = <&gcc GCC_CRYPTO_CLK>,
 				<&gcc GCC_CRYPTO_AXI_CLK>,
 				<&gcc GCC_CRYPTO_AHB_CLK>;
 
-			clock-names = "core", "bus", "iface";
-			dmas = <&cryptobam 2>, <&cryptobam 3>;
-			dma-names = "rx", "tx";
+			clock-names = "core_clk", "bus_clk", "iface_clk";
+			status = "ok";
+		};
+
+		qcom_cedev: qcedev@8e20000 {
+			compatible = "qcom,qcedev";
+			reg = <0x8e20000  0x20000>,
+				<0x8e04000  0x20000>;
+			reg-names = "crypto-base","crypto-bam-base";
+			interrupts = <0 207 0>;
+			qcom,bam-pipe-pair = <1>;
+			qcom,ce-hw-instance = <0>;
+			qcom,ce-hw-shared = <1>;
+			qcom,ce-device = <0>;
+			qcom,ce-opp-freq= <125000000>;
+			clocks = <&gcc GCC_CRYPTO_CLK>,
+				<&gcc GCC_CRYPTO_AXI_CLK>,
+				<&gcc GCC_CRYPTO_AHB_CLK>;
+
+			clock-names = "core_clk", "bus_clk", "iface_clk";
 			status = "ok";
 		};
 
