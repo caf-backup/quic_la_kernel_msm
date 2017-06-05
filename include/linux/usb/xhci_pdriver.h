@@ -23,6 +23,7 @@
 struct usb_xhci_pdata {
 	unsigned	usb3_lpm_capable:1;
 	unsigned	usb2_susphy_quirk:1;
+	unsigned	usb3_dev_reset_quirk:1;
 	struct usb_susphy       *susphy;
 };
 
