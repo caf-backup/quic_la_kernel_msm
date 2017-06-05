@@ -29,6 +29,8 @@
 #include "rpm_stats.h"
 
 
+static DEFINE_MUTEX(rpm_stats_mutex);
+
 enum {
 	ID_COUNTER,
 	ID_ACCUM_TIME_SCLK,
@@ -211,6 +213,12 @@ static int msm_rpmstats_copy_stats(struct msm_rpmstats_private_data *pdata)
 
 	record.id = msm_rpmstats_read_register(pdata->reg_base,
 						pdata->read_idx, 1);
+	if (record.id >= ID_MAX) {
+		pr_err("%s: array out of bound error found.\n",
+			__func__);
+		return -EINVAL;
+	}
+
 	record.val = msm_rpmstats_read_register(pdata->reg_base,
 						pdata->read_idx, 2);
 
@@ -233,13 +241,20 @@ static ssize_t msm_rpmstats_file_read(struct file *file, char __user *bufu,
 				  size_t count, loff_t *ppos)
 {
 	struct msm_rpmstats_private_data *prvdata;
+	ssize_t ret;
+
+	mutex_lock(&rpm_stats_mutex);
 	prvdata = file->private_data;
 
-	if (!prvdata)
-		return -EINVAL;
+	if (!prvdata) {
+		ret = -EINVAL;
+		goto exit;
+	}
 
-	if (!bufu || count == 0)
-		return -EINVAL;
+	if (!bufu || count == 0) {
+		ret = -EINVAL;
+		goto exit;
+	}
 
 	if (prvdata->platform_data->version == 1) {
 		if (!prvdata->num_records)
@@ -255,23 +270,30 @@ static ssize_t msm_rpmstats_file_read(struct file *file, char __user *bufu,
 						prvdata);
 			*ppos = 0;
 	}
-
-	return simple_read_from_buffer(bufu, count, ppos,
+	ret = simple_read_from_buffer(bufu, count, ppos,
 			prvdata->buf, prvdata->len);
+exit:
+	mutex_unlock(&rpm_stats_mutex);
+	return ret;
 }
 
 static int msm_rpmstats_file_open(struct inode *inode, struct file *file)
 {
 	struct msm_rpmstats_private_data *prvdata;
 	struct msm_rpmstats_platform_data *pdata;
+	int ret = 0;
 
+	mutex_lock(&rpm_stats_mutex);
 	pdata = inode->i_private;
 
 	file->private_data =
 		kmalloc(sizeof(struct msm_rpmstats_private_data), GFP_KERNEL);
 
-	if (!file->private_data)
-		return -ENOMEM;
+	if (!file->private_data) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
 	prvdata = file->private_data;
 
 	prvdata->reg_base = ioremap_nocache(pdata->phys_addr_base,
@@ -282,24 +304,28 @@ static int msm_rpmstats_file_open(struct inode *inode, struct file *file)
 		pr_err("%s: ERROR could not ioremap start=%pa, len=%u\n",
 			__func__, &pdata->phys_addr_base,
 			pdata->phys_size);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto exit;
 	}
 
 	prvdata->read_idx = prvdata->num_records =  prvdata->len = 0;
 	prvdata->platform_data = pdata;
 	if (pdata->version == 2)
 		prvdata->num_records = 2;
-
-	return 0;
+exit:
+	mutex_unlock(&rpm_stats_mutex);
+	return ret;
 }
 
 static int msm_rpmstats_file_close(struct inode *inode, struct file *file)
 {
 	struct msm_rpmstats_private_data *private = file->private_data;
 
+	mutex_lock(&rpm_stats_mutex);
 	if (private->reg_base)
 		iounmap(private->reg_base);
 	kfree(file->private_data);
+	mutex_unlock(&rpm_stats_mutex);
 
 	return 0;
 }
@@ -349,6 +375,94 @@ static const struct file_operations msm_rpmheap_fops = {
 	.release  = single_release,
 	.llseek   = no_llseek,
 };
+
+static ssize_t rpmstats_show(struct kobject *kobj,
+			struct kobj_attribute *attr, char *buf)
+{
+	struct msm_rpmstats_private_data *prvdata = NULL;
+	struct msm_rpmstats_platform_data *pdata = NULL;
+	ssize_t ret;
+
+	mutex_lock(&rpm_stats_mutex);
+	pdata = GET_PDATA_OF_ATTR(attr);
+
+	prvdata =
+		kmalloc(sizeof(*prvdata), GFP_KERNEL);
+	if (!prvdata) {
+		ret = -ENOMEM;
+		goto kmalloc_fail;
+	}
+
+	prvdata->reg_base = ioremap_nocache(pdata->phys_addr_base,
+					pdata->phys_size);
+	if (!prvdata->reg_base) {
+		pr_err("%s: ERROR could not ioremap start=%pa, len=%u\n",
+			__func__, &pdata->phys_addr_base,
+			pdata->phys_size);
+		ret = -EBUSY;
+		goto ioremap_fail;
+	}
+
+	prvdata->read_idx = prvdata->num_records =  prvdata->len = 0;
+	prvdata->platform_data = pdata;
+	if (pdata->version == 2)
+		prvdata->num_records = 2;
+
+	if (prvdata->platform_data->version == 1) {
+		if (!prvdata->num_records)
+			prvdata->num_records =
+				readl_relaxed(prvdata->reg_base);
+	}
+
+	if (prvdata->read_idx < prvdata->num_records) {
+		if (prvdata->platform_data->version == 1)
+			prvdata->len = msm_rpmstats_copy_stats(prvdata);
+		else if (prvdata->platform_data->version == 2)
+			prvdata->len = msm_rpmstats_copy_stats_v2(
+					prvdata);
+	}
+
+	ret = snprintf(buf, prvdata->len, prvdata->buf);
+	iounmap(prvdata->reg_base);
+ioremap_fail:
+	kfree(prvdata);
+kmalloc_fail:
+	mutex_unlock(&rpm_stats_mutex);
+	return ret;
+}
+
+static int msm_rpmstats_create_sysfs(struct msm_rpmstats_platform_data *pd)
+{
+	struct kobject *rpmstats_kobj = NULL;
+	struct msm_rpmstats_kobj_attr *rpms_ka = NULL;
+	int ret = 0;
+
+	rpmstats_kobj = kobject_create_and_add("system_sleep", power_kobj);
+	if (!rpmstats_kobj) {
+		pr_err("%s: Cannot create rpmstats kobject\n", __func__);
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+	rpms_ka = kzalloc(sizeof(*rpms_ka), GFP_KERNEL);
+	if (!rpms_ka) {
+		kobject_put(rpmstats_kobj);
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+	sysfs_attr_init(&rpms_ka->ka.attr);
+	rpms_ka->pd = pd;
+	rpms_ka->ka.attr.mode = 0444;
+	rpms_ka->ka.attr.name = "stats";
+	rpms_ka->ka.show = rpmstats_show;
+	rpms_ka->ka.store = NULL;
+
+	ret = sysfs_create_file(rpmstats_kobj, &rpms_ka->ka.attr);
+
+fail:
+	return ret;
+}
 
 static int msm_rpmstats_probe(struct platform_device *pdev)
 {
