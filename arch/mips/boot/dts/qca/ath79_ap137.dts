@@ -169,7 +169,7 @@
 					0x00008 0x0000000   /* PAD5_MODE */
 					0x0000c 0x7600000   /* PAD6_MODE */
 					0x000e4 0x2a545     /* MAC_POWER_SEL */
-					0x000e0 0xc74164d0  /* SGMII_CTRL */
+					0x000e0 0xc74164de  /* SGMII_CTRL */
 					0x0007c 0x7e        /* PORT0_STATUS */
 					0x00094 0x7e        /* PORT6_STATUS */
 				>;
