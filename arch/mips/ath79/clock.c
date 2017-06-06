@@ -30,11 +30,12 @@
 #define AR913X_BASE_FREQ	5000000
 
 static struct clk *clks[4];
+#ifdef CONFIG_OF
 static struct clk_onecell_data clk_data = {
 	.clks = clks,
 	.clk_num = ARRAY_SIZE(clks),
 };
-
+#endif
 
 static struct clk *__init ath79_add_sys_clkdev(
 	const char *id, unsigned long rate)

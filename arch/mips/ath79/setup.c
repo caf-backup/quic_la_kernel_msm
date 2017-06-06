@@ -230,10 +230,13 @@ unsigned int get_c0_compare_int(void)
 
 void __init plat_mem_setup(void)
 {
+#ifdef CONFIG_OF
 	unsigned long fdt_start;
+#endif
 
 	set_io_port_base(KSEG1);
 
+#ifdef CONFIG_OF
 	/* Get the position of the FDT passed by the bootloader */
 	fdt_start = fw_getenvl("fdt_start");
 	if (fdt_start)
@@ -247,7 +250,7 @@ void __init plat_mem_setup(void)
 		initial_boot_params = (void *)__owrt_dtb;
 	}
 #endif
-
+#endif
 	ath79_reset_base = ioremap_nocache(AR71XX_RESET_BASE,
 					   AR71XX_RESET_SIZE);
 	ath79_pll_base = ioremap_nocache(AR71XX_PLL_BASE,
@@ -307,10 +310,12 @@ static int __init ath79_setup(void)
 
 arch_initcall(ath79_setup);
 
+#ifdef CONFIG_OF
 void __init device_tree_init(void)
 {
 	unflatten_and_copy_device_tree();
 }
+#endif
 
 static void __init ath79_generic_init(void)
 {

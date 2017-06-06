@@ -320,7 +320,7 @@ static int ath79_spi_setup_transfer(struct spi_device *spi,
 
 	return ret;
 }
-
+#ifdef CONFIG_OF
 void ath79_spi_fixup_mac_addr(void)
 {
 	const u8 *art = (u8 *)KSEG1ADDR(0x1fff0000);
@@ -353,6 +353,7 @@ void ath79_spi_fixup_mac_addr(void)
 					__func__, idx, ret);
 	}
 }
+#endif
 
 static int ath79_spi_probe(struct platform_device *pdev)
 {
@@ -429,10 +430,10 @@ static int ath79_spi_probe(struct platform_device *pdev)
 	sp->rrw_delay = ATH79_SPI_RRW_DELAY_FACTOR / rate;
 	dev_dbg(&pdev->dev, "register read/write delay is %u nsecs\n",
 		sp->rrw_delay);
-
+#ifdef CONFIG_OF
 	if (master->dev.of_node != NULL)
 		ath79_spi_fixup_mac_addr();
-
+#endif
 	ath79_spi_enable(sp);
 	ret = spi_bitbang_start(&sp->bitbang);
 	if (ret)

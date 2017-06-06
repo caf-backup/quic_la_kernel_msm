@@ -258,9 +258,11 @@ static int ag71xx_mdio_probe(struct platform_device *pdev)
 
 	ag71xx_mdio_wr(am, AG71XX_REG_MAC_CFG1, 0);
 
+#ifdef CONFIG_OF
 	if (pdev->dev.of_node)
 		err = of_mdiobus_register(am->mii_bus, pdev->dev.of_node);
 	else
+#endif
 		err = mdiobus_register(am->mii_bus);
 	if (err)
 		goto err_out;
