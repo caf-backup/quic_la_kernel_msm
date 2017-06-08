@@ -133,7 +133,9 @@ static unsigned int ar933x_uart_tx_empty(struct uart_port *port)
 
 static unsigned int ar933x_uart_get_mctrl(struct uart_port *port)
 {
-	return TIOCM_CAR;
+	struct ar933x_uart_port *up = (struct ar933x_uart_port *) port;
+	int cts = ar933x_uart_read(up, AR933X_UART_CS_REG) & AR933X_UART_CS_TX_READY;
+	return TIOCM_CAR | TIOCM_DSR | (cts ? TIOCM_CTS : 0);
 }
 
 static void ar933x_uart_set_mctrl(struct uart_port *port, unsigned int mctrl)
@@ -293,6 +295,24 @@ static void ar933x_uart_set_termios(struct uart_port *port,
 	/* enable host interrupt */
 	ar933x_uart_rmw_set(up, AR933X_UART_CS_REG,
 			    AR933X_UART_CS_HOST_INT_EN);
+
+	/* set up flow control */
+	if (new->c_cflag & CRTSCTS) {
+		/* clear overrides */
+		ar933x_uart_rmw_clear(up, AR933X_UART_CS_REG,
+				      AR933X_UART_CS_TX_READY_ORIDE | AR933X_UART_CS_RX_READY_ORIDE);
+		/* enable hardware flow control */
+		ar933x_uart_rmw(up, AR933X_UART_CS_REG,
+				AR933X_UART_CS_FLOW_CTRL_M << AR933X_UART_CS_FLOW_CTRL_S,
+				AR933X_UART_CS_FLOW_CTRL_HW << AR933X_UART_CS_FLOW_CTRL_S);
+	} else {
+		/* disable hardware flow control */
+		ar933x_uart_rmw_clear(up, AR933X_UART_CS_REG,
+				      AR933X_UART_CS_FLOW_CTRL_M << AR933X_UART_CS_FLOW_CTRL_S);
+		/* enable overrides */
+		ar933x_uart_rmw_set(up, AR933X_UART_CS_REG,
+				    AR933X_UART_CS_TX_READY_ORIDE | AR933X_UART_CS_RX_READY_ORIDE);
+	}
 
 	/* reenable the UART */
 	ar933x_uart_rmw(up, AR933X_UART_CS_REG,

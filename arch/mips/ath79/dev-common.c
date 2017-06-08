@@ -68,11 +68,31 @@ static struct resource ar933x_uart_resources[] = {
 	},
 };
 
+static struct resource ar934x_uart1_resources[] = {
+	{
+		.start  = AR934X_UART1_BASE,
+		.end    = AR934X_UART1_BASE + AR934X_UART1_SIZE - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	{
+		.start  = ATH79_MISC_IRQ(6),
+		.end    = ATH79_MISC_IRQ(6),
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
 static struct platform_device ar933x_uart_device = {
 	.name		= "ar933x-uart",
 	.id		= -1,
 	.resource	= ar933x_uart_resources,
 	.num_resources	= ARRAY_SIZE(ar933x_uart_resources),
+};
+
+static struct platform_device ar934x_uart1_device = {
+	.name		= "ar933x-uart",
+	.id		= -1,
+	.resource	= ar934x_uart1_resources,
+	.num_resources	= ARRAY_SIZE(ar934x_uart1_resources),
 };
 
 void __init ath79_register_uart(void)
@@ -100,6 +120,10 @@ void __init ath79_register_uart(void)
 	    soc_is_tp9343()) {
 		ath79_uart_data[0].uartclk = uart_clk_rate;
 		platform_device_register(&ath79_uart_device);
+		if (soc_is_ar934x()) {
+			/* Also register uart1 */
+			platform_device_register(&ar934x_uart1_device);
+		}
 	} else if (soc_is_ar933x()) {
 		platform_device_register(&ar933x_uart_device);
 	} else {
