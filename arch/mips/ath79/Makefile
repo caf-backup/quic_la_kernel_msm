@@ -26,6 +26,7 @@ obj-$(CONFIG_ATH79_DEV_M25P80)		+= dev-m25p80.o
 obj-$(CONFIG_ATH79_DEV_NAND)		+= dev-nand.o
 obj-$(CONFIG_ATH79_DEV_NFC)		+= dev-nfc.o
 obj-$(CONFIG_ATH79_DEV_SPI)		+= dev-spi.o
+obj-$(CONFIG_ATH79_DEV_I2C)		+= dev-i2c.o
 obj-$(CONFIG_ATH79_DEV_USB)		+= dev-usb.o
 obj-$(CONFIG_ATH79_DEV_WMAC)		+= dev-wmac.o
 

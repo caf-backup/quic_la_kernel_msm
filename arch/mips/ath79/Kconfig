@@ -208,6 +208,9 @@ config ATH79_DEV_NAND
 config ATH79_DEV_SPI
 	def_bool n
 
+config ATH79_DEV_I2C
+	def_bool n
+
 config ATH79_DEV_USB
 	def_bool n
 
