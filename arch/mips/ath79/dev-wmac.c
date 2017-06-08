@@ -440,6 +440,14 @@ void __init ath79_wmac_set_led_pin(int gpio)
 	ath79_wmac_data.led_pin = gpio;
 }
 
+void __init ath79_wmac_set_btcoex_pin(int bt_active_pin, int bt_priority_pin,
+				      int wlan_active_pin)
+{
+	ath79_wmac_data.bt_active_pin = bt_active_pin;;
+	ath79_wmac_data.bt_priority_pin = bt_priority_pin;
+	ath79_wmac_data.wlan_active_pin = wlan_active_pin;
+}
+
 void __init ath79_register_wmac(u8 *cal_data, u8 *mac_addr)
 {
 	if (soc_is_ar913x())
