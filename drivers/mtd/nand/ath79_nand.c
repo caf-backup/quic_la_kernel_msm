@@ -582,7 +582,7 @@ static uint8_t ath79_read_byte(struct mtd_info *mtd)
 	return rdbyte;
 }
 
-static int ath79_block_bad(struct mtd_info *mtd, loff_t ofs, int getchip)
+static int ath79_block_bad(struct mtd_info *mtd, loff_t ofs)
 {
 	struct nand_chip *chip = mtd->priv;
 	uint8_t *p = chip->oob_poi;
@@ -596,11 +596,11 @@ static int ath79_block_bad(struct mtd_info *mtd, loff_t ofs, int getchip)
 }
 
 static int ath79_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
-			  int page, int sndcmd)
+			  int page)
 {
 	ath79_rw_oob(mtd, chip, 1 /*read */, page);
 
-	return sndcmd;
+	return 0;
 }
 
 static int ath79_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
@@ -610,21 +610,22 @@ static int ath79_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 }
 
 static int ath79_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
-			       uint8_t *buf, int page)
+			       uint8_t *buf, int oob_required, int page)
 {
 	return ath79_rw_page(mtd, chip, 1 /*read */, buf,
 			     mtd->writesize + mtd->oobsize, page);
 }
 
 static int ath79_read_page(struct mtd_info *mtd, struct nand_chip *chip,
-			   uint8_t *buf, int page)
+			   uint8_t *buf, int oob_required, int page)
 {
 	return ath79_rw_page(mtd, chip, 1 /*read */, buf, mtd->writesize,
 			     page);
 }
 
 static int ath79_write_page(struct mtd_info *mtd, struct nand_chip *chip,
-			    const uint8_t *buf, int page, int cached, int raw)
+			    uint32_t offset, int data_len, const uint8_t *buf,
+			    int oob_required, int page, int cached, int raw)
 {
 	int status;
 
@@ -652,7 +653,7 @@ static int ath79_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	return 0;
 }
 
-static void ath79_erase_cmd(struct mtd_info *mtd, int page)
+static int ath79_erase_cmd(struct mtd_info *mtd, int page)
 {
 	ath79_nand_priv *ath79_priv = mtd->priv;
 
@@ -670,7 +671,7 @@ static void ath79_erase_cmd(struct mtd_info *mtd, int page)
 	while ((ioread32(ath79_priv->io_base + AR934X_NAND_REG_INT_STATUS) &
 		AR934X_NAND_CMD_END_INT) == 0) ;
 
-	return;
+	return 0;
 }
 
 static ath_nand_vend_data_t *

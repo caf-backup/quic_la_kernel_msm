@@ -595,7 +595,8 @@ static int ath79_spinand_erase_block(struct mtd_info *mtd,
 static int ath79_spinand_write_page_hwecc(struct mtd_info *mtd,
 					  struct nand_chip *chip,
 					  const uint8_t *buf,
-					  int oob_required)
+					  int oob_required,
+					  int page)
 {
 	chip->write_buf(mtd, buf, chip->ecc.size * chip->ecc.steps);
 

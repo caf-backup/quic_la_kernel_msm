@@ -314,7 +314,7 @@ static void spi_nor_unlock_and_unprep(struct spi_nor *nor, enum spi_nor_ops ops)
 
 static inline int enter_ext_addr(struct spi_nor *nor, u8 addr)
 {
-	if (wait_till_ready(nor))
+	if (spi_nor_wait_till_ready(nor))
 		return -1;
 
 	write_enable(nor);
@@ -1214,10 +1214,12 @@ static const u32 spi_nor_ext_addr_ids[] = {
 	/* add id here */
 };
 
-static int spi_nor_ext_addr_mode(u32 jedec_id)
+static int spi_nor_ext_addr_mode(const struct flash_info *info)
 {
 	int id;
+	u32 jedec_id;
 
+	jedec_id = info->id[0] << 16 | info->id[1] << 8 | info->id[2];
 	for (id = 0; id < ARRAY_SIZE(spi_nor_ext_addr_ids); id++)
 		if (jedec_id == spi_nor_ext_addr_ids[id])
 			return 1;
@@ -1398,7 +1400,7 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 	if (info->addr_width)
 		nor->addr_width = info->addr_width;
 	else if (mtd->size > 0x1000000 &&
-				!spi_nor_ext_addr_mode(info->jedec_id)) {
+				!spi_nor_ext_addr_mode(info)) {
 		/* enable 4-byte addressing if the device exceeds 16MiB */
 		nor->addr_width = 4;
 		if ((JEDEC_MFR(info) == SNOR_MFR_SPANSION) ||

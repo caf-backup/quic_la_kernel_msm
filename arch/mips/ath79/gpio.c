@@ -22,6 +22,8 @@
 void __iomem *ath79_gpio_base;
 EXPORT_SYMBOL_GPL(ath79_gpio_base);
 
+static DEFINE_SPINLOCK(ath79_gpio_lock);
+
 static void __iomem *ath79_gpio_get_function_reg(void)
 {
 	u32 reg = 0;
