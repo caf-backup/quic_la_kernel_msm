@@ -319,6 +319,17 @@ static int ath79_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 	return ret;
 }
 
+static void ath79_set_spi_clock(struct ath79_spi *sp, u32 speed_hz)
+{
+	u32 clk_div, reg_ctrl;
+
+	reg_ctrl = ath79_spi_rr(sp, AR71XX_SPI_REG_CTRL);
+	clk_div = DIV_ROUND_UP(sp->ahb_rate, 2 * speed_hz) - 1;
+
+	ath79_spi_wr(sp, AR71XX_SPI_REG_CTRL,
+		     (reg_ctrl & ~AR71XX_SPI_CTRL_DIV_MASK) | clk_div);
+}
+
 static int ath79_spi_setup_transfer(struct spi_device *spi,
 				    struct spi_transfer *t)
 {
@@ -329,10 +340,14 @@ static int ath79_spi_setup_transfer(struct spi_device *spi,
 	if (ret)
 		return ret;
 
-	if (sp->is_flash)
+	if (sp->is_flash) {
+		if (t && t->speed_hz)
+			ath79_set_spi_clock(sp, t->speed_hz);
+
 		sp->bitbang.txrx_bufs = ath79_spi_txrx_bufs;
-	else
+	} else {
 		sp->bitbang.txrx_bufs = spi_bitbang_bufs;
+	}
 
 	return ret;
 }
@@ -443,6 +458,9 @@ static int ath79_spi_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto err_clk_disable;
 	}
+
+	master->min_speed_hz = sp->ahb_rate / ((AR71XX_SPI_CTRL_DIV_MASK + 1) << 1);
+	master->max_speed_hz = sp->ahb_rate >> 1;
 
 	sp->rrw_delay = ATH79_SPI_RRW_DELAY_FACTOR / rate;
 	dev_dbg(&pdev->dev, "register read/write delay is %u nsecs\n",
