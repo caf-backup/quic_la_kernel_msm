@@ -58,6 +58,12 @@ enum ath79_mach_type {
 	ATH79_MACH_CR5000,		/* PowerCloud CR5000 */
 	ATH79_MACH_DB120,		/* Atheros DB120 reference board */
 	ATH79_MACH_PB44,		/* Atheros PB44 reference board */
+	ATH79_MACH_CUS531,		/* Qualcomm Atheros CUS531 board */
+	ATH79_MACH_CUS531_DUAL,		/* Qualcomm Atheros CUS531 dual board */
+	ATH79_MACH_CUS531_NAND,		/* Qualcomm Atheros CUS531 nand board */
+	ATH79_MACH_CUS531MP3,		/* Qualcomm Atheros CUS531 MP3 board */
+	ATH79_MACH_CUS531MP3_DUAL,	/* Qualcomm Atheros CUS531 MP3 dual board */
+	ATH79_MACH_CUS531MP3_NAND,	/* Qualcomm Atheros CUS531 MP3 nand board */
 	ATH79_MACH_DGL_5500_A1,		/* D-link DGL-5500 rev. A1 */
 	ATH79_MACH_DHP_1565_A1,		/* D-Link DHP-1565 rev. A1 */
 	ATH79_MACH_DIR_505_A1,		/* D-Link DIR-505 rev. A1 */
