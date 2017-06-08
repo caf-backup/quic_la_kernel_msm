@@ -186,8 +186,8 @@ static void ath79_spi_cleanup(struct spi_device *spi)
 	spi_bitbang_cleanup(spi);
 }
 
-static u32 ath79_spi_txrx_mode0(struct spi_device *spi, unsigned nsecs,
-			       u32 word, u8 bits)
+static u32 ath79_spi_txrx_mode0_bb(struct spi_device *spi, unsigned nsecs,
+				   u32 word, u8 bits)
 {
 	struct ath79_spi *sp = ath79_spidev_to_sp(spi);
 	u32 ioc = sp->ioc_base;
@@ -211,6 +211,22 @@ static u32 ath79_spi_txrx_mode0(struct spi_device *spi, unsigned nsecs,
 
 		word <<= 1;
 	}
+
+	return ath79_spi_rr(sp, AR71XX_SPI_REG_RDS);
+}
+
+static u32 ath79_spi_txrx_mode0_wb(struct spi_device *spi, unsigned nsecs,
+				   u32 word, u8 bits)
+{
+	struct ath79_spi *sp = ath79_spidev_to_sp(spi);
+
+	u32 cs = (~(sp->ioc_base >> 16)) & 0x07;
+
+	ath79_spi_wr(sp, AR71XX_SPI_REG_SHIFT_DO, word);
+	ath79_spi_wr(sp, AR71XX_SPI_REG_SHIFT_CNT,
+		     bits | (cs << 28) | (1 << 31));
+
+	while (ath79_spi_rr(sp, AR71XX_SPI_REG_SHIFT_CNT) & (1 << 31));
 
 	return ath79_spi_rr(sp, AR71XX_SPI_REG_RDS);
 }
@@ -399,7 +415,8 @@ static int ath79_spi_probe(struct platform_device *pdev)
 	}
 	sp->bitbang.master = master;
 	sp->bitbang.chipselect = ath79_spi_chipselect;
-	sp->bitbang.txrx_word[SPI_MODE_0] = ath79_spi_txrx_mode0;
+	sp->bitbang.txrx_word[SPI_MODE_0] = pdata->word_banger == true ?
+		ath79_spi_txrx_mode0_wb : ath79_spi_txrx_mode0_bb;
 	sp->bitbang.setup_transfer = ath79_spi_setup_transfer;
 	sp->bitbang.flags = SPI_CS_HIGH;
 

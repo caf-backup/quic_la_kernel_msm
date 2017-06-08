@@ -14,6 +14,7 @@
 struct ath79_spi_platform_data {
 	unsigned	bus_num;
 	unsigned	num_chipselect;
+	bool		word_banger;
 };
 
 enum ath79_spi_cs_type {

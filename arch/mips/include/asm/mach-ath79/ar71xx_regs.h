@@ -824,6 +824,9 @@
 #define AR71XX_SPI_REG_IOC	0x08	/* SPI I/O Control */
 #define AR71XX_SPI_REG_RDS	0x0c	/* Read Data Shift */
 
+#define AR71XX_SPI_REG_SHIFT_DO		0x10	/* SPI data to shift out */
+#define AR71XX_SPI_REG_SHIFT_CNT	0x14	/* SPI content to shift out or in */
+
 #define AR71XX_SPI_FS_GPIO	BIT(0)	/* Enable GPIO mode */
 
 #define AR71XX_SPI_CTRL_RD	BIT(6)	/* Remap Disable */
