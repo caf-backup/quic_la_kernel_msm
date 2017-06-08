@@ -1039,7 +1039,11 @@ static long ctrl_cdev_ioctl(struct file *file, unsigned int cmd,
 			err = -EFAULT;
 			break;
 		}
-
+#ifdef CONFIG_MTD_UBI_GLUEBI
+		err = gluebi_unregister(ubi_num);
+		if (err)
+			break;
+#endif
 		mutex_lock(&ubi_devices_mutex);
 		err = ubi_detach_mtd_dev(ubi_num, force);
 		mutex_unlock(&ubi_devices_mutex);

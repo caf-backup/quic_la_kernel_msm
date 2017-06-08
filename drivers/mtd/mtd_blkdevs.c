@@ -482,12 +482,11 @@ int del_mtd_blktrans_dev(struct mtd_blktrans_dev *old)
 	/* If the device is currently open, tell trans driver to close it,
 		then put mtd device, and don't touch it again */
 	mutex_lock(&old->lock);
-	if (old->open) {
-		if (old->tr->release)
-			old->tr->release(old);
-		__put_mtd_device(old->mtd);
-	}
+	if (old->open && old->tr->release )
+		old->tr->release(old);
 
+	if(old->mtd->usecount > 0)
+		__put_mtd_device(old->mtd);
 	old->mtd = NULL;
 
 	mutex_unlock(&old->lock);

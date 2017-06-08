@@ -403,6 +403,52 @@ static int gluebi_remove(struct ubi_volume_info *vi)
 }
 
 /**
+ * gluebi_unregister - unregister all fake MTD devices for volumes on
+ * selected UBI device.
+ * @ubi_num: UBI device number
+ *
+ * This function is called when an UBI device is detached and it removes
+ * corresponding fake MTD devices. Returns zero in case of success and a
+ * negative error code in case of failure.
+ */
+int gluebi_unregister (int ubi_num)
+{
+	int err = 0;
+	struct mtd_info *mtd;
+	struct gluebi_device *gluebi, *g;
+
+	for(;;) {
+		g = NULL;
+		mutex_lock(&devices_mutex);
+		list_for_each_entry(gluebi, &gluebi_devices, list) {
+			if (gluebi->ubi_num == ubi_num && gluebi->refcnt <= 1) {
+				g = gluebi;
+				list_del(&gluebi->list);
+				break;
+			}
+		}
+		if (g == NULL) {
+			mutex_unlock(&devices_mutex);
+			break;
+		}
+		mutex_unlock(&devices_mutex);
+		mtd = &g->mtd;
+		err = mtd_device_unregister(mtd);
+		if (err) {
+			err_msg("cannot remove fake MTD device %d, UBI device %d, volume %d, error %d",
+				mtd->index, g->ubi_num, g->vol_id, err);
+			mutex_lock(&devices_mutex);
+			list_add_tail(&g->list, &gluebi_devices);
+			mutex_unlock(&devices_mutex);
+			return err;
+			}
+		kfree(mtd->name);
+		kfree(g);
+	}
+	return 0;
+}
+
+/**
  * gluebi_updated - UBI volume was updated notifier.
  * @vi: volume info structure
  *

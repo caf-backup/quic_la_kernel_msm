@@ -913,6 +913,11 @@ int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
 static inline int ubi_update_fastmap(struct ubi_device *ubi) { return 0; }
 #endif
 
+/* gluebi.c */
+#ifdef CONFIG_MTD_UBI_GLUEBI
+int gluebi_unregister (int ubi_num);
+#endif
+
 /* block.c */
 #ifdef CONFIG_MTD_UBI_BLOCK
 int ubiblock_init(void);
