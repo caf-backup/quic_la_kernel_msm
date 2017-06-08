@@ -57,6 +57,7 @@ enum ath79_mach_type {
 	ATH79_MACH_CR3000,		/* PowerCloud CR3000 */
 	ATH79_MACH_CR5000,		/* PowerCloud CR5000 */
 	ATH79_MACH_DB120,		/* Atheros DB120 reference board */
+	ATH79_MACH_CUS532K,		/* CUS532K reference board */
 	ATH79_MACH_PB44,		/* Atheros PB44 reference board */
 	ATH79_MACH_CUS531,		/* Qualcomm Atheros CUS531 board */
 	ATH79_MACH_CUS531_DUAL,		/* Qualcomm Atheros CUS531 dual board */

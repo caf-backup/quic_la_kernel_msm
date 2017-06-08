@@ -187,6 +187,17 @@ config ATH79_MACH_CUS531MP3_NAND
 	  Say 'Y' here if you want your kernel to support the
 	  Qualcomm Atheros CUS531 MP3 nand reference board.
 
+config ATH79_MACH_CUS532K
+	bool "CUS532K board support"
+	select SOC_AR934X
+	select ATH79_DEV_AP9X_PCI if PCI
+	select ATH79_DEV_ETH
+	select ATH79_DEV_GPIO_BUTTONS
+	select ATH79_DEV_LEDS_GPIO
+	select ATH79_DEV_NFC
+	select ATH79_DEV_USB
+	select ATH79_DEV_WMAC
+
 config ATH79_MACH_DB120
 	bool "Atheros DB120 reference board"
 	select SOC_AR934X

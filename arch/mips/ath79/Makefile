@@ -68,6 +68,7 @@ obj-$(CONFIG_ATH79_MACH_CUS531_NAND)	+= mach-cus531.o
 obj-$(CONFIG_ATH79_MACH_CUS531MP3)	+= mach-cus531.o
 obj-$(CONFIG_ATH79_MACH_CUS531MP3_DUAL)	+= mach-cus531.o
 obj-$(CONFIG_ATH79_MACH_CUS531MP3_NAND)	+= mach-cus531.o
+obj-$(CONFIG_ATH79_MACH_CUS532K)	+= mach-cus532k.o
 obj-$(CONFIG_ATH79_MACH_ARCHER_C7)	+= mach-archer-c7.o
 obj-$(CONFIG_ATH79_MACH_AW_NR580)	+= mach-aw-nr580.o
 obj-$(CONFIG_ATH79_MACH_BHU_BXU2000N2_A)+= mach-bhu-bxu2000n2-a.o
