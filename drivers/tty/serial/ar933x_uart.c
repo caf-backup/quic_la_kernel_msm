@@ -196,7 +196,6 @@ static unsigned long ar933x_uart_get_baud(unsigned int clk,
 	div = (2 << 16) * (scale + 1);
 	t = clk;
 	t *= step;
-	t += (div / 2);
 	do_div(t, div);
 
 	return t;
@@ -221,12 +220,12 @@ static void ar933x_uart_get_scale_step(unsigned int clk,
 		tstep = baud * (tscale + 1);
 		tstep *= (2 << 16);
 		do_div(tstep, clk);
-
 		if (tstep > AR933X_UART_MAX_STEP)
 			break;
 
 		diff = abs(ar933x_uart_get_baud(clk, tscale, tstep) - baud);
-		if (diff < min_diff) {
+		//Optimal value for step should be between 1310-13107
+		if (diff < min_diff && tstep >= 1310 && tstep <= 13107) {
 			min_diff = diff;
 			*scale = tscale;
 			*step = tstep;
