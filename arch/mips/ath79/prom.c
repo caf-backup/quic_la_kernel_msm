@@ -49,6 +49,9 @@ static int __init ath79_use_image_cmdline(void)
 	if (*p == '\0')
 		return 0;
 
+	if (*p == '\0' || !strstr(p, "mtdparts"))
+		return 0;
+
 	if (replace) {
 		strlcpy(arcs_cmdline, p, sizeof(arcs_cmdline));
 	} else {
