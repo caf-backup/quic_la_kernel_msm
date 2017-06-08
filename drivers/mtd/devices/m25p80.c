@@ -73,6 +73,16 @@ static int m25p80_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 	return spi_write(spi, flash->command, len + 1);
 }
 
+static int m25p80_ext_addr(struct spi_nor *nor, u8 addr)
+{
+	struct m25p *flash = nor->priv;
+
+	flash->command[0] = SPINOR_OP_WR_EXT;
+	flash->command[1] = addr;
+
+	return spi_write(flash->spi, flash->command, 2);
+}
+
 static void m25p80_write(struct spi_nor *nor, loff_t to, size_t len,
 			size_t *retlen, const u_char *buf)
 {
@@ -202,6 +212,7 @@ static int m25p_probe(struct spi_device *spi)
 	nor->erase = m25p80_erase;
 	nor->write_reg = m25p80_write_reg;
 	nor->read_reg = m25p80_read_reg;
+	nor->ext_addr = m25p80_ext_addr;
 
 	nor->dev = &spi->dev;
 	nor->flash_node = spi->dev.of_node;
@@ -284,6 +295,8 @@ static const struct spi_device_id m25p_ids[] = {
 	 */
 	{"at25df321a"},	{"at25df641"},	{"at26df081a"},
 	{"mr25h256"},
+	{"gd25q32"},    {"gd25q64"},    {"md25d40"},    {"gd25d20"},
+	{"gd25d40"},    {"gd25q128"},   {"gd25q256"},
 	{"mx25l4005a"},	{"mx25l1606e"},	{"mx25l6405d"},	{"mx25l12805d"},
 	{"mx25l25635e"},{"mx66l51235l"},
 	{"n25q064"},	{"n25q128a11"},	{"n25q128a13"},	{"n25q512a"},

@@ -312,6 +312,20 @@ static void spi_nor_unlock_and_unprep(struct spi_nor *nor, enum spi_nor_ops ops)
 	mutex_unlock(&nor->lock);
 }
 
+static inline int enter_ext_addr(struct spi_nor *nor, u8 addr)
+{
+	if (wait_till_ready(nor))
+		return -1;
+
+	write_enable(nor);
+	return nor->ext_addr(nor, addr);
+}
+
+static inline int exit_ext_addr(struct spi_nor *flash, bool ext)
+{
+	return ext ? enter_ext_addr(flash, 0) : 0;
+}
+ 
 /*
  * Erase an address range on the nor chip.  The address range may extend
  * one or more erase sectors.  Return an error is there is a problem erasing.
@@ -322,6 +336,7 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 	u32 addr, len;
 	uint32_t rem;
 	int ret;
+	bool ext = false;
 
 	dev_dbg(nor->dev, "at 0x%llx, len %lld\n", (long long)instr->addr,
 			(long long)instr->len);
@@ -368,6 +383,11 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 	/* "sector"-at-a-time erase */
 	} else {
+		if (nor->addr_width == 3 && addr >= FLASH_16M_SIZE) {
+			ext = true;
+			enter_ext_addr(nor, GET_EXT_4B(addr));
+			addr = GET_EXT_3BS(addr);
+		}
 		while (len) {
 			write_enable(nor);
 
@@ -387,6 +407,7 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 	write_disable(nor);
 
+	exit_ext_addr(nor, ext);
 	spi_nor_unlock_and_unprep(nor, SPI_NOR_OPS_ERASE);
 
 	instr->state = MTD_ERASE_DONE;
@@ -395,6 +416,7 @@ static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 	return ret;
 
 erase_err:
+	exit_ext_addr(nor, ext);
 	spi_nor_unlock_and_unprep(nor, SPI_NOR_OPS_ERASE);
 	instr->state = MTD_ERASE_FAILED;
 	return ret;
@@ -932,6 +954,7 @@ static int spi_nor_read(struct mtd_info *mtd, loff_t from, size_t len,
 {
 	struct spi_nor *nor = mtd_to_spi_nor(mtd);
 	int ret;
+	bool ext = false;
 
 	dev_dbg(nor->dev, "from 0x%08x, len %zd\n", (u32)from, len);
 
@@ -939,8 +962,15 @@ static int spi_nor_read(struct mtd_info *mtd, loff_t from, size_t len,
 	if (ret)
 		return ret;
 
+	if (nor->addr_width == 3 && from >= FLASH_16M_SIZE) {
+		ext = true;
+		enter_ext_addr(nor, GET_EXT_4B(from));
+		from = GET_EXT_3BS(from);
+	}
+
 	ret = nor->read(nor, from, len, retlen, buf);
 
+	exit_ext_addr(nor, ext);
 	spi_nor_unlock_and_unprep(nor, SPI_NOR_OPS_READ);
 	return ret;
 }
@@ -1022,12 +1052,19 @@ static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
 	struct spi_nor *nor = mtd_to_spi_nor(mtd);
 	u32 page_offset, page_size, i;
 	int ret;
+	bool ext = false;
 
 	dev_dbg(nor->dev, "to 0x%08x, len %zd\n", (u32)to, len);
 
 	ret = spi_nor_lock_and_prep(nor, SPI_NOR_OPS_WRITE);
 	if (ret)
 		return ret;
+
+	if (nor->addr_width == 3 && to >= FLASH_16M_SIZE) {
+		ext = true;
+		enter_ext_addr(nor, GET_EXT_4B(to));
+		to = GET_EXT_3BS(to);
+	}
 
 	write_enable(nor);
 
@@ -1059,6 +1096,7 @@ static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	ret = spi_nor_wait_till_ready(nor);
 write_err:
+	exit_ext_addr(nor, ext);
 	spi_nor_unlock_and_unprep(nor, SPI_NOR_OPS_WRITE);
 	return ret;
 }
@@ -1153,6 +1191,35 @@ static int spi_nor_check(struct spi_nor *nor)
 		pr_err("spi-nor: please fill all the necessary fields!\n");
 		return -EINVAL;
 	}
+
+	return 0;
+}
+
+/*
+ * The Extended Address Register is used only when the device is operating in
+ * the 3-Byte Address Mode (ADS=0). The lower 128Mb memory array (00000000h –
+ * 00FFFFFFh) is selected when A24=0, all instructions with 3-Byte addresses
+ * will be executed within that region. When A24=1, the upper 128Mb memory array
+ * (01000000h – 01FFFFFFh) will be selected.
+ * Upon power up or after the execution of a Software/Hardware Reset, the
+ * Extended Address Register values will be cleared to 0.
+ */
+static const u32 spi_nor_ext_addr_ids[] = {
+	0xef4019,
+	0xc84019,
+	0xc22019,
+	0xc22619,
+	0x20ba19,
+	/* add id here */
+};
+
+static int spi_nor_ext_addr_mode(u32 jedec_id)
+{
+	int id;
+
+	for (id = 0; id < ARRAY_SIZE(spi_nor_ext_addr_ids); id++)
+		if (jedec_id == spi_nor_ext_addr_ids[id])
+			return 1;
 
 	return 0;
 }
@@ -1329,7 +1396,8 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 
 	if (info->addr_width)
 		nor->addr_width = info->addr_width;
-	else if (mtd->size > 0x1000000) {
+	else if (mtd->size > 0x1000000 &&
+				!spi_nor_ext_addr_mode(info->jedec_id)) {
 		/* enable 4-byte addressing if the device exceeds 16MiB */
 		nor->addr_width = 4;
 		if ((JEDEC_MFR(info) == SNOR_MFR_SPANSION) ||

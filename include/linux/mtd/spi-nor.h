@@ -48,6 +48,7 @@
 #define SPINOR_OP_BE_4K		0x20	/* Erase 4KiB block */
 #define SPINOR_OP_BE_4K_PMC	0xd7	/* Erase 4KiB block on PMC chips */
 #define SPINOR_OP_BE_32K	0x52	/* Erase 32KiB block */
+#define SPINOR_OP_WR_EXT	0xc5	/* Write extended address */
 #define SPINOR_OP_CHIP_ERASE	0xc7	/* Erase whole flash chip */
 #define SPINOR_OP_SE		0xd8	/* Sector erase (usually 64KiB) */
 #define SPINOR_OP_RDID		0x9f	/* Read JEDEC ID */
@@ -97,6 +98,10 @@
 
 /* Configuration Register bits. */
 #define CR_QUAD_EN_SPAN		BIT(1)	/* Spansion Quad I/O */
+
+#define FLASH_16M_SIZE		0x1000000
+#define GET_EXT_3BS(addr)	((addr) % FLASH_16M_SIZE)
+#define GET_EXT_4B(addr)	((addr) >> 24)
 
 enum read_mode {
 	SPI_NOR_NORMAL = 0,
@@ -176,6 +181,7 @@ struct spi_nor {
 	void (*write)(struct spi_nor *nor, loff_t to,
 			size_t len, size_t *retlen, const u_char *write_buf);
 	int (*erase)(struct spi_nor *nor, loff_t offs);
+	int (*ext_addr) (struct spi_nor *nor, u8 addr);
 
 	int (*flash_lock)(struct spi_nor *nor, loff_t ofs, uint64_t len);
 	int (*flash_unlock)(struct spi_nor *nor, loff_t ofs, uint64_t len);
