@@ -344,4 +344,10 @@ config ATH79_PCI_ATH9K_FIXUP
 config ATH79_ROUTERBOOT
 	def_bool n
 
+config ATH79_GPIO_WLAN_LED_CTRL
+	bool "Enable possibility to control GPIO WLAN LED by user"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  GPIO WLAN LED control for Qualcomm Atheros board.
+
 endif

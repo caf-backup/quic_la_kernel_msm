@@ -229,8 +229,12 @@ static void __init cus531mp3_gpio_setup(void)
 	ath79_gpio_output_select(CUS531MP3_GPIO_LED_WAN,
 				 QCA953X_GPIO_OUT_MUX_LED_LINK5);
 
+#ifdef CONFIG_ATH79_GPIO_WLAN_LED_CTRL
+	ath79_gpio_direction_select(CUS531MP3_GPIO_LED_WLAN, false);
+#else
 	/* set WLAN LED pin */
 	ath79_wmac_set_led_pin(CUS531MP3_GPIO_LED_WLAN);
+#endif
 
 	/* Disable JTAG for BT Coex pin */
 	ath79_gpio_function_enable(AR934X_GPIO_FUNC_JTAG_DISABLE);
