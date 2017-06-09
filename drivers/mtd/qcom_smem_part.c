@@ -75,6 +75,7 @@ static int qcom_smem_get_flash_blksz(u64 **smem_blksz)
 		return -EINVAL;
 	}
 
+	*smem_blksz = (u64 *) p;
 	return 0;
 }
 
@@ -96,6 +97,7 @@ static int qcom_smem_get_flash_type(u64 **smem_flash_type)
 		return -EINVAL;
 	}
 
+	*smem_flash_type = (u64 *) p;
 	return 0;
 }
 
@@ -112,6 +114,7 @@ static int qcom_smem_get_flash_partitions(struct smem_partition_table **pparts)
 		return PTR_ERR(p);
 	}
 
+	*pparts = (u64 *) p;
 	return 0;
 }
 
