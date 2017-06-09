@@ -210,9 +210,8 @@ static void tsens_scheduler_fn(struct work_struct *work)
 	struct tsens_device *tmdev = container_of(work, struct tsens_device,
 					tsens_work);
 	unsigned int threshold, threshold_low, code, reg, sensor, mask;
-	unsigned int sensor_addr;
 	bool upper_th_x, lower_th_x;
-	int adc_code, ret;
+	int ret;
 
 	ret = regmap_read(tmdev->map, STATUS_CNTL_8064, &reg);
 	if (ret)
@@ -261,9 +260,8 @@ static void tsens_scheduler_fn(struct work_struct *work)
 		if (upper_th_x || lower_th_x) {
 			/* Notify user space */
 			schedule_work(&tmdev->sensor[0].notify_work);
-			regmap_read(tmdev->map, sensor_addr, &adc_code);
 			pr_debug("Trigger (%d degrees) for sensor %d\n",
-				code_to_degC(adc_code, &tmdev->sensor[0]), 0);
+				code_to_degC(code, &tmdev->sensor[0]), 0);
 		}
 	}
 	regmap_write(tmdev->map, STATUS_CNTL_8064, reg & mask);
