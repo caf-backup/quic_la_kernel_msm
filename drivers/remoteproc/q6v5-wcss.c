@@ -454,7 +454,7 @@ static int q6v5_load(struct rproc *rproc, const struct firmware *fw)
 	struct device *dev_rproc = rproc->dev.parent;
 	struct elf32_hdr *ehdr;
 	int i = 0;
-	const u8 *elf_data = fw->data;
+	const u8 *elf_data;
 	struct elf32_phdr *phdr;
 	struct platform_device *pdev = to_platform_device(dev_rproc);
 	struct q6v5_rproc_pdata *pdata = platform_get_drvdata(pdev);
@@ -474,6 +474,7 @@ static int q6v5_load(struct rproc *rproc, const struct firmware *fw)
 		return -EINVAL;
 	}
 
+	elf_data = fw->data;
 	ehdr = (struct elf32_hdr *)fw->data;
 	phdr = (struct elf32_phdr *)(elf_data + ehdr->e_phoff);
 
