@@ -354,12 +354,17 @@ static int krait_cpufreq_probe(struct platform_device *pdev)
 	 */
 	for_each_possible_cpu(cpu) {
 		dev = get_cpu_device(cpu);
+		if (!dev) {
+			pr_err("failed to get krait device\n");
+			ret = -ENOENT;
+			goto out_free_table;
+		}
 		np = of_node_get(dev->of_node);
 		if (of_find_property(np, "#cooling-cells", NULL)) {
 			cdev = of_cpufreq_cooling_register(np, cpumask_of(cpu));
 			if (IS_ERR(cdev))
 				pr_err("running cpufreq without cooling device: %ld\n",
-				       PTR_ERR(cdev));
+						PTR_ERR(cdev));
 		}
 		of_node_put(np);
 	}
