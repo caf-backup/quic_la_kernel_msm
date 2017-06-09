@@ -1,7 +1,6 @@
 /*
  *  Atheros AR71XX/AR724X/AR913X specific CPU feature overrides
  *
- *  Copyright (c) 2013 The Linux Foundation. All rights reserved.
  *  Copyright (C) 2008-2010 Gabor Juhos <juhosg@openwrt.org>
  *  Copyright (C) 2008 Imre Kaloz <kaloz@openwrt.org>
  *
