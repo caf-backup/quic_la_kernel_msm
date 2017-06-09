@@ -516,7 +516,9 @@ static int q6v5_load(struct rproc *rproc, const struct firmware *fw)
 			 * ELF segments that we need to load, we make the
 			 * filename as <name>.b"segment_number"
 			 */
-			sprintf(segment_name + name_len - 3,  "b%02d", i);
+			snprintf(segment_name + name_len - 3,
+				sizeof(segment_name + name_len - 3),
+				"b%02d", i);
 			ret = request_firmware(&fw, segment_name, dev_rproc);
 			if (ret) {
 				dev_err(dev_rproc, "can't to load %s\n",
