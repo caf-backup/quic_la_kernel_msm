@@ -1493,6 +1493,12 @@ static int qup_i2c_probe(struct platform_device *pdev)
 		qup->dpool = dma_pool_create("qup_i2c-dma-pool", &pdev->dev,
 					     size, 4, 0);
 
+		/* Exit on failure to assign dma pool*/
+		if (!qup->dpool) {
+			ret = -ENOMEM;
+			goto fail_dma;
+		}
+
 		qup->start_tag.start = dma_pool_alloc(qup->dpool, GFP_KERNEL,
 						      &qup->start_tag.addr);
 		if (!qup->start_tag.start) {
