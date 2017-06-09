@@ -1171,9 +1171,7 @@ static int ath79_spinand_probe(struct spi_device *spi_nand)
 	chip->select_chip	= ath79_spinand_select_chip;
 	chip->block_markbad	= ath79_spinand_block_markbad;
 
-	mtd = devm_kzalloc(&spi_nand->dev, sizeof(struct mtd_info), GFP_KERNEL);
-	if (!mtd)
-		return -ENOMEM;
+	mtd = nand_to_mtd(chip);
 
 	dev_set_drvdata(&spi_nand->dev, mtd);
 
