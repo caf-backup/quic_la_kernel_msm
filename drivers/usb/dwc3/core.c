@@ -962,6 +962,8 @@ static int dwc3_probe(struct platform_device *pdev)
 				"snps,usb3_lpm_capable");
 	dwc->enable_usb2susphy_quirk = device_property_read_bool(dev,
 				"usb2-susphy-quirk");
+	dwc->usb3_dev_reset_quirk = of_property_read_bool(dev,
+				"usb3_dev_reset_quirk");
 	dwc->enable_usb2_host_discon_quirk =
 			device_property_read_bool(dev, "usb2-host-discon-quirk");
 

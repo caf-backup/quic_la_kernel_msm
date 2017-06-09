@@ -127,6 +127,9 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		hcd->susphy = pdata->susphy;
 	}
 
+	if (pdata->usb3_dev_reset_quirk)
+		hcd->usb3_dev_reset_quirk = pdata->usb3_dev_reset_quirk;
+
 	/*
 	 * Not all platforms have a clk so it is not an error if the
 	 * clock does not exists.

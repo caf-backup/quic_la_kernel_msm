@@ -333,10 +333,16 @@
 
 		usb30@0 {
 			status = "ok";
+			dwc3@11000000 {
+				usb3_dev_reset_quirk;
+			};
 		};
 
 		usb30@1 {
 			status = "ok";
+			dwc3@10000000 {
+				usb3_dev_reset_quirk;
+			};
 		};
 
 		gpio_keys {
