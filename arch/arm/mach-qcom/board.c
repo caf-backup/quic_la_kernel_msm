@@ -64,13 +64,17 @@ static void __init global_counter_enable(void)
 	void __iomem *base;
 
 	node = of_find_compatible_node(NULL, NULL, "qcom,qca-gcnt");
-	if (!node)
+	if (!node) {
 		pr_err("%s:can't find node\n", __func__);
+		return;
+	}
 
 	base = of_iomap(node, 0);
 	of_node_put(node);
-	if (!base)
+	if (!base) {
 		pr_err("%s:no regs for global counter\n", __func__);
+		return;
+	}
 
 	writel_relaxed(1, base);
 	mb(); /* memory barrier */
