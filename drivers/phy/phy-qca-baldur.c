@@ -174,6 +174,11 @@ static int qca_baldur_hs_get_resources(struct qca_baldur_hs_phy *phy)
 	} else {
 		if (!phy->host) {
 			res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+			if (!res) {
+				dev_err(&pdev->dev, "%s: no mem resource\n",
+						__func__);
+				return -EINVAL;
+			}
 			phy->qscratch_base = devm_ioremap_nocache(phy->dev,
 					res->start, resource_size(res));
 			if (IS_ERR(phy->qscratch_base)) {
