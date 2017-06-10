@@ -425,7 +425,7 @@ static int ipc_router_mhi_write(void *data,
 	struct rr_packet *pkt = (struct rr_packet *)data;
 	struct sk_buff *ipc_rtr_pkt;
 	struct rr_packet *cloned_pkt;
-	int rc;
+	int rc = -EINVAL;
 	struct ipc_router_mhi_xprt *mhi_xprtp =
 		container_of(xprt, struct ipc_router_mhi_xprt, xprt);
 
@@ -972,7 +972,7 @@ error:
  */
 static int ipc_router_mhi_xprt_probe(struct platform_device *pdev)
 {
-	int rc;
+	int rc = -EINVAL;
 	struct ipc_router_mhi_xprt_config mhi_xprt_config;
 
 	if (pdev && pdev->dev.of_node) {
