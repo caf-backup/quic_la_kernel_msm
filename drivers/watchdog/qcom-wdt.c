@@ -378,6 +378,10 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	irq = platform_get_irq_byname(pdev, "bark_irq");
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "kpss_wdt");
+	if (!res) {
+		dev_err(&pdev->dev, "%s: no mem resource\n", __func__);
+		return -EINVAL;
+	}
 
 	/* We use CPU0's DGT for the watchdog */
 	if (of_property_read_u32(np, "cpu-offset", &percpu_offset))
