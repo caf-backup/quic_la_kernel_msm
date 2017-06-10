@@ -659,7 +659,7 @@ probe_done:
 
 static int mdss_qpic_remove(struct platform_device *pdev)
 {
-	if (!qpic_res->chan)
+	if (qpic_res->chan)
 		dma_release_channel(qpic_res->chan);
 
 	return 0;
