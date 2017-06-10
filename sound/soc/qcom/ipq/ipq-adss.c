@@ -415,6 +415,9 @@ void ipq_pcm_clk_cfg(uint32_t rate)
 		div_1 = 3; div_2 = 1;
 	} else if (rate == 16000) {
 		div_1 = 3; div_2 = 0;
+	} else {
+		pr_err("%s invalid rate %d\n", __func__, rate);
+		return;
 	}
 
 	/* set ADSS_AUDIO_PCM_CFG_RCGR_REG as required */
