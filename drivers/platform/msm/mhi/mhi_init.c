@@ -215,8 +215,10 @@ int init_mhi_dev_mem(struct mhi_device_ctxt *mhi_dev_ctxt)
 		ring_addr = dma_alloc_coherent(
 				&mhi_dev_ctxt->plat_dev->dev,
 				ring_len, &ring_dma_addr, GFP_KERNEL);
-		if (!ring_addr)
+		if (!ring_addr) {
+			r = -ENOMEM;
 			goto err_ev_alloc;
+		}
 		init_dev_ev_ctxt(&mhi_dev_ctxt->dev_space.ring_ctxt.ec_list[i],
 				ring_dma_addr, ring_len);
 		init_local_ev_ctxt(&mhi_dev_ctxt->mhi_local_event_ctxt[i],

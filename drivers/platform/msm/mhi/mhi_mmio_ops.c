@@ -109,7 +109,6 @@ int mhi_init_mmio(struct mhi_device_ctxt *mhi_dev_ctxt)
 	u64 pcie_dword_val = 0;
 	u32 pcie_word_val = 0;
 	u32 i = 0;
-	int ret_val;
 
 	mhi_log(mhi_dev_ctxt, MHI_MSG_INFO,
 		"~~~ Initializing MMIO ~~~\n");
@@ -131,7 +130,7 @@ int mhi_init_mmio(struct mhi_device_ctxt *mhi_dev_ctxt)
 	if (MHI_VERSION != mhi_dev_ctxt->core.mhi_ver) {
 		mhi_log(mhi_dev_ctxt, MHI_MSG_CRITICAL,
 			"Bad MMIO version, 0x%x\n", mhi_dev_ctxt->core.mhi_ver);
-			return ret_val;
+			return -EINVAL;
 	}
 
 	/* Enable the channels */
