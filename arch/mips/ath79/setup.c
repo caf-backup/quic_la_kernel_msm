@@ -202,13 +202,14 @@ static void __init ath79_detect_sys_type(void)
 		ath79_soc_rev = rev;
 
 	if (soc_is_qca953x() || soc_is_qca955x() || soc_is_qca956x())
-		sprintf(ath79_sys_type, "Qualcomm Atheros QCA%s ver %u rev %u",
-			chip, ver, rev);
+		snprintf(ath79_sys_type, sizeof(ath79_sys_type),
+			"Qualcomm Atheros QCA%s ver %u rev %u", chip, ver, rev);
 	else if (soc_is_tp9343())
-		sprintf(ath79_sys_type, "Qualcomm Atheros TP%s rev %u",
-			chip, rev);
+		snprintf(ath79_sys_type, sizeof(ath79_sys_type),
+			"Qualcomm Atheros TP%s rev %u", chip, rev);
 	else
-		sprintf(ath79_sys_type, "Atheros AR%s rev %u", chip, rev);
+		snprintf(ath79_sys_type, sizeof(ath79_sys_type),
+			"Atheros AR%s rev %u", chip, rev);
 	pr_info("SoC: %s\n", ath79_sys_type);
 }
 
