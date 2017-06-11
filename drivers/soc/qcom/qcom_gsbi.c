@@ -142,6 +142,12 @@ static void adm_crci_mux_cfg(uint16_t tcsr_reg, uint32_t mask, uint16_t set)
 	int ret;
 	struct qcom_scm_tcsr_req tcsr_cmd;
 
+	/* Exit if failed to allocate memory*/
+	if (!ret_status) {
+		pr_err("%s: kzalloc failure\n", __func__);
+		return;
+	}
+
 	tcsr_cmd.tcsr_reg = tcsr_reg;
 	tcsr_cmd.mask = mask;
 	tcsr_cmd.set = set;
