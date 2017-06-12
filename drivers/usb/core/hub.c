@@ -4285,7 +4285,7 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 	if (retval < 0)		/* error or disconnect */
 		goto fail;
 
-	if (hcd->primary_hcd->usb3_dev_reset_quirk) {
+	if (hcd->primary_hcd && hcd->primary_hcd->usb3_dev_reset_quirk) {
 		if (udev->speed != USB_SPEED_SUPER) {
 			retval = hub_port_reset(hub, port1, udev, delay, false);
 			if (retval < 0)		/* error or disconnect */
