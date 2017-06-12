@@ -288,4 +288,16 @@
 			gpios = <&gpio 4 GPIO_ACTIVE_LOW>;
 		};
 	};
+
+	wifi0: wifi@b8100000 {
+		compatible = "qca,wifi-ar955x";
+		reg = <0xb8100000 0x20000>;
+		core-id = <0x0>;
+
+		interrupt-parent = <&ip2_int>;
+		interrupts = <1>;
+		interrupt-names = "legacy";
+		status = "ok";
+	};
+
 };
