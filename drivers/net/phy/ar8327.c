@@ -990,8 +990,7 @@ ar8327_sw_get_ports(struct switch_dev *dev, struct switch_val *val)
 
 		p = &val->value.ports[val->len++];
 		p->id = i;
-		if ((priv->vlan_tagged & (1 << i)) ||
-			(priv->pvid[i] != val->port_vlan))
+		if (priv->vlan_tagged & (1 << i))
 			p->flags = (1 << SWITCH_PORT_FLAG_TAGGED);
 		else
 			p->flags = 0;
@@ -1004,18 +1003,26 @@ ar8327_sw_set_ports(struct switch_dev *dev, struct switch_val *val)
 {
 	struct ar8xxx_priv *priv = swdev_to_ar8xxx(dev);
 	u8 *vt = &priv->vlan_table[val->port_vlan];
-	int i;
+	int i, j;
 
 	*vt = 0;
 	for (i = 0; i < val->len; i++) {
 		struct switch_port *p = &val->value.ports[i];
 
 		if (p->flags & (1 << SWITCH_PORT_FLAG_TAGGED)) {
-			if (val->port_vlan == priv->pvid[p->id])
-				priv->vlan_tagged |= (1 << p->id);
+			priv->vlan_tagged |= (1 << p->id);
 		} else {
 			priv->vlan_tagged &= ~(1 << p->id);
 			priv->pvid[p->id] = val->port_vlan;
+
+			/* make sure that untagged port does not
+			 * appear in other vlans
+			 */
+			for (j = 0; j < AR8X16_MAX_VLANS; j++) {
+				if (j == val->port_vlan)
+					continue;
+				priv->vlan_table[j] &= ~(1 << p->id);
+			}
 		}
 
 		*vt |= 1 << p->id;
