@@ -741,7 +741,7 @@ static size_t qcrypto_sg_copy_from_buffer(struct scatterlist *sgl,
 	int i;
 	size_t offset, len;
 
-	for (i = 0, offset = 0; i < nents; ++i) {
+	for (i = 0, offset = 0; ((i < nents) && (sgl != NULL)); ++i) {
 		len = sg_copy_from_buffer(sgl, 1, buf, buflen);
 		buf += len;
 		buflen -= len;
@@ -758,7 +758,7 @@ static size_t qcrypto_sg_copy_to_buffer(struct scatterlist *sgl,
 	int i;
 	size_t offset, len;
 
-	for (i = 0, offset = 0; i < nents; ++i) {
+	for (i = 0, offset = 0; ((i < nents) && (sgl != NULL)); ++i) {
 		len = sg_copy_to_buffer(sgl, 1, buf, buflen);
 		buf += len;
 		buflen -= len;
