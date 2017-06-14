@@ -333,16 +333,19 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 forward:
 	switch (p->state) {
 	case BR_STATE_DISABLED:
-		if (ether_addr_equal(p->br->dev->dev_addr, dest))
-			skb->pkt_type = PACKET_HOST;
+		if (skb->protocol == htons(ETH_P_PAE)) {
+			if (ether_addr_equal(p->br->dev->dev_addr, dest))
+				skb->pkt_type = PACKET_HOST;
 
-		if (BR_HOOK(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING, dev_net(skb->dev), NULL, skb,
-		    skb->dev, NULL, br_handle_local_finish) != NF_ACCEPT)
+			if (BR_HOOK(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING, dev_net(skb->dev), NULL,
+				skb, skb->dev, NULL, br_handle_local_finish))
+				break;
+
+			BR_INPUT_SKB_CB(skb)->brdev = p->br->dev;
+			br_pass_frame_up(skb);
 			break;
-
-		BR_INPUT_SKB_CB(skb)->brdev = p->br->dev;
-		br_pass_frame_up(skb);
-		break;
+		}
+		goto drop;
 
 	case BR_STATE_FORWARDING:
 		rhook = rcu_dereference(br_should_route_hook);
