@@ -2400,6 +2400,13 @@ static int qcom_nand_host_setup(struct qcom_nand_host *host)
 		return -EINVAL;
 	}
 
+	/*
+	 * Read the required ecc strength from NAND device and overwrite the
+	 * device tree ecc strength
+	 */
+	if (chip->ecc_strength_ds >= 8)
+		ecc->strength = 8;
+
 	wide_bus = chip->options & NAND_BUSWIDTH_16 ? true : false;
 
 	if (ecc->strength >= 8) {
