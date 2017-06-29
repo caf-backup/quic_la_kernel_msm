@@ -39,7 +39,8 @@ struct bl_dedicated_registers_v1 {
 	/* valid only for version 2 and above */
 	__le32  bl_assert_code;         /* 0x880A58 BL Assert code */
 	__le32  bl_assert_blink;        /* 0x880A5C BL Assert Branch */
-	__le32  bl_reserved[22];        /* 0x880A60 - 0x880AB4 */
+	__le32  bl_shutdown_handshake;  /* 0x880A60 BL cleaner shutdown */
+	__le32  bl_reserved[21];        /* 0x880A64 - 0x880AB4 */
 	__le32  bl_magic_number;        /* 0x880AB8 BL Magic number */
 } __packed;
 

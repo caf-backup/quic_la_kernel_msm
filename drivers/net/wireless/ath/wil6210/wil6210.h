@@ -148,10 +148,14 @@ struct RGF_ICR {
 #define RGF_USER_USAGE_6		(0x880018)
 	#define BIT_USER_OOB_MODE		BIT(31)
 	#define BIT_USER_OOB_R2_MODE		BIT(30)
+#define RGF_USER_USAGE_8		(0x880020)
+	#define BIT_USER_PREVENT_DEEP_SLEEP	BIT(0)
+	#define BIT_USER_SUPPORT_T_POWER_ON_0	BIT(1)
 #define RGF_USER_HW_MACHINE_STATE	(0x8801dc)
 	#define HW_MACHINE_BOOT_DONE	(0x3fffffd)
 #define RGF_USER_USER_CPU_0		(0x8801e0)
 	#define BIT_USER_USER_CPU_MAN_RST	BIT(1) /* user_cpu_man_rst */
+#define RGF_USER_CPU_PC			(0x8801e8)
 #define RGF_USER_MAC_CPU_0		(0x8801fc)
 	#define BIT_USER_MAC_CPU_MAN_RST	BIT(1) /* mac_cpu_man_rst */
 #define RGF_USER_USER_SCRATCH_PAD	(0x8802bc)
@@ -270,6 +274,7 @@ struct RGF_ICR {
 	#define REVISION_ID_SPARROW_B0	(0x0)
 	#define REVISION_ID_SPARROW_D0	(0x3)
 
+#define RGF_USER_ICCM_AHB_BASE		(0x8c0000)
 /* crash codes for FW/Ucode stored here */
 #define RGF_FW_ASSERT_CODE		(0x91f020)
 #define RGF_UCODE_ASSERT_CODE		(0x91f028)
