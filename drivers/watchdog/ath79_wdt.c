@@ -420,7 +420,6 @@ static void __exit ath79_wdt_exit(void)
 	platform_driver_unregister(&ath79_wdt_driver);
 }
 module_exit(ath79_wdt_exit);
-module_platform_driver(ath79_wdt_driver);
 
 MODULE_DESCRIPTION("Atheros AR71XX/AR724X/AR913X hardware watchdog driver");
 MODULE_AUTHOR("Gabor Juhos <juhosg@openwrt.org");
