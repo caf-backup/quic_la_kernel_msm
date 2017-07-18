@@ -3262,8 +3262,13 @@ static int kswapd(void *p)
 
 	lockdep_set_current_reclaim_state(GFP_KERNEL);
 
-	if (!cpumask_empty(cpumask))
-		set_cpus_allowed_ptr(tsk, cpumask);
+	if (cpus_isolated) {
+		set_cpus_allowed_ptr(tsk, cpu_restrict_mask);
+	} else {
+		if (!cpumask_empty(cpumask))
+			set_cpus_allowed_ptr(tsk, cpumask);
+	}
+
 	current->reclaim_state = &reclaim_state;
 
 	/*

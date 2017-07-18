@@ -4022,7 +4022,13 @@ int apply_workqueue_attrs(struct workqueue_struct *wq,
 
 	/* make a copy of @attrs and sanitize it */
 	copy_workqueue_attrs(new_attrs, attrs);
-	cpumask_and(new_attrs->cpumask, new_attrs->cpumask, cpu_possible_mask);
+
+	if (cpus_isolated)
+		cpumask_and(new_attrs->cpumask, new_attrs->cpumask,
+							cpu_restrict_mask);
+	else
+		cpumask_and(new_attrs->cpumask, new_attrs->cpumask,
+							cpu_possible_mask);
 
 	/*
 	 * We may create multiple pwqs with differing cpumasks.  Make a
