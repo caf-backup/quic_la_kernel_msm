@@ -5621,11 +5621,23 @@ cpu_attach_domain(struct sched_domain *sd, struct root_domain *rd, int cpu)
 /* cpus with isolated domains */
 static cpumask_var_t cpu_isolated_map;
 
+unsigned int cpus_isolated;
+
 /* Setup the mask of cpus configured for isolated domains */
 static int __init isolated_cpu_setup(char *str)
 {
 	alloc_bootmem_cpumask_var(&cpu_isolated_map);
 	cpulist_parse(str, cpu_isolated_map);
+
+	if (cpumask_test_and_clear_cpu(0, cpu_isolated_map))
+		pr_warn("Core 0 cannot be isolated\n");
+
+	if (!cpumask_empty(cpu_isolated_map)) {
+		cpus_isolated = 1;
+		cpumask_andnot(cpu_restrict_mask, cpu_restrict_mask,
+							cpu_isolated_map);
+	}
+
 	return 1;
 }
 

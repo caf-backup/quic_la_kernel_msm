@@ -318,7 +318,10 @@ struct task_struct *kthread_create_on_node(int (*threadfn)(void *data),
 		 * The kernel thread should not inherit these properties.
 		 */
 		sched_setscheduler_nocheck(task, SCHED_NORMAL, &param);
-		set_cpus_allowed_ptr(task, cpu_all_mask);
+		if (cpus_isolated)
+			set_cpus_allowed_ptr(task, cpu_restrict_mask);
+		else
+			set_cpus_allowed_ptr(task, cpu_all_mask);
 	}
 	kfree(create);
 	return task;
@@ -487,7 +490,12 @@ int kthreadd(void *unused)
 	/* Setup a clean context for our children to inherit. */
 	set_task_comm(tsk, "kthreadd");
 	ignore_signals(tsk);
-	set_cpus_allowed_ptr(tsk, cpu_all_mask);
+
+	if (cpus_isolated)
+		set_cpus_allowed_ptr(tsk, cpu_restrict_mask);
+	else
+		set_cpus_allowed_ptr(tsk, cpu_all_mask);
+
 	set_mems_allowed(node_states[N_MEMORY]);
 
 	current->flags |= PF_NOFREEZE;
