@@ -308,7 +308,7 @@ static int set_trip_temp_ipq807x(void *data, int trip, int temp)
 	unsigned int reg_th, reg_th_offset, reg_cri_th_offset;
 	int ret = 0, th_cri, th_hi, th_lo;
 	const struct tsens_sensor *s = data;
-	struct tsens_device *tmdev = s->tmdev;
+	struct tsens_device *tmdev;
 
 	if (!s)
 		return -EINVAL;
@@ -319,6 +319,7 @@ static int set_trip_temp_ipq807x(void *data, int trip, int temp)
 	if ((temp < MIN_TEMP) && (temp > MAX_TEMP))
 		return -EINVAL;
 
+	tmdev = s->tmdev;
 	reg_th_offset = TSENS_TM_UPPER_LOWER_THRESHOLD(s->id);
 	reg_cri_th_offset = TSENS_TM_SN_CRITICAL_THRESHOLD(s->id);
 

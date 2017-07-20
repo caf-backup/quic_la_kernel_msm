@@ -22,7 +22,7 @@
 / {
 	#address-cells = <0x2>;
 	#size-cells = <0x2>;
-	model = "Qualcomm Technologies, Inc. IPQ807x-HK01";
+	model = "Qualcomm Technologies, Inc. IPQ807x/AP-HK01";
 	compatible = "qcom,ipq807x-hk01", "qcom,ipq807x";
 	qcom,msm-id = <0x125 0x0>;
 	interrupt-parent = <&intc>;
@@ -31,6 +31,16 @@
 	aliases {
 		sdhc1 = &sdhc_1; /* SDC1 eMMC slot */
 		sdhc2 = &sdhc_2; /* SDC2 SD slot */
+		/*
+		 * Aliases as required by u-boot
+		 * to patch MAC addresses
+		 */
+		ethernet0 = "/soc/dp1";
+		ethernet1 = "/soc/dp2";
+		ethernet2 = "/soc/dp3";
+		ethernet3 = "/soc/dp4";
+		ethernet4 = "/soc/dp5";
+		ethernet5 = "/soc/dp6";
 	};
 
 	chosen {
@@ -189,14 +199,23 @@
 			bias-disable;
 		};
 	};
+
+	ledc_pins: ledc_pinmux {
+		led_clk {
+			pins = "gpio18";
+			function = "led0";
+			bias-pull-down;
+		};
+		led_data {
+			pins = "gpio19";
+			function = "led1";
+			bias-pull-down;
+		};
+	};
 };
 
 &soc {
 	mdio@90000 {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "qcom,ipq40xx-mdio";
-		reg = <0x90000 0x64>;
 		pinctrl-0 = <&mdio_pins>;
 		pinctrl-names = "default";
 		phy-reset-gpio = <&tlmm 37 0 &tlmm 44 1>;
@@ -222,57 +241,6 @@
 	};
 
 	ess-switch@3a000000 {
-		compatible = "qcom,ess-switch";
-		reg = <0x3a000000 0x1000000>;
-		switch_access_mode = "local bus";
-		clocks = <&gcc GCC_CMN_12GPLL_AHB_CLK>,
-			 <&gcc GCC_CMN_12GPLL_SYS_CLK>,
-			 <&gcc GCC_UNIPHY0_AHB_CLK>, <&gcc GCC_UNIPHY0_SYS_CLK>,
-			 <&gcc GCC_UNIPHY1_AHB_CLK>, <&gcc GCC_UNIPHY1_SYS_CLK>,
-			 <&gcc GCC_UNIPHY2_AHB_CLK>, <&gcc GCC_UNIPHY2_SYS_CLK>,
-			 <&gcc GCC_PORT1_MAC_CLK>, <&gcc GCC_PORT2_MAC_CLK>,
-			 <&gcc GCC_PORT3_MAC_CLK>, <&gcc GCC_PORT4_MAC_CLK>,
-			 <&gcc GCC_PORT5_MAC_CLK>, <&gcc GCC_PORT6_MAC_CLK>,
-			 <&gcc GCC_NSS_PPE_CLK>, <&gcc GCC_NSS_PPE_CFG_CLK>,
-			 <&gcc GCC_NSSNOC_PPE_CLK>,
-			 <&gcc GCC_NSSNOC_PPE_CFG_CLK>,
-			 <&gcc GCC_NSS_EDMA_CLK>, <&gcc GCC_NSS_EDMA_CFG_CLK>,
-			 <&gcc GCC_NSS_PPE_IPE_CLK>, <&gcc GCC_NSS_PPE_BTQ_CLK>,
-			 <&gcc GCC_NSS_PORT1_RX_CLK>, <&gcc GCC_NSS_PORT1_TX_CLK>,
-			 <&gcc GCC_NSS_PORT2_RX_CLK>, <&gcc GCC_NSS_PORT2_TX_CLK>,
-			 <&gcc GCC_NSS_PORT3_RX_CLK>, <&gcc GCC_NSS_PORT3_TX_CLK>,
-			 <&gcc GCC_NSS_PORT4_RX_CLK>, <&gcc GCC_NSS_PORT4_TX_CLK>,
-			 <&gcc GCC_NSS_PORT5_RX_CLK>, <&gcc GCC_NSS_PORT5_TX_CLK>,
-			 <&gcc GCC_NSS_PORT6_RX_CLK>, <&gcc GCC_NSS_PORT6_TX_CLK>,
-			 <&gcc GCC_UNIPHY0_PORT1_RX_CLK>, <&gcc GCC_UNIPHY0_PORT1_TX_CLK>,
-			 <&gcc GCC_UNIPHY0_PORT2_RX_CLK>, <&gcc GCC_UNIPHY0_PORT2_TX_CLK>,
-			 <&gcc GCC_UNIPHY0_PORT3_RX_CLK>, <&gcc GCC_UNIPHY0_PORT3_TX_CLK>,
-			 <&gcc GCC_UNIPHY0_PORT4_RX_CLK>, <&gcc GCC_UNIPHY0_PORT4_TX_CLK>,
-			 <&gcc GCC_UNIPHY0_PORT5_RX_CLK>, <&gcc GCC_UNIPHY0_PORT5_TX_CLK>,
-			 <&gcc GCC_UNIPHY2_PORT6_RX_CLK>, <&gcc GCC_UNIPHY2_PORT6_TX_CLK>;
-		clock-names = "cmn_ahb_clk", "cmn_sys_clk",
-				"uniphy0_ahb_clk", "uniphy0_sys_clk",
-				"uniphy1_ahb_clk", "uniphy1_sys_clk",
-				"uniphy2_ahb_clk", "uniphy2_sys_clk",
-				"port1_mac_clk", "port2_mac_clk",
-				"port3_mac_clk", "port4_mac_clk",
-				"port5_mac_clk", "port6_mac_clk",
-				"nss_ppe_clk", "nss_ppe_cfg_clk",
-				"nssnoc_ppe_clk", "nssnoc_ppe_cfg_clk",
-				"nss_edma_clk", "nss_edma_cfg_clk",
-				"nss_ppe_ipe_clk", "nss_ppe_btq_clk",
-				"nss_port1_rx_clk", "nss_port1_tx_clk",
-				"nss_port1_rx_clk", "nss_port1_tx_clk",
-				"nss_port1_rx_clk", "nss_port1_tx_clk",
-				"nss_port1_rx_clk", "nss_port1_tx_clk",
-				"nss_port1_rx_clk", "nss_port1_tx_clk",
-				"nss_port1_rx_clk", "nss_port1_tx_clk",
-				"uniphy0_port1_rx_clk", "uniphy0_port1_tx_clk",
-				"uniphy0_port2_rx_clk", "uniphy0_port2_tx_clk",
-				"uniphy0_port3_rx_clk", "uniphy0_port3_tx_clk",
-				"uniphy0_port4_rx_clk", "uniphy0_port4_tx_clk",
-				"uniphy0_port5_rx_clk", "uniphy0_port5_tx_clk",
-				"uniphy2_port6_rx_clk", "uniphy2_port6_tx_clk";
 		switch_cpu_bmp = <0x1>;  /* cpu port bitmap */
 		switch_lan_bmp = <0x3e>; /* lan port bitmap */
 		switch_wan_bmp = <0x40>; /* wan port bitmap */
@@ -514,12 +482,6 @@
 		};
 	};
 
-	ess-uniphy@7a00000 {
-		compatible = "qcom,ess-uniphy";
-		reg = <0x7a00000 0x30000>;
-		uniphy_access_mode = "local bus";
-	};
-
 	dp1 {
 		device_type = "network";
 		compatible = "qcom,nss-dp";
@@ -677,7 +639,7 @@
 
 &sdhc_1 {
 	qcom,clk-rates = <400000 25000000 50000000 100000000 \
-			 192000000 384000000>;
+			 192000000>;
 	qcom,bus-speed-mode = "HS200_1p8v", "DDR_1p8v";
 	qcom,nonremovable;
 	status = "ok";
@@ -695,7 +657,7 @@
 
 &sdhc_2 {
 	qcom,clk-rates = <400000 25000000 50000000 100000000 \
-			 192000000 384000000>;
+			 192000000>;
 	qcom,bus-speed-mode = "HS200_1p8v", "DDR_1p8v";
 	pinctrl-0 = <&sd_pins>;
 	pinctrl-names = "default";
@@ -709,5 +671,11 @@
 };
 
 &qpic_lcd_panel {
+	status = "ok";
+};
+
+&ledc {
+	pinctrl-0 = <&ledc_pins>;
+	pinctrl-names = "default";
 	status = "ok";
 };

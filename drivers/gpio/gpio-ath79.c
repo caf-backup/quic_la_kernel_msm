@@ -305,17 +305,16 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 
 	paddr = of_get_property(np, "val,gpio", &len);
 
-	if (!paddr || len < (2 * sizeof(*paddr)))
-		return -EINVAL;
+	if (paddr && len >= (2 * sizeof(*paddr))) {
+		len /= sizeof(*paddr);
+		for (i = 0; i < len - 1; i += 2) {
+			u32 gpio;
+			u32 val;
 
-	len /= sizeof(*paddr);
-	for (i = 0; i < len - 1; i += 2) {
-		u32 gpio;
-		u32 val;
-
-		val = be32_to_cpup(paddr + i);
-		gpio = be32_to_cpup(paddr + i + 1);
-		ath79_gpio_output_select(&ctrl->chip, gpio, val);
+			val = be32_to_cpup(paddr + i);
+			gpio = be32_to_cpup(paddr + i + 1);
+			ath79_gpio_output_select(&ctrl->chip, gpio, val);
+		}
 	}
 
 	return 0;

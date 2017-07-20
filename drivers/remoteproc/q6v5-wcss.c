@@ -39,7 +39,7 @@ static int debug_wcss;
 #define WCNSS_PAS_ID		6
 #define QCOM_MDT_TYPE_MASK      (7 << 24)
 #define QCOM_MDT_TYPE_HASH      (2 << 24)
-#define STOP_ACK_TIMEOUT_MS 10000
+#define STOP_ACK_TIMEOUT_MS 2000
 
 #define QDSP6SS_RST_EVB 0x10
 #define QDSP6SS_RESET 0x14
@@ -206,12 +206,6 @@ static void q6_powerdown(struct q6v5_rproc_pdata *pdata)
 	unsigned int nretry = 0;
 	unsigned long val = 0;
 
-	/* Enable WCSS Block reset - 9 */
-	val = readl(pdata->gcc_bcr_base + GCC_WCSS_BCR);
-	val |= BIT(0);
-	writel(val, pdata->gcc_bcr_base + GCC_WCSS_BCR);
-	mdelay(1);
-
 	/* Halt Q6 bus interface - 9*/
 	val = readl(pdata->tcsr_q6_base + TCSR_Q6_HALTREQ);
 	val |= BIT(0);
@@ -291,6 +285,12 @@ static void q6_powerdown(struct q6v5_rproc_pdata *pdata)
 	val = readl(pdata->tcsr_q6_base + TCSR_Q6_HALTREQ);
 	val &= ~(BIT(0));
 	writel(val, pdata->tcsr_q6_base + TCSR_Q6_HALTREQ);
+
+	/* Enable WCSS Block reset - 9 */
+	val = readl(pdata->gcc_bcr_base + GCC_WCSS_BCR);
+	val |= BIT(0);
+	writel(val, pdata->gcc_bcr_base + GCC_WCSS_BCR);
+	mdelay(1);
 
 	/* Enable Q6 Block reset - 19 */
 	val = readl(pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
@@ -680,6 +680,7 @@ static int q6v5_load(struct rproc *rproc, const struct firmware *fw)
 			if (ret) {
 				dev_err(dev_rproc, "can't to load %s\n",
 						segment_name);
+				iounmap(ptr);
 				break;
 			}
 			memcpy_toio(ptr, fw->data, fw->size);
@@ -690,6 +691,7 @@ static int q6v5_load(struct rproc *rproc, const struct firmware *fw)
 		if (memsz > filesz)
 			memset_io(ptr + filesz, 0, memsz - filesz);
 
+		iounmap(ptr);
 	}
 	kfree(segment_name);
 	return ret;

@@ -280,7 +280,8 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 			return -EINVAL;
 		break;
 	case WLAN_CIPHER_SUITE_WEP104:
-		if (params->key_len != WLAN_KEY_LEN_WEP104)
+		if (params->key_len != WLAN_KEY_LEN_WEP104 &&
+		    params->key_len != WLAN_KEY_LEN_WEP128)
 			return -EINVAL;
 		break;
 	case WLAN_CIPHER_SUITE_AES_CMAC:

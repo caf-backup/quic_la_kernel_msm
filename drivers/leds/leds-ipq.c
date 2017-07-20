@@ -25,7 +25,7 @@
 #define LEDC_BASE_REG_OFFSET	0x20040
 #define LEDC_REG_SIZE	4
 #define BUF_NAME_LEN	25
-#define MAX_BLINK_IDX	4
+#define MAX_BLINK_IDX	13
 #define LEDC_DRV_NAME	"ipq-leds"
 #define LEDC_ADDR(x)	(ledc_base_addr + LEDC_BASE_REG_OFFSET + \
 				(LEDC_REG_SIZE * (x)))
@@ -151,6 +151,7 @@ static void ipq_set_led_brightness_set(struct led_classdev *led_cdev,
 	ipq_set_led_blink_set(led_cdev, &delay_on, &delay_off);
 	writel(reg, LEDC_ADDR(LEDC_CG6_OFFSET));
 }
+EXPORT_SYMBOL(ipq_set_led_brightness_set);
 
 int ipq_led_source_select(int led_num, enum led_source src_type)
 {

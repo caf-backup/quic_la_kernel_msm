@@ -21,12 +21,21 @@
 / {
 	#address-cells = <0x2>;
 	#size-cells = <0x2>;
-	model = "Qualcomm Technologies, Inc. IPQ807x-HK02";
+	model = "Qualcomm Technologies, Inc. IPQ807x/AP-HK02";
 	compatible = "qcom,ipq807x-hk02", "qcom,ipq807x";
 	qcom,msm-id = <0x125 0x0>;
 	interrupt-parent = <&intc>;
 	qcom,board-id = <0x10 0x0>;
 
+	aliases {
+		/*
+		 * Aliases as required by u-boot
+		 * to patch MAC addresses
+		 */
+		ethernet0 = "/soc/dp1";
+		ethernet1 = "/soc/dp2";
+		ethernet2 = "/soc/dp3";
+	};
 	chosen {
 		bootargs = "console=ttyMSM0,115200,n8 root=/dev/ram0 rw init=/init";
 		bootargs-append = " clk_ignore_unused swiotlb=1";
@@ -173,10 +182,6 @@
 
 &soc {
 	mdio@90000 {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		compatible = "qcom,ipq40xx-mdio";
-		reg = <0x90000 0x64>;
 		pinctrl-0 = <&mdio_pins>;
 		pinctrl-names = "default";
 		phy-reset-gpio = <&tlmm 37 0 &tlmm 63 1>;
@@ -202,9 +207,6 @@
 	};
 
 	ess-switch@3a000000 {
-		compatible = "qcom,ess-switch";
-		reg = <0x3a000000 0x1000000>;
-		switch_access_mode = "local bus";
 		switch_cpu_bmp = <0x1>;  /* cpu port bitmap */
 		switch_lan_bmp = <0x3e>; /* lan port bitmap */
 		switch_wan_bmp = <0x40>; /* wan port bitmap */
@@ -444,12 +446,6 @@
 				};
 			};
 		};
-	};
-
-	ess-uniphy@7a00000 {
-		compatible = "qcom,ess-uniphy";
-		reg = <0x7a00000 0x30000>;
-		uniphy_access_mode = "local bus";
 	};
 
 	dp1 {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -22,11 +22,12 @@
 #include "ath79.dtsi"
 
 / {
-	compatible = "qca,ap143", "qca,ath79";
-	model = "QCA AP143 Board";
+	compatible = "qca,db120", "qca,ath79";
+	model = "QCA DB120 Board";
 
 	aliases {
 		serial0 = "/ahb/apb/uart@18020000";
+		eth0 = "/ahb/ethernet@19000000";
 	};
 
 	memory@0 {
@@ -41,27 +42,20 @@
 	extosc: oscillator {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
-		clock-frequency = <25000000>;
+		clock-frequency = <40000000>;
 	};
 
-	cpuintc: interrupt-controller {
-		qca,ddr-wb-channel-interrupts = <3>;
-		qca,ddr-wb-channels = <&ddr_ctrl 0x2>;
-	};
 
 	ahb {
 		apb {
 			uart@18020000 {
 				status = "okay";
+				clock-frequency = <40000000>;
 			};
 
 			gpio@18040000 {
 				val,gpio = <
-					45 4
-					41 16
-					42 15
-					43 14
-					44 11
+					0 11     /*VALUE GPIO*/
 				>;
 			};
 
@@ -69,12 +63,8 @@
 				clocks = <&extosc>;
 			};
 
-			ip3_int: interrupt-controller@ip3_int {
-				status = "disabled";
-			};
-
 			ehci0: usb@1b000000 {
-				compatible = "qca,ath79-ehci", "qca,ap147-ehci";
+				compatible = "qca,ath79-ehci", "qca,db120-ehci";
 				reg = <0x1b000000 0x200>;
 				interrupt-parent = <&cpuintc>;
 				interrupts = <3>;
@@ -84,6 +74,21 @@
 				caps-offset = <0x100>;
 				status = "okay";
 			};
+
+			pci_0: pci@0x14000000 {
+				compatible = "qca,ar724x-pci";
+				reg = <0x14000000 0x1000>,
+					<0x180f0000 0x100>,
+					<0x180c0000 0x1000>,
+					<0x10000000 0x04000000>,
+					<0 1>;
+				reg-names = "cfg_base","ctrl_base","crp_base",
+						"mem_base","io_base";
+				interrupt-parent = <&ip2_int>;
+				interrupts = <0>;
+				status = "okay";
+			};
+
 		};
 
 		spi_0: spi@1f000000 {
@@ -95,39 +100,8 @@
 				linux,modalias = "m25p80", "n25q128a11";
 				reg = <0>;
 				spi-max-frequency = <25000000>;
-
-				partition@0 {
-					label = "u-boot";
-					reg = <0x000000 0x040000>;
-				};
-
-				partition@1 {
-					label = "u-boot-env";
-					reg = <0x040000 0x050000>;
-				};
-
-				partition@2 {
-					label = "rootfs";
-					reg = <0x050000 0xe80000>;
-				};
-
-				partition@3 {
-					label = "kernel";
-					reg = <0xe80000 0xff0000>;
-				};
-
-				partition@4 {
-					label = "art";
-					reg = <0xff0000 0x1000000>;
-				};
-
-				partition@5 {
-					label = "firmware";
-					reg = <0x50000 0xff0000>;
-				};
 			};
 		};
-
 	};
 
 	gpio-keys-polled {
@@ -140,7 +114,7 @@
 		button@0 {
 			label = "WPS button";
 			linux,code = <KEY_WPS_BUTTON>;
-			gpios = <&gpio 17 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio 16 GPIO_ACTIVE_LOW>;
 			debounce-interval = <60>;
 		};
 	};
@@ -148,13 +122,28 @@
 	leds {
 		compatible = "gpio-leds";
 		led@0 {
-			label = "ap147:green:status";
-			gpios = <&gpio 13 GPIO_ACTIVE_LOW>;
+			label = "db120:green:status";
+			gpios = <&gpio 14 GPIO_ACTIVE_LOW>;
 		};
 
 		led@1 {
-			label = "ap147:green:wlan";
+			label = "db120:green:wps";
+			gpios = <&gpio 15 GPIO_ACTIVE_LOW>;
+		};
+
+		led@2 {
+			label = "db120:green:wlan-5g";
 			gpios = <&gpio 12 GPIO_ACTIVE_LOW>;
+		};
+
+		led@3 {
+			label = "db120:green:wlan-2g";
+			gpios = <&gpio 13 GPIO_ACTIVE_LOW>;
+		};
+
+		led@4 {
+			label = "db120:green:usb";
+			gpios = <&gpio 11 GPIO_ACTIVE_LOW>;
 		};
 
 	};

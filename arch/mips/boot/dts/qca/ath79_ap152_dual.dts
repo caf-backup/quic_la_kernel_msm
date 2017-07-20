@@ -51,6 +51,13 @@
 				status = "okay";
 			};
 
+			gpio@18040000 {
+				val,gpio = <
+					33 3
+					32 4
+				>;
+			};
+
 			pll-controller@18050000 {
 				clocks = <&extosc>;
 			};

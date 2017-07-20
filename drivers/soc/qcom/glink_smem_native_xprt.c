@@ -2709,11 +2709,13 @@ static int ssr(struct glink_transport_if *if_ptr)
 
 	node = of_find_compatible_node(NULL, NULL, (*rpm_match_table).compatible);
 
-	rc = of_property_read_u32(node, "qcom,subsys-id", &rpm_id);
-	if (rc)
-		pr_err("%s: missing key\n", __func__);
+	if (node) {
+		rc = of_property_read_u32(node, "qcom,subsys-id", &rpm_id);
+		if (rc)
+			pr_err("%s: missing key\n", __func__);
 
-	BUG_ON(einfo->remote_proc_id == rpm_id);
+		BUG_ON(einfo->remote_proc_id == rpm_id);
+	}
 
 	einfo->in_ssr = true;
 	wake_up_all(&einfo->tx_blocked_queue);
