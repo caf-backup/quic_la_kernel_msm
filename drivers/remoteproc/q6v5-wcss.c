@@ -206,6 +206,12 @@ static void q6_powerdown(struct q6v5_rproc_pdata *pdata)
 	unsigned int nretry = 0;
 	unsigned long val = 0;
 
+	/* Enable WCSS Block reset - 9 */
+	val = readl(pdata->gcc_bcr_base + GCC_WCSS_BCR);
+	val |= BIT(0);
+	writel(val, pdata->gcc_bcr_base + GCC_WCSS_BCR);
+	mdelay(1);
+
 	/* Halt Q6 bus interface - 9*/
 	val = readl(pdata->tcsr_q6_base + TCSR_Q6_HALTREQ);
 	val |= BIT(0);
@@ -285,12 +291,6 @@ static void q6_powerdown(struct q6v5_rproc_pdata *pdata)
 	val = readl(pdata->tcsr_q6_base + TCSR_Q6_HALTREQ);
 	val &= ~(BIT(0));
 	writel(val, pdata->tcsr_q6_base + TCSR_Q6_HALTREQ);
-
-	/* Enable WCSS Block reset - 9 */
-	val = readl(pdata->gcc_bcr_base + GCC_WCSS_BCR);
-	val |= BIT(0);
-	writel(val, pdata->gcc_bcr_base + GCC_WCSS_BCR);
-	mdelay(1);
 
 	/* Enable Q6 Block reset - 19 */
 	val = readl(pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
