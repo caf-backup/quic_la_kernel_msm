@@ -193,6 +193,10 @@ static void wcss_powerdown(struct q6v5_rproc_pdata *pdata)
 
 	/* Enable A2AB/ACMT/ECHAB ARES - 8 */
 	/* De-assert WCSS/Q6 HALTREQ - 8 */
+	val = readl(pdata->gcc_bcr_base + GCC_WCSS_BCR);
+	val |= BIT(0);
+	writel(val, pdata->gcc_bcr_base + GCC_WCSS_BCR);
+	mdelay(1);
 	val = readl(pdata->tcsr_base + TCSR_HALTREQ);
 	val &= ~(BIT(0));
 	writel(val, pdata->tcsr_base + TCSR_HALTREQ);
@@ -205,12 +209,6 @@ static void q6_powerdown(struct q6v5_rproc_pdata *pdata)
 	int i = 0;
 	unsigned int nretry = 0;
 	unsigned long val = 0;
-
-	/* Enable WCSS Block reset - 9 */
-	val = readl(pdata->gcc_bcr_base + GCC_WCSS_BCR);
-	val |= BIT(0);
-	writel(val, pdata->gcc_bcr_base + GCC_WCSS_BCR);
-	mdelay(1);
 
 	/* Halt Q6 bus interface - 9*/
 	val = readl(pdata->tcsr_q6_base + TCSR_Q6_HALTREQ);
