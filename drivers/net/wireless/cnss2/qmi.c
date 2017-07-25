@@ -576,7 +576,7 @@ int cnss_wlfw_m3_dnld_send_sync(struct cnss_plat_data *plat_priv)
 	return 0;
 
 out:
-	CNSS_ASSERT(0);
+	printk("Warning: FW ready recvd even before M3 info exchange");
 	return ret;
 }
 
