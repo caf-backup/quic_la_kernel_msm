@@ -668,3 +668,10 @@ config ZONE_DEVICE
 
 config FRAME_VECTOR
 	bool
+
+config FRAG_CACHE_SIZE_16KB
+	bool "Enable 16KB fragment cache"
+	help
+	  This parameter allows to use size 16KB for fragment cache, which
+	  is used for skb->data allocation in the case of its size is less
+	  than 4KB.

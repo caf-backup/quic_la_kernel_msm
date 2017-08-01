@@ -239,7 +239,11 @@ struct page_frag {
 #endif
 };
 
+#ifdef CONFIG_FRAG_CACHE_SIZE_16KB
+#define PAGE_FRAG_CACHE_MAX_SIZE	__ALIGN_MASK(16384, ~PAGE_MASK)
+#else
 #define PAGE_FRAG_CACHE_MAX_SIZE	__ALIGN_MASK(32768, ~PAGE_MASK)
+#endif
 #define PAGE_FRAG_CACHE_MAX_ORDER	get_order(PAGE_FRAG_CACHE_MAX_SIZE)
 
 struct page_frag_cache {
