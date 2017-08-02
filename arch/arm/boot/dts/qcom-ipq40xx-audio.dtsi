@@ -118,6 +118,7 @@
 			"audio_tx_mclk",
 			"audio_rx_bclk",
 			"audio_rx_mclk";
+		ipq,txmclk-fixed = <0>;
 		status = "disabled";
 	};
 
