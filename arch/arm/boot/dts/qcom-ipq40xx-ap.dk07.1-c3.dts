@@ -397,5 +397,9 @@
 		sdhci@7824000 {
 			status = "disabled";
 		};
+
+		edma@c080000 {
+			qcom,num-cores = <3>;
+		};
 	};
 };
