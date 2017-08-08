@@ -418,7 +418,7 @@ int qcom_rpm_write(struct qcom_rpm *rpm,
 
 	mutex_unlock(&rpm->lock);
 
-	BUG_ON(ret);
+	WARN_ON(ret);
 
 	return ret;
 }
