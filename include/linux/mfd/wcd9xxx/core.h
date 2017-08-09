@@ -18,6 +18,7 @@
 #include <linux/of_irq.h>
 #include <linux/interrupt.h>
 #include <linux/pm_qos.h>
+#include <sound/soc.h>
 
 #define WCD9XXX_MAX_IRQ_REGS 4
 #define WCD9XXX_MAX_NUM_IRQS (WCD9XXX_MAX_IRQ_REGS * 8)
@@ -367,6 +368,7 @@ struct wcd9xxx {
 	struct wcd9xxx_ch *tx_chs;
 	u32 mclk_rate;
 	enum codec_variant type;
+	bool using_regmap;
 	struct regmap *regmap;
 
 	struct wcd9xxx_codec_type *codec_type;
@@ -401,6 +403,17 @@ int wcd9xxx_slim_bulk_write(struct wcd9xxx *wcd9xxx,
 			    struct wcd9xxx_reg_val *bulk_reg,
 			    unsigned int size, bool interface);
 
+int wcd9xxx_swrm_i2s_bulk_write(struct wcd9xxx *wcd9xxx,
+				struct wcd9xxx_reg_val *bulk_reg,
+				size_t len);
+
+int wcd9xxx_bulk_read(struct wcd9xxx_core_resource *,
+		unsigned short, int, u8 *);
+int wcd9xxx_bulk_write(struct wcd9xxx_core_resource*,
+		unsigned short, int, u8*);
+int wcd9xxx_reg_update_bits(struct wcd9xxx_core_resource *core_res,
+		unsigned short reg, u8 mask, u8 val);
+
 extern int wcd9xxx_core_res_init(
 	struct wcd9xxx_core_resource*,
 	int, int, struct regmap *);
@@ -434,4 +447,11 @@ static inline int __init wcd9xxx_irq_of_init(struct device_node *node,
 {
 	return 0;
 }
+
+int wcd9xxx_reg_read(struct snd_soc_codec *codec,
+		unsigned short reg);
+
+int wcd9xxx_reg_write(struct snd_soc_codec *codec,
+		unsigned short reg, u8 val);
+
 #endif
