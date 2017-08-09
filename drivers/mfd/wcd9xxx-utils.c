@@ -26,6 +26,7 @@
 #include <linux/mfd/msm-cdc-supply.h>
 #include <linux/mfd/msm-cdc-pinctrl.h>
 #include <linux/mfd/wcd9xxx/wcd9xxx-utils.h>
+#include "../../sound/soc/codecs/wcd934x/wcd934x.h"
 
 #define REG_BYTES 2
 #define VAL_BYTES 1
@@ -324,11 +325,9 @@ struct wcd9xxx_pdata *wcd9xxx_populate_dt_data(struct device *dev)
 	/* Parse power supplies */
 	msm_cdc_get_power_supplies(dev, &pdata->regulator,
 				   &pdata->num_supplies);
-	if (!pdata->regulator || (pdata->num_supplies <= 0)) {
-		dev_err(dev, "%s: no power supplies defined for codec\n",
-			__func__);
-		goto err_power_sup;
-	}
+	/* It's ok for regulator to be null or num_supplies to be 0 as this
+	 * indicates no regulator voting is necessary.  Rails are always on.
+	 */
 
 	/* Parse micbias info */
 	wcd9xxx_dt_parse_micbias_info(dev, &pdata->micbias);
@@ -402,7 +401,6 @@ err_parse_dt_prop:
 	devm_kfree(dev, pdata->regulator);
 	pdata->regulator = NULL;
 	pdata->num_supplies = 0;
-err_power_sup:
 	devm_kfree(dev, pdata);
 	return NULL;
 }
@@ -501,6 +499,8 @@ static int regmap_bus_read(void *context, const void *reg, size_t reg_size,
 	unsigned short c_reg, rreg;
 	int ret, i;
 
+	msleep(.5);
+
 	if (!wcd9xxx) {
 		dev_err(dev, "%s: wcd9xxx is NULL\n", __func__);
 		return -EINVAL;
@@ -553,6 +553,8 @@ static int regmap_bus_gather_write(void *context,
 	unsigned short c_reg, rreg;
 	int ret, i;
 
+	msleep(.5);
+
 	if (!wcd9xxx) {
 		dev_err(dev, "%s: wcd9xxx is NULL\n", __func__);
 		return -EINVAL;
@@ -597,6 +599,8 @@ static int regmap_bus_write(void *context, const void *data, size_t count)
 {
 	struct device *dev = context;
 	struct wcd9xxx *wcd9xxx = dev_get_drvdata(dev);
+
+	msleep(.5);
 
 	if (!wcd9xxx)
 		return -EINVAL;
