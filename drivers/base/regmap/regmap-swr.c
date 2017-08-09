@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -32,6 +32,7 @@ static int regmap_swr_gather_write(void *context,
 	size_t val_bytes;
 	int i, ret = 0;
 	u16 reg_addr = 0;
+	u8 *value;
 
 	if (map == NULL) {
 		dev_err(dev, "%s: regmap is NULL\n", __func__);
@@ -51,12 +52,11 @@ static int regmap_swr_gather_write(void *context,
 	val_bytes = map->format.val_bytes;
 	/* val_len = val_bytes * val_count */
 	for (i = 0; i < (val_len / val_bytes); i++) {
-		reg_addr = reg_addr + i;
-		val = (u8 *)val + (val_bytes * i);
-		ret = swr_write(swr, swr->dev_num, reg_addr, val);
+		value = (u8 *)val + (val_bytes * i);
+		ret = swr_write(swr, swr->dev_num, (reg_addr + i), value);
 		if (ret < 0) {
 			dev_err(dev, "%s: write reg 0x%x failed, err %d\n",
-				__func__, reg_addr, ret);
+				__func__, (reg_addr + i), ret);
 			break;
 		}
 	}
@@ -193,24 +193,18 @@ static struct regmap_bus regmap_swr = {
 	.val_format_endian_default = REGMAP_ENDIAN_NATIVE,
 };
 
-struct regmap *__regmap_init_swr(struct swr_device *swr,
-				 const struct regmap_config *config,
-				 struct lock_class_key *lock_key,
-				 const char *lock_name)
+struct regmap *regmap_init_swr(struct swr_device *swr,
+			       const struct regmap_config *config)
 {
-	return __regmap_init(&swr->dev, &regmap_swr, &swr->dev, config,
-			   lock_key, lock_name);
+	return regmap_init(&swr->dev, &regmap_swr, &swr->dev, config);
 }
-EXPORT_SYMBOL(__regmap_init_swr);
+EXPORT_SYMBOL(regmap_init_swr);
 
-struct regmap *__devm_regmap_init_swr(struct swr_device *swr,
-				      const struct regmap_config *config,
-				      struct lock_class_key *lock_key,
-				      const char *lock_name)
+struct regmap *devm_regmap_init_swr(struct swr_device *swr,
+				    const struct regmap_config *config)
 {
-	return __devm_regmap_init(&swr->dev, &regmap_swr, &swr->dev, config,
-				lock_key, lock_name);
+	return devm_regmap_init(&swr->dev, &regmap_swr, &swr->dev, config);
 }
-EXPORT_SYMBOL(__devm_regmap_init_swr);
+EXPORT_SYMBOL(devm_regmap_init_swr);
 
 MODULE_LICENSE("GPL v2");
