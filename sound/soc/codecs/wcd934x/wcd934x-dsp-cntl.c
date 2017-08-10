@@ -484,25 +484,24 @@ static int wcd_cntl_enable_memory(struct wcd_dsp_cntl *cntl,
 				  enum wcd_mem_type mem_type)
 {
 	struct snd_soc_codec *codec = cntl->codec;
-	struct wcd9xxx *wcd9xxx = dev_get_drvdata(codec->dev->parent);
 	int loop_cnt = 0;
 	u8 status;
-	int ret = 0;
-
+	int ret = 0, i;
 
 	switch (mem_type) {
 
 	case WCD_MEM_TYPE_ALWAYS_ON:
 
 		/* 512KB of always on region */
-		wcd9xxx_slim_write_repeat(wcd9xxx,
+		for (i = 0; i < ARRAY_SIZE(mem_enable_values); i++)
+			snd_soc_update_bits(codec,
 				WCD934X_CPE_SS_PWR_CPE_SYSMEM_SHUTDOWN_0,
-				ARRAY_SIZE(mem_enable_values),
-				mem_enable_values);
-		wcd9xxx_slim_write_repeat(wcd9xxx,
+				~(1 << i), 0x00);
+
+		for (i = 0; i < ARRAY_SIZE(mem_enable_values); i++)
+			snd_soc_update_bits(codec,
 				WCD934X_CPE_SS_PWR_CPE_SYSMEM_SHUTDOWN_1,
-				ARRAY_SIZE(mem_enable_values),
-				mem_enable_values);
+				~(1 << i), 0x00);
 		break;
 
 	case WCD_MEM_TYPE_SWITCHABLE:
@@ -531,14 +530,15 @@ static int wcd_cntl_enable_memory(struct wcd_dsp_cntl *cntl,
 		}
 
 		/* Rest of the memory */
-		wcd9xxx_slim_write_repeat(wcd9xxx,
+		for (i = 0; i < ARRAY_SIZE(mem_enable_values); i++)
+			snd_soc_update_bits(codec,
 				WCD934X_CPE_SS_PWR_CPE_SYSMEM_SHUTDOWN_2,
-				ARRAY_SIZE(mem_enable_values),
-				mem_enable_values);
-		wcd9xxx_slim_write_repeat(wcd9xxx,
+				~(1 << i), 0x00);
+
+		for (i = 0; i < ARRAY_SIZE(mem_enable_values); i++)
+			snd_soc_update_bits(codec,
 				WCD934X_CPE_SS_PWR_CPE_SYSMEM_SHUTDOWN_3,
-				ARRAY_SIZE(mem_enable_values),
-				mem_enable_values);
+				~(1 << i), 0x00);
 
 		snd_soc_write(codec, WCD934X_CPE_SS_PWR_CPE_DRAM1_SHUTDOWN,
 			      0x05);
@@ -883,10 +883,20 @@ static void wcd_cntl_debugfs_remove(struct wcd_dsp_cntl *cntl)
 		debugfs_remove(cntl->entry);
 }
 
+
+static int wcd_miscdev_open(struct inode *inode, struct file *f)
+{
+	struct wcd_dsp_cntl *cntl = container_of(f->private_data,
+						 struct wcd_dsp_cntl,
+						 miscdev);
+	f->private_data = cntl;
+	return 0;
+}
+
 static int wcd_miscdev_release(struct inode *inode, struct file *filep)
 {
-	struct wcd_dsp_cntl *cntl = container_of(filep->private_data,
-						 struct wcd_dsp_cntl, miscdev);
+	struct wcd_dsp_cntl *cntl = filep->private_data;
+
 	if (!cntl->m_dev || !cntl->m_ops ||
 	    !cntl->m_ops->vote_for_dsp) {
 		dev_err(cntl->codec->dev,
@@ -906,14 +916,19 @@ static int wcd_miscdev_release(struct inode *inode, struct file *filep)
 static ssize_t wcd_miscdev_write(struct file *filep, const char __user *ubuf,
 				 size_t count, loff_t *pos)
 {
-	struct wcd_dsp_cntl *cntl = container_of(filep->private_data,
-						 struct wcd_dsp_cntl, miscdev);
+	struct wcd_dsp_cntl *cntl = filep->private_data;
 	char val[count];
 	bool vote;
 	int ret = 0;
 
 	if (count == 0 || count > 2) {
 		pr_err("%s: Invalid count = %zd\n", __func__, count);
+		ret = -EINVAL;
+		goto done;
+	}
+
+	if (!cntl) {
+		pr_err("%s: cntl pointer is NULL\n", __func__);
 		ret = -EINVAL;
 		goto done;
 	}
@@ -964,6 +979,8 @@ done:
 }
 
 static const struct file_operations wcd_miscdev_fops = {
+	.owner = THIS_MODULE,
+	.open = wcd_miscdev_open,
 	.write = wcd_miscdev_write,
 	.release = wcd_miscdev_release,
 };
@@ -1032,6 +1049,10 @@ static int wcd_control_init(struct device *dev, void *priv_data)
 		goto err_clk_enable;
 	}
 	wcd_cntl_cpar_ctrl(cntl, true);
+
+	/* Enable the memories */
+	wcd_cntl_enable_memory(cntl, WCD_MEM_TYPE_ALWAYS_ON);
+	wcd_cntl_enable_memory(cntl, WCD_MEM_TYPE_SWITCHABLE);
 
 	return 0;
 
@@ -1136,7 +1157,7 @@ static int wcd_ctrl_component_bind(struct device *dev,
 	wcd_cntl_debugfs_init(wcd_cntl_dir_name, cntl);
 
 	codec = cntl->codec;
-	card = codec->component.card->snd_card;
+	card = codec->card->snd_card;
 	snprintf(proc_name, WCD_PROCFS_ENTRY_MAX_LEN, "%s%d%s", "cpe",
 		 cntl->dsp_instance, "_state");
 	entry = snd_info_create_card_entry(card, proc_name, card->proc_root);
