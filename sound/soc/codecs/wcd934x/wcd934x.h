@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -13,7 +13,6 @@
 #ifndef WCD934X_H
 #define WCD934X_H
 
-#include <sound/apr_audio-v2.h>
 #include <linux/mfd/wcd9xxx/wcd9xxx-slimslave.h>
 #include "wcd934x-dsp-cntl.h"
 #include "../wcd9xxx-common-v2.h"
@@ -173,8 +172,6 @@ struct tavil_reg_mask_val {
 	u8 val;
 };
 
-extern void *tavil_get_afe_config(struct snd_soc_codec *codec,
-				  enum afe_config_type config_type);
 extern int tavil_cdc_mclk_enable(struct snd_soc_codec *codec, bool enable);
 extern int tavil_set_spkr_mode(struct snd_soc_codec *codec, int mode);
 extern int tavil_set_spkr_gain_offset(struct snd_soc_codec *codec, int offset);
@@ -192,4 +189,74 @@ extern int tavil_codec_enable_interp_clk(struct snd_soc_codec *codec,
 extern struct tavil_dsd_config *tavil_get_dsd_config(struct snd_soc_codec *);
 extern int tavil_codec_info_create_codec_entry(struct snd_info_entry *,
 					       struct snd_soc_codec *);
+
+/*
+ * wcd934x_get_codec_info: Get codec specific information
+ *
+ * @wcd9xxx: pointer to wcd9xxx structure
+ * @wcd_type: pointer to wcd9xxx_codec_type structure
+ *
+ * Returns 0 for success or negative error code for failure
+ */
+int wcd934x_get_codec_info(struct wcd9xxx *wcd9xxx,
+			   struct wcd9xxx_codec_type *wcd_type);
+/*
+ * wcd934x_bringdown: Bringdown WCD Codec
+ *
+ * @wcd9xxx: Pointer to wcd9xxx structure
+ *
+ * Returns 0 for success or negative error code for failure
+ */
+int wcd934x_bringdown(struct wcd9xxx *wcd9xxx);
+/*
+ * wcd934x_bringup: Bringup WCD Codec
+ *
+ * @wcd9xxx: Pointer to the wcd9xxx structure
+ *
+ * Returns 0 for success or negative error code for failure
+ */
+int wcd934x_bringup(struct wcd9xxx *wcd9xxx);
+/**
+ * tavil_set_spkr_gain_offset - offset the speaker path
+ * gain with the given offset value.
+ *
+ * @codec: codec instance
+ * @offset: Indicates speaker path gain offset value.
+ *
+ * Returns 0 on success or -EINVAL on error.
+ */
+int tavil_set_spkr_gain_offset(struct snd_soc_codec *codec, int offset);
+/**
+ * tavil_set_spkr_mode - Configures speaker compander and smartboost
+ * settings based on speaker mode.
+ *
+ * @codec: codec instance
+ * @mode: Indicates speaker configuration mode.
+ *
+ * Returns 0 on success or -EINVAL on error.
+ */
+int tavil_set_spkr_mode(struct snd_soc_codec *codec, int mode);
+
+int tavil_codec_enable_interp_clk(struct snd_soc_codec *codec,
+				  int event, int interp_idx);
+int tavil_mbhc_micb_adjust_voltage(struct snd_soc_codec *codec,
+				   int req_volt, int micb_num);
+int tavil_micbias_control(struct snd_soc_codec *codec,
+			  int micb_num, int req, bool is_dapm);
+int tavil_codec_enable_standalone_micbias(struct snd_soc_codec *codec,
+					  int micb_num,
+					  bool enable);
+int tavil_codec_info_create_codec_entry(struct snd_info_entry *codec_root,
+					struct snd_soc_codec *codec);
+/**
+ * tavil_cdc_mclk_enable - Enable/disable codec mclk
+ *
+ * @codec: codec instance
+ * @enable: Indicates clk enable or disable
+ *
+ * Returns 0 on Success and error on failure
+ */
+int tavil_cdc_mclk_enable(struct snd_soc_codec *codec, bool enable);
+int wcd934x_get_micb_vout_ctl_val(u32 micb_mv);
+
 #endif
