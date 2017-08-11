@@ -147,6 +147,23 @@
 			};
 		};
 
+		/* Enable Audio Interfaces */
+		i2s: ipq40xx-pcm-i2s@0 {
+			ipq,txmclk-fixed = <1>;
+			status = "ok";
+		};
+
+		i2splatform: qca-pcm-i2s@7709000 {
+			status = "ok";
+		};
+
+		snd_934x: sound-tavil {
+			status = "ok";
+			pinctrl-0 = <&audio_gpio_pins>;
+			pinctrl-1 = <&audio_pins>;
+			pinctrl-names = "default", "audio";
+		};
+
 		uart1:uart@78b0000 {
 			pinctrl-0 = <&uart1_pins>;
 			pinctrl-1 = <&uart1_pins>;
@@ -234,7 +251,7 @@
 		i2c_0: i2c@78b7000 { /* BLSP1 QUP2 */
 			status = "ok";
 
-			wcd934x_cdc: wcd9xxx_codec@d {
+			wcd934x_cdc: tavil_codec@d {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "qcom,tavil-i2c-pgd";
@@ -251,17 +268,113 @@
 				qcom,cdc-micbias3-mv = <1800>;
 				qcom,cdc-micbias4-mv = <1800>;
 
-				qcom,cdc-mclk-clk-rate = <12288000>;
+				qcom,cdc-mclk-clk-rate = <9600000>;
 				qcom,cdc-dmic-sample-rate = <4800000>;
 				qcom,cdc-mad-dmic-rate = <600001>;
 				qcom,cdc-ecpp-dmic-rate = <1200000>;
 
 				qcom,wdsp-cmpnt-dev-name = "tavil_codec";
+
+				wcd: wcd_pinctrl@5 {
+					compatible = "qcom,wcd-pinctrl";
+					qcom,num-gpios = <5>;
+					gpio-controller;
+					#gpio-cells = <2>;
+
+					spkr_1_wcd_en_active: spkr_1_wcd_en_active {
+						mux {
+							pins = "gpio2";
+						};
+
+						config {
+							pins = "gpio2";
+							output-high;
+						};
+					};
+
+					spkr_1_wcd_en_sleep: spkr_1_wcd_en_sleep {
+						mux {
+							pins = "gpio2";
+						};
+
+						config {
+							pins = "gpio2";
+							input-enable;
+						};
+					};
+
+					spkr_2_wcd_en_active: spkr_2_sd_n_active {
+						mux {
+							pins = "gpio3";
+						};
+
+						config {
+							pins = "gpio3";
+							output-high;
+						};
+					};
+
+					spkr_2_wcd_en_sleep: spkr_2_sd_n_sleep {
+						mux {
+							pins = "gpio3";
+						};
+
+						config {
+							pins = "gpio3";
+							input-enable;
+						};
+					};
+				};
+
+				wsa_spkr_wcd_sd1: msm_cdc_pinctrll {
+					compatible = "qcom,msm-cdc-pinctrl";
+					pinctrl-names = "aud_active", "aud_sleep";
+					pinctrl-0 = <&spkr_1_wcd_en_active>;
+					pinctrl-1 = <&spkr_1_wcd_en_sleep>;
+				};
+
+				wsa_spkr_wcd_sd2: msm_cdc_pinctrlr {
+					compatible = "qcom,msm-cdc-pinctrl";
+					pinctrl-names = "aud_active", "aud_sleep";
+					pinctrl-0 = <&spkr_2_wcd_en_active>;
+					pinctrl-1 = <&spkr_2_wcd_en_sleep>;
+				};
+
+				swr_master {
+					compatible = "qcom,swr-wcd";
+					#address-cells = <2>;
+					#size-cells = <0>;
+
+					wsa881x_0211: wsa881x@20170211 {
+						compatible = "qcom,wsa881x";
+						reg = <0x00 0x20170211>;
+						qcom,spkr-sd-n-node = <&wsa_spkr_wcd_sd1>;
+					};
+
+					wsa881x_0212: wsa881x@20170212 {
+						compatible = "qcom,wsa881x";
+						reg = <0x00 0x20170212>;
+						qcom,spkr-sd-n-node = <&wsa_spkr_wcd_sd2>;
+					};
+
+					wsa881x_0213: wsa881x@21170213 {
+						compatible = "qcom,wsa881x";
+						reg = <0x00 0x21170213>;
+						qcom,spkr-sd-n-node = <&wsa_spkr_wcd_sd1>;
+					};
+
+					wsa881x_0214: wsa881x@21170214 {
+						compatible = "qcom,wsa881x";
+						reg = <0x00 0x21170214>;
+						qcom,spkr-sd-n-node = <&wsa_spkr_wcd_sd2>;
+					};
+				};
+
 				wcd_spi_0: wcd_spi {
 					compatible = "qcom,wcd-spi-v2";
 					qcom,master-bus-num = <0>;
 					qcom,chip-select = <0>;
-					qcom,max-frequency = <20000000>;
+					qcom,max-frequency = <15000000>;
 					qcom,mem-base-addr = <0x100000>;
 				};
 			};
