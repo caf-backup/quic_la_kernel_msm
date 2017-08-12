@@ -499,8 +499,6 @@ static int regmap_bus_read(void *context, const void *reg, size_t reg_size,
 	unsigned short c_reg, rreg;
 	int ret, i;
 
-	msleep(.5);
-
 	if (!wcd9xxx) {
 		dev_err(dev, "%s: wcd9xxx is NULL\n", __func__);
 		return -EINVAL;
@@ -553,8 +551,6 @@ static int regmap_bus_gather_write(void *context,
 	unsigned short c_reg, rreg;
 	int ret, i;
 
-	msleep(.5);
-
 	if (!wcd9xxx) {
 		dev_err(dev, "%s: wcd9xxx is NULL\n", __func__);
 		return -EINVAL;
@@ -599,8 +595,6 @@ static int regmap_bus_write(void *context, const void *data, size_t count)
 {
 	struct device *dev = context;
 	struct wcd9xxx *wcd9xxx = dev_get_drvdata(dev);
-
-	msleep(.5);
 
 	if (!wcd9xxx)
 		return -EINVAL;
