@@ -2427,6 +2427,35 @@ static int tavil_get_asrc_mode(struct tavil_priv *tavil, int asrc,
 	return asrc_mode;
 }
 
+static int tavil_codec_wdma1_ctl(struct snd_soc_dapm_widget *w,
+				   struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = w->dapm->codec;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		/* only 16khz supported for wdma1 */
+		snd_soc_update_bits(codec, WCD934X_DMA_WDMA_CTL_1,
+				    0xF0, 0x10);
+		/* Select mclk_1 */
+		snd_soc_update_bits(codec, WCD934X_DMA_WDMA_CTL_1,
+				    0x02, 0x00);
+		/* Enable DMA */
+		snd_soc_update_bits(codec, WCD934X_DMA_WDMA_CTL_1,
+				    0x01, 0x01);
+		break;
+
+	case SND_SOC_DAPM_POST_PMD:
+		/* Disable DMA */
+		snd_soc_update_bits(codec, WCD934X_DMA_WDMA_CTL_1,
+				    0x01, 0x00);
+		break;
+
+	};
+
+	return 0;
+}
+
 static int tavil_codec_enable_asrc(struct snd_soc_codec *codec,
 				   int asrc_in, int event)
 {
@@ -5765,6 +5794,11 @@ static const char * const native_mux_text[] = {
 	"OFF", "ON",
 };
 
+static const char *const wdma_ch_text[] = {
+	"PORT_0", "PORT_1", "PORT_2", "PORT_3", "PORT_4",
+	"PORT_5", "PORT_6", "PORT_7", "PORT_8",
+};
+
 static const struct snd_kcontrol_new aif4_vi_mixer[] = {
 	SOC_SINGLE_EXT("SPKR_VI_1", SND_SOC_NOPM, WCD934X_TX14, 1, 0,
 			tavil_vi_feed_mixer_get, tavil_vi_feed_mixer_put),
@@ -6162,6 +6196,13 @@ WCD_DAPM_ENUM(i2s_rx5, SND_SOC_NOPM, 0, i2s_rx_mux_text);
 WCD_DAPM_ENUM(i2s_rx6, SND_SOC_NOPM, 0, i2s_rx_mux_text);
 WCD_DAPM_ENUM(i2s_rx7, SND_SOC_NOPM, 0, i2s_rx_mux_text);
 
+WCD_DAPM_ENUM(wdma1_ch0, WCD934X_DMA_CH_0_1_CFG_WDMA_1, 0, wdma_ch_text);
+WCD_DAPM_ENUM(wdma1_ch1, WCD934X_DMA_CH_0_1_CFG_WDMA_1, 4, wdma_ch_text);
+WCD_DAPM_ENUM(wdma1_ch2, WCD934X_DMA_CH_2_3_CFG_WDMA_1, 0, wdma_ch_text);
+WCD_DAPM_ENUM(wdma1_ch3, WCD934X_DMA_CH_2_3_CFG_WDMA_1, 4, wdma_ch_text);
+WCD_DAPM_ENUM(wdma1_ch4, WCD934X_DMA_CH_4_5_CFG_WDMA_1, 0, wdma_ch_text);
+WCD_DAPM_ENUM(wdma1_ch5, WCD934X_DMA_CH_4_5_CFG_WDMA_1, 4, wdma_ch_text);
+
 static const struct snd_kcontrol_new anc_ear_switch =
 	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
 
@@ -6228,6 +6269,8 @@ static const struct snd_kcontrol_new rx_int3_asrc_switch[] = {
 static const struct snd_kcontrol_new rx_int4_asrc_switch[] = {
 	SOC_DAPM_SINGLE("LO2 Switch", SND_SOC_NOPM, 0, 1, 0),
 };
+static const struct snd_kcontrol_new wdma1_onoff_switch =
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
 
 static const struct snd_soc_dapm_widget tavil_dapm_i2s_widgets[] = {
 
@@ -6954,6 +6997,22 @@ static const struct snd_soc_dapm_widget tavil_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX_E("ASRC3 MUX", SND_SOC_NOPM, ASRC3, 0,
 		&asrc3_mux, tavil_codec_enable_asrc_resampler,
 		SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+
+	/* WDMA1 widgets */
+	WCD_DAPM_MUX("WDMA1 CH0 MUX", 0, wdma1_ch0),
+	WCD_DAPM_MUX("WDMA1 CH1 MUX", 4, wdma1_ch1),
+	WCD_DAPM_MUX("WDMA1 CH2 MUX", 0, wdma1_ch2),
+	WCD_DAPM_MUX("WDMA1 CH3 MUX", 4, wdma1_ch3),
+	WCD_DAPM_MUX("WDMA1 CH4 MUX", 0, wdma1_ch4),
+	WCD_DAPM_MUX("WDMA1 CH5 MUX", 4, wdma1_ch5),
+
+	SND_SOC_DAPM_MIXER("WDMA1_CH_MIXER", SND_SOC_NOPM, 0, 0, NULL, 0),
+
+	SND_SOC_DAPM_SWITCH_E("WDMA1_ON_OFF", SND_SOC_NOPM, 0, 0,
+			      &wdma1_onoff_switch, tavil_codec_wdma1_ctl,
+			      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+
+	SND_SOC_DAPM_OUTPUT("WDMA1_OUT"),
 };
 
 static int tavil_write(struct snd_soc_codec *codec,
