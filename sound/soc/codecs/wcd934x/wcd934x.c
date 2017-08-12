@@ -8124,7 +8124,7 @@ static const struct tavil_reg_mask_val tavil_codec_reg_init_common_val[] = {
 };
 
 static const struct tavil_reg_mask_val tavil_codec_reg_i2c_defaults[] = {
-	{WCD934X_CLK_SYS_MCLK_PRG, 0x40, 0x40},
+	{WCD934X_CLK_SYS_MCLK_PRG, 0x70, 0x00}, /* 9.6 MHz clock and DIV_0 */
 	{WCD934X_CODEC_RPM_CLK_GATE, 0x03, 0x01},
 	{WCD934X_CODEC_RPM_CLK_MCLK_CFG, 0x03, 0x00},
 	{WCD934X_CODEC_RPM_CLK_MCLK_CFG, 0x05, 0x05},
@@ -9531,6 +9531,7 @@ static int tavil_probe(struct platform_device *pdev)
 		regmap_update_bits(tavil->wcd9xxx->regmap,
 				   WCD934X_CODEC_RPM_CLK_MCLK_CFG,
 				   0x03, 0x01);
+
 	tavil_update_reg_defaults(tavil);
 	__tavil_enable_efuse_sensing(tavil);
 	___tavil_get_codec_fine_version(tavil);
