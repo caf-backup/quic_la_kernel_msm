@@ -494,14 +494,14 @@ static int wcd_cntl_enable_memory(struct wcd_dsp_cntl *cntl,
 
 		/* 512KB of always on region */
 		for (i = 0; i < ARRAY_SIZE(mem_enable_values); i++)
-			snd_soc_update_bits(codec,
+			snd_soc_write(codec,
 				WCD934X_CPE_SS_PWR_CPE_SYSMEM_SHUTDOWN_0,
-				~(1 << i), 0x00);
+				mem_enable_values[i]);
 
 		for (i = 0; i < ARRAY_SIZE(mem_enable_values); i++)
-			snd_soc_update_bits(codec,
+			snd_soc_write(codec,
 				WCD934X_CPE_SS_PWR_CPE_SYSMEM_SHUTDOWN_1,
-				~(1 << i), 0x00);
+				mem_enable_values[i]);
 		break;
 
 	case WCD_MEM_TYPE_SWITCHABLE:
@@ -531,14 +531,14 @@ static int wcd_cntl_enable_memory(struct wcd_dsp_cntl *cntl,
 
 		/* Rest of the memory */
 		for (i = 0; i < ARRAY_SIZE(mem_enable_values); i++)
-			snd_soc_update_bits(codec,
+			snd_soc_write(codec,
 				WCD934X_CPE_SS_PWR_CPE_SYSMEM_SHUTDOWN_2,
-				~(1 << i), 0x00);
+				mem_enable_values[i]);
 
 		for (i = 0; i < ARRAY_SIZE(mem_enable_values); i++)
-			snd_soc_update_bits(codec,
+			snd_soc_write(codec,
 				WCD934X_CPE_SS_PWR_CPE_SYSMEM_SHUTDOWN_3,
-				~(1 << i), 0x00);
+				mem_enable_values[i]);
 
 		snd_soc_write(codec, WCD934X_CPE_SS_PWR_CPE_DRAM1_SHUTDOWN,
 			      0x05);
@@ -1049,10 +1049,6 @@ static int wcd_control_init(struct device *dev, void *priv_data)
 		goto err_clk_enable;
 	}
 	wcd_cntl_cpar_ctrl(cntl, true);
-
-	/* Enable the memories */
-	wcd_cntl_enable_memory(cntl, WCD_MEM_TYPE_ALWAYS_ON);
-	wcd_cntl_enable_memory(cntl, WCD_MEM_TYPE_SWITCHABLE);
 
 	return 0;
 
