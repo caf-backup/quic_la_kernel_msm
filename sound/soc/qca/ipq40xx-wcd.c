@@ -263,14 +263,12 @@ out:
 
 static struct snd_soc_dai_link ipq40xx_snd_dai[] = {
 	{
-		.name		= "IPQ40xx Media3",
-		.stream_name	= "I2S1",
-		.cpu_dai_name	= "qca-i2s1-dai",
-		.platform_name	= "770b000.qca-pcm-i2s1",
-		.codec_dai_name	= "tavil_i2s_rx2",
+		.name		= "IPQ40xx Media2",
+		.stream_name	= "I2S",
+		.cpu_dai_name	= "qca-i2s-dai",
+		.platform_name	= "7709000.qca-pcm-i2s",
+		.codec_dai_name	= "tavil_i2s_rx1",
 		.codec_name	= "tavil_codec",
-		.no_pcm = 1,
-		.dpcm_playback = 1,
 		.init  = &apq_mi2s_audrx_init,
 		.ignore_suspend = 1,
 	},
@@ -477,13 +475,6 @@ static int ipq40xx_audio_probe(struct platform_device *pdev)
 			"Looking up %s property in node %s failed, err%d\n",
 			"qcom,tavil-mclk-clk-freq",
 			pdev->dev.of_node->full_name, ret);
-		goto err;
-	}
-
-	if (pdata->mclk_freq != CODEC_MCLK_12P288MHZ) {
-		dev_err(&pdev->dev, "unsupported mclk freq %u\n",
-			pdata->mclk_freq);
-		ret = -EINVAL;
 		goto err;
 	}
 

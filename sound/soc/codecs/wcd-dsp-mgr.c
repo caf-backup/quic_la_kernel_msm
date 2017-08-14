@@ -17,7 +17,6 @@
 #include <linux/debugfs.h>
 #include <linux/component.h>
 #include <linux/dma-mapping.h>
-#include <soc/qcom/ramdump.h>
 #include <sound/wcd-dsp-mgr.h>
 #include "wcd-dsp-utils.h"
 
@@ -83,6 +82,8 @@ static char *wdsp_get_cmpnt_type_string(enum wdsp_cmpnt_type);
 #define WDSP_SSR_STATUS_READY         \
 	(WDSP_SSR_STATUS_WDSP_READY | WDSP_SSR_STATUS_CDC_READY)
 #define WDSP_SSR_READY_WAIT_TIMEOUT   (10 * HZ)
+
+#define WDSP_LATE_DLOAD_RE_SECTIONS true
 
 enum wdsp_ssr_type {
 
@@ -185,7 +186,7 @@ struct wdsp_mgr_priv {
 
 	/* Debugfs related */
 	struct dentry *entry;
-	bool panic_on_error;
+	u32 panic_on_error;
 };
 
 static char *wdsp_get_ssr_type_string(enum wdsp_ssr_type type)
@@ -451,11 +452,14 @@ static int wdsp_init_and_dload_code_sections(struct wdsp_mgr_priv *wdsp)
 		WDSP_SET_STATUS(wdsp, WDSP_STATUS_INITIALIZED);
 	}
 
-	/* Download the read-execute sections of image */
-	ret = wdsp_download_segments(wdsp, WDSP_ELF_FLAG_RE);
-	if (IS_ERR_VALUE(ret)) {
-		WDSP_ERR(wdsp, "Error %d to download code sections", ret);
-		goto done;
+	if (!WDSP_LATE_DLOAD_RE_SECTIONS) {
+		/* Download the read-execute sections of image */
+		ret = wdsp_download_segments(wdsp, WDSP_ELF_FLAG_RE);
+		if (IS_ERR_VALUE(ret)) {
+			WDSP_ERR(wdsp, "Error %d to download code sections",
+				 ret);
+			goto done;
+		}
 	}
 done:
 	return ret;
@@ -481,8 +485,17 @@ static int wdsp_enable_dsp(struct wdsp_mgr_priv *wdsp)
 {
 	int ret;
 
-	/* Make sure wdsp is in good state */
-	if (!WDSP_STATUS_IS_SET(wdsp, WDSP_STATUS_CODE_DLOADED)) {
+
+	if (WDSP_LATE_DLOAD_RE_SECTIONS) {
+		/* Download the read-write sections of image */
+		ret = wdsp_download_segments(wdsp, WDSP_ELF_FLAG_RE);
+		if (IS_ERR_VALUE(ret)) {
+			WDSP_ERR(wdsp, "Code section download failed, err = %d",
+				 ret);
+			goto done;
+		}
+	} else if (!WDSP_STATUS_IS_SET(wdsp, WDSP_STATUS_CODE_DLOADED)) {
+		/* Make sure wdsp is in good state */
 		WDSP_ERR(wdsp, "WDSP in invalid state 0x%x", wdsp->status);
 		ret = -EINVAL;
 		goto done;
@@ -613,7 +626,6 @@ static void wdsp_collect_ramdumps(struct wdsp_mgr_priv *wdsp)
 {
 	struct wdsp_img_section img_section;
 	struct wdsp_err_signal_arg *data = &wdsp->dump_data.err_data;
-	struct ramdump_segment rd_seg;
 	int ret = 0;
 
 	if (wdsp->ssr_type != WDSP_SSR_TYPE_WDSP_DOWN ||
@@ -665,14 +677,6 @@ static void wdsp_collect_ramdumps(struct wdsp_mgr_priv *wdsp)
 	 * then cause a BUG here to aid debugging.
 	 */
 	BUG_ON(wdsp->panic_on_error);
-
-	rd_seg.address = (unsigned long) wdsp->dump_data.rd_v_addr;
-	rd_seg.size = img_section.size;
-	rd_seg.v_address = wdsp->dump_data.rd_v_addr;
-
-	ret = do_ramdump(wdsp->dump_data.rd_dev, &rd_seg, 1);
-	if (IS_ERR_VALUE(ret))
-		WDSP_ERR(wdsp, "do_ramdump failed with error %d", ret);
 
 err_read_dumps:
 	dma_free_coherent(wdsp->mdev, data->dump_size,
@@ -983,11 +987,6 @@ static int wdsp_mgr_bind(struct device *dev)
 
 	wdsp->ops = &wdsp_ops;
 
-	/* Setup ramdump device */
-	wdsp->dump_data.rd_dev = create_ramdump_device("wdsp", dev);
-	if (!wdsp->dump_data.rd_dev)
-		dev_info(dev, "%s: create_ramdump_device failed\n", __func__);
-
 	ret = component_bind_all(dev, wdsp->ops);
 	if (IS_ERR_VALUE(ret))
 		WDSP_ERR(wdsp, "component_bind_all failed %d\n", ret);
@@ -1022,11 +1021,6 @@ static void wdsp_mgr_unbind(struct device *dev)
 	component_unbind_all(dev, wdsp->ops);
 
 	wdsp_mgr_debugfs_remove(wdsp);
-
-	if (wdsp->dump_data.rd_dev) {
-		destroy_ramdump_device(wdsp->dump_data.rd_dev);
-		wdsp->dump_data.rd_dev = NULL;
-	}
 
 	/* Clear all status bits */
 	wdsp->status = 0x00;
@@ -1163,7 +1157,6 @@ static int wdsp_mgr_probe(struct platform_device *pdev)
 	wdsp->ready_status = WDSP_SSR_STATUS_READY;
 	INIT_WORK(&wdsp->ssr_work, wdsp_ssr_work_fn);
 	init_completion(&wdsp->ready_compl);
-	arch_setup_dma_ops(wdsp->mdev, 0, 0, NULL, 0);
 	dev_set_drvdata(mdev, wdsp);
 
 	ret = component_master_add_with_match(mdev, &wdsp_master_ops,

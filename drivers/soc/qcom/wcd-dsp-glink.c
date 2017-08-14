@@ -22,12 +22,14 @@
 #include <linux/cdev.h>
 #include <linux/platform_device.h>
 #include <linux/vmalloc.h>
+#include <linux/sched.h>
+#include <linux/wait.h>
 #include <soc/qcom/glink.h>
 #include "sound/wcd-dsp-glink.h"
 
 #define WDSP_GLINK_DRIVER_NAME "wcd-dsp-glink"
 #define WDSP_MAX_WRITE_SIZE (256 * 1024)
-#define WDSP_MAX_READ_SIZE (4 * 1024)
+#define WDSP_MAX_READ_SIZE (8 * 1024)
 #define WDSP_MAX_NO_OF_INTENTS (20)
 #define WDSP_MAX_NO_OF_CHANNELS (10)
 #define WDSP_WRITE_PKT_SIZE (sizeof(struct wdsp_write_pkt))
