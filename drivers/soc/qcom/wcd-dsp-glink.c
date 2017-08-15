@@ -163,8 +163,10 @@ static void wdsp_glink_free_tx_buf(const void *priv, const void *pkt_priv)
 	ch = (struct wdsp_glink_ch *)priv;
 	wpriv = ch->wpriv;
 	/* Work queue to free tx pkt */
-	INIT_WORK(&tx_buf->free_tx_work, wdsp_glink_free_tx_buf_work);
-	queue_work(wpriv->work_queue, &tx_buf->free_tx_work);
+	if (wpriv && wpriv->work_queue) {
+		INIT_WORK(&tx_buf->free_tx_work, wdsp_glink_free_tx_buf_work);
+		queue_work(wpriv->work_queue, &tx_buf->free_tx_work);
+	}
 }
 
 /*
@@ -1050,6 +1052,7 @@ static int wdsp_glink_release(struct inode *inode, struct file *file)
 
 	flush_workqueue(wpriv->work_queue);
 	destroy_workqueue(wpriv->work_queue);
+	wpriv->work_queue = NULL;
 
 	/*
 	 * Clean up glink channel memory in channel state
