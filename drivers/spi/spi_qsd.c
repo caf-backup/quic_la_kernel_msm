@@ -1828,6 +1828,8 @@ error:
 
 static void reset_core(struct msm_spi *dd)
 {
+	u32 spi_ioc;
+
 	msm_spi_register_init(dd);
 	/*
 	 * The SPI core generates a bogus input overrun error on some targets,
@@ -1836,9 +1838,13 @@ static void reset_core(struct msm_spi *dd)
 	 * bit.
 	 */
 	msm_spi_enable_error_flags(dd);
-
-	writel_relaxed(SPI_IO_C_NO_TRI_STATE, dd->base + SPI_IO_CONTROL);
 	msm_spi_set_state(dd, SPI_OP_STATE_RESET);
+
+	spi_ioc = SPI_IO_C_NO_TRI_STATE;
+	if (dd->cur_msg->spi->mode & SPI_CPOL)
+		spi_ioc |= SPI_IO_C_CLK_IDLE_HIGH;
+
+	writel_relaxed(spi_ioc, dd->base + SPI_IO_CONTROL);
 }
 
 static void put_local_resources(struct msm_spi *dd)

@@ -159,7 +159,7 @@ tlc591xx_configure(struct device *dev,
 
 		led->priv = priv;
 		led->led_no = i;
-		led->ldev.brightness_set_blocking = tlc591xx_brightness_set;
+		led->ldev.brightness_set = tlc591xx_brightness_set;
 		led->ldev.max_brightness = LED_FULL;
 		err = led_classdev_register(dev, &led->ldev);
 		if (err < 0) {
