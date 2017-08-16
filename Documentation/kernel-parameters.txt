@@ -1402,13 +1402,24 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			to isolate from the general SMP balancing and scheduling
 			algorithms. You can move a process onto or off an
 			"isolated" CPU via the CPU affinity syscalls or cpuset.
-			<cpu number> begins at 0 and the maximum value is
+			<cpu number> begins at 1 and the maximum value is
 			"number of CPUs in system - 1".
 
 			This option is the preferred way to isolate CPUs. The
 			alternative -- manually setting the CPU mask of all
 			tasks in the system -- can cause problems and
 			suboptimal load balancer performance.
+
+			Based on this option, we are aligning the affinity of
+			kernel threads, unbound workqueues and kswapd by
+			changing the respective CPU masks.
+
+			Note that, CPU 0 cannot be isolated, since all
+			SPI's will have interrupts going to CPU 0 and GIC sets
+			it in a way that it goes to CPU 0 always. The CPU
+			0 will be discarded if it is combined with other CPUs
+			and if only CPU 0 is specified, there will be no effect
+			on setting this.
 
 	iucv=		[HW,NET]
 
