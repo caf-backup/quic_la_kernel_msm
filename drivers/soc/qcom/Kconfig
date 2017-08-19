@@ -87,6 +87,25 @@ config MSM_GLINK_LOOPBACK_SERVER
 	 remote clients to configure the loopback server and echo back the
 	 data received from the clients.
 
+config MSM_GLINK_SPI_XPRT
+	depends on MSM_GLINK
+	tristate "Generic Link (G-Link) SPI Transport"
+	help
+	 G-Link SPI Transport is a Transport plug-in developed over SPI
+	 bus. This transport plug-in performs marshaling of G-Link
+	 commands & data to the appropriate SPI bus wire format and
+	 allows for G-Link communication with remote subsystems that are
+	 external to the System-on-Chip.
+
+config WCD_DSP_GLINK
+	tristate "WCD DSP GLINK Driver"
+	depends on MSM_GLINK
+	default y if SND_SOC_WCD934X=y
+	help
+	   This option enables driver which provides communication interface
+	   between MSM and WCD DSP over glink transport protocol. This driver
+	   provides read and write interface via char device.
+
 config QCOM_CACHE_DUMP_ON_PANIC
         bool "Dump caches on panic"
         depends on QCOM_CACHE_DUMP
