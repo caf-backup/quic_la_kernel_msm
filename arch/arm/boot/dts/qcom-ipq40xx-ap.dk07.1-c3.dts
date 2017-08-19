@@ -145,6 +145,16 @@
 					input-enable;
 				};
 			};
+			wcd_clk_pins: wcd_clk_pinmux {
+				mux_1 {
+					pins = "gpio24";
+					function = "audio0";
+				};
+			};
+		};
+
+		adcc: clock-controller@7700038 {
+			status = "ok";
 		};
 
 		/* Enable Audio Interfaces */
@@ -262,6 +272,11 @@
 				interrupts = <0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
 						17 18 19 20 21 22 23 24 25 26 27 28 29
 						30>;
+
+				clocks = <&adcc ADCC_TXM_CLK_SRC>;
+				clock-names = "audio_tx_mclk";
+				pinctrl-0 = <&wcd_clk_pins>;
+				pinctrl-names = "default";
 
 				qcom,cdc-micbias1-mv = <1800>;
 				qcom,cdc-micbias2-mv = <1800>;
