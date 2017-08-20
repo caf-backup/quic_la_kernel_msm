@@ -427,13 +427,13 @@ static int ipq_init_wsa_dev(struct platform_device *pdev,
 }
 
 
-static const struct of_device_id ipq40xx_audio_id_table[] = {
+static const struct of_device_id ipq40xx_wcd_audio_id_table[] = {
 	{ .compatible = "qcom,ipq40xx-asoc-snd-tavil", },
 	{},
 };
-MODULE_DEVICE_TABLE(of, ipq40xx_audio_id_table);
+MODULE_DEVICE_TABLE(of, ipq40xx_wcd_audio_id_table);
 
-static int ipq40xx_audio_probe(struct platform_device *pdev)
+static int ipq40xx_wcd_audio_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct snd_soc_card *card = &snd_soc_card_qca;
@@ -522,7 +522,7 @@ err:
 	return ret;
 }
 
-static int ipq40xx_audio_remove(struct platform_device *pdev)
+static int ipq40xx_wcd_audio_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
@@ -532,18 +532,18 @@ static int ipq40xx_audio_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver ipq40xx_audio_driver = {
+static struct platform_driver ipq40xx_wcd_audio_driver = {
 	.driver = {
-		.name = "ipq40xx_audio",
+		.name = "ipq40xx_wcd_audio",
 		.owner = THIS_MODULE,
-		.of_match_table = ipq40xx_audio_id_table,
+		.of_match_table = ipq40xx_wcd_audio_id_table,
 	},
-	.probe = ipq40xx_audio_probe,
-	.remove = ipq40xx_audio_remove,
+	.probe = ipq40xx_wcd_audio_probe,
+	.remove = ipq40xx_wcd_audio_remove,
 };
 
-module_platform_driver(ipq40xx_audio_driver);
+module_platform_driver(ipq40xx_wcd_audio_driver);
 
-MODULE_ALIAS("platform:ipq40xx_audio");
+MODULE_ALIAS("platform:ipq40xx_wcd_audio");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("ALSA SoC IPQ40xx Machine Driver");

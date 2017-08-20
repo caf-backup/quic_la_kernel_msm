@@ -1514,11 +1514,7 @@ static int swrm_probe(struct platform_device *pdev)
 				   (void *) "swrm_reg_dump",
 				   &swrm_debug_ops);
 	}
-	pm_runtime_set_autosuspend_delay(&pdev->dev, auto_suspend_timer);
-	pm_runtime_use_autosuspend(&pdev->dev);
-	pm_runtime_set_active(&pdev->dev);
-	pm_runtime_enable(&pdev->dev);
-	pm_runtime_mark_last_busy(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 err_mstr_fail:
@@ -1543,8 +1539,6 @@ static int swrm_remove(struct platform_device *pdev)
 		kfree(swrm->mstr_port);
 		swrm->mstr_port = NULL;
 	}
-	pm_runtime_disable(&pdev->dev);
-	pm_runtime_set_suspended(&pdev->dev);
 	swr_unregister_master(&swrm->master);
 	mutex_destroy(&swrm->mlock);
 	mutex_destroy(&swrm->reslock);
@@ -1845,11 +1839,6 @@ static const struct dev_pm_ops swrm_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(
 		swrm_suspend,
 		swrm_resume
-	)
-	SET_RUNTIME_PM_OPS(
-		swrm_runtime_suspend,
-		swrm_runtime_resume,
-		NULL
 	)
 };
 

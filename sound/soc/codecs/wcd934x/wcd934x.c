@@ -7821,12 +7821,6 @@ static int tavil_cdc_req_mclk_enable(struct tavil_priv *tavil,
 	int ret = 0;
 
 	if (enable) {
-		ret = clk_prepare_enable(tavil->wcd_ext_clk);
-		if (ret) {
-			dev_err(tavil->dev, "%s: ext clk enable failed\n",
-				__func__);
-			goto done;
-		}
 		/* get BG */
 		wcd_resmgr_enable_master_bias(tavil->resmgr);
 		/* get MCLK */
@@ -7836,7 +7830,6 @@ static int tavil_cdc_req_mclk_enable(struct tavil_priv *tavil,
 		wcd_resmgr_disable_clk_block(tavil->resmgr, WCD_CLK_MCLK);
 		/* put BG */
 		wcd_resmgr_disable_master_bias(tavil->resmgr);
-		clk_disable_unprepare(tavil->wcd_ext_clk);
 	}
 
 done:
@@ -9569,15 +9562,31 @@ static int tavil_probe(struct platform_device *pdev)
 	tavil->swr.spkr_gain_offset = WCD934X_RX_GAIN_OFFSET_0_DB;
 
 	/* Register for Clock */
-	wcd_ext_clk = clk_get(tavil->wcd9xxx->dev, "wcd_clk");
+	wcd_ext_clk = devm_clk_get(tavil->wcd9xxx->dev, "audio_tx_mclk");
 	if (IS_ERR(wcd_ext_clk)) {
-		/*
-		 * If clock is static then wcd_ext_clk will not be
-		 * returned. In this case set wcd_ext_clk to NULL.
-		 */
-		wcd_ext_clk = NULL;
+		dev_err(tavil->wcd9xxx->dev, "%s: clk get %s failed\n",
+			__func__, "audio_tx_mclk");
+		goto err_clk;
 	}
 	tavil->wcd_ext_clk = wcd_ext_clk;
+
+	/* enable the wcd_ext_clk */
+	ret = clk_set_rate(tavil->wcd_ext_clk, tavil->wcd9xxx->mclk_rate);
+	if (ret) {
+		dev_err(tavil->wcd9xxx->dev,
+			"%s: clk_set_rate with %u failed err %d\n",
+			__func__, tavil->wcd9xxx->mclk_rate, ret);
+		goto err_clk_rate;
+	}
+
+	ret = clk_prepare_enable(tavil->wcd_ext_clk);
+	if (ret) {
+		dev_err(tavil->wcd9xxx->dev,
+			"%s: clk_prepare_enable for %s failed err %d\n",
+			__func__, "audio_tx_mclk", ret);
+		goto err_clk_rate;
+	}
+
 	set_bit(AUDIO_NOMINAL, &tavil->status_mask);
 	/* Update codec register default values */
 	dev_dbg(&pdev->dev, "%s: MCLK Rate = %x\n", __func__,
@@ -9602,16 +9611,16 @@ static int tavil_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "%s: Codec registration failed\n",
 		 __func__);
-		goto err_cdc_reg;
+		goto err_clk_rate;
 	}
 	schedule_work(&tavil->tavil_add_child_devices_work);
 
 	return ret;
 
-err_cdc_reg:
+err_clk_rate:
 	if (!IS_ERR(tavil->wcd_ext_clk))
 		clk_put(tavil->wcd_ext_clk);
-
+err_clk:
 	wcd_resmgr_remove(tavil->resmgr);
 err_resmgr:
 	mutex_destroy(&tavil->micb_lock);
@@ -9641,6 +9650,7 @@ static int tavil_remove(struct platform_device *pdev)
 	mutex_destroy(&tavil->swr.clk_mutex);
 
 	snd_soc_unregister_codec(&pdev->dev);
+	clk_disable_unprepare(tavil->wcd_ext_clk);
 	clk_put(tavil->wcd_ext_clk);
 	wcd_resmgr_remove(tavil->resmgr);
 	if (tavil->dsd_config) {
