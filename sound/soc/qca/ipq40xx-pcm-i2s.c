@@ -112,6 +112,8 @@ static int ipq40xx_pcm_preallocate_dma_buffer(struct snd_pcm *pcm,
 	size_t size;
 	u8 *area;
 	dma_addr_t addr;
+	u32 num_periods;
+	struct device_node *np;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		pcm_hw = &ipq40xx_pcm_hardware_playback;
@@ -119,6 +121,19 @@ static int ipq40xx_pcm_preallocate_dma_buffer(struct snd_pcm *pcm,
 		pcm_hw = &ipq40xx_pcm_hardware_capture;
 	else
 		return -EINVAL;
+
+	np = of_node_get(pcm->card->dev->of_node);
+	if (!(of_property_read_u32(np, "ipq,i2s-no-of-periods",
+						&num_periods))) {
+		pcm_hw->periods_min = num_periods;
+		pcm_hw->periods_max = num_periods;
+		pcm_hw->buffer_bytes_max =
+			IPQ40xx_I2S_PERIOD_BYTES_MIN * num_periods;
+		pcm_hw->period_bytes_max =
+			(IPQ40xx_I2S_PERIOD_BYTES_MIN * num_periods) / 2;
+	} else {
+		dev_dbg(pcm->card->dev, "i2s-no-of-periods property not available\n");
+	}
 
 	size = ip40xx_dma_buffer_size(pcm_hw);
 	buf->dev.type = SNDRV_DMA_TYPE_DEV;
