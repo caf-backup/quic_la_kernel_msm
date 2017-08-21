@@ -261,7 +261,7 @@
 
 		i2c_0: i2c@78b7000 { /* BLSP1 QUP2 */
 			status = "ok";
-
+			qcom,clk-freq-out = <400000>;
 			wcd934x_cdc: tavil_codec@d {
 				#address-cells = <1>;
 				#size-cells = <0>;
