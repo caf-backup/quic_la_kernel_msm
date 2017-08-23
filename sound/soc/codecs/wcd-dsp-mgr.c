@@ -643,11 +643,6 @@ static void wdsp_collect_ramdumps(struct wdsp_mgr_priv *wdsp)
 		goto done;
 	}
 
-	if (!wdsp->dump_data.rd_dev) {
-		WDSP_ERR(wdsp, "Ramdump device is not setup");
-		goto done;
-	}
-
 	WDSP_DBG(wdsp, "base_addr 0x%x, dump_start_addr 0x%x, dump_size 0x%zx",
 		 wdsp->base_addr, data->remote_start_addr, data->dump_size);
 
@@ -676,7 +671,11 @@ static void wdsp_collect_ramdumps(struct wdsp_mgr_priv *wdsp)
 	 * If panic_on_error flag is explicitly set through the debugfs,
 	 * then cause a BUG here to aid debugging.
 	 */
-	BUG_ON(wdsp->panic_on_error);
+	if (wdsp->panic_on_error) {
+		WDSP_ERR(wdsp, "WDSP ramdump p_addr = 0x%x",
+			 wdsp->dump_data.rd_addr);
+		BUG_ON(1);
+	}
 
 err_read_dumps:
 	dma_free_coherent(wdsp->mdev, data->dump_size,
