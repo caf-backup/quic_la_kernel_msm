@@ -852,7 +852,7 @@ static void ip4ip6_fmr_calc(struct in6_addr *dest,
 	use_dest_addr = (xmit && dsth == iph) || (!xmit && dsth != iph);
 
 	/* get dst port */
-	if (((u8*)&dsth[1]) <= end && (
+	if (((u8 *)&dsth[1]) <= end && (
 		dsth->protocol == IPPROTO_UDP ||
 		dsth->protocol == IPPROTO_TCP ||
 		dsth->protocol == IPPROTO_SCTP ||
@@ -867,9 +867,9 @@ static void ip4ip6_fmr_calc(struct in6_addr *dest,
 		struct icmphdr *ih = (struct icmphdr*)(((u8*)dsth) + dsth->ihl * 4);
 
 		/* use icmp identifier as port */
-		if (((u8*)&ih) <= end && (
-		    (use_dest_addr && (
-		    ih->type == ICMP_ECHOREPLY ||
+		if (((u8 *)ih) <= end && (
+			(use_dest_addr && (
+			ih->type == ICMP_ECHOREPLY ||
 			ih->type == ICMP_TIMESTAMPREPLY ||
 			ih->type == ICMP_INFO_REPLY ||
 			ih->type == ICMP_ADDRESSREPLY)) ||
