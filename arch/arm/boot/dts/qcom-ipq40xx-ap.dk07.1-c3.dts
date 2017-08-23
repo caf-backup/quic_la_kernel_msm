@@ -169,7 +169,7 @@
 
 		snd_934x: sound-tavil {
 			status = "ok";
-			ipq,i2s-no-of-periods = <3>;
+			ipq,i2s-no-of-periods = <10>;
 			pinctrl-0 = <&audio_gpio_pins>;
 			pinctrl-1 = <&audio_pins>;
 			pinctrl-names = "default", "audio";
