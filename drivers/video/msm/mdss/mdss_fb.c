@@ -962,12 +962,6 @@ static int mdss_fb_set_par(struct fb_info *info)
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
 	struct fb_var_screeninfo *var = &info->var;
 	int old_imgType;
-	int ret = 0;
-
-	if (ret) {
-		pr_err("Shutdown pending. Aborting operation\n");
-		return ret;
-	}
 
 	old_imgType = mfd->fb_imgType;
 	switch (var->bits_per_pixel) {
@@ -1030,7 +1024,7 @@ static int mdss_fb_set_par(struct fb_info *info)
 		mfd->panel_reconfig = false;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int mdss_fb_register_extra_panel(struct platform_device *pdev,
