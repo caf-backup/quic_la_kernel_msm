@@ -18,7 +18,7 @@
 #include "wcd9xxx-regmap.h"
 
 
-static const struct reg_sequence wcd934x_1_1_defaults[] = {
+static const struct reg_default wcd934x_1_1_defaults[] = {
 	{ WCD934X_CHIP_TIER_CTRL_CHIP_ID_BYTE0,             0x01 },
 	{ WCD934X_BIAS_VBG_FINE_ADJ,                        0x75 },
 	{ WCD934X_HPH_REFBUFF_LP_CTL,                       0x0E },
@@ -1953,5 +1953,5 @@ struct regmap_config wcd934x_regmap_config = {
 	.max_register = WCD934X_MAX_REGISTER,
 	.volatile_reg = wcd934x_is_volatile_register,
 	.readable_reg = wcd934x_is_readable_register,
-	.can_multi_write = true,
+	.can_multi_write = false,
 };

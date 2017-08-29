@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -14,7 +14,6 @@
 
 #define __MFD_WCD9XXX_PDATA_H__
 
-#include <linux/slimbus/slimbus.h>
 #include <linux/mfd/msm-cdc-supply.h>
 
 #define MICBIAS_EXT_BYP_CAP 0x00
@@ -181,7 +180,6 @@ struct wcd9xxx_pdata {
 	int reset_gpio;
 	struct device_node *wcd_rst_np;
 	struct wcd9xxx_amic amic_settings;
-	struct slim_device slimbus_slave_device;
 	struct wcd9xxx_micbias_setting micbias;
 	struct wcd9xxx_ocp_setting ocp;
 	struct cdc_regulator *regulator;

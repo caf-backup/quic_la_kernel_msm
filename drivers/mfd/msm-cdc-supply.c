@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -208,7 +208,6 @@ int msm_cdc_release_supplies(struct device *dev,
 
 		regulator_set_voltage(supplies[i].consumer, 0,
 				      cdc_vreg[i].max_uV);
-		regulator_set_load(supplies[i].consumer, 0);
 		devm_regulator_put(supplies[i].consumer);
 		supplies[i].consumer = NULL;
 	}
@@ -332,8 +331,6 @@ int msm_cdc_init_supplies(struct device *dev,
 				__func__, vsup[i].supply, rc);
 			goto err_set_supply;
 		}
-		rc = regulator_set_load(vsup[i].consumer,
-					cdc_vreg[i].optimum_uA);
 		if (rc < 0) {
 			dev_err(dev, "%s: set regulator optimum mode failed for %s, err:%d\n",
 				__func__, vsup[i].supply, rc);
@@ -386,12 +383,9 @@ int msm_cdc_get_power_supplies(struct device *dev,
 	}
 	static_sup_cnt = of_property_count_strings(dev->of_node,
 						   static_prop_name);
-	if (IS_ERR_VALUE(static_sup_cnt)) {
-		dev_err(dev, "%s: Failed to get static supplies(%d)\n",
-			__func__, static_sup_cnt);
-		rc = static_sup_cnt;
-		goto err_supply_cnt;
-	}
+	if (IS_ERR_VALUE(static_sup_cnt))
+		static_sup_cnt = 0;
+
 	ond_sup_cnt = of_property_count_strings(dev->of_node, ond_prop_name);
 	if (IS_ERR_VALUE(ond_sup_cnt))
 		ond_sup_cnt = 0;
@@ -402,44 +396,51 @@ int msm_cdc_get_power_supplies(struct device *dev,
 		cp_sup_cnt = 0;
 
 	num_supplies = static_sup_cnt + ond_sup_cnt + cp_sup_cnt;
-	if (num_supplies <= 0) {
-		dev_err(dev, "%s: supply count is 0 or negative\n", __func__);
-		rc = -EINVAL;
-		goto err_supply_cnt;
-	}
 
-	cdc_reg = devm_kcalloc(dev, num_supplies,
-			       sizeof(struct cdc_regulator),
-			       GFP_KERNEL);
-	if (!cdc_reg) {
-		rc = -ENOMEM;
-		goto err_mem_alloc;
-	}
+	cdc_reg = NULL;
+	if (num_supplies) {
+		cdc_reg = devm_kcalloc(dev,
+					num_supplies,
+					sizeof(struct cdc_regulator),
+					GFP_KERNEL);
+		if (!cdc_reg) {
+			rc = -ENOMEM;
+			goto err_mem_alloc;
+		}
 
-	rc = msm_cdc_parse_supplies(dev, cdc_reg, static_prop_name,
-				    static_sup_cnt, false);
-	if (rc) {
-		dev_err(dev, "%s: failed to parse static supplies(%d)\n",
+		rc = msm_cdc_parse_supplies(dev,
+					cdc_reg,
+					static_prop_name,
+					static_sup_cnt,
+					false);
+		if (rc) {
+			dev_err(dev,
+				"%s: failed to parse static supplies(%d)\n",
 				__func__, rc);
-		goto err_sup;
-	}
+			goto err_sup;
+		}
 
-	rc = msm_cdc_parse_supplies(dev, &cdc_reg[static_sup_cnt],
-				    ond_prop_name, ond_sup_cnt,
-				    true);
-	if (rc) {
-		dev_err(dev, "%s: failed to parse demand supplies(%d)\n",
+		rc = msm_cdc_parse_supplies(dev,
+					&cdc_reg[static_sup_cnt],
+					ond_prop_name,
+					ond_sup_cnt,
+					true);
+		if (rc) {
+			dev_err(dev,
+				"%s: failed to parse demand supplies(%d)\n",
 				__func__, rc);
-		goto err_sup;
-	}
+			goto err_sup;
+		}
 
-	rc = msm_cdc_parse_supplies(dev,
-				    &cdc_reg[static_sup_cnt + ond_sup_cnt],
-				    cp_prop_name, cp_sup_cnt, true);
-	if (rc) {
-		dev_err(dev, "%s: failed to parse cp supplies(%d)\n",
+		rc = msm_cdc_parse_supplies(dev,
+					&cdc_reg[static_sup_cnt + ond_sup_cnt],
+					cp_prop_name, cp_sup_cnt, true);
+		if (rc) {
+			dev_err(dev,
+				"%s: failed to parse cp supplies(%d)\n",
 				__func__, rc);
-		goto err_sup;
+			goto err_sup;
+		}
 	}
 
 	*cdc_vreg = cdc_reg;
@@ -449,7 +450,6 @@ int msm_cdc_get_power_supplies(struct device *dev,
 
 err_sup:
 	devm_kfree(dev, cdc_reg);
-err_supply_cnt:
 err_mem_alloc:
 	return rc;
 }
