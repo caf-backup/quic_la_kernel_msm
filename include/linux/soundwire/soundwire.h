@@ -18,6 +18,8 @@
 
 extern struct bus_type soundwire_type;
 
+#define SOUNDWIRE_NAME_SIZE	32
+
 /* Soundwire supports max. of 8 channels per port */
 #define SWR_MAX_CHANNEL_NUM	8
 /* Soundwire supports max. of 14 ports on each device */
@@ -209,6 +211,7 @@ struct swr_driver {
 	int	(*device_up)(struct swr_device *swr);
 	int	(*device_down)(struct swr_device *swr);
 	int	(*reset_device)(struct swr_device *swr);
+	int	(*startup)(struct swr_device *swr);
 	struct device_driver		driver;
 	const struct swr_device_id	*id_table;
 };
