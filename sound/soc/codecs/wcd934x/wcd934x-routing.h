@@ -653,14 +653,15 @@ const struct snd_soc_dapm_route tavil_audio_map[] = {
 	{"CDC_IF RX7 MUX", "SLIM RX7", "SLIM RX7"},
 
 	/* CDC Rx interface with I2S */
-	{"CDC_IF RX0 MUX", "I2S RX0", "I2S RX0 MUX"},
-	{"CDC_IF RX1 MUX", "I2S RX1", "I2S RX1 MUX"},
-	{"CDC_IF RX2 MUX", "I2S RX2", "I2S RX2 MUX"},
-	{"CDC_IF RX3 MUX", "I2S RX3", "I2S RX3 MUX"},
-	{"CDC_IF RX4 MUX", "I2S RX4", "I2S RX4 MUX"},
-	{"CDC_IF RX5 MUX", "I2S RX5", "I2S RX5 MUX"},
-	{"CDC_IF RX6 MUX", "I2S RX6", "I2S RX6 MUX"},
-	{"CDC_IF RX7 MUX", "I2S RX7", "I2S RX7 MUX"},
+	{"CDC_IF RX0 MUX", "I2S_0 RX0", "I2S RX0 MUX"},
+	{"CDC_IF RX1 MUX", "I2S_0 RX1", "I2S RX1 MUX"},
+	{"CDC_IF RX2 MUX", "I2S_0 RX2", "I2S RX2 MUX"},
+	{"CDC_IF RX3 MUX", "I2S_0 RX3", "I2S RX3 MUX"},
+	{"CDC_IF RX4 MUX", "I2S_0 RX4", "I2S RX4 MUX"},
+	{"CDC_IF RX5 MUX", "I2S_0 RX5", "I2S RX5 MUX"},
+	{"CDC_IF RX6 MUX", "I2S_0 RX6", "I2S RX6 MUX"},
+	{"CDC_IF RX7 MUX", "I2S_0 RX7", "I2S RX7 MUX"},
+
 
 	{"RX INT0_1 MIX1 INP0", "RX0", "CDC_IF RX0 MUX"},
 	{"RX INT0_1 MIX1 INP0", "RX1", "CDC_IF RX1 MUX"},
