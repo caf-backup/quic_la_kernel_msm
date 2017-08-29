@@ -34,7 +34,11 @@ struct firmware_cal {
 };
 
 struct snd_soc_codec;
-int wcd_cal_create_hwdep(void *fw, int node, struct snd_soc_codec *codec);
+static inline int wcd_cal_create_hwdep(void *fw, int node,
+			struct snd_soc_codec *codec)
+{
+	return 0;
+}
 struct firmware_cal *wcdcal_get_fw_cal(struct fw_info *fw_data,
 					enum wcd_cal_type type);
 #endif /* __WCD9XXX_HWDEP_H__ */
