@@ -89,22 +89,23 @@
 			wifi_0_pins: wifi1_pinmux {
 				mux_1 {
 					pins = "gpio37";
+					output-high;
 					function="wcss0_dbg16";
 					bias-pull-down;
-					drive-cap = <DRV_CAP_QUARTER>;
+					drive-strength = <6>;
 				};
 				mux_2 {
 					pins = "gpio43";
 					function="wifi_wci1";
 					bias-pull-down;
-					drive-cap = <DRV_CAP_QUARTER>;
+					drive-strength = <6>;
 				};
 				mux_3 {
 					pins = "gpio52";
 					output-high;
 					function="gpio";
 					bias-pull-up;
-					drive-cap = <DRV_CAP_QUARTER>;
+					drive-strength = <6>;
 				};
 				mux_4 {
 					pins = "gpio61";
@@ -198,7 +199,6 @@
 			pinctrl-names = "default";
 			btcoex_support = <1>;
 			wlan_prio_gpio = <52>;
-			dual_band_switch_gpio = <61>;
 		};
 
 		wifi1: wifi@a800000 {
