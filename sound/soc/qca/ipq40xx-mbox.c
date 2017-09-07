@@ -375,7 +375,7 @@ int ipq40xx_mbox_dma_prepare(int channel_id)
 		val |= MBOX_DMA_POLICY_SW_RESET;
 		writel(val, mbox_reg + ADSS_MBOXn_MBOX_DMA_POLICY_REG);
 
-		mdelay(10);
+		udelay(1);
 
 		val &= ~(MBOX_DMA_POLICY_SW_RESET);
 		writel(val, mbox_reg + ADSS_MBOXn_MBOX_DMA_POLICY_REG);
