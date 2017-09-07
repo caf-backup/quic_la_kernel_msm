@@ -543,7 +543,7 @@ int module_finalize(const Elf_Ehdr *hdr,
 	return 0;
 }
 
-void module_arch_freeing_init(struct module *mod)
+void module_arch_cleanup(struct module *mod)
 {
 	if (mod->arch.phys_plt_tbl) {
 		__module_free(mod->arch.phys_plt_tbl);
@@ -553,10 +553,6 @@ void module_arch_freeing_init(struct module *mod)
 		__module_free(mod->arch.virt_plt_tbl);
 		mod->arch.virt_plt_tbl = NULL;
 	}
-}
-
-void module_arch_cleanup(struct module *mod)
-{
 	spin_lock_irq(&dbe_lock);
 	list_del(&mod->arch.dbe_list);
 	spin_unlock_irq(&dbe_lock);
