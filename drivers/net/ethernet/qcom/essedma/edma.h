@@ -338,6 +338,7 @@ struct edma_common_info {
 	struct edma_hw hw; /* edma hw specific structure */
 	struct edma_per_cpu_queues_info edma_percpu_info[CONFIG_NR_CPUS]; /* per cpu information */
 	spinlock_t stats_lock; /* protect edma stats area for updation */
+	u32 num_cores;
 };
 
 /* transimit packet descriptor (tpd) ring */
