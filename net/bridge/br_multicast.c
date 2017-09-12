@@ -1026,7 +1026,7 @@ static int br_ip4_multicast_igmp3_report(struct net_bridge *br,
 					 struct sk_buff *skb,
 					 u16 vid)
 {
-	const unsigned char *src;
+	const unsigned char *src = eth_hdr(skb)->h_source;
 	struct igmpv3_report *ih;
 	struct igmpv3_grec *grec;
 	int i;
@@ -1072,7 +1072,6 @@ static int br_ip4_multicast_igmp3_report(struct net_bridge *br,
 		    ntohs(grec->grec_nsrcs) == 0) {
 			br_ip4_multicast_leave_group(br, port, group, vid, src);
 		} else {
-			src = eth_hdr(skb)->h_source;
 			err = br_ip4_multicast_add_group(br, port, group, vid, src);
 			if (err)
 				break;
