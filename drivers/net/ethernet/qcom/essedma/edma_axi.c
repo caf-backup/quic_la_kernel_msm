@@ -26,6 +26,41 @@
 /* Weight round robin and virtual QID shift */
 #define EDMA_WRR_VID_SCTL_SHIFT 16
 
+static const uint32_t edma_idt_tbl[EDMA_CPU_CORES_SUPPORTED][EDMA_NUM_IDT] = {
+
+	/* For 1 core */
+	{
+		0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0
+	},
+
+	/* For 2 cores */
+	{
+		0x20202020, 0x20202020, 0x20202020, 0x20202020,
+		0x20202020, 0x20202020, 0x20202020, 0x20202020,
+		0x20202020, 0x20202020, 0x20202020, 0x20202020,
+		0x20202020, 0x20202020, 0x20202020, 0x20202020
+	},
+
+	/* For 3 cores */
+	{
+		0x20420420, 0x04204204, 0x42042042, 0x20420420,
+		0x04204204, 0x42042042, 0x20420420, 0x04204204,
+		0x42042042, 0x20420420, 0x04204204, 0x42042042,
+		0x20420420, 0x04204204, 0x42042042, 0x20420420
+	},
+
+	/* For 4 cores */
+	{
+		0x64206420, 0x64206420, 0x64206420, 0x64206420,
+		0x64206420, 0x64206420, 0x64206420, 0x64206420,
+		0x64206420, 0x64206420, 0x64206420, 0x64206420,
+		0x64206420, 0x64206420, 0x64206420, 0x64206420
+	}
+};
+
 char edma_axi_driver_name[] = "ess_edma";
 static const u32 default_msg = NETIF_MSG_DRV | NETIF_MSG_PROBE |
 	NETIF_MSG_LINK | NETIF_MSG_TIMER | NETIF_MSG_IFDOWN | NETIF_MSG_IFUP;
@@ -1081,6 +1116,17 @@ static int edma_axi_probe(struct platform_device *pdev)
 	hw->tx_intr_mask = EDMA_TX_IMR_NORMAL_MASK;
 	hw->rx_intr_mask = EDMA_RX_IMR_NORMAL_MASK;
 
+	edma_cinfo->num_cores = EDMA_CPU_CORES_SUPPORTED;
+
+	if (of_property_read_bool(np, "qcom,num-cores")) {
+		of_property_read_u32(np, "qcom,num-cores",
+				     &edma_cinfo->num_cores);
+
+		if (!edma_cinfo->num_cores ||
+			edma_cinfo->num_cores > EDMA_CPU_CORES_SUPPORTED)
+			edma_cinfo->num_cores = EDMA_CPU_CORES_SUPPORTED;
+	}
+
 	of_property_read_u32(np, "qcom,page-mode", &edma_cinfo->page_mode);
 	of_property_read_u32(np, "qcom,rx_head_buf_size",
 			     &hw->rx_head_buff_size);
@@ -1482,7 +1528,8 @@ static int edma_axi_probe(struct platform_device *pdev)
 	 * and so on
 	 */
 	for (i = 0; i < EDMA_NUM_IDT; i++)
-		edma_write_reg(EDMA_REG_RSS_IDT(i), EDMA_RSS_IDT_VALUE);
+		edma_write_reg(EDMA_REG_RSS_IDT(i),
+				edma_idt_tbl[edma_cinfo->num_cores - 1][i]);
 
 	/* Configure load balance mapping table.
 	 * 4 table entry will be configured according to the
