@@ -173,6 +173,8 @@
 			pinctrl-0 = <&audio_gpio_pins>;
 			pinctrl-1 = <&audio_pins>;
 			pinctrl-names = "default", "audio";
+			qcom,hph-en0-gpio = <&tavil_hph_en0>;
+			qcom,hph-en1-gpio = <&tavil_hph_en1>;
 		};
 
 		uart1:uart@78b0000 {
@@ -340,6 +342,50 @@
 							input-enable;
 						};
 					};
+
+					hph_en0_wcd_active: hph_en0_wcd_active {
+						mux {
+							pins = "gpio4";
+						};
+
+						config {
+							pins = "gpio4";
+							output-high;
+						};
+					};
+
+					hph_en0_wcd_sleep: hph_en0_wcd_sleep {
+						mux {
+							pins = "gpio4";
+						};
+
+						config {
+							pins = "gpio4";
+							output-low;
+						};
+					};
+
+					hph_en1_wcd_active: hph_en1_wcd_active {
+						mux {
+							pins = "gpio5";
+						};
+
+						config {
+							pins = "gpio5";
+							output-high;
+						};
+					};
+
+					hph_en1_wcd_sleep: hph_en1_wcd_sleep {
+						mux {
+							pins = "gpio5";
+						};
+
+						config {
+							pins = "gpio5";
+							output-low;
+						};
+					};
 				};
 
 				wsa_spkr_wcd_sd1: msm_cdc_pinctrll {
@@ -356,6 +402,19 @@
 					pinctrl-1 = <&spkr_2_wcd_en_sleep>;
 				};
 
+				tavil_hph_en0: msm_cdc_pinctrl_hph_en0 {
+					compatible = "qcom,msm-cdc-pinctrl";
+					pinctrl-names = "aud_active", "aud_sleep";
+					pinctrl-0 = <&hph_en0_wcd_active>;
+					pinctrl-1 = <&hph_en0_wcd_sleep>;
+				};
+
+				tavil_hph_en1: msm_cdc_pinctrl_hph_en1 {
+					compatible = "qcom,msm-cdc-pinctrl";
+					pinctrl-names = "aud_active", "aud_sleep";
+					pinctrl-0 = <&hph_en1_wcd_active>;
+					pinctrl-1 = <&hph_en1_wcd_sleep>;
+				};
 				swr_master {
 					compatible = "qcom,swr-wcd";
 					#address-cells = <2>;
