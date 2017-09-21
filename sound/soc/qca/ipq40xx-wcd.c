@@ -29,7 +29,7 @@
 #include <sound/jack.h>
 #include <linux/io.h>
 #include <linux/pinctrl/consumer.h>
-
+#include <linux/mfd/msm-cdc-pinctrl.h>
 #include "ipq40xx-adss.h"
 
 #include "../codecs/wcd934x/wcd934x.h"
@@ -41,6 +41,9 @@
 #define CODEC_MCLK_12P288MHZ        12288000
 #define DEV_NAME_STR_LEN            32
 
+#define MSM_HIFI_ON 1
+
+static int msm_hifi_control;
 static struct platform_device *spdev;
 static struct snd_soc_aux_dev *msm_aux_dev;
 static struct snd_soc_codec_conf *msm_codec_conf;
@@ -107,10 +110,14 @@ struct msm_wsa881x_dev_info {
 struct apq8096_i2c_asoc_mach_data {
 	u32 mclk_freq;
 	int us_euro_gpio;
-	int hph_en1_gpio;
-	int hph_en0_gpio;
+	struct device_node *hph_en1_gpio;
+	struct device_node *hph_en0_gpio;
 	struct snd_info_entry *codec_root;
 };
+
+static const char *const hifi_text[] = {"Off", "On"};
+
+static SOC_ENUM_SINGLE_EXT_DECL(hifi_function, hifi_text);
 
 static int apq_snd_enable_codec_ext_clk(struct snd_soc_codec *codec,
 					int enable)
@@ -132,6 +139,89 @@ static int apq8096_i2c_mclk_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int msm_hifi_ctrl(struct snd_soc_codec *codec)
+{
+	struct snd_soc_dapm_context *dapm = &(codec->dapm);
+	struct snd_soc_card *card = codec->card;
+	struct apq8096_i2c_asoc_mach_data *pdata =
+				snd_soc_card_get_drvdata(card);
+
+	pr_debug("%s: msm_hifi_control = %d", __func__,
+		 msm_hifi_control);
+
+	if (!pdata || !pdata->hph_en1_gpio) {
+		pr_err("%s: hph_en1_gpio is invalid\n", __func__);
+		return -EINVAL;
+	}
+	if (msm_hifi_control == MSM_HIFI_ON) {
+		msm_cdc_pinctrl_select_active_state(pdata->hph_en1_gpio);
+		/* 5msec delay needed as per HW requirement */
+		usleep_range(5000, 5010);
+	} else {
+		msm_cdc_pinctrl_select_sleep_state(pdata->hph_en1_gpio);
+	}
+	snd_soc_dapm_sync(dapm);
+
+	return 0;
+}
+
+static int msm_hifi_get(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	pr_debug("%s: msm_hifi_control = %d\n",
+		 __func__, msm_hifi_control);
+	ucontrol->value.integer.value[0] = msm_hifi_control;
+
+	return 0;
+}
+
+static int msm_hifi_put(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+
+	pr_debug("%s() ucontrol->value.integer.value[0] = %ld\n",
+		 __func__, ucontrol->value.integer.value[0]);
+
+	msm_hifi_control = ucontrol->value.integer.value[0];
+	msm_hifi_ctrl(codec);
+
+	return 0;
+}
+
+static int msm_hifi_ctrl_event(struct snd_soc_dapm_widget *w,
+			       struct snd_kcontrol *k, int event)
+{
+	struct snd_soc_codec *codec = w->dapm->codec;
+	struct snd_soc_card *card = codec->card;
+	struct apq8096_i2c_asoc_mach_data *pdata =
+				snd_soc_card_get_drvdata(card);
+
+	pr_debug("%s: msm_hifi_control = %d", __func__, msm_hifi_control);
+
+	if (!pdata || !pdata->hph_en0_gpio) {
+		pr_err("%s: hph_en0_gpio is invalid\n", __func__);
+		return -EINVAL;
+	}
+
+	if (msm_hifi_control != MSM_HIFI_ON) {
+		pr_debug("%s: HiFi mixer control is not set\n",
+			 __func__);
+		return 0;
+	}
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		msm_cdc_pinctrl_select_active_state(pdata->hph_en0_gpio);
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		msm_cdc_pinctrl_select_sleep_state(pdata->hph_en0_gpio);
+		break;
+	}
+
+	return 0;
+}
+
 static const struct snd_soc_dapm_widget apq8096_i2c_dapm_widgets[] = {
 
 	SND_SOC_DAPM_SUPPLY("MCLK",  SND_SOC_NOPM, 0, 0,
@@ -141,6 +231,7 @@ static const struct snd_soc_dapm_widget apq8096_i2c_dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("Lineout_3 amp", NULL),
 	SND_SOC_DAPM_SPK("Lineout_2 amp", NULL),
 	SND_SOC_DAPM_SPK("Lineout_4 amp", NULL),
+	SND_SOC_DAPM_SPK("hifi amp", msm_hifi_ctrl_event),
 	SND_SOC_DAPM_MIC("Handset Mic", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_MIC("ANCRight Headset Mic", NULL),
@@ -165,7 +256,10 @@ static struct snd_soc_dapm_route wcd9335_audio_paths[] = {
 	{"MIC BIAS3", NULL, "MCLK"},
 	{"MIC BIAS4", NULL, "MCLK"},
 };
-
+static const struct snd_kcontrol_new msm_snd_controls[] = {
+	SOC_ENUM_EXT("HiFi Function", hifi_function, msm_hifi_get,
+			msm_hifi_put),
+};
 static int apq_mi2s_audrx_init(struct snd_soc_pcm_runtime *rtd)
 {
 	int err;
@@ -180,6 +274,9 @@ static int apq_mi2s_audrx_init(struct snd_soc_pcm_runtime *rtd)
 	pr_info("%s: dev_name%s\n", __func__, dev_name(cpu_dai->dev));
 
 	rtd->pmdown_time = 0;
+
+	snd_soc_add_codec_controls(codec, msm_snd_controls,
+					 ARRAY_SIZE(msm_snd_controls));
 
 	snd_soc_dapm_new_controls(dapm, apq8096_i2c_dapm_widgets,
 				ARRAY_SIZE(apq8096_i2c_dapm_widgets));
@@ -466,6 +563,20 @@ static int ipq40xx_wcd_audio_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "parse audio routing failed, err:%d\n",
 			ret);
 		goto err;
+	}
+	pdata->hph_en1_gpio = of_parse_phandle(pdev->dev.of_node,
+							"qcom,hph-en1-gpio", 0);
+	if (!pdata->hph_en1_gpio) {
+		dev_err(&pdev->dev, "property %s not detected in node %s",
+			"qcom,hph-en1-gpio",
+			pdev->dev.of_node->full_name);
+	}
+	pdata->hph_en0_gpio = of_parse_phandle(pdev->dev.of_node,
+						"qcom,hph-en0-gpio", 0);
+	if (!pdata->hph_en0_gpio) {
+		dev_err(&pdev->dev, "property %s not detected in node %s",
+			"qcom,hph-en0-gpio",
+			pdev->dev.of_node->full_name);
 	}
 
 	ret = of_property_read_u32(pdev->dev.of_node,
