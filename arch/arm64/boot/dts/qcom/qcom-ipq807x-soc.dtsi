@@ -743,6 +743,7 @@
 			qcom,shaping-enabled;
 			qcom,wlan-dataplane-offload-enabled;
 			qcom,vlan-enabled;
+			npu-supply = <&npu_vreg>;
 		};
 
 		nss1: nss@40800000 {
@@ -1757,5 +1758,7 @@
 
 #include "qcom-ipq807x-coresight.dtsi"
 #include "qcom-ipq807x-spmi-regulator.dtsi"
+#include "qcom-ipq807x-rpm-regulator.dtsi"
 #include "qcom-ipq807x-thermal.dtsi"
-
+#include "qcom-ipq807x-cpu.dtsi"
+#include "qcom-ipq807x-cpr-regulator.dtsi"

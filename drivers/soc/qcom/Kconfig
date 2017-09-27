@@ -234,6 +234,17 @@ config IPQ_SUBSYSTEM_RESTART
 	  It also notifies userspace of transitions between these states via
 	  sysfs.
 
+config IPQ_SUBSYSTEM_DUMP
+	bool "IPQ Subsystem Dump Collection"
+        depends on IPQ807X_REMOTEPROC
+	help
+	 This option enables the IPQ subsytem dump collection.
+
+	 The IPQ subsystem dump collection provides the support to collect the
+	 subsytem dump based on its memory region provided in device tree.
+	 It also notifies the userspace of the dump collection event, which can
+	 be configured in hotplug daemon.
+
 config QCOM_TZ_LOG
 	tristate "Trust Zone (TZ) Log Driver"
 	depends on DEBUG_FS

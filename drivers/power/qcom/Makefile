@@ -1,1 +1,1 @@
-obj-$(CONFIG_MSM_APM)		+= apm.o
+obj-$(CONFIG_QCOM_APM)		+= apm.o

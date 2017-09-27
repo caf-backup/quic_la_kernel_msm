@@ -168,7 +168,7 @@ static long qcom_wdt_configure_bark_dump(void *arg)
 		return -ENOMEM;
 
 	ret = qcom_scm_regsave(SCM_SVC_UTIL, SCM_CMD_SET_REGSAVE,
-						scm_regsave);
+			scm_regsave, device_props->crashdump_page_size);
 	if (ret) {
 		pr_err("Setting register save address failed.\n"
 			"Registers won't be dumped on a dog bite\n");
@@ -305,7 +305,17 @@ const struct qcom_wdt_props qcom_wdt_props_ipq8064 = {
 const struct qcom_wdt_props qcom_wdt_props_ipq807x = {
 	.layout = reg_offset_data_kpss,
 	.tlv_msg_offset = SZ_4K,
-	.crashdump_page_size = SZ_8K,
+	/* As SBL overwrites the NSS IMEM, TZ has to copy it to some memory
+	 * on crash before it restarts the system. Hence, reserving of 384K
+	 * is required to copy the NSS IMEM before restart is done.
+	 * So that TZ can dump NSS dump data after the first 8K.
+	 * Additionally 8K memory is allocated which can be used by TZ
+	 * to dump PMIC memory.
+	 * get_order function returns the next higher order as output,
+	 * so when we pass 400K as argument 512K will be allocated.
+	 * 112K is unused currently and can be used based on future needs.
+	 */
+	.crashdump_page_size = (SZ_8K + (384 * SZ_1K) + (SZ_8K)),
 };
 
 const struct qcom_wdt_props qcom_wdt_props_ipq40xx = {

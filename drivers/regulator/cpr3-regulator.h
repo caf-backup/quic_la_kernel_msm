@@ -141,9 +141,6 @@ struct cpr4_sdelta {
  * @use_open_loop:	Boolean indicating that open-loop (i.e CPR disabled) as
  *			opposed to closed-loop operation must be used for this
  *			corner on CPRh controllers.
- * @ldo_mode_allowed:	Boolean which indicates if LDO mode is allowed for this
- *			corner. This field is applicable for CPR4 controllers
- *			that manage LDO300 supply regulator.
  * @sdelta:		The CPR4 controller specific data for this corner. This
  *			field is applicable for CPR4 controllers.
  *
@@ -177,7 +174,6 @@ struct cpr3_corner {
 	u32			irq_en;
 	int			aging_derate;
 	bool			use_open_loop;
-	bool			ldo_mode_allowed;
 	struct cpr4_sdelta	*sdelta;
 };
 
@@ -197,18 +193,6 @@ struct cprh_corner_band {
 };
 
 /**
- * enum cpr3_ldo_type - Constants which define the LDO supply regulator
- *	types used to manage the subsystem component rail voltage.
- * %CPR3_LDO_KRYO:	Kryo LDO regulator used to sub-regulate the HMSS
- *			per-cluster voltage.
- * %CPR3_LDO300:	LDO regulator used to sub-regulate the GFX voltage.
- */
-enum cpr3_ldo_type {
-	CPR3_LDO_KRYO	= 0,
-	CPR3_LDO300	= 1,
-};
-
-/**
  * struct cpr3_regulator - CPR3 logical regulator instance associated with a
  *			given CPR3 hardware thread
  * @of_node:		Device node associated with the device tree child node
@@ -223,11 +207,6 @@ enum cpr3_ldo_type {
  * @mem_acc_regulator:	Pointer to the optional mem-acc supply regulator used
  *			to manage memory circuitry settings based upon CPR3
  *			regulator output voltage.
- * @ldo_regulator:	Pointer to the LDO supply regulator used to manage
- *			per-cluster LDO voltage and bypass state
- * @ldo_regulator_bypass: Cached copy of the LDO regulator bypass state
- * @ldo_ret_regulator:	Pointer to the LDO retention supply regulator used to
- *			manage LDO retention bypass state
  * @corner:		Array of all corners supported by this CPR3 regulator
  * @corner_count:	The number of elements in the corner array
  * @corner_band:	Array of all corner bands supported by CPRh compatible
@@ -291,22 +270,6 @@ enum cpr3_ldo_type {
  *			participated in the last aggregation event
  * @debug_corner:	Index identifying voltage corner used for displaying
  *			corner configuration values in debugfs
- * @ldo_type:		LDO regulator type.
- * @ldo_min_headroom_volt: Minimum voltage difference in microvolts required
- *			between the VDD supply voltage and the LDO output in
- *			order for the LDO operate
- * @ldo_max_headroom_volt: Maximum voltage difference in microvolts between
- *			the input and output of the active LDO hardware to
- *			maintain optimum operability.
- * @ldo_adjust_volt:	Voltage in microvolts used to offset margin assigned
- *			to IR drop between PMIC and CPU
- * @ldo_ret_volt:	The lowest supported CPU retention voltage in
- *			microvolts. This voltage may vary part-to-part based
- *			upon the value of hardware fuses.
- * @ldo_max_volt:	The maximum physically supported LDO voltage in
- *			microvolts
- * @ldo_mode_allowed:	Boolean which indicates if LDO mode is allowed for this
- *			CPR3 regulator
  * @vreg_enabled:	Boolean defining the enable state of the CPR3
  *			regulator's regulator within the regulator framework.
  * @aging_allowed:	Boolean defining if CPR aging adjustments are allowed
@@ -334,7 +297,7 @@ enum cpr3_ldo_type {
  *
  * This structure contains both configuration and runtime state data.  The
  * elements current_corner, last_closed_loop_corner, aggregated, debug_corner,
- * ldo_mode_allowed, and vreg_enabled are state variables.
+ * and vreg_enabled are state variables.
  */
 struct cpr3_regulator {
 	struct device_node	*of_node;
@@ -343,9 +306,6 @@ struct cpr3_regulator {
 	struct regulator_desc	rdesc;
 	struct regulator_dev	*rdev;
 	struct regulator	*mem_acc_regulator;
-	struct regulator	*ldo_regulator;
-	bool			ldo_regulator_bypass;
-	struct regulator	*ldo_ret_regulator;
 	struct cpr3_corner	*corner;
 	int			corner_count;
 	struct cprh_corner_band *corner_band;
@@ -375,13 +335,6 @@ struct cpr3_regulator {
 	int			last_closed_loop_corner;
 	bool			aggregated;
 	int			debug_corner;
-	enum cpr3_ldo_type	ldo_type;
-	int			ldo_min_headroom_volt;
-	int			ldo_max_headroom_volt;
-	int			ldo_adjust_volt;
-	int			ldo_ret_volt;
-	int			ldo_max_volt;
-	bool			ldo_mode_allowed;
 	bool			vreg_enabled;
 
 	bool			aging_allowed;
@@ -480,12 +433,10 @@ enum cpr3_count_mode {
  * enum cpr_controller_type - supported CPR controller hardware types
  * %CPR_CTRL_TYPE_CPR3:	HW has CPR3 controller
  * %CPR_CTRL_TYPE_CPR4:	HW has CPR4 controller
- * %CPR_CTRL_TYPE_CPRH:	HW has CPRh controller
  */
 enum cpr_controller_type {
 	CPR_CTRL_TYPE_CPR3,
 	CPR_CTRL_TYPE_CPR4,
-	CPR_CTRL_TYPE_CPRH,
 };
 
 /**
@@ -733,8 +684,6 @@ struct cpr3_panic_regs_info {
  * @panic_regs_info:	Array of panic registers information which provides the
  *			list of registers to dump when the device crashes.
  * @panic_notifier:	Notifier block registered to global panic notifier list.
- * @support_ldo300_vreg: Boolean value which indicates that this CPR controller
- *			manages an underlying LDO regulator of type LDO300.
  *
  * This structure contains both configuration and runtime state data.  The
  * elements cpr_allowed_sw, use_hw_closed_loop, aggr_corner, cpr_enabled,
@@ -835,7 +784,6 @@ struct cpr3_controller {
 	u32			voltage_settling_time;
 	struct cpr3_panic_regs_info *panic_regs_info;
 	struct notifier_block	panic_notifier;
-	bool			support_ldo300_vreg;
 };
 
 /* Used for rounding voltages to the closest physically available set point. */
@@ -860,7 +808,10 @@ struct cpr3_controller {
 
 int cpr3_regulator_register(struct platform_device *pdev,
 			struct cpr3_controller *ctrl);
+int cpr3_open_loop_regulator_register(struct platform_device *pdev,
+				      struct cpr3_controller *ctrl);
 int cpr3_regulator_unregister(struct cpr3_controller *ctrl);
+int cpr3_open_loop_regulator_unregister(struct cpr3_controller *ctrl);
 int cpr3_regulator_suspend(struct cpr3_controller *ctrl);
 int cpr3_regulator_resume(struct cpr3_controller *ctrl);
 
@@ -886,6 +837,7 @@ int cpr3_parse_ctrl_u32(struct cpr3_controller *ctrl, const char *propname,
 			u32 *out_value, u32 value_min, u32 value_max);
 int cpr3_parse_common_thread_data(struct cpr3_thread *thread);
 int cpr3_parse_common_ctrl_data(struct cpr3_controller *ctrl);
+int cpr3_parse_open_loop_common_ctrl_data(struct cpr3_controller *ctrl);
 int cpr3_limit_open_loop_voltages(struct cpr3_regulator *vreg);
 void cpr3_open_loop_voltage_as_ceiling(struct cpr3_regulator *vreg);
 int cpr3_limit_floor_voltages(struct cpr3_regulator *vreg);
@@ -915,7 +867,20 @@ static inline int cpr3_regulator_register(struct platform_device *pdev,
 	return -ENXIO;
 }
 
+static inline int
+cpr3_open_loop_regulator_register(struct platform_device *pdev,
+				  struct cpr3_controller *ctrl);
+{
+	return -ENXIO;
+}
+
 static inline int cpr3_regulator_unregister(struct cpr3_controller *ctrl)
+{
+	return -ENXIO;
+}
+
+static inline int
+cpr3_open_loop_regulator_unregister(struct cpr3_controller *ctrl)
 {
 	return -ENXIO;
 }
@@ -1009,6 +974,12 @@ static inline int cpr3_parse_common_thread_data(struct cpr3_thread *thread)
 }
 
 static inline int cpr3_parse_common_ctrl_data(struct cpr3_controller *ctrl)
+{
+	return -EPERM;
+}
+
+static inline int
+cpr3_parse_open_loop_common_ctrl_data(struct cpr3_controller *ctrl)
 {
 	return -EPERM;
 }

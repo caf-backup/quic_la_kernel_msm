@@ -591,8 +591,8 @@ int __qcom_scm_hdcp_req(struct device *dev, struct qcom_scm_hdcp_req *req,
 		req, req_cnt * sizeof(*req), resp, sizeof(*resp));
 }
 
-int __qcom_scm_regsave(struct device *dev,
-				u32 svc_id, u32 cmd_id, void *scm_regsave)
+int __qcom_scm_regsave(struct device *dev, u32 svc_id, u32 cmd_id,
+			void *scm_regsave, unsigned int buf_size)
 {
 	long ret;
 	struct {
@@ -608,7 +608,7 @@ int __qcom_scm_regsave(struct device *dev,
 		struct scm_desc desc = {0};
 
 		desc.args[0] = (u64)virt_to_phys(scm_regsave);
-		desc.args[1] = PAGE_SIZE;
+		desc.args[1] = buf_size;
 		desc.arginfo = SCM_ARGS(2, SCM_RW, SCM_VAL);
 		ret = qcom_scm_call2(SCM_SIP_FNID(QCOM_SCM_SVC_REGSAVE,
 				QCOM_SCM_REGSAVE_CMD), &desc);
@@ -617,7 +617,7 @@ int __qcom_scm_regsave(struct device *dev,
 			return le32_to_cpu(scm_ret);
 	} else {
 		cmd_buf.addr = virt_to_phys(scm_regsave);
-		cmd_buf.len = PAGE_SIZE;
+		cmd_buf.len = buf_size;
 		ret = qcom_scm_call(dev, svc_id, cmd_id, &cmd_buf,
 				sizeof(cmd_buf), NULL, 0);
 	}
@@ -725,13 +725,21 @@ int __qcom_scm_pas_shutdown(struct device *dev, u32 peripheral)
 	__le32 out;
 	__le32 in;
 	int ret;
+	struct scm_desc desc = {0};
 
-	in = cpu_to_le32(peripheral);
-	ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL,
+	if (!is_scm_armv8()) {
+		in = cpu_to_le32(peripheral);
+		ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL,
 			    QCOM_SCM_PAS_SHUTDOWN_CMD,
 			    &in, sizeof(in),
 			    &out, sizeof(out));
-
+	} else {
+		desc.args[0] = peripheral;
+		desc.arginfo = SCM_ARGS(1);
+		ret = qcom_scm_call2(SCM_SIP_FNID(QCOM_SCM_SVC_PIL,
+				QCOM_SCM_PAS_SHUTDOWN_CMD), &desc);
+		out = desc.ret[0];
+	}
 	return ret ? : le32_to_cpu(out);
 }
 

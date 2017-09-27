@@ -553,11 +553,11 @@ static void subsystem_shutdown(struct subsys_device *dev, void *data)
 static void subsystem_ramdump(struct subsys_device *dev, void *data)
 {
 	const char *name = dev->desc->name;
-
 	if (dev->desc->ramdump)
 		if (dev->desc->ramdump(is_ramdump_enabled(dev), dev->desc) < 0)
 			pr_warn("%s[%s:%d]: Ramdump failed.\n",
 				name, current->comm, current->pid);
+
 	dev->do_ramdump_on_put = false;
 }
 

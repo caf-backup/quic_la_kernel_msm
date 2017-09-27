@@ -61,6 +61,8 @@
 		ipq807x_s3_corner: regulator-s3 {
 			compatible = "qcom,rpm-glink-regulator";
 			regulator-name = "ipq807x_s3";
+			regulator-min-microvolt = <592000>;
+			regulator-max-microvolt = <1064000>;
 			qcom,set = <3>;
 			status = "disabled";
 		};
@@ -77,6 +79,8 @@
 		ipq807x_s4_corner: regulator-s4 {
 			compatible = "qcom,rpm-glink-regulator";
 			regulator-name = "ipq807x_s4";
+			regulator-min-microvolt = <712000>;
+			regulator-max-microvolt = <992000>;
 			qcom,set = <3>;
 			status = "disabled";
 		};
@@ -163,7 +167,7 @@
 	};
 
 	rpm-regulator-ldoa5 {
-		compatible = "qcom,rpm-glink-regulator-resource"";
+		compatible = "qcom,rpm-glink-regulator-resource";
 		qcom,resource-name = "ldoa";
 		qcom,resource-id = <5>;
 		qcom,regulator-type = <0>;
@@ -269,6 +273,8 @@
 		ipq807x_l11_corner: regulator-l11 {
 			compatible = "qcom,rpm-glink-regulator";
 			regulator-name = "ipq807x_l11";
+			regulator-min-microvolt = <1104000>;
+			regulator-max-microvolt = <3300000>;
 			qcom,set = <3>;
 			status = "disabled";
 		};

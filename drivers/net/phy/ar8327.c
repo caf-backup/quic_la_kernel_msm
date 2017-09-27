@@ -771,6 +771,10 @@ ar8327_init_globals(struct ar8xxx_priv *priv)
 		ar8xxx_write(priv, AR8327_REG_GLOBAL_FC_THRESH,
 				AR8327_GLOBAL_FC_THRESH_DFLT_VAL);
 
+	/* Disable NAT/NAPT */
+	t = ar8xxx_read(priv, AR8327_REG_NAT_CTRL);
+	t &= ~(AR8327_HNAPT_EN | AR8327_HNAT_EN);
+	ar8xxx_write(priv, AR8327_REG_NAT_CTRL, t);
 }
 
 static void

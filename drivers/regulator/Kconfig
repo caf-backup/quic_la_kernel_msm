@@ -154,6 +154,39 @@ config REGULATOR_BCM590XX
 	  BCM590xx PMUs. This will enable support for the software
 	  controllable LDO/Switching regulators.
 
+config REGULATOR_CPR3
+	bool "CPR3 regulator core support"
+	help
+	  This driver supports Core Power Reduction (CPR) version 3 controllers
+	  which are used by some Qualcomm Technologies, Inc. SoCs to
+	  manage important voltage regulators.  CPR3 controllers are capable of
+	  monitoring several ring oscillator sensing loops simultaneously.  The
+	  CPR3 controller informs software when the silicon conditions require
+	  the supply voltage to be increased or decreased.  On certain supply
+	  rails, the CPR3 controller is able to propagate the voltage increase
+	  or decrease requests all the way to the PMIC without software
+	  involvement.
+
+config REGULATOR_CPR3_NPU
+	bool "CPR3 regulator for NPU"
+	depends on OF && REGULATOR_CPR3
+	help
+	  This driver supports Qualcomm Technologies, Inc. NPU CPR3
+	  regulator Which will always operate in open loop.
+
+config REGULATOR_CPR4_APSS
+	bool "CPR4 regulator for APSS"
+	depends on OF && REGULATOR_CPR3
+	help
+	  This driver supports Qualcomm Technologies, Inc. APSS application
+	  processor specific features including memory array power mux (APM)
+	  switching, one CPR4 thread which monitor the two APSS clusters that
+	  are both powered by a shared supply, hardware closed-loop auto
+	  voltage stepping, voltage adjustments based on online core count,
+	  voltage adjustments based on temperature readings, and voltage
+	  adjustments for performance boost mode. This driver reads both initial
+	  voltage and CPR target quotient values out of hardware fuses.
+
 config REGULATOR_DA903X
 	tristate "Dialog Semiconductor DA9030/DA9034 regulators"
 	depends on PMIC_DA903X

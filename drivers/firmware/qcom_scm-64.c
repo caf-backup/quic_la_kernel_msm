@@ -360,14 +360,14 @@ int __qcom_scm_pas_mss_reset(struct device *dev, bool reset)
 }
 
 int __qcom_scm_regsave(struct device *dev, u32 svc_id, u32 cmd_id,
-			void *scm_regsave)
+			void *scm_regsave, unsigned int buf_size)
 {
 	struct scm_desc desc = {0};
 	struct arm_smccc_res res;
 	int ret;
 
 	desc.args[0] = (u64)virt_to_phys(scm_regsave);
-	desc.args[1] = PAGE_SIZE;
+	desc.args[1] = buf_size;
 	desc.arginfo = SCM_ARGS(2, SCM_RW, SCM_VAL);
 	ret = qcom_scm_call(dev, QCOM_SCM_SVC_REGSAVE, QCOM_SCM_REGSAVE_CMD,
 				&desc, &res);

@@ -132,7 +132,6 @@ void notify_proxy_unvote(struct device *device);
 void complete_err_ready(struct subsys_device *subsys);
 extern int wait_for_shutdown_ack(struct subsys_desc *desc);
 #else
-
 static inline int subsys_get_restart_level(struct subsys_device *dev)
 {
 	return 0;

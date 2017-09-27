@@ -1,4 +1,4 @@
-config MSM_APM
+config QCOM_APM
        bool "Qualcomm Technologies Inc platform specific APM driver"
        help
 	Platform specific driver to manage the power source of

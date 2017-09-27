@@ -147,18 +147,18 @@ static int clk_rcg2_set_parent(struct clk_hw *hw, u8 index)
  *            hid_div       n
  */
 static unsigned long
-calc_rate(unsigned long rate, u32 m, u32 n, u32 mode, u32 hid_div)
+calc_rate(unsigned long parent_rate, u32 m, u32 n, u32 mode, u32 hid_div)
 {
+	u64 rate = parent_rate;
+
 	if (hid_div) {
 		rate *= 2;
-		rate /= hid_div + 1;
+		do_div(rate, hid_div + 1);
 	}
 
 	if (mode) {
-		u64 tmp = rate;
-		tmp *= m;
-		do_div(tmp, n);
-		rate = tmp;
+		rate *= m;
+		do_div(rate, n);
 	}
 
 	return rate;

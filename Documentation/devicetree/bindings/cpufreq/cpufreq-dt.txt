@@ -21,6 +21,8 @@ Optional properties:
 - cooling-min-level:
 - cooling-max-level:
      Please refer to Documentation/devicetree/bindings/thermal/thermal.txt.
+- enable-cpu-regulator: Call regulator_enable and regulator_disable API for
+  CPU voltage supply regulator.
 
 Examples:
 

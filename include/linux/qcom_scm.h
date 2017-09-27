@@ -82,7 +82,8 @@ extern int qcom_scm_pas_shutdown(u32 peripheral);
 #define SCM_SVC_UTIL		0x3
 #define SCM_CMD_SET_REGSAVE 	0x2
 
-extern int qcom_scm_regsave(u32 svc_id, u32 cmd_id, void *);
+extern int qcom_scm_regsave(u32 svc_id, u32 cmd_id, void *,
+						unsigned int size);
 
 #define TZ_INFO_GET_DIAG_ID	0x2
 #define SCM_SVC_INFO		0x6

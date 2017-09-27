@@ -40,6 +40,8 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct pcpu_sw_netstats *brstats = this_cpu_ptr(br->stats);
 	const struct nf_br_ops *nf_ops;
 	u16 vid = 0;
+	struct net_bridge_port *pdst;
+	br_get_dst_hook_t *get_dst_hook;
 
 	rcu_read_lock();
 	nf_ops = rcu_dereference(nf_br_ops);
@@ -60,6 +62,8 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (!br_allowed_ingress(br, br_vlan_group_rcu(br), skb, &vid))
 		goto out;
+
+	get_dst_hook = rcu_dereference(br_get_dst_hook);
 
 	if (is_broadcast_ether_addr(dest))
 		br_flood_deliver(br, skb, false);
@@ -84,10 +88,20 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 			br_multicast_deliver(mdst, skb);
 		else
 			br_flood_deliver(br, skb, false);
-	} else if ((dst = __br_fdb_get(br, dest, vid)) != NULL)
-		br_deliver(dst->dst, skb);
-	else
-		br_flood_deliver(br, skb, true);
+	} else {
+		pdst = __br_get(get_dst_hook, NULL, NULL, &skb);
+		if (pdst) {
+			if (!skb)
+				goto out;
+			br_deliver(pdst, skb);
+		} else {
+			dst = __br_fdb_get(br, dest, vid);
+			if (dst)
+				br_deliver(dst->dst, skb);
+			else
+				br_flood_deliver(br, skb, true);
+		}
+	}
 
 out:
 	rcu_read_unlock();

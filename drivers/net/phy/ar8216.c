@@ -467,11 +467,9 @@ ar8216_read_port_link(struct ar8xxx_priv *priv, int port,
 	memset(link, '\0', sizeof(*link));
 
 	status = priv->chip->read_port_status(priv, port);
+	link->link = !!(status & AR8216_PORT_STATUS_LINK_UP);
 
-	link->aneg = !!(status & AR8216_PORT_STATUS_LINK_AUTO);
-	if (link->aneg) {
-		link->link = !!(status & AR8216_PORT_STATUS_LINK_UP);
-	} else {
+	if (port == AR8216_PORT_CPU) {
 		link->link = true;
 
 		if (priv->get_port_link) {

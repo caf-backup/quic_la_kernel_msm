@@ -34,6 +34,7 @@ struct private_data {
 	struct regulator *cpu_reg;
 	struct thermal_cooling_device *cdev;
 	unsigned int voltage_tolerance; /* in percentage */
+	bool enable_cpu_reg;
 };
 
 static struct freq_attr *cpufreq_dt_attr[] = {
@@ -321,12 +322,22 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 		ret = regulator_set_voltage_time(cpu_reg, min_uV, max_uV);
 		if (ret > 0)
 			transition_latency += ret * 1000;
+
+		priv->enable_cpu_reg =
+			of_property_read_bool(np, "enable-cpu-regulator");
+		if (priv->enable_cpu_reg) {
+			ret = regulator_enable(cpu_reg);
+			if (ret) {
+				pr_err("failed to enable CPU regulator: %d\n", ret);
+				goto out_free_priv;
+			}
+		}
 	}
 
 	ret = dev_pm_opp_init_cpufreq_table(cpu_dev, &freq_table);
 	if (ret) {
 		pr_err("failed to init cpufreq table: %d\n", ret);
-		goto out_free_priv;
+		goto out_reg_disable;
 	}
 
 	priv->cpu_dev = cpu_dev;
@@ -365,6 +376,9 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 
 out_free_cpufreq_table:
 	dev_pm_opp_free_cpufreq_table(cpu_dev, &freq_table);
+out_reg_disable:
+	if (!IS_ERR(cpu_reg) && priv->enable_cpu_reg)
+		regulator_disable(cpu_reg);
 out_free_priv:
 	kfree(priv);
 out_free_opp:
@@ -387,8 +401,11 @@ static int cpufreq_exit(struct cpufreq_policy *policy)
 	dev_pm_opp_free_cpufreq_table(priv->cpu_dev, &policy->freq_table);
 	dev_pm_opp_of_cpumask_remove_table(policy->related_cpus);
 	clk_put(policy->clk);
-	if (!IS_ERR(priv->cpu_reg))
+	if (!IS_ERR(priv->cpu_reg)) {
+		if (priv->enable_cpu_reg)
+			regulator_disable(priv->cpu_reg);
 		regulator_put(priv->cpu_reg);
+	}
 	kfree(priv);
 
 	return 0;
