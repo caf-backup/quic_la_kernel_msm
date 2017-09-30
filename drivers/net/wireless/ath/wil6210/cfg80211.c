@@ -1234,22 +1234,37 @@ static void wil_print_bcon_data(struct cfg80211_beacon_data *b)
 }
 
 /* internal functions for device reset and starting AP */
+static u8 *
+_wil_cfg80211_get_proberesp_ies(const u8 *proberesp, u16 proberesp_len,
+				u16 *ies_len)
+{
+	u8 *ies = NULL;
+
+	if (proberesp) {
+		struct ieee80211_mgmt *f =
+			(struct ieee80211_mgmt *)proberesp;
+		size_t hlen = offsetof(struct ieee80211_mgmt,
+				       u.probe_resp.variable);
+
+		ies = f->u.probe_resp.variable;
+		if (ies_len)
+			*ies_len = proberesp_len - hlen;
+	}
+
+	return ies;
+}
+
 static int _wil_cfg80211_set_ies(struct wiphy *wiphy,
 				 struct cfg80211_beacon_data *bcon)
 {
 	int rc;
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 	u16 len = 0, proberesp_len = 0;
-	u8 *ies = NULL, *proberesp = NULL;
+	u8 *ies = NULL, *proberesp;
 
-	if (bcon->probe_resp) {
-		struct ieee80211_mgmt *f =
-			(struct ieee80211_mgmt *)bcon->probe_resp;
-		size_t hlen = offsetof(struct ieee80211_mgmt,
-				       u.probe_resp.variable);
-		proberesp = f->u.probe_resp.variable;
-		proberesp_len = bcon->probe_resp_len - hlen;
-	}
+	proberesp = _wil_cfg80211_get_proberesp_ies(
+		bcon->probe_resp, bcon->probe_resp_len,
+		&proberesp_len);
 	rc = _wil_cfg80211_merge_extra_ies(proberesp,
 					   proberesp_len,
 					   bcon->proberesp_ies,
@@ -1351,8 +1366,14 @@ static int wil_cfg80211_change_beacon(struct wiphy *wiphy,
 				      struct cfg80211_beacon_data *bcon)
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+	struct wireless_dev *wdev = ndev->ieee80211_ptr;
 	int rc;
 	u32 privacy = 0;
+	u16 len = 0, proberesp_len = 0, ssid_len;
+	u8 *ies = NULL, *proberesp;
+	bool ssid_changed = false;
+	const u8 *ie;
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
 
 	wil_dbg_misc(wil, "change_beacon\n");
 	wil_print_bcon_data(bcon);
@@ -1362,6 +1383,31 @@ static int wil_cfg80211_change_beacon(struct wiphy *wiphy,
 			     bcon->tail_len))
 		privacy = 1;
 
+	memcpy(ssid, wdev->ssid, wdev->ssid_len);
+	ssid_len = wdev->ssid_len;
+
+	/* extract updated SSID from the probe response IE */
+	proberesp = _wil_cfg80211_get_proberesp_ies(
+		bcon->probe_resp, bcon->probe_resp_len,
+		&proberesp_len);
+	rc = _wil_cfg80211_merge_extra_ies(proberesp,
+					   proberesp_len,
+					   bcon->proberesp_ies,
+					   bcon->proberesp_ies_len,
+					   &ies, &len);
+
+	if (!rc) {
+		ie = cfg80211_find_ie(WLAN_EID_SSID, ies, len);
+		if (ie && (ie[1] <= IEEE80211_MAX_SSID_LEN)) {
+			if ((ie[1] != ssid_len) ||
+			    memcmp(&ie[2], ssid, ie[1])) {
+				memcpy(ssid, &ie[2], ie[1]);
+				ssid_len = ie[1];
+				ssid_changed = true;
+			}
+		}
+	}
+
 	/* in case privacy has changed, need to restart the AP */
 	if (wil->privacy != privacy) {
 		struct wireless_dev *wdev = ndev->ieee80211_ptr;
@@ -1369,16 +1415,27 @@ static int wil_cfg80211_change_beacon(struct wiphy *wiphy,
 		wil_dbg_misc(wil, "privacy changed %d=>%d. Restarting AP\n",
 			     wil->privacy, privacy);
 
-		rc = _wil_cfg80211_start_ap(wiphy, ndev, wdev->ssid,
-					    wdev->ssid_len, privacy,
+		rc = _wil_cfg80211_start_ap(wiphy, ndev, ssid,
+					    ssid_len, privacy,
 					    wdev->beacon_interval,
 					    wil->channel, bcon,
 					    wil->hidden_ssid,
 					    wil->pbss);
 	} else {
+		if (ssid_changed) {
+			rc = wmi_set_ssid(wil, ssid_len, ssid);
+			if (rc)
+				goto out;
+		}
 		rc = _wil_cfg80211_set_ies(wiphy, bcon);
 	}
 
+	if (ssid_changed) {
+		wdev->ssid_len = ssid_len;
+		memcpy(wdev->ssid, ssid, ssid_len);
+	}
+
+out:
 	return rc;
 }
 
