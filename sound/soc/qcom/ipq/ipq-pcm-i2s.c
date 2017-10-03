@@ -319,6 +319,18 @@ static int ipq_pcm_i2s_prepare(struct snd_pcm_substream *substream)
 	struct ipq_pcm_rt_priv *pcm_rtpriv = runtime->private_data;
 	u32 ret;
 
+	ret = ipq_mbox_form_ring(pcm_rtpriv->channel,
+			substream->dma_buffer.addr,
+			substream->dma_buffer.area,
+			pcm_rtpriv->period_size,
+			pcm_rtpriv->buffer_size,
+			(substream->stream == SNDRV_PCM_STREAM_CAPTURE));
+	if (ret) {
+		dev_dbg(ss2dev(substream),
+			"Error dma form ring ret: %d\n", ret);
+		return ret;
+	}
+
 	ret = ipq_mbox_dma_prepare(pcm_rtpriv->channel);
 	if (ret) {
 		dev_err(ss2dev(substream),
@@ -439,18 +451,6 @@ static int ipq_pcm_i2s_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 	unsigned int period_size, sample_size, sample_rate, frames, channels;
 
-	ret = ipq_mbox_form_ring(pcm_rtpriv->channel,
-			substream->dma_buffer.addr,
-			substream->dma_buffer.area,
-			params_period_bytes(hw_params),
-			params_buffer_bytes(hw_params),
-			(substream->stream == SNDRV_PCM_STREAM_CAPTURE));
-	if (ret) {
-		dev_dbg(ss2dev(substream),
-			"Error dma form ring ret: %d\n", ret);
-		return ret;
-	}
-
 	period_size = params_period_bytes(hw_params);
 	sample_size = snd_pcm_format_size(params_format(hw_params), 1);
 	sample_rate = params_rate(hw_params);
@@ -458,6 +458,7 @@ static int ipq_pcm_i2s_hw_params(struct snd_pcm_substream *substream,
 	frames = period_size / (sample_size * channels);
 
 	pcm_rtpriv->period_size = params_period_bytes(hw_params);
+	pcm_rtpriv->buffer_size = params_buffer_bytes(hw_params);
 
 	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 

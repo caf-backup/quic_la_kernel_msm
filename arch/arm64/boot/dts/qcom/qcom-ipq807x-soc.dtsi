@@ -198,6 +198,9 @@
 		scm {
 			compatible = "qcom,scm-ipq807x";
 		};
+		qfprom {
+			compatible = "qcom,qfprom-sec";
+		};
 	};
 
 	soc: soc {
@@ -727,6 +730,9 @@
 			qcom,num-irq = <9>;
 			qcom,num-pri = <4>;
 			qcom,load-addr = <0x40000000>;
+			qcom,low-frequency = <748800000>;
+			qcom,mid-frequency = <1497600000>;
+			qcom,max-frequency = <1689600000>;
 			qcom,bridge-enabled;
 			qcom,ipv4-enabled;
 			qcom,ipv6-enabled;

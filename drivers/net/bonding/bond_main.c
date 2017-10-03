@@ -3208,11 +3208,15 @@ static bool bond_flow_dissect_without_skb(struct bonding *bond,
 	dst = (uint32_t *)pdst;
 
 	if (protocol == htons(ETH_P_IP)) {
+		/* V4 addresses and address type*/
 		fk->addrs.v4addrs.src = src[0];
 		fk->addrs.v4addrs.dst = dst[0];
+		fk->control.addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
 	} else if (protocol == htons(ETH_P_IPV6)) {
+		/* V6 addresses and address type*/
 		memcpy(&fk->addrs.v6addrs.src, src, sizeof(struct in6_addr));
 		memcpy(&fk->addrs.v6addrs.dst, dst, sizeof(struct in6_addr));
+		fk->control.addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
 	} else {
 		return false;
 	}

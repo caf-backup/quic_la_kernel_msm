@@ -57,6 +57,10 @@ struct log_read {
 	uint32_t buf_size;
 };
 
+extern int qcom_qfprom_write_version(void *wrip, int size);
+int qcom_qfprom_read_version(uint32_t sw_type, uint32_t value,
+				uint32_t qfprom_ret_ptr);
+extern int qcom_qfprom_show_authenticate(char *buf);
 extern int qcom_scm_set_cold_boot_addr(void *entry, const cpumask_t *cpus);
 extern int qcom_scm_set_warm_boot_addr(void *entry, const cpumask_t *cpus);
 

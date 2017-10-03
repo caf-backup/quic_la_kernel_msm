@@ -359,6 +359,57 @@ int __qcom_scm_pas_mss_reset(struct device *dev, bool reset)
 	return ret ? : res.a1;
 }
 
+int __qcom_qfprom_show_authenticate(struct device *dev, char *buf)
+{
+	int ret;
+	struct arm_smccc_res res;
+	struct qcom_scm_desc desc = {0};
+	dma_addr_t auth_phys;
+	void *auth_buf;
+
+	auth_buf = dma_alloc_coherent(dev, sizeof(*buf),
+					&auth_phys, GFP_KERNEL);
+	desc.args[0] = (u64)auth_phys;
+	desc.args[1] = sizeof(char);
+	desc.arginfo = SCM_ARGS(2, SCM_RO);
+	ret = qcom_scm_call(dev, QCOM_SCM_SVC_FUSE,
+				QCOM_QFPROM_IS_AUTHENTICATE_CMD, &desc, &res);
+	memcpy(buf, auth_buf, sizeof(char));
+	dma_free_coherent(dev, sizeof(*buf), auth_buf, auth_phys);
+	return ret ? : res.a1;
+}
+
+int __qcom_qfprom_read_version(struct device *dev, uint32_t sw_type,
+			uint32_t value, uint32_t qfprom_ret_ptr)
+{
+	int ret;
+	struct arm_smccc_res res;
+	struct qcom_scm_desc desc = {0};
+	struct qfprom_xtra {
+		uint32_t qfprom_ret_ptr;
+		uint32_t size;
+	} *xtra;
+	dma_addr_t xtra_phys;
+
+	xtra = (struct qfprom_xtra *)dma_alloc_coherent(dev,
+		sizeof(struct qfprom_xtra), &xtra_phys, GFP_KERNEL);
+	xtra->qfprom_ret_ptr = qfprom_ret_ptr;
+	xtra->size = sizeof(uint32_t);
+
+	desc.args[0] = sw_type;
+	desc.args[1] = (u64)value;
+	desc.args[2] = sizeof(uint32_t);
+	desc.args[3] = (u64)xtra_phys;
+
+	desc.arginfo = SCM_ARGS(5, SCM_VAL, SCM_RW, SCM_VAL, SCM_RW,
+						SCM_VAL);
+	ret = qcom_scm_call(dev, QCOM_SCM_SVC_FUSE,
+				QCOM_QFPROM_ROW_READ_CMD, &desc, &res);
+	dma_free_coherent(dev, sizeof(struct qfprom_xtra), xtra,
+				xtra_phys);
+	return ret ? : res.a1;
+}
+
 int __qcom_scm_regsave(struct device *dev, u32 svc_id, u32 cmd_id,
 			void *scm_regsave, unsigned int buf_size)
 {

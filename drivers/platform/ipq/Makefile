@@ -3,3 +3,4 @@
 #
 
 obj-$(CONFIG_BOOTCONFIG_PARTITION) += bootconfig.o
+obj-y				+= qfprom.o

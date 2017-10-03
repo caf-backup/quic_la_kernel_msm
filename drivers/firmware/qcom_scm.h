@@ -28,6 +28,9 @@
 #define QCOM_SCM_FLAG_WARMBOOT_MC	0x04
 extern int __qcom_scm_set_warm_boot_addr(struct device *dev, void *entry,
 		const cpumask_t *cpus);
+extern int __qcom_qfprom_read_version(struct device *dev, uint32_t sw_type,
+			uint32_t value, uint32_t qfprom_ret_ptr);
+extern int __qcom_qfprom_show_authenticate(struct device *dev, char *buf);
 extern int __qcom_scm_set_cold_boot_addr(void *entry, const cpumask_t *cpus);
 
 #define QCOM_SCM_CMD_TERMINATE_PC	0x2
@@ -98,6 +101,10 @@ extern void __qcom_scm_init(void);
 #define QCOM_SCM_PAS_AUTH_AND_RESET_CMD	0x5
 #define QCOM_SCM_PAS_SHUTDOWN_CMD	0x6
 #define QCOM_SCM_PAS_IS_SUPPORTED_CMD	0x7
+#define QCOM_SCM_SVC_FUSE		0x8
+#define QCOM_QFPROM_IS_AUTHENTICATE_CMD	0x7
+#define QCOM_QFPROM_ROW_READ_CMD                     0x8
+#define QCOM_QFPROM_ROW_WRITE_CMD                    0x9
 #define QCOM_SCM_PAS_MSS_RESET		0xa
 extern bool __qcom_scm_pas_supported(struct device *dev, u32 peripheral);
 extern int  __qcom_scm_pas_init_image(struct device *dev, u32 peripheral,

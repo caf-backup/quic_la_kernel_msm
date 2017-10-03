@@ -81,6 +81,31 @@ static void qcom_scm_clk_disable(void)
 }
 
 /**
+ * qcom_qfprom_show_authenticate() - Authenticate the signed image
+ */
+int qcom_qfprom_show_authenticate(char *buf)
+{
+	int ret = 0;
+
+	ret = __qcom_qfprom_show_authenticate(__scm->dev, buf);
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_qfprom_show_authenticate);
+
+int qcom_qfprom_write_version(void *wrip, int size)
+{
+	return -ENOTSUPP;
+}
+
+int qcom_qfprom_read_version(uint32_t sw_type,
+			uint32_t value, uint32_t qfprom_ret_ptr)
+{
+	return __qcom_qfprom_read_version(__scm->dev, sw_type, value,
+						qfprom_ret_ptr);
+}
+
+/**
  * qcom_scm_set_cold_boot_addr() - Set the cold boot address for cpus
  * @entry: Entry point function for the cpus
  * @cpus: The cpumask of cpus that will use the entry point
@@ -413,10 +438,10 @@ static int qcom_scm_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	__scm = scm;
-	__scm->dev = &pdev->dev;
-
 	__qcom_scm_init();
+
+	scm->dev = &pdev->dev;
+	__scm = scm;
 
 	return 0;
 }

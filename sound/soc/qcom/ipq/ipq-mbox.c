@@ -313,9 +313,6 @@ int ipq_mbox_dma_resume(int channel_id)
 	if (!mbox_rtime[chan])
 		return -EINVAL;
 
-	if (!mbox_rtime[chan]->mbox_started)
-		return 0;
-
 	mbox_reg = mbox_rtime[chan]->mbox_reg_base;
 
 	switch (dir) {
@@ -373,9 +370,6 @@ int ipq_mbox_dma_stop(int channel_id, u32 delay_in_ms)
 	mdelay(delay_in_ms);
 
 	mbox_cb = &mbox_rtime[chan]->dir_priv[dir];
-	mbox_cb->read = 0;
-	mbox_cb->write = 0;
-
 	return 0;
 }
 EXPORT_SYMBOL(ipq_mbox_dma_stop);
@@ -613,7 +607,8 @@ int ipq_mbox_form_ring(int channel_id, dma_addr_t baseaddr, u8 *area,
 							((i + 1) % ndescs));
 		desc->size = period_bytes;
 		desc->length = desc->size;
-		baseaddr += ALIGN(period_bytes, L1_CACHE_BYTES);
+		baseaddr += period_bytes;
+
 		if (baseaddr >= (baseaddr_const + bufsize)) {
 			if (bufsize % period_bytes)
 				desc->size = bufsize % period_bytes;
@@ -651,6 +646,9 @@ int ipq_mbox_dma_release(int channel_id)
 		clear_bit(CHN_STARTED, &mbox_cb->status);
 		return 0;
 	}
+
+	mbox_cb->read = 0;
+	mbox_cb->write = 0;
 
 	return -ENXIO;
 }

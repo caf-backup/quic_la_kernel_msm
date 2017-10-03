@@ -581,6 +581,90 @@ int __qcom_scm_is_call_available(struct device *dev, u32 svc_id, u32 cmd_id)
 	return le32_to_cpu(ret_val);
 }
 
+int __qcom_qfprom_show_authenticate(struct device *dev, char *buf)
+{
+	int ret;
+
+	if (!is_scm_armv8()) {
+		ret = qcom_scm_call(dev, QCOM_SCM_SVC_FUSE,
+				QCOM_QFPROM_IS_AUTHENTICATE_CMD, NULL, 0, buf,
+				sizeof(char));
+	} else {
+		__le32 scm_ret;
+		struct scm_desc desc = {0};
+		dma_addr_t auth_phys;
+		void *auth_buf;
+
+		auth_buf = dma_alloc_coherent(dev, sizeof(*buf),
+						&auth_phys, GFP_KERNEL);
+		desc.args[0] = (u64)auth_phys;
+		desc.args[1] = sizeof(char);
+		desc.arginfo = SCM_ARGS(2, SCM_RO);
+		ret = qcom_scm_call2(SCM_SIP_FNID(QCOM_SCM_SVC_FUSE,
+				QCOM_QFPROM_IS_AUTHENTICATE_CMD), &desc);
+		scm_ret = desc.ret[0];
+		memcpy(buf, auth_buf, sizeof(char));
+		dma_free_coherent(dev, sizeof(*buf), auth_buf, auth_phys);
+
+		if (!ret)
+			return le32_to_cpu(scm_ret);
+	}
+
+	return ret;
+}
+
+int __qcom_qfprom_read_version(struct device *dev, uint32_t sw_type,
+			uint32_t value, uint32_t qfprom_ret_ptr)
+{
+	int ret;
+
+	if (!is_scm_armv8()) {
+		struct qfprom_read {
+			uint32_t sw_type;
+			uint32_t value;
+			uint32_t qfprom_ret_ptr;
+		} rdip;
+
+		rdip.sw_type = sw_type;
+		rdip.value = value;
+		rdip.qfprom_ret_ptr = qfprom_ret_ptr;
+
+		ret = qcom_scm_call(dev, QCOM_SCM_SVC_FUSE,
+			QCOM_QFPROM_ROW_READ_CMD, &rdip, sizeof(rdip), NULL, 0);
+
+	} else {
+		__le32 scm_ret;
+		struct scm_desc desc = {0};
+		struct qfprom_xtra {
+			uint32_t qfprom_ret_ptr;
+			uint32_t size;
+		} *xtra;
+		dma_addr_t xtra_phys;
+
+		xtra = (struct qfprom_xtra *)dma_alloc_coherent(dev,
+			sizeof(struct qfprom_xtra), &xtra_phys, GFP_KERNEL);
+		xtra->qfprom_ret_ptr = qfprom_ret_ptr;
+		xtra->size = sizeof(uint32_t);
+
+		desc.args[0] = sw_type;
+		desc.args[1] = (u64)value;
+		desc.args[2] = sizeof(uint32_t);
+		desc.x5 = (u64)xtra_phys;
+		desc.arginfo = SCM_ARGS(5, SCM_VAL, SCM_RW, SCM_VAL, SCM_RW,
+						SCM_VAL);
+		ret = qcom_scm_call2(SCM_SIP_FNID(QCOM_SCM_SVC_FUSE,
+					QCOM_QFPROM_ROW_READ_CMD), &desc);
+		dma_free_coherent(dev, sizeof(struct qfprom_xtra), xtra,
+					xtra_phys);
+		scm_ret = desc.ret[0];
+		if (!ret)
+			return le32_to_cpu(scm_ret);
+	}
+
+	return ret;
+
+}
+
 int __qcom_scm_hdcp_req(struct device *dev, struct qcom_scm_hdcp_req *req,
 			u32 req_cnt, u32 *resp)
 {
