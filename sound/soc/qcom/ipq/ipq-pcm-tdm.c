@@ -439,7 +439,6 @@ static int ipq_pcm_tdm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct ipq_pcm_rt_priv *pcm_rtpriv;
-	int ret;
 	unsigned int period_size, sample_size, sample_rate, frames, channels;
 
 	pr_debug("%s %d\n", __func__, __LINE__);
@@ -458,7 +457,7 @@ static int ipq_pcm_tdm_hw_params(struct snd_pcm_substream *substream,
 	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 
 	runtime->dma_bytes = params_buffer_bytes(hw_params);
-	return ret;
+	return 0;
 }
 
 static int ipq_pcm_tdm_open(struct snd_pcm_substream *substream)
