@@ -19,6 +19,7 @@
 #include <linux/dma-iommu.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <trace/events/iommu.h>
 
 /* some redundant definitions... :( TODO: move to io-pgtable-fast.h */
 #define FAST_PAGE_SHIFT		12
@@ -331,6 +332,8 @@ static dma_addr_t fast_smmu_map_page(struct device *dev, struct page *page,
 		dmac_clean_range(pmd, pmd + nptes);
 
 	spin_unlock_irqrestore(&mapping->lock, flags);
+
+	trace_map(mapping->domain, iova, phys_to_map, len, prot);
 	return iova + offset_from_phys_to_map;
 
 fail_free_iova:
@@ -362,6 +365,8 @@ static void fast_smmu_unmap_page(struct device *dev, dma_addr_t iova,
 		dmac_clean_range(pmd, pmd + nptes);
 	__fast_smmu_free_iova(mapping, iova, len);
 	spin_unlock_irqrestore(&mapping->lock, flags);
+
+	trace_unmap(mapping->domain, iova - offset, len, len);
 }
 
 static void fast_smmu_sync_single_for_cpu(struct device *dev,
