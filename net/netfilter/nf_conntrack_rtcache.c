@@ -195,6 +195,9 @@ static unsigned int nf_rtcache_forward(u_int8_t pf,
 	if (dst && dst_xfrm(dst))
 		return NF_ACCEPT;
 
+	if (dst && (dst->flags & DST_FAKE_RTABLE))
+		return NF_ACCEPT;
+
 	if (!nf_ct_is_confirmed(ct)) {
 		if (nf_ct_rtcache_find(ct))
 			return NF_ACCEPT;
