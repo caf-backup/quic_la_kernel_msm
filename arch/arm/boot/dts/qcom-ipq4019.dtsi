@@ -117,6 +117,9 @@
 		scm {
 			compatible = "qcom,scm-ipq40xx";
 		};
+		qfprom {
+			compatible = "qcom,qfprom-sec";
+		};
 	};
 
 	soc {
