@@ -95,7 +95,7 @@ EXPORT_SYMBOL(qcom_qfprom_show_authenticate);
 
 int qcom_qfprom_write_version(void *wrip, int size)
 {
-	return -ENOTSUPP;
+	return __qcom_qfprom_write_version(__scm->dev, wrip, size);
 }
 
 int qcom_qfprom_read_version(uint32_t sw_type,

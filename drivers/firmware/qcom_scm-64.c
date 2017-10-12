@@ -383,6 +383,11 @@ int __qcom_qfprom_show_authenticate(struct device *dev, char *buf)
 	return ret ? : res.a1;
 }
 
+int __qcom_qfprom_write_version(struct device *dev, void *wrip, int size)
+{
+	return -ENOTSUPP;
+}
+
 int __qcom_qfprom_read_version(struct device *dev, uint32_t sw_type,
 			uint32_t value, uint32_t qfprom_ret_ptr)
 {
