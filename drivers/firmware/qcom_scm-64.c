@@ -369,6 +369,10 @@ int __qcom_qfprom_show_authenticate(struct device *dev, char *buf)
 
 	auth_buf = dma_alloc_coherent(dev, sizeof(*buf),
 					&auth_phys, GFP_KERNEL);
+	if (!auth_buf) {
+		dev_err(dev, "Allocation for auth buffer failed\n");
+		return -ENOMEM;
+	}
 	desc.args[0] = (u64)auth_phys;
 	desc.args[1] = sizeof(char);
 	desc.arginfo = SCM_ARGS(2, SCM_RO);
@@ -393,6 +397,11 @@ int __qcom_qfprom_read_version(struct device *dev, uint32_t sw_type,
 
 	xtra = (struct qfprom_xtra *)dma_alloc_coherent(dev,
 		sizeof(struct qfprom_xtra), &xtra_phys, GFP_KERNEL);
+	if (!xtra) {
+		dev_err(dev, "Allocation for xtraargs buffer failed\n");
+		return -ENOMEM;
+	}
+
 	xtra->qfprom_ret_ptr = qfprom_ret_ptr;
 	xtra->size = sizeof(uint32_t);
 
