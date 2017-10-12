@@ -6405,12 +6405,6 @@ static const struct snd_soc_dapm_widget tavil_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_IN_E("AIF2 PB", "AIF2 Playback", 0, SND_SOC_NOPM,
 		AIF2_PB, 0, tavil_codec_enable_slimrx,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_AIF_IN_E("AIF3 PB", "AIF3 Playback", 0, SND_SOC_NOPM,
-		AIF3_PB, 0, tavil_codec_enable_slimrx,
-		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_AIF_IN_E("AIF4 PB", "AIF4 Playback", 0, SND_SOC_NOPM,
-		AIF4_PB, 0, tavil_codec_enable_slimrx,
-		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
 	WCD_DAPM_MUX("CDC_IF RX0 MUX", WCD934X_RX0, cdc_if_rx0),
 	WCD_DAPM_MUX("CDC_IF RX1 MUX", WCD934X_RX1, cdc_if_rx1),
@@ -8913,11 +8907,6 @@ static int tavil_soc_codec_probe(struct snd_soc_codec *codec)
 	snd_soc_dapm_ignore_suspend(dapm, "AIF1 Capture");
 	snd_soc_dapm_ignore_suspend(dapm, "AIF2 Playback");
 	snd_soc_dapm_ignore_suspend(dapm, "AIF2 Capture");
-	snd_soc_dapm_ignore_suspend(dapm, "AIF3 Playback");
-	snd_soc_dapm_ignore_suspend(dapm, "AIF3 Capture");
-	snd_soc_dapm_ignore_suspend(dapm, "AIF4 Playback");
-	snd_soc_dapm_ignore_suspend(dapm, "AIF4 MAD TX");
-	snd_soc_dapm_ignore_suspend(dapm, "VIfeed");
 
 	snd_soc_dapm_sync(dapm);
 
