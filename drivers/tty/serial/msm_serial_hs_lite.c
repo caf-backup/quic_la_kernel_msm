@@ -149,16 +149,16 @@ static const unsigned int regmap[][UARTDM_LAST] = {
 };
 
 static struct of_device_id msm_hsl_match_table[] = {
-	{	.compatible = "qcom,msm-uartdm-v1.1",
+	{	.compatible = "qcom,msm-hsl-uartdm-v1.1",
 		.data = (void *)UARTDM_VERSION_11_13,
 	},
-	{	.compatible = "qcom,msm-uartdm-v1.2",
+	{	.compatible = "qcom,msm-hsl-uartdm-v1.2",
 		.data = (void *)UARTDM_VERSION_11_13,
 	},
-	{	.compatible = "qcom,msm-uartdm-v1.3",
+	{	.compatible = "qcom,msm-hsl-uartdm-v1.3",
 		.data = (void *)UARTDM_VERSION_11_13,
 	},
-	{	.compatible = "qcom,msm-uartdm-v1.4",
+	{	.compatible = "qcom,msm-hsl-uartdm-v1.4",
 		.data = (void *)UARTDM_VERSION_14,
 	},
 	{}
