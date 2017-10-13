@@ -2157,7 +2157,6 @@ static void ath10k_htt_rx_tx_fetch_ind(struct ath10k *ar, struct sk_buff *skb)
 	u8 tid;
 	int ret;
 	int i;
-	bool refill = false;
 
 	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt rx tx fetch ind\n");
 
@@ -2194,6 +2193,9 @@ static void ath10k_htt_rx_tx_fetch_ind(struct ath10k *ar, struct sk_buff *skb)
 
 	rcu_read_lock();
 
+	spin_lock_bh(&ar->txqs_lock);
+	ath10k_atf_refill_deficit(ar);
+	spin_unlock_bh(&ar->txqs_lock);
 	for (i = 0; i < num_records; i++) {
 		struct ath10k_txq *artxq;
 		record = &resp->tx_fetch_ind.records[i];
@@ -2242,10 +2244,8 @@ static void ath10k_htt_rx_tx_fetch_ind(struct ath10k *ar, struct sk_buff *skb)
 			num_bytes += ret;
 
 			if (ath10k_atf_scheduler_enabled(ar) &&
-			    (artxq->atf.deficit < 0)) {
-				refill = true;
+			    (artxq->atf.deficit < 0))
 				break;
-			}
 		}
 		trace_ath10k_htt_rx_tx_fetch_ind(ar, i, peer_id, max_num_msdus,
 						 max_num_bytes, num_msdus,
@@ -2257,11 +2257,6 @@ static void ath10k_htt_rx_tx_fetch_ind(struct ath10k *ar, struct sk_buff *skb)
 		ath10k_htt_tx_txq_recalc(hw, txq);
 	}
 
-	if (refill) {
-		spin_lock_bh(&ar->txqs_lock);
-		ath10k_atf_refill_deficit(ar);
-		spin_unlock_bh(&ar->txqs_lock);
-	}
 	rcu_read_unlock();
 
 	resp_ids = ath10k_htt_get_tx_fetch_ind_resp_ids(&resp->tx_fetch_ind);
