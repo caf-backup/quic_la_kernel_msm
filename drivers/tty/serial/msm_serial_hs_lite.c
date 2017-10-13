@@ -20,7 +20,7 @@
 
 #define pr_fmt(fmt) "%s: " fmt, __func__
 
-#if defined(CONFIG_SERIAL_MSM_HSL_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
+#if defined(CONFIG_SERIAL_MSM_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
 #endif
 
@@ -164,7 +164,7 @@ static struct of_device_id msm_hsl_match_table[] = {
 	{}
 };
 
-#ifdef CONFIG_SERIAL_MSM_HSL_CONSOLE
+#ifdef CONFIG_SERIAL_MSM_CONSOLE
 static int get_console_state(struct uart_port *port);
 #else
 static inline int get_console_state(struct uart_port *port) { return -ENODEV; };
@@ -1418,7 +1418,7 @@ static inline void wait_for_xmitr(struct uart_port *port)
 	}
 }
 
-#ifdef CONFIG_SERIAL_MSM_HSL_CONSOLE
+#ifdef CONFIG_SERIAL_MSM_CONSOLE
 static void msm_hsl_console_putchar(struct uart_port *port, int ch)
 {
 	unsigned int vid = UART_TO_MSM(port)->ver_id;
@@ -1811,7 +1811,7 @@ static int msm_serial_hsl_probe(struct platform_device *pdev)
 	device_set_wakeup_capable(&pdev->dev, 1);
 	platform_set_drvdata(pdev, port);
 	pm_runtime_enable(port->dev);
-#ifdef CONFIG_SERIAL_MSM_HSL_CONSOLE
+#ifdef CONFIG_SERIAL_MSM_CONSOLE
 	ret = device_create_file(&pdev->dev, &dev_attr_console);
 	if (unlikely(ret))
 		pr_err("Can't create console attribute\n");
@@ -1843,7 +1843,7 @@ static int msm_serial_hsl_remove(struct platform_device *pdev)
 	struct uart_port *port;
 
 	port = get_port_from_line(get_line(pdev));
-#ifdef CONFIG_SERIAL_MSM_HSL_CONSOLE
+#ifdef CONFIG_SERIAL_MSM_CONSOLE
 	device_remove_file(&pdev->dev, &dev_attr_console);
 #endif
 	pm_runtime_put_sync(&pdev->dev);
@@ -1971,7 +1971,7 @@ static int __init msm_serial_hsl_init(void)
 static void __exit msm_serial_hsl_exit(void)
 {
 	debugfs_remove_recursive(debug_base);
-#ifdef CONFIG_SERIAL_MSM_HSL_CONSOLE
+#ifdef CONFIG_SERIAL_MSM_CONSOLE
 	unregister_console(&msm_hsl_console);
 #endif
 	platform_driver_unregister(&msm_hsl_platform_driver);
