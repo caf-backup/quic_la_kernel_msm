@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2013 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2015 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -30,15 +30,14 @@
  * @line: Used to set UART Port number.
  */
 struct msm_serial_hslite_platform_data {
-	unsigned config_gpio;
-	unsigned uart_tx_gpio;
-	unsigned uart_rx_gpio;
-	unsigned uart_cts_gpio;
-	unsigned uart_rfr_gpio;
+	int config_gpio;
+	int uart_tx_gpio;
+	int uart_rx_gpio;
+	int uart_cts_gpio;
+	int uart_rfr_gpio;
 	bool set_uart_clk_zero;
 	bool use_pm;
 	int line;
 };
 
 #endif
-

@@ -1,19 +1,19 @@
 /* drivers/serial/msm_serial_hs_hwreg.h
  *
- * Copyright (c) 2007-2009, 2012-2014,The Linux Foundation. All rights reserved.
- * 
+ * Copyright (c) 2007-2009, 2012-2015,The Linux Foundation. All rights reserved.
+ *
  * All source code in this file is licensed under the following license
  * except where indicated.
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * version 2 as published by the Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can find it at http://www.fsf.org
  */
@@ -32,9 +32,11 @@
 #define ADM1_CRCI_GSBI6_RX_SEL         0x800
 #define ADM1_CRCI_GSBI6_TX_SEL         0x400
 
-#define MSM_ENABLE_UART_CLOCK 13
-#define MSM_DISABLE_UART_CLOCK 14
-#define MSM_GET_UART_CLOCK_STATUS 15
+#define MSM_ENABLE_UART_CLOCK TIOCPMGET
+#define MSM_DISABLE_UART_CLOCK TIOCPMPUT
+#define MSM_GET_UART_CLOCK_STATUS TIOCPMACT
+
+#define SCM_GSBI_ADM_MUX_SEL_CMD        0x5
 
 enum msm_hsl_regs {
 	UARTDM_MR1,
@@ -225,6 +227,7 @@ enum msm_hs_regs {
 
 #define UARTDM_IPR_STALE_TIMEOUT_MSB_BMSK 0xffffff80
 #define UARTDM_IPR_STALE_LSB_BMSK 0x1f
+#define UARTDM_CR_CMD_RESET_RXBREAK_START ((1 << 11) | (2 << 4))
 
 /* These can be used for both ISR and IMR register */
 #define UARTDM_ISR_TX_READY_BMSK	BIT(7)
@@ -232,7 +235,7 @@ enum msm_hs_regs {
 #define UARTDM_ISR_DELTA_CTS_BMSK	BIT(5)
 #define UARTDM_ISR_RXLEV_BMSK		BIT(4)
 #define UARTDM_ISR_RXSTALE_BMSK		BIT(3)
-#define UARTDM_ISR_RXBREAK_BMSK		BIT(2)
+#define UARTDM_ISR_RXBREAK_BMSK		BIT(10)
 #define UARTDM_ISR_RXHUNT_BMSK		BIT(1)
 #define UARTDM_ISR_TXLEV_BMSK		BIT(0)
 
