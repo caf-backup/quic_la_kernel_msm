@@ -32,6 +32,8 @@ extern int __qcom_qfprom_read_version(struct device *dev, uint32_t sw_type,
 			uint32_t value, uint32_t qfprom_ret_ptr);
 extern int __qcom_qfprom_show_authenticate(struct device *dev, char *buf);
 extern int __qcom_scm_set_cold_boot_addr(void *entry, const cpumask_t *cpus);
+extern int __qcom_qfprom_write_version(struct device *dev, void *wrip,
+						int size);
 
 #define QCOM_SCM_CMD_TERMINATE_PC	0x2
 #define QCOM_SCM_FLUSH_FLAG_MASK	0x3

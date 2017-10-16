@@ -617,6 +617,15 @@ int __qcom_qfprom_show_authenticate(struct device *dev, char *buf)
 	return ret;
 }
 
+int __qcom_qfprom_write_version(struct device *dev, void *wrip, int size)
+{
+	if (!is_scm_armv8())
+		return  qcom_scm_call(dev, QCOM_SCM_SVC_FUSE,
+			QCOM_QFPROM_ROW_WRITE_CMD, wrip, size, NULL, 0);
+	else
+		return -ENOTSUPP;
+}
+
 int __qcom_qfprom_read_version(struct device *dev, uint32_t sw_type,
 			uint32_t value, uint32_t qfprom_ret_ptr)
 {
