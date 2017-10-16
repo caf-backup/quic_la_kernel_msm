@@ -218,6 +218,7 @@ static int msm_config_reg(struct msm_pinctrl *pctrl,
 		*mask = 0x7;
 		break;
 	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_INPUT_ENABLE:
 		*bit = g->oe_bit;
 		*mask = 1;
 		break;
@@ -311,6 +312,12 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 		val = readl(pctrl->regs + g->io_reg);
 		arg = !!(val & BIT(g->in_bit));
 		break;
+	case PIN_CONFIG_INPUT_ENABLE:
+		/* Pin is output */
+		if (arg)
+			return -EINVAL;
+		arg = 1;
+		break;
 	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
 	case PIN_CONFIG_VM:
 		arg = arg == 1;
@@ -401,6 +408,10 @@ static int msm_config_group_set(struct pinctrl_dev *pctldev,
 
 			/* enable output */
 			arg = 1;
+			break;
+		case PIN_CONFIG_INPUT_ENABLE:
+			/* disable output */
+			arg = 0;
 			break;
 		case PIN_CONFIG_DRIVE_OPEN_DRAIN:
 			arg = 1;
