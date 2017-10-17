@@ -122,6 +122,7 @@ static void prom_putchar_init(void)
 	case REV_ID_MAJOR_QCA9558:
 	case REV_ID_MAJOR_TP9343:
 	case REV_ID_MAJOR_QCA956X:
+	case REV_ID_MAJOR_QCN5502:
 		_prom_putchar = prom_putchar_ar71xx;
 		break;
 

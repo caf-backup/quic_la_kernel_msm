@@ -194,6 +194,12 @@ static void __init ath79_detect_sys_type(void)
 		rev = id & QCA956X_REV_ID_REVISION_MASK;
 		break;
 
+	case REV_ID_MAJOR_QCN5502:
+		ath79_soc = ATH79_SOC_QCN5502;
+		chip = "5502";
+		rev = id & QCN550X_REV_ID_REVISION_MASK;
+		break;
+
 	default:
 		panic("ath79: unknown SoC, id:0x%08x", id);
 	}
@@ -201,7 +207,8 @@ static void __init ath79_detect_sys_type(void)
 	if (ver == 1)
 		ath79_soc_rev = rev;
 
-	if (soc_is_qca953x() || soc_is_qca955x() || soc_is_qca956x())
+	if (soc_is_qca953x() || soc_is_qca955x() || soc_is_qca956x() ||
+		soc_is_qcn550x())
 		snprintf(ath79_sys_type, sizeof(ath79_sys_type),
 			"Qualcomm Atheros QCA%s ver %u rev %u", chip, ver, rev);
 	else if (soc_is_tp9343())

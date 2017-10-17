@@ -244,6 +244,26 @@ static void qca956x_wmac_setup(void)
 	ath79_wmac_data.get_mac_revision = ar93xx_get_soc_revision;
 }
 
+static void qcn550x_wmac_setup(void)
+{
+	u32 t;
+
+	ath79_wmac_device.name = "qcn550x_wmac";
+
+	ath79_wmac_resources[0].start = QCN550X_WMAC_BASE;
+	ath79_wmac_resources[0].end = QCN550X_WMAC_BASE + QCN550X_WMAC_SIZE - 1;
+	ath79_wmac_resources[1].start = ATH79_IP2_IRQ(1);
+	ath79_wmac_resources[1].end = ATH79_IP2_IRQ(1);
+
+	t = ath79_reset_rr(QCN550X_RESET_REG_BOOTSTRAP);
+	if (t & QCN550X_BOOTSTRAP_REF_CLK_40)
+		ath79_wmac_data.is_clk_25mhz = false;
+	else
+		ath79_wmac_data.is_clk_25mhz = true;
+
+	ath79_wmac_data.get_mac_revision = ar93xx_get_soc_revision;
+}
+
 static bool __init
 ar93xx_wmac_otp_read_word(void __iomem *base, int addr, u32 *data)
 {
@@ -454,6 +474,8 @@ void __init ath79_register_wmac(u8 *cal_data, u8 *mac_addr)
 		qca955x_wmac_setup();
 	else if (soc_is_qca956x() || soc_is_tp9343())
 		qca956x_wmac_setup();
+	else if (soc_is_qcn550x())
+		qcn550x_wmac_setup();
 	else
 		BUG();
 

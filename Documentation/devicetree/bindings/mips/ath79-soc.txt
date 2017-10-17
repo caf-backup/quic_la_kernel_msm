@@ -31,3 +31,4 @@ value must be one of the following values:
 - qca,ap147_v2
 - qca,ap151_v2
 - qca,db120
+- qca,apjet01

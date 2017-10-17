@@ -100,7 +100,8 @@ void ath79_gpio_output_select(struct gpio_chip *chip,
 	unsigned int reg;
 	u32 t, s;
 
-	WARN_ON(!soc_is_ar934x() && !soc_is_qca953x() && !soc_is_qca956x());
+	WARN_ON(!soc_is_ar934x() && !soc_is_qca953x() && !soc_is_qca956x() &&
+			!soc_is_qcn550x());
 
 	if (gpio >= ctrl->chip.ngpio)
 		return;
@@ -156,7 +157,8 @@ static void __iomem *ath79_gpio_get_function_reg(struct gpio_chip *chip)
 	    soc_is_ar913x() ||
 	    soc_is_ar933x())
 		reg = AR71XX_GPIO_REG_FUNC;
-	else if (soc_is_ar934x() || soc_is_qca953x() || soc_is_qca956x())
+	else if (soc_is_ar934x() || soc_is_qca953x() || soc_is_qca956x() ||
+			soc_is_qcn550x())
 		reg = AR934X_GPIO_REG_FUNC;
 	else
 		WARN(1, "Unsupported SOC");
