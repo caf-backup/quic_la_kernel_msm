@@ -41,6 +41,60 @@ bool rx_large_buf;
 module_param(rx_large_buf, bool, 0444);
 MODULE_PARM_DESC(rx_large_buf, " allocate 8KB RX buffers, default - no");
 
+static uint bcast_mcs0_limit = WIL_BCAST_MCS0_LIMIT;
+static int bcast_mcs0_limit_set(const char *val, const struct kernel_param *kp)
+{
+	int ret;
+	uint saved = bcast_mcs0_limit;
+
+	ret = param_set_uint(val, kp);
+	if (ret)
+		return ret;
+
+	if (bcast_mcs0_limit > WIL_BCAST_MCS0_LIMIT) {
+		bcast_mcs0_limit = saved;
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+static const struct kernel_param_ops bcast_mcs0_limit_ops = {
+	.set = bcast_mcs0_limit_set,
+	.get = param_get_uint,
+};
+
+module_param_cb(bcast_mcs0_limit_set, &bcast_mcs0_limit_ops,
+		&bcast_mcs0_limit, 0644);
+MODULE_PARM_DESC(bcast_mcs0_limit,
+		 " max broadcast packet size with MCS0, default - 1024 bytes");
+
+static uint bcast_mcs = 1;
+static int bcast_mcs_set(const char *val, const struct kernel_param *kp)
+{
+	int ret;
+	uint saved = bcast_mcs;
+
+	ret = param_set_uint(val, kp);
+	if (ret)
+		return ret;
+
+	if (bcast_mcs > WIL_MCS_MAX || bcast_mcs == 0) {
+		bcast_mcs = saved;
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+static const struct kernel_param_ops bcast_mcs_ops = {
+	.set = bcast_mcs_set,
+	.get = param_get_uint,
+};
+
+module_param_cb(bcast_mcs, &bcast_mcs_ops, &bcast_mcs, 0644);
+MODULE_PARM_DESC(bcast_mcs, " MCS index for large bcast TX, default - 1");
+
 static inline uint wil_rx_snaplen(void)
 {
 	return rx_align_2 ? 6 : 0;
@@ -1699,8 +1753,9 @@ static int __wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	wil_tx_desc_map(d, pa, len, vring_index);
 	if (unlikely(mcast)) {
 		d->mac.d[0] |= BIT(MAC_CFG_DESC_TX_0_MCS_EN_POS); /* MCS 0 */
-		if (unlikely(len > WIL_BCAST_MCS0_LIMIT)) /* set MCS 1 */
-			d->mac.d[0] |= (1 << MAC_CFG_DESC_TX_0_MCS_INDEX_POS);
+		if (unlikely(len > bcast_mcs0_limit)) /* use bcast_mcs */
+			d->mac.d[0] |= (bcast_mcs <<
+					MAC_CFG_DESC_TX_0_MCS_INDEX_POS);
 	}
 	/* Process TCP/UDP checksum offloading */
 	if (unlikely(wil_tx_desc_offload_setup(d, skb))) {
