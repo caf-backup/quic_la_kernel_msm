@@ -1118,6 +1118,9 @@ static unsigned int wsa881x_read(struct snd_soc_codec *codec,
 	unsigned int val;
 	struct regmap *wsa881x_regmap = wsa881x_get_regmap(codec->dev);
 
+	if (!wsa881x_regmap)
+		return -ENODEV;
+
 	regmap_read(wsa881x_regmap, reg, &val);
 
 	return val;
@@ -1127,6 +1130,9 @@ static int wsa881x_write(struct snd_soc_codec *codec,
 			unsigned int reg, unsigned int val)
 {
 	struct regmap *wsa881x_regmap = wsa881x_get_regmap(codec->dev);
+
+	if (!wsa881x_regmap)
+		return -ENODEV;
 
 	return regmap_write(wsa881x_regmap, reg, val);
 }

@@ -437,7 +437,7 @@ done:
 
 static int wdsp_init_and_dload_code_sections(struct wdsp_mgr_priv *wdsp)
 {
-	int ret;
+	int ret = 0;
 	bool is_initialized;
 
 	is_initialized = WDSP_STATUS_IS_SET(wdsp, WDSP_STATUS_INITIALIZED);
