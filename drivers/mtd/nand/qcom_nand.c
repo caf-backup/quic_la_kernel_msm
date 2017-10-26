@@ -1318,8 +1318,10 @@ static int _msm_nand_read_oob(struct mtd_info *mtd,
 				if (ecc_errors) {
 					total_ecc_errors += ecc_errors;
 					ecc_stats->corrected += ecc_errors;
-					if (ecc_errors > 1)
+					if (ecc_errors >=
+						mtd->bitflip_threshold) {
 						pageerr = -EUCLEAN;
+					}
 				}
 			}
 		}
@@ -2104,8 +2106,10 @@ static int _msm_nand_read_oob_dualnandc(struct mtd_info *mtd,
 				if (ecc_errors) {
 					total_ecc_errors += ecc_errors;
 					ecc_stats->corrected += ecc_errors;
-					if (ecc_errors > 1)
+					if (ecc_errors >=
+						mtd->bitflip_threshold) {
 						pageerr = -EUCLEAN;
+					}
 				}
 			}
 		}
@@ -2188,6 +2192,7 @@ msm_nand_read(struct mtd_info *mtd, loff_t from, size_t len,
 	      size_t *retlen, u_char *buf)
 {
 	int ret;
+	int err;
 	struct mtd_ecc_stats stats = { 0 };
 	struct mtd_oob_ops ops;
 	int (*read_oob)(struct mtd_info *, struct mtd_ecc_stats *, loff_t,
@@ -2204,6 +2209,7 @@ msm_nand_read(struct mtd_info *mtd, loff_t from, size_t len,
 	ops.oobbuf = NULL;
 	ret = 0;
 	*retlen = 0;
+	err = 0;
 
 	if ((from & (mtd->writesize - 1)) == 0 && len == mtd->writesize) {
 		/* reading a page on page boundary */
@@ -2211,6 +2217,10 @@ msm_nand_read(struct mtd_info *mtd, loff_t from, size_t len,
 		ops.datbuf = buf;
 		ret = read_oob(mtd, &stats, from, &ops);
 		*retlen = ops.retlen;
+		if (ret == -EBADMSG || ret == -EUCLEAN) {
+			err = ret;
+			ret = 0;
+		}
 	} else if (len > 0) {
 		/* reading any size on any offset. partial page is supported */
 		u8 *bounce_buf;
@@ -2245,8 +2255,10 @@ msm_nand_read(struct mtd_info *mtd, loff_t from, size_t len,
 			 * correctable ECC errors occur.
 			 */
 			ret = read_oob(mtd, &stats, aligned_from, &ops);
-			if (ret == -EBADMSG || ret == -EUCLEAN)
+			if (ret == -EBADMSG || ret == -EUCLEAN) {
+				err = ret;
 				ret = 0;
+			}
 
 			if (ret < 0)
 				break;
@@ -2278,7 +2290,7 @@ out:
 
 	if (stats.corrected) {
 		mtd->ecc_stats.corrected += stats.corrected;
-		return -EUCLEAN;
+		return err;
 	}
 	return 0;
 }
@@ -7129,6 +7141,9 @@ int msm_nand_scan(struct mtd_info *mtd, int maxchips)
 		pr_err("Unsupported Nand,Id: 0x%x \n", flash_id);
 		return -ENODEV;
 	}
+
+	mtd->ecc_strength = enable_bch_ecc ? 8 : 4;
+	mtd->bitflip_threshold = DIV_ROUND_UP(mtd->ecc_strength * 3, 4);
 
 	/* Size of each codeword is 532Bytes incase of 8bit BCH ECC*/
 	chip->cw_size = enable_bch_ecc ? 532 : 528;
