@@ -1370,7 +1370,8 @@ static int msm_nand_read_oob(struct mtd_info *mtd, loff_t from,
 					 * that correctable errors upto 3 bits
 					 * are very common.
 					 */
-					if (ecc_errors > 3)
+					if (ecc_errors >=
+						mtd->bitflip_threshold)
 						pageerr = -EUCLEAN;
 				}
 			}
@@ -2380,6 +2381,10 @@ static int msm_nand_scan(struct mtd_info *mtd)
 			mtd->writesize, mtd->erasesize, mtd->oobsize);
 		pr_info("BCH ECC: %d Bit\n",
 			(chip->bch_caps & MSM_NAND_CAP_8_BIT_BCH ? 8 : 4));
+
+		mtd->ecc_strength = chip->bch_caps & MSM_NAND_CAP_8_BIT_BCH
+					? 8 : 4;
+		mtd->bitflip_threshold = DIV_ROUND_UP(mtd->ecc_strength * 3, 4);
 	}
 
 	chip->cw_size = (chip->bch_caps & MSM_NAND_CAP_8_BIT_BCH) ? 532 : 528;
