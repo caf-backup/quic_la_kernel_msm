@@ -335,18 +335,6 @@ static int apq_mi2s_audrx_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_sync(dapm);
 
 	card = rtd->card->snd_card;
-
-	entry = snd_info_card_create(card);
-	if (!entry) {
-		pr_debug("%s: Cannot create codecs module entry\n",
-			 __func__);
-		err = 0;
-		goto out;
-	}
-	pdata->codec_root = entry;
-
-	tavil_codec_info_create_codec_entry(pdata->codec_root, codec);
-
 	return 0;
 out:
 	return err;
