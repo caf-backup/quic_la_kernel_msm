@@ -1478,7 +1478,7 @@ static int edma_axi_probe(struct platform_device *pdev)
 		/* Request irq per core */
 		for (j = edma_cinfo->edma_percpu_info[i].tx_start;
 		     j < tx_start[i] + 4; j++) {
-			sprintf(&edma_tx_irq[j][0], "edma_eth_tx%d", j);
+			snprintf(&edma_tx_irq[j][0], sizeof(edma_tx_irq[0]), "edma_eth_tx%d", j);
 			err = request_irq(edma_cinfo->tx_irq[j],
 					  edma_interrupt,
 					  IRQF_DISABLED,
@@ -1492,7 +1492,7 @@ static int edma_axi_probe(struct platform_device *pdev)
 		     j < (rx_start +
 		     ((edma_cinfo->num_rx_queues == 4) ? 1 : 2));
 		     j++) {
-			sprintf(&edma_rx_irq[j][0], "edma_eth_rx%d", j);
+			snprintf(&edma_rx_irq[j][0], sizeof(edma_rx_irq[0]), "edma_eth_rx%d", j);
 			err = request_irq(edma_cinfo->rx_irq[j],
 					  edma_interrupt,
 					  IRQF_DISABLED,
