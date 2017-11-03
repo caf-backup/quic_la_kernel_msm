@@ -93,6 +93,8 @@ static u32 edma_default_group1_bmp  __read_mostly = EDMA_DEFAULT_GROUP1_BMP;
 static u32 edma_default_group2_bmp  __read_mostly = EDMA_DEFAULT_GROUP2_BMP;
 static u32 edma_disable_rss __read_mostly = EDMA_DEFAULT_DISABLE_RSS;
 
+u32 edma_disable_queue_stop __read_mostly = EDMA_DEFAULT_DISABLE_QUEUE_STOP;
+
 static int edma_weight_assigned_to_q __read_mostly;
 static int edma_queue_to_virtual_q __read_mostly;
 static bool edma_enable_rstp  __read_mostly;
@@ -904,6 +906,20 @@ static int edma_queue_to_virtual_queue_map(struct ctl_table *table, int write,
 	return ret;
 }
 
+static int edma_disable_queue_stop_func(struct ctl_table *table, int write,
+					void __user *buffer, size_t *lenp,
+					loff_t *ppos)
+{
+	struct edma_adapter *adapter;
+	int ret;
+
+	adapter = netdev_priv(edma_netdev[0]);
+
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+
+	return ret;
+}
+
 static struct ctl_table edma_table[] = {
 	{
 		.procname	= "default_lan_tag",
@@ -1002,6 +1018,13 @@ static struct ctl_table edma_table[] = {
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
 		.proc_handler   = edma_disable_rss_func
+	},
+	{
+		.procname       = "edma_disable_queue_stop",
+		.data           = &edma_disable_queue_stop,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = edma_disable_queue_stop_func
 	},
 	{}
 };
