@@ -2050,7 +2050,6 @@ static int msm_spi_setup(struct spi_device *spi)
 	dd = spi_master_get_devdata(spi->master);
 
 	pm_runtime_get_sync(dd->dev);
-	get_local_resources(dd);
 
 	mutex_lock(&dd->core_lock);
 
