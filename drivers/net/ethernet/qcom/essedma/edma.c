@@ -19,6 +19,8 @@
 #include "edma.h"
 
 extern struct net_device *edma_netdev[EDMA_MAX_PORTID_SUPPORTED];
+extern u32 edma_disable_queue_stop;
+
 bool edma_stp_rstp;
 u16 edma_ath_eth_type;
 
@@ -1451,6 +1453,14 @@ netdev_tx_t edma_xmit(struct sk_buff *skb,
 	 */
 
 	if (num_tpds_needed > edma_tpd_available(edma_cinfo, queue_id)) {
+		if (edma_disable_queue_stop) {
+			local_bh_enable();
+			dev_dbg(&net_dev->dev, "Packet dropped as queue is full");
+			dev_kfree_skb_any(skb);
+			adapter->stats.tx_errors++;
+			return NETDEV_TX_OK;
+		}
+
 		/* not enough descriptor, just stop queue */
 		netif_tx_stop_queue(nq);
 		local_bh_enable();
