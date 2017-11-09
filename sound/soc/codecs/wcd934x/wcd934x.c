@@ -8192,6 +8192,7 @@ static const struct tavil_reg_mask_val tavil_codec_reg_i2c_defaults[] = {
 	{WCD934X_CDC_TX6_TX_PATH_CTL, 0xF, 0x1},
 	{WCD934X_CDC_TX7_TX_PATH_CTL, 0xF, 0x1},
 	{WCD934X_CDC_TX8_TX_PATH_CTL, 0xF, 0x1},
+	{WCD934X_INTR_CODEC_MISC_MASK, 0xF, 0x0},
 };
 
 static void tavil_codec_init_reg(struct snd_soc_codec *codec)
