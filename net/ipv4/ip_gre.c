@@ -297,6 +297,8 @@ static netdev_tx_t gre_tap_xmit(struct sk_buff *skb,
 	if (skb_cow_head(skb, dev->needed_headroom))
 		goto free_skb;
 
+	skb->skb_iif = dev->ifindex;
+
 	__gre_xmit(skb, dev, &tunnel->parms.iph, htons(ETH_P_TEB));
 
 	return NETDEV_TX_OK;
