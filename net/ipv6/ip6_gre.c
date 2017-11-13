@@ -396,9 +396,7 @@ static void ip6gre_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	key = key_off ? *(__be32 *)(skb->data + key_off) : 0;
 
 	t = ip6gre_tunnel_lookup(skb->dev, &ipv6h->daddr, &ipv6h->saddr,
-				flags & GRE_KEY ?
-				net_hdr_word(((__be32 *)p) + (grehlen / 4) - 1) : 0,
-				p[1]);
+				key, greh->protocol);
 	if (!t)
 		return;
 
@@ -760,6 +758,10 @@ static netdev_tx_t ip6gre_xmit2(struct sk_buff *skb,
 	}
 
 	skb_set_inner_protocol(skb, protocol);
+
+	if (dev->priv_flags & IFF_GRE_V6_TAP) {
+		skb->skb_iif = dev->ifindex;
+	}
 
 	ip6tunnel_xmit(NULL, skb, dev);
 	return 0;
