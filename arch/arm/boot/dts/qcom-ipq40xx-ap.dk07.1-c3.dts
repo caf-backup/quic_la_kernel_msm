@@ -23,7 +23,7 @@
 	model = "Qualcomm Technologies, Inc. IPQ40xx/AP-DK07.1-C3";
 
 	chosen {
-		bootargs-append = " clk_ignore_unused isolcpus=3";
+		bootargs-append = " clk_ignore_unused ";
 	};
 
 	soc {
