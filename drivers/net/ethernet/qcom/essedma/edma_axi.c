@@ -1150,6 +1150,14 @@ static int edma_axi_probe(struct platform_device *pdev)
 			edma_cinfo->num_cores = EDMA_CPU_CORES_SUPPORTED;
 	}
 
+	if (of_property_read_bool(np, "qcom,tx-ring-count"))
+		of_property_read_u32(np, "qcom,tx-ring-count",
+				     &edma_cinfo->tx_ring_count);
+
+	if (of_property_read_bool(np, "qcom,rx-ring-count"))
+		of_property_read_u32(np, "qcom,rx-ring-count",
+				     &edma_cinfo->rx_ring_count);
+
 	of_property_read_u32(np, "qcom,page-mode", &edma_cinfo->page_mode);
 	of_property_read_u32(np, "qcom,rx_head_buf_size",
 			     &hw->rx_head_buff_size);
