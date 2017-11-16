@@ -971,16 +971,6 @@ msm_spi_bam_begin_transfer(struct msm_spi *dd)
 	n_words_xfr = DIV_ROUND_UP(rx_bytes_to_recv,
 				dd->bytes_per_word);
 
-	if (dd->pdata->is_shared) {
-		if (dd->dma_pipe_connect == false) {
-			dd->dma_pipe_connect = true;
-			msm_spi_bam_pipe_connect(dd, &dd->bam.prod,
-					&dd->bam.prod.config);
-			msm_spi_bam_pipe_connect(dd, &dd->bam.cons,
-					&dd->bam.cons.config);
-		}
-	}
-
 	msm_spi_set_mx_counts(dd, n_words_xfr);
 	ret = msm_spi_set_state(dd, SPI_OP_STATE_RUN);
 	if (ret < 0) {
@@ -1960,6 +1950,12 @@ static int msm_spi_transfer_one_message(struct spi_master *master,
 		}
 
 		reset_core(dd);
+		if (dd->use_dma) {
+			msm_spi_bam_pipe_connect(dd, &dd->bam.prod,
+				&dd->bam.prod.config);
+			msm_spi_bam_pipe_connect(dd, &dd->bam.cons,
+				&dd->bam.cons.config);
+		}
 	}
 
 	if (dd->suspended || !msm_spi_is_valid_state(dd)) {
@@ -1988,7 +1984,7 @@ static int msm_spi_transfer_one_message(struct spi_master *master,
 	 * prevent race conditions between us and any other EE's using this hw.
 	 */
 	if (dd->pdata->is_shared) {
-		if (dd->dma_pipe_connect == true) {
+		if (dd->use_dma) {
 			msm_spi_bam_pipe_disconnect(dd, &dd->bam.prod);
 			msm_spi_bam_pipe_disconnect(dd, &dd->bam.cons);
 		}
