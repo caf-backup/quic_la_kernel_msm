@@ -399,6 +399,11 @@ static inline struct ag71xx_platform_data *ag71xx_get_pdata(struct ag71xx *ag)
 #define RX_STATUS_OF		BIT(2)	/* Rx Overflow */
 #define RX_STATUS_BE		BIT(3)	/* Bus Error */
 
+#define QCA956X_DAM_RESET_OFFSET1	0xb90001bc
+#define QCA956X_DAM_RESET_OFFSET2	0xba0001bc
+#define QCA956X_JUMBO_ENABLE		(BIT(28) | BIT(29))
+#define QCA956X_DAM_RESET_SIZE		0x4
+
 typedef enum {
 	AG71XX_SGMII_SPEED_10T = 0,
 	AG71XX_SGMII_SPEED_100T,
