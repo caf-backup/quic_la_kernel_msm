@@ -169,7 +169,7 @@
 	mdio@90000 {
 		pinctrl-0 = <&mdio_pins>;
 		pinctrl-names = "default";
-		phy-reset-gpio = <&tlmm 37 0 &tlmm 63 1>;
+		phy-reset-gpio = <&tlmm 37 0>;
 		phy0: ethernet-phy@0 {
 			reg = <0>;
 		};

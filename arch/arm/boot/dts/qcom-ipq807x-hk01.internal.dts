@@ -13,14 +13,31 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#include "../../../arm64/boot/dts/qcom/qcom-ipq807x-hk01.dts"
+#include "qcom-ipq807x-hk01.dts"
 
 / {
-	soc {
-		pmu {
-			compatible = "arm,cortex-a7-pmu";
-			interrupts = <GIC_PPI 7 (GIC_CPU_MASK_SIMPLE(4) |
-					IRQ_TYPE_LEVEL_HIGH)>;
-		};
+	/delete-node/ psci;
+};
+
+&soc {
+	restart@4ab000 {
+		compatible = "qcom,pshold";
+		reg = <0x4ab000 0x4>;
 	};
+};
+
+&CPU0 {
+	enable-method = "qcom,arm-cortex-acc";
+};
+
+&CPU1 {
+	enable-method = "qcom,arm-cortex-acc";
+};
+
+&CPU2 {
+	enable-method = "qcom,arm-cortex-acc";
+};
+
+&CPU3 {
+	enable-method = "qcom,arm-cortex-acc";
 };

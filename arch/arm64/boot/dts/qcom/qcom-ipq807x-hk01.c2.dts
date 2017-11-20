@@ -105,13 +105,6 @@
 			drive-strength = <8>;
 			bias-pull-up;
 		};
-		mux_2 {
-			pins = "gpio44";
-			function = "gpio";
-			drive-strength = <8>;
-			bias-pull-up;
-		};
-
 	};
 
 	uart_pins: uart_pins {
@@ -244,6 +237,15 @@
 		};
 	};
 
+	button_pins: button_pins {
+		wps_button {
+			pins = "gpio57";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+	};
+
 	uniphy_pins: uniphy_pinmux {
 		mux {
 			pins = "gpio60";
@@ -262,10 +264,24 @@
 };
 
 &soc {
+	gpio_keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&button_pins>;
+		pinctrl-names = "default";
+
+		button@1 {
+			label = "wps";
+			linux,code = <KEY_WPS_BUTTON>;
+			gpios = <&tlmm 57 GPIO_ACTIVE_LOW>;
+			linux,input-type = <1>;
+			debounce-interval = <60>;
+		};
+	};
+
 	mdio@90000 {
 		pinctrl-0 = <&mdio_pins>;
 		pinctrl-names = "default";
-		phy-reset-gpio = <&tlmm 37 0 &tlmm 44 1>;
+		phy-reset-gpio = <&tlmm 37 0>;
 		phy0: ethernet-phy@0 {
 			reg = <0>;
 		};
