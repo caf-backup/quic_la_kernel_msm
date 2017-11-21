@@ -18,6 +18,7 @@
 #include <linux/errno.h>
 
 #ifdef CONFIG_IPC_ROUTER_SECURITY
+#include <linux/android_aid.h>
 
 /**
  * check_permisions() - Check whether the process has permissions to
