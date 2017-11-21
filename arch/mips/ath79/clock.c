@@ -619,6 +619,99 @@ static void __init qca956x_clocks_init(void)
 	clk_add_alias("uart", NULL, "ref", NULL);
 }
 
+static void __init qcn550x_clocks_init(void)
+{
+	unsigned long ref_rate;
+	unsigned long cpu_rate;
+	unsigned long ddr_rate;
+	unsigned long ahb_rate;
+	u32 pll, out_div, ref_div, nint, hfrac, lfrac, clk_ctrl, postdiv;
+	u32 cpu_pll, ddr_pll;
+	u32 bootstrap;
+
+	bootstrap = ath79_reset_rr(QCN550X_RESET_REG_BOOTSTRAP);
+	if (bootstrap &	QCN550X_BOOTSTRAP_REF_CLK_40)
+		ref_rate = 40 * 1000 * 1000;
+	else
+		ref_rate = 25 * 1000 * 1000;
+
+	pll = ath79_pll_rr(QCN550X_PLL_CPU_CONFIG_REG);
+	out_div = (pll >> QCN550X_PLL_CPU_CONFIG_OUTDIV_SHIFT) &
+		  QCN550X_PLL_CPU_CONFIG_OUTDIV_MASK;
+	ref_div = (pll >> QCN550X_PLL_CPU_CONFIG_REFDIV_SHIFT) &
+		  QCN550X_PLL_CPU_CONFIG_REFDIV_MASK;
+
+	pll = ath79_pll_rr(QCN550X_PLL_CPU_CONFIG1_REG);
+	nint = (pll >> QCN550X_PLL_CPU_CONFIG1_NINT_SHIFT) &
+	       QCN550X_PLL_CPU_CONFIG1_NINT_MASK;
+	hfrac = (pll >> QCN550X_PLL_CPU_CONFIG1_NFRAC_H_SHIFT) &
+	       QCN550X_PLL_CPU_CONFIG1_NFRAC_H_MASK;
+	lfrac = (pll >> QCN550X_PLL_CPU_CONFIG1_NFRAC_L_SHIFT) &
+	       QCN550X_PLL_CPU_CONFIG1_NFRAC_L_MASK;
+
+	cpu_pll = nint * ref_rate / ref_div;
+	cpu_pll += (lfrac * ref_rate) / ((ref_div * 25) << 13);
+	cpu_pll += (hfrac >> 13) * ref_rate / ref_div;
+	cpu_pll /= (1 << out_div);
+
+	pll = ath79_pll_rr(QCN550X_PLL_DDR_CONFIG_REG);
+	out_div = (pll >> QCN550X_PLL_DDR_CONFIG_OUTDIV_SHIFT) &
+		  QCN550X_PLL_DDR_CONFIG_OUTDIV_MASK;
+	ref_div = (pll >> QCN550X_PLL_DDR_CONFIG_REFDIV_SHIFT) &
+		  QCN550X_PLL_DDR_CONFIG_REFDIV_MASK;
+	pll = ath79_pll_rr(QCN550X_PLL_DDR_CONFIG1_REG);
+	nint = (pll >> QCN550X_PLL_DDR_CONFIG1_NINT_SHIFT) &
+	       QCN550X_PLL_DDR_CONFIG1_NINT_MASK;
+	hfrac = (pll >> QCN550X_PLL_DDR_CONFIG1_NFRAC_H_SHIFT) &
+	       QCN550X_PLL_DDR_CONFIG1_NFRAC_H_MASK;
+	lfrac = (pll >> QCN550X_PLL_DDR_CONFIG1_NFRAC_L_SHIFT) &
+	       QCN550X_PLL_DDR_CONFIG1_NFRAC_L_MASK;
+
+	ddr_pll = nint * ref_rate / ref_div;
+	ddr_pll += (lfrac * ref_rate) / ((ref_div * 25) << 13);
+	ddr_pll += (hfrac >> 13) * ref_rate / ref_div;
+	ddr_pll /= (1 << out_div);
+
+	clk_ctrl = ath79_pll_rr(QCN550X_PLL_CLK_CTRL_REG);
+
+	postdiv = (clk_ctrl >> QCN550X_PLL_CLK_CTRL_CPU_POST_DIV_SHIFT) &
+		  QCN550X_PLL_CLK_CTRL_CPU_POST_DIV_MASK;
+
+	if (clk_ctrl & QCN550X_PLL_CLK_CTRL_CPU_PLL_BYPASS)
+		cpu_rate = ref_rate;
+	else if (clk_ctrl & QCN550X_PLL_CLK_CTRL_CPU_DDRCLK_FROM_CPUPLL)
+		cpu_rate = ddr_pll / (postdiv + 1);
+	else
+		cpu_rate = cpu_pll / (postdiv + 1);
+
+	postdiv = (clk_ctrl >> QCN550X_PLL_CLK_CTRL_DDR_POST_DIV_SHIFT) &
+		  QCN550X_PLL_CLK_CTRL_DDR_POST_DIV_MASK;
+
+	if (clk_ctrl & QCN550X_PLL_CLK_CTRL_DDR_PLL_BYPASS)
+		ddr_rate = ref_rate;
+	else if (clk_ctrl & QCN550X_PLL_CLK_CTRL_CPU_DDRCLK_FROM_DDRPLL)
+		ddr_rate = cpu_pll / (postdiv + 1);
+	else
+		ddr_rate = ddr_pll / (postdiv + 1);
+
+	postdiv = (clk_ctrl >> QCN550X_PLL_CLK_CTRL_AHB_POST_DIV_SHIFT) &
+		  QCN550X_PLL_CLK_CTRL_AHB_POST_DIV_MASK;
+
+	if (clk_ctrl & QCN550X_PLL_CLK_CTRL_AHB_PLL_BYPASS)
+		ahb_rate = ref_rate;
+	else if (clk_ctrl & QCN550X_PLL_CLK_CTRL_AHBCLK_FROM_DDRPLL)
+		ahb_rate = ddr_pll / (postdiv + 1);
+	else
+		ahb_rate = cpu_pll / (postdiv + 1);
+
+	clks[0] = ath79_add_sys_clkdev("cpu", cpu_rate);
+	clks[1] = ath79_add_sys_clkdev("ddr", ddr_rate);
+	clks[2] = ath79_add_sys_clkdev("ahb", ahb_rate);
+	clks[3] = ath79_add_sys_clkdev("ref", ref_rate);
+
+	clk_add_alias("wdt", NULL, "ref", NULL);
+	clk_add_alias("uart", NULL, "ref", NULL);
+}
 void __init ath79_clocks_init(void)
 {
 	if (soc_is_ar71xx())
@@ -637,6 +730,8 @@ void __init ath79_clocks_init(void)
 		qca955x_clocks_init();
 	else if (soc_is_qca956x() || soc_is_tp9343())
 		qca956x_clocks_init();
+	else if (soc_is_qcn550x())
+		qcn550x_clocks_init();
 	else
 		BUG();
 

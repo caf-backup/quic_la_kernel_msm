@@ -34,6 +34,7 @@ static void __iomem *ath79_gpio_get_function_reg(void)
 	else if (soc_is_ar934x() ||
 		 soc_is_qca953x() ||
 		 soc_is_qca956x() ||
+		 soc_is_qcn550x() ||
 		 soc_is_tp9343())
 		reg = AR934X_GPIO_REG_FUNC;
 	else
@@ -100,6 +101,8 @@ void __init ath79_gpio_output_select(unsigned gpio, u8 val)
 		reg_base = QCA955X_GPIO_REG_OUT_FUNC0;
 	else if (soc_is_qca956x())
 		reg_base = QCA956X_GPIO_REG_OUT_FUNC0;
+	else if (soc_is_qcn550x())
+		reg_base = QCN550X_GPIO_REG_OUT_FUNC0;
 	else
 		BUG();
 
