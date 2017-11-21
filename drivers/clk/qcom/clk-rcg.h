@@ -218,7 +218,6 @@ struct clk_muxr_misc {
 
 #define to_clk_muxr_misc(_hw) container_of(to_clk_regmap(_hw), \
 						struct clk_muxr_misc, clkr)
-#define CLK_RCG2_NO_WAIT	BIT(8)
 
 extern const struct clk_ops clk_rcg2_ops;
 extern const struct clk_ops clk_edp_pixel_ops;

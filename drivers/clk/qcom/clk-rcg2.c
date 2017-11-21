@@ -88,31 +88,25 @@ static int update_config(struct clk_rcg2 *rcg)
 	u32 cmd;
 	struct clk_hw *hw = &rcg->clkr.hw;
 	const char *name = __clk_get_name(hw->clk);
-	u32 flags;
-
-	flags = __clk_get_flags(hw->clk);
 
 	ret = regmap_update_bits(rcg->clkr.regmap, rcg->cmd_rcgr + CMD_REG,
 				 CMD_UPDATE, CMD_UPDATE);
 	if (ret)
 		return ret;
 
-	if (flags && CLK_RCG2_NO_WAIT) {
-		return 0;
-	} else {
-		/* Wait for update to take effect */
-		for (count = 500; count > 0; count--) {
-			ret = regmap_read(rcg->clkr.regmap, rcg->cmd_rcgr +
-								CMD_REG, &cmd);
-			if (ret)
-				return ret;
-			if (!(cmd & CMD_UPDATE))
-				return 0;
-			udelay(1);
-		}
-
-		WARN(1, "%s: rcg didn't update its configuration.", name);
+	/* Wait for update to take effect */
+	for (count = 500; count > 0; count--) {
+		ret = regmap_read(rcg->clkr.regmap, rcg->cmd_rcgr +
+							CMD_REG, &cmd);
+		if (ret)
+			return ret;
+		if (!(cmd & CMD_UPDATE))
+			return 0;
+		udelay(1);
 	}
+
+	WARN(1, "%s: rcg didn't update its configuration.", name);
+
 	return 0;
 }
 
@@ -597,31 +591,25 @@ static int cdiv_update_config(struct clk_cdiv_rcg2 *rcg)
 	u32 cmd;
 	struct clk_hw *hw = &rcg->clkr.hw;
 	const char *name = __clk_get_name(hw->clk);
-	u32 flags;
-
-	flags = __clk_get_flags(hw->clk);
 
 	ret = regmap_update_bits(rcg->clkr.regmap, rcg->cmd_rcgr + CMD_REG,
 				 CMD_UPDATE, CMD_UPDATE);
 	if (ret)
 		return ret;
 
-	if (flags && CLK_RCG2_NO_WAIT) {
-		return 0;
-	} else {
-		/* Wait for update to take effect */
-		for (count = 500; count > 0; count--) {
-			ret = regmap_read(rcg->clkr.regmap, rcg->cmd_rcgr +
-								CMD_REG, &cmd);
-			if (ret)
-				return ret;
-			if (!(cmd & CMD_UPDATE))
-				return 0;
-			udelay(1);
-		}
-
-		WARN(1, "%s: rcg didn't update its configuration.", name);
+	/* Wait for update to take effect */
+	for (count = 500; count > 0; count--) {
+		ret = regmap_read(rcg->clkr.regmap, rcg->cmd_rcgr +
+							CMD_REG, &cmd);
+		if (ret)
+			return ret;
+		if (!(cmd & CMD_UPDATE))
+			return 0;
+		udelay(1);
 	}
+
+	WARN(1, "%s: rcg didn't update its configuration.", name);
+
 	return 0;
 }
 
