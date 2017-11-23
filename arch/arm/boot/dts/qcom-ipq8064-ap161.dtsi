@@ -399,7 +399,7 @@
 			compatible = "virtual,mdio-gpio";
 			#address-cells = <1>;
 			#size-cells = <0>;
-			gpios = <&qcom_pinmux 1 0 &qcom_pinmux 0 0>;
+			gpios = <&qcom_pinmux 1 0 &qcom_pinmux 0 0 &qcom_pinmux 2 0>;
 
 			phy0: ethernet-phy@0 {
 				device_type = "ethernet-phy";
@@ -413,6 +413,8 @@
 					0x0007c 0x4e        /* PORT0_STATUS */
 					0x00094 0x4e        /* PORT6_STATUS */
 				>;
+				link-polling-required = <0>;
+				link-intr-gpio = <2>;
 			};
 
 			phy4: ethernet-phy@4 {
