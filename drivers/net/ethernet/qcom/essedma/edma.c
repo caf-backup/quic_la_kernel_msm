@@ -1704,7 +1704,7 @@ void edma_free_tx_resources(struct edma_common_info *edma_cinfo)
 
 	for (i = 0; i < edma_cinfo->num_tx_queues; i++) {
 		etdr = edma_cinfo->tpd_ring[i];
-		for (j = 0; j < EDMA_TX_RING_SIZE; j++) {
+		for (j = 0; j < edma_cinfo->tx_ring_count; j++) {
 			sw_desc = &etdr->sw_desc[j];
 			if (sw_desc->flags & (EDMA_SW_DESC_FLAG_SKB_HEAD |
 				EDMA_SW_DESC_FLAG_SKB_FRAG | EDMA_SW_DESC_FLAG_SKB_FRAGLIST))
@@ -1785,7 +1785,7 @@ void edma_free_rx_resources(struct edma_common_info *edma_cinfo)
 
 	for (i = 0, k = 0; i < edma_cinfo->num_rx_queues; i++) {
 		erdr = edma_cinfo->rfd_ring[k];
-		for (j = 0; j < EDMA_RX_RING_SIZE; j++) {
+		for (j = 0; j < edma_cinfo->rx_ring_count; j++) {
 			/* unmap all descriptors while cleaning */
 			edma_clean_rfd(pdev, erdr, j, 1);
 		}
