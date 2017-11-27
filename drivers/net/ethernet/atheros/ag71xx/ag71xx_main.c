@@ -699,6 +699,36 @@ static void ag71xx_hw_stop(struct ag71xx *ag)
 	ag71xx_wr(ag, AG71XX_REG_TX_CTRL, 0);
 }
 
+static void ag71xx_enable_jumbo_frame(struct ag71xx *ag)
+{
+	void __iomem *dam = ioremap_nocache(QCA956X_DAM_RESET_OFFSET1,
+					    QCA956X_DAM_RESET_SIZE);
+
+	if (!dam) {
+		dev_err(&ag->dev, "unable to ioremap DAM_RESET_OFFSET\n");
+	} else {
+		/* can not use the wr, rr functions since this is outside of
+		 * the normal ag71xx register block
+		 */
+		__raw_writel(__raw_readl(dam) | QCA956X_JUMBO_ENABLE, dam);
+		(void)__raw_readl(dam);
+		iounmap(dam);
+	}
+
+	dam = ioremap_nocache(QCA956X_DAM_RESET_OFFSET2,
+			      QCA956X_DAM_RESET_SIZE);
+	if (!dam) {
+		dev_err(&ag->dev, "unable to ioremap DAM_RESET_OFFSET2\n");
+	} else {
+		/* can not use the wr, rr functions since this is outside of
+		 * the normal ag71xx register block
+		 */
+		__raw_writel(__raw_readl(dam) | QCA956X_JUMBO_ENABLE, dam);
+		(void)__raw_readl(dam);
+		iounmap(dam);
+	}
+}
+
 static void ag71xx_hw_setup(struct ag71xx *ag)
 {
 	struct ag71xx_platform_data *pdata = ag71xx_get_pdata(ag);
@@ -714,6 +744,9 @@ static void ag71xx_hw_setup(struct ag71xx *ag)
 		ag71xx_wr(ag, AG71XX_REG_MAC_MFL, AG71XX_TX_MTU_LEN);
 	else
 		ag71xx_wr(ag, AG71XX_REG_MAC_MFL, ag->dev->mtu);
+
+	if ((ag->dev->mtu > AG71XX_TX_MTU_LEN) && pdata->is_ar724x)
+		ag71xx_enable_jumbo_frame(ag);
 
 	/* setup FIFO configuration registers */
 	ag71xx_wr(ag, AG71XX_REG_FIFO_CFG0, FIFO_CFG0_INIT);
