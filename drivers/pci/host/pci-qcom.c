@@ -112,6 +112,27 @@
 	(cond) ? 0 : -ETIMEDOUT; \
 })
 
+enum qcom_pcie_event {
+	QCOM_PCIE_EVENT_INVALID = 0,
+	QCOM_PCIE_EVENT_LINKDOWN = 0x1,
+	QCOM_PCIE_EVENT_LINKUP = 0x2,
+};
+
+struct qcom_pcie_notify {
+	enum qcom_pcie_event event;
+	void *user;
+	void *data;
+	u32 options;
+};
+
+struct qcom_pcie_register_event {
+	u32 events;
+	void *user;
+	void (*callback)(struct qcom_pcie_notify *notify);
+	struct qcom_pcie_notify notify;
+	u32 options;
+};
+
 struct qcom_pcie {
 	void __iomem		*elbi_base;
 	void __iomem		*parf_base;
@@ -143,6 +164,7 @@ struct qcom_pcie {
 	int			force_gen1;
 	struct pci_bus		*pci_bus;
 	uint32_t		rc_idx;
+	struct qcom_pcie_register_event *event_reg;
 };
 
 static atomic_t rc_removed;
@@ -185,12 +207,32 @@ static struct of_device_id qcom_pcie_match[] = {
 	{}
 };
 
+static void qcom_pcie_notify_client(struct qcom_pcie *dev,
+					enum qcom_pcie_event event)
+{
+	if (dev->event_reg && dev->event_reg->callback &&
+		(dev->event_reg->events & event)) {
+		struct qcom_pcie_notify *notify = &dev->event_reg->notify;
+		notify->event = event;
+		notify->user = dev->event_reg->user;
+		pr_info("PCIe: callback RC%d for event %d.\n",
+			dev->rc_idx, event);
+		dev->event_reg->callback(notify);
+
+	} else {
+		pr_info(
+		"PCIe: Client of RC%d does not have registered for event %d.\n",
+		dev->rc_idx, event);
+	}
+}
+
 static irqreturn_t handle_link_down_irq(int irq, void *data)
 {
 	struct qcom_pcie *qcom_pcie = data;
 
 	pr_info("PCIe: link_down IRQ for RC=%d\n", qcom_pcie->rc_idx);
 
+	qcom_pcie_notify_client(qcom_pcie, QCOM_PCIE_EVENT_LINKDOWN);
 	return IRQ_HANDLED;
 }
 
@@ -509,6 +551,68 @@ static void qcom_pcie_config_controller(struct qcom_pcie *dev)
 	/* ensure that hardware registers the configuration */
 	wmb();
 }
+
+int qcom_pcie_register_event(struct qcom_pcie_register_event *reg)
+{
+	int ret = 0;
+	struct qcom_pcie *pcie_dev;
+
+	if (!reg) {
+		pr_err("PCIe: Event registration is NULL\n");
+		return -ENODEV;
+	}
+
+	if (!reg->user) {
+		pr_err("PCIe: User of event registration is NULL\n");
+		return -ENODEV;
+	}
+
+	pcie_dev = PCIE_BUS_PRIV_DATA(((struct pci_dev *)reg->user));
+
+	if (pcie_dev) {
+		pcie_dev->event_reg = reg;
+		pr_info("Event 0x%x is registered for RC %d\n", reg->events,
+			pcie_dev->rc_idx);
+	} else {
+		pr_err("PCIe: did not find RC for pci endpoint device 0x%x.\n",
+			(u32)reg->user);
+		ret = -ENODEV;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_pcie_register_event);
+
+int qcom_pcie_deregister_event(struct qcom_pcie_register_event *reg)
+{
+	int ret = 0;
+	struct qcom_pcie *pcie_dev;
+
+	if (!reg) {
+		pr_err("PCIe: Event deregistration is NULL\n");
+		return -ENODEV;
+	}
+
+	if (!reg->user) {
+		pr_err("PCIe: User of event deregistration is NULL\n");
+		return -ENODEV;
+	}
+
+	pcie_dev = PCIE_BUS_PRIV_DATA(((struct pci_dev *)reg->user));
+
+	if (pcie_dev) {
+		pcie_dev->event_reg = NULL;
+		pr_info("Event is deregistered for RC %d\n",
+				pcie_dev->rc_idx);
+	} else {
+		pr_err("PCIe: did not find RC for pci endpoint device 0x%x.\n",
+			(u32)reg->user);
+		ret = -ENODEV;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_pcie_deregister_event);
 
 static int qcom_pcie_parse_dt(struct qcom_pcie *qcom_pcie,
 			      struct platform_device *pdev)
