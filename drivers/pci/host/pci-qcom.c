@@ -24,6 +24,7 @@
 #include <linux/clk.h>
 #include <linux/reset.h>
 #include <linux/delay.h>
+#include <linux/interrupt.h>
 
 /* Root Complex Port vendor/device IDs */
 #define PCIE_VENDOR_ID_RCP		0x17cb
@@ -125,6 +126,8 @@ struct qcom_pcie {
 	struct clk		*alt_src;
 	struct clk		*aux_clk;
 	int			irq_int[4];
+	int			link_down_irq;
+	int			link_up_irq;
 	int			root_bus_nr;
 	struct reset_control	*axi_reset;
 	struct reset_control	*ahb_reset;
@@ -139,6 +142,7 @@ struct qcom_pcie {
 	int			phy_txterm_offset;
 	int			force_gen1;
 	struct pci_bus		*pci_bus;
+	uint32_t		rc_idx;
 };
 
 static atomic_t rc_removed;
@@ -180,6 +184,24 @@ static struct of_device_id qcom_pcie_match[] = {
 	},
 	{}
 };
+
+static irqreturn_t handle_link_down_irq(int irq, void *data)
+{
+	struct qcom_pcie *qcom_pcie = data;
+
+	pr_info("PCIe: link_down IRQ for RC=%d\n", qcom_pcie->rc_idx);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t handle_link_up_irq(int irq, void *data)
+{
+	struct qcom_pcie *qcom_pcie = data;
+
+	pr_info("PCIe: link_up IRQ for RC=%d\n", qcom_pcie->rc_idx);
+
+	return IRQ_HANDLED;
+}
 
 static u32 qcom_get_phy_tx0_term_offset(struct platform_device *pdev)
 {
@@ -632,6 +654,25 @@ static int qcom_pcie_parse_dt(struct qcom_pcie *qcom_pcie,
 		}
 	}
 
+	qcom_pcie->link_down_irq = platform_get_irq_byname(pdev,
+					"int_link_down");
+	if (qcom_pcie->link_down_irq < 0)
+		return qcom_pcie->link_down_irq;
+
+	ret = devm_request_irq(&pdev->dev, qcom_pcie->link_down_irq,
+				handle_link_down_irq,
+				IRQF_TRIGGER_RISING, "pci_link_down",
+				qcom_pcie);
+
+	qcom_pcie->link_up_irq = platform_get_irq_byname(pdev, "int_link_up");
+	if (qcom_pcie->link_up_irq < 0)
+		return qcom_pcie->link_up_irq;
+
+	ret = devm_request_irq(&pdev->dev, qcom_pcie->link_up_irq,
+				handle_link_up_irq,
+				IRQF_TRIGGER_RISING, "pci_link_up", qcom_pcie);
+
+
 	return 0;
 }
 
@@ -918,6 +959,7 @@ static int qcom_pcie_enumerate(struct qcom_pcie *qcom_pcie)
 	qcom_hw_pci[nr_controllers].private_data = (void **)&qcom_pcie;
 	hw = &qcom_hw_pci[nr_controllers];
 	nr_controllers++;
+	qcom_pcie->rc_idx = hw->domain;
 	spin_unlock_irqrestore(&qcom_hw_pci_lock, flags);
 
 	pci_common_init_dev(qcom_pcie->dev, hw);
