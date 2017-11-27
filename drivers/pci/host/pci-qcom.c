@@ -168,6 +168,7 @@ struct qcom_pcie {
 };
 
 static atomic_t rc_removed;
+static atomic_t slot_removed;
 static int nr_controllers;
 static struct qcom_pcie *qcom_pcie_dev[MAX_RC_NUM];
 
@@ -812,6 +813,57 @@ static int qcom_rc_remove(struct qcom_pcie *qcom_pcie)
 	return 0;
 }
 
+static ssize_t qcom_slot_rescan_store(struct bus_type *bus, const char *buf,
+					size_t count)
+{
+	unsigned long val;
+
+	if (!atomic_read(&slot_removed))
+		return 0;
+
+	if (kstrtoul(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	if (val < MAX_RC_NUM) {
+		pci_lock_rescan_remove();
+		if (qcom_pcie_dev[val]) {
+			nr_controllers = val;
+			qcom_pcie_enumerate(qcom_pcie_dev[val]);
+			nr_controllers = MAX_RC_NUM;
+			atomic_set(&slot_removed, 0);
+		}
+		pci_unlock_rescan_remove();
+	}
+	return count;
+}
+static BUS_ATTR(slot_rescan, (S_IWUSR|S_IWGRP), NULL, qcom_slot_rescan_store);
+
+static ssize_t qcom_slot_remove_store(struct bus_type *bus, const char *buf,
+					size_t count)
+{
+	unsigned long val;
+
+	if (atomic_read(&slot_removed))
+		return 0;
+
+	if (kstrtoul(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	if (val < MAX_RC_NUM) {
+		pci_lock_rescan_remove();
+		if (qcom_pcie_dev[val]) {
+			pr_notice("---> Removing %ld", val);
+			qcom_rc_remove(qcom_pcie_dev[val]);
+			pr_notice(" ... done<---\n");
+			atomic_set(&slot_removed, 1);
+		}
+		pci_unlock_rescan_remove();
+	}
+	return count;
+}
+static BUS_ATTR(slot_remove, (S_IWUSR|S_IWGRP), NULL, qcom_slot_remove_store);
+
+
 int qcom_pcie_rescan(void)
 {
 	int i;
@@ -937,6 +989,22 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 		}
 	}
 
+	/* create sysfs files to support slot rescan and remove*/
+	if ((!rc_idx) && (!rc_enum)) {
+		ret = bus_create_file(&pci_bus_type, &bus_attr_slot_rescan);
+		if (ret != 0) {
+			dev_err(&pdev->dev,
+				"Failed to create sysfs rcrescan file\n");
+			return ret;
+		}
+
+		ret = bus_create_file(&pci_bus_type, &bus_attr_slot_remove);
+		if (ret != 0) {
+			dev_err(&pdev->dev,
+				"Failed to create sysfs rcremove file\n");
+			return ret;
+		}
+	}
 	if (!rc_enum) {
 		qcom_pcie_dev[rc_idx++] = qcom_pcie;
 		ret = 0;
