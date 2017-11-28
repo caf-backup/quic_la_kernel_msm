@@ -1554,8 +1554,7 @@ int edma_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	int res;
 
 	if (skb->protocol == htons(ETH_P_IPV6)) {
-		if (net_ratelimit())
-			dev_err(&adapter->pdev->dev, "IPv6 not supported\n");
+		WARN_ONCE(0, "IPV6 not supported\n");
 		res = -EINVAL;
 		goto no_protocol_err;
 	}
