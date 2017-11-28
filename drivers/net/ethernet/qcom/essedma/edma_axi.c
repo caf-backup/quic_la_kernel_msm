@@ -890,16 +890,16 @@ static int edma_queue_to_virtual_queue_map(struct ctl_table *table, int write,
 
 		virtual_qid = edma_queue_to_virtual_q >>
 			EDMA_WRR_VID_SCTL_SHIFT;
-		if (virtual_qid < 0 || virtual_qid > 8) {
+		if (virtual_qid < 0 || virtual_qid > 7) {
 			pr_err("queue_id not within desired range\n");
 			return -EINVAL;
 		}
 
 		data = virtual_qid << EDMA_VQ_ID_SHIFT(queue_id);
 
-		reg_addr = EDMA_REG_VQ_CTRL0 + (queue_id & ~0x3);
+		reg_addr = EDMA_REG_VQ_CTRL0 + ((queue_id & ~0x7) >> 1);
 		edma_read_reg(reg_addr, &reg_data);
-		reg_data &= ~(1 << EDMA_VQ_ID_SHIFT(queue_id));
+		reg_data &= ~(0x7 << EDMA_VQ_ID_SHIFT(queue_id));
 		edma_write_reg(reg_addr, data | reg_data);
 	}
 
