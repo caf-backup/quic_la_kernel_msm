@@ -979,7 +979,8 @@ static int spinand_write_page_hwecc(struct mtd_info *mtd,
 static int spinand_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 		uint8_t *buf, int oob_required, int page)
 {
-	u8 retval, status = 0;
+	int retval;
+	u8 status = 0;
 	uint8_t *p = buf;
 	int eccsize = chip->ecc.size;
 	int eccsteps = chip->ecc.steps;
@@ -997,15 +998,20 @@ static int spinand_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 
 	while (1) {
 		retval = spinand_read_status(info->spi, &status);
+		if (retval < 0) {
+			dev_err(&mtd->dev,
+				"error %d reading status register\n", retval);
+			return retval;
+		}
 		if ((status & STATUS_OIP_MASK) == STATUS_READY) {
 			retval = dev_ops->spinand_verify_ecc(status);
 			if (retval == SPINAND_ECC_ERROR) {
 				pr_info("spinand: ECC error\n");
 				mtd->ecc_stats.failed++;
-				retval = -EBADMSG;
+				return 0;
 			} else if (retval == SPINAND_ECC_CORRECTED) {
 				mtd->ecc_stats.corrected++;
-				retval = -EUCLEAN;
+				return 1; /*Bitflips Corrected*/
 			}
 			break;
 		}
