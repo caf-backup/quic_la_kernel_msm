@@ -224,7 +224,7 @@
 	};
 
 	wifi0: wifi@b8100000 {
-		compatible = "qca,wifi-ar956x";
+		compatible = "qca,wifi-ar550x";
 		reg = <0xb8100000 0x20000>;
 		core-id = <0x0>;
 
