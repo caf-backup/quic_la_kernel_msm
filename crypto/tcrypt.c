@@ -1334,12 +1334,10 @@ static int do_test(const char *alg, u32 type, u32 mask, int m)
 
 	case 10:
 		ret += tcrypt_test("cbc(aes)");
-		ret += tcrypt_test("ecb(aes)");
 #ifdef CONFIG_CRYPTO_ALL_CASES
 		ret += tcrypt_test("lrw(aes)");
 		ret += tcrypt_test("xts(aes)");
 		ret += tcrypt_test("ctr(aes)");
-		ret += tcrypt_test("rfc3686(ctr(aes))");
 #endif
 		break;
 
@@ -1500,6 +1498,14 @@ static int do_test(const char *alg, u32 type, u32 mask, int m)
 
 	case 47:
 		ret += tcrypt_test("crct10dif");
+		break;
+
+	case 48:
+		ret += tcrypt_test("ecb(aes)");
+		break;
+
+	case 49:
+		ret += tcrypt_test("rfc3686(ctr(aes))");
 		break;
 
 	case 100:

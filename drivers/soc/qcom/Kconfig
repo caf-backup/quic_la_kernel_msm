@@ -98,6 +98,12 @@ config MSM_GLINK_PKT
 	 This enable the usersapce clients to read and write to
 	 some glink packets channel.
 
+config GLINK_DEBUG_FS
+	bool "Enable Generic Link (G-Link) debugfs support"
+	depends on MSM_GLINK
+	help
+	 This enables debugfs support for G-Link.
+
 config MSM_IPC_ROUTER_GLINK_XPRT
 	depends on MSM_GLINK
 	depends on IPC_ROUTER

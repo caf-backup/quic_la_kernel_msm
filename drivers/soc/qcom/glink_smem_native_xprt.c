@@ -2859,7 +2859,7 @@ edge_info_alloc_fail:
 }
 #endif
 
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_GLINK_DEBUG_FS)
 /**
  * debug_edge() - generates formatted text output displaying current edge state
  * @s:	File to send the output to.

@@ -1177,9 +1177,11 @@ ar8xxx_sw_reset_switch(struct switch_dev *dev)
 	for (i = 0; i < AR8X16_MAX_VLANS; i++)
 		priv->vlan_id[i] = i;
 
-	/* Configure all ports */
-	for (i = 0; i < dev->ports; i++)
-		chip->init_port(priv, i);
+	if (priv->init) {
+		/* Configure all ports */
+		for (i = 0; i < dev->ports; i++)
+			chip->init_port(priv, i);
+	}
 
 	priv->mirror_rx = false;
 	priv->mirror_tx = false;

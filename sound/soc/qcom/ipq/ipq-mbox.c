@@ -192,7 +192,7 @@ u32 ipq_mbox_get_played_offset(u32 channel_id)
 {
 	struct ipq_mbox_desc *desc, *write;
 	struct ipq_mbox_rt_dir_priv *rtdir;
-	unsigned int i, size_played = 0;
+	unsigned int i, size_played = 0, desc_cnt = 0;
 	u32 chan;
 	u32 dir;
 
@@ -206,19 +206,16 @@ u32 ipq_mbox_get_played_offset(u32 channel_id)
 
 	desc = ipq_increment_desc(desc, rtdir->read);
 
-	for (i = 0; i < rtdir->ndescs; i++) {
-		if (desc->OWN == 0) {
-			size_played = desc->size;
-			rtdir->read = (rtdir->read + 1) % rtdir->ndescs;
-		} else {
-			break;
-		}
+	do {
+		size_played = desc->size;
+		rtdir->read = (rtdir->read + 1) % rtdir->ndescs;
+
+		desc = get_next(rtdir, desc);
+		desc_cnt++;
 
 		if (desc == write)
 			break;
-
-		desc = get_next(rtdir, desc);
-	}
+	} while (desc->OWN == 0 && desc_cnt < rtdir->ndescs);
 
 	return size_played * rtdir->read;
 }
