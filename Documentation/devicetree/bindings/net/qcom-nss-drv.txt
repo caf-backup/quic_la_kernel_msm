@@ -43,6 +43,7 @@ this UBI32 core that allows data/stats commnicatin with the Apps CPU
 - qcom,l2tpv2-enabled
 - qcom,map-t-enabled
 - qcom,oam-enabled
+- qcom,qvpn-enabled
 - qcom,pppoe-enabled
 - qcom,pptp-enabled
 - qcom,portid-enabled
@@ -110,5 +111,6 @@ nss1: nss@40800000 {
 	qcom,max-frequency = <733000000>;
 	qcom,crypto-enabled;
 	qcom,ipsec-enabled;
+	qcom,qvpn-enabled;
 };
 
