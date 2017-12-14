@@ -25,6 +25,7 @@
 #include <linux/reset.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/qcom-pcie.h>
 
 /* Root Complex Port vendor/device IDs */
 #define PCIE_VENDOR_ID_RCP		0x17cb
@@ -111,27 +112,6 @@
 	} \
 	(cond) ? 0 : -ETIMEDOUT; \
 })
-
-enum qcom_pcie_event {
-	QCOM_PCIE_EVENT_INVALID = 0,
-	QCOM_PCIE_EVENT_LINKDOWN = 0x1,
-	QCOM_PCIE_EVENT_LINKUP = 0x2,
-};
-
-struct qcom_pcie_notify {
-	enum qcom_pcie_event event;
-	void *user;
-	void *data;
-	u32 options;
-};
-
-struct qcom_pcie_register_event {
-	u32 events;
-	void *user;
-	void (*callback)(struct qcom_pcie_notify *notify);
-	struct qcom_pcie_notify notify;
-	u32 options;
-};
 
 struct qcom_pcie {
 	void __iomem		*elbi_base;
