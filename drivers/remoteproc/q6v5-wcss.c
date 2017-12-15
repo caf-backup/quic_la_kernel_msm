@@ -514,6 +514,9 @@ static void q6_powerdown(struct q6v5_rproc_pdata *pdata)
 	unsigned int nretry = 0;
 	unsigned long val = 0;
 
+	/* To retain power domain after q6 powerdown */
+	writel(0x1, pdata->q6_base + QDSP6SS_DBG_CFG);
+
 	/* Halt Q6 bus interface - 9*/
 	val = readl(pdata->tcsr_q6_base + TCSR_Q6_HALTREQ);
 	val |= BIT(0);
@@ -589,11 +592,6 @@ static void q6_powerdown(struct q6v5_rproc_pdata *pdata)
 		}
 	}
 
-	/* HALT CLEAR - 18 */
-	val = readl(pdata->tcsr_q6_base + TCSR_Q6_HALTREQ);
-	val &= ~(BIT(0));
-	writel(val, pdata->tcsr_q6_base + TCSR_Q6_HALTREQ);
-
 	/* De-assert WCSS/Q6 HALTREQ - 8 */
 	val = readl(pdata->gcc_bcr_base + GCC_WCSS_BCR);
 	val |= BIT(0);
@@ -605,6 +603,11 @@ static void q6_powerdown(struct q6v5_rproc_pdata *pdata)
 	val |= BIT(0);
 	writel(val, pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
 	mdelay(2);
+
+	/* HALT CLEAR - 18 */
+	val = readl(pdata->tcsr_q6_base + TCSR_Q6_HALTREQ);
+	val &= ~(BIT(0));
+	writel(val, pdata->tcsr_q6_base + TCSR_Q6_HALTREQ);
 
 	return;
 }
