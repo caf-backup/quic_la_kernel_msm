@@ -680,7 +680,11 @@
 				      0 36 0x0
 				      0 37 0x0
 				      0 38 0x0
-				      0 39 0x0>;
+				      0 39 0x0
+				      0 44 0x0
+				      0 45 0x0>;
+			interrupt-names = "int_msi", "int_a", "int_b", "int_c", "int_d",
+					"int_link_up", "int_link_down";
 			resets = <&gcc PCIE_ACLK_RESET>,
 				 <&gcc PCIE_HCLK_RESET>,
 				 <&gcc PCIE_POR_RESET>,
@@ -716,7 +720,11 @@
 				      0 58 0x0
 				      0 59 0x0
 				      0 60 0x0
-				      0 61 0x0>;
+				      0 61 0x0
+				      0 66 0x0
+				      0 67 0x0>;
+			interrupt-names = "int_msi", "int_a", "int_b", "int_c", "int_d",
+					"int_link_up", "int_link_down";
 			resets = <&gcc PCIE_1_ACLK_RESET>,
 				 <&gcc PCIE_1_HCLK_RESET>,
 				 <&gcc PCIE_1_POR_RESET>,
@@ -752,7 +760,11 @@
 				      0 72 0x0
 				      0 73 0x0
 				      0 74 0x0
-				      0 75 0x0>;
+				      0 75 0x0
+				      0 80 0x0
+				      0 81 0x0>;
+			interrupt-names = "int_msi", "int_a", "int_b", "int_c", "int_d",
+					"int_link_up", "int_link_down";
 			resets = <&gcc PCIE_2_ACLK_RESET>,
 				 <&gcc PCIE_2_HCLK_RESET>,
 				 <&gcc PCIE_2_POR_RESET>,

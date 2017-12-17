@@ -587,7 +587,9 @@
 		};
 
 		edma@c080000 {
-			qcom,num-cores = <3>;
+			qcom,num-cores = <2>;
+			qcom,tx-ring-count = <1024>;
+			qcom,rx-ring-count = <1024>;
 		};
 	};
 };

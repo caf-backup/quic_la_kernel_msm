@@ -80,7 +80,7 @@ int iptunnel_xmit(struct rtable *rt, struct sk_buff *skb,
 	iph->ttl	=	ttl;
 	__ip_select_ident(iph, skb_shinfo(skb)->gso_segs ?: 1);
 
-	if (proto == IPPROTO_IPV6)
+	if (proto == IPPROTO_IPV6 || proto == IPPROTO_GRE)
 		skb->skb_iif = skb_iif;
 
 	err = ip_local_out(skb);

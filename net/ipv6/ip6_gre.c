@@ -55,6 +55,7 @@
 #include <net/ip6_fib.h>
 #include <net/ip6_route.h>
 #include <net/ip6_tunnel.h>
+#include <net/gre.h>
 
 static bool log_ecn_error = true;
 module_param(log_ecn_error, bool, 0644);
@@ -762,6 +763,9 @@ static netdev_tx_t ip6gre_xmit2(struct sk_buff *skb,
 		}
 	}
 
+	if (dev->priv_flags & IFF_GRE_V6_TAP) {
+		skb->skb_iif = dev->ifindex;
+	}
 	ip6tunnel_xmit(skb, dev);
 	if (ndst)
 		ip6_tnl_dst_store(tunnel, ndst);

@@ -210,6 +210,7 @@
 			qcom,bam-consumer-pipe-index = <4>;
 			qcom,bam-producer-pipe-index = <5>;
 			qcom,master-id = <0>;
+			qcom,shared = <1>;
 			status = "disabled";
 		};
 
@@ -231,6 +232,7 @@
 			qcom,bam-consumer-pipe-index = <6>;
 			qcom,bam-producer-pipe-index = <7>;
 			qcom,master-id = <0>;
+			qcom,shared = <1>;
 			status = "disabled";
 		};
 

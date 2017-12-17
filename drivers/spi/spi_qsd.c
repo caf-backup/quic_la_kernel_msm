@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2008-2015, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -971,14 +971,6 @@ msm_spi_bam_begin_transfer(struct msm_spi *dd)
 	n_words_xfr = DIV_ROUND_UP(rx_bytes_to_recv,
 				dd->bytes_per_word);
 
-	if (dd->dma_pipe_connect == false) {
-		dd->dma_pipe_connect = true;
-		msm_spi_bam_pipe_connect(dd, &dd->bam.prod,
-				&dd->bam.prod.config);
-		msm_spi_bam_pipe_connect(dd, &dd->bam.cons,
-				&dd->bam.cons.config);
-	}
-
 	msm_spi_set_mx_counts(dd, n_words_xfr);
 	ret = msm_spi_set_state(dd, SPI_OP_STATE_RUN);
 	if (ret < 0) {
@@ -1662,13 +1654,14 @@ static void msm_spi_process_transfer(struct msm_spi *dd)
 	msm_spi_udelay(dd->xfrs_delay_usec);
 
 transfer_end:
-	if (dd->mode == SPI_BAM_MODE)
+	if ((dd->mode == SPI_BAM_MODE) && dd->cur_msg->status)
 		msm_spi_bam_flush(dd);
 	msm_spi_dma_unmap_buffers(dd);
 	dd->mode = SPI_MODE_NONE;
 
 	msm_spi_set_state(dd, SPI_OP_STATE_RESET);
-	writel_relaxed(spi_ioc & ~SPI_IO_C_MX_CS_MODE,
+	if (!dd->cur_transfer->cs_change)
+		writel_relaxed(spi_ioc & ~SPI_IO_C_MX_CS_MODE,
 		       dd->base + SPI_IO_CONTROL);
 }
 
@@ -1950,12 +1943,20 @@ static int msm_spi_transfer_one_message(struct spi_master *master,
 	 * get local resources for each transfer to ensure we're in a good
 	 * state and not interfering with other EE's using this device
 	 */
-	if (get_local_resources(dd)) {
-		mutex_unlock(&dd->core_lock);
-		return -EINVAL;
-	}
+	if (dd->pdata->is_shared) {
+		if (get_local_resources(dd)) {
+			mutex_unlock(&dd->core_lock);
+			return -EINVAL;
+		}
 
-	reset_core(dd);
+		reset_core(dd);
+		if (dd->use_dma) {
+			msm_spi_bam_pipe_connect(dd, &dd->bam.prod,
+				&dd->bam.prod.config);
+			msm_spi_bam_pipe_connect(dd, &dd->bam.cons,
+				&dd->bam.cons.config);
+		}
+	}
 
 	if (dd->suspended || !msm_spi_is_valid_state(dd)) {
 		dev_err(dd->dev, "%s: SPI operational state not valid\n",
@@ -1982,12 +1983,13 @@ static int msm_spi_transfer_one_message(struct spi_master *master,
 	 * different context since we're running in the spi kthread here) to
 	 * prevent race conditions between us and any other EE's using this hw.
 	 */
-	if (dd->dma_pipe_connect == true) {
-		dd->dma_pipe_connect = false;
-		msm_spi_bam_pipe_disconnect(dd, &dd->bam.prod);
-		msm_spi_bam_pipe_disconnect(dd, &dd->bam.cons);
+	if (dd->pdata->is_shared) {
+		if (dd->use_dma) {
+			msm_spi_bam_pipe_disconnect(dd, &dd->bam.prod);
+			msm_spi_bam_pipe_disconnect(dd, &dd->bam.cons);
+		}
+		put_local_resources(dd);
 	}
-	put_local_resources(dd);
 	mutex_unlock(&dd->core_lock);
 	if (dd->suspended)
 		wake_up_interruptible(&dd->continue_suspend);
@@ -2050,7 +2052,6 @@ static int msm_spi_setup(struct spi_device *spi)
 	dd = spi_master_get_devdata(spi->master);
 
 	pm_runtime_get_sync(dd->dev);
-	get_local_resources(dd);
 
 	mutex_lock(&dd->core_lock);
 
@@ -2061,6 +2062,12 @@ static int msm_spi_setup(struct spi_device *spi)
 	if (dd->suspended) {
 		rc = -EBUSY;
 		goto err_setup_exit;
+	}
+
+	if (dd->pdata->is_shared) {
+		rc = get_local_resources(dd);
+		if (rc)
+			goto no_resources;
 	}
 
 	spi_ioc = readl_relaxed(dd->base + SPI_IO_CONTROL);
@@ -2080,16 +2087,18 @@ static int msm_spi_setup(struct spi_device *spi)
 
 	/* Ensure previous write completed before disabling the clocks */
 	mb();
+	if (dd->pdata->is_shared)
+		put_local_resources(dd);
 
 	/* Counter-part of system-resume when runtime-pm is not enabled. */
 	if (!pm_runtime_enabled(dd->dev))
 		msm_spi_pm_suspend_runtime(dd->dev);
 
-err_setup_exit:
+no_resources:
 	mutex_unlock(&dd->core_lock);
-	put_local_resources(dd);
 	pm_runtime_mark_last_busy(dd->dev);
 	pm_runtime_put_autosuspend(dd->dev);
+err_setup_exit:
 	return rc;
 }
 
@@ -2493,6 +2502,8 @@ struct msm_spi_platform_data *msm_spi_dt_to_pdata(
 			&dd->cs_gpios[3].gpio_num,       DT_OPT,  DT_GPIO, -1},
 		{"qcom,rt-priority",
 			&pdata->rt_priority,		 DT_OPT,  DT_BOOL,  0},
+		{"qcom,shared",
+			&pdata->is_shared,		 DT_OPT,  DT_BOOL,  0},
 		{NULL,  NULL,                            0,       0,        0},
 		};
 
@@ -2863,9 +2874,14 @@ static int msm_spi_pm_suspend_runtime(struct device *device)
 	wait_event_interruptible(dd->continue_suspend,
 		!dd->transfer_pending);
 
+	if (dd->pdata && !dd->pdata->is_shared && dd->use_dma) {
+		msm_spi_bam_pipe_disconnect(dd, &dd->bam.prod);
+		msm_spi_bam_pipe_disconnect(dd, &dd->bam.cons);
+	}
 	if (dd->pdata && !dd->pdata->active_only)
 		msm_spi_clk_path_unvote(dd);
-
+	if (dd->pdata && !dd->pdata->is_shared)
+		put_local_resources(dd);
 suspend_exit:
 	return 0;
 }
@@ -2886,9 +2902,17 @@ static int msm_spi_pm_resume_runtime(struct device *device)
 	if (!dd->suspended)
 		return 0;
 
+	if (!dd->pdata->is_shared)
+		get_local_resources(dd);
 	msm_spi_clk_path_init(dd);
 	if (!dd->pdata->active_only)
 		msm_spi_clk_path_vote(dd);
+	if (!dd->pdata->is_shared && dd->use_dma) {
+		msm_spi_bam_pipe_connect(dd, &dd->bam.prod,
+				&dd->bam.prod.config);
+		msm_spi_bam_pipe_connect(dd, &dd->bam.cons,
+				&dd->bam.cons.config);
+	}
 	dd->suspended = 0;
 
 resume_exit:

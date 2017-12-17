@@ -717,7 +717,7 @@ static irqreturn_t wcd_cntl_err_irq(int irq, void *data)
 	struct wcd_dsp_cntl *cntl = data;
 	struct snd_soc_codec *codec = cntl->codec;
 	struct wdsp_err_signal_arg arg;
-	u16 status = 0;
+	u32 status = 0;
 	u8 reg_val;
 	int ret = 0;
 
@@ -726,6 +726,12 @@ static irqreturn_t wcd_cntl_err_irq(int irq, void *data)
 
 	reg_val = snd_soc_read(codec, WCD934X_CPE_SS_SS_ERROR_INT_STATUS_0B);
 	status = status | (reg_val << 8);
+
+	reg_val = snd_soc_read(codec, WCD934X_CPE_SS_SS_ERROR_INT_STATUS_1A);
+	status = status | (reg_val << 16);
+
+	reg_val = snd_soc_read(codec, WCD934X_CPE_SS_SS_ERROR_INT_STATUS_1B);
+	status = status | (reg_val << 24);
 
 	dev_info(codec->dev, "%s: error interrupt status = 0x%x\n",
 		__func__, status);

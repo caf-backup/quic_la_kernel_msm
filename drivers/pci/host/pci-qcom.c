@@ -24,6 +24,7 @@
 #include <linux/clk.h>
 #include <linux/reset.h>
 #include <linux/delay.h>
+#include <linux/interrupt.h>
 
 /* Root Complex Port vendor/device IDs */
 #define PCIE_VENDOR_ID_RCP		0x17cb
@@ -111,6 +112,27 @@
 	(cond) ? 0 : -ETIMEDOUT; \
 })
 
+enum qcom_pcie_event {
+	QCOM_PCIE_EVENT_INVALID = 0,
+	QCOM_PCIE_EVENT_LINKDOWN = 0x1,
+	QCOM_PCIE_EVENT_LINKUP = 0x2,
+};
+
+struct qcom_pcie_notify {
+	enum qcom_pcie_event event;
+	void *user;
+	void *data;
+	u32 options;
+};
+
+struct qcom_pcie_register_event {
+	u32 events;
+	void *user;
+	void (*callback)(struct qcom_pcie_notify *notify);
+	struct qcom_pcie_notify notify;
+	u32 options;
+};
+
 struct qcom_pcie {
 	void __iomem		*elbi_base;
 	void __iomem		*parf_base;
@@ -125,6 +147,8 @@ struct qcom_pcie {
 	struct clk		*alt_src;
 	struct clk		*aux_clk;
 	int			irq_int[4];
+	int			link_down_irq;
+	int			link_up_irq;
 	int			root_bus_nr;
 	struct reset_control	*axi_reset;
 	struct reset_control	*ahb_reset;
@@ -139,9 +163,12 @@ struct qcom_pcie {
 	int			phy_txterm_offset;
 	int			force_gen1;
 	struct pci_bus		*pci_bus;
+	uint32_t		rc_idx;
+	struct qcom_pcie_register_event *event_reg;
 };
 
 static atomic_t rc_removed;
+static atomic_t slot_removed;
 static int nr_controllers;
 static struct qcom_pcie *qcom_pcie_dev[MAX_RC_NUM];
 
@@ -180,6 +207,44 @@ static struct of_device_id qcom_pcie_match[] = {
 	},
 	{}
 };
+
+static void qcom_pcie_notify_client(struct qcom_pcie *dev,
+					enum qcom_pcie_event event)
+{
+	if (dev->event_reg && dev->event_reg->callback &&
+		(dev->event_reg->events & event)) {
+		struct qcom_pcie_notify *notify = &dev->event_reg->notify;
+		notify->event = event;
+		notify->user = dev->event_reg->user;
+		pr_info("PCIe: callback RC%d for event %d.\n",
+			dev->rc_idx, event);
+		dev->event_reg->callback(notify);
+
+	} else {
+		pr_info(
+		"PCIe: Client of RC%d does not have registered for event %d.\n",
+		dev->rc_idx, event);
+	}
+}
+
+static irqreturn_t handle_link_down_irq(int irq, void *data)
+{
+	struct qcom_pcie *qcom_pcie = data;
+
+	pr_info("PCIe: link_down IRQ for RC=%d\n", qcom_pcie->rc_idx);
+
+	qcom_pcie_notify_client(qcom_pcie, QCOM_PCIE_EVENT_LINKDOWN);
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t handle_link_up_irq(int irq, void *data)
+{
+	struct qcom_pcie *qcom_pcie = data;
+
+	pr_info("PCIe: link_up IRQ for RC=%d\n", qcom_pcie->rc_idx);
+
+	return IRQ_HANDLED;
+}
 
 static u32 qcom_get_phy_tx0_term_offset(struct platform_device *pdev)
 {
@@ -488,6 +553,68 @@ static void qcom_pcie_config_controller(struct qcom_pcie *dev)
 	wmb();
 }
 
+int qcom_pcie_register_event(struct qcom_pcie_register_event *reg)
+{
+	int ret = 0;
+	struct qcom_pcie *pcie_dev;
+
+	if (!reg) {
+		pr_err("PCIe: Event registration is NULL\n");
+		return -ENODEV;
+	}
+
+	if (!reg->user) {
+		pr_err("PCIe: User of event registration is NULL\n");
+		return -ENODEV;
+	}
+
+	pcie_dev = PCIE_BUS_PRIV_DATA(((struct pci_dev *)reg->user));
+
+	if (pcie_dev) {
+		pcie_dev->event_reg = reg;
+		pr_info("Event 0x%x is registered for RC %d\n", reg->events,
+			pcie_dev->rc_idx);
+	} else {
+		pr_err("PCIe: did not find RC for pci endpoint device 0x%x.\n",
+			(u32)reg->user);
+		ret = -ENODEV;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_pcie_register_event);
+
+int qcom_pcie_deregister_event(struct qcom_pcie_register_event *reg)
+{
+	int ret = 0;
+	struct qcom_pcie *pcie_dev;
+
+	if (!reg) {
+		pr_err("PCIe: Event deregistration is NULL\n");
+		return -ENODEV;
+	}
+
+	if (!reg->user) {
+		pr_err("PCIe: User of event deregistration is NULL\n");
+		return -ENODEV;
+	}
+
+	pcie_dev = PCIE_BUS_PRIV_DATA(((struct pci_dev *)reg->user));
+
+	if (pcie_dev) {
+		pcie_dev->event_reg = NULL;
+		pr_info("Event is deregistered for RC %d\n",
+				pcie_dev->rc_idx);
+	} else {
+		pr_err("PCIe: did not find RC for pci endpoint device 0x%x.\n",
+			(u32)reg->user);
+		ret = -ENODEV;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_pcie_deregister_event);
+
 static int qcom_pcie_parse_dt(struct qcom_pcie *qcom_pcie,
 			      struct platform_device *pdev)
 {
@@ -632,6 +759,25 @@ static int qcom_pcie_parse_dt(struct qcom_pcie *qcom_pcie,
 		}
 	}
 
+	qcom_pcie->link_down_irq = platform_get_irq_byname(pdev,
+					"int_link_down");
+	if (qcom_pcie->link_down_irq < 0)
+		return qcom_pcie->link_down_irq;
+
+	ret = devm_request_irq(&pdev->dev, qcom_pcie->link_down_irq,
+				handle_link_down_irq,
+				IRQF_TRIGGER_RISING, "pci_link_down",
+				qcom_pcie);
+
+	qcom_pcie->link_up_irq = platform_get_irq_byname(pdev, "int_link_up");
+	if (qcom_pcie->link_up_irq < 0)
+		return qcom_pcie->link_up_irq;
+
+	ret = devm_request_irq(&pdev->dev, qcom_pcie->link_up_irq,
+				handle_link_up_irq,
+				IRQF_TRIGGER_RISING, "pci_link_up", qcom_pcie);
+
+
 	return 0;
 }
 
@@ -666,6 +812,57 @@ static int qcom_rc_remove(struct qcom_pcie *qcom_pcie)
 
 	return 0;
 }
+
+static ssize_t qcom_slot_rescan_store(struct bus_type *bus, const char *buf,
+					size_t count)
+{
+	unsigned long val;
+
+	if (!atomic_read(&slot_removed))
+		return 0;
+
+	if (kstrtoul(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	if (val < MAX_RC_NUM) {
+		pci_lock_rescan_remove();
+		if (qcom_pcie_dev[val]) {
+			nr_controllers = val;
+			qcom_pcie_enumerate(qcom_pcie_dev[val]);
+			nr_controllers = MAX_RC_NUM;
+			atomic_set(&slot_removed, 0);
+		}
+		pci_unlock_rescan_remove();
+	}
+	return count;
+}
+static BUS_ATTR(slot_rescan, (S_IWUSR|S_IWGRP), NULL, qcom_slot_rescan_store);
+
+static ssize_t qcom_slot_remove_store(struct bus_type *bus, const char *buf,
+					size_t count)
+{
+	unsigned long val;
+
+	if (atomic_read(&slot_removed))
+		return 0;
+
+	if (kstrtoul(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	if (val < MAX_RC_NUM) {
+		pci_lock_rescan_remove();
+		if (qcom_pcie_dev[val]) {
+			pr_notice("---> Removing %ld", val);
+			qcom_rc_remove(qcom_pcie_dev[val]);
+			pr_notice(" ... done<---\n");
+			atomic_set(&slot_removed, 1);
+		}
+		pci_unlock_rescan_remove();
+	}
+	return count;
+}
+static BUS_ATTR(slot_remove, (S_IWUSR|S_IWGRP), NULL, qcom_slot_remove_store);
+
 
 int qcom_pcie_rescan(void)
 {
@@ -792,6 +989,22 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 		}
 	}
 
+	/* create sysfs files to support slot rescan and remove*/
+	if ((!rc_idx) && (!rc_enum)) {
+		ret = bus_create_file(&pci_bus_type, &bus_attr_slot_rescan);
+		if (ret != 0) {
+			dev_err(&pdev->dev,
+				"Failed to create sysfs rcrescan file\n");
+			return ret;
+		}
+
+		ret = bus_create_file(&pci_bus_type, &bus_attr_slot_remove);
+		if (ret != 0) {
+			dev_err(&pdev->dev,
+				"Failed to create sysfs rcremove file\n");
+			return ret;
+		}
+	}
 	if (!rc_enum) {
 		qcom_pcie_dev[rc_idx++] = qcom_pcie;
 		ret = 0;
@@ -918,6 +1131,7 @@ static int qcom_pcie_enumerate(struct qcom_pcie *qcom_pcie)
 	qcom_hw_pci[nr_controllers].private_data = (void **)&qcom_pcie;
 	hw = &qcom_hw_pci[nr_controllers];
 	nr_controllers++;
+	qcom_pcie->rc_idx = hw->domain;
 	spin_unlock_irqrestore(&qcom_hw_pci_lock, flags);
 
 	pci_common_init_dev(qcom_pcie->dev, hw);
