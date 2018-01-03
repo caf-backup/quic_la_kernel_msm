@@ -38,8 +38,8 @@
  */
 struct msm_spi_platform_data {
 	u32 max_clock_speed;
-	bool active_only;
 	u32  master_id;
+	u32 bus_width;
 	int (*gpio_config)(void);
 	void (*gpio_release)(void);
 	int (*dma_config)(void);
