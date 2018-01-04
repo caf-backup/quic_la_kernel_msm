@@ -1737,6 +1737,9 @@ static void reset_core(struct msm_spi *dd)
 
 	spi_ioc = readl_relaxed(dd->base + SPI_IO_CONTROL);
 	spi_ioc |= SPI_IO_C_NO_TRI_STATE;
+	if (dd->spi->mode & SPI_CPOL)
+		spi_ioc |= SPI_IO_C_CLK_IDLE_HIGH;
+
 	writel_relaxed(spi_ioc , dd->base + SPI_IO_CONTROL);
 	/*
 	 * Ensure that the IO control is written to before returning.
