@@ -214,7 +214,6 @@ struct msm_hs_port {
 	struct msm_hs_rx rx;
 	atomic_t clk_count;
 	struct msm_hs_wakeup wakeup;
-	struct wakeup_source ws;
 
 	struct dentry *loopback_dir;
 	struct work_struct clock_off_w; /* work for actual clock off */
@@ -289,13 +288,16 @@ static int qca_hs_ioctl(struct uart_port *uport, unsigned int cmd,
 	int ret = 0, state = 1;
 	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
 
+	if (!msm_uport)
+		return -ENODEV;
+
 	switch (cmd) {
 	case MSM_ENABLE_UART_CLOCK: {
-		qca_hs_request_clock_on(&msm_uport->uport);
+		ret = qca_hs_request_clock_on(&msm_uport->uport);
 		break;
 	}
 	case MSM_DISABLE_UART_CLOCK: {
-		qca_hs_request_clock_off(&msm_uport->uport);
+		ret = qca_hs_request_clock_off(&msm_uport->uport);
 		break;
 	}
 	case MSM_GET_UART_CLOCK_STATUS: {
@@ -704,7 +706,6 @@ static int qca_hs_remove(struct platform_device *pdev)
 	msm_uport->rx.buffer = NULL;
 	msm_uport->rx.rbuffer = 0;
 
-	wakeup_source_trash(&msm_uport->ws);
 	destroy_workqueue(msm_uport->hsuart_wq);
 	mutex_destroy(&msm_uport->mtx);
 
@@ -2247,14 +2248,30 @@ void qca_hs_resource_on(struct msm_hs_port *msm_uport)
 }
 
 /* Request to turn off uart clock once pending TX is flushed */
-void qca_hs_request_clock_off(struct uart_port *uport)
+int qca_hs_request_clock_off(struct uart_port *uport)
 {
 	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
+	int ret = 0;
+
+	mutex_lock(&msm_uport->mtx);
+	/*
+	 * If we're in the middle of a system suspend, don't process these
+	 * userspace/kernel API commands.
+	 */
+	if (msm_uport->pm_state == MSM_HS_PM_SYS_SUSPENDED) {
+		MSM_HS_WARN("%s:Can't process clk request during suspend",
+			__func__);
+		ret = -EIO;
+	}
+	mutex_unlock(&msm_uport->mtx);
+	if (ret)
+		goto exit_request_clock_off;
 
 	if (atomic_read(&msm_uport->client_count) <= 0) {
 		MSM_HS_WARN("%s(): ioctl count -ve, client check voting",
 			__func__);
-		return;
+		ret = -EPERM;
+		goto exit_request_clock_off;
 	}
 	/* Set the flag to disable flow control and wakeup irq */
 	if (msm_uport->obs)
@@ -2263,23 +2280,42 @@ void qca_hs_request_clock_off(struct uart_port *uport)
 	atomic_dec(&msm_uport->client_count);
 	MSM_HS_INFO("%s():DISABLE UART CLOCK: ioc %d\n",
 			__func__, atomic_read(&msm_uport->client_count));
+exit_request_clock_off:
+	return ret;
 }
 EXPORT_SYMBOL(qca_hs_request_clock_off);
 
-void qca_hs_request_clock_on(struct uart_port *uport)
+int qca_hs_request_clock_on(struct uart_port *uport)
 {
 	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
 	int client_count;
+	int ret = 0;
 
+	mutex_lock(&msm_uport->mtx);
+	/*
+	 * If we're in the middle of a system suspend, don't process these
+	 * userspace/kernel API commands.
+	 */
+	if (msm_uport->pm_state == MSM_HS_PM_SYS_SUSPENDED) {
+		MSM_HS_WARN("%s:Can't process clk request during suspend",
+			__func__);
+		ret = -EIO;
+	}
+	mutex_unlock(&msm_uport->mtx);
+	if (ret)
+		goto exit_request_clock_on;
+
+	qca_hs_resource_vote(UARTDM_TO_MSM(uport));
 	atomic_inc(&msm_uport->client_count);
 	client_count = atomic_read(&msm_uport->client_count);
 	MSM_HS_INFO("%s():ENABLE UART CLOCK: ioc %d\n",
 		__func__, client_count);
-	qca_hs_resource_vote(UARTDM_TO_MSM(uport));
 
 	/* Clear the flag */
 	if (msm_uport->obs)
 		atomic_set(&msm_uport->client_req_state, 0);
+exit_request_clock_on:
+	return ret;
 }
 EXPORT_SYMBOL(qca_hs_request_clock_on);
 
@@ -2533,7 +2569,7 @@ static int qca_hs_startup(struct uart_port *uport)
 	ret = qca_hs_config_uart_gpios(uport);
 	if (ret) {
 		MSM_HS_ERR("Uart GPIO request failed\n");
-		goto deinit_ws;
+		goto free_uart_irq;
 	}
 
 	qca_hs_write(uport, UART_DM_DMEN, 0);
@@ -2636,8 +2672,6 @@ sps_disconnect_tx:
 	sps_disconnect(sps_pipe_handle_tx);
 unconfig_uart_gpios:
 	qca_hs_unconfig_uart_gpios(uport);
-deinit_ws:
-	wakeup_source_trash(&msm_uport->ws);
 free_uart_irq:
 	free_irq(uport->irq, msm_uport);
 unvote_exit:
@@ -3261,7 +3295,6 @@ static int qca_hs_probe(struct platform_device *pdev)
 		uport->line = pdata->userid;
 	ret = uart_add_one_port(&msm_hs_driver, uport);
 	if (!ret) {
-		wakeup_source_init(&msm_uport->ws, dev_name(&pdev->dev));
 		return ret;
 	}
 
@@ -3411,6 +3444,10 @@ static void qca_hs_shutdown(struct uart_port *uport)
 	if (atomic_read(&msm_uport->client_req_state)) {
 		MSM_HS_WARN("%s: Client clock vote imbalance\n", __func__);
 		atomic_set(&msm_uport->client_req_state, 0);
+	}
+	if (atomic_read(&msm_uport->client_count)) {
+		MSM_HS_WARN("%s: Client vote on, forcing to 0\n", __func__);
+		atomic_set(&msm_uport->client_count, 0);
 	}
 	qca_hs_unconfig_uart_gpios(uport);
 	MSM_HS_INFO("%s:UART port closed successfully\n", __func__);
