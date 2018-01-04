@@ -3387,7 +3387,10 @@ static int qca_hs_probe(struct platform_device *pdev)
 		goto err_clock;
 	}
 
+
 	qca_serial_debugfs_init(msm_uport, pdev->id);
+	qca_hs_unconfig_uart_gpios(uport);
+
 
 	uport->line = pdev->id;
 	if (pdata->userid && pdata->userid <= UARTDM_NR)
