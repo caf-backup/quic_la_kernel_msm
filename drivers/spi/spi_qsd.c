@@ -168,6 +168,7 @@ static inline void msm_spi_free_gpios(struct msm_spi *dd)
 
 		for (i = 0; i < ARRAY_SIZE(spi_cs_rsrcs); ++i) {
 			if (dd->cs_gpios[i].valid) {
+				gpio_set_value((dd->cs_gpios[i].gpio_num), 1);
 				gpio_free(dd->cs_gpios[i].gpio_num);
 				dd->cs_gpios[i].valid = 0;
 			}
@@ -228,6 +229,7 @@ static inline void msm_spi_free_cs_gpio(struct msm_spi *dd)
 	cs_num = dd->spi->chip_select;
 	if (!dd->pdata->use_pinctrl) {
 		if (dd->cs_gpios[cs_num].valid) {
+			gpio_set_value((dd->cs_gpios[cs_num].gpio_num), 1);
 			gpio_free(dd->cs_gpios[cs_num].gpio_num);
 			dd->cs_gpios[cs_num].valid = 0;
 		}
