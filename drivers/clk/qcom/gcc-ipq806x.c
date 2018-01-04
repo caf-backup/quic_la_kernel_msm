@@ -2241,7 +2241,7 @@ static struct clk_rcg usb_hs1_xcvr_clk_src = {
 	},
 	.freq_tbl = clk_tbl_usb,
 	.clkr = {
-		.enable_reg = 0x2968,
+		.enable_reg = 0x290c,
 		.enable_mask = BIT(11),
 		.hw.init = &(struct clk_init_data){
 			.name = "usb_hs1_xcvr_src",
@@ -2254,8 +2254,8 @@ static struct clk_rcg usb_hs1_xcvr_clk_src = {
 };
 
 static struct clk_branch usb_hs1_xcvr_clk = {
-	.halt_reg = 0x2fcc,
-	.halt_bit = 17,
+	.halt_reg = 0x2fc8,
+	.halt_bit = 0,
 	.clkr = {
 		.enable_reg = 0x290c,
 		.enable_mask = BIT(9),
