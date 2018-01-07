@@ -18,6 +18,7 @@
 #include "ci.h"
 
 #define MSM_USB_BASE	(ci->hw_bank.abs)
+#define USB_PHY_CLK_SOURCE_CLK 0x000CBC7A
 
 struct ci_hdrc_msm {
 	struct platform_device *ci;
@@ -35,7 +36,19 @@ static void ci_hdrc_msm_notify_event(struct ci_hdrc *ci, unsigned event)
 		dev_dbg(dev, "CI_HDRC_CONTROLLER_RESET_EVENT received\n");
 		writel(0, USB_AHBBURST);
 		writel(0, USB_AHBMODE);
-		usb_phy_init(ci->transceiver);
+
+		if (ci->transceiver) {
+			usb_phy_init(ci->transceiver);
+		} else {
+			/*
+			 * On controller reset, reconfigure PHY clock source
+			 * and generate PHY resets.
+			 */
+			writel(USB_PHY_CLK_SOURCE_CLK, USB_PHY_CTRL);
+			writel(readl(USB_PHY_CTRL) | 1, USB_PHY_CTRL);
+			udelay(12);
+			writel(readl(USB_PHY_CTRL) & (~0x1), USB_PHY_CTRL);
+		}
 		break;
 	case CI_HDRC_CONTROLLER_STOPPED_EVENT:
 		dev_dbg(dev, "CI_HDRC_CONTROLLER_STOPPED_EVENT received\n");
@@ -84,9 +97,9 @@ static int ci_hdrc_msm_probe(struct platform_device *pdev)
 	 */
 	phy = devm_usb_get_phy_by_phandle(&pdev->dev, "usb-phy", 0);
 	if (IS_ERR(phy))
-		return PTR_ERR(phy);
-
-	ci_hdrc_msm_platdata.phy = phy;
+		ci_hdrc_msm_platdata.phy = NULL;
+	else
+		ci_hdrc_msm_platdata.phy = phy;
 
 	reset = devm_reset_control_get(&pdev->dev, "core");
 	if (IS_ERR(reset))
@@ -97,8 +110,10 @@ static int ci_hdrc_msm_probe(struct platform_device *pdev)
 		return PTR_ERR(clk);
 
 	ci->iface_clk = clk = devm_clk_get(&pdev->dev, "iface");
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+	if (IS_ERR(clk)) {
+		dev_dbg(&pdev->dev, "no iface clock found\n");
+		ci->iface_clk = NULL;
+	}
 
 	ci->fs_clk = clk = devm_clk_get(&pdev->dev, "fs");
 	if (IS_ERR(clk)) {
@@ -107,23 +122,28 @@ static int ci_hdrc_msm_probe(struct platform_device *pdev)
 		ci->fs_clk = NULL;
 	}
 
-	ret = clk_prepare_enable(ci->fs_clk);
-	if (ret)
-		return ret;
+	if (ci->fs_clk) {
+		ret = clk_prepare_enable(ci->fs_clk);
+		if (ret)
+			return ret;
+	}
 
 	reset_control_assert(reset);
 	usleep_range(10000, 12000);
 	reset_control_deassert(reset);
 
-	clk_disable_unprepare(ci->fs_clk);
+	if (ci->fs_clk)
+		clk_disable_unprepare(ci->fs_clk);
 
 	ret = clk_prepare_enable(ci->core_clk);
 	if (ret)
 		return ret;
 
-	ret = clk_prepare_enable(ci->iface_clk);
-	if (ret)
-		goto err_iface;
+	if (ci->iface_clk) {
+		ret = clk_prepare_enable(ci->iface_clk);
+		if (ret)
+			goto err_iface;
+	}
 
 	plat_ci = ci_hdrc_add_device(&pdev->dev,
 				pdev->resource, pdev->num_resources,
@@ -142,7 +162,8 @@ static int ci_hdrc_msm_probe(struct platform_device *pdev)
 	return 0;
 
 err_mux:
-	clk_disable_unprepare(ci->iface_clk);
+	if (ci->iface_clk)
+		clk_disable_unprepare(ci->iface_clk);
 err_iface:
 	clk_disable_unprepare(ci->core_clk);
 	return ret;
@@ -154,7 +175,10 @@ static int ci_hdrc_msm_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 	ci_hdrc_remove_device(ci->ci);
-	clk_disable_unprepare(ci->iface_clk);
+
+	if (ci->iface_clk)
+		clk_disable_unprepare(ci->iface_clk);
+
 	clk_disable_unprepare(ci->core_clk);
 
 	return 0;
