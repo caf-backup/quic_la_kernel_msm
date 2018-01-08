@@ -68,6 +68,16 @@ const struct snd_soc_dapm_route tavil_slim_audio_map[] = {
 
 	{"AIF4_MAD Mixer", "SLIM TX13", "SLIM TX13"},
 
+	/* CDC Rx interface with SLIMBUS */
+	{"CDC_IF RX0 MUX", "SLIM RX0", "SLIM RX0"},
+	{"CDC_IF RX1 MUX", "SLIM RX1", "SLIM RX1"},
+	{"CDC_IF RX2 MUX", "SLIM RX2", "SLIM RX2"},
+	{"CDC_IF RX3 MUX", "SLIM RX3", "SLIM RX3"},
+	{"CDC_IF RX4 MUX", "SLIM RX4", "SLIM RX4"},
+	{"CDC_IF RX5 MUX", "SLIM RX5", "SLIM RX5"},
+	{"CDC_IF RX6 MUX", "SLIM RX6", "SLIM RX6"},
+	{"CDC_IF RX7 MUX", "SLIM RX7", "SLIM RX7"},
+
 	{"SLIM RX0 MUX", "AIF1_PB", "AIF1 PB"},
 	{"SLIM RX1 MUX", "AIF1_PB", "AIF1 PB"},
 	{"SLIM RX2 MUX", "AIF1_PB", "AIF1 PB"},
@@ -121,30 +131,15 @@ const struct snd_soc_dapm_route tavil_i2s_audio_map[] = {
 	{"AIF2 CAP", NULL, "AIF2_CAP Mixer"},
 	{"AIF3 CAP", NULL, "AIF3_CAP Mixer"},
 
-	/* Virtual input widget Mixer */
-	{"AIF1_CAP Mixer", "SLIM TX0", "SLIM TX0"},
-	{"AIF1_CAP Mixer", "SLIM TX1", "SLIM TX1"},
-	{"AIF1_CAP Mixer", "SLIM TX2", "SLIM TX2"},
-	{"AIF1_CAP Mixer", "SLIM TX3", "SLIM TX3"},
-	{"AIF1_CAP Mixer", "SLIM TX6", "SLIM TX6"},
-	{"AIF1_CAP Mixer", "SLIM TX7", "SLIM TX7"},
-	{"AIF1_CAP Mixer", "SLIM TX11", "SLIM TX11"},
-
-	{"AIF2_CAP Mixer", "SLIM TX0", "SLIM TX0"},
-	{"AIF2_CAP Mixer", "SLIM TX1", "SLIM TX1"},
-	{"AIF2_CAP Mixer", "SLIM TX2", "SLIM TX2"},
-	{"AIF2_CAP Mixer", "SLIM TX3", "SLIM TX3"},
-	{"AIF2_CAP Mixer", "SLIM TX6", "SLIM TX6"},
-	{"AIF2_CAP Mixer", "SLIM TX7", "SLIM TX7"},
-	{"AIF2_CAP Mixer", "SLIM TX11", "SLIM TX11"},
-
-	{"AIF3_CAP Mixer", "SLIM TX0", "SLIM TX0"},
-	{"AIF3_CAP Mixer", "SLIM TX1", "SLIM TX1"},
-	{"AIF3_CAP Mixer", "SLIM TX2", "SLIM TX2"},
-	{"AIF3_CAP Mixer", "SLIM TX3", "SLIM TX3"},
-	{"AIF3_CAP Mixer", "SLIM TX6", "SLIM TX6"},
-	{"AIF3_CAP Mixer", "SLIM TX7", "SLIM TX7"},
-	{"AIF3_CAP Mixer", "SLIM TX11", "SLIM TX11"},
+	/* CDC Rx interface with I2S */
+	{"CDC_IF RX0 MUX", "I2S_0 RX0", "I2S RX0 MUX"},
+	{"CDC_IF RX1 MUX", "I2S_0 RX1", "I2S RX1 MUX"},
+	{"CDC_IF RX2 MUX", "I2S_0 RX2", "I2S RX2 MUX"},
+	{"CDC_IF RX3 MUX", "I2S_0 RX3", "I2S RX3 MUX"},
+	{"CDC_IF RX4 MUX", "I2S_0 RX4", "I2S RX4 MUX"},
+	{"CDC_IF RX5 MUX", "I2S_0 RX5", "I2S RX5 MUX"},
+	{"CDC_IF RX6 MUX", "I2S_0 RX6", "I2S RX6 MUX"},
+	{"CDC_IF RX7 MUX", "I2S_0 RX7", "I2S RX7 MUX"},
 
 	{"I2S RX0 MUX", "AIF1_PB", "AIF1 PB"},
 	{"I2S RX1 MUX", "AIF1_PB", "AIF1 PB"},
@@ -163,24 +158,6 @@ const struct snd_soc_dapm_route tavil_i2s_audio_map[] = {
 	{"I2S RX5 MUX", "AIF2_PB", "AIF2 PB"},
 	{"I2S RX6 MUX", "AIF2_PB", "AIF2 PB"},
 	{"I2S RX7 MUX", "AIF2_PB", "AIF2 PB"},
-
-	{"I2S RX0 MUX", "AIF3_PB", "AIF3 PB"},
-	{"I2S RX1 MUX", "AIF3_PB", "AIF3 PB"},
-	{"I2S RX2 MUX", "AIF3_PB", "AIF3 PB"},
-	{"I2S RX3 MUX", "AIF3_PB", "AIF3 PB"},
-	{"I2S RX4 MUX", "AIF3_PB", "AIF3 PB"},
-	{"I2S RX5 MUX", "AIF3_PB", "AIF3 PB"},
-	{"I2S RX6 MUX", "AIF3_PB", "AIF3 PB"},
-	{"I2S RX7 MUX", "AIF3_PB", "AIF3 PB"},
-
-	{"I2S RX0 MUX", "AIF4_PB", "AIF4 PB"},
-	{"I2S RX1 MUX", "AIF4_PB", "AIF4 PB"},
-	{"I2S RX2 MUX", "AIF4_PB", "AIF4 PB"},
-	{"I2S RX3 MUX", "AIF4_PB", "AIF4 PB"},
-	{"I2S RX4 MUX", "AIF4_PB", "AIF4 PB"},
-	{"I2S RX5 MUX", "AIF4_PB", "AIF4 PB"},
-	{"I2S RX6 MUX", "AIF4_PB", "AIF4 PB"},
-	{"I2S RX7 MUX", "AIF4_PB", "AIF4 PB"},
 };
 
 const struct snd_soc_dapm_route tavil_audio_map[] = {
@@ -641,27 +618,6 @@ const struct snd_soc_dapm_route tavil_audio_map[] = {
 	{"ADC2", NULL, "AMIC2"},
 	{"ADC3", NULL, "AMIC3"},
 	{"ADC4", NULL, "AMIC4_5 SEL"},
-
-	/* CDC Rx interface with SLIMBUS */
-	{"CDC_IF RX0 MUX", "SLIM RX0", "SLIM RX0"},
-	{"CDC_IF RX1 MUX", "SLIM RX1", "SLIM RX1"},
-	{"CDC_IF RX2 MUX", "SLIM RX2", "SLIM RX2"},
-	{"CDC_IF RX3 MUX", "SLIM RX3", "SLIM RX3"},
-	{"CDC_IF RX4 MUX", "SLIM RX4", "SLIM RX4"},
-	{"CDC_IF RX5 MUX", "SLIM RX5", "SLIM RX5"},
-	{"CDC_IF RX6 MUX", "SLIM RX6", "SLIM RX6"},
-	{"CDC_IF RX7 MUX", "SLIM RX7", "SLIM RX7"},
-
-	/* CDC Rx interface with I2S */
-	{"CDC_IF RX0 MUX", "I2S_0 RX0", "I2S RX0 MUX"},
-	{"CDC_IF RX1 MUX", "I2S_0 RX1", "I2S RX1 MUX"},
-	{"CDC_IF RX2 MUX", "I2S_0 RX2", "I2S RX2 MUX"},
-	{"CDC_IF RX3 MUX", "I2S_0 RX3", "I2S RX3 MUX"},
-	{"CDC_IF RX4 MUX", "I2S_0 RX4", "I2S RX4 MUX"},
-	{"CDC_IF RX5 MUX", "I2S_0 RX5", "I2S RX5 MUX"},
-	{"CDC_IF RX6 MUX", "I2S_0 RX6", "I2S RX6 MUX"},
-	{"CDC_IF RX7 MUX", "I2S_0 RX7", "I2S RX7 MUX"},
-
 
 	{"RX INT0_1 MIX1 INP0", "RX0", "CDC_IF RX0 MUX"},
 	{"RX INT0_1 MIX1 INP0", "RX1", "CDC_IF RX1 MUX"},
