@@ -865,6 +865,7 @@
 				clocks = <&gcc GSBI4_UART_CLK>, <&gcc GSBI4_H_CLK>;
 				clock-names = "core", "iface";
 				status = "disabled";
+				tx-watermark = <0>;
 			};
 
 			i2c@16380000 {
