@@ -125,6 +125,7 @@ struct dcc_drvdata {
 	struct msm_dump_data	sram_data;
 	struct rpm_trig_req	rpm_trig_req;
 	struct msm_rpm_kvp	rpm_kvp;
+	bool			xpu_support;
 	bool			xpu_scm_avail;
 	uint64_t		xpu_addr;
 	uint32_t		xpu_unlock_count;
@@ -138,12 +139,15 @@ static int dcc_cfg_xpu(struct dcc_drvdata *drvdata, bool enable)
 	desc.args[1] = enable;
 	desc.arginfo = SCM_ARGS(2, SCM_VAL, SCM_VAL);
 
-	return scm_call2(SCM_SIP_FNID(SCM_SVC_MP, SCM_SVC_DISABLE_XPU), &desc);
+	return 0;
 }
 
 static int dcc_xpu_lock(struct dcc_drvdata *drvdata)
 {
 	int ret = 0;
+
+	if (!drvdata->xpu_support)
+		return 0;
 
 	mutex_lock(&drvdata->mutex);
 	if (!drvdata->xpu_scm_avail)
@@ -177,6 +181,9 @@ err:
 static int dcc_xpu_unlock(struct dcc_drvdata *drvdata)
 {
 	int ret = 0;
+
+	if (!drvdata->xpu_support)
+		return 0;
 
 	mutex_lock(&drvdata->mutex);
 	if (!drvdata->xpu_scm_avail)
@@ -1257,12 +1264,14 @@ static int dcc_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&drvdata->config_head);
 	drvdata->nr_config = 0;
 	drvdata->xpu_scm_avail = 0;
+	drvdata->xpu_support = 1;
 
+	drvdata->xpu_support = !of_property_read_bool(pdev->dev.of_node,
+						      "no_xpu_support");
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					   "dcc-xpu-base");
 	if (res) {
-		if (scm_is_call_available(SCM_SVC_MP,
-					  SCM_SVC_DISABLE_XPU) > 0) {
+		if (drvdata->xpu_support) {
 			drvdata->xpu_scm_avail = 1;
 			drvdata->xpu_addr = res->start;
 		} else {

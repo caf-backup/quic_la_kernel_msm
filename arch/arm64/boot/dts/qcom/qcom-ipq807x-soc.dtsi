@@ -242,6 +242,7 @@
 			clocks = <&gcc GCC_DCC_CLK>;
 			clock-names = "dcc_clk";
 
+			no_xpu_support;
 			qca,save-reg;
 		};
 
