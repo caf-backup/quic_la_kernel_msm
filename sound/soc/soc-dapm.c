@@ -532,8 +532,18 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 			w->kcontrol_news[i].private_value;
 		int val, item;
 
-		soc_widget_read(w, e->reg, &val);
-		item = (val >> e->shift_l) & e->mask;
+		if (e->reg != SND_SOC_NOPM) {
+			soc_widget_read(w, e->reg, &val);
+			item = (val >> e->shift_l) & e->mask;
+		} else {
+			/* since a virtual mux has no backing registers to
+			 * decide which path to connect, it will try to match
+			 * with the first enumeration.  This is to ensure
+			 * that the default mux choice (the first) will be
+			 * correctly powered up during initialization.
+			 */
+			item = 0;
+		}
 
 		if (item < e->max && !strcmp(p->name, e->texts[item]))
 			p->connect = 1;
@@ -2937,7 +2947,10 @@ int snd_soc_dapm_get_enum_double(struct snd_kcontrol *kcontrol,
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int val;
 
-	val = snd_soc_read(codec, e->reg);
+	if (e->reg != SND_SOC_NOPM)
+		val = snd_soc_read(codec, e->reg);
+	else
+		val = dapm_kcontrol_get_value(kcontrol);
 	ucontrol->value.enumerated.item[0] = (val >> e->shift_l) & e->mask;
 	if (e->shift_l != e->shift_r)
 		ucontrol->value.enumerated.item[1] =
@@ -2981,13 +2994,19 @@ int snd_soc_dapm_put_enum_double(struct snd_kcontrol *kcontrol,
 
 	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
 
-	change = snd_soc_test_bits(codec, e->reg, mask, val);
+	if (e->reg != SND_SOC_NOPM)
+		change = snd_soc_test_bits(codec, e->reg, mask, val);
+	else
+		change = dapm_kcontrol_set_value(kcontrol, val);
+
 	if (change) {
-		update.kcontrol = kcontrol;
-		update.reg = e->reg;
-		update.mask = mask;
-		update.val = val;
-		card->update = &update;
+		if (e->reg != SND_SOC_NOPM) {
+			update.kcontrol = kcontrol;
+			update.reg = e->reg;
+			update.mask = mask;
+			update.val = val;
+			card->update = &update;
+		}
 
 		ret = soc_dapm_mux_update_power(card, kcontrol, mux, e);
 
