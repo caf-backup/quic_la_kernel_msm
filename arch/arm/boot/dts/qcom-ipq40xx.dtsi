@@ -782,6 +782,10 @@
 			compatible = "qca,scm_restart_reason";
 		};
 
+		tz_log {
+			compatible = "qca,tz_log";
+		};
+
 		cpu_freq_ipq40xx {
 			compatible = "qca,ipq40xx_freq";
 			clock-latency = <100000>;

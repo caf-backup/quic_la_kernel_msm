@@ -1,0 +1,14 @@
+QCA TZ_LOG
+
+The tz_log driver is used to provide tz diagnostic information
+to the user space.
+
+Required properties:
+- compatible: must contain "qca,tz_log" for IPQ40xx
+
+Example for ipq40xx:
+
+tzlog {
+	compatible = "qca,tz_log";
+};
+

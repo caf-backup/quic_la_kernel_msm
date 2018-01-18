@@ -21,6 +21,7 @@
 #include <linux/dma-mapping.h>
 #include <soc/qcom/scm.h>
 #include <linux/slab.h>
+#include <linux/platform_device.h>
 
 #define BUF_LEN 0x1000
 #define TZ_INFO_GET_DIAG_ID 0x2
@@ -103,21 +104,37 @@ static const struct file_operations fops_tz_log = {
 	.read = tz_log_read,
 };
 
-static int __init init_tz_log(void)
+static int tz_log_probe(struct platform_device *pdev)
 {
 	int filevalue;
-	dirret = debugfs_create_dir("qcom_debug_logs", NULL);
+	dirret = debugfs_create_dir("qca_debug_logs", NULL);
 	fileret = debugfs_create_file("tz_log", 0444, dirret,
 					&filevalue, &fops_tz_log);
 	return 0;
 }
 
-static void __exit exit_tz_log(void)
+static int tz_log_remove(struct platform_device *pdev)
 {
 	/* removing the directory recursively which
 	in turn cleans all the file */
 	debugfs_remove_recursive(dirret);
+	return 0;
 }
 
-module_init(init_tz_log);
-module_exit(exit_tz_log);
+static const struct of_device_id tz_log_match_table[] = {
+	{	.compatible = "qca,tz_log",
+	},
+	{}
+};
+
+static struct platform_driver tz_log_driver = {
+	.probe = tz_log_probe,
+	.remove = tz_log_remove,
+	.driver = {
+		.name           = "tz_log",
+		.owner          = THIS_MODULE,
+		.of_match_table = tz_log_match_table,
+	},
+};
+
+module_platform_driver(tz_log_driver);
