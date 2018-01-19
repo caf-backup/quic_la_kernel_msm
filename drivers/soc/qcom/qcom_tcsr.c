@@ -18,7 +18,9 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <soc/qcom/scm.h>
 
+#define TCSR_USB_PORT_SEL_REG  0x1A4000B0
 #define TCSR_USB_PORT_SEL	0xb0
 #define TCSR_USB_HSPHY_CONFIG	0xC
 
@@ -43,7 +45,8 @@ static int tcsr_probe(struct platform_device *pdev)
 
 	if (!of_property_read_u32(node, "qcom,usb-ctrl-select", &val)) {
 		dev_err(&pdev->dev, "setting usb port select = %d\n", val);
-		writel(val, base + TCSR_USB_PORT_SEL);
+		scm_call_atomic2(SCM_SVC_IO_ACCESS, SCM_IO_WRITE,
+				TCSR_USB_PORT_SEL_REG, val);
 	}
 
 	if (!of_property_read_u32(node, "qcom,usb-hsphy-mode-select", &val)) {

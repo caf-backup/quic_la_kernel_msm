@@ -12,10 +12,20 @@
 #include <linux/usb/ulpi.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/chipidea.h>
+#include <linux/clk.h>
+#include <linux/reset.h>
 
 #include "ci.h"
 
 #define MSM_USB_BASE	(ci->hw_bank.abs)
+#define USB_PHY_CLK_SOURCE_CLK 0x000CBC7A
+
+struct ci_hdrc_msm {
+	struct platform_device *ci;
+	struct clk *core_clk;
+	struct clk *iface_clk;
+	struct clk *fs_clk;
+};
 
 static void ci_hdrc_msm_notify_event(struct ci_hdrc *ci, unsigned event)
 {
@@ -26,7 +36,19 @@ static void ci_hdrc_msm_notify_event(struct ci_hdrc *ci, unsigned event)
 		dev_dbg(dev, "CI_HDRC_CONTROLLER_RESET_EVENT received\n");
 		writel(0, USB_AHBBURST);
 		writel(0, USB_AHBMODE);
-		usb_phy_init(ci->transceiver);
+
+		if (ci->transceiver) {
+			usb_phy_init(ci->transceiver);
+		} else {
+			/*
+			 * On controller reset, reconfigure PHY clock source
+			 * and generate PHY resets.
+			 */
+			writel(USB_PHY_CLK_SOURCE_CLK, USB_PHY_CTRL);
+			writel(readl(USB_PHY_CTRL) | 1, USB_PHY_CTRL);
+			udelay(12);
+			writel(readl(USB_PHY_CTRL) & (~0x1), USB_PHY_CTRL);
+		}
 		break;
 	case CI_HDRC_CONTROLLER_STOPPED_EVENT:
 		dev_dbg(dev, "CI_HDRC_CONTROLLER_STOPPED_EVENT received\n");
@@ -44,6 +66,7 @@ static void ci_hdrc_msm_notify_event(struct ci_hdrc *ci, unsigned event)
 
 static struct ci_hdrc_platform_data ci_hdrc_msm_platdata = {
 	.name			= "ci_hdrc_msm",
+	.capoffset		= DEF_CAPOFFSET,
 	.flags			= CI_HDRC_REGS_SHARED |
 				  CI_HDRC_REQUIRE_TRANSCEIVER |
 				  CI_HDRC_DISABLE_STREAMING,
@@ -53,40 +76,127 @@ static struct ci_hdrc_platform_data ci_hdrc_msm_platdata = {
 
 static int ci_hdrc_msm_probe(struct platform_device *pdev)
 {
+	struct ci_hdrc_msm *ci;
 	struct platform_device *plat_ci;
+	struct usb_phy *phy;
+	struct clk *clk;
+	struct reset_control *reset;
+	int ret;
 
 	dev_dbg(&pdev->dev, "ci_hdrc_msm_probe\n");
+
+	ci = devm_kzalloc(&pdev->dev, sizeof(*ci), GFP_KERNEL);
+	if (!ci)
+		return -ENOMEM;
+	platform_set_drvdata(pdev, ci);
+
+	/*
+	 * OTG(PHY) driver takes care of PHY initialization, clock management,
+	 * powering up VBUS, mapping of registers address space and power
+	 * management.
+	 */
+	phy = devm_usb_get_phy_by_phandle(&pdev->dev, "usb-phy", 0);
+	if (IS_ERR(phy))
+		ci_hdrc_msm_platdata.phy = NULL;
+	else
+		ci_hdrc_msm_platdata.phy = phy;
+
+	reset = devm_reset_control_get(&pdev->dev, "core");
+	if (IS_ERR(reset))
+		return PTR_ERR(reset);
+
+	ci->core_clk = clk = devm_clk_get(&pdev->dev, "core");
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
+
+	ci->iface_clk = clk = devm_clk_get(&pdev->dev, "iface");
+	if (IS_ERR(clk)) {
+		dev_dbg(&pdev->dev, "no iface clock found\n");
+		ci->iface_clk = NULL;
+	}
+
+	ci->fs_clk = clk = devm_clk_get(&pdev->dev, "fs");
+	if (IS_ERR(clk)) {
+		if (PTR_ERR(clk) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		ci->fs_clk = NULL;
+	}
+
+	if (ci->fs_clk) {
+		ret = clk_prepare_enable(ci->fs_clk);
+		if (ret)
+			return ret;
+	}
+
+	reset_control_assert(reset);
+	usleep_range(10000, 12000);
+	reset_control_deassert(reset);
+
+	if (ci->fs_clk)
+		clk_disable_unprepare(ci->fs_clk);
+
+	ret = clk_prepare_enable(ci->core_clk);
+	if (ret)
+		return ret;
+
+	if (ci->iface_clk) {
+		ret = clk_prepare_enable(ci->iface_clk);
+		if (ret)
+			goto err_iface;
+	}
 
 	plat_ci = ci_hdrc_add_device(&pdev->dev,
 				pdev->resource, pdev->num_resources,
 				&ci_hdrc_msm_platdata);
 	if (IS_ERR(plat_ci)) {
 		dev_err(&pdev->dev, "ci_hdrc_add_device failed!\n");
-		return PTR_ERR(plat_ci);
+		ret = PTR_ERR(plat_ci);
+		goto err_mux;
 	}
 
-	platform_set_drvdata(pdev, plat_ci);
+	ci->ci = plat_ci;
 
 	pm_runtime_no_callbacks(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;
+
+err_mux:
+	if (ci->iface_clk)
+		clk_disable_unprepare(ci->iface_clk);
+err_iface:
+	clk_disable_unprepare(ci->core_clk);
+	return ret;
 }
 
 static int ci_hdrc_msm_remove(struct platform_device *pdev)
 {
-	struct platform_device *plat_ci = platform_get_drvdata(pdev);
+	struct ci_hdrc_msm *ci = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(&pdev->dev);
-	ci_hdrc_remove_device(plat_ci);
+	ci_hdrc_remove_device(ci->ci);
+
+	if (ci->iface_clk)
+		clk_disable_unprepare(ci->iface_clk);
+
+	clk_disable_unprepare(ci->core_clk);
 
 	return 0;
 }
 
+static const struct of_device_id msm_ci_dt_match[] = {
+	{ .compatible = "qcom,ci-hdrc", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, msm_ci_dt_match);
+
 static struct platform_driver ci_hdrc_msm_driver = {
 	.probe = ci_hdrc_msm_probe,
 	.remove = ci_hdrc_msm_remove,
-	.driver = { .name = "msm_hsusb", },
+	.driver = {
+		.name = "msm_hsusb",
+		.of_match_table = msm_ci_dt_match,
+	},
 };
 
 module_platform_driver(ci_hdrc_msm_driver);
