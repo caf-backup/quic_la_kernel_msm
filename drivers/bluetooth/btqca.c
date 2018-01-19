@@ -27,6 +27,9 @@
 
 #define VERSION "0.1"
 
+#define MAX_PATCH_FILE_SIZE (100*1024)
+#define MAX_NVM_FILE_SIZE   (10*1024)
+
 static int rome_patch_ver_req(struct hci_dev *hdev, u32 *rome_version)
 {
 	struct sk_buff *skb;
@@ -259,13 +262,13 @@ static int rome_tlv_download_request(struct hci_dev *hdev,
 	remain_size = fw->size % MAX_SIZE_PER_TLV_SEGMENT;
 
 	BT_DBG("%s: Total segment num %d remain size %d total size %zu",
-	       hdev->name, total_segment, remain_size, fw->size);
+		hdev->name, total_segment, remain_size, fw->size);
 
 	data = fw->data;
 	for (i = 0; i < total_segment; i++) {
 		buffer = data + i * MAX_SIZE_PER_TLV_SEGMENT;
 		ret = rome_tlv_send_segment(hdev, i, MAX_SIZE_PER_TLV_SEGMENT,
-					    buffer);
+					buffer);
 		if (ret < 0)
 			return -EIO;
 	}
@@ -285,27 +288,68 @@ static int rome_download_firmware(struct hci_dev *hdev,
 				  struct rome_config *config)
 {
 	const struct firmware *fw;
+	struct firmware *local_tags;
+	u8 *local_data;
 	int ret;
 
 	BT_INFO("%s: ROME Downloading %s", hdev->name, config->fwname);
-
 	ret = request_firmware(&fw, config->fwname, &hdev->dev);
-	if (ret) {
+
+	if (ret || !fw || !fw->data || fw->size <= 0) {
 		BT_ERR("%s: Failed to request file: %s (%d)", hdev->name,
-		       config->fwname, ret);
+				config->fwname, ret);
+		ret = -EINVAL;
 		return ret;
 	}
-
-	rome_tlv_check_data(config, fw);
-
-	ret = rome_tlv_download_request(hdev, fw);
-	if (ret) {
-		BT_ERR("%s: Failed to download file: %s (%d)", hdev->name,
-		       config->fwname, ret);
+	if (config->type == TLV_TYPE_PATCH &&
+		(fw->size > MAX_PATCH_FILE_SIZE)) {
+		ret = -EINVAL;
+		BT_ERR("TLV_PATCH dload: wrong patch file sizes ");
+		goto exit;
+	}
+	if (config->type == TLV_TYPE_NVM &&
+		(fw->size > MAX_NVM_FILE_SIZE)) {
+		ret = -EINVAL;
+		BT_ERR("TLV_NVM dload: wrong NVM file sizes");
+		goto exit;
 	}
 
-	release_firmware(fw);
+	local_tags = kzalloc(sizeof(struct firmware), GFP_KERNEL);
+	if (!local_tags) {
+		ret = -ENOMEM;
+		BT_ERR("Failed to alloc for local_tags");
+		goto exit;
+	} else {
+		/* NOTE, we are assuming valid usage only of data field
+		 * of struct firmware, other fields not considered as such
+		 */
+		local_data = kzalloc(fw->size, GFP_KERNEL);
+		if (!local_data) {
+			ret = -ENOMEM;
+			BT_ERR("Failed alloc local_tags Data (%zu) bytes ",
+						fw->size);
+			kfree(local_tags);
+			local_tags = NULL;
+			goto exit;
+		}
+	}
 
+	memcpy(local_data, fw->data, fw->size);
+	local_tags->data = local_data;
+
+	rome_tlv_check_data(config, local_tags);
+	ret = rome_tlv_download_request(hdev, local_tags);
+
+	if (ret) {
+		BT_ERR("%s: Failed to download file: %s (%d)", hdev->name,
+			config->fwname, ret);
+	}
+
+	kfree(local_data);
+	kfree(local_tags);
+
+exit:
+	release_firmware(fw);
 	return ret;
 }
 
@@ -316,7 +360,7 @@ int qca_set_bdaddr_rome(struct hci_dev *hdev, const bdaddr_t *bdaddr)
 	int err;
 
 	cmd[0] = EDL_NVM_ACCESS_SET_REQ_CMD;
-	cmd[1] = 0x02; 			/* TAG ID */
+	cmd[1] = 0x02;			/* TAG ID */
 	cmd[2] = sizeof(bdaddr_t);	/* size */
 	memcpy(cmd + 3, bdaddr, sizeof(bdaddr_t));
 	skb = __hci_cmd_sync_ev(hdev, EDL_NVM_ACCESS_OPCODE, sizeof(cmd), cmd,
