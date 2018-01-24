@@ -433,6 +433,20 @@ static const struct parent_map gcc_xo_gpll4_gpll0_gpll6_gpll0_div2_map[] = {
 	{ P_GPLL0_DIV2, 4 },
 };
 
+static const char * const gcc_xo_gpll0_gpll6_gpll0_div2[] = {
+	"xo",
+	"gpll0",
+	"gpll6",
+	"gpll0_out_main_div2",
+};
+
+static const struct parent_map gcc_xo_gpll0_gpll6_gpll0_div2_map[] = {
+	{ P_XO, 0 },
+	{ P_GPLL0, 1 },
+	{ P_GPLL6, 2 },
+	{ P_GPLL0_DIV2, 4 },
+};
+
 static const u32 spark_pll_regs_offsets[] = {
 	[ALPHA_PLL_MODE] = 0x00,
 	[ALPHA_PLL_L_VAL] = 0x04,
@@ -2178,6 +2192,25 @@ static struct clk_regmap_mux usb0_pipe_clk_src = {
 	},
 };
 
+static const struct freq_tbl ftbl_sdcc_ice_core_clk_src[] = {
+	F(19200000, P_XO, 1, 0, 0),
+	F(160000000, P_GPLL0, 5, 0, 0),
+	F(308570000, P_GPLL6, 3.5, 0, 0),
+};
+
+static struct clk_rcg2 sdcc1_ice_core_clk_src = {
+	.cmd_rcgr = 0x5d000,
+	.freq_tbl = ftbl_sdcc_ice_core_clk_src,
+	.mnd_width = 8,
+	.hid_width = 5,
+	.parent_map = gcc_xo_gpll0_gpll6_gpll0_div2_map,
+	.clkr.hw.init = &(struct clk_init_data){
+		.name = "sdcc1_ice_core_clk_src",
+		.parent_names = gcc_xo_gpll0_gpll6_gpll0_div2,
+		.num_parents = 4,
+		.ops = &clk_rcg2_ops,
+	},
+};
 struct clk_rcg2 usb1_aux_clk_src = {
 	.cmd_rcgr = 0x3f05c,
 	.freq_tbl = ftbl_usb_aux_clk_src,
@@ -4847,6 +4880,22 @@ static struct clk_branch gcc_cmn_12gpll_sys_clk = {
 	},
 };
 
+static struct clk_branch gcc_sdcc1_ice_core_clk = {
+	.halt_reg = 0x5d014,
+	.clkr = {
+		.enable_reg = 0x5d014,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "gcc_sdcc1_ice_core_clk",
+			.parent_names = (const char *[]){
+				"sdcc1_ice_core_clk_src"
+			},
+			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
 static struct clk_hw *gcc_ipq807x_hws[] = {
 	&gpll0_out_main_div2.hw,
 	&pcnoc_clk_src.hw,
@@ -5136,6 +5185,8 @@ static struct clk_regmap *gcc_ipq807x_clks[] = {
 	[GCC_USB1_SLEEP_CLK] = &gcc_usb1_sleep_clk.clkr,
 	[GCC_CMN_12GPLL_AHB_CLK] = &gcc_cmn_12gpll_ahb_clk.clkr,
 	[GCC_CMN_12GPLL_SYS_CLK] = &gcc_cmn_12gpll_sys_clk.clkr,
+	[GCC_SDCC1_ICE_CORE_CLK] = &gcc_sdcc1_ice_core_clk.clkr,
+	[SDCC1_ICE_CORE_CLK_SRC] = &sdcc1_ice_core_clk_src.clkr,
 };
 
 static const struct qcom_reset_map gcc_ipq807x_resets[] = {
