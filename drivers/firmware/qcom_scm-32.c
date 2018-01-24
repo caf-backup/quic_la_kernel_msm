@@ -997,7 +997,7 @@ int __qcom_scm_send_cache_dump_addr(struct device *dev, u32 cmd_id,
 	return ret;
 }
 
-static int __qcom_scm_tz_log_v8(struct device *dev, u32 svc_id, u32 cmd_id,
+static int __qcom_scm_tz_hvc_log_v8(struct device *dev, u32 svc_id, u32 cmd_id,
 						u32 log_buf, u32 buf_size)
 {
 	struct scm_desc desc = {0};
@@ -1015,19 +1015,36 @@ static int __qcom_scm_tz_log_v8(struct device *dev, u32 svc_id, u32 cmd_id,
 	return le32_to_cpu(desc.ret[0]);
 }
 
+int __qcom_scm_hvc_log(struct device *dev, u32 svc_id, u32 cmd_id,
+				void *ker_buf, u32 buf_len)
+{
+	int ret;
+	dma_addr_t log_buf;
+
+	log_buf = dma_map_single(dev, ker_buf, buf_len, DMA_FROM_DEVICE);
+	ret = dma_mapping_error(dev, log_buf);
+
+	if (ret != 0) {
+		pr_err("DMA Mapping Error : %d\n", ret);
+		return -EINVAL;
+	}
+
+	ret = __qcom_scm_tz_hvc_log_v8(dev, svc_id, cmd_id, log_buf, buf_len);
+	dma_unmap_single(dev, log_buf, buf_len, DMA_FROM_DEVICE);
+
+	return ret;
+}
+
 int __qcom_scm_tz_log(struct device *dev, u32 svc_id, u32 cmd_id,
-				void *ker_buf, u32 *buf_len, u32 **ring_off,
-				struct tzbsp_diag_log_t **log)
+				void *ker_buf, u32 buf_len)
 {
 	int ret;
 	struct log_read rdip;
-	struct tzbsp_diag_t *tz_diag;
-	struct tzbsp_diag_t_v8 *tz_diag_v8;
 	dma_addr_t log_buf;
 
 	if (is_scm_armv8()) {
 
-		log_buf = dma_map_single(dev, ker_buf, BUF_LEN_V8,
+		log_buf = dma_map_single(dev, ker_buf, buf_len,
 						DMA_FROM_DEVICE);
 		ret = dma_mapping_error(dev, log_buf);
 
@@ -1036,20 +1053,14 @@ int __qcom_scm_tz_log(struct device *dev, u32 svc_id, u32 cmd_id,
 			return -EINVAL;
 		}
 
-		ret = __qcom_scm_tz_log_v8(dev, svc_id, cmd_id,
-						log_buf, BUF_LEN_V8);
-		dma_unmap_single(dev, log_buf, BUF_LEN_V8, DMA_FROM_DEVICE);
+		ret = __qcom_scm_tz_hvc_log_v8(dev, svc_id, cmd_id,
+						log_buf, buf_len);
+		dma_unmap_single(dev, log_buf, buf_len, DMA_FROM_DEVICE);
 
-		if (ret == 0) {
-			tz_diag_v8 = (struct tzbsp_diag_t_v8 *) ker_buf;
-			*ring_off = (uint32_t *)&(tz_diag_v8->ring_off);
-			*log = (struct tzbsp_diag_log_t *) &tz_diag_v8->log;
-			*buf_len = BUF_LEN_V8;
-		}
 	} else {
 
-		rdip.buf_size = BUF_LEN_V7;
-		rdip.log_buf = dma_map_single(dev, ker_buf, BUF_LEN_V7,
+		rdip.buf_size = buf_len;
+		rdip.log_buf = dma_map_single(dev, ker_buf, buf_len,
 						DMA_FROM_DEVICE);
 		ret = dma_mapping_error(dev, rdip.log_buf);
 
@@ -1060,15 +1071,9 @@ int __qcom_scm_tz_log(struct device *dev, u32 svc_id, u32 cmd_id,
 
 		ret = qcom_scm_call(dev, svc_id, cmd_id, &rdip,
 					sizeof(struct log_read), NULL, 0);
-		dma_unmap_single(dev, rdip.log_buf, BUF_LEN_V7,
+		dma_unmap_single(dev, rdip.log_buf, buf_len,
 						DMA_FROM_DEVICE);
 
-		if (ret == 0) {
-			tz_diag = (struct tzbsp_diag_t *) ker_buf;
-			*ring_off = (uint32_t *) &(tz_diag->ring_off);
-			*log = (struct tzbsp_diag_log_t *) &tz_diag->log;
-			*buf_len = BUF_LEN_V7;
-		}
 	}
 
 	return ret;

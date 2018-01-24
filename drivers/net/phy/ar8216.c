@@ -2112,6 +2112,11 @@ ar8xxx_phy_probe(struct phy_device *phydev)
 	struct switch_dev *swdev;
 	int ret;
 
+#if defined(CONFIG_OF)
+	if (of_machine_is_compatible("qcom,ipq8064-ap161"))
+		return -ENODEV;
+#endif
+
 	/* skip PHYs at unused adresses */
 	if (phydev->addr != 0 && phydev->addr != 4)
 		return -ENODEV;

@@ -18,6 +18,9 @@ obj-$(CONFIG_MSM_RPM_LOG)	+=	rpm_log.o
 obj-$(CONFIG_QCOM_RESTART_REASON) += restart_reason.o
 obj-$(CONFIG_MSM_IPC_ROUTER_MHI_XPRT) += ipc_router_mhi_xprt.o
 
+obj-$(CONFIG_MSM_TEST_QMI_CLIENT) += qmi_test.o
+qmi_test-y += kernel_test_service_v01.o test_qmi_client.o
+
 ifdef CONFIG_QCOM_SCM
 obj-$(CONFIG_ARM64) += cpu_ops.o cpu_pwr_ctl.o
 endif
@@ -30,6 +33,7 @@ ifdef CONFIG_IPQ_SUBSYSTEM_RESTART
 	obj-y += subsystem_notif.o
 	obj-y += subsystem_restart.o
 	obj-y += ramdump.o
+	obj-$(CONFIG_IPQ_SUBSYSTEM_RESTART_TEST) += testssr.o
 endif
 
 obj-$(CONFIG_QCOM_TZ_LOG) += tz_log.o

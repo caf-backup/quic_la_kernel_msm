@@ -143,14 +143,19 @@ static int ipq_set_led_blink_set(struct led_classdev *led_cdev,
 	return 0;
 }
 
-void ipq_led_set_blink(int led_idx,
+int ipq_led_set_blink(int led_idx,
 		       unsigned long delay_on, unsigned long delay_off)
 {
-	struct ipq_led_data leds;
+	struct ipq_led_data led_data;
 
-	leds.led_blink_idx = led_idx;
+	if (!leds)
+		return -ENODEV;
 
-	ipq_set_led_blink_set(&leds.cdev, &delay_on, &delay_off);
+	led_data.led_blink_idx = led_idx;
+
+	ipq_set_led_blink_set(&led_data.cdev, &delay_on, &delay_off);
+
+	return 0;
 }
 EXPORT_SYMBOL(ipq_led_set_blink);
 
@@ -175,13 +180,18 @@ static void ipq_set_led_brightness_set(struct led_classdev *led_cdev,
 	writel(reg, LEDC_ADDR(LEDC_CG6_OFFSET));
 }
 
-void ipq_led_set_brightness(int led_idx, unsigned int brightness)
+int ipq_led_set_brightness(int led_idx, unsigned int brightness)
 {
-	struct ipq_led_data leds;
+	struct ipq_led_data led_data;
 
-	leds.led_blink_idx = led_idx;
+	if (!leds)
+		return -ENODEV;
 
-	ipq_set_led_brightness_set(&leds.cdev, brightness);
+	led_data.led_blink_idx = led_idx;
+
+	ipq_set_led_brightness_set(&led_data.cdev, brightness);
+
+	return 0;
 }
 EXPORT_SYMBOL(ipq_led_set_brightness);
 

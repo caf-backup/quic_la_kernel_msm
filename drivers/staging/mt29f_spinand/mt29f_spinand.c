@@ -20,6 +20,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand.h>
 #include <linux/spi/spi.h>
+#include <linux/sizes.h>
 
 #include "mt29f_spinand.h"
 #include "giga_spinand.h"
@@ -1211,6 +1212,31 @@ static int spinand_lock_block(struct spi_device *spi_nand, u8 lock)
 	return ret;
 }
 
+/* SPI NAND ID Table */
+struct nand_flash_dev spinand_flash_ids[] = {
+	{"ATO25D1GA 128MiB 3.3V",
+		{ .id = {0x9b, 0x12} }, SZ_2K, 128, SZ_128K, 0, 2, 64},
+
+	{"GD5F4GQ4UC 512MiB 3.3V",
+		{ .id = {0xc8, 0xB4} }, SZ_4K, 512, SZ_256K, 0, 2, 256},
+
+	{"GD5F1GQ1UC 128MiB 3.3V",
+		{ .id = {0xc8, 0xB1} }, SZ_2K, 128, SZ_128K, 0, 2, 128},
+
+	{"GD5F1GQ1RC 128MiB 1.8V",
+		{ .id = {0xc8, 0xA1} }, SZ_2K, 128, SZ_128K, 0, 2, 128},
+
+	{"MX35LFxGE4AB 128MiB 3.3V",
+		{ .id = {0xc2, 0x12} }, SZ_2K, 128, SZ_128K, 0, 2, 64},
+
+	{"W25N01GV 128MiB 3.3V",
+		{ .id = {0xef, 0xaa} }, SZ_2K, 128, SZ_128K, 0, 2, 64},
+
+	{"W25M02GV 256MiB 3.3V(Dual die)",
+		{ .id = {0xef, 0xab} }, SZ_2K, 256, SZ_128K, 0, 2, 64},
+	{NULL}
+};
+
 /*
  * spinand_probe - [spinand Interface]
  * @spi_nand: registered device driver.
@@ -1286,7 +1312,10 @@ static int spinand_probe(struct spi_device *spi_nand)
 	mtd->dev.parent = &spi_nand->dev;
 	mtd->oobsize = 64;
 
-	if (nand_scan(mtd, 1))
+	if (nand_scan_ident(mtd, 1, spinand_flash_ids))
+		return -ENXIO;
+
+	if (nand_scan_tail(mtd))
 		return -ENXIO;
 
 	ppdata.of_node = spi_nand->dev.of_node;

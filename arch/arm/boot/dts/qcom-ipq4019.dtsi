@@ -335,7 +335,7 @@
 		};
 
 		serial@78af000 {
-			compatible = "qcom,msm-hsl-uartdm-v1.4";
+			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0x78af000 0x200>;
 			interrupts = <0 107 0>;
 			status = "disabled";
@@ -346,7 +346,7 @@
 		};
 
 		serial@78b0000 {
-			compatible = "qcom,msm-hsl-uartdm-v1.4";
+			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0x78b0000 0x200>;
 			interrupts = <0 108 0>;
 			status = "disabled";

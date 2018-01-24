@@ -152,7 +152,7 @@ static struct rpm_regulator_param params[RPM_REGULATOR_PARAM_MAX] = {
 		"qcom,init-quiet-mode"),
 	PARAM(FREQ_REASON,       0,  1,  0,  1,  0, "resn", 0, 8,
 		"qcom,init-freq-reason"),
-	PARAM(CORNER,            1,  1,  0,  0,  0, "corn", 0, 6,
+	PARAM(CORNER,            1,  1,  0,  0,  0, "corn", 0, 9,
 		"qcom,init-voltage-corner"),
 	PARAM(BYPASS,            1,  0,  0,  0,  0, "bypa", 0, 1,
 		"qcom,init-disallow-bypass"),

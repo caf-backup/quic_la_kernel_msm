@@ -524,7 +524,7 @@
 		};
 
 		tzlog: qca,tzlog {
-			compatible = "qca,tzlog";
+			compatible = "qca,tz64-hv-log";
 			interrupts = <0 244 1>;
 		};
 
@@ -759,6 +759,7 @@
 			qcom,wlan-dataplane-offload-enabled;
 			qcom,vlan-enabled;
 			npu-supply = <&npu_vreg>;
+			mx-supply = <&ipq807x_s5_corner>;
 		};
 
 		nss1: nss@40800000 {
@@ -903,12 +904,23 @@
 			smem-entry-names = "ch", "tx_fifo", "rx_fifo";
 		};
 
+		glink_rpm: qcom,glink-rpm-native-xprt@60000 {
+			compatible = "qcom,glink-rpm-native-xprt";
+			reg = <0x60000 0x6000>, <0x0b111008 0x4>;
+			reg-names = "msgram", "irq-reg-base";
+			qcom,irq-mask = <0x1>;
+			interrupts = <0 168 1>;
+			label = "rpm";
+			qcom,subsys-id = <6>;
+			status = "ok";
+		};
+
 		rpm_bus: qcom,rpm-glink {
 			compatible = "qcom,rpm-glink";
 			qcom,glink-edge = "rpm";
 			rpm-channel-name = "rpm_requests";
 			qcom,rpm-channel-type = <15>; // SMD_APPS_RPM
-			status = "disabled";
+			status = "ok";
 		};
 
 		ipc_router: qcom,ipc_router {
@@ -1561,9 +1573,9 @@
 			compatible = "qca,ledc";
 			reg = <0x191E000 0x20070>;
 			reg-names = "ledc_base_addr";
-			qcom,tcsr_ledc_values = <0x0320193 0x2739CE60 \
-						0x2739CE73 0x2739CE73 \
-						0x0139CE73 0xFFFFFFFF \
+			qcom,tcsr_ledc_values = <0x0320193 0x00000000 \
+						0x00000000 0x00000000 \
+						0x00000000 0xFFFFFFFF \
 						0x00000000 0xFFFFFFFF \
 						0x007D0820 0x00000000 \
 						0x10482094 0x03FFFFE1>;

@@ -848,11 +848,22 @@ static void __subsystem_restart_dev(struct subsys_device *dev)
 	const char *name = dev->desc->name;
 	struct subsys_tracking *track;
 	unsigned long flags;
+	struct subsys_device **list;
+	struct subsys_soc_restart_order *order = dev->restart_order;
+	unsigned int count;
 
 	pr_debug("Restarting %s [level=%s]!\n", desc->name,
 			restart_levels[dev->restart_level]);
 
 	track = subsys_get_track(dev);
+	if (order) {
+		list = order->subsys_ptrs;
+		count = order->count;
+	} else {
+		list = &dev;
+		count = 1;
+	}
+
 	/*
 	 * Allow drivers to call subsystem_restart{_dev}() as many times as
 	 * they want up until the point where the subsystem is shutdown.
@@ -862,6 +873,9 @@ static void __subsystem_restart_dev(struct subsys_device *dev)
 					dev->track.state == SUBSYS_ONLINE) {
 		if (track->p_state != SUBSYS_RESTARTING) {
 			track->p_state = SUBSYS_CRASHED;
+
+			notify_each_subsys_device(list, count,
+				SUBSYS_PREPARE_FOR_FATAL_SHUTDOWN, NULL);
 			__pm_stay_awake(&dev->ssr_wlock);
 			queue_work(ssr_wq, &dev->work);
 		} else {

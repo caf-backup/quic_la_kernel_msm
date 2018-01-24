@@ -29,6 +29,7 @@ enum subsys_notif_type {
 	SUBSYS_PROXY_VOTE,
 	SUBSYS_PROXY_UNVOTE,
 	SUBSYS_SOC_RESET,
+	SUBSYS_PREPARE_FOR_FATAL_SHUTDOWN,
 	SUBSYS_NOTIF_TYPE_COUNT
 };
 
@@ -48,12 +49,19 @@ void *subsys_notif_register_notifier(
 int subsys_notif_unregister_notifier(void *subsys_handle,
 				struct notifier_block *nb);
 
+int subsys_notif_register_atomic_notifier(void *subsys_handle,
+				struct notifier_block *nb);
+int subsys_notif_unregister_atomic_notifier(void *subsys_handle,
+				struct notifier_block *nb);
+
+
 /* Use the subsys_notif_init_subsys API to initialize the notifier chains form
  * a particular subsystem. This API will return a handle that can be used to
  * queue notifications using the subsys_notif_queue_notification API by passing
  * in that handle as an argument.
  */
 void *subsys_notif_add_subsys(const char *);
+
 int subsys_notif_queue_notification(void *subsys_handle,
 					enum subsys_notif_type notif_type,
 					void *data);
@@ -67,6 +75,18 @@ static inline void *subsys_notif_register_notifier(
 
 static inline int subsys_notif_unregister_notifier(void *subsys_handle,
 					struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline int subsys_notif_register_atomic_notifier(void *subsys_handle,
+				struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline int subsys_notif_unregister_atomic_notifier(void *subsys_handle,
+				struct notifier_block *nb)
 {
 	return 0;
 }

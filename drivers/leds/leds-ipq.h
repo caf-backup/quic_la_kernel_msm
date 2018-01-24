@@ -51,7 +51,7 @@ enum led_source {
 };
 
 int ipq_led_source_select(int led_num, enum led_source src_type);
-void ipq_led_set_blink(int led_idx,
+int ipq_led_set_blink(int led_idx,
 		       unsigned long delay_on, unsigned long delay_off);
-void ipq_led_set_brightness(int led_idx, unsigned int brightness);
+int ipq_led_set_brightness(int led_idx, unsigned int brightness);
 #endif

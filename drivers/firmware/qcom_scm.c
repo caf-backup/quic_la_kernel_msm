@@ -582,13 +582,20 @@ int qcom_scm_send_cache_dump_addr(u32 cmd_id, void *cmd_buf, u32 size)
 }
 EXPORT_SYMBOL(qcom_scm_send_cache_dump_addr);
 
-int qcom_scm_tz_log(u32 svc_id, u32 cmd_id, void *ker_buf, u32 *buf_len,
-			u32 **ring_off,	struct tzbsp_diag_log_t **log)
+int qcom_scm_tz_log(u32 svc_id, u32 cmd_id, void *ker_buf, u32 buf_len)
 {
-	return __qcom_scm_tz_log(__scm->dev, svc_id, cmd_id, ker_buf, buf_len,
-					ring_off, log);
+	return __qcom_scm_tz_log(__scm->dev, SCM_SVC_INFO, TZ_INFO_GET_DIAG_ID,
+					ker_buf, buf_len);
 }
 EXPORT_SYMBOL(qcom_scm_tz_log);
+
+int qcom_scm_hvc_log(void *ker_buf, u32 buf_len)
+{
+	return __qcom_scm_hvc_log(__scm->dev, SCM_SVC_INFO,
+			HVC_INFO_GET_DIAG_ID, ker_buf, buf_len);
+}
+EXPORT_SYMBOL(qcom_scm_hvc_log);
+
 
 int qcom_los_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
 				void *cmd_buf, size_t size)

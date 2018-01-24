@@ -69,7 +69,7 @@ void irqtime_account_irq(struct task_struct *curr)
 	 */
 	if (hardirq_count())
 		__this_cpu_add(cpu_hardirq_time, delta);
-	else if (in_serving_softirq()) {
+	else if (softirq_count()) {
 		/*
 		 * With the original IRQ time accounting patch, As
 		 * cpu_softirq_time does not account for softirq time when

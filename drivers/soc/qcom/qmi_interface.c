@@ -101,6 +101,7 @@ struct elem_info qmi_response_type_v01_ei[] = {
 		.ei_array	= NULL,
 	},
 };
+EXPORT_SYMBOL(qmi_response_type_v01_ei);
 
 struct elem_info qmi_error_resp_type_v01_ei[] = {
 	{

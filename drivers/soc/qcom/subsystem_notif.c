@@ -32,6 +32,7 @@
 struct subsys_notif_info {
 	char name[50];
 	struct srcu_notifier_head subsys_notif_rcvr_list;
+	struct atomic_notifier_head atomic_subsys_notif_rcvr_list;
 	struct list_head list;
 };
 
@@ -102,6 +103,34 @@ int subsys_notif_unregister_notifier(void *subsys_handle,
 }
 EXPORT_SYMBOL(subsys_notif_unregister_notifier);
 
+int subsys_notif_register_atomic_notifier(void *subsys_handle,
+				struct notifier_block *nb)
+{
+	struct subsys_notif_info *subsys =
+			(struct subsys_notif_info *)subsys_handle;
+	if (!subsys)
+		return -EINVAL;
+
+	return atomic_notifier_chain_register(
+		&subsys->atomic_subsys_notif_rcvr_list, nb);
+
+}
+EXPORT_SYMBOL(subsys_notif_register_atomic_notifier);
+
+int subsys_notif_unregister_atomic_notifier(void *subsys_handle,
+				struct notifier_block *nb)
+{
+	struct subsys_notif_info *subsys =
+			(struct subsys_notif_info *)subsys_handle;
+
+	if (!subsys)
+		return -EINVAL;
+
+	return atomic_notifier_chain_unregister(
+		&subsys->atomic_subsys_notif_rcvr_list, nb);
+}
+EXPORT_SYMBOL(subsys_notif_unregister_atomic_notifier);
+
 void *subsys_notif_add_subsys(const char *subsys_name)
 {
 	struct subsys_notif_info *subsys = NULL;
@@ -128,6 +157,7 @@ void *subsys_notif_add_subsys(const char *subsys_name)
 	strlcpy(subsys->name, subsys_name, ARRAY_SIZE(subsys->name));
 
 	srcu_init_notifier_head(&subsys->subsys_notif_rcvr_list);
+	ATOMIC_INIT_NOTIFIER_HEAD(&subsys->atomic_subsys_notif_rcvr_list);
 
 	INIT_LIST_HEAD(&subsys->list);
 
@@ -160,9 +190,15 @@ int subsys_notif_queue_notification(void *subsys_handle,
 	if (notif_type < 0 || notif_type >= SUBSYS_NOTIF_TYPE_COUNT)
 		return -EINVAL;
 
+	if (notif_type == SUBSYS_PREPARE_FOR_FATAL_SHUTDOWN) {
+		ret = atomic_notifier_call_chain(
+			&subsys->atomic_subsys_notif_rcvr_list, notif_type,
+			data);
+	} else {
 		ret = srcu_notifier_call_chain(
 			&subsys->subsys_notif_rcvr_list, notif_type,
 			data);
+	}
 	return ret;
 }
 EXPORT_SYMBOL(subsys_notif_queue_notification);

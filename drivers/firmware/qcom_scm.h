@@ -161,8 +161,10 @@ extern int __qcom_scm_tzsched(struct device *, const void *req,
 				size_t resp_size);
 
 extern int __qcom_scm_tz_log(struct device *dev, u32 svc_id, u32 cmd_id,
-				void *ker_buf, u32 *buf_len, u32 **ring_off,
-				struct tzbsp_diag_log_t **log);
+				void *ker_buf, u32 buf_len);
+
+extern int __qcom_scm_hvc_log(struct device *dev, u32 svc_id, u32 cmd_id,
+				void *ker_buf, u32 buf_len);
 
 extern int __qcom_los_scm_call(struct device *, u32 svc_id, u32 cmd_id,
 			void *cmd_buf, size_t size);
@@ -181,9 +183,6 @@ extern int __qcom_los_scm_call(struct device *, u32 svc_id, u32 cmd_id,
 
 #define QCOM_SCM_EBUSY_WAIT_MS 30
 #define QCOM_SCM_EBUSY_MAX_RETRY 20
-
-#define BUF_LEN_V8 0x2000
-#define BUF_LEN_V7 0x1000
 
 static inline int qcom_scm_remap_error(int err)
 {

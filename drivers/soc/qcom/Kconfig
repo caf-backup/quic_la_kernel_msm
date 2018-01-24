@@ -143,6 +143,16 @@ config MSM_QMI_INTERFACE
 	  to perform QMI message marshaling and transport them over IPC
 	  Router.
 
+config MSM_TEST_QMI_CLIENT
+	depends on MSM_QMI_INTERFACE
+	tristate "MSM TEST QMI CLIENT"
+	help
+	  The sample QMI client provides a test code for QMI usage. The
+	  test_service client driver uses QMI interface library to send
+	  and receive QMI messages over IPC Router. The test code sends
+	  a synchronous QMI request to the test_service and handles the
+	  QMI responses.
+
 config MSM_RPM_GLINK
 	tristate "QCA Resource Power Manager (RPM) over GLINK"
 	depends on MSM_GLINK && OF
@@ -239,6 +249,11 @@ config IPQ_SUBSYSTEM_RESTART
 	  shutdown, and restart subsystems with a reference counted API.
 	  It also notifies userspace of transitions between these states via
 	  sysfs.
+
+config IPQ_SUBSYSTEM_RESTART_TEST
+	tristate "IPQ SSR test module"
+	help
+	  This option enables the IPQ SSR test module.
 
 config IPQ_SUBSYSTEM_DUMP
 	bool "IPQ Subsystem Dump Collection"
