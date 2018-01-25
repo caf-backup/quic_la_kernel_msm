@@ -1,0 +1,14 @@
+QCA TZ_LOG_IPQ806X
+
+The tz_log driver is used to provide tz diagnostic information
+to the user space. This binding is specifically used
+to make the driver compatible for ipq806x.
+
+Required properties:
+- compatible: must contain "qca,tz_log_ipq806x" for IPQ806x
+
+Example for ipq806x:
+
+tzlog {
+	        compatible = "qca,tz_log_ipq806x";
+};

@@ -985,6 +985,10 @@
 			qcom,ee = <0>;
 		};
 
+		tzlog {
+			compatible = "qca,tz_log_ipq806x";
+		};
+
 		amba {
 			compatible = "arm,amba-bus";
 			#address-cells = <1>;
