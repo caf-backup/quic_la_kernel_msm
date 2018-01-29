@@ -438,7 +438,7 @@ static int test_qmi_open(struct inode *ip, struct file *fp)
 	}
 	init_completion(&qmi_complete);
 	for (index = 0; index < nthreads; index++) {
-		sprintf(thread_name, "qmi_test_""%d", index);
+		snprintf(thread_name, sizeof(thread_name), "qmi_test_""%d", index);
 		qmi_task = kthread_run(qmi_process_user_input, &data_list, thread_name);
 	}
 	return 0;
