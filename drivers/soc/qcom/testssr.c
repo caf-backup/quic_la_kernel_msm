@@ -144,4 +144,4 @@ static void __exit testssr_exit(void)
 
 module_init(testssr_init);
 module_exit(testssr_exit);
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("Dual BSD/GPL");
