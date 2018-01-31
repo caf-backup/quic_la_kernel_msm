@@ -46,6 +46,8 @@
 
 #define CORE_VENDOR_SPEC	0x10c
 #define CORE_CLK_PWRSAVE	BIT(1)
+#define CORE_IO_PAD_PWR_SWITCH_EN       (1 << 15)
+#define CORE_IO_PAD_PWR_SWITCH  (1 << 16)
 
 #define VENDOR_CAPS0            0x11c
 #define VOLTS_SUPP_1_8V         BIT(26)
@@ -68,6 +70,24 @@
 #define SDHCI_BASE_SDCLK_FREQ		0xc800
 #define SDHCI_TIMEOUT_CLK_FREQ		0xb2
 
+#define CORE_PWRCTL_STATUS      0xDC
+#define CORE_PWRCTL_MASK        0xE0
+#define CORE_PWRCTL_CLEAR       0xE4
+#define CORE_PWRCTL_CTL         0xE8
+
+#define CORE_PWRCTL_BUS_OFF     0x01
+#define CORE_PWRCTL_BUS_ON      (1 << 1)
+#define CORE_PWRCTL_IO_LOW      (1 << 2)
+#define CORE_PWRCTL_IO_HIGH     (1 << 3)
+
+#define CORE_PWRCTL_BUS_SUCCESS 0x01
+#define CORE_PWRCTL_BUS_FAIL    (1 << 1)
+#define CORE_PWRCTL_IO_SUCCESS  (1 << 2)
+#define CORE_PWRCTL_IO_FAIL     (1 << 3)
+
+#define INT_MASK                0xF
+#define MAX_PHASES              16
+
 static const u32 tuning_block_64[] = {
 	0x00ff0fff, 0xccc3ccff, 0xffcc3cc3, 0xeffefffe,
 	0xddffdfff, 0xfbfffbff, 0xff7fffbf, 0xefbdf777,
@@ -89,6 +109,7 @@ static const u32 tuning_block_128[] = {
 struct sdhci_msm_host {
 	struct platform_device *pdev;
 	void __iomem *core_mem;	/* MSM SDCC mapped address */
+	int     pwr_irq;        /* power irq */
 	struct clk *clk;	/* main SD/MMC bus clock */
 	struct clk *pclk;	/* SDHC peripheral bus clock */
 	struct clk *bus_clk;	/* SDHC bus voter clock */
@@ -96,6 +117,119 @@ struct sdhci_msm_host {
 	struct sdhci_pltfm_data sdhci_msm_pdata;
 	bool emulation;
 };
+
+static void sdhci_msm_dump_pwr_ctrl_regs(struct sdhci_host *host)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_msm_host *msm_host = pltfm_host->priv;
+
+	pr_err("%s: PWRCTL_STATUS: 0x%08x | PWRCTL_MASK: 0x%08x | PWRCTL_CTL: 0x%08x\n",
+	       mmc_hostname(host->mmc),
+	       readl_relaxed(msm_host->core_mem + CORE_PWRCTL_STATUS),
+	       readl_relaxed(msm_host->core_mem + CORE_PWRCTL_MASK),
+	       readl_relaxed(msm_host->core_mem + CORE_PWRCTL_CTL));
+}
+
+static irqreturn_t sdhci_msm_pwr_irq(int irq, void *data)
+{
+	struct sdhci_host *host = (struct sdhci_host *)data;
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_msm_host *msm_host = pltfm_host->priv;
+	u8 irq_status = 0;
+	u8 irq_ack = 0;
+	u8 io_level = 0;
+	int retry = 10;
+
+	irq_status = readb_relaxed(msm_host->core_mem + CORE_PWRCTL_STATUS);
+	pr_debug("%s: Received IRQ(%d), status=0x%x\n",
+		mmc_hostname(msm_host->mmc), irq, irq_status);
+
+	/* Clear the interrupt */
+	writeb_relaxed(irq_status, (msm_host->core_mem + CORE_PWRCTL_CLEAR));
+	/*
+	 * SDHC has core_mem and hc_mem device memory and these memory
+	 * addresses do not fall within 1KB region. Hence, any update to
+	 * core_mem address space would require an mb() to ensure this gets
+	 * completed before its next update to registers within hc_mem.
+	 */
+	mb();
+	/*
+	 * There is a rare HW scenario where the first clear pulse could be
+	 * lost when actual reset and clear/read of status register is
+	 * happening at a time. Hence, retry for at least 10 times to make
+	 * sure status register is cleared. Otherwise, this will result in
+	 * a spurious power IRQ resulting in system instability.
+	 */
+	while (irq_status &
+	       readb_relaxed(msm_host->core_mem + CORE_PWRCTL_STATUS)) {
+		if (retry == 0) {
+			pr_err("%s: Timedout clearing (0x%x) pwrctl status register\n",
+			       mmc_hostname(host->mmc), irq_status);
+			sdhci_msm_dump_pwr_ctrl_regs(host);
+			BUG_ON(1);
+		}
+		writeb_relaxed(irq_status,
+			       (msm_host->core_mem + CORE_PWRCTL_CLEAR));
+		retry--;
+		udelay(10);
+	}
+	if (likely(retry < 10))
+		pr_info("%s: success clearing (0x%x) pwrctl status register, retries left %d\n",
+			mmc_hostname(host->mmc), irq_status, retry);
+
+	/* Handle BUS ON/OFF*/
+	if (irq_status & CORE_PWRCTL_BUS_OFF) {
+		irq_ack |= CORE_PWRCTL_BUS_SUCCESS;
+		io_level = REQ_IO_LOW;
+	}
+
+	if (irq_status & CORE_PWRCTL_BUS_ON) {
+		irq_ack |= CORE_PWRCTL_BUS_SUCCESS;
+		io_level = REQ_IO_HIGH;
+	}
+
+	/* Handle IO LOW/HIGH */
+	if (irq_status & CORE_PWRCTL_IO_LOW) {
+		irq_ack |= CORE_PWRCTL_IO_SUCCESS;
+		io_level = REQ_IO_LOW;
+	}
+
+	if (irq_status & CORE_PWRCTL_IO_HIGH) {
+		irq_ack |= CORE_PWRCTL_IO_SUCCESS;
+		io_level = REQ_IO_HIGH;
+	}
+
+	/* ACK status to the core */
+	writeb_relaxed(irq_ack, (msm_host->core_mem + CORE_PWRCTL_CTL));
+	/*
+	 * SDHC has core_mem and hc_mem device memory and these memory
+	 * addresses do not fall within 1KB region. Hence, any update to
+	 * core_mem address space would require an mb() to ensure this gets
+	 * completed before its next update to registers within hc_mem.
+	 */
+	mb();
+
+	if (io_level & REQ_IO_HIGH)
+		writel_relaxed((readl_relaxed(host->ioaddr + CORE_VENDOR_SPEC) &
+				~CORE_IO_PAD_PWR_SWITCH),
+			       host->ioaddr + CORE_VENDOR_SPEC);
+	else if (io_level & REQ_IO_LOW)
+		writel_relaxed((readl_relaxed(host->ioaddr + CORE_VENDOR_SPEC) |
+				CORE_IO_PAD_PWR_SWITCH),
+			       host->ioaddr + CORE_VENDOR_SPEC);
+	/*
+	 * SDHC has core_mem and hc_mem device memory and these memory
+	 * addresses do not fall within 1KB region. Hence, any update to
+	 * core_mem address space would require an mb() to ensure this gets
+	 * completed before its next update to registers within hc_mem.
+	 */
+	mb();
+
+	pr_debug("%s: Handled IRQ(%d), ack=0x%x\n",
+		mmc_hostname(msm_host->mmc), irq, irq_ack);
+
+	return IRQ_HANDLED;
+}
 
 /* Platform specific tuning */
 static inline int msm_dll_poll_ck_out_en(struct sdhci_host *host, u8 poll)
@@ -648,6 +782,14 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	host->caps1 = SDHCI_SUPPORT_SDR104 | SDHCI_SUPPORT_SDR50 |
 		SDHCI_SUPPORT_DDR50 | SDHCI_RETUNING_MODE;
 
+	/*
+	 * Set the PAD_PWR_SWTICH_EN bit so that the PAD_PWR_SWITCH bit can
+	 * be used as required later on.
+	 */
+	writel_relaxed((readl_relaxed(host->ioaddr + CORE_VENDOR_SPEC) |
+			CORE_IO_PAD_PWR_SWITCH_EN),
+		       host->ioaddr + CORE_VENDOR_SPEC);
+
 	/* Reset the core and Enable SDHC mode */
 	writel_relaxed(readl_relaxed(msm_host->core_mem + CORE_POWER) |
 		       CORE_SW_RST, msm_host->core_mem + CORE_POWER);
@@ -670,6 +812,26 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "Host Version: 0x%x Vendor Version 0x%x\n",
 		host_version, ((host_version & SDHCI_VENDOR_VER_MASK) >>
 			       SDHCI_VENDOR_VER_SHIFT));
+
+
+	/* Setup PWRCTL irq */
+	msm_host->pwr_irq = platform_get_irq_byname(pdev, "pwr_irq");
+	if (msm_host->pwr_irq < 0) {
+		dev_err(&pdev->dev, "Failed to get pwr_irq by name (%d)\n",
+			msm_host->pwr_irq);
+		goto clk_disable;
+	}
+	ret = devm_request_threaded_irq(&pdev->dev, msm_host->pwr_irq, NULL,
+					sdhci_msm_pwr_irq, IRQF_ONESHOT,
+					dev_name(&pdev->dev), host);
+	if (ret) {
+		dev_err(&pdev->dev, "Request threaded irq(%d) failed (%d)\n",
+			msm_host->pwr_irq, ret);
+		goto clk_disable;
+	}
+
+	/* Enable pwr irq interrupts */
+	writel_relaxed(INT_MASK, (msm_host->core_mem + CORE_PWRCTL_MASK));
 
 	ret = sdhci_add_host(host);
 

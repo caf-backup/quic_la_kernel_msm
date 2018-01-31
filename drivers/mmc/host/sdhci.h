@@ -297,6 +297,10 @@ struct sdhci_ops {
 	void	(*platform_init)(struct sdhci_host *host);
 	void    (*card_event)(struct sdhci_host *host);
 	void	(*toggle_cdr)(struct sdhci_host *host, bool enable);
+#define REQ_BUS_OFF     (1 << 0)
+#define REQ_BUS_ON      (1 << 1)
+#define REQ_IO_LOW      (1 << 2)
+#define REQ_IO_HIGH     (1 << 3)
 };
 
 #ifdef CONFIG_MMC_SDHCI_IO_ACCESSORS
