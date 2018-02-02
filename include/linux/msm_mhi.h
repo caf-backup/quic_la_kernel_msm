@@ -322,6 +322,7 @@ int mhi_get_epid(struct mhi_client_handle *mhi_handle);
 struct mhi_result *mhi_poll(struct mhi_client_handle *client_handle);
 void mhi_mask_irq(struct mhi_client_handle *client_handle);
 void mhi_unmask_irq(struct mhi_client_handle *client_handle);
+void mhi_free_irq(struct mhi_device *mhi_dev);
 
 #else
 static inline bool mhi_is_device_ready(const struct device * const dev,
@@ -415,6 +416,9 @@ static inline void mhi_mask_irq(struct mhi_client_handle *client_handle)
 };
 
 static inline void mhi_unmask_irq(struct mhi_client_handle *client_handle)
+{
+};
+static inline void mhi_free_irq(struct mhi_device *mhi_dev)
 {
 };
 
