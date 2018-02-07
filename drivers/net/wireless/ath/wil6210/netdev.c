@@ -252,6 +252,10 @@ void wil_if_remove(struct wil6210_priv *wil)
 
 	wil_dbg_misc(wil, "if_remove\n");
 
+	mutex_lock(&wil->mutex);
+	wil6210_disconnect(wil, NULL, WLAN_REASON_DEAUTH_LEAVING, false);
+	mutex_unlock(&wil->mutex);
+
 	unregister_netdev(ndev);
 	wiphy_unregister(wdev->wiphy);
 }

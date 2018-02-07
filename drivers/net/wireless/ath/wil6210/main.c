@@ -620,9 +620,6 @@ void wil_priv_deinit(struct wil6210_priv *wil)
 	cancel_work_sync(&wil->fw_error_worker);
 	cancel_work_sync(&wil->p2p.discovery_expired_work);
 	cancel_work_sync(&wil->p2p.delayed_listen_work);
-	mutex_lock(&wil->mutex);
-	wil6210_disconnect(wil, NULL, WLAN_REASON_DEAUTH_LEAVING, false);
-	mutex_unlock(&wil->mutex);
 	wmi_event_flush(wil);
 	wil_probe_client_flush(wil);
 	cancel_work_sync(&wil->probe_client_worker);
