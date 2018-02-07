@@ -281,6 +281,22 @@ Platform independent properties:
 		    possible for a given regulator type.  See platform specific
 		    binding files for further details.
 
+- qcom,cpr-part-types
+	Usage:      optional
+	Value type: <u32>
+	Definition: Specifies the number of part types supported for which
+	            correction voltages are different. This will be used by
+		    qcom,cpr-parts-voltage property.  Supported values are 1
+		    up to the maximum number of part types
+
+-  qcom,cpr-parts-voltage
+	Usage:      required if qcom,cpr-part-types is specified
+	Value type: <prop-encoded-array>
+	Definition: A list of integers which defines voltage in increasing
+	            order. It will be used to determine the part type by
+		    comparing the voltage in this array with part fused open
+		    loop voltage.
+
 - qcom,cpr-speed-bins
 	Usage:      optional
 	Value type: <u32>
