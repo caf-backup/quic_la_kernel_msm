@@ -553,7 +553,7 @@
 #define IW_CUSTOM_MAX		256	/* In bytes */
 
 /* Generic information element */
-#define IW_GENERIC_IE_MAX	1024
+#define IW_GENERIC_IE_MAX	2048
 
 /* MLME requests (SIOCSIWMLME / struct iw_mlme) */
 #define IW_MLME_DEAUTH		0

@@ -29,6 +29,9 @@
 #include <asm/cacheflush.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
+#include <linux/uaccess.h>
+#include <linux/io.h>
+#include <linux/of.h>
 
 #define QFPROM_MAX_VERSION_EXCEEDED             0x10
 #define QFPROM_IS_AUTHENTICATE_CMD_RSP_SIZE	0x2
@@ -323,16 +326,94 @@ store_sec_auth(struct device *dev,
 			struct device_attribute *sec_attr,
 			const char *buf, size_t count)
 {
-	char *in_buf;
+	int ret;
+	long size, sw_type;
+	unsigned int img_addr, img_size;
+	char *sw, *file_name, *sec_auth_str;
+	static void __iomem *file_buf;
+	struct device_node *np;
+	struct file *file;
+	struct kstat st;
 
-	in_buf = kzalloc(count, GFP_KERNEL);
-	if (in_buf == NULL)
+	file_name = kzalloc(count+1, GFP_KERNEL);
+	if (file_name == NULL)
 		return -ENOMEM;
 
-	memcpy(in_buf, buf, count);
-	in_buf[count-1] = '\0';
+	sec_auth_str = file_name;
+	strlcpy(file_name, buf, count+1);
 
-	return count;
+	sw = strsep(&file_name, " ");
+	if (kstrtol(sw, 0, &sw_type) != 0) {
+		pr_err("sw_type str to long conversion failed\n");
+		ret = 0;
+		goto free_mem;
+	}
+
+	file = filp_open(file_name, O_RDONLY, 0);
+	if (IS_ERR(file)) {
+		pr_err("%s File open failed\n", file_name);
+		ret = -EBADF;
+		goto free_mem;
+	}
+
+	ret = vfs_getattr(&file->f_path, &st);
+	if (ret) {
+		pr_err("get file attributes failed\n");
+		goto file_close;
+	}
+	size = (long)st.size;
+
+	np = of_find_node_by_name(NULL, "qfprom");
+	if (!np) {
+		pr_err("Unable to find qfprom node\n");
+		goto file_close;
+	}
+
+	ret = of_property_read_u32(np, "img-size", &img_size);
+	if (ret) {
+		pr_err("Read of property:img-size from node failed\n");
+		goto put_node;
+	}
+
+	if (size > img_size) {
+		pr_err("File size exceeds allocated memory region\n");
+		goto put_node;
+	}
+
+	ret = of_property_read_u32(np, "img-addr", &img_addr);
+	if (ret) {
+		pr_err("Read of property:img-addr from node failed\n");
+		goto put_node;
+	}
+
+	file_buf = ioremap_nocache(img_addr, size);
+	if (file_buf == NULL) {
+		ret = NULL;
+		goto put_node;
+	}
+
+	ret = kernel_read(file, 0, file_buf, size);
+	if (ret != size) {
+		pr_err("%s file read failed\n", file_name);
+		goto un_map;
+	}
+
+	ret = qcom_sec_upgrade_auth(sw_type, size, img_addr);
+	if (ret) {
+		pr_err("sec_upgrade_auth failed with return=%d\n", ret);
+		goto un_map;
+	}
+	ret = count;
+
+un_map:
+	iounmap(file_buf);
+put_node:
+	of_node_put(np);
+file_close:
+	filp_close(file, NULL);
+free_mem:
+	kfree(sec_auth_str);
+	return ret;
 }
 
 static struct device_attribute sec_attr =
@@ -467,17 +548,24 @@ static int qfprom_probe(struct platform_device *pdev)
 	}
 
 	if (lbuf == 1) {
-		sec_kobj = kobject_create_and_add("sec_upgrade", NULL);
-		if (!sec_kobj) {
-			pr_info("Failed to register sec_upgrade sysfs\n");
-			return -ENOMEM;
-		}
+		/*
+		 * Checking if secure sysupgrade scm_call is supported
+		 */
+		if (!qcom_scm_sec_auth_available()) {
+			pr_info("qcom_scm_sec_auth_available is not supported\n");
+		} else {
+			sec_kobj = kobject_create_and_add("sec_upgrade", NULL);
+			if (!sec_kobj) {
+				pr_info("Failed to register sec_upgrade sysfs\n");
+				return -ENOMEM;
+			}
 
-		err = sysfs_create_file(sec_kobj, &sec_attr.attr);
-		if (err) {
-			pr_info("Failed to register sec_auth sysfs\n");
-			kobject_put(sec_kobj);
-			sec_kobj = NULL;
+			err = sysfs_create_file(sec_kobj, &sec_attr.attr);
+			if (err) {
+				pr_info("Failed to register sec_auth sysfs\n");
+				kobject_put(sec_kobj);
+				sec_kobj = NULL;
+			}
 		}
 	}
 

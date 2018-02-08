@@ -273,7 +273,10 @@ static const struct file_operations fops_hvc_log = {
 
 static irqreturn_t tzerr_irq(int irq, void *data)
 {
-	panic("Access Violation!!!\n");
+	pr_emerg("WARN: Access Violation, "
+		"Run \"cat /sys/kernel/debug/qcom_debug_logs/tz_log\" "
+		"for more details \n");
+	return IRQ_HANDLED;
 }
 
 static const struct of_device_id qca_tzlog_of_match[] = {

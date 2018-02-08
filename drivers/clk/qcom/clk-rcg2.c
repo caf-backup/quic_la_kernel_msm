@@ -201,7 +201,7 @@ clk_rcg2_find_best_freq(struct clk_hw *hw, const struct freq_tbl *f,
 	u64 tmp;
 	const struct freq_tbl *best_ftable = NULL;
 
-	f = qcom_find_freq(rcg->freq_tbl, rate);
+	f = qcom_find_freq(f, rate);
 
 	/*
 	 * Check for duplicate frequencies in frequency table if

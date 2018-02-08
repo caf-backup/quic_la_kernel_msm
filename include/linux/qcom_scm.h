@@ -29,6 +29,9 @@ extern int qcom_qfprom_write_version(void *wrip, int size);
 int qcom_qfprom_read_version(uint32_t sw_type, uint32_t value,
 				uint32_t qfprom_ret_ptr);
 extern int qcom_qfprom_show_authenticate(char *buf);
+extern int qcom_sec_upgrade_auth(unsigned int sw_type, unsigned int img_size,
+					 unsigned int load_addr);
+extern bool qcom_scm_sec_auth_available(void);
 extern int qcom_scm_set_cold_boot_addr(void *entry, const cpumask_t *cpus);
 extern int qcom_scm_set_warm_boot_addr(void *entry, const cpumask_t *cpus);
 
@@ -63,7 +66,7 @@ extern int qcom_scm_regsave(u32 svc_id, u32 cmd_id, void *,
 
 extern int qcom_scm_tz_log(u32 svc_id, u32 cmd_id, void *ker_buf, u32 buf_len);
 extern int qcom_scm_hvc_log(void *ker_buf, u32 buf_len);
-
+extern int qcom_scm_pshold(void);
 
 #define QCOM_SCM_CPU_PWR_DOWN_L2_ON	0x0
 #define QCOM_SCM_CPU_PWR_DOWN_L2_OFF	0x1

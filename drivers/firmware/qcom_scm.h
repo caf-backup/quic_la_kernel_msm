@@ -19,6 +19,7 @@
 #define SCM_CMD_TZ_CONFIG_HW_FOR_RAM_DUMP_ID	0x9
 #define SCM_CMD_TZ_FORCE_DLOAD_ID		0x10
 #define SCM_CMD_TZ_SET_DLOAD_FOR_SECURE_BOOT	0x14
+#define SCM_CMD_PSHOLD				0x15
 
 #define QCOM_SCM_BOOT_ADDR		0x1
 #define QCOM_SCM_BOOT_ADDR_MC		0x11
@@ -34,6 +35,8 @@ extern int __qcom_qfprom_show_authenticate(struct device *dev, char *buf);
 extern int __qcom_scm_set_cold_boot_addr(void *entry, const cpumask_t *cpus);
 extern int __qcom_qfprom_write_version(struct device *dev, void *wrip,
 						int size);
+extern int __qcom_sec_upgrade_auth(struct device *dev, unsigned int sw_type,
+			unsigned int img_size, unsigned int load_addr);
 
 #define QCOM_SCM_CMD_TERMINATE_PC	0x2
 #define QCOM_SCM_FLUSH_FLAG_MASK	0x3
@@ -94,9 +97,12 @@ struct scm_desc {
 
 #define QCOM_SCM_SVC_HDCP		0x11
 #define QCOM_SCM_CMD_HDCP		0x01
+#define QCOM_SCM_SVC_SEC_AUTH		0x01
+#define QCOM_SCM_CMD_SEC_AUTH		0x15
 
 extern void __qcom_scm_init(void);
 
+#define QCOM_SCM_SVC_BOOT		0x1
 #define QCOM_SCM_SVC_PIL		0x2
 #define QCOM_SCM_PAS_INIT_IMAGE_CMD	0x1
 #define QCOM_SCM_PAS_MEM_SETUP_CMD	0x2
@@ -108,6 +114,7 @@ extern void __qcom_scm_init(void);
 #define QCOM_QFPROM_ROW_READ_CMD                     0x8
 #define QCOM_QFPROM_ROW_WRITE_CMD                    0x9
 #define QCOM_SCM_PAS_MSS_RESET		0xa
+#define QCOM_KERNEL_AUTH_CMD		0x15
 extern bool __qcom_scm_pas_supported(struct device *dev, u32 peripheral);
 extern int  __qcom_scm_pas_init_image(struct device *dev, u32 peripheral,
 		dma_addr_t metadata_phys);
@@ -136,6 +143,10 @@ extern int __qcom_scm_tcsr(struct device *, u32 svc_id, u32 cmd_id,
 
 extern int __qcom_scm_sdi(struct device *, u32 svc_id, u32 cmd_id);
 extern int qcom_scm_sdi(u32 svc_id, u32 cmd_id);
+
+extern int __qcom_scm_pshold(struct device *);
+extern int qcom_scm_pshold(void);
+
 
 #define SCM_IO_READ	1
 #define SCM_IO_WRITE	2
