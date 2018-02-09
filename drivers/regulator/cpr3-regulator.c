@@ -2248,6 +2248,8 @@ static int _cpr3_regulator_update_ctrl_state(struct cpr3_controller *ctrl)
 			      cpr3_regulator_max_sdelta_diff(aggr_corner.sdelta,
 							     ctrl->step_volt),
 				       aggr_corner.ceiling_volt);
+
+		aggr_corner.last_volt = new_volt;
 	} else {
 		new_volt = aggr_corner.open_loop_volt;
 		aggr_corner.last_volt = aggr_corner.open_loop_volt;
