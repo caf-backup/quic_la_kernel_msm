@@ -51,8 +51,8 @@
 		thread@0 {
 			qcom,cpr-thread-id = <0>;
 			qcom,cpr-consecutive-up = <0>;
-			qcom,cpr-consecutive-down = <2>;
-			qcom,cpr-up-threshold = <2>;
+			qcom,cpr-consecutive-down = <0>;
+			qcom,cpr-up-threshold = <4>;
 			qcom,cpr-down-threshold = <1>;
 
 			apc_vreg: regulator {
