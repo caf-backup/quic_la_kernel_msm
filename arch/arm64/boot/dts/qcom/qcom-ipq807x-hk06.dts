@@ -163,6 +163,50 @@
 			bias-disable;
 		};
 	};
+	leds_pins: leds_pinmux {
+		led0_5g0 {
+			pins = "gpio18";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+		led1_5g1 {
+			pins = "gpio19";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+		led2_2g {
+			pins = "gpio20";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+		led0_wifi_son {
+			pins = "gpio25";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+		led1_wifi_son {
+			pins = "gpio28";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+		led2_wifi_son {
+			pins = "gpio29";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+		led_usb0 {
+			pins = "gpio58";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+	};
 };
 
 &soc {
@@ -481,6 +525,61 @@
 		qcom,link-poll = <1>;
 		qcom,phy-mdio-addr = <7>;
 		phy-mode = "sgmii";
+	};
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-0 = <&leds_pins>;
+		pinctrl-names = "default";
+
+		led@18 {
+			label = "led0_5g0";
+			gpios = <&tlmm 18 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "led_5g0";
+			default-state = "off";
+		};
+
+		led@19 {
+			label = "led1_5g1";
+			gpios = <&tlmm 19 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "led_5g1";
+			default-state = "off";
+		};
+
+		led@20 {
+			label = "led2_2g";
+			gpios = <&tlmm 20 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "led_2g";
+			default-state = "off";
+		};
+
+		led@25 {
+			label = "led0_wifi_son";
+			gpios = <&tlmm 25 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "led_wifi_son_0";
+			default-state = "off";
+		};
+
+		led@28 {
+			label = "led1_wifi_son";
+			gpios = <&tlmm 28 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "led_wifi_son_1";
+			default-state = "off";
+		};
+
+		led@29 {
+			label = "led2_wifi_son";
+			gpios = <&tlmm 29 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "led_wifi_son_2";
+			default-state = "off";
+		};
+
+		led@58 {
+			label = "led_usb0";
+			gpios = <&tlmm 58 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "led_usb";
+			default-state = "off";
+		};
+
 	};
 };
 
