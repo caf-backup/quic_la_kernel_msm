@@ -43,9 +43,11 @@ Platform independent properties:
 	Usage:      required
 	Value type: <stringlist>
 	Definition: Address names. Must include "cpr_ctrl" and "fuse_base".
-		    "aging_allowed" may also be specified.  The strings must be
-		    specified in the same order as the corresponding addresses
-		    are specified in the reg property.
+		    "aging_allowed" may also be specified.
+		    "cpr_tcsr_reg" is optional which will be used for reading
+		    CPR settings from TCSR register.
+		    The strings must be specified in the same order as the
+		    corresponding addresses are specified in the reg property.
 
 - qcom,cpr-ctrl-name
 	Usage:      required

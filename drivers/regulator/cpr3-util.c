@@ -187,6 +187,56 @@ int cpr3_map_fuse_base(struct cpr3_controller *ctrl,
 }
 
 /**
+ * cpr3_read_tcsr_setting - reads the CPR setting bits from TCSR register
+ * @ctrl:	Pointer to the CPR3 controller
+ * @pdev:	Platform device pointer for the CPR3 controller
+ * @start:	start bit in TCSR register
+ * @end:	end bit in TCSR register
+ *
+ * Return: 0 on success, errno on failure
+ */
+int cpr3_read_tcsr_setting(struct cpr3_controller *ctrl,
+			   struct platform_device *pdev, u8 start, u8 end)
+{
+	struct resource *res;
+	void __iomem *tcsr_reg;
+	u32 val;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+					   "cpr_tcsr_reg");
+	if (!res || !res->start)
+		return 0;
+
+	tcsr_reg = ioremap(res->start, resource_size(res));
+	if (!tcsr_reg) {
+		dev_err(&pdev->dev, "tcsr ioremap failed\n");
+		return 0;
+	}
+
+	val = readl_relaxed(tcsr_reg);
+	val &= GENMASK(end, start);
+	val >>= start;
+
+	switch (val) {
+	case 1:
+		ctrl->cpr_global_setting = CPR_DISABLED;
+		break;
+	case 2:
+		ctrl->cpr_global_setting = CPR_OPEN_LOOP_EN;
+		break;
+	case 3:
+		ctrl->cpr_global_setting = CPR_CLOSED_LOOP_EN;
+		break;
+	default:
+		ctrl->cpr_global_setting = CPR_DEFAULT;
+	}
+
+	iounmap(tcsr_reg);
+
+	return 0;
+}
+
+/**
  * cpr3_read_fuse_param() - reads a CPR3 fuse parameter out of eFuses
  * @fuse_base_addr:	Virtual memory address of the eFuse base address
  * @param:		Null terminated array of fuse param segments to read
@@ -1150,8 +1200,9 @@ int cpr3_parse_common_ctrl_data(struct cpr3_controller *ctrl)
 	of_property_read_u32(ctrl->dev->of_node, "qcom,cpr-count-repeat",
 			&ctrl->count_repeat);
 
-	ctrl->cpr_allowed_sw = of_property_read_bool(ctrl->dev->of_node,
-			"qcom,cpr-enable");
+	ctrl->cpr_allowed_sw =
+		of_property_read_bool(ctrl->dev->of_node, "qcom,cpr-enable") ||
+		ctrl->cpr_global_setting == CPR_CLOSED_LOOP_EN;
 
 	rc = cpr3_parse_irq_affinity(ctrl);
 	if (rc)

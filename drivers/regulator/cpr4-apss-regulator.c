@@ -200,6 +200,9 @@ static const int ipq807x_apss_fuse_ref_volt
 
 #define IPQ807x_APSS_CPR_SDELTA_CORE_COUNT	15
 
+#define IPQ807x_APSS_CPR_TCSR_START		8
+#define IPQ807x_APSS_CPR_TCSR_END		9
+
 /*
  * Array of integer values mapped to each of the boost config fuse values to
  * indicate boost enable/disable status.
@@ -444,6 +447,7 @@ static int cpr4_ipq807x_apss_calculate_open_loop_voltages(
 {
 	struct device_node *node = vreg->of_node;
 	struct cpr4_ipq807x_apss_fuses *fuse = vreg->platform_fuses;
+	struct cpr3_controller *ctrl = vreg->thread->ctrl;
 	int i, j, rc = 0;
 	bool allow_interpolation;
 	u64 freq_low, volt_low, freq_high, volt_high;
@@ -460,10 +464,14 @@ static int cpr4_ipq807x_apss_calculate_open_loop_voltages(
 	}
 
 	for (i = 0; i < vreg->fuse_corner_count; i++) {
-		fuse_volt[i] = cpr3_convert_open_loop_voltage_fuse(
-			ipq807x_apss_fuse_ref_volt[i],
-			IPQ807x_APSS_FUSE_STEP_VOLT, fuse->init_voltage[i],
-			IPQ807x_APSS_VOLTAGE_FUSE_SIZE);
+		if (ctrl->cpr_global_setting == CPR_DISABLED)
+			fuse_volt[i] = ipq807x_apss_fuse_ref_volt[i];
+		else
+			fuse_volt[i] = cpr3_convert_open_loop_voltage_fuse(
+				ipq807x_apss_fuse_ref_volt[i],
+				IPQ807x_APSS_FUSE_STEP_VOLT,
+				fuse->init_voltage[i],
+				IPQ807x_APSS_VOLTAGE_FUSE_SIZE);
 
 		/* Log fused open-loop voltage values for debugging purposes. */
 		cpr3_info(vreg, "fused %8s: open-loop=%7d uV\n",
@@ -1359,6 +1367,13 @@ static int cpr4_apss_regulator_probe(struct platform_device *pdev)
 	rc = cpr3_map_fuse_base(ctrl, pdev);
 	if (rc) {
 		cpr3_err(ctrl, "could not map fuse base address\n");
+		return rc;
+	}
+
+	rc = cpr3_read_tcsr_setting(ctrl, pdev, IPQ807x_APSS_CPR_TCSR_START,
+				    IPQ807x_APSS_CPR_TCSR_END);
+	if (rc) {
+		cpr3_err(ctrl, "could not read CPR tcsr setting\n");
 		return rc;
 	}
 

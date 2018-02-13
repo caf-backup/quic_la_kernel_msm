@@ -28,6 +28,9 @@
 #define IPQ807x_NPU_VOLTAGE_FUSE_SIZE		6
 #define IPQ807x_NPU_CPR_CLOCK_RATE		19200000
 
+#define IPQ807x_NPU_CPR_TCSR_START		6
+#define IPQ807x_NPU_CPR_TCSR_END		7
+
 /**
  * struct cpr3_ipq807x_npu_fuses - NPU specific fuse data for IPQ807x
  * @init_voltage:	Initial (i.e. open-loop) voltage fuse parameter value
@@ -156,6 +159,7 @@ static int cpr3_ipq807x_npu_calculate_open_loop_voltages(
 			struct cpr3_regulator *vreg)
 {
 	struct cpr3_ipq807x_npu_fuses *fuse = vreg->platform_fuses;
+	struct cpr3_controller *ctrl = vreg->thread->ctrl;
 	int i, j, rc = 0;
 	u64 freq_low, volt_low, freq_high, volt_high;
 	int *fuse_volt;
@@ -171,10 +175,14 @@ static int cpr3_ipq807x_npu_calculate_open_loop_voltages(
 	}
 
 	for (i = 0; i < vreg->fuse_corner_count; i++) {
-		fuse_volt[i] = cpr3_convert_open_loop_voltage_fuse(
-			ipq807x_npu_fuse_ref_volt[i],
-			IPQ807x_NPU_FUSE_STEP_VOLT, fuse->init_voltage[i],
-			IPQ807x_NPU_VOLTAGE_FUSE_SIZE);
+		if (ctrl->cpr_global_setting == CPR_DISABLED)
+			fuse_volt[i] = ipq807x_npu_fuse_ref_volt[i];
+		else
+			fuse_volt[i] = cpr3_convert_open_loop_voltage_fuse(
+				ipq807x_npu_fuse_ref_volt[i],
+				IPQ807x_NPU_FUSE_STEP_VOLT,
+				fuse->init_voltage[i],
+				IPQ807x_NPU_VOLTAGE_FUSE_SIZE);
 
 		/* Log fused open-loop voltage values for debugging purposes. */
 		cpr3_info(vreg, "fused %8s: open-loop=%7d uV\n",
@@ -424,6 +432,13 @@ static int cpr3_npu_regulator_probe(struct platform_device *pdev)
 	rc = cpr3_map_fuse_base(ctrl, pdev);
 	if (rc) {
 		cpr3_err(ctrl, "could not map fuse base address\n");
+		return rc;
+	}
+
+	rc = cpr3_read_tcsr_setting(ctrl, pdev, IPQ807x_NPU_CPR_TCSR_START,
+				    IPQ807x_NPU_CPR_TCSR_END);
+	if (rc) {
+		cpr3_err(ctrl, "could not read CPR tcsr rsetting\n");
 		return rc;
 	}
 
