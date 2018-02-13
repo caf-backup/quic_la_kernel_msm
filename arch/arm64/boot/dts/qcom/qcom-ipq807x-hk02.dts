@@ -61,6 +61,30 @@
 			drive-strength = <8>;
 			bias-pull-down;
 		};
+		led_wifi_son_0 {
+			pins = "gpio25";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+		led_wifi_son_1 {
+			pins = "gpio28";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+		led_wifi_son_2 {
+			pins = "gpio29";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+		led_usb0 {
+			pins = "gpio58";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
 	};
 
 	mdio_pins: mdio_pinmux {
@@ -234,6 +258,34 @@
 			label = "led2_2g";
 			gpios = <&tlmm 20 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "led_2g";
+			default-state = "off";
+		};
+
+		led@25 {
+			label = "led_wifi_son_0";
+			gpio = <&tlmm 25 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "led_wifi_son_0";
+			default-state = "off";
+		};
+
+		led@28 {
+			label = "led_wifi_son_1";
+			gpio = <&tlmm 28 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "led_wifi_son_1";
+			default-state = "off";
+		};
+
+		led@29 {
+			label = "led_wifi_son_2";
+			gpio = <&tlmm 29 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "led_wifi_son_2";
+			default-state = "off";
+		};
+
+		led@58 {
+			label = "led_usb0";
+			gpio = <&tlmm 58 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "led_usb0";
 			default-state = "off";
 		};
 	};
