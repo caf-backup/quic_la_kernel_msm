@@ -29,8 +29,8 @@
 
 	apc_cpr: cpr4-ctrl@b018000 {
 		compatible = "qcom,cpr4-ipq807x-apss-regulator";
-		reg = <0xb018000 0x4000>, <0xa4000 0x1000>;
-		reg-names = "cpr_ctrl", "fuse_base";
+		reg = <0xb018000 0x4000>, <0xa4000 0x1000>, <0x0193d008 0x4>;
+		reg-names = "cpr_ctrl", "fuse_base", "cpr_tcsr_reg";
 		interrupts = <GIC_SPI 15 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "cpr";
 		qcom,cpr-ctrl-name = "apc";
@@ -119,8 +119,8 @@
 
 	npu_cpr: npu-cpr {
 		compatible = "qcom,cpr3-ipq807x-npu-regulator";
-		reg = <0xa4000 0x1000>;
-		reg-names = "fuse_base";
+		reg = <0xa4000 0x1000>, <0x0193d008 0x4>;
+		reg-names = "fuse_base", "cpr_tcsr_reg";
 		qcom,cpr-ctrl-name = "npu";
 		vdd-supply = <&s4>;
 		qcom,voltage-step = <8000>;
