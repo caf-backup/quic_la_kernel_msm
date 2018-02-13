@@ -256,7 +256,7 @@ static int wait_till_ready(struct m25p *flash)
 
 	} while (!time_after_eq(jiffies, deadline));
 
-	return 1;
+	return -EBUSY;
 }
 
 /*
@@ -287,7 +287,7 @@ static int macronix_quad_enable(struct m25p *flash)
 	spi_write(flash->spi, &cmd, 2);
 
 	if (wait_till_ready(flash))
-		return 1;
+		return -EBUSY;
 
 	ret = read_sr(flash);
 	if (!(ret > 0 && (ret & SR_QUAD_EN_MX))) {
@@ -358,7 +358,7 @@ static int erase_chip(struct m25p *flash)
 
 	/* Wait until finished previous write command. */
 	if (wait_till_ready(flash))
-		return 1;
+		return -EBUSY;
 
 	/* Send write enable, then erase commands. */
 	write_enable(flash);
@@ -398,7 +398,7 @@ static int erase_sector(struct m25p *flash, u32 offset)
 
 	/* Wait until finished previous write command. */
 	if (wait_till_ready(flash))
-		return 1;
+		return -EBUSY;
 
 	/* Send write enable, then erase commands. */
 	write_enable(flash);
@@ -545,7 +545,7 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 	if (wait_till_ready(flash)) {
 		/* REVISIT status return?? */
 		mutex_unlock(&flash->lock);
-		return 1;
+		return -EBUSY;
 	}
 
 	/* Set up the write data buffer. */
@@ -593,7 +593,7 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 	/* Wait until finished previous write command. */
 	if (wait_till_ready(flash)) {
 		mutex_unlock(&flash->lock);
-		return 1;
+		return -EBUSY;
 	}
 
 	write_enable(flash);
@@ -752,7 +752,7 @@ static int m25p80_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	mutex_lock(&flash->lock);
 	/* Wait until finished previous command */
 	if (wait_till_ready(flash)) {
-		res = 1;
+		res = -EBUSY;
 		goto err;
 	}
 
@@ -778,7 +778,7 @@ static int m25p80_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 					(status_old&(SR_BP2|SR_BP1|SR_BP0))) {
 		write_enable(flash);
 		if (write_sr(flash, status_new) < 0) {
-			res = 1;
+			res = -EIO;
 			goto err;
 		}
 	}
@@ -797,7 +797,7 @@ static int m25p80_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	mutex_lock(&flash->lock);
 	/* Wait until finished previous command */
 	if (wait_till_ready(flash)) {
-		res = 1;
+		res = -EBUSY;
 		goto err;
 	}
 
@@ -823,7 +823,7 @@ static int m25p80_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 					(status_old&(SR_BP2|SR_BP1|SR_BP0))) {
 		write_enable(flash);
 		if (write_sr(flash, status_new) < 0) {
-			res = 1;
+			res = -EIO;
 			goto err;
 		}
 	}
