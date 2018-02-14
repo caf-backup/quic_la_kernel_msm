@@ -138,6 +138,9 @@ static int cnss_wlfw_host_cap_send_sync(struct cnss_plat_data *plat_priv)
 	req.daemon_support_valid = 1;
 	req.daemon_support = daemon_support;
 
+	req.mem_cfg_mode = plat_priv->tgt_mem_cfg_mode;
+	req.mem_cfg_mode_valid = 1;
+
 	cnss_pr_dbg("daemon_support is %d\n", req.daemon_support);
 
 	req_desc.max_msg_len = WLFW_HOST_CAP_REQ_MSG_V01_MAX_MSG_LEN;
@@ -369,7 +372,11 @@ int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 	char filename[30];
 	const struct firmware *fw;
 	char *bdf_addr;
+	unsigned int bdf_addr_pa, location[2];
 	int size;
+	struct device *dev;
+
+	dev = &plat_priv->plat_dev->dev;
 
 	switch (bdf_type) {
 	case BDF_TYPE_GOLDEN:
@@ -396,7 +403,14 @@ int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 		return ret;
 	}
 	size = fw->size;
-	bdf_addr = ioremap(Q6_BDF_ADDR, BDF_MAX_SIZE);
+	if (of_property_read_u32_array(dev->of_node, "qcom,bdf-addr", &location,
+				       ARRAY_SIZE(location))) {
+		pr_err("Error: No bdf_addr in device_tree\n");
+		CNSS_ASSERT(0);
+		goto out;
+	}
+	bdf_addr_pa = location[plat_priv->tgt_mem_cfg_mode];
+	bdf_addr = ioremap(bdf_addr_pa, BDF_MAX_SIZE);
 	if (!bdf_addr) {
 		cnss_pr_err("ERROR. not able to ioremap BDF location\n");
 		ret = -EIO;
@@ -404,10 +418,13 @@ int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 	}
 	if (size != 0 && size <= BDF_MAX_SIZE) {
 		if (bdf_type == BDF_TYPE_GOLDEN) {
+			cnss_pr_info("BDF location : 0x%p\n", bdf_addr_pa);
 			cnss_pr_info("BDF %s size %d\n", filename, fw->size);
 			memcpy(bdf_addr, fw->data, fw->size);
 		}
 		if (bdf_type == BDF_TYPE_CALDATA) {
+			cnss_pr_info("per device BDF location : 0x%p\n",
+				     CALDATA_OFFSET(bdf_addr_pa));
 			memcpy(CALDATA_OFFSET(bdf_addr), fw->data, fw->size);
 			cnss_pr_info("CALDATA %s size %d offset 0x%x\n",
 					filename, fw->size, CALDATA_OFFSET(0));
@@ -835,9 +852,19 @@ int cnss_wlfw_server_exit(struct cnss_plat_data *plat_priv)
 int cnss_qmi_init(struct cnss_plat_data *plat_priv)
 {
 	int ret = 0;
+	struct device *dev;
+
+	dev = &plat_priv->plat_dev->dev;
 
 	INIT_WORK(&plat_priv->qmi_recv_msg_work,
 		  cnss_wlfw_clnt_notifier_work);
+
+	if (plat_priv->device_id == QCA8074_DEVICE_ID &&
+	    of_property_read_u32(dev->of_node, "qcom,tgt-mem-mode",
+				 &plat_priv->tgt_mem_cfg_mode)) {
+		pr_err("No qca8074_tgt_memory_mode entry in Device tree.\n");
+		plat_priv->tgt_mem_cfg_mode = 0;
+	}
 
 	plat_priv->qmi_wlfw_clnt_nb.notifier_call =
 		cnss_wlfw_clnt_svc_event_notifier;

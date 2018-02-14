@@ -1589,6 +1589,9 @@
 			compatible = "qcom,cnss-qca8074";
 			reg = <0xc000000 0x2000000>;
 			qcom,hw-mode-id = <1>;
+			qcom,tgt-mem-mode = <0>;
+			qcom,bdf-addr = <0x4BE00000 0x4BE00000>;
+			qcom,caldb-addr = <0x4BE40000 0x4BE40000>;
 			interrupts = <0 320 1>, /* o_wcss_apps_intr[0] =  */
 				<0 319 1>,
 				<0 318 1>,

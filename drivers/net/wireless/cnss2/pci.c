@@ -647,6 +647,18 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv )
 {
 	struct cnss_pci_data *pci_priv = plat_priv->bus_priv;
 	struct cnss_fw_mem *fw_mem = &plat_priv->fw_mem;
+	unsigned int location[2];
+	struct device *dev;
+
+	dev = &plat_priv->plat_dev->dev;
+
+	if (plat_priv->device_id == QCA8074_DEVICE_ID &&
+	    of_property_read_u32_array(dev->of_node, "qcom,caldb-addr",
+				       &location, ARRAY_SIZE(location))) {
+		pr_err("Error: Couldn't read caldb_addr from device_tree\n");
+		CNSS_ASSERT(0);
+		return -EINVAL;
+	}
 
 	if (plat_priv->device_id == QCA6290_DEVICE_ID) {
 		fw_mem->pa = QCA6290_PAGING_MEM;
@@ -667,8 +679,8 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv )
 			CNSS_ASSERT(0);
 			return -ENOMEM;
 		}
-		fw_mem->pa = Q6_CALDB_ADDR;
-		fw_mem->va = Q6_CALDB_ADDR;
+		fw_mem->pa = location[plat_priv->tgt_mem_cfg_mode];
+		fw_mem->va = location[plat_priv->tgt_mem_cfg_mode];
 		return 0;
 	}
 	if (!fw_mem->va && fw_mem->size) {
