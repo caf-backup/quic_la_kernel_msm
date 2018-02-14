@@ -204,6 +204,7 @@ struct cnss_plat_data {
 	struct wlfw_fw_version_info_s_v01 fw_version_info;
 	struct cnss_fw_mem fw_mem;
 	struct cnss_fw_mem m3_mem;
+	int tgt_mem_cfg_mode;
 	struct cnss_pin_connect_result pin_result;
 	struct dentry *root_dentry;
 	atomic_t pm_count;
