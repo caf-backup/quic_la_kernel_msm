@@ -71,8 +71,8 @@
 				qcom,allow-quotient-interpolation;
 				qcom,cpr-scaled-open-loop-voltage-as-ceiling;
 				qcom,cpr-voltage-ceiling =
-					<720000 792000 864000
-					 920000 992000 1064000>;
+					<840000 904000 944000
+					 984000 992000 1064000>;
 				qcom,cpr-voltage-floor =
 					<592000 648000 712000
 					 744000 784000 848000>;
