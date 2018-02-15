@@ -47,7 +47,7 @@
 
 			/* firmware transfer */
 			qcom,mhi-manage-boot;
-			qcom,mhi-fw-image = "amss.bin";
+			qcom,mhi-fw-image = "IPQ8074/WIFI_FW/qca6290/amss.bin";
 			qcom,mhi-max-sbl = <0x40000>;
 			qcom,mhi-sg-size = <0x80000>;
 
