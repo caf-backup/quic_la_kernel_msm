@@ -71,6 +71,7 @@
 #define QMI_WLFW_MAX_NUM_CE_V01 12
 #define QMI_WLFW_MAX_TIMESTAMP_LEN_V01 32
 #define QMI_WLFW_MAX_BUILD_ID_LEN_V01 128
+#define QMI_WLFW_MAX_NUM_GPIO_V01 32
 #define QMI_WLFW_MAX_STR_LEN_V01 16
 #define QMI_WLFW_MAX_NUM_SHADOW_REG_V01 24
 #define QMI_WLFW_MAC_ADDR_SIZE_V01 6
@@ -519,9 +520,18 @@ extern struct elem_info wlfw_mac_addr_resp_msg_v01_ei[];
 struct wlfw_host_cap_req_msg_v01 {
 	uint8_t daemon_support_valid;
 	uint8_t daemon_support;
+	uint8_t wake_msi_valid;
+	uint32_t wake_msi;
+	uint8_t gpios_valid;
+	uint32_t gpios_len;
+	uint32_t gpios[QMI_WLFW_MAX_NUM_GPIO_V01];
+	uint8_t nm_modem_valid;
+	uint8_t nm_modem;
+	uint8_t mem_cfg_mode_valid;
+	uint8_t mem_cfg_mode;
 };
 
-#define WLFW_HOST_CAP_REQ_MSG_V01_MAX_MSG_LEN 4
+#define WLFW_HOST_CAP_REQ_MSG_V01_MAX_MSG_LEN 151
 extern struct elem_info wlfw_host_cap_req_msg_v01_ei[];
 
 struct wlfw_host_cap_resp_msg_v01 {
