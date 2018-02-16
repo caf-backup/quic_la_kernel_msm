@@ -447,7 +447,7 @@ static int test_qmi_open(struct inode *ip, struct file *fp)
 static ssize_t test_qmi_read(struct file *fp, char __user *buf,
 		size_t count, loff_t *pos)
 {
-	char _buf[16];
+	char _buf[16] = {0};
 	int index = 0;
 
 	for (index = 0; index < sizeof(qdentry)/sizeof(struct qmi_dir); index++) {
