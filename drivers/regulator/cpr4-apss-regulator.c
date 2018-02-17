@@ -471,6 +471,14 @@ static int cpr4_ipq807x_apss_calculate_open_loop_voltages(
 			  fuse_volt[i]);
 	}
 
+	rc = cpr3_determine_part_type(vreg,
+			fuse_volt[CPR4_IPQ807x_APSS_FUSE_CORNER_STURBO]);
+	if (rc) {
+		cpr3_err(vreg, "fused part type detection failed failed, rc=%d\n",
+			rc);
+		goto done;
+	}
+
 	rc = cpr3_adjust_fused_open_loop_voltages(vreg, fuse_volt);
 	if (rc) {
 		cpr3_err(vreg, "fused open-loop voltage adjustment failed, rc=%d\n",
