@@ -1308,7 +1308,7 @@ static int cpr4_apss_init_controller(struct cpr3_controller *ctrl)
 
 	ctrl->cpr_clock_rate = IPQ807x_APSS_CPR_CLOCK_RATE;
 	ctrl->ctrl_type = CPR_CTRL_TYPE_CPR4;
-	ctrl->supports_hw_closed_loop = true;
+	ctrl->supports_hw_closed_loop = false;
 	ctrl->use_hw_closed_loop = of_property_read_bool(ctrl->dev->of_node,
 						"qcom,cpr-hw-closed-loop");
 	return 0;
