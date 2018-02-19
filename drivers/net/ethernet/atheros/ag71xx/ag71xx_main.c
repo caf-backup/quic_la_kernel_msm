@@ -1074,8 +1074,6 @@ static netdev_tx_t ag71xx_hard_start_xmit(struct sk_buff *skb,
 	if (unlikely(ag71xx_has_ar8216(ag)))
 		ag71xx_add_ar8216_header(ag, skb);
 
-	dma_cache_sync(NULL, skb->data, skb->len, DMA_TO_DEVICE);
-
 	len = skb->len;
 	if (unlikely(len <= 0)) {
 		DBG("%s: packet len is too small\n", dev->name);
