@@ -34,6 +34,7 @@
 #define QCA6290_EMULATION_DEVICE_ID	0xABCD
 #define QCA8074_DEVICE_ID               0xFFFF
 #define QCA6290_PAGING_MEM		0x87500000
+#define QCA6290_RDDM_SIZE		0x401000
 
 enum cnss_mhi_state {
 	CNSS_MHI_INIT,

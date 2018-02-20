@@ -1308,6 +1308,11 @@ static int cnss_pci_register_mhi(struct cnss_pci_data *pci_priv)
 
 	mhi_dev->pm_runtime_get = cnss_mhi_pm_runtime_get;
 	mhi_dev->pm_runtime_noidle = cnss_mhi_pm_runtime_put_noidle;
+
+	mhi_dev->support_rddm = true;
+	mhi_dev->rddm_size = QCA6290_RDDM_SIZE;
+	mhi_dev->status_cb = cnss_mhi_notify_status;
+
 #ifdef CONFIG_MSM_MHI
 	ret = mhi_register_device(mhi_dev, MHI_NODE_NAME,
 				  (unsigned long)pci_priv);
