@@ -257,5 +257,7 @@
 #define GCC_QDSS_DAP_CLK			238
 #define ADSS_PWM_CLK_SRC			239
 #define GCC_ADSS_PWM_CLK			240
+#define SDCC1_ICE_CORE_CLK_SRC			241
+#define GCC_SDCC1_ICE_CORE_CLK			242
 
 #endif
