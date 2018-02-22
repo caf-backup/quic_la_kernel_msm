@@ -531,6 +531,10 @@ int blk_rq_map_sg_no_cluster(struct request_queue *q, struct request *rq,
 
 		sg->page_link &= ~0x02;
 		sg = sg_next(sg);
+
+		if (!sg)
+			return nsegs;
+
 		sg_set_page(sg, virt_to_page(q->dma_drain_buffer),
 			    q->dma_drain_size,
 			    ((unsigned long)q->dma_drain_buffer) &
