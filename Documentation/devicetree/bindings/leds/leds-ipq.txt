@@ -8,6 +8,10 @@ Required properties:
 - qcom,ledc_blink_indices_cnt: No.of blink registers configured. Allowed value is 0 to 4.
 - qcom,ledc_blink_indices: Indices of LEDs which are configured as blink LEDs. No. of entries
                         should correspond to the value in qcom,ledc_blink_indices_cnt.
+
+Optional properties:
+- qcom,ledc_blink_idx_src_pair: List of LED index + blink source pairs.
+
 Examples:
 
 qcom: ledc@1937000 {
@@ -18,4 +22,5 @@ qcom: ledc@1937000 {
 		0xFFFFFFFF 0x0 0x0 0x7D006F 0x0 0x10482090 0x3FFFFE4>;
 	qcom,ledc_blink_indices_cnt = <4>;
 	qcom,ledc_blink_indices = <19 20 21 22>;
+	qcom,ledc_blink_idx_src_pair = <3 20>, <4 21>, <5 22>;
 };
