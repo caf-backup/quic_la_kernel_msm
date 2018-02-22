@@ -61,6 +61,24 @@ int winbond_parse_id(struct spi_device *spi_nand, struct spinand_ops *ops,
 int winbond_die_select(struct spi_device *spi_nand,
 		       struct spinand_ops *dev_ops, u8 die_id);
 
+void toshiba_read_cmd(struct spinand_cmd *cmd, u32 page_id);
+
+void toshiba_read_data(struct spinand_cmd *cmd, u16 column, u32 page_id);
+
+void toshiba_write_cmd(struct spinand_cmd *cmd, u32 page_id);
+
+void toshiba_write_data(struct spinand_cmd *cmd, u16 column, u32 page_id);
+
+void toshiba_erase_blk(struct spinand_cmd *cmd, u32 page_id);
+
+int toshiba_parse_id(struct spi_device *spi_nand, struct spinand_ops *ops,
+		     u8 *nand_id, u8 *id);
+
+int toshiba_verify_ecc(u8 status);
+
 /* Macronix Specific defines */
 #define MACRONIX_NORM_RW_MASK	0x0F
+
+/* Toshiba Specific defines */
+#define TOSHIBA_NORM_RW_MASK	0x1F
 #endif /* __GIGA_SPI_NAND_H */

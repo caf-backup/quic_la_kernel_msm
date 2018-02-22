@@ -146,6 +146,22 @@ struct spinand_ops spinand_dev[] = {
 		macronix_verify_ecc,
 		winbond_die_select,
 	},
+	{
+		NAND_MFR_TOSHIBA,
+		1,
+		0xcd,
+		INT_MAX,
+		0x20000,
+		gigadevice_set_defaults_512mb,
+		toshiba_read_cmd,
+		toshiba_read_data,
+		toshiba_write_cmd,
+		toshiba_write_data,
+		toshiba_erase_blk,
+		toshiba_parse_id,
+		toshiba_verify_ecc,
+		NULL,
+	},
 	{ },
 };
 
@@ -1234,6 +1250,10 @@ struct nand_flash_dev spinand_flash_ids[] = {
 
 	{"W25M02GV 256MiB 3.3V(Dual die)",
 		{ .id = {0xef, 0xab} }, SZ_2K, 256, SZ_128K, 0, 2, 64},
+
+	{"TC58CVG2S0F 4G 3.3V 8-bit",
+		{ .id = {0x98, 0xcd} }, SZ_4K, 512, SZ_256K, 0, 2, 128},
+
 	{NULL}
 };
 

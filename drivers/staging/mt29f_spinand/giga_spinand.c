@@ -116,6 +116,13 @@ void gigadevice_read_cmd(struct spinand_cmd *cmd, u32 page_id)
 	cmd->addr[2] = (u8)(page_id);
 }
 
+void toshiba_read_cmd(struct spinand_cmd *cmd, u32 page_id)
+{
+	cmd->addr[0] = ((u8)(page_id >> 16) % 2);
+	cmd->addr[1] = (u8)(page_id >> 8);
+	cmd->addr[2] = (u8)(page_id);
+}
+
 void gigadevice_read_data(struct spinand_cmd *cmd, u16 column, u32 page_id)
 {
 	cmd->addr[0] = 0xff; /*dummy byte*/
@@ -135,9 +142,22 @@ void winbond_read_data(struct spinand_cmd *cmd, u16 column, u32 page_id)
 	cmd->addr[1] = (u8)(column);
 }
 
+void toshiba_read_data(struct spinand_cmd *cmd, u16 column, u32 page_id)
+{
+	cmd->addr[0] = ((u8)(column >> 8) & TOSHIBA_NORM_RW_MASK);
+	cmd->addr[1] = (u8)(column);
+}
+
 void gigadevice_write_cmd(struct spinand_cmd *cmd, u32 page_id)
 {
 	cmd->addr[0] = (u8)(page_id >> 16);
+	cmd->addr[1] = (u8)(page_id >> 8);
+	cmd->addr[2] = (u8)(page_id);
+}
+
+void toshiba_write_cmd(struct spinand_cmd *cmd, u32 page_id)
+{
+	cmd->addr[0] = ((u8)(page_id >> 16) % 2);
 	cmd->addr[1] = (u8)(page_id >> 8);
 	cmd->addr[2] = (u8)(page_id);
 }
@@ -160,9 +180,22 @@ void winbond_write_data(struct spinand_cmd *cmd, u16 column, u32 page_id)
 	cmd->addr[1] = (u8)(column);
 }
 
+void toshiba_write_data(struct spinand_cmd *cmd, u16 column, u32 page_id)
+{
+	cmd->addr[0] = ((u8)(column >> 8) & TOSHIBA_NORM_RW_MASK);
+	cmd->addr[1] = (u8)(column);
+}
+
 void gigadevice_erase_blk(struct spinand_cmd *cmd, u32 page_id)
 {
 	cmd->addr[0] = (u8)(page_id >> 16);
+	cmd->addr[1] = (u8)(page_id >> 8);
+	cmd->addr[2] = (u8)(page_id);
+}
+
+void toshiba_erase_blk(struct spinand_cmd *cmd, u32 page_id)
+{
+	cmd->addr[0] = (u8)((page_id >> 16) % 2);
 	cmd->addr[1] = (u8)(page_id >> 8);
 	cmd->addr[2] = (u8)(page_id);
 }
@@ -187,6 +220,18 @@ int macronix_verify_ecc(u8 status)
 	    (ecc_status == STATUS_ECC_MASK_MACRONIX))
 		return SPINAND_ECC_ERROR;
 	else if (ecc_status)
+		return SPINAND_ECC_CORRECTED;
+	else
+		return 0;
+}
+
+int toshiba_verify_ecc(u8 status)
+{
+	int ecc_status = (status & STATUS_ECC_MASK_TOSHIBA);
+
+	if (ecc_status == STATUS_ECC_ERROR_TOSHIBA)
+		return SPINAND_ECC_ERROR;
+	else if (ecc_status == STATUS_ECC_BF_THRESHOLD_TOSHIBA)
 		return SPINAND_ECC_CORRECTED;
 	else
 		return 0;
@@ -225,6 +270,15 @@ int winbond_parse_id(struct spi_device *spi_nand,
 		     struct spinand_ops *ops, u8 *nand_id, u8 *id)
 {
 	if (!(nand_id[1] == NAND_MFR_WINBOND && nand_id[2] == ops->dev_id))
+		return -EINVAL;
+
+	return 0;
+}
+
+int toshiba_parse_id(struct spi_device *spi_nand,
+		     struct spinand_ops *ops, u8 *nand_id, u8 *id)
+{
+	if (!(nand_id[1] == NAND_MFR_TOSHIBA && nand_id[2] == ops->dev_id))
 		return -EINVAL;
 
 	return 0;
