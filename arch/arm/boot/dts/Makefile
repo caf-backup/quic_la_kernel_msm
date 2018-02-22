@@ -551,6 +551,7 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-ipq807x-hk02.dtb \
 	qcom-ipq807x-hk05.dtb \
 	qcom-ipq807x-hk06.dtb \
+	qcom-ipq807x-hk07.dtb \
 	qcom-ipq807x-db.hk01.dtb \
 	qcom-ipq807x-db.hk02.dtb
 dtb-$(CONFIG_ARCH_REALVIEW) += \
