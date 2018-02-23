@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -15,6 +15,7 @@
 
 #ifdef CONFIG_CNSS2_SMMU
 #include <asm/dma-iommu.h>
+#include <linux/iommu.h>
 #endif
 #include <linux/msm_mhi.h>
 #include <linux/msm_pcie.h>
@@ -27,9 +28,11 @@
 #define QCA6174_REV_ID_OFFSET		0x08
 #define QCA6174_REV3_VERSION		0x5020000
 #define QCA6174_REV3_2_VERSION		0x5030000
-#define QCA6290_VENDOR_ID		0x168C
-#define QCA6290_DEVICE_ID		0xABCD
-#define QCA8074_DEVICE_ID		0xFFFF
+#define QCA6290_VENDOR_ID		0x17CB
+#define QCA6290_DEVICE_ID		0x1100
+#define QCA6290_EMULATION_VENDOR_ID	0x168C
+#define QCA6290_EMULATION_DEVICE_ID	0xABCD
+#define QCA8074_DEVICE_ID               0xFFFF
 #define QCA6290_PAGING_MEM		0x87500000
 
 enum cnss_mhi_state {
@@ -39,14 +42,16 @@ enum cnss_mhi_state {
 	CNSS_MHI_RESUME,
 	CNSS_MHI_POWER_OFF,
 	CNSS_MHI_POWER_ON,
-	CNSS_MHI_RAM_DUMP,
+	CNSS_MHI_TRIGGER_RDDM,
+	CNSS_MHI_RDDM,
+	CNSS_MHI_RDDM_KERNEL_PANIC,
 	CNSS_MHI_NOTIFY_LINK_ERROR,
 };
 
 struct cnss_msi_user {
 	char *name;
 	int num_vectors;
-	uint32_t base_vector;
+	u32 base_vector;
 };
 
 struct cnss_msi_config {
@@ -56,8 +61,8 @@ struct cnss_msi_config {
 };
 
 struct cnss_pci_data {
-	struct pci_dev *pci_dev;
 	struct cnss_plat_data *plat_priv;
+	struct pci_dev *pci_dev;
 	const struct pci_device_id *pci_device_id;
 	u32 device_id;
 	u16 revision_id;
@@ -73,8 +78,10 @@ struct cnss_pci_data {
 	size_t smmu_iova_len;
 #endif
 	void __iomem *bar;
+	void __iomem *mem_start;
+	void __iomem *mem_end;
 	struct cnss_msi_config *msi_config;
-	uint32_t msi_ep_base_data;
+	u32 msi_ep_base_data;
 	struct mhi_device mhi_dev;
 	unsigned long mhi_state;
 };
@@ -129,11 +136,19 @@ int cnss_resume_pci_link(struct cnss_pci_data *pci_priv);
 int cnss_pci_init(struct cnss_plat_data *plat_priv);
 void cnss_pci_deinit(struct cnss_plat_data *plat_priv);
 int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv);
+int cnss_pci_load_m3(struct cnss_plat_data *plat_priv);
 int cnss_pci_get_bar_info(struct cnss_pci_data *pci_priv, void __iomem **va,
 			  phys_addr_t *pa);
 int cnss_pci_set_mhi_state(struct cnss_pci_data *pci_priv,
 			   enum cnss_mhi_state state);
 int cnss_pci_start_mhi(struct cnss_pci_data *pci_priv);
 void cnss_pci_stop_mhi(struct cnss_pci_data *pci_priv);
+void cnss_pci_collect_dump_info(struct cnss_pci_data *pci_priv);
+void cnss_pci_clear_dump_info(struct cnss_pci_data *pci_priv);
+int cnss_pm_request_resume(struct cnss_pci_data *pci_priv);
+void cnss_pci_remove(struct pci_dev *pci_dev);
+void cnss_pci_disable_msi(struct cnss_pci_data *pci_priv);
+int cnss_pci_probe(struct pci_dev *pci_dev,
+			  const struct pci_device_id *id);
 
 #endif /* _CNSS_PCI_H */

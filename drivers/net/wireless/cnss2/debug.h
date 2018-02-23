@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -25,7 +25,8 @@ extern void *cnss_ipc_log_context;
 
 #define cnss_pr_err(_fmt, ...) do {					\
 		pr_err("cnss: " _fmt, ##__VA_ARGS__);			\
-		cnss_ipc_log_string("ERR: " pr_fmt(_fmt),		\
+		cnss_ipc_log_string("[%04X] ERR: " pr_fmt(_fmt),	\
+				    plat_priv->device_id,		\
 				    ##__VA_ARGS__);			\
 	} while (0)
 
@@ -37,13 +38,15 @@ extern void *cnss_ipc_log_context;
 
 #define cnss_pr_info(_fmt, ...) do {					\
 		pr_info("cnss: " _fmt, ##__VA_ARGS__);			\
-		cnss_ipc_log_string("INF: " pr_fmt(_fmt),		\
+		cnss_ipc_log_string("[%04X] INF: " pr_fmt(_fmt),	\
+				    plat_priv->device_id,		\
 				    ##__VA_ARGS__);			\
 	} while (0)
 
 #define cnss_pr_dbg(_fmt, ...) do {					\
 		pr_debug("cnss: " _fmt, ##__VA_ARGS__);			\
-		cnss_ipc_log_string("DBG: " pr_fmt(_fmt),		\
+		cnss_ipc_log_string("[%04X] DBG: " pr_fmt(_fmt),	\
+				    plat_priv->device_id,		\
 				    ##__VA_ARGS__);			\
 	} while (0)
 
@@ -67,5 +70,7 @@ extern void *cnss_ipc_log_context;
 
 int cnss_debug_init(void);
 void cnss_debug_deinit(void);
+int cnss_debugfs_create(struct cnss_plat_data *plat_priv);
+void cnss_debugfs_destroy(struct cnss_plat_data *plat_priv);
 
 #endif /* _CNSS_DEBUG_H */
