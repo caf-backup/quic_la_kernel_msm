@@ -210,11 +210,11 @@ u32 ipq_mbox_get_played_offset(u32 channel_id)
 		size_played = desc->size;
 		rtdir->read = (rtdir->read + 1) % rtdir->ndescs;
 
-		desc = get_next(rtdir, desc);
-		desc_cnt++;
-
 		if (desc == write)
 			break;
+
+		desc = get_next(rtdir, desc);
+		desc_cnt++;
 	} while (desc->OWN == 0 && desc_cnt < rtdir->ndescs);
 
 	return size_played * rtdir->read;

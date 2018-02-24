@@ -204,6 +204,30 @@ int qcom_scm_regsave(u32 svc_id, u32 cmd_id, void *scm_regsave,
 }
 EXPORT_SYMBOL(qcom_scm_regsave);
 
+int qcom_sec_upgrade_auth(unsigned int sw_type, unsigned int img_size,
+				 unsigned int load_addr)
+{
+	return __qcom_sec_upgrade_auth(__scm->dev, sw_type,
+						img_size, load_addr);
+}
+EXPORT_SYMBOL(qcom_sec_upgrade_auth);
+
+/**
+ * qcom_scm_sec_auth_available() - Check if SEC_AUTH is supported.
+ *
+ * Return true if SEC_AUTH is supported, false if not.
+ */
+bool qcom_scm_sec_auth_available(void)
+{
+	int ret;
+
+	ret = __qcom_scm_is_call_available(__scm->dev, QCOM_SCM_SVC_SEC_AUTH,
+						QCOM_SCM_CMD_SEC_AUTH);
+
+	return ret > 0 ? true : false;
+}
+EXPORT_SYMBOL(qcom_scm_sec_auth_available);
+
 /**
  * qcom_scm_pas_supported() - Check if the peripheral authentication service is
  *			      available for the given peripherial
@@ -516,6 +540,22 @@ int qcom_scm_dload(u32 svc_id, u32 cmd_id, void *cmd_buf)
 
 }
 EXPORT_SYMBOL(qcom_scm_dload);
+
+int qcom_scm_pshold(void)
+{
+	int ret;
+
+	ret = qcom_scm_clk_enable();
+	if (ret)
+		return ret;
+	ret = __qcom_scm_pshold(__scm->dev);
+
+	qcom_scm_clk_disable();
+
+	return ret;
+}
+
+EXPORT_SYMBOL(qcom_scm_pshold);
 
 int qcom_scm_sdi(u32 svc_id, u32 cmd_id)
 {

@@ -617,6 +617,42 @@ int __qcom_qfprom_show_authenticate(struct device *dev, char *buf)
 	return ret;
 }
 
+int __qcom_sec_upgrade_auth(struct device *dev, unsigned int sw_type,
+				unsigned int img_size, unsigned int load_addr)
+{
+	int ret;
+	struct {
+		unsigned type;
+		unsigned size;
+		unsigned addr;
+	} cmd_buf;
+
+	if (!is_scm_armv8()) {
+		cmd_buf.type = sw_type;
+		cmd_buf.size = img_size;
+		cmd_buf.addr = load_addr;
+		ret = qcom_scm_call(dev, QCOM_SCM_SVC_BOOT,
+					QCOM_KERNEL_AUTH_CMD, &cmd_buf,
+					sizeof(cmd_buf), NULL, 0);
+	} else {
+		__le32 scm_ret;
+		struct scm_desc desc = {0};
+
+		desc.args[0] = sw_type;
+		desc.args[1] = img_size;
+		desc.args[2] = (u64)load_addr;
+		desc.arginfo = SCM_ARGS(3, SCM_VAL, SCM_VAL, SCM_RW);
+		ret = qcom_scm_call2(SCM_SIP_FNID(QCOM_SCM_SVC_BOOT,
+				QCOM_KERNEL_AUTH_CMD), &desc);
+		scm_ret = desc.ret[0];
+
+		if (!ret)
+			return le32_to_cpu(scm_ret);
+	}
+
+	return ret;
+}
+
 int __qcom_qfprom_write_version(struct device *dev, void *wrip, int size)
 {
 	if (!is_scm_armv8())
@@ -889,6 +925,18 @@ static int __qcom_scm_dload_v8(struct device *dev, void *cmd_buf)
 		return ret;
 
 	return le32_to_cpu(desc.ret[0]);
+}
+
+int __qcom_scm_pshold(struct device *dev)
+{
+	long ret;
+
+	if (is_scm_armv8())
+		return -ENOTSUPP;
+
+	ret = qcom_scm_call(dev, QCOM_SCM_SVC_BOOT, SCM_CMD_PSHOLD, NULL, 0, NULL, 0);
+
+	return ret;
 }
 
 int __qcom_scm_dload(struct device *dev, u32 svc_id, u32 cmd_id, void *cmd_buf)

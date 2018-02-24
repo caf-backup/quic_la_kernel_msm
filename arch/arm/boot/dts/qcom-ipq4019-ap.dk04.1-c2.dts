@@ -183,6 +183,13 @@
 					function = "aud_pin";
 				};
 			};
+
+			mdio_pins: mdio_pinmux {
+				mux_3 {
+					pins = "gpio67";
+					function = "gpio";
+				};
+			};
 		};
 
 		mdio@90000 {

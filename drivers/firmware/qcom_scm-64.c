@@ -383,6 +383,23 @@ int __qcom_qfprom_show_authenticate(struct device *dev, char *buf)
 	return ret ? : res.a1;
 }
 
+int __qcom_sec_upgrade_auth(struct device *dev, unsigned int sw_type,
+			unsigned int img_size, unsigned int load_addr)
+{
+	int ret;
+	struct arm_smccc_res res;
+	struct scm_desc desc = {0};
+
+	desc.args[0] = sw_type;
+	desc.args[1] = img_size;
+	desc.args[2] = (u64)load_addr;
+	desc.arginfo = SCM_ARGS(3, SCM_VAL, SCM_VAL, SCM_RW);
+	ret = qcom_scm_call(dev, QCOM_SCM_SVC_BOOT,
+				QCOM_KERNEL_AUTH_CMD, &desc, &res);
+
+	return ret ? : res.a1;
+}
+
 int __qcom_qfprom_write_version(struct device *dev, void *wrip, int size)
 {
 	return -ENOTSUPP;
@@ -510,6 +527,11 @@ int __qcom_scm_get_cache_dump_size(struct device *dev, u32 cmd_id,
 
 int __qcom_scm_send_cache_dump_addr(struct device *dev, u32 cmd_id,
 					void *cmd_buf, u32 size)
+{
+	return -ENOTSUPP;
+}
+
+int __qcom_scm_pshold(struct device *dev)
 {
 	return -ENOTSUPP;
 }

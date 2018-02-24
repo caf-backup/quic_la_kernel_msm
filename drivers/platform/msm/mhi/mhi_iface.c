@@ -125,6 +125,17 @@ irq_error:
 	return -EINVAL;
 }
 
+void mhi_free_irq(struct mhi_device *mhi_device)
+{
+	int index;
+	struct mhi_device_ctxt *mhi_dev_ctxt = mhi_device->mhi_dev_ctxt;
+
+	for (index = 0; index < mhi_dev_ctxt->mmio_info.nr_event_rings; index++)
+		free_irq(mhi_dev_ctxt->core.irq_base +
+				mhi_dev_ctxt->ev_ring_props[index].msi_vec,
+				mhi_dev_ctxt);
+}
+
 static const struct dev_pm_ops pm_ops = {
 	SET_RUNTIME_PM_OPS(mhi_runtime_suspend,
 			   mhi_runtime_resume,

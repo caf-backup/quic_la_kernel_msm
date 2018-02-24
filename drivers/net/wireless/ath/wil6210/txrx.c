@@ -111,6 +111,51 @@ static inline int wil_vring_avail_high(struct vring *vring)
 	return wil_vring_avail_tx(vring) > wil_vring_wmark_high(vring);
 }
 
+/* returns true when all tx vrings are empty */
+bool wil_is_tx_idle(struct wil6210_priv *wil)
+{
+	int i;
+	unsigned long data_comp_to;
+
+	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
+		struct vring *vring = &wil->vring_tx[i];
+		int vring_index = vring - wil->vring_tx;
+		struct vring_tx_data *txdata = &wil->vring_tx_data[vring_index];
+
+		spin_lock(&txdata->lock);
+
+		if (!vring->va || !txdata->enabled) {
+			spin_unlock(&txdata->lock);
+			continue;
+		}
+
+		data_comp_to = jiffies + msecs_to_jiffies(
+					WIL_DATA_COMPLETION_TO_MS);
+		if (test_bit(wil_status_napi_en, wil->status)) {
+			while (!wil_vring_is_empty(vring)) {
+				if (time_after(jiffies, data_comp_to)) {
+					wil_dbg_pm(wil,
+						   "TO waiting for idle tx\n");
+					spin_unlock(&txdata->lock);
+					return false;
+				}
+				wil_dbg_ratelimited(wil,
+						    "tx vring is not empty -> NAPI\n");
+				spin_unlock(&txdata->lock);
+				napi_synchronize(&wil->napi_tx);
+				msleep(20);
+				spin_lock(&txdata->lock);
+				if (!vring->va || !txdata->enabled)
+					break;
+			}
+		}
+
+		spin_unlock(&txdata->lock);
+	}
+
+	return true;
+}
+
 /* wil_val_in_range - check if value in [min,max) */
 static inline bool wil_val_in_range(int val, int min, int max)
 {
@@ -140,14 +185,14 @@ static int wil_vring_alloc(struct wil6210_priv *wil, struct vring *vring)
 	 *
 	 * HW has limitation that all vrings addresses must share the same
 	 * upper 16 msb bits part of 48 bits address. To workaround that,
-	 * if we are using 48 bit addresses switch to 32 bit allocation
-	 * before allocating vring memory.
+	 * if we are using more than 32 bit addresses switch to 32 bit
+	 * allocation before allocating vring memory.
 	 *
 	 * There's no check for the return value of dma_set_mask_and_coherent,
 	 * since we assume if we were able to set the mask during
 	 * initialization in this system it will not fail if we set it again
 	 */
-	if (wil->use_extended_dma_addr)
+	if (wil->dma_addr_size > 32)
 		dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 
 	vring->va = dma_alloc_coherent(dev, sz, &vring->pa, GFP_KERNEL);
@@ -157,8 +202,9 @@ static int wil_vring_alloc(struct wil6210_priv *wil, struct vring *vring)
 		return -ENOMEM;
 	}
 
-	if (wil->use_extended_dma_addr)
-		dma_set_mask_and_coherent(dev, DMA_BIT_MASK(48));
+	if (wil->dma_addr_size > 32)
+		dma_set_mask_and_coherent(dev,
+					  DMA_BIT_MASK(wil->dma_addr_size));
 
 	/* initially, all descriptors are SW owned
 	 * For Tx and Rx, ownership bit is at the same location, thus
@@ -309,7 +355,6 @@ static int wil_vring_alloc_skb(struct wil6210_priv *wil, struct vring *vring,
 static void wil_rx_add_radiotap_header(struct wil6210_priv *wil,
 				       struct sk_buff *skb)
 {
-	struct wireless_dev *wdev = wil->wdev;
 	struct wil6210_rtap {
 		struct ieee80211_radiotap_header rthdr;
 		/* fields should be in the order of bits in rthdr.it_present */
@@ -336,7 +381,7 @@ static void wil_rx_add_radiotap_header(struct wil6210_priv *wil,
 	int rtap_len = sizeof(struct wil6210_rtap);
 	int phy_length = 0; /* phy info header size, bytes */
 	static char phy_data[128];
-	struct ieee80211_channel *ch = wdev->preset_chandef.chan;
+	struct ieee80211_channel *ch = wil->monitor_chandef.chan;
 
 	if (rtap_include_phy_info) {
 		rtap_len = sizeof(*rtap_vendor) + sizeof(*d);
@@ -411,6 +456,18 @@ static inline int wil_is_back_req(u8 fc)
 {
 	return (fc & (IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
 	       (IEEE80211_FTYPE_CTL | IEEE80211_STYPE_BACK_REQ);
+}
+
+bool wil_is_rx_idle(struct wil6210_priv *wil)
+{
+	struct vring_rx_desc *_d;
+	struct vring *vring = &wil->vring_rx;
+
+	_d = (struct vring_rx_desc *)&vring->va[vring->swhead].rx;
+	if (_d->dma.status & RX_DMA_STATUS_DU)
+		return false;
+
+	return true;
 }
 
 /**
@@ -1631,7 +1688,7 @@ static int __wil_tx_vring_tso(struct wil6210_priv *wil, struct vring *vring,
 
 	/* performance monitoring */
 	used = wil_vring_used_tx(vring);
-	if (wil_val_in_range(vring_idle_trsh,
+	if (wil_val_in_range(wil->vring_idle_trsh,
 			     used, used + descs_used)) {
 		txdata->idle += get_cycles() - txdata->last_idle;
 		wil_dbg_txrx(wil,  "Ring[%2d] not idle %d -> %d\n",
@@ -1778,7 +1835,7 @@ static int __wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 
 	/* performance monitoring */
 	used = wil_vring_used_tx(vring);
-	if (wil_val_in_range(vring_idle_trsh,
+	if (wil_val_in_range(wil->vring_idle_trsh,
 			     used, used + nr_frags + 1)) {
 		txdata->idle += get_cycles() - txdata->last_idle;
 		wil_dbg_txrx(wil,  "Ring[%2d] not idle %d -> %d\n",
@@ -1834,6 +1891,15 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 
 	spin_lock(&txdata->lock);
 
+	if (test_bit(wil_status_suspending, wil->status) ||
+	    test_bit(wil_status_suspended, wil->status) ||
+	    test_bit(wil_status_resuming, wil->status)) {
+		wil_dbg_txrx(wil,
+			     "suspend/resume in progress. drop packet\n");
+		spin_unlock(&txdata->lock);
+		return -EINVAL;
+	}
+
 	rc = (skb_is_gso(skb) ? __wil_tx_vring_tso : __wil_tx_vring)
 	     (wil, vring, skb);
 
@@ -1885,6 +1951,11 @@ static inline void __wil_update_net_queues(struct wil6210_priv *wil,
 		}
 		return;
 	}
+
+	/* Do not wake the queues in suspend flow */
+	if (test_bit(wil_status_suspending, wil->status) ||
+	    test_bit(wil_status_suspended, wil->status))
+		return;
 
 	/* check wake */
 	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
@@ -2126,7 +2197,7 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 
 	/* performance monitoring */
 	used_new = wil_vring_used_tx(vring);
-	if (wil_val_in_range(vring_idle_trsh,
+	if (wil_val_in_range(wil->vring_idle_trsh,
 			     used_new, used_before_complete)) {
 		wil_dbg_txrx(wil, "Ring[%2d] idle %d -> %d\n",
 			     ringid, used_before_complete, used_new);
