@@ -133,7 +133,6 @@ struct bio {
  * ensures blk_update_request does not free the bios or request, this is done
  * at the dm level
  */
-#define BIO_DONTFREE 14
 #define BIO_INLINECRYPT 15
 
 /*
