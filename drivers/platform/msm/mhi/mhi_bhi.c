@@ -69,18 +69,26 @@ static int bhi_alloc_bhie_xfer(struct mhi_device_ctxt *mhi_dev_ctxt,
 		info = &bhie_mem_info[i];
 		info->size = size;
 		info->alloc_size = info->size + align;
-		info->pre_aligned =
-			dma_alloc_coherent(dev, info->alloc_size,
-					   &info->dma_handle, GFP_KERNEL);
+		info->pre_aligned = kmalloc(info->alloc_size, GFP_KERNEL);
 		if (!info->pre_aligned)
 			goto alloc_dma_error;
+
+		info->dma_handle = dma_map_single(dev, info->pre_aligned,
+							info->alloc_size,
+							DMA_TO_DEVICE);
+		if (dma_mapping_error(dev, info->dma_handle)) {
+			dev_err(dev, "Error:\tUnable to map addr[%p]\n",
+					info->pre_aligned);
+			kfree(info->pre_aligned);
+			goto alloc_dma_error;
+		}
 
 		info->phys_addr = (info->dma_handle + align) & ~align;
 		info->aligned = info->pre_aligned +
 			(info->phys_addr - info->dma_handle);
 		mhi_log(mhi_dev_ctxt, MHI_MSG_INFO,
-			"Seg:%d unaligned Img: 0x%llx aligned:0x%llx\n",
-			i, info->dma_handle, info->phys_addr);
+				"Seg:%d unaligned Img: 0x%llx aligned:0x%llx\n",
+				i, info->dma_handle, info->phys_addr);
 	}
 
 	sg_init_table(sg_list, segments);
@@ -97,11 +105,13 @@ static int bhi_alloc_bhie_xfer(struct mhi_device_ctxt *mhi_dev_ctxt,
 	return 0;
 
 alloc_dma_error:
-	for (i = i - 1; i >= 0; i--)
-		dma_free_coherent(dev,
-				  bhie_mem_info[i].alloc_size,
-				  bhie_mem_info[i].pre_aligned,
-				  bhie_mem_info[i].dma_handle);
+	for (i = i - 1; i >= 0; i--) {
+		dma_unmap_single(dev, bhie_mem_info[i].dma_handle,
+					bhie_mem_info[i].alloc_size,
+					DMA_TO_DEVICE);
+
+		kfree(bhie_mem_info[i].pre_aligned);
+	}
 	kfree(bhie_mem_info);
 alloc_bhi_mem_info_error:
 	kfree(sg_list);
@@ -639,6 +649,11 @@ int bhi_probe(struct mhi_device_ctxt *mhi_dev_ctxt)
 		sg_dma_len(itr) = to_copy;
 		remainder -= to_copy;
 		image += to_copy;
+
+		dma_sync_single_range_for_device(&mhi_dev_ctxt->plat_dev->dev,
+				fw_table->bhie_mem_info[i].dma_handle,
+				0, fw_table->bhie_mem_info[i].size,
+				DMA_TO_DEVICE);
 	}
 
 	fw_table->sequence++;
@@ -694,11 +709,15 @@ void bhi_exit(struct mhi_device_ctxt *mhi_dev_ctxt)
 	kfree(fw_table->sg_list);
 	fw_table->sg_list = NULL;
 	bhie_mem_info = fw_table->bhie_mem_info;
-	for (i = 0; i < fw_table->segment_count; i++, bhie_mem_info++)
-		dma_free_coherent(dev, bhie_mem_info->alloc_size,
-				  bhie_mem_info->pre_aligned,
-				  bhie_mem_info->dma_handle);
-	kfree(fw_table->bhie_mem_info);
+	for (i = 0; i < fw_table->segment_count; i++) {
+		if (bhie_mem_info[i].pre_aligned) {
+			dma_unmap_single(dev, bhie_mem_info[i].dma_handle,
+					bhie_mem_info[i].alloc_size,
+					DMA_TO_DEVICE);
+
+			kfree(bhie_mem_info[i].pre_aligned);
+		}
+	}
 	fw_table->bhie_mem_info = NULL;
 	/* vector table is the last entry in bhie_mem_info */
 	fw_table->bhi_vec_entry = NULL;
@@ -710,10 +729,14 @@ void bhi_exit(struct mhi_device_ctxt *mhi_dev_ctxt)
 	kfree(rddm_table->sg_list);
 	rddm_table->sg_list = NULL;
 	bhie_mem_info = rddm_table->bhie_mem_info;
-	for (i = 0; i < rddm_table->segment_count; i++, bhie_mem_info++)
-		dma_free_coherent(dev, bhie_mem_info->alloc_size,
-				  bhie_mem_info->pre_aligned,
-				  bhie_mem_info->dma_handle);
+	for (i = 0; i < rddm_table->segment_count; i++) {
+		if (bhie_mem_info[i].pre_aligned) {
+			dma_unmap_single(dev, bhie_mem_info[i].dma_handle,
+					bhie_mem_info[i].alloc_size,
+					DMA_TO_DEVICE);
+			kfree(bhie_mem_info[i].pre_aligned);
+		}
+	}
 	kfree(rddm_table->bhie_mem_info);
 	rddm_table->bhie_mem_info = NULL;
 	rddm_table->bhi_vec_entry = NULL;
