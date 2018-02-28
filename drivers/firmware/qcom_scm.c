@@ -80,6 +80,17 @@ static void qcom_scm_clk_disable(void)
 	clk_disable_unprepare(__scm->bus_clk);
 }
 
+int qcom_scm_tls_hardening(struct scm_cmd_buf_t *scm_cmd_buf,
+							size_t buf_size)
+{
+	int ret = 0;
+
+	ret = __qcom_scm_tls_hardening(__scm->dev, scm_cmd_buf, buf_size);
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_scm_tls_hardening);
+
 /**
  * qcom_qfprom_show_authenticate() - Authenticate the signed image
  */

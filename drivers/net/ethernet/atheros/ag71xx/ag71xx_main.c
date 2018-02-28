@@ -1386,6 +1386,8 @@ static int ag71xx_rx_packets(struct ag71xx *ag,
 		 */
 		prefetch(skb->data);
 		prefetch(&skb->protocol);
+		prefetch(&skb->__pkt_type_offset);
+
 #ifdef CONFIG_AG71XX_RX_NO_REPLENISH
 		/* When we receive a packet we also allocate a new buffer.  If
 		 * for some reason we can't allocate the buffer then we're not

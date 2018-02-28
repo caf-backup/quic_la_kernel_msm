@@ -216,13 +216,15 @@ EXPORT_SYMBOL(ipq_led_source_select);
 
 static int __init ipq_led_probe(struct platform_device *pdev)
 {
-	int ret, i;
+	int ret, i, j = 0;
 	int lenp;
 	int led_num;
 	uint32_t val_arr[LEDC_MAX_OFFSET];
 	char buf[BUF_NAME_LEN];
 	struct resource *res;
 	struct device_node *of_node = pdev->dev.of_node;
+	struct device_node *child;
+	const char *led_default_trigger[MAX_BLINK_IDX] = {NULL};
 
 	if (!of_node)
 		return -ENODEV;
@@ -296,6 +298,13 @@ static int __init ipq_led_probe(struct platform_device *pdev)
 			}
 		}
 	}
+#ifdef CONFIG_LEDS_TRIGGERS
+	for_each_child_of_node(of_node, child) {
+		led_default_trigger[j] = of_get_property(child,
+			"linux,default-trigger", NULL);
+		++j;
+	}
+#endif
 
 	leds = kzalloc((sizeof(*leds) * blink_idx_cnt), GFP_KERNEL);
 	if (!leds) {
@@ -304,12 +313,24 @@ static int __init ipq_led_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < blink_idx_cnt; i++) {
+		if (!blink_src)
+			leds[i].cdev.blink_set = ipq_set_led_blink_set;
+		else {
+			/* assigning blink_set to LEDs with h/w blink src */
+			for (j = 0; j < lenp / sizeof(int); j += 2) {
+				if (i == be32_to_cpu(blink_src[j]))
+					leds[i].cdev.blink_set =
+						ipq_set_led_blink_set;
+
+			}
+		}
 		leds[i].led_blink_idx = i;
 		leds[i].cdev.brightness = LED_OFF;
 		leds[i].cdev.max_brightness = 1;
 		leds[i].cdev.brightness_set = ipq_set_led_brightness_set;
-		leds[i].cdev.blink_set = ipq_set_led_blink_set;
-
+#ifdef CONFIG_LEDS_TRIGGERS
+		leds[i].cdev.default_trigger = led_default_trigger[i];
+#endif
 		memset(buf, 0, BUF_NAME_LEN);
 		snprintf(buf, BUF_NAME_LEN, "ipq::led%d", i);
 		leds[i].cdev.name = buf;

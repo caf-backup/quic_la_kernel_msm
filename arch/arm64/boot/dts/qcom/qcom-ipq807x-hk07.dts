@@ -1,6 +1,6 @@
 /dts-v1/;
 /*
- * Copyright (c) 2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,12 +15,13 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include "qcom-ipq807x-soc.dtsi"
+#include "qcom-ipq807x-audio.dtsi"
 
 / {
 	#address-cells = <0x2>;
 	#size-cells = <0x2>;
-	model = "Qualcomm Technologies, Inc. IPQ807x/AP-HK02";
-	compatible = "qcom,ipq807x-hk02", "qcom,ipq807x";
+	model = "Qualcomm Technologies, Inc. IPQ807x/AP-HK07";
+	compatible = "qcom,ipq807x-hk07", "qcom,ipq807x";
 	qcom,msm-id = <0x125 0x0>;
 	interrupt-parent = <&intc>;
 	qcom,board-id = <0x10 0x0>;
@@ -33,56 +34,57 @@
 		ethernet0 = "/soc/dp1";
 		ethernet1 = "/soc/dp2";
 		ethernet2 = "/soc/dp3";
+		ethernet3 = "/soc/dp4";
+		ethernet4 = "/soc/dp5";
+		ethernet5 = "/soc/dp6";
 	};
+
 	chosen {
-		bootargs = "console=ttyMSM0,115200,n8 root=/dev/ram0 rw init=/init";
+		bootargs = "console=ttyMSM0,115200,n8 root=/dev/ram0 rw \
+			init=/init";
 		bootargs-append = " swiotlb=1";
 	};
 };
 
 &tlmm {
-	leds_pins: leds_pinmux {
+	pinctrl-0 = <&btcoex_pins>;
+	pinctrl-names = "default";
 
-		led0_5g0 {
-			pins = "gpio18";
-			function = "gpio";
-			drive-strength = <8>;
+	btcoex_pins: btcoex_pins {
+		mux_0 {
+			pins = "gpio64";
+			function = "pta1_1";
+			drive-strength = <6>;
 			bias-pull-down;
 		};
-		led1_5g1 {
-			pins = "gpio19";
-			function = "gpio";
-			drive-strength = <8>;
+		mux_1 {
+			pins = "gpio65";
+			function = "pta1_2";
+			drive-strength = <6>;
 			bias-pull-down;
 		};
-		led2_2g {
-			pins = "gpio20";
-			function = "gpio";
-			drive-strength = <8>;
+		mux_2 {
+			pins = "gpio66";
+			function = "pta1_0";
+			drive-strength = <6>;
 			bias-pull-down;
 		};
-		led_wifi_son_0 {
-			pins = "gpio25";
-			function = "gpio";
-			drive-strength = <8>;
+		mux_3 {
+			pins = "gpio54";
+			function = "pta2_0";
+			drive-strength = <6>;
 			bias-pull-down;
 		};
-		led_wifi_son_1 {
-			pins = "gpio28";
-			function = "gpio";
-			drive-strength = <8>;
+		mux_4 {
+			pins = "gpio55";
+			function = "pta2_1";
+			drive-strength = <6>;
 			bias-pull-down;
 		};
-		led_wifi_son_2 {
-			pins = "gpio29";
-			function = "gpio";
-			drive-strength = <8>;
-			bias-pull-down;
-		};
-		led_usb0 {
-			pins = "gpio58";
-			function = "gpio";
-			drive-strength = <8>;
+		mux_5 {
+			pins = "gpio56";
+			function = "pta2_2";
+			drive-strength = <6>;
 			bias-pull-down;
 		};
 	};
@@ -193,6 +195,15 @@
 		};
 	};
 
+	sd_pins: sd_pins {
+		mux {
+			pins = "gpio63";
+			function = "sd_card";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+	};
+
 	hsuart_pins: hsuart_pins {
 		mux {
 			pins = "gpio46", "gpio47", "gpio48", "gpio49";
@@ -202,9 +213,30 @@
 		};
 	};
 
+	ledc_pins: ledc_pinmux {
+		led_clk {
+			pins = "gpio18";
+			function = "led0";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+		led_data {
+			pins = "gpio19";
+			function = "led1";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+		led_clr {
+			pins = "gpio20";
+			function = "led2";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+	};
+
 	button_pins: button_pins {
 		wps_button {
-			pins = "gpio34";
+			pins = "gpio57";
 			function = "gpio";
 			drive-strength = <8>;
 			bias-pull-up;
@@ -217,10 +249,33 @@
 			function = "rx2";
 			bias-disable;
 		};
+
+		sfp_tx {
+			pins = "gpio59";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-down;
+			output-low;
+		};
+	};
+
+	pwm_pins: pwm_pinmux {
+		mux_1 {
+			pins = "gpio25";
+			function = "pwm02";
+			drive-strength = <8>;
+		};
 	};
 };
 
 &soc {
+	pwm {
+		pinctrl-0 = <&pwm_pins>;
+		pinctrl-names = "default";
+		used-pwm-indices = <1>, <0>, <0>, <0>;
+		status = "disabled";
+	};
+
 	gpio_keys {
 		compatible = "gpio-keys";
 		pinctrl-0 = <&button_pins>;
@@ -229,64 +284,9 @@
 		button@1 {
 			label = "wps";
 			linux,code = <KEY_WPS_BUTTON>;
-			gpios = <&tlmm 34 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 57 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
 			debounce-interval = <60>;
-		};
-	};
-
-	leds {
-		compatible = "gpio-leds";
-		pinctrl-0 = <&leds_pins>;
-		pinctrl-names = "default";
-
-		led@18 {
-			label = "led0_5g0";
-			gpios = <&tlmm 18 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "led_5g0";
-			default-state = "off";
-		};
-
-		led@19 {
-			label = "led1_5g1";
-			gpios = <&tlmm 19 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "led_5g1";
-			default-state = "off";
-		};
-
-		led@20 {
-			label = "led2_2g";
-			gpios = <&tlmm 20 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "led_2g";
-			default-state = "off";
-		};
-
-		led@25 {
-			label = "led_wifi_son_0";
-			gpio = <&tlmm 25 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "led_wifi_son_0";
-			default-state = "off";
-		};
-
-		led@28 {
-			label = "led_wifi_son_1";
-			gpio = <&tlmm 28 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "led_wifi_son_1";
-			default-state = "off";
-		};
-
-		led@29 {
-			label = "led_wifi_son_2";
-			gpio = <&tlmm 29 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "led_wifi_son_2";
-			default-state = "off";
-		};
-
-		led@58 {
-			label = "led_usb0";
-			gpio = <&tlmm 58 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "led_usb0";
-			default-state = "off";
 		};
 	};
 
@@ -319,7 +319,7 @@
 		pinctrl-0 = <&uniphy_pins>;
 		pinctrl-names = "default";
 		switch_cpu_bmp = <0x1>;  /* cpu port bitmap */
-		switch_lan_bmp = <0x30>; /* lan port bitmap */
+		switch_lan_bmp = <0x3e>; /* lan port bitmap */
 		switch_wan_bmp = <0x40>; /* wan port bitmap */
 		switch_mac_mode = <0x0>; /* mac mode for uniphy instance0*/
 		switch_mac_mode1 = <0xff>; /* mac mode for uniphy instance1*/
@@ -598,6 +598,42 @@
 	dp1 {
 		device_type = "network";
 		compatible = "qcom,nss-dp";
+		qcom,id = <1>;
+		reg = <0x3a001000 0x200>;
+		qcom,mactype = <0>;
+		local-mac-address = [000000000000];
+		qcom,link-poll = <1>;
+		qcom,phy-mdio-addr = <0>;
+		phy-mode = "sgmii";
+	};
+
+	dp2 {
+		device_type = "network";
+		compatible = "qcom,nss-dp";
+		qcom,id = <2>;
+		reg = <0x3a001200 0x200>;
+		qcom,mactype = <0>;
+		local-mac-address = [000000000000];
+		qcom,link-poll = <1>;
+		qcom,phy-mdio-addr = <1>;
+		phy-mode = "sgmii";
+	};
+
+	dp3 {
+		device_type = "network";
+		compatible = "qcom,nss-dp";
+		qcom,id = <3>;
+		reg = <0x3a001400 0x200>;
+		qcom,mactype = <0>;
+		local-mac-address = [000000000000];
+		qcom,link-poll = <1>;
+		qcom,phy-mdio-addr = <2>;
+		phy-mode = "sgmii";
+	};
+
+	dp4 {
+		device_type = "network";
+		compatible = "qcom,nss-dp";
 		qcom,id = <4>;
 		reg = <0x3a001600 0x200>;
 		qcom,mactype = <0>;
@@ -607,7 +643,7 @@
 		phy-mode = "sgmii";
 	};
 
-	dp2 {
+	dp5 {
 		device_type = "network";
 		compatible = "qcom,nss-dp";
 		qcom,id = <5>;
@@ -619,7 +655,7 @@
 		phy-mode = "sgmii";
 	};
 
-	dp3 {
+	dp6 {
 		device_type = "network";
 		compatible = "qcom,nss-dp";
 		qcom,id = <6>;
@@ -633,9 +669,9 @@
 };
 
 &serial_blsp4 {
-       pinctrl-0 = <&uart_pins>;
-       pinctrl-names = "default";
-       status = "ok";
+	pinctrl-0 = <&uart_pins>;
+	pinctrl-names = "default";
+	status = "ok";
 };
 
 &spi_0 { /* BLSP1 QUP1 */
@@ -724,3 +760,16 @@
 	status = "ok";
 };
 
+&qpic_lcd {
+	status = "ok";
+};
+
+&qpic_lcd_panel {
+	status = "ok";
+};
+
+&ledc {
+	pinctrl-0 = <&ledc_pins>;
+	pinctrl-names = "default";
+	status = "ok";
+};

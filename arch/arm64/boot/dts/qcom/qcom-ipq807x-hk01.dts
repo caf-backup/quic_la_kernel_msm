@@ -793,4 +793,56 @@
 	pinctrl-0 = <&ledc_pins>;
 	pinctrl-names = "default";
 	status = "ok";
+	led0 {
+		label = "ipq::led0";
+		linux,default-trigger = "led_wifi_son_green";
+	};
+	led1 {
+		label = "ipq::led1";
+		linux,default-trigger = "led_wifi_son_orange";
+	};
+	led2 {
+		label = "ipq::led2";
+		linux,default-trigger = "led_wifi_son_blue";
+	};
+	led3 {
+		label = "ipq::led3";
+		linux,default-trigger = "led_2g";
+	};
+	led4 {
+		label = "ipq::led4";
+		linux,default-trigger = "led_5gl";
+	};
+	led5 {
+		label = "ipq::led5";
+		linux,default-trigger = "led_5gh";
+	};
+	led6 {
+		label = "ipq::led6";
+		linux,default-trigger = "led_lan";
+	};
+	led7 {
+		label = "ipq::led7";
+		linux,default-trigger = "led_wan";
+	};
+	led8 {
+		label = "ipq::led8";
+		linux,default-trigger = "led_10g_link";
+	};
+	led9 {
+		label = "ipq::led9";
+		linux,default-trigger = "led_sfp";
+	};
+	led10 {
+		label = "ipq::led10";
+		linux,default-trigger = "led_bt";
+	};
+	led11 {
+		label = "ipq::led11";
+		linux,default-trigger = "none";
+	};
+	led12 {
+		label = "ipq::led12";
+		linux,default-trigger = "none";
+	};
 };

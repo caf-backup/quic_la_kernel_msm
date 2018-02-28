@@ -43,9 +43,11 @@ Platform independent properties:
 	Usage:      required
 	Value type: <stringlist>
 	Definition: Address names. Must include "cpr_ctrl" and "fuse_base".
-		    "aging_allowed" may also be specified.  The strings must be
-		    specified in the same order as the corresponding addresses
-		    are specified in the reg property.
+		    "aging_allowed" may also be specified.
+		    "cpr_tcsr_reg" is optional which will be used for reading
+		    CPR settings from TCSR register.
+		    The strings must be specified in the same order as the
+		    corresponding addresses are specified in the reg property.
 
 - qcom,cpr-ctrl-name
 	Usage:      required
@@ -280,6 +282,22 @@ Platform independent properties:
 		    properties.  Supported values are 1 up to the maximum
 		    possible for a given regulator type.  See platform specific
 		    binding files for further details.
+
+- qcom,cpr-part-types
+	Usage:      optional
+	Value type: <u32>
+	Definition: Specifies the number of part types supported for which
+	            correction voltages are different. This will be used by
+		    qcom,cpr-parts-voltage property.  Supported values are 1
+		    up to the maximum number of part types
+
+-  qcom,cpr-parts-voltage
+	Usage:      required if qcom,cpr-part-types is specified
+	Value type: <prop-encoded-array>
+	Definition: A list of integers which defines voltage in increasing
+	            order. It will be used to determine the part type by
+		    comparing the voltage in this array with part fused open
+		    loop voltage.
 
 - qcom,cpr-speed-bins
 	Usage:      optional

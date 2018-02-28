@@ -141,7 +141,7 @@ enum qseecom_qceos_cmd_id {
 
 static uint32_t qsee_app_id;
 static void *qsee_sbuffer;
-static int32_t basic_output;
+static uint32_t basic_output;
 static int basic_data_len;
 static int mdt_size;
 static int seg0_size;
@@ -629,7 +629,7 @@ static ssize_t
 show_basic_output(struct device *dev, struct device *attr,
 					char *buf)
 {
-	return snprintf(buf, (basic_data_len + 1), "%d", basic_output);
+	return snprintf(buf, (basic_data_len + 1), "%u", basic_output);
 }
 
 /* Basic multiplication App*/

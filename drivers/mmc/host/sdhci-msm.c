@@ -36,6 +36,8 @@
 #include <linux/iopoll.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 
 #include "sdhci-msm.h"
 #ifdef CONFIG_MMC_CQ_HCI
@@ -2874,6 +2876,34 @@ void sdhci_msm_gpio_free_cd(struct sdhci_msm_host *msm_host)
 	gpio_free(msm_host->pdata->status_gpio);
 }
 
+static void set_sdcc_hdrv_pull(struct platform_device *pdev,
+		struct device_node *syscon)
+{
+	struct regmap *regmap;
+	u32 base, mask, regreadval;
+	int ret;
+
+	regmap = syscon_node_to_regmap(syscon);
+	if (IS_ERR(regmap))
+		return;
+
+	ret = of_property_read_u32_index(pdev->dev.of_node, "syscon", 1, &base);
+	if (ret < 0)
+		return;
+
+	ret = of_property_read_u32_index(pdev->dev.of_node, "syscon", 2, &mask);
+	if (ret < 0)
+		return;
+
+	/* read current value of register TLMM_SDC1_HDRV_PULL_CTL */
+	ret = regmap_read(regmap, base, &regreadval);
+
+	/* write register TLMM_SDC1_HDRV_PULL_CTL for 4mA pull strength */
+	ret = regmap_write(regmap, base, (regreadval & mask));
+	if (ret)
+		dev_err(&pdev->dev, "Failed to set SDCC pull str to 4mA\n");
+}
+
 static int sdhci_msm_probe(struct platform_device *pdev)
 {
 	struct sdhci_host *host;
@@ -2886,7 +2916,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	struct resource *tlmm_memres = NULL;
 	void __iomem *tlmm_mem;
 	unsigned long flags;
-	struct device_node *np;
+	struct device_node *np, *syscon_node;
 	struct device *dev = &pdev->dev;
 	u32 max_clk;
 
@@ -2912,6 +2942,10 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 
 	msm_host->emulation = of_property_read_bool(dev->of_node,
 						"qcom,emulation");
+
+	syscon_node = of_parse_phandle(pdev->dev.of_node, "syscon", 0);
+	if (syscon_node)
+		set_sdcc_hdrv_pull(pdev, syscon_node);
 
 	/* Extract platform data */
 	if (pdev->dev.of_node) {

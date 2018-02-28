@@ -197,6 +197,12 @@ void __qcom_scm_cpu_power_down(u32 flags)
 {
 }
 
+int __qcom_scm_tls_hardening(struct device *dev,
+			struct scm_cmd_buf_t *scm_cmd_buf, size_t buf_size)
+{
+	return -ENOTSUPP;
+}
+
 int __qcom_scm_is_call_available(struct device *dev, u32 svc_id, u32 cmd_id)
 {
 	int ret;

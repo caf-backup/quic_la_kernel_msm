@@ -187,6 +187,56 @@ int cpr3_map_fuse_base(struct cpr3_controller *ctrl,
 }
 
 /**
+ * cpr3_read_tcsr_setting - reads the CPR setting bits from TCSR register
+ * @ctrl:	Pointer to the CPR3 controller
+ * @pdev:	Platform device pointer for the CPR3 controller
+ * @start:	start bit in TCSR register
+ * @end:	end bit in TCSR register
+ *
+ * Return: 0 on success, errno on failure
+ */
+int cpr3_read_tcsr_setting(struct cpr3_controller *ctrl,
+			   struct platform_device *pdev, u8 start, u8 end)
+{
+	struct resource *res;
+	void __iomem *tcsr_reg;
+	u32 val;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+					   "cpr_tcsr_reg");
+	if (!res || !res->start)
+		return 0;
+
+	tcsr_reg = ioremap(res->start, resource_size(res));
+	if (!tcsr_reg) {
+		dev_err(&pdev->dev, "tcsr ioremap failed\n");
+		return 0;
+	}
+
+	val = readl_relaxed(tcsr_reg);
+	val &= GENMASK(end, start);
+	val >>= start;
+
+	switch (val) {
+	case 1:
+		ctrl->cpr_global_setting = CPR_DISABLED;
+		break;
+	case 2:
+		ctrl->cpr_global_setting = CPR_OPEN_LOOP_EN;
+		break;
+	case 3:
+		ctrl->cpr_global_setting = CPR_CLOSED_LOOP_EN;
+		break;
+	default:
+		ctrl->cpr_global_setting = CPR_DEFAULT;
+	}
+
+	iounmap(tcsr_reg);
+
+	return 0;
+}
+
+/**
  * cpr3_read_fuse_param() - reads a CPR3 fuse parameter out of eFuses
  * @fuse_base_addr:	Virtual memory address of the eFuse base address
  * @param:		Null terminated array of fuse param segments to read
@@ -1150,8 +1200,9 @@ int cpr3_parse_common_ctrl_data(struct cpr3_controller *ctrl)
 	of_property_read_u32(ctrl->dev->of_node, "qcom,cpr-count-repeat",
 			&ctrl->count_repeat);
 
-	ctrl->cpr_allowed_sw = of_property_read_bool(ctrl->dev->of_node,
-			"qcom,cpr-enable");
+	ctrl->cpr_allowed_sw =
+		of_property_read_bool(ctrl->dev->of_node, "qcom,cpr-enable") ||
+		ctrl->cpr_global_setting == CPR_CLOSED_LOOP_EN;
 
 	rc = cpr3_parse_irq_affinity(ctrl);
 	if (rc)
@@ -1464,6 +1515,62 @@ void cpr3_print_quots(struct cpr3_regulator *vreg)
 }
 
 /**
+ * cpr3_determine_part_type() - determine the part type (SS/TT/FF).
+ *
+ * qcom,cpr-part-types prop tells the number of part types for which correction
+ * voltages are different. Another prop qcom,cpr-parts-voltage will contain the
+ * open loop fuse voltage which will be compared with this part voltage
+ * and accordingly part type will de determined.
+ *
+ * if qcom,cpr-part-types has value n, then qcom,cpr-parts-voltage will be
+ * array of n - 1 elements which will contain the voltage in increasing order.
+ * This function compares the fused volatge with all these voltage and returns
+ * the first index for which the fused volatge is greater.
+ *
+ * @vreg:		Pointer to the CPR3 regulator
+ * @fuse_volt:		fused open loop voltage which will be compared with
+ *                      qcom,cpr-parts-voltage array
+ *
+ * Return: 0 on success, errno on failure
+ */
+int cpr3_determine_part_type(struct cpr3_regulator *vreg, int fuse_volt)
+{
+	int i, rc, len;
+	u32 volt;
+
+	if (of_property_read_u32(vreg->of_node, "qcom,cpr-part-types",
+				  &vreg->part_type_supported))
+		return 0;
+
+	if (!of_find_property(vreg->of_node, "qcom,cpr-parts-voltage", &len)) {
+		cpr3_err(vreg, "property qcom,cpr-parts-voltage is missing\n");
+		return -EINVAL;
+	}
+
+	if (len != (vreg->part_type_supported - 1) * sizeof(u32)) {
+		cpr3_err(vreg, "wrong len in qcom,cpr-parts-voltage\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < vreg->part_type_supported - 1; i++) {
+		rc = of_property_read_u32_index(vreg->of_node,
+						"qcom,cpr-parts-voltage",
+						i, &volt);
+		if (rc) {
+			cpr3_err(vreg, "error reading property %s, rc=%d\n",
+				 "qcom,cpr-parts-voltage", rc);
+			return rc;
+		}
+
+		if (fuse_volt < volt)
+			break;
+	}
+
+	vreg->part_type = i;
+	return 0;
+}
+
+/**
  * cpr3_adjust_fused_open_loop_voltages() - adjust the fused open-loop voltages
  *		for each fuse corner according to device tree values
  * @vreg:		Pointer to the CPR3 regulator
@@ -1479,9 +1586,18 @@ int cpr3_adjust_fused_open_loop_voltages(struct cpr3_regulator *vreg,
 {
 	int i, rc, prev_volt;
 	int *volt_adjust;
+	char prop_str[75];
 
-	if (!of_find_property(vreg->of_node,
-			"qcom,cpr-open-loop-voltage-fuse-adjustment", NULL)) {
+	if (vreg->part_type_supported) {
+		snprintf(prop_str, sizeof(prop_str),
+			 "qcom,cpr-open-loop-voltage-fuse-adjustment-%d",
+			 vreg->part_type);
+	} else {
+		strncpy(prop_str, "qcom,cpr-open-loop-voltage-fuse-adjustment",
+			sizeof(prop_str));
+	}
+
+	if (!of_find_property(vreg->of_node, prop_str, NULL)) {
 		/* No adjustment required. */
 		return 0;
 	}
@@ -1492,8 +1608,7 @@ int cpr3_adjust_fused_open_loop_voltages(struct cpr3_regulator *vreg,
 		return -ENOMEM;
 
 	rc = cpr3_parse_array_property(vreg,
-		"qcom,cpr-open-loop-voltage-fuse-adjustment",
-		vreg->fuse_corner_count, volt_adjust);
+		prop_str, vreg->fuse_corner_count, volt_adjust);
 	if (rc) {
 		cpr3_err(vreg, "could not load open-loop fused voltage adjustments, rc=%d\n",
 			rc);

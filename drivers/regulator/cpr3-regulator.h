@@ -315,6 +315,8 @@ struct cpr3_regulator {
 	int			speed_bin_fuse;
 	int			speed_bins_supported;
 	int			cpr_rev_fuse;
+	int			part_type;
+	int			part_type_supported;
 	int			fuse_combo;
 	int			fuse_combos_supported;
 	int			fuse_corner_count;
@@ -437,6 +439,20 @@ enum cpr3_count_mode {
 enum cpr_controller_type {
 	CPR_CTRL_TYPE_CPR3,
 	CPR_CTRL_TYPE_CPR4,
+};
+
+/**
+ * cpr_setting - supported CPR global settings
+ * %CPR_DEFAULT: default mode from dts will be used
+ * %CPR_DISABLED: ceiling voltage will be used for all the corners
+ * %CPR_OPEN_LOOP_EN: CPR will work in OL
+ * %CPR_CLOSED_LOOP_EN: CPR will work in CL, if supported
+ */
+enum cpr_setting {
+	CPR_DEFAULT		= 0,
+	CPR_DISABLED		= 1,
+	CPR_OPEN_LOOP_EN	= 2,
+	CPR_CLOSED_LOOP_EN	= 3,
 };
 
 /**
@@ -681,6 +697,7 @@ struct cpr3_panic_regs_info {
  *			VDD supply voltage to settle after being increased or
  *			decreased by step_volt microvolts which is used when
  *			SDELTA voltage margin adjustments are applied.
+ * @cpr_global_setting:	Global setting for this CPR controller
  * @panic_regs_info:	Array of panic registers information which provides the
  *			list of registers to dump when the device crashes.
  * @panic_notifier:	Notifier block registered to global panic notifier list.
@@ -782,6 +799,7 @@ struct cpr3_controller {
 	u32			temp_sensor_id_start;
 	u32			temp_sensor_id_end;
 	u32			voltage_settling_time;
+	enum cpr_setting	cpr_global_setting;
 	struct cpr3_panic_regs_info *panic_regs_info;
 	struct notifier_block	panic_notifier;
 };
@@ -819,6 +837,8 @@ int cpr3_allocate_threads(struct cpr3_controller *ctrl, u32 min_thread_id,
 			u32 max_thread_id);
 int cpr3_map_fuse_base(struct cpr3_controller *ctrl,
 			struct platform_device *pdev);
+int cpr3_read_tcsr_setting(struct cpr3_controller *ctrl,
+			   struct platform_device *pdev, u8 start, u8 end);
 int cpr3_read_fuse_param(void __iomem *fuse_base_addr,
 			const struct cpr3_fuse_param *param, u64 *param_value);
 int cpr3_convert_open_loop_voltage_fuse(int ref_volt, int step_volt, u32 fuse,
@@ -842,6 +862,7 @@ int cpr3_limit_open_loop_voltages(struct cpr3_regulator *vreg);
 void cpr3_open_loop_voltage_as_ceiling(struct cpr3_regulator *vreg);
 int cpr3_limit_floor_voltages(struct cpr3_regulator *vreg);
 void cpr3_print_quots(struct cpr3_regulator *vreg);
+int cpr3_determine_part_type(struct cpr3_regulator *vreg, int fuse_volt);
 int cpr3_adjust_fused_open_loop_voltages(struct cpr3_regulator *vreg,
 			int *fuse_volt);
 int cpr3_adjust_open_loop_voltages(struct cpr3_regulator *vreg);
@@ -858,7 +879,6 @@ void cprh_adjust_voltages_for_apm(struct cpr3_regulator *vreg);
 void cprh_adjust_voltages_for_mem_acc(struct cpr3_regulator *vreg);
 int cpr3_adjust_target_quotients(struct cpr3_regulator *vreg,
 			int *fuse_volt_adjust);
-
 #else
 
 static inline int cpr3_regulator_register(struct platform_device *pdev,
@@ -911,6 +931,12 @@ static inline int cpr3_map_fuse_base(struct cpr3_controller *ctrl,
 			struct platform_device *pdev)
 {
 	return -ENXIO;
+}
+
+static inline int cpr3_read_tcsr_setting(struct cpr3_controller *ctrl,
+			   struct platform_device *pdev, u8 start, u8 end)
+{
+	return 0;
 }
 
 static inline int cpr3_read_fuse_param(void __iomem *fuse_base_addr,
@@ -1003,6 +1029,12 @@ static inline int cpr3_limit_floor_voltages(struct cpr3_regulator *vreg)
 static inline void cpr3_print_quots(struct cpr3_regulator *vreg)
 {
 	return;
+}
+
+static inline int
+cpr3_determine_part_type(struct cpr3_regulator *vreg, int fuse_volt)
+{
+	return -EPERM;
 }
 
 static inline int cpr3_adjust_fused_open_loop_voltages(

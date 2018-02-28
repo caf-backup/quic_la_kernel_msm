@@ -60,15 +60,85 @@
 #include <linux/device.h>
 #include <linux/kobject.h>
 #include <linux/qcom_scm.h>
-#include <linux/gfp.h>
 #include <linux/sysfs.h>
 #include <linux/dma-mapping.h>
+#include <linux/string.h>
+#include <linux/gfp.h>
+#include <linux/mm.h>
+#include <linux/types.h>
 
 #define CLIENT_CMD1_BASIC_DATA	1
 #define CLIENT_CMD8_RUN_CRYPTO_ENCRYPT	8
 #define CLIENT_CMD9_RUN_CRYPTO_DECRYPT	9
 #define MAX_APP_NAME_SIZE	32
 #define MAX_INPUT_SIZE	4096
+
+#define MAX_ENCRYPTED_DATA_SIZE (2072 * sizeof(uint8_t))
+#define MAX_PLAIN_DATA_SIZE (2048 * sizeof(uint8_t))
+#define ENCRYPTED_DATA_HEADER \
+	(MAX_ENCRYPTED_DATA_SIZE - MAX_PLAIN_DATA_SIZE)
+#define KEY_BLOB_SIZE (56 * sizeof(uint8_t))
+#define KEY_SIZE (32 * sizeof(uint8_t))
+
+enum tz_storage_service_cmd_t {
+	TZ_STOR_SVC_GENERATE_KEY = 0x00000001,
+	TZ_STOR_SVC_SEAL_DATA = 0x00000002,
+	TZ_STOR_SVC_UNSEAL_DATA = 0x00000003,
+	TZ_STOR_SVC_IMPORT_KEY = 0x00000004,
+};
+
+struct tz_storage_service_key_blob_t {
+	uint8_t *key_material;
+	size_t key_material_len;
+};
+
+struct tz_storage_service_import_key_cmd_t {
+	enum tz_storage_service_cmd_t cmd_id;
+	struct tz_storage_service_key_blob_t key_blob;
+	uint8_t *input_key;
+	size_t input_key_len;
+};
+
+struct tz_storage_service_gen_key_cmd_t {
+	enum tz_storage_service_cmd_t cmd_id;
+	struct tz_storage_service_key_blob_t key_blob;
+};
+
+struct tz_storage_service_gen_key_resp_t {
+	enum tz_storage_service_cmd_t cmd_id;
+	size_t status;
+	size_t key_blob_size;
+};
+
+struct tz_storage_service_seal_data_cmd_t {
+	enum tz_storage_service_cmd_t cmd_id;
+	struct tz_storage_service_key_blob_t key_blob;
+	uint8_t *plain_data;
+	size_t plain_data_len;
+	uint8_t *output_buffer;
+	size_t output_len;
+};
+
+struct tz_storage_service_seal_data_resp_t {
+	enum tz_storage_service_cmd_t cmd_id;
+	size_t status;
+	size_t sealed_data_len;
+};
+
+struct tz_storage_service_unseal_data_cmd_t {
+	enum tz_storage_service_cmd_t cmd_id;
+	struct tz_storage_service_key_blob_t key_blob;
+	uint8_t *sealed_data;
+	size_t sealed_dlen;
+	uint8_t *output_buffer;
+	size_t output_len;
+};
+
+struct tz_storage_service_unseal_data_resp_t {
+	enum tz_storage_service_cmd_t cmd_id;
+	size_t	status;
+	size_t unsealed_data_len;
+};
 
 struct qsc_send_cmd {
 	uint32_t cmd_id;
@@ -153,6 +223,759 @@ static uint8_t *seg0_file;
 static uint8_t *seg1_file;
 static uint8_t *seg2_file;
 static uint8_t *seg3_file;
+
+static struct kobject *sec_kobj;
+static uint8_t *key;
+static size_t key_len;
+static uint8_t *key_blob;
+static size_t key_blob_len;
+static uint8_t *sealed_buf;
+static size_t seal_len;
+static uint8_t *unsealed_buf;
+static size_t unseal_len;
+
+static ssize_t
+generate_key_blob(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	int rc = 0;
+	struct scm_cmd_buf_t scm_cmd_buf;
+	struct tz_storage_service_gen_key_cmd_t *req_ptr = NULL;
+	struct tz_storage_service_gen_key_resp_t *resp_ptr = NULL;
+	size_t req_size = 0;
+	size_t resp_size = 0;
+	size_t req_order = 0;
+	size_t resp_order = 0;
+	dma_addr_t dma_req_addr = 0;
+	dma_addr_t dma_resp_addr = 0;
+	dma_addr_t dma_key_blob = 0;
+	struct page *req_page = NULL;
+	struct page *resp_page = NULL;
+
+	key_blob_len = 0;
+
+	req_order = get_order(sizeof(struct tz_storage_service_gen_key_cmd_t));
+	req_page = alloc_pages(GFP_KERNEL, req_order);
+
+	resp_order = get_order(sizeof(struct
+					tz_storage_service_gen_key_resp_t));
+	resp_page = alloc_pages(GFP_KERNEL, resp_order);
+
+	if (!req_page || !resp_page) {
+		pr_err("\nCannot allocate memory for key material\n");
+		if (req_page)
+			free_pages((unsigned long)page_address(req_page),
+								req_order);
+		if (resp_page)
+			free_pages((unsigned long)page_address(resp_page),
+								resp_order);
+		return -ENOMEM;
+	}
+
+	req_ptr = page_address(req_page);
+	resp_ptr = page_address(resp_page);
+
+	key_blob = memset(key_blob, 0, KEY_BLOB_SIZE);
+
+	req_ptr->cmd_id = TZ_STOR_SVC_GENERATE_KEY;
+
+	req_ptr->key_blob.key_material_len = KEY_BLOB_SIZE;
+	dma_key_blob = dma_map_single(NULL, key_blob, KEY_BLOB_SIZE,
+							DMA_FROM_DEVICE);
+	req_ptr->key_blob.key_material = (uint8_t *)dma_key_blob;
+
+	rc = dma_mapping_error(NULL, dma_key_blob);
+	if (rc) {
+		pr_err("DMA Mapping Error(key blob)\n");
+		goto err_end;
+	}
+
+	req_size = sizeof(struct tz_storage_service_gen_key_cmd_t);
+	dma_req_addr = dma_map_single(NULL, req_ptr, req_size, DMA_TO_DEVICE);
+
+	rc = dma_mapping_error(NULL, dma_req_addr);
+	if (rc) {
+		pr_err("DMA Mapping Error(request str)\n");
+		goto err_map_req;
+	}
+
+	resp_size = sizeof(struct tz_storage_service_gen_key_resp_t);
+	dma_resp_addr = dma_map_single(NULL, resp_ptr, resp_size,
+							DMA_FROM_DEVICE);
+
+	rc = dma_mapping_error(NULL, dma_resp_addr);
+	if (rc) {
+		pr_err("DMA Mapping Error(response str)\n");
+		goto err_map_resp;
+	}
+
+	scm_cmd_buf.req_size = req_size;
+	scm_cmd_buf.req_addr = dma_req_addr;
+	scm_cmd_buf.resp_size = resp_size;
+	scm_cmd_buf.resp_addr = dma_resp_addr;
+
+	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf));
+
+	dma_unmap_single(NULL, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
+	dma_unmap_single(NULL, dma_req_addr, req_size, DMA_TO_DEVICE);
+	dma_unmap_single(NULL, dma_key_blob, KEY_BLOB_SIZE, DMA_FROM_DEVICE);
+
+	if (rc) {
+		pr_err("\nSCM Call failed..SCM Call return value = %d\n", rc);
+		goto err_end;
+	}
+
+	if (resp_ptr->status) {
+		rc = resp_ptr->status;
+		pr_err("\nResponse status failure..status = %d\n",
+							resp_ptr->status);
+		goto err_end;
+	}
+
+	key_blob_len = KEY_BLOB_SIZE;
+	memcpy(buf, key_blob, key_blob_len);
+
+goto end;
+
+err_map_resp:
+	dma_unmap_single(NULL, dma_req_addr, req_size, DMA_TO_DEVICE);
+
+err_map_req:
+	dma_unmap_single(NULL, dma_key_blob, KEY_BLOB_SIZE, DMA_FROM_DEVICE);
+
+err_end:
+	free_pages((unsigned long)page_address(req_page), req_order);
+	free_pages((unsigned long)page_address(resp_page), resp_order);
+	return rc;
+
+end:
+	free_pages((unsigned long)page_address(req_page), req_order);
+	free_pages((unsigned long)page_address(resp_page), resp_order);
+	return key_blob_len;
+}
+
+static ssize_t
+store_key(struct device *dev, struct device_attribute *attr, const char *buf,
+								size_t count)
+{
+	key_len = 0;
+
+	if (count == 0 || count != KEY_SIZE) {
+		pr_info("\nInvalid input\n");
+		pr_info("Key cannot be NULL\n");
+		pr_info("Key length is %lu\n", (unsigned long)count);
+		pr_info("Key length must be 32 bytes\n");
+		return -EINVAL;
+	}
+
+	key = memset(key, 0, KEY_SIZE);
+
+	key_len = count;
+	memcpy(key, buf, key_len);
+
+	return count;
+}
+
+static ssize_t
+import_key_blob(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	int rc = 0;
+	struct scm_cmd_buf_t scm_cmd_buf;
+	struct tz_storage_service_import_key_cmd_t *req_ptr = NULL;
+	struct tz_storage_service_gen_key_resp_t *resp_ptr = NULL;
+	size_t req_size = 0;
+	size_t resp_size = 0;
+	size_t req_order = 0;
+	size_t resp_order = 0;
+	dma_addr_t dma_req_addr = 0;
+	dma_addr_t dma_resp_addr = 0;
+	dma_addr_t dma_key_blob = 0;
+	dma_addr_t dma_key = 0;
+	struct page *req_page = NULL;
+	struct page *resp_page = NULL;
+
+	key_blob_len = 0;
+
+	if (key_len == 0) {
+		pr_err("\nPlease provide key to import key blob\n");
+		return -EINVAL;
+	}
+
+	req_order = get_order(sizeof(struct
+					tz_storage_service_import_key_cmd_t));
+	req_page = alloc_pages(GFP_KERNEL, req_order);
+
+	resp_order = get_order(sizeof(struct
+					tz_storage_service_gen_key_resp_t));
+	resp_page = alloc_pages(GFP_KERNEL, resp_order);
+
+	if (!req_page || !resp_page) {
+		pr_err("\nCannot allocate memory for key material\n");
+		if (req_page)
+			free_pages((unsigned long)page_address(req_page),
+								req_order);
+		if (resp_page)
+			free_pages((unsigned long)page_address(resp_page),
+								resp_order);
+		return -ENOMEM;
+	}
+
+	req_ptr = page_address(req_page);
+	resp_ptr = page_address(resp_page);
+
+	key_blob = memset(key_blob, 0, KEY_BLOB_SIZE);
+
+	req_ptr->cmd_id = TZ_STOR_SVC_IMPORT_KEY;
+
+	req_ptr->input_key_len = KEY_SIZE;
+	dma_key = dma_map_single(NULL, key, KEY_SIZE, DMA_TO_DEVICE);
+	req_ptr->input_key = (uint8_t *)dma_key;
+
+	rc = dma_mapping_error(NULL, dma_key);
+	if (rc) {
+		pr_err("DMA Mapping error(key)\n");
+		goto err_end;
+	}
+
+	req_ptr->key_blob.key_material_len = KEY_BLOB_SIZE;
+	dma_key_blob = dma_map_single(NULL, key_blob, KEY_BLOB_SIZE,
+							DMA_FROM_DEVICE);
+	req_ptr->key_blob.key_material = (uint8_t *)dma_key_blob;
+
+	rc = dma_mapping_error(NULL, dma_key_blob);
+	if (rc) {
+		pr_err("DMA Mapping Error(key blob)\n");
+		goto err_map_key_blob;
+	}
+
+	req_size = sizeof(struct tz_storage_service_import_key_cmd_t);
+	dma_req_addr = dma_map_single(NULL, req_ptr, req_size, DMA_TO_DEVICE);
+
+	rc = dma_mapping_error(NULL, dma_req_addr);
+	if (rc) {
+		pr_err("DMA Mapping Error(request str)\n");
+		goto err_map_req;
+	}
+
+	resp_size = sizeof(struct tz_storage_service_gen_key_resp_t);
+	dma_resp_addr = dma_map_single(NULL, resp_ptr, resp_size,
+							DMA_FROM_DEVICE);
+
+	rc = dma_mapping_error(NULL, dma_resp_addr);
+	if (rc) {
+		pr_err("DMA Mapping Error(response str)\n");
+		goto err_map_resp;
+	}
+
+	scm_cmd_buf.req_size = req_size;
+	scm_cmd_buf.req_addr = dma_req_addr;
+	scm_cmd_buf.resp_size = resp_size;
+	scm_cmd_buf.resp_addr = dma_resp_addr;
+
+	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf));
+
+	dma_unmap_single(NULL, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
+	dma_unmap_single(NULL, dma_req_addr, req_size, DMA_TO_DEVICE);
+	dma_unmap_single(NULL, dma_key_blob, KEY_BLOB_SIZE, DMA_FROM_DEVICE);
+	dma_unmap_single(NULL, dma_key, KEY_SIZE, DMA_TO_DEVICE);
+
+	if (rc) {
+		pr_err("\nSCM Call failed..SCM Call return value = %d\n", rc);
+		goto err_end;
+	}
+
+	if (resp_ptr->status) {
+		rc = resp_ptr->status;
+		pr_err("\nResponse status failure..status = %d\n",
+							resp_ptr->status);
+		goto err_end;
+	}
+
+	key_blob_len = KEY_BLOB_SIZE;
+	memcpy(buf, key_blob, key_blob_len);
+
+goto end;
+
+err_map_resp:
+	dma_unmap_single(NULL, dma_req_addr, req_size, DMA_TO_DEVICE);
+
+err_map_req:
+	dma_unmap_single(NULL, dma_key_blob, KEY_BLOB_SIZE, DMA_FROM_DEVICE);
+
+err_map_key_blob:
+	dma_unmap_single(NULL, dma_key, KEY_SIZE, DMA_TO_DEVICE);
+
+err_end:
+	free_pages((unsigned long)page_address(req_page), req_order);
+	free_pages((unsigned long)page_address(resp_page), resp_order);
+	return rc;
+
+end:
+	free_pages((unsigned long)page_address(req_page), req_order);
+	free_pages((unsigned long)page_address(resp_page), resp_order);
+	return key_blob_len;
+}
+
+static ssize_t
+store_key_blob(struct device *dev, struct device_attribute *attr,
+						const char *buf, size_t count)
+{
+	key_blob_len = 0;
+
+	if (count == 0 || count != KEY_BLOB_SIZE) {
+		pr_info("\nInvalid input\n");
+		pr_info("Key blob cannot be NULL\n");
+		pr_info("Key blob length is %lu\n", (unsigned long)count);
+		pr_info("Key blob length must be 56 bytes\n");
+		return -EINVAL;
+	}
+
+	key_blob = memset(key_blob, 0, KEY_BLOB_SIZE);
+
+	key_blob_len = count;
+	memcpy(key_blob, buf, key_blob_len);
+
+	return count;
+}
+
+
+static ssize_t
+store_unsealed_data(struct device *dev, struct device_attribute *attr,
+						const char *buf, size_t count)
+{
+	unseal_len = 0;
+
+	if (count == 0 || count > MAX_PLAIN_DATA_SIZE) {
+		pr_info("\nInvalid input\n");
+		pr_info("Plain data cannot be NULL\n");
+		pr_info("Plain data length is %lu\n", (unsigned long)count);
+		pr_info("Plain data must be <= 2048 bytes\n");
+		return -EINVAL;
+	}
+
+	unsealed_buf = memset(unsealed_buf, 0, MAX_PLAIN_DATA_SIZE);
+
+	unseal_len = count;
+	memcpy(unsealed_buf, buf, unseal_len);
+
+	return count;
+}
+
+static ssize_t
+show_sealed_data(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	int rc = 0;
+	struct scm_cmd_buf_t scm_cmd_buf;
+	struct tz_storage_service_seal_data_cmd_t *req_ptr = NULL;
+	struct tz_storage_service_seal_data_resp_t *resp_ptr = NULL;
+	size_t req_size = 0;
+	size_t resp_size = 0;
+	size_t req_order = 0;
+	size_t resp_order = 0;
+	size_t output_len = 0;
+	dma_addr_t dma_req_addr = 0;
+	dma_addr_t dma_resp_addr = 0;
+	dma_addr_t dma_key_blob = 0;
+	dma_addr_t dma_plain_data = 0;
+	dma_addr_t dma_output_data = 0;
+	struct page *req_page = NULL;
+	struct page *resp_page = NULL;
+
+	if (key_blob_len == 0 || unseal_len == 0) {
+		pr_err("\nInvalid input\n");
+		pr_info("Need key for encryption operation\n");
+		pr_info("Need data for encrpyption operation\n");
+		return -EINVAL;
+	}
+
+	req_order = get_order(sizeof(struct
+					tz_storage_service_seal_data_cmd_t));
+	req_page = alloc_pages(GFP_KERNEL, req_order);
+
+	resp_order = get_order(sizeof(struct
+					tz_storage_service_seal_data_resp_t));
+	resp_page = alloc_pages(GFP_KERNEL, resp_order);
+
+	if (!req_page || !resp_page) {
+		pr_err("\nCannot allocate memory for key material\n");
+		if (req_page)
+			free_pages((unsigned long)page_address(req_page),
+								req_order);
+		if (resp_page)
+			free_pages((unsigned long)page_address(resp_page),
+								resp_order);
+		return -ENOMEM;
+	}
+
+	req_ptr = page_address(req_page);
+	resp_ptr = page_address(resp_page);
+
+	sealed_buf = memset(sealed_buf, 0, MAX_ENCRYPTED_DATA_SIZE);
+	output_len = unseal_len + ENCRYPTED_DATA_HEADER;
+
+	req_ptr->cmd_id = TZ_STOR_SVC_SEAL_DATA;
+
+	req_ptr->key_blob.key_material_len = KEY_BLOB_SIZE;
+	dma_key_blob = dma_map_single(NULL, key_blob, KEY_BLOB_SIZE,
+								DMA_TO_DEVICE);
+	req_ptr->key_blob.key_material = (uint8_t *)dma_key_blob;
+
+	rc = dma_mapping_error(NULL, dma_key_blob);
+	if (rc) {
+		pr_err("DMA Mapping Error(key blob)\n");
+		goto err_end;
+	}
+
+	req_ptr->plain_data_len = unseal_len;
+	dma_plain_data = dma_map_single(NULL, unsealed_buf, unseal_len,
+								DMA_TO_DEVICE);
+	req_ptr->plain_data = (uint8_t *)dma_plain_data;
+
+	rc = dma_mapping_error(NULL, dma_plain_data);
+	if (rc) {
+		pr_err("DMA Mapping Error(plain data)\n");
+		goto err_map_plain_data;
+	}
+
+	req_ptr->output_len = output_len;
+	dma_output_data = dma_map_single(NULL, sealed_buf, output_len,
+							DMA_FROM_DEVICE);
+	req_ptr->output_buffer = (uint8_t *)dma_output_data;
+
+	rc = dma_mapping_error(NULL, dma_output_data);
+	if (rc) {
+		pr_err("DMA Mapping Error(output data)\n");
+		goto err_map_output_data;
+	}
+
+	req_size = sizeof(struct tz_storage_service_seal_data_cmd_t);
+	dma_req_addr = dma_map_single(NULL, req_ptr, req_size, DMA_TO_DEVICE);
+
+	rc = dma_mapping_error(NULL, dma_req_addr);
+	if (rc) {
+		pr_err("DMA Mapping Error(request str)\n");
+		goto err_map_req;
+	}
+
+	resp_size = sizeof(struct tz_storage_service_seal_data_resp_t);
+	dma_resp_addr = dma_map_single(NULL, resp_ptr, resp_size,
+							DMA_FROM_DEVICE);
+
+	rc = dma_mapping_error(NULL, dma_resp_addr);
+	if (rc) {
+		pr_err("DMA Mapping Error(response str)\n");
+		goto err_map_resp;
+	}
+
+	scm_cmd_buf.req_size = req_size;
+	scm_cmd_buf.req_addr = dma_req_addr;
+	scm_cmd_buf.resp_size = resp_size;
+	scm_cmd_buf.resp_addr = dma_resp_addr;
+
+	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf));
+
+	dma_unmap_single(NULL, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
+	dma_unmap_single(NULL, dma_req_addr, req_size, DMA_TO_DEVICE);
+	dma_unmap_single(NULL, dma_output_data, output_len, DMA_FROM_DEVICE);
+	dma_unmap_single(NULL, dma_plain_data, unseal_len, DMA_TO_DEVICE);
+	dma_unmap_single(NULL, dma_key_blob, KEY_BLOB_SIZE, DMA_TO_DEVICE);
+
+	if (rc) {
+		pr_err("\nSCM Call failed..SCM Call return value = %d\n", rc);
+		goto err_end;
+	}
+
+	if (resp_ptr->status != 0) {
+		rc = resp_ptr->status;
+		pr_err("\nResponse status failure..status = %d\n",
+							resp_ptr->status);
+		goto err_end;
+	}
+
+	seal_len = output_len;
+	memcpy(buf, sealed_buf, seal_len);
+
+goto end;
+
+err_map_resp:
+	dma_unmap_single(NULL, dma_req_addr, req_size, DMA_TO_DEVICE);
+
+err_map_req:
+	dma_unmap_single(NULL, dma_output_data, output_len, DMA_FROM_DEVICE);
+
+err_map_output_data:
+	dma_unmap_single(NULL, dma_plain_data, unseal_len, DMA_TO_DEVICE);
+
+err_map_plain_data:
+	dma_unmap_single(NULL, dma_key_blob, KEY_BLOB_SIZE, DMA_TO_DEVICE);
+
+err_end:
+	free_pages((unsigned long)page_address(req_page), req_order);
+	free_pages((unsigned long)page_address(resp_page), resp_order);
+	return rc;
+
+end:
+	free_pages((unsigned long)page_address(req_page), req_order);
+	free_pages((unsigned long)page_address(resp_page), resp_order);
+	return seal_len;
+}
+
+static ssize_t
+store_sealed_data(struct device *dev, struct device_attribute *attr,
+						const char *buf, size_t count)
+{
+	seal_len = 0;
+
+	if (count == 0 || count > MAX_ENCRYPTED_DATA_SIZE) {
+		pr_info("\nInvalid input\n");
+		pr_info("Encrypted data cannot be NULL\n");
+		pr_info("Encrypted data length is %lu\n", (unsigned long)count);
+		pr_info("Encrypted data length must be 2072 bytes\n");
+		return -EINVAL;
+	}
+
+	sealed_buf = memset(sealed_buf, 0, MAX_ENCRYPTED_DATA_SIZE);
+
+	seal_len = count;
+	memcpy(sealed_buf, buf, seal_len);
+
+	return count;
+}
+
+static ssize_t
+show_unsealed_data(struct device *dev, struct device_attribute *attr,
+								char *buf)
+{
+	int rc = 0;
+	struct scm_cmd_buf_t scm_cmd_buf;
+	struct tz_storage_service_unseal_data_cmd_t *req_ptr = NULL;
+	struct tz_storage_service_unseal_data_resp_t *resp_ptr = NULL;
+	size_t req_size = 0;
+	size_t resp_size = 0;
+	size_t req_order = 0;
+	size_t resp_order = 0;
+	size_t output_len = 0;
+	dma_addr_t dma_req_addr = 0;
+	dma_addr_t dma_resp_addr = 0;
+	dma_addr_t dma_key_blob = 0;
+	dma_addr_t dma_sealed_data = 0;
+	dma_addr_t dma_output_data = 0;
+	struct page *req_page = NULL;
+	struct page *resp_page = NULL;
+
+
+	if (key_blob_len == 0 || seal_len == 0) {
+		pr_err("\nInvalid input\n");
+		pr_info("Need key for decryption operation\n");
+		pr_info("Need data for decrpyption operation\n");
+		return -EINVAL;
+	}
+
+	req_order = get_order(sizeof(struct
+					tz_storage_service_unseal_data_cmd_t));
+	req_page = alloc_pages(GFP_KERNEL, req_order);
+
+	resp_order = get_order(sizeof(struct
+					tz_storage_service_unseal_data_resp_t));
+	resp_page = alloc_pages(GFP_KERNEL, resp_order);
+
+	if (!req_page || !resp_page) {
+		pr_err("\nCannot allocate memory for key material\n");
+		if (req_page)
+			free_pages((unsigned long)page_address(req_page),
+								req_order);
+		if (resp_page)
+			free_pages((unsigned long)page_address(resp_page),
+								resp_order);
+		return -ENOMEM;
+	}
+
+	req_ptr = page_address(req_page);
+	resp_ptr = page_address(resp_page);
+
+	unsealed_buf = memset(unsealed_buf, 0, MAX_PLAIN_DATA_SIZE);
+	output_len = seal_len - ENCRYPTED_DATA_HEADER;
+
+	req_ptr->cmd_id = TZ_STOR_SVC_UNSEAL_DATA;
+
+	req_ptr->key_blob.key_material_len = KEY_BLOB_SIZE;
+	dma_key_blob = dma_map_single(NULL, key_blob, KEY_BLOB_SIZE,
+								DMA_TO_DEVICE);
+	req_ptr->key_blob.key_material = (uint8_t *)dma_key_blob;
+
+	rc = dma_mapping_error(NULL, dma_key_blob);
+	if (rc) {
+		pr_err("DMA Mapping Error(key blob)\n");
+		goto err_end;
+	}
+
+	req_ptr->sealed_dlen = seal_len;
+	dma_sealed_data = dma_map_single(NULL, sealed_buf, seal_len,
+								DMA_TO_DEVICE);
+	req_ptr->sealed_data = (uint8_t *)dma_sealed_data;
+
+	rc = dma_mapping_error(NULL, dma_sealed_data);
+	if (rc) {
+		pr_err("DMA Mapping Error(sealed data)\n");
+		goto err_map_sealed_data;
+	}
+
+	req_ptr->output_len = output_len;
+	dma_output_data = dma_map_single(NULL, unsealed_buf, output_len,
+							DMA_FROM_DEVICE);
+	req_ptr->output_buffer = (uint8_t *)dma_output_data;
+
+	rc = dma_mapping_error(NULL, dma_output_data);
+	if (rc) {
+		pr_err("DMA Mapping Error(output data)\n");
+		goto err_map_output_data;
+	}
+
+	req_size = sizeof(struct tz_storage_service_unseal_data_cmd_t);
+	dma_req_addr = dma_map_single(NULL, req_ptr, req_size, DMA_TO_DEVICE);
+
+	rc = dma_mapping_error(NULL, dma_req_addr);
+	if (rc) {
+		pr_err("DMA Mapping Error(request str)\n");
+		goto err_map_req;
+	}
+
+	resp_size = sizeof(struct tz_storage_service_unseal_data_resp_t);
+	dma_resp_addr = dma_map_single(NULL, resp_ptr, resp_size,
+							DMA_FROM_DEVICE);
+
+	rc = dma_mapping_error(NULL, dma_resp_addr);
+	if (rc) {
+		pr_err("DMA Mapping Error(response str)\n");
+		goto err_map_resp;
+	}
+
+	scm_cmd_buf.req_size = req_size;
+	scm_cmd_buf.req_addr = dma_req_addr;
+	scm_cmd_buf.resp_size = resp_size;
+	scm_cmd_buf.resp_addr = dma_resp_addr;
+
+	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf));
+
+	dma_unmap_single(NULL, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
+	dma_unmap_single(NULL, dma_req_addr, req_size, DMA_TO_DEVICE);
+	dma_unmap_single(NULL, dma_output_data, output_len, DMA_FROM_DEVICE);
+	dma_unmap_single(NULL, dma_sealed_data, seal_len, DMA_TO_DEVICE);
+	dma_unmap_single(NULL, dma_key_blob, KEY_BLOB_SIZE, DMA_TO_DEVICE);
+
+	if (rc) {
+		pr_err("\nSCM Call failed..SCM Call return value = %d\n", rc);
+		goto err_end;
+	}
+
+	if (resp_ptr->status != 0) {
+		rc = resp_ptr->status;
+		pr_err("\nResponse status failure..status = %d\n",
+							resp_ptr->status);
+		goto err_end;
+	}
+
+	unseal_len = output_len;
+	memcpy(buf, unsealed_buf, unseal_len);
+
+goto end;
+
+err_map_resp:
+	dma_unmap_single(NULL, dma_req_addr, req_size, DMA_TO_DEVICE);
+
+err_map_req:
+	dma_unmap_single(NULL, dma_output_data, output_len, DMA_FROM_DEVICE);
+
+err_map_output_data:
+	dma_unmap_single(NULL, dma_sealed_data, seal_len, DMA_TO_DEVICE);
+
+err_map_sealed_data:
+	dma_unmap_single(NULL, dma_key_blob, KEY_BLOB_SIZE, DMA_TO_DEVICE);
+
+err_end:
+	free_pages((unsigned long)page_address(req_page), req_order);
+	free_pages((unsigned long)page_address(resp_page), resp_order);
+	return rc;
+
+end:
+	free_pages((unsigned long)page_address(req_page), req_order);
+	free_pages((unsigned long)page_address(resp_page), resp_order);
+	return unseal_len;
+}
+
+static DEVICE_ATTR(generate, 0644, generate_key_blob, NULL);
+static DEVICE_ATTR(import, 0644, import_key_blob, store_key);
+static DEVICE_ATTR(key_blob, 0644, NULL, store_key_blob);
+static DEVICE_ATTR(seal, 0644, show_sealed_data, store_unsealed_data);
+static DEVICE_ATTR(unseal, 0644, show_unsealed_data, store_sealed_data);
+
+static struct attribute *sec_key_attrs[] = {
+	&dev_attr_generate.attr,
+	&dev_attr_import.attr,
+	&dev_attr_key_blob.attr,
+	&dev_attr_seal.attr,
+	&dev_attr_unseal.attr,
+	NULL,
+};
+
+static struct attribute_group sec_key_attr_grp = {
+	.attrs = sec_key_attrs,
+};
+
+static int __init sec_key_init(void)
+{
+	int err = 0;
+	struct page *key_page = NULL;
+	struct page *key_blob_page = NULL;
+	struct page *sealed_buf_page = NULL;
+	struct page *unsealed_buf_page = NULL;
+
+	key_page = alloc_pages(GFP_KERNEL, get_order(KEY_SIZE));
+	key_blob_page = alloc_pages(GFP_KERNEL, get_order(KEY_BLOB_SIZE));
+	sealed_buf_page = alloc_pages(GFP_KERNEL,
+					get_order(MAX_ENCRYPTED_DATA_SIZE));
+	unsealed_buf_page = alloc_pages(GFP_KERNEL,
+						get_order(MAX_PLAIN_DATA_SIZE));
+
+	if (!key_page || !key_blob_page || !sealed_buf_page
+							|| !unsealed_buf_page) {
+		pr_err("\nCannot allocate memory for secure-key operation\n");
+		if (key_page)
+			free_pages((unsigned long)page_address(key_page),
+							get_order(KEY_SIZE));
+		if (key_blob_page)
+			free_pages((unsigned long)page_address(key_blob_page),
+						get_order(KEY_BLOB_SIZE));
+		if (sealed_buf_page)
+			free_pages((unsigned long)page_address(sealed_buf_page),
+					get_order(MAX_ENCRYPTED_DATA_SIZE));
+		if (unsealed_buf_page)
+			free_pages((unsigned long)page_address(
+			unsealed_buf_page), get_order(MAX_PLAIN_DATA_SIZE));
+		return -ENOMEM;
+	}
+
+	key = page_address(key_page);
+	key_blob = page_address(key_blob_page);
+	sealed_buf = page_address(sealed_buf_page);
+	unsealed_buf = page_address(unsealed_buf_page);
+
+	sec_kobj = kobject_create_and_add("sec_key", NULL);
+
+	if (!sec_kobj) {
+		pr_info("\nFailed to register sec_key sysfs\n");
+		return -ENOMEM;
+	}
+
+	err = sysfs_create_group(sec_kobj, &sec_key_attr_grp);
+
+	if (err) {
+		kobject_put(sec_kobj);
+		sec_kobj = NULL;
+		return err;
+	}
+
+	return 0;
+}
 
 /*
  * Array Length is 4096 bytes, since 4MB is the max input size
@@ -763,9 +1586,15 @@ static int __init qseecom_init(void)
 	sysfs_create_bin_file(firmware_kobj, &seg3_attr);
 
 	if (!tzapp_init())
-		pr_info("\nLoaded Module Successfully!\n");
+		pr_info("\nLoaded tz app Module Successfully!\n");
 	else
-		pr_info("\nFailed to load module\n");
+		pr_info("\nFailed to load tz app module\n");
+
+	if (!sec_key_init())
+		pr_info("\nLoaded Sec Key Module Successfully!\n");
+	else
+		pr_info("\nFailed to load Sec Key Module\n");
+
 	return 0;
 }
 
@@ -781,6 +1610,15 @@ static void __exit qseecom_exit(void)
 
 	sysfs_remove_group(tzapp_kobj, &tzapp_attr_grp);
 	kobject_put(tzapp_kobj);
+
+	free_pages((unsigned long)key, get_order(KEY_SIZE));
+	free_pages((unsigned long)key_blob, get_order(KEY_BLOB_SIZE));
+	free_pages((unsigned long)sealed_buf,
+					get_order(MAX_ENCRYPTED_DATA_SIZE));
+	free_pages((unsigned long)unsealed_buf, get_order(MAX_PLAIN_DATA_SIZE));
+
+	sysfs_remove_group(sec_kobj, &sec_key_attr_grp);
+	kobject_put(sec_kobj);
 
 	kfree(mdt_file);
 	kfree(seg0_file);

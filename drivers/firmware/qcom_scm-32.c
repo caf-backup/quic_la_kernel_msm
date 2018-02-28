@@ -566,6 +566,17 @@ void __qcom_scm_cpu_power_down(u32 flags)
 			flags & QCOM_SCM_FLUSH_FLAG_MASK);
 }
 
+int __qcom_scm_tls_hardening(struct device *dev,
+			struct scm_cmd_buf_t *scm_cmd_buf, size_t buf_size)
+{
+	int ret = 0;
+
+	ret = qcom_scm_call(dev, TZ_SVC_CRYPTO, TZ_CRYPTO_SERVICE_SYM_ID,
+		(void *)scm_cmd_buf, buf_size, NULL, 0);
+
+	return ret;
+}
+
 int __qcom_scm_is_call_available(struct device *dev, u32 svc_id, u32 cmd_id)
 {
 	int ret;

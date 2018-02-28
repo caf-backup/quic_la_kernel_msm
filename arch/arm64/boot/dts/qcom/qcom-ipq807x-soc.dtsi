@@ -388,6 +388,11 @@
 			qcom,offset-page-indices = <56>;
 		};
 
+		tlmm_csr: syscon@1100000 {
+			compatible = "syscon";
+			reg = <0x1100000 0xAFFF>;
+		};
+
 		sdhc_1: sdhci@7824900 {
 			compatible = "qcom,sdhci-msm";
 			reg = <0x7824900 0x500>, <0x7824000 0x800>;
@@ -398,6 +403,8 @@
 
 			qcom,bus-width = <8>;
 			qcom,max_clk = <384000000>;
+
+			syscon = <&tlmm_csr 0xA000 0xFFFFFE7F>;
 
 			qcom,dedicated-io = <1>;
 

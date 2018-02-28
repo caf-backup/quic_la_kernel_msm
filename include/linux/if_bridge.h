@@ -107,12 +107,15 @@ extern br_multicast_handle_hook_t __rcu *br_multicast_handle_hook;
 #define BR_FDB_EVENT_ADD     0x01
 #define BR_FDB_EVENT_DEL     0x02
 struct br_fdb_event {
+	unsigned char addr[6];
+	unsigned char is_local;
 	struct net_device *dev;
-	unsigned char      addr[6];
-	unsigned char      is_local;
+	struct net_bridge *br;
+	struct net_device *orig_dev;
 };
 extern void br_fdb_register_notify(struct notifier_block *nb);
 extern void br_fdb_unregister_notify(struct notifier_block *nb);
+extern struct net_device *br_fdb_bridge_dev_get_and_hold(struct net_bridge *br);
 
 typedef struct net_bridge_port *br_get_dst_hook_t(
 		const struct net_bridge_port *src,

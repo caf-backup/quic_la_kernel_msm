@@ -21,6 +21,9 @@
 #define SCM_CMD_TZ_SET_DLOAD_FOR_SECURE_BOOT	0x14
 #define SCM_CMD_PSHOLD				0x15
 
+extern int __qcom_scm_tls_hardening(struct device *dev,
+			struct scm_cmd_buf_t *scm_cmd_buf, size_t buf_size);
+
 #define QCOM_SCM_BOOT_ADDR		0x1
 #define QCOM_SCM_BOOT_ADDR_MC		0x11
 

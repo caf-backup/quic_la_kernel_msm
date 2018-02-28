@@ -323,7 +323,7 @@ void br_fdb_cleanup(unsigned long _data)
 	unsigned long delay = hold_time(br);
 	unsigned long next_timer = jiffies + br->ageing_time;
 	int i;
-	u8 mac_addr[6];
+	struct br_fdb_event fdb_event;
 
 	spin_lock(&br->hash_lock);
 	for (i = 0; i < BR_HASH_SIZE; i++) {
@@ -338,11 +338,12 @@ void br_fdb_cleanup(unsigned long _data)
 				continue;
 			this_timer = f->updated + delay;
 			if (time_before_eq(this_timer, jiffies)) {
-				ether_addr_copy(mac_addr, f->addr.addr);
+				memset(&fdb_event, 0, sizeof(fdb_event));
+				ether_addr_copy(fdb_event.addr, f->addr.addr);
 				fdb_delete(br, f);
 				atomic_notifier_call_chain(
 					&br_fdb_update_notifier_list, 0,
-					(void *)mac_addr);
+					(void *)&fdb_event);
 			} else if (time_before(this_timer, next_timer)) {
 				next_timer = this_timer;
 			}
@@ -596,12 +597,21 @@ int br_fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
 	return ret;
 }
 
+/* Get the bridge device */
+struct net_device *br_fdb_bridge_dev_get_and_hold(struct net_bridge *br)
+{
+	dev_hold(br->dev);
+	return br->dev;
+}
+EXPORT_SYMBOL_GPL(br_fdb_bridge_dev_get_and_hold);
+
 void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 		   const unsigned char *addr, u16 vid, bool added_by_user)
 {
 	struct hlist_head *head = &br->hash[br_mac_hash(addr, vid)];
 	struct net_bridge_fdb_entry *fdb;
 	bool fdb_modified = false;
+	struct br_fdb_event fdb_event;
 
 	/* some users want to always flood. */
 	if (hold_time(br) == 0)
@@ -623,12 +633,16 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 		} else {
 			/* fastpath: update of existing entry */
 			if (unlikely(source != fdb->dst)) {
+				ether_addr_copy(fdb_event.addr, addr);
+				fdb_event.br = br;
+				fdb_event.orig_dev = fdb->dst->dev;
+				fdb_event.dev = source->dev;
 				fdb->dst = source;
 				fdb_modified = true;
 
 				atomic_notifier_call_chain(
 					&br_fdb_update_notifier_list,
-					0, (void *)addr);
+					0, (void *)&fdb_event);
 			}
 			fdb->updated = jiffies;
 			if (unlikely(added_by_user))
