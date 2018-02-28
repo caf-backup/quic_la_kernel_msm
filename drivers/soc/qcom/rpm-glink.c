@@ -38,8 +38,10 @@
 #include <soc/qcom/glink_rpm_xprt.h>
 #include <soc/qcom/glink.h>
 
+#ifdef CONFIG_TRACE_RPM
 #define CREATE_TRACE_POINTS
 #include <trace/events/rpm.h>
+#endif
 
 struct msm_rpm_notifier_data {
 	uint32_t rsc_type;
@@ -432,9 +434,12 @@ int msm_rpm_smd_buffer_request(struct msm_rpm_request *cdata,
 		/* handle unsent requests */
 		tr_update(slp, buf);
 	}
+
+#ifdef CONFIG_TRACE_RPM
 	trace_rpm_smd_sleep_set(cdata->msg_hdr.msg_id,
 				cdata->msg_hdr.resource_type,
 				cdata->msg_hdr.resource_id);
+#endif
 
 	spin_unlock_irqrestore(&slp_buffer_lock, flags);
 
@@ -535,9 +540,12 @@ static int msm_rpm_flush_requests(bool print)
 				get_buf_len(s->buf), true);
 
 		WARN_ON(ret != get_buf_len(s->buf));
+
+#ifdef CONFIG_TRACE_RPM
 		trace_rpm_smd_send_sleep_set(get_msg_id(s->buf),
 					get_rsc_type(s->buf),
 					get_rsc_id(s->buf));
+#endif
 
 		s->valid = false;
 		count++;
@@ -838,12 +846,15 @@ static void msm_rpm_process_ack(uint32_t msg_id, int errno)
 		}
 		elem = NULL;
 	}
+
+#ifdef CONFIG_TRACE_RPM
 	/* Special case where the sleep driver doesn't
 	 * wait for ACKs. This would decrease the latency involved with
 	 * entering RPM assisted power collapse.
 	 */
 	if (!elem)
 		trace_rpm_smd_ack_recvd(0, msg_id, 0xDEADBEEF);
+#endif
 
 	spin_unlock_irqrestore(&msm_rpm_list_lock, flags);
 }
@@ -1115,9 +1126,12 @@ static int msm_rpm_send_data(struct msm_rpm_request *cdata,
 			cdata->kvp[i].valid = false;
 		cdata->msg_hdr.data_len = 0;
 		ret = cdata->msg_hdr.msg_id;
+
+#ifdef CONFIG_TRACE_RPM
 		trace_rpm_smd_send_active_set(cdata->msg_hdr.msg_id,
 					cdata->msg_hdr.resource_type,
 					cdata->msg_hdr.resource_id);
+#endif
 	} else if (ret < msg_size) {
 		struct msm_rpm_wait_data *rc;
 		ret = 0;
@@ -1185,7 +1199,10 @@ int msm_rpm_wait_for_ack(uint32_t msg_id)
 		return rc;
 
 	wait_for_completion(&elem->ack);
+
+#ifdef CONFIG_TRACE_RPM
 	trace_rpm_smd_ack_recvd(0, msg_id, 0xDEADFEED);
+#endif
 
 	rc = elem->errno;
 	msm_rpm_free_list_entry(elem);
