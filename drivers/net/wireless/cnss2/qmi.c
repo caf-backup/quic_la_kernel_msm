@@ -22,7 +22,7 @@
 
 #define WLFW_SERVICE_INS_ID_V01		1
 #define WLFW_CLIENT_ID			0x4b4e454c
-#define MAX_BDF_FILE_NAME		11
+#define MAX_BDF_FILE_NAME		64
 #define DEFAULT_BDF_FILE_NAME		"bdwlan.bin"
 #define BDF_FILE_NAME_PREFIX		"bdwlan.b"
 
@@ -543,7 +543,8 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv)
 	}
 
 	if (0xFF == plat_priv->board_info.board_id)
-		snprintf(filename, sizeof(filename), DEFAULT_BDF_FILE_NAME);
+		snprintf(filename, sizeof(filename),
+			 "QCA6290/" DEFAULT_BDF_FILE_NAME);
 	else
 		snprintf(filename, sizeof(filename),
 			 BDF_FILE_NAME_PREFIX "%02d",

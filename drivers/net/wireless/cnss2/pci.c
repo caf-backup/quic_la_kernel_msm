@@ -42,7 +42,7 @@
 
 #define MHI_NODE_NAME			"qcom,mhi"
 
-#define MAX_M3_FILE_NAME_LENGTH		13
+#define MAX_M3_FILE_NAME_LENGTH		64
 #define DEFAULT_M3_FILE_NAME		"m3.bin"
 
 static DEFINE_SPINLOCK(pci_link_down_lock);
@@ -848,7 +848,8 @@ int cnss_pci_load_m3(struct cnss_plat_data *plat_priv)
 	int ret = 0;
 
 	if (!m3_mem->va && !m3_mem->size) {
-		snprintf(filename, sizeof(filename), DEFAULT_M3_FILE_NAME);
+		snprintf(filename, sizeof(filename),
+			 "QCA6290/" DEFAULT_M3_FILE_NAME);
 
 		ret = request_firmware(&fw_entry, filename,
 				       &pci_priv->pci_dev->dev);
