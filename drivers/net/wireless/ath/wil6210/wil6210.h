@@ -709,6 +709,13 @@ struct wil6210_vif {
 	struct mutex probe_client_mutex; /* protect @probe_client_pending */
 	struct work_struct probe_client_worker;
 	int net_queue_stopped; /* netif_tx_stop_all_queues invoked */
+#if defined(CONFIG_WIL6210_NSS_SUPPORT)
+#if defined(BACKPORT_HAS_NEW_NSS_REDIRECT_API)
+	struct nss_virt_if_handle *nss_handle;
+#else
+	void *nss_handle;
+#endif
+#endif
 };
 
 struct wil6210_priv {
@@ -822,9 +829,6 @@ struct wil6210_priv {
 	u32 bus_request_kbps;
 	u32 bus_request_kbps_pre_suspend;
 
-#if defined(CONFIG_WIL6210_NSS_SUPPORT)
-	struct nss_virt_if_handle *nss_handle;
-#endif
 	bool survey_ready;
 	struct {
 		struct wmi_acs_passive_scan_complete_event evt;

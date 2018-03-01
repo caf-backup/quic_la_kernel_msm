@@ -53,18 +53,22 @@ bool wil_has_active_ifaces(struct wil6210_priv *wil, bool up, bool ok)
 static int wil_open(struct net_device *ndev)
 {
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
+#if defined(CONFIG_WIL6210_NSS_SUPPORT)
+	struct wil6210_vif *vif = ndev_to_vif(ndev);
+#endif
 	int rc = 0;
 
 	wil_dbg_misc(wil, "open\n");
 
 #if defined(CONFIG_WIL6210_NSS_SUPPORT)
-	if (!wil->nss_handle) {
-		wil->nss_handle = nss_virt_if_create_sync(ndev);
-		if (!wil->nss_handle) {
-			wil_err(wil, "Failed to register with NSS\n");
+	if (!vif->nss_handle) {
+		vif->nss_handle = nss_virt_if_create_sync(ndev);
+		if (!vif->nss_handle) {
+			wil_err(wil, "Failed to register with NSS, mid %d\n",
+				vif->mid);
 			return -EINVAL;
 		}
-		wil_info(wil, "Registered with NSS\n");
+		wil_info(wil, "Registered with NSS, mid %d\n", vif->mid);
 	}
 #endif
 
@@ -494,6 +498,15 @@ void wil_vif_remove(struct wil6210_priv *wil, u8 mid)
 		return;
 	}
 
+#if defined(CONFIG_WIL6210_NSS_SUPPORT)
+	if (vif->nss_handle)
+#if defined(BACKPORT_HAS_NEW_NSS_REDIRECT_API)
+		nss_virt_if_destroy_sync(vif->nss_handle);
+#else
+		nss_destroy_virt_if(vif->nss_handle);
+#endif
+#endif
+
 	ndev = vif_to_ndev(vif);
 	/* during unregister_netdevice cfg80211_leave may perform operations
 	 * such as stop AP, disconnect, so we only clear the VIF afterwards
@@ -535,11 +548,6 @@ void wil_if_remove(struct wil6210_priv *wil)
 	struct wireless_dev *wdev = ndev->ieee80211_ptr;
 
 	wil_dbg_misc(wil, "if_remove\n");
-
-#if defined(CONFIG_WIL6210_NSS_SUPPORT)
-	if (wil->nss_handle)
-		nss_virt_if_destroy_sync(wil->nss_handle);
-#endif
 
 	rtnl_lock();
 	wil_vif_remove(wil, 0);
