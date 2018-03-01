@@ -69,24 +69,6 @@
 			drive-strength = <6>;
 			bias-pull-down;
 		};
-		mux_3 {
-			pins = "gpio54";
-			function = "pta2_0";
-			drive-strength = <6>;
-			bias-pull-down;
-		};
-		mux_4 {
-			pins = "gpio55";
-			function = "pta2_1";
-			drive-strength = <6>;
-			bias-pull-down;
-		};
-		mux_5 {
-			pins = "gpio56";
-			function = "pta2_2";
-			drive-strength = <6>;
-			bias-pull-down;
-		};
 	};
 
 	mdio_pins: mdio_pinmux {
@@ -108,15 +90,6 @@
 		mux {
 			pins = "gpio23", "gpio24";
 			function = "blsp4_uart1";
-			drive-strength = <8>;
-			bias-disable;
-		};
-	};
-
-	i2c_0_pins: i2c_0_pinmux {
-		mux {
-			pins = "gpio42", "gpio43";
-			function = "blsp1_i2c";
 			drive-strength = <8>;
 			bias-disable;
 		};
@@ -180,27 +153,12 @@
 			drive-strength = <8>;
 			bias-disable;
 		};
-		data_8 {
-			pins = "gpio16";
-			function = "qpic_pad8";
-			drive-strength = <8>;
-			bias-disable;
-		};
 		qpic_pad {
-			pins = "gpio0", "gpio1", "gpio2", "gpio3", "gpio4",
-			       "gpio9", "gpio10", "gpio11", "gpio17";
+			pins = "gpio1", "gpio3", "gpio4",
+			       "gpio10", "gpio11", "gpio17";
 			function = "qpic_pad";
 			drive-strength = <8>;
 			bias-disable;
-		};
-	};
-
-	sd_pins: sd_pins {
-		mux {
-			pins = "gpio63";
-			function = "sd_card";
-			drive-strength = <8>;
-			bias-pull-up;
 		};
 	};
 
@@ -210,27 +168,6 @@
 			function = "blsp2_uart";
 			drive-strength = <8>;
 			bias-disable;
-		};
-	};
-
-	ledc_pins: ledc_pinmux {
-		led_clk {
-			pins = "gpio18";
-			function = "led0";
-			drive-strength = <8>;
-			bias-pull-down;
-		};
-		led_data {
-			pins = "gpio19";
-			function = "led1";
-			drive-strength = <8>;
-			bias-pull-down;
-		};
-		led_clr {
-			pins = "gpio20";
-			function = "led2";
-			drive-strength = <8>;
-			bias-pull-up;
 		};
 	};
 
@@ -259,23 +196,24 @@
 		};
 	};
 
-	pwm_pins: pwm_pinmux {
-		mux_1 {
-			pins = "gpio25";
-			function = "pwm02";
+	led_pins: led_pins {
+		led_2g {
+			pins = "gpio42";
+			function = "gpio";
 			drive-strength = <8>;
+			bias-pull-down;
+		};
+
+		led_5g {
+			pins = "gpio43";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-down;
 		};
 	};
 };
 
 &soc {
-	pwm {
-		pinctrl-0 = <&pwm_pins>;
-		pinctrl-names = "default";
-		used-pwm-indices = <1>, <0>, <0>, <0>;
-		status = "disabled";
-	};
-
 	gpio_keys {
 		compatible = "gpio-keys";
 		pinctrl-0 = <&button_pins>;
@@ -666,6 +604,24 @@
 		qcom,phy-mdio-addr = <7>;
 		phy-mode = "sgmii";
 	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-0 = <&led_pins>;
+		pinctrl-names = "default";
+
+		led_2g {
+			label = "led_2g";
+			gpio = <&tlmm 42 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		led_5g {
+			label = "led_5g";
+			gpio = <&tlmm 43 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+	};
 };
 
 &serial_blsp4 {
@@ -741,9 +697,7 @@
 };
 
 &i2c_0 {
-	pinctrl-0 = <&i2c_0_pins>;
-	pinctrl-names = "default";
-	status = "ok";
+	status = "disabled";
 };
 
 &i2c_1 {
@@ -761,15 +715,22 @@
 };
 
 &qpic_lcd {
-	status = "ok";
+	status = "disabled";
 };
 
 &qpic_lcd_panel {
-	status = "ok";
+	status = "disabled";
 };
 
 &ledc {
-	pinctrl-0 = <&ledc_pins>;
-	pinctrl-names = "default";
-	status = "ok";
+	status = "disabled";
 };
+
+&pcie0 {
+	status = "disabled";
+};
+
+&pcie1 {
+	status = "disabled";
+};
+
