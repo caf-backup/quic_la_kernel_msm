@@ -814,7 +814,7 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 		bool deliver_skb = true;
 #if defined(CONFIG_WIL6210_NSS_SUPPORT)
 		if (rx_align_2) {
-			int rc1 = nss_virt_if_tx_buf(wil->nss_handle, skb);
+			int rc1 = nss_virt_if_tx_buf(vif->nss_handle, skb);
 
 			if (rc1) {
 				wil_err_ratelimited(wil, "NSS Rx error: %d\n",
