@@ -711,8 +711,9 @@ out:
 	return ERR_PTR(rc);
 }
 
-int wil_vif_prepare_stop(struct wil6210_priv *wil, struct wil6210_vif *vif)
+int wil_vif_prepare_stop(struct wil6210_vif *vif)
 {
+	struct wil6210_priv *wil = vif_to_wil(vif);
 	struct wireless_dev *wdev = vif_to_wdev(vif);
 	struct net_device *ndev;
 	int rc;
@@ -728,6 +729,7 @@ int wil_vif_prepare_stop(struct wil6210_priv *wil, struct wil6210_vif *vif)
 				 rc);
 			/* continue */
 		}
+		wil_bcast_fini(vif);
 		netif_carrier_off(ndev);
 	}
 
@@ -760,7 +762,7 @@ static int wil_cfg80211_del_iface(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	rc = wil_vif_prepare_stop(wil, vif);
+	rc = wil_vif_prepare_stop(vif);
 	if (rc)
 		goto out;
 
@@ -781,6 +783,7 @@ static int wil_cfg80211_change_iface(struct wiphy *wiphy,
 	struct wil6210_vif *vif = ndev_to_vif(ndev);
 	struct wireless_dev *wdev = vif_to_wdev(vif);
 	int rc;
+	bool fw_reset = false;
 
 	wil_dbg_misc(wil, "change_iface: type=%d\n", type);
 
@@ -795,7 +798,7 @@ static int wil_cfg80211_change_iface(struct wiphy *wiphy,
 	/* do not reset FW when there are active VIFs,
 	 * because it can cause significant disruption
 	 */
-	if (!wil_has_other_up_ifaces(wil, ndev) &&
+	if (!wil_has_other_active_ifaces(wil, ndev, true, false) &&
 	    netif_running(ndev) && !wil_is_recovery_blocked(wil)) {
 		wil_dbg_misc(wil, "interface is up. resetting...\n");
 		mutex_lock(&wil->mutex);
@@ -805,6 +808,7 @@ static int wil_cfg80211_change_iface(struct wiphy *wiphy,
 
 		if (rc)
 			return rc;
+		fw_reset = true;
 	}
 
 	switch (type) {
@@ -824,8 +828,9 @@ static int wil_cfg80211_change_iface(struct wiphy *wiphy,
 		return -EOPNOTSUPP;
 	}
 
-	if (vif->mid != 0 && wil_has_up_ifaces(wil)) {
-		wil_vif_prepare_stop(wil, vif);
+	if (vif->mid != 0 && wil_has_active_ifaces(wil, true, false)) {
+		if (!fw_reset)
+			wil_vif_prepare_stop(vif);
 		rc = wmi_port_delete(wil, vif->mid);
 		if (rc)
 			return rc;
@@ -1700,10 +1705,12 @@ static int _wil_cfg80211_start_ap(struct wiphy *wiphy,
 
 	mutex_lock(&wil->mutex);
 
-	__wil_down(wil);
-	rc = __wil_up(wil);
-	if (rc)
-		goto out;
+	if (!wil_has_other_active_ifaces(wil, ndev, true, false)) {
+		__wil_down(wil);
+		rc = __wil_up(wil);
+		if (rc)
+			goto out;
+	}
 
 	rc = wmi_set_ssid(vif, ssid_len, ssid);
 	if (rc)
@@ -1719,7 +1726,8 @@ static int _wil_cfg80211_start_ap(struct wiphy *wiphy,
 	vif->pbss = pbss;
 
 	netif_carrier_on(ndev);
-	wil6210_bus_request(wil, WIL_MAX_BUS_REQUEST_KBPS);
+	if (!wil_has_other_active_ifaces(wil, ndev, false, true))
+		wil6210_bus_request(wil, WIL_MAX_BUS_REQUEST_KBPS);
 
 	rc = wmi_pcp_start(vif, bi, wmi_nettype, chan, hidden_ssid, is_go);
 	if (rc)
@@ -1735,7 +1743,8 @@ err_bcast:
 	wmi_pcp_stop(vif);
 err_pcp_start:
 	netif_carrier_off(ndev);
-	wil6210_bus_request(wil, WIL_DEFAULT_BUS_REQUEST_KBPS);
+	if (!wil_has_other_active_ifaces(wil, ndev, false, true))
+		wil6210_bus_request(wil, WIL_DEFAULT_BUS_REQUEST_KBPS);
 out:
 	mutex_unlock(&wil->mutex);
 	return rc;
@@ -1840,20 +1849,26 @@ static int wil_cfg80211_stop_ap(struct wiphy *wiphy,
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 	struct wil6210_vif *vif = ndev_to_vif(ndev);
+	bool last;
 
-	wil_dbg_misc(wil, "stop_ap\n");
+	wil_dbg_misc(wil, "stop_ap, mid=%d\n", vif->mid);
 
 	netif_carrier_off(ndev);
-	wil6210_bus_request(wil, WIL_DEFAULT_BUS_REQUEST_KBPS);
-	wil_set_recovery_state(wil, fw_recovery_idle);
-
-	set_bit(wil_status_resetting, wil->status);
+	last = !wil_has_other_active_ifaces(wil, ndev, false, true);
+	if (last) {
+		wil6210_bus_request(wil, WIL_DEFAULT_BUS_REQUEST_KBPS);
+		wil_set_recovery_state(wil, fw_recovery_idle);
+		set_bit(wil_status_resetting, wil->status);
+	}
 
 	mutex_lock(&wil->mutex);
 
 	wmi_pcp_stop(vif);
 
-	__wil_down(wil);
+	if (last)
+		__wil_down(wil);
+	else
+		wil_bcast_fini(vif);
 
 	mutex_unlock(&wil->mutex);
 
