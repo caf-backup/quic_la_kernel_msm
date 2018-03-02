@@ -346,6 +346,9 @@ static int ath79_spi_setup_transfer(struct spi_device *spi,
 
 		sp->bitbang.txrx_bufs = ath79_spi_txrx_bufs;
 	} else {
+		if (t && t->speed_hz)
+			ath79_set_spi_clock(sp, t->speed_hz);
+
 		sp->bitbang.txrx_bufs = spi_bitbang_bufs;
 	}
 
