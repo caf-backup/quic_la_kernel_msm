@@ -1257,6 +1257,7 @@ static int ag71xx_tx_packets(struct ag71xx *ag, struct net_device *dev,
 		if (likely(next_skb)) {
 			prefetch(skb_shinfo(next_skb));
 			prefetch(&next_skb->users);
+			prefetch(&next_skb->len);
 		}
 
 		ag71xx_wr_fast(ag->tx_status_reg, TX_STATUS_PS);
