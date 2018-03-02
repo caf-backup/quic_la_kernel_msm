@@ -1093,6 +1093,11 @@ static void __spi_pump_messages(struct spi_master *master, bool in_kthread)
 		master->idling = true;
 		spin_unlock_irqrestore(&master->queue_lock, flags);
 
+		if (master->bus_unlock_req) {
+			complete(&master->bus_free_completion);
+			master->bus_unlock_req = false;
+		}
+
 		kfree(master->dummy_rx);
 		master->dummy_rx = NULL;
 		kfree(master->dummy_tx);
@@ -1827,6 +1832,8 @@ int spi_register_master(struct spi_master *master)
 	mutex_init(&master->bus_lock_mutex);
 	master->bus_lock_flag = 0;
 	init_completion(&master->xfer_completion);
+	master->bus_unlock_req = false;
+	init_completion(&master->bus_free_completion);
 	if (!master->max_dma_len)
 		master->max_dma_len = INT_MAX;
 

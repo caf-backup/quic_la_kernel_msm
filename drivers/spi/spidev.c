@@ -84,6 +84,9 @@ struct spidev_data {
 	u8			*tx_buffer;
 	u8			*rx_buffer;
 	u32			speed_hz;
+
+	bool			spi_bus_lock;
+	bool			exclusive;
 };
 
 static LIST_HEAD(device_list);
@@ -93,6 +96,8 @@ static unsigned bufsiz = 4096;
 module_param(bufsiz, uint, S_IRUGO);
 MODULE_PARM_DESC(bufsiz, "data bytes in biggest supported SPI message");
 
+static bool exclusive = true;
+module_param(exclusive, bool, S_IRUGO);
 /*-------------------------------------------------------------------------*/
 
 static ssize_t
@@ -108,8 +113,17 @@ spidev_sync(struct spidev_data *spidev, struct spi_message *message)
 
 	if (spi == NULL)
 		status = -ESHUTDOWN;
-	else
-		status = spi_sync(spi, message);
+	else {
+		if (spidev->exclusive) {
+			if (!spidev->spi_bus_lock) {
+				spi_bus_lock(spi->master);
+				spidev->spi_bus_lock = true;
+			}
+			status = spi_sync_locked(spi, message);
+		} else {
+			status = spi_sync(spi, message);
+		}
+	}
 
 	if (status == 0)
 		status = message->actual_length;
@@ -473,6 +487,7 @@ spidev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				dev_dbg(&spi->dev, "%d bits per word\n", tmp);
 		}
 		break;
+
 	case SPI_IOC_WR_MAX_SPEED_HZ:
 		retval = __get_user(tmp, (__u32 __user *)arg);
 		if (retval == 0) {
@@ -485,6 +500,27 @@ spidev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			else
 				dev_dbg(&spi->dev, "%d Hz (max)\n", tmp);
 			spi->max_speed_hz = save;
+		}
+		break;
+
+	case SPI_IOC_WR_BUS_LOCK:
+		retval = __get_user(tmp, (__u8 __user *)arg);
+		if (retval) {
+			/* TODO */
+			retval = 0;
+		} else if (spidev->spi_bus_lock) {
+			struct spi_master *master = spi->master;
+
+			if (!list_empty(&master->queue)) {
+				/* wait for bus free */
+				master->bus_unlock_req = true;
+				wait_for_completion_timeout(&master->bus_free_completion,
+							    msecs_to_jiffies(100));
+			}
+
+			master->set_cs(spi, 1);
+			spidev->spi_bus_lock = false;
+			spi_bus_unlock(master);
 		}
 		break;
 
@@ -644,6 +680,7 @@ static int spidev_release(struct inode *inode, struct file *filp)
 	spidev->users--;
 	if (!spidev->users) {
 		int		dofree;
+		struct spi_device *spi;
 
 		kfree(spidev->tx_buffer);
 		spidev->tx_buffer = NULL;
@@ -652,11 +689,22 @@ static int spidev_release(struct inode *inode, struct file *filp)
 		spidev->rx_buffer = NULL;
 
 		spin_lock_irq(&spidev->spi_lock);
-		if (spidev->spi)
+
+		if (spidev->spi) {
 			spidev->speed_hz = spidev->spi->max_speed_hz;
+
+			if (spidev->spi_bus_lock) {
+				struct spi_master *master = spidev->spi->master;
+
+				master->set_cs(spidev->spi, 1);
+				spidev->spi_bus_lock = false;
+				spi_bus_unlock(master);
+			}
+		}
 
 		/* ... after we unbound from the underlying device? */
 		dofree = (spidev->spi == NULL);
+
 		spin_unlock_irq(&spidev->spi_lock);
 
 		if (dofree)
@@ -727,6 +775,7 @@ static int spidev_probe(struct spi_device *spi)
 
 	/* Initialize the driver data */
 	spidev->spi = spi;
+	spidev->exclusive = exclusive;
 	spin_lock_init(&spidev->spi_lock);
 	mutex_init(&spidev->buf_lock);
 

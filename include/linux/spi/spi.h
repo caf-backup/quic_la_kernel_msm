@@ -432,6 +432,9 @@ struct spi_master {
 	/* flag indicating that the SPI bus is locked for exclusive use */
 	bool			bus_lock_flag;
 
+	bool			bus_unlock_req;
+	struct completion       bus_free_completion;
+
 	/* Setup mode and clock, etc (spi driver may call many times).
 	 *
 	 * IMPORTANT:  this may be called when transfers to another
