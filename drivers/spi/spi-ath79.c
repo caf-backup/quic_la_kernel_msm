@@ -90,8 +90,6 @@ static void ath79_spi_chipselect(struct spi_device *spi, int is_active)
 			sp->ioc_base |= AR71XX_SPI_IOC_CLK;
 		else
 			sp->ioc_base &= ~AR71XX_SPI_IOC_CLK;
-
-		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, sp->ioc_base);
 	}
 
 	if (spi->cs_gpio >= 0) {
@@ -106,6 +104,8 @@ static void ath79_spi_chipselect(struct spi_device *spi, int is_active)
 		else
 			sp->ioc_base &= ~AR71XX_SPI_IOC_CS(spi->chip_select);
 	}
+
+	ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, sp->ioc_base);
 }
 
 static void ath79_spi_enable(struct ath79_spi *sp)
