@@ -14,6 +14,7 @@
 struct ath79_gpio_platform_data {
 	unsigned ngpios;
 	bool oe_inverted;
+	unsigned irq_base;
 };
 
 #endif

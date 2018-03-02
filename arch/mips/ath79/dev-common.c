@@ -144,7 +144,9 @@ void __init ath79_register_wdt(void)
 	platform_device_register_simple("ath79-wdt", -1, &res, 1);
 }
 
-static struct ath79_gpio_platform_data ath79_gpio_pdata;
+static struct ath79_gpio_platform_data ath79_gpio_pdata = {
+	.irq_base = MIPS_GPIO_IRQ_BASE,
+};
 
 static struct resource ath79_gpio_resources[] = {
 	{
