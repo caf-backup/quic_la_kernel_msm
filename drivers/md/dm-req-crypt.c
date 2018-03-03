@@ -957,8 +957,6 @@ static int req_crypt_map(struct dm_target *ti, struct request *clone,
 		 */
 		if (encryption_mode == DM_REQ_CRYPT_ENCRYPTION_MODE_TRANSPARENT)
 			bio_src->bi_flags |= 1 << BIO_INLINECRYPT;
-		else
-			bio_src->bi_flags |= 1 << BIO_DONTFREE;
 
 		/*
 		 * If this device has partitions, remap block n
