@@ -581,8 +581,6 @@ int wil_priv_init(struct wil6210_priv *wil)
 	spin_lock_init(&wil->net_queue_lock);
 	init_waitqueue_head(&wil->wq);
 
-	wil_ftm_init(wil);
-
 	wil->wmi_wq = create_singlethread_workqueue(WIL_NAME "_wmi");
 	if (!wil->wmi_wq)
 		return -EAGAIN;
@@ -651,7 +649,6 @@ void wil_priv_deinit(struct wil6210_priv *wil)
 {
 	wil_dbg_misc(wil, "priv_deinit\n");
 
-	wil_ftm_deinit(wil);
 	wil_set_recovery_state(wil, fw_recovery_idle);
 	cancel_work_sync(&wil->fw_error_worker);
 	wmi_event_flush(wil);

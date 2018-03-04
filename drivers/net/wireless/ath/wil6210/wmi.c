@@ -1200,28 +1200,27 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	spin_unlock_bh(&sta->tid_rx_lock);
 }
 
-static void wmi_evt_aoa_meas(struct wil6210_priv *wil, int id,
-			     void *d, int len)
+static void wmi_evt_aoa_meas(struct wil6210_vif *vif, int id, void *d, int len)
 {
 	struct wmi_aoa_meas_event *evt = d;
 
-	wil_aoa_evt_meas(wil, evt, len);
+	wil_aoa_evt_meas(vif, evt, len);
 }
 
-static void wmi_evt_ftm_session_ended(struct wil6210_priv *wil, int id,
+static void wmi_evt_ftm_session_ended(struct wil6210_vif *vif, int id,
 				      void *d, int len)
 {
 	struct wmi_tof_session_end_event *evt = d;
 
-	wil_ftm_evt_session_ended(wil, evt);
+	wil_ftm_evt_session_ended(vif, evt);
 }
 
-static void wmi_evt_per_dest_res(struct wil6210_priv *wil, int id,
+static void wmi_evt_per_dest_res(struct wil6210_vif *vif, int id,
 				 void *d, int len)
 {
 	struct wmi_tof_ftm_per_dest_res_event *evt = d;
 
-	wil_ftm_evt_per_dest_res(wil, evt);
+	wil_ftm_evt_per_dest_res(vif, evt);
 }
 
 static void
