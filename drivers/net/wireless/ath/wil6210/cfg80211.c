@@ -2421,6 +2421,7 @@ static int wil_start_acs_survey(struct wil6210_priv *wil, uint dwell_time,
 				struct ieee80211_channel *channels,
 				u8 num_channels)
 {
+	struct wil6210_vif *vif = ndev_to_vif(wil->main_ndev);
 	int rc, i;
 	struct {
 		struct wmi_start_scan_cmd cmd;
@@ -2455,7 +2456,8 @@ static int wil_start_acs_survey(struct wil6210_priv *wil, uint dwell_time,
 	/* send scan command with the requested channel and wait
 	 * for results
 	 */
-	rc = wmi_send(wil, WMI_START_SCAN_CMDID, &scan_cmd, sizeof(scan_cmd));
+	rc = wmi_send(wil, WMI_START_SCAN_CMDID, vif->mid,
+		      &scan_cmd, sizeof(scan_cmd));
 	if (rc) {
 		wil_err(wil, "ACS passive Scan failed (0x%08x)\n", rc);
 		return rc;
@@ -2596,8 +2598,9 @@ static void wil_acs_report_channel(struct wil6210_priv *wil)
 	 */
 	nla_nest_cancel(vendor_event, ((void **)vendor_event->cb)[2]);
 
+	/* Needs adaptation for multiple VIFs */
 	ret_val = nla_put_u32(vendor_event, NL80211_ATTR_IFINDEX,
-			      wil_to_ndev(wil)->ifindex);
+			      wil->main_ndev->ifindex);
 	if (ret_val) {
 		wil_err(wil, "NL80211_ATTR_IFINDEX put fail\n");
 		kfree_skb(vendor_event);
@@ -3173,8 +3176,8 @@ static int wil_rf_sector_set_selected(struct wiphy *wiphy,
 }
 
 static int
-wil_brp_wmi_set_ant_limit(struct wil6210_priv *wil, u8 cid, u8 limit_mode,
-			  u8 antenna_num_limit)
+wil_brp_wmi_set_ant_limit(struct wil6210_priv *wil, u8 mid, u8 cid,
+			  u8 limit_mode, u8 antenna_num_limit)
 {
 	int rc;
 	struct wmi_brp_set_ant_limit_cmd cmd = {
@@ -3189,7 +3192,7 @@ wil_brp_wmi_set_ant_limit(struct wil6210_priv *wil, u8 cid, u8 limit_mode,
 
 	reply.evt.status = WMI_FW_STATUS_FAILURE;
 
-	rc = wmi_call(wil, WMI_BRP_SET_ANT_LIMIT_CMDID, &cmd, sizeof(cmd),
+	rc = wmi_call(wil, WMI_BRP_SET_ANT_LIMIT_CMDID, mid, &cmd, sizeof(cmd),
 		      WMI_BRP_SET_ANT_LIMIT_EVENTID, &reply,
 		      sizeof(reply), 250);
 	if (rc)
@@ -3208,6 +3211,7 @@ static int wil_brp_set_ant_limit(struct wiphy *wiphy, struct wireless_dev *wdev,
 				 const void *data, int data_len)
 {
 	struct wil6210_priv *wil = wdev_to_wil(wdev);
+	struct wil6210_vif *vif = wdev_to_vif(wil, wdev);
 	struct nlattr *tb[QCA_ATTR_WIL_MAX + 1];
 	u8 mac_addr[ETH_ALEN];
 	u8 antenna_num_limit = 0;
@@ -3252,12 +3256,12 @@ static int wil_brp_set_ant_limit(struct wiphy *wiphy, struct wireless_dev *wdev,
 	}
 
 	ether_addr_copy(mac_addr, nla_data(tb[QCA_ATTR_MAC_ADDR]));
-	cid = wil_find_cid(wil, mac_addr);
+	cid = wil_find_cid(wil, vif->mid, mac_addr);
 	if (cid < 0) {
 		wil_err(wil, "invalid MAC address %pM\n", mac_addr);
 		return -ENOENT;
 	}
 
-	return wil_brp_wmi_set_ant_limit(wil, cid, limit_mode,
+	return wil_brp_wmi_set_ant_limit(wil, vif->mid, cid, limit_mode,
 					 antenna_num_limit);
 }

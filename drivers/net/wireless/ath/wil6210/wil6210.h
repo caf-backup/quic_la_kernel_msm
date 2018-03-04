@@ -702,6 +702,8 @@ struct wil6210_vif {
 	struct cfg80211_scan_request *scan_request;
 	struct timer_list scan_timer; /* detect scan timeout */
 	struct wil_p2p_info p2p;
+	/* fine timing measurement */
+	struct wil_ftm_priv ftm;
 	/* keep alive */
 	struct list_head probe_client_pending;
 	struct mutex probe_client_mutex; /* protect @probe_client_pending */
@@ -810,8 +812,6 @@ struct wil6210_priv {
 	struct wil_halp halp;
 
 	enum wmi_ps_profile_type ps_profile;
-
-	struct wil_ftm_priv ftm;
 
 	int fw_calib_result;
 
@@ -1174,17 +1174,17 @@ int wmi_start_sched_scan(struct wil6210_priv *wil,
 			 struct cfg80211_sched_scan_request *request);
 int wmi_stop_sched_scan(struct wil6210_priv *wil);
 
-void wil_ftm_init(struct wil6210_priv *wil);
-void wil_ftm_deinit(struct wil6210_priv *wil);
+void wil_ftm_init(struct wil6210_vif *vif);
+void wil_ftm_deinit(struct wil6210_vif *vif);
 void wil_ftm_stop_operations(struct wil6210_priv *wil);
-void wil_aoa_cfg80211_meas_result(struct wil6210_priv *wil,
+void wil_aoa_cfg80211_meas_result(struct wil6210_vif *vif,
 				  struct wil_aoa_meas_result *result);
 
-void wil_ftm_evt_session_ended(struct wil6210_priv *wil,
+void wil_ftm_evt_session_ended(struct wil6210_vif *vif,
 			       struct wmi_tof_session_end_event *evt);
-void wil_ftm_evt_per_dest_res(struct wil6210_priv *wil,
+void wil_ftm_evt_per_dest_res(struct wil6210_vif *vif,
 			      struct wmi_tof_ftm_per_dest_res_event *evt);
-void wil_aoa_evt_meas(struct wil6210_priv *wil,
+void wil_aoa_evt_meas(struct wil6210_vif *vif,
 		      struct wmi_aoa_meas_event *evt,
 		      int len);
 /* link loss */
