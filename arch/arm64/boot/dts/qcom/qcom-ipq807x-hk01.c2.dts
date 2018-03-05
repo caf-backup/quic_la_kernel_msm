@@ -295,7 +295,7 @@
 			reg = <3>;
 		};
 		phy4: ethernet-phy@4 {
-			reg = <4>;
+			reg = <30>;
 		};
 		phy5: ethernet-phy@5 {
 			compatible ="ethernet-phy-ieee802.3-c45";
@@ -638,6 +638,9 @@
 		reg = <0x3a003000 0x3fff>;
 		qcom,mactype = <1>;
 		local-mac-address = [000000000000];
+		qcom,link-poll = <1>;
+		qcom,phy-mdio-addr = <30>;
+		phy-mode = "sgmii";
 	};
 
 	dp6 {
