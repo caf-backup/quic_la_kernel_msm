@@ -186,8 +186,16 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 				return;
 		}
 		if (!from_event) {
-			bool del_sta = (wdev->iftype == NL80211_IFTYPE_AP) ?
-						disable_ap_sme : false;
+			bool del_sta = false;
+
+			if (wdev->iftype == NL80211_IFTYPE_AP &&
+			    (disable_ap_sme || umac_mode))
+				del_sta = true;
+
+			if (vif->umac_vap)
+				wil->umac_ops.disconnect_sta(vif->umac_vap,
+							     sta->addr,
+							     reason_code);
 			wmi_disconnect_sta(vif, sta->addr, reason_code,
 					   true, del_sta);
 		}
@@ -197,6 +205,9 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 		case NL80211_IFTYPE_P2P_GO:
 			/* AP-like interface */
 			cfg80211_del_sta(ndev, sta->addr, GFP_KERNEL);
+			if (vif->umac_vap)
+				wil->umac_ops.sta_deleted(vif->umac_vap,
+							  sta->addr);
 			break;
 		default:
 			break;

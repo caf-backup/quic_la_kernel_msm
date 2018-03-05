@@ -1544,6 +1544,82 @@ static const struct file_operations fops_mids = {
 	.llseek		= seq_lseek,
 };
 
+static int wil_umac_debugfs_show(struct seq_file *s, void *data)
+{
+	struct wil6210_priv *wil = s->private;
+	struct wil_umac *umac = wil->umac_handle;
+	struct wil_umac_vap *vap, *tmp_vap;
+	int bkt;
+	struct hlist_node *tmp_node;
+	struct wil_umac_node *node;
+
+	if (!wil->umac_handle)
+		return 0;
+
+	list_for_each_entry_safe(vap, tmp_vap, &umac->vaps, list) {
+		seq_printf(s, "VAP %s, mac %pM",
+			   vap->ndev->name, vap->ndev->dev_addr);
+		if (vap->ap_started) {
+			seq_printf(s, ", channel %d, privacy%s\n",
+				   vap->channel, vap->privacy ? "+" : "-");
+		} else {
+			seq_puts(s, "\n");
+			continue;
+		}
+		wil_seq_hexdump(s, vap->ssid, vap->ssid_len, "ssid: ", true);
+		seq_printf(s, "    Broadcast TX: packets %zu bytes %zu\n",
+			   vap->stats.bcast_tx_packets,
+			   vap->stats.bcast_tx_bytes);
+		hash_for_each_safe(umac->node_hash,
+				   bkt, tmp_node, node, hlist) {
+			ktime_t assoc_time, no_rx_time, no_tx_time;
+
+			if (node->vap != vap)
+				continue;
+			seq_printf(s, "  Node %pM, aid %d, state %d, rssi: last %d min %d max %d\n",
+				   node->mac, node->aid, node->state,
+				   node->last_rssi, node->rssi_min,
+				   node->rssi_max);
+			if (node->state != WIL_UMAC_NODE_STATE_ASSOCIATED &&
+			    node->state != WIL_UMAC_NODE_STATE_8021X_OPEN)
+				continue;
+
+			assoc_time = ktime_sub(ktime_get(), node->assoc_ts);
+			seq_printf(s, "       associated %ldsec\n",
+				   (long)ktime_to_ms(assoc_time) /
+					MSEC_PER_SEC);
+			seq_printf(s, "       RX: packets %zu bytes %zu, TX: packets %zu bytes %zu\n",
+				   node->stats.rx.packets,
+				   node->stats.rx.bytes,
+				   node->stats.tx.packets,
+				   node->stats.tx.bytes);
+			no_rx_time = ktime_sub(ktime_get(),
+					       node->stats.rx.last_activity);
+			no_tx_time = ktime_sub(ktime_get(),
+					       node->stats.tx.last_activity);
+			seq_printf(s, "       RX: last activity %ldsec ago, TX: last activity %ldsec ago\n",
+				   (long)ktime_to_ms(no_rx_time) /
+					MSEC_PER_SEC,
+				   (long)ktime_to_ms(no_tx_time) /
+					MSEC_PER_SEC);
+		}
+	}
+
+	return 0;
+}
+
+static int wil_umac_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, wil_umac_debugfs_show, inode->i_private);
+}
+
+static const struct file_operations fops_umac = {
+	.open		= wil_umac_seq_open,
+	.release	= single_release,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+};
+
 static ssize_t wil_read_file_led_cfg(struct file *file, char __user *user_buf,
 				     size_t count, loff_t *ppos)
 {
@@ -1879,6 +1955,7 @@ static const struct {
 	{"fw_version",	0444,		&fops_fw_version},
 	{"suspend_stats",	0644,	&fops_suspend_stats},
 	{"survey",	0444,		&fops_survey},
+	{"umac",	0444,		&fops_umac},
 };
 
 static void wil6210_debugfs_init_files(struct wil6210_priv *wil,

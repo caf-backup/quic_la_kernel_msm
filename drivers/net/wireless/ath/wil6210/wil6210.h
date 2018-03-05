@@ -28,6 +28,7 @@
 #include "wil_platform.h"
 #include "ftm.h"
 #include "fw.h"
+#include "umac.h"
 
 extern bool no_fw_recovery;
 extern unsigned int mtu_max;
@@ -37,6 +38,8 @@ extern bool rx_align_2;
 extern bool rx_large_buf;
 extern bool debug_fw;
 extern bool disable_ap_sme;
+extern bool umac_mode;
+extern uint max_assoc_sta;
 
 #define WIL_NAME "wil6210"
 
@@ -716,6 +719,7 @@ struct wil6210_vif {
 	void *nss_handle;
 #endif
 #endif
+	void *umac_vap;
 };
 
 struct wil6210_priv {
@@ -838,6 +842,10 @@ struct wil6210_priv {
 	u32 rgf_fw_assert_code_addr;
 	u32 rgf_ucode_assert_code_addr;
 	u32 iccm_base;
+
+	void *umac_handle;
+	struct wil_umac_ops umac_ops;
+	struct wil_umac_rops umac_rops;
 };
 
 #define wil_to_wiphy(i) (i->wiphy)
@@ -890,6 +898,7 @@ void wil_dbg_ratelimited(const struct wil6210_priv *wil, const char *fmt, ...);
 #define wil_dbg_wmi(wil, fmt, arg...) wil_dbg(wil, "DBG[ WMI]" fmt, ##arg)
 #define wil_dbg_misc(wil, fmt, arg...) wil_dbg(wil, "DBG[MISC]" fmt, ##arg)
 #define wil_dbg_pm(wil, fmt, arg...) wil_dbg(wil, "DBG[ PM ]" fmt, ##arg)
+#define wil_dbg_umac(wil, fmt, arg...) wil_dbg(wil, "DBG[UMAC]" fmt, ##arg)
 #define wil_err(wil, fmt, arg...) __wil_err(wil, "%s: " fmt, __func__, ##arg)
 #define wil_info(wil, fmt, arg...) __wil_info(wil, "%s: " fmt, __func__, ##arg)
 #define wil_err_ratelimited(wil, fmt, arg...) \
@@ -944,6 +953,12 @@ static inline const char *wil_get_board_file(struct wil6210_priv *wil)
 			  print_hex_dump_debug("DBG[MISC]" prefix_str,\
 					prefix_type, rowsize,	\
 					groupsize, buf, len, ascii)
+
+#define wil_hex_dump_umac(prefix_str, prefix_type, rowsize,	\
+			  groupsize, buf, len, ascii)		\
+			  print_hex_dump_debug("DBG[UMAC]" prefix_str,\
+					prefix_type, rowsize,	\
+					groupsize, buf, len, ascii)
 #else /* defined(CONFIG_DYNAMIC_DEBUG) */
 static inline
 void wil_hex_dump_txrx(const char *prefix_str, int prefix_type, int rowsize,
@@ -959,6 +974,12 @@ void wil_hex_dump_wmi(const char *prefix_str, int prefix_type, int rowsize,
 
 static inline
 void wil_hex_dump_misc(const char *prefix_str, int prefix_type, int rowsize,
+		       int groupsize, const void *buf, size_t len, bool ascii)
+{
+}
+
+static inline
+void wil_hex_dump_umac(const char *prefix_str, int prefix_type, int rowsize,
 		       int groupsize, const void *buf, size_t len, bool ascii)
 {
 }
@@ -1198,4 +1219,6 @@ int wmi_link_maintain_cfg_write(struct wil6210_priv *wil,
 
 int wmi_mgmt_tx(struct wil6210_vif *vif, const u8 *buf, size_t len);
 
+void *wil_umac_register(struct wil6210_priv *wil);
+void wil_umac_unregister(struct wil6210_priv *wil);
 #endif /* __WIL6210_H__ */
