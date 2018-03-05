@@ -30,6 +30,10 @@ bool disable_ap_sme;
 module_param(disable_ap_sme, bool, 0444);
 MODULE_PARM_DESC(disable_ap_sme, " let user space handle AP mode SME");
 
+bool umac_mode;
+module_param(umac_mode, bool, 0444);
+MODULE_PARM_DESC(umac_mode, " enable driver engagement in AP mode SME (upper MAC), default - false");
+
 #ifdef CONFIG_PM
 static struct wiphy_wowlan_support wil_wowlan_support = {
 	.flags = WIPHY_WOWLAN_ANY | WIPHY_WOWLAN_DISCONNECT,
@@ -1246,6 +1250,51 @@ static int wil_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 	return 0;
 }
 
+static int wil_umac_rop_mgmt_tx(void *driver_vap_ctx, const u8 *frame,
+				size_t len)
+{
+	struct wil6210_vif *vif = driver_vap_ctx;
+
+	return wmi_mgmt_tx(vif, frame, len);
+}
+
+static int wil_umac_rop_add_station(void *driver_vap_ctx, const u8 *mac,
+				    u8 aid)
+{
+	struct wil6210_vif *vif = driver_vap_ctx;
+
+	return wmi_new_sta(vif, mac, aid);
+}
+
+static void wil_umac_rop_del_station(void *driver_vap_ctx, const u8 *mac,
+				     u16 reason, bool locally_generated)
+{
+	struct wil6210_vif *vif = driver_vap_ctx;
+	struct wil6210_priv *wil = vif_to_wil(vif);
+
+	mutex_lock(&wil->mutex);
+	wil6210_disconnect(vif, mac, reason, !locally_generated);
+	mutex_unlock(&wil->mutex);
+}
+
+void *wil_umac_register(struct wil6210_priv *wil)
+{
+	wil->umac_rops.mgmt_tx = wil_umac_rop_mgmt_tx;
+	wil->umac_rops.add_station = wil_umac_rop_add_station;
+	wil->umac_rops.del_station = wil_umac_rop_del_station;
+	return wil_umac_init(wil, wil->main_ndev->perm_addr, max_assoc_sta,
+			     &wil->umac_ops, &wil->umac_rops);
+}
+
+void wil_umac_unregister(struct wil6210_priv *wil)
+{
+	if (!wil->umac_handle)
+		return;
+
+	wil->umac_ops.uninit(wil->umac_handle);
+	wil->umac_handle = NULL;
+}
+
 int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			 struct cfg80211_mgmt_tx_params *params,
 			 u64 *cookie)
@@ -1437,10 +1486,22 @@ static int wil_cfg80211_add_key(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
+	if (vif->umac_vap) {
+		rc = wil->umac_ops.add_key(vif->umac_vap, key_index, pairwise,
+					   mac_addr);
+		if (rc)
+			return rc;
+	}
+
 	rc = wmi_add_cipher_key(vif, key_index, mac_addr, params->key_len,
 				params->key, key_usage);
-	if (!rc)
+	if (rc) {
+		if (vif->umac_vap)
+			wil->umac_ops.del_key(vif->umac_vap, key_index,
+					      pairwise, mac_addr);
+	} else {
 		wil_set_crypto_rx(key_index, key_usage, cs, params);
+	}
 
 	return rc;
 }
@@ -1467,6 +1528,10 @@ static int wil_cfg80211_del_key(struct wiphy *wiphy,
 
 	if (!IS_ERR_OR_NULL(cs))
 		wil_del_rx_key(key_index, key_usage, cs);
+
+	if (vif->umac_vap)
+		wil->umac_ops.del_key(vif->umac_vap, key_index, pairwise,
+				      mac_addr);
 
 	return wmi_del_cipher_key(vif, key_index, mac_addr, key_usage);
 }
@@ -1606,6 +1671,7 @@ static int _wil_cfg80211_set_ies(struct wil6210_vif *vif,
 				 struct cfg80211_beacon_data *bcon)
 {
 	int rc;
+	struct wil6210_priv *wil = vif_to_wil(vif);
 	u16 len = 0, proberesp_len = 0;
 	u8 *ies = NULL, *proberesp = NULL;
 
@@ -1635,6 +1701,28 @@ static int _wil_cfg80211_set_ies(struct wil6210_vif *vif,
 				bcon->assocresp_ies_len, bcon->assocresp_ies);
 	else
 		rc = wmi_set_ie(vif, WMI_FRAME_ASSOC_RESP, len, ies);
+
+	if (rc)
+		goto out;
+
+	if (vif->umac_vap) {
+		rc = wil->umac_ops.vap_set_ie(vif->umac_vap,
+					      IEEE80211_STYPE_PROBE_RESP,
+					      ies, len);
+		if (rc)
+			goto out;
+
+		if (bcon->assocresp_ies)
+			rc = wil->umac_ops.vap_set_ie(vif->umac_vap,
+				IEEE80211_STYPE_ASSOC_RESP,
+				bcon->assocresp_ies,
+				bcon->assocresp_ies_len);
+		else
+			rc = wil->umac_ops.vap_set_ie(vif->umac_vap,
+				IEEE80211_STYPE_ASSOC_RESP,
+				ies, len);
+	}
+
 #if 0 /* to use beacon IE's, remove this #if 0 */
 	if (rc)
 		goto out;
@@ -1694,6 +1782,23 @@ static int _wil_cfg80211_start_ap(struct wiphy *wiphy,
 	vif->hidden_ssid = hidden_ssid;
 	vif->pbss = pbss;
 
+	if (vif->umac_vap) {
+		struct wil_umac_vap_params vap_params;
+
+		wil->umac_ops.stop_ap(vif->umac_vap);
+
+		vap_params.channel = chan;
+		vap_params.ssid = ssid;
+		vap_params.ssid_len = ssid_len;
+		vap_params.bi = bi;
+		vap_params.hidden_ssid = hidden_ssid;
+		vap_params.privacy = privacy;
+		vap_params.max_aid = WIL6210_MAX_CID;
+		rc = wil->umac_ops.start_ap(vif->umac_vap, &vap_params);
+		if (rc)
+			goto out;
+	}
+
 	netif_carrier_on(ndev);
 	if (!wil_has_other_active_ifaces(wil, ndev, false, true))
 		wil6210_bus_request(wil, WIL_MAX_BUS_REQUEST_KBPS);
@@ -1714,6 +1819,8 @@ err_pcp_start:
 	netif_carrier_off(ndev);
 	if (!wil_has_other_active_ifaces(wil, ndev, false, true))
 		wil6210_bus_request(wil, WIL_DEFAULT_BUS_REQUEST_KBPS);
+	if (vif->umac_vap)
+		wil->umac_ops.stop_ap(vif->umac_vap);
 out:
 	mutex_unlock(&wil->mutex);
 	return rc;
@@ -1823,6 +1930,10 @@ static int wil_cfg80211_stop_ap(struct wiphy *wiphy,
 	wil_dbg_misc(wil, "stop_ap, mid=%d\n", vif->mid);
 
 	netif_carrier_off(ndev);
+
+	if (vif->umac_vap)
+		wil->umac_ops.stop_ap(vif->umac_vap);
+
 	last = !wil_has_other_active_ifaces(wil, ndev, false, true);
 	if (last) {
 		wil6210_bus_request(wil, WIL_DEFAULT_BUS_REQUEST_KBPS);

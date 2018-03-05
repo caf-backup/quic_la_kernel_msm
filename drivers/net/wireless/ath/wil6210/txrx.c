@@ -749,7 +749,7 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 	 */
 	int mcast = is_multicast_ether_addr(eth->h_dest);
 	struct wil_net_stats *stats = &wil->sta[cid].stats;
-	struct sk_buff *xmit_skb = NULL;
+	struct sk_buff *xmit_skb = NULL, *umac_skb = NULL;
 	static const char * const gro_res_str[] = {
 		[GRO_MERGED]		= "GRO_MERGED",
 		[GRO_MERGED_FREE]	= "GRO_MERGED_FREE",
@@ -826,6 +826,9 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 		}
 #endif /* #if defined(CONFIG_WIL6210_NSS_SUPPORT) */
 		if (deliver_skb) {
+			if (vif->umac_vap)
+				/* inc ref count so it can be passed to UMAC */
+				umac_skb = skb_get(skb);
 			skb->protocol = eth_type_trans(skb, ndev);
 			skb->dev = ndev;
 			rc = napi_gro_receive(&wil->napi_rx, skb);
@@ -846,7 +849,14 @@ stats:
 		stats->rx_bytes += len;
 		if (mcast)
 			ndev->stats.multicast++;
+		if (vif->umac_vap && umac_skb)
+			wil->umac_ops.rx_notify(wil->umac_handle,
+						vif->umac_vap, umac_skb);
 	}
+
+	if (umac_skb)
+		/* release ref count */
+		kfree_skb(umac_skb);
 }
 
 /**
@@ -2218,6 +2228,12 @@ int wil_tx_complete(struct wil6210_vif *vif, int ringid)
 					if (stats)
 						stats->tx_errors++;
 				}
+
+				if (vif->umac_vap)
+					wil->umac_ops.tx_notify(
+						wil->umac_handle,
+						vif->umac_vap, skb);
+
 				wil_consume_skb(skb, d->dma.error == 0);
 			}
 			memset(ctx, 0, sizeof(*ctx));
