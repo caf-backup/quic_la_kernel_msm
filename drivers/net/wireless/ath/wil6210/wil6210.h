@@ -1196,4 +1196,6 @@ int wmi_link_maintain_cfg_write(struct wil6210_priv *wil,
 				const u8 *addr,
 				bool fst_link_loss);
 
+int wmi_mgmt_tx(struct wil6210_vif *vif, const u8 *buf, size_t len);
+
 #endif /* __WIL6210_H__ */
