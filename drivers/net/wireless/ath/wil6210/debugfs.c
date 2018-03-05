@@ -157,9 +157,9 @@ static const struct file_operations fops_vring = {
 };
 
 static void wil_seq_hexdump(struct seq_file *s, void *p, int len,
-			    const char *prefix)
+			    const char *prefix, bool ascii)
 {
-	seq_hex_dump(s, prefix, DUMP_PREFIX_NONE, 16, 1, p, len, false);
+	seq_hex_dump(s, prefix, DUMP_PREFIX_NONE, 16, 1, p, len, ascii);
 }
 
 static void wil_print_ring(struct seq_file *s, const char *prefix,
@@ -229,7 +229,8 @@ static void wil_print_ring(struct seq_file *s, const char *prefix,
 				 * reading header
 				 */
 				wil_memcpy_fromio_32(databuf, src, len);
-				wil_seq_hexdump(s, databuf, len, "      : ");
+				wil_seq_hexdump(s, databuf, len, "      : ",
+						false);
 			}
 		} else {
 			seq_puts(s, "\n");
@@ -962,7 +963,7 @@ static void wil_seq_print_skb(struct seq_file *s, struct sk_buff *skb)
 	int nr_frags = skb_shinfo(skb)->nr_frags;
 
 	seq_printf(s, "    len = %d\n", len);
-	wil_seq_hexdump(s, p, len, "      : ");
+	wil_seq_hexdump(s, p, len, "      : ", false);
 
 	if (nr_frags) {
 		seq_printf(s, "    nr_frags = %d\n", nr_frags);
@@ -973,7 +974,7 @@ static void wil_seq_print_skb(struct seq_file *s, struct sk_buff *skb)
 			len = skb_frag_size(frag);
 			p = skb_frag_address_safe(frag);
 			seq_printf(s, "    [%2d] : len = %d\n", i, len);
-			wil_seq_hexdump(s, p, len, "      : ");
+			wil_seq_hexdump(s, p, len, "      : ", false);
 		}
 	}
 }
