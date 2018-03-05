@@ -438,6 +438,17 @@ int wil_vif_add(struct wil6210_priv *wil, struct wil6210_vif *vif)
 		return rc;
 	}
 
+	if (wil->umac_handle) {
+		vif->umac_vap = wil->umac_ops.vap_add(wil->umac_handle, vif,
+						      ndev);
+		if (!vif->umac_vap) {
+			unregister_netdevice(ndev);
+			if (any_active && vif->mid != 0)
+				wmi_port_delete(wil, vif->mid);
+			return -ENOMEM;
+		}
+	}
+
 	wil->vifs[vif->mid] = vif;
 	return 0;
 }
@@ -467,14 +478,25 @@ int wil_if_add(struct wil6210_priv *wil)
 
 	wil_update_net_queues_bh(wil, vif, NULL, true);
 
+	if (umac_mode) {
+		wil->umac_handle = wil_umac_register(wil);
+		if (!wil->umac_handle) {
+			wil_err(wil, "wil_umac_register failed\n");
+			rc = -ENOMEM;
+			goto out_wiphy;
+		}
+	}
+
 	rtnl_lock();
 	rc = wil_vif_add(wil, vif);
 	rtnl_unlock();
 	if (rc < 0)
-		goto out_wiphy;
+		goto umac_unreg;
 
 	return 0;
 
+umac_unreg:
+	wil_umac_unregister(wil);
 out_wiphy:
 	wiphy_unregister(wiphy);
 	return rc;
@@ -510,6 +532,11 @@ void wil_vif_remove(struct wil6210_priv *wil, u8 mid)
 	mutex_lock(&wil->mutex);
 	wil6210_disconnect(vif, NULL, WLAN_REASON_DEAUTH_LEAVING, false);
 	mutex_unlock(&wil->mutex);
+
+	if (vif->umac_vap) {
+		wil->umac_ops.vap_remove(vif->umac_vap);
+		vif->umac_vap = NULL;
+	}
 
 	ndev = vif_to_ndev(vif);
 	/* during unregister_netdevice cfg80211_leave may perform operations
@@ -552,6 +579,8 @@ void wil_if_remove(struct wil6210_priv *wil)
 	rtnl_lock();
 	wil_vif_remove(wil, 0);
 	rtnl_unlock();
+
+	wil_umac_unregister(wil);
 
 	netif_napi_del(&wil->napi_tx);
 	netif_napi_del(&wil->napi_rx);

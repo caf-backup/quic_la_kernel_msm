@@ -25,7 +25,7 @@
 #include "trace.h"
 #include "ftm.h"
 
-static uint max_assoc_sta = WIL6210_MAX_CID;
+uint max_assoc_sta = WIL6210_MAX_CID;
 module_param(max_assoc_sta, uint, 0644);
 MODULE_PARM_DESC(max_assoc_sta, " Max number of stations associated to the AP");
 
@@ -741,6 +741,14 @@ static void wmi_evt_rx_mgmt(struct wil6210_vif *vif, int id, void *d, int len)
 		return;
 	}
 
+	if (vif->umac_vap) {
+		int rc = wil->umac_ops.mgmt_rx(vif->umac_vap, data->info.rssi,
+					       data->info.channel,
+					       rx_mgmt_frame, flen);
+		if (rc == WIL_UMAC_FRAME_CONSUMED)
+			return;
+	}
+
 	if (ieee80211_is_beacon(fc) || ieee80211_is_probe_resp(fc)) {
 		struct cfg80211_bss *bss;
 		u64 tsf = le64_to_cpu(rx_mgmt_frame->u.beacon.timestamp);
@@ -968,9 +976,12 @@ static void wmi_evt_connect(struct wil6210_vif *vif, int id, void *d, int len)
 	} else if ((wdev->iftype == NL80211_IFTYPE_AP) ||
 		   (wdev->iftype == NL80211_IFTYPE_P2P_GO)) {
 		if (rc) {
-			if (disable_ap_sme)
+			if (disable_ap_sme || umac_mode)
 				/* notify new_sta has failed */
 				cfg80211_del_sta(ndev, evt->bssid, GFP_KERNEL);
+			if (vif->umac_vap)
+				wil->umac_ops.sta_deleted(vif->umac_vap,
+							  evt->bssid);
 			goto out;
 		}
 
@@ -1638,6 +1649,14 @@ int wmi_pcp_start(struct wil6210_vif *vif,
 		      wil->fw_capabilities)) {
 		wil_err(wil, "disable_ap_sme not supported by FW\n");
 		return -EOPNOTSUPP;
+	}
+	if (umac_mode) {
+		if (!test_bit(WMI_FW_CAPABILITY_AP_SME_OFFLOAD_NONE,
+			      wil->fw_capabilities)) {
+			wil_err(wil, "AP_SME_OFFLOAD_NONE not supported by FW\n");
+			return -EOPNOTSUPP;
+		}
+		cmd.ap_sme_offload_mode = WMI_AP_SME_OFFLOAD_NONE;
 	}
 
 	/*
