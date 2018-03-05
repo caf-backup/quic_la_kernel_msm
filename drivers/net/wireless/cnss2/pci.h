@@ -35,6 +35,8 @@
 #define QCA8074_DEVICE_ID               0xFFFF
 #define QCA6290_PAGING_MEM		0x87500000
 #define QCA6290_RDDM_SIZE		0x401000
+#define QCA6290_SRAM_ADDR		0x1400000
+#define QCA6290_RDDM_HDR_SIZE		392
 
 enum cnss_mhi_state {
 	CNSS_MHI_INIT,

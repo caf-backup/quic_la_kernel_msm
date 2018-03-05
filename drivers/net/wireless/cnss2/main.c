@@ -1535,6 +1535,12 @@ static int cnss_qca6290_ramdump(struct cnss_plat_data *plat_priv)
 		dump_seg++;
 	}
 
+	ret = create_ramdump_device_file(info_v2->ramdump_dev);
+	if (ret) {
+		kfree(ramdump_segs);
+		return ret;
+	}
+
 	ret = do_elf_ramdump(info_v2->ramdump_dev, ramdump_segs,
 			     dump_data->nentries);
 	kfree(ramdump_segs);

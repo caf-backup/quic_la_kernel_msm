@@ -1215,6 +1215,7 @@ static void *cnss_pci_collect_dump_seg(struct cnss_pci_data *pci_priv,
 	struct cnss_dump_data *dump_data =
 		&plat_priv->ramdump_info_v2.dump_data;
 	struct cnss_dump_seg *dump_seg = start_addr;
+	unsigned int addr;
 
 	count = mhi_xfer_rddm(&pci_priv->mhi_dev, type, &sg_list);
 	if (count <= 0 || !sg_list) {
@@ -1223,6 +1224,8 @@ static void *cnss_pci_collect_dump_seg(struct cnss_pci_data *pci_priv,
 		return start_addr;
 	}
 
+	addr = QCA6290_SRAM_ADDR - QCA6290_RDDM_HDR_SIZE;
+
 	cnss_pr_dbg("Collect dump seg: type %u, nentries %d\n", type, count);
 
 	for_each_sg(sg_list, s, count, i) {
@@ -1230,7 +1233,26 @@ static void *cnss_pci_collect_dump_seg(struct cnss_pci_data *pci_priv,
 		dump_seg->v_address = sg_virt(s);
 		dump_seg->size = s->length;
 		dump_seg->type = type;
+		if (plat_priv->device_id == QCA6290_DEVICE_ID &&
+		    type == MHI_RDDM_RD_SEGMENT) {
+			if (i == 0) {
+				dump_seg->address = addr - PAGE_SIZE;
+			} else {
+				dump_seg->address = addr;
+				addr += dump_seg->size;
+			}
+		}
 		dump_seg++;
+	}
+
+	if (type == MHI_RDDM_RD_SEGMENT) {
+		/* append the target memory after RDDM segments */
+		dump_seg->address = plat_priv->fw_mem.pa;
+		dump_seg->v_address = plat_priv->fw_mem.va;
+		dump_seg->size = plat_priv->fw_mem.size;
+		dump_seg->type = MHI_RDDM_RD_SEGMENT + 1;
+		dump_seg++;
+		count++;
 	}
 
 	dump_data->nentries += count;
