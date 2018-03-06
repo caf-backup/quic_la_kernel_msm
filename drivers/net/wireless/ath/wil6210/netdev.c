@@ -232,11 +232,52 @@ static void wil_ndev_destructor(struct net_device *ndev)
 	wil_vif_deinit(vif);
 }
 
+static void wil_connect_timer_fn(ulong x)
+{
+	struct wil6210_vif *vif = (void *)x;
+	struct wil6210_priv *wil = vif_to_wil(vif);
+	bool q;
+
+	wil_err(wil, "Connect timeout detected, disconnect station\n");
+
+	/* reschedule to thread context - disconnect won't
+	 * run from atomic context.
+	 * queue on wmi_wq to prevent race with connect event.
+	 */
+	q = queue_work(wil->wmi_wq, &vif->disconnect_worker);
+	wil_dbg_wmi(wil, "queue_work of disconnect_worker -> %d\n", q);
+}
+
+static void wil_scan_timer_fn(ulong x)
+{
+	struct wil6210_vif *vif = (void *)x;
+	struct wil6210_priv *wil = vif_to_wil(vif);
+
+	clear_bit(wil_status_fwready, wil->status);
+	wil_err(wil, "Scan timeout detected, start fw error recovery\n");
+	wil_fw_error_recovery(wil);
+}
+
+static void wil_p2p_discovery_timer_fn(ulong x)
+{
+	struct wil6210_vif *vif = (void *)x;
+	struct wil6210_priv *wil = vif_to_wil(vif);
+
+	wil_dbg_misc(wil, "p2p_discovery_timer_fn\n");
+
+	schedule_work(&vif->p2p.discovery_expired_work);
+}
+
 static void wil_vif_init(struct wil6210_vif *vif)
 {
 	vif->bcast_vring = -1;
 
 	mutex_init(&vif->probe_client_mutex);
+
+	setup_timer(&vif->connect_timer, wil_connect_timer_fn, (ulong)vif);
+	setup_timer(&vif->scan_timer, wil_scan_timer_fn, (ulong)vif);
+	setup_timer(&vif->p2p.discovery_timer, wil_p2p_discovery_timer_fn,
+		    (ulong)vif);
 
 	INIT_WORK(&vif->probe_client_worker, wil_probe_client_worker);
 	INIT_WORK(&vif->disconnect_worker, wil_disconnect_worker);
