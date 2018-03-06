@@ -290,7 +290,7 @@ struct mmc_host {
 #define MMC_CAP2_SDIO_IRQ_NOTHREAD (1 << 17)
 #define MMC_CAP2_NO_WRITE_PROTECT (1 << 18)	/* No physical write protect pin, assume that card is always read-write */
 #define MMC_CAP2_HS400_POST_TUNING (1 << 19)
-
+#define MMC_CAP2_PACKED_WR_CONTROL (1 << 20)	/* Allow write packing control */
 	mmc_pm_flag_t		pm_caps;	/* supported pm features */
 
 	/* host specific block data */
