@@ -48,6 +48,10 @@ bool caldata_support = true;
 module_param(caldata_support, bool, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(caldata_support, "caldata support");
 
+unsigned int qca8074_fw_mem_mode = 0xFF;
+module_param(qca8074_fw_mem_mode, uint, 0600);
+MODULE_PARM_DESC(qca8074_fw_mem_mode, "qca8074_fw_mem_mode");
+
 static bool bdf_bypass = true;
 #ifdef CONFIG_CNSS2_DEBUG
 module_param(bdf_bypass, bool, 0600);
@@ -173,6 +177,9 @@ static int cnss_wlfw_host_cap_send_sync(struct cnss_plat_data *plat_priv)
 
 	req.mem_cfg_mode = plat_priv->tgt_mem_cfg_mode;
 	req.mem_cfg_mode_valid = 1;
+	cnss_pr_info("device_id : 0x%x mem mode : [%d]\n",
+		     plat_priv->device_id,
+		     plat_priv->tgt_mem_cfg_mode);
 
 	cnss_pr_dbg("daemon_support is %d\n", req.daemon_support);
 
@@ -481,6 +488,7 @@ int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 		CNSS_ASSERT(0);
 		goto out;
 	}
+	CNSS_ASSERT(plat_priv->tgt_mem_cfg_mode < ARRAY_SIZE(location));
 	bdf_addr_pa = location[plat_priv->tgt_mem_cfg_mode];
 	bdf_addr = ioremap(bdf_addr_pa, BDF_MAX_SIZE);
 	if (!bdf_addr) {
@@ -1119,11 +1127,17 @@ int cnss_qmi_init(struct cnss_plat_data *plat_priv)
 	INIT_WORK(&plat_priv->qmi_recv_msg_work,
 		  cnss_wlfw_clnt_notifier_work);
 
-	if (plat_priv->device_id == QCA8074_DEVICE_ID &&
-	    of_property_read_u32(dev->of_node, "qcom,tgt-mem-mode",
-				 &plat_priv->tgt_mem_cfg_mode)) {
-		pr_err("No qca8074_tgt_memory_mode entry in Device tree.\n");
-		plat_priv->tgt_mem_cfg_mode = 0;
+	if (plat_priv->device_id == QCA8074_DEVICE_ID) {
+		if (qca8074_fw_mem_mode != 0xFF) {
+			plat_priv->tgt_mem_cfg_mode = qca8074_fw_mem_mode;
+			pr_info("Using qca8074_fw_mem_mode 0x%x\n",
+				qca8074_fw_mem_mode);
+		} else if (of_property_read_u32(dev->of_node,
+						"qcom,tgt-mem-mode",
+						&plat_priv->tgt_mem_cfg_mode)) {
+			pr_info("No qca8074_tgt_mem_mode entry in dev-tree.\n");
+			plat_priv->tgt_mem_cfg_mode = 0;
+		}
 	}
 
 	plat_priv->qmi_wlfw_clnt_nb.notifier_call =
