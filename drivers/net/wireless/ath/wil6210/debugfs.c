@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -156,9 +157,9 @@ static const struct file_operations fops_vring = {
 };
 
 static void wil_seq_hexdump(struct seq_file *s, void *p, int len,
-			    const char *prefix)
+			    const char *prefix, bool ascii)
 {
-	seq_hex_dump(s, prefix, DUMP_PREFIX_NONE, 16, 1, p, len, false);
+	seq_hex_dump(s, prefix, DUMP_PREFIX_NONE, 16, 1, p, len, ascii);
 }
 
 static void wil_print_ring(struct seq_file *s, const char *prefix,
@@ -228,7 +229,8 @@ static void wil_print_ring(struct seq_file *s, const char *prefix,
 				 * reading header
 				 */
 				wil_memcpy_fromio_32(databuf, src, len);
-				wil_seq_hexdump(s, databuf, len, "      : ");
+				wil_seq_hexdump(s, databuf, len, "      : ",
+						false);
 			}
 		} else {
 			seq_puts(s, "\n");
@@ -621,7 +623,7 @@ static ssize_t wil_write_file_reset(struct file *file, const char __user *buf,
 				    size_t len, loff_t *ppos)
 {
 	struct wil6210_priv *wil = file->private_data;
-	struct net_device *ndev = wil_to_ndev(wil);
+	struct net_device *ndev = wil->main_ndev;
 
 	/**
 	 * BUG:
@@ -722,27 +724,44 @@ static ssize_t wil_write_back(struct file *file, const char __user *buf,
 	if (rc < 2)
 		return -EINVAL;
 
-	if (0 == strcmp(cmd, "add")) {
-		if (rc < 3) {
-			wil_err(wil, "BACK: add require at least 2 params\n");
+	if ((strcmp(cmd, "add") == 0) ||
+	    (strcmp(cmd, "del_tx") == 0)) {
+		struct vring_tx_data *txdata;
+
+		if (p1 < 0 || p1 >= WIL6210_MAX_TX_RINGS) {
+			wil_err(wil, "BACK: invalid ring id %d\n", p1);
 			return -EINVAL;
 		}
-		if (rc < 4)
-			p3 = 0;
-		wmi_addba(wil, p1, p2, p3);
-	} else if (0 == strcmp(cmd, "del_tx")) {
-		if (rc < 3)
-			p2 = WLAN_REASON_QSTA_LEAVE_QBSS;
-		wmi_delba_tx(wil, p1, p2);
-	} else if (0 == strcmp(cmd, "del_rx")) {
+		txdata = &wil->vring_tx_data[p1];
+		if (strcmp(cmd, "add") == 0) {
+			if (rc < 3) {
+				wil_err(wil, "BACK: add require at least 2 params\n");
+				return -EINVAL;
+			}
+			if (rc < 4)
+				p3 = 0;
+			wmi_addba(wil, txdata->mid, p1, p2, p3);
+		} else {
+			if (rc < 3)
+				p2 = WLAN_REASON_QSTA_LEAVE_QBSS;
+			wmi_delba_tx(wil, txdata->mid, p1, p2);
+		}
+	} else if (strcmp(cmd, "del_rx") == 0) {
+		struct wil_sta_info *sta;
+
 		if (rc < 3) {
 			wil_err(wil,
 				"BACK: del_rx require at least 2 params\n");
 			return -EINVAL;
 		}
+		if (p1 < 0 || p1 >= WIL6210_MAX_CID) {
+			wil_err(wil, "BACK: invalid CID %d\n", p1);
+			return -EINVAL;
+		}
 		if (rc < 4)
 			p3 = WLAN_REASON_QSTA_LEAVE_QBSS;
-		wmi_delba_rx(wil, mk_cidxtid(p1, p2), p3);
+		sta = &wil->sta[p1];
+		wmi_delba_rx(wil, sta->mid, mk_cidxtid(p1, p2), p3);
 	} else {
 		wil_err(wil, "BACK: Unrecognized command \"%s\"\n", cmd);
 		return -EINVAL;
@@ -861,7 +880,7 @@ static ssize_t wil_write_file_txmgmt(struct file *file, const char __user *buf,
 {
 	struct wil6210_priv *wil = file->private_data;
 	struct wiphy *wiphy = wil_to_wiphy(wil);
-	struct wireless_dev *wdev = wil_to_wdev(wil);
+	struct wireless_dev *wdev = wil->main_ndev->ieee80211_ptr;
 	struct cfg80211_mgmt_tx_params params;
 	int rc;
 	void *frame = kmalloc(len, GFP_KERNEL);
@@ -900,6 +919,7 @@ static ssize_t wil_write_file_wmi(struct file *file, const char __user *buf,
 				  size_t len, loff_t *ppos)
 {
 	struct wil6210_priv *wil = file->private_data;
+	struct wil6210_vif *vif = ndev_to_vif(wil->main_ndev);
 	struct wmi_cmd_hdr *wmi;
 	void *cmd;
 	int cmdlen = len - sizeof(struct wmi_cmd_hdr);
@@ -922,7 +942,7 @@ static ssize_t wil_write_file_wmi(struct file *file, const char __user *buf,
 	cmd = (cmdlen > 0) ? &wmi[1] : NULL;
 	cmdid = le16_to_cpu(wmi->command_id);
 
-	rc1 = wmi_send(wil, cmdid, cmd, cmdlen);
+	rc1 = wmi_send(wil, cmdid, vif->mid, cmd, cmdlen);
 	kfree(wmi);
 
 	wil_info(wil, "0x%04x[%d] -> %d\n", cmdid, cmdlen, rc1);
@@ -943,7 +963,7 @@ static void wil_seq_print_skb(struct seq_file *s, struct sk_buff *skb)
 	int nr_frags = skb_shinfo(skb)->nr_frags;
 
 	seq_printf(s, "    len = %d\n", len);
-	wil_seq_hexdump(s, p, len, "      : ");
+	wil_seq_hexdump(s, p, len, "      : ", false);
 
 	if (nr_frags) {
 		seq_printf(s, "    nr_frags = %d\n", nr_frags);
@@ -954,7 +974,7 @@ static void wil_seq_print_skb(struct seq_file *s, struct sk_buff *skb)
 			len = skb_frag_size(frag);
 			p = skb_frag_address_safe(frag);
 			seq_printf(s, "    [%2d] : len = %d\n", i, len);
-			wil_seq_hexdump(s, p, len, "      : ");
+			wil_seq_hexdump(s, p, len, "      : ", false);
 		}
 	}
 }
@@ -1060,6 +1080,7 @@ static int wil_bf_debugfs_show(struct seq_file *s, void *data)
 	int rc;
 	int i;
 	struct wil6210_priv *wil = s->private;
+	struct wil6210_vif *vif = ndev_to_vif(wil->main_ndev);
 	struct wmi_notify_req_cmd cmd = {
 		.interval_usec = 0,
 	};
@@ -1074,7 +1095,8 @@ static int wil_bf_debugfs_show(struct seq_file *s, void *data)
 		u32 status;
 
 		cmd.cid = i;
-		rc = wmi_call(wil, WMI_NOTIFY_REQ_CMDID, &cmd, sizeof(cmd),
+		rc = wmi_call(wil, WMI_NOTIFY_REQ_CMDID, vif->mid,
+			      &cmd, sizeof(cmd),
 			      WMI_NOTIFY_REQ_DONE_EVENTID, &reply,
 			      sizeof(reply), 20);
 		/* if reply is all-0, ignore this CID */
@@ -1167,7 +1189,7 @@ static const struct file_operations fops_temp = {
 static int wil_freq_debugfs_show(struct seq_file *s, void *data)
 {
 	struct wil6210_priv *wil = s->private;
-	struct wireless_dev *wdev = wil_to_wdev(wil);
+	struct wireless_dev *wdev = wil->main_ndev->ieee80211_ptr;
 	u16 freq = wdev->chandef.chan ? wdev->chandef.chan->center_freq : 0;
 
 	seq_printf(s, "Freq = %d\n", freq);
@@ -1197,6 +1219,8 @@ static int wil_link_debugfs_show(struct seq_file *s, void *data)
 	for (i = 0; i < ARRAY_SIZE(wil->sta); i++) {
 		struct wil_sta_info *p = &wil->sta[i];
 		char *status = "unknown";
+		struct wil6210_vif *vif;
+		u8 mid;
 
 		switch (p->status) {
 		case wil_sta_unused:
@@ -1209,16 +1233,24 @@ static int wil_link_debugfs_show(struct seq_file *s, void *data)
 			status = "connected";
 			break;
 		}
-		seq_printf(s, "[%d] %pM %s\n", i, p->addr, status);
+		mid = (p->status != wil_sta_unused) ? p->mid : U8_MAX;
+		seq_printf(s, "[%d][MID %d] %pM %s\n",
+			   i, mid, p->addr, status);
 
-		if (p->status == wil_sta_connected) {
-			rc = wil_cid_fill_sinfo(wil, i, &sinfo);
+		if (p->status != wil_sta_connected)
+			continue;
+
+		vif = (mid < wil->max_vifs) ? wil->vifs[mid] : NULL;
+		if (vif) {
+			rc = wil_cid_fill_sinfo(vif, i, &sinfo);
 			if (rc)
 				return rc;
 
 			seq_printf(s, "  Tx_mcs = %d\n", sinfo.txrate.mcs);
 			seq_printf(s, "  Rx_mcs = %d\n", sinfo.rxrate.mcs);
 			seq_printf(s, "  SQ     = %d\n", sinfo.signal);
+		} else {
+			seq_puts(s, "  INVALID MID\n");
 		}
 	}
 
@@ -1241,7 +1273,7 @@ static const struct file_operations fops_link = {
 static int wil_info_debugfs_show(struct seq_file *s, void *data)
 {
 	struct wil6210_priv *wil = s->private;
-	struct net_device *ndev = wil_to_ndev(wil);
+	struct net_device *ndev = wil->main_ndev;
 	int is_ac = power_supply_is_system_supplied();
 	int rx = atomic_xchg(&wil->isr_count_rx, 0);
 	int tx = atomic_xchg(&wil->isr_count_tx, 0);
@@ -1410,6 +1442,7 @@ __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 		struct wil_sta_info *p = &wil->sta[i];
 		char *status = "unknown";
 		u8 aid = 0;
+		u8 mid;
 
 		switch (p->status) {
 		case wil_sta_unused:
@@ -1423,7 +1456,9 @@ __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 			aid = p->aid;
 			break;
 		}
-		seq_printf(s, "[%d] %pM %s AID %d\n", i, p->addr, status, aid);
+		mid = (p->status != wil_sta_unused) ? p->mid : U8_MAX;
+		seq_printf(s, "[%d] %pM %s MID %d AID %d\n", i, p->addr, status,
+			   mid, aid);
 
 		if (p->status == wil_sta_connected) {
 			spin_lock_bh(&p->tid_rx_lock);
@@ -1468,6 +1503,118 @@ static int wil_sta_seq_open(struct inode *inode, struct file *file)
 
 static const struct file_operations fops_sta = {
 	.open		= wil_sta_seq_open,
+	.release	= single_release,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+};
+
+static int wil_mids_debugfs_show(struct seq_file *s, void *data)
+{
+	struct wil6210_priv *wil = s->private;
+	struct wil6210_vif *vif;
+	struct net_device *ndev;
+	int i;
+
+	mutex_lock(&wil->vif_mutex);
+	for (i = 0; i < wil->max_vifs; i++) {
+		vif = wil->vifs[i];
+
+		if (vif) {
+			ndev = vif_to_ndev(vif);
+			seq_printf(s, "[%d] %pM %s\n", i, ndev->dev_addr,
+				   ndev->name);
+		} else {
+			seq_printf(s, "[%d] unused\n", i);
+		}
+	}
+	mutex_unlock(&wil->vif_mutex);
+
+	return 0;
+}
+
+static int wil_mids_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, wil_mids_debugfs_show, inode->i_private);
+}
+
+static const struct file_operations fops_mids = {
+	.open		= wil_mids_seq_open,
+	.release	= single_release,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+};
+
+static int wil_umac_debugfs_show(struct seq_file *s, void *data)
+{
+	struct wil6210_priv *wil = s->private;
+	struct wil_umac *umac = wil->umac_handle;
+	struct wil_umac_vap *vap, *tmp_vap;
+	int bkt;
+	struct hlist_node *tmp_node;
+	struct wil_umac_node *node;
+
+	if (!wil->umac_handle)
+		return 0;
+
+	list_for_each_entry_safe(vap, tmp_vap, &umac->vaps, list) {
+		seq_printf(s, "VAP %s, mac %pM",
+			   vap->ndev->name, vap->ndev->dev_addr);
+		if (vap->ap_started) {
+			seq_printf(s, ", channel %d, privacy%s\n",
+				   vap->channel, vap->privacy ? "+" : "-");
+		} else {
+			seq_puts(s, "\n");
+			continue;
+		}
+		wil_seq_hexdump(s, vap->ssid, vap->ssid_len, "ssid: ", true);
+		seq_printf(s, "    Broadcast TX: packets %zu bytes %zu\n",
+			   vap->stats.bcast_tx_packets,
+			   vap->stats.bcast_tx_bytes);
+		hash_for_each_safe(umac->node_hash,
+				   bkt, tmp_node, node, hlist) {
+			ktime_t assoc_time, no_rx_time, no_tx_time;
+
+			if (node->vap != vap)
+				continue;
+			seq_printf(s, "  Node %pM, aid %d, state %d, rssi: last %d min %d max %d\n",
+				   node->mac, node->aid, node->state,
+				   node->last_rssi, node->rssi_min,
+				   node->rssi_max);
+			if (node->state != WIL_UMAC_NODE_STATE_ASSOCIATED &&
+			    node->state != WIL_UMAC_NODE_STATE_8021X_OPEN)
+				continue;
+
+			assoc_time = ktime_sub(ktime_get(), node->assoc_ts);
+			seq_printf(s, "       associated %ldsec\n",
+				   (long)ktime_to_ms(assoc_time) /
+					MSEC_PER_SEC);
+			seq_printf(s, "       RX: packets %zu bytes %zu, TX: packets %zu bytes %zu\n",
+				   node->stats.rx.packets,
+				   node->stats.rx.bytes,
+				   node->stats.tx.packets,
+				   node->stats.tx.bytes);
+			no_rx_time = ktime_sub(ktime_get(),
+					       node->stats.rx.last_activity);
+			no_tx_time = ktime_sub(ktime_get(),
+					       node->stats.tx.last_activity);
+			seq_printf(s, "       RX: last activity %ldsec ago, TX: last activity %ldsec ago\n",
+				   (long)ktime_to_ms(no_rx_time) /
+					MSEC_PER_SEC,
+				   (long)ktime_to_ms(no_tx_time) /
+					MSEC_PER_SEC);
+		}
+	}
+
+	return 0;
+}
+
+static int wil_umac_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, wil_umac_debugfs_show, inode->i_private);
+}
+
+static const struct file_operations fops_umac = {
+	.open		= wil_umac_seq_open,
 	.release	= single_release,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -1786,6 +1933,7 @@ static const struct {
 	{"mbox",	0444,		&fops_mbox},
 	{"vrings",	0444,		&fops_vring},
 	{"stations", 0444,		&fops_sta},
+	{"mids",	0444,		&fops_mids},
 	{"desc",	0444,		&fops_txdesc},
 	{"bf",		0444,		&fops_bf},
 	{"mem_val",	0644,		&fops_memread},
@@ -1807,6 +1955,7 @@ static const struct {
 	{"fw_version",	0444,		&fops_fw_version},
 	{"suspend_stats",	0644,	&fops_suspend_stats},
 	{"survey",	0444,		&fops_survey},
+	{"umac",	0444,		&fops_umac},
 };
 
 static void wil6210_debugfs_init_files(struct wil6210_priv *wil,
@@ -1845,11 +1994,9 @@ static void wil6210_debugfs_init_isr(struct wil6210_priv *wil,
 
 /* fields in struct wil6210_priv */
 static const struct dbg_off dbg_wil_off[] = {
-	WIL_FIELD(privacy,	0444,		doff_u32),
 	WIL_FIELD(status[0],	0644,	doff_ulong),
 	WIL_FIELD(hw_version,	0444,	doff_x32),
 	WIL_FIELD(recovery_count, 0444,	doff_u32),
-	WIL_FIELD(ap_isolate,	0444,	doff_u32),
 	WIL_FIELD(discovery_mode, 0644,	doff_u8),
 	WIL_FIELD(chip_revision, 0444,	doff_u8),
 	WIL_FIELD(abft_len, 0644,		doff_u8),
