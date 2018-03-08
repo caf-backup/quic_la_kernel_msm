@@ -522,11 +522,7 @@ void wil_vif_remove(struct wil6210_priv *wil, u8 mid)
 
 #if defined(CONFIG_WIL6210_NSS_SUPPORT)
 	if (vif->nss_handle)
-#if defined(BACKPORT_HAS_NEW_NSS_REDIRECT_API)
 		nss_virt_if_destroy_sync(vif->nss_handle);
-#else
-		nss_destroy_virt_if(vif->nss_handle);
-#endif
 #endif
 
 	mutex_lock(&wil->mutex);
