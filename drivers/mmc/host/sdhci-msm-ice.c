@@ -35,15 +35,15 @@ static struct platform_device *sdhci_msm_ice_get_pdevice(struct device *dev)
 			__func__);
 		goto out;
 	}
-	ice_pdev = ice_get_pdevice(node);
+	ice_pdev = qcom_ice_get_pdevice(node);
 out:
 	return ice_pdev;
 }
 
 static
-struct ice_variant_ops *sdhci_msm_ice_get_vops(struct device *dev)
+struct qcom_ice_variant_ops *sdhci_msm_ice_get_vops(struct device *dev)
 {
-	struct ice_variant_ops *ice_vops = NULL;
+	struct qcom_ice_variant_ops *ice_vops = NULL;
 	struct device_node *node;
 
 	node = of_parse_phandle(dev->of_node, SDHC_MSM_CRYPTO_LABEL, 0);
@@ -52,7 +52,7 @@ struct ice_variant_ops *sdhci_msm_ice_get_vops(struct device *dev)
 			__func__);
 		goto out;
 	}
-	ice_vops = ice_get_variant_ops(node);
+	ice_vops = qcom_ice_get_variant_ops(node);
 	of_node_put(node);
 out:
 	return ice_vops;

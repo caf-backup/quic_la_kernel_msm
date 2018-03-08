@@ -51,19 +51,19 @@ struct ice_data_setting {
 
 typedef void (*ice_error_cb)(void *, u32 error);
 
-struct ice_variant_ops *ice_get_variant_ops(struct device_node *node);
-struct platform_device *ice_get_pdevice(struct device_node *node);
+struct qcom_ice_variant_ops *qcom_ice_get_variant_ops(struct device_node *node);
+struct platform_device *qcom_ice_get_pdevice(struct device_node *node);
 
 #ifdef CONFIG_CRYPTO_DEV_ICE
-int ice_setup_ice_hw(const char *, int);
+int qcom_ice_setup_ice_hw(const char *, int);
 #else
-static inline int ice_setup_ice_hw(const char *storage_type, int enable)
+static inline int qcom_ice_setup_ice_hw(const char *storage_type, int enable)
 {
 	return 0;
 }
 #endif
 
-struct ice_variant_ops {
+struct qcom_ice_variant_ops {
 	const char *name;
 	int	(*init)(struct platform_device *, void *, ice_error_cb);
 	int	(*reset)(struct platform_device *);
