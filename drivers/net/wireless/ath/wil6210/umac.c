@@ -855,7 +855,7 @@ static int wil_umac_mgmt_rx_disassoc(struct wil_umac_vap *vap,
 
 	mutex_unlock(&umac->mutex);
 
-	umac->rops.del_station(vap->driver_vap_ctx, frame->sa, reason, false);
+	umac->rops.del_station(vap->driver_vap_ctx, frame->sa, reason);
 
 	/* node object is gone (freed in sta_deleted) */
 

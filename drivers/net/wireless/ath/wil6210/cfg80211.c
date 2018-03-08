@@ -1267,13 +1267,13 @@ static int wil_umac_rop_add_station(void *driver_vap_ctx, const u8 *mac,
 }
 
 static void wil_umac_rop_del_station(void *driver_vap_ctx, const u8 *mac,
-				     u16 reason, bool locally_generated)
+				     u16 reason)
 {
 	struct wil6210_vif *vif = driver_vap_ctx;
 	struct wil6210_priv *wil = vif_to_wil(vif);
 
 	mutex_lock(&wil->mutex);
-	wil6210_disconnect(vif, mac, reason, !locally_generated);
+	wil6210_disconnect(vif, mac, reason, false);
 	mutex_unlock(&wil->mutex);
 }
 

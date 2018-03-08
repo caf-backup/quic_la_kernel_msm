@@ -190,8 +190,7 @@ struct wil_umac_rops {
 	int (*add_station)(void *driver_vap_ctx, const u8 *mac, u8 aid);
 
 	/* notify driver about STA disassociation */
-	void (*del_station)(void *driver_vap_ctx, const u8 *mac, u16 reason,
-			    bool locally_generated);
+	void (*del_station)(void *driver_vap_ctx, const u8 *mac, u16 reason);
 };
 
 struct wil_umac {
