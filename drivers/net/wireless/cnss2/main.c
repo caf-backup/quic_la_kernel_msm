@@ -918,6 +918,9 @@ int cnss_unregister_qca8074_cb(struct cnss_plat_data *plat_priv)
 	void *handler = plat_priv->esoc_info.modem_notify_handler;
 
 	if (handler) {
+		/* unregister atomic handler first */
+		subsys_notif_unregister_atomic_notifier(handler,
+			&plat_priv->modem_atomic_nb);
 		subsys_notif_unregister_notifier(handler, &plat_priv->modem_nb);
 		memset(&plat_priv->modem_nb, 0, sizeof(struct notifier_block));
 		plat_priv->esoc_info.modem_notify_handler = NULL;
@@ -934,6 +937,23 @@ int cnss_unregister_qca6290_cb(struct cnss_plat_data *plat_priv)
 		plat_priv->esoc_info.modem_notify_handler = NULL;
 	}
 	return 0;
+}
+
+static int cnss_qca8074_notifier_atomic_nb(struct notifier_block *nb,
+	unsigned long code,
+	void *ss_handle)
+{
+	struct cnss_plat_data *plat_priv =
+		container_of(nb, struct cnss_plat_data, modem_atomic_nb);
+	struct cnss_pci_data *pci_priv = plat_priv->bus_priv;
+	struct cnss_wlan_driver *driver_ops;
+
+	driver_ops = plat_priv->driver_ops;
+
+	if (code == SUBSYS_PREPARE_FOR_FATAL_SHUTDOWN)
+		driver_ops->fatal(plat_priv->plat_dev, plat_priv->plat_dev_id);
+
+	return NOTIFY_OK;
 }
 
 static int cnss_qca6290_notifier_nb(struct notifier_block *nb,
@@ -991,10 +1011,21 @@ static int cnss_qca8074_notifier_nb(struct notifier_block *nb,
 void *cnss_register_qca8074_cb(struct cnss_plat_data *plat_priv)
 {
 	struct cnss_subsys_info *subsys_info;
+	void *ss_handle = NULL;
+
 	subsys_info = &plat_priv->subsys_info;
 	plat_priv->modem_nb.notifier_call = cnss_qca8074_notifier_nb;
-	return subsys_notif_register_notifier(subsys_info->subsys_desc.name,
-						&plat_priv->modem_nb);
+	ss_handle = subsys_notif_register_notifier(
+		subsys_info->subsys_desc.name, &plat_priv->modem_nb);
+	/* register the atomic notifier as well */
+	if (ss_handle) {
+		plat_priv->modem_atomic_nb.notifier_call =
+			cnss_qca8074_notifier_atomic_nb;
+		subsys_notif_register_atomic_notifier(ss_handle,
+			&plat_priv->modem_atomic_nb);
+	}
+
+	return ss_handle;
 }
 
 int cnss_wlan_register_driver(struct cnss_wlan_driver *driver_ops)
