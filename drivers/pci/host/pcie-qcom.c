@@ -1274,9 +1274,9 @@ void qcom_pcie_remove_bus(void)
 
 			pr_notice("---> Removing %d", i);
 			pp = &qcom_pcie_dev[i]->pp;
-			qcom_pcie_dev[i]->ops->deinit(qcom_pcie_dev[i]);
 			pci_stop_root_bus(pp->pci_bus);
 			pci_remove_root_bus(pp->pci_bus);
+			qcom_pcie_dev[i]->ops->deinit(qcom_pcie_dev[i]);
 			pp->pci_bus = NULL;
 			pr_notice(" ... done<---\n");
 		}
