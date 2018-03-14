@@ -81,6 +81,7 @@ struct cnss_wlan_driver {
 	void (*update_status)(struct pci_dev *pdev, uint32_t status);
 	struct cnss_wlan_runtime_ops *runtime_ops;
 	const struct pci_device_id *id_table;
+	int  (*fatal)(struct pci_dev *pdev, const struct pci_device_id *id);
 };
 
 enum cnss_driver_status {

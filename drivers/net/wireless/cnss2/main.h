@@ -212,6 +212,7 @@ struct cnss_plat_data {
 	struct completion power_up_complete;
 	unsigned int wlfw_service_instance_id;
 	unsigned int service_id;
+	struct notifier_block modem_atomic_nb;
 };
 
 void *cnss_bus_dev_to_bus_priv(struct device *dev);
