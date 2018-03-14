@@ -23,6 +23,7 @@ struct ramdump_segment {
 
 #ifdef CONFIG_IPQ_SUBSYSTEM_RESTART
 extern void *create_ramdump_device(const char *dev_name, struct device *parent);
+extern int create_ramdump_device_file(void *);
 extern void destroy_ramdump_device(void *dev);
 extern int do_ramdump(void *handle, struct ramdump_segment *segments,
 		int nsegments);
@@ -34,6 +35,10 @@ static inline void *create_ramdump_device(const char *dev_name,
 		struct device *parent)
 {
 	return NULL;
+}
+static inline int create_ramdump_device_file(void *handle)
+{
+	return -EINVAL;
 }
 
 static inline void destroy_ramdump_device(void *dev)

@@ -28,6 +28,7 @@
 #include <linux/dma-mapping.h>
 
 #define RAMDUMP_WAIT_MSECS	120000
+#define MAX_DEVICE 3
 
 struct ramdump_device {
 	char name[256];
@@ -37,8 +38,6 @@ struct ramdump_device {
 	int ramdump_status;
 
 	struct completion ramdump_complete;
-	struct miscdevice device;
-
 	wait_queue_head_t dump_wait_q;
 	int nsegments;
 	struct ramdump_segment *segments;
@@ -46,22 +45,49 @@ struct ramdump_device {
 	char *elfcore_buf;
 	struct dma_attrs attrs;
 };
+static struct class *dump_class;
+static struct ramdump_device *g_rd_dev[MAX_DEVICE];
+static int device_index;
 
 static int ramdump_open(struct inode *inode, struct file *filep)
 {
-	struct ramdump_device *rd_dev = container_of(filep->private_data,
-				struct ramdump_device, device);
+	int minor =  iminor(inode);
+	struct ramdump_device *rd_dev;
+
+	if (minor >= MAX_DEVICE) {
+		pr_err("ERR: minor value greater than %d\n", MAX_DEVICE);
+		return -EINVAL;
+	}
+
+	rd_dev = g_rd_dev[minor];
+	if (rd_dev == NULL) {
+		pr_err("ramdump_open error: rd_dev is NULL\n");
+		return -EINVAL;
+	}
+
 	rd_dev->consumer_present = 1;
 	rd_dev->ramdump_status = 0;
+	filep->private_data = rd_dev;
 	return 0;
 }
 
 static int ramdump_release(struct inode *inode, struct file *filep)
 {
 	struct ramdump_device *rd_dev = container_of(filep->private_data,
-				struct ramdump_device, device);
+				struct ramdump_device, name);
+	int dump_minor =  iminor(inode);
+	int dump_major = imajor(inode);
+
+	if (dump_minor >= MAX_DEVICE) {
+		pr_err("ERR: minor value greater than %d\n", MAX_DEVICE);
+		return -EINVAL;
+	}
+
 	rd_dev->consumer_present = 0;
 	rd_dev->data_ready = 0;
+	g_rd_dev[dump_minor] = NULL;
+	device_destroy(dump_class, MKDEV(dump_major, dump_minor));
+	class_destroy(dump_class);
 	complete(&rd_dev->ramdump_complete);
 	return 0;
 }
@@ -104,7 +130,7 @@ static ssize_t ramdump_read(struct file *filep, char __user *buf, size_t count,
 			loff_t *pos)
 {
 	struct ramdump_device *rd_dev = container_of(filep->private_data,
-				struct ramdump_device, device);
+				struct ramdump_device, name);
 	void *device_mem = NULL, *origdevice_mem = NULL, *vaddr = NULL;
 	unsigned long data_left = 0, bytes_before, bytes_after;
 	unsigned long addr = 0;
@@ -229,7 +255,7 @@ static unsigned int ramdump_poll(struct file *filep,
 					struct poll_table_struct *wait)
 {
 	struct ramdump_device *rd_dev = container_of(filep->private_data,
-				struct ramdump_device, device);
+				struct ramdump_device, name);
 	unsigned int mask = 0;
 
 	if (rd_dev->data_ready)
@@ -248,7 +274,6 @@ static const struct file_operations ramdump_file_ops = {
 
 void *create_ramdump_device(const char *dev_name, struct device *parent)
 {
-	int ret;
 	struct ramdump_device *rd_dev;
 
 	if (!dev_name) {
@@ -257,35 +282,65 @@ void *create_ramdump_device(const char *dev_name, struct device *parent)
 	}
 
 	rd_dev = kzalloc(sizeof(struct ramdump_device), GFP_KERNEL);
-
 	if (!rd_dev) {
 		pr_err("%s: Couldn't alloc space for ramdump device!",
 			__func__);
 		return NULL;
 	}
 
+	g_rd_dev[device_index++] = rd_dev;
 	snprintf(rd_dev->name, ARRAY_SIZE(rd_dev->name), "ramdump_%s",
 		 dev_name);
 
 	init_completion(&rd_dev->ramdump_complete);
 
-	rd_dev->device.minor = MISC_DYNAMIC_MINOR;
-	rd_dev->device.name = rd_dev->name;
-	rd_dev->device.fops = &ramdump_file_ops;
-	rd_dev->device.parent = parent;
-
 	init_waitqueue_head(&rd_dev->dump_wait_q);
 
-	ret = misc_register(&rd_dev->device);
+	return (void *)rd_dev;
+}
 
-	if (ret) {
-		pr_err("%s: misc_register failed for %s (%d)", __func__,
-				dev_name, ret);
-		kfree(rd_dev);
-		return NULL;
+int create_ramdump_device_file(void *handle)
+{
+	struct ramdump_device *rd_dev = (struct ramdump_device *)handle;
+	int dump_major;
+	struct device *dump_dev;
+	int ret = 0;
+
+	if (!rd_dev) {
+		pr_err("%s: Couldn't alloc space for ramdump device!",
+			__func__);
+		return -EINVAL;
 	}
 
-	return (void *)rd_dev;
+	dump_major = register_chrdev(UNNAMED_MAJOR, "dump", &ramdump_file_ops);
+	if (dump_major < 0) {
+		pr_err("Unable to allocate a major number err = %d",
+		       dump_major);
+		return dump_major;
+	}
+
+	dump_class = class_create(THIS_MODULE, "dump");
+	if (IS_ERR(dump_class)) {
+		pr_err("Unable to create a dump_class");
+		ret = PTR_ERR(dump_class);
+		goto class_failed;
+	}
+
+	dump_dev = device_create(dump_class, NULL, MKDEV(dump_major, 0), rd_dev,
+			rd_dev->name);
+	if (IS_ERR(dump_dev)) {
+		pr_err("Unable to create a device");
+		ret = PTR_ERR(dump_dev);
+		goto device_failed;
+	}
+
+	return ret;
+
+device_failed:
+	class_destroy(dump_class);
+class_failed:
+	unregister_chrdev(dump_major, "dump");
+	return ret;
 }
 EXPORT_SYMBOL(create_ramdump_device);
 
@@ -295,8 +350,7 @@ void destroy_ramdump_device(void *dev)
 
 	if (IS_ERR_OR_NULL(rd_dev))
 		return;
-
-	misc_deregister(&rd_dev->device);
+	device_index--;
 	kfree(rd_dev);
 }
 EXPORT_SYMBOL(destroy_ramdump_device);
@@ -310,10 +364,6 @@ static int _do_ramdump(void *handle, struct ramdump_segment *segments,
 	Elf32_Ehdr *ehdr;
 	unsigned long offset;
 
-	if (!rd_dev->consumer_present) {
-		pr_err("Ramdump(%s): No consumers. Aborting..\n", rd_dev->name);
-		return -EPIPE;
-	}
 
 	for (i = 0; i < nsegments; i++)
 		segments[i].size = PAGE_ALIGN(segments[i].size);
