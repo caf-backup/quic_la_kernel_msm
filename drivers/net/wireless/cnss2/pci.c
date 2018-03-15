@@ -781,7 +781,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 
 	if (plat_priv->device_id == QCA6290_DEVICE_ID) {
 		fw_mem->pa = Q6_CALDB_ADDR;
-		fw_mem->va = Q6_CALDB_ADDR;
+		fw_mem->va = ioremap(Q6_CALDB_ADDR, fw_mem->size);
 		return 0;
 	}
 
@@ -837,6 +837,7 @@ static void cnss_pci_free_fw_mem(struct cnss_pci_data *pci_priv)
 		fw_mem->size = 0;
 	}
 #endif
+	iounmap(fw_mem->va);
 }
 
 int cnss_pci_load_m3(struct cnss_plat_data *plat_priv)
