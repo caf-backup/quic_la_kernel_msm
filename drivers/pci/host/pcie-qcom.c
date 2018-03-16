@@ -29,6 +29,7 @@
 #include <linux/reset.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <linux/qcom-pcie.h>
 
 #include "pcie-designware.h"
 
@@ -225,6 +226,7 @@ struct qcom_pcie {
 	int link_down_irq;
 	int link_up_irq;
 	uint32_t rc_idx;
+	struct qcom_pcie_register_event *event_reg;
 };
 
 #define to_qcom_pcie(x)		container_of(x, struct qcom_pcie, pp)
@@ -232,6 +234,7 @@ struct qcom_pcie {
 #define MAX_RC_NUM	3
 static struct qcom_pcie *qcom_pcie_dev[MAX_RC_NUM];
 static atomic_t rc_removed;
+static atomic_t slot_removed;
 
 static inline void
 writel_masked(void __iomem *addr, u32 clear_mask, u32 set_mask)
@@ -277,12 +280,32 @@ static int qcom_pcie_establish_link(struct qcom_pcie *pcie)
 	return dw_pcie_wait_for_link(&pcie->pp);
 }
 
+static void qcom_pcie_notify_client(struct qcom_pcie *dev,
+		enum qcom_pcie_event event)
+{
+	if (dev->event_reg && dev->event_reg->callback &&
+			(dev->event_reg->events & event)) {
+		struct qcom_pcie_notify *notify = &dev->event_reg->notify;
+		notify->event = event;
+		notify->user = dev->event_reg->user;
+		pr_info("PCIe: callback RC%d for event %d.\n",
+				dev->rc_idx, event);
+		dev->event_reg->callback(notify);
+
+	} else {
+		pr_info(
+				"PCIe: Client of RC%d does not have registered for event %d.\n",
+				dev->rc_idx, event);
+	}
+}
+
 static irqreturn_t handle_link_down_irq(int irq, void *data)
 {
 	struct qcom_pcie *qcom_pcie = data;
 
 	pr_info("PCIe: link_down IRQ for RC=%d\n", qcom_pcie->rc_idx);
 
+	qcom_pcie_notify_client(qcom_pcie, QCOM_PCIE_EVENT_LINKDOWN);
 	return IRQ_HANDLED;
 }
 
@@ -1338,6 +1361,132 @@ static ssize_t qcom_bus_remove_store(struct bus_type *bus, const char *buf,
 	return count;
 }
 static BUS_ATTR(rcremove, (S_IWUSR|S_IWGRP), NULL, qcom_bus_remove_store);
+
+static ssize_t qcom_slot_rescan_store(struct bus_type *bus, const char *buf,
+		size_t count)
+{
+	unsigned long val;
+
+	if (!atomic_read(&slot_removed))
+		return 0;
+
+	if (kstrtoul(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	if (val < MAX_RC_NUM) {
+		pci_lock_rescan_remove();
+		if (qcom_pcie_dev[val]) {
+			struct pcie_port *pp;
+
+			pp = &qcom_pcie_dev[val]->pp;
+			dw_pcie_host_init_pm(pp);
+			atomic_set(&slot_removed, 0);
+		}
+		pci_unlock_rescan_remove();
+	}
+	return count;
+}
+static BUS_ATTR(slot_rescan, (S_IWUSR|S_IWGRP), NULL, qcom_slot_rescan_store);
+
+static ssize_t qcom_slot_remove_store(struct bus_type *bus, const char *buf,
+		size_t count)
+{
+	unsigned long val;
+
+	if (atomic_read(&slot_removed))
+		return 0;
+
+	if (kstrtoul(buf, 0, &val) < 0)
+		return -EINVAL;
+
+	if (val < MAX_RC_NUM) {
+		pci_lock_rescan_remove();
+		if (qcom_pcie_dev[val]) {
+			struct pcie_port *pp;
+
+			pr_notice("---> Removing %ld", val);
+			pp = &qcom_pcie_dev[val]->pp;
+			qcom_pcie_dev[val]->ops->deinit(qcom_pcie_dev[val]);
+			pci_stop_root_bus(pp->pci_bus);
+			pci_remove_root_bus(pp->pci_bus);
+			pp->pci_bus = NULL;
+			pr_notice(" ... done<---\n");
+			atomic_set(&slot_removed, 1);
+		}
+		pci_unlock_rescan_remove();
+	}
+	return count;
+}
+static BUS_ATTR(slot_remove, (S_IWUSR|S_IWGRP), NULL, qcom_slot_remove_store);
+
+int qcom_pcie_register_event(struct qcom_pcie_register_event *reg)
+{
+	int ret = 0;
+	struct pci_dev *pci_dev;
+	struct pcie_port *pp;
+	struct qcom_pcie *qcom_pcie;
+
+	if (!reg) {
+		pr_err("PCIe: Event registration is NULL\n");
+		return -ENODEV;
+	}
+
+	if (!reg->user) {
+		pr_err("PCIe: User of event registration is NULL\n");
+		return -ENODEV;
+	}
+	pci_dev = (struct pci_dev *)reg->user;
+	pp = pci_dev->bus->sysdata;
+	qcom_pcie = to_qcom_pcie(pp);
+
+	if (qcom_pcie) {
+		qcom_pcie->event_reg = reg;
+		pr_info("Event 0x%x is registered for RC %d\n", reg->events,
+				qcom_pcie->rc_idx);
+	} else {
+		pr_err("PCIe: did not find RC for pci endpoint device 0x%x.\n",
+				(u32)reg->user);
+		ret = -ENODEV;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_pcie_register_event);
+
+int qcom_pcie_deregister_event(struct qcom_pcie_register_event *reg)
+{
+	int ret = 0;
+	struct pci_dev *pci_dev;
+	struct pcie_port *pp;
+	struct qcom_pcie *qcom_pcie;
+
+	if (!reg) {
+		pr_err("PCIe: Event deregistration is NULL\n");
+		return -ENODEV;
+	}
+
+	if (!reg->user) {
+		pr_err("PCIe: User of event deregistration is NULL\n");
+		return -ENODEV;
+	}
+	pci_dev = (struct pci_dev *)reg->user;
+	pp = pci_dev->bus->sysdata;
+	qcom_pcie = to_qcom_pcie(pp);
+
+	if (qcom_pcie) {
+		qcom_pcie->event_reg = NULL;
+		pr_info("Event is deregistered for RC %d\n",
+				qcom_pcie->rc_idx);
+	} else {
+		pr_err("PCIe: did not find RC for pci endpoint device 0x%x.\n",
+				(u32)reg->user);
+		ret = -ENODEV;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_pcie_deregister_event);
+
 static int qcom_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1454,6 +1603,24 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 			return ret;
 		}
 	}
+
+	/* create sysfs files to support slot rescan and remove*/
+	if (!rc_idx) {
+		ret = bus_create_file(&pci_bus_type, &bus_attr_slot_rescan);
+		if (ret != 0) {
+			dev_err(&pdev->dev,
+					"Failed to create sysfs rcrescan file\n");
+			return ret;
+		}
+
+		ret = bus_create_file(&pci_bus_type, &bus_attr_slot_remove);
+		if (ret != 0) {
+			dev_err(&pdev->dev,
+					"Failed to create sysfs rcremove file\n");
+			return ret;
+		}
+	}
+
 	qcom_pcie_dev[rc_idx++] = pcie;
 	pcie->rc_idx = rc_idx;
 
