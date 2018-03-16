@@ -36,6 +36,8 @@
 #define BUF_LEN_V8 0x2000
 #define BUF_LEN_V7 0x1000
 
+static unsigned int paniconaccessviolation = 0;
+
 /* Maximum size for buffers to support AARCH64 TZ */
 #define HVC_PRESENT BIT(0)
 #define TZ_64 BIT(1)
@@ -273,9 +275,13 @@ static const struct file_operations fops_hvc_log = {
 
 static irqreturn_t tzerr_irq(int irq, void *data)
 {
-	pr_emerg("WARN: Access Violation, "
-		"Run \"cat /sys/kernel/debug/qcom_debug_logs/tz_log\" "
-		"for more details \n");
+	if (paniconaccessviolation) {
+		panic("WARN: Access Violation!!!");
+	} else {
+		pr_emerg("WARN: Access Violation!!!, "
+			"Run \"cat /sys/kernel/debug/qcom_debug_logs/tz_log\" "
+			"for more details \n");
+	}
 	return IRQ_HANDLED;
 }
 
@@ -369,6 +375,11 @@ static int qca_tzlog_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, tz_hvc_log);
 
+	if (paniconaccessviolation) {
+		printk("TZ Log : Will panic on Access Violation, as paniconaccessviolation is set\n");
+	} else {
+		printk("TZ Log : Will warn on Access Violation, as paniconaccessviolation is not set\n");
+	}
 	return 0;
 
 remove_debugfs:
@@ -410,4 +421,7 @@ static struct platform_driver qca_tzlog_driver = {
 		.of_match_table = qca_tzlog_of_match,
 	},
 };
+
+MODULE_PARM_DESC(paniconaccessviolation, "Panic on Access Violation detected: 0,1");
 module_platform_driver(qca_tzlog_driver);
+module_param(paniconaccessviolation, uint, 0644);
