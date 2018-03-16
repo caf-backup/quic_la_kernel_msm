@@ -222,6 +222,9 @@ struct qcom_pcie {
 	struct qcom_pcie_ops *ops;
 	uint32_t force_gen1;
 	u32 is_emulation;
+	int link_down_irq;
+	int link_up_irq;
+	uint32_t rc_idx;
 };
 
 #define to_qcom_pcie(x)		container_of(x, struct qcom_pcie, pp)
@@ -272,6 +275,24 @@ static int qcom_pcie_establish_link(struct qcom_pcie *pcie)
 	writel(val, pcie->elbi + PCIE20_ELBI_SYS_CTRL);
 
 	return dw_pcie_wait_for_link(&pcie->pp);
+}
+
+static irqreturn_t handle_link_down_irq(int irq, void *data)
+{
+	struct qcom_pcie *qcom_pcie = data;
+
+	pr_info("PCIe: link_down IRQ for RC=%d\n", qcom_pcie->rc_idx);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t handle_link_up_irq(int irq, void *data)
+{
+	struct qcom_pcie *qcom_pcie = data;
+
+	pr_info("PCIe: link_up IRQ for RC=%d\n", qcom_pcie->rc_idx);
+
+	return IRQ_HANDLED;
 }
 
 static void qcom_pcie_prog_viewport_cfg0(struct qcom_pcie *pcie, u32 busdev)
@@ -1375,6 +1396,23 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	pp->root_bus_nr = -1;
 	pp->ops = &qcom_pcie_dw_ops;
 
+	pcie->link_down_irq = platform_get_irq_byname(pdev,
+					"int_link_down");
+	if (pcie->link_down_irq >= 0) {
+		ret = devm_request_irq(&pdev->dev, pcie->link_down_irq,
+				handle_link_down_irq,
+				IRQF_TRIGGER_RISING, "pci_link_down",
+				pcie);
+	}
+
+	pcie->link_up_irq = platform_get_irq_byname(pdev, "int_link_up");
+	if (pcie->link_up_irq >= 0) {
+		ret = devm_request_irq(&pdev->dev, pcie->link_up_irq,
+				handle_link_up_irq,
+				IRQF_TRIGGER_RISING, "pci_link_up",
+				pcie);
+	}
+
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		pp->msi_irq = platform_get_irq_byname(pdev, "msi");
 		if (pp->msi_irq < 0)
@@ -1417,6 +1455,7 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 		}
 	}
 	qcom_pcie_dev[rc_idx++] = pcie;
+	pcie->rc_idx = rc_idx;
 
 	return 0;
 }

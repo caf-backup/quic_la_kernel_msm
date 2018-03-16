@@ -1135,8 +1135,10 @@
 			ranges = <0x81000000 0 0x0fe00000 0x0fe00000 0 0x00100000   /* downstream I/O */
 				  0x82000000 0 0x08000000 0x08000000 0 0x07e00000>; /* non-prefetchable memory */
 
-			interrupts = <GIC_SPI 35 IRQ_TYPE_NONE>;
-			interrupt-names = "msi";
+			interrupts = <GIC_SPI 35 IRQ_TYPE_NONE
+					0 44 0x0
+					0 45 0x0>;
+			interrupt-names = "msi", "int_link_up", "int_link_down";
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 0x7>;
 			interrupt-map = <0 0 0 1 &intc 0 36 IRQ_TYPE_LEVEL_HIGH>, /* int_a */
@@ -1188,8 +1190,10 @@
 			ranges = <0x81000000 0 0x31e00000 0x31e00000 0 0x00100000   /* downstream I/O */
 				  0x82000000 0 0x2e000000 0x2e000000 0 0x03e00000>; /* non-prefetchable memory */
 
-			interrupts = <GIC_SPI 57 IRQ_TYPE_NONE>;
-			interrupt-names = "msi";
+			interrupts = <GIC_SPI 57 IRQ_TYPE_NONE
+					0 66 0x0
+					0 67 0x0>;
+			interrupt-names = "msi", "int_link_up", "int_link_down";
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 0x7>;
 			interrupt-map = <0 0 0 1 &intc 0 58 IRQ_TYPE_LEVEL_HIGH>, /* int_a */
@@ -1241,8 +1245,10 @@
 			ranges = <0x81000000 0 0x35e00000 0x35e00000 0 0x00100000   /* downstream I/O */
 				  0x82000000 0 0x32000000 0x32000000 0 0x03e00000>; /* non-prefetchable memory */
 
-			interrupts = <GIC_SPI 71 IRQ_TYPE_NONE>;
-			interrupt-names = "msi";
+			interrupts = <GIC_SPI 71 IRQ_TYPE_NONE
+					0 80 0x0
+					0 81 0x0>;
+			interrupt-names = "msi", "int_link_up", "int_link_down";
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 0x7>;
 			interrupt-map = <0 0 0 1 &intc 0 72 IRQ_TYPE_LEVEL_HIGH>, /* int_a */
