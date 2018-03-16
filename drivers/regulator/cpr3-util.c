@@ -1593,7 +1593,7 @@ int cpr3_adjust_fused_open_loop_voltages(struct cpr3_regulator *vreg,
 			 "qcom,cpr-open-loop-voltage-fuse-adjustment-%d",
 			 vreg->part_type);
 	} else {
-		strncpy(prop_str, "qcom,cpr-open-loop-voltage-fuse-adjustment",
+		strlcpy(prop_str, "qcom,cpr-open-loop-voltage-fuse-adjustment",
 			sizeof(prop_str));
 	}
 
