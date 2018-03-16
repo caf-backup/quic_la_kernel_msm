@@ -162,13 +162,6 @@ static struct clk_regmap *apss_ipq807x_clks[] = {
 	[APCS_ALIAS0_CORE_CLK] = &apcs_alias0_core_clk.clkr,
 };
 
-static const struct alpha_pll_config apss_pll_config = {
-	.l = 0x58,
-	.config_ctl_val = 0x200d4828,
-	.config_ctl_hi_val = 0x6,
-	.early_output_mask = BIT(3),
-};
-
 static const struct of_device_id apss_ipq807x_match_table[] = {
 	{ .compatible = "qcom,apss-ipq807x" },
 	{ }
@@ -192,15 +185,8 @@ static const struct qcom_cc_desc apss_ipq807x_desc = {
 static int apss_ipq807x_probe(struct platform_device *pdev)
 {
 	int ret;
-	struct regmap *regmap;
 
-	regmap = qcom_cc_map(pdev, &apss_ipq807x_desc);
-	if (IS_ERR(regmap))
-		return PTR_ERR(regmap);
-
-	clk_alpha_pll_configure(&apss_pll_early, regmap, &apss_pll_config);
-
-	ret = qcom_cc_really_probe(pdev, &apss_ipq807x_desc, regmap);
+	ret = qcom_cc_probe(pdev, &apss_ipq807x_desc);
 
 	dev_dbg(&pdev->dev, "Registered ipq807x apss clock provider\n");
 
