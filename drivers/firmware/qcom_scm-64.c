@@ -417,33 +417,18 @@ int __qcom_qfprom_read_version(struct device *dev, uint32_t sw_type,
 	int ret;
 	struct arm_smccc_res res;
 	struct qcom_scm_desc desc = {0};
-	struct qfprom_xtra {
-		uint32_t qfprom_ret_ptr;
-		uint32_t size;
-	} *xtra;
-	dma_addr_t xtra_phys;
-
-	xtra = (struct qfprom_xtra *)dma_alloc_coherent(dev,
-		sizeof(struct qfprom_xtra), &xtra_phys, GFP_KERNEL);
-	if (!xtra) {
-		dev_err(dev, "Allocation for xtraargs buffer failed\n");
-		return -ENOMEM;
-	}
-
-	xtra->qfprom_ret_ptr = qfprom_ret_ptr;
-	xtra->size = sizeof(uint32_t);
 
 	desc.args[0] = sw_type;
 	desc.args[1] = (u64)value;
 	desc.args[2] = sizeof(uint32_t);
-	desc.args[3] = (u64)xtra_phys;
+	desc.args[3] = (u64)qfprom_ret_ptr;
+	desc.args[4] = sizeof(uint32_t);
 
 	desc.arginfo = SCM_ARGS(5, SCM_VAL, SCM_RW, SCM_VAL, SCM_RW,
 						SCM_VAL);
 	ret = qcom_scm_call(dev, QCOM_SCM_SVC_FUSE,
 				QCOM_QFPROM_ROW_READ_CMD, &desc, &res);
-	dma_free_coherent(dev, sizeof(struct qfprom_xtra), xtra,
-				xtra_phys);
+
 	return ret ? : res.a1;
 }
 
