@@ -143,7 +143,7 @@
 				reg = <0>;
 				qca,ar8327-initvals = <
 					0x00004 0x80080080     /* PAD0_MODE */
-					0x0007c 0x7e        /* PORT0_STATUS */
+					0x0007c 0x4e        /* PORT0_STATUS */
 				>;
 			};
 			phy1: ethernet-phy@1 {
