@@ -144,7 +144,7 @@ ENDPROC(cpu_v7_do_resume)
 #endif
 
 /*
- * Qualcomm Inc. Krait processors. - need to invalidate Branch prediction
+ * Qualcomm Technologies Inc. Krait processors. - need to invalidate Branch prediction
  * on switch_mm
  */
 	globl_equ	cpu_krait_proc_init,	cpu_v7_proc_init
@@ -402,10 +402,7 @@ __v7_ca15mp_proc_info:
 	.size	__v7_ca15mp_proc_info, . - __v7_ca15mp_proc_info
 
 	/*
-	 * Qualcomm Inc. Krait processors.
-	 */
-	/*
-	 * Qualcomm Inc. Krait processors.
+	 * Qualcomm Technologies Inc. Krait processors.
 	 */
 	.type	__krait_proc_info, #object
 __krait_proc_info:
