@@ -29,6 +29,7 @@ struct ipq40xx_pcm_rt_priv {
 	struct ipq40xx_mbox_desc *last_played;
 	unsigned int processed_size;
 	uint32_t period_size;
+	uint32_t buffer_size;
 	uint32_t curr_pos;
 	int mmap_flag;
 	uint32_t dma_started;

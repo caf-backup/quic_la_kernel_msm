@@ -289,6 +289,20 @@ static int ipq40xx_pcm_tdm_prepare(struct snd_pcm_substream *substream)
 	uint32_t ret;
 
 	pcm_rtpriv = runtime->private_data;
+
+	ret = ipq40xx_mbox_form_ring(pcm_rtpriv->channel,
+			substream->dma_buffer.addr,
+			substream->dma_buffer.area,
+			pcm_rtpriv->period_size,
+			pcm_rtpriv->buffer_size,
+			(substream->stream == SNDRV_PCM_STREAM_CAPTURE));
+	if (ret) {
+		pr_err("%s: %d: Error dma form ring\n",
+				__func__, __LINE__);
+		ipq40xx_mbox_dma_release(pcm_rtpriv->channel);
+		return ret;
+	}
+
 	ret = ipq40xx_mbox_dma_prepare(pcm_rtpriv->channel);
 	if (ret) {
 		pr_err("%s: %d: Error in dma prepare : channel : %d\n",
@@ -380,25 +394,11 @@ static int ipq40xx_pcm_tdm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct ipq40xx_pcm_rt_priv *pcm_rtpriv;
-	int ret;
 	unsigned int period_size, sample_size, sample_rate, frames, channels;
 
 	pr_debug("%s %d\n", __func__, __LINE__);
 
 	pcm_rtpriv = runtime->private_data;
-
-	ret = ipq40xx_mbox_form_ring(pcm_rtpriv->channel,
-			substream->dma_buffer.addr,
-			substream->dma_buffer.area,
-			params_period_bytes(hw_params),
-			params_buffer_bytes(hw_params),
-			(substream->stream == SNDRV_PCM_STREAM_CAPTURE));
-	if (ret) {
-		pr_err("%s: %d: Error dma form ring\n",
-				__func__, __LINE__);
-		ipq40xx_mbox_dma_release(pcm_rtpriv->channel);
-		return ret;
-	}
 
 	period_size = params_period_bytes(hw_params);
 	sample_size = snd_pcm_format_size(params_format(hw_params), 1);
@@ -407,11 +407,12 @@ static int ipq40xx_pcm_tdm_hw_params(struct snd_pcm_substream *substream,
 	frames = period_size / (sample_size * channels);
 
 	pcm_rtpriv->period_size = params_period_bytes(hw_params);
+	pcm_rtpriv->buffer_size = params_buffer_bytes(hw_params);
 
 	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 
 	runtime->dma_bytes = params_buffer_bytes(hw_params);
-	return ret;
+	return 0;
 }
 
 static int ipq40xx_pcm_tdm_open(struct snd_pcm_substream *substream)
