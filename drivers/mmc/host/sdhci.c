@@ -257,6 +257,8 @@ static void sdhci_do_reset(struct sdhci_host *host, u8 mask)
 		/* Resetting the controller clears many */
 		host->preset_enabled = false;
 	}
+	if (host->is_crypto_en)
+		host->crypto_reset_reqd = true;
 }
 
 static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios);
@@ -1144,7 +1146,7 @@ static void sdhci_finish_command(struct sdhci_host *host)
 	if (host->cmd->flags & MMC_RSP_PRESENT) {
 		if (host->cmd->flags & MMC_RSP_136) {
 			/* CRC is stripped so we need to do some shifting. */
-			for (i = 0;i < 4;i++) {
+			for (i = 0; i < 4; i++) {
 				host->cmd->resp[i] = sdhci_readl(host,
 					SDHCI_RESPONSE + (3-i)*4) << 8;
 				if (i != 3)
@@ -1421,6 +1423,31 @@ static void sdhci_set_power(struct sdhci_host *host, unsigned char mode,
 			mdelay(10);
 	}
 }
+static int sdhci_crypto_cfg(struct sdhci_host *host, struct mmc_request *mrq,
+					u32 slot)
+{
+	int err = 0;
+
+	if (host->crypto_reset_reqd && host->ops->crypto_engine_reset) {
+		err = host->ops->crypto_engine_reset(host);
+		if (err) {
+			pr_err("%s: crypto reset failed\n",
+					mmc_hostname(host->mmc));
+			goto out;
+		}
+		host->crypto_reset_reqd = false;
+	}
+	if (host->ops->crypto_engine_cfg) {
+		err = host->ops->crypto_engine_cfg(host, mrq, slot);
+		if (err) {
+			pr_err("%s: failed to configure crypto\n",
+					mmc_hostname(host->mmc));
+			goto out;
+		}
+	}
+out:
+	return err;
+}
 
 /*****************************************************************************\
  *                                                                           *
@@ -1466,6 +1493,13 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		host->mrq->cmd->error = -ENOMEDIUM;
 		tasklet_schedule(&host->finish_tasklet);
 	} else {
+		if (host->is_crypto_en) {
+			spin_unlock_irqrestore(&host->lock, flags);
+			if (sdhci_crypto_cfg(host, mrq, 0))
+				goto end_req;
+			spin_lock_irqsave(&host->lock, flags);
+		}
+
 		if (mrq->sbc && !(host->flags & SDHCI_AUTO_CMD23))
 			sdhci_send_command(host, mrq->sbc);
 		else
@@ -1474,6 +1508,16 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	mmiowb();
 	spin_unlock_irqrestore(&host->lock, flags);
+	return;
+
+end_req:
+	mrq->cmd->error = -EIO;
+	if (mrq->data)
+		mrq->data->error = -EIO;
+	host->mrq = NULL;
+	sdhci_dumpregs(host);
+	mmc_request_done(host->mmc, mrq);
+	sdhci_runtime_pm_put(host);
 }
 
 void sdhci_set_bus_width(struct sdhci_host *host, int width)
@@ -2331,14 +2375,14 @@ static void sdhci_tasklet_finish(unsigned long param)
 	unsigned long flags;
 	struct mmc_request *mrq;
 
-	host = (struct sdhci_host*)param;
+	host = (struct sdhci_host *)param;
 
 	spin_lock_irqsave(&host->lock, flags);
 
-        /*
-         * If this tasklet gets rescheduled while running, it will
-         * be run again afterwards but without any active request.
-         */
+	/*
+	* If this tasklet gets rescheduled while running, it will
+	* be run again afterwards but without any active request.
+	*/
 	if (!host->mrq) {
 		spin_unlock_irqrestore(&host->lock, flags);
 		return;
@@ -2390,7 +2434,7 @@ static void sdhci_timeout_timer(unsigned long data)
 	struct sdhci_host *host;
 	unsigned long flags;
 
-	host = (struct sdhci_host*)data;
+	host = (struct sdhci_host *)data;
 
 	spin_lock_irqsave(&host->lock, flags);
 
