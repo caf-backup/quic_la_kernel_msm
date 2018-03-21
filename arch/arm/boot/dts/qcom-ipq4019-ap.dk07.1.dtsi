@@ -266,7 +266,7 @@
 			status = "ok";
 			qcom,bus-speed-mode = "HS200_1p8v", "DDR_1p8v";
 			qcom,clk-rates = <400000 25000000 50000000 100000000 \
-					 192000000 384000000>;
+					 192000000>;
 			pinctrl-0 = <&sd_0_pins>;
 			pinctrl-1 = <&sd_1_pins>;
 			pinctrl-names = "active", "sleep";
