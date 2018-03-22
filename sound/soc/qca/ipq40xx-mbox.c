@@ -222,10 +222,6 @@ int ipq40xx_mbox_dma_resume(int channel_id)
 	if (!mbox_rtime[index])
 		return -ENOMEM;
 
-	/* resume is meaningful only when dma is started. */
-	if (!mbox_rtime[index]->mbox_started)
-		return 0;
-
 	mbox_reg = mbox_rtime[index]->mbox_reg_base;
 
 	switch (dir) {
@@ -278,8 +274,6 @@ int ipq40xx_mbox_dma_stop(int channel_id)
 	mdelay(10);
 
 	mbox_cb = &mbox_rtime[index]->dir_priv[dir];
-	mbox_cb->read = 0;
-	mbox_cb->write = 0;
 
 	return 0;
 
@@ -550,6 +544,9 @@ int ipq40xx_mbox_dma_release(int channel_id)
 				&mbox_rtime[index]->dir_priv[dir].status);
 		return 0;
 	}
+
+	mbox_rtime[index]->dir_priv[dir].read = 0;
+	mbox_rtime[index]->dir_priv[dir].write = 0;
 
 	return -ENXIO;
 }

@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ *
  * ip_conntrack_proto_gre.c - Version 3.0
  *
  * Connection tracking protocol helper module for GRE.
