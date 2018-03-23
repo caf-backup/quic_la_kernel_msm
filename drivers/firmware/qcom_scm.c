@@ -613,6 +613,13 @@ int qcom_scm_pinmux_write(u32 arg1, u32 arg2)
 }
 EXPORT_SYMBOL(qcom_scm_pinmux_write);
 
+int qcom_scm_usb_mode_write(u32 arg1, u32 arg2)
+{
+	return __qcom_scm_usb_mode_write(SCM_SVC_IO_ACCESS, SCM_IO_WRITE,
+					arg1, arg2);
+}
+EXPORT_SYMBOL(qcom_scm_usb_mode_write);
+
 int qcom_scm_cache_dump(u32 cpu)
 {
 	return __qcom_scm_cache_dump(cpu);

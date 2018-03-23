@@ -505,6 +505,11 @@ int __qcom_scm_pinmux_write(u32 svc_id, u32 cmd_id, u32 arg1, u32 arg2)
 	return -ENOTSUPP;
 }
 
+int __qcom_scm_usb_mode_write(u32 svc_id, u32 cmd_id, u32 arg1, u32 arg2)
+{
+	return -ENOTSUPP;
+}
+
 int __qcom_scm_cache_dump(u32 cpu)
 {
 	return -ENOTSUPP;
