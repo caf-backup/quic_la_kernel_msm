@@ -475,10 +475,15 @@
 						sp = <60>;
 						cfg = <0 32 0 32>;
 					};
+					group@1 {
+						sp = <61>;
+						cfg = <1 33 1 33>;
+					};
 				};
 				l0scheduler {
 					group@0 {
 						ucast_queue = <240>;
+						ucast_loop_pri = <16>;
 						mcast_queue = <296>;
 						cfg = <60 0 144 0 144>;
 					};
