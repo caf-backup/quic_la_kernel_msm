@@ -246,17 +246,6 @@ int cnss_get_pinctrl(struct cnss_plat_data *plat_priv)
 		goto out;
 	}
 
-	if (of_find_property(dev->of_node, BOOTSTRAP_GPIO, NULL)) {
-		pinctrl_info->bootstrap_active =
-			pinctrl_lookup_state(pinctrl_info->pinctrl,
-					     BOOTSTRAP_ACTIVE);
-		if (IS_ERR_OR_NULL(pinctrl_info->bootstrap_active)) {
-			ret = PTR_ERR(pinctrl_info->bootstrap_active);
-			cnss_pr_err("Failed to get bootstrap active state, err = %d\n",
-				    ret);
-			goto out;
-		}
-	}
 
 	if (of_find_property(dev->of_node, WLAN_EN_GPIO, NULL)) {
 		pinctrl_info->wlan_en_active =
@@ -300,17 +289,6 @@ static int cnss_select_pinctrl_state(struct cnss_plat_data *plat_priv,
 	pinctrl_info = &plat_priv->pinctrl_info;
 
 	if (state) {
-		if (!IS_ERR_OR_NULL(pinctrl_info->bootstrap_active)) {
-			ret = pinctrl_select_state(pinctrl_info->pinctrl,
-						   pinctrl_info->
-						   bootstrap_active);
-			if (ret) {
-				cnss_pr_err("Failed to select bootstrap active state, err = %d\n",
-					    ret);
-				goto out;
-			}
-			udelay(BOOTSTRAP_DELAY);
-		}
 
 		if (!IS_ERR_OR_NULL(pinctrl_info->wlan_en_active)) {
 			ret = pinctrl_select_state(pinctrl_info->pinctrl,
@@ -340,34 +318,50 @@ out:
 	return ret;
 }
 
-int cnss_power_on_device(struct cnss_plat_data *plat_priv)
+int cnss_power_on_device(struct device *dev, int device_id)
 {
-	int ret = 0;
+	int ret;
+	struct cnss_plat_data *plat_priv = (struct cnss_plat_data *)dev;
 
-	ret = cnss_vreg_on(plat_priv);
-	if (ret) {
-		cnss_pr_err("Failed to turn on vreg, err = %d\n", ret);
-		goto out;
+	if (!plat_priv) {
+		plat_priv = cnss_get_plat_priv_by_device_id(device_id);
+		if (!plat_priv) {
+			pr_err("%s: plat_priv is NULL: device id 0x%x\n",
+			       __func__, device_id);
+			return -ENODEV;
+		}
 	}
 
 	ret = cnss_select_pinctrl_state(plat_priv, true);
 	if (ret) {
 		cnss_pr_err("Failed to select pinctrl state, err = %d\n", ret);
-		goto vreg_off;
 	}
 
-	return 0;
-vreg_off:
-	cnss_vreg_off(plat_priv);
-out:
 	return ret;
 }
+EXPORT_SYMBOL(cnss_power_on_device);
 
-void cnss_power_off_device(struct cnss_plat_data *plat_priv)
+int cnss_power_off_device(struct device *dev, int device_id)
 {
-	cnss_select_pinctrl_state(plat_priv, false);
-	cnss_vreg_off(plat_priv);
+	struct cnss_plat_data *plat_priv = (struct cnss_plat_data *)dev;
+	int ret;
+
+	if (!plat_priv) {
+		plat_priv = cnss_get_plat_priv_by_device_id(device_id);
+		if (!plat_priv) {
+			pr_err("%s: plat_priv is NULL: device id 0x%x\n",
+			       __func__, device_id);
+			return -ENODEV;
+		}
+	}
+
+	ret = cnss_select_pinctrl_state(plat_priv, false);
+	if (ret)
+		cnss_pr_err("Failed to select pinctrl state, err = %d\n", ret);
+
+	return ret;
 }
+EXPORT_SYMBOL(cnss_power_off_device);
 
 void cnss_set_pin_connect_status(struct cnss_plat_data *plat_priv)
 {

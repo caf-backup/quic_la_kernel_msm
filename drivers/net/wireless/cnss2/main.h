@@ -222,8 +222,6 @@ int cnss_driver_event_post(struct cnss_plat_data *plat_priv,
 			   bool sync, void *data);
 int cnss_get_vreg(struct cnss_plat_data *plat_priv);
 int cnss_get_pinctrl(struct cnss_plat_data *plat_priv);
-int cnss_power_on_device(struct cnss_plat_data *plat_priv);
-void cnss_power_off_device(struct cnss_plat_data *plat_priv);
 int cnss_register_subsys(struct cnss_plat_data *plat_priv);
 void cnss_unregister_subsys(struct cnss_plat_data *plat_priv);
 int cnss_register_ramdump(struct cnss_plat_data *plat_priv);
