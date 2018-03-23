@@ -18,7 +18,9 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/qcom_scm.h>
 
+#define TCSR_USB_PORT_SEL_REG  0x1A4000B0
 #define TCSR_USB_PORT_SEL	0xb0
 #define TCSR_USB_HSPHY_CONFIG	0xC
 
@@ -40,6 +42,12 @@ static int tcsr_probe(struct platform_device *pdev)
 	base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
+
+	if (!of_property_read_u32 (node, "ipq,usb-ctrl-select", &val)) {
+		dev_info(&pdev->dev, "setting usb controller select = %x\n",
+				val);
+		qcom_scm_usb_mode_write(TCSR_USB_PORT_SEL_REG, val);
+	}
 
 	if (!of_property_read_u32(node, "ipq,usb-hsphy-mode-select", &val)) {
 		dev_info(&pdev->dev, "setting usb hs phy mode select = %x\n",
