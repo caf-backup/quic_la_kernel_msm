@@ -18,6 +18,7 @@
 #include "ci.h"
 
 #define MSM_USB_BASE	(ci->hw_bank.abs)
+#define USB_PHY_CLK_SOURCE_CLK 0x000CBC7A
 
 struct ci_hdrc_msm {
 	struct platform_device *ci;
@@ -35,6 +36,11 @@ static void ci_hdrc_msm_notify_event(struct ci_hdrc *ci, unsigned event)
 		dev_dbg(dev, "CI_HDRC_CONTROLLER_RESET_EVENT received\n");
 		writel(0, USB_AHBBURST);
 		writel(0, USB_AHBMODE);
+		/*
+		 * Controller reset, resets clock source configuration.
+		 * Reconfigure clock source.
+		 */
+		writel(USB_PHY_CLK_SOURCE_CLK, USB_PHY_CTRL);
 		usb_phy_init(ci->usb_phy);
 		break;
 	case CI_HDRC_CONTROLLER_STOPPED_EVENT:
