@@ -1226,7 +1226,7 @@ static int wil_umac_rx_notify(void *umac_handle, void *vap_handle,
 	struct wil_umac_vap *v, *vap = vap_handle;
 	struct wil_umac *umac = umac_handle;
 	struct wil_umac_node *node = NULL;
-	struct ethhdr *eth = (struct ethhdr *)skb_mac_header(skb);
+	struct ethhdr *eth = (void *)skb->data;
 	const u8 *mac;
 	int key, rc = 0;
 
