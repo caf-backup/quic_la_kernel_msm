@@ -192,10 +192,6 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 			    (disable_ap_sme || umac_mode))
 				del_sta = true;
 
-			if (vif->umac_vap)
-				wil->umac_ops.disconnect_sta(vif->umac_vap,
-							     sta->addr,
-							     reason_code);
 			wmi_disconnect_sta(vif, sta->addr, reason_code,
 					   true, del_sta);
 		}
@@ -286,10 +282,16 @@ static void _wil6210_disconnect(struct wil6210_vif *vif, const u8 *bssid,
 		cid = wil_find_cid(wil, vif->mid, bssid);
 		wil_dbg_misc(wil, "Disconnect %pM, CID=%d, reason=%d\n",
 			     bssid, cid, reason_code);
+		if (vif->umac_vap)
+			wil->umac_ops.disconnect_sta(vif->umac_vap, bssid,
+						     reason_code);
 		if (cid >= 0) /* disconnect 1 peer */
 			wil_disconnect_cid(vif, cid, reason_code, from_event);
 	} else { /* all */
 		wil_dbg_misc(wil, "Disconnect all\n");
+		if (vif->umac_vap)
+			wil->umac_ops.disconnect_sta(vif->umac_vap, NULL,
+						     reason_code);
 		for (cid = 0; cid < WIL6210_MAX_CID; cid++)
 			wil_disconnect_cid(vif, cid, reason_code, from_event);
 	}
