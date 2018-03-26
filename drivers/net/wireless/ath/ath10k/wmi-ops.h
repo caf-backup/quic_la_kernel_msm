@@ -213,6 +213,9 @@ struct wmi_ops {
 	struct sk_buff *(*gen_pdev_get_tpc_table_cmdid)(struct ath10k *ar,
 							u32 param);
 
+	struct sk_buff *(*gen_peer_cfr_capture_conf)(struct ath10k *ar,
+						     u32 vdev_id, const u8 *mac,
+						     const struct wmi_peer_cfr_capture_conf_arg *arg);
 };
 
 int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id);
@@ -1524,4 +1527,21 @@ ath10k_wmi_echo(struct ath10k *ar, u32 value)
 	return ath10k_wmi_cmd_send(ar, skb, wmi->cmd->echo_cmdid);
 }
 
+static inline int
+ath10k_wmi_peer_set_cfr_capture_conf(struct ath10k *ar,
+				     u32 vdev_id, const u8 *mac,
+				     const struct wmi_peer_cfr_capture_conf_arg *arg)
+{
+	struct sk_buff *skb;
+
+	if (!ar->wmi.ops->gen_peer_cfr_capture_conf)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->gen_peer_cfr_capture_conf(ar, vdev_id, mac, arg);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	return ath10k_wmi_cmd_send(ar, skb,
+				   ar->wmi.cmd->peer_set_cfr_capture_conf_cmdid);
+}
 #endif
