@@ -104,6 +104,15 @@ int qcom_qfprom_show_authenticate(char *buf)
 }
 EXPORT_SYMBOL(qcom_qfprom_show_authenticate);
 
+/*
+ * qcom_config_sec_ice() - Configure ICE block securely
+ */
+int qcom_config_sec_ice(void *buf, int size)
+{
+	return __qcom_config_ice_sec(__scm->dev, buf, size);
+}
+EXPORT_SYMBOL(qcom_config_sec_ice);
+
 int qcom_qfprom_write_version(void *wrip, int size)
 {
 	return __qcom_qfprom_write_version(__scm->dev, wrip, size);

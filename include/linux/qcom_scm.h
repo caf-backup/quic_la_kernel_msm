@@ -84,6 +84,8 @@ extern int qcom_scm_tz_log(u32 svc_id, u32 cmd_id, void *ker_buf, u32 buf_len);
 extern int qcom_scm_hvc_log(void *ker_buf, u32 buf_len);
 extern int qcom_scm_pshold(void);
 
+extern int qcom_config_sec_ice(void *buf, int size);
+
 #define QCOM_SCM_CPU_PWR_DOWN_L2_ON	0x0
 #define QCOM_SCM_CPU_PWR_DOWN_L2_OFF	0x1
 

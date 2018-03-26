@@ -644,6 +644,46 @@ int __qcom_qfprom_show_authenticate(struct device *dev, char *buf)
 	return ret;
 }
 
+int __qcom_config_ice_sec(struct device *dev, void *confBuf, int size)
+{
+	int ret;
+
+	if (!is_scm_armv8()) {
+		ret = qcom_scm_call(dev, QCOM_SVC_ICE,
+				SCM_ARGS(2, QCOM_SCM_PARAM_BUF_RO, QCOM_SCM_PARAM_VAL), NULL, 0, confBuf,
+				size);
+	} else {
+		__le32 scm_ret;
+		struct scm_desc desc = {0};
+		dma_addr_t conf_phys;
+
+		conf_phys = dma_map_single(dev, confBuf, size, DMA_TO_DEVICE);
+
+		ret = dma_mapping_error(dev, conf_phys);
+
+		if (ret) {
+			dev_err(dev, "Allocation fail for conf buffer\n");
+			return -ENOMEM;
+		}
+
+		desc.arginfo = SCM_ARGS(2, QCOM_SCM_PARAM_BUF_RO, QCOM_SCM_PARAM_VAL);
+		desc.args[0] = (u64)conf_phys;
+		desc.args[1] = size;
+
+		ret = qcom_scm_call2(SCM_SIP_FNID(QCOM_SVC_ICE,
+				QCOM_SCM_ICE_CMD), &desc);
+
+		scm_ret = desc.ret[0];
+
+		dma_unmap_single(dev, conf_phys, size, DMA_TO_DEVICE);
+
+		if (!ret)
+			return le32_to_cpu(scm_ret);
+	}
+
+	return ret;
+}
+
 int __qcom_sec_upgrade_auth(struct device *dev, unsigned int sw_type,
 				unsigned int img_size, unsigned int load_addr)
 {

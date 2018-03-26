@@ -30,6 +30,12 @@ extern int __qcom_scm_tls_hardening(struct device *dev,
 #define QCOM_SCM_FLAG_HLOS		0x01
 #define QCOM_SCM_FLAG_COLDBOOT_MC	0x02
 #define QCOM_SCM_FLAG_WARMBOOT_MC	0x04
+
+#define QCOM_SCM_PARAM_BUF_RO		0x1
+#define QCOM_SCM_PARAM_VAL		0x0
+#define QCOM_SVC_ICE			23
+#define QCOM_SCM_ICE_CMD		0x1
+
 extern int __qcom_scm_set_warm_boot_addr(struct device *dev, void *entry,
 		const cpumask_t *cpus);
 extern int __qcom_qfprom_read_version(struct device *dev, uint32_t sw_type,
@@ -38,6 +44,8 @@ extern int __qcom_qfprom_show_authenticate(struct device *dev, char *buf);
 extern int __qcom_scm_set_cold_boot_addr(void *entry, const cpumask_t *cpus);
 extern int __qcom_qfprom_write_version(struct device *dev, void *wrip,
 						int size);
+extern int __qcom_config_ice_sec(struct device *dev, void *confBuf, int size);
+
 extern int __qcom_sec_upgrade_auth(struct device *dev, unsigned int sw_type,
 			unsigned int img_size, unsigned int load_addr);
 
