@@ -111,6 +111,24 @@ static struct wil_umac_node *wil_umac_node_find(struct wil_umac *umac,
 	return NULL;
 }
 
+static struct wil_umac_node *
+wil_umac_first_connected_node(struct wil_umac *umac)
+{
+	int i;
+	struct wil_umac_node *node;
+
+	WARN_ON(!mutex_is_locked(&umac->mutex));
+
+	for (i = 0; i < umac->max_sta; i++) {
+		node = &umac->node_array[i];
+		if (node->valid &&
+		    node->state != WIL_UMAC_NODE_STATE_DISCONNECTING)
+			return node;
+	}
+
+	return NULL;
+}
+
 static struct wil_umac_node *wil_umac_node_alloc(struct wil_umac_vap *vap,
 						 const u8 *mac)
 {
@@ -731,6 +749,7 @@ static int wil_umac_mgmt_rx_assoc_req(struct wil_umac_vap *vap, s8 rssi,
 			 state2string(node->state));
 		if (node->state == WIL_UMAC_NODE_STATE_ASSOCIATED ||
 		    node->state == WIL_UMAC_NODE_STATE_8021X_OPEN) {
+			wil_umac_node_dealloc(node);
 			mutex_unlock(&umac->mutex);
 			wil_umac_send_disassoc(vap, sa,
 					       WLAN_REASON_UNSPECIFIED);
@@ -966,8 +985,8 @@ static int wil_umac_mgmt_tx(void *vap_handle, const u8 *frame, size_t len)
 	return 0;
 }
 
-static void wil_umac_disconnect_sta(void *vap_handle, const u8 *mac,
-				    u16 reason)
+static void wil_umac_disconnect_one_sta(void *vap_handle, const u8 *mac,
+					u16 reason)
 {
 	struct wil_umac_vap *vap = vap_handle;
 	struct wil_umac *umac = vap->umac;
@@ -977,7 +996,7 @@ static void wil_umac_disconnect_sta(void *vap_handle, const u8 *mac,
 
 	node = wil_umac_node_find(umac, mac);
 	if (!node) {
-		wil_err(umac->wil, "disconnect unknown sta (%pM)\n", mac);
+		wil_dbg_umac(umac->wil, "disconnect unknown sta (%pM)\n", mac);
 		goto out;
 	}
 
@@ -998,6 +1017,33 @@ static void wil_umac_disconnect_sta(void *vap_handle, const u8 *mac,
 
 out:
 	mutex_unlock(&umac->mutex);
+}
+
+static void wil_umac_disconnect_sta(void *vap_handle, const u8 *mac,
+				    u16 reason)
+{
+	struct wil_umac_vap *vap = vap_handle;
+	struct wil_umac *umac = vap->umac;
+
+	if (mac) {
+		wil_umac_disconnect_one_sta(vap_handle, mac, reason);
+		return;
+	}
+
+	/* disconnect all */
+	do {
+		struct wil_umac_node *node;
+
+		mutex_lock(&umac->mutex);
+		node = wil_umac_first_connected_node(umac);
+		if (!node) {
+			mutex_unlock(&umac->mutex);
+			break;
+		}
+		mac = node->mac;
+		mutex_unlock(&umac->mutex);
+		wil_umac_disconnect_one_sta(vap_handle, mac, reason);
+	} while (1);
 }
 
 static void wil_umac_sta_deleted(void *vap_handle, const u8 *mac)
@@ -1180,7 +1226,7 @@ static int wil_umac_rx_notify(void *umac_handle, void *vap_handle,
 	struct wil_umac_vap *v, *vap = vap_handle;
 	struct wil_umac *umac = umac_handle;
 	struct wil_umac_node *node = NULL;
-	struct ethhdr *eth = (struct ethhdr *)skb_mac_header(skb);
+	struct ethhdr *eth = (void *)skb->data;
 	const u8 *mac;
 	int key, rc = 0;
 
