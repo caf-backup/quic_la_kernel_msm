@@ -57,7 +57,7 @@ struct wil_umac_vap_stats {
 
 struct wil_umac_vap {
 	struct wil_umac *umac;
-	struct list_head list;
+	bool valid; /* for using as array item */
 	void *driver_vap_ctx;
 	struct net_device *ndev;
 	u8 channel;
@@ -197,9 +197,10 @@ struct wil_umac {
 	struct wil6210_priv *wil;
 	u8 permanent_mac[ETH_ALEN];
 	size_t max_sta;
+	size_t max_vaps;
 	struct wil_umac_rops rops;
 
-	struct list_head vaps;
+	struct wil_umac_vap *vaps;
 	struct wil_umac_node *node_array;
 	DECLARE_HASHTABLE(node_hash, WIL_UMAC_NODE_HASH_BITS);
 	struct mutex mutex; /* protect umac/vap/node operations */
@@ -215,7 +216,7 @@ struct wil_umac {
  * returns opaque umac handle.
  */
 void *wil_umac_init(struct wil6210_priv *wil, u8 *permanent_mac,
-		    size_t max_sta, struct wil_umac_ops *ops,
+		    size_t max_vaps, size_t max_sta, struct wil_umac_ops *ops,
 		    const struct wil_umac_rops *rops);
 
 #endif /* WIL6210_UMAC_H */
