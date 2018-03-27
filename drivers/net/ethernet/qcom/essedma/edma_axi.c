@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 - 2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014 - 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -54,6 +54,7 @@ static u32 edma_default_group5_vtag  __read_mostly = EDMA_DEFAULT_GROUP5_VLAN;
 static u32 edma_default_group1_bmp  __read_mostly = EDMA_DEFAULT_GROUP1_BMP;
 static u32 edma_default_group2_bmp  __read_mostly = EDMA_DEFAULT_GROUP2_BMP;
 static u32 edma_disable_rss __read_mostly = EDMA_DEFAULT_DISABLE_RSS;
+static u32 edma_rss_acl_queue_map __read_mostly = EDMA_DEFAULT_RSS_ACL_QUEUE_MAP;
 
 static int edma_weight_assigned_to_q __read_mostly;
 static int edma_queue_to_virtual_q __read_mostly;
@@ -522,11 +523,15 @@ static int edma_disable_rss_func(struct ctl_table *table, int write,
 		return ret;
 
 	switch (edma_disable_rss) {
+	case EDMA_DISABLE_RSS_ENABLE_ACL:
+		edma_cinfo->rx_low_priority = 3;
 	case EDMA_RSS_DISABLE:
 		hw->rss_type = 0;
 		edma_write_reg(EDMA_REG_RSS_TYPE, hw->rss_type);
 		break;
 	case EDMA_RSS_ENABLE:
+		edma_cinfo->rx_low_priority = 0;
+		edma_write_reg(EDMA_REG_RSS_PRI, 0);
 		hw->rss_type = EDMA_RSS_TYPE_IPV4TCP |
 				EDMA_RSS_TYPE_IPV6_TCP |
 				EDMA_RSS_TYPE_IPV4_UDP |
@@ -540,6 +545,25 @@ static int edma_disable_rss_func(struct ctl_table *table, int write,
 		ret = -1;
 		break;
 	}
+
+	return ret;
+}
+
+static int edma_rss_acl_queue_map_handler(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp,
+		loff_t *ppos)
+{
+	int ret;
+	u32 val;
+
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+
+	if ((!write) || (ret))
+		return ret;
+
+	val = edma_rss_acl_queue_map & EDMA_RSS_ACL_QUEUE_MAP_MASK;
+
+	edma_write_reg(EDMA_REG_RSS_PRI, val);
 
 	return ret;
 }
@@ -708,6 +732,13 @@ static struct ctl_table edma_table[] = {
 		.mode           = 0644,
 		.proc_handler   = edma_disable_rss_func
 	},
+	{
+		.procname	= "rss_acl_queue_map",
+		.data		= &edma_rss_acl_queue_map,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= edma_rss_acl_queue_map_handler,
+	},
 	{}
 };
 
@@ -852,6 +883,13 @@ static int edma_axi_probe(struct platform_device *pdev)
 	hw->rss_type = EDMA_RSS_TYPE_IPV4TCP | EDMA_RSS_TYPE_IPV6_TCP |
 		EDMA_RSS_TYPE_IPV4_UDP | EDMA_RSS_TYPE_IPV6UDP |
 		EDMA_RSS_TYPE_IPV4 | EDMA_RSS_TYPE_IPV6;
+
+
+	/* By Default RSS is enabled, rx_low_priority is set 0
+	 * to indicate that priority equal to 0 will be dropped
+	 * to allow high priority traffic to take precedence
+	 */
+	edma_cinfo->rx_low_priority = 0;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
