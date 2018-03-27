@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 - 2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014 - 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -675,7 +675,7 @@ static void edma_rx_complete(struct edma_common_info *edma_cinfo,
 			 */
 			priority = (rd->rrd1 >> EDMA_RRD_PRIORITY_SHIFT)
 				& EDMA_RRD_PRIORITY_MASK;
-			if (likely(!priority && !edma_cinfo->page_mode && (num_rfds <= 1))) {
+			if (likely((priority <= edma_cinfo->rx_low_priority) && !edma_cinfo->page_mode && (num_rfds <= 1))) {
 				rfd_avail = (count + sw_next_to_clean - hw_next_to_clean - 1) & (count - 1);
 				if (rfd_avail < EDMA_RFD_AVAIL_THR) {
 					sw_desc->flags |= EDMA_SW_DESC_FLAG_SKB_REUSE;
