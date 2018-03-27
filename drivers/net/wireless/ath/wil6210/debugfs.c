@@ -1824,15 +1824,19 @@ static int wil_umac_debugfs_show(struct seq_file *s, void *data)
 {
 	struct wil6210_priv *wil = s->private;
 	struct wil_umac *umac = wil->umac_handle;
-	struct wil_umac_vap *vap, *tmp_vap;
-	int bkt;
+	struct wil_umac_vap *vap;
+	int bkt, i;
 	struct hlist_node *tmp_node;
 	struct wil_umac_node *node;
 
 	if (!wil->umac_handle)
 		return 0;
 
-	list_for_each_entry_safe(vap, tmp_vap, &umac->vaps, list) {
+	for (i = 0; i < umac->max_vaps; i++) {
+		vap = &umac->vaps[i];
+		if (!vap->valid)
+			continue;
+
 		seq_printf(s, "VAP %s, mac %pM",
 			   vap->ndev->name, vap->ndev->dev_addr);
 		if (vap->ap_started) {

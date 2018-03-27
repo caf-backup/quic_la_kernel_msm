@@ -81,6 +81,20 @@ static const char *stype2string(u16 stype)
 	}
 }
 
+/* find free item in vaps array */
+static struct wil_umac_vap *wil_umac_find_free_vap(struct wil_umac *umac)
+{
+	int i;
+
+	WARN_ON(!mutex_is_locked(&umac->mutex));
+
+	for (i = 0; i < umac->max_vaps; i++)
+		if (!umac->vaps[i].valid)
+			return &umac->vaps[i];
+
+	return NULL;
+}
+
 /* find free item in node_array */
 static struct wil_umac_node *wil_umac_find_free_node(struct wil_umac *umac)
 {
@@ -368,16 +382,17 @@ static void *wil_umac_vap_add(void *umac_handle, void *driver_vap_ctx,
 	wil_dbg_umac(umac->wil, "umac vap add: name %s, mac %pM\n",
 		     ndev->name, ndev->dev_addr);
 
-	vap = kzalloc(sizeof(*vap), GFP_KERNEL);
+	mutex_lock(&umac->mutex);
+
+	vap = wil_umac_find_free_vap(umac);
 	if (!vap)
-		return NULL;
+		goto out;
 
 	vap->driver_vap_ctx = driver_vap_ctx;
 	vap->umac = umac;
 	vap->ndev = ndev;
-
-	mutex_lock(&umac->mutex);
-	list_add(&vap->list, &umac->vaps);
+	vap->valid = true;
+out:
 	mutex_unlock(&umac->mutex);
 
 	return vap;
@@ -396,7 +411,7 @@ static void wil_umac_vap_remove(void *vap_handle)
 
 	mutex_lock(&umac->mutex);
 
-	list_del(&vap->list);
+	vap->valid = false;
 
 	/* wait for ongoing txrx operations to complete */
 	while (atomic_read(&umac->async_cnt) && i < 30) {
@@ -419,8 +434,6 @@ static void wil_umac_vap_remove(void *vap_handle)
 	}
 
 	mutex_unlock(&umac->mutex);
-
-	kfree(vap);
 }
 
 static int wil_umac_start_ap(void *vap_handle,
@@ -1163,7 +1176,7 @@ out:
 static int wil_umac_tx_notify(void *umac_handle, void *vap_handle,
 			      struct sk_buff *skb)
 {
-	struct wil_umac_vap *v, *vap = vap_handle;
+	struct wil_umac_vap *vap = vap_handle;
 	struct wil_umac *umac = umac_handle;
 	struct wil_umac_node *node = NULL;
 	struct ethhdr *eth = (void *)skb->data;
@@ -1173,11 +1186,7 @@ static int wil_umac_tx_notify(void *umac_handle, void *vap_handle,
 	atomic_inc(&umac->async_cnt);
 
 	/* check vap still alive */
-	list_for_each_entry(v, &umac->vaps, list)
-		if (v == vap)
-			break;
-
-	if (v != vap) {
+	if (!vap->valid) {
 		wil_dbg_umac(umac->wil, "vap is gone\n");
 		rc = -ENOENT;
 		goto out;
@@ -1223,7 +1232,7 @@ out:
 static int wil_umac_rx_notify(void *umac_handle, void *vap_handle,
 			      struct sk_buff *skb)
 {
-	struct wil_umac_vap *v, *vap = vap_handle;
+	struct wil_umac_vap *vap = vap_handle;
 	struct wil_umac *umac = umac_handle;
 	struct wil_umac_node *node = NULL;
 	struct ethhdr *eth = (void *)skb->data;
@@ -1233,11 +1242,7 @@ static int wil_umac_rx_notify(void *umac_handle, void *vap_handle,
 	atomic_inc(&umac->async_cnt);
 
 	/* check vap still alive */
-	list_for_each_entry(v, &umac->vaps, list)
-		if (v == vap)
-			break;
-
-	if (v != vap) {
+	if (!vap->valid) {
 		wil_dbg_umac(umac->wil, "vap is gone\n");
 		rc = -ENOENT;
 		goto out;
@@ -1275,7 +1280,7 @@ out:
 static void wil_umac_uninit(void *umac_handle)
 {
 	struct wil_umac *umac = umac_handle;
-	struct wil_umac_vap *vap, *tmp_vap;
+	int i;
 
 	wil_dbg_umac(umac->wil, "umac uninit\n");
 
@@ -1285,10 +1290,12 @@ static void wil_umac_uninit(void *umac_handle)
 
 	mutex_lock(&umac->mutex);
 
-	list_for_each_entry_safe(vap, tmp_vap, &umac->vaps, list)
-		wil_umac_vap_remove(vap);
+	for (i = 0; i < umac->max_vaps; i++)
+		if (umac->vaps[i].valid)
+			wil_umac_vap_remove(&umac->vaps[i]);
 
 	kfree(umac->node_array);
+	kfree(umac->vaps);
 
 	mutex_unlock(&umac->mutex);
 
@@ -1313,7 +1320,7 @@ static struct wil_umac_ops wil_umac_ops = {
 };
 
 void *wil_umac_init(struct wil6210_priv *wil, u8 *permanent_mac,
-		    size_t max_sta, struct wil_umac_ops *ops,
+		    size_t max_vaps, size_t max_sta, struct wil_umac_ops *ops,
 		    const struct wil_umac_rops *rops)
 {
 	struct wil_umac *umac = NULL;
@@ -1329,8 +1336,13 @@ void *wil_umac_init(struct wil6210_priv *wil, u8 *permanent_mac,
 
 	umac->wil = wil;
 	ether_addr_copy(umac->permanent_mac, permanent_mac);
+	umac->max_vaps = max_vaps;
+	umac->vaps = kcalloc(max_vaps, sizeof(struct wil_umac_vap),
+			     GFP_KERNEL);
+	if (!umac->vaps)
+		goto err;
+
 	umac->max_sta = max_sta;
-	INIT_LIST_HEAD(&umac->vaps);
 	umac->node_array = kcalloc(max_sta, sizeof(struct wil_umac_node),
 				   GFP_KERNEL);
 	if (!umac->node_array)
@@ -1356,6 +1368,7 @@ void *wil_umac_init(struct wil6210_priv *wil, u8 *permanent_mac,
 
 err:
 	kfree(umac->node_array);
+	kfree(umac->vaps);
 	kfree(umac);
 
 	return NULL;
