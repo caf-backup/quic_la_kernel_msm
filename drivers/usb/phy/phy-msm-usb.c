@@ -492,7 +492,8 @@ static int msm_otg_suspend(struct msm_otg *motg)
 	if (atomic_read(&motg->in_lpm))
 		return 0;
 
-	disable_irq(motg->irq);
+	if (motg->irq)
+		disable_irq(motg->irq);
 	/*
 	 * Chipidea 45-nm PHY suspend sequence:
 	 *
@@ -533,7 +534,10 @@ static int msm_otg_suspend(struct msm_otg *motg)
 	if (cnt >= PHY_SUSPEND_TIMEOUT_USEC) {
 		dev_err(phy->dev, "Unable to suspend PHY\n");
 		msm_otg_reset(phy);
-		enable_irq(motg->irq);
+
+		if (motg->irq)
+			enable_irq(motg->irq);
+
 		return -ETIMEDOUT;
 	}
 
@@ -565,13 +569,15 @@ static int msm_otg_suspend(struct msm_otg *motg)
 		msm_hsusb_config_vddcx(motg, 0);
 	}
 
-	if (device_may_wakeup(phy->dev))
+	if (device_may_wakeup(phy->dev) && (motg->irq))
 		enable_irq_wake(motg->irq);
 	if (bus)
 		clear_bit(HCD_FLAG_HW_ACCESSIBLE, &(bus_to_hcd(bus))->flags);
 
 	atomic_set(&motg->in_lpm, 1);
-	enable_irq(motg->irq);
+
+	if (motg->irq)
+		enable_irq(motg->irq);
 
 	dev_info(phy->dev, "USB in low power mode\n");
 
@@ -637,7 +643,7 @@ static int msm_otg_resume(struct msm_otg *motg)
 	}
 
 skip_phy_resume:
-	if (device_may_wakeup(phy->dev))
+	if (device_may_wakeup(phy->dev) && (motg->irq))
 		disable_irq_wake(motg->irq);
 	if (bus)
 		set_bit(HCD_FLAG_HW_ACCESSIBLE, &(bus_to_hcd(bus))->flags);
@@ -647,7 +653,8 @@ skip_phy_resume:
 	if (motg->async_int) {
 		motg->async_int = 0;
 		pm_runtime_put(phy->dev);
-		enable_irq(motg->irq);
+		if (motg->irq)
+			enable_irq(motg->irq);
 	}
 
 	dev_info(phy->dev, "USB exited from low power mode\n");
@@ -1731,9 +1738,12 @@ static int msm_otg_probe(struct platform_device *pdev)
 
 	motg->irq = platform_get_irq(pdev, 0);
 	if (motg->irq < 0) {
-		dev_err(&pdev->dev, "platform_get_irq failed\n");
-		ret = motg->irq;
-		goto unregister_extcon;
+		dev_info(&pdev->dev, "No irq found\n");
+		/*
+		 * Drop error code and Set IRQ value to zero.
+		 * This will simplify further irq validity check
+		 */
+		motg->irq = 0;
 	}
 
 	regs[0].supply = "vddcx";
@@ -1758,19 +1768,16 @@ static int msm_otg_probe(struct platform_device *pdev)
 
 	ret = msm_hsusb_init_vddcx(motg, 1);
 	if (ret) {
-		dev_err(&pdev->dev, "hsusb vddcx configuration failed\n");
-		goto disable_clks;
+		dev_info(&pdev->dev, "hsusb vddcx configuration failed\n");
 	}
 
 	ret = msm_hsusb_ldo_init(motg, 1);
 	if (ret) {
-		dev_err(&pdev->dev, "hsusb vreg configuration failed\n");
-		goto disable_vddcx;
+		dev_info(&pdev->dev, "hsusb vreg configuration failed\n");
 	}
 	ret = msm_hsusb_ldo_set_mode(motg, 1);
 	if (ret) {
-		dev_err(&pdev->dev, "hsusb vreg enable failed\n");
-		goto disable_ldo;
+		dev_info(&pdev->dev, "hsusb vreg enable failed\n");
 	}
 
 	writel(0, USB_USBINTR);
@@ -1778,11 +1785,13 @@ static int msm_otg_probe(struct platform_device *pdev)
 
 	INIT_WORK(&motg->sm_work, msm_otg_sm_work);
 	INIT_DELAYED_WORK(&motg->chg_work, msm_chg_detect_work);
-	ret = devm_request_irq(&pdev->dev, motg->irq, msm_otg_irq, IRQF_SHARED,
+	if (motg->irq) {
+		ret = devm_request_irq(&pdev->dev, motg->irq, msm_otg_irq, IRQF_SHARED,
 					"msm_otg", motg);
-	if (ret) {
-		dev_err(&pdev->dev, "request irq failed\n");
-		goto disable_ldo;
+		if (ret) {
+			dev_err(&pdev->dev, "request irq failed\n");
+			goto disable_ldo;
+		}
 	}
 
 	phy->init = msm_phy_init;
@@ -1878,7 +1887,9 @@ static int msm_otg_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	usb_remove_phy(phy);
-	disable_irq(motg->irq);
+
+	if (motg->irq)
+		disable_irq(motg->irq);
 
 	/*
 	 * Put PHY in low power mode.
