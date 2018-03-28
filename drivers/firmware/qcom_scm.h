@@ -160,6 +160,8 @@ extern int qcom_scm_pshold(void);
 s32 __qcom_scm_pinmux_read(u32 svc_id, u32 cmd_id, u32 arg1);
 s32 __qcom_scm_pinmux_write(u32 svc_id, u32 cmd_id, u32 arg1, u32 arg2);
 
+s32 __qcom_scm_usb_mode_write(u32 svc_id, u32 cmd_id, u32 arg1, u32 arg2);
+
 extern int __qcom_scm_cache_dump(u32 cpu);
 extern int qcom_scm_cache_dump(u32 cpu);
 
