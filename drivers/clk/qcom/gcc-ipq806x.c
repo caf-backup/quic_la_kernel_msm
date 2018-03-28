@@ -2115,9 +2115,9 @@ static struct clk_rcg usb30_master_clk_src = {
 
 static struct clk_branch usb30_0_branch_clk = {
 	.halt_reg = 0x2fc4,
-	.halt_bit = 22,
+	.halt_bit = 17,
 	.clkr = {
-		.enable_reg = 0x3b24,
+		.enable_reg = 0x3b34,
 		.enable_mask = BIT(4),
 		.hw.init = &(struct clk_init_data){
 			.name = "usb30_0_branch_clk",
@@ -2131,9 +2131,9 @@ static struct clk_branch usb30_0_branch_clk = {
 
 static struct clk_branch usb30_1_branch_clk = {
 	.halt_reg = 0x2fc4,
-	.halt_bit = 17,
+	.halt_bit = 22,
 	.clkr = {
-		.enable_reg = 0x3b34,
+		.enable_reg = 0x3b24,
 		.enable_mask = BIT(4),
 		.hw.init = &(struct clk_init_data){
 			.name = "usb30_1_branch_clk",
@@ -2185,9 +2185,9 @@ static struct clk_rcg usb30_utmi_clk = {
 
 static struct clk_branch usb30_0_utmi_clk_ctl = {
 	.halt_reg = 0x2fc4,
-	.halt_bit = 21,
+	.halt_bit = 15,
 	.clkr = {
-		.enable_reg = 0x3b48,
+		.enable_reg = 0x3b4c,
 		.enable_mask = BIT(4),
 		.hw.init = &(struct clk_init_data){
 			.name = "usb30_0_utmi_clk_ctl",
@@ -2201,9 +2201,9 @@ static struct clk_branch usb30_0_utmi_clk_ctl = {
 
 static struct clk_branch usb30_1_utmi_clk_ctl = {
 	.halt_reg = 0x2fc4,
-	.halt_bit = 15,
+	.halt_bit = 21,
 	.clkr = {
-		.enable_reg = 0x3b4c,
+		.enable_reg = 0x3b48,
 		.enable_mask = BIT(4),
 		.hw.init = &(struct clk_init_data){
 			.name = "usb30_1_utmi_clk_ctl",
