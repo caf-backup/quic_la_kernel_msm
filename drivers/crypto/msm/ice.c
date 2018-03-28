@@ -21,32 +21,8 @@
 #include <linux/cdev.h>
 #include <linux/regulator/consumer.h>
 #include <linux/msm-bus.h>
-#include <linux/pfk.h>
 #include <crypto/ice.h>
-#include <soc/qcom/scm.h>
-#include <soc/qcom/qseecomi.h>
 #include "iceregs.h"
-
-#define TZ_SYSCALL_CREATE_SMC_ID(o, s, f) \
-	((uint32_t)((((o & 0x3f) << 24) | (s & 0xff) << 8) | (f & 0xff)))
-
-#define TZ_OWNER_QSEE_OS                 50
-#define TZ_SVC_KEYSTORE                  5     /* Keystore management */
-
-#define TZ_OS_KS_RESTORE_KEY_ID \
-	TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_QSEE_OS, TZ_SVC_KEYSTORE, 0x06)
-
-#define TZ_SYSCALL_CREATE_PARAM_ID_0 0
-
-#define TZ_OS_KS_RESTORE_KEY_ID_PARAM_ID \
-	TZ_SYSCALL_CREATE_PARAM_ID_0
-
-#define TZ_OS_KS_RESTORE_KEY_CONFIG_ID \
-	TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_QSEE_OS, TZ_SVC_KEYSTORE, 0x06)
-
-#define TZ_OS_KS_RESTORE_KEY_CONFIG_ID_PARAM_ID \
-	TZ_SYSCALL_CREATE_PARAM_ID_1(TZ_SYSCALL_PARAM_TYPE_VAL)
-
 
 #define ICE_REV(x, y) (((x) & ICE_CORE_##y##_REV_MASK) >> ICE_CORE_##y##_REV)
 #define QCOM_UFS_ICE_DEV	"iceufs"
@@ -818,51 +794,6 @@ static int  qcom_ice_suspend(struct platform_device *pdev)
 	return 0;
 }
 
-static int qcom_ice_restore_config(void)
-{
-	struct scm_desc desc = {0};
-	int ret;
-
-	/*
-	 * TZ would check KEYS_RAM_RESET_COMPLETED status bit before processing
-	 * restore config command. This would prevent two calls from HLOS to TZ
-	 * One to check KEYS_RAM_RESET_COMPLETED status bit second to restore
-	 * config
-	 */
-
-	desc.arginfo = TZ_OS_KS_RESTORE_KEY_ID_PARAM_ID;
-
-	ret = scm_call2(TZ_OS_KS_RESTORE_KEY_ID, &desc);
-
-	if (ret)
-		pr_err("%s: Error: 0x%x\n", __func__, ret);
-
-	return ret;
-}
-
-static int qcom_ice_restore_key_config(struct ice_device *ice_dev)
-{
-	struct scm_desc desc = {0};
-	int ret = -1;
-
-	/* For ice 3, key configuration needs to be restored in case of reset */
-
-	desc.arginfo = TZ_OS_KS_RESTORE_KEY_CONFIG_ID_PARAM_ID;
-
-	if (!strcmp(ice_dev->ice_instance_type, "sdcc"))
-		desc.args[0] = QCOM_ICE_SDCC;
-
-	if (!strcmp(ice_dev->ice_instance_type, "ufs"))
-		desc.args[0] = QCOM_ICE_UFS;
-
-	ret = scm_call2(TZ_OS_KS_RESTORE_KEY_CONFIG_ID, &desc);
-
-	if (ret)
-		pr_err("%s: Error:  0x%x\n", __func__, ret);
-
-	return ret;
-}
-
 static int qcom_ice_init_clocks(struct ice_device *ice)
 {
 	int ret = -EINVAL;
@@ -945,69 +876,6 @@ out:
 	return ret;
 }
 
-static int qcom_ice_secure_ice_init(struct ice_device *ice_dev)
-{
-	/* We need to enable source for ICE secure interrupts */
-	int ret = 0;
-	u32 regval;
-
-	regval = scm_io_read((unsigned long)ice_dev->res +
-			QCOM_ICE_LUT_KEYS_ICE_SEC_IRQ_MASK);
-
-	regval &= ~QCOM_ICE_SEC_IRQ_MASK;
-	ret = scm_io_write((unsigned long)ice_dev->res +
-			QCOM_ICE_LUT_KEYS_ICE_SEC_IRQ_MASK, regval);
-
-	/*
-	 * Ensure previous instructions was completed before issuing next
-	 * ICE initialization/optimization instruction
-	 */
-	mb();
-
-	if (!ret)
-		pr_err("%s: failed(0x%x) to init secure ICE config\n",
-								__func__, ret);
-	return ret;
-}
-
-static int qcom_ice_update_sec_cfg(struct ice_device *ice_dev)
-{
-	int ret = 0, scm_ret = 0;
-
-	/* scm command buffer structure */
-	struct qcom_scm_cmd_buf {
-		unsigned int device_id;
-		unsigned int spare;
-	} cbuf = {0};
-
-	/*
-	 * Ideally, we should check ICE version to decide whether to proceed or
-	 * or not. Since version wont be available when this function is called
-	 * we need to depend upon is_ice_clk_available to decide
-	 */
-	if (ice_dev->is_ice_clk_available)
-		goto out;
-
-	/*
-	 * Store dev_id in ice_device structure so that emmc/ufs cases can be
-	 * handled properly
-	 */
-	#define RESTORE_SEC_CFG_CMD	0x2
-	#define ICE_TZ_DEV_ID	20
-
-	cbuf.device_id = ICE_TZ_DEV_ID;
-	ret = scm_restore_sec_cfg(cbuf.device_id, cbuf.spare, &scm_ret);
-	if (ret || scm_ret) {
-		pr_err("%s: failed, ret %d scm_ret %d\n",
-						__func__, ret, scm_ret);
-		if (!ret)
-			ret = scm_ret;
-	}
-out:
-
-	return ret;
-}
-
 static int qcom_ice_finish_init(struct ice_device *ice_dev)
 {
 	unsigned reg;
@@ -1028,16 +896,6 @@ static int qcom_ice_finish_init(struct ice_device *ice_dev)
 		if (err)
 			goto out;
 	}
-
-	/*
-	 * It is possible that ICE device is not probed when host is probed
-	 * This would cause host probe to be deferred. When probe for host is
-	 * deferred, it can cause power collapse for host and that can wipe
-	 * configurations of host & ice. It is prudent to restore the config
-	 */
-	err = qcom_ice_update_sec_cfg(ice_dev);
-	if (err)
-		goto out;
 
 	err = qcom_ice_verify_ice(ice_dev);
 	if (err)
@@ -1061,14 +919,6 @@ static int qcom_ice_finish_init(struct ice_device *ice_dev)
 		goto out;
 	}
 
-	/* TZ side of ICE driver would handle secure init of ICE HW from v2 */
-	if (ICE_REV(ice_dev->ice_hw_version, MAJOR) == 1 &&
-		!qcom_ice_secure_ice_init(ice_dev)) {
-		pr_err("%s: Error: ICE_ERROR_ICE_TZ_INIT_FAILED\n", __func__);
-		err = -EFAULT;
-		goto out;
-	}
-
 	qcom_ice_low_power_mode_enable(ice_dev);
 	qcom_ice_optimization_enable(ice_dev);
 	qcom_ice_config_proc_ignore(ice_dev);
@@ -1076,7 +926,6 @@ static int qcom_ice_finish_init(struct ice_device *ice_dev)
 	qcom_ice_enable(ice_dev);
 	ice_dev->is_ice_enabled = true;
 	qcom_ice_enable_intr(ice_dev);
-
 out:
 	return err;
 }
@@ -1126,33 +975,6 @@ static int qcom_ice_finish_power_collapse(struct ice_device *ice_dev)
 
 		qcom_ice_optimization_enable(ice_dev);
 		qcom_ice_enable(ice_dev);
-
-		if (ICE_REV(ice_dev->ice_hw_version, MAJOR) == 1) {
-			/*
-			 * When ICE resets, it wipes all of keys from LUTs
-			 * ICE driver should call TZ to restore keys
-			 */
-			if (qcom_ice_restore_config()) {
-				err = -EFAULT;
-				goto out;
-			}
-
-		/*
-		 * ICE looses its key configuration when UFS is reset,
-		 * restore it
-		 */
-		} else if (ICE_REV(ice_dev->ice_hw_version, MAJOR) > 2) {
-			err = qcom_ice_restore_key_config(ice_dev);
-			if (err)
-				goto out;
-
-			/*
-			 * for PFE case, clear the cached ICE key table,
-			 * this will force keys to be reconfigured
-			 * per each next transaction
-			 */
-			pfk_clear_on_reset();
-		}
 	}
 
 	ice_dev->ice_reset_complete_time = ktime_get();
@@ -1424,10 +1246,7 @@ static int qcom_ice_config_start(struct platform_device *pdev,
 		struct ice_data_setting *setting, bool async)
 {
 	struct ice_crypto_setting *crypto_data;
-	struct ice_crypto_setting pfk_crypto_data = {0};
 	union map_info *info;
-	int ret = 0;
-	bool is_pfe = false;
 
 	if (!pdev || !req || !setting) {
 		pr_err("%s: Invalid params passed\n", __func__);
@@ -1447,19 +1266,6 @@ static int qcom_ice_config_start(struct platform_device *pdev,
 	if (!req->bio) {
 		/* It is not an error to have a request with no  bio */
 		return 0;
-	}
-
-	ret = pfk_load_key_start(req->bio, &pfk_crypto_data, &is_pfe, async);
-	if (is_pfe) {
-		if (ret) {
-			if (ret != -EBUSY && ret != -EAGAIN)
-				pr_err("%s error %d while configuring ice key for PFE\n",
-						__func__, ret);
-			return ret;
-		}
-
-		return qti_ice_setting_config(req, pdev,
-				&pfk_crypto_data, setting);
 	}
 
 	/*
@@ -1497,27 +1303,6 @@ EXPORT_SYMBOL(qcom_ice_config_start);
 
 static int qcom_ice_config_end(struct request *req)
 {
-	int ret = 0;
-	bool is_pfe = false;
-
-	if (!req) {
-		pr_err("%s: Invalid params passed\n", __func__);
-		return -EINVAL;
-	}
-
-	if (!req->bio) {
-		/* It is not an error to have a request with no  bio */
-		return 0;
-	}
-
-	ret = pfk_load_key_end(req->bio, &is_pfe);
-	if (is_pfe) {
-		if (ret != 0)
-			pr_err("%s error %d while end configuring ice key for PFE\n",
-								__func__, ret);
-		return ret;
-	}
-
 
 	return 0;
 }
