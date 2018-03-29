@@ -43,6 +43,8 @@ extern bool umac_mode;
 extern uint max_assoc_sta;
 extern bool use_rx_hw_reordering;
 extern bool use_compressed_rx_status;
+extern bool ac_queues;
+extern bool q_per_sta;
 
 struct wil6210_priv;
 struct wil6210_vif;
@@ -68,6 +70,8 @@ union wil_tx_desc;
  * (including the main interface)
  */
 #define WIL_MAX_VIFS 4
+
+#define WIL6210_TX_AC_QUEUES (4)
 
 /**
  * extract bits [@b0:@b1] (inclusive) from the value @x
@@ -744,6 +748,7 @@ struct wil_sta_info {
 	struct wil_tid_crypto_rx group_crypto_rx;
 	u8 aid; /* 1-254; 0 if unknown/not reported */
 	bool fst_link_loss;
+	bool net_queue_stopped; /* used when q_per_sta enabled */
 };
 
 enum {
@@ -852,7 +857,7 @@ struct wil6210_vif {
 	struct list_head probe_client_pending;
 	struct mutex probe_client_mutex; /* protect @probe_client_pending */
 	struct work_struct probe_client_worker;
-	int net_queue_stopped; /* netif_tx_stop_all_queues invoked */
+	int net_queue_stopped; /* used when q_per_sta disabled */
 #if defined(CONFIG_WIL6210_NSS_SUPPORT)
 #if defined(BACKPORT_HAS_NEW_NSS_REDIRECT_API)
 	struct nss_virt_if_handle *nss_handle;
@@ -1042,6 +1047,7 @@ struct wil6210_priv {
 #define vif_to_wil(v) (v->wil)
 #define vif_to_ndev(v) (v->ndev)
 #define vif_to_wdev(v) (&v->wdev)
+#define WIL_Q_PER_STA_USED(v) (q_per_sta && v->wdev.iftype == NL80211_IFTYPE_AP)
 
 static inline struct wil6210_vif *wdev_to_vif(struct wil6210_priv *wil,
 					      struct wireless_dev *wdev)
@@ -1336,10 +1342,19 @@ int wil_bcast_init(struct wil6210_vif *vif);
 void wil_bcast_fini(struct wil6210_vif *vif);
 void wil_bcast_fini_all(struct wil6210_priv *wil);
 
-void wil_update_net_queues(struct wil6210_priv *wil, struct wil6210_vif *vif,
-			   struct wil_ring *ring, bool should_stop);
-void wil_update_net_queues_bh(struct wil6210_priv *wil, struct wil6210_vif *vif,
-			      struct wil_ring *ring, bool check_stop);
+void wil_update_net_queues(struct wil6210_priv *wil,
+			   struct wil6210_vif *vif,
+			   struct wil_ring *ring,
+			   bool check_stop);
+void wil_update_net_queues_bh(struct wil6210_priv *wil,
+			      struct wil6210_vif *vif,
+			      struct wil_ring *ring,
+			      bool check_stop);
+void wil_update_cid_net_queues_bh(struct wil6210_priv *wil,
+				  struct wil6210_vif *vif,
+				  int cid,
+				  bool check_stop);
+
 netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev);
 int wil_tx_complete(struct wil6210_vif *vif, int ringid);
 void wil6210_unmask_irq_tx(struct wil6210_priv *wil);

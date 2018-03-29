@@ -2053,6 +2053,9 @@ static int _wil_cfg80211_start_ap(struct wiphy *wiphy,
 	if (rc)
 		goto err_bcast;
 
+	if (q_per_sta) /* wake default net queue - used mainly for multicast */
+		wil_update_cid_net_queues_bh(wil, vif, WIL6210_MAX_CID, false);
+
 	goto out; /* success */
 
 err_bcast:
@@ -2229,6 +2232,9 @@ static int wil_cfg80211_stop_ap(struct wiphy *wiphy,
 
 	wmi_pcp_stop(vif);
 	clear_bit(wil_vif_ft_roam, vif->status);
+
+	if (q_per_sta) /* stop default net queue - used mainly for multicast */
+		wil_update_cid_net_queues_bh(wil, vif, WIL6210_MAX_CID, true);
 
 	if (last)
 		__wil_down(wil);

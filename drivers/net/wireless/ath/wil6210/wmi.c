@@ -1133,7 +1133,7 @@ static void wmi_evt_connect(struct wil6210_vif *vif, int id, void *d, int len)
 	wil->sta[evt->cid].aid = evt->aid;
 	if (!test_and_set_bit(wil_vif_fwconnected, vif->status))
 		atomic_inc(&wil->connected_vifs);
-	wil_update_net_queues_bh(wil, vif, NULL, false);
+	wil_update_cid_net_queues_bh(wil, vif, evt->cid, false);
 
 out:
 	if (rc) {

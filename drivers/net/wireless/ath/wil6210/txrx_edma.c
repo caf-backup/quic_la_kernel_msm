@@ -1289,7 +1289,7 @@ again:
 
 	/* shall we wake net queues? */
 	if (desc_cnt)
-		wil_update_net_queues(wil, vif, NULL, false);
+		wil_update_net_queues(wil, vif, ring, false);
 
 	/* Update the HW tail ptr (RD ptr) */
 	wil_w(wil, sring->hwtail, (sring->swhead - 1) % sring->size);
