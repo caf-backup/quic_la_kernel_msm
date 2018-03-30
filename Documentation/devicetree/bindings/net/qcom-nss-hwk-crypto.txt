@@ -32,6 +32,9 @@ Required properties:
 - qcom,sha256-hmac: Enable crypto algorithm
 - qcom,sha384-hmac: Enable crypto algorithm
 - qcom,sha512-hmac: Enable crypto algorithm
+- qcom,aes128-gcm-gmac: Enable crypto algorithm
+- qcom,aes192-gcm-gmac: Enable crypto algorithm
+- qcom,aes256-gcm-gmac: Enable crypto algorithm
 - qcom,aes128-cbc-sha160-hmac: Enable crypto algorithm
 - qcom,aes192-cbc-sha160-hmac: Enable crypto algorithm
 - qcom,aes256-cbc-sha160-hmac: Enable crypto algorithm
@@ -74,6 +77,9 @@ example:
 			qcom,aes256-cbc;
 			qcom,3des-cbc;
 			qcom,sha1-hmac;
+			qcom,aes128-gcm-gmac;
+			qcom,aes192-gcm-gmac;
+			qcom,aes256-gcm-gmac;
 			qcom,aes128-cbc-sha1-hmac;
 			qcom,aes192-cbc-sha1-hmac;
 			qcom,aes256-cbc-sha1-hmac;

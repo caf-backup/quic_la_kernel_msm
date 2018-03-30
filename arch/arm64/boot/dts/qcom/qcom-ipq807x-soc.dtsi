@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -872,6 +872,9 @@
 				qcom,sha256-hmac;
 				qcom,sha384-hmac;
 				qcom,sha512-hmac;
+				qcom,aes128-gcm-gmac;
+				qcom,aes192-gcm-gmac;
+				qcom,aes256-gcm-gmac;
 				qcom,aes128-cbc-sha160-hmac;
 				qcom,aes192-cbc-sha160-hmac;
 				qcom,aes256-cbc-sha160-hmac;
