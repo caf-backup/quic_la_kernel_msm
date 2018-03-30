@@ -20,6 +20,7 @@
 #include <linux/device-mapper.h>
 #include <linux/printk.h>
 #include <crypto/ice.h>
+#include <linux/qcom_scm.h>
 
 #define DM_MSG_PREFIX "req-crypt"
 
@@ -41,7 +42,6 @@ static struct kmem_cache *_req_crypt_io_pool;
 static sector_t start_sector_orig;
 static mempool_t *req_io_pool;
 static struct ice_crypto_setting *ice_settings;
-
 
 struct req_dm_crypt_io {
 	struct ice_crypto_setting ice_settings;
@@ -182,6 +182,32 @@ static void req_crypt_dtr(struct dm_target *ti)
 	}
 }
 
+static int qcom_set_ice_config(char **argv)
+{
+	int ret;
+	struct ice_config_sec *ice;
+
+	ice = kmalloc(sizeof(struct ice_config_sec), GFP_KERNEL);
+	if (!ice) {
+		DMERR("%s: no memory allocated\n", __func__);
+		return -ENOMEM;
+	}
+
+	/* update the ice config structure to send tz */
+	ice->index = ice_settings->key_index;
+	ice->key_size = ice_settings->key_size;
+	ice->algo_mode = ice_settings->algo_mode;
+	ice->key_mode = ice_settings->key_mode;
+
+	ret = qcom_config_sec_ice(ice, sizeof(struct ice_config_sec));
+
+	if (ret)
+		DMERR("%s: ice configuration fail\n", __func__);
+
+	kfree(ice);
+	return ret;
+}
+
 /*
  * Construct an encryption mapping:
  * <cipher> <key> <iv_offset> <dev_path> <start>
@@ -265,9 +291,14 @@ static int req_crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	ti->num_flush_bios = 1;
 	ti->num_discard_bios = 1;
 
-	err = 0;
+	err = qcom_set_ice_config(argv);
+	if (err) {
+		DMERR("%s: ice configuration fail\n", __func__);
+		goto ctr_exit;
+	}
+
 	DMINFO("%s: Mapping block_device %s to dm-req-crypt ok!\n",
-	       __func__, argv[3]);
+		__func__, argv[3]);
 ctr_exit:
 	if (err)
 		req_crypt_dtr(ti);

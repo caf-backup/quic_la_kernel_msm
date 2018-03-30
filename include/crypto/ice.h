@@ -49,6 +49,13 @@ struct ice_data_setting {
 	bool				encr_bypass;
 };
 
+struct ice_config_sec {
+	uint32_t index;
+	uint8_t key_size;
+	uint8_t algo_mode;
+	uint8_t key_mode;
+} __attribute__((packed));
+
 typedef void (*ice_error_cb)(void *, u32 error);
 
 struct qcom_ice_variant_ops *qcom_ice_get_variant_ops(struct device_node *node);
