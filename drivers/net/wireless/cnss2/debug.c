@@ -152,9 +152,9 @@ static ssize_t cnss_dev_boot_debug_write(struct file *fp,
 	cmd = (char *)buf;
 
 	if (sysfs_streq("on", cmd)) {
-		ret = cnss_power_on_device(plat_priv);
+		ret = cnss_power_on_device(plat_priv, 0);
 	} else if (sysfs_streq("off", cmd)) {
-		cnss_power_off_device(plat_priv);
+		cnss_power_off_device(plat_priv, 0);
 	} else if (sysfs_streq("enumerate", cmd)) {
 		ret = cnss_pci_init(plat_priv);
 	} else if (sysfs_streq("download", cmd)) {
@@ -214,8 +214,6 @@ static const struct file_operations cnss_dev_boot_debug_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= seq_lseek,
 };
-
-#ifdef CONFIG_CNSS2_DEBUG
 static int cnss_create_debug_only_node(struct cnss_plat_data *plat_priv)
 {
 	struct dentry *root_dentry = plat_priv->root_dentry;
@@ -225,12 +223,6 @@ static int cnss_create_debug_only_node(struct cnss_plat_data *plat_priv)
 
 	return 0;
 }
-#else
-static int cnss_create_debug_only_node(struct cnss_plat_data *plat_priv)
-{
-	return 0;
-}
-#endif
 
 int cnss_debugfs_create(struct cnss_plat_data *plat_priv)
 {

@@ -46,6 +46,10 @@
 #define DEFAULT_M3_FILE_NAME		"m3.bin"
 
 static DEFINE_SPINLOCK(pci_link_down_lock);
+#ifdef CONFIG_PCIE_QCOM
+extern int qcom_pcie_rescan(void);
+extern void qcom_pcie_remove_bus(void);
+#endif
 
 extern bool daemon_support;
 static unsigned int pci_link_down_panic;
@@ -59,6 +63,24 @@ module_param(fbc_bypass, bool, 0600);
 MODULE_PARM_DESC(fbc_bypass,
 		 "Bypass firmware download when loading WLAN driver");
 #endif
+
+int cnss_pcie_rescan(void)
+{
+#ifdef CONFIG_PCIE_QCOM
+	return qcom_pcie_rescan();
+#else
+	return -EINVAL;
+#endif
+}
+EXPORT_SYMBOL(cnss_pcie_rescan);
+
+void cnss_pcie_remove_bus(void)
+{
+#ifdef CONFIG_PCIE_QCOM
+	qcom_pcie_remove_bus();
+#endif
+}
+EXPORT_SYMBOL(cnss_pcie_remove_bus);
 
 static int cnss_set_pci_config_space(struct cnss_pci_data *pci_priv, bool save)
 {
@@ -1688,7 +1710,7 @@ int cnss_pci_probe(struct pci_dev *pci_dev,
 		if (ret)
 			cnss_pr_err("Failed to suspend PCI link, err = %d\n",
 				    ret);
-		cnss_power_off_device(plat_priv);
+		cnss_power_off_device(plat_priv, 0);
 		break;
 	case QCA6290_EMULATION_DEVICE_ID:
 	case QCA6290_DEVICE_ID:

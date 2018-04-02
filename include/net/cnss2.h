@@ -161,8 +161,8 @@ extern int cnss_get_platform_cap(struct device *dev,
 				 struct cnss_platform_cap *cap);
 extern int cnss_get_soc_info(struct device *dev, struct cnss_soc_info *info);
 extern int cnss_request_bus_bandwidth(struct device *dev, int bandwidth);
-extern int cnss_power_up(struct device *dev);
-extern int cnss_power_down(struct device *dev);
+extern int cnss_power_on_device(struct device *dev, int device_id);
+extern int cnss_power_off_device(struct device *dev, int device_id);
 extern void cnss_request_pm_qos(struct device *dev, u32 qos_val);
 extern void cnss_remove_pm_qos(struct device *dev);
 extern void cnss_lock_pm_sem(struct device *dev);
@@ -184,8 +184,11 @@ extern int cnss_wlan_enable(struct device *dev,
 extern int cnss_wlan_disable(struct device *dev, enum cnss_driver_mode mode);
 int cnss_is_cold_boot_cal_done(struct device *dev);
 int cnss_is_fw_ready(struct device *dev);
-void *cnss_subsystem_get(struct device *dev);
+void *cnss_subsystem_get(struct device *dev, int device_id);
 void cnss_subsystem_put(struct device *dev);
+int cnss_pcie_rescan(void);
+void cnss_pcie_remove_bus(void);
+void *cnss_get_pci_dev_by_device_id(int device_id);
 extern unsigned int cnss_get_qmi_timeout(void);
 extern int cnss_athdiag_read(struct device *dev, uint32_t offset,
 			     uint32_t mem_type, uint32_t data_len,

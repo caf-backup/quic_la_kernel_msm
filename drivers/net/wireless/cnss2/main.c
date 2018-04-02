@@ -125,6 +125,18 @@ static void cnss_set_plat_priv(struct platform_device *plat_dev,
 	plat_env[plat_env_index++] = plat_priv;
 }
 
+void *cnss_get_pci_dev_by_device_id(int device_id)
+{
+	int i;
+
+	for (i = 0; i < plat_env_index; i++) {
+		if (plat_env[i]->device_id == device_id)
+			return plat_env[i]->pci_dev;
+	}
+	return NULL;
+}
+EXPORT_SYMBOL(cnss_get_pci_dev_by_device_id);
+
 struct cnss_plat_data *cnss_get_plat_priv_by_device_id(int id)
 {
 	int i;
@@ -1089,6 +1101,7 @@ EXPORT_SYMBOL(cnss_wlan_register_driver);
 void cnss_wlan_unregister_driver(struct cnss_wlan_driver *driver_ops)
 {
 	struct cnss_plat_data *plat_priv;
+	struct cnss_plat_data *plat_priv_w;
 	struct cnss_subsys_info *subsys_info;
 	struct cnss_wlan_driver *ops;
 	int i;
@@ -1117,10 +1130,12 @@ void cnss_wlan_unregister_driver(struct cnss_wlan_driver *driver_ops)
 
 		if (plat_priv->device_id == QCA6290_DEVICE_ID && ops) {
 			set_bit(CNSS_DRIVER_UNLOADING, &plat_priv->driver_state);
-			cnss_unregister_subsys(plat_priv);
+			subsys_info = &plat_priv->subsys_info;
+			if (subsys_info->subsys_handle)
+				cnss_unregister_subsys(plat_priv);
+			else
+				ops->remove(plat_priv->pci_dev);
 			cnss_unregister_qca6290_cb(plat_priv);
-			cnss_qca6290_shutdown_part2(plat_priv);
-			cnss_pci_deinit(plat_priv);
 		}
 		plat_priv->driver_ops = NULL;
 		plat_priv->driver_status = CNSS_UNINITIALIZED;
@@ -1129,19 +1144,24 @@ void cnss_wlan_unregister_driver(struct cnss_wlan_driver *driver_ops)
 }
 EXPORT_SYMBOL(cnss_wlan_unregister_driver);
 
-void  *cnss_subsystem_get(struct device *dev)
+void  *cnss_subsystem_get(struct device *dev, int device_id)
 {
 	struct cnss_plat_data *plat_priv;
 	struct cnss_subsys_info *subsys_info;
-	plat_priv = cnss_get_plat_priv_by_device_id(QCA8074_DEVICE_ID);
+	plat_priv = cnss_get_plat_priv_by_device_id(device_id);
 
 	if (!plat_priv) {
 		return NULL;
 	}
+
+	if (device_id == QCA6290_DEVICE_ID)
+		cnss_pci_init(plat_priv);
+
 	subsys_info = &plat_priv->subsys_info;
 
 	if (subsys_info->subsys_handle) {
-		pr_err("Error: subsys handle is not NULL");
+		pr_err("%s: error: subsys handle %p is not NULL ",
+		       __func__, subsys_info->subsys_handle);
 		return NULL;
 	}
 	subsys_info->subsys_handle =
@@ -1155,16 +1175,26 @@ void cnss_subsystem_put(struct device *dev)
 	struct cnss_plat_data *plat_priv;
 	struct cnss_subsys_info *subsys_info;
 
-	plat_priv = cnss_get_plat_priv_by_device_id(QCA8074_DEVICE_ID);
+	plat_priv = cnss_bus_dev_to_plat_priv(dev);
 
 	if (!plat_priv)
 		return;
 
 	subsys_info = &plat_priv->subsys_info;
+
+	if (!subsys_info->subsys_handle) {
+		pr_err("%s: error: subsys handle is NULL", __func__);
+		return;
+	}
+
 	if (subsys_info->subsys_handle)
 		subsystem_put(subsys_info->subsys_handle);
 
 	subsys_info->subsys_handle = NULL;
+
+	if (plat_priv->device_id == QCA6290_DEVICE_ID)
+		cnss_unregister_subsys(plat_priv);
+
 	plat_priv->driver_state = 0;
 }
 EXPORT_SYMBOL(cnss_subsystem_put);
@@ -1172,12 +1202,6 @@ EXPORT_SYMBOL(cnss_subsystem_put);
 static int cnss_get_resources(struct cnss_plat_data *plat_priv)
 {
 	int ret;
-
-	ret = cnss_get_vreg(plat_priv);
-	if (ret) {
-		cnss_pr_err("Failed to get vreg, err = %d\n", ret);
-		goto out;
-	}
 
 	ret = cnss_get_pinctrl(plat_priv);
 	if (ret) {
@@ -1313,7 +1337,7 @@ static int cnss_qca6174_powerup(struct cnss_plat_data *plat_priv)
 		return -EINVAL;
 	}
 
-	ret = cnss_power_on_device(plat_priv);
+	ret = cnss_power_on_device(plat_priv, 0);
 	if (ret) {
 		cnss_pr_err("Failed to power on device, err = %d\n", ret);
 		goto out;
@@ -1333,7 +1357,7 @@ static int cnss_qca6174_powerup(struct cnss_plat_data *plat_priv)
 suspend_link:
 	cnss_suspend_pci_link(pci_priv);
 power_off:
-	cnss_power_off_device(plat_priv);
+	cnss_power_off_device(plat_priv, 0);
 out:
 	return ret;
 }
@@ -1361,7 +1385,7 @@ static int cnss_qca6174_shutdown(struct cnss_plat_data *plat_priv)
 	if (ret)
 		cnss_pr_err("Failed to suspend PCI link, err = %d\n", ret);
 
-	cnss_power_off_device(plat_priv);
+	cnss_power_off_device(plat_priv, 0);
 
 	clear_bit(CNSS_DRIVER_UNLOADING, &plat_priv->driver_state);
 
@@ -1416,37 +1440,20 @@ out:
 	return ret;
 }
 
-int cnss_qca6290_shutdown_part2(struct cnss_plat_data *plat_priv)
-{
-	int ret = 0;
-	struct cnss_pci_data *pci_priv = plat_priv->bus_priv;
-
-	if (!pci_priv)
-		return -ENODEV;
-
-	cnss_pci_stop_mhi(pci_priv);
-	cnss_pci_remove(plat_priv->pci_dev);
-
-	clear_bit(CNSS_FW_READY, &plat_priv->driver_state);
-	clear_bit(CNSS_FW_MEM_READY, &plat_priv->driver_state);
-	clear_bit(CNSS_DRIVER_UNLOADING, &plat_priv->driver_state);
-
-	return ret;
-}
-
 static int cnss_qca6290_shutdown(struct cnss_plat_data *plat_priv)
 {
-	int ret = 0;
 	struct cnss_pci_data *pci_priv = plat_priv->bus_priv;
 
 	if (!pci_priv)
 		return -ENODEV;
-
 
 	cnss_driver_call_remove(plat_priv);
 
+	cnss_pci_stop_mhi(pci_priv);
+	cnss_pci_remove(plat_priv->pci_dev);
+	plat_priv->driver_state = 0;
 
-	return ret;
+	return 0;
 }
 
 static void cnss_qca6290_crash_shutdown(struct cnss_plat_data *plat_priv)
@@ -2126,7 +2133,8 @@ void cnss_unregister_subsys(struct cnss_plat_data *plat_priv)
 		return;
 
 	subsys_info = &plat_priv->subsys_info;
-	subsystem_put(subsys_info->subsys_handle);
+	if (subsys_info->subsys_handle)
+		subsystem_put(subsys_info->subsys_handle);
 	subsys_info->subsys_handle = NULL;
 	subsys_unregister(subsys_info->subsys_device);
 	subsys_info->subsys_device = NULL;
@@ -2537,17 +2545,10 @@ static int cnss_probe(struct platform_device *plat_dev)
 	cnss_set_plat_priv(plat_dev, plat_priv);
 	platform_set_drvdata(plat_dev, plat_priv);
 
-#ifdef CONFIG_CNSS2_PM
 	ret = cnss_get_resources(plat_priv);
 	if (ret)
 		goto reset_ctx;
 
-	if (!test_bit(SKIP_DEVICE_BOOT, &quirks)) {
-		ret = cnss_power_on_device(plat_priv);
-		if (ret)
-			goto free_res;
-	}
-#endif
 	if (plat_priv->device_id == QCA6290_DEVICE_ID) {
 		ret = cnss_pci_init(plat_priv);
 		if (ret)
@@ -2608,7 +2609,7 @@ deinit_pci:
 		cnss_pci_deinit(plat_priv);
 power_off:
 	if (!test_bit(SKIP_DEVICE_BOOT, &quirks))
-		cnss_power_off_device(plat_priv);
+		cnss_power_off_device(plat_priv, 0);
 free_res:
 	cnss_put_resources(plat_priv);
 reset_ctx:
