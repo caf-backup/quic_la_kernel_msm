@@ -5,11 +5,16 @@ This driver adds support for the WLAN subsystem for supporting
 integrated WLAN module
 
 Required properties:
-  - compatible = "qcom,cnss-qca8074";
+  - compatible = "qcom,cnss-qca8074"; for IPQ8074 device
+		= "qcom,cnss-qca6290"; for QCA6290 device
   - reg = <baseaddr length>
   - interrupts = <list of msi and legacy interrupts>
   - interrupt-names = <list of interrupt's string name defined in the interrupts field. Please
     ensure the order of the interrupts and the interrupts name matches with each other.
+  - wlan-en-gpio: WLAN_EN GPIO signal specified by the chip specifications
+  - pinctrl-names: Names corresponding to the numbered pinctrl states
+  - pinctrl-<n>: Pinctrl states as described in
+                 bindings/pinctrl/pinctrl-bindings.txt
   - status = ok or disabled.
     Please refer below example.
 
@@ -172,6 +177,11 @@ Example:
 			interrupt-names = "legacy";
 			status = "ok";
 		};
-
-
-
+		wifi3: wifi3@f00000 {
+		        compatible  = "qcom,cnss-qca6290";
+		        wlan-en-gpio = <&tlmm 57 0>;
+		        pinctrl-names = "wlan_en_active", "wlan_en_sleep";
+		        pinctrl-0 = <&cnss_wlan_en_active>;
+		        pinctrl-1 = <&cnss_wlan_en_sleep>;
+		        status = "ok";
+		};
