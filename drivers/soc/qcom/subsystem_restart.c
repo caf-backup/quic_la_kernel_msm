@@ -615,10 +615,7 @@ static int subsys_start(struct subsys_device *subsys)
 	if (ret) {
 		notify_each_subsys_device(&subsys, 1, SUBSYS_POWERUP_FAILURE,
 									NULL);
-		if (ret == -ETIMEDOUT) {
-			subsys->desc->shutdown(subsys->desc, false);
-			disable_all_irqs(subsys);
-		}
+		subsys->desc->shutdown(subsys->desc, false);
 		return ret;
 	}
 	enable_all_irqs(subsys);

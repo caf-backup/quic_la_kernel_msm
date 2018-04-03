@@ -619,21 +619,23 @@ static int q6_rproc_stop(struct rproc *rproc)
 	struct q6v5_rproc_pdata *pdata = platform_get_drvdata(pdev);
 	int ret = 0;
 
-	pdata->running = false;
-	if (pdata->secure) {
-		ret = qcom_scm_pas_shutdown(WCNSS_PAS_ID);
-		if (ret)
-			dev_err(dev, "failted to shutdown %d\n", ret);
-		return ret;
+	if (pdata->running) {
+		pdata->running = false;
+		if (pdata->secure) {
+			ret = qcom_scm_pas_shutdown(WCNSS_PAS_ID);
+			if (ret)
+				dev_err(dev, "failted to shutdown %d\n", ret);
+			return ret;
+		}
+
+		/* Non secure */
+		/* WCSS powerdown */
+		wcss_powerdown(pdata);
+
+		/* Q6 Power down */
+		q6_powerdown(pdata);
+		disable_irq(pdata->err_ready_irq);
 	}
-
-	/* Non secure */
-	/* WCSS powerdown */
-	wcss_powerdown(pdata);
-
-	/* Q6 Power down */
-	q6_powerdown(pdata);
-	disable_irq(pdata->err_ready_irq);
 
 	return ret;
 }
