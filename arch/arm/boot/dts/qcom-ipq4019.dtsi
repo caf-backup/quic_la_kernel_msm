@@ -135,6 +135,12 @@
 		};
 	};
 
+	qseecom {
+		compatible = "ipq40xx-qseecom";
+		mem-start = <0x87b80000>;
+		mem-size = <0x280000>;
+	};
+
 	firmware {
 		scm {
 			compatible = "qcom,scm-ipq40xx";
