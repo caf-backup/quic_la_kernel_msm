@@ -242,6 +242,7 @@ static uint8_t *sealed_buf;
 static size_t seal_len;
 static uint8_t *unsealed_buf;
 static size_t unseal_len;
+static struct device *qdev;
 
 #define MUL		0x1
 #define ENC		0x2
@@ -267,6 +268,7 @@ generate_key_blob(struct device *dev, struct device_attribute *attr, char *buf)
 	struct page *req_page = NULL;
 	struct page *resp_page = NULL;
 
+	dev = qdev;
 	key_blob_len = 0;
 
 	req_order = get_order(sizeof(struct tz_storage_service_gen_key_cmd_t));
@@ -295,30 +297,30 @@ generate_key_blob(struct device *dev, struct device_attribute *attr, char *buf)
 	req_ptr->cmd_id = TZ_STOR_SVC_GENERATE_KEY;
 
 	req_ptr->key_blob.key_material_len = KEY_BLOB_SIZE;
-	dma_key_blob = dma_map_single(NULL, key_blob, KEY_BLOB_SIZE,
+	dma_key_blob = dma_map_single(dev, key_blob, KEY_BLOB_SIZE,
 							DMA_FROM_DEVICE);
 	req_ptr->key_blob.key_material = (uint8_t *)dma_key_blob;
 
-	rc = dma_mapping_error(NULL, dma_key_blob);
+	rc = dma_mapping_error(dev, dma_key_blob);
 	if (rc) {
 		pr_err("DMA Mapping Error(key blob)\n");
 		goto err_end;
 	}
 
 	req_size = sizeof(struct tz_storage_service_gen_key_cmd_t);
-	dma_req_addr = dma_map_single(NULL, req_ptr, req_size, DMA_TO_DEVICE);
+	dma_req_addr = dma_map_single(dev, req_ptr, req_size, DMA_TO_DEVICE);
 
-	rc = dma_mapping_error(NULL, dma_req_addr);
+	rc = dma_mapping_error(dev, dma_req_addr);
 	if (rc) {
 		pr_err("DMA Mapping Error(request str)\n");
 		goto err_map_req;
 	}
 
 	resp_size = sizeof(struct tz_storage_service_gen_key_resp_t);
-	dma_resp_addr = dma_map_single(NULL, resp_ptr, resp_size,
+	dma_resp_addr = dma_map_single(dev, resp_ptr, resp_size,
 							DMA_FROM_DEVICE);
 
-	rc = dma_mapping_error(NULL, dma_resp_addr);
+	rc = dma_mapping_error(dev, dma_resp_addr);
 	if (rc) {
 		pr_err("DMA Mapping Error(response str)\n");
 		goto err_map_resp;
@@ -331,9 +333,9 @@ generate_key_blob(struct device *dev, struct device_attribute *attr, char *buf)
 
 	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf));
 
-	dma_unmap_single(NULL, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
-	dma_unmap_single(NULL, dma_req_addr, req_size, DMA_TO_DEVICE);
-	dma_unmap_single(NULL, dma_key_blob, KEY_BLOB_SIZE, DMA_FROM_DEVICE);
+	dma_unmap_single(dev, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
+	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
+	dma_unmap_single(dev, dma_key_blob, KEY_BLOB_SIZE, DMA_FROM_DEVICE);
 
 	if (rc) {
 		pr_err("\nSCM Call failed..SCM Call return value = %d\n", rc);
@@ -353,10 +355,10 @@ generate_key_blob(struct device *dev, struct device_attribute *attr, char *buf)
 goto end;
 
 err_map_resp:
-	dma_unmap_single(NULL, dma_req_addr, req_size, DMA_TO_DEVICE);
+	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
 
 err_map_req:
-	dma_unmap_single(NULL, dma_key_blob, KEY_BLOB_SIZE, DMA_FROM_DEVICE);
+	dma_unmap_single(dev, dma_key_blob, KEY_BLOB_SIZE, DMA_FROM_DEVICE);
 
 err_end:
 	free_pages((unsigned long)page_address(req_page), req_order);
@@ -416,6 +418,8 @@ import_key_blob(struct device *dev, struct device_attribute *attr, char *buf)
 		return -EINVAL;
 	}
 
+	dev = qdev;
+
 	req_order = get_order(sizeof(struct
 					tz_storage_service_import_key_cmd_t));
 	req_page = alloc_pages(GFP_KERNEL, req_order);
@@ -443,40 +447,40 @@ import_key_blob(struct device *dev, struct device_attribute *attr, char *buf)
 	req_ptr->cmd_id = TZ_STOR_SVC_IMPORT_KEY;
 
 	req_ptr->input_key_len = KEY_SIZE;
-	dma_key = dma_map_single(NULL, key, KEY_SIZE, DMA_TO_DEVICE);
+	dma_key = dma_map_single(dev, key, KEY_SIZE, DMA_TO_DEVICE);
 	req_ptr->input_key = (uint8_t *)dma_key;
 
-	rc = dma_mapping_error(NULL, dma_key);
+	rc = dma_mapping_error(dev, dma_key);
 	if (rc) {
 		pr_err("DMA Mapping error(key)\n");
 		goto err_end;
 	}
 
 	req_ptr->key_blob.key_material_len = KEY_BLOB_SIZE;
-	dma_key_blob = dma_map_single(NULL, key_blob, KEY_BLOB_SIZE,
+	dma_key_blob = dma_map_single(dev, key_blob, KEY_BLOB_SIZE,
 							DMA_FROM_DEVICE);
 	req_ptr->key_blob.key_material = (uint8_t *)dma_key_blob;
 
-	rc = dma_mapping_error(NULL, dma_key_blob);
+	rc = dma_mapping_error(dev, dma_key_blob);
 	if (rc) {
 		pr_err("DMA Mapping Error(key blob)\n");
 		goto err_map_key_blob;
 	}
 
 	req_size = sizeof(struct tz_storage_service_import_key_cmd_t);
-	dma_req_addr = dma_map_single(NULL, req_ptr, req_size, DMA_TO_DEVICE);
+	dma_req_addr = dma_map_single(dev, req_ptr, req_size, DMA_TO_DEVICE);
 
-	rc = dma_mapping_error(NULL, dma_req_addr);
+	rc = dma_mapping_error(dev, dma_req_addr);
 	if (rc) {
 		pr_err("DMA Mapping Error(request str)\n");
 		goto err_map_req;
 	}
 
 	resp_size = sizeof(struct tz_storage_service_gen_key_resp_t);
-	dma_resp_addr = dma_map_single(NULL, resp_ptr, resp_size,
+	dma_resp_addr = dma_map_single(dev, resp_ptr, resp_size,
 							DMA_FROM_DEVICE);
 
-	rc = dma_mapping_error(NULL, dma_resp_addr);
+	rc = dma_mapping_error(dev, dma_resp_addr);
 	if (rc) {
 		pr_err("DMA Mapping Error(response str)\n");
 		goto err_map_resp;
@@ -489,10 +493,10 @@ import_key_blob(struct device *dev, struct device_attribute *attr, char *buf)
 
 	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf));
 
-	dma_unmap_single(NULL, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
-	dma_unmap_single(NULL, dma_req_addr, req_size, DMA_TO_DEVICE);
-	dma_unmap_single(NULL, dma_key_blob, KEY_BLOB_SIZE, DMA_FROM_DEVICE);
-	dma_unmap_single(NULL, dma_key, KEY_SIZE, DMA_TO_DEVICE);
+	dma_unmap_single(dev, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
+	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
+	dma_unmap_single(dev, dma_key_blob, KEY_BLOB_SIZE, DMA_FROM_DEVICE);
+	dma_unmap_single(dev, dma_key, KEY_SIZE, DMA_TO_DEVICE);
 
 	if (rc) {
 		pr_err("\nSCM Call failed..SCM Call return value = %d\n", rc);
@@ -512,13 +516,13 @@ import_key_blob(struct device *dev, struct device_attribute *attr, char *buf)
 goto end;
 
 err_map_resp:
-	dma_unmap_single(NULL, dma_req_addr, req_size, DMA_TO_DEVICE);
+	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
 
 err_map_req:
-	dma_unmap_single(NULL, dma_key_blob, KEY_BLOB_SIZE, DMA_FROM_DEVICE);
+	dma_unmap_single(dev, dma_key_blob, KEY_BLOB_SIZE, DMA_FROM_DEVICE);
 
 err_map_key_blob:
-	dma_unmap_single(NULL, dma_key, KEY_SIZE, DMA_TO_DEVICE);
+	dma_unmap_single(dev, dma_key, KEY_SIZE, DMA_TO_DEVICE);
 
 err_end:
 	free_pages((unsigned long)page_address(req_page), req_order);
@@ -602,6 +606,8 @@ show_sealed_data(struct device *dev, struct device_attribute *attr, char *buf)
 		return -EINVAL;
 	}
 
+	dev = qdev;
+
 	req_order = get_order(sizeof(struct
 					tz_storage_service_seal_data_cmd_t));
 	req_page = alloc_pages(GFP_KERNEL, req_order);
@@ -630,52 +636,52 @@ show_sealed_data(struct device *dev, struct device_attribute *attr, char *buf)
 	req_ptr->cmd_id = TZ_STOR_SVC_SEAL_DATA;
 
 	req_ptr->key_blob.key_material_len = KEY_BLOB_SIZE;
-	dma_key_blob = dma_map_single(NULL, key_blob, KEY_BLOB_SIZE,
+	dma_key_blob = dma_map_single(dev, key_blob, KEY_BLOB_SIZE,
 								DMA_TO_DEVICE);
 	req_ptr->key_blob.key_material = (uint8_t *)dma_key_blob;
 
-	rc = dma_mapping_error(NULL, dma_key_blob);
+	rc = dma_mapping_error(dev, dma_key_blob);
 	if (rc) {
 		pr_err("DMA Mapping Error(key blob)\n");
 		goto err_end;
 	}
 
 	req_ptr->plain_data_len = unseal_len;
-	dma_plain_data = dma_map_single(NULL, unsealed_buf, unseal_len,
+	dma_plain_data = dma_map_single(dev, unsealed_buf, unseal_len,
 								DMA_TO_DEVICE);
 	req_ptr->plain_data = (uint8_t *)dma_plain_data;
 
-	rc = dma_mapping_error(NULL, dma_plain_data);
+	rc = dma_mapping_error(dev, dma_plain_data);
 	if (rc) {
 		pr_err("DMA Mapping Error(plain data)\n");
 		goto err_map_plain_data;
 	}
 
 	req_ptr->output_len = output_len;
-	dma_output_data = dma_map_single(NULL, sealed_buf, output_len,
+	dma_output_data = dma_map_single(dev, sealed_buf, output_len,
 							DMA_FROM_DEVICE);
 	req_ptr->output_buffer = (uint8_t *)dma_output_data;
 
-	rc = dma_mapping_error(NULL, dma_output_data);
+	rc = dma_mapping_error(dev, dma_output_data);
 	if (rc) {
 		pr_err("DMA Mapping Error(output data)\n");
 		goto err_map_output_data;
 	}
 
 	req_size = sizeof(struct tz_storage_service_seal_data_cmd_t);
-	dma_req_addr = dma_map_single(NULL, req_ptr, req_size, DMA_TO_DEVICE);
+	dma_req_addr = dma_map_single(dev, req_ptr, req_size, DMA_TO_DEVICE);
 
-	rc = dma_mapping_error(NULL, dma_req_addr);
+	rc = dma_mapping_error(dev, dma_req_addr);
 	if (rc) {
 		pr_err("DMA Mapping Error(request str)\n");
 		goto err_map_req;
 	}
 
 	resp_size = sizeof(struct tz_storage_service_seal_data_resp_t);
-	dma_resp_addr = dma_map_single(NULL, resp_ptr, resp_size,
+	dma_resp_addr = dma_map_single(dev, resp_ptr, resp_size,
 							DMA_FROM_DEVICE);
 
-	rc = dma_mapping_error(NULL, dma_resp_addr);
+	rc = dma_mapping_error(dev, dma_resp_addr);
 	if (rc) {
 		pr_err("DMA Mapping Error(response str)\n");
 		goto err_map_resp;
@@ -688,11 +694,11 @@ show_sealed_data(struct device *dev, struct device_attribute *attr, char *buf)
 
 	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf));
 
-	dma_unmap_single(NULL, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
-	dma_unmap_single(NULL, dma_req_addr, req_size, DMA_TO_DEVICE);
-	dma_unmap_single(NULL, dma_output_data, output_len, DMA_FROM_DEVICE);
-	dma_unmap_single(NULL, dma_plain_data, unseal_len, DMA_TO_DEVICE);
-	dma_unmap_single(NULL, dma_key_blob, KEY_BLOB_SIZE, DMA_TO_DEVICE);
+	dma_unmap_single(dev, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
+	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
+	dma_unmap_single(dev, dma_output_data, output_len, DMA_FROM_DEVICE);
+	dma_unmap_single(dev, dma_plain_data, unseal_len, DMA_TO_DEVICE);
+	dma_unmap_single(dev, dma_key_blob, KEY_BLOB_SIZE, DMA_TO_DEVICE);
 
 	if (rc) {
 		pr_err("\nSCM Call failed..SCM Call return value = %d\n", rc);
@@ -712,16 +718,16 @@ show_sealed_data(struct device *dev, struct device_attribute *attr, char *buf)
 goto end;
 
 err_map_resp:
-	dma_unmap_single(NULL, dma_req_addr, req_size, DMA_TO_DEVICE);
+	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
 
 err_map_req:
-	dma_unmap_single(NULL, dma_output_data, output_len, DMA_FROM_DEVICE);
+	dma_unmap_single(dev, dma_output_data, output_len, DMA_FROM_DEVICE);
 
 err_map_output_data:
-	dma_unmap_single(NULL, dma_plain_data, unseal_len, DMA_TO_DEVICE);
+	dma_unmap_single(dev, dma_plain_data, unseal_len, DMA_TO_DEVICE);
 
 err_map_plain_data:
-	dma_unmap_single(NULL, dma_key_blob, KEY_BLOB_SIZE, DMA_TO_DEVICE);
+	dma_unmap_single(dev, dma_key_blob, KEY_BLOB_SIZE, DMA_TO_DEVICE);
 
 err_end:
 	free_pages((unsigned long)page_address(req_page), req_order);
@@ -785,6 +791,8 @@ show_unsealed_data(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 	}
 
+	dev = qdev;
+
 	req_order = get_order(sizeof(struct
 					tz_storage_service_unseal_data_cmd_t));
 	req_page = alloc_pages(GFP_KERNEL, req_order);
@@ -813,52 +821,52 @@ show_unsealed_data(struct device *dev, struct device_attribute *attr,
 	req_ptr->cmd_id = TZ_STOR_SVC_UNSEAL_DATA;
 
 	req_ptr->key_blob.key_material_len = KEY_BLOB_SIZE;
-	dma_key_blob = dma_map_single(NULL, key_blob, KEY_BLOB_SIZE,
+	dma_key_blob = dma_map_single(dev, key_blob, KEY_BLOB_SIZE,
 								DMA_TO_DEVICE);
 	req_ptr->key_blob.key_material = (uint8_t *)dma_key_blob;
 
-	rc = dma_mapping_error(NULL, dma_key_blob);
+	rc = dma_mapping_error(dev, dma_key_blob);
 	if (rc) {
 		pr_err("DMA Mapping Error(key blob)\n");
 		goto err_end;
 	}
 
 	req_ptr->sealed_dlen = seal_len;
-	dma_sealed_data = dma_map_single(NULL, sealed_buf, seal_len,
+	dma_sealed_data = dma_map_single(dev, sealed_buf, seal_len,
 								DMA_TO_DEVICE);
 	req_ptr->sealed_data = (uint8_t *)dma_sealed_data;
 
-	rc = dma_mapping_error(NULL, dma_sealed_data);
+	rc = dma_mapping_error(dev, dma_sealed_data);
 	if (rc) {
 		pr_err("DMA Mapping Error(sealed data)\n");
 		goto err_map_sealed_data;
 	}
 
 	req_ptr->output_len = output_len;
-	dma_output_data = dma_map_single(NULL, unsealed_buf, output_len,
+	dma_output_data = dma_map_single(dev, unsealed_buf, output_len,
 							DMA_FROM_DEVICE);
 	req_ptr->output_buffer = (uint8_t *)dma_output_data;
 
-	rc = dma_mapping_error(NULL, dma_output_data);
+	rc = dma_mapping_error(dev, dma_output_data);
 	if (rc) {
 		pr_err("DMA Mapping Error(output data)\n");
 		goto err_map_output_data;
 	}
 
 	req_size = sizeof(struct tz_storage_service_unseal_data_cmd_t);
-	dma_req_addr = dma_map_single(NULL, req_ptr, req_size, DMA_TO_DEVICE);
+	dma_req_addr = dma_map_single(dev, req_ptr, req_size, DMA_TO_DEVICE);
 
-	rc = dma_mapping_error(NULL, dma_req_addr);
+	rc = dma_mapping_error(dev, dma_req_addr);
 	if (rc) {
 		pr_err("DMA Mapping Error(request str)\n");
 		goto err_map_req;
 	}
 
 	resp_size = sizeof(struct tz_storage_service_unseal_data_resp_t);
-	dma_resp_addr = dma_map_single(NULL, resp_ptr, resp_size,
+	dma_resp_addr = dma_map_single(dev, resp_ptr, resp_size,
 							DMA_FROM_DEVICE);
 
-	rc = dma_mapping_error(NULL, dma_resp_addr);
+	rc = dma_mapping_error(dev, dma_resp_addr);
 	if (rc) {
 		pr_err("DMA Mapping Error(response str)\n");
 		goto err_map_resp;
@@ -871,11 +879,11 @@ show_unsealed_data(struct device *dev, struct device_attribute *attr,
 
 	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf));
 
-	dma_unmap_single(NULL, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
-	dma_unmap_single(NULL, dma_req_addr, req_size, DMA_TO_DEVICE);
-	dma_unmap_single(NULL, dma_output_data, output_len, DMA_FROM_DEVICE);
-	dma_unmap_single(NULL, dma_sealed_data, seal_len, DMA_TO_DEVICE);
-	dma_unmap_single(NULL, dma_key_blob, KEY_BLOB_SIZE, DMA_TO_DEVICE);
+	dma_unmap_single(dev, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
+	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
+	dma_unmap_single(dev, dma_output_data, output_len, DMA_FROM_DEVICE);
+	dma_unmap_single(dev, dma_sealed_data, seal_len, DMA_TO_DEVICE);
+	dma_unmap_single(dev, dma_key_blob, KEY_BLOB_SIZE, DMA_TO_DEVICE);
 
 	if (rc) {
 		pr_err("\nSCM Call failed..SCM Call return value = %d\n", rc);
@@ -895,16 +903,16 @@ show_unsealed_data(struct device *dev, struct device_attribute *attr,
 goto end;
 
 err_map_resp:
-	dma_unmap_single(NULL, dma_req_addr, req_size, DMA_TO_DEVICE);
+	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
 
 err_map_req:
-	dma_unmap_single(NULL, dma_output_data, output_len, DMA_FROM_DEVICE);
+	dma_unmap_single(dev, dma_output_data, output_len, DMA_FROM_DEVICE);
 
 err_map_output_data:
-	dma_unmap_single(NULL, dma_sealed_data, seal_len, DMA_TO_DEVICE);
+	dma_unmap_single(dev, dma_sealed_data, seal_len, DMA_TO_DEVICE);
 
 err_map_sealed_data:
-	dma_unmap_single(NULL, dma_key_blob, KEY_BLOB_SIZE, DMA_TO_DEVICE);
+	dma_unmap_single(dev, dma_key_blob, KEY_BLOB_SIZE, DMA_TO_DEVICE);
 
 err_end:
 	free_pages((unsigned long)page_address(req_page), req_order);
@@ -1144,7 +1152,8 @@ static int qseecom_unload_app(void)
 	return 0;
 }
 
-static int tzapp_test(void *input, void *output, int input_len, int option)
+static int tzapp_test(struct device *dev, void *input,
+		      void *output, int input_len, int option)
 {
 	int ret = 0;
 	int ret1, ret2;
@@ -1154,6 +1163,8 @@ static int tzapp_test(void *input, void *output, int input_len, int option)
 	struct qsee_send_cmd_rsp *msgrsp; /* response data sent from QSEE */
 	struct page *pg_tmp;
 	unsigned long pg_addr;
+
+	dev = qdev;
 
 	/*
 	 * Using alloc_pages to avoid colliding with input pointer's
@@ -1219,9 +1230,9 @@ static int tzapp_test(void *input, void *output, int input_len, int option)
 			}
 
 			msgreq->cmd_id = CLIENT_CMD_AUTH;
-			msgreq->data = dma_map_single(NULL, auth_file,
+			msgreq->data = dma_map_single(dev, auth_file,
 						      auth_size, DMA_TO_DEVICE);
-			ret = dma_mapping_error(NULL, msgreq->data);
+			ret = dma_mapping_error(dev, msgreq->data);
 			if (ret) {
 				pr_err("DMA Mapping Error: otp_buffer %d",
 					ret);
@@ -1234,25 +1245,25 @@ static int tzapp_test(void *input, void *output, int input_len, int option)
 			goto fn_exit_1;
 		}
 		if (option == 2 || option == 3) {
-			msgreq->data = dma_map_single(NULL, input,
+			msgreq->data = dma_map_single(dev, input,
 					input_len, DMA_TO_DEVICE);
-			msgreq->data2 = dma_map_single(NULL, output,
+			msgreq->data2 = dma_map_single(dev, output,
 					input_len, DMA_FROM_DEVICE);
 
-			ret1 = dma_mapping_error(NULL, msgreq->data);
-			ret2 = dma_mapping_error(NULL, msgreq->data2);
+			ret1 = dma_mapping_error(dev, msgreq->data);
+			ret2 = dma_mapping_error(dev, msgreq->data2);
 
 			if (ret1 || ret2) {
 				pr_err("\nDMA Mapping Error:input:%d output:%d",
 				      ret1, ret2);
 
 				if (!ret1) {
-					dma_unmap_single(NULL, msgreq->data,
+					dma_unmap_single(dev, msgreq->data,
 						input_len, DMA_TO_DEVICE);
 				}
 
 				if (!ret2) {
-					dma_unmap_single(NULL, msgreq->data2,
+					dma_unmap_single(dev, msgreq->data2,
 						input_len, DMA_FROM_DEVICE);
 				}
 				return ret1 ? ret1 : ret2;
@@ -1264,13 +1275,13 @@ static int tzapp_test(void *input, void *output, int input_len, int option)
 		send_data_req.v1.qsee_cmd_id = QSEOS_CLIENT_SEND_DATA_COMMAND;
 		send_data_req.v1.app_id = qsee_app_id;
 
-		send_data_req.v1.req_ptr = dma_map_single(NULL, msgreq,
+		send_data_req.v1.req_ptr = dma_map_single(dev, msgreq,
 					sizeof(*msgreq), DMA_TO_DEVICE);
-		send_data_req.v1.rsp_ptr = dma_map_single(NULL, msgrsp,
+		send_data_req.v1.rsp_ptr = dma_map_single(dev, msgrsp,
 					sizeof(*msgrsp), DMA_FROM_DEVICE);
 
-		ret1 = dma_mapping_error(NULL, send_data_req.v1.req_ptr);
-		ret2 = dma_mapping_error(NULL, send_data_req.v1.rsp_ptr);
+		ret1 = dma_mapping_error(dev, send_data_req.v1.req_ptr);
+		ret2 = dma_mapping_error(dev, send_data_req.v1.rsp_ptr);
 
 		if (!ret1 && !ret2) {
 			send_data_req.v1.req_len =
@@ -1283,20 +1294,20 @@ static int tzapp_test(void *input, void *output, int input_len, int option)
 		}
 
 		if (option == 2 || option == 3) {
-			dma_unmap_single(NULL, msgreq->data,
+			dma_unmap_single(dev, msgreq->data,
 						input_len, DMA_TO_DEVICE);
-			dma_unmap_single(NULL, msgreq->data2,
+			dma_unmap_single(dev, msgreq->data2,
 						input_len, DMA_FROM_DEVICE);
 
 		}
 
 		if (!ret1) {
-			dma_unmap_single(NULL, send_data_req.v1.req_ptr,
+			dma_unmap_single(dev, send_data_req.v1.req_ptr,
 				sizeof(*msgreq), DMA_TO_DEVICE);
 		}
 
 		if (!ret2) {
-			dma_unmap_single(NULL, send_data_req.v1.rsp_ptr,
+			dma_unmap_single(dev, send_data_req.v1.rsp_ptr,
 				sizeof(*msgrsp), DMA_FROM_DEVICE);
 		}
 
@@ -1344,7 +1355,7 @@ static int tzapp_test(void *input, void *output, int input_len, int option)
 fn_exit_1:
 		free_page(pg_addr);
 		if (option == 5) {
-			dma_unmap_single(NULL, msgreq->data, auth_size,
+			dma_unmap_single(dev, msgreq->data, auth_size,
 								DMA_TO_DEVICE);
 		}
 
@@ -1395,9 +1406,9 @@ fn_exit_1:
 			}
 
 			msgreq->cmd_id = CLIENT_CMD_AUTH;
-			msgreq->data = dma_map_single(NULL, auth_file,
+			msgreq->data = dma_map_single(dev, auth_file,
 						      auth_size, DMA_TO_DEVICE);
-			ret = dma_mapping_error(NULL, msgreq->data);
+			ret = dma_mapping_error(dev, msgreq->data);
 			if (ret) {
 				pr_err("DMA Mapping Error: otp_buffer %d",
 					ret);
@@ -1410,24 +1421,24 @@ fn_exit_1:
 			goto fn_exit;
 		}
 		if (option == 2 || option == 3) {
-			msgreq->data = dma_map_single(NULL, input,
+			msgreq->data = dma_map_single(dev, input,
 					input_len, DMA_TO_DEVICE);
-			msgreq->data2 = dma_map_single(NULL, output,
+			msgreq->data2 = dma_map_single(dev, output,
 					input_len, DMA_FROM_DEVICE);
 
-			ret1 = dma_mapping_error(NULL, msgreq->data);
-			ret2 = dma_mapping_error(NULL, msgreq->data2);
+			ret1 = dma_mapping_error(dev, msgreq->data);
+			ret2 = dma_mapping_error(dev, msgreq->data2);
 
 			if (ret1 || ret2) {
 				pr_err("\nDMA Mapping Error:input:%d output:%d",
 				      ret1, ret2);
 				if (!ret1) {
-					dma_unmap_single(NULL, msgreq->data,
+					dma_unmap_single(dev, msgreq->data,
 						input_len, DMA_TO_DEVICE);
 				}
 
 				if (!ret2) {
-					dma_unmap_single(NULL, msgreq->data2,
+					dma_unmap_single(dev, msgreq->data2,
 						input_len, DMA_FROM_DEVICE);
 				}
 				return ret1 ? ret1 : ret2;
@@ -1438,13 +1449,13 @@ fn_exit_1:
 		send_data_req.v1.qsee_cmd_id = QSEOS_CLIENT_SEND_DATA_COMMAND;
 		send_data_req.v1.app_id = qsee_app_id;
 
-		send_data_req.v1.req_ptr = dma_map_single(NULL, msgreq,
+		send_data_req.v1.req_ptr = dma_map_single(dev, msgreq,
 					sizeof(*msgreq), DMA_TO_DEVICE);
-		send_data_req.v1.rsp_ptr = dma_map_single(NULL, msgrsp,
+		send_data_req.v1.rsp_ptr = dma_map_single(dev, msgrsp,
 					sizeof(*msgrsp), DMA_FROM_DEVICE);
 
-		ret1 = dma_mapping_error(NULL, send_data_req.v1.req_ptr);
-		ret2 = dma_mapping_error(NULL, send_data_req.v1.rsp_ptr);
+		ret1 = dma_mapping_error(dev, send_data_req.v1.req_ptr);
+		ret2 = dma_mapping_error(dev, send_data_req.v1.rsp_ptr);
 
 
 		if (!ret1 && !ret2) {
@@ -1458,20 +1469,20 @@ fn_exit_1:
 		}
 
 		if (option == 2 || option == 3) {
-			dma_unmap_single(NULL, msgreq->data,
+			dma_unmap_single(dev, msgreq->data,
 						input_len, DMA_TO_DEVICE);
-			dma_unmap_single(NULL, msgreq->data2,
+			dma_unmap_single(dev, msgreq->data2,
 						input_len, DMA_FROM_DEVICE);
 
 		}
 
 		if (!ret1) {
-			dma_unmap_single(NULL, send_data_req.v1.req_ptr,
+			dma_unmap_single(dev, send_data_req.v1.req_ptr,
 				sizeof(*msgreq), DMA_TO_DEVICE);
 		}
 
 		if (!ret2) {
-			dma_unmap_single(NULL, send_data_req.v1.rsp_ptr,
+			dma_unmap_single(dev, send_data_req.v1.rsp_ptr,
 				sizeof(*msgrsp), DMA_FROM_DEVICE);
 		}
 
@@ -1519,7 +1530,7 @@ fn_exit_1:
 fn_exit:
 		free_page(pg_addr);
 		if (option == 5) {
-			dma_unmap_single(NULL, msgreq->data, auth_size,
+			dma_unmap_single(dev, msgreq->data, auth_size,
 								DMA_TO_DEVICE);
 		}
 	}
@@ -1551,7 +1562,7 @@ static int32_t copy_files(int *img_size)
 	return 0;
 }
 
-static int load_app(void)
+static int load_app(struct device *dev)
 {
 	struct qseecom_load_app_ireq load_req;
 	struct qseecom_command_scm_resp resp;
@@ -1564,20 +1575,22 @@ static int load_app(void)
 		return ret;
 	}
 
+	dev = qdev;
+
 	/* Populate the structure for sending scm call to load image */
 	strlcpy(load_req.app_name, "sampleapp", sizeof("sampleapp"));
 	load_req.qsee_cmd_id = QSEOS_APP_START_COMMAND;
 	load_req.mdt_len = mdt_size;
 	load_req.img_len = img_size;
-	load_req.phy_addr = dma_map_single(NULL, qsee_sbuffer,
+	load_req.phy_addr = dma_map_single(dev, qsee_sbuffer,
 				img_size, DMA_TO_DEVICE);
-	ret1 = dma_mapping_error(NULL, load_req.phy_addr);
+	ret1 = dma_mapping_error(dev, load_req.phy_addr);
 	if (ret1 == 0) {
 		/* SCM_CALL to load the app and get the app_id back */
 		ret = qcom_scm_qseecom_load(&load_req,
 					   sizeof(struct qseecom_load_app_ireq),
 					   &resp, sizeof(resp));
-		dma_unmap_single(NULL, load_req.phy_addr,
+		dma_unmap_single(dev, load_req.phy_addr,
 				img_size, DMA_TO_DEVICE);
 	}
 	if (ret1) {
@@ -1634,7 +1647,7 @@ store_basic_input(struct device *dev, struct device_attribute *attr,
 		pr_err("\n Please enter a valid unsigned integer");
 
 	else
-		ret = tzapp_test(&basic_input, NULL, 0, 1);
+		ret = tzapp_test(dev, &basic_input, NULL, 0, 1);
 
 	return ret ? ret : count;
 }
@@ -1678,7 +1691,8 @@ store_encrypt_input(struct device *dev, struct device_attribute *attr,
 		return -ENOMEM;
 	}
 
-	ret = tzapp_test((uint8_t *)input_pt, (uint8_t *)output_pt, enc_len, 2);
+	ret = tzapp_test(dev, (uint8_t *)input_pt,
+			 (uint8_t *)output_pt, enc_len, 2);
 
 	if (!ret)
 		memcpy(encrypt_text, output_pt, enc_len);
@@ -1728,7 +1742,8 @@ store_decrypt_input(struct device *dev, struct device_attribute *attr,
 		return -ENOMEM;
 	}
 
-	ret = tzapp_test((uint8_t *)input_pt, (uint8_t *)output_pt, dec_len, 3);
+	ret = tzapp_test(dev, (uint8_t *)input_pt,
+			 (uint8_t *)output_pt, dec_len, 3);
 	if (!ret)
 		memcpy(decrypt_text, output_pt, dec_len);
 
@@ -1751,7 +1766,7 @@ store_load_start(struct device *dev, struct device_attribute *attr,
 	}
 	if (load_cmd == 1) {
 		if (!app_state)
-			load_app();
+			load_app(dev);
 		else
 			pr_info("\nApp already loaded...");
 	} else if (load_cmd == 0) {
@@ -1771,7 +1786,7 @@ static ssize_t
 store_crypto_input(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
-	tzapp_test(NULL, NULL, 0, 4);
+	tzapp_test(dev, NULL, NULL, 0, 4);
 	return count;
 }
 
@@ -1779,7 +1794,7 @@ static ssize_t
 store_fuse_otp_input(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
-	tzapp_test((void *)buf, NULL, 0, 5);
+	tzapp_test(dev, (void *)buf, NULL, 0, 5);
 	return count;
 }
 
@@ -1849,6 +1864,7 @@ static int __init qseecom_probe(struct platform_device *pdev)
 	if (!of_node)
 		return -ENODEV;
 
+	qdev = &pdev->dev;
 	id = of_match_device(qseecom_of_table, &pdev->dev);
 
 	if (!id)
