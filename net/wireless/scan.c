@@ -982,6 +982,9 @@ cfg80211_get_bss_channel(struct wiphy *wiphy, const u8 *ie, size_t ielen,
 	u32 freq;
 	int channel_number = -1;
 
+	if (channel->band != IEEE80211_BAND_2GHZ)
+		return channel;
+
 	tmp = cfg80211_find_ie(WLAN_EID_DS_PARAMS, ie, ielen);
 	if (tmp && tmp[1] == 1) {
 		channel_number = tmp[2];
