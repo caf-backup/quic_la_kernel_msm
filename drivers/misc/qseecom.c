@@ -40,19 +40,19 @@
  *
  * echo 1 > /sys/firmware/tzapp/load_start
  *
- *(3) Step 3:
+ *(3) Step 3: Perform operations required in the application
  *
  * To test Crypto functionality:
  * echo 1 > /sys/firmware/tzapp/crypto
  *
  * To give input to Encryption:
- * echo '6bc1bee22e409f96' > /sys/firmware/tzapp/encrypt
+ * echo '6bc1bee22e409f9' > /sys/firmware/tzapp/encrypt
  *
  * To view encryption output:
  * cat /sys/firmware/tzapp/encrypt
  *
  * To give input to Decryption:
- * echo `cat /sys/firmware/tzapp/encrypt` > /sys/firmware/tzapp/decrypt
+ * cat /sys/firmware/tzapp/encrypt > /sys/firmware/tzapp/decrypt
  *
  * To view decryption output:
  * cat /sys/firmware/tzapp/decrypt
@@ -67,8 +67,8 @@
  *
  * echo 0 > /sys/firmware/tzapp/load_start
  *
- * If the user doesn't unload the app, then the app is unloaded when the device
- * driver is removed
+ * If the user doesn't unload the app, then the app is unloaded when the
+ * device driver is removed
  */
 
 #include <linux/kernel.h>
@@ -90,16 +90,21 @@
 #include <linux/gfp.h>
 #include <linux/mm.h>
 #include <linux/types.h>
+#include <linux/bitops.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 
 #define CLIENT_CMD1_BASIC_DATA	1
+#define CLIENT_CMD8_RUN_CRYPTO_TEST	3
 #define CLIENT_CMD8_RUN_CRYPTO_ENCRYPT	8
 #define CLIENT_CMD9_RUN_CRYPTO_DECRYPT	9
-#define MAX_APP_NAME_SIZE	32
+#define CLIENT_CMD_AUTH			26
 #define MAX_INPUT_SIZE	4096
+#define QSEE_APP_NOTIFY_COMMAND		13
+#define QSEE_64				64
+#define QSEE_32				32
 
 #define MAX_ENCRYPTED_DATA_SIZE (2072 * sizeof(uint8_t))
 #define MAX_PLAIN_DATA_SIZE (2048 * sizeof(uint8_t))
@@ -107,6 +112,9 @@
 	(MAX_ENCRYPTED_DATA_SIZE - MAX_PLAIN_DATA_SIZE)
 #define KEY_BLOB_SIZE (56 * sizeof(uint8_t))
 #define KEY_SIZE (32 * sizeof(uint8_t))
+
+static int app_state;
+struct qseecom_props *props;
 
 enum tz_storage_service_cmd_t {
 	TZ_STOR_SVC_GENERATE_KEY = 0x00000001,
@@ -168,7 +176,7 @@ struct tz_storage_service_unseal_data_resp_t {
 	size_t unsealed_data_len;
 };
 
-struct qsc_send_cmd {
+struct qsee_32_send_cmd {
 	uint32_t cmd_id;
 	uint32_t data;
 	uint32_t data2;
@@ -178,7 +186,17 @@ struct qsc_send_cmd {
 	uint32_t test_buf_size;
 };
 
-struct qsc_send_cmd_rsp {
+struct qsee_64_send_cmd {
+	uint32_t cmd_id;
+	uint64_t data;
+	uint64_t data2;
+	uint32_t len;
+	uint32_t start_pkt;
+	uint32_t end_pkt;
+	uint32_t test_buf_size;
+};
+
+struct qsee_send_cmd_rsp {
 	uint32_t data;
 	int32_t status;
 };
@@ -210,8 +228,10 @@ static size_t dec_len;
 static int basic_data_len;
 static int mdt_size;
 static int seg_size;
+static int auth_size;
 static uint8_t *mdt_file;
 static uint8_t *seg_file;
+static uint8_t *auth_file;
 
 static struct kobject *sec_kobj;
 static uint8_t *key;
@@ -223,16 +243,12 @@ static size_t seal_len;
 static uint8_t *unsealed_buf;
 static size_t unseal_len;
 
-static const struct of_device_id qseecom_of_table[] = {
-	{	.compatible = "ipq40xx-qseecom",
-	},
-	{	.compatible = "ipq8064-qseecom",
-	},
-	{	.compatible = "ipq807x-qseecom",
-	},
-	{}
-};
-MODULE_DEVICE_TABLE(of, qseecom_of_table);
+#define MUL		0x1
+#define ENC		0x2
+#define DEC		0x4
+#define CRYPTO		0x8
+#define AUTH_OTP	0x10
+#define AES_SEC_KEY	0x20
 
 static ssize_t
 generate_key_blob(struct device *dev, struct device_attribute *attr, char *buf)
@@ -536,7 +552,6 @@ store_key_blob(struct device *dev, struct device_attribute *attr,
 
 	return count;
 }
-
 
 static ssize_t
 store_unsealed_data(struct device *dev, struct device_attribute *attr,
@@ -902,6 +917,40 @@ end:
 	return unseal_len;
 }
 
+struct qseecom_props {
+	const int function;
+	const int tz_arch;
+};
+
+const struct qseecom_props qseecom_props_ipq40xx = {
+	.function = (MUL | CRYPTO | AUTH_OTP | AES_SEC_KEY),
+	.tz_arch = QSEE_32,
+};
+
+const struct qseecom_props qseecom_props_ipq8064 = {
+	.function = (MUL | ENC | DEC),
+	.tz_arch = QSEE_32,
+};
+
+const struct qseecom_props qseecom_props_ipq807x = {
+	.function = (MUL),
+	.tz_arch = QSEE_64,
+};
+
+static const struct of_device_id qseecom_of_table[] = {
+	{	.compatible = "ipq40xx-qseecom",
+		.data = (void *) &qseecom_props_ipq40xx,
+	},
+	{	.compatible = "ipq8064-qseecom",
+		.data = (void *) &qseecom_props_ipq8064,
+	},
+	{	.compatible = "ipq807x-qseecom",
+		.data = (void *) &qseecom_props_ipq807x,
+	},
+	{}
+};
+MODULE_DEVICE_TABLE(of, qseecom_of_table);
+
 static DEVICE_ATTR(generate, 0644, generate_key_blob, NULL);
 static DEVICE_ATTR(import, 0644, import_key_blob, store_key);
 static DEVICE_ATTR(key_blob, 0644, NULL, store_key_blob);
@@ -1032,6 +1081,32 @@ static ssize_t seg_write(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
+static ssize_t auth_write(struct file *filp, struct kobject *kobj,
+	struct bin_attribute *bin_attr,
+	char *buf, loff_t pos, size_t count)
+{
+	uint8_t *tmp = NULL;
+
+	if (pos == 0) {
+		kfree(auth_file);
+		auth_file = kzalloc((count) * sizeof(uint8_t), GFP_KERNEL);
+	} else {
+		tmp = auth_file;
+		auth_file = krealloc(tmp, (pos + count) * sizeof(uint8_t),
+					GFP_KERNEL);
+	}
+
+	if (!auth_file) {
+		kfree(tmp);
+		return -ENOMEM;
+	}
+
+	memcpy((auth_file + pos), buf, count);
+	auth_size = pos + count;
+
+	return count;
+}
+
 struct bin_attribute mdt_attr = {
 	.attr = {.name = "mdt_file", .mode = 0666},
 	.write = mdt_write,
@@ -1040,6 +1115,11 @@ struct bin_attribute mdt_attr = {
 struct bin_attribute seg_attr = {
 	.attr = {.name = "seg_file", .mode = 0666},
 	.write = seg_write,
+};
+
+struct bin_attribute auth_attr = {
+	.attr = {.name = "auth_file", .mode = 0666},
+	.write = auth_write,
 };
 
 static int qseecom_unload_app(void)
@@ -1052,12 +1132,15 @@ static int qseecom_unload_app(void)
 	req.app_id = qsee_app_id;
 
 	/* SCM_CALL to unload the app */
-	ret = qcom_scm_tzsched(&req, sizeof(struct qseecom_unload_app_ireq),
-				&resp, sizeof(resp));
+	ret = qcom_scm_qseecom_unload(&req,
+				     sizeof(struct qseecom_unload_app_ireq),
+				     &resp, sizeof(resp));
 	if (ret)
 		pr_err("scm_call to unload app (id = %d) failed\n", req.app_id);
 
 	pr_info("App id %d now unloaded\n", req.app_id);
+	app_state = 0;
+
 	return 0;
 }
 
@@ -1068,8 +1151,7 @@ static int tzapp_test(void *input, void *output, int input_len, int option)
 
 	union qseecom_client_send_data_ireq send_data_req;
 	struct qseecom_command_scm_resp resp;
-	struct qsc_send_cmd *msgreq;	 /* request data sent to QSEE */
-	struct qsc_send_cmd_rsp *msgrsp; /* response data sent from QSEE */
+	struct qsee_send_cmd_rsp *msgrsp; /* response data sent from QSEE */
 	struct page *pg_tmp;
 	unsigned long pg_addr;
 
@@ -1090,135 +1172,357 @@ static int tzapp_test(void *input, void *output, int input_len, int option)
 	 * Getting virtual page address. pg_tmp will be pointing to
 	 * first page structure
 	 */
-	msgreq = page_address(pg_tmp);
-	if (!msgreq) {
-		pr_err("Unable to allocate memory\n");
-		return -ENOMEM;
-	}
-	/* pg_addr for passing to free_page */
-	pg_addr = (unsigned long) msgreq;
+	if (props->tz_arch != QSEE_64) {
+		struct qsee_32_send_cmd *msgreq;
 
-	msgrsp = (struct qsc_send_cmd_rsp *)((uint8_t *) msgreq +
-						sizeof(struct qsc_send_cmd));
-	if (!msgrsp) {
-		kfree(msgreq);
-		pr_err("Unable to allocate memory\n");
-		return -ENOMEM;
-	}
+		msgreq = (struct qsee_32_send_cmd *) page_address(pg_tmp);
 
-	/*
-	 * option = 1 -> Basic Multiplication, option = 2 -> Encryption,
-	 * option = 3 -> Decryption
-	 */
-	switch (option) {
-	case 1:
-		msgreq->cmd_id = CLIENT_CMD1_BASIC_DATA;
-		msgreq->data = *((uint32_t *)input);
-		break;
-	case 2:
-		msgreq->cmd_id = CLIENT_CMD8_RUN_CRYPTO_ENCRYPT;
-		break;
-	case 3:
-		msgreq->cmd_id = CLIENT_CMD9_RUN_CRYPTO_DECRYPT;
-		break;
-	default:
-		pr_err("\n Invalid Option");
-		goto fn_exit;
-	}
-	if (option != 1) {
-		msgreq->data = dma_map_single(NULL, input,
-				input_len, DMA_TO_DEVICE);
-		msgreq->data2 = dma_map_single(NULL, output,
-				input_len, DMA_FROM_DEVICE);
+		if (!msgreq) {
+			pr_err("Unable to allocate memory\n");
+			return -ENOMEM;
+		}
+		/* pg_addr for passing to free_page */
+		pg_addr = (unsigned long) msgreq;
 
-		ret1 = dma_mapping_error(NULL, msgreq->data);
-		ret2 = dma_mapping_error(NULL, msgreq->data2);
+		msgrsp = (struct qsee_send_cmd_rsp *)((uint8_t *) msgreq +
+					sizeof(struct qsee_32_send_cmd));
+		if (!msgrsp) {
+			kfree(msgreq);
+			pr_err("Unable to allocate memory\n");
+			return -ENOMEM;
+		}
+
+		/*
+		 * option = 1 -> Basic Multiplication, option = 2 -> Encryption,
+		 * option = 3 -> Decryption, option = 4 -> Crypto Function
+		 * option = 5 -> Authorized OTP fusing
+		 */
+
+		switch (option) {
+		case 1:
+			msgreq->cmd_id = CLIENT_CMD1_BASIC_DATA;
+			msgreq->data = *((dma_addr_t *)input);
+			break;
+		case 2:
+			msgreq->cmd_id = CLIENT_CMD8_RUN_CRYPTO_ENCRYPT;
+			break;
+		case 3:
+			msgreq->cmd_id = CLIENT_CMD9_RUN_CRYPTO_DECRYPT;
+			break;
+		case 4:
+			msgreq->cmd_id = CLIENT_CMD8_RUN_CRYPTO_TEST;
+			break;
+		case 5:
+			if (!auth_file) {
+				pr_err("No OTP file provided\n");
+				return -ENOMEM;
+			}
+
+			msgreq->cmd_id = CLIENT_CMD_AUTH;
+			msgreq->data = dma_map_single(NULL, auth_file,
+						      auth_size, DMA_TO_DEVICE);
+			ret = dma_mapping_error(NULL, msgreq->data);
+			if (ret) {
+				pr_err("DMA Mapping Error: otp_buffer %d",
+					ret);
+				return ret;
+			}
+
+			break;
+		default:
+			pr_err("\n Invalid Option");
+			goto fn_exit_1;
+		}
+		if (option == 2 || option == 3) {
+			msgreq->data = dma_map_single(NULL, input,
+					input_len, DMA_TO_DEVICE);
+			msgreq->data2 = dma_map_single(NULL, output,
+					input_len, DMA_FROM_DEVICE);
+
+			ret1 = dma_mapping_error(NULL, msgreq->data);
+			ret2 = dma_mapping_error(NULL, msgreq->data2);
+
+			if (ret1 || ret2) {
+				pr_err("\nDMA Mapping Error:input:%d output:%d",
+				      ret1, ret2);
+
+				if (!ret1) {
+					dma_unmap_single(NULL, msgreq->data,
+						input_len, DMA_TO_DEVICE);
+				}
+
+				if (!ret2) {
+					dma_unmap_single(NULL, msgreq->data2,
+						input_len, DMA_FROM_DEVICE);
+				}
+				return ret1 ? ret1 : ret2;
+			}
+
+			msgreq->test_buf_size = input_len;
+			msgreq->len = input_len;
+		}
+		send_data_req.v1.qsee_cmd_id = QSEOS_CLIENT_SEND_DATA_COMMAND;
+		send_data_req.v1.app_id = qsee_app_id;
+
+		send_data_req.v1.req_ptr = dma_map_single(NULL, msgreq,
+					sizeof(*msgreq), DMA_TO_DEVICE);
+		send_data_req.v1.rsp_ptr = dma_map_single(NULL, msgrsp,
+					sizeof(*msgrsp), DMA_FROM_DEVICE);
+
+		ret1 = dma_mapping_error(NULL, send_data_req.v1.req_ptr);
+		ret2 = dma_mapping_error(NULL, send_data_req.v1.rsp_ptr);
+
+		if (!ret1 && !ret2) {
+			send_data_req.v1.req_len =
+					sizeof(struct qsee_32_send_cmd);
+			send_data_req.v1.rsp_len =
+					sizeof(struct qsee_send_cmd_rsp);
+			ret = qcom_scm_qseecom_send_data(&send_data_req.v1,
+							sizeof(send_data_req.v1)
+							, &resp, sizeof(resp));
+		}
+
+		if (option == 2 || option == 3) {
+			dma_unmap_single(NULL, msgreq->data,
+						input_len, DMA_TO_DEVICE);
+			dma_unmap_single(NULL, msgreq->data2,
+						input_len, DMA_FROM_DEVICE);
+
+		}
+
+		if (!ret1) {
+			dma_unmap_single(NULL, send_data_req.v1.req_ptr,
+				sizeof(*msgreq), DMA_TO_DEVICE);
+		}
+
+		if (!ret2) {
+			dma_unmap_single(NULL, send_data_req.v1.rsp_ptr,
+				sizeof(*msgrsp), DMA_FROM_DEVICE);
+		}
 
 		if (ret1 || ret2) {
-			pr_err("\nDMA Mapping Error Return Values:"
-				"input data %d output data %d", ret1, ret2) ;
-			if (!ret1) {
-				dma_unmap_single(NULL, msgreq->data,
-					input_len, DMA_TO_DEVICE);
-			}
-			if (!ret2) {
-				dma_unmap_single(NULL, msgreq->data2,
-					input_len, DMA_FROM_DEVICE);
-			}
+			pr_err("\nDMA Mapping Error:req_ptr:%d rsp_ptr:%d",
+			      ret1, ret2);
 			return ret1 ? ret1 : ret2;
 		}
 
-		msgreq->test_buf_size = input_len;
-		msgreq->len = input_len;
-	}
+		if (ret) {
+			pr_err("qseecom_scm_call failed with err: %d\n", ret);
+			goto fn_exit_1;
+		}
 
-	send_data_req.v1.qsee_cmd_id = QSEOS_CLIENT_SEND_DATA_COMMAND;
-	send_data_req.v1.app_id = qsee_app_id;
-
-	send_data_req.v1.req_ptr = dma_map_single(NULL, msgreq,
-				sizeof(*msgreq), DMA_TO_DEVICE);
-	send_data_req.v1.rsp_ptr = dma_map_single(NULL, msgrsp,
-				sizeof(*msgrsp), DMA_FROM_DEVICE);
-	ret1 = dma_mapping_error(NULL, send_data_req.v1.req_ptr);
-	ret2 = dma_mapping_error(NULL, send_data_req.v1.rsp_ptr);
-
-
-	if (!ret1 && !ret2) {
-		send_data_req.v1.req_len = sizeof(struct qsc_send_cmd);
-		send_data_req.v1.rsp_len = sizeof(struct qsc_send_cmd_rsp);
-		ret = qcom_scm_tzsched((const void *) &send_data_req.v1,
-				sizeof(struct qseecom_client_send_data_v1_ireq),
-				&resp, sizeof(resp));
-	}
-
-	if (option != 1) {
-		dma_unmap_single(NULL, msgreq->data,
-					input_len, DMA_TO_DEVICE);
-		dma_unmap_single(NULL, msgreq->data2,
-					input_len, DMA_FROM_DEVICE);
-
-	}
-
-	if (!ret1) {
-		dma_unmap_single(NULL, send_data_req.v1.req_ptr,
-			sizeof(*msgreq), DMA_TO_DEVICE);
-	}
-	if (!ret2) {
-		dma_unmap_single(NULL, send_data_req.v1.rsp_ptr,
-			sizeof(*msgrsp), DMA_FROM_DEVICE);
-	}
-	if (ret1 || ret2) {
-		pr_err("\nDMA Mapping Error Return values:"
-			"req_ptr %d rsp_ptr %d", ret1, ret2);
-		return ret1 ? ret1 : ret2;
-	}
-
-	if (ret) {
-		pr_err("qseecom_scm_call failed with err: %d\n", ret);
-		goto fn_exit;
-	}
-
-	if (resp.result == QSEOS_RESULT_INCOMPLETE) {
-		pr_err("Result incomplete\n");
-		ret = -EINVAL;
-		goto fn_exit;
-	} else {
-		if (resp.result != QSEOS_RESULT_SUCCESS) {
-			pr_err("Response result %d not supported\n",
-							resp.result);
+		if (resp.result == QSEOS_RESULT_INCOMPLETE) {
+			pr_err("Result incomplete\n");
 			ret = -EINVAL;
+			goto fn_exit_1;
+		} else {
+			if (resp.result != QSEOS_RESULT_SUCCESS) {
+				pr_err("Response result %lu not supported\n",
+								resp.result);
+				ret = -EINVAL;
+				goto fn_exit_1;
+			} else {
+				if (option == 4)
+					pr_info("Crypto test success\n");
+			}
+		}
+
+		if (option == 1) {
+			if (msgrsp->status) {
+				pr_err("Input size exceeded supported range\n");
+				ret = -EINVAL;
+			}
+			basic_output = msgrsp->data;
+		} else if (option == 5) {
+			if (msgrsp->status) {
+				pr_err("Auth OTP failed with response %d\n",
+								msgrsp->status);
+				ret = -EIO;
+			} else
+				pr_info("Auth and Blow Success");
+		}
+fn_exit_1:
+		free_page(pg_addr);
+		if (option == 5) {
+			dma_unmap_single(NULL, msgreq->data, auth_size,
+								DMA_TO_DEVICE);
+		}
+
+	} else {
+		struct qsee_64_send_cmd *msgreq;
+
+		msgreq = (struct qsee_64_send_cmd *) page_address(pg_tmp);
+
+		if (!msgreq) {
+			pr_err("Unable to allocate memory\n");
+			return -ENOMEM;
+		}
+		/* pg_addr for passing to free_page */
+		pg_addr = (unsigned long) msgreq;
+
+		msgrsp = (struct qsee_send_cmd_rsp *)((uint8_t *) msgreq +
+					sizeof(struct qsee_64_send_cmd));
+		if (!msgrsp) {
+			kfree(msgreq);
+			pr_err("Unable to allocate memory\n");
+			return -ENOMEM;
+		}
+
+		/*
+		 * option = 1 -> Basic Multiplication, option = 2 -> Encryption,
+		 * option = 3 -> Decryption, option = 4 -> Crypto Function
+		 * option = 5 -> Authorized OTP fusing
+		 */
+
+		switch (option) {
+		case 1:
+			msgreq->cmd_id = CLIENT_CMD1_BASIC_DATA;
+			msgreq->data = *((dma_addr_t *)input);
+			break;
+		case 2:
+			msgreq->cmd_id = CLIENT_CMD8_RUN_CRYPTO_ENCRYPT;
+			break;
+		case 3:
+			msgreq->cmd_id = CLIENT_CMD9_RUN_CRYPTO_DECRYPT;
+			break;
+		case 4:
+			msgreq->cmd_id = CLIENT_CMD8_RUN_CRYPTO_TEST;
+			break;
+		case 5:
+			if (!auth_file) {
+				pr_err("No OTP file provided\n");
+				return -ENOMEM;
+			}
+
+			msgreq->cmd_id = CLIENT_CMD_AUTH;
+			msgreq->data = dma_map_single(NULL, auth_file,
+						      auth_size, DMA_TO_DEVICE);
+			ret = dma_mapping_error(NULL, msgreq->data);
+			if (ret) {
+				pr_err("DMA Mapping Error: otp_buffer %d",
+					ret);
+				return ret;
+			}
+
+			break;
+		default:
+			pr_err("\n Invalid Option");
 			goto fn_exit;
 		}
-	}
-	if (option == 1) {
-		if (msgrsp->status) {
-			pr_err("Input size exceeded supported range\n");
-			ret = -EINVAL;
+		if (option == 2 || option == 3) {
+			msgreq->data = dma_map_single(NULL, input,
+					input_len, DMA_TO_DEVICE);
+			msgreq->data2 = dma_map_single(NULL, output,
+					input_len, DMA_FROM_DEVICE);
+
+			ret1 = dma_mapping_error(NULL, msgreq->data);
+			ret2 = dma_mapping_error(NULL, msgreq->data2);
+
+			if (ret1 || ret2) {
+				pr_err("\nDMA Mapping Error:input:%d output:%d",
+				      ret1, ret2);
+				if (!ret1) {
+					dma_unmap_single(NULL, msgreq->data,
+						input_len, DMA_TO_DEVICE);
+				}
+
+				if (!ret2) {
+					dma_unmap_single(NULL, msgreq->data2,
+						input_len, DMA_FROM_DEVICE);
+				}
+				return ret1 ? ret1 : ret2;
+			}
+			msgreq->test_buf_size = input_len;
+			msgreq->len = input_len;
 		}
-		basic_output = msgrsp->data;
-	}
+		send_data_req.v1.qsee_cmd_id = QSEOS_CLIENT_SEND_DATA_COMMAND;
+		send_data_req.v1.app_id = qsee_app_id;
+
+		send_data_req.v1.req_ptr = dma_map_single(NULL, msgreq,
+					sizeof(*msgreq), DMA_TO_DEVICE);
+		send_data_req.v1.rsp_ptr = dma_map_single(NULL, msgrsp,
+					sizeof(*msgrsp), DMA_FROM_DEVICE);
+
+		ret1 = dma_mapping_error(NULL, send_data_req.v1.req_ptr);
+		ret2 = dma_mapping_error(NULL, send_data_req.v1.rsp_ptr);
+
+
+		if (!ret1 && !ret2) {
+			send_data_req.v1.req_len =
+					sizeof(struct qsee_64_send_cmd);
+			send_data_req.v1.rsp_len =
+					sizeof(struct qsee_send_cmd_rsp);
+			ret = qcom_scm_qseecom_send_data(&send_data_req.v2,
+							sizeof(send_data_req.v2)
+							, &resp, sizeof(resp));
+		}
+
+		if (option == 2 || option == 3) {
+			dma_unmap_single(NULL, msgreq->data,
+						input_len, DMA_TO_DEVICE);
+			dma_unmap_single(NULL, msgreq->data2,
+						input_len, DMA_FROM_DEVICE);
+
+		}
+
+		if (!ret1) {
+			dma_unmap_single(NULL, send_data_req.v1.req_ptr,
+				sizeof(*msgreq), DMA_TO_DEVICE);
+		}
+
+		if (!ret2) {
+			dma_unmap_single(NULL, send_data_req.v1.rsp_ptr,
+				sizeof(*msgrsp), DMA_FROM_DEVICE);
+		}
+
+		if (ret1 || ret2) {
+			pr_err("\nDMA Mapping Error:req_ptr:%d rsp_ptr:%d",
+			      ret1, ret2);
+			return ret1 ? ret1 : ret2;
+		}
+
+		if (ret) {
+			pr_err("qseecom_scm_call failed with err: %d\n", ret);
+			goto fn_exit;
+		}
+
+		if (resp.result == QSEOS_RESULT_INCOMPLETE) {
+			pr_err("Result incomplete\n");
+			ret = -EINVAL;
+			goto fn_exit;
+		} else {
+			if (resp.result != QSEOS_RESULT_SUCCESS) {
+				pr_err("Response result %lu not supported\n",
+								resp.result);
+				ret = -EINVAL;
+				goto fn_exit;
+			} else {
+				if (option == 4)
+					pr_info("Crypto test success\n");
+			}
+		}
+
+		if (option == 1) {
+			if (msgrsp->status) {
+				pr_err("Input size exceeded supported range\n");
+				ret = -EINVAL;
+			}
+			basic_output = msgrsp->data;
+		} else if (option == 5) {
+			if (msgrsp->status) {
+				pr_err("Auth OTP failed with response %d\n",
+								msgrsp->status);
+				ret = -EIO;
+			} else
+				pr_info("Auth and Blow Success");
+		}
 fn_exit:
-	free_page(pg_addr);
+		free_page(pg_addr);
+		if (option == 5) {
+			dma_unmap_single(NULL, msgreq->data, auth_size,
+								DMA_TO_DEVICE);
+		}
+	}
 	return ret;
 }
 
@@ -1270,9 +1574,9 @@ static int load_app(void)
 	ret1 = dma_mapping_error(NULL, load_req.phy_addr);
 	if (ret1 == 0) {
 		/* SCM_CALL to load the app and get the app_id back */
-		ret = qcom_scm_tzsched(&load_req,
-			sizeof(struct qseecom_load_app_ireq),
-			&resp, sizeof(resp));
+		ret = qcom_scm_qseecom_load(&load_req,
+					   sizeof(struct qseecom_load_app_ireq),
+					   &resp, sizeof(resp));
 		dma_unmap_single(NULL, load_req.phy_addr,
 				img_size, DMA_TO_DEVICE);
 	}
@@ -1294,12 +1598,13 @@ static int load_app(void)
 		pr_err("Process_incomplete_cmd ocurred\n");
 
 	if (resp.result != QSEOS_RESULT_SUCCESS) {
-		pr_err("scm_call failed resp.result unknown, %d\n",
+		pr_err("scm_call failed resp.result unknown, %lu\n",
 				resp.result);
 		return -EFAULT;
 	}
 
-	pr_info("\n Loaded Sampleapp Succesfully!\n");
+	pr_info("\nLoaded Sampleapp Successfully!!!!!\n");
+	app_state = 1;
 
 	qsee_app_id = resp.data;
 	return 0;
@@ -1310,7 +1615,7 @@ static ssize_t
 show_basic_output(struct device *dev, struct device_attribute *attr,
 					char *buf)
 {
-	return snprintf(buf, (basic_data_len + 1), "%u", basic_output);
+	return snprintf(buf, (basic_data_len + 1), "%d", basic_output);
 }
 
 /* Basic multiplication App*/
@@ -1318,7 +1623,7 @@ static ssize_t
 store_basic_input(struct device *dev, struct device_attribute *attr,
 					const char *buf, size_t count)
 {
-	uint32_t basic_input __aligned(32);
+	dma_addr_t __aligned(sizeof(dma_addr_t) * 8) basic_input;
 	uint32_t ret = 0;
 	basic_data_len = count;
 	if ((count - 1) == 0) {
@@ -1441,42 +1746,85 @@ store_load_start(struct device *dev, struct device_attribute *attr,
 	if (kstrtouint(buf, 10, &load_cmd)) {
 		pr_err("\n Provide valid integer input!");
 		pr_err("Echo 1 to start loading app");
+		pr_err("Echo 0 to start unloading app");
 		return -EINVAL;
 	}
-	if (load_cmd == 1)
-		load_app();
-	else
+	if (load_cmd == 1) {
+		if (!app_state)
+			load_app();
+		else
+			pr_info("\nApp already loaded...");
+	} else if (load_cmd == 0) {
+		if (app_state)
+			qseecom_unload_app();
+		else
+			pr_info("\nApp already unloaded...");
+	} else {
 		pr_info("\nEcho 1 to start loading app");
+		pr_info("\nEcho 0 to start unloading app");
+	}
 
 	return count;
 }
 
-static DEVICE_ATTR(encrypt, 0644, show_encrypt_output,
-					store_encrypt_input);
-static DEVICE_ATTR(decrypt, 0644, show_decrypt_output,
-					store_decrypt_input);
-static DEVICE_ATTR(basic_data, 0644, show_basic_output,
-					store_basic_input);
-static DEVICE_ATTR(load_start, S_IWUSR, NULL,
-					store_load_start);
+static ssize_t
+store_crypto_input(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	tzapp_test(NULL, NULL, 0, 4);
+	return count;
+}
 
-static struct attribute *tzapp_attrs[] = {
-	&dev_attr_encrypt.attr,
-	&dev_attr_decrypt.attr,
-	&dev_attr_basic_data.attr,
-	&dev_attr_load_start.attr,
-	NULL,
-};
+static ssize_t
+store_fuse_otp_input(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	tzapp_test((void *)buf, NULL, 0, 5);
+	return count;
+}
 
-static struct attribute_group tzapp_attr_grp = {
-	.attrs = tzapp_attrs,
-};
+static DEVICE_ATTR(load_start, S_IWUSR, NULL, store_load_start);
+static DEVICE_ATTR(basic_data, 0644, show_basic_output, store_basic_input);
+static DEVICE_ATTR(encrypt, 0644, show_encrypt_output, store_encrypt_input);
+static DEVICE_ATTR(decrypt, 0644, show_decrypt_output, store_decrypt_input);
+static DEVICE_ATTR(crypto, 0644, NULL, store_crypto_input);
+static DEVICE_ATTR(fuse_otp, 0644, NULL, store_fuse_otp_input);
 
 struct kobject *tzapp_kobj;
+struct attribute_group tzapp_attr_grp;
 
 static int __init tzapp_init(void)
 {
 	int err;
+	int i = 0;
+	struct attribute **tzapp_attrs = kzalloc((hweight_long(props->function)
+				+ 1) * sizeof(*tzapp_attrs), GFP_KERNEL);
+
+	if (!tzapp_attrs) {
+		pr_err("\nCannot allocate memory..tzapp");
+		return -ENOMEM;
+	}
+
+	tzapp_attrs[i++] = &dev_attr_load_start.attr;
+
+	if (props->function & MUL)
+		tzapp_attrs[i++] = &dev_attr_basic_data.attr;
+
+	if (props->function & ENC)
+		tzapp_attrs[i++] = &dev_attr_encrypt.attr;
+
+	if (props->function & DEC)
+		tzapp_attrs[i++] = &dev_attr_decrypt.attr;
+
+	if (props->function & CRYPTO)
+		tzapp_attrs[i++] = &dev_attr_crypto.attr;
+
+	if (props->function & AUTH_OTP)
+		tzapp_attrs[i++] = &dev_attr_fuse_otp.attr;
+
+	tzapp_attrs[i] = NULL;
+
+	tzapp_attr_grp.attrs = tzapp_attrs;
 
 	tzapp_kobj = kobject_create_and_add("tzapp", firmware_kobj);
 
@@ -1493,52 +1841,94 @@ static int __init qseecom_probe(struct platform_device *pdev)
 {
 	struct device_node *of_node = pdev->dev.of_node;
 	const struct of_device_id *id;
+	unsigned int start = 0, size = 0;
+	struct qsee_notify_app notify_app;
+	struct qseecom_command_scm_resp resp;
+	int ret = 0, ret1 = 0;
+
+	if (!of_node)
+		return -ENODEV;
 
 	id = of_match_device(qseecom_of_table, &pdev->dev);
 
 	if (!id)
 		return -ENODEV;
 
-	if (!of_node)
-		return -ENODEV;
+	ret = of_property_read_u32(of_node, "mem-start", &start);
+	ret1 = of_property_read_u32(of_node, "mem-size", &size);
+	if (ret || ret1) {
+		pr_err("No mem-region specified, using default\n");
+		goto load;
+	}
+
+	notify_app.cmd_id = QSEE_APP_NOTIFY_COMMAND;
+	notify_app.applications_region_addr = start;
+	notify_app.applications_region_size = size;
+
+	ret = qcom_scm_qseecom_notify(&notify_app,
+				     sizeof(struct qsee_notify_app),
+				     &resp, sizeof(resp));
+	if (ret) {
+		pr_err("Notify App failed\n");
+		return -1;
+	}
+
+load:
+	props = ((struct qseecom_props *)id->data);
 
 	sysfs_create_bin_file(firmware_kobj, &mdt_attr);
 	sysfs_create_bin_file(firmware_kobj, &seg_attr);
+
+	if (props->function & AUTH_OTP)
+		sysfs_create_bin_file(firmware_kobj, &auth_attr);
 
 	if (!tzapp_init())
 		pr_info("\nLoaded tz app Module Successfully!\n");
 	else
 		pr_info("\nFailed to load tz app module\n");
 
-	if (!sec_key_init())
-		pr_info("\nLoaded Sec Key Module Successfully!\n");
-	else
-		pr_info("\nFailed to load Sec Key Module\n");
+	if (props->function & AES_SEC_KEY) {
+		if (!sec_key_init())
+			pr_info("\nLoaded Sec Key Module Successfully!\n");
+		else
+			pr_info("\nFailed to load Sec Key Module\n");
+	}
 
 	return 0;
 }
 
 static int __exit qseecom_remove(struct platform_device *pdev)
 {
-	qseecom_unload_app();
+	if (app_state)
+		qseecom_unload_app();
 
 	sysfs_remove_bin_file(firmware_kobj, &mdt_attr);
 	sysfs_remove_bin_file(firmware_kobj, &seg_attr);
 
+	if (props->function & AUTH_OTP)
+		sysfs_remove_bin_file(firmware_kobj, &auth_attr);
+
 	sysfs_remove_group(tzapp_kobj, &tzapp_attr_grp);
 	kobject_put(tzapp_kobj);
 
-	free_pages((unsigned long)key, get_order(KEY_SIZE));
-	free_pages((unsigned long)key_blob, get_order(KEY_BLOB_SIZE));
-	free_pages((unsigned long)sealed_buf,
-					get_order(MAX_ENCRYPTED_DATA_SIZE));
-	free_pages((unsigned long)unsealed_buf, get_order(MAX_PLAIN_DATA_SIZE));
+	if (props->function & AES_SEC_KEY) {
+		free_pages((unsigned long)key, get_order(KEY_SIZE));
+		free_pages((unsigned long)key_blob, get_order(KEY_BLOB_SIZE));
+		free_pages((unsigned long)sealed_buf,
+			   get_order(MAX_ENCRYPTED_DATA_SIZE));
+		free_pages((unsigned long)unsealed_buf,
+			   get_order(MAX_PLAIN_DATA_SIZE));
 
-	sysfs_remove_group(sec_kobj, &sec_key_attr_grp);
-	kobject_put(sec_kobj);
+		sysfs_remove_group(sec_kobj, &sec_key_attr_grp);
+		kobject_put(sec_kobj);
+	}
 
 	kfree(mdt_file);
 	kfree(seg_file);
+
+	if (props->function & AUTH_OTP)
+		kfree(auth_file);
+
 	kfree(qsee_sbuffer);
 
 	return 0;
