@@ -192,6 +192,10 @@
 			always-on;
 		};
 
+		tzlog: qca,tzlog {
+			compatible = "qca,tzlog";
+		};
+
 		blsp_dma: dma@7884000 {
 			compatible = "qcom,bam-v1.7.0";
 			reg = <0x07884000 0x23000>;
