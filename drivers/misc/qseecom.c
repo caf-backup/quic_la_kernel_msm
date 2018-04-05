@@ -14,19 +14,36 @@
 
 /* Usage:
  *
- *(1) Step 1: To provide the sampleapp files to the kernel module
+ *(1) Step 1: To provide the sampleapp files to the kernel driver
+ *
+ * Concatenate all the seg files into 1 segment file and feed it as
+ * input to sys/firmware/seg_file and feed the mdt file as input to
+ * sys/firmware/mdt_file as below
+ *
+ * In platform ipq8064 or ipq40xx, the sample app is divided into 4
+ * segments whereas in ipq807x, the sample app is divided into 7 segments
+ *
+ * cat sampleapp.b00 > sampleapp.b0x
+ * cat sampleapp.b01 >> sampleapp.b0x
+ * cat sampleapp.b02 >> sampleapp.b0x
+ * cat sampleapp.b03 >> sampleapp.b0x
+ *
+ * Below 3 steps are required if its platform ipq807x
+ * cat sampleapp.b04 >> sampleapp.b0x
+ * cat sampleapp.b05 >> sampleapp.b0x
+ * cat sampleapp.b06 >> sampleapp.b0x
  *
  * cat /lib/firmware/sampleapp.mdt > /sys/firmware/mdt_file
- * cat /lib/firmware/sampleapp.b00 > /sys/firmware/seg0_file
- * cat /lib/firmware/sampleapp.b01 > /sys/firmware/seg1_file
- * cat /lib/firmware/sampleapp.b02 > /sys/firmware/seg2_file
- * cat /lib/firmware/sampleapp.b03 > /sys/firmware/seg3_file
+ * cat /lib/firmware/sampleapp.b0x > /sys/firmware/seg_file
  *
  *(2) Step 2: To start loading the sampleapp
  *
  * echo 1 > /sys/firmware/tzapp/load_start
  *
  *(3) Step 3:
+ *
+ * To test Crypto functionality:
+ * echo 1 > /sys/firmware/tzapp/crypto
  *
  * To give input to Encryption:
  * echo '6bc1bee22e409f96' > /sys/firmware/tzapp/encrypt
@@ -45,6 +62,13 @@
  *
  * To view Secure Multiplication output:
  * cat /sys/firmware/tzapp/basic_data
+ *
+ *(4) Step 4: To start unloading the sampleapp
+ *
+ * echo 0 > /sys/firmware/tzapp/load_start
+ *
+ * If the user doesn't unload the app, then the app is unloaded when the device
+ * driver is removed
  */
 
 #include <linux/kernel.h>
@@ -214,15 +238,9 @@ static size_t enc_len;
 static size_t dec_len;
 static int basic_data_len;
 static int mdt_size;
-static int seg0_size;
-static int seg1_size;
-static int seg2_size;
-static int seg3_size;
+static int seg_size;
 static uint8_t *mdt_file;
-static uint8_t *seg0_file;
-static uint8_t *seg1_file;
-static uint8_t *seg2_file;
-static uint8_t *seg3_file;
+static uint8_t *seg_file;
 
 static struct kobject *sec_kobj;
 static uint8_t *key;
@@ -1010,91 +1028,25 @@ static ssize_t mdt_write(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static ssize_t seg0_write(struct file *filp, struct kobject *kobj,
+static ssize_t seg_write(struct file *filp, struct kobject *kobj,
 	struct bin_attribute *bin_attr,
 	char *buf, loff_t pos, size_t count)
 {
 	uint8_t *tmp;
 	if (pos == 0) {
-		kfree(seg0_file);
-		seg0_file = kzalloc((count) * sizeof(uint8_t), GFP_KERNEL);
+		kfree(seg_file);
+		seg_file = kzalloc((count) * sizeof(uint8_t), GFP_KERNEL);
 	} else {
-		tmp = seg0_file;
-		seg0_file = krealloc(tmp, (pos + count) * sizeof(uint8_t),
+		tmp = seg_file;
+		seg_file = krealloc(tmp, (pos + count) * sizeof(uint8_t),
 					GFP_KERNEL);
 	}
 
-	if (!seg0_file)
+	if (!seg_file)
 		return -ENOMEM;
 
-	memcpy((seg0_file + pos), buf, count);
-	seg0_size = pos + count;
-	return count;
-}
-
-static ssize_t seg1_write(struct file *filp, struct kobject *kobj,
-	struct bin_attribute *bin_attr,
-	char *buf, loff_t pos, size_t count)
-{
-	uint8_t *tmp;
-	if (pos == 0) {
-		kfree(seg1_file);
-		seg1_file = kzalloc((count) * sizeof(uint8_t), GFP_KERNEL);
-	} else {
-		tmp = seg1_file;
-		seg1_file = krealloc(tmp, (pos + count) * sizeof(uint8_t),
-					GFP_KERNEL);
-	}
-
-	if (!seg1_file)
-		return -ENOMEM;
-
-	memcpy((seg1_file + pos), buf, count);
-	seg1_size = pos + count;
-	return count;
-}
-
-static ssize_t seg2_write(struct file *filp, struct kobject *kobj,
-	struct bin_attribute *bin_attr,
-	char *buf, loff_t pos, size_t count)
-{
-	uint8_t *tmp;
-	if (pos == 0) {
-		kfree(seg2_file);
-		seg2_file = kzalloc((count) * sizeof(uint8_t), GFP_KERNEL);
-	} else {
-		tmp = seg2_file;
-		seg2_file = krealloc(tmp, (pos + count) * sizeof(uint8_t),
-					GFP_KERNEL);
-	}
-
-	if (!seg2_file)
-		return -ENOMEM;
-
-	memcpy((seg2_file + pos), buf, count);
-	seg2_size = pos + count;
-	return count;
-}
-
-static ssize_t seg3_write(struct file *filp, struct kobject *kobj,
-	struct bin_attribute *bin_attr,
-	char *buf, loff_t pos, size_t count)
-{
-	uint8_t *tmp;
-	if (pos == 0) {
-		kfree(seg3_file);
-		seg3_file = kzalloc((count) * sizeof(uint8_t), GFP_KERNEL);
-	} else {
-		tmp = seg3_file;
-		seg3_file = krealloc(tmp, (pos + count) * sizeof(uint8_t),
-					GFP_KERNEL);
-	}
-
-	if (!seg3_file)
-		return -ENOMEM;
-
-	memcpy((seg3_file + pos), buf, count);
-	seg3_size = pos + count;
+	memcpy((seg_file + pos), buf, count);
+	seg_size = pos + count;
 	return count;
 }
 
@@ -1103,26 +1055,10 @@ struct bin_attribute mdt_attr = {
 	.write = mdt_write,
 };
 
-struct bin_attribute seg0_attr = {
-	.attr = {.name = "seg0_file", .mode = 0666},
-	.write = seg0_write,
+struct bin_attribute seg_attr = {
+	.attr = {.name = "seg_file", .mode = 0666},
+	.write = seg_write,
 };
-
-struct bin_attribute seg1_attr = {
-	.attr = {.name = "seg1_file", .mode = 0666},
-	.write = seg1_write,
-};
-
-struct bin_attribute seg2_attr = {
-	.attr = {.name = "seg2_file", .mode = 0666},
-	.write = seg2_write,
-};
-
-struct bin_attribute seg3_attr = {
-	.attr = {.name = "seg3_file", .mode = 0666},
-	.write = seg3_write,
-};
-
 
 static int qseecom_unload_app(void)
 {
@@ -1308,9 +1244,8 @@ static int32_t copy_files(int *img_size)
 {
 	uint8_t *buf;
 
-	if (mdt_file && seg0_file && seg1_file && seg2_file && seg3_file) {
-		*img_size = mdt_size + seg0_size + seg1_size
-				+ seg2_size + seg3_size;
+	if (mdt_file && seg_file) {
+		*img_size = mdt_size + seg_size;
 
 		qsee_sbuffer = kzalloc(*img_size, GFP_KERNEL);
 		if (!qsee_sbuffer) {
@@ -1321,13 +1256,8 @@ static int32_t copy_files(int *img_size)
 
 		memcpy(buf, mdt_file, mdt_size);
 		buf += mdt_size;
-		memcpy(buf, seg0_file, seg0_size);
-		buf += seg0_size;
-		memcpy(buf, seg1_file, seg1_size);
-		buf += seg1_size;
-		memcpy(buf, seg2_file, seg2_size);
-		buf += seg2_size;
-		memcpy(buf, seg3_file, seg3_size);
+		memcpy(buf, seg_file, seg_size);
+		buf += seg_size;
 	} else {
 		pr_err("\nSampleapp file Inputs not provided\n");
 		return -EINVAL;
@@ -1580,10 +1510,7 @@ static int __init tzapp_init(void)
 static int __init qseecom_init(void)
 {
 	sysfs_create_bin_file(firmware_kobj, &mdt_attr);
-	sysfs_create_bin_file(firmware_kobj, &seg0_attr);
-	sysfs_create_bin_file(firmware_kobj, &seg1_attr);
-	sysfs_create_bin_file(firmware_kobj, &seg2_attr);
-	sysfs_create_bin_file(firmware_kobj, &seg3_attr);
+	sysfs_create_bin_file(firmware_kobj, &seg_attr);
 
 	if (!tzapp_init())
 		pr_info("\nLoaded tz app Module Successfully!\n");
@@ -1603,10 +1530,7 @@ static void __exit qseecom_exit(void)
 	qseecom_unload_app();
 
 	sysfs_remove_bin_file(firmware_kobj, &mdt_attr);
-	sysfs_remove_bin_file(firmware_kobj, &seg0_attr);
-	sysfs_remove_bin_file(firmware_kobj, &seg1_attr);
-	sysfs_remove_bin_file(firmware_kobj, &seg2_attr);
-	sysfs_remove_bin_file(firmware_kobj, &seg3_attr);
+	sysfs_remove_bin_file(firmware_kobj, &seg_attr);
 
 	sysfs_remove_group(tzapp_kobj, &tzapp_attr_grp);
 	kobject_put(tzapp_kobj);
@@ -1621,10 +1545,7 @@ static void __exit qseecom_exit(void)
 	kobject_put(sec_kobj);
 
 	kfree(mdt_file);
-	kfree(seg0_file);
-	kfree(seg1_file);
-	kfree(seg2_file);
-	kfree(seg3_file);
+	kfree(seg_file);
 	kfree(qsee_sbuffer);
 }
 MODULE_LICENSE("GPL v2");
