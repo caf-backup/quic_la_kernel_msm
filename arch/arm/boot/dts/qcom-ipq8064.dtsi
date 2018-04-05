@@ -534,6 +534,10 @@
 		fab_freq_nominal = <400000000>;
         };
 
+	qseecom {
+		compatible = "ipq8064-qseecom";
+	};
+
 	firmware {
 		scm {
 			compatible = "qcom,scm-ipq806x";
