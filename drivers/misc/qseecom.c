@@ -90,6 +90,10 @@
 #include <linux/gfp.h>
 #include <linux/mm.h>
 #include <linux/types.h>
+#include <linux/of_device.h>
+#include <linux/platform_device.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 
 #define CLIENT_CMD1_BASIC_DATA	1
 #define CLIENT_CMD8_RUN_CRYPTO_ENCRYPT	8
@@ -251,6 +255,17 @@ static uint8_t *sealed_buf;
 static size_t seal_len;
 static uint8_t *unsealed_buf;
 static size_t unseal_len;
+
+static const struct of_device_id qseecom_of_table[] = {
+	{	.compatible = "ipq40xx-qseecom",
+	},
+	{	.compatible = "ipq8064-qseecom",
+	},
+	{	.compatible = "ipq807x-qseecom",
+	},
+	{}
+};
+MODULE_DEVICE_TABLE(of, qseecom_of_table);
 
 static ssize_t
 generate_key_blob(struct device *dev, struct device_attribute *attr, char *buf)
@@ -1507,8 +1522,19 @@ static int __init tzapp_init(void)
 	return 0;
 }
 
-static int __init qseecom_init(void)
+static int __init qseecom_probe(struct platform_device *pdev)
 {
+	struct device_node *of_node = pdev->dev.of_node;
+	const struct of_device_id *id;
+
+	id = of_match_device(qseecom_of_table, &pdev->dev);
+
+	if (!id)
+		return -ENODEV;
+
+	if (!of_node)
+		return -ENODEV;
+
 	sysfs_create_bin_file(firmware_kobj, &mdt_attr);
 	sysfs_create_bin_file(firmware_kobj, &seg_attr);
 
@@ -1525,7 +1551,7 @@ static int __init qseecom_init(void)
 	return 0;
 }
 
-static void __exit qseecom_exit(void)
+static int __exit qseecom_remove(struct platform_device *pdev)
 {
 	qseecom_unload_app();
 
@@ -1547,7 +1573,19 @@ static void __exit qseecom_exit(void)
 	kfree(mdt_file);
 	kfree(seg_file);
 	kfree(qsee_sbuffer);
+
+	return 0;
 }
+
+static struct platform_driver qseecom_driver = {
+	.probe = qseecom_probe,
+	.remove = qseecom_remove,
+	.driver = {
+		.name = KBUILD_MODNAME,
+		.of_match_table = qseecom_of_table,
+	},
+};
+module_platform_driver(qseecom_driver);
+
+MODULE_DESCRIPTION("QSEECOM Driver");
 MODULE_LICENSE("GPL v2");
-module_init(qseecom_init);
-module_exit(qseecom_exit);
