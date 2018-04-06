@@ -80,6 +80,54 @@ static void qcom_scm_clk_disable(void)
 	clk_disable_unprepare(__scm->bus_clk);
 }
 
+int qcom_scm_qseecom_notify(void *req, size_t req_size,
+			   void *resp, size_t resp_size)
+{
+	int ret = 0;
+
+	ret = __qcom_scm_qseecom_notify(__scm->dev, req, req_size,
+				       resp, resp_size);
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_scm_qseecom_notify);
+
+int qcom_scm_qseecom_load(void *req, size_t req_size,
+			 void *resp, size_t resp_size)
+{
+	int ret = 0;
+
+	ret = __qcom_scm_qseecom_load(__scm->dev, req, req_size,
+				     resp, resp_size);
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_scm_qseecom_load);
+
+int qcom_scm_qseecom_unload(void *req, size_t req_size,
+			   void *resp, size_t resp_size)
+{
+	int ret = 0;
+
+	ret = __qcom_scm_qseecom_unload(__scm->dev, req, req_size,
+				       resp, resp_size);
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_scm_qseecom_unload);
+
+int qcom_scm_qseecom_send_data(void *req, size_t req_size,
+			      void *resp, size_t resp_size)
+{
+	int ret = 0;
+
+	ret = __qcom_scm_qseecom_send_data(__scm->dev, req, req_size,
+					  resp, resp_size);
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_scm_qseecom_send_data);
+
 int qcom_scm_tls_hardening(struct scm_cmd_buf_t *scm_cmd_buf,
 							size_t buf_size)
 {

@@ -183,39 +183,6 @@ struct qsc_send_cmd_rsp {
 	int32_t status;
 };
 
-__packed struct qseecom_unload_app_ireq {
-	uint32_t qsee_cmd_id;
-	uint32_t  app_id;
-};
-
-enum qseecom_command_scm_resp_type {
-	QSEOS_APP_ID = 0xEE01,
-	QSEOS_LISTENER_ID
-};
-
-__packed struct qseecom_command_scm_resp {
-	uint32_t result;
-	enum qseecom_command_scm_resp_type resp_type;
-	unsigned int data;
-};
-
-__packed struct qseecom_client_send_data_ireq {
-	uint32_t qsee_cmd_id;
-	uint32_t app_id;
-	dma_addr_t req_ptr;
-	uint32_t req_len;
-	dma_addr_t rsp_ptr;	 /* First 4 bytes should always be the return status */
-	uint32_t rsp_len;
-};
-
-__packed struct qseecom_load_app_ireq {
-	uint32_t qsee_cmd_id;
-	uint32_t mdt_len;		/* Length of the mdt file */
-	uint32_t img_len;		/* Length of .bxx and .mdt files */
-	uint32_t phy_addr;		/* phy addr of the start of image */
-	char	 app_name[MAX_APP_NAME_SIZE];	/* application name*/
-};
-
 enum qseecom_qceos_cmd_status {
 	QSEOS_RESULT_SUCCESS = 0,
 	QSEOS_RESULT_INCOMPLETE,
@@ -1099,7 +1066,7 @@ static int tzapp_test(void *input, void *output, int input_len, int option)
 	int ret = 0;
 	int ret1, ret2;
 
-	struct qseecom_client_send_data_ireq send_data_req;
+	union qseecom_client_send_data_ireq send_data_req;
 	struct qseecom_command_scm_resp resp;
 	struct qsc_send_cmd *msgreq;	 /* request data sent to QSEE */
 	struct qsc_send_cmd_rsp *msgrsp; /* response data sent from QSEE */
@@ -1185,23 +1152,23 @@ static int tzapp_test(void *input, void *output, int input_len, int option)
 		msgreq->len = input_len;
 	}
 
-	send_data_req.qsee_cmd_id = QSEOS_CLIENT_SEND_DATA_COMMAND;
-	send_data_req.app_id = qsee_app_id;
+	send_data_req.v1.qsee_cmd_id = QSEOS_CLIENT_SEND_DATA_COMMAND;
+	send_data_req.v1.app_id = qsee_app_id;
 
-	send_data_req.req_ptr = dma_map_single(NULL, msgreq,
+	send_data_req.v1.req_ptr = dma_map_single(NULL, msgreq,
 				sizeof(*msgreq), DMA_TO_DEVICE);
-	send_data_req.rsp_ptr = dma_map_single(NULL, msgrsp,
+	send_data_req.v1.rsp_ptr = dma_map_single(NULL, msgrsp,
 				sizeof(*msgrsp), DMA_FROM_DEVICE);
-	ret1 = dma_mapping_error(NULL, send_data_req.req_ptr);
-	ret2 = dma_mapping_error(NULL, send_data_req.rsp_ptr);
+	ret1 = dma_mapping_error(NULL, send_data_req.v1.req_ptr);
+	ret2 = dma_mapping_error(NULL, send_data_req.v1.rsp_ptr);
 
 
 	if (!ret1 && !ret2) {
-		send_data_req.req_len = sizeof(struct qsc_send_cmd);
-		send_data_req.rsp_len = sizeof(struct qsc_send_cmd_rsp);
-		ret = qcom_scm_tzsched((const void *) &send_data_req,
-					sizeof(send_data_req),
-					&resp, sizeof(resp));
+		send_data_req.v1.req_len = sizeof(struct qsc_send_cmd);
+		send_data_req.v1.rsp_len = sizeof(struct qsc_send_cmd_rsp);
+		ret = qcom_scm_tzsched((const void *) &send_data_req.v1,
+				sizeof(struct qseecom_client_send_data_v1_ireq),
+				&resp, sizeof(resp));
 	}
 
 	if (option != 1) {
@@ -1213,11 +1180,11 @@ static int tzapp_test(void *input, void *output, int input_len, int option)
 	}
 
 	if (!ret1) {
-		dma_unmap_single(NULL, send_data_req.req_ptr,
+		dma_unmap_single(NULL, send_data_req.v1.req_ptr,
 			sizeof(*msgreq), DMA_TO_DEVICE);
 	}
 	if (!ret2) {
-		dma_unmap_single(NULL, send_data_req.rsp_ptr,
+		dma_unmap_single(NULL, send_data_req.v1.rsp_ptr,
 			sizeof(*msgrsp), DMA_FROM_DEVICE);
 	}
 	if (ret1 || ret2) {
