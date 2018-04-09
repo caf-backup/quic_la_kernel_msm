@@ -513,6 +513,30 @@ int __qcom_scm_sdi(struct device *dev, u32 svc_id, u32 cmd_id)
 	return ret ? : res.a1;
 }
 
+int __qcom_scm_qseecom_notify(struct device *dev, void *request,
+			      size_t req_size, void *resp, size_t resp_size)
+{
+	return -ENOTSUPP;
+}
+
+int __qcom_scm_qseecom_load(struct device *dev, void *request, size_t req_size,
+			    void *response, size_t resp_size)
+{
+	return -ENOTSUPP;
+}
+
+int __qcom_scm_qseecom_send_data(struct device *dev, void *request,
+				 size_t req_size, void *resp, size_t resp_size)
+{
+	return -ENOTSUPP;
+}
+
+int __qcom_scm_qseecom_unload(struct device *dev, void *request,
+			      size_t req_size, void *resp, size_t resp_size)
+{
+	return -ENOTSUPP;
+}
+
 int __qcom_scm_tzsched(struct device *dev, const void *req, size_t req_size,
 			void *resp, size_t resp_size)
 {

@@ -21,6 +21,16 @@
 #define SCM_CMD_TZ_SET_DLOAD_FOR_SECURE_BOOT	0x14
 #define SCM_CMD_PSHOLD				0x15
 
+#define TZ_OWNER_TZ_APPS		48
+#define TZ_OWNER_TZ_APPS_RESERVED	49
+#define TZ_OWNER_QSEE_OS		50
+#define TZ_SVC_APP_MGR			1     /* Application management */
+#define MAX_APP_NAME_SIZE		32
+#define TZ_SVC_APP_ID_PLACEHOLDER	0     /* SVC bits will contain App ID */
+
+#define TZ_SYSCALL_CREATE_SMC_ID(o, s, f) \
+	((uint32_t)((((o & 0x3f) << 24) | (s & 0xff) << 8) | (f & 0xff)))
+
 extern int __qcom_scm_tls_hardening(struct device *dev,
 			struct scm_cmd_buf_t *scm_cmd_buf, size_t buf_size);
 
@@ -167,7 +177,6 @@ extern int qcom_scm_pshold(void);
 
 s32 __qcom_scm_pinmux_read(u32 svc_id, u32 cmd_id, u32 arg1);
 s32 __qcom_scm_pinmux_write(u32 svc_id, u32 cmd_id, u32 arg1, u32 arg2);
-
 s32 __qcom_scm_usb_mode_write(u32 svc_id, u32 cmd_id, u32 arg1, u32 arg2);
 
 extern int __qcom_scm_cache_dump(u32 cpu);
@@ -179,6 +188,17 @@ extern int __qcom_scm_send_cache_dump_addr(struct device *, u32 cmd_id,
 					void *cmd_buf, u32 size);
 extern int qcom_scm_get_cache_dump_size(u32 cmd_id, void *cmd_buf, u32 size);
 extern int qcom_scm_send_cache_dump_addr(u32 cmd_id, void *cmd_buf, u32 size);
+
+extern int __qcom_scm_qseecom_notify(struct device *, void *req,
+				     size_t req_size, void *resp,
+				     size_t resp_size);
+extern int __qcom_scm_qseecom_load(struct device *, void *req, size_t req_size,
+				   void *resp, size_t resp_size);
+extern int __qcom_scm_qseecom_unload(struct device *, void *req,
+				     size_t req_size, void *resp,
+				     size_t resp_size);
+extern int __qcom_scm_qseecom_send_data(struct device *, void *req, size_t
+					req_size, void *resp, size_t resp_size);
 
 extern int __qcom_scm_tzsched(struct device *, const void *req,
 				size_t req_size, void *resp,

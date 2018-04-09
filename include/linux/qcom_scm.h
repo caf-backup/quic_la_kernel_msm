@@ -97,7 +97,6 @@ extern u32 qcom_scm_get_version(void);
 
 extern s32 qcom_scm_pinmux_read(u32 arg1);
 extern s32 qcom_scm_pinmux_write(u32 arg1, u32 arg2);
-
 extern s32 qcom_scm_usb_mode_write(u32 arg1, u32 arg2);
 
 extern int qcom_scm_cache_dump(u32 cpu);
@@ -105,6 +104,68 @@ extern int qcom_scm_get_cache_dump_size(u32 cmd_id, void *cmd_buf, u32 size);
 extern int qcom_scm_send_cache_dump_addr(u32 cmd_id, void *cmd_buf, u32 size);
 extern int qcom_scm_tzsched(const void *req, size_t req_size,
 				void *resp, size_t resp_size);
+
+#define MAX_APP_NAME_SIZE	32
+
+__packed struct qseecom_unload_app_ireq {
+	uint32_t qsee_cmd_id;
+	uint32_t app_id;
+};
+
+enum qseecom_command_scm_resp_type {
+	QSEOS_APP_ID = 0xEE01,
+	QSEOS_LISTENER_ID
+};
+
+__packed struct qseecom_command_scm_resp {
+	unsigned long result;
+	enum qseecom_command_scm_resp_type resp_type;
+	unsigned long data;
+};
+
+__packed struct qseecom_client_send_data_v1_ireq {
+	uint32_t qsee_cmd_id;
+	uint32_t app_id;
+	dma_addr_t req_ptr;
+	uint32_t req_len;
+	/** First 4 bytes should always be the return status */
+	dma_addr_t rsp_ptr;
+	uint32_t rsp_len;
+};
+
+__packed struct qseecom_client_send_data_v2_ireq {
+	struct qseecom_client_send_data_v1_ireq send_data_ireq;
+	uint64_t sglistinfo_ptr;
+	uint32_t sglistinfo_len;
+};
+
+union qseecom_client_send_data_ireq {
+	struct qseecom_client_send_data_v1_ireq v1;
+	struct qseecom_client_send_data_v2_ireq v2;
+};
+
+__packed struct qseecom_load_app_ireq {
+	uint32_t qsee_cmd_id;
+	uint32_t mdt_len;		/* Length of the mdt file */
+	uint32_t img_len;		/* Length of .bxx and .mdt files */
+	phys_addr_t phy_addr;		/* phy addr of the start of image */
+	char app_name[MAX_APP_NAME_SIZE];	/* application name*/
+};
+
+struct qsee_notify_app {
+	uint32_t cmd_id;
+	phys_addr_t applications_region_addr;
+	size_t applications_region_size;
+};
+
+extern int qcom_scm_qseecom_notify(void *req, size_t req_size,
+				  void *resp, size_t resp_size);
+extern int qcom_scm_qseecom_load(void *req, size_t req_size,
+				void *resp, size_t resp_size);
+extern int qcom_scm_qseecom_unload(void *req, size_t req_size,
+				  void *resp, size_t resp_size);
+extern int qcom_scm_qseecom_send_data(void *req, size_t req_size,
+				     void *resp, size_t resp_size);
 
 #define QCOM_SCM_SVC_FUSE		0x8
 

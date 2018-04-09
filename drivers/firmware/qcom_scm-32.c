@@ -38,6 +38,10 @@
 #define QCOM_SCM_FLAG_WARMBOOT_CPU2	0x10
 #define QCOM_SCM_FLAG_WARMBOOT_CPU3	0x40
 
+#define N_EXT_SCM_ARGS		7
+#define FIRST_EXT_ARG_IDX	3
+#define N_REGISTER_ARGS		(MAX_SCM_ARGS - N_EXT_SCM_ARGS + 1)
+
 struct qcom_scm_entry {
 	int flag;
 	void *entry;
@@ -402,13 +406,43 @@ static bool is_scm_armv8(void)
  */
 static int qcom_scm_call2(u32 fn_id, struct scm_desc *desc)
 {
-	int ret, retry_count = 0;
-	u64 x0;
+	int arglen = desc->arginfo & 0xf;
+	int ret = 0;
+	int retry_count = 0;
+	int i = 0;
+	u64 x0 = fn_id;
+	dma_addr_t args_phy = 0;
+	u32 *args_virt = NULL;
+	size_t alloc_len = 0;
+
+	desc->x5 = desc->args[FIRST_EXT_ARG_IDX];
 
 	if (unlikely(!is_scm_armv8()))
 		return -ENODEV;
 
-	x0 = fn_id;
+	if (unlikely(arglen > N_REGISTER_ARGS)) {
+		alloc_len = N_EXT_SCM_ARGS * sizeof(u32);
+		args_virt = kzalloc(PAGE_ALIGN(alloc_len), GFP_KERNEL);
+
+		if (!args_virt)
+			return -ENOMEM;
+
+		desc->extra_arg_buf = args_virt;
+
+		for (i = 0; i < N_EXT_SCM_ARGS; i++)
+			args_virt[i] = cpu_to_le32(desc->args[i +
+						      FIRST_EXT_ARG_IDX]);
+
+		args_phy = dma_map_single(NULL, args_virt, alloc_len,
+					   DMA_TO_DEVICE);
+
+		if (dma_mapping_error(NULL, args_phy)) {
+			kfree(args_virt);
+			return -ENOMEM;
+		}
+
+		desc->x5 = args_phy;
+	}
 
 	do {
 		mutex_lock(&qcom_scm_lock);
@@ -427,6 +461,11 @@ static int qcom_scm_call2(u32 fn_id, struct scm_desc *desc)
 	}  while (ret == QCOM_SCM_V2_EBUSY &&
 			(retry_count++ < QCOM_SCM_EBUSY_MAX_RETRY));
 
+	if (args_virt) {
+		dma_unmap_single(NULL, args_phy, alloc_len, DMA_TO_DEVICE);
+		kfree(args_virt);
+	}
+
 	if (ret < 0)
 		pr_err("scm_call failed: func id %#llx ret: %d"
 			" syscall returns: %#llx, %#llx, %#llx\n",
@@ -435,6 +474,7 @@ static int qcom_scm_call2(u32 fn_id, struct scm_desc *desc)
 
 	if (ret < 0)
 		return qcom_scm_remap_error(ret);
+
 	return 0;
 }
 
@@ -564,6 +604,139 @@ void __qcom_scm_cpu_power_down(u32 flags)
 {
 	qcom_scm_call_atomic1(QCOM_SCM_SVC_BOOT, QCOM_SCM_CMD_TERMINATE_PC,
 			flags & QCOM_SCM_FLUSH_FLAG_MASK);
+}
+
+int __qcom_scm_qseecom_notify(struct device *dev, void *request,
+			      size_t req_size, void *response, size_t resp_size)
+{
+	int ret = 0;
+
+	if (is_scm_armv8()) {
+		struct qsee_notify_app *req;
+		struct qseecom_command_scm_resp *resp;
+		uint32_t smc_id = 0;
+		struct scm_desc desc = {0};
+
+		req = (struct qsee_notify_app *)request;
+		resp = (struct qseecom_command_scm_resp *)response;
+		smc_id = TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_QSEE_OS,
+							TZ_SVC_APP_MGR, 0x05);
+		desc.arginfo = SCM_ARGS(2, SCM_RW, SCM_VAL);
+		desc.args[0] = req->applications_region_addr;
+		desc.args[1] = req->applications_region_size;
+
+		ret = qcom_scm_call2(smc_id, &desc);
+
+		resp->result = desc.ret[0];
+		resp->resp_type = desc.ret[1];
+		resp->data = desc.ret[2];
+	} else {
+		ret = __qcom_scm_tzsched(dev, request, req_size, response,
+								resp_size);
+	}
+
+	return ret;
+}
+
+int __qcom_scm_qseecom_load(struct device *dev, void *request, size_t req_size,
+					void *response, size_t resp_size)
+{
+	int ret = 0;
+
+	if (is_scm_armv8()) {
+		uint32_t smc_id = 0;
+		struct scm_desc desc = {0};
+		struct qseecom_load_app_ireq *req;
+		struct qseecom_command_scm_resp *resp;
+
+		req = (struct qseecom_load_app_ireq *)request;
+		resp = (struct qseecom_command_scm_resp *)response;
+		smc_id = TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_QSEE_OS,
+							TZ_SVC_APP_MGR, 0x01);
+		desc.arginfo = SCM_ARGS(3, SCM_VAL, SCM_VAL, SCM_VAL);
+		desc.args[0] = req->mdt_len;
+		desc.args[1] = req->img_len;
+		desc.args[2] = req->phy_addr;
+
+		ret = qcom_scm_call2(smc_id, &desc);
+
+		resp->result = desc.ret[0];
+		resp->resp_type = desc.ret[1];
+		resp->data = desc.ret[2];
+	} else {
+		ret = __qcom_scm_tzsched(dev, request, req_size, response,
+								resp_size);
+	}
+
+	return ret;
+}
+
+int __qcom_scm_qseecom_send_data(struct device *dev, void *request,
+				 size_t req_size, void  *response,
+				 size_t resp_size)
+{
+	int ret = 0;
+
+	if (is_scm_armv8()) {
+		uint32_t smc_id = 0;
+		struct scm_desc desc = {0};
+		union qseecom_client_send_data_ireq *req;
+		struct qseecom_command_scm_resp *resp;
+
+		req = (union qseecom_client_send_data_ireq *)request;
+		resp = (struct qseecom_command_scm_resp *)response;
+		smc_id = TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_TZ_APPS,
+					TZ_SVC_APP_ID_PLACEHOLDER, 0x01);
+		desc.arginfo = SCM_ARGS(5, SCM_VAL, SCM_RW, SCM_VAL, SCM_RW,
+								SCM_VAL);
+		desc.args[0] = req->v1.app_id;
+		desc.args[1] = req->v1.req_ptr;
+		desc.args[2] = req->v1.req_len;
+		desc.args[3] = req->v1.rsp_ptr;
+		desc.args[4] = req->v1.rsp_len;
+
+		ret = qcom_scm_call2(smc_id, &desc);
+
+		resp->result = desc.ret[0];
+		resp->resp_type = desc.ret[1];
+		resp->data = desc.ret[2];
+	} else {
+		ret = __qcom_scm_tzsched(dev, request, req_size, response,
+								resp_size);
+	}
+
+	return ret;
+}
+
+int __qcom_scm_qseecom_unload(struct device *dev, void *request,
+			      size_t req_size, void *response, size_t resp_size)
+{
+	int ret = 0;
+
+	if (is_scm_armv8()) {
+		uint32_t smc_id = 0;
+		struct scm_desc desc = {0};
+		struct qseecom_unload_app_ireq *req;
+		struct qseecom_command_scm_resp *resp;
+
+		req = (struct qseecom_unload_app_ireq *)request;
+		resp = (struct qseecom_command_scm_resp *)response;
+		smc_id = TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_QSEE_OS,
+							TZ_SVC_APP_MGR, 0x02);
+		desc.arginfo = SCM_ARGS(1);
+		desc.args[0] = req->app_id;
+
+		ret = qcom_scm_call2(smc_id, &desc);
+
+		resp->result = desc.ret[0];
+		resp->resp_type = desc.ret[1];
+		resp->data = desc.ret[2];
+	} else {
+		ret = __qcom_scm_tzsched(dev, request, req_size, response,
+								resp_size);
+	}
+
+	return ret;
 }
 
 int __qcom_scm_tls_hardening(struct device *dev,
