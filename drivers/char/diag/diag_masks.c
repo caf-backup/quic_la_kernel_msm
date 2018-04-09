@@ -27,9 +27,6 @@
 
 #define DIAG_SET_FEATURE_MASK(x) (feature_bytes[(x)/8] |= (1 << (x & 0x7)))
 
-#define diag_check_update(x)	\
-	(!info || (info && (info->peripheral_mask & MD_PERIPHERAL_MASK(x)))) \
-
 struct diag_mask_info msg_mask;
 struct diag_mask_info msg_bt_mask;
 struct diag_mask_info log_mask;
@@ -62,6 +59,18 @@ static const struct diag_ssid_range_t msg_mask_tbl[] = {
 	{ .ssid_first = MSG_SSID_23, .ssid_last = MSG_SSID_23_LAST },
 	{ .ssid_first = MSG_SSID_24, .ssid_last = MSG_SSID_24_LAST }
 };
+
+static int diag_check_update(int md_peripheral, struct diag_md_session_t *info)
+{
+	int ret;
+
+	mutex_lock(&driver->md_session_lock);
+	ret = (!info || (info &&
+		(info->peripheral_mask & MD_PERIPHERAL_MASK(md_peripheral))));
+	mutex_unlock(&driver->md_session_lock);
+
+	return ret;
+}
 
 static int diag_apps_responds(void)
 {
@@ -729,7 +738,7 @@ static int diag_cmd_set_msg_mask(unsigned char *src_buf, int src_len,
 	}
 	mutex_unlock(&driver->msg_mask_lock);
 	mutex_unlock(&mask_info->lock);
-	if (diag_check_update(APPS_DATA))
+	if (diag_check_update(APPS_DATA, info))
 		diag_update_userspace_clients(MSG_MASKS_TYPE);
 
 	/*
@@ -751,7 +760,7 @@ static int diag_cmd_set_msg_mask(unsigned char *src_buf, int src_len,
 	memcpy(dest_buf + write_len, src_buf + header_len, mask_size);
 	write_len += mask_size;
 	for (i = 0; i < NUM_PERIPHERALS; i++) {
-		if (!diag_check_update(i))
+		if (!diag_check_update(i, info))
 			continue;
 		diag_send_msg_mask_update(i, req->ssid_first, req->ssid_last);
 	}
@@ -796,8 +805,7 @@ static int diag_cmd_set_all_msg_mask(unsigned char *src_buf, int src_len,
 	}
 	mutex_unlock(&driver->msg_mask_lock);
 	mutex_unlock(&mask_info->lock);
-
-	if (diag_check_update(APPS_DATA))
+	if (diag_check_update(APPS_DATA, info))
 		diag_update_userspace_clients(MSG_MASKS_TYPE);
 
 	/*
@@ -813,7 +821,7 @@ static int diag_cmd_set_all_msg_mask(unsigned char *src_buf, int src_len,
 	write_len += header_len;
 
 	for (i = 0; i < NUM_PERIPHERALS; i++) {
-		if (!diag_check_update(i))
+		if (!diag_check_update(i, info))
 			continue;
 		diag_send_msg_mask_update(i, ALL_SSID, ALL_SSID);
 	}
@@ -890,7 +898,7 @@ static int diag_cmd_update_event_mask(unsigned char *src_buf, int src_len,
 	memcpy(mask_info->ptr, src_buf + header_len, mask_len);
 	mask_info->status = DIAG_CTRL_MASK_VALID;
 	mutex_unlock(&mask_info->lock);
-	if (diag_check_update(APPS_DATA))
+	if (diag_check_update(APPS_DATA, info))
 		diag_update_userspace_clients(EVENT_MASKS_TYPE);
 
 	/*
@@ -907,7 +915,7 @@ static int diag_cmd_update_event_mask(unsigned char *src_buf, int src_len,
 	write_len += mask_len;
 
 	for (i = 0; i < NUM_PERIPHERALS; i++) {
-		if (!diag_check_update(i))
+		if (!diag_check_update(i, info))
 			continue;
 		diag_send_event_mask_update(i);
 	}
@@ -944,7 +952,7 @@ static int diag_cmd_toggle_events(unsigned char *src_buf, int src_len,
 		memset(mask_info->ptr, 0, mask_info->mask_len);
 	}
 	mutex_unlock(&mask_info->lock);
-	if (diag_check_update(APPS_DATA))
+	if (diag_check_update(APPS_DATA, info))
 		diag_update_userspace_clients(EVENT_MASKS_TYPE);
 
 	/*
@@ -954,7 +962,7 @@ static int diag_cmd_toggle_events(unsigned char *src_buf, int src_len,
 	header.cmd_code = DIAG_CMD_EVENT_TOGGLE;
 	header.padding = 0;
 	for (i = 0; i < NUM_PERIPHERALS; i++) {
-		if (!diag_check_update(i))
+		if (!diag_check_update(i, info))
 			continue;
 		diag_send_event_mask_update(i);
 	}
@@ -1179,7 +1187,7 @@ static int diag_cmd_set_log_mask(unsigned char *src_buf, int src_len,
 		break;
 	}
 	mutex_unlock(&mask_info->lock);
-	if (diag_check_update(APPS_DATA))
+	if (diag_check_update(APPS_DATA, info))
 		diag_update_userspace_clients(LOG_MASKS_TYPE);
 
 	/*
@@ -1208,7 +1216,7 @@ static int diag_cmd_set_log_mask(unsigned char *src_buf, int src_len,
 	write_len += payload_len;
 
 	for (i = 0; i < NUM_PERIPHERALS; i++) {
-		if (!diag_check_update(i))
+		if (!diag_check_update(i, info))
 			continue;
 		diag_send_log_mask_update(i, req->equip_id);
 	}
@@ -1243,7 +1251,7 @@ static int diag_cmd_disable_log_mask(unsigned char *src_buf, int src_len,
 		mutex_unlock(&mask->lock);
 	}
 	mask_info->status = DIAG_CTRL_MASK_ALL_DISABLED;
-	if (diag_check_update(APPS_DATA))
+	if (diag_check_update(APPS_DATA, info))
 		diag_update_userspace_clients(LOG_MASKS_TYPE);
 
 	/*
@@ -1259,7 +1267,7 @@ static int diag_cmd_disable_log_mask(unsigned char *src_buf, int src_len,
 	memcpy(dest_buf, &header, sizeof(struct diag_log_config_rsp_t));
 	write_len += sizeof(struct diag_log_config_rsp_t);
 	for (i = 0; i < NUM_PERIPHERALS; i++) {
-		if (!diag_check_update(i))
+		if (!diag_check_update(i, info))
 			continue;
 		diag_send_log_mask_update(i, ALL_EQUIP_ID);
 	}
