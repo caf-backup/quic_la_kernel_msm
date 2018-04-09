@@ -2682,6 +2682,7 @@ enum nl80211_band_attr {
  * for more information on the FCC description of the relaxations allowed
  * by NL80211_FREQUENCY_ATTR_INDOOR_ONLY and
  * NL80211_FREQUENCY_ATTR_IR_CONCURRENT.
+ * @NL80211_FREQUENCY_ATTR_CHANNEL: HW value for frequency
  */
 enum nl80211_frequency_attr {
 	__NL80211_FREQUENCY_ATTR_INVALID,
@@ -2702,6 +2703,7 @@ enum nl80211_frequency_attr {
 	NL80211_FREQUENCY_ATTR_IR_CONCURRENT,
 	NL80211_FREQUENCY_ATTR_NO_20MHZ,
 	NL80211_FREQUENCY_ATTR_NO_10MHZ,
+	NL80211_FREQUENCY_ATTR_CHANNEL,
 
 	/* keep last */
 	__NL80211_FREQUENCY_ATTR_AFTER_LAST,
