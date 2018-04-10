@@ -212,6 +212,9 @@ struct tc_nsscodel_qopt {
 	__u32	target;		/* Acceptable queueing delay */
 	__u32	limit;		/* Max number of packets that can be held in the queue */
 	__u32	interval;	/* Monitoring interval */
+	__u32	flows;		/* Number of flow buckets */
+	__u32	quantum;	/* Weight (in bytes) used for DRR of flow buckets */
+	__u8	ecn;		/* 0 - disable ECN, 1 - enable ECN */
 	__u8	set_default;	/* Sets qdisc to be the default qdisc for enqueue */
 	__u8	accel_mode;	/* Dictates which data plane offloads the qdisc */
 };
@@ -219,6 +222,17 @@ struct tc_nsscodel_qopt {
 struct tc_nsscodel_xstats {
 	__u32 peak_queue_delay;	/* Peak delay experienced by a dequeued packet */
 	__u32 peak_drop_delay;	/* Peak delay experienced by a dropped packet */
+};
+
+/* NSSFQ_CODEL section */
+
+struct tc_nssfq_codel_xstats {
+	__u32 new_flow_count;	/* Total number of new flows seen */
+	__u32 new_flows_len;	/* Current number of new flows */
+	__u32 old_flows_len;	/* Current number of old flows */
+	__u32 ecn_mark;		/* Number of packets marked with ECN */
+	__u32 drop_overlimit;	/* Number of packets dropped due to overlimit */
+	__u32 maxpacket;	/* The largest packet seen so far in the queue */
 };
 
 /* NSSTBL section */
