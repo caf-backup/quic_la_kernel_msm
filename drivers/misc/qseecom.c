@@ -941,7 +941,7 @@ const struct qseecom_props qseecom_props_ipq8064 = {
 };
 
 const struct qseecom_props qseecom_props_ipq807x = {
-	.function = (MUL),
+	.function = (MUL | CRYPTO),
 	.tz_arch = QSEE_64,
 };
 
