@@ -860,6 +860,12 @@ static int start_q6(const struct subsys_desc *subsys)
 	reinit_completion(&pdata->stop_done);
 	reinit_completion(&pdata->err_ready);
 	pdata->subsys_desc.ramdump_disable = 0;
+
+	if (pdata->emulation) {
+		pr_emerg("q6v5: Emulation start, no smp2p messages\n");
+		return 0;
+	}
+
 	ret = rproc_add(rproc);
 	if (ret)
 		return ret;
@@ -892,6 +898,11 @@ static int stop_q6(const struct subsys_desc *subsys, bool force_stop)
 
 		qcom_smem_state_update_bits(pdata->state,
 			BIT(pdata->stop_bit), 0);
+	}
+
+	if (pdata->emulation) {
+		pr_emerg("q6v5: Emulation stop, no smp2p messages\n");
+		return 0;
 	}
 
 	rproc_shutdown(rproc);
