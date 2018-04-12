@@ -28,8 +28,6 @@ struct log_read {
 #define TZ_SVC_CRYPTO 10
 #define TZ_SYSCALL_CREATE_CMD_ID(s, f) \
 	((uint32_t)(((s & 0x3ff) << 10) | (f & 0x3ff)))
-#define TZ_CRYPTO_SERVICE_SYM_ID \
-	TZ_SYSCALL_CREATE_CMD_ID(TZ_SVC_CRYPTO, 0x02)
 
 struct scm_cmd_buf_t {
 	uint32_t req_addr;
@@ -39,7 +37,7 @@ struct scm_cmd_buf_t {
 };
 
 extern int qcom_scm_tls_hardening(struct scm_cmd_buf_t *scm_cmd_buf,
-							size_t buf_size);
+				 size_t buf_size, u32 cmd_id);
 
 extern int qcom_qfprom_write_version(void *wrip, int size);
 int qcom_qfprom_read_version(uint32_t sw_type, uint32_t value,

@@ -740,12 +740,15 @@ int __qcom_scm_qseecom_unload(struct device *dev, void *request,
 }
 
 int __qcom_scm_tls_hardening(struct device *dev,
-			struct scm_cmd_buf_t *scm_cmd_buf, size_t buf_size)
+			    struct scm_cmd_buf_t *scm_cmd_buf,
+			    size_t buf_size, u32 cmd_id)
 {
 	int ret = 0;
 
-	ret = qcom_scm_call(dev, TZ_SVC_CRYPTO, TZ_CRYPTO_SERVICE_SYM_ID,
-		(void *)scm_cmd_buf, buf_size, NULL, 0);
+	cmd_id = TZ_SYSCALL_CREATE_CMD_ID(TZ_SVC_CRYPTO, cmd_id);
+
+	ret = qcom_scm_call(dev, TZ_SVC_CRYPTO, cmd_id, (void *)scm_cmd_buf,
+			   buf_size, NULL, 0);
 
 	return ret;
 }

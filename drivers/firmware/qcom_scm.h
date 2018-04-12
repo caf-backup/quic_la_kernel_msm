@@ -32,7 +32,8 @@
 	((uint32_t)((((o & 0x3f) << 24) | (s & 0xff) << 8) | (f & 0xff)))
 
 extern int __qcom_scm_tls_hardening(struct device *dev,
-			struct scm_cmd_buf_t *scm_cmd_buf, size_t buf_size);
+				   struct scm_cmd_buf_t *scm_cmd_buf,
+				   size_t buf_size, u32 cmd_id);
 
 #define QCOM_SCM_BOOT_ADDR		0x1
 #define QCOM_SCM_BOOT_ADDR_MC		0x11

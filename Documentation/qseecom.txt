@@ -1,0 +1,110 @@
+Usage Instructions:
+
+In ipq40xx, there are RSA and AES APIs available to perform crypto operations.
+The steps to use AES and RSA APIs are as below:
+
+RSA API:
+
+RSA Generate Key blob:
+(1) cat /sys/rsa_sec_key/rsa_generate > key_blob.txt
+
+RSA Import Key blob:
+(1) cat hex.dat > /sys/rsa_sec_key/rsa_import
+(2) cat /sys/rsa_sec_key/rsa_import > import_key_blob.txt
+
+RSA Sign data:
+(1) cat key_blob.txt > /sys/rsa_sec_key/rsa_key_blob
+    or
+    cat import_key_blob.txt > /sys/rsa_sec_key/rsa_key_blob
+(2) cat data.txt > /sys/rsa_sec_key/rsa_sign
+(3) cat /sys/rsa_sec_key/rsa_sign > signed_data.txt
+
+RSA Verification of Signature:
+(1) cat key_blob.txt > /sys/rsa_sec_key/rsa_key_blob
+    or
+    cat import_key_blob.txt > /sys/rsa_sec_key/rsa_key_blob
+(2) cat data.txt > /sys/rsa_sec_key/rsa_sign
+(3) cat signed_data.txt > /sys/rsa_sec_key/rsa_verify
+(4) cat /sys/rsa_sec_key/rsa_verify > verification_result.txt
+
+AES API:
+
+AES Generate Key blob:
+(1) cat /sys/sec_key/generate > key_blob.txt
+
+AES Import Key blob:
+(1) cat key.txt > /sys/sec_key/import
+(2) cat /sys/sec_key/import > imported_key_blob.txt
+
+AES Encrypt data:
+(1) cat key_blob.txt > /sys/sec_key/key_blob
+    or
+    cat imported_key_blob.txt > /sys/sec_key/key_blob
+(2) cat data.txt > /sys/sec_key/seal
+(3) cat /sys/sec_key/seal > encrypted_data.txt
+
+AES Decrypt data:
+(1) cat key_blob.txt > /sys/sec_key/key_blob
+    or
+    cat imported_key_blob.txt > /sys/sec_key/key_blob
+(2) cat encrypted_data.txt > /sys/sec_key/unseal
+
+Across any platforms, apps can be loaded and functionalities can be performed
+securely from the non-secure world via the scm interface. Below are the steps
+to load a sample app and perform some basic operations:
+
+(1) Step 1: To provide the sampleapp files to the kernel driver
+
+Concatenate all the seg files into 1 segment file and feed it as
+input to sys/firmware/seg_file and feed the mdt file as input to
+sys/firmware/mdt_file as below
+
+In platform ipq8064 or ipq40xx, the sample app is divided into 4
+segments whereas in ipq807x, the sample app is divided into 7 segments
+
+cat sampleapp.b00 > sampleapp.b0x
+cat sampleapp.b01 >> sampleapp.b0x
+cat sampleapp.b02 >> sampleapp.b0x
+cat sampleapp.b03 >> sampleapp.b0x
+
+Below 3 steps are required if its platform ipq807x
+cat sampleapp.b04 >> sampleapp.b0x
+cat sampleapp.b05 >> sampleapp.b0x
+cat sampleapp.b06 >> sampleapp.b0x
+
+cat /lib/firmware/sampleapp.mdt > /sys/firmware/mdt_file
+cat /lib/firmware/sampleapp.b0x > /sys/firmware/seg_file
+
+(2) Step 2: To start loading the sampleapp
+
+echo 1 > /sys/firmware/tzapp/load_start
+
+(3) Step 3: Perform operations required in the application
+
+To test Crypto functionality:
+echo 1 > /sys/firmware/tzapp/crypto
+
+To give input to Encryption:
+echo '6bc1bee22e409f9' > /sys/firmware/tzapp/encrypt
+
+To view encryption output:
+cat /sys/firmware/tzapp/encrypt
+
+To give input to Decryption:
+cat /sys/firmware/tzapp/encrypt > /sys/firmware/tzapp/decrypt
+
+To view decryption output:
+cat /sys/firmware/tzapp/decrypt
+
+To give input to Multiplication op:
+echo 100 > /sys/firmware/tzapp/basic_data
+
+To view Secure Multiplication output:
+cat /sys/firmware/tzapp/basic_data
+
+(4) Step 4: To start unloading the sampleapp
+
+echo 0 > /sys/firmware/tzapp/load_start
+
+If the user doesn't unload the app, then the app is unloaded when the
+device driver is removed
