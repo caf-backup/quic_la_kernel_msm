@@ -24,6 +24,7 @@
 #define Q6_CALDB_ADDR 0x50000000
 #define Q6_CALDB_SIZE 0x480000
 struct cnss_plat_data;
+extern bool daemon_support;
 
 int cnss_qmi_init(struct cnss_plat_data *plat_priv);
 void cnss_qmi_deinit(struct cnss_plat_data *plat_priv);
