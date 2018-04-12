@@ -760,7 +760,7 @@
 		};
 
 		tzlog: qca,tzlog {
-			compatible = "qca,tzlog";
+			compatible = "qca,tzlog_ipq806x";
 		};
 
 		acc0: clock-controller@2088000 {
