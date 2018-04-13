@@ -175,3 +175,8 @@ EXPORT_SYMBOL(__gnu_mcount_nc);
 EXPORT_SYMBOL(__pv_phys_pfn_offset);
 EXPORT_SYMBOL(__pv_offset);
 #endif
+
+#ifdef CONFIG_HAVE_ARM_SMCCC
+EXPORT_SYMBOL(__arm_smccc_smc);
+EXPORT_SYMBOL(__arm_smccc_hvc);
+#endif
