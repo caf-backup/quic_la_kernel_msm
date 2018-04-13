@@ -722,8 +722,8 @@ int cnss_is_cold_boot_cal_done(struct device *dev)
 	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
 
 	if (test_bit(CNSS_COLD_BOOT_CAL, &plat_priv->driver_state))
-		return 1;
-	return 0;
+		return 0;
+	return 1;
 }
 EXPORT_SYMBOL(cnss_is_cold_boot_cal_done);
 
@@ -1948,12 +1948,7 @@ static int cnss_cold_boot_cal_start_hdlr(struct cnss_plat_data *plat_priv)
 
 static int cnss_cold_boot_cal_done_hdlr(struct cnss_plat_data *plat_priv)
 {
-	struct cnss_subsys_info *subsys_info = &plat_priv->subsys_info;
-
-	cnss_wlfw_wlan_mode_send_sync(plat_priv, QMI_WLFW_OFF_V01);
-	cnss_shutdown(&subsys_info->subsys_desc, false);
 	clear_bit(CNSS_COLD_BOOT_CAL, &plat_priv->driver_state);
-
 	return 0;
 }
 
