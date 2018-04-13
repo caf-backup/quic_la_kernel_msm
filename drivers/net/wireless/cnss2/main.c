@@ -2478,6 +2478,9 @@ static int cnss_probe(struct platform_device *plat_dev)
 	const struct of_device_id *of_id;
 	const struct platform_device_id *device_id;
 
+	if (!qca6290_support)
+		daemon_support = true;
+
 	if (skip_cnss) {
 		printk(KERN_ERR "Skipping CNSS_PROBE\n");
 		return 0;
