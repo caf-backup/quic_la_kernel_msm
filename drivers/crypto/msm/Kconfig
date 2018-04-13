@@ -1,7 +1,7 @@
 config CRYPTO_DEV_OTA_CRYPTO
 	tristate "OTA Crypto module"
 	help
-	  This driver supports Qualcomm OTA Crypto in the FSM9xxx.
+	  This driver supports QTI OTA Crypto in the FSM9xxx.
 	  To compile this driver as a module, choose M here: the
 	  module will be called ota_crypto.
 
@@ -12,7 +12,7 @@ config CRYPTO_DEV_QCEDEV
 	tristate "QCEDEV Interface to CE module"
 	default n
 	help
-	  This driver supports Qualcomm QCEDEV Crypto in MSM7x30, MSM8660,
+	  This driver supports QTI QCEDEV Crypto in MSM7x30, MSM8660,
 	  MSM8960, MSM9615, APQ8064, MSM8974, MSM8916, MSM8994, MSM8996
 	  and APQ8084. This exposes the interface to the QCE hardware
 	  accelerator via IOCTLs.
@@ -31,11 +31,11 @@ config CRYPTO_DEV_QCOM_ICE
 	  module will be called ice.
 
 config CRYPTO_DEV_QCOM_MSM_QCE
-	tristate "Qualcomm Crypto Engine (QCE) module"
+	tristate "Qualcomm Technologies,Inc (QTI)  module"
 	select  CRYPTO_DEV_QCE50 if ARCH_APQ8084 || ARCH_MSM8916 || ARCH_MSM8994 || ARCH_MSM8996 || ARCH_MSM8992 || ARCH_MSMTITANIUM || ARCH_QCOM
 	default n
 	help
-	  This driver supports Qualcomm Crypto Engine in MSM7x30, MSM8660
+	  This driver supports QTI Crypto Engine in MSM7x30, MSM8660
 	  MSM8x55, MSM8960, MSM9615, MSM8916, MSM8994, MSM8996, FSM9900,
 	  MSMTITANINUM and APQ8084.
 
@@ -46,13 +46,13 @@ config CRYPTO_DEV_QCOM_MSM_QCE
 	  and APQ8084 the module is called qce50.
 
 config CRYPTO_DEV_QCRYPTO
-	tristate "Qualcomm Crypto accelerator"
+	tristate "QTI Crypto accelerator"
 	select CRYPTO_DES
 	select CRYPTO_ALGAPI
 	select CRYPTO_AUTHENC
 	select CRYPTO_BLKCIPHER
 	default n
 	help
-	  This driver supports Qualcomm crypto acceleration.
+	  This driver supports QTI crypto acceleration.
 	  To compile this driver as a module, choose M here: the
 	  module will be called qcrypto.
