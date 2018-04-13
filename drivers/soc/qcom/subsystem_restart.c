@@ -577,8 +577,9 @@ static void subsystem_powerup(struct subsys_device *dev, void *data)
 	if (dev->desc->powerup(dev->desc) < 0) {
 		notify_each_subsys_device(&dev, 1, SUBSYS_POWERUP_FAILURE,
 								NULL);
-		panic("[%s:%d]: Powerup error: %s!",
+		pr_emerg("[%s:%d]: Powerup error: %s!",
 			current->comm, current->pid, name);
+		return;
 	}
 	enable_all_irqs(dev);
 
@@ -825,18 +826,26 @@ static void subsystem_restart_wq_func(struct work_struct *work)
 
 	notify_each_subsys_device(list, count, SUBSYS_BEFORE_POWERUP, NULL);
 	for_each_subsys_device(list, count, NULL, subsystem_powerup);
-	notify_each_subsys_device(list, count, SUBSYS_AFTER_POWERUP, NULL);
 
-	pr_info("[%s:%d]: Restart sequence for %s completed.\n",
+	if (dev->track.state != SUBSYS_ONLINE) {
+		pr_info("[%s:%d]: Restart sequence for %s failed.\n",
 			current->comm, current->pid, desc->name);
+	} else {
+		notify_each_subsys_device(list, count, SUBSYS_AFTER_POWERUP,
+					NULL);
+		pr_info("[%s:%d]: Restart sequence for %s completed.\n",
+			current->comm, current->pid, desc->name);
+	}
 
 	mutex_unlock(&soc_order_reg_lock);
 	mutex_unlock(&track->lock);
 
-	spin_lock_irqsave(&track->s_lock, flags);
-	track->p_state = SUBSYS_NORMAL;
-	__pm_relax(&dev->ssr_wlock);
-	spin_unlock_irqrestore(&track->s_lock, flags);
+	if (dev->track.state == SUBSYS_ONLINE) {
+		spin_lock_irqsave(&track->s_lock, flags);
+		track->p_state = SUBSYS_NORMAL;
+		__pm_relax(&dev->ssr_wlock);
+		spin_unlock_irqrestore(&track->s_lock, flags);
+	}
 }
 
 static void __subsystem_restart_dev(struct subsys_device *dev)
