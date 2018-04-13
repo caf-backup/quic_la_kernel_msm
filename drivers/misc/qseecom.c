@@ -1636,16 +1636,16 @@ static ssize_t
 store_basic_input(struct device *dev, struct device_attribute *attr,
 					const char *buf, size_t count)
 {
-	dma_addr_t __aligned(sizeof(dma_addr_t) * 8) basic_input;
+	dma_addr_t __aligned(sizeof(dma_addr_t) * 8) basic_input = 0;
 	uint32_t ret = 0;
 	basic_data_len = count;
 	if ((count - 1) == 0) {
 		pr_err("\n Input cannot be NULL!");
 		return -EINVAL;
 	}
-	if (kstrtouint(buf, 10, &basic_input))
-		pr_err("\n Please enter a valid unsigned integer");
-
+	if (kstrtouint(buf, 10, &basic_input) || basic_input > (U32_MAX / 10))
+		pr_err("\n Please enter a valid unsigned integer less than %d",
+			(U32_MAX / 10));
 	else
 		ret = tzapp_test(dev, &basic_input, NULL, 0, 1);
 
