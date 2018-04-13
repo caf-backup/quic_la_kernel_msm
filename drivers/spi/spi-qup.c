@@ -1050,7 +1050,7 @@ static int spi_qup_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct device *dev;
 	void __iomem *base;
-	u32 max_freq, iomode, num_cs;
+	u32 max_freq, iomode, num_cs, cs_select;
 	int ret, irq, size;
 
 	dev = &pdev->dev;
@@ -1078,6 +1078,12 @@ static int spi_qup_probe(struct platform_device *pdev)
 	if (!max_freq || max_freq > SPI_MAX_RATE) {
 		dev_err(dev, "invalid clock frequency %d\n", max_freq);
 		return -ENXIO;
+	}
+
+	/* Adding support for SPI-NOR CS */
+	if (of_property_read_u32(pdev->dev.of_node, "cs-select", &cs_select)) {
+		dev_dbg(dev, "cs-select not found\n");
+		cs_select = 0;		/* set to default CS:0 */
 	}
 
 	ret = clk_prepare_enable(cclk);
@@ -1195,7 +1201,8 @@ static int spi_qup_probe(struct platform_device *pdev)
 			base + QUP_ERROR_FLAGS_EN);
 
 	writel_relaxed(0, base + SPI_CONFIG);
-	writel_relaxed(SPI_IO_C_NO_TRI_STATE, base + SPI_IO_CONTROL);
+	writel_relaxed(SPI_IO_C_NO_TRI_STATE | SPI_IO_C_CS_SELECT(cs_select),
+		       base + SPI_IO_CONTROL);
 
 	ret = devm_request_irq(dev, irq, spi_qup_qup_irq,
 			       IRQF_TRIGGER_HIGH, pdev->name, controller);
