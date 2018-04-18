@@ -4945,6 +4945,70 @@ static const struct alpha_pll_config nss_crypto_pll_config = {
 	.alpha_en_mask = BIT(24),
 };
 
+static int clk_dummy_is_enabled(struct clk_hw *hw)
+{
+	return 1;
+};
+
+static int clk_dummy_enable(struct clk_hw *hw)
+{
+	return 0;
+};
+
+static void clk_dummy_disable(struct clk_hw *hw)
+{
+	return;
+};
+
+static u8 clk_dummy_get_parent(struct clk_hw *hw)
+{
+	return 0;
+};
+
+static int clk_dummy_set_parent(struct clk_hw *hw, u8 index)
+{
+	return 0;
+};
+
+static int clk_dummy_set_rate(struct clk_hw *hw, unsigned long rate,
+			      unsigned long parent_rate)
+{
+	return 0;
+};
+
+static int clk_dummy_determine_rate(struct clk_hw *hw,
+				struct clk_rate_request *req)
+{
+	return 0;
+};
+
+static unsigned long clk_dummy_recalc_rate(struct clk_hw *hw,
+					   unsigned long parent_rate)
+{
+	return parent_rate;
+};
+
+const struct clk_ops clk_dummy_ops = {
+	.is_enabled = clk_dummy_is_enabled,
+	.enable = clk_dummy_enable,
+	.disable = clk_dummy_disable,
+	.get_parent = clk_dummy_get_parent,
+	.set_parent = clk_dummy_set_parent,
+	.set_rate = clk_dummy_set_rate,
+	.recalc_rate = clk_dummy_recalc_rate,
+	.determine_rate = clk_dummy_determine_rate,
+};
+
+#define DEFINE_DUMMY_CLK(clk_name)				\
+(&(struct clk_regmap) {						\
+	.hw.init = &(struct clk_init_data){			\
+		.name = #clk_name,				\
+		.parent_names = (const char *[]){ "xo"},	\
+		.num_parents = 1,				\
+		.ops = &clk_dummy_ops,				\
+	},							\
+})
+
 static struct clk_regmap *gcc_ipq807x_clks[] = {
 	[GPLL0_MAIN] = &gpll0_main.clkr,
 	[GPLL0] = &gpll0.clkr,
@@ -5189,6 +5253,250 @@ static struct clk_regmap *gcc_ipq807x_clks[] = {
 	[SDCC1_ICE_CORE_CLK_SRC] = &sdcc1_ice_core_clk_src.clkr,
 };
 
+static struct clk_regmap *gcc_ipq807x_v2_clks[] = {
+	[GPLL0_MAIN] = DEFINE_DUMMY_CLK(gpll0_main),
+	[GPLL0] = DEFINE_DUMMY_CLK(gpll0),
+	[UBI32_PLL_MAIN] = DEFINE_DUMMY_CLK(ubi32_pll_main),
+	[UBI32_PLL] = DEFINE_DUMMY_CLK(ubi32_pll),
+	[GPLL6_MAIN] = DEFINE_DUMMY_CLK(gpll6_main),
+	[GPLL6] = DEFINE_DUMMY_CLK(gpll6),
+	[GPLL4_MAIN] = DEFINE_DUMMY_CLK(gpll4_main),
+	[GPLL4] = DEFINE_DUMMY_CLK(gpll4),
+	[PCNOC_BFDCD_CLK_SRC] = DEFINE_DUMMY_CLK(pcnoc_bfdcd_clk_src),
+	[GPLL2_MAIN] = DEFINE_DUMMY_CLK(gpll2_main),
+	[GPLL2] = DEFINE_DUMMY_CLK(gpll2),
+	[NSS_CRYPTO_PLL_MAIN] = DEFINE_DUMMY_CLK(nss_crypto_pll_main),
+	[NSS_CRYPTO_PLL] = DEFINE_DUMMY_CLK(nss_crypto_pll),
+	[QDSS_TSCTR_CLK_SRC] = DEFINE_DUMMY_CLK(qdss_tsctr_clk_src),
+	[QDSS_AT_CLK_SRC] = DEFINE_DUMMY_CLK(qdss_at_clk_src),
+	[NSS_PPE_CLK_SRC] = DEFINE_DUMMY_CLK(nss_ppe_clk_src),
+	[GCC_XO_CLK_SRC] = DEFINE_DUMMY_CLK(gcc_xo_clk_src),
+	[SYSTEM_NOC_BFDCD_CLK_SRC] = DEFINE_DUMMY_CLK(system_noc_bfdcd_clk_src),
+	[NSS_CE_CLK_SRC] = DEFINE_DUMMY_CLK(nss_ce_clk_src),
+	[NSS_NOC_BFDCD_CLK_SRC] = DEFINE_DUMMY_CLK(nss_noc_bfdcd_clk_src),
+	[GCC_SLEEP_CLK_SRC] = DEFINE_DUMMY_CLK(gcc_sleep_clk_src),
+	[AUDIO_PLL_MAIN] = DEFINE_DUMMY_CLK(audio_pll_main),
+	[AUDIO_PLL] = DEFINE_DUMMY_CLK(audio_pll),
+	[APSS_AHB_CLK_SRC] = DEFINE_DUMMY_CLK(apss_ahb_clk_src),
+	[NSS_PORT5_RX_CLK_SRC] = DEFINE_DUMMY_CLK(nss_port5_rx_clk_src),
+	[NSS_PORT5_TX_CLK_SRC] = DEFINE_DUMMY_CLK(nss_port5_tx_clk_src),
+	[PCIE0_AXI_CLK_SRC] = DEFINE_DUMMY_CLK(pcie0_axi_clk_src),
+	[PCIE1_AXI_CLK_SRC] = DEFINE_DUMMY_CLK(pcie1_axi_clk_src),
+	[USB0_MASTER_CLK_SRC] = DEFINE_DUMMY_CLK(usb0_master_clk_src),
+	[USB1_MASTER_CLK_SRC] = DEFINE_DUMMY_CLK(usb1_master_clk_src),
+	[APSS_AHB_POSTDIV_CLK_SRC] = DEFINE_DUMMY_CLK(apss_ahb_postdiv_clk_src),
+	[NSS_PORT1_RX_CLK_SRC] = DEFINE_DUMMY_CLK(nss_port1_rx_clk_src),
+	[NSS_PORT1_TX_CLK_SRC] = DEFINE_DUMMY_CLK(nss_port1_tx_clk_src),
+	[NSS_PORT2_RX_CLK_SRC] = DEFINE_DUMMY_CLK(nss_port2_rx_clk_src),
+	[NSS_PORT2_TX_CLK_SRC] = DEFINE_DUMMY_CLK(nss_port2_tx_clk_src),
+	[NSS_PORT3_RX_CLK_SRC] = DEFINE_DUMMY_CLK(nss_port3_rx_clk_src),
+	[NSS_PORT3_TX_CLK_SRC] = DEFINE_DUMMY_CLK(nss_port3_tx_clk_src),
+	[NSS_PORT4_RX_CLK_SRC] = DEFINE_DUMMY_CLK(nss_port4_rx_clk_src),
+	[NSS_PORT4_TX_CLK_SRC] = DEFINE_DUMMY_CLK(nss_port4_tx_clk_src),
+	[NSS_PORT5_RX_DIV_CLK_SRC] = DEFINE_DUMMY_CLK(nss_port5_rx_div_clk_src),
+	[NSS_PORT5_TX_DIV_CLK_SRC] = DEFINE_DUMMY_CLK(nss_port5_tx_div_clk_src),
+	[NSS_PORT6_RX_CLK_SRC] = DEFINE_DUMMY_CLK(nss_port6_rx_clk_src),
+	[NSS_PORT6_TX_CLK_SRC] = DEFINE_DUMMY_CLK(nss_port6_tx_clk_src),
+	[APSS_AXI_CLK_SRC] = DEFINE_DUMMY_CLK(apss_axi_clk_src),
+	[NSS_CRYPTO_CLK_SRC] = DEFINE_DUMMY_CLK(nss_crypto_clk_src),
+	[NSS_PORT1_RX_DIV_CLK_SRC] = DEFINE_DUMMY_CLK(nss_port1_rx_div_clk_src),
+	[NSS_PORT1_TX_DIV_CLK_SRC] = DEFINE_DUMMY_CLK(nss_port1_tx_div_clk_src),
+	[NSS_PORT2_RX_DIV_CLK_SRC] = DEFINE_DUMMY_CLK(nss_port2_rx_div_clk_src),
+	[NSS_PORT2_TX_DIV_CLK_SRC] = DEFINE_DUMMY_CLK(nss_port2_tx_div_clk_src),
+	[NSS_PORT3_RX_DIV_CLK_SRC] = DEFINE_DUMMY_CLK(nss_port3_rx_div_clk_src),
+	[NSS_PORT3_TX_DIV_CLK_SRC] = DEFINE_DUMMY_CLK(nss_port3_tx_div_clk_src),
+	[NSS_PORT4_RX_DIV_CLK_SRC] = DEFINE_DUMMY_CLK(nss_port4_rx_div_clk_src),
+	[NSS_PORT4_TX_DIV_CLK_SRC] = DEFINE_DUMMY_CLK(nss_port4_tx_div_clk_src),
+	[NSS_PORT6_RX_DIV_CLK_SRC] = DEFINE_DUMMY_CLK(nss_port6_rx_div_clk_src),
+	[NSS_PORT6_TX_DIV_CLK_SRC] = DEFINE_DUMMY_CLK(nss_port6_tx_div_clk_src),
+	[NSS_UBI0_CLK_SRC] = DEFINE_DUMMY_CLK(nss_ubi0_clk_src),
+	[NSS_UBI1_CLK_SRC] = DEFINE_DUMMY_CLK(nss_ubi1_clk_src),
+	[UBI_MPT_CLK_SRC] = DEFINE_DUMMY_CLK(ubi_mpt_clk_src),
+	[ADSS_PWM_CLK_SRC] = DEFINE_DUMMY_CLK(adss_pwm_clk_src),
+	[BLSP1_QUP1_I2C_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_qup1_i2c_apps_clk_src),
+	[BLSP1_QUP1_SPI_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_qup1_spi_apps_clk_src),
+	[BLSP1_QUP2_I2C_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_qup2_i2c_apps_clk_src),
+	[BLSP1_QUP2_SPI_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_qup2_spi_apps_clk_src),
+	[BLSP1_QUP3_I2C_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_qup3_i2c_apps_clk_src),
+	[BLSP1_QUP3_SPI_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_qup3_spi_apps_clk_src),
+	[BLSP1_QUP4_I2C_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_qup4_i2c_apps_clk_src),
+	[BLSP1_QUP4_SPI_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_qup4_spi_apps_clk_src),
+	[BLSP1_QUP5_I2C_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_qup5_i2c_apps_clk_src),
+	[BLSP1_QUP5_SPI_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_qup5_spi_apps_clk_src),
+	[BLSP1_QUP6_I2C_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_qup6_i2c_apps_clk_src),
+	[BLSP1_QUP6_SPI_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_qup6_spi_apps_clk_src),
+	[BLSP1_UART1_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_uart1_apps_clk_src),
+	[BLSP1_UART2_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_uart2_apps_clk_src),
+	[BLSP1_UART3_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_uart3_apps_clk_src),
+	[BLSP1_UART4_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_uart4_apps_clk_src),
+	[BLSP1_UART5_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_uart5_apps_clk_src),
+	[BLSP1_UART6_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_uart6_apps_clk_src),
+	[CRYPTO_CLK_SRC] = DEFINE_DUMMY_CLK(crypto_clk_src),
+	[GP1_CLK_SRC] = DEFINE_DUMMY_CLK(gp1_clk_src),
+	[GP2_CLK_SRC] = DEFINE_DUMMY_CLK(gp2_clk_src),
+	[GP3_CLK_SRC] = DEFINE_DUMMY_CLK(gp3_clk_src),
+	[NSS_IMEM_CLK_SRC] = DEFINE_DUMMY_CLK(nss_imem_clk_src),
+	[NSS_UBI0_DIV_CLK_SRC] = DEFINE_DUMMY_CLK(nss_ubi0_div_clk_src),
+	[NSS_UBI1_DIV_CLK_SRC] = DEFINE_DUMMY_CLK(nss_ubi1_div_clk_src),
+	[PCIE0_AUX_CLK_SRC] = DEFINE_DUMMY_CLK(pcie0_aux_clk_src),
+	[PCIE0_PIPE_CLK_SRC] = DEFINE_DUMMY_CLK(pcie0_pipe_clk_src),
+	[PCIE1_AUX_CLK_SRC] = DEFINE_DUMMY_CLK(pcie1_aux_clk_src),
+	[PCIE1_PIPE_CLK_SRC] = DEFINE_DUMMY_CLK(pcie1_pipe_clk_src),
+	[SDCC1_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(sdcc1_apps_clk_src),
+	[SDCC2_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(sdcc2_apps_clk_src),
+	[USB0_AUX_CLK_SRC] = DEFINE_DUMMY_CLK(usb0_aux_clk_src),
+	[USB0_MOCK_UTMI_CLK_SRC] = DEFINE_DUMMY_CLK(usb0_mock_utmi_clk_src),
+	[USB0_PIPE_CLK_SRC] = DEFINE_DUMMY_CLK(usb0_pipe_clk_src),
+	[USB1_AUX_CLK_SRC] = DEFINE_DUMMY_CLK(usb1_aux_clk_src),
+	[USB1_MOCK_UTMI_CLK_SRC] = DEFINE_DUMMY_CLK(usb1_mock_utmi_clk_src),
+	[USB1_PIPE_CLK_SRC] = DEFINE_DUMMY_CLK(usb1_pipe_clk_src),
+	[GCC_ADSS_PWM_CLK] = DEFINE_DUMMY_CLK(gcc_adss_pwm_clk),
+	[GCC_APSS_AHB_CLK] = DEFINE_DUMMY_CLK(gcc_apss_ahb_clk),
+	[GCC_APSS_AXI_CLK] = DEFINE_DUMMY_CLK(gcc_apss_axi_clk),
+	[GCC_BLSP1_AHB_CLK] = DEFINE_DUMMY_CLK(gcc_blsp1_ahb_clk),
+	[GCC_BLSP1_QUP1_I2C_APPS_CLK] = DEFINE_DUMMY_CLK(gcc_blsp1_qup1_i2c_apps_clk),
+	[GCC_BLSP1_QUP1_SPI_APPS_CLK] = DEFINE_DUMMY_CLK(gcc_blsp1_qup1_spi_apps_clk),
+	[GCC_BLSP1_QUP2_I2C_APPS_CLK] = DEFINE_DUMMY_CLK(gcc_blsp1_qup2_i2c_apps_clk),
+	[GCC_BLSP1_QUP2_SPI_APPS_CLK] = DEFINE_DUMMY_CLK(gcc_blsp1_qup2_spi_apps_clk),
+	[GCC_BLSP1_QUP3_I2C_APPS_CLK] = DEFINE_DUMMY_CLK(gcc_blsp1_qup3_i2c_apps_clk),
+	[GCC_BLSP1_QUP3_SPI_APPS_CLK] = DEFINE_DUMMY_CLK(gcc_blsp1_qup3_spi_apps_clk),
+	[GCC_BLSP1_QUP4_I2C_APPS_CLK] = DEFINE_DUMMY_CLK(gcc_blsp1_qup4_i2c_apps_clk),
+	[GCC_BLSP1_QUP4_SPI_APPS_CLK] = DEFINE_DUMMY_CLK(gcc_blsp1_qup4_spi_apps_clk),
+	[GCC_BLSP1_QUP5_I2C_APPS_CLK] = DEFINE_DUMMY_CLK(gcc_blsp1_qup5_i2c_apps_clk),
+	[GCC_BLSP1_QUP5_SPI_APPS_CLK] = DEFINE_DUMMY_CLK(gcc_blsp1_qup5_spi_apps_clk),
+	[GCC_BLSP1_QUP6_I2C_APPS_CLK] = DEFINE_DUMMY_CLK(gcc_blsp1_qup6_i2c_apps_clk),
+	[GCC_BLSP1_QUP6_SPI_APPS_CLK] = DEFINE_DUMMY_CLK(gcc_blsp1_qup6_spi_apps_clk),
+	[GCC_BLSP1_UART1_APPS_CLK] = DEFINE_DUMMY_CLK(gcc_blsp1_uart1_apps_clk),
+	[GCC_BLSP1_UART2_APPS_CLK] = DEFINE_DUMMY_CLK(gcc_blsp1_uart2_apps_clk),
+	[GCC_BLSP1_UART3_APPS_CLK] = DEFINE_DUMMY_CLK(gcc_blsp1_uart3_apps_clk),
+	[GCC_BLSP1_UART4_APPS_CLK] = DEFINE_DUMMY_CLK(gcc_blsp1_uart4_apps_clk),
+	[GCC_BLSP1_UART5_APPS_CLK] = DEFINE_DUMMY_CLK(gcc_blsp1_uart5_apps_clk),
+	[GCC_BLSP1_UART6_APPS_CLK] = DEFINE_DUMMY_CLK(gcc_blsp1_uart6_apps_clk),
+	[GCC_CRYPTO_AHB_CLK] = DEFINE_DUMMY_CLK(gcc_crypto_ahb_clk),
+	[GCC_CRYPTO_AXI_CLK] = DEFINE_DUMMY_CLK(gcc_crypto_axi_clk),
+	[GCC_CRYPTO_CLK] = DEFINE_DUMMY_CLK(gcc_crypto_clk),
+	[GCC_MEM_NOC_NSS_AXI_CLK] = DEFINE_DUMMY_CLK(gcc_mem_noc_nss_axi_clk),
+	[GCC_XO_CLK] = DEFINE_DUMMY_CLK(gcc_xo_clk),
+	[GCC_GP1_CLK] = DEFINE_DUMMY_CLK(gcc_gp1_clk),
+	[GCC_GP2_CLK] = DEFINE_DUMMY_CLK(gcc_gp2_clk),
+	[GCC_GP3_CLK] = DEFINE_DUMMY_CLK(gcc_gp3_clk),
+	[GCC_MDIO_AHB_CLK] = DEFINE_DUMMY_CLK(gcc_mdio_ahb_clk),
+	[GCC_CRYPTO_PPE_CLK] = DEFINE_DUMMY_CLK(gcc_crypto_ppe_clk),
+	[GCC_NSS_CE_APB_CLK] = DEFINE_DUMMY_CLK(gcc_nss_ce_apb_clk),
+	[GCC_NSS_CE_AXI_CLK] = DEFINE_DUMMY_CLK(gcc_nss_ce_axi_clk),
+	[GCC_NSS_CFG_CLK] = DEFINE_DUMMY_CLK(gcc_nss_cfg_clk),
+	[GCC_NSS_CRYPTO_CLK] = DEFINE_DUMMY_CLK(gcc_nss_crypto_clk),
+	[GCC_NSS_CSR_CLK] = DEFINE_DUMMY_CLK(gcc_nss_csr_clk),
+	[GCC_NSS_EDMA_CFG_CLK] = DEFINE_DUMMY_CLK(gcc_nss_edma_cfg_clk),
+	[GCC_NSS_EDMA_CLK] = DEFINE_DUMMY_CLK(gcc_nss_edma_clk),
+	[GCC_NSS_IMEM_CLK] = DEFINE_DUMMY_CLK(gcc_nss_imem_clk),
+	[GCC_NSS_NOC_CLK] = DEFINE_DUMMY_CLK(gcc_nss_noc_clk),
+	[GCC_NSS_PORT1_RX_CLK] = DEFINE_DUMMY_CLK(gcc_nss_port1_rx_clk),
+	[GCC_NSS_PORT1_TX_CLK] = DEFINE_DUMMY_CLK(gcc_nss_port1_tx_clk),
+	[GCC_NSS_PORT2_RX_CLK] = DEFINE_DUMMY_CLK(gcc_nss_port2_rx_clk),
+	[GCC_NSS_PORT2_TX_CLK] = DEFINE_DUMMY_CLK(gcc_nss_port2_tx_clk),
+	[GCC_NSS_PORT3_RX_CLK] = DEFINE_DUMMY_CLK(gcc_nss_port3_rx_clk),
+	[GCC_NSS_PORT3_TX_CLK] = DEFINE_DUMMY_CLK(gcc_nss_port3_tx_clk),
+	[GCC_NSS_PORT4_RX_CLK] = DEFINE_DUMMY_CLK(gcc_nss_port4_rx_clk),
+	[GCC_NSS_PORT4_TX_CLK] = DEFINE_DUMMY_CLK(gcc_nss_port4_tx_clk),
+	[GCC_NSS_PORT5_RX_CLK] = DEFINE_DUMMY_CLK(gcc_nss_port5_rx_clk),
+	[GCC_NSS_PORT5_TX_CLK] = DEFINE_DUMMY_CLK(gcc_nss_port5_tx_clk),
+	[GCC_NSS_PORT6_RX_CLK] = DEFINE_DUMMY_CLK(gcc_nss_port6_rx_clk),
+	[GCC_NSS_PORT6_TX_CLK] = DEFINE_DUMMY_CLK(gcc_nss_port6_tx_clk),
+	[GCC_NSS_PPE_BTQ_CLK] = DEFINE_DUMMY_CLK(gcc_nss_ppe_btq_clk),
+	[GCC_NSS_PPE_CFG_CLK] = DEFINE_DUMMY_CLK(gcc_nss_ppe_cfg_clk),
+	[GCC_NSS_PPE_CLK] = DEFINE_DUMMY_CLK(gcc_nss_ppe_clk),
+	[GCC_NSS_PPE_IPE_CLK] = DEFINE_DUMMY_CLK(gcc_nss_ppe_ipe_clk),
+	[GCC_NSS_PTP_REF_CLK] = DEFINE_DUMMY_CLK(gcc_nss_ptp_ref_clk),
+	[GCC_NSSNOC_CE_APB_CLK] = DEFINE_DUMMY_CLK(gcc_nssnoc_ce_apb_clk),
+	[GCC_NSSNOC_CE_AXI_CLK] = DEFINE_DUMMY_CLK(gcc_nssnoc_ce_axi_clk),
+	[GCC_NSSNOC_CRYPTO_CLK] = DEFINE_DUMMY_CLK(gcc_nssnoc_crypto_clk),
+	[GCC_NSSNOC_PPE_CFG_CLK] = DEFINE_DUMMY_CLK(gcc_nssnoc_ppe_cfg_clk),
+	[GCC_NSSNOC_PPE_CLK] = DEFINE_DUMMY_CLK(gcc_nssnoc_ppe_clk),
+	[GCC_NSSNOC_QOSGEN_REF_CLK] = DEFINE_DUMMY_CLK(gcc_nssnoc_qosgen_ref_clk),
+	[GCC_NSSNOC_SNOC_CLK] = DEFINE_DUMMY_CLK(gcc_nssnoc_snoc_clk),
+	[GCC_NSSNOC_TIMEOUT_REF_CLK] = DEFINE_DUMMY_CLK(gcc_nssnoc_timeout_ref_clk),
+	[GCC_NSSNOC_UBI0_AHB_CLK] = DEFINE_DUMMY_CLK(gcc_nssnoc_ubi0_ahb_clk),
+	[GCC_NSSNOC_UBI1_AHB_CLK] = DEFINE_DUMMY_CLK(gcc_nssnoc_ubi1_ahb_clk),
+	[GCC_PORT1_MAC_CLK] = DEFINE_DUMMY_CLK(gcc_port1_mac_clk),
+	[GCC_PORT2_MAC_CLK] = DEFINE_DUMMY_CLK(gcc_port2_mac_clk),
+	[GCC_PORT3_MAC_CLK] = DEFINE_DUMMY_CLK(gcc_port3_mac_clk),
+	[GCC_PORT4_MAC_CLK] = DEFINE_DUMMY_CLK(gcc_port4_mac_clk),
+	[GCC_PORT5_MAC_CLK] = DEFINE_DUMMY_CLK(gcc_port5_mac_clk),
+	[GCC_PORT6_MAC_CLK] = DEFINE_DUMMY_CLK(gcc_port6_mac_clk),
+	[GCC_UBI0_AHB_CLK] = DEFINE_DUMMY_CLK(gcc_ubi0_ahb_clk),
+	[GCC_UBI0_AXI_CLK] = DEFINE_DUMMY_CLK(gcc_ubi0_axi_clk),
+	[GCC_UBI0_NC_AXI_CLK] = DEFINE_DUMMY_CLK(gcc_ubi0_nc_axi_clk),
+	[GCC_UBI0_CORE_CLK] = DEFINE_DUMMY_CLK(gcc_ubi0_core_clk),
+	[GCC_UBI0_MPT_CLK] = DEFINE_DUMMY_CLK(gcc_ubi0_mpt_clk),
+	[GCC_UBI1_AHB_CLK] = DEFINE_DUMMY_CLK(gcc_ubi1_ahb_clk),
+	[GCC_UBI1_AXI_CLK] = DEFINE_DUMMY_CLK(gcc_ubi1_axi_clk),
+	[GCC_UBI1_NC_AXI_CLK] = DEFINE_DUMMY_CLK(gcc_ubi1_nc_axi_clk),
+	[GCC_UBI1_CORE_CLK] = DEFINE_DUMMY_CLK(gcc_ubi1_core_clk),
+	[GCC_UBI1_MPT_CLK] = DEFINE_DUMMY_CLK(gcc_ubi1_mpt_clk),
+	[GCC_PCIE0_AHB_CLK] = DEFINE_DUMMY_CLK(gcc_pcie0_ahb_clk),
+	[GCC_PCIE0_AUX_CLK] = DEFINE_DUMMY_CLK(gcc_pcie0_aux_clk),
+	[GCC_PCIE0_AXI_M_CLK] = DEFINE_DUMMY_CLK(gcc_pcie0_axi_m_clk),
+	[GCC_PCIE0_AXI_S_CLK] = DEFINE_DUMMY_CLK(gcc_pcie0_axi_s_clk),
+	[GCC_SYS_NOC_PCIE0_AXI_CLK] = DEFINE_DUMMY_CLK(gcc_sys_noc_pcie0_axi_clk),
+	[GCC_PCIE0_PIPE_CLK] = DEFINE_DUMMY_CLK(gcc_pcie0_pipe_clk),
+	[GCC_PCIE1_AHB_CLK] = DEFINE_DUMMY_CLK(gcc_pcie1_ahb_clk),
+	[GCC_PCIE1_AUX_CLK] = DEFINE_DUMMY_CLK(gcc_pcie1_aux_clk),
+	[GCC_PCIE1_AXI_M_CLK] = DEFINE_DUMMY_CLK(gcc_pcie1_axi_m_clk),
+	[GCC_PCIE1_AXI_S_CLK] = DEFINE_DUMMY_CLK(gcc_pcie1_axi_s_clk),
+	[GCC_SYS_NOC_PCIE1_AXI_CLK] = DEFINE_DUMMY_CLK(gcc_sys_noc_pcie1_axi_clk),
+	[GCC_PCIE1_PIPE_CLK] = DEFINE_DUMMY_CLK(gcc_pcie1_pipe_clk),
+	[GCC_PRNG_AHB_CLK] = DEFINE_DUMMY_CLK(gcc_prng_ahb_clk),
+	[GCC_QDSS_AT_CLK] = DEFINE_DUMMY_CLK(gcc_qdss_at_clk),
+	[GCC_QDSS_DAP_CLK] = DEFINE_DUMMY_CLK(gcc_qdss_dap_clk),
+	[GCC_QPIC_AHB_CLK] = DEFINE_DUMMY_CLK(gcc_qpic_ahb_clk),
+	[GCC_QPIC_CLK] = DEFINE_DUMMY_CLK(gcc_qpic_clk),
+	[GCC_SDCC1_AHB_CLK] = DEFINE_DUMMY_CLK(gcc_sdcc1_ahb_clk),
+	[GCC_SDCC1_APPS_CLK] = DEFINE_DUMMY_CLK(gcc_sdcc1_apps_clk),
+	[GCC_SDCC2_AHB_CLK] = DEFINE_DUMMY_CLK(gcc_sdcc2_ahb_clk),
+	[GCC_SDCC2_APPS_CLK] = DEFINE_DUMMY_CLK(gcc_sdcc2_apps_clk),
+	[GCC_UNIPHY0_AHB_CLK] = DEFINE_DUMMY_CLK(gcc_uniphy0_ahb_clk),
+	[GCC_UNIPHY0_PORT1_RX_CLK] = DEFINE_DUMMY_CLK(gcc_uniphy0_port1_rx_clk),
+	[GCC_UNIPHY0_PORT1_TX_CLK] = DEFINE_DUMMY_CLK(gcc_uniphy0_port1_tx_clk),
+	[GCC_UNIPHY0_PORT2_RX_CLK] = DEFINE_DUMMY_CLK(gcc_uniphy0_port2_rx_clk),
+	[GCC_UNIPHY0_PORT2_TX_CLK] = DEFINE_DUMMY_CLK(gcc_uniphy0_port2_tx_clk),
+	[GCC_UNIPHY0_PORT3_RX_CLK] = DEFINE_DUMMY_CLK(gcc_uniphy0_port3_rx_clk),
+	[GCC_UNIPHY0_PORT3_TX_CLK] = DEFINE_DUMMY_CLK(gcc_uniphy0_port3_tx_clk),
+	[GCC_UNIPHY0_PORT4_RX_CLK] = DEFINE_DUMMY_CLK(gcc_uniphy0_port4_rx_clk),
+	[GCC_UNIPHY0_PORT4_TX_CLK] = DEFINE_DUMMY_CLK(gcc_uniphy0_port4_tx_clk),
+	[GCC_UNIPHY0_PORT5_RX_CLK] = DEFINE_DUMMY_CLK(gcc_uniphy0_port5_rx_clk),
+	[GCC_UNIPHY0_PORT5_TX_CLK] = DEFINE_DUMMY_CLK(gcc_uniphy0_port5_tx_clk),
+	[GCC_UNIPHY0_SYS_CLK] = DEFINE_DUMMY_CLK(gcc_uniphy0_sys_clk),
+	[GCC_UNIPHY1_AHB_CLK] = DEFINE_DUMMY_CLK(gcc_uniphy1_ahb_clk),
+	[GCC_UNIPHY1_PORT5_RX_CLK] = DEFINE_DUMMY_CLK(gcc_uniphy1_port5_rx_clk),
+	[GCC_UNIPHY1_PORT5_TX_CLK] = DEFINE_DUMMY_CLK(gcc_uniphy1_port5_tx_clk),
+	[GCC_UNIPHY1_SYS_CLK] = DEFINE_DUMMY_CLK(gcc_uniphy1_sys_clk),
+	[GCC_UNIPHY2_AHB_CLK] = DEFINE_DUMMY_CLK(gcc_uniphy2_ahb_clk),
+	[GCC_UNIPHY2_PORT6_RX_CLK] = DEFINE_DUMMY_CLK(gcc_uniphy2_port6_rx_clk),
+	[GCC_UNIPHY2_PORT6_TX_CLK] = DEFINE_DUMMY_CLK(gcc_uniphy2_port6_tx_clk),
+	[GCC_UNIPHY2_SYS_CLK] = DEFINE_DUMMY_CLK(gcc_uniphy2_sys_clk),
+	[GCC_USB0_AUX_CLK] = DEFINE_DUMMY_CLK(gcc_usb0_aux_clk),
+	[GCC_SYS_NOC_USB0_AXI_CLK] = DEFINE_DUMMY_CLK(gcc_sys_noc_usb0_axi_clk),
+	[GCC_SNOC_BUS_TIMEOUT2_AHB_CLK] = DEFINE_DUMMY_CLK(gcc_snoc_bus_timeout2_ahb_clk),
+	[GCC_USB0_MASTER_CLK] = DEFINE_DUMMY_CLK(gcc_usb0_master_clk),
+	[GCC_USB0_MOCK_UTMI_CLK] = DEFINE_DUMMY_CLK(gcc_usb0_mock_utmi_clk),
+	[GCC_USB0_PHY_CFG_AHB_CLK] = DEFINE_DUMMY_CLK(gcc_usb0_phy_cfg_ahb_clk),
+	[GCC_USB0_PIPE_CLK] = DEFINE_DUMMY_CLK(gcc_usb0_pipe_clk),
+	[GCC_USB0_SLEEP_CLK] = DEFINE_DUMMY_CLK(gcc_usb0_sleep_clk),
+	[GCC_USB1_AUX_CLK] = DEFINE_DUMMY_CLK(gcc_usb1_aux_clk),
+	[GCC_SYS_NOC_USB1_AXI_CLK] = DEFINE_DUMMY_CLK(gcc_sys_noc_usb1_axi_clk),
+	[GCC_SNOC_BUS_TIMEOUT3_AHB_CLK] = DEFINE_DUMMY_CLK(gcc_snoc_bus_timeout3_ahb_clk),
+	[GCC_USB1_MASTER_CLK] = DEFINE_DUMMY_CLK(gcc_usb1_master_clk),
+	[GCC_USB1_MOCK_UTMI_CLK] = DEFINE_DUMMY_CLK(gcc_usb1_mock_utmi_clk),
+	[GCC_USB1_PHY_CFG_AHB_CLK] = DEFINE_DUMMY_CLK(gcc_usb1_phy_cfg_ahb_clk),
+	[GCC_USB1_PIPE_CLK] = DEFINE_DUMMY_CLK(gcc_usb1_pipe_clk),
+	[GCC_USB1_SLEEP_CLK] = DEFINE_DUMMY_CLK(gcc_usb1_sleep_clk),
+	[GCC_CMN_12GPLL_AHB_CLK] = DEFINE_DUMMY_CLK(gcc_cmn_12gpll_ahb_clk),
+	[GCC_CMN_12GPLL_SYS_CLK] = DEFINE_DUMMY_CLK(gcc_cmn_12gpll_sys_clk),
+	[GCC_SDCC1_ICE_CORE_CLK] = DEFINE_DUMMY_CLK(gcc_sdcc1_ice_core_clk),
+	[SDCC1_ICE_CORE_CLK_SRC] = DEFINE_DUMMY_CLK(sdcc1_ice_core_clk_src),
+};
+
 static const struct qcom_reset_map gcc_ipq807x_resets[] = {
 	[GCC_BLSP1_BCR] = { 0x01000, 0 },
 	[GCC_BLSP1_QUP1_BCR] = { 0x02000, 0 },
@@ -5333,6 +5641,7 @@ static const struct qcom_reset_map gcc_ipq807x_resets[] = {
 
 static const struct of_device_id gcc_ipq807x_match_table[] = {
 	{ .compatible = "qcom,gcc-ipq807x" },
+	{ .compatible = "qcom,gcc-ipq807x-v2" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, gcc_ipq807x_match_table);
@@ -5353,11 +5662,22 @@ static const struct qcom_cc_desc gcc_ipq807x_desc = {
 	.num_resets = ARRAY_SIZE(gcc_ipq807x_resets),
 };
 
+static const struct qcom_cc_desc gcc_ipq807x_v2_desc = {
+	.config = &gcc_ipq807x_regmap_config,
+	.clks = gcc_ipq807x_v2_clks,
+	.num_clks = ARRAY_SIZE(gcc_ipq807x_v2_clks),
+	.resets = gcc_ipq807x_resets,
+	.num_resets = ARRAY_SIZE(gcc_ipq807x_resets),
+};
+
 static int gcc_ipq807x_probe(struct platform_device *pdev)
 {
 	int ret, i;
 	struct regmap *regmap;
 	struct clk *clk;
+
+	if (of_device_is_compatible(pdev->dev.of_node, "qcom,gcc-ipq807x-v2"))
+		return qcom_cc_probe(pdev, &gcc_ipq807x_v2_desc);
 
 	regmap = qcom_cc_map(pdev, &gcc_ipq807x_desc);
 	if (IS_ERR(regmap))
