@@ -73,6 +73,7 @@ static int scm_restart_reason_reboot(struct notifier_block *nb,
 
 static struct notifier_block reboot_nb = {
 	.notifier_call = scm_restart_reason_reboot,
+	.priority = INT_MIN,
 };
 
 static int scm_restart_reason_probe(struct platform_device *pdev)
