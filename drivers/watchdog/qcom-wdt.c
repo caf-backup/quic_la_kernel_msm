@@ -315,7 +315,34 @@ const struct qcom_wdt_props qcom_wdt_props_ipq807x = {
 	 * so when we pass 400K as argument 512K will be allocated.
 	 * 112K is unused currently and can be used based on future needs.
 	 */
-	.crashdump_page_size = (SZ_8K + (384 * SZ_1K) + (SZ_8K)),
+	/*
+	 * The memory is allocated using alloc_pages, hence it will be in
+	 * power of 2. The unused memory is the result of using alloc_pages.
+	 * As we need contigous memory for > 256K we have to use alloc_pages.
+	 *
+	 *		 ---------------
+	 *		|      8K	|
+	 *		|    regsave	|
+	 *		 ---------------
+	 *		|		|
+	 *		|     384K	|
+	 *		|    NSS IMEM	|
+	 *		|		|
+	 *		|		|
+	 *		 ---------------
+	 *		|      8K	|
+	 *		|    PMIC mem	|
+	 *		 ---------------
+	 *		|    3K - DCC	|
+	 *		 ---------------
+	 *		|		|
+	 *		|     109K	|
+	 *		|    Unused	|
+	 *		|		|
+	 *		 ---------------
+	 */
+	.crashdump_page_size = (SZ_8K + (384 * SZ_1K) + (SZ_8K) + (3 * SZ_1K) +
+				(109 * SZ_1K)),
 };
 
 const struct qcom_wdt_props qcom_wdt_props_ipq40xx = {
