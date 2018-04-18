@@ -15,6 +15,9 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <dt-bindings/clock/qcom,gcc-ipq807x.h>
+#include <dt-bindings/reset/qcom,gcc-ipq807x.h>
+
 / {
 	#address-cells = <0x2>;
 	#size-cells = <0x2>;
@@ -149,9 +152,10 @@
 
 
 		gcc: qcom,gcc@1800000 {
-			compatible = "qcom,gcc-dummy-ipq807x";
+			compatible = "qcom,gcc-ipq807x-v2";
 			reg = <0x1800000 0x80000>;
 			#clock-cells = <0x1>;
+			#reset-cells = <1>;
 		};
 
 		serial@78af000 {
@@ -159,8 +163,8 @@
 			reg = <0x78af000 0x200>;
 			interrupts = <0x0 107 0x0>;
 			status = "ok";
-			clocks = <&gcc 0>,
-				 <&gcc 0>;
+			clocks = <&gcc GCC_BLSP1_UART1_APPS_CLK>,
+				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
 		};
 
@@ -450,6 +454,20 @@
 			};
 		};
 
+	};
+
+	clocks {
+		sleep_clk: sleep_clk {
+			compatible = "fixed-clock";
+			clock-frequency = <32000>;
+			#clock-cells = <0>;
+		};
+
+		xo: xo {
+			compatible = "fixed-clock";
+			clock-frequency = <19200000>;
+			#clock-cells = <0>;
+		};
 	};
 
 	chosen {
