@@ -19,6 +19,7 @@
 #define SCM_SVC_INFO			0x6
 #define SCM_SVC_FUSE			0x8
 #define SCM_SVC_TZSCHEDULER		0xFC
+#define SCM_CMD_SEC_AUTH		0x15
 
 #define SCM_IO_READ	1
 #define SCM_IO_WRITE	2

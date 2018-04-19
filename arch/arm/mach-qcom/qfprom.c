@@ -29,6 +29,10 @@
 #include <asm/mach-types.h>
 #include <asm/cacheflush.h>
 #include <linux/dma-mapping.h>
+#include <linux/platform_device.h>
+#include <linux/uaccess.h>
+#include <linux/io.h>
+#include <linux/of.h>
 
 #define QFPROM_MAX_VERSION_EXCEEDED             0x10
 #define QFPROM_ROW_READ_CMD			0x8
@@ -43,7 +47,34 @@
 #define SW_TYPE_HLOS				0x17
 #define SW_TYPE_RPM				0xA
 
+static struct qfprom {
+	unsigned img_addr;
+	unsigned img_size;
+} qfprom;
+
 static int gl_version_enable;
+
+/**
+ * qfprom_sec_boot_status() - Check if the board is signed
+ */
+int qfprom_sec_boot_status(void)
+{
+	int ret = 0;
+	char buf;
+
+	ret = scm_call(SCM_SVC_FUSE, QFPROM_IS_AUTHENTICATE_CMD,
+			NULL, 0, &buf, sizeof(char));
+
+	if (ret) {
+		pr_err("%s: Error in QFPROM read : %d\n",
+				__func__, ret);
+		return -1;
+	} else if (buf == 1)
+		return 1;
+	else
+		return 0;
+}
+EXPORT_SYMBOL(qfprom_sec_boot_status);
 
 static ssize_t
 qfprom_show_authenticate(struct device *dev,
@@ -51,17 +82,13 @@ qfprom_show_authenticate(struct device *dev,
 			char *buf)
 {
 	int ret;
-	ret = scm_call(SCM_SVC_FUSE, QFPROM_IS_AUTHENTICATE_CMD,
-			NULL, 0, buf, sizeof(char));
 
-	if (ret) {
-		pr_err("%s: Error in QFPROM read : %d\n",
-						__func__, ret);
+	ret = qfprom_sec_boot_status();
+	if (ret == -1)
 		return ret;
-	}
 
 	/* show needs a string response */
-	if (buf[0] == 1)
+	if (ret == 1)
 		buf[0] = '1';
 	else
 		buf[0] = '0';
@@ -288,6 +315,129 @@ store_rpm_version(struct device *dev,
 	return generic_version(buf, SW_TYPE_RPM, 2, count);
 }
 
+int qfprom_sec_auth(unsigned int sw_type, unsigned int img_size,
+					unsigned int load_addr)
+{
+	int ret;
+	struct {
+		unsigned type;
+		unsigned size;
+		unsigned addr;
+	} cmd_buf;
+
+	cmd_buf.type = sw_type;
+	cmd_buf.size = img_size;
+	cmd_buf.addr = load_addr;
+	ret = scm_call(SCM_SVC_BOOT, SCM_CMD_SEC_AUTH, &cmd_buf,
+				sizeof(cmd_buf), NULL, 0);
+
+	return ret;
+}
+EXPORT_SYMBOL(qfprom_sec_auth);
+
+/*
+ * scm_sec_auth_available() - Check if SEC_AUTH is supported.
+ *
+ * Return true if SEC_AUTH is supported, false if not.
+ */
+bool scm_sec_auth_available(void)
+{
+	int ret;
+
+	ret = scm_is_call_available(SCM_SVC_BOOT,
+					SCM_CMD_SEC_AUTH);
+	return ret > 0 ? true : false;
+}
+EXPORT_SYMBOL(scm_sec_auth_available);
+
+/*
+ * store_sec_auth() - Vadlidates the signed image components.
+ */
+
+static ssize_t
+store_sec_auth(struct device *dev,
+			struct device_attribute *sec_attr,
+			const char *buf, size_t count)
+{
+	int ret;
+	long size, sw_type;
+	char *sw, *file_name, *sec_auth_str;
+	static void __iomem *file_buf;
+	struct file *file;
+	struct kstat st;
+
+	file_name = kzalloc(count+1, GFP_KERNEL);
+	if (file_name == NULL)
+		return -ENOMEM;
+
+	sec_auth_str = file_name;
+	strlcpy(file_name, buf, count+1);
+
+	/*
+	 * Parse the input string from the sysfs entry
+	 * to get the image name and software type.
+	 *
+	 */
+	sw = strsep(&file_name, " ");
+	if (kstrtol(sw, 0, &sw_type) != 0) {
+		pr_err("sw_type str to long conversion failed\n");
+		ret = 0;
+		goto free_mem;
+	}
+
+	file = filp_open(file_name, O_RDONLY, 0);
+	if (IS_ERR(file)) {
+		pr_err("%s File open failed\n", file_name);
+		ret = -EBADF;
+		goto free_mem;
+	}
+
+	ret = vfs_getattr(&file->f_path, &st);
+	if (ret) {
+		pr_err("get file attributes failed\n");
+		goto file_close;
+	}
+	size = (long)st.size;
+
+	if (size > qfprom.img_size) {
+		pr_err("File size exceeds allocated memory region\n");
+		goto file_close;
+	}
+
+	file_buf = ioremap_nocache(qfprom.img_addr, size);
+	if (file_buf == NULL) {
+		ret = NULL;
+		goto file_close;
+	}
+
+	/* Read the contents of the image */
+	ret = kernel_read(file, 0, file_buf, size);
+	if (ret != size) {
+		pr_err("%s file read failed\n", file_name);
+		goto un_map;
+	}
+
+	/* Validte the image */
+	ret = qfprom_sec_auth(sw_type, size, qfprom.img_addr);
+	if (ret) {
+		pr_err("sec_upgrade_auth failed with return=%d\n", ret);
+		goto un_map;
+	}
+	ret = count;
+
+un_map:
+	iounmap(file_buf);
+file_close:
+	filp_close(file, NULL);
+free_mem:
+	kfree(sec_auth_str);
+	return ret;
+}
+
+static struct device_attribute sec_attr =
+	__ATTR(sec_auth, 0644, NULL, store_sec_auth);
+
+struct kobject *sec_kobj;
 /*
  * Do not change the order of attributes.
  * New types should be added at the end
@@ -374,10 +524,11 @@ err_ver:
 	return ret;
 }
 
-static int __init qfprom_init(void)
+static int qfprom_probe(struct platform_device *pdev)
 {
-	int err;
+	int err, ret;
 	int16_t sw_bitmap = 0;
+	struct device_node *np = pdev->dev.of_node;
 
 	gl_version_enable = is_version_rlbk_enabled(&sw_bitmap);
 	if (gl_version_enable == 0)
@@ -391,8 +542,67 @@ static int __init qfprom_init(void)
 			__func__, err);
 		return err;
 	}
-	err = device_register(&device_qfprom);
+
+	device_register(&device_qfprom);
+
+	ret = of_property_read_u32(np, "img-size", &qfprom.img_size);
+	if (ret) {
+		pr_err("Read of property:img-size from node failed\n");
+		return ret;
+	}
+
+	ret = of_property_read_u32(np, "img-addr", &qfprom.img_addr);
+	if (ret) {
+		pr_err("Read of property:img-addr from node failed\n");
+		return ret;
+	}
+
+	/*
+	 * Registering sec_auth under "/sys/sec_authenticate"
+	   only if board is secured
+	 */
+	ret = qfprom_sec_boot_status();
+	if (ret == -1) {
+		pr_err("%s: Error in QFPROM read : %d\n", __func__, ret);
+		return ret;
+	}
+
+	if (ret == 1) {
+		/*
+		 * Checking if secure sysupgrade scm_call is supported
+		 */
+		if (!scm_sec_auth_available()) {
+			pr_info("scm_sec_auth_available is not supported\n");
+		} else {
+			sec_kobj = kobject_create_and_add("sec_upgrade", NULL);
+			if (!sec_kobj) {
+				pr_info("Failed to register sec_upgrade sysfs\n");
+				return -ENOMEM;
+			}
+
+			err = sysfs_create_file(sec_kobj, &sec_attr.attr);
+			if (err) {
+				pr_info("Failed to register sec_auth sysfs\n");
+				kobject_put(sec_kobj);
+				sec_kobj = NULL;
+			}
+		}
+	}
 
 	return qfprom_create_files(ARRAY_SIZE(qfprom_attrs), sw_bitmap);
 }
-arch_initcall(qfprom_init);
+
+static const struct of_device_id qfprom_dt_match[] = {
+	{ .compatible = "qca,qfprom-sec",},
+	{}
+};
+
+static struct platform_driver qfprom_driver = {
+	.driver = {
+		.name	= "qfprom",
+		.of_match_table = qfprom_dt_match,
+	},
+	.probe = qfprom_probe,
+};
+
+module_platform_driver(qfprom_driver);
