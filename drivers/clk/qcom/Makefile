@@ -24,7 +24,6 @@ obj-$(CONFIG_IPQ_GCC_806X) += gcc-ipq806x.o
 obj-$(CONFIG_IPQ_GCC_806X) += nss-volt-ipq806x.o
 obj-$(CONFIG_IPQ_LCC_806X) += lcc-ipq806x.o
 obj-$(CONFIG_IPQ_GCC_807x) += gcc-ipq807x.o
-obj-$(CONFIG_IPQ_GCC_807x) += gcc-dummy-ipq807x.o
 obj-$(CONFIG_IPQ_APSS_807x) += apss-ipq807x.o
 obj-$(CONFIG_IPQ_ADSS_807x) += adss-ipq807x.o
 obj-$(CONFIG_MSM_GCC_8660) += gcc-msm8660.o
