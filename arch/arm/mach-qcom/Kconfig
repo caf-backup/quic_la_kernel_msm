@@ -33,6 +33,13 @@ config MSM_RPM_LOG
 	  information about RPM operation. The driver outputs the messages
 	  via a debugfs node.
 
+config QFPROM
+	bool "QFPROM-sysupgrade"
+	help
+	  This option enables QFPROM driver for performing sysupgrade
+	  from kernel, validating if a signed image is valid or not and to
+	  check if a board is a secure boot enabled board or not.
+
 if ARCH_QCOM
 
 menu "Qualcomm SoC Selection"
