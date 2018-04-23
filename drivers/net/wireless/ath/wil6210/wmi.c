@@ -396,6 +396,10 @@ static const char *cmdid2name(u16 cmdid)
 		return "WMI_START_SCHED_SCAN_CMD";
 	case WMI_STOP_SCHED_SCAN_CMDID:
 		return "WMI_STOP_SCHED_SCAN_CMD";
+	case WMI_SET_VRING_PRIORITY_WEIGHT_CMDID:
+		return "WMI_SET_VRING_PRIORITY_WEIGHT_CMD";
+	case WMI_SET_VRING_PRIORITY_CMDID:
+		return "WMI_SET_VRING_PRIORITY_CMD";
 	default:
 		return "Untracked CMD";
 	}
@@ -520,6 +524,10 @@ static const char *eventid2name(u16 eventid)
 		return "WMI_STOP_SCHED_SCAN_EVENT";
 	case WMI_SCHED_SCAN_RESULT_EVENTID:
 		return "WMI_SCHED_SCAN_RESULT_EVENT";
+	case WMI_SET_VRING_PRIORITY_WEIGHT_EVENTID:
+		return "WMI_SET_VRING_PRIORITY_WEIGHT_EVENT";
+	case WMI_SET_VRING_PRIORITY_EVENTID:
+		return "WMI_SET_VRING_PRIORITY_EVENT";
 	default:
 		return "Untracked EVENT";
 	}
@@ -2955,4 +2963,83 @@ int wmi_mgmt_tx(struct wil6210_vif *vif, const u8 *buf, size_t len)
 	kfree(cmd);
 
 	return rc;
+}
+
+int wil_wmi_ring_priority_weight(struct wil6210_vif *vif, size_t num_weights,
+				 u8 *weights)
+{
+	struct wil6210_priv *wil = vif_to_wil(vif);
+	int rc, i;
+	struct wmi_set_vring_priority_weight_cmd cmd;
+	struct {
+		struct wmi_cmd_hdr hdr;
+		struct wmi_set_vring_priority_weight_event evt;
+	} __packed reply = {
+		.evt = {.status = WMI_FW_STATUS_FAILURE},
+	};
+
+	memset(&cmd, 0, sizeof(cmd));
+	if (num_weights > ARRAY_SIZE(cmd.weight)) {
+		wil_err(wil, "too many weights %zu\n", num_weights);
+		return -EINVAL;
+	}
+	for (i = 0; i < num_weights; i++)
+		cmd.weight[i] = weights[i];
+
+	rc = wmi_call(wil, WMI_SET_VRING_PRIORITY_WEIGHT_CMDID, vif->mid, &cmd,
+		      sizeof(cmd), WMI_SET_VRING_PRIORITY_WEIGHT_EVENTID,
+		      &reply, sizeof(reply), WIL_WMI_CALL_GENERAL_TO_MS);
+	if (rc) {
+		wil_err(wil, "SET_VRING_PRIORITY_WEIGHT failed, rc %d\n", rc);
+		return rc;
+	}
+
+	if (reply.evt.status != WMI_FW_STATUS_SUCCESS) {
+		wil_err(wil, "set ring priority weight failed, status %d\n",
+			reply.evt.status);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int wil_wmi_ring_priority(struct wil6210_vif *vif, int ring_idx,
+			  int priority)
+{
+	struct wil6210_priv *wil = vif_to_wil(vif);
+	int rc;
+	struct {
+		struct wmi_set_vring_priority_cmd cmd;
+		struct wmi_vring_priority vring_priority;
+	} __packed cmd = {
+		.vring_priority = {
+			.vring_idx = ring_idx,
+			.priority = priority,
+		},
+	};
+	struct {
+		struct wmi_cmd_hdr hdr;
+		struct wmi_set_vring_priority_event evt;
+	} __packed reply = {
+		.evt = {.status = WMI_FW_STATUS_FAILURE},
+	};
+
+	cmd.cmd.num_of_vrings = (ring_idx == WIL6210_MAX_TX_RINGS ?
+				 WMI_QOS_SET_VIF_PRIORITY : 1);
+
+	rc = wmi_call(wil, WMI_SET_VRING_PRIORITY_CMDID, vif->mid, &cmd,
+		      sizeof(cmd), WMI_SET_VRING_PRIORITY_EVENTID,
+		      &reply, sizeof(reply), WIL_WMI_CALL_GENERAL_TO_MS);
+	if (rc) {
+		wil_err(wil, "SET_VRING_PRIORITY failed, rc %d\n", rc);
+		return rc;
+	}
+
+	if (reply.evt.status != WMI_FW_STATUS_SUCCESS) {
+		wil_err(wil, "set ring priority failed, status %d\n",
+			reply.evt.status);
+		return -EINVAL;
+	}
+
+	return 0;
 }
