@@ -462,6 +462,10 @@ int cnss_wlan_enable(struct device *dev,
 	}
 
 skip_cfg:
+
+	if (mode == CNSS_CALIBRATION)
+		set_bit(CNSS_COLD_BOOT_CAL, &plat_priv->driver_state);
+
 	ret = cnss_wlfw_wlan_mode_send_sync(plat_priv, mode);
 out:
 	return ret;
