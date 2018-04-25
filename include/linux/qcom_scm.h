@@ -1,5 +1,5 @@
-/* Copyright (c) 2010-2015, The Linux Foundation. All rights reserved.
- * Copyright (C) 2015 Linaro Ltd.
+/* Copyright (c) 2010-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2015-2018 Linaro Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -25,7 +25,7 @@ struct log_read {
 	uint32_t buf_size;
 };
 
-#define TZ_SVC_CRYPTO 10
+#define TZ_SVC_CRYPTO	10
 #define TZ_SYSCALL_CREATE_CMD_ID(s, f) \
 	((uint32_t)(((s & 0x3ff) << 10) | (f & 0x3ff)))
 
@@ -103,8 +103,6 @@ extern int qcom_scm_send_cache_dump_addr(u32 cmd_id, void *cmd_buf, u32 size);
 extern int qcom_scm_tzsched(const void *req, size_t req_size,
 				void *resp, size_t resp_size);
 
-#define MAX_APP_NAME_SIZE	32
-
 __packed struct qseecom_unload_app_ireq {
 	uint32_t qsee_cmd_id;
 	uint32_t app_id;
@@ -142,6 +140,8 @@ union qseecom_client_send_data_ireq {
 	struct qseecom_client_send_data_v2_ireq v2;
 };
 
+#define MAX_APP_NAME_SIZE               32
+
 __packed struct qseecom_load_app_ireq {
 	uint32_t qsee_cmd_id;
 	uint32_t mdt_len;		/* Length of the mdt file */
@@ -156,14 +156,25 @@ struct qsee_notify_app {
 	size_t applications_region_size;
 };
 
-extern int qcom_scm_qseecom_notify(void *req, size_t req_size,
-				  void *resp, size_t resp_size);
-extern int qcom_scm_qseecom_load(void *req, size_t req_size,
-				void *resp, size_t resp_size);
-extern int qcom_scm_qseecom_unload(void *req, size_t req_size,
-				  void *resp, size_t resp_size);
-extern int qcom_scm_qseecom_send_data(void *req, size_t req_size,
-				     void *resp, size_t resp_size);
+extern int qcom_scm_qseecom_notify(struct qsee_notify_app *req,
+				  size_t req_size,
+				  struct qseecom_command_scm_resp *resp,
+				  size_t resp_size);
+
+extern int qcom_scm_qseecom_load(struct qseecom_load_app_ireq *req,
+				size_t req_size,
+				struct qseecom_command_scm_resp *resp,
+				size_t resp_size);
+
+extern int qcom_scm_qseecom_send_data(union qseecom_client_send_data_ireq *req,
+				     size_t req_size,
+				     struct qseecom_command_scm_resp *resp,
+				     size_t resp_size);
+
+extern int qcom_scm_qseecom_unload(struct qseecom_unload_app_ireq *req,
+				  size_t req_size,
+				  struct qseecom_command_scm_resp *resp,
+				  size_t resp_size);
 
 #define QCOM_SCM_SVC_FUSE		0x8
 

@@ -93,7 +93,8 @@ generate_key_blob(struct device *dev, struct device_attribute *attr, char *buf)
 	scm_cmd_buf.resp_size = resp_size;
 	scm_cmd_buf.resp_addr = dma_resp_addr;
 
-	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf), 2);
+	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
+				   CLIENT_CMD_CRYPTO_AES);
 
 	dma_unmap_single(dev, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
 	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
@@ -243,7 +244,8 @@ import_key_blob(struct device *dev, struct device_attribute *attr, char *buf)
 	scm_cmd_buf.resp_size = resp_size;
 	scm_cmd_buf.resp_addr = dma_resp_addr;
 
-	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf), 2);
+	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
+				   CLIENT_CMD_CRYPTO_AES);
 
 	dma_unmap_single(dev, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
 	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
@@ -434,7 +436,8 @@ show_sealed_data(struct device *dev, struct device_attribute *attr, char *buf)
 	scm_cmd_buf.resp_size = resp_size;
 	scm_cmd_buf.resp_addr = dma_resp_addr;
 
-	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf), 2);
+	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
+				   CLIENT_CMD_CRYPTO_AES);
 
 	dma_unmap_single(dev, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
 	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
@@ -609,7 +612,8 @@ show_unsealed_data(struct device *dev, struct device_attribute *attr, char *buf)
 	scm_cmd_buf.resp_size = resp_size;
 	scm_cmd_buf.resp_addr = dma_resp_addr;
 
-	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf), 2);
+	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
+				   CLIENT_CMD_CRYPTO_AES);
 
 	dma_unmap_single(dev, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
 	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
@@ -676,7 +680,7 @@ generate_rsa_key_blob(struct device *dev, struct device_attribute *attr,
 	struct page *req_page = NULL;
 	struct page *resp_page = NULL;
 
-	rsa_key_blob = memset(rsa_key_blob, 0, rsa_key_blob_len);
+	rsa_key_blob = memset(rsa_key_blob, 0, RSA_KEY_BLOB_SIZE);
 	rsa_key_blob_len = 0;
 
 	dev = qdev;
@@ -739,7 +743,8 @@ generate_rsa_key_blob(struct device *dev, struct device_attribute *attr,
 	scm_cmd_buf.resp_size = resp_size;
 	scm_cmd_buf.resp_addr = dma_resp_addr;
 
-	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf), 3);
+	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
+				   CLIENT_CMD_CRYPTO_RSA);
 
 	dma_unmap_single(dev, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
 	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
@@ -913,7 +918,8 @@ import_rsa_key_blob(struct device *dev, struct device_attribute *attr,
 	scm_cmd_buf.resp_size = resp_size;
 	scm_cmd_buf.resp_addr = dma_resp_addr;
 
-	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf), 3);
+	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
+				   CLIENT_CMD_CRYPTO_RSA);
 
 	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
 	dma_unmap_single(dev, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
@@ -1105,7 +1111,8 @@ show_rsa_signed_data(struct device *dev, struct device_attribute *attr,
 	scm_cmd_buf.resp_size = resp_size;
 	scm_cmd_buf.resp_addr = dma_resp_addr;
 
-	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf), 3);
+	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
+				   CLIENT_CMD_CRYPTO_RSA);
 
 	dma_unmap_single(dev, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
 	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
@@ -1285,7 +1292,8 @@ verify_rsa_signed_data(struct device *dev, struct device_attribute *attr,
 	scm_cmd_buf.resp_size = resp_size;
 	scm_cmd_buf.resp_addr = dma_resp_addr;
 
-	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf), 3);
+	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
+				   CLIENT_CMD_CRYPTO_RSA);
 
 	dma_unmap_single(dev, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
 	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
@@ -1386,6 +1394,21 @@ static int __init rsa_sec_key_init(void)
 	struct page *rsa_sign_data_buf_page = NULL;
 	struct page *rsa_plain_data_buf_page = NULL;
 
+	rsa_sec_kobj = kobject_create_and_add("rsa_sec_key", rsa_sec_kobj);
+
+	if (!rsa_sec_kobj) {
+		pr_info("\nFailed to register rsa_sec_key sysfs\n");
+		return -ENOMEM;
+	}
+
+	err = sysfs_create_group(rsa_sec_kobj, &rsa_sec_key_attr_grp);
+
+	if (err) {
+		kobject_put(rsa_sec_kobj);
+		rsa_sec_kobj = NULL;
+		return err;
+	}
+
 	rsa_key_blob_page = alloc_pages(GFP_KERNEL,
 				       get_order(RSA_KEY_BLOB_SIZE));
 	rsa_import_modulus_page = alloc_pages(GFP_KERNEL,
@@ -1403,30 +1426,41 @@ static int __init rsa_sec_key_init(void)
 	   !rsa_import_public_exponent_page || !rsa_import_pvt_exponent_page ||
 	   !rsa_sign_data_buf_page || !rsa_plain_data_buf_page) {
 		pr_err("\nCannot allocate memory for RSA secure-key ops\n");
+
 		if (rsa_key_blob_page)
 			free_pages((unsigned long)
 				  page_address(rsa_key_blob_page),
 				  get_order(RSA_KEY_BLOB_SIZE));
+
 		if (rsa_import_modulus_page)
 			free_pages((unsigned long)
 				  page_address(rsa_import_modulus_page),
 				  get_order(RSA_KEY_SIZE_MAX));
+
 		if (rsa_import_public_exponent_page)
 			free_pages((unsigned long)
 				  page_address(rsa_import_public_exponent_page),
 				  get_order(RSA_KEY_SIZE_MAX));
+
 		if (rsa_import_pvt_exponent_page)
 			free_pages((unsigned long)
 				  page_address(rsa_import_pvt_exponent_page),
 				  get_order(RSA_KEY_SIZE_MAX));
+
 		if (rsa_sign_data_buf_page)
 			free_pages((unsigned long)
 				  page_address(rsa_sign_data_buf_page),
 				  get_order(MAX_RSA_SIGN_DATA_SIZE));
+
 		if (rsa_plain_data_buf_page)
 			free_pages((unsigned long)
 				  page_address(rsa_plain_data_buf_page),
 				  get_order(MAX_PLAIN_DATA_SIZE));
+
+		sysfs_remove_group(rsa_sec_kobj, &rsa_sec_key_attr_grp);
+		kobject_put(rsa_sec_kobj);
+		rsa_sec_kobj = NULL;
+
 		return -ENOMEM;
 	}
 
@@ -1438,21 +1472,6 @@ static int __init rsa_sec_key_init(void)
 	rsa_sign_data_buf = page_address(rsa_sign_data_buf_page);
 	rsa_plain_data_buf = page_address(rsa_plain_data_buf_page);
 
-	rsa_sec_kobj = kobject_create_and_add("rsa_sec_key", rsa_sec_kobj);
-
-	if (!rsa_sec_kobj) {
-		pr_info("\nFailed to register rsa_sec_key sysfs\n");
-		return -ENOMEM;
-	}
-
-	err = sysfs_create_group(rsa_sec_kobj, &rsa_sec_key_attr_grp);
-
-	if (err) {
-		kobject_put(rsa_sec_kobj);
-		rsa_sec_kobj = NULL;
-		return err;
-	}
-
 	return 0;
 }
 
@@ -1463,37 +1482,6 @@ static int __init sec_key_init(void)
 	struct page *key_blob_page = NULL;
 	struct page *sealed_buf_page = NULL;
 	struct page *unsealed_buf_page = NULL;
-
-	key_page = alloc_pages(GFP_KERNEL, get_order(KEY_SIZE));
-	key_blob_page = alloc_pages(GFP_KERNEL, get_order(KEY_BLOB_SIZE));
-	sealed_buf_page = alloc_pages(GFP_KERNEL,
-				     get_order(MAX_ENCRYPTED_DATA_SIZE));
-	unsealed_buf_page = alloc_pages(GFP_KERNEL,
-				       get_order(MAX_PLAIN_DATA_SIZE));
-
-	if (!key_page || !key_blob_page ||
-	   !sealed_buf_page || !unsealed_buf_page) {
-		pr_err("\nCannot allocate memory for secure-key ops\n");
-		if (key_page)
-			free_pages((unsigned long)page_address(key_page),
-				  get_order(KEY_SIZE));
-		if (key_blob_page)
-			free_pages((unsigned long)page_address(key_blob_page),
-				  get_order(KEY_BLOB_SIZE));
-		if (sealed_buf_page)
-			free_pages((unsigned long)page_address(sealed_buf_page),
-				  get_order(MAX_ENCRYPTED_DATA_SIZE));
-		if (unsealed_buf_page)
-			free_pages((unsigned long)
-				  page_address(unsealed_buf_page),
-				  get_order(MAX_PLAIN_DATA_SIZE));
-		return -ENOMEM;
-	}
-
-	key = page_address(key_page);
-	key_blob = page_address(key_blob_page);
-	sealed_buf = page_address(sealed_buf_page);
-	unsealed_buf = page_address(unsealed_buf_page);
 
 	sec_kobj = kobject_create_and_add("sec_key", NULL);
 
@@ -1509,6 +1497,45 @@ static int __init sec_key_init(void)
 		sec_kobj = NULL;
 		return err;
 	}
+
+	key_page = alloc_pages(GFP_KERNEL, get_order(KEY_SIZE));
+	key_blob_page = alloc_pages(GFP_KERNEL, get_order(KEY_BLOB_SIZE));
+	sealed_buf_page = alloc_pages(GFP_KERNEL,
+				     get_order(MAX_ENCRYPTED_DATA_SIZE));
+	unsealed_buf_page = alloc_pages(GFP_KERNEL,
+				       get_order(MAX_PLAIN_DATA_SIZE));
+
+	if (!key_page || !key_blob_page ||
+	   !sealed_buf_page || !unsealed_buf_page) {
+		pr_err("\nCannot allocate memory for secure-key ops\n");
+		if (key_page)
+			free_pages((unsigned long)page_address(key_page),
+				  get_order(KEY_SIZE));
+
+		if (key_blob_page)
+			free_pages((unsigned long)page_address(key_blob_page),
+				  get_order(KEY_BLOB_SIZE));
+
+		if (sealed_buf_page)
+			free_pages((unsigned long)page_address(sealed_buf_page),
+				  get_order(MAX_ENCRYPTED_DATA_SIZE));
+
+		if (unsealed_buf_page)
+			free_pages((unsigned long)
+				  page_address(unsealed_buf_page),
+				  get_order(MAX_PLAIN_DATA_SIZE));
+
+		sysfs_remove_group(sec_kobj, &sec_key_attr_grp);
+		kobject_put(sec_kobj);
+		sec_kobj = NULL;
+
+		return -ENOMEM;
+	}
+
+	key = page_address(key_page);
+	key_blob = page_address(key_blob_page);
+	sealed_buf = page_address(sealed_buf_page);
+	unsealed_buf = page_address(unsealed_buf_page);
 
 	return 0;
 }
@@ -1593,7 +1620,6 @@ static int qseecom_unload_app(void)
 	struct qseecom_command_scm_resp resp;
 	int ret;
 
-	req.qsee_cmd_id = QSEOS_APP_SHUTDOWN_COMMAND;
 	req.app_id = qsee_app_id;
 
 	/* SCM_CALL to unload the app */
@@ -1729,7 +1755,6 @@ static int tzapp_test(struct device *dev, void *input,
 			msgreq->test_buf_size = input_len;
 			msgreq->len = input_len;
 		}
-		send_data_req.v1.qsee_cmd_id = QSEOS_CLIENT_SEND_DATA_COMMAND;
 		send_data_req.v1.app_id = qsee_app_id;
 
 		send_data_req.v1.req_ptr = dma_map_single(dev, msgreq,
@@ -1745,7 +1770,7 @@ static int tzapp_test(struct device *dev, void *input,
 					sizeof(struct qsee_32_send_cmd);
 			send_data_req.v1.rsp_len =
 					sizeof(struct qsee_send_cmd_rsp);
-			ret = qcom_scm_qseecom_send_data(&send_data_req.v1,
+			ret = qcom_scm_qseecom_send_data(&send_data_req,
 							sizeof(send_data_req.v1)
 							, &resp, sizeof(resp));
 		}
@@ -1903,7 +1928,6 @@ fn_exit_1:
 			msgreq->test_buf_size = input_len;
 			msgreq->len = input_len;
 		}
-		send_data_req.v1.qsee_cmd_id = QSEOS_CLIENT_SEND_DATA_COMMAND;
 		send_data_req.v1.app_id = qsee_app_id;
 
 		send_data_req.v1.req_ptr = dma_map_single(dev, msgreq,
@@ -1920,7 +1944,7 @@ fn_exit_1:
 					sizeof(struct qsee_64_send_cmd);
 			send_data_req.v1.rsp_len =
 					sizeof(struct qsee_send_cmd_rsp);
-			ret = qcom_scm_qseecom_send_data(&send_data_req.v2,
+			ret = qcom_scm_qseecom_send_data(&send_data_req,
 							sizeof(send_data_req.v2)
 							, &resp, sizeof(resp));
 		}
@@ -2036,7 +2060,6 @@ static int load_app(struct device *dev)
 
 	/* Populate the structure for sending scm call to load image */
 	strlcpy(load_req.app_name, "sampleapp", sizeof("sampleapp"));
-	load_req.qsee_cmd_id = QSEOS_APP_START_COMMAND;
 	load_req.mdt_len = mdt_size;
 	load_req.img_len = img_size;
 	load_req.phy_addr = dma_map_single(dev, qsee_sbuffer,
@@ -2324,7 +2347,6 @@ static int __init qseecom_probe(struct platform_device *pdev)
 		goto load;
 	}
 
-	notify_app.cmd_id = QSEE_APP_NOTIFY_COMMAND;
 	notify_app.applications_region_addr = start;
 	notify_app.applications_region_size = size;
 
@@ -2417,6 +2439,14 @@ static int __exit qseecom_remove(struct platform_device *pdev)
 		if (rsa_import_pvt_exponent)
 			free_pages((unsigned long)rsa_import_pvt_exponent,
 				  get_order(RSA_KEY_SIZE_MAX));
+
+		if (rsa_sign_data_buf)
+			free_pages((unsigned long)rsa_sign_data_buf,
+				  get_order(MAX_RSA_SIGN_DATA_SIZE));
+
+		if (rsa_plain_data_buf)
+			free_pages((unsigned long)rsa_plain_data_buf,
+				  get_order(MAX_PLAIN_DATA_SIZE));
 
 		sysfs_remove_group(rsa_sec_kobj, &rsa_sec_key_attr_grp);
 		kobject_put(rsa_sec_kobj);

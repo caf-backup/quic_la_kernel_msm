@@ -1,8 +1,8 @@
 /*
  * Qualcomm SCM driver
  *
- * Copyright (c) 2010,2015, The Linux Foundation. All rights reserved.
- * Copyright (C) 2015 Linaro Ltd.
+ * Copyright (c) 2010, 2015-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2015-2018 Linaro Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -80,8 +80,9 @@ static void qcom_scm_clk_disable(void)
 	clk_disable_unprepare(__scm->bus_clk);
 }
 
-int qcom_scm_qseecom_notify(void *req, size_t req_size,
-			   void *resp, size_t resp_size)
+int qcom_scm_qseecom_notify(struct qsee_notify_app *req, size_t req_size,
+			   struct qseecom_command_scm_resp *resp,
+			   size_t resp_size)
 {
 	int ret = 0;
 
@@ -92,8 +93,9 @@ int qcom_scm_qseecom_notify(void *req, size_t req_size,
 }
 EXPORT_SYMBOL(qcom_scm_qseecom_notify);
 
-int qcom_scm_qseecom_load(void *req, size_t req_size,
-			 void *resp, size_t resp_size)
+int qcom_scm_qseecom_load(struct qseecom_load_app_ireq *req, size_t req_size,
+			 struct qseecom_command_scm_resp *resp,
+			 size_t resp_size)
 {
 	int ret = 0;
 
@@ -104,20 +106,10 @@ int qcom_scm_qseecom_load(void *req, size_t req_size,
 }
 EXPORT_SYMBOL(qcom_scm_qseecom_load);
 
-int qcom_scm_qseecom_unload(void *req, size_t req_size,
-			   void *resp, size_t resp_size)
-{
-	int ret = 0;
-
-	ret = __qcom_scm_qseecom_unload(__scm->dev, req, req_size,
-				       resp, resp_size);
-
-	return ret;
-}
-EXPORT_SYMBOL(qcom_scm_qseecom_unload);
-
-int qcom_scm_qseecom_send_data(void *req, size_t req_size,
-			      void *resp, size_t resp_size)
+int qcom_scm_qseecom_send_data(union qseecom_client_send_data_ireq *req,
+			      size_t req_size,
+			      struct qseecom_command_scm_resp *resp,
+			      size_t resp_size)
 {
 	int ret = 0;
 
@@ -127,6 +119,20 @@ int qcom_scm_qseecom_send_data(void *req, size_t req_size,
 	return ret;
 }
 EXPORT_SYMBOL(qcom_scm_qseecom_send_data);
+
+int qcom_scm_qseecom_unload(struct qseecom_unload_app_ireq *req,
+			   size_t req_size,
+			   struct qseecom_command_scm_resp *resp,
+			   size_t resp_size)
+{
+	int ret = 0;
+
+	ret = __qcom_scm_qseecom_unload(__scm->dev, req, req_size,
+				       resp, resp_size);
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_scm_qseecom_unload);
 
 int qcom_scm_tls_hardening(struct scm_cmd_buf_t *scm_cmd_buf, size_t buf_size,
 			  u32 cmd_id)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -13,7 +13,7 @@
 #define __QCOM_SCM_INT_H
 
 #include <linux/qcom_scm.h>
-#define QCOM_SCM_SVC_BOOT		0x1
+#define QCOM_SCM_SVC_BOOT			0x1
 #define SET_MAGIC				0x1
 #define CLEAR_MAGIC				0x0
 #define SCM_CMD_TZ_CONFIG_HW_FOR_RAM_DUMP_ID	0x9
@@ -21,12 +21,29 @@
 #define SCM_CMD_TZ_SET_DLOAD_FOR_SECURE_BOOT	0x14
 #define SCM_CMD_PSHOLD				0x15
 
-#define TZ_OWNER_TZ_APPS		48
-#define TZ_OWNER_TZ_APPS_RESERVED	49
 #define TZ_OWNER_QSEE_OS		50
+#define TZ_OWNER_TZ_APPS		48
 #define TZ_SVC_APP_MGR			1     /* Application management */
-#define MAX_APP_NAME_SIZE		32
 #define TZ_SVC_APP_ID_PLACEHOLDER	0     /* SVC bits will contain App ID */
+
+#define TZ_ARMv8_CMD_NOTIFY_REGION_ID		0x05
+#define TZ_ARMv8_CMD_LOAD_APP_ID		0x01
+#define TZ_ARMv8_CMD_SEND_DATA_ID		0x01
+#define TZ_ARMv8_CMD_UNLOAD_APP_ID		0x02
+
+enum qseecom_qceos_cmd_id {
+	QSEOS_APP_START_COMMAND	= 0x01,
+	QSEOS_APP_SHUTDOWN_COMMAND,
+	QSEOS_APP_LOOKUP_COMMAND,
+	QSEOS_REGISTER_LISTENER,
+	QSEOS_DEREGISTER_LISTENER,
+	QSEOS_CLIENT_SEND_DATA_COMMAND,
+	QSEOS_LISTENER_DATA_RSP_COMMAND,
+	QSEOS_LOAD_EXTERNAL_ELF_COMMAND,
+	QSEOS_UNLOAD_EXTERNAL_ELF_COMMAND,
+	QSEOS_CMD_MAX		= 0xEFFFFFFF,
+	QSEE_APP_NOTIFY_COMMAND	= 13
+};
 
 #define TZ_SYSCALL_CREATE_SMC_ID(o, s, f) \
 	((uint32_t)((((o & 0x3f) << 24) | (s & 0xff) << 8) | (f & 0xff)))
@@ -175,6 +192,7 @@ extern int qcom_scm_pshold(void);
 #define SCM_SVC_IO_ACCESS	0x5
 #define SCM_CMD_CACHE_BUFFER_DUMP	0x5
 #define SCM_SVC_TZSCHEDULER	0xFC
+#define SCM_CMD_TZSCHEDULER	0x1
 
 s32 __qcom_scm_pinmux_read(u32 svc_id, u32 cmd_id, u32 arg1);
 s32 __qcom_scm_pinmux_write(u32 svc_id, u32 cmd_id, u32 arg1, u32 arg2);
@@ -190,16 +208,29 @@ extern int __qcom_scm_send_cache_dump_addr(struct device *, u32 cmd_id,
 extern int qcom_scm_get_cache_dump_size(u32 cmd_id, void *cmd_buf, u32 size);
 extern int qcom_scm_send_cache_dump_addr(u32 cmd_id, void *cmd_buf, u32 size);
 
-extern int __qcom_scm_qseecom_notify(struct device *, void *req,
-				     size_t req_size, void *resp,
-				     size_t resp_size);
-extern int __qcom_scm_qseecom_load(struct device *, void *req, size_t req_size,
-				   void *resp, size_t resp_size);
-extern int __qcom_scm_qseecom_unload(struct device *, void *req,
-				     size_t req_size, void *resp,
-				     size_t resp_size);
-extern int __qcom_scm_qseecom_send_data(struct device *, void *req, size_t
-					req_size, void *resp, size_t resp_size);
+extern int __qcom_scm_qseecom_notify(struct device *,
+				    struct qsee_notify_app *req,
+				    size_t req_size,
+				    struct qseecom_command_scm_resp *resp,
+				    size_t resp_size);
+
+extern int __qcom_scm_qseecom_load(struct device *,
+				  struct qseecom_load_app_ireq *req,
+				  size_t req_size,
+				  struct qseecom_command_scm_resp *resp,
+				  size_t resp_size);
+
+extern int __qcom_scm_qseecom_send_data(struct device *,
+				       union qseecom_client_send_data_ireq *req,
+				       size_t req_size,
+				       struct qseecom_command_scm_resp *resp,
+				       size_t resp_size);
+
+extern int __qcom_scm_qseecom_unload(struct device *,
+				    struct qseecom_unload_app_ireq *req,
+				    size_t req_size,
+				    struct qseecom_command_scm_resp *resp,
+				    size_t resp_size);
 
 extern int __qcom_scm_tzsched(struct device *, const void *req,
 				size_t req_size, void *resp,
@@ -229,7 +260,7 @@ extern int __qcom_los_scm_call(struct device *, u32 svc_id, u32 cmd_id,
 #define QCOM_SCM_EBUSY_WAIT_MS 30
 #define QCOM_SCM_EBUSY_MAX_RETRY 20
 
-static inline int qcom_scm_remap_error(int err)
+static inline int qcom_scm_remap_error(long err)
 {
 	switch (err) {
 	case QCOM_SCM_ERROR:

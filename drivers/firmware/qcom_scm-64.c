@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -158,8 +158,8 @@ static int qcom_scm_call(struct device *dev, u32 owner_id, u32 svc_id,
 		kfree(args_virt);
 	}
 
-	if (res->a0 < 0)
-		return qcom_scm_remap_error(res->a0);
+	if ((signed long)res->a0 < 0)
+		return qcom_scm_remap_error((signed long)res->a0);
 
 	return 0;
 }
@@ -520,23 +520,21 @@ int __qcom_scm_sdi(struct device *dev, u32 svc_id, u32 cmd_id)
 	return ret ? : res.a1;
 }
 
-int __qcom_scm_qseecom_notify(struct device *dev, void *request,
-			      size_t req_size, void *response, size_t resp_size)
+int __qcom_scm_qseecom_notify(struct device *dev,
+			     struct qsee_notify_app *req, size_t req_size,
+			     struct qseecom_command_scm_resp *resp,
+			     size_t resp_size)
 {
 	int ret = 0;
 	struct qcom_scm_desc desc = {0};
 	struct arm_smccc_res res;
-	struct qsee_notify_app *req;
-	struct qseecom_command_scm_resp *resp;
 
-	req = (struct qsee_notify_app *)request;
-	resp = (struct qseecom_command_scm_resp *)response;
 	desc.arginfo = SCM_ARGS(2, SCM_RW, SCM_VAL);
 	desc.args[0] = req->applications_region_addr;
 	desc.args[1] = req->applications_region_size;
 
 	ret = qcom_scm_call(dev, TZ_OWNER_QSEE_OS, TZ_SVC_APP_MGR,
-			    0x05, &desc, &res);
+			   TZ_ARMv8_CMD_NOTIFY_REGION_ID, &desc, &res);
 
 	resp->result = res.a1;
 	resp->resp_type = res.a2;
@@ -545,24 +543,22 @@ int __qcom_scm_qseecom_notify(struct device *dev, void *request,
 	return ret;
 }
 
-int __qcom_scm_qseecom_load(struct device *dev, void *request, size_t req_size,
-			    void *response, size_t resp_size)
+int __qcom_scm_qseecom_load(struct device *dev,
+			   struct qseecom_load_app_ireq *req, size_t req_size,
+			   struct qseecom_command_scm_resp *resp,
+			   size_t resp_size)
 {
 	int ret = 0;
 	struct qcom_scm_desc desc = {0};
 	struct arm_smccc_res res;
-	struct qseecom_load_app_ireq *req;
-	struct qseecom_command_scm_resp *resp;
 
-	req = (struct qseecom_load_app_ireq *)request;
-	resp = (struct qseecom_command_scm_resp *)response;
 	desc.arginfo = SCM_ARGS(3, SCM_VAL, SCM_VAL, SCM_VAL);
 	desc.args[0] = req->mdt_len;
 	desc.args[1] = req->img_len;
 	desc.args[2] = req->phy_addr;
 
 	ret = qcom_scm_call(dev, TZ_OWNER_QSEE_OS, TZ_SVC_APP_MGR,
-			    0x01, &desc, &res);
+			    TZ_ARMv8_CMD_LOAD_APP_ID, &desc, &res);
 
 	resp->result = res.a1;
 	resp->resp_type = res.a2;
@@ -571,18 +567,16 @@ int __qcom_scm_qseecom_load(struct device *dev, void *request, size_t req_size,
 	return ret;
 }
 
-int __qcom_scm_qseecom_send_data(struct device *dev, void *request,
-				 size_t req_size, void *response,
-				 size_t resp_size)
+int __qcom_scm_qseecom_send_data(struct device *dev,
+				union qseecom_client_send_data_ireq *req,
+				size_t req_size,
+				struct qseecom_command_scm_resp *resp,
+				size_t resp_size)
 {
 	int ret = 0;
 	struct qcom_scm_desc desc = {0};
 	struct arm_smccc_res res;
-	union qseecom_client_send_data_ireq *req;
-	struct qseecom_command_scm_resp *resp;
 
-	req = (union qseecom_client_send_data_ireq *)request;
-	resp = (struct qseecom_command_scm_resp *)response;
 	desc.arginfo = SCM_ARGS(5, SCM_VAL, SCM_RW, SCM_VAL, SCM_RW, SCM_VAL);
 	desc.args[0] = req->v1.app_id;
 	desc.args[1] = req->v1.req_ptr;
@@ -591,7 +585,7 @@ int __qcom_scm_qseecom_send_data(struct device *dev, void *request,
 	desc.args[4] = req->v1.rsp_len;
 
 	ret = qcom_scm_call(dev, TZ_OWNER_TZ_APPS, TZ_SVC_APP_ID_PLACEHOLDER,
-			    0x01, &desc, &res);
+			   TZ_ARMv8_CMD_SEND_DATA_ID, &desc, &res);
 
 	resp->result = res.a1;
 	resp->resp_type = res.a2;
@@ -600,22 +594,21 @@ int __qcom_scm_qseecom_send_data(struct device *dev, void *request,
 	return ret;
 }
 
-int __qcom_scm_qseecom_unload(struct device *dev, void *request,
-			      size_t req_size, void *response, size_t resp_size)
+int __qcom_scm_qseecom_unload(struct device *dev,
+			     struct qseecom_unload_app_ireq *req,
+			     size_t req_size,
+			     struct qseecom_command_scm_resp *resp,
+			     size_t resp_size)
 {
 	int ret = 0;
 	struct qcom_scm_desc desc = {0};
 	struct arm_smccc_res res;
-	struct qseecom_unload_app_ireq *req;
-	struct qseecom_command_scm_resp *resp;
 
-	req = (struct qseecom_unload_app_ireq *)request;
-	resp = (struct qseecom_command_scm_resp *)response;
 	desc.arginfo = SCM_ARGS(1);
 	desc.args[0] = req->app_id;
 
 	ret = qcom_scm_call(dev, TZ_OWNER_QSEE_OS, TZ_SVC_APP_MGR,
-			    0x02, &desc, &res);
+			    TZ_ARMv8_CMD_UNLOAD_APP_ID, &desc, &res);
 
 	resp->result = res.a1;
 	resp->resp_type = res.a2;
