@@ -37,6 +37,7 @@
 #define QCA6290_RDDM_SIZE		0x401000
 #define QCA6290_SRAM_ADDR		0x1400000
 #define QCA6290_RDDM_HDR_SIZE		392
+#define QCA6290_FW_SEG_LOAD_ADDR	0x20000000
 
 enum cnss_mhi_state {
 	CNSS_MHI_INIT,
@@ -87,6 +88,11 @@ struct cnss_pci_data {
 	u32 msi_ep_base_data;
 	struct mhi_device mhi_dev;
 	unsigned long mhi_state;
+};
+
+struct paging_header {
+	u64 version;   /* dump version */
+	u64 seg_num;   /* paging seg num */
 };
 
 static inline void cnss_set_pci_priv(struct pci_dev *pci_dev, void *data)

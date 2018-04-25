@@ -57,6 +57,7 @@ module_param(pci_link_down_panic, uint, 0600);
 MODULE_PARM_DESC(pci_link_down_panic,
 		 "Trigger kernel panic when PCI link down is detected");
 
+struct paging_header hdr;
 static bool fbc_bypass;
 #ifdef CONFIG_CNSS2_DEBUG
 module_param(fbc_bypass, bool, 0600);
@@ -1237,7 +1238,7 @@ static void *cnss_pci_collect_dump_seg(struct cnss_pci_data *pci_priv,
 	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
 	struct cnss_dump_data *dump_data =
 		&plat_priv->ramdump_info_v2.dump_data;
-	struct cnss_dump_seg *dump_seg = start_addr;
+	struct cnss_dump_seg *dump_seg = start_addr, *hdr_segment;
 	unsigned int addr;
 
 	count = mhi_xfer_rddm(&pci_priv->mhi_dev, type, &sg_list);
@@ -1247,12 +1248,31 @@ static void *cnss_pci_collect_dump_seg(struct cnss_pci_data *pci_priv,
 		return start_addr;
 	}
 
-	addr = QCA6290_SRAM_ADDR - QCA6290_RDDM_HDR_SIZE;
+	if (type == MHI_RDDM_RD_SEGMENT)
+		addr = QCA6290_SRAM_ADDR - QCA6290_RDDM_HDR_SIZE;
+
+	if (type == MHI_RDDM_FW_SEGMENT) {
+		addr = QCA6290_FW_SEG_LOAD_ADDR;
+		hdr.version = 0;
+		hdr.seg_num = count - 1;
+	}
 
 	cnss_pr_dbg("Collect dump seg: type %u, nentries %d\n", type, count);
 
 	for_each_sg(sg_list, s, count, i) {
-		dump_seg->address = sg_dma_address(s);
+		if (type == MHI_RDDM_FW_SEGMENT) {
+			if (i == 0) {
+				hdr_segment = dump_seg++;
+				hdr_segment->address = addr;
+				hdr_segment->v_address = &hdr;
+				hdr_segment->size = sizeof(hdr);
+				hdr_segment->type = MHI_RDDM_FW_SEGMENT;
+				addr += sizeof(hdr);
+				dump_data->nentries += 1;
+			}
+			dump_seg->address = addr;
+			addr += s->length;
+		}
 		dump_seg->v_address = sg_virt(s);
 		dump_seg->size = s->length;
 		dump_seg->type = type;
