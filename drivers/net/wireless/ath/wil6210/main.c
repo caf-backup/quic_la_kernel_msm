@@ -1558,10 +1558,10 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 		if (rc)
 			goto out;
 		if (wil->brd_file_addr)
-			rc = wil_request_board(wil, WIL_BOARD_FILE_NAME);
+			rc = wil_request_board(wil, wil_get_board_file(wil));
 		else
 			rc = wil_request_firmware(wil,
-						  WIL_BOARD_FILE_NAME,
+						  wil_get_board_file(wil),
 						  true);
 		if (rc)
 			goto out;
