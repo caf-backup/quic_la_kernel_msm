@@ -248,7 +248,7 @@ struct sbl_if_dualboot_info_type_v2 *read_bootconfig_emmc(struct gendisk *disk,
 #define BOOTCONFIG_PARTITION	"0:BOOTCONFIG"
 #define BOOTCONFIG_PARTITION1	"0:BOOTCONFIG1"
 #define ROOTFS_PARTITION	"rootfs"
-
+#define MAX_MMC_DEVICE		2
 static int __init bootconfig_partition_init(void)
 {
 	struct per_part_info *part_info;
@@ -283,30 +283,35 @@ static int __init bootconfig_partition_init(void)
 		bootconfig2 = read_bootconfig_mtd(mtd, 0);
 	} else if (flash_type_emmc == 1) {
 		flash_type_emmc = 0;
-		disk = get_gendisk(MKDEV(MMC_BLOCK_MAJOR, 0), &partno);
-		if (!disk)
-			return 0;
+		for (i = 0; i < MAX_MMC_DEVICE; i++) {
 
-		disk_part_iter_init(&piter, disk, DISK_PITER_INCL_PART0);
-		while ((part = disk_part_iter_next(&piter))) {
+			disk = get_gendisk(MKDEV(MMC_BLOCK_MAJOR, i*CONFIG_MMC_BLOCK_MINORS), &partno);
+			if (!disk)
+				return 0;
 
-			if (part->info) {
-				if (!strcmp((char *)part->info->volname,
-						BOOTCONFIG_PARTITION)) {
-					bootconfig1 = read_bootconfig_emmc(disk,
+			disk_part_iter_init(&piter, disk, DISK_PITER_INCL_PART0);
+			while ((part = disk_part_iter_next(&piter))) {
+
+				if (part->info) {
+					if (!strcmp((char *)part->info->volname,
+							BOOTCONFIG_PARTITION)) {
+						bootconfig1 = read_bootconfig_emmc(disk,
 									part);
-				}
+					}
 
-				if (!strcmp((char *)part->info->volname,
-						BOOTCONFIG_PARTITION1)) {
-					bootconfig2 = read_bootconfig_emmc(disk,
+					if (!strcmp((char *)part->info->volname,
+							BOOTCONFIG_PARTITION1)) {
+						bootconfig2 = read_bootconfig_emmc(disk,
 									 part);
-					flash_type_emmc = 1;
+						flash_type_emmc = 1;
+					}
 				}
 			}
-		}
-		disk_part_iter_exit(&piter);
+			disk_part_iter_exit(&piter);
 
+			if (bootconfig1 || bootconfig2)
+			       break;
+		}
 	}
 
 	if (!bootconfig1) {
