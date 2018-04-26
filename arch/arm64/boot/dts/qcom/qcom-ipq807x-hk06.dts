@@ -592,6 +592,7 @@
 &spi_0 { /* BLSP1 QUP1 */
 	pinctrl-0 = <&spi_0_pins>;
 	pinctrl-names = "default";
+	cs-select = <0>;
 	status = "ok";
 
 	m25p80@0 {
