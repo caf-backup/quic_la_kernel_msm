@@ -36,8 +36,13 @@
 #include <linux/msm_mhi.h>
 
 #define MHI_1			0
+
+#ifdef CONFIG_MHI_DCI
 #define MHI_DCI_1		1
 #define NUM_MHI_DEV		2
+#else
+#define NUM_MHI_DEV		1
+#endif
 
 #define TYPE_MHI_READ_CH	0
 #define TYPE_MHI_WRITE_CH	1
