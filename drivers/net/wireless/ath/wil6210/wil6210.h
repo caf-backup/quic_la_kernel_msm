@@ -595,6 +595,7 @@ struct wil_sta_info {
 	u8 mid;
 	enum wil_sta_status status;
 	struct wil_net_stats stats;
+	struct wmi_link_stats_basic fw_stats_basic;
 	/* Rx BACK */
 	struct wil_tid_ampdu_rx *tid_rx[WIL_STA_TID_NUM];
 	spinlock_t tid_rx_lock; /* guarding tid_rx array */
@@ -720,6 +721,14 @@ struct wil6210_vif {
 #endif
 #endif
 	void *umac_vap;
+	bool fw_stats_ready; /* per-cid statistics are ready inside sta_info */
+	u64 fw_stats_tsf; /* measurement timestamp */
+};
+
+struct wil_fw_stats_global {
+	bool ready;
+	u64 tsf; /* measurement timestamp */
+	struct wmi_link_stats_global stats;
 };
 
 struct wil6210_priv {
@@ -846,6 +855,7 @@ struct wil6210_priv {
 	void *umac_handle;
 	struct wil_umac_ops umac_ops;
 	struct wil_umac_rops umac_rops;
+	struct wil_fw_stats_global fw_stats_global;
 };
 
 #define wil_to_wiphy(i) (i->wiphy)
@@ -1063,6 +1073,7 @@ int wmi_new_sta(struct wil6210_vif *vif, const u8 *mac, u8 aid);
 int wmi_port_allocate(struct wil6210_priv *wil, u8 mid,
 		      const u8 *mac, enum nl80211_iftype iftype);
 int wmi_port_delete(struct wil6210_priv *wil, u8 mid);
+int wmi_link_stats_cfg(struct wil6210_vif *vif, u32 type, u8 cid, u32 interval);
 int wil_addba_rx_request(struct wil6210_priv *wil, u8 mid,
 			 u8 cidxtid, u8 dialog_token, __le16 ba_param_set,
 			 __le16 ba_timeout, __le16 ba_seq_ctrl);
