@@ -1118,6 +1118,9 @@ static void wmi_evt_connect(struct wil6210_vif *vif, int id, void *d, int len)
 		}
 
 		cfg80211_new_sta(ndev, evt->bssid, &sinfo, GFP_KERNEL);
+		if (wdev->iftype == NL80211_IFTYPE_AP)
+			wil_indicate_layer2_update(vif, &wil->sta[evt->cid]);
+
 	} else {
 		wil_err(wil, "unhandled iftype %d for CID %d\n", wdev->iftype,
 			evt->cid);
