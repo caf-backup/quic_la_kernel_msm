@@ -1434,6 +1434,7 @@ static void mroute_clean_tables(struct mr_table *mrt, bool all)
 	int i;
 	LIST_HEAD(list);
 	struct mfc_cache *c, *next;
+	uint32_t origin, group;
 
 	/* Shut down all active vif entries */
 
@@ -1450,9 +1451,14 @@ static void mroute_clean_tables(struct mr_table *mrt, bool all)
 		list_for_each_entry_safe(c, next, &mrt->mfc_cache_array[i], list) {
 			if (!all && (c->mfc_flags & MFC_STATIC))
 				continue;
+			origin = c->mfc_origin;
+			group = c->mfc_mcastgrp;
 			list_del_rcu(&c->list);
 			mroute_netlink_event(mrt, c, RTM_DELROUTE);
 			ipmr_cache_free(c);
+
+			/* Inform offload modules of the delete event */
+			ipmr_sync_entry_delete(origin, group);
 		}
 	}
 

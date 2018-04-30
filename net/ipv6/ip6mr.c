@@ -1774,6 +1774,7 @@ static void mroute_clean_tables(struct mr6_table *mrt, bool all)
 	int i;
 	LIST_HEAD(list);
 	struct mfc6_cache *c, *next;
+	struct in6_addr mc_origin, mc_group;
 
 	/*
 	 *	Shut down all active vif entries
@@ -1792,12 +1793,19 @@ static void mroute_clean_tables(struct mr6_table *mrt, bool all)
 		list_for_each_entry_safe(c, next, &mrt->mfc6_cache_array[i], list) {
 			if (!all && (c->mfc_flags & MFC_STATIC))
 				continue;
+			memcpy(&mc_origin, &c->mf6c_origin,
+					sizeof(struct in6_addr));
+			memcpy(&mc_group, &c->mf6c_mcastgrp,
+					sizeof(struct in6_addr));
 			write_lock_bh(&mrt_lock);
 			list_del(&c->list);
 			write_unlock_bh(&mrt_lock);
 
 			mr6_netlink_event(mrt, c, RTM_DELROUTE);
 			ip6mr_cache_free(c);
+
+			/* Inform offload modules of the delete event */
+			ip6mr_sync_entry_delete(&mc_origin, &mc_group);
 		}
 	}
 
