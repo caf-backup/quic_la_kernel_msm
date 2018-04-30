@@ -62,6 +62,7 @@ struct diag_mhi_info diag_mhi[NUM_MHI_DEV] = {
 			.hdl = NULL,
 		}
 	},
+#ifdef CONFIG_MHI_DCI
 	{
 		.id = MHI_DCI_1,
 		.dev_id = DIAGFWD_MDM_DCI,
@@ -82,6 +83,7 @@ struct diag_mhi_info diag_mhi[NUM_MHI_DEV] = {
 			.hdl = NULL,
 		}
 	}
+#endif
 };
 
 static int mhi_ch_open(struct diag_mhi_ch_t *ch)
