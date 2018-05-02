@@ -26,6 +26,7 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/log2.h>
+#include <linux/thermal.h>
 
 #include <dt-bindings/iio/qcom,spmi-vadc.h>
 
@@ -69,6 +70,11 @@
 #define PMP8074_DIE_TEMP_SLOPE_NUM		10
 #define PMP8074_DIE_TEMP_SLOPE_DEN		171
 #define PMP8074_DIE_TEMP_OFFSET			286
+
+#define PMP8074_PA_THERM_SLOPE			2397
+#define PMP8074_PA_THERM_BASE			506
+#define PMP8074_PA_THERM_FACTOR			100
+
 
 enum vadc_reg {
 	VADC_REVISION2,
@@ -143,6 +149,13 @@ struct device_data {
 	u32 uV_max;
 	u32 (*adc_to_uV)(struct vadc_priv *, u16);
 	int (*adc_to_degc)(struct vadc_priv *, u16);
+	struct thermal_zone_device_ops *thermal_ops;
+};
+
+struct vadc_thermal_data {
+	int thermal_chan;
+	struct thermal_zone_device *tz_dev;
+	struct vadc_priv *vadc_dev;
 };
 
 /*
@@ -227,6 +240,7 @@ struct vadc_priv {
 	struct vadc_linear_graph graph[2];
 	struct mutex		 lock;
 	struct device_data	 *dev_data;
+	struct vadc_thermal_data *vadc_therm_chan;
 };
 
 static const struct vadc_prescale_ratio vadc_prescale_ratios[] = {
@@ -1076,6 +1090,86 @@ static int vadc_check_revision(struct vadc_priv *vadc)
 	return 0;
 }
 
+static int pmp8074_get_temp(struct thermal_zone_device *thermal,
+			     int *temp)
+{
+	struct vadc_thermal_data *vadc_therm = thermal->devdata;
+	struct vadc_priv *vadc = vadc_therm->vadc_dev;
+	struct vadc_channel_prop *prop;
+	u16 adc_code;
+	int rc = 0;
+
+	if (!vadc_therm || !vadc)
+		return -EINVAL;
+
+	prop = &(vadc->chan_props[vadc_therm->thermal_chan]);
+	if (!prop)
+		return -EINVAL;
+
+	rc = vadc_do_conversion(vadc, prop, &adc_code);
+	if (rc) {
+		pr_err("VADC read error with %d\n", rc);
+		return rc;
+	}
+
+	/*
+	 * Temperature = 506 – (ADC_Counts * 100 /2397)
+	 */
+	*temp = PMP8074_PA_THERM_BASE
+	- ((adc_code * PMP8074_PA_THERM_FACTOR) / PMP8074_PA_THERM_SLOPE);
+
+	return rc;
+}
+
+static struct thermal_zone_device_ops pmp8074_thermal_ops = {
+	.get_temp = pmp8074_get_temp,
+};
+
+#define THERMALNODE_NAME_LENGTH	25
+static int32_t vadc_init_thermal(struct vadc_priv *vadc,
+					struct platform_device *pdev)
+{
+	struct device_node *child;
+	struct device_node *node = pdev->dev.of_node;
+	int i = 0;
+	bool thermal_node = false;
+
+	if (node == NULL)
+		goto thermal_err_sens;
+
+	if (!vadc->dev_data->thermal_ops) {
+		pr_info("No thermal ops to initialize.\n");
+		return 0;
+	}
+
+	for_each_child_of_node(node, child) {
+		char name[THERMALNODE_NAME_LENGTH];
+
+		vadc->vadc_therm_chan[i].thermal_chan = i;
+		thermal_node = of_property_read_bool(child,
+					"qcom,vadc-thermal-node");
+		if (thermal_node) {
+			/* Register with the thermal zone */
+			snprintf(name, sizeof(name), "%s", child->name);
+			vadc->vadc_therm_chan[i].vadc_dev = vadc;
+			vadc->vadc_therm_chan[i].tz_dev =
+				thermal_zone_device_register(name,
+				0, 0, &vadc->vadc_therm_chan[i],
+				vadc->dev_data->thermal_ops, NULL, 0, 0);
+			if (IS_ERR(vadc->vadc_therm_chan[i].tz_dev)) {
+				pr_err("vadc thermal device register failed.\n");
+				goto thermal_err_sens;
+			}
+		}
+		i++;
+		thermal_node = false;
+	}
+	return 0;
+thermal_err_sens:
+	pr_err("VADC thermal init failed.\n");
+	return -EINVAL;
+}
+
 static struct device_data default_data  = {
 	.vadc_chans = default_vadc_chans,
 	.reg = reg_offset_default,
@@ -1090,6 +1184,7 @@ static struct device_data default_data  = {
 	.uV_max = 1800000,
 	.adc_to_uV = NULL,
 	.adc_to_degc = NULL,
+	.thermal_ops = NULL,
 };
 
 static struct device_data pmp8064_data = {
@@ -1106,6 +1201,7 @@ static struct device_data pmp8064_data = {
 	.uV_max = 1875000,
 	.adc_to_uV = pmp8074_adc_to_uV,
 	.adc_to_degc = pmp8074_adc_to_degc,
+	.thermal_ops = &pmp8074_thermal_ops,
 };
 
 static const struct of_device_id vadc_match_table[] = {
@@ -1119,11 +1215,13 @@ static int vadc_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *id;
 	struct device_node *node = pdev->dev.of_node;
+	struct device_node *child;
 	struct device *dev = &pdev->dev;
 	struct iio_dev *indio_dev;
 	struct vadc_priv *vadc;
 	struct regmap *regmap;
-	int ret, irq_eoc;
+	struct vadc_thermal_data *adc_thermal;
+	int ret, irq_eoc, count_adc_channel_list = 0;
 	u32 reg;
 
 	id = of_match_device(vadc_match_table, &pdev->dev);
@@ -1138,11 +1236,26 @@ static int vadc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
+	for_each_child_of_node(node, child)
+		count_adc_channel_list++;
+
+	if (!count_adc_channel_list) {
+		pr_err("No channel listing\n");
+		return -EINVAL;
+	}
+
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*vadc));
 	if (!indio_dev)
 		return -ENOMEM;
 
 	vadc = iio_priv(indio_dev);
+
+	adc_thermal = devm_kzalloc(dev, (sizeof(struct vadc_thermal_data) *
+					count_adc_channel_list), GFP_KERNEL);
+	if (!adc_thermal)
+		return -ENOMEM;
+
+	vadc->vadc_therm_chan = adc_thermal;
 
 	vadc->dev_data = (struct device_data*)id->data;
 	pr_info("SPMI VADC - Min ch: %d Max ch: %d\n",
@@ -1194,7 +1307,19 @@ static int vadc_probe(struct platform_device *pdev)
 	indio_dev->channels = vadc->iio_chans;
 	indio_dev->num_channels = vadc->nchannels;
 
-	return devm_iio_device_register(dev, indio_dev);
+	ret = devm_iio_device_register(dev, indio_dev);
+	if (ret) {
+		dev_err(dev, "failed to register iio device - %d\n", ret);
+		return ret;
+	}
+
+	ret = vadc_init_thermal(vadc, pdev);
+	if (ret) {
+		dev_err(dev, "failed to initialize thermal adc\n");
+		return ret;
+	}
+
+	return 0;
 }
 
 static struct platform_driver vadc_driver = {
