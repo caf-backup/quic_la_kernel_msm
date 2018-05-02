@@ -92,6 +92,16 @@ Channel node properties:
             Valid values are: 1, 2, 4, 8, 16, 32, 64, 128, 256, 512
             If property is not found, 1 sample will be used.
 
+- qcom,vadc-thermal-node:
+    Usage: optional
+    Value type: <empty>
+    Definition: If present a thermal node is created and the channel is
+            registered as part of the thermal sysfs which allows clients
+            to use the thermal framework to set temperature thresholds and
+            receive notification when the temperature crosses a set
+            threshold, read temperature and enable/set trip types supported
+            by the thermal framework.
+
 NOTE:
 
 Following channels, also known as reference point channels, are used for
