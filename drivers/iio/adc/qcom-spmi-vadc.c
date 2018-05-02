@@ -22,66 +22,32 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/log2.h>
 
 #include <dt-bindings/iio/qcom,spmi-vadc.h>
 
-/* VADC register and bit definitions */
-#define VADC_REVISION2				0x1
+/* VADC bit definitions */
 #define VADC_REVISION2_SUPPORTED_VADC		1
-
-#define VADC_PERPH_TYPE				0x4
 #define VADC_PERPH_TYPE_ADC			8
-
-#define VADC_PERPH_SUBTYPE			0x5
 #define VADC_PERPH_SUBTYPE_VADC			1
-
-#define VADC_STATUS1				0x8
 #define VADC_STATUS1_OP_MODE			4
 #define VADC_STATUS1_REQ_STS			BIT(1)
 #define VADC_STATUS1_EOC			BIT(0)
 #define VADC_STATUS1_REQ_STS_EOC_MASK		0x3
-
-#define VADC_MODE_CTL				0x40
 #define VADC_OP_MODE_SHIFT			3
 #define VADC_OP_MODE_NORMAL			0
 #define VADC_AMUX_TRIM_EN			BIT(1)
 #define VADC_ADC_TRIM_EN			BIT(0)
-
-#define VADC_EN_CTL1				0x46
 #define VADC_EN_CTL1_SET			BIT(7)
-
-#define VADC_ADC_CH_SEL_CTL			0x48
-
-#define VADC_ADC_DIG_PARAM			0x50
 #define VADC_ADC_DIG_DEC_RATIO_SEL_SHIFT	2
-
-#define VADC_HW_SETTLE_DELAY			0x51
-
-#define VADC_CONV_REQ				0x52
 #define VADC_CONV_REQ_SET			BIT(7)
-
-#define VADC_FAST_AVG_CTL			0x5a
-#define VADC_FAST_AVG_EN			0x5b
 #define VADC_FAST_AVG_EN_SET			BIT(7)
-
-#define VADC_ACCESS				0xd0
-#define VADC_ACCESS_DATA			0xa5
-
-#define VADC_PERH_RESET_CTL3			0xda
 #define VADC_FOLLOW_WARM_RB			BIT(2)
-
-#define VADC_DATA				0x60	/* 16 bits */
-
 #define VADC_CONV_TIME_MIN_US			2000
 #define VADC_CONV_TIME_MAX_US			2100
-
-/* Min ADC code represents 0V */
-#define VADC_MIN_ADC_CODE			0x6000
-/* Max ADC code represents full-scale range of 1.8V */
-#define VADC_MAX_ADC_CODE			0xa800
 
 #define VADC_ABSOLUTE_RANGE_UV			625000
 #define VADC_RATIOMETRIC_RANGE_UV		1800000
@@ -100,8 +66,84 @@
 
 #define KELVINMIL_CELSIUSMIL			273150
 
-#define VADC_CHAN_MIN			VADC_USBIN
-#define VADC_CHAN_MAX			VADC_LR_MUX3_BUF_PU1_PU2_XO_THERM
+#define PMP8074_DIE_TEMP_SLOPE_NUM		10
+#define PMP8074_DIE_TEMP_SLOPE_DEN		171
+#define PMP8074_DIE_TEMP_OFFSET			286
+
+enum vadc_reg {
+	VADC_REVISION2,
+	VADC_PERPH_TYPE,
+	VADC_PERPH_SUBTYPE,
+	VADC_STATUS1,
+	VADC_MODE_CTL,
+	VADC_EN_CTL1,
+	VADC_ADC_DIG_PARAM,
+	VADC_FAST_AVG_CTL,
+	VADC_FAST_AVG_EN,
+	VADC_ADC_CH_SEL_CTL,
+	VADC_HW_SETTLE_DELAY,
+	VADC_CONV_REQ,
+	VADC_DATA,
+	VADC_ACCESS,
+	VADC_ACCESS_DATA,
+	VADC_PERH_RESET_CTL3,
+	VADC_REG_MAX
+};
+
+static u32 reg_offset_default[] = {
+	[VADC_REVISION2] = 0x1,
+	[VADC_PERPH_TYPE] = 0x4,
+	[VADC_PERPH_SUBTYPE] = 0x5,
+	[VADC_STATUS1] = 0x8,
+	[VADC_MODE_CTL] = 0x40,
+	[VADC_EN_CTL1] = 0x46,
+	[VADC_ADC_DIG_PARAM] = 0x50,
+	[VADC_FAST_AVG_CTL] = 0x5a,
+	[VADC_FAST_AVG_EN] = 0x5b,
+	[VADC_ADC_CH_SEL_CTL] = 0x48,
+	[VADC_HW_SETTLE_DELAY] = 0x51,
+	[VADC_CONV_REQ] = 0x52,
+	[VADC_DATA] = 0x60,
+	[VADC_ACCESS] = 0xd0,
+	[VADC_ACCESS_DATA] = 0xa5,
+	[VADC_PERH_RESET_CTL3] = 0xda
+};
+
+static u32 reg_offset_pmp8074[] = {
+	[VADC_REVISION2] = 0x1,
+	[VADC_PERPH_TYPE] = 0x4,
+	[VADC_PERPH_SUBTYPE] = 0x5,
+	[VADC_STATUS1] = 0x8,
+	[VADC_EN_CTL1] = 0x46,
+	[VADC_ADC_DIG_PARAM] = 0x42,
+	[VADC_FAST_AVG_CTL] = 0x43,
+	[VADC_FAST_AVG_EN] = 0x43,
+	[VADC_ADC_CH_SEL_CTL] = 0x44,
+	[VADC_HW_SETTLE_DELAY] = 0x45,
+	[VADC_CONV_REQ] = 0x47,
+	[VADC_DATA] = 0x50,
+	[VADC_ACCESS] = 0xd0,
+	[VADC_ACCESS_DATA] = 0xa5,
+	[VADC_PERH_RESET_CTL3] = 0xda
+};
+
+struct vadc_priv;
+
+struct device_data {
+	struct vadc_channels *vadc_chans;
+	u32 *reg;
+	bool mode_ctl;
+	bool dynamic_calib;
+	bool force_decimation;
+	u16 ch_min;
+	u16 ch_max;
+	u32 decimation_mask;
+	u32 adc_min;
+	u32 adc_max;
+	u32 uV_max;
+	u32 (*adc_to_uV)(struct vadc_priv *, u16);
+	int (*adc_to_degc)(struct vadc_priv *, u16);
+};
 
 /*
  * VADC_CALIB_ABSOLUTE: uses the 625mV and 1.25V as reference channels.
@@ -184,6 +226,7 @@ struct vadc_priv {
 	struct completion	 complete;
 	struct vadc_linear_graph graph[2];
 	struct mutex		 lock;
+	struct device_data	 *dev_data;
 };
 
 static const struct vadc_prescale_ratio vadc_prescale_ratios[] = {
@@ -197,14 +240,16 @@ static const struct vadc_prescale_ratio vadc_prescale_ratios[] = {
 	{.num =  1, .den = 10}
 };
 
-static int vadc_read(struct vadc_priv *vadc, u16 offset, u8 *data)
+static int vadc_read(struct vadc_priv *vadc, enum vadc_reg reg, u8 *data)
 {
-	return regmap_bulk_read(vadc->regmap, vadc->base + offset, data, 1);
+	u32 reg_offset = vadc->dev_data->reg[reg];
+	return regmap_bulk_read(vadc->regmap, vadc->base + reg_offset, data, 1);
 }
 
-static int vadc_write(struct vadc_priv *vadc, u16 offset, u8 data)
+static int vadc_write(struct vadc_priv *vadc, enum vadc_reg reg, u8 data)
 {
-	return regmap_write(vadc->regmap, vadc->base + offset, data);
+	u32 reg_offset = vadc->dev_data->reg[reg];
+	return regmap_write(vadc->regmap, vadc->base + reg_offset, data);
 }
 
 static int vadc_reset(struct vadc_priv *vadc)
@@ -239,9 +284,11 @@ static void vadc_show_status(struct vadc_priv *vadc)
 	u8 mode, sta1, chan, dig, en, req;
 	int ret;
 
-	ret = vadc_read(vadc, VADC_MODE_CTL, &mode);
-	if (ret)
-		return;
+	if (vadc->dev_data->mode_ctl) {
+		ret = vadc_read(vadc, VADC_MODE_CTL, &mode);
+		if (ret)
+			return;
+	}
 
 	ret = vadc_read(vadc, VADC_ADC_DIG_PARAM, &dig);
 	if (ret)
@@ -271,15 +318,17 @@ static void vadc_show_status(struct vadc_priv *vadc)
 static int vadc_configure(struct vadc_priv *vadc,
 			  struct vadc_channel_prop *prop)
 {
-	u8 decimation, mode_ctrl;
+	u8 decimation, mode_ctrl, val;
 	int ret;
 
-	/* Mode selection */
-	mode_ctrl = (VADC_OP_MODE_NORMAL << VADC_OP_MODE_SHIFT) |
-		     VADC_ADC_TRIM_EN | VADC_AMUX_TRIM_EN;
-	ret = vadc_write(vadc, VADC_MODE_CTL, mode_ctrl);
-	if (ret)
-		return ret;
+	if (vadc->dev_data->mode_ctl) {
+		/* Mode selection */
+		mode_ctrl = (VADC_OP_MODE_NORMAL << VADC_OP_MODE_SHIFT) |
+			     VADC_ADC_TRIM_EN | VADC_AMUX_TRIM_EN;
+		ret = vadc_write(vadc, VADC_MODE_CTL, mode_ctrl);
+		if (ret)
+			return ret;
+	}
 
 	/* Channel selection */
 	ret = vadc_write(vadc, VADC_ADC_CH_SEL_CTL, prop->channel);
@@ -288,6 +337,13 @@ static int vadc_configure(struct vadc_priv *vadc,
 
 	/* Digital parameter setup */
 	decimation = prop->decimation << VADC_ADC_DIG_DEC_RATIO_SEL_SHIFT;
+	if (!vadc->dev_data->force_decimation) {
+		ret = vadc_read(vadc, VADC_ADC_DIG_PARAM, &val);
+		if (ret)
+			return ret;
+		val &= (~vadc->dev_data->decimation_mask);
+		decimation |= val;
+	}
 	ret = vadc_write(vadc, VADC_ADC_DIG_PARAM, decimation);
 	if (ret)
 		return ret;
@@ -338,13 +394,54 @@ static int vadc_read_result(struct vadc_priv *vadc, u16 *data)
 {
 	int ret;
 
-	ret = regmap_bulk_read(vadc->regmap, vadc->base + VADC_DATA, data, 2);
+	ret = regmap_bulk_read(vadc->regmap, vadc->base
+			+ vadc->dev_data->reg[VADC_DATA], data, 2);
 	if (ret)
 		return ret;
 
-	*data = clamp_t(u16, *data, VADC_MIN_ADC_CODE, VADC_MAX_ADC_CODE);
+	*data = clamp_t(u16, *data,
+			vadc->dev_data->adc_min, vadc->dev_data->adc_max);
 
 	return 0;
+}
+
+/*
+ * Convert ADC to voltage using the formula
+ * voltage = (adc_code * max uV)/Max ADC
+ *
+ */
+static u32 pmp8074_adc_to_uV(struct vadc_priv *vadc, u16 adc_code)
+{
+	u32 voltage, quot, reminder;
+
+	pr_info("Raw ADC: %d\n", adc_code);
+
+	quot = (adc_code * (vadc->dev_data->uV_max/1000))
+				/vadc->dev_data->adc_max;
+	reminder = (adc_code * (vadc->dev_data->uV_max/1000))
+				%vadc->dev_data->adc_max;
+
+	/* Convert into mV to uV without losing granuality */
+	reminder = (reminder * 1000)/vadc->dev_data->adc_max;
+	voltage = (quot * 1000) + reminder;
+
+	return voltage;
+}
+
+/*
+ * Convert ADC to temperature in deg.C
+ * PMIC_CaseTemp(deg.C) = (10/171) * (RawADCval) - 286
+ *
+ */
+static int pmp8074_adc_to_degc(struct vadc_priv *vadc, u16 adc_code)
+{
+	int degc;
+
+	pr_info("Raw ADC: %d\n", adc_code);
+	degc = ((PMP8074_DIE_TEMP_SLOPE_NUM * adc_code)
+		/PMP8074_DIE_TEMP_SLOPE_DEN) - PMP8074_DIE_TEMP_OFFSET;
+
+	return degc;
 }
 
 static struct vadc_channel_prop *vadc_get_channel(struct vadc_priv *vadc,
@@ -552,11 +649,21 @@ static int vadc_read_raw(struct iio_dev *indio_dev,
 		if (ret)
 			break;
 
-		*val = vadc_calibrate(vadc, prop, adc_code);
+		if (!vadc->dev_data->dynamic_calib) {
+			if (vadc->dev_data->adc_to_degc)
+				*val = vadc->dev_data->adc_to_degc(vadc,
+								adc_code);
+			else
+				return -EINVAL;
+		}
+		else {
+			*val = vadc_calibrate(vadc, prop, adc_code);
 
-		/* 2mV/K, return milli Celsius */
-		*val /= 2;
-		*val -= KELVINMIL_CELSIUSMIL;
+			/* 2mV/K, return milli Celsius */
+			*val /= 2;
+			*val -= KELVINMIL_CELSIUSMIL;
+		}
+
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_RAW:
 		prop = &vadc->chan_props[chan->address];
@@ -564,7 +671,15 @@ static int vadc_read_raw(struct iio_dev *indio_dev,
 		if (ret)
 			break;
 
-		*val = vadc_calibrate(vadc, prop, adc_code);
+		if (!vadc->dev_data->dynamic_calib) {
+			if (vadc->dev_data->adc_to_uV)
+				*val = vadc->dev_data->adc_to_uV(vadc,
+								adc_code);
+			else
+				return -EINVAL;
+		} else
+			*val = vadc_calibrate(vadc, prop, adc_code);
+
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		*val = 0;
@@ -625,7 +740,7 @@ struct vadc_channels {
  * Every index in the array is equal to the channel number per datasheet. The
  * gaps in the array should be treated as reserved channels.
  */
-static const struct vadc_channels vadc_chans[] = {
+static struct vadc_channels default_vadc_chans[] = {
 	VADC_CHAN_VOLT(USBIN, 4)
 	VADC_CHAN_VOLT(DCIN, 4)
 	VADC_CHAN_VOLT(VCHG_SNS, 3)
@@ -728,9 +843,30 @@ static const struct vadc_channels vadc_chans[] = {
 	VADC_CHAN_VOLT(LR_MUX3_BUF_PU1_PU2_XO_THERM, 0)
 };
 
+static struct vadc_channels pmp8074_vadc_chans[] = {
+	VADC_CHAN_VOLT(PMP8074_GND_REF, 0)
+	VADC_CHAN_VOLT(PMP8074_REF_1250MV, 0)
+	VADC_CHAN_VOLT(PMP8074_VDD_VADC, 0)
+	VADC_CHAN_VOLT(PMP8074_RESERVED1, 0)
+	VADC_CHAN_VOLT(PMP8074_RESERVED2, 0)
+	VADC_CHAN_VOLT(PMP8074_RESERVED3, 0)
+	VADC_CHAN_TEMP(PMP8074_DIE_TEMP, 0)
+	VADC_CHAN_TEMP(PMP8074_CHG_TEMP, 0)
+	VADC_CHAN_VOLT(PMP8074_USBIN, 0)
+	VADC_CHAN_VOLT(PMP8074_IREG_FB, 0)
+	VADC_CHAN_VOLT(PMP8074_BAT_THERM, 0)
+	VADC_CHAN_VOLT(PMP8074_BAT_ID, 0)
+	VADC_CHAN_VOLT(PMP8074_XOTHERM, 0)
+	VADC_CHAN_VOLT(PMP8074_AMUX_THM1, 0)
+	VADC_CHAN_VOLT(PMP8074_AMUX_THM2, 0)
+	VADC_CHAN_VOLT(PMP8074_AMUX_THM3, 0)
+};
+
 static int vadc_get_dt_channel_data(struct device *dev,
 				    struct vadc_channel_prop *prop,
-				    struct device_node *node)
+				    struct device_node *node,
+				    struct vadc_channels *vadc_chans,
+				    int ch_min, int ch_max)
 {
 	const char *name = node->name;
 	u32 chan, value, varr[2];
@@ -742,7 +878,12 @@ static int vadc_get_dt_channel_data(struct device *dev,
 		return ret;
 	}
 
-	if (chan > VADC_CHAN_MAX || chan < VADC_CHAN_MIN) {
+	if (!vadc_chans) {
+		dev_err(dev, "%s No channels specified.\n", name);
+		return -EINVAL;
+	}
+
+	if (chan < ch_min || chan > ch_max) {
 		dev_err(dev, "%s invalid channel number %d\n", name, chan);
 		return -EINVAL;
 	}
@@ -814,10 +955,11 @@ static int vadc_get_dt_channel_data(struct device *dev,
 
 static int vadc_get_dt_data(struct vadc_priv *vadc, struct device_node *node)
 {
-	const struct vadc_channels *vadc_chan;
+	struct vadc_channels *vadc_chan;
 	struct iio_chan_spec *iio_chan;
 	struct vadc_channel_prop prop;
 	struct device_node *child;
+	struct vadc_channels *vadc_chans;
 	unsigned int index = 0;
 	int ret;
 
@@ -837,8 +979,14 @@ static int vadc_get_dt_data(struct vadc_priv *vadc, struct device_node *node)
 
 	iio_chan = vadc->iio_chans;
 
+	vadc_chans = vadc->dev_data->vadc_chans;
+	if (!vadc_chans)
+		return -EINVAL;
+
 	for_each_available_child_of_node(node, child) {
-		ret = vadc_get_dt_channel_data(vadc->dev, &prop, child);
+		ret = vadc_get_dt_channel_data(vadc->dev, &prop, child,
+					vadc_chans, vadc->dev_data->ch_min,
+						vadc->dev_data->ch_max);
 		if (ret) {
 			of_node_put(child);
 			return ret;
@@ -858,25 +1006,27 @@ static int vadc_get_dt_data(struct vadc_priv *vadc, struct device_node *node)
 		iio_chan++;
 	}
 
-	/* These channels are mandatory, they are used as reference points */
-	if (!vadc_get_channel(vadc, VADC_REF_1250MV)) {
-		dev_err(vadc->dev, "Please define 1.25V channel\n");
-		return -ENODEV;
-	}
+	if (vadc->dev_data->dynamic_calib) {
+		/* These channels are mandatory, they are used as reference points */
+		if (!vadc_get_channel(vadc, VADC_REF_1250MV)) {
+			dev_err(vadc->dev, "Please define 1.25V channel\n");
+			return -ENODEV;
+		}
 
-	if (!vadc_get_channel(vadc, VADC_REF_625MV)) {
-		dev_err(vadc->dev, "Please define 0.625V channel\n");
-		return -ENODEV;
-	}
+		if (!vadc_get_channel(vadc, VADC_REF_625MV)) {
+			dev_err(vadc->dev, "Please define 0.625V channel\n");
+			return -ENODEV;
+		}
 
-	if (!vadc_get_channel(vadc, VADC_VDD_VADC)) {
-		dev_err(vadc->dev, "Please define VDD channel\n");
-		return -ENODEV;
-	}
+		if (!vadc_get_channel(vadc, VADC_VDD_VADC)) {
+			dev_err(vadc->dev, "Please define VDD channel\n");
+			return -ENODEV;
+		}
 
-	if (!vadc_get_channel(vadc, VADC_GND_REF)) {
-		dev_err(vadc->dev, "Please define GND channel\n");
-		return -ENODEV;
+		if (!vadc_get_channel(vadc, VADC_GND_REF)) {
+			dev_err(vadc->dev, "Please define GND channel\n");
+			return -ENODEV;
+		}
 	}
 
 	return 0;
@@ -926,8 +1076,48 @@ static int vadc_check_revision(struct vadc_priv *vadc)
 	return 0;
 }
 
+static struct device_data default_data  = {
+	.vadc_chans = default_vadc_chans,
+	.reg = reg_offset_default,
+	.mode_ctl = true,
+	.dynamic_calib = true,
+	.force_decimation = true,
+	.decimation_mask = 0,
+	.ch_min = VADC_USBIN,
+	.ch_max = VADC_LR_MUX3_BUF_PU1_PU2_XO_THERM,
+	.adc_min = 0x6000,
+	.adc_max = 0xa800,
+	.uV_max = 1800000,
+	.adc_to_uV = NULL,
+	.adc_to_degc = NULL,
+};
+
+static struct device_data pmp8064_data = {
+	.vadc_chans = pmp8074_vadc_chans,
+	.reg = reg_offset_pmp8074,
+	.mode_ctl = false,
+	.dynamic_calib = false,
+	.force_decimation = false,
+	.decimation_mask = 0xc,
+	.ch_min = VADC_PMP8074_GND_REF,
+	.ch_max = VADC_PMP8074_AMUX_THM3,
+	.adc_min = 0x0,
+	.adc_max = 0x4000,
+	.uV_max = 1875000,
+	.adc_to_uV = pmp8074_adc_to_uV,
+	.adc_to_degc = pmp8074_adc_to_degc,
+};
+
+static const struct of_device_id vadc_match_table[] = {
+	{ .compatible = "qcom,spmi-vadc", .data = (void*)&default_data },
+	{ .compatible = "qcom,pmp8074-spmi-vadc", .data = (void*)&pmp8064_data },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, vadc_match_table);
+
 static int vadc_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *id;
 	struct device_node *node = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	struct iio_dev *indio_dev;
@@ -935,6 +1125,10 @@ static int vadc_probe(struct platform_device *pdev)
 	struct regmap *regmap;
 	int ret, irq_eoc;
 	u32 reg;
+
+	id = of_match_device(vadc_match_table, &pdev->dev);
+        if (!id || !id->data)
+                return -ENODEV;
 
 	regmap = dev_get_regmap(dev->parent, NULL);
 	if (!regmap)
@@ -949,6 +1143,10 @@ static int vadc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	vadc = iio_priv(indio_dev);
+
+	vadc->dev_data = (struct device_data*)id->data;
+	pr_info("SPMI VADC - Min ch: %d Max ch: %d\n",
+			vadc->dev_data->ch_min, vadc->dev_data->ch_max);
 	vadc->regmap = regmap;
 	vadc->dev = dev;
 	vadc->base = reg;
@@ -982,9 +1180,11 @@ static int vadc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = vadc_measure_ref_points(vadc);
-	if (ret)
-		return ret;
+	if ( vadc->dev_data->dynamic_calib) {
+		ret = vadc_measure_ref_points(vadc);
+		if (ret)
+			return ret;
+	}
 
 	indio_dev->dev.parent = dev;
 	indio_dev->dev.of_node = node;
@@ -996,12 +1196,6 @@ static int vadc_probe(struct platform_device *pdev)
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-
-static const struct of_device_id vadc_match_table[] = {
-	{ .compatible = "qcom,spmi-vadc" },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, vadc_match_table);
 
 static struct platform_driver vadc_driver = {
 	.driver = {
