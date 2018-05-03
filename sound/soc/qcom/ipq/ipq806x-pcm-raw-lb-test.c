@@ -55,7 +55,7 @@
 		(config == PCM_LBTEST_16BIT_8KHZ_4CH_RX_TO_TX))
 
 #define LOOPBACK_SKIP_COUNT		10
-#define LOOPBACK_FAIL_THRESHOLD		20
+#define LOOPBACK_FAIL_THRESHOLD		200
 struct pcm_lb_test_ctx {
 	uint32_t failed;
 	uint32_t passed;

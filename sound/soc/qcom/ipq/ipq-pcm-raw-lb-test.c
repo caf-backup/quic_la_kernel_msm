@@ -70,7 +70,7 @@ static void ipq8074_pcm_fill_data(uint8_t *tx_buff, uint32_t size);
 		(config == PCM_LBTEST_16BIT_16KHZ_2CH_RX_TO_TX) ||	\
 		(config == PCM_LBTEST_16BIT_16KHZ_4CH_RX_TO_TX))
 
-#define LOOPBACK_FAIL_THRESHOLD		20
+#define LOOPBACK_FAIL_THRESHOLD		200
 
 struct pcm_lb_test_ctx {
 	uint32_t failed;
