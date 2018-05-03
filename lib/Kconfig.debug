@@ -1859,3 +1859,37 @@ source "samples/Kconfig"
 
 source "lib/Kconfig.kgdb"
 
+config STOPWATCH
+	bool
+	prompt "API to measure time elapsed between two events"
+	default n
+	help
+	  This feature provides APIs to measure time elaspsed between any two
+	  events with nanosecond precision. Multiple samples can be collected
+	  by calling the STOPWATCH_(START/STOP) APIs.  The min, avg and max
+	  values of all the samples can be viewed at /proc/stopwatch/<event>.
+	  The counters are reset everytime the file is viewed.
+
+	  If in doubt, say N here.
+
+config STOPWATCH_SOFT_IRQ
+	bool
+	depends on STOPWATCH
+	prompt "Measure soft IRQ processing time using stopwatch"
+	default n
+	help
+	  Measure the time taken to process each soft IRQ.
+	  The values can be viewed at /proc/stopwatch/softirq
+
+	  If in doubt, say N here.
+
+config STOPWATCH_HARD_IRQ
+	bool
+	depends on STOPWATCH
+	prompt "Measure hard IRQ processing time using stopwatch"
+	default n
+	help
+	  Measure the time taken to process each hard IRQ.
+	  The values can be viewed at /proc/stopwatch/hardirq
+
+	  If in doubt, say N here.

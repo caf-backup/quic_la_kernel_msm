@@ -26,6 +26,11 @@
 #include <linux/smpboot.h>
 #include <linux/tick.h>
 #include <linux/irq.h>
+#include <linux/module.h>
+#ifdef CONFIG_STOPWATCH_SOFT_IRQ
+#define __STOPWATCH_USE__
+#endif
+#include <linux/stopwatch.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/irq.h>
@@ -52,6 +57,8 @@
 irq_cpustat_t irq_stat[NR_CPUS] ____cacheline_aligned;
 EXPORT_SYMBOL(irq_stat);
 #endif
+
+DEFINE_STOPWATCH_ARRAY(softirq, NR_SOFTIRQS);
 
 static struct softirq_action softirq_vec[NR_SOFTIRQS] __cacheline_aligned_in_smp;
 
@@ -178,6 +185,37 @@ void __local_bh_enable_ip(unsigned long ip, unsigned int cnt)
 }
 EXPORT_SYMBOL(__local_bh_enable_ip);
 
+#ifdef __STOPWATCH_USE__
+int stopwatch_softirq_show(struct seq_file *f, void *v)
+{
+	int cpu;
+	int sirq = *((loff_t *) v);
+
+	if (sirq == 0)
+		seq_printf(f, "%20s\tCPU\tmin(us)\tavg(us)\tmax(us)\n\n", "");
+
+	seq_printf(f, "%2d:%-18s", sirq, softirq_to_name[sirq]);
+	for_each_cpu(cpu, cpu_online_mask) {
+		if (!cpu)
+			seq_printf(f, "\t%d", cpu);
+		else
+			seq_printf(f, "%20s\t%d", "", cpu);
+		stopwatch_show(&STOPWATCH_INSTANCE_CPU(softirq[sirq], cpu), f, STOPWATCH_MICRO);
+		seq_printf(f, "\n");
+	}
+	seq_printf(f, "\n");
+	return 0;
+}
+
+static int __init softirq_stopwatch_init(void)
+{
+	INIT_STOPWATCH_ARRAY(softirq, NR_SOFTIRQS);
+	return stopwatch_register("softirq", NR_SOFTIRQS, stopwatch_softirq_show);
+}
+module_init(softirq_stopwatch_init)
+#endif
+
+
 /*
  * We restart softirq processing for at most MAX_SOFTIRQ_RESTART times,
  * but break the loop if need_resched() is set or after 2 ms.
@@ -270,7 +308,9 @@ restart:
 		kstat_incr_softirqs_this_cpu(vec_nr);
 
 		trace_softirq_entry(vec_nr);
+		STOPWATCH_START(softirq[vec_nr]);
 		h->action(h);
+		STOPWATCH_STOP(softirq[vec_nr]);
 		trace_softirq_exit(vec_nr);
 		if (unlikely(prev_count != preempt_count())) {
 			pr_err("huh, entered softirq %u %s %p with preempt_count %08x, exited with %08x?\n",
