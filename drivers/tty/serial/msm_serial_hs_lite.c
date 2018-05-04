@@ -764,13 +764,16 @@ static unsigned int msm_hsl_tx_empty(struct uart_port *port)
 	return ret;
 }
 
-static void msm_hsl_reset(struct uart_port *port)
+static void msm_hsl_reset(struct uart_port *port, bool reset_tx)
 {
 	unsigned int vid = UART_TO_MSM(port)->ver_id;
 
 	/* reset everything */
 	msm_hsl_write(port, RESET_RX, regmap[vid][UARTDM_CR]);
-	msm_hsl_write(port, RESET_TX, regmap[vid][UARTDM_CR]);
+
+	if (reset_tx)
+		msm_hsl_write(port, RESET_TX, regmap[vid][UARTDM_CR]);
+
 	msm_hsl_write(port, RESET_ERROR_STATUS, regmap[vid][UARTDM_CR]);
 	msm_hsl_write(port, RESET_BREAK_INT, regmap[vid][UARTDM_CR]);
 	msm_hsl_write(port, RESET_CTS, regmap[vid][UARTDM_CR]);
@@ -806,7 +809,7 @@ static void msm_hsl_set_mctrl(struct uart_port *port, unsigned int mctrl)
 		msm_hsl_write(port, mr, regmap[vid][UARTDM_MR2]);
 
 		/* Reset TX */
-		msm_hsl_reset(port);
+		msm_hsl_reset(port, 1);
 
 		/* Turn on Uart Receiver & Transmitter*/
 		msm_hsl_write(port, UARTDM_CR_RX_EN_BMSK
@@ -936,7 +939,13 @@ static void msm_hsl_set_baud_rate(struct uart_port *port,
 	msm_hsl_write(port, 0, regmap[vid][UARTDM_TFWR]);
 
 	msm_hsl_write(port, CR_PROTECTION_EN, regmap[vid][UARTDM_CR]);
-	msm_hsl_reset(port);
+
+	/*
+	 * Check for console in this port and don't do TX reset
+	 * if console is enabled in this port.
+	 */
+	msm_hsl_reset(port, !(uart_console(port) &&
+				(port->cons->flags & CON_ENABLED)));
 
 	data = UARTDM_CR_TX_EN_BMSK;
 	data |= UARTDM_CR_RX_EN_BMSK;
@@ -1502,7 +1511,7 @@ static int msm_hsl_console_setup(struct console *co, char *options)
 
 	ret = uart_set_options(port, co, baud, parity, bits, flow);
 
-	msm_hsl_reset(port);
+	msm_hsl_reset(port, 1);
 	/* Enable transmitter */
 	msm_hsl_write(port, CR_PROTECTION_EN, regmap[vid][UARTDM_CR]);
 	msm_hsl_write(port, UARTDM_CR_TX_EN_BMSK, regmap[vid][UARTDM_CR]);
