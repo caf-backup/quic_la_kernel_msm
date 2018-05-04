@@ -2849,8 +2849,6 @@ static int qcom_nandc_setup(struct qcom_nand_controller *nandc)
 {
 	u32 nand_ctrl;
 
-	/* kill onenand */
-	nandc_write(nandc, SFLASHC_BURST_CFG, 0);
 	nandc_write(nandc, NAND_DEV_CMD_VLD, NAND_DEV_CMD_VLD_VAL);
 
 	/* enable ADM or BAM DMA */
@@ -2858,7 +2856,14 @@ static int qcom_nandc_setup(struct qcom_nand_controller *nandc)
 		nandc_write(nandc, NAND_FLASH_CHIP_SELECT, DM_EN);
 	} else {
 		nand_ctrl = nandc_read(nandc, NAND_CTRL);
-		nandc_write(nandc, NAND_CTRL, nand_ctrl | BAM_MODE_EN);
+		/*
+		 * Once BAM_MODE_EN bit is set then QPIC_NAND_CTRL register
+		 * should be written with BAM instead of writel.
+		 * Check if BAM_MODE_EN is already set by bootloader and write
+		 * only if this bit is not set.
+		 */
+		if (!(nand_ctrl & BAM_MODE_EN))
+			nandc_write(nandc, NAND_CTRL, nand_ctrl | BAM_MODE_EN);
 	}
 
 	/* save the original values of these registers */
