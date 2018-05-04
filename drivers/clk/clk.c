@@ -694,6 +694,8 @@ static void clk_core_disable(struct clk_core *core)
 
 	trace_clk_disable(core);
 
+	pr_debug("%s: %s\n", __func__, core->name);
+
 	if (core->ops->disable)
 		core->ops->disable(core->hw);
 
@@ -746,6 +748,8 @@ static int clk_core_enable(struct clk_core *core)
 			return ret;
 
 		trace_clk_enable(core);
+
+		pr_debug("%s: %s\n", __func__, core->name);
 
 		if (core->ops->enable)
 			ret = core->ops->enable(core->hw);
@@ -1212,6 +1216,9 @@ static int __clk_set_parent(struct clk_core *core, struct clk_core *parent,
 
 	trace_clk_set_parent(core, parent);
 
+	pr_debug("%s: clock %s reparented from %s to %s\n",
+			__func__, core->name, core->parent->name, parent->name);
+
 	/* change clock input source */
 	if (parent && core->ops->set_parent)
 		ret = core->ops->set_parent(core->hw, p_index);
@@ -1514,6 +1521,9 @@ static void clk_change_rate(struct clk_core *core)
 	}
 
 	trace_clk_set_rate(core, core->new_rate);
+
+	pr_debug("%s: frequency for clock %s changed from %lu to %lu\n",
+			__func__, core->name, old_rate, core->new_rate);
 
 	if (!skip_set_rate && core->ops->set_rate)
 		core->ops->set_rate(core->hw, core->new_rate, best_parent_rate);
