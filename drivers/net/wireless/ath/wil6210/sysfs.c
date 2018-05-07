@@ -336,8 +336,8 @@ wil_qos_link_prio_sysfs_store(struct device *dev,
 
 		for (ring_idx = 0;
 		     ring_idx < WIL6210_MAX_TX_RINGS; ring_idx++) {
-			if (wil->vring2cid_tid[ring_idx][0] != cid ||
-			    !wil->vring_tx[ring_idx].va)
+			if (wil->ring2cid_tid[ring_idx][0] != cid ||
+			    !wil->ring_tx[ring_idx].va)
 				continue;
 
 			wil_dbg_misc(wil, "set ring %d qos priority %d\n",
