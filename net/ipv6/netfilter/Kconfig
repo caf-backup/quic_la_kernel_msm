@@ -334,5 +334,14 @@ endif # IP6_NF_NAT
 
 endif # IP6_NF_IPTABLES
 
+config NF_IPV6_DUMMY_HEADER
+	tristate "Retain Dummy fragment header"
+	depends on NF_DEFRAG_IPV6
+	default n
+	help
+	  This option allows to retain dummy fragment header in an IPv6 packet.
+	  Dummy fragment header is the fragment header with Fragment Offset and
+	  M bit as 0.
+
 endmenu
 
