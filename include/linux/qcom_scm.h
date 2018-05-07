@@ -103,20 +103,62 @@ extern int qcom_scm_send_cache_dump_addr(u32 cmd_id, void *cmd_buf, u32 size);
 extern int qcom_scm_tzsched(const void *req, size_t req_size,
 				void *resp, size_t resp_size);
 
-__packed struct qseecom_unload_app_ireq {
+#define TZ_OWNER_QSEE_OS		50
+#define TZ_OWNER_TZ_APPS		48
+#define TZ_SVC_APP_MGR			1     /* Application management */
+#define TZ_SVC_APP_ID_PLACEHOLDER	0     /* SVC bits will contain App ID */
+
+#define TZ_ARMv8_CMD_NOTIFY_REGION_ID		0x05
+#define TZ_ARMv8_CMD_REGISTER_LOG_BUF		0x06
+#define TZ_ARMv8_CMD_LOAD_LIB			0x07
+#define TZ_ARMv8_CMD_UNLOAD_LIB			0x08
+#define TZ_ARMv8_CMD_LOAD_APP_ID		0x01
+#define TZ_ARMv8_CMD_SEND_DATA_ID		0x01
+#define TZ_ARMv8_CMD_UNLOAD_APP_ID		0x02
+
+#define MAX_APP_NAME_SIZE               32
+
+#define TZ_SYSCALL_CREATE_SMC_ID(o, s, f) \
+	((uint32_t)((((o & 0x3f) << 24) | (s & 0xff) << 8) | (f & 0xff)))
+
+enum qseecom_qceos_cmd_id {
+	QSEOS_APP_START_COMMAND	= 0x01,
+	QSEOS_APP_SHUTDOWN_COMMAND,
+	QSEOS_APP_LOOKUP_COMMAND,
+	QSEOS_REGISTER_LISTENER,
+	QSEOS_DEREGISTER_LISTENER,
+	QSEOS_CLIENT_SEND_DATA_COMMAND,
+	QSEOS_LISTENER_DATA_RSP_COMMAND,
+	QSEOS_LOAD_EXTERNAL_ELF_COMMAND,
+	QSEOS_UNLOAD_EXTERNAL_ELF_COMMAND,
+	QSEOS_CMD_MAX		= 0xEFFFFFFF,
+	QSEE_LOAD_SERV_IMAGE_COMMAND = 0xB,
+	QSEE_UNLOAD_SERV_IMAGE_COMMAND = 12,
+	QSEE_APP_NOTIFY_COMMAND	= 13,
+	QSEE_REGISTER_LOG_BUF_COMMAND = 14
+};
+
+__packed struct qseecom_load_lib_ireq {
 	uint32_t qsee_cmd_id;
-	uint32_t app_id;
+	uint32_t mdt_len;		/* Length of the mdt file */
+	uint32_t img_len;		/* Length of .bxx and .mdt files */
+	phys_addr_t phy_addr;		/* phy addr of the start of image */
 };
 
-enum qseecom_command_scm_resp_type {
-	QSEOS_APP_ID = 0xEE01,
-	QSEOS_LISTENER_ID
+__packed struct qseecom_load_app_ireq {
+	struct qseecom_load_lib_ireq load_ireq;
+	char app_name[MAX_APP_NAME_SIZE];	/* application name*/
 };
 
-__packed struct qseecom_command_scm_resp {
-	unsigned long result;
-	enum qseecom_command_scm_resp_type resp_type;
-	unsigned long data;
+union qseecom_load_ireq {
+	struct qseecom_load_lib_ireq load_lib_req;
+	struct qseecom_load_app_ireq load_app_req;
+};
+
+struct qsee_notify_app {
+	uint32_t cmd_id;
+	phys_addr_t applications_region_addr;
+	size_t applications_region_size;
 };
 
 __packed struct qseecom_client_send_data_v1_ireq {
@@ -140,20 +182,36 @@ union qseecom_client_send_data_ireq {
 	struct qseecom_client_send_data_v2_ireq v2;
 };
 
-#define MAX_APP_NAME_SIZE               32
-
-__packed struct qseecom_load_app_ireq {
+__packed struct qseecom_unload_ireq {
 	uint32_t qsee_cmd_id;
-	uint32_t mdt_len;		/* Length of the mdt file */
-	uint32_t img_len;		/* Length of .bxx and .mdt files */
-	phys_addr_t phy_addr;		/* phy addr of the start of image */
-	char app_name[MAX_APP_NAME_SIZE];	/* application name*/
+	uint32_t app_id;
 };
 
-struct qsee_notify_app {
-	uint32_t cmd_id;
-	phys_addr_t applications_region_addr;
-	size_t applications_region_size;
+enum qseecom_command_scm_resp_type {
+	QSEOS_APP_ID = 0xEE01,
+	QSEOS_LISTENER_ID
+};
+
+__packed struct qseecom_command_scm_resp {
+	unsigned long result;
+	enum qseecom_command_scm_resp_type resp_type;
+	unsigned long data;
+};
+
+struct tzdbg_log_pos_t {
+	uint16_t wrap;
+	uint16_t offset;
+};
+
+struct tzdbg_log_t {
+	struct tzdbg_log_pos_t log_pos;
+	uint8_t	log_buf[];
+};
+
+struct qsee_reg_log_buf_req {
+	uint32_t qsee_cmd_id;
+	phys_addr_t phy_addr;
+	uint64_t len;
 };
 
 extern int qcom_scm_qseecom_notify(struct qsee_notify_app *req,
@@ -161,8 +219,8 @@ extern int qcom_scm_qseecom_notify(struct qsee_notify_app *req,
 				  struct qseecom_command_scm_resp *resp,
 				  size_t resp_size);
 
-extern int qcom_scm_qseecom_load(struct qseecom_load_app_ireq *req,
-				size_t req_size,
+extern int qcom_scm_qseecom_load(uint32_t smc_id, uint32_t cmd_id,
+				union qseecom_load_ireq *req, size_t req_size,
 				struct qseecom_command_scm_resp *resp,
 				size_t resp_size);
 
@@ -171,10 +229,17 @@ extern int qcom_scm_qseecom_send_data(union qseecom_client_send_data_ireq *req,
 				     struct qseecom_command_scm_resp *resp,
 				     size_t resp_size);
 
-extern int qcom_scm_qseecom_unload(struct qseecom_unload_app_ireq *req,
+extern int qcom_scm_qseecom_unload(uint32_t smc_id, uint32_t cmd_id,
+				  struct qseecom_unload_ireq *req,
 				  size_t req_size,
 				  struct qseecom_command_scm_resp *resp,
 				  size_t resp_size);
+
+extern int qcom_scm_tz_register_log_buf(struct device *dev,
+				       struct qsee_reg_log_buf_req *request,
+				       size_t req_size,
+				       struct qseecom_command_scm_resp
+				       *response, size_t resp_size);
 
 #define QCOM_SCM_SVC_FUSE		0x8
 

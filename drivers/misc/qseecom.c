@@ -17,6 +17,94 @@
 
 #include "qseecom.h"
 
+static int unload_app_libs(void)
+{
+	struct qseecom_unload_ireq req;
+	struct qseecom_command_scm_resp resp;
+	int ret = 0;
+	uint32_t cmd_id = 0;
+	uint32_t smc_id = 0;
+
+	cmd_id = QSEE_UNLOAD_SERV_IMAGE_COMMAND;
+
+	smc_id = TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_QSEE_OS, TZ_SVC_APP_MGR,
+					 TZ_ARMv8_CMD_UNLOAD_LIB);
+
+	/* SCM_CALL to unload the app */
+	ret = qcom_scm_qseecom_unload(smc_id, cmd_id, &req, sizeof(uint32_t),
+				     &resp, sizeof(resp));
+
+	if (ret) {
+		pr_err("\nscm_call to unload app libs failed, ret val = %d",
+		      ret);
+		return ret;
+	}
+
+	pr_info("\nApp libs unloaded successfully");
+
+	return 0;
+}
+
+static int tzdbg_register_qsee_log_buf(struct device *dev)
+{
+	uint64_t len = 0;
+	int ret = 0;
+	void *buf = NULL;
+	struct qsee_reg_log_buf_req req;
+	struct qseecom_command_scm_resp resp;
+	dma_addr_t dma_log_buf = 0;
+
+	len = QSEE_LOG_BUF_SIZE;
+	buf = dma_alloc_coherent(dev, len, &dma_log_buf, GFP_KERNEL);
+	if (buf == NULL) {
+		pr_err("Failed to alloc memory for size %llu\n", len);
+		return -ENOMEM;
+	}
+	g_qsee_log = (struct tzdbg_log_t *)buf;
+
+	req.phy_addr = dma_log_buf;
+	req.len = len;
+
+	ret = qcom_scm_tz_register_log_buf(dev, &req, sizeof(req),
+					  &resp, sizeof(resp));
+
+	if (ret) {
+		pr_err("\nSCM Call failed..SCM Call return value = %d\n", ret);
+		dma_free_coherent(dev, len, (void *)g_qsee_log, dma_log_buf);
+		return ret;
+	}
+
+	if (resp.result) {
+		ret = resp.result;
+		pr_err("\nResponse status failure..return value = %d\n", ret);
+		dma_free_coherent(dev, len, (void *)g_qsee_log, dma_log_buf);
+		return ret;
+	}
+
+	return 0;
+}
+
+static ssize_t
+show_qsee_app_log_buf(struct device *dev, struct device_attribute *attr,
+		     char *buf)
+{
+	ssize_t count = 0;
+
+	if (g_qsee_log->log_pos.wrap != 0) {
+		memcpy(buf, g_qsee_log->log_buf + g_qsee_log->log_pos.offset,
+		      QSEE_LOG_BUF_SIZE - g_qsee_log->log_pos.offset - 64);
+		count = QSEE_LOG_BUF_SIZE - g_qsee_log->log_pos.offset - 64;
+		memcpy(buf + count, g_qsee_log->log_buf,
+		      g_qsee_log->log_pos.offset);
+		count = count + g_qsee_log->log_pos.offset;
+	} else {
+		memcpy(buf, g_qsee_log->log_buf, g_qsee_log->log_pos.offset);
+		count = g_qsee_log->log_pos.offset;
+	}
+
+	return count;
+}
+
 static ssize_t
 generate_key_blob(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -59,7 +147,6 @@ generate_key_blob(struct device *dev, struct device_attribute *attr, char *buf)
 		free_pages((unsigned long)req_ptr, req_order);
 		return -ENOMEM;
 	}
-
 
 	dma_key_blob = dma_map_single(dev, key_blob, KEY_BLOB_SIZE,
 				     DMA_FROM_DEVICE);
@@ -1353,21 +1440,29 @@ end:
 struct qseecom_props {
 	const int function;
 	const int tz_arch;
+	bool libraries_inbuilt;
+	bool logging_support_enabled;
 };
 
 const struct qseecom_props qseecom_props_ipq40xx = {
 	.function = (MUL | CRYPTO | AUTH_OTP | AES_SEC_KEY | RSA_SEC_KEY),
 	.tz_arch = QSEE_32,
+	.libraries_inbuilt = true,
+	.logging_support_enabled = false,
 };
 
 const struct qseecom_props qseecom_props_ipq8064 = {
 	.function = (MUL | ENC | DEC),
 	.tz_arch = QSEE_32,
+	.libraries_inbuilt = true,
+	.logging_support_enabled = false,
 };
 
 const struct qseecom_props qseecom_props_ipq807x = {
 	.function = (MUL | CRYPTO),
 	.tz_arch = QSEE_64,
+	.libraries_inbuilt = false,
+	.logging_support_enabled = true,
 };
 
 static const struct of_device_id qseecom_of_table[] = {
@@ -1616,21 +1711,30 @@ static ssize_t auth_write(struct file *filp, struct kobject *kobj,
 
 static int qseecom_unload_app(void)
 {
-	struct qseecom_unload_app_ireq req;
+	struct qseecom_unload_ireq req;
 	struct qseecom_command_scm_resp resp;
-	int ret;
+	int ret = 0;
+	uint32_t cmd_id = 0;
+	uint32_t smc_id = 0;
+
+	cmd_id = QSEOS_APP_SHUTDOWN_COMMAND;
+
+	smc_id = TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_QSEE_OS, TZ_SVC_APP_MGR,
+					 TZ_ARMv8_CMD_UNLOAD_APP_ID);
 
 	req.app_id = qsee_app_id;
 
 	/* SCM_CALL to unload the app */
-	ret = qcom_scm_qseecom_unload(&req,
-				     sizeof(struct qseecom_unload_app_ireq),
+	ret = qcom_scm_qseecom_unload(smc_id, cmd_id, &req,
+				     sizeof(struct qseecom_unload_ireq),
 				     &resp, sizeof(resp));
-	if (ret)
+	if (ret) {
 		pr_err("scm_call to unload app (id = %d) failed\n", req.app_id);
+		pr_info("scm call ret value = %d", ret);
+		return ret;
+	}
 
 	pr_info("App id %d now unloaded\n", req.app_id);
-	app_state = 0;
 
 	return 0;
 }
@@ -1989,8 +2093,14 @@ fn_exit_1:
 				ret = -EINVAL;
 				goto fn_exit;
 			} else {
-				if (option == 4)
-					pr_info("Crypto test success\n");
+				if (option == 4) {
+					if (!msgrsp->status) {
+						pr_info("Crypto operation success\n");
+					} else {
+						pr_info("Crypto operation failed\n");
+						goto fn_exit;
+					}
+				}
 			}
 		}
 
@@ -2043,13 +2153,15 @@ static int32_t copy_files(int *img_size)
 	return 0;
 }
 
-static int load_app(struct device *dev)
+static int load_request(struct device *dev, uint32_t smc_id,
+		       uint32_t cmd_id, size_t req_size)
 {
-	struct qseecom_load_app_ireq load_req;
+	union qseecom_load_ireq load_req;
 	struct qseecom_command_scm_resp resp;
 	int ret, ret1;
 	int img_size;
 
+	kfree(qsee_sbuffer);
 	ret = copy_files(&img_size);
 	if (ret) {
 		pr_err("Copying Files failed\n");
@@ -2058,19 +2170,15 @@ static int load_app(struct device *dev)
 
 	dev = qdev;
 
-	/* Populate the structure for sending scm call to load image */
-	strlcpy(load_req.app_name, "sampleapp", sizeof("sampleapp"));
-	load_req.mdt_len = mdt_size;
-	load_req.img_len = img_size;
-	load_req.phy_addr = dma_map_single(dev, qsee_sbuffer,
-				img_size, DMA_TO_DEVICE);
-	ret1 = dma_mapping_error(dev, load_req.phy_addr);
+	load_req.load_lib_req.mdt_len = mdt_size;
+	load_req.load_lib_req.img_len = img_size;
+	load_req.load_lib_req.phy_addr = dma_map_single(dev, qsee_sbuffer,
+						       img_size, DMA_TO_DEVICE);
+	ret1 = dma_mapping_error(dev, load_req.load_lib_req.phy_addr);
 	if (ret1 == 0) {
-		/* SCM_CALL to load the app and get the app_id back */
-		ret = qcom_scm_qseecom_load(&load_req,
-					   sizeof(struct qseecom_load_app_ireq),
-					   &resp, sizeof(resp));
-		dma_unmap_single(dev, load_req.phy_addr,
+		ret = qcom_scm_qseecom_load(smc_id, cmd_id, &load_req,
+					   req_size, &resp, sizeof(resp));
+		dma_unmap_single(dev, load_req.load_lib_req.phy_addr,
 				img_size, DMA_TO_DEVICE);
 	}
 	if (ret1) {
@@ -2078,7 +2186,7 @@ static int load_app(struct device *dev)
 		return ret1;
 	}
 	if (ret) {
-		pr_err("SCM_CALL to load app failed\n");
+		pr_err("SCM_CALL to load app and services failed\n");
 		return ret;
 	}
 
@@ -2096,8 +2204,7 @@ static int load_app(struct device *dev)
 		return -EFAULT;
 	}
 
-	pr_info("\nLoaded Sampleapp Successfully!!!!!\n");
-	app_state = 1;
+	pr_info("\nSuccessfully loaded app and services!!!!!\n");
 
 	qsee_app_id = resp.data;
 	return 0;
@@ -2237,26 +2344,70 @@ store_load_start(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	int load_cmd;
+	uint32_t smc_id = 0;
+	uint32_t cmd_id = 0;
+	size_t req_size = 0;
+
+	dev = qdev;
 
 	if (kstrtouint(buf, 10, &load_cmd)) {
 		pr_err("\n Provide valid integer input!");
-		pr_err("Echo 1 to start loading app");
-		pr_err("Echo 0 to start unloading app");
+		pr_err("\nEcho 0 to load app libs");
+		pr_err("\nEcho 1 to load app");
+		pr_err("\nEcho 2 to unload app");
 		return -EINVAL;
 	}
-	if (load_cmd == 1) {
-		if (!app_state)
-			load_app(dev);
-		else
-			pr_info("\nApp already loaded...");
-	} else if (load_cmd == 0) {
-		if (app_state)
-			qseecom_unload_app();
-		else
+	if (load_cmd == 0) {
+		if (!props->libraries_inbuilt) {
+			smc_id = TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_QSEE_OS,
+				 TZ_SVC_APP_MGR, TZ_ARMv8_CMD_LOAD_LIB);
+			cmd_id = QSEE_LOAD_SERV_IMAGE_COMMAND;
+			req_size = sizeof(struct qseecom_load_lib_ireq);
+			if (load_request(dev, smc_id, cmd_id, req_size))
+				pr_info("\nLoading app libs failed");
+			else
+				app_libs_state = 1;
+			if (props->logging_support_enabled) {
+				if (tzdbg_register_qsee_log_buf(dev))
+					pr_info("\nRegistering log buf failed");
+			}
+		} else {
+			pr_info("\nLibraries are inbuilt in this platform");
+		}
+	} else if (load_cmd == 1) {
+		if (props->libraries_inbuilt || app_libs_state) {
+			if (!app_state) {
+				smc_id = TZ_SYSCALL_CREATE_SMC_ID(
+					 TZ_OWNER_QSEE_OS, TZ_SVC_APP_MGR,
+					 TZ_ARMv8_CMD_LOAD_APP_ID);
+				cmd_id = QSEOS_APP_START_COMMAND;
+				req_size = sizeof(struct qseecom_load_app_ireq);
+				if (load_request(dev, smc_id, cmd_id, req_size))
+					pr_info("\nLoading app failed");
+				else
+					app_state = 1;
+			} else {
+				pr_info("\nApp already loaded...");
+			}
+		} else {
+			if (!app_libs_state)
+				pr_info("\nApp libs must be loaded first");
+			if (!props->libraries_inbuilt)
+				pr_info("\nApp libs are not inbuilt in this platform");
+		}
+	} else if (load_cmd == 2) {
+		if (app_state) {
+			if (qseecom_unload_app())
+				pr_info("\nApp unload failed");
+			else
+				app_state = 0;
+		} else {
 			pr_info("\nApp already unloaded...");
+		}
 	} else {
-		pr_info("\nEcho 1 to start loading app");
-		pr_info("\nEcho 0 to start unloading app");
+		pr_info("\nEcho 0 to load app libs if its not inbuilt");
+		pr_info("\nEcho 1 to load app if its not already loaded");
+		pr_info("\nEcho 2 to unload app if its already loaded");
 	}
 
 	return count;
@@ -2306,6 +2457,9 @@ static int __init tzapp_init(void)
 
 	if (props->function & AUTH_OTP)
 		tzapp_attrs[i++] = &dev_attr_fuse_otp.attr;
+
+	if (props->logging_support_enabled)
+		tzapp_attrs[i++] = &dev_attr_log_buf.attr;
 
 	tzapp_attrs[i] = NULL;
 
@@ -2391,8 +2545,12 @@ load:
 
 static int __exit qseecom_remove(struct platform_device *pdev)
 {
-	if (app_state)
-		qseecom_unload_app();
+	if (app_state) {
+		if (qseecom_unload_app())
+			pr_err("\nApp unload failed");
+		else
+			app_state = 0;
+	}
 
 	sysfs_remove_bin_file(firmware_kobj, &mdt_attr);
 	sysfs_remove_bin_file(firmware_kobj, &seg_attr);
@@ -2459,6 +2617,13 @@ static int __exit qseecom_remove(struct platform_device *pdev)
 		kfree(auth_file);
 
 	kfree(qsee_sbuffer);
+
+	if (app_libs_state) {
+		if (unload_app_libs())
+			pr_err("\nApp libs unload failed");
+		else
+			app_libs_state = 0;
+	}
 
 	return 0;
 }

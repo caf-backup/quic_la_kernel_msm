@@ -543,8 +543,9 @@ int __qcom_scm_qseecom_notify(struct device *dev,
 	return ret;
 }
 
-int __qcom_scm_qseecom_load(struct device *dev,
-			   struct qseecom_load_app_ireq *req, size_t req_size,
+int __qcom_scm_qseecom_load(struct device *dev, uint32_t smc_id,
+			   uint32_t cmd_id, union qseecom_load_ireq *req,
+			   size_t req_size,
 			   struct qseecom_command_scm_resp *resp,
 			   size_t resp_size)
 {
@@ -553,12 +554,16 @@ int __qcom_scm_qseecom_load(struct device *dev,
 	struct arm_smccc_res res;
 
 	desc.arginfo = SCM_ARGS(3, SCM_VAL, SCM_VAL, SCM_VAL);
-	desc.args[0] = req->mdt_len;
-	desc.args[1] = req->img_len;
-	desc.args[2] = req->phy_addr;
+	desc.args[0] = req->load_lib_req.mdt_len;
+	desc.args[1] = req->load_lib_req.img_len;
+	desc.args[2] = req->load_lib_req.phy_addr;
 
-	ret = qcom_scm_call(dev, TZ_OWNER_QSEE_OS, TZ_SVC_APP_MGR,
-			    TZ_ARMv8_CMD_LOAD_APP_ID, &desc, &res);
+	if (cmd_id == QSEOS_APP_START_COMMAND)
+		ret = qcom_scm_call(dev, TZ_OWNER_QSEE_OS, TZ_SVC_APP_MGR,
+				   TZ_ARMv8_CMD_LOAD_APP_ID, &desc, &res);
+	else
+		ret = qcom_scm_call(dev, TZ_OWNER_QSEE_OS, TZ_SVC_APP_MGR,
+				   TZ_ARMv8_CMD_LOAD_LIB, &desc, &res);
 
 	resp->result = res.a1;
 	resp->resp_type = res.a2;
@@ -594,8 +599,8 @@ int __qcom_scm_qseecom_send_data(struct device *dev,
 	return ret;
 }
 
-int __qcom_scm_qseecom_unload(struct device *dev,
-			     struct qseecom_unload_app_ireq *req,
+int __qcom_scm_qseecom_unload(struct device *dev, uint32_t smc_id,
+			     uint32_t cmd_id, struct qseecom_unload_ireq *req,
 			     size_t req_size,
 			     struct qseecom_command_scm_resp *resp,
 			     size_t resp_size)
@@ -604,11 +609,25 @@ int __qcom_scm_qseecom_unload(struct device *dev,
 	struct qcom_scm_desc desc = {0};
 	struct arm_smccc_res res;
 
-	desc.arginfo = SCM_ARGS(1);
-	desc.args[0] = req->app_id;
+	switch (cmd_id) {
+	case QSEOS_APP_SHUTDOWN_COMMAND:
+		desc.arginfo = SCM_ARGS(1);
+		desc.args[0] = req->app_id;
+		ret = qcom_scm_call(dev, TZ_OWNER_QSEE_OS,
+				   TZ_SVC_APP_MGR,
+				   TZ_ARMv8_CMD_UNLOAD_APP_ID,
+				   &desc, &res);
+		break;
 
-	ret = qcom_scm_call(dev, TZ_OWNER_QSEE_OS, TZ_SVC_APP_MGR,
-			    TZ_ARMv8_CMD_UNLOAD_APP_ID, &desc, &res);
+	case QSEE_UNLOAD_SERV_IMAGE_COMMAND:
+		ret = qcom_scm_call(dev, TZ_OWNER_QSEE_OS, TZ_SVC_APP_MGR,
+				   TZ_ARMv8_CMD_UNLOAD_LIB, &desc, &res);
+		break;
+
+	default:
+		pr_info("\nIncorrect command id has been passed");
+		return -EINVAL;
+	}
 
 	resp->result = res.a1;
 	resp->resp_type = res.a2;
@@ -616,6 +635,31 @@ int __qcom_scm_qseecom_unload(struct device *dev,
 
 	return ret;
 }
+
+int __qcom_scm_tz_register_log_buf(struct device *dev,
+				  struct qsee_reg_log_buf_req *request,
+				  size_t req_size,
+				  struct qseecom_command_scm_resp *response,
+				  size_t resp_size)
+{
+	int ret = 0;
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+
+	desc.arginfo = SCM_ARGS(2, SCM_RW, SCM_RW);
+	desc.args[0] = request->phy_addr;
+	desc.args[0] = request->len;
+
+	ret = qcom_scm_call(dev, TZ_OWNER_QSEE_OS, TZ_SVC_APP_MGR,
+			   TZ_ARMv8_CMD_REGISTER_LOG_BUF, &desc, &res);
+
+	response->result = res.a1;
+	response->resp_type = res.a2;
+	response->data = res.a3;
+
+	return ret;
+}
+
 
 int __qcom_scm_tzsched(struct device *dev, const void *req, size_t req_size,
 			void *resp, size_t resp_size)

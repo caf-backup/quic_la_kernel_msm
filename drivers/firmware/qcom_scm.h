@@ -21,33 +21,6 @@
 #define SCM_CMD_TZ_SET_DLOAD_FOR_SECURE_BOOT	0x14
 #define SCM_CMD_PSHOLD				0x15
 
-#define TZ_OWNER_QSEE_OS		50
-#define TZ_OWNER_TZ_APPS		48
-#define TZ_SVC_APP_MGR			1     /* Application management */
-#define TZ_SVC_APP_ID_PLACEHOLDER	0     /* SVC bits will contain App ID */
-
-#define TZ_ARMv8_CMD_NOTIFY_REGION_ID		0x05
-#define TZ_ARMv8_CMD_LOAD_APP_ID		0x01
-#define TZ_ARMv8_CMD_SEND_DATA_ID		0x01
-#define TZ_ARMv8_CMD_UNLOAD_APP_ID		0x02
-
-enum qseecom_qceos_cmd_id {
-	QSEOS_APP_START_COMMAND	= 0x01,
-	QSEOS_APP_SHUTDOWN_COMMAND,
-	QSEOS_APP_LOOKUP_COMMAND,
-	QSEOS_REGISTER_LISTENER,
-	QSEOS_DEREGISTER_LISTENER,
-	QSEOS_CLIENT_SEND_DATA_COMMAND,
-	QSEOS_LISTENER_DATA_RSP_COMMAND,
-	QSEOS_LOAD_EXTERNAL_ELF_COMMAND,
-	QSEOS_UNLOAD_EXTERNAL_ELF_COMMAND,
-	QSEOS_CMD_MAX		= 0xEFFFFFFF,
-	QSEE_APP_NOTIFY_COMMAND	= 13
-};
-
-#define TZ_SYSCALL_CREATE_SMC_ID(o, s, f) \
-	((uint32_t)((((o & 0x3f) << 24) | (s & 0xff) << 8) | (f & 0xff)))
-
 extern int __qcom_scm_tls_hardening(struct device *dev,
 				   struct scm_cmd_buf_t *scm_cmd_buf,
 				   size_t buf_size, u32 cmd_id);
@@ -215,7 +188,8 @@ extern int __qcom_scm_qseecom_notify(struct device *,
 				    size_t resp_size);
 
 extern int __qcom_scm_qseecom_load(struct device *,
-				  struct qseecom_load_app_ireq *req,
+				  uint32_t smc_id, uint32_t cmd_id,
+				  union qseecom_load_ireq *req,
 				  size_t req_size,
 				  struct qseecom_command_scm_resp *resp,
 				  size_t resp_size);
@@ -227,10 +201,17 @@ extern int __qcom_scm_qseecom_send_data(struct device *,
 				       size_t resp_size);
 
 extern int __qcom_scm_qseecom_unload(struct device *,
-				    struct qseecom_unload_app_ireq *req,
+				    uint32_t smc_id, uint32_t cmd_id,
+				    struct qseecom_unload_ireq *req,
 				    size_t req_size,
 				    struct qseecom_command_scm_resp *resp,
 				    size_t resp_size);
+
+extern int __qcom_scm_tz_register_log_buf(struct device *dev,
+					 struct qsee_reg_log_buf_req *request,
+					 size_t req_size,
+					 struct qseecom_command_scm_resp
+					 *response, size_t resp_size);
 
 extern int __qcom_scm_tzsched(struct device *, const void *req,
 				size_t req_size, void *resp,

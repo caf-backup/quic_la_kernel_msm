@@ -69,7 +69,10 @@
 #define RSA_KEY_MATERIAL_SIZE	(1596 * sizeof(uint8_t))
 #define MAX_RSA_SIGN_DATA_SIZE	(2048 * sizeof(uint8_t))
 
+#define QSEE_LOG_BUF_SIZE		0x1000
+
 static int app_state;
+static int app_libs_state;
 struct qseecom_props *props;
 
 enum tz_storage_service_cmd_t {
@@ -302,6 +305,8 @@ static size_t rsa_plain_data_len;
 struct kobject *tzapp_kobj;
 struct attribute_group tzapp_attr_grp;
 
+static struct tzdbg_log_t *g_qsee_log;
+
 /*
  * Array Length is 4096 bytes, since 4MB is the max input size
  * that can be passed to SCM call
@@ -318,6 +323,9 @@ static struct device *qdev;
 #define AUTH_OTP	0x10
 #define AES_SEC_KEY	0x20
 #define RSA_SEC_KEY	0x40
+
+static ssize_t show_qsee_app_log_buf(struct device *dev,
+				    struct device_attribute *attr, char *buf);
 
 static ssize_t generate_key_blob(struct device *dev,
 				struct device_attribute *attr, char *buf);
@@ -419,6 +427,7 @@ static ssize_t store_fuse_otp_input(struct device *dev,
 				   struct device_attribute *attr,
 				   const char *buf, size_t count);
 
+static DEVICE_ATTR(log_buf, 0644, show_qsee_app_log_buf, NULL);
 static DEVICE_ATTR(load_start, S_IWUSR, NULL, store_load_start);
 static DEVICE_ATTR(basic_data, 0644, show_basic_output, store_basic_input);
 static DEVICE_ATTR(encrypt, 0644, show_encrypt_output, store_encrypt_input);
