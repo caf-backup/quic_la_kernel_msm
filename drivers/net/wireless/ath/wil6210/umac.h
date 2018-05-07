@@ -24,6 +24,7 @@
 #include <linux/ktime.h>
 #include <linux/list.h>
 #include <linux/hashtable.h>
+#include <linux/kref.h>
 
 #define WIL_UMAC_MAX_FRAME_SIZE 512
 /* enlarge this (upto 254) to support more nodes per VAP */
@@ -102,7 +103,7 @@ struct wil_umac_node {
 	struct wil_umac *umac;
 	struct wil_umac_vap *vap;
 	struct hlist_node hlist;
-	bool valid; /* for using as array item */
+	struct kref refcount;
 
 	u8 mac[ETH_ALEN];
 	u8 aid;
@@ -199,6 +200,7 @@ struct wil_umac {
 	size_t max_sta;
 	size_t max_vaps;
 	struct wil_umac_rops rops;
+	struct platform_device *pdev;
 
 	struct wil_umac_vap *vaps;
 	struct wil_umac_node *node_array;
@@ -210,6 +212,18 @@ struct wil_umac {
 	struct workqueue_struct *workq; /* for inact_worker */
 	struct work_struct inact_worker;
 	struct timer_list inact_timer;
+};
+
+/* callbacks from external drivers into UMAC */
+struct wil_umac_external_ops {
+	struct wil_umac_node *(*node_get)(void *umac_handle, const u8 *mac);
+	void (*node_put)(void *umac_handle, struct wil_umac_node *node);
+};
+
+/* platform device data for interaction with external drivers */
+struct wil_umac_platdata {
+	struct wil_umac_external_ops ops;
+	void *umac_handle;
 };
 
 /* init UMAC module.
