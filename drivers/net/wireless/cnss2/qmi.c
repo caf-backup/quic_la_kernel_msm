@@ -172,8 +172,9 @@ static int cnss_wlfw_host_cap_send_sync(struct cnss_plat_data *plat_priv)
 	memset(&req, 0, sizeof(req));
 	memset(&resp, 0, sizeof(resp));
 
-	req.daemon_support_valid = 1;
-	req.daemon_support = daemon_support;
+	req.num_clients_valid = 1;
+	req.num_clients = daemon_support ? 2 : 1;
+	cnss_pr_dbg("Number of clients is %d\n", req.num_clients);
 
 	req.mem_cfg_mode = plat_priv->tgt_mem_cfg_mode;
 	req.mem_cfg_mode_valid = 1;
@@ -181,7 +182,18 @@ static int cnss_wlfw_host_cap_send_sync(struct cnss_plat_data *plat_priv)
 		     plat_priv->device_id,
 		     plat_priv->tgt_mem_cfg_mode);
 
-	cnss_pr_dbg("daemon_support is %d\n", req.daemon_support);
+	req.bdf_support_valid = 1;
+	req.bdf_support = 1;
+
+	req.m3_support_valid = 0;
+	req.m3_support = 0;
+
+	req.m3_cache_support_valid = 0;
+	req.m3_cache_support = 0;
+
+	req.cal_done_valid = 1;
+	req.cal_done = plat_priv->cal_done;
+	cnss_pr_dbg("Calibration done is %d\n", plat_priv->cal_done);
 
 	req_desc.max_msg_len = WLFW_HOST_CAP_REQ_MSG_V01_MAX_MSG_LEN;
 	req_desc.msg_id = QMI_WLFW_HOST_CAP_REQ_V01;
@@ -228,14 +240,18 @@ static int cnss_wlfw_ind_register_send_sync(struct cnss_plat_data *plat_priv)
 
 	req.client_id_valid = 1;
 	req.client_id = WLFW_CLIENT_ID;
+
 	req.fw_ready_enable_valid = 1;
 	req.fw_ready_enable = 1;
 	req.request_mem_enable_valid = 1;
 	req.request_mem_enable = 1;
 	req.fw_mem_ready_enable_valid = 1;
 	req.fw_mem_ready_enable = 1;
-	req.cold_boot_cal_done_enable_valid = 1;
-	req.cold_boot_cal_done_enable = 1;
+	req.fw_init_done_enable_valid = 1;
+	req.fw_init_done_enable = 1;
+	req.cal_done_enable_valid = 1;
+	req.cal_done_enable = 1;
+
 	req.pin_connect_result_enable_valid = 0;
 	req.pin_connect_result_enable = 0;
 
