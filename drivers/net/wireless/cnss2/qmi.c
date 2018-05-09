@@ -1085,11 +1085,11 @@ int cnss_wlfw_server_arrive(struct cnss_plat_data *plat_priv)
 	cnss_pr_info("QMI WLFW service connected, state: 0x%lx\n",
 		     plat_priv->driver_state);
 
-	ret = cnss_wlfw_host_cap_send_sync(plat_priv);
+	ret = cnss_wlfw_ind_register_send_sync(plat_priv);
 	if (ret < 0)
 		goto out;
 
-	ret = cnss_wlfw_ind_register_send_sync(plat_priv);
+	ret = cnss_wlfw_host_cap_send_sync(plat_priv);
 	if (ret < 0)
 		goto out;
 
