@@ -1021,12 +1021,12 @@ static void cnss_wlfw_clnt_ind(struct qmi_handle *handle,
 				       CNSS_DRIVER_EVENT_FW_MEM_READY,
 				       false, NULL);
 		break;
-	case QMI_WLFW_COLD_BOOT_CAL_DONE_IND_V01:
+	case QMI_WLFW_FW_READY_IND_V01:
 		cnss_driver_event_post(plat_priv,
 				       CNSS_DRIVER_EVENT_COLD_BOOT_CAL_DONE,
 				       false, NULL);
 		break;
-	case QMI_WLFW_FW_READY_IND_V01:
+	case QMI_WLFW_FW_INIT_DONE_IND_V01:
 		cnss_driver_event_post(plat_priv,
 				       CNSS_DRIVER_EVENT_FW_READY,
 				       false, NULL);
