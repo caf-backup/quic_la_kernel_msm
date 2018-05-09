@@ -964,6 +964,7 @@ struct wil6210_priv {
 	u8 wakeup_trigger;
 	struct wil_suspend_stats suspend_stats;
 	struct wil_debugfs_data dbg_data;
+	u8 force_edmg_channel;
 
 	void *platform_handle;
 	struct wil_platform_ops platform_ops;
@@ -1400,5 +1401,8 @@ int wil_wmi_bcast_desc_ring_add(struct wil6210_vif *vif, int ring_id);
 int wmi_addba_rx_resp_edma(struct wil6210_priv *wil, u8 mid, u8 cid,
 			   u8 tid, u8 token, u16 status, bool amsdu,
 			   u16 agg_wsize, u16 timeout);
+
+int wil_wmi2spec_ch(u8 wmi_ch, u8 *spec_ch);
+int wil_spec2wmi_ch(u8 spec_ch, u8 *wmi_ch);
 
 #endif /* __WIL6210_H__ */
