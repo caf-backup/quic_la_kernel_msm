@@ -788,58 +788,98 @@ int cnss_pm_request_resume(struct cnss_pci_data *pci_priv)
 int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 {
 	struct cnss_pci_data *pci_priv = plat_priv->bus_priv;
-	struct cnss_fw_mem *fw_mem = &plat_priv->fw_mem;
-	unsigned int location[2];
+	struct cnss_fw_mem *fw_mem = plat_priv->fw_mem;
+	unsigned int bdf_location[2], caldb_location[2];
 	struct device *dev;
+	int i, idx, mode;
 
 	dev = &plat_priv->plat_dev->dev;
 
 	if (plat_priv->device_id == QCA8074_DEVICE_ID &&
 	    of_property_read_u32_array(dev->of_node, "qcom,caldb-addr",
-				       &location, ARRAY_SIZE(location))) {
+				       &caldb_location,
+				       ARRAY_SIZE(caldb_location))) {
 		pr_err("Error: Couldn't read caldb_addr from device_tree\n");
 		CNSS_ASSERT(0);
 		return -EINVAL;
 	}
 
 	if (plat_priv->device_id == QCA6290_DEVICE_ID) {
-		fw_mem->pa = Q6_CALDB_ADDR;
-		fw_mem->va = ioremap(Q6_CALDB_ADDR, fw_mem->size);
+		plat_priv->fw_mem_seg_len = 1;
+		fw_mem[0].pa = Q6_CALDB_ADDR;
+		fw_mem[0].va = ioremap(Q6_CALDB_ADDR, fw_mem[0].size);
+		if (!fw_mem[0].va)
+			pr_err("WARNING: caldb ioremap failed\n");
+
+		fw_mem[0].type = CALDB_MEM_REGION_TYPE;
 		return 0;
 	}
 
 	if (plat_priv->device_id == QCA8074_DEVICE_ID) {
-		if (!daemon_support) {
-			fw_mem->pa = 0;
-			fw_mem->va = 0;
-			fw_mem->size = 0;
-			return 0;
-		}
-
-		if (fw_mem->size > Q6_CALDB_SIZE) {
-			pr_err("Error: Need more memory %x\n", fw_mem->size);
+		if (of_property_read_u32_array(dev->of_node, "qcom,bdf-addr",
+					       &bdf_location,
+					       ARRAY_SIZE(bdf_location))) {
+			pr_err("Error: No bdf_addr in device_tree\n");
 			CNSS_ASSERT(0);
 			return -ENOMEM;
 		}
-		fw_mem->pa = location[plat_priv->tgt_mem_cfg_mode];
-		fw_mem->va = location[plat_priv->tgt_mem_cfg_mode];
-		return 0;
-	}
-	if (!fw_mem->va && fw_mem->size) {
-#ifdef CONFIG_CNSS2_SMMU
-		fw_mem->va = dma_alloc_coherent(&pci_priv->pci_dev->dev,
-						fw_mem->size, &fw_mem->pa,
-						GFP_KERNEL);
+		idx = 0;
+		mode = plat_priv->tgt_mem_cfg_mode;
+		if (mode >= 2)
+			CNSS_ASSERT(0);
 
-		if (!fw_mem->va) {
-			cnss_pr_err("Failed to allocate memory for FW, size: 0x%zx\n",
-				    fw_mem->size);
-			fw_mem->size = 0;
-
-			return -ENOMEM;
+		for (i = 0; i < plat_priv->fw_mem_seg_len; i++) {
+			switch (fw_mem[i].type) {
+			case BDF_MEM_REGION_TYPE:
+				fw_mem[idx].pa = bdf_location[mode];
+				fw_mem[idx].va = bdf_location[mode];
+				fw_mem[idx].size = fw_mem[i].size;
+				fw_mem[idx].type = fw_mem[i].type;
+				idx++;
+				break;
+			case CALDB_MEM_REGION_TYPE:
+				if (fw_mem[i].size > Q6_CALDB_SIZE) {
+					pr_err("Error: Need more memory %x\n",
+					       fw_mem[i].size);
+					CNSS_ASSERT(0);
+					return -ENOMEM;
+				}
+				if (!daemon_support) {
+					fw_mem[idx].pa = 0;
+					fw_mem[idx].va = 0;
+				} else {
+					fw_mem[idx].pa = caldb_location[mode];
+					fw_mem[idx].va = caldb_location[mode];
+				}
+				fw_mem[idx].size = fw_mem[i].size;
+				fw_mem[idx].type = fw_mem[i].type;
+				idx++;
+				break;
+			default:
+				pr_err("Ignore mem req type %d\n",
+				       fw_mem[i].type);
+				break;
+			}
 		}
-#endif
+		plat_priv->fw_mem_seg_len = idx;
 	}
+
+#ifdef CONFIG_CNSS2_SMMU
+	for (i = 0; i < plat_priv->fw_mem_seg_len; i++) {
+		if (!fw_mem[i].va && fw_mem[i].size) {
+			fw_mem[i].va =
+				dma_alloc_coherent(&pci_priv->pci_dev->dev,
+						   fw_mem[i].size,
+						   &fw_mem[i].pa, GFP_KERNEL);
+			if (!fw_mem[i].va) {
+				cnss_pr_err("Failed to allocate memory for FW, size: 0x%zx, type: %u\n",
+					    fw_mem[i].size, fw_mem[i].type);
+
+				return -ENOMEM;
+			}
+		}
+	}
+#endif
 
 	return 0;
 }
@@ -847,20 +887,28 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 static void cnss_pci_free_fw_mem(struct cnss_pci_data *pci_priv)
 {
 	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
-	struct cnss_fw_mem *fw_mem = &plat_priv->fw_mem;
+	struct cnss_fw_mem *fw_mem = plat_priv->fw_mem;
+	int i;
 
 #ifdef CONFIG_CNSS2_SMMU
-	if (fw_mem->va && fw_mem->size) {
-		cnss_pr_dbg("Freeing memory for FW, va: 0x%pK, pa: %pa, size: 0x%zx\n",
-			    fw_mem->va, &fw_mem->pa, fw_mem->size);
-		dma_free_coherent(&pci_priv->pci_dev->dev, fw_mem->size,
-				  fw_mem->va, fw_mem->pa);
-		fw_mem->va = NULL;
-		fw_mem->pa = 0;
-		fw_mem->size = 0;
+	for (i = 0; i < plat_priv->fw_mem_seg_len; i++) {
+		if (fw_mem[i].va && fw_mem[i].size) {
+			cnss_pr_dbg("Freeing memory for FW, va: 0x%pK, pa: %pa, size: 0x%zx, type: %u\n",
+				    fw_mem[i].va, fw_mem[i].pa,
+				    fw_mem[i].size, fw_mem[i].type);
+			dma_free_coherent(&pci_priv->pci_dev->dev,
+					  fw_mem[i].size, fw_mem[i].va,
+					  fw_mem[i].pa);
+			fw_mem[i].va = NULL;
+			fw_mem[i].pa = 0;
+			fw_mem[i].size = 0;
+			fw_mem[i].type = 0;
+		}
 	}
 #endif
-	iounmap(fw_mem->va);
+	plat_priv->fw_mem_seg_len = 0;
+	if (fw_mem[0].va)
+		iounmap(fw_mem[0].va);
 }
 
 int cnss_pci_load_m3(struct cnss_plat_data *plat_priv)
@@ -1288,11 +1336,11 @@ static void *cnss_pci_collect_dump_seg(struct cnss_pci_data *pci_priv,
 		dump_seg++;
 	}
 
-	if (type == MHI_RDDM_RD_SEGMENT) {
+	if (type == MHI_RDDM_RD_SEGMENT && plat_priv->fw_mem[0].va) {
 		/* append the target memory after RDDM segments */
-		dump_seg->address = plat_priv->fw_mem.pa;
-		dump_seg->v_address = plat_priv->fw_mem.va;
-		dump_seg->size = plat_priv->fw_mem.size;
+		dump_seg->address = plat_priv->fw_mem[0].pa;
+		dump_seg->v_address = plat_priv->fw_mem[0].va;
+		dump_seg->size = plat_priv->fw_mem[0].size;
 		dump_seg->type = MHI_RDDM_RD_SEGMENT + 1;
 		dump_seg++;
 		count++;
