@@ -350,4 +350,7 @@ config ATH79_GPIO_WLAN_LED_CTRL
 	  Say 'Y' here if you want your kernel to support the
 	  GPIO WLAN LED control for Qualcomm Atheros board.
 
+config ATH79_SPI_CS2_ENABLE
+	def_bool y
+
 endif

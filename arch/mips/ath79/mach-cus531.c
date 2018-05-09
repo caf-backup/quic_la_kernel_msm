@@ -50,10 +50,21 @@
 #define CUS531MP3_GPIO_BT_ACTIVE	0
 #define CUS531MP3_GPIO_BT_PRIORITY	1
 #define CUS531MP3_GPIO_WL_ACTIVE	2
-#define CUS531MP3_GPIO_LED_WLAN		12
-#define CUS531MP3_GPIO_LED_WAN		14
+
 #define CUS531MP3_GPIO_BTN_WPS		4
 #define CUS531MP3_GPIO_BTN_RESET	15
+
+#ifndef CONFIG_ATH79_SPI_CS2_ENABLE
+#define CUS531MP3_GPIO_LED_WLAN		12
+#define CUS531MP3_GPIO_LED_WAN		14
+#else
+/*
+ * GPIO12: SPI cs2 pin, for Zigbee device
+ * GPIO14: interrupt pin
+ * GPIO17: wakeup pin (not used)
+ */
+#define CUS531MP3_GPIO_SPI_CS2		12
+#endif
 
 #define CUS531_GPIO_FUNC_MUX_WL_ACTIVE	53
 
@@ -112,6 +123,13 @@ static struct ath79_spi_controller_data cus531_spi1_cdata =
 	.cs_line	= 1,
 };
 
+static struct ath79_spi_controller_data cus531_spi2_cdata =
+{
+	.cs_type	= ATH79_SPI_CS_TYPE_INTERNAL,
+	.is_flash	= false,
+	.cs_line	= 2,
+};
+
 static struct spi_board_info cus531_spi_info[] = {
 	{
 		.bus_num	= 0,
@@ -124,16 +142,24 @@ static struct spi_board_info cus531_spi_info[] = {
 	{
 		.bus_num	= 0,
 		.chip_select	= 1,
-		.max_speed_hz   = 50000000,
+		.max_speed_hz   = 25000000,
 		.modalias	= "ath79-spinand",
 		.controller_data = &cus531_spi1_cdata,
+		.platform_data 	= NULL,
+	},
+	{
+		.bus_num	= 0,
+		.chip_select	= 2,
+		.max_speed_hz   = 2000000,
+		.modalias	= "spidev",
+		.controller_data = &cus531_spi2_cdata,
 		.platform_data 	= NULL,
 	}
 };
 
 static struct ath79_spi_platform_data cus531_spi_data = {
 	.bus_num		= 0,
-	.num_chipselect		= 2,
+	.num_chipselect		= 3,
         .word_banger            = true,
 };
 
@@ -224,6 +250,7 @@ static struct gpio_keys_button cus531mp3_gpio_keys[] __initdata = {
 
 static void __init cus531mp3_gpio_setup(void)
 {
+#ifndef CONFIG_ATH79_SPI_CS2_ENABLE
 	/* enable LAN LED */
 	ath79_gpio_direction_select(CUS531MP3_GPIO_LED_WAN, true);
 	ath79_gpio_output_select(CUS531MP3_GPIO_LED_WAN,
@@ -234,6 +261,12 @@ static void __init cus531mp3_gpio_setup(void)
 #else
 	/* set WLAN LED pin */
 	ath79_wmac_set_led_pin(CUS531MP3_GPIO_LED_WLAN);
+#endif
+#else
+	/* enable SPI CS2 */
+	ath79_gpio_output_select(CUS531MP3_GPIO_SPI_CS2,
+				 QCA953X_GPIO_OUT_MUX_SPI_CS2);
+	ath79_gpio_direction_select(CUS531MP3_GPIO_SPI_CS2, true);
 #endif
 
 	/* Disable JTAG for BT Coex pin */
@@ -281,7 +314,11 @@ static void __init cus531mp3_dual_setup(void)
 
 static void __init cus531mp3_nand_setup(void)
 {
+#ifndef CONFIG_ATH79_SPI_CS2_ENABLE
 	ath79_register_spi(&cus531_spi_data, cus531_spi_info, 2);
+#else
+	ath79_register_spi(&cus531_spi_data, cus531_spi_info, 3);
+#endif
 	cus531mp3_common_setup();
 }
 
