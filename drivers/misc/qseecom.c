@@ -1447,8 +1447,8 @@ struct qseecom_props {
 const struct qseecom_props qseecom_props_ipq40xx = {
 	.function = (MUL | CRYPTO | AUTH_OTP | AES_SEC_KEY | RSA_SEC_KEY),
 	.tz_arch = QSEE_32,
-	.libraries_inbuilt = true,
-	.logging_support_enabled = false,
+	.libraries_inbuilt = false,
+	.logging_support_enabled = true,
 };
 
 const struct qseecom_props qseecom_props_ipq8064 = {
