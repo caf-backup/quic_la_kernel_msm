@@ -113,6 +113,7 @@ struct cnss_fw_mem {
 	void *va;
 	phys_addr_t pa;
 	bool valid;
+	u32 type;
 };
 
 enum cnss_driver_event_type {
@@ -202,7 +203,8 @@ struct cnss_plat_data {
 	struct wlfw_rf_board_info_s_v01 board_info;
 	struct wlfw_soc_info_s_v01 soc_info;
 	struct wlfw_fw_version_info_s_v01 fw_version_info;
-	struct cnss_fw_mem fw_mem;
+	u32 fw_mem_seg_len;
+	struct cnss_fw_mem fw_mem[QMI_WLFW_MAX_NUM_MEM_SEG_V01];
 	struct cnss_fw_mem m3_mem;
 	int tgt_mem_cfg_mode;
 	struct cnss_pin_connect_result pin_result;
@@ -213,6 +215,7 @@ struct cnss_plat_data {
 	unsigned int wlfw_service_instance_id;
 	unsigned int service_id;
 	struct notifier_block modem_atomic_nb;
+	bool cal_done;
 };
 
 void *cnss_bus_dev_to_bus_priv(struct device *dev);

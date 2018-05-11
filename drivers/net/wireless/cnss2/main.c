@@ -1952,6 +1952,7 @@ static int cnss_cold_boot_cal_start_hdlr(struct cnss_plat_data *plat_priv)
 
 static int cnss_cold_boot_cal_done_hdlr(struct cnss_plat_data *plat_priv)
 {
+	plat_priv->cal_done = true;
 	clear_bit(CNSS_COLD_BOOT_CAL, &plat_priv->driver_state);
 	return 0;
 }
