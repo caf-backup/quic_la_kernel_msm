@@ -34,12 +34,17 @@
 #include "pcie-designware.h"
 
 #define PCIE20_PARF_SYS_CTRL			0x00
+#define ECAM_BLOCKER_EN_RANGE2			BIT(30)
+#define MAC_PHY_POWERDOWN_IN_P2_D_MUX_EN	BIT(29)
+#define ECAM_REMOVE_OFFSET_EN			BIT(27)
+#define ECAM_BLOCKER_EN				BIT(26)
 #define MST_WAKEUP_EN				BIT(13)
 #define SLV_WAKEUP_EN				BIT(12)
 #define MSTR_ACLK_CGC_DIS			BIT(10)
 #define SLV_ACLK_CGC_DIS			BIT(9)
 #define CORE_CLK_CGC_DIS			BIT(6)
 #define AUX_PWR_DET				BIT(4)
+#define CORE_CLK_2AUX_CLK_MUX_DIS		BIT(3)
 #define L23_CLK_RMV_DIS				BIT(2)
 #define L1_CLK_RMV_DIS				BIT(1)
 
@@ -59,6 +64,26 @@
 #define PCIE20_PARF_DBI_BASE_ADDR		0x168
 #define PCIE20_PARF_SLV_ADDR_SPACE_SIZE		0x16c
 #define PCIE20_PARF_AXI_MSTR_WR_ADDR_HALT	0x178
+
+#define PARF_MHI_CLOCK_RESET_CTRL		0x174
+#define BYPASS					BIT(4)
+#define MSTR_AXI_CLK_EN				BIT(1)
+#define AHB_CLK_EN				BIT(0)
+
+#define PARF_BLOCK_SLV_AXI_WR_BASE		0x360
+#define PARF_BLOCK_SLV_AXI_WR_LIMIT		0x368
+#define PARF_BLOCK_SLV_AXI_RD_BASE		0x370
+#define PARF_BLOCK_SLV_AXI_RD_LIMIT 		0x378
+#define PARF_ECAM_BASE				0x380
+#define PARF_ECAM_OFFSET_REMOVAL_BASE		0x388
+#define PARF_ECAM_OFFSET_REMOVAL_LIMIT		0x390
+#define PARF_BLOCK_SLV_AXI_WR_BASE_2		0x398
+#define PARF_BLOCK_SLV_AXI_WR_LIMIT_2		0x3A0
+#define PARF_BLOCK_SLV_AXI_RD_BASE_2		0x3A8
+#define PARF_BLOCK_SLV_AXI_RD_LIMIT_2		0x3B0
+
+#define PCIE_PARF_DEVICE_TYPE			0x1000
+#define DEVICE_TYPE_RC				0x4
 
 #define PCIE20_ELBI_SYS_CTRL			0x04
 #define PCIE20_ELBI_SYS_CTRL_LT_ENABLE		BIT(0)
@@ -94,8 +119,15 @@
 
 #define PCIE20_COMMAND_STATUS			0x04
 #define CMD_BME_VAL				0x4
+#define BUS_MASTER_EN				0x7
+
 #define PCIE20_DEVICE_CONTROL2_STATUS2		0x98
 #define PCIE_CAP_CPL_TIMEOUT_DISABLE		0x10
+
+#define PCIE30_GEN3_RELATED_OFF			0x890
+#define GEN3_EQUALIZATION_DISABLE		BIT(16)
+#define RXEQ_RGRDLESS_RXTS			BIT(13)
+#define GEN3_ZRXDC_NONCOMPL			BIT(0)
 
 #define PCIE20_MISC_CONTROL_1_REG		0x8BC
 #define DBI_RO_WR_EN				1
@@ -115,6 +147,8 @@
 #define PHY_RX0_EQ(x)				(x << 24)
 
 #define PCIE20_LNK_CONTROL2_LINK_STATUS2        0xA0
+#define PCIE_CAP_CURR_DEEMPHASIS		BIT(16)
+#define SPEED_GEN3				0x3
 
 #define __set(v, a, b)	(((v) << (b)) & GENMASK(a, b))
 #define __mask(a, b)	(((1 << ((a) + 1)) - 1) & ~((1 << (b)) - 1))
@@ -218,11 +252,13 @@ struct qcom_pcie {
 	void __iomem *parf;
 	void __iomem *dbi;
 	void __iomem *elbi;
+	void __iomem *dm_iatu;
 	struct phy *phy;
 	struct gpio_desc *reset;
 	struct qcom_pcie_ops *ops;
 	uint32_t force_gen1;
 	u32 is_emulation;
+	u32 is_gen3;
 	int link_down_irq;
 	int link_up_irq;
 	uint32_t rc_idx;
@@ -1162,6 +1198,14 @@ static int qcom_pcie_init_v3(struct qcom_pcie *pcie)
 
 	writel(SLV_ADDR_SPACE_SZ, pcie->parf + PCIE20_v3_PARF_SLV_ADDR_SPACE_SIZE);
 
+	if (pcie->is_gen3) {
+		writel(DEVICE_TYPE_RC, pcie->parf + PCIE_PARF_DEVICE_TYPE);
+		writel(BYPASS | MSTR_AXI_CLK_EN | AHB_CLK_EN,
+			pcie->parf + PARF_MHI_CLOCK_RESET_CTRL);
+		writel(GEN3_EQUALIZATION_DISABLE | RXEQ_RGRDLESS_RXTS |
+			GEN3_ZRXDC_NONCOMPL, pcie->dbi + PCIE30_GEN3_RELATED_OFF);
+	}
+
 	ret = phy_power_on(pcie->phy);
 	if (ret)
 		return ret;
@@ -1170,12 +1214,24 @@ static int qcom_pcie_init_v3(struct qcom_pcie *pcie)
 
 	writel(0, pcie->parf + PCIE20_PARF_DBI_BASE_ADDR);
 
-	writel(MST_WAKEUP_EN | SLV_WAKEUP_EN | MSTR_ACLK_CGC_DIS
+	if (pcie->is_gen3)
+		writel(ECAM_BLOCKER_EN_RANGE2 | MAC_PHY_POWERDOWN_IN_P2_D_MUX_EN
+		| ECAM_REMOVE_OFFSET_EN | ECAM_BLOCKER_EN |
+		MST_WAKEUP_EN | SLV_WAKEUP_EN | MSTR_ACLK_CGC_DIS
+		| SLV_ACLK_CGC_DIS | AUX_PWR_DET |
+		CORE_CLK_2AUX_CLK_MUX_DIS | L23_CLK_RMV_DIS,
+		pcie->parf + PCIE20_PARF_SYS_CTRL);
+	else
+		writel(MST_WAKEUP_EN | SLV_WAKEUP_EN | MSTR_ACLK_CGC_DIS
 		| SLV_ACLK_CGC_DIS | CORE_CLK_CGC_DIS |
 		AUX_PWR_DET | L23_CLK_RMV_DIS | L1_CLK_RMV_DIS,
 		pcie->parf + PCIE20_PARF_SYS_CTRL);
+
 	writel(0, pcie->parf + PCIE20_PARF_Q2A_FLUSH);
-	writel(CMD_BME_VAL, pcie->dbi + PCIE20_COMMAND_STATUS);
+	if (pcie->is_gen3)
+		writel(BUS_MASTER_EN, pcie->dbi + PCIE20_COMMAND_STATUS);
+	else
+		writel(CMD_BME_VAL, pcie->dbi + PCIE20_COMMAND_STATUS);
 	writel(DBI_RO_WR_EN, pcie->dbi + PCIE20_MISC_CONTROL_1_REG);
 	writel(PCIE_CAP_LINK1_VAL, pcie->dbi + PCIE20_CAP_LINK_1);
 
@@ -1188,10 +1244,28 @@ static int qcom_pcie_init_v3(struct qcom_pcie *pcie)
 			pcie->dbi + PCIE20_LNK_CONTROL2_LINK_STATUS2) | 1),
 			pcie->dbi + PCIE20_LNK_CONTROL2_LINK_STATUS2);
 	}
+	if (pcie->is_gen3)
+		writel_relaxed(PCIE_CAP_CURR_DEEMPHASIS | SPEED_GEN3,
+			pcie->dbi + PCIE20_LNK_CONTROL2_LINK_STATUS2);
+
 	writel(LTSSM_EN, pcie->parf + PCIE20_PARF_LTSSM);
+	if (pcie->is_gen3) {
+		writel(0x20001000, pcie->parf + PARF_BLOCK_SLV_AXI_WR_BASE);
+		writel(0x20100000, pcie->parf + PARF_BLOCK_SLV_AXI_WR_LIMIT);
+		writel(0x20001000, pcie->parf + PARF_BLOCK_SLV_AXI_RD_BASE);
+		writel(0x20100000, pcie->parf + PARF_BLOCK_SLV_AXI_RD_LIMIT);
+		writel(0x20000000, pcie->parf + PARF_ECAM_BASE);
+		writel(0x20001000, pcie->parf + PARF_ECAM_OFFSET_REMOVAL_BASE);
+		writel(0x20800000, pcie->parf + PARF_ECAM_OFFSET_REMOVAL_LIMIT);
+		writel(0x20108000, pcie->parf + PARF_BLOCK_SLV_AXI_WR_BASE_2);
+		writel(0x20200000, pcie->parf + PARF_BLOCK_SLV_AXI_WR_LIMIT_2);
+		writel(0x20108000, pcie->parf + PARF_BLOCK_SLV_AXI_RD_BASE_2);
+		writel(0x20200000, pcie->parf + PARF_BLOCK_SLV_AXI_RD_LIMIT_2);
+	}
 
 	return 0;
 }
+
 static int qcom_pcie_link_up(struct pcie_port *pp)
 {
 	struct qcom_pcie *pcie = to_qcom_pcie(pp);
@@ -1497,6 +1571,7 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	uint32_t force_gen1 = 0;
 	struct device_node *np = pdev->dev.of_node;
 	u32 is_emulation = 0;
+	u32 is_gen3 = 0;
 	static int rc_idx;
 
 	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
@@ -1508,6 +1583,8 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 
 	of_property_read_u32(np, "is_emulation", &is_emulation);
 	pcie->is_emulation = is_emulation;
+	of_property_read_u32(np, "is_gen3", &is_gen3);
+	pcie->is_gen3 = is_gen3;
 
 	pcie->reset = devm_gpiod_get_optional(dev, "perst", GPIOD_OUT_LOW);
 	if (IS_ERR(pcie->reset))
@@ -1531,6 +1608,13 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	if (IS_ERR(pcie->elbi))
 		return PTR_ERR(pcie->elbi);
 
+	if (pcie->is_gen3) {
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dm_iatu");
+		pcie->dm_iatu = devm_ioremap_resource(dev, res);
+		if (IS_ERR(pcie->dm_iatu))
+			return PTR_ERR(pcie->dm_iatu);
+	}
+
 	pcie->phy = devm_phy_optional_get(dev, "pciephy");
 	if (IS_ERR(pcie->phy))
 		return PTR_ERR(pcie->phy);
@@ -1542,6 +1626,8 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	pp = &pcie->pp;
 	pp->dev = dev;
 	pp->dbi_base = pcie->dbi;
+	pp->dm_iatu = pcie->dm_iatu;
+	pp->is_gen3 = pcie->is_gen3;
 	pp->root_bus_nr = -1;
 	pp->ops = &qcom_pcie_dw_ops;
 
