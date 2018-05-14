@@ -53,11 +53,40 @@ Across any platforms, apps can be loaded and functionalities can be performed
 securely from the non-secure world via the scm interface. Below are the steps
 to load a sample app and perform some basic operations:
 
+Before loading the sample app, the library required by sample app needs to be
+loaded.
+
+(0) Step 0: To provide the libraries required by Sample app
+
+This step can be skipped if its platform ipq8064 as we use a different
+framework.
+
+This step is needed only for ipq807x and ipq40xx platform.
+
+Concatenate all the seg files into 1 segment file and feed it as
+input to sys/firmware/seg_file and feed the mdt file as input to
+sys/firmware/mdt_file as below:
+
+In platform ipq40xx, the common lib is divided into 4 segments
+whereas in platform ipq807x, the common lib is divided into 5 segments.
+
+cat cmnlib.b00 > cmnlib.b0x
+cat cmnlib.b01 >> cmnlib.b0x
+cat cmnlib.b02 >> cmnlib.b0x
+cat cmnlib.b03 >> cmnlib.b0x
+
+Below step is needed only if its platform ipq807x:
+
+cat cmnlib.b04 >> cmnlib.b0x
+
+cat cmnlib.mdt > /sys/firmware/mdt_file
+cat cmnlib.b0x > /sys/firmware/seg_file
+
 (1) Step 1: To provide the sampleapp files to the kernel driver
 
 Concatenate all the seg files into 1 segment file and feed it as
 input to sys/firmware/seg_file and feed the mdt file as input to
-sys/firmware/mdt_file as below
+sys/firmware/mdt_file as below:
 
 In platform ipq8064 or ipq40xx, the sample app is divided into 4
 segments whereas in ipq807x, the sample app is divided into 7 segments
@@ -67,13 +96,13 @@ cat sampleapp.b01 >> sampleapp.b0x
 cat sampleapp.b02 >> sampleapp.b0x
 cat sampleapp.b03 >> sampleapp.b0x
 
-Below 3 steps are required if its platform ipq807x
+Below 3 steps are required if its platform ipq807x:
 cat sampleapp.b04 >> sampleapp.b0x
 cat sampleapp.b05 >> sampleapp.b0x
 cat sampleapp.b06 >> sampleapp.b0x
 
-cat /lib/firmware/sampleapp.mdt > /sys/firmware/mdt_file
-cat /lib/firmware/sampleapp.b0x > /sys/firmware/seg_file
+cat sampleapp.mdt > /sys/firmware/mdt_file
+cat sampleapp.b0x > /sys/firmware/seg_file
 
 (2) Step 2: To start loading the sampleapp
 
@@ -106,5 +135,13 @@ cat /sys/firmware/tzapp/basic_data
 
 echo 0 > /sys/firmware/tzapp/load_start
 
+The libraries used by sample app are automatically unloaded when the device
+driver is removed (i.e. during rmmod to remove the qseecom module).
+
 If the user doesn't unload the app, then the app is unloaded when the
-device driver is removed
+device driver is removed.
+
+Additionally logging has been enabled for QSEE sample app. To view the log at
+any point from kernel please use the below command:
+
+cat /sys/firmware/tzapp/log_buf > log.txt
