@@ -75,6 +75,23 @@
 #define PCIE_PHY_DEBUG_R1		(PLR_OFFSET + 0x2c)
 #define PCIE_PHY_DEBUG_R1_LINK_UP	0x00000010
 
+#define PCIE_ATU_CR1_OUTBOUND_6_GEN3			0xC00
+#define PCIE_ATU_CR2_OUTBOUND_6_GEN3			0xC04
+#define PCIE_ATU_LOWER_BASE_OUTBOUND_6_GEN3		0xC08
+#define PCIE_ATU_UPPER_BASE_OUTBOUND_6_GEN3		0xC0C
+#define PCIE_ATU_LIMIT_OUTBOUND_6_GEN3			0xC10
+#define PCIE_ATU_LOWER_TARGET_OUTBOUND_6_GEN3		0xC14
+#define PCIE_ATU_UPPER_TARGET_OUTBOUND_6_GEN3		0xC18
+
+#define PCIE_ATU_CR1_OUTBOUND_7_GEN3			0xE00
+#define PCIE_ATU_CR2_OUTBOUND_7_GEN3			0xE04
+#define PCIE_ATU_LOWER_BASE_OUTBOUND_7_GEN3		0xE08
+#define PCIE_ATU_UPPER_BASE_OUTBOUND_7_GEN3		0xE0C
+#define PCIE_ATU_LIMIT_OUTBOUND_7_GEN3			0xE10
+#define PCIE_ATU_LOWER_TARGET_OUTBOUND_7_GEN3		0xE14
+#define PCIE_ATU_UPPER_TARGET_OUTBOUND_7_GEN3		0xE18
+
+#
 static struct pci_ops dw_pcie_ops;
 
 int dw_pcie_cfg_read(void __iomem *addr, int size, u32 *val)
@@ -149,19 +166,42 @@ static int dw_pcie_wr_own_conf(struct pcie_port *pp, int where, int size,
 	return dw_pcie_cfg_write(pp->dbi_base + where, size, val);
 }
 
+static inline void dw_pcie_writel_rc_gen3(struct pcie_port *pp, u32 val, u32 reg)
+{
+		writel_relaxed(val, pp->dm_iatu + reg);
+}
+
 static void dw_pcie_prog_outbound_atu(struct pcie_port *pp, int index,
 		int type, u64 cpu_addr, u64 pci_addr, u32 size)
 {
-	dw_pcie_writel_rc(pp, PCIE_ATU_REGION_OUTBOUND | index,
-			  PCIE_ATU_VIEWPORT);
-	dw_pcie_writel_rc(pp, lower_32_bits(cpu_addr), PCIE_ATU_LOWER_BASE);
-	dw_pcie_writel_rc(pp, upper_32_bits(cpu_addr), PCIE_ATU_UPPER_BASE);
-	dw_pcie_writel_rc(pp, lower_32_bits(cpu_addr + size - 1),
-			  PCIE_ATU_LIMIT);
-	dw_pcie_writel_rc(pp, lower_32_bits(pci_addr), PCIE_ATU_LOWER_TARGET);
-	dw_pcie_writel_rc(pp, upper_32_bits(pci_addr), PCIE_ATU_UPPER_TARGET);
-	dw_pcie_writel_rc(pp, type, PCIE_ATU_CR1);
-	dw_pcie_writel_rc(pp, PCIE_ATU_ENABLE, PCIE_ATU_CR2);
+	if (pp->is_gen3) {
+		dw_pcie_writel_rc_gen3(pp, 0x4, PCIE_ATU_CR1_OUTBOUND_6_GEN3);
+		dw_pcie_writel_rc_gen3(pp, 0x90000000, PCIE_ATU_CR2_OUTBOUND_6_GEN3);
+		dw_pcie_writel_rc_gen3(pp, 0x0, PCIE_ATU_LOWER_BASE_OUTBOUND_6_GEN3);
+		dw_pcie_writel_rc_gen3(pp, 0x0, PCIE_ATU_UPPER_BASE_OUTBOUND_6_GEN3);
+		dw_pcie_writel_rc_gen3(pp, 0x00107FFFF, PCIE_ATU_LIMIT_OUTBOUND_6_GEN3);
+		dw_pcie_writel_rc_gen3(pp, 0x0, PCIE_ATU_LOWER_TARGET_OUTBOUND_6_GEN3);
+		dw_pcie_writel_rc_gen3(pp, 0x0, PCIE_ATU_UPPER_TARGET_OUTBOUND_6_GEN3);
+		dw_pcie_writel_rc_gen3(pp, 0x5, PCIE_ATU_CR1_OUTBOUND_7_GEN3);
+		dw_pcie_writel_rc_gen3(pp, 0x90000000, PCIE_ATU_CR2_OUTBOUND_7_GEN3);
+		dw_pcie_writel_rc_gen3(pp, 0x200000, PCIE_ATU_LOWER_BASE_OUTBOUND_7_GEN3);
+		dw_pcie_writel_rc_gen3(pp, 0x0, PCIE_ATU_UPPER_BASE_OUTBOUND_7_GEN3);
+		dw_pcie_writel_rc_gen3(pp, 0x7FFFFF, PCIE_ATU_LIMIT_OUTBOUND_7_GEN3);
+		dw_pcie_writel_rc_gen3(pp, 0x0, PCIE_ATU_LOWER_TARGET_OUTBOUND_7_GEN3);
+		dw_pcie_writel_rc_gen3(pp, 0x0, PCIE_ATU_UPPER_TARGET_OUTBOUND_7_GEN3);
+	} else {
+		dw_pcie_writel_rc(pp, PCIE_ATU_REGION_OUTBOUND | index,
+				PCIE_ATU_VIEWPORT);
+		dw_pcie_writel_rc(pp, lower_32_bits(cpu_addr), PCIE_ATU_LOWER_BASE);
+		dw_pcie_writel_rc(pp, upper_32_bits(cpu_addr), PCIE_ATU_UPPER_BASE);
+		dw_pcie_writel_rc(pp, lower_32_bits(cpu_addr + size - 1),
+				PCIE_ATU_LIMIT);
+		dw_pcie_writel_rc(pp, lower_32_bits(pci_addr), PCIE_ATU_LOWER_TARGET);
+		dw_pcie_writel_rc(pp, upper_32_bits(pci_addr), PCIE_ATU_UPPER_TARGET);
+		dw_pcie_writel_rc(pp, type, PCIE_ATU_CR1);
+		dw_pcie_writel_rc(pp, PCIE_ATU_ENABLE, PCIE_ATU_CR2);
+
+	}
 }
 
 static struct irq_chip dw_msi_irq_chip = {
