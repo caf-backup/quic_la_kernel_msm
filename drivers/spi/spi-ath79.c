@@ -37,6 +37,7 @@
 #define MHZ				(1000 * 1000)
 
 #define ATH79_SPI_CS_LINE_MAX		2
+#define FLASH_16M_SIZE          	0x1000000
 
 enum ath79_spi_state {
 	ATH79_SPI_STATE_WAIT_CMD = 0,
@@ -234,6 +235,18 @@ static int ath79_spi_do_read_flash_data(struct spi_device *spi,
 	return t->len;
 }
 
+/**
+ * Return true, If requested addr + len is grater than 16M
+ * Otherwise, return false (First 16M are memory mapped).
+ */
+static bool ath79_spi_is_addr_grater_than_16m(struct spi_device *spi,
+					struct spi_transfer *t)
+{
+	struct ath79_spi *sp = ath79_spidev_to_sp(spi);
+
+	return ((sp->read_addr + t->len) > FLASH_16M_SIZE);
+}
+
 static int ath79_spi_do_read_flash_cmd(struct spi_device *spi,
 				       struct spi_transfer *t)
 {
@@ -280,7 +293,10 @@ static int ath79_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 	case ATH79_SPI_STATE_WAIT_CMD:
 		if (ath79_spi_is_read_cmd(spi, t)) {
 			ret = ath79_spi_do_read_flash_cmd(spi, t);
-			sp->state = ATH79_SPI_STATE_WAIT_READ;
+			if (ath79_spi_is_addr_grater_than_16m(spi, t))
+				ret = spi_bitbang_bufs(spi, t);
+			else
+				sp->state = ATH79_SPI_STATE_WAIT_READ;
 		} else {
 			ret = spi_bitbang_bufs(spi, t);
 		}
