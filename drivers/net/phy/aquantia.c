@@ -3,6 +3,7 @@
  *
  * Author: Shaohui Xie <Shaohui.Xie@freescale.com>
  *
+ * Copyright (c) 2018 The Linux Foundation. All rights reserved.
  * Copyright 2015 Freescale Semiconductor, Inc.
  *
  * This file is licensed under the terms of the GNU General Public License
@@ -47,6 +48,7 @@
 #define AQ_PHY_SOFTRESET_COMPLETED	0x0040
 #define AQ_PHY_SOFTRESET	0x8000
 #define AQ_PHY_AUTONEG_ENABLE	0x1000
+#define AQ_PHY_AUTONEG_RESTART	0x200
 #define AQ_PHY_USX_AUTONEG_ENABLE	0x8
 #define AQ_PHY_AUTO_AND_ALARMS_INTR_MASK	0x1001
 #define AQ_PHY_CONNECT_SPEED	0x7
@@ -57,9 +59,15 @@
 #define AQ_PHY_SPEED_2500M	0x4
 #define AQ_PHY_SPEED_5000M	0x5
 
+#define AQ_PHY_REG_ADVERT	0x10
+#define AQ_PHY_ADVERT_PAUSE	0x400
+#define AQ_PHY_ADVERT_ASYM_PAUSE	0x800
+
 #define PHY_AQUANTIA_FEATURES	(SUPPORTED_10000baseT_Full | \
 				 SUPPORTED_1000baseT_Full | \
 				 SUPPORTED_100baseT_Full | \
+				 SUPPORTED_Pause | \
+				 SUPPORTED_Asym_Pause | \
 				 PHY_DEFAULT_FEATURES)
 
 /* Driver private data structure */
@@ -323,21 +331,49 @@ static int aquantia_config_init(struct phy_device *phydev)
 	phydev->supported = PHY_AQUANTIA_FEATURES;
 	phydev->advertising = ADVERTISED_10000baseT_Full |
 				ADVERTISED_1000baseT_Full |
-				ADVERTISED_100baseT_Full;
+				ADVERTISED_100baseT_Full |
+				ADVERTISED_Pause |
+				ADVERTISED_Asym_Pause;
 
 	aquantia_r107_reg_init(phydev);
 
 	return 0;
 }
 
+static int aquantia_config_advert(struct phy_device *phydev)
+{
+	u32 advertise;
+	int reg;
+
+	advertise = phydev->advertising & phydev->supported;
+	reg = phy_read_mmd(phydev, MDIO_MMD_AN, AQ_PHY_REG_ADVERT);
+
+	if (advertise & ADVERTISED_Pause)
+		reg |= AQ_PHY_ADVERT_PAUSE;
+	else
+		reg &= ~AQ_PHY_ADVERT_PAUSE;
+
+	if (advertise & ADVERTISED_Asym_Pause)
+		reg |= AQ_PHY_ADVERT_ASYM_PAUSE;
+	else
+		reg &= ~AQ_PHY_ADVERT_ASYM_PAUSE;
+
+	return phy_write_mmd(phydev, MDIO_MMD_AN, AQ_PHY_REG_ADVERT, reg);
+}
+
 static int aquantia_config_aneg(struct phy_device *phydev)
 {
 	int reg, err;
 
+	err = aquantia_config_advert(phydev);
+	if (err < 0)
+		return err;
+
 	reg = phy_read_mmd(phydev, MDIO_MMD_AN, MII_BMCR);
 
 	err = phy_write_mmd(phydev, MDIO_MMD_AN, MII_BMCR,
-			    reg | AQ_PHY_AUTONEG_ENABLE);
+			    reg | AQ_PHY_AUTONEG_ENABLE |
+			    AQ_PHY_AUTONEG_RESTART);
 	if (err < 0)
 		return err;
 
