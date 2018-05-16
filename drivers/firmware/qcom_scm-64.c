@@ -646,9 +646,9 @@ int __qcom_scm_tz_register_log_buf(struct device *dev,
 	struct qcom_scm_desc desc = {0};
 	struct arm_smccc_res res;
 
-	desc.arginfo = SCM_ARGS(2, SCM_RW, SCM_RW);
+	desc.arginfo = SCM_ARGS(2, SCM_RW, SCM_VAL);
 	desc.args[0] = request->phy_addr;
-	desc.args[0] = request->len;
+	desc.args[1] = request->len;
 
 	ret = qcom_scm_call(dev, TZ_OWNER_QSEE_OS, TZ_SVC_APP_MGR,
 			   TZ_ARMv8_CMD_REGISTER_LOG_BUF, &desc, &res);
