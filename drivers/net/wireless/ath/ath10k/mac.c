@@ -4828,6 +4828,7 @@ static int ath10k_start(struct ieee80211_hw *hw)
 	struct ath10k *ar = hw->priv;
 	u32 param;
 	int ret = 0;
+	u32 ac, burst_dur[] = {5500, 6000, 2000, 2000};
 
 	/*
 	 * This makes sense only when restarting hw. It is harmless to call
@@ -4954,6 +4955,25 @@ static int ath10k_start(struct ieee80211_hw *hw)
 			goto err_core_stop;
 		}
 		clear_bit(ATH10K_FLAG_BTCOEX, &ar->dev_flags);
+	}
+
+	if (ar->phy_capability &
+	    WHAL_WLAN_11A_CAPABILITY) {
+		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+			if (ar->burst_dur[ac] == 0)
+				ar->burst_dur[ac] = burst_dur[ac];
+
+			ret = ath10k_wmi_pdev_set_param(
+					ar, ar->wmi.pdev_param->aggr_burst,
+					(SM(ac, ATH10K_AGGR_BURST_AC) |
+					 SM(ar->burst_dur[ac],
+					    ATH10K_AGGR_BURST_DUR)));
+			if (ret)
+				ath10k_warn(
+				    ar,
+				    "set aggr burst dur failed for ac %d: %d\n",
+				    ac, ret);
+		}
 	}
 
 	ar->num_started_vdevs = 0;
