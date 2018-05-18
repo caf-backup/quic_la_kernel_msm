@@ -482,6 +482,38 @@
 		};
 	};
 
+	cache: qcom,devfreq-l3 {
+	       compatible = "qcom,devfreq-fw";
+	       reg-names = "en-base", "ftbl-base", "perf-base";
+	       reg = <0x0 0x17d41000 0x0 0x4>,
+		     <0x0 0x17d41110 0x0 0x600>,
+		     <0x0 0x17d41920 0x0 0x4>;
+
+	       qcom,cpu0-l3 {
+		       compatible = "qcom,devfreq-fw-voter";
+	       };
+
+	       qcom,cpu4-l3 {
+		       compatible = "qcom,devfreq-fw-voter";
+	       };
+	};
+
+	devfreq-cpufreq-map {
+		cache-cpufreq {
+		       target-dev = <&cache>;
+		       cpu-to-dev-map =
+			       <  300000  300000 >,
+			       <  422400  422400 >,
+			       <  652800  499200 >,
+			       <  883200  576000 >,
+			       <  960000  960000 >,
+			       < 1497600 1036800 >,
+			       < 1574400 1574400 >,
+			       < 1728000 1651200 >,
+			       < 2649600 1728000 >;
+	       };
+	};
+
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <GIC_PPI 1 IRQ_TYPE_LEVEL_LOW>,
