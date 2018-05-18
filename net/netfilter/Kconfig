@@ -446,6 +446,15 @@ config NF_NAT_TFTP
 	depends on NF_CONNTRACK && NF_NAT
 	default NF_NAT && NF_CONNTRACK_TFTP
 
+config NF_NAT_TRY_NEXT_RULE
+	tristate
+	depends on NF_CONNTRACK && NF_NAT
+	default n
+	help
+	  If this option is enabled, the iptables will move on to the
+	  next rule in the chain if a unique tuple is not found for
+	  translation from the current matched rule.
+
 config NF_NAT_REDIRECT
         tristate "IPv4/IPv6 redirect support"
 	depends on NF_NAT
