@@ -348,7 +348,7 @@ static void _wil6210_disconnect(struct wil6210_vif *vif, const u8 *bssid,
 		if (vif->umac_vap)
 			wil->umac_ops.disconnect_sta(vif->umac_vap, NULL,
 						     reason_code);
-		for (cid = 0; cid < WIL6210_MAX_CID; cid++)
+		for (cid = 0; cid < max_assoc_sta; cid++)
 			wil_disconnect_cid(vif, cid, reason_code, from_event);
 	}
 
