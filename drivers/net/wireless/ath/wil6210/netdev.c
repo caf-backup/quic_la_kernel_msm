@@ -180,13 +180,13 @@ static u16 wil_select_queue(struct net_device *ndev,
 
 	mcast = is_multicast_ether_addr(eth->h_dest);
 	if (mcast) {
-		qid = WIL6210_MAX_CID;
+		qid = max_assoc_sta;
 	} else {
 		qid = wil_find_cid(wil, vif->mid, eth->h_dest);
 
 		/* the MCAST queues also used as default queues */
 		if (qid < 0)
-			qid = WIL6210_MAX_CID;
+			qid = max_assoc_sta;
 	}
 
 out:

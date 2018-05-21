@@ -2036,7 +2036,7 @@ static int _wil_cfg80211_start_ap(struct wiphy *wiphy,
 		vap_params.bi = bi;
 		vap_params.hidden_ssid = hidden_ssid;
 		vap_params.privacy = privacy;
-		vap_params.max_aid = WIL6210_MAX_CID;
+		vap_params.max_aid = max_assoc_sta;
 		rc = wil->umac_ops.start_ap(vif->umac_vap, &vap_params);
 		if (rc)
 			goto out;
@@ -2055,7 +2055,7 @@ static int _wil_cfg80211_start_ap(struct wiphy *wiphy,
 		goto err_bcast;
 
 	if (q_per_sta) /* wake default net queue - used mainly for multicast */
-		wil_update_cid_net_queues_bh(wil, vif, WIL6210_MAX_CID, false);
+		wil_update_cid_net_queues_bh(wil, vif, max_assoc_sta, false);
 
 	goto out; /* success */
 
@@ -2235,7 +2235,7 @@ static int wil_cfg80211_stop_ap(struct wiphy *wiphy,
 	clear_bit(wil_vif_ft_roam, vif->status);
 
 	if (q_per_sta) /* stop default net queue - used mainly for multicast */
-		wil_update_cid_net_queues_bh(wil, vif, WIL6210_MAX_CID, true);
+		wil_update_cid_net_queues_bh(wil, vif, max_assoc_sta, true);
 
 	if (last)
 		__wil_down(wil);
@@ -3575,7 +3575,7 @@ static int wil_rf_sector_set_selected(struct wiphy *wiphy,
 			wil, vif->mid, WMI_INVALID_RF_SECTOR_INDEX,
 			sector_type, WIL_CID_ALL);
 		if (rc == -EINVAL) {
-			for (i = 0; i < WIL6210_MAX_CID; i++) {
+			for (i = 0; i < max_assoc_sta; i++) {
 				if (wil->sta[i].mid != vif->mid)
 					continue;
 				rc = wil_rf_sector_wmi_set_selected(
