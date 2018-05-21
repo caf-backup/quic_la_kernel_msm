@@ -142,6 +142,6 @@ If the user doesn't unload the app, then the app is unloaded when the
 device driver is removed.
 
 Additionally logging has been enabled for QSEE sample app. To view the log at
-any point from kernel please use the below command:
+any point after loading the sample app from kernel, please use below command:
 
 cat /sys/firmware/tzapp/log_buf > log.txt
