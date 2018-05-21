@@ -462,6 +462,11 @@
 			reg = <0x44400000 0x200000>;
 			no-map;
 		};
+
+		tzapp: tzapp@44600000 { /* TZAPPs */
+			reg = <0x44600000 0x200000>;
+			no-map;
+		};
 	};
 
 	clocks {

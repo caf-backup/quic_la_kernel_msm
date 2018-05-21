@@ -116,7 +116,9 @@
 		};
 
 		rsvd2@87B00000 {
-			/* Reserved for other subsystem */
+			/* Reserved for other subsystem
+			 * start:0x87B80000 size:0x280000 is reserved for TZAPPs
+			 */
 			reg = <0x87B00000 0x500000>;
 			no-map;
 		};
