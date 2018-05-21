@@ -1623,7 +1623,7 @@ static int cnss_qca6174_register_ramdump(struct cnss_plat_data *plat_priv)
 	}
 
 	ret = cnss_init_dump_entry(plat_priv);
-	if (ret) {
+	if (ret < 0) {
 		cnss_pr_err("Failed to setup dump table, err = %d\n", ret);
 		goto free_ramdump;
 	}

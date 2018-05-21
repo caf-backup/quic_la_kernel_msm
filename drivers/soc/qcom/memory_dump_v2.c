@@ -94,24 +94,58 @@ int msm_dump_data_register(enum msm_dump_table_ids id,
 {
 	struct msm_dump_entry *e;
 	struct msm_dump_table *table;
+	int i = 0;
+
+	table = msm_dump_get_table(id);
+	if ((!table ) || (IS_ERR(table)))
+		return PTR_ERR(table);
+
+	for (i = 0; i < table->num_entries; i++) {
+		e = &table->entries[i];
+		if (e->type == MSM_DUMP_TYPE_DELETED) {
+			goto set_table;
+		}
+	}
+
+	if (table->num_entries >= MAX_NUM_ENTRIES)
+		return -EINVAL;
+
+	e = &table->entries[table->num_entries];
+	table->num_entries++;
+set_table:
+	e->id = entry->id;
+	e->type = MSM_DUMP_TYPE_DATA;
+	e->addr = entry->addr;
+
+	dmac_flush_range(table, (void *)table + sizeof(struct msm_dump_table));
+	return i;
+}
+EXPORT_SYMBOL(msm_dump_data_register);
+
+int msm_dump_data_unregister(enum msm_dump_table_ids id,
+			   int index)
+{
+	struct msm_dump_entry *e;
+	struct msm_dump_table *table;
 
 	table = msm_dump_get_table(id);
 	if (IS_ERR(table))
 		return PTR_ERR(table);
 
-	if (!table || table->num_entries >= MAX_NUM_ENTRIES)
+	if (!table || index >= table->num_entries)
 		return -EINVAL;
 
-	e = &table->entries[table->num_entries];
-	e->id = entry->id;
-	e->type = MSM_DUMP_TYPE_DATA;
-	e->addr = entry->addr;
-	table->num_entries++;
+	e = &table->entries[index];
 
+	e->type = MSM_DUMP_TYPE_DELETED;
 	dmac_flush_range(table, (void *)table + sizeof(struct msm_dump_table));
+
+	if (index == (table->num_entries - 1))
+		table->num_entries--;
+
 	return 0;
 }
-EXPORT_SYMBOL(msm_dump_data_register);
+EXPORT_SYMBOL(msm_dump_data_unregister);
 
 static int __init init_memory_dump(void)
 {
