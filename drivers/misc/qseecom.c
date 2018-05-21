@@ -90,16 +90,24 @@ show_qsee_app_log_buf(struct device *dev, struct device_attribute *attr,
 {
 	ssize_t count = 0;
 
-	if (g_qsee_log->log_pos.wrap != 0) {
-		memcpy(buf, g_qsee_log->log_buf + g_qsee_log->log_pos.offset,
-		      QSEE_LOG_BUF_SIZE - g_qsee_log->log_pos.offset - 64);
-		count = QSEE_LOG_BUF_SIZE - g_qsee_log->log_pos.offset - 64;
-		memcpy(buf + count, g_qsee_log->log_buf,
-		      g_qsee_log->log_pos.offset);
-		count = count + g_qsee_log->log_pos.offset;
+	if (app_state) {
+		if (g_qsee_log->log_pos.wrap != 0) {
+			memcpy(buf, g_qsee_log->log_buf +
+			      g_qsee_log->log_pos.offset, QSEE_LOG_BUF_SIZE -
+			      g_qsee_log->log_pos.offset - 64);
+			count = QSEE_LOG_BUF_SIZE -
+				g_qsee_log->log_pos.offset - 64;
+			memcpy(buf + count, g_qsee_log->log_buf,
+			      g_qsee_log->log_pos.offset);
+			count = count + g_qsee_log->log_pos.offset;
+		} else {
+			memcpy(buf, g_qsee_log->log_buf,
+			      g_qsee_log->log_pos.offset);
+			count = g_qsee_log->log_pos.offset;
+		}
 	} else {
-		memcpy(buf, g_qsee_log->log_buf, g_qsee_log->log_pos.offset);
-		count = g_qsee_log->log_pos.offset;
+		pr_err("load app and then view log..\n");
+		return -EINVAL;
 	}
 
 	return count;
@@ -2358,7 +2366,7 @@ store_load_start(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 	}
 	if (load_cmd == 0) {
-		if (!props->libraries_inbuilt) {
+		if (!(props->libraries_inbuilt || app_libs_state)) {
 			smc_id = TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_QSEE_OS,
 				 TZ_SVC_APP_MGR, TZ_ARMv8_CMD_LOAD_LIB);
 			cmd_id = QSEE_LOAD_SERV_IMAGE_COMMAND;
@@ -2372,7 +2380,7 @@ store_load_start(struct device *dev, struct device_attribute *attr,
 					pr_info("\nRegistering log buf failed");
 			}
 		} else {
-			pr_info("\nLibraries are inbuilt in this platform");
+			pr_info("\nLibraries are either already loaded or are inbuilt in this platform");
 		}
 	} else if (load_cmd == 1) {
 		if (props->libraries_inbuilt || app_libs_state) {
