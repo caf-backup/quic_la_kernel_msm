@@ -216,6 +216,7 @@ struct cnss_plat_data {
 	unsigned int service_id;
 	struct notifier_block modem_atomic_nb;
 	bool cal_done;
+	int table_index;
 };
 
 void *cnss_bus_dev_to_bus_priv(struct device *dev);

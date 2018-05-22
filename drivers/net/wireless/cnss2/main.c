@@ -2267,6 +2267,7 @@ static int cnss_qca6290_register_ramdump(struct cnss_plat_data *plat_priv)
 		cnss_pr_err("Failed to setup dump table, err = %d\n", ret);
 		goto free_ramdump;
 	}
+	plat_priv->table_index = ret;
 
 	info_v2->ramdump_dev =
 		create_ramdump_device(subsys_info->subsys_desc.name,
@@ -2287,12 +2288,19 @@ free_ramdump:
 
 static void cnss_qca6290_unregister_ramdump(struct cnss_plat_data *plat_priv)
 {
+	int ret;
 	struct cnss_ramdump_info_v2 *info_v2;
-
 	info_v2 = &plat_priv->ramdump_info_v2;
 
 	if (info_v2->ramdump_dev)
 		destroy_ramdump_device(info_v2->ramdump_dev);
+
+	ret = msm_dump_data_unregister(MSM_DUMP_TABLE_APPS,
+				       plat_priv->table_index);
+	if (!ret)
+		cnss_pr_err("Failed to unregister dump table, err = %d\n", ret);
+
+	plat_priv->table_index = -1;
 
 	kfree(info_v2->dump_data_vaddr);
 	info_v2->dump_data_vaddr = NULL;
