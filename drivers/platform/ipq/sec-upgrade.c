@@ -386,11 +386,13 @@ store_sec_auth(struct device *dev,
 		goto put_node;
 	}
 
-	file_buf = ioremap_nocache(img_addr, size);
+	file_buf = ioremap_nocache(img_addr, img_size);
 	if (file_buf == NULL) {
 		ret = NULL;
 		goto put_node;
 	}
+
+	memset(file_buf, 0x0, img_size);
 
 	ret = kernel_read(file, 0, file_buf, size);
 	if (ret != size) {
