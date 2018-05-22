@@ -12,6 +12,21 @@ RSA Import Key blob:
 (1) cat hex.dat > /sys/rsa_sec_key/rsa_import
 (2) cat /sys/rsa_sec_key/rsa_import > import_key_blob.txt
 
+Note:
+spec of the hex.dat file used in RSA Import Key blob:
+hex.dat size is 1066 bytes.
+
+1066 bytes split up:
+	528 bytes -> import modulus
+	2 bytes -> import modulus length in hexadecimal
+	5 bytes -> public exponent
+	1 byte -> public exponent length in hexadecimal
+	528 bytes -> private exponent
+	2 bytes -> private exponent length in hexadecimal
+
+public, private exponent can be any value other than 3
+modulus can be any value lesser than 4096
+
 RSA Sign data:
 (1) cat key_blob.txt > /sys/rsa_sec_key/rsa_key_blob
     or
@@ -26,6 +41,7 @@ RSA Verification of Signature:
 (2) cat data.txt > /sys/rsa_sec_key/rsa_sign
 (3) cat signed_data.txt > /sys/rsa_sec_key/rsa_verify
 (4) cat /sys/rsa_sec_key/rsa_verify > verification_result.txt
+(5) cat verification_result.txt
 
 AES API:
 

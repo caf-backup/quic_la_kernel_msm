@@ -887,10 +887,14 @@ store_rsa_key(struct device *dev, struct device_attribute *attr,
 	     const char *buf, size_t count)
 {
 	int idx = 0;
+	int ret = 0;
+	int i = 0;
+	int j = 0;
+	char hex_len[RSA_PARAM_LEN];
 
 	memset(rsa_import_modulus, 0, RSA_KEY_SIZE_MAX);
 	rsa_import_modulus_len = 0;
-	memset(rsa_import_public_exponent, 0, RSA_KEY_SIZE_MAX);
+	memset(rsa_import_public_exponent, 0, RSA_PUB_EXP_SIZE_MAX);
 	rsa_import_public_exponent_len = 0;
 	memset(rsa_import_pvt_exponent, 0, RSA_KEY_SIZE_MAX);
 	rsa_import_pvt_exponent_len = 0;
@@ -906,17 +910,44 @@ store_rsa_key(struct device *dev, struct device_attribute *attr,
 
 	memcpy(rsa_import_modulus, buf, RSA_KEY_SIZE_MAX);
 	idx += RSA_KEY_SIZE_MAX;
-	rsa_import_modulus_len = *((int *)&buf[idx]);
-	idx += 4;
+	memset(hex_len, 0, RSA_PARAM_LEN);
+	for (i = idx, j = 0; i < idx + 2; i++, j++)
+		sprintf(hex_len + (j * 2), "%02X", buf[i]);
+	hex_len[4] = '\0';
+	ret = kstrtoul(hex_len, 16, (unsigned long *)&rsa_import_modulus_len);
+	if (ret) {
+		pr_info("\nCannot read modulus size from input buffer..");
+		return -EINVAL;
+	}
+	idx += 2;
 
-	memcpy(rsa_import_public_exponent, buf + idx, RSA_KEY_SIZE_MAX);
-	idx += RSA_KEY_SIZE_MAX;
-	rsa_import_public_exponent_len = *((int *)&buf[idx]);
-	idx += 4;
+	memcpy(rsa_import_public_exponent, buf + idx, RSA_PUB_EXP_SIZE_MAX);
+	idx += RSA_PUB_EXP_SIZE_MAX;
+	memset(hex_len, 0, RSA_PARAM_LEN);
+	for (i = idx, j = 0; i < idx + 1; i++, j++)
+		sprintf(hex_len + (j * 2), "%02X", buf[i]);
+	hex_len[2] = '\0';
+	ret = kstrtoul(hex_len, 16,
+		      (unsigned long *)&rsa_import_public_exponent_len);
+	if (ret) {
+		pr_info("\nCannot read pub exp size from input buffer..");
+		return -EINVAL;
+	}
+	idx += 1;
 
 	memcpy(rsa_import_pvt_exponent, buf + idx, RSA_KEY_SIZE_MAX);
 	idx += RSA_KEY_SIZE_MAX;
-	rsa_import_pvt_exponent_len = *((int *)&buf[idx]);
+	memset(hex_len, 0, RSA_PARAM_LEN);
+	for (i = idx, j = 0; i < idx + 2; i++, j++)
+		sprintf(hex_len + (j * 2), "%02X", buf[i]);
+	hex_len[4] = '\0';
+	ret = kstrtoul(hex_len, 16,
+		      (unsigned long *)&rsa_import_pvt_exponent_len);
+	if (ret) {
+		pr_info("\nCannot read pvt exp size from input buffer..");
+		return -EINVAL;
+	}
+	idx += 2;
 
 	return count;
 }
@@ -1517,7 +1548,7 @@ static int __init rsa_sec_key_init(void)
 	rsa_import_modulus_page = alloc_pages(GFP_KERNEL,
 					     get_order(RSA_KEY_SIZE_MAX));
 	rsa_import_public_exponent_page = alloc_pages(GFP_KERNEL,
-						get_order(RSA_KEY_SIZE_MAX));
+					  get_order(RSA_PUB_EXP_SIZE_MAX));
 	rsa_import_pvt_exponent_page = alloc_pages(GFP_KERNEL,
 						get_order(RSA_KEY_SIZE_MAX));
 	rsa_sign_data_buf_page = alloc_pages(GFP_KERNEL,
@@ -1543,7 +1574,7 @@ static int __init rsa_sec_key_init(void)
 		if (rsa_import_public_exponent_page)
 			free_pages((unsigned long)
 				  page_address(rsa_import_public_exponent_page),
-				  get_order(RSA_KEY_SIZE_MAX));
+				  get_order(RSA_PUB_EXP_SIZE_MAX));
 
 		if (rsa_import_pvt_exponent_page)
 			free_pages((unsigned long)
@@ -2600,7 +2631,7 @@ static int __exit qseecom_remove(struct platform_device *pdev)
 
 		if (rsa_import_public_exponent)
 			free_pages((unsigned long)rsa_import_public_exponent,
-				  get_order(RSA_KEY_SIZE_MAX));
+				  get_order(RSA_PUB_EXP_SIZE_MAX));
 
 		if (rsa_import_pvt_exponent)
 			free_pages((unsigned long)rsa_import_pvt_exponent,
