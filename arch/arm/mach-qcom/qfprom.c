@@ -404,11 +404,13 @@ store_sec_auth(struct device *dev,
 		goto file_close;
 	}
 
-	file_buf = ioremap_nocache(qfprom.img_addr, size);
+	file_buf = ioremap_nocache(qfprom.img_addr, qfprom.img_size);
 	if (file_buf == NULL) {
 		ret = NULL;
 		goto file_close;
 	}
+
+	memset(file_buf, 0x0, qfprom.img_size);
 
 	/* Read the contents of the image */
 	ret = kernel_read(file, 0, file_buf, size);
