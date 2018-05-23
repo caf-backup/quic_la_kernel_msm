@@ -1367,6 +1367,8 @@ void wil6210_unmask_irq_rx_edma(struct wil6210_priv *wil);
 void wil_set_crypto_rx(u8 key_index, enum wmi_key_usage key_usage,
 		       struct wil_sta_info *cs,
 		       struct key_params *params);
+void wil_indicate_layer2_update(struct wil6210_vif *vif,
+				struct wil_sta_info *sta);
 
 int wil_iftype_nl2wmi(enum nl80211_iftype type);
 

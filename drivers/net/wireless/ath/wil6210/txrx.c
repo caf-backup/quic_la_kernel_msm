@@ -55,6 +55,15 @@ module_param(drop_if_ring_full, bool, 0444);
 MODULE_PARM_DESC(drop_if_ring_full,
 		 " drop Tx packets in case tx ring is full");
 
+/* Layer 2 Update frame (802.2 Type 1 LLC XID Update response) */
+struct l2_update_frame {
+	struct ethhdr eh;
+	u8 dsap;
+	u8 ssap;
+	u8 control;
+	u8 xid_info[3];
+} __packed;
+
 static inline uint wil_rx_snaplen(void)
 {
 	return rx_align_2 ? 6 : 0;
@@ -82,6 +91,45 @@ static inline int wil_ring_avail_low(struct wil_ring *ring)
 static inline int wil_ring_avail_high(struct wil_ring *ring)
 {
 	return wil_ring_avail_tx(ring) > wil_ring_wmark_high(ring);
+}
+
+/**
+ * Send Level 2 Update Frame to update forwarding tables in
+ * layer 2 bridge devices
+ */
+void wil_indicate_layer2_update(struct wil6210_vif *vif,
+				struct wil_sta_info *sta)
+{
+	struct l2_update_frame *msg;
+	struct sk_buff *skb;
+	struct net_device *ndev = vif_to_ndev(vif);
+
+	skb = dev_alloc_skb(sizeof(*msg));
+	if (!skb)
+		return;
+
+	msg = (struct l2_update_frame *)skb_put(skb, sizeof(*msg));
+
+	/* 802.2 Type 1 Logical Link Control (LLC) Exchange Identifier (XID)
+	 * Update response frame; IEEE Std 802.2-1998, 5.4.1.2.1
+	 */
+	eth_broadcast_addr(msg->eh.h_dest);
+	ether_addr_copy(msg->eh.h_source, sta->addr);
+	msg->eh.h_proto = htons(skb->len - sizeof(struct ethhdr));
+	msg->dsap = 0;
+	msg->ssap = 0; /* NULL LSAP, CR Bit: Response */
+
+	/* XID response lsb.1111F101.
+	 * F=0 (no poll command; unsolicited frame)
+	 */
+	msg->control = 0xaf;
+	msg->xid_info[0] = 0x81; /* XID format identifier */
+	msg->xid_info[1] = 1; /* LLC types/classes: Type 1 LLC */
+	msg->xid_info[2] = 0; /* XID sender's receive window size (RW) */
+
+	skb->dev = ndev;
+	skb->protocol = eth_type_trans(skb, ndev);
+	netif_rx_ni(skb);
 }
 
 /* returns true when all tx vrings are empty */
