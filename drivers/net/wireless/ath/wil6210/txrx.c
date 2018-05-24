@@ -1210,12 +1210,21 @@ static struct wil_ring *wil_find_tx_ucast(struct wil6210_priv *wil,
 					  struct wil6210_vif *vif,
 					  struct sk_buff *skb)
 {
-	int i;
+	int i, cid;
 	struct ethhdr *eth = (void *)skb->data;
-	int cid = wil_find_cid(wil, vif->mid, eth->h_dest);
 	int min_ring_id = wil_get_min_tx_ring_id(wil);
 
-	if (cid < 0)
+	if (WIL_Q_PER_STA_USED(vif))
+		/* assuming skb->queue_mapping was set according to cid
+		 * after calling to net_device_ops.ndo_select_queue
+		 */
+		cid = ac_queues ?
+			skb_get_queue_mapping(skb) / WIL6210_TX_AC_QUEUES :
+			skb_get_queue_mapping(skb);
+	else
+		cid = wil_find_cid(wil, vif->mid, eth->h_dest);
+
+	if (cid < 0 || cid >= WIL6210_MAX_CID)
 		return NULL;
 
 	/* TODO: fix for multiple TID */
@@ -1977,6 +1986,91 @@ static int wil_tx_ring(struct wil6210_priv *wil, struct wil6210_vif *vif,
 	return rc;
 }
 
+static int wil_get_cid_by_ring(struct wil6210_priv *wil,
+			       struct wil6210_vif *vif,
+			       struct wil_ring *ring)
+{
+	int ring_index = ring - wil->ring_tx;
+
+	if (unlikely(ring_index < 0 || ring_index >= WIL6210_MAX_TX_RINGS)) {
+		wil_err(wil, "cid by ring 0x%p: invalid ring index %d\n",
+			ring, ring_index);
+		return WIL6210_MAX_CID;
+	}
+
+	return wil->ring2cid_tid[ring_index][0];
+}
+
+static void wil_tx_stop_cid_queues(struct wil6210_priv *wil,
+				   struct wil6210_vif *vif,
+				   int cid)
+{
+	struct net_device *ndev = vif_to_ndev(vif);
+	u16 start_qid, qid, queues_per_cid;
+
+	queues_per_cid = ac_queues ? WIL6210_TX_AC_QUEUES : 1;
+	start_qid = cid * queues_per_cid;
+
+	wil_dbg_txrx(wil, "stop queues for cid=%d queues (%d .. %d)\n",
+		     cid, start_qid, start_qid + queues_per_cid - 1);
+
+	for (qid = start_qid; qid < start_qid + queues_per_cid; qid++) {
+		struct netdev_queue *txq = netdev_get_tx_queue(ndev, qid);
+
+		netif_tx_stop_queue(txq);
+	}
+	if (cid < WIL6210_MAX_CID)
+		wil->sta[cid].net_queue_stopped = true;
+}
+
+static void wil_tx_wake_cid_queues(struct wil6210_priv *wil,
+				   struct wil6210_vif *vif,
+				   int cid)
+{
+	struct net_device *ndev = vif_to_ndev(vif);
+	u16 start_qid, qid, queues_per_cid;
+
+	queues_per_cid = ac_queues ? WIL6210_TX_AC_QUEUES : 1;
+	start_qid = cid * queues_per_cid;
+
+	wil_dbg_txrx(wil, "wake queues for cid=%d queues (%d .. %d)\n",
+		     cid, start_qid, start_qid + queues_per_cid - 1);
+
+	for (qid = start_qid; qid < start_qid + queues_per_cid; qid++) {
+		struct netdev_queue *txq = netdev_get_tx_queue(ndev, qid);
+
+		netif_tx_wake_queue(txq);
+	}
+	if (cid < WIL6210_MAX_CID)
+		wil->sta[cid].net_queue_stopped = false;
+}
+
+static inline void __wil_update_net_queues_per_sta(struct wil6210_priv *wil,
+						   struct wil6210_vif *vif,
+						   struct wil_ring *ring,
+						   bool check_stop)
+{
+	int cid;
+
+	/* ring is not null - checked by caller */
+	cid = wil_get_cid_by_ring(wil, vif, ring);
+	if (cid < WIL6210_MAX_CID &&
+	    check_stop == wil->sta[cid].net_queue_stopped)
+		/* net queues already in desired state */
+		return;
+
+	if (check_stop) {
+		/* check not enough room in the vring */
+		if (unlikely(wil_ring_avail_low(ring)))
+			wil_tx_stop_cid_queues(wil, vif, cid);
+		return;
+	}
+
+	/* check for enough room in the vring */
+	if (wil_ring_avail_high(ring))
+		wil_tx_wake_cid_queues(wil, vif, cid);
+}
+
 /**
  * Check status of tx vrings and stop/wake net queues if needed
  * It will start/stop net queues of a specific VIF net_device.
@@ -2005,12 +2099,17 @@ static inline void __wil_update_net_queues(struct wil6210_priv *wil,
 		return;
 
 	if (ring)
-		wil_dbg_txrx(wil, "vring %d, mid %d, check_stop=%d, stopped=%d",
+		wil_dbg_txrx(wil, "ring %d, mid %d, check_stop=%d, stopped=%d",
 			     (int)(ring - wil->ring_tx), vif->mid, check_stop,
 			     vif->net_queue_stopped);
 	else
 		wil_dbg_txrx(wil, "check_stop=%d, mid=%d, stopped=%d",
 			     check_stop, vif->mid, vif->net_queue_stopped);
+
+	if (ring && WIL_Q_PER_STA_USED(vif)) {
+		__wil_update_net_queues_per_sta(wil, vif, ring, check_stop);
+		return;
+	}
 
 	if (check_stop == vif->net_queue_stopped)
 		/* net queues already in desired state */
@@ -2021,6 +2120,9 @@ static inline void __wil_update_net_queues(struct wil6210_priv *wil,
 			/* not enough room in the vring */
 			netif_tx_stop_all_queues(vif_to_ndev(vif));
 			vif->net_queue_stopped = true;
+			if (WIL_Q_PER_STA_USED(vif))
+				for (i = 0; i < WIL6210_MAX_CID; i++)
+					wil->sta[i].net_queue_stopped = true;
 			wil_dbg_txrx(wil, "netif_tx_stop called\n");
 		}
 		return;
@@ -2052,22 +2154,52 @@ static inline void __wil_update_net_queues(struct wil6210_priv *wil,
 		wil_dbg_txrx(wil, "calling netif_tx_wake\n");
 		netif_tx_wake_all_queues(vif_to_ndev(vif));
 		vif->net_queue_stopped = false;
+		if (WIL_Q_PER_STA_USED(vif))
+			for (i = 0; i < WIL6210_MAX_CID; i++)
+				wil->sta[i].net_queue_stopped = false;
 	}
 }
 
-void wil_update_net_queues(struct wil6210_priv *wil, struct wil6210_vif *vif,
-			   struct wil_ring *ring, bool check_stop)
+void wil_update_net_queues(struct wil6210_priv *wil,
+			   struct wil6210_vif *vif,
+			   struct wil_ring *ring,
+			   bool check_stop)
 {
 	spin_lock(&wil->net_queue_lock);
 	__wil_update_net_queues(wil, vif, ring, check_stop);
 	spin_unlock(&wil->net_queue_lock);
 }
 
-void wil_update_net_queues_bh(struct wil6210_priv *wil, struct wil6210_vif *vif,
-			      struct wil_ring *ring, bool check_stop)
+void wil_update_net_queues_bh(struct wil6210_priv *wil,
+			      struct wil6210_vif *vif,
+			      struct wil_ring *ring,
+			      bool check_stop)
 {
 	spin_lock_bh(&wil->net_queue_lock);
 	__wil_update_net_queues(wil, vif, ring, check_stop);
+	spin_unlock_bh(&wil->net_queue_lock);
+}
+
+void wil_update_cid_net_queues_bh(struct wil6210_priv *wil,
+				  struct wil6210_vif *vif,
+				  int cid,
+				  bool should_stop)
+{
+	if (!WIL_Q_PER_STA_USED(vif)) {
+		wil_update_net_queues_bh(wil, vif, NULL, should_stop);
+		return;
+	}
+
+	if (cid < WIL6210_MAX_CID &&
+	    should_stop == wil->sta[cid].net_queue_stopped)
+		/* net queues already in desired state */
+		return;
+
+	spin_lock_bh(&wil->net_queue_lock);
+	if (should_stop)
+		wil_tx_stop_cid_queues(wil, vif, cid);
+	else
+		wil_tx_wake_cid_queues(wil, vif, cid);
 	spin_unlock_bh(&wil->net_queue_lock);
 }
 
