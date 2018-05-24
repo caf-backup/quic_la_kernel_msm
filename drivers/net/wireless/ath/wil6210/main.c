@@ -257,6 +257,9 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 			if (vif->umac_vap)
 				wil->umac_ops.sta_deleted(vif->umac_vap,
 							  sta->addr);
+			if (WIL_Q_PER_STA_USED(vif))
+				wil_update_cid_net_queues_bh(wil, vif,
+							     cid, true);
 			break;
 		default:
 			break;
@@ -379,12 +382,14 @@ static void _wil6210_disconnect(struct wil6210_vif *vif, const u8 *bssid,
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_P2P_GO:
 		if (!wil_vif_is_connected(wil, vif->mid)) {
-			wil_update_net_queues_bh(wil, vif, NULL, true);
+			if (!WIL_Q_PER_STA_USED(vif))
+				wil_update_net_queues_bh(wil, vif, NULL, true);
 			if (test_and_clear_bit(wil_vif_fwconnected,
 					       vif->status))
 				atomic_dec(&wil->connected_vifs);
-		} else {
-			wil_update_net_queues_bh(wil, vif, NULL, false);
+		} else if (!WIL_Q_PER_STA_USED(vif)) {
+			wil_update_net_queues_bh(wil, vif,
+						 NULL, false);
 		}
 		break;
 	default:
@@ -420,6 +425,9 @@ void wil_disconnect_worker(struct work_struct *work)
 		return;
 	}
 
+	/* disconnect worker runs only from client/sta vif.
+	 * stop all queues in case failed to connect
+	 */
 	wil_update_net_queues_bh(wil, vif, NULL, true);
 	netif_carrier_off(ndev);
 	cfg80211_connect_result(ndev, NULL, NULL, 0, NULL, 0,
