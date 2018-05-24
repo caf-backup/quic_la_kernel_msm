@@ -38,7 +38,7 @@
 			qcom,pci-domain = <0>;
 			qcom,pci-bus = <1>;
 			qcom,pci-slot = <0>;
-			qcom,mhi-address-window = <0x0 0x80000000 0x1 0xFFFFFFFF>;
+			qcom,mhi-address-window = <0x0 0x40000000 0x1 0xFFFFFFFF>;
 
 			/* RUMI Specific param */
 			qcom,mhi-ready-timeout = <600000>;
