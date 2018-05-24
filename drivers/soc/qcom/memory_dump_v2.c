@@ -22,10 +22,13 @@
 #ifdef CONFIG_MSM_DEBUG_LAR_UNLOCK
 #include <soc/qcom/scm.h>
 #endif
+#include <linux/spinlock.h>
 
 #define MSM_DUMP_TABLE_VERSION		MSM_DUMP_MAKE_VERSION(2, 0)
 
 #define SCM_CMD_DEBUG_LAR_UNLOCK	0x4
+
+static spinlock_t msm_dump_table_lock;
 
 struct msm_dump_table {
 	uint32_t version;
@@ -96,9 +99,12 @@ int msm_dump_data_register(enum msm_dump_table_ids id,
 	struct msm_dump_table *table;
 	int i = 0;
 
+	spin_lock(&msm_dump_table_lock);
 	table = msm_dump_get_table(id);
-	if ((!table ) || (IS_ERR(table)))
+	if ((!table ) || (IS_ERR(table))) {
+		spin_unlock(&msm_dump_table_lock);
 		return PTR_ERR(table);
+	}
 
 	for (i = 0; i < table->num_entries; i++) {
 		e = &table->entries[i];
@@ -107,8 +113,10 @@ int msm_dump_data_register(enum msm_dump_table_ids id,
 		}
 	}
 
-	if (table->num_entries >= MAX_NUM_ENTRIES)
+	if (table->num_entries >= MAX_NUM_ENTRIES) {
+		spin_unlock(&msm_dump_table_lock);
 		return -EINVAL;
+	}
 
 	e = &table->entries[table->num_entries];
 	table->num_entries++;
@@ -118,6 +126,7 @@ set_table:
 	e->addr = entry->addr;
 
 	dmac_flush_range(table, (void *)table + sizeof(struct msm_dump_table));
+	spin_unlock(&msm_dump_table_lock);
 	return i;
 }
 EXPORT_SYMBOL(msm_dump_data_register);
@@ -128,12 +137,17 @@ int msm_dump_data_unregister(enum msm_dump_table_ids id,
 	struct msm_dump_entry *e;
 	struct msm_dump_table *table;
 
+	spin_lock(&msm_dump_table_lock);
 	table = msm_dump_get_table(id);
-	if (IS_ERR(table))
+	if (IS_ERR(table)) {
+		spin_unlock(&msm_dump_table_lock);
 		return PTR_ERR(table);
+	}
 
-	if (!table || index >= table->num_entries)
+	if (!table || index >= table->num_entries) {
+		spin_unlock(&msm_dump_table_lock);
 		return -EINVAL;
+	}
 
 	e = &table->entries[index];
 
@@ -143,6 +157,7 @@ int msm_dump_data_unregister(enum msm_dump_table_ids id,
 	if (index == (table->num_entries - 1))
 		table->num_entries--;
 
+	spin_unlock(&msm_dump_table_lock);
 	return 0;
 }
 EXPORT_SYMBOL(msm_dump_data_unregister);
@@ -155,6 +170,7 @@ static int __init init_memory_dump(void)
 	void __iomem *imem_base;
 	int ret;
 
+	spin_lock_init(&msm_dump_table_lock);
 	np = of_find_compatible_node(NULL, NULL,
 				     "qcom,msm-imem-mem_dump_table");
 	if (!np) {
