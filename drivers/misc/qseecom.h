@@ -68,7 +68,7 @@
 #define RSA_PUB_EXP_SIZE_MAX	(5 * sizeof(uint8_t))
 #define RSA_KEY_MATERIAL_SIZE	((528 + 2 + 5 + 1 + 528 + 2) * sizeof(uint8_t))
 #define MAX_RSA_SIGN_DATA_SIZE	(2048 * sizeof(uint8_t))
-#define RSA_PARAM_LEN		(6 * sizeof(uint8_t))
+#define RSA_PARAM_LEN		(5 * sizeof(uint8_t))
 
 #define QSEE_LOG_BUF_SIZE		0x1000
 
