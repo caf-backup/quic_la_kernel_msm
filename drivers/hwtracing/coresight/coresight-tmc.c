@@ -1731,7 +1731,7 @@ static int tmc_etf_set_buf_dump(struct tmc_drvdata *drvdata)
 
 	ret = msm_dump_data_register(MSM_DUMP_TABLE_APPS,
 				     &dump_entry);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	count++;
@@ -1828,7 +1828,7 @@ static int tmc_set_reg_dump(struct tmc_drvdata *drvdata)
 	 * still be used to dump registers as part of abort to
 	 * aid post crash parsing.
 	 */
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	count++;
