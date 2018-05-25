@@ -260,7 +260,7 @@ int scm_call(u32 svc_id, u32 cmd_id, const void *cmd_buf, size_t cmd_len,
 	if (!cmd)
 		return -ENOMEM;
 
-	cmd->id = (svc_id << 10) | cmd_id;
+	cmd->id = (svc_id << SCM_SVC_ID_SHIFT) | cmd_id;
 	if (cmd_buf)
 		memcpy(scm_get_command_buffer(cmd), cmd_buf, cmd_len);
 
@@ -401,7 +401,7 @@ EXPORT_SYMBOL(scm_get_version);
 int scm_is_call_available(u32 svc_id, u32 cmd_id)
 {
 	int ret;
-	u32 svc_cmd = (svc_id << 10) | cmd_id;
+	u32 svc_cmd = (svc_id << SCM_SVC_ID_SHIFT) | cmd_id;
 	u32 ret_val = 0;
 
 	ret = scm_call(SCM_SVC_INFO, IS_CALL_AVAIL_CMD, &svc_cmd,
