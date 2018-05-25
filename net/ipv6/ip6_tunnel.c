@@ -962,7 +962,8 @@ static int ip6_tnl_rcv(struct sk_buff *skb, __u16 protocol,
 		skb->protocol = htons(protocol);
 		memset(skb->cb, 0, sizeof(struct inet6_skb_parm));
 		if (protocol == ETH_P_IP &&
-			!ipv6_addr_equal(&ipv6h->saddr, &t->parms.raddr)) {
+			!ipv6_addr_equal(&ipv6h->saddr, &t->parms.raddr) &&
+			!ip_is_fragment(ip_hdr(skb))) {
 				/* Packet didn't come from BR, so lookup FMR */
 				struct __ip6_tnl_fmr *fmr;
 				struct in6_addr expected = t->parms.raddr;
