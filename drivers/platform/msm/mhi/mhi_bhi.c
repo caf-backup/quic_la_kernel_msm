@@ -655,6 +655,11 @@ int bhi_probe(struct mhi_device_ctxt *mhi_dev_ctxt)
 				0, fw_table->bhie_mem_info[i].size,
 				DMA_TO_DEVICE);
 	}
+	/* Flushing last segment */
+	dma_sync_single_range_for_device(&mhi_dev_ctxt->plat_dev->dev,
+			fw_table->bhie_mem_info[i].dma_handle,
+			0, fw_table->bhie_mem_info[i].size,
+			DMA_TO_DEVICE);
 
 	fw_table->sequence++;
 	release_firmware(firmware);
