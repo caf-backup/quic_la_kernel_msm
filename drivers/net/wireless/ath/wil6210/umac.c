@@ -16,6 +16,7 @@
 
 #include <linux/etherdevice.h>
 #include <linux/log2.h>
+#include <linux/platform_device.h>
 #include "umac.h"
 #include "wil6210.h" /* wil_dbg */
 
@@ -95,6 +96,11 @@ static struct wil_umac_vap *wil_umac_find_free_vap(struct wil_umac *umac)
 	return NULL;
 }
 
+static inline bool wil_umac_node_valid(struct wil_umac_node *node)
+{
+	return atomic_read(&node->refcount.refcount) > 0;
+}
+
 /* find free item in node_array */
 static struct wil_umac_node *wil_umac_find_free_node(struct wil_umac *umac)
 {
@@ -103,7 +109,7 @@ static struct wil_umac_node *wil_umac_find_free_node(struct wil_umac *umac)
 	WARN_ON(!mutex_is_locked(&umac->mutex));
 
 	for (i = 0; i < umac->max_sta; i++)
-		if (!umac->node_array[i].valid)
+		if (!wil_umac_node_valid(&umac->node_array[i]))
 			return &umac->node_array[i];
 
 	return NULL;
@@ -135,7 +141,7 @@ wil_umac_first_connected_node(struct wil_umac *umac)
 
 	for (i = 0; i < umac->max_sta; i++) {
 		node = &umac->node_array[i];
-		if (node->valid &&
+		if (wil_umac_node_valid(node) &&
 		    node->state != WIL_UMAC_NODE_STATE_DISCONNECTING)
 			return node;
 	}
@@ -157,15 +163,25 @@ static struct wil_umac_node *wil_umac_node_alloc(struct wil_umac_vap *vap,
 
 	node->umac = umac;
 	node->vap = vap;
+	kref_init(&node->refcount);
 	ether_addr_copy(node->mac, mac);
 	node->state = WIL_UMAC_NODE_STATE_INIT;
 	node->rssi_max = S8_MIN;
 
 	hash_add(umac->node_hash, &node->hlist, WIL_UMAC_NODE_HASH(node->mac));
 
-	node->valid = true;
-
 	return node;
+}
+
+static void wil_umac_node_release(struct kref *kref)
+{
+	struct wil_umac_node *node = container_of(kref, struct wil_umac_node,
+						  refcount);
+	struct wil_umac *umac = node->umac;
+
+	wil_dbg_umac(umac->wil, "node %pM release\n", node->mac);
+
+	clear_bit(node->aid - 1, node->vap->aid_bitmap);
 }
 
 static void wil_umac_node_dealloc(struct wil_umac_node *node)
@@ -174,9 +190,9 @@ static void wil_umac_node_dealloc(struct wil_umac_node *node)
 
 	WARN_ON(!mutex_is_locked(&vap->umac->mutex));
 
-	node->valid = false;
 	hash_del(&node->hlist);
-	clear_bit(node->aid - 1, vap->aid_bitmap);
+
+	kref_put(&node->refcount, wil_umac_node_release);
 }
 
 static void wil_umac_node_change_state(struct wil_umac_node *node,
@@ -1299,7 +1315,43 @@ static void wil_umac_uninit(void *umac_handle)
 
 	mutex_unlock(&umac->mutex);
 
+	platform_device_unregister(umac->pdev);
+
 	kfree(umac);
+}
+
+/* callbacks from external drivers into UMAC */
+static struct wil_umac_node *wil_umac_node_get(void *umac_handle, const u8 *mac)
+{
+	struct wil_umac *umac = umac_handle;
+	int key;
+	struct wil_umac_node *node = NULL;
+
+	if (!umac)
+		return NULL;
+
+	wil_dbg_umac(umac->wil, "node get %pM", mac);
+
+	key = WIL_UMAC_NODE_HASH(mac);
+	hash_for_each_possible(umac->node_hash, node, hlist, key)
+		if (ether_addr_equal(node->mac, mac))
+			break;
+	if (!node)
+		return NULL;
+
+	return kref_get_unless_zero(&node->refcount) ? node : NULL;
+}
+
+static void wil_umac_node_put(void *umac_handle, struct wil_umac_node *node)
+{
+	struct wil_umac *umac = umac_handle;
+
+	if (!umac || !node)
+		return;
+
+	wil_dbg_umac(umac->wil, "node put %pM", node->mac);
+
+	kref_put(&node->refcount, wil_umac_node_release);
 }
 
 static struct wil_umac_ops wil_umac_ops = {
@@ -1324,6 +1376,8 @@ void *wil_umac_init(struct wil6210_priv *wil, u8 *permanent_mac,
 		    const struct wil_umac_rops *rops)
 {
 	struct wil_umac *umac = NULL;
+	int rc;
+	struct wil_umac_platdata pdata;
 
 	wil_dbg_umac(wil, "umac init\n");
 
@@ -1352,6 +1406,23 @@ void *wil_umac_init(struct wil6210_priv *wil, u8 *permanent_mac,
 	if (!umac->workq)
 		goto err;
 	INIT_WORK(&umac->inact_worker, wil_umac_inact_worker);
+
+	umac->pdev = platform_device_alloc("wil_umac", 0);
+	if (!umac->pdev)
+		goto err;
+
+	pdata.ops.node_get = &wil_umac_node_get;
+	pdata.ops.node_put = &wil_umac_node_put;
+	pdata.umac_handle = umac;
+	rc = platform_device_add_data(umac->pdev, &pdata, sizeof(pdata));
+	if (rc)
+		goto err;
+	rc = platform_device_add(umac->pdev);
+	if (rc) {
+		wil_err(wil, "failed to add platform device, err %d\n", rc);
+		goto err;
+	}
+
 	setup_timer(&umac->inact_timer, wil_umac_inact_fn, (ulong)umac);
 	if (WIL_UMAC_NODE_INACTIVITY_MS)
 		mod_timer(&umac->inact_timer,
@@ -1367,6 +1438,10 @@ void *wil_umac_init(struct wil6210_priv *wil, u8 *permanent_mac,
 	return umac;
 
 err:
+	if (umac->pdev)
+		platform_device_put(umac->pdev);
+	if (umac->workq)
+		destroy_workqueue(umac->workq);
 	kfree(umac->node_array);
 	kfree(umac->vaps);
 	kfree(umac);
