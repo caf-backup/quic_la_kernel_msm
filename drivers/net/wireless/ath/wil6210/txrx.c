@@ -50,6 +50,11 @@ bool rx_large_buf;
 module_param(rx_large_buf, bool, 0444);
 MODULE_PARM_DESC(rx_large_buf, " allocate 8KB RX buffers, default - no");
 
+static bool drop_if_ring_full;
+module_param(drop_if_ring_full, bool, 0444);
+MODULE_PARM_DESC(drop_if_ring_full,
+		 " drop Tx packets in case tx ring is full");
+
 /* Layer 2 Update frame (802.2 Type 1 LLC XID Update response) */
 struct l2_update_frame {
 	struct ethhdr eh;
@@ -2232,6 +2237,10 @@ static inline void __wil_update_net_queues(struct wil6210_priv *wil,
 		wil_dbg_txrx(wil, "check_stop=%d, mid=%d, stopped=%d",
 			     check_stop, vif->mid, vif->net_queue_stopped);
 
+	if (ring && drop_if_ring_full)
+		/* no need to stop/wake net queues */
+		return;
+
 	if (ring && WIL_Q_PER_STA_USED(vif)) {
 		__wil_update_net_queues_per_sta(wil, vif, ring, check_stop);
 		return;
@@ -2395,6 +2404,8 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	case -ENOMEM:
+		if (drop_if_ring_full)
+			goto drop;
 		return NETDEV_TX_BUSY;
 	default:
 		break; /* goto drop; */
