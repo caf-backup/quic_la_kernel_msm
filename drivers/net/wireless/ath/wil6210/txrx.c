@@ -1094,6 +1094,7 @@ static int wil_vring_init_tx(struct wil6210_vif *vif, int id, int size,
 				.priority = cpu_to_le16(0),
 				.timeslot_us = cpu_to_le16(0xfff),
 			},
+			.qos_priority = WMI_QOS_DEFAULT_PRIORITY,
 		},
 	};
 	struct {
