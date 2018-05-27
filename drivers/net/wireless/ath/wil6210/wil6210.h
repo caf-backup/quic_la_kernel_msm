@@ -1418,6 +1418,10 @@ int wmi_link_maintain_cfg_write(struct wil6210_priv *wil,
 				bool fst_link_loss);
 
 int wmi_mgmt_tx(struct wil6210_vif *vif, const u8 *buf, size_t len);
+int wil_wmi_ring_priority_weight(struct wil6210_vif *vif, size_t num_weights,
+				 u8 *weights);
+int wil_wmi_ring_priority(struct wil6210_vif *vif, int vring_idx,
+			  int priority);
 
 void *wil_umac_register(struct wil6210_priv *wil);
 void wil_umac_unregister(struct wil6210_priv *wil);
