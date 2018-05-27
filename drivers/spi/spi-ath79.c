@@ -57,6 +57,7 @@ struct ath79_spi {
 	unsigned long		read_addr;
 	unsigned long		ahb_rate;
 	bool			is_flash;
+	struct spi_transfer 	*read_cmd;
 };
 
 static inline u32 ath79_spi_rr(struct ath79_spi *sp, unsigned reg)
@@ -293,10 +294,8 @@ static int ath79_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 	case ATH79_SPI_STATE_WAIT_CMD:
 		if (ath79_spi_is_read_cmd(spi, t)) {
 			ret = ath79_spi_do_read_flash_cmd(spi, t);
-			if (ath79_spi_is_addr_grater_than_16m(spi, t))
-				ret = spi_bitbang_bufs(spi, t);
-			else
-				sp->state = ATH79_SPI_STATE_WAIT_READ;
+			sp->state = ATH79_SPI_STATE_WAIT_READ;
+			sp->read_cmd = t;
 		} else {
 			ret = spi_bitbang_bufs(spi, t);
 		}
@@ -304,7 +303,12 @@ static int ath79_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 
 	case ATH79_SPI_STATE_WAIT_READ:
 		if (ath79_spi_is_data_read(spi, t)) {
-			ret = ath79_spi_do_read_flash_data(spi, t);
+			if (ath79_spi_is_addr_grater_than_16m(spi, t)) {
+				spi_bitbang_bufs(spi, sp->read_cmd);
+				ret = spi_bitbang_bufs(spi, t);
+			} else {
+				ret = ath79_spi_do_read_flash_data(spi, t);
+			}
 		} else {
 			dev_warn(&spi->dev, "flash data read expected\n");
 			ret = -EIO;
