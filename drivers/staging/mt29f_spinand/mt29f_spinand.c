@@ -82,6 +82,22 @@ struct spinand_ops spinand_dev[] = {
 		NULL,
 	},
 	{
+		NAND_MFR_GIGA,
+		1,
+		0xd1,
+		INT_MAX,
+		0x10000,
+		gigadevice_set_defaults,
+		gigadevice_read_cmd,
+		gigadevice_read_data_v2,
+		gigadevice_write_cmd,
+		gigadevice_write_data,
+		gigadevice_erase_blk,
+		gigadevice_parse_id_v2,
+		gigadevice_verify_ecc,
+		NULL,
+	},
+	{
 		NAND_MFR_ATO,
 		1,
 		0x12,
@@ -1253,6 +1269,9 @@ struct nand_flash_dev spinand_flash_ids[] = {
 
 	{"TC58CVG2S0F 4G 3.3V 8-bit",
 		{ .id = {0x98, 0xcd} }, SZ_4K, 512, SZ_256K, 0, 2, 128},
+
+	{"GD5F1GQ4UB 128MiB 3.3V",
+		{ .id = {0xc8, 0xd1} }, SZ_2K, 128, SZ_128K, 0, 2, 128},
 
 	{NULL}
 };
