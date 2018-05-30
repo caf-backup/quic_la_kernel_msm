@@ -20,6 +20,7 @@
 #define SCM_CMD_TZ_FORCE_DLOAD_ID		0x10
 #define SCM_CMD_TZ_SET_DLOAD_FOR_SECURE_BOOT	0x14
 #define SCM_CMD_PSHOLD				0x15
+#define SCM_SVC_ID_SHIFT			0xA
 
 extern int __qcom_scm_tls_hardening(struct device *dev,
 				   struct scm_cmd_buf_t *scm_cmd_buf,
