@@ -162,7 +162,7 @@ static int wil_ring_debugfs_show(struct seq_file *s, void *data)
 
 			snprintf(name, sizeof(name), "tx_%2d", i);
 
-			if (cid < WIL6210_MAX_CID)
+			if (cid < max_assoc_sta)
 				seq_printf(s,
 					   "\n%pM CID %d TID %d 1x%s BACK([%u] %u TU A%s) [%3d|%3d] idle %s\n",
 					   wil->sta[cid].addr, cid, tid,
@@ -862,14 +862,14 @@ static ssize_t wil_write_back(struct file *file, const char __user *buf,
 				"BACK: del_rx require at least 2 params\n");
 			return -EINVAL;
 		}
-		if (p1 < 0 || p1 >= WIL6210_MAX_CID) {
+		if (p1 < 0 || p1 >= max_assoc_sta) {
 			wil_err(wil, "BACK: invalid CID %d\n", p1);
 			return -EINVAL;
 		}
 		if (rc < 4)
 			p3 = WLAN_REASON_QSTA_LEAVE_QBSS;
 		sta = &wil->sta[p1];
-		wmi_delba_rx(wil, sta->mid, mk_cidxtid(p1, p2), p3);
+		wmi_delba_rx(wil, sta->mid, p1, p2, p3);
 	} else {
 		wil_err(wil, "BACK: Unrecognized command \"%s\"\n", cmd);
 		return -EINVAL;
@@ -1699,6 +1699,7 @@ __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 		char *status = "unknown";
 		u8 aid = 0;
 		u8 mid;
+		bool sta_connected = false;
 
 		switch (p->status) {
 		case wil_sta_unused:
@@ -1713,8 +1714,20 @@ __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 			break;
 		}
 		mid = (p->status != wil_sta_unused) ? p->mid : U8_MAX;
-		seq_printf(s, "[%d] %pM %s MID %d AID %d\n", i, p->addr, status,
-			   mid, aid);
+		if (mid < wil->max_vifs) {
+			struct wil6210_vif *vif = wil->vifs[mid];
+
+			if (vif->wdev.iftype == NL80211_IFTYPE_STATION &&
+			    p->status == wil_sta_connected)
+				sta_connected = true;
+		}
+		/* print roam counter only for connected stations */
+		if (sta_connected)
+			seq_printf(s, "[%d] %pM connected (roam counter %d) MID %d AID %d\n",
+				   i, p->addr, p->stats.ft_roams, mid, aid);
+		else
+			seq_printf(s, "[%d] %pM %s MID %d AID %d\n", i,
+				   p->addr, status, mid, aid);
 
 		if (p->status == wil_sta_connected) {
 			spin_lock_bh(&p->tid_rx_lock);
@@ -2268,6 +2281,7 @@ static const struct dbg_off dbg_wil_off[] = {
 	WIL_FIELD(abft_len, 0644,		doff_u8),
 	WIL_FIELD(wakeup_trigger, 0644,		doff_u8),
 	WIL_FIELD(ring_idle_trsh, 0644,	doff_u32),
+	WIL_FIELD(force_edmg_channel, 0644,	doff_u8),
 	WIL_FIELD(num_rx_status_rings, 0644,	doff_u8),
 	{},
 };

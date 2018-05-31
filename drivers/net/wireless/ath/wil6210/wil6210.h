@@ -43,6 +43,8 @@ extern bool umac_mode;
 extern uint max_assoc_sta;
 extern bool use_rx_hw_reordering;
 extern bool use_compressed_rx_status;
+extern bool ac_queues;
+extern bool q_per_sta;
 
 struct wil6210_priv;
 struct wil6210_vif;
@@ -69,6 +71,8 @@ union wil_tx_desc;
  */
 #define WIL_MAX_VIFS 4
 
+#define WIL6210_TX_AC_QUEUES (4)
+
 /**
  * extract bits [@b0:@b1] (inclusive) from the value @x
  * it should be @b0 <= @b1, or result is incorrect
@@ -90,7 +94,8 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 #define WIL_RING_SIZE_ORDER_MIN	(5)
 #define WIL_RING_SIZE_ORDER_MAX	(15)
 #define WIL6210_MAX_TX_RINGS	(24) /* HW limit */
-#define WIL6210_MAX_CID		(8) /* HW limit */
+#define WIL6210_MAX_CID		(20) /* max number of stations */
+#define WIL6210_RX_DESC_MAX_CID	(8)  /* HW limit */
 #define WIL6210_NAPI_BUDGET	(16) /* arbitrary */
 #define WIL_MAX_AMPDU_SIZE	(64 * 1024) /* FW/HW limit */
 #define WIL_MAX_AGG_WSIZE	(32) /* FW/HW limit */
@@ -446,6 +451,15 @@ static inline void parse_cidxtid(u8 cidxtid, u8 *cid, u8 *tid)
 	*tid = (cidxtid >> 4) & 0xf;
 }
 
+/**
+ * wil_cid_valid - check cid is valid
+ * @cid: CID value
+ */
+static inline bool wil_cid_valid(u8 cid)
+{
+	return (cid >= 0 && cid < max_assoc_sta);
+}
+
 struct wil6210_mbox_ring {
 	u32 base;
 	u16 entry_size; /* max. size of mbox entry, incl. all headers */
@@ -570,6 +584,8 @@ struct wil_txrx_ops {
 			      struct wil_ctx *ctx);
 	int (*tx_ring_tso)(struct wil6210_priv *wil, struct wil6210_vif *vif,
 			   struct wil_ring *ring, struct sk_buff *skb);
+	int (*tx_ring_modify)(struct wil6210_vif *vif, int ring_id,
+			      int cid, int tid);
 	irqreturn_t (*irq_tx)(int irq, void *cookie);
 	/* RX ops */
 	int (*rx_init)(struct wil6210_priv *wil, u16 ring_size);
@@ -707,6 +723,7 @@ struct wil_net_stats {
 	unsigned long	rx_amsdu_error; /* eDMA specific */
 	u16 last_mcs_rx;
 	u64 rx_per_mcs[WIL_MCS_MAX + 1];
+	u32 ft_roams; /* relevant in STA mode */
 };
 
 /**
@@ -731,6 +748,7 @@ struct wil_sta_info {
 	struct wil_tid_crypto_rx group_crypto_rx;
 	u8 aid; /* 1-254; 0 if unknown/not reported */
 	bool fst_link_loss;
+	bool net_queue_stopped; /* used when q_per_sta enabled */
 };
 
 enum {
@@ -809,6 +827,7 @@ extern u8 led_polarity;
 enum wil6210_vif_status {
 	wil_vif_fwconnecting,
 	wil_vif_fwconnected,
+	wil_vif_ft_roam,
 	wil_vif_status_last /* keep last */
 };
 
@@ -838,7 +857,7 @@ struct wil6210_vif {
 	struct list_head probe_client_pending;
 	struct mutex probe_client_mutex; /* protect @probe_client_pending */
 	struct work_struct probe_client_worker;
-	int net_queue_stopped; /* netif_tx_stop_all_queues invoked */
+	int net_queue_stopped; /* used when q_per_sta disabled */
 #if defined(CONFIG_WIL6210_NSS_SUPPORT)
 #if defined(BACKPORT_HAS_NEW_NSS_REDIRECT_API)
 	struct nss_virt_if_handle *nss_handle;
@@ -964,6 +983,7 @@ struct wil6210_priv {
 	u8 wakeup_trigger;
 	struct wil_suspend_stats suspend_stats;
 	struct wil_debugfs_data dbg_data;
+	u8 force_edmg_channel;
 
 	void *platform_handle;
 	struct wil_platform_ops platform_ops;
@@ -1021,6 +1041,7 @@ struct wil6210_priv {
 #define vif_to_wil(v) (v->wil)
 #define vif_to_ndev(v) (v->ndev)
 #define vif_to_wdev(v) (&v->wdev)
+#define WIL_Q_PER_STA_USED(v) (q_per_sta && v->wdev.iftype == NL80211_IFTYPE_AP)
 
 static inline struct wil6210_vif *wdev_to_vif(struct wil6210_priv *wil,
 					      struct wireless_dev *wdev)
@@ -1210,6 +1231,7 @@ int wmi_add_cipher_key(struct wil6210_vif *vif, u8 key_index,
 int wmi_echo(struct wil6210_priv *wil);
 int wmi_set_ie(struct wil6210_vif *vif, u8 type, u16 ie_len, const void *ie);
 int wmi_rx_chain_add(struct wil6210_priv *wil, struct wil_ring *vring);
+int wmi_update_ft_ies(struct wil6210_vif *vif, u16 ie_len, const void *ie);
 int wmi_rxon(struct wil6210_priv *wil, bool on);
 int wmi_get_temperature(struct wil6210_priv *wil, u32 *t_m, u32 *t_r);
 int wmi_disconnect_sta(struct wil6210_vif *vif, const u8 *mac,
@@ -1217,7 +1239,7 @@ int wmi_disconnect_sta(struct wil6210_vif *vif, const u8 *mac,
 int wmi_addba(struct wil6210_priv *wil, u8 mid,
 	      u8 ringid, u8 size, u16 timeout);
 int wmi_delba_tx(struct wil6210_priv *wil, u8 mid, u8 ringid, u16 reason);
-int wmi_delba_rx(struct wil6210_priv *wil, u8 mid, u8 cidxtid, u16 reason);
+int wmi_delba_rx(struct wil6210_priv *wil, u8 mid, u8 cid, u8 tid, u16 reason);
 int wmi_addba_rx_resp(struct wil6210_priv *wil,
 		      u8 mid, u8 cid, u8 tid, u8 token,
 		      u16 status, bool amsdu, u16 agg_wsize, u16 timeout);
@@ -1229,8 +1251,8 @@ int wmi_new_sta(struct wil6210_vif *vif, const u8 *mac, u8 aid);
 int wmi_port_allocate(struct wil6210_priv *wil, u8 mid,
 		      const u8 *mac, enum nl80211_iftype iftype);
 int wmi_port_delete(struct wil6210_priv *wil, u8 mid);
-int wil_addba_rx_request(struct wil6210_priv *wil, u8 mid,
-			 u8 cidxtid, u8 dialog_token, __le16 ba_param_set,
+int wil_addba_rx_request(struct wil6210_priv *wil, u8 mid, u8 cid, u8 tid,
+			 u8 dialog_token, __le16 ba_param_set,
 			 __le16 ba_timeout, __le16 ba_seq_ctrl);
 int wil_addba_tx_request(struct wil6210_priv *wil, u8 ringid, u16 wsize);
 
@@ -1315,10 +1337,19 @@ int wil_bcast_init(struct wil6210_vif *vif);
 void wil_bcast_fini(struct wil6210_vif *vif);
 void wil_bcast_fini_all(struct wil6210_priv *wil);
 
-void wil_update_net_queues(struct wil6210_priv *wil, struct wil6210_vif *vif,
-			   struct wil_ring *ring, bool should_stop);
-void wil_update_net_queues_bh(struct wil6210_priv *wil, struct wil6210_vif *vif,
-			      struct wil_ring *ring, bool check_stop);
+void wil_update_net_queues(struct wil6210_priv *wil,
+			   struct wil6210_vif *vif,
+			   struct wil_ring *ring,
+			   bool check_stop);
+void wil_update_net_queues_bh(struct wil6210_priv *wil,
+			      struct wil6210_vif *vif,
+			      struct wil_ring *ring,
+			      bool check_stop);
+void wil_update_cid_net_queues_bh(struct wil6210_priv *wil,
+				  struct wil6210_vif *vif,
+				  int cid,
+				  bool check_stop);
+
 netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev);
 int wil_tx_complete(struct wil6210_vif *vif, int ringid);
 void wil6210_unmask_irq_tx(struct wil6210_priv *wil);
@@ -1328,6 +1359,11 @@ void wil6210_unmask_irq_tx_edma(struct wil6210_priv *wil);
 void wil_rx_handle(struct wil6210_priv *wil, int *quota);
 void wil6210_unmask_irq_rx(struct wil6210_priv *wil);
 void wil6210_unmask_irq_rx_edma(struct wil6210_priv *wil);
+void wil_set_crypto_rx(u8 key_index, enum wmi_key_usage key_usage,
+		       struct wil_sta_info *cs,
+		       struct key_params *params);
+void wil_indicate_layer2_update(struct wil6210_vif *vif,
+				struct wil_sta_info *sta);
 
 int wil_iftype_nl2wmi(enum nl80211_iftype type);
 
@@ -1400,5 +1436,8 @@ int wil_wmi_bcast_desc_ring_add(struct wil6210_vif *vif, int ring_id);
 int wmi_addba_rx_resp_edma(struct wil6210_priv *wil, u8 mid, u8 cid,
 			   u8 tid, u8 token, u16 status, bool amsdu,
 			   u16 agg_wsize, u16 timeout);
+
+int wil_wmi2spec_ch(u8 wmi_ch, u8 *spec_ch);
+int wil_spec2wmi_ch(u8 spec_ch, u8 *wmi_ch);
 
 #endif /* __WIL6210_H__ */
