@@ -83,6 +83,11 @@
 			drive-strength = <8>;
 			bias-pull-up;
 		};
+		mux_2 {
+			pins = "gpio44";
+			function = "gpio";
+			bias-pull-up;
+		};
 	};
 
 	uart_pins: uart_pins {
@@ -230,7 +235,8 @@
 	mdio@90000 {
 		pinctrl-0 = <&mdio_pins>;
 		pinctrl-names = "default";
-		phy-reset-gpio = <&tlmm 37 0>;
+		phy-reset-gpio = <&tlmm 37 0 &tlmm 44 1>;
+		compatible = "qcom,ipq40xx-mdio", "qcom,qca-mdio";
 		phy0: ethernet-phy@0 {
 			reg = <0>;
 		};
@@ -247,8 +253,7 @@
 			reg = <4>;
 		};
 		phy5: ethernet-phy@5 {
-			compatible ="ethernet-phy-ieee802.3-c45";
-			reg = <7>;
+			reg = <28>;
 		};
 	};
 
@@ -260,9 +265,36 @@
 		switch_wan_bmp = <0x40>; /* wan port bitmap */
 		switch_mac_mode = <0x0>; /* mac mode for uniphy instance0*/
 		switch_mac_mode1 = <0xff>; /* mac mode for uniphy instance1*/
-		switch_mac_mode2 = <0xd>; /* mac mode for uniphy instance2*/
+		switch_mac_mode2 = <0xc>; /* mac mode for uniphy instance2*/
 		bm_tick_mode = <0>; /* bm tick mode */
 		tm_tick_mode = <0>; /* tm tick mode */
+		qcom,port_phyinfo {
+			port@0 {
+				port_id = <1>;
+				phy_address = <0>;
+			};
+			port@1 {
+				port_id = <2>;
+				phy_address = <1>;
+			};
+			port@2 {
+				port_id = <3>;
+				phy_address = <2>;
+			};
+			port@3 {
+				port_id = <4>;
+				phy_address = <3>;
+			};
+			port@4 {
+				port_id = <5>;
+				phy_address = <4>;
+			};
+			port@5 {
+				port_id = <6>;
+				phy_address = <28>;
+				port_mac_sel = "QGMAC_PORT";
+			};
+		};
 		port_scheduler_resource {
 			port@0 {
 				port_id = <0>;
@@ -600,7 +632,7 @@
 		qcom,mactype = <1>;
 		local-mac-address = [000000000000];
 		qcom,link-poll = <1>;
-		qcom,phy-mdio-addr = <7>;
+		qcom,phy-mdio-addr = <28>;
 		phy-mode = "sgmii";
 	};
 
