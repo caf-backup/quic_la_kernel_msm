@@ -1547,8 +1547,8 @@ void *wil_umac_register(struct wil6210_priv *wil)
 	wil->umac_rops.mgmt_tx = wil_umac_rop_mgmt_tx;
 	wil->umac_rops.add_station = wil_umac_rop_add_station;
 	wil->umac_rops.del_station = wil_umac_rop_del_station;
-	return wil_umac_init(wil, wil->main_ndev->perm_addr, max_assoc_sta,
-			     &wil->umac_ops, &wil->umac_rops);
+	return wil_umac_init(wil, wil->main_ndev->perm_addr, WIL_MAX_VIFS,
+			     max_assoc_sta, &wil->umac_ops, &wil->umac_rops);
 }
 
 void wil_umac_unregister(struct wil6210_priv *wil)
