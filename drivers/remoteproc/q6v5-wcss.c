@@ -658,6 +658,80 @@ wait_again:
 	return 0;
 }
 
+static int q6_rproc_emu_start(struct rproc *rproc)
+{
+	struct device *dev = rproc->dev.parent;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct q6v5_rproc_pdata *pdata = platform_get_drvdata(pdev);
+	int temp = 19;
+	unsigned long val = 0;
+	unsigned int nretry = 0;
+	int ret = 0;
+	/* q6v5_rproc_pdata->q6_base */
+	enable_irq(pdata->err_ready_irq);
+
+	/* Last but two step in script */
+	val = readl(pdata->gcc_misc_base + 0x10);
+
+	/* Set MPM_SSCAON_CONFIG 13 - 2 */
+	/* Last but one step in script */
+	val = readl(pdata->mpm_base + SSCAON_CONFIG);
+	val |= 0x1;
+	writel(val, pdata->mpm_base + SSCAON_CONFIG);
+	mdelay(100);
+
+	/* This is for Lithium configuration - clock gating */
+	/* Last step in script */
+	val = readl(pdata->tcsr_global_base + TCSR_GLOBAL_CFG0);
+	val |= 0x14;
+	writel(val, pdata->tcsr_global_base + TCSR_GLOBAL_CFG0);
+
+	writel(0x4b000000 >> 4, pdata->q6_base + QDSP6SS_RST_EVB);
+	writel(0x1, pdata->q6_base + QDSP6SS_XO_CBCR);
+	writel(0x1700000, pdata->q6_base + QDSP6SS_PWR_CTL);
+	mdelay(10);
+	/* Put LDO in bypass mode */
+	writel(0x3700000, pdata->q6_base + QDSP6SS_PWR_CTL);
+	/* De-assert QDSP6 complier memory clamp */
+	writel(0x3300000, pdata->q6_base + QDSP6SS_PWR_CTL);
+	/* De-assert memory peripheral sleep and L2 memory standby */
+	writel(0x33c0000, pdata->q6_base + QDSP6SS_PWR_CTL);
+
+	/* turn on QDSP6 memory foot/head switch one bank at a time */
+	while  (temp >= 0) {
+		val = readl(pdata->q6_base + QDSP6SS_MEM_PWR_CTL);
+		val = val | 1 << temp;
+		writel(val, pdata->q6_base + QDSP6SS_MEM_PWR_CTL);
+		val = readl(pdata->q6_base + QDSP6SS_MEM_PWR_CTL);
+		mdelay(10);
+		temp -= 1;
+	}
+
+	/* Remove the QDSP6 core memory word line clamp */
+	writel(0x31FFFFF, pdata->q6_base + QDSP6SS_PWR_CTL);
+	/* Remove QDSP6 I/O clamp */
+	writel(0x30FFFFF, pdata->q6_base + QDSP6SS_PWR_CTL);
+
+	if (debug_wcss & DEBUG_WCSS_BREAK_AT_START)
+		writel(0x20000001, pdata->q6_base + QDSP6SS_DBG_CFG);
+
+	/* Bring Q6 out of reset and stop the core */
+	writel(0x5, pdata->q6_base + QDSP6SS_RESET);
+	mdelay(100);
+	/* Retain debugger state during next QDSP6 reset */
+	if (!(debug_wcss & DEBUG_WCSS_BREAK_AT_START))
+		writel(0x0, pdata->q6_base + QDSP6SS_DBG_CFG);
+
+	/* Turn on the QDSP6 core clock */
+	writel(0x102, pdata->q6_base + QDSP6SS_GFMUX_CTL);
+	/* Enable the core to run */
+	writel(0x4, pdata->q6_base + QDSP6SS_RESET);
+
+	pr_emerg("Q6 Emulation reset out is done\n");
+
+	return ret;
+}
+
 static int q6_rproc_start(struct rproc *rproc)
 {
 	struct device *dev = rproc->dev.parent;
@@ -863,6 +937,7 @@ static int start_q6(const struct subsys_desc *subsys)
 
 	if (pdata->emulation) {
 		pr_emerg("q6v5: Emulation start, no smp2p messages\n");
+		q6_rproc_emu_start(rproc);
 		return 0;
 	}
 
