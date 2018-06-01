@@ -53,17 +53,13 @@ qfprom_show_authenticate(struct device *dev,
 			char *buf)
 {
 	int ret;
-	char lbuf;
 
-	ret = qcom_qfprom_show_authenticate(&lbuf);
-	if (ret) {
-		pr_err("%s: Error in QFPROM read : %d\n",
-						__func__, ret);
+	ret = qcom_qfprom_show_authenticate();
+	if (ret == -1)
 		return ret;
-	}
 
 	/* show needs a string response */
-	if (lbuf == 1)
+	if (ret == 1)
 		buf[0] = '1';
 	else
 		buf[0] = '0';
@@ -517,7 +513,6 @@ static int qfprom_probe(struct platform_device *pdev)
 {
 	int err, ret;
 	int16_t sw_bitmap = 0;
-	char lbuf;
 
 	if (!qcom_scm_is_available()) {
 		pr_info("SCM call is not initialized, defering probe\n");
@@ -543,13 +538,11 @@ static int qfprom_probe(struct platform_device *pdev)
 	 * Registering sec_auth under "/sys/sec_authenticate"
 	   only if board is secured
 	 */
-	ret = qcom_qfprom_show_authenticate(&lbuf);
-	if (ret) {
-		pr_err("%s: Error in QFPROM read : %d\n", __func__, ret);
+	ret = qcom_qfprom_show_authenticate();
+	if (ret == -1)
 		return ret;
-	}
 
-	if (lbuf == 1) {
+	if (ret == 1) {
 		/*
 		 * Checking if secure sysupgrade scm_call is supported
 		 */

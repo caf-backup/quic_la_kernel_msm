@@ -165,15 +165,21 @@ int qcom_scm_tls_hardening(struct scm_cmd_buf_t *scm_cmd_buf, size_t buf_size,
 EXPORT_SYMBOL(qcom_scm_tls_hardening);
 
 /**
- * qcom_qfprom_show_authenticate() - Authenticate the signed image
+ * qcom_qfprom_show_authenticate() - Check secure boot fuse is enabled
  */
-int qcom_qfprom_show_authenticate(char *buf)
+int qcom_qfprom_show_authenticate(void)
 {
-	int ret = 0;
+	int ret;
+	char buf;
 
-	ret = __qcom_qfprom_show_authenticate(__scm->dev, buf);
+	ret = __qcom_qfprom_show_authenticate(__scm->dev, &buf);
 
-	return ret;
+	if (ret) {
+		pr_err("%s: Error in QFPROM read : %d\n", __func__, ret);
+		return -1;
+	}
+
+	return buf == 1 ? 1 : 0;
 }
 EXPORT_SYMBOL(qcom_qfprom_show_authenticate);
 
