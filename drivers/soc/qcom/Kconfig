@@ -209,4 +209,12 @@ config QCOM_DCC_V2
 	  driver provides interface to configure DCC block and read back
 	  captured data from DCC's internal SRAM.
 
+config QCOM_QDSS_BRIDGE
+	bool "Configure bridge driver for QTI/Qualcomm Technologies, Inc. MDM"
+	depends on MSM_MHI
+	help
+	  The driver will help route diag traffic from modem side over the QDSS
+	  sub-system to USB on APSS side. The driver acts as a bridge between the
+	  MHI and USB interface. If unsure, say N.
+
 endmenu
