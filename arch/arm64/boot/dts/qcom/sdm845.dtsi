@@ -15,6 +15,7 @@
 #include <dt-bindings/phy/phy-qcom-qusb2.h>
 #include <dt-bindings/power/qcom-rpmpd.h>
 #include <dt-bindings/reset/qcom,sdm845-aoss.h>
+#include <dt-bindings/reset/qcom,sdm845-pdc.h>
 #include <dt-bindings/soc/qcom,rpmh-rsc.h>
 #include <dt-bindings/soc/qcom,ipa.h>
 
@@ -2105,6 +2106,12 @@
 			#power-domain-cells = <1>;
 		};
 
+		pdc_reset: qcom,reset-controller@b2e0000 {
+			compatible = "qcom,sdm845-pdc-global";
+			reg = <0xb2e0000 0x20000>;
+			#reset-cells = <1>;
+		};
+
 		aoss_reset: qcom,reset-controller@b2e0100 {
 			compatible = "qcom,sdm845-aoss-reset";
 			reg = <0xc2b0000 0x20004>;
@@ -2150,6 +2157,19 @@
 			interrupt-controller;
 			#interrupt-cells = <4>;
 			cell-index = <0>;
+		};
+
+		qcom,msm-imem@146bf000 {
+			compatible = "qcom,msm-imem";
+			reg = <0x146bf000 0x1000>;
+			ranges = <0x0 0x146bf000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			pil@94c {
+				compatible = "qcom,msm-imem-pil";
+				reg = <0x94c 4>;
+			};
 		};
 
 		apps_smmu: iommu@15000000 {
