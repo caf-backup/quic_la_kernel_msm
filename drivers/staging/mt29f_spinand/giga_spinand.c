@@ -130,6 +130,12 @@ void gigadevice_read_data(struct spinand_cmd *cmd, u16 column, u32 page_id)
 	cmd->addr[2] = (u8)(column);
 }
 
+void gigadevice_read_data_v2(struct spinand_cmd *cmd, u16 column, u32 page_id)
+{
+	cmd->addr[0] = (u8)(column >> 8);
+	cmd->addr[1] = (u8)(column);
+	cmd->addr[2] = 0xff; /*dummy byte*/
+}
 void macronix_read_data(struct spinand_cmd *cmd, u16 column, u32 page_id)
 {
 	cmd->addr[0] = ((u8)(column >> 8) & MACRONIX_NORM_RW_MASK);
@@ -253,6 +259,21 @@ int gigadevice_parse_id(struct spi_device *spi_nand,
 
 	id[0] = nand_id[0];
 	id[1] = nand_id[1];
+
+	return 0;
+}
+
+int gigadevice_parse_id_v2(struct spi_device *spi_nand,
+			   struct spinand_ops *ops, u8 *nand_id, u8 *id)
+{
+	if (nand_id[1] != NAND_MFR_GIGA && nand_id[1] != NAND_MFR_ATO)
+		return -EINVAL;
+
+	if (!(nand_id[1] == NAND_MFR_GIGA && nand_id[2] == ops->dev_id))
+		return -EINVAL;
+
+	id[0] = nand_id[1];
+	id[1] = nand_id[2];
 
 	return 0;
 }
