@@ -865,6 +865,8 @@
 				qcom,3des-cbc;
 				qcom,sha160-hash;
 				qcom,sha224-hash;
+				qcom,sha384-hash;
+				qcom,sha512-hash;
 				qcom,sha256-hash;
 				qcom,sha160-hmac;
 				qcom,sha256-hmac;
