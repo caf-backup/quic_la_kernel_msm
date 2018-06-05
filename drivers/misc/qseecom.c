@@ -912,8 +912,7 @@ store_rsa_key(struct device *dev, struct device_attribute *attr,
 	idx += RSA_KEY_SIZE_MAX;
 	memset(hex_len, 0, RSA_PARAM_LEN);
 	for (i = idx, j = 0; i < idx + 2; i++, j++)
-		sprintf(hex_len + (j * 2), "%02X", buf[i]);
-	hex_len[4] = '\0';
+		snprintf(hex_len + (j * 2), 3, "%02X", buf[i]);
 	ret = kstrtoul(hex_len, 16, (unsigned long *)&rsa_import_modulus_len);
 	if (ret) {
 		pr_info("\nCannot read modulus size from input buffer..");
@@ -925,8 +924,7 @@ store_rsa_key(struct device *dev, struct device_attribute *attr,
 	idx += RSA_PUB_EXP_SIZE_MAX;
 	memset(hex_len, 0, RSA_PARAM_LEN);
 	for (i = idx, j = 0; i < idx + 1; i++, j++)
-		sprintf(hex_len + (j * 2), "%02X", buf[i]);
-	hex_len[2] = '\0';
+		snprintf(hex_len + (j * 2), 3, "%02X", buf[i]);
 	ret = kstrtoul(hex_len, 16,
 		      (unsigned long *)&rsa_import_public_exponent_len);
 	if (ret) {
@@ -939,8 +937,7 @@ store_rsa_key(struct device *dev, struct device_attribute *attr,
 	idx += RSA_KEY_SIZE_MAX;
 	memset(hex_len, 0, RSA_PARAM_LEN);
 	for (i = idx, j = 0; i < idx + 2; i++, j++)
-		sprintf(hex_len + (j * 2), "%02X", buf[i]);
-	hex_len[4] = '\0';
+		snprintf(hex_len + (j * 2), 3, "%02X", buf[i]);
 	ret = kstrtoul(hex_len, 16,
 		      (unsigned long *)&rsa_import_pvt_exponent_len);
 	if (ret) {
@@ -976,6 +973,15 @@ import_rsa_key_blob(struct device *dev, struct device_attribute *attr,
 	if (rsa_import_pvt_exponent_len == 0 ||
 	   rsa_import_public_exponent_len == 0 || rsa_import_modulus_len == 0) {
 		pr_err("\nPlease provide key to import key blob\n");
+		return -EINVAL;
+	}
+
+	if (rsa_import_pvt_exponent_len > RSA_KEY_SIZE_MAX ||
+	   rsa_import_public_exponent_len > RSA_PUB_EXP_SIZE_MAX ||
+	   rsa_import_modulus_len > RSA_KEY_SIZE_MAX) {
+		pr_info("\nInvalid key\n");
+		pr_info("\nBoth pvt and pub exponent len less than 512 bytes");
+		pr_info("\nModulus len should be less than 4096 bytes");
 		return -EINVAL;
 	}
 
@@ -1958,8 +1964,14 @@ static int tzapp_test(struct device *dev, void *input,
 				ret = -EINVAL;
 				goto fn_exit_1;
 			} else {
-				if (option == 4)
-					pr_info("Crypto test success\n");
+				if (option == 4) {
+					if (!msgrsp->status) {
+						pr_info("Crypto operation success\n");
+					} else {
+						pr_info("Crypto operation failed\n");
+						goto fn_exit;
+					}
+				}
 			}
 		}
 
