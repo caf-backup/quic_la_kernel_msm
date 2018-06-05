@@ -28,6 +28,8 @@ Required properties:
 - qcom,sha160-hash: Enable crypto algorithm
 - qcom,sha224-hash: Enable crypto algorithm
 - qcom,sha256-hash: Enable crypto algorithm
+- qcom,sha384-hash: Enable crypto algorithm
+- qcom,sha512-hash: Enable crypto algorithm
 - qcom,sha160-hmac: Enable crypto algorithm
 - qcom,sha256-hmac: Enable crypto algorithm
 - qcom,sha384-hmac: Enable crypto algorithm
