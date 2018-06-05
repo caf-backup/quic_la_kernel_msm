@@ -174,6 +174,9 @@ static int init_ipq807x(struct tsens_device *tmdev)
 	regmap_write(tmdev->map, TSENS_TM_INT_EN, TSENS_TM_CRITICAL_INT_EN
 			| TSENS_TM_UPPER_INT_EN	| TSENS_TM_LOWER_INT_EN);
 
+	/* Init tsens worker thread */
+	INIT_WORK(&tmdev->tsens_work, tsens_scheduler_fn);
+
 	/* Register and enable the ISR */
 	ret = devm_request_irq(tmdev->dev, tmdev->tsens_irq, tsens_isr,
 			IRQF_TRIGGER_RISING, "tsens_interrupt", tmdev);
@@ -183,8 +186,6 @@ static int init_ipq807x(struct tsens_device *tmdev)
 	}
 
 	enable_irq_wake(tmdev->tsens_irq);
-
-	INIT_WORK(&tmdev->tsens_work, tsens_scheduler_fn);
 
 	/* Sync registers */
 	mb();
