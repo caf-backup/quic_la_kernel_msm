@@ -308,14 +308,14 @@ static void hw_init(struct tsens_device *tmdev)
 
 	regmap_write(tmdev->map, THRESHOLD_ADDR, reg_thr);
 
+	INIT_WORK(&tmdev->tsens_work, tsens_scheduler_fn);
+
 	ret = devm_request_irq(tmdev->dev, tmdev->tsens_irq, tsens_isr,
 			IRQF_TRIGGER_RISING, "tsens_interrupt", tmdev);
 	if (ret < 0) {
 		pr_err("%s: request_irq FAIL: %d\n", __func__, ret);
 		return;
 	}
-
-	INIT_WORK(&tmdev->tsens_work, tsens_scheduler_fn);
 }
 
 static int init_ipq8064(struct tsens_device *tmdev)
