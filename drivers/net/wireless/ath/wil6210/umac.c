@@ -1407,7 +1407,7 @@ void *wil_umac_init(struct wil6210_priv *wil, u8 *permanent_mac,
 		goto err;
 	INIT_WORK(&umac->inact_worker, wil_umac_inact_worker);
 
-	umac->pdev = platform_device_alloc("wil_umac", 0);
+	umac->pdev = platform_device_alloc("wil_umac", PLATFORM_DEVID_AUTO);
 	if (!umac->pdev)
 		goto err;
 
