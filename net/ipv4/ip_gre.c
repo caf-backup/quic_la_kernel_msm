@@ -633,6 +633,8 @@ static netdev_tx_t ipgre_xmit(struct sk_buff *skb,
 	if (IS_ERR(skb))
 		goto out;
 
+	skb->skb_iif = dev->ifindex;
+
 	__gre_xmit(skb, dev, tnl_params, skb->protocol);
 	return NETDEV_TX_OK;
 

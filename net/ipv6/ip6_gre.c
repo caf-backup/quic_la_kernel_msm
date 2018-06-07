@@ -758,11 +758,7 @@ static netdev_tx_t ip6gre_xmit2(struct sk_buff *skb,
 	}
 
 	skb_set_inner_protocol(skb, protocol);
-
-	if (dev->priv_flags & IFF_GRE_V6_TAP) {
-		skb->skb_iif = dev->ifindex;
-	}
-
+	skb->skb_iif = dev->ifindex;
 	ip6tunnel_xmit(NULL, skb, dev);
 	return 0;
 tx_err_link_failure:
