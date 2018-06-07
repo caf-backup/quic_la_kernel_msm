@@ -87,6 +87,8 @@ enum tsens_trip_type {
 	TSENS_TRIP_NUM,
 };
 
+static int get_temp_ipq807x(struct tsens_device *tmdev, int id, int *temp);
+
 static void notify_uspace_tsens_fn(struct work_struct *work)
 {
 	struct tsens_sensor *s = container_of(work, struct tsens_sensor,
@@ -103,7 +105,7 @@ static void tsens_scheduler_fn(struct work_struct *work)
 {
 	struct tsens_device *tmdev = container_of(work, struct tsens_device,
 					tsens_work);
-	int i, reg_thr, th_upper = 0, th_lower = 0;
+	int i, reg_thr, temp, th_upper = 0, th_lower = 0;
 	u32 reg_val, reg_addr;
 
 	/*Check whether TSENS is enabled */
@@ -114,8 +116,8 @@ static void tsens_scheduler_fn(struct work_struct *work)
 	/* Iterate through all sensors */
 	for (i = 0; i < tmdev->num_sensors; i++) {
 
-		/* Reset reg_thr for each iteration */
-		reg_thr = 0;
+		/* Reset for each iteration */
+		reg_thr = th_upper = th_lower = 0;
 
 		regmap_read(tmdev->map, tmdev->sensor[i].status, &reg_val);
 
@@ -136,10 +138,15 @@ static void tsens_scheduler_fn(struct work_struct *work)
 			th_lower = 1;
 		}
 
-		if (th_upper || th_lower)
+		if (th_upper || th_lower) {
 			regmap_write(tmdev->map, reg_addr, reg_thr);
-		/* Notify user space */
-		schedule_work(&tmdev->sensor[i].notify_work);
+			/* Notify user space */
+			schedule_work(&tmdev->sensor[i].notify_work);
+
+			if (!get_temp_ipq807x(tmdev, i, &temp))
+				pr_info("Trigger (%d degrees) for sensor %d\n",
+					temp, i);
+		}
 	}
 
 	/* Sync registers */
