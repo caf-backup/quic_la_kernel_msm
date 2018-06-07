@@ -525,7 +525,7 @@ void dpu_encoder_helper_split_config(
 	hw_mdptop = phys_enc->hw_mdptop;
 	disp_info = &dpu_enc->disp_info;
 
-	if (disp_info->intf_type != DRM_MODE_ENCODER_DSI)
+	if (disp_info->intf_type != DRM_MODE_CONNECTOR_DSI)
 		return;
 
 	/**
@@ -1881,7 +1881,7 @@ void dpu_encoder_kickoff(struct drm_encoder *drm_enc, bool async)
 			phys->ops.handle_post_kickoff(phys);
 	}
 
-	if (dpu_enc->disp_info.intf_type == DRM_MODE_ENCODER_DSI &&
+	if (dpu_enc->disp_info.intf_type == DRM_MODE_CONNECTOR_DSI &&
 			!_dpu_encoder_wakeup_time(drm_enc, &wakeup_time)) {
 		trace_dpu_enc_early_kickoff(DRMID(drm_enc),
 					    ktime_to_ms(wakeup_time));
@@ -2208,7 +2208,8 @@ static const struct dpu_encoder_virt_ops dpu_encoder_parent_ops = {
 
 static int dpu_encoder_setup_display(struct dpu_encoder_virt *dpu_enc,
 				 struct dpu_kms *dpu_kms,
-				 struct msm_display_info *disp_info)
+				 struct msm_display_info *disp_info,
+				 int *drm_enc_mode)
 {
 	int ret = 0;
 	int i = 0;
@@ -2229,11 +2230,16 @@ static int dpu_encoder_setup_display(struct dpu_encoder_virt *dpu_enc,
 
 	DPU_DEBUG("\n");
 
-	switch (disp_info->intf_type) {
-	case DRM_MODE_ENCODER_DSI:
+	if (disp_info->intf_type == DRM_MODE_CONNECTOR_DSI) {
+		*drm_enc_mode = DRM_MODE_ENCODER_DSI;
 		intf_type = INTF_DSI;
-		break;
-	default:
+	} else if (disp_info->intf_type == DRM_MODE_CONNECTOR_HDMIA) {
+		*drm_enc_mode = DRM_MODE_ENCODER_TMDS;
+		intf_type = INTF_HDMI;
+	} else if (disp_info->intf_type == DRM_MODE_CONNECTOR_DisplayPort) {
+		*drm_enc_mode = DRM_MODE_ENCODER_TMDS;
+		intf_type = INTF_DP;
+	} else {
 		DPU_ERROR_ENC(dpu_enc, "unsupported display interface type\n");
 		return -EINVAL;
 	}
@@ -2354,12 +2360,14 @@ int dpu_encoder_setup(struct drm_device *dev, struct drm_encoder *enc,
 	struct dpu_kms *dpu_kms = to_dpu_kms(priv->kms);
 	struct drm_encoder *drm_enc = NULL;
 	struct dpu_encoder_virt *dpu_enc = NULL;
+	int drm_enc_mode = DRM_MODE_ENCODER_NONE;
 	int ret = 0;
 
 	dpu_enc = to_dpu_encoder_virt(enc);
 
 	mutex_init(&dpu_enc->enc_lock);
-	ret = dpu_encoder_setup_display(dpu_enc, dpu_kms, disp_info);
+	ret = dpu_encoder_setup_display(dpu_enc, dpu_kms, disp_info,
+			&drm_enc_mode);
 	if (ret)
 		goto fail;
 
@@ -2370,7 +2378,7 @@ int dpu_encoder_setup(struct drm_device *dev, struct drm_encoder *enc,
 	timer_setup(&dpu_enc->frame_done_timer,
 			dpu_encoder_frame_done_timeout, 0);
 
-	if (disp_info->intf_type == DRM_MODE_ENCODER_DSI)
+	if (disp_info->intf_type == DRM_MODE_CONNECTOR_DSI)
 		timer_setup(&dpu_enc->vsync_event_timer,
 				dpu_encoder_vsync_event_handler,
 				0);

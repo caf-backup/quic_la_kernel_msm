@@ -216,10 +216,10 @@ struct vblank_event {
 	bool enable;
 };
 
-static void vblank_ctrl_worker(struct kthread_work *work)
+static void vblank_ctrl_primary_worker(struct kthread_work *work)
 {
 	struct msm_vblank_ctrl *vbl_ctrl = container_of(work,
-						struct msm_vblank_ctrl, work);
+						struct msm_vblank_ctrl, prim_work);
 	struct msm_drm_private *priv = container_of(vbl_ctrl,
 					struct msm_drm_private, vblank_ctrl);
 	struct msm_kms *kms = priv->kms;
@@ -246,6 +246,41 @@ static void vblank_ctrl_worker(struct kthread_work *work)
 	spin_unlock_irqrestore(&vbl_ctrl->lock, flags);
 }
 
+static void vblank_ctrl_secondary_worker(struct kthread_work *work)
+{
+	struct msm_vblank_ctrl *vbl_ctrl = container_of(work,
+						struct msm_vblank_ctrl, sec_work);
+	struct msm_drm_private *priv = container_of(vbl_ctrl,
+					struct msm_drm_private, vblank_ctrl);
+	struct msm_kms *kms = priv->kms;
+	struct vblank_event *vbl_ev, *tmp;
+	unsigned long flags;
+
+	pr_err("jk: %s \n", __func__);
+
+	spin_lock_irqsave(&vbl_ctrl->lock, flags);
+	list_for_each_entry_safe(vbl_ev, tmp, &vbl_ctrl->event_list, node) {
+		list_del(&vbl_ev->node);
+		spin_unlock_irqrestore(&vbl_ctrl->lock, flags);
+
+		if (vbl_ev->enable) {
+		pr_err("jk: enable vbl for %d \n", priv->crtcs[vbl_ev->crtc_id]->base.id);
+
+			kms->funcs->enable_vblank(kms,
+						priv->crtcs[vbl_ev->crtc_id]);
+		} else
+			kms->funcs->disable_vblank(kms,
+						priv->crtcs[vbl_ev->crtc_id]);
+
+		kfree(vbl_ev);
+
+		spin_lock_irqsave(&vbl_ctrl->lock, flags);
+	}
+
+	spin_unlock_irqrestore(&vbl_ctrl->lock, flags);
+}
+
+
 static int vblank_ctrl_queue_work(struct msm_drm_private *priv,
 					int crtc_id, bool enable)
 {
@@ -265,7 +300,7 @@ static int vblank_ctrl_queue_work(struct msm_drm_private *priv,
 	spin_unlock_irqrestore(&vbl_ctrl->lock, flags);
 
 	kthread_queue_work(&priv->disp_thread[crtc_id].worker,
-			&vbl_ctrl->work);
+			crtc_id ? &vbl_ctrl->sec_work : &vbl_ctrl->prim_work);
 
 	return 0;
 }
@@ -285,7 +320,8 @@ static int msm_drm_uninit(struct device *dev)
 	 * work before drm_irq_uninstall() to avoid work re-enabling an
 	 * irq after uninstall has disabled it.
 	 */
-	kthread_flush_work(&vbl_ctrl->work);
+	kthread_flush_work(&vbl_ctrl->prim_work);
+	kthread_flush_work(&vbl_ctrl->sec_work);
 	list_for_each_entry_safe(vbl_ev, tmp, &vbl_ctrl->event_list, node) {
 		list_del(&vbl_ev->node);
 		kfree(vbl_ev);
@@ -485,7 +521,8 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 
 	INIT_LIST_HEAD(&priv->inactive_list);
 	INIT_LIST_HEAD(&priv->vblank_ctrl.event_list);
-	kthread_init_work(&priv->vblank_ctrl.work, vblank_ctrl_worker);
+	kthread_init_work(&priv->vblank_ctrl.prim_work, vblank_ctrl_primary_worker);
+	kthread_init_work(&priv->vblank_ctrl.sec_work, vblank_ctrl_secondary_worker);
 	spin_lock_init(&priv->vblank_ctrl.lock);
 
 	drm_mode_config_init(ddev);
