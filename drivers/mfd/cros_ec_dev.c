@@ -626,6 +626,7 @@ static const struct mfd_cell cros_ec_rtc_cell = {
 	.name = "cros-ec-rtc",
 };
 
+extern struct device *the_one_true_dev_for_cheza_reboot;
 static int ec_device_probe(struct platform_device *pdev)
 {
 	int retval = -ENOMEM;
@@ -674,6 +675,8 @@ static int ec_device_probe(struct platform_device *pdev)
 	ec->class_dev.class = &cros_class;
 	ec->class_dev.parent = dev;
 	ec->class_dev.release = __remove;
+
+	the_one_true_dev_for_cheza_reboot = &(ec->class_dev);
 
 	retval = dev_set_name(&ec->class_dev, "%s", ec_platform->ec_name);
 	if (retval) {

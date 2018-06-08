@@ -123,6 +123,12 @@ exit:
 	return count;
 }
 
+struct device *the_one_true_dev_for_cheza_reboot;
+void extra_hacky_cold_reboot_for_cheza_rev1_and_rev2(void)
+{
+	reboot_store(the_one_true_dev_for_cheza_reboot, NULL, "cold", 0);
+}
+
 static ssize_t version_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {

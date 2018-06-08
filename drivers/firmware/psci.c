@@ -17,6 +17,7 @@
 #include <linux/arm-smccc.h>
 #include <linux/cpuidle.h>
 #include <linux/errno.h>
+#include <linux/io.h>
 #include <linux/linkage.h>
 #include <linux/of.h>
 #include <linux/pm.h>
@@ -251,13 +252,36 @@ static int get_set_conduit_method(struct device_node *np)
 	return 0;
 }
 
+void extra_hacky_cold_reboot_for_cheza_rev1_and_rev2(void);
 static void psci_sys_reset(enum reboot_mode reboot_mode, const char *cmd)
 {
+	void __iomem *pshold = ioremap(0xC264000, 4);
+
+	/*
+	 * On -rev1 and -rev2 there is a known hardware bug that makes the TPM
+	 * fail to recognize when the AP reboots.  Oops.
+	 *
+	 * We'll be EVEN HACKIER than we otherwise would and jam a call into
+	 * the cros_ec code to ask the EC to cold reset us.  It's either this
+	 * or no TPM for you.
+	 */
+	if (of_machine_is_compatible("google,cheza-rev2") ||
+	    of_machine_is_compatible("google,cheza-rev1")) {
+		extra_hacky_cold_reboot_for_cheza_rev1_and_rev2();
+	}
+
+	// HACK!
+	writel(0, pshold);
+
 	invoke_psci_fn(PSCI_0_2_FN_SYSTEM_RESET, 0, 0, 0);
 }
 
 static void psci_sys_poweroff(void)
 {
+	// HACK!
+	void __iomem *pshold = ioremap(0xC264000, 4);
+	writel(0, pshold);
+
 	invoke_psci_fn(PSCI_0_2_FN_SYSTEM_OFF, 0, 0, 0);
 }
 

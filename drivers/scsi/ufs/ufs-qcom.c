@@ -16,7 +16,6 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/phy/phy.h>
-#include <linux/phy/phy-qcom-ufs.h>
 
 #include "ufshcd.h"
 #include "ufshcd-pltfrm.h"
@@ -113,10 +112,10 @@ static void ufs_qcom_disable_lane_clks(struct ufs_qcom_host *host)
 	if (!host->is_lane_clks_enabled)
 		return;
 
-	if (host->hba->lanes_per_direction > 1)
+	if (host->tx_l1_sync_clk)
 		clk_disable_unprepare(host->tx_l1_sync_clk);
 	clk_disable_unprepare(host->tx_l0_sync_clk);
-	if (host->hba->lanes_per_direction > 1)
+	if (host->rx_l1_sync_clk)
 		clk_disable_unprepare(host->rx_l1_sync_clk);
 	clk_disable_unprepare(host->rx_l0_sync_clk);
 
@@ -147,18 +146,15 @@ static int ufs_qcom_enable_lane_clks(struct ufs_qcom_host *host)
 		if (err)
 			goto disable_tx_l0;
 
-		err = ufs_qcom_host_clk_enable(dev, "tx_lane1_sync_clk",
-			host->tx_l1_sync_clk);
-		if (err)
-			goto disable_rx_l1;
+		/* The tx lane1 clk could be muxed, hence keep this optional */
+		if (host->tx_l1_sync_clk)
+			ufs_qcom_host_clk_enable(dev, "tx_lane1_sync_clk",
+						 host->tx_l1_sync_clk);
 	}
 
 	host->is_lane_clks_enabled = true;
 	goto out;
 
-disable_rx_l1:
-	if (host->hba->lanes_per_direction > 1)
-		clk_disable_unprepare(host->rx_l1_sync_clk);
 disable_tx_l0:
 	clk_disable_unprepare(host->tx_l0_sync_clk);
 disable_rx_l0:
@@ -189,8 +185,9 @@ static int ufs_qcom_init_lane_clks(struct ufs_qcom_host *host)
 		if (err)
 			goto out;
 
-		err = ufs_qcom_host_clk_get(dev, "tx_lane1_sync_clk",
-			&host->tx_l1_sync_clk);
+		/* The tx lane1 clk could be muxed, hence keep this optional */
+		ufs_qcom_host_clk_get(dev, "tx_lane1_sync_clk",
+					&host->tx_l1_sync_clk);
 	}
 out:
 	return err;
@@ -198,22 +195,9 @@ out:
 
 static int ufs_qcom_link_startup_post_change(struct ufs_hba *hba)
 {
-	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
-	struct phy *phy = host->generic_phy;
 	u32 tx_lanes;
-	int err = 0;
 
-	err = ufs_qcom_get_connected_tx_lanes(hba, &tx_lanes);
-	if (err)
-		goto out;
-
-	err = ufs_qcom_phy_set_tx_lane_enable(phy, tx_lanes);
-	if (err)
-		dev_err(hba->dev, "%s: ufs_qcom_phy_set_tx_lane_enable failed\n",
-			__func__);
-
-out:
-	return err;
+	return ufs_qcom_get_connected_tx_lanes(hba, &tx_lanes);
 }
 
 static int ufs_qcom_check_hibern8(struct ufs_hba *hba)
@@ -942,10 +926,8 @@ static int ufs_qcom_pwr_change_notify(struct ufs_hba *hba,
 {
 	u32 val;
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
-	struct phy *phy = host->generic_phy;
 	struct ufs_qcom_dev_params ufs_qcom_cap;
 	int ret = 0;
-	int res = 0;
 
 	if (!dev_req_params) {
 		pr_err("%s: incoming dev_req_params is NULL\n", __func__);
@@ -1012,12 +994,6 @@ static int ufs_qcom_pwr_change_notify(struct ufs_hba *hba,
 		}
 
 		val = ~(MAX_U32 << dev_req_params->lane_tx);
-		res = ufs_qcom_phy_set_tx_lane_enable(phy, val);
-		if (res) {
-			dev_err(hba->dev, "%s: ufs_qcom_phy_set_tx_lane_enable() failed res = %d\n",
-				__func__, res);
-			ret = res;
-		}
 
 		/* cache the power mode parameters to use internally */
 		memcpy(&host->dev_req_params,
@@ -1274,10 +1250,6 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 			host->dev_ref_clk_en_mask = BIT(5);
 		}
 	}
-
-	/* update phy revision information before calling phy_init() */
-	ufs_qcom_phy_save_controller_version(host->generic_phy,
-		host->hw_ver.major, host->hw_ver.minor, host->hw_ver.step);
 
 	err = ufs_qcom_init_lane_clks(host);
 	if (err)
