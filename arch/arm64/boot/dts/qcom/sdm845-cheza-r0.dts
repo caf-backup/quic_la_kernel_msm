@@ -12,6 +12,174 @@
 / {
 	model = "Google Cheza (rev0)";
 	compatible = "google,cheza-rev0", "google,cheza", "qcom,sdm845";
+
+	/*
+	 * FIXED REGULATORS (not in sdm845-cheza.dtsi) - parents above children
+	 */
+
+	/*
+	 * NOTE: Technically pp3500_a is not the exact same signal as
+	 * pp3500_a_vbob (there's a load switch between them and the EC can
+	 * control pp3500_a via "en_pp3300_a"), but from the AP's point of
+	 * view they are the same.
+	 */
+	pp3500_a:
+	pp3500_a_vbob: pp3500-a-vbob-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vreg_bob";
+
+		/*
+		 * Comes on automatically when pp5000_ldo comes on, which
+		 * comes on automatically when ppvar_sys comes on
+		 */
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3500000>;
+		regulator-max-microvolt = <3500000>;
+
+		vin-supply = <&ppvar_sys>;
+	};
+
+	pp3300_dx_edp_r0_r1_r2: pp3300-dx-edp-regulator-r0-r1-r2 {
+		compatible = "regulator-fixed";
+		regulator-name = "pp3300_dx_edp_r0_r1_r2";
+
+		/* Yes, it's really 3.5 despite the name of the signal */
+		regulator-min-microvolt = <3500000>;
+		regulator-max-microvolt = <3500000>;
+
+		gpio = <&tlmm 43 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		pinctrl-names = "default";
+		pinctrl-0 = <&en_pp3300_dx_edp>;
+
+		vin-supply = <&pp3500_a>;
+
+		// HACK: without always-on we die a horrible death. b/112356283
+		regulator-always-on; // HACK
+		regulator-boot-on;   // HACK
+	};
+
+	/* NON-REGULATOR TOP LEVEL NODES */
+
+	/delete-node/backlight;
+	backlight: backlight {
+		compatible = "gpio-backlight";
+		pinctrl-names = "default";
+		pinctrl-0 = <&edp_bkltctl>;
+		gpios = <&tlmm 9 GPIO_ACTIVE_HIGH>;
+		default-on;
+	};
+};
+
+/* FIXED REGULATOR OVERRIDES (modifications to sdm845-cheza.dtsi) */
+
+&src_pp3300_l22a {
+	/delete-property/regulator-boot-on;
+	/delete-property/regulator-always-on;
+};
+
+&src_vreg_bob {
+	regulator-min-microvolt = <3500000>;
+	regulator-max-microvolt = <3500000>;
+	vin-supply = <&pp3500_a_vbob>;
+};
+
+/*
+ * NON-REGULATOR OVERRIDES
+ * (modifications to sdm845-cheza.dtsi) - alphabetized by dtsi label
+ */
+
+&firmware {
+	/delete-node/ chromeos;
+};
+
+&panel {
+	/*
+	 * NOTE: this is really the backlight enable, but we'll hack it in
+	 * here for cheza-r0 since gpio-backlight doesn't support a separate
+	 * enable pin.
+	 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&ap_edp_bklten>;
+	enable-gpios = <&tlmm 37 GPIO_ACTIVE_HIGH>;
+	power-supply = <&pp3300_dx_edp_r0_r1_r2>;
+};
+
+&sn65dsi86_bridge {
+	/delete-property/clocks;
+	/delete-property/clock-names;
+};
+
+&spi10 {
+	status = "disabled";
+	/delete-node/ec@0;
+};
+
+/*
+ * NON-REGULATOR OVERRIDES
+ * (modifications to sdm845.dtsi) - alphabetized by dtsi label
+ */
+
+/*
+ * HACK: The quad spi actually works fine on -rev0, but let's still
+ * disable it.  The problem is that a bunch of people have their
+ * -rev0 boards reworked to only boot via SD card.  That means they
+ * have erased SPI flash.  ...and crbug.com/865731 causes too many
+ * problems in that case.  Let's just prevent access to the SPI flash
+ * to avoid headaches.
+ */
+&qspi {
+	status = "disabled";
+};
+
+/*
+ * NOTE: spi0 is supposed to be for FP and spi10 is supposed to be for
+ * EC.  ...but spi10 was wired incorrectly in -rev0 so we've bluewired
+ * things to spi0 (and still left spi10 connected).  Hence a strange
+ * pinctrl and the fact that having the EC here doesn't match original
+ * schematics.
+ */
+&spi0 {
+	pinctrl-0 = <&qup_spi0_default>, <&qup_spi10_neuter>;
+	spi-max-frequency = <3000000>;  /* TODO: Drop this? */
+
+	cros_ec: ec@0 {
+		compatible = "google,cros-ec-spi";
+		reg = <0>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <122 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ec_ap_int_l>;
+		spi-max-frequency = <3000000>;
+
+		i2c_tunnel: i2c-tunnel {
+			compatible = "google,cros-ec-i2c-tunnel";
+			google,remote-bus = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+	};
+};
+
+#include <arm/cros-ec-keyboard.dtsi>
+#include <arm/cros-ec-sbs.dtsi>
+
+/* PINCTRL - additions to nodes defined in sdm845.dtsi */
+
+&qup_i2c11_default {
+	pinconf {
+		/* External pull missing on rev0 */
+		/delete-property/bias-disable;
+		bias-pull-up;
+	};
+};
+
+&qup_spi0_default {
+	pinconf {
+		/* Extra strong since there's a rework (TODO: verify?) */
+		drive-strength = <8>;
+	};
 };
 
 /* PINCTRL - board-specific pinctrl */
@@ -167,4 +335,30 @@
 			  "AP_RAM_ID2",
 			  "RFFE1_DATA",
 			  "RFFE1_CLK";
+
+	edp_bkltctl: edp-bkltctl {
+		pinmux {
+			pins = "gpio9";
+			function = "gpio";
+		};
+
+		pinconf {
+			pins = "gpio9";
+			drive-strength = <8>; /* TODO: why? */
+			bias-disable;
+		};
+	};
+
+	qup_spi10_neuter: qup-spi10-neuter {
+		pinmux {
+			pins = "gpio53", "gpio54", "gpio55", "gpio56";
+			function = "gpio";
+			input-enable; /* ? */
+		};
+
+		pinconf {
+			pins = "gpio53", "gpio54", "gpio55", "gpio56";
+			bias-disable;
+		};
+	};
 };
