@@ -41,8 +41,8 @@
 #define MAX_NUMBER_OF_SOCS 4
 #define WAKE_MSI_NAME			"WAKE"
 
-static struct cnss_plat_data *plat_env[MAX_NUMBER_OF_SOCS];
-static int plat_env_index;
+struct cnss_plat_data *plat_env[MAX_NUMBER_OF_SOCS];
+int plat_env_index;
 
 static DECLARE_RWSEM(cnss_pm_sem);
 
