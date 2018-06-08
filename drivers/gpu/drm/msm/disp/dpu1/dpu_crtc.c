@@ -1002,7 +1002,7 @@ static int _dpu_crtc_wait_for_frame_done(struct drm_crtc *crtc)
 	return rc;
 }
 
-void dpu_crtc_commit_kickoff(struct drm_crtc *crtc)
+void dpu_crtc_commit_kickoff(struct drm_crtc *crtc, bool async)
 {
 	struct drm_encoder *encoder;
 	struct drm_device *dev;
@@ -1048,27 +1048,30 @@ void dpu_crtc_commit_kickoff(struct drm_crtc *crtc)
 		 * Encoder will flush/start now, unless it has a tx pending.
 		 * If so, it may delay and flush at an irq event (e.g. ppdone)
 		 */
-		dpu_encoder_prepare_for_kickoff(encoder, &params);
+		dpu_encoder_prepare_for_kickoff(encoder, &params, async);
 	}
 
-	/* wait for frame_event_done completion */
-	DPU_ATRACE_BEGIN("wait_for_frame_done_event");
-	ret = _dpu_crtc_wait_for_frame_done(crtc);
-	DPU_ATRACE_END("wait_for_frame_done_event");
-	if (ret) {
-		DPU_ERROR("crtc%d wait for frame done failed;frame_pending%d\n",
-				crtc->base.id,
-				atomic_read(&dpu_crtc->frame_pending));
-		goto end;
+
+	if (!async) {
+		/* wait for frame_event_done completion */
+		DPU_ATRACE_BEGIN("wait_for_frame_done_event");
+		ret = _dpu_crtc_wait_for_frame_done(crtc);
+		DPU_ATRACE_END("wait_for_frame_done_event");
+		if (ret) {
+			DPU_ERROR("crtc%d wait for frame done failed;frame_pending%d\n",
+					crtc->base.id,
+					atomic_read(&dpu_crtc->frame_pending));
+			goto end;
+		}
+
+		if (atomic_inc_return(&dpu_crtc->frame_pending) == 1) {
+			/* acquire bandwidth and other resources */
+			DPU_DEBUG("crtc%d first commit\n", crtc->base.id);
+		} else
+			DPU_DEBUG("crtc%d commit\n", crtc->base.id);
+
+		dpu_crtc->play_count++;
 	}
-
-	if (atomic_inc_return(&dpu_crtc->frame_pending) == 1) {
-		/* acquire bandwidth and other resources */
-		DPU_DEBUG("crtc%d first commit\n", crtc->base.id);
-	} else
-		DPU_DEBUG("crtc%d commit\n", crtc->base.id);
-
-	dpu_crtc->play_count++;
 
 	dpu_vbif_clear_errors(dpu_kms);
 
@@ -1076,11 +1079,12 @@ void dpu_crtc_commit_kickoff(struct drm_crtc *crtc)
 		if (encoder->crtc != crtc)
 			continue;
 
-		dpu_encoder_kickoff(encoder);
+		dpu_encoder_kickoff(encoder, async);
 	}
 
 end:
-	reinit_completion(&dpu_crtc->frame_done_comp);
+	if (!async)
+		reinit_completion(&dpu_crtc->frame_done_comp);
 	DPU_ATRACE_END("crtc_commit");
 }
 
@@ -1551,8 +1555,7 @@ static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
 		cnt++;
 
 		dst = drm_plane_state_dest(pstate);
-		if (!drm_rect_intersect(&clip, &dst) ||
-		    !drm_rect_equals(&clip, &dst)) {
+		if (!drm_rect_intersect(&clip, &dst)) {
 			DPU_ERROR("invalid vertical/horizontal destination\n");
 			DPU_ERROR("display: " DRM_RECT_FMT " plane: "
 				  DRM_RECT_FMT "\n", DRM_RECT_ARG(&crtc_rect),
@@ -1973,22 +1976,17 @@ static int dpu_crtc_debugfs_state_show(struct seq_file *s, void *v)
 	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
 	struct dpu_crtc_res *res;
 	struct dpu_crtc_respool *rp;
-	int i;
 
 	seq_printf(s, "client type: %d\n", dpu_crtc_get_client_type(crtc));
 	seq_printf(s, "intf_mode: %d\n", dpu_crtc_get_intf_mode(crtc));
 	seq_printf(s, "core_clk_rate: %llu\n",
 			dpu_crtc->cur_perf.core_clk_rate);
-	for (i = DPU_POWER_HANDLE_DBUS_ID_MNOC;
-			i < DPU_POWER_HANDLE_DBUS_ID_MAX; i++) {
-		seq_printf(s, "bw_ctl[%s]: %llu\n",
-				dpu_power_handle_get_dbus_name(i),
-				dpu_crtc->cur_perf.bw_ctl[i]);
-		seq_printf(s, "max_per_pipe_ib[%s]: %llu\n",
-				dpu_power_handle_get_dbus_name(i),
-				dpu_crtc->cur_perf.max_per_pipe_ib[i]);
-	}
 
+	seq_printf(s, "bw_ctl: %llu\n",
+				dpu_crtc->cur_perf.bw_ctl);
+	seq_printf(s, "max_per_pipe_ib: %llu\n",
+				dpu_crtc->cur_perf.max_per_pipe_ib);
+	
 	mutex_lock(&dpu_crtc->rp_lock);
 	list_for_each_entry(rp, &dpu_crtc->rp_head, rp_list) {
 		seq_printf(s, "rp.%d: ", rp->sequence_id);

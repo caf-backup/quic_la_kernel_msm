@@ -16,6 +16,7 @@
 
 / {
 	aliases {
+		hsuart0 = &uart6;
 		serial0 = &uart9;
 	};
 
@@ -122,6 +123,21 @@
 
 	/* BOARD-SPECIFIC TOP LEVEL NODES */
 
+	panel: panel {
+		compatible ="innolux,tv123wam";
+		status = "okay";
+		power-supply = <&pp3300_dx_edp>;
+		backlight = <&backlight>;
+
+		ports {
+			panel_in: port {
+				panel_in_edp: endpoint {
+					remote-endpoint = <&sn65dsi86_out>;
+				};
+			};
+		};
+	};
+
 	firmware: firmware {
 		chromeos {
 			pinctrl-names = "default";
@@ -145,6 +161,22 @@
 		};
 	};
 };
+
+&qspi {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&qspi_clk &qspi_cs0 &qspi_data01>;
+
+	spiflash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		/* TODO: Should support up to 104 MHz */
+		spi-max-frequency = <25000000>;
+		spi-tx-bus-width = <2>;
+		spi-rx-bus-width = <2>;
+	};
+};
+
 
 &apps_rsc {
 	pm8998-rpmh-regulators {
@@ -445,9 +477,74 @@
 	};
 };
 
+&dsi0 {
+	status = "okay";
+	vdda-supply = <&vdda_mipi_dsi0_1p2>;
+
+	ports {
+		port@1 {
+			endpoint {
+				remote-endpoint = <&sn65dsi86_in>;
+				data-lanes = <0 1 2 3>;
+			};
+		};
+	};
+};
+
+&dsi0_phy {
+	status = "okay";
+	vdds-supply = <&vdda_mipi_dsi0_pll>;
+};
+
 edp_brij_i2c: &i2c3 {
 	status = "okay";
 	clock-frequency = <400000>;
+
+	sn65dsi86_bridge: bridge@2d {
+		#address-cells = <2>;
+		#size-cells = <1>;
+
+		status = "okay";
+
+		compatible = "ti,sn65dsi86";
+		reg = <0x2d>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <10 IRQ_TYPE_EDGE_FALLING>;
+
+		vpll-supply = <&src_pp1800_s4a>;
+		vccio-supply = <&src_pp1800_s4a>;
+		vcca-supply = <&src_pp1200_l2a>;
+		vcc-supply = <&src_pp1200_l2a>;
+
+		clocks = <&rpmhcc RPMH_LN_BB_CLK2>;
+		clock-names = "refclk";
+
+		/* TODO: need a sleep config? */
+		pinctrl-names = "default";
+		pinctrl-0 = <&edp_brij_en>;
+
+		enable-gpios = <&tlmm 102 GPIO_ACTIVE_HIGH>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				sn65dsi86_in: endpoint {
+					remote-endpoint = <&dsi0_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				sn65dsi86_out: endpoint {
+					remote-endpoint = <&panel_in_edp>;
+				};
+			};
+		};
+	};
 };
 
 ap_pen_1v8: &i2c11 {
@@ -503,6 +600,21 @@ ap_ts_i2c: &i2c14 {
 	status = "okay";
 };
 
+&sdhc_2 {
+	status = "okay";
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&sdc2_clk_default  &sdc2_cmd_default &sdc2_data_default
+		     &sd_cd_odl>;
+	pinctrl-1 = <&sdc2_clk_sleep &sdc2_cmd_sleep &sdc2_data_sleep
+		     &sd_cd_odl>;
+
+	vmmc-supply = <&src_pp2950_l21a>;
+	vqmmc-supply = <&vddpx_2>;
+
+	cd-gpios = <&tlmm 44 GPIO_ACTIVE_LOW>;
+};
+
 &spi0 {
 	status = "okay";
 	spi-max-frequency = <3000000>;  /* TODO: Drop this? */
@@ -556,8 +668,50 @@ ap_ts_i2c: &i2c14 {
 #include <arm/cros-ec-keyboard.dtsi>
 #include <arm/cros-ec-sbs.dtsi>
 
+&uart6 {
+	status = "okay";
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&qup_uart6_default>;
+	pinctrl-1 = <&qup_uart6_sleep>;
+
+	bluetooth: wcn3990-bt {
+		compatible = "qcom,wcn3990-bt";
+		vddio-supply = <&src_pp1800_s4a>;
+		vddxo-supply = <&pp1800_l7a_wcn3990>;
+		vddrf-supply = <&src_pp1300_l17a>;
+		vddch0-supply = <&pp3300_l25a_ch0_wcn3990>;
+		max-speed = <3200000>;
+	};
+};
+
 &uart9 {
 	status = "okay";
+};
+
+&ufshc1 {
+	status = "okay";
+
+	vcc-supply = <&src_pp2950_l20a>;
+	vcc-voltage-level = <2950000 2960000>;
+	vcc-max-microamp = <600000>;
+	vccq2-max-microamp = <600000>;
+
+	qcom,vddp-ref-clk-supply = <&vddpx_10>;
+	qcom,vddp-ref-clk-max-microamp = <100>;
+
+	pinctrl-names = "init", "default";
+	pinctrl-0 = <&ufs_dev_reset_assert>;
+	pinctrl-1 = <&ufs_dev_reset_deassert>;
+};
+
+&ufsphy1 {
+	status = "okay";
+
+	vdda-phy-supply = <&vdda_ufs1_core>;
+	vdda-pll-supply = <&vdda_ufs1_1p2>;
+	vdda-phy-max-microamp = <62900>;
+	vdda-pll-max-microamp = <18300>;
 };
 
 &usb_1 {
@@ -653,6 +807,31 @@ ap_ts_i2c: &i2c14 {
 
 /* PINCTRL - additions to nodes defined in sdm845.dtsi */
 
+&qspi_cs0 {
+	pinconf {
+		pins = "gpio90";
+		bias-disable;
+	};
+};
+
+&qspi_clk {
+	pinconf {
+		pins = "gpio95";
+		bias-disable;
+	};
+};
+
+&qspi_data01 {
+	pinconf-mosi {
+		pins = "gpio91";
+		bias-disable;
+	};
+	pinconf-miso {
+		pins = "gpio92";
+		bias-pull-down;
+	};
+};
+
 &qup_i2c3_default {
 	pinconf {
 		pins = "gpio41", "gpio42";
@@ -714,6 +893,21 @@ ap_ts_i2c: &i2c14 {
 		pins = "gpio53", "gpio54", "gpio55", "gpio56";
 		drive-strength = <2>;
 		bias-disable;
+	};
+};
+
+&qup_uart6_default {
+	pinmux {
+		pins = "gpio45", "gpio46",
+		       "gpio47", "gpio48";
+	};
+
+	pinconf {
+		pins = "gpio45", "gpio46",
+		       "gpio47", "gpio48";
+		drive-strength = <2>;
+		// TODO: does nothing?
+		// bias-no-pull;
 	};
 };
 
@@ -909,6 +1103,82 @@ ap_ts_i2c: &i2c14 {
 		};
 	};
 
+	qup_uart6_sleep: qup-uart6-sleep {
+		pinmux {
+		        function = "gpio";
+		        pins = "gpio45", "gpio46",
+			       "gpio47", "gpio48";
+		};
+
+		pinconf {
+			pins = "gpio45", "gpio46",
+			       "gpio47", "gpio48";
+			// TODO: does nothing?
+			// bias-no-pull;
+		};
+	};
+
+	sdc2_clk_default: sdc2-clk-default {
+		pinconf {
+			pins = "sdc2_clk";
+			bias-disable;
+			drive-strength = <16>;
+		};
+	};
+
+	sdc2_clk_sleep: sdc2-clk-sleep {
+		pinconf {
+			pins = "sdc2_clk";
+			bias-disable;
+			drive-strength = <2>;
+		};
+	};
+
+	sdc2_cmd_default: sdc2-cmd-default {
+		pinconf {
+			pins = "sdc2_cmd";
+			bias-pull-up;
+			drive-strength = <10>;
+		};
+	};
+
+	sdc2_cmd_sleep: sdc2-cmd-sleep {
+		pinconf {
+			pins = "sdc2_cmd";
+			bias-pull-up;
+			drive-strength = <2>;
+		};
+	};
+
+	sdc2_data_default: sdc2-data-default {
+		pinconf {
+			pins = "sdc2_data";
+			bias-pull-up;
+			drive-strength = <10>;
+		};
+	};
+
+	sdc2_data_sleep: sdc2-data-sleep {
+		pinconf {
+			pins = "sdc2_data";
+			bias-pull-up;
+			drive-strength = <2>;
+		};
+	};
+
+	sd_cd_odl: sd-cd-odl {
+		pinmux {
+			pins = "gpio44";
+			function = "gpio";
+		};
+
+		pinconf {
+			pins = "gpio44";
+			bias-pull-up;
+			drive-strength = <2>;
+		};
+	};
+
 	ts_int_l: ts-int-l {
 		pinmux  {
 			pins = "gpio125";
@@ -931,6 +1201,53 @@ ap_ts_i2c: &i2c14 {
 			pins = "gpio118";
 			bias-disable;
 			drive-strength = <2>;
+		};
+	};
+
+
+	ufs_dev_reset_assert: ufs_dev_reset_assert {
+		config {
+			pins = "ufs_reset";
+			bias-pull-down;		/* default: pull down */
+			/*
+			* UFS_RESET driver strengths are having
+			* different values/steps compared to typical
+			* GPIO drive strengths.
+			*
+			* Following table clarifies:
+			*
+			* HDRV value | UFS_RESET | Typical GPIO
+			*   (dec)    |   (mA)    |    (mA)
+			*     0      |   0.8     |    2
+			*     1      |   1.55    |    4
+			*     2      |   2.35    |    6
+			*     3      |   3.1     |    8
+			*     4      |   3.9     |    10
+			*     5      |   4.65    |    12
+			*     6      |   5.4     |    14
+			*     7      |   6.15    |    16
+			*
+			* POR value for UFS_RESET HDRV is 3 which means
+			* 3.1mA and we want to use that. Hence just
+			* specify 8mA to "drive-strength" binding and
+			* that should result into writing 3 to HDRV
+			* field.
+			*/
+			drive-strength = <8>;	/* default: 3.1 mA */
+			output-low; /* active low reset */
+		};
+	};
+
+	ufs_dev_reset_deassert: ufs_dev_reset_deassert {
+		config {
+			pins = "ufs_reset";
+			bias-pull-down;		/* default: pull down */
+			/*
+			 * default: 3.1 mA
+			 * check comments under ufs_dev_reset_assert
+			 */
+			drive-strength = <8>;
+			output-high; /* active low reset */
 		};
 	};
 };

@@ -21,7 +21,7 @@
 #include "dpu_hw_catalog.h"
 #include "dpu_power_handle.h"
 
-#define	DPU_PERF_DEFAULT_MAX_CORE_CLK_RATE	412500000
+#define	DPU_PERF_DEFAULT_MAX_CORE_CLK_RATE	300000000
 
 /**
  * struct dpu_core_perf_params - definition of performance parameters
@@ -30,8 +30,8 @@
  * @core_clk_rate: core clock rate request
  */
 struct dpu_core_perf_params {
-	u64 max_per_pipe_ib[DPU_POWER_HANDLE_DBUS_ID_MAX];
-	u64 bw_ctl[DPU_POWER_HANDLE_DBUS_ID_MAX];
+	u64 max_per_pipe_ib;
+	u64 bw_ctl;
 	u64 core_clk_rate;
 };
 

@@ -145,6 +145,7 @@ struct sh_mobile_i2c_data {
 	struct dma_chan *dma_rx;
 	struct scatterlist sg;
 	enum dma_data_direction dma_direction;
+	u8 *dma_buf;
 };
 
 struct sh_mobile_dt_config {
@@ -608,7 +609,7 @@ static void sh_mobile_i2c_xfer_dma(struct sh_mobile_i2c_data *pd)
 	if (IS_ERR(chan))
 		return;
 
-	dma_addr = dma_map_single(chan->device->dev, pd->msg->buf, pd->msg->len, dir);
+	dma_addr = dma_map_single(chan->device->dev, pd->dma_buf, pd->msg->len, dir);
 	if (dma_mapping_error(chan->device->dev, dma_addr)) {
 		dev_dbg(pd->dev, "dma map failed, using PIO\n");
 		return;
@@ -641,8 +642,8 @@ static void sh_mobile_i2c_xfer_dma(struct sh_mobile_i2c_data *pd)
 	dma_async_issue_pending(chan);
 }
 
-static int start_ch(struct sh_mobile_i2c_data *pd, struct i2c_msg *usr_msg,
-		    bool do_init)
+static void start_ch(struct sh_mobile_i2c_data *pd, struct i2c_msg *usr_msg,
+		     bool do_init)
 {
 	if (usr_msg->len == 0 && (usr_msg->flags & I2C_M_RD)) {
 		dev_err(pd->dev, "Unsupported zero length i2c read\n");
@@ -665,12 +666,12 @@ static int start_ch(struct sh_mobile_i2c_data *pd, struct i2c_msg *usr_msg,
 	pd->pos = -1;
 	pd->sr = 0;
 
-	if (pd->msg->len > 8)
+	pd->dma_buf = i2c_get_dma_safe_msg_buf(pd->msg, 8);
+	if (pd->dma_buf)
 		sh_mobile_i2c_xfer_dma(pd);
 
 	/* Enable all interrupts to begin with */
 	iic_wr(pd, ICIC, ICIC_DTEE | ICIC_WAITE | ICIC_ALE | ICIC_TACKE);
-	return 0;
 }
 
 static int poll_dte(struct sh_mobile_i2c_data *pd)
@@ -740,9 +741,7 @@ static int sh_mobile_i2c_xfer(struct i2c_adapter *adapter,
 		pd->send_stop = i == num - 1 || msg->flags & I2C_M_STOP;
 		pd->stop_after_dma = false;
 
-		err = start_ch(pd, msg, do_start);
-		if (err)
-			break;
+		start_ch(pd, msg, do_start);
 
 		if (do_start)
 			i2c_op(pd, OP_START, 0);
@@ -751,6 +750,10 @@ static int sh_mobile_i2c_xfer(struct i2c_adapter *adapter,
 		timeout = wait_event_timeout(pd->wait,
 				       pd->sr & (ICSR_TACK | SW_DONE),
 				       adapter->timeout);
+
+		/* 'stop_after_dma' tells if DMA transfer was complete */
+		i2c_put_dma_safe_msg_buf(pd->dma_buf, pd->msg, pd->stop_after_dma);
+
 		if (!timeout) {
 			dev_err(pd->dev, "Transfer request timed out\n");
 			if (pd->dma_direction != DMA_NONE)
