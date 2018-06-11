@@ -1502,8 +1502,8 @@
 	};
 
 	chosen {
-		linux,initrd-end = <0x82400000>;
-		linux,initrd-start = <0x82000000>;
+		linux,initrd-end = <0x46000000>;
+		linux,initrd-start = <0x44000000>;
 		bootargs = "console=ttyMSM0,115200,n8 root=/dev/ram0 rw \
 			    init=/init";
 	};
