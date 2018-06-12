@@ -90,16 +90,24 @@ show_qsee_app_log_buf(struct device *dev, struct device_attribute *attr,
 {
 	ssize_t count = 0;
 
-	if (g_qsee_log->log_pos.wrap != 0) {
-		memcpy(buf, g_qsee_log->log_buf + g_qsee_log->log_pos.offset,
-		      QSEE_LOG_BUF_SIZE - g_qsee_log->log_pos.offset - 64);
-		count = QSEE_LOG_BUF_SIZE - g_qsee_log->log_pos.offset - 64;
-		memcpy(buf + count, g_qsee_log->log_buf,
-		      g_qsee_log->log_pos.offset);
-		count = count + g_qsee_log->log_pos.offset;
+	if (app_state) {
+		if (g_qsee_log->log_pos.wrap != 0) {
+			memcpy(buf, g_qsee_log->log_buf +
+			      g_qsee_log->log_pos.offset, QSEE_LOG_BUF_SIZE -
+			      g_qsee_log->log_pos.offset - 64);
+			count = QSEE_LOG_BUF_SIZE -
+				g_qsee_log->log_pos.offset - 64;
+			memcpy(buf + count, g_qsee_log->log_buf,
+			      g_qsee_log->log_pos.offset);
+			count = count + g_qsee_log->log_pos.offset;
+		} else {
+			memcpy(buf, g_qsee_log->log_buf,
+			      g_qsee_log->log_pos.offset);
+			count = g_qsee_log->log_pos.offset;
+		}
 	} else {
-		memcpy(buf, g_qsee_log->log_buf, g_qsee_log->log_pos.offset);
-		count = g_qsee_log->log_pos.offset;
+		pr_err("load app and then view log..\n");
+		return -EINVAL;
 	}
 
 	return count;
@@ -879,10 +887,14 @@ store_rsa_key(struct device *dev, struct device_attribute *attr,
 	     const char *buf, size_t count)
 {
 	int idx = 0;
+	int ret = 0;
+	int i = 0;
+	int j = 0;
+	char hex_len[RSA_PARAM_LEN];
 
 	memset(rsa_import_modulus, 0, RSA_KEY_SIZE_MAX);
 	rsa_import_modulus_len = 0;
-	memset(rsa_import_public_exponent, 0, RSA_KEY_SIZE_MAX);
+	memset(rsa_import_public_exponent, 0, RSA_PUB_EXP_SIZE_MAX);
 	rsa_import_public_exponent_len = 0;
 	memset(rsa_import_pvt_exponent, 0, RSA_KEY_SIZE_MAX);
 	rsa_import_pvt_exponent_len = 0;
@@ -898,17 +910,44 @@ store_rsa_key(struct device *dev, struct device_attribute *attr,
 
 	memcpy(rsa_import_modulus, buf, RSA_KEY_SIZE_MAX);
 	idx += RSA_KEY_SIZE_MAX;
-	rsa_import_modulus_len = *((int *)&buf[idx]);
-	idx += 4;
+	memset(hex_len, 0, RSA_PARAM_LEN);
+	for (i = idx, j = 0; i < idx + 2; i++, j++)
+		sprintf(hex_len + (j * 2), "%02X", buf[i]);
+	hex_len[4] = '\0';
+	ret = kstrtoul(hex_len, 16, (unsigned long *)&rsa_import_modulus_len);
+	if (ret) {
+		pr_info("\nCannot read modulus size from input buffer..");
+		return -EINVAL;
+	}
+	idx += 2;
 
-	memcpy(rsa_import_public_exponent, buf + idx, RSA_KEY_SIZE_MAX);
-	idx += RSA_KEY_SIZE_MAX;
-	rsa_import_public_exponent_len = *((int *)&buf[idx]);
-	idx += 4;
+	memcpy(rsa_import_public_exponent, buf + idx, RSA_PUB_EXP_SIZE_MAX);
+	idx += RSA_PUB_EXP_SIZE_MAX;
+	memset(hex_len, 0, RSA_PARAM_LEN);
+	for (i = idx, j = 0; i < idx + 1; i++, j++)
+		sprintf(hex_len + (j * 2), "%02X", buf[i]);
+	hex_len[2] = '\0';
+	ret = kstrtoul(hex_len, 16,
+		      (unsigned long *)&rsa_import_public_exponent_len);
+	if (ret) {
+		pr_info("\nCannot read pub exp size from input buffer..");
+		return -EINVAL;
+	}
+	idx += 1;
 
 	memcpy(rsa_import_pvt_exponent, buf + idx, RSA_KEY_SIZE_MAX);
 	idx += RSA_KEY_SIZE_MAX;
-	rsa_import_pvt_exponent_len = *((int *)&buf[idx]);
+	memset(hex_len, 0, RSA_PARAM_LEN);
+	for (i = idx, j = 0; i < idx + 2; i++, j++)
+		sprintf(hex_len + (j * 2), "%02X", buf[i]);
+	hex_len[4] = '\0';
+	ret = kstrtoul(hex_len, 16,
+		      (unsigned long *)&rsa_import_pvt_exponent_len);
+	if (ret) {
+		pr_info("\nCannot read pvt exp size from input buffer..");
+		return -EINVAL;
+	}
+	idx += 2;
 
 	return count;
 }
@@ -1509,7 +1548,7 @@ static int __init rsa_sec_key_init(void)
 	rsa_import_modulus_page = alloc_pages(GFP_KERNEL,
 					     get_order(RSA_KEY_SIZE_MAX));
 	rsa_import_public_exponent_page = alloc_pages(GFP_KERNEL,
-						get_order(RSA_KEY_SIZE_MAX));
+					  get_order(RSA_PUB_EXP_SIZE_MAX));
 	rsa_import_pvt_exponent_page = alloc_pages(GFP_KERNEL,
 						get_order(RSA_KEY_SIZE_MAX));
 	rsa_sign_data_buf_page = alloc_pages(GFP_KERNEL,
@@ -1535,7 +1574,7 @@ static int __init rsa_sec_key_init(void)
 		if (rsa_import_public_exponent_page)
 			free_pages((unsigned long)
 				  page_address(rsa_import_public_exponent_page),
-				  get_order(RSA_KEY_SIZE_MAX));
+				  get_order(RSA_PUB_EXP_SIZE_MAX));
 
 		if (rsa_import_pvt_exponent_page)
 			free_pages((unsigned long)
@@ -2358,7 +2397,7 @@ store_load_start(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 	}
 	if (load_cmd == 0) {
-		if (!props->libraries_inbuilt) {
+		if (!(props->libraries_inbuilt || app_libs_state)) {
 			smc_id = TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_QSEE_OS,
 				 TZ_SVC_APP_MGR, TZ_ARMv8_CMD_LOAD_LIB);
 			cmd_id = QSEE_LOAD_SERV_IMAGE_COMMAND;
@@ -2372,7 +2411,7 @@ store_load_start(struct device *dev, struct device_attribute *attr,
 					pr_info("\nRegistering log buf failed");
 			}
 		} else {
-			pr_info("\nLibraries are inbuilt in this platform");
+			pr_info("\nLibraries are either already loaded or are inbuilt in this platform");
 		}
 	} else if (load_cmd == 1) {
 		if (props->libraries_inbuilt || app_libs_state) {
@@ -2592,7 +2631,7 @@ static int __exit qseecom_remove(struct platform_device *pdev)
 
 		if (rsa_import_public_exponent)
 			free_pages((unsigned long)rsa_import_public_exponent,
-				  get_order(RSA_KEY_SIZE_MAX));
+				  get_order(RSA_PUB_EXP_SIZE_MAX));
 
 		if (rsa_import_pvt_exponent)
 			free_pages((unsigned long)rsa_import_pvt_exponent,
