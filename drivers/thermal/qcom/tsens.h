@@ -54,6 +54,7 @@ struct tsens_ops {
 	int (*calibrate)(struct tsens_device *);
 	int (*get_temp)(struct tsens_device *, int, int *);
 	/* optional callbacks */
+	void (*panic_notify)(struct tsens_device *, int);
 	int (*enable)(struct tsens_device *, int);
 	void (*disable)(struct tsens_device *);
 	int (*suspend)(struct tsens_device *);
@@ -92,12 +93,13 @@ struct tsens_device {
 	bool				trdy;
 	const struct tsens_ops		*ops;
 	struct work_struct		tsens_work;
+	void __iomem			*iomem_base;
 	struct tsens_sensor		sensor[0];
 };
 
 char *qfprom_read(struct device *, const char *);
 void compute_intercept_slope(struct tsens_device *, u32 *, u32 *, u32);
-int init_common(struct tsens_device *);
+void __iomem *init_common(struct tsens_device *);
 int get_temp_common(struct tsens_device *, int, int *);
 
 extern const struct tsens_data data_8960, data_ipq8064, data_ipq807x;

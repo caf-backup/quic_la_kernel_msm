@@ -2341,6 +2341,22 @@ static struct notifier_block thermal_pm_nb = {
 	.notifier_call = thermal_pm_notify,
 };
 
+static int thermal_panic_notify(struct notifier_block *nb,
+				unsigned long mode, void *_unused)
+{
+	struct thermal_zone_device *tz;
+
+	list_for_each_entry(tz, &thermal_tz_list, node) {
+		if (tz->ops->panic_notify)
+			tz->ops->panic_notify(tz);
+	}
+}
+
+static struct notifier_block panic_nb = {
+	.notifier_call  = thermal_panic_notify,
+};
+
+
 static int __init thermal_init(void)
 {
 	int result;
@@ -2365,6 +2381,13 @@ static int __init thermal_init(void)
 	if (result)
 		pr_warn("Thermal: Can not register suspend notifier, return %d\n",
 			result);
+
+	result = atomic_notifier_chain_register(&panic_notifier_list,
+			&panic_nb);
+	if (result)
+		pr_warn("Thermal: Can not register panic notifier, return %d\n",
+			result);
+
 
 	return 0;
 
