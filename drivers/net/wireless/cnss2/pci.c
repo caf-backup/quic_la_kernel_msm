@@ -805,13 +805,36 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 	}
 
 	if (plat_priv->device_id == QCA6290_DEVICE_ID) {
-		plat_priv->fw_mem_seg_len = 1;
-		fw_mem[0].pa = Q6_CALDB_ADDR;
-		fw_mem[0].va = ioremap(Q6_CALDB_ADDR, fw_mem[0].size);
-		if (!fw_mem[0].va)
-			pr_err("WARNING: caldb ioremap failed\n");
-
-		fw_mem[0].type = CALDB_MEM_REGION_TYPE;
+		for (i = 0; i < plat_priv->fw_mem_seg_len; i++) {
+			switch (fw_mem[i].type) {
+			case CALDB_MEM_REGION_TYPE:
+				if (fw_mem[i].size > Q6_CALDB_SIZE_QCA6290) {
+					pr_err("Error: Need more memory %x\n",
+					       fw_mem[i].size);
+					CNSS_ASSERT(0);
+				}
+				fw_mem[i].pa = Q6_CALDB_ADDR_QCA6290;
+				fw_mem[i].va = Q6_CALDB_ADDR_QCA6290;
+				break;
+			case HOST_DDR_REGION_TYPE:
+				if (fw_mem[i].size > Q6_HOST_ADDR_SZ_QCA6290) {
+					pr_err("Error: Need more memory %x\n",
+					       fw_mem[i].size);
+					CNSS_ASSERT(0);
+				}
+				fw_mem[i].pa = Q6_HOST_ADDR_QCA6290;
+				fw_mem[i].va = ioremap(Q6_HOST_ADDR_QCA6290,
+						       fw_mem[i].size);
+				if (!fw_mem[i].va)
+					pr_err("WARNING: caldb remap failed\n");
+				break;
+			default:
+				pr_err("Ignore mem req type %d\n",
+				       fw_mem[i].type);
+				CNSS_ASSERT(0);
+				break;
+			}
+		}
 		return 0;
 	}
 
