@@ -938,6 +938,9 @@
 				qcom,aes192-ctr-sha256-hmac;
 				qcom,aes256-ctr-sha256-hmac;
 				qcom,3des-cbc-sha256-hmac;
+				qcom,aes128-cbc-sha384-hmac;
+				qcom,aes192-cbc-sha384-hmac;
+				qcom,aes256-cbc-sha384-hmac;
 
 				engine0 {
 					reg_offset = <0x80000>;
@@ -1596,7 +1599,6 @@
 					"msi_11", "msi_12", "msi_13",
 					"msi_14", "msi_15";
 
-
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 0x7>;
 			interrupt-map = <0 0 0 1 &intc 0 75
@@ -1647,7 +1649,6 @@
 
 			status = "ok";
 		};
-
 
 		pcie_phy1: phy@8e000 {
 			compatible = "qca,pcie-qmp-phy";

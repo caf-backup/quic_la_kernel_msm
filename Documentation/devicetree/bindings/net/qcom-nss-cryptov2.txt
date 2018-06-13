@@ -62,6 +62,9 @@ Required properties:
 - qcom,aes128-ctr-sha256-hmac: Enable crypto algorithm
 - qcom,aes192-ctr-sha256-hmac: Enable crypto algorithm
 - qcom,aes256-ctr-sha256-hmac: Enable crypto algorithm
+- qcom,aes128-cbc-sha384-hmac; Enable crypto algorithm
+- qcom,aes192-cbc-sha384-hmac; Enable crypto algorithm
+- qcom,aes256-cbc-sha384-hmac; Enable crypto algorithm
 - qcom,3des-cbc-sha256-hmac: Enable crypto algorithm
 
 * engine0: First engine for EIP197 block. Some crypto HW can support multiple engine.
@@ -112,4 +115,3 @@ example:
 			};
 		};
 	};
-

@@ -577,7 +577,6 @@
 			status = "disabled";
 		};
 
-
 		pcie0: pci@20000000 {
 			compatible = "qcom,pcie-ipq6018";
 			reg =  <0x20000000 0xf1d
@@ -1252,6 +1251,9 @@
 				qcom,aes192-ctr-sha256-hmac;
 				qcom,aes256-ctr-sha256-hmac;
 				qcom,3des-cbc-sha256-hmac;
+				qcom,aes128-cbc-sha384-hmac;
+				qcom,aes192-cbc-sha384-hmac;
+				qcom,aes256-cbc-sha384-hmac;
 
 				engine0 {
 					reg_offset = <0x80000>;
