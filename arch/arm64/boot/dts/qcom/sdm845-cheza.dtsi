@@ -8,6 +8,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
+#include <dt-bindings/clock/qcom,lpass-sdm845.h>
 #include "sdm845.dtsi"
 
 /* PMICs depend on spmi_bus label and so must come after SoC */
@@ -22,6 +23,13 @@
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+	};
+
+	lpasscc: clock-controller {
+		compatible = "qcom,sdm845-lpasscc";
+		reg = <0x17014000 0x1f004>, <0x17300000 0x200>;
+		reg-names = "lpass_cc", "lpass_qdsp6ss";
+		#clock-cells = <1>;
 	};
 
 	backlight: backlight {
@@ -177,6 +185,10 @@
 	};
 };
 
+
+&gcc {
+	qcom,lpass-protected;
+};
 
 &apps_rsc {
 	pm8998-rpmh-regulators {

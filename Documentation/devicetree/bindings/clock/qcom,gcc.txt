@@ -32,6 +32,8 @@ be part of GCC and hence the TSENS properties can also be
 part of the GCC/clock-controller node.
 For more details on the TSENS properties please refer
 Documentation/devicetree/bindings/thermal/qcom-tsens.txt
+- qcom,lpass-protected : Indicate GCC to be able to access the
+			lpass gcc clock branches.
 
 Example:
 	clock-controller@900000 {
