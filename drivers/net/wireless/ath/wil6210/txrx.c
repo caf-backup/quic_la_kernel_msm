@@ -1105,7 +1105,9 @@ static int wil_vring_init_tx(struct wil6210_vif *vif, int id, int size,
 	struct {
 		struct wmi_cmd_hdr wmi;
 		struct wmi_vring_cfg_done_event cmd;
-	} __packed reply;
+	} __packed reply = {
+		.cmd = {.status = WMI_FW_STATUS_FAILURE},
+	};
 	struct wil_ring *vring = &wil->ring_tx[id];
 	struct wil_ring_tx_data *txdata = &wil->ring_tx_data[id];
 
@@ -1278,7 +1280,9 @@ int wil_vring_init_bcast(struct wil6210_vif *vif, int id, int size)
 	struct {
 		struct wmi_cmd_hdr wmi;
 		struct wmi_vring_cfg_done_event cmd;
-	} __packed reply;
+	} __packed reply = {
+		.cmd = {.status = WMI_FW_STATUS_FAILURE},
+	};
 	struct wil_ring *vring = &wil->ring_tx[id];
 	struct wil_ring_tx_data *txdata = &wil->ring_tx_data[id];
 
