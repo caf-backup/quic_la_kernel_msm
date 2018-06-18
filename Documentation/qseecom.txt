@@ -2,14 +2,14 @@ Available APIs used in Sample App:
 
 QSClient - Client Application in Linux
 
-qseecom.ko is a loadable kernel module which acts as the Qualcomm secure client
+qseecom.ko is a loadable kernel module which acts as the QTI secure client
 in the non-secure world. It provides a sample interface for communication with
 the secure world(QSEE).
 
 Multiplication and Crypto functionalities are currently available in the sample
 app. Similarly an app can be written to support any required functionalities.
 
-For each platform, memory has been reserved in the Qualcomm default device tree.
+For each platform, memory has been reserved in the QTI default device tree.
 For ipq806x, the region is fixed, while it can be changed for ipq807x and
 ipq40xx.
 
