@@ -109,6 +109,8 @@
 #define ADM_MAX_CHANNELS	16
 
 #define ADM_CRCI_BLK_SIZE	0x7
+#define ADM_NSS_CHANNEL		4
+#define ADM_NSS_SEC_DOMAIN	1
 /*
  * DMA POOL SIZE for small size DMA desc which requires
  * maximum one box and one single desc.
@@ -920,6 +922,11 @@ static int adm_dma_probe(struct platform_device *pdev)
 		ADM_CI_BURST_8_WORDS, adev->regs + ADM_CI_CONF(2));
 	writel(ADM_GP_CTL_LP_EN | ADM_GP_CTL_LP_CNT(0xf),
 		adev->regs + ADM_GP_CTL);
+	writel(ADM_CH_CONF_SHADOW_EN
+		| ADM_CH_CONF_PERM_MPU_CONF
+		| ADM_CH_CONF_MPU_DISABLE
+		| ADM_CH_CONF_SEC_DOMAIN(ADM_NSS_SEC_DOMAIN),
+		adev->regs + ADM_CH_CONF(ADM_NSS_CHANNEL));
 
 	ret = devm_request_irq(adev->dev, adev->irq, adm_dma_irq,
 			0, "adm_dma", adev);
