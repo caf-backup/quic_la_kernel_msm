@@ -4051,6 +4051,8 @@ static void glink_core_link_up(struct glink_transport_if *if_ptr)
 		    xprt_ptr->versions[xprt_ptr->local_version_idx].version,
 		    xprt_ptr->versions[xprt_ptr->local_version_idx].features);
 
+	pr_emerg("%s glink is up\n", __func__);
+
 }
 
 /**
@@ -4077,6 +4079,8 @@ static void glink_core_link_down(struct glink_transport_if *if_ptr)
 	flush_kthread_worker(&xprt_ptr->tx_wq);
 	glink_core_channel_cleanup(xprt_ptr);
 	check_link_notifier_and_notify(xprt_ptr, GLINK_LINK_STATE_DOWN);
+
+	pr_emerg("%s glink is down\n", __func__);
 }
 
 /**
