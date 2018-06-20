@@ -1,0 +1,39 @@
+Qualcomm Technologies cpu power domain
+-----------------------------------------
+
+CPU power domain handles the tasks that need to be performed during
+application processor deeper low power mode entry for QCOM SoCs which
+have hardened IP blocks combinedly called as RPMH (Resource Power Manager
+Hardened) for shared resource management. Flushing the buffered requests
+to TCS (Triggered Command Set) in RSC (Resource State Coordinator) and
+programming the wakeup timer in PDC (Power Domain Controller) for timer
+based wakeup are handled as part of domain power down.
+
+The bindings for cpu power domain is specified in the RSC section in
+devicetree.
+
+Properties:
+- compatible:
+	Usage: required
+	Value type: <string>
+	Definition: must be "qcom,cpu-pm-domain".
+
+- #power-domain-cells: number of cells in power domain specifier;
+    must be 0.
+
+Node of a device using power domains must have a power-domains property
+defined with a phandle to respective power domain.
+
+Example:
+
+	apps_rsc: rsc@179c0000 {
+		[...]
+		cpu_pd: power-domain-controller {
+			compatible = "qcom,cpu-pm-domain";
+			#power-domain-cells = <0>;
+		};
+	};
+
+
+See Documentation/devicetree/bindings/power/power_domain.txt for description
+of consumer-side bindings.
