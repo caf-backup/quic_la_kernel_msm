@@ -151,6 +151,7 @@
 			sched-energy-costs = <&SDM845_CPU_COST_0 &SDM845_CLUSTER_COST_0>;
 			freq-energy-model;
 			#cooling-cells = <2>; /* min followed by max */
+			power-domains = <&cpu_pd>;
 
 			L2_0: l2-cache {
 				compatible = "cache";
@@ -185,6 +186,7 @@
 			capacity-dmips-mhz = <607>;
 			sched-energy-costs = <&SDM845_CPU_COST_0 &SDM845_CLUSTER_COST_0>;
 			freq-energy-model;
+			power-domains = <&cpu_pd>;
 
 			L2_100: l2-cache {
 				compatible = "cache";
@@ -216,6 +218,7 @@
 			capacity-dmips-mhz = <607>;
 			sched-energy-costs = <&SDM845_CPU_COST_0 &SDM845_CLUSTER_COST_0>;
 			freq-energy-model;
+			power-domains = <&cpu_pd>;
 
 			L2_200: l2-cache {
 				compatible = "cache";
@@ -247,6 +250,7 @@
 			capacity-dmips-mhz = <607>;
 			sched-energy-costs = <&SDM845_CPU_COST_0 &SDM845_CLUSTER_COST_0>;
 			freq-energy-model;
+			power-domains = <&cpu_pd>;
 
 			L2_300: l2-cache {
 				compatible = "cache";
@@ -279,6 +283,7 @@
 			sched-energy-costs = <&SDM845_CPU_COST_1 &SDM845_CLUSTER_COST_1>;
 			freq-energy-model;
 			#cooling-cells = <2>; /* min followed by max */
+			power-domains = <&cpu_pd>;
 
 			L2_400: l2-cache {
 				compatible = "cache";
@@ -310,6 +315,7 @@
 			capacity-dmips-mhz = <1024>;
 			sched-energy-costs = <&SDM845_CPU_COST_1 &SDM845_CLUSTER_COST_1>;
 			freq-energy-model;
+			power-domains = <&cpu_pd>;
 
 			L2_500: l2-cache {
 				compatible = "cache";
@@ -341,6 +347,7 @@
 			capacity-dmips-mhz = <1024>;
 			sched-energy-costs = <&SDM845_CPU_COST_1 &SDM845_CLUSTER_COST_1>;
 			freq-energy-model;
+			power-domains = <&cpu_pd>;
 
 			L2_600: l2-cache {
 				compatible = "cache";
@@ -372,6 +379,7 @@
 			capacity-dmips-mhz = <1024>;
 			sched-energy-costs = <&SDM845_CPU_COST_1 &SDM845_CLUSTER_COST_1>;
 			freq-energy-model;
+			power-domains = <&cpu_pd>;
 
 			L2_700: l2-cache {
 				compatible = "cache";
@@ -3404,6 +3412,11 @@
 					  <SLEEP_TCS   3>,
 					  <WAKE_TCS    3>,
 					  <CONTROL_TCS 1>;
+
+			cpu_pd: power-domain-controller {
+				compatible = "qcom,cpu-pm-domain";
+				#power-domain-cells = <0>;
+			};
 
 			rpmhcc: clock-controller {
 				compatible = "qcom,sdm845-rpmh-clk";
