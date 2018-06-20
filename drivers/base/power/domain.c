@@ -6,6 +6,7 @@
  * This file is released under the GPLv2.
  */
 
+#include <linux/cpu.h>
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
@@ -2393,6 +2394,75 @@ struct device *genpd_dev_pm_attach_by_name(struct device *dev, char *name)
 
 	return genpd_dev_pm_attach_by_id(dev, index);
 }
+
+/*
+ * of_genpd_attach_cpu() - Attach a CPU to its PM domain
+ * @cpu: The CPU to be attached.
+ *
+ * Parses the OF node of the CPU's device, to find a PM domain specifier. If
+ * such is found, attaches the CPU's device to the retrieved pm_domain ops and
+ * enables runtime PM for it. This to allow the CPU to be power managed through
+ * its PM domain.
+ *
+ * Returns zero when successfully attached the CPU's device to its PM domain,
+ * else a negative error code.
+ */
+int of_genpd_attach_cpu(int cpu)
+{
+	struct device *dev = get_cpu_device(cpu);
+	int ret;
+
+	if (!dev) {
+		pr_warn("genpd: no dev for cpu%d\n", cpu);
+		return -ENODEV;
+	}
+
+	ret = genpd_dev_pm_attach(dev);
+	if (ret != 1) {
+		dev_warn(dev, "genpd: attach cpu failed %d\n", ret);
+		return ret < 0 ? ret : -ENODEV;
+	}
+
+	pm_runtime_irq_safe(dev);
+	pm_runtime_get_noresume(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+
+	dev_info(dev, "genpd: attached cpu\n");
+	return 0;
+}
+EXPORT_SYMBOL(of_genpd_attach_cpu);
+
+/**
+ * of_genpd_detach_cpu() - Detach a CPU from its PM domain
+ * @cpu: The CPU to be detached.
+ *
+ * Detach the CPU's device from its corresponding PM domain. If detaching is
+ * completed successfully, disable runtime PM and restore the runtime PM usage
+ * count for the CPU's device.
+ */
+void of_genpd_detach_cpu(int cpu)
+{
+	struct device *dev = get_cpu_device(cpu);
+
+	if (!dev) {
+		pr_warn("genpd: no dev for cpu%d\n", cpu);
+		return;
+	}
+
+	/* Check that the device is attached to a genpd. */
+	if (!(dev->pm_domain && dev->pm_domain->detach == genpd_dev_pm_detach))
+		return;
+
+	genpd_dev_pm_detach(dev, true);
+
+	pm_runtime_disable(dev);
+	pm_runtime_put_noidle(dev);
+	pm_runtime_reinit(dev);
+
+	dev_info(dev, "genpd: detached cpu\n");
+}
+EXPORT_SYMBOL(of_genpd_detach_cpu);
 
 static const struct of_device_id idle_state_match[] = {
 	{ .compatible = "domain-idle-state", },

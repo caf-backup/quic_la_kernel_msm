@@ -95,12 +95,21 @@ config QCOM_RMTFS_MEM
 config QCOM_RPMH
 	bool "Qualcomm RPM-Hardened (RPMH) Communication"
 	depends on ARCH_QCOM && ARM64 && OF || COMPILE_TEST
+	select QCOM_CPU_PD
 	help
 	  Support for communication with the hardened-RPM blocks in
 	  Qualcomm Technologies Inc (QTI) SoCs. RPMH communication uses an
 	  internal bus to transmit state requests for shared resources. A set
 	  of hardware components aggregate requests for these resources and
 	  help apply the aggregated state on the resource.
+
+config QCOM_CPU_PD
+    bool "Qualcomm cpu power domain driver"
+    depends on QCOM_RPMH && PM_GENERIC_DOMAINS && PM_SLEEP || COMPILE_TEST
+    help
+	  Support for QCOM platform cpu power management to perform tasks
+	  necessary while application processor votes for deeper modes so that
+	  the firmware can enter SoC level low power modes to save power.
 
 config QCOM_RPMHPD
 	bool "Qualcomm RPMh Power domain driver"
