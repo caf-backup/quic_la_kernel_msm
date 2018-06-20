@@ -226,7 +226,6 @@ static int mmc_read_ssr(struct mmc_card *card)
 {
 	unsigned int au, es, et, eo;
 	int err, i;
-	u32 *ssr;
 
 	if (!(card->csd.cmdclass & CCC_APP_SPEC)) {
 		pr_warn("%s: card lacks mandatory SD Status function\n",
@@ -234,11 +233,7 @@ static int mmc_read_ssr(struct mmc_card *card)
 		return 0;
 	}
 
-	ssr = kmalloc(64, GFP_KERNEL);
-	if (!ssr)
-		return -ENOMEM;
-
-	err = mmc_app_sd_status(card, ssr);
+	err = mmc_app_sd_status(card, card->raw_ssr);
 	if (err) {
 		pr_warn("%s: problem reading SD Status register\n",
 			mmc_hostname(card->host));
@@ -246,21 +241,21 @@ static int mmc_read_ssr(struct mmc_card *card)
 		goto out;
 	}
 
-	for (i = 0; i < 16; i++)
-		ssr[i] = be32_to_cpu(ssr[i]);
+	for (i = 0; i < ARRAY_SIZE(card->raw_ssr); i++)
+		card->raw_ssr[i] = be32_to_cpu(card->raw_ssr[i]);
 
 	/*
 	 * UNSTUFF_BITS only works with four u32s so we have to offset the
 	 * bitfield positions accordingly.
 	 */
-	au = UNSTUFF_BITS(ssr, 428 - 384, 4);
+	au = UNSTUFF_BITS(card->raw_ssr, 428 - 384, 4);
 	if (au) {
 		if (au <= 9 || card->scr.sda_spec3) {
 			card->ssr.au = sd_au_size[au];
-			es = UNSTUFF_BITS(ssr, 408 - 384, 16);
-			et = UNSTUFF_BITS(ssr, 402 - 384, 6);
+			es = UNSTUFF_BITS(card->raw_ssr, 408 - 384, 16);
+			et = UNSTUFF_BITS(card->raw_ssr, 402 - 384, 6);
 			if (es && et) {
-				eo = UNSTUFF_BITS(ssr, 400 - 384, 2);
+				eo = UNSTUFF_BITS(card->raw_ssr, 400 - 384, 2);
 				card->ssr.erase_timeout = (et * 1000) / es;
 				card->ssr.erase_offset = eo * 1000;
 			}
@@ -270,7 +265,6 @@ static int mmc_read_ssr(struct mmc_card *card)
 		}
 	}
 out:
-	kfree(ssr);
 	return err;
 }
 
@@ -665,7 +659,13 @@ MMC_DEV_ATTR(manfid, "0x%06x\n", card->cid.manfid);
 MMC_DEV_ATTR(name, "%s\n", card->cid.prod_name);
 MMC_DEV_ATTR(oemid, "0x%04x\n", card->cid.oemid);
 MMC_DEV_ATTR(serial, "0x%08x\n", card->cid.serial);
-
+MMC_DEV_ATTR(ssr,
+	"%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x\n",
+	card->raw_ssr[0], card->raw_ssr[1], card->raw_ssr[2], card->raw_ssr[3],
+	card->raw_ssr[4], card->raw_ssr[5], card->raw_ssr[6], card->raw_ssr[7],
+	card->raw_ssr[8], card->raw_ssr[9], card->raw_ssr[10],
+	card->raw_ssr[11], card->raw_ssr[12], card->raw_ssr[13],
+	card->raw_ssr[14], card->raw_ssr[15]);
 
 static struct attribute *sd_std_attrs[] = {
 	&dev_attr_cid.attr,
@@ -680,6 +680,7 @@ static struct attribute *sd_std_attrs[] = {
 	&dev_attr_name.attr,
 	&dev_attr_oemid.attr,
 	&dev_attr_serial.attr,
+	&dev_attr_ssr.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(sd_std);
