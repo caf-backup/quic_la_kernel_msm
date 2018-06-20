@@ -63,8 +63,8 @@ static inline void ip6_mr_cleanup(void)
 
 struct mif_device {
 	struct net_device 	*dev;			/* Device we are using */
-	unsigned long	bytes_in,bytes_out;
-	unsigned long	pkt_in,pkt_out;		/* Statistics 			*/
+	unsigned long long   bytes_in, bytes_out;
+	unsigned long long   pkt_in, pkt_out;		/* Statistics 		*/
 	unsigned long	rate_limit;		/* Traffic shaping (NI) 	*/
 	unsigned char	threshold;		/* TTL threshold 		*/
 	unsigned short	flags;			/* Control flags 		*/
