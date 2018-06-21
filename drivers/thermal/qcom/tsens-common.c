@@ -123,7 +123,7 @@ static const struct regmap_config tsens_config = {
 	.reg_stride	= 4,
 };
 
-int __init init_common(struct tsens_device *tmdev)
+void __iomem *init_common(struct tsens_device *tmdev)
 {
 	void __iomem *base;
 
@@ -137,5 +137,5 @@ int __init init_common(struct tsens_device *tmdev)
 		return PTR_ERR(tmdev->map);
 	}
 
-	return 0;
+	return base;
 }
