@@ -449,6 +449,7 @@ static int glink_ssr_restart_notifier_cb(struct notifier_block *this,
 					"Subsystem notification failed", ret);
 			return ret;
 		}
+		pr_emerg("<SSR>: glink SUBSYS_AFTER_SHUTDOWN cleanup done\n");
 	}
 	return NOTIFY_DONE;
 }

@@ -372,6 +372,7 @@ static void glink_xprt_open_event(struct work_struct *work)
 	for (i = 0; i < DEFAULT_NUM_INTENTS; i++)
 		glink_queue_rx_intent(glink_xprtp->ch_hndl, (void *)glink_xprtp,
 				      DEFAULT_RX_INTENT_SIZE);
+	pr_emerg("%s\n", __func__);
 	kfree(xprt_work);
 }
 
@@ -387,6 +388,7 @@ static void glink_xprt_close_event(struct work_struct *work)
 	D("%s: Notified IPC Router of %s CLOSE\n",
 	   __func__, glink_xprtp->xprt.name);
 	wait_for_completion(&glink_xprtp->sft_close_complete);
+	pr_emerg("%s\n", __func__);
 	kfree(xprt_work);
 }
 
