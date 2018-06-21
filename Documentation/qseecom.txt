@@ -1,69 +1,30 @@
-Usage Instructions:
+Available APIs used in Sample App:
 
-In ipq40xx, there are RSA and AES APIs available to perform crypto operations.
-The steps to use AES and RSA APIs are as below:
+QSClient - Client Application in Linux
 
-RSA API:
+qseecom.ko is a loadable kernel module which acts as the QTI secure client
+in the non-secure world. It provides a sample interface for communication with
+the secure world(QSEE).
 
-RSA Generate Key blob:
-(1) cat /sys/rsa_sec_key/rsa_generate > key_blob.txt
+Multiplication and Crypto functionalities are currently available in the sample
+app. Similarly an app can be written to support any required functionalities.
 
-RSA Import Key blob:
-(1) cat hex.dat > /sys/rsa_sec_key/rsa_import
-(2) cat /sys/rsa_sec_key/rsa_import > import_key_blob.txt
+For each platform, memory has been reserved in the QTI default device tree.
+For ipq806x, the region is fixed, while it can be changed for ipq807x and
+ipq40xx.
 
-Note:
-spec of the hex.dat file used in RSA Import Key blob:
-hex.dat size is 1066 bytes.
+Available APIs in kernel which can be reused/extended:
 
-1066 bytes split up:
-	528 bytes -> import modulus
-	2 bytes -> import modulus length in hexadecimal
-	5 bytes -> public exponent
-	1 byte -> public exponent length in hexadecimal
-	528 bytes -> private exponent
-	2 bytes -> private exponent length in hexadecimal
+(1) qcom_scm_qseecom_notify	 -> to notify the load region of application
+(2) qcom_scm_qseecom_load	 -> to load the libraries and application
+(3) qcom_scm_qseecom_send_data	 -> to send data to perform operation
+(4) qcom_scm_qseecom_unload	 -> to unload the application and libraries
+(5) qcom_scm_tz_register_log_buf -> to register a log buf for sample app logs
 
-public, private exponent can be any value other than 3
-modulus can be any value lesser than 4096
+Refer to source code in drivers/misc/qseecom.c for re-using the above APIs. This
+can be modified or extended to support vendor applications.
 
-RSA Sign data:
-(1) cat key_blob.txt > /sys/rsa_sec_key/rsa_key_blob
-    or
-    cat import_key_blob.txt > /sys/rsa_sec_key/rsa_key_blob
-(2) cat data.txt > /sys/rsa_sec_key/rsa_sign
-(3) cat /sys/rsa_sec_key/rsa_sign > signed_data.txt
-
-RSA Verification of Signature:
-(1) cat key_blob.txt > /sys/rsa_sec_key/rsa_key_blob
-    or
-    cat import_key_blob.txt > /sys/rsa_sec_key/rsa_key_blob
-(2) cat data.txt > /sys/rsa_sec_key/rsa_sign
-(3) cat signed_data.txt > /sys/rsa_sec_key/rsa_verify
-(4) cat /sys/rsa_sec_key/rsa_verify > verification_result.txt
-(5) cat verification_result.txt
-
-AES API:
-
-AES Generate Key blob:
-(1) cat /sys/sec_key/generate > key_blob.txt
-
-AES Import Key blob:
-(1) cat key.txt > /sys/sec_key/import
-(2) cat /sys/sec_key/import > imported_key_blob.txt
-
-AES Encrypt data:
-(1) cat key_blob.txt > /sys/sec_key/key_blob
-    or
-    cat imported_key_blob.txt > /sys/sec_key/key_blob
-(2) cat data.txt > /sys/sec_key/seal
-(3) cat /sys/sec_key/seal > encrypted_data.txt
-
-AES Decrypt data:
-(1) cat key_blob.txt > /sys/sec_key/key_blob
-    or
-    cat imported_key_blob.txt > /sys/sec_key/key_blob
-(2) cat encrypted_data.txt > /sys/sec_key/unseal
+Sampleapp Usage Instructions:
 
 Across any platforms, apps can be loaded and functionalities can be performed
 securely from the non-secure world via the scm interface. Below are the steps
@@ -161,3 +122,79 @@ Additionally logging has been enabled for QSEE sample app. To view the log at
 any point after loading the sample app from kernel, please use below command:
 
 cat /sys/firmware/tzapp/log_buf > log.txt
+
+QSEE APIs in ipq40xx:
+
+In ipq40xx, there are RSA and AES APIs available to perform crypto operations.
+The steps to use AES and RSA APIs are as below:
+
+RSA API:
+
+RSA Generate Key blob:
+(1) cat /sys/rsa_sec_key/rsa_generate > key_blob.txt
+
+RSA Import Key blob:
+(1) cat hex.dat > /sys/rsa_sec_key/rsa_import
+(2) cat /sys/rsa_sec_key/rsa_import > import_key_blob.txt
+
+Note:
+spec of the hex.dat file used in RSA Import Key blob:
+hex.dat size is 1066 bytes.
+
+1066 bytes split up:
+	528 bytes -> import modulus
+	2 bytes -> import modulus length in hexadecimal
+	5 bytes -> public exponent
+	1 byte -> public exponent length in hexadecimal
+	528 bytes -> private exponent
+	2 bytes -> private exponent length in hexadecimal
+
+public, private exponent can be any value other than 3
+modulus can be any value lesser than 4096
+
+RSA Sign data:
+(1) cat key_blob.txt > /sys/rsa_sec_key/rsa_key_blob
+    or
+    cat import_key_blob.txt > /sys/rsa_sec_key/rsa_key_blob
+(2) cat data.txt > /sys/rsa_sec_key/rsa_sign
+(3) cat /sys/rsa_sec_key/rsa_sign > signed_data.txt
+
+RSA Verification of Signature:
+(1) cat key_blob.txt > /sys/rsa_sec_key/rsa_key_blob
+    or
+    cat import_key_blob.txt > /sys/rsa_sec_key/rsa_key_blob
+(2) cat data.txt > /sys/rsa_sec_key/rsa_sign
+(3) cat signed_data.txt > /sys/rsa_sec_key/rsa_verify
+(4) cat /sys/rsa_sec_key/rsa_verify > verification_result.txt
+(5) cat verification_result.txt
+
+AES API:
+
+AES Generate Key blob:
+(1) cat /sys/sec_key/generate > key_blob.txt
+
+AES Import Key blob:
+(1) cat key.txt > /sys/sec_key/import
+(2) cat /sys/sec_key/import > imported_key_blob.txt
+
+AES Encrypt data:
+(1) cat key_blob.txt > /sys/sec_key/key_blob
+    or
+    cat imported_key_blob.txt > /sys/sec_key/key_blob
+(2) cat data.txt > /sys/sec_key/seal
+(3) cat /sys/sec_key/seal > encrypted_data.txt
+
+AES Decrypt data:
+(1) cat key_blob.txt > /sys/sec_key/key_blob
+    or
+    cat imported_key_blob.txt > /sys/sec_key/key_blob
+(2) cat encrypted_data.txt > /sys/sec_key/unseal
+
+Note:
+shk value is 0 by default in non-secure ipq40xx target systems.
+
+To make the keyblobs target dependent, shk values must be changed from default
+value in non-secure target systems.
+
+Without doing this, we will be able to encrypt in one board and decrypt in
+another board using the same keyblob.
