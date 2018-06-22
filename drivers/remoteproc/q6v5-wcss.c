@@ -39,6 +39,15 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/timer.h>
+#include <linux/stringify.h>
+
+enum rproc_wcss_state {
+	RPROC_Q6V5_STOPPED,
+	RPROC_Q6V5_STARTING,
+	RPROC_Q6V5_RUNNING,
+	RPROC_Q6V5_STOPPING,
+	RPROC_Q6V5_INVALID_STATE
+};
 
 static int debug_wcss;
 
@@ -110,9 +119,10 @@ struct q6v5_rproc_pdata {
 	struct qcom_smem_state *state;
 	unsigned stop_bit;
 	unsigned shutdown_bit;
-	bool running;
+	atomic_t running;
 	int emulation;
 	int secure;
+	int spurios_irqs;
 };
 
 static struct q6v5_rproc_pdata *q6v5_rproc_pdata;
@@ -618,9 +628,12 @@ static int q6_rproc_stop(struct rproc *rproc)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct q6v5_rproc_pdata *pdata = platform_get_drvdata(pdev);
 	int ret = 0;
+	unsigned int state;
 
-	if (pdata->running) {
-		pdata->running = false;
+	state = atomic_read(&pdata->running);
+
+	if ((state == RPROC_Q6V5_RUNNING) || (state == RPROC_Q6V5_STARTING)) {
+		atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_STOPPING);
 		if (pdata->secure) {
 			ret = qcom_scm_pas_shutdown(WCNSS_PAS_ID);
 			if (ret)
@@ -634,7 +647,7 @@ static int q6_rproc_stop(struct rproc *rproc)
 
 		/* Q6 Power down */
 		q6_powerdown(pdata);
-		disable_irq(pdata->err_ready_irq);
+		atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_STOPPED);
 	}
 
 	return ret;
@@ -742,8 +755,7 @@ static int q6_rproc_start(struct rproc *rproc)
 	unsigned int nretry = 0;
 	int ret = 0;
 
-	enable_irq(pdata->err_ready_irq);
-
+	atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_STARTING);
 	if (pdata->secure) {
 		ret = qcom_scm_pas_auth_and_reset(WCNSS_PAS_ID);
 		if (ret) {
@@ -832,7 +844,7 @@ skip_reset:
 
 	ret = wait_for_err_ready(pdata);
 	if (!ret)
-		pdata->running = true;
+		atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_RUNNING);
 
 	return ret;
 }
@@ -852,9 +864,37 @@ static struct rproc_ops q6v5_rproc_ops = {
 
 static struct rproc_fw_ops q6_fw_ops;
 
+static char *rproc_q6_state(enum rproc_wcss_state state)
+{
+	switch (state) {
+		case RPROC_Q6V5_STOPPED:
+			return __stringify(RPROC_Q6V5_STOPPED);
+		case RPROC_Q6V5_STARTING:
+			return __stringify(RPROC_Q6V5_STARTING);
+		case RPROC_Q6V5_RUNNING:
+			return __stringify(RPROC_Q6V5_RUNNING);
+		case RPROC_Q6V5_STOPPING:
+			return __stringify(RPROC_Q6V5_STOPPING);
+		default:
+			return __stringify(RPROC_Q6V5_INVALID_STATE);
+	}
+}
+
 static irqreturn_t wcss_err_ready_intr_handler(int irq, void *dev_id)
 {
 	struct q6v5_rproc_pdata *pdata = dev_id;
+	unsigned int state;
+
+	state = atomic_read(&pdata->running);
+
+	if (state != RPROC_Q6V5_STARTING) {
+		pdata->spurios_irqs++;
+		pr_emerg("ERROR: smp2p %s in wrong state %s (%d)\n",
+				__func__,
+				rproc_q6_state(state),
+				pdata->spurios_irqs);
+		return IRQ_HANDLED;
+	}
 
 	pr_info("Subsystem error monitoring/handling services are up\n");
 
@@ -867,9 +907,17 @@ static irqreturn_t wcss_err_fatal_intr_handler(int irq, void *dev_id)
 	struct q6v5_rproc_pdata *pdata = subsys_to_pdata(dev_id);
 	char *msg;
 	size_t len;
+	unsigned int state;
 
-	if (!pdata->running)
+	state = atomic_read(&pdata->running);
+	if ((state != RPROC_Q6V5_RUNNING) && (state != RPROC_Q6V5_STOPPING)) {
+		pdata->spurios_irqs++;
+		pr_emerg("ERROR: smp2p %s in wrong state %s (%d)\n",
+				__func__,
+				rproc_q6_state(state),
+				pdata->spurios_irqs);
 		return IRQ_HANDLED;
+	}
 
 	msg = qcom_smem_get(QCOM_SMEM_HOST_ANY, WCSS_CRASH_REASON_SMEM, &len);
 	if (!IS_ERR(msg) && len > 0 && msg[0])
@@ -890,6 +938,17 @@ static irqreturn_t wcss_err_fatal_intr_handler(int irq, void *dev_id)
 static irqreturn_t wcss_stop_ack_intr_handler(int irq, void *dev_id)
 {
 	struct q6v5_rproc_pdata *pdata = subsys_to_pdata(dev_id);
+	unsigned int state;
+
+	state = atomic_read(&pdata->running);
+	if (state != RPROC_Q6V5_RUNNING) {
+		pdata->spurios_irqs++;
+		pr_emerg("ERROR: smp2p %s in wrong state %s (%d)\n",
+				__func__,
+				rproc_q6_state(state),
+				pdata->spurios_irqs);
+		return IRQ_HANDLED;
+	}
 
 	pr_info("Received stop ack interrupt from wcss\n");
 	complete(&pdata->stop_done);
@@ -901,8 +960,15 @@ static irqreturn_t wcss_wdog_bite_intr_handler(int irq, void *dev_id)
 	struct q6v5_rproc_pdata *pdata = subsys_to_pdata(dev_id);
 	char *msg;
 	size_t len;
+	unsigned int state;
 
-	if (!pdata->running) {
+	state = atomic_read(&pdata->running);
+	if (state != RPROC_Q6V5_RUNNING) {
+		pdata->spurios_irqs++;
+		pr_emerg("ERROR: smp2p %s in wrong state %s (%d)\n",
+				__func__,
+				rproc_q6_state(state),
+				pdata->spurios_irqs);
 		complete(&pdata->stop_done);
 		return IRQ_HANDLED;
 	}
@@ -990,7 +1056,7 @@ static void wcss_panic_handler(const struct subsys_desc *subsys)
 {
 	struct q6v5_rproc_pdata *pdata = subsys_to_pdata(subsys);
 
-	pdata->running = false;
+	atomic_set(&pdata->running, RPROC_Q6V5_STOPPING);
 
 	if (!subsys_get_crash_status(pdata->subsys)) {
 		qcom_smem_state_update_bits(pdata->state,
@@ -1138,6 +1204,7 @@ static int q6_rproc_probe(struct platform_device *pdev)
 					"qca,emulation");
 	q6v5_rproc_pdata->secure = of_property_read_bool(pdev->dev.of_node,
 					"qca,secure");
+	q6v5_rproc_pdata->spurios_irqs = 0;
 	rproc->has_iommu = false;
 
 	q6_fw_ops = *(rproc->fw_ops);
@@ -1238,7 +1305,6 @@ static int q6_rproc_probe(struct platform_device *pdev)
 		pr_err("Can't register err ready handler\n");
 		goto free_rproc;
 	}
-	disable_irq(q6v5_rproc_pdata->err_ready_irq);
 
 	q6v5_rproc_pdata->state = qcom_smem_state_get(&pdev->dev, "stop",
 			&q6v5_rproc_pdata->stop_bit);
@@ -1278,7 +1344,7 @@ static int q6_rproc_probe(struct platform_device *pdev)
 
 	init_completion(&q6v5_rproc_pdata->stop_done);
 	init_completion(&q6v5_rproc_pdata->err_ready);
-	q6v5_rproc_pdata->running = false;
+	atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_STOPPED);
 
 	return 0;
 

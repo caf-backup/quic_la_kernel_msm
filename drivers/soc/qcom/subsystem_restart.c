@@ -547,7 +547,6 @@ static void subsystem_shutdown(struct subsys_device *dev, void *data)
 			current->comm, current->pid, name);
 	dev->crash_count++;
 	subsys_set_state(dev, SUBSYS_OFFLINE);
-	disable_all_irqs(dev);
 }
 
 static void subsystem_ramdump(struct subsys_device *dev, void *data)
@@ -581,7 +580,6 @@ static void subsystem_powerup(struct subsys_device *dev, void *data)
 			current->comm, current->pid, name);
 		return;
 	}
-	enable_all_irqs(dev);
 
 	subsys_set_state(dev, SUBSYS_ONLINE);
 	subsys_set_crash_status(dev, false);
@@ -619,7 +617,6 @@ static int subsys_start(struct subsys_device *subsys)
 		subsys->desc->shutdown(subsys->desc, false);
 		return ret;
 	}
-	enable_all_irqs(subsys);
 
 	subsys_set_state(subsys, SUBSYS_ONLINE);
 
@@ -636,7 +633,6 @@ static void subsys_stop(struct subsys_device *subsys)
 	notify_each_subsys_device(&subsys, 1, SUBSYS_BEFORE_SHUTDOWN, NULL);
 	subsys->desc->shutdown(subsys->desc, false);
 	subsys_set_state(subsys, SUBSYS_OFFLINE);
-	disable_all_irqs(subsys);
 	notify_each_subsys_device(&subsys, 1, SUBSYS_AFTER_SHUTDOWN, NULL);
 }
 
@@ -1360,7 +1356,6 @@ static int subsys_setup_irqs(struct subsys_device *subsys)
 				desc->name, ret);
 			return ret;
 		}
-		disable_irq(desc->err_fatal_irq);
 	}
 
 	if (desc->stop_ack_irq && desc->stop_ack_handler) {
@@ -1373,7 +1368,6 @@ static int subsys_setup_irqs(struct subsys_device *subsys)
 				desc->name, ret);
 			return ret;
 		}
-		disable_irq(desc->stop_ack_irq);
 	}
 
 	if (desc->wdog_bite_irq && desc->wdog_bite_handler) {
@@ -1386,7 +1380,6 @@ static int subsys_setup_irqs(struct subsys_device *subsys)
 				desc->name, ret);
 			return ret;
 		}
-		disable_irq(desc->wdog_bite_irq);
 	}
 
 	return 0;
