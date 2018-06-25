@@ -320,7 +320,7 @@
 		pinctrl-names = "default";
 		phy-reset-gpio = <&tlmm 37 0>;
 		phy0: ethernet-phy@0 {
-			reg = <0>;
+			reg = <6>;
 		};
 		phy1: ethernet-phy@1 {
 			reg = <1>;
@@ -344,9 +344,9 @@
 		pinctrl-0 = <&uniphy_pins>;
 		pinctrl-names = "default";
 		switch_cpu_bmp = <0x1>;  /* cpu port bitmap */
-		switch_lan_bmp = <0x30>; /* lan port bitmap */
+		switch_lan_bmp = <0x22>; /* lan port bitmap */
 		switch_wan_bmp = <0x40>; /* wan port bitmap */
-		switch_mac_mode = <0x0>; /* mac mode for uniphy instance0*/
+		switch_mac_mode = <0x8>; /* mac mode for uniphy instance0*/
 		switch_mac_mode1 = <0xff>; /* mac mode for uniphy instance1*/
 		switch_mac_mode2 = <0xd>; /* mac mode for uniphy instance2*/
 		bm_tick_mode = <0>; /* bm tick mode */
@@ -628,12 +628,12 @@
 	dp1 {
 		device_type = "network";
 		compatible = "qcom,nss-dp";
-		qcom,id = <4>;
-		reg = <0x3a001600 0x200>;
+		qcom,id = <1>;
+		reg = <0x3a001000 0x200>;
 		qcom,mactype = <0>;
 		local-mac-address = [000000000000];
 		qcom,link-poll = <1>;
-		qcom,phy-mdio-addr = <3>;
+		qcom,phy-mdio-addr = <6>;
 		phy-mode = "sgmii";
 	};
 
