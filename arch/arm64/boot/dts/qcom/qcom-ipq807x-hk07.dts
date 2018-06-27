@@ -654,6 +654,11 @@
 			default-state = "off";
 		};
 	};
+	nss-macsec0 {
+		compatible = "qcom,nss-macsec";
+		phy_addr = <0x1c>;
+		phy_access_mode = <0>;
+	};
 };
 
 &serial_blsp4 {
