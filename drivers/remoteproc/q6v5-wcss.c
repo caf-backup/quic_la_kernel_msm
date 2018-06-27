@@ -51,8 +51,12 @@ enum rproc_wcss_state {
 
 static int debug_wcss;
 
+/* registers to capture 0x0cd00000 to 0x0cd02028 */
+#define Q6_REGISTER_SAVE_SIZE 0x202C
+
 #define DEBUG_WCSS_BREAK_AT_START	1
 #define DEBUG_WCSS_NO_RESTART		2
+#define DEBUG_DUMP_Q6_REG		4
 
 #define WCSS_CRASH_REASON_SMEM 421
 #define WCNSS_PAS_ID		6
@@ -123,6 +127,7 @@ struct q6v5_rproc_pdata {
 	int emulation;
 	int secure;
 	int spurios_irqs;
+	void *reg_save_buffer;
 };
 
 static struct q6v5_rproc_pdata *q6v5_rproc_pdata;
@@ -622,6 +627,23 @@ static void q6_powerdown(struct q6v5_rproc_pdata *pdata)
 	return;
 }
 
+static void save_wcss_regs(struct q6v5_rproc_pdata *pdata)
+{
+	int i = 0;
+	unsigned long val = 0;
+	unsigned int *buffer = NULL;
+
+	if (!(debug_wcss & DEBUG_DUMP_Q6_REG))
+		return;
+
+	buffer = (unsigned int *)(q6v5_rproc_pdata->reg_save_buffer);
+
+	for (i = 0; i < Q6_REGISTER_SAVE_SIZE; i += 0x4) {
+		*buffer = readl(q6v5_rproc_pdata->q6_base + i);
+		buffer++;
+	}
+}
+
 static int q6_rproc_stop(struct rproc *rproc)
 {
 	struct device *dev = rproc->dev.parent;
@@ -642,6 +664,8 @@ static int q6_rproc_stop(struct rproc *rproc)
 		}
 
 		/* Non secure */
+		/* Print registers for debug of powerdown issue */
+		save_wcss_regs(pdata);
 		/* WCSS powerdown */
 		wcss_powerdown(pdata);
 
@@ -1204,8 +1228,16 @@ static int q6_rproc_probe(struct platform_device *pdev)
 					"qca,emulation");
 	q6v5_rproc_pdata->secure = of_property_read_bool(pdev->dev.of_node,
 					"qca,secure");
+	if(of_property_read_bool(pdev->dev.of_node, "qca,dump-q6-reg"))
+		debug_wcss |= DEBUG_DUMP_Q6_REG;
+
 	q6v5_rproc_pdata->spurios_irqs = 0;
 	rproc->has_iommu = false;
+	/* We will record the values before q6 and wcss powerdown */
+	q6v5_rproc_pdata->reg_save_buffer = kzalloc((Q6_REGISTER_SAVE_SIZE * 4),
+							GFP_KERNEL);
+	if (q6v5_rproc_pdata->reg_save_buffer == NULL)
+		goto free_rproc;
 
 	q6_fw_ops = *(rproc->fw_ops);
 	q6_fw_ops.find_rsc_table = q6v5_find_rsc_table;
