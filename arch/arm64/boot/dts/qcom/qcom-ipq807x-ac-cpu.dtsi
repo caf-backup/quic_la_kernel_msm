@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -52,31 +52,6 @@
 		opp01 {
 			opp-hz = /bits/ 64 <1017600000>;
 			opp-microvolt = <1>;
-			clock-latency-ns = <200000>;
-		};
-		opp02 {
-			opp-hz = /bits/ 64 <1382400000>;
-			opp-microvolt = <2>;
-			clock-latency-ns = <200000>;
-		};
-		opp03 {
-			opp-hz = /bits/ 64 <1651200000>;
-			opp-microvolt = <3>;
-			clock-latency-ns = <200000>;
-		};
-		opp04 {
-			opp-hz = /bits/ 64 <1843200000>;
-			opp-microvolt = <4>;
-			clock-latency-ns = <200000>;
-		};
-		opp05 {
-			opp-hz = /bits/ 64 <1920000000>;
-			opp-microvolt = <5>;
-			clock-latency-ns = <200000>;
-		};
-		opp06 {
-			opp-hz = /bits/ 64 <2208000000>;
-			opp-microvolt = <6>;
 			clock-latency-ns = <200000>;
 		};
 	};
