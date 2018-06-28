@@ -342,6 +342,7 @@
 			qcom,l2tpv2-enabled;
 			qcom,gre-enabled;
 			qcom,map-t-enabled;
+			qcom,pppoe-enabled;
 			qcom,pptp-enabled;
 			qcom,portid-enabled;
 			qcom,shaping-enabled;
