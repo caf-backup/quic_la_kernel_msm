@@ -366,6 +366,7 @@
 					"tcsr-global";
 			qca,auto-restart;
 			qca,extended-intc;
+			qca,dump-q6-reg;
 			interrupts-extended = <&intc 0 325 1>,
 					<&wcss_smp2p_in 0 0>,
 					<&wcss_smp2p_in 1 0>,
