@@ -668,6 +668,12 @@
 	status = "ok";
 };
 
+&nss0 {
+	qcom,low-frequency = <187200000>;
+	qcom,mid-frequency = <748800000>;
+	qcom,max-frequency = <1497600000>;
+};
+
 &nss_crypto {
 	status = "ok";
 };
