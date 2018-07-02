@@ -60,6 +60,11 @@ static void cnss_wlfw_clnt_notifier_work(struct work_struct *work)
 		container_of(work, struct cnss_plat_data, qmi_recv_msg_work);
 	int ret = 0;
 
+	if (!test_bit(CNSS_QMI_WLFW_CONNECTED, &plat_priv->driver_state)) {
+		cnss_pr_err("Error receiving msg after server disconnect\n");
+		return;
+	}
+
 	cnss_pr_dbg("Receiving QMI WLFW event in work queue context\n");
 
 	do {
@@ -90,6 +95,7 @@ static void cnss_wlfw_clnt_notifier(struct qmi_handle *handle,
 		schedule_work(&plat_priv->qmi_recv_msg_work);
 		break;
 	case QMI_SERVER_EXIT:
+		clear_bit(CNSS_QMI_WLFW_CONNECTED, &plat_priv->driver_state);
 		break;
 	default:
 		cnss_pr_dbg("Unhandled QMI event: %d\n", event);
@@ -845,7 +851,6 @@ int cnss_wlfw_server_exit(struct cnss_plat_data *plat_priv)
 
 	clear_bit(CNSS_FW_READY, &plat_priv->driver_state);
 	clear_bit(CNSS_FW_MEM_READY, &plat_priv->driver_state);
-	clear_bit(CNSS_QMI_WLFW_CONNECTED, &plat_priv->driver_state);
 
 	cnss_pr_info("QMI WLFW service disconnected, state: 0x%lx\n",
 		     plat_priv->driver_state);
