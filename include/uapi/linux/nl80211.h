@@ -2181,6 +2181,8 @@ enum nl80211_commands {
  *	nested attribute with %NL80211_ATTR_TID_* sub-attributes.
  * @NL80211_ATTR_MAX_RETRY_COUNT: The upper limit for the retry count
  *	configuration that the driver can accept.
+ * @NL80211_ATTR_MAP: Station's Multi-AP capability notified using this
+ *      attribute.
  *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
@@ -2617,6 +2619,7 @@ enum nl80211_attrs {
 	NL80211_ATTR_TID_CONFIG,
 	NL80211_ATTR_MAX_RETRY_COUNT,
 
+	NL80211_ATTR_MAP,
 	/* add attributes here, update the policy in nl80211.c */
 
 	__NL80211_ATTR_AFTER_LAST,

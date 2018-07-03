@@ -366,6 +366,7 @@ static inline void wiphy_read_of_freq_limits(struct wiphy *wiphy)
  * @flags: monitor interface flags, unchanged if 0, otherwise
  *	%MONITOR_FLAG_CHANGED will be set
  * @use_4addr: use 4-address frames
+ * @map_enabled: enable Multi-AP.
  * @macaddr: address to use for this virtual interface.
  *	If this parameter is set to zero address the driver may
  *	determine the address as needed.
@@ -380,6 +381,7 @@ static inline void wiphy_read_of_freq_limits(struct wiphy *wiphy)
 struct vif_params {
 	u32 flags;
 	int use_4addr;
+	int map_enabled;
 	u8 macaddr[ETH_ALEN];
 	const u8 *vht_mumimo_groups;
 	const u8 *vht_mumimo_follow_addr;
