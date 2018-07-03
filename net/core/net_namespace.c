@@ -261,7 +261,7 @@ struct net *get_net_ns_by_id(struct net *net, int id)
 	spin_lock_irqsave(&net->nsid_lock, flags);
 	peer = idr_find(&net->netns_ids, id);
 	if (peer)
-		get_net(peer);
+                peer = maybe_get_net(peer);
 	spin_unlock_irqrestore(&net->nsid_lock, flags);
 	rcu_read_unlock();
 
@@ -857,7 +857,6 @@ again:
 
 static void unregister_pernet_operations(struct pernet_operations *ops)
 {
-	
 	__unregister_pernet_operations(ops);
 	rcu_barrier();
 	if (ops->id)
