@@ -1131,7 +1131,9 @@ static int mmc_select_hs400(struct mmc_card *card)
 	mmc_set_timing(host, MMC_TIMING_MMC_HS400);
 	mmc_set_bus_speed(card);
 
-	if ((host->caps2 & MMC_CAP2_HS400_POST_TUNING) &&
+	if (host->ops->enhanced_strobe) {
+		err = host->ops->enhanced_strobe(host);
+	} else if ((host->caps2 & MMC_CAP2_HS400_POST_TUNING) &&
 			host->ops->execute_tuning) {
 		err = host->ops->execute_tuning(host,
 				MMC_SEND_TUNING_BLOCK_HS200);
