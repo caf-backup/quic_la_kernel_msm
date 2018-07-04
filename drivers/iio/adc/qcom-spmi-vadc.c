@@ -533,6 +533,10 @@ static int vadc_measure_ref_points(struct vadc_priv *vadc)
 	vadc->graph[VADC_CALIB_ABSOLUTE].dx = VADC_ABSOLUTE_RANGE_UV;
 
 	prop = vadc_get_channel(vadc, VADC_REF_1250MV);
+	if (!prop) {
+		ret = -EINVAL;
+		goto err;
+	}
 	ret = vadc_do_conversion(vadc, prop, &read_1);
 	if (ret)
 		goto err;
@@ -1094,12 +1098,16 @@ static int pmp8074_get_temp(struct thermal_zone_device *thermal,
 			     int *temp)
 {
 	struct vadc_thermal_data *vadc_therm = thermal->devdata;
-	struct vadc_priv *vadc = vadc_therm->vadc_dev;
+	struct vadc_priv *vadc;
 	struct vadc_channel_prop *prop;
 	u16 adc_code;
 	int rc = 0;
 
-	if (!vadc_therm || !vadc)
+	if (!vadc_therm)
+		return -EINVAL;
+
+	vadc = vadc_therm->vadc_dev;
+	if (!vadc)
 		return -EINVAL;
 
 	prop = &(vadc->chan_props[vadc_therm->thermal_chan]);
