@@ -417,7 +417,7 @@
 			qcom,bus-width = <8>;
 			qcom,max_clk = <384000000>;
 
-			syscon = <&tlmm_csr 0xA000 0xFFFFFE7F>;
+			syscon = <&tlmm_csr 0xA000 0x0019E5B>;
 
 			qcom,dedicated-io = <1>;
 
