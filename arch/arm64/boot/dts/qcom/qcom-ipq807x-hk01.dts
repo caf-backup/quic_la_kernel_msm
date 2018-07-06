@@ -16,6 +16,7 @@
  */
 #include "qcom-ipq807x-soc.dtsi"
 #include "qcom-ipq807x-audio.dtsi"
+#include "qcom-ipq807x-hk-cpu.dtsi"
 
 / {
 	#address-cells = <0x2>;

@@ -15,6 +15,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include "qcom-ipq807x-soc.dtsi"
+#include "qcom-ipq807x-hk-cpu.dtsi"
 
 / {
 	#address-cells = <0x2>;

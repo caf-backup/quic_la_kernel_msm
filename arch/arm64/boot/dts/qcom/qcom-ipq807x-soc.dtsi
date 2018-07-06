@@ -1849,5 +1849,4 @@
 #include "qcom-ipq807x-spmi-regulator.dtsi"
 #include "qcom-ipq807x-rpm-regulator.dtsi"
 #include "qcom-ipq807x-thermal.dtsi"
-#include "qcom-ipq807x-cpu.dtsi"
 #include "qcom-ipq807x-cpr-regulator.dtsi"
