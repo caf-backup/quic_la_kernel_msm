@@ -36,7 +36,7 @@ EXPORT_SYMBOL(qmi_timeout);
 
 #define QMI_WLFW_TIMEOUT_MS		qmi_timeout
 
-bool daemon_support = true;
+bool daemon_support;
 module_param(daemon_support, bool, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(daemon_support, "User space has cnss-daemon support or not");
 
