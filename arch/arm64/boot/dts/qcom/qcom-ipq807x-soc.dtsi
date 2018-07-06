@@ -432,7 +432,7 @@
 			qcom,max_clk = <384000000>;
 			sdhc-msm-crypto = <&sdcc1_ice>;
 
-			syscon = <&tlmm_csr 0xA000 0xFFFFFE7F>;
+			syscon = <&tlmm_csr 0xA000 0x0019E5B>;
 
 			qcom,dedicated-io = <1>;
 
