@@ -449,6 +449,27 @@ static void glink_put_ch_ctx(struct channel_ctx *ctx)
 	rwref_put(&ctx->ch_state_lhb2);
 }
 
+int glink_reinit_ssr(const char *subsystem)
+{
+	int ret = 0;
+	bool transport_found = false;
+	struct glink_core_xprt_ctx *xprt_ctx = NULL;
+
+	mutex_lock(&transport_list_lock_lha0);
+	list_for_each_entry(xprt_ctx, &transport_list, list_node) {
+		if (!strcmp(subsystem, xprt_ctx->edge)) {
+			xprt_ctx->ops->reinit_ssr(xprt_ctx->ops);
+			transport_found = true;
+		}
+	}
+	mutex_unlock(&transport_list_lock_lha0);
+
+	if (!transport_found)
+		ret = -ENODEV;
+
+	return ret;
+}
+
 /**
  * glink_ssr() - Clean up locally for SSR by simulating remote close
  * @subsystem:	The name of the subsystem being restarted
