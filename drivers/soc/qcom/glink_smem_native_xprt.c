@@ -251,6 +251,7 @@ static uint32_t negotiate_features_v1(struct glink_transport_if *if_ptr,
 				      uint32_t features);
 static void register_debugfs_info(struct edge_info *einfo);
 static int ssr(struct glink_transport_if *if_ptr);
+static int reinit_ssr(struct glink_transport_if *if_ptr);
 
 static struct edge_info *edge_infos[NUM_SMEM_SUBSYSTEMS];
 static DEFINE_MUTEX(probe_lock);
@@ -2064,6 +2065,7 @@ static void init_xprt_if(struct edge_info *einfo)
 	einfo->xprt_if.tx_cmd_ch_remote_open_ack = tx_cmd_ch_remote_open_ack;
 	einfo->xprt_if.tx_cmd_ch_remote_close_ack = tx_cmd_ch_remote_close_ack;
 	einfo->xprt_if.ssr = ssr;
+	einfo->xprt_if.reinit_ssr = reinit_ssr;
 	einfo->xprt_if.allocate_rx_intent = allocate_rx_intent;
 	einfo->xprt_if.deallocate_rx_intent = deallocate_rx_intent;
 	einfo->xprt_if.tx_cmd_local_rx_intent = tx_cmd_local_rx_intent;
@@ -2987,6 +2989,38 @@ static struct platform_driver glink_rpm_native_driver = {
 		.of_match_table = rpm_match_table,
 	},
 };
+
+/**
+ * reinit_ssr() - make glink ready to process rx packets
+ * @if_ptr:	The transport to restart
+ *
+ * Return: 0 on success or standard Linux error code.
+ */
+
+static int reinit_ssr(struct glink_transport_if *if_ptr)
+{
+	struct edge_info *einfo;
+	struct device_node *node;
+	uint32_t rpm_id;
+	int rc = 0;
+
+	einfo = container_of(if_ptr, struct edge_info, xprt_if);
+
+	node = of_find_compatible_node(NULL, NULL,
+					(*rpm_match_table).compatible);
+
+	if (node) {
+		rc = of_property_read_u32(node, "qcom,subsys-id", &rpm_id);
+		if (rc)
+			pr_err("%s: missing key\n", __func__);
+
+		BUG_ON(einfo->remote_proc_id == rpm_id);
+	}
+
+	einfo->in_ssr = false;
+
+	return 0;
+}
 
 /**
  * ssr() - process a subsystem restart notification of a transport
