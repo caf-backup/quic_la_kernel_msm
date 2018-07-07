@@ -846,6 +846,12 @@ static void __rx_worker(struct edge_info *einfo, bool atomic_ctx)
 
 	rcu_id = srcu_read_lock(&einfo->use_ref);
 
+	if (einfo->in_ssr) {
+		srcu_read_unlock(&einfo->use_ref, rcu_id);
+		pr_info("GLINK_INFO: Discarding stale commands\n");
+		return;
+	}
+
 	if (unlikely(!einfo->rx_fifo)) {
 		if (!get_rx_fifo(einfo)) {
 			pr_err("%s\trx fifo not found\n",
@@ -853,14 +859,9 @@ static void __rx_worker(struct edge_info *einfo, bool atomic_ctx)
 			srcu_read_unlock(&einfo->use_ref, rcu_id);
 			return;
 		}
-		einfo->in_ssr = false;
 		einfo->xprt_if.glink_core_if_ptr->link_up(&einfo->xprt_if);
 	}
 
-	if (einfo->in_ssr) {
-		srcu_read_unlock(&einfo->use_ref, rcu_id);
-		return;
-	}
 	if (!atomic_ctx) {
 		if (einfo->tx_resume_needed && fifo_write_avail(einfo)) {
 			einfo->tx_resume_needed = false;
@@ -3068,6 +3069,7 @@ static int ssr(struct glink_transport_if *if_ptr)
 	einfo->tx_ch_desc->write_index = 0;
 	einfo->rx_ch_desc->read_index = 0;
 	einfo->xprt_if.glink_core_if_ptr->link_down(&einfo->xprt_if);
+	flush_kthread_worker(&einfo->kworker);
 
 	return 0;
 }
