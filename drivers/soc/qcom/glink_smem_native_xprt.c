@@ -187,6 +187,8 @@ struct mailbox_config_info {
  * @ramp_time_us:		Array of ramp times in microseconds where array
  *				index position represents a power state.
  * @mailbox:			Mailbox transport channel description reference.
+ * @edge_ssr_mutex		Mutex to synchronize SSR cleanup and command
+ *				rx-fifo processing
  */
 struct edge_info {
 	struct glink_transport_if xprt_if;
@@ -225,6 +227,8 @@ struct edge_info {
 	struct mailbox_config_info *mailbox;
 	uint32_t tx_fifo_number;
 	uint32_t rx_fifo_number;
+	struct mutex edge_ssr_mutex;
+	spinlock_t deferred_cmdlist_lock;
 };
 
 /**
@@ -774,7 +778,14 @@ static bool queue_cmd(struct edge_info *einfo, void *cmd, void *data)
 	d_cmd->param1 = _cmd->param1;
 	d_cmd->param2 = _cmd->param2;
 	d_cmd->data = data;
+	spin_lock(&einfo->deferred_cmdlist_lock);
+	if (einfo->in_ssr) {
+		spin_unlock(&einfo->deferred_cmdlist_lock);
+		pr_emerg("GLINK_INFO: Discarding stale cmd %d\n", _cmd->id);
+		return false;
+	}
 	list_add_tail(&d_cmd->list_node, &einfo->deferred_cmds);
+	spin_unlock(&einfo->deferred_cmdlist_lock);
 	queue_kthread_work(&einfo->kworker, &einfo->kwork);
 	return true;
 }
@@ -1188,7 +1199,10 @@ static void rx_worker(struct kthread_work *work)
 	struct edge_info *einfo;
 
 	einfo = container_of(work, struct edge_info, kwork);
+
+	mutex_lock(&einfo->edge_ssr_mutex);
 	__rx_worker(einfo, false);
+	mutex_unlock(&einfo->edge_ssr_mutex);
 }
 
 irqreturn_t irq_handler(int irq, void *priv)
@@ -2244,6 +2258,8 @@ static int glink_smem_native_probe(struct platform_device *pdev)
 	einfo->write_to_fifo = write_to_fifo;
 	init_srcu_struct(&einfo->use_ref);
 	spin_lock_init(&einfo->rx_lock);
+	mutex_init(&einfo->edge_ssr_mutex);
+	spin_lock_init(&einfo->deferred_cmdlist_lock);
 	INIT_LIST_HEAD(&einfo->deferred_cmds);
 
 	mutex_lock(&probe_lock);
@@ -2439,6 +2455,8 @@ static int glink_rpm_native_probe(struct platform_device *pdev)
 	einfo->write_to_fifo = memcpy32_toio;
 	init_srcu_struct(&einfo->use_ref);
 	spin_lock_init(&einfo->rx_lock);
+	mutex_init(&einfo->edge_ssr_mutex);
+	spin_lock_init(&einfo->deferred_cmdlist_lock);
 	INIT_LIST_HEAD(&einfo->deferred_cmds);
 
 	mutex_lock(&probe_lock);
@@ -3018,7 +3036,9 @@ static int reinit_ssr(struct glink_transport_if *if_ptr)
 		BUG_ON(einfo->remote_proc_id == rpm_id);
 	}
 
+	mutex_lock(&einfo->edge_ssr_mutex);
 	einfo->in_ssr = false;
+	mutex_unlock(&einfo->edge_ssr_mutex);
 
 	return 0;
 }
@@ -3049,11 +3069,13 @@ static int ssr(struct glink_transport_if *if_ptr)
 		BUG_ON(einfo->remote_proc_id == rpm_id);
 	}
 
+	mutex_lock(&einfo->edge_ssr_mutex);
 	einfo->in_ssr = true;
 	wake_up_all(&einfo->tx_blocked_queue);
 
 	synchronize_srcu(&einfo->use_ref);
 
+	spin_lock(&einfo->deferred_cmdlist_lock);
 	while (!list_empty(&einfo->deferred_cmds)) {
 		cmd = list_first_entry(&einfo->deferred_cmds,
 						struct deferred_cmd, list_node);
@@ -3061,6 +3083,7 @@ static int ssr(struct glink_transport_if *if_ptr)
 		kfree(cmd->data);
 		kfree(cmd);
 	}
+	spin_unlock(&einfo->deferred_cmdlist_lock);
 
 	einfo->tx_resume_needed = false;
 	einfo->tx_blocked_signal_sent = false;
@@ -3069,6 +3092,8 @@ static int ssr(struct glink_transport_if *if_ptr)
 	einfo->tx_ch_desc->write_index = 0;
 	einfo->rx_ch_desc->read_index = 0;
 	einfo->xprt_if.glink_core_if_ptr->link_down(&einfo->xprt_if);
+	mutex_unlock(&einfo->edge_ssr_mutex);
+
 	flush_kthread_worker(&einfo->kworker);
 
 	return 0;
