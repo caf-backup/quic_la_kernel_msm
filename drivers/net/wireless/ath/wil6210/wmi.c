@@ -897,7 +897,7 @@ static void wmi_evt_rx_mgmt(struct wil6210_vif *vif, int id, void *d, int len)
 		int rc = wil->umac_ops.mgmt_rx(vif->umac_vap, data->info.rssi,
 					       data->info.channel,
 					       rx_mgmt_frame, flen);
-		if (rc == WIL_UMAC_FRAME_CONSUMED)
+		if (rc != WIL_UMAC_FRAME_NOT_HANDLED)
 			return;
 	}
 

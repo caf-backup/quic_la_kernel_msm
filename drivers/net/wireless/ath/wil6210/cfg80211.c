@@ -1548,7 +1548,8 @@ void *wil_umac_register(struct wil6210_priv *wil)
 	wil->umac_rops.add_station = wil_umac_rop_add_station;
 	wil->umac_rops.del_station = wil_umac_rop_del_station;
 	return wil_umac_init(wil, wil->main_ndev->perm_addr, WIL_MAX_VIFS,
-			     max_assoc_sta, &wil->umac_ops, &wil->umac_rops);
+			     max_assoc_sta, disable_ap_sme, &wil->umac_ops,
+			     &wil->umac_rops);
 }
 
 void wil_umac_unregister(struct wil6210_priv *wil)
@@ -1584,6 +1585,12 @@ int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	if (params->chan && params->chan->hw_value == 0) {
 		wil_err(wil, "invalid channel\n");
 		return -EINVAL;
+	}
+
+	if (vif->umac_vap) {
+		rc = wil->umac_ops.mgmt_tx(vif->umac_vap, buf, len);
+		if (rc != WIL_UMAC_FRAME_NOT_HANDLED)
+			goto out;
 	}
 
 	if (wdev->iftype != NL80211_IFTYPE_AP) {
