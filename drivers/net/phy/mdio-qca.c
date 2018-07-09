@@ -41,7 +41,7 @@
 #define QCA_MDIO_RETRY	1000
 #define QCA_MDIO_DELAY	10
 
-#define QCA_MAX_PHY_RESET	2
+#define QCA_MAX_PHY_RESET	3
 
 struct qca_mdio_data {
 	struct mii_bus *mii_bus;
