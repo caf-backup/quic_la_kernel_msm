@@ -874,8 +874,10 @@ static int sdhci_msm_enhanced_strobe(struct sdhci_host *host)
 
 	ret = sdhci_msm_cm_dll_sdc4_calibration(host);
 out:
-	if (!ret)
+	if (!ret) {
 		msm_host->calibration_done = true;
+		pr_info("%s: Enhanced Strobe Initialization Done\n", mmc_hostname(host->mmc));
+	}
 	pr_debug("%s: Exit %s, ret:%d\n", mmc_hostname(host->mmc),
 			__func__, ret);
 	return ret;
