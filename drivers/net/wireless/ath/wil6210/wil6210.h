@@ -144,7 +144,7 @@ static inline u32 wil_mtu2macbuf(u32 mtu)
 #define WIL6210_ITR_RX_MAX_BURST_DURATION_DEFAULT (500) /* usec */
 #define WIL6210_FW_RECOVERY_RETRIES	(5) /* try to recover this many times */
 #define WIL6210_FW_RECOVERY_TO	msecs_to_jiffies(5000)
-#define WIL6210_SCAN_TO		msecs_to_jiffies(10000)
+#define WIL6210_SCAN_TO_SEC		10
 #define WIL6210_DISCONNECT_TO_MS (2000)
 #define WIL6210_RX_HIGH_TRSH_INIT		(0)
 #define WIL6210_RX_HIGH_TRSH_DEFAULT \
