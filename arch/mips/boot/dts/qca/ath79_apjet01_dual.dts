@@ -35,12 +35,9 @@
 		device_type = "memory";
 		reg = <0x0 0x2000000>;
 	};
-
-	chosen { bootargs = "board=DTB console=ttyS0,115200
-		mtdparts=spi0.1:64m(rootfs),2m(kernel),62m(reserved2),
-		66m@0x0(firmware)rootfstype=squashfs,jffs2 noinitrd
-		crashkernel=10M@20M"; };
-
+	chosen {
+		bootargs = "board=DTB console=ttyS0,115200 mtdparts=spi0.1:64m(rootfs),2m(kernel),62m(reserved2),66m@0x0(firmware)rootfstype=squashfs,jffs2 noinitrd crashkernel=10M@20M";
+};
 	extosc: oscillator {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
