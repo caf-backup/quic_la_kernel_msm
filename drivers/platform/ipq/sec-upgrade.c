@@ -339,9 +339,9 @@ store_sec_auth(struct device *dev,
 	strlcpy(file_name, buf, count+1);
 
 	sw = strsep(&file_name, " ");
-	if (kstrtol(sw, 0, &sw_type) != 0) {
+	ret = kstrtol(sw, 0, &sw_type);
+	if (ret) {
 		pr_err("sw_type str to long conversion failed\n");
-		ret = 0;
 		goto free_mem;
 	}
 
@@ -384,7 +384,7 @@ store_sec_auth(struct device *dev,
 
 	file_buf = ioremap_nocache(img_addr, img_size);
 	if (file_buf == NULL) {
-		ret = NULL;
+		ret = -ENOMEM;
 		goto put_node;
 	}
 
