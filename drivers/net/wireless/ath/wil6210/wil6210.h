@@ -898,6 +898,7 @@ struct wil6210_priv {
 	u32 bar_size;
 	struct wiphy *wiphy;
 	struct net_device *main_ndev;
+	int n_msi;
 	void __iomem *csr;
 	DECLARE_BITMAP(status, wil_status_last);
 	u8 fw_version[ETHTOOL_FWVERS_LEN];
@@ -1262,7 +1263,7 @@ int wil_addba_rx_request(struct wil6210_priv *wil, u8 mid, u8 cid, u8 tid,
 int wil_addba_tx_request(struct wil6210_priv *wil, u8 ringid, u16 wsize);
 
 void wil6210_clear_irq(struct wil6210_priv *wil);
-int wil6210_init_irq(struct wil6210_priv *wil, int irq, bool use_msi);
+int wil6210_init_irq(struct wil6210_priv *wil, int irq);
 void wil6210_fini_irq(struct wil6210_priv *wil, int irq);
 void wil_mask_irq(struct wil6210_priv *wil);
 void wil_unmask_irq(struct wil6210_priv *wil);
