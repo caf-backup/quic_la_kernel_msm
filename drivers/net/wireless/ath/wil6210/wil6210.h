@@ -45,6 +45,7 @@ extern bool use_rx_hw_reordering;
 extern bool use_compressed_rx_status;
 extern bool ac_queues;
 extern bool q_per_sta;
+extern bool ftm_mode;
 
 struct wil6210_priv;
 struct wil6210_vif;
@@ -60,6 +61,7 @@ union wil_tx_desc;
 
 #define WIL_FW_NAME_TALYN "wil6436.fw"
 #define WIL_FW_NAME_FTM_TALYN "wil6436_ftm.fw"
+#define WIL_BRD_NAME_TALYN "wil6436.brd"
 
 #define WIL_BOARD_FILE_NAME "wil6210.brd" /* board & radio parameters */
 
