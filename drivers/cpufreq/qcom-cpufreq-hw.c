@@ -100,10 +100,9 @@ static int qcom_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 	cpumask_copy(policy->cpus, &c->related_cpus);
 
 	policy->fast_switch_possible = true;
-	policy->freq_table = c->table;
 	policy->driver_data = c;
 
-	return 0;
+	return cpufreq_table_validate_and_show(policy, c->table);
 }
 
 static void qcom_cpufreq_hw_ready(struct cpufreq_policy *policy)
