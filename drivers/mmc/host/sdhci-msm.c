@@ -2892,7 +2892,7 @@ static void set_sdcc_hdrv_pull(struct platform_device *pdev,
 		struct device_node *syscon)
 {
 	struct regmap *regmap;
-	u32 base, mask, regreadval;
+	u32 base, regval;
 	int ret;
 
 	regmap = syscon_node_to_regmap(syscon);
@@ -2903,17 +2903,16 @@ static void set_sdcc_hdrv_pull(struct platform_device *pdev,
 	if (ret < 0)
 		return;
 
-	ret = of_property_read_u32_index(pdev->dev.of_node, "syscon", 2, &mask);
+	ret = of_property_read_u32_index(pdev->dev.of_node, "syscon", 2, &regval);
 	if (ret < 0)
 		return;
 
-	/* read current value of register TLMM_SDC1_HDRV_PULL_CTL */
-	ret = regmap_read(regmap, base, &regreadval);
-
-	/* write register TLMM_SDC1_HDRV_PULL_CTL for 4mA pull strength */
-	ret = regmap_write(regmap, base, (regreadval & mask));
+	/* write register TLMM_SDC1_HDRV_PULL_CTL for required drive strength
+	 * base on mask value
+	 */
+	ret = regmap_write(regmap, base, regval);
 	if (ret)
-		dev_err(&pdev->dev, "Failed to set SDCC pull str to 4mA\n");
+		dev_err(&pdev->dev, "Failed to set SDCC with drive strength:0x%08x\n", regval);
 }
 
 static int sdhci_msm_probe(struct platform_device *pdev)

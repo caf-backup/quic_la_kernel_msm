@@ -812,6 +812,14 @@ struct subsys_info *get_info_for_edge(const char *edge);
 uint32_t glink_ssr_get_seq_num(void);
 
 /*
+ * glink_reinit_ssr() - reinit the glink state
+ *
+ * Return: Standard error code.
+ */
+int glink_reinit_ssr(const char *subsystem);
+
+
+/*
  * glink_ssr() - SSR cleanup function.
  *
  * Return: Standard error code.

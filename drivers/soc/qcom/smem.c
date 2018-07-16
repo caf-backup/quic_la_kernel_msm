@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/soc/qcom/smem.h>
+#include <linux/kernel.h>
 
 /*
  * The Qualcomm shared memory system is a allocate only heap structure that
@@ -243,6 +244,94 @@ struct qcom_smem {
 	unsigned num_regions;
 	struct smem_region regions[0];
 };
+
+#define CPU_NAME_MAX_SIZE 8
+
+static int __init print_soc_version_info(void)
+{
+	int ret;
+	uint32_t minor_number = UINT_MAX;
+	uint32_t major_number = UINT_MAX;
+	uint32_t cpu_type = UINT_MAX;
+	char cpu_type_name[CPU_NAME_MAX_SIZE];
+
+	ret = of_property_read_u32(of_root, "soc_version_minor", &minor_number);
+	if (ret)
+		pr_err("Read of property:soc_version_minor from node failed\n");
+	else
+		minor_number = cpu_to_be32(minor_number);
+
+	ret = of_property_read_u32(of_root, "soc_version_major", &major_number);
+	if (ret)
+		pr_err("Read of property:soc_version_major from node failed\n");
+	else
+		major_number = cpu_to_be32(major_number);
+
+	ret = of_property_read_u32(of_root, "cpu_type", &cpu_type);
+	if (ret)
+		pr_err("Read of property:cpu_type from node failed\n");
+	else
+		cpu_type = cpu_to_be32(cpu_type);
+
+	switch (cpu_type) {
+	case 272:
+		strlcpy(cpu_type_name, "IPQ4018", CPU_NAME_MAX_SIZE);
+		break;
+	case 273:
+		strlcpy(cpu_type_name, "IPQ4019", CPU_NAME_MAX_SIZE);
+		break;
+	case 287:
+		strlcpy(cpu_type_name, "IPQ4028", CPU_NAME_MAX_SIZE);
+		break;
+	case 288:
+		strlcpy(cpu_type_name, "IPQ4029", CPU_NAME_MAX_SIZE);
+		break;
+	case 201:
+		strlcpy(cpu_type_name, "IPQ8062", CPU_NAME_MAX_SIZE);
+		break;
+	case 202:
+		strlcpy(cpu_type_name, "IPQ8064", CPU_NAME_MAX_SIZE);
+		break;
+	case 203:
+		strlcpy(cpu_type_name, "IPQ8066", CPU_NAME_MAX_SIZE);
+		break;
+	case 204:
+		strlcpy(cpu_type_name, "IPQ8068", CPU_NAME_MAX_SIZE);
+		break;
+	case 280:
+		strlcpy(cpu_type_name, "IPQ8065", CPU_NAME_MAX_SIZE);
+		break;
+	case 281:
+		strlcpy(cpu_type_name, "IPQ8069", CPU_NAME_MAX_SIZE);
+		break;
+	case 323:
+		strlcpy(cpu_type_name, "IPQ8074", CPU_NAME_MAX_SIZE);
+		break;
+	case 342:
+		strlcpy(cpu_type_name, "IPQ8072", CPU_NAME_MAX_SIZE);
+		break;
+	case 343:
+		strlcpy(cpu_type_name, "IPQ8076", CPU_NAME_MAX_SIZE);
+		break;
+	case 344:
+		strlcpy(cpu_type_name, "IPQ8078", CPU_NAME_MAX_SIZE);
+		break;
+	case 375:
+		strlcpy(cpu_type_name, "IPQ8070", CPU_NAME_MAX_SIZE);
+		break;
+	case 376:
+		strlcpy(cpu_type_name, "IPQ8071", CPU_NAME_MAX_SIZE);
+		break;
+	default:
+		strlcpy(cpu_type_name, "unavail", CPU_NAME_MAX_SIZE);
+		break;
+	}
+
+	pr_info("CPU: %s, SoC Version: %u.%u\n", cpu_type_name,
+		major_number, minor_number);
+
+	return 0;
+}
 
 static struct smem_private_entry *
 phdr_to_last_private_entry(struct smem_partition_header *phdr)
@@ -778,6 +867,7 @@ static struct platform_driver qcom_smem_driver = {
 
 static int __init qcom_smem_init(void)
 {
+	print_soc_version_info();
 	return platform_driver_register(&qcom_smem_driver);
 }
 arch_initcall(qcom_smem_init);

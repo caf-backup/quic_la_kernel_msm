@@ -22,6 +22,11 @@
 
 #include <asm/cputype.h>
 
+#define CPU_IPQ4018 272
+#define CPU_IPQ4019 273
+#define CPU_IPQ4028 287
+#define CPU_IPQ4029 288
+
 #define CPU_IPQ8062 201
 #define CPU_IPQ8064 202
 #define CPU_IPQ8066 203
@@ -48,6 +53,52 @@ static inline int read_ipq_cpu_type(void)
 	return *prop;
 }
 
+static inline int cpu_is_ipq4018(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ4018;
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq4019(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ4019;
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq4028(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ4028;
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq4029(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ4029;
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq40xx(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return  cpu_is_ipq4018() || cpu_is_ipq4019() ||
+		cpu_is_ipq4028() || cpu_is_ipq4029();
+#else
+	return 0;
+#endif
+}
+
 static inline int cpu_is_ipq8062(void)
 {
 #ifdef CONFIG_ARCH_QCOM
@@ -56,6 +107,7 @@ static inline int cpu_is_ipq8062(void)
 	return 0;
 #endif
 }
+
 static inline int cpu_is_ipq8064(void)
 {
 #ifdef CONFIG_ARCH_QCOM
@@ -73,7 +125,6 @@ static inline int cpu_is_ipq8066(void)
 	return 0;
 #endif
 }
-
 
 static inline int cpu_is_ipq8068(void)
 {

@@ -15,6 +15,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include "qcom-ipq807x-soc.dtsi"
+#include "qcom-ipq807x-ac-cpu.dtsi"
 
 / {
 	#address-cells = <0x2>;
@@ -666,6 +667,12 @@
 	pinctrl-0 = <&hsuart_pins>;
 	pinctrl-names = "default";
 	status = "ok";
+};
+
+&nss0 {
+	qcom,low-frequency = <187200000>;
+	qcom,mid-frequency = <748800000>;
+	qcom,max-frequency = <1497600000>;
 };
 
 &nss_crypto {

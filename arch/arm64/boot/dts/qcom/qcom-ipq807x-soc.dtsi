@@ -432,7 +432,7 @@
 			qcom,max_clk = <384000000>;
 			sdhc-msm-crypto = <&sdcc1_ice>;
 
-			syscon = <&tlmm_csr 0xA000 0xFFFFFE7F>;
+			syscon = <&tlmm_csr 0xA000 0x0019E5B>;
 
 			qcom,dedicated-io = <1>;
 
@@ -1849,5 +1849,4 @@
 #include "qcom-ipq807x-spmi-regulator.dtsi"
 #include "qcom-ipq807x-rpm-regulator.dtsi"
 #include "qcom-ipq807x-thermal.dtsi"
-#include "qcom-ipq807x-cpu.dtsi"
 #include "qcom-ipq807x-cpr-regulator.dtsi"

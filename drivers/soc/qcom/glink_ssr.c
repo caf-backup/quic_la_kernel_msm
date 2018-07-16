@@ -450,6 +450,17 @@ static int glink_ssr_restart_notifier_cb(struct notifier_block *this,
 			return ret;
 		}
 		pr_emerg("<SSR>: glink SUBSYS_AFTER_SHUTDOWN cleanup done\n");
+	} else if  (code == SUBSYS_BEFORE_POWERUP) {
+		GLINK_SSR_LOG("<SSR> %s: %s: subsystem restart for %s\n",
+				__func__, "SUBSYS_BEFORE_POWERUP",
+				notifier->subsystem);
+		ss_info = get_info_for_subsystem(notifier->subsystem);
+		if (ss_info == NULL) {
+			GLINK_SSR_ERR("<SSR> %s: ss_info is NULL\n", __func__);
+			return -EINVAL;
+		}
+		glink_reinit_ssr(ss_info->edge);
+		pr_emerg("<SSR>: glink SUBSYS_BEFOER_POWERUP reinit done\n");
 	}
 	return NOTIFY_DONE;
 }

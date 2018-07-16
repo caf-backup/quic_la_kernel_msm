@@ -105,6 +105,7 @@ struct glink_transport_if {
 	void (*tx_cmd_ch_remote_close_ack)(struct glink_transport_if *if_ptr,
 			uint32_t rcid);
 	int (*ssr)(struct glink_transport_if *if_ptr);
+	int (*reinit_ssr)(struct glink_transport_if *if_ptr);
 
 	/* channel data */
 	int (*allocate_rx_intent)(struct glink_transport_if *if_ptr,
