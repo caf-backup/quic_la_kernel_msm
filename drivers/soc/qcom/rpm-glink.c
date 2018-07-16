@@ -447,7 +447,7 @@ int msm_rpm_smd_buffer_request(struct msm_rpm_request *cdata,
 }
 static void msm_rpm_print_sleep_buffer(struct slp_buf *s)
 {
-	char buf[DEBUG_PRINT_BUFFER_SIZE] = {0};
+	char buf[DEBUG_PRINT_BUFFER_SIZE + 1] = {0};
 	int pos;
 	int buflen = DEBUG_PRINT_BUFFER_SIZE;
 	char ch[5] = {0};
