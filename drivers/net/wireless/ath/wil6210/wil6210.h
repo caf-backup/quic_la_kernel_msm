@@ -41,8 +41,6 @@ extern bool debug_fw;
 extern bool disable_ap_sme;
 extern bool umac_mode;
 extern uint max_assoc_sta;
-extern bool use_rx_hw_reordering;
-extern bool use_compressed_rx_status;
 extern bool ac_queues;
 extern bool q_per_sta;
 extern bool ftm_mode;
@@ -596,7 +594,8 @@ struct wil_txrx_ops {
 	int (*wmi_addba_rx_resp)(struct wil6210_priv *wil, u8 mid, u8 cid,
 				 u8 tid, u8 token, u16 status, bool amsdu,
 				 u16 agg_wsize, u16 timeout);
-	void (*get_reorder_params)(struct sk_buff *skb, int *tid, int *cid,
+	void (*get_reorder_params)(struct wil6210_priv *wil,
+				   struct sk_buff *skb, int *tid, int *cid,
 				   int *mid, u16 *seq, int *mcast);
 	void (*get_netif_rx_params)(struct sk_buff *skb,
 				    int *cid, int *security);
@@ -1040,7 +1039,12 @@ struct wil6210_priv {
 	u8 boot_config;
 
 	/* relevant only for eDMA */
+	bool use_compressed_rx_status;
+	u32 rx_status_ring_order;
+	u32 tx_status_ring_order;
+	u32 rx_buff_id_count;
 	bool amsdu_en;
+	bool use_rx_hw_reordering;
 };
 
 #define wil_to_wiphy(i) (i->wiphy)
