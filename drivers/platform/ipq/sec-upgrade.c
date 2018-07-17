@@ -392,7 +392,7 @@ store_sec_auth(struct device *dev,
 		goto put_node;
 	}
 
-	memset(file_buf, 0x0, img_size);
+	memset_io(file_buf, 0x0, img_size);
 
 	ret = kernel_read(file, 0, file_buf, size);
 	if (ret != size) {
