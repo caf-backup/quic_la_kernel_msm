@@ -2225,6 +2225,15 @@ int wmi_pcp_start(struct wil6210_vif *vif,
 		.evt = {.status = WMI_FW_STATUS_FAILURE},
 	};
 
+	if (test_bit(WMI_FW_CAPABILITY_CHANNEL_BONDING, wil->fw_capabilities))
+		if (wil->force_edmg_channel) {
+			rc = wil_spec2wmi_ch(wil->force_edmg_channel,
+					     &cmd.edmg_channel);
+			if (rc)
+				wil_err(wil, "wmi channel for channel %d not found",
+					wil->force_edmg_channel);
+		}
+
 	if (!vif->privacy)
 		cmd.disable_sec = 1;
 
