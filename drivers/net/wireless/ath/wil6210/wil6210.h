@@ -907,6 +907,7 @@ struct wil6210_priv {
 	const char *hw_name;
 	const char *wil_fw_name;
 	char *board_file;
+	char board_file_country[3]; /* alpha2 */
 	u32 brd_file_addr;
 	u32 brd_file_max_size;
 	DECLARE_BITMAP(hw_capa, hw_capa_last);
@@ -1004,6 +1005,9 @@ struct wil6210_priv {
 	enum wmi_ps_profile_type ps_profile;
 
 	int fw_calib_result;
+
+	/* current reg domain configured in kernel */
+	char regdomain[3]; /* alpha2 */
 
 	struct notifier_block pm_notify;
 
@@ -1120,10 +1124,7 @@ static inline void wil_c(struct wil6210_priv *wil, u32 reg, u32 val)
 	wil_w(wil, reg, wil_r(wil, reg) & ~val);
 }
 
-static inline const char *wil_get_board_file(struct wil6210_priv *wil)
-{
-	return wil->board_file ? wil->board_file : WIL_BOARD_FILE_NAME;
-}
+void wil_get_board_file(struct wil6210_priv *wil, char *buf, size_t len);
 
 #if defined(CONFIG_DYNAMIC_DEBUG)
 #define wil_hex_dump_txrx(prefix_str, prefix_type, rowsize,	\
