@@ -402,6 +402,22 @@ struct cfg80211_chan_def {
 };
 
 /**
+ * struct cfg80211_fils_aad - FILS AAD data
+ * @macaddr: STA MAC address
+ * @kek: FILS KEK
+ * @kek_len: FILS KEK length
+ * @snonce: STA Nonce
+ * @anonce: AP Nonce
+ */
+struct cfg80211_fils_aad {
+	const u8 *macaddr;
+	const u8 *kek;
+	u8 kek_len;
+	const u8 *snonce;
+	const u8 *anonce;
+};
+
+/**
  * cfg80211_get_chandef_type - return old channel type from chandef
  * @chandef: the channel definition
  *
@@ -2500,6 +2516,9 @@ struct cfg80211_qos_map {
  *	and returning to the base channel for communication with the AP.
  * @tdls_cancel_channel_switch: Stop channel-switching with a TDLS peer. Both
  *	peers must be on the base channel when the call completes.
+ *
+ * @set_fils_aad: Set FILS AAD data to driver so that driver can use those to
+ *      encrypt/decrypt (Re)Association Request/Response frame.
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
@@ -2765,6 +2784,9 @@ struct cfg80211_ops {
 	void	(*tdls_cancel_channel_switch)(struct wiphy *wiphy,
 					      struct net_device *dev,
 					      const u8 *addr);
+
+	int	(*set_fils_aad)(struct wiphy *wiphy, struct net_device *dev,
+				struct cfg80211_fils_aad *fils_aad);
 };
 
 /*
@@ -5325,6 +5347,9 @@ static inline void wiphy_ext_feature_set(struct wiphy *wiphy,
 {
 	u8 *ft_byte;
 
+	if (ftidx >= NUM_NL80211_EXT_FEATURES)
+		return;
+
 	ft_byte = &wiphy->ext_features[ftidx / 8];
 	*ft_byte |= BIT(ftidx % 8);
 }
@@ -5343,6 +5368,9 @@ wiphy_ext_feature_isset(struct wiphy *wiphy,
 			enum nl80211_ext_feature_index ftidx)
 {
 	u8 ft_byte;
+
+	if (ftidx >= NUM_NL80211_EXT_FEATURES)
+		return false;
 
 	ft_byte = wiphy->ext_features[ftidx / 8];
 	return (ft_byte & BIT(ftidx % 8)) != 0;
