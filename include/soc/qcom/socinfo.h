@@ -33,7 +33,8 @@
 #define CPU_IPQ8072 342
 #define CPU_IPQ8076 343
 #define CPU_IPQ8078 344
-
+#define CPU_IPQ8070 375
+#define CPU_IPQ8071 376
 
 static inline int read_ipq_cpu_type(void)
 {
@@ -111,6 +112,24 @@ static inline int cpu_is_ipq806x(void)
 #endif
 }
 
+static inline int cpu_is_ipq8070(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ8070;
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq8071(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ8071;
+#else
+	return 0;
+#endif
+}
+
 static inline int cpu_is_ipq8072(void)
 {
 #ifdef CONFIG_ARCH_QCOM
@@ -151,7 +170,8 @@ static inline int cpu_is_ipq807x(void)
 {
 #ifdef CONFIG_ARCH_QCOM
 	return  cpu_is_ipq8072() || cpu_is_ipq8074() ||
-		cpu_is_ipq8076() || cpu_is_ipq8078();
+		cpu_is_ipq8076() || cpu_is_ipq8078() ||
+		cpu_is_ipq8070() || cpu_is_ipq8071();
 #else
 	return 0;
 #endif
