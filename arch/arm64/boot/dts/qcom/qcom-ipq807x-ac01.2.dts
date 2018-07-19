@@ -15,13 +15,13 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include "qcom-ipq807x-soc.dtsi"
-#include "qcom-ipq807x-hk-cpu.dtsi"
+#include "qcom-ipq807x-ac-cpu.dtsi"
 
 / {
 	#address-cells = <0x2>;
 	#size-cells = <0x2>;
-	model = "Qualcomm Technologies, Inc. IPQ807x/AP-HK07";
-	compatible = "qcom,ipq807x-hk07", "qcom,ipq807x";
+	model = "Qualcomm Technologies, Inc. IPQ807x/AP-AC01.2";
+	compatible = "qcom,ipq807x-ac01.2", "qcom,ipq807x";
 	qcom,msm-id = <0x125 0x0>;
 	interrupt-parent = <&intc>;
 	qcom,board-id = <0x10 0x0>;
@@ -82,6 +82,11 @@
 			pins = "gpio69";
 			function = "mdio";
 			drive-strength = <8>;
+			bias-pull-up;
+		};
+		mux_2 {
+			pins = "gpio44";
+			function = "gpio";
 			bias-pull-up;
 		};
 	};
@@ -171,31 +176,6 @@
 		};
 	};
 
-	button_pins: button_pins {
-		wps_button {
-			pins = "gpio57";
-			function = "gpio";
-			drive-strength = <8>;
-			bias-pull-up;
-		};
-	};
-
-	uniphy_pins: uniphy_pinmux {
-		mux {
-			pins = "gpio60";
-			function = "rx2";
-			bias-disable;
-		};
-
-		sfp_tx {
-			pins = "gpio59";
-			function = "gpio";
-			drive-strength = <8>;
-			bias-pull-down;
-			output-low;
-		};
-	};
-
 	led_pins: led_pins {
 		led_2g {
 			pins = "gpio42";
@@ -211,27 +191,39 @@
 			bias-pull-down;
 		};
 	};
-};
 
-&soc {
-	gpio_keys {
-		compatible = "gpio-keys";
-		pinctrl-0 = <&button_pins>;
-		pinctrl-names = "default";
-
-		button@1 {
-			label = "wps";
-			linux,code = <KEY_WPS_BUTTON>;
-			gpios = <&tlmm 57 GPIO_ACTIVE_LOW>;
-			linux,input-type = <1>;
-			debounce-interval = <60>;
+	usb_mux_sel_pins: usb_mux_pins {
+		mux {
+			pins = "gpio27";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-down;
 		};
 	};
 
+	pcie0_pins: pcie_pins {
+		pcie0_rst {
+			pins = "gpio58";
+			function = "pcie0_rst";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+		pcie0_wake {
+			pins = "gpio59";
+			function = "pcie0_wake";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+	};
+
+};
+
+&soc {
 	mdio@90000 {
 		pinctrl-0 = <&mdio_pins>;
 		pinctrl-names = "default";
-		phy-reset-gpio = <&tlmm 37 0>;
+		phy-reset-gpio = <&tlmm 37 0 &tlmm 44 1>;
+		compatible = "qcom,ipq40xx-mdio", "qcom,qca-mdio";
 		phy0: ethernet-phy@0 {
 			reg = <0>;
 		};
@@ -248,22 +240,46 @@
 			reg = <4>;
 		};
 		phy5: ethernet-phy@5 {
-			compatible ="ethernet-phy-ieee802.3-c45";
-			reg = <7>;
+			reg = <28>;
 		};
 	};
 
 	ess-switch@3a000000 {
-		pinctrl-0 = <&uniphy_pins>;
-		pinctrl-names = "default";
 		switch_cpu_bmp = <0x1>;  /* cpu port bitmap */
 		switch_lan_bmp = <0x3e>; /* lan port bitmap */
 		switch_wan_bmp = <0x40>; /* wan port bitmap */
 		switch_mac_mode = <0x0>; /* mac mode for uniphy instance0*/
 		switch_mac_mode1 = <0xff>; /* mac mode for uniphy instance1*/
-		switch_mac_mode2 = <0xd>; /* mac mode for uniphy instance2*/
+		switch_mac_mode2 = <0xc>; /* mac mode for uniphy instance2*/
 		bm_tick_mode = <0>; /* bm tick mode */
 		tm_tick_mode = <0>; /* tm tick mode */
+		qcom,port_phyinfo {
+			port@0 {
+				port_id = <1>;
+				phy_address = <0>;
+			};
+			port@1 {
+				port_id = <2>;
+				phy_address = <1>;
+			};
+			port@2 {
+				port_id = <3>;
+				phy_address = <2>;
+			};
+			port@3 {
+				port_id = <4>;
+				phy_address = <3>;
+			};
+			port@4 {
+				port_id = <5>;
+				phy_address = <4>;
+			};
+			port@5 {
+				port_id = <6>;
+				phy_address = <28>;
+				port_mac_sel = "QGMAC_PORT";
+			};
+		};
 		port_scheduler_resource {
 			port@0 {
 				port_id = <0>;
@@ -601,7 +617,7 @@
 		qcom,mactype = <1>;
 		local-mac-address = [000000000000];
 		qcom,link-poll = <1>;
-		qcom,phy-mdio-addr = <7>;
+		qcom,phy-mdio-addr = <28>;
 		phy-mode = "sgmii";
 	};
 
@@ -728,7 +744,9 @@
 };
 
 &pcie0 {
-	status = "disabled";
+	pinctrl-0 = <&pcie0_pins>;
+	pinctrl-names = "default";
+	status = "ok";
 };
 
 &pcie1 {
