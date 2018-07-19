@@ -176,6 +176,7 @@ struct msm_drm_private {
 	/* DSI is shared by mdp4 and mdp5 */
 	struct msm_dsi *dsi[2];
 
+	struct msm_dp *dp;
 	/* when we have more than one 'msm_gpu' these need to be an array: */
 	struct msm_gpu *gpu;
 	struct msm_file_private *lastctx;
@@ -357,6 +358,27 @@ static inline void __exit msm_dsi_unregister(void)
 {
 }
 static inline int msm_dsi_modeset_init(struct msm_dsi *msm_dsi,
+				       struct drm_device *dev,
+				       struct drm_encoder *encoder)
+{
+	return -EINVAL;
+}
+#endif
+
+#ifdef CONFIG_DRM_MSM_DP
+int __init msm_dp_register(void);
+void __exit msm_dp_unregister(void);
+int msm_dp_modeset_init(struct msm_dp *dp_display, struct drm_device *dev,
+			 struct drm_encoder *encoder);
+#else
+static inline int __init msm_dp_register(void)
+{
+	return -EINVAL;
+}
+static inline void __exit msm_dp_unregister(void)
+{
+}
+static inline int msm_dp_modeset_init(struct msm_dp *dp_display,
 				       struct drm_device *dev,
 				       struct drm_encoder *encoder)
 {
