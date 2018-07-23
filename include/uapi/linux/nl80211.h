@@ -5092,7 +5092,12 @@ enum nl80211_feature_flags {
  *	rssi if firmware support, this flag is to intimate about ack rssi
  *	support to nl80211.
  * @NL80211_EXT_FEATURE_TXQS: Driver supports FQ-CoDel-enabled intermediate
- *      TXQs.
+ *	TXQs.
+ * @NL80211_EXT_FEATURE_SCAN_RANDOM_SN: Driver/device supports randomizing the
+ *	SN in probe request frames if requested by %NL80211_SCAN_FLAG_RANDOM_SN.
+ * @NL80211_EXT_FEATURE_SCAN_MIN_PREQ_CONTENT: Driver/device can omit all data
+ *	except for supported rates from the probe request content if requested
+ *	by the %NL80211_SCAN_FLAG_MIN_PREQ_CONTENT flag.
  *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
@@ -5127,6 +5132,8 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_CONTROL_PORT_OVER_NL80211,
 	NL80211_EXT_FEATURE_DATA_ACK_SIGNAL_SUPPORT,
 	NL80211_EXT_FEATURE_TXQS,
+	NL80211_EXT_FEATURE_SCAN_RANDOM_SN,
+	NL80211_EXT_FEATURE_SCAN_MIN_PREQ_CONTENT,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,
