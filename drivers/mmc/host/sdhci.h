@@ -564,6 +564,7 @@ struct sdhci_ops {
 #define REQ_BUS_ON	(1 << 1)
 #define REQ_IO_LOW	(1 << 2)
 #define REQ_IO_HIGH	(1 << 3)
+	int	(*enhanced_strobe)(struct sdhci_host *host);
 	void	(*check_power_status)(struct sdhci_host *host, u32 req_type);
 	void	(*voltage_switch)(struct sdhci_host *host);
 	int	(*select_drive_strength)(struct sdhci_host *host,

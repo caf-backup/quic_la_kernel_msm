@@ -874,8 +874,10 @@ static int sdhci_msm_enhanced_strobe(struct sdhci_host *host)
 
 	ret = sdhci_msm_cm_dll_sdc4_calibration(host);
 out:
-	if (!ret)
+	if (!ret) {
 		msm_host->calibration_done = true;
+		pr_info("%s: Enhanced Strobe Initialization Done\n", mmc_hostname(host->mmc));
+	}
 	pr_debug("%s: Exit %s, ret:%d\n", mmc_hostname(host->mmc),
 			__func__, ret);
 	return ret;
@@ -2382,7 +2384,10 @@ static void sdhci_msm_set_clock(struct sdhci_host *host, unsigned int clock)
 		 * Select HS400 mode using the HC_SELECT_IN from VENDOR SPEC
 		 * register
 		 */
-		if (msm_host->tuning_done && !msm_host->calibration_done) {
+		if ((msm_host->tuning_done ||
+				(card && mmc_card_strobe(card) &&
+				 msm_host->enhanced_strobe)) &&
+				!msm_host->calibration_done) {
 				/*
 				 * Write 0x6 to HC_SELECT_IN and 1 to
 				 * HC_SELECT_IN_EN field in VENDOR_SPEC_FUNC
@@ -2731,6 +2736,7 @@ static struct sdhci_ops sdhci_msm_ops = {
 	.crypto_engine_reset = sdhci_msm_ice_reset,
 	.set_uhs_signaling = sdhci_msm_set_uhs_signaling,
 	.platform_execute_tuning = sdhci_msm_execute_tuning,
+	.enhanced_strobe = sdhci_msm_enhanced_strobe,
 	.set_clock = sdhci_msm_set_clock,
 	.get_min_clock = sdhci_msm_get_min_clock,
 	.get_max_clock = sdhci_msm_get_max_clock,
