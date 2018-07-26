@@ -201,6 +201,12 @@
 			no-map;
 			reg = <0x0 0x4a400000 0x0 0x00200000>;
 		};
+
+		wifi_dump@50500000 {
+			no-map;
+			reg = <0x0 0x50500000 0x0 0x600000>;
+		};
+
 	};
 
 	firmware {
