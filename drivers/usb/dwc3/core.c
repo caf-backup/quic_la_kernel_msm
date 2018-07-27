@@ -704,7 +704,15 @@ static int dwc3_core_init(struct dwc3 *dwc)
 	ret = dwc3_setup_scratch_buffers(dwc);
 	if (ret)
 		goto err2;
-
+	/*
+	 * Enable ENABLEEPCACHEEVICT for 3.00a dwc3 host,
+	 * fixed in 3.20a controller
+	 */
+	if (dwc->revision == DWC3_REVISION_300A) {
+		reg = dwc3_readl(dwc->regs, DWC3_GUCTL2);
+		reg |= DWC3_GCTL2_ENABLEEPCACHEEVICT;
+		dwc3_writel(dwc->regs, DWC3_GUCTL2, reg);
+	}
 	return 0;
 
 err2:
