@@ -1133,6 +1133,19 @@
 			};
 		};
 
+		qcom,msm-imem@146bf000 {
+			compatible = "qcom,msm-imem";
+			reg = <0x146bf000 0x1000>;
+			ranges = <0x0 0x146bf000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			pil@94c {
+				compatible = "qcom,msm-imem-pil";
+				reg = <0x94c 4>;
+			};
+		};
+
 		ufshc1: ufshc@1d84000 {
 			compatible = "qcom,ufshc";
 			reg = <0x1d84000 0x2500>;
