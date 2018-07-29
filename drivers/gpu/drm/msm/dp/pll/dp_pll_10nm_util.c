@@ -391,10 +391,10 @@ int dp_vco_prepare_10nm(struct clk_hw *hw)
 	struct msm_dp_pll *pll = hw_clk_to_pll(hw);
 	struct dp_pll_10nm *dp_res = to_dp_pll_10nm(pll);
 
-	pr_debug("rate=%ld\n", pll->rate);
+	pr_err("%s: rate = %ld\n", __func__, pll->rate);
 	if ((dp_res->vco_cached_rate != 0)
 		&& (dp_res->vco_cached_rate == pll->rate)) {
-		rc = pll->clk_hw.init->ops->set_rate(hw,
+		rc = dp_vco_set_rate_10nm(hw,
 			dp_res->vco_cached_rate, dp_res->vco_cached_rate);
 		if (rc) {
 			pr_err("index=%d vco_set_rate failed. rc=%d\n",
@@ -403,6 +403,7 @@ int dp_vco_prepare_10nm(struct clk_hw *hw)
 		}
 	}
 
+	pr_err("about to call dp_pll_enable_10nm\n");
 	rc = dp_pll_enable_10nm(hw);
 	if (rc) {
 		pr_err("ndx=%d failed to enable dp pll\n",
