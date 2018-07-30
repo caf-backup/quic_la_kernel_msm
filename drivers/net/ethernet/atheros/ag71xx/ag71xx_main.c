@@ -971,7 +971,7 @@ void ag71xx_link_adjust(struct ag71xx *ag)
 	ag71xx_wr(ag, AG71XX_REG_FIFO_CFG5, fifo5);
 	ag71xx_wr(ag, AG71XX_REG_MAC_IFCTL, ifctl);
 
-	if (pdata->is_qca9561)
+	if (pdata->is_qca956x)
 		ag71xx_disable_inline_chksum_engine(ag);
 
 	ag71xx_hw_start(ag);
@@ -1791,6 +1791,8 @@ static int ag71xx_of_pdata_update(
 	if (!of_property_read_u32(pdev->dev.of_node,
 			"qca9561-support", &value[0]))
 		pdata->is_qca9561 = value[0];
+	pdata->is_qca956x = of_property_read_bool(pdev->dev.of_node,
+				"qca956x-support");
 
 	mac_new = of_get_property(pdev->dev.of_node, "local-mac-address", NULL);
 
