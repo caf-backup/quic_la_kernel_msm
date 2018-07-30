@@ -12,6 +12,7 @@
  */
 #include <linux/module.h>
 #include <linux/moduleloader.h>
+#include <linux/kasan.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/elf.h>
@@ -46,9 +47,13 @@ void *module_alloc(unsigned long size)
 	if (IS_ENABLED(CONFIG_ARM_MODULE_PLTS))
 		gfp_flags = gfp_flags | __GFP_NOWARN;
 
-	p = __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
+	p = __vmalloc_node_range(size, MODULE_ALIGN, MODULES_VADDR, MODULES_END,
 				gfp_flags, PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
 				__builtin_return_address(0));
+	if (p && (kasan_module_alloc(p, size) < 0)) {
+		vfree(p);
+		return NULL;
+	}
 
 	if (!IS_ENABLED(CONFIG_ARM_MODULE_PLTS) || p)
 		return p;
