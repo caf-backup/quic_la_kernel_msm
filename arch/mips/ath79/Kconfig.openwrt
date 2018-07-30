@@ -144,6 +144,45 @@ config ATH79_MACH_AP147
 	  Say 'Y' here if you want your kernel to support the
 	  QCA AP147 reference boards.
 
+config ATH79_MACH_AP147IOE
+	bool "Qualcomm Atheros AP147 IoE reference board"
+	select SOC_QCA953X
+	select ATH79_DEV_GPIO_BUTTONS
+	select ATH79_DEV_LEDS_GPIO
+	select ATH79_DEV_M25P80
+	select ATH79_DEV_USB
+	select ATH79_DEV_WMAC
+	select ATH79_DEV_AP9X_PCI if PCI
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Qualcomm Atheros AP147 IoE reference boards.
+
+config ATH79_MACH_AP147IOE_NAND
+	bool "Qualcomm Atheros AP147 IoE nand reference board"
+	select SOC_QCA953X
+	select ATH79_DEV_GPIO_BUTTONS
+	select ATH79_DEV_LEDS_GPIO
+	select ATH79_DEV_M25P80
+	select ATH79_DEV_USB
+	select ATH79_DEV_WMAC
+	select ATH79_DEV_AP9X_PCI if PCI
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Qualcomm Atheros AP147 IoE nand reference boards.
+
+config ATH79_MACH_AP147IOE_DUAL
+	bool "Qualcomm Atheros AP147 IoE dual reference board"
+	select SOC_QCA953X
+	select ATH79_DEV_GPIO_BUTTONS
+	select ATH79_DEV_LEDS_GPIO
+	select ATH79_DEV_M25P80
+	select ATH79_DEV_USB
+	select ATH79_DEV_WMAC
+	select ATH79_DEV_AP9X_PCI if PCI
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Qualcomm Atheros AP147 IoE dual reference boards.
+
 config ATH79_MACH_AP151
 	bool "Qualcomm Atheros AP151 reference board"
 	select SOC_QCA956X

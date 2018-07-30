@@ -38,6 +38,9 @@ enum ath79_mach_type {
 	ATH79_MACH_AP137,		/* Qualcomm Atheros AP137 reference board */
 	ATH79_MACH_AP143,		/* Atheros AP143 reference board */
 	ATH79_MACH_AP147_010,		/* Atheros AP147-010 reference board */
+	ATH79_MACH_AP147IOE,		/* Qualcomm Atheros AP147 IoE reference board */
+	ATH79_MACH_AP147IOE_NAND,	/* Qualcomm Atheros AP147 IoE nand reference board */
+	ATH79_MACH_AP147IOE_DUAL,	/* Qualcomm Atheros AP147 IoE dual reference board */
 	ATH79_MACH_AP151,		/* Qualcomm Atheros AP151 reference board */
 	ATH79_MACH_AP152,		/* Atheros AP152 reference board */
 	ATH79_MACH_AP81,		/* Atheros AP81 reference board */
