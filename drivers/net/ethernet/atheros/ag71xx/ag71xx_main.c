@@ -705,7 +705,8 @@ static void ag71xx_enable_jumbo_frame(struct ag71xx *ag)
 					    QCA956X_DAM_RESET_SIZE);
 
 	if (!dam) {
-		dev_err(&ag->dev, "unable to ioremap DAM_RESET_OFFSET\n");
+		dev_err(&(ag->pdev->dev),
+			"unable to ioremap DAM_RESET_OFFSET\n");
 	} else {
 		/* can not use the wr, rr functions since this is outside of
 		 * the normal ag71xx register block
@@ -718,7 +719,8 @@ static void ag71xx_enable_jumbo_frame(struct ag71xx *ag)
 	dam = ioremap_nocache(QCA956X_DAM_RESET_OFFSET2,
 			      QCA956X_DAM_RESET_SIZE);
 	if (!dam) {
-		dev_err(&ag->dev, "unable to ioremap DAM_RESET_OFFSET2\n");
+		dev_err(&(ag->pdev->dev),
+			"unable to ioremap DAM_RESET_OFFSET2\n");
 	} else {
 		/* can not use the wr, rr functions since this is outside of
 		 * the normal ag71xx register block
@@ -886,7 +888,8 @@ static void ag71xx_disable_inline_chksum_engine(struct ag71xx *ag)
 	void __iomem *dam = ioremap_nocache(QCA956X_DAM_RESET_OFFSET1,
 				QCA956X_DAM_RESET_SIZE);
 	if (!dam) {
-		dev_err(&ag->dev, "unable to ioremap DAM_RESET_OFFSET\n");
+		dev_err(&(ag->pdev->dev),
+			"unable to ioremap DAM_RESET_OFFSET\n");
 	} else {
 		/*
 		 * can not use the wr, rr functions since this is outside of
