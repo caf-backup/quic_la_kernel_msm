@@ -546,6 +546,10 @@ static int vadc_measure_ref_points(struct vadc_priv *vadc)
 	if (!prop)
 		prop = vadc_get_channel(vadc, VADC_REF_625MV);
 
+	if (!prop) {
+		ret = -EINVAL;
+		goto err;
+	}
 	ret = vadc_do_conversion(vadc, prop, &read_2);
 	if (ret)
 		goto err;
@@ -560,11 +564,19 @@ static int vadc_measure_ref_points(struct vadc_priv *vadc)
 
 	/* Ratiometric calibration */
 	prop = vadc_get_channel(vadc, VADC_VDD_VADC);
+	if (!prop) {
+		ret = -EINVAL;
+		goto err;
+	}
 	ret = vadc_do_conversion(vadc, prop, &read_1);
 	if (ret)
 		goto err;
 
 	prop = vadc_get_channel(vadc, VADC_GND_REF);
+	if (!prop) {
+		ret = -EINVAL;
+		goto err;
+	}
 	ret = vadc_do_conversion(vadc, prop, &read_2);
 	if (ret)
 		goto err;
