@@ -20,23 +20,6 @@
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 
-/*
- * This page serves two purposes:
- *   - It used as early shadow memory. The entire shadow region populated
- *     with this page, before we will be able to setup normal shadow memory.
- *   - Latter it reused it as zero shadow to cover large ranges of memory
- *     that allowed to access, but not handled by kasan (vmalloc/vmemmap ...).
- */
-unsigned char kasan_zero_page[PAGE_SIZE] __page_aligned_bss;
-
-#if CONFIG_PGTABLE_LEVELS > 3
-pud_t kasan_zero_pud[PTRS_PER_PUD] __page_aligned_bss;
-#endif
-#if CONFIG_PGTABLE_LEVELS > 2
-pmd_t kasan_zero_pmd[PTRS_PER_PMD] __page_aligned_bss;
-#endif
-pte_t kasan_zero_pte[PTRS_PER_PTE] __page_aligned_bss;
-
 static __init void *early_alloc(size_t size, int node)
 {
 	return memblock_virt_alloc_try_nid(size, size, __pa(MAX_DMA_ADDRESS),

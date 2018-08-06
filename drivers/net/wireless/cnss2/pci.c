@@ -1422,7 +1422,7 @@ static void cnss_mhi_notify_status(enum MHI_CB_REASON reason, void *priv)
 	if (reason == MHI_CB_SYS_ERROR)
 		cnss_reason = CNSS_REASON_TIMEOUT;
 
-	cnss_pr_err("\nXXX TARGET ASSERTED XXX\n");
+	cnss_pr_err("XXX TARGET ASSERTED XXX\n");
 
 	cnss_schedule_recovery(&pci_priv->pci_dev->dev,
 			       cnss_reason);

@@ -158,6 +158,7 @@
 			has-gbit = <1>;
 			ar724x-support = <1>;
 			qca955x-support = <0>;
+			qca956x-support;
 			fifo-cfg = <0x0010ffff 0x015500aa 0x01f00140>;
 			interrupts = <4>;
 			interrupt-names = "mac_irq";
@@ -180,6 +181,7 @@
 			has-gbit = <1>;
 			ar724x-support = <1>;
 			qca955x-support = <0>;
+			qca956x-support;
 			fifo-cfg = <0x0010ffff 0x015500aa 0x01f00140>;
 			builtin-switch = <1 0x10>;
 			interrupts = <5>;

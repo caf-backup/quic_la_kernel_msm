@@ -21,8 +21,13 @@
 #include "mt29f_spinand.h"
 
 void gigadevice_set_defaults(struct spi_device *spi_nand);
+
+void gigadevice_set_defaults_128mb(struct spi_device *spi_nand);
+
 void gigadevice_set_defaults_512mb(struct spi_device *spi_nand);
+
 void winbond_set_defaults(struct spi_device *spi_nand);
+
 void macronix_set_defaults(struct spi_device *spi_nand);
 
 void gigadevice_read_cmd(struct spinand_cmd *cmd, u32 page_id);

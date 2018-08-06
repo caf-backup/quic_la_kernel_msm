@@ -41,6 +41,7 @@ static unsigned int paniconaccessviolation = 0;
 /* Maximum size for buffers to support AARCH64 TZ */
 #define HVC_PRESENT BIT(0)
 #define TZ_64 BIT(1)
+#define TZ_KPSS BIT(2)
 
 #define TZ64_HVC_PRESENT (HVC_PRESENT | TZ_64)
 
@@ -63,6 +64,16 @@ struct tzbsp_diag_t {
 	uint32_t ring_off;
 	uint32_t unused1[514];
 	struct tzbsp_diag_log_t log;
+};
+
+struct tzbsp_diag_t_kpss {
+	uint32_t magic_num;	/* Magic Number */
+	uint32_t version;	/* Major.Minor version */
+	uint32_t skip1[5];
+	uint32_t ring_off;	/* Ring Buffer Offset */
+	uint32_t ring_len;	/* Ring Buffer Len */
+	uint32_t skip2[369];
+	uint8_t ring_buffer[];	/* TZ Ring Buffer */
 };
 
 /* Below structure to support AARCH64 TZ */
@@ -118,6 +129,7 @@ static int tz_log_open(struct inode *inode, struct file *file)
 	uint16_t wrap;
 	struct tzbsp_diag_t *tz_diag;
 	struct tzbsp_diag_t_v8 *tz_diag_v8;
+	struct tzbsp_diag_t_kpss *tz_diag_kpss;
 	struct tzbsp_diag_log_t *log;
 	uint16_t offset;
 	uint16_t ring;
@@ -142,28 +154,36 @@ static int tz_log_open(struct inode *inode, struct file *file)
 		return -EIO;
 	}
 
-	if (tz_hvc_log->flags & TZ_64) {
-		tz_diag_v8 = (struct tzbsp_diag_t_v8 *)ker_buf;
-		ring = tz_diag_v8->ring_off;
-		log = &tz_diag_v8->log;
+	if (tz_hvc_log->flags & TZ_KPSS) {
+		tz_diag_kpss = (struct tzbsp_diag_t_kpss *)ker_buf;
+		ring = tz_diag_kpss->ring_off;
+		memcpy(tmp_buf, (ker_buf + ring), (buf_len - ring));
+		tz_hvc_log->copy_len = buf_len - ring;
 	} else {
-		tz_diag = (struct tzbsp_diag_t *) ker_buf;
-		ring = tz_diag->ring_off;
-		log = &tz_diag->log;
-	}
+		if (tz_hvc_log->flags & TZ_64) {
+			tz_diag_v8 = (struct tzbsp_diag_t_v8 *)ker_buf;
+			ring = tz_diag_v8->ring_off;
+			log = &tz_diag_v8->log;
+		} else {
+			tz_diag = (struct tzbsp_diag_t *) ker_buf;
+			ring = tz_diag->ring_off;
+			log = &tz_diag->log;
+		}
 
-	offset = log->log_pos.offset;
-	wrap = log->log_pos.wrap;
+		offset = log->log_pos.offset;
+		wrap = log->log_pos.wrap;
 
-	if (wrap != 0) {
-		memcpy(tmp_buf, (ker_buf + offset + ring),
-				(buf_len - offset - ring));
-		memcpy(tmp_buf + (buf_len - offset - ring), (ker_buf + ring),
-			offset);
-		tz_hvc_log->copy_len = (buf_len - offset - ring) + offset;
-	} else {
-		memcpy(tmp_buf, (ker_buf + ring), offset);
-		tz_hvc_log->copy_len = offset;
+		if (wrap != 0) {
+			memcpy(tmp_buf, (ker_buf + offset + ring),
+					(buf_len - offset - ring));
+			memcpy(tmp_buf + (buf_len - offset - ring),
+					(ker_buf + ring), offset);
+			tz_hvc_log->copy_len = (buf_len - offset - ring)
+					+ offset;
+		} else {
+			memcpy(tmp_buf, (ker_buf + ring), offset);
+			tz_hvc_log->copy_len = offset;
+		}
 	}
 
 	return 0;
@@ -289,6 +309,7 @@ static const struct of_device_id qca_tzlog_of_match[] = {
 	{ .compatible = "qca,tzlog" },
 	{ .compatible = "qca,tz64-hv-log", .data = (void *)TZ64_HVC_PRESENT},
 	{ .compatible = "qca,tz64log", .data = (void *)TZ_64},
+	{ .compatible = "qca,tzlog_ipq806x", .data = (void *)TZ_KPSS },
 	{}
 };
 MODULE_DEVICE_TABLE(of, qca_tzlog_of_match);
@@ -314,7 +335,10 @@ static int qca_tzlog_probe(struct platform_device *pdev)
 
 	if (id) {
 		tz_hvc_log->flags = (unsigned long)id->data;
-		tz_hvc_log->buf_len = BUF_LEN_V8;
+		if (tz_hvc_log->flags & TZ_KPSS)
+			tz_hvc_log->buf_len = BUF_LEN_V7;
+		else
+			tz_hvc_log->buf_len = BUF_LEN_V8;
 	} else {
 		tz_hvc_log->flags = 0;
 		tz_hvc_log->buf_len = BUF_LEN_V7;

@@ -512,6 +512,7 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-ipq4019-ap.dk06.1-c1.dtb \
 	qcom-ipq4019-ap.dk07.1-c1.dtb \
 	qcom-ipq4019-ap.dk07.1-c2.dtb \
+	qcom-ipq4019-ap.dk07.1-c3.dtb \
 	qcom-ipq4019-ap.dk07.1-c4.dtb \
 	qcom-apq8064-cm-qs600.dtb \
 	qcom-apq8064-ifc6410.dtb \
@@ -551,6 +552,7 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-ipq807x-hkr.dtb \
 	qcom-ipq807x-hk01.c2.dtb \
 	qcom-ipq807x-hk01.c3.dtb \
+	qcom-ipq807x-hk01.c4.dtb \
 	qcom-ipq807x-hk01.internal.dtb \
 	qcom-ipq807x-hk02.dtb \
 	qcom-ipq807x-hk05.dtb \

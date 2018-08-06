@@ -170,7 +170,6 @@ struct sdhci_msm_host {
 extern char *saved_command_line;
 
 /* Stubs */
-#define mmc_card_strobe(c)  (false)
 #define REQ_BUS_OFF     (1 << 0)
 #define REQ_BUS_ON      (1 << 1)
 #define REQ_IO_LOW      (1 << 2)

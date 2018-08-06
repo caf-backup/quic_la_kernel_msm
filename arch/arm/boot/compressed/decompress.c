@@ -46,8 +46,10 @@ extern char * strstr(const char * s1, const char *s2);
 #endif
 
 #ifdef CONFIG_KERNEL_XZ
+#if !defined(CONFIG_KASAN) || defined(__SANITIZE_ADDRESS__)
 #define memmove memmove
 #define memcpy memcpy
+#endif
 #include "../../../../lib/decompress_unxz.c"
 #endif
 

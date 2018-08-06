@@ -338,14 +338,14 @@ static void _wil6210_disconnect(struct wil6210_vif *vif, const u8 *bssid,
 		cid = wil_find_cid(wil, vif->mid, bssid);
 		wil_dbg_misc(wil, "Disconnect %pM, CID=%d, reason=%d\n",
 			     bssid, cid, reason_code);
-		if (vif->umac_vap)
+		if (vif->umac_vap && !disable_ap_sme)
 			wil->umac_ops.disconnect_sta(vif->umac_vap, bssid,
 						     reason_code);
 		if (cid >= 0) /* disconnect 1 peer */
 			wil_disconnect_cid(vif, cid, reason_code, from_event);
 	} else { /* all */
 		wil_dbg_misc(wil, "Disconnect all\n");
-		if (vif->umac_vap)
+		if (vif->umac_vap  && !disable_ap_sme)
 			wil->umac_ops.disconnect_sta(vif->umac_vap, NULL,
 						     reason_code);
 		for (cid = 0; cid < max_assoc_sta; cid++)
@@ -1149,6 +1149,9 @@ void wil_refresh_fw_capabilities(struct wil6210_priv *wil)
 		wiphy->max_sched_scan_ie_len = WMI_MAX_IE_LEN;
 		wiphy->max_sched_scan_plans = WMI_MAX_PLANS_NUM;
 	}
+
+	if (test_bit(WMI_FW_CAPABILITY_TX_REQ_EXT, wil->fw_capabilities))
+		wiphy->flags |= WIPHY_FLAG_OFFCHAN_TX;
 
 	if (wil->platform_ops.set_features) {
 		features = (test_bit(WMI_FW_CAPABILITY_REF_CLOCK_CONTROL,

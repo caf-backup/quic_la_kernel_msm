@@ -38,6 +38,24 @@ static struct nand_ecclayout winbond_oob_64 = {
 	}
 };
 
+static struct nand_ecclayout ath79_spinand_oob_128_gd = {
+	.eccbytes = 64,
+	.eccpos = {
+		64, 65, 66, 67, 68, 69, 70, 71,
+		72, 73, 74, 75, 76, 77, 78, 79,
+		80, 81, 82, 83, 84, 85, 86, 87,
+		88, 89, 90, 91, 92, 93, 94, 95,
+		96, 97, 98, 99, 100, 101, 102, 103,
+		104, 105, 106, 107, 108, 109, 110, 111,
+		112, 113, 114, 115, 116, 117, 118, 119,
+		120, 121, 122, 123, 124, 125, 126, 127},
+	.oobfree = {
+		{.offset = 16, .length = 3},
+		{.offset = 32, .length = 3},
+		{.offset = 48, .length = 3},
+	},
+};
+
 /* Only ecc un-protected fields in the spare area included */
 /* ECC parity code stored in the additional hidden spare area */
 static struct nand_ecclayout macronix_oob_64 = {
@@ -50,6 +68,21 @@ static struct nand_ecclayout macronix_oob_64 = {
 		{.offset = 50, .length = 2},
 	}
 };
+
+void gigadevice_set_defaults_128mb(struct spi_device *spi_nand)
+{
+	struct mtd_info *mtd = (struct mtd_info *)dev_get_drvdata
+						(&spi_nand->dev);
+	struct nand_chip *chip = (struct nand_chip *)mtd->priv;
+
+	chip->ecc.size	= 0x800;
+	chip->ecc.bytes	= 0x0;
+	chip->ecc.steps	= 0x0;
+
+	chip->ecc.strength = 1;
+	chip->ecc.total	= 0;
+	chip->ecc.layout = &ath79_spinand_oob_128_gd;
+}
 
 void gigadevice_set_defaults(struct spi_device *spi_nand)
 {

@@ -585,6 +585,14 @@ static int mmc_decode_ext_csd(struct mmc_card *card, u8 *ext_csd)
 		card->ext_csd.data_sector_size = 512;
 	}
 
+	if (card->ext_csd.rev >= 7) {
+		/* Enhance Strobe is supported since v5.1 which rev should be
+		 * 8 but some eMMC devices can support it with rev 7. So handle
+		 * Enhance Strobe here.
+		 */
+		card->ext_csd.strobe_support = ext_csd[EXT_CSD_STROBE_SUPPORT];
+	}
+
 	/* eMMC v5 or later */
 	if (card->ext_csd.rev >= 7) {
 		memcpy(card->ext_csd.fwrev, &ext_csd[EXT_CSD_FIRMWARE_VERSION],
@@ -1071,9 +1079,28 @@ static int mmc_select_hs400(struct mmc_card *card)
 	/*
 	 * HS400 mode requires 8-bit bus width
 	 */
-	if (!(card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS400 &&
-	      host->ios.bus_width == MMC_BUS_WIDTH_8))
-		return 0;
+	if (card->ext_csd.strobe_support) {
+		if (!(card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS400 &&
+		    host->caps & MMC_CAP_8_BIT_DATA))
+			return 0;
+
+		/* For Enhance Strobe flow. For non Enhance Strobe, signal
+		 * voltage will not be set.
+		 */
+		if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS200_1_2V)
+			err = __mmc_set_signal_voltage(host,
+					MMC_SIGNAL_VOLTAGE_120);
+
+		if (err && card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS200_1_8V)
+			err = __mmc_set_signal_voltage(host,
+					MMC_SIGNAL_VOLTAGE_180);
+		if (err)
+			return err;
+	} else {
+		if (!(card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS400 &&
+		    host->ios.bus_width == MMC_BUS_WIDTH_8))
+			return 0;
+	}
 
 	if (host->caps & MMC_CAP_WAIT_WHILE_BUSY)
 		send_status = false;
@@ -1103,16 +1130,23 @@ static int mmc_select_hs400(struct mmc_card *card)
 			goto out_err;
 	}
 
+	val = EXT_CSD_DDR_BUS_WIDTH_8;
+	if (card->ext_csd.strobe_support)
+		val |= EXT_CSD_BUS_WIDTH_STROBE;
+
 	/* Switch card to DDR */
 	err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 			 EXT_CSD_BUS_WIDTH,
-			 EXT_CSD_DDR_BUS_WIDTH_8,
+			 val,
 			 card->ext_csd.generic_cmd6_time);
 	if (err) {
 		pr_err("%s: switch to bus width for hs400 failed, err:%d\n",
 			mmc_hostname(host), err);
 		return err;
 	}
+
+	if (card->ext_csd.strobe_support)
+		mmc_set_bus_width(host, MMC_BUS_WIDTH_8);
 
 	/* Switch card to HS400 */
 	val = EXT_CSD_TIMING_HS400 |
@@ -1131,7 +1165,9 @@ static int mmc_select_hs400(struct mmc_card *card)
 	mmc_set_timing(host, MMC_TIMING_MMC_HS400);
 	mmc_set_bus_speed(card);
 
-	if ((host->caps2 & MMC_CAP2_HS400_POST_TUNING) &&
+	if (card->ext_csd.strobe_support && host->ops->enhanced_strobe) {
+		err = host->ops->enhanced_strobe(host);
+	} else if ((host->caps2 & MMC_CAP2_HS400_POST_TUNING) &&
 			host->ops->execute_tuning) {
 		err = host->ops->execute_tuning(host,
 				MMC_SEND_TUNING_BLOCK_HS200);
@@ -1322,7 +1358,12 @@ static int mmc_select_timing(struct mmc_card *card)
 	if (!mmc_can_ext_csd(card))
 		goto bus_speed;
 
-	if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS200)
+	/* For Enhance Strobe HS400 flow */
+	if (card->ext_csd.strobe_support &&
+	    card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS400 &&
+	    card->host->caps & MMC_CAP_8_BIT_DATA)
+		err = mmc_select_hs400(card);
+	else if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS200)
 		err = mmc_select_hs200(card);
 	else if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS)
 		err = mmc_select_hs(card);
@@ -1442,6 +1483,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		card->type = MMC_TYPE_MMC;
 		card->rca = 1;
 		memcpy(card->raw_cid, cid, sizeof(card->raw_cid));
+		host->card = card;
 	}
 
 	/*
@@ -1590,7 +1632,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		err = mmc_select_hs400(card);
 		if (err)
 			goto free_card;
-	} else {
+	} else if (!mmc_card_hs400(card)) {
 		/* Select the desired bus width optionally */
 		err = mmc_select_bus_width(card);
 		if (!IS_ERR_VALUE(err) && mmc_card_hs(card)) {
@@ -1675,8 +1717,10 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	return 0;
 
 free_card:
-	if (!oldcard)
+	if (!oldcard) {
+		host->card = NULL;
 		mmc_remove_card(card);
+	}
 err:
 	return err;
 }

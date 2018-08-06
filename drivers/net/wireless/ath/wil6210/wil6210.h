@@ -1408,6 +1408,9 @@ void wil6210_clear_halp(struct wil6210_priv *wil);
 int wmi_start_sched_scan(struct wil6210_priv *wil,
 			 struct cfg80211_sched_scan_request *request);
 int wmi_stop_sched_scan(struct wil6210_priv *wil);
+int wmi_mgmt_tx(struct wil6210_vif *vif, const u8 *buf, size_t len);
+int wmi_mgmt_tx_ext(struct wil6210_vif *vif, const u8 *buf, size_t len,
+		    u8 channel, u16 duration_ms);
 
 void wil_ftm_init(struct wil6210_vif *vif);
 void wil_ftm_deinit(struct wil6210_vif *vif);
@@ -1428,7 +1431,6 @@ int wmi_link_maintain_cfg_write(struct wil6210_priv *wil,
 				const u8 *addr,
 				bool fst_link_loss);
 
-int wmi_mgmt_tx(struct wil6210_vif *vif, const u8 *buf, size_t len);
 int wil_wmi_ring_priority_weight(struct wil6210_vif *vif, size_t num_weights,
 				 u8 *weights);
 int wil_wmi_ring_priority(struct wil6210_vif *vif, int vring_idx,
