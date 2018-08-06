@@ -14,29 +14,40 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+&soc {
+	dummy_reg: dummy-regulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "dummy-reg";
+		regulator-min-microvolt = <848000>;
+		regulator-max-microvolt = <848000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+};
+
 &CPU0 {
 	operating-points-v2 = <&cpu0_opp_table>;
 	voltage-tolerance = <1>;
-	cpu0-supply = <&apc_vreg>;
+	cpu0-supply = <&dummy_reg>;
 	enable-cpu-regulator;
 };
 
 &CPU1 {
 	operating-points-v2 = <&cpu0_opp_table>;
 	voltage-tolerance = <1>;
-	cpu-supply = <&apc_vreg>;
+	cpu-supply = <&dummy_reg>;
 };
 
 &CPU2 {
 	operating-points-v2 = <&cpu0_opp_table>;
 	voltage-tolerance = <1>;
-	cpu-supply = <&apc_vreg>;
+	cpu-supply = <&dummy_reg>;
 };
 
 &CPU3 {
 	operating-points-v2 = <&cpu0_opp_table>;
 	voltage-tolerance = <1>;
-	cpu-supply = <&apc_vreg>;
+	cpu-supply = <&dummy_reg>;
 };
 
 &cpus {
@@ -51,7 +62,7 @@
 		};
 		opp01 {
 			opp-hz = /bits/ 64 <1017600000>;
-			opp-microvolt = <1>;
+			opp-microvolt = <848000>;
 			clock-latency-ns = <200000>;
 		};
 	};
