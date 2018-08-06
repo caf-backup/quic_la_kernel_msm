@@ -598,6 +598,23 @@ struct sk_buff *nf_ct_frag6_gather(struct sk_buff *skb, u32 user)
 	hdr = ipv6_hdr(clone);
 	fhdr = (struct frag_hdr *)skb_transport_header(clone);
 
+#if IS_ENABLED(CONFIG_NF_IPV6_DUMMY_HEADER)
+	/*
+	 * Revoke dummy header removal by IPv6 reassembly code.
+	 *
+	 * Fragment header with MF and fragment offset field as 0, is a
+	 * dummy fragment header.
+	 *
+	 * MAP-T's RFC mandates CE to add the dummy header in packets and
+	 * adds its identification in its ID field. This field should be
+	 * conserved and delivered to BR, which uses it to identify the
+	 * particular CE.
+	 */
+	if (unlikely((fhdr->frag_off & htons(IP6_OFFSET | IP6_MF)) == 0)) {
+		goto ret_orig;
+	}
+#endif
+
 	local_bh_disable();
 	inet_frag_evictor(&net->nf_frag.frags, &nf_frags, false);
 	local_bh_enable();
