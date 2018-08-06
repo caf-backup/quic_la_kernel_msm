@@ -418,6 +418,112 @@ static struct device_attribute sec_attr =
 	__ATTR(sec_auth, 0644, NULL, store_sec_auth);
 
 struct kobject *sec_kobj;
+
+static ssize_t
+store_sec_dat(struct device *dev, struct device_attribute *attr,
+	      const char *buf, size_t count)
+{
+	int ret = count;
+	loff_t size;
+	u64 fuse_status = 0;
+	struct file *fptr = NULL;
+	struct kstat st;
+	void *ptr = NULL;
+	struct fuse_blow {
+		u32 address;
+		u64 status;
+	} fuse_blow;
+	dma_addr_t dma_req_addr = 0;
+	size_t req_order = 0;
+	struct page *req_page = NULL;
+	int rc = 0;
+	u64 dma_size;
+
+	fptr = filp_open(buf, O_RDONLY, 0);
+	if (IS_ERR(fptr)) {
+		pr_err("%s File open failed\n", buf);
+		ret = -EBADF;
+		goto out;
+	}
+
+	ret = vfs_getattr(&fptr->f_path, &st);
+	if (ret) {
+		pr_err("Getting file attributes failed\n");
+		goto file_close;
+	}
+	size = st.size;
+
+	/* determine the allocation order of a memory size */
+	req_order = get_order(size);
+
+	/* allocate pages from the kernel page pool */
+	req_page = alloc_pages(GFP_KERNEL, req_order);
+	if (!req_page) {
+		ret = -ENOMEM;
+		goto file_close;
+	} else {
+		/* get the mapped virtual address of the page */
+		ptr = page_address(req_page);
+	}
+	memset_io(ptr, 0, size);
+	ret = kernel_read(fptr, 0, ptr, size);
+	if (ret != size) {
+		pr_err("File read failed\n");
+		goto free_page;
+	}
+
+	dev->coherent_dma_mask = DMA_BIT_MASK(32);
+	dev->dma_pfn_offset = 0;
+	INIT_LIST_HEAD(&dev->dma_pools);
+	dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(32));
+	dma_size = dev->coherent_dma_mask + 1;
+
+	arch_setup_dma_ops(dev, 0, 0, NULL, 0);
+
+	/* map the memory region */
+	dma_req_addr = dma_map_single(dev, ptr, size, DMA_TO_DEVICE);
+	rc = dma_mapping_error(dev, dma_req_addr);
+	if (rc) {
+		pr_err("DMA Mapping Error\n");
+		dma_unmap_single(dev, dma_req_addr, size, DMA_TO_DEVICE);
+		free_pages((unsigned long)page_address(req_page), req_order);
+		goto file_close;
+	}
+	fuse_blow.address = dma_req_addr;
+	fuse_blow.status = &fuse_status;
+
+	ret = qcom_fuseipq_scm_call(dev, QCOM_SCM_SVC_FUSE,
+				    TZ_BLOW_FUSE_SECDAT, &fuse_blow,
+				    sizeof(fuse_blow));
+	if (ret) {
+		pr_err("Error in QFPROM write (%d %d)\n", ret, fuse_status);
+		goto free_mem;
+	}
+	if (fuse_status == FUSEPROV_SECDAT_LOCK_BLOWN)
+		pr_info("Fuse already blown\n");
+	else if (fuse_status == FUSEPROV_INVALID_HASH)
+		pr_info("Invalid sec.dat\n");
+	else if (fuse_status  != FUSEPROV_SUCCESS)
+		pr_info("Failed to Blow fuses\n");
+	else
+		pr_info("Fuse Blow Success\n");
+
+	ret = count;
+
+free_mem:
+	dma_unmap_single(dev, dma_req_addr, size, DMA_TO_DEVICE);
+free_page:
+	free_pages((unsigned long)page_address(req_page), req_order);
+file_close:
+	filp_close(fptr, NULL);
+out:
+	return ret;
+}
+
+static struct device_attribute sec_dat_attr =
+	__ATTR(sec_dat, 0644, NULL, store_sec_dat);
+static struct kobject *sec_dat_kobj;
+
 /*
  * Do not change the order of attributes.
  * New types should be added at the end
@@ -562,6 +668,19 @@ static int qfprom_probe(struct platform_device *pdev)
 				sec_kobj = NULL;
 			}
 		}
+	}
+
+	/* sysfs entry for fusing QFPROM */
+	sec_dat_kobj = kobject_create_and_add("sec_dat", NULL);
+	if (sec_dat_kobj) {
+		err = sysfs_create_file(sec_dat_kobj, &sec_dat_attr.attr);
+		if (err) {
+			pr_err("%s: Unable to create sysfs file %s\n",
+					__func__, sec_dat_attr.attr.name);
+			kobject_put(sec_dat_kobj);
+		}
+	} else {
+		pr_err("%s: Unable to create sec_dat sysfs entry\n", __func__);
 	}
 
 	return qfprom_create_files(ARRAY_SIZE(qfprom_attrs), sw_bitmap);
