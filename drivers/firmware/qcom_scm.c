@@ -409,7 +409,7 @@ EXPORT_SYMBOL(qcom_scm_pas_mem_setup);
  *
  * Return 0 on success.
  */
-int qcom_scm_pas_auth_and_reset(u32 peripheral)
+int qcom_scm_pas_auth_and_reset(u32 peripheral, u32 debug)
 {
 	int ret;
 
@@ -417,7 +417,7 @@ int qcom_scm_pas_auth_and_reset(u32 peripheral)
 	if (ret)
 		return ret;
 
-	ret = __qcom_scm_pas_auth_and_reset(__scm->dev, peripheral);
+	ret = __qcom_scm_pas_auth_and_reset(__scm->dev, peripheral, debug);
 	qcom_scm_clk_disable();
 
 	return ret;
