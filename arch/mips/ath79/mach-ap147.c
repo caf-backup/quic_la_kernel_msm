@@ -52,6 +52,10 @@
 #define AP147_WMAC_CALDATA_OFFSET	0x1000
 
 #define AP147IOE_GPIO_SPI_CS2			16
+#define AP147IOE_GPIO_FUNC_MUX_WL_ACTIVE	53
+#define AP147IOE_GPIO_BT_ACTIVE			0
+#define AP147IOE_GPIO_BT_PRIORITY		1
+#define AP147IOE_GPIO_WL_ACTIVE			2
 
 static struct gpio_led ap147_leds_gpio[] __initdata = {
 	{
@@ -248,6 +252,24 @@ static void __init ap147ioe_gpio_setup(void)
 	ath79_gpio_output_select(AP147IOE_GPIO_SPI_CS2,
 				 QCA953X_GPIO_OUT_MUX_SPI_CS2);
 	ath79_gpio_direction_select(AP147IOE_GPIO_SPI_CS2, true);
+
+	/* Disable JTAG for BT Coex pin */
+	ath79_gpio_function_enable(AR934X_GPIO_FUNC_JTAG_DISABLE);
+
+	ath79_gpio_direction_select(AP147IOE_GPIO_WL_ACTIVE, true);
+	ath79_gpio_direction_select(AP147IOE_GPIO_BT_ACTIVE, false);
+	ath79_gpio_direction_select(AP147IOE_GPIO_BT_PRIORITY, false);
+
+	ath79_gpio_output_select(AP147IOE_GPIO_WL_ACTIVE,
+				 AP147IOE_GPIO_FUNC_MUX_WL_ACTIVE);
+	ath79_gpio_input_select(AP147IOE_GPIO_BT_ACTIVE,
+				AR934X_GPIO_IN_MUX_BT_ACTIVE);
+	ath79_gpio_input_select(AP147IOE_GPIO_BT_PRIORITY,
+				AR934X_GPIO_IN_MUX_BT_PRIORITY);
+
+	ath79_wmac_set_btcoex_pin(AP147IOE_GPIO_BT_ACTIVE,
+				  AP147IOE_GPIO_BT_PRIORITY,
+				  AP147IOE_GPIO_WL_ACTIVE);
 }
 
 static void __init ap147_setup(void)
