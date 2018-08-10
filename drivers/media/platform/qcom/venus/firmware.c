@@ -12,8 +12,11 @@
  *
  */
 
+#include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/device.h>
 #include <linux/firmware.h>
+#include <linux/iommu.h>
 #include <linux/kernel.h>
 #include <linux/iommu.h>
 #include <linux/io.h>
@@ -30,7 +33,7 @@
 #include "hfi_venus_io.h"
 
 #define VENUS_PAS_ID			9
-#define VENUS_FW_MEM_SIZE		(6 * SZ_1M)
+#define VENUS_FW_MEM_SIZE		(5 * SZ_1M)
 #define VENUS_FW_START_ADDR		0x0
 
 static void venus_reset_cpu(struct venus_core *core)
@@ -287,3 +290,20 @@ void venus_firmware_deinit(struct venus_core *core)
 
 	platform_device_unregister(to_platform_device(core->fw.dev));
 }
+
+static const struct of_device_id firmware_dt_match[] = {
+	{ .compatible = "qcom,venus-firmware" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, firmware_dt_match);
+
+struct platform_driver qcom_video_firmware_driver = {
+	.driver = {
+			.name = "qcom-video-firmware",
+			.of_match_table = firmware_dt_match,
+	},
+};
+
+MODULE_ALIAS("platform:qcom-video-firmware");
+MODULE_DESCRIPTION("Qualcomm Venus firmware driver");
+MODULE_LICENSE("GPL v2");
