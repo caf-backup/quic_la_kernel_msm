@@ -906,10 +906,14 @@ void cnss_wlan_unregister_driver(struct cnss_wlan_driver *driver_ops)
 		ops = plat_priv->driver_ops;
 
 		subsys_info = &plat_priv->subsys_info;
-		if (subsys_info->subsys_handle)
+		if (subsys_info->subsys_handle &&
+		    !subsys_info->subsystem_put_in_progress) {
+			subsys_info->subsystem_put_in_progress = true;
 			subsystem_put(subsys_info->subsys_handle);
-		else
+			subsys_info->subsystem_put_in_progress = false;
+		} else {
 			ops->remove(plat_priv->plat_dev);
+		}
 
 		subsys_info->subsys_handle = NULL;
 		cnss_unregister_qca8074_cb(plat_priv);
@@ -951,10 +955,13 @@ void cnss_subsystem_put(struct device *dev)
 		return;
 
 	subsys_info = &plat_priv->subsys_info;
-	if (subsys_info->subsys_handle)
+	if (subsys_info->subsys_handle &&
+	    !subsys_info->subsystem_put_in_progress) {
+		subsys_info->subsystem_put_in_progress = true;
 		subsystem_put(subsys_info->subsys_handle);
-
-	subsys_info->subsys_handle = NULL;
+		subsys_info->subsystem_put_in_progress = false;
+		subsys_info->subsys_handle = NULL;
+	}
 }
 EXPORT_SYMBOL(cnss_subsystem_put);
 
