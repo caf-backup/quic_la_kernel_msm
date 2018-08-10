@@ -1105,24 +1105,56 @@ int __qcom_scm_pas_mem_setup(struct device *dev, u32 peripheral,
 	return ret ? : le32_to_cpu(scm_ret);
 }
 
-int __qcom_scm_pas_auth_and_reset(struct device *dev, u32 peripheral)
+int __qcom_scm_pas_auth_and_reset(struct device *dev, u32 peripheral, u32 debug)
 {
 	__le32 out;
 	__le32 in;
 	int ret;
+	int break_support = 0;
 	struct scm_desc desc = {0};
 
+	if (debug) {
+		ret = __qcom_scm_is_call_available(dev,
+				QCOM_SCM_SVC_PIL,
+				QCOM_SCM_PAS_AUTH_DEBUG_RESET_CMD);
+		if (!ret)
+			pr_err("No Break at reset supported\n");
+		else
+			break_support = 1;
+	}
+
 	if (!is_scm_armv8()) {
+		if (break_support) {
+			in = cpu_to_le32(debug);
+			ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL,
+					QCOM_SCM_PAS_AUTH_DEBUG_RESET_CMD,
+					&in, sizeof(in),
+					&out, sizeof(out));
+			if (ret || le32_to_cpu(out))
+				return ret ? : le32_to_cpu(out);
+		}
+
 		in = cpu_to_le32(peripheral);
 		ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL,
 			    QCOM_SCM_PAS_AUTH_AND_RESET_CMD,
 			    &in, sizeof(in),
 			    &out, sizeof(out));
 	} else {
+		if (break_support) {
+			desc.args[0] = debug;
+			desc.arginfo = SCM_ARGS(1);
+			ret = qcom_scm_call2(SCM_SIP_FNID(QCOM_SCM_SVC_PIL,
+				QCOM_SCM_PAS_AUTH_DEBUG_RESET_CMD), &desc);
+			out = desc.ret[0];
+			if (ret || le32_to_cpu(out))
+				return ret ? : le32_to_cpu(out);
+		}
+
 		desc.args[0] = peripheral;
 		desc.arginfo = SCM_ARGS(1);
 		ret = qcom_scm_call2(SCM_SIP_FNID(QCOM_SCM_SVC_PIL,
 				QCOM_SCM_PAS_AUTH_AND_RESET_CMD), &desc);
+
 		out = desc.ret[0];
 	}
 	return ret ? : le32_to_cpu(out);
