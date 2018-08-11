@@ -7984,11 +7984,8 @@ static int nl80211_connect(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (nla_get_flag(info->attrs[NL80211_ATTR_EXTERNAL_AUTH_SUPPORT])) {
-		if (!info->attrs[NL80211_ATTR_SOCKET_OWNER]) {
-			GENL_SET_ERR_MSG(info,
-					 "external auth requires connection ownership");
+		if (!info->attrs[NL80211_ATTR_SOCKET_OWNER])
 			return -EINVAL;
-		}
 		connect.flags |= CONNECT_REQ_EXTERNAL_AUTH_SUPPORT;
 	}
 
@@ -13468,8 +13465,9 @@ int cfg80211_external_auth_request(struct net_device *dev,
 	    nla_put_u32(msg, NL80211_ATTR_EXTERNAL_AUTH_ACTION,
 			params->action) ||
 	    nla_put(msg, NL80211_ATTR_BSSID, ETH_ALEN, params->bssid) ||
-	    nla_put(msg, NL80211_ATTR_SSID, params->ssid.ssid_len,
-		    params->ssid.ssid))
+	    (params->ssid.ssid_len &&
+		nla_put(msg, NL80211_ATTR_SSID, params->ssid.ssid_len,
+			params->ssid.ssid)))
 		goto nla_put_failure;
 
 	genlmsg_end(msg, hdr);
