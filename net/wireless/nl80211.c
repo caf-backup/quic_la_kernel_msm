@@ -3282,6 +3282,11 @@ static bool nl80211_valid_auth_type(struct cfg80211_registered_device *rdev,
 			return false;
 		return true;
 	case NL80211_CMD_CONNECT:
+		if (!(rdev->wiphy.features & NL80211_FEATURE_SAE) &&
+		    auth_type == NL80211_AUTHTYPE_SAE)
+			return false;
+
+		return true;
 	case NL80211_CMD_START_AP:
 		/* SAE not supported yet */
 		if (auth_type == NL80211_AUTHTYPE_SAE)
@@ -10652,7 +10657,7 @@ static int nl80211_external_auth(struct sk_buff *skb, struct genl_info *info)
 	struct net_device *dev = info->user_ptr[1];
 	struct cfg80211_external_auth_params params;
 
-	if (rdev->ops->external_auth)
+	if (!rdev->ops->external_auth)
 		return -EOPNOTSUPP;
 
 	if (!info->attrs[NL80211_ATTR_SSID])
