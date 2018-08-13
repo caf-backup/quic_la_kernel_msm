@@ -1261,6 +1261,7 @@ enum ethtool_sfeatures_retval_bits {
 #define SUPPORTED_56000baseCR4_Full	(1 << 28)
 #define SUPPORTED_56000baseSR4_Full	(1 << 29)
 #define SUPPORTED_56000baseLR4_Full	(1 << 30)
+#define SUPPORTED_PTP			(1 << 31)
 
 #define ADVERTISED_10baseT_Half		(1 << 0)
 #define ADVERTISED_10baseT_Full		(1 << 1)
@@ -1293,6 +1294,7 @@ enum ethtool_sfeatures_retval_bits {
 #define ADVERTISED_56000baseCR4_Full	(1 << 28)
 #define ADVERTISED_56000baseSR4_Full	(1 << 29)
 #define ADVERTISED_56000baseLR4_Full	(1 << 30)
+#define ADVERTISED_PTP			(1 << 31)
 
 /* The following are all involved in forcing a particular link
  * mode for the device for setting things.  When getting the

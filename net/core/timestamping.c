@@ -63,6 +63,9 @@ bool skb_defer_rx_timestamp(struct sk_buff *skb)
 	if (!skb->dev || !skb->dev->phydev || !skb->dev->phydev->drv)
 		return false;
 
+	if (!(skb->dev->phydev->advertising & ADVERTISED_PTP))
+		return false;
+
 	if (skb_headroom(skb) < ETH_HLEN)
 		return false;
 
