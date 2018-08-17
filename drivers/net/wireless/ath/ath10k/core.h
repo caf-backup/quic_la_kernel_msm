@@ -656,6 +656,11 @@ enum ath10k_dev_flags {
 
 	/* Per Station statistics service */
 	ATH10K_FLAG_PEER_STATS,
+
+	/* Crash has been injected from debugfs and the firmware
+	 * has not actually crashed.
+	 */
+	ATH10K_FLAG_DEBUGFS_CRASH_INJECT,
 };
 
 enum ath10k_cal_mode {
@@ -811,6 +816,7 @@ struct ath10k {
 	} hif;
 
 	struct completion target_suspend;
+	struct completion driver_recovery;
 
 	const struct ath10k_hw_regs *regs;
 	const struct ath10k_hw_ce_regs *hw_ce_regs;
