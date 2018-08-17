@@ -99,6 +99,7 @@
 				linux,modalias = "m25p80", "n25q128a11";
 				reg = <0>;
 				spi-max-frequency = <25000000>;
+				support-4byte-cmd;
 			};
 		};
 

@@ -861,6 +861,11 @@ static const struct flash_info spi_nor_ids[] = {
 	{ },
 };
 
+static bool spi_nor_4byte_cmd_support(struct device_node *np)
+{
+	return of_property_read_bool(np, "support-4byte-cmd");
+}
+
 static int spi_nor_default_config(struct spi_nor *nor,
 			struct device_node *np, struct flash_info *def_id)
 {
@@ -1336,7 +1341,7 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 		if ((JEDEC_MFR(info) == SNOR_MFR_SPANSION) ||
 			(JEDEC_MFR(info) == SNOR_MFR_MACRONIX) ||
 			(JEDEC_MFR(info) == SNOR_MFR_MICRON) ||
-			(JEDEC_MFR(info) == SNOR_MFR_WINBOND)) {
+			spi_nor_4byte_cmd_support(np)) {
 			/* Dedicated 4-byte command set */
 			switch (nor->flash_read) {
 			case SPI_NOR_QUAD:
