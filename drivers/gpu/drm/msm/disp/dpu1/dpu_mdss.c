@@ -3,8 +3,6 @@
  * Copyright (c) 2018, The Linux Foundation
  */
 
-#include <linux/dpu_io_util.h>
-
 #include "dpu_kms.h"
 
 #define to_dpu_mdss(x) container_of(x, struct dpu_mdss, base)
@@ -228,12 +226,7 @@ int dpu_mdss_init(struct drm_device *dev)
 
 	pm_runtime_get_sync(dev->dev);
 	dpu_mdss->hwversion = readl_relaxed(dpu_mdss->mmio);
-
-	/*
-	 * HACK: To enable display with new interconnect
-	 * bus framework changes
-	 */
-	//pm_runtime_put_sync(dev->dev);
+	pm_runtime_put_sync(dev->dev);
 
 	priv->mdss = &dpu_mdss->base;
 

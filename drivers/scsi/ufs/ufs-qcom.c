@@ -113,10 +113,10 @@ static void ufs_qcom_disable_lane_clks(struct ufs_qcom_host *host)
 	if (!host->is_lane_clks_enabled)
 		return;
 
-	if (host->tx_l1_sync_clk)
+	if (host->hba->lanes_per_direction > 1)
 		clk_disable_unprepare(host->tx_l1_sync_clk);
 	clk_disable_unprepare(host->tx_l0_sync_clk);
-	if (host->rx_l1_sync_clk)
+	if (host->hba->lanes_per_direction > 1)
 		clk_disable_unprepare(host->rx_l1_sync_clk);
 	clk_disable_unprepare(host->rx_l0_sync_clk);
 
@@ -147,15 +147,18 @@ static int ufs_qcom_enable_lane_clks(struct ufs_qcom_host *host)
 		if (err)
 			goto disable_tx_l0;
 
-		/* The tx lane1 clk could be muxed, hence keep this optional */
-		if (host->tx_l1_sync_clk)
-			ufs_qcom_host_clk_enable(dev, "tx_lane1_sync_clk",
-						 host->tx_l1_sync_clk);
+		err = ufs_qcom_host_clk_enable(dev, "tx_lane1_sync_clk",
+			host->tx_l1_sync_clk);
+		if (err)
+			goto disable_rx_l1;
 	}
 
 	host->is_lane_clks_enabled = true;
 	goto out;
 
+disable_rx_l1:
+	if (host->hba->lanes_per_direction > 1)
+		clk_disable_unprepare(host->rx_l1_sync_clk);
 disable_tx_l0:
 	clk_disable_unprepare(host->tx_l0_sync_clk);
 disable_rx_l0:
@@ -186,9 +189,8 @@ static int ufs_qcom_init_lane_clks(struct ufs_qcom_host *host)
 		if (err)
 			goto out;
 
-		/* The tx lane1 clk could be muxed, hence keep this optional */
-		ufs_qcom_host_clk_get(dev, "tx_lane1_sync_clk",
-					&host->tx_l1_sync_clk);
+		err = ufs_qcom_host_clk_get(dev, "tx_lane1_sync_clk",
+			&host->tx_l1_sync_clk);
 	}
 out:
 	return err;
@@ -286,7 +288,6 @@ static int ufs_qcom_power_up_sequence(struct ufs_hba *hba)
 			__func__, ret);
 		goto out;
 	}
-	host->is_phy_init = true;
 
 	/* De-assert PHY reset and start serdes */
 	ufs_qcom_deassert_reset(hba);
@@ -1086,12 +1087,12 @@ static void ufs_qcom_advertise_quirks(struct ufs_hba *hba)
 {
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
 
-	if (host->hw_ver.major == 0x1) {
+	if (host->hw_ver.major == 0x01) {
 		hba->quirks |= UFSHCD_QUIRK_DELAY_BEFORE_DME_CMDS
 			    | UFSHCD_QUIRK_BROKEN_PA_RXHSUNTERMCAP
 			    | UFSHCD_QUIRK_DME_PEER_ACCESS_AUTO_MODE;
 
-		if (host->hw_ver.minor == 0x001 && host->hw_ver.step == 0x0001)
+		if (host->hw_ver.minor == 0x0001 && host->hw_ver.step == 0x0001)
 			hba->quirks |= UFSHCD_QUIRK_BROKEN_INTR_AGGR;
 
 		hba->quirks |= UFSHCD_QUIRK_BROKEN_LCC;
@@ -1146,8 +1147,7 @@ static int ufs_qcom_setup_clocks(struct ufs_hba *hba, bool on,
 		return 0;
 
 	if (on && (status == POST_CHANGE)) {
-		if (host->is_phy_init)
-			phy_power_on(host->generic_phy);
+		phy_power_on(host->generic_phy);
 
 		/* enable the device ref clock for HS mode*/
 		if (ufshcd_is_hs_mode(&hba->pwr_info))

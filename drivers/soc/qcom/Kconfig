@@ -72,7 +72,7 @@ config QCOM_PM
 	  low power modes.
 
 config QCOM_QMI_HELPERS
-	tristate "Qualcomm QMI Helpers"
+	tristate
 	depends on ARCH_QCOM && NET
 	help
 	  Helper library for handling QMI encoded messages.  QMI encoded
@@ -106,7 +106,6 @@ config QCOM_SMEM
 	tristate "Qualcomm Shared Memory Manager (SMEM)"
 	depends on ARCH_QCOM
 	depends on HWSPINLOCK
-	select SOC_BUS
 	help
 	  Say y here to enable support for the Qualcomm Shared Memory Manager.
 	  The driver provides an interface to items in a heap shared among all
