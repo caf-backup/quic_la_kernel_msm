@@ -51,6 +51,12 @@
 #define AP147_MAC1_OFFSET		6
 #define AP147_WMAC_CALDATA_OFFSET	0x1000
 
+#define AP147IOE_GPIO_SPI_CS2			16
+#define AP147IOE_GPIO_FUNC_MUX_WL_ACTIVE	53
+#define AP147IOE_GPIO_BT_ACTIVE			0
+#define AP147IOE_GPIO_BT_PRIORITY		1
+#define AP147IOE_GPIO_WL_ACTIVE			2
+
 static struct gpio_led ap147_leds_gpio[] __initdata = {
 	{
 		.name		= "ap147:green:status",
@@ -116,7 +122,33 @@ static struct ath79_spi_controller_data ap147ioe_spi1_cdata =
 	.cs_line        = 1,
 };
 
+static struct ath79_spi_controller_data ap147ioe_spi2_cdata =
+{
+	.cs_type	= ATH79_SPI_CS_TYPE_INTERNAL,
+	.is_flash	= false,
+	.cs_line	= 2,
+};
+
 static struct spi_board_info ap147ioe_spi_info[] = {
+	{
+		.bus_num        = 0,
+		.chip_select    = 0,
+		.max_speed_hz   = 25000000,
+		.modalias       = "m25p80",
+		.controller_data = &ap147ioe_spi0_cdata,
+		.platform_data  = NULL,
+	},
+	{
+		.bus_num	= 0,
+		.chip_select	= 1,
+		.max_speed_hz   = 25000000,
+		.modalias	= "spidev",
+		.controller_data = &ap147ioe_spi2_cdata,
+		.platform_data 	= NULL,
+	}
+};
+
+static struct spi_board_info ap147ioe_dual_spi_info[] = {
 	{
 		.bus_num        = 0,
 		.chip_select    = 0,
@@ -128,16 +160,51 @@ static struct spi_board_info ap147ioe_spi_info[] = {
 	{
 		.bus_num        = 0,
 		.chip_select    = 1,
-		.max_speed_hz   = 50000000,
+		.max_speed_hz   = 25000000,
+		.modalias       = "m25p80",
+		.controller_data = &ap147ioe_spi1_cdata,
+		.platform_data  = NULL,
+	},
+	{
+		.bus_num	= 0,
+		.chip_select	= 2,
+		.max_speed_hz   = 25000000,
+		.modalias	= "spidev",
+		.controller_data = &ap147ioe_spi2_cdata,
+		.platform_data 	= NULL,
+	}
+};
+
+static struct spi_board_info ap147ioe_nand_spi_info[] = {
+	{
+		.bus_num        = 0,
+		.chip_select    = 0,
+		.max_speed_hz   = 25000000,
+		.modalias       = "m25p80",
+		.controller_data = &ap147ioe_spi0_cdata,
+		.platform_data  = NULL,
+	},
+	{
+		.bus_num        = 0,
+		.chip_select    = 1,
+		.max_speed_hz   = 25000000,
 		.modalias       = "ath79-spinand",
 		.controller_data = &ap147ioe_spi1_cdata,
 		.platform_data  = NULL,
+	},
+	{
+		.bus_num	= 0,
+		.chip_select	= 2,
+		.max_speed_hz   = 25000000,
+		.modalias	= "spidev",
+		.controller_data = &ap147ioe_spi2_cdata,
+		.platform_data 	= NULL,
 	}
 };
 
 static struct ath79_spi_platform_data ap147ioe_spi_data = {
 	.bus_num                = 0,
-	.num_chipselect         = 2,
+	.num_chipselect         = 3,
 	.word_banger            = true,
 };
 
@@ -174,6 +241,37 @@ static void __init ap147_common_setup(void)
 	ath79_register_eth(1);
 }
 
+static void __init ap147ioe_gpio_setup(void)
+{
+	ath79_register_leds_gpio(-1, ARRAY_SIZE(ap147ioe_leds_gpio),
+				 ap147ioe_leds_gpio);
+	ath79_register_gpio_keys_polled(-1, AP147_KEYS_POLL_INTERVAL,
+					ARRAY_SIZE(ap147ioe_gpio_keys),
+					ap147ioe_gpio_keys);
+	/* enable SPI CS2 */
+	ath79_gpio_output_select(AP147IOE_GPIO_SPI_CS2,
+				 QCA953X_GPIO_OUT_MUX_SPI_CS2);
+	ath79_gpio_direction_select(AP147IOE_GPIO_SPI_CS2, true);
+
+	/* Disable JTAG for BT Coex pin */
+	ath79_gpio_function_enable(AR934X_GPIO_FUNC_JTAG_DISABLE);
+
+	ath79_gpio_direction_select(AP147IOE_GPIO_WL_ACTIVE, true);
+	ath79_gpio_direction_select(AP147IOE_GPIO_BT_ACTIVE, false);
+	ath79_gpio_direction_select(AP147IOE_GPIO_BT_PRIORITY, false);
+
+	ath79_gpio_output_select(AP147IOE_GPIO_WL_ACTIVE,
+				 AP147IOE_GPIO_FUNC_MUX_WL_ACTIVE);
+	ath79_gpio_input_select(AP147IOE_GPIO_BT_ACTIVE,
+				AR934X_GPIO_IN_MUX_BT_ACTIVE);
+	ath79_gpio_input_select(AP147IOE_GPIO_BT_PRIORITY,
+				AR934X_GPIO_IN_MUX_BT_PRIORITY);
+
+	ath79_wmac_set_btcoex_pin(AP147IOE_GPIO_BT_ACTIVE,
+				  AP147IOE_GPIO_BT_PRIORITY,
+				  AP147IOE_GPIO_WL_ACTIVE);
+}
+
 static void __init ap147_setup(void)
 {
 	ath79_register_m25p80(NULL);
@@ -187,19 +285,22 @@ static void __init ap147_setup(void)
 
 static void __init ap147ioe_setup(void)
 {
-	ath79_register_m25p80(NULL);
+	ap147ioe_gpio_setup();
+	ath79_register_spi(&ap147ioe_spi_data, ap147ioe_spi_info, 2);
 	ap147_common_setup();
 }
 
 static void __init ap147ioe_dual_setup(void)
 {
-	ath79_register_m25p80_multi(NULL);
+	ap147ioe_gpio_setup();
+	ath79_register_spi(&ap147ioe_spi_data, ap147ioe_dual_spi_info, 3);
 	ap147_common_setup();
 }
 
 static void __init ap147ioe_nand_setup(void)
 {
-	ath79_register_spi(&ap147ioe_spi_data, ap147ioe_spi_info, 2);
+	ap147ioe_gpio_setup();
+	ath79_register_spi(&ap147ioe_spi_data, ap147ioe_nand_spi_info, 3);
 	ap147_common_setup();
 }
 
