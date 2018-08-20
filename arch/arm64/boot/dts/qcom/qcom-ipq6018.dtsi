@@ -70,6 +70,26 @@
 			status = "disabled";
 		};
 
+		edma@3ab00000 {
+			compatible = "qcom,edma";
+			reg = <0x3ab00000 0xabe00>;
+			reg-names = "edma-reg-base";
+			qcom,txdesc-ring-start = <23>;
+			qcom,txdesc-rings = <1>;
+			qcom,txcmpl-ring-start = <23>;
+			qcom,txcmpl-rings = <1>;
+			qcom,rxfill-ring-start = <7>;
+			qcom,rxfill-rings = <1>;
+			qcom,rxdesc-ring-start = <15>;
+			qcom,rxdesc-rings = <1>;
+			interrupts = <0 378 4>,
+				   <0 354 4>,
+				   <0 346 4>,
+				   <0 379 4>;
+			resets = <&gcc GCC_EDMA_HW_RESET>;
+			reset-names = "edma_rst";
+		};
+
 		nss-common {
 			compatible = "qcom,nss-common";
 			reg = <0x01868010 0x1000>;
