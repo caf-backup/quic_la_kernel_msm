@@ -330,7 +330,7 @@ int __qcom_scm_pas_auth_and_reset(struct device *dev, u32 peripheral, u32 debug)
 	int ret;
 	struct qcom_scm_desc desc = {0};
 	struct arm_smccc_res res;
-	int break_support = 0;
+	static int break_support = 0;
 
 	if (debug) {
 		ret = __qcom_scm_is_call_available(dev,

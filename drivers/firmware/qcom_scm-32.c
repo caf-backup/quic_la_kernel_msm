@@ -1110,7 +1110,7 @@ int __qcom_scm_pas_auth_and_reset(struct device *dev, u32 peripheral, u32 debug)
 	__le32 out;
 	__le32 in;
 	int ret;
-	int break_support = 0;
+	static int break_support = 0;
 	struct scm_desc desc = {0};
 
 	if (debug) {
