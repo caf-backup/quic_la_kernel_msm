@@ -295,7 +295,7 @@ static int vadc_set_state(struct vadc_priv *vadc, bool state)
 
 static void vadc_show_status(struct vadc_priv *vadc)
 {
-	u8 mode, sta1, chan, dig, en, req;
+	u8 mode = 0, sta1, chan, dig, en, req;
 	int ret;
 
 	if (vadc->dev_data->mode_ctl) {
@@ -546,6 +546,10 @@ static int vadc_measure_ref_points(struct vadc_priv *vadc)
 	if (!prop)
 		prop = vadc_get_channel(vadc, VADC_REF_625MV);
 
+	if (!prop) {
+		ret = -EINVAL;
+		goto err;
+	}
 	ret = vadc_do_conversion(vadc, prop, &read_2);
 	if (ret)
 		goto err;
@@ -560,11 +564,19 @@ static int vadc_measure_ref_points(struct vadc_priv *vadc)
 
 	/* Ratiometric calibration */
 	prop = vadc_get_channel(vadc, VADC_VDD_VADC);
+	if (!prop) {
+		ret = -EINVAL;
+		goto err;
+	}
 	ret = vadc_do_conversion(vadc, prop, &read_1);
 	if (ret)
 		goto err;
 
 	prop = vadc_get_channel(vadc, VADC_GND_REF);
+	if (!prop) {
+		ret = -EINVAL;
+		goto err;
+	}
 	ret = vadc_do_conversion(vadc, prop, &read_2);
 	if (ret)
 		goto err;

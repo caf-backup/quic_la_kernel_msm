@@ -29,6 +29,7 @@
 #define WAIT_FOR_HALP_VOTE_MS 100
 #define WAIT_FOR_SCAN_ABORT_MS 1000
 #define WIL_DEFAULT_NUM_RX_STATUS_RINGS 1
+#define WIL_BOARD_FILE_MAX_NAMELEN 128
 
 bool debug_fw; /* = false; */
 module_param(debug_fw, bool, 0444);
@@ -338,14 +339,14 @@ static void _wil6210_disconnect(struct wil6210_vif *vif, const u8 *bssid,
 		cid = wil_find_cid(wil, vif->mid, bssid);
 		wil_dbg_misc(wil, "Disconnect %pM, CID=%d, reason=%d\n",
 			     bssid, cid, reason_code);
-		if (vif->umac_vap)
+		if (vif->umac_vap && !disable_ap_sme)
 			wil->umac_ops.disconnect_sta(vif->umac_vap, bssid,
 						     reason_code);
 		if (cid >= 0) /* disconnect 1 peer */
 			wil_disconnect_cid(vif, cid, reason_code, from_event);
 	} else { /* all */
 		wil_dbg_misc(wil, "Disconnect all\n");
-		if (vif->umac_vap)
+		if (vif->umac_vap  && !disable_ap_sme)
 			wil->umac_ops.disconnect_sta(vif->umac_vap, NULL,
 						     reason_code);
 		for (cid = 0; cid < max_assoc_sta; cid++)
@@ -416,6 +417,8 @@ void wil_disconnect_worker(struct work_struct *work)
 	if (!test_bit(wil_vif_fwconnecting, vif->status))
 		/* already disconnected */
 		return;
+
+	memset(&reply, 0, sizeof(reply));
 
 	rc = wmi_call(wil, WMI_DISCONNECT_CMDID, vif->mid, NULL, 0,
 		      WMI_DISCONNECT_EVENTID, &reply, sizeof(reply),
@@ -686,8 +689,22 @@ int wil_priv_init(struct wil6210_priv *wil)
 	wil->reply_mid = U8_MAX;
 	wil->max_vifs = 1;
 
-	/* num of rx srings can be updated via debugfs before allocation */
+	/* edma configuration can be updated via debugfs before allocation */
 	wil->num_rx_status_rings = WIL_DEFAULT_NUM_RX_STATUS_RINGS;
+	wil->tx_status_ring_order = WIL_TX_SRING_SIZE_ORDER_DEFAULT;
+
+	/* Rx status ring size should be bigger than the number of RX buffers
+	 * in order to prevent backpressure on the status ring, which may
+	 * cause HW freeze.
+	 */
+	wil->rx_status_ring_order = WIL_RX_SRING_SIZE_ORDER_DEFAULT;
+	/* Number of RX buffer IDs should be bigger than the RX descriptor
+	 * ring size as in HW reorder flow, the HW can consume additional
+	 * buffers before releasing the previous ones.
+	 */
+	wil->rx_buff_id_count = WIL_RX_BUFF_ARR_SIZE_DEFAULT;
+
+	wil->amsdu_en = 1;
 
 	return 0;
 
@@ -1150,6 +1167,9 @@ void wil_refresh_fw_capabilities(struct wil6210_priv *wil)
 		wiphy->max_sched_scan_plans = WMI_MAX_PLANS_NUM;
 	}
 
+	if (test_bit(WMI_FW_CAPABILITY_TX_REQ_EXT, wil->fw_capabilities))
+		wiphy->flags |= WIPHY_FLAG_OFFCHAN_TX;
+
 	if (wil->platform_ops.set_features) {
 		features = (test_bit(WMI_FW_CAPABILITY_REF_CLOCK_CONTROL,
 				     wil->fw_capabilities) &&
@@ -1158,6 +1178,15 @@ void wil_refresh_fw_capabilities(struct wil6210_priv *wil)
 			BIT(WIL_PLATFORM_FEATURE_FW_EXT_CLK_CONTROL) : 0;
 
 		wil->platform_ops.set_features(wil->platform_handle, features);
+	}
+
+	if (test_bit(WMI_FW_CAPABILITY_BACK_WIN_SIZE_64,
+		     wil->fw_capabilities)) {
+		wil->max_agg_wsize = WIL_MAX_AGG_WSIZE_64;
+		wil->max_ampdu_size = WIL_MAX_AMPDU_SIZE_128;
+	} else {
+		wil->max_agg_wsize = WIL_MAX_AGG_WSIZE;
+		wil->max_ampdu_size = WIL_MAX_AMPDU_SIZE;
 	}
 }
 
@@ -1168,6 +1197,44 @@ void wil_mbox_ring_le2cpus(struct wil6210_mbox_ring *r)
 	le16_to_cpus(&r->size);
 	le32_to_cpus(&r->tail);
 	le32_to_cpus(&r->head);
+}
+
+/* construct actual board file name to use */
+void wil_get_board_file(struct wil6210_priv *wil, char *buf, size_t len)
+{
+	const char *board_file;
+	const char *ext;
+	int prefix_len;
+	const char *wil_talyn_fw_name = ftm_mode ? WIL_FW_NAME_FTM_TALYN :
+			      WIL_FW_NAME_TALYN;
+
+	if (wil->board_file) {
+		board_file = wil->board_file;
+	} else {
+		/* If specific FW file is used for Talyn,
+		 * use specific board file
+		 */
+		if (strcmp(wil->wil_fw_name, wil_talyn_fw_name) == 0)
+			board_file = WIL_BRD_NAME_TALYN;
+		else
+			board_file = WIL_BOARD_FILE_NAME;
+	}
+
+	if (wil->board_file_country[0] == '\0') {
+		strlcpy(buf, board_file, len);
+		return;
+	}
+
+	/* use country specific board file */
+	if (len < strlen(board_file) + 4 /* for _XX and terminating null */)
+		return;
+
+	ext = strrchr(board_file, '.');
+	prefix_len = (ext ? ext - board_file : strlen(board_file));
+	snprintf(buf, len, "%.*s_%.2s",
+		 prefix_len, board_file, wil->board_file_country);
+	if (ext)
+		strlcat(buf, ext, len);
 }
 
 static int wil_get_bl_info(struct wil6210_priv *wil)
@@ -1540,8 +1607,12 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 
 	wil_set_oob_mode(wil, oob_mode);
 	if (load_fw) {
+		char board_file[WIL_BOARD_FILE_MAX_NAMELEN];
+
+		board_file[0] = '\0';
+		wil_get_board_file(wil, board_file, sizeof(board_file));
 		wil_info(wil, "Use firmware <%s> + board <%s>\n",
-			 wil->wil_fw_name, wil_get_board_file(wil));
+			 wil->wil_fw_name, board_file);
 
 		if  (wil->secured_boot) {
 			wil_err(wil, "secured boot is not supported\n");
@@ -1558,11 +1629,9 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 		if (rc)
 			goto out;
 		if (wil->brd_file_addr)
-			rc = wil_request_board(wil, wil_get_board_file(wil));
+			rc = wil_request_board(wil, board_file);
 		else
-			rc = wil_request_firmware(wil,
-						  wil_get_board_file(wil),
-						  true);
+			rc = wil_request_firmware(wil, board_file, true);
 		if (rc)
 			goto out;
 
@@ -1593,6 +1662,13 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 		}
 
 		wil->txrx_ops.configure_interrupt_moderation(wil);
+
+		/* Enable OFU rdy valid bug fix, to prevent hang in oful34_rx
+		 * while there is back-pressure from Host during RX
+		 */
+		if (wil->hw_version >= HW_VER_TALYN_MB)
+			wil_s(wil, RGF_DMA_MISC_CTL,
+			      BIT_OFUL34_RDY_VALID_BUG_FIX_EN);
 
 		rc = wil_restore_vifs(wil);
 		if (rc) {

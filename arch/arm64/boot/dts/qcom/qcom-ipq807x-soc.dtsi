@@ -201,6 +201,12 @@
 			no-map;
 			reg = <0x0 0x4a400000 0x0 0x00200000>;
 		};
+
+		wifi_dump@50500000 {
+			no-map;
+			reg = <0x0 0x50500000 0x0 0x600000>;
+		};
+
 	};
 
 	firmware {
@@ -367,6 +373,7 @@
 			qca,auto-restart;
 			qca,extended-intc;
 			qca,dump-q6-reg;
+			qca,secure;
 			interrupts-extended = <&intc 0 325 1>,
 					<&wcss_smp2p_in 0 0>,
 					<&wcss_smp2p_in 1 0>,

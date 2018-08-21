@@ -782,6 +782,7 @@ static bool queue_cmd(struct edge_info *einfo, void *cmd, void *data)
 	if (einfo->in_ssr) {
 		spin_unlock(&einfo->deferred_cmdlist_lock);
 		pr_emerg("GLINK_INFO: Discarding stale cmd %d\n", _cmd->id);
+		kfree(d_cmd);
 		return false;
 	}
 	list_add_tail(&d_cmd->list_node, &einfo->deferred_cmds);

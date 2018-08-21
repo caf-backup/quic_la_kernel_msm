@@ -54,6 +54,7 @@ struct qcom_wdt_props {
 	const u32 *layout;
 	unsigned int tlv_msg_offset;
 	unsigned int crashdump_page_size;
+	bool secure_wdog;
 };
 
 struct qcom_wdt {
@@ -300,6 +301,7 @@ const struct qcom_wdt_props qcom_wdt_props_ipq8064 = {
 	.layout = reg_offset_data_apcs_tmr,
 	.tlv_msg_offset = SZ_2K,
 	.crashdump_page_size = SZ_4K,
+	.secure_wdog = false,
 };
 
 const struct qcom_wdt_props qcom_wdt_props_ipq807x = {
@@ -343,12 +345,14 @@ const struct qcom_wdt_props qcom_wdt_props_ipq807x = {
 	 */
 	.crashdump_page_size = (SZ_8K + (384 * SZ_1K) + (SZ_8K) + (3 * SZ_1K) +
 				(109 * SZ_1K)),
+	.secure_wdog = true,
 };
 
 const struct qcom_wdt_props qcom_wdt_props_ipq40xx = {
 	.layout = reg_offset_data_kpss,
 	.tlv_msg_offset = SZ_2K,
 	.crashdump_page_size = SZ_4K,
+	.secure_wdog = true,
 };
 
 static const struct of_device_id qcom_wdt_of_table[] = {
@@ -473,7 +477,7 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 
 	wdt->dev_props = (struct qcom_wdt_props *)id->data;
 
-	if (wdt->dev_props->layout)
+	if (wdt->dev_props->secure_wdog)
 		wdt->bite = 1;
 
 	if (irq > 0)

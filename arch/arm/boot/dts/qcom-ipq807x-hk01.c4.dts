@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2014-2015,2017 Qualcomm Atheros, Inc.
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017 - 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,26 +13,14 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#include <linux/firmware.h>
-#include <linux/module.h>
-#include <linux/crc32.h>
-#include "wil6210.h"
-#include "fw.h"
+#include "../../../arm64/boot/dts/qcom/qcom-ipq807x-hk01.c4.dts"
 
-MODULE_FIRMWARE(WIL_FW_NAME_DEFAULT);
-MODULE_FIRMWARE(WIL_FW_NAME_SPARROW_PLUS);
-MODULE_FIRMWARE(WIL_BOARD_FILE_NAME);
-MODULE_FIRMWARE(WIL_FW_NAME_TALYN);
-MODULE_FIRMWARE(WIL_BRD_NAME_TALYN);
-
-static
-void wil_memset_toio_32(volatile void __iomem *dst, u32 val,
-			size_t count)
-{
-	volatile u32 __iomem *d = dst;
-
-	for (count += 4; count > 4; count -= 4)
-		__raw_writel(val, d++);
-}
-
-#include "fw_inc.c"
+/ {
+	soc {
+		pmu {
+			compatible = "arm,cortex-a7-pmu";
+			interrupts = <GIC_PPI 7 (GIC_CPU_MASK_SIMPLE(4) |
+					IRQ_TYPE_LEVEL_HIGH)>;
+		};
+	};
+};

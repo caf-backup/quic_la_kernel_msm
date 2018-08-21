@@ -87,7 +87,7 @@ struct spinand_ops spinand_dev[] = {
 		0xd1,
 		INT_MAX,
 		0x10000,
-		gigadevice_set_defaults,
+		gigadevice_set_defaults_128mb,
 		gigadevice_read_cmd,
 		gigadevice_read_data_v2,
 		gigadevice_write_cmd,
