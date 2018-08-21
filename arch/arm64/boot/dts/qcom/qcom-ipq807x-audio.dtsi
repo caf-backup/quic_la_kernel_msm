@@ -173,7 +173,6 @@
 };
 
 &soc {
-
 	adss_clk: qcom,adss_clk@7700000 {
 		compatible = "qcom,adss-ipq807x";
 		reg = <0x7700100 0x200>;
@@ -288,5 +287,31 @@
 			compatible = "qca,ipq8074-codec";
 			reg = <0x12>;
 		};
+	};
+};
+
+&clocks {
+	audio_rxbpad_clk {
+		compatible = "fixed-clock";
+		clock-frequency = <254>;
+		#clock-cells = <0>;
+	};
+
+	audio_txbpad_clk {
+		compatible = "fixed-clock";
+		clock-frequency = <254>;
+		#clock-cells = <0>;
+	};
+
+	audio_rxmpad_clk {
+		compatible = "fixed-clock";
+		clock-frequency = <252>;
+		#clock-cells = <0>;
+	};
+
+	audio_txmpad_clk {
+		compatible = "fixed-clock";
+		clock-frequency = <252>;
+		#clock-cells = <0>;
 	};
 };

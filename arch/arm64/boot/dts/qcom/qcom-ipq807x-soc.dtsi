@@ -1838,7 +1838,7 @@
 		};
 	};
 
-	clocks {
+	clocks: clocks {
 		sleep_clk: sleep_clk {
 			compatible = "fixed-clock";
 			clock-frequency = <32000>;
