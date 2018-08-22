@@ -763,3 +763,27 @@
 	status = "disabled";
 };
 
+&spmi_bus {
+	status = "disabled";
+};
+
+&glink_rpm {
+	status = "disabled";
+};
+
+&apc_apm {
+	status = "disabled";
+};
+
+&apc_cpr {
+	status = "disabled";
+};
+
+&npu_cpr {
+	status = "disabled";
+};
+
+&nss0 {
+	npu-supply = <&dummy_reg>;
+	mx-supply = <&dummy_reg>;
+};
