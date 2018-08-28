@@ -1528,7 +1528,66 @@ static void amdgpu_device_ip_late_init_func_handler(struct work_struct *work)
 	amdgpu_device_ip_late_set_cg_state(adev);
 }
 
-int amdgpu_device_ip_suspend(struct amdgpu_device *adev)
+/**
+ * amdgpu_device_ip_suspend_phase1 - run suspend for hardware IPs (phase 1)
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Main suspend function for hardware IPs.  The list of all the hardware
+ * IPs that make up the asic is walked, clockgating is disabled and the
+ * suspend callbacks are run.  suspend puts the hardware and software state
+ * in each IP into a state suitable for suspend.
+ * Returns 0 on success, negative error code on failure.
+ */
+static int amdgpu_device_ip_suspend_phase1(struct amdgpu_device *adev)
+{
+	int i, r;
+
+	if (amdgpu_sriov_vf(adev))
+		amdgpu_virt_request_full_gpu(adev, false);
+
+	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
+		if (!adev->ip_blocks[i].status.valid)
+			continue;
+		/* displays are handled separately */
+		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_DCE) {
+			/* ungate blocks so that suspend can properly shut them down */
+			if (adev->ip_blocks[i].version->funcs->set_clockgating_state) {
+				r = adev->ip_blocks[i].version->funcs->set_clockgating_state((void *)adev,
+											     AMD_CG_STATE_UNGATE);
+				if (r) {
+					DRM_ERROR("set_clockgating_state(ungate) of IP block <%s> failed %d\n",
+						  adev->ip_blocks[i].version->funcs->name, r);
+				}
+			}
+			/* XXX handle errors */
+			r = adev->ip_blocks[i].version->funcs->suspend(adev);
+			/* XXX handle errors */
+			if (r) {
+				DRM_ERROR("suspend of IP block <%s> failed %d\n",
+					  adev->ip_blocks[i].version->funcs->name, r);
+			}
+		}
+	}
+
+	if (amdgpu_sriov_vf(adev))
+		amdgpu_virt_release_full_gpu(adev, false);
+
+	return 0;
+}
+
+/**
+ * amdgpu_device_ip_suspend_phase2 - run suspend for hardware IPs (phase 2)
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Main suspend function for hardware IPs.  The list of all the hardware
+ * IPs that make up the asic is walked, clockgating is disabled and the
+ * suspend callbacks are run.  suspend puts the hardware and software state
+ * in each IP into a state suitable for suspend.
+ * Returns 0 on success, negative error code on failure.
+ */
+static int amdgpu_device_ip_suspend_phase2(struct amdgpu_device *adev)
 {
 	int i, r;
 
@@ -1544,6 +1603,9 @@ int amdgpu_device_ip_suspend(struct amdgpu_device *adev)
 
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
 		if (!adev->ip_blocks[i].status.valid)
+			continue;
+		/* displays are handled in phase1 */
+		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_DCE)
 			continue;
 		/* ungate blocks so that suspend can properly shut them down */
 		if (i != AMD_IP_BLOCK_TYPE_SMC) {
@@ -1567,6 +1629,29 @@ int amdgpu_device_ip_suspend(struct amdgpu_device *adev)
 		amdgpu_virt_release_full_gpu(adev, false);
 
 	return 0;
+}
+
+/**
+ * amdgpu_device_ip_suspend - run suspend for hardware IPs
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Main suspend function for hardware IPs.  The list of all the hardware
+ * IPs that make up the asic is walked, clockgating is disabled and the
+ * suspend callbacks are run.  suspend puts the hardware and software state
+ * in each IP into a state suitable for suspend.
+ * Returns 0 on success, negative error code on failure.
+ */
+int amdgpu_device_ip_suspend(struct amdgpu_device *adev)
+{
+	int r;
+
+	r = amdgpu_device_ip_suspend_phase1(adev);
+	if (r)
+		return r;
+	r = amdgpu_device_ip_suspend_phase2(adev);
+
+	return r;
 }
 
 static int amdgpu_device_ip_reinit_early_sriov(struct amdgpu_device *adev)
@@ -2131,6 +2216,9 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 
 	drm_kms_helper_poll_disable(dev);
 
+	if (fbcon)
+		amdgpu_fbdev_set_suspend(adev, 1);
+
 	if (!amdgpu_device_has_dc_support(adev)) {
 		/* turn off display hw */
 		drm_modeset_lock_all(dev);
@@ -2138,44 +2226,46 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 			drm_helper_connector_dpms(connector, DRM_MODE_DPMS_OFF);
 		}
 		drm_modeset_unlock_all(dev);
+			/* unpin the front buffers and cursors */
+		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+			struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+			struct drm_framebuffer *fb = crtc->primary->fb;
+			struct amdgpu_bo *robj;
+
+			if (amdgpu_crtc->cursor_bo) {
+				struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
+				r = amdgpu_bo_reserve(aobj, true);
+				if (r == 0) {
+					amdgpu_bo_unpin(aobj);
+					amdgpu_bo_unreserve(aobj);
+				}
+			}
+
+			if (fb == NULL || fb->obj[0] == NULL) {
+				continue;
+			}
+			robj = gem_to_amdgpu_bo(fb->obj[0]);
+			/* don't unpin kernel fb objects */
+			if (!amdgpu_fbdev_robj_is_fb(adev, robj)) {
+				r = amdgpu_bo_reserve(robj, true);
+				if (r == 0) {
+					amdgpu_bo_unpin(robj);
+					amdgpu_bo_unreserve(robj);
+				}
+			}
+		}
 	}
 
 	amdgpu_amdkfd_suspend(adev);
 
-	/* unpin the front buffers and cursors */
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
-		struct amdgpu_framebuffer *rfb = to_amdgpu_framebuffer(crtc->primary->fb);
-		struct amdgpu_bo *robj;
+	r = amdgpu_device_ip_suspend_phase1(adev);
 
-		if (amdgpu_crtc->cursor_bo) {
-			struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
-			r = amdgpu_bo_reserve(aobj, true);
-			if (r == 0) {
-				amdgpu_bo_unpin(aobj);
-				amdgpu_bo_unreserve(aobj);
-			}
-		}
-
-		if (rfb == NULL || rfb->obj == NULL) {
-			continue;
-		}
-		robj = gem_to_amdgpu_bo(rfb->obj);
-		/* don't unpin kernel fb objects */
-		if (!amdgpu_fbdev_robj_is_fb(adev, robj)) {
-			r = amdgpu_bo_reserve(robj, true);
-			if (r == 0) {
-				amdgpu_bo_unpin(robj);
-				amdgpu_bo_unreserve(robj);
-			}
-		}
-	}
 	/* evict vram memory */
 	amdgpu_bo_evict_vram(adev);
 
 	amdgpu_fence_driver_suspend(adev);
 
-	r = amdgpu_device_ip_suspend(adev);
+	r = amdgpu_device_ip_suspend_phase2(adev);
 
 	/* evict remaining vram memory
 	 * This second call to evict vram is to evict the gart page table
@@ -2194,11 +2284,6 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 			DRM_ERROR("amdgpu asic reset failed\n");
 	}
 
-	if (fbcon) {
-		console_lock();
-		amdgpu_fbdev_set_suspend(adev, 1);
-		console_unlock();
-	}
 	return 0;
 }
 
@@ -2221,15 +2306,12 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-	if (fbcon)
-		console_lock();
-
 	if (resume) {
 		pci_set_power_state(dev->pdev, PCI_D0);
 		pci_restore_state(dev->pdev);
 		r = pci_enable_device(dev->pdev);
 		if (r)
-			goto unlock;
+			return r;
 	}
 
 	/* post card */
@@ -2242,29 +2324,31 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 	r = amdgpu_device_ip_resume(adev);
 	if (r) {
 		DRM_ERROR("amdgpu_device_ip_resume failed (%d).\n", r);
-		goto unlock;
+		return r;
 	}
 	amdgpu_fence_driver_resume(adev);
 
 
 	r = amdgpu_device_ip_late_init(adev);
 	if (r)
-		goto unlock;
+		return r;
 
-	/* pin cursors */
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+	if (!amdgpu_device_has_dc_support(adev)) {
+		/* pin cursors */
+		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+			struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 
-		if (amdgpu_crtc->cursor_bo) {
-			struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
-			r = amdgpu_bo_reserve(aobj, true);
-			if (r == 0) {
-				r = amdgpu_bo_pin(aobj,
-						  AMDGPU_GEM_DOMAIN_VRAM,
-						  &amdgpu_crtc->cursor_addr);
-				if (r != 0)
-					DRM_ERROR("Failed to pin cursor BO (%d)\n", r);
-				amdgpu_bo_unreserve(aobj);
+			if (amdgpu_crtc->cursor_bo) {
+				struct amdgpu_bo *aobj = gem_to_amdgpu_bo(amdgpu_crtc->cursor_bo);
+				r = amdgpu_bo_reserve(aobj, true);
+				if (r == 0) {
+					r = amdgpu_bo_pin(aobj, AMDGPU_GEM_DOMAIN_VRAM,
+								&amdgpu_crtc->cursor_addr);
+					if (r != 0)
+						DRM_ERROR("Failed to pin cursor BO (%d)\n", r);
+					amdgpu_crtc->cursor_addr = amdgpu_bo_gpu_offset(aobj);
+					amdgpu_bo_unreserve(aobj);
+				}
 			}
 		}
 	}
@@ -2288,6 +2372,7 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 			}
 			drm_modeset_unlock_all(dev);
 		}
+		amdgpu_fbdev_set_suspend(adev, 0);
 	}
 
 	drm_kms_helper_poll_enable(dev);
@@ -2311,15 +2396,7 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 #ifdef CONFIG_PM
 	dev->dev->power.disable_depth--;
 #endif
-
-	if (fbcon)
-		amdgpu_fbdev_set_suspend(adev, 0);
-
-unlock:
-	if (fbcon)
-		console_unlock();
-
-	return r;
+	return 0;
 }
 
 static bool amdgpu_device_ip_check_soft_reset(struct amdgpu_device *adev)
