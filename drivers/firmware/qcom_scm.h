@@ -51,6 +51,9 @@ extern int __qcom_config_ice_sec(struct device *dev, void *confBuf, int size);
 extern int __qcom_sec_upgrade_auth(struct device *dev, unsigned int sw_type,
 			unsigned int img_size, unsigned int load_addr);
 
+extern int __qcom_fuseipq_scm_call(struct device *, u32 svc_id, u32 cmd_id,
+			       void *cmd_buf, size_t size);
+
 #define QCOM_SCM_CMD_TERMINATE_PC	0x2
 #define QCOM_SCM_FLUSH_FLAG_MASK	0x3
 #define QCOM_SCM_CMD_CORE_HOTPLUGGED	0x10
