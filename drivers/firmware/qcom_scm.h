@@ -118,13 +118,15 @@ extern void __qcom_scm_init(void);
 #define QCOM_QFPROM_ROW_READ_CMD                     0x8
 #define QCOM_QFPROM_ROW_WRITE_CMD                    0x9
 #define QCOM_SCM_PAS_MSS_RESET		0xa
+#define QCOM_SCM_PAS_AUTH_DEBUG_RESET_CMD	0x14
 #define QCOM_KERNEL_AUTH_CMD		0x15
 extern bool __qcom_scm_pas_supported(struct device *dev, u32 peripheral);
 extern int  __qcom_scm_pas_init_image(struct device *dev, u32 peripheral,
 		dma_addr_t metadata_phys);
 extern int  __qcom_scm_pas_mem_setup(struct device *dev, u32 peripheral,
 		phys_addr_t addr, phys_addr_t size);
-extern int  __qcom_scm_pas_auth_and_reset(struct device *dev, u32 peripheral);
+extern int  __qcom_scm_pas_auth_and_reset(struct device *dev, u32 peripheral,
+				u32 debug);
 extern int  __qcom_scm_pas_shutdown(struct device *dev, u32 peripheral);
 extern int  __qcom_scm_pas_mss_reset(struct device *dev, bool reset);
 
