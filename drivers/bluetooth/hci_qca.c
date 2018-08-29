@@ -41,6 +41,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/serdev.h>
 #include <asm/unaligned.h>
+#include <linux/devcoredump.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -69,6 +70,21 @@
 
 /* Controller debug log header */
 #define QCA_DEBUG_HANDLE	0x2EDC
+/* soc dump messages */
+#define QCA_LAST_SEQUENCE_NUM      0xFFFF
+#define QCA_DUMP_TIMEOUT_MS          8000
+#define QCA_DUMP_PACKET_SIZE          255
+#define QCA_DUMP_PKT_LENGTH_BYTE        0
+#define QCA_DUMP_PKT_LOG                1
+#define QCA_DUMP_PKT_TYPE_DUMP          2
+#define QCA_DUMP_PKT_SEQNUM1	        3
+#define QCA_DUMP_PKT_SEQNUM2	        4
+#define QCA_DUMP_PKT_DUMPSIZE_BYTE1     6
+#define QCA_DUMP_PKT_DUMPSIZE_BYTE2     7
+#define QCA_DUMP_PKT_DUMPSIZE_BYTE3     8
+#define QCA_DUMP_PKT_DUMPSIZE_BYTE4     9
+#define QCA_DUMP_PKT_DUMPBYTE_LEN       4
+#define QCA_CRASHBYTE_PACKET_LEN     1100
 
 /* HCI_IBS transmit side sleep protocol states */
 enum tx_ibs_states {
@@ -112,6 +128,8 @@ struct qca_data {
 	struct work_struct ws_rx_vote_off;
 	struct work_struct ws_tx_vote_off;
 	unsigned long flags;
+	struct timer_list mem_dump_timer;
+	u32 mem_dump;
 
 	/* For debugging purpose */
 	u64 ibs_sent_wacks;
@@ -129,6 +147,17 @@ struct qca_data {
 	u64 rx_votes_off;
 	u64 votes_on;
 	u64 votes_off;
+	bool mem_dump_status;
+};
+
+struct qca_memdump_data {
+	unsigned int dump_size;
+	unsigned int total_size;
+	unsigned short seq_num;
+	unsigned short seq_num_cnt;
+	char *data_buf;
+	struct file *dump_fd;
+	uint8_t *dump_ptr;
 };
 
 enum qca_speed_type {
@@ -173,9 +202,12 @@ struct qca_serdev {
 	u32 oper_speed;
 };
 
+struct qca_memdump_data *qca_memdump;
 static int qca_power_setup(struct hci_uart *hu, bool on);
 static void qca_power_shutdown(struct hci_uart *hu);
 static int qca_power_off(struct hci_dev *hdev);
+static void qca_hw_error(struct hci_dev *hdev, u8 code);
+static void qca_soc_dump_timeout(struct timer_list *t);
 
 static void __serial_clock_on(struct tty_struct *tty)
 {
@@ -503,6 +535,7 @@ static int qca_open(struct hci_uart *hu)
 	qca->tx_votes_off = 0;
 	qca->rx_votes_on = 0;
 	qca->rx_votes_off = 0;
+	qca->mem_dump_status = false;
 
 	hu->priv = qca;
 
@@ -530,6 +563,9 @@ static int qca_open(struct hci_uart *hu)
 
 	timer_setup(&qca->tx_idle_timer, hci_ibs_tx_idle_timeout, 0);
 	qca->tx_idle_delay = IBS_TX_IDLE_TIMEOUT_MS;
+
+	timer_setup(&qca->mem_dump_timer, qca_soc_dump_timeout, 0);
+	qca->mem_dump = QCA_DUMP_TIMEOUT_MS;
 
 	BT_DBG("HCI_UART_QCA open, tx_idle_delay=%u, wake_retrans=%u",
 	       qca->tx_idle_delay, qca->wake_retrans);
@@ -610,6 +646,7 @@ static int qca_close(struct hci_uart *hu)
 	skb_queue_purge(&qca->txq);
 	del_timer(&qca->tx_idle_timer);
 	del_timer(&qca->wake_retrans_timer);
+	del_timer(&qca->mem_dump_timer);
 	destroy_workqueue(qca->workqueue);
 	qca->hu = NULL;
 
@@ -820,6 +857,174 @@ static int qca_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	return 0;
 }
 
+static void qca_soc_dump_timeout(struct timer_list *t)
+{
+	struct qca_data *qca = from_timer(qca, t, mem_dump_timer);
+	struct hci_uart *hu = qca->hu;
+
+	del_timer(&qca->mem_dump_timer);
+
+	if (qca->mem_dump_status)
+		bt_dev_info(hu->hdev, "QCA collected memory dump successful");
+	else
+		bt_dev_info(hu->hdev, "QCA memdump unsuccessful");
+}
+
+static int qca_savememdump(struct hci_dev *hdev, uint8_t *data,
+			     uint16_t packet_len)
+{
+	struct hci_uart *hu = hci_get_drvdata(hdev);
+	struct qca_data *qca = hu->priv;
+	static char *memdump_buf, *memdump_ptr;
+	char nullBuff[QCA_DUMP_PACKET_SIZE] = { 0 };
+
+	if (!qca_memdump) {
+		qca_memdump = kzalloc(sizeof(struct qca_memdump_data),
+						GFP_ATOMIC);
+
+		if (!qca_memdump)
+			return -ENOMEM;
+	}
+
+	/* Read received packet sequence no's from byte 3 and 4 */
+	qca_memdump->seq_num = data[QCA_DUMP_PKT_SEQNUM1] |
+				(data[QCA_DUMP_PKT_SEQNUM2] << 8);
+
+	/* Discard header and reduce the packet length */
+	qca_memdump->dump_ptr = &data[QCA_DUMP_PKT_DUMPSIZE_BYTE1];
+	packet_len -= QCA_DUMP_PKT_DUMPSIZE_BYTE1;
+
+	BT_DBG(" values : (%02x) (%d) (%d) ",
+		qca_memdump->dump_ptr[0], packet_len, qca_memdump->seq_num);
+	BT_DBG(" Data values : (%02x) (%02x) (%02x) (%02x) (%02x) ",
+		data[0], data[1], data[2], data[3], data[4]);
+
+	if (qca_memdump->seq_num == 0x0000) {
+
+		/* Disable IBS as SoC is in bad state. */
+		clear_bit(STATE_IN_BAND_SLEEP_ENABLED, &qca->flags);
+		mod_timer(&qca->mem_dump_timer,
+			  (jiffies + msecs_to_jiffies(qca->mem_dump)));
+
+		/* This block is for first sequence of data received.
+		 * In first sequence we will have total dump size in
+		 * 6,7,8 and 9 bytes.
+		 */
+		qca_memdump->dump_size =
+			(unsigned int)(data[QCA_DUMP_PKT_DUMPSIZE_BYTE1] |
+			(data[QCA_DUMP_PKT_DUMPSIZE_BYTE2] << 8) |
+			(data[QCA_DUMP_PKT_DUMPSIZE_BYTE3] << 16) |
+			(data[QCA_DUMP_PKT_DUMPSIZE_BYTE4] << 24));
+
+		/* Discard dump size and reduce the packet length. */
+		qca_memdump->dump_ptr = &data[QCA_DUMP_PKT_DUMPSIZE_BYTE4 + 1];
+		packet_len -= QCA_DUMP_PKT_DUMPBYTE_LEN;
+
+		qca_memdump->total_size = 0;
+		qca_memdump->seq_num_cnt = 0;
+		bt_dev_info(hu->hdev, "Crash Dump Start - dump size: %d ",
+			    qca_memdump->dump_size);
+		/* create an buffer with total dumpo size */
+		memdump_ptr = vmalloc(qca_memdump->dump_size+1);
+		if (!memdump_ptr)
+			return -ENOMEM;
+
+		memdump_buf = memdump_ptr;
+
+	}
+
+	if (!memdump_ptr)
+		return -ENOMEM;
+
+	for (; (qca_memdump->seq_num > qca_memdump->seq_num_cnt)
+		&& (qca_memdump->seq_num != QCA_LAST_SEQUENCE_NUM);
+		qca_memdump->seq_num_cnt++) {
+		/* if we receive a skip packet, save the dummy data. */
+		BT_INFO("controller missed packet : %d, null (%d) into buffer ",
+		qca_memdump->seq_num_cnt, packet_len);
+
+		memcpy(memdump_buf, nullBuff, packet_len);
+		memdump_buf = memdump_buf + packet_len;
+	}
+
+	memcpy(memdump_buf, qca_memdump->dump_ptr, packet_len);
+	memdump_buf = memdump_buf + packet_len;
+	qca_memdump->total_size += packet_len;
+	qca_memdump->seq_num_cnt++;
+
+	if (qca_memdump->seq_num == QCA_LAST_SEQUENCE_NUM) {
+		BT_INFO("Writing crash dump of size %d bytes",
+			qca_memdump->total_size);
+		dev_coredumpv(&hu->serdev->dev, memdump_ptr,
+			      qca_memdump->total_size, GFP_KERNEL);
+
+		qca_memdump->seq_num_cnt = 0;
+		qca->mem_dump_status = true;
+	}
+
+	return 0;
+}
+
+static int qca_bt_memdump_event(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	int ret;
+
+	ret = qca_savememdump(hdev, skb->data, skb->len);
+	kfree_skb(skb);
+
+	return ret;
+}
+
+static int qca_send_crashbuffer(struct hci_uart *hu)
+{
+	struct qca_data *qca = hu->priv;
+	struct sk_buff *skb;
+	unsigned char buf[QCA_CRASHBYTE_PACKET_LEN];
+
+	bt_dev_dbg(hu->hdev, "sending soc crash buffer to SoC");
+
+	/* sending the crash byte 0xfb as 1100 bytes to SOC
+	 * to crash the SOC, reason for sending 1100 bytes is
+	 * few times data from UART may corrupt and SOC may treat
+	 * this bytes as some data bytes or ACL bytes.
+	 * To make SOC to understand that this is Crash byte, we
+	 * need to send the more than ACL packet length which is
+	 * more than 1024 bytes.
+	 */
+	memset(buf, QCA_SSR_SOCCRASH_BYTE, QCA_CRASHBYTE_PACKET_LEN);
+
+	skb = bt_skb_alloc(QCA_CRASHBYTE_PACKET_LEN, GFP_KERNEL);
+	if (!skb) {
+		bt_dev_err(hu->hdev, "Failed to allocate memory for skb packet");
+		return -ENOMEM;
+	}
+
+	skb_put_data(skb, buf, QCA_CRASHBYTE_PACKET_LEN);
+	hci_skb_pkt_type(skb) = HCI_COMMAND_PKT;
+
+	skb_queue_tail(&qca->txq, skb);
+	hci_uart_tx_wakeup(hu);
+
+	return 0;
+}
+
+static void qca_hw_error(struct hci_dev *hdev, u8 code)
+{
+	struct hci_uart *hu = hci_get_drvdata(hdev);
+	struct qca_data *qca = hu->priv;
+
+	BT_DBG("mem_dump_status: %d", qca->mem_dump_status);
+
+	if (!qca->mem_dump_status) {
+		/* if hardware error event received for other than QCA
+		 * soc memory dump event, then we need to crash the SOC
+		 */
+		qca_send_crashbuffer(hu);
+	} else {
+		qca->mem_dump_status = false;
+	}
+}
+
 static int qca_ibs_sleep_ind(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_uart *hu = hci_get_drvdata(hdev);
@@ -907,6 +1112,13 @@ static int qca_recv_acl_data(struct hci_dev *hdev, struct sk_buff *skb)
 	.lsize = 2, \
 	.maxlen = HCI_MAX_FRAME_SIZE \
 
+#define QCA_BT_MEM_DUMP_EVENT \
+	.type = HCI_VENDOR_PKT, \
+	.hlen = 1, \
+	.loff = 0, \
+	.lsize = 1, \
+	.maxlen = QCA_BT_MEM_DUMP_PACKET_SIZE
+
 static const struct h4_recv_pkt qca_recv_pkts[] = {
 	{ H4_RECV_ACL,             .recv = qca_recv_acl_data },
 	{ H4_RECV_SCO,             .recv = hci_recv_frame    },
@@ -915,6 +1127,7 @@ static const struct h4_recv_pkt qca_recv_pkts[] = {
 	{ QCA_IBS_WAKE_ACK_EVENT,  .recv = qca_ibs_wake_ack  },
 	{ QCA_IBS_SLEEP_IND_EVENT, .recv = qca_ibs_sleep_ind },
 	{ QCA_DEBUG_MSG,	   .recv = hci_recv_diag     },
+	{ QCA_BT_MEM_DUMP_EVENT,   .recv = qca_bt_memdump_event },
 };
 
 static int qca_recv(struct hci_uart *hu, const void *data, int count)
@@ -923,6 +1136,42 @@ static int qca_recv(struct hci_uart *hu, const void *data, int count)
 
 	if (!test_bit(HCI_UART_REGISTERED, &hu->flags))
 		return -EUNATCH;
+	
+	/* we are parsing the qca memory dump event, here we are
+	 * getting the each recv pack as 512 bytes, but each memory dump
+	 * packet size is 256 bytes so need to split the packet
+	 * as 2 packets and then sent to memory dump event
+	 */
+	if ((count >= QCA_BT_MEM_DUMP_HEADER_SIZE) &&
+	    (*((unsigned char *) data + 0) == HCI_EVENT_PKT) &&
+	    (*((unsigned char *) data + QCA_DUMP_PKT_LOG) ==
+		HCI_VENDOR_PKT) &&
+		(*((unsigned char *) data + QCA_DUMP_PKT_SEQNUM1) ==
+		QCA_BT_CONTROLLER_LOG) && (*((unsigned char *) data +
+		QCA_DUMP_PKT_SEQNUM2) == QCA_BT_MESSAGE_TYPE_MEM_DUMP)) {
+
+		bt_dev_dbg(hu->hdev, "parsing for vendor pkt (%d)", count);
+		data += 1;
+		count -= 1;
+
+		if ((count >= (QCA_BT_MEM_DUMP_PACKET_SIZE +
+		  QCA_BT_MEM_DUMP_HEADER_SIZE)) &&
+		  (*((unsigned char *) data + QCA_DUMP_PACKET_SIZE) ==
+		  HCI_EVENT_PKT) &&
+		  (*((unsigned char *) data + (QCA_DUMP_PACKET_SIZE +
+		  QCA_DUMP_PKT_LOG)) == HCI_VENDOR_PKT) &&
+		  (*((unsigned char *) data + (QCA_DUMP_PACKET_SIZE +
+		  QCA_DUMP_PKT_SEQNUM1)) == QCA_BT_CONTROLLER_LOG) &&
+		  (*((unsigned char *) data + (QCA_DUMP_PACKET_SIZE +
+		  QCA_DUMP_PKT_SEQNUM2)) == QCA_BT_MESSAGE_TYPE_MEM_DUMP)) {
+			bt_dev_dbg(hu->hdev, "parsing for second vendor pkt (%d)",
+				count);
+			memcpy((unsigned char *) data + QCA_DUMP_PACKET_SIZE,
+			  (unsigned char *) data + QCA_BT_MEM_DUMP_PACKET_SIZE,
+			  (count - QCA_BT_MEM_DUMP_PACKET_SIZE));
+			count -= 1;
+		}
+	}
 
 	qca_decode_debug_msg(hu->hdev, data, count);
 	qca->rx_skb = h4_recv_buf(hu->hdev, qca->rx_skb, data, count,
@@ -1222,6 +1471,10 @@ static int qca_setup(struct hci_uart *hu)
 			return ret;
 
 		ret = qca_read_soc_version(hdev, &soc_ver);
+
+		/* Handle hardware error event for BT SSR handling */
+		hu->hdev->hw_error = qca_hw_error;
+
 		if (ret)
 			return ret;
 	} else {
