@@ -353,6 +353,21 @@
 			status = "disabled";
 		};
 
+		spi_4: spi@78b8000 { /* BLSP1 QUP3 */
+			compatible = "qcom,spi-qup-v2.2.1";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x78b8000 0x600>;
+			interrupts = <0 98 0>;
+			spi-max-frequency = <50000000>;
+			clocks = <&gcc GCC_BLSP1_QUP4_SPI_APPS_CLK>,
+				<&gcc GCC_BLSP1_AHB_CLK>;
+			clock-names = "core", "iface";
+			dmas = <&blsp_dma 18>, <&blsp_dma 19>;
+			dma-names = "tx", "rx";
+			status = "disabled";
+		};
+
 		q6v5_wcss: q6v5_wcss@CD00000 {
 			compatible = "qca,q6v5-wcss-rproc";
 			firmware = "IPQ8074/q6_fw.mdt";
