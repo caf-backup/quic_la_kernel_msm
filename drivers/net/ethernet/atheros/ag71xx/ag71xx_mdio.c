@@ -19,7 +19,7 @@
 #endif
 
 #define AG71XX_MDIO_RETRY	1000
-#define AG71XX_MDIO_DELAY	5
+#define AG71XX_MDIO_DELAY	2
 
 static inline void ag71xx_mdio_wr(struct ag71xx_mdio *am, unsigned reg,
 				  u32 value)
