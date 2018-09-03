@@ -138,6 +138,8 @@ RSA Import Key blob:
 (2) cat /sys/rsa_sec_key/rsa_import > import_key_blob.txt
 
 Note:
+hex.dat contents must be a properly generated RSA vector.
+
 spec of the hex.dat file used in RSA Import Key blob:
 hex.dat size is 1066 bytes.
 
@@ -191,6 +193,11 @@ AES Decrypt data:
 (2) cat encrypted_data.txt > /sys/sec_key/unseal
 
 Note:
+RSA generate functionality can take random amount of time to execute. This is
+because in this RSA algorithm we have to generate 2 random numbers with certain
+properties and then proceed. We can use the RSA import functionality if in case
+time is a concern.
+
 shk value is 0 by default in non-secure ipq40xx target systems.
 
 To make the keyblobs target dependent, shk values must be changed from default

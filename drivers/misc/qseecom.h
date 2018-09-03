@@ -53,6 +53,7 @@
 
 #define MAX_ENCRYPTED_DATA_SIZE  (2072 * sizeof(uint8_t))
 #define MAX_PLAIN_DATA_SIZE	 (2048 * sizeof(uint8_t))
+#define MAX_RSA_PLAIN_DATA_SIZE  (1792 * sizeof(uint8_t))
 
 #define ENCRYPTED_DATA_HEADER \
 	(MAX_ENCRYPTED_DATA_SIZE - MAX_PLAIN_DATA_SIZE)
