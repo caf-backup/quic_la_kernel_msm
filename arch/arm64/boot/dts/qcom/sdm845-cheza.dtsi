@@ -251,6 +251,7 @@
 		vdda_mipi_csi2_0p9:
 		vdda_mipi_dsi0_pll:
 		vdda_mipi_dsi1_pll:
+		vdda_dp_0p9:
 		vdda_qlink_lv:
 		vdda_qlink_lv_ck:
 		vdda_qrefs_0p875:
@@ -446,6 +447,7 @@
 		vdda_mipi_csi_1p25:
 		vdda_mipi_dsi0_1p2:
 		vdda_mipi_dsi1_1p2:
+		vdda_dp_1p2:
 		vdda_pcie_1p2:
 		vdda_ufs1_1p2:
 		vdda_ufs2_1p2:
@@ -559,6 +561,24 @@ edp_brij_i2c: &i2c3 {
 			};
 		};
 	};
+};
+
+&msm_dp {
+	status = "ok";
+	vdda-1p2-supply = <&vdda_dp_1p2>;
+	vdda-0p9-supply = <&vdda_dp_0p9>;
+	pinctrl-names = "mdss_dp_active", "mdss_dp_sleep";
+	pinctrl-0 = <&dpu_dp_aux_active &dpu_dp_usbplug_cc_active>;
+	pinctrl-1 = <&dpu_dp_aux_suspend &dpu_dp_usbplug_cc_suspend>;
+/*
+	qcom,aux-en-gpio = <&tlmm 43 0>;
+	qcom,aux-sel-gpio = <&tlmm 51 0>;
+	qcom,usbplug-cc-gpio = <&tlmm 38 0>;
+*/
+};
+
+&dp_pll {
+	status = "okay";
 };
 
 ap_pen_1v8: &i2c11 {
