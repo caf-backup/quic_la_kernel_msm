@@ -5667,6 +5667,12 @@ static const struct qcom_reset_map gcc_ipq807x_resets[] = {
 	[GCC_UNIPHY2_SOFT_RESET] = { 0x56204, 0, 0x32},
 	[GCC_UNIPHY2_XPCS_RESET] = { 0x56204, 2 },
 	[GCC_EDMA_HW_RESET] = { 0x68014, 0, 0x300000},
+	[GCC_NSSPORT1_RESET] = { 0x68014, 0, 0x1000003},
+	[GCC_NSSPORT2_RESET] = { 0x68014, 0, 0x200000c},
+	[GCC_NSSPORT3_RESET] = { 0x68014, 0, 0x4000030},
+	[GCC_NSSPORT4_RESET] = { 0x68014, 0, 0x8000300},
+	[GCC_NSSPORT5_RESET] = { 0x68014, 0, 0x10000c00},
+	[GCC_NSSPORT6_RESET] = { 0x68014, 0, 0x20003000},
 };
 
 static const struct of_device_id gcc_ipq807x_match_table[] = {

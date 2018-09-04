@@ -726,11 +726,20 @@
 				 <&gcc GCC_UNIPHY1_SOFT_RESET>,
 				 <&gcc GCC_UNIPHY1_XPCS_RESET>,
 				 <&gcc GCC_UNIPHY2_SOFT_RESET>,
-				 <&gcc GCC_UNIPHY2_XPCS_RESET>;
+				 <&gcc GCC_UNIPHY2_XPCS_RESET>,
+				 <&gcc GCC_NSSPORT1_RESET>,
+				 <&gcc GCC_NSSPORT2_RESET>,
+				 <&gcc GCC_NSSPORT3_RESET>,
+				 <&gcc GCC_NSSPORT4_RESET>,
+				 <&gcc GCC_NSSPORT5_RESET>,
+				 <&gcc GCC_NSSPORT6_RESET>;
 			reset-names = "ppe_rst", "uniphy0_soft_rst",
 					"uniphy0_xpcs_rst", "uniphy1_soft_rst",
 					"uniphy1_xpcs_rst", "uniphy2_soft_rst",
-					"uniphy2_xpcs_rst";
+					"uniphy2_xpcs_rst", "nss_port1_rst",
+					"nss_port2_rst", "nss_port3_rst",
+					"nss_port4_rst", "nss_port5_rst",
+					"nss_port6_rst";
 		};
 
 		ess-uniphy@7a00000 {
