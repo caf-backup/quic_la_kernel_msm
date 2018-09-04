@@ -232,6 +232,19 @@
 		ranges = <0x0 0x0 0x0 0xffffffff>;
 		compatible = "simple-bus";
 
+		dcc: dcc@b3000 {
+			compatible = "qca,dcc";
+			status = "ok";
+			reg = <0xb3000 0x1000>,
+				<0xb4000 0x800>;
+			reg-names = "dcc-base", "dcc-ram-base";
+
+			clocks = <&gcc GCC_DCC_CLK>;
+			clock-names = "dcc_clk";
+
+			qca,save-reg;
+		};
+
 		acc0:clock-controller@b188000 {
 			compatible = "qcom,arm-cortex-acc";
 			reg = <0x0b188000 0x1000>;
