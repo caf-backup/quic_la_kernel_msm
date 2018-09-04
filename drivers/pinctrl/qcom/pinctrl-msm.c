@@ -37,6 +37,7 @@
 #include "../pinctrl-utils.h"
 
 #define MAX_NR_GPIO 300
+#define MAX_PDC_HWIRQ 126
 #define PS_HOLD_OFFSET 0x820
 
 /**
@@ -51,6 +52,7 @@
  * @enabled_irqs:   Bitmap of currently enabled irqs.
  * @dual_edge_irqs: Bitmap of irqs that need sw emulated dual edge
  *                  detection.
+ * @pdc_hwirqs:     Bitmap of wakeup capable irqs.
  * @soc;            Reference to soc_data of platform specific data.
  * @regs:           Base address for the TLMM register map.
  */
@@ -68,10 +70,14 @@ struct msm_pinctrl {
 
 	DECLARE_BITMAP(dual_edge_irqs, MAX_NR_GPIO);
 	DECLARE_BITMAP(enabled_irqs, MAX_NR_GPIO);
+	DECLARE_BITMAP(pdc_hwirqs, MAX_PDC_HWIRQ);
 
 	const struct msm_pinctrl_soc_data *soc;
 	void __iomem *regs;
+	struct irq_domain *pdc_irq_domain;
 };
+
+static bool in_suspend;
 
 static int msm_get_groups_count(struct pinctrl_dev *pctldev)
 {
@@ -726,10 +732,14 @@ static int msm_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	const struct msm_pingroup *g;
 	unsigned long flags;
 	u32 val;
+	struct irq_data *pdc_irqd = irq_get_handler_data(d->irq);
 
 	g = &pctrl->soc->groups[d->hwirq];
 
 	raw_spin_lock_irqsave(&pctrl->lock, flags);
+
+	if (pdc_irqd)
+		irq_set_irq_type(pdc_irqd->irq, type);
 
 	/*
 	 * For hw without possibility of detecting both edges
@@ -818,12 +828,93 @@ static int msm_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct msm_pinctrl *pctrl = gpiochip_get_data(gc);
 	unsigned long flags;
+	struct irq_data *pdc_irqd = irq_get_handler_data(d->irq);
 
 	raw_spin_lock_irqsave(&pctrl->lock, flags);
+
+	if (pdc_irqd && !in_suspend) {
+		irq_set_irq_wake(pdc_irqd->irq, on);
+		if (on)
+			set_bit(pdc_irqd->hwirq, pctrl->pdc_hwirqs);
+		else
+			clear_bit(pdc_irqd->hwirq, pctrl->pdc_hwirqs);
+	}
 
 	irq_set_irq_wake(pctrl->irq, on);
 
 	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+
+	return 0;
+}
+
+static irqreturn_t wake_irq_gpio_handler(int irq, void *data)
+{
+	struct irq_data *irqd = data;
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(irqd);
+	struct msm_pinctrl *pctrl = gpiochip_get_data(gc);
+	const struct msm_pingroup *g;
+	unsigned long flags;
+	u32 val;
+
+	if (!irqd_is_level_type(irqd)) {
+		g = &pctrl->soc->groups[irqd->hwirq];
+		raw_spin_lock_irqsave(&pctrl->lock, flags);
+		val = BIT(g->intr_status_bit);
+		writel(val, pctrl->regs + g->intr_status_reg);
+		raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+	}
+
+	return IRQ_HANDLED;
+}
+
+static int msm_gpio_pdc_pin_request(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct msm_pinctrl *pctrl = gpiochip_get_data(gc);
+	struct platform_device *pdev = to_platform_device(pctrl->dev);
+	const char *pin_name;
+	int irq;
+	int ret;
+
+	pin_name = kasprintf(GFP_KERNEL, "gpio%lu", d->hwirq);
+	if (!pin_name)
+		return -ENOMEM;
+
+	irq = platform_get_irq_byname(pdev, pin_name);
+	if (irq < 0) {
+		kfree(pin_name);
+		return 0;
+	}
+
+	ret = request_irq(irq, wake_irq_gpio_handler, irqd_get_trigger_type(d),
+			  pin_name, d);
+	if (ret) {
+		pr_warn("GPIO-%lu could not be set up as wakeup", d->hwirq);
+		kfree(pin_name);
+		return ret;
+	}
+
+	irq_set_handler_data(d->irq, irq_get_irq_data(irq));
+	irq_set_handler_data(irq, d);
+	irq_set_status_flags(irq, IRQ_DISABLE_UNLAZY);
+	irq_set_status_flags(d->irq, IRQ_DISABLE_UNLAZY);
+	disable_irq(irq);
+	if (!pctrl->pdc_irq_domain)
+		pctrl->pdc_irq_domain = irq_get_irq_data(irq)->domain;
+
+	return 0;
+}
+
+static int msm_gpio_pdc_pin_release(struct irq_data *d)
+{
+	struct irq_data *pdc_irqd = irq_get_handler_data(d->irq);
+	const void *name;
+
+	if (pdc_irqd) {
+		irq_set_handler_data(d->irq, NULL);
+		name = free_irq(pdc_irqd->irq, d);
+		kfree(name);
+	}
 
 	return 0;
 }
@@ -849,7 +940,7 @@ static int msm_gpio_irq_reqres(struct irq_data *d)
 		ret = -EINVAL;
 		goto out;
 	}
-	return 0;
+	return msm_gpio_pdc_pin_request(d);;
 out:
 	module_put(gc->owner);
 	return ret;
@@ -859,6 +950,7 @@ static void msm_gpio_irq_relres(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 
+	msm_gpio_pdc_pin_release(d);
 	gpiochip_unlock_as_irq(gc, d->hwirq);
 	module_put(gc->owner);
 }
@@ -1048,6 +1140,66 @@ static void msm_pinctrl_setup_pm_reset(struct msm_pinctrl *pctrl)
 			break;
 		}
 }
+
+int __maybe_unused msm_pinctrl_suspend_late(struct device *dev)
+{
+	struct msm_pinctrl *pctrl = dev_get_drvdata(dev);
+	struct irq_data *irqd;
+	unsigned int irq;
+	int i;
+
+	in_suspend = true;
+	for_each_set_bit(i, pctrl->pdc_hwirqs, MAX_PDC_HWIRQ) {
+		irq = irq_find_mapping(pctrl->pdc_irq_domain, i);
+		irqd = irq_get_handler_data(irq);
+		/*
+		 * We don't know if the TLMM will be functional
+		 * or not, during the suspend. If its functional,
+		 * we do not want duplicate interrupts from PDC.
+		 * Hence disable the GPIO IRQ and enable PDC IRQ
+		 * for edge interrupt only.
+		 */
+		if (irqd_is_wakeup_set(irqd) && !irqd_is_level_type(irqd)) {
+			disable_irq_wake(irqd->irq);
+			disable_irq(irqd->irq);
+			enable_irq(irq);
+		}
+	}
+
+	return 0;
+}
+
+int __maybe_unused msm_pinctrl_resume_late(struct device *dev)
+{
+	struct msm_pinctrl *pctrl = dev_get_drvdata(dev);
+	struct irq_data *irqd, *pdc_irqd;
+	unsigned int irq;
+	int i;
+
+	for_each_set_bit(i, pctrl->pdc_hwirqs, MAX_PDC_HWIRQ) {
+		irq = irq_find_mapping(pctrl->pdc_irq_domain, i);
+		irqd = irq_get_handler_data(irq);
+		pdc_irqd = irq_get_irq_data(irq);
+		/*
+		 * The TLMM will be operational now, so disable
+		 * the PDC IRQ for edge interrupts only.
+		 */
+		if (irqd_is_wakeup_set(pdc_irqd) &&
+		    !irqd_is_level_type(pdc_irqd)) {
+			disable_irq_nosync(irq);
+			enable_irq_wake(irqd->irq);
+			enable_irq(irqd->irq);
+		}
+	}
+	in_suspend = false;
+
+	return 0;
+}
+
+const struct dev_pm_ops msm_pinctrl_dev_pm_ops = {
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(msm_pinctrl_suspend_late,
+				     msm_pinctrl_resume_late)
+};
 
 int msm_pinctrl_probe(struct platform_device *pdev,
 		      const struct msm_pinctrl_soc_data *soc_data)
