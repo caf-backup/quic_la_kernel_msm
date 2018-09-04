@@ -1061,7 +1061,8 @@ int cnss_wlan_register_driver(struct cnss_wlan_driver *driver_ops)
 			continue;
 
 		if ((plat_priv->device_id == QCA8074_DEVICE_ID ||
-		     plat_priv->device_id == QCA8074V2_DEVICE_ID) &&
+		     plat_priv->device_id == QCA8074V2_DEVICE_ID ||
+		     plat_priv->device_id == QCA6018_DEVICE_ID) &&
 			(strcmp(driver_ops->name, "pld_ahb") == 0)) {
 			plat_priv->driver_status = CNSS_LOAD_UNLOAD;
 			plat_priv->driver_ops = driver_ops;
@@ -1126,7 +1127,8 @@ void cnss_wlan_unregister_driver(struct cnss_wlan_driver *driver_ops)
 		ops = plat_priv->driver_ops;
 
 		if ((plat_priv->device_id == QCA8074_DEVICE_ID ||
-		     plat_priv->device_id == QCA8074V2_DEVICE_ID) && ops) {
+		     plat_priv->device_id == QCA8074V2_DEVICE_ID ||
+		     plat_priv->device_id == QCA6018_DEVICE_ID) && ops) {
 			subsys_info = &plat_priv->subsys_info;
 			if (subsys_info->subsys_handle)
 				subsystem_put(subsys_info->subsys_handle);
@@ -2092,6 +2094,7 @@ int cnss_register_subsys(struct cnss_plat_data *plat_priv)
 		break;
 	case QCA8074_DEVICE_ID:
 	case QCA8074V2_DEVICE_ID:
+	case QCA6018_DEVICE_ID:
 		subsys_info->subsys_desc.name = "q6v5-wcss";
 		return 0;
 	default:
@@ -2137,7 +2140,8 @@ void cnss_unregister_subsys(struct cnss_plat_data *plat_priv)
 	struct cnss_subsys_info *subsys_info;
 
 	if (plat_priv->device_id == QCA8074_DEVICE_ID ||
-	    plat_priv->device_id == QCA8074V2_DEVICE_ID)
+	    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
+	    plat_priv->device_id == QCA6018_DEVICE_ID)
 		return;
 
 	subsys_info = &plat_priv->subsys_info;
@@ -2580,6 +2584,7 @@ static int cnss_probe(struct platform_device *plat_dev)
 			break;
 		case QCA8074_DEVICE_ID:
 		case QCA8074V2_DEVICE_ID:
+		case QCA6018_DEVICE_ID:
 			plat_priv->wlfw_service_instance_id =
 				WLFW_SERVICE_INS_ID_V01_QCA8074;
 			plat_priv->service_id =  WLFW_SERVICE_ID_V01_HK;

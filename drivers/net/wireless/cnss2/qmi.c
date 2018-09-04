@@ -612,7 +612,8 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv)
 			 plat_priv->board_info.board_id);
 
 	if (plat_priv->device_id == QCA8074_DEVICE_ID ||
-	    plat_priv->device_id == QCA8074V2_DEVICE_ID) {
+	    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
+	    plat_priv->device_id == QCA6018_DEVICE_ID) {
 		temp = filename;
 		remaining = MAX_BDF_FILE_NAME;
 		if (caldata_support)
@@ -666,7 +667,8 @@ bypass_bdf:
 			req->end = 1;
 		}
 		if (plat_priv->device_id == QCA8074_DEVICE_ID ||
-		    plat_priv->device_id == QCA8074V2_DEVICE_ID) {
+		    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
+		    plat_priv->device_id == QCA6018_DEVICE_ID) {
 			if (bdf_downloaded) {
 				cnss_wlfw_load_bdf(req, plat_priv,
 						MAX_BDF_FILE_NAME,
@@ -1182,7 +1184,8 @@ int cnss_qmi_init(struct cnss_plat_data *plat_priv)
 		  cnss_wlfw_clnt_notifier_work);
 
 	if (plat_priv->device_id == QCA8074_DEVICE_ID ||
-	    plat_priv->device_id == QCA8074V2_DEVICE_ID) {
+	    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
+	    plat_priv->device_id == QCA6018_DEVICE_ID) {
 		if (qca8074_fw_mem_mode != 0xFF) {
 			plat_priv->tgt_mem_cfg_mode = qca8074_fw_mem_mode;
 			pr_info("Using qca8074_fw_mem_mode 0x%x\n",
