@@ -705,9 +705,8 @@ static int q6_rproc_emu_start(struct rproc *rproc)
 	unsigned long val = 0;
 	unsigned int nretry = 0;
 	int ret = 0;
-	/* q6v5_rproc_pdata->q6_base */
-	enable_irq(pdata->err_ready_irq);
 
+	atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_STARTING);
 	/* Last but two step in script */
 	val = readl(pdata->gcc_misc_base + 0x10);
 
@@ -765,6 +764,7 @@ static int q6_rproc_emu_start(struct rproc *rproc)
 	/* Enable the core to run */
 	writel(0x4, pdata->q6_base + QDSP6SS_RESET);
 
+	atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_RUNNING);
 	pr_emerg("Q6 Emulation reset out is done\n");
 
 	return ret;
