@@ -10,6 +10,8 @@
 #include "field_mask.h"
 #include "ipa_reg.h"
 
+#define IPA_CLIENT_APPS_WAN_PROD 33
+
 /* I/O remapped base address of IPA register space */
 static void __iomem *ipa_reg_virt;
 
@@ -64,14 +66,15 @@ ipa_reg_endp_init_hdr_common(struct ipa_reg_endp_init_hdr *init_hdr)
 
 void ipa_reg_endp_init_hdr_cons(struct ipa_reg_endp_init_hdr *init_hdr,
 				u32 header_size, u32 metadata_offset,
-				u32 length_offset)
+				u32 length_offset, u32 client)
 {
-	init_hdr->hdr_len = header_size;
-	init_hdr->hdr_ofst_metadata_valid = 1;
-	init_hdr->hdr_ofst_metadata = metadata_offset;	/* XXX ignored */
-	init_hdr->hdr_ofst_pkt_size_valid = 1;
-	init_hdr->hdr_ofst_pkt_size = length_offset;
+	u32 val = (client != IPA_CLIENT_APPS_WAN_PROD);
 
+	init_hdr->hdr_ofst_metadata_valid = val;
+	init_hdr->hdr_ofst_pkt_size_valid = val;
+	init_hdr->hdr_ofst_metadata = metadata_offset;	/* XXX ignored */
+	init_hdr->hdr_ofst_pkt_size = length_offset;
+	init_hdr->hdr_len = header_size;
 	ipa_reg_endp_init_hdr_common(init_hdr);
 }
 

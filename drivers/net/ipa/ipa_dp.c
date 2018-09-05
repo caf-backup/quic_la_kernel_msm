@@ -1592,7 +1592,7 @@ void ipa_endp_init_hdr_cons(u32 ipa_ep_idx, u32 header_size,
 	struct ipa_ep_context *ep = &ipa_ctx->ep[ipa_ep_idx];
 
 	ipa_reg_endp_init_hdr_cons(&ep->init_hdr, header_size, metadata_offset,
-				   length_offset);
+				   length_offset, (u32)ep->client);
 }
 
 void ipa_endp_init_hdr_prod(u32 ipa_ep_idx, u32 header_size,

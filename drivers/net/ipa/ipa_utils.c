@@ -692,15 +692,26 @@ static void ipa_endp_init_hdr_metadata_mask_write(u32 ipa_ep_idx)
 			       &ep->metadata_mask);
 }
 
-/** ipa_endp_init_hdr_metadata_mask_write() - endpoint metadata mask register
- *
- * @ipa_ep_idx:	endpoint whose register should be written
- */
 static void ipa_endp_status_write(u32 ipa_ep_idx)
 {
 	struct ipa_ep_context *ep = &ipa_ctx->ep[ipa_ep_idx];
 
 	ipa_write_reg_n_fields(IPA_ENDP_STATUS_N, ipa_ep_idx, &ep->status);
+}
+
+/** ipa_endp_set_ep_delay() - Set delay on a requested end point.
+ *  @ipa_ep_idx
+ *
+ */
+static void ipa_endp_set_ep_delay(u32 ipa_ep_idx, enum ipa_client_type client)
+{
+	struct ipa_ep_context *ep = &ipa_ctx->ep[ipa_ep_idx];
+	struct ipa_reg_endp_init_ctrl endp_ctrl = {0, true};
+
+	if (ep->client != client)
+		return;
+
+	ipa_write_reg_n_fields(IPA_ENDP_INIT_CTRL_N, ipa_ep_idx, &endp_ctrl);
 }
 
 /** ipa_cfg_ep - IPA end-point configuration
@@ -721,6 +732,7 @@ void ipa_cfg_ep(u32 clnt_hdl)
 
 	ipa_endp_init_aggr_write(clnt_hdl);
 	ipa_endp_init_cfg_write(clnt_hdl);
+	ipa_endp_set_ep_delay(clnt_hdl, IPA_CLIENT_APPS_WAN_PROD);
 
 	if (ipa_producer(ipa_ctx->ep[clnt_hdl].client)) {
 		ipa_endp_init_mode_write(clnt_hdl);

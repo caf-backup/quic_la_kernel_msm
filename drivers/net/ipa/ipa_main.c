@@ -831,7 +831,6 @@ static void ipa_suspend_handler(enum ipa_irq_type interrupt, u32 interrupt_data)
 static int ipa_init_interrupts(void)
 {
 	int ret;
-
 	ret = ipa_interrupts_init();
 	if (!ret)
 		return ret;
@@ -1383,11 +1382,15 @@ out_smp2p_exit:
 int ipa_ap_suspend(struct device *dev)
 {
 	int i;
+	enum ipa_client_type client;
 
 	ipa_debug("Enter...\n");
 
 	/* In case there is a tx/rx handler in polling mode fail to suspend */
 	for (i = 0; i < ipa_ctx->ipa_num_pipes; i++) {
+		client = ipa_ctx->ep[i].client;
+		if (!ipa_consumer(client))
+			continue;
 		if (ipa_ctx->ep[i].sys && ipa_ep_polling(&ipa_ctx->ep[i])) {
 			ipa_err("EP %d is in polling state, do not suspend\n",
 				i);

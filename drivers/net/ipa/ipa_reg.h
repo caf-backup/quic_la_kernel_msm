@@ -477,7 +477,7 @@ void ipa_reg_exit(void);
 
 void ipa_reg_endp_init_hdr_cons(struct ipa_reg_endp_init_hdr *init_hdr,
 				u32 header_size, u32 metadata_offset,
-				u32 length_offset);
+				u32 length_offset, u32 client);
 void ipa_reg_endp_init_hdr_prod(struct ipa_reg_endp_init_hdr *init_hdr,
 				u32 header_size, u32 metadata_offset,
 				u32 length_offset);
