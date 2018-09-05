@@ -24,6 +24,8 @@
 #include <soc/qcom/memory_dump.h>
 #include <soc/qcom/rpm-smd.h>
 #include <soc/qcom/scm.h>
+#include <linux/dma-mapping.h>
+#include <asm/arch_timer.h>
 
 #define RPM_MISC_REQ_TYPE	0x6373696d
 #define RPM_MISC_DDR_DCC_ENABLE 0x32726464
@@ -66,6 +68,8 @@
 #define MAX_DCC_LEN		0x7F
 
 #define SCM_SVC_DISABLE_XPU	0x23
+
+#define DCC_MAGIC		0x0DCC0DCC
 
 enum dcc_func_type {
 	DCC_FUNC_TYPE_CAPTURE,
@@ -129,7 +133,14 @@ struct dcc_drvdata {
 	bool			xpu_scm_avail;
 	uint64_t		xpu_addr;
 	uint32_t		xpu_unlock_count;
+	dma_addr_t		dma_handle;
+	dma_addr_t		*dcc_magic;
+	void __iomem		*gcnt_base;
+	phys_addr_t		dcc_gcnt;
+	uint64_t		dcc_cntvct_64;
+	uint64_t		dcc_jiffies_64;
 };
+
 
 static int dcc_cfg_xpu(struct dcc_drvdata *drvdata, bool enable)
 {
@@ -275,6 +286,10 @@ static int __dcc_ll_cfg(struct dcc_drvdata *drvdata)
 	link = 0;
 
 	list_for_each_entry(entry, &drvdata->config_head, list) {
+		if ((sram_offset + 0x4) > drvdata->ram_size) {
+			pr_err("SRAM config space overflow, continuing\n");
+			goto overstep;
+		}
 		/* Address type */
 		addr = (entry->base >> 4) & BM(0, 27);
 		addr |= BIT(31);
@@ -846,6 +861,9 @@ static void dcc_config_reset(struct dcc_drvdata *drvdata)
 	mutex_lock(&drvdata->mutex);
 
 	list_for_each_entry_safe(entry, temp, &drvdata->config_head, list) {
+		/* Keep first 2 entries (dcc_magic and timestamp entries) */
+		if (entry->index <= 1)
+			continue;
 		list_del(&entry->list);
 		devm_kfree(drvdata->dev, entry);
 		drvdata->nr_config--;
@@ -1223,6 +1241,7 @@ static int dcc_probe(struct platform_device *pdev)
 	struct dcc_drvdata *drvdata;
 	struct resource *res;
 	const char *data_sink;
+	struct dcc_config_entry *entry;
 
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
@@ -1247,6 +1266,15 @@ static int dcc_probe(struct platform_device *pdev)
 
 	drvdata->ram_size = resource_size(res);
 	drvdata->ram_base = devm_ioremap(dev, res->start, resource_size(res));
+	if (!drvdata->ram_base)
+		return -ENOMEM;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gcnt_lo_hi");
+	if (!res)
+		return -EINVAL;
+
+	drvdata->dcc_gcnt = res->start;
+	drvdata->gcnt_base = devm_ioremap(dev, res->start, resource_size(res));
 	if (!drvdata->ram_base)
 		return -ENOMEM;
 
@@ -1324,6 +1352,52 @@ static int dcc_probe(struct platform_device *pdev)
 
 	dcc_allocate_dump_mem(drvdata);
 
+	drvdata->dcc_magic = dma_alloc_coherent(dev, 4, &drvdata->dma_handle,
+						GFP_KERNEL);
+	if (!drvdata->dcc_magic) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	*drvdata->dcc_magic = DCC_MAGIC;
+
+	drvdata->dcc_cntvct_64 = arch_counter_get_cntvct();
+	drvdata->dcc_jiffies_64 = jiffies_64;
+	dev_info(dev, "jiffies_64: 0x%llx, cntvct_64: 0x%llx\n",
+		 drvdata->dcc_jiffies_64, drvdata->dcc_cntvct_64);
+	dev_info(dev, "gcnt_hi: 0x%08x(0x%08x)",
+		 readl(drvdata->gcnt_base + 4), drvdata->gcnt_base + 4);
+	dev_info(dev, "gcnt_lo: 0x%08x(0x%08x)\n",
+		 readl(drvdata->gcnt_base), drvdata->gcnt_base);
+
+	/* Add a dcc_magic as the first config entry */
+	entry = devm_kzalloc(drvdata->dev, sizeof(*entry), GFP_KERNEL);
+	if (!entry) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	entry->base = drvdata->dma_handle;
+	entry->offset = 0;
+	entry->len = 1;
+	entry->index = drvdata->nr_config++;
+	INIT_LIST_HEAD(&entry->list);
+	list_add_tail(&entry->list, &drvdata->config_head);
+
+	/* Add MPM counter as the second config entry */
+	entry = devm_kzalloc(drvdata->dev, sizeof(*entry), GFP_KERNEL);
+	if (!entry) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	entry->base = drvdata->dcc_gcnt;
+	entry->offset = 0;
+	entry->len = 2;
+	entry->index = drvdata->nr_config++;
+	INIT_LIST_HEAD(&entry->list);
+	list_add_tail(&entry->list, &drvdata->config_head);
+
 	return 0;
 err:
 	return ret;
@@ -1336,6 +1410,13 @@ static int dcc_remove(struct platform_device *pdev)
 	dcc_sram_dev_exit(drvdata);
 
 	dcc_config_reset(drvdata);
+
+	if (drvdata->dcc_magic) {
+		dma_free_coherent(drvdata->dev, 4,
+				  drvdata->dcc_magic, drvdata->dma_handle);
+		drvdata->dcc_magic = NULL;
+		drvdata->dma_handle = 0;
+	}
 
 	return 0;
 }

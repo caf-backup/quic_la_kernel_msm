@@ -236,8 +236,9 @@
 			compatible = "qca,dcc";
 			status = "ok";
 			reg = <0xb3000 0x1000>,
-				<0xb4000 0x800>;
-			reg-names = "dcc-base", "dcc-ram-base";
+				<0xb4000 0x800>,
+				<0x004A2000 0x8>;
+			reg-names = "dcc-base", "dcc-ram-base", "gcnt_lo_hi";
 
 			clocks = <&gcc GCC_DCC_CLK>;
 			clock-names = "dcc_clk";
