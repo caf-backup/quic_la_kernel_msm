@@ -6,48 +6,71 @@
 #define pr_fmt(fmt)	"ipahal %s:%d " fmt, __func__, __LINE__
 
 #include <linux/debugfs.h>
+#include <asm/unaligned.h>
+
+#include "ipa_dma.h"
+#include "ipa_i.h"
 #include "ipahal.h"
 #include "ipahal_i.h"
-#include "ipahal_reg_i.h"
 
-/* Produce a contiguous bitmask with a positive number of low-order bits set. */
-#define MASK(bits)	GENMASK((bits) - 1, 0)
-
-static struct ipahal_context ipahal_ctx_struct;
-struct ipahal_context *ipahal_ctx = &ipahal_ctx_struct;
-
-static const char * const ipahal_pkt_status_exception_to_str[] = {
-	__stringify(IPAHAL_PKT_STATUS_EXCEPTION_NONE),
-	__stringify(IPAHAL_PKT_STATUS_EXCEPTION_DEAGGR),
-	__stringify(IPAHAL_PKT_STATUS_EXCEPTION_IPTYPE),
-	__stringify(IPAHAL_PKT_STATUS_EXCEPTION_PACKET_LENGTH),
-	__stringify(IPAHAL_PKT_STATUS_EXCEPTION_PACKET_THRESHOLD),
-	__stringify(IPAHAL_PKT_STATUS_EXCEPTION_FRAG_RULE_MISS),
-	__stringify(IPAHAL_PKT_STATUS_EXCEPTION_SW_FILT),
-	__stringify(IPAHAL_PKT_STATUS_EXCEPTION_NAT),
-	__stringify(IPAHAL_PKT_STATUS_EXCEPTION_IPV6CT),
-};
-
-/* struct ipahal_imm_cmd_obj - immediate command H/W information for
- *  specific IPA version
- * @name - Command "name" (i.e., symbolic identifier)
- * @opcode - Immediate command OpCode
+/* struct ipahal_context - HAL global context data
+ *
+ * @empty_fltrt_tbl: Empty table to be used at tables init.
  */
-struct ipahal_imm_cmd_obj {
-	const char	*name;
-	u16		opcode;
+static struct ipahal_context {
+	struct ipa_dma_mem empty_fltrt_tbl;
+} ipahal_ctx_struct;
+static struct ipahal_context *ipahal_ctx = &ipahal_ctx_struct;
+
+/* Immediate commands; value is the opcode for IPA v3.5.1 hardware */
+enum ipahal_imm_cmd {
+	IPA_IMM_CMD_IP_V4_FILTER_INIT		= 3,
+	IPA_IMM_CMD_IP_V6_FILTER_INIT		= 4,
+	IPA_IMM_CMD_IP_V4_ROUTING_INIT		= 7,
+	IPA_IMM_CMD_IP_V6_ROUTING_INIT		= 8,
+	IPA_IMM_CMD_HDR_INIT_LOCAL		= 9,
+	IPA_IMM_CMD_REGISTER_WRITE		= 12,
+	IPA_IMM_CMD_IP_PACKET_INIT		= 16,
+	IPA_IMM_CMD_DMA_TASK_32B_ADDR		= 17,
+	IPA_IMM_CMD_DMA_SHARED_MEM		= 19,
+	IPA_IMM_CMD_IP_PACKET_TAG_STATUS	= 20,
 };
 
-static struct ipahal_imm_cmd_obj ipahal_imm_cmds[IPA_IMM_CMD_MAX];
+/* enum ipa_pipeline_clear_option - Values for pipeline clear waiting options
+ * @IPAHAL_HPS_CLEAR: Wait for HPS clear. All queues except high priority queue
+ *  shall not be serviced until HPS is clear of packets or immediate commands.
+ *  The high priority Rx queue / Q6ZIP group shall still be serviced normally.
+ *
+ * @IPAHAL_SRC_GRP_CLEAR: Wait for originating source group to be clear
+ *  (for no packet contexts allocated to the originating source group).
+ *  The source group / Rx queue shall not be serviced until all previously
+ *  allocated packet contexts are released. All other source groups/queues shall
+ *  be serviced normally.
+ *
+ * @IPAHAL_FULL_PIPELINE_CLEAR: Wait for full pipeline to be clear.
+ *  All groups / Rx queues shall not be serviced until IPA pipeline is fully
+ *  clear. This should be used for debug only.
+ *
+ *  The values assigned to these are assumed by the REGISTER_WRITE
+ *  (struct ipa_imm_cmd_hw_register_write) and the DMA_SHARED_MEM
+ *  (struct ipa_imm_cmd_hw_dma_shared_mem) immediate commands for
+ *  IPA version 3 hardware.  They are also used to modify the opcode
+ *  used to implement these commands for IPA version 4 hardware.
+ */
+enum ipahal_pipeline_clear_option {
+	IPAHAL_HPS_CLEAR		= 0,
+	IPAHAL_SRC_GRP_CLEAR		= 1,
+	IPAHAL_FULL_PIPELINE_CLEAR	= 2,
+};
 
 static struct ipahal_imm_cmd_pyld *
-ipahal_imm_cmd_pyld_alloc_common(u16 opcode, size_t pyld_size, gfp_t flags)
+ipahal_imm_cmd_pyld_alloc(u16 opcode, size_t pyld_size)
 {
 	struct ipahal_imm_cmd_pyld *pyld;
 
-	ipa_debug_low("immediate command: %s\n", ipahal_imm_cmds[opcode].name);
+	ipa_debug_low("immediate command: %u\n", opcode);
 
-	pyld = kzalloc(sizeof(*pyld) + pyld_size, flags);
+	pyld = kzalloc(sizeof(*pyld) + pyld_size, GFP_KERNEL);
 	if (unlikely(!pyld)) {
 		ipa_err("kzalloc err (opcode %hu pyld_size %zu)\n", opcode,
 			pyld_size);
@@ -59,27 +82,15 @@ ipahal_imm_cmd_pyld_alloc_common(u16 opcode, size_t pyld_size, gfp_t flags)
 	return pyld;
 }
 
-static struct ipahal_imm_cmd_pyld *
-ipahal_imm_cmd_pyld_alloc(u16 opcode, size_t pyld_size)
-{
-	return ipahal_imm_cmd_pyld_alloc_common(opcode, pyld_size, GFP_KERNEL);
-}
-
-static struct ipahal_imm_cmd_pyld *
-ipahal_imm_cmd_pyld_alloc_atomic(u16 opcode, size_t pyld_size)
-{
-	return ipahal_imm_cmd_pyld_alloc_common(opcode, pyld_size, GFP_ATOMIC);
-}
-
 /* Returns true if the value provided is too big to be represented
  * in the given number of bits.  In this case, WARN_ON() is called,
- * and a message is printed and using ipa_err().
+ * and a message is printed using ipa_err().
  *
  * Returns false if the value is OK (not too big).
  */
 static bool check_too_big(char *name, u64 value, u8 bits)
 {
-	if (!WARN_ON(value & ~MASK(bits)))
+	if (!WARN_ON(value & ~GENMASK((bits) - 1, 0)))
 		return false;
 
 	ipa_err("%s is bigger than %hhubit width 0x%llx\n", name, bits, value);
@@ -87,133 +98,17 @@ static bool check_too_big(char *name, u64 value, u8 bits)
 	return true;
 }
 
-/* The The opcode used for certain immediate commands may change
- * between different versions of IPA hardware.  The format of the
- * command data passed to the IPA can change slightly with new
- * hardware.  The "ipahal" layer uses the ipahal_imm_cmd_obj[][]
- * table to hide the version-specific details of creating immediate
- * commands.
- *
- * The following table consists of blocks of "immediate command
- * object" definitions associated with versions of IPA hardware.
- * The entries for each immediate command contain a construct
- * functino and an opcode to use for a given version of IPA
- * hardware.  The first version of IPA hardware supported by the
- * "ipahal" layer is 3.0.
- *
- * Versions of IPA hardware newer than 3.0 do not need to specify
- * immediate command object entries if they are accessed the same
- * way as was defined by an older version.  The only entries defined
- * for newer hardware are for immediate commands whose opcode or
- * command format has changed or are deprecated, or immediate
- * commands that are new and not present in older hardware.
- *
- * The construct function for an immediate command is given an IPA
- * opcode, plus a non-null pointer to a command-specific parameter
- * block used to initialize the command.  The construct function
- * allocates a buffer to hold the command payload, and a pointer to
- * that buffer is returned once the parameters have been formatted
- * into it.  It is the caller's responsibility to ensure this buffer
- * gets freed when it is no longer needed.  The construct function
- * returns null if the buffer could not be allocated.
- *
- * No opcodes or command formats changed between IPA version 3.0
- * and IPA version 3.5.1, so all definitions from version 3.0 are
- * inherited by these newer versions.  We know, however, that some
- * of these *are* changing for upcoming hardware.
- *
- * The entries in this table have the following constraints:
- * - 0 is not a valid opcode; an entry having a 0 opcode indicates
- *   that the corresponding immediate command is formatted according
- *   to an immediate command object defined for an earlier hardware
- *   version.
- * - An opcode of OPCODE_INVAL indicates that a command is not
- *   supported for a particular hardware version.  It is an error
- *   for code to attempt to execute a command that is not
- *   unsupported by the current IPA hardware.
- *
- * A caller constructs an immediate command by providing a command
- * id and a parameter block to ipahal_construct_imm_cmd().  Such
- * calls are subject to these constraints:
- * - The command id supplied must be valid:
- *     - It must be a member of the ipahal_imm_cmd_name enumerated
- *	 type less than IPA_IMM_CMD_MAX
- *     - It must be a command supported by the underlying hardware
- * - The parameter block must be a non-null pointer referring to
- *   parameter data that is formatted properly for the command.
- */
-#define OPCODE_INVAL	((u16)0xffff)
-#define idsym(id)	IPA_IMM_CMD_ ## id
-#define imm_cmd_obj(id, o)			\
-	[idsym(id)] = {				\
-		.name = #id,			\
-		.opcode = o,			\
-	}
-#define imm_cmd_obj_inval(id)			\
-	[idsym(id)] = {				\
-		.name = NULL,			\
-		.opcode = OPCODE_INVAL,		\
-	}
-static const struct ipahal_imm_cmd_obj
-		ipahal_imm_cmd_objs[][IPA_IMM_CMD_MAX] = {
-	/* IPAv3.5.1 */
-	[IPA_HW_v3_5_1] = {
-		imm_cmd_obj(IP_V4_FILTER_INIT,		3),
-		imm_cmd_obj(IP_V6_FILTER_INIT,		4),
-		imm_cmd_obj(IP_V4_ROUTING_INIT,		7),
-		imm_cmd_obj(IP_V6_ROUTING_INIT,		8),
-		imm_cmd_obj(HDR_INIT_LOCAL,		9),
-		imm_cmd_obj(REGISTER_WRITE,		12),
-		imm_cmd_obj(IP_PACKET_INIT,		16),
-		imm_cmd_obj(DMA_TASK_32B_ADDR,		17),
-		imm_cmd_obj(DMA_SHARED_MEM,		19),
-		imm_cmd_obj(IP_PACKET_TAG_STATUS,	20),
-	},
-};
-
-#undef imm_cmd_obj
-#undef idsym
-#undef cfunc
-
-/* ipahal_imm_cmd_init() - Build the Immediate command information table
- *  See ipahal_imm_cmd_objs[][] comments
- */
-static void ipahal_imm_cmd_init(enum ipa_hw_version hw_version)
-{
-	int i;
-	int j;
-
-	ipa_assert(hw_version < ARRAY_SIZE(ipahal_imm_cmd_objs));
-
-	ipa_debug_low("Entry - HW_TYPE=%d\n", hw_version);
-
-	/* Build up the immediate command descriptions we'll use */
-	for (i = 0; i < IPA_IMM_CMD_MAX ; i++) {
-		for (j = hw_version; j >= 0; j--) {
-			const struct ipahal_imm_cmd_obj *imm_cmd;
-
-			imm_cmd = &ipahal_imm_cmd_objs[j][i];
-			if (imm_cmd->opcode) {
-				ipahal_imm_cmds[i] = *imm_cmd;
-				break;
-			}
-		}
-	}
-}
-
 struct ipahal_imm_cmd_pyld *
-ipahal_dma_shared_mem_write_pyld(struct ipa_mem_buffer *mem, u32 offset)
+ipahal_dma_shared_mem_write_pyld(struct ipa_dma_mem *mem, u32 offset)
 {
 	struct ipa_imm_cmd_hw_dma_shared_mem *data;
 	struct ipahal_imm_cmd_pyld *pyld;
 	u16 opcode;
 
-	if (check_too_big("size", mem->size, 16))
-		return NULL;
-	if (check_too_big("offset", offset, 16))
-		return NULL;
+	ipa_assert(mem->size < 1 << 16);	/* size is 16 bits wide */
+	ipa_assert(offset < 1 << 16);		/* local_addr is 16 bits wide */
 
-	opcode = ipahal_imm_cmds[IPA_IMM_CMD_DMA_SHARED_MEM].opcode;
+	opcode = IPA_IMM_CMD_DMA_SHARED_MEM;
 	pyld = ipahal_imm_cmd_pyld_alloc(opcode, sizeof(*data));
 	if (!pyld)
 		return NULL;
@@ -224,84 +119,36 @@ ipahal_dma_shared_mem_write_pyld(struct ipa_mem_buffer *mem, u32 offset)
 	data->direction = 0;	/* 0 = write to IPA; 1 = read from IPA */
 	data->skip_pipeline_clear = 0;
 	data->pipeline_clear_options = IPAHAL_HPS_CLEAR;
-	data->system_addr = mem->phys_base;
+	data->system_addr = mem->phys;
 
 	return pyld;
 }
 
 struct ipahal_imm_cmd_pyld *
-ipahal_register_write_pyld(u32 offset, u32 value, u32 mask, bool clear)
-{
-	struct ipahal_imm_cmd_pyld *pyld;
-	struct ipa_imm_cmd_hw_register_write *data;
-	u16 opcode;
-
-	if (check_too_big("offset", offset, 16))
-		return NULL;
-
-	opcode = ipahal_imm_cmds[IPA_IMM_CMD_DMA_SHARED_MEM].opcode;
-	pyld = ipahal_imm_cmd_pyld_alloc(opcode, sizeof(*data));
-	if (!pyld)
-		return NULL;
-	data = ipahal_imm_cmd_pyld_data(pyld);
-
-	data->skip_pipeline_clear = 0;
-	data->offset = offset;
-	data->value = value;
-	data->value_mask = mask;
-	data->pipeline_clear_options = clear ? IPAHAL_FULL_PIPELINE_CLEAR
-					     : IPAHAL_HPS_CLEAR;
-
-	return pyld;
-}
-
-struct ipahal_imm_cmd_pyld *
-ipahal_hdr_init_local_pyld(struct ipa_mem_buffer *mem, u32 offset)
+ipahal_hdr_init_local_pyld(struct ipa_dma_mem *mem, u32 offset)
 {
 	struct ipahal_imm_cmd_pyld *pyld;
 	struct ipa_imm_cmd_hw_hdr_init_local *data;
 	u16 opcode;
 
-	if (check_too_big("size", mem->size, 12))
-		return NULL;
-	if (check_too_big("offset", offset, 16))
-		return NULL;
+	ipa_assert(mem->size < 1 << 12);  /* size_hdr_table is 12 bits wide */
+	ipa_assert(offset < 1 << 16);		/* hdr_addr is 16 bits wide */
 
-	opcode = ipahal_imm_cmds[IPA_IMM_CMD_HDR_INIT_LOCAL].opcode;
+	opcode = IPA_IMM_CMD_HDR_INIT_LOCAL;
 	pyld = ipahal_imm_cmd_pyld_alloc(opcode, sizeof(*data));
 	if (!pyld)
 		return NULL;
 	data = ipahal_imm_cmd_pyld_data(pyld);
 
-	data->hdr_table_addr = mem->phys_base;
+	data->hdr_table_addr = mem->phys;
 	data->size_hdr_table = mem->size;
 	data->hdr_addr = offset;
 
 	return pyld;
 }
 
-struct ipahal_imm_cmd_pyld *ipahal_ip_packet_init_pyld(u32 dest_pipe_idx)
-{
-	struct ipahal_imm_cmd_pyld *pyld;
-	struct ipa_imm_cmd_hw_ip_packet_init *data;
-	u16 opcode;
-
-	if (check_too_big("dest_pipe_idx", dest_pipe_idx, 5))
-		return NULL;
-
-	opcode = ipahal_imm_cmds[IPA_IMM_CMD_IP_PACKET_INIT].opcode;
-	pyld = ipahal_imm_cmd_pyld_alloc(opcode, sizeof(*data));
-	if (!pyld)
-		return NULL;
-	data = ipahal_imm_cmd_pyld_data(pyld);
-
-	data->destination_pipe_index = dest_pipe_idx;
-
-	return pyld;
-}
-
 static struct ipahal_imm_cmd_pyld *
-fltrt_init_common(u16 opcode, struct ipa_mem_buffer *mem, u32 hash_offset,
+fltrt_init_common(u16 opcode, struct ipa_dma_mem *mem, u32 hash_offset,
 		  u32 nhash_offset)
 {
 	struct ipa_imm_cmd_hw_ip_fltrt_init *data;
@@ -324,10 +171,10 @@ fltrt_init_common(u16 opcode, struct ipa_mem_buffer *mem, u32 hash_offset,
 	ipa_debug("putting hashable rules to phys 0x%x\n", hash_offset);
 	ipa_debug("putting non-hashable rules to phys 0x%x\n", nhash_offset);
 
-	data->hash_rules_addr = (u64)mem->phys_base;
+	data->hash_rules_addr = (u64)mem->phys;
 	data->hash_rules_size = (u32)mem->size;
 	data->hash_local_addr = hash_offset;
-	data->nhash_rules_addr = (u64)mem->phys_base;
+	data->nhash_rules_addr = (u64)mem->phys;
 	data->nhash_rules_size = (u32)mem->size;
 	data->nhash_local_addr = nhash_offset;
 
@@ -335,10 +182,10 @@ fltrt_init_common(u16 opcode, struct ipa_mem_buffer *mem, u32 hash_offset,
 }
 
 struct ipahal_imm_cmd_pyld *
-ipahal_ip_v4_routing_init_pyld(struct ipa_mem_buffer *mem, u32 hash_offset,
+ipahal_ip_v4_routing_init_pyld(struct ipa_dma_mem *mem, u32 hash_offset,
 			       u32 nhash_offset)
 {
-	u16 opcode = ipahal_imm_cmds[IPA_IMM_CMD_IP_V4_ROUTING_INIT].opcode;
+	u16 opcode = IPA_IMM_CMD_IP_V4_ROUTING_INIT;
 
 	ipa_debug("IPv4 routing\n");
 
@@ -346,10 +193,10 @@ ipahal_ip_v4_routing_init_pyld(struct ipa_mem_buffer *mem, u32 hash_offset,
 }
 
 struct ipahal_imm_cmd_pyld *
-ipahal_ip_v6_routing_init_pyld(struct ipa_mem_buffer *mem, u32 hash_offset,
+ipahal_ip_v6_routing_init_pyld(struct ipa_dma_mem *mem, u32 hash_offset,
 			       u32 nhash_offset)
 {
-	u16 opcode = ipahal_imm_cmds[IPA_IMM_CMD_IP_V6_ROUTING_INIT].opcode;
+	u16 opcode = IPA_IMM_CMD_IP_V6_ROUTING_INIT;
 
 	ipa_debug("IPv6 routing\n");
 
@@ -357,10 +204,10 @@ ipahal_ip_v6_routing_init_pyld(struct ipa_mem_buffer *mem, u32 hash_offset,
 }
 
 struct ipahal_imm_cmd_pyld *
-ipahal_ip_v4_filter_init_pyld(struct ipa_mem_buffer *mem, u32 hash_offset,
+ipahal_ip_v4_filter_init_pyld(struct ipa_dma_mem *mem, u32 hash_offset,
 			      u32 nhash_offset)
 {
-	u16 opcode = ipahal_imm_cmds[IPA_IMM_CMD_IP_V4_FILTER_INIT].opcode;
+	u16 opcode = IPA_IMM_CMD_IP_V4_FILTER_INIT;
 
 	ipa_debug("IPv4 filtering\n");
 
@@ -368,47 +215,25 @@ ipahal_ip_v4_filter_init_pyld(struct ipa_mem_buffer *mem, u32 hash_offset,
 }
 
 struct ipahal_imm_cmd_pyld *
-ipahal_ip_v6_filter_init_pyld(struct ipa_mem_buffer *mem, u32 hash_offset,
+ipahal_ip_v6_filter_init_pyld(struct ipa_dma_mem *mem, u32 hash_offset,
 			      u32 nhash_offset)
 {
-	u16 opcode = ipahal_imm_cmds[IPA_IMM_CMD_IP_V6_FILTER_INIT].opcode;
+	u16 opcode = IPA_IMM_CMD_IP_V6_FILTER_INIT;
 
 	ipa_debug("IPv6 filtering\n");
 
 	return fltrt_init_common(opcode, mem, hash_offset, nhash_offset);
 }
 
-/* NOTE:  this function is called in atomic state */
-struct ipahal_imm_cmd_pyld *ipahal_ip_packet_tag_status_pyld(u64 tag)
-{
-	struct ipahal_imm_cmd_pyld *pyld;
-	struct ipa_imm_cmd_hw_ip_packet_tag_status *data;
-	u16 opcode = ipahal_imm_cmds[IPA_IMM_CMD_IP_PACKET_TAG_STATUS].opcode;
-
-	if (check_too_big("tag", tag, 48))
-		return NULL;
-
-	pyld = ipahal_imm_cmd_pyld_alloc_atomic(opcode, sizeof(*data));
-	if (!pyld)
-		return NULL;
-	data = ipahal_imm_cmd_pyld_data(pyld);
-
-	data->tag = tag;
-
-	return pyld;
-}
-
 struct ipahal_imm_cmd_pyld *
-ipahal_dma_task_32b_addr_pyld(struct ipa_mem_buffer *mem)
+ipahal_dma_task_32b_addr_pyld(struct ipa_dma_mem *mem)
 {
 	struct ipahal_imm_cmd_pyld *pyld;
 	struct ipa_imm_cmd_hw_dma_task_32b_addr *data;
-	u16 opcode = ipahal_imm_cmds[IPA_IMM_CMD_DMA_TASK_32B_ADDR].opcode;
+	u16 opcode = IPA_IMM_CMD_DMA_TASK_32B_ADDR;
 
-	if (check_too_big("size1", mem->size, 16))
-		return NULL;
-	if (check_too_big("packet_size", mem->size, 16))
-		return NULL;
+	/* size1 and packet_size are both 16 bits wide */
+	ipa_assert(mem->size < 1 << 16);
 
 	pyld = ipahal_imm_cmd_pyld_alloc(opcode, sizeof(*data));
 	if (!pyld)
@@ -421,7 +246,7 @@ ipahal_dma_task_32b_addr_pyld(struct ipa_mem_buffer *mem)
 	data->lock = 0;
 	data->unlock = 0;
 	data->size1 = mem->size;
-	data->addr1 = mem->phys_base;
+	data->addr1 = mem->phys;
 	data->packet_size = mem->size;
 
 	return pyld;
@@ -478,14 +303,27 @@ exception_map(u8 exception, bool is_ipv6)
 	}
 }
 
-static void ipa_pkt_status_parse(
-	const void *unparsed_status, struct ipahal_pkt_status *status)
+/* ipahal_pkt_status_get_size() - Get H/W size of packet status */
+u32 ipahal_pkt_status_get_size(void)
+{
+	return sizeof(struct ipa_pkt_status_hw);
+}
+
+/* ipahal_pkt_status_parse() - Parse Packet Status payload to abstracted form
+ * @unparsed_status: Pointer to H/W format of the packet status as read from H/W
+ * @status: Pointer to pre-allocated buffer where the parsed info will be stored
+ */
+void ipahal_pkt_status_parse(const void *unparsed_status,
+			     struct ipahal_pkt_status *status)
 {
 	const struct ipa_pkt_status_hw *hw_status = unparsed_status;
 	u8 status_opcode = (u8)hw_status->status_opcode;
 	u8 nat_type = (u8)hw_status->nat_type;
 	enum ipahal_pkt_status_exception exception;
 	bool is_ipv6;
+
+	ipa_debug_low("Parse Status Packet\n");
+	memset(status, 0, sizeof(*status));
 
 	is_ipv6 = (hw_status->status_mask & 0x80) ? false : true;
 
@@ -497,13 +335,13 @@ static void ipa_pkt_status_parse(
 	status->flt_hash = hw_status->flt_hash;
 	status->flt_global = hw_status->flt_hash;
 	status->flt_ret_hdr = hw_status->flt_ret_hdr;
-	status->flt_miss = ~(hw_status->flt_rule_id) ? false : true;
+	status->flt_miss = ipahal_is_rule_miss_id(hw_status->flt_rule_id);
 	status->flt_rule_id = hw_status->flt_rule_id;
 	status->rt_local = hw_status->rt_local;
 	status->rt_hash = hw_status->rt_hash;
 	status->ucp = hw_status->ucp;
 	status->rt_tbl_idx = hw_status->rt_tbl_idx;
-	status->rt_miss = ~(hw_status->rt_rule_id) ? false : true;
+	status->rt_miss = ipahal_is_rule_miss_id(hw_status->rt_rule_id);
 	status->rt_rule_id = hw_status->rt_rule_id;
 	status->nat_hit = hw_status->nat_hit;
 	status->nat_entry_idx = hw_status->nat_entry_idx;
@@ -536,95 +374,114 @@ static void ipa_pkt_status_parse(
 	status->status_mask = hw_status->status_mask;
 }
 
-/* ipahal_pkt_status_get_size() - Get H/W size of packet status */
-u32 ipahal_pkt_status_get_size(void)
+int ipahal_init(void)
 {
-	return sizeof(struct ipa_pkt_status_hw);
-}
+	struct ipa_dma_mem *mem = &ipahal_ctx->empty_fltrt_tbl;
 
-/* ipahal_pkt_status_parse() - Parse Packet Status payload to abstracted form
- * @unparsed_status: Pointer to H/W format of the packet status as read from H/W
- * @status: Pointer to pre-allocated buffer where the parsed info will be stored
- */
-void ipahal_pkt_status_parse(const void *unparsed_status,
-			     struct ipahal_pkt_status *status)
-{
-	ipa_debug_low("Parse Status Packet\n");
-	memset(status, 0, sizeof(*status));
-	ipa_pkt_status_parse(unparsed_status, status);
-}
-
-/* ipahal_pkt_status_exception_str() - returns string represents exception type
- * @exception: [in] The exception type
- */
-const char *
-ipahal_pkt_status_exception_str(enum ipahal_pkt_status_exception exception)
-{
-	return ipahal_pkt_status_exception_to_str[exception];
-}
-
-int ipahal_dma_alloc(struct ipa_mem_buffer *mem, u32 size, gfp_t gfp)
-{
-	dma_addr_t phys;
-	void *cpu_addr;
-
-	cpu_addr = dma_zalloc_coherent(ipahal_ctx->ipa_pdev, size, &phys, gfp);
-	if (!cpu_addr) {
-		ipa_err("failed to alloc DMA buff of size %u\n", size);
+	/* Set up an empty filter/route table entry in system
+	 * memory.  This will be used, for example, to delete a
+	 * route safely.
+	 */
+	if (ipa_dma_alloc(mem, IPA_HW_TBL_WIDTH, GFP_KERNEL)) {
+		ipa_err("error allocating empty filter/route table\n");
 		return -ENOMEM;
 	}
-
-	mem->base = cpu_addr;
-	mem->phys_base = phys;
-	mem->size = size;
 
 	return 0;
 }
 
-void ipahal_dma_free(struct ipa_mem_buffer *mem)
+void ipahal_exit(void)
 {
-	dma_free_coherent(ipahal_ctx->ipa_pdev, mem->size, mem->base,
-			  mem->phys_base);
-	memset(mem, 0, sizeof(*mem));
+	ipa_dma_free(&ipahal_ctx->empty_fltrt_tbl);
 }
 
-void ipahal_init(enum ipa_hw_version hw_version, void __iomem *base)
-{
-	ipa_debug("Entry - IPA HW TYPE=%d base=%p\n", hw_version, base);
-
-	ipahal_ctx->base = base;
-	/* ipahal_ctx->ipa_pdev must be set by a call to ipahal_dev_init() */
-
-	/* Packet status parsing code requires no initialization */
-	ipahal_reg_init(hw_version);
-	ipahal_imm_cmd_init(hw_version);
-	ipahal_fltrt_init(hw_version);
-}
-
-/* Assign the IPA HAL's device pointer.  Once it's assigned we can
- * initialize the empty table entry.
+/* Does the given rule ID represent a routing or filter rule miss?
+ *
+ * A rule miss is indicated as an all-1's value in the rt_rule_id
+ * or flt_rule_id field of the ipahal_pkt_status structure.
  */
-int ipahal_dev_init(struct device *dev)
+bool ipahal_is_rule_miss_id(u32 id)
 {
-	int ret;
+	BUILD_BUG_ON(IPA_RULE_ID_BITS < 2);
 
-	ipa_debug("IPA HAL ipa_pdev=%p\n", dev);
-
-	ipahal_ctx->ipa_pdev = dev;
-	ret = ipahal_empty_fltrt_init();
-	if (ret)
-		ipahal_ctx->ipa_pdev = NULL;
-
-	return ret;
+	return id == (1U << IPA_RULE_ID_BITS) - 1;
 }
 
-void ipahal_dev_destroy(void)
+/* ipahal_rt_generate_empty_img() - Generate empty route table header
+ *
+ * @route_count: number of table entries
+ * @mem: mem object representing the header structure
+ *
+ * Allocates and fills an "empty" route table header having the given
+ * number of entries.  Each entry in the table contains the DMA address
+ * of a routing entry.
+ *
+ * This function initializes all entries to point at the preallocated
+ * empty routing entry in system RAM.
+ */
+int ipahal_rt_generate_empty_img(u32 route_count, struct ipa_dma_mem *mem)
 {
-	ipahal_empty_fltrt_destroy();
-	ipahal_ctx->ipa_pdev = NULL;
+	u64 addr;
+	int i;
+
+	if (ipa_dma_alloc(mem, route_count * IPA_HW_TBL_HDR_WIDTH, GFP_KERNEL))
+		return -ENOMEM;
+
+	addr = (u64)ipahal_ctx->empty_fltrt_tbl.phys;
+	for (i = 0; i < route_count; i++)
+		put_unaligned(addr, mem->virt + i * IPA_HW_TBL_HDR_WIDTH);
+
+	return 0;
 }
 
-void ipahal_destroy(void)
+/* ipahal_flt_generate_empty_img() - Generate empty filter table header
+ *
+ * @filter_bitmap: bitmap representing which endpoints support filtering
+ * @mem: mem object representing the header structure
+ *
+ * Allocates and fills an "empty" filter table header based on the
+ * given filter bitmap.
+ *
+ * The first slot in a filter table header is a 64-bit bitmap whose
+ * set bits define which endpoints support filtering.  Following
+ * this, each set bit in the mask has the DMA address of the filter
+ * used for the corresponding endpoint.
+ *
+ * This function initializes all endpoints that support filtering to
+ * point at the preallocated empty filter in system RAM.
+ *
+ * Note:  the (software) bitmap here uses bit 0 to represent
+ * endpoint 0, bit 1 for endpoint 1, and so on.  This is different
+ * from the hardware (which uses bit 1 to represent filter 0, etc.).
+ */
+int ipahal_flt_generate_empty_img(u64 filter_bitmap, struct ipa_dma_mem *mem)
 {
-	ipa_debug("Entry\n");
+	u32 filter_count = hweight32(filter_bitmap) + 1;
+	u64 addr;
+	int i;
+
+	ipa_assert(filter_bitmap);
+
+	if (ipa_dma_alloc(mem, filter_count * IPA_HW_TBL_HDR_WIDTH, GFP_KERNEL))
+		return -ENOMEM;
+
+	/* Save the endpoint bitmap in the first slot of the table.
+	 * Convert it from software to hardware representation by
+	 * shifting it left one position.
+	 * XXX Does bit position 0 represent global?  At IPA3, global
+	 * XXX configuration is possible but not used.
+	 */
+	put_unaligned(filter_bitmap << 1, mem->virt);
+
+	/* Point every entry in the table at the empty filter */
+	addr = (u64)ipahal_ctx->empty_fltrt_tbl.phys;
+	for (i = 1; i < filter_count; i++)
+		put_unaligned(addr, mem->virt + i * IPA_HW_TBL_HDR_WIDTH);
+
+	return 0;
+}
+
+void ipahal_free_empty_img(struct ipa_dma_mem *mem)
+{
+	ipa_dma_free(mem);
 }

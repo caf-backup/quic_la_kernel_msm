@@ -32,7 +32,7 @@ struct qmi_elem_info ipa_indication_register_req_ei[] = {
 				     master_driver_init_complete),
 		.tlv_type	= 0x10,
 		.offset		= offsetof(struct ipa_indication_register_req,
-				master_driver_init_complete),
+					   master_driver_init_complete),
 	},
 	{
 		.data_type	= QMI_OPT_FLAG,
