@@ -7,56 +7,27 @@
 #define _IPAHAL_H_
 #include <linux/if_ether.h>
 #include "ipa_common_i.h"
-#include "ipahal_fltrt_i.h"
 
-/* Immediate command names
+/* The IPA implements offloaded packet filtering and routing
+ * capabilities.  This is managed by programming IPA-resident
+ * tables of rules that define the processing that should be
+ * performed by the IPA and the conditions under which they
+ * should be applied.  Aspects of these rules are constrained
+ * by things like table entry sizes and alignment requirements;
+ * all of these are in units of bytes.  These definitions are
+ * subject to some constraints:
+ * - IPA_HW_TBL_WIDTH must be non-zero
+ * - IPA_HW_TBL_SYSADDR_ALIGN must be a non-zero power of 2
+ * - IPA_HW_TBL_HDR_WIDTH must be non-zero
  *
- * NOTE:: Any change to this enum, need to change to ipahal_imm_cmd_name_to_str
- *	array as well.
+ * Values could differ for different versions of IPA hardware.
+ * These values are for v3.5.1, found in the SDM845.
  */
-enum ipahal_imm_cmd_name {
-	IPA_IMM_CMD_IP_V4_FILTER_INIT,
-	IPA_IMM_CMD_IP_V6_FILTER_INIT,
-	IPA_IMM_CMD_IP_V4_ROUTING_INIT,
-	IPA_IMM_CMD_IP_V6_ROUTING_INIT,
-	IPA_IMM_CMD_HDR_INIT_LOCAL,
-	IPA_IMM_CMD_REGISTER_WRITE,
-	IPA_IMM_CMD_IP_PACKET_INIT,
-	IPA_IMM_CMD_DMA_SHARED_MEM,
-	IPA_IMM_CMD_IP_PACKET_TAG_STATUS,
-	IPA_IMM_CMD_DMA_TASK_32B_ADDR,
-	IPA_IMM_CMD_TABLE_DMA,
-	IPA_IMM_CMD_MAX,
-};
+#define IPA_HW_TBL_WIDTH		8
+#define IPA_HW_TBL_SYSADDR_ALIGN	128
+#define IPA_HW_TBL_HDR_WIDTH		8
 
 /* Immediate commands abstracted structures */
-
-/* enum ipa_pipeline_clear_option - Values for pipeline clear waiting options
- * @IPAHAL_HPS_CLEAR: Wait for HPS clear. All queues except high priority queue
- *  shall not be serviced until HPS is clear of packets or immediate commands.
- *  The high priority Rx queue / Q6ZIP group shall still be serviced normally.
- *
- * @IPAHAL_SRC_GRP_CLEAR: Wait for originating source group to be clear
- *  (for no packet contexts allocated to the originating source group).
- *  The source group / Rx queue shall not be serviced until all previously
- *  allocated packet contexts are released. All other source groups/queues shall
- *  be serviced normally.
- *
- * @IPAHAL_FULL_PIPELINE_CLEAR: Wait for full pipeline to be clear.
- *  All groups / Rx queues shall not be serviced until IPA pipeline is fully
- *  clear. This should be used for debug only.
- *
- *  The values assigned to these are assumed by the REGISTER_WRITE
- *  (struct ipa_imm_cmd_hw_register_write) and the DMA_SHARED_MEM
- *  (struct ipa_imm_cmd_hw_dma_shared_mem) immediate commands for
- *  IPA version 3 hardware.  They are also used to modify the opcode
- *  used to implement these commands for IPA version 4 hardware.
- */
-enum ipahal_pipeline_clear_option {
-	IPAHAL_HPS_CLEAR		= 0,
-	IPAHAL_SRC_GRP_CLEAR		= 1,
-	IPAHAL_FULL_PIPELINE_CLEAR	= 2,
-};
 
 /* struct ipahal_imm_cmd_pyld - Immediate cmd payload information
  * @len: length of the buffer
@@ -88,20 +59,7 @@ static inline void *ipahal_imm_cmd_pyld_data(struct ipahal_imm_cmd_pyld *pyld)
  * offset	is where to write in IPA local memory
  */
 struct ipahal_imm_cmd_pyld *ipahal_dma_shared_mem_write_pyld(
-				struct ipa_mem_buffer *mem, u32 offset);
-
-/* Return a pointer to the payload for a DMA register write immediate
- * command, or null if one can't be allocated.  Caller must ensure result
- * gets released by providing it to ipahal_destroy_imm_cmd() when it is no
- * longer needed.
- *
- * offset	is the location of the register in IPA local memory
- * value	is the value to write
- * mask		indicates which bits in register should be updated
- * clear	if true means wait for full pipeline clear (HPS otherwise)
- */
-struct ipahal_imm_cmd_pyld *ipahal_register_write_pyld(u32 offset, u32 value,
-						       u32 mask, bool clear);
+				struct ipa_dma_mem *mem, u32 offset);
 
 /* Return a pointer to the payload for a header init local immediate
  * command, or null if one can't be allocated.  Caller must ensure result
@@ -111,15 +69,7 @@ struct ipahal_imm_cmd_pyld *ipahal_register_write_pyld(u32 offset, u32 value,
  * offset	is the location IPA local memory to write
  */
 struct ipahal_imm_cmd_pyld *ipahal_hdr_init_local_pyld(
-				struct ipa_mem_buffer *mem, u32 offset);
-
-/* Return a pointer to the payload for an IP packet init immediate
- * command, or null if one can't be allocated.  Caller must ensure result
- * gets released by providing it to ipahal_destroy_imm_cmd().
- *
- * dest_pipe_idx is the destination pipe
- */
-struct ipahal_imm_cmd_pyld *ipahal_ip_packet_init_pyld(u32 dest_pipe_idx);
+				struct ipa_dma_mem *mem, u32 offset);
 
 /* Return a pointer to the payload for an IPv4 routing init immediate
  * command, or null if one can't be allocated.  Caller must ensure result
@@ -130,7 +80,7 @@ struct ipahal_imm_cmd_pyld *ipahal_ip_packet_init_pyld(u32 dest_pipe_idx);
  * nhash_offset	is the locatin in IPA memory for non-hashed routing table
  */
 struct ipahal_imm_cmd_pyld *ipahal_ip_v4_routing_init_pyld(
-				struct ipa_mem_buffer *mem,
+				struct ipa_dma_mem *mem,
 				u32 hash_offset, u32 nhash_offset);
 
 /* Return a pointer to the payload for an IPv6 routing init immediate
@@ -142,7 +92,7 @@ struct ipahal_imm_cmd_pyld *ipahal_ip_v4_routing_init_pyld(
  * nhash_offset	is the locatin in IPA memory for non-hashed routing table
  */
 struct ipahal_imm_cmd_pyld *ipahal_ip_v6_routing_init_pyld(
-				struct ipa_mem_buffer *mem,
+				struct ipa_dma_mem *mem,
 				u32 hash_offset, u32 nhash_offset);
 
 /* Return a pointer to the payload for an IPv4 filter init immediate
@@ -154,7 +104,7 @@ struct ipahal_imm_cmd_pyld *ipahal_ip_v6_routing_init_pyld(
  * nhash_offset	is the locatin in IPA memory for non-hashed routing table
  */
 struct ipahal_imm_cmd_pyld *ipahal_ip_v4_filter_init_pyld(
-				struct ipa_mem_buffer *mem,
+				struct ipa_dma_mem *mem,
 				u32 hash_offset, u32 nhash_offset);
 
 /* Return a pointer to the payload for an IPv6 filter init immediate
@@ -166,16 +116,8 @@ struct ipahal_imm_cmd_pyld *ipahal_ip_v4_filter_init_pyld(
  * nhash_offset	is the locatin in IPA memory for non-hashed routing table
  */
 struct ipahal_imm_cmd_pyld *ipahal_ip_v6_filter_init_pyld(
-				struct ipa_mem_buffer *mem,
+				struct ipa_dma_mem *mem,
 				u32 hash_offset, u32 nhash_offset);
-
-/* Return a pointer to the payload for an IP packet tag status immediate
- * command, or null if one can't be allocated.  Caller must ensure result
- * gets released by providing it to ipahal_destroy_imm_cmd().
- *
- * tag		is the tag value to apply to the next transfer
- */
-struct ipahal_imm_cmd_pyld *ipahal_ip_packet_tag_status_pyld(u64 tag);
 
 /* Return a pointer to the payload for DMA task 32-bit address immediate
  * command, or null if one can't be allocated.  Caller must ensure result
@@ -184,7 +126,7 @@ struct ipahal_imm_cmd_pyld *ipahal_ip_packet_tag_status_pyld(u64 tag);
  * mem is the dat to transfer (it will be discarded)
  */
 struct ipahal_imm_cmd_pyld *ipahal_dma_task_32b_addr_pyld(
-				struct ipa_mem_buffer *mem);
+				struct ipa_dma_mem *mem);
 
 /* ipahal_destroy_imm_cmd() - Destroy/Release bulk that was built
  *  by the construction functions
@@ -357,23 +299,17 @@ u32 ipahal_pkt_status_get_size(void);
 void ipahal_pkt_status_parse(const void *unparsed_status,
 			     struct ipahal_pkt_status *status);
 
-/* ipahal_pkt_status_exception_str() - returns string represents exception type
- * @exception: [in] The exception type
- */
-const char *ipahal_pkt_status_exception_str(
-	enum ipahal_pkt_status_exception exception);
+int ipahal_init(void);
+void ipahal_exit(void);
 
-/* ipahal_dma_alloc() - allocate a DMA buffer, describe it in mem struct
- */
-int ipahal_dma_alloc(struct ipa_mem_buffer *mem, u32 size, gfp_t gfp);
+/* Does the given ID represents rule miss? */
+bool ipahal_is_rule_miss_id(u32 id);
 
-/* ipahal_dma_free() - free a previously-allocated DMA buffer described by mem
- */
-void ipahal_dma_free(struct ipa_mem_buffer *mem);
+int ipahal_rt_generate_empty_img(u32 route_count, struct ipa_dma_mem *mem);
+int ipahal_flt_generate_empty_img(u64 ep_bitmap, struct ipa_dma_mem *mem);
 
-void ipahal_init(enum ipa_hw_version hw_version, void __iomem *base);
-int ipahal_dev_init(struct device *ipa_pdev);
-void ipahal_dev_destroy(void);
-void ipahal_destroy(void);
+/* ipahal_free_empty_img() - free empty filter or route image
+ */
+void ipahal_free_empty_img(struct ipa_dma_mem *mem);
 
 #endif /* _IPAHAL_H_ */

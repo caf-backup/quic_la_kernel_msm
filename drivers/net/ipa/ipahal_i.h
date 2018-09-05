@@ -6,24 +6,8 @@
 #ifndef _IPAHAL_I_H_
 #define _IPAHAL_I_H_
 
+#include "ipa_dma.h"
 #include "ipa_common_i.h"
-
-/* struct ipahal_context - HAL global context data
- * @hw_type: IPA H/W type/version.
- * @base: Base address to be used for accessing IPA memory. This is
- *  I/O memory mapped address.
- *  Controlled by debugfs. default is off
- * @ipa_pdev: IPA Platform Device. Will be used for DMA memory
- * @empty_fltrt_tbl: Empty table to be used at tables init.
- */
-struct ipahal_context {
-	void __iomem *base;
-	struct device *ipa_pdev;
-	struct ipa_mem_buffer empty_fltrt_tbl;
-	u64 empty_fltrt_tbl_addr;
-};
-
-extern struct ipahal_context *ipahal_ctx;
 
 /* Immediate commands H/W structures */
 
@@ -41,13 +25,13 @@ extern struct ipahal_context *ipahal_ctx;
  * @nhash_rules_addr: Addr in sys mem where non-hashable flt/rt tbl starts
  */
 struct ipa_imm_cmd_hw_ip_fltrt_init {
-	u64 hash_rules_addr:64;
-	u64 hash_rules_size:12;
-	u64 hash_local_addr:16;
-	u64 nhash_rules_size:12;
-	u64 nhash_local_addr:16;
-	u64 rsvd:8;
-	u64 nhash_rules_addr:64;
+	u64 hash_rules_addr;
+	u64 hash_rules_size	: 12,
+	    hash_local_addr	: 16,
+	    nhash_rules_size	: 12,
+	    nhash_local_addr	: 16,
+	    rsvd		: 8;
+	u64 nhash_rules_addr;
 };
 
 /* struct ipa_imm_cmd_hw_hdr_init_local - HDR_INIT_LOCAL command payload
@@ -59,10 +43,10 @@ struct ipa_imm_cmd_hw_ip_fltrt_init {
  * @rsvd: reserved
  */
 struct ipa_imm_cmd_hw_hdr_init_local {
-	u64 hdr_table_addr:64;
-	u64 size_hdr_table:12;
-	u64 hdr_addr:16;
-	u64 rsvd:4;
+	u64 hdr_table_addr;
+	u32 size_hdr_table	: 12,
+	    hdr_addr		: 16,
+	    rsvd		: 4;
 };
 
 /* struct ipa_imm_cmd_hw_ip_packet_init - IP_PACKET_INIT command payload
@@ -74,34 +58,8 @@ struct ipa_imm_cmd_hw_hdr_init_local {
  * @rsvd: reserved
  */
 struct ipa_imm_cmd_hw_ip_packet_init {
-	u64 destination_pipe_index:5;
-	u64 rsv1:59;
-};
-
-/* struct ipa_imm_cmd_hw_register_write - REGISTER_WRITE command payload
- *  in H/W format.
- * Write value to register. Allows reg changes to be synced with data packet
- *  and other immediate command. Can be used to access the sram
- * @sw_rsvd: Ignored by H/W. May be used by S/W
- * @skip_pipeline_clear: 0 to wait until IPA pipeline is clear. 1 don't wait
- * @offset: offset from IPA base address - Lower 16bit of the IPA reg addr
- * @value: value to write to register
- * @value_mask: mask specifying which value bits to write to the register
- * @pipeline_clear_options: options for pipeline to clear
- *	0: HPS - no pkt inside HPS (not grp specific)
- *	1: source group - The immediate cmd src grp does not use any pkt ctxs
- *	2: Wait until no pkt reside inside IPA pipeline
- *	3: reserved
- * @rsvd: reserved - should be set to zero
- */
-struct ipa_imm_cmd_hw_register_write {
-	u64 sw_rsvd:15;
-	u64 skip_pipeline_clear:1;
-	u64 offset:16;
-	u64 value:32;
-	u64 value_mask:32;
-	u64 pipeline_clear_options:2;
-	u64 rsvd:30;
+	u64 destination_pipe_index	: 5,
+	    rsv1			: 59;
 };
 
 /* struct ipa_imm_cmd_hw_dma_shared_mem - DMA_SHARED_MEM command payload
@@ -123,29 +81,14 @@ struct ipa_imm_cmd_hw_register_write {
  * @system_addr: Address in system memory
  */
 struct ipa_imm_cmd_hw_dma_shared_mem {
-	u64 sw_rsvd:16;
-	u64 size:16;
-	u64 local_addr:16;
-	u64 direction:1;
-	u64 skip_pipeline_clear:1;
-	u64 pipeline_clear_options:2;
-	u64 rsvd:12;
-	u64 system_addr:64;
-};
-
-/* struct ipa_imm_cmd_hw_ip_packet_tag_status -
- *  IP_PACKET_TAG_STATUS command payload in H/W format.
- * This cmd is used for to allow SW to track HW processing by setting a TAG
- *  value that is passed back to SW inside Packet Status information.
- *  TAG info will be provided as part of Packet Status info generated for
- *  the next pkt transferred over the pipe.
- *  This immediate command must be followed by a packet in the same transfer.
- * @sw_rsvd: Ignored by H/W. My be used by S/W
- * @tag: Tag that is provided back to SW
- */
-struct ipa_imm_cmd_hw_ip_packet_tag_status {
-	u64 sw_rsvd:16;
-	u64 tag:48;
+	u16 sw_rsvd;
+	u16 size;
+	u16 local_addr;
+	u16 direction			: 1,
+	    skip_pipeline_clear		: 1,
+	    pipeline_clear_options	: 2,
+	    rsvd			: 12;
+	u64 system_addr;
 };
 
 /* struct ipa_imm_cmd_hw_dma_task_32b_addr -
@@ -172,15 +115,17 @@ struct ipa_imm_cmd_hw_ip_packet_tag_status {
  *  must contain this field (2 or more buffers) or EOT.
  */
 struct ipa_imm_cmd_hw_dma_task_32b_addr {
-	u64 sw_rsvd:11;
-	u64 cmplt:1;
-	u64 eof:1;
-	u64 flsh:1;
-	u64 lock:1;
-	u64 unlock:1;
-	u64 size1:16;
-	u64 addr1:32;
-	u64 packet_size:16;
+	u16 sw_rsvd	: 11,
+	    cmplt	: 1,
+	    eof		: 1,
+	    flsh	: 1,
+	    lock	: 1,
+	    unlock	: 1;
+	u16 size1;
+	u32 addr1;
+	u16 packet_size;
+	u16 rsvd1;
+	u32 rsvd2;
 };
 
 /* IPA Status packet H/W structures and info */
@@ -210,7 +155,7 @@ struct ipa_imm_cmd_hw_dma_task_32b_addr {
  * @flt_ret_hdr: Retain header in filter rule flag: Does matching flt rule
  *  specifies to retain header?
  * @flt_rule_id: The ID of the matching filter rule. This info can be combined
- *  with endp_src_idx to locate the exact rule. ID=0x3FF reserved to specify
+ *  with endp_src_idx to locate the exact rule. ID=0x3ff reserved to specify
  *  flt miss. In case of miss, all flt info to be ignored
  * @rt_local: Route table location flag: Does matching rt rule belongs to
  *  rt tbl that resides in lcl memory? (if not, then system mem)
@@ -218,7 +163,7 @@ struct ipa_imm_cmd_hw_dma_task_32b_addr {
  * @ucp: UC Processing flag.
  * @rt_tbl_idx: Index of rt tbl that contains the rule on which was a match
  * @rt_rule_id: The ID of the matching rt rule. This info can be combined
- *  with rt_tbl_idx to locate the exact rule. ID=0x3FF reserved to specify
+ *  with rt_tbl_idx to locate the exact rule. ID=0x3ff reserved to specify
  *  rt miss. In case of miss, all rt info to be ignored
  * @nat_hit: NAT hit flag: Was their NAT hit?
  * @nat_entry_idx: Index of the NAT entry used of NAT processing
@@ -237,37 +182,38 @@ struct ipa_imm_cmd_hw_dma_task_32b_addr {
  * @frag_rule: Frag rule index in H/W frag table in case of frag hit
  * @hw_specific: H/W specific reserved value
  */
+#define IPA_RULE_ID_BITS	10	/* See ipahal_is_rule_miss_id() */
 struct ipa_pkt_status_hw {
-	u64 status_opcode:8;
-	u64 exception:8;
-	u64 status_mask:16;
-	u64 pkt_len:16;
-	u64 endp_src_idx:5;
-	u64 rsvd1:3;
-	u64 endp_dest_idx:5;
-	u64 rsvd2:3;
-	u64 metadata:32;
-	u64 flt_local:1;
-	u64 flt_hash:1;
-	u64 flt_global:1;
-	u64 flt_ret_hdr:1;
-	u64 flt_rule_id:10;
-	u64 rt_local:1;
-	u64 rt_hash:1;
-	u64 ucp:1;
-	u64 rt_tbl_idx:5;
-	u64 rt_rule_id:10;
-	u64 nat_hit:1;
-	u64 nat_entry_idx:13;
-	u64 nat_type:2;
-	u64 tag_info:48;
-	u64 seq_num:8;
-	u64 time_of_day_ctr:24;
-	u64 hdr_local:1;
-	u64 hdr_offset:10;
-	u64 frag_hit:1;
-	u64 frag_rule:4;
-	u64 hw_specific:16;
+	u8  status_opcode;
+	u8  exception;
+	u16 status_mask;
+	u16 pkt_len;
+	u8  endp_src_idx	: 5,
+	    rsvd1		: 3;
+	u8  endp_dest_idx	: 5,
+	    rsvd2		: 3;
+	u32 metadata;
+	u16 flt_local		: 1,
+	    flt_hash		: 1,
+	    flt_global		: 1,
+	    flt_ret_hdr		: 1,
+	    flt_rule_id		: IPA_RULE_ID_BITS,
+	    rt_local		: 1,
+	    rt_hash		: 1;
+	u16 ucp			: 1,
+	    rt_tbl_idx		: 5,
+	    rt_rule_id		: IPA_RULE_ID_BITS;
+	u64 nat_hit		: 1,
+	    nat_entry_idx	: 13,
+	    nat_type		: 2,
+	    tag_info		: 48;
+	u32 seq_num		: 8,
+	    time_of_day_ctr	: 24;
+	u16 hdr_local		: 1,
+	    hdr_offset		: 10,
+	    frag_hit		: 1,
+	    frag_rule		: 4;
+	u16 hw_specific;
 };
 
 #endif /* _IPAHAL_I_H_ */
