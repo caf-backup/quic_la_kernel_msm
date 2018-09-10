@@ -1218,8 +1218,10 @@ static int qcom_pcie_host_init(struct pcie_port *pp)
 
 	dw_pcie_setup_rc(pp);
 
-	if (IS_ENABLED(CONFIG_PCI_MSI))
-		dw_pcie_msi_init(pp);
+	if (IS_ENABLED(CONFIG_PCI_MSI)) {
+		if (!pp->msi_gicm_addr)
+			dw_pcie_msi_init(pp);
+	}
 
 	if (!pcie->is_emulation)
 		qcom_ep_reset_deassert(pcie);
@@ -1498,6 +1500,8 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	u32 is_emulation = 0;
 	static int rc_idx;
+	int i;
+	char irq_name[20];
 
 	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
@@ -1562,6 +1566,11 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 				pcie);
 	}
 
+	pp->msi_gicm_addr = 0;
+	pp->msi_gicm_base = 0;
+	of_property_read_u32(np, "qcom,msi-gicm-addr", &pp->msi_gicm_addr);
+	of_property_read_u32(np, "qcom,msi-gicm-base", &pp->msi_gicm_base);
+
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		pp->msi_irq = platform_get_irq_byname(pdev, "msi");
 		if (pp->msi_irq < 0)
@@ -1573,6 +1582,12 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(dev, "cannot request msi irq\n");
 			return ret;
+		}
+		for (i = 0; i < MAX_MSI_IRQS; i++) {
+			snprintf(irq_name, sizeof(irq_name), "msi_%d", i);
+			pp->msi[i] = platform_get_irq_byname(pdev, irq_name);
+			if (pp->msi[i] < 0)
+				break;
 		}
 	}
 

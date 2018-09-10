@@ -372,10 +372,132 @@ static void dw_msi_teardown_irq(struct msi_controller *chip, unsigned int irq)
 	clear_irq_range(pp, irq, 1, data->hwirq);
 }
 
+static int pcie_create_qgic_msi_irq(struct pcie_port *dev)
+{
+	int irq, pos;
+
+again:
+	pos = find_first_zero_bit(dev->msi_irq_in_use, MAX_MSI_IRQS);
+
+	if (pos >= MAX_MSI_IRQS)
+		return -ENOSPC;
+
+	if (test_and_set_bit(pos, dev->msi_irq_in_use))
+		goto again;
+
+	if (pos >= MAX_MSI_IRQS) {
+		printk("PCIe: pos %d is not less than %d\n",
+			pos, MAX_MSI_IRQS);
+		return ENOSPC;
+	}
+
+	irq = dev->msi[pos];
+	if (!irq) {
+		printk("PCIe: failed to create QGIC MSI IRQ.\n");
+		return -EINVAL;
+	}
+
+	return irq;
+}
+
+static int qgic_msi_setup_irq(struct pci_dev *pdev,
+		struct msi_desc *desc, int nvec)
+{
+	int irq, index, firstirq = 0;
+	struct msi_msg msg;
+	struct pcie_port *dev = pdev->bus->sysdata;
+
+	for (index = 0; index < nvec; index++) {
+		irq = pcie_create_qgic_msi_irq(dev);
+
+		if (irq < 0)
+			return irq;
+
+		if (index == 0)
+			firstirq = irq;
+
+		irq_set_irq_type(irq, IRQ_TYPE_EDGE_RISING);
+	}
+
+	/* write msi vector and data */
+	irq_set_msi_desc(firstirq, desc);
+
+	msg.address_hi = 0;
+	msg.address_lo = dev->msi_gicm_addr;
+	msg.data = dev->msi_gicm_base + (firstirq - dev->msi[0]);
+	write_msi_msg(firstirq, &msg);
+
+	return 0;
+}
+
+static int msi_setup_irq(struct msi_controller *chip, struct pci_dev *pdev,
+			struct msi_desc *desc)
+{
+	struct pcie_port *pp = pdev->bus->sysdata;
+
+	if (pp->msi_gicm_addr)
+		return qgic_msi_setup_irq(pdev, desc, 1);
+	else
+		return dw_msi_setup_irq(chip, pdev, desc);
+}
+
+int qgic_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
+{
+	struct msi_desc *entry;
+	int ret = 0;
+
+	if (type == PCI_CAP_ID_MSIX)
+		return -EINVAL;
+
+	list_for_each_entry(entry, &dev->dev.msi_list, list) {
+		entry->msi_attrib.multiple = order_base_2(nvec);
+
+			ret = qgic_msi_setup_irq(dev, entry, nvec);
+	}
+
+	return ret;
+}
+
+static int msi_setup_irqs(struct msi_controller *chip, struct pci_dev *pdev,
+			     int nvec, int type)
+{
+	struct pcie_port *pp = pdev->bus->sysdata;
+
+	if (pp->msi_gicm_addr)
+		return qgic_setup_msi_irqs(pdev, nvec, type);
+	else
+		return dw_msi_setup_irqs(chip, pdev, nvec, type);
+}
+
+void pcie_destroy_qgic_msi_irq(unsigned int irq, struct pcie_port *dev)
+{
+	int pos;
+
+	pos = irq - dev->msi[0];
+	clear_bit(pos, dev->msi_irq_in_use);
+}
+
+static void msi_teardown_irq(struct msi_controller *chip, unsigned int irq)
+{
+	struct irq_data *data = irq_get_irq_data(irq);
+	struct msi_desc *msi;
+	struct pcie_port *pp;
+
+	if (data) {
+		msi = irq_data_get_msi_desc(data);
+		pp = (struct pcie_port *) msi_desc_to_pci_sysdata(msi);
+
+		if (pp->msi_gicm_addr)
+			pcie_destroy_qgic_msi_irq(irq, pp);
+		else
+			dw_msi_teardown_irq(chip, irq);
+	}
+}
+
 static struct msi_controller dw_pcie_msi_chip = {
-	.setup_irq = dw_msi_setup_irq,
-	.setup_irqs = dw_msi_setup_irqs,
-	.teardown_irq = dw_msi_teardown_irq,
+	.setup_irq = msi_setup_irq,
+	.setup_irqs = msi_setup_irqs,
+	.teardown_irq = msi_teardown_irq,
 };
 
 int dw_pcie_wait_for_link(struct pcie_port *pp)
@@ -514,21 +636,23 @@ int dw_pcie_host_init(struct pcie_port *pp)
 		pp->lanes = 0;
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
-		if (!pp->ops->msi_host_init) {
-			pp->irq_domain = irq_domain_add_linear(pp->dev->of_node,
+		if (!pp->msi_gicm_addr) {
+			if (!pp->ops->msi_host_init) {
+				pp->irq_domain = irq_domain_add_linear(pp->dev->of_node,
 						MAX_MSI_IRQS, &msi_domain_ops,
 						&dw_pcie_msi_chip);
-			if (!pp->irq_domain) {
-				dev_err(pp->dev, "irq domain init failed\n");
-				return -ENXIO;
-			}
+				if (!pp->irq_domain) {
+					dev_err(pp->dev, "irq domain init failed\n");
+					return -ENXIO;
+				}
 
-			for (i = 0; i < MAX_MSI_IRQS; i++)
-				irq_create_mapping(pp->irq_domain, i);
-		} else {
-			ret = pp->ops->msi_host_init(pp, &dw_pcie_msi_chip);
-			if (ret < 0)
-				return ret;
+				for (i = 0; i < MAX_MSI_IRQS; i++)
+					irq_create_mapping(pp->irq_domain, i);
+			} else {
+				ret = pp->ops->msi_host_init(pp, &dw_pcie_msi_chip);
+				if (ret < 0)
+					return ret;
+			}
 		}
 	}
 
