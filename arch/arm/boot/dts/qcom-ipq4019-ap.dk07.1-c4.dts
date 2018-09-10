@@ -59,7 +59,7 @@
 					function = "gpio";
 					input;
 				};
-                        };
+			};
 
 			wifi_0_pins: wifi1_pinmux {
 				mux_1 {
