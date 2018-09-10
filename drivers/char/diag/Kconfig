@@ -4,7 +4,7 @@ config DIAG_CHAR
 	tristate "char driver interface and diag forwarding to/from modem"
 	default m
 	depends on USB_F_DIAG || USB_FUNCTION_DIAG || USB_QCOM_MAEMO
-	depends on ARCH_QCOM
+	depends on ARCH_QCOM || ATH79
 	select CRC_CCITT
 	help
 	 Char driver interface for diag user space and diag-forwarding to modem ARM and back.
@@ -15,7 +15,7 @@ menu "DIAG traffic over USB"
 
 config DIAG_OVER_USB
 	bool "Enable DIAG traffic to go over USB"
-        depends on ARCH_QCOM
+        depends on ARCH_QCOM || ATH79
 	default y
 	help
 	 This feature helps segregate code required for DIAG traffic to go over USB.

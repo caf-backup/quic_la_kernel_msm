@@ -58,6 +58,10 @@ int usb_diag_alloc_req(struct usb_diag_ch *ch, int n_write, int n_read);
 int usb_diag_read(struct usb_diag_ch *ch, struct diag_request *d_req);
 int usb_diag_write(struct usb_diag_ch *ch, struct diag_request *d_req);
 #else
+static inline int usb_diag_request_size(struct usb_diag_ch *ch)
+{
+	return -1;
+}
 static inline struct usb_diag_ch *usb_diag_open(const char *name, void *priv,
 		void (*notify)(void *, unsigned, struct diag_request *))
 {
