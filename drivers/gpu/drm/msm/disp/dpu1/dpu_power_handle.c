@@ -36,10 +36,12 @@ static int dpu_power_set_data_bus_icc_path(struct dpu_power_handle *phandle)
 
 	total_num_paths = 1;
 	pdbus->path[0] = path0;
+	icc_set(path0, 0, 3200000000);
 
 	if (!IS_ERR(path1)) {
 		pdbus->path[1] = path1;
 		total_num_paths++;
+		icc_set(path1, 0, 3200000000);
 	}
 
 	if (total_num_paths > MAX_AXI_PORT_COUNT)
@@ -98,6 +100,9 @@ static int _dpu_power_data_bus_set_quota(
 		ib_quota_nrt = min_t(u64, ib_quota_nrt,
 				DPU_POWER_HANDLE_DISABLE_BUS_IB_QUOTA);
 	}
+
+	DPU_DEBUG("total ab_rt=%llu ib_rt=%llu,ab_nrt=%llu ib_nrt=%llu\n",
+		ab_quota_rt, ib_quota_rt, ab_quota_nrt, ib_quota_nrt);
 
 	if (nrt_num_paths) {
 		ab_quota_rt = div_u64(ab_quota_rt, rt_num_paths);
@@ -186,6 +191,7 @@ static int dpu_power_data_bus_update(
 	int rc = 0;
 
 	pdbus->enable = enable;
+
 	rc = _dpu_power_data_bus_set_quota(pdbus, pdbus->ab_rt,
 			pdbus->ab_nrt, pdbus->ib_rt, pdbus->ib_nrt);
 
