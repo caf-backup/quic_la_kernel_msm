@@ -491,7 +491,11 @@ static const struct adc5_channels adc5_chans_rev2[ADC5_MAX_CHANNEL] = {
 					SCALE_HW_CALIB_PMIC_THERM)
 	[ADC5_AMUX_THM1_100K_PU] = ADC5_CHAN_TEMP("amux_thm1_100k_pu", 1,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
+	[ADC5_AMUX_THM2_100K_PU] = ADC5_CHAN_TEMP("amux_thm2_100k_pu", 1,
+					SCALE_HW_CALIB_THERM_100K_PULLUP)
 	[ADC5_AMUX_THM3_100K_PU] = ADC5_CHAN_TEMP("amux_thm3_100k_pu", 1,
+					SCALE_HW_CALIB_THERM_100K_PULLUP)
+	[ADC5_AMUX_THM4_100K_PU] = ADC5_CHAN_TEMP("amux_thm4_100k_pu", 1,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
 	[ADC5_AMUX_THM5_100K_PU] = ADC5_CHAN_TEMP("amux_thm5_100k_pu", 1,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
@@ -515,7 +519,8 @@ static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 		return ret;
 	}
 
-	if (chan > ADC5_PARALLEL_ISENSE_VBAT_IDATA) {
+	if (chan > ADC5_PARALLEL_ISENSE_VBAT_IDATA ||
+	    !data->adc_chans[chan].datasheet_name) {
 		dev_err(dev, "%s invalid channel number %d\n", name, chan);
 		return -EINVAL;
 	}

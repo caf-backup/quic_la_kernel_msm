@@ -5071,10 +5071,6 @@ static int gfx_v8_0_hw_fini(void *handle)
 	gfx_v8_0_cp_enable(adev, false);
 	gfx_v8_0_rlc_stop(adev);
 
-	amdgpu_device_ip_set_powergating_state(adev,
-					       AMD_IP_BLOCK_TYPE_GFX,
-					       AMD_PG_STATE_UNGATE);
-
 	return 0;
 }
 
@@ -5490,10 +5486,6 @@ static int gfx_v8_0_late_init(void *handle)
 	if (r)
 		return r;
 
-	amdgpu_device_ip_set_powergating_state(adev,
-					       AMD_IP_BLOCK_TYPE_GFX,
-					       AMD_PG_STATE_GATE);
-
 	return 0;
 }
 
@@ -5561,6 +5553,11 @@ static int gfx_v8_0_set_powergating_state(void *handle,
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
+	if (adev->pg_flags & (AMD_PG_SUPPORT_GFX_SMG |
+				AMD_PG_SUPPORT_RLC_SMU_HS |
+				AMD_PG_SUPPORT_CP |
+				AMD_PG_SUPPORT_GFX_DMG))
+		adev->gfx.rlc.funcs->enter_safe_mode(adev);
 	switch (adev->asic_type) {
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
@@ -5609,7 +5606,11 @@ static int gfx_v8_0_set_powergating_state(void *handle,
 	default:
 		break;
 	}
-
+	if (adev->pg_flags & (AMD_PG_SUPPORT_GFX_SMG |
+				AMD_PG_SUPPORT_RLC_SMU_HS |
+				AMD_PG_SUPPORT_CP |
+				AMD_PG_SUPPORT_GFX_DMG))
+		adev->gfx.rlc.funcs->exit_safe_mode(adev);
 	return 0;
 }
 
@@ -6633,6 +6634,18 @@ static void gfx_v8_0_ring_emit_wreg(struct amdgpu_ring *ring, uint32_t reg,
 	amdgpu_ring_write(ring, val);
 }
 
+static void gfx_v8_0_ring_soft_recovery(struct amdgpu_ring *ring, unsigned vmid)
+{
+	struct amdgpu_device *adev = ring->adev;
+	uint32_t value = 0;
+
+	value = REG_SET_FIELD(value, SQ_CMD, CMD, 0x03);
+	value = REG_SET_FIELD(value, SQ_CMD, MODE, 0x01);
+	value = REG_SET_FIELD(value, SQ_CMD, CHECK_VMID, 1);
+	value = REG_SET_FIELD(value, SQ_CMD, VM_ID, vmid);
+	WREG32(mmSQ_CMD, value);
+}
+
 static void gfx_v8_0_set_gfx_eop_interrupt_state(struct amdgpu_device *adev,
 						 enum amdgpu_interrupt_state state)
 {
@@ -6911,6 +6924,7 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_gfx = {
 	.emit_cntxcntl = gfx_v8_ring_emit_cntxcntl,
 	.init_cond_exec = gfx_v8_0_ring_emit_init_cond_exec,
 	.patch_cond_exec = gfx_v8_0_ring_emit_patch_cond_exec,
+	.soft_recovery = gfx_v8_0_ring_soft_recovery,
 };
 
 static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_compute = {

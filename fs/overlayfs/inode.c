@@ -14,6 +14,7 @@
 #include <linux/posix_acl.h>
 #include <linux/ratelimit.h>
 #include "overlayfs.h"
+#include "ovl_entry.h"
 
 int ovl_setattr(struct dentry *dentry, struct iattr *attr)
 {
@@ -409,6 +410,7 @@ static inline void ovl_lockdep_annotate_inode_mutex_key(struct inode *inode)
 #ifdef CONFIG_LOCKDEP
 	static struct lock_class_key ovl_i_mutex_key[OVL_MAX_NESTING];
 	static struct lock_class_key ovl_i_mutex_dir_key[OVL_MAX_NESTING];
+	static struct lock_class_key ovl_i_lock_key[OVL_MAX_NESTING];
 
 	int depth = inode->i_sb->s_stack_depth - 1;
 
@@ -419,6 +421,8 @@ static inline void ovl_lockdep_annotate_inode_mutex_key(struct inode *inode)
 		lockdep_set_class(&inode->i_rwsem, &ovl_i_mutex_dir_key[depth]);
 	else
 		lockdep_set_class(&inode->i_rwsem, &ovl_i_mutex_key[depth]);
+
+	lockdep_set_class(&OVL_I(inode)->lock, &ovl_i_lock_key[depth]);
 #endif
 }
 
@@ -673,6 +677,16 @@ struct inode *ovl_get_inode(struct dentry *dentry, struct dentry *upperdentry,
 
 	if (upperdentry && ovl_is_impuredir(upperdentry))
 		ovl_set_flag(OVL_IMPURE, inode);
+
+	/* Check for non-merge dir that may have whiteouts */
+	if (S_ISDIR(realinode->i_mode)) {
+		struct ovl_entry *oe = dentry->d_fsdata;
+
+		if (((upperdentry && lowerdentry) || oe->numlower > 1) ||
+		    ovl_check_origin_xattr(upperdentry ?: lowerdentry)) {
+			ovl_set_flag(OVL_WHITEOUTS, inode);
+		}
+	}
 
 	if (inode->i_state & I_NEW)
 		unlock_new_inode(inode);

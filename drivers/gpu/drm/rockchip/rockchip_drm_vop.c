@@ -640,7 +640,6 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	struct vop_win *vop_win = to_vop_win(plane);
 	const struct vop_win_data *win = vop_win->data;
 	int ret;
-	struct drm_rect clip;
 	int min_scale = win->phy->scl ? FRAC_16_16(1, 8) :
 					DRM_PLANE_HELPER_NO_SCALING;
 	int max_scale = win->phy->scl ? FRAC_16_16(8, 1) :
@@ -653,12 +652,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
 
-	clip.x1 = 0;
-	clip.y1 = 0;
-	clip.x2 = crtc_state->adjusted_mode.hdisplay;
-	clip.y2 = crtc_state->adjusted_mode.vdisplay;
-
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state, &clip,
+	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
 						  min_scale, max_scale,
 						  true, true);
 	if (ret)
