@@ -1,7 +1,6 @@
 /*
  * Qualcomm Peripheral Image Loader
  *
- * Copyright (C) 2018 The Linux Foundation. All rights reserved.
  * Copyright (C) 2016 Linaro Ltd
  * Copyright (C) 2015 Sony Mobile Communications Inc
  * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
@@ -25,17 +24,6 @@
 #include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/soc/qcom/mdt_loader.h>
-#include <linux/of_device.h>
-#include <linux/io.h>
-#include <linux/of_address.h>
-
-static bool disable_timeouts;
-
-bool is_timeout_disabled(void)
-{
-	return disable_timeouts;
-}
-EXPORT_SYMBOL_GPL(is_timeout_disabled);
 
 static bool mdt_phdr_valid(const struct elf32_phdr *phdr)
 {
@@ -50,60 +38,6 @@ static bool mdt_phdr_valid(const struct elf32_phdr *phdr)
 
 	return true;
 }
-
-int qcom_mdt_write_image_info(struct device *dev,
-	struct qcom_mdt_image_info *info, unsigned int qcom_mdt_image_id)
-{
-	struct device_node *np;
-	static void __iomem *pil_info_base;
-	void __iomem *addr;
-	struct resource res;
-	struct qcom_mdt_image_info *qcom_mdt_info;
-	int i;
-
-	if (!pil_info_base) {
-		np = of_find_compatible_node(NULL, NULL, "qcom,msm-imem-pil");
-		if (!np) {
-			dev_err(dev, "pil: failed to find qcom,msm-imem-pil node\n");
-			return -EPROBE_DEFER;
-		}
-		if (of_address_to_resource(np, 0, &res)) {
-			dev_err(dev, "pil: address to resource on imem region failed\n");
-			return -EPROBE_DEFER;
-		}
-
-		pil_info_base = ioremap(res.start, resource_size(&res));
-
-		if (!pil_info_base) {
-			dev_err(dev, "pil: could not map imem region\n");
-			return -EPROBE_DEFER;
-		}
-
-		if (__raw_readl(pil_info_base) == 0x53444247)
-			disable_timeouts = true;
-	}
-
-	if (!info)
-		return -EINVAL;
-
-	addr = pil_info_base + sizeof(struct qcom_mdt_image_info) *
-		qcom_mdt_image_id;
-
-	qcom_mdt_info = (struct qcom_mdt_image_info __iomem *)addr;
-
-	for (i = 0; i < sizeof(struct qcom_mdt_image_info)/sizeof(int); i++)
-		writel_relaxed(0, addr + (i * sizeof(int)));
-
-	__iowrite32_copy(&qcom_mdt_info->name, info->name,
-			sizeof(qcom_mdt_info->name)/4);
-	__iowrite32_copy(&qcom_mdt_info->start, &info->start,
-			sizeof(qcom_mdt_info->start)/4);
-
-	writel_relaxed(info->size, &qcom_mdt_info->size);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(qcom_mdt_write_image_info);
 
 /**
  * qcom_mdt_get_size() - acquire size of the memory region needed to load mdt
@@ -140,10 +74,23 @@ ssize_t qcom_mdt_get_size(const struct firmware *fw)
 }
 EXPORT_SYMBOL_GPL(qcom_mdt_get_size);
 
-static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
-			   const char *firmware, int pas_id, void *mem_region,
-			   phys_addr_t mem_phys, size_t mem_size,
-			   phys_addr_t *reloc_base, bool pas_init)
+/**
+ * qcom_mdt_load() - load the firmware which header is loaded as fw
+ * @dev:	device handle to associate resources with
+ * @fw:		firmware object for the mdt file
+ * @firmware:	name of the firmware, for construction of segment file names
+ * @pas_id:	PAS identifier
+ * @mem_region:	allocated memory region to load firmware into
+ * @mem_phys:	physical address of allocated memory region
+ * @mem_size:	size of the allocated memory region
+ * @reloc_base:	adjusted physical address after relocation
+ *
+ * Returns 0 on success, negative errno otherwise.
+ */
+int qcom_mdt_load(struct device *dev, const struct firmware *fw,
+		  const char *firmware, int pas_id, void *mem_region,
+		  phys_addr_t mem_phys, size_t mem_size,
+		  phys_addr_t *reloc_base)
 {
 	const struct elf32_phdr *phdrs;
 	const struct elf32_phdr *phdr;
@@ -174,12 +121,10 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 	if (!fw_name)
 		return -ENOMEM;
 
-	if (pas_init) {
-		ret = qcom_scm_pas_init_image(pas_id, fw->data, fw->size);
-		if (ret) {
-			dev_err(dev, "invalid firmware metadata\n");
-			goto out;
-		}
+	ret = qcom_scm_pas_init_image(pas_id, fw->data, fw->size);
+	if (ret) {
+		dev_err(dev, "invalid firmware metadata\n");
+		goto out;
 	}
 
 	for (i = 0; i < ehdr->e_phnum; i++) {
@@ -199,13 +144,10 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 	}
 
 	if (relocate) {
-		if (pas_init) {
-			ret = qcom_scm_pas_mem_setup(pas_id, mem_phys,
-						     max_addr - min_addr);
-			if (ret) {
-				dev_err(dev, "unable to setup relocation\n");
-				goto out;
-			}
+		ret = qcom_scm_pas_mem_setup(pas_id, mem_phys, max_addr - min_addr);
+		if (ret) {
+			dev_err(dev, "unable to setup relocation\n");
+			goto out;
 		}
 
 		/*
@@ -260,52 +202,7 @@ out:
 
 	return ret;
 }
-
-/**
- * qcom_mdt_load() - load the firmware which header is loaded as fw
- * @dev:	device handle to associate resources with
- * @fw:		firmware object for the mdt file
- * @firmware:	name of the firmware, for construction of segment file names
- * @pas_id:	PAS identifier
- * @mem_region:	allocated memory region to load firmware into
- * @mem_phys:	physical address of allocated memory region
- * @mem_size:	size of the allocated memory region
- * @reloc_base:	adjusted physical address after relocation
- *
- * Returns 0 on success, negative errno otherwise.
- */
-int qcom_mdt_load(struct device *dev, const struct firmware *fw,
-		  const char *firmware, int pas_id, void *mem_region,
-		  phys_addr_t mem_phys, size_t mem_size,
-		  phys_addr_t *reloc_base)
-{
-	return __qcom_mdt_load(dev, fw, firmware, pas_id, mem_region, mem_phys,
-			       mem_size, reloc_base, true);
-}
 EXPORT_SYMBOL_GPL(qcom_mdt_load);
-
-/**
- * qcom_mdt_load_no_init() - load the firmware which header is loaded as fw
- * @dev:	device handle to associate resources with
- * @fw:		firmware object for the mdt file
- * @firmware:	name of the firmware, for construction of segment file names
- * @pas_id:	PAS identifier
- * @mem_region:	allocated memory region to load firmware into
- * @mem_phys:	physical address of allocated memory region
- * @mem_size:	size of the allocated memory region
- * @reloc_base:	adjusted physical address after relocation
- *
- * Returns 0 on success, negative errno otherwise.
- */
-int qcom_mdt_load_no_init(struct device *dev, const struct firmware *fw,
-			  const char *firmware, int pas_id,
-			  void *mem_region, phys_addr_t mem_phys,
-			  size_t mem_size, phys_addr_t *reloc_base)
-{
-	return __qcom_mdt_load(dev, fw, firmware, pas_id, mem_region, mem_phys,
-			       mem_size, reloc_base, false);
-}
-EXPORT_SYMBOL_GPL(qcom_mdt_load_no_init);
 
 MODULE_DESCRIPTION("Firmware parser for Qualcomm MDT format");
 MODULE_LICENSE("GPL v2");

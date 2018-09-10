@@ -399,8 +399,6 @@ enum rproc_crash_type {
  * @node:	list node related to the rproc segment list
  * @da:		device address of the segment
  * @size:	size of the segment
- * @dump:	custom dump function to fill device memory segment associated
- *		with coredump
  */
 struct rproc_dump_segment {
 	struct list_head node;
@@ -408,7 +406,6 @@ struct rproc_dump_segment {
 	dma_addr_t da;
 	size_t size;
 
-	void (*dump)(struct rproc *rproc, void *ptr, size_t len, void *priv);
 	loff_t offset;
 };
 
@@ -480,19 +477,15 @@ struct rproc {
 /**
  * struct rproc_subdev - subdevice tied to a remoteproc
  * @node: list node related to the rproc subdevs list
- * @prepare: prepare function, called before the rproc is started
- * @start: start function, called after the rproc has been started
- * @stop: stop function, called before the rproc is stopped; the @crashed
- *	    parameter indicates if this originates from a recovery
- * @unprepare: unprepare function, called after the rproc has been stopped
+ * @probe: probe function, called as the rproc is started
+ * @remove: remove function, called as the rproc is being stopped, the @crashed
+ *	    parameter indicates if this originates from the a recovery
  */
 struct rproc_subdev {
 	struct list_head node;
 
-	int (*prepare)(struct rproc_subdev *subdev);
-	int (*start)(struct rproc_subdev *subdev);
-	void (*stop)(struct rproc_subdev *subdev, bool crashed);
-	void (*unprepare)(struct rproc_subdev *subdev);
+	int (*probe)(struct rproc_subdev *subdev);
+	void (*remove)(struct rproc_subdev *subdev, bool crashed);
 };
 
 /* we currently support only two vrings per rvdev */
@@ -560,11 +553,6 @@ int rproc_boot(struct rproc *rproc);
 void rproc_shutdown(struct rproc *rproc);
 void rproc_report_crash(struct rproc *rproc, enum rproc_crash_type type);
 int rproc_coredump_add_segment(struct rproc *rproc, dma_addr_t da, size_t size);
-int rproc_coredump_add_custom_segment(struct rproc *rproc,
-				      dma_addr_t da, size_t size,
-				      void (*dumpfn)(struct rproc *rproc,
-						     void *ptr, size_t len,
-						     void *priv));
 
 static inline struct rproc_vdev *vdev_to_rvdev(struct virtio_device *vdev)
 {
@@ -578,7 +566,10 @@ static inline struct rproc *vdev_to_rproc(struct virtio_device *vdev)
 	return rvdev->rproc;
 }
 
-void rproc_add_subdev(struct rproc *rproc, struct rproc_subdev *subdev);
+void rproc_add_subdev(struct rproc *rproc,
+		      struct rproc_subdev *subdev,
+		      int (*probe)(struct rproc_subdev *subdev),
+		      void (*remove)(struct rproc_subdev *subdev, bool crashed));
 
 void rproc_remove_subdev(struct rproc *rproc, struct rproc_subdev *subdev);
 

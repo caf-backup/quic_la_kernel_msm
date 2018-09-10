@@ -375,11 +375,9 @@ void dpu_crtc_complete_commit(struct drm_crtc *crtc,
  * dpu_crtc_init - create a new crtc object
  * @dev: dpu device
  * @plane: base plane
- * @cursor: cursor plane
  * @Return: new crtc object or error
  */
-struct drm_crtc *dpu_crtc_init(struct drm_device *dev, struct drm_plane *plane,
-			       struct drm_plane *cursor);
+struct drm_crtc *dpu_crtc_init(struct drm_device *dev, struct drm_plane *plane);
 
 /**
  * dpu_crtc_register_custom_event - api for enabling/disabling crtc event

@@ -81,11 +81,6 @@ struct venus_caps {
 	bool valid;	/* used only for Venus v1xx */
 };
 
-struct video_firmware {
-	struct device *dev;
-	struct iommu_domain *iommu_domain;
-};
-
 /**
  * struct venus_core - holds core parameters valid for all instances
  *
@@ -134,8 +129,6 @@ struct venus_core {
 	struct device *dev;
 	struct device *dev_dec;
 	struct device *dev_enc;
-	struct video_firmware fw;
-	bool no_tz;
 	struct mutex lock;
 	struct list_head instances;
 	atomic_t insts_count;
