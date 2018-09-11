@@ -8,6 +8,7 @@
 #include <dt-bindings/clock/qcom,aop-qmp.h>
 #include <dt-bindings/clock/qcom,dispcc-sdm845.h>
 #include <dt-bindings/clock/qcom,gcc-sdm845.h>
+#include <dt-bindings/clock/qcom,lpass-sdm845.h>
 #include <dt-bindings/clock/qcom,gpucc-sdm845.h>
 #include <dt-bindings/clock/qcom,rpmh.h>
 #include <dt-bindings/clock/qcom,videocc-sdm845.h>
@@ -101,6 +102,11 @@
 			no-map;
 
 			qcom,client-id = <1>;
+		};
+
+		pil_adsp_mem: reserved-memory@8b100000 {
+			no-map;
+			reg = <0 0x8b100000 0 0x1a00000>;
 		};
 
 		mpss_region: memory@8e000000 {
@@ -1017,6 +1023,13 @@
 			#clock-cells = <1>;
 			mboxes = <&qmp_aop 0>;
 			mbox-names = "qdss_clk";
+		};
+
+		lpasscc: clock-controller {
+			compatible = "qcom,sdm845-lpasscc";
+			reg = <0x17014000 0x1f004>, <0x17300000 0x200>;
+			reg-names = "lpass_cc", "lpass_qdsp6ss";
+			#clock-cells = <1>;
 		};
 
 		qfprom@784000 {
@@ -2595,6 +2608,12 @@
 				pinmux {
 					pins = "gpio49", "gpio50";
 					function = "qup12";
+				};
+
+				pinconf {
+					pins = "gpio49", "gpio50";
+					drive-strength = <2>;
+					bias-disable;
 				};
 			};
 
