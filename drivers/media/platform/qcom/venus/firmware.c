@@ -41,6 +41,8 @@ static void venus_reset_cpu(struct venus_core *core)
 	writel(VENUS_FW_MEM_SIZE, base + WRAPPER_FW_END_ADDR);
 	writel(0, base + WRAPPER_CPA_START_ADDR);
 	writel(VENUS_FW_MEM_SIZE, base + WRAPPER_CPA_END_ADDR);
+	writel(VENUS_FW_MEM_SIZE, base + WRAPPER_NP_START_ADDR);
+	writel(VENUS_FW_MEM_SIZE, base + WRAPPER_NP_END_ADDR);
 	writel(0x0, base + WRAPPER_CPU_CGC_DIS);
 	writel(0x0, base + WRAPPER_CPU_CLOCK_CONFIG);
 
