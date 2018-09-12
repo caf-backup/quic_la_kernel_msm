@@ -19,6 +19,7 @@
 
 #include <linux/ascii85.h>
 #include <linux/pm_opp.h>
+#include <linux/interconnect.h>
 #include "adreno_gpu.h"
 #include "msm_gem.h"
 #include "msm_mmu.h"
@@ -684,6 +685,9 @@ static int adreno_get_pwrlevels(struct device *dev,
 
 	DBG("fast_rate=%u, slow_rate=27000000", gpu->fast_rate);
 
+	/* Check for an interconnect path for the bus */
+	gpu->icc_path = of_icc_get(dev, "port0");
+
 	return 0;
 }
 
@@ -722,10 +726,13 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 
 void adreno_gpu_cleanup(struct adreno_gpu *adreno_gpu)
 {
+	struct msm_gpu *gpu = &adreno_gpu->base;
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(adreno_gpu->info->fw); i++)
 		release_firmware(adreno_gpu->fw[i]);
+
+	icc_put(gpu->icc_path);
 
 	msm_gpu_cleanup(&adreno_gpu->base);
 }
