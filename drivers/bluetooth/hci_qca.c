@@ -851,15 +851,20 @@ static int qca_ibs_wake_ack(struct hci_dev *hdev, struct sk_buff *skb)
 	kfree_skb(skb);
 	return 0;
 }
-static inline void qca_decode_debug_msg(struct hci_dev *hdev,
-					const unsigned char *data,
-					int count)
-{
 
-	if (count > 3 &&  *((unsigned char *) (data + 0)) == HCI_ACLDATA_PKT &&
-	   (*((unsigned char *) (data + 1)) == QCA_DEBUG_MSG_MSB) &&
-	   (*((unsigned char *) (data + 2)) == QCA_DEBUG_MSG_LSB))
-		*((unsigned char *) (data + 0))	= HCI_DIAG_PKT;
+static int qca_recv_acl_data(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	if ((skb->len > 3) &&
+	   (skb->data[0] == QCA_DEBUG_MSG_MSB) &&
+	   (skb->data[1] == QCA_DEBUG_MSG_LSB)) {
+		bt_dev_dbg(hdev, " ACL QCA Debug packet");
+		/* Send QCA Debug packet to diag as diag packet */
+		hci_recv_diag(hdev, skb);
+	} else {
+		bt_dev_dbg(hdev, "ACL packet");
+		return hci_recv_frame(hdev, skb);
+	}
+	return 0;
 }
 
 #define QCA_IBS_SLEEP_IND_EVENT \
@@ -883,21 +888,20 @@ static inline void qca_decode_debug_msg(struct hci_dev *hdev,
 	.lsize = 0, \
 	.maxlen = HCI_MAX_IBS_SIZE
 
-#define QCA_DEBUG_MSG \
-	.type = HCI_DIAG_PKT, \
+#define QCA_RECV_ACL_DATA \
+	.type = HCI_ACLDATA_PKT, \
 	.hlen = HCI_ACL_HDR_SIZE, \
 	.loff = 2, \
 	.lsize = 2, \
-	.maxlen = HCI_MAX_FRAME_SIZE \
+	.maxlen = HCI_MAX_FRAME_SIZE
 
 static const struct h4_recv_pkt qca_recv_pkts[] = {
-	{ H4_RECV_ACL,             .recv = hci_recv_frame    },
 	{ H4_RECV_SCO,             .recv = hci_recv_frame    },
 	{ H4_RECV_EVENT,           .recv = hci_recv_frame    },
 	{ QCA_IBS_WAKE_IND_EVENT,  .recv = qca_ibs_wake_ind  },
 	{ QCA_IBS_WAKE_ACK_EVENT,  .recv = qca_ibs_wake_ack  },
 	{ QCA_IBS_SLEEP_IND_EVENT, .recv = qca_ibs_sleep_ind },
-	{ QCA_DEBUG_MSG,	   .recv = hci_recv_diag     },
+	{ QCA_RECV_ACL_DATA,       .recv = qca_recv_acl_data },
 };
 
 static int qca_recv(struct hci_uart *hu, const void *data, int count)
@@ -907,7 +911,6 @@ static int qca_recv(struct hci_uart *hu, const void *data, int count)
 	if (!test_bit(HCI_UART_REGISTERED, &hu->flags))
 		return -EUNATCH;
 
-	qca_decode_debug_msg(hu->hdev, data, count);
 	qca->rx_skb = h4_recv_buf(hu->hdev, qca->rx_skb, data, count,
 				  qca_recv_pkts, ARRAY_SIZE(qca_recv_pkts));
 
