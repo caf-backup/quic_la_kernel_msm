@@ -777,3 +777,39 @@ struct device_node *dev_pm_opp_get_of_node(struct dev_pm_opp *opp)
 	return of_node_get(opp->np);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_of_node);
+
+/**
+ * dev_pm_opp_get_interconnect_bw() - Get the interconnect bandwidth for the opp
+ * @opp:	opp containing the bandwidth values
+ * @pathname:	name of the interconnect path for the bandwidth values
+ * @avgbw:	Pointer for the value to hold the average BW defined for the OPP
+ * @peakbw:	Pointer for the value to hold the peak BW defined for the OPP
+ *
+ * Return: Negative value on error or 0 on success
+ */
+int dev_pm_opp_get_interconnect_bw(struct dev_pm_opp *opp,
+		const char *pathname, u64 *avgbw, u64 *peakbw)
+{
+	char name[NAME_MAX];
+	struct property *prop;
+	int count;
+
+	if (IS_ERR_OR_NULL(opp))
+		return -ENOENT;
+
+	snprintf(name, NAME_MAX, "opp-interconnect-bw-%s", pathname);
+	prop = of_find_property(opp->np, name, NULL);
+
+	if (!prop)
+		return -ENOENT;
+
+	count = of_property_count_u64_elems(opp->np, name);
+	if (count != 2)
+		return -EINVAL;
+
+	of_property_read_u64_index(opp->np, name, 0, avgbw);
+	of_property_read_u64_index(opp->np, name, 0, peakbw);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_get_interconnect_bw);
