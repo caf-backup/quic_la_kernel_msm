@@ -177,10 +177,16 @@ static ssize_t diag_dbgfs_read_dcistats(struct file *file,
 		bytes_written = scnprintf(buf+bytes_in_buf,
 					  bytes_remaining,
 					  "dci power: active, relax: %lu, %lu\n",
+#ifdef CONFIG_PM_SLEEP
 					  driver->diag_dev->power.wakeup->
 						active_count,
 					  driver->diag_dev->
-						power.wakeup->relax_count);
+						power.wakeup->relax_count
+#else
+					  0UL,
+					  0UL
+#endif
+					  );
 		bytes_in_buf += bytes_written;
 		bytes_remaining -= bytes_written;
 
@@ -248,8 +254,14 @@ static ssize_t diag_dbgfs_read_power(struct file *file, char __user *ubuf,
 		driver->md_ws.ref_count,
 		driver->md_ws.copy_count,
 		driver->logging_mode,
+#ifdef CONFIG_PM_SLEEP
 		driver->diag_dev->power.wakeup->active_count,
-		driver->diag_dev->power.wakeup->relax_count);
+		driver->diag_dev->power.wakeup->relax_count
+#else
+		0UL,
+		0UL
+#endif
+		);
 
 	ret = simple_read_from_buffer(ubuf, count, ppos, buf, ret);
 

@@ -272,6 +272,13 @@ static void __init ap147ioe_gpio_setup(void)
 				  AP147IOE_GPIO_WL_ACTIVE);
 }
 
+#ifdef CONFIG_DIAG_CHAR
+static void __init ap147ioe_diag_setup(void)
+{
+	platform_device_register_simple("DIAG Platform", 0, NULL, 0);
+}
+#endif
+
 static void __init ap147_setup(void)
 {
 	ath79_register_m25p80(NULL);
@@ -288,6 +295,9 @@ static void __init ap147ioe_setup(void)
 	ap147ioe_gpio_setup();
 	ath79_register_spi(&ap147ioe_spi_data, ap147ioe_spi_info, 2);
 	ap147_common_setup();
+#ifdef CONFIG_DIAG_CHAR
+	ap147ioe_diag_setup();
+#endif
 }
 
 static void __init ap147ioe_dual_setup(void)
@@ -295,6 +305,9 @@ static void __init ap147ioe_dual_setup(void)
 	ap147ioe_gpio_setup();
 	ath79_register_spi(&ap147ioe_spi_data, ap147ioe_dual_spi_info, 3);
 	ap147_common_setup();
+#ifdef CONFIG_DIAG_CHAR
+	ap147ioe_diag_setup();
+#endif
 }
 
 static void __init ap147ioe_nand_setup(void)
@@ -302,6 +315,9 @@ static void __init ap147ioe_nand_setup(void)
 	ap147ioe_gpio_setup();
 	ath79_register_spi(&ap147ioe_spi_data, ap147ioe_nand_spi_info, 3);
 	ap147_common_setup();
+#ifdef CONFIG_DIAG_CHAR
+	ap147ioe_diag_setup();
+#endif
 }
 
 MIPS_MACHINE(ATH79_MACH_AP147_010, "AP147-010", "Qualcomm Atheros AP147-010 reference board", ap147_setup);

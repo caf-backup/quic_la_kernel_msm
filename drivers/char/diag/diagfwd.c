@@ -101,6 +101,8 @@ int chk_apps_only(void)
 {
 	if (driver->use_device_tree)
 		return 1;
+
+	return 0;
 }
 
 /*
