@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 - 2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014 - 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -71,6 +71,9 @@
 #define EDMA_DEFAULT_DISABLE_RSS 0
 #define EDMA_RSS_DISABLE 1
 #define EDMA_RSS_ENABLE 0
+#define EDMA_DISABLE_RSS_ENABLE_ACL  2
+#define EDMA_DEFAULT_RSS_ACL_QUEUE_MAP 0x64206420
+#define EDMA_RSS_ACL_QUEUE_MAP_MASK 0x77777777
 
 /* Queues exposed to linux kernel */
 #define EDMA_NETDEV_TX_QUEUE 4
@@ -335,6 +338,7 @@ struct edma_common_info {
 	u16 rx_page_buffer_len; /* rx buffer length */
 	u32 page_mode; /* Jumbo frame supported flag */
 	u32 fraglist_mode; /* fraglist supported flag */
+	int rx_low_priority;  /* Rx Low priority value */
 	struct edma_hw hw; /* edma hw specific structure */
 	struct edma_per_cpu_queues_info edma_percpu_info[CONFIG_NR_CPUS]; /* per cpu information */
 	spinlock_t stats_lock; /* protect edma stats area for updation */
