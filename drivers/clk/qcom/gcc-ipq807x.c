@@ -23,6 +23,8 @@
 #include <linux/clk-provider.h>
 #include <linux/regmap.h>
 
+#include <soc/qcom/socinfo.h>
+
 #include <linux/reset-controller.h>
 #include <dt-bindings/clock/qcom,gcc-ipq807x.h>
 #include <dt-bindings/reset/qcom,gcc-ipq807x.h>
@@ -5580,8 +5582,6 @@ static const struct qcom_reset_map gcc_ipq807x_resets[] = {
 	[GCC_SDCC1_BCR] = { 0x42000, 0 },
 	[GCC_SDCC2_BCR] = { 0x43000, 0 },
 	[GCC_SNOC_BUS_TIMEOUT0_BCR] = { 0x47000, 0 },
-	[GCC_SNOC_BUS_TIMEOUT2_BCR] = { 0x47008, 0 },
-	[GCC_SNOC_BUS_TIMEOUT3_BCR] = { 0x47010, 0 },
 	[GCC_PCNOC_BUS_TIMEOUT0_BCR] = { 0x48000, 0 },
 	[GCC_PCNOC_BUS_TIMEOUT1_BCR] = { 0x48008, 0 },
 	[GCC_PCNOC_BUS_TIMEOUT2_BCR] = { 0x48010, 0 },
@@ -5706,14 +5706,39 @@ static const struct qcom_cc_desc gcc_ipq807x_v2_desc = {
 	.num_resets = ARRAY_SIZE(gcc_ipq807x_resets),
 };
 
+#define v2fix_clk_offset(clk_src) clk_src.cmd_rcgr += 0x4; \
+				clk_src.cfg_offset = 0;
+
+#define v2fix_branch_clk_offset(b_clk) b_clk.halt_reg += 0x8; \
+				b_clk.clkr.enable_reg += 0x8;
+
 static int gcc_ipq807x_probe(struct platform_device *pdev)
 {
 	int ret, i;
 	struct regmap *regmap;
 	struct clk *clk;
+	const int *soc_version_major;
 
 	if (of_device_is_compatible(pdev->dev.of_node, "qcom,gcc-ipq807x-v2"))
 		return qcom_cc_probe(pdev, &gcc_ipq807x_v2_desc);
+
+	soc_version_major = read_ipq_soc_version_major();
+	BUG_ON(!soc_version_major);
+
+	if (*soc_version_major != 1) {
+		pr_info("Soc version is not 1, changing clock offsets\n");
+
+		v2fix_clk_offset(pcie0_axi_clk_src);
+		v2fix_clk_offset(pcie1_axi_clk_src);
+		v2fix_clk_offset(nss_crypto_clk_src);
+		v2fix_clk_offset(nss_ubi0_clk_src);
+		v2fix_clk_offset(nss_ubi1_clk_src);
+		v2fix_clk_offset(pcie0_aux_clk_src);
+		v2fix_clk_offset(pcie1_aux_clk_src);
+
+		v2fix_branch_clk_offset(gcc_snoc_bus_timeout2_ahb_clk);
+		v2fix_branch_clk_offset(gcc_snoc_bus_timeout3_ahb_clk);
+	}
 
 	regmap = qcom_cc_map(pdev, &gcc_ipq807x_desc);
 	if (IS_ERR(regmap))
