@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -29,6 +29,7 @@ module_param(download_mode, bool, 0);
 
 #define QCOM_SET_DLOAD_MODE 0x10
 static void __iomem *msm_ps_hold;
+static void __iomem *msm_reset_debug;
 static struct regmap *tcsr_regmap;
 static unsigned int dload_mode_offset;
 
@@ -83,6 +84,10 @@ static int msm_restart_probe(struct platform_device *pdev)
 	if (IS_ERR(msm_ps_hold))
 		return PTR_ERR(msm_ps_hold);
 
+	msm_reset_debug = ioremap(0xC2F0000, 0x4);
+	if (!msm_reset_debug)
+		return -ENXIO;
+
 	register_restart_handler(&restart_nb);
 
 	pm_power_off = do_msm_poweroff;
@@ -93,8 +98,10 @@ static int msm_restart_probe(struct platform_device *pdev)
 static void msm_restart_shutdown(struct platform_device *pdev)
 {
 	/* Clean shutdown, disable download mode to allow normal restart */
-	if (download_mode)
+	if (download_mode) {
 		regmap_write(tcsr_regmap, dload_mode_offset, 0x0);
+		writel(0, msm_reset_debug);
+	}
 }
 
 static const struct of_device_id of_msm_restart_match[] = {
