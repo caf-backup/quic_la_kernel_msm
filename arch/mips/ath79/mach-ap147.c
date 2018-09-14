@@ -205,7 +205,8 @@ static struct spi_board_info ap147ioe_nand_spi_info[] = {
 static struct ath79_spi_platform_data ap147ioe_spi_data = {
 	.bus_num                = 0,
 	.num_chipselect         = 3,
-	.word_banger            = true,
+	.word_banger            = false,
+	.cs2_mode3		= true,
 };
 
 static void __init ap147_common_setup(void)

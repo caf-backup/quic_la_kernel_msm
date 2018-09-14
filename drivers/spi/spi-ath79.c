@@ -56,6 +56,7 @@ struct ath79_spi {
 	unsigned long		read_addr;
 	unsigned long		ahb_rate;
 	bool			is_flash;
+	bool			cs2_mode3;
 };
 
 static inline u32 ath79_spi_rr(struct ath79_spi *sp, unsigned reg)
@@ -86,7 +87,7 @@ static void ath79_spi_chipselect(struct spi_device *spi, int is_active)
 
 	if (is_active) {
 		/* set initial clock polarity */
-		if (spi->mode & SPI_CPOL)
+		if (spi->mode & SPI_CPOL || (spi->chip_select == 2 && sp->cs2_mode3))
 			sp->ioc_base |= AR71XX_SPI_IOC_CLK;
 		else
 			sp->ioc_base &= ~AR71XX_SPI_IOC_CLK;
@@ -191,6 +192,11 @@ static u32 ath79_spi_txrx_mode0_bb(struct spi_device *spi, unsigned nsecs,
 {
 	struct ath79_spi *sp = ath79_spidev_to_sp(spi);
 	u32 ioc = sp->ioc_base;
+	int clear = 1;
+	int mode3 = (spi->chip_select == 2) && sp->cs2_mode3;
+
+	if (mode3)
+		ioc &= ~AR71XX_SPI_IOC_CLK;
 
 	/* clock starts at inactive polarity */
 	for (word <<= (32 - bits); likely(bits); bits--) {
@@ -206,7 +212,11 @@ static u32 ath79_spi_txrx_mode0_bb(struct spi_device *spi, unsigned nsecs,
 		ath79_spi_delay(sp, nsecs);
 		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, out | AR71XX_SPI_IOC_CLK);
 		ath79_spi_delay(sp, nsecs);
-		if (bits == 1)
+
+		if (mode3)
+			clear = 0;
+
+		if (bits == 1 && clear)
 			ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, out);
 
 		word <<= 1;
@@ -437,6 +447,8 @@ static int ath79_spi_probe(struct platform_device *pdev)
 		ath79_spi_txrx_mode0_wb : ath79_spi_txrx_mode0_bb;
 	sp->bitbang.setup_transfer = ath79_spi_setup_transfer;
 	sp->bitbang.flags = SPI_CS_HIGH;
+
+	sp->cs2_mode3 = pdata->cs2_mode3;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	sp->base = devm_ioremap_resource(&pdev->dev, r);
