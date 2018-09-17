@@ -117,6 +117,11 @@
 				     <0 0xd9 0 IRQ_TYPE_NONE>;
 		};
 
+		pm8998_rtc: qcom,pm8998_rtc {
+			compatible = "qcom,pm8941-rtc";
+			interrupts = <0x0 0x61 0x1 IRQ_TYPE_NONE>;
+		};
+
 	};
 
 	pm8998_lsid1: pmic@1 {
