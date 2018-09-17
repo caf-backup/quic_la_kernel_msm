@@ -41,6 +41,15 @@
 #define CPU_IPQ8070 375
 #define CPU_IPQ8071 376
 
+static inline const int* read_ipq_soc_version_major(void)
+{
+	const int *prop;
+	prop = of_get_property(of_find_node_by_path("/"), "soc_version_major",
+				NULL);
+
+	return prop;
+}
+
 static inline int read_ipq_cpu_type(void)
 {
 	const int *prop;
