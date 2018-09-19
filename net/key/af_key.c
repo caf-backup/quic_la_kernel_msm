@@ -200,7 +200,7 @@ static int pfkey_broadcast_one(struct sk_buff *skb, gfp_t allocation,
 	if (skb) {
 		skb_set_owner_r(skb, sk);
 		skb_queue_tail(&sk->sk_receive_queue, skb);
-		sk->sk_data_ready(sk);
+		sk->sk_data_ready(sk, skb->len);
 		err = 0;
 	}
 	return err;
@@ -235,7 +235,7 @@ static int pfkey_broadcast(struct sk_buff *skb, gfp_t allocation,
 		 * socket.
 		 */
 		if (pfk->promisc)
-			pfkey_broadcast_one(skb, GFP_ATOMIC, sk);
+			pfkey_broadcast_one(skb, allocation, sk);
 
 		/* the exact target will be processed later */
 		if (sk == one_sk)
@@ -250,7 +250,7 @@ static int pfkey_broadcast(struct sk_buff *skb, gfp_t allocation,
 				continue;
 		}
 
-		err2 = pfkey_broadcast_one(skb, GFP_ATOMIC, sk);
+		err2 = pfkey_broadcast_one(skb, allocation, sk);
 
 		/* Error is cleared after successful sending to at least one
 		 * registered KM */
