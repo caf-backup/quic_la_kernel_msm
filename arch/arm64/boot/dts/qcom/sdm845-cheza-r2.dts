@@ -54,6 +54,10 @@
 		pinctrl-0 = <&en_pp3300_dx_edp>;
 
 		vin-supply = <&pp3500_a>;
+
+		// HACK: without always-on we die a horrible death. b/112356283
+		regulator-always-on; // HACK
+		regulator-boot-on;   // HACK
 	};
 };
 
@@ -92,10 +96,6 @@
 
 &firmware {
 	/delete-node/ chromeos;
-};
-
-&panel {
-	power-supply = <&pp3300_dx_edp_r0_r1_r2>;
 };
 
 /* PINCTRL - board-specific pinctrl */

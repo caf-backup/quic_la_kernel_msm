@@ -70,12 +70,6 @@ struct ath10k_wcn3990_clk_info {
 	bool required;
 };
 
-enum ath10k_snoc_flags {
-	ATH10K_SNOC_FLAG_REGISTERED,
-	ATH10K_SNOC_FLAG_UNREGISTERED,
-	ATH10K_SNOC_FLAG_RECOVERY,
-};
-
 struct ath10k_snoc {
 	struct platform_device *dev;
 	struct ath10k *ar;
@@ -90,7 +84,6 @@ struct ath10k_snoc {
 	struct ath10k_wcn3990_vreg_info *vreg;
 	struct ath10k_wcn3990_clk_info *clk;
 	struct ath10k_qmi *qmi;
-	unsigned long int flags;
 };
 
 static inline struct ath10k_snoc *ath10k_snoc_priv(struct ath10k *ar)

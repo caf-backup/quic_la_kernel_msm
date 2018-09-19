@@ -3,8 +3,6 @@
  * Copyright (c) 2018, The Linux Foundation
  */
 
-#include <linux/dpu_io_util.h>
-
 #include "dpu_kms.h"
 
 #define to_dpu_mdss(x) container_of(x, struct dpu_mdss, base)
@@ -158,8 +156,6 @@ static void dpu_mdss_destroy(struct drm_device *dev)
 	struct dpu_mdss *dpu_mdss = to_dpu_mdss(priv->mdss);
 	struct dss_module_power *mp = &dpu_mdss->mp;
 
-	devm_free_irq(&pdev->dev, platform_get_irq(pdev, 0), dpu_mdss);
-
 	_dpu_mdss_irq_domain_fini(dpu_mdss);
 
 	msm_dss_put_clk(mp->clk_config, mp->num_clk);
@@ -230,12 +226,7 @@ int dpu_mdss_init(struct drm_device *dev)
 
 	pm_runtime_get_sync(dev->dev);
 	dpu_mdss->hwversion = readl_relaxed(dpu_mdss->mmio);
-
-	/*
-	 * HACK: To enable display with new interconnect
-	 * bus framework changes
-	 */
-	//pm_runtime_put_sync(dev->dev);
+	pm_runtime_put_sync(dev->dev);
 
 	priv->mdss = &dpu_mdss->base;
 
