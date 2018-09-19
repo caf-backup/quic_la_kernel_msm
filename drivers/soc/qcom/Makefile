@@ -12,6 +12,7 @@ obj-$(CONFIG_QCOM_RMTFS_MEM)	+= rmtfs_mem.o
 obj-$(CONFIG_QCOM_RPMH)		+= qcom_rpmh.o
 qcom_rpmh-y			+= rpmh-rsc.o
 qcom_rpmh-y			+= rpmh.o
+obj-$(CONFIG_QCOM_SYSTEM_PM) += system_pm.o
 obj-$(CONFIG_QCOM_RPMPD)	+= rpmpd.o
 obj-$(CONFIG_QCOM_RPMHPD)	+= rpmhpd.o
 obj-$(CONFIG_QCOM_SMD_RPM)	+= smd-rpm.o

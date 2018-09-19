@@ -237,6 +237,8 @@ static int __rpmh_write(const struct device *dev, enum rpmh_state state,
 		WARN_ON(irqs_disabled());
 		ret = rpmh_rsc_send_data(ctrlr_to_drv(ctrlr), &rpm_msg->msg);
 	} else {
+		if (ctrlr->suspend_in_progress)
+			rpmh_flush(dev);
 		/* Clean up our call by spoofing tx_done */
 		ret = 0;
 		rpmh_tx_done(&rpm_msg->msg, ret);
@@ -434,6 +436,8 @@ int rpmh_write_batch(const struct device *dev, enum rpmh_state state,
 
 	if (state != RPMH_ACTIVE_ONLY_STATE) {
 		cache_batch(ctrlr, req);
+		if (ctrlr->suspend_in_progress)
+			rpmh_flush(dev);
 		return 0;
 	}
 
@@ -610,3 +614,16 @@ int rpmh_ctrlr_idle(const struct device *dev)
 	return rpmh_rsc_ctrlr_is_idle(ctrlr_to_drv(ctrlr));
 }
 EXPORT_SYMBOL(rpmh_ctrlr_idle);
+
+/**
+ * rpmh_notify_suspend: Set suspend in progress flag
+ *
+ * @suspend: boolean to indicate the supend mode
+ */
+void rpmh_notify_suspend(const struct device *dev, bool suspend)
+{
+	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr(dev);
+
+	ctrlr->suspend_in_progress = suspend;
+}
+EXPORT_SYMBOL(rpmh_notify_suspend);

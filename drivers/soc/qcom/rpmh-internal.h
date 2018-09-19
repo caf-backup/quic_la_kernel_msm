@@ -80,6 +80,7 @@ struct rpmh_ctrlr {
 	bool dirty;
 	struct list_head batch_cache;
 	bool in_solver_mode;
+	bool suspend_in_progress;
 };
 
 /**

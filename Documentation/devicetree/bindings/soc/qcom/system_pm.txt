@@ -1,0 +1,28 @@
+System PM
+---------
+
+System PM device handles the tasks that need to be performed during application
+processor deeper low power mode entry for QCOM SoCs which have hardened IP blocks
+combinedly called as RPMH (Resource Power Manager Hardened) for shared resource
+management. System PM is a client of APPS_RSC. Flushing the buffered requests to
+TCSs in RSC and programming the wakeup timer in PDC for timer based wakeup are
+handled by this device.
+
+The bindings for System PM is specified in the RSC section in devicetree.
+
+Properties:
+- compatible:
+	Usage: required
+	Value type: <string>
+	Definition: must be "qcom,system-pm".
+
+Example:
+
+	apps_rsc: rsc@179c0000 {
+		[...]
+		system_pm {
+			compatible = "qcom,system-pm";
+		};
+	};
+
+

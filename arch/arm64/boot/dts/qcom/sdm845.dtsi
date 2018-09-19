@@ -2558,6 +2558,9 @@
 				compatible = "qcom,sdm845-rsc-hlos";
 				#interconnect-cells = <1>;
 			};
+			system_pm {
+			    compatible = "qcom,system-pm";
+			};
 		};
 
 		intc: interrupt-controller@17a00000 {
