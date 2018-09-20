@@ -282,7 +282,7 @@
 		pinctrl-1 = <&audio_pins &audio_pins_master>;
 		pinctrl-2 = <&audio_pins &audio_pins_slave>;
 		pinctrl-names = "default",
-			"audio_master",
+			"audio",
 			"audio_slave";
 	};
 

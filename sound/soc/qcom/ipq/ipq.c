@@ -156,7 +156,7 @@ static int ipq_audio_probe(struct platform_device *pdev)
 	if (slave)
 		pin_state = pinctrl_lookup_state(pins->p, "audio_slave");
 	else
-		pin_state = pinctrl_lookup_state(pins->p, "audio_master");
+		pin_state = pinctrl_lookup_state(pins->p, "audio");
 
 	if (IS_ERR(pin_state)) {
 		pr_err("audio pinctrl state not available\n");
