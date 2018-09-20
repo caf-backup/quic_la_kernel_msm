@@ -2267,7 +2267,7 @@ static ssize_t
 show_basic_output(struct device *dev, struct device_attribute *attr,
 					char *buf)
 {
-	return snprintf(buf, (basic_data_len + 1), "%d", basic_output);
+	return snprintf(buf, (basic_data_len + 1), "%lu\n", basic_output);
 }
 
 /* Basic multiplication App*/
@@ -2283,7 +2283,7 @@ store_basic_input(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 	}
 	if (kstrtouint(buf, 10, &basic_input) || basic_input > (U32_MAX / 10))
-		pr_err("\n Please enter a valid unsigned integer less than %d",
+		pr_err("\n Please enter a valid unsigned integer less than %lu",
 			(U32_MAX / 10));
 	else
 		ret = tzapp_test(dev, &basic_input, NULL, 0, 1);
