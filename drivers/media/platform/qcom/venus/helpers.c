@@ -659,7 +659,7 @@ u32 venus_helper_get_framesz(u32 v4l2_fmt, u32 width, u32 height)
 	}
 
 	if (compressed) {
-		sz = ALIGN(height, 32) * ALIGN(width, 32) * 3 / 2 / 2;
+		sz = ALIGN(height, 32) * ALIGN(width, 32) * 3 / 2;
 		return ALIGN(sz, SZ_4K);
 	}
 
@@ -984,8 +984,10 @@ void venus_helper_vb2_buf_queue(struct vb2_buffer *vb)
 	mutex_lock(&inst->lock);
 
 	v4l2_m2m_buf_queue(m2m_ctx, vbuf);
+	if (inst->session_type == VIDC_SESSION_TYPE_ENC && !(inst->streamon_out & inst->streamon_cap))
+		goto unlock;
 
-	if (!((inst->streamon_out &&
+	if (inst->session_type == VIDC_SESSION_TYPE_DEC && !((inst->streamon_out &&
 		vb->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
 	   || (inst->streamon_cap &&
 	   vb->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)))
