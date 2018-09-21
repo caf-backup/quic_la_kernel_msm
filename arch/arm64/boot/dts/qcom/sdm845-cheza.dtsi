@@ -32,6 +32,16 @@
 		pinctrl-0 = <&ap_edp_bklten>;
 	};
 
+	reserved-memory {
+		rmtfs@88f00000 {
+			compatible = "qcom,rmtfs-mem";
+			reg = <0x0 0x88f00000 0x0 0x200000>;
+			no-map;
+
+			qcom,client-id = <1>;
+		};
+	};
+
 	/* FIXED REGULATORS - parents above children */
 
 	/* This is the top level supply and variable voltage */
@@ -78,6 +88,19 @@
 		regulator-max-microvolt = <3600000>;
 
 		vin-supply = <&ppvar_sys>;
+	};
+
+	pp3300_dx_edp: pp3300-dx-edp-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "pp3300_dx_edp";
+
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&tlmm 43 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		pinctrl-names = "default";
+		pinctrl-0 = <&en_pp3300_dx_edp>;
 	};
 
 	/*
@@ -317,7 +340,6 @@
 		 * NOTE: this rail should have been called
 		 * src_pp3300_l19a in the schematic
 		 */
-		pp3300_dx_edp:
 		src_pp3000_l19a: ldo19 {
 			regulator-min-microvolt = <3304000>;
 			regulator-max-microvolt = <3304000>;
@@ -799,7 +821,6 @@ ap_ts_i2c: &i2c14 {
 		};
 	};
 
-	/* NOTE: below is still on -rev3 schematics but goes to a DNS jumper */
 	en_pp3300_dx_edp: en-pp3300-dx-edp {
 		pinmux {
 			pins = "gpio43";
