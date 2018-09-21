@@ -1,4 +1,5 @@
-/* Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
+/* SPDX-License-Identifier: GPL-2.0*/
+/* Copyright (c) 2013-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -202,6 +203,25 @@ struct ufs_qcom_testbus {
 	u8 select_minor;
 };
 
+struct qcom_bus_vectors {
+	uint64_t ab;
+	uint64_t ib;
+};
+
+struct qcom_bus_path {
+	unsigned int num_paths;
+	struct qcom_bus_vectors *vec;
+};
+
+struct qcom_bus_scale_data {
+	struct qcom_bus_path *usecase;
+	unsigned int num_usecase;
+	struct icc_path *ufs_ddr;
+	struct icc_path *cpu_ufs;
+
+	const char *name;
+};
+
 struct ufs_qcom_host {
 	/*
 	 * Set this capability if host controller supports the QUniPro mode
@@ -238,6 +258,7 @@ struct ufs_qcom_host {
 	u32 dbg_print_en;
 	struct ufs_qcom_testbus testbus;
 	bool is_phy_init;
+	struct qcom_bus_scale_data *qbsd;
 };
 
 static inline u32
