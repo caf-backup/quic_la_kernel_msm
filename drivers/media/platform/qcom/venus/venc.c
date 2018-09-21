@@ -990,6 +990,12 @@ static int venc_start_streaming(struct vb2_queue *q, unsigned int count)
 	if (ret)
 		goto deinit_sess;
 
+	if (inst->streamon_cap && inst->streamon_out &&
+		(q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)){
+		ret = venus_helper_queue_initial_bufs(inst, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
+		ret = venus_helper_queue_initial_bufs(inst, q->type);
+		}
+
 	mutex_unlock(&inst->lock);
 
 	return 0;
