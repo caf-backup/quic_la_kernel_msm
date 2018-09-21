@@ -50,6 +50,18 @@ Optional properties:
 Note: If above properties are not defined it can be assumed that the supply
 regulators or clocks are always on.
 
+* Following bus parameters are required:
+interconnects
+interconnect-names
+- Please refer to Documentation/devicetree/bindings/interconnect/
+  for more details on the above.
+qcom,msm-bus,name - string describing the bus path
+qcom,msm-bus,num-cases - number of configurations in which ufs can operate in
+qcom,msm-bus,num-paths - number of paths to vote for
+qcom,msm-bus,vectors-KBps - Takes a tuple <ib ab>, <ib ab> (2 tuples for 2 num-paths)
+			    The number of these entries *must* be same as
+			    num-cases.
+
 Example:
 	ufshc@fc598000 {
 		compatible = "jedec,ufs-1.1";
