@@ -265,9 +265,44 @@ static int req_crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		err = -ENOMEM;
 		goto ctr_exit;
 	}
-	ice_settings->key_size = ICE_CRYPTO_KEY_SIZE_128;
-	ice_settings->algo_mode = ICE_CRYPTO_ALGO_MODE_AES_XTS;
-	ice_settings->key_mode = ICE_CRYPTO_USE_KEY0_HW_KEY;
+
+	if (!strcmp(argv[0], "aes-xts-128-hwkey0")) {
+		ice_settings->key_size = ICE_CRYPTO_KEY_SIZE_128;
+		ice_settings->algo_mode = ICE_CRYPTO_ALGO_MODE_AES_XTS;
+		ice_settings->key_mode = ICE_CRYPTO_USE_KEY0_HW_KEY;
+	} else if (!strcmp(argv[0], "aes-xts-128-hwkey1")) {
+		ice_settings->key_size = ICE_CRYPTO_KEY_SIZE_128;
+		ice_settings->algo_mode = ICE_CRYPTO_ALGO_MODE_AES_XTS;
+		ice_settings->key_mode = ICE_CRYPTO_USE_KEY1_HW_KEY;
+	} else if (!strcmp(argv[0], "aes-xts-256-hwkey0")) {
+		ice_settings->key_size = ICE_CRYPTO_KEY_SIZE_256;
+		ice_settings->algo_mode = ICE_CRYPTO_ALGO_MODE_AES_XTS;
+		ice_settings->key_mode = ICE_CRYPTO_USE_KEY0_HW_KEY;
+	} else if (!strcmp(argv[0], "aes-xts-256-hwkey1")) {
+		ice_settings->key_size = ICE_CRYPTO_KEY_SIZE_256;
+		ice_settings->algo_mode = ICE_CRYPTO_ALGO_MODE_AES_XTS;
+		ice_settings->key_mode = ICE_CRYPTO_USE_KEY1_HW_KEY;
+	} else if (!strcmp(argv[0], "aes-ecb-128-hwkey0")) {
+		ice_settings->key_size = ICE_CRYPTO_KEY_SIZE_128;
+		ice_settings->algo_mode = ICE_CRYPTO_ALGO_MODE_AES_ECB;
+		ice_settings->key_mode = ICE_CRYPTO_USE_KEY0_HW_KEY;
+	} else if (!strcmp(argv[0], "aes-ecb-128-hwkey1")) {
+		ice_settings->key_size = ICE_CRYPTO_KEY_SIZE_128;
+		ice_settings->algo_mode = ICE_CRYPTO_ALGO_MODE_AES_ECB;
+		ice_settings->key_mode = ICE_CRYPTO_USE_KEY1_HW_KEY;
+	} else if (!strcmp(argv[0], "aes-ecb-256-hwkey0")) {
+		ice_settings->key_size = ICE_CRYPTO_KEY_SIZE_256;
+		ice_settings->algo_mode = ICE_CRYPTO_ALGO_MODE_AES_ECB;
+		ice_settings->key_mode = ICE_CRYPTO_USE_KEY0_HW_KEY;
+	} else if (!strcmp(argv[0], "aes-ecb-256-hwkey1")) {
+		ice_settings->key_size = ICE_CRYPTO_KEY_SIZE_256;
+		ice_settings->algo_mode = ICE_CRYPTO_ALGO_MODE_AES_ECB;
+		ice_settings->key_mode = ICE_CRYPTO_USE_KEY1_HW_KEY;
+	} else {
+		err = DM_REQ_CRYPT_ERROR;
+		goto ctr_exit;
+	}
+
 	if (kstrtou16(argv[1], 0, &ice_settings->key_index) ||
 		ice_settings->key_index < 0 ||
 		ice_settings->key_index > MAX_MSM_ICE_KEY_LUT_SIZE) {
