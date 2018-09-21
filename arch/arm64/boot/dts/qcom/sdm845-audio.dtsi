@@ -1,0 +1,311 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * SDM845 SoC device tree source
+ *
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ */
+
+#include <dt-bindings/soc/qcom,apr.h>
+#include <dt-bindings/sound/qcom,q6afe.h>
+#include <dt-bindings/sound/qcom,q6asm.h>
+
+&tlmm {
+	pri_mi2s_sleep: pri_mi2s_sleep {
+		pinmux {
+			pins = "gpio64", "gpio65", "gpio68";
+			function = "pri_mi2s";
+		};
+
+		pinconf {
+			pins = "gpio64", "gpio65", "gpio68";
+			drive-strength = <2>;   /* 2 mA */
+			bias-pull-down;         /* PULL DOWN */
+			output-low;
+		};
+	};
+
+	pri_mi2s_active: pri_mi2s_active {
+		pinmux {
+			pins = "gpio64", "gpio65", "gpio68";
+			function = "pri_mi2s";
+		};
+
+		pinconf {
+			pins = "gpio64", "gpio65", "gpio68";
+			drive-strength = <2>;   /* 2 mA */
+			bias-disable;           /* NO PULL */
+			output-low;
+		};
+	};
+
+	pri_mi2s_dout_sleep: pri_mi2s_dout_sleep {
+		pinmux {
+			pins = "gpio67";
+			function = "pri_mi2s";
+		};
+
+		pinconf {
+			pins = "gpio67";
+			drive-strength = <2>;   /* 2 mA */
+			bias-pull-down;         /* PULL DOWN */
+		};
+	};
+
+	pri_mi2s_dout_active: pri_mi2s_dout_active {
+		pinmux {
+			pins = "gpio67";
+			function = "pri_mi2s";
+		};
+
+		pinconf {
+			pins = "gpio67";
+			drive-strength = <2>;   /* 2 mA */
+			bias-disable;           /* NO PULL */
+			input-enable;
+		};
+	};
+
+	pri_mi2s_ws_sleep: pri_mi2s_ws_sleep {
+		pinmux {
+			pins = "gpio66";
+			function = "pri_mi2s_ws";
+		};
+
+		pinconf {
+			pins = "gpio66";
+			drive-strength = <2>;   /* 2 mA */
+			bias-pull-down;         /* PULL DOWN */
+			output-low;
+		};
+	};
+
+	pri_mi2s_ws_active: pri_mi2s_ws_active {
+		pinmux {
+			pins = "gpio66";
+			function = "pri_mi2s_ws";
+		};
+
+		pinconf {
+			pins = "gpio66";
+			drive-strength = <2>;   /* 2 mA */
+			bias-disable;           /* NO PULL */
+			output-low;
+		};
+	};
+
+	qua_mi2s_sleep: qua_mi2s_sleep {
+		pinmux {
+			pins = "gpio58", "gpio59", "gpio60", "gpio61";
+			function = "qua_mi2s";
+		};
+
+		pinconf {
+			pins = "gpio58", "gpio59", "gpio60", "gpio61";
+			drive-strength = <2>;   /* 2 mA */
+		};
+	};
+
+	qua_mi2s_active: qua_mi2s_active {
+		pinmux {
+			pins = "gpio58", "gpio59", "gpio60", "gpio61";
+			function = "qua_mi2s";
+		};
+
+		pinconf {
+			pins = "gpio58", "gpio59", "gpio60", "gpio61";
+			drive-strength = <2>;   /* 2 mA */
+		};
+	};
+};
+
+&soc {
+	adsp-pil {
+		compatible = "qcom,sdm845-adsp-pil";
+
+		reg = <0x17300000 0x410>;
+		reg-names = "qdsp6ss";
+
+		interrupts-extended = <&intc 0 162 IRQ_TYPE_EDGE_RISING>,
+			<&adsp_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
+			<&adsp_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
+			<&adsp_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
+			<&adsp_smp2p_in 3 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "wdog", "fatal", "ready",
+			"handover", "stop-ack";
+
+		clocks = <&rpmhcc RPMH_CXO_CLK>,
+			 <&gcc GCC_LPASS_SWAY_CLK>,
+			 <&lpasscc LPASS_AUDIO_WRAPPER_AON_CLK>,
+			 <&lpasscc LPASS_Q6SS_AHBS_AON_CLK>,
+			 <&lpasscc LPASS_Q6SS_AHBM_AON_CLK>,
+			 <&lpasscc LPASS_QDSP6SS_XO_CLK>,
+			 <&lpasscc LPASS_QDSP6SS_SLEEP_CLK>,
+			 <&lpasscc LPASS_QDSP6SS_CORE_CLK>;
+
+		clock-names = "xo", "sway_cbcr", "lpass_aon",
+				"lpass_ahbs_aon_cbcr",
+				"lpass_ahbm_aon_cbcr", "qdsp6ss_xo",
+				"qdsp6ss_sleep", "qdsp6ss_core";
+
+		power-domains = <&rpmhpd SDM845_CX>;
+
+		resets = <&pdc_reset PDC_AUDIO_SYNC_RESET>,
+			 <&aoss_reset AOSS_CC_LPASS_RESTART>;
+		reset-names = "pdc_sync", "cc_lpass";
+
+		qcom,halt-regs = <&tcsr_mutex_regs 0x22000>;
+
+		memory-region = <&pil_adsp_mem>;
+
+		qcom,smem-states = <&adsp_smp2p_out 0>;
+		qcom,smem-state-names = "stop";
+
+		glink-edge {
+			compatible = "qcom,glink-smem";
+			interrupts = <0 156 IRQ_TYPE_EDGE_RISING>;
+
+			label = "lpass";
+			qcom,remote-pid = <2>;
+			mboxes = <&apss_shared 8>;
+			mbox-names = "adsp_smem";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			apr@4 {
+				compatible = "qcom,apr-v2";
+				qcom,glink-channels = "apr_audio_svc";
+				reg = <APR_DOMAIN_ADSP>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				q6core {
+					compatible = "qcom,q6core";
+					reg = <APR_SVC_ADSP_CORE>;
+				};
+
+				q6afe: q6afe {
+					compatible = "qcom,q6afe";
+					reg = <APR_SVC_AFE>;
+					q6afedai: dais {
+						compatible = "qcom,q6afe-dais";
+						#sound-dai-cells = <1>;
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						prim-mi2s-rx@16 {
+							reg = <16>;
+							qcom,sd-lines = <1>;
+						};
+
+						prim-mi2s-tx@17 {
+							reg = <17>;
+							qcom,sd-lines = <0>;
+						};
+
+						quat-tdm-rx0@72 {
+							reg = <72>;
+							qcom,tdm-sync-mode = <0>;
+							qcom,tdm-sync-src = <1>;
+							qcom,tdm-data-out = <0>;
+							qcom,tdm-invert-sync = <0>;
+							qcom,tdm-data-delay = <0>;
+							qcom,tdm-data-align = <0>;
+						};
+
+						quat-tdm-tx0@73 {
+							reg = <73>;
+							qcom,tdm-sync-mode = <0>;
+							qcom,tdm-sync-src = <1>;
+							qcom,tdm-data-out = <0>;
+							qcom,tdm-invert-sync = <0>;
+							qcom,tdm-data-delay = <0>;
+							qcom,tdm-data-align = <0>;
+						};
+
+					};
+				};
+
+				q6asm: q6asm {
+					compatible = "qcom,q6asm";
+					reg = <APR_SVC_ASM>;
+					q6asmdai: dais {
+						compatible = "qcom,q6asm-dais";
+						iommus = <&apps_smmu 0x1821 0x0>;
+						#sound-dai-cells = <1>;
+					};
+				};
+
+				q6adm: q6adm {
+					compatible = "qcom,q6adm";
+					reg = <APR_SVC_ADM>;
+					q6routing: routing {
+						compatible = "qcom,q6adm-routing";
+						#sound-dai-cells = <0>;
+					};
+				};
+			};
+		};
+	};
+
+	snd {
+		compatible = "qcom,sdm845-sndcard";
+		model = "sdm845-snd-card";
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&pri_mi2s_active &pri_mi2s_dout_active
+			     &pri_mi2s_ws_active &qua_mi2s_active>;
+		pinctrl-1 = <&pri_mi2s_sleep &pri_mi2s_dout_sleep
+			     &pri_mi2s_ws_sleep &qua_mi2s_sleep>;
+
+		audio-routing =
+			"Headphone Jack", "HPOL",
+			"Headphone Jack", "HPOR",
+			"Left Spk", "Left BE_OUT",
+			"Right Spk", "Right BE_OUT",
+			"IN1P", "Headset Mic",
+			"IN1N", "Headset Mic",
+			"Left HiFi Playback", "QUAT_TDM_RX_0",
+			"Right HiFi Playback", "QUAT_TDM_RX_0";
+
+		fe@1 {
+			link-name = "MultiMedia1";
+			cpu {
+				sound-dai = <&q6asmdai  MSM_FRONTEND_DAI_MULTIMEDIA1>;
+			};
+		};
+
+		fe@2 {
+			link-name = "MultiMedia2";
+			cpu {
+				sound-dai = <&q6asmdai  MSM_FRONTEND_DAI_MULTIMEDIA2>;
+			};
+		};
+
+		be@1 {
+			link-name = "QUAT TDM Playback";
+			cpu {
+				sound-dai = <&q6afedai QUATERNARY_TDM_RX_0>;
+			};
+
+			platform {
+				sound-dai = <&q6routing>;
+			};
+
+			codec {
+				sound-dai = <&max98927_r 0>, <&max98927_l 0>;
+			};
+		};
+
+		be@2 {
+			link-name = "QUAT TDM Capture";
+			cpu {
+				sound-dai = <&q6afedai QUATERNARY_TDM_TX_0>;
+			};
+
+			platform {
+				sound-dai = <&q6routing>;
+			};
+
+			codec {
+				sound-dai = <&max98927_r 0>, <&max98927_l 0>;
+			};
+		};
+	};
+};
