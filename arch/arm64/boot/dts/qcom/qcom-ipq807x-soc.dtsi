@@ -1577,7 +1577,7 @@
 				      "axi_m_sticky";
 
 			perst-gpio = <&tlmm 58 1>;
-			status = "ok";
+			status = "disabled";
 		};
 
 		pcie_phy1: phy@8e000 {
@@ -1654,7 +1654,7 @@
 				      "axi_m_sticky";
 
 			perst-gpio = <&tlmm 61 1>;
-			status = "ok";
+			status = "disabled";
 		};
 
 		ledc: ledc@191E000  {
