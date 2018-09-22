@@ -2498,6 +2498,8 @@ static int cnss_probe(struct platform_device *plat_dev)
 	struct cnss_plat_data *plat_priv;
 	const struct of_device_id *of_id;
 	const struct platform_device_id *device_id;
+	const int *soc_version_major;
+
 
 	if (qca6290_support)
 		daemon_support = false;
@@ -2534,6 +2536,26 @@ static int cnss_probe(struct platform_device *plat_dev)
 		goto out;
 	}
 #endif
+
+	soc_version_major = of_get_property(of_find_node_by_path("/"),
+					    "soc_version_major", NULL);
+	BUG_ON(!soc_version_major);
+
+	if (device_id->driver_data == QCA8074_DEVICE_ID) {
+		if (*soc_version_major == 2) {
+			pr_err("Skip QCA8074V1 in V2 platform\n");
+			ret = -ENODEV;
+			goto out;
+		}
+	}
+
+	if (device_id->driver_data == QCA8074V2_DEVICE_ID) {
+		if (*soc_version_major == 1) {
+			pr_err("Skip QCA8074V2 in V1 platform\n");
+			ret = -ENODEV;
+			goto out;
+		}
+	}
 
 	plat_priv = devm_kzalloc(&plat_dev->dev, sizeof(*plat_priv),
 				 GFP_KERNEL);
