@@ -418,6 +418,13 @@
 						"stop";
 		};
 
+		q6v5_m3: q6v5_m3 {
+			compatible = "qca,q6v5-m3-rproc";
+			firmware = "IPQ8074/m3_fw.mdt";
+			qca,auto-restart;
+			qcom,restart-group = <&q6v5_m3 &q6v5_wcss>;
+		};
+
 		qcom_rng: qrng@e1000 {
 			compatible = "qcom,prng-ipq807x";
 			reg = <0xe3000 0x1000>;
