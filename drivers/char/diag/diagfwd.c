@@ -99,10 +99,7 @@ int chk_config_get_id(void)
  */
 int chk_apps_only(void)
 {
-	if (driver->use_device_tree)
-		return 1;
-
-	return 0;
+	return driver->apps_only_mode;
 }
 
 /*
@@ -112,10 +109,7 @@ int chk_apps_only(void)
  */
 int chk_apps_master(void)
 {
-	if (driver->use_device_tree)
-		return 1;
-	else
-		return 0;
+	return driver->apps_as_master;
 }
 
 int chk_polling_response(void)
@@ -1475,6 +1469,11 @@ int diagfwd_init(void)
 	wrap_enabled = 0;
 	wrap_count = 0;
 	driver->use_device_tree = has_device_tree();
+
+	/* FIXME */
+	driver->apps_only_mode = true;
+	driver->apps_as_master = true;
+
 	for (i = 0; i < DIAG_NUM_PROC; i++)
 		driver->real_time_mode[i] = 1;
 	driver->supports_separate_cmdrsp = 1;

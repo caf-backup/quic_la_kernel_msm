@@ -476,6 +476,8 @@ struct diagchar_dev {
 	int supports_separate_cmdrsp;
 	int supports_apps_hdlc_encoding;
 	int supports_sockets;
+	bool apps_only_mode;
+	bool apps_as_master;
 	/* The state requested in the STM command */
 	int stm_state_requested[NUM_STM_PROCESSORS];
 	/* The current STM state */
