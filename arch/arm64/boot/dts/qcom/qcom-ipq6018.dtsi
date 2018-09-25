@@ -255,7 +255,7 @@
 			switch_lan_bmp = <0x1e>; /* lan port bitmap */
 			switch_wan_bmp = <0x20>; /* wan port bitmap */
 			switch_mac_mode = <0x0>; /* mac mode for uniphy 0*/
-			switch_mac_mode1 = <0xff>; /* mac mode for uniphy 1*/
+			switch_mac_mode1 = <0xd>; /* mac mode for uniphy 1*/
 			switch_mac_mode2 = <0xff>; /* mac mode for uniphy 2*/
 			bm_tick_mode = <0>; /* bm tick mode */
 			tm_tick_mode = <0>; /* tm tick mode */
