@@ -20,7 +20,6 @@
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include "tsens.h"
-#include <soc/qcom/socinfo.h>
 
 /* TSENS register data */
 #define TSENS_CNTL_ADDR			0x4
@@ -78,8 +77,6 @@
 #define VALID_SENSOR_START_IDX			4
 #define MAX_TEMP				204 /* Celcius */
 #define MIN_TEMP				0   /* Celcius */
-
-const u32 *g_soc_maj_version;
 
 /* Trips: from very hot to very cold */
 enum tsens_trip_type {
@@ -173,9 +170,6 @@ static int init_ipq807x(struct tsens_device *tmdev)
 	if (!tmdev->map)
 		return -ENODEV;
 
-	g_soc_maj_version = read_ipq_soc_version_major();
-	BUG_ON(!g_soc_maj_version);
-
 	/* Store all sensor address for future use */
 	for (i = 0; i < tmdev->num_sensors; i++) {
 		tmdev->sensor[i].status = TSENS_TM_SN_STATUS + (i * 4);
@@ -245,9 +239,6 @@ static int get_temp_ipq807x(struct tsens_device *tmdev, int id, int *temp)
 	u32 code, trdy;
 	const struct tsens_sensor *s = &tmdev->sensor[id];
 	unsigned long timeout;
-
-	if (*g_soc_maj_version != 1)
-		return -EINVAL;
 
 	if (!s)
 		return -EINVAL;
