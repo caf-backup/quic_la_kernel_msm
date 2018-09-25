@@ -24,6 +24,7 @@ static struct clk_branch lpass_audio_wrapper_aon_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "lpass_audio_wrapper_aon_clk",
+			.flags = CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -37,6 +38,7 @@ static struct clk_branch lpass_q6ss_ahbm_aon_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "lpass_q6ss_ahbm_aon_clk",
+			.flags = CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -50,6 +52,7 @@ static struct clk_branch lpass_q6ss_ahbs_aon_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "lpass_q6ss_ahbs_aon_clk",
+			.flags = CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -64,6 +67,7 @@ static struct clk_branch lpass_qdsp6ss_core_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "lpass_qdsp6ss_core_clk",
+			.flags = CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -78,6 +82,7 @@ static struct clk_branch lpass_qdsp6ss_xo_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "lpass_qdsp6ss_xo_clk",
+			.flags = CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -92,6 +97,7 @@ static struct clk_branch lpass_qdsp6ss_sleep_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "lpass_qdsp6ss_sleep_clk",
+			.flags = CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
