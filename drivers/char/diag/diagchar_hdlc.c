@@ -233,7 +233,7 @@ int diag_hdlc_decode(struct diag_hdlc_decode_type *hdlc)
 int crc_check(uint8_t *buf, uint16_t len)
 {
 	uint16_t crc = CRC_16_L_SEED;
-	uint8_t sent_crc[2] = {0, 0};
+	uint16_t sent_crc;
 
 	/*
 	 * The minimum length of a valid incoming packet is 4. 1 byte
@@ -253,11 +253,11 @@ int crc_check(uint8_t *buf, uint16_t len)
 	crc ^= CRC_16_L_SEED;
 
 	/* Check the computed CRC against the original CRC bytes. */
-	sent_crc[0] = buf[len-3];
-	sent_crc[1] = buf[len-2];
-	if (crc != *((uint16_t *)sent_crc)) {
+	sent_crc = __le16_to_cpu(*((uint16_t *)(buf + len - 3)));
+
+	if (crc != sent_crc) {
 		pr_debug("diag: In %s, crc mismatch. expected: %x, sent %x.\n",
-				__func__, crc, *((uint16_t *)sent_crc));
+				__func__, crc, sent_crc);
 		return -EIO;
 	}
 

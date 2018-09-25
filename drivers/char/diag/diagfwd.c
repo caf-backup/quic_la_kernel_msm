@@ -838,8 +838,8 @@ int diag_process_apps_pkt(unsigned char *buf, int len,
 	temp += sizeof(uint8_t);
 	entry.subsys_id = (uint16_t)(*(uint8_t *)temp);
 	temp += sizeof(uint8_t);
-	entry.cmd_code_hi = (uint16_t)(*(uint16_t *)temp);
-	entry.cmd_code_lo = (uint16_t)(*(uint16_t *)temp);
+
+	entry.cmd_code_lo = entry.cmd_code_hi = __le16_to_cpu(*(uint16_t *)temp);
 	temp += sizeof(uint16_t);
 
 	pr_debug("diag: In %s, received cmd %02x %02x %02x\n",
