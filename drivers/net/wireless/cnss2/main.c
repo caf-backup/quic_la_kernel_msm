@@ -1019,6 +1019,9 @@ static int cnss_qca8074_notifier_nb(struct notifier_block *nb,
 	} else if (code == SUBSYS_RAMDUMP_NOTIFICATION) {
 		driver_ops->reinit(plat_priv->plat_dev, plat_priv->plat_dev_id);
 		return NOTIFY_DONE;
+	} else {
+		driver_ops->update_status(plat_priv->plat_dev, code,
+					  plat_priv->plat_dev_id);
 	}
 
 	return NOTIFY_OK;
@@ -1730,7 +1733,8 @@ static int cnss_do_recovery(struct cnss_plat_data *plat_priv,
 	if (plat_priv->driver_ops &&
 	    test_bit(CNSS_DRIVER_PROBED, &plat_priv->driver_state))
 		plat_priv->driver_ops->update_status(pci_priv->pci_dev,
-						     CNSS_RECOVERY);
+						     CNSS_RECOVERY,
+						     pci_priv->pci_device_id);
 
 	switch (reason) {
 	case CNSS_REASON_LINK_DOWN:

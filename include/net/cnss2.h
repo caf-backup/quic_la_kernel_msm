@@ -78,7 +78,8 @@ struct cnss_wlan_driver {
 	int  (*suspend_noirq)(struct pci_dev *pdev);
 	int  (*resume_noirq)(struct pci_dev *pdev);
 	void (*modem_status)(struct pci_dev *, int state);
-	void (*update_status)(struct pci_dev *pdev, uint32_t status);
+	void (*update_status)(struct pci_dev *pdev, uint32_t status,
+			      const struct pci_device_id *id);
 	struct cnss_wlan_runtime_ops *runtime_ops;
 	const struct pci_device_id *id_table;
 	int  (*fatal)(struct pci_dev *pdev, const struct pci_device_id *id);
