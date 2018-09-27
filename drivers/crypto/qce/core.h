@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2014, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2014, 2018 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -15,6 +15,7 @@
 #define _CORE_H_
 
 #include "dma.h"
+#include <linux/interconnect.h>
 
 /**
  * struct qce_device - crypto engine device structure
@@ -46,6 +47,8 @@ struct qce_device {
 	struct qce_dma_data dma;
 	int burst_size;
 	unsigned int pipe_pair_id;
+	struct icc_path	*path;
+	unsigned int max_bw;
 	int (*async_req_enqueue)(struct qce_device *qce,
 				 struct crypto_async_request *req);
 	void (*async_req_done)(struct qce_device *qce, int ret);

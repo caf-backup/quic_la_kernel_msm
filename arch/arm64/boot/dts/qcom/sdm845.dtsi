@@ -3042,6 +3042,41 @@
 			status = "disabled";
 		};
 
+		qcom_rng: qrng@793000 {
+			compatible = "qcom,prng-ee";
+			reg = <0x793000 0x1000>;
+			clocks = <&gcc GCC_PRNG_AHB_CLK>;
+			clock-names = "core";
+			qcom,no-prng-config;
+			interconnect-names = "cpu";
+			interconnects = <&qnoc 1 &qnoc 540>;
+			qcom,bandwidth-max = <300000>;
+		};
+
+		cryptobam: dma@1dc4000 {
+			compatible = "qcom,bam-v1.7.0";
+			reg = <0x1dc4000 0x24000>;
+			interrupts = <0 272 0>;
+			clocks = <&gcc GCC_CE1_AHB_CLK>;
+			clock-names = "bam_clk";
+			#dma-cells = <1>;
+			qcom,ee = <0>;
+		};
+
+		qce_crypto: crypto@1de0000 {
+			compatible = "qcom,crypto-v5.1";
+			reg = <0x1dfa000 0x6000>;
+			clocks = <&gcc GCC_CE1_AHB_CLK>,
+				 <&gcc GCC_CE1_AXI_CLK>,
+				 <&gcc GCC_CE1_CLK>;
+			clock-names = "iface", "bus", "core";
+			dmas = <&cryptobam 4>, <&cryptobam 5>;
+			dma-names = "rx", "tx";
+			interconnect-names = "gpce";
+			interconnects = <&qnoc 35 &qnoc 523>;
+			qcom,bandwidth-max = <393600>;
+		};
+
 		qspi: spi@88df000 {
 			compatible = "qcom,sdm845-qspi", "qcom,qspi-v1";
 			reg = <0x88df000 0x600>;
