@@ -10,6 +10,8 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/delay.h>
+#include <linux/interconnect.h>
 
 /* Device specific register offsets */
 #define PRNG_DATA_OUT		0x0000
@@ -24,12 +26,16 @@
 #define PRNG_STATUS_DATA_AVAIL	BIT(0)
 
 #define WORD_SZ			4
+#define PRNG_RETRY_COUNT	5
+#define PRNG_RETRY_DELAY_USEC	440
 
 struct qcom_rng {
 	struct mutex lock;
 	void __iomem *base;
 	struct clk *clk;
 	unsigned int skip_init;
+	struct icc_path *path;
+	uint32_t max_bw;
 };
 
 struct qcom_rng_ctx {
@@ -41,26 +47,34 @@ static struct qcom_rng *qcom_rng_dev;
 static int qcom_rng_read(struct qcom_rng *rng, u8 *data, unsigned int max)
 {
 	unsigned int currsize = 0;
+	uint32_t failed = 0;
 	u32 val;
 
 	/* read random data from hardware */
 	do {
 		val = readl_relaxed(rng->base + PRNG_STATUS);
-		if (!(val & PRNG_STATUS_DATA_AVAIL))
+		if (!(val & PRNG_STATUS_DATA_AVAIL)) {
+			if (failed++ == PRNG_RETRY_COUNT) {
+				if (currsize == 0)
+					pr_err("Data not available\n");
+				break;
+			}
+			udelay(PRNG_RETRY_DELAY_USEC);
 			break;
-
-		val = readl_relaxed(rng->base + PRNG_DATA_OUT);
-		if (!val)
-			break;
-
-		if ((max - currsize) >= WORD_SZ) {
-			memcpy(data, &val, WORD_SZ);
-			data += WORD_SZ;
-			currsize += WORD_SZ;
 		} else {
-			/* copy only remaining bytes */
-			memcpy(data, &val, max - currsize);
-			break;
+			val = readl_relaxed(rng->base + PRNG_DATA_OUT);
+			if (!val)
+				break;
+
+			if ((max - currsize) >= WORD_SZ) {
+				memcpy(data, &val, WORD_SZ);
+				data += WORD_SZ;
+				currsize += WORD_SZ;
+			} else {
+				/* copy only remaining bytes */
+				memcpy(data, &val, max - currsize);
+				break;
+			}
 		}
 	} while (currsize < max);
 
@@ -75,6 +89,7 @@ static int qcom_rng_generate(struct crypto_rng *tfm,
 	struct qcom_rng *rng = ctx->rng;
 	int ret;
 
+	icc_set(rng->path, 0, rng->max_bw);
 	ret = clk_prepare_enable(rng->clk);
 	if (ret)
 		return ret;
@@ -85,6 +100,7 @@ static int qcom_rng_generate(struct crypto_rng *tfm,
 
 	mutex_unlock(&rng->lock);
 	clk_disable_unprepare(rng->clk);
+	icc_set(rng->path, 0, 0);
 
 	return 0;
 }
@@ -100,6 +116,7 @@ static int qcom_rng_enable(struct qcom_rng *rng)
 	u32 val;
 	int ret;
 
+	icc_set(rng->path, 0, rng->max_bw);
 	ret = clk_prepare_enable(rng->clk);
 	if (ret)
 		return ret;
@@ -120,6 +137,7 @@ static int qcom_rng_enable(struct qcom_rng *rng)
 
 already_enabled:
 	clk_disable_unprepare(rng->clk);
+	icc_set(rng->path, 0, 0);
 
 	return 0;
 }
@@ -176,8 +194,19 @@ static int qcom_rng_probe(struct platform_device *pdev)
 			return PTR_ERR(rng->clk);
 	}
 
+	if (pdev->dev.of_node) {
+		if (of_property_read_u32(pdev->dev.of_node,
+				"qcom,bw-max", &rng->max_bw)) {
+			pr_err("failed to get max bandwidth\n");
+			return -EINVAL;
+		}
+	}
 
 	rng->skip_init = (unsigned long)device_get_match_data(&pdev->dev);
+
+	rng->path = of_icc_get(&pdev->dev, "cpu");
+	if (IS_ERR(rng->path))
+		return PTR_ERR(rng->path);
 
 	qcom_rng_dev = rng;
 	ret = crypto_register_rng(&qcom_rng_alg);
@@ -192,6 +221,8 @@ static int qcom_rng_probe(struct platform_device *pdev)
 static int qcom_rng_remove(struct platform_device *pdev)
 {
 	crypto_unregister_rng(&qcom_rng_alg);
+
+	icc_put(qcom_rng_dev->path);
 
 	qcom_rng_dev = NULL;
 
