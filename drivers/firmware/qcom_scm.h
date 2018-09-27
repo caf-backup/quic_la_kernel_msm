@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010-2015, 2018 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -93,6 +93,9 @@ static inline int qcom_scm_remap_error(int err)
 	return -EINVAL;
 }
 
+#define QCOM_SCM_SVC_KEYSTORE		0x5
+#define QCOM_SCM_RESTORE_CFG		6
+extern int __qcom_scm_restore_cfg(struct device *dev, u32 arginfo, u32 type);
 #define QCOM_SCM_SVC_MP			0xc
 #define QCOM_SCM_RESTORE_SEC_CFG	2
 extern int __qcom_scm_restore_sec_cfg(struct device *dev, u32 device_id,
