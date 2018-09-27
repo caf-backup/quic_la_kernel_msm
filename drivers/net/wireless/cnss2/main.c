@@ -2477,6 +2477,7 @@ static const struct platform_device_id cnss_platform_id_table[] = {
 	{ .name = "qca6290", .driver_data = QCA6290_DEVICE_ID, },
 	{ .name = "qca8074", .driver_data = QCA8074_DEVICE_ID, },
 	{ .name = "qca8074v2", .driver_data = QCA8074V2_DEVICE_ID, },
+	{ .name = "qca6018", .driver_data = QCA6018_DEVICE_ID, },
 };
 
 static const struct of_device_id cnss_of_match_table[] = {
@@ -2492,6 +2493,9 @@ static const struct of_device_id cnss_of_match_table[] = {
 	{
 		.compatible = "qcom,cnss-qca8074v2",
 		.data = (void *)&cnss_platform_id_table[3]},
+	{
+		.compatible = "qcom,cnss-qca6018",
+		.data = (void *)&cnss_platform_id_table[4]},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, cnss_of_match_table);
