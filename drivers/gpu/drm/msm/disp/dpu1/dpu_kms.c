@@ -1106,12 +1106,7 @@ static int dpu_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 	}
 
-	ret = dpu_power_resource_init(pdev, &dpu_kms->phandle);
-	if (ret) {
-		pr_err("dpu power resource init failed\n");
-		msm_dss_put_clk(mp->clk_config, mp->num_clk);
-		return ret;
-	}
+	dpu_power_resource_init(pdev, &dpu_kms->phandle);
 
 	platform_set_drvdata(pdev, dpu_kms);
 
