@@ -2674,6 +2674,10 @@
 			interrupt-controller;
 			#interrupt-cells = <1>;
 
+			interconnects = <&qnoc 38 &qnoc 512>,
+					<&qnoc 39 &qnoc 512>;
+			interconnect-names = "port0", "port1";
+
 			iommus = <&apps_smmu 0x880 0x8>,
 				 <&apps_smmu 0xc80 0x8>;
 
