@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2014, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2014, 2018 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
+#include <linux/of.h>
 #include <crypto/algapi.h>
 #include <crypto/internal/hash.h>
 #include <crypto/sha.h>
@@ -206,6 +207,20 @@ static int qce_crypto_probe(struct platform_device *pdev)
 	if (IS_ERR(qce->bus))
 		return PTR_ERR(qce->bus);
 
+	if (qce->dev->of_node) {
+		if (of_property_read_u32(qce->dev->of_node,
+				"qcom,bandwidth-max", &qce->max_bw)) {
+			pr_err("failed to get max bandwidth\n");
+			return -EINVAL;
+		}
+	}
+
+	qce->path = of_icc_get(qce->dev, "gpce");
+	if (IS_ERR(qce->path))
+		return PTR_ERR(qce->path);
+
+	icc_set(qce->path, qce->max_bw, qce->max_bw);
+
 	ret = clk_prepare_enable(qce->core);
 	if (ret)
 		return ret;
@@ -248,6 +263,7 @@ err_clks_iface:
 	clk_disable_unprepare(qce->iface);
 err_clks_core:
 	clk_disable_unprepare(qce->core);
+	icc_set(qce->path, 0, 0);
 	return ret;
 }
 
@@ -261,6 +277,7 @@ static int qce_crypto_remove(struct platform_device *pdev)
 	clk_disable_unprepare(qce->bus);
 	clk_disable_unprepare(qce->iface);
 	clk_disable_unprepare(qce->core);
+	icc_set(qce->path, 0, 0);
 	return 0;
 }
 
