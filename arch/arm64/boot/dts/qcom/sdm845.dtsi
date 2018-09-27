@@ -2256,6 +2256,18 @@
 			status = "disabled";
 		};
 
+		qcom_rng: qrng@793000 {
+			compatible = "qcom,prng";
+			reg = <0x793000 0x1000>;
+			clocks = <&gcc GCC_PRNG_AHB_CLK>;
+			clock-names = "core";
+			qcom,no-prng-config;
+			interconnect-names = "cpu";
+			interconnects = <&qnoc 1 &qnoc 618>;
+			qcom,bandwidth-min = <0>;
+			qcom,bandwidth-max = <800>;
+		};
+
 		qspi: qspi@88df000 {
 			compatible = "qcom,sdm845-qspi", "qcom,qspi-v1";
 			reg = <0x88df000 0x600>;
