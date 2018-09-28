@@ -100,5 +100,9 @@
 		nss_crypto {
 			status = "ok";
 		};
+
+		timer {
+			clock-frequency = <240000>;
+		};
 	};
 };
