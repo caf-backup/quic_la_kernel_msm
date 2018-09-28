@@ -99,6 +99,7 @@ enum msm_dump_table_ids {
 enum msm_dump_type {
 	MSM_DUMP_TYPE_DATA,
 	MSM_DUMP_TYPE_TABLE,
+	MSM_DUMP_TYPE_DELETED,
 };
 
 struct msm_dump_data {
@@ -120,12 +121,22 @@ struct msm_dump_entry {
 #ifdef CONFIG_QCOM_MEMORY_DUMP_V2
 extern int msm_dump_data_register(enum msm_dump_table_ids id,
 				  struct msm_dump_entry *entry);
+extern int msm_dump_data_unregister(enum msm_dump_table_ids id,
+				  int index);
+
 #else
 static inline int msm_dump_data_register(enum msm_dump_table_ids id,
 					 struct msm_dump_entry *entry)
 {
 	return -ENOSYS;
 }
+
+static inline int msm_dump_data_unregister(enum msm_dump_table_ids id,
+					 int index)
+{
+	return -ENOSYS;
+}
+
 #endif
 
 #endif

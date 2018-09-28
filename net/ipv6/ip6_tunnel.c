@@ -1004,6 +1004,7 @@ static void ip4ip6_fmr_calc(struct in6_addr *dest,
 			 * We need move last six Bytes 1 byte forward
 			 */
 			memmove(&dest->s6_addr[9], &dest->s6_addr[10], 6);
+			dest->s6_addr[15] = 0;
 		}
 	}
 }

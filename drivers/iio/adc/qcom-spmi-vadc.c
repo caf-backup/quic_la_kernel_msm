@@ -295,7 +295,7 @@ static int vadc_set_state(struct vadc_priv *vadc, bool state)
 
 static void vadc_show_status(struct vadc_priv *vadc)
 {
-	u8 mode, sta1, chan, dig, en, req;
+	u8 mode = 0, sta1, chan, dig, en, req;
 	int ret;
 
 	if (vadc->dev_data->mode_ctl) {
@@ -533,6 +533,10 @@ static int vadc_measure_ref_points(struct vadc_priv *vadc)
 	vadc->graph[VADC_CALIB_ABSOLUTE].dx = VADC_ABSOLUTE_RANGE_UV;
 
 	prop = vadc_get_channel(vadc, VADC_REF_1250MV);
+	if (!prop) {
+		ret = -EINVAL;
+		goto err;
+	}
 	ret = vadc_do_conversion(vadc, prop, &read_1);
 	if (ret)
 		goto err;
@@ -542,6 +546,10 @@ static int vadc_measure_ref_points(struct vadc_priv *vadc)
 	if (!prop)
 		prop = vadc_get_channel(vadc, VADC_REF_625MV);
 
+	if (!prop) {
+		ret = -EINVAL;
+		goto err;
+	}
 	ret = vadc_do_conversion(vadc, prop, &read_2);
 	if (ret)
 		goto err;
@@ -556,11 +564,19 @@ static int vadc_measure_ref_points(struct vadc_priv *vadc)
 
 	/* Ratiometric calibration */
 	prop = vadc_get_channel(vadc, VADC_VDD_VADC);
+	if (!prop) {
+		ret = -EINVAL;
+		goto err;
+	}
 	ret = vadc_do_conversion(vadc, prop, &read_1);
 	if (ret)
 		goto err;
 
 	prop = vadc_get_channel(vadc, VADC_GND_REF);
+	if (!prop) {
+		ret = -EINVAL;
+		goto err;
+	}
 	ret = vadc_do_conversion(vadc, prop, &read_2);
 	if (ret)
 		goto err;
@@ -1094,12 +1110,16 @@ static int pmp8074_get_temp(struct thermal_zone_device *thermal,
 			     int *temp)
 {
 	struct vadc_thermal_data *vadc_therm = thermal->devdata;
-	struct vadc_priv *vadc = vadc_therm->vadc_dev;
+	struct vadc_priv *vadc;
 	struct vadc_channel_prop *prop;
 	u16 adc_code;
 	int rc = 0;
 
-	if (!vadc_therm || !vadc)
+	if (!vadc_therm)
+		return -EINVAL;
+
+	vadc = vadc_therm->vadc_dev;
+	if (!vadc)
 		return -EINVAL;
 
 	prop = &(vadc->chan_props[vadc_therm->thermal_chan]);

@@ -2350,6 +2350,8 @@ static int thermal_panic_notify(struct notifier_block *nb,
 		if (tz->ops->panic_notify)
 			tz->ops->panic_notify(tz);
 	}
+
+	return 0;
 }
 
 static struct notifier_block panic_nb = {

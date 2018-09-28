@@ -2563,7 +2563,7 @@ static int etm4_set_reg_dump(struct etmv4_drvdata *drvdata)
 
 	ret = msm_dump_data_register(MSM_DUMP_TABLE_APPS,
 				     &dump_entry);
-	if (ret)
+	if (ret < 0)
 		devm_kfree(dev, baddr);
 
 	return ret;
@@ -2581,7 +2581,7 @@ static int etm4_late_init(struct etmv4_drvdata *drvdata)
 	etm4_init_default_data(drvdata);
 
 	ret = etm4_set_reg_dump(drvdata);
-	if (ret)
+	if (ret < 0)
 		dev_err(dev, "ETM REG dump setup failed. ret %d\n", ret);
 
 	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);

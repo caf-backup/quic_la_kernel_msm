@@ -198,6 +198,12 @@
 			no-map;
 			reg = <0x0 0x4a400000 0x0 0x00200000>;
 		};
+
+		wifi_dump@50500000 {
+			no-map;
+			reg = <0x0 0x50500000 0x0 0x600000>;
+		};
+
 	};
 
 	firmware {
@@ -364,6 +370,7 @@
 			qca,auto-restart;
 			qca,extended-intc;
 			qca,dump-q6-reg;
+			qca,secure;
 			interrupts-extended = <&intc 0 325 1>,
 					<&wcss_smp2p_in 0 0>,
 					<&wcss_smp2p_in 1 0>,
@@ -417,7 +424,7 @@
 			qcom,bus-width = <8>;
 			qcom,max_clk = <384000000>;
 
-			syscon = <&tlmm_csr 0xA000 0xFFFFFE7F>;
+			syscon = <&tlmm_csr 0xA000 0x0019E5B>;
 
 			qcom,dedicated-io = <1>;
 
@@ -865,6 +872,8 @@
 				qcom,3des-cbc;
 				qcom,sha160-hash;
 				qcom,sha224-hash;
+				qcom,sha384-hash;
+				qcom,sha512-hash;
 				qcom,sha256-hash;
 				qcom,sha160-hmac;
 				qcom,sha256-hmac;
@@ -1826,5 +1835,4 @@
 #include "qcom-ipq807x-spmi-regulator.dtsi"
 #include "qcom-ipq807x-rpm-regulator.dtsi"
 #include "qcom-ipq807x-thermal.dtsi"
-#include "qcom-ipq807x-cpu.dtsi"
 #include "qcom-ipq807x-cpr-regulator.dtsi"

@@ -402,6 +402,9 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_SCHED_SCAN_DELAY] = { .type = NLA_U32 },
 	[NL80211_ATTR_REG_INDOOR] = { .type = NLA_FLAG },
 	[NL80211_ATTR_PBSS] = { .type = NLA_FLAG },
+	[NL80211_ATTR_FILS_KEK] = { .type = NLA_BINARY,
+				    .len = FILS_MAX_KEK_LEN },
+	[NL80211_ATTR_FILS_NONCES] = { .len = 2 * FILS_NONCE_LEN },
 };
 
 /* policy for the key attributes */
@@ -10614,6 +10617,30 @@ static int nl80211_tdls_cancel_channel_switch(struct sk_buff *skb,
 	return 0;
 }
 
+static int nl80211_set_fils_aad(struct sk_buff *skb,
+				struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_fils_aad fils_aad = {};
+	u8 *nonces;
+
+	if (!info->attrs[NL80211_ATTR_MAC] ||
+	    !info->attrs[NL80211_ATTR_FILS_KEK] ||
+	    !info->attrs[NL80211_ATTR_FILS_NONCES])
+		return -EINVAL;
+
+	fils_aad.macaddr = nla_data(info->attrs[NL80211_ATTR_MAC]);
+	fils_aad.kek_len = nla_len(info->attrs[NL80211_ATTR_FILS_KEK]);
+	fils_aad.kek = nla_data(info->attrs[NL80211_ATTR_FILS_KEK]);
+	nonces = nla_data(info->attrs[NL80211_ATTR_FILS_NONCES]);
+	fils_aad.snonce = nonces;
+	fils_aad.anonce = nonces + FILS_NONCE_LEN;
+
+	return rdev_set_fils_aad(rdev, dev, &fils_aad);
+}
+
 #define NL80211_FLAG_NEED_WIPHY		0x01
 #define NL80211_FLAG_NEED_NETDEV	0x02
 #define NL80211_FLAG_NEED_RTNL		0x04
@@ -11435,6 +11462,14 @@ static const struct genl_ops nl80211_ops[] = {
 	{
 		.cmd = NL80211_CMD_TDLS_CANCEL_CHANNEL_SWITCH,
 		.doit = nl80211_tdls_cancel_channel_switch,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
+				  NL80211_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL80211_CMD_SET_FILS_AAD,
+		.doit = nl80211_set_fils_aad,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |

@@ -9,6 +9,7 @@ wil6210-y += sysfs.o
 wil6210-y += wmi.o
 wil6210-y += interrupt.o
 wil6210-y += txrx.o
+wil6210-y += txrx_edma.o
 wil6210-y += debug.o
 wil6210-y += rx_reorder.o
 wil6210-y += ioctl.o
@@ -22,6 +23,7 @@ wil6210-y += wil_crash_dump.o
 wil6210-y += p2p.o
 wil6210-y += wil_platform_ipq.o
 wil6210-y += ftm.o
+wil6210-y += umac.o
 
 # for tracing framework to find trace.h
 CFLAGS_trace.o := -I$(src)
