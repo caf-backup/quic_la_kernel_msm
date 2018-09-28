@@ -2,7 +2,6 @@
 /* Copyright (c) 2017-2018 The Linux Foundation. All rights reserved. */
 
 #include <linux/clk.h>
-#include <linux/iopoll.h>
 #include <linux/pm_opp.h>
 #include <linux/interconnect.h>
 #include <soc/qcom/cmd-db.h>
@@ -42,9 +41,6 @@ static irqreturn_t a6xx_hfi_irq(int irq, void *data)
 
 	status = gmu_read(gmu, REG_A6XX_GMU_GMU2HOST_INTR_INFO);
 	gmu_write(gmu, REG_A6XX_GMU_GMU2HOST_INTR_CLR, status);
-
-	if (status & A6XX_GMU_GMU2HOST_INTR_INFO_MSGQ)
-		tasklet_schedule(&gmu->hfi_tasklet);
 
 	if (status & A6XX_GMU_GMU2HOST_INTR_INFO_CM3_FAULT) {
 		dev_err_ratelimited(gmu->dev, "GMU firmware fault\n");
@@ -185,9 +181,6 @@ static int a6xx_gmu_hfi_start(struct a6xx_gmu *gmu)
 {
 	u32 val;
 	int ret;
-
-	gmu_rmw(gmu, REG_A6XX_GMU_GMU2HOST_INTR_MASK,
-		A6XX_GMU_GMU2HOST_INTR_INFO_MSGQ, 0);
 
 	gmu_write(gmu, REG_A6XX_GMU_HFI_CTRL_INIT, 1);
 
@@ -617,8 +610,7 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 }
 
 #define A6XX_HFI_IRQ_MASK \
-	(A6XX_GMU_GMU2HOST_INTR_INFO_MSGQ | \
-	 A6XX_GMU_GMU2HOST_INTR_INFO_CM3_FAULT)
+	(A6XX_GMU_GMU2HOST_INTR_INFO_CM3_FAULT)
 
 #define A6XX_GMU_IRQ_MASK \
 	(A6XX_GMU_AO_HOST_INTERRUPT_STATUS_WDOG_BITE | \
@@ -707,6 +699,8 @@ out:
 
 int a6xx_gmu_resume(struct a6xx_gpu *a6xx_gpu)
 {
+	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
+	struct msm_gpu *gpu = &adreno_gpu->base;
 	struct a6xx_gmu *gmu = &a6xx_gpu->gmu;
 	int status, ret;
 
@@ -721,6 +715,9 @@ int a6xx_gmu_resume(struct a6xx_gpu *a6xx_gpu)
 	ret = clk_bulk_prepare_enable(gmu->nr_clocks, gmu->clocks);
 	if (ret)
 		goto out;
+
+	/* Set the bus quota to a reasonable value for boot */
+	icc_set(gpu->icc_path, 0, 3072000000);
 
 	a6xx_gmu_irq_enable(gmu);
 
@@ -762,6 +759,8 @@ bool a6xx_gmu_isidle(struct a6xx_gmu *gmu)
 
 int a6xx_gmu_stop(struct a6xx_gpu *a6xx_gpu)
 {
+	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
+	struct msm_gpu *gpu = &adreno_gpu->base;
 	struct a6xx_gmu *gmu = &a6xx_gpu->gmu;
 	u32 val;
 
@@ -807,6 +806,9 @@ int a6xx_gmu_stop(struct a6xx_gpu *a6xx_gpu)
 
 	/* Tell RPMh to power off the GPU */
 	a6xx_rpmh_stop(gmu);
+
+	/* Remove the bus vote */
+	icc_set(gpu->icc_path, 0, 0);
 
 	clk_bulk_disable_unprepare(gmu->nr_clocks, gmu->clocks);
 
@@ -1249,9 +1251,6 @@ int a6xx_gmu_probe(struct a6xx_gpu *a6xx_gpu, struct device_node *node)
 
 	if (gmu->hfi_irq < 0 || gmu->gmu_irq < 0)
 		goto err;
-
-	/* Set up a tasklet to handle GMU HFI responses */
-	tasklet_init(&gmu->hfi_tasklet, a6xx_hfi_task, (unsigned long) gmu);
 
 	/* Get the power levels for the GMU and GPU */
 	a6xx_gmu_pwrlevels_probe(gmu);

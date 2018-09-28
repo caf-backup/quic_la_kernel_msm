@@ -3266,7 +3266,7 @@
 
 			operating-points-v2 = <&gpu_opp_table>;
 
-			interconnects = <&qnoc 26 &qnoc 512>;
+			interconnects = <&qnoc 36 &qnoc 512>;
 			interconnect-names = "port0";
 
 			qcom,gmu = <&gmu>;

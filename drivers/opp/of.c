@@ -808,7 +808,7 @@ int dev_pm_opp_get_interconnect_bw(struct dev_pm_opp *opp,
 		return -EINVAL;
 
 	of_property_read_u64_index(opp->np, name, 0, avgbw);
-	of_property_read_u64_index(opp->np, name, 0, peakbw);
+	of_property_read_u64_index(opp->np, name, 1, peakbw);
 
 	return 0;
 }
