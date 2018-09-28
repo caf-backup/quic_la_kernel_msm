@@ -407,6 +407,11 @@ nf_nat_setup_info(struct nf_conn *ct,
 
 	get_unique_tuple(&new_tuple, &curr_tuple, range, ct, maniptype);
 
+#if IS_ENABLED(CONFIG_NF_NAT_TRY_NEXT_RULE)
+	if (nf_nat_used_tuple(&new_tuple, ct))
+		return XT_CONTINUE;
+#endif
+
 	if (!nf_ct_tuple_equal(&new_tuple, &curr_tuple)) {
 		struct nf_conntrack_tuple reply;
 
