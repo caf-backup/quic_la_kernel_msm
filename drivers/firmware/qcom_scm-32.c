@@ -172,7 +172,7 @@ static u32 smc(u32 cmd_addr)
  * and response buffers is taken care of by qcom_scm_call; however, callers are
  * responsible for any other cached buffers passed over to the secure world.
  */
-static int qcom_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
+static int qcom_scm_call(struct device *dev, u32 own_id, u32 svc_id, u32 cmd_id,
 			 const void *cmd_buf, size_t cmd_len, void *resp_buf,
 			 size_t resp_len)
 {
@@ -406,7 +406,7 @@ int __qcom_scm_set_warm_boot_addr(struct device *dev, void *entry,
 
 	cmd.addr = cpu_to_le32(virt_to_phys(entry));
 	cmd.flags = cpu_to_le32(flags);
-	ret = qcom_scm_call(dev, QCOM_SCM_SVC_BOOT, QCOM_SCM_BOOT_ADDR,
+	ret = qcom_scm_call(dev, 0, QCOM_SCM_SVC_BOOT, QCOM_SCM_BOOT_ADDR,
 			    &cmd, sizeof(cmd), NULL, 0);
 	if (!ret) {
 		for_each_cpu(cpu, cpus)
@@ -436,7 +436,7 @@ int __qcom_scm_is_call_available(struct device *dev, u32 svc_id, u32 cmd_id)
 	__le32 svc_cmd = cpu_to_le32((svc_id << 10) | cmd_id);
 	__le32 ret_val = 0;
 
-	ret = qcom_scm_call(dev, QCOM_SCM_SVC_INFO, QCOM_IS_CALL_AVAIL_CMD,
+	ret = qcom_scm_call(dev, 0, QCOM_SCM_SVC_INFO, QCOM_IS_CALL_AVAIL_CMD,
 			    &svc_cmd, sizeof(svc_cmd), &ret_val,
 			    sizeof(ret_val));
 	if (ret)
@@ -451,7 +451,7 @@ int __qcom_scm_hdcp_req(struct device *dev, struct qcom_scm_hdcp_req *req,
 	if (req_cnt > QCOM_SCM_HDCP_MAX_REQ_CNT)
 		return -ERANGE;
 
-	return qcom_scm_call(dev, QCOM_SCM_SVC_HDCP, QCOM_SCM_CMD_HDCP,
+	return qcom_scm_call(dev, 0, QCOM_SCM_SVC_HDCP, QCOM_SCM_CMD_HDCP,
 		req, req_cnt * sizeof(*req), resp, sizeof(*resp));
 }
 
@@ -466,7 +466,7 @@ bool __qcom_scm_pas_supported(struct device *dev, u32 peripheral)
 	int ret;
 
 	in = cpu_to_le32(peripheral);
-	ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL,
+	ret = qcom_scm_call(dev, 0, QCOM_SCM_SVC_PIL,
 			    QCOM_SCM_PAS_IS_SUPPORTED_CMD,
 			    &in, sizeof(in),
 			    &out, sizeof(out));
@@ -487,7 +487,7 @@ int __qcom_scm_pas_init_image(struct device *dev, u32 peripheral,
 	request.proc = cpu_to_le32(peripheral);
 	request.image_addr = cpu_to_le32(metadata_phys);
 
-	ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL,
+	ret = qcom_scm_call(dev, 0, QCOM_SCM_SVC_PIL,
 			    QCOM_SCM_PAS_INIT_IMAGE_CMD,
 			    &request, sizeof(request),
 			    &scm_ret, sizeof(scm_ret));
@@ -510,7 +510,7 @@ int __qcom_scm_pas_mem_setup(struct device *dev, u32 peripheral,
 	request.addr = cpu_to_le32(addr);
 	request.len = cpu_to_le32(size);
 
-	ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL,
+	ret = qcom_scm_call(dev, 0, QCOM_SCM_SVC_PIL,
 			    QCOM_SCM_PAS_MEM_SETUP_CMD,
 			    &request, sizeof(request),
 			    &scm_ret, sizeof(scm_ret));
@@ -525,7 +525,7 @@ int __qcom_scm_pas_auth_and_reset(struct device *dev, u32 peripheral)
 	int ret;
 
 	in = cpu_to_le32(peripheral);
-	ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL,
+	ret = qcom_scm_call(dev, 0, QCOM_SCM_SVC_PIL,
 			    QCOM_SCM_PAS_AUTH_AND_RESET_CMD,
 			    &in, sizeof(in),
 			    &out, sizeof(out));
@@ -540,7 +540,7 @@ int __qcom_scm_pas_shutdown(struct device *dev, u32 peripheral)
 	int ret;
 
 	in = cpu_to_le32(peripheral);
-	ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL,
+	ret = qcom_scm_call(dev, 0, QCOM_SCM_SVC_PIL,
 			    QCOM_SCM_PAS_SHUTDOWN_CMD,
 			    &in, sizeof(in),
 			    &out, sizeof(out));
@@ -554,7 +554,7 @@ int __qcom_scm_pas_mss_reset(struct device *dev, bool reset)
 	__le32 in = cpu_to_le32(reset);
 	int ret;
 
-	ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL, QCOM_SCM_PAS_MSS_RESET,
+	ret = qcom_scm_call(dev, 0, QCOM_SCM_SVC_PIL, QCOM_SCM_PAS_MSS_RESET,
 			&in, sizeof(in),
 			&out, sizeof(out));
 
@@ -579,7 +579,8 @@ int __qcom_scm_set_remote_state(struct device *dev, u32 state, u32 id)
 	req.state = cpu_to_le32(state);
 	req.id = cpu_to_le32(id);
 
-	ret = qcom_scm_call(dev, QCOM_SCM_SVC_BOOT, QCOM_SCM_SET_REMOTE_STATE,
+	ret = qcom_scm_call(dev, 0, QCOM_SCM_SVC_BOOT,
+			    QCOM_SCM_SET_REMOTE_STATE,
 			    &req, sizeof(req), &scm_ret, sizeof(scm_ret));
 
 	return ret ? : le32_to_cpu(scm_ret);
@@ -588,6 +589,11 @@ int __qcom_scm_set_remote_state(struct device *dev, u32 state, u32 id)
 int __qcom_scm_assign_mem(struct device *dev, phys_addr_t mem_region,
 			  size_t mem_sz, phys_addr_t src, size_t src_sz,
 			  phys_addr_t dest, size_t dest_sz)
+{
+	return -ENODEV;
+}
+
+int __qcom_scm_restore_cfg(struct device *dev, u32 arginfo, u32 type)
 {
 	return -ENODEV;
 }

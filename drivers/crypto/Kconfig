@@ -592,6 +592,16 @@ config CRYPTO_DEV_QCE
 	  hardware. To compile this driver as a module, choose M here. The
 	  module will be called qcrypto.
 
+config CRYPTO_DEV_QTI_ICE
+	tristate "Qualcomm inline crypto engine accelerator"
+	default n
+	depends on (ARCH_QCOM || COMPILE_TEST) && BLK_DEV_DM
+	help
+	  This driver supports Inline Crypto Engine for QTI chipsets, MSM8994
+	  and later, to accelerate crypto operations for storage needs.
+	  To compile this driver as a module, choose M here: the
+	  module will be called ice.
+
 config CRYPTO_DEV_VMX
 	bool "Support for VMX cryptographic acceleration instructions"
 	depends on PPC64 && VSX

@@ -1628,12 +1628,32 @@
 			interrupts = <GIC_SPI 582 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
+		ufs_ice: ufsice@1d90000 {
+			compatible = "qcom,ice";
+			reg = <0x1d90000 0x8000>;
+			qcom,enable-ice-clk;
+			clock-names = "ufs_core_clk", "bus_clk",
+					"iface_clk", "ice_core_clk";
+			clocks = <&gcc GCC_UFS_PHY_AXI_CLK>,
+				 <&gcc GCC_UFS_MEM_CLKREF_CLK>,
+				 <&gcc GCC_UFS_PHY_AHB_CLK>,
+				 <&gcc GCC_UFS_PHY_ICE_CORE_CLK>;
+			qcom,op-freq-hz = <0>, <0>, <0>, <300000000>;
+			power-domains = <&gcc UFS_PHY_GDSC>;
+			interconnect-names = "cfg";
+			interconnects = <&qnoc 1 &qnoc 650>;
+			qcom,bandwidth-min = <0>;    /* No vote */
+			qcom,bandwidth-max = <1000>; /* Max. bandwidth */
+			qcom,instance-type = "ufs";
+		};
+
 		ufshc1: ufshc@1d84000 {
 			compatible = "qcom,ufshc";
 			reg = <0x1d84000 0x2500>;
 			interrupts = <0 265 0>;
 			phys = <&ufsphy1_l0>;
 			phy-names = "ufsphy";
+			ufs-qcom-crypto = <&ufs_ice>;
 
 			lanes-per-direction = <2>;
 			dev-ref-clk-freq = <0>; /* 19.2 MHz */

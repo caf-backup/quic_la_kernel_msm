@@ -335,6 +335,12 @@ static const struct reset_control_ops qcom_scm_pas_reset_ops = {
 	.deassert = qcom_scm_pas_reset_deassert,
 };
 
+int qcom_scm_ice_restore_cfg(u32 arginfo, u32 storage_type)
+{
+	return __qcom_scm_restore_cfg(__scm->dev, arginfo, storage_type);
+}
+EXPORT_SYMBOL(qcom_scm_ice_restore_cfg);
+
 int qcom_scm_restore_sec_cfg(u32 device_id, u32 spare)
 {
 	return __qcom_scm_restore_sec_cfg(__scm->dev, device_id, spare);
