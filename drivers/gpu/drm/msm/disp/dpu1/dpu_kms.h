@@ -160,6 +160,18 @@ struct vsync_info {
 		((struct msm_drm_private *)((D)->dev_private))->kms : NULL)
 
 /**
+ * dpu_kms_is_suspend_state - whether or not the system is pm suspended
+ * @dev: Pointer to drm device
+ * Return: Suspend status
+ */
+static inline bool dpu_kms_is_suspend_state(struct drm_device *dev)
+{
+	struct msm_drm_private *priv = dev->dev_private;
+
+	return !IS_ERR_OR_NULL(priv->pm_state);
+}
+
+/**
  * Debugfs functions - extra helper functions for debugfs support
  *
  * Main debugfs documentation is located at,
