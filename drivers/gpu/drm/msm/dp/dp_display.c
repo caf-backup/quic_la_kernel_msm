@@ -72,6 +72,48 @@ static const struct of_device_id dp_dt_match[] = {
 	{}
 };
 
+static int dp_get_pll(struct dp_display_private *dp_priv)
+{
+	struct platform_device *pdev = NULL;
+	struct platform_device *pll_pdev;
+	struct device_node *pll_node;
+	struct dp_parser *dp_parser = NULL;
+
+	if (!dp_priv) {
+		pr_err("Invalid Arguments\n");
+		return -EINVAL;
+	}
+
+	pdev = dp_priv->pdev;
+	dp_parser = dp_priv->parser;
+
+	if (!dp_parser) {
+		pr_err("Parser not initialized.\n");
+		return -EINVAL;
+	}
+
+	pll_node = of_parse_phandle(pdev->dev.of_node, "pll-node", 0);
+	if (!pll_node) {
+		dev_err(&pdev->dev, "cannot find pll device\n");
+		return -ENXIO;
+	}
+
+	pll_pdev = of_find_device_by_node(pll_node);
+	if (pll_pdev)
+		dp_parser->pll = platform_get_drvdata(pll_pdev);
+
+	of_node_put(pll_node);
+
+	if (!pll_pdev || !dp_parser->pll) {
+		dev_err(&pdev->dev, "%s: pll driver is not ready\n", __func__);
+		return -EPROBE_DEFER;
+	}
+
+	dp_parser->pll_dev = get_device(&pll_pdev->dev);
+
+	return 0;
+}
+
 static irqreturn_t dp_display_irq(int irq, void *dev_id)
 {
 	struct dp_display_private *dp = dev_id;
@@ -122,6 +164,12 @@ static int dp_display_bind(struct device *dev, struct device *master,
 	rc = dp->parser->parse(dp->parser);
 	if (rc) {
 		pr_err("device tree parsing failed\n");
+		goto end;
+	}
+
+	rc = dp_get_pll(dp);
+	if (rc) {
+		pr_err(" DP get PLL instance failed\n");
 		goto end;
 	}
 
@@ -921,6 +969,7 @@ int __init msm_dp_register(void)
 {
 	int ret;
 
+	msm_dp_pll_driver_register();
 	ret = platform_driver_register(&dp_display_driver);
 	if (ret) {
 		pr_err("driver register failed");
@@ -932,6 +981,7 @@ int __init msm_dp_register(void)
 
 void __exit msm_dp_unregister(void)
 {
+	msm_dp_pll_driver_unregister();
 	platform_driver_unregister(&dp_display_driver);
 }
 

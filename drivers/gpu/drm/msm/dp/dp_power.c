@@ -23,7 +23,9 @@ struct dp_power_private {
 	struct dp_parser *parser;
 	struct platform_device *pdev;
 	struct clk *pixel_clk_rcg;
-	struct clk *pixel_parent;
+	struct clk *link_clk_src;
+	struct clk *pixel_provider;
+	struct clk *link_provider;
 
 	struct dp_power dp_power;
 
@@ -154,6 +156,16 @@ static int dp_power_clk_init(struct dp_power_private *power, bool enable)
 		goto exit;
 	}
 
+	if (power->parser->pll && power->parser->pll->get_provider) {
+		rc = power->parser->pll->get_provider(power->parser->pll,
+				&power->link_provider, &power->pixel_provider);
+		if (rc) {
+			pr_info("%s: can't get provider from pll, don't set parent\n",
+				__func__);
+			return 0;
+		}
+	}
+
 	if (enable) {
 		rc = msm_dss_get_clk(dev, core->clk_config, core->num_clk);
 		if (rc) {
@@ -173,17 +185,10 @@ static int dp_power_clk_init(struct dp_power_private *power, bool enable)
 		if (IS_ERR(power->pixel_clk_rcg)) {
 			pr_debug("Unable to get DP pixel clk RCG\n");
 			power->pixel_clk_rcg = NULL;
-		}
-
-		power->pixel_parent = devm_clk_get(dev, "pixel_parent");
-		if (IS_ERR(power->pixel_parent)) {
-			pr_debug("Unable to get DP pixel RCG parent\n");
-			power->pixel_parent = NULL;
+			rc = -ENODEV;
+			goto ctrl_get_error;
 		}
 	} else {
-		if (power->pixel_parent)
-			devm_clk_put(dev, power->pixel_parent);
-
 		if (power->pixel_clk_rcg)
 			devm_clk_put(dev, power->pixel_clk_rcg);
 
@@ -459,6 +464,49 @@ static void dp_power_client_deinit(struct dp_power *dp_power)
 
 }
 
+static int dp_power_set_link_clk_parent(struct dp_power *dp_power)
+{
+	int rc = 0;
+	struct dp_power_private *power;
+	u32 num;
+	struct dss_clk *cfg;
+	char *name = "ctrl_link_clk";
+
+	if (!dp_power) {
+		pr_err("invalid power data\n");
+		rc = -EINVAL;
+		goto exit;
+	}
+
+	power = container_of(dp_power, struct dp_power_private, dp_power);
+
+	num = power->parser->mp[DP_CTRL_PM].num_clk;
+	cfg = power->parser->mp[DP_CTRL_PM].clk_config;
+
+	while (num && strcmp(cfg->clk_name, name)) {
+		num--;
+		cfg++;
+	}
+
+	if (num && power->link_provider) {
+		power->link_clk_src = clk_get_parent(cfg->clk);
+			if (power->link_clk_src) {
+				clk_set_parent(power->link_clk_src, power->link_provider);
+				pr_debug("%s: is the parent of clk=%s\n",
+						__clk_get_name(power->link_provider),
+						__clk_get_name(power->link_clk_src));
+			} else {
+				pr_err("couldn't get parent for clk=%s\n", name);
+				rc = -EINVAL;
+			}
+	} else {
+		pr_err("%s clock could not be set parent\n", name);
+		rc = -EINVAL;
+	}
+exit:
+	return rc;
+}
+
 static int dp_power_set_pixel_clk_parent(struct dp_power *dp_power)
 {
 	int rc = 0;
@@ -472,8 +520,12 @@ static int dp_power_set_pixel_clk_parent(struct dp_power *dp_power)
 
 	power = container_of(dp_power, struct dp_power_private, dp_power);
 
-	if (power->pixel_clk_rcg && power->pixel_parent)
-		clk_set_parent(power->pixel_clk_rcg, power->pixel_parent);
+	if (power->pixel_clk_rcg && power->pixel_provider) {
+		clk_set_parent(power->pixel_clk_rcg, power->pixel_provider);
+		pr_debug("%s: is the parent of clk=%s\n",
+					__clk_get_name(power->pixel_provider),
+					__clk_get_name(power->pixel_clk_rcg));
+	}
 exit:
 	return rc;
 }
@@ -577,6 +629,7 @@ struct dp_power *dp_power_get(struct dp_parser *parser)
 	dp_power->init = dp_power_init;
 	dp_power->deinit = dp_power_deinit;
 	dp_power->clk_enable = dp_power_clk_enable;
+	dp_power->set_link_clk_parent = dp_power_set_link_clk_parent;
 	dp_power->set_pixel_clk_parent = dp_power_set_pixel_clk_parent;
 	dp_power->power_client_init = dp_power_client_init;
 	dp_power->power_client_deinit = dp_power_client_deinit;

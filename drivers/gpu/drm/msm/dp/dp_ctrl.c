@@ -1051,6 +1051,7 @@ static int dp_ctrl_enable_mainlink_clocks(struct dp_ctrl_private *ctrl)
 {
 	int ret = 0;
 
+	ctrl->power->set_link_clk_parent(ctrl->power);
 	ctrl->power->set_pixel_clk_parent(ctrl->power);
 
 	dp_ctrl_set_clock_rate(ctrl, "ctrl_link_clk",

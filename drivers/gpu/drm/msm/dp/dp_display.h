@@ -52,4 +52,7 @@ struct msm_dp {
 
 int dp_display_get_num_of_displays(void);
 int dp_display_get_displays(void **displays, int count);
+void __init msm_dp_pll_driver_register(void);
+void __exit msm_dp_pll_driver_unregister(void);
+
 #endif /* _DP_DISPLAY_H_ */
