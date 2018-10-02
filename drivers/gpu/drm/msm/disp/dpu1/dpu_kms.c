@@ -874,8 +874,6 @@ static const struct msm_kms_funcs kms_funcs = {
 	.check_modified_format = dpu_format_check_modified_format,
 	.get_format      = dpu_get_msm_format,
 	.round_pixclk    = dpu_kms_round_pixclk,
-	.pm_suspend      = dpu_kms_pm_suspend,
-	.pm_resume       = dpu_kms_pm_resume,
 	.destroy         = dpu_kms_destroy,
 	.set_encoder_mode = _dpu_kms_set_encoder_mode,
 #ifdef CONFIG_DEBUG_FS
