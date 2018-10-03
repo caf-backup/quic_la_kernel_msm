@@ -116,6 +116,7 @@ static int dp_power_pinctrl_set(struct dp_power_private *power, bool active)
 	struct pinctrl_state *pin_state;
 	struct dp_parser *parser;
 
+	return 0;
 	parser = power->parser;
 
 	if (IS_ERR_OR_NULL(parser->pinctrl.pin))
@@ -392,6 +393,7 @@ static int dp_power_config_gpios(struct dp_power_private *power, bool flip,
 	struct dss_module_power *mp;
 	struct dss_gpio *config;
 
+	return 0;
 	mp = &power->parser->mp[DP_CORE_PM];
 	config = mp->gpio_config;
 

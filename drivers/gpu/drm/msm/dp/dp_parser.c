@@ -635,8 +635,11 @@ static int dp_parser_parse(struct dp_parser *parser)
 		goto err;
 
 	rc = dp_parser_gpio(parser);
-	if (rc)
-		goto err;
+	if (rc) {
+		pr_err("unable to parse GPIOs\n");
+		rc = 0;
+		//goto err;
+	}
 
 	rc = dp_parser_pinctrl(parser);
 err:

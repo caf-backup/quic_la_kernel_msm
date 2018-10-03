@@ -354,7 +354,7 @@ static void dp_catalog_ctrl_lane_mapping(struct dp_catalog_ctrl *ctrl)
 	dp_catalog_get_priv(ctrl);
 	base = catalog->io->dp_link.base;
 
-	dp_write(base + DP_LOGICAL2PHYSICAL_LANE_MAPPING, 0xe4);
+	dp_write(base + DP_LOGICAL2PHYSICAL_LANE_MAPPING, 0x4b);
 }
 
 static void dp_catalog_ctrl_mainlink_ctrl(struct dp_catalog_ctrl *ctrl,
@@ -532,7 +532,7 @@ static void dp_catalog_ctrl_usb_reset(struct dp_catalog_ctrl *ctrl, bool flip)
 	if (!flip) /* CC1 */
 		dp_write(base + USB3_DP_COM_TYPEC_CTRL, 0x02);
 	else /* CC2 */
-		dp_write(base + USB3_DP_COM_TYPEC_CTRL, 0x03);
+		dp_write(base + USB3_DP_COM_TYPEC_CTRL, 0x02);
 
 	dp_write(base + USB3_DP_COM_SWI_CTRL, 0x00);
 	dp_write(base + USB3_DP_COM_SW_RESET, 0x00);
