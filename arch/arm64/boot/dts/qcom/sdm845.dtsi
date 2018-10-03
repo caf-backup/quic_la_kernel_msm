@@ -148,8 +148,9 @@
 			next-level-cache = <&L2_0>;
 			qcom,freq-domain = <&freq_domain_table0>;
 			#cooling-cells = <2>; /* min followed by max */
-			capacity-dmips-mhz = <512>;
+			capacity-dmips-mhz = <607>;
 			sched-energy-costs = <&SDM845_CPU_COST_0 &SDM845_CLUSTER_COST_0>;
+			freq-energy-model;
 
 			L2_0: l2-cache {
 				compatible = "cache";
@@ -183,8 +184,9 @@
 			efficiency = <1024>;
 			next-level-cache = <&L2_100>;
 			qcom,freq-domain = <&freq_domain_table0>;
-			capacity-dmips-mhz = <512>;
+			capacity-dmips-mhz = <607>;
 			sched-energy-costs = <&SDM845_CPU_COST_0 &SDM845_CLUSTER_COST_0>;
+			freq-energy-model;
 
 			L2_100: l2-cache {
 				compatible = "cache";
@@ -214,8 +216,9 @@
 			efficiency = <1024>;
 			next-level-cache = <&L2_200>;
 			qcom,freq-domain = <&freq_domain_table0>;
-			capacity-dmips-mhz = <512>;
+			capacity-dmips-mhz = <607>;
 			sched-energy-costs = <&SDM845_CPU_COST_0 &SDM845_CLUSTER_COST_0>;
+			freq-energy-model;
 
 			L2_200: l2-cache {
 				compatible = "cache";
@@ -245,8 +248,9 @@
 			efficiency = <1024>;
 			next-level-cache = <&L2_300>;
 			qcom,freq-domain = <&freq_domain_table0>;
-			capacity-dmips-mhz = <512>;
+			capacity-dmips-mhz = <607>;
 			sched-energy-costs = <&SDM845_CPU_COST_0 &SDM845_CLUSTER_COST_0>;
+			freq-energy-model;
 
 			L2_300: l2-cache {
 				compatible = "cache";
@@ -278,6 +282,7 @@
 			#cooling-cells = <2>; /* min followed by max */
 			capacity-dmips-mhz = <1024>;
 			sched-energy-costs = <&SDM845_CPU_COST_1 &SDM845_CLUSTER_COST_1>;
+			freq-energy-model;
 
 			L2_400: l2-cache {
 				compatible = "cache";
@@ -309,6 +314,7 @@
 			qcom,freq-domain = <&freq_domain_table1>;
 			capacity-dmips-mhz = <1024>;
 			sched-energy-costs = <&SDM845_CPU_COST_1 &SDM845_CLUSTER_COST_1>;
+			freq-energy-model;
 
 			L2_500: l2-cache {
 				compatible = "cache";
@@ -340,6 +346,7 @@
 			qcom,freq-domain = <&freq_domain_table1>;
 			capacity-dmips-mhz = <1024>;
 			sched-energy-costs = <&SDM845_CPU_COST_1 &SDM845_CLUSTER_COST_1>;
+			freq-energy-model;
 
 			L2_600: l2-cache {
 				compatible = "cache";
@@ -371,6 +378,7 @@
 			qcom,freq-domain = <&freq_domain_table1>;
 			capacity-dmips-mhz = <1024>;
 			sched-energy-costs = <&SDM845_CPU_COST_1 &SDM845_CLUSTER_COST_1>;
+			freq-energy-model;
 
 			L2_700: l2-cache {
 				compatible = "cache";
@@ -434,77 +442,141 @@
 	energy-costs {
 		SDM845_CPU_COST_0: sdm845-core-cost0 {
 			busy-cost-data = <
-				126    29	/*  408M */
-				186    43	/*  600M */
-				254    62	/*  816M */
-				314    84	/* 1008M */
-				374    119	/* 1200M */
-				442    177	/* 1416M */
-				472    215	/* 1512M */
+				 300000 12
+				 403200 17
+				 480000 21
+				 576000 27
+				 652800 31
+				 748800 37
+				 825600 42
+				 902400 47
+				 979200 52
+				1056000 57
+				1132800 62
+				1228800 70
+				1324800 78
+				1420800 89
+				1516800 103
+				1612800 122
+				1689600 141
+				1766400 160
 			>;
 			idle-cost-data = <
-				4
-				4
-				0
-				0
+				10 8 6 4
 			>;
 		};
 
 		SDM845_CPU_COST_1: sdm845-core-cost1 {
 			busy-cost-data = <
-				207   165	/*  408MHz */
-				303   232	/*  600MHz */
-				418   325	/*  816MHz */
-				506   416	/* 1008MHz */
-				604   548	/* 1200MHz */
-				710   759	/* 1416MHz */
-				805   1012	/* 1608MHz */
-				904   1385	/* 1800MHz */
-				1024  1893	/* 2016MHz */
+				 300000 189
+				 403200 523
+				 480000 763
+				 576000 1052
+				 652800 1273
+				 748800 1536
+				 825600 1736
+				 902400 1926
+				 979200 2108
+				1056000 2284
+				1132800 2456
+				1209600 2628
+				1286400 2804
+				1363200 2992
+				1459200 3255
+				1536000 3499
+				1612800 3786
+				1689600 4128
+				1766400 4535
+				1843200 5019
+				1920000 5583
+				1996800 6226
+				2092800 7120
+				2169600 7876
+				2246400 8628
+				2323200 9344
+				2400000 10030
+				2476800 10806
+				2553600 12045
+				2649600 15686
+				2745600 25586
+				2764800 30000
+				2784000 35000
+				2803200 40000
+				2841600 50000
+				2956800 60000
 			>;
 			idle-cost-data = <
-				24
-				24
-				0
-				0
+				100 80 60 40
 			>;
 		};
 
 		SDM845_CLUSTER_COST_0: sdm845-cluster-cost0 {
 			busy-cost-data = <
-				126    6	/*  408M */
-				186    8	/*  600M */
-				254    11	/*  816M */
-				314    19	/* 1008M */
-				374    24	/* 1200M */
-				442    49	/* 1416M */
-				472    56	/* 1512M */
+				 300000 3
+				 403200 4
+				 480000 4
+				 576000 4
+				 652800 5
+				 748800 5
+				 825600 6
+				 902400 7
+				 979200 7
+				1056000 8
+				1132800 9
+				1228800 9
+				1324800 10
+				1420800 11
+				1516800 12
+				1612800 13
+				1689600 15
+				1766400 17
 			>;
 			idle-cost-data = <
-				7
-				7
-				6
-				0
+				4 3 2 1
 			>;
 		};
 
 		SDM845_CLUSTER_COST_1: sdm845-cluster-cost1 {
 			busy-cost-data = <
-				207   7		/*  408MHz */
-				303   11	/*  600MHz */
-				418   22	/*  816MHz */
-				506   27	/* 1008MHz */
-				604   30	/* 1200MHz */
-				710   49	/* 1416MHz */
-				805   56	/* 1608MHz */
-				904   63	/* 1800MHz */
-				1024  78	/* 2016MHz */
+				 300000  24
+				 403200  24
+				 480000  25
+				 576000  25
+				 652800  26
+				 748800  27
+				 825600  28
+				 902400  29
+				 979200  30
+				1056000  32
+				1132800  34
+				1209600  37
+				1286400  40
+				1363200  45
+				1459200  50
+				1536000  57
+				1612800  64
+				1689600  74
+				1766400  84
+				1843200  96
+				1920000 106
+				1996800 113
+				2092800 120
+				2169600 125
+				2246400 127
+				2323200 130
+				2400000 135
+				2476800 140
+				2553600 145
+				2649600 150
+				2745600 155
+				2764800 160
+				2784000 165
+				2803200 170
+				2841600 180
+				2956800 190
 			>;
 			idle-cost-data = <
-				10
-				10
-				9
-				0
+				4 3 2 1
 			>;
 		};
 	};
