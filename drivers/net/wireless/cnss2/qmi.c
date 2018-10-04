@@ -12,6 +12,7 @@
 
 #include <linux/firmware.h>
 #include <linux/module.h>
+#include <linux/ktime.h>
 #include <linux/qmi_encdec.h>
 #include <soc/qcom/msm_qmi_interface.h>
 
@@ -209,6 +210,7 @@ static int cnss_wlfw_host_cap_send_sync(struct cnss_plat_data *plat_priv)
 	resp_desc.msg_id = QMI_WLFW_HOST_CAP_RESP_V01;
 	resp_desc.ei_array = wlfw_host_cap_resp_msg_v01_ei;
 
+	qmi_record(req_desc.msg_id, ret);
 	ret = qmi_send_req_wait(plat_priv->qmi_wlfw_clnt, &req_desc, &req,
 				sizeof(req), &resp_desc, &resp, sizeof(resp),
 				QMI_WLFW_TIMEOUT_MS);
@@ -224,9 +226,11 @@ static int cnss_wlfw_host_cap_send_sync(struct cnss_plat_data *plat_priv)
 		ret = resp.resp.result;
 		goto out;
 	}
+	qmi_record(req_desc.msg_id, ret);
 
 	return 0;
 out:
+	qmi_record(req_desc.msg_id, ret);
 	CNSS_ASSERT(0);
 	return ret;
 }
@@ -269,6 +273,7 @@ static int cnss_wlfw_ind_register_send_sync(struct cnss_plat_data *plat_priv)
 	resp_desc.msg_id = QMI_WLFW_IND_REGISTER_RESP_V01;
 	resp_desc.ei_array = wlfw_ind_register_resp_msg_v01_ei;
 
+	qmi_record(req_desc.msg_id, ret);
 	ret = qmi_send_req_wait(plat_priv->qmi_wlfw_clnt, &req_desc, &req,
 				sizeof(req), &resp_desc, &resp, sizeof(resp),
 				QMI_WLFW_TIMEOUT_MS);
@@ -285,8 +290,10 @@ static int cnss_wlfw_ind_register_send_sync(struct cnss_plat_data *plat_priv)
 		goto out;
 	}
 
+	qmi_record(req_desc.msg_id, ret);
 	return 0;
 out:
+	qmi_record(req_desc.msg_id, ret);
 	CNSS_ASSERT(0);
 	return ret;
 }
@@ -382,6 +389,10 @@ int cnss_wlfw_respond_mem_send_sync(struct cnss_plat_data *plat_priv)
 	memset(&resp, 0, sizeof(resp));
 
 	req.mem_seg_len = plat_priv->fw_mem_seg_len;
+	req_desc.max_msg_len = WLFW_RESPOND_MEM_REQ_MSG_V01_MAX_MSG_LEN;
+	req_desc.msg_id = QMI_WLFW_RESPOND_MEM_REQ_V01;
+	req_desc.ei_array = wlfw_respond_mem_req_msg_v01_ei;
+
 	for (i = 0; i < req.mem_seg_len; i++) {
 		if (daemon_support && (!fw_mem[i].pa || !fw_mem[i].size)) {
 			if (fw_mem[i].type == 0) {
@@ -405,14 +416,11 @@ int cnss_wlfw_respond_mem_send_sync(struct cnss_plat_data *plat_priv)
 		req.mem_seg[i].type = fw_mem[i].type;
 	}
 
-	req_desc.max_msg_len = WLFW_RESPOND_MEM_REQ_MSG_V01_MAX_MSG_LEN;
-	req_desc.msg_id = QMI_WLFW_RESPOND_MEM_REQ_V01;
-	req_desc.ei_array = wlfw_respond_mem_req_msg_v01_ei;
-
 	resp_desc.max_msg_len = WLFW_RESPOND_MEM_RESP_MSG_V01_MAX_MSG_LEN;
 	resp_desc.msg_id = QMI_WLFW_RESPOND_MEM_RESP_V01;
 	resp_desc.ei_array = wlfw_respond_mem_resp_msg_v01_ei;
 
+	qmi_record(req_desc.msg_id, ret);
 	ret = qmi_send_req_wait(plat_priv->qmi_wlfw_clnt, &req_desc, &req,
 				sizeof(req), &resp_desc, &resp, sizeof(resp),
 				QMI_WLFW_TIMEOUT_MS);
@@ -428,9 +436,11 @@ int cnss_wlfw_respond_mem_send_sync(struct cnss_plat_data *plat_priv)
 		ret = resp.resp.result;
 		goto out;
 	}
+	qmi_record(req_desc.msg_id, ret);
 
 	return 0;
 out:
+	qmi_record(req_desc.msg_id, ret);
 	CNSS_ASSERT(0);
 	return ret;
 }
@@ -456,6 +466,7 @@ int cnss_wlfw_tgt_cap_send_sync(struct cnss_plat_data *plat_priv)
 	resp_desc.msg_id = QMI_WLFW_CAP_RESP_V01;
 	resp_desc.ei_array = wlfw_cap_resp_msg_v01_ei;
 
+	qmi_record(req_desc.msg_id, ret);
 	ret = qmi_send_req_wait(plat_priv->qmi_wlfw_clnt, &req_desc, &req,
 				sizeof(req), &resp_desc, &resp, sizeof(resp),
 				QMI_WLFW_TIMEOUT_MS);
@@ -472,6 +483,7 @@ int cnss_wlfw_tgt_cap_send_sync(struct cnss_plat_data *plat_priv)
 		goto out;
 	}
 
+	qmi_record(req_desc.msg_id, ret);
 	if (resp.chip_info_valid)
 		plat_priv->chip_info = resp.chip_info;
 	if (resp.board_info_valid)
@@ -492,6 +504,7 @@ int cnss_wlfw_tgt_cap_send_sync(struct cnss_plat_data *plat_priv)
 
 	return 0;
 out:
+	qmi_record(req_desc.msg_id, ret);
 	CNSS_ASSERT(0);
 	return ret;
 }
@@ -598,6 +611,10 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv)
 		    plat_priv->driver_state);
 
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req_desc.max_msg_len = WLFW_BDF_DOWNLOAD_REQ_MSG_V01_MAX_MSG_LEN;
+	req_desc.msg_id = QMI_WLFW_BDF_DOWNLOAD_REQ_V01;
+	req_desc.ei_array = wlfw_bdf_download_req_msg_v01_ei;
+
 	if (!req) {
 		ret = -ENOMEM;
 		goto out;
@@ -641,10 +658,6 @@ bypass_bdf:
 
 	memset(&resp, 0, sizeof(resp));
 
-	req_desc.max_msg_len = WLFW_BDF_DOWNLOAD_REQ_MSG_V01_MAX_MSG_LEN;
-	req_desc.msg_id = QMI_WLFW_BDF_DOWNLOAD_REQ_V01;
-	req_desc.ei_array = wlfw_bdf_download_req_msg_v01_ei;
-
 	resp_desc.max_msg_len = WLFW_BDF_DOWNLOAD_RESP_MSG_V01_MAX_MSG_LEN;
 	resp_desc.msg_id = QMI_WLFW_BDF_DOWNLOAD_RESP_V01;
 	resp_desc.ei_array = wlfw_bdf_download_resp_msg_v01_ei;
@@ -682,6 +695,7 @@ bypass_bdf:
 
 		memcpy(req->data, temp, req->data_len);
 
+		qmi_record(req_desc.msg_id, ret);
 		ret = qmi_send_req_wait(plat_priv->qmi_wlfw_clnt, &req_desc,
 					req, sizeof(*req), &resp_desc, &resp,
 					sizeof(resp), QMI_WLFW_TIMEOUT_MS);
@@ -699,6 +713,7 @@ bypass_bdf:
 			ret = resp.resp.result;
 			goto err_send;
 		}
+		qmi_record(req_desc.msg_id, ret);
 
 		remaining -= req->data_len;
 		temp += req->data_len;
@@ -711,6 +726,7 @@ err_send:
 err_req_fw:
 	kfree(req);
 out:
+	qmi_record(req_desc.msg_id, ret);
 	if (ret)
 		CNSS_ASSERT(0);
 	return ret;
@@ -743,6 +759,7 @@ int cnss_wlfw_m3_dnld_send_sync(struct cnss_plat_data *plat_priv)
 	resp_desc.msg_id = QMI_WLFW_M3_INFO_RESP_V01;
 	resp_desc.ei_array = wlfw_m3_info_resp_msg_v01_ei;
 
+	qmi_record(req_desc.msg_id, ret);
 	ret = qmi_send_req_wait(plat_priv->qmi_wlfw_clnt, &req_desc, &req,
 				sizeof(req), &resp_desc, &resp, sizeof(resp),
 				QMI_WLFW_TIMEOUT_MS);
@@ -758,10 +775,12 @@ int cnss_wlfw_m3_dnld_send_sync(struct cnss_plat_data *plat_priv)
 		ret = resp.resp.result;
 		goto out;
 	}
+	qmi_record(req_desc.msg_id, ret);
 
 	return 0;
 
 out:
+	qmi_record(req_desc.msg_id, ret);
 	CNSS_ASSERT(0);
 	return ret;
 }
@@ -801,6 +820,7 @@ int cnss_wlfw_wlan_mode_send_sync(struct cnss_plat_data *plat_priv,
 	resp_desc.msg_id = QMI_WLFW_WLAN_MODE_RESP_V01;
 	resp_desc.ei_array = wlfw_wlan_mode_resp_msg_v01_ei;
 
+	qmi_record(req_desc.msg_id, ret);
 	ret = qmi_send_req_wait(plat_priv->qmi_wlfw_clnt, &req_desc, &req,
 				sizeof(req), &resp_desc, &resp, sizeof(resp),
 				QMI_WLFW_TIMEOUT_MS);
@@ -821,9 +841,11 @@ int cnss_wlfw_wlan_mode_send_sync(struct cnss_plat_data *plat_priv,
 		ret = resp.resp.result;
 		goto out;
 	}
+	qmi_record(req_desc.msg_id, ret);
 
 	return 0;
 out:
+	qmi_record(req_desc.msg_id, ret);
 	if (mode != QMI_WLFW_OFF_V01)
 		CNSS_ASSERT(0);
 	return ret;
@@ -855,6 +877,8 @@ int cnss_wlfw_wlan_cfg_send_sync(struct cnss_plat_data *plat_priv,
 	resp_desc.max_msg_len = WLFW_WLAN_CFG_RESP_MSG_V01_MAX_MSG_LEN;
 	resp_desc.msg_id = QMI_WLFW_WLAN_CFG_RESP_V01;
 	resp_desc.ei_array = wlfw_wlan_cfg_resp_msg_v01_ei;
+
+	qmi_record(req_desc.msg_id, ret);
 	ret = qmi_send_req_wait(plat_priv->qmi_wlfw_clnt, &req_desc, &req,
 				sizeof(req), &resp_desc, &resp, sizeof(resp),
 				QMI_WLFW_TIMEOUT_MS);
@@ -871,9 +895,11 @@ int cnss_wlfw_wlan_cfg_send_sync(struct cnss_plat_data *plat_priv,
 		goto out;
 	}
 	cnss_pr_dbg("Config Message response received\n");
+	qmi_record(req_desc.msg_id, ret);
 
 	return 0;
 out:
+	qmi_record(req_desc.msg_id, ret);
 	CNSS_ASSERT(0);
 	return ret;
 }
@@ -1066,6 +1092,7 @@ static void cnss_wlfw_clnt_ind(struct qmi_handle *handle,
 		printk(KERN_ERR "plat_priv is NULL!\n");
 		return;
 	}
+	qmi_record(msg_id, 0);
 
 	switch (msg_id) {
 	case QMI_WLFW_REQUEST_MEM_IND_V01:

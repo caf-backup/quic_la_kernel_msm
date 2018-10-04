@@ -50,23 +50,14 @@ extern void *cnss_ipc_log_context;
 				    ##__VA_ARGS__);			\
 	} while (0)
 
-#ifdef CONFIG_CNSS2_DEBUG
 #define CNSS_ASSERT(_condition) do {					\
 		if (!(_condition)) {					\
+			cnss_dump_qmi_history();			\
 			cnss_pr_err("ASSERT at line %d\n",		\
 				    __LINE__);				\
 			BUG_ON(1);					\
 		}							\
 	} while (0)
-#else
-#define CNSS_ASSERT(_condition) do {					\
-		if (!(_condition)) {					\
-			cnss_pr_err("ASSERT at line %d\n",		\
-				    __LINE__);				\
-			WARN_ON(1);					\
-		}							\
-	} while (0)
-#endif
 
 int cnss_debug_init(void);
 void cnss_debug_deinit(void);
