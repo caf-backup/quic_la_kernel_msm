@@ -1332,18 +1332,7 @@ static int __maybe_unused qcom_geni_serial_sys_suspend_noirq(struct device *dev)
 	struct qcom_geni_serial_port *port = platform_get_drvdata(pdev);
 	struct uart_port *uport = &port->uport;
 
-	if (uart_console(uport)) {
-		uart_suspend_port(uport->private_data, uport);
-	} else {
-		struct uart_state *state = uport->state;
-		/*
-		 * If the port is open, deny system suspend.
-		 */
-		if (state->pm_state == UART_PM_STATE_ON)
-			return -EBUSY;
-	}
-
-	return 0;
+	return uart_suspend_port(uport->private_data, uport);
 }
 
 static int __maybe_unused qcom_geni_serial_sys_resume_noirq(struct device *dev)
@@ -1364,6 +1353,9 @@ static int __maybe_unused qcom_geni_serial_sys_resume_noirq(struct device *dev)
 		 * before returning so that the warning is suppressed.
 		 */
 		disable_irq(uport->irq);
+	} else {
+		if (uport->suspended)
+			uart_resume_port(uport->private_data, uport);
 	}
 	return 0;
 }
