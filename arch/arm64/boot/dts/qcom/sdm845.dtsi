@@ -151,6 +151,7 @@
 			capacity-dmips-mhz = <607>;
 			sched-energy-costs = <&SDM845_CPU_COST_0 &SDM845_CLUSTER_COST_0>;
 			freq-energy-model;
+			cpu-idle-states = <&C0_CPU_SPC &C0_CPU_PC &CLUSTER_PC>;
 			power-domains = <&cpu_pd>;
 
 			L2_0: l2-cache {
@@ -188,6 +189,7 @@
 			capacity-dmips-mhz = <607>;
 			sched-energy-costs = <&SDM845_CPU_COST_0 &SDM845_CLUSTER_COST_0>;
 			freq-energy-model;
+			cpu-idle-states = <&C0_CPU_SPC &C0_CPU_PC &CLUSTER_PC>;
 			power-domains = <&cpu_pd>;
 
 			L2_100: l2-cache {
@@ -221,6 +223,7 @@
 			capacity-dmips-mhz = <607>;
 			sched-energy-costs = <&SDM845_CPU_COST_0 &SDM845_CLUSTER_COST_0>;
 			freq-energy-model;
+			cpu-idle-states = <&C0_CPU_SPC &C0_CPU_PC &CLUSTER_PC>;
 			power-domains = <&cpu_pd>;
 
 			L2_200: l2-cache {
@@ -254,6 +257,7 @@
 			capacity-dmips-mhz = <607>;
 			sched-energy-costs = <&SDM845_CPU_COST_0 &SDM845_CLUSTER_COST_0>;
 			freq-energy-model;
+			cpu-idle-states = <&C0_CPU_SPC &C0_CPU_PC &CLUSTER_PC>;
 			power-domains = <&cpu_pd>;
 
 			L2_300: l2-cache {
@@ -287,6 +291,7 @@
 			capacity-dmips-mhz = <1024>;
 			sched-energy-costs = <&SDM845_CPU_COST_1 &SDM845_CLUSTER_COST_1>;
 			freq-energy-model;
+			cpu-idle-states = <&C4_CPU_SPC &C4_CPU_PC &CLUSTER_PC>;
 			power-domains = <&cpu_pd>;
 
 			L2_400: l2-cache {
@@ -320,6 +325,7 @@
 			capacity-dmips-mhz = <1024>;
 			sched-energy-costs = <&SDM845_CPU_COST_1 &SDM845_CLUSTER_COST_1>;
 			freq-energy-model;
+			cpu-idle-states = <&C4_CPU_SPC &C4_CPU_PC &CLUSTER_PC>;
 			power-domains = <&cpu_pd>;
 
 			L2_500: l2-cache {
@@ -353,6 +359,7 @@
 			capacity-dmips-mhz = <1024>;
 			sched-energy-costs = <&SDM845_CPU_COST_1 &SDM845_CLUSTER_COST_1>;
 			freq-energy-model;
+			cpu-idle-states = <&C4_CPU_SPC &C4_CPU_PC &CLUSTER_PC>;
 			power-domains = <&cpu_pd>;
 
 			L2_600: l2-cache {
@@ -386,6 +393,7 @@
 			capacity-dmips-mhz = <1024>;
 			sched-energy-costs = <&SDM845_CPU_COST_1 &SDM845_CLUSTER_COST_1>;
 			freq-energy-model;
+			cpu-idle-states = <&C4_CPU_SPC &C4_CPU_PC &CLUSTER_PC>;
 			power-domains = <&cpu_pd>;
 
 			L2_700: l2-cache {
@@ -586,6 +594,60 @@
 			idle-cost-data = <
 				4 3 2 1
 			>;
+		};
+
+		idle-states {
+			entry-method = "psci";
+
+			C0_CPU_SPC: c0_spc {
+				compatible = "arm,idle-state";
+				arm,psci-suspend-param = <0x40000003>;
+				entry-latency-us = <350>;
+				exit-latency-us = <461>;
+				min-residency-us = <1890>;
+				local-timer-stop;
+				idle-state-name = "pc";
+			};
+
+			C0_CPU_PC: c0_pc {
+				compatible = "arm,idle-state";
+				arm,psci-suspend-param = <0x40000004>;
+				entry-latency-us = <360>;
+				exit-latency-us = <531>;
+				min-residency-us = <3934>;
+				local-timer-stop;
+				idle-state-name = "rail pc";
+			};
+
+			C4_CPU_SPC: c4_spc {
+				compatible = "arm,idle-state";
+				arm,psci-suspend-param = <0x40000003>;
+				entry-latency-us = <264>;
+				exit-latency-us = <621>;
+				min-residency-us = <952>;
+				local-timer-stop;
+				idle-state-name = "pc";
+			};
+
+			C4_CPU_PC: c4_pc {
+				compatible = "arm,idle-state";
+				arm,psci-suspend-param = <0x40000004>;
+				entry-latency-us = <702>;
+				exit-latency-us = <1061>;
+				min-residency-us = <4488>;
+				local-timer-stop;
+				idle-state-name = "rail pc";
+			};
+
+			CLUSTER_PC: cluster_pc {
+				compatible = "arm,idle-state";
+				arm,psci-suspend-param = <0x400000F4>;
+				entry-latency-us = <3263>;
+				exit-latency-us = <6562>;
+				min-residency-us = <9987>;
+				local-timer-stop;
+				idle-state-name = "cluster pc";
+			};
 		};
 	};
 
