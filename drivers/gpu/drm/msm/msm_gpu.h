@@ -36,6 +36,7 @@ struct msm_gpu_config {
 	uint64_t va_start;
 	uint64_t va_end;
 	unsigned int nr_rings;
+	u32 mmu_features;
 };
 
 /* So far, with hardware that I've seen to date, we can have:
@@ -230,10 +231,7 @@ static inline u32 gpu_read(struct msm_gpu *gpu, u32 reg)
 
 static inline void gpu_rmw(struct msm_gpu *gpu, u32 reg, u32 mask, u32 or)
 {
-	uint32_t val = gpu_read(gpu, reg);
-
-	val &= ~mask;
-	gpu_write(gpu, reg, val | or);
+	msm_rmw(gpu->mmio + (reg << 2), mask, or);
 }
 
 static inline u64 gpu_read64(struct msm_gpu *gpu, u32 lo, u32 hi)

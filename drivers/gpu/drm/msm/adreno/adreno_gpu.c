@@ -703,7 +703,8 @@ static int adreno_get_pwrlevels(struct device *dev,
 
 int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		struct adreno_gpu *adreno_gpu,
-		const struct adreno_gpu_funcs *funcs, int nr_rings)
+		const struct adreno_gpu_funcs *funcs, int nr_rings,
+		u32 mmu_features)
 {
 	struct adreno_platform_config *config = pdev->dev.platform_data;
 	struct msm_gpu_config adreno_gpu_config  = { 0 };
@@ -722,6 +723,7 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	adreno_gpu_config.va_end = 0xffffffff;
 
 	adreno_gpu_config.nr_rings = nr_rings;
+	adreno_gpu_config.mmu_features = mmu_features;
 
 	adreno_get_pwrlevels(&pdev->dev, gpu);
 
