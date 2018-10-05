@@ -960,7 +960,7 @@ static void ip4ip6_fmr_calc(struct in6_addr *dest,
 		int frombyte = fmr->ip6_prefix_len / 8;
 		int fromrem = fmr->ip6_prefix_len % 8;
 		int bytes = sizeof(struct in6_addr) - frombyte;
-		const u32 *addr = (use_dest_addr) ? &iph->daddr : &iph->saddr;
+		const u32 *addr = (use_dest_addr) ? &dsth->daddr : &dsth->saddr;
 		u64 eabits = ((u64)ntohl(*addr)) << (32 + fmr->ip4_prefix_len);
 		u64 t = 0;
 
