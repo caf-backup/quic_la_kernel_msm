@@ -581,7 +581,7 @@ struct msm_gpu *a4xx_gpu_init(struct drm_device *dev)
 	adreno_gpu->registers = a4xx_registers;
 	adreno_gpu->reg_offsets = a4xx_register_offsets;
 
-	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs, 1);
+	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs, 1, 0);
 	if (ret)
 		goto fail;
 

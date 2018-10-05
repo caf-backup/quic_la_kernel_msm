@@ -94,7 +94,8 @@ EXPORT_SYMBOL_GPL(llcc_slice_getd);
  */
 void llcc_slice_putd(struct llcc_slice_desc *desc)
 {
-	kfree(desc);
+	if (!IS_ERR_OR_NULL(desc))
+		kfree(desc);
 }
 EXPORT_SYMBOL_GPL(llcc_slice_putd);
 
@@ -141,6 +142,9 @@ int llcc_slice_activate(struct llcc_slice_desc *desc)
 	int ret;
 	u32 act_ctrl_val;
 
+	if (IS_ERR_OR_NULL(desc))
+		return -EINVAL;
+
 	mutex_lock(&drv_data->lock);
 	if (test_bit(desc->slice_id, drv_data->bitmap)) {
 		mutex_unlock(&drv_data->lock);
@@ -175,6 +179,9 @@ int llcc_slice_deactivate(struct llcc_slice_desc *desc)
 	u32 act_ctrl_val;
 	int ret;
 
+	if (IS_ERR_OR_NULL(desc))
+		return -EINVAL;
+
 	mutex_lock(&drv_data->lock);
 	if (!test_bit(desc->slice_id, drv_data->bitmap)) {
 		mutex_unlock(&drv_data->lock);
@@ -202,6 +209,9 @@ EXPORT_SYMBOL_GPL(llcc_slice_deactivate);
  */
 int llcc_get_slice_id(struct llcc_slice_desc *desc)
 {
+	if (IS_ERR_OR_NULL(desc))
+		return -EINVAL;
+
 	return desc->slice_id;
 }
 EXPORT_SYMBOL_GPL(llcc_get_slice_id);
@@ -212,6 +222,9 @@ EXPORT_SYMBOL_GPL(llcc_get_slice_id);
  */
 size_t llcc_get_slice_size(struct llcc_slice_desc *desc)
 {
+	if (IS_ERR_OR_NULL(desc))
+		return 0;
+
 	return desc->slice_size;
 }
 EXPORT_SYMBOL_GPL(llcc_get_slice_size);

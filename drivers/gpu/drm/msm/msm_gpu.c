@@ -807,7 +807,7 @@ static int get_clocks(struct platform_device *pdev, struct msm_gpu *gpu)
 
 static struct msm_gem_address_space *
 msm_gpu_create_address_space(struct msm_gpu *gpu, struct platform_device *pdev,
-		uint64_t va_start, uint64_t va_end)
+		uint64_t va_start, uint64_t va_end, u32 mmu_features)
 {
 	struct iommu_domain *iommu;
 	struct msm_gem_address_space *aspace;
@@ -834,6 +834,8 @@ msm_gpu_create_address_space(struct msm_gpu *gpu, struct platform_device *pdev,
 		iommu_domain_free(iommu);
 		return ERR_CAST(aspace);
 	}
+
+	msm_mmu_set_feature(aspace->mmu, mmu_features);
 
 	ret = aspace->mmu->funcs->attach(aspace->mmu, NULL, 0);
 	if (ret) {
@@ -917,7 +919,7 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	msm_devfreq_init(gpu);
 
 	gpu->aspace = msm_gpu_create_address_space(gpu, pdev,
-		config->va_start, config->va_end);
+		config->va_start, config->va_end, config->mmu_features);
 
 	if (gpu->aspace == NULL)
 		dev_info(drm->dev, "%s: no IOMMU, fallback to VRAM carveout!\n", name);
