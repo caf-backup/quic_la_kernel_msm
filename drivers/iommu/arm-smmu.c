@@ -1301,9 +1301,13 @@ static size_t arm_smmu_unmap(struct iommu_domain *domain, unsigned long iova,
 static void arm_smmu_iotlb_sync(struct iommu_domain *domain)
 {
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
+	struct arm_smmu_device *smmu = to_smmu_domain(domain)->smmu;
 
-	if (smmu_domain->tlb_ops)
+	if (smmu_domain->tlb_ops) {
+		arm_smmu_rpm_get(smmu);
 		smmu_domain->tlb_ops->tlb_sync(smmu_domain);
+		arm_smmu_rpm_put(smmu);
+	}
 }
 
 static phys_addr_t arm_smmu_iova_to_phys_hard(struct iommu_domain *domain,
