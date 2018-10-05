@@ -38,6 +38,16 @@ static int msm_iommu_attach(struct msm_mmu *mmu, const char * const *names,
 			    int cnt)
 {
 	struct msm_iommu *iommu = to_msm_iommu(mmu);
+	int gpu_htw_llc = 1;
+
+	/*
+	 * This allows GPU to set the bus attributes required
+	 * to use system cache on behalf of the iommu page table
+	 * walker.
+	 */
+	if (msm_mmu_has_feature(mmu, MMU_FEATURE_USE_SYSTEM_CACHE))
+		iommu_domain_set_attr(iommu->domain,
+				DOMAIN_ATTR_USE_SYS_CACHE, &gpu_htw_llc);
 
 	return iommu_attach_device(iommu->domain, mmu->dev);
 }
@@ -55,6 +65,9 @@ static int msm_iommu_map(struct msm_mmu *mmu, uint64_t iova,
 {
 	struct msm_iommu *iommu = to_msm_iommu(mmu);
 	size_t ret;
+
+	if (msm_mmu_has_feature(mmu, MMU_FEATURE_USE_SYSTEM_CACHE))
+		prot |= IOMMU_SYS_CACHE;
 
 	ret = iommu_map_sg(iommu->domain, iova, sgt->sgl, sgt->nents, prot);
 	WARN_ON(ret < 0);

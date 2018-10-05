@@ -12,6 +12,14 @@
 
 extern bool hang_debug;
 
+struct a6xx_llc {
+	void __iomem *mmio;
+	void *gpu_llc_slice;
+	void *gpuhtw_llc_slice;
+	u32 cntl0_regval;
+	u32 cntl1_regval;
+};
+
 struct a6xx_gpu {
 	struct adreno_gpu base;
 
@@ -21,6 +29,7 @@ struct a6xx_gpu {
 	struct msm_ringbuffer *cur_ring;
 
 	struct a6xx_gmu gmu;
+	struct a6xx_llc llc;
 };
 
 #define to_a6xx_gpu(x) container_of(x, struct a6xx_gpu, base)
