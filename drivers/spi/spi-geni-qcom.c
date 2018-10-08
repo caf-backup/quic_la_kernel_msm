@@ -64,31 +64,31 @@
 #define TIMESTAMP_AFTER		BIT(3)
 #define POST_CMD_DELAY		BIT(4)
 
-static irqreturn_t geni_spi_isr(int irq, void *data);
-
 /* SPI M_COMMAND OPCODE */
 enum spi_mcmd_code {
 	CMD_NONE,
 	CMD_XFER,
 	CMD_CS,
+	CMD_CANCEL,
 };
+
 
 struct spi_geni_master {
 	struct geni_se se;
 	struct device *dev;
-	u32 rx_fifo_depth;
 	u32 tx_fifo_depth;
 	u32 fifo_width_bits;
 	u32 tx_wm;
-	unsigned int cur_speed_hz;
+	unsigned long cur_speed_hz;
 	unsigned int cur_bits_per_word;
 	unsigned int tx_rem_bytes;
 	unsigned int rx_rem_bytes;
-	struct spi_transfer *cur_xfer;
+	const struct spi_transfer *cur_xfer;
 	struct completion xfer_done;
 	unsigned int oversampling;
 	spinlock_t lock;
 	unsigned int cur_mcmd;
+	int irq;
 };
 
 static void handle_fifo_timeout(struct spi_master *spi,
@@ -209,7 +209,7 @@ static int setup_fifo_params(struct spi_device *spi_slv,
 
 	ret = get_spi_clk_cfg(mas->cur_speed_hz, mas, &idx, &div);
 	if (ret) {
-		dev_err(mas->dev, "Err setting clks ret(%d) for %d\n",
+		dev_err(mas->dev, "Err setting clks ret(%d) for %ld\n",
 							ret, mas->cur_speed_hz);
 		return ret;
 	}
@@ -238,7 +238,7 @@ static int spi_geni_prepare_message(struct spi_master *spi,
 	reinit_completion(&mas->xfer_done);
 	ret = setup_fifo_params(spi_msg->spi, spi);
 	if (ret)
-		dev_err(mas->dev, "Couldn't select mode %d", ret);
+		dev_err(mas->dev, "Couldn't select mode %d\n", ret);
 	return ret;
 }
 
@@ -256,7 +256,6 @@ static int spi_geni_init(struct spi_geni_master *mas)
 		return -ENXIO;
 	}
 	mas->tx_fifo_depth = geni_se_get_tx_fifo_depth(se);
-	mas->rx_fifo_depth = geni_se_get_rx_fifo_depth(se);
 
 	/* Width of Tx and Rx FIFO is same */
 	mas->fifo_width_bits = geni_se_get_tx_fifo_width(se);
@@ -286,7 +285,7 @@ static void setup_fifo_xfer(struct spi_transfer *xfer,
 				u16 mode, struct spi_master *spi)
 {
 	u32 m_cmd = 0;
-	u32 spi_tx_cfg, trans_len;
+	u32 spi_tx_cfg, len;
 	struct geni_se *se = &mas->se;
 
 	spi_tx_cfg = readl(se->base + SE_SPI_TRANS_CFG);
@@ -310,7 +309,7 @@ static void setup_fifo_xfer(struct spi_transfer *xfer,
 		 * SPI core clock gets configured with the requested frequency
 		 * or the frequency closer to the requested frequency.
 		 * For that reason requested frequency is stored in the
-		 * cur_speed_hz and referred in the consicutive transfer instead
+		 * cur_speed_hz and referred in the consecutive transfer instead
 		 * of calling clk_get_rate() API.
 		 */
 		mas->cur_speed_hz = xfer->speed_hz;
@@ -330,32 +329,27 @@ static void setup_fifo_xfer(struct spi_transfer *xfer,
 		m_cmd = SPI_RX_ONLY;
 
 	spi_tx_cfg &= ~CS_TOGGLE;
-	if (!(mas->cur_bits_per_word % MIN_WORD_LEN)) {
-		trans_len =
-			(xfer->len * BITS_PER_BYTE /
-					mas->cur_bits_per_word) & TRANS_LEN_MSK;
-	} else {
-		unsigned int bytes_per_word =
-			mas->cur_bits_per_word / BITS_PER_BYTE + 1;
 
-		trans_len = (xfer->len / bytes_per_word) & TRANS_LEN_MSK;
-	}
-
-
+	if (!(mas->cur_bits_per_word % MIN_WORD_LEN))
+		len = xfer->len * BITS_PER_BYTE / mas->cur_bits_per_word;
+	else
+		len = xfer->len / (mas->cur_bits_per_word / BITS_PER_BYTE + 1);
+	len &= TRANS_LEN_MSK;
 
 	mas->cur_xfer = xfer;
 	if (m_cmd & SPI_TX_ONLY) {
 		mas->tx_rem_bytes = xfer->len;
-		writel(trans_len, se->base + SE_SPI_TX_TRANS_LEN);
+		writel(len, se->base + SE_SPI_TX_TRANS_LEN);
 	}
 
 	if (m_cmd & SPI_RX_ONLY) {
-		writel(trans_len, se->base + SE_SPI_RX_TRANS_LEN);
+		writel(len, se->base + SE_SPI_RX_TRANS_LEN);
 		mas->rx_rem_bytes = xfer->len;
 	}
 	writel(spi_tx_cfg, se->base + SE_SPI_TRANS_CFG);
 	mas->cur_mcmd = CMD_XFER;
 	geni_se_setup_m_cmd(se, m_cmd, FRAGMENTATION);
+
 	/*
 	 * TX_WATERMARK_REG should be set after SPI configuration and
 	 * setting up GENI SE engine, as driver starts data transfer
@@ -369,26 +363,26 @@ static void handle_fifo_timeout(struct spi_master *spi,
 				struct spi_message *msg)
 {
 	struct spi_geni_master *mas = spi_master_get_devdata(spi);
-	unsigned long timeout, flags;
+	unsigned long time_left, flags;
 	struct geni_se *se = &mas->se;
 
 	spin_lock_irqsave(&mas->lock, flags);
 	reinit_completion(&mas->xfer_done);
+	mas->cur_mcmd = CMD_CANCEL;
 	geni_se_cancel_m_cmd(se);
 	writel(0, se->base + SE_GENI_TX_WATERMARK_REG);
 	spin_unlock_irqrestore(&mas->lock, flags);
-	timeout = wait_for_completion_timeout(&mas->xfer_done, HZ);
-	if (!timeout) {
-		spin_lock_irqsave(&mas->lock, flags);
-		reinit_completion(&mas->xfer_done);
-		geni_se_abort_m_cmd(se);
-		spin_unlock_irqrestore(&mas->lock, flags);
-		timeout = wait_for_completion_timeout(&mas->xfer_done,
-								HZ);
-		if (!timeout)
-			dev_err(mas->dev,
-				"Failed to cancel/abort m_cmd\n");
-	}
+	time_left = wait_for_completion_timeout(&mas->xfer_done, HZ);
+	if (time_left)
+		return;
+
+	spin_lock_irqsave(&mas->lock, flags);
+	reinit_completion(&mas->xfer_done);
+	geni_se_abort_m_cmd(se);
+	spin_unlock_irqrestore(&mas->lock, flags);
+	time_left = wait_for_completion_timeout(&mas->xfer_done, HZ);
+	if (!time_left)
+		dev_err(mas->dev, "Failed to cancel/abort m_cmd\n");
 }
 
 static int spi_geni_transfer_one(struct spi_master *spi,
@@ -396,6 +390,10 @@ static int spi_geni_transfer_one(struct spi_master *spi,
 				struct spi_transfer *xfer)
 {
 	struct spi_geni_master *mas = spi_master_get_devdata(spi);
+
+	/* Terminate and return success for 0 byte length transfer */
+	if (!xfer->len)
+		return 0;
 
 	setup_fifo_xfer(xfer, mas, slv->mode, spi);
 	return 1;
@@ -411,20 +409,17 @@ static unsigned int geni_byte_per_fifo_word(struct spi_geni_master *mas)
 	if (mas->fifo_width_bits % mas->cur_bits_per_word)
 		return roundup_pow_of_two(DIV_ROUND_UP(mas->cur_bits_per_word,
 						       BITS_PER_BYTE));
-	else
-		return mas->fifo_width_bits / BITS_PER_BYTE;
+
+	return mas->fifo_width_bits / BITS_PER_BYTE;
 }
 
-static irqreturn_t geni_spi_handle_tx(struct spi_geni_master *mas)
+static void geni_spi_handle_tx(struct spi_geni_master *mas)
 {
 	struct geni_se *se = &mas->se;
 	unsigned int max_bytes;
 	const u8 *tx_buf;
 	unsigned int bytes_per_fifo_word = geni_byte_per_fifo_word(mas);
 	unsigned int i = 0;
-
-	if (!mas->cur_xfer)
-		return IRQ_NONE;
 
 	max_bytes = (mas->tx_fifo_depth - mas->tx_wm) * bytes_per_fifo_word;
 	if (mas->tx_rem_bytes < max_bytes)
@@ -445,29 +440,24 @@ static irqreturn_t geni_spi_handle_tx(struct spi_geni_master *mas)
 	mas->tx_rem_bytes -= max_bytes;
 	if (!mas->tx_rem_bytes)
 		writel(0, se->base + SE_GENI_TX_WATERMARK_REG);
-
-	return IRQ_HANDLED;
 }
 
-static irqreturn_t geni_spi_handle_rx(struct spi_geni_master *mas)
+static void geni_spi_handle_rx(struct spi_geni_master *mas)
 {
 	struct geni_se *se = &mas->se;
 	u32 rx_fifo_status;
 	unsigned int rx_bytes;
+	unsigned int rx_last_byte_valid;
 	u8 *rx_buf;
 	unsigned int bytes_per_fifo_word = geni_byte_per_fifo_word(mas);
 	unsigned int i = 0;
 
-	if (!mas->cur_xfer)
-		return IRQ_NONE;
-
 	rx_fifo_status = readl(se->base + SE_GENI_RX_FIFO_STATUS);
 	rx_bytes = (rx_fifo_status & RX_FIFO_WC_MSK) * bytes_per_fifo_word;
 	if (rx_fifo_status & RX_LAST) {
-		unsigned int rx_last_byte_valid =
-			(rx_fifo_status & RX_LAST_BYTE_VALID_MSK)
-				>> RX_LAST_BYTE_VALID_SHFT;
-		if (rx_last_byte_valid && (rx_last_byte_valid < 4))
+		rx_last_byte_valid = rx_fifo_status & RX_LAST_BYTE_VALID_MSK;
+		rx_last_byte_valid >>= RX_LAST_BYTE_VALID_SHFT;
+		if (rx_last_byte_valid && rx_last_byte_valid < 4)
 			rx_bytes -= bytes_per_fifo_word - rx_last_byte_valid;
 	}
 	if (mas->rx_rem_bytes < rx_bytes)
@@ -486,8 +476,6 @@ static irqreturn_t geni_spi_handle_rx(struct spi_geni_master *mas)
 			rx_buf[i++] = fifo_byte[j];
 	}
 	mas->rx_rem_bytes -= rx_bytes;
-
-	return IRQ_HANDLED;
 }
 
 static irqreturn_t geni_spi_isr(int irq, void *data)
@@ -499,16 +487,17 @@ static irqreturn_t geni_spi_isr(int irq, void *data)
 	unsigned long flags;
 	irqreturn_t ret = IRQ_HANDLED;
 
-	if (pm_runtime_status_suspended(mas->dev))
+	if (mas->cur_mcmd == CMD_NONE)
 		return IRQ_NONE;
 
 	spin_lock_irqsave(&mas->lock, flags);
 	m_irq = readl(se->base + SE_GENI_M_IRQ_STATUS);
+
 	if ((m_irq & M_RX_FIFO_WATERMARK_EN) || (m_irq & M_RX_FIFO_LAST_EN))
-		ret = geni_spi_handle_rx(mas);
+		geni_spi_handle_rx(mas);
 
 	if (m_irq & M_TX_FIFO_WATERMARK_EN)
-		ret = geni_spi_handle_tx(mas);
+		geni_spi_handle_tx(mas);
 
 	if (m_irq & M_CMD_DONE_EN) {
 		if (mas->cur_mcmd == CMD_XFER)
@@ -529,16 +518,18 @@ static irqreturn_t geni_spi_isr(int irq, void *data)
 		 */
 		if (mas->tx_rem_bytes) {
 			writel(0, se->base + SE_GENI_TX_WATERMARK_REG);
-			dev_err(mas->dev, "Premature Done.tx_rem%d bpw%d\n",
+			dev_err(mas->dev, "Premature done. tx_rem = %d bpw%d\n",
 				mas->tx_rem_bytes, mas->cur_bits_per_word);
 		}
 		if (mas->rx_rem_bytes)
-			dev_err(mas->dev, "Premature Done.rx_rem%d bpw%d\n",
+			dev_err(mas->dev, "Premature done. rx_rem = %d bpw%d\n",
 				mas->rx_rem_bytes, mas->cur_bits_per_word);
 	}
 
-	if ((m_irq & M_CMD_CANCEL_EN) || (m_irq & M_CMD_ABORT_EN))
+	if ((m_irq & M_CMD_CANCEL_EN) || (m_irq & M_CMD_ABORT_EN)) {
+		mas->cur_mcmd = CMD_NONE;
 		complete(&mas->xfer_done);
+	}
 
 	writel(m_irq, se->base + SE_GENI_M_IRQ_CLEAR);
 	spin_unlock_irqrestore(&mas->lock, flags);
@@ -553,7 +544,7 @@ static int spi_geni_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct geni_se *se;
 
-	spi = spi_alloc_master(&pdev->dev, sizeof(struct spi_geni_master));
+	spi = spi_alloc_master(&pdev->dev, sizeof(*mas));
 	if (!spi)
 		return -ENOMEM;
 
@@ -576,19 +567,9 @@ static int spi_geni_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	se->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(se->base)) {
-		ret = -ENOMEM;
+		ret = PTR_ERR(se->base);
 		goto spi_geni_probe_err;
 	}
-
-	ret = platform_get_irq(pdev, 0);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Err getting IRQ %d\n", ret);
-		goto spi_geni_probe_err;
-	}
-	ret = devm_request_irq(&pdev->dev, ret, geni_spi_isr,
-				IRQF_TRIGGER_HIGH, "spi_geni", spi);
-	if (ret)
-		goto spi_geni_probe_err;
 
 	spi->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LOOP | SPI_CS_HIGH;
 	spi->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
@@ -608,11 +589,25 @@ static int spi_geni_probe(struct platform_device *pdev)
 	if (ret)
 		goto spi_geni_probe_runtime_disable;
 
-	ret = spi_register_master(spi);
+	mas->irq = platform_get_irq(pdev, 0);
+	if (mas->irq < 0) {
+		ret = mas->irq;
+		dev_err(&pdev->dev, "Err getting IRQ %d\n", ret);
+		goto spi_geni_probe_runtime_disable;
+	}
+
+	ret = request_irq(mas->irq, geni_spi_isr,
+			IRQF_TRIGGER_HIGH, "spi_geni", spi);
 	if (ret)
 		goto spi_geni_probe_runtime_disable;
 
+	ret = spi_register_master(spi);
+	if (ret)
+		goto spi_geni_probe_free_irq;
+
 	return 0;
+spi_geni_probe_free_irq:
+	free_irq(mas->irq, spi);
 spi_geni_probe_runtime_disable:
 	pm_runtime_disable(&pdev->dev);
 spi_geni_probe_err:
@@ -623,10 +618,12 @@ spi_geni_probe_err:
 static int spi_geni_remove(struct platform_device *pdev)
 {
 	struct spi_master *spi = platform_get_drvdata(pdev);
+	struct spi_geni_master *mas = spi_master_get_devdata(spi);
 
 	/* Unregister _before_ disabling pm_runtime() so we stop transfers */
 	spi_unregister_master(spi);
 
+	free_irq(mas->irq, spi);
 	pm_runtime_disable(&pdev->dev);
 	return 0;
 }
@@ -649,21 +646,47 @@ static int __maybe_unused spi_geni_runtime_resume(struct device *dev)
 
 static int __maybe_unused spi_geni_suspend(struct device *dev)
 {
-	if (!pm_runtime_status_suspended(dev))
-		return -EBUSY;
-	return 0;
+	struct spi_master *spi = dev_get_drvdata(dev);
+	int ret;
+
+	ret = spi_master_suspend(spi);
+	if (ret)
+		return ret;
+
+	ret = pm_runtime_force_suspend(dev);
+	if (ret)
+		spi_master_resume(spi);
+
+	return ret;
+}
+
+static int __maybe_unused spi_geni_resume(struct device *dev)
+{
+	struct spi_master *spi = dev_get_drvdata(dev);
+	int ret;
+
+	ret = pm_runtime_force_resume(dev);
+	if (ret)
+		return ret;
+
+	ret = spi_master_resume(spi);
+	if (ret)
+		pm_runtime_force_suspend(dev);
+
+	return ret;
 }
 
 static const struct dev_pm_ops spi_geni_pm_ops = {
 	SET_RUNTIME_PM_OPS(spi_geni_runtime_suspend,
 					spi_geni_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(spi_geni_suspend, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(spi_geni_suspend, spi_geni_resume)
 };
 
 static const struct of_device_id spi_geni_dt_match[] = {
 	{ .compatible = "qcom,geni-spi" },
 	{}
 };
+MODULE_DEVICE_TABLE(of, spi_geni_dt_match);
 
 static struct platform_driver spi_geni_driver = {
 	.probe  = spi_geni_probe,
