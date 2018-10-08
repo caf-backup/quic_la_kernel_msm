@@ -65,7 +65,7 @@ static unsigned int nf_nat_ftp(struct sk_buff *skb,
 			       struct nf_conntrack_expect *exp)
 {
 	union nf_inet_addr newaddr;
-	u_int16_t port;
+	u16 port;
 	int dir = CTINFO2DIR(ctinfo);
 	struct nf_conn *ct = exp->master;
 	char buffer[sizeof("|1||65535|") + INET6_ADDRSTRLEN];
@@ -82,8 +82,16 @@ static unsigned int nf_nat_ftp(struct sk_buff *skb,
 	 * this one. */
 	exp->expectfn = nf_nat_follow_master;
 
-	/* Try to get same port: if not, try to change it. */
-	for (port = ntohs(exp->saved_proto.tcp.port); port != 0; port++) {
+	/* In the case of MAP-E, the FTP ALG source port number must use its own
+	 * PSID. Otherwise the returned packets from ftp server will use other
+	 * than its own IPv6 address. The port number of MAP-E has the format
+	 * like offset | psid | pad. The offset length is usually 6 bits long.
+	 * So this change reuses the least  10 bits which include the valid PSID
+	 * and tries different offset value with a step size of 1024 till a
+	 * free port number is available. */
+	port = (ntohs(exp->saved_proto.tcp.port) & ~((1 << 10) - 1)) +
+		(ntohs(ct->tuplehash[!dir].tuple.dst.u.tcp.port) & ((1 << 10) - 1));
+	for (; port != 0; port += (1 << 10)) {
 		int ret;
 
 		exp->tuple.dst.u.tcp.port = htons(port);
