@@ -43,7 +43,8 @@
 
 struct cnss_plat_data *plat_env[MAX_NUMBER_OF_SOCS];
 int plat_env_index;
-
+struct qmi_history qmi_log[QMI_HISTORY_SIZE];
+int qmi_history_index;
 static DECLARE_RWSEM(cnss_pm_sem);
 
 static bool qmi_bypass;
@@ -98,6 +99,23 @@ struct cnss_driver_event {
 	int ret;
 	void *data;
 };
+
+void cnss_dump_qmi_history(void)
+{
+	int i;
+
+	pr_info("qmi_history_index [%d]\n", ((qmi_history_index - 1) &
+		(QMI_HISTORY_SIZE - 1)));
+	for (i = 0; i < QMI_HISTORY_SIZE; i++) {
+		if (qmi_log[i].msg_id)
+			pr_info(
+			"qmi_history[%d]:timestamp[%llu] msg_id[%X] err[%X]\n",
+			i, qmi_log[i].timestamp,
+			qmi_log[i].msg_id,
+			qmi_log[i].error_msg);
+	}
+}
+EXPORT_SYMBOL(cnss_dump_qmi_history);
 
 static enum cnss_dev_bus_type cnss_get_dev_bus_type(struct device *dev)
 {
@@ -2599,6 +2617,7 @@ static int cnss_probe(struct platform_device *plat_dev)
 	}
 	cnss_set_plat_priv(plat_dev, plat_priv);
 	platform_set_drvdata(plat_dev, plat_priv);
+	memset(&qmi_log, 0, sizeof(struct qmi_history) * QMI_HISTORY_SIZE);
 
 	ret = cnss_get_resources(plat_priv);
 	if (ret)
