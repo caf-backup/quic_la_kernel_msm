@@ -250,6 +250,9 @@ static int mem_dump_probe(struct platform_device *pdev)
 
 		dump_data->addr = dump_addr;
 		dump_data->len = size;
+		strlcpy(dump_data->name, child_node->name,
+			strlen(child_node->name) + 1);
+
 		dump_entry.id = id;
 		dump_entry.addr = virt_to_phys(dump_data);
 		ret = msm_dump_data_register(MSM_DUMP_TABLE_APPS, &dump_entry);
