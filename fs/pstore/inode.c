@@ -345,6 +345,10 @@ int pstore_mkfile(struct dentry *root, struct pstore_record *record)
 		scnprintf(name, sizeof(name), "console-%s-%llu",
 			  record->psi->name, record->id);
 		break;
+	case PSTORE_TYPE_EVENT:
+		scnprintf(name, sizeof(name), "event-%s-%llu",
+			  record->psi->name, record->id);
+		break;
 	case PSTORE_TYPE_FTRACE:
 		scnprintf(name, sizeof(name), "ftrace-%s-%llu",
 			  record->psi->name, record->id);
