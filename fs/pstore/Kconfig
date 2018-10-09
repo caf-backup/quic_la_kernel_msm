@@ -126,7 +126,7 @@ config PSTORE_PMSG
 
 config PSTORE_FTRACE
 	bool "Persistent function tracer"
-	depends on PSTORE
+	depends on PSTORE && PSTORE!=m
 	depends on FUNCTION_TRACER
 	depends on DEBUG_FS
 	help
