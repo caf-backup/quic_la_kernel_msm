@@ -29,6 +29,7 @@
 
 #include <uapi/linux/psci.h>
 
+#include <asm/cacheflush.h>
 #include <asm/cpuidle.h>
 #include <asm/cputype.h>
 #include <asm/system_misc.h>
@@ -255,7 +256,11 @@ static int get_set_conduit_method(struct device_node *np)
 void extra_hacky_cold_reboot_for_cheza_rev1_and_rev2(void);
 static void psci_sys_reset(enum reboot_mode reboot_mode, const char *cmd)
 {
-	void __iomem *pshold = ioremap(0xC264000, 4);
+	void __iomem *pshold;
+
+	flush_cache_all();
+
+	pshold = ioremap(0xC264000, 4);
 
 	/*
 	 * On -rev1 and -rev2 there is a known hardware bug that makes the TPM
