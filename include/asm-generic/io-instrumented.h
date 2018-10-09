@@ -62,8 +62,8 @@ do {									\
 #define dynamic_io_write(type, addr)	do_trace_io_write(type, addr)
 #define dynamic_io_read(type, addr)	do_trace_io_read(type, addr)
 #else
-#define dynamic_io_write(type, addr)
-#define dynamic_io_read(type, addr)
+#define dynamic_io_write(type, addr)	do {} while (0)
+#define dynamic_io_read(type, addr)	do {} while (0)
 #endif /* CONFIG_DYNAMIC_DEBUG && CONFIG_TRACING_EVENTS_IO */
 
 #endif /* _ASM_GENERIC_IO_INSTRUMENTED_H */
