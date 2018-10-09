@@ -38,7 +38,7 @@ struct _ddebug {
 #else
 #define _DPRINTK_FLAGS_DEFAULT 0
 #endif
-	unsigned int flags:8;
+	volatile unsigned int flags:8;
 #ifdef HAVE_JUMP_LABEL
 	union {
 		struct static_key_true dd_key_true;
