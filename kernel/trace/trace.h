@@ -1819,5 +1819,12 @@ static inline int tracing_alloc_snapshot_instance(struct trace_array *tr)
 #endif
 
 extern struct trace_iterator *tracepoint_print_iter;
+extern struct trace_iterator *tracepoint_pstore_iter;
+
+#ifdef CONFIG_PSTORE_FTRACE
+extern void pstore_event_call(struct trace_event_buffer *fbuffer);
+#else
+static inline void pstore_event_call(struct trace_event_buffer *fbuffer) { }
+#endif
 
 #endif /* _LINUX_KERNEL_TRACE_H */
