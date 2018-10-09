@@ -1857,6 +1857,20 @@
 				};
 			};
 
+			trigout_a: trigout_a {
+				pinmux {
+					pins = "gpio90";
+					function = "qdss_cti";
+				};
+
+				/* TODO: move pinconf to board file */
+				pinconf {
+					pins = "gpio90";
+					drive-strength = <2>;
+					bias-disable;
+				};
+			};
+
 			qspi_clk: qspi-clk {
 				pinmux {
 					pins = "gpio95";
@@ -3380,6 +3394,7 @@
 };
 
 #include "pm8998.dtsi"
+#include "sdm845-coresight.dtsi"
 /*
  * TODO: the below isn't the right way to do this; this is all just hacks
  * until we have patches to do this right.
