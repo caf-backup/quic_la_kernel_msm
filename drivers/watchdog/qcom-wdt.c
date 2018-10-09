@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -19,6 +19,8 @@
 #include <linux/platform_device.h>
 #include <linux/watchdog.h>
 #include <linux/of_device.h>
+
+static struct qcom_wdt *wdata;
 
 enum wdt_reg {
 	WDT_RST,
@@ -96,6 +98,40 @@ static int qcom_wdt_set_timeout(struct watchdog_device *wdd,
 {
 	wdd->timeout = timeout;
 	return qcom_wdt_start(wdd);
+}
+
+void qcom_wdt_bite(void)
+{
+	u32 timeout;
+
+	if (!wdata)
+		return;
+
+	pr_info("Causing a watchdog bite!");
+
+	/*
+	 * Trigger watchdog bite:
+	 *    Setup BITE_TIME to be 128ms, and enable WDT.
+	 */
+	timeout = 128 * wdata->rate / 1000;
+
+	writel(0, wdt_addr(wdata, WDT_EN));
+	writel(1, wdt_addr(wdata, WDT_RST));
+	writel(timeout, wdt_addr(wdata, WDT_BARK_TIME));
+	writel(timeout, wdt_addr(wdata, WDT_BITE_TIME));
+	writel(1, wdt_addr(wdata, WDT_EN));
+
+	/*
+	 * Actually make sure the above sequence hits hardware before sleeping.
+	 */
+	wmb();
+
+	msleep(150);
+	pr_err("Wdog - STS: 0x%x, CTL: 0x%x, BARK TIME: 0x%x, BITE TIME: 0x%x",
+		__raw_readl(wdt_addr(wdata, WDT_STS)),
+		__raw_readl(wdt_addr(wdata, WDT_EN)),
+		__raw_readl(wdt_addr(wdata, WDT_BARK_TIME)),
+		__raw_readl(wdt_addr(wdata, WDT_BITE_TIME)));
 }
 
 static int qcom_wdt_restart(struct watchdog_device *wdd, unsigned long action,
@@ -221,6 +257,8 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	 */
 	wdt->wdd.timeout = min(wdt->wdd.max_timeout, 30U);
 	watchdog_init_timeout(&wdt->wdd, 0, &pdev->dev);
+
+	wdata = wdt;
 
 	ret = watchdog_register_device(&wdt->wdd);
 	if (ret) {
