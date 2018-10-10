@@ -185,6 +185,12 @@ static int dp_display_bind(struct device *dev, struct device *master,
 		goto end;
 	}
 
+	//rc = dp_extcon_register(dp->usbpd);
+	if (rc) {
+		pr_err("extcon registration failed\n");
+		goto end;
+	}
+
 end:
 	return rc;
 }
@@ -207,6 +213,8 @@ static void dp_display_unbind(struct device *dev, struct device *master,
 		pr_err("Invalid params\n");
 		return;
 	}
+
+	//dp_extcon_unregister(dp->usbpd);
 
 	(void)dp->power->power_client_deinit(dp->power);
 	(void)dp->aux->drm_aux_deregister(dp->aux);
@@ -498,6 +506,7 @@ static void dp_display_deinit_sub_modules(struct dp_display_private *dp)
 	dp_power_put(dp->power);
 	dp_catalog_put(dp->catalog);
 	dp_parser_put(dp->parser);
+	dp_extcon_put(dp->usbpd);
 	dp_debug_put(dp->debug);
 }
 
@@ -517,6 +526,14 @@ static int dp_init_sub_modules(struct dp_display_private *dp)
 	cb->configure  = dp_display_usbpd_configure_cb;
 	cb->disconnect = dp_display_usbpd_disconnect_cb;
 	cb->attention  = dp_display_usbpd_attention_cb;
+
+	dp->usbpd = dp_extcon_get(dev, cb);
+	if (IS_ERR(dp->usbpd)) {
+		rc = PTR_ERR(dp->usbpd);
+		pr_err("failed to initialize extcon, rc = %d\n", rc);
+		dp->usbpd = NULL;
+		goto error;
+	}
 
 	dp->parser = dp_parser_get(dp->pdev);
 	if (IS_ERR(dp->parser)) {
@@ -585,7 +602,7 @@ static int dp_init_sub_modules(struct dp_display_private *dp)
 		goto error_ctrl;
 	}
 
-	dp->debug = dp_debug_get(dev, dp->panel,
+	dp->debug = dp_debug_get(dev, dp->panel, dp->usbpd,
 				dp->link, &dp->dp_display.connector);
 	if (IS_ERR(dp->debug)) {
 		rc = PTR_ERR(dp->debug);
@@ -610,6 +627,8 @@ error_power:
 error_catalog:
 	dp_parser_put(dp->parser);
 error_parser:
+	dp_extcon_put(dp->usbpd);
+error:
 	return rc;
 }
 
