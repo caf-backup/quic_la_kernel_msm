@@ -6,9 +6,6 @@ Required properties:
 - reg         : specifies base physical address and size of the registers map
 - clocks      : phandle to clock-controller plus clock-specifier pair
 - clock-names : "core" clocks all registers, FIFO and circuits in PRNG IP block
-- qcom,no-prng-config : Skip prng configuration if its done on secure side
-- qcom,bandwidth-min  : to feed minimum bandwidth value
-- qcom,bandwidth-max  : to feed maximum bandwidth value
 
 Example:
 
@@ -17,7 +14,4 @@ Example:
 		reg = <0xf9bff000 0x200>;
 		clocks = <&clock GCC_PRNG_AHB_CLK>;
 		clock-names = "core";
-		qcom,no-prng-config;
-		qcom,bandwidth-min = <0>;
-		qcom,bandwidth-max = <800>;
 	};

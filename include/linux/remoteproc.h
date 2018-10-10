@@ -399,8 +399,6 @@ enum rproc_crash_type {
  * @node:	list node related to the rproc segment list
  * @da:		device address of the segment
  * @size:	size of the segment
- * @dump:	custom dump function to fill device memory segment associated
- *		with coredump
  */
 struct rproc_dump_segment {
 	struct list_head node;
@@ -408,7 +406,6 @@ struct rproc_dump_segment {
 	dma_addr_t da;
 	size_t size;
 
-	void (*dump)(struct rproc *rproc, void *ptr, size_t len, void *priv);
 	loff_t offset;
 };
 
@@ -560,11 +557,6 @@ int rproc_boot(struct rproc *rproc);
 void rproc_shutdown(struct rproc *rproc);
 void rproc_report_crash(struct rproc *rproc, enum rproc_crash_type type);
 int rproc_coredump_add_segment(struct rproc *rproc, dma_addr_t da, size_t size);
-int rproc_coredump_add_custom_segment(struct rproc *rproc,
-				      dma_addr_t da, size_t size,
-				      void (*dumpfn)(struct rproc *rproc,
-						     void *ptr, size_t len,
-						     void *priv));
 
 static inline struct rproc_vdev *vdev_to_rvdev(struct virtio_device *vdev)
 {

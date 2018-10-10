@@ -5,4 +5,3 @@ qcrypto-objs := core.o \
 		dma.o \
 		sha.o \
 		ablkcipher.o
-obj-$(CONFIG_CRYPTO_DEV_QTI_ICE) += ice.o

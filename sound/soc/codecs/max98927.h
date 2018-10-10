@@ -275,7 +275,5 @@ struct max98927_priv {
 	unsigned int master;
 	unsigned int digital_gain;
 	bool tdm_mode;
-	struct gpio_desc *reset_gpio;
-	struct list_head list;
 };
 #endif

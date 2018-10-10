@@ -102,7 +102,7 @@ static const char * const gcc_parent_names_4[] = {
 static const struct parent_map gcc_parent_map_5[] = {
 	{ P_BI_TCXO, 0 },
 	{ P_GPLL0_OUT_MAIN, 1 },
-	{ P_AUD_REF_CLK, 2 },
+	{ P_GPLL4_OUT_MAIN, 5 },
 	{ P_GPLL0_OUT_EVEN, 6 },
 	{ P_CORE_BI_PLL_TEST_SE, 7 },
 };
@@ -110,14 +110,23 @@ static const struct parent_map gcc_parent_map_5[] = {
 static const char * const gcc_parent_names_5[] = {
 	"bi_tcxo",
 	"gpll0",
-	"aud_ref_clk",
+	"gpll4",
 	"gpll0_out_even",
 	"core_bi_pll_test_se",
+};
+
+static const struct parent_map gcc_parent_map_6[] = {
+	{ P_BI_TCXO, 0 },
+	{ P_GPLL0_OUT_MAIN, 1 },
+	{ P_AUD_REF_CLK, 2 },
+	{ P_GPLL0_OUT_EVEN, 6 },
+	{ P_CORE_BI_PLL_TEST_SE, 7 },
 };
 
 static const char * const gcc_parent_names_6[] = {
 	"bi_tcxo",
 	"gpll0",
+	"aud_ref_clk",
 	"gpll0_out_even",
 	"core_bi_pll_test_se",
 };
@@ -125,10 +134,17 @@ static const char * const gcc_parent_names_6[] = {
 static const char * const gcc_parent_names_7[] = {
 	"bi_tcxo",
 	"gpll0",
+	"gpll0_out_even",
 	"core_bi_pll_test_se",
 };
 
-static const struct parent_map gcc_parent_map_8[] = {
+static const char * const gcc_parent_names_8[] = {
+	"bi_tcxo",
+	"gpll0",
+	"core_bi_pll_test_se",
+};
+
+static const struct parent_map gcc_parent_map_10[] = {
 	{ P_BI_TCXO, 0 },
 	{ P_GPLL0_OUT_MAIN, 1 },
 	{ P_GPLL4_OUT_MAIN, 5 },
@@ -136,7 +152,7 @@ static const struct parent_map gcc_parent_map_8[] = {
 	{ P_CORE_BI_PLL_TEST_SE, 7 },
 };
 
-static const char * const gcc_parent_names_8[] = {
+static const char * const gcc_parent_names_10[] = {
 	"bi_tcxo",
 	"gpll0",
 	"gpll4",
@@ -210,7 +226,7 @@ static struct clk_rcg2 gcc_cpuss_ahb_clk_src = {
 	.freq_tbl = ftbl_gcc_cpuss_ahb_clk_src,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "gcc_cpuss_ahb_clk_src",
-		.parent_names = gcc_parent_names_6,
+		.parent_names = gcc_parent_names_7,
 		.num_parents = 4,
 		.ops = &clk_rcg2_ops,
 	},
@@ -229,7 +245,7 @@ static struct clk_rcg2 gcc_cpuss_rbcpr_clk_src = {
 	.freq_tbl = ftbl_gcc_cpuss_rbcpr_clk_src,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "gcc_cpuss_rbcpr_clk_src",
-		.parent_names = gcc_parent_names_7,
+		.parent_names = gcc_parent_names_8,
 		.num_parents = 3,
 		.ops = &clk_rcg2_ops,
 	},
@@ -673,11 +689,11 @@ static struct clk_rcg2 gcc_sdcc2_apps_clk_src = {
 	.cmd_rcgr = 0x1400c,
 	.mnd_width = 8,
 	.hid_width = 5,
-	.parent_map = gcc_parent_map_8,
+	.parent_map = gcc_parent_map_10,
 	.freq_tbl = ftbl_gcc_sdcc2_apps_clk_src,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "gcc_sdcc2_apps_clk_src",
-		.parent_names = gcc_parent_names_8,
+		.parent_names = gcc_parent_names_10,
 		.num_parents = 5,
 		.ops = &clk_rcg2_ops,
 	},
@@ -716,11 +732,11 @@ static struct clk_rcg2 gcc_tsif_ref_clk_src = {
 	.cmd_rcgr = 0x36010,
 	.mnd_width = 8,
 	.hid_width = 5,
-	.parent_map = gcc_parent_map_5,
+	.parent_map = gcc_parent_map_6,
 	.freq_tbl = ftbl_gcc_tsif_ref_clk_src,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "gcc_tsif_ref_clk_src",
-		.parent_names = gcc_parent_names_5,
+		.parent_names = gcc_parent_names_6,
 		.num_parents = 5,
 		.ops = &clk_rcg2_ops,
 	},
@@ -1001,7 +1017,7 @@ static struct clk_rcg2 gcc_vsensor_clk_src = {
 	.freq_tbl = ftbl_gcc_vsensor_clk_src,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "gcc_vsensor_clk_src",
-		.parent_names = gcc_parent_names_7,
+		.parent_names = gcc_parent_names_8,
 		.num_parents = 3,
 		.ops = &clk_rcg2_ops,
 	},
@@ -3153,32 +3169,6 @@ static struct clk_branch gcc_cpuss_gnoc_clk = {
 	},
 };
 
-static struct clk_branch gcc_lpass_q6_axi_clk = {
-	.halt_reg = 0x47000,
-	.halt_check = BRANCH_HALT,
-	.clkr = {
-		.enable_reg = 0x47000,
-		.enable_mask = BIT(0),
-		.hw.init = &(struct clk_init_data){
-			.name = "gcc_lpass_q6_axi_clk",
-			.ops = &clk_branch2_ops,
-		},
-	},
-};
-
-static struct clk_branch gcc_lpass_sway_clk = {
-	.halt_reg = 0x47008,
-	.halt_check = BRANCH_HALT,
-	.clkr = {
-		.enable_reg = 0x47008,
-		.enable_mask = BIT(0),
-		.hw.init = &(struct clk_init_data){
-			.name = "gcc_lpass_sway_clk",
-			.ops = &clk_branch2_ops,
-		},
-	},
-};
-
 static struct gdsc pcie_0_gdsc = {
 	.gdscr = 0x6b004,
 	.pd = {
@@ -3479,8 +3469,6 @@ static struct clk_regmap *gcc_sdm845_clocks[] = {
 	[GCC_QSPI_CORE_CLK_SRC] = &gcc_qspi_core_clk_src.clkr,
 	[GCC_QSPI_CORE_CLK] = &gcc_qspi_core_clk.clkr,
 	[GCC_QSPI_CNOC_PERIPH_AHB_CLK] = &gcc_qspi_cnoc_periph_ahb_clk.clkr,
-	[GCC_LPASS_Q6_AXI_CLK] = NULL,
-	[GCC_LPASS_SWAY_CLK] = NULL,
 };
 
 static const struct qcom_reset_map gcc_sdm845_resets[] = {
@@ -3594,13 +3582,6 @@ static int gcc_sdm845_probe(struct platform_device *pdev)
 					ARRAY_SIZE(gcc_dfs_clocks));
 	if (ret)
 		return ret;
-
-	if (of_property_read_bool(pdev->dev.of_node, "qcom,lpass-protected")) {
-		gcc_sdm845_clocks[GCC_LPASS_Q6_AXI_CLK] =
-			&gcc_lpass_q6_axi_clk.clkr;
-		gcc_sdm845_clocks[GCC_LPASS_SWAY_CLK] =
-			&gcc_lpass_sway_clk.clkr;
-	}
 
 	return qcom_cc_really_probe(pdev, &gcc_sdm845_desc, regmap);
 }

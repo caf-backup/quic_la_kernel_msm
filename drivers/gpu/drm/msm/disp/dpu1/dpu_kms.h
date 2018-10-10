@@ -115,13 +115,6 @@ struct dpu_kms {
 
 	struct dpu_power_handle phandle;
 	struct dpu_power_client *core_client;
-
-	struct msm_gem_address_space *aspace[MSM_SMMU_DOMAIN_MAX];
-#ifdef CONFIG_ION
-	struct ion_client *iclient;
-#else
-	void *iclient;
-#endif
 	struct dpu_power_event *power_event;
 
 	/* directory entry for debugfs */
@@ -141,6 +134,10 @@ struct dpu_kms {
 	struct dpu_irq irq_obj;
 
 	struct dpu_core_perf perf;
+
+	/* saved atomic state during system suspend */
+	struct drm_atomic_state *suspend_state;
+	bool suspend_block;
 
 	struct dpu_rm rm;
 	bool rm_init;
@@ -173,9 +170,24 @@ struct vsync_info {
  */
 static inline bool dpu_kms_is_suspend_state(struct drm_device *dev)
 {
-	struct msm_drm_private *priv = dev->dev_private;
+	if (!ddev_to_msm_kms(dev))
+		return false;
 
-	return !IS_ERR_OR_NULL(priv->pm_state);
+	return to_dpu_kms(ddev_to_msm_kms(dev))->suspend_state != NULL;
+}
+
+/**
+ * dpu_kms_is_suspend_blocked - whether or not commits are blocked due to pm
+ *				suspend status
+ * @dev: Pointer to drm device
+ * Return: True if commits should be rejected due to pm suspend
+ */
+static inline bool dpu_kms_is_suspend_blocked(struct drm_device *dev)
+{
+	if (!dpu_kms_is_suspend_state(dev))
+		return false;
+
+	return to_dpu_kms(ddev_to_msm_kms(dev))->suspend_block;
 }
 
 /**
@@ -263,15 +275,6 @@ void *dpu_debugfs_get_root(struct dpu_kms *dpu_kms);
  */
 int dpu_enable_vblank(struct msm_kms *kms, struct drm_crtc *crtc);
 void dpu_disable_vblank(struct msm_kms *kms, struct drm_crtc *crtc);
-
-/**
- * smmu attach/detach functions
- * @dpu_kms: poiner to dpu_kms structure
- * @secure_only: if true only secure contexts are attached/detached, else
- * all contexts are attached/detached/
- */
-int dpu_kms_mmu_attach(struct dpu_kms *dpu_kms, bool secure_only);
-int dpu_kms_mmu_detach(struct dpu_kms *dpu_kms, bool secure_only);
 
 void dpu_kms_encoder_enable(struct drm_encoder *encoder);
 

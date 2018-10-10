@@ -311,7 +311,6 @@ static int dpu_kms_enable_vblank(struct msm_kms *kms, struct drm_crtc *crtc)
 
 static void dpu_kms_disable_vblank(struct msm_kms *kms, struct drm_crtc *crtc)
 {
-	pm_runtime_get_sync(crtc->dev->dev);
 	dpu_crtc_vblank(crtc, false);
 }
 
@@ -353,7 +352,7 @@ void dpu_kms_encoder_enable(struct drm_encoder *encoder)
 
 	if (crtc && crtc->state->active) {
 		trace_dpu_kms_enc_enable(DRMID(crtc));
-		dpu_crtc_commit_kickoff(crtc, false);
+		dpu_crtc_commit_kickoff(crtc);
 	}
 }
 
@@ -370,8 +369,7 @@ static void dpu_kms_commit(struct msm_kms *kms, struct drm_atomic_state *state)
 
 		if (crtc->state->active) {
 			trace_dpu_kms_commit(DRMID(crtc));
-			dpu_crtc_commit_kickoff(crtc,
-						state->legacy_cursor_update);
+			dpu_crtc_commit_kickoff(crtc);
 		}
 	}
 }
@@ -427,9 +425,6 @@ static void dpu_kms_wait_for_commit_done(struct msm_kms *kms,
 		return;
 	}
 
-	ret = drm_crtc_vblank_get(crtc);
-	if (ret)
-		return;
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (encoder->crtc != crtc)
 			continue;
@@ -445,8 +440,6 @@ static void dpu_kms_wait_for_commit_done(struct msm_kms *kms,
 			break;
 		}
 	}
-
-	drm_crtc_vblank_put(crtc);
 }
 
 static void _dpu_kms_initialize_dsi(struct drm_device *dev,
@@ -666,13 +659,6 @@ static void _dpu_kms_hw_destroy(struct dpu_kms *dpu_kms)
 	_dpu_debugfs_destroy(dpu_kms);
 	_dpu_kms_mmu_destroy(dpu_kms);
 
-	if (dpu_kms->iclient) {
-#ifdef CONFIG_ION
-		ion_client_destroy(dpu_kms->iclient);
-#endif
-		dpu_kms->iclient = NULL;
-	}
-
 	if (dpu_kms->catalog) {
 		for (i = 0; i < dpu_kms->catalog->vbif_count; i++) {
 			u32 vbif_idx = dpu_kms->catalog->vbif[i].id;
@@ -708,70 +694,6 @@ static void _dpu_kms_hw_destroy(struct dpu_kms *dpu_kms)
 	dpu_kms->mmio = NULL;
 }
 
-int dpu_kms_mmu_detach(struct dpu_kms *dpu_kms, bool secure_only)
-{
-	int i;
-
-	if (!dpu_kms)
-		return -EINVAL;
-
-	for (i = 0; i < MSM_SMMU_DOMAIN_MAX; i++) {
-		struct msm_mmu *mmu;
-		struct msm_gem_address_space *aspace = dpu_kms->aspace[i];
-
-		if (!aspace)
-			continue;
-
-		mmu = dpu_kms->aspace[i]->mmu;
-
-		if (secure_only &&
-			!aspace->mmu->funcs->is_domain_secure(mmu))
-			continue;
-
-		/* cleanup aspace before detaching */
-		msm_gem_aspace_domain_attach_detach_update(aspace, true);
-
-		DPU_DEBUG("Detaching domain:%d\n", i);
-		aspace->mmu->funcs->detach(mmu, (const char **)iommu_ports,
-			ARRAY_SIZE(iommu_ports));
-
-		aspace->domain_attached = false;
-	}
-
-	return 0;
-}
-
-int dpu_kms_mmu_attach(struct dpu_kms *dpu_kms, bool secure_only)
-{
-	int i;
-
-	if (!dpu_kms)
-		return -EINVAL;
-
-	for (i = 0; i < MSM_SMMU_DOMAIN_MAX; i++) {
-		struct msm_mmu *mmu;
-		struct msm_gem_address_space *aspace = dpu_kms->aspace[i];
-
-		if (!aspace)
-			continue;
-
-		mmu = dpu_kms->aspace[i]->mmu;
-
-		if (secure_only &&
-			!aspace->mmu->funcs->is_domain_secure(mmu))
-			continue;
-
-		DPU_DEBUG("Attaching domain:%d\n", i);
-		aspace->mmu->funcs->attach(mmu, (const char **)iommu_ports,
-			ARRAY_SIZE(iommu_ports));
-
-		msm_gem_aspace_domain_attach_detach_update(aspace, false);
-		aspace->domain_attached = true;
-	}
-
-	return 0;
-}
-
 static void dpu_kms_destroy(struct msm_kms *kms)
 {
 	struct dpu_kms *dpu_kms;
@@ -785,6 +707,127 @@ static void dpu_kms_destroy(struct msm_kms *kms)
 
 	dpu_dbg_destroy();
 	_dpu_kms_hw_destroy(dpu_kms);
+}
+
+static int dpu_kms_pm_suspend(struct device *dev)
+{
+	struct drm_device *ddev;
+	struct drm_modeset_acquire_ctx ctx;
+	struct drm_atomic_state *state;
+	struct dpu_kms *dpu_kms;
+	int ret = 0, num_crtcs = 0;
+
+	if (!dev)
+		return -EINVAL;
+
+	ddev = dev_get_drvdata(dev);
+	if (!ddev || !ddev_to_msm_kms(ddev))
+		return -EINVAL;
+
+	dpu_kms = to_dpu_kms(ddev_to_msm_kms(ddev));
+
+	/* disable hot-plug polling */
+	drm_kms_helper_poll_disable(ddev);
+
+	/* acquire modeset lock(s) */
+	drm_modeset_acquire_init(&ctx, 0);
+
+retry:
+	DPU_ATRACE_BEGIN("kms_pm_suspend");
+
+	ret = drm_modeset_lock_all_ctx(ddev, &ctx);
+	if (ret)
+		goto unlock;
+
+	/* save current state for resume */
+	if (dpu_kms->suspend_state)
+		drm_atomic_state_put(dpu_kms->suspend_state);
+	dpu_kms->suspend_state = drm_atomic_helper_duplicate_state(ddev, &ctx);
+	if (IS_ERR_OR_NULL(dpu_kms->suspend_state)) {
+		DRM_ERROR("failed to back up suspend state\n");
+		dpu_kms->suspend_state = NULL;
+		goto unlock;
+	}
+
+	/* create atomic state to disable all CRTCs */
+	state = drm_atomic_state_alloc(ddev);
+	if (IS_ERR_OR_NULL(state)) {
+		DRM_ERROR("failed to allocate crtc disable state\n");
+		goto unlock;
+	}
+
+	state->acquire_ctx = &ctx;
+
+	/* check for nothing to do */
+	if (num_crtcs == 0) {
+		DRM_DEBUG("all crtcs are already in the off state\n");
+		drm_atomic_state_put(state);
+		goto suspended;
+	}
+
+	/* commit the "disable all" state */
+	ret = drm_atomic_commit(state);
+	if (ret < 0) {
+		DRM_ERROR("failed to disable crtcs, %d\n", ret);
+		drm_atomic_state_put(state);
+		goto unlock;
+	}
+
+suspended:
+	dpu_kms->suspend_block = true;
+
+unlock:
+	if (ret == -EDEADLK) {
+		drm_modeset_backoff(&ctx);
+		goto retry;
+	}
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+
+	DPU_ATRACE_END("kms_pm_suspend");
+	return 0;
+}
+
+static int dpu_kms_pm_resume(struct device *dev)
+{
+	struct drm_device *ddev;
+	struct dpu_kms *dpu_kms;
+	int ret;
+
+	if (!dev)
+		return -EINVAL;
+
+	ddev = dev_get_drvdata(dev);
+	if (!ddev || !ddev_to_msm_kms(ddev))
+		return -EINVAL;
+
+	dpu_kms = to_dpu_kms(ddev_to_msm_kms(ddev));
+
+	DPU_ATRACE_BEGIN("kms_pm_resume");
+
+	drm_mode_config_reset(ddev);
+
+	drm_modeset_lock_all(ddev);
+
+	dpu_kms->suspend_block = false;
+
+	if (dpu_kms->suspend_state) {
+		dpu_kms->suspend_state->acquire_ctx =
+			ddev->mode_config.acquire_ctx;
+		ret = drm_atomic_commit(dpu_kms->suspend_state);
+		if (ret < 0) {
+			DRM_ERROR("failed to restore state, %d\n", ret);
+			drm_atomic_state_put(dpu_kms->suspend_state);
+		}
+		dpu_kms->suspend_state = NULL;
+	}
+	drm_modeset_unlock_all(ddev);
+
+	/* enable hot-plug polling */
+	drm_kms_helper_poll_enable(ddev);
+
+	DPU_ATRACE_END("kms_pm_resume");
+	return 0;
 }
 
 static void _dpu_kms_set_encoder_mode(struct msm_kms *kms,
@@ -830,6 +873,8 @@ static const struct msm_kms_funcs kms_funcs = {
 	.check_modified_format = dpu_format_check_modified_format,
 	.get_format      = dpu_get_msm_format,
 	.round_pixclk    = dpu_kms_round_pixclk,
+	.pm_suspend      = dpu_kms_pm_suspend,
+	.pm_resume       = dpu_kms_pm_resume,
 	.destroy         = dpu_kms_destroy,
 	.set_encoder_mode = _dpu_kms_set_encoder_mode,
 #ifdef CONFIG_DEBUG_FS
@@ -846,20 +891,12 @@ static inline void _dpu_kms_core_hw_rev_init(struct dpu_kms *dpu_kms)
 static int _dpu_kms_mmu_destroy(struct dpu_kms *dpu_kms)
 {
 	struct msm_mmu *mmu;
-	int i;
 
-	for (i = ARRAY_SIZE(dpu_kms->aspace) - 1; i >= 0; i--) {
-		if (!dpu_kms->aspace[i])
-			continue;
+	mmu = dpu_kms->base.aspace->mmu;
 
-		mmu = dpu_kms->aspace[i]->mmu;
-
-		mmu->funcs->detach(mmu, (const char **)iommu_ports,
-				ARRAY_SIZE(iommu_ports));
-		msm_gem_address_space_put(dpu_kms->aspace[i]);
-
-		dpu_kms->aspace[i] = NULL;
-	}
+	mmu->funcs->detach(mmu, (const char **)iommu_ports,
+			ARRAY_SIZE(iommu_ports));
+	msm_gem_address_space_put(dpu_kms->base.aspace);
 
 	return 0;
 }
@@ -870,34 +907,26 @@ static int _dpu_kms_mmu_init(struct dpu_kms *dpu_kms)
 	struct msm_gem_address_space *aspace;
 	int ret;
 
-	domain = iommu_get_domain_for_dev(dpu_kms->dev->dev);
-	if (!domain) {
-		DPU_ERROR("failed to get iommu domain for DPU\n");
-		return PTR_ERR(domain);
-	}
-
-	domain->geometry.aperture_start = 0x1000;
-	domain->geometry.aperture_end = 0xffffffff;
+	domain = iommu_domain_alloc(&platform_bus_type);
+	if (!domain)
+		return 0;
 
 	aspace = msm_gem_address_space_create(dpu_kms->dev->dev,
-			domain, "dpu");
+			domain, "dpu1");
 	if (IS_ERR(aspace)) {
 		ret = PTR_ERR(aspace);
 		goto fail;
 	}
 
-	dpu_kms->aspace[0] = aspace;
 	dpu_kms->base.aspace = aspace;
 
-	ret = aspace->mmu->funcs->attach(aspace->mmu,
-				(const char **)iommu_ports,
-				ARRAY_SIZE(iommu_ports));
+	ret = aspace->mmu->funcs->attach(aspace->mmu, iommu_ports,
+			ARRAY_SIZE(iommu_ports));
 	if (ret) {
 		DPU_ERROR("failed to attach iommu %d\n", ret);
 		msm_gem_address_space_put(aspace);
 		goto fail;
 	}
-	aspace->domain_attached = true;
 
 	return 0;
 fail:
@@ -1000,7 +1029,6 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 							     "vbif_nrt");
 	}
 
-#ifdef CONFIG_CHROME_REGDMA
 	dpu_kms->reg_dma = msm_ioremap(dpu_kms->pdev, "regdma", "regdma");
 	if (IS_ERR(dpu_kms->reg_dma)) {
 		dpu_kms->reg_dma = NULL;
@@ -1008,7 +1036,6 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 	} else {
 		dpu_kms->reg_dma_len = dpu_iomap_size(dpu_kms->pdev, "regdma");
 	}
-#endif
 
 	dpu_kms->core_client = dpu_power_client_create(&dpu_kms->phandle,
 					"core");
@@ -1049,16 +1076,6 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 		goto power_error;
 	}
 
-#ifdef CONFIG_CHROME_REGDMA
-	/* Initialize reg dma block which is a singleton */
-	rc = dpu_reg_dma_init(dpu_kms->reg_dma, dpu_kms->catalog,
-			dpu_kms->dev);
-	if (rc) {
-		DPU_ERROR("failed: reg dma init failed\n");
-		goto power_error;
-	}
-#endif
-
 	rc = dpu_rm_init(&dpu_kms->rm, dpu_kms->catalog, dpu_kms->mmio,
 			dpu_kms->dev);
 	if (rc) {
@@ -1092,17 +1109,6 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 			goto power_error;
 		}
 	}
-
-#ifdef CONFIG_ION
-	dpu_kms->iclient = msm_ion_client_create(dev->unique);
-	if (IS_ERR(dpu_kms->iclient)) {
-		rc = PTR_ERR(dpu_kms->iclient);
-		DPU_DEBUG("msm_ion_client not available: %d\n", rc);
-		dpu_kms->iclient = NULL;
-	}
-#else
-	dpu_kms->iclient = NULL;
-#endif
 
 	rc = dpu_core_perf_init(&dpu_kms->perf, dev, dpu_kms->catalog,
 			&dpu_kms->phandle,
@@ -1155,11 +1161,7 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 			DPU_POWER_EVENT_POST_ENABLE,
 			dpu_kms_handle_power_event, dpu_kms, "kms");
 
-	/*
-	 * HACK: To enable display with new interconnect
-	 * bus framework changes
-	 */
-	//pm_runtime_put_sync(&dpu_kms->pdev->dev);
+	pm_runtime_put_sync(&dpu_kms->pdev->dev);
 
 	return 0;
 
@@ -1221,12 +1223,7 @@ static int dpu_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 	}
 
-	ret = dpu_power_resource_init(pdev, &dpu_kms->phandle);
-	if (ret) {
-		pr_err("dpu power resource init failed\n");
-		msm_dss_put_clk(mp->clk_config, mp->num_clk);
-		return ret;
-	}
+	dpu_power_resource_init(pdev, &dpu_kms->phandle);
 
 	platform_set_drvdata(pdev, dpu_kms);
 

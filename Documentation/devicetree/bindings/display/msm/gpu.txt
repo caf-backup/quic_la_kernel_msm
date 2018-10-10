@@ -8,18 +8,12 @@ Required properties:
   with the chip-id.
 - reg: Physical base address and length of the controller's registers.
 - interrupts: The interrupt signal from the gpu.
-
-Optional properties.
-- clocks: device clocks. Required for a3xx, a4xx and a5xx targets. a6xx and
-  newer with a GMU attached do not have direct clock control from the CPU and
-  do not need to provide clock properties.
+- clocks: device clocks
   See ../clocks/clock-bindings.txt for details.
-- clock-names: the following clocks can be provided:
+- clock-names: the following clocks are required:
   * "core"
   * "iface"
   * "mem_iface"
-- qcom,gmu: For a6xx and newer targets a phandle to the GMU device that will
-  control the power for the GPU
 
 Example:
 

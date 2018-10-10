@@ -161,10 +161,10 @@ static int device_reorder_to_tail(struct device *dev, void *not_used)
  * of the link.  If DL_FLAG_PM_RUNTIME is not set, DL_FLAG_RPM_ACTIVE will be
  * ignored.
  *
- * If the DL_FLAG_AUTOREMOVE_CONSUMER is set, the link will be removed
- * automatically when the consumer device driver unbinds from it.
- * The combination of both DL_FLAG_AUTOREMOVE_CONSUMER and DL_FLAG_STATELESS
- * set is invalid and will cause NULL to be returned.
+ * If the DL_FLAG_AUTOREMOVE is set, the link will be removed automatically
+ * when the consumer device driver unbinds from it.  The combination of both
+ * DL_FLAG_AUTOREMOVE and DL_FLAG_STATELESS set is invalid and will cause NULL
+ * to be returned.
  *
  * A side effect of the link creation is re-ordering of dpm_list and the
  * devices_kset list by moving the consumer device and all devices depending
@@ -181,8 +181,7 @@ struct device_link *device_link_add(struct device *consumer,
 	struct device_link *link;
 
 	if (!consumer || !supplier ||
-	    ((flags & DL_FLAG_STATELESS) &&
-	     (flags & DL_FLAG_AUTOREMOVE_CONSUMER)))
+	    ((flags & DL_FLAG_STATELESS) && (flags & DL_FLAG_AUTOREMOVE)))
 		return NULL;
 
 	device_links_write_lock();
@@ -454,7 +453,7 @@ static void __device_links_no_driver(struct device *dev)
 		if (link->flags & DL_FLAG_STATELESS)
 			continue;
 
-		if (link->flags & DL_FLAG_AUTOREMOVE_CONSUMER)
+		if (link->flags & DL_FLAG_AUTOREMOVE)
 			__device_link_del(link);
 		else if (link->status != DL_STATE_SUPPLIER_UNBIND)
 			WRITE_ONCE(link->status, DL_STATE_AVAILABLE);
@@ -490,18 +489,8 @@ void device_links_driver_cleanup(struct device *dev)
 		if (link->flags & DL_FLAG_STATELESS)
 			continue;
 
-		WARN_ON(link->flags & DL_FLAG_AUTOREMOVE_CONSUMER);
+		WARN_ON(link->flags & DL_FLAG_AUTOREMOVE);
 		WARN_ON(link->status != DL_STATE_SUPPLIER_UNBIND);
-
-		/*
-		 * autoremove the links between this @dev and its consumer
-		 * devices that are not active, i.e. where the link state
-		 * has moved to DL_STATE_SUPPLIER_UNBIND.
-		 */
-		if (link->status == DL_STATE_SUPPLIER_UNBIND &&
-		    link->flags & DL_FLAG_AUTOREMOVE_SUPPLIER)
-			__device_link_del(link);
-
 		WRITE_ONCE(link->status, DL_STATE_DORMANT);
 	}
 
