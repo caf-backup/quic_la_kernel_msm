@@ -415,7 +415,7 @@ int cnss_wlan_enable(struct device *dev,
 	if (qmi_bypass)
 		return 0;
 
-	if (mode == CNSS_CALIBRATION)
+	if (mode == CNSS_CALIBRATION || mode == CNSS_WALTEST)
 		goto skip_cfg;
 
 	if (!config || !host_version) {
