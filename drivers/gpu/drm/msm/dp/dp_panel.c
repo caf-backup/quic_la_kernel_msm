@@ -309,14 +309,14 @@ static int dp_panel_update_modes(struct drm_connector *connector,
 
 	pr_debug("%s +", __func__);
 	if (edid) {
-		drm_connector_update_edid_property(connector,
+		drm_mode_connector_update_edid_property(connector,
 			edid);
 		rc = drm_add_edid_modes(connector, edid);
 		pr_debug("%s -", __func__);
 		return rc;
 	}
 
-	drm_connector_update_edid_property(connector, NULL);
+	drm_mode_connector_update_edid_property(connector, NULL);
 	pr_debug("%s null edid -", __func__);
 	return rc;
 }

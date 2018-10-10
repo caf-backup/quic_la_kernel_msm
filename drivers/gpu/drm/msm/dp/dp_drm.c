@@ -536,7 +536,7 @@ struct drm_connector *dp_drm_connector_init(struct msm_dp *dp_display)
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
 
-	drm_connector_attach_encoder(connector, dp_display->encoder);
+	drm_mode_connector_attach_encoder(connector, dp_display->encoder);
 
 	return connector;
 }
