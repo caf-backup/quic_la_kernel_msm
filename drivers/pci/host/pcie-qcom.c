@@ -82,6 +82,7 @@
 #define PARF_BLOCK_SLV_AXI_WR_LIMIT_2		0x3A0
 #define PARF_BLOCK_SLV_AXI_RD_BASE_2		0x3A8
 #define PARF_BLOCK_SLV_AXI_RD_LIMIT_2		0x3B0
+#define PARF_BDF_TO_SID_TABLE                   0x2000
 
 #define PCIE_PARF_DEVICE_TYPE			0x1000
 #define DEVICE_TYPE_RC				0x4
@@ -1237,7 +1238,7 @@ err_refclk:
 
 static int qcom_pcie_init_v3(struct qcom_pcie *pcie)
 {
-	int ret;
+	int ret, i;
 
 	qcom_pcie_v3_reset(pcie);
 	if (!pcie->is_emulation)
@@ -1312,6 +1313,8 @@ static int qcom_pcie_init_v3(struct qcom_pcie *pcie)
 		writel(0x20200000, pcie->parf + PARF_BLOCK_SLV_AXI_WR_LIMIT_2);
 		writel(0x20108000, pcie->parf + PARF_BLOCK_SLV_AXI_RD_BASE_2);
 		writel(0x20200000, pcie->parf + PARF_BLOCK_SLV_AXI_RD_LIMIT_2);
+		for (i = 0; i < 255; i++)
+			writel(0x0, pcie->parf + PARF_BDF_TO_SID_TABLE + (4 * i));
 	}
 
 	return 0;
