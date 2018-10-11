@@ -464,3 +464,5 @@ header-y += xilinx-v4l2-controls.h
 header-y += zorro.h
 header-y += zorro_ids.h
 header-y += userfaultfd.h
+header-y += msm_rmnet.h
+header-y += rmnet_data.h
