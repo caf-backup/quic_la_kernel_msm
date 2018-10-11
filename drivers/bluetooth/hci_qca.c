@@ -1009,7 +1009,6 @@ static void qca_hw_error(struct hci_dev *hdev, u8 code)
 {
 	struct hci_uart *hu = hci_get_drvdata(hdev);
 	struct qca_data *qca = hu->priv;
-	int ret;
 
 	BT_DBG("mem_dump_status: %d", qca->mem_dump_status);
 
@@ -1019,18 +1018,6 @@ static void qca_hw_error(struct hci_dev *hdev, u8 code)
 		 */
 		qca_send_crashbuffer(hu);
 	} else {
-		/* Hardware error event received after collecting the SoC dump.
-		 * We need to help BT SoC to restart and functional normaly.
-		 * it is kind of restarting HCI driver.
-		 */
-		hci_dev_set_flag(hdev, HCI_SETUP);
-		hci_dev_set_flag(hdev, HCI_AUTO_OFF);
-		qca_close(hu);
-		ret = qca_open(hu);
-		if (ret) {
-			BT_ERR("open failed after closing transport driver: %d",
-				ret);
-		}
 		qca->mem_dump_status = false;
 	}
 }
