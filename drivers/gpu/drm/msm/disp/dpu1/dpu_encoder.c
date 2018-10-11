@@ -1862,11 +1862,14 @@ void dpu_encoder_kickoff(struct drm_encoder *drm_enc, bool async)
 
 	trace_dpu_enc_kickoff(DRMID(drm_enc));
 
-	atomic_set(&dpu_enc->frame_done_timeout,
+	if (!async) {
+		atomic_set(&dpu_enc->frame_done_timeout,
 			DPU_FRAME_DONE_TIMEOUT * 1000 /
 			drm_enc->crtc->state->adjusted_mode.vrefresh);
-	mod_timer(&dpu_enc->frame_done_timer, jiffies +
-		((atomic_read(&dpu_enc->frame_done_timeout) * HZ) / 1000));
+		mod_timer(&dpu_enc->frame_done_timer, jiffies +
+			((atomic_read(&dpu_enc->frame_done_timeout)
+			  * HZ) / 1000));
+	}
 
 	/* All phys encs are ready to go, trigger the kickoff */
 	_dpu_encoder_kickoff_phys(dpu_enc, async);
