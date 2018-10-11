@@ -45,6 +45,10 @@ bool daemon_support;
 module_param(daemon_support, bool, 0600);
 MODULE_PARM_DESC(daemon_support, "User space has cnss-daemon support or not");
 
+bool cold_boot_support;
+module_param(cold_boot_support, bool, 0600);
+MODULE_PARM_DESC(cold_boot_support, "User space has cold_boot_support or not");
+
 bool caldata_support = true;
 module_param(caldata_support, bool, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(caldata_support, "caldata support");
@@ -426,7 +430,7 @@ int cnss_wlfw_respond_mem_send_sync(struct cnss_plat_data *plat_priv)
 	req_desc.ei_array = wlfw_respond_mem_req_msg_v01_ei;
 
 	for (i = 0; i < req.mem_seg_len; i++) {
-		if (daemon_support && (!fw_mem[i].pa || !fw_mem[i].size)) {
+		if (cold_boot_support && (!fw_mem[i].pa || !fw_mem[i].size)) {
 			if (fw_mem[i].type == 0) {
 				cnss_pr_err("Invalid memory for FW type, segment = %d\n",
 					    i);
@@ -1177,7 +1181,6 @@ int cnss_wlfw_server_arrive(struct cnss_plat_data *plat_priv)
 		ret = -ENOMEM;
 		goto err_create_handle;
 	}
-
 	ret = qmi_connect_to_service(plat_priv->qmi_wlfw_clnt,
 				     WLFW_SERVICE_ID_V01,
 				     WLFW_SERVICE_VERS_V01,

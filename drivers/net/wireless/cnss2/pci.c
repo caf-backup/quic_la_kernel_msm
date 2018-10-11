@@ -51,7 +51,6 @@ extern int qcom_pcie_rescan(void);
 extern void qcom_pcie_remove_bus(void);
 #endif
 
-extern bool daemon_support;
 static unsigned int pci_link_down_panic;
 module_param(pci_link_down_panic, uint, 0600);
 MODULE_PARM_DESC(pci_link_down_panic,
@@ -871,7 +870,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 					CNSS_ASSERT(0);
 					return -ENOMEM;
 				}
-				if (!daemon_support) {
+				if (!cold_boot_support) {
 					fw_mem[idx].pa = 0;
 					fw_mem[idx].va = 0;
 				} else {

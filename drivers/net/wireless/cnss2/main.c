@@ -2533,7 +2533,7 @@ static int cnss_probe(struct platform_device *plat_dev)
 
 
 	if (qca6290_support)
-		daemon_support = false;
+		cold_boot_support = false;
 
 	if (skip_cnss) {
 		printk(KERN_ERR "Skipping CNSS_PROBE\n");

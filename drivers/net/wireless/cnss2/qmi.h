@@ -41,6 +41,7 @@ extern int qmi_history_index;
 
 struct cnss_plat_data;
 extern bool daemon_support;
+extern bool cold_boot_support;
 
 void cnss_dump_qmi_history(void);
 int cnss_qmi_init(struct cnss_plat_data *plat_priv);
