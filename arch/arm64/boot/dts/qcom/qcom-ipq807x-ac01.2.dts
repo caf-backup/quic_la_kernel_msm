@@ -644,6 +644,16 @@
 			default-state = "off";
 		};
 	};
+	nss-macsec0 {
+		compatible = "qcom,nss-macsec";
+		phy_addr = <0x18>;
+		phy_access_mode = <0>;
+	};
+	nss-macsec1 {
+		compatible = "qcom,nss-macsec";
+		phy_addr = <0x1c>;
+		phy_access_mode = <0>;
+	};
 };
 
 &serial_blsp4 {
@@ -763,3 +773,27 @@
 	status = "disabled";
 };
 
+&spmi_bus {
+	status = "disabled";
+};
+
+&glink_rpm {
+	status = "disabled";
+};
+
+&apc_apm {
+	status = "disabled";
+};
+
+&apc_cpr {
+	status = "disabled";
+};
+
+&npu_cpr {
+	status = "disabled";
+};
+
+&nss0 {
+	npu-supply = <&dummy_reg>;
+	mx-supply = <&dummy_reg>;
+};

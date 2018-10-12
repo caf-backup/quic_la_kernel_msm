@@ -51,6 +51,9 @@ extern int __qcom_config_ice_sec(struct device *dev, void *confBuf, int size);
 extern int __qcom_sec_upgrade_auth(struct device *dev, unsigned int sw_type,
 			unsigned int img_size, unsigned int load_addr);
 
+extern int __qcom_fuseipq_scm_call(struct device *, u32 svc_id, u32 cmd_id,
+			       void *cmd_buf, size_t size);
+
 #define QCOM_SCM_CMD_TERMINATE_PC	0x2
 #define QCOM_SCM_FLUSH_FLAG_MASK	0x3
 #define QCOM_SCM_CMD_CORE_HOTPLUGGED	0x10
@@ -127,13 +130,15 @@ extern void __qcom_scm_init(void);
 #define QCOM_QFPROM_ROW_READ_CMD                     0x8
 #define QCOM_QFPROM_ROW_WRITE_CMD                    0x9
 #define QCOM_SCM_PAS_MSS_RESET		0xa
+#define QCOM_SCM_PAS_AUTH_DEBUG_RESET_CMD	0x14
 #define QCOM_KERNEL_AUTH_CMD		0x15
 extern bool __qcom_scm_pas_supported(struct device *dev, u32 peripheral);
 extern int  __qcom_scm_pas_init_image(struct device *dev, u32 peripheral,
 		dma_addr_t metadata_phys);
 extern int  __qcom_scm_pas_mem_setup(struct device *dev, u32 peripheral,
 		phys_addr_t addr, phys_addr_t size);
-extern int  __qcom_scm_pas_auth_and_reset(struct device *dev, u32 peripheral);
+extern int  __qcom_scm_pas_auth_and_reset(struct device *dev, u32 peripheral,
+				u32 debug);
 extern int  __qcom_scm_pas_shutdown(struct device *dev, u32 peripheral);
 extern int  __qcom_scm_pas_mss_reset(struct device *dev, bool reset);
 

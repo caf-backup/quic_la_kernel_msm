@@ -43,7 +43,8 @@
 
 struct cnss_plat_data *plat_env[MAX_NUMBER_OF_SOCS];
 int plat_env_index;
-
+struct qmi_history qmi_log[QMI_HISTORY_SIZE];
+int qmi_history_index;
 static DECLARE_RWSEM(cnss_pm_sem);
 
 static bool qmi_bypass;
@@ -98,6 +99,23 @@ struct cnss_driver_event {
 	int ret;
 	void *data;
 };
+
+void cnss_dump_qmi_history(void)
+{
+	int i;
+
+	pr_info("qmi_history_index [%d]\n", ((qmi_history_index - 1) &
+		(QMI_HISTORY_SIZE - 1)));
+	for (i = 0; i < QMI_HISTORY_SIZE; i++) {
+		if (qmi_log[i].msg_id)
+			pr_info(
+			"qmi_history[%d]:timestamp[%llu] msg_id[%X] err[%X]\n",
+			i, qmi_log[i].timestamp,
+			qmi_log[i].msg_id,
+			qmi_log[i].error_msg);
+	}
+}
+EXPORT_SYMBOL(cnss_dump_qmi_history);
 
 static enum cnss_dev_bus_type cnss_get_dev_bus_type(struct device *dev)
 {
@@ -1019,6 +1037,9 @@ static int cnss_qca8074_notifier_nb(struct notifier_block *nb,
 	} else if (code == SUBSYS_RAMDUMP_NOTIFICATION) {
 		driver_ops->reinit(plat_priv->plat_dev, plat_priv->plat_dev_id);
 		return NOTIFY_DONE;
+	} else {
+		driver_ops->update_status(plat_priv->plat_dev, code,
+					  plat_priv->plat_dev_id);
 	}
 
 	return NOTIFY_OK;
@@ -1057,7 +1078,9 @@ int cnss_wlan_register_driver(struct cnss_wlan_driver *driver_ops)
 		if (!plat_priv)
 			continue;
 
-		if (plat_priv->device_id == QCA8074_DEVICE_ID &&
+		if ((plat_priv->device_id == QCA8074_DEVICE_ID ||
+		     plat_priv->device_id == QCA8074V2_DEVICE_ID ||
+		     plat_priv->device_id == QCA6018_DEVICE_ID) &&
 			(strcmp(driver_ops->name, "pld_ahb") == 0)) {
 			plat_priv->driver_status = CNSS_LOAD_UNLOAD;
 			plat_priv->driver_ops = driver_ops;
@@ -1121,7 +1144,9 @@ void cnss_wlan_unregister_driver(struct cnss_wlan_driver *driver_ops)
 		plat_priv->driver_status = CNSS_LOAD_UNLOAD;
 		ops = plat_priv->driver_ops;
 
-		if (plat_priv->device_id == QCA8074_DEVICE_ID && ops) {
+		if ((plat_priv->device_id == QCA8074_DEVICE_ID ||
+		     plat_priv->device_id == QCA8074V2_DEVICE_ID ||
+		     plat_priv->device_id == QCA6018_DEVICE_ID) && ops) {
 			subsys_info = &plat_priv->subsys_info;
 			if (subsys_info->subsys_handle)
 				subsystem_put(subsys_info->subsys_handle);
@@ -1728,7 +1753,8 @@ static int cnss_do_recovery(struct cnss_plat_data *plat_priv,
 	if (plat_priv->driver_ops &&
 	    test_bit(CNSS_DRIVER_PROBED, &plat_priv->driver_state))
 		plat_priv->driver_ops->update_status(pci_priv->pci_dev,
-						     CNSS_RECOVERY);
+						     CNSS_RECOVERY,
+						     pci_priv->pci_device_id);
 
 	switch (reason) {
 	case CNSS_REASON_LINK_DOWN:
@@ -2085,6 +2111,8 @@ int cnss_register_subsys(struct cnss_plat_data *plat_priv)
 		subsys_info->subsys_desc.name = "QCA6290";
 		break;
 	case QCA8074_DEVICE_ID:
+	case QCA8074V2_DEVICE_ID:
+	case QCA6018_DEVICE_ID:
 		subsys_info->subsys_desc.name = "q6v5-wcss";
 		return 0;
 	default:
@@ -2129,7 +2157,9 @@ void cnss_unregister_subsys(struct cnss_plat_data *plat_priv)
 {
 	struct cnss_subsys_info *subsys_info;
 
-	if (plat_priv->device_id == QCA8074_DEVICE_ID)
+	if (plat_priv->device_id == QCA8074_DEVICE_ID ||
+	    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
+	    plat_priv->device_id == QCA6018_DEVICE_ID)
 		return;
 
 	subsys_info = &plat_priv->subsys_info;
@@ -2468,6 +2498,8 @@ static const struct platform_device_id cnss_platform_id_table[] = {
 	{ .name = "qca6174", .driver_data = QCA6174_DEVICE_ID, },
 	{ .name = "qca6290", .driver_data = QCA6290_DEVICE_ID, },
 	{ .name = "qca8074", .driver_data = QCA8074_DEVICE_ID, },
+	{ .name = "qca8074v2", .driver_data = QCA8074V2_DEVICE_ID, },
+	{ .name = "qca6018", .driver_data = QCA6018_DEVICE_ID, },
 };
 
 static const struct of_device_id cnss_of_match_table[] = {
@@ -2480,6 +2512,12 @@ static const struct of_device_id cnss_of_match_table[] = {
 	{
 		.compatible = "qcom,cnss-qca8074",
 		.data = (void *)&cnss_platform_id_table[2]},
+	{
+		.compatible = "qcom,cnss-qca8074v2",
+		.data = (void *)&cnss_platform_id_table[3]},
+	{
+		.compatible = "qcom,cnss-qca6018",
+		.data = (void *)&cnss_platform_id_table[4]},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, cnss_of_match_table);
@@ -2490,6 +2528,8 @@ static int cnss_probe(struct platform_device *plat_dev)
 	struct cnss_plat_data *plat_priv;
 	const struct of_device_id *of_id;
 	const struct platform_device_id *device_id;
+	const int *soc_version_major;
+
 
 	if (qca6290_support)
 		daemon_support = false;
@@ -2527,6 +2567,26 @@ static int cnss_probe(struct platform_device *plat_dev)
 	}
 #endif
 
+	soc_version_major = of_get_property(of_find_node_by_path("/"),
+					    "soc_version_major", NULL);
+	BUG_ON(!soc_version_major);
+
+	if (device_id->driver_data == QCA8074_DEVICE_ID) {
+		if (*soc_version_major == 2) {
+			pr_err("Skip QCA8074V1 in V2 platform\n");
+			ret = -ENODEV;
+			goto out;
+		}
+	}
+
+	if (device_id->driver_data == QCA8074V2_DEVICE_ID) {
+		if (*soc_version_major == 1) {
+			pr_err("Skip QCA8074V2 in V1 platform\n");
+			ret = -ENODEV;
+			goto out;
+		}
+	}
+
 	plat_priv = devm_kzalloc(&plat_dev->dev, sizeof(*plat_priv),
 				 GFP_KERNEL);
 	if (!plat_priv) {
@@ -2545,6 +2605,8 @@ static int cnss_probe(struct platform_device *plat_dev)
 			plat_priv->service_id = WLFW_SERVICE_ID_V01_NPR;
 			break;
 		case QCA8074_DEVICE_ID:
+		case QCA8074V2_DEVICE_ID:
+		case QCA6018_DEVICE_ID:
 			plat_priv->wlfw_service_instance_id =
 				WLFW_SERVICE_INS_ID_V01_QCA8074;
 			plat_priv->service_id =  WLFW_SERVICE_ID_V01_HK;
@@ -2555,6 +2617,7 @@ static int cnss_probe(struct platform_device *plat_dev)
 	}
 	cnss_set_plat_priv(plat_dev, plat_priv);
 	platform_set_drvdata(plat_dev, plat_priv);
+	memset(&qmi_log, 0, sizeof(struct qmi_history) * QMI_HISTORY_SIZE);
 
 	ret = cnss_get_resources(plat_priv);
 	if (ret)

@@ -325,15 +325,34 @@ int __qcom_scm_pas_mem_setup(struct device *dev, u32 peripheral,
 	return ret ? : res.a1;
 }
 
-int __qcom_scm_pas_auth_and_reset(struct device *dev, u32 peripheral)
+int __qcom_scm_pas_auth_and_reset(struct device *dev, u32 peripheral, u32 debug)
 {
 	int ret;
 	struct qcom_scm_desc desc = {0};
 	struct arm_smccc_res res;
+	static int break_support = 0;
+
+	if (debug) {
+		ret = __qcom_scm_is_call_available(dev,
+				QCOM_SCM_SVC_PIL,
+				QCOM_SCM_PAS_AUTH_DEBUG_RESET_CMD);
+		if (!ret)
+			pr_err("No Break at reset supported\n");
+		else
+			break_support = 1;
+	}
+
+	if (break_support) {
+		desc.args[0] = debug;
+		desc.arginfo = QCOM_SCM_ARGS(1);
+		ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, QCOM_SCM_SVC_PIL,
+				QCOM_SCM_PAS_AUTH_DEBUG_RESET_CMD, &desc, &res);
+		if (ret || res.a1)
+			return ret ? : res.a1;
+	}
 
 	desc.args[0] = peripheral;
 	desc.arginfo = QCOM_SCM_ARGS(1);
-
 	ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, QCOM_SCM_SVC_PIL,
 			    QCOM_SCM_PAS_AUTH_AND_RESET_CMD, &desc, &res);
 
@@ -765,4 +784,21 @@ int __qcom_los_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
 					void *cmd_buf, size_t size)
 {
 	return -ENOTSUPP;
+}
+
+int __qcom_fuseipq_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
+			    void *cmd_buf, size_t size)
+{
+	int ret;
+	struct arm_smccc_res res;
+	struct qcom_scm_desc desc = {0};
+	uint64_t *status;
+
+	desc.arginfo = SCM_ARGS(1, SCM_RO);
+	desc.args[0] = *((unsigned int *)cmd_buf);
+	ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, svc_id,
+			    cmd_id, &desc, &res);
+	status = (uint64_t *)(*(((uint64_t *)cmd_buf) + 1));
+	*status = res.a1;
+	return ret ? : res.a1;
 }

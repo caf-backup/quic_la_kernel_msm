@@ -659,7 +659,8 @@ static int q6_rproc_stop(struct rproc *rproc)
 		if (pdata->secure) {
 			ret = qcom_scm_pas_shutdown(WCNSS_PAS_ID);
 			if (ret)
-				dev_err(dev, "failted to shutdown %d\n", ret);
+				dev_err(dev, "failed to shutdown %d\n", ret);
+			atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_STOPPED);
 			return ret;
 		}
 
@@ -685,7 +686,7 @@ wait_again:
 	ret = wait_for_completion_timeout(&pdata->err_ready,
 					  msecs_to_jiffies(10000));
 	if (!ret) {
-		if (debug_wcss)
+		if ((debug_wcss & DEBUG_WCSS_BREAK_AT_START))
 			goto wait_again;
 		pr_err("[%s]: Error ready timed out\n",
 				pdata->subsys_desc.name);
@@ -704,9 +705,8 @@ static int q6_rproc_emu_start(struct rproc *rproc)
 	unsigned long val = 0;
 	unsigned int nretry = 0;
 	int ret = 0;
-	/* q6v5_rproc_pdata->q6_base */
-	enable_irq(pdata->err_ready_irq);
 
+	atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_STARTING);
 	/* Last but two step in script */
 	val = readl(pdata->gcc_misc_base + 0x10);
 
@@ -764,6 +764,7 @@ static int q6_rproc_emu_start(struct rproc *rproc)
 	/* Enable the core to run */
 	writel(0x4, pdata->q6_base + QDSP6SS_RESET);
 
+	atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_RUNNING);
 	pr_emerg("Q6 Emulation reset out is done\n");
 
 	return ret;
@@ -781,7 +782,8 @@ static int q6_rproc_start(struct rproc *rproc)
 
 	atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_STARTING);
 	if (pdata->secure) {
-		ret = qcom_scm_pas_auth_and_reset(WCNSS_PAS_ID);
+		ret = qcom_scm_pas_auth_and_reset(WCNSS_PAS_ID,
+			(debug_wcss & DEBUG_WCSS_BREAK_AT_START));
 		if (ret) {
 			dev_err(dev, "q6-wcss reset failed\n");
 			return ret;

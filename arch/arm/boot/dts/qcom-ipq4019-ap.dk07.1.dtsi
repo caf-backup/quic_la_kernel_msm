@@ -69,11 +69,6 @@
 					function = "gpio";
 					input;
 				};
-				cs {
-					pins = "gpio45";
-					function = "gpio";
-					bias-pull-up;
-				};
 				wake {
 					pins = "gpio31";
 					function = "gpio";

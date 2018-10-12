@@ -122,10 +122,12 @@ MODULE_DEVICE_TABLE(of, ipq_audio_id_table);
 static int ipq_audio_probe(struct platform_device *pdev)
 {
 	int ret;
+	bool slave = false;
 	const struct of_device_id *match;
 	struct snd_soc_card *card;
 	struct dev_pin_info *pins;
 	struct pinctrl_state *pin_state;
+	struct device_node *np;
 
 	match = of_match_device(ipq_audio_id_table, &pdev->dev);
 	if (!match)
@@ -143,7 +145,19 @@ static int ipq_audio_probe(struct platform_device *pdev)
 	 * to audio functionality only when the sound card registration is
 	 * successful.
 	 */
-	pin_state = pinctrl_lookup_state(pins->p, "audio");
+
+	np = of_find_node_by_name(NULL, "audio");
+	if (np)
+		slave = of_property_read_bool(np, "slave");
+
+	/* If Slave property is not found in DTS, then
+	 * Audio will be configured as master by default
+	 */
+	if (slave)
+		pin_state = pinctrl_lookup_state(pins->p, "audio_slave");
+	else
+		pin_state = pinctrl_lookup_state(pins->p, "audio");
+
 	if (IS_ERR(pin_state)) {
 		pr_err("audio pinctrl state not available\n");
 		return PTR_ERR(pin_state);

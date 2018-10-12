@@ -367,7 +367,7 @@ static int qca_tzlog_probe(struct platform_device *pdev)
 	mutex_init(&tz_hvc_log->lock);
 
 	tz_hvc_log->tz_dirret = debugfs_create_dir("qcom_debug_logs", NULL);
-	if (IS_ERR(tz_hvc_log->tz_dirret) || !(tz_hvc_log->tz_dirret)) {
+	if (IS_ERR_OR_NULL(tz_hvc_log->tz_dirret)) {
 		dev_err(&pdev->dev, "unable to create debugfs\n");
 		ret = -EIO;
 		goto free_mem;
@@ -375,7 +375,7 @@ static int qca_tzlog_probe(struct platform_device *pdev)
 
 	tz_fileret = debugfs_create_file("tz_log", 0444,  tz_hvc_log->tz_dirret,
 					tz_hvc_log, &fops_tz_log);
-	if (IS_ERR(tz_fileret) || !tz_fileret) {
+	if (IS_ERR_OR_NULL(tz_fileret)) {
 		dev_err(&pdev->dev, "unable to create tz_log debugfs\n");
 		ret = -EIO;
 		goto remove_debugfs;
@@ -384,7 +384,7 @@ static int qca_tzlog_probe(struct platform_device *pdev)
 	if ((tz_hvc_log->flags) & HVC_PRESENT) {
 		hvc_fileret = debugfs_create_file("hvc_log", 0444,
 			tz_hvc_log->tz_dirret, tz_hvc_log, &fops_hvc_log);
-		if (IS_ERR(hvc_fileret) || !hvc_fileret) {
+		if (IS_ERR_OR_NULL(hvc_fileret)) {
 			dev_err(&pdev->dev, "can't create hvc_log debugfs\n");
 			ret = -EIO;
 			goto remove_debugfs;
