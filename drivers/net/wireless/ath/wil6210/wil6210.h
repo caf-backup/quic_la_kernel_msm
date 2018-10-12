@@ -88,6 +88,7 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 
 #define WIL_TX_Q_LEN_DEFAULT		(4000)
 #define WIL_RX_RING_SIZE_ORDER_DEFAULT	(10)
+#define WIL_RX_RING_SIZE_ORDER_TALYN_DEFAULT	(11)
 #define WIL_TX_RING_SIZE_ORDER_DEFAULT	(12)
 #define WIL_BCAST_RING_SIZE_ORDER_DEFAULT	(7)
 #define WIL_BCAST_MCS0_LIMIT		(1024) /* limit for MCS0 frame size */
@@ -617,7 +618,7 @@ struct wil_txrx_ops {
 			      int cid, int tid);
 	irqreturn_t (*irq_tx)(int irq, void *cookie);
 	/* RX ops */
-	int (*rx_init)(struct wil6210_priv *wil, u16 ring_size);
+	int (*rx_init)(struct wil6210_priv *wil, uint ring_order);
 	void (*rx_fini)(struct wil6210_priv *wil);
 	int (*wmi_addba_rx_resp)(struct wil6210_priv *wil, u8 mid, u8 cid,
 				 u8 tid, u8 token, u16 status, bool amsdu,
