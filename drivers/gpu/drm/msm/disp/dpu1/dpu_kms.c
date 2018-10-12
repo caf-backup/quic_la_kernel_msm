@@ -1082,7 +1082,11 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 			DPU_POWER_EVENT_POST_ENABLE,
 			dpu_kms_handle_power_event, dpu_kms, "kms");
 
-	pm_runtime_put_sync(&dpu_kms->pdev->dev);
+	/*
+	 * HACK: To enable display with new interconnect
+	 * bus framework changes
+	 */
+	//pm_runtime_put_sync(&dpu_kms->pdev->dev);
 
 	return 0;
 
@@ -1144,7 +1148,12 @@ static int dpu_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 	}
 
-	dpu_power_resource_init(pdev, &dpu_kms->phandle);
+	ret = dpu_power_resource_init(pdev, &dpu_kms->phandle);
+	if (ret) {
+		pr_err("dpu power resource init failed\n");
+		msm_dss_put_clk(mp->clk_config, mp->num_clk);
+		return ret;
+	}
 
 	platform_set_drvdata(pdev, dpu_kms);
 

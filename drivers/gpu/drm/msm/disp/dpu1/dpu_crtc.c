@@ -1981,10 +1981,12 @@ static int dpu_crtc_debugfs_state_show(struct seq_file *s, void *v)
 	seq_printf(s, "intf_mode: %d\n", dpu_crtc_get_intf_mode(crtc));
 	seq_printf(s, "core_clk_rate: %llu\n",
 			dpu_crtc->cur_perf.core_clk_rate);
-	seq_printf(s, "bw_ctl[%s]: %llu\n", dpu_crtc->cur_perf.bw_ctl);
-	seq_printf(s, "max_per_pipe_ib[%s]: %llu\n",
-					dpu_crtc->cur_perf.max_per_pipe_ib);
 
+	seq_printf(s, "bw_ctl: %llu\n",
+				dpu_crtc->cur_perf.bw_ctl);
+	seq_printf(s, "max_per_pipe_ib: %llu\n",
+				dpu_crtc->cur_perf.max_per_pipe_ib);
+	
 	mutex_lock(&dpu_crtc->rp_lock);
 	list_for_each_entry(rp, &dpu_crtc->rp_head, rp_list) {
 		seq_printf(s, "rp.%d: ", rp->sequence_id);

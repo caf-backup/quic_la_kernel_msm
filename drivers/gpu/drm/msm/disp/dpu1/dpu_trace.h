@@ -168,7 +168,7 @@ TRACE_EVENT(dpu_trace_counter,
 
 TRACE_EVENT(dpu_perf_crtc_update,
 	TP_PROTO(u32 crtc, u64 bw_ctl, u32 core_clk_rate,
-			bool stop_req, bool update_bus, bool update_clk),
+			bool stop_req, u32 update_bus, u32 update_clk),
 	TP_ARGS(crtc, bw_ctl, core_clk_rate,
 		stop_req, update_bus, update_clk),
 	TP_STRUCT__entry(
@@ -188,7 +188,7 @@ TRACE_EVENT(dpu_perf_crtc_update,
 			__entry->update_clk = update_clk;
 	),
 	 TP_printk(
-		"crtc=%d bw_ctl=%llu clk_rate=%u stop_req=%d u_bus=%d u_clk=%d",
+		"crtc=%d bw=%llu clk_rate=%u stop_req=%d u_bus=%d u_clk=%d",
 			__entry->crtc,
 			__entry->bw_ctl,
 			__entry->core_clk_rate,

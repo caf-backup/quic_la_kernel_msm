@@ -100,8 +100,7 @@ static void _dpu_core_perf_calc_crtc(struct dpu_kms *kms,
 	memset(perf, 0, sizeof(struct dpu_core_perf_params));
 
 	if (!dpu_cstate->bw_control) {
-		perf->bw_ctl = kms->catalog->perf.max_bw_high *
-					1000ULL;
+		perf->bw_ctl = kms->catalog->perf.max_bw_high * 1000ULL;
 		perf->max_per_pipe_ib = perf->bw_ctl;
 		perf->core_clk_rate = kms->perf.max_core_clk_rate;
 	} else if (kms->perf.perf_tune.mode == DPU_PERF_MODE_MINIMUM) {
@@ -115,7 +114,7 @@ static void _dpu_core_perf_calc_crtc(struct dpu_kms *kms,
 	}
 
 	DPU_DEBUG(
-		"crtc=%d clk_rate=%llu core_ib=%llu core_ab=%llu\n",
+		"crtc=%d clk_rate=%llu ib=%llu ab=%llu\n",
 			crtc->base.id, perf->core_clk_rate,
 			perf->max_per_pipe_ib, perf->bw_ctl);
 }
@@ -166,6 +165,7 @@ int dpu_core_perf_crtc_check(struct drm_crtc *crtc,
 				tmp_crtc->base.id,
 				tmp_cstate->new_perf.bw_ctl,
 				tmp_cstate->bw_control);
+
 			/*
 			 * For bw check only use the bw if the
 			 * atomic property has been already set
@@ -205,6 +205,7 @@ int dpu_core_perf_crtc_check(struct drm_crtc *crtc,
 static int _dpu_core_perf_crtc_update_bus(struct dpu_kms *kms,
 		struct drm_crtc *crtc)
 {
+	u64 bw_sum_of_intfs = 0, bus_ab_quota, bus_ib_quota;
 	struct dpu_core_perf_params perf = { 0 };
 	enum dpu_crtc_client_type curr_client_type
 					= dpu_crtc_get_client_type(crtc);
@@ -222,10 +223,43 @@ static int _dpu_core_perf_crtc_update_bus(struct dpu_kms *kms,
 				max(perf.max_per_pipe_ib,
 				dpu_cstate->new_perf.max_per_pipe_ib);
 
+			bw_sum_of_intfs += dpu_cstate->new_perf.bw_ctl;
+
 			DPU_DEBUG("crtc=%d bw=%llu\n",
 				tmp_crtc->base.id, dpu_cstate->new_perf.bw_ctl);
 		}
 	}
+
+	bus_ab_quota = max(bw_sum_of_intfs, kms->perf.perf_tune.min_bus_vote);
+	bus_ib_quota = perf.max_per_pipe_ib;
+
+	if (kms->perf.perf_tune.mode == DPU_PERF_MODE_FIXED) {
+		bus_ab_quota = kms->perf.fix_core_ab_vote;
+		bus_ib_quota = kms->perf.fix_core_ib_vote;
+	}
+
+	switch (curr_client_type) {
+	case NRT_CLIENT:
+		ret = dpu_power_data_bus_set_quota(
+				&kms->phandle, kms->core_client,
+				DPU_POWER_HANDLE_DATA_BUS_CLIENT_NRT,
+				bus_ab_quota, bus_ib_quota);
+		DPU_DEBUG("client:%s ab=%llu ib=%llu\n", "nrt",
+				  bus_ab_quota, bus_ib_quota);
+		break;
+	case RT_CLIENT:
+		ret = dpu_power_data_bus_set_quota(
+				&kms->phandle, kms->core_client,
+				DPU_POWER_HANDLE_DATA_BUS_CLIENT_RT,
+				bus_ab_quota, bus_ib_quota);
+		DPU_DEBUG("client:%s ab=%llu ib=%llu\n", "rt",
+				  bus_ab_quota, bus_ib_quota);
+		break;
+	default:
+		DPU_ERROR("invalid client type:%d\n", curr_client_type);
+		break;
+	}
+
 	return ret;
 }
 
@@ -278,8 +312,8 @@ void dpu_core_perf_crtc_release_bw(struct drm_crtc *crtc)
 	if (kms->perf.enable_bw_release) {
 		trace_dpu_cmd_release_bw(crtc->base.id);
 		DPU_DEBUG("Release BW crtc=%d\n", crtc->base.id);
-		dpu_crtc->cur_perf.bw_ctl = 0;
-		_dpu_core_perf_crtc_update_bus(kms, crtc);
+			dpu_crtc->cur_perf.bw_ctl = 0;
+			_dpu_core_perf_crtc_update_bus(kms, crtc);
 	}
 }
 
@@ -322,7 +356,7 @@ int dpu_core_perf_crtc_update(struct drm_crtc *crtc,
 		int params_changed, bool stop_req)
 {
 	struct dpu_core_perf_params *new, *old;
-	bool update_bus = false, update_clk = false;
+	int update_bus = 0, update_clk = 0;
 	u64 clk_rate = 0;
 	struct dpu_crtc *dpu_crtc;
 	struct dpu_crtc_state *dpu_cstate;
@@ -352,6 +386,7 @@ int dpu_core_perf_crtc_update(struct drm_crtc *crtc,
 	new = &dpu_cstate->new_perf;
 
 	if (_dpu_core_perf_crtc_is_power_on(crtc) && !stop_req) {
+
 			/*
 			 * cases for bus bandwidth update.
 			 * 1. new bandwidth vote - "ab or ib vote" is higher
@@ -374,32 +409,33 @@ int dpu_core_perf_crtc_update(struct drm_crtc *crtc,
 				old->bw_ctl = new->bw_ctl;
 				old->max_per_pipe_ib =
 						new->max_per_pipe_ib;
-				update_bus = true;
-		}
+				update_bus = 1;
+			}
+
 
 		if ((params_changed &&
 				(new->core_clk_rate > old->core_clk_rate)) ||
 				(!params_changed &&
 				(new->core_clk_rate < old->core_clk_rate))) {
 			old->core_clk_rate = new->core_clk_rate;
-			update_clk = true;
+			update_clk = 1;
 		}
 	} else {
 		DPU_DEBUG("crtc=%d disable\n", crtc->base.id);
 		memset(old, 0, sizeof(*old));
 		memset(new, 0, sizeof(*new));
-		update_bus = true;
-		update_clk = true;
+		update_bus = ~0;
+		update_clk = 1;
 	}
-
 	trace_dpu_perf_crtc_update(crtc->base.id,
-				new->bw_ctl, new->core_clk_rate,
-				stop_req, update_bus, update_clk);
+				new->bw_ctl,
+				new->core_clk_rate, stop_req,
+				update_bus, update_clk);
 
 	if (update_bus) {
 		ret = _dpu_core_perf_crtc_update_bus(kms, crtc);
 		if (ret) {
-			DPU_ERROR("crtc-%d: failed to update bus bw vote\n",
+			DPU_ERROR("crtc-%d: failed to update bw vote\n",
 				  crtc->base.id);
 			return ret;
 		}
