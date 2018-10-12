@@ -6,6 +6,8 @@ integrated WLAN module
 
 Required properties:
   - compatible = "qcom,cnss-qca8074"; for IPQ8074 device
+		= "qcom,cnss-qca8074v2"; for IPQ8074 v2 device
+		= "qcom,cnss-qca6018"; for IPQ6018 device
 		= "qcom,cnss-qca6290"; for QCA6290 device
   - reg = <baseaddr length>
   - interrupts = <list of msi and legacy interrupts>

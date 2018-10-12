@@ -1105,24 +1105,56 @@ int __qcom_scm_pas_mem_setup(struct device *dev, u32 peripheral,
 	return ret ? : le32_to_cpu(scm_ret);
 }
 
-int __qcom_scm_pas_auth_and_reset(struct device *dev, u32 peripheral)
+int __qcom_scm_pas_auth_and_reset(struct device *dev, u32 peripheral, u32 debug)
 {
 	__le32 out;
 	__le32 in;
 	int ret;
+	static int break_support = 0;
 	struct scm_desc desc = {0};
 
+	if (debug) {
+		ret = __qcom_scm_is_call_available(dev,
+				QCOM_SCM_SVC_PIL,
+				QCOM_SCM_PAS_AUTH_DEBUG_RESET_CMD);
+		if (!ret)
+			pr_err("No Break at reset supported\n");
+		else
+			break_support = 1;
+	}
+
 	if (!is_scm_armv8()) {
+		if (break_support) {
+			in = cpu_to_le32(debug);
+			ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL,
+					QCOM_SCM_PAS_AUTH_DEBUG_RESET_CMD,
+					&in, sizeof(in),
+					&out, sizeof(out));
+			if (ret || le32_to_cpu(out))
+				return ret ? : le32_to_cpu(out);
+		}
+
 		in = cpu_to_le32(peripheral);
 		ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL,
 			    QCOM_SCM_PAS_AUTH_AND_RESET_CMD,
 			    &in, sizeof(in),
 			    &out, sizeof(out));
 	} else {
+		if (break_support) {
+			desc.args[0] = debug;
+			desc.arginfo = SCM_ARGS(1);
+			ret = qcom_scm_call2(SCM_SIP_FNID(QCOM_SCM_SVC_PIL,
+				QCOM_SCM_PAS_AUTH_DEBUG_RESET_CMD), &desc);
+			out = desc.ret[0];
+			if (ret || le32_to_cpu(out))
+				return ret ? : le32_to_cpu(out);
+		}
+
 		desc.args[0] = peripheral;
 		desc.arginfo = SCM_ARGS(1);
 		ret = qcom_scm_call2(SCM_SIP_FNID(QCOM_SCM_SVC_PIL,
 				QCOM_SCM_PAS_AUTH_AND_RESET_CMD), &desc);
+
 		out = desc.ret[0];
 	}
 	return ret ? : le32_to_cpu(out);
@@ -1414,4 +1446,28 @@ int __qcom_los_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
 	ret = qcom_scm_call(dev, svc_id, cmd_id, cmd_buf, size, NULL, 0);
 
 	return ret;
+}
+
+int __qcom_fuseipq_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
+			    void *cmd_buf, size_t size)
+{
+	int ret;
+	struct scm_desc desc = {0};
+	uint64_t *status;
+
+	if (is_scm_armv8()) {
+
+		desc.arginfo = SCM_ARGS(1, SCM_RO);
+		desc.args[0] = *((unsigned int *)cmd_buf);
+
+		ret = qcom_scm_call2(SCM_SIP_FNID(svc_id, cmd_id), &desc);
+		status = (uint64_t *)(*(((uint32_t *)cmd_buf) + 1));
+		*status = desc.ret[0];
+
+	} else {
+
+		return -ENOTSUPP;
+	}
+
+	return ret ? : le32_to_cpu(desc.ret[0]);
 }

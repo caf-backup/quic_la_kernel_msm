@@ -45,6 +45,8 @@ struct dai_priv_st {
 };
 static struct dai_priv_st dai_priv[MAX_INTF];
 
+static bool slave;
+
 static struct clk *audio_tx_bclk;
 static struct clk *audio_tx_mclk;
 static struct clk *audio_rx_bclk;
@@ -219,7 +221,23 @@ static int ipq_audio_hw_params(struct snd_pcm_substream *substream,
 
 	ipq_glb_clk_enable_oe(substream->stream);
 
-	ipq_config_master(ENABLE, stereo_id);
+	if (slave) {
+		ipq_config_master(DISABLE, stereo_id);
+		ipq_config_mclk_sel(stereo_id, 1);
+		/*
+		 * 252 and 254 are dummy frequency values which will make clock
+		 * framework to select external pad clock as source. We need to
+		 * configure the mclk and bclk to these fixed values when in
+		 * slave mode in order to accept clock from master dev.
+		 *
+		 * mclk should be set to 252 (mclk_pad_in) and bclk can be set
+		 * to 252 (mclk_pad_in) or 254 (bclk_pad_in).
+		 */
+		mclk = 252;
+		bclk = 254;
+	} else {
+		ipq_config_master(ENABLE, stereo_id);
+	}
 
 	ret = ipq_cfg_bit_width(bit_width, stereo_id);
 	if (ret) {
@@ -647,7 +665,7 @@ MODULE_DEVICE_TABLE(of, ipq_cpu_dai_id_table);
 static int ipq_dai_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *np = NULL;
 	struct ipq_intf_pdata *pdata = NULL;
 	int ret;
 	int intf;
@@ -659,6 +677,15 @@ static int ipq_dai_probe(struct platform_device *pdev)
 	pdata = (struct ipq_intf_pdata *)match->data;
 	intf = pdata->data;
 	dai_priv[intf].ipq_hw = pdata->hw;
+
+	/* If Slave property is not found in DTS, then
+	 * Audio will be configured as master by default
+	 */
+	np = of_find_node_by_name(NULL, "audio");
+	if (np)
+		slave = of_property_read_bool(np, "slave");
+
+	np = pdev->dev.of_node;
 
 	/* TX is enabled only when both DMA and Stereo TX channel
 	 * is specified in the DTSi

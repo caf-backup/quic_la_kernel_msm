@@ -85,6 +85,50 @@
 
 	audio_pins: audio_pinmux {
 		mux_1 {
+			pins = "gpio26";
+			function = "audio_txbclk";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+
+		mux_2 {
+			pins = "gpio27";
+			function = "audio_txfsync";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+
+		mux_3 {
+			pins = "gpio28";
+			function = "audio_txd";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+
+		mux_4 {
+			pins = "gpio30";
+			function = "audio_rxbclk";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+
+		mux_5 {
+			pins = "gpio31";
+			function = "audio_rxfsync";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+
+		mux_6 {
+			pins = "gpio32";
+			function = "audio_rxd";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+	};
+
+	audio_pins_master: audio_pinmux_master {
+		mux_1 {
 			pins = "gpio25";
 			function = "audio_txmclk";
 			drive-strength = <8>;
@@ -92,51 +136,25 @@
 		};
 
 		mux_2 {
-			pins = "gpio26";
-			function = "audio_txbclk";
-			drive-strength = <8>;
-			bias-pull-up;
-		};
-
-		mux_3 {
-			pins = "gpio27";
-			function = "audio_txfsync";
-			drive-strength = <8>;
-			bias-pull-up;
-		};
-
-		mux_4 {
-			pins = "gpio28";
-			function = "audio_txd";
-			drive-strength = <8>;
-			bias-pull-up;
-		};
-
-		mux_5 {
 			pins = "gpio29";
 			function = "audio_rxmclk";
 			drive-strength = <8>;
 			bias-pull-up;
 		};
+	};
 
-		mux_6 {
-			pins = "gpio30";
-			function = "audio_rxbclk";
-			drive-strength = <8>;
+	audio_pins_slave: audio_pinmux_slave {
+		mux_1 {
+			pins = "gpio25";
+			function = "audio_txmclk";
+			drive-strength = <2>;
 			bias-pull-up;
 		};
 
-		mux_7 {
-			pins = "gpio31";
-			function = "audio_rxfsync";
-			drive-strength = <8>;
-			bias-pull-up;
-		};
-
-		mux_8 {
-			pins = "gpio32";
-			function = "audio_rxd";
-			drive-strength = <8>;
+		mux_2 {
+			pins = "gpio29";
+			function = "audio_rxmclk";
+			drive-strength = <2>;
 			bias-pull-up;
 		};
 	};
@@ -173,7 +191,6 @@
 };
 
 &soc {
-
 	adss_clk: qcom,adss_clk@7700000 {
 		compatible = "qcom,adss-ipq807x";
 		reg = <0x7700100 0x200>;
@@ -262,8 +279,11 @@
 	sound: sound@0 {
 		compatible = "qca,ipq8074-audio";
 		pinctrl-0 = <&audio_gpio_pins>;
-		pinctrl-1 = <&audio_pins>;
-		pinctrl-names = "default", "audio";
+		pinctrl-1 = <&audio_pins &audio_pins_master>;
+		pinctrl-2 = <&audio_pins &audio_pins_slave>;
+		pinctrl-names = "default",
+			"audio",
+			"audio_slave";
 	};
 
 	pcm: pcm@7704000 {
@@ -288,5 +308,31 @@
 			compatible = "qca,ipq8074-codec";
 			reg = <0x12>;
 		};
+	};
+};
+
+&clocks {
+	audio_rxbpad_clk {
+		compatible = "fixed-clock";
+		clock-frequency = <254>;
+		#clock-cells = <0>;
+	};
+
+	audio_txbpad_clk {
+		compatible = "fixed-clock";
+		clock-frequency = <254>;
+		#clock-cells = <0>;
+	};
+
+	audio_rxmpad_clk {
+		compatible = "fixed-clock";
+		clock-frequency = <252>;
+		#clock-cells = <0>;
+	};
+
+	audio_txmpad_clk {
+		compatible = "fixed-clock";
+		clock-frequency = <252>;
+		#clock-cells = <0>;
 	};
 };

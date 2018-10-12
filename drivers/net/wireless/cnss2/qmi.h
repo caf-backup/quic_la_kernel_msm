@@ -27,9 +27,28 @@
 #define Q6_CALDB_SIZE_QCA6290 0x100000
 #define Q6_CALDB_ADDR 0x50000000
 #define Q6_CALDB_SIZE 0x480000
+#define QMI_HISTORY_SIZE 64
+struct qmi_history {
+	u8  msg_id;
+	u8  error_msg;
+	u64 timestamp;
+};
+
+extern struct qmi_history qmi_log[];
+extern int qmi_history_index;
+
+static inline void qmi_record(u8 msg_id, u8 error_msg)
+{
+	qmi_log[qmi_history_index].msg_id = msg_id;
+	qmi_log[qmi_history_index].error_msg = error_msg;
+	qmi_log[qmi_history_index++].timestamp = ktime_to_ms(ktime_get());
+	qmi_history_index &= (QMI_HISTORY_SIZE - 1);
+}
+
 struct cnss_plat_data;
 extern bool daemon_support;
 
+void cnss_dump_qmi_history(void);
 int cnss_qmi_init(struct cnss_plat_data *plat_priv);
 void cnss_qmi_deinit(struct cnss_plat_data *plat_priv);
 int cnss_wlfw_server_arrive(struct cnss_plat_data *plat_priv);

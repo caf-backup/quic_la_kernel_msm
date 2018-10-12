@@ -23,6 +23,8 @@
 #include <linux/clk-provider.h>
 #include <linux/regmap.h>
 
+#include <soc/qcom/socinfo.h>
+
 #include <linux/reset-controller.h>
 #include <dt-bindings/clock/qcom,gcc-ipq807x.h>
 #include <dt-bindings/reset/qcom,gcc-ipq807x.h>
@@ -4906,6 +4908,25 @@ static struct clk_branch gcc_sdcc1_ice_core_clk = {
 		},
 	},
 };
+
+static struct clk_branch gcc_dcc_clk = {
+	.halt_reg = 0x77004,
+	.halt_bit = 31,
+	.clkr = {
+		.enable_reg = 0x77004,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "gcc_dcc_clk",
+			.parent_names = (const char *[]){
+				"pcnoc_clk_src"
+			},
+			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
 static struct clk_hw *gcc_ipq807x_hws[] = {
 	&gpll0_out_main_div2.hw,
 	&pcnoc_clk_src.hw,
@@ -5261,6 +5282,7 @@ static struct clk_regmap *gcc_ipq807x_clks[] = {
 	[GCC_CMN_12GPLL_SYS_CLK] = &gcc_cmn_12gpll_sys_clk.clkr,
 	[GCC_SDCC1_ICE_CORE_CLK] = &gcc_sdcc1_ice_core_clk.clkr,
 	[SDCC1_ICE_CORE_CLK_SRC] = &sdcc1_ice_core_clk_src.clkr,
+	[GCC_DCC_CLK] = &gcc_dcc_clk.clkr,
 };
 
 static struct clk_regmap *gcc_ipq807x_v2_clks[] = {
@@ -5560,8 +5582,6 @@ static const struct qcom_reset_map gcc_ipq807x_resets[] = {
 	[GCC_SDCC1_BCR] = { 0x42000, 0 },
 	[GCC_SDCC2_BCR] = { 0x43000, 0 },
 	[GCC_SNOC_BUS_TIMEOUT0_BCR] = { 0x47000, 0 },
-	[GCC_SNOC_BUS_TIMEOUT2_BCR] = { 0x47008, 0 },
-	[GCC_SNOC_BUS_TIMEOUT3_BCR] = { 0x47010, 0 },
 	[GCC_PCNOC_BUS_TIMEOUT0_BCR] = { 0x48000, 0 },
 	[GCC_PCNOC_BUS_TIMEOUT1_BCR] = { 0x48008, 0 },
 	[GCC_PCNOC_BUS_TIMEOUT2_BCR] = { 0x48010, 0 },
@@ -5647,6 +5667,12 @@ static const struct qcom_reset_map gcc_ipq807x_resets[] = {
 	[GCC_UNIPHY2_SOFT_RESET] = { 0x56204, 0, 0x32},
 	[GCC_UNIPHY2_XPCS_RESET] = { 0x56204, 2 },
 	[GCC_EDMA_HW_RESET] = { 0x68014, 0, 0x300000},
+	[GCC_NSSPORT1_RESET] = { 0x68014, 0, 0x1000003},
+	[GCC_NSSPORT2_RESET] = { 0x68014, 0, 0x200000c},
+	[GCC_NSSPORT3_RESET] = { 0x68014, 0, 0x4000030},
+	[GCC_NSSPORT4_RESET] = { 0x68014, 0, 0x8000300},
+	[GCC_NSSPORT5_RESET] = { 0x68014, 0, 0x10000c00},
+	[GCC_NSSPORT6_RESET] = { 0x68014, 0, 0x20003000},
 };
 
 static const struct of_device_id gcc_ipq807x_match_table[] = {
@@ -5680,14 +5706,39 @@ static const struct qcom_cc_desc gcc_ipq807x_v2_desc = {
 	.num_resets = ARRAY_SIZE(gcc_ipq807x_resets),
 };
 
+#define v2fix_clk_offset(clk_src) clk_src.cmd_rcgr += 0x4; \
+				clk_src.cfg_offset = 0;
+
+#define v2fix_branch_clk_offset(b_clk) b_clk.halt_reg += 0x8; \
+				b_clk.clkr.enable_reg += 0x8;
+
 static int gcc_ipq807x_probe(struct platform_device *pdev)
 {
 	int ret, i;
 	struct regmap *regmap;
 	struct clk *clk;
+	const int *soc_version_major;
 
 	if (of_device_is_compatible(pdev->dev.of_node, "qcom,gcc-ipq807x-v2"))
 		return qcom_cc_probe(pdev, &gcc_ipq807x_v2_desc);
+
+	soc_version_major = read_ipq_soc_version_major();
+	BUG_ON(!soc_version_major);
+
+	if (*soc_version_major != 1) {
+		pr_info("Soc version is not 1, changing clock offsets\n");
+
+		v2fix_clk_offset(pcie0_axi_clk_src);
+		v2fix_clk_offset(pcie1_axi_clk_src);
+		v2fix_clk_offset(nss_crypto_clk_src);
+		v2fix_clk_offset(nss_ubi0_clk_src);
+		v2fix_clk_offset(nss_ubi1_clk_src);
+		v2fix_clk_offset(pcie0_aux_clk_src);
+		v2fix_clk_offset(pcie1_aux_clk_src);
+
+		v2fix_branch_clk_offset(gcc_snoc_bus_timeout2_ahb_clk);
+		v2fix_branch_clk_offset(gcc_snoc_bus_timeout3_ahb_clk);
+	}
 
 	regmap = qcom_cc_map(pdev, &gcc_ipq807x_desc);
 	if (IS_ERR(regmap))

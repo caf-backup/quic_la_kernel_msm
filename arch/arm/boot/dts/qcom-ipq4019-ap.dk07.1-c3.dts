@@ -83,6 +83,13 @@
 					bias-disable;
 				};
 			};
+			spi_1_pins: spi_1_pinmux {
+				cs {
+					pins = "gpio45";
+					function = "gpio";
+					bias-pull-up;
+				};
+			};
 			wifi_0_pins: wifi1_pinmux {
 				mux_1 {
 					pins = "gpio37";

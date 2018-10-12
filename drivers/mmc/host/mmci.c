@@ -357,6 +357,8 @@ mmci_request_end(struct mmci_host *host, struct mmc_request *mrq)
 
 	BUG_ON(host->data);
 
+	del_timer(&host->timer);
+
 	host->mrq = NULL;
 	host->cmd = NULL;
 
@@ -892,9 +894,18 @@ static void
 mmci_start_command(struct mmci_host *host, struct mmc_command *cmd, u32 c)
 {
 	void __iomem *base = host->base;
+	unsigned long timeout;
 
 	dev_dbg(mmc_dev(host->mmc), "op %02x arg %08x flags %08x\n",
 	    cmd->opcode, cmd->arg, cmd->flags);
+
+	/* start s/w timer for cases where we don't get any h/w interrupts */
+	timeout = jiffies;
+	if (!cmd->data && cmd->busy_timeout > 9000)
+		timeout += DIV_ROUND_UP(cmd->busy_timeout, 1000) * HZ + HZ;
+	else
+		timeout += 10 * HZ;
+	mod_timer(&host->timer, timeout);
 
 	if (readl(base + MMCICOMMAND) & MCI_CPSM_ENABLE) {
 		writel(0, base + MMCICOMMAND);
@@ -944,6 +955,38 @@ mmci_start_command(struct mmci_host *host, struct mmc_command *cmd, u32 c)
 
 	writel(cmd->arg, base + MMCIARGUMENT);
 	writel(c, base + MMCICOMMAND);
+}
+
+static void mmci_timeout_timer(unsigned long timer_data)
+{
+	struct mmci_host *host = (struct mmci_host *)timer_data;
+	unsigned long flags;
+
+	spin_lock_irqsave(&host->lock, flags);
+
+	if (host->mrq) {
+		pr_err("%s: Timeout waiting for hardware interrupt.\n",
+				mmc_hostname(host->mmc));
+
+		if (host->data) {
+			host->data->error = -ETIMEDOUT;
+			if (dma_inprogress(host)) {
+				mmci_dma_data_error(host);
+				mmci_dma_unmap(host, host->data);
+				host->dma_control = MMCI_DMA_CTRL_RESET;
+			}
+			mmci_stop_data(host);
+		} else {
+			if (host->cmd)
+				host->cmd->error = -ETIMEDOUT;
+			else
+				host->mrq->cmd->error = -ETIMEDOUT;
+		}
+		mmci_request_end(host, host->mrq);
+	}
+
+	mmiowb();
+	spin_unlock_irqrestore(&host->lock, flags);
 }
 
 static void
@@ -1693,6 +1736,8 @@ static int mmci_probe(struct amba_device *dev,
 
 	dev_dbg(mmc_dev(mmc), "clocking block at %u Hz\n", mmc->f_max);
 
+	setup_timer(&host->timer, mmci_timeout_timer, (unsigned long)host);
+
 	/* Get regulators and the supported OCR mask */
 	ret = mmc_regulator_get_supply(mmc);
 	if (ret == -EPROBE_DEFER)
@@ -1850,6 +1895,8 @@ static int mmci_remove(struct amba_device *dev)
 		 * version here so that we can access the primecell.
 		 */
 		pm_runtime_get_sync(&dev->dev);
+
+		del_timer_sync(&host->timer);
 
 		mmc_remove_host(mmc);
 

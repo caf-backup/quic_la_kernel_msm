@@ -1812,6 +1812,7 @@ static const struct net_device_ops ip6_tnl_netdev_ops = {
 	.ndo_start_xmit = ip6_tnl_xmit,
 	.ndo_do_ioctl	= ip6_tnl_ioctl,
 	.ndo_change_mtu = ip6_tnl_change_mtu,
+	.ndo_get_stats64 = ip_tunnel_get_stats64,
 	.ndo_get_stats	= ip6_get_stats,
 	.ndo_get_iflink = ip6_tnl_get_iflink,
 };

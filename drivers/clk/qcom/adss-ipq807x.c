@@ -56,6 +56,7 @@ static const struct parent_map parents_audio_rxm_clk_src_map[] = {
 };
 
 struct freq_tbl ftbl_audio_rxm_clk_src[] = {
+	F(252,      P_RXMPAD_CLK, 1, 0, 0),
 	F(16384000, P_AUDIO_PLL, 12, 0, 0),
 	F(19200000, P_XO, 1, 0, 0),
 	F(22579200, P_AUDIO_PLL, 8, 0, 0),
@@ -188,6 +189,7 @@ static struct clk_branch adss_audio_rxb_clk = {
 };
 
 struct freq_tbl ftbl_audio_txm_clk_src[] = {
+	F(252,      P_TXMPAD_CLK, 1, 0, 0),
 	F(16384000, P_AUDIO_PLL, 12, 0, 0),
 	F(19200000, P_XO, 1, 0, 0),
 	F(22579200, P_AUDIO_PLL, 8, 0, 0),

@@ -795,7 +795,9 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 
 	dev = &plat_priv->plat_dev->dev;
 
-	if (plat_priv->device_id == QCA8074_DEVICE_ID &&
+	if ((plat_priv->device_id == QCA8074_DEVICE_ID ||
+	     plat_priv->device_id == QCA8074V2_DEVICE_ID ||
+	     plat_priv->device_id == QCA6018_DEVICE_ID) &&
 	    of_property_read_u32_array(dev->of_node, "qcom,caldb-addr",
 				       &caldb_location,
 				       ARRAY_SIZE(caldb_location))) {
@@ -838,7 +840,9 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 		return 0;
 	}
 
-	if (plat_priv->device_id == QCA8074_DEVICE_ID) {
+	if (plat_priv->device_id == QCA8074_DEVICE_ID ||
+	    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
+	    plat_priv->device_id == QCA6018_DEVICE_ID) {
 		if (of_property_read_u32_array(dev->of_node, "qcom,bdf-addr",
 					       &bdf_location,
 					       ARRAY_SIZE(bdf_location))) {

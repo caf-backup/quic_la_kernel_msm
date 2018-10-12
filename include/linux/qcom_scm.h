@@ -65,7 +65,7 @@ extern int qcom_scm_pas_init_image(u32 peripheral, const void *metadata,
 		size_t size);
 extern int qcom_scm_pas_mem_setup(u32 peripheral, phys_addr_t addr,
 		phys_addr_t size);
-extern int qcom_scm_pas_auth_and_reset(u32 peripheral);
+extern int qcom_scm_pas_auth_and_reset(u32 peripheral, u32 debug);
 extern int qcom_scm_pas_shutdown(u32 peripheral);
 
 #define SCM_SVC_UTIL		0x3
@@ -120,6 +120,11 @@ extern int qcom_scm_tzsched(const void *req, size_t req_size,
 
 #define TZ_SYSCALL_CREATE_SMC_ID(o, s, f) \
 	((uint32_t)((((o & 0x3f) << 24) | (s & 0xff) << 8) | (f & 0xff)))
+
+#define TZ_BLOW_FUSE_SECDAT             0x20
+#define FUSEPROV_SUCCESS                0x0
+#define FUSEPROV_INVALID_HASH           0x09
+#define FUSEPROV_SECDAT_LOCK_BLOWN      0xB
 
 enum qseecom_qceos_cmd_id {
 	QSEOS_APP_START_COMMAND	= 0x01,
@@ -245,5 +250,8 @@ extern int qcom_scm_tz_register_log_buf(struct device *dev,
 
 extern int qcom_los_scm_call(struct device *, u32 svc_id, u32 cmd_id,
 		void *cmd_buf, size_t size);
+
+extern int qcom_fuseipq_scm_call(struct device *, u32 svc_id, u32 cmd_id,
+			     void *cmd_buf, size_t size);
 
 #endif

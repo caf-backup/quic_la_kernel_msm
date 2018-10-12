@@ -1119,15 +1119,16 @@ static ssize_t
 store_rsa_plain_data(struct device *dev, struct device_attribute *attr,
 		       const char *buf, size_t count)
 {
-	rsa_plain_data_buf = memset(rsa_plain_data_buf, 0, MAX_PLAIN_DATA_SIZE);
+	rsa_plain_data_buf = memset(rsa_plain_data_buf, 0,
+				   MAX_RSA_PLAIN_DATA_SIZE);
 	rsa_plain_data_len = 0;
 
-	if (count == 0 || count > MAX_PLAIN_DATA_SIZE) {
+	if (count == 0 || count > MAX_RSA_PLAIN_DATA_SIZE) {
 		pr_info("\nInvalid input\n");
 		pr_info("Plain data length is %lu bytes\n",
 		       (unsigned long)count);
 		pr_info("Plain data length must be > 0 bytes and <= %u bytes\n",
-		       MAX_PLAIN_DATA_SIZE);
+		       MAX_RSA_PLAIN_DATA_SIZE);
 		return -EINVAL;
 	}
 
@@ -1560,7 +1561,7 @@ static int __init rsa_sec_key_init(void)
 	rsa_sign_data_buf_page = alloc_pages(GFP_KERNEL,
 				     get_order(MAX_RSA_SIGN_DATA_SIZE));
 	rsa_plain_data_buf_page = alloc_pages(GFP_KERNEL,
-				       get_order(MAX_PLAIN_DATA_SIZE));
+				       get_order(MAX_RSA_PLAIN_DATA_SIZE));
 
 	if (!rsa_key_blob_page || !rsa_import_modulus_page ||
 	   !rsa_import_public_exponent_page || !rsa_import_pvt_exponent_page ||
@@ -1595,7 +1596,7 @@ static int __init rsa_sec_key_init(void)
 		if (rsa_plain_data_buf_page)
 			free_pages((unsigned long)
 				  page_address(rsa_plain_data_buf_page),
-				  get_order(MAX_PLAIN_DATA_SIZE));
+				  get_order(MAX_RSA_PLAIN_DATA_SIZE));
 
 		sysfs_remove_group(rsa_sec_kobj, &rsa_sec_key_attr_grp);
 		kobject_put(rsa_sec_kobj);
@@ -2266,7 +2267,7 @@ static ssize_t
 show_basic_output(struct device *dev, struct device_attribute *attr,
 					char *buf)
 {
-	return snprintf(buf, (basic_data_len + 1), "%d", basic_output);
+	return snprintf(buf, (basic_data_len + 1), "%lu\n", basic_output);
 }
 
 /* Basic multiplication App*/
@@ -2282,7 +2283,7 @@ store_basic_input(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 	}
 	if (kstrtouint(buf, 10, &basic_input) || basic_input > (U32_MAX / 10))
-		pr_err("\n Please enter a valid unsigned integer less than %d",
+		pr_err("\n Please enter a valid unsigned integer less than %lu",
 			(U32_MAX / 10));
 	else
 		ret = tzapp_test(dev, &basic_input, NULL, 0, 1);
@@ -2655,7 +2656,7 @@ static int __exit qseecom_remove(struct platform_device *pdev)
 
 		if (rsa_plain_data_buf)
 			free_pages((unsigned long)rsa_plain_data_buf,
-				  get_order(MAX_PLAIN_DATA_SIZE));
+				  get_order(MAX_RSA_PLAIN_DATA_SIZE));
 
 		sysfs_remove_group(rsa_sec_kobj, &rsa_sec_key_attr_grp);
 		kobject_put(rsa_sec_kobj);
