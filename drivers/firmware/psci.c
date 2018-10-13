@@ -270,10 +270,12 @@ static void psci_sys_reset(enum reboot_mode reboot_mode, const char *cmd)
 	 * the cros_ec code to ask the EC to cold reset us.  It's either this
 	 * or no TPM for you.
 	 */
+	/*
 	if (of_machine_is_compatible("google,cheza-rev2") ||
 	    of_machine_is_compatible("google,cheza-rev1")) {
 		extra_hacky_cold_reboot_for_cheza_rev1_and_rev2();
 	}
+	*/
 
 	// HACK!
 	writel(0, pshold);
