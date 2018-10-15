@@ -20,6 +20,7 @@
 struct venus_inst;
 
 u32 v4l2_venus_fmt(u32 pixfmt);
+int load_scale_clocks(struct venus_core *core);
 bool venus_helper_check_codec(struct venus_inst *inst, u32 v4l2_pixfmt);
 struct vb2_v4l2_buffer *venus_helper_find_buf(struct venus_inst *inst,
 					      unsigned int type, u32 idx);

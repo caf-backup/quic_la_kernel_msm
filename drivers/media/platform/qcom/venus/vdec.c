@@ -802,6 +802,7 @@ static int vdec_verify_conf(struct venus_inst *inst)
 static int vdec_start_streaming(struct vb2_queue *q, unsigned int count)
 {
 	struct venus_inst *inst = vb2_get_drv_priv(q);
+	struct venus_core *core = inst->core;
 	int ret;
 
 	mutex_lock(&inst->lock);
@@ -822,7 +823,7 @@ static int vdec_start_streaming(struct vb2_queue *q, unsigned int count)
 
 	if (inst->streamon_out && !inst->streamon_cap &&
 		(q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)) {
-
+		load_scale_clocks(core);
 		ret = vdec_output_conf(inst);
 		if (ret)
 			goto deinit_sess;
