@@ -180,15 +180,9 @@
 			drive-strength = <8>;
 			bias-disable;
 		};
-		data_8 {
-			pins = "gpio16";
-			function = "qpic_pad8";
-			drive-strength = <8>;
-			bias-disable;
-		};
 		qpic_pad {
-			pins = "gpio0", "gpio1", "gpio2", "gpio3", "gpio4",
-			       "gpio9", "gpio10", "gpio11", "gpio17";
+			pins = "gpio1", "gpio3", "gpio4",
+			       "gpio10", "gpio11", "gpio17";
 			function = "qpic_pad";
 			drive-strength = <8>;
 			bias-disable;
@@ -244,6 +238,17 @@
 			bias-pull-up;
 		};
 	};
+
+	ar803x_pins: ar803x_pins {
+		ar803x_reset {
+			pins = "gpio16";
+			function = "gpio";
+			drive-strength = <8>;
+			output-high;
+			bias-disable;
+		};
+	};
+
 };
 
 &soc {
@@ -318,8 +323,9 @@
 
 	mdio@90000 {
 		pinctrl-0 = <&mdio_pins>;
-		pinctrl-names = "default";
-		phy-reset-gpio = <&tlmm 37 0>;
+		pinctrl-1 = <&ar803x_pins>;
+		pinctrl-names = "default", "ar803x_reset";
+		phy-reset-gpio = <&tlmm 37 0 &tlmm 16 1>;
 		phy0: ethernet-phy@0 {
 			reg = <6>;
 		};
@@ -333,7 +339,7 @@
 			reg = <3>;
 		};
 		phy4: ethernet-phy@4 {
-			reg = <0x1c>;
+			reg = <0x14>;
 		};
 		phy5: ethernet-phy@5 {
 			compatible ="ethernet-phy-ieee802.3-c45";
@@ -371,7 +377,7 @@
 			};
 			port@4 {
 				port_id = <5>;
-				phy_address = <0x1c>;
+				phy_address = <0x14>;
 				port_mac_sel = "QGMAC_PORT";
 			};
 			port@5 {
@@ -674,7 +680,7 @@
 		qcom,mactype = <0>;
 		local-mac-address = [000000000000];
 		qcom,link-poll = <1>;
-		qcom,phy-mdio-addr = <0x1c>;
+		qcom,phy-mdio-addr = <0x14>;
 		phy-mode = "sgmii";
 	};
 
