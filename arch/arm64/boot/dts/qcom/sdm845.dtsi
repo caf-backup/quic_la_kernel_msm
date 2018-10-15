@@ -2698,6 +2698,8 @@
 			iommus = <&apps_smmu 0x10a0 0x8>,
 				<&apps_smmu 0x10b0 0x0>;
 			memory-region = <&venus_region>;
+			interconnects = <&qnoc 42 &qnoc 512>;
+			interconnect-names = "video";
 
 			video-core0 {
 				compatible = "venus-decoder";
