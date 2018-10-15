@@ -52,6 +52,10 @@
 			status = "ok";
 		};
 
+		i2c_0: i2c@78b6000 {
+			status = "ok";
+		};
+
 		dp1 {
 			device_type = "network";
 			compatible = "qcom,nss-dp";
