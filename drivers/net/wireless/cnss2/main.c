@@ -415,7 +415,7 @@ int cnss_wlan_enable(struct device *dev,
 	if (qmi_bypass)
 		return 0;
 
-	if (mode == CNSS_CALIBRATION)
+	if (mode == CNSS_CALIBRATION || mode == CNSS_WALTEST)
 		goto skip_cfg;
 
 	if (!config || !host_version) {
@@ -1148,10 +1148,14 @@ void cnss_wlan_unregister_driver(struct cnss_wlan_driver *driver_ops)
 		     plat_priv->device_id == QCA8074V2_DEVICE_ID ||
 		     plat_priv->device_id == QCA6018_DEVICE_ID) && ops) {
 			subsys_info = &plat_priv->subsys_info;
-			if (subsys_info->subsys_handle)
+			if (subsys_info->subsys_handle &&
+			    !subsys_info->subsystem_put_in_progress) {
+				subsys_info->subsystem_put_in_progress = true;
 				subsystem_put(subsys_info->subsys_handle);
-			else
+				subsys_info->subsystem_put_in_progress = false;
+			} else {
 				ops->remove(plat_priv->plat_dev);
+			}
 
 			subsys_info->subsys_handle = NULL;
 			cnss_unregister_qca8074_cb(plat_priv);
@@ -1216,10 +1220,12 @@ void cnss_subsystem_put(struct device *dev)
 		return;
 	}
 
-	if (subsys_info->subsys_handle)
+	if (!subsys_info->subsystem_put_in_progress) {
+		subsys_info->subsystem_put_in_progress = true;
 		subsystem_put(subsys_info->subsys_handle);
-
-	subsys_info->subsys_handle = NULL;
+		subsys_info->subsystem_put_in_progress = false;
+		subsys_info->subsys_handle = NULL;
+	}
 
 	if (plat_priv->device_id == QCA6290_DEVICE_ID)
 		cnss_unregister_subsys(plat_priv);

@@ -51,6 +51,7 @@ struct cnss_subsys_info {
 	struct subsys_device *subsys_device;
 	struct subsys_desc subsys_desc;
 	void *subsys_handle;
+	bool subsystem_put_in_progress;
 };
 
 struct cnss_ramdump_info {
