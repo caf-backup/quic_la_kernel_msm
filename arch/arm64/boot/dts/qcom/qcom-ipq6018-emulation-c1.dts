@@ -61,6 +61,14 @@
 			img-addr = <0x4AB00000>;
 		};
 
+		qpic_bam: dma@7984000{
+			status = "ok";
+		};
+
+		nand: qpic-nand@79b0000 {
+			status = "ok";
+		};
+
 		dp1 {
 			device_type = "network";
 			compatible = "qcom,nss-dp";
