@@ -197,6 +197,7 @@ struct cnss_plat_data {
 	spinlock_t event_lock; /* spinlock for driver work event handling */
 	struct work_struct event_work;
 	struct workqueue_struct *event_wq;
+	struct workqueue_struct *qmi_resp_wq;
 	struct qmi_handle *qmi_wlfw_clnt;
 	struct work_struct qmi_recv_msg_work;
 	struct notifier_block qmi_wlfw_clnt_nb;
