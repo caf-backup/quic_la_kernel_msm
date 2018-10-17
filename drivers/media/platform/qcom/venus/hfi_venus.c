@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
  * Copyright (C) 2017 Linaro Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -1350,6 +1350,8 @@ static int venus_session_set_property(struct venus_inst *inst, u32 ptype,
 	pkt = (struct hfi_session_set_property_pkt *)packet;
 
 	ret = pkt_session_set_property(pkt, inst, ptype, pdata);
+	if (ret == -ENOTSUPP)
+		return 0;
 	if (ret)
 		return ret;
 
