@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
  * Copyright (C) 2017 Linaro Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -112,6 +112,14 @@
 #define WRAPPER_CPU_STATUS			(WRAPPER_BASE + 0x2014)
 #define WRAPPER_CPU_STATUS_WFI			BIT(0)
 #define WRAPPER_SW_RESET			(WRAPPER_BASE + 0x3000)
+#define WRAPPER_CPA_START_ADDR			(WRAPPER_BASE + 0x1020)
+#define WRAPPER_CPA_END_ADDR			(WRAPPER_BASE + 0x1024)
+#define WRAPPER_FW_START_ADDR			(WRAPPER_BASE + 0x1028)
+#define WRAPPER_FW_END_ADDR			(WRAPPER_BASE + 0x102C)
+#define WRAPPER_NONPIX_START_ADDR		(WRAPPER_BASE + 0x1030)
+#define WRAPPER_NONPIX_END_ADDR			(WRAPPER_BASE + 0x1034)
+#define WRAPPER_A9SS_SW_RESET			(WRAPPER_BASE + 0x3000)
+#define WRAPPER_A9SS_SW_RESET_BIT		BIT(4)
 
 /* Venus 4xx */
 #define WRAPPER_VCODEC0_MMCC_POWER_STATUS	(WRAPPER_BASE + 0x90)
