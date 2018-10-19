@@ -2110,9 +2110,6 @@ static int ip6_tnl_fill_info(struct sk_buff *skb, const struct net_device *dev)
 {
 	struct ip6_tnl *tunnel = netdev_priv(dev);
 	struct __ip6_tnl_parm *parm = &tunnel->parms;
-	struct __ip6_tnl_fmr *c;
-	int fmrcnt = 0;
-	struct nlattr *fmrs;
 
 	if (nla_put_u32(skb, IFLA_IPTUN_LINK, parm->link) ||
 	    nla_put_in6_addr(skb, IFLA_IPTUN_LOCAL, &parm->laddr) ||
@@ -2121,31 +2118,10 @@ static int ip6_tnl_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	    nla_put_u8(skb, IFLA_IPTUN_ENCAP_LIMIT, parm->encap_limit) ||
 	    nla_put_be32(skb, IFLA_IPTUN_FLOWINFO, parm->flowinfo) ||
 	    nla_put_u32(skb, IFLA_IPTUN_FLAGS, parm->flags) ||
-	    nla_put_u8(skb, IFLA_IPTUN_PROTO, parm->proto) ||
-	    !(fmrs = nla_nest_start(skb, IFLA_IPTUN_FMRS)))
-		goto nla_put_failure;
-
-	for (c = parm->fmrs; c; c = c->next) {
-		struct nlattr *fmr = nla_nest_start(skb, ++fmrcnt);
-		if (!fmr ||
-			nla_put(skb, IFLA_IPTUN_FMR_IP6_PREFIX,
-				sizeof(c->ip6_prefix), &c->ip6_prefix) ||
-			nla_put(skb, IFLA_IPTUN_FMR_IP4_PREFIX,
-				sizeof(c->ip4_prefix), &c->ip4_prefix) ||
-			nla_put_u8(skb, IFLA_IPTUN_FMR_IP6_PREFIX_LEN, c->ip6_prefix_len) ||
-			nla_put_u8(skb, IFLA_IPTUN_FMR_IP4_PREFIX_LEN, c->ip4_prefix_len) ||
-			nla_put_u8(skb, IFLA_IPTUN_FMR_EA_LEN, c->ea_len) ||
-			nla_put_u8(skb, IFLA_IPTUN_FMR_OFFSET, c->offset))
-				goto nla_put_failure;
-
-		nla_nest_end(skb, fmr);
-	}
-	nla_nest_end(skb, fmrs);
+	    nla_put_u8(skb, IFLA_IPTUN_PROTO, parm->proto))
+		return -EMSGSIZE;
 
 	return 0;
-
-nla_put_failure:
-	return -EMSGSIZE;
 }
 
 struct net *ip6_tnl_get_link_net(const struct net_device *dev)
