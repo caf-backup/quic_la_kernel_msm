@@ -20,8 +20,8 @@
 #include "led.h"
 #include "wme.h"
 
-#ifdef CONFIG_MAC80211_PACKET_TRACE
-#include "packet_trace.h"
+#ifdef CONFIG_MAC80211_WIFI_DIAG
+#include "wifi_diag.h"
 #endif
 
 
@@ -712,8 +712,8 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 	int shift = 0;
 	int tid = IEEE80211_NUM_TIDS;
 
-#ifdef CONFIG_MAC80211_PACKET_TRACE
-	PACKET_TRACE_TX_STATUS_LOCAL_DBG(local, skb, "");
+#ifdef CONFIG_MAC80211_WIFI_DIAG
+	WIFI_DIAG_TX_STATUS_LOCAL_DBG(local, skb, "");
 #endif
 
 	rates_idx = ieee80211_tx_get_rates(hw, info, &retry_count);

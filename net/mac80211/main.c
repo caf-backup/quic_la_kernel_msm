@@ -33,8 +33,8 @@
 #include "led.h"
 #include "debugfs.h"
 
-#ifdef CONFIG_MAC80211_PACKET_TRACE
-#include "packet_trace.h"
+#ifdef CONFIG_MAC80211_WIFI_DIAG
+#include "wifi_diag.h"
 #endif
 
 void ieee80211_configure_filter(struct ieee80211_local *local)
@@ -1147,8 +1147,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		goto fail_ifa6;
 #endif
 
-#ifdef CONFIG_MAC80211_PACKET_TRACE
-	packet_trace_init(local);
+#ifdef CONFIG_MAC80211_WIFI_DIAG
+	wifi_diag_init(local);
 #endif
 
 	return 0;
@@ -1189,8 +1189,8 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 	tasklet_kill(&local->tx_pending_tasklet);
 	tasklet_kill(&local->tasklet);
 
-#ifdef CONFIG_MAC80211_PACKET_TRACE
-	packet_trace_deinit(local);
+#ifdef CONFIG_MAC80211_WIFI_DIAG
+	wifi_diag_deinit(local);
 #endif
 
 #ifdef CONFIG_INET
