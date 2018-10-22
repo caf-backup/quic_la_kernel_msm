@@ -91,6 +91,8 @@ static int debug_wcss;
 
 #define EM_QDSP6 164
 
+#define DEFAULT_IMG_ADDR 0x4b000000
+
 struct q6v5_rtable {
 	struct resource_table rtable;
 	struct fw_rsc_hdr last_hdr;
@@ -128,6 +130,7 @@ struct q6v5_rproc_pdata {
 	int secure;
 	int spurios_irqs;
 	void *reg_save_buffer;
+	unsigned int img_addr;
 };
 
 static struct q6v5_rproc_pdata *q6v5_rproc_pdata;
@@ -723,7 +726,7 @@ static int q6_rproc_emu_start(struct rproc *rproc)
 	val |= 0x14;
 	writel(val, pdata->tcsr_global_base + TCSR_GLOBAL_CFG0);
 
-	writel(0x4b000000 >> 4, pdata->q6_base + QDSP6SS_RST_EVB);
+	writel(pdata->img_addr >> 4, pdata->q6_base + QDSP6SS_RST_EVB);
 	writel(0x1, pdata->q6_base + QDSP6SS_XO_CBCR);
 	writel(0x1700000, pdata->q6_base + QDSP6SS_PWR_CTL);
 	mdelay(10);
@@ -1228,6 +1231,12 @@ static int q6_rproc_probe(struct platform_device *pdev)
 	q6v5_rproc_pdata->rproc = rproc;
 	q6v5_rproc_pdata->emulation = of_property_read_bool(pdev->dev.of_node,
 					"qca,emulation");
+	if (q6v5_rproc_pdata->emulation) {
+		q6v5_rproc_pdata->img_addr = DEFAULT_IMG_ADDR;
+		ret = of_property_read_u32(pdev->dev.of_node, "img-addr",
+						&q6v5_rproc_pdata->img_addr);
+	}
+
 	q6v5_rproc_pdata->secure = of_property_read_bool(pdev->dev.of_node,
 					"qca,secure");
 	if(of_property_read_bool(pdev->dev.of_node, "qca,dump-q6-reg"))
