@@ -916,6 +916,7 @@ struct ieee80211_tx_info {
 
 #ifdef CONFIG_MAC80211_WIFI_DIAG
 	u32 wifi_diag_cookie;
+	u32 tx_start_time;
 #endif
 
 	union {
@@ -1236,6 +1237,14 @@ struct ieee80211_rx_status {
 	u32 wifi_diag_cookie;
 #endif
 };
+
+#define IEEE80211_TX_DELAY_SHIFT	10
+static inline u32 ieee80211_txdelay_get_time(void)
+{
+	u64 ns = ktime_get_ns();
+
+	return ns >> IEEE80211_TX_DELAY_SHIFT;
+}
 
 /**
  * struct ieee80211_vendor_radiotap - vendor radiotap data information
