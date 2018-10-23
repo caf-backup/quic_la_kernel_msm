@@ -202,6 +202,11 @@ static void notify_uspace_tsens_fn(struct work_struct *work)
 	struct tsens_sensor *s = container_of(work, struct tsens_sensor,
 								notify_work);
 
+	if (!s || !s->tzd) {
+		/* Do nothing. TSENS driver has not been registered yet */
+		return;
+	}
+
 	sysfs_notify(&s->tzd->device.kobj, NULL, "type");
 }
 
