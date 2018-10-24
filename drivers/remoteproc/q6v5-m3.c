@@ -38,6 +38,7 @@ struct m3_rproc_pdata {
 	struct rproc *rproc;
 	struct subsys_device *subsys;
 	struct subsys_desc subsys_desc;
+	int missing_m3;
 	int secure;
 };
 
@@ -99,7 +100,6 @@ static struct rproc_ops m3_rproc_ops = {
 
 static int m3_load(struct rproc *rproc, const struct firmware *fw)
 {
-	int ret = 0;
 	struct device *dev_rproc = rproc->dev.parent;
 	struct platform_device *pdev = to_platform_device(dev_rproc);
 	struct q6v5_rproc_pdata *pdata = platform_get_drvdata(pdev);
@@ -115,14 +115,22 @@ static int start_m3(const struct subsys_desc *subsys)
 	struct rproc *rproc = pdata->rproc;
 	int ret = 0;
 
+	if (pdata->missing_m3) {
+		pr_emerg("m3_fw.mdt missing, assuming combined image\n");
+		return 0;
+	}
+
 	ret = rproc_add(rproc);
 	if (ret)
 		return ret;
 
 	wait_for_completion(&rproc->firmware_loading_complete);
 	ret = rproc_boot(rproc);
-	if (ret)
-		pr_err("couldn't boot m3: %d\n", ret);
+	if (ret) {
+		pdata->missing_m3 = 1;
+		pr_emerg("m3_fw.mdt missing, assuming combined image\n");
+		return 0;
+	}
 
 	return ret;
 }
@@ -131,6 +139,9 @@ static int stop_m3(const struct subsys_desc *subsys, bool force_stop)
 {
 	struct m3_rproc_pdata *pdata = subsys_to_pdata(subsys);
 	struct rproc *rproc = pdata->rproc;
+
+	if (pdata->missing_m3)
+		return 0;
 
 	rproc_shutdown(rproc);
 	rproc_del(rproc);
