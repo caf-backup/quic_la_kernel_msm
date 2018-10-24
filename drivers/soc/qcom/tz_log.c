@@ -298,7 +298,7 @@ static irqreturn_t tzerr_irq(int irq, void *data)
 	if (paniconaccessviolation) {
 		panic("WARN: Access Violation!!!");
 	} else {
-		pr_emerg("WARN: Access Violation!!!, "
+		pr_emerg_ratelimited("WARN: Access Violation!!!, "
 			"Run \"cat /sys/kernel/debug/qcom_debug_logs/tz_log\" "
 			"for more details \n");
 	}
