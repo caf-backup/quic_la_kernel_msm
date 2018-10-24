@@ -2586,6 +2586,9 @@ static int cnss_probe(struct platform_device *plat_dev)
 	}
 #endif
 
+	if (device_id->driver_data == QCA6018_DEVICE_ID)
+		goto skip_soc_version_checks;
+
 	soc_version_major = of_get_property(of_find_node_by_path("/"),
 					    "soc_version_major", NULL);
 	BUG_ON(!soc_version_major);
@@ -2605,6 +2608,8 @@ static int cnss_probe(struct platform_device *plat_dev)
 			goto out;
 		}
 	}
+
+skip_soc_version_checks:
 
 	plat_priv = devm_kzalloc(&plat_dev->dev, sizeof(*plat_priv),
 				 GFP_KERNEL);
