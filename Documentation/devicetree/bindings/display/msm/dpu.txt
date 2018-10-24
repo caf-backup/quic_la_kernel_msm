@@ -28,6 +28,11 @@ Required properties:
 - #address-cells: number of address cells for the MDSS children. Should be 1.
 - #size-cells: Should be 1.
 - ranges: parent bus address space is the same as the child bus address space.
+- interconnects : pairs of phandles and interconnect provider specifier to
+  denote the edge source and destination ports of the interconnect path.
+- interconnect-names : list of interconnect path name strings sorted in the
+  same order as the interconnects property. Consumers drivers will use
+  interconnect-names to match interconnect paths with interconnect specifiers.
 
 Optional properties:
 - assigned-clocks: list of clock specifiers for clocks needing rate assignment
@@ -85,6 +90,9 @@ Example:
 		interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-controller;
 		#interrupt-cells = <1>;
+
+		interconnects = <&qnoc 38 &qnoc 512>;
+		interconnect-names = "port0";
 
 		iommus = <&apps_iommu 0>;
 
