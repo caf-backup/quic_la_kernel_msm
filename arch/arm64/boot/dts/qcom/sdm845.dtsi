@@ -7,11 +7,16 @@
 
 #include <dt-bindings/clock/qcom,dispcc-sdm845.h>
 #include <dt-bindings/clock/qcom,gcc-sdm845.h>
+#include <dt-bindings/clock/qcom,gpucc-sdm845.h>
 #include <dt-bindings/clock/qcom,rpmh.h>
+#include <dt-bindings/clock/qcom,videocc-sdm845.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/phy/phy-qcom-qusb2.h>
+#include <dt-bindings/power/qcom-rpmpd.h>
 #include <dt-bindings/reset/qcom,sdm845-aoss.h>
 #include <dt-bindings/soc/qcom,rpmh-rsc.h>
+#include <dt-bindings/soc/qcom,ipa.h>
+#include <dt-bindings/thermal/thermal.h>
 
 / {
 	interrupt-parent = <&intc>;
@@ -87,6 +92,16 @@
 			reg = <0 0x86200000 0 0x2d00000>;
 			no-map;
 		};
+
+		mpss_mem: reserved-memory@8e000000 {
+			no-map;
+			reg = <0 0x8e000000 0 0x7800000>;
+		};
+
+		mba_mem: reserved-memory@96500000 {
+			no-map;
+			reg = <0 0x96500000 0 0x200000>;
+		};
 	};
 
 	cpus {
@@ -99,6 +114,12 @@
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 			next-level-cache = <&L2_0>;
+			qcom,freq-domain = <&cpufreq_hw 0>;
+			capacity-dmips-mhz = <607>;
+			sched-energy-costs = <&SDM845_CPU_COST_0 &SDM845_CLUSTER_COST_0>;
+			freq-energy-model;
+			#cooling-cells = <2>; /* min followed by max */
+
 			L2_0: l2-cache {
 				compatible = "cache";
 				next-level-cache = <&L3_0>;
@@ -114,6 +135,11 @@
 			reg = <0x0 0x100>;
 			enable-method = "psci";
 			next-level-cache = <&L2_100>;
+			qcom,freq-domain = <&cpufreq_hw 0>;
+			capacity-dmips-mhz = <607>;
+			sched-energy-costs = <&SDM845_CPU_COST_0 &SDM845_CLUSTER_COST_0>;
+			freq-energy-model;
+
 			L2_100: l2-cache {
 				compatible = "cache";
 				next-level-cache = <&L3_0>;
@@ -126,6 +152,11 @@
 			reg = <0x0 0x200>;
 			enable-method = "psci";
 			next-level-cache = <&L2_200>;
+			qcom,freq-domain = <&cpufreq_hw 0>;
+			capacity-dmips-mhz = <607>;
+			sched-energy-costs = <&SDM845_CPU_COST_0 &SDM845_CLUSTER_COST_0>;
+			freq-energy-model;
+
 			L2_200: l2-cache {
 				compatible = "cache";
 				next-level-cache = <&L3_0>;
@@ -138,6 +169,11 @@
 			reg = <0x0 0x300>;
 			enable-method = "psci";
 			next-level-cache = <&L2_300>;
+			qcom,freq-domain = <&cpufreq_hw 0>;
+			capacity-dmips-mhz = <607>;
+			sched-energy-costs = <&SDM845_CPU_COST_0 &SDM845_CLUSTER_COST_0>;
+			freq-energy-model;
+
 			L2_300: l2-cache {
 				compatible = "cache";
 				next-level-cache = <&L3_0>;
@@ -150,6 +186,12 @@
 			reg = <0x0 0x400>;
 			enable-method = "psci";
 			next-level-cache = <&L2_400>;
+			capacity-dmips-mhz = <1024>;
+			qcom,freq-domain = <&cpufreq_hw 1>;
+			sched-energy-costs = <&SDM845_CPU_COST_1 &SDM845_CLUSTER_COST_1>;
+			freq-energy-model;
+			#cooling-cells = <2>; /* min followed by max */
+
 			L2_400: l2-cache {
 				compatible = "cache";
 				next-level-cache = <&L3_0>;
@@ -162,6 +204,11 @@
 			reg = <0x0 0x500>;
 			enable-method = "psci";
 			next-level-cache = <&L2_500>;
+			qcom,freq-domain = <&cpufreq_hw 1>;
+			capacity-dmips-mhz = <1024>;
+			sched-energy-costs = <&SDM845_CPU_COST_1 &SDM845_CLUSTER_COST_1>;
+			freq-energy-model;
+
 			L2_500: l2-cache {
 				compatible = "cache";
 				next-level-cache = <&L3_0>;
@@ -174,6 +221,11 @@
 			reg = <0x0 0x600>;
 			enable-method = "psci";
 			next-level-cache = <&L2_600>;
+			qcom,freq-domain = <&cpufreq_hw 1>;
+			capacity-dmips-mhz = <1024>;
+			sched-energy-costs = <&SDM845_CPU_COST_1 &SDM845_CLUSTER_COST_1>;
+			freq-energy-model;
+
 			L2_600: l2-cache {
 				compatible = "cache";
 				next-level-cache = <&L3_0>;
@@ -186,10 +238,197 @@
 			reg = <0x0 0x700>;
 			enable-method = "psci";
 			next-level-cache = <&L2_700>;
+			qcom,freq-domain = <&cpufreq_hw 1>;
+			capacity-dmips-mhz = <1024>;
+			sched-energy-costs = <&SDM845_CPU_COST_1 &SDM845_CLUSTER_COST_1>;
+			freq-energy-model;
+
 			L2_700: l2-cache {
 				compatible = "cache";
 				next-level-cache = <&L3_0>;
 			};
+		};
+
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&CPU0>;
+				};
+
+				core1 {
+					cpu = <&CPU1>;
+				};
+
+				core2 {
+					cpu = <&CPU2>;
+				};
+
+				core3 {
+					cpu = <&CPU3>;
+				};
+			};
+
+			cluster1 {
+				core0 {
+					cpu = <&CPU4>;
+				};
+
+				core1 {
+					cpu = <&CPU5>;
+				};
+
+				core2 {
+					cpu = <&CPU6>;
+				};
+
+				core3 {
+					cpu = <&CPU7>;
+				};
+			};
+		};
+	};
+
+	energy-costs {
+		SDM845_CPU_COST_0: sdm845-core-cost0 {
+			busy-cost-data = <
+				 300000 12
+				 403200 17
+				 480000 21
+				 576000 27
+				 652800 31
+				 748800 37
+				 825600 42
+				 902400 47
+				 979200 52
+				1056000 57
+				1132800 62
+				1228800 70
+				1324800 78
+				1420800 89
+				1516800 103
+				1612800 122
+				1689600 141
+				1766400 160
+			>;
+			idle-cost-data = <
+				10 8 6 4
+			>;
+		};
+
+		SDM845_CPU_COST_1: sdm845-core-cost1 {
+			busy-cost-data = <
+				 300000 189
+				 403200 523
+				 480000 763
+				 576000 1052
+				 652800 1273
+				 748800 1536
+				 825600 1736
+				 902400 1926
+				 979200 2108
+				1056000 2284
+				1132800 2456
+				1209600 2628
+				1286400 2804
+				1363200 2992
+				1459200 3255
+				1536000 3499
+				1612800 3786
+				1689600 4128
+				1766400 4535
+				1843200 5019
+				1920000 5583
+				1996800 6226
+				2092800 7120
+				2169600 7876
+				2246400 8628
+				2323200 9344
+				2400000 10030
+				2476800 10806
+				2553600 12045
+				2649600 15686
+				2707200 19978
+				2745600 25586
+				2764800 30000
+				2784000 35000
+				2803200 40000
+				2841600 50000
+				2956800 60000
+			>;
+			idle-cost-data = <
+				100 80 60 40
+			>;
+		};
+
+		SDM845_CLUSTER_COST_0: sdm845-cluster-cost0 {
+			busy-cost-data = <
+				 300000 3
+				 403200 4
+				 480000 4
+				 576000 4
+				 652800 5
+				 748800 5
+				 825600 6
+				 902400 7
+				 979200 7
+				1056000 8
+				1132800 9
+				1228800 9
+				1324800 10
+				1420800 11
+				1516800 12
+				1612800 13
+				1689600 15
+				1766400 17
+			>;
+			idle-cost-data = <
+				4 3 2 1
+			>;
+		};
+
+		SDM845_CLUSTER_COST_1: sdm845-cluster-cost1 {
+			busy-cost-data = <
+				 300000  24
+				 403200  24
+				 480000  25
+				 576000  25
+				 652800  26
+				 748800  27
+				 825600  28
+				 902400  29
+				 979200  30
+				1056000  32
+				1132800  34
+				1209600  37
+				1286400  40
+				1363200  45
+				1459200  50
+				1536000  57
+				1612800  64
+				1689600  74
+				1766400  84
+				1843200  96
+				1920000 106
+				1996800 113
+				2092800 120
+				2169600 125
+				2246400 127
+				2323200 130
+				2400000 135
+				2476800 140
+				2553600 145
+				2649600 150
+				2707200 153
+				2745600 155
+				2764800 160
+				2784000 165
+				2803200 170
+				2841600 180
+				2956800 190
+			>;
+			idle-cost-data = <
+				4 3 2 1
+			>;
 		};
 	};
 
@@ -218,6 +457,13 @@
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <32764>;
+		};
+	};
+
+	firmware {
+		/* TODO: does this really belong in SoC dtsi file? */
+		scm {
+			compatible = "qcom,scm-msm8996";
 		};
 	};
 
@@ -299,6 +545,17 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 		};
+
+		ipa_smp2p_out: ipa-ap-to-modem {
+			qcom,entry-name = "ipa";
+			#qcom,smem-state-cells = <1>;
+		};
+
+		ipa_smp2p_in: ipa-modem-to-ap {
+			qcom,entry-name = "ipa";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
 	};
 
 	smp2p-slpi {
@@ -326,11 +583,22 @@
 		method = "smc";
 	};
 
+	qcom,rmnet-ipa {
+		compatible = "qcom,rmnet-ipa";
+	};
+
 	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0 0 0 0xffffffff>;
 		compatible = "simple-bus";
+
+		maxvoter {
+			compatible = "qcom,maxvoter";
+			power-domains = <&rpmhpd SDM845_MX>,
+					<&rpmhpd SDM845_CX>;
+			power-domain-names = "mx", "cx";
+		};
 
 		gcc: clock-controller@100000 {
 			compatible = "qcom,gcc-sdm845";
@@ -1040,6 +1308,33 @@
 			};
 		};
 
+		ipa_hw: ipa@1e00000 {
+			compatible = "qcom,ipa";
+
+			qcom,ipa-hw-ver = <QCOM_IPA_HW_VER_v3_5_1>;
+			qcom,ee = <0>;
+
+			reg = <0x1e00000 0x34000>,
+			      <0x1e04000 0x2c000>;
+			reg-names = "ipa-base",
+				    "gsi-base";
+
+			interrupts-extended =
+				<&intc GIC_SPI 311 IRQ_TYPE_EDGE_RISING>,
+				<&intc GIC_SPI 432 IRQ_TYPE_LEVEL_HIGH>,
+				<&ipa_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
+				<&ipa_smp2p_in 1 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "ipa-irq",
+					  "gsi-irq",
+					  "ipa-clock-query",
+					  "ipa-post-init";
+
+			qcom,smem-states = <&ipa_smp2p_out 0>,
+					   <&ipa_smp2p_out 1>;
+			qcom,smem-state-names = "ipa-clock-enabled-valid",
+						"ipa-clock-enabled";
+		};
+
 		tcsr_mutex_regs: syscon@1f40000 {
 			compatible = "syscon";
 			reg = <0x1f40000 0x40000>;
@@ -1053,6 +1348,118 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+
+			dpu_dp_aux_active: dpu-dp-aux_active {
+				pinmux {
+					pins = "gpio43", "gpio51";
+					function = "gpio";
+				};
+
+				/* TODO: move pinconf to board file */
+				pinconf {
+					pins = "gpio43", "gpio51";
+					bias-disable;
+					drive-strength = <8>;
+				};
+			};
+
+			dpu_dp_aux_suspend: dpu-dp-aux-suspend {
+				pinmux {
+					pins = "gpio43", "gpio51";
+					function = "gpio";
+				};
+
+				/* TODO: move pinconf to board file */
+				pinconf {
+					pins = "gpio43", "gpio51";
+					bias-pull-down;
+					drive-strength = <2>;
+				};
+			};
+
+			dpu_dp_usbplug_cc_active: dpu-dp-usbplug-cc-active {
+				pinmux {
+					pins = "gpio38";
+					function = "gpio";
+				};
+
+				/* TODO: move pinconf to board file */
+				pinconf {
+					pins = "gpio38";
+					bias-disable;
+					drive-strength = <16>;
+				};
+			};
+
+			dpu_dp_usbplug_cc_suspend: dpu-dp-usbplug-cc-suspend {
+				pinmux {
+					pins = "gpio38";
+					function = "gpio";
+				};
+
+				/* TODO: move pinconf to board file */
+				pinconf {
+					pins = "gpio38";
+					bias-pull-down;
+					drive-strength = <2>;
+				};
+			};
+
+			dpu_dsi_active: dpu-dsi-active {
+				pinmux {
+					pins = "gpio6", "gpio52";
+					function = "gpio";
+				};
+
+				/* TODO: move pinconf to board file */
+				pinconf {
+					pins = "gpio6", "gpio52";
+					drive-strength = <8>;
+					/*bias-pull-up; */
+					bias-disable;
+				};
+			};
+			dpu_dsi_suspend: dpu-dsi-suspend {
+				pinmux {
+					pins = "gpio6", "gpio52";
+					function = "gpio";
+				};
+
+				/* TODO: move pinconf to board file */
+				pinconf {
+					pins = "gpio6", "gpio52";
+					drive-strength = <2>;
+					bias-pull-down;
+				};
+			};
+
+			dpu_te_active: dpu-te-active {
+				pinmux {
+					pins = "gpio10";
+					function = "mdp_vsync";
+				};
+
+				/* TODO: move pinconf to board file */
+				pinconf {
+					pins = "gpio10";
+					drive-strength = <2>;
+					bias-pull-down;
+				};
+			};
+
+			dpu_te_suspend: dpu-te-suspend {
+				pinmux {
+					pins = "gpio10";
+					function = "mdp_vsync";
+				};
+
+				/* TODO: move pinconf to board file */
+				pinconf {
+					pins = "gpio10";
+					drive-strength = <2>;
+					bias-pull-down;
+				};
+			};
 
 			qspi_clk: qspi-clk {
 				pinmux {
@@ -1442,6 +1849,219 @@
 			};
 		};
 
+		modem-pil@4080000 {
+			compatible = "qcom,sdm845-mss-pil";
+			reg = <0x04080000 0x408>, <0x04180000 0x48>;
+
+			reg-names = "qdsp6", "rmb";
+
+			interrupts-extended =
+				<&intc GIC_SPI 266 IRQ_TYPE_EDGE_RISING>,
+				<&modem_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
+				<&modem_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
+				<&modem_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
+				<&modem_smp2p_in 3 IRQ_TYPE_EDGE_RISING>;
+
+			interrupt-names = "wdog", "fatal", "ready",
+					  "handover", "stop-ack";
+
+			clocks = <&gcc GCC_MSS_CFG_AHB_CLK>,
+				 <&gcc GCC_MSS_Q6_MEMNOC_AXI_CLK>,
+				 <&gcc GCC_BOOT_ROM_AHB_CLK>,
+				 <&gcc GCC_MSS_GPLL0_DIV_CLK_SRC>,
+				 <&gcc GCC_MSS_SNOC_AXI_CLK>,
+				 <&gcc GCC_MSS_AXIS2_CLK>,
+				 <&gcc GCC_MSS_MFAB_AXIS_CLK>,
+				 <&gcc GCC_PRNG_AHB_CLK>,
+				 <&xo_board>;
+
+			clock-names = "iface", "bus", "mem", "gpll0_mss",
+				      "snoc_axi", "axis2", "mnoc_axi",
+				      "prng", "xo";
+
+			qcom,smem-states = <&modem_smp2p_out 0>;
+			qcom,smem-state-names = "stop";
+
+			resets = <&aoss_reset AOSS_CC_MSS_RESTART>;
+			reset-names = "mss_restart";
+
+			qcom,halt-regs = <&tcsr_mutex_regs
+						0x23000 0x25000 0x24000>;
+
+			power-domains = <&rpmhpd SDM845_CX>, <&rpmhpd SDM845_MX>, <&rpmhpd SDM845_MSS>;
+			power-domain-names = "cx", "mx", "mss";
+
+			mba {
+				memory-region = <&mba_mem>;
+			};
+
+			mpss {
+				memory-region = <&mpss_mem>;
+			};
+
+			glink-edge {
+				interrupts = <0 449 IRQ_TYPE_EDGE_RISING>;
+				label = "modem";
+				qcom,remote-pid = <1>;
+				mboxes = <&apss_shared 12>;
+				mbox-names = "mpss_smem";
+			};
+		};
+
+		/* TODO: should this move elsewhere in the dts? */
+		gpu_opp_table: adreno-opp-table {
+			compatible = "operating-points-v2";
+
+			opp-710000000 {
+				opp-hz = /bits/ 64 <710000000>;
+				qcom,level = <416>;
+			};
+
+			opp-675000000 {
+				opp-hz = /bits/ 64 <675000000>;
+				qcom,level = <384>;
+			};
+
+			opp-596000000 {
+				opp-hz = /bits/ 64 <596000000>;
+				qcom,level = <320>;
+			};
+
+			opp-520000000 {
+				opp-hz = /bits/ 64 <520000000>;
+				qcom,level = <256>;
+			};
+
+			opp-414000000 {
+				opp-hz = /bits/ 64 <414000000>;
+				qcom,level = <192>;
+			};
+
+			opp-342000000 {
+				opp-hz = /bits/ 64 <342000000>;
+				qcom,level = <128>;
+			};
+
+			opp-257000000 {
+				opp-hz = /bits/ 64 <257000000>;
+				qcom,level = <64>;
+			};
+		};
+
+		gpu@5000000 {
+			compatible = "qcom,adreno-630.2", "qcom,adreno";
+			#stream-id-cells = <16>;
+
+			reg = <0x5000000 0x40000>;
+			reg-names = "kgsl_3d0_reg_memory";
+
+			/*
+			 * Look ma, no clocks! The GPU clocks and power are
+			 * controlled entirely by the GMU
+			 */
+
+			interrupts = <GIC_SPI 300 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "kgsl_3d0_irq";
+
+			iommus = <&adreno_smmu 0>;
+
+			operating-points-v2 = <&gpu_opp_table>;
+
+			gmu = <&gmu>;
+		};
+
+		adreno_smmu: smmu@5040000 {
+			compatible = "qcom,sdm845-smmu-v2", "qcom,smmu-v2";
+			reg = <0x5040000 0x10000>;
+			#iommu-cells = <1>;
+			#global-interrupts = <2>;
+			interrupts = <GIC_SPI 229 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>,
+					<GIC_SPI 364 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 365 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 366 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 367 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 368 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 369 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 370 IRQ_TYPE_EDGE_RISING>,
+					<GIC_SPI 371 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&gcc GCC_GPU_MEMNOC_GFX_CLK>,
+				<&gcc GCC_GPU_CFG_AHB_CLK>;
+			clock-names = "bus", "iface";
+
+			power-domains = <&gpucc GPU_CX_GDSC>;
+		};
+
+		/* TODO: should this move elsewhere in the dts? */
+		gmu_opp_table: adreno-gmu-opp-table {
+			compatible = "operating-points-v2";
+
+			opp-400000000 {
+				opp-hz = /bits/ 64 <400000000>;
+				qcom,level = <128>;
+			};
+
+			opp-200000000 {
+				opp-hz = /bits/ 64 <200000000>;
+				qcom,level = <48>;
+			};
+		};
+
+		gmu: gmu@506a000 {
+			compatible="qcom,adreno-gmu";
+
+			reg = <0x506a000 0x30000>, <0xb200000 0x300000>;
+			reg-names = "gmu", "gmu_pdc";
+
+			interrupts = <GIC_SPI 304 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 305 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "hfi", "gmu";
+
+			clocks = <&gpucc GPU_CC_CX_GMU_CLK>,
+				<&gpucc GPU_CC_CXO_CLK>,
+				<&gcc GCC_DDRSS_GPU_AXI_CLK>,
+				<&gcc GCC_GPU_MEMNOC_GFX_CLK>;
+			clock-names = "gmu", "cxo", "axi", "memnoc";
+
+			power-domains = <&gpucc GPU_CX_GDSC>;
+			iommus = <&adreno_smmu 5>;
+
+			operating-points-v2 = <&gmu_opp_table>;
+		};
+
+		gpucc: clock-controller@5090000 {
+			compatible = "qcom,sdm845-gpucc";
+			reg = <0x5090000 0x9000>;
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+			#power-domain-cells = <1>;
+		};
+
+		sdhc_2: sdhci@8804000 {
+			compatible = "qcom,sdhci-msm-v5";
+			reg = <0x8804000 0x1000>;
+			reg-names = "hc_mem";
+
+			interrupts =
+				<GIC_SPI 204 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 222 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "hc_irq", "pwr_irq";
+
+			qcom,bus-width = <4>;
+			qcom,large-address-bus;
+
+			qcom,clk-rates = <400000 20000000 25000000
+					  50000000 100000000 201500000>;
+			qcom,bus-speed-mode = "SDR12", "SDR25", "SDR50",
+					      "DDR50", "SDR104";
+
+			clocks = <&gcc GCC_SDCC2_AHB_CLK>,
+				 <&gcc GCC_SDCC2_APPS_CLK>;
+			clock-names = "iface", "core";
+
+			status = "disabled";
+		};
+
 		qspi: spi@88df000 {
 			compatible = "qcom,sdm845-qspi", "qcom,qspi-v1";
 			reg = <0x88df000 0x600>;
@@ -1634,6 +2254,208 @@
 			};
 		};
 
+		videocc: clock-controller@ab00000 {
+			compatible = "qcom,sdm845-videocc";
+			reg = <0xab00000 0x10000>;
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+			#power-domain-cells = <1>;
+		};
+
+		mdss: mdss@ae00000 {
+			compatible = "qcom,sdm845-mdss";
+			reg = <0xae00000 0x1000>;
+			reg-names = "mdss";
+
+			power-domains = <&dispcc 0>;
+
+			clocks = <&gcc GCC_DISP_AHB_CLK>,
+				 <&gcc GCC_DISP_AXI_CLK>,
+				 <&dispcc DISP_CC_MDSS_MDP_CLK>;
+			clock-names = "gcc_iface", "gcc_bus", "core";
+
+			assigned-clocks = <&dispcc DISP_CC_MDSS_MDP_CLK>;
+			assigned-clock-rates = <300000000>;
+
+			interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
+
+			interconnects = <&qnoc 38 &qnoc 512>,
+					<&qnoc 39 &qnoc 512>;
+			interconnect-names = "port0", "port1";
+
+			iommus = <&apps_smmu 0x880 0x8>,
+				 <&apps_smmu 0xc80 0x8>;
+
+			#address-cells = <2>;
+			#size-cells = <1>;
+			ranges = <0 0 0xae00000 0xb2008>;
+
+			mdss_mdp: mdp@ae01000 {
+				compatible = "qcom,sdm845-dpu";
+				reg = <0 0x1000 0x8f000>, <0 0xb0000 0x2008>;
+				reg-names = "mdp", "vbif";
+
+				clocks = <&dispcc DISP_CC_MDSS_AHB_CLK>,
+					 <&dispcc DISP_CC_MDSS_AXI_CLK>,
+					 <&dispcc DISP_CC_MDSS_MDP_CLK>,
+					 <&dispcc DISP_CC_MDSS_VSYNC_CLK>;
+				clock-names = "iface", "bus", "core", "vsync";
+
+				assigned-clocks =
+					<&dispcc DISP_CC_MDSS_MDP_CLK>,
+					<&dispcc DISP_CC_MDSS_VSYNC_CLK>;
+				assigned-clock-rates = <300000000 19200000>;
+
+				interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						dpu_intf1_out: endpoint {
+							remote-endpoint = <&dsi0_in>;
+						};
+					};
+
+					port@1 {
+						reg = <1>;
+						dpu_intf2_out: endpoint {
+							remote-endpoint = <&dsi1_in>;
+						};
+					};
+				};
+
+			};
+
+			dsi0: dsi@ae94000 {
+				compatible = "qcom,mdss-dsi-ctrl";
+				reg = <0 0x94000 0x400>;
+				reg-names = "dsi_ctrl";
+
+				interrupt-parent = <&mdss>;
+				interrupts = <4 IRQ_TYPE_LEVEL_HIGH>;
+
+				clocks = <&dispcc DISP_CC_MDSS_BYTE0_CLK>,
+					 <&dispcc DISP_CC_MDSS_BYTE0_INTF_CLK>,
+					 <&dispcc DISP_CC_MDSS_PCLK0_CLK>,
+					 <&dispcc DISP_CC_MDSS_ESC0_CLK>,
+					 <&dispcc DISP_CC_MDSS_AHB_CLK>,
+					 <&dispcc DISP_CC_MDSS_AXI_CLK>;
+				clock-names = "byte",
+					      "byte_intf",
+					      "pixel",
+					      "core",
+					      "iface",
+					      "bus";
+
+				phys = <&dsi0_phy>;
+				phy-names = "dsi-phy";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						dsi0_in: endpoint {
+							remote-endpoint = <&dpu_intf1_out>;
+						};
+					};
+
+					port@1 {
+						reg = <1>;
+						dsi0_out: endpoint {
+						};
+					};
+				};
+			};
+
+			dsi0_phy: dsi-phy@ae94400 {
+				compatible = "qcom,dsi-phy-10nm";
+				reg = <0 0x94400 0x200>,
+				      <0 0x94a00 0x1e0>,
+				      <0 0x94600 0x280>;
+				reg-names = "dsi_phy",
+					    "dsi_pll",
+						"dsi_phy_lane";
+
+				#clock-cells = <1>;
+				#phy-cells =<0>;
+
+				clocks = <&dispcc DISP_CC_MDSS_AHB_CLK>;
+				clock-names = "iface";
+			};
+
+			dsi1: dsi@ae96000 {
+				compatible = "qcom,mdss-dsi-ctrl";
+				reg = <0 0x96000 0x400>;
+				reg-names = "dsi_ctrl";
+
+				interrupt-parent = <&mdss>;
+				interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
+
+				clocks = <&dispcc DISP_CC_MDSS_BYTE1_CLK>,
+					 <&dispcc DISP_CC_MDSS_BYTE1_INTF_CLK>,
+					 <&dispcc DISP_CC_MDSS_PCLK1_CLK>,
+					 <&dispcc DISP_CC_MDSS_ESC1_CLK>,
+					 <&dispcc DISP_CC_MDSS_AHB_CLK>,
+					 <&dispcc DISP_CC_MDSS_AXI_CLK>;
+				clock-names = "byte",
+					      "byte_intf",
+					      "pixel",
+					      "core",
+					      "iface",
+					      "bus";
+
+				phys = <&dsi1_phy>;
+				phy-names = "dsi-phy";
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						dsi1_in: endpoint {
+							remote-endpoint = <&dpu_intf2_out>;
+						};
+					};
+
+					port@1 {
+						reg = <1>;
+						dsi1_out: endpoint {
+						};
+					};
+				};
+			};
+
+			dsi1_phy: dsi-phy@ae96400 {
+				compatible = "qcom,dsi-phy-10nm";
+				reg = <0 0x96400 0x200>,
+				      <0 0x96a00 0x10e>,
+					<0 0x96600 0x280>;
+				reg-names = "dsi_phy",
+					    "dsi_pll",
+						"dsi_phy_lane";
+
+				#clock-cells = <1>;
+				#phy-cells =<0>;
+
+				clocks = <&dispcc DISP_CC_MDSS_AHB_CLK>;
+				clock-names = "iface";
+			};
+		};
+
 		dispcc: clock-controller@af00000 {
 			compatible = "qcom,sdm845-dispcc";
 			reg = <0xaf00000 0x10000>;
@@ -1782,6 +2604,61 @@
 				compatible = "qcom,sdm845-rpmh-clk";
 				#clock-cells = <1>;
 			};
+
+			rpmhpd_opp_table: opp-table {
+				compatible = "operating-points-v2-qcom-level";
+
+				rpmhpd_opp_ret: opp1 {
+					qcom,level = <RPMH_REGULATOR_LEVEL_RETENTION>;
+				};
+
+				rpmhpd_opp_min_svs: opp2 {
+					qcom,level = <RPMH_REGULATOR_LEVEL_MIN_SVS>;
+				};
+
+				rpmhpd_opp_low_svs: opp3 {
+					qcom,level = <RPMH_REGULATOR_LEVEL_LOW_SVS>;
+				};
+
+				rpmhpd_opp_svs: opp4 {
+					qcom,level = <RPMH_REGULATOR_LEVEL_SVS>;
+				};
+
+				rpmhpd_opp_svs_l1: opp5 {
+					qcom,level = <RPMH_REGULATOR_LEVEL_SVS_L1>;
+				};
+
+				rpmhpd_opp_nom: opp6 {
+					qcom,level = <RPMH_REGULATOR_LEVEL_NOM>;
+				};
+
+				rpmhpd_opp_nom_l1: opp7 {
+					qcom,level = <RPMH_REGULATOR_LEVEL_NOM_L1>;
+				};
+
+				rpmhpd_opp_nom_l2: opp8 {
+					qcom,level = <RPMH_REGULATOR_LEVEL_NOM_L2>;
+				};
+
+				rpmhpd_opp_turbo: opp9 {
+					qcom,level = <RPMH_REGULATOR_LEVEL_TURBO>;
+				};
+
+				rpmhpd_opp_turbo_l1: opp10 {
+					qcom,level = <RPMH_REGULATOR_LEVEL_TURBO_L1>;
+				};
+			};
+
+			rpmhpd: power-controller {
+				compatible = "qcom,sdm845-rpmhpd";
+				#power-domain-cells = <1>;
+				operating-points-v2 = <&rpmhpd_opp_table>;
+			};
+
+			qnoc: qnoc{
+				compatible = "qcom,sdm845-rsc-hlos";
+				#interconnect-cells = <1>;
+			};
 		};
 
 		intc: interrupt-controller@17a00000 {
@@ -1861,6 +2738,18 @@
 				status = "disabled";
 			};
 		};
+
+		cpufreq_hw: cpufreq@17d43000 {
+			compatible = "qcom,cpufreq-hw";
+
+			reg = <0x17d43000 0x1400>, <0x17d45800 0x1400>;
+			reg-names = "freq-domain0", "freq-domain1";
+
+			clocks = <&rpmhcc RPMH_CXO_CLK>, <&gcc GPLL0>;
+			clock-names = "xo", "cpu_clk";
+
+			#freq-domain-cells = <1>;
+		};
 	};
 
 	thermal-zones {
@@ -1881,6 +2770,14 @@
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_alert0>;
+					cooling-device =
+						<&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};
@@ -1904,6 +2801,14 @@
 					type = "critical";
 				};
 			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_alert1>;
+					cooling-device =
+						<&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
 		};
 
 		cpu2-thermal {
@@ -1923,6 +2828,14 @@
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_alert2>;
+					cooling-device =
+						<&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};
@@ -1946,6 +2859,14 @@
 					type = "critical";
 				};
 			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_alert3>;
+					cooling-device =
+						<&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
 		};
 
 		cpu4-thermal {
@@ -1965,6 +2886,14 @@
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_alert4>;
+					cooling-device =
+						<&CPU4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};
@@ -1988,6 +2917,14 @@
 					type = "critical";
 				};
 			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_alert5>;
+					cooling-device =
+						<&CPU4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
 		};
 
 		cpu6-thermal {
@@ -2009,6 +2946,14 @@
 					type = "critical";
 				};
 			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_alert6>;
+					cooling-device =
+						<&CPU4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
 		};
 
 		cpu7-thermal {
@@ -2028,6 +2973,14 @@
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_alert7>;
+					cooling-device =
+						<&CPU4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};

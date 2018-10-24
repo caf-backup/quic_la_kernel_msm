@@ -352,7 +352,7 @@ void dpu_kms_encoder_enable(struct drm_encoder *encoder)
 
 	if (crtc && crtc->state->active) {
 		trace_dpu_kms_enc_enable(DRMID(crtc));
-		dpu_crtc_commit_kickoff(crtc);
+		dpu_crtc_commit_kickoff(crtc, false);
 	}
 }
 
@@ -369,7 +369,8 @@ static void dpu_kms_commit(struct msm_kms *kms, struct drm_atomic_state *state)
 
 		if (crtc->state->active) {
 			trace_dpu_kms_commit(DRMID(crtc));
-			dpu_crtc_commit_kickoff(crtc);
+			dpu_crtc_commit_kickoff(crtc,
+						state->legacy_cursor_update);
 		}
 	}
 }
@@ -907,9 +908,14 @@ static int _dpu_kms_mmu_init(struct dpu_kms *dpu_kms)
 	struct msm_gem_address_space *aspace;
 	int ret;
 
-	domain = iommu_domain_alloc(&platform_bus_type);
-	if (!domain)
-		return 0;
+	domain = iommu_get_domain_for_dev(dpu_kms->dev->dev);
+	if (!domain) {
+		DPU_ERROR("failed to get iommu domain for DPU\n");
+		return PTR_ERR(domain);
+	}
+
+	domain->geometry.aperture_start = 0x1000;
+	domain->geometry.aperture_end = 0xffffffff;
 
 	aspace = msm_gem_address_space_create(dpu_kms->dev->dev,
 			domain, "dpu1");
@@ -1159,7 +1165,11 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 			&dpu_kms->phandle, DPU_POWER_EVENT_ENABLE,
 			dpu_kms_handle_power_event, dpu_kms, "kms");
 
-	pm_runtime_put_sync(&dpu_kms->pdev->dev);
+	/*
+	 * HACK: To enable display with new interconnect
+	 * bus framework changes
+	 */
+	//pm_runtime_put_sync(&dpu_kms->pdev->dev);
 
 	return 0;
 

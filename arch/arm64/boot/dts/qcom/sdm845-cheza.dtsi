@@ -137,6 +137,22 @@
 			wakeup-source;
 		};
 	};
+
+	panel: panel {
+		compatible ="innolux,p120zdg-bf1";
+		status = "okay";
+		power-supply = <&pp3300_dx_edp>;
+		backlight = <&backlight>;
+		no-hpd;
+
+		ports {
+			panel_in: port {
+				panel_in_edp: endpoint {
+					remote-endpoint = <&sn65dsi86_out>;
+				};
+			};
+		};
+	};
 };
 
 &qspi {
@@ -459,9 +475,74 @@
 	};
 };
 
+&dsi0 {
+	status = "okay";
+	vdda-supply = <&vdda_mipi_dsi0_1p2>;
+
+	ports {
+		port@1 {
+			endpoint {
+				remote-endpoint = <&sn65dsi86_in>;
+				data-lanes = <0 1 2 3>;
+			};
+		};
+	};
+};
+
+&dsi0_phy {
+	status = "okay";
+	vdds-supply = <&vdda_mipi_dsi0_pll>;
+};
+
 edp_brij_i2c: &i2c3 {
 	status = "okay";
 	clock-frequency = <400000>;
+
+	sn65dsi86_bridge: bridge@2d {
+		#address-cells = <2>;
+		#size-cells = <1>;
+
+		status = "okay";
+
+		compatible = "ti,sn65dsi86";
+		reg = <0x2d>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <10 IRQ_TYPE_EDGE_FALLING>;
+
+		vpll-supply = <&src_pp1800_s4a>;
+		vccio-supply = <&src_pp1800_s4a>;
+		vcca-supply = <&src_pp1200_l2a>;
+		vcc-supply = <&src_pp1200_l2a>;
+
+		clocks = <&rpmhcc RPMH_LN_BB_CLK2>;
+		clock-names = "refclk";
+
+		/* TODO: need a sleep config? */
+		pinctrl-names = "default";
+		pinctrl-0 = <&edp_brij_en>;
+
+		enable-gpios = <&tlmm 102 GPIO_ACTIVE_HIGH>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				sn65dsi86_in: endpoint {
+					remote-endpoint = <&dsi0_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				sn65dsi86_out: endpoint {
+					remote-endpoint = <&panel_in_edp>;
+				};
+			};
+		};
+	};
 };
 
 ap_pen_1v8: &i2c11 {
@@ -515,6 +596,21 @@ ap_ts_i2c: &i2c14 {
 
 &qupv3_id_1 {
 	status = "okay";
+};
+
+&sdhc_2 {
+	status = "okay";
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&sdc2_clk_default  &sdc2_cmd_default &sdc2_data_default
+		     &sd_cd_odl>;
+	pinctrl-1 = <&sdc2_clk_sleep &sdc2_cmd_sleep &sdc2_data_sleep
+		     &sd_cd_odl>;
+
+	vmmc-supply = <&src_pp2950_l21a>;
+	vqmmc-supply = <&vddpx_2>;
+
+	cd-gpios = <&tlmm 44 GPIO_ACTIVE_LOW>;
 };
 
 &spi0 {
@@ -572,6 +668,15 @@ ap_ts_i2c: &i2c14 {
 
 &uart6 {
 	status = "okay";
+
+	bluetooth: wcn3990-bt {
+		compatible = "qcom,wcn3990-bt";
+		vddio-supply = <&src_pp1800_s4a>;
+		vddxo-supply = <&pp1800_l7a_wcn3990>;
+		vddrf-supply = <&src_pp1300_l17a>;
+		vddch0-supply = <&pp3300_l25a_ch0_wcn3990>;
+		max-speed = <3200000>;
+	};
 };
 
 &uart9 {
@@ -995,6 +1100,67 @@ ap_ts_i2c: &i2c14 {
 			 * remove "output-high" here.
 			 */
 			output-high;
+		};
+	};
+
+	sdc2_clk_default: sdc2-clk-default {
+		pinconf {
+			pins = "sdc2_clk";
+			bias-disable;
+			drive-strength = <16>;
+		};
+	};
+
+	sdc2_clk_sleep: sdc2-clk-sleep {
+		pinconf {
+			pins = "sdc2_clk";
+			bias-disable;
+			drive-strength = <2>;
+		};
+	};
+
+	sdc2_cmd_default: sdc2-cmd-default {
+		pinconf {
+			pins = "sdc2_cmd";
+			bias-pull-up;
+			drive-strength = <10>;
+		};
+	};
+
+	sdc2_cmd_sleep: sdc2-cmd-sleep {
+		pinconf {
+			pins = "sdc2_cmd";
+			bias-pull-up;
+			drive-strength = <2>;
+		};
+	};
+
+	sdc2_data_default: sdc2-data-default {
+		pinconf {
+			pins = "sdc2_data";
+			bias-pull-up;
+			drive-strength = <10>;
+		};
+	};
+
+	sdc2_data_sleep: sdc2-data-sleep {
+		pinconf {
+			pins = "sdc2_data";
+			bias-pull-up;
+			drive-strength = <2>;
+		};
+	};
+
+	sd_cd_odl: sd-cd-odl {
+		pinmux {
+			pins = "gpio44";
+			function = "gpio";
+		};
+
+		pinconf {
+			pins = "gpio44";
+			bias-pull-up;
+			drive-strength = <2>;
 		};
 	};
 
