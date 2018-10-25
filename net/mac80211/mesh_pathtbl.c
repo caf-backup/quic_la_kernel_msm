@@ -39,6 +39,13 @@ static const struct rhashtable_params mesh_rht_params = {
 int mesh_paths_generation;
 int mpp_paths_generation;
 
+#if CONFIG_MAC80211_DEBUGFS
+static void mpath_debugfs_add(struct ieee80211_sub_if_data *sdata,
+			      const u8 *dst);
+static void mpath_debugfs_del(struct ieee80211_sub_if_data *sdata,
+			      struct mesh_path *mpath);
+#endif
+
 static inline bool mpath_expired(struct mesh_path *mpath)
 {
 	return (mpath->flags & MESH_PATH_ACTIVE) &&
@@ -545,7 +552,7 @@ struct mesh_path *mesh_path_add(struct ieee80211_sub_if_data *sdata,
 	sdata->u.mesh.mesh_paths_generation++;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
-	mesh_path_debugfs_add(new_mpath);
+	mpath_debugfs_add(sdata, dst);
 #endif
 	return new_mpath;
 }
@@ -649,6 +656,11 @@ static void mesh_path_free_rcu(struct mesh_table *tbl,
 
 static void __mesh_path_del(struct mesh_table *tbl, struct mesh_path *mpath)
 {
+	struct ieee80211_sub_if_data *sdata = mpath->sdata;
+
+#if CONFIG_MAC80211_DEBUGFS
+	mpath_debugfs_del(sdata, mpath);
+#endif
 	rhashtable_remove_fast(&tbl->rhead, &mpath->rhash, mesh_rht_params);
 	mesh_path_free_rcu(tbl, mpath);
 }
@@ -1044,3 +1056,86 @@ void mesh_pathtbl_unregister(struct ieee80211_sub_if_data *sdata)
 	mesh_table_free(sdata->u.mesh.mesh_paths);
 	mesh_table_free(sdata->u.mesh.mpp_paths);
 }
+
+#if CONFIG_MAC80211_DEBUGFS
+static void mpath_debugfs_add(struct ieee80211_sub_if_data *sdata,
+			      const u8 *dst)
+{
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	struct path_debugfs_work *new_df_work =
+		kzalloc(sizeof(struct path_debugfs_work), GFP_ATOMIC);
+	if (!new_df_work)
+		return;
+
+	new_df_work->add_entry = true;
+	memcpy(new_df_work->dst, dst, ETH_ALEN);
+	spin_lock(&ifmsh->path_debugfs_lock);
+	if (!ifmsh->path_df_list) {
+		spin_unlock(&ifmsh->path_debugfs_lock);
+		kfree(new_df_work);
+		return;
+	}
+	list_add_tail_rcu(&new_df_work->list, ifmsh->path_df_list);
+	spin_unlock(&ifmsh->path_debugfs_lock);
+	set_bit(MESH_WORK_UPDATE_PATH_DEBUGFS,  &ifmsh->wrkq_flags);
+	ieee80211_queue_work(&sdata->local->hw, &sdata->work);
+}
+
+static void mpath_debugfs_del(struct ieee80211_sub_if_data *sdata,
+			      struct mesh_path *mpath)
+{
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	struct path_debugfs_work *new_df_work;
+
+	if (mpath->debugfs.add_has_run && mpath->debugfs.dir) {
+		new_df_work = kzalloc(sizeof(*new_df_work), GFP_ATOMIC);
+		if (!new_df_work)
+			return;
+		new_df_work->add_entry = false;
+		new_df_work->dst_dir = mpath->debugfs.dir;
+		spin_lock(&ifmsh->path_debugfs_lock);
+		if (!ifmsh->path_df_list) {
+			spin_unlock(&ifmsh->path_debugfs_lock);
+			kfree(new_df_work);
+			return;
+		}
+		list_add_tail_rcu(&new_df_work->list, ifmsh->path_df_list);
+		spin_unlock(&ifmsh->path_debugfs_lock);
+		set_bit(MESH_WORK_UPDATE_PATH_DEBUGFS,  &ifmsh->wrkq_flags);
+		ieee80211_queue_work(&sdata->local->hw, &sdata->work);
+	}
+}
+
+void mesh_path_debugfs_work(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	struct path_debugfs_work *p, *n;
+	struct mesh_path *mpath;
+
+	spin_lock(&ifmsh->path_debugfs_lock);
+	if (!ifmsh->path_df_list) {
+		spin_unlock(&ifmsh->path_debugfs_lock);
+		return;
+	}
+	list_for_each_entry_safe(p, n, ifmsh->path_df_list, list) {
+		list_del_rcu(&p->list);
+		spin_unlock(&ifmsh->path_debugfs_lock);
+		synchronize_rcu();
+		if (p->add_entry) {
+			rcu_read_lock();
+			mpath = mesh_path_lookup(sdata, p->dst);
+			if (mpath && !mpath->debugfs.add_has_run) {
+				rcu_read_unlock();
+				mesh_path_debugfs_add(mpath);
+			} else {
+				rcu_read_unlock();
+			}
+		} else {
+			mesh_path_debugfs_remove(p->dst_dir);
+		}
+		kfree(p);
+		spin_lock(&ifmsh->path_debugfs_lock);
+	}
+	spin_unlock(&ifmsh->path_debugfs_lock);
+}
+#endif
