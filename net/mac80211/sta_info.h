@@ -386,6 +386,9 @@ struct mesh_sta {
 
 	/* moving percentage of failed MSDUs */
 	struct ewma_mesh_fail_avg fail_avg;
+
+	/* moving avg of bitrate in 1kbps */
+	u32 bitrate_avg;
 };
 
 DECLARE_EWMA(signal, 10, 8)
@@ -554,6 +557,7 @@ struct sta_info {
 		u64 msdu[IEEE80211_NUM_TIDS + 1];
 	} tx_stats;
 	u16 tid_seq[IEEE80211_QOS_CTL_TID_MASK + 1];
+	struct ieee80211_tx_rate last_tx_rate;
 
 	/*
 	 * Aggregation information, locked with lock.
