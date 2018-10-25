@@ -17,6 +17,7 @@
 #include "wme.h"
 #include "ieee80211_i.h"
 #include "mesh.h"
+#include "debugfs_sta.h"
 
 static void mesh_path_free_rcu(struct mesh_table *tbl, struct mesh_path *mpath);
 
@@ -542,6 +543,10 @@ struct mesh_path *mesh_path_add(struct ieee80211_sub_if_data *sdata,
 		new_mpath = mpath;
 	}
 	sdata->u.mesh.mesh_paths_generation++;
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	mesh_path_debugfs_add(new_mpath);
+#endif
 	return new_mpath;
 }
 
@@ -1001,6 +1006,37 @@ void mesh_path_expire(struct ieee80211_sub_if_data *sdata)
 {
 	mesh_path_tbl_expire(sdata, sdata->u.mesh.mesh_paths);
 	mesh_path_tbl_expire(sdata, sdata->u.mesh.mpp_paths);
+}
+
+void mesh_path_update_stats(struct ieee80211_sub_if_data *sdata)
+{
+	struct mesh_table *tbl;
+	struct mesh_path *mpath;
+	struct rhashtable_iter iter;
+	int ret;
+
+	tbl = sdata->u.mesh.mesh_paths;
+	ret = rhashtable_walk_init(&tbl->rhead, &iter, GFP_ATOMIC);
+	if (ret)
+		return;
+
+	ret = rhashtable_walk_start(&iter);
+	if (ret && ret != -EAGAIN)
+		goto out;
+
+	while ((mpath = rhashtable_walk_next(&iter))) {
+		spin_lock_bh(&mpath->state_lock);
+		mpath->pstats.aggr_qlen += mpath->frame_queue.qlen;
+		if (mpath->frame_queue.qlen > 0)
+			mpath->pstats.nz_qlen_count++;
+		mpath->pstats.aggr_hop_count += mpath->hop_count;
+		mpath->pstats.sample_size++;
+		spin_unlock_bh(&mpath->state_lock);
+
+	}
+out:
+	rhashtable_walk_stop(&iter);
+	rhashtable_walk_exit(&iter);
 }
 
 void mesh_pathtbl_unregister(struct ieee80211_sub_if_data *sdata)
