@@ -59,6 +59,37 @@ module_param(bdf_bypass, bool, 0600);
 MODULE_PARM_DESC(bdf_bypass, "If BDF is not found, send dummy BDF to FW");
 #endif
 
+struct qmi_history qmi_log[QMI_HISTORY_SIZE];
+int qmi_history_index;
+DEFINE_SPINLOCK(qmi_log_spinlock);
+
+void cnss_dump_qmi_history(void)
+{
+	int i;
+
+	pr_info("qmi_history_index [%d]\n", ((qmi_history_index - 1) &
+		(QMI_HISTORY_SIZE - 1)));
+	for (i = 0; i < QMI_HISTORY_SIZE; i++) {
+		if (qmi_log[i].msg_id)
+			pr_info(
+			"qmi_history[%d]:timestamp[%llu] msg_id[%X] err[%X]\n",
+			i, qmi_log[i].timestamp,
+			qmi_log[i].msg_id,
+			qmi_log[i].error_msg);
+	}
+}
+EXPORT_SYMBOL(cnss_dump_qmi_history);
+
+void qmi_record(u8 msg_id, u8 error_msg)
+{
+	spin_lock(&qmi_log_spinlock);
+	qmi_log[qmi_history_index].msg_id = msg_id;
+	qmi_log[qmi_history_index].error_msg = error_msg;
+	qmi_log[qmi_history_index++].timestamp = ktime_to_ms(ktime_get());
+	qmi_history_index &= (QMI_HISTORY_SIZE - 1);
+	spin_unlock(&qmi_log_spinlock);
+}
+
 enum cnss_bdf_type {
 	CNSS_BDF_BIN,
 	CNSS_BDF_ELF,
