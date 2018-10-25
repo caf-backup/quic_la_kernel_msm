@@ -345,6 +345,7 @@ void mesh_path_flush_by_nexthop(struct sta_info *sta);
 void mesh_path_discard_frame(struct ieee80211_sub_if_data *sdata,
 			     struct sk_buff *skb);
 void mesh_path_tx_root_frame(struct ieee80211_sub_if_data *sdata);
+void mesh_hwmp_init(void);
 
 bool mesh_action_is_path_sel(struct ieee80211_mgmt *mgmt);
 

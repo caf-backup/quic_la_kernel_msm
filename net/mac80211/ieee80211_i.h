@@ -715,7 +715,6 @@ struct ieee80211_if_mesh {
 	int mesh_paths_generation;
 	int mpp_paths_generation;
 
-	u8 bitrate_avg_weight;
 	u8 path_switch_threshold;
 
 #if CONFIG_MAC80211_DEBUGFS
