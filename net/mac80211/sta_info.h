@@ -530,6 +530,7 @@ struct sta_info {
 
 	/* Updated from RX path only, no locking requirements */
 	struct ieee80211_sta_rx_stats rx_stats;
+	struct ewma avg_signal;
 	struct {
 		struct ewma_signal signal;
 		struct ewma_signal chain_signal[IEEE80211_MAX_CHAINS];
@@ -566,6 +567,8 @@ struct sta_info {
 	u8 timer_to_tid[IEEE80211_NUM_TIDS];
 
 #ifdef CONFIG_MAC80211_DEBUGFS
+	/* force link degradation by this db */
+	u32 link_degrade_db;
 	struct dentry *debugfs_dir;
 
 	u64 rx_legacy_pkt[IEEE80211_LEGACY_RATE_NUM];
