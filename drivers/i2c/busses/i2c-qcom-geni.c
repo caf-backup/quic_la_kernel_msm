@@ -520,6 +520,13 @@ static int geni_i2c_probe(struct platform_device *pdev)
 	if (IS_ERR(gi2c->se.base))
 		return PTR_ERR(gi2c->se.base);
 
+	ret = geni_interconnect_init(&gi2c->se);
+	if (ret) {
+		dev_err(&pdev->dev, "Err getting interconnect handle %d\n",
+									ret);
+		return ret;
+	}
+
 	gi2c->se.clk = devm_clk_get(&pdev->dev, "se");
 	if (IS_ERR(gi2c->se.clk)) {
 		ret = PTR_ERR(gi2c->se.clk);
@@ -610,6 +617,7 @@ static int geni_i2c_remove(struct platform_device *pdev)
 	struct geni_i2c_dev *gi2c = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(gi2c->se.dev);
+	geni_interconnect_exit(&gi2c->se);
 	i2c_del_adapter(&gi2c->adap);
 	return 0;
 }
@@ -629,13 +637,17 @@ static int __maybe_unused geni_i2c_runtime_suspend(struct device *dev)
 		gi2c->suspended = 1;
 	}
 
-	return 0;
+	return geni_interconnect_set_bw(&gi2c->se, 0, 0);
 }
 
 static int __maybe_unused geni_i2c_runtime_resume(struct device *dev)
 {
 	int ret;
 	struct geni_i2c_dev *gi2c = dev_get_drvdata(dev);
+
+	ret = geni_interconnect_set_bw(&gi2c->se,  960, 19200 * 4);
+	if (ret)
+		return ret;
 
 	ret = geni_se_resources_on(&gi2c->se);
 	if (ret)
