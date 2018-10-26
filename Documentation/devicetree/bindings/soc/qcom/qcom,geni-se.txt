@@ -36,6 +36,10 @@ Required properties:
 - clocks: 		Serial engine core clock needed by the device.
 - #address-cells:	Must be <1> for I2C device address.
 - #size-cells:		Must be <0> as I2C addresses have no size component.
+- interconnects:	Please refer to Documentation/devicetree/bindings/
+			interconnect/ for more details.
+- interconnect-names:	Please refer to Documentation/devicetree/bindings/
+			interconnect/ for more details.
 
 Optional property:
 - clock-frequency:	Desired I2C bus clock frequency in Hz.
@@ -78,6 +82,9 @@ Example:
 			pinctrl-1 = <&qup_1_i2c_5_sleep>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			interconnects = <&qnoc 11 &qnoc 512>,
+					<&qnoc 0 &qnoc 543>;
+			interconnect-names = "memory", "config";
 		};
 
 		uart0: serial@a88000 {

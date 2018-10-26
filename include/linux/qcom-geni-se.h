@@ -6,6 +6,8 @@
 #ifndef _LINUX_QCOM_GENI_SE
 #define _LINUX_QCOM_GENI_SE
 
+#include <linux/interconnect.h>
+
 /* Transfer mode supported by GENI Serial Engines */
 enum geni_se_xfer_mode {
 	GENI_SE_INVALID,
@@ -33,6 +35,8 @@ struct clk;
  * @clk:		Handle to the core serial engine clock
  * @num_clk_levels:	Number of valid clock levels in clk_perf_tbl
  * @clk_perf_tbl:	Table of clock frequency input to serial engine clock
+ * @memory_path:	Handle to the interconnect path to memory
+ * @config_path:	Handle to the interconnect path to config
  */
 struct geni_se {
 	void __iomem *base;
@@ -41,6 +45,8 @@ struct geni_se {
 	struct clk *clk;
 	unsigned int num_clk_levels;
 	unsigned long *clk_perf_tbl;
+	struct icc_path *memory_path;
+	struct icc_path *config_path;
 };
 
 /* Common SE registers */
@@ -416,5 +422,11 @@ int geni_se_rx_dma_prep(struct geni_se *se, void *buf, size_t len,
 void geni_se_tx_dma_unprep(struct geni_se *se, dma_addr_t iova, size_t len);
 
 void geni_se_rx_dma_unprep(struct geni_se *se, dma_addr_t iova, size_t len);
+
+int geni_interconnect_init(struct geni_se *se);
+
+void geni_interconnect_exit(struct geni_se *se);
+
+int geni_interconnect_set_bw(struct geni_se *se, u32 avg_bw, u32 peak_bw);
 #endif
 #endif
