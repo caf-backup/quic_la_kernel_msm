@@ -707,6 +707,72 @@ void geni_se_rx_dma_unprep(struct geni_se *se, dma_addr_t iova, size_t len)
 }
 EXPORT_SYMBOL(geni_se_rx_dma_unprep);
 
+/**
+ * geni_interconnect_init() - Request to get interconnect path handle
+ * @se:			Pointer to the concerned serial engine.
+ *
+ * This function is used to get interconnect path handle.
+ */
+int geni_interconnect_init(struct geni_se *se)
+{
+	se->memory_path = of_icc_get(se->dev, "memory");
+	if (IS_ERR(se->memory_path))
+		return PTR_ERR(se->memory_path);
+
+	se->config_path = of_icc_get(se->dev, "config");
+	if (IS_ERR(se->config_path)) {
+		icc_put(se->memory_path);
+		se->memory_path = NULL;
+		return PTR_ERR(se->config_path);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(geni_interconnect_init);
+
+/**
+ * geni_interconnect_exit() - Request to release interconnect path handle
+ * @se:			Pointer to the concerned serial engine.
+ *
+ * This function is used to release interconnect path handle.
+ */
+void geni_interconnect_exit(struct geni_se *se)
+{
+	icc_put(se->memory_path);
+	se->memory_path = NULL;
+
+	icc_put(se->config_path);
+	se->config_path = NULL;
+}
+EXPORT_SYMBOL(geni_interconnect_exit);
+
+/**
+ * geni_interconnect_set_bw() - Request to set bw vote on an interconnect path
+ * @se:			Pointer to the concerned serial engine.
+ * @avg_bw:		average bandwidth in kilobytes per second.
+ * @peak_bw:		peak bandwidth in kilobytes per second.
+ *
+ * This function is used to request set bw vote on interconnect path handle.
+ */
+int geni_interconnect_set_bw(struct geni_se *se, u32 avg_bw, u32 peak_bw)
+{
+	int ret;
+
+	ret = icc_set(se->memory_path, avg_bw, peak_bw);
+	if (ret)
+		return ret;
+
+	ret = icc_set(se->config_path, 0, peak_bw);
+	if (ret) {
+		if (avg_bw || peak_bw)
+			icc_set(se->memory_path, 0, 0);
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(geni_interconnect_set_bw);
+
 static int geni_se_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
