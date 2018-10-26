@@ -915,6 +915,11 @@
 				interrupts = <GIC_SPI 601 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 11 &qnoc 512>,
+						<&qnoc 0 &qnoc 543>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -928,6 +933,11 @@
 				interrupts = <GIC_SPI 601 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 11 &qnoc 512>,
+						<&qnoc 0 &qnoc 543>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -952,6 +962,11 @@
 				interrupts = <GIC_SPI 602 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 11 &qnoc 512>,
+						<&qnoc 0 &qnoc 543>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -965,6 +980,11 @@
 				interrupts = <GIC_SPI 602 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 11 &qnoc 512>,
+						<&qnoc 0 &qnoc 543>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -989,6 +1009,11 @@
 				interrupts = <GIC_SPI 603 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 11 &qnoc 512>,
+						<&qnoc 0 &qnoc 543>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1002,6 +1027,11 @@
 				interrupts = <GIC_SPI 603 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 11 &qnoc 512>,
+						<&qnoc 0 &qnoc 543>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1026,6 +1056,11 @@
 				interrupts = <GIC_SPI 604 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 11 &qnoc 512>,
+						<&qnoc 0 &qnoc 543>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1039,6 +1074,11 @@
 				interrupts = <GIC_SPI 604 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 11 &qnoc 512>,
+						<&qnoc 0 &qnoc 543>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1063,6 +1103,11 @@
 				interrupts = <GIC_SPI 605 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 11 &qnoc 512>,
+						<&qnoc 0 &qnoc 543>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1076,6 +1121,11 @@
 				interrupts = <GIC_SPI 605 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 11 &qnoc 512>,
+						<&qnoc 0 &qnoc 543>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1100,6 +1150,11 @@
 				interrupts = <GIC_SPI 606 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 11 &qnoc 512>,
+						<&qnoc 0 &qnoc 543>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1113,6 +1168,11 @@
 				interrupts = <GIC_SPI 606 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 11 &qnoc 512>,
+						<&qnoc 0 &qnoc 543>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1137,6 +1197,11 @@
 				interrupts = <GIC_SPI 607 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 11 &qnoc 512>,
+						<&qnoc 0 &qnoc 543>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1150,6 +1215,11 @@
 				interrupts = <GIC_SPI 607 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 11 &qnoc 512>,
+						<&qnoc 0 &qnoc 543>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1161,6 +1231,11 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&qup_uart6_default>;
 				interrupts = <GIC_SPI 607 IRQ_TYPE_LEVEL_HIGH>;
+
+				interconnects = <&qnoc 11 &qnoc 512>,
+						<&qnoc 0 &qnoc 543>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1174,6 +1249,11 @@
 				interrupts = <GIC_SPI 608 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 11 &qnoc 512>,
+						<&qnoc 0 &qnoc 543>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1187,6 +1267,11 @@
 				interrupts = <GIC_SPI 608 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 11 &qnoc 512>,
+						<&qnoc 0 &qnoc 543>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1223,6 +1308,11 @@
 				interrupts = <GIC_SPI 353 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 12 &qnoc 512>,
+						<&qnoc 0 &qnoc 542>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1236,6 +1326,11 @@
 				interrupts = <GIC_SPI 353 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 12 &qnoc 512>,
+						<&qnoc 0 &qnoc 542>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1260,6 +1355,11 @@
 				interrupts = <GIC_SPI 354 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 12 &qnoc 512>,
+						<&qnoc 0 &qnoc 542>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1273,6 +1373,11 @@
 				interrupts = <GIC_SPI 354 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 12 &qnoc 512>,
+						<&qnoc 0 &qnoc 542>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1284,6 +1389,11 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&qup_uart9_default>;
 				interrupts = <GIC_SPI 354 IRQ_TYPE_LEVEL_HIGH>;
+
+				interconnects = <&qnoc 12 &qnoc 512>,
+						<&qnoc 0 &qnoc 542>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1297,6 +1407,11 @@
 				interrupts = <GIC_SPI 355 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 12 &qnoc 512>,
+						<&qnoc 0 &qnoc 542>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1310,6 +1425,11 @@
 				interrupts = <GIC_SPI 355 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 12 &qnoc 512>,
+						<&qnoc 0 &qnoc 542>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1334,6 +1454,11 @@
 				interrupts = <GIC_SPI 356 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 12 &qnoc 512>,
+						<&qnoc 0 &qnoc 542>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1347,6 +1472,11 @@
 				interrupts = <GIC_SPI 356 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 12 &qnoc 512>,
+						<&qnoc 0 &qnoc 542>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1371,6 +1501,11 @@
 				interrupts = <GIC_SPI 357 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 12 &qnoc 512>,
+						<&qnoc 0 &qnoc 542>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1384,6 +1519,11 @@
 				interrupts = <GIC_SPI 357 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 12 &qnoc 512>,
+						<&qnoc 0 &qnoc 542>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1408,6 +1548,11 @@
 				interrupts = <GIC_SPI 358 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 12 &qnoc 512>,
+						<&qnoc 0 &qnoc 542>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1421,6 +1566,11 @@
 				interrupts = <GIC_SPI 358 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 12 &qnoc 512>,
+						<&qnoc 0 &qnoc 542>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1445,6 +1595,11 @@
 				interrupts = <GIC_SPI 359 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 12 &qnoc 512>,
+						<&qnoc 0 &qnoc 542>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1458,6 +1613,11 @@
 				interrupts = <GIC_SPI 359 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 12 &qnoc 512>,
+						<&qnoc 0 &qnoc 542>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1482,6 +1642,11 @@
 				interrupts = <GIC_SPI 360 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 12 &qnoc 512>,
+						<&qnoc 0 &qnoc 542>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
@@ -1495,6 +1660,11 @@
 				interrupts = <GIC_SPI 360 IRQ_TYPE_LEVEL_HIGH>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+
+				interconnects = <&qnoc 12 &qnoc 512>,
+						<&qnoc 0 &qnoc 542>;
+				interconnect-names = "memory", "config";
+
 				status = "disabled";
 			};
 
