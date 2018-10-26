@@ -1512,8 +1512,21 @@
 		};
 
 		pcie_phy0: phy@86000 {
-			compatible = "qca,pcie-qmp-phy";
+			compatible = "qca,pcie-qmp-phy-gen2";
 			reg = <0x86000 0x1000>;
+			#phy-cells = <0>;
+			clocks = <&gcc GCC_PCIE0_PIPE_CLK>;
+			clock-names = "pipe_clk";
+
+			resets = <&gcc GCC_PCIE0_PHY_BCR>,
+				<&gcc GCC_PCIE0PHY_PHY_BCR>;
+			reset-names = "phy",
+				      "phy_phy";
+		};
+
+		pcie_phy2: phy@84000 {
+			compatible = "qca,pcie-qmp-phy-gen3";
+			reg = <0x84000 0x1000>;
 			#phy-cells = <0>;
 			clocks = <&gcc GCC_PCIE0_PIPE_CLK>;
 			clock-names = "pipe_clk";
@@ -1528,9 +1541,10 @@
 			compatible = "qcom,pcie-ipq807x";
 			reg =  <0x20000000 0xf1d
 				0x20000F20 0xa8
+				0x20001000 0x1000
 				0x80000 0x2000
 				0x20100000 0x1000>;
-			reg-names = "dbi", "elbi", "parf", "config";
+			reg-names = "dbi", "elbi", "dm_iatu", "parf", "config";
 			device_type = "pci";
 			linux,pci-domain = <0>;
 			bus-range = <0x00 0xff>;
@@ -1538,8 +1552,8 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 
-			phys = <&pcie_phy0>;
-			phy-names = "pciephy";
+			phys = <&pcie_phy0>, <&pcie_phy2>;
+			phy-names = "pciephy-gen2", "pciephy-gen3";
 
 			ranges = <0x81000000 0 0x20200000 0x20200000
 				  0 0x00100000   /* downstream I/O */
@@ -1576,27 +1590,33 @@
 				 <&gcc GCC_PCIE0_AXI_M_CLK>,
 				 <&gcc GCC_PCIE0_AXI_S_CLK>,
 				 <&gcc GCC_PCIE0_AHB_CLK>,
-				 <&gcc GCC_PCIE0_AUX_CLK>;
+				 <&gcc GCC_PCIE0_AUX_CLK>,
+				 <&gcc GCC_PCIE0_AXI_S_BRIDGE_CLK>,
+				 <&gcc PCIE0_RCHNG_CLK>;
 
 			clock-names = "sys_noc",
 				      "axi_m",
 				      "axi_s",
 				      "ahb",
-				      "aux";
+				      "aux",
+				      "axi_bridge",
+				      "rchng";
 			resets = <&gcc GCC_PCIE0_PIPE_ARES>,
 				 <&gcc GCC_PCIE0_SLEEP_ARES>,
 				 <&gcc GCC_PCIE0_CORE_STICKY_ARES>,
 				 <&gcc GCC_PCIE0_AXI_MASTER_ARES>,
 				 <&gcc GCC_PCIE0_AXI_SLAVE_ARES>,
 				 <&gcc GCC_PCIE0_AHB_ARES>,
-				 <&gcc GCC_PCIE0_AXI_MASTER_STICKY_ARES>;
+				 <&gcc GCC_PCIE0_AXI_MASTER_STICKY_ARES>,
+				 <&gcc GCC_PCIE0_AXI_SLAVE_STICKY_ARES>;
 			reset-names = "pipe",
 				      "sleep",
 				      "sticky",
 				      "axi_m",
 				      "axi_s",
 				      "ahb",
-				      "axi_m_sticky";
+				      "axi_m_sticky",
+				      "axi_s_sticky";
 
 			perst-gpio = <&tlmm 58 1>;
 
@@ -1605,6 +1625,7 @@
 
 			status = "ok";
 		};
+
 
 		pcie_phy1: phy@8e000 {
 			compatible = "qca,pcie-qmp-phy";
@@ -2020,12 +2041,6 @@
 		bias_pll_nss_noc_clk {
 			compatible = "fixed-clock";
 			clock-frequency = <416500000>;
-			#clock-cells = <0>;
-		};
-
-		pcie20_phy0_pipe_clk {
-			compatible = "fixed-clock";
-			clock-frequency = <125000000>;
 			#clock-cells = <0>;
 		};
 
