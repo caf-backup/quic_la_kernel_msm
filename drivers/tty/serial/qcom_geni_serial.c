@@ -1304,6 +1304,15 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 	port->rx_fifo_depth = DEF_FIFO_DEPTH_WORDS;
 	port->tx_fifo_width = DEF_FIFO_WIDTH_BITS;
 
+	ret = geni_interconnect_init(&port->se);
+	if (ret) {
+		dev_err(&pdev->dev, "Err getting interconnect handle %d\n",
+									ret);
+		return ret;
+	}
+
+	geni_interconnect_set_bw(&port->se, 960,  19200 * 4);
+
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(&pdev->dev, "Failed to get IRQ %d\n", irq);
@@ -1324,7 +1333,9 @@ static int qcom_geni_serial_remove(struct platform_device *pdev)
 	struct qcom_geni_serial_port *port = platform_get_drvdata(pdev);
 	struct uart_driver *drv = port->uport.private_data;
 
+	geni_interconnect_exit(&port->se);
 	uart_remove_one_port(drv, &port->uport);
+
 	return 0;
 }
 
@@ -1332,14 +1343,23 @@ static int __maybe_unused qcom_geni_serial_sys_suspend(struct device *dev)
 {
 	struct qcom_geni_serial_port *port = dev_get_drvdata(dev);
 	struct uart_port *uport = &port->uport;
+	int ret;
 
-	return uart_suspend_port(uport->private_data, uport);
+	ret = uart_suspend_port(uport->private_data, uport);
+	if (!ret)
+		return ret;
+
+	geni_interconnect_set_bw(&port->se, 0, 0);
+
+	return 0;
 }
 
 static int __maybe_unused qcom_geni_serial_sys_resume(struct device *dev)
 {
 	struct qcom_geni_serial_port *port = dev_get_drvdata(dev);
 	struct uart_port *uport = &port->uport;
+
+	geni_interconnect_set_bw(&port->se, 960, 19200 * 4);
 
 	return uart_resume_port(uport->private_data, uport);
 }
