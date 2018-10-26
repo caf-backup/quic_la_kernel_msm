@@ -575,6 +575,14 @@ static int spi_geni_probe(struct platform_device *pdev)
 
 	spi->bus_num = -1;
 	spi->dev.of_node = pdev->dev.of_node;
+
+	ret = geni_interconnect_init(&mas->se);
+	if (ret) {
+		dev_err(&pdev->dev, "Err getting interconnect handle %d\n",
+									ret);
+		goto spi_geni_probe_err;
+	}
+
 	spi->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LOOP | SPI_CS_HIGH;
 	spi->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
 	spi->num_chipselect = 4;
@@ -607,6 +615,7 @@ spi_geni_probe_free_irq:
 	free_irq(mas->irq, spi);
 spi_geni_probe_runtime_disable:
 	pm_runtime_disable(&pdev->dev);
+spi_geni_probe_err:
 	spi_master_put(spi);
 	return ret;
 }
@@ -619,6 +628,7 @@ static int spi_geni_remove(struct platform_device *pdev)
 	/* Unregister _before_ disabling pm_runtime() so we stop transfers */
 	spi_unregister_master(spi);
 
+	geni_interconnect_exit(&mas->se);
 	free_irq(mas->irq, spi);
 	pm_runtime_disable(&pdev->dev);
 	return 0;
@@ -628,14 +638,24 @@ static int __maybe_unused spi_geni_runtime_suspend(struct device *dev)
 {
 	struct spi_master *spi = dev_get_drvdata(dev);
 	struct spi_geni_master *mas = spi_master_get_devdata(spi);
+	int ret;
 
-	return geni_se_resources_off(&mas->se);
+	ret = geni_se_resources_off(&mas->se);
+	if (ret)
+		return ret;
+
+	return geni_interconnect_set_bw(&mas->se, 0, 0);
 }
 
 static int __maybe_unused spi_geni_runtime_resume(struct device *dev)
 {
 	struct spi_master *spi = dev_get_drvdata(dev);
 	struct spi_geni_master *mas = spi_master_get_devdata(spi);
+	int ret;
+
+	ret = geni_interconnect_set_bw(&mas->se, 7600, 19200 * 4);
+	if (ret)
+		return ret;
 
 	return geni_se_resources_on(&mas->se);
 }
