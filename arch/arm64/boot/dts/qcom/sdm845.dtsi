@@ -109,6 +109,16 @@
 			reusable;
 			size = <0 0x2400000>;
 		};
+
+		/* global autoconfigured region for contiguous allocations */
+		linux,cma {
+			compatible = "shared-dma-pool";
+			alloc-ranges = <0 0x00000000 0 0xffffffff>;
+			reusable;
+			alignment = <0 0x400000>;
+			size = <0 0x2800000>;
+			linux,cma-default;
+		};
 	};
 
 	cpus {
@@ -1476,6 +1486,11 @@
 		mem_dump {
 			compatible = "qcom,mem-dump";
 			memory-region = <&dump_mem>;
+
+			rpmh {
+				qcom,dump-size = <0x2000000>;
+				qcom,dump-id = <0xec>;
+			};
 
 			fcm {
 				qcom,dump-size = <0x8400>;
