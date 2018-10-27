@@ -52,6 +52,10 @@
 			status = "ok";
 		};
 
+		qcom_rng: qrng@e1000 {
+			status = "ok";
+		};
+
 		i2c_0: i2c@78b6000 {
 			status = "ok";
 		};
