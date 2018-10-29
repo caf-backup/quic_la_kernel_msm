@@ -260,5 +260,7 @@
 #define SDCC1_ICE_CORE_CLK_SRC			241
 #define GCC_SDCC1_ICE_CORE_CLK			242
 #define GCC_DCC_CLK				243
-
+#define PCIE0_RCHNG_CLK_SRC			244
+#define GCC_PCIE0_AXI_S_BRIDGE_CLK		245
+#define PCIE0_RCHNG_CLK				246
 #endif
