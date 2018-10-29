@@ -16,8 +16,7 @@
 #include <linux/io-pgtable-fast.h>
 #include <linux/vmalloc.h>
 #include <asm/cacheflush.h>
-#include <asm/dma-iommu.h>
-
+#include <linux/dma-iommu.h>
 
 /* some redundant definitions... :( TODO: move to io-pgtable-fast.h */
 #define FAST_PAGE_SHIFT		12
@@ -232,7 +231,6 @@ static void __fast_smmu_free_iova(struct dma_fast_smmu_mapping *mapping,
 	mapping->have_stale_tlbs = true;
 }
 
-
 static void __fast_dma_page_cpu_to_dev(struct page *page, unsigned long off,
 				       size_t size, enum dma_data_direction dir)
 {
@@ -244,7 +242,6 @@ static void __fast_dma_page_dev_to_cpu(struct page *page, unsigned long off,
 {
 	__dma_unmap_area(page_address(page) + off, size, dir);
 
-	/* TODO: WHAT IS THIS? */
 	/*
 	 * Mark the D-cache clean for this page to avoid extra flushing.
 	 */
@@ -266,6 +263,33 @@ static int __fast_dma_direction_to_prot(enum dma_data_direction dir)
 	}
 }
 
+
+static void __iommu_sync_single_for_cpu(struct device *dev,
+					dma_addr_t dev_addr, size_t size,
+					enum dma_data_direction dir)
+{
+	phys_addr_t phys;
+
+	if (is_device_dma_coherent(dev))
+		return;
+
+	phys = iommu_iova_to_phys(iommu_get_domain_for_dev(dev), dev_addr);
+	__dma_unmap_area(phys_to_virt(phys), size, dir);
+}
+
+static void __iommu_sync_single_for_device(struct device *dev,
+					   dma_addr_t dev_addr, size_t size,
+					   enum dma_data_direction dir)
+{
+	phys_addr_t phys;
+
+	if (is_device_dma_coherent(dev))
+		return;
+
+	phys = iommu_iova_to_phys(iommu_get_domain_for_dev(dev), dev_addr);
+	__dma_map_area(phys_to_virt(phys), size, dir);
+}
+
 static dma_addr_t fast_smmu_map_page(struct device *dev, struct page *page,
 				   unsigned long offset, size_t size,
 				   enum dma_data_direction dir,
@@ -283,9 +307,6 @@ static dma_addr_t fast_smmu_map_page(struct device *dev, struct page *page,
 	bool skip_sync = dma_get_attr(DMA_ATTR_SKIP_CPU_SYNC, attrs);
 	int prot = __fast_dma_direction_to_prot(dir);
 
-	if (dma_get_attr(DMA_ATTR_STRONGLY_ORDERED, attrs))
-		prot |= IOMMU_DEVICE;
-
 	if (!skip_sync)
 		__fast_dma_page_cpu_to_dev(phys_to_page(phys_to_map),
 					   offset_from_phys_to_map, size, dir);
@@ -294,8 +315,10 @@ static dma_addr_t fast_smmu_map_page(struct device *dev, struct page *page,
 
 	iova = __fast_smmu_alloc_iova(mapping, attrs, len);
 
-	if (unlikely(iova == DMA_ERROR_CODE))
+	if (unlikely(iova == DMA_ERROR_CODE)) {
+		WARN_ON_ONCE(1);
 		goto fail;
+	}
 
 	pmd = iopte_pmd_offset(mapping->pgtbl_pmds, iova);
 
@@ -367,6 +390,7 @@ static int fast_smmu_map_sg(struct device *dev, struct scatterlist *sg,
 			    int nents, enum dma_data_direction dir,
 			    struct dma_attrs *attrs)
 {
+	BUG_ON(1);
 	return -EINVAL;
 }
 
@@ -375,18 +399,21 @@ static void fast_smmu_unmap_sg(struct device *dev,
 			       enum dma_data_direction dir,
 			       struct dma_attrs *attrs)
 {
+	BUG_ON(1);
 	WARN_ON_ONCE(1);
 }
 
 static void fast_smmu_sync_sg_for_cpu(struct device *dev,
 		struct scatterlist *sg, int nents, enum dma_data_direction dir)
 {
+	BUG_ON(1);
 	WARN_ON_ONCE(1);
 }
 
 static void fast_smmu_sync_sg_for_device(struct device *dev,
 		struct scatterlist *sg, int nents, enum dma_data_direction dir)
 {
+	BUG_ON(1);
 	WARN_ON_ONCE(1);
 }
 
@@ -401,6 +428,7 @@ static struct page **__fast_smmu_alloc_pages(unsigned int count, gfp_t gfp)
 {
 	struct page **pages;
 	unsigned int i = 0, array_size = count * sizeof(*pages);
+	unsigned int order = get_order(count * PAGE_SIZE);
 
 	if (array_size <= PAGE_SIZE)
 		pages = kzalloc(array_size, GFP_KERNEL);
@@ -410,7 +438,8 @@ static struct page **__fast_smmu_alloc_pages(unsigned int count, gfp_t gfp)
 		return NULL;
 
 	/* IOMMU can map any pages, so himem can also be used here */
-	gfp |= __GFP_NOWARN | __GFP_HIGHMEM;
+	gfp |= __GFP_NOWARN | __GFP_HIGHMEM | __GFP_ZERO;
+
 
 	for (i = 0; i < count; ++i) {
 		struct page *page = alloc_page(gfp);
@@ -421,7 +450,52 @@ static struct page **__fast_smmu_alloc_pages(unsigned int count, gfp_t gfp)
 		}
 		pages[i] = page;
 	}
+
 	return pages;
+}
+
+/* Thankfully, all cache ops are by VA so we can ignore phys here */
+static void flush_page(struct device *dev, const void *virt, phys_addr_t phys)
+{
+	__dma_flush_range(virt, virt + PAGE_SIZE);
+}
+
+static void *__iommu_alloc_attrs(struct device *dev, size_t size,
+				 dma_addr_t *handle, gfp_t gfp,
+				 struct dma_attrs *attrs)
+{
+	bool coherent = is_device_dma_coherent(dev);
+	int ioprot = IOMMU_READ | IOMMU_WRITE;
+	size_t iosize = size;
+	void *addr;
+
+	if (WARN(!dev, "cannot create IOMMU mapping for unknown device\n"))
+		return NULL;
+
+	size = PAGE_ALIGN(size);
+
+	/*
+	 * Some drivers rely on this, and we probably don't want the
+	 * possibility of stale kernel data being read by devices anyway.
+	 */
+	gfp |= __GFP_ZERO;
+
+	if (gfpflags_allow_blocking(gfp)) {
+		struct page **pages;
+		pgprot_t prot = pgprot_writecombine(PAGE_KERNEL);
+
+		pages = iommu_dma_alloc(dev, iosize, gfp, attrs, ioprot,
+					handle, flush_page);
+		if (!pages)
+			return NULL;
+
+		addr = dma_common_pages_remap(pages, size, VM_USERMAP, prot,
+					      __builtin_return_address(0));
+		if (!addr)
+			iommu_dma_free(dev, pages, iosize, handle);
+	}
+
+	return addr;
 }
 
 static void *fast_smmu_alloc(struct device *dev, size_t size,
@@ -468,6 +542,7 @@ static void *fast_smmu_alloc(struct device *dev, size_t size,
 	}
 
 	spin_lock_irqsave(&mapping->lock, flags);
+
 	dma_addr = __fast_smmu_alloc_iova(mapping, attrs, size);
 	if (dma_addr == DMA_ERROR_CODE) {
 		dev_err(dev, "no iova\n");
@@ -539,7 +614,7 @@ static void fast_smmu_free(struct device *dev, size_t size,
 		return;
 
 	pages = area->pages;
-	dma_common_free_remap(vaddr, size, VM_USERMAP, false);
+	dma_common_free_remap(vaddr, size, VM_USERMAP);
 	ptep = iopte_pmd_offset(mapping->pgtbl_pmds, dma_handle);
 	spin_lock_irqsave(&mapping->lock, flags);
 	av8l_fast_unmap_public(ptep, size);
@@ -620,7 +695,7 @@ static int fast_smmu_notify(struct notifier_block *self,
 	}
 }
 
-static const struct dma_map_ops fast_smmu_dma_ops = {
+const struct dma_map_ops fast_smmu_dma_ops = {
 	.alloc = fast_smmu_alloc,
 	.free = fast_smmu_free,
 	.mmap = fast_smmu_mmap_attrs,
@@ -712,13 +787,21 @@ int fast_smmu_attach_device(struct device *dev,
 		fast_smmu_detach_device(dev, mapping);
 		return -EINVAL;
 	}
+
 	mapping->fast->pgtbl_pmds = info.pmds;
 
 	mapping->fast->notifier.notifier_call = fast_smmu_notify;
 	av8l_register_notify(&mapping->fast->notifier);
 
 	dev->archdata.mapping = mapping;
-	set_dma_ops(dev, &fast_smmu_dma_ops);
+	dev->archdata.dma_ops = &fast_smmu_dma_ops;
+
+	/*
+	 * We are overriding the use(infact misuse) of fault handler.
+	 * Its just ok for now, since pagefault handler is not there for now.
+	 */
+
+	domain->handler_token = mapping;
 
 	return 0;
 }
@@ -736,7 +819,7 @@ void fast_smmu_detach_device(struct device *dev,
 {
 	iommu_detach_device(mapping->domain, dev);
 	dev->archdata.mapping = NULL;
-	set_dma_ops(dev, NULL);
+	dev->archdata.dma_ops = NULL;
 
 	kfree(mapping->fast->bitmap);
 	kfree(mapping->fast);

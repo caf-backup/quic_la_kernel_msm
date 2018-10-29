@@ -156,6 +156,14 @@ EXPORT_SYMBOL(av8l_register_notify);
 static void __av8l_check_for_stale_tlb(av8l_fast_iopte *ptep)
 {
 	if (unlikely(*ptep)) {
+		/*
+		 * Ideally we should never hit this condition.
+		 * But there are few cases with iommu wifi enabled
+		 * where the rproc as well as wifi core code maps
+		 * the same regions. That triggers this.
+		 * Otherwise always watch out for this to ensure that
+		 * we are not operating on stale tlb entries.
+		 */
 		atomic_notifier_call_chain(
 			&av8l_notifier_list, MAPPED_OVER_STALE_TLB,
 			(void *) ptep);
@@ -192,21 +200,24 @@ int av8l_fast_map_public(av8l_fast_iopte *ptep, phys_addr_t paddr, size_t size,
 			 int prot)
 {
 	int i, nptes = size >> AV8L_FAST_PAGE_SHIFT;
-	av8l_fast_iopte pte = AV8L_FAST_PTE_XN
-		| AV8L_FAST_PTE_TYPE_PAGE
+	av8l_fast_iopte pte =
+		  AV8L_FAST_PTE_TYPE_PAGE
 		| AV8L_FAST_PTE_AF
 		| AV8L_FAST_PTE_nG
-		| AV8L_FAST_PTE_SH_IS;
+		| AV8L_FAST_PTE_SH_OS;
 
 #if 0
 	if (prot & IOMMU_DEVICE)
 		pte |= (AV8L_FAST_MAIR_ATTR_IDX_DEV
 			<< AV8L_FAST_PTE_ATTRINDX_SHIFT);
 	else
-#endif
 	if (prot & IOMMU_CACHE)
 		pte |= (AV8L_FAST_MAIR_ATTR_IDX_CACHE
 			<< AV8L_FAST_PTE_ATTRINDX_SHIFT);
+#endif
+
+	 pte |= (AV8L_FAST_MAIR_ATTR_IDX_CACHE
+		<< AV8L_FAST_PTE_ATTRINDX_SHIFT);
 
 	if (!(prot & IOMMU_WRITE))
 		pte |= AV8L_FAST_PTE_AP_RO;
@@ -214,6 +225,7 @@ int av8l_fast_map_public(av8l_fast_iopte *ptep, phys_addr_t paddr, size_t size,
 		pte |= AV8L_FAST_PTE_AP_RW;
 
 	paddr &= AV8L_FAST_PTE_ADDR_MASK;
+
 	for (i = 0; i < nptes; i++, paddr += SZ_4K) {
 		__av8l_check_for_stale_tlb(ptep + i);
 		*(ptep + i) = pte | paddr;
@@ -257,6 +269,7 @@ static size_t av8l_fast_unmap(struct io_pgtable_ops *ops, unsigned long iova,
 			      size_t size)
 {
 	struct av8l_fast_io_pgtable *data = iof_pgtable_ops_to_data(ops);
+	struct io_pgtable_cfg *cfg = &data->iop.cfg;
 	av8l_fast_iopte *ptep = iopte_pmd_offset(data->pmds, iova);
 	unsigned long nptes = size >> AV8L_FAST_PAGE_SHIFT;
 
@@ -424,8 +437,8 @@ av8l_fast_alloc_pgtable(struct io_pgtable_cfg *cfg, void *cookie)
 
 	/* TCR */
 	reg = (AV8L_FAST_TCR_SH_IS << AV8L_FAST_TCR_SH0_SHIFT) |
-	      (AV8L_FAST_TCR_RGN_NC << AV8L_FAST_TCR_IRGN0_SHIFT) |
-	      (AV8L_FAST_TCR_RGN_NC << AV8L_FAST_TCR_ORGN0_SHIFT);
+	      (AV8L_FAST_TCR_RGN_WBWA << AV8L_FAST_TCR_IRGN0_SHIFT) |
+	      (AV8L_FAST_TCR_RGN_WBWA << AV8L_FAST_TCR_ORGN0_SHIFT);
 
 	reg |= AV8L_FAST_TCR_TG0_4K;
 
