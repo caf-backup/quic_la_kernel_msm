@@ -24,6 +24,7 @@
 
 	aliases {
 		serial0 = &blsp1_uart1;
+		sdhc1 = &sdhc_1;
 		/*
 		 * Aliases as required by u-boot
 		 * to patch MAC addresses
@@ -80,6 +81,15 @@
 		};
 
 		nand: qpic-nand@79b0000 {
+			status = "ok";
+		};
+
+		sdhc_1: sdhci@7804000 {
+			qcom,clk-rates = <400000 25000000 50000000 100000000 \
+					192000000 384000000>;
+			qcom,bus-speed-mode = "DDR_1p8v";
+			qcom,nonremovable;
+			qcom,emulation = <1>;
 			status = "ok";
 		};
 
