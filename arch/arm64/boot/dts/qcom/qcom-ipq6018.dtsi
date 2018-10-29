@@ -93,6 +93,21 @@
 			dma-names = "rx", "tx";
 		};
 
+		spi_0: spi@78b5000 { /* BLSP1 QUP0 */
+			compatible = "qcom,spi-qup-v2.2.1";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x78b5000 0x600>;
+			interrupts = <0 95 0>;
+			spi-max-frequency = <50000000>;
+			clocks = <&gcc GCC_BLSP1_QUP1_SPI_APPS_CLK>,
+				<&gcc GCC_BLSP1_AHB_CLK>;
+			clock-names = "core", "iface";
+			dmas = <&blsp_dma 12>, <&blsp_dma 13>;
+			dma-names = "tx", "rx";
+			status = "disabled";
+		};
+
 		tcsr_mutex_block: syscon@1905000 {
 			compatible = "syscon";
 			reg = <0x1905000 0x8000>;
