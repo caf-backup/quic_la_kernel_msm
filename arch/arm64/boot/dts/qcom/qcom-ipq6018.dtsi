@@ -101,6 +101,21 @@
 			dma-names = "rx", "tx";
 		};
 
+		spi_0: spi@78b5000 { /* BLSP1 QUP0 */
+			compatible = "qcom,spi-qup-v2.2.1";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x78b5000 0x600>;
+			interrupts = <0 95 0>;
+			spi-max-frequency = <50000000>;
+			clocks = <&gcc GCC_BLSP1_QUP1_SPI_APPS_CLK>,
+				<&gcc GCC_BLSP1_AHB_CLK>;
+			clock-names = "core", "iface";
+			dmas = <&blsp_dma 12>, <&blsp_dma 13>;
+			dma-names = "tx", "rx";
+			status = "disabled";
+		};
+
 		tcsr_mutex_block: syscon@1905000 {
 			compatible = "syscon";
 			reg = <0x1905000 0x8000>;
@@ -253,6 +268,54 @@
 				nand-ecc-step-size = <512>;
 				nand-bus-width = <8>;
 			};
+		};
+
+		sdhc_1: sdhci@7804000 {
+			compatible = "qcom,sdhci-msm-v5";
+			reg = <0x7804000 0x1000>, <0x7805000 0x1000>;
+			reg-names = "hc_mem", "cmdq_mem";
+
+			interrupts = <0 123 0>, <0 138 0>;
+			interrupt-names = "hc_irq", "pwr_irq";
+
+			qcom,bus-width = <8>;
+
+			qcom,dedicated-io = <1>;
+
+			/* device core power supply */
+			qcom,vdd-voltage-level = <2900000 2900000>;
+			qcom,vdd-current-level = <200 570000>;
+
+			/* device communication power supply */
+			qcom,vdd-io-lpm-sup;
+			qcom,vdd-io-voltage-level = <1800000 1800000>;
+			qcom,vdd-io-current-level = <200 325000>;
+			qcom,vdd-io-always-on;
+
+			qcom,cpu-dma-latency-us = <701>;
+			qcom,msm-bus,name = "sdhc1";
+			qcom,msm-bus,num-cases = <9>;
+			qcom,msm-bus,num-paths = <1>;
+			qcom,msm-bus,vectors-KBps = <78 512 0 0>, /* No vote */
+				<78 512 1046 3200>,    /* 400 KB/s*/
+				<78 512 52286 160000>, /* 20 MB/s */
+				<78 512 65360 200000>, /* 25 MB/s */
+				<78 512 130718 400000>, /* 50 MB/s */
+				<78 512 261438 800000>, /* 100 MB/s */
+				<78 512 261438 800000>, /* 200 MB/s */
+				<78 512 261438 800000>, /* 400 MB/s */
+				<78 512 1338562 4096000>; /* Max. bandwidth */
+			qcom,bus-bw-vectors-bps = <0 400000 20000000 25000000 \
+						50000000 100000000 200000000 \
+						400000000 4294967295>;
+
+			clocks = <&gcc GCC_SDCC1_AHB_CLK>,
+				 <&gcc GCC_SDCC1_APPS_CLK>;
+			clock-names = "iface_clk", "core_clk";
+			qcom,large-address-bus;
+			qcom,disable-aggressive-pm;
+
+			status = "disabled";
 		};
 
 		edma@3ab00000 {
