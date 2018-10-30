@@ -40,6 +40,7 @@
 #include <linux/of.h>
 #include <linux/timer.h>
 #include <linux/stringify.h>
+#include "rproc_mdt_loader.h"
 
 enum rproc_wcss_state {
 	RPROC_Q6V5_STOPPED,
@@ -60,8 +61,6 @@ static int debug_wcss;
 
 #define WCSS_CRASH_REASON_SMEM 421
 #define WCNSS_PAS_ID		6
-#define QCOM_MDT_TYPE_MASK      (7 << 24)
-#define QCOM_MDT_TYPE_HASH      (2 << 24)
 #define STOP_ACK_TIMEOUT_MS 2000
 
 #define QDSP6SS_RST_EVB 0x10
@@ -1098,35 +1097,9 @@ static void wcss_panic_handler(const struct subsys_desc *subsys)
 static int q6v5_load(struct rproc *rproc, const struct firmware *fw)
 {
 	int ret = 0;
-	const char *name = rproc->firmware;
-	size_t name_len;
-	char *segment_name;
 	struct device *dev_rproc = rproc->dev.parent;
-	struct elf32_hdr *ehdr;
-	int i = 0;
-	const u8 *elf_data;
-	struct elf32_phdr *phdr;
 	struct platform_device *pdev = to_platform_device(dev_rproc);
 	struct q6v5_rproc_pdata *pdata = platform_get_drvdata(pdev);
-
-	name_len = strlen(name);
-	if (name_len <= 4) {
-		dev_err(dev_rproc, "Firmware name should be >4bytes (*.mdt)\n");
-		return -EINVAL;
-	}
-
-	segment_name = kstrdup(name, GFP_KERNEL);
-	if (!segment_name)
-		return -ENOMEM;
-
-	if (!fw) {
-		dev_err(dev_rproc, "failed to load %s\n", name);
-		return -EINVAL;
-	}
-
-	elf_data = fw->data;
-	ehdr = (struct elf32_hdr *)fw->data;
-	phdr = (struct elf32_phdr *)(elf_data + ehdr->e_phoff);
 
 	if (pdata->secure) {
 		ret = qcom_scm_pas_init_image(WCNSS_PAS_ID, fw->data, fw->size);
@@ -1137,58 +1110,7 @@ static int q6v5_load(struct rproc *rproc, const struct firmware *fw)
 	}
 	pr_info("Sanity check passed for the image\n");
 
-	/* go through the available ELF segments and load it */
-	for (i = 0; i < ehdr->e_phnum; i++, phdr++) {
-		u32 pa = phdr->p_paddr;
-		u32 memsz = phdr->p_memsz;
-		u32 filesz = phdr->p_filesz;
-		void *ptr;
-
-		if ((phdr->p_type != PT_LOAD) ||
-				((phdr->p_flags & QCOM_MDT_TYPE_MASK)
-				 == QCOM_MDT_TYPE_HASH) || (!phdr->p_memsz))
-			continue;
-
-		/* grab the kernel address for this device address */
-		ptr = rproc_da_to_va(rproc, pa, memsz);
-		if (!ptr) {
-			dev_err(dev_rproc, "bad phdr pa 0x%x mem 0x%x\n", pa,
-					memsz);
-			ret = -EINVAL;
-			return ret;
-		}
-
-		/* put the segment where the remote processor expects it */
-		if (phdr->p_filesz) {
-			/* The firmware file has <name>.mdt as the ELF header +
-			 * hash segment, followed by <name>.b00, <name>.b01, etc
-			 * for every ELF segment of the firmware file. The
-			 * rproc loads the first <name>.mdt file, and for the
-			 * ELF segments that we need to load, we make the
-			 * filename as <name>.b"segment_number"
-			 */
-			snprintf(segment_name + name_len - 3,
-				sizeof(segment_name + name_len - 3),
-				"b%02d", i);
-			ret = request_firmware(&fw, segment_name, dev_rproc);
-			if (ret) {
-				dev_err(dev_rproc, "can't to load %s\n",
-						segment_name);
-				iounmap(ptr);
-				break;
-			}
-			memcpy_toio(ptr, fw->data, fw->size);
-			release_firmware(fw);
-		}
-
-		/* for .bss and sections that needs to be memset to zero */
-		if (memsz > filesz)
-			memset_io(ptr + filesz, 0, memsz - filesz);
-
-		iounmap(ptr);
-	}
-	kfree(segment_name);
-	return ret;
+	return mdt_load(rproc, fw);
 }
 
 static int q6_rproc_probe(struct platform_device *pdev)
@@ -1377,6 +1299,7 @@ static int q6_rproc_probe(struct platform_device *pdev)
 				wcss_stop_ack_intr_handler;
 	q6v5_rproc_pdata->subsys_desc.wdog_bite_handler =
 				wcss_wdog_bite_intr_handler;
+	q6v5_rproc_pdata->subsys_desc.depends_on = "q6v5-m3";
 
 	q6v5_rproc_pdata->subsys = subsys_register(
 					&q6v5_rproc_pdata->subsys_desc);
