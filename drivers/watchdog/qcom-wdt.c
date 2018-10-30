@@ -361,6 +361,48 @@ const struct qcom_wdt_props qcom_wdt_props_ipq40xx = {
 	.secure_wdog = true,
 };
 
+const struct qcom_wdt_props qcom_wdt_props_ipq6018 = {
+	.layout = reg_offset_data_kpss,
+	.tlv_msg_offset = SZ_4K,
+	/* As XBL overwrites the NSS UTCM, TZ has to copy it to some memory
+	 * on crash before it restarts the system. Hence, reserving of 192K
+	 * is required to copy the NSS UTCM before restart is done.
+	 * So that TZ can dump NSS dump data after the first 8K.
+	 *
+	 * 3K for DCC Memory
+	 *
+	 * get_order function returns the next higher order as output,
+	 * so when we pass 203K as argument 256K will be allocated.
+	 * 53K is unused currently and can be used based on future needs.
+	 */
+	/*
+	 * The memory is allocated using alloc_pages, hence it will be in
+	 * power of 2. The unused memory is the result of using alloc_pages.
+	 * As we need contigous memory for > 256K we have to use alloc_pages.
+	 *
+	 *		 ---------------
+	 *		|      8K	|
+	 *		|    regsave	|
+	 *		 ---------------
+	 *		|		|
+	 *		|     192K	|
+	 *		|    NSS UTCM	|
+	 *		|		|
+	 *		|		|
+	 *		 ---------------
+	 *		|    3K - DCC	|
+	 *		 ---------------
+	 *		|		|
+	 *		|     53K	|
+	 *		|    Unused	|
+	 *		|		|
+	 *		 ---------------
+	 */
+	.crashdump_page_size = (SZ_8K + (192 * SZ_1K) + (3 * SZ_1K) +
+				(53 * SZ_1K)),
+	.secure_wdog = true,
+};
+
 static const struct of_device_id qcom_wdt_of_table[] = {
 	{	.compatible = "qcom,kpss-wdt-ipq8064",
 		.data = (void *) &qcom_wdt_props_ipq8064,
@@ -370,6 +412,9 @@ static const struct of_device_id qcom_wdt_of_table[] = {
 	},
 	{	.compatible = "qcom,kpss-wdt-ipq40xx",
 		.data = (void *) &qcom_wdt_props_ipq40xx,
+	},
+	{	.compatible = "qcom,kpss-wdt-ipq6018",
+		.data = (void *) &qcom_wdt_props_ipq6018,
 	},
 	{}
 };
