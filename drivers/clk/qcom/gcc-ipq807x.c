@@ -5710,6 +5710,7 @@ static const struct qcom_reset_map gcc_ipq807x_resets[] = {
 	[GCC_PCIE0_AXI_MASTER_ARES] = { 0x75040, 3 },
 	[GCC_PCIE0_AXI_SLAVE_ARES] = { 0x75040, 4 },
 	[GCC_PCIE0_AHB_ARES] = { 0x75040, 5 },
+	[GCC_PCIE0_AXI_SLAVE_STICKY_ARES] = { 0x75040, 7 },
 	[GCC_PCIE0_AXI_MASTER_STICKY_ARES] = { 0x75040, 6 },
 	[GCC_PCIE1_PIPE_ARES] = { 0x76040, 0 },
 	[GCC_PCIE1_SLEEP_ARES] = { 0x76040, 1 },
@@ -5777,6 +5778,7 @@ static int gcc_ipq807x_probe(struct platform_device *pdev)
 	struct regmap *regmap;
 	struct clk *clk;
 	const int *soc_version_major;
+	struct device *dev = &pdev->dev;
 
 	if (of_device_is_compatible(pdev->dev.of_node, "qcom,gcc-ipq807x-v2"))
 		return qcom_cc_probe(pdev, &gcc_ipq807x_v2_desc);
@@ -5797,6 +5799,11 @@ static int gcc_ipq807x_probe(struct platform_device *pdev)
 
 		v2fix_branch_clk_offset(gcc_snoc_bus_timeout2_ahb_clk);
 		v2fix_branch_clk_offset(gcc_snoc_bus_timeout3_ahb_clk);
+		 clk_register_fixed_rate(dev, "pcie20_phy0_pipe_clk", NULL, CLK_IS_ROOT,
+                                      250000000);
+	} else {
+		 clk_register_fixed_rate(dev, "pcie20_phy0_pipe_clk", NULL, CLK_IS_ROOT,
+                                      125000000);
 	}
 
 	regmap = qcom_cc_map(pdev, &gcc_ipq807x_desc);
