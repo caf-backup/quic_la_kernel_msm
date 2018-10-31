@@ -343,13 +343,15 @@ static void msm_gpu_crashstate_get_bo(struct msm_gpu_state *state,
 static void msm_gpu_crashstate_capture(struct msm_gpu *gpu,
 		struct msm_gem_submit *submit, char *comm, char *cmd)
 {
-	struct msm_gpu_state *state;
+	struct msm_gpu_state *state = NULL;
 
 	/* Only save one crash state at a time */
 	if (gpu->crashstate)
 		return;
 
-	state = gpu->funcs->gpu_state_get(gpu);
+	if (gpu->funcs->gpu_state_get)
+		state = gpu->funcs->gpu_state_get(gpu);
+
 	if (IS_ERR_OR_NULL(state))
 		return;
 
@@ -420,7 +422,7 @@ static void recover_worker(struct work_struct *work)
 {
 	struct msm_gpu *gpu = container_of(work, struct msm_gpu, recover_work);
 	struct drm_device *dev = gpu->dev;
-	struct msm_drm_private *priv = dev->dev_private;
+	//struct msm_drm_private *priv = dev->dev_private;
 	struct msm_gem_submit *submit;
 	struct msm_ringbuffer *cur_ring = gpu->funcs->active_ring(gpu);
 	char *comm = NULL, *cmd = NULL;
@@ -431,6 +433,7 @@ static void recover_worker(struct work_struct *work)
 	dev_err(dev->dev, "%s: hangcheck recover!\n", gpu->name);
 
 	submit = find_submit(cur_ring, cur_ring->memptrs->fence + 1);
+#if 0
 	if (submit) {
 		struct task_struct *task;
 
@@ -465,6 +468,7 @@ static void recover_worker(struct work_struct *work)
 			msm_rd_dump_submit(priv->hangrd, submit, NULL);
 	}
 
+#endif
 	/* Record the crash state */
 	pm_runtime_get_sync(&gpu->pdev->dev);
 	msm_gpu_crashstate_capture(gpu, submit, comm, cmd);
@@ -512,6 +516,8 @@ static void recover_worker(struct work_struct *work)
 				gpu->funcs->submit(gpu, submit, NULL);
 		}
 	}
+
+	dev_err(dev->dev, "%s: Done with recovery and replay \n", __func__);
 
 	mutex_unlock(&dev->struct_mutex);
 
