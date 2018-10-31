@@ -70,8 +70,8 @@
 		};
 
 		qcom_rng: qrng@e1000 {
-			compatible = "qcom,prng";
-			reg = <0xe1000 0x1000>;
+			compatible = "qcom,prng-ipq807x";
+			reg = <0xe3000 0x1000>;
 			clocks = <&gcc GCC_PRNG_AHB_CLK>;
 			clock-names = "core";
 			status = "disabled";
