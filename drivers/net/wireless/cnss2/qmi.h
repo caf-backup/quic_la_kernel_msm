@@ -31,19 +31,13 @@
 struct qmi_history {
 	u8  msg_id;
 	u8  error_msg;
+	u8  reserved[6];
 	u64 timestamp;
 };
 
 extern struct qmi_history qmi_log[];
 extern int qmi_history_index;
 
-static inline void qmi_record(u8 msg_id, u8 error_msg)
-{
-	qmi_log[qmi_history_index].msg_id = msg_id;
-	qmi_log[qmi_history_index].error_msg = error_msg;
-	qmi_log[qmi_history_index++].timestamp = ktime_to_ms(ktime_get());
-	qmi_history_index &= (QMI_HISTORY_SIZE - 1);
-}
 
 struct cnss_plat_data;
 extern bool daemon_support;
