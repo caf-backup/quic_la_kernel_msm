@@ -1530,8 +1530,6 @@ static int allocate_rx_intent(struct glink_transport_if *if_ptr, size_t size,
 	intent->vprovider = rx_linear_vbuf_provider;
 	intent->pprovider = NULL;
 
-	printk_ratelimited(KERN_EMERG "%s rx intent id %d allocated\n",
-					__func__, intent->id);
 	return 0;
 }
 
@@ -1553,8 +1551,6 @@ static int deallocate_rx_intent(struct glink_transport_if *if_ptr,
 	intent->iovec = NULL;
 	intent->vprovider = NULL;
 
-	printk_ratelimited(KERN_EMERG "%s rx intent id %d deallocated\n",
-					__func__, intent->id);
 	return 0;
 }
 
