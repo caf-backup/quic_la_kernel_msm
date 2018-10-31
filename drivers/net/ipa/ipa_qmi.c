@@ -204,11 +204,10 @@ static void ipa_init_driver_rsp_fn(struct qmi_handle *qmi,
 {
 	int ret;
 
-	kfree(txn);
-
 	ret = ipa_handshake_complete(qmi, sq, true);
 	if (ret)
 		ipa_err("error %d completing handshake\n", ret);
+	complete(&txn->completion);
 }
 
 /* The client handles one response message type sent by the modem. */
@@ -337,6 +336,13 @@ ipa_client_new_server(struct qmi_handle *qmi, struct qmi_service *svc)
 		kfree(txn);
 	}
 
+	ret = qmi_txn_wait(txn, msecs_to_jiffies(60000));
+	if (ret) {
+		ipa_err("qmi_txn_wait ret = %d\n", ret);
+		qmi_txn_cancel(txn);
+	}
+
+	kfree(txn);
 	return ret;
 }
 
