@@ -315,7 +315,9 @@ const struct qcom_wdt_props qcom_wdt_props_ipq807x = {
 	 * to dump PMIC memory.
 	 * get_order function returns the next higher order as output,
 	 * so when we pass 400K as argument 512K will be allocated.
-	 * 112K is unused currently and can be used based on future needs.
+	 * 3K is required for DCC regsave memory.
+	 * 15K is required for CPR.
+	 * 94K is unused currently and can be used based on future needs.
 	 */
 	/*
 	 * The memory is allocated using alloc_pages, hence it will be in
@@ -337,14 +339,18 @@ const struct qcom_wdt_props qcom_wdt_props_ipq807x = {
 	 *		 ---------------
 	 *		|    3K - DCC	|
 	 *		 ---------------
+	 *		 --------------
+	 *		|      15K     |
+	 *		|    CPR Reg   |
+	 *		 --------------
 	 *		|		|
-	 *		|     109K	|
+	 *		|     94K	|
 	 *		|    Unused	|
 	 *		|		|
 	 *		 ---------------
 	 */
 	.crashdump_page_size = (SZ_8K + (384 * SZ_1K) + (SZ_8K) + (3 * SZ_1K) +
-				(109 * SZ_1K)),
+				(15 * SZ_1K) + (94 * SZ_1K)),
 	.secure_wdog = true,
 };
 
