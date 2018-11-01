@@ -22,6 +22,7 @@
 #include <linux/list.h>
 #include <linux/completion.h>
 #include <linux/kernel.h>
+#include <linux/mutex.h>
 
 #include <asm/uaccess.h>
 
@@ -99,29 +100,49 @@ static struct qmi_dir {
 	{"debug_mask", &debug_mask, S_IRUGO | S_IWUGO},
 };
 
-static unsigned int callback_count;
+static atomic_t cnt, async_cnt, async_rsp, async_req, pass, fail;
+static struct mutex status_print_lock;
+
+static void update_status(void)
+{
+	unsigned int max = nthreads * iterations;
+	unsigned int count = atomic_read(&cnt);
+	unsigned int percent;
+	static unsigned int pre_percent;
+
+	percent = (count * 100)/max;
+
+	if (percent > pre_percent)
+		pr_info("Completed(%d%%)...\n", percent);
+
+	pre_percent = percent;
+}
 
 static void qmi_data_compare(const char *req, const char  *resp)
 {
 	if (strcmp(req, resp) == 0){
-		pr_err("SUCCESS:\tThread[%s]\tData[%luB]\n", current->comm, data_size);
+		atomic_inc(&pass);
 	} else {
 		pr_err("FAILURE:\tThread[%s]\tData[%luB]\n", current->comm, data_size);
+		atomic_inc(&fail);
 	}
 }
 static void test_async_resp_cb(struct qmi_handle *handle,
 		unsigned int msg_id, void *msg,
 		void *resp_cb_data, int stat)
 {
-	callback_count++;
+	atomic_inc(&async_rsp);
+
 	if (stat == 0) {
 		D("%s invoked %d time(s): [RESP_LEN] = %d, [RESP_VALID] = %d",
-				__func__, callback_count,
+				__func__, atomic_read(&cnt),
 				((struct test_data_resp_msg_v01 *)msg)->data_len,
 				((struct test_data_resp_msg_v01 *)msg)->data_valid);
+		atomic_inc(&pass);
 	} else if (stat < 0) {
-		D("%s: Request Failed [MSG_ID]: %d, [ERR_ID]: %d, [Callback_count]: %d",
-				__func__, msg_id, stat,	callback_count);
+		pr_err("%s: Request Failed [MSG_ID]: %d, [ERR_ID]: %d, [Callback_count]: %d",
+				__func__, msg_id, stat,	atomic_read(&cnt));
+		atomic_inc(&fail);
 	}
 
 	kfree(msg);
@@ -134,6 +155,8 @@ static int test_qmi_ping_pong_send_sync_msg(void)
 	struct test_ping_resp_msg_v01 resp;
 	struct msg_desc req_desc, resp_desc;
 	int rc;
+
+	atomic_inc(&cnt);
 
 	memcpy(req.ping, "ping", sizeof(req.ping));
 	req.client_name_valid = 0;
@@ -150,10 +173,16 @@ static int test_qmi_ping_pong_send_sync_msg(void)
 			&resp_desc, &resp, sizeof(resp), 0);
 	if (rc < 0) {
 		pr_err("%s: send req failed %d\n", __func__, rc);
+		atomic_inc(&fail);
 		return rc;
 	}
 
 	D("%s: Received %s response\n", __func__, resp.pong);
+	atomic_inc(&pass);
+	mutex_lock(&status_print_lock);
+	update_status();
+	mutex_unlock(&status_print_lock);
+
 	return rc;
 }
 
@@ -164,9 +193,12 @@ static int test_qmi_data_send_sync_msg(unsigned int data_len)
 	struct msg_desc req_desc, resp_desc;
 	int rc, i;
 
+	atomic_inc(&cnt);
+
 	req = kzalloc(sizeof(struct test_data_req_msg_v01), GFP_KERNEL);
 	if (!req) {
 		pr_err("%s: Data req msg alloc failed\n", __func__);
+		atomic_inc(&fail);
 		return -ENOMEM;
 	}
 
@@ -174,6 +206,7 @@ static int test_qmi_data_send_sync_msg(unsigned int data_len)
 	if (!resp) {
 		pr_err("%s: Data resp msg alloc failed\n", __func__);
 		kfree(req);
+		atomic_inc(&fail);
 		return -ENOMEM;
 	}
 
@@ -194,8 +227,13 @@ static int test_qmi_data_send_sync_msg(unsigned int data_len)
 			&resp_desc, resp, sizeof(*resp), 0);
 	if (rc < 0) {
 		pr_err("%s: send req failed\n", __func__);
+		atomic_inc(&fail);
 		goto data_send_err;
 	}
+
+	mutex_lock(&status_print_lock);
+	update_status();
+	mutex_unlock(&status_print_lock);
 
 	D("%s: data_valid %d\n", __func__, resp->data_valid);
 	D("%s: data_len %d\n", __func__, resp->data_len);
@@ -218,6 +256,7 @@ static int test_qmi_data_send_async_msg(unsigned int data_len)
 	req = kzalloc(sizeof(struct test_data_req_msg_v01), GFP_KERNEL);
 	if (!req) {
 		pr_err("%s: Data req msg alloc failed\n", __func__);
+		atomic_inc(&fail);
 		return -ENOMEM;
 	}
 
@@ -225,6 +264,7 @@ static int test_qmi_data_send_async_msg(unsigned int data_len)
 	if (!resp) {
 		pr_err("%s: Data resp msg alloc failed\n", __func__);
 		kfree(req);
+		atomic_inc(&fail);
 		return -ENOMEM;
 	}
 
@@ -233,6 +273,7 @@ static int test_qmi_data_send_async_msg(unsigned int data_len)
 		pr_err("%s: Resp_desc msg alloc failed\n", __func__);
 		kfree(req);
 		kfree(resp);
+		atomic_inc(&fail);
 		return -ENOMEM;
 	}
 
@@ -256,7 +297,10 @@ static int test_qmi_data_send_async_msg(unsigned int data_len)
 		pr_err("%s: send req failed\n", __func__);
 		kfree(resp);
 		kfree(resp_desc);
-	}
+		atomic_inc(&fail);
+	 } else
+		atomic_inc(&async_req);
+
 	kfree(req);
 	return rc;
 }
@@ -347,7 +391,6 @@ static int test_clnt_svc_event_notify(struct notifier_block *this,
 int qmi_process_user_input(void *data)
 {
 	struct test_qmi_data *qmi_data, *temp_qmi_data;
-	unsigned short count = iterations;
 	unsigned short index = 0;
 
 	wait_for_completion_timeout(&qmi_complete, msecs_to_jiffies(1000));
@@ -355,10 +398,6 @@ int qmi_process_user_input(void *data)
 	list_for_each_entry_safe(qmi_data, temp_qmi_data, &data_list, list) {
 
 		atomic_inc(&qmi_data->refs_count);
-		while (count) {
-			count --;
-			msleep(1000);
-		}
 
 		if (!strncmp(qmi_data->data, "ping_pong", sizeof(qmi_data->data))) {
 			for (index = 0; index < iterations; index++) {
@@ -380,36 +419,51 @@ int qmi_process_user_input(void *data)
 			}
 		} else if (!strncmp(qmi_data->data, "data_async", sizeof(qmi_data->data))) {
 			int index;
-			callback_count = 0;
 			for (index = 0; index < iterations; index++) {
+				atomic_inc(&async_cnt);
 				test_res = test_qmi_data_send_async_msg(data_size);
 				if (test_res == -ENETRESET || test_clnt_reset) {
-					--index;
 					do {
 						msleep(50);
 					} while (test_clnt_reset);
 				} else if (test_res < 0) {
-					--index;
 					pr_err("%s: Error sending txn, aborting now",
 							__func__);
 					break;
 				}
 			}
-			while (callback_count < index) {
+			while (atomic_read(&async_cnt)
+					< (nthreads * iterations)) {
+				D("Waiting async req completion: %d\n",
+					atomic_read(&async_cnt));
 				if (test_clnt_reset) {
 					pr_err("%s: Service Exited", __func__);
 					break;
 				}
-				msleep(50);
+				msleep(100);
 			}
-			pr_err("%s complete\n", __func__);
-			callback_count = 0;
+
+			while (atomic_read(&async_rsp)
+				 < atomic_read(&async_req)) {
+				D("Waiting to receive all rsp: %d req: %d\n",
+					atomic_read(&async_rsp), atomic_read(&async_req));
+				if (test_clnt_reset) {
+					pr_err("%s: Service Exited", __func__);
+					break;
+				}
+				msleep(100);
+			}
+
+
 		} else {
-			test_res = -EINVAL;
+			test_res = 0;
+			pr_err("Invalid Test.\n");
+			break;
 		}
 
 		if (atomic_dec_and_test(&qmi_data->refs_count)) {
-			pr_err("deleted qmi_data\n");
+			pr_info("Test Completed. Pass: %d Fail: %d\n",
+				atomic_read(&pass), atomic_read(&fail));
 			list_del(&qmi_data->list);
 			kfree(qmi_data);
 			qmi_data = NULL;
@@ -425,6 +479,13 @@ static int test_qmi_open(struct inode *ip, struct file *fp)
 	struct task_struct *qmi_task;
 	int index = 0;
 
+	atomic_set(&cnt, 0);
+	atomic_set(&pass, 0);
+	atomic_set(&fail, 0);
+	atomic_set(&async_cnt, 0);
+	atomic_set(&async_req, 0);
+	atomic_set(&async_rsp, 0);
+
 	for (index = 1; index < sizeof(qdentry)/sizeof(struct qmi_dir); index++) {
 		if (!strncmp(fp->f_path.dentry->d_iname, qdentry[index].string, \
 					sizeof(fp->f_path.dentry->d_iname)))
@@ -436,6 +497,10 @@ static int test_qmi_open(struct inode *ip, struct file *fp)
 		return -ENODEV;
 
 	}
+
+	pr_info("Total commands: %lu (Threads: %lu Iteration: %lu)\n",
+			nthreads * iterations, nthreads, iterations);
+
 	init_completion(&qmi_complete);
 	for (index = 0; index < nthreads; index++) {
 		snprintf(thread_name, sizeof(thread_name), "qmi_test_""%d", index);
@@ -558,6 +623,7 @@ static int __init test_qmi_init(void)
 	}
 
 	INIT_LIST_HEAD(&data_list);
+	mutex_init(&status_print_lock);
 
 	return 0;
 
