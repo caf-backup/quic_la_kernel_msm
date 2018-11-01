@@ -1014,6 +1014,13 @@
 			#power-domain-cells = <1>;
 		};
 
+		lpasscc: clock-controller {
+			compatible = "qcom,sdm845-lpasscc";
+			reg = <0x17014000 0x1f004>, <0x17300000 0x200>;
+			reg-names = "lpass_cc", "lpass_qdsp6ss";
+			#clock-cells = <1>;
+		};
+
 		clock_aop: qcom,aopclk {
 			compatible = "qcom,aop-qmp-clk";
 			#clock-cells = <1>;

@@ -3153,6 +3153,34 @@ static struct clk_branch gcc_cpuss_gnoc_clk = {
 	},
 };
 
+static struct clk_branch gcc_lpass_q6_axi_clk = {
+	.halt_reg = 0x47000,
+	.halt_check = BRANCH_HALT,
+	.clkr = {
+		.enable_reg = 0x47000,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "gcc_lpass_q6_axi_clk",
+			.flags = CLK_IS_CRITICAL,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
+static struct clk_branch gcc_lpass_sway_clk = {
+	.halt_reg = 0x47008,
+	.halt_check = BRANCH_HALT,
+	.clkr = {
+		.enable_reg = 0x47008,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "gcc_lpass_sway_clk",
+			.flags = CLK_IS_CRITICAL,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
 static struct gdsc pcie_0_gdsc = {
 	.gdscr = 0x6b004,
 	.pd = {
@@ -3453,6 +3481,8 @@ static struct clk_regmap *gcc_sdm845_clocks[] = {
 	[GCC_QSPI_CORE_CLK_SRC] = &gcc_qspi_core_clk_src.clkr,
 	[GCC_QSPI_CORE_CLK] = &gcc_qspi_core_clk.clkr,
 	[GCC_QSPI_CNOC_PERIPH_AHB_CLK] = &gcc_qspi_cnoc_periph_ahb_clk.clkr,
+	[GCC_LPASS_Q6_AXI_CLK] = NULL,
+	[GCC_LPASS_SWAY_CLK] = NULL,
 };
 
 static const struct qcom_reset_map gcc_sdm845_resets[] = {
@@ -3566,6 +3596,13 @@ static int gcc_sdm845_probe(struct platform_device *pdev)
 					ARRAY_SIZE(gcc_dfs_clocks));
 	if (ret)
 		return ret;
+
+	if (!of_property_read_bool(pdev->dev.of_node, "qcom,lpass-protected")) {
+		gcc_sdm845_clocks[GCC_LPASS_Q6_AXI_CLK] =
+			&gcc_lpass_q6_axi_clk.clkr;
+		gcc_sdm845_clocks[GCC_LPASS_SWAY_CLK] =
+			&gcc_lpass_sway_clk.clkr;
+	}
 
 	return qcom_cc_really_probe(pdev, &gcc_sdm845_desc, regmap);
 }
