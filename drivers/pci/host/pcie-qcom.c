@@ -1660,32 +1660,34 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	if (IS_ERR(pcie->elbi))
 		return PTR_ERR(pcie->elbi);
 
-	soc_version_major = read_ipq_soc_version_major();
-	BUG_ON(!soc_version_major);
-	index = of_property_match_string(dev->of_node,  "phy-names",
-			"pciephy");
-	if (index < 0) {
-		if (*soc_version_major == 1) {
-			pcie->phy = devm_phy_optional_get(dev, "pciephy-gen2");
+	pcie->is_gen3 = 0;
+	if (of_device_is_compatible(pdev->dev.of_node, "qcom,pcie-ipq807x")) {
+		soc_version_major = read_ipq_soc_version_major();
+		BUG_ON(!soc_version_major);
+		index = of_property_match_string(dev->of_node,  "phy-names",
+				"pciephy");
+		if (index < 0) {
+			if (*soc_version_major == 1) {
+				pcie->phy = devm_phy_optional_get(dev, "pciephy-gen2");
+				if (IS_ERR(pcie->phy))
+					return PTR_ERR(pcie->phy);
+				pcie->is_gen3 = 0;
+			} else if (*soc_version_major == 2){
+				pcie->phy = devm_phy_optional_get(dev, "pciephy-gen3");
+				if (IS_ERR(pcie->phy))
+					return PTR_ERR(pcie->phy);
+				pcie->is_gen3 = 1;
+			} else {
+				dev_err(dev, "missing phy-names\n");
+				return index;
+			}
+		} else {
+			pcie->phy = devm_phy_optional_get(dev, "pciephy");
 			if (IS_ERR(pcie->phy))
 				return PTR_ERR(pcie->phy);
 			pcie->is_gen3 = 0;
-		} else if (*soc_version_major == 2){
-			pcie->phy = devm_phy_optional_get(dev, "pciephy-gen3");
-			if (IS_ERR(pcie->phy))
-				return PTR_ERR(pcie->phy);
-			pcie->is_gen3 = 1;
-		} else {
-			dev_err(dev, "missing phy-names\n");
-			return index;
 		}
-	} else {
-		pcie->phy = devm_phy_optional_get(dev, "pciephy");
-		if (IS_ERR(pcie->phy))
-			return PTR_ERR(pcie->phy);
-		pcie->is_gen3 = 0;
 	}
-
 	if (pcie->is_gen3) {
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dm_iatu");
 		pcie->dm_iatu = devm_ioremap_resource(dev, res);
