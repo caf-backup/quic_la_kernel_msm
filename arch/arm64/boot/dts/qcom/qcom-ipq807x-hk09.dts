@@ -22,9 +22,10 @@
 	#size-cells = <0x2>;
 	model = "Qualcomm Technologies, Inc. IPQ807x/AP-HK09";
 	compatible = "qcom,ipq807x-hk09", "qcom,ipq807x";
-	qcom,msm-id = <0x125 0x0>;
+	qcom,msm-id = <0x185 0x0>;
 	interrupt-parent = <&intc>;
-	qcom,board-id = <0x10 0x0>;
+	qcom,board-id = <0x8 0x0>;
+	qcom,pmic-id = <0x0 0x0 0x0 0x0>;
 
 	aliases {
 		/*
