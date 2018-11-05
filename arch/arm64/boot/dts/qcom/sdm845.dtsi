@@ -15,6 +15,7 @@
 #include <dt-bindings/phy/phy-qcom-qusb2.h>
 #include <dt-bindings/power/qcom-rpmpd.h>
 #include <dt-bindings/reset/qcom,sdm845-aoss.h>
+#include <dt-bindings/reset/qcom,sdm845-pdc.h>
 #include <dt-bindings/soc/qcom,dcc_v2.h>
 #include <dt-bindings/soc/qcom,rpmh-rsc.h>
 #include <dt-bindings/soc/qcom,ipa.h>
@@ -95,7 +96,7 @@
 			no-map;
 		};
 
-		rmtfs@88f00000 {
+		rmtfs_mem: rmtfs@88f00000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0x0 0x88f00000 0x0 0x200000>;
 			no-map;
@@ -1825,6 +1826,11 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 
+			pil@94c {
+				compatible = "qcom,msm-imem-pil";
+				reg = <0x94c 4>;
+			};
+
 			mem_dump_table@10 {
 				compatible = "qcom,msm-imem-mem_dump_table";
 				reg = <0x10 8>;
@@ -2976,8 +2982,9 @@
 			qcom,smem-states = <&modem_smp2p_out 0>;
 			qcom,smem-state-names = "stop";
 
-			resets = <&aoss_reset AOSS_CC_MSS_RESTART>;
-			reset-names = "mss_restart";
+			resets = <&aoss_reset AOSS_CC_MSS_RESTART>,
+				 <&pdc_reset PDC_MODEM_SYNC_RESET>;
+			reset-names = "mss_restart", "pdc_reset";
 
 			qcom,halt-regs = <&tcsr_mutex_regs
 						0x23000 0x25000 0x24000>;
@@ -3472,6 +3479,12 @@
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 			#power-domain-cells = <1>;
+		};
+
+		pdc_reset: reset-controller@b2e0000 {
+			compatible = "qcom,sdm845-pdc-global";
+			reg = <0xb2e0000 0x20000>;
+			#reset-cells = <1>;
 		};
 
 		tsens0: thermal-sensor@c263000 {
