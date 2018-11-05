@@ -155,6 +155,18 @@
 	};
 };
 
+&mpss_mem {
+	reg = <0 0x8e000000 0 0x8000000>;
+};
+
+&venus_region {
+	reg = <0x0 0x96000000 0x0 0x500000>;
+};
+
+&rmtfs_mem {
+	reg = <0x0 0x88f00000 0x0 0x800000>;
+};
+
 &qspi {
 	status = "okay";
 	pinctrl-names = "default";
