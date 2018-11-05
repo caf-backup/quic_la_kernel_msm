@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2016 Linaro Ltd.
  * Copyright (C) 2014 Sony Mobile Communications AB
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -66,6 +66,7 @@
 
 /* QDSP6SS Register Offsets */
 #define QDSP6SS_RESET_REG		0x014
+#define QDSP6SS_DBG_CFG			0x018
 #define QDSP6SS_GFMUX_CTL_REG		0x020
 #define QDSP6SS_PWR_CTL_REG		0x030
 #define QDSP6SS_MEM_PWR_CTL		0x0B0
@@ -113,6 +114,9 @@
 #define QDSP6SS_BOOT_CMD                0x404
 #define SLEEP_CHECK_MAX_LOOPS           200
 #define BOOT_FSM_TIMEOUT                10000
+
+/* Debug Timeout Timeout */
+#define QDSP6SS_COMPLETION_TIMEOUT	((is_timeout_disabled()) ? -1 : 5000)
 
 struct reg_info {
 	struct regulator *reg;
@@ -385,6 +389,8 @@ static int q6v5_load(struct rproc *rproc, const struct firmware *fw)
 	struct q6v5 *qproc = rproc->priv;
 
 	memcpy(qproc->mba_region, fw->data, fw->size);
+	qcom_mdt_write_image_info(qproc->dev, NULL,
+			QCOM_MDT_IMAGE_ID_MODEM);
 
 	return 0;
 }
@@ -407,6 +413,9 @@ static int q6v5_reset_assert(struct q6v5 *qproc)
 static int q6v5_reset_deassert(struct q6v5 *qproc)
 {
 	int ret;
+	u32 debug_val = 0;
+
+	debug_val = readl(qproc->reg_base + QDSP6SS_DBG_CFG);
 
 	if (qproc->has_alt_reset) {
 		reset_control_assert(qproc->pdc_reset);
@@ -418,6 +427,7 @@ static int q6v5_reset_deassert(struct q6v5 *qproc)
 		ret = reset_control_deassert(qproc->mss_restart);
 	}
 
+	writel(debug_val, qproc->reg_base + QDSP6SS_DBG_CFG);
 	return ret;
 }
 
@@ -432,7 +442,7 @@ static int q6v5_rmb_pbl_wait(struct q6v5 *qproc, int ms)
 		if (val)
 			break;
 
-		if (time_after(jiffies, timeout))
+		if (time_after(jiffies, timeout) && (!is_timeout_disabled()))
 			return -ETIMEDOUT;
 
 		msleep(1);
@@ -458,7 +468,7 @@ static int q6v5_rmb_mba_wait(struct q6v5 *qproc, u32 status, int ms)
 		else if (status && val == status)
 			break;
 
-		if (time_after(jiffies, timeout))
+		if (time_after(jiffies, timeout) && (!is_timeout_disabled()))
 			return -ETIMEDOUT;
 
 		msleep(1);
@@ -916,6 +926,8 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 	void *ptr;
 	int ret;
 	int i;
+	char mpss_dev_name[8] = "modem";
+	struct qcom_mdt_image_info mpss_info;
 
 	ret = request_firmware(&fw, "modem.mdt", qproc->dev);
 	if (ret < 0) {
@@ -1008,6 +1020,12 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 	else if (ret < 0)
 		dev_err(qproc->dev, "MPSS authentication failed: %d\n", ret);
 
+	strcpy(mpss_info.name, mpss_dev_name);
+	mpss_info.start = qproc->mpss_phys;
+	mpss_info.size =  size;
+	qcom_mdt_write_image_info(qproc->dev, &mpss_info,
+			QCOM_MDT_IMAGE_ID_MODEM);
+
 release_firmware:
 	release_firmware(fw);
 
@@ -1057,7 +1075,8 @@ static int q6v5_start(struct rproc *rproc)
 	if (ret)
 		goto reclaim_mpss;
 
-	ret = qcom_q6v5_wait_for_start(&qproc->q6v5, msecs_to_jiffies(5000));
+	ret = qcom_q6v5_wait_for_start(&qproc->q6v5,
+			msecs_to_jiffies(QDSP6SS_COMPLETION_TIMEOUT));
 	if (ret == -ETIMEDOUT) {
 		dev_err(qproc->dev, "start timed out\n");
 		goto reclaim_mpss;
@@ -1171,6 +1190,8 @@ static void qcom_msa_handover(struct qcom_q6v5 *q6v5)
 			 qproc->proxy_clk_count);
 	q6v5_regulator_disable(qproc, qproc->proxy_regs,
 			       qproc->proxy_reg_count);
+	q6v5_powerdomain_disable(qproc->dev, qproc->pd_devs,
+					 qproc->pd_count);
 }
 
 static int q6v5_init_mem(struct q6v5 *qproc, struct platform_device *pdev)
