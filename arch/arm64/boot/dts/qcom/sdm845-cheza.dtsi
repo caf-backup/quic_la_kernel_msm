@@ -8,6 +8,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
+#include <dt-bindings/clock/qcom,lpass-sdm845.h>
 #include "sdm845.dtsi"
 
 /* PMICs depend on spmi_bus label and so must come after SoC */
@@ -187,7 +188,6 @@
 	};
 };
 
-
 &apps_rsc {
 	pm8998-rpmh-regulators {
 		compatible = "qcom,pm8998-rpmh-regulators";
@@ -348,6 +348,7 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
+		pp1800_a_alc5662:
 		src_pp1800_l14a: ldo14 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
@@ -581,7 +582,46 @@ ap_pen_1v8: &i2c11 {
 amp_i2c: &i2c12 {
 	status = "okay";
 	clock-frequency = <400000>;
-};
+		/*
+		 * Right speaker. TODO(cychiang): change slot number for vmon and imon.
+		 * TDM slot 2.
+		 */
+		max98927_r: max98927@39 {
+			compatible = "maxim,max98927";
+			vmon-slot-no = <0>;
+			imon-slot-no = <1>;
+			interleave-mode = <1>;
+			reg = <0x39>;
+			#sound-dai-cells = <1>;
+			reset-gpio = <&tlmm 75 GPIO_ACTIVE_LOW>;
+		};
+
+		/*
+		 * Left speaker. TODO(cychiang): change slot number for vmon and imon.
+		 * TDM slot 1.
+		 */
+		max98927_l: max98927@3a {
+			compatible = "maxim,max98927";
+			vmon-slot-no = <2>;
+			imon-slot-no = <3>;
+			interleave-mode = <1>;
+			reg = <0x3a>;
+			#sound-dai-cells = <1>;
+			reset-gpio = <&tlmm 75 GPIO_ACTIVE_LOW>;
+		};
+
+		/*
+		 * Headset codec.
+		 */
+		alc5662: alc5662@13 {
+			compatible = "realtek,rt5663";
+			reg = <0x13>;
+			interrupt-parent = <&tlmm>;
+			interrupts = <117 IRQ_TYPE_EDGE_BOTH>;
+			#sound-dai-cells = <1>;
+			avdd-supply = <&pp1800_a_alc5662>;
+		};
+	};
 
 ap_ts_i2c: &i2c14 {
 	status = "okay";
@@ -677,6 +717,7 @@ ap_ts_i2c: &i2c14 {
 
 #include <arm/cros-ec-keyboard.dtsi>
 #include <arm/cros-ec-sbs.dtsi>
+#include "sdm845-audio.dtsi"
 
 &uart6 {
 	status = "okay";

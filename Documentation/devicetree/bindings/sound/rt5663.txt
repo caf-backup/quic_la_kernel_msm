@@ -36,6 +36,9 @@ Optional properties:
   "realtek,impedance_sensing_num" is 2. It means that there are 2 ranges of
   impedance in the impedance sensing function.
 
+- avdd-supply: Power supply for AVDD, providing 1.8V.
+- cpvdd-supply: Power supply for CPVDD, providing 3.5V.
+
 Pins on the device (for linking into audio routes) for RT5663:
 
   * IN1P
@@ -51,4 +54,6 @@ rt5663: codec@12 {
 	compatible = "realtek,rt5663";
 	reg = <0x12>;
 	interrupts = <7 IRQ_TYPE_EDGE_FALLING>;
+	avdd-supply = <&pp1800_a_alc5662>;
+	cpvdd-supply = <&pp3500_a_alc5662>;
 };

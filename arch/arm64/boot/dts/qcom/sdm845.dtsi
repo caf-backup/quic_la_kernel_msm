@@ -104,6 +104,11 @@
 			qcom,client-id = <1>;
 		};
 
+		pil_adsp_mem: reserved-memory@8b100000 {
+			no-map;
+			reg = <0 0x8b100000 0 0x1a00000>;
+		};
+
 		mpss_mem: reserved-memory@8e000000 {
 			no-map;
 			reg = <0 0x8e000000 0 0x7800000>;
@@ -2696,6 +2701,12 @@
 				pinmux {
 					pins = "gpio49", "gpio50";
 					function = "qup12";
+				};
+
+				pinconf {
+					pins = "gpio49", "gpio50";
+					drive-strength = <2>;
+					bias-disable;
 				};
 			};
 
