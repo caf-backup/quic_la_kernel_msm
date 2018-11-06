@@ -1266,8 +1266,7 @@ static inline void host_set_baudrate(struct hci_uart *hu, unsigned int speed)
 static int qca_send_power_pulse(struct hci_dev *hdev, u8 cmd)
 {
 	struct hci_uart *hu = hci_get_drvdata(hdev);
-	struct qca_data *qca = hu->priv;
-	struct sk_buff *skb;
+	int ret;
 
 	/* These power pulses are single byte command which are sent
 	 * at required baudrate to wcn3990. On wcn3990, we have an external
@@ -1280,18 +1279,14 @@ static int qca_send_power_pulse(struct hci_dev *hdev, u8 cmd)
 	 * sending power pulses to SoC.
 	 */
 	bt_dev_dbg(hdev, "sending power pulse %02x to SoC", cmd);
-
-	skb = bt_skb_alloc(sizeof(cmd), GFP_KERNEL);
-	if (!skb)
-		return -ENOMEM;
-
 	hci_uart_set_flow_control(hu, true);
+	ret = serdev_device_write(hu->serdev, &cmd, sizeof(cmd), 0);
+	if (ret < 0) {
+		bt_dev_err(hdev, "failed to send power pulse %02x to SoC", cmd);
+		return ret;
+	}
 
-	skb_put_u8(skb, cmd);
-	hci_skb_pkt_type(skb) = HCI_COMMAND_PKT;
-
-	skb_queue_tail(&qca->txq, skb);
-	hci_uart_tx_wakeup(hu);
+	serdev_device_wait_until_sent(hu->serdev, 0);
 
 	/* Wait for 100 uS for SoC to settle down */
 	usleep_range(100, 200);
@@ -1533,7 +1528,8 @@ static void qca_power_shutdown(struct hci_uart *hu)
 
 	host_set_baudrate(hu, 2400);
 	hci_uart_set_flow_control(hu, true);
-	serdev_device_write_buf(serdev, &cmd, sizeof(cmd));
+	serdev_device_write(serdev, &cmd, sizeof(cmd), 0);
+	serdev_device_wait_until_sent(serdev, 0);
 	hci_uart_set_flow_control(hu, false);
 	qca_power_setup(hu, false);
 }
