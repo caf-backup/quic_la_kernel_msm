@@ -114,8 +114,7 @@ The firmware subnode must have:
 			power-domains = <&mmcc VENUS_CORE1_GDSC>;
 		};
 
-		venus-firmware {
-			compatible = "qcom,venus-firmware";
-			iommus = <&apps_smmu 0x10b2 0x0>;
+		video-firmware {
+			iommus = <&apps_iommu 0x10b2 0x0>;
 		};
 	};

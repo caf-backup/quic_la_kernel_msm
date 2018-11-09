@@ -3323,8 +3323,7 @@
 				power-domains = <&videocc VCODEC1_GDSC>;
 			};
 
-			firmware {
-				compatible = "qcom,venus-firmware";
+			video-firmware {
 				iommus = <&apps_smmu 0x10b2 0x0>;
 			};
 		};

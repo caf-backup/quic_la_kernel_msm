@@ -24,7 +24,7 @@
 #include "hfi_cmds.h"
 #include "hfi_venus.h"
 
-#define TIMEOUT		msecs_to_jiffies(10000)
+#define TIMEOUT		msecs_to_jiffies(1000)
 
 static u32 to_codec_type(u32 pixfmt)
 {
@@ -311,6 +311,7 @@ int hfi_session_stop(struct venus_inst *inst)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hfi_session_stop);
 
 int hfi_session_continue(struct venus_inst *inst)
 {

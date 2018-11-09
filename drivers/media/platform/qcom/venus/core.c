@@ -180,20 +180,6 @@ static u32 to_v4l2_codec_type(u32 codec)
 	}
 }
 
-static int store_firmware_dev(struct device *dev, void *data)
-{
-	struct venus_core *core = data;
-
-	if (!core)
-		return -EINVAL;
-
-	if (of_device_is_compatible(dev->of_node, "qcom,venus-firmware")) {
-		core->fw.dev = dev;
-	}
-
-	return 0;
-}
-
 static int venus_enumerate_codecs(struct venus_core *core, u32 type)
 {
 	const struct hfi_inst_ops dummy_ops = {};
@@ -310,8 +296,6 @@ static int venus_probe(struct platform_device *pdev)
 	ret = venus_firmware_init(core);
 	if (ret)
 		goto err_runtime_disable;
-	/* Attempt to store firmware device */
-	device_for_each_child(dev, core, store_firmware_dev);
 
 	ret = venus_boot(core);
 	if (ret)
@@ -558,29 +542,7 @@ static struct platform_driver qcom_venus_driver = {
 		.pm = &venus_pm_ops,
 	},
 };
-
-static int __init venus_init(void)
-{
-	int ret;
-
-	ret = platform_driver_register(&qcom_video_firmware_driver);
-	if (ret)
-		return ret;
-
-	ret = platform_driver_register(&qcom_venus_driver);
-	if (ret)
-		platform_driver_unregister(&qcom_video_firmware_driver);
-
-	return ret;
-}
-module_init(venus_init);
-
-static void __exit venus_exit(void)
-{
-	platform_driver_unregister(&qcom_venus_driver);
-	platform_driver_unregister(&qcom_video_firmware_driver);
-}
-module_exit(venus_exit);
+module_platform_driver(qcom_venus_driver);
 
 MODULE_ALIAS("platform:qcom-venus");
 MODULE_DESCRIPTION("Qualcomm Venus video encoder and decoder driver");
