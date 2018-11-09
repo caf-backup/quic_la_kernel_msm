@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
  * Copyright (C) 2017 Linaro Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -537,6 +537,7 @@ static void hfi_session_ftb_done(struct venus_core *core,
 
 done:
 	inst->error = error;
+	pr_err("FTB done filled len: %d timestamp: %lld",filled_len, timestamp_us);
 	inst->ops->buf_done(inst, buffer_type, output_tag, filled_len,
 			    offset, flags, hfi_flags, timestamp_us);
 }

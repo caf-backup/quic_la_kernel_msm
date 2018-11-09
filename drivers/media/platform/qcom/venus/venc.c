@@ -484,10 +484,25 @@ venc_s_selection(struct file *file, void *fh, struct v4l2_selection *s)
 
 	switch (s->target) {
 	case V4L2_SEL_TGT_CROP:
-		if (s->r.width != inst->out_width ||
-		    s->r.height != inst->out_height ||
-		    s->r.top != 0 || s->r.left != 0)
-			return -EINVAL;
+		if (s->r.left != 0) {
+			s->r.width += s->r.left;
+			s->r.left = 0;
+		}
+
+		if (s->r.top != 0) {
+			s->r.height += s->r.top;
+			s->r.top = 0;
+		}
+
+		if (s->r.width > inst->width)
+			s->r.width = inst->width;
+		else
+			inst->width = s->r.width;
+
+		if (s->r.height > inst->height)
+			s->r.height = inst->height;
+		else
+			inst->height = s->r.height;
 		break;
 	default:
 		return -EINVAL;
@@ -762,7 +777,6 @@ static int venc_set_properties(struct venus_inst *inst)
 	else
 		bitrate = ctr->bitrate_peak;
 
-	/*
 	ptype = HFI_PROPERTY_CONFIG_VENC_MAX_BITRATE;
 	brate.bitrate = bitrate;
 	brate.layer_id = 0;
@@ -770,7 +784,6 @@ static int venc_set_properties(struct venus_inst *inst)
 	ret = hfi_session_set_property(inst, ptype, &brate);
 	if (ret)
 		return ret;
-	*/
 
 	if (inst->fmt_cap->pixfmt == V4L2_PIX_FMT_H264) {
 		profile = venc_v4l2_to_hfi(V4L2_CID_MPEG_VIDEO_H264_PROFILE,
@@ -1004,7 +1017,7 @@ static int venc_start_streaming(struct vb2_queue *q, unsigned int count)
 deinit_sess:
 	hfi_session_deinit(inst);
 bufs_done:
-	venus_helper_buffers_done(inst, q->type, VB2_BUF_STATE_QUEUED);
+	venus_helper_buffers_done(inst, VB2_BUF_STATE_QUEUED);
 	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
 		inst->streamon_out = 0;
 	else
@@ -1013,12 +1026,30 @@ bufs_done:
 	return ret;
 }
 
+void venc_stop_streaming(struct vb2_queue *q)
+{
+	struct venus_inst *inst = vb2_get_drv_priv(q);
+
+	mutex_lock(&inst->lock);
+
+	if (inst->streamon_out & inst->streamon_cap)
+		venus_helper_vb2_stop_streaming(q);
+
+	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
+		inst->streamon_out = 0;
+	else
+		inst->streamon_cap = 0;
+
+	mutex_unlock(&inst->lock);
+}
+EXPORT_SYMBOL_GPL(venc_stop_streaming);
+
 static const struct vb2_ops venc_vb2_ops = {
 	.queue_setup = venc_queue_setup,
 	.buf_init = venus_helper_vb2_buf_init,
 	.buf_prepare = venus_helper_vb2_buf_prepare,
 	.start_streaming = venc_start_streaming,
-	.stop_streaming = venus_helper_vb2_stop_streaming,
+	.stop_streaming = venc_stop_streaming,
 	.buf_queue = venus_helper_vb2_buf_queue,
 };
 
