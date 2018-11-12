@@ -28,46 +28,31 @@
 #include "ipa_qmi.h"
 #include "ipa_i.h"
 
-#define WWAN_METADATA_SHFT 24
-#define WWAN_METADATA_MASK 0xFF000000
-#define WWAN_DATA_LEN 2000
-#define IPA_RM_INACTIVITY_TIMER 100 /* IPA_RM */
-#define HEADROOM_FOR_QMAP   8 /* for mux header */
-#define TAILROOM	    0 /* for padding by mux layer */
-#define MAX_NUM_OF_MUX_CHANNEL	10 /* max mux channels */
-#define UL_FILTER_RULE_HANDLE_START 69
-#define DEFAULT_OUTSTANDING_HIGH 128
-#define DEFAULT_OUTSTANDING_HIGH_CTL (DEFAULT_OUTSTANDING_HIGH + 32)
-#define DEFAULT_OUTSTANDING_LOW 64
+#define DRIVER_NAME		"wwan_ioctl"
+#define IPA_WWAN_DEV_NAME	"rmnet_ipa%d"
 
-#define IPA_WWAN_DEV_NAME "rmnet_ipa%d"
-#define IPA_UPSTEAM_WLAN_IFACE_NAME "wlan0"
+#define MUX_CHANNEL_MAX		10	/* max mux channels */
 
-#define IPA_WWAN_RX_SOFTIRQ_THRESH 16
+#define NAPI_WEIGHT		60
 
-#define INVALID_MUX_ID 0xFF
-#define IPA_QUOTA_REACH_ALERT_MAX_SIZE 64
-#define IPA_QUOTA_REACH_IF_NAME_MAX_SIZE 64
-#define IPA_UEVENT_NUM_EVNP 4 /* number of event pointers */
-#define NAPI_WEIGHT 60
-#define DRIVER_NAME "wwan_ioctl"
+#define WWAN_DATA_LEN		2000
+#define HEADROOM_FOR_QMAP	8	/* for mux header */
+#define TAILROOM		0	/* for padding by mux layer */
 
-#define IPA_WWAN_CONS_DESC_FIFO_SZ 256
+#define DEFAULT_OUTSTANDING_HIGH	128
+#define DEFAULT_OUTSTANDING_HIGH_CTL	(DEFAULT_OUTSTANDING_HIGH + 32)
+#define DEFAULT_OUTSTANDING_LOW		64
+
+#define IPA_APPS_WWAN_CONS_RING_COUNT	128
+#define IPA_APPS_WWAN_PROD_RING_COUNT	256
 
 static int ipa_rmnet_poll(struct napi_struct *napi, int budget);
-
-static void ipa_wake_tx_queue(struct work_struct *work);
-static DECLARE_WORK(ipa_tx_wakequeue_work, ipa_wake_tx_queue);
 
 /** struct ipa_wwan_private - WWAN private data
  * @net: network interface struct implemented by this driver
  * @stats: iface statistics
- * @outstanding_pkts: number of packets sent to IPA without TX complete ACKed
  * @outstanding_high: number of outstanding packets allowed
  * @outstanding_low: number of outstanding packets which shall cause
- * @ch_id: channel id
- * @lock: spinlock for mutual exclusion
- * @device_active: true if device is active
  *
  * WWAN private - holds all relevant info about WWAN driver
  */
@@ -77,34 +62,19 @@ struct ipa_wwan_private {
 	int outstanding_high_ctl;
 	int outstanding_high;
 	int outstanding_low;
-	spinlock_t lock;	/* XXX comment this */
-	bool device_active;
 	struct napi_struct napi;
-};
-
-struct ipa_rmnet_mux_val {
-	u32  mux_id;
-	char	  vchannel_name[IFNAMSIZ];
-	bool mux_channel_set;
-	bool ul_flt_reg;
-	bool mux_hdr_set;
-	u32  hdr_hdl;
 };
 
 struct rmnet_ipa_context {
 	struct net_device *dev;
-	struct ipa_sys_connect_params apps_to_ipa_ep_cfg;
-	struct ipa_sys_connect_params ipa_to_apps_ep_cfg;
-	struct ipa_rmnet_mux_val mux_channel[MAX_NUM_OF_MUX_CHANNEL];
-	int num_q6_rules;
-	int old_num_q6_rules;
-	int rmnet_index;
-	bool egress_set;
-	bool a7_ul_flt_set;
-	u32 apps_to_ipa_hdl;
-	u32 ipa_to_apps_hdl;
-	struct mutex pipe_handle_guard;	/* XXX comment this */
-	struct mutex add_mux_channel_lock;	/* XXX comment this */
+	struct mutex mux_id_mutex;		/* protects mux_id[] */
+	u32 mux_id_count;
+	u32 mux_id[MUX_CHANNEL_MAX];
+	u32 wan_prod_hdl;
+	u32 wan_cons_hdl;
+	struct mutex pipe_setup_mutex;		/* pipe setup/teardown */
+	struct ipa_sys_connect_params wan_prod_cfg;
+	struct ipa_sys_connect_params wan_cons_cfg;
 };
 
 static bool initialized;	/* Avoid duplicate initialization */
@@ -112,65 +82,24 @@ static bool initialized;	/* Avoid duplicate initialization */
 static struct rmnet_ipa_context rmnet_ipa_ctx_struct;
 static struct rmnet_ipa_context *rmnet_ipa_ctx = &rmnet_ipa_ctx_struct;
 
-static int ipa_find_mux_channel_index(u32 mux_id)
-{
-	int i;
-
-	for (i = 0; i < MAX_NUM_OF_MUX_CHANNEL; i++) {
-		if (mux_id == rmnet_ipa_ctx->mux_channel[i].mux_id)
-			return i;
-	}
-	return MAX_NUM_OF_MUX_CHANNEL;
-}
-
-/** wwan_open() - Opens the wwan network interface. Opens logical
- * channel on A2 MUX driver and starts the network stack queue
- *
- * @dev: network device
- *
- * Return codes:
- * 0: success
- */
+/** wwan_open() - Opens the wwan network interface */
 static int ipa_wwan_open(struct net_device *dev)
 {
 	struct ipa_wwan_private *wwan_ptr = netdev_priv(dev);
 
-	ipa_debug("[%s] wwan_open()\n", dev->name);
-	wwan_ptr->device_active = true;
 	napi_enable(&wwan_ptr->napi);
 	netif_start_queue(dev);
 
 	return 0;
 }
 
-/** ipa_wwan_stop() - Stops the wwan network interface. Closes
- * logical channel on A2 MUX driver and stops the network stack
- * queue
- *
- * @dev: network device
- *
- * Return codes:
- * 0: success
- */
+/** ipa_wwan_stop() - Stops the wwan network interface. */
 static int ipa_wwan_stop(struct net_device *dev)
 {
 	struct ipa_wwan_private *wwan_ptr = netdev_priv(dev);
 
-	ipa_debug("%s: stop %s\n", __func__, dev->name);
-	wwan_ptr->device_active = false;
+	napi_disable(&wwan_ptr->napi);
 	netif_stop_queue(dev);
-
-	return 0;
-}
-
-static int ipa_wwan_change_mtu(struct net_device *dev, int new_mtu)
-{
-	if (new_mtu > WWAN_DATA_LEN)
-		return -EINVAL;
-
-	ipa_debug("[%s] MTU change: old=%d new=%d\n", dev->name, dev->mtu,
-		  new_mtu);
-	dev->mtu = new_mtu;
 
 	return 0;
 }
@@ -181,69 +110,46 @@ static int ipa_wwan_change_mtu(struct net_device *dev, int new_mtu)
  * @dev: network device
  *
  * Return codes:
- * 0: success
- * NETDEV_TX_BUSY: Error while transmitting the skb. Try again
- * later
- * -EFAULT: Error while transmitting the skb
+ * NETDEV_TX_OK: Success
+ * NETDEV_TX_BUSY: Error while transmitting the skb. Try again later
  */
 static int ipa_wwan_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	int ret = 0;
-	bool qmap_check;
 	struct ipa_wwan_private *wwan_ptr = netdev_priv(dev);
+	unsigned int skb_len;
+	int outstanding;
 
 	if (skb->protocol != htons(ETH_P_MAP)) {
-		ipa_debug_low("dropping %u bytes from %s (bad proto %hu)\n",
-			      skb->len, current->comm, skb->protocol);
 		dev_kfree_skb_any(skb);
 		dev->stats.tx_dropped++;
 		return NETDEV_TX_OK;
 	}
 
-	qmap_check = RMNET_MAP_GET_CD_BIT(skb);
-	if (netif_queue_stopped(dev)) {
-		if (!qmap_check) {
-			ipa_err("%s: fatal: %s stopped\n", __func__, dev->name);
+	/* Control packets are sent even if queue is stopped.  We
+	 * always honor the data and control high-water marks.
+	 */
+	outstanding = atomic_read(&wwan_ptr->outstanding_pkts);
+	if (!RMNET_MAP_GET_CD_BIT(skb)) {	/* Data packet? */
+		if (netif_queue_stopped(dev))
 			return NETDEV_TX_BUSY;
-		}
-		if (atomic_read(&wwan_ptr->outstanding_pkts) <
-				wwan_ptr->outstanding_high_ctl) {
-			ipa_err("[%s]Queue stop, send ctrl pkts\n", dev->name);
-			goto send;
-		}
+		if (outstanding >= wwan_ptr->outstanding_high)
+			return NETDEV_TX_BUSY;
+	} else if (outstanding >= wwan_ptr->outstanding_high_ctl) {
+		return NETDEV_TX_BUSY;
 	}
 
-	/* checking High WM hit */
-	if (atomic_read(&wwan_ptr->outstanding_pkts) >=
-					wwan_ptr->outstanding_high) {
-		if (!qmap_check) {
-			ipa_debug_low("pending(%d)/(%d)- stop(%d)\n",
-				      atomic_read(&wwan_ptr->outstanding_pkts),
-				      wwan_ptr->outstanding_high,
-				      netif_queue_stopped(dev));
-			ipa_debug_low("qmap_chk(%d)\n", qmap_check);
-			netif_stop_queue(dev);
-			return NETDEV_TX_BUSY;
-		}
-	}
-send:
 	/* both data packets and commands will be routed to
 	 * IPA_CLIENT_Q6_WAN_CONS based on status configuration.
 	 */
-	ret = ipa_tx_dp(IPA_CLIENT_APPS_WAN_PROD, skb);
-	if (ret)
+	skb_len = skb->len;
+	if (ipa_tx_dp(IPA_CLIENT_APPS_WAN_PROD, skb))
 		return NETDEV_TX_BUSY;
 
 	atomic_inc(&wwan_ptr->outstanding_pkts);
 	dev->stats.tx_packets++;
-	dev->stats.tx_bytes += skb->len;
+	dev->stats.tx_bytes += skb_len;
 
 	return NETDEV_TX_OK;
-}
-
-static void ipa_wwan_tx_timeout(struct net_device *dev)
-{
-	ipa_err("%s: %s stall in UL\n", __func__, dev->name);
 }
 
 /** apps_ipa_tx_complete_notify() - Rx notify
@@ -329,444 +235,328 @@ static void apps_ipa_packet_receive_notify(void *priv, enum ipa_dp_evt_type evt,
 	}
 }
 
-static int handle3_ingress_format(struct net_device *dev,
-				  struct rmnet_ioctl_extended_s *in)
+/** handle_ingress_format() - Ingress data format configuration */
+static int handle_ingress_format(struct net_device *dev,
+				 struct rmnet_ioctl_extended_s *in)
 {
+	enum ipa_client_type client = IPA_CLIENT_APPS_WAN_CONS;
+	u32 chan_count = IPA_APPS_WWAN_CONS_RING_COUNT;
+	struct ipa_sys_connect_params *wan_cfg = &rmnet_ipa_ctx->wan_cons_cfg;
+	u32 header_size = sizeof(struct rmnet_map_header_s);
+	u32 metadata_offset = offsetof(struct rmnet_map_header_s, mux_id);
+	u32 length_offset = offsetof(struct rmnet_map_header_s, pkt_len);
+	enum ipa_cs_offload_en offload_type = IPA_CS_OFFLOAD_NONE;
+	u32 aggr_size = IPA_GENERIC_AGGR_BYTE_LIMIT;
+	u32 aggr_count = IPA_GENERIC_AGGR_PKT_LIMIT;
+	bool aggr_active = false;
+	u32 rx_buffer_size;
+	u32 cons_hdl;
 	int ret;
-	struct ipa_sys_connect_params *ipa_wan_ep_cfg;
 
-	/* Memory size must be a multiple of the ring element size.
-	 * Note that ipa_gsi_chan_mem_size() assumes 2 times the
-	 * desc_fifo_sz set below (reproduced here).
-	 */
-	BUILD_BUG_ON((2 * IPA_WWAN_CONS_DESC_FIFO_SZ * IPA_FIFO_ELEMENT_SIZE) %
-						GSI_EVT_RING_ELEMENT_SIZE);
-
-	ipa_debug("Get RMNET_IOCTL_SET_INGRESS_DATA_FORMAT\n");
-	ipa_wan_ep_cfg = &rmnet_ipa_ctx->ipa_to_apps_ep_cfg;
 	if (in->u.data & RMNET_IOCTL_INGRESS_FORMAT_CHECKSUM)
-		ipa_wan_ep_cfg->ipa_ep_cfg.cfg.cs_offload_en =
-		   IPA_ENABLE_CS_OFFLOAD_DL;
+		offload_type = IPA_CS_OFFLOAD_DL;
 
 	if (in->u.data & RMNET_IOCTL_INGRESS_FORMAT_AGG_DATA) {
-		ipa_debug("get AGG size %d count %d\n",
-			  in->u.ingress_format.agg_size,
-			  in->u.ingress_format.agg_count);
-
-		ret = ipa_disable_apps_wan_cons_deaggr(
-			  in->u.ingress_format.agg_size,
-			  in->u.ingress_format.agg_count);
-
-		if (!ret) {
-			ipa_wan_ep_cfg->ipa_ep_cfg.aggr.aggr_byte_limit =
-			   in->u.ingress_format.agg_size;
-			ipa_wan_ep_cfg->ipa_ep_cfg.aggr.aggr_pkt_limit =
-			   in->u.ingress_format.agg_count;
-		}
+		aggr_size = in->u.ingress_format.agg_size;
+		aggr_count = in->u.ingress_format.agg_count;
+		aggr_active = true;
 	}
 
-	ipa_wan_ep_cfg->ipa_ep_cfg.hdr.hdr_len =
-					sizeof(struct rmnet_map_header_s);
-	ipa_wan_ep_cfg->ipa_ep_cfg.hdr.hdr_ofst_metadata_valid = 1;
-	ipa_wan_ep_cfg->ipa_ep_cfg.hdr.hdr_ofst_metadata = 1;
-	ipa_wan_ep_cfg->ipa_ep_cfg.hdr.hdr_ofst_pkt_size_valid = 1;
-	ipa_wan_ep_cfg->ipa_ep_cfg.hdr.hdr_ofst_pkt_size = 2;
+	if (aggr_size > ipa_reg_aggr_max_byte_limit())
+		return -EINVAL;
 
-	ipa_wan_ep_cfg->ipa_ep_cfg.hdr_ext.hdr_total_len_or_pad_valid = true;
-	ipa_wan_ep_cfg->ipa_ep_cfg.hdr_ext.hdr_total_len_or_pad = 0;
-	ipa_wan_ep_cfg->ipa_ep_cfg.hdr_ext.hdr_payload_len_inc_padding = true;
-	ipa_wan_ep_cfg->ipa_ep_cfg.hdr_ext.hdr_total_len_or_pad_offset = 0;
-	ipa_wan_ep_cfg->ipa_ep_cfg.hdr_ext.hdr_little_endian = 0;
-	ipa_wan_ep_cfg->ipa_ep_cfg.metadata_mask.metadata_mask = 0xFF000000;
+	if (aggr_count > ipa_reg_aggr_max_packet_limit())
+		return -EINVAL;
 
-	ipa_wan_ep_cfg->client = IPA_CLIENT_APPS_WAN_CONS;
-	ipa_wan_ep_cfg->notify = apps_ipa_packet_receive_notify;
-	ipa_wan_ep_cfg->priv = dev;
+	/* Compute the buffer size required to handle the requested
+	 * aggregation byte limit.  The aggr_byte_limit value is
+	 * expressed as a number of KB, so we need to convert it to
+	 * bytes to determine the buffer size.
+	 *
+	 * The buffer will be sufficient to hold one IPA_MTU-sized
+	 * packet after the limit is reached.  (The size returned is
+	 * the computed maximum number of data bytes that can be
+	 * held in the buffer--no metadata/headers.)
+	 */
+	rx_buffer_size = ipa_aggr_byte_limit_buf_size(aggr_size * SZ_1K);
 
-	ipa_wan_ep_cfg->napi_enabled = true;
-	ipa_wan_ep_cfg->desc_fifo_sz =
-			IPA_WWAN_CONS_DESC_FIFO_SZ * IPA_FIFO_ELEMENT_SIZE;
+	/* Account for the extra IPA_MTU past the limit in the
+	 * buffer, and convert the result to the KB units the
+	 * aggr_byte_limit uses.
+	 */
+	aggr_size = (rx_buffer_size - IPA_MTU) / SZ_1K;
 
-	mutex_lock(&rmnet_ipa_ctx->pipe_handle_guard);
+	mutex_lock(&rmnet_ipa_ctx->pipe_setup_mutex);
 
-	ret = ipa_setup_sys_pipe(ipa_wan_ep_cfg);
-	if (ret < 0) {
-		ipa_err("failed to configure ingress\n");
-		mutex_unlock(&rmnet_ipa_ctx->pipe_handle_guard);
-
-		return ret;
+	if (rmnet_ipa_ctx->wan_cons_hdl != IPA_CLNT_HDL_BAD) {
+		ret = -EBUSY;
+		goto out_unlock;
 	}
-	rmnet_ipa_ctx->ipa_to_apps_hdl = ret;
 
-	mutex_unlock(&rmnet_ipa_ctx->pipe_handle_guard);
+	ret = ipa_ep_alloc(client);
+	if (ret < 0)
+		goto out_unlock;
+	cons_hdl = ret;
 
-	return 0;
+	/* Record our endpoint configuration parameters */
+	ipa_endp_init_hdr_cons(cons_hdl, header_size, metadata_offset,
+			       length_offset);
+	ipa_endp_init_hdr_ext_cons(cons_hdl, 0, true);
+	ipa_endp_init_aggr_cons(cons_hdl, aggr_size, aggr_count, true);
+	ipa_endp_init_cfg_cons(cons_hdl, offload_type);
+	ipa_endp_init_hdr_metadata_mask_cons(cons_hdl, 0xff000000);
+	ipa_endp_status_cons(cons_hdl, !aggr_active);
+
+	wan_cfg->notify = apps_ipa_packet_receive_notify;
+	wan_cfg->priv = dev;
+	wan_cfg->napi_enabled = true;
+
+	ipa_ctx->ipa_client_apps_wan_cons_agg_gro = aggr_active;
+
+	ret = ipa_setup_sys_pipe(cons_hdl, chan_count, rx_buffer_size, wan_cfg);
+	if (ret)
+		ipa_ep_free(cons_hdl);
+	else
+		rmnet_ipa_ctx->wan_cons_hdl = cons_hdl;
+out_unlock:
+	mutex_unlock(&rmnet_ipa_ctx->pipe_setup_mutex);
+
+	return ret;
 }
 
-/** handle3_egress_format() - Egress data format configuration
- *
- * Setup IPA egress system pipe and Configure:
- *	header handling, checksum, de-aggregation and fifo size
- *
- * @dev: network device
- * @e: egress configuration
- */
-static int handle3_egress_format(struct net_device *dev,
-				 struct rmnet_ioctl_extended_s *e)
+/** handle_egress_format() - Egress data format configuration */
+static int handle_egress_format(struct net_device *dev,
+				struct rmnet_ioctl_extended_s *e)
 {
-	int rc;
-	struct ipa_sys_connect_params *ipa_wan_ep_cfg;
+	struct ipa_sys_connect_params *wan_cfg = &rmnet_ipa_ctx->wan_prod_cfg;
+	enum ipa_client_type client = IPA_CLIENT_APPS_WAN_PROD;
+	enum ipa_client_type dst_client = IPA_CLIENT_APPS_LAN_CONS;
+	u32 chan_count = IPA_APPS_WWAN_PROD_RING_COUNT;
+	u32 header_size = sizeof(struct rmnet_map_header_s);
+	enum ipa_cs_offload_en offload_type = IPA_CS_OFFLOAD_NONE;
+	enum ipa_aggr_en aggr_en = IPA_BYPASS_AGGR;
+	enum ipa_aggr_type aggr_type = 0;	/* ignored if BYPASS */
+	u32 header_offset = 0;
+	u32 length_offset = 0;
+	u32 header_align = 0;
+	u32 prod_hdl;
+	int ret;
 
-	/* Memory size must be a multiple of the ring element size.
-	 * Note that ipa_gsi_chan_mem_size() assumes 2 times the
-	 * desc_fifo_sz set below (reproduced here).
-	 */
-	BUILD_BUG_ON((2 * IPA_SYS_TX_DATA_DESC_FIFO_SZ) %
-					GSI_EVT_RING_ELEMENT_SIZE);
-
-	ipa_debug("get RMNET_IOCTL_SET_EGRESS_DATA_FORMAT\n");
-	ipa_wan_ep_cfg = &rmnet_ipa_ctx->apps_to_ipa_ep_cfg;
-	ipa_wan_ep_cfg->ipa_ep_cfg.hdr.hdr_len =
-					sizeof(struct rmnet_map_header_s);
 	if (e->u.data & RMNET_IOCTL_EGRESS_FORMAT_CHECKSUM) {
-		ipa_wan_ep_cfg->ipa_ep_cfg.hdr.hdr_len += sizeof(u32);
-		ipa_wan_ep_cfg->ipa_ep_cfg.cfg.cs_offload_en =
-			IPA_ENABLE_CS_OFFLOAD_UL;
-		ipa_wan_ep_cfg->ipa_ep_cfg.cfg.cs_metadata_hdr_offset = 1;
+		offload_type = IPA_CS_OFFLOAD_UL;
+		header_offset = sizeof(struct rmnet_map_header_s) / 4;
+		header_size += sizeof(u32);
 	}
 
 	if (e->u.data & RMNET_IOCTL_EGRESS_FORMAT_AGGREGATION) {
-		ipa_err("WAN UL Aggregation enabled\n");
-
-		ipa_wan_ep_cfg->ipa_ep_cfg.aggr.aggr_en = IPA_ENABLE_DEAGGR;
-		ipa_wan_ep_cfg->ipa_ep_cfg.aggr.aggr = IPA_QCMAP;
-
-		ipa_wan_ep_cfg->ipa_ep_cfg.deaggr.packet_offset_valid = false;
-
-		ipa_wan_ep_cfg->ipa_ep_cfg.hdr.hdr_ofst_pkt_size = 2;
-
-		ipa_wan_ep_cfg->ipa_ep_cfg.hdr_ext.hdr_total_len_or_pad_valid =
-			true;
-		ipa_wan_ep_cfg->ipa_ep_cfg.hdr_ext.hdr_total_len_or_pad =
-			IPA_HDR_PAD;
-		ipa_wan_ep_cfg->ipa_ep_cfg.hdr_ext.hdr_pad_to_alignment =
-			2;
-		ipa_wan_ep_cfg->ipa_ep_cfg.hdr_ext.hdr_payload_len_inc_padding =
-			true;
-		ipa_wan_ep_cfg->ipa_ep_cfg.hdr_ext.hdr_total_len_or_pad_offset =
-			0;
-		ipa_wan_ep_cfg->ipa_ep_cfg.hdr_ext.hdr_little_endian =
-			false;
-	} else {
-		ipa_debug("WAN UL Aggregation disabled\n");
-		ipa_wan_ep_cfg->ipa_ep_cfg.aggr.aggr_en = IPA_BYPASS_AGGR;
+		aggr_en = IPA_ENABLE_DEAGGR;
+		aggr_type = IPA_QCMAP;
+		length_offset = offsetof(struct rmnet_map_header_s, pkt_len);
+		header_align = ilog2(sizeof(u32));
 	}
 
-	ipa_wan_ep_cfg->ipa_ep_cfg.hdr.hdr_ofst_metadata_valid = 1;
-	/* modem want offset at 0! */
-	ipa_wan_ep_cfg->ipa_ep_cfg.hdr.hdr_ofst_metadata = 0;
+	mutex_lock(&rmnet_ipa_ctx->pipe_setup_mutex);
 
-	ipa_wan_ep_cfg->ipa_ep_cfg.mode.dst = IPA_CLIENT_APPS_WAN_PROD;
-	ipa_wan_ep_cfg->ipa_ep_cfg.mode.mode = IPA_BASIC;
-
-	ipa_wan_ep_cfg->client = IPA_CLIENT_APPS_WAN_PROD;
-	ipa_wan_ep_cfg->notify = apps_ipa_tx_complete_notify;
-	ipa_wan_ep_cfg->desc_fifo_sz = IPA_SYS_TX_DATA_DESC_FIFO_SZ;
-	ipa_wan_ep_cfg->priv = dev;
-
-	mutex_lock(&rmnet_ipa_ctx->pipe_handle_guard);
-
-	rc = ipa_setup_sys_pipe(ipa_wan_ep_cfg);
-	if (rc < 0) {
-		ipa_err("failed to config egress endpoint\n");
-		mutex_unlock(&rmnet_ipa_ctx->pipe_handle_guard);
-
-		return rc;
+	if (rmnet_ipa_ctx->wan_prod_hdl != IPA_CLNT_HDL_BAD) {
+		ret = -EBUSY;
+		goto out_unlock;
 	}
-	rmnet_ipa_ctx->apps_to_ipa_hdl = rc;
 
-	mutex_unlock(&rmnet_ipa_ctx->pipe_handle_guard);
+	ret = ipa_ep_alloc(client);
+	if (ret < 0)
+		goto out_unlock;
+	prod_hdl = ret;
 
-	if (rmnet_ipa_ctx->num_q6_rules != 0) {
-		rmnet_ipa_ctx->a7_ul_flt_set = true;
-	} else {
-		/* wait Q6 UL filter rules*/
-		ipa_debug("no UL-rules\n");
+	if (aggr_en == IPA_ENABLE_DEAGGR && !ipa_endp_aggr_support(prod_hdl)) {
+		ret = -ENOTSUPP;
+		goto out_unlock;
 	}
-	rmnet_ipa_ctx->egress_set = true;
 
-	return 0;
+	/* We really do want 0 metadata offset */
+	ipa_endp_init_hdr_prod(prod_hdl, header_size, 0, length_offset);
+	ipa_endp_init_hdr_ext_prod(prod_hdl, header_align);
+	ipa_endp_init_mode_prod(prod_hdl, IPA_BASIC, dst_client);
+	ipa_endp_init_aggr_prod(prod_hdl, aggr_en, aggr_type);
+	ipa_endp_init_cfg_prod(prod_hdl, offload_type, header_offset);
+	ipa_endp_init_seq_prod(prod_hdl);
+	ipa_endp_init_deaggr_prod(prod_hdl);
+	/* Enable source notification status for exception packets
+	 * (i.e. QMAP commands) to be routed to modem.
+	 */
+	ipa_endp_status_prod(prod_hdl, true, IPA_CLIENT_Q6_WAN_CONS);
+
+	wan_cfg->notify = apps_ipa_tx_complete_notify;
+	wan_cfg->priv = dev;
+	wan_cfg->napi_enabled = false;
+
+	/* Use a deferred interrupting no-op to reduce completion interrupts */
+	ipa_no_intr_init(prod_hdl);
+
+	ret = ipa_setup_sys_pipe(prod_hdl, chan_count, 0, wan_cfg);
+	if (ret)
+		ipa_ep_free(prod_hdl);
+	else
+		rmnet_ipa_ctx->wan_prod_hdl = prod_hdl;
+
+out_unlock:
+	mutex_unlock(&rmnet_ipa_ctx->pipe_setup_mutex);
+
+	return ret;
 }
 
-/** ipa_wwan_ioctl() - I/O control for wwan network driver.
- *
- * @dev: network device
- * @ifr: ignored
- * @cmd: cmd to be excecuded. can be one of the following:
- * IPA_WWAN_IOCTL_OPEN - Open the network interface
- * IPA_WWAN_IOCTL_CLOSE - Close the network interface
- *
- * Return codes:
- * 0: success
- * NETDEV_TX_BUSY: Error while transmitting the skb. Try again
- * later
- * -EFAULT: Error while transmitting the skb
- */
+/** ipa_wwan_add_mux_channel() - add a mux_id */
+static int ipa_wwan_add_mux_channel(u32 mux_id)
+{
+	u32 i;
+	int ret = -EFAULT;
+
+	mutex_lock(&rmnet_ipa_ctx->mux_id_mutex);
+
+	if (rmnet_ipa_ctx->mux_id_count >= MUX_CHANNEL_MAX)
+		goto out;
+
+	ret = 0;
+	for (i = 0; i < rmnet_ipa_ctx->mux_id_count; i++)
+		if (mux_id == rmnet_ipa_ctx->mux_id[i])
+			break;
+
+	/* Record the mux_id if it hasn't already been seen */
+	if (i == rmnet_ipa_ctx->mux_id_count)
+		rmnet_ipa_ctx->mux_id[rmnet_ipa_ctx->mux_id_count++] = mux_id;
+out:
+	mutex_unlock(&rmnet_ipa_ctx->mux_id_mutex);
+
+	return ret;
+}
+
+/** ipa_wwan_ioctl_extended() - rmnet extended I/O control */
+static int ipa_wwan_ioctl_extended(struct net_device *dev, void __user *data)
+{
+	struct rmnet_ioctl_extended_s edata = { };
+	size_t size = sizeof(edata);
+
+	if (copy_from_user(&edata, data, size))
+		return -EFAULT;
+
+	ipa_debug("extended cmd 0x%08x\n", edata.extended_ioctl);
+
+	switch (edata.extended_ioctl) {
+	case RMNET_IOCTL_GET_SUPPORTED_FEATURES:	/* Get features */
+		edata.u.data = RMNET_IOCTL_FEAT_NOTIFY_MUX_CHANNEL;
+		edata.u.data |= RMNET_IOCTL_FEAT_SET_EGRESS_DATA_FORMAT;
+		edata.u.data |= RMNET_IOCTL_FEAT_SET_INGRESS_DATA_FORMAT;
+		goto copy_out;
+
+	case RMNET_IOCTL_GET_EPID:			/* Get endpoint ID */
+		edata.u.data = 1;
+		goto copy_out;
+
+	case RMNET_IOCTL_GET_DRIVER_NAME:		/* Get driver name */
+		memcpy(&edata.u.if_name, rmnet_ipa_ctx->dev->name, IFNAMSIZ);
+		goto copy_out;
+
+	case RMNET_IOCTL_ADD_MUX_CHANNEL:		/* Add MUX ID */
+		return ipa_wwan_add_mux_channel(edata.u.rmnet_mux_val.mux_id);
+
+	case RMNET_IOCTL_SET_EGRESS_DATA_FORMAT:	/* Egress data format */
+		return handle_egress_format(dev, &edata) ? -EFAULT : 0;
+
+	case RMNET_IOCTL_SET_INGRESS_DATA_FORMAT:	/* Ingress format */
+		return handle_ingress_format(dev, &edata) ? -EFAULT : 0;
+
+	case RMNET_IOCTL_GET_EP_PAIR:			/* Get endpoint pair */
+		edata.u.ipa_ep_pair.consumer_pipe_num =
+				ipa_get_ep_mapping(IPA_CLIENT_APPS_WAN_PROD);
+		edata.u.ipa_ep_pair.producer_pipe_num =
+				ipa_get_ep_mapping(IPA_CLIENT_APPS_WAN_CONS);
+		goto copy_out;
+
+	case RMNET_IOCTL_GET_SG_SUPPORT:		/* Get SG support */
+		edata.u.data = 1;	/* Scatter/gather is always supported */
+		goto copy_out;
+
+	/* Unsupported requests */
+	case RMNET_IOCTL_SET_MRU:			/* Set MRU */
+	case RMNET_IOCTL_GET_MRU:			/* Get MRU */
+	case RMNET_IOCTL_GET_AGGREGATION_COUNT:		/* Get agg count */
+	case RMNET_IOCTL_SET_AGGREGATION_COUNT:		/* Set agg count */
+	case RMNET_IOCTL_GET_AGGREGATION_SIZE:		/* Get agg size */
+	case RMNET_IOCTL_SET_AGGREGATION_SIZE:		/* Set agg size */
+	case RMNET_IOCTL_FLOW_CONTROL:			/* Do flow control */
+	case RMNET_IOCTL_GET_DFLT_CONTROL_CHANNEL:	/* For legacy use */
+	case RMNET_IOCTL_GET_HWSW_MAP:			/* Get HW/SW map */
+	case RMNET_IOCTL_SET_RX_HEADROOM:		/* Set RX Headroom */
+	case RMNET_IOCTL_SET_QOS_VERSION:		/* Set 8/6 byte QoS */
+	case RMNET_IOCTL_GET_QOS_VERSION:		/* Get 8/6 byte QoS */
+	case RMNET_IOCTL_GET_SUPPORTED_QOS_MODES:	/* Get QoS modes */
+	case RMNET_IOCTL_SET_SLEEP_STATE:		/* Set sleep state */
+	case RMNET_IOCTL_SET_XLAT_DEV_INFO:		/* xlat dev name */
+	case RMNET_IOCTL_DEREGISTER_DEV:		/* Deregister netdev */
+		return -ENOTSUPP;	/* Defined, but unsupported command */
+
+	default:
+		return -EINVAL;		/* Invalid (unrecognized) command */
+	}
+
+copy_out:
+	return copy_to_user(data, &edata, size) ? -EFAULT : 0;
+}
+
+/** ipa_wwan_ioctl() - I/O control for wwan network driver */
 static int ipa_wwan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
-	int rc = 0;
-	int mru = 1000, epid = 1, mux_index;
-	struct rmnet_ioctl_extended_s edata;
-	struct rmnet_ioctl_data_s ioctl_data;
-	struct ipa_rmnet_mux_val *mux_channel;
-	int rmnet_index;
-	size_t size;
+	struct rmnet_ioctl_data_s ioctl_data = { };
+	void __user *data = ifr->ifr_ifru.ifru_data;
+	size_t size = sizeof(ioctl_data);
 
-	ipa_debug("rmnet_ipa got ioctl number 0x%08x", cmd);
+	ipa_debug("cmd 0x%08x", cmd);
+
 	switch (cmd) {
-	/*  Set Ethernet protocol  */
-	case RMNET_IOCTL_SET_LLP_ETHERNET:
-		break;
-	/*  Set RAWIP protocol	*/
-	case RMNET_IOCTL_SET_LLP_IP:
-		break;
-	/*  Get link protocol  */
-	case RMNET_IOCTL_GET_LLP:
+	/* These features are implied; alternatives are not supported */
+	case RMNET_IOCTL_SET_LLP_IP:		/* RAW IP protocol */
+	case RMNET_IOCTL_SET_QOS_DISABLE:	/* QoS header disabled */
+		return 0;
+
+	/* These features are not supported; use alternatives */
+	case RMNET_IOCTL_SET_LLP_ETHERNET:	/* Ethernet protocol */
+	case RMNET_IOCTL_SET_QOS_ENABLE:	/* QoS header enabled */
+	case RMNET_IOCTL_GET_OPMODE:		/* Get operation mode */
+	case RMNET_IOCTL_FLOW_ENABLE:		/* Flow enable */
+	case RMNET_IOCTL_FLOW_DISABLE:		/* Flow disable */
+	case RMNET_IOCTL_FLOW_SET_HNDL:		/* Set flow handle */
+		return -ENOTSUPP;
+
+	case RMNET_IOCTL_GET_LLP:		/* Get link protocol */
 		ioctl_data.u.operation_mode = RMNET_MODE_LLP_IP;
-		if (copy_to_user(ifr->ifr_ifru.ifru_data, &ioctl_data,
-				 sizeof(struct rmnet_ioctl_data_s)))
-			rc = -EFAULT;
-		break;
-	/*  Set QoS header enabled  */
-	case RMNET_IOCTL_SET_QOS_ENABLE:
-		return -EINVAL;
-	/*  Set QoS header disabled  */
-	case RMNET_IOCTL_SET_QOS_DISABLE:
-		break;
-	/*  Get QoS header state  */
-	case RMNET_IOCTL_GET_QOS:
+		goto copy_out;
+
+	case RMNET_IOCTL_GET_QOS:		/* Get QoS header state */
 		ioctl_data.u.operation_mode = RMNET_MODE_NONE;
-		if (copy_to_user(ifr->ifr_ifru.ifru_data, &ioctl_data,
-				 sizeof(struct rmnet_ioctl_data_s)))
-			rc = -EFAULT;
-		break;
-	/*  Get operation mode */
-	case RMNET_IOCTL_GET_OPMODE:
-		ioctl_data.u.operation_mode = RMNET_MODE_LLP_IP;
-		if (copy_to_user(ifr->ifr_ifru.ifru_data, &ioctl_data,
-				 sizeof(struct rmnet_ioctl_data_s)))
-			rc = -EFAULT;
-		break;
-	/*  Open transport port	 */
-	case RMNET_IOCTL_OPEN:
-		break;
-	/*  Close transport port  */
-	case RMNET_IOCTL_CLOSE:
-		break;
-	/*  Flow enable	 */
-	case RMNET_IOCTL_FLOW_ENABLE:
-		ipa_err("RMNET_IOCTL_FLOW_ENABLE not supported\n");
-		rc = -EFAULT;
-		break;
-	/*  Flow disable  */
-	case RMNET_IOCTL_FLOW_DISABLE:
-		ipa_err("RMNET_IOCTL_FLOW_DISABLE not supported\n");
-		rc = -EFAULT;
-		break;
-	/*  Set flow handle  */
-	case RMNET_IOCTL_FLOW_SET_HNDL:
-		break;
+		goto copy_out;
 
-	/*  Extended IOCTLs  */
-	case RMNET_IOCTL_EXTENDED:
-		size = sizeof(struct rmnet_ioctl_extended_s);
-		ipa_debug("get ioctl: RMNET_IOCTL_EXTENDED\n");
-		if (copy_from_user(&edata,
-				   (u8 *)ifr->ifr_ifru.ifru_data, size)) {
-			ipa_err("failed to copy extended ioctl data\n");
-			rc = -EFAULT;
-			break;
-		}
-		switch (edata.extended_ioctl) {
-		/*  Get features  */
-		case RMNET_IOCTL_GET_SUPPORTED_FEATURES:
-			ipa_debug("get RMNET_IOCTL_GET_SUPPORTED_FEATURES\n");
-			edata.u.data =
-				(RMNET_IOCTL_FEAT_NOTIFY_MUX_CHANNEL |
-				RMNET_IOCTL_FEAT_SET_EGRESS_DATA_FORMAT |
-				RMNET_IOCTL_FEAT_SET_INGRESS_DATA_FORMAT);
-			if (copy_to_user((u8 *)ifr->ifr_ifru.ifru_data,
-					 &edata, size))
-				rc = -EFAULT;
-			break;
-		/*  Set MRU  */
-		case RMNET_IOCTL_SET_MRU:
-			mru = edata.u.data;
-			ipa_debug("get MRU size %d\n",
-				  edata.u.data);
-			break;
-		/*  Get MRU  */
-		case RMNET_IOCTL_GET_MRU:
-			edata.u.data = mru;
-			if (copy_to_user((u8 *)ifr->ifr_ifru.ifru_data,
-					 &edata, size))
-				rc = -EFAULT;
-			break;
-		/* GET SG support */
-		case RMNET_IOCTL_GET_SG_SUPPORT:
-			/* We always advertise scatter/gather support */
-			edata.u.data = 1;
-			if (copy_to_user((u8 *)ifr->ifr_ifru.ifru_data,
-					 &edata, size))
-				rc = -EFAULT;
-			break;
-		/*  Get endpoint ID  */
-		case RMNET_IOCTL_GET_EPID:
-			ipa_debug("get ioctl: RMNET_IOCTL_GET_EPID\n");
-			edata.u.data = epid;
-			if (copy_to_user((u8 *)ifr->ifr_ifru.ifru_data,
-					 &edata, size))
-				rc = -EFAULT;
-			if (copy_from_user(&edata,
-					   (u8 *)ifr->ifr_ifru.ifru_data,
-					   size)) {
-				ipa_err("copy extended ioctl data failed\n");
-				rc = -EFAULT;
-				break;
-			}
-			ipa_debug("RMNET_IOCTL_GET_EPID return %d\n",
-				  edata.u.data);
-			break;
-		/*  Endpoint pair  */
-		case RMNET_IOCTL_GET_EP_PAIR:
-			ipa_debug("get ioctl: RMNET_IOCTL_GET_EP_PAIR\n");
-			edata.u.ipa_ep_pair.consumer_pipe_num =
-			ipa_get_ep_mapping(IPA_CLIENT_APPS_WAN_PROD);
-			edata.u.ipa_ep_pair.producer_pipe_num =
-			ipa_get_ep_mapping(IPA_CLIENT_APPS_WAN_CONS);
-			if (copy_to_user((u8 *)ifr->ifr_ifru.ifru_data,
-					 &edata, size))
-				rc = -EFAULT;
-			if (copy_from_user(&edata,
-					   (u8 *)ifr->ifr_ifru.ifru_data,
-					   size)) {
-				ipa_err("copy extended ioctl data failed\n");
-				rc = -EFAULT;
-			break;
-		}
-			ipa_debug("RMNET_IOCTL_GET_EP_PAIR c: %d p: %d\n",
-				  edata.u.ipa_ep_pair.consumer_pipe_num,
-				  edata.u.ipa_ep_pair.producer_pipe_num);
-			break;
-		/*  Get driver name  */
-		case RMNET_IOCTL_GET_DRIVER_NAME:
-			memcpy(&edata.u.if_name,
-			       rmnet_ipa_ctx->dev->name, sizeof(IFNAMSIZ));
-			if (copy_to_user((u8 *)ifr->ifr_ifru.ifru_data,
-					 &edata, size))
-				rc = -EFAULT;
-			break;
-		/*  Add MUX ID	*/
-		case RMNET_IOCTL_ADD_MUX_CHANNEL:
-			mux_index = ipa_find_mux_channel_index(
-					edata.u.rmnet_mux_val.mux_id);
-			if (mux_index < MAX_NUM_OF_MUX_CHANNEL) {
-				ipa_debug("already setup mux(%d)\n",
-					  edata.u.rmnet_mux_val.mux_id);
-				return rc;
-			}
-			mutex_lock(&rmnet_ipa_ctx->add_mux_channel_lock);
-			if (rmnet_ipa_ctx->rmnet_index >=
-					MAX_NUM_OF_MUX_CHANNEL) {
-				ipa_err("Exceed mux_channel limit(%d)\n",
-					rmnet_ipa_ctx->rmnet_index);
-				mutex_unlock(
-					&rmnet_ipa_ctx->add_mux_channel_lock);
-				return -EFAULT;
-			}
-			ipa_debug("ADD_MUX_CHANNEL(%d, name: %s)\n",
-				  edata.u.rmnet_mux_val.mux_id,
-				  edata.u.rmnet_mux_val.vchannel_name);
-			/* cache the mux name and id */
-			mux_channel = rmnet_ipa_ctx->mux_channel;
-			rmnet_index = rmnet_ipa_ctx->rmnet_index;
+	case RMNET_IOCTL_OPEN:			/* Open transport port */
+	case RMNET_IOCTL_CLOSE:			/* Close transport port */
+		return 0;
 
-			mux_channel[rmnet_index].mux_id =
-				edata.u.rmnet_mux_val.mux_id;
-			memcpy(mux_channel[rmnet_index].vchannel_name,
-			       edata.u.rmnet_mux_val.vchannel_name,
-			       sizeof(mux_channel[rmnet_index].vchannel_name));
-			mux_channel[rmnet_index].vchannel_name[
-				IFNAMSIZ - 1] = '\0';
+	case RMNET_IOCTL_EXTENDED:		/* Extended IOCTLs */
+		return ipa_wwan_ioctl_extended(dev, data);
 
-			ipa_debug("cashe device[%s:%d] in IPA_wan[%d]\n",
-				  mux_channel[rmnet_index].vchannel_name,
-				  mux_channel[rmnet_index].mux_id, rmnet_index);
-			rmnet_ipa_ctx->rmnet_index++;
-			mutex_unlock(&rmnet_ipa_ctx->add_mux_channel_lock);
-			break;
-		case RMNET_IOCTL_SET_EGRESS_DATA_FORMAT:
-			if (handle3_egress_format(dev, &edata))
-				rc = -EFAULT;
-			break;
-		case RMNET_IOCTL_SET_INGRESS_DATA_FORMAT:/*  Set IDF  */
-			if (handle3_ingress_format(dev, &edata))
-				rc = -EFAULT;
-			break;
-		/*  Get agg count  */
-		case RMNET_IOCTL_GET_AGGREGATION_COUNT:
-			break;
-		/*  Set agg count  */
-		case RMNET_IOCTL_SET_AGGREGATION_COUNT:
-			break;
-		/*  Get agg size  */
-		case RMNET_IOCTL_GET_AGGREGATION_SIZE:
-			break;
-		/*  Set agg size  */
-		case RMNET_IOCTL_SET_AGGREGATION_SIZE:
-			break;
-		/*  Do flow control  */
-		case RMNET_IOCTL_FLOW_CONTROL:
-			break;
-		/*  For legacy use  */
-		case RMNET_IOCTL_GET_DFLT_CONTROL_CHANNEL:
-			break;
-		/*  Get HW/SW map  */
-		case RMNET_IOCTL_GET_HWSW_MAP:
-			break;
-		/*  Set RX Headroom  */
-		case RMNET_IOCTL_SET_RX_HEADROOM:
-			break;
-		default:
-			ipa_err("[%s] unsupported extended cmd[%d]",
-				dev->name, edata.extended_ioctl);
-			rc = -EINVAL;
-		}
-		break;
 	default:
-			ipa_err("[%s] unsupported cmd[%d]",
-				dev->name, cmd);
-			rc = -EINVAL;
+		return -EINVAL;
 	}
-	return rc;
+
+copy_out:
+	return copy_to_user(data, &ioctl_data, size) ? -EFAULT : 0;
 }
 
 static const struct net_device_ops ipa_wwan_ops_ip = {
 	.ndo_open	= ipa_wwan_open,
 	.ndo_stop	= ipa_wwan_stop,
 	.ndo_start_xmit	= ipa_wwan_xmit,
-	.ndo_tx_timeout	= ipa_wwan_tx_timeout,
 	.ndo_do_ioctl	= ipa_wwan_ioctl,
-	.ndo_change_mtu	= ipa_wwan_change_mtu,
 };
 
-/** wwan_setup() - Setups the wwan network driver.
- *
- * @dev: network device
- *
- * Return codes:
- * None
- */
+/** wwan_setup() - Setup the wwan network driver */
 static void ipa_wwan_setup(struct net_device *dev)
 {
 	dev->netdev_ops = &ipa_wwan_ops_ip;
@@ -774,50 +564,28 @@ static void ipa_wwan_setup(struct net_device *dev)
 	dev->header_ops = NULL;	 /* No header (override ether_setup() value) */
 	dev->type = ARPHRD_RAWIP;
 	dev->hard_header_len = 0;
-	dev->mtu = WWAN_DATA_LEN;
+	dev->max_mtu = WWAN_DATA_LEN;
+	dev->mtu = dev->max_mtu;
 	dev->addr_len = 0;
 	dev->flags &= ~(IFF_BROADCAST | IFF_MULTICAST);
 	dev->needed_headroom = HEADROOM_FOR_QMAP;
 	dev->needed_tailroom = TAILROOM;
-	dev->watchdog_timeo = msecs_to_jiffies(10000);
+	dev->watchdog_timeo = msecs_to_jiffies(10 * MSEC_PER_SEC);
 }
 
-static void ipa_wake_tx_queue(struct work_struct *work)
-{
-	if (rmnet_ipa_ctx->dev) {
-		struct netdev_queue *queue;
-
-		queue = netdev_get_tx_queue(rmnet_ipa_ctx->dev, 0);
-		__netif_tx_lock_bh(queue);
-		netif_wake_queue(rmnet_ipa_ctx->dev);
-		__netif_tx_unlock_bh(queue);
-	}
-}
-
-/** ipa_wwan_probe() - Initialized the module and registers as a
- * network interface to the network stack
- *
- * Note: In case IPA driver hasn't initialized already, the probe function
- * will return immediately after registering a callback to be invoked when
- * IPA driver initialization is complete.
- *
- * Return codes:
- * 0: success
- * -ENOMEM: No memory available
- * -EFAULT: Internal error
- */
+/** ipa_wwan_probe() - Network probe function */
 static int ipa_wwan_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct net_device *dev;
 	struct ipa_wwan_private *wwan_ptr;
 
-	ipa_info("rmnet_ipa started initialization\n");
+	mutex_init(&rmnet_ipa_ctx->pipe_setup_mutex);
+	mutex_init(&rmnet_ipa_ctx->mux_id_mutex);
 
-	mutex_init(&rmnet_ipa_ctx->pipe_handle_guard);
-	mutex_init(&rmnet_ipa_ctx->add_mux_channel_lock);
-	rmnet_ipa_ctx->ipa_to_apps_hdl = -1;
-	rmnet_ipa_ctx->apps_to_ipa_hdl = -1;
+	/* Mark client handles bad until we initialize them */
+	rmnet_ipa_ctx->wan_prod_hdl = IPA_CLNT_HDL_BAD;
+	rmnet_ipa_ctx->wan_cons_hdl = IPA_CLNT_HDL_BAD;
 
 	ret = ipa_init_q6_smem();
 	if (ret) {
@@ -841,10 +609,10 @@ static int ipa_wwan_probe(struct platform_device *pdev)
 	rmnet_ipa_ctx->dev = dev;
 	wwan_ptr = netdev_priv(dev);
 	ipa_debug("wwan_ptr (private) = %p", wwan_ptr);
+	wwan_ptr->outstanding_high_ctl = DEFAULT_OUTSTANDING_HIGH_CTL;
 	wwan_ptr->outstanding_high = DEFAULT_OUTSTANDING_HIGH;
 	wwan_ptr->outstanding_low = DEFAULT_OUTSTANDING_LOW;
 	atomic_set(&wwan_ptr->outstanding_pkts, 0);
-	spin_lock_init(&wwan_ptr->lock);
 
 	/* Enable SG support in netdevice. */
 	dev->hw_features |= NETIF_F_SG;
@@ -861,10 +629,9 @@ static int ipa_wwan_probe(struct platform_device *pdev)
 	ipa_proxy_clk_unvote();
 
 	/* Till the system is suspended, we keep the clock open */
-	ipa_client_add(__func__, false);
+	ipa_client_add();
 
 	initialized = true;
-	ipa_err("rmnet_ipa completed initialization\n");
 
 	return 0;
 
@@ -880,31 +647,29 @@ err_clear_ctx:
 static int ipa_wwan_remove(struct platform_device *pdev)
 {
 	struct ipa_wwan_private *wwan_ptr = netdev_priv(rmnet_ipa_ctx->dev);
-	int ret;
 
 	ipa_info("rmnet_ipa started deinitialization\n");
-	mutex_lock(&rmnet_ipa_ctx->pipe_handle_guard);
-	ret = ipa_teardown_sys_pipe(rmnet_ipa_ctx->ipa_to_apps_hdl);
-	if (ret < 0)
-		ipa_err("Failed to teardown IPA->APPS pipe\n");
-	else
-		rmnet_ipa_ctx->ipa_to_apps_hdl = -1;
-	ret = ipa_teardown_sys_pipe(rmnet_ipa_ctx->apps_to_ipa_hdl);
-	if (ret < 0)
-		ipa_err("Failed to teardown APPS->IPA pipe\n");
-	else
-		rmnet_ipa_ctx->apps_to_ipa_hdl = -1;
+	mutex_lock(&rmnet_ipa_ctx->pipe_setup_mutex);
+	if (rmnet_ipa_ctx->wan_cons_hdl != IPA_CLNT_HDL_BAD) {
+		ipa_teardown_sys_pipe(rmnet_ipa_ctx->wan_cons_hdl);
+		rmnet_ipa_ctx->wan_cons_hdl = IPA_CLNT_HDL_BAD;
+	}
+
+	if (rmnet_ipa_ctx->wan_prod_hdl != IPA_CLNT_HDL_BAD) {
+		ipa_teardown_sys_pipe(rmnet_ipa_ctx->wan_prod_hdl);
+		rmnet_ipa_ctx->wan_prod_hdl = IPA_CLNT_HDL_BAD;
+	}
+
 	netif_napi_del(&wwan_ptr->napi);
-	mutex_unlock(&rmnet_ipa_ctx->pipe_handle_guard);
+	mutex_unlock(&rmnet_ipa_ctx->pipe_setup_mutex);
 	unregister_netdev(rmnet_ipa_ctx->dev);
 
-	cancel_work_sync(&ipa_tx_wakequeue_work);
 	if (rmnet_ipa_ctx->dev)
 		free_netdev(rmnet_ipa_ctx->dev);
 	rmnet_ipa_ctx->dev = NULL;
 
-	mutex_destroy(&rmnet_ipa_ctx->add_mux_channel_lock);
-	mutex_destroy(&rmnet_ipa_ctx->pipe_handle_guard);
+	mutex_destroy(&rmnet_ipa_ctx->mux_id_mutex);
+	mutex_destroy(&rmnet_ipa_ctx->pipe_setup_mutex);
 
 	initialized = false;
 	ipa_info("rmnet_ipa completed deinitialization\n");
@@ -958,7 +723,7 @@ static int rmnet_ipa_ap_suspend(struct device *dev)
 	netif_stop_queue(netdev);
 
 	ret = 0;
-	ipa_client_remove(__func__, false);
+	ipa_client_remove();
 	ipa_debug("IPA clocks disabled\n");
 
 unlock_and_bail:
@@ -982,7 +747,7 @@ static int rmnet_ipa_ap_resume(struct device *dev)
 {
 	struct net_device *netdev = rmnet_ipa_ctx->dev;
 
-	ipa_client_add(__func__, false);
+	ipa_client_add();
 	ipa_debug("IPA clocks enabled\n");
 	if (netdev)
 		netif_wake_queue(netdev);
@@ -1013,28 +778,6 @@ static struct platform_driver rmnet_ipa_driver = {
 	.remove = ipa_wwan_remove,
 };
 
-/** ipa_q6_handshake_complete() - Perform operations once Q6 is up
- * @ssr_bootup - Indicates whether this is a cold boot-up or post-SSR.
- *
- * This function is invoked once the handshake between the IPA AP driver
- * and IPA Q6 driver is complete. At this point, it is possible to perform
- * operations which can't be performed until IPA Q6 driver is up.
- *
- */
-void ipa_q6_handshake_complete(bool ssr_bootup)
-{
-	/* It is required to recover the network stats after SSR recovery */
-	if (ssr_bootup) {
-		/* In case the uC is required to be loaded by the Modem,
-		 * the proxy vote will be removed only when uC loading is
-		 * complete and indication is received by the AP. After SSR,
-		 * uC is already loaded. Therefore, proxy vote can be removed
-		 * once Modem init is complete.
-		 */
-		ipa_proxy_clk_unvote();
-	}
-}
-
 int ipa_wwan_init(void)
 {
 	if (initialized)
@@ -1053,7 +796,7 @@ static int ipa_rmnet_poll(struct napi_struct *napi, int budget)
 {
 	int rcvd_pkts;
 
-	rcvd_pkts = ipa_rx_poll(rmnet_ipa_ctx->ipa_to_apps_hdl, budget);
+	rcvd_pkts = ipa_rx_poll(rmnet_ipa_ctx->wan_cons_hdl, budget);
 	ipa_debug_low("rcvd packets: %d\n", rcvd_pkts);
 
 	return rcvd_pkts;
