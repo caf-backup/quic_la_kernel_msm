@@ -246,17 +246,13 @@ static int pp_set_powergating_state(void *handle,
 	/* Enable/disable GFX per cu powergating through SMU */
 	return hwmgr->hwmgr_func->enable_per_cu_power_gating(hwmgr,
 			state == AMD_PG_STATE_GATE);
+
 }
 
 static int pp_suspend(void *handle)
 {
 	struct pp_instance *pp_handle = (struct pp_instance *)handle;
-	int ret = 0;
-
-	ret = pp_check(pp_handle);
-	if (ret == 0)
-		hwmgr_hw_suspend(pp_handle);
-	return 0;
+	return hwmgr_hw_suspend(pp_handle);
 }
 
 static int pp_resume(void *handle)
@@ -1432,6 +1428,72 @@ static int pp_get_display_mode_validation_clocks(void *handle,
 	return ret;
 }
 
+static int pp_dpm_powergate_mmhub(void *handle)
+{
+	struct pp_hwmgr *hwmgr;
+	struct pp_instance *pp_handle = (struct pp_instance *)handle;
+	int ret = 0;
+
+	ret = pp_check(pp_handle);
+
+	if (ret)
+		return ret;
+
+	hwmgr = pp_handle->hwmgr;
+
+	if (hwmgr->hwmgr_func->powergate_mmhub == NULL) {
+		pr_info("%s was not implemented.\n", __func__);
+		return 0;
+	}
+
+	return hwmgr->hwmgr_func->powergate_mmhub(hwmgr);
+}
+
+static void pp_dpm_powergate_acp(void *handle, bool gate)
+{
+	struct pp_hwmgr *hwmgr;
+	struct pp_instance *pp_handle = handle;
+
+	if (pp_check(pp_handle))
+		return;
+
+	hwmgr = pp_handle->hwmgr;
+
+	if (hwmgr->hwmgr_func->powergate_acp == NULL) {
+		pr_info("%s was not implemented.\n", __func__);
+		return;
+	}
+
+	hwmgr->hwmgr_func->powergate_acp(hwmgr, gate);
+}
+
+static int pp_set_powergating_by_smu(void *handle,
+				uint32_t block_type, bool gate)
+{
+	int ret = 0;
+
+	switch (block_type) {
+	case AMD_IP_BLOCK_TYPE_UVD:
+	case AMD_IP_BLOCK_TYPE_VCN:
+		pp_dpm_powergate_uvd(handle, gate);
+		break;
+	case AMD_IP_BLOCK_TYPE_VCE:
+		pp_dpm_powergate_vce(handle, gate);
+		break;
+	case AMD_IP_BLOCK_TYPE_GMC:
+		pp_dpm_powergate_mmhub(handle);
+		break;
+	case AMD_IP_BLOCK_TYPE_GFX:
+		break;
+	case AMD_IP_BLOCK_TYPE_ACP:
+		pp_dpm_powergate_acp(handle, gate);
+		break;
+	default:
+		break;
+	}
+	return ret;
+}
+
 const struct amd_pm_funcs pp_dpm_funcs = {
 	.get_temperature = pp_dpm_get_temperature,
 	.load_firmware = pp_dpm_load_fw,
@@ -1439,8 +1501,6 @@ const struct amd_pm_funcs pp_dpm_funcs = {
 	.force_performance_level = pp_dpm_force_performance_level,
 	.get_performance_level = pp_dpm_get_performance_level,
 	.get_current_power_state = pp_dpm_get_current_power_state,
-	.powergate_vce = pp_dpm_powergate_vce,
-	.powergate_uvd = pp_dpm_powergate_uvd,
 	.dispatch_tasks = pp_dpm_dispatch_tasks,
 	.set_fan_control_mode = pp_dpm_set_fan_control_mode,
 	.get_fan_control_mode = pp_dpm_get_fan_control_mode,
@@ -1464,6 +1524,7 @@ const struct amd_pm_funcs pp_dpm_funcs = {
 	.switch_power_profile = pp_dpm_switch_power_profile,
 	.set_clockgating_by_smu = pp_set_clockgating_by_smu,
 	.notify_smu_memory_info = pp_dpm_notify_smu_memory_info,
+	.set_powergating_by_smu = pp_set_powergating_by_smu,
 /* export to DC */
 	.get_sclk = pp_dpm_get_sclk,
 	.get_mclk = pp_dpm_get_mclk,

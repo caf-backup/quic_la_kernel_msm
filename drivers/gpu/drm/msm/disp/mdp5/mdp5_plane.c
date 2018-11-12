@@ -46,7 +46,7 @@ static void mdp5_plane_destroy(struct drm_plane *plane)
 {
 	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
 
-	drm_plane_helper_disable(plane);
+	drm_plane_helper_disable(plane, NULL);
 	drm_plane_cleanup(plane);
 
 	kfree(mdp5_plane);
@@ -259,7 +259,6 @@ static void mdp5_plane_cleanup_fb(struct drm_plane *plane,
 	msm_framebuffer_cleanup(fb, kms->aspace);
 }
 
-#define FRAC_16_16(mult, div)    (((mult) << 16) / (div))
 static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 					      struct drm_plane_state *state)
 {
@@ -272,7 +271,6 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 	uint32_t max_width, max_height;
 	bool out_of_bounds = false;
 	uint32_t caps = 0;
-	struct drm_rect clip = {};
 	int min_scale, max_scale;
 	int ret;
 
@@ -309,11 +307,7 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 	min_scale = FRAC_16_16(1, 8);
 	max_scale = FRAC_16_16(8, 1);
 
-	if (crtc_state->enable)
-		drm_mode_get_hv_timing(&crtc_state->mode,
-				       &clip.x2, &clip.y2);
-
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state, &clip,
+	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
 						  min_scale, max_scale,
 						  true, true);
 	if (ret)
@@ -457,7 +451,6 @@ static int mdp5_plane_atomic_async_check(struct drm_plane *plane,
 {
 	struct mdp5_plane_state *mdp5_state = to_mdp5_plane_state(state);
 	struct drm_crtc_state *crtc_state;
-	struct drm_rect clip = {};
 	int min_scale, max_scale;
 	int ret;
 
@@ -488,11 +481,7 @@ static int mdp5_plane_atomic_async_check(struct drm_plane *plane,
 	min_scale = FRAC_16_16(1, 8);
 	max_scale = FRAC_16_16(8, 1);
 
-	if (crtc_state->enable)
-		drm_mode_get_hv_timing(&crtc_state->mode,
-				       &clip.x2, &clip.y2);
-
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state, &clip,
+	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
 						  min_scale, max_scale,
 						  true, true);
 	if (ret)
@@ -531,7 +520,7 @@ static void mdp5_plane_atomic_async_update(struct drm_plane *plane,
 
 		ctl = mdp5_crtc_get_ctl(new_state->crtc);
 
-		mdp5_ctl_commit(ctl, pipeline, mdp5_plane_get_flush(plane));
+		mdp5_ctl_commit(ctl, pipeline, mdp5_plane_get_flush(plane), true);
 	}
 
 	*to_mdp5_plane_state(plane->state) =

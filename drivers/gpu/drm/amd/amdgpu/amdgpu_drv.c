@@ -95,7 +95,7 @@ int amdgpu_dpm = -1;
 int amdgpu_fw_load_type = -1;
 int amdgpu_aspm = -1;
 int amdgpu_runtime_pm = -1;
-uint amdgpu_ip_block_mask = 0xffffffff;
+uint amdgpu_ip_block_mask = CONFIG_DRM_AMDGPU_IP_BLOCK_MASK;
 int amdgpu_bapm = -1;
 int amdgpu_deep_color = 0;
 int amdgpu_vm_size = -1;
@@ -519,6 +519,7 @@ static const struct pci_device_id pciidlist[] = {
 	{0x1002, 0x67CA, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
 	{0x1002, 0x67CC, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
 	{0x1002, 0x67CF, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
+	{0x1002, 0x6FDF, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS10},
 	/* Polaris12 */
 	{0x1002, 0x6980, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS12},
 	{0x1002, 0x6981, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_POLARIS12},

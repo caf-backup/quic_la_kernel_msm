@@ -45,8 +45,8 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	int lane_count, slots;
 	const struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 	int mst_pbn;
-	bool reduce_m_n = drm_dp_has_quirk(&intel_dp->desc,
-					   DP_DPCD_QUIRK_LIMITED_M_N);
+	bool constant_n = drm_dp_has_quirk(&intel_dp->desc,
+					   DP_DPCD_QUIRK_CONSTANT_N);
 
 	pipe_config->has_pch_encoder = false;
 	bpp = 24;
@@ -84,7 +84,7 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 			       adjusted_mode->crtc_clock,
 			       pipe_config->port_clock,
 			       &pipe_config->dp_m_n,
-			       reduce_m_n);
+			       constant_n);
 
 	pipe_config->dp_m_n.tu = slots;
 
@@ -207,11 +207,8 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 				       connector->port,
 				       pipe_config->pbn,
 				       pipe_config->dp_m_n.tu);
-	if (ret == false) {
+	if (!ret)
 		DRM_ERROR("failed to allocate vcpi\n");
-		return;
-	}
-
 
 	intel_dp->active_mst_links++;
 	temp = I915_READ(DP_TP_STATUS(port));

@@ -291,6 +291,8 @@ static inline bool idle_should_enter_s2idle(void) { return false; }
 static inline void __init pm_states_init(void) {}
 static inline void s2idle_set_ops(const struct platform_s2idle_ops *ops) {}
 static inline void s2idle_wake(void) {}
+static inline int tick_set_freeze_event(int cpu, ktime_t expires) { return 0; }
+static inline int tick_clear_freeze_event(int cpu) { return 0; }
 #endif /* !CONFIG_SUSPEND */
 
 /* struct pbe is used for creating lists of pages that should be restored
@@ -442,7 +444,6 @@ extern void pm_system_wakeup(void);
 extern void pm_system_cancel_wakeup(void);
 extern void pm_wakeup_clear(bool reset);
 extern void pm_system_irq_wakeup(unsigned int irq_number);
-extern void pm_set_wakeup_type(enum pm_wakeup_type type);
 extern bool pm_get_wakeup_count(unsigned int *count, bool block);
 extern bool pm_save_wakeup_count(unsigned int count);
 extern void pm_wakep_autosleep_enabled(bool set);

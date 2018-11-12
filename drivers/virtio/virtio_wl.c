@@ -440,6 +440,7 @@ static void virtwl_vfd_lock_unlink(struct virtwl_vfd *vfd)
 	mutex_lock(&vi->vfds_lock);
 	mutex_lock(&vfd->lock);
 	idr_remove(&vi->vfds, vfd->id);
+	mutex_unlock(&vfd->lock);
 	mutex_unlock(&vi->vfds_lock);
 }
 
@@ -675,12 +676,11 @@ static ssize_t virtwl_vfd_recv(struct file *filp, char __user *buffer,
 			force_to_wait = true;
 	}
 
-	if (vfd_count)
-		*vfd_count = vfd_read_count;
-
 out_unlock:
 	mutex_unlock(&vfd->lock);
 	mutex_unlock(&vi->vfds_lock);
+	if (vfd_count)
+		*vfd_count = vfd_read_count;
 	return read_count;
 }
 
@@ -946,17 +946,16 @@ static struct virtwl_vfd *do_new(struct virtwl_info *vi,
 		goto free_ctrl_new;
 	}
 
+	mutex_lock(&vi->vfds_lock);
 	/*
 	 * Take the lock before adding it to the vfds list where others might
 	 * reference it.
 	 */
 	mutex_lock(&vfd->lock);
-
-	mutex_lock(&vi->vfds_lock);
 	ret = idr_alloc(&vi->vfds, vfd, 1, VIRTWL_MAX_ALLOC, GFP_KERNEL);
 	mutex_unlock(&vi->vfds_lock);
 	if (ret <= 0)
-		goto free_vfd;
+		goto remove_vfd;
 
 	vfd->id = ret;
 	ret = 0;
@@ -1024,10 +1023,14 @@ static struct virtwl_vfd *do_new(struct virtwl_info *vi,
 	return vfd;
 
 remove_vfd:
-	/* unlock the vfd to avoid deadlock when unlinking it */
+	/*
+	 * unlock the vfd to avoid deadlock when unlinking it
+	 * or freeing a held lock
+	 */
 	mutex_unlock(&vfd->lock);
-	virtwl_vfd_lock_unlink(vfd);
-free_vfd:
+	/* this is safe since the id cannot change after the vfd is created */
+	if (vfd->id)
+		virtwl_vfd_lock_unlink(vfd);
 	virtwl_vfd_free(vfd);
 free_ctrl_new:
 	kfree(ctrl_new);

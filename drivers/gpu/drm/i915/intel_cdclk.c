@@ -1122,10 +1122,8 @@ static int glk_calc_cdclk(int min_cdclk)
 {
 	if (min_cdclk > 158400)
 		return 316800;
-	else if (min_cdclk > 79200)
-		return 158400;
 	else
-		return 79200;
+		return 158400;
 }
 
 static u8 bxt_calc_voltage_level(int cdclk)
@@ -1884,9 +1882,9 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 		}
 	}
 
-	/*
-	 * According to BSpec, "The CD clock frequency must be at least twice
+	/* According to BSpec, "The CD clock frequency must be at least twice
 	 * the frequency of the Azalia BCLK." and BCLK is 96 MHz by default.
+	 * the platform minimum CDCLK, failing audio probe.
 	 */
 	if (crtc_state->has_audio && INTEL_GEN(dev_priv) >= 9)
 		min_cdclk = max(2 * 96000, min_cdclk);
@@ -1920,7 +1918,7 @@ static int intel_compute_min_cdclk(struct drm_atomic_state *state)
 		intel_state->min_cdclk[i] = min_cdclk;
 	}
 
-	min_cdclk = intel_state->cdclk.force_min_cdclk;
+	min_cdclk = 0;
 	for_each_pipe(dev_priv, pipe)
 		min_cdclk = max(intel_state->min_cdclk[pipe], min_cdclk);
 
@@ -1979,7 +1977,7 @@ static int vlv_modeset_calc_cdclk(struct drm_atomic_state *state)
 	intel_state->cdclk.logical.cdclk = cdclk;
 
 	if (!intel_state->active_crtcs) {
-		cdclk = vlv_calc_cdclk(dev_priv, intel_state->cdclk.force_min_cdclk);
+		cdclk = vlv_calc_cdclk(dev_priv, 0);
 
 		intel_state->cdclk.actual.cdclk = cdclk;
 	} else {
@@ -2008,7 +2006,7 @@ static int bdw_modeset_calc_cdclk(struct drm_atomic_state *state)
 	intel_state->cdclk.logical.cdclk = cdclk;
 
 	if (!intel_state->active_crtcs) {
-		cdclk = bdw_calc_cdclk(intel_state->cdclk.force_min_cdclk);
+		cdclk = bdw_calc_cdclk(0);
 
 		intel_state->cdclk.actual.cdclk = cdclk;
 	} else {
@@ -2043,7 +2041,7 @@ static int skl_modeset_calc_cdclk(struct drm_atomic_state *state)
 	intel_state->cdclk.logical.cdclk = cdclk;
 
 	if (!intel_state->active_crtcs) {
-		cdclk = skl_calc_cdclk(intel_state->cdclk.force_min_cdclk, vco);
+		cdclk = skl_calc_cdclk(0, vco);
 
 		intel_state->cdclk.actual.vco = vco;
 		intel_state->cdclk.actual.cdclk = cdclk;
@@ -2080,10 +2078,10 @@ static int bxt_modeset_calc_cdclk(struct drm_atomic_state *state)
 
 	if (!intel_state->active_crtcs) {
 		if (IS_GEMINILAKE(dev_priv)) {
-			cdclk = glk_calc_cdclk(intel_state->cdclk.force_min_cdclk);
+			cdclk = glk_calc_cdclk(0);
 			vco = glk_de_pll_vco(dev_priv, cdclk);
 		} else {
-			cdclk = bxt_calc_cdclk(intel_state->cdclk.force_min_cdclk);
+			cdclk = bxt_calc_cdclk(0);
 			vco = bxt_de_pll_vco(dev_priv, cdclk);
 		}
 
@@ -2119,7 +2117,7 @@ static int cnl_modeset_calc_cdclk(struct drm_atomic_state *state)
 		    cnl_compute_min_voltage_level(intel_state));
 
 	if (!intel_state->active_crtcs) {
-		cdclk = cnl_calc_cdclk(intel_state->cdclk.force_min_cdclk);
+		cdclk = cnl_calc_cdclk(0);
 		vco = cnl_cdclk_pll_vco(dev_priv, cdclk);
 
 		intel_state->cdclk.actual.vco = vco;

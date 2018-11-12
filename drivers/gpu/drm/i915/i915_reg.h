@@ -3825,6 +3825,9 @@ enum {
 #define _CLKGATE_DIS_PSL_A		0x46520
 #define _CLKGATE_DIS_PSL_B		0x46524
 #define _CLKGATE_DIS_PSL_C		0x46528
+#define   DUPS1_GATING_DIS		(1 << 15)
+#define   DUPS2_GATING_DIS		(1 << 19)
+#define   DUPS3_GATING_DIS		(1 << 23)
 #define   DPF_GATING_DIS		(1 << 10)
 #define   DPF_RAM_GATING_DIS		(1 << 9)
 #define   DPFR_GATING_DIS		(1 << 8)
@@ -6347,6 +6350,11 @@ enum {
 #define _PLANE_COLOR_CTL_3_A			0x703CC /* GLK+ */
 #define   PLANE_COLOR_PIPE_GAMMA_ENABLE		(1 << 30)
 #define   PLANE_COLOR_PIPE_CSC_ENABLE		(1 << 23)
+#define   PLANE_COLOR_CSC_MODE_BYPASS			(0 << 17)
+#define   PLANE_COLOR_CSC_MODE_YUV601_TO_RGB709		(1 << 17)
+#define   PLANE_COLOR_CSC_MODE_YUV709_TO_RGB709		(2 << 17)
+#define   PLANE_COLOR_CSC_MODE_YUV2020_TO_RGB2020	(3 << 17)
+#define   PLANE_COLOR_CSC_MODE_RGB709_TO_RGB2020	(4 << 17)
 #define   PLANE_COLOR_PLANE_GAMMA_DISABLE	(1 << 13)
 #define   PLANE_COLOR_ALPHA_MASK		(0x3 << 4)
 #define   PLANE_COLOR_ALPHA_DISABLE		(0 << 4)
@@ -6626,6 +6634,8 @@ enum {
 #define PS_SCALER_MODE_MASK (3 << 28)
 #define PS_SCALER_MODE_DYN  (0 << 28)
 #define PS_SCALER_MODE_HQ  (1 << 28)
+#define SKL_PS_SCALER_MODE_NV12 (2 << 28)
+#define PS_SCALER_MODE_PLANAR (1 << 29)
 #define PS_PLANE_SEL_MASK  (7 << 25)
 #define PS_PLANE_SEL(plane) (((plane) + 1) << 25)
 #define PS_FILTER_MASK         (3 << 23)
@@ -8539,6 +8549,7 @@ enum skl_power_gate {
 #define  TRANS_MSA_10_BPC		(2<<5)
 #define  TRANS_MSA_12_BPC		(3<<5)
 #define  TRANS_MSA_16_BPC		(4<<5)
+#define  TRANS_MSA_CEA_RANGE		(1<<3)
 
 /* LCPLL Control */
 #define LCPLL_CTL			_MMIO(0x130040)

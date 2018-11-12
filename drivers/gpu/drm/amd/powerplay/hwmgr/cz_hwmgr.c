@@ -672,8 +672,12 @@ static void cz_init_power_gate_state(struct pp_hwmgr *hwmgr)
 	cz_hwmgr->uvd_power_gated = false;
 	cz_hwmgr->vce_power_gated = false;
 	cz_hwmgr->samu_power_gated = false;
+#ifdef CONFIG_DRM_AMD_ACP
 	cz_hwmgr->acp_power_gated = false;
-	cz_hwmgr->pgacpinit = true;
+#else
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ACPPowerOFF);
+	cz_hwmgr->acp_power_gated = true;
+#endif
 }
 
 static void cz_init_sclk_threshold(struct pp_hwmgr *hwmgr)
@@ -883,7 +887,7 @@ static int cz_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *input)
 	cz_update_low_mem_pstate(hwmgr, input);
 
 	return 0;
-};
+}
 
 
 static int cz_setup_asic_task(struct pp_hwmgr *hwmgr)
@@ -936,14 +940,6 @@ static void cz_reset_cc6_data(struct pp_hwmgr *hwmgr)
 	hw_data->cc6_settings.cpu_cc6_disable = false;
 	hw_data->cc6_settings.cpu_pstate_disable = false;
 }
-
-static int cz_power_off_asic(struct pp_hwmgr *hwmgr)
-{
-	cz_power_up_display_clock_sys_pll(hwmgr);
-	cz_clear_nb_dpm_flag(hwmgr);
-	cz_reset_cc6_data(hwmgr);
-	return 0;
-};
 
 static void cz_program_voting_clients(struct pp_hwmgr *hwmgr)
 {
@@ -1048,7 +1044,7 @@ static int cz_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 		return -EINVAL;
 
 	return 0;
-};
+}
 
 static int cz_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
@@ -1064,7 +1060,16 @@ static int cz_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	cz_reset_acp_boot_level(hwmgr);
 
 	return 0;
-};
+}
+
+static int cz_power_off_asic(struct pp_hwmgr *hwmgr)
+{
+	cz_disable_dpm_tasks(hwmgr);
+	cz_power_up_display_clock_sys_pll(hwmgr);
+	cz_clear_nb_dpm_flag(hwmgr);
+	cz_reset_cc6_data(hwmgr);
+	return 0;
+}
 
 static int cz_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 				struct pp_power_state  *prequest_ps,
@@ -1858,6 +1863,18 @@ static int cz_notify_cac_buffer_info(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static void cz_dpm_powergate_acp(struct pp_hwmgr *hwmgr, bool bgate)
+{
+	struct cz_hwmgr *data = hwmgr->backend;
+
+	if (data->acp_power_gated == bgate)
+		return;
+
+	if (bgate)
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ACPPowerOFF);
+	else
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ACPPowerON);
+}
 
 static const struct pp_hwmgr_func cz_hwmgr_funcs = {
 	.backend_init = cz_hwmgr_backend_init,
@@ -1868,6 +1885,7 @@ static const struct pp_hwmgr_func cz_hwmgr_funcs = {
 	.powerdown_uvd = cz_dpm_powerdown_uvd,
 	.powergate_uvd = cz_dpm_powergate_uvd,
 	.powergate_vce = cz_dpm_powergate_vce,
+	.powergate_acp = cz_dpm_powergate_acp,
 	.get_mclk = cz_dpm_get_mclk,
 	.get_sclk = cz_dpm_get_sclk,
 	.patch_boot_state = cz_dpm_patch_boot_state,

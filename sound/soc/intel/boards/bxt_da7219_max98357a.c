@@ -187,7 +187,7 @@ static int broxton_da7219_codec_init(struct snd_soc_pcm_runtime *rtd)
 	int ret;
 	struct snd_soc_jack *jack;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_component *component = rtd->codec_dai->component;
 
 	/* Configure sysclk for codec */
 	ret = snd_soc_dai_set_sysclk(codec_dai, DA7219_CLKSRC_MCLK, 19200000,
@@ -215,7 +215,7 @@ static int broxton_da7219_codec_init(struct snd_soc_pcm_runtime *rtd)
 	snd_jack_set_key(jack->jack, SND_JACK_BTN_1, KEY_VOICECOMMAND);
 	snd_jack_set_key(jack->jack, SND_JACK_BTN_2, KEY_VOLUMEUP);
 	snd_jack_set_key(jack->jack, SND_JACK_BTN_3, KEY_VOLUMEDOWN);
-	da7219_aad_jack_det(codec, jack);
+	da7219_aad_jack_det(component, jack);
 
 	snd_soc_dapm_ignore_suspend(&rtd->card->dapm, "SoC DMIC");
 
@@ -284,6 +284,7 @@ static const struct snd_pcm_hw_constraint_list constraints_channels_quad = {
 static int bxt_fe_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 
 	/*
 	 * On this platform for PCM device we support,
@@ -291,14 +292,15 @@ static int bxt_fe_startup(struct snd_pcm_substream *substream)
 	 * stereo
 	 * 16 bit audio
 	 */
-
-	runtime->hw.channels_max = DUAL_CHANNEL;
-	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
+	if (!strstr(rtd->cpu_dai->name, "HDMI")) {
+		runtime->hw.channels_max = DUAL_CHANNEL;
+		snd_pcm_hw_constraint_list(runtime, 0,
+					   SNDRV_PCM_HW_PARAM_CHANNELS,
 					   &constraints_channels);
 
-	runtime->hw.formats = SNDRV_PCM_FMTBIT_S16_LE;
-	snd_pcm_hw_constraint_msbits(runtime, 0, 16, 16);
-
+		runtime->hw.formats = SNDRV_PCM_FMTBIT_S16_LE;
+		snd_pcm_hw_constraint_msbits(runtime, 0, 16, 16);
+	}
 	snd_pcm_hw_constraint_list(runtime, 0,
 				SNDRV_PCM_HW_PARAM_RATE, &constraints_rates);
 
@@ -308,6 +310,8 @@ static int bxt_fe_startup(struct snd_pcm_substream *substream)
 static const struct snd_soc_ops broxton_da7219_fe_ops = {
 	.startup = bxt_fe_startup,
 };
+
+#define geminilake_hdmi_fe_ops broxton_da7219_fe_ops
 
 static int broxton_dmic_fixup(struct snd_soc_pcm_runtime *rtd,
 			struct snd_pcm_hw_params *params)
@@ -342,6 +346,15 @@ static const unsigned int rates_16000[] = {
 	16000,
 };
 
+static const unsigned int ch_mono[] = {
+	1,
+};
+
+static const struct snd_pcm_hw_constraint_list constraints_refcap = {
+	.count = ARRAY_SIZE(ch_mono),
+	.list  = ch_mono,
+};
+
 static const struct snd_pcm_hw_constraint_list constraints_16000 = {
 	.count = ARRAY_SIZE(rates_16000),
 	.list  = rates_16000,
@@ -349,6 +362,11 @@ static const struct snd_pcm_hw_constraint_list constraints_16000 = {
 
 static int broxton_refcap_startup(struct snd_pcm_substream *substream)
 {
+	substream->runtime->hw.channels_max = 1;
+	snd_pcm_hw_constraint_list(substream->runtime, 0,
+				   SNDRV_PCM_HW_PARAM_CHANNELS,
+				   &constraints_refcap);
+
 	return snd_pcm_hw_constraint_list(substream->runtime, 0,
 			SNDRV_PCM_HW_PARAM_RATE,
 			&constraints_16000);
@@ -582,6 +600,7 @@ static struct snd_soc_dai_link geminilake_dais[] = {
 		.dpcm_playback = 1,
 		.nonatomic = 1,
 		.dynamic = 1,
+		.ops = &broxton_da7219_fe_ops,
 	},
 	[BXT_DPCM_AUDIO_REF_CP] = {
 		.name = "Bxt Audio Reference cap",
@@ -622,6 +641,7 @@ static struct snd_soc_dai_link geminilake_dais[] = {
 			SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
 		.nonatomic = 1,
 		.dynamic = 1,
+		.ops = &geminilake_hdmi_fe_ops,
 	},
 	[BXT_DPCM_AUDIO_HDMI2_PB] =	{
 		.name = "Bxt HDMI Port2",
@@ -636,6 +656,7 @@ static struct snd_soc_dai_link geminilake_dais[] = {
 			SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
 		.nonatomic = 1,
 		.dynamic = 1,
+		.ops = &geminilake_hdmi_fe_ops,
 	},
 	[BXT_DPCM_AUDIO_HDMI3_PB] =	{
 		.name = "Bxt HDMI Port3",
@@ -650,6 +671,7 @@ static struct snd_soc_dai_link geminilake_dais[] = {
 		.init = NULL,
 		.nonatomic = 1,
 		.dynamic = 1,
+		.ops = &geminilake_hdmi_fe_ops,
 	},
 	/* Back End DAI links */
 	{
@@ -749,7 +771,7 @@ static int bxt_card_late_probe(struct snd_soc_card *card)
 {
 	struct bxt_card_private *ctx = snd_soc_card_get_drvdata(card);
 	struct bxt_hdmi_pcm *pcm;
-	struct snd_soc_codec *codec = NULL;
+	struct snd_soc_component *component = NULL;
 	int err, i = 0;
 	char jack_name[NAME_SIZE];
 
@@ -761,7 +783,7 @@ static int bxt_card_late_probe(struct snd_soc_card *card)
 				ARRAY_SIZE(broxton_map));
 
 	list_for_each_entry(pcm, &ctx->hdmi_pcm_list, head) {
-		codec = pcm->codec_dai->codec;
+		component = pcm->codec_dai->component;
 		snprintf(jack_name, sizeof(jack_name),
 			"HDMI/DP, pcm=%d Jack", pcm->device);
 		err = snd_soc_card_jack_new(card, jack_name,
@@ -779,10 +801,10 @@ static int bxt_card_late_probe(struct snd_soc_card *card)
 		i++;
 	}
 
-	if (!codec)
+	if (!component)
 		return -EINVAL;
 
-	return hdac_hdmi_jack_port_init(codec, &card->dapm);
+	return hdac_hdmi_jack_port_init(component, &card->dapm);
 }
 
 /* broxton audio machine driver for SPT + da7219 */

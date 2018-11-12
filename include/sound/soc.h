@@ -490,6 +490,11 @@ int snd_soc_platform_write(struct snd_soc_platform *platform,
 int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num);
 #ifdef CONFIG_SND_SOC_COMPRESS
 int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num);
+#else
+static inline int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
+{
+	return 0;
+}
 #endif
 
 struct snd_pcm_substream *snd_soc_get_dai_substream(struct snd_soc_card *card,
@@ -1000,6 +1005,14 @@ struct snd_soc_platform_driver {
 
 	/* platform stream compress ops */
 	const struct snd_compr_ops *compr_ops;
+
+	/* this platform uses topology and ignore machine driver FEs */
+	const char *ignore_machine;
+	const char *topology_name_prefix;
+	int (*be_hw_params_fixup)(struct snd_soc_pcm_runtime *rtd,
+				  struct snd_pcm_hw_params *params);
+	bool use_dai_pcm_id;	/* use the DAI link PCM ID as PCM device number */
+	int be_pcm_base;	/* base device ID for all BE PCMs */
 };
 
 struct snd_soc_dai_link_component {
@@ -1106,6 +1119,9 @@ struct snd_soc_dai_link {
 	/* pmdown_time is ignored at stop */
 	unsigned int ignore_pmdown_time:1;
 
+	/* Do not create a PCM for this DAI link (Backend link) */
+	unsigned int ignore:1;
+
 	struct list_head list; /* DAI link list of the soc card */
 	struct snd_soc_dobj dobj; /* For topology */
 };
@@ -1145,6 +1161,7 @@ struct snd_soc_card {
 	const char *long_name;
 	const char *driver_name;
 	char dmi_longname[80];
+	char topology_shortname[32];
 
 	struct device *dev;
 	struct snd_card *snd_card;
@@ -1264,6 +1281,7 @@ struct snd_soc_pcm_runtime {
 	/* runtime devices */
 	struct snd_pcm *pcm;
 	struct snd_compr *compr;
+	struct snd_sof_pcm *sof;
 	struct snd_soc_codec *codec;
 	struct snd_soc_platform *platform; /* will be removed */
 	struct snd_soc_dai *codec_dai;
@@ -1438,6 +1456,21 @@ static inline void snd_soc_codec_init_bias_level(struct snd_soc_codec *codec,
 }
 
 /**
+ * snd_soc_component_init_bias_level() - Initialize COMPONENT DAPM bias level
+ * @component: The COMPONENT for which to initialize the DAPM bias level
+ * @level: The DAPM level to initialize to
+ *
+ * Initializes the COMPONENT DAPM bias level. See snd_soc_dapm_init_bias_level().
+ */
+static inline void
+snd_soc_component_init_bias_level(struct snd_soc_component *component,
+				  enum snd_soc_bias_level level)
+{
+	snd_soc_dapm_init_bias_level(
+		snd_soc_component_get_dapm(component), level);
+}
+
+/**
  * snd_soc_dapm_get_bias_level() - Get current CODEC DAPM bias level
  * @codec: The CODEC for which to get the DAPM bias level
  *
@@ -1447,6 +1480,19 @@ static inline enum snd_soc_bias_level snd_soc_codec_get_bias_level(
 	struct snd_soc_codec *codec)
 {
 	return snd_soc_dapm_get_bias_level(snd_soc_codec_get_dapm(codec));
+}
+
+/**
+ * snd_soc_component_get_bias_level() - Get current COMPONENT DAPM bias level
+ * @component: The COMPONENT for which to get the DAPM bias level
+ *
+ * Returns: The current DAPM bias level of the COMPONENT.
+ */
+static inline enum snd_soc_bias_level
+snd_soc_component_get_bias_level(struct snd_soc_component *component)
+{
+	return snd_soc_dapm_get_bias_level(
+		snd_soc_component_get_dapm(component));
 }
 
 /**
@@ -1461,6 +1507,23 @@ static inline int snd_soc_codec_force_bias_level(struct snd_soc_codec *codec,
 	enum snd_soc_bias_level level)
 {
 	return snd_soc_dapm_force_bias_level(snd_soc_codec_get_dapm(codec),
+		level);
+}
+
+/**
+ * snd_soc_component_force_bias_level() - Set the COMPONENT DAPM bias level
+ * @component: The COMPONENT for which to set the level
+ * @level: The level to set to
+ *
+ * Forces the COMPONENT bias level to a specific state. See
+ * snd_soc_dapm_force_bias_level().
+ */
+static inline int
+snd_soc_component_force_bias_level(struct snd_soc_component *component,
+				   enum snd_soc_bias_level level)
+{
+	return snd_soc_dapm_force_bias_level(
+		snd_soc_component_get_dapm(component),
 		level);
 }
 

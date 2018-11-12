@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -81,6 +82,8 @@ void ath10k_debug_print_hwfw_info(struct ath10k *ar)
 void ath10k_debug_print_board_info(struct ath10k *ar)
 {
 	char boardinfo[100];
+	const struct firmware *board;
+	u32 crc;
 
 	if (ar->id.bmi_ids_valid)
 		scnprintf(boardinfo, sizeof(boardinfo), "%d:%d",
@@ -88,11 +91,16 @@ void ath10k_debug_print_board_info(struct ath10k *ar)
 	else
 		scnprintf(boardinfo, sizeof(boardinfo), "N/A");
 
+	board = ar->normal_mode_fw.board;
+	if (!IS_ERR_OR_NULL(board))
+		crc = crc32_le(0, board->data, board->size);
+	else
+		crc = 0;
+
 	ath10k_info(ar, "board_file api %d bmi_id %s crc32 %08x",
 		    ar->bd_api,
 		    boardinfo,
-		    crc32_le(0, ar->normal_mode_fw.board->data,
-			     ar->normal_mode_fw.board->size));
+		    crc);
 }
 
 void ath10k_debug_print_boot_info(struct ath10k *ar)
@@ -1700,7 +1708,9 @@ int ath10k_debug_start(struct ath10k *ar)
 			ath10k_warn(ar, "failed to disable pktlog: %d\n", ret);
 	}
 
-	if (ar->debug.nf_cal_period) {
+	if (ar->debug.nf_cal_period &&
+	    !test_bit(ATH10K_FW_FEATURE_NON_BMI,
+		      ar->normal_mode_fw.fw_file.fw_features)) {
 		ret = ath10k_wmi_pdev_set_param(ar,
 						ar->wmi.pdev_param->cal_period,
 						ar->debug.nf_cal_period);
@@ -1717,7 +1727,9 @@ void ath10k_debug_stop(struct ath10k *ar)
 {
 	lockdep_assert_held(&ar->conf_mutex);
 
-	ath10k_debug_cal_data_fetch(ar);
+	if (!test_bit(ATH10K_FW_FEATURE_NON_BMI,
+		      ar->normal_mode_fw.fw_file.fw_features))
+		ath10k_debug_cal_data_fetch(ar);
 
 	/* Must not use _sync to avoid deadlock, we do that in
 	 * ath10k_debug_destroy(). The check for htt_stats_mask is to avoid
@@ -2209,14 +2221,17 @@ int ath10k_debug_register(struct ath10k *ar)
 	debugfs_create_file("fw_dbglog", 0600, ar->debug.debugfs_phy, ar,
 			    &fops_fw_dbglog);
 
-	debugfs_create_file("cal_data", 0400, ar->debug.debugfs_phy, ar,
-			    &fops_cal_data);
+	if (!test_bit(ATH10K_FW_FEATURE_NON_BMI,
+		      ar->normal_mode_fw.fw_file.fw_features)) {
+		debugfs_create_file("cal_data", 0400, ar->debug.debugfs_phy, ar,
+				    &fops_cal_data);
+
+		debugfs_create_file("nf_cal_period", 0600, ar->debug.debugfs_phy, ar,
+				    &fops_nf_cal_period);
+	}
 
 	debugfs_create_file("ani_enable", 0600, ar->debug.debugfs_phy, ar,
 			    &fops_ani_enable);
-
-	debugfs_create_file("nf_cal_period", 0600, ar->debug.debugfs_phy, ar,
-			    &fops_nf_cal_period);
 
 	if (IS_ENABLED(CONFIG_ATH10K_DFS_CERTIFIED)) {
 		debugfs_create_file("dfs_simulate_radar", 0200, ar->debug.debugfs_phy,

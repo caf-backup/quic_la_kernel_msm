@@ -459,6 +459,7 @@
 # define DP_PSR_FRAME_CAPTURE		    (1 << 3)
 # define DP_PSR_SELECTIVE_UPDATE	    (1 << 4)
 # define DP_PSR_IRQ_HPD_WITH_CRC_ERRORS     (1 << 5)
+# define DP_PSR_ENABLE_PSR2		    (1 << 6) /* eDP 1.4a */
 
 #define DP_ADAPTER_CTRL			    0x1a0
 # define DP_ADAPTER_CTRL_FORCE_LOAD_SENSE   (1 << 0)
@@ -1161,12 +1162,12 @@ int drm_dp_read_desc(struct drm_dp_aux *aux, struct drm_dp_desc *desc,
  */
 enum drm_dp_quirk {
 	/**
-	 * @DP_DPCD_QUIRK_LIMITED_M_N:
+	 * @DP_DPCD_QUIRK_CONSTANT_N:
 	 *
 	 * The device requires main link attributes Mvid and Nvid to be limited
-	 * to 16 bits.
+	 * to 16 bits. So will give a constant value (0x8000) for compatability.
 	 */
-	DP_DPCD_QUIRK_LIMITED_M_N,
+	DP_DPCD_QUIRK_CONSTANT_N,
 };
 
 /**

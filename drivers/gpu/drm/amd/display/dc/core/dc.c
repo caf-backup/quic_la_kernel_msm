@@ -215,6 +215,91 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 	return ret;
 }
 
+/**
+ * dc_stream_configure_crc: Configure CRC capture for the given stream.
+ * @dc: DC Object
+ * @stream: The stream to configure CRC on.
+ * @enable: Enable CRC if true, disable otherwise.
+ * @continuous: Capture CRC on every frame if true. Otherwise, only capture
+ *              once.
+ *
+ * By default, only CRC0 is configured, and the entire frame is used to
+ * calculate the crc.
+ */
+bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
+			     bool enable, bool continuous)
+{
+	int i;
+	struct pipe_ctx *pipe;
+	struct crc_params param;
+	struct timing_generator *tg;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe->stream == stream)
+			break;
+	}
+	/* Stream not found */
+	if (i == MAX_PIPES)
+		return false;
+
+	/* Always capture the full frame */
+	param.windowa_x_start = 0;
+	param.windowa_y_start = 0;
+	param.windowa_x_end = pipe->stream->timing.h_addressable;
+	param.windowa_y_end = pipe->stream->timing.v_addressable;
+	param.windowb_x_start = 0;
+	param.windowb_y_start = 0;
+	param.windowb_x_end = pipe->stream->timing.h_addressable;
+	param.windowb_y_end = pipe->stream->timing.v_addressable;
+
+	/* Default to the union of both windows */
+	param.selection = UNION_WINDOW_A_B;
+	param.continuous_mode = continuous;
+	param.enable = enable;
+
+	tg = pipe->stream_res.tg;
+
+	/* Only call if supported */
+	if (tg->funcs->configure_crc)
+		return tg->funcs->configure_crc(tg, &param);
+	dm_logger_write(dc->ctx->logger, LOG_WARNING, "CRC capture not supported.");
+	return false;
+}
+
+/**
+ * dc_stream_get_crc: Get CRC values for the given stream.
+ * @dc: DC object
+ * @stream: The DC stream state of the stream to get CRCs from.
+ * @r_cr, g_y, b_cb: CRC values for the three channels are stored here.
+ *
+ * dc_stream_configure_crc needs to be called beforehand to enable CRCs.
+ * Return false if stream is not found, or if CRCs are not enabled.
+ */
+bool dc_stream_get_crc(struct dc *dc, struct dc_stream_state *stream,
+		       uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb)
+{
+	int i;
+	struct pipe_ctx *pipe;
+	struct timing_generator *tg;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe->stream == stream)
+			break;
+	}
+	/* Stream not found */
+	if (i == MAX_PIPES)
+		return false;
+
+	tg = pipe->stream_res.tg;
+
+	if (tg->funcs->get_crc)
+		return tg->funcs->get_crc(tg, r_cr, g_y, b_cb);
+	dm_logger_write(dc->ctx->logger, LOG_WARNING, "CRC capture not supported.");
+	return false;
+}
+
 void dc_stream_set_static_screen_events(struct dc *dc,
 		struct dc_stream_state **streams,
 		int num_streams,
@@ -238,6 +323,71 @@ void dc_stream_set_static_screen_events(struct dc *dc,
 	}
 
 	dc->hwss.set_static_screen_control(pipes_affected, num_pipes_affected, events);
+}
+
+void dc_link_set_drive_settings(struct dc *dc,
+				struct link_training_settings *lt_settings,
+				const struct dc_link *link)
+{
+
+	int i;
+
+	for (i = 0; i < dc->link_count; i++) {
+		if (dc->links[i] == link)
+			break;
+	}
+
+	if (i >= dc->link_count)
+		ASSERT_CRITICAL(false);
+
+	dc_link_dp_set_drive_settings(dc->links[i], lt_settings);
+}
+
+void dc_link_perform_link_training(struct dc *dc,
+				   struct dc_link_settings *link_setting,
+				   bool skip_video_pattern)
+{
+	int i;
+
+	for (i = 0; i < dc->link_count; i++)
+		dc_link_dp_perform_link_training(
+			dc->links[i],
+			link_setting,
+			skip_video_pattern);
+}
+
+void dc_link_set_preferred_link_settings(struct dc *dc,
+					 struct dc_link_settings *link_setting,
+					 struct dc_link *link)
+{
+	link->preferred_link_setting = *link_setting;
+	dp_retrain_link_dp_test(link, link_setting, false);
+}
+
+void dc_link_enable_hpd(const struct dc_link *link)
+{
+	dc_link_dp_enable_hpd(link);
+}
+
+void dc_link_disable_hpd(const struct dc_link *link)
+{
+	dc_link_dp_disable_hpd(link);
+}
+
+
+void dc_link_set_test_pattern(struct dc_link *link,
+			      enum dp_test_pattern test_pattern,
+			      const struct link_training_settings *p_link_settings,
+			      const unsigned char *p_custom_pattern,
+			      unsigned int cust_pattern_size)
+{
+	if (link != NULL)
+		dc_link_dp_set_test_pattern(
+			link,
+			test_pattern,
+			p_link_settings,
+			p_custom_pattern,
+			cust_pattern_size);
 }
 
 static void destruct(struct dc *dc)
@@ -494,8 +644,6 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 			"Display Core initialized\n");
 
 
-	/* TODO: missing feature to be enabled */
-	dc->debug.disable_dfs_bypass = true;
 
 	return dc;
 

@@ -445,6 +445,19 @@ pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries,
 void netdev_rss_key_fill(void *buffer, size_t len);
 #endif
 
+#if CFG80211_VERSION < KERNEL_VERSION(4, 1, 0) &&	\
+	CFG80211_VERSION >= KERNEL_VERSION(3, 14, 0)
+static inline struct sk_buff *
+iwl7000_cfg80211_vendor_event_alloc(struct wiphy *wiphy,
+				    struct wireless_dev *wdev,
+				    int approxlen, int event_idx, gfp_t gfp)
+{
+	return cfg80211_vendor_event_alloc(wiphy, approxlen, event_idx, gfp);
+}
+
+#define cfg80211_vendor_event_alloc iwl7000_cfg80211_vendor_event_alloc
+#endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4,6,0)
 static inline void page_ref_inc(struct page *page)
 {
@@ -456,6 +469,9 @@ int __must_check kstrtobool_from_user(const char __user *s, size_t count, bool *
 #endif /* < 4.6 */
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4,7,0)
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,5,0) ||	\
+     LINUX_VERSION_CODE < KERNEL_VERSION(4,4,0))
 /* We don't really care much about alignment, since nl80211 isn't using
  * this for hot paths. So just implement it using nla_put_u64().
  */
@@ -464,6 +480,8 @@ static inline int nla_put_u64_64bit(struct sk_buff *skb, int attrtype,
 {
 	return nla_put_u64(skb, attrtype, value);
 }
+#endif /* < 4.4 && > 4.5 */
+
 #define nla_put_s64 iwl7000_nla_put_s64
 static inline int nla_put_s64(struct sk_buff *skb, int attrtype, s64 value,
 			      int padattr)
@@ -837,13 +855,10 @@ static inline int nla_validate_nested4(const struct nlattr *start, int maxtype,
 	(offsetof(TYPE, MEMBER)	+ sizeof(((TYPE *)0)->MEMBER))
 #endif
 
-#if LINUX_VERSION_IS_LESS(4,16,0)
 int alloc_bucket_spinlocks(spinlock_t **locks, unsigned int *lock_mask,
                            size_t max_size, unsigned int cpu_mult,
                            gfp_t gfp);
-
 void free_bucket_spinlocks(spinlock_t *locks);
-#endif /* LINUX_VERSION_IS_LESS(4,16,0) */
 
 #ifndef READ_ONCE
 #include <linux/types.h>
@@ -913,5 +928,4 @@ static inline int genl_err_attr(struct genl_info *info, int err,
 	return err;
 }
 #endif
-
 #endif /* __IWL_CHROME */

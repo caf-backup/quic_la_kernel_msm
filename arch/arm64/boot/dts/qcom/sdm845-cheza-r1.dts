@@ -10,16 +10,77 @@
 #include "sdm845-cheza.dtsi"
 
 / {
-	model = "Google Cheza";
-	compatible = "google,cheza-rev15", "google,cheza-rev14",
-		     "google,cheza-rev13", "google,cheza-rev12",
-		     "google,cheza-rev11", "google,cheza-rev10",
-		     "google,cheza-rev9", "google,cheza-rev8",
-		     "google,cheza-rev7", "google,cheza-rev6",
-		     "google,cheza-rev5", "google,cheza-rev4",
-		     "google,cheza-rev3", "google,cheza-rev2",
-		     "google,cheza-rev1", "google,cheza", "qcom,sdm845";
+	model = "Google Cheza (rev1)";
+	compatible = "google,cheza-rev1", "google,cheza", "qcom,sdm845";
+
+	/*
+	 * FIXED REGULATORS (not in sdm845-cheza.dtsi) - parents above children
+	 */
+
+	/*
+	 * NOTE: Technically pp3500_a is not the exact same signal as
+	 * pp3500_a_vbob (there's a load switch between them and the EC can
+	 * control pp3500_a via "en_pp3300_a"), but from the AP's point of
+	 * view they are the same.
+	 */
+	pp3500_a:
+	pp3500_a_vbob: pp3500-a-vbob-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vreg_bob";
+
+		/*
+		 * Comes on automatically when pp5000_ldo comes on, which
+		 * comes on automatically when ppvar_sys comes on
+		 */
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3500000>;
+		regulator-max-microvolt = <3500000>;
+
+		vin-supply = <&ppvar_sys>;
+	};
+
+	pp3300_dx_edp: pp3300-dx-edp-regulator {
+		/* Yes, it's really 3.5 despite the name of the signal */
+		regulator-min-microvolt = <3500000>;
+		regulator-max-microvolt = <3500000>;
+
+		vin-supply = <&pp3500_a>;
+	};
 };
+
+/* FIXED REGULATOR OVERRIDES (modifications to sdm845-cheza.dtsi) */
+
+/*
+ * L19 and L28 technically go to 3.3V, but most boards have old AOP firmware
+ * that limits them to 3.0, and trying to run at 3.3V with that old firmware
+ * prevents the system from booting.
+ */
+&src_pp3000_l19a {
+	regulator-min-microvolt = <3008000>;
+	regulator-max-microvolt = <3008000>;
+};
+
+&src_pp3300_l22a {
+	/delete-property/regulator-boot-on;
+	/delete-property/regulator-always-on;
+};
+
+&src_pp3300_l28a {
+	regulator-min-microvolt = <3008000>;
+	regulator-max-microvolt = <3008000>;
+};
+
+&src_vreg_bob {
+	regulator-min-microvolt = <3500000>;
+	regulator-max-microvolt = <3500000>;
+	vin-supply = <&pp3500_a_vbob>;
+};
+
+/*
+ * NON-REGULATOR OVERRIDES
+ * (modifications to sdm845-cheza.dtsi) - alphabetized by dtsi label
+ */
 
 /* PINCTRL - board-specific pinctrl */
 

@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -335,10 +336,18 @@ struct ath10k_hw_ce_dst_src_wm_regs {
 	struct ath10k_hw_ce_regs_addr_map *wm_low;
 	struct ath10k_hw_ce_regs_addr_map *wm_high; };
 
+struct ath10k_hw_ce_ctrl1_upd {
+	u32 shift;
+	u32 mask;
+	u32 enable;
+};
+
 struct ath10k_hw_ce_regs {
-	u32 sr_base_addr;
+	u32 sr_base_addr_lo;
+	u32 sr_base_addr_hi;
 	u32 sr_size_addr;
-	u32 dr_base_addr;
+	u32 dr_base_addr_lo;
+	u32 dr_base_addr_hi;
 	u32 dr_size_addr;
 	u32 ce_cmd_addr;
 	u32 misc_ie_addr;
@@ -357,7 +366,9 @@ struct ath10k_hw_ce_regs {
 	struct ath10k_hw_ce_cmd_halt *cmd_halt;
 	struct ath10k_hw_ce_host_ie *host_ie;
 	struct ath10k_hw_ce_dst_src_wm_regs *wm_srcr;
-	struct ath10k_hw_ce_dst_src_wm_regs *wm_dstr; };
+	struct ath10k_hw_ce_dst_src_wm_regs *wm_dstr;
+	struct ath10k_hw_ce_ctrl1_upd *upd;
+};
 
 struct ath10k_hw_values {
 	u32 rtc_state_val_on;
@@ -374,11 +385,16 @@ extern const struct ath10k_hw_values qca99x0_values;
 extern const struct ath10k_hw_values qca9888_values;
 extern const struct ath10k_hw_values qca4019_values;
 extern const struct ath10k_hw_values wcn3990_values;
-extern struct ath10k_hw_ce_regs wcn3990_ce_regs;
-extern struct ath10k_hw_ce_regs qcax_ce_regs;
+extern const struct ath10k_hw_ce_regs wcn3990_ce_regs;
+extern const struct ath10k_hw_ce_regs qcax_ce_regs;
 
 void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
 				u32 cc, u32 rcc, u32 cc_prev, u32 rcc_prev);
+
+int ath10k_hw_diag_fast_download(struct ath10k *ar,
+				 u32 address,
+				 const void *buffer,
+				 u32 length);
 
 #define QCA_REV_988X(ar) ((ar)->hw_rev == ATH10K_HW_QCA988X)
 #define QCA_REV_9887(ar) ((ar)->hw_rev == ATH10K_HW_QCA9887)
@@ -571,6 +587,23 @@ struct ath10k_hw_params {
 
 	/* target supporting per ce IRQ */
 	bool per_ce_irq;
+
+	/* target supporting shadow register for ce write */
+	bool shadow_reg_support;
+
+	/* target supporting retention restore on ddr */
+	bool rri_on_ddr;
+
+	/* Number of bytes to be the offset for each FFT sample */
+	int spectral_bin_offset;
+
+	/* targets which require hw filter reset during boot up,
+	 * to avoid it sending spurious acks.
+	 */
+	bool hw_filter_reset_required;
+
+	/* target supporting fw download via diag ce */
+	bool fw_diag_ce_download;
 };
 
 struct htt_rx_desc;
@@ -681,6 +714,7 @@ ath10k_rx_desc_get_l3_pad_bytes(struct ath10k_hw_params *hw,
 #define TARGET_TLV_NUM_TIDS			((TARGET_TLV_NUM_PEERS) * 2)
 #define TARGET_TLV_NUM_MSDU_DESC		(1024 + 32)
 #define TARGET_TLV_NUM_WOW_PATTERNS		22
+#define TARGET_TLV_MGMT_NUM_MSDU_DESC		(50)
 
 /* Target specific defines for WMI-HL-1.0 firmware */
 #define TARGET_HL_10_TLV_NUM_PEERS		14
@@ -1104,5 +1138,16 @@ ath10k_rx_desc_get_l3_pad_bytes(struct ath10k_hw_params *hw,
 #define RTC_SYNC_STATUS_PLL_CHANGING_LSB	5
 #define RTC_SYNC_STATUS_PLL_CHANGING_MASK	0x00000020
 /* qca6174 PLL offset/mask end */
+
+/* CPU_ADDR_MSB is a register, bit[3:0] is to specify which memory
+ * region is accessed. The memory region size is 1M.
+ * If host wants to access 0xX12345 at target, then CPU_ADDR_MSB[3:0]
+ * is 0xX.
+ * The following MACROs are defined to get the 0xX and the size limit.
+ */
+#define CPU_ADDR_MSB_REGION_MASK	GENMASK(23, 20)
+#define CPU_ADDR_MSB_REGION_VAL(X)	FIELD_GET(CPU_ADDR_MSB_REGION_MASK, X)
+#define REGION_ACCESS_SIZE_LIMIT	0x100000
+#define REGION_ACCESS_SIZE_MASK		(REGION_ACCESS_SIZE_LIMIT - 1)
 
 #endif /* _HW_H_ */

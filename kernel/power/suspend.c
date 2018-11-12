@@ -23,7 +23,6 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/mm.h>
-#include <linux/pm_dark_resume.h>
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <linux/suspend.h>
@@ -61,7 +60,7 @@ static const struct platform_s2idle_ops *s2idle_ops;
 static DECLARE_WAIT_QUEUE_HEAD(s2idle_wait_head);
 
 enum s2idle_states __read_mostly s2idle_state;
-static DEFINE_SPINLOCK(s2idle_lock);
+static DEFINE_RAW_SPINLOCK(s2idle_lock);
 
 void s2idle_set_ops(const struct platform_s2idle_ops *ops)
 {
@@ -81,12 +80,12 @@ static int s2idle_enter(void)
 
 	trace_suspend_resume(TPS("machine_suspend"), PM_SUSPEND_TO_IDLE, true);
 
-	spin_lock_irq(&s2idle_lock);
+	raw_spin_lock_irq(&s2idle_lock);
 	if (pm_wakeup_pending())
 		goto out;
 
 	s2idle_state = S2IDLE_STATE_ENTER;
-	spin_unlock_irq(&s2idle_lock);
+	raw_spin_unlock_irq(&s2idle_lock);
 
 	get_online_cpus();
 	cpuidle_prepare_freeze();
@@ -100,11 +99,11 @@ static int s2idle_enter(void)
 	error = cpuidle_complete_freeze();
 	put_online_cpus();
 
-	spin_lock_irq(&s2idle_lock);
+	raw_spin_lock_irq(&s2idle_lock);
 
  out:
 	s2idle_state = S2IDLE_STATE_NONE;
-	spin_unlock_irq(&s2idle_lock);
+	raw_spin_unlock_irq(&s2idle_lock);
 
 	trace_suspend_resume(TPS("machine_suspend"), PM_SUSPEND_TO_IDLE, false);
 	return error;
@@ -162,12 +161,12 @@ void s2idle_wake(void)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&s2idle_lock, flags);
+	raw_spin_lock_irqsave(&s2idle_lock, flags);
 	if (s2idle_state > S2IDLE_STATE_NONE) {
 		s2idle_state = S2IDLE_STATE_WAKE;
 		wake_up(&s2idle_wait_head);
 	}
-	spin_unlock_irqrestore(&s2idle_lock, flags);
+	raw_spin_unlock_irqrestore(&s2idle_lock, flags);
 }
 EXPORT_SYMBOL_GPL(s2idle_wake);
 
@@ -329,7 +328,6 @@ static int suspend_test(int level)
 {
 #ifdef CONFIG_PM_DEBUG
 	if (pm_test_level == level) {
-		pm_dark_resume_set_enabled(false);
 		pr_info("suspend debug: Waiting for %d second(s).\n",
 				pm_test_delay);
 		mdelay(pm_test_delay * 1000);
