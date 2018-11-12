@@ -11,7 +11,6 @@
 #include <linux/compat.h>
 #include <linux/device.h>
 #include <linux/dmapool.h>
-#include <linux/fs.h>
 #include <linux/genalloc.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -25,8 +24,7 @@
 #include <linux/of_irq.h>
 #include <linux/uaccess.h>
 #include <linux/interrupt.h>
-#include <linux/msm-bus.h>
-#include <linux/msm-bus-board.h>
+#include <linux/interconnect.h>
 #include <linux/netdevice.h>
 #include <linux/delay.h>
 #include <linux/time.h>
@@ -34,180 +32,33 @@
 #include <linux/soc/qcom/smem_state.h>
 #include <asm/cacheflush.h>
 
+#include "ipa_dma.h"
 #include "ipa_i.h"
 #include "ipahal.h"
-#include "ipahal_fltrt.h"
 
-#define IPA_GPIO_IN_QUERY_CLK_IDX 0
-#define IPA_GPIO_OUT_CLK_RSP_CMPLT_IDX 0
-#define IPA_GPIO_OUT_CLK_VOTE_IDX 1
+#define IPA_APPS_CMD_PROD_RING_COUNT	128
+#define IPA_APPS_LAN_CONS_RING_COUNT	128
 
-#define IPA_ACTIVE_CLIENTS_TABLE_BUF_SIZE 2048
-
-/* Shared memory */
-
-#define IPA_SMEM_SIZE (8 * 1024)
-/* The host we're sharing memory with (could be "qcom,remote-pid") */
-#define SMEM_MODEM		1
-/* Item number in shared memory of the IPA filter table */
-#define SMEM_IPA_FILTER_TABLE	497
-
-/* The relative location in /lib/firmware where firmware will reside */
-#define IPA_FWS_PATH		"ipa_fws.elf"
-
-/* IPA Data Processing Star firmware image memory size in IPA SRAM */
-#define IPA_DPS_IMG_MEM_SIZE	128	/* bytes */
-/* IPA Header Processing Star firmware image memory size in IPA SRAM */
-#define IPA_HPS_IMG_MEM_SIZE	320	/* bytes */
+static void ipa_post_init(struct work_struct *unused);
+static DECLARE_WORK(ipa_post_init_work, ipa_post_init);
 
 static void ipa_client_remove_deferred(struct work_struct *work);
 static DECLARE_WORK(ipa_client_remove_work, ipa_client_remove_deferred);
-static void ipa_work_ipa_post_init(struct work_struct *work);
-static DECLARE_WORK(ipa_post_init_work, ipa_work_ipa_post_init);
 
 static struct ipa_context ipa_ctx_struct;
 struct ipa_context *ipa_ctx = &ipa_ctx_struct;
 
-int ipa_active_clients_log_print_table(char *buf, int size)
-{
-	struct ipa_active_clients_log_ctx *log;
-	struct ipa_active_client *entry;
-	unsigned long flags;
-	int cnt;
-
-	log = &ipa_ctx->ipa_active_clients_logging;
-
-	spin_lock_irqsave(&log->lock, flags);
-
-	cnt = scnprintf(buf, size, "\n---- Active Clients Table ----\n");
-	list_for_each_entry(entry, &log->active, links) {
-		cnt += scnprintf(buf + cnt, size - cnt, "%-40s %-3d\n",
-				 entry->id_string, entry->count);
-	}
-	cnt += scnprintf(buf + cnt, size - cnt,
-			"\nTotal active clients count: %d\n",
-			atomic_read(&ipa_ctx->ipa_active_clients.cnt));
-
-	spin_unlock_irqrestore(&log->lock, flags);
-
-	return cnt;
-}
-
-static int ipa_active_clients_panic_notifier(struct notifier_block *this,
-					     unsigned long event, void *ptr)
-{
-	mutex_lock(&ipa_ctx->ipa_active_clients.mutex);
-	ipa_active_clients_log_print_table(ipa_ctx->active_clients_table_buf,
-					   IPA_ACTIVE_CLIENTS_TABLE_BUF_SIZE);
-	ipa_err("%s", ipa_ctx->active_clients_table_buf);
-	mutex_unlock(&ipa_ctx->ipa_active_clients.mutex);
-
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block ipa_active_clients_panic_blk = {
-	.notifier_call	= ipa_active_clients_panic_notifier,
-};
-
-static int
-ipa_active_clients_log_insert(struct ipa_active_client_logging_info *id,
-			      bool inc)
-{
-	struct ipa_active_clients_log_ctx *log;
-	size_t count = ARRAY_SIZE(log->log_buffer);
-	unsigned long long t;
-	unsigned long nsec;
-	const char *basename;
-	int head;
-
-	log = &ipa_ctx->ipa_active_clients_logging;
-
-	if (!log->log_rdy)
-		return -EPERM;
-
-	head = log->log_head;
-
-	t = local_clock();	/* for seconds */
-	nsec = t % 1000000000;	/* nanoseconds */
-
-	basename = strrchr(id->file, '/');
-	if (basename)
-		basename++;
-	else
-		basename = id->file;
-
-	(void)snprintf(log->log_buffer[head], IPA_ACTIVE_CLIENTS_LOG_LINE_LEN,
-		       "[%5llu.%06lu] %c %s, %s: %d",
-		       t / 1000000000, nsec / 1000, inc ? '^' : 'v',
-		       id->id_string, basename, id->line);
-
-	/* Consume this entry.  If hit the end, drop the oldest */
-	log->log_head = (head + 1) % count;
-	if (log->log_head == log->log_tail)
-		log->log_tail = (log->log_tail + 1) % count;
-
-	return 0;
-}
-
-static int ipa_active_clients_log_init(void)
-{
-	struct ipa_active_clients_log_ctx *log;
-	size_t count = ARRAY_SIZE(log->log_buffer);
-	size_t size = IPA_ACTIVE_CLIENTS_LOG_LINE_LEN;
-	char *bufp;
-	int i;
-
-	log = &ipa_ctx->ipa_active_clients_logging;
-
-	bufp = kzalloc(count * size, GFP_KERNEL);
-	if (!bufp)
-		return -ENOMEM;
-
-	/* OK to fail allocating the active clients table buffer */
-	ipa_ctx->active_clients_table_buf =
-			kzalloc(IPA_ACTIVE_CLIENTS_TABLE_BUF_SIZE, GFP_KERNEL);
-
-	/* Freeing the first log buffer frees them all */
-	for (i = 0; i < count; i++) {
-		log->log_buffer[i] = bufp;
-		bufp += size;
-	}
-
-	spin_lock_init(&log->lock);
-	log->log_head = 0;
-	log->log_tail = count - 1;
-	INIT_LIST_HEAD(&log->active);
-
-	atomic_notifier_chain_register(&panic_notifier_list,
-				       &ipa_active_clients_panic_blk);
-
-	log->log_rdy = 1;
-
-	return 0;
-}
-
-static void ipa_active_clients_log_destroy(void)
-{
-	struct ipa_active_clients_log_ctx *log;
-
-	log = &ipa_ctx->ipa_active_clients_logging;
-
-	kfree(ipa_ctx->active_clients_table_buf);
-	kfree(log->log_buffer[0]);
-	memset(log, 0, sizeof(*log));
-}
-
 static int hdr_init_local_cmd(u32 offset, u32 size)
 {
-	struct ipa_mem_buffer mem;
+	struct ipa_dma_mem mem;
 	struct ipahal_imm_cmd_pyld *cmd_pyld;
-	struct ipa_desc desc = { 0 };
+	struct ipa_desc desc = { };
 	int ret;
 
-	if (ipahal_dma_alloc(&mem, size, GFP_KERNEL))
+	if (ipa_dma_alloc(&mem, size, GFP_KERNEL))
 		return -ENOMEM;
 
-	offset += ipa_ctx->smem_restricted_bytes;
+	offset += ipa_ctx->smem_offset;
 
 	cmd_pyld = ipahal_hdr_init_local_pyld(&mem, offset);
 	if (!cmd_pyld) {
@@ -217,30 +68,30 @@ static int hdr_init_local_cmd(u32 offset, u32 size)
 	}
 	ipa_desc_fill_imm_cmd(&desc, cmd_pyld);
 
-	ret = ipa_send_cmd(1, &desc);
+	ret = ipa_send_cmd(&desc);
 	if (ret)
 		ipa_err("error sending command\n");
 
 	ipahal_destroy_imm_cmd(cmd_pyld);
 err_dma_free:
-	ipahal_dma_free(&mem);
+	ipa_dma_free(&mem);
 
 	return ret;
 }
 
 static int dma_shared_mem_zero_cmd(u32 offset, u32 size)
 {
-	struct ipa_mem_buffer mem;
+	struct ipa_dma_mem mem;
 	struct ipahal_imm_cmd_pyld *cmd_pyld;
-	struct ipa_desc desc = { 0 };
+	struct ipa_desc desc = { };
 	int ret;
 
 	ipa_assert(size > 0);
 
-	if (ipahal_dma_alloc(&mem, size, GFP_KERNEL))
+	if (ipa_dma_alloc(&mem, size, GFP_KERNEL))
 		return -ENOMEM;
 
-	offset += ipa_ctx->smem_restricted_bytes;
+	offset += ipa_ctx->smem_offset;
 
 	cmd_pyld = ipahal_dma_shared_mem_write_pyld(&mem, offset);
 	if (!cmd_pyld) {
@@ -250,13 +101,13 @@ static int dma_shared_mem_zero_cmd(u32 offset, u32 size)
 	}
 	ipa_desc_fill_imm_cmd(&desc, cmd_pyld);
 
-	ret = ipa_send_cmd(1, &desc);
+	ret = ipa_send_cmd(&desc);
 	if (ret)
 		ipa_err("error sending command\n");
 
 	ipahal_destroy_imm_cmd(cmd_pyld);
 err_dma_free:
-	ipahal_dma_free(&mem);
+	ipa_dma_free(&mem);
 
 	return ret;
 }
@@ -274,29 +125,27 @@ int ipa_init_q6_smem(void)
 	int rc;
 	char *what;
 
-	ipa_client_add(__func__, false);
+	ipa_client_add();
 
-	rc = dma_shared_mem_zero_cmd(ipa_ctx->mem_info[MODEM_OFST],
-				     ipa_ctx->mem_info[MODEM_SIZE]);
+	rc = dma_shared_mem_zero_cmd(IPA_MEM_MODEM_OFST, IPA_MEM_MODEM_SIZE);
 	if (rc) {
 		what = "Modem RAM";
 		goto out_client_remove;
 	}
 
-	rc = dma_shared_mem_zero_cmd(ipa_ctx->mem_info[MODEM_HDR_OFST],
-				     ipa_ctx->mem_info[MODEM_HDR_SIZE]);
+	rc = dma_shared_mem_zero_cmd(IPA_MEM_MODEM_HDR_OFST,
+				     IPA_MEM_MODEM_HDR_SIZE);
 	if (rc) {
 		what = "Modem HDRs RAM";
 		goto out_client_remove;
 	}
 
-	rc = dma_shared_mem_zero_cmd(
-			ipa_ctx->mem_info[MODEM_HDR_PROC_CTX_OFST],
-			ipa_ctx->mem_info[MODEM_HDR_PROC_CTX_SIZE]);
+	rc = dma_shared_mem_zero_cmd(IPA_MEM_MODEM_HDR_PROC_CTX_OFST,
+				     IPA_MEM_MODEM_HDR_PROC_CTX_SIZE);
 	if (rc)
 		what = "Modem proc ctx RAM";
 out_client_remove:
-	ipa_client_remove(__func__, false);
+	ipa_client_remove();
 	if (rc)
 		ipa_err("failed to initialize modem %s memory\n", what);
 
@@ -305,39 +154,52 @@ out_client_remove:
 
 static int setup_apps_cmd_prod_pipe(void)
 {
-	struct ipa_sys_connect_params sys_in;
+	struct ipa_sys_connect_params sys_in = { };
+	enum ipa_client_type client = IPA_CLIENT_APPS_CMD_PROD;
+	enum ipa_client_type dst_client = IPA_CLIENT_APPS_LAN_CONS;
+	u32 chan_count = IPA_APPS_CMD_PROD_RING_COUNT;
+	u32 prod_hdl;
+	int ret;
 
-	memset(&sys_in, 0, sizeof(sys_in));
+	if (ipa_ctx->clnt_hdl_cmd != IPA_CLNT_HDL_BAD)
+		ret = -EBUSY;
 
-	sys_in.client = IPA_CLIENT_APPS_CMD_PROD;
-	sys_in.desc_fifo_sz = IPA_SYS_DESC_FIFO_SZ;
-	sys_in.ipa_ep_cfg.mode.mode = IPA_DMA;
-	sys_in.ipa_ep_cfg.mode.dst = IPA_CLIENT_APPS_LAN_CONS;
+	ret = ipa_ep_alloc(client);
+	if (ret < 0)
+		return ret;
+	prod_hdl = ret;
 
-	return ipa_setup_sys_pipe(&sys_in);
+	ipa_endp_init_mode_prod(prod_hdl, IPA_DMA, dst_client);
+	ipa_endp_init_seq_prod(prod_hdl);
+	ipa_endp_init_deaggr_prod(prod_hdl);
+
+	ret = ipa_setup_sys_pipe(prod_hdl, chan_count, 0, &sys_in);
+	if (ret)
+		ipa_ep_free(prod_hdl);
+	else
+		ipa_ctx->clnt_hdl_cmd = prod_hdl;
+
+	return ret;
 }
 
-static void
-sram_set_canary_common(u32 *sram_mmio, enum ipa_mem_partition which, bool two)
+/* Only used for IPA_MEM_UC_EVENT_RING_OFST, which must be 1KB aligned */
+static __always_inline void sram_set_canary(u32 *sram_mmio, u32 offset)
 {
-	u32 index = ipa_ctx->mem_info[which] / sizeof(*sram_mmio);
+	BUILD_BUG_ON(offset < sizeof(*sram_mmio));
+	BUILD_BUG_ON(offset % 1024);
 
-	ipa_assert(index > two ? 1 : 0);
-
-	/* Set 4 or 8 bytes of CANARY before the offset */
-	if (two)
-		sram_mmio[index - 2] = IPA_MEM_CANARY_VAL;
-	sram_mmio[index - 1] = IPA_MEM_CANARY_VAL;
+	sram_mmio += offset / sizeof(*sram_mmio);
+	*--sram_mmio = IPA_MEM_CANARY_VAL;
 }
 
-static void sram_set_canary(u32 *sram_mmio, enum ipa_mem_partition which)
+static __always_inline void sram_set_canaries(u32 *sram_mmio, u32 offset)
 {
-	sram_set_canary_common(sram_mmio, which, false);
-}
+	BUILD_BUG_ON(offset < 2 * sizeof(*sram_mmio));
+	BUILD_BUG_ON(offset % 8);
 
-static void sram_set_canaries(u32 *sram_mmio, enum ipa_mem_partition which)
-{
-	sram_set_canary_common(sram_mmio, which, true);
+	sram_mmio += offset / sizeof(*sram_mmio);
+	*--sram_mmio = IPA_MEM_CANARY_VAL;
+	*--sram_mmio = IPA_MEM_CANARY_VAL;
 }
 
 /** ipa_init_sram() - Initialize IPA local SRAM.
@@ -346,33 +208,33 @@ static void sram_set_canaries(u32 *sram_mmio, enum ipa_mem_partition which)
  */
 static int ipa_init_sram(void)
 {
+	phys_addr_t phys_addr;
 	u32 *ipa_sram_mmio;
-	unsigned long phys_addr;
 
-	phys_addr = ipa_ctx->ipa_wrapper_base + IPA_REG_BASE_OFFSET;
-	phys_addr += ipahal_reg_n_offset(IPA_SRAM_DIRECT_ACCESS_n,
-					 ipa_ctx->smem_restricted_bytes / 4);
+	phys_addr = ipa_ctx->ipa_phys;
+	phys_addr += ipa_reg_n_offset(IPA_SRAM_DIRECT_ACCESS_N, 0);
+	phys_addr += ipa_ctx->smem_offset;
 
-	ipa_sram_mmio = ioremap(phys_addr, ipa_ctx->smem_sz);
+	ipa_sram_mmio = ioremap(phys_addr, ipa_ctx->smem_size);
 	if (!ipa_sram_mmio) {
 		ipa_err("fail to ioremap IPA SRAM\n");
 		return -ENOMEM;
 	}
 
-	/* Consult with ipa_i.h on the location of the CANARY values */
-	sram_set_canaries(ipa_sram_mmio, V4_FLT_HASH_OFST);
-	sram_set_canaries(ipa_sram_mmio, V4_FLT_NHASH_OFST);
-	sram_set_canaries(ipa_sram_mmio, V6_FLT_HASH_OFST);
-	sram_set_canaries(ipa_sram_mmio, V6_FLT_NHASH_OFST);
-	sram_set_canaries(ipa_sram_mmio, V4_RT_HASH_OFST);
-	sram_set_canaries(ipa_sram_mmio, V4_RT_NHASH_OFST);
-	sram_set_canaries(ipa_sram_mmio, V6_RT_HASH_OFST);
-	sram_set_canaries(ipa_sram_mmio, V6_RT_NHASH_OFST);
-	sram_set_canaries(ipa_sram_mmio, MODEM_HDR_OFST);
-	sram_set_canaries(ipa_sram_mmio, MODEM_HDR_PROC_CTX_OFST);
-	sram_set_canaries(ipa_sram_mmio, MODEM_OFST);
-	/* Only one canary precedes for the microcontroller ring */
-	sram_set_canary(ipa_sram_mmio, UC_EVENT_RING_OFST);
+	sram_set_canaries(ipa_sram_mmio, IPA_MEM_V4_FLT_HASH_OFST);
+	sram_set_canaries(ipa_sram_mmio, IPA_MEM_V4_FLT_NHASH_OFST);
+	sram_set_canaries(ipa_sram_mmio, IPA_MEM_V6_FLT_HASH_OFST);
+	sram_set_canaries(ipa_sram_mmio, IPA_MEM_V6_FLT_NHASH_OFST);
+	sram_set_canaries(ipa_sram_mmio, IPA_MEM_V4_RT_HASH_OFST);
+	sram_set_canaries(ipa_sram_mmio, IPA_MEM_V4_RT_NHASH_OFST);
+	sram_set_canaries(ipa_sram_mmio, IPA_MEM_V6_RT_HASH_OFST);
+	sram_set_canaries(ipa_sram_mmio, IPA_MEM_V6_RT_NHASH_OFST);
+	sram_set_canaries(ipa_sram_mmio, IPA_MEM_MODEM_HDR_OFST);
+	sram_set_canaries(ipa_sram_mmio, IPA_MEM_MODEM_HDR_PROC_CTX_OFST);
+	sram_set_canaries(ipa_sram_mmio, IPA_MEM_MODEM_OFST);
+
+	/* Only one canary precedes the microcontroller ring */
+	sram_set_canary(ipa_sram_mmio, IPA_MEM_UC_EVENT_RING_OFST);
 
 	iounmap(ipa_sram_mmio);
 
@@ -385,43 +247,39 @@ static int ipa_init_sram(void)
  */
 static int ipa_init_hdr(void)
 {
-	u32 dma_size;
-	u32 offset;
 	int ret;
 
-	dma_size = ipa_ctx->mem_info[MODEM_HDR_SIZE];
-	if (dma_size) {
-		offset = ipa_ctx->mem_info[MODEM_HDR_OFST];
-		ret = hdr_init_local_cmd(offset, dma_size);
+	if (IPA_MEM_MODEM_HDR_SIZE) {
+		ret = hdr_init_local_cmd(IPA_MEM_MODEM_HDR_OFST,
+					 IPA_MEM_MODEM_HDR_SIZE);
 		if (ret)
 			return ret;
 	}
 
-	dma_size = ipa_ctx->mem_info[APPS_HDR_SIZE];
-	if (dma_size) {
-		offset = ipa_ctx->mem_info[APPS_HDR_OFST];
-		ret = hdr_init_local_cmd(offset, dma_size);
+	if (IPA_MEM_APPS_HDR_SIZE) {
+		BUILD_BUG_ON(IPA_MEM_APPS_HDR_OFST % 8);
+		ret = hdr_init_local_cmd(IPA_MEM_APPS_HDR_OFST,
+					 IPA_MEM_APPS_HDR_SIZE);
 		if (ret)
 			return ret;
 	}
 
-	dma_size = ipa_ctx->mem_info[MODEM_HDR_PROC_CTX_SIZE];
-	if (dma_size) {
-		offset = ipa_ctx->mem_info[MODEM_HDR_PROC_CTX_OFST];
-		ret = dma_shared_mem_zero_cmd(offset, dma_size);
+	if (IPA_MEM_MODEM_HDR_PROC_CTX_SIZE) {
+		ret = dma_shared_mem_zero_cmd(IPA_MEM_MODEM_HDR_PROC_CTX_OFST,
+					      IPA_MEM_MODEM_HDR_PROC_CTX_SIZE);
 		if (ret)
 			return ret;
 	}
 
-	dma_size = ipa_ctx->mem_info[APPS_HDR_PROC_CTX_SIZE];
-	if (dma_size) {
-		offset = ipa_ctx->mem_info[APPS_HDR_PROC_CTX_OFST];
-		ret = dma_shared_mem_zero_cmd(offset, dma_size);
+	if (IPA_MEM_APPS_HDR_PROC_CTX_SIZE) {
+		BUILD_BUG_ON(IPA_MEM_APPS_HDR_PROC_CTX_OFST % 8);
+		ret = dma_shared_mem_zero_cmd(IPA_MEM_APPS_HDR_PROC_CTX_OFST,
+					      IPA_MEM_APPS_HDR_PROC_CTX_SIZE);
 		if (ret)
 			return ret;
 	}
 
-	ipahal_write_reg(IPA_LOCAL_PKT_PROC_CNTXT_BASE, 0);
+	ipa_write_reg(IPA_LOCAL_PKT_PROC_CNTXT_BASE, 0);
 
 	return 0;
 }
@@ -432,24 +290,21 @@ static int ipa_init_hdr(void)
  */
 static int ipa_init_rt4(void)
 {
-	struct ipa_desc desc = { 0 };
-	struct ipa_mem_buffer mem;
+	struct ipa_desc desc = { };
+	struct ipa_dma_mem mem;
 	struct ipahal_imm_cmd_pyld *cmd_pyld;
 	u32 hash_offset;
 	u32 nhash_offset;
 	int rc;
 
-	rc = ipahal_rt_generate_empty_img(ipa_ctx->mem_info[V4_RT_NUM_INDEX],
-					  &mem, GFP_KERNEL);
+	rc = ipahal_rt_generate_empty_img(IPA_MEM_V4_RT_NUM_INDEX, &mem);
 	if (rc) {
 		ipa_err("fail generate empty v4 rt img\n");
 		return rc;
 	}
 
-	hash_offset = ipa_ctx->smem_restricted_bytes +
-				ipa_ctx->mem_info[V4_RT_HASH_OFST];
-	nhash_offset = ipa_ctx->smem_restricted_bytes +
-				ipa_ctx->mem_info[V4_RT_NHASH_OFST];
+	hash_offset = ipa_ctx->smem_offset + IPA_MEM_V4_RT_HASH_OFST;
+	nhash_offset = ipa_ctx->smem_offset + IPA_MEM_V4_RT_NHASH_OFST;
 	cmd_pyld =
 		ipahal_ip_v4_routing_init_pyld(&mem, hash_offset, nhash_offset);
 	if (!cmd_pyld) {
@@ -459,7 +314,7 @@ static int ipa_init_rt4(void)
 	}
 	ipa_desc_fill_imm_cmd(&desc, cmd_pyld);
 
-	if (ipa_send_cmd(1, &desc)) {
+	if (ipa_send_cmd(&desc)) {
 		ipa_err("fail to send immediate command\n");
 		rc = -EFAULT;
 	}
@@ -477,24 +332,21 @@ free_mem:
  */
 static int ipa_init_rt6(void)
 {
-	struct ipa_desc desc = { 0 };
-	struct ipa_mem_buffer mem;
+	struct ipa_desc desc = { };
+	struct ipa_dma_mem mem;
 	struct ipahal_imm_cmd_pyld *cmd_pyld;
 	u32 hash_offset;
 	u32 nhash_offset;
 	int rc;
 
-	rc = ipahal_rt_generate_empty_img(ipa_ctx->mem_info[V6_RT_NUM_INDEX],
-			&mem, GFP_KERNEL);
+	rc = ipahal_rt_generate_empty_img(IPA_MEM_V6_RT_NUM_INDEX, &mem);
 	if (rc) {
 		ipa_err("fail generate empty v6 rt img\n");
 		return rc;
 	}
 
-	hash_offset = ipa_ctx->smem_restricted_bytes +
-				ipa_ctx->mem_info[V6_RT_HASH_OFST];
-	nhash_offset = ipa_ctx->smem_restricted_bytes +
-				ipa_ctx->mem_info[V6_RT_NHASH_OFST];
+	hash_offset = ipa_ctx->smem_offset + IPA_MEM_V6_RT_HASH_OFST;
+	nhash_offset = ipa_ctx->smem_offset + IPA_MEM_V6_RT_NHASH_OFST;
 	cmd_pyld =
 		ipahal_ip_v6_routing_init_pyld(&mem, hash_offset, nhash_offset);
 	if (!cmd_pyld) {
@@ -504,7 +356,7 @@ static int ipa_init_rt6(void)
 	}
 	ipa_desc_fill_imm_cmd(&desc, cmd_pyld);
 
-	if (ipa_send_cmd(1, &desc)) {
+	if (ipa_send_cmd(&desc)) {
 		ipa_err("fail to send immediate command\n");
 		rc = -EFAULT;
 	}
@@ -522,25 +374,21 @@ free_mem:
  */
 static int ipa_init_flt4(void)
 {
-	struct ipa_desc desc = { 0 };
-	struct ipa_mem_buffer mem;
+	struct ipa_desc desc = { };
+	struct ipa_dma_mem mem;
 	struct ipahal_imm_cmd_pyld *cmd_pyld;
 	u32 hash_offset;
 	u32 nhash_offset;
 	int rc;
 
-	rc = ipahal_flt_generate_empty_img(ipa_ctx->ep_flt_num,
-					   ipa_ctx->ep_flt_bitmap, &mem,
-					   GFP_KERNEL);
+	rc = ipahal_flt_generate_empty_img(ipa_ctx->filter_bitmap, &mem);
 	if (rc) {
 		ipa_err("fail generate empty v4 flt img\n");
 		return rc;
 	}
 
-	hash_offset = ipa_ctx->smem_restricted_bytes +
-					ipa_ctx->mem_info[V4_FLT_HASH_OFST];
-	nhash_offset = ipa_ctx->smem_restricted_bytes +
-					ipa_ctx->mem_info[V4_FLT_NHASH_OFST];
+	hash_offset = ipa_ctx->smem_offset + IPA_MEM_V4_FLT_HASH_OFST;
+	nhash_offset = ipa_ctx->smem_offset + IPA_MEM_V4_FLT_NHASH_OFST;
 	cmd_pyld = ipahal_ip_v4_filter_init_pyld(&mem, hash_offset,
 						 nhash_offset);
 	if (!cmd_pyld) {
@@ -550,7 +398,7 @@ static int ipa_init_flt4(void)
 	}
 	ipa_desc_fill_imm_cmd(&desc, cmd_pyld);
 
-	if (ipa_send_cmd(1, &desc)) {
+	if (ipa_send_cmd(&desc)) {
 		ipa_err("fail to send immediate command\n");
 		rc = -EFAULT;
 	}
@@ -568,25 +416,21 @@ free_mem:
  */
 static int ipa_init_flt6(void)
 {
-	struct ipa_desc desc = { 0 };
-	struct ipa_mem_buffer mem;
+	struct ipa_desc desc = { };
+	struct ipa_dma_mem mem;
 	struct ipahal_imm_cmd_pyld *cmd_pyld;
 	u32 hash_offset;
 	u32 nhash_offset;
 	int rc;
 
-	rc = ipahal_flt_generate_empty_img(ipa_ctx->ep_flt_num,
-					   ipa_ctx->ep_flt_bitmap, &mem,
-					   GFP_KERNEL);
+	rc = ipahal_flt_generate_empty_img(ipa_ctx->filter_bitmap, &mem);
 	if (rc) {
 		ipa_err("fail generate empty v6 flt img\n");
 		return rc;
 	}
 
-	hash_offset = ipa_ctx->smem_restricted_bytes +
-					ipa_ctx->mem_info[V6_FLT_HASH_OFST];
-	nhash_offset = ipa_ctx->smem_restricted_bytes +
-					ipa_ctx->mem_info[V6_FLT_NHASH_OFST];
+	hash_offset = ipa_ctx->smem_offset + IPA_MEM_V6_FLT_HASH_OFST;
+	nhash_offset = ipa_ctx->smem_offset + IPA_MEM_V6_FLT_NHASH_OFST;
 	cmd_pyld = ipahal_ip_v6_filter_init_pyld(&mem, hash_offset,
 						 nhash_offset);
 	if (!cmd_pyld) {
@@ -596,7 +440,7 @@ static int ipa_init_flt6(void)
 	}
 	ipa_desc_fill_imm_cmd(&desc, cmd_pyld);
 
-	if (ipa_send_cmd(1, &desc)) {
+	if (ipa_send_cmd(&desc)) {
 		ipa_err("fail to send immediate command\n");
 		rc = -EFAULT;
 	}
@@ -610,39 +454,30 @@ free_mem:
 
 static void ipa_setup_flt_hash_tuple(void)
 {
-	int pipe_idx;
-	struct ipahal_reg_hash_tuple tuple;
+	struct ipa_reg_hash_tuple tuple = { };	/* All fields zero */
+	u32 pipe_idx;
 
-	memset(&tuple, 0, sizeof(struct ipahal_reg_hash_tuple));
-
-	for (pipe_idx = 0; pipe_idx < ipa_ctx->ipa_num_pipes ; pipe_idx++) {
-		if (!ipa_is_ep_support_flt(pipe_idx))
-			continue;
-
+	for (pipe_idx = 0; pipe_idx < ipa_ctx->ipa_num_pipes; pipe_idx++) {
 		if (ipa_is_modem_pipe(pipe_idx))
 			continue;
-
-		ipa_set_flt_tuple_mask(pipe_idx, &tuple);
+		if (ipa_ctx->filter_bitmap & BIT(pipe_idx))
+			ipa_set_flt_tuple_mask(pipe_idx, &tuple);
 	}
 }
 
 static void ipa_setup_rt_hash_tuple(void)
 {
+	struct ipa_reg_hash_tuple tuple = { };	/* All fields zero */
 	int tbl_idx;
-	struct ipahal_reg_hash_tuple tuple;
+	int limit = max(IPA_MEM_V6_RT_NUM_INDEX, IPA_MEM_V4_RT_NUM_INDEX);
 
-	memset(&tuple, 0, sizeof(struct ipahal_reg_hash_tuple));
-
-	for (tbl_idx = 0;
-	     tbl_idx < max(ipa_ctx->mem_info[V6_RT_NUM_INDEX],
-			   ipa_ctx->mem_info[V4_RT_NUM_INDEX]);
-	     tbl_idx++) {
-		if (tbl_idx >= ipa_ctx->mem_info[V4_MODEM_RT_INDEX_LO] &&
-		    tbl_idx <= ipa_ctx->mem_info[V4_MODEM_RT_INDEX_HI])
+	for (tbl_idx = 0; tbl_idx < limit; tbl_idx++) {
+		if (tbl_idx >= IPA_MEM_V4_MODEM_RT_INDEX_LO &&
+		    tbl_idx <= IPA_MEM_V4_MODEM_RT_INDEX_HI)
 			continue;
 
-		if (tbl_idx >= ipa_ctx->mem_info[V6_MODEM_RT_INDEX_LO] &&
-		    tbl_idx <= ipa_ctx->mem_info[V6_MODEM_RT_INDEX_HI])
+		if (tbl_idx >= IPA_MEM_V6_MODEM_RT_INDEX_LO &&
+		    tbl_idx <= IPA_MEM_V6_MODEM_RT_INDEX_HI)
 			continue;
 
 		ipa_set_rt_tuple_mask(tbl_idx, &tuple);
@@ -651,46 +486,78 @@ static void ipa_setup_rt_hash_tuple(void)
 
 static int setup_apps_lan_cons_pipe(void)
 {
-	struct ipa_sys_connect_params sys_in;
+	struct ipa_sys_connect_params sys_in = { };
+	enum ipa_client_type client = IPA_CLIENT_APPS_LAN_CONS;
+	u32 chan_count = IPA_APPS_LAN_CONS_RING_COUNT;
+	u32 aggr_size = IPA_GENERIC_AGGR_BYTE_LIMIT;
+	u32 aggr_count = IPA_GENERIC_AGGR_PKT_LIMIT;
+	u32 rx_buffer_size;
+	u32 byte_limit;
+	u32 cons_hdl;
+	int ret;
 
-	memset(&sys_in, 0, sizeof(sys_in));
+	if (aggr_size > ipa_reg_aggr_max_byte_limit())
+		return -EINVAL;
 
-	sys_in.client = IPA_CLIENT_APPS_LAN_CONS;
-	sys_in.desc_fifo_sz = IPA_SYS_DESC_FIFO_SZ;
+	if (aggr_count > ipa_reg_aggr_max_packet_limit())
+		return -EINVAL;
+
+	if (ipa_ctx->clnt_hdl_lan_cons != IPA_CLNT_HDL_BAD)
+		return -EBUSY;
+
+	/* Compute the buffer size required to handle the requested
+	 * aggregation byte limit.  The aggr_byte_limit value is
+	 * expressed as a number of KB, so we need to convert it to
+	 * bytes to determine the buffer size.
+	 *
+	 * The buffer will be sufficient to hold one IPA_MTU-sized
+	 * packet after the limit is reached.  (The size returned is
+	 * the computed maximum number of data bytes that can be
+	 * held in the buffer--no metadata/headers.)
+	 */
+	byte_limit = aggr_size * SZ_1K;
+	rx_buffer_size = ipa_aggr_byte_limit_buf_size(byte_limit);
+
+	/* Account for the extra IPA_MTU past the limit in the
+	 * buffer, and convert the result to the KB units the
+	 * aggr_byte_limit uses.
+	 */
+	aggr_size = (rx_buffer_size - IPA_MTU) / SZ_1K;
+
+	ret = ipa_ep_alloc(client);
+	if (ret < 0)
+		return ret;
+	cons_hdl = ret;
+
+	ipa_endp_init_hdr_cons(cons_hdl, IPA_LAN_RX_HEADER_LENGTH, 0, 0);
+	ipa_endp_init_hdr_ext_cons(cons_hdl, ilog2(sizeof(u32)), false);
+	ipa_endp_init_aggr_cons(cons_hdl, aggr_size, aggr_count, false);
+	ipa_endp_init_cfg_cons(cons_hdl, IPA_CS_OFFLOAD_DL);
+	ipa_endp_init_hdr_metadata_mask_cons(cons_hdl, 0x0);
+	ipa_endp_status_cons(cons_hdl, true);
+
 	sys_in.notify = ipa_lan_rx_cb;
 	sys_in.priv = NULL;
+	sys_in.napi_enabled = false;
 
-	sys_in.ipa_ep_cfg.hdr.hdr_len = IPA_LAN_RX_HEADER_LENGTH;
+	ret = ipa_setup_sys_pipe(cons_hdl, chan_count, rx_buffer_size, &sys_in);
+	if (ret)
+		ipa_ep_free(cons_hdl);
+	else
+		ipa_ctx->clnt_hdl_lan_cons = cons_hdl;
 
-	sys_in.ipa_ep_cfg.hdr_ext.hdr_little_endian = false;
-	sys_in.ipa_ep_cfg.hdr_ext.hdr_total_len_or_pad_valid = true;
-	sys_in.ipa_ep_cfg.hdr_ext.hdr_total_len_or_pad = IPA_HDR_PAD;
-	sys_in.ipa_ep_cfg.hdr_ext.hdr_payload_len_inc_padding = false;
-	sys_in.ipa_ep_cfg.hdr_ext.hdr_total_len_or_pad_offset = 0;
-	sys_in.ipa_ep_cfg.hdr_ext.hdr_pad_to_alignment = 2;
-
-	sys_in.ipa_ep_cfg.cfg.cs_offload_en = IPA_ENABLE_CS_OFFLOAD_DL;
-
-	return ipa_setup_sys_pipe(&sys_in);
+	return ret;
 }
 
-static long ipa_setup_apps_pipes(void)
+static int ipa_setup_apps_pipes(void)
 {
-	long result;
-
-	/* Memory size must be a multiple of the ring element size.
-	 * Note that ipa_gsi_chan_mem_size() assumes a multipler
-	 * (4 for producer, 2 for consumer) times the desc_fifo_sz
-	 * set below (reproduced here; 2 is the more restrictive case).
-	 */
-	BUILD_BUG_ON((2 * IPA_SYS_DESC_FIFO_SZ) % GSI_EVT_RING_ELEMENT_SIZE);
+	int result;
 
 	/* CMD OUT (AP->IPA) */
-	ipa_ctx->clnt_hdl_cmd = setup_apps_cmd_prod_pipe();
-	if (ipa_ctx->clnt_hdl_cmd < 0) {
-		result = -EPERM;
-		goto fail_ch20_wa;
-	}
+	result = setup_apps_cmd_prod_pipe();
+	if (result < 0)
+		return result;
+
 	ipa_debug("Apps to IPA cmd pipe is connected\n");
 
 	ipa_init_sram();
@@ -727,11 +594,9 @@ static long ipa_setup_apps_pipes(void)
 	 * of exceptions (unroutable packets, but other events as well)
 	 * through this pipe.
 	 */
-	ipa_ctx->clnt_hdl_data_in = setup_apps_lan_cons_pipe();
-	if (ipa_ctx->clnt_hdl_data_in < 0) {
-		result = -EPERM;
+	result = setup_apps_lan_cons_pipe();
+	if (result < 0)
 		goto fail_flt_hash_tuple;
-	}
 
 	ipa_cfg_default_route(IPA_CLIENT_APPS_LAN_CONS);
 
@@ -739,7 +604,8 @@ static long ipa_setup_apps_pipes(void)
 
 fail_flt_hash_tuple:
 	ipa_teardown_sys_pipe(ipa_ctx->clnt_hdl_cmd);
-fail_ch20_wa:
+	ipa_ctx->clnt_hdl_cmd = IPA_CLNT_HDL_BAD;
+
 	return result;
 }
 
@@ -752,7 +618,7 @@ static void ipa_enable_clks(void)
 {
 	ipa_debug("enabling IPA clocks and bus voting\n");
 
-	WARN_ON(msm_bus_scale_client_update_request(ipa_ctx->ipa_bus_hdl, 1));
+	WARN_ON(ipa_interconnect_enable());
 }
 
 /** ipa_disable_clks() - Turn off IPA clocks
@@ -764,93 +630,16 @@ static void ipa_disable_clks(void)
 {
 	ipa_debug("disabling IPA clocks and bus voting\n");
 
-	WARN_ON(msm_bus_scale_client_update_request(ipa_ctx->ipa_bus_hdl, 0));
-}
-
-/* log->lock is assumed held by the caller */
-static struct ipa_active_client *active_client_find(const char *id)
-{
-	struct ipa_active_clients_log_ctx *log;
-	struct ipa_active_client *entry;
-
-	log = &ipa_ctx->ipa_active_clients_logging;
-
-	list_for_each_entry(entry, &log->active, links)
-		if (!strcmp(entry->id_string, id))
-			return entry;
-
-	return NULL;
-}
-
-/* XXX Used GFP_ATOMIC for now; can probably be changed to use GFP_KERNEL */
-/* log->lock is assumed held by the caller */
-static struct ipa_active_client *
-active_client_get(struct ipa_active_client_logging_info *id)
-{
-	struct ipa_active_clients_log_ctx *log;
-	struct ipa_active_client *entry;
-
-	log = &ipa_ctx->ipa_active_clients_logging;
-
-	entry = active_client_find(id->id_string);
-	if (entry)
-		return entry;
-
-	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
-	if (!entry)
-		return NULL;
-
-	entry->id_string = id->id_string;
-	entry->count = 0;
-	list_add_tail(&entry->links, &log->active);
-
-	return entry;
-}
-
-/* ipa_active_clients_log_mod() - Log a modification to active clients
- *
- * If an existing entry represents the activity being logged, its
- * reference count is updated (incremented or decremented) according
- * to the "inc" argument.  Otherwise a new entry in the active list
- * is created.  When an entry's reference count reaches 0 it is
- * released from the list.
- *
- * A circular history buffer records reference count updates.
- */
-static void
-ipa_active_clients_log_mod(struct ipa_active_client_logging_info *id,
-			   bool log_it, bool inc)
-{
-	struct ipa_active_clients_log_ctx *log;
-	struct ipa_active_client *entry;
-	unsigned long flags;
-
-	log = &ipa_ctx->ipa_active_clients_logging;
-
-	spin_lock_irqsave(&log->lock, flags);
-
-	entry = active_client_get(id);
-	if (!entry)
-		goto out_unlock;
-
-	entry->count += inc ? 1 : -1;
-	if (!entry->count) {
-		list_del(&entry->links);
-		kfree(entry);
-	} else if (entry->count < 0) {
-		ipa_err("negative count for %s\n", id->id_string);
-	}
-
-	if (log_it)
-		ipa_active_clients_log_insert(id, inc);
-out_unlock:
-	spin_unlock_irqrestore(&log->lock, flags);
+	WARN_ON(ipa_interconnect_disable());
 }
 
 /* Add an IPA client under protection of the mutex.  This is called
  * for the first client, but a race could mean another caller gets
  * the first reference.  When the first reference is taken, IPA
- * clocks are enabled pipes are resumed.
+ * clocks are enabled pipes are resumed.  A positive reference count
+ * means the pipes are active; this doesn't set the first reference
+ * until after this is complete (and the mutex, not the atomic
+ * count, is what protects this).
  */
 static void ipa_client_add_first(void)
 {
@@ -859,16 +648,13 @@ static void ipa_client_add_first(void)
 	/* A reference might have been added while awaiting the mutex. */
 	if (!atomic_inc_not_zero(&ipa_ctx->ipa_active_clients.cnt)) {
 		ipa_enable_clks();
-		ipa_suspend_apps_pipes(false);
+		ipa_resume_apps_pipes();
 		atomic_inc(&ipa_ctx->ipa_active_clients.cnt);
 	} else {
 		ipa_assert(atomic_read(&ipa_ctx->ipa_active_clients.cnt) > 1);
 	}
 
 	mutex_unlock(&ipa_ctx->ipa_active_clients.mutex);
-
-	ipa_debug_low("active clients = %d\n",
-		      atomic_read(&ipa_ctx->ipa_active_clients.cnt));
 }
 
 /* Attempt to add an IPA client reference, but only if this does not
@@ -877,35 +663,16 @@ static void ipa_client_add_first(void)
  */
 static bool ipa_client_add_not_first(void)
 {
-	if (!atomic_inc_not_zero(&ipa_ctx->ipa_active_clients.cnt))
-		return false;
-
-	ipa_debug_low("active clients = %d\n",
-		      atomic_read(&ipa_ctx->ipa_active_clients.cnt));
-
-	return true;
+	return !!atomic_inc_not_zero(&ipa_ctx->ipa_active_clients.cnt);
 }
 
 /* Add an IPA client, but only if the reference count is already
  * non-zero.  (This is used to avoid blocking.)  Returns true if the
  * additional reference was added successfully, or false otherwise.
  */
-bool _ipa_client_add_additional(const char *id, bool log_it,
-				const char *file, int line)
+bool ipa_client_add_additional(void)
 {
-	struct ipa_active_client_logging_info log_info;
-	bool ret;
-
-	ret = ipa_client_add_not_first();
-	if (!ret)
-		return false;
-
-	log_info.id_string = id;
-	log_info.file = file;
-	log_info.line = line;
-	ipa_active_clients_log_mod(&log_info, log_it, true);
-
-	return true;
+	return ipa_client_add_not_first();
 }
 
 /* Add an IPA client.  If this is not the first client, the
@@ -913,15 +680,8 @@ bool _ipa_client_add_additional(const char *id, bool log_it,
  * ipa_client_add_first() will safely add the first client, enabling
  * clocks and setting up (resuming) pipes before returning.
  */
-void _ipa_client_add(const char *id, bool log_it, const char *file, int line)
+void ipa_client_add(void)
 {
-	struct ipa_active_client_logging_info log_info;
-
-	log_info.id_string = id;
-	log_info.file = file;
-	log_info.line = line;
-	ipa_active_clients_log_mod(&log_info, log_it, true);
-
 	/* There's nothing more to do if this isn't the first reference */
 	if (!ipa_client_add_not_first())
 		ipa_client_add_first();
@@ -935,21 +695,15 @@ void _ipa_client_add(const char *id, bool log_it, const char *file, int line)
  */
 static void ipa_client_remove_final(void)
 {
-	int ret;
-
 	mutex_lock(&ipa_ctx->ipa_active_clients.mutex);
 
-	ret = atomic_sub_return(1, &ipa_ctx->ipa_active_clients.cnt);
-	if (!ret) {
-		ipa_suspend_apps_pipes(true);
+	/* A reference might have been removed while awaiting the mutex. */
+	if (!atomic_dec_return(&ipa_ctx->ipa_active_clients.cnt)) {
+		ipa_suspend_apps_pipes();
 		ipa_disable_clks();
-	} else {
-		ipa_assert(ret > 0);
 	}
 
 	mutex_unlock(&ipa_ctx->ipa_active_clients.mutex);
-
-	ipa_debug_low("active clients = %d\n", ret);
 }
 
 /* Decrement the active clients reference count, and if the result
@@ -970,13 +724,7 @@ static void ipa_client_remove_deferred(struct work_struct *work)
  */
 static bool ipa_client_remove_not_final(void)
 {
-	if (!atomic_add_unless(&ipa_ctx->ipa_active_clients.cnt, -1, 1))
-		return false;
-
-	ipa_debug_low("active clients = %d\n",
-		      atomic_read(&ipa_ctx->ipa_active_clients.cnt));
-
-	return true;
+	return !!atomic_add_unless(&ipa_ctx->ipa_active_clients.cnt, -1, 1);
 }
 
 /* Attempt to remove an IPA client reference.  If this represents
@@ -984,15 +732,8 @@ static bool ipa_client_remove_not_final(void)
  * called in workqueue context, dropping the last reference under
  * protection of the mutex.
  */
-void _ipa_client_remove(const char *id, bool log_it, const char *file, int line)
+void ipa_client_remove(void)
 {
-	struct ipa_active_client_logging_info log_info;
-
-	log_info.id_string = id;
-	log_info.file = file;
-	log_info.line = line;
-	ipa_active_clients_log_mod(&log_info, log_it, false);
-
 	if (!ipa_client_remove_not_final())
 		queue_work(ipa_ctx->power_mgmt_wq, &ipa_client_remove_work);
 }
@@ -1004,16 +745,8 @@ void _ipa_client_remove(const char *id, bool log_it, const char *file, int line)
  * count will be 0 (and pipes will be suspended and clocks stopped)
  * upon return for the final reference.
  */
-void
-_ipa_client_remove_wait(const char *id, bool log_it, const char *file, int line)
+void ipa_client_remove_wait(void)
 {
-	struct ipa_active_client_logging_info log_info;
-
-	log_info.id_string = id;
-	log_info.file = file;
-	log_info.line = line;
-	ipa_active_clients_log_mod(&log_info, log_it, false);
-
 	if (!ipa_client_remove_not_final())
 		ipa_client_remove_final();
 }
@@ -1059,35 +792,33 @@ void ipa_dec_release_wakelock(void)
 
 /** ipa_suspend_handler() - Handles the suspend interrupt:
  * wakes up the suspended peripheral by requesting its consumer
- * @interrupt:		Interrupt type
- * @private_data:	The client's private data
- * @interrupt_data:	Interrupt specific information data
+ * @interrupt:	Interrupt type
+ * @endpoints:	Interrupt specific information data
  */
-void ipa_suspend_handler(enum ipa_irq_type interrupt, void *private_data,
-			 void *interrupt_data)
+static void ipa_suspend_handler(enum ipa_irq_type interrupt, u32 interrupt_data)
 {
-	struct ipa_tx_suspend_irq_data *suspend_data = interrupt_data;
-	u32 endpoint_mask = suspend_data->endpoints;
+	u32 endpoints = interrupt_data;
 
-	ipa_debug("interrupt=%d, endpoint_mask=0x%08x\n",
-		  interrupt, endpoint_mask);
+	ipa_debug("interrupt=%d, endpoints=0x%08x\n", interrupt, endpoints);
 
-	while (endpoint_mask) {
-		u32 i = __ffs(endpoint_mask);
+	while (endpoints) {
+		enum ipa_client_type client;
+		u32 i = __ffs(endpoints);
 
-		endpoint_mask ^= BIT(i);
+		endpoints ^= BIT(i);
 
-		if (!ipa_ctx->ep[i].valid)
+		if (!ipa_ctx->ep[i].allocated)
 			continue;
-		if (!IPA_CLIENT_IS_APPS_CONS(ipa_ctx->ep[i].client))
+
+		client = ipa_ctx->ep[i].client;
+		if (!ipa_ap_consumer(client))
 			continue;
-		/* pipe will be unsuspended as part of
-		 * enabling IPA clocks
-		 */
+
+		/* pipe will be unsuspended as part of enabling IPA clocks */
 		mutex_lock(&ipa_ctx->transport_pm.transport_pm_mutex);
 		if (!atomic_read(&ipa_ctx->transport_pm.dec_clients)) {
-			ipa_client_add(ipa_client_string(ipa_ctx->ep[i].client),
-				       true);
+			ipa_client_add();
+
 			ipa_debug_low("Pipes un-suspended.\n");
 			ipa_debug_low("Enter poll mode.\n");
 			atomic_set(&ipa_ctx->transport_pm.dec_clients, 1);
@@ -1096,45 +827,17 @@ void ipa_suspend_handler(enum ipa_irq_type interrupt, void *private_data,
 	}
 }
 
-/** ipa_init_interrupts() - Register to IPA IRQs
- *
- * Return codes: 0 in success, negative in failure
- *
- */
+/** ipa_init_interrupts() - Register to IPA IRQs */
 static int ipa_init_interrupts(void)
 {
-	int result;
-	int ipa_irq;
+	int ret;
+	ret = ipa_interrupts_init();
+	if (!ret)
+		return ret;
 
-	/* Get IPA IRQ number */
-	ipa_irq = platform_get_irq_byname(ipa_ctx->ipa_pdev, "ipa-irq");
-	if (ipa_irq < 0) {
-		ipa_err(":failed to get ipa-irq!\n");
-		return -ENODEV;
-	}
-	ipa_debug(":ipa-irq = %d\n", ipa_irq);
-
-	/*register IPA IRQ handler*/
-	result = ipa_interrupts_init(ipa_irq, 0, &ipa_ctx->ipa_pdev->dev);
-	if (result) {
-		ipa_err("ipa interrupts initialization failed\n");
-		return -ENODEV;
-	}
-
-	/*add handler for suspend interrupt*/
-	result = ipa_add_interrupt_handler(IPA_TX_SUSPEND_IRQ,
-					   ipa_suspend_handler, false, NULL);
-	if (result) {
-		ipa_err("register handler for suspend interrupt failed\n");
-		result = -ENODEV;
-		goto fail_add_interrupt_handler;
-	}
+	ipa_add_interrupt_handler(IPA_TX_SUSPEND_IRQ, ipa_suspend_handler);
 
 	return 0;
-
-fail_add_interrupt_handler:
-	free_irq(ipa_irq, &ipa_ctx->ipa_pdev->dev);
-	return result;
 }
 
 static void ipa_freeze_clock_vote_and_notify_modem(void)
@@ -1150,17 +853,16 @@ static void ipa_freeze_clock_vote_and_notify_modem(void)
 		return;
 	}
 
-	ipa_ctx->smp2p_info.ipa_clk_on =
-			ipa_client_add_additional("FREEZE_VOTE", true);
+	ipa_ctx->smp2p_info.ipa_clk_on = ipa_client_add_additional();
 
 	/* Signal whether the clock is enabled */
-	mask = 1 << ipa_ctx->smp2p_info.enabled_bit;
+	mask = BIT(ipa_ctx->smp2p_info.enabled_bit);
 	value = ipa_ctx->smp2p_info.ipa_clk_on ? mask : 0;
 	qcom_smem_state_update_bits(ipa_ctx->smp2p_info.enabled_state, mask,
 				    value);
 
 	/* Now indicate that the enabled flag is valid */
-	mask = 1 << ipa_ctx->smp2p_info.valid_bit;
+	mask = BIT(ipa_ctx->smp2p_info.valid_bit);
 	value = mask;
 	qcom_smem_state_update_bits(ipa_ctx->smp2p_info.valid_state, mask,
 				    value);
@@ -1174,18 +876,18 @@ void ipa_reset_freeze_vote(void)
 {
 	u32 mask;
 
-	if (ipa_ctx->smp2p_info.res_sent)
+	if (!ipa_ctx->smp2p_info.res_sent)
 		return;
 
 	if (ipa_ctx->smp2p_info.ipa_clk_on)
-		ipa_client_remove("FREEZE_VOTE", true);
+		ipa_client_remove();
 
 	/* Reset the clock enabled valid flag */
-	mask = 1 << ipa_ctx->smp2p_info.valid_bit;
+	mask = BIT(ipa_ctx->smp2p_info.valid_bit);
 	qcom_smem_state_update_bits(ipa_ctx->smp2p_info.valid_state, mask, 0);
 
 	/* Mark the clock disabled for good measure... */
-	mask = 1 << ipa_ctx->smp2p_info.enabled_bit;
+	mask = BIT(ipa_ctx->smp2p_info.enabled_bit);
 	qcom_smem_state_update_bits(ipa_ctx->smp2p_info.enabled_state, mask, 0);
 
 	ipa_ctx->smp2p_info.res_sent = false;
@@ -1195,14 +897,8 @@ void ipa_reset_freeze_vote(void)
 static int
 ipa_panic_notifier(struct notifier_block *this, unsigned long event, void *ptr)
 {
-	int res;
-
 	ipa_freeze_clock_vote_and_notify_modem();
-
-	ipa_debug("Calling uC panic handler\n");
-	res = ipa_uc_panic_notifier(this, event, ptr);
-	if (res)
-		ipa_err("uC panic handler failed %d\n", res);
+	ipa_uc_panic_notifier();
 
 	return NOTIFY_DONE;
 }
@@ -1237,7 +933,7 @@ static void ipa_register_panic_hdlr(void)
  * - Trigger IPA ready callbacks (to all subscribers)
  * - Trigger IPA completion object (to all who wait on it)
  */
-static int ipa_post_init(void)
+static void ipa_post_init(struct work_struct *unused)
 {
 	int result;
 
@@ -1247,29 +943,28 @@ static int ipa_post_init(void)
 	result = ipa_init_interrupts();
 	if (result) {
 		ipa_err("ipa initialization of interrupts failed\n");
-		return -ENODEV;
+		return;
 	}
 
-	result = gsi_register_device();
+	result = gsi_register_device(ipa_ctx->gsi);
 	if (result) {
 		ipa_err(":gsi register error - %d\n", result);
-		return -ENODEV;
+		return;
 	}
-	ipa_err("IPA gsi is registered\n");
+	ipa_debug("IPA gsi is registered\n");
 
 	/* setup the AP-IPA pipes */
 	if (ipa_setup_apps_pipes()) {
 		ipa_err(":failed to setup IPA-Apps pipes\n");
-		gsi_deregister_device();
-		return -ENODEV;
+		gsi_deregister_device(ipa_ctx->gsi);
+
+		return;
 	}
 	ipa_debug("IPA GPI pipes were connected\n");
 
-	result = ipa_uc_interface_init();
-	if (result)
-		ipa_err(":ipa Uc interface init failed (%d)\n", -result);
-	else
-		ipa_debug(":ipa Uc interface init ok\n");
+	ipa_ctx->uc_ctx = ipa_uc_init(ipa_ctx->ipa_phys);
+	if (!ipa_ctx->uc_ctx)
+		ipa_err("microcontroller init failed\n");
 
 	ipa_register_panic_hdlr();
 
@@ -1279,201 +974,80 @@ static int ipa_post_init(void)
 		ipa_err("WWAN init failed (ignoring)\n");
 
 	ipa_info("IPA driver initialization was successful.\n");
-
-	return 0;
 }
 
-static void ipa_work_ipa_post_init(struct work_struct *work)
+static bool config_valid(u32 filter_bitmap)
 {
-	ipa_client_add(__func__, false);
-
-	ipa_post_init();
-	ipa_info("IPA post init completed\n");
-}
-
-static ssize_t ipa_write(struct file *file, const char __user *buf,
-			 size_t count, loff_t *ppos);
-
-static int ipa_open(struct inode *inode, struct file *filp);
-
-static const struct file_operations ipa_drv_fops = {
-	.write = ipa_write,
-	.open = ipa_open
-};
-
-static int ipa_open(struct inode *inode, struct file *filp)
-{
-	struct ipa_context *ctx = NULL;
-
-	ipa_debug_low("ENTER\n");
-
-	ctx = container_of(inode->i_cdev, struct ipa_context, cdev);
-	filp->private_data = ctx;
-	return 0;
-}
-
-static ssize_t ipa_write(struct file *file, const char __user *buf,
-			 size_t count, loff_t *ppos)
-{
-	if (!count)
-		return 0;
-
-	ipa_client_add(__func__, false);
-	return count;
-}
-
-static int ipa_alloc_pkt_init(void)
-{
-	struct ipa_mem_buffer *mem = &ipa_ctx->pkt_init_mem;
-	struct ipahal_imm_cmd_pyld *cmd_pyld;
-	dma_addr_t pyld_phys;
-	void *pyld_virt;
-	u32 size;
-	int i;
-
-	/* First create a payload just to get its size */
-	cmd_pyld = ipahal_ip_packet_init_pyld(0);
-	if (!cmd_pyld) {
-		ipa_err("failed to construct IMM cmd\n");
-		return -ENOMEM;
-	}
-	size = cmd_pyld->len;
-	ipahal_destroy_imm_cmd(cmd_pyld);
-
-	/* Allocate enough DMA memory to hold a payload for each pipe */
-	if (ipahal_dma_alloc(mem, size * ipa_ctx->ipa_num_pipes, GFP_KERNEL)) {
-		ipa_err("failed to alloc DMA buff of size %d\n", mem->size);
-		return -ENOMEM;
-	}
-
-	/* Fill in an IP packet init payload for each pipe */
-	pyld_phys = mem->phys_base;
-	pyld_virt = mem->base;
-	for (i = 0; i < ipa_ctx->ipa_num_pipes; i++) {
-		cmd_pyld = ipahal_ip_packet_init_pyld(i);
-		if (!cmd_pyld) {
-			ipa_err("failed to construct IMM cmd\n");
-			goto err_dma_free;
-		}
-
-		memcpy(pyld_virt, ipahal_imm_cmd_pyld_data(cmd_pyld), size);
-		ipa_ctx->pkt_init_imm[i] = pyld_phys;
-
-		ipahal_destroy_imm_cmd(cmd_pyld);
-
-		pyld_virt += size;
-		pyld_phys += size;
-	}
-
-	return 0;
-err_dma_free:
-	memset(&ipa_ctx->pkt_init_imm[0], 0, i * sizeof(dma_addr_t));
-	ipahal_dma_free(mem);
-
-	return -ENOMEM;
-}
-
-static void ipa_free_pkt_init(void)
-{
-	memset(&ipa_ctx->pkt_init_imm, 0, sizeof(ipa_ctx->pkt_init_imm));
-	ipahal_dma_free(&ipa_ctx->pkt_init_mem);
-}
-
-static bool config_valid(void)
-{
-	u32 width = ipahal_get_hw_tbl_hdr_width();
+	u32 filter_count;
 	u32 required_size;
-	u32 hi_index;
-	u32 lo_index;
-	u32 table_count;
 
-	required_size = ipa_ctx->mem_info[V4_RT_NUM_INDEX] * width;
-	if (ipa_ctx->mem_info[V4_RT_HASH_SIZE] < required_size) {
-		ipa_err("V4_RT_HASH_SIZE too small (%u < %u * %u)\n",
-			ipa_ctx->mem_info[V4_RT_HASH_SIZE],
-			ipa_ctx->mem_info[V4_RT_NUM_INDEX], width);
-		return false;
-	}
-	if (ipa_ctx->mem_info[V4_RT_NHASH_SIZE] < required_size) {
-		ipa_err("V4_RT_NHASH_SIZE too small (%u < %u * %u)\n",
-			ipa_ctx->mem_info[V4_RT_NHASH_SIZE],
-			ipa_ctx->mem_info[V4_RT_NUM_INDEX], width);
-		return false;
-	}
+	/* The size of a filter or route table entry must be non-zero */
+	BUILD_BUG_ON(!IPA_HW_TBL_HDR_WIDTH);
 
-	required_size = ipa_ctx->mem_info[V6_RT_NUM_INDEX] * width;
-	if (ipa_ctx->mem_info[V6_RT_HASH_SIZE] < required_size) {
-		ipa_err("V6_RT_HASH_SIZE too small (%u < %u * %u)\n",
-			ipa_ctx->mem_info[V6_RT_HASH_SIZE],
-			ipa_ctx->mem_info[V6_RT_NUM_INDEX], width);
-		return false;
-	}
-	if (ipa_ctx->mem_info[V6_RT_NHASH_SIZE] < required_size) {
-		ipa_err("V6_RT_NHASH_SIZE too small (%u < %u * %u)\n",
-			ipa_ctx->mem_info[V6_RT_NHASH_SIZE],
-			ipa_ctx->mem_info[V6_RT_NUM_INDEX], width);
-		return false;
-	}
+	/* The number of entries in the AP route tables must be non-zero,
+	 * for both IPv4 and IPv6.  (This is not true for filter tables.)
+	 */
+	BUILD_BUG_ON(!IPA_MEM_V4_RT_NUM_INDEX);
+	BUILD_BUG_ON(!IPA_MEM_V6_RT_NUM_INDEX);
 
-	hi_index = ipa_ctx->mem_info[V4_MODEM_RT_INDEX_HI];
-	lo_index = ipa_ctx->mem_info[V4_MODEM_RT_INDEX_LO];
-	table_count = hi_index - lo_index + 1;
-	required_size = table_count * width;
-	if (ipa_ctx->mem_info[V4_RT_HASH_SIZE] < required_size) {
-		ipa_err("V4_RT_HASH_SIZE too small for modem (%u < %u * %u)\n",
-			ipa_ctx->mem_info[V4_RT_HASH_SIZE], table_count, width);
-		return false;
-	}
-	if (ipa_ctx->mem_info[V4_RT_NHASH_SIZE] < required_size) {
-		ipa_err("V4_RT_NHASH_SIZE too small for modem (%u < %u * %u)\n",
-			ipa_ctx->mem_info[V4_RT_NHASH_SIZE], table_count,
-			width);
-		return false;
-	}
+	/* The size set aside for the AP route tables for IPv4 and
+	 * IPv6, both hashed and un-hashed, must be big enough to
+	 * hold all of the entries (the number of entries times the
+	 * size of each entry).
+	 */
+	BUILD_BUG_ON(IPA_MEM_V4_RT_NUM_INDEX * IPA_HW_TBL_HDR_WIDTH
+		     > IPA_MEM_V4_RT_HASH_SIZE);
+	BUILD_BUG_ON(IPA_MEM_V4_RT_NUM_INDEX * IPA_HW_TBL_HDR_WIDTH
+		     > IPA_MEM_V4_RT_NHASH_SIZE);
+	BUILD_BUG_ON(IPA_MEM_V6_RT_NUM_INDEX * IPA_HW_TBL_HDR_WIDTH
+		     > IPA_MEM_V6_RT_HASH_SIZE);
+	BUILD_BUG_ON(IPA_MEM_V6_RT_NUM_INDEX * IPA_HW_TBL_HDR_WIDTH
+		     > IPA_MEM_V6_RT_NHASH_SIZE);
 
-	hi_index = ipa_ctx->mem_info[V6_MODEM_RT_INDEX_HI];
-	lo_index = ipa_ctx->mem_info[V6_MODEM_RT_INDEX_LO];
-	table_count = hi_index - lo_index + 1;
-	required_size = table_count * width;
-	if (ipa_ctx->mem_info[V6_RT_HASH_SIZE] < required_size) {
-		ipa_err("V6_RT_HASH_SIZE too small for modem (%u < %u * %u)\n",
-			ipa_ctx->mem_info[V6_RT_HASH_SIZE], table_count, width);
-		return false;
-	}
-	if (ipa_ctx->mem_info[V6_RT_NHASH_SIZE] < required_size) {
-		ipa_err("V6_RT_NHASH_SIZE too small for modem (%u < %u * %u)\n",
-			ipa_ctx->mem_info[V6_RT_NHASH_SIZE], table_count,
-			width);
-		return false;
-	}
+	/* The lower bound for the modem route table must not exceed
+	 * upper bound, for both IPv4 and IPv6.
+	 */
+	BUILD_BUG_ON(IPA_MEM_V4_MODEM_RT_INDEX_LO >
+		     IPA_MEM_V4_MODEM_RT_INDEX_HI);
+	BUILD_BUG_ON(IPA_MEM_V6_MODEM_RT_INDEX_LO >
+		     IPA_MEM_V6_MODEM_RT_INDEX_HI);
 
-	/* Filter tables need an extra slot to hold an endpoint bitmap */
-	table_count = ipa_ctx->ep_flt_num + 1;
-	required_size = table_count * width;
-	if (ipa_ctx->mem_info[V4_FLT_HASH_SIZE] < required_size) {
-		ipa_err("V4_FLT_HASH_SIZE too small  (%u < %u * %u)\n",
-			ipa_ctx->mem_info[V4_RT_HASH_SIZE], table_count, width);
-		return false;
-	}
-	if (ipa_ctx->mem_info[V4_FLT_NHASH_SIZE] < required_size) {
-		ipa_err("V4_FLT_NHASH_SIZE too small (%u < %u * %u)\n",
-			ipa_ctx->mem_info[V4_FLT_NHASH_SIZE], table_count,
-			width);
-		return false;
-	}
+	/* The size set aside for the modem route tables for IPv4
+	 * and IPv6, both hashed and un-hashed, must be big enough
+	 * to hold all of the entries (the number of entries times
+	 * the size of each entry).
+	 */
+#define NENTS (IPA_MEM_V4_MODEM_RT_INDEX_HI - IPA_MEM_V4_MODEM_RT_INDEX_LO + 1)
+	BUILD_BUG_ON(NENTS * IPA_HW_TBL_HDR_WIDTH > IPA_MEM_V4_RT_HASH_SIZE);
+	BUILD_BUG_ON(NENTS * IPA_HW_TBL_HDR_WIDTH > IPA_MEM_V4_RT_NHASH_SIZE);
+#undef NENTS
+#define NENTS (IPA_MEM_V6_MODEM_RT_INDEX_HI - IPA_MEM_V6_MODEM_RT_INDEX_LO + 1)
+	BUILD_BUG_ON(NENTS * IPA_HW_TBL_HDR_WIDTH > IPA_MEM_V6_RT_HASH_SIZE);
+	BUILD_BUG_ON(NENTS * IPA_HW_TBL_HDR_WIDTH > IPA_MEM_V6_RT_NHASH_SIZE);
+#undef NENTS
 
-	if (ipa_ctx->mem_info[V6_FLT_HASH_SIZE] < required_size) {
-		ipa_err("V6_FLT_HASH_SIZE too small  (%u < %u * %u)\n",
-			ipa_ctx->mem_info[V6_FLT_HASH_SIZE], table_count,
-			width);
+	/* The endpoints that support filtering is determined at
+	 * runtime, so we can't use BUILD_BUG_ON().  We require at
+	 * least one pipe that supports filtering.
+	 *
+	 * The size set aside for the filter tables for IPv4 and IPv6,
+	 * both hashed and un-hashed, must be big enough to hold all
+	 * of the entries (the number of entries times the size of each
+	 * entry).  Note that filter tables need an extra entry to hold
+	 * an endpoint bitmap.
+	 */
+	if (!ipa_ctx->filter_bitmap)
 		return false;
-	}
-	if (ipa_ctx->mem_info[V6_FLT_NHASH_SIZE] < required_size) {
-		ipa_err("V6_FLT_NHASH_SIZE too small (%u < %u * %u)\n",
-			ipa_ctx->mem_info[V6_FLT_NHASH_SIZE], table_count,
-			width);
+	filter_count = hweight32(ipa_ctx->filter_bitmap);
+	required_size = (filter_count + 1) * IPA_HW_TBL_HDR_WIDTH;
+	if (required_size > IPA_MEM_V4_FLT_HASH_SIZE)
 		return false;
-	}
+	if (required_size > IPA_MEM_V4_FLT_NHASH_SIZE)
+		return false;
+	if (required_size > IPA_MEM_V6_FLT_HASH_SIZE)
+		return false;
+	if (required_size > IPA_MEM_V6_FLT_NHASH_SIZE)
+		return false;
 
 	return true;
 }
@@ -1511,19 +1085,13 @@ static bool config_valid(void)
 static int ipa_pre_init(void)
 {
 	int result = 0;
-	struct ipa_active_client_logging_info log_info;
 
 	ipa_debug("IPA Driver initialization started\n");
 
 	/* enable IPA clocks explicitly to allow the initialization */
 	ipa_enable_clks();
 
-	result = ipa_init_hw();
-	if (result) {
-		ipa_err(":error initializing HW.\n");
-		result = -ENODEV;
-		goto err_disable_clks;
-	}
+	ipa_init_hw();
 
 	ipa_debug("IPA HW initialization sequence completed");
 
@@ -1537,25 +1105,21 @@ static int ipa_pre_init(void)
 
 	ipa_sram_settings_read();
 	ipa_debug("SRAM, size: 0x%x, restricted bytes: 0x%x\n",
-		  ipa_ctx->smem_sz, ipa_ctx->smem_restricted_bytes);
+		  ipa_ctx->smem_size, ipa_ctx->smem_offset);
 
 	ipa_debug("hdr_lcl=0 ip4_rt_hash=0 ip4_rt_nonhash=0\n");
 	ipa_debug("ip6_rt_hash=0 ip6_rt_nonhash=0\n");
 	ipa_debug("ip4_flt_hash=0 ip4_flt_nonhash=0\n");
 	ipa_debug("ip6_flt_hash=0 ip6_flt_nonhash=0\n");
 
-	if (ipa_ctx->smem_reqd_sz > ipa_ctx->smem_sz) {
-		ipa_err("SW expect more core memory, needed %d, avail %d\n",
-			ipa_ctx->smem_reqd_sz, ipa_ctx->smem_sz);
+	if (ipa_ctx->smem_size < IPA_MEM_END_OFST) {
+		ipa_err("insufficient memory: %hu bytes available, need %u\n",
+			ipa_ctx->smem_size, IPA_MEM_END_OFST);
 		result = -ENOMEM;
 		goto err_disable_clks;
 	}
 
 	mutex_init(&ipa_ctx->ipa_active_clients.mutex);
-	log_info.file = __FILE__;
-	log_info.line = __LINE__;
-	log_info.id_string = "PROXY_CLK_VOTE";
-	ipa_active_clients_log_mod(&log_info, true, true);
 	atomic_set(&ipa_ctx->ipa_active_clients.cnt, 1);
 
 	/* Create workqueues for power management */
@@ -1567,130 +1131,41 @@ static int ipa_pre_init(void)
 		goto err_disable_clks;
 	}
 
-	ipa_ctx->transport_power_mgmt_wq =
-		create_singlethread_workqueue("transport_power_mgmt");
-	if (!ipa_ctx->transport_power_mgmt_wq) {
-		ipa_err("failed to create transport power mgmt wq\n");
-		result = -ENOMEM;
-		goto err_destroy_transport_pm_wq;
-	}
-
 	mutex_init(&ipa_ctx->transport_pm.transport_pm_mutex);
 
 	/* init the lookaside cache */
 
-	ipa_ctx->tx_pkt_wrapper_cache =
-		kmem_cache_create("IPA_TX_PKT_WRAPPER",
-				  sizeof(struct ipa_tx_pkt_wrapper),
-					0, 0, NULL);
-	if (!ipa_ctx->tx_pkt_wrapper_cache) {
-		ipa_err(":ipa tx pkt wrapper cache create failed\n");
-		result = -ENOMEM;
+	ipa_ctx->dp = ipa_dp_init();
+	if (!ipa_ctx->dp)
 		goto err_destroy_pm_wq;
-	}
-	ipa_ctx->rx_pkt_wrapper_cache =
-		kmem_cache_create("IPA_RX_PKT_WRAPPER",
-				  sizeof(struct ipa_rx_pkt_wrapper),
-					0, 0, NULL);
-	if (!ipa_ctx->rx_pkt_wrapper_cache) {
-		ipa_err(":ipa rx pkt wrapper cache create failed\n");
-		result = -ENOMEM;
-		goto err_destroy_tx_cache;
-	}
 
 	/* allocate memory for DMA_TASK workaround */
 	result = ipa_gsi_dma_task_alloc();
 	if (result) {
 		ipa_err("failed to allocate dma task\n");
-		goto err_destroy_rx_cache;
-	}
-
-	mutex_init(&ipa_ctx->lock);
-
-	ipa_ctx->class = class_create(THIS_MODULE, DRV_NAME);
-
-	result = alloc_chrdev_region(&ipa_ctx->dev_num, 0, 1, DRV_NAME);
-	if (result) {
-		ipa_err("alloc_chrdev_region err.\n");
-		result = -ENODEV;
-		goto err_gsi_dma_task_free;
-	}
-
-	ipa_ctx->chrdev = device_create(ipa_ctx->class, NULL, ipa_ctx->dev_num,
-					ipa_ctx, DRV_NAME);
-	if (IS_ERR(ipa_ctx->chrdev)) {
-		ipa_err(":device_create err.\n");
-		result = -ENODEV;
-		goto err_unregister_chrdev_region;
+		goto err_dp_exit;
 	}
 
 	/* Create a wakeup source. */
 	wakeup_source_init(&ipa_ctx->w_lock, "IPA_WS");
 	spin_lock_init(&ipa_ctx->wakelock_ref_cnt.spinlock);
 
-	result = ipa_alloc_pkt_init();
-	if (result) {
-		ipa_err("Failed to alloc pkt_init payload\n");
-		result = -ENODEV;
-		goto err_device_destroy;
-	}
-
 	/* Note enabling dynamic clock division must not be
 	 * attempted for IPA hardware versions prior to 3.5.
 	 */
 	ipa_enable_dcd();
 
-	cdev_init(&ipa_ctx->cdev, &ipa_drv_fops);
-	ipa_ctx->cdev.owner = THIS_MODULE;
-	result = cdev_add(&ipa_ctx->cdev, ipa_ctx->dev_num, 1);
-	if (result) {
-		ipa_err(":cdev_add err=%d\n", -result);
-		result = -ENODEV;
-		goto err_free_pkt_init;
-	}
-	ipa_debug("ipa cdev added successful. major:%d minor:%d\n",
-		  MAJOR(ipa_ctx->dev_num), MINOR(ipa_ctx->dev_num));
-
 	return 0;
 
-err_free_pkt_init:
-	ipa_free_pkt_init();
-err_device_destroy:
-	device_destroy(ipa_ctx->class, ipa_ctx->dev_num);
-err_unregister_chrdev_region:
-	unregister_chrdev_region(ipa_ctx->dev_num, 1);
-err_gsi_dma_task_free:
-	ipa_gsi_dma_task_free();
-err_destroy_rx_cache:
-	kmem_cache_destroy(ipa_ctx->rx_pkt_wrapper_cache);
-err_destroy_tx_cache:
-	kmem_cache_destroy(ipa_ctx->tx_pkt_wrapper_cache);
-err_destroy_transport_pm_wq:
-	destroy_workqueue(ipa_ctx->transport_power_mgmt_wq);
+err_dp_exit:
+	ipa_dp_exit(ipa_ctx->dp);
+	ipa_ctx->dp = NULL;
 err_destroy_pm_wq:
 	destroy_workqueue(ipa_ctx->power_mgmt_wq);
 err_disable_clks:
 	ipa_disable_clks();
 
 	return result;
-}
-
-/* Return the IPA hardware version, or IPA_HW_NONE for any error */
-static enum ipa_hw_version ipa_version_get(struct platform_device *pdev)
-{
-	struct device_node *node = pdev->dev.of_node;
-	u32 ipa_version = 0;
-
-	if (of_property_read_u32(node, "qcom,ipa-hw-ver", &ipa_version))
-		return IPA_HW_NONE;
-
-	/* Translate the DTB value to the value we use internally */
-	if (ipa_version == QCOM_IPA_HW_VER_v3_5_1)
-		return IPA_HW_v3_5_1;
-
-	ipa_err("unsupported IPA hardware version %u\n", ipa_version);
-
-	return IPA_HW_NONE;
 }
 
 static irqreturn_t ipa_smp2p_modem_clk_query_isr(int irq, void *ctxt)
@@ -1700,12 +1175,32 @@ static irqreturn_t ipa_smp2p_modem_clk_query_isr(int irq, void *ctxt)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t ipa_smp2p_modem_triggered_post_init_isr(int irq, void *ctxt)
+static irqreturn_t ipa_smp2p_modem_post_init_isr(int irq, void *ctxt)
 {
-	queue_work(ipa_ctx->transport_power_mgmt_wq,
-			&ipa_post_init_work);
+	queue_work(ipa_ctx->power_mgmt_wq, &ipa_post_init_work);
 
 	return IRQ_HANDLED;
+}
+
+static int
+ipa_smp2p_irq(struct device *dev, const char *name, irq_handler_t handler)
+{
+	struct device_node *node = dev->of_node;
+	unsigned int irq;
+	int ret;
+
+	ret = of_irq_get_byname(node, name);
+	if (ret < 0)
+		return ret;
+	if (!ret)
+		return -EINVAL;		/* IRQ mapping failure */
+	irq = ret;
+
+	ret = devm_request_threaded_irq(dev, irq, NULL, handler, 0, name, dev);
+	if (ret)
+		return ret;
+
+	return irq;
 }
 
 static int ipa_smp2p_init(struct device *dev)
@@ -1715,7 +1210,6 @@ static int ipa_smp2p_init(struct device *dev)
 	struct qcom_smem_state *enabled_state;
 	unsigned int valid_bit;
 	unsigned int enabled_bit;
-	int irq;
 	int res;
 
 	ipa_debug("node->name=%s\n", node->name);
@@ -1738,40 +1232,17 @@ static int ipa_smp2p_init(struct device *dev)
 		return res;
 	}
 
-	res = of_irq_get_byname(node, "ipa-clock-query");
-	if (res < 0) {
-		ipa_err("error %d getting ipa-clock-query irq\n", res);
+	res = ipa_smp2p_irq(dev, "ipa-clock-query",
+			    ipa_smp2p_modem_clk_query_isr);
+	if (res < 0)
 		return res;
-	}
-	irq = res;
 
-	res = devm_request_threaded_irq(dev, irq, NULL,
-					ipa_smp2p_modem_clk_query_isr,
-					IRQF_TRIGGER_RISING,
-					"ipa_smp2p_clk_vote", dev);
-	if (res) {
-		ipa_err("error %d requesting threaded irq\n", res);
-		return -ENODEV;
-	}
-
-	/* register IRQ for post init */
-	res = of_irq_get_byname(node, "ipa-post-init");
-	if (res < 0) {
-		ipa_err("error %d getting ipa_post_init irq\n", res);
+	res = ipa_smp2p_irq(dev, "ipa-post-init",
+			    ipa_smp2p_modem_post_init_isr);
+	if (res < 0)
 		return res;
-	}
-	irq = res;
 
-	res = devm_request_threaded_irq(dev, irq, NULL,
-					ipa_smp2p_modem_triggered_post_init_isr,
-					IRQF_TRIGGER_RISING,
-					"ipa_pos_init", dev);
-	if (res) {
-		ipa_err("error %d getting threaded irq : post_init \n", res);
-		return -ENODEV;
-	}
-
-	/* Success.  Record in our smp2p information */
+	/* Success.  Record our smp2p information */
 	ipa_ctx->smp2p_info.valid_state = valid_state;
 	ipa_ctx->smp2p_info.valid_bit = valid_bit;
 	ipa_ctx->smp2p_info.enabled_state = enabled_state;
@@ -1783,153 +1254,117 @@ static int ipa_smp2p_init(struct device *dev)
 static void ipa_smp2p_exit(void)
 {
 	memset(&ipa_ctx->smp2p_info, 0, sizeof(ipa_ctx->smp2p_info));
+	/* IRQ will be released when device goes away */
 }
 
 static const struct of_device_id ipa_plat_drv_match[] = {
-	{ .compatible = "qcom,ipa", },
+	{ .compatible = "qcom,ipa-sdm845", },
 	{}
 };
 
-int ipa_plat_drv_probe(struct platform_device *pdev_p)
+static int ipa_plat_drv_probe(struct platform_device *pdev)
 {
-	struct device *dev = &pdev_p->dev;
-	struct device_node *node = dev->of_node;
-	enum ipa_hw_version hw_version;
-	unsigned long phys_addr;
+	struct device *dev = &pdev->dev;
 	struct resource *res;
+	size_t size;
 	int result;
 
 	/* We assume we're working on 64-bit hardware */
 	BUILD_BUG_ON(!IS_ENABLED(CONFIG_64BIT));
 
-	ipa_debug("IPA driver probing started\n");
-	ipa_debug("dev->of_node->name = %s\n", node->name);
+	ipa_debug("IPA driver: probing\n");
 
-	/* Initialize smp2p first.  It depends on another driver
-	 * that might not be ready when we're probed, so it might
-	 * return -EPROBE_DEFER (meaning we'll get called again).
+	/* Initialize the smp2p driver first.  It might not be ready
+	 * when we're probed, so it might return -EPROBE_DEFER (meaning
+	 * we'll get probed again).
 	 */
 	result = ipa_smp2p_init(dev);
-	if (result) {
-		ipa_err("error %d initializing smp2p\n", result);
-		return result;
-	}
-
-	ipa_ctx->ipa_pdev = pdev_p;
-
-	/* Find out whether we're working with supported hardware */
-	hw_version = ipa_version_get(pdev_p);
-	if (hw_version == IPA_HW_NONE) {
-		result = -ENODEV;
-		goto err_clear_pdev;
-	}
-	ipa_debug(": ipa_version = %d", hw_version);
-
-	result = of_property_read_u32(node, "qcom,ee", &ipa_ctx->ee);
 	if (result)
-		ipa_ctx->ee = 0;	/* Default to 0 if not found */
+		return result;
 
-	/* Get IPA wrapper address */
-	res = platform_get_resource_byname(pdev_p, IORESOURCE_MEM, "ipa-base");
-	if (!res) {
-		ipa_err(":get resource failed for ipa-base!\n");
-		result = -ENODEV;
-		goto err_clear_ee;
-	}
-	ipa_ctx->ipa_wrapper_base = res->start;
-	ipa_ctx->ipa_wrapper_size = resource_size(res);
-	ipa_debug(": ipa-base = 0x%x, size = 0x%x\n",
-		  ipa_ctx->ipa_wrapper_base, ipa_ctx->ipa_wrapper_size);
+	/* Initialize the interconnect driver early too.  It might
+	 * also return -EPROBE_DEFER.
+	 */
+	result = ipa_interconnect_init(dev);
+	if (result)
+		goto out_smp2p_exit;
 
-	/* setup IPA register access */
-	phys_addr = ipa_ctx->ipa_wrapper_base + IPA_REG_BASE_OFFSET;
-	ipa_debug("Mapping 0x%lx\n", phys_addr);
-	ipa_ctx->mmio = ioremap(phys_addr, ipa_ctx->ipa_wrapper_size);
-	if (!ipa_ctx->mmio) {
-		ipa_err(":ipa-base ioremap err.\n");
-		result = -EFAULT;
-		goto err_clear_wrapper;
-	}
+	/* Compute a bitmask representing which endpoints support filtering */
+	ipa_ctx->filter_bitmap = ipa_filter_bitmap_init();
 
-	ipahal_init(hw_version, ipa_ctx->mmio);
-
-	ipa_init_mem_info(node);
-
-	ipa_init_ep_flt_bitmap();
-	if (!ipa_ctx->ep_flt_num) {
-		ipa_err("no endpoints support filtering\n");
-		result = -ENODEV;
-		goto err_hal_destroy;
-	}
-	ipa_debug("EP with flt support bitmap 0x%x (%u pipes)\n",
-		  ipa_ctx->ep_flt_bitmap, ipa_ctx->ep_flt_num);
-
-	/* Make sure we have a valid configuration before proceeding */
-	if (!config_valid()) {
+	/* Now make sure we have a valid configuration before proceeding */
+	if (!config_valid(ipa_ctx->filter_bitmap)) {
 		ipa_err("invalid configuration\n");
 		result = -EFAULT;
-		goto err_hal_destroy;
+		goto err_clear_filter_bitmap;
 	}
 
-	/* get BUS handle */
-	ipa_ctx->bus_scale_tbl = ipa_bus_scale_table_init();
-	ipa_ctx->ipa_bus_hdl =
-			msm_bus_scale_register_client(ipa_ctx->bus_scale_tbl);
-	if (!ipa_ctx->ipa_bus_hdl) {
-		ipa_err("fail to register with bus mgr!\n");
+	result = platform_get_irq_byname(pdev, "ipa");
+	if (result < 0)
+		goto err_clear_filter_bitmap;
+	ipa_ctx->ipa_irq = result;
+
+	/* Get IPA memory range */
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ipa");
+	if (!res) {
 		result = -ENODEV;
-		goto err_hal_destroy;
+		goto err_clear_ipa_irq;
 	}
+	ipa_ctx->ipa_phys = res->start;
+	size = (size_t)resource_size(res);
+	ipa_debug("ipa phys %pap size 0x%08zx\n", &ipa_ctx->ipa_phys, size);
 
-	/* init active_clients_log */
-	if (ipa_active_clients_log_init()) {
-		result = -ENOMEM;
-		goto err_unregister_bus_handle;
-	}
-
-	ipa_ctx->gsi_ctx = gsi_init(pdev_p, ipa_ctx->ee);
-	if (IS_ERR(ipa_ctx->gsi_ctx)) {
-		ipa_err("ipa: error initializing gsi driver.\n");
-		result = PTR_ERR(ipa_ctx->gsi_ctx);
-		goto err_clear_gsi_ctx;
-	}
-
-	result = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
-	if (result)
-		goto err_clear_gsi_ctx;
-
-	if (ipahal_dev_init(dev)) {
-		ipa_err("failed to assign IPA HAL dev pointer\n");
+	/* Setup IPA register access */
+	ipa_ctx->ipa_mmio = ioremap(ipa_ctx->ipa_phys, size);
+	if (!ipa_ctx->ipa_mmio) {
 		result = -EFAULT;
-		goto err_clear_gsi_ctx;
+		goto err_clear_addr;
+	}
+
+	ipa_reg_init(ipa_ctx->ipa_mmio);
+
+	ipa_ctx->gsi = gsi_init(pdev);
+	if (IS_ERR(ipa_ctx->gsi)) {
+		result = PTR_ERR(ipa_ctx->gsi);
+		goto err_clear_gsi;
+	}
+
+	result = ipa_dma_init(dev, IPA_HW_TBL_SYSADDR_ALIGN);
+	if (result)
+		goto err_clear_gsi;
+
+	if (ipahal_init()) {
+		result = -EFAULT;
+		goto err_dma_exit;
 	}
 	ipa_ctx->dev = dev;
+	ipa_ctx->clnt_hdl_cmd = IPA_CLNT_HDL_BAD;
+	ipa_ctx->clnt_hdl_lan_cons = IPA_CLNT_HDL_BAD;
 
 	/* Proceed to real initialization */
 	result = ipa_pre_init();
 	if (!result)
 		return 0;	/* Success */
 
-	ipahal_dev_destroy();
 	ipa_ctx->dev = NULL;
-err_clear_gsi_ctx:
-	ipa_ctx->gsi_ctx = NULL;
-	ipa_active_clients_log_destroy();
-err_unregister_bus_handle:
-	msm_bus_scale_unregister_client(ipa_ctx->ipa_bus_hdl);
-	ipa_ctx->ipa_bus_hdl = 0;
-	ipa_ctx->bus_scale_tbl = NULL;
-err_hal_destroy:
-	ipahal_destroy();
-	iounmap(ipa_ctx->mmio);
-	ipa_ctx->mmio = NULL;
-err_clear_wrapper:
-	ipa_ctx->ipa_wrapper_size = 0;
-	ipa_ctx->ipa_wrapper_base = 0;
-err_clear_ee:
-	ipa_ctx->ee = 0;
-err_clear_pdev:
-	ipa_ctx->ipa_pdev = NULL;
+	ipahal_exit();
+err_dma_exit:
+	ipa_dma_exit();
+err_clear_gsi:
+	ipa_ctx->gsi = NULL;
+	ipa_reg_exit();
+	iounmap(ipa_ctx->ipa_mmio);
+	ipa_ctx->ipa_mmio = NULL;
+err_clear_addr:
+	ipa_ctx->clnt_hdl_lan_cons = 0;
+	ipa_ctx->clnt_hdl_cmd = 0;
+	ipa_ctx->ipa_phys = 0;
+err_clear_ipa_irq:
+	ipa_ctx->ipa_irq = 0;
+err_clear_filter_bitmap:
+	ipa_ctx->filter_bitmap = 0;
+	ipa_interconnect_exit();
+out_smp2p_exit:
 	ipa_smp2p_exit();
 
 	return result;
@@ -1947,13 +1382,16 @@ err_clear_pdev:
 int ipa_ap_suspend(struct device *dev)
 {
 	int i;
+	enum ipa_client_type client;
 
 	ipa_debug("Enter...\n");
 
 	/* In case there is a tx/rx handler in polling mode fail to suspend */
 	for (i = 0; i < ipa_ctx->ipa_num_pipes; i++) {
-		if (ipa_ctx->ep[i].sys &&
-		    atomic_read(&ipa_ctx->ep[i].sys->curr_polling_state)) {
+		client = ipa_ctx->ep[i].client;
+		if (!ipa_consumer(client))
+			continue;
+		if (ipa_ctx->ep[i].sys && ipa_ep_polling(&ipa_ctx->ep[i])) {
 			ipa_err("EP %d is in polling state, do not suspend\n",
 				i);
 			return -EAGAIN;

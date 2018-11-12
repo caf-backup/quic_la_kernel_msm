@@ -71,9 +71,8 @@ static bool init_driver_response_received;
 static int ipa_send_master_driver_init_complete_ind(struct qmi_handle *qmi,
 						    struct sockaddr_qrtr *sq)
 {
-	struct ipa_init_complete_ind ind;
+	struct ipa_init_complete_ind ind = { };
 
-	memset(&ind, 0, sizeof(ind));
 	ind.status.result = QMI_RESULT_SUCCESS_V01;
 	ind.status.error = QMI_ERR_NONE_V01;
 
@@ -119,7 +118,7 @@ static void ipa_indication_register_fn(struct qmi_handle *qmi,
 				       const void *decoded)
 {
 	const struct ipa_indication_register_req *req = decoded;
-	struct ipa_indication_register_rsp rsp;
+	struct ipa_indication_register_rsp rsp = { };
 	int ret;
 
 	/* Both of these should be true (1), but we ignore them.
@@ -131,7 +130,6 @@ static void ipa_indication_register_fn(struct qmi_handle *qmi,
 	ipa_debug("req->master_driver_init_complete = %hhu\n",
 		  req->master_driver_init_complete);
 
-	memset(&rsp, 0, sizeof(rsp));
 	rsp.rsp.result = QMI_RESULT_SUCCESS_V01;
 	rsp.rsp.error = QMI_ERR_NONE_V01;
 
@@ -158,7 +156,7 @@ static void ipa_driver_init_complete_fn(struct qmi_handle *qmi,
 					const void *decoded)
 {
 	const struct ipa_driver_init_complete_req *req = decoded;
-	struct ipa_driver_init_complete_rsp rsp;
+	struct ipa_driver_init_complete_rsp rsp = { };
 	int ret;
 
 	/* I'm not sure what value is provided in the status field
@@ -166,7 +164,6 @@ static void ipa_driver_init_complete_fn(struct qmi_handle *qmi,
 	 */
 	ipa_debug("req->status = %hhu\n", req->status);
 
-	memset(&rsp, 0, sizeof(rsp));
 	rsp.rsp.result = QMI_RESULT_SUCCESS_V01;
 	rsp.rsp.error = QMI_ERR_NONE_V01;
 
@@ -207,11 +204,10 @@ static void ipa_init_driver_rsp_fn(struct qmi_handle *qmi,
 {
 	int ret;
 
-	kfree(txn);
-
 	ret = ipa_handshake_complete(qmi, sq, true);
 	if (ret)
 		ipa_err("error %d completing handshake\n", ret);
+	complete(&txn->completion);
 }
 
 /* The client handles one response message type sent by the modem. */
@@ -239,74 +235,70 @@ static const struct ipa_init_modem_driver_req *init_modem_driver_req(void)
 	u32 base;
 
 	/* This is not the first boot if the microcontroller is loaded */
-	req.skip_uc_load_valid = ipa_ctx->uc_ctx.uc_loaded ? 1 : 0;
-	req.skip_uc_load = req.skip_uc_load_valid;
+	req.skip_uc_load = ipa_uc_loaded() ? 1 : 0;
+	req.skip_uc_load_valid = true;
 
 	/* We only have to initialize most of it once */
 	if (req.platform_type_valid)
 		return &req;
 
 	/* All offsets are relative to the start of IPA shared memory */
-	base = (u32)ipa_ctx->smem_restricted_bytes;
+	base = (u32)ipa_ctx->smem_offset;
 
 	req.platform_type_valid = true;
 	req.platform_type = IPA_QMI_PLATFORM_TYPE_MSM_ANDROID;
 
-	req.hdr_tbl_info_valid = ipa_ctx->mem_info[MODEM_HDR_SIZE] ? 1 : 0;
-	req.hdr_tbl_info.start = base + ipa_ctx->mem_info[MODEM_HDR_OFST];
+	req.hdr_tbl_info_valid = IPA_MEM_MODEM_HDR_SIZE ? 1 : 0;
+	req.hdr_tbl_info.start = base + IPA_MEM_MODEM_HDR_OFST;
 	req.hdr_tbl_info.end = req.hdr_tbl_info.start +
-					ipa_ctx->mem_info[MODEM_HDR_SIZE] - 1;
+					IPA_MEM_MODEM_HDR_SIZE - 1;
 
 	req.v4_route_tbl_info_valid = true;
-	req.v4_route_tbl_info.start =
-			base + ipa_ctx->mem_info[V4_RT_NHASH_OFST];
-	req.v4_route_tbl_info.count = ipa_ctx->mem_info[V4_MODEM_RT_INDEX_HI];
+	req.v4_route_tbl_info.start = base + IPA_MEM_V4_RT_NHASH_OFST;
+	req.v4_route_tbl_info.count = IPA_MEM_V4_MODEM_RT_INDEX_HI -
+					IPA_MEM_V4_MODEM_RT_INDEX_LO + 1;
 
 	req.v6_route_tbl_info_valid = true;
-	req.v6_route_tbl_info.start =
-			base + ipa_ctx->mem_info[V6_RT_NHASH_OFST];
-	req.v6_route_tbl_info.count = ipa_ctx->mem_info[V6_MODEM_RT_INDEX_HI];
+	req.v6_route_tbl_info.start = base + IPA_MEM_V6_RT_NHASH_OFST;
+	req.v6_route_tbl_info.count = IPA_MEM_V6_MODEM_RT_INDEX_HI -
+					IPA_MEM_V6_MODEM_RT_INDEX_LO + 1;
 
 	req.v4_filter_tbl_start_valid = true;
-	req.v4_filter_tbl_start = base + ipa_ctx->mem_info[V4_FLT_NHASH_OFST];
+	req.v4_filter_tbl_start = base + IPA_MEM_V4_FLT_NHASH_OFST;
 
 	req.v6_filter_tbl_start_valid = true;
-	req.v6_filter_tbl_start = base + ipa_ctx->mem_info[V6_FLT_NHASH_OFST];
+	req.v6_filter_tbl_start = base + IPA_MEM_V6_FLT_NHASH_OFST;
 
-	req.modem_mem_info_valid = ipa_ctx->mem_info[MODEM_SIZE] ? 1 : 0;
-	req.modem_mem_info.start = base + ipa_ctx->mem_info[MODEM_OFST];
-	req.modem_mem_info.size = ipa_ctx->mem_info[MODEM_SIZE];
+	req.modem_mem_info_valid = IPA_MEM_MODEM_SIZE ? 1 : 0;
+	req.modem_mem_info.start = base + IPA_MEM_MODEM_OFST;
+	req.modem_mem_info.size = IPA_MEM_MODEM_SIZE;
 
 	req.ctrl_comm_dest_end_pt_valid = true;
 	req.ctrl_comm_dest_end_pt =
 			ipa_get_ep_mapping(IPA_CLIENT_APPS_WAN_CONS);
 
 	req.hdr_proc_ctx_tbl_info_valid =
-			ipa_ctx->mem_info[MODEM_HDR_PROC_CTX_SIZE] ? 1 : 0;
+			IPA_MEM_MODEM_HDR_PROC_CTX_SIZE ? 1 : 0;
 	req.hdr_proc_ctx_tbl_info.start =
-			base + ipa_ctx->mem_info[MODEM_HDR_PROC_CTX_OFST];
+			base + IPA_MEM_MODEM_HDR_PROC_CTX_OFST;
 	req.hdr_proc_ctx_tbl_info.end = req.hdr_proc_ctx_tbl_info.start +
-			ipa_ctx->mem_info[MODEM_HDR_PROC_CTX_SIZE] - 1;
+			IPA_MEM_MODEM_HDR_PROC_CTX_SIZE - 1;
 
 	req.v4_hash_route_tbl_info_valid = true;
-	req.v4_hash_route_tbl_info.start =
-			base + ipa_ctx->mem_info[V4_RT_HASH_OFST];
-	req.v4_hash_route_tbl_info.count =
-			ipa_ctx->mem_info[V4_MODEM_RT_INDEX_HI];
+	req.v4_hash_route_tbl_info.start = base + IPA_MEM_V4_RT_HASH_OFST;
+	req.v4_hash_route_tbl_info.count = IPA_MEM_V4_MODEM_RT_INDEX_HI -
+					    IPA_MEM_V4_MODEM_RT_INDEX_LO + 1;
 
 	req.v6_hash_route_tbl_info_valid = true;
-	req.v6_hash_route_tbl_info.start =
-			base + ipa_ctx->mem_info[V6_RT_HASH_OFST];
-	req.v6_hash_route_tbl_info.count =
-			ipa_ctx->mem_info[V6_MODEM_RT_INDEX_HI];
+	req.v6_hash_route_tbl_info.start = base + IPA_MEM_V6_RT_HASH_OFST;
+	req.v6_hash_route_tbl_info.count = IPA_MEM_V6_MODEM_RT_INDEX_HI -
+					    IPA_MEM_V6_MODEM_RT_INDEX_LO + 1;
 
 	req.v4_hash_filter_tbl_start_valid = true;
-	req.v4_hash_filter_tbl_start =
-			base + ipa_ctx->mem_info[V4_FLT_HASH_OFST];
+	req.v4_hash_filter_tbl_start = base + IPA_MEM_V4_FLT_HASH_OFST;
 
 	req.v6_hash_filter_tbl_start_valid = true;
-	req.v6_hash_filter_tbl_start =
-			base + ipa_ctx->mem_info[V6_FLT_HASH_OFST];
+	req.v6_hash_filter_tbl_start = base + IPA_MEM_V6_FLT_HASH_OFST;
 
 	return &req;
 }
@@ -344,6 +336,13 @@ ipa_client_new_server(struct qmi_handle *qmi, struct qmi_service *svc)
 		kfree(txn);
 	}
 
+	ret = qmi_txn_wait(txn, msecs_to_jiffies(60000));
+	if (ret) {
+		ipa_err("qmi_txn_wait ret = %d\n", ret);
+		qmi_txn_cancel(txn);
+	}
+
+	kfree(txn);
 	return ret;
 }
 
