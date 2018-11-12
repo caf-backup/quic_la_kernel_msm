@@ -61,7 +61,7 @@ static int debug_wcss;
 
 #define WCSS_CRASH_REASON_SMEM 421
 #define WCNSS_PAS_ID		6
-#define STOP_ACK_TIMEOUT_MS 2000
+#define STOP_ACK_TIMEOUT_MS 5000
 
 #define QDSP6SS_RST_EVB 0x10
 #define QDSP6SS_RESET 0x14
