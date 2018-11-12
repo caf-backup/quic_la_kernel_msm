@@ -633,10 +633,45 @@
 			qcom,restart-group = <&q6v5_m3 &q6v5_wcss>;
 		};
 
+		q6v6_adsp: q6v6_adsp@AB00000 {
+			compatible = "qca,q6v6-adsp-rproc";
+			firmware = "IPQ6018/adsp.mdt";
+			reg = <0xAB00000 0x4040>,
+				<0x181F000 0x4>,
+				<0xA000000 0x48000>,
+				<0x1954010 0x20>;
+			reg-names = "adsp-base",
+					"gcc-adsp-bcr-base",
+					"adsp-cc-base",
+					"tcsr-base";
+			qca,auto-restart;
+			qca,extended-intc;
+			interrupts-extended = <&intc 0 30 1>,
+				<&adsp_smp2p_in 0 0>,
+				<&adsp_smp2p_in 1 0>,
+				<&adsp_smp2p_in 3 0>;
+			interrupt-names = "wdog",
+				  "qcom,gpio-err-fatal",
+				  "qcom,gpio-err-ready",
+				  "qcom,gpio-stop-ack";
+			qcom,smem-states = <&adsp_smp2p_out 0>,
+				   <&adsp_smp2p_out 1>;
+			qcom,smem-state-names = "shutdown",
+					"stop";
+		};
+
 		glink_mpss_ssr: qcom,glink-ssr-modem {
 			compatible = "qcom,glink_ssr";
 			label = "q6v5-wcss";
 			qcom,edge = "mpss";
+			qca,no-notify-edges;
+			qcom,xprt = "smem";
+		};
+
+		glink_adsp_ssr: qcom,glink-ssr-adsp {
+			compatible = "qcom,glink_ssr";
+			label = "q6v6-adsp";
+			qcom,edge = "lpass";
 			qca,no-notify-edges;
 			qcom,xprt = "smem";
 		};
