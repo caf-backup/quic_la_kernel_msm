@@ -45,6 +45,12 @@
 #define CPU_IPQ8074A 390
 #define CPU_IPQ8076A 391
 #define CPU_IPQ8078A 392
+#define CPU_IPQ8070A 395
+#define CPU_IPQ8071A 396
+
+#define CPU_IPQ8172  397
+#define CPU_IPQ8173  398
+#define CPU_IPQ8174  399
 
 static inline const int* read_ipq_soc_version_major(void)
 {
@@ -267,6 +273,51 @@ static inline int cpu_is_ipq8078a(void)
 #endif
 }
 
+static inline int cpu_is_ipq8070a(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ8070A;
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq8071a(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ8071A;
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq8172(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ8172;
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq8173(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ8173;
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq8174(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ8174;
+#else
+	return 0;
+#endif
+}
+
 static inline int cpu_is_ipq807x(void)
 {
 #ifdef CONFIG_ARCH_QCOM
@@ -274,7 +325,10 @@ static inline int cpu_is_ipq807x(void)
 		cpu_is_ipq8076() || cpu_is_ipq8078() ||
 		cpu_is_ipq8070() || cpu_is_ipq8071() ||
 		cpu_is_ipq8072a() || cpu_is_ipq8074a() ||
-		cpu_is_ipq8076a() || cpu_is_ipq8078a();
+		cpu_is_ipq8076a() || cpu_is_ipq8078a() ||
+		cpu_is_ipq8070a() || cpu_is_ipq8071a() ||
+		cpu_is_ipq8172() || cpu_is_ipq8173() ||
+		cpu_is_ipq8174();
 #else
 	return 0;
 #endif
