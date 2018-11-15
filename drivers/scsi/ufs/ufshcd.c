@@ -3,7 +3,7 @@
  *
  * This code is based on drivers/scsi/ufs/ufshcd.c
  * Copyright (C) 2011-2013 Samsung India Software Operations
- * Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018, The Linux Foundation. All rights reserved.
  *
  * Authors:
  *	Santosh Yaraganavi <santosh.sy@samsung.com>
@@ -1331,8 +1331,20 @@ start_window:
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_DEVFREQ_GOV_SIMPLE_ONDEMAND)
+static struct devfreq_simple_ondemand_data ufshcd_ondemand_data = {
+	.upthreshold = 70,
+	.downdifferential = 65,
+	.simple_scaling = 1,
+};
+
+static void *gov_data = &ufshcd_ondemand_data;
+#else
+static void *gov_data;
+#endif
+
 static struct devfreq_dev_profile ufs_devfreq_profile = {
-	.polling_ms	= 100,
+	.polling_ms	= 60,
 	.target		= ufshcd_devfreq_target,
 	.get_dev_status	= ufshcd_devfreq_get_dev_status,
 };
@@ -1355,7 +1367,7 @@ static int ufshcd_devfreq_init(struct ufs_hba *hba)
 	devfreq = devfreq_add_device(hba->dev,
 			&ufs_devfreq_profile,
 			DEVFREQ_GOV_SIMPLE_ONDEMAND,
-			NULL);
+			gov_data);
 	if (IS_ERR(devfreq)) {
 		ret = PTR_ERR(devfreq);
 		dev_err(hba->dev, "Unable to register with devfreq %d\n", ret);
