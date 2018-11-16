@@ -373,7 +373,7 @@
 			dwc_0: dwc3@8A00000 {
 			       compatible = "snps,dwc3";
 			       reg = <0x8A00000 0xcd00>;
-			       interrupts = <0 140 0>;
+			       interrupts = <GIC_SPI 140 IRQ_TYPE_NONE>;
 			       /* usb-phy = <&qusb_phy_0>, <&ssphy_0>; */
 			       tx-fifo-resize;
 			       snps,usb3-u1u2-disable;
@@ -416,7 +416,7 @@
 			dwc_1: dwc3@7000000 {
 			       compatible = "snps,dwc3";
 			       reg = <0x7000000 0xcd00>;
-			       interrupts = <0 99 0>;
+			       interrupts = <GIC_SPI 99 IRQ_TYPE_NONE>;
 			       /* usb-phy = <&qusb_phy_1>, <&ssphy_1>; */
 			       tx-fifo-resize;
 			       snps,usb3-u1u2-disable;
@@ -434,7 +434,7 @@
 		blsp_dma: dma@7884000 {
 			compatible = "qcom,bam-v1.7.0";
 			reg = <0x07884000 0x2b000>;
-			interrupts = <0 238 0>;
+			interrupts = <GIC_SPI 238 IRQ_TYPE_NONE>;
 			clocks = <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "bam_clk";
 			#dma-cells = <1>;
@@ -446,7 +446,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x78b6000 0x600>;
-			interrupts = <GIC_SPI 96 0x4>;
+			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_AHB_CLK>,
 				<&gcc GCC_BLSP1_QUP2_I2C_APPS_CLK>;
 			clock-names = "iface", "core";
@@ -460,7 +460,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x78b5000 0x600>;
-			interrupts = <0 95 0>;
+			interrupts = <GIC_SPI 95 IRQ_TYPE_NONE>;
 			spi-max-frequency = <50000000>;
 			clocks = <&gcc GCC_BLSP1_QUP1_SPI_APPS_CLK>,
 				<&gcc GCC_BLSP1_AHB_CLK>;
@@ -492,7 +492,7 @@
 			reg = <0x48C00000 0x100000>, <0x0b111008 0x4>;
 			reg-names = "smem", "irq-reg-base";
 			qcom,irq-mask = <0x100>;
-			interrupts = <0 321 1>;
+			interrupts = <GIC_SPI 321 IRQ_TYPE_EDGE_RISING>;
 			label = "mpss";
 			qcom,subsys-id = <1>;
 			smem-entry = <478>, <479>, <480>;
@@ -546,7 +546,7 @@
 			qcom,smem = <435>, <428>;
 
 			interrupt-parent = <&intc>;
-			interrupts = <0 322 1>;
+			interrupts = <GIC_SPI 322 IRQ_TYPE_EDGE_RISING>;
 
 			qcom,ipc = <&apcs 8 9>;
 
@@ -644,7 +644,7 @@
 		qpic_bam: dma@7984000{
 			compatible = "qcom,bam-v1.7.0";
 			reg = <0x7984000 0x1a000>;
-			interrupts = <0 146 0>;
+			interrupts = <GIC_SPI 146 IRQ_TYPE_NONE>;
 			clocks = <&gcc GCC_QPIC_AHB_CLK>;
 			clock-names = "bam_clk";
 			#dma-cells = <1>;
@@ -684,7 +684,8 @@
 			reg = <0x7804000 0x1000>, <0x7805000 0x1000>;
 			reg-names = "hc_mem", "cmdq_mem";
 
-			interrupts = <0 123 0>, <0 138 0>;
+			interrupts = <GIC_SPI 123 IRQ_TYPE_NONE>,
+					<GIC_SPI 138 IRQ_TYPE_NONE>;
 			interrupt-names = "hc_irq", "pwr_irq";
 
 			qcom,bus-width = <8>;
