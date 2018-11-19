@@ -225,6 +225,4 @@ source "drivers/gpu/drm/evdi/Kconfig"
 
 source "drivers/pkglist/Kconfig"
 
-source "drivers/interconnect/Kconfig"
-
 endmenu

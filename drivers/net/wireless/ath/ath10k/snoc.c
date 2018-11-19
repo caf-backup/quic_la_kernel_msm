@@ -30,7 +30,6 @@
 
 #define ATH10K_SNOC_RX_POST_RETRY_MS 50
 #define CE_POLL_PIPE 4
-#define ATH10K_SNOC_WAKE_IRQ 2
 
 static char *const ce_name[] = {
 	"WLAN_CE_0",
@@ -66,7 +65,7 @@ static void ath10k_snoc_htt_htc_rx_cb(struct ath10k_ce_pipe *ce_state);
 
 static const struct ath10k_snoc_drv_priv drv_priv = {
 	.hw_rev = ATH10K_HW_WCN3990,
-	.dma_mask = DMA_BIT_MASK(32),
+	.dma_mask = DMA_BIT_MASK(35),
 	.msa_size = 0x100000,
 };
 
@@ -910,9 +909,7 @@ static void ath10k_snoc_buffer_cleanup(struct ath10k *ar)
 
 static void ath10k_snoc_hif_stop(struct ath10k *ar)
 {
-	if (!test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags))
-		ath10k_snoc_irq_disable(ar);
-
+	ath10k_snoc_irq_disable(ar);
 	napi_synchronize(&ar->napi);
 	napi_disable(&ar->napi);
 	ath10k_snoc_buffer_cleanup(ar);
@@ -921,13 +918,9 @@ static void ath10k_snoc_hif_stop(struct ath10k *ar)
 
 static int ath10k_snoc_hif_start(struct ath10k *ar)
 {
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
-
 	napi_enable(&ar->napi);
 	ath10k_snoc_irq_enable(ar);
 	ath10k_snoc_rx_post(ar);
-
-	clear_bit(ATH10K_SNOC_FLAG_RECOVERY, &ar_snoc->flags);
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot hif start\n");
 
@@ -950,8 +943,7 @@ static int ath10k_snoc_init_pipes(struct ath10k *ar)
 	return 0;
 }
 
-static int ath10k_snoc_wlan_enable(struct ath10k *ar,
-				   enum ath10k_firmware_mode fw_mode)
+static int ath10k_snoc_wlan_enable(struct ath10k *ar)
 {
 	struct ath10k_tgt_pipe_cfg tgt_cfg[CE_COUNT_MAX];
 	struct ath10k_qmi_wlan_enable_cfg cfg;
@@ -985,17 +977,7 @@ static int ath10k_snoc_wlan_enable(struct ath10k *ar,
 	cfg.shadow_reg_cfg = (struct ath10k_shadow_reg_cfg *)
 		&target_shadow_reg_cfg_map;
 
-	switch (fw_mode) {
-	case ATH10K_FIRMWARE_MODE_NORMAL:
-		mode = QMI_WLFW_MISSION_V01;
-		break;
-	case ATH10K_FIRMWARE_MODE_UTF:
-		mode = QMI_WLFW_FTM_V01;
-		break;
-	default:
-		ath10k_err(ar, "invalid firmware mode %d\n", fw_mode);
-		return -EINVAL;
-	}
+	mode = QMI_WLFW_MISSION_V01;
 
 	return ath10k_qmi_wlan_enable(ar, &cfg, mode,
 				       NULL);
@@ -1003,8 +985,7 @@ static int ath10k_snoc_wlan_enable(struct ath10k *ar,
 
 static void ath10k_snoc_wlan_disable(struct ath10k *ar)
 {
-	if (!test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags))
-		ath10k_qmi_wlan_disable(ar);
+	ath10k_qmi_wlan_disable(ar);
 }
 
 static void ath10k_snoc_hif_power_down(struct ath10k *ar)
@@ -1015,15 +996,14 @@ static void ath10k_snoc_hif_power_down(struct ath10k *ar)
 	ath10k_ce_free_rri(ar);
 }
 
-static int ath10k_snoc_hif_power_up(struct ath10k *ar,
-				    enum ath10k_firmware_mode fw_mode)
+static int ath10k_snoc_hif_power_up(struct ath10k *ar)
 {
 	int ret;
 
 	ath10k_dbg(ar, ATH10K_DBG_SNOC, "%s:WCN3990 driver state = %d\n",
 		   __func__, ar->state);
 
-	ret = ath10k_snoc_wlan_enable(ar, fw_mode);
+	ret = ath10k_snoc_wlan_enable(ar);
 	if (ret) {
 		ath10k_err(ar, "failed to enable wcn3990: %d\n", ret);
 		return ret;
@@ -1045,46 +1025,6 @@ err_wlan_enable:
 	return ret;
 }
 
-#ifdef CONFIG_PM
-static int ath10k_snoc_hif_suspend(struct ath10k *ar)
-{
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
-	int ret;
-
-	if (!device_may_wakeup(ar->dev))
-		return -EPERM;
-
-	ret = enable_irq_wake(ar_snoc->ce_irqs[ATH10K_SNOC_WAKE_IRQ].irq_line);
-	if (ret) {
-		ath10k_err(ar, "failed to enable wakeup irq\n");
-		return ret;
-	}
-
-	ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc device suspended\n");
-
-	return ret;
-}
-
-static int ath10k_snoc_hif_resume(struct ath10k *ar)
-{
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
-	int ret;
-
-	if (!device_may_wakeup(ar->dev))
-		return -EPERM;
-
-	ret = disable_irq_wake(ar_snoc->ce_irqs[ATH10K_SNOC_WAKE_IRQ].irq_line);
-	if (ret) {
-		ath10k_err(ar, "failed to disable wakeup irq\n");
-		return ret;
-	}
-
-	ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc device resumed\n");
-
-	return ret;
-}
-#endif
-
 static const struct ath10k_hif_ops ath10k_snoc_hif_ops = {
 	.read32		= ath10k_snoc_read32,
 	.write32	= ath10k_snoc_write32,
@@ -1098,10 +1038,6 @@ static const struct ath10k_hif_ops ath10k_snoc_hif_ops = {
 	.send_complete_check	= ath10k_snoc_hif_send_complete_check,
 	.get_free_queue_number	= ath10k_snoc_hif_get_free_queue_number,
 	.get_target_info	= ath10k_snoc_hif_get_target_info,
-#ifdef CONFIG_PM
-	.suspend                = ath10k_snoc_hif_suspend,
-	.resume                 = ath10k_snoc_hif_resume,
-#endif
 };
 
 static const struct ath10k_bus_ops ath10k_snoc_bus_ops = {
@@ -1145,11 +1081,6 @@ static int ath10k_snoc_napi_poll(struct napi_struct *ctx, int budget)
 {
 	struct ath10k *ar = container_of(ctx, struct ath10k, napi);
 	int done = 0;
-
-	if (test_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags)) {
-		napi_complete(ctx);
-		return done;
-	}
 
 	ath10k_ce_per_engine_service_any(ar);
 	done = ath10k_htt_txrx_compl_task(ar, budget);
@@ -1246,28 +1177,16 @@ int ath10k_snoc_fw_indication(struct ath10k *ar, u64 type)
 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
 	int ret;
 
-	if (test_bit(ATH10K_SNOC_FLAG_UNREGISTERING, &ar_snoc->flags))
-		return 0;
-
 	switch (type) {
 	case ATH10K_QMI_EVENT_FW_READY_IND:
-		if (test_bit(ATH10K_SNOC_FLAG_REGISTERED, &ar_snoc->flags)) {
-			queue_work(ar->workqueue, &ar->restart_work);
-			break;
-		}
-
 		ret = ath10k_core_register(ar,
 					   ar_snoc->target_info.soc_version);
 		if (ret) {
-			ath10k_err(ar, "Failed to register driver core: %d\n",
+			ath10k_err(ar, "failed to register driver core: %d\n",
 				   ret);
-			return ret;
 		}
-		set_bit(ATH10K_SNOC_FLAG_REGISTERED, &ar_snoc->flags);
 		break;
 	case ATH10K_QMI_EVENT_FW_DOWN_IND:
-		set_bit(ATH10K_SNOC_FLAG_RECOVERY, &ar_snoc->flags);
-		set_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags);
 		break;
 	default:
 		ath10k_err(ar, "invalid fw indication: %llx\n", type);
@@ -1719,17 +1638,8 @@ err_core_destroy:
 static int ath10k_snoc_remove(struct platform_device *pdev)
 {
 	struct ath10k *ar = platform_get_drvdata(pdev);
-	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
 
 	ath10k_dbg(ar, ATH10K_DBG_SNOC, "snoc remove\n");
-
-	reinit_completion(&ar->driver_recovery);
-
-	if (test_bit(ATH10K_SNOC_FLAG_RECOVERY, &ar_snoc->flags))
-		wait_for_completion_timeout(&ar->driver_recovery, 3 * HZ);
-
-	set_bit(ATH10K_SNOC_FLAG_UNREGISTERING, &ar_snoc->flags);
-
 	ath10k_core_unregister(ar);
 	ath10k_hw_power_off(ar);
 	ath10k_snoc_free_irq(ar);

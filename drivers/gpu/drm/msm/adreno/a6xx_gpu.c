@@ -7,9 +7,6 @@
 #include "a6xx_gpu.h"
 #include "a6xx_gmu.xml.h"
 
-#include <linux/devfreq.h>
-#include <linux/soc/qcom/llcc-qcom.h>
-
 static inline bool _a6xx_check_idle(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
@@ -441,8 +438,10 @@ static int a6xx_hw_init(struct msm_gpu *gpu)
 	gpu_write(gpu, REG_A6XX_CP_PROTECT(22), A6XX_PROTECT_RW(0x900, 0x4d));
 	gpu_write(gpu, REG_A6XX_CP_PROTECT(23), A6XX_PROTECT_RW(0x98d, 0x76));
 	gpu_write(gpu, REG_A6XX_CP_PROTECT(24),
+			A6XX_PROTECT_RDONLY(0x8d0, 0x23));
+	gpu_write(gpu, REG_A6XX_CP_PROTECT(25),
 			A6XX_PROTECT_RDONLY(0x980, 0x4));
-	gpu_write(gpu, REG_A6XX_CP_PROTECT(25), A6XX_PROTECT_RW(0xa630, 0x0));
+	gpu_write(gpu, REG_A6XX_CP_PROTECT(26), A6XX_PROTECT_RW(0xa630, 0x0));
 
 	/* Enable interrupts */
 	gpu_write(gpu, REG_A6XX_RBBM_INT_0_MASK, A6XX_INT_MASK);
@@ -673,151 +672,6 @@ static const u32 a6xx_registers[] = {
 	~0
 };
 
-#define A6XX_LLC_NUM_GPU_SCIDS		5
-#define A6XX_GPU_LLC_SCID_NUM_BITS	5
-
-#define A6XX_GPU_LLC_SCID_MASK \
-	((1 << (A6XX_LLC_NUM_GPU_SCIDS * A6XX_GPU_LLC_SCID_NUM_BITS)) - 1)
-
-#define A6XX_GPUHTW_LLC_SCID_SHIFT	25
-#define A6XX_GPUHTW_LLC_SCID_MASK \
-	(((1 << A6XX_GPU_LLC_SCID_NUM_BITS) - 1) << A6XX_GPUHTW_LLC_SCID_SHIFT)
-
-static inline void a6xx_gpu_cx_rmw(struct a6xx_llc *llc,
-	u32 reg, u32 mask, u32 or)
-{
-	msm_rmw(llc->mmio + (reg << 2), mask, or);
-}
-
-static void a6xx_llc_deactivate(struct msm_gpu *gpu)
-{
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
-	struct a6xx_llc *llc = &a6xx_gpu->llc;
-
-	llcc_slice_deactivate(llc->gpu_llc_slice);
-	llcc_slice_deactivate(llc->gpuhtw_llc_slice);
-}
-
-static void a6xx_llc_activate(struct msm_gpu *gpu)
-{
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
-	struct a6xx_llc *llc = &a6xx_gpu->llc;
-
-	if (!llc->mmio)
-		return;
-
-	/*
-	 * If the LLCC_GPU slice activated, program the sub-cache ID for all
-	 * GPU blocks
-	 */
-	if (!llcc_slice_activate(llc->gpu_llc_slice))
-		a6xx_gpu_cx_rmw(llc,
-				REG_A6XX_GPU_CX_MISC_SYSTEM_CACHE_CNTL_1,
-				A6XX_GPU_LLC_SCID_MASK,
-				(llc->cntl1_regval &
-				 A6XX_GPU_LLC_SCID_MASK));
-
-	/*
-	 * If the LLCC_GPUHTW slice activated, program the sub-cache ID for the
-	 * GPU pagetables
-	 */
-	if (!llcc_slice_activate(llc->gpuhtw_llc_slice))
-		a6xx_gpu_cx_rmw(llc,
-				REG_A6XX_GPU_CX_MISC_SYSTEM_CACHE_CNTL_1,
-				A6XX_GPUHTW_LLC_SCID_MASK,
-				(llc->cntl1_regval &
-				 A6XX_GPUHTW_LLC_SCID_MASK));
-
-	/* Program cacheability overrides */
-	a6xx_gpu_cx_rmw(llc, REG_A6XX_GPU_CX_MISC_SYSTEM_CACHE_CNTL_0, 0xF,
-		llc->cntl0_regval);
-}
-
-void a6xx_llc_slices_destroy(struct a6xx_llc *llc)
-{
-	if (llc->mmio) {
-		iounmap(llc->mmio);
-		llc->mmio = NULL;
-	}
-
-	llcc_slice_putd(llc->gpu_llc_slice);
-	llc->gpu_llc_slice = NULL;
-
-	llcc_slice_putd(llc->gpuhtw_llc_slice);
-	llc->gpuhtw_llc_slice = NULL;
-}
-
-static int a6xx_llc_slices_init(struct platform_device *pdev,
-		struct a6xx_llc *llc)
-{
-	int i;
-
-	/* Map registers */
-	llc->mmio = msm_ioremap(pdev, "cx_mem", "gpu_cx");
-	if (IS_ERR(llc->mmio)) {
-		llc->mmio = NULL;
-		return -1;
-	}
-
-	/* Get the system cache slice descriptor for GPU and GPUHTWs */
-	llc->gpu_llc_slice = llcc_slice_getd(LLCC_GPU);
-	llc->gpuhtw_llc_slice = llcc_slice_getd(LLCC_GPUHTW);
-	if (IS_ERR(llc->gpu_llc_slice) && IS_ERR(llc->gpuhtw_llc_slice))
-		return -1;
-
-	/*
-	 * Setup GPU system cache CNTL0 and CNTL1 register values.
-	 * These values will be programmed everytime GPU comes out
-	 * of power collapse as these are non-retention registers.
-	 */
-
-	/*
-	 * CNTL0 provides options to override the settings for the
-	 * read and write allocation policies for the LLC. These
-	 * overrides are global for all memory transactions from
-	 * the GPU.
-	 *
-	 * 0x3: read-no-alloc-overridden = 0
-	 *      read-no-alloc = 0 - Allocate lines on read miss
-	 *      write-no-alloc-overridden = 1
-	 *      write-no-alloc = 1 - Do not allocates lines on write miss
-	 */
-	llc->cntl0_regval = 0x03;
-
-	/*
-	 * CNTL1 is used to specify SCID for (CP, TP, VFD, CCU and UBWC
-	 * FLAG cache) GPU blocks. This value will be passed along with
-	 * the address for any memory transaction from GPU to identify
-	 * the sub-cache for that transaction.
-	 *
-	 * Currently there is only one SCID allocated for all GPU blocks
-	 * Hence set same SCID for all the blocks.
-	 */
-
-	if (!IS_ERR(llc->gpu_llc_slice)) {
-		u32 gpu_scid = llcc_get_slice_id(llc->gpu_llc_slice);
-
-		for (i = 0; i < A6XX_LLC_NUM_GPU_SCIDS; i++)
-			llc->cntl1_regval |=
-				gpu_scid << (A6XX_GPU_LLC_SCID_NUM_BITS * i);
-	}
-
-	/*
-	 * Set SCID for GPU IOMMU. This will be used to access
-	 * page tables that are cached in LLC.
-	 */
-	if (!IS_ERR(llc->gpuhtw_llc_slice)) {
-		u32 gpuhtw_scid = llcc_get_slice_id(llc->gpuhtw_llc_slice);
-
-		llc->cntl1_regval |=
-			gpuhtw_scid << A6XX_GPUHTW_LLC_SCID_SHIFT;
-	}
-
-	return 0;
-}
-
 static int a6xx_pm_resume(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
@@ -828,11 +682,6 @@ static int a6xx_pm_resume(struct msm_gpu *gpu)
 
 	gpu->needs_hw_init = true;
 
-	msm_gpu_resume_devfreq(gpu);
-
-	/* Activate LLC slices */
-	a6xx_llc_activate(gpu);
-
 	return ret;
 }
 
@@ -840,11 +689,6 @@ static int a6xx_pm_suspend(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
-
-	/* Deactivate LLC slices */
-	a6xx_llc_deactivate(gpu);
-
-	devfreq_suspend_device(gpu->devfreq.devfreq);
 
 	/*
 	 * Make sure the GMU is idle before continuing (because some transitions
@@ -903,30 +747,10 @@ static void a6xx_destroy(struct msm_gpu *gpu)
 		drm_gem_object_unreference_unlocked(a6xx_gpu->sqe_bo);
 	}
 
-	a6xx_llc_slices_destroy(&a6xx_gpu->llc);
-
 	a6xx_gmu_remove(a6xx_gpu);
 
 	adreno_gpu_cleanup(adreno_gpu);
 	kfree(a6xx_gpu);
-}
-
-static unsigned long a6xx_gpu_busy(struct msm_gpu *gpu)
-{
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
-	u64 busy_cycles;
-	unsigned long busy_time;
-
-	busy_cycles = gmu_read64(&a6xx_gpu->gmu,
-			REG_A6XX_GMU_CX_GMU_POWER_COUNTER_XOCLK_0_L,
-			REG_A6XX_GMU_CX_GMU_POWER_COUNTER_XOCLK_0_H);
-
-	busy_time = ((busy_cycles - gpu->devfreq.busy_cycles) * 10) / 192;
-
-	gpu->devfreq.busy_cycles = busy_cycles;
-
-	return busy_time;
 }
 
 static const struct adreno_gpu_funcs funcs = {
@@ -944,9 +768,6 @@ static const struct adreno_gpu_funcs funcs = {
 #if defined(CONFIG_DEBUG_FS) || defined(CONFIG_DEV_COREDUMP)
 		.show = a6xx_show,
 #endif
-		.gpu_busy = a6xx_gpu_busy,
-		.gpu_get_freq = a6xx_gmu_get_freq,
-		.gpu_set_freq = a6xx_gmu_set_freq,
 	},
 	.get_timestamp = a6xx_get_timestamp,
 };
@@ -971,17 +792,14 @@ struct msm_gpu *a6xx_gpu_init(struct drm_device *dev)
 	adreno_gpu->registers = a6xx_registers;
 	adreno_gpu->reg_offsets = a6xx_register_offsets;
 
-	ret = a6xx_llc_slices_init(pdev, &a6xx_gpu->llc);
-
-	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs, 1,
-			ret ? 0 : MMU_FEATURE_USE_SYSTEM_CACHE);
+	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs, 1);
 	if (ret) {
 		a6xx_destroy(&(a6xx_gpu->base.base));
 		return ERR_PTR(ret);
 	}
 
 	/* Check if there is a GMU phandle and set it up */
-	node = of_parse_phandle(pdev->dev.of_node, "qcom,gmu", 0);
+	node = of_parse_phandle(pdev->dev.of_node, "gmu", 0);
 
 	/* FIXME: How do we gracefully handle this? */
 	BUG_ON(!node);

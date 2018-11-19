@@ -41,11 +41,7 @@ static int msm_devfreq_target(struct device *dev, unsigned long *freq,
 	if (IS_ERR(opp))
 		return PTR_ERR(opp);
 
-	if (gpu->funcs->gpu_set_freq)
-		gpu->funcs->gpu_set_freq(gpu, (u64)*freq);
-	else
-		clk_set_rate(gpu->core_clk, *freq);
-
+	clk_set_rate(gpu->core_clk, *freq);
 	dev_pm_opp_put(opp);
 
 	return 0;
@@ -55,14 +51,16 @@ static int msm_devfreq_get_dev_status(struct device *dev,
 		struct devfreq_dev_status *status)
 {
 	struct msm_gpu *gpu = platform_get_drvdata(to_platform_device(dev));
+	u64 cycles;
+	u32 freq = ((u32) status->current_frequency) / 1000000;
 	ktime_t time;
 
-	if (gpu->funcs->gpu_get_freq)
-		status->current_frequency = gpu->funcs->gpu_get_freq(gpu);
-	else
-		status->current_frequency = clk_get_rate(gpu->core_clk);
+	status->current_frequency = (unsigned long) clk_get_rate(gpu->core_clk);
+	gpu->funcs->gpu_busy(gpu, &cycles);
 
-	status->busy_time = gpu->funcs->gpu_busy(gpu);
+	status->busy_time = ((u32) (cycles - gpu->devfreq.busy_cycles)) / freq;
+
+	gpu->devfreq.busy_cycles = cycles;
 
 	time = ktime_get();
 	status->total_time = ktime_us_delta(time, gpu->devfreq.time);
@@ -75,10 +73,7 @@ static int msm_devfreq_get_cur_freq(struct device *dev, unsigned long *freq)
 {
 	struct msm_gpu *gpu = platform_get_drvdata(to_platform_device(dev));
 
-	if (gpu->funcs->gpu_get_freq)
-		*freq = gpu->funcs->gpu_get_freq(gpu);
-	else
-		*freq = clk_get_rate(gpu->core_clk);
+	*freq = (unsigned long) clk_get_rate(gpu->core_clk);
 
 	return 0;
 }
@@ -93,7 +88,7 @@ static struct devfreq_dev_profile msm_devfreq_profile = {
 static void msm_devfreq_init(struct msm_gpu *gpu)
 {
 	/* We need target support to do devfreq */
-	if (!gpu->funcs->gpu_busy)
+	if (!gpu->funcs->gpu_busy || !gpu->core_clk)
 		return;
 
 	msm_devfreq_profile.initial_freq = gpu->fast_rate;
@@ -110,8 +105,6 @@ static void msm_devfreq_init(struct msm_gpu *gpu)
 		dev_err(&gpu->pdev->dev, "Couldn't initialize GPU devfreq\n");
 		gpu->devfreq.devfreq = NULL;
 	}
-
-	devfreq_suspend_device(gpu->devfreq.devfreq);
 }
 
 static int enable_pwrrail(struct msm_gpu *gpu)
@@ -191,14 +184,6 @@ static int disable_axi(struct msm_gpu *gpu)
 	return 0;
 }
 
-void msm_gpu_resume_devfreq(struct msm_gpu *gpu)
-{
-	gpu->devfreq.busy_cycles = 0;
-	gpu->devfreq.time = ktime_get();
-
-	devfreq_resume_device(gpu->devfreq.devfreq);
-}
-
 int msm_gpu_pm_resume(struct msm_gpu *gpu)
 {
 	int ret;
@@ -217,7 +202,12 @@ int msm_gpu_pm_resume(struct msm_gpu *gpu)
 	if (ret)
 		return ret;
 
-	msm_gpu_resume_devfreq(gpu);
+	if (gpu->devfreq.devfreq) {
+		gpu->devfreq.busy_cycles = 0;
+		gpu->devfreq.time = ktime_get();
+
+		devfreq_resume_device(gpu->devfreq.devfreq);
+	}
 
 	gpu->needs_hw_init = true;
 
@@ -230,7 +220,8 @@ int msm_gpu_pm_suspend(struct msm_gpu *gpu)
 
 	DBG("%s", gpu->name);
 
-	devfreq_suspend_device(gpu->devfreq.devfreq);
+	if (gpu->devfreq.devfreq)
+		devfreq_suspend_device(gpu->devfreq.devfreq);
 
 	ret = disable_axi(gpu);
 	if (ret)
@@ -343,19 +334,13 @@ static void msm_gpu_crashstate_get_bo(struct msm_gpu_state *state,
 static void msm_gpu_crashstate_capture(struct msm_gpu *gpu,
 		struct msm_gem_submit *submit, char *comm, char *cmd)
 {
-	struct msm_gpu_state *state = NULL;
-
-	/* Check if the target supports capturing crash state */
-	if (!gpu->funcs->gpu_state_get)
-		return;
+	struct msm_gpu_state *state;
 
 	/* Only save one crash state at a time */
 	if (gpu->crashstate)
 		return;
 
-	if (gpu->funcs->gpu_state_get)
-		state = gpu->funcs->gpu_state_get(gpu);
-
+	state = gpu->funcs->gpu_state_get(gpu);
 	if (IS_ERR_OR_NULL(state))
 		return;
 
@@ -426,7 +411,7 @@ static void recover_worker(struct work_struct *work)
 {
 	struct msm_gpu *gpu = container_of(work, struct msm_gpu, recover_work);
 	struct drm_device *dev = gpu->dev;
-	//struct msm_drm_private *priv = dev->dev_private;
+	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_gem_submit *submit;
 	struct msm_ringbuffer *cur_ring = gpu->funcs->active_ring(gpu);
 	char *comm = NULL, *cmd = NULL;
@@ -437,13 +422,13 @@ static void recover_worker(struct work_struct *work)
 	dev_err(dev->dev, "%s: hangcheck recover!\n", gpu->name);
 
 	submit = find_submit(cur_ring, cur_ring->memptrs->fence + 1);
-#if 0
 	if (submit) {
 		struct task_struct *task;
 
-		task = get_pid_task(submit->pid, PIDTYPE_PID);
+		rcu_read_lock();
+		task = pid_task(submit->pid, PIDTYPE_PID);
 		if (task) {
-			comm = kstrdup(task->comm, GFP_KERNEL);
+			comm = kstrdup(task->comm, GFP_ATOMIC);
 
 			/*
 			 * So slightly annoying, in other paths like
@@ -456,10 +441,10 @@ static void recover_worker(struct work_struct *work)
 			 * about the submit going away.
 			 */
 			mutex_unlock(&dev->struct_mutex);
-			cmd = kstrdup_quotable_cmdline(task, GFP_KERNEL);
-			put_task_struct(task);
+			cmd = kstrdup_quotable_cmdline(task, GFP_ATOMIC);
 			mutex_lock(&dev->struct_mutex);
 		}
+		rcu_read_unlock();
 
 		if (comm && cmd) {
 			dev_err(dev->dev, "%s: offending task: %s (%s)\n",
@@ -471,7 +456,6 @@ static void recover_worker(struct work_struct *work)
 			msm_rd_dump_submit(priv->hangrd, submit, NULL);
 	}
 
-#endif
 	/* Record the crash state */
 	pm_runtime_get_sync(&gpu->pdev->dev);
 	msm_gpu_crashstate_capture(gpu, submit, comm, cmd);
@@ -519,8 +503,6 @@ static void recover_worker(struct work_struct *work)
 				gpu->funcs->submit(gpu, submit, NULL);
 		}
 	}
-
-	dev_err(dev->dev, "%s: Done with recovery and replay \n", __func__);
 
 	mutex_unlock(&dev->struct_mutex);
 
@@ -807,7 +789,7 @@ static int get_clocks(struct platform_device *pdev, struct msm_gpu *gpu)
 
 static struct msm_gem_address_space *
 msm_gpu_create_address_space(struct msm_gpu *gpu, struct platform_device *pdev,
-		uint64_t va_start, uint64_t va_end, u32 mmu_features)
+		uint64_t va_start, uint64_t va_end)
 {
 	struct iommu_domain *iommu;
 	struct msm_gem_address_space *aspace;
@@ -834,8 +816,6 @@ msm_gpu_create_address_space(struct msm_gpu *gpu, struct platform_device *pdev,
 		iommu_domain_free(iommu);
 		return ERR_CAST(aspace);
 	}
-
-	msm_mmu_set_feature(aspace->mmu, mmu_features);
 
 	ret = aspace->mmu->funcs->attach(aspace->mmu, NULL, 0);
 	if (ret) {
@@ -919,7 +899,7 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	msm_devfreq_init(gpu);
 
 	gpu->aspace = msm_gpu_create_address_space(gpu, pdev,
-		config->va_start, config->va_end, config->mmu_features);
+		config->va_start, config->va_end);
 
 	if (gpu->aspace == NULL)
 		dev_info(drm->dev, "%s: no IOMMU, fallback to VRAM carveout!\n", name);

@@ -192,5 +192,3 @@ obj-$(CONFIG_GNSS)		+= gnss/
 obj-$(CONFIG_DRM_EVDI)	+= gpu/drm/evdi/
 
 obj-$(CONFIG_PKGLIST)		+= pkglist/
-
-obj-$(CONFIG_INTERCONNECT)	+= interconnect/

@@ -12,14 +12,6 @@
 
 extern bool hang_debug;
 
-struct a6xx_llc {
-	void __iomem *mmio;
-	void *gpu_llc_slice;
-	void *gpuhtw_llc_slice;
-	u32 cntl0_regval;
-	u32 cntl1_regval;
-};
-
 struct a6xx_gpu {
 	struct adreno_gpu base;
 
@@ -29,7 +21,6 @@ struct a6xx_gpu {
 	struct msm_ringbuffer *cur_ring;
 
 	struct a6xx_gmu gmu;
-	struct a6xx_llc llc;
 };
 
 #define to_a6xx_gpu(x) container_of(x, struct a6xx_gpu, base)
@@ -65,6 +56,5 @@ void a6xx_gmu_clear_oob(struct a6xx_gmu *gmu, enum a6xx_gmu_oob_state state);
 
 int a6xx_gmu_probe(struct a6xx_gpu *a6xx_gpu, struct device_node *node);
 void a6xx_gmu_remove(struct a6xx_gpu *a6xx_gpu);
-void a6xx_gmu_set_freq(struct msm_gpu *gpu, unsigned long freq);
-unsigned long a6xx_gmu_get_freq(struct msm_gpu *gpu);
+
 #endif /* __A6XX_GPU_H__ */

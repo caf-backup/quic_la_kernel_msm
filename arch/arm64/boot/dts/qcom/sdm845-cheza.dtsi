@@ -8,7 +8,6 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
-#include <dt-bindings/clock/qcom,lpass-sdm845.h>
 #include "sdm845.dtsi"
 
 /* PMICs depend on spmi_bus label and so must come after SoC */
@@ -138,34 +137,6 @@
 			wakeup-source;
 		};
 	};
-
-	panel: panel {
-		compatible ="innolux,p120zdg-bf1";
-		status = "okay";
-		power-supply = <&pp3300_dx_edp>;
-		backlight = <&backlight>;
-		no-hpd;
-
-		ports {
-			panel_in: port {
-				panel_in_edp: endpoint {
-					remote-endpoint = <&sn65dsi86_out>;
-				};
-			};
-		};
-	};
-};
-
-&mpss_mem {
-	reg = <0 0x8e000000 0 0x8000000>;
-};
-
-&venus_region {
-	reg = <0x0 0x96000000 0x0 0x500000>;
-};
-
-&rmtfs_mem {
-	reg = <0x0 0x88f00000 0x0 0x800000>;
 };
 
 &qspi {
@@ -187,6 +158,7 @@
 		spi-rx-bus-width = <2>;
 	};
 };
+
 
 &apps_rsc {
 	pm8998-rpmh-regulators {
@@ -348,7 +320,6 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
-		pp1800_a_alc5662:
 		src_pp1800_l14a: ldo14 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
@@ -488,74 +459,9 @@
 	};
 };
 
-&dsi0 {
-	status = "okay";
-	vdda-supply = <&vdda_mipi_dsi0_1p2>;
-
-	ports {
-		port@1 {
-			endpoint {
-				remote-endpoint = <&sn65dsi86_in>;
-				data-lanes = <0 1 2 3>;
-			};
-		};
-	};
-};
-
-&dsi0_phy {
-	status = "okay";
-	vdds-supply = <&vdda_mipi_dsi0_pll>;
-};
-
 edp_brij_i2c: &i2c3 {
 	status = "okay";
 	clock-frequency = <400000>;
-
-	sn65dsi86_bridge: bridge@2d {
-		#address-cells = <2>;
-		#size-cells = <1>;
-
-		status = "okay";
-
-		compatible = "ti,sn65dsi86";
-		reg = <0x2d>;
-
-		interrupt-parent = <&tlmm>;
-		interrupts = <10 IRQ_TYPE_EDGE_FALLING>;
-
-		vpll-supply = <&src_pp1800_s4a>;
-		vccio-supply = <&src_pp1800_s4a>;
-		vcca-supply = <&src_pp1200_l2a>;
-		vcc-supply = <&src_pp1200_l2a>;
-
-		clocks = <&rpmhcc RPMH_LN_BB_CLK2>;
-		clock-names = "refclk";
-
-		/* TODO: need a sleep config? */
-		pinctrl-names = "default";
-		pinctrl-0 = <&edp_brij_en>;
-
-		enable-gpios = <&tlmm 102 GPIO_ACTIVE_HIGH>;
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			port@0 {
-				reg = <0>;
-				sn65dsi86_in: endpoint {
-					remote-endpoint = <&dsi0_out>;
-				};
-			};
-
-			port@1 {
-				reg = <1>;
-				sn65dsi86_out: endpoint {
-					remote-endpoint = <&panel_in_edp>;
-				};
-			};
-		};
-	};
 };
 
 ap_pen_1v8: &i2c11 {
@@ -582,46 +488,7 @@ ap_pen_1v8: &i2c11 {
 amp_i2c: &i2c12 {
 	status = "okay";
 	clock-frequency = <400000>;
-		/*
-		 * Right speaker. TODO(cychiang): change slot number for vmon and imon.
-		 * TDM slot 2.
-		 */
-		max98927_r: max98927@39 {
-			compatible = "maxim,max98927";
-			vmon-slot-no = <0>;
-			imon-slot-no = <1>;
-			interleave-mode = <1>;
-			reg = <0x39>;
-			#sound-dai-cells = <1>;
-			reset-gpio = <&tlmm 75 GPIO_ACTIVE_LOW>;
-		};
-
-		/*
-		 * Left speaker. TODO(cychiang): change slot number for vmon and imon.
-		 * TDM slot 1.
-		 */
-		max98927_l: max98927@3a {
-			compatible = "maxim,max98927";
-			vmon-slot-no = <2>;
-			imon-slot-no = <3>;
-			interleave-mode = <1>;
-			reg = <0x3a>;
-			#sound-dai-cells = <1>;
-			reset-gpio = <&tlmm 75 GPIO_ACTIVE_LOW>;
-		};
-
-		/*
-		 * Headset codec.
-		 */
-		alc5662: alc5662@13 {
-			compatible = "realtek,rt5663";
-			reg = <0x13>;
-			interrupt-parent = <&tlmm>;
-			interrupts = <117 IRQ_TYPE_EDGE_BOTH>;
-			#sound-dai-cells = <1>;
-			avdd-supply = <&pp1800_a_alc5662>;
-		};
-	};
+};
 
 ap_ts_i2c: &i2c14 {
 	status = "okay";
@@ -648,21 +515,6 @@ ap_ts_i2c: &i2c14 {
 
 &qupv3_id_1 {
 	status = "okay";
-};
-
-&sdhc_2 {
-	status = "okay";
-
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&sdc2_clk_default  &sdc2_cmd_default &sdc2_data_default
-		     &sd_cd_odl>;
-	pinctrl-1 = <&sdc2_clk_sleep &sdc2_cmd_sleep &sdc2_data_sleep
-		     &sd_cd_odl>;
-
-	vmmc-supply = <&src_pp2950_l21a>;
-	vqmmc-supply = <&vddpx_2>;
-
-	cd-gpios = <&tlmm 44 GPIO_ACTIVE_LOW>;
 };
 
 &spi0 {
@@ -717,19 +569,9 @@ ap_ts_i2c: &i2c14 {
 
 #include <arm/cros-ec-keyboard.dtsi>
 #include <arm/cros-ec-sbs.dtsi>
-#include "sdm845-audio.dtsi"
 
 &uart6 {
 	status = "okay";
-
-	bluetooth: wcn3990-bt {
-		compatible = "qcom,wcn3990-bt";
-		vddio-supply = <&src_pp1800_s4a>;
-		vddxo-supply = <&pp1800_l7a_wcn3990>;
-		vddrf-supply = <&src_pp1300_l17a>;
-		vddch0-supply = <&pp3300_l25a_ch0_wcn3990>;
-		max-speed = <3200000>;
-	};
 };
 
 &uart9 {
@@ -842,12 +684,6 @@ ap_ts_i2c: &i2c14 {
 
 	vdda-phy-supply = <&vdda_usb2_ss_1p2>;
 	vdda-pll-supply = <&vdda_usb2_ss_core>;
-};
-
-&wifi {
-	status = "okay";
-
-	mac-address-lookup = "google-vpd:wifi_mac0";
 };
 
 /* PINCTRL - additions to nodes defined in sdm845.dtsi */
@@ -1159,67 +995,6 @@ ap_ts_i2c: &i2c14 {
 			 * remove "output-high" here.
 			 */
 			output-high;
-		};
-	};
-
-	sdc2_clk_default: sdc2-clk-default {
-		pinconf {
-			pins = "sdc2_clk";
-			bias-disable;
-			drive-strength = <16>;
-		};
-	};
-
-	sdc2_clk_sleep: sdc2-clk-sleep {
-		pinconf {
-			pins = "sdc2_clk";
-			bias-disable;
-			drive-strength = <2>;
-		};
-	};
-
-	sdc2_cmd_default: sdc2-cmd-default {
-		pinconf {
-			pins = "sdc2_cmd";
-			bias-pull-up;
-			drive-strength = <10>;
-		};
-	};
-
-	sdc2_cmd_sleep: sdc2-cmd-sleep {
-		pinconf {
-			pins = "sdc2_cmd";
-			bias-pull-up;
-			drive-strength = <2>;
-		};
-	};
-
-	sdc2_data_default: sdc2-data-default {
-		pinconf {
-			pins = "sdc2_data";
-			bias-pull-up;
-			drive-strength = <10>;
-		};
-	};
-
-	sdc2_data_sleep: sdc2-data-sleep {
-		pinconf {
-			pins = "sdc2_data";
-			bias-pull-up;
-			drive-strength = <2>;
-		};
-	};
-
-	sd_cd_odl: sd-cd-odl {
-		pinmux {
-			pins = "gpio44";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio44";
-			bias-pull-up;
-			drive-strength = <2>;
 		};
 	};
 

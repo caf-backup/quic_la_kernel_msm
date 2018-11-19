@@ -81,10 +81,9 @@ void dpu_encoder_register_frame_event_callback(struct drm_encoder *encoder,
  *	Delayed: Block until next trigger can be issued.
  * @encoder:	encoder pointer
  * @params:	kickoff time parameters
- * @async:	true if this is an asynchronous commit
  */
 void dpu_encoder_prepare_for_kickoff(struct drm_encoder *encoder,
-		struct dpu_encoder_kickoff_params *params, bool async);
+		struct dpu_encoder_kickoff_params *params);
 
 /**
  * dpu_encoder_trigger_kickoff_pending - Clear the flush bits from previous
@@ -97,9 +96,8 @@ void dpu_encoder_trigger_kickoff_pending(struct drm_encoder *encoder);
  * dpu_encoder_kickoff - trigger a double buffer flip of the ctl path
  *	(i.e. ctl flush and start) immediately.
  * @encoder:	encoder pointer
- * @async:	true if this is an asynchronous commit
  */
-void dpu_encoder_kickoff(struct drm_encoder *encoder, bool async);
+void dpu_encoder_kickoff(struct drm_encoder *encoder);
 
 /**
  * dpu_encoder_wait_for_event - Waits for encoder events

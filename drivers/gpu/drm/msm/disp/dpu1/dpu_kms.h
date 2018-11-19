@@ -135,6 +135,10 @@ struct dpu_kms {
 
 	struct dpu_core_perf perf;
 
+	/* saved atomic state during system suspend */
+	struct drm_atomic_state *suspend_state;
+	bool suspend_block;
+
 	struct dpu_rm rm;
 	bool rm_init;
 
@@ -166,9 +170,24 @@ struct vsync_info {
  */
 static inline bool dpu_kms_is_suspend_state(struct drm_device *dev)
 {
-	struct msm_drm_private *priv = dev->dev_private;
+	if (!ddev_to_msm_kms(dev))
+		return false;
 
-	return !IS_ERR_OR_NULL(priv->pm_state);
+	return to_dpu_kms(ddev_to_msm_kms(dev))->suspend_state != NULL;
+}
+
+/**
+ * dpu_kms_is_suspend_blocked - whether or not commits are blocked due to pm
+ *				suspend status
+ * @dev: Pointer to drm device
+ * Return: True if commits should be rejected due to pm suspend
+ */
+static inline bool dpu_kms_is_suspend_blocked(struct drm_device *dev)
+{
+	if (!dpu_kms_is_suspend_state(dev))
+		return false;
+
+	return to_dpu_kms(ddev_to_msm_kms(dev))->suspend_block;
 }
 
 /**

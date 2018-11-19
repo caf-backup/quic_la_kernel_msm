@@ -95,7 +95,6 @@ struct ramoops_platform_data {
 	unsigned int	mem_type;
 	unsigned long	record_size;
 	unsigned long	console_size;
-	unsigned long	event_size;
 	unsigned long	ftrace_size;
 	unsigned long	pmsg_size;
 	int		dump_oops;

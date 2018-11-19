@@ -1617,8 +1617,7 @@ EXPORT_SYMBOL_GPL(sdhci_set_power_noreg);
 void sdhci_set_power(struct sdhci_host *host, unsigned char mode,
 		     unsigned short vdd)
 {
-	if (IS_ERR(host->mmc->supply.vmmc) ||
-			(host->quirks2 & SDHCI_QUIRK2_INTERNAL_PWR_CTL))
+	if (IS_ERR(host->mmc->supply.vmmc))
 		sdhci_set_power_noreg(host, mode, vdd);
 	else
 		sdhci_set_power_reg(host, mode, vdd);
@@ -2012,9 +2011,7 @@ int sdhci_start_signal_voltage_switch(struct mmc_host *mmc,
 		ctrl &= ~SDHCI_CTRL_VDD_180;
 		sdhci_writew(host, ctrl, SDHCI_HOST_CONTROL2);
 
-		if (!IS_ERR(mmc->supply.vqmmc) &&
-				!(host->quirks2 &
-					SDHCI_QUIRK2_INTERNAL_PWR_CTL)) {
+		if (!IS_ERR(mmc->supply.vqmmc)) {
 			ret = mmc_regulator_set_vqmmc(mmc, ios);
 			if (ret) {
 				pr_warn("%s: Switching to 3.3V signalling voltage failed\n",
@@ -2037,8 +2034,7 @@ int sdhci_start_signal_voltage_switch(struct mmc_host *mmc,
 	case MMC_SIGNAL_VOLTAGE_180:
 		if (!(host->flags & SDHCI_SIGNALING_180))
 			return -EINVAL;
-		if (!IS_ERR(mmc->supply.vqmmc) &&
-			!(host->quirks2 & SDHCI_QUIRK2_INTERNAL_PWR_CTL)) {
+		if (!IS_ERR(mmc->supply.vqmmc)) {
 			ret = mmc_regulator_set_vqmmc(mmc, ios);
 			if (ret) {
 				pr_warn("%s: Switching to 1.8V signalling voltage failed\n",
@@ -3495,10 +3491,7 @@ int sdhci_setup_host(struct sdhci_host *host)
 	 * the host can take the appropriate action if regulators are not
 	 * available.
 	 */
-	if (!(host->quirks2 & SDHCI_QUIRK2_INTERNAL_PWR_CTL))
-		ret = mmc_regulator_get_supply(mmc);
-	else
-		ret = 0;
+	ret = mmc_regulator_get_supply(mmc);
 	if (ret)
 		return ret;
 
@@ -3748,10 +3741,7 @@ int sdhci_setup_host(struct sdhci_host *host)
 		mmc->caps |= MMC_CAP_NEEDS_POLL;
 
 	if (!IS_ERR(mmc->supply.vqmmc)) {
-		if (!(host->quirks2 & SDHCI_QUIRK2_INTERNAL_PWR_CTL))
-			ret = regulator_enable(mmc->supply.vqmmc);
-		else
-			ret = 0;
+		ret = regulator_enable(mmc->supply.vqmmc);
 
 		/* If vqmmc provides no 1.8V signalling, then there's no UHS */
 		if (!regulator_is_supported_voltage(mmc->supply.vqmmc, 1700000,

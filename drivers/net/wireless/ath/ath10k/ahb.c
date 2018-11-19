@@ -661,8 +661,7 @@ static void ath10k_ahb_hif_stop(struct ath10k *ar)
 	napi_disable(&ar->napi);
 }
 
-static int ath10k_ahb_hif_power_up(struct ath10k *ar,
-				   enum ath10k_firmware_mode fw_mode)
+static int ath10k_ahb_hif_power_up(struct ath10k *ar)
 {
 	int ret;
 

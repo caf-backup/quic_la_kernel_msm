@@ -18,7 +18,6 @@
 #include <linux/spi/spi.h>
 #include <linux/acpi.h>
 #include <linux/workqueue.h>
-#include <linux/regulator/consumer.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -33,8 +32,6 @@
 
 #define RT5663_DEVICE_ID_2 0x6451
 #define RT5663_DEVICE_ID_1 0x6406
-
-#define RT5663_POWER_ON_DELAY_MS 300
 
 enum {
 	CODEC_VER_1,
@@ -51,11 +48,6 @@ struct impedance_mapping_table {
 	unsigned int dc_offset_r_manual_mic;
 };
 
-static const char *const rt5663_supply_names[] = {
-	"avdd",
-	"cpvdd",
-};
-
 struct rt5663_priv {
 	struct snd_soc_component *component;
 	struct rt5663_platform_data pdata;
@@ -64,7 +56,6 @@ struct rt5663_priv {
 	struct snd_soc_jack *hs_jack;
 	struct timer_list btn_check_timer;
 	struct impedance_mapping_table *imp_table;
-	struct regulator_bulk_data supplies[ARRAY_SIZE(rt5663_supply_names)];
 
 	int codec_ver;
 	int sysclk;
@@ -3489,7 +3480,7 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 {
 	struct rt5663_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt5663_priv *rt5663;
-	int ret, i;
+	int ret;
 	unsigned int val;
 	struct regmap *regmap;
 
@@ -3505,37 +3496,6 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 		rt5663->pdata = *pdata;
 	else
 		rt5663_parse_dp(rt5663, &i2c->dev);
-
-	for (i = 0; i < ARRAY_SIZE(rt5663->supplies); i++)
-		rt5663->supplies[i].supply = rt5663_supply_names[i];
-
-	ret = devm_regulator_bulk_get(&i2c->dev,
-				      ARRAY_SIZE(rt5663->supplies),
-				      rt5663->supplies);
-	if (ret) {
-		dev_err(&i2c->dev, "Failed to request supplies: %d\n", ret);
-		return ret;
-	}
-
-	dev_err(&i2c->dev, "@@ start enable supplies: %d\n", ret);
-
-	/* Set load for regulator. */
-	for (i = 0; i < ARRAY_SIZE(rt5663->supplies); i++) {
-		ret = regulator_set_load(rt5663->supplies[i].consumer, 500000);
-		dev_err(&i2c->dev, "Regulator %s set optimum mode , ret[%d]\n",
-				rt5663->supplies[i].supply, ret);
-	}
-
-	ret = regulator_bulk_enable(ARRAY_SIZE(rt5663->supplies),
-				    rt5663->supplies);
-
-	dev_err(&i2c->dev, "@@ done enable supplies: %d\n", ret);
-
-	if (ret) {
-		dev_err(&i2c->dev, "Failed to enable supplies: %d\n", ret);
-		return ret;
-	}
-	msleep(RT5663_POWER_ON_DELAY_MS);
 
 	regmap = devm_regmap_init_i2c(i2c, &temp_regmap);
 	if (IS_ERR(regmap)) {
@@ -3567,8 +3527,7 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 		dev_err(&i2c->dev,
 			"Device with ID register %#x is not rt5663\n",
 			val);
-		ret = -ENODEV;
-		goto err_enable;
+		return -ENODEV;
 	}
 
 	if (IS_ERR(rt5663->regmap)) {
@@ -3673,29 +3632,20 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 		ret = request_irq(i2c->irq, rt5663_irq,
 			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING
 			| IRQF_ONESHOT, "rt5663", rt5663);
-		if (ret) {
+		if (ret)
 			dev_err(&i2c->dev, "%s Failed to reguest IRQ: %d\n",
 				__func__, ret);
-			goto err_enable;
-		}
 	}
 
 	ret = devm_snd_soc_register_component(&i2c->dev,
 			&soc_component_dev_rt5663,
 			rt5663_dai, ARRAY_SIZE(rt5663_dai));
 
-	if (ret)
-		goto err_irq;
-
-	return 0;
-
-err_irq:
-	if (i2c->irq)
+	if (ret) {
+		if (i2c->irq)
 			free_irq(i2c->irq, rt5663);
+	}
 
-err_enable:
-	dev_err(&i2c->dev, "@@ %s:disable regulator\n", __func__);
-	regulator_bulk_disable(ARRAY_SIZE(rt5663->supplies), rt5663->supplies);
 	return ret;
 }
 

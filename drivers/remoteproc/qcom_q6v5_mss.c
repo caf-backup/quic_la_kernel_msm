@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2016 Linaro Ltd.
  * Copyright (C) 2014 Sony Mobile Communications AB
- * Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,8 +25,6 @@
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
-#include <linux/pm_domain.h>
-#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/remoteproc.h>
@@ -66,7 +64,6 @@
 
 /* QDSP6SS Register Offsets */
 #define QDSP6SS_RESET_REG		0x014
-#define QDSP6SS_DBG_CFG			0x018
 #define QDSP6SS_GFMUX_CTL_REG		0x020
 #define QDSP6SS_PWR_CTL_REG		0x030
 #define QDSP6SS_MEM_PWR_CTL		0x0B0
@@ -115,9 +112,6 @@
 #define SLEEP_CHECK_MAX_LOOPS           200
 #define BOOT_FSM_TIMEOUT                10000
 
-/* Debug Timeout Timeout */
-#define QDSP6SS_COMPLETION_TIMEOUT	((is_timeout_disabled()) ? -1 : 5000)
-
 struct reg_info {
 	struct regulator *reg;
 	int uV;
@@ -137,7 +131,6 @@ struct rproc_hexagon_res {
 	char **proxy_clk_names;
 	char **reset_clk_names;
 	char **active_clk_names;
-	char **pd_names;
 	int version;
 	bool need_mem_protection;
 	bool has_alt_reset;
@@ -156,18 +149,15 @@ struct q6v5 {
 	u32 halt_nc;
 
 	struct reset_control *mss_restart;
-	struct reset_control *pdc_reset;
 
 	struct qcom_q6v5 q6v5;
 
 	struct clk *active_clks[8];
 	struct clk *reset_clks[4];
 	struct clk *proxy_clks[4];
-	struct device *pd_devs[3];
 	int active_clk_count;
 	int reset_clk_count;
 	int proxy_clk_count;
-	int pd_count;
 
 	struct reg_info active_regs[1];
 	struct reg_info proxy_regs[3];
@@ -330,40 +320,6 @@ static void q6v5_clk_disable(struct device *dev,
 		clk_disable_unprepare(clks[i]);
 }
 
-static int q6v5_powerdomain_enable(struct device *dev, struct device **devs,
-				   int count)
-{
-	int i;
-
-	if (!count)
-		return 0;
-
-	if (count > 1)
-		for (i = 0; i < count; i++)
-			dev_pm_genpd_set_performance_state(devs[i], INT_MAX);
-	else
-		dev_pm_genpd_set_performance_state(dev, INT_MAX);
-
-	return pm_runtime_get_sync(dev);
-}
-
-static int q6v5_powerdomain_disable(struct device *dev, struct device **devs,
-				    int count)
-{
-	int i;
-
-	if (!count)
-		return 0;
-
-	if (count > 1)
-		for (i = 0; i < count; i++)
-			dev_pm_genpd_set_performance_state(devs[i], 0);
-	else
-		dev_pm_genpd_set_performance_state(dev, 0);
-
-	return pm_runtime_put(dev);
-}
-
 static int q6v5_xfer_mem_ownership(struct q6v5 *qproc, int *current_perm,
 				   bool remote_owner, phys_addr_t addr,
 				   size_t size)
@@ -389,45 +345,30 @@ static int q6v5_load(struct rproc *rproc, const struct firmware *fw)
 	struct q6v5 *qproc = rproc->priv;
 
 	memcpy(qproc->mba_region, fw->data, fw->size);
-	qcom_mdt_write_image_info(qproc->dev, NULL,
-			QCOM_MDT_IMAGE_ID_MODEM);
 
 	return 0;
 }
 
 static int q6v5_reset_assert(struct q6v5 *qproc)
 {
-	int ret;
-
-	if (qproc->has_alt_reset) {
-		reset_control_assert(qproc->pdc_reset);
-		ret = reset_control_reset(qproc->mss_restart);
-		reset_control_deassert(qproc->pdc_reset);
-	} else {
-		ret = reset_control_assert(qproc->mss_restart);
-	}
-
-	return ret;
+	if (qproc->has_alt_reset)
+		return reset_control_reset(qproc->mss_restart);
+	else
+		return reset_control_assert(qproc->mss_restart);
 }
 
 static int q6v5_reset_deassert(struct q6v5 *qproc)
 {
 	int ret;
-	u32 debug_val = 0;
-
-	debug_val = readl(qproc->reg_base + QDSP6SS_DBG_CFG);
 
 	if (qproc->has_alt_reset) {
-		reset_control_assert(qproc->pdc_reset);
 		writel(1, qproc->rmb_base + RMB_MBA_ALT_RESET);
 		ret = reset_control_reset(qproc->mss_restart);
 		writel(0, qproc->rmb_base + RMB_MBA_ALT_RESET);
-		reset_control_deassert(qproc->pdc_reset);
 	} else {
 		ret = reset_control_deassert(qproc->mss_restart);
 	}
 
-	writel(debug_val, qproc->reg_base + QDSP6SS_DBG_CFG);
 	return ret;
 }
 
@@ -442,7 +383,7 @@ static int q6v5_rmb_pbl_wait(struct q6v5 *qproc, int ms)
 		if (val)
 			break;
 
-		if (time_after(jiffies, timeout) && (!is_timeout_disabled()))
+		if (time_after(jiffies, timeout))
 			return -ETIMEDOUT;
 
 		msleep(1);
@@ -468,7 +409,7 @@ static int q6v5_rmb_mba_wait(struct q6v5 *qproc, u32 status, int ms)
 		else if (status && val == status)
 			break;
 
-		if (time_after(jiffies, timeout) && (!is_timeout_disabled()))
+		if (time_after(jiffies, timeout))
 			return -ETIMEDOUT;
 
 		msleep(1);
@@ -739,18 +680,11 @@ static int q6v5_mba_load(struct q6v5 *qproc)
 
 	qcom_q6v5_prepare(&qproc->q6v5);
 
-	ret = q6v5_powerdomain_enable(qproc->dev, qproc->pd_devs,
-				      qproc->pd_count);
-	if (ret < 0) {
-		dev_err(qproc->dev, "failed to enable power domains\n");
-		goto disable_irqs;
-	}
-
 	ret = q6v5_regulator_enable(qproc, qproc->proxy_regs,
 				    qproc->proxy_reg_count);
 	if (ret) {
 		dev_err(qproc->dev, "failed to enable proxy supplies\n");
-		goto disable_powerdomains;
+		goto disable_irqs;
 	}
 
 	ret = q6v5_clk_enable(qproc->dev, qproc->proxy_clks,
@@ -847,8 +781,6 @@ disable_proxy_clk:
 disable_proxy_reg:
 	q6v5_regulator_disable(qproc, qproc->proxy_regs,
 			       qproc->proxy_reg_count);
-disable_powerdomains:
-	q6v5_powerdomain_disable(qproc->dev, qproc->pd_devs, qproc->pd_count);
 disable_irqs:
 	qcom_q6v5_unprepare(&qproc->q6v5);
 
@@ -903,8 +835,6 @@ static void q6v5_mba_reclaim(struct q6v5 *qproc)
 				 qproc->proxy_clk_count);
 		q6v5_regulator_disable(qproc, qproc->proxy_regs,
 				       qproc->proxy_reg_count);
-		q6v5_powerdomain_disable(qproc->dev, qproc->pd_devs,
-					 qproc->pd_count);
 	}
 }
 
@@ -926,8 +856,6 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 	void *ptr;
 	int ret;
 	int i;
-	char mpss_dev_name[8] = "modem";
-	struct qcom_mdt_image_info mpss_info;
 
 	ret = request_firmware(&fw, "modem.mdt", qproc->dev);
 	if (ret < 0) {
@@ -1020,12 +948,6 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 	else if (ret < 0)
 		dev_err(qproc->dev, "MPSS authentication failed: %d\n", ret);
 
-	strcpy(mpss_info.name, mpss_dev_name);
-	mpss_info.start = qproc->mpss_phys;
-	mpss_info.size =  size;
-	qcom_mdt_write_image_info(qproc->dev, &mpss_info,
-			QCOM_MDT_IMAGE_ID_MODEM);
-
 release_firmware:
 	release_firmware(fw);
 
@@ -1075,8 +997,7 @@ static int q6v5_start(struct rproc *rproc)
 	if (ret)
 		goto reclaim_mpss;
 
-	ret = qcom_q6v5_wait_for_start(&qproc->q6v5,
-			msecs_to_jiffies(QDSP6SS_COMPLETION_TIMEOUT));
+	ret = qcom_q6v5_wait_for_start(&qproc->q6v5, msecs_to_jiffies(5000));
 	if (ret == -ETIMEDOUT) {
 		dev_err(qproc->dev, "start timed out\n");
 		goto reclaim_mpss;
@@ -1190,8 +1111,6 @@ static void qcom_msa_handover(struct qcom_q6v5 *q6v5)
 			 qproc->proxy_clk_count);
 	q6v5_regulator_disable(qproc, qproc->proxy_regs,
 			       qproc->proxy_reg_count);
-	q6v5_powerdomain_disable(qproc->dev, qproc->pd_devs,
-					 qproc->pd_count);
 }
 
 static int q6v5_init_mem(struct q6v5 *qproc, struct platform_device *pdev)
@@ -1252,48 +1171,6 @@ static int q6v5_init_clocks(struct device *dev, struct clk **clks,
 	return i;
 }
 
-static int q6v5_powerdomain_attach(struct device *dev, struct device **devs,
-				   char **pd_names)
-{
-	int i = 0, num_pds;
-
-	if (!pd_names)
-		return 0;
-
-	while (pd_names[i])
-		i++;
-
-	num_pds = i;
-
-	if (num_pds > 1) {
-		for (i = 0; i < num_pds; i++) {
-			devs[i] = dev_pm_domain_attach_by_name(dev,
-							       pd_names[i]);
-			if (IS_ERR(devs[i]))
-				return PTR_ERR(devs[i]);
-			if (!device_link_add(dev, devs[i], DL_FLAG_STATELESS |
-					     DL_FLAG_PM_RUNTIME))
-				return -EINVAL;
-		}
-	}
-
-	pm_suspend_ignore_children(dev, true);
-	pm_runtime_enable(dev);
-
-	return num_pds;
-};
-
-static void q6v5_powerdomain_detach(struct q6v5 *qproc)
-{
-	int i;
-
-	if (qproc->pd_count > 1)
-		for (i = 0; i < qproc->pd_count; i++)
-			dev_pm_domain_detach(qproc->pd_devs[i], true);
-
-	pm_runtime_disable(qproc->dev);
-}
-
 static int q6v5_init_reset(struct q6v5 *qproc)
 {
 	qproc->mss_restart = devm_reset_control_get_exclusive(qproc->dev,
@@ -1301,15 +1178,6 @@ static int q6v5_init_reset(struct q6v5 *qproc)
 	if (IS_ERR(qproc->mss_restart)) {
 		dev_err(qproc->dev, "failed to acquire mss restart\n");
 		return PTR_ERR(qproc->mss_restart);
-	}
-
-	if (qproc->has_alt_reset) {
-		qproc->pdc_reset = devm_reset_control_get_exclusive(qproc->dev,
-								    "pdc_reset");
-		if (IS_ERR(qproc->pdc_reset)) {
-			dev_err(qproc->dev, "failed to acquire pdc reset\n");
-			return PTR_ERR(qproc->pdc_reset);
-		}
 	}
 
 	return 0;
@@ -1435,20 +1303,12 @@ static int q6v5_probe(struct platform_device *pdev)
 	}
 	qproc->active_reg_count = ret;
 
-	ret = q6v5_powerdomain_attach(&pdev->dev, qproc->pd_devs,
-				      desc->pd_names);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to init power domains\n");
-		goto free_rproc;
-	}
-	qproc->pd_count = ret;
-
-	qproc->has_alt_reset = desc->has_alt_reset;
 	ret = q6v5_init_reset(qproc);
 	if (ret)
 		goto free_rproc;
 
 	qproc->version = desc->version;
+	qproc->has_alt_reset = desc->has_alt_reset;
 	qproc->need_mem_protection = desc->need_mem_protection;
 
 	ret = qcom_q6v5_init(&qproc->q6v5, pdev, rproc, MPSS_CRASH_REASON_SMEM,
@@ -1470,7 +1330,6 @@ static int q6v5_probe(struct platform_device *pdev)
 	return 0;
 
 free_rproc:
-	q6v5_powerdomain_detach(qproc);
 	rproc_free(rproc);
 
 	return ret;
@@ -1486,7 +1345,6 @@ static int q6v5_remove(struct platform_device *pdev)
 	qcom_remove_glink_subdev(qproc->rproc, &qproc->glink_subdev);
 	qcom_remove_smd_subdev(qproc->rproc, &qproc->smd_subdev);
 	qcom_remove_ssr_subdev(qproc->rproc, &qproc->ssr_subdev);
-	q6v5_powerdomain_detach(qproc);
 	rproc_free(qproc->rproc);
 
 	return 0;
@@ -1509,12 +1367,6 @@ static const struct rproc_hexagon_res sdm845_mss = {
 			"mem",
 			"gpll0_mss",
 			"mnoc_axi",
-			NULL
-	},
-	.pd_names = (char*[]){
-			"cx",
-			"mx",
-			"mss",
 			NULL
 	},
 	.need_mem_protection = true,

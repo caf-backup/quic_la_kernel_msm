@@ -56,8 +56,6 @@ struct panel_desc {
 	/**
 	 * @prepare: the time (in milliseconds) that it takes for the panel to
 	 *           become ready and start receiving video data
-	 * @hpd_absent_delay: Add this to the prepare delay if we know Hot
-	 *                    Plug Detect isn't used.
 	 * @enable: the time (in milliseconds) that it takes for the panel to
 	 *          display the first valid frame after starting to receive
 	 *          video data
@@ -68,7 +66,6 @@ struct panel_desc {
 	 */
 	struct {
 		unsigned int prepare;
-		unsigned int hpd_absent_delay;
 		unsigned int enable;
 		unsigned int disable;
 		unsigned int unprepare;
@@ -82,7 +79,6 @@ struct panel_simple {
 	struct drm_panel base;
 	bool prepared;
 	bool enabled;
-	bool no_hpd;
 
 	const struct panel_desc *desc;
 
@@ -206,7 +202,6 @@ static int panel_simple_unprepare(struct drm_panel *panel)
 static int panel_simple_prepare(struct drm_panel *panel)
 {
 	struct panel_simple *p = to_panel_simple(panel);
-	unsigned int delay;
 	int err;
 
 	if (p->prepared)
@@ -220,11 +215,8 @@ static int panel_simple_prepare(struct drm_panel *panel)
 
 	gpiod_set_value_cansleep(p->enable_gpio, 1);
 
-	delay = p->desc->delay.prepare;
-	if (p->no_hpd)
-		delay += p->desc->delay.hpd_absent_delay;
-	if (delay)
-		msleep(delay);
+	if (p->desc->delay.prepare)
+		msleep(p->desc->delay.prepare);
 
 	p->prepared = true;
 
@@ -312,8 +304,6 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 	panel->enabled = false;
 	panel->prepared = false;
 	panel->desc = desc;
-
-	panel->no_hpd = of_property_read_bool(dev->of_node, "no-hpd");
 
 	panel->supply = devm_regulator_get(dev, "power");
 	if (IS_ERR(panel->supply))
@@ -1373,7 +1363,7 @@ static const struct panel_desc innolux_n156bge_l21 = {
 	},
 };
 
-static const struct drm_display_mode innolux_p120zdg_bf1_mode = {
+static const struct drm_display_mode innolux_tv123wam_mode = {
 	.clock = 206016,
 	.hdisplay = 2160,
 	.hsync_start = 2160 + 48,
@@ -1387,16 +1377,15 @@ static const struct drm_display_mode innolux_p120zdg_bf1_mode = {
 	.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC,
 };
 
-static const struct panel_desc innolux_p120zdg_bf1 = {
-	.modes = &innolux_p120zdg_bf1_mode,
+static const struct panel_desc innolux_tv123wam = {
+	.modes = &innolux_tv123wam_mode,
 	.num_modes = 1,
 	.bpc = 8,
 	.size = {
-		.width = 254,
-		.height = 169,
+		.width = 259,
+		.height = 173,
 	},
 	.delay = {
-		.hpd_absent_delay = 200,
 		.unprepare = 500,
 	},
 };
@@ -2456,8 +2445,8 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "innolux,n156bge-l21",
 		.data = &innolux_n156bge_l21,
 	}, {
-		.compatible = "innolux,p120zdg-bf1",
-		.data = &innolux_p120zdg_bf1,
+		.compatible = "innolux,tv123wam",
+		.data = &innolux_tv123wam,
 	}, {
 		.compatible = "innolux,zj070na-01p",
 		.data = &innolux_zj070na_01p,

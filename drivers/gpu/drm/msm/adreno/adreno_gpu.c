@@ -21,7 +21,6 @@
 #include <linux/kernel.h>
 #include <linux/pm_opp.h>
 #include <linux/slab.h>
-#include <linux/interconnect.h>
 #include "adreno_gpu.h"
 #include "msm_gem.h"
 #include "msm_mmu.h"
@@ -695,16 +694,12 @@ static int adreno_get_pwrlevels(struct device *dev,
 
 	DBG("fast_rate=%u, slow_rate=27000000", gpu->fast_rate);
 
-	/* Check for an interconnect path for the bus */
-	gpu->icc_path = of_icc_get(dev, "port0");
-
 	return 0;
 }
 
 int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		struct adreno_gpu *adreno_gpu,
-		const struct adreno_gpu_funcs *funcs, int nr_rings,
-		u32 mmu_features)
+		const struct adreno_gpu_funcs *funcs, int nr_rings)
 {
 	struct adreno_platform_config *config = pdev->dev.platform_data;
 	struct msm_gpu_config adreno_gpu_config  = { 0 };
@@ -723,7 +718,6 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	adreno_gpu_config.va_end = 0xffffffff;
 
 	adreno_gpu_config.nr_rings = nr_rings;
-	adreno_gpu_config.mmu_features = mmu_features;
 
 	adreno_get_pwrlevels(&pdev->dev, gpu);
 
@@ -738,13 +732,10 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 
 void adreno_gpu_cleanup(struct adreno_gpu *adreno_gpu)
 {
-	struct msm_gpu *gpu = &adreno_gpu->base;
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(adreno_gpu->info->fw); i++)
 		release_firmware(adreno_gpu->fw[i]);
-
-	icc_put(gpu->icc_path);
 
 	msm_gpu_cleanup(&adreno_gpu->base);
 }

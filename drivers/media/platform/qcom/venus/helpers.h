@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
  * Copyright (C) 2017 Linaro Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -19,8 +19,6 @@
 
 struct venus_inst;
 
-u32 v4l2_venus_fmt(u32 pixfmt);
-int load_scale_clocks(struct venus_core *core);
 bool venus_helper_check_codec(struct venus_inst *inst, u32 v4l2_pixfmt);
 struct vb2_v4l2_buffer *venus_helper_find_buf(struct venus_inst *inst,
 					      unsigned int type, u32 idx);
@@ -33,8 +31,6 @@ void venus_helper_vb2_stop_streaming(struct vb2_queue *q);
 int venus_helper_vb2_start_streaming(struct venus_inst *inst);
 void venus_helper_m2m_device_run(void *priv);
 void venus_helper_m2m_job_abort(void *priv);
-int venus_helper_queue_initial_bufs(struct venus_inst *inst, unsigned int type);
-int venus_helper_alloc_intbufs(struct venus_inst *inst);
 int venus_helper_get_bufreq(struct venus_inst *inst, u32 type,
 			    struct hfi_buffer_requirements *req);
 u32 venus_helper_get_framesz_raw(u32 hfi_fmt, u32 width, u32 height);
@@ -66,5 +62,4 @@ int venus_helper_alloc_dpb_bufs(struct venus_inst *inst);
 int venus_helper_free_dpb_bufs(struct venus_inst *inst);
 int venus_helper_power_enable(struct venus_core *core, u32 session_type,
 			      bool enable);
-int venus_helper_alloc_reconfig_bufs(struct venus_inst *inst);
 #endif

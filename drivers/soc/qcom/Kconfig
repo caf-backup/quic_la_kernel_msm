@@ -72,7 +72,7 @@ config QCOM_PM
 	  low power modes.
 
 config QCOM_QMI_HELPERS
-	tristate "Qualcomm QMI Helpers"
+	tristate
 	depends on ARCH_QCOM && NET
 	help
 	  Helper library for handling QMI encoded messages.  QMI encoded
@@ -95,7 +95,6 @@ config QCOM_RMTFS_MEM
 config QCOM_RPMH
 	bool "Qualcomm RPM-Hardened (RPMH) Communication"
 	depends on ARCH_QCOM && ARM64 && OF || COMPILE_TEST
-	select QCOM_CPU_PD
 	help
 	  Support for communication with the hardened-RPM blocks in
 	  Qualcomm Technologies Inc (QTI) SoCs. RPMH communication uses an
@@ -103,37 +102,10 @@ config QCOM_RPMH
 	  of hardware components aggregate requests for these resources and
 	  help apply the aggregated state on the resource.
 
-config QCOM_CPU_PD
-    bool "Qualcomm cpu power domain driver"
-    depends on QCOM_RPMH && PM_GENERIC_DOMAINS && PM_SLEEP || COMPILE_TEST
-    help
-	  Support for QCOM platform cpu power management to perform tasks
-	  necessary while application processor votes for deeper modes so that
-	  the firmware can enter SoC level low power modes to save power.
-
-config QCOM_RPMHPD
-	bool "Qualcomm RPMh Power domain driver"
-	depends on QCOM_RPMH && QCOM_COMMAND_DB
-	help
-	  QCOM RPMh Power domain driver to support power-domains with
-	  performance states. The driver communicates a performance state
-	  value to RPMh which then translates it into corresponding voltage
-	  for the voltage rail.
-
-config QCOM_RPMPD
-	bool "Qualcomm RPM Power domain driver"
-	depends on MFD_QCOM_RPM && QCOM_SMD_RPM
-	help
-	  QCOM RPM Power domain driver to support power-domains with
-	  performance states. The driver communicates a performance state
-	  value to RPM which then translates it into corresponding voltage
-	  for the voltage rail.
-
 config QCOM_SMEM
 	tristate "Qualcomm Shared Memory Manager (SMEM)"
 	depends on ARCH_QCOM
 	depends on HWSPINLOCK
-	select SOC_BUS
 	help
 	  Say y here to enable support for the Qualcomm Shared Memory Manager.
 	  The driver provides an interface to items in a heap shared among all
@@ -153,23 +125,6 @@ config QCOM_SMD_RPM
 
 	  Say M here if you want to include support for the Qualcomm RPM as a
 	  module. This will build a module called "qcom-smd-rpm".
-
-config QCOM_CPUSS_DUMP
-	bool "CPU Subsystem Dumping support"
-	help
-	  Add support to dump various hardware entities such as the instruction
-	  and data tlb's as well as the unified tlb, which are a part of the
-	  cpu subsystem to an allocated buffer. This allows for analysis of the
-	  the entities if corruption is suspected.
-	  If unsure, say N
-
-config QCOM_MEMORY_DUMP_V2
-	bool "QCOM Memory Dump V2 Support"
-	help
-	  This enables memory dump feature. It allows various client
-	  subsystems to register respective dump regions. At the time
-	  of deadlocks or cpu hangs these dump regions are captured to
-	  give a snapshot of the system at the time of the crash.
 
 config QCOM_SMEM_STATE
 	bool
@@ -208,12 +163,4 @@ config QCOM_APR
           application processor and QDSP6. APR is
           used by audio driver to configure QDSP6
           ASM, ADM and AFE modules.
-
-config QCOM_DCC_V2
-	bool "Qualcomm Technologies Data Capture and Compare enigne support for V2"
-	help
-	  This option enables driver for Data Capture and Compare engine. DCC
-	  driver provides interface to configure DCC block and read back
-	  captured data from DCC's internal SRAM.
-
 endmenu
