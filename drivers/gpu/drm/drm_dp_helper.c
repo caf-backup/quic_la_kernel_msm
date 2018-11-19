@@ -850,7 +850,8 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 			return ret;
 
 		case DP_AUX_I2C_REPLY_NACK:
-			DRM_DEBUG_KMS("I2C nack (result=%d, size=%zu\n", ret, msg->size);
+			DRM_DEBUG_KMS("I2C nack (result=%d, size=%zu)\n",
+				      ret, msg->size);
 			aux->i2c_nack_count++;
 			return -EREMOTEIO;
 
@@ -1269,7 +1270,9 @@ struct dpcd_quirk {
 
 static const struct dpcd_quirk dpcd_quirk_list[] = {
 	/* Analogix 7737 needs reduced M and N at HBR2 link rates */
-	{ OUI(0x00, 0x22, 0xb9), DEVICE_ID_ANY, true, BIT(DP_DPCD_QUIRK_LIMITED_M_N) },
+	{ OUI(0x00, 0x22, 0xb9), DEVICE_ID_ANY, true, BIT(DP_DPCD_QUIRK_CONSTANT_N) },
+	/* LG LP140WF6-SPM1 eDP panel */
+	{ OUI(0x00, 0x22, 0xb9), DEVICE_ID('s', 'i', 'v', 'a', 'r', 'T'), false, BIT(DP_DPCD_QUIRK_CONSTANT_N) },
 };
 
 #undef OUI

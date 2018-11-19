@@ -856,8 +856,15 @@ struct v4l2_requestbuffers {
 	__u32			count;
 	__u32			type;		/* enum v4l2_buf_type */
 	__u32			memory;		/* enum v4l2_memory */
-	__u32			reserved[2];
+	__u32			capabilities;
+	__u32			reserved[1];
 };
+
+/* capabilities for struct v4l2_requestbuffers and v4l2_create_buffers */
+#define V4L2_BUF_CAP_SUPPORTS_MMAP	(1 << 0)
+#define V4L2_BUF_CAP_SUPPORTS_USERPTR	(1 << 1)
+#define V4L2_BUF_CAP_SUPPORTS_DMABUF	(1 << 2)
+#define V4L2_BUF_CAP_SUPPORTS_REQUESTS	(1 << 3)
 
 /**
  * struct v4l2_plane - plane info for multi-planar buffers
@@ -917,6 +924,7 @@ struct v4l2_plane {
  * @length:	size in bytes of the buffer (NOT its payload) for single-plane
  *		buffers (when type != *_MPLANE); number of elements in the
  *		planes array for multi-plane buffers
+ * @request_fd: fd of the request that this buffer should use
  *
  * Contains data exchanged by application and driver using one of the Streaming
  * I/O methods.
@@ -941,7 +949,10 @@ struct v4l2_buffer {
 	} m;
 	__u32			length;
 	__u32			reserved2;
-	__u32			reserved;
+	union {
+		__s32		request_fd;
+		__u32		reserved;
+	};
 };
 
 /*  Flags for 'flags' field */
@@ -959,6 +970,8 @@ struct v4l2_buffer {
 #define V4L2_BUF_FLAG_BFRAME			0x00000020
 /* Buffer is ready, but the data contained within is corrupted. */
 #define V4L2_BUF_FLAG_ERROR			0x00000040
+/* Buffer is added to an unqueued request */
+#define V4L2_BUF_FLAG_IN_REQUEST		0x00000080
 /* timecode field is valid */
 #define V4L2_BUF_FLAG_TIMECODE			0x00000100
 /* Buffer is prepared for queuing */
@@ -977,6 +990,8 @@ struct v4l2_buffer {
 #define V4L2_BUF_FLAG_TSTAMP_SRC_SOE		0x00010000
 /* mem2mem encoder/decoder */
 #define V4L2_BUF_FLAG_LAST			0x00100000
+/* request_fd is valid */
+#define V4L2_BUF_FLAG_REQUEST_FD		0x00800000
 
 /**
  * struct v4l2_exportbuffer - export of video buffer as DMABUF file descriptor
@@ -1599,7 +1614,8 @@ struct v4l2_ext_controls {
 	};
 	__u32 count;
 	__u32 error_idx;
-	__u32 reserved[2];
+	__s32 request_fd;
+	__u32 reserved[1];
 	struct v4l2_ext_control *controls;
 };
 
@@ -1612,6 +1628,7 @@ struct v4l2_ext_controls {
 #define V4L2_CTRL_MAX_DIMS	  (4)
 #define V4L2_CTRL_WHICH_CUR_VAL   0
 #define V4L2_CTRL_WHICH_DEF_VAL   0x0f000000
+#define V4L2_CTRL_WHICH_REQUEST_VAL 0x0f010000
 
 enum v4l2_ctrl_type {
 	V4L2_CTRL_TYPE_INTEGER	     = 1,
@@ -2302,6 +2319,7 @@ struct v4l2_dbg_chip_info {
  *		return: number of created buffers
  * @memory:	enum v4l2_memory; buffer memory type
  * @format:	frame format, for which buffers are requested
+ * @capabilities: capabilities of this buffer type.
  * @reserved:	future extensions
  */
 struct v4l2_create_buffers {
@@ -2309,7 +2327,8 @@ struct v4l2_create_buffers {
 	__u32			count;
 	__u32			memory;
 	struct v4l2_format	format;
-	__u32			reserved[8];
+	__u32			capabilities;
+	__u32			reserved[7];
 };
 
 /*

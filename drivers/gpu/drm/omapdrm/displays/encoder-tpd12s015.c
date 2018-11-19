@@ -21,7 +21,6 @@
 
 struct panel_drv_data {
 	struct omap_dss_device dssdev;
-	struct omap_dss_device *in;
 	void (*hpd_cb)(void *cb_data, enum drm_connector_status status);
 	void *hpd_cb_data;
 	bool hpd_enabled;
@@ -36,27 +35,15 @@ struct panel_drv_data {
 
 #define to_panel_data(x) container_of(x, struct panel_drv_data, dssdev)
 
-static int tpd_connect(struct omap_dss_device *dssdev,
-		struct omap_dss_device *dst)
+static int tpd_connect(struct omap_dss_device *src,
+		       struct omap_dss_device *dst)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in;
+	struct panel_drv_data *ddata = to_panel_data(dst);
 	int r;
 
-	in = omapdss_of_find_source_for_first_ep(dssdev->dev->of_node);
-	if (IS_ERR(in)) {
-		dev_err(dssdev->dev, "failed to find video source\n");
-		return PTR_ERR(in);
-	}
-
-	r = in->ops.hdmi->connect(in, dssdev);
-	if (r) {
-		omap_dss_put_device(in);
+	r = omapdss_device_connect(dst->dss, dst, dst->next);
+	if (r)
 		return r;
-	}
-
-	dst->src = dssdev;
-	dssdev->dst = dst;
 
 	gpiod_set_value_cansleep(ddata->ct_cp_hpd_gpio, 1);
 	gpiod_set_value_cansleep(ddata->ls_oe_gpio, 1);
@@ -64,45 +51,32 @@ static int tpd_connect(struct omap_dss_device *dssdev,
 	/* DC-DC converter needs at max 300us to get to 90% of 5V */
 	udelay(300);
 
-	ddata->in = in;
 	return 0;
 }
 
-static void tpd_disconnect(struct omap_dss_device *dssdev,
-		struct omap_dss_device *dst)
+static void tpd_disconnect(struct omap_dss_device *src,
+			   struct omap_dss_device *dst)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-
-	WARN_ON(dst != dssdev->dst);
-
-	if (dst != dssdev->dst)
-		return;
+	struct panel_drv_data *ddata = to_panel_data(dst);
 
 	gpiod_set_value_cansleep(ddata->ct_cp_hpd_gpio, 0);
 	gpiod_set_value_cansleep(ddata->ls_oe_gpio, 0);
 
-	dst->src = NULL;
-	dssdev->dst = NULL;
-
-	in->ops.hdmi->disconnect(in, &ddata->dssdev);
-
-	omap_dss_put_device(in);
-	ddata->in = NULL;
+	omapdss_device_disconnect(dst, dst->next);
 }
 
 static int tpd_enable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *src = dssdev->src;
 	int r;
 
 	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
 		return 0;
 
-	in->ops.hdmi->set_timings(in, &ddata->vm);
+	src->ops->set_timings(src, &ddata->vm);
 
-	r = in->ops.hdmi->enable(in);
+	r = src->ops->enable(src);
 	if (r)
 		return r;
 
@@ -113,13 +87,12 @@ static int tpd_enable(struct omap_dss_device *dssdev)
 
 static void tpd_disable(struct omap_dss_device *dssdev)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *src = dssdev->src;
 
 	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
 		return;
 
-	in->ops.hdmi->disable(in);
+	src->ops->disable(src);
 
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
@@ -128,54 +101,41 @@ static void tpd_set_timings(struct omap_dss_device *dssdev,
 			    struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *src = dssdev->src;
 
 	ddata->vm = *vm;
-	dssdev->panel.vm = *vm;
 
-	in->ops.hdmi->set_timings(in, vm);
-}
-
-static void tpd_get_timings(struct omap_dss_device *dssdev,
-			    struct videomode *vm)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-
-	*vm = ddata->vm;
+	src->ops->set_timings(src, vm);
 }
 
 static int tpd_check_timings(struct omap_dss_device *dssdev,
 			     struct videomode *vm)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-	int r;
+	struct omap_dss_device *src = dssdev->src;
 
-	r = in->ops.hdmi->check_timings(in, vm);
-
-	return r;
+	return src->ops->check_timings(src, vm);
 }
 
 static int tpd_read_edid(struct omap_dss_device *dssdev,
 		u8 *edid, int len)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *src = dssdev->src;
 
 	if (!gpiod_get_value_cansleep(ddata->hpd_gpio))
 		return -ENODEV;
 
-	return in->ops.hdmi->read_edid(in, edid, len);
+	return src->ops->read_edid(src, edid, len);
 }
 
 static bool tpd_detect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *src = dssdev->src;
 	bool connected = gpiod_get_value_cansleep(ddata->hpd_gpio);
 
-	if (!connected && in->ops.hdmi->lost_hotplug)
-		in->ops.hdmi->lost_hotplug(in);
+	if (!connected && src->ops->hdmi.lost_hotplug)
+		src->ops->hdmi.lost_hotplug(src);
 	return connected;
 }
 
@@ -225,40 +185,37 @@ static void tpd_disable_hpd(struct omap_dss_device *dssdev)
 static int tpd_set_infoframe(struct omap_dss_device *dssdev,
 		const struct hdmi_avi_infoframe *avi)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *src = dssdev->src;
 
-	return in->ops.hdmi->set_infoframe(in, avi);
+	return src->ops->hdmi.set_infoframe(src, avi);
 }
 
 static int tpd_set_hdmi_mode(struct omap_dss_device *dssdev,
 		bool hdmi_mode)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *src = dssdev->src;
 
-	return in->ops.hdmi->set_hdmi_mode(in, hdmi_mode);
+	return src->ops->hdmi.set_hdmi_mode(src, hdmi_mode);
 }
 
-static const struct omapdss_hdmi_ops tpd_hdmi_ops = {
+static const struct omap_dss_device_ops tpd_ops = {
 	.connect		= tpd_connect,
 	.disconnect		= tpd_disconnect,
-
 	.enable			= tpd_enable,
 	.disable		= tpd_disable,
-
 	.check_timings		= tpd_check_timings,
 	.set_timings		= tpd_set_timings,
-	.get_timings		= tpd_get_timings,
-
 	.read_edid		= tpd_read_edid,
 	.detect			= tpd_detect,
 	.register_hpd_cb	= tpd_register_hpd_cb,
 	.unregister_hpd_cb	= tpd_unregister_hpd_cb,
 	.enable_hpd		= tpd_enable_hpd,
 	.disable_hpd		= tpd_disable_hpd,
-	.set_infoframe		= tpd_set_infoframe,
-	.set_hdmi_mode		= tpd_set_hdmi_mode,
+
+	.hdmi = {
+		.set_infoframe		= tpd_set_infoframe,
+		.set_hdmi_mode		= tpd_set_hdmi_mode,
+	},
 };
 
 static irqreturn_t tpd_hpd_isr(int irq, void *data)
@@ -283,7 +240,7 @@ static irqreturn_t tpd_hpd_isr(int irq, void *data)
 
 static int tpd_probe(struct platform_device *pdev)
 {
-	struct omap_dss_device *in, *dssdev;
+	struct omap_dss_device *dssdev;
 	struct panel_drv_data *ddata;
 	int r;
 	struct gpio_desc *gpio;
@@ -325,20 +282,21 @@ static int tpd_probe(struct platform_device *pdev)
 		return r;
 
 	dssdev = &ddata->dssdev;
-	dssdev->ops.hdmi = &tpd_hdmi_ops;
+	dssdev->ops = &tpd_ops;
 	dssdev->dev = &pdev->dev;
 	dssdev->type = OMAP_DISPLAY_TYPE_HDMI;
 	dssdev->output_type = OMAP_DISPLAY_TYPE_HDMI;
 	dssdev->owner = THIS_MODULE;
-	dssdev->port_num = 1;
+	dssdev->of_ports = BIT(1) | BIT(0);
 
-	in = ddata->in;
-
-	r = omapdss_register_output(dssdev);
-	if (r) {
-		dev_err(&pdev->dev, "Failed to register output\n");
-		return r;
+	dssdev->next = omapdss_of_find_connected_device(pdev->dev.of_node, 1);
+	if (IS_ERR(dssdev->next)) {
+		if (PTR_ERR(dssdev->next) != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "failed to find video sink\n");
+		return PTR_ERR(dssdev->next);
 	}
+
+	omapdss_device_register(dssdev);
 
 	return 0;
 }
@@ -348,7 +306,9 @@ static int __exit tpd_remove(struct platform_device *pdev)
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
 
-	omapdss_unregister_output(&ddata->dssdev);
+	if (dssdev->next)
+		omapdss_device_put(dssdev->next);
+	omapdss_device_unregister(&ddata->dssdev);
 
 	WARN_ON(omapdss_device_is_enabled(dssdev));
 	if (omapdss_device_is_enabled(dssdev))
@@ -356,7 +316,7 @@ static int __exit tpd_remove(struct platform_device *pdev)
 
 	WARN_ON(omapdss_device_is_connected(dssdev));
 	if (omapdss_device_is_connected(dssdev))
-		tpd_disconnect(dssdev, dssdev->dst);
+		omapdss_device_disconnect(NULL, dssdev);
 
 	return 0;
 }

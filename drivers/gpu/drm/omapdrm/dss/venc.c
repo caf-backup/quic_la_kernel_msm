@@ -614,75 +614,6 @@ static int venc_check_timings(struct omap_dss_device *dssdev,
 	}
 }
 
-static void venc_get_timings(struct omap_dss_device *dssdev,
-			     struct videomode *vm)
-{
-	struct venc_device *venc = dssdev_to_venc(dssdev);
-
-	mutex_lock(&venc->venc_lock);
-
-	*vm = venc->vm;
-
-	mutex_unlock(&venc->venc_lock);
-}
-
-static u32 venc_get_wss(struct omap_dss_device *dssdev)
-{
-	struct venc_device *venc = dssdev_to_venc(dssdev);
-
-	/* Invert due to VENC_L21_WC_CTL:INV=1 */
-	return (venc->wss_data >> 8) ^ 0xfffff;
-}
-
-static int venc_set_wss(struct omap_dss_device *dssdev, u32 wss)
-{
-	struct venc_device *venc = dssdev_to_venc(dssdev);
-	const struct venc_config *config;
-	int r;
-
-	DSSDBG("venc_set_wss\n");
-
-	mutex_lock(&venc->venc_lock);
-
-	config = venc_timings_to_config(&venc->vm);
-
-	/* Invert due to VENC_L21_WC_CTL:INV=1 */
-	venc->wss_data = (wss ^ 0xfffff) << 8;
-
-	r = venc_runtime_get(venc);
-	if (r)
-		goto err;
-
-	venc_write_reg(venc, VENC_BSTAMP_WSS_DATA, config->bstamp_wss_data |
-		       venc->wss_data);
-
-	venc_runtime_put(venc);
-
-err:
-	mutex_unlock(&venc->venc_lock);
-
-	return r;
-}
-
-static int venc_init_regulator(struct venc_device *venc)
-{
-	struct regulator *vdda_dac;
-
-	if (venc->vdda_dac_reg != NULL)
-		return 0;
-
-	vdda_dac = devm_regulator_get(&venc->pdev->dev, "vdda");
-	if (IS_ERR(vdda_dac)) {
-		if (PTR_ERR(vdda_dac) != -EPROBE_DEFER)
-			DSSERR("can't get VDDA_DAC regulator\n");
-		return PTR_ERR(vdda_dac);
-	}
-
-	venc->vdda_dac_reg = vdda_dac;
-
-	return 0;
-}
-
 static int venc_dump_regs(struct seq_file *s, void *p)
 {
 	struct venc_device *venc = s->private;
@@ -760,47 +691,28 @@ static int venc_get_clocks(struct venc_device *venc)
 	return 0;
 }
 
-static int venc_connect(struct omap_dss_device *dssdev,
-		struct omap_dss_device *dst)
+static int venc_connect(struct omap_dss_device *src,
+			struct omap_dss_device *dst)
 {
-	struct venc_device *venc = dssdev_to_venc(dssdev);
 	int r;
 
-	r = venc_init_regulator(venc);
+	r = omapdss_device_connect(dst->dss, dst, dst->next);
 	if (r)
 		return r;
 
-	r = dss_mgr_connect(&venc->output, dssdev);
-	if (r)
-		return r;
-
-	r = omapdss_output_set_device(dssdev, dst);
-	if (r) {
-		DSSERR("failed to connect output to new device: %s\n",
-				dst->name);
-		dss_mgr_disconnect(&venc->output, dssdev);
-		return r;
-	}
-
+	dst->dispc_channel_connected = true;
 	return 0;
 }
 
-static void venc_disconnect(struct omap_dss_device *dssdev,
-		struct omap_dss_device *dst)
+static void venc_disconnect(struct omap_dss_device *src,
+			    struct omap_dss_device *dst)
 {
-	struct venc_device *venc = dssdev_to_venc(dssdev);
+	dst->dispc_channel_connected = false;
 
-	WARN_ON(dst != dssdev->dst);
-
-	if (dst != dssdev->dst)
-		return;
-
-	omapdss_output_unset_device(dssdev);
-
-	dss_mgr_disconnect(&venc->output, dssdev);
+	omapdss_device_disconnect(dst, dst->next);
 }
 
-static const struct omapdss_atv_ops venc_ops = {
+static const struct omap_dss_device_ops venc_ops = {
 	.connect = venc_connect,
 	.disconnect = venc_disconnect,
 
@@ -809,30 +721,90 @@ static const struct omapdss_atv_ops venc_ops = {
 
 	.check_timings = venc_check_timings,
 	.set_timings = venc_set_timings,
-	.get_timings = venc_get_timings,
-
-	.set_wss = venc_set_wss,
-	.get_wss = venc_get_wss,
 };
 
-static void venc_init_output(struct venc_device *venc)
+/* -----------------------------------------------------------------------------
+ * Component Bind & Unbind
+ */
+
+static int venc_bind(struct device *dev, struct device *master, void *data)
+{
+	struct dss_device *dss = dss_get_device(master);
+	struct venc_device *venc = dev_get_drvdata(dev);
+	u8 rev_id;
+	int r;
+
+	venc->dss = dss;
+
+	r = venc_runtime_get(venc);
+	if (r)
+		return r;
+
+	rev_id = (u8)(venc_read_reg(venc, VENC_REV_ID) & 0xff);
+	dev_dbg(dev, "OMAP VENC rev %d\n", rev_id);
+
+	venc_runtime_put(venc);
+
+	venc->debugfs = dss_debugfs_create_file(dss, "venc", venc_dump_regs,
+						venc);
+
+	return 0;
+}
+
+static void venc_unbind(struct device *dev, struct device *master, void *data)
+{
+	struct venc_device *venc = dev_get_drvdata(dev);
+
+	dss_debugfs_remove_file(venc->debugfs);
+}
+
+static const struct component_ops venc_component_ops = {
+	.bind	= venc_bind,
+	.unbind	= venc_unbind,
+};
+
+/* -----------------------------------------------------------------------------
+ * Probe & Remove, Suspend & Resume
+ */
+
+static int venc_init_output(struct venc_device *venc)
 {
 	struct omap_dss_device *out = &venc->output;
+	int r;
 
 	out->dev = &venc->pdev->dev;
 	out->id = OMAP_DSS_OUTPUT_VENC;
 	out->output_type = OMAP_DISPLAY_TYPE_VENC;
 	out->name = "venc.0";
 	out->dispc_channel = OMAP_DSS_CHANNEL_DIGIT;
-	out->ops.atv = &venc_ops;
+	out->ops = &venc_ops;
 	out->owner = THIS_MODULE;
+	out->of_ports = BIT(0);
 
-	omapdss_register_output(out);
+	out->next = omapdss_of_find_connected_device(out->dev->of_node, 0);
+	if (IS_ERR(out->next)) {
+		if (PTR_ERR(out->next) != -EPROBE_DEFER)
+			dev_err(out->dev, "failed to find video sink\n");
+		return PTR_ERR(out->next);
+	}
+
+	r = omapdss_output_validate(out);
+	if (r) {
+		omapdss_device_put(out->next);
+		out->next = NULL;
+		return r;
+	}
+
+	omapdss_device_register(out);
+
+	return 0;
 }
 
 static void venc_uninit_output(struct venc_device *venc)
 {
-	omapdss_unregister_output(&venc->output);
+	if (venc->output.next)
+		omapdss_device_put(venc->output.next);
+	omapdss_device_unregister(&venc->output);
 }
 
 static int venc_probe_of(struct venc_device *venc)
@@ -878,19 +850,15 @@ err:
 	return r;
 }
 
-/* VENC HW IP initialisation */
 static const struct soc_device_attribute venc_soc_devices[] = {
 	{ .machine = "OMAP3[45]*" },
 	{ .machine = "AM35*" },
 	{ /* sentinel */ }
 };
 
-static int venc_bind(struct device *dev, struct device *master, void *data)
+static int venc_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct dss_device *dss = dss_get_device(master);
 	struct venc_device *venc;
-	u8 rev_id;
 	struct resource *venc_mem;
 	int r;
 
@@ -899,8 +867,8 @@ static int venc_bind(struct device *dev, struct device *master, void *data)
 		return -ENOMEM;
 
 	venc->pdev = pdev;
-	venc->dss = dss;
-	dev_set_drvdata(dev, venc);
+
+	platform_set_drvdata(pdev, venc);
 
 	/* The OMAP34xx, OMAP35xx and AM35xx VENC require the TV DAC clock. */
 	if (soc_device_match(venc_soc_devices))
@@ -917,68 +885,54 @@ static int venc_bind(struct device *dev, struct device *master, void *data)
 		goto err_free;
 	}
 
+	venc->vdda_dac_reg = devm_regulator_get(&pdev->dev, "vdda");
+	if (IS_ERR(venc->vdda_dac_reg)) {
+		r = PTR_ERR(venc->vdda_dac_reg);
+		if (r != -EPROBE_DEFER)
+			DSSERR("can't get VDDA_DAC regulator\n");
+		goto err_free;
+	}
+
 	r = venc_get_clocks(venc);
+	if (r)
+		goto err_free;
+
+	r = venc_probe_of(venc);
 	if (r)
 		goto err_free;
 
 	pm_runtime_enable(&pdev->dev);
 
-	r = venc_runtime_get(venc);
+	r = venc_init_output(venc);
 	if (r)
-		goto err_runtime_get;
+		goto err_pm_disable;
 
-	rev_id = (u8)(venc_read_reg(venc, VENC_REV_ID) & 0xff);
-	dev_dbg(&pdev->dev, "OMAP VENC rev %d\n", rev_id);
-
-	venc_runtime_put(venc);
-
-	r = venc_probe_of(venc);
-	if (r) {
-		DSSERR("Invalid DT data\n");
-		goto err_probe_of;
-	}
-
-	venc->debugfs = dss_debugfs_create_file(dss, "venc", venc_dump_regs,
-						venc);
-
-	venc_init_output(venc);
+	r = component_add(&pdev->dev, &venc_component_ops);
+	if (r)
+		goto err_uninit_output;
 
 	return 0;
 
-err_probe_of:
-err_runtime_get:
+err_uninit_output:
+	venc_uninit_output(venc);
+err_pm_disable:
 	pm_runtime_disable(&pdev->dev);
 err_free:
 	kfree(venc);
 	return r;
 }
 
-static void venc_unbind(struct device *dev, struct device *master, void *data)
+static int venc_remove(struct platform_device *pdev)
 {
-	struct venc_device *venc = dev_get_drvdata(dev);
+	struct venc_device *venc = platform_get_drvdata(pdev);
 
-	dss_debugfs_remove_file(venc->debugfs);
+	component_del(&pdev->dev, &venc_component_ops);
 
 	venc_uninit_output(venc);
 
-	pm_runtime_disable(dev);
+	pm_runtime_disable(&pdev->dev);
 
 	kfree(venc);
-}
-
-static const struct component_ops venc_component_ops = {
-	.bind	= venc_bind,
-	.unbind	= venc_unbind,
-};
-
-static int venc_probe(struct platform_device *pdev)
-{
-	return component_add(&pdev->dev, &venc_component_ops);
-}
-
-static int venc_remove(struct platform_device *pdev)
-{
-	component_del(&pdev->dev, &venc_component_ops);
 	return 0;
 }
 

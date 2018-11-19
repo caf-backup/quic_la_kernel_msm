@@ -210,7 +210,7 @@ static int ec_device_open(struct inode *inode, struct file *filp)
 	return retval;
 }
 
-static unsigned int ec_device_poll(struct file *filp, poll_table *wait)
+static __poll_t ec_device_poll(struct file *filp, poll_table *wait)
 {
 	struct cros_ec_priv *priv = filp->private_data;
 
@@ -548,7 +548,8 @@ static const struct mfd_cell cros_ec_rtc_cells[] = {
 };
 
 static const struct mfd_cell cros_usbpd_charger_cells[] = {
-	{ .name = "cros-usbpd-charger" }
+	{ .name = "cros-usbpd-charger" },
+	{ .name = "cros-usbpd-logger" }
 };
 
 #define CROS_EC_SENSOR_LEGACY_NUM 2

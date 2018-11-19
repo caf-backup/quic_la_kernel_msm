@@ -22,45 +22,55 @@
  * Authors: Andreas Pokorny
  */
 
-#include <drm/ttm/ttm_page_alloc.h>
 #include "virtgpu_drv.h"
 
-struct sg_table *virtgpu_gem_prime_get_sg_table(struct drm_gem_object *gobj)
-{
-	struct virtio_gpu_object *obj = gem_to_virtio_gpu_obj(gobj);
-	unsigned long npages = obj->tbo.num_pages;
+/* Empty Implementations as there should not be any other driver for a virtual
+ * device that might share buffers with virtgpu
+ */
 
-	return drm_prime_pages_to_sg(obj->tbo.ttm->pages, npages);
+int virtgpu_gem_prime_pin(struct drm_gem_object *obj)
+{
+	WARN_ONCE(1, "not implemented");
+	return -ENODEV;
 }
 
-void *virtgpu_gem_prime_vmap(struct drm_gem_object *gobj)
+void virtgpu_gem_prime_unpin(struct drm_gem_object *obj)
 {
-	struct virtio_gpu_object *obj = gem_to_virtio_gpu_obj(gobj);
+	WARN_ONCE(1, "not implemented");
+}
+
+struct sg_table *virtgpu_gem_prime_get_sg_table(struct drm_gem_object *obj)
+{
+	WARN_ONCE(1, "not implemented");
+	return ERR_PTR(-ENODEV);
+}
+
+struct drm_gem_object *virtgpu_gem_prime_import_sg_table(
+	struct drm_device *dev, struct dma_buf_attachment *attach,
+	struct sg_table *table)
+{
+	WARN_ONCE(1, "not implemented");
+	return ERR_PTR(-ENODEV);
+}
+
+void *virtgpu_gem_prime_vmap(struct drm_gem_object *obj)
+{
+	struct virtio_gpu_object *bo = gem_to_virtio_gpu_obj(obj);
 	int ret;
 
-	ret = ttm_bo_kmap(&obj->tbo, 0, obj->tbo.num_pages,
-			  &obj->dma_buf_vmap);
+	ret = virtio_gpu_object_kmap(bo);
 	if (ret)
-		return ERR_PTR(ret);
-
-	return obj->dma_buf_vmap.virtual;
+		return NULL;
+	return bo->vmap;
 }
 
-void virtgpu_gem_prime_vunmap(struct drm_gem_object *gobj, void *vaddr)
+void virtgpu_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 {
-	struct virtio_gpu_object *obj = gem_to_virtio_gpu_obj(gobj);
-
-	ttm_bo_kunmap(&obj->dma_buf_vmap);
+	virtio_gpu_object_kunmap(gem_to_virtio_gpu_obj(obj));
 }
 
-int virtgpu_gem_prime_mmap(struct drm_gem_object *gobj,
-			   struct vm_area_struct *vma)
+int virtgpu_gem_prime_mmap(struct drm_gem_object *obj,
+		       struct vm_area_struct *area)
 {
-	struct virtio_gpu_object *obj = gem_to_virtio_gpu_obj(gobj);
-	int ret = 0;
-
-	ret = ttm_fbdev_mmap(vma, &obj->tbo);
-	vma->vm_pgoff = drm_vma_node_start(&obj->tbo.vma_node);
-
-	return ret;
+	return -ENODEV;
 }
