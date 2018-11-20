@@ -1007,7 +1007,8 @@ static void suspend_consumer_pipe(enum ipa_client_type client)
 	struct ipa_ep_context *ep = &ipa_ctx->ep[ipa_ep_idx];
 
 	ipa_debug("pipe %u\n", ipa_ep_idx);
-
+	if (!ep->allocated)
+		return;
 	suspend_consumer_endpoint(ipa_ep_idx);
 	ipa_gsi_poll_after_suspend(ep);
 }
@@ -1026,6 +1027,8 @@ static void resume_consumer_pipe(enum ipa_client_type client)
 
 	ipa_debug("pipe %u\n", ipa_ep_idx);
 
+	if (!ep->allocated)
+		return;
 	resume_consumer_endpoint(ipa_ep_idx);
 	if (!ipa_ep_polling(ep))
 		gsi_channel_intr_enable(ipa_ctx->gsi, ep->gsi_chan_hdl);
