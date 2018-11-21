@@ -422,6 +422,7 @@ int rmnet_usb_ctrl_start_rx(struct rmnet_ctrl_udev *dev)
 
 	return retval;
 }
+EXPORT_SYMBOL(rmnet_usb_ctrl_start_rx);
 
 static int rmnet_usb_ctrl_alloc_rx(struct rmnet_ctrl_udev *dev)
 {
@@ -459,8 +460,6 @@ static int rmnet_usb_ctrl_write_cmd(struct rmnet_ctrl_udev *dev, u8 req,
 	struct usb_device	*udev;
 	int			ret;
 
-//	if (!test_bit(RMNET_CTRL_DEV_READY, &dev->status))
-//		return -ENETRESET;
 
 	ret = usb_autopm_get_interface(dev->intf);
 	if (ret < 0) {
@@ -933,6 +932,8 @@ int rmnet_usb_ctrl_probe(struct usb_interface *intf,
 	return 0;
 }
 
+EXPORT_SYMBOL(rmnet_usb_ctrl_probe);
+
 void rmnet_usb_ctrl_disconnect(struct rmnet_ctrl_udev *dev)
 {
 	struct rmnet_ctrl_dev *cdev;
@@ -972,6 +973,8 @@ void rmnet_usb_ctrl_disconnect(struct rmnet_ctrl_udev *dev)
 	kfree(dev->intbuf);
 	dev->intbuf = NULL;
 }
+
+EXPORT_SYMBOL(rmnet_usb_ctrl_disconnect);
 
 #if defined(CONFIG_DEBUG_FS)
 #define DEBUG_BUF_SIZE	4096
@@ -1245,6 +1248,8 @@ skip_cudev_init:
 	return 0;
 }
 
+EXPORT_SYMBOL(rmnet_usb_ctrl_init);
+
 static void free_rmnet_ctrl_dev(struct rmnet_ctrl_dev *dev)
 {
 	device_remove_file(dev->devicep, &dev_attr_modem_wait);
@@ -1276,3 +1281,6 @@ void rmnet_usb_ctrl_exit(int no_rmnet_devs, int no_rmnet_insts_per_dev,
 	kfree(ctrl_devs);
 	rmnet_usb_ctrl_debugfs_exit();
 }
+EXPORT_SYMBOL(rmnet_usb_ctrl_exit);
+MODULE_DESCRIPTION("USB RMNET control driver");
+MODULE_LICENSE("GPL");

@@ -62,7 +62,7 @@
  * more before an irq is required, under load.  Jumbograms change
  * the equation.
  */
-#define	MAX_QUEUE_MEMORY	(60 * 1518)
+#define	MAX_QUEUE_MEMORY	(600 * 1518)
 #define	RX_QLEN(dev)		((dev)->rx_qlen)
 #define	TX_QLEN(dev)		((dev)->tx_qlen)
 
@@ -323,7 +323,8 @@ void usbnet_skb_return (struct usbnet *dev, struct sk_buff *skb)
 		return;
 	}
 
-	skb->protocol = eth_type_trans (skb, dev->net);
+	if (!skb->protocol)
+		skb->protocol = eth_type_trans(skb, dev->net);
 	dev->net->stats.rx_packets++;
 	dev->net->stats.rx_bytes += skb->len;
 
