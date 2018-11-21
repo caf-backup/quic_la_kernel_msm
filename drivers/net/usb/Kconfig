@@ -597,4 +597,14 @@ config USB_NET_CH9200
 	  To compile this driver as a module, choose M here: the
 	  module will be called ch9200.
 
+config MSM_RMNET_USB
+        tristate "RMNET USB Driver"
+        depends on USB_USBNET
+        help
+        Select this if you have a QTI modem device connected via USB
+        supporting RMNET network interface.
+
+        To compile this driver as a module, choose M here: the module
+        will be called rmnet_usb. If unsure, choose N.
+
 endif # USB_NET_DRIVERS
