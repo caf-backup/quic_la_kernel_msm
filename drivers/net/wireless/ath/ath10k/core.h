@@ -130,6 +130,7 @@ struct ath10k_skb_cb {
 	u16 msdu_id;
 	struct ieee80211_vif *vif;
 	struct ieee80211_txq *txq;
+	u32 airtime_est;
 } __packed;
 
 struct ath10k_skb_rxcb {
@@ -355,10 +356,30 @@ struct ath10k_peer {
 	struct ieee80211_key_conf *keys[WMI_MAX_KEY_INDEX + 1];
 };
 
+#define IEEE80211_ATF_QUANTUM		1000	/* 1ms */
+/* Upper bound for per TXQ airtime limit: 8ms */
+#define IEEE80211_ATF_TXQ_AIRTIME_MAX	8000
+/* lower bound for per TXQ airtime limit: 4ms */
+#define IEEE80211_ATF_TXQ_AIRTIME_MIN	4000
+#define IEEE80211_ATF_AIRTIME_MAX	40000	/* Maximium limit: 40ms */
+#define IEEE80211_ATF_AIRTIME_TARGET	12000	/* Airtime in FW: 12ms */
+
+struct atf_scheduler {
+	u32 quantum;
+	int deficit;
+	int deficit_max;
+	int frames_inflight;
+	int airtime_inflight;
+	u32 next_epoch;
+	u32 bytes_send;
+	u32 bytes_send_last_interval;
+};
+
 struct ath10k_txq {
 	struct list_head list;
 	unsigned long num_fw_queued;
 	unsigned long num_push_allowed;
+	struct atf_scheduler atf;
 };
 
 struct ath10k_tx_stats {
@@ -1133,9 +1154,22 @@ struct ath10k {
 	void *ce_priv;
 
 	const unsigned int *debug_mask;
+	int	airtime_inflight;
+	int	airtime_inflight_max;
+	int	atf_enabled;
+	u32	atf_next_interval;
+	u32	atf_sch_interval;
+	u32	atf_release_limit;
+	u32	atf_bytes_send;
+	u32	atf_bytes_send_last_interval;
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
 };
+
+static inline bool ath10k_atf_scheduler_enabled(struct ath10k *ar)
+{
+	return ar->atf_enabled;
+}
 
 static inline bool ath10k_peer_stats_enabled(struct ath10k *ar)
 {
