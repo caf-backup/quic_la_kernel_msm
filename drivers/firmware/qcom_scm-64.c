@@ -509,12 +509,13 @@ int __qcom_scm_dload(struct device *dev, u32 svc_id, u32 cmd_id, void *cmd_buf)
 	struct qcom_scm_desc desc = {0};
 	struct arm_smccc_res res;
 	int ret;
-	unsigned int enable = *((unsigned int *)cmd_buf);
+	unsigned int enable;
 
 #define TCSR_BOOT_MISC_REG	0x193d100ull
 #define DLOAD_MODE_ENABLE	0x10ull
 #define DLOAD_MODE_DISABLE	0x00ull
 
+	enable = cmd_buf ? *((unsigned int *)cmd_buf) : 0;
 	desc.args[0] = TCSR_BOOT_MISC_REG;
 	desc.args[1] = enable ? DLOAD_MODE_ENABLE : DLOAD_MODE_DISABLE;
 	desc.arginfo = SCM_ARGS(2, SCM_VAL, SCM_VAL);
