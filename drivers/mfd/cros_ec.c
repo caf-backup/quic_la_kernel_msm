@@ -207,8 +207,8 @@ int cros_ec_suspend(struct cros_ec_device *ec_dev)
 
 	if (device_may_wakeup(dev))
 		ec_dev->wake_enabled = !enable_irq_wake(ec_dev->irq);
-
-	disable_irq(ec_dev->irq);
+	if (!ec_dev->wake_enabled)
+		disable_irq(ec_dev->irq);
 	ec_dev->was_wake_device = ec_dev->wake_enabled;
 	ec_dev->suspended = true;
 
