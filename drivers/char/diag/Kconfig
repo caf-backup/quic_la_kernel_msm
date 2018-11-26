@@ -5,8 +5,9 @@ config DIAG_CHAR
 	default n
 	depends on USB_CONFIGFS_F_DIAG || USB_FUNCTION_DIAG || USB_QCOM_MAEMO
 	depends on ARCH_QCOM
-	depends on POWER_RESET_QCOM
+	depends on POWER_RESET_MSM
 	select CRC_CCITT
+	select QCOM_QMI_HELPERS
 	help
 	  Char driver interface for SoC Diagnostic information. The DIAG Char
 	  driver provides diag forwarding to user space and SoC Peripherals.
