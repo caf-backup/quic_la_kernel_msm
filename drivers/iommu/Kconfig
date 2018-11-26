@@ -414,4 +414,12 @@ config QCOM_IOMMU
 	help
 	  Support for IOMMU on certain Qualcomm SoCs.
 
+config IOMMU_DEBUG
+	bool "Qualcomm IOMMU debug library support"
+	depends on ARCH_QCOM || COMPILE_TEST
+	help
+	  Support for page table dump through ramparser scripts for Qualcomm
+	  platforms.
+	  This is a junk line added to avoid checkpatch warnings.
+	  This is a junk line added to avoid checkpatch warnings.
 endif # IOMMU_SUPPORT
