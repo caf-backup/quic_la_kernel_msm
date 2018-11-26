@@ -187,6 +187,19 @@ extern int __qcom_scm_send_cache_dump_addr(struct device *, u32 cmd_id,
 extern int qcom_scm_get_cache_dump_size(u32 cmd_id, void *cmd_buf, u32 size);
 extern int qcom_scm_send_cache_dump_addr(u32 cmd_id, void *cmd_buf, u32 size);
 
+extern int __qcom_scm_get_feat_version(struct device *, u32 feat, u64 *version);
+
+extern int __qcom_scm_mem_prot_assign(struct device *, struct sg_table *,
+				u32 *, size_t src_size,
+				struct dest_vm_and_perm_info *,
+				size_t dest_size,
+				struct mem_prot_info *sg_table_copy,
+				size_t copy_size, u32 *resp, size_t resp_size);
+
+extern int __qcom_scm_mem_protect_lock(struct device *,
+				struct cp2_lock_req *req, size_t req_size,
+				u32 *resp, size_t resp_size);
+
 extern int __qcom_scm_qseecom_notify(struct device *,
 				    struct qsee_notify_app *req,
 				    size_t req_size,
