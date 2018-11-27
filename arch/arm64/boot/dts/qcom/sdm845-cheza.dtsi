@@ -696,6 +696,11 @@ ap_ts_i2c: &i2c14 {
 			#pwm-cells = <1>;
 		};
 
+		cros_ec_codec: ec-codec {
+			compatible = "google,cros-ec-codec";
+			#sound-dai-cells = <1>;
+		};
+
 		i2c_tunnel: i2c-tunnel {
 			compatible = "google,cros-ec-i2c-tunnel";
 			google,remote-bus = <0>;

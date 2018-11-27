@@ -317,7 +317,8 @@
 			"Left Spk", "Left BE_OUT",
 			"Right Spk", "Right BE_OUT",
 			"IN1P", "Headset Mic",
-			"IN1N", "Headset Mic";
+			"IN1N", "Headset Mic",
+			"DMIC", "Int Mic";
 
 		fe@1 {
 			is-fe;
@@ -340,6 +341,14 @@
 			link-name = "MultiMedia3";
 			cpu {
 				sound-dai = <&q6asmdai  MSM_FRONTEND_DAI_MULTIMEDIA3>;
+			};
+		};
+
+		fe@4 {
+			is-fe;
+			link-name = "MultiMedia4";
+			cpu {
+				sound-dai = <&q6asmdai  MSM_FRONTEND_DAI_MULTIMEDIA4>;
 			};
 		};
 
@@ -400,6 +409,21 @@
 
 			codec {
 				sound-dai = <&max98927_r 0>, <&max98927_l 0>;
+			};
+		};
+
+		be@5 {
+			link-name = "SEC MI2S Capture";
+			cpu {
+				sound-dai = <&q6afedai SECONDARY_MI2S_TX>;
+			};
+
+			platform {
+				sound-dai = <&q6routing>;
+			};
+
+			codec {
+				sound-dai = <&cros_ec_codec 0>;
 			};
 		};
 	};

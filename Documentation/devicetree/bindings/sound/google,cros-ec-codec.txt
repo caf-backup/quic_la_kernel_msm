@@ -1,0 +1,23 @@
+* Dmic codec controlled by ChromeOS EC
+
+Google's ChromeOS EC codec is a digital mic codec provided by the
+Embedded Controller (EC) and controlled via a host-command interface.
+
+An EC codec node should be only found as a sub-node of the EC node (see
+Documentation/devicetree/bindings/mfd/cros-ec.txt).
+
+Required properties:
+- compatible: Must contain "google,cros-ec-codec"
+- #sound-dai-cells: Should be 1. The cell specifies number of DAIs.
+
+Example:
+	cros-ec@0 {
+		compatible = "google,cros-ec-spi";
+
+		...
+
+		cros_ec_codec: ec-codec {
+			compatible = "google,cros-ec-codec";
+			#sound-dai-cells = <1>;
+		};
+	};
