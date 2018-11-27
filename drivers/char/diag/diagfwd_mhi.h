@@ -32,7 +32,9 @@
 #include <linux/platform_device.h>
 #include <linux/tty.h>
 #include <linux/delay.h>
+#ifdef CONFIG_IPC_LOGGING
 #include <linux/ipc_logging.h>
+#endif
 #include <linux/mhi.h>
 
 #define MHI_1			0

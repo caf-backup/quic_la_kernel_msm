@@ -638,6 +638,7 @@ static void handle_ctrl_pkt(struct diag_socket_info *info, void *buf, int len)
 			DIAG_LOG(DIAG_DEBUG_PERIPHERALS, "%s rcvd bye\n",
 				 info->name);
 
+#ifdef DIAG_SSR
 			mutex_lock(&driver->diag_notifier_mutex);
 			if (bootup_req[info->peripheral] == PERIPHERAL_SSR_UP) {
 				DIAG_LOG(DIAG_DEBUG_PERIPHERALS,
@@ -647,6 +648,7 @@ static void handle_ctrl_pkt(struct diag_socket_info *info, void *buf, int len)
 				break;
 			}
 			mutex_unlock(&driver->diag_notifier_mutex);
+#endif
 			socket_close_channel(info);
 		}
 		break;
@@ -659,6 +661,7 @@ static void handle_ctrl_pkt(struct diag_socket_info *info, void *buf, int len)
 			DIAG_LOG(DIAG_DEBUG_PERIPHERALS, "%s rcvd del client\n",
 				 info->name);
 
+#ifdef DIAG_SSR
 			mutex_lock(&driver->diag_notifier_mutex);
 			if (bootup_req[info->peripheral] == PERIPHERAL_SSR_UP) {
 				DIAG_LOG(DIAG_DEBUG_PERIPHERALS,
@@ -668,6 +671,7 @@ static void handle_ctrl_pkt(struct diag_socket_info *info, void *buf, int len)
 				break;
 			}
 			mutex_unlock(&driver->diag_notifier_mutex);
+#endif
 			socket_close_channel(info);
 		}
 		break;

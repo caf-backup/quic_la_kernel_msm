@@ -41,7 +41,6 @@
 #include "diag_mux.h"
 #include "diag_ipc_logging.h"
 #include "diagfwd_peripheral.h"
-#include "diagfwd_mhi.h"
 
 //#include <linux/coresight-stm.h>
 #include <linux/kernel.h>
