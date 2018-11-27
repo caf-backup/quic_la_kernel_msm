@@ -26,9 +26,6 @@
 #include "diagfwd_hsic.h"
 #include "diagfwd_smux.h"
 #endif
-#ifdef CONFIG_MHI_BUS
-#include "diagfwd_mhi.h"
-#endif
 #include "diagmem.h"
 #include "diag_dci.h"
 #include "diag_usb.h"
