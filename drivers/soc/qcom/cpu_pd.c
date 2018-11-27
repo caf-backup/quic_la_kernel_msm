@@ -100,6 +100,8 @@ static int cpu_pd_dying(unsigned int cpu)
 	return 0;
 }
 
+static enum cpuhp_state cpu_pm_hp_state;
+
 static int cpu_pm_domain_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -143,16 +145,18 @@ static int cpu_pm_domain_probe(struct platform_device *pdev)
 	pr_info("init PM domain %s\n", cpu_pd->name);
 
 	/* Install hotplug callbacks */
-	ret = cpuhp_setup_state(CPUHP_AP_QCOM_SYS_PM_DOMAIN_STARTING,
-				"AP_QCOM_SYS_PM_DOMAIN_STARTING",
+	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
+				"qcom/cpu-pd:online",
 				cpu_pd_starting, cpu_pd_dying);
-	if (ret)
+	if (ret < 0)
 		goto remove_hotplug;
+	cpu_pm_hp_state = ret;
 
 	return 0;
 
 remove_hotplug:
-	cpuhp_remove_state(CPUHP_AP_QCOM_SYS_PM_DOMAIN_STARTING);
+	if (cpu_pm_hp_state > 0)
+		cpuhp_remove_state(CPUHP_AP_ONLINE_DYN);
 
 remove_pd:
 	pm_genpd_remove(cpu_pd);
