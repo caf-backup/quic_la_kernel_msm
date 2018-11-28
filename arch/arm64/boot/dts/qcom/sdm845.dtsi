@@ -3558,7 +3558,7 @@
 			 * controlled entirely by the GMU
 			 */
 
-			interrupts = <0 300 0>;
+			interrupts = <GIC_SPI 300 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "kgsl_3d0_irq";
 
 			iommus = <&adreno_smmu 0>;
