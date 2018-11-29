@@ -1717,7 +1717,9 @@ static int dwc3_gadget_restart_usb_session(struct usb_gadget *g)
 {
 	struct dwc3		*dwc = gadget_to_dwc(g);
 
-	return dwc3_notify_event(dwc, DWC3_CONTROLLER_RESTART_USB_SESSION);
+	dev_warn(dwc->dev, "%s not supported\n",__func__);
+
+	return -EINVAL;
 }
 
 static const struct usb_gadget_ops dwc3_gadget_ops = {
