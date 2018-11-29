@@ -462,9 +462,13 @@ static struct sg_table *vb2_dma_sg_dmabuf_ops_map(
 	}
 
 	/* mapping to the client with new direction */
+	/* Internal Hack: Not updating the entries
 	sgt->nents = dma_map_sg_attrs(db_attach->dev, sgt->sgl, sgt->orig_nents,
 				      dma_dir, buf->dma_attrs);
 	if (!sgt->nents) {
+	*/
+	if (!dma_map_sg_attrs(db_attach->dev, sgt->sgl, sgt->orig_nents,
+				      dma_dir, buf->dma_attrs)) {
 		pr_err("failed to map scatterlist\n");
 		mutex_unlock(lock);
 		return ERR_PTR(-EIO);
