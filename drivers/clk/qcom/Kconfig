@@ -244,15 +244,6 @@ config SDM_GCC_845
 	  Say Y if you want to use peripheral devices such as UART, SPI,
 	  i2C, USB, UFS, SDDC, PCIe, etc.
 
-config SDM_GPUCC_845
-	tristate "SDM845 Graphics Clock Controller"
-	depends on COMMON_CLK_QCOM
-	select SDM_GCC_845
-	help
-	  Support for the graphics clock controller on SDM845 devices.
-	  Say Y if you want to support graphics controller devices and
-	  functionality such as 3D graphics.
-
 config SDM_VIDEOCC_845
 	tristate "SDM845 Video Clock Controller"
 	depends on COMMON_CLK_QCOM
@@ -273,15 +264,6 @@ config SDM_DISPCC_845
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
 
-config SDM_LPASSCC_845
-	tristate "SDM845 Low Power Audio Subsystem (LPAAS) Clock Controller"
-	depends on COMMON_CLK_QCOM
-	select SDM_GCC_845
-	help
-	  Support for the LPASS clock controller on SDM845 devices.
-	  Say Y if you want to use the LPASS branch clocks of the LPASS clock
-	  controller to reset the LPASS subsystem.
-
 config SPMI_PMIC_CLKDIV
 	tristate "SPMI PMIC clkdiv Support"
 	depends on (COMMON_CLK_QCOM && SPMI) || COMPILE_TEST
@@ -290,12 +272,3 @@ config SPMI_PMIC_CLKDIV
 	  Technologies, Inc. SPMI PMIC. It configures the frequency of
 	  clkdiv outputs of the PMIC. These clocks are typically wired
 	  through alternate functions on GPIO pins.
-
-config MSM_CLK_AOP_QMP
-	tristate "AOP QMP Clock Driver"
-	depends on COMMON_CLK_QCOM && MSM_QMP
-	help
-	  Always On Processor manages few shared clocks on some Qualcomm
-	  Technologies, Inc. SoCs. It accepts requests from other hardware
-	  subsystems via QMP mailboxes.
-	  Say Y to support the clocks managed by AOP on platforms such as SDM845.

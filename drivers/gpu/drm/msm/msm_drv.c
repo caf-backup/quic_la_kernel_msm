@@ -203,14 +203,6 @@ u32 msm_readl(const void __iomem *addr)
 	return val;
 }
 
-void msm_rmw(void __iomem *addr, u32 mask, u32 or)
-{
-	u32 val = msm_readl(addr);
-
-	val &= ~mask;
-	msm_writel(val | or, addr);
-}
-
 struct vblank_event {
 	struct list_head node;
 	int crtc_id;
@@ -1078,12 +1070,17 @@ static int msm_pm_suspend(struct device *dev)
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct msm_drm_private *priv = ddev->dev_private;
 
-	if (!IS_ERR_OR_NULL(priv->pm_state))
-		return 0;
+	if (WARN_ON(priv->pm_state))
+		drm_atomic_state_put(priv->pm_state);
 
 	priv->pm_state = drm_atomic_helper_suspend(ddev);
+	if (IS_ERR(priv->pm_state)) {
+		int ret = PTR_ERR(priv->pm_state);
+		DRM_ERROR("Failed to suspend dpu, %d\n", ret);
+		return ret;
+	}
 
-	return IS_ERR(priv->pm_state) ? PTR_ERR(priv->pm_state) : 0;
+	return 0;
 }
 
 static int msm_pm_resume(struct device *dev)
@@ -1092,11 +1089,11 @@ static int msm_pm_resume(struct device *dev)
 	struct msm_drm_private *priv = ddev->dev_private;
 	int ret;
 
-	if (IS_ERR_OR_NULL(priv->pm_state))
-		return 0;
+	if (WARN_ON(!priv->pm_state))
+		return -ENOENT;
 
 	ret = drm_atomic_helper_resume(ddev, priv->pm_state);
-	if (ret == 0)
+	if (!ret)
 		priv->pm_state = NULL;
 
 	return ret;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
  * Copyright (C) 2017 Linaro Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -484,25 +484,10 @@ venc_s_selection(struct file *file, void *fh, struct v4l2_selection *s)
 
 	switch (s->target) {
 	case V4L2_SEL_TGT_CROP:
-		if (s->r.left != 0) {
-			s->r.width += s->r.left;
-			s->r.left = 0;
-		}
-
-		if (s->r.top != 0) {
-			s->r.height += s->r.top;
-			s->r.top = 0;
-		}
-
-		if (s->r.width > inst->width)
-			s->r.width = inst->width;
-		else
-			inst->width = s->r.width;
-
-		if (s->r.height > inst->height)
-			s->r.height = inst->height;
-		else
-			inst->height = s->r.height;
+		if (s->r.width != inst->out_width ||
+		    s->r.height != inst->out_height ||
+		    s->r.top != 0 || s->r.left != 0)
+			return -EINVAL;
 		break;
 	default:
 		return -EINVAL;
@@ -727,7 +712,7 @@ static int venc_set_properties(struct venus_inst *inst)
 	 * n > 1 - every n-th I-frame will be IDR frame
 	 */
 	ptype = HFI_PROPERTY_CONFIG_VENC_IDR_PERIOD;
-	idrp.idr_period = 1;
+	idrp.idr_period = 0;
 	ret = hfi_session_set_property(inst, ptype, &idrp);
 	if (ret)
 		return ret;
@@ -1004,12 +989,6 @@ static int venc_start_streaming(struct vb2_queue *q, unsigned int count)
 	if (ret)
 		goto deinit_sess;
 
-	if (inst->streamon_cap && inst->streamon_out &&
-		(q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)){
-		ret = venus_helper_queue_initial_bufs(inst, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
-		ret = venus_helper_queue_initial_bufs(inst, q->type);
-		}
-
 	mutex_unlock(&inst->lock);
 
 	return 0;
@@ -1026,30 +1005,12 @@ bufs_done:
 	return ret;
 }
 
-void venc_stop_streaming(struct vb2_queue *q)
-{
-	struct venus_inst *inst = vb2_get_drv_priv(q);
-
-	mutex_lock(&inst->lock);
-
-	if (inst->streamon_out & inst->streamon_cap)
-		venus_helper_vb2_stop_streaming(q);
-
-	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
-		inst->streamon_out = 0;
-	else
-		inst->streamon_cap = 0;
-
-	mutex_unlock(&inst->lock);
-}
-EXPORT_SYMBOL_GPL(venc_stop_streaming);
-
 static const struct vb2_ops venc_vb2_ops = {
 	.queue_setup = venc_queue_setup,
 	.buf_init = venus_helper_vb2_buf_init,
 	.buf_prepare = venus_helper_vb2_buf_prepare,
 	.start_streaming = venc_start_streaming,
-	.stop_streaming = venc_stop_streaming,
+	.stop_streaming = venus_helper_vb2_stop_streaming,
 	.buf_queue = venus_helper_vb2_buf_queue,
 };
 
@@ -1113,7 +1074,7 @@ static int m2m_queue_init(void *priv, struct vb2_queue *src_vq,
 	int ret;
 
 	src_vq->type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
-	src_vq->io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
+	src_vq->io_modes = VB2_MMAP | VB2_DMABUF;
 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	src_vq->ops = &venc_vb2_ops;
 	src_vq->mem_ops = &vb2_dma_sg_memops;
@@ -1124,13 +1085,12 @@ static int m2m_queue_init(void *priv, struct vb2_queue *src_vq,
 	src_vq->dev = inst->core->dev;
 	if (inst->core->res->hfi_version == HFI_VERSION_1XX)
 		src_vq->bidirectional = 1;
-	src_vq->dma_attrs |= DMA_ATTR_NON_CONSISTENT;
 	ret = vb2_queue_init(src_vq);
 	if (ret)
 		return ret;
 
 	dst_vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-	dst_vq->io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
+	dst_vq->io_modes = VB2_MMAP | VB2_DMABUF;
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	dst_vq->ops = &venc_vb2_ops;
 	dst_vq->mem_ops = &vb2_dma_sg_memops;
@@ -1139,7 +1099,6 @@ static int m2m_queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->allow_zero_bytesused = 1;
 	dst_vq->min_buffers_needed = 1;
 	dst_vq->dev = inst->core->dev;
-	dst_vq->dma_attrs |= DMA_ATTR_NON_CONSISTENT;
 	ret = vb2_queue_init(dst_vq);
 	if (ret) {
 		vb2_queue_release(src_vq);
@@ -1261,6 +1220,9 @@ static const struct v4l2_file_operations venc_fops = {
 	.unlocked_ioctl = video_ioctl2,
 	.poll = v4l2_m2m_fop_poll,
 	.mmap = v4l2_m2m_fop_mmap,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl32 = v4l2_compat_ioctl32,
+#endif
 };
 
 static int venc_probe(struct platform_device *pdev)

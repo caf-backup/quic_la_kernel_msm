@@ -352,7 +352,7 @@ void dpu_kms_encoder_enable(struct drm_encoder *encoder)
 
 	if (crtc && crtc->state->active) {
 		trace_dpu_kms_enc_enable(DRMID(crtc));
-		dpu_crtc_commit_kickoff(crtc, false);
+		dpu_crtc_commit_kickoff(crtc);
 	}
 }
 
@@ -369,8 +369,7 @@ static void dpu_kms_commit(struct msm_kms *kms, struct drm_atomic_state *state)
 
 		if (crtc->state->active) {
 			trace_dpu_kms_commit(DRMID(crtc));
-			dpu_crtc_commit_kickoff(crtc,
-						state->legacy_cursor_update);
+			dpu_crtc_commit_kickoff(crtc);
 		}
 	}
 }
@@ -785,14 +784,9 @@ static int _dpu_kms_mmu_init(struct dpu_kms *dpu_kms)
 	struct msm_gem_address_space *aspace;
 	int ret;
 
-	domain = iommu_get_domain_for_dev(dpu_kms->dev->dev);
-	if (!domain) {
-		DPU_ERROR("failed to get iommu domain for DPU\n");
-		return PTR_ERR(domain);
-	}
-
-	domain->geometry.aperture_start = 0x1000;
-	domain->geometry.aperture_end = 0xffffffff;
+	domain = iommu_domain_alloc(&platform_bus_type);
+	if (!domain)
+		return 0;
 
 	aspace = msm_gem_address_space_create(dpu_kms->dev->dev,
 			domain, "dpu1");

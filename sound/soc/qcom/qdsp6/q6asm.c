@@ -11,6 +11,7 @@
 #include <linux/spinlock.h>
 #include <linux/kref.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <uapi/sound/asound.h>
 #include <linux/delay.h>
 #include <linux/slab.h>

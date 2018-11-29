@@ -21,7 +21,6 @@
 #define __ADRENO_GPU_H__
 
 #include <linux/firmware.h>
-#include <linux/iopoll.h>
 
 #include "msm_gpu.h"
 
@@ -229,7 +228,7 @@ struct msm_ringbuffer *adreno_active_ring(struct msm_gpu *gpu);
 
 int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		struct adreno_gpu *gpu, const struct adreno_gpu_funcs *funcs,
-		int nr_rings, u32 mmu_features);
+		int nr_rings);
 void adreno_gpu_cleanup(struct adreno_gpu *gpu);
 int adreno_load_fw(struct adreno_gpu *adreno_gpu);
 
@@ -375,10 +374,5 @@ static inline uint32_t get_wptr(struct msm_ringbuffer *ring)
 #define ADRENO_PROTECT_RDONLY(_reg, _len) \
 	((1 << 29) \
 	((ilog2((_len)) & 0x1F) << 24) | (((_reg) << 2) & 0xFFFFF))
-
-
-#define gpu_poll_timeout(gpu, addr, val, cond, interval, timeout) \
-	readl_poll_timeout((gpu)->mmio + ((addr) << 2), val, cond, \
-		interval, timeout)
 
 #endif /* __ADRENO_GPU_H__ */

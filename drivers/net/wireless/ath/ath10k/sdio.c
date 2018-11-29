@@ -1381,8 +1381,7 @@ static int ath10k_sdio_hif_disable_intrs(struct ath10k *ar)
 	return ret;
 }
 
-static int ath10k_sdio_hif_power_up(struct ath10k *ar,
-				    enum ath10k_firmware_mode fw_mode)
+static int ath10k_sdio_hif_power_up(struct ath10k *ar)
 {
 	struct ath10k_sdio *ar_sdio = ath10k_sdio_priv(ar);
 	struct sdio_func *func = ar_sdio->func;

@@ -1578,16 +1578,6 @@ struct ath10k_mgmt_tx_pkt_addr {
 	dma_addr_t paddr;
 };
 
-struct chan_info_params {
-	u32 err_code;
-	u32 freq;
-	u32 cmd_flags;
-	u32 noise_floor;
-	u32 rx_clear_count;
-	u32 cycle_count;
-	u32 mac_clk_mhz;
-};
-
 struct wmi_tlv_mgmt_tx_compl_ev {
 	__le32 desc_id;
 	__le32 status;
@@ -1979,15 +1969,8 @@ struct wmi_tlv_wow_add_del_event_cmd {
 	__le32 event_bitmap;
 } __packed;
 
-enum wmi_tlv_wow_interface_cfg {
-	WOW_IFACE_PAUSE_ENABLED,
-	WOW_IFACE_PAUSE_DISABLED
-};
-
 struct wmi_tlv_wow_enable_cmd {
 	__le32 enable;
-	__le32 pause_iface_config;
-	__le32 flags;
 } __packed;
 
 struct wmi_tlv_wow_host_wakeup_ind {
