@@ -309,6 +309,7 @@ struct dev_pm_opp *of_dev_pm_opp_find_required_opp(struct device *dev, struct de
 struct device_node *dev_pm_opp_get_of_node(struct dev_pm_opp *opp);
 int dev_pm_opp_get_interconnect_bw(struct dev_pm_opp *opp, const char *pathname, u64 *avgbw, u64 *peakbw);
 int of_dev_pm_opp_get_cpu_power(unsigned long *mW, unsigned long *KHz, int cpu);
+int dev_pm_opp_get_interconnect_bw(struct dev_pm_opp *opp, const char *pathname, u64 *avgbw, u64 *peakbw);
 #else
 static inline int dev_pm_opp_of_add_table(struct device *dev)
 {
@@ -359,6 +360,12 @@ static inline int dev_pm_opp_get_interconnect_bw(struct dev_pm_opp *opp, const c
 }
 
 static inline int of_dev_pm_opp_get_cpu_power(unsigned long *mW, unsigned long *KHz, int cpu)
+{
+	return -ENOTSUPP;
+}
+
+static inline int dev_pm_opp_get_interconnect_bw(struct dev_pm_opp *opp, const char *pathname,
+		u64 *avgbw, u64 *peakbw)
 {
 	return -ENOTSUPP;
 }

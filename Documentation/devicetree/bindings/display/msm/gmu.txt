@@ -49,6 +49,6 @@ Example:
 		power-domains = <&clock_gpucc GPU_CX_GDSC>;
 		iommus = <&adreno_smmu 5>;
 
-	i	operating-points-v2 = <&gmu_opp_table>;
+		operating-points-v2 = <&gmu_opp_table>;
 	};
 };
