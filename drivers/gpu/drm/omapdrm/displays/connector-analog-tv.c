@@ -20,23 +20,6 @@ struct panel_drv_data {
 	struct omap_dss_device dssdev;
 
 	struct device *dev;
-
-	struct videomode vm;
-};
-
-static const struct videomode tvc_pal_vm = {
-	.hactive	= 720,
-	.vactive	= 574,
-	.pixelclock	= 13500000,
-	.hsync_len	= 64,
-	.hfront_porch	= 12,
-	.hback_porch	= 68,
-	.vsync_len	= 5,
-	.vfront_porch	= 5,
-	.vback_porch	= 41,
-
-	.flags		= DISPLAY_FLAGS_INTERLACED | DISPLAY_FLAGS_HSYNC_LOW |
-			  DISPLAY_FLAGS_VSYNC_LOW,
 };
 
 #define to_panel_data(x) container_of(x, struct panel_drv_data, dssdev)
@@ -66,8 +49,6 @@ static int tvc_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
-	src->ops->set_timings(src, &ddata->vm);
-
 	r = src->ops->enable(src);
 	if (r)
 		return r;
@@ -92,43 +73,12 @@ static void tvc_disable(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static void tvc_set_timings(struct omap_dss_device *dssdev,
-			    struct videomode *vm)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
-
-	ddata->vm = *vm;
-
-	src->ops->set_timings(src, vm);
-}
-
-static void tvc_get_timings(struct omap_dss_device *dssdev,
-			    struct videomode *vm)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-
-	*vm = ddata->vm;
-}
-
-static int tvc_check_timings(struct omap_dss_device *dssdev,
-			     struct videomode *vm)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	return src->ops->check_timings(src, vm);
-}
-
 static const struct omap_dss_device_ops tvc_ops = {
 	.connect		= tvc_connect,
 	.disconnect		= tvc_disconnect,
 
 	.enable			= tvc_enable,
 	.disable		= tvc_disable,
-
-	.set_timings		= tvc_set_timings,
-	.get_timings		= tvc_get_timings,
-	.check_timings		= tvc_check_timings,
 };
 
 static int tvc_probe(struct platform_device *pdev)
@@ -142,8 +92,6 @@ static int tvc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ddata);
 	ddata->dev = &pdev->dev;
-
-	ddata->vm = tvc_pal_vm;
 
 	dssdev = &ddata->dssdev;
 	dssdev->ops = &tvc_ops;

@@ -129,28 +129,6 @@ static const struct drm_mode_config_funcs omap_mode_config_funcs = {
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
-static int get_connector_type(struct omap_dss_device *display)
-{
-	switch (display->type) {
-	case OMAP_DISPLAY_TYPE_HDMI:
-		return DRM_MODE_CONNECTOR_HDMIA;
-	case OMAP_DISPLAY_TYPE_DVI:
-		return DRM_MODE_CONNECTOR_DVID;
-	case OMAP_DISPLAY_TYPE_DSI:
-		return DRM_MODE_CONNECTOR_DSI;
-	case OMAP_DISPLAY_TYPE_DPI:
-	case OMAP_DISPLAY_TYPE_DBI:
-		return DRM_MODE_CONNECTOR_DPI;
-	case OMAP_DISPLAY_TYPE_VENC:
-		/* TODO: This could also be composite */
-		return DRM_MODE_CONNECTOR_SVIDEO;
-	case OMAP_DISPLAY_TYPE_SDI:
-		return DRM_MODE_CONNECTOR_LVDS;
-	default:
-		return DRM_MODE_CONNECTOR_Unknown;
-	}
-}
-
 static void omap_disconnect_pipelines(struct drm_device *ddev)
 {
 	struct omap_drm_private *priv = ddev->dev_private;
@@ -318,12 +296,12 @@ static int omap_modeset_init(struct drm_device *dev)
 		struct drm_encoder *encoder;
 		struct drm_crtc *crtc;
 
-		encoder = omap_encoder_init(dev, display);
+		encoder = omap_encoder_init(dev, pipe->output, display);
 		if (!encoder)
 			return -ENOMEM;
 
-		connector = omap_connector_init(dev,
-				get_connector_type(display), display, encoder);
+		connector = omap_connector_init(dev, pipe->output, display,
+						encoder);
 		if (!connector)
 			return -ENOMEM;
 
@@ -375,12 +353,8 @@ static void omap_modeset_enable_external_hpd(struct drm_device *ddev)
 	struct omap_drm_private *priv = ddev->dev_private;
 	int i;
 
-	for (i = 0; i < priv->num_pipes; i++) {
-		struct omap_dss_device *display = priv->pipes[i].display;
-
-		if (display->ops->enable_hpd)
-			display->ops->enable_hpd(display);
-	}
+	for (i = 0; i < priv->num_pipes; i++)
+		omap_connector_enable_hpd(priv->pipes[i].connector);
 }
 
 /*
@@ -391,12 +365,8 @@ static void omap_modeset_disable_external_hpd(struct drm_device *ddev)
 	struct omap_drm_private *priv = ddev->dev_private;
 	int i;
 
-	for (i = 0; i < priv->num_pipes; i++) {
-		struct omap_dss_device *display = priv->pipes[i].display;
-
-		if (display->ops->disable_hpd)
-			display->ops->disable_hpd(display);
-	}
+	for (i = 0; i < priv->num_pipes; i++)
+		omap_connector_disable_hpd(priv->pipes[i].connector);
 }
 
 /*
@@ -469,7 +439,7 @@ static int ioctl_gem_info(struct drm_device *dev, void *data,
 	args->size = omap_gem_mmap_size(obj);
 	args->offset = omap_gem_mmap_offset(obj);
 
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 
 	return ret;
 }
@@ -644,7 +614,7 @@ err_gem_deinit:
 	omap_disconnect_pipelines(ddev);
 err_crtc_uninit:
 	omap_crtc_pre_uninit(priv);
-	drm_dev_unref(ddev);
+	drm_dev_put(ddev);
 	return ret;
 }
 
@@ -673,7 +643,7 @@ static void omapdrm_cleanup(struct omap_drm_private *priv)
 	omap_disconnect_pipelines(ddev);
 	omap_crtc_pre_uninit(priv);
 
-	drm_dev_unref(ddev);
+	drm_dev_put(ddev);
 }
 
 static int pdev_probe(struct platform_device *pdev)

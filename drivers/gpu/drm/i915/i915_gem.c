@@ -802,6 +802,11 @@ void i915_gem_flush_ggtt_writes(struct drm_i915_private *dev_priv)
 	 * that was!).
 	 */
 
+	wmb();
+
+	if (INTEL_INFO(dev_priv)->has_coherent_ggtt)
+		return;
+
 	i915_gem_chipset_flush(dev_priv);
 
 	intel_runtime_pm_get(dev_priv);
@@ -1122,11 +1127,7 @@ i915_gem_shmem_pread(struct drm_i915_gem_object *obj,
 	offset = offset_in_page(args->offset);
 	for (idx = args->offset >> PAGE_SHIFT; remain; idx++) {
 		struct page *page = i915_gem_object_get_page(obj, idx);
-		int length;
-
-		length = remain;
-		if (offset + length > PAGE_SIZE)
-			length = PAGE_SIZE - offset;
+		unsigned int length = min_t(u64, remain, PAGE_SIZE - offset);
 
 		ret = shmem_pread(page, offset, length, user_data,
 				  page_to_phys(page) & obj_do_bit17_swizzling,
@@ -1570,11 +1571,7 @@ i915_gem_shmem_pwrite(struct drm_i915_gem_object *obj,
 	offset = offset_in_page(args->offset);
 	for (idx = args->offset >> PAGE_SHIFT; remain; idx++) {
 		struct page *page = i915_gem_object_get_page(obj, idx);
-		int length;
-
-		length = remain;
-		if (offset + length > PAGE_SIZE)
-			length = PAGE_SIZE - offset;
+		unsigned int length = min_t(u64, remain, PAGE_SIZE - offset);
 
 		ret = shmem_pwrite(page, offset, length, user_data,
 				   page_to_phys(page) & obj_do_bit17_swizzling,
@@ -1906,7 +1903,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-static unsigned int tile_row_pages(struct drm_i915_gem_object *obj)
+static unsigned int tile_row_pages(const struct drm_i915_gem_object *obj)
 {
 	return i915_gem_object_get_tile_row_size(obj) >> PAGE_SHIFT;
 }
@@ -1965,7 +1962,7 @@ int i915_gem_mmap_gtt_version(void)
 }
 
 static inline struct i915_ggtt_view
-compute_partial_view(struct drm_i915_gem_object *obj,
+compute_partial_view(const struct drm_i915_gem_object *obj,
 		     pgoff_t page_offset,
 		     unsigned int chunk)
 {
@@ -2013,7 +2010,7 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	bool write = !!(vmf->flags & FAULT_FLAG_WRITE);
+	bool write = area->vm_flags & VM_WRITE;
 	struct i915_vma *vma;
 	pgoff_t page_offset;
 	int ret;
@@ -2384,11 +2381,23 @@ void __i915_gem_object_invalidate(struct drm_i915_gem_object *obj)
 	invalidate_mapping_pages(mapping, 0, (loff_t)-1);
 }
 
+/*
+ * Move pages to appropriate lru and release the pagevec, decrementing the
+ * ref count of those pages.
+ */
+static void check_release_pagevec(struct pagevec *pvec)
+{
+	check_move_unevictable_pages(pvec);
+	__pagevec_release(pvec);
+	cond_resched();
+}
+
 static void
 i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
 			      struct sg_table *pages)
 {
 	struct sgt_iter sgt_iter;
+	struct pagevec pvec;
 	struct page *page;
 
 	__i915_gem_object_release_shmem(obj, pages, true);
@@ -2398,6 +2407,9 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
 	if (i915_gem_object_needs_bit17_swizzle(obj))
 		i915_gem_object_save_bit_17_swizzle(obj, pages);
 
+	mapping_clear_unevictable(file_inode(obj->base.filp)->i_mapping);
+
+	pagevec_init(&pvec);
 	for_each_sgt_page(page, sgt_iter, pages) {
 		if (obj->mm.dirty)
 			set_page_dirty(page);
@@ -2405,8 +2417,11 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
 		if (obj->mm.madv == I915_MADV_WILLNEED)
 			mark_page_accessed(page);
 
-		put_page(page);
+		if (!pagevec_add(&pvec, page))
+			check_release_pagevec(&pvec);
 	}
+	if (pagevec_count(&pvec))
+		check_release_pagevec(&pvec);
 	obj->mm.dirty = false;
 
 	sg_free_table(pages);
@@ -2501,7 +2516,9 @@ static bool i915_sg_trim(struct sg_table *orig_st)
 	new_sg = new_st.sgl;
 	for_each_sg(orig_st->sgl, sg, orig_st->nents, i) {
 		sg_set_page(new_sg, sg_page(sg), sg->length, 0);
-		/* called before being DMA mapped, no need to copy sg->dma_* */
+		sg_dma_address(new_sg) = sg_dma_address(sg);
+		sg_dma_len(new_sg) = sg_dma_len(sg);
+
 		new_sg = sg_next(new_sg);
 	}
 	GEM_BUG_ON(new_sg); /* Should walk exactly nents and hit the end */
@@ -2525,15 +2542,24 @@ static int i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	unsigned long last_pfn = 0;	/* suppress gcc warning */
 	unsigned int max_segment = i915_sg_segment_size();
 	unsigned int sg_page_sizes;
+	struct pagevec pvec;
 	gfp_t noreclaim;
 	int ret;
 
-	/* Assert that the object is not currently in any GPU domain. As it
+	/*
+	 * Assert that the object is not currently in any GPU domain. As it
 	 * wasn't in the GTT, there shouldn't be any way it could have been in
 	 * a GPU cache
 	 */
 	GEM_BUG_ON(obj->read_domains & I915_GEM_GPU_DOMAINS);
 	GEM_BUG_ON(obj->write_domain & I915_GEM_GPU_DOMAINS);
+
+	/*
+	 * If there's no chance of allocating enough pages for the whole
+	 * object, bail early.
+	 */
+	if (page_count > totalram_pages)
+		return -ENOMEM;
 
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
 	if (st == NULL)
@@ -2545,12 +2571,14 @@ rebuild_st:
 		return -ENOMEM;
 	}
 
-	/* Get the list of pages out of our struct file.  They'll be pinned
+	/*
+	 * Get the list of pages out of our struct file.  They'll be pinned
 	 * at this point until we release them.
 	 *
 	 * Fail silently without starting the shrinker
 	 */
 	mapping = obj->base.filp->f_mapping;
+	mapping_set_unevictable(mapping);
 	noreclaim = mapping_gfp_constraint(mapping, ~__GFP_RECLAIM);
 	noreclaim |= __GFP_NORETRY | __GFP_NOWARN;
 
@@ -2565,6 +2593,7 @@ rebuild_st:
 		gfp_t gfp = noreclaim;
 
 		do {
+			cond_resched();
 			page = shmem_read_mapping_page_gfp(mapping, i, gfp);
 			if (likely(!IS_ERR(page)))
 				break;
@@ -2575,9 +2604,9 @@ rebuild_st:
 			}
 
 			i915_gem_shrink(dev_priv, 2 * page_count, NULL, *s++);
-			cond_resched();
 
-			/* We've tried hard to allocate the memory by reaping
+			/*
+			 * We've tried hard to allocate the memory by reaping
 			 * our own buffer, now let the real VM do its job and
 			 * go down in flames if truly OOM.
 			 *
@@ -2589,7 +2618,8 @@ rebuild_st:
 				/* reclaim and warn, but no oom */
 				gfp = mapping_gfp_mask(mapping);
 
-				/* Our bo are always dirty and so we require
+				/*
+				 * Our bo are always dirty and so we require
 				 * kswapd to reclaim our pages (direct reclaim
 				 * does not effectively begin pageout of our
 				 * buffers on its own). However, direct reclaim
@@ -2633,7 +2663,8 @@ rebuild_st:
 
 	ret = i915_gem_gtt_prepare_pages(obj, st);
 	if (ret) {
-		/* DMA remapping failed? One possible cause is that
+		/*
+		 * DMA remapping failed? One possible cause is that
 		 * it could not reserve enough large entries, asking
 		 * for PAGE_SIZE chunks instead may be helpful.
 		 */
@@ -2662,12 +2693,19 @@ rebuild_st:
 err_sg:
 	sg_mark_end(sg);
 err_pages:
-	for_each_sgt_page(page, sgt_iter, st)
-		put_page(page);
+	mapping_clear_unevictable(mapping);
+	pagevec_init(&pvec);
+	for_each_sgt_page(page, sgt_iter, st) {
+		if (!pagevec_add(&pvec, page))
+			check_release_pagevec(&pvec);
+	}
+	if (pagevec_count(&pvec))
+		check_release_pagevec(&pvec);
 	sg_free_table(st);
 	kfree(st);
 
-	/* shmemfs first checks if there is enough memory to allocate the page
+	/*
+	 * shmemfs first checks if there is enough memory to allocate the page
 	 * and reports ENOSPC should there be insufficient, along with the usual
 	 * ENOMEM for a genuine allocation failure.
 	 *
@@ -3307,8 +3345,8 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 			intel_engine_dump(engine, &p, "%s\n", engine->name);
 	}
 
-	set_bit(I915_WEDGED, &i915->gpu_error.flags);
-	smp_mb__after_atomic();
+	if (test_and_set_bit(I915_WEDGED, &i915->gpu_error.flags))
+		goto out;
 
 	/*
 	 * First, stop submission to hw, but do not yet complete requests by
@@ -3324,7 +3362,8 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 	i915->caps.scheduler = 0;
 
 	/* Even if the GPU reset fails, it should still stop the engines */
-	intel_gpu_reset(i915, ALL_ENGINES);
+	if (INTEL_GEN(i915) >= 5)
+		intel_gpu_reset(i915, ALL_ENGINES);
 
 	/*
 	 * Make sure no one is running the old callback before we proceed with
@@ -3367,6 +3406,7 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 		i915_gem_reset_finish_engine(engine);
 	}
 
+out:
 	GEM_TRACE("end\n");
 
 	wake_up_all(&i915->gpu_error.reset_queue);
@@ -3417,6 +3457,9 @@ bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 	}
 	i915_retire_requests(i915);
 	GEM_BUG_ON(i915->gt.active_requests);
+
+	if (!intel_gpu_reset(i915, ALL_ENGINES))
+		intel_engines_sanitize(i915);
 
 	/*
 	 * Undo nop_submit_request. We prevent all new i915 requests from
@@ -3815,6 +3858,12 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915,
 			timeout = wait_for_timeline(tl, flags, timeout);
 			if (timeout < 0)
 				return timeout;
+		}
+		if (GEM_SHOW_DEBUG() && !timeout) {
+			/* Presume that timeout was non-zero to begin with! */
+			dev_warn(&i915->drm.pdev->dev,
+				 "Missed idle-completion interrupt!\n");
+			GEM_TRACE_DUMP();
 		}
 
 		err = wait_for_engines(i915);
@@ -5388,8 +5437,19 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 
 	assert_kernel_context_is_current(i915);
 
+	/*
+	 * Immediately park the GPU so that we enable powersaving and
+	 * treat it as idle. The next time we issue a request, we will
+	 * unpark and start using the engine->pinned_default_state, otherwise
+	 * it is in limbo and an early reset may fail.
+	 */
+	__i915_gem_park(i915);
+
 	for_each_engine(engine, i915, id) {
 		struct i915_vma *state;
+		void *vaddr;
+
+		GEM_BUG_ON(to_intel_context(ctx, engine)->pin_count);
 
 		state = to_intel_context(ctx, engine)->state;
 		if (!state)
@@ -5412,6 +5472,16 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 			goto err_active;
 
 		engine->default_state = i915_gem_object_get(state->obj);
+
+		/* Check we can acquire the image of the context state */
+		vaddr = i915_gem_object_pin_map(engine->default_state,
+						I915_MAP_FORCE_WB);
+		if (IS_ERR(vaddr)) {
+			err = PTR_ERR(vaddr);
+			goto err_active;
+		}
+
+		i915_gem_object_unpin_map(engine->default_state);
 	}
 
 	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)) {
@@ -5592,6 +5662,8 @@ err_uc_misc:
 		i915_gem_cleanup_userptr(dev_priv);
 
 	if (ret == -EIO) {
+		mutex_lock(&dev_priv->drm.struct_mutex);
+
 		/*
 		 * Allow engine initialisation to fail by marking the GPU as
 		 * wedged. But we only want to do this where the GPU is angry,
@@ -5602,7 +5674,14 @@ err_uc_misc:
 					"Failed to initialize GPU, declaring it wedged!\n");
 			i915_gem_set_wedged(dev_priv);
 		}
-		ret = 0;
+
+		/* Minimal basic recovery for KMS */
+		ret = i915_ggtt_enable_hw(dev_priv);
+		i915_gem_restore_gtt_mappings(dev_priv);
+		i915_gem_restore_fences(dev_priv);
+		intel_init_clock_gating(dev_priv);
+
+		mutex_unlock(&dev_priv->drm.struct_mutex);
 	}
 
 	i915_gem_drain_freed_objects(dev_priv);
@@ -5612,6 +5691,7 @@ err_uc_misc:
 void i915_gem_fini(struct drm_i915_private *dev_priv)
 {
 	i915_gem_suspend_late(dev_priv);
+	intel_disable_gt_powersave(dev_priv);
 
 	/* Flush any outstanding unpin_work. */
 	i915_gem_drain_workqueue(dev_priv);
@@ -5622,6 +5702,8 @@ void i915_gem_fini(struct drm_i915_private *dev_priv)
 	i915_gem_cleanup_engines(dev_priv);
 	i915_gem_contexts_fini(dev_priv);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
+
+	intel_cleanup_gt_powersave(dev_priv);
 
 	intel_uc_fini_misc(dev_priv);
 	i915_gem_cleanup_userptr(dev_priv);
@@ -6182,4 +6264,5 @@ err_unlock:
 #include "selftests/huge_pages.c"
 #include "selftests/i915_gem_object.c"
 #include "selftests/i915_gem_coherency.c"
+#include "selftests/i915_gem.c"
 #endif

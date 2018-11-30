@@ -19,29 +19,8 @@
 
 #include "../dss/omapdss.h"
 
-static const struct videomode dvic_default_vm = {
-	.hactive	= 640,
-	.vactive	= 480,
-
-	.pixelclock	= 23500000,
-
-	.hfront_porch	= 48,
-	.hsync_len	= 32,
-	.hback_porch	= 80,
-
-	.vfront_porch	= 3,
-	.vsync_len	= 4,
-	.vback_porch	= 7,
-
-	.flags		= DISPLAY_FLAGS_HSYNC_HIGH | DISPLAY_FLAGS_VSYNC_HIGH |
-			  DISPLAY_FLAGS_SYNC_NEGEDGE | DISPLAY_FLAGS_DE_HIGH |
-			  DISPLAY_FLAGS_PIXDATA_POSEDGE,
-};
-
 struct panel_drv_data {
 	struct omap_dss_device dssdev;
-
-	struct videomode vm;
 
 	struct i2c_adapter *i2c_adapter;
 
@@ -69,7 +48,6 @@ static void dvic_disconnect(struct omap_dss_device *src,
 
 static int dvic_enable(struct omap_dss_device *dssdev)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *src = dssdev->src;
 	int r;
 
@@ -78,8 +56,6 @@ static int dvic_enable(struct omap_dss_device *dssdev)
 
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
-
-	src->ops->set_timings(src, &ddata->vm);
 
 	r = src->ops->enable(src);
 	if (r)
@@ -100,33 +76,6 @@ static void dvic_disable(struct omap_dss_device *dssdev)
 	src->ops->disable(src);
 
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
-}
-
-static void dvic_set_timings(struct omap_dss_device *dssdev,
-			     struct videomode *vm)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
-
-	ddata->vm = *vm;
-
-	src->ops->set_timings(src, vm);
-}
-
-static void dvic_get_timings(struct omap_dss_device *dssdev,
-			     struct videomode *vm)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-
-	*vm = ddata->vm;
-}
-
-static int dvic_check_timings(struct omap_dss_device *dssdev,
-			      struct videomode *vm)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	return src->ops->check_timings(src, vm);
 }
 
 static int dvic_ddc_read(struct i2c_adapter *adapter,
@@ -165,12 +114,6 @@ static int dvic_read_edid(struct omap_dss_device *dssdev,
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	int r, l, bytes_read;
-
-	if (ddata->hpd_gpio && !gpiod_get_value_cansleep(ddata->hpd_gpio))
-		return -ENODEV;
-
-	if (!ddata->i2c_adapter)
-		return -ENODEV;
 
 	l = min(EDID_LENGTH, len);
 	r = dvic_ddc_read(ddata->i2c_adapter, edid, l, 0);
@@ -211,57 +154,26 @@ static bool dvic_detect(struct omap_dss_device *dssdev)
 	return r == 0;
 }
 
-static int dvic_register_hpd_cb(struct omap_dss_device *dssdev,
+static void dvic_register_hpd_cb(struct omap_dss_device *dssdev,
 				 void (*cb)(void *cb_data,
 					    enum drm_connector_status status),
 				 void *cb_data)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	if (!ddata->hpd_gpio)
-		return -ENOTSUPP;
-
 	mutex_lock(&ddata->hpd_lock);
 	ddata->hpd_cb = cb;
 	ddata->hpd_cb_data = cb_data;
 	mutex_unlock(&ddata->hpd_lock);
-	return 0;
 }
 
 static void dvic_unregister_hpd_cb(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	if (!ddata->hpd_gpio)
-		return;
-
 	mutex_lock(&ddata->hpd_lock);
 	ddata->hpd_cb = NULL;
 	ddata->hpd_cb_data = NULL;
-	mutex_unlock(&ddata->hpd_lock);
-}
-
-static void dvic_enable_hpd(struct omap_dss_device *dssdev)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-
-	if (!ddata->hpd_gpio)
-		return;
-
-	mutex_lock(&ddata->hpd_lock);
-	ddata->hpd_enabled = true;
-	mutex_unlock(&ddata->hpd_lock);
-}
-
-static void dvic_disable_hpd(struct omap_dss_device *dssdev)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-
-	if (!ddata->hpd_gpio)
-		return;
-
-	mutex_lock(&ddata->hpd_lock);
-	ddata->hpd_enabled = false;
 	mutex_unlock(&ddata->hpd_lock);
 }
 
@@ -272,17 +184,11 @@ static const struct omap_dss_device_ops dvic_ops = {
 	.enable		= dvic_enable,
 	.disable	= dvic_disable,
 
-	.set_timings	= dvic_set_timings,
-	.get_timings	= dvic_get_timings,
-	.check_timings	= dvic_check_timings,
-
 	.read_edid	= dvic_read_edid,
 	.detect		= dvic_detect,
 
 	.register_hpd_cb	= dvic_register_hpd_cb,
 	.unregister_hpd_cb	= dvic_unregister_hpd_cb,
-	.enable_hpd		= dvic_enable_hpd,
-	.disable_hpd		= dvic_disable_hpd,
 };
 
 static irqreturn_t dvic_hpd_isr(int irq, void *data)
@@ -364,14 +270,19 @@ static int dvic_probe(struct platform_device *pdev)
 	if (r)
 		return r;
 
-	ddata->vm = dvic_default_vm;
-
 	dssdev = &ddata->dssdev;
 	dssdev->ops = &dvic_ops;
 	dssdev->dev = &pdev->dev;
 	dssdev->type = OMAP_DISPLAY_TYPE_DVI;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(0);
+
+	if (ddata->hpd_gpio)
+		dssdev->ops_flags |= OMAP_DSS_DEVICE_OP_DETECT
+				  |  OMAP_DSS_DEVICE_OP_HPD;
+	if (ddata->i2c_adapter)
+		dssdev->ops_flags |= OMAP_DSS_DEVICE_OP_DETECT
+				  |  OMAP_DSS_DEVICE_OP_EDID;
 
 	omapdss_display_init(dssdev);
 	omapdss_device_register(dssdev);

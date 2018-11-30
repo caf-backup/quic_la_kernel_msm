@@ -132,10 +132,8 @@ static void sdi_config_lcd_manager(struct sdi_device *sdi)
 static int sdi_display_enable(struct omap_dss_device *dssdev)
 {
 	struct sdi_device *sdi = dssdev_to_sdi(dssdev);
-	struct videomode *vm = &sdi->vm;
-	unsigned long fck;
 	struct dispc_clock_info dispc_cinfo;
-	unsigned long pck;
+	unsigned long fck;
 	int r;
 
 	if (!sdi->output.dispc_channel_connected) {
@@ -151,26 +149,11 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_get_dispc;
 
-	/* 15.5.9.1.2 */
-	vm->flags |= DISPLAY_FLAGS_PIXDATA_POSEDGE | DISPLAY_FLAGS_SYNC_POSEDGE;
-
-	r = sdi_calc_clock_div(sdi, vm->pixelclock, &fck, &dispc_cinfo);
+	r = sdi_calc_clock_div(sdi, sdi->vm.pixelclock, &fck, &dispc_cinfo);
 	if (r)
 		goto err_calc_clock_div;
 
 	sdi->mgr_config.clock_info = dispc_cinfo;
-
-	pck = fck / dispc_cinfo.lck_div / dispc_cinfo.pck_div;
-
-	if (pck != vm->pixelclock) {
-		DSSWARN("Could not find exact pixel clock. Requested %lu Hz, got %lu Hz\n",
-			vm->pixelclock, pck);
-
-		vm->pixelclock = pck;
-	}
-
-
-	dss_mgr_set_timings(&sdi->output, vm);
 
 	r = dss_set_fck_rate(sdi->dss, fck);
 	if (r)
@@ -230,7 +213,7 @@ static void sdi_display_disable(struct omap_dss_device *dssdev)
 }
 
 static void sdi_set_timings(struct omap_dss_device *dssdev,
-			    struct videomode *vm)
+			    const struct videomode *vm)
 {
 	struct sdi_device *sdi = dssdev_to_sdi(dssdev);
 
@@ -241,13 +224,26 @@ static int sdi_check_timings(struct omap_dss_device *dssdev,
 			     struct videomode *vm)
 {
 	struct sdi_device *sdi = dssdev_to_sdi(dssdev);
-	enum omap_channel channel = dssdev->dispc_channel;
-
-	if (!dispc_mgr_timings_ok(sdi->dss->dispc, channel, vm))
-		return -EINVAL;
+	struct dispc_clock_info dispc_cinfo;
+	unsigned long fck;
+	unsigned long pck;
+	int r;
 
 	if (vm->pixelclock == 0)
 		return -EINVAL;
+
+	r = sdi_calc_clock_div(sdi, vm->pixelclock, &fck, &dispc_cinfo);
+	if (r)
+		return r;
+
+	pck = fck / dispc_cinfo.lck_div / dispc_cinfo.pck_div;
+
+	if (pck != vm->pixelclock) {
+		DSSWARN("Pixel clock adjusted from %lu Hz to %lu Hz\n",
+			vm->pixelclock, pck);
+
+		vm->pixelclock = pck;
+	}
 
 	return 0;
 }
@@ -298,6 +294,8 @@ static int sdi_init_output(struct sdi_device *sdi)
 	out->of_ports = BIT(1);
 	out->ops = &sdi_ops;
 	out->owner = THIS_MODULE;
+	out->bus_flags = DRM_BUS_FLAG_PIXDATA_POSEDGE	/* 15.5.9.1.2 */
+		       | DRM_BUS_FLAG_SYNC_POSEDGE;
 
 	out->next = omapdss_of_find_connected_device(out->dev->of_node, 1);
 	if (IS_ERR(out->next)) {

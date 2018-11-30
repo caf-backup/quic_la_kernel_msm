@@ -49,13 +49,7 @@ static const struct videomode td028ttec1_panel_vm = {
 	.vsync_len	= 2,
 	.vback_porch	= 2,
 
-	.flags		= DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
-			  DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_SYNC_POSEDGE |
-			  DISPLAY_FLAGS_PIXDATA_NEGEDGE,
-	/*
-	 * Note: According to the panel documentation:
-	 * SYNC needs to be driven on the FALLING edge
-	 */
+	.flags		= DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW,
 };
 
 #define JBT_COMMAND	0x000
@@ -187,8 +181,6 @@ static int td028ttec1_panel_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
-	src->ops->set_timings(src, &ddata->vm);
-
 	r = src->ops->enable(src);
 	if (r)
 		return r;
@@ -303,31 +295,12 @@ static void td028ttec1_panel_disable(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static void td028ttec1_panel_set_timings(struct omap_dss_device *dssdev,
-					 struct videomode *vm)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
-
-	ddata->vm = *vm;
-
-	src->ops->set_timings(src, vm);
-}
-
 static void td028ttec1_panel_get_timings(struct omap_dss_device *dssdev,
 					 struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
 	*vm = ddata->vm;
-}
-
-static int td028ttec1_panel_check_timings(struct omap_dss_device *dssdev,
-					  struct videomode *vm)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	return src->ops->check_timings(src, vm);
 }
 
 static const struct omap_dss_device_ops td028ttec1_ops = {
@@ -337,9 +310,7 @@ static const struct omap_dss_device_ops td028ttec1_ops = {
 	.enable		= td028ttec1_panel_enable,
 	.disable	= td028ttec1_panel_disable,
 
-	.set_timings	= td028ttec1_panel_set_timings,
 	.get_timings	= td028ttec1_panel_get_timings,
-	.check_timings	= td028ttec1_panel_check_timings,
 };
 
 static int td028ttec1_panel_probe(struct spi_device *spi)
@@ -375,6 +346,13 @@ static int td028ttec1_panel_probe(struct spi_device *spi)
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(0);
+
+	/*
+	 * Note: According to the panel documentation:
+	 * SYNC needs to be driven on the FALLING edge
+	 */
+	dssdev->bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_SYNC_POSEDGE
+			  | DRM_BUS_FLAG_PIXDATA_NEGEDGE;
 
 	omapdss_display_init(dssdev);
 	omapdss_device_register(dssdev);

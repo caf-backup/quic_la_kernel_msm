@@ -368,17 +368,15 @@ struct omap_dss_device_ops {
 	void (*get_timings)(struct omap_dss_device *dssdev,
 			    struct videomode *vm);
 	void (*set_timings)(struct omap_dss_device *dssdev,
-			    struct videomode *vm);
+			    const struct videomode *vm);
 
 	bool (*detect)(struct omap_dss_device *dssdev);
 
-	int (*register_hpd_cb)(struct omap_dss_device *dssdev,
-			       void (*cb)(void *cb_data,
+	void (*register_hpd_cb)(struct omap_dss_device *dssdev,
+				void (*cb)(void *cb_data,
 					  enum drm_connector_status status),
-			       void *cb_data);
+				void *cb_data);
 	void (*unregister_hpd_cb)(struct omap_dss_device *dssdev);
-	void (*enable_hpd)(struct omap_dss_device *dssdev);
-	void (*disable_hpd)(struct omap_dss_device *dssdev);
 
 	int (*read_edid)(struct omap_dss_device *dssdev, u8 *buf, int len);
 
@@ -386,6 +384,18 @@ struct omap_dss_device_ops {
 		const struct omapdss_hdmi_ops hdmi;
 		const struct omapdss_dsi_ops dsi;
 	};
+};
+
+/**
+ * enum omap_dss_device_ops_flag - Indicates which device ops are supported
+ * @OMAP_DSS_DEVICE_OP_DETECT: The device supports output connection detection
+ * @OMAP_DSS_DEVICE_OP_HPD: The device supports all hot-plug-related operations
+ * @OMAP_DSS_DEVICE_OP_EDID: The device supports readind EDID
+ */
+enum omap_dss_device_ops_flag {
+	OMAP_DSS_DEVICE_OP_DETECT = BIT(0),
+	OMAP_DSS_DEVICE_OP_HPD = BIT(1),
+	OMAP_DSS_DEVICE_OP_EDID = BIT(2),
 };
 
 enum omap_dss_device_type {
@@ -421,6 +431,8 @@ struct omap_dss_device {
 
 	const struct omap_dss_driver *driver;
 	const struct omap_dss_device_ops *ops;
+	unsigned long ops_flags;
+	unsigned long bus_flags;
 
 	/* helper variable for driver suspend/resume */
 	bool activate_after_resume;
@@ -596,6 +608,9 @@ struct dispc_ops {
 	void (*mgr_set_lcd_config)(struct dispc_device *dispc,
 				   enum omap_channel channel,
 				   const struct dss_lcd_mgr_config *config);
+	int (*mgr_check_timings)(struct dispc_device *dispc,
+				 enum omap_channel channel,
+				 const struct videomode *vm);
 	void (*mgr_set_timings)(struct dispc_device *dispc,
 				enum omap_channel channel,
 				const struct videomode *vm);

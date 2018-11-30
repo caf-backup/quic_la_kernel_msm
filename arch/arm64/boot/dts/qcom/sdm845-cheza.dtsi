@@ -18,6 +18,7 @@
 	aliases {
 		hsuart0 = &uart6;
 		serial0 = &uart9;
+		wifi0 = &wifi;
 	};
 
 	chosen {
@@ -686,6 +687,15 @@ ap_ts_i2c: &i2c14 {
 	vdda-pll-supply = <&vdda_usb2_ss_core>;
 };
 
+&wifi {
+	status = "okay";
+
+	vdd-0.8-cx-mx-supply = <&src_pp800_l5a >;
+	vdd-1.8-xo-supply = <&pp1800_l7a_wcn3990>;
+	vdd-1.3-rfa-supply = <&src_pp1300_l17a>;
+	vdd-3.3-ch0-supply = <&pp3300_l25a_ch0_wcn3990>;
+};
+
 /* PINCTRL - additions to nodes defined in sdm845.dtsi */
 
 &qspi_cs0 {
@@ -814,6 +824,33 @@ ap_ts_i2c: &i2c14 {
 			  "",
 			  "SLB",
 			  "";
+};
+
+&pm8998_adc {
+	adc-chan@ADC5_AMUX_THM1_100K_PU {
+		reg = <ADC5_AMUX_THM1_100K_PU>;
+		label = "sdm_temp";
+	};
+
+	adc-chan@ADC5_AMUX_THM2_100K_PU {
+		reg = <ADC5_AMUX_THM2_100K_PU>;
+		label = "quiet_temp";
+	};
+
+	adc-chan@ADC5_AMUX_THM3_100K_PU {
+		reg = <ADC5_AMUX_THM3_100K_PU>;
+		label = "lte_temp_1";
+	};
+
+	adc-chan@ADC5_AMUX_THM4_100K_PU {
+		reg = <ADC5_AMUX_THM4_100K_PU>;
+		label = "lte_temp_2";
+	};
+
+	adc-chan@ADC5_AMUX_THM5_100K_PU {
+		reg = <ADC5_AMUX_THM5_100K_PU>;
+		label = "charger_temp";
+	};
 };
 
 &pm8998_gpio {

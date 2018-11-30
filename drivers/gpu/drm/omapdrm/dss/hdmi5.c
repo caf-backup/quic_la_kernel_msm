@@ -153,7 +153,7 @@ static void hdmi_power_off_core(struct omap_hdmi *hdmi)
 static int hdmi_power_on_full(struct omap_hdmi *hdmi)
 {
 	int r;
-	struct videomode *vm;
+	const struct videomode *vm;
 	struct dss_pll_clock_info hdmi_cinfo = { 0 };
 	unsigned int pc;
 
@@ -206,9 +206,6 @@ static int hdmi_power_on_full(struct omap_hdmi *hdmi)
 
 	hdmi5_configure(&hdmi->core, &hdmi->wp, &hdmi->cfg);
 
-	/* tv size */
-	dss_mgr_set_timings(&hdmi->output, vm);
-
 	r = dss_mgr_enable(&hdmi->output);
 	if (r)
 		goto err_mgr_enable;
@@ -250,19 +247,8 @@ static void hdmi_power_off_full(struct omap_hdmi *hdmi)
 	hdmi_power_off_core(hdmi);
 }
 
-static int hdmi_display_check_timing(struct omap_dss_device *dssdev,
-				     struct videomode *vm)
-{
-	struct omap_hdmi *hdmi = dssdev_to_hdmi(dssdev);
-
-	if (!dispc_mgr_timings_ok(hdmi->dss->dispc, dssdev->dispc_channel, vm))
-		return -EINVAL;
-
-	return 0;
-}
-
-static void hdmi_display_set_timing(struct omap_dss_device *dssdev,
-				    struct videomode *vm)
+static void hdmi_display_set_timings(struct omap_dss_device *dssdev,
+				     const struct videomode *vm)
 {
 	struct omap_hdmi *hdmi = dssdev_to_hdmi(dssdev);
 
@@ -502,8 +488,7 @@ static const struct omap_dss_device_ops hdmi_ops = {
 	.enable			= hdmi_display_enable,
 	.disable		= hdmi_display_disable,
 
-	.check_timings		= hdmi_display_check_timing,
-	.set_timings		= hdmi_display_set_timing,
+	.set_timings		= hdmi_display_set_timings,
 
 	.read_edid		= hdmi_read_edid,
 
@@ -703,6 +688,7 @@ static int hdmi5_init_output(struct omap_hdmi *hdmi)
 	out->ops = &hdmi_ops;
 	out->owner = THIS_MODULE;
 	out->of_ports = BIT(0);
+	out->ops_flags = OMAP_DSS_DEVICE_OP_EDID;
 
 	out->next = omapdss_of_find_connected_device(out->dev->of_node, 0);
 	if (IS_ERR(out->next)) {

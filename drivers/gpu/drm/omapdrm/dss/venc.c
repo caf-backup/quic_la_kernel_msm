@@ -452,7 +452,7 @@ static void venc_runtime_put(struct venc_device *venc)
 	WARN_ON(r < 0 && r != -ENOSYS);
 }
 
-static const struct venc_config *venc_timings_to_config(struct videomode *vm)
+static const struct venc_config *venc_timings_to_config(const struct videomode *vm)
 {
 	switch (venc_get_videomode(vm)) {
 	default:
@@ -490,8 +490,6 @@ static int venc_power_on(struct venc_device *venc)
 		l |= 1 << 3;
 
 	venc_write_reg(venc, VENC_OUTPUT_CONTROL, l);
-
-	dss_mgr_set_timings(&venc->output, &venc->vm);
 
 	r = regulator_enable(venc->vdda_dac_reg);
 	if (r)
@@ -568,32 +566,30 @@ static void venc_display_disable(struct omap_dss_device *dssdev)
 	mutex_unlock(&venc->venc_lock);
 }
 
-static void venc_set_timings(struct omap_dss_device *dssdev,
+static void venc_get_timings(struct omap_dss_device *dssdev,
 			     struct videomode *vm)
 {
 	struct venc_device *venc = dssdev_to_venc(dssdev);
-	struct videomode actual_vm;
+
+	mutex_lock(&venc->venc_lock);
+	*vm = venc->vm;
+	mutex_unlock(&venc->venc_lock);
+}
+
+static void venc_set_timings(struct omap_dss_device *dssdev,
+			     const struct videomode *vm)
+{
+	struct venc_device *venc = dssdev_to_venc(dssdev);
 
 	DSSDBG("venc_set_timings\n");
 
 	mutex_lock(&venc->venc_lock);
 
-	switch (venc_get_videomode(vm)) {
-	default:
-		WARN_ON_ONCE(1);
-	case VENC_MODE_PAL:
-		actual_vm = omap_dss_pal_vm;
-		break;
-	case VENC_MODE_NTSC:
-		actual_vm = omap_dss_ntsc_vm;
-		break;
-	}
-
 	/* Reset WSS data when the TV standard changes. */
-	if (memcmp(&venc->vm, &actual_vm, sizeof(actual_vm)))
+	if (memcmp(&venc->vm, vm, sizeof(*vm)))
 		venc->wss_data = 0;
 
-	venc->vm = actual_vm;
+	venc->vm = *vm;
 
 	dispc_set_tv_pclk(venc->dss->dispc, 13500000);
 
@@ -607,8 +603,13 @@ static int venc_check_timings(struct omap_dss_device *dssdev,
 
 	switch (venc_get_videomode(vm)) {
 	case VENC_MODE_PAL:
-	case VENC_MODE_NTSC:
+		*vm = omap_dss_pal_vm;
 		return 0;
+
+	case VENC_MODE_NTSC:
+		*vm = omap_dss_ntsc_vm;
+		return 0;
+
 	default:
 		return -EINVAL;
 	}
@@ -720,6 +721,7 @@ static const struct omap_dss_device_ops venc_ops = {
 	.disable = venc_display_disable,
 
 	.check_timings = venc_check_timings,
+	.get_timings = venc_get_timings,
 	.set_timings = venc_set_timings,
 };
 
@@ -877,6 +879,7 @@ static int venc_probe(struct platform_device *pdev)
 	mutex_init(&venc->venc_lock);
 
 	venc->wss_data = 0;
+	venc->vm = omap_dss_pal_vm;
 
 	venc_mem = platform_get_resource(venc->pdev, IORESOURCE_MEM, 0);
 	venc->base = devm_ioremap_resource(&pdev->dev, venc_mem);

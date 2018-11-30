@@ -33,14 +33,7 @@ static const struct videomode lb035q02_vm = {
 	.vfront_porch	= 4,
 	.vback_porch	= 18,
 
-	.flags		= DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
-			  DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_SYNC_NEGEDGE |
-			  DISPLAY_FLAGS_PIXDATA_POSEDGE,
-	/*
-	 * Note: According to the panel documentation:
-	 * DE is active LOW
-	 * DATA needs to be driven on the FALLING edge
-	 */
+	.flags		= DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW,
 };
 
 struct panel_drv_data {
@@ -142,8 +135,6 @@ static int lb035q02_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
-	src->ops->set_timings(src, &ddata->vm);
-
 	r = src->ops->enable(src);
 	if (r)
 		return r;
@@ -172,31 +163,12 @@ static void lb035q02_disable(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static void lb035q02_set_timings(struct omap_dss_device *dssdev,
-				 struct videomode *vm)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
-
-	ddata->vm = *vm;
-
-	src->ops->set_timings(src, vm);
-}
-
 static void lb035q02_get_timings(struct omap_dss_device *dssdev,
 				 struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
 	*vm = ddata->vm;
-}
-
-static int lb035q02_check_timings(struct omap_dss_device *dssdev,
-				  struct videomode *vm)
-{
-	struct omap_dss_device *src = dssdev->src;
-
-	return src->ops->check_timings(src, vm);
 }
 
 static const struct omap_dss_device_ops lb035q02_ops = {
@@ -206,9 +178,7 @@ static const struct omap_dss_device_ops lb035q02_ops = {
 	.enable		= lb035q02_enable,
 	.disable	= lb035q02_disable,
 
-	.set_timings	= lb035q02_set_timings,
 	.get_timings	= lb035q02_get_timings,
-	.check_timings	= lb035q02_check_timings,
 };
 
 static int lb035q02_probe_of(struct spi_device *spi)
@@ -253,6 +223,14 @@ static int lb035q02_panel_spi_probe(struct spi_device *spi)
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(0);
+
+	/*
+	 * Note: According to the panel documentation:
+	 * DE is active LOW
+	 * DATA needs to be driven on the FALLING edge
+	 */
+	dssdev->bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_SYNC_NEGEDGE
+			  | DRM_BUS_FLAG_PIXDATA_POSEDGE;
 
 	omapdss_display_init(dssdev);
 	omapdss_device_register(dssdev);
