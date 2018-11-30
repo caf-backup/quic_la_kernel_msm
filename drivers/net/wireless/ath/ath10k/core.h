@@ -1166,6 +1166,7 @@ struct ath10k {
 
 	u32 ampdu_reference;
 
+	const u8 *wmi_key_cipher;
 	void *ce_priv;
 
 	const unsigned int *debug_mask;
