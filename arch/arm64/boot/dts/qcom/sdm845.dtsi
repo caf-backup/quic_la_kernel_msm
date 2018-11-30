@@ -706,66 +706,6 @@
 		method = "smc";
 	};
 
-	gpu_opp_table: adreno-opp-table {
-		compatible = "operating-points-v2-qcom-level";
-
-		opp-710000000 {
-			opp-hz = /bits/ 64 <710000000>;
-			qcom,level = <416>;
-			opp-interconnect-bw-port0 = /bits/ 64 <0 7216000000>;
-		};
-
-		opp-675000000 {
-			opp-hz = /bits/ 64 <675000000>;
-			qcom,level = <384>;
-			opp-interconnect-bw-port0 = /bits/ 64 <0 7216000000>;
-		};
-
-		opp-596000000 {
-			opp-hz = /bits/ 64 <596000000>;
-			qcom,level = <320>;
-			opp-interconnect-bw-port0 = /bits/ 64 <0 5184000000>;
-		};
-
-		opp-520000000 {
-			opp-hz = /bits/ 64 <520000000>;
-			qcom,level = <256>;
-			opp-interconnect-bw-port0 = /bits/ 64 <0 4068000000>;
-		};
-
-		opp-414000000 {
-			opp-hz = /bits/ 64 <414000000>;
-			qcom,level = <192>;
-			opp-interconnect-bw-port0 = /bits/ 64 <0 3072000000>;
-		};
-
-		opp-342000000 {
-			opp-hz = /bits/ 64 <342000000>;
-			qcom,level = <128>;
-			opp-interconnect-bw-port0 = /bits/ 64 <0 2188000000>;
-		};
-
-		opp-257000000 {
-			opp-hz = /bits/ 64 <257000000>;
-			qcom,level = <64>;
-			opp-interconnect-bw-port0 = /bits/ 64 <0 1200000000>;
-		};
-	};
-
-	gmu_opp_table: adreno-gmu-opp-table {
-		compatible = "operating-points-v2-qcom-level";
-
-		opp-400000000 {
-			opp-hz = /bits/ 64 <400000000>;
-			qcom,level = <128>;
-		};
-
-		opp-200000000 {
-			opp-hz = /bits/ 64 <200000000>;
-			qcom,level = <48>;
-		};
-	};
-
 	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -3245,7 +3185,7 @@
 
 			operating-points-v2 = <&gpu_opp_table>;
 
-			interconnects = <&qnoc 26 &qnoc 512>;
+			interconnects = <&qnoc 36 &qnoc 512>;
 			interconnect-names = "port0";
 
 			qcom,gmu = <&gmu>;

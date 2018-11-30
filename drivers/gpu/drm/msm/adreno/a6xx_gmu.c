@@ -104,6 +104,8 @@ static void __a6xx_gmu_set_freq(struct a6xx_gmu *gmu, int index)
 
 		dev_pm_opp_put(opp);
 	}
+
+	gmu->freq = gmu->gpu_freqs[index];
 }
 
 void a6xx_gmu_set_freq(struct msm_gpu *gpu, unsigned long freq)
