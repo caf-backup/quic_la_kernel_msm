@@ -178,6 +178,9 @@
 			reg = <0x60000 0x6000>;
 		};
 
+		ethernet: ethernet@7a80000 {
+		};
+
 		blsp2_i2c0: i2c@7af5000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			reg = <0x07af5000 0x600>;
