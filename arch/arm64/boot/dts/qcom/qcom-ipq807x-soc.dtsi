@@ -1327,8 +1327,9 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
-			reg = <0x8AF8800 0x100>;
-			reg-names = "qscratch_base";
+			reg = <0x8AF8800 0x100>,
+				<0x8A00000 0xcd00>;
+			reg-names = "qscratch_base", "dwc3_base";
 			clocks = <&gcc GCC_SNOC_BUS_TIMEOUT2_AHB_CLK>,
 				<&gcc GCC_SYS_NOC_USB0_AXI_CLK>,
 				<&gcc GCC_USB0_MASTER_CLK>,
@@ -1377,8 +1378,9 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
-			reg = <0x8CF8800 0x100>;
-			reg-names = "qscratch_base";
+			reg = <0x8CF8800 0x100>,
+				<0x8C00000 0xcd00>;
+			reg-names = "qscratch_base", "dwc3_base";
 			clocks = <&gcc GCC_SNOC_BUS_TIMEOUT3_AHB_CLK>,
 				<&gcc GCC_SYS_NOC_USB1_AXI_CLK>,
 				<&gcc GCC_USB1_MASTER_CLK>,
