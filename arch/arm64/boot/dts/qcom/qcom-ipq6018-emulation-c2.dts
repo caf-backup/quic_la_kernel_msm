@@ -52,6 +52,18 @@
 			status = "ok";
 		};
 
+		glink_adsp: qcom,glink-smem-native-xprt-adsp@48C00000 {
+			status = "disabled";
+		};
+
+		ipc_router_adsp: qcom,ipc_router_adsp_xprt {
+			status = "disabled";
+		};
+
+		adsp: smp2p-adsp {
+			status = "disabled";
+		};
+
 		dp1 {
 			device_type = "network";
 			compatible = "qcom,nss-dp";
