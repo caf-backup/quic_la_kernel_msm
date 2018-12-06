@@ -97,6 +97,15 @@
 			local-mac-address = [000000000000];
 		};
 
+		q6v5_wcss: q6v5_wcss@CD00000 {
+			qca,emulation;
+			img-addr = <0x4AB00000>;
+		};
+
+		timer {
+			clock-frequency = <240000>;
+		};
+
 		nss_crypto {
 			status = "ok";
 		};
