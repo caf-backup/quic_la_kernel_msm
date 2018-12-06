@@ -426,7 +426,7 @@ static void recover_worker(struct work_struct *work)
 {
 	struct msm_gpu *gpu = container_of(work, struct msm_gpu, recover_work);
 	struct drm_device *dev = gpu->dev;
-	//struct msm_drm_private *priv = dev->dev_private;
+	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_gem_submit *submit;
 	struct msm_ringbuffer *cur_ring = gpu->funcs->active_ring(gpu);
 	char *comm = NULL, *cmd = NULL;
@@ -437,7 +437,7 @@ static void recover_worker(struct work_struct *work)
 	DRM_DEV_ERROR(dev->dev, "%s: hangcheck recover!\n", gpu->name);
 
 	submit = find_submit(cur_ring, cur_ring->memptrs->fence + 1);
-#if 0
+
 	if (submit) {
 		struct task_struct *task;
 
@@ -471,7 +471,7 @@ static void recover_worker(struct work_struct *work)
 			msm_rd_dump_submit(priv->hangrd, submit, NULL);
 	}
 
-#endif
+
 	/* Record the crash state */
 	pm_runtime_get_sync(&gpu->pdev->dev);
 	msm_gpu_crashstate_capture(gpu, submit, comm, cmd);
