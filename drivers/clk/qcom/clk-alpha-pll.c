@@ -515,8 +515,8 @@ static unsigned long
 alpha_pll_huayra_round_rate(unsigned long rate, unsigned long prate,
 			    u32 *l, u32 *a)
 {
-	u64 remainder;
-	u64 quotient;
+	unsigned long remainder;
+	unsigned long quotient;
 
 	quotient = rate;
 	remainder = do_div(quotient, prate);
