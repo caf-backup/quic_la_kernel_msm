@@ -92,7 +92,7 @@
 		qcom,resource-id = <5>;
 		qcom,regulator-type = <1>;
 		qcom,hpm-min-load = <100000>;
-		status = "ok";
+		status = "disabled";
 
 		ipq807x_s5_corner: regulator-s5 {
 			compatible = "qcom,rpm-glink-regulator";
@@ -101,7 +101,7 @@
 			regulator-max-microvolt = <9>; // STurbo_NO_CPR
 			qcom,use-voltage-corner;
 			qcom,set = <1>;
-			status = "ok";
+			status = "disabled";
 		};
 	};
 

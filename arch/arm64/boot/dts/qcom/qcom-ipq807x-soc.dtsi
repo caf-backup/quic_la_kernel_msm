@@ -1014,7 +1014,7 @@
 			interrupts = <0 168 1>;
 			label = "rpm";
 			qcom,subsys-id = <6>;
-			status = "ok";
+			status = "disabled";
 		};
 
 		rpm_bus: qcom,rpm-glink {
