@@ -626,6 +626,13 @@
 					"stop";
 		};
 
+		q6v5_m3: q6v5_m3 {
+			compatible = "qca,q6v5-m3-rproc";
+			firmware = "IPQ6018/m3_fw.mdt";
+			qca,auto-restart;
+			qcom,restart-group = <&q6v5_m3 &q6v5_wcss>;
+		};
+
 		glink_mpss_ssr: qcom,glink-ssr-modem {
 			compatible = "qcom,glink_ssr";
 			label = "q6v5-wcss";
