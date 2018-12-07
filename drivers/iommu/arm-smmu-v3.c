@@ -1629,6 +1629,17 @@ static int arm_smmu_install_ste_for_group(struct arm_smmu_group *smmu_group)
 	return 0;
 }
 
+static void arm_smmu_detach_dev(struct device *dev)
+{
+	struct arm_smmu_group *smmu_group = arm_smmu_group_get(dev);
+
+	smmu_group->ste.bypass = true;
+	if (IS_ERR_VALUE(arm_smmu_install_ste_for_group(smmu_group)))
+		dev_warn(dev, "failed to install bypass STE\n");
+
+	smmu_group->domain = NULL;
+}
+
 static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 {
 	int ret = 0;
@@ -1641,7 +1652,7 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 
 	/* Already attached to a different domain? */
 	if (smmu_group->domain && smmu_group->domain != smmu_domain)
-		return -EEXIST;
+		arm_smmu_detach_dev(dev);
 
 	smmu = smmu_group->smmu;
 	mutex_lock(&smmu_domain->init_mutex);
@@ -1667,7 +1678,12 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 		goto out_unlock;
 
 	smmu_group->domain	= smmu_domain;
-	smmu_group->ste.bypass	= false;
+
+	/*
+	 * FIXME: This should always be "false" once we have IOMMU-backed
+	 * DMA ops for all devices behind the SMMU.
+	 */
+	smmu_group->ste.bypass	= domain->type == IOMMU_DOMAIN_DMA;
 
 	ret = arm_smmu_install_ste_for_group(smmu_group);
 	if (IS_ERR_VALUE(ret))
@@ -1676,25 +1692,6 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 out_unlock:
 	mutex_unlock(&smmu_domain->init_mutex);
 	return ret;
-}
-
-static void arm_smmu_detach_dev(struct iommu_domain *domain, struct device *dev)
-{
-	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
-	struct arm_smmu_group *smmu_group = arm_smmu_group_get(dev);
-
-	BUG_ON(!smmu_domain);
-	BUG_ON(!smmu_group);
-
-	mutex_lock(&smmu_domain->init_mutex);
-	BUG_ON(smmu_group->domain != smmu_domain);
-
-	smmu_group->ste.bypass = true;
-	if (IS_ERR_VALUE(arm_smmu_install_ste_for_group(smmu_group)))
-		dev_warn(dev, "failed to install bypass STE\n");
-
-	smmu_group->domain = NULL;
-	mutex_unlock(&smmu_domain->init_mutex);
 }
 
 static int arm_smmu_map(struct iommu_domain *domain, unsigned long iova,
@@ -1934,7 +1931,6 @@ static struct iommu_ops arm_smmu_ops = {
 	.domain_alloc		= arm_smmu_domain_alloc,
 	.domain_free		= arm_smmu_domain_free,
 	.attach_dev		= arm_smmu_attach_dev,
-	.detach_dev		= arm_smmu_detach_dev,
 	.map			= arm_smmu_map,
 	.unmap			= arm_smmu_unmap,
 	.map_sg			= default_iommu_map_sg,
