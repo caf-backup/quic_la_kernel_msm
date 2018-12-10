@@ -2134,6 +2134,10 @@
 			};
 		};
 
+		qcom,rmnet-ipa {
+			compatible = "qcom,rmnet-ipa";
+		};
+
 		ipa_hw: ipa@1e00000 {
 			compatible = "qcom,ipa-sdm845";
 
