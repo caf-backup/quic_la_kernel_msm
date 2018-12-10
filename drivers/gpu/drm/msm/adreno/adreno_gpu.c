@@ -415,6 +415,9 @@ int adreno_gpu_state_get(struct msm_gpu *gpu, struct msm_gpu_state *state)
 		}
 	}
 
+	if (!adreno_gpu->registers)
+		return 0;
+
 	/* Count the number of registers */
 	for (i = 0; adreno_gpu->registers[i] != ~0; i += 2)
 		count += adreno_gpu->registers[i + 1] -
@@ -552,12 +555,14 @@ void adreno_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
 		}
 	}
 
-	drm_puts(p, "registers:\n");
+	if (state->nr_registers > 0) {
+		drm_puts(p, "registers:\n");
 
-	for (i = 0; i < state->nr_registers; i++) {
-		drm_printf(p, "  - { offset: 0x%04x, value: 0x%08x }\n",
-			state->registers[i * 2] << 2,
-			state->registers[(i * 2) + 1]);
+		for (i = 0; i < state->nr_registers; i++) {
+			drm_printf(p, "  - { offset: 0x%04x, value: 0x%08x }\n",
+				state->registers[i * 2] << 2,
+				state->registers[(i * 2) + 1]);
+		}
 	}
 }
 #endif
