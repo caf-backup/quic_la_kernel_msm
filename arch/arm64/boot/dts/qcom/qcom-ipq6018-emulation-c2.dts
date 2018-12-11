@@ -38,7 +38,7 @@
 	chosen {
 		linux,initrd-end = <0x46000000>;
 		linux,initrd-start = <0x44000000>;
-		bootargs = "root=/dev/ram0 rw init=/init nosmp";
+		bootargs = "root=/dev/ram0 rw init=/init";
 		stdout-path = "serial0";
 	};
 
@@ -50,6 +50,18 @@
 	soc {
 		serial@78af000 {
 			status = "ok";
+		};
+
+		glink_adsp: qcom,glink-smem-native-xprt-adsp@48C00000 {
+			status = "disabled";
+		};
+
+		ipc_router_adsp: qcom,ipc_router_adsp_xprt {
+			status = "disabled";
+		};
+
+		adsp: smp2p-adsp {
+			status = "disabled";
 		};
 
 		dp1 {
@@ -95,6 +107,15 @@
 			reg = <0x3a003000 0x3fff>;
 			qcom,mactype = <1>;
 			local-mac-address = [000000000000];
+		};
+
+		q6v5_wcss: q6v5_wcss@CD00000 {
+			qca,emulation;
+			img-addr = <0x4AB00000>;
+		};
+
+		timer {
+			clock-frequency = <240000>;
 		};
 
 		nss_crypto {
