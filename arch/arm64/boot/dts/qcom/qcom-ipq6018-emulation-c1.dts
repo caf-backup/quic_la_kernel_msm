@@ -24,6 +24,7 @@
 
 	aliases {
 		serial0 = &blsp1_uart1;
+		serial1 = &blsp1_uart2;
 		sdhc1 = &sdhc_1;
 		/*
 		 * Aliases as required by u-boot
@@ -50,6 +51,10 @@
 
 	soc {
 		serial@78af000 {
+			status = "ok";
+		};
+
+		blsp1_uart2: serial@78b0000 {
 			status = "ok";
 		};
 
