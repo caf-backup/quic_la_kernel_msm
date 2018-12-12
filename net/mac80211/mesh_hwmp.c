@@ -326,10 +326,13 @@ int mesh_path_error_tx(struct ieee80211_sub_if_data *sdata,
 /* Link metric averaging v2 gives an approximation of time based moving
  * average. The moving average gives more weights to sparse samples and
  * less weights to dense samples (in time). See go/js-mlm-v2.
+ *
+ * constant weight, approximation of 1-e^-1 (0.6322)
+ * Note: Do not use braces around below constant values
+ * CONST_WEIGHT and V1_WEIGHT
  */
-/* constant weight, approximation of 1-e^-1 (0.6322) */
-#define CONST_WEIGHT (3 / 5)
-#define V1_WEIGHT (5 / 100)
+#define CONST_WEIGHT 3 / 5
+#define V1_WEIGHT 5 / 100
 void ieee80211s_update_metric(struct ieee80211_local *local,
 		struct sta_info *sta, struct sk_buff *skb, int retry_count)
 {
