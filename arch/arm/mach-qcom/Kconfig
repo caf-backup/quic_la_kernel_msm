@@ -33,4 +33,14 @@ config ARCH_IPQ807x
 	help
 	  This enables support for the IPQ807x chipset. If you dont
 	  know what do here, say N
+
+config IPQ_MEM_PROFILE
+	int "Select Memory Profile"
+	range 0 1024
+	default 0
+	---help---
+	This option select memory profile to be used,which defines
+	the reserved memory configuration used in device tree.
+
+	If unsure, say 0
 endif
