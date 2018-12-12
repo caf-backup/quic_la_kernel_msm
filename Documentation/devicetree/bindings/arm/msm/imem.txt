@@ -1,0 +1,23 @@
+Qualcomm IMEM
+
+IMEM is fast on-chip memory used for various debug features and dma transactions.
+
+Required properties
+
+-compatible: "qcom,msm-imem"
+-reg: start address and size of imem memory
+
+If any children nodes exist the following properties are required:
+-#address-cells: should be 1
+-#size-cells: should be 1
+-ranges: A triplet that includes the child address, parent address, &
+     length.  The child address is assumed to be 0.
+
+Child nodes:
+------------
+
+Download Mode Type:
+-------------------
+Required properties:
+-compatible: "qcom,msm-imem-diag-dload"
+-reg: start address and size of dload type region in imem
