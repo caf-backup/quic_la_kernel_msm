@@ -19,6 +19,16 @@ config IPQ807X_REMOTEPROC
 	  processors. They need reset and loading of firmware for them
 	  to run. This config enables drivers to do that.
 
+config IPQ_REMOTEPROC_ADSP
+	tristate "IPQ Q6-ADSP rproc support"
+	depends on REMOTEPROC && QCOM_SMP2P
+	select IPQ_SUBSYTEM_DUMP
+	help
+	  Say y here to support IPQ q6v6 adsp remote processors
+	  via the remote processor framework. Q6v6 ADSP are DSP remote
+	  processors. They need reset and loading of firmware for them
+	  to run. This config enables drivers to do that.
+
 config OMAP_REMOTEPROC
 	tristate "OMAP remoteproc support"
 	depends on HAS_DMA

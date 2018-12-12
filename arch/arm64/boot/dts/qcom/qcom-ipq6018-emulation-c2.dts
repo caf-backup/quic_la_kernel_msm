@@ -68,6 +68,14 @@
 			status = "disabled";
 		};
 
+		q6v6_adsp: q6v6_adsp@AB00000 {
+			status = "disabled";
+		};
+
+		glink_adsp_ssr: qcom,glink-ssr-adsp {
+			status = "disabled";
+		};
+
 		dp1 {
 			device_type = "network";
 			compatible = "qcom,nss-dp";

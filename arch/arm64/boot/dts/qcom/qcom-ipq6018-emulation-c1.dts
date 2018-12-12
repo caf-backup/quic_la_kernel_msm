@@ -89,6 +89,11 @@
 			img-addr = <0x4AB00000>;
 		};
 
+		q6v6_adsp: q6v6_adsp@AB00000 {
+			qca,emulation;
+			img-addr = <0x49100000>;
+		};
+
 		qpic_bam: dma@7984000{
 			status = "ok";
 		};
