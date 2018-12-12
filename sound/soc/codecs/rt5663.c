@@ -1982,6 +1982,10 @@ static void rt5663_jack_detect_work(struct work_struct *work)
 			}
 		}
 	} else {
+		/* Jack type is already 0, invalid report*/
+		if (rt5663->jack_type == 0)
+			goto no_report;
+
 		/* jack out */
 		switch (rt5663->codec_ver) {
 		case CODEC_VER_1:
@@ -1998,6 +2002,9 @@ static void rt5663_jack_detect_work(struct work_struct *work)
 	snd_soc_jack_report(rt5663->hs_jack, report, SND_JACK_HEADSET |
 			    SND_JACK_BTN_0 | SND_JACK_BTN_1 |
 			    SND_JACK_BTN_2 | SND_JACK_BTN_3);
+
+no_report:
+		return;
 }
 
 static void rt5663_jd_unplug_work(struct work_struct *work)
