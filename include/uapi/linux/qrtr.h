@@ -28,6 +28,8 @@ enum qrtr_pkt_type {
 	QRTR_TYPE_DEL_LOOKUP	= 11,
 };
 
+#define QRTR_TYPE_DEL_PROC 13
+
 struct qrtr_ctrl_pkt {
 	__le32 cmd;
 
@@ -43,6 +45,12 @@ struct qrtr_ctrl_pkt {
 			__le32 node;
 			__le32 port;
 		} client;
+
+		struct {
+			__le32 rsvd;
+			__le32 node;
+		} proc;
+
 	};
 } __packed;
 
