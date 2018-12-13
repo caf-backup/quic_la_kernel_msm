@@ -206,7 +206,6 @@ enum wmi_service {
 	WMI_SERVICE_TX_DATA_ACK_RSSI,
 	WMI_SERVICE_VDEV_DIFFERENT_BEACON_INTERVAL_SUPPORT,
 	WMI_SERVICE_CFR_CAPTURE_IND_MSG_TYPE_LAGACY,
-	WMI_SERVICE_SUPPORT_EXTEND_ADDRESS,
 
 	/* keep last */
 	WMI_SERVICE_MAX,
@@ -3004,8 +3003,6 @@ struct host_memory_chunk {
 	__le32 ptr;
 	/* size of the chunk */
 	__le32 size;
-	/* the upper 32 bit address valid only for more than 32 bit target */
-	__le32 ptr_high;
 } __packed;
 
 struct wmi_host_mem_chunks {

@@ -1586,12 +1586,6 @@ ath10k_wmi_tlv_put_host_mem_chunks(struct ath10k *ar, void *host_mem_chunks)
 		chunk->size = __cpu_to_le32(ar->wmi.mem_chunks[i].len);
 		chunk->req_id = __cpu_to_le32(ar->wmi.mem_chunks[i].req_id);
 
-		if (test_bit(WMI_SERVICE_SUPPORT_EXTEND_ADDRESS,
-			     ar->wmi.svc_map))
-			chunk->ptr_high = __cpu_to_le32
-					 (upper_32_bits
-					 (ar->wmi.mem_chunks[i].paddr));
-
 		ath10k_dbg(ar, ATH10K_DBG_WMI,
 			   "wmi-tlv chunk %d len %d, addr 0x%llx, id 0x%x\n",
 			   i,
