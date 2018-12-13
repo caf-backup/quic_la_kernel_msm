@@ -101,6 +101,22 @@ struct spinand_ops spinand_dev[] = {
 		NULL,
 	},
 	{
+		NAND_MFR_GIGA,
+		1,
+		0xc1,
+		INT_MAX,
+		0x10000,
+		gigadevice_set_defaults_128mb,
+		gigadevice_read_cmd,
+		gigadevice_read_data_v2,
+		gigadevice_write_cmd,
+		gigadevice_write_data,
+		gigadevice_erase_blk,
+		gigadevice_parse_id_v3,
+		gigadevice_verify_ecc,
+		NULL,
+	},
+	{
 		NAND_MFR_ATO,
 		1,
 		0x12,
@@ -1280,6 +1296,9 @@ struct nand_flash_dev spinand_flash_ids[] = {
 
 	{"GD5F1GQ4UB 128MiB 3.3V",
 		{ .id = {0xc8, 0xd1} }, SZ_2K, 128, SZ_128K, 0, 2, 128},
+
+	{"GD5F1GQ4R 128MiB 3.3V",
+		{ .id = {0xc8, 0xc1} }, SZ_2K, 128, SZ_128K, 0, 2, 128},
 
 	{NULL}
 };
