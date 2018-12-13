@@ -49,8 +49,7 @@ extern bool qcom_scm_sec_auth_available(void);
 extern int qcom_scm_set_cold_boot_addr(void *entry, const cpumask_t *cpus);
 extern int qcom_scm_set_warm_boot_addr(void *entry, const cpumask_t *cpus);
 
-#define SCM_SVC_INFO                   0x6
-#define SCM_GSBI_ADM_MUX_SEL_CMD       0x5
+#define SCM_GSBI_ADM_MUX_SEL_CMD	0x5
 extern int qcom_scm_tcsr(u32 svc_id, u32 cmd_id,
 			struct qcom_scm_tcsr_req *tcsr_cmd);
 
@@ -218,6 +217,55 @@ struct qsee_reg_log_buf_req {
 	phys_addr_t phy_addr;
 	uint64_t len;
 };
+
+struct cp2_mem_chunks {
+	u32 chunk_list;
+	u32 chunk_list_size;
+	u32 chunk_size;
+} __attribute__ ((__packed__));
+
+struct cp2_lock_req {
+	struct cp2_mem_chunks chunks;
+	u32 mem_usage;
+	u32 lock;
+} __attribute__ ((__packed__));
+
+struct mem_prot_info {
+	phys_addr_t addr;
+	u64 size;
+};
+
+#define MEM_PROT_ASSIGN_ID		0x16
+#define MEM_PROTECT_LOCK_ID2		0x0A
+#define MEM_PROTECT_LOCK_ID2_FLAT	0x11
+#define V2_CHUNK_SIZE			SZ_1M
+#define FEATURE_ID_CP			12
+#define SCM_SVC_MP		0xC
+#define QCOM_SECURE_MEM_SIZE	(512*1024)
+#define BATCH_MAX_SIZE		SZ_2M
+#define BATCH_MAX_SECTIONS	32
+#define GET_FEAT_VERSION_CMD	3
+
+struct dest_vm_and_perm_info {
+	u32 vm;
+	u32 perm;
+	u64 ctx;
+	u32 ctx_size;
+};
+
+extern int qcom_scm_get_feat_version(u32 feat, u64 *version);
+
+extern int qcom_scm_mem_prot_assign(struct sg_table *table,
+				u32 *source_vm_copy,
+				size_t source_vm_copy_size,
+				struct dest_vm_and_perm_info *dest_vm_copy,
+				size_t dest_vm_copy_size,
+				struct mem_prot_info *sg_table_copy,
+				size_t sg_table_copy_size,
+				u32 *resp, size_t resp_size);
+
+extern int qcom_scm_mem_protect_lock(struct cp2_lock_req *req, size_t req_size,
+				     u32 *resp, size_t resp_size);
 
 extern int qcom_scm_qseecom_notify(struct qsee_notify_app *req,
 				  size_t req_size,
