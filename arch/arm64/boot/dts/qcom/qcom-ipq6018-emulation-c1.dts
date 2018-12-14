@@ -84,6 +84,17 @@
 			};
 		};
 
+		spi_1: spi@78b6000 { /* BLSP1 QUP1 */
+			mt29f@1 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "spinand,mt29f";
+				reg = <1>;
+				spi-max-frequency = <24000000>;
+				use-dummybyte-in-readid;
+			};
+		};
+
 		q6v5_wcss: q6v5_wcss@CD00000 {
 			qca,emulation;
 			img-addr = <0x4AB00000>;

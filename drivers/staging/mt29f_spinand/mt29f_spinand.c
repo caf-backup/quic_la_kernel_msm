@@ -21,12 +21,15 @@
 #include <linux/mtd/nand.h>
 #include <linux/spi/spi.h>
 #include <linux/sizes.h>
+#include <linux/of.h>
 
 #include "mt29f_spinand.h"
 #include "giga_spinand.h"
 
 #define BUFSIZE (10 * 64 * 4096)
 #define CACHE_BUF 4352
+
+static bool use_dummybyte_in_readid;
 
 static int spinand_disable_ecc(struct spi_device *spi_nand);
 static int spinand_lock_block(struct spi_device *spi_nand, u8 lock);
@@ -94,6 +97,22 @@ struct spinand_ops spinand_dev[] = {
 		gigadevice_write_data,
 		gigadevice_erase_blk,
 		gigadevice_parse_id_v2,
+		gigadevice_verify_ecc,
+		NULL,
+	},
+	{
+		NAND_MFR_GIGA,
+		1,
+		0xc1,
+		INT_MAX,
+		0x10000,
+		gigadevice_set_defaults_128mb,
+		gigadevice_read_cmd,
+		gigadevice_read_data_v2,
+		gigadevice_write_cmd,
+		gigadevice_write_data,
+		gigadevice_erase_blk,
+		gigadevice_parse_id_v3,
 		gigadevice_verify_ecc,
 		NULL,
 	},
@@ -422,13 +441,18 @@ static int spinand_read_id(struct spi_device *spi_nand, u8 *id)
 {
 	int retval;
 	int i;
-	u8 nand_id[3];
+	u8 nand_id[4];
 	struct spinand_cmd cmd = {0};
 	struct spinand_ops *dev_ops;
 
 	cmd.cmd = CMD_READ_ID;
 	cmd.n_rx = 3;
 	cmd.rx_buf = &nand_id[0];
+	if (use_dummybyte_in_readid) {
+		cmd.n_addr = 1;
+		cmd.addr[0] = 0x0;
+		cmd.n_rx += 1;
+	}
 
 	retval = spinand_cmd(spi_nand, &cmd);
 	if (retval < 0) {
@@ -1273,6 +1297,9 @@ struct nand_flash_dev spinand_flash_ids[] = {
 	{"GD5F1GQ4UB 128MiB 3.3V",
 		{ .id = {0xc8, 0xd1} }, SZ_2K, 128, SZ_128K, 0, 2, 128},
 
+	{"GD5F1GQ4R 128MiB 3.3V",
+		{ .id = {0xc8, 0xc1} }, SZ_2K, 128, SZ_128K, 0, 2, 128},
+
 	{NULL}
 };
 
@@ -1316,6 +1343,8 @@ static int spinand_probe(struct spi_device *spi_nand)
 	if (!chip)
 		return -ENOMEM;
 
+	use_dummybyte_in_readid = of_property_read_bool(spi_nand->dev.of_node,
+					"use-dummybyte-in-readid");
 #ifdef CONFIG_MTD_SPINAND_ONDIEECC
 	chip->ecc.mode	= NAND_ECC_HW;
 	chip->ecc.size	= 0x200;

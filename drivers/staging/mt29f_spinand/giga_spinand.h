@@ -48,6 +48,9 @@ int gigadevice_parse_id(struct spi_device *spi_nand, struct spinand_ops *ops,
 int gigadevice_parse_id_v2(struct spi_device *spi_nand, struct spinand_ops *ops,
 			   u8 *nand_id, u8 *id);
 
+int gigadevice_parse_id_v3(struct spi_device *spi_nand, struct spinand_ops *ops,
+			   u8 *nand_id, u8 *id);
+
 int gigadevice_verify_ecc(u8 status);
 
 int dummy_verify_ecc(u8 status);
