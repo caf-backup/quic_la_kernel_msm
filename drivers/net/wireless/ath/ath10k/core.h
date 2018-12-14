@@ -1188,6 +1188,7 @@ struct ath10k {
 	struct rchan *rfs_cfr_capture;
 
 	u32 burst_dur[4];
+	struct completion peer_delete_done;
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
 };
