@@ -855,3 +855,20 @@
 		linux,default-trigger = "none";
 	};
 };
+
+&apc_apm {
+	status = "disabled";
+};
+
+&apc_cpr {
+	status = "disabled";
+};
+
+&npu_cpr {
+	status = "disabled";
+};
+
+&nss0 {
+	npu-supply = <&dummy_reg>;
+	mx-supply = <&dummy_reg>;
+};
