@@ -122,6 +122,11 @@
 			status = "ok";
 		};
 
+		pcie0: pci@20000000 {
+			is_emulation = <1>;
+			status = "ok";
+		};
+
 		dp1 {
 			device_type = "network";
 			compatible = "qcom,nss-dp";

@@ -338,5 +338,5 @@
 #define GCC_UNIPHY1_SOFT_RESET			111
 #define GCC_UNIPHY1_XPCS_RESET			112
 #define GCC_EDMA_HW_RESET			113
-
+#define PCIE0_RCHNG_CLK				246
 #endif
