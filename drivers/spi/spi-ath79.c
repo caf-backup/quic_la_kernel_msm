@@ -303,7 +303,8 @@ static int ath79_spi_txrx_bufs(struct spi_device *spi, struct spi_transfer *t)
 
 	case ATH79_SPI_STATE_WAIT_READ:
 		if (ath79_spi_is_data_read(spi, t)) {
-			if (ath79_spi_is_addr_grater_than_16m(spi, t)) {
+			if (ath79_spi_is_addr_grater_than_16m(spi, t) ||
+					(spi->chip_select == 1)) {
 				spi_bitbang_bufs(spi, sp->read_cmd);
 				ret = spi_bitbang_bufs(spi, t);
 			} else {
