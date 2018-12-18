@@ -35,7 +35,7 @@
 #define RMNET_INGRESS_FORMAT_MAP_CKSUMV4        (1<<6)
 
 /* ***************** Netlink API ******************************************** */
-#define RMNET_NETLINK_PROTO 31
+#define RMNET_NETLINK_PROTO 22
 #define RMNET_MAX_STR_LEN  16
 #define RMNET_NL_DATA_MAX_LEN 64
 
