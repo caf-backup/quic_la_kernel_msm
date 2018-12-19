@@ -32,6 +32,7 @@ struct dma_iommu_mapping {
 	 size_t		    bitmap_size;    /* size of a single bitmap */
 	 size_t		    bits;	    /* per bitmap */
 	 dma_addr_t		base;
+	 u64			size;
 	 struct dma_fast_smmu_mapping *fast;
 
 	 spinlock_t		lock;

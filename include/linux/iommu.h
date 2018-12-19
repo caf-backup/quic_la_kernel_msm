@@ -363,6 +363,9 @@ static inline void iommu_tlbiall(struct iommu_domain *domain)
 		domain->ops->tlbi_domain(domain);
 }
 
+/* Setup call for arch DMA mapping code */
+extern int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
+								u64 size);
 #else /* CONFIG_IOMMU_API */
 
 struct iommu_ops {};
@@ -601,6 +604,11 @@ static inline void iommu_tlbiall(struct iommu_domain *domain)
 {
 }
 
+static int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
+								u64 size)
+{
+	return -EINVAL;
+}
 #endif /* CONFIG_IOMMU_API */
 
 #endif /* __LINUX_IOMMU_H */
