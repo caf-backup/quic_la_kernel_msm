@@ -92,7 +92,8 @@ static void cnss_wlfw_clnt_notifier(struct qmi_handle *handle,
 
 	switch (event) {
 	case QMI_RECV_MSG:
-		schedule_work(&plat_priv->qmi_recv_msg_work);
+		queue_work(plat_priv->qmi_resp_wq,
+			   &plat_priv->qmi_recv_msg_work);
 		break;
 	case QMI_SERVER_EXIT:
 		clear_bit(CNSS_QMI_WLFW_CONNECTED, &plat_priv->driver_state);

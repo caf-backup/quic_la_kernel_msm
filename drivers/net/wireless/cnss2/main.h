@@ -142,6 +142,7 @@ struct cnss_plat_data {
 	struct work_struct event_work;
 	struct workqueue_struct *event_wq;
 	struct cnss_recovery_work_t cnss_recovery_work;
+	struct workqueue_struct *qmi_resp_wq;
 	struct qmi_handle *qmi_wlfw_clnt;
 	struct work_struct qmi_recv_msg_work;
 	struct notifier_block qmi_wlfw_clnt_nb;

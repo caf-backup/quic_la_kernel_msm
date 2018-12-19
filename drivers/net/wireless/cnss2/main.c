@@ -1806,6 +1806,13 @@ static int cnss_event_work_init(struct cnss_plat_data *plat_priv)
 		return -EFAULT;
 	}
 
+	plat_priv->qmi_resp_wq = alloc_workqueue("qmi_resp_wq",
+						 WQ_UNBOUND, 1);
+	if (!plat_priv->qmi_resp_wq) {
+		cnss_pr_err("Failed to create  qmi_resp_wq workqueue!\n");
+		goto free_wq;
+	}
+
 	INIT_WORK(&plat_priv->event_work, cnss_driver_event_work);
 	INIT_LIST_HEAD(&plat_priv->event_list);
 	INIT_WORK(&plat_priv->cnss_recovery_work.work,
@@ -1813,12 +1820,18 @@ static int cnss_event_work_init(struct cnss_plat_data *plat_priv)
 	init_completion(&plat_priv->fw_ready_event);
 
 	return 0;
+free_wq:
+	destroy_workqueue(plat_priv->event_wq);
+	return -EFAULT;
 }
 
 static void cnss_event_work_deinit(struct cnss_plat_data *plat_priv)
 {
 	complete_all(&plat_priv->fw_ready_event);
-	destroy_workqueue(plat_priv->event_wq);
+	if (plat_priv->event_wq)
+		destroy_workqueue(plat_priv->event_wq);
+	if (plat_priv->qmi_resp_wq)
+		destroy_workqueue(plat_priv->qmi_resp_wq);
 }
 
 static const struct platform_device_id cnss_platform_id_table[] = {
