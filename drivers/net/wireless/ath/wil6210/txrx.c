@@ -898,14 +898,6 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 
 	stats = &wil->sta[cid].stats;
 
-	if (ndev->features & NETIF_F_RXHASH)
-		/* fake L4 to ensure it won't be re-calculated later
-		 * set hash to any non-zero value to activate rps
-		 * mechanism, core will be chosen according
-		 * to user-level rps configuration.
-		 */
-		skb_set_hash(skb, 1, PKT_HASH_TYPE_L4);
-
 	skb_orphan(skb);
 
 	if (security && (wil->txrx_ops.rx_crypto_check(wil, skb) != 0)) {
@@ -1587,6 +1579,8 @@ found:
 			wil_dbg_txrx(wil, "BCAST DUP -> ring %d\n", i);
 			wil_set_da_for_vring(wil, skb2, i);
 			wil_tx_ring(wil, vif, v2, skb2);
+			/* successful call to wil_tx_ring takes skb2 ref */
+			dev_kfree_skb_any(skb2);
 		} else {
 			wil_err(wil, "skb_copy failed\n");
 		}
