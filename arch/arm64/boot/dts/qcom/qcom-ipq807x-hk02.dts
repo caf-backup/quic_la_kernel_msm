@@ -1,6 +1,6 @@
 /dts-v1/;
 /*
- * Copyright (c) 2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -692,10 +692,6 @@
 &serial_blsp2 {
 	pinctrl-0 = <&hsuart_pins>;
 	pinctrl-names = "default";
-	status = "ok";
-};
-
-&nss_crypto {
 	status = "ok";
 };
 
