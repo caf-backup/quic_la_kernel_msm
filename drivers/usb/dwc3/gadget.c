@@ -349,6 +349,7 @@ int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
 		udelay(1);
 	} while (1);
 }
+EXPORT_SYMBOL(dwc3_send_gadget_ep_cmd);
 
 static dma_addr_t dwc3_trb_dma_offset(struct dwc3_ep *dep,
 		struct dwc3_trb *trb)

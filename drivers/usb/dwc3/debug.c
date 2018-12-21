@@ -30,3 +30,4 @@ void dwc3_trace(void (*trace)(struct va_format *), const char *fmt, ...)
 
 	va_end(args);
 }
+EXPORT_SYMBOL(dwc3_trace);

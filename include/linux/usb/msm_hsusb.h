@@ -242,4 +242,58 @@ struct msm_otg {
 	struct notifier_block reboot;
 };
 
+#ifdef CONFIG_USB_BAM
+void msm_bam_set_usb_host_dev(struct device *dev);
+void msm_bam_set_hsic_host_dev(struct device *dev);
+void msm_bam_wait_for_usb_host_prod_granted(void);
+void msm_bam_wait_for_hsic_host_prod_granted(void);
+bool msm_bam_hsic_lpm_ok(void);
+void msm_bam_usb_host_notify_on_resume(void);
+void msm_bam_hsic_host_notify_on_resume(void);
+bool msm_bam_hsic_host_pipe_empty(void);
+bool msm_usb_bam_enable(enum usb_ctrl ctrl, bool bam_enable);
+#else
+static inline void msm_bam_set_usb_host_dev(struct device *dev) {}
+static inline void msm_bam_set_hsic_host_dev(struct device *dev) {}
+static inline void msm_bam_wait_for_usb_host_prod_granted(void) {}
+static inline void msm_bam_wait_for_hsic_host_prod_granted(void) {}
+static inline bool msm_bam_hsic_lpm_ok(void) { return true; }
+static inline void msm_bam_hsic_host_notify_on_resume(void) {}
+static inline void msm_bam_usb_host_notify_on_resume(void) {}
+static inline bool msm_bam_hsic_host_pipe_empty(void) { return true; }
+static inline bool msm_usb_bam_enable(enum usb_ctrl ctrl, bool bam_enable)
+{
+        return true;
+}
+#endif
+
+
+/* CONFIG_PM */
+#ifdef CONFIG_PM
+static inline int get_pm_runtime_counter(struct device *dev)
+{
+        return atomic_read(&dev->power.usage_count);
+}
+#else /* !CONFIG_PM */
+static inline int get_pm_runtime_counter(struct device *dev) { return -ENOSYS; }
+#endif
+
+#ifdef CONFIG_USB_CI13XXX_MSM
+void msm_hw_bam_disable(bool bam_disable);
+void msm_usb_irq_disable(bool disable);
+#else
+static inline void msm_hw_bam_disable(bool bam_disable)
+{
+}
+
+static inline void msm_usb_irq_disable(bool disable)
+{
+}
+#endif
+
+int msm_ep_config(struct usb_ep *ep, struct usb_request *request);
+int msm_ep_unconfig(struct usb_ep *ep);
+int msm_data_fifo_config(struct usb_ep *ep, phys_addr_t addr, u32 size,
+        u8 dst_pipe_idx);
+
 #endif
