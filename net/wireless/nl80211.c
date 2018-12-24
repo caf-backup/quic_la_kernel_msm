@@ -4428,11 +4428,6 @@ static int nl80211_send_station(struct sk_buff *msg, u32 cmd, u32 portid,
 	PUT_SINFO_U64(RX_DROP_MISC, rx_dropped_misc);
 	PUT_SINFO_U64(BEACON_RX, rx_beacon);
 	PUT_SINFO(BEACON_SIGNAL_AVG, rx_beacon_signal_avg, u8);
-	if (wiphy_ext_feature_isset(&rdev->wiphy,
-				    NL80211_EXT_FEATURE_ACK_SIGNAL_SUPPORT)) {
-		PUT_SINFO(ACK_SIGNAL, ack_signal, u8);
-		PUT_SINFO(ACK_SIGNAL_AVG, avg_ack_signal, s8);
-	}
 
 #undef PUT_SINFO
 #undef PUT_SINFO_U64
@@ -10003,21 +9998,6 @@ static int nl80211_join_mesh(struct sk_buff *skb, struct genl_info *info)
 	setup.userspace_handles_dfs =
 		nla_get_flag(info->attrs[NL80211_ATTR_HANDLE_DFS]);
 
-	if (info->attrs[NL80211_ATTR_VHT_CAPABILITY_MASK])
-		cfg.vht_capa_mask =
-		      ((struct ieee80211_vht_cap *)
-		       nla_data(info->attrs[NL80211_ATTR_VHT_CAPABILITY_MASK]))
-		      ->vht_cap_info;
-
-	if (info->attrs[NL80211_ATTR_VHT_CAPABILITY]) {
-		if (!info->attrs[NL80211_ATTR_VHT_CAPABILITY_MASK])
-			return -EINVAL;
-		cfg.vht_capa =
-		      ((struct ieee80211_vht_cap *)
-		       nla_data(info->attrs[NL80211_ATTR_VHT_CAPABILITY]))
-		      ->vht_cap_info;
-	}
-
 	return cfg80211_join_mesh(rdev, dev, &setup, &cfg);
 }
 
@@ -14780,8 +14760,7 @@ nl80211_radar_notify(struct cfg80211_registered_device *rdev,
 }
 
 void cfg80211_probe_status(struct net_device *dev, const u8 *addr,
-			   u64 cookie, bool acked, s32 ack_signal,
-			   bool is_valid_ack_signal, gfp_t gfp)
+			   u64 cookie, bool acked, gfp_t gfp)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
@@ -14806,9 +14785,7 @@ void cfg80211_probe_status(struct net_device *dev, const u8 *addr,
 	    nla_put(msg, NL80211_ATTR_MAC, ETH_ALEN, addr) ||
 	    nla_put_u64_64bit(msg, NL80211_ATTR_COOKIE, cookie,
 			      NL80211_ATTR_PAD) ||
-	    (acked && nla_put_flag(msg, NL80211_ATTR_ACK)) ||
-	    (is_valid_ack_signal && nla_put_s32(msg, NL80211_ATTR_ACK_SIGNAL,
-						ack_signal)))
+	    (acked && nla_put_flag(msg, NL80211_ATTR_ACK)))
 		goto nla_put_failure;
 
 	genlmsg_end(msg, hdr);

@@ -28,7 +28,6 @@ void ieee80211s_init(void)
 	mesh_allocated = 1;
 	rm_cache = kmem_cache_create("mesh_rmc", sizeof(struct rmc_entry),
 				     0, 0, NULL);
-	mesh_hwmp_init();
 }
 
 void ieee80211s_stop(void)
@@ -45,17 +44,6 @@ static void ieee80211_mesh_housekeeping_timer(unsigned long data)
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 
 	set_bit(MESH_WORK_HOUSEKEEPING, &ifmsh->wrkq_flags);
-
-	ieee80211_queue_work(&local->hw, &sdata->work);
-}
-
-static void ieee80211_mesh_mpath_stats_timer(unsigned long data)
-{
-	struct ieee80211_sub_if_data *sdata = (void *)data;
-	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-
-	set_bit(MESH_WORK_MPATH_STATS, &ifmsh->wrkq_flags);
 
 	ieee80211_queue_work(&local->hw, &sdata->work);
 }
@@ -481,9 +469,7 @@ int mesh_add_vht_cap_ie(struct ieee80211_sub_if_data *sdata,
 			struct sk_buff *skb)
 {
 	struct ieee80211_supported_band *sband;
-	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	u8 *pos;
-	u32 cap;
 
 	sband = ieee80211_get_sband(sdata);
 	if (!sband)
@@ -498,14 +484,8 @@ int mesh_add_vht_cap_ie(struct ieee80211_sub_if_data *sdata,
 	if (skb_tailroom(skb) < 2 + sizeof(struct ieee80211_vht_cap))
 		return -ENOMEM;
 
-	cap = sband->vht_cap.cap;
-	if (ifmsh->mshcfg.vht_capa_mask) {
-		cap &= ~ifmsh->mshcfg.vht_capa_mask;
-		cap |= (ifmsh->mshcfg.vht_capa & ifmsh->mshcfg.vht_capa_mask);
-	}
-
 	pos = skb_put(skb, 2 + sizeof(struct ieee80211_vht_cap));
-	ieee80211_ie_build_vht_cap(pos, &sband->vht_cap, cap);
+	ieee80211_ie_build_vht_cap(pos, &sband->vht_cap, sband->vht_cap.cap);
 
 	return 0;
 }
@@ -665,17 +645,6 @@ static void ieee80211_mesh_housekeeping(struct ieee80211_sub_if_data *sdata)
 	mod_timer(&ifmsh->housekeeping_timer,
 		  round_jiffies(jiffies +
 				IEEE80211_MESH_HOUSEKEEPING_INTERVAL));
-}
-
-static void ieee80211_mesh_update_mpath_stats(struct ieee80211_sub_if_data *sdata)
-{
-	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-
-	mesh_path_update_stats(sdata);
-
-	mod_timer(&ifmsh->mpath_stats_timer,
-		  round_jiffies(jiffies +
-				MESH_PATH_STATS_UPDATE_INTERVAL));
 }
 
 static void ieee80211_mesh_rootpath(struct ieee80211_sub_if_data *sdata)
@@ -923,7 +892,6 @@ int ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 	ifmsh->sync_ops = ieee80211_mesh_sync_ops_get(ifmsh->mesh_sp_id);
 	ifmsh->sync_offset_clockdrift_max = 0;
 	set_bit(MESH_WORK_HOUSEKEEPING, &ifmsh->wrkq_flags);
-	set_bit(MESH_WORK_MPATH_STATS, &ifmsh->wrkq_flags);
 	ieee80211_mesh_root_setup(ifmsh);
 	ieee80211_queue_work(&local->hw, &sdata->work);
 	sdata->vif.bss_conf.ht_operation_mode =
@@ -975,7 +943,6 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 	del_timer_sync(&sdata->u.mesh.housekeeping_timer);
 	del_timer_sync(&sdata->u.mesh.mesh_path_root_timer);
 	del_timer_sync(&sdata->u.mesh.mesh_path_timer);
-	del_timer_sync(&sdata->u.mesh.mpath_stats_timer);
 
 	/* clear any mesh work (for next join) we may have accrued */
 	ifmsh->wrkq_flags = 0;
@@ -1183,22 +1150,6 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	size_t baselen;
 	int freq;
 	enum nl80211_band band = rx_status->band;
-	struct sta_info  *sta;
-
-	/* Check if the PEER was connected and added in the STA list. (Because
-	 * the meshlink_rssi_threshold should be checked only for the NEW PEER
-	 * trying to form the link. If the PEER entry doesn't exist in the STA
-	 * list, then compare the meshlink_rssi_threshold value with the signal
-	 * strength value of the received BEACON/PRESP frames.)
-	 */
-	if (ifmsh->mshcfg.meshlink_rssi_threshold) {
-		sta = sta_info_get(sdata, mgmt->sa);
-		if (!sta) {
-			if (rx_status->signal <=
-					ifmsh->mshcfg.meshlink_rssi_threshold)
-				return;
-		}
-	}
 
 	/* ignore ProbeResp to foreign address */
 	if (stype == IEEE80211_STYPE_PROBE_RESP &&
@@ -1469,9 +1420,6 @@ void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata)
 	if (test_and_clear_bit(MESH_WORK_HOUSEKEEPING, &ifmsh->wrkq_flags))
 		ieee80211_mesh_housekeeping(sdata);
 
-	if (test_and_clear_bit(MESH_WORK_MPATH_STATS, &ifmsh->wrkq_flags))
-		ieee80211_mesh_update_mpath_stats(sdata);
-
 	if (test_and_clear_bit(MESH_WORK_ROOT, &ifmsh->wrkq_flags))
 		ieee80211_mesh_rootpath(sdata);
 
@@ -1480,13 +1428,6 @@ void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata)
 
 	if (test_and_clear_bit(MESH_WORK_MBSS_CHANGED, &ifmsh->wrkq_flags))
 		mesh_bss_info_changed(sdata);
-
-#if CONFIG_MAC80211_DEBUGFS
-	if (test_and_clear_bit(MESH_WORK_UPDATE_PATH_DEBUGFS,
-			       &ifmsh->wrkq_flags))
-		mesh_path_debugfs_work(sdata);
-#endif
-
 out:
 	sdata_unlock(sdata);
 }
@@ -1507,7 +1448,6 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 	ifmsh->last_preq = jiffies;
 	ifmsh->next_perr = jiffies;
 	ifmsh->csa_role = IEEE80211_MESH_CSA_ROLE_NONE;
-	ifmsh->path_switch_threshold = MESH_PATH_SWITCH_TH;
 	/* Allocate all mesh structures when creating the first mesh interface. */
 	if (!mesh_allocated)
 		ieee80211s_init();
@@ -1516,13 +1456,10 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 
 	setup_timer(&ifmsh->mesh_path_timer,
 		    ieee80211_mesh_path_timer,
-		    (unsigned long)sdata);
+		    (unsigned long) sdata);
 	setup_timer(&ifmsh->mesh_path_root_timer,
 		    ieee80211_mesh_path_root_timer,
-		    (unsigned long)sdata);
-	setup_timer(&ifmsh->mpath_stats_timer,
-		    ieee80211_mesh_mpath_stats_timer,
-		    (unsigned long)sdata);
+		    (unsigned long) sdata);
 	INIT_LIST_HEAD(&ifmsh->preq_queue.list);
 	skb_queue_head_init(&ifmsh->ps.bc_buf);
 	spin_lock_init(&ifmsh->mesh_preq_queue_lock);
@@ -1530,57 +1467,10 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 	RCU_INIT_POINTER(ifmsh->beacon, NULL);
 
 	sdata->vif.bss_conf.bssid = zero_addr;
-
-#if CONFIG_MAC80211_DEBUGFS
-	path_debugfs_init(sdata);
-#endif
 }
 
 void ieee80211_mesh_teardown_sdata(struct ieee80211_sub_if_data *sdata)
 {
 	mesh_rmc_free(sdata);
-#if CONFIG_MAC80211_DEBUGFS
-	path_debugfs_free(sdata);
-#endif
 	mesh_pathtbl_unregister(sdata);
 }
-
-#if CONFIG_MAC80211_DEBUGFS
-int path_debugfs_init(struct ieee80211_sub_if_data *sdata)
-{
-	spin_lock_init(&sdata->u.mesh.path_debugfs_lock);
-
-	sdata->u.mesh.path_df_list = kmalloc(
-			sizeof(*sdata->u.mesh.path_df_list), GFP_KERNEL);
-	if (!sdata->u.mesh.path_df_list)
-		return -ENOMEM;
-	INIT_LIST_HEAD(sdata->u.mesh.path_df_list);
-	return 0;
-}
-
-void path_debugfs_free(struct ieee80211_sub_if_data *sdata)
-{
-	struct list_head *path_df_list;
-	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-	struct path_debugfs_work *p, *n;
-
-	spin_lock(&ifmsh->path_debugfs_lock);
-	path_df_list = ifmsh->path_df_list;
-
-	if (!path_df_list) {
-		spin_unlock(&ifmsh->path_debugfs_lock);
-		return;
-	}
-	ifmsh->path_df_list = NULL;
-	list_for_each_entry_safe(p, n, path_df_list, list) {
-		list_del_rcu(&p->list);
-		spin_unlock(&ifmsh->path_debugfs_lock);
-		synchronize_rcu();
-		kfree(p);
-		spin_lock(&ifmsh->path_debugfs_lock);
-	}
-	spin_unlock(&ifmsh->path_debugfs_lock);
-
-	kfree(path_df_list);
-}
-#endif

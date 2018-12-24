@@ -472,35 +472,6 @@ static ssize_t ieee80211_if_parse_tdls_wider_bw(
 }
 IEEE80211_IF_FILE_RW(tdls_wider_bw);
 
-static ssize_t ieee80211_if_fmt_meshlink_rssi_threshold(
-	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
-{
-	const struct ieee80211_if_mesh *ifmsch = &sdata->u.mesh;
-
-	return snprintf(buf, buflen, "%d\n",
-			ifmsch->mshcfg.meshlink_rssi_threshold);
-}
-
-static ssize_t ieee80211_if_parse_meshlink_rssi_threshold(
-	struct ieee80211_sub_if_data *sdata, const char *buf, int buflen)
-{
-	struct ieee80211_if_mesh *ifmsch = &sdata->u.mesh;
-	long val;
-	int ret;
-
-	ret = kstrtol(buf, 0, &val);
-	if (ret)
-		return -EINVAL;
-
-	if (val < -255 || val >  0)
-		return -ERANGE;
-
-	ifmsch->mshcfg.meshlink_rssi_threshold = (int)val;
-	return buflen;
-}
-
-IEEE80211_IF_FILE_RW(meshlink_rssi_threshold);
-
 /* AP attributes */
 IEEE80211_IF_FILE(num_mcast_sta, u.ap.num_mcast_sta, ATOMIC);
 IEEE80211_IF_FILE(num_sta_ps, u.ap.ps.num_sta_ps, ATOMIC);
@@ -670,34 +641,6 @@ IEEE80211_IF_FILE(dot11MeshHWMPconfirmationInterval,
 IEEE80211_IF_FILE(power_mode, u.mesh.mshcfg.power_mode, DEC);
 IEEE80211_IF_FILE(dot11MeshAwakeWindowDuration,
 		  u.mesh.mshcfg.dot11MeshAwakeWindowDuration, DEC);
-
-static ssize_t ieee80211_if_fmt_path_switch_threshold(
-	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
-{
-	return snprintf(buf, buflen, "%d\n",
-		sdata->u.mesh.path_switch_threshold);
-}
-
-static ssize_t ieee80211_if_parse_path_switch_threshold(
-	struct ieee80211_sub_if_data *sdata, const char *buf, int buflen)
-{
-	u8 val;
-	int ret;
-
-	ret = kstrtou8(buf, 0, &val);
-	if (ret)
-		return ret;
-
-	if (val > 100)
-		return -ERANGE;
-
-	sdata->u.mesh.path_switch_threshold = val;
-
-	return buflen;
-}
-
-IEEE80211_IF_FILE_RW(path_switch_threshold);
-
 #endif
 
 #define DEBUGFS_ADD_MODE(name, mode) \
@@ -767,7 +710,6 @@ static void add_mesh_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD_MODE(tsf, 0600);
 	DEBUGFS_ADD_MODE(estab_plinks, 0400);
-	DEBUGFS_ADD_MODE(path_switch_threshold, 0600);
 }
 
 static void add_mesh_stats(struct ieee80211_sub_if_data *sdata)
@@ -814,7 +756,6 @@ static void add_mesh_config(struct ieee80211_sub_if_data *sdata)
 	MESHPARAMS_ADD(dot11MeshForwarding);
 	MESHPARAMS_ADD(dot11MeshGateAnnouncementProtocol);
 	MESHPARAMS_ADD(rssi_threshold);
-	MESHPARAMS_ADD(meshlink_rssi_threshold);
 	MESHPARAMS_ADD(ht_opmode);
 	MESHPARAMS_ADD(dot11MeshHWMPactivePathToRootTimeout);
 	MESHPARAMS_ADD(dot11MeshHWMProotInterval);
@@ -845,9 +786,6 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 		add_mesh_files(sdata);
 		add_mesh_stats(sdata);
 		add_mesh_config(sdata);
-		if (sdata->vif.debugfs_dir)
-			sdata->debugfs.subdir_destinations = debugfs_create_dir(
-					"destinations", sdata->vif.debugfs_dir);
 #endif
 		break;
 	case NL80211_IFTYPE_STATION:
@@ -891,9 +829,6 @@ void ieee80211_debugfs_remove_netdev(struct ieee80211_sub_if_data *sdata)
 	debugfs_remove_recursive(sdata->vif.debugfs_dir);
 	sdata->vif.debugfs_dir = NULL;
 	sdata->debugfs.subdir_stations = NULL;
-#ifdef CONFIG_MAC80211_MESH
-	sdata->debugfs.subdir_destinations = NULL;
-#endif
 }
 
 void ieee80211_debugfs_rename_netdev(struct ieee80211_sub_if_data *sdata)

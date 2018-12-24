@@ -2139,19 +2139,6 @@ enum nl80211_commands {
  *	the driver or is not needed (because roaming used the Fast Transition
  *	protocol).
  *
- * @NL80211_ATTR_EXTERNAL_AUTH_ACTION: Identify the requested external
- *     authentication operation (u32 attribute with an
- *     &enum nl80211_external_auth_action value). This is used with the
- *     %NL80211_CMD_EXTERNAL_AUTH request event.
- * @NL80211_ATTR_EXTERNAL_AUTH_SUPPORT: Flag attribute indicating that the user
- *     space supports external authentication. This attribute shall be used
- *     only with %NL80211_CMD_CONNECT request. The driver may offload
- *     authentication processing to user space if this capability is indicated
- *     in NL80211_CMD_CONNECT requests from the user space.
- *
- * @NL80211_ATTR_NSS: Station's New/updated  RX_NSS value notified using this
- *      u8 attribute. This is used with %NL80211_CMD_STA_OPMODE_CHANGED.
- *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -2578,12 +2565,6 @@ enum nl80211_attrs {
 	NL80211_ATTR_PMKR0_NAME,
 	NL80211_ATTR_PORT_AUTHORIZED,
 
-	NL80211_ATTR_EXTERNAL_AUTH_ACTION,
-	NL80211_ATTR_EXTERNAL_AUTH_SUPPORT,
-
-	NL80211_ATTR_NSS,
-	NL80211_ATTR_ACK_SIGNAL,
-
 	/* add attributes here, update the policy in nl80211.c */
 
 	__NL80211_ATTR_AFTER_LAST,
@@ -2906,8 +2887,6 @@ enum nl80211_sta_bss_param {
  * @NL80211_STA_INFO_RX_DURATION: aggregate PPDU duration for all frames
  *	received from the station (u64, usec)
  * @NL80211_STA_INFO_PAD: attribute used for padding for 64-bit alignment
- * @NL80211_STA_INFO_ACK_SIGNAL: signal strength of the last ACK frame(u8, dBm)
- * @NL80211_STA_INFO_ACK_SIGNAL_AVG: avg signal strength of ACK frames (s8, dBm)
  * @__NL80211_STA_INFO_AFTER_LAST: internal
  * @NL80211_STA_INFO_MAX: highest possible station info attribute
  */
@@ -2946,17 +2925,11 @@ enum nl80211_sta_info {
 	NL80211_STA_INFO_TID_STATS,
 	NL80211_STA_INFO_RX_DURATION,
 	NL80211_STA_INFO_PAD,
-	NL80211_STA_INFO_ACK_SIGNAL,
-	NL80211_STA_INFO_ACK_SIGNAL_AVG,
 
 	/* keep last */
 	__NL80211_STA_INFO_AFTER_LAST,
 	NL80211_STA_INFO_MAX = __NL80211_STA_INFO_AFTER_LAST - 1
 };
-
-/* we renamed this - stay compatible */
-#define NL80211_STA_INFO_DATA_ACK_SIGNAL_AVG NL80211_STA_INFO_ACK_SIGNAL_AVG
-
 
 /**
  * enum nl80211_tid_stats - per TID statistics attributes
@@ -4943,30 +4916,6 @@ enum nl80211_feature_flags {
  *	handshake with 802.1X in station mode (will pass EAP frames to the host
  *	and accept the set_pmk/del_pmk commands), doing it in the host might not
  *	be supported.
- * @NL80211_EXT_FEATURE_FILS_MAX_CHANNEL_TIME: Driver is capable of overriding
- *      the max channel attribute in the FILS request params IE with the
- *      actual dwell time.
- * @NL80211_EXT_FEATURE_ACCEPT_BCAST_PROBE_RESP: Driver accepts broadcast probe
- *      response
- * @NL80211_EXT_FEATURE_OCE_PROBE_REQ_HIGH_TX_RATE: Driver supports sending
- *      the first probe request in each channel at rate of at least 5.5Mbps.
- * @NL80211_EXT_FEATURE_OCE_PROBE_REQ_DEFERRAL_SUPPRESSION: Driver supports
- *      probe request tx deferral and suppression
- * @NL80211_EXT_FEATURE_MFP_OPTIONAL: Driver supports the %NL80211_MFP_OPTIONAL
- *      value in %NL80211_ATTR_USE_MFP.
- * @NL80211_EXT_FEATURE_LOW_SPAN_SCAN: Driver supports low span scan.
- * @NL80211_EXT_FEATURE_LOW_POWER_SCAN: Driver supports low power scan.
- * @NL80211_EXT_FEATURE_HIGH_ACCURACY_SCAN: Driver supports high accuracy scan.
- * @NL80211_EXT_FEATURE_DFS_OFFLOAD: HW/driver will offload DFS actions.
- *      Device or driver will do all DFS-related actions by itself,
- *      informing user-space about CAC progress, radar detection event,
- *      channel change triggered by radar detection event.
- *      No need to start CAC from user-space, no need to react to
- *      "radar detected" event.
- * @NL80211_EXT_FEATURE_CONTROL_PORT_OVER_NL80211: Driver supports sending and
- *      receiving control port frames over nl80211 instead of the netdevice.
- * @NL80211_EXT_FEATURE_ACK_SIGNAL_SUPPORT: This driver/device supports
- *	(average) ACK signal strength reporting.
  *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
@@ -4989,19 +4938,6 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_FILS_SK_OFFLOAD,
 	NL80211_EXT_FEATURE_4WAY_HANDSHAKE_STA_PSK,
 	NL80211_EXT_FEATURE_4WAY_HANDSHAKE_STA_1X,
-	NL80211_EXT_FEATURE_FILS_MAX_CHANNEL_TIME,
-	NL80211_EXT_FEATURE_ACCEPT_BCAST_PROBE_RESP,
-	NL80211_EXT_FEATURE_OCE_PROBE_REQ_HIGH_TX_RATE,
-	NL80211_EXT_FEATURE_OCE_PROBE_REQ_DEFERRAL_SUPPRESSION,
-	NL80211_EXT_FEATURE_MFP_OPTIONAL,
-	NL80211_EXT_FEATURE_LOW_SPAN_SCAN,
-	NL80211_EXT_FEATURE_LOW_POWER_SCAN,
-	NL80211_EXT_FEATURE_HIGH_ACCURACY_SCAN,
-	NL80211_EXT_FEATURE_DFS_OFFLOAD,
-	NL80211_EXT_FEATURE_CONTROL_PORT_OVER_NL80211,
-	NL80211_EXT_FEATURE_ACK_SIGNAL_SUPPORT,
-	/* we renamed this - stay compatible */
-	NL80211_EXT_FEATURE_DATA_ACK_SIGNAL_SUPPORT = NL80211_EXT_FEATURE_ACK_SIGNAL_SUPPORT,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,

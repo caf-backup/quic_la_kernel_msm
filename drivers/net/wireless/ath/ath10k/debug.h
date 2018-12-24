@@ -81,30 +81,11 @@ struct ath10k_pktlog_hdr {
 /* FIXME: How to calculate the buffer size sanely? */
 #define ATH10K_FW_STATS_BUF_SIZE (1024 * 1024)
 
-/* TPC units are in dBm units */
-#define ATH10K_TPC_MAX_VAL 70
-#define ATH10K_TPC_MIN_VAL 0
-
-#define ATH10K_AMPDU_SUBFRAME_COUNT_MAX 64
-#define ATH10K_AMPDU_SUBFRAME_COUNT_MIN 0
-
 extern unsigned int ath10k_debug_mask;
 
 __printf(2, 3) void ath10k_info(struct ath10k *ar, const char *fmt, ...);
 __printf(2, 3) void ath10k_err(struct ath10k *ar, const char *fmt, ...);
 __printf(2, 3) void ath10k_warn(struct ath10k *ar, const char *fmt, ...);
-
-#define ATH10K_AGGR_BURST_AC_MASK  0xff000000
-#define ATH10K_AGGR_BURST_AC_LSB   24
-#define ATH10K_AGGR_BURST_DUR_MASK 0x00ffffff
-#define ATH10K_AGGR_BURST_DUR_LSB  0
-
-#define MIN_BURST_DUR 1000
-#define MAX_BURST_DUR 8000
-
-#define BURST_ZERO 0
-#define MIN_AC 0
-#define MAX_AC 3
 
 void ath10k_debug_print_hwfw_info(struct ath10k *ar);
 void ath10k_debug_print_board_info(struct ath10k *ar);
@@ -211,38 +192,22 @@ void ath10k_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, struct dentry *dir);
 void ath10k_sta_update_rx_duration(struct ath10k *ar,
 				   struct ath10k_fw_stats *stats);
-void ath10k_accumulate_per_peer_tx_stats(struct ath10k *ar,
-                                         struct ieee80211_sta *sta,
-                                         struct ath10k_per_peer_tx_stats *p_stats,
-                                         struct rate_info *txrate);
 #else
 static inline
 void ath10k_sta_update_rx_duration(struct ath10k *ar,
 				   struct ath10k_fw_stats *stats)
 {
 }
-void ath10k_accumulate_per_peer_tx_stats(struct ath10k *ar,
-                                         struct ieee80211_sta *sta,
-                                         struct ath10k_per_peer_tx_stats *p_stats,
-                                         struct rate_info *txrate)
-{
-}
 #endif /* CONFIG_MAC80211_DEBUGFS */
 
 #ifdef CONFIG_ATH10K_DEBUG
-__printf(3, 4) void __ath10k_dbg(struct ath10k *ar,
-				 enum ath10k_debug_mask mask,
-				 const char *fmt, ...);
+__printf(3, 4) void ath10k_dbg(struct ath10k *ar,
+			       enum ath10k_debug_mask mask,
+			       const char *fmt, ...);
 void ath10k_dbg_dump(struct ath10k *ar,
 		     enum ath10k_debug_mask mask,
 		     const char *msg, const char *prefix,
 		     const void *buf, size_t len);
-#define ath10k_dbg(ar, mask, format, ...)				     \
-	do {								     \
-		if (unlikely((*((struct ath10k *)ar)->debug_mask) & mask)) { \
-			__ath10k_dbg(ar, mask, format, ##__VA_ARGS__);	     \
-		}							     \
-	} while (0)
 #else /* CONFIG_ATH10K_DEBUG */
 
 static inline int ath10k_dbg(struct ath10k *ar,

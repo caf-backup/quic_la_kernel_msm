@@ -22,9 +22,8 @@
 #include "debug.h"
 #include "trace.h"
 #include "mac.h"
-#include "spectral.h"
+
 #include <linux/log2.h>
-#include <linux/bitfield.h>
 
 /* when under memory pressure rx ring refill may fail and needs a retry */
 #define HTT_RX_RING_REFILL_RETRY_MS 50
@@ -704,28 +703,6 @@ struct amsdu_subframe_hdr {
 
 #define GROUP_ID_IS_SU_MIMO(x) ((x) == 0 || (x) == 63)
 
-static inline u8 ath10k_bw_to_mac80211_bw(u8 bw)
-{
-	u8 ret = 0;
-
-	switch (bw) {
-	case 0:
-		ret = RATE_INFO_BW_20;
-		break;
-	case 1:
-		ret = RATE_INFO_BW_40;
-		break;
-	case 2:
-		ret = RATE_INFO_BW_80;
-		break;
-	case 3:
-		ret = RATE_INFO_BW_160;
-		break;
-	}
-
-	return ret;
-}
-
 static void ath10k_htt_rx_h_rates(struct ath10k *ar,
 				  struct ieee80211_rx_status *status,
 				  struct htt_rx_desc *rxd)
@@ -828,7 +805,23 @@ static void ath10k_htt_rx_h_rates(struct ath10k *ar,
 		if (sgi)
 			status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
 
-		status->bw = ath10k_bw_to_mac80211_bw(bw);
+		switch (bw) {
+		/* 20MHZ */
+		case 0:
+			break;
+		/* 40MHZ */
+		case 1:
+			status->bw = RATE_INFO_BW_40;
+			break;
+		/* 80MHZ */
+		case 2:
+			status->bw = RATE_INFO_BW_80;
+			break;
+		case 3:
+			status->bw = RATE_INFO_BW_160;
+			break;
+		}
+
 		status->encoding = RX_ENC_VHT;
 		break;
 	default:
@@ -1809,10 +1802,8 @@ static void ath10k_htt_rx_tx_compl_ind(struct ath10k *ar,
 	struct htt_resp *resp = (struct htt_resp *)skb->data;
 	struct htt_tx_done tx_done = {};
 	int status = MS(resp->data_tx_completion.flags, HTT_DATA_TX_STATUS);
-	__le16 msdu_id, *msdus;
-	bool rssi_enabled = false;
-	u8 msdu_count = 0;
-	int i, htt_pad;
+	__le16 msdu_id;
+	int i;
 
 	switch (status) {
 	case HTT_DATA_TX_STATUS_NO_ACK:
@@ -1835,31 +1826,9 @@ static void ath10k_htt_rx_tx_compl_ind(struct ath10k *ar,
 	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt tx completion num_msdus %d\n",
 		   resp->data_tx_completion.num_msdus);
 
-	msdu_count = resp->data_tx_completion.num_msdus;
-	rssi_enabled = ath10k_is_rssi_enable(&ar->hw_params, resp);
-
-	if (rssi_enabled)
-		htt_pad = ath10k_tx_data_rssi_get_pad_bytes(&ar->hw_params,
-							    resp);
-
-	for (i = 0; i < msdu_count; i++) {
-		msdus = resp->data_tx_completion.msdus;
-		msdu_id = msdus[i];
+	for (i = 0; i < resp->data_tx_completion.num_msdus; i++) {
+		msdu_id = resp->data_tx_completion.msdus[i];
 		tx_done.msdu_id = __le16_to_cpu(msdu_id);
-
-		if (rssi_enabled) {
-			/* Total no of MSDUs should be even,
-			 * if odd MSDUs are sent firmware fills
-			 * last msdu id with 0xffff
-			 */
-			if (msdu_count & 0x01) {
-				msdu_id = msdus[msdu_count +  i + 1 + htt_pad];
-				tx_done.ack_rssi = __le16_to_cpu(msdu_id);
-			} else {
-				msdu_id = msdus[msdu_count +  i + htt_pad];
-				tx_done.ack_rssi = __le16_to_cpu(msdu_id);
-			}
-		}
 
 		/* kfifo_put: In practice firmware shouldn't fire off per-CE
 		 * interrupt and main interrupt (MSI/-X range case) for the same
@@ -2224,11 +2193,7 @@ static void ath10k_htt_rx_tx_fetch_ind(struct ath10k *ar, struct sk_buff *skb)
 
 	rcu_read_lock();
 
-	spin_lock_bh(&ar->txqs_lock);
-	ath10k_atf_refill_deficit(ar);
-	spin_unlock_bh(&ar->txqs_lock);
 	for (i = 0; i < num_records; i++) {
-		struct ath10k_txq *artxq;
 		record = &resp->tx_fetch_ind.records[i];
 		peer_id = MS(le16_to_cpu(record->info),
 			     HTT_TX_FETCH_RECORD_INFO_PEER_ID);
@@ -2261,7 +2226,6 @@ static void ath10k_htt_rx_tx_fetch_ind(struct ath10k *ar, struct sk_buff *skb)
 			continue;
 		}
 
-		artxq = (void *)txq->drv_priv;
 		num_msdus = 0;
 		num_bytes = 0;
 
@@ -2273,14 +2237,7 @@ static void ath10k_htt_rx_tx_fetch_ind(struct ath10k *ar, struct sk_buff *skb)
 
 			num_msdus++;
 			num_bytes += ret;
-
-			if (ath10k_atf_scheduler_enabled(ar) &&
-			    (artxq->atf.deficit < 0))
-				break;
 		}
-		trace_ath10k_htt_rx_tx_fetch_ind(ar, i, peer_id, max_num_msdus,
-						 max_num_bytes, num_msdus,
-						 num_bytes, txq);
 
 		record->num_msdus = cpu_to_le16(num_msdus);
 		record->num_bytes = cpu_to_le32(num_bytes);
@@ -2520,8 +2477,7 @@ ath10k_update_per_peer_tx_stats(struct ath10k *ar,
 		arsta->txrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
 
 	arsta->txrate.nss = txrate.nss;
-	arsta->txrate.bw = ath10k_bw_to_mac80211_bw(txrate.bw);
-	ath10k_accumulate_per_peer_tx_stats(ar, sta, peer_stats, &txrate);
+	arsta->txrate.bw = txrate.bw + RATE_INFO_BW_20;
 }
 
 static void ath10k_htt_fetch_peer_stats(struct ath10k *ar,
@@ -2531,7 +2487,6 @@ static void ath10k_htt_fetch_peer_stats(struct ath10k *ar,
 	struct ath10k_per_peer_tx_stats *p_tx_stats = &ar->peer_tx_stats;
 	struct htt_per_peer_tx_stats_ind *tx_stats;
 	struct ieee80211_sta *sta;
-	struct ath10k_sta *arsta;
 	struct ath10k_peer *peer;
 	int peer_id, i;
 	u8 ppdu_len, num_ppdu;
@@ -2558,8 +2513,6 @@ static void ath10k_htt_fetch_peer_stats(struct ath10k *ar,
 	}
 
 	sta = peer->sta;
-	arsta = (struct ath10k_sta *)sta->drv_priv;
-
 	for (i = 0; i < num_ppdu; i++) {
 		tx_stats = (struct htt_per_peer_tx_stats_ind *)
 			   (resp->peer_tx_stats.payload + i * ppdu_len);
@@ -2574,7 +2527,6 @@ static void ath10k_htt_fetch_peer_stats(struct ath10k *ar,
 		p_tx_stats->retry_pkts = __le16_to_cpu(tx_stats->retry_pkts);
 		p_tx_stats->failed_pkts = __le16_to_cpu(tx_stats->failed_pkts);
 
-		arsta->tx_stats.tx_duration += __le16_to_cpu(tx_stats->tx_duration);
 		ath10k_update_per_peer_tx_stats(ar, sta, p_tx_stats);
 	}
 
@@ -2583,162 +2535,12 @@ out:
 	rcu_read_unlock();
 }
 
-static void
-ath10k_htt_fetch_n_relay_cfr_data(struct ath10k *ar,
-				  struct htt_peer_cfr_dump_ind_lagacy *htt_msg,
-				  struct ath10k_rfs_cfr_dump *rfs_cfr_dump)
-{
-	struct ath10k_mem_chunk *mem_chunk = NULL;
-	u32 mem_index = __le32_to_cpu(htt_msg->index);
-	u32 req_id = MS(htt_msg->info, HTT_T2H_CFR_DUMP_TYPE1_MEM_REQ_ID);
-	u32 *rindex, *windex;
-	u32 msg_len = __le32_to_cpu(htt_msg->length);
-	void *vaddr;
-	int i;
-
-	/* Find host allocated memory for the request ID provied by firmware,
-	 * in HTT message, where CFR dump is wrriten by the firmware.
-	 *
-	 *  Host allocated memory layout:
-	 *     Read      Write                                     FW
-	 *    Index      Index   <-------   CFR data     ------->Magic Num
-	 *  --------------------------------------------------------------
-	 *  | 4 byte  | 4 byte   |      CFR dump                | 4 byte |
-	 *  --------------------------------------------------------------
-	 *    Updated   Updated                                  Updated
-	 *      by      by FW                                     by FW
-	 *     host
-	 **/
-	for (i = 0 ; i < ar->wmi.num_mem_chunks; i++) {
-		if (ar->wmi.mem_chunks[i].req_id == req_id)
-			mem_chunk = &ar->wmi.mem_chunks[i];
-	}
-
-	if (mem_chunk == NULL) {
-		ath10k_warn(ar, "No memory allocated for req ID %d\n", req_id);
-		return;
-	}
-
-	/* fetch the read index and write index pointers based on above memory
-	 * logic.
-	 **/
-	vaddr = mem_chunk->vaddr;
-	rindex = (u32 *)vaddr;
-	windex = rindex + 1;
-
-
-	/* mem_index is having the index of the address where CFR dump wrriten,
-	 * find data pointer from mem index and start address of memory.
-	 **/
-	rfs_cfr_dump->cfr_dump = vaddr + mem_index;
-	/*Dont do relayfs when there is no data to realy*/
-	if (msg_len)
-		ath10k_cfr_dump_to_rfs(ar, rfs_cfr_dump->cfr_dump, msg_len);
-
-	/* Updating the read index to the number of bytes read by host, it will
-	 * help in writing next capture.
-	 * ignoring 4 byte for FW magic number from the actual allocated memory
-	 * length to avoid courruption in magic number. This memory is circular
-	 * so after complation of one round, Skipping the first 8 byte as they
-	 * are for read index and write index.
-	 */
-	if (((*rindex) + msg_len) <= (mem_chunk->len - 4))
-		(*rindex) += msg_len;
-	else if (((*rindex) + msg_len) > (mem_chunk->len - 4))
-		(*rindex) = (msg_len + 8);
-}
-
-static void
-ath10k_htt_populate_rfs_cfr_header(struct ath10k *ar,
-				   struct ath10k_rfs_cfr_hdr *cfr_hdr,
-				   struct htt_peer_cfr_dump_ind_lagacy *cfr_ind)
-{
-	u8 rx_chain_mask;
-
-	cfr_hdr->head_magic_num = 0xDEADBEAF;
-	ether_addr_copy(cfr_hdr->addr, cfr_ind->mac_addr.addr);
-	cfr_hdr->status = MS(cfr_ind->info, HTT_T2H_CFR_DUMP_TYPE1_STATUS);
-	cfr_hdr->capture_bw = MS(cfr_ind->info, HTT_T2H_CFR_DUMP_TYPE1_CAP_BW);
-	cfr_hdr->channel_bw = MS(cfr_ind->info, HTT_T2H_CFR_DUMP_TYPE1_CHAN_BW);
-	cfr_hdr->capture_mode = MS(cfr_ind->info, HTT_T2H_CFR_DUMP_TYPE1_MODE);
-	cfr_hdr->capture_type = MS(cfr_ind->info, HTT_T2H_CFR_DUMP_TYPE1_CAP_TYPE);
-	cfr_hdr->sts_count = MS(cfr_ind->info, HTT_T2H_CFR_DUMP_TYPE1_STS);
-
-	cfr_hdr->prim20_chan = __le32_to_cpu(cfr_ind->chan_mhz);
-	cfr_hdr->center_freq1 =  __le32_to_cpu(cfr_ind->center_freq1);
-	cfr_hdr->center_freq2 =  __le32_to_cpu(cfr_ind->center_freq2);
-	cfr_hdr->phy_mode = __le32_to_cpu(cfr_ind->chan_phy_mode);
-
-	rx_chain_mask = ar->cfg_rx_chainmask;
-
-	while (rx_chain_mask) {
-		if (rx_chain_mask & BIT(0))
-			cfr_hdr->num_rx_chain++;
-
-		rx_chain_mask >>= 1;
-	}
-
-	cfr_hdr->length = __le32_to_cpu(cfr_ind->length);
-
-	cfr_hdr->timestamp = __le32_to_cpu(cfr_ind->timestamp);
-
-	ath10k_cfr_dump_to_rfs(ar , cfr_hdr, sizeof(struct ath10k_rfs_cfr_hdr));
-}
-
-static void ath10k_htt_peer_cfr_compl_ind(struct ath10k *ar,
-					  struct sk_buff *skb)
-{
-	struct htt_resp *resp = (struct htt_resp *)skb->data;
-	struct ath10k_rfs_cfr_dump rfs_cfr_dump = { };
-	enum htt_cfr_capture_msg_type cfr_msg_type;
-	int expected_len;
-
-	cfr_msg_type = __le32_to_cpu(resp->cfr_dump_ind.cfr_msg_type);
-
-	switch (cfr_msg_type) {
-	case HTT_PEER_CFR_CAPTURE_MSG_TYPE_LAGACY:
-		if (!test_bit(WMI_SERVICE_CFR_CAPTURE_IND_MSG_TYPE_LAGACY,
-			      ar->wmi.svc_map)) {
-			ath10k_warn(ar, "Un supported msg type\n");
-			return;
-		}
-
-		expected_len = sizeof(struct htt_resp_hdr) +
-			       sizeof(struct htt_peer_cfr_dump_ind_lagacy) +
-			       sizeof(u32) + (3*sizeof(u8));
-		if (skb->len < expected_len) {
-			ath10k_warn(ar, "Invalid cfr capture completion event %d\n",
-				    skb->len);
-			return;
-		}
-
-		ath10k_htt_populate_rfs_cfr_header(ar, &rfs_cfr_dump.cfr_hdr,
-						   &resp->cfr_dump_ind.cfr_dump_lagacy);
-
-		ath10k_htt_fetch_n_relay_cfr_data(ar,
-						  &resp->cfr_dump_ind.cfr_dump_lagacy,
-						  &rfs_cfr_dump);
-
-		rfs_cfr_dump.tail_magic_num = 0xBEAFDEAD;
-
-		ath10k_cfr_dump_to_rfs(ar , &rfs_cfr_dump.tail_magic_num,
-				       sizeof(u32));
-
-		ath10k_cfr_finlalize_relay(ar);
-		break;
-	default:
-		ath10k_warn(ar, "unsupported CFR capture method\n");
-		break;
-	}
-}
-
 static void ath10k_fetch_10_2_tx_stats(struct ath10k *ar, u8 *data)
 {
 	struct ath10k_pktlog_hdr *hdr = (struct ath10k_pktlog_hdr *)data;
 	struct ath10k_per_peer_tx_stats *p_tx_stats = &ar->peer_tx_stats;
 	struct ath10k_10_2_peer_tx_stats *tx_stats;
 	struct ieee80211_sta *sta;
-	struct ath10k_sta *arsta;
 	struct ath10k_peer *peer;
 	u16 log_type = __le16_to_cpu(hdr->log_type);
 	u32 peer_id = 0, i;
@@ -2764,8 +2566,6 @@ static void ath10k_fetch_10_2_tx_stats(struct ath10k *ar, u8 *data)
 	}
 
 	sta = peer->sta;
-	arsta = (struct ath10k_sta *)sta->drv_priv;
-
 	for (i = 0; i < tx_stats->tx_ppdu_cnt; i++) {
 		p_tx_stats->succ_bytes =
 			__le16_to_cpu(tx_stats->success_bytes[i]);
@@ -2781,8 +2581,6 @@ static void ath10k_fetch_10_2_tx_stats(struct ath10k *ar, u8 *data)
 
 		ath10k_update_per_peer_tx_stats(ar, sta, p_tx_stats);
 	}
-	arsta->tx_stats.tx_duration += __le32_to_cpu(tx_stats->tx_duration);
-
 	spin_unlock_bh(&ar->data_lock);
 	rcu_read_unlock();
 
@@ -2842,21 +2640,12 @@ bool ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 	case HTT_T2H_MSG_TYPE_MGMT_TX_COMPLETION: {
 		struct htt_tx_done tx_done = {};
 		int status = __le32_to_cpu(resp->mgmt_tx_completion.status);
-		int info = __le32_to_cpu(resp->mgmt_tx_completion.info);
 
 		tx_done.msdu_id = __le32_to_cpu(resp->mgmt_tx_completion.desc_id);
 
 		switch (status) {
 		case HTT_MGMT_TX_STATUS_OK:
 			tx_done.status = HTT_TX_COMPL_STATE_ACK;
-			if (test_bit(WMI_SERVICE_HTT_MGMT_TX_COMP_VALID_FLAGS,
-				     ar->wmi.svc_map) &&
-			    (resp->mgmt_tx_completion.flags &
-			     HTT_MGMT_TX_CMPL_FLAG_ACK_RSSI)) {
-				tx_done.ack_rssi =
-				FIELD_GET(HTT_MGMT_TX_CMPL_INFO_ACK_RSSI_MASK,
-					  info);
-			}
 			break;
 		case HTT_MGMT_TX_STATUS_RETRY:
 			tx_done.status = HTT_TX_COMPL_STATE_NOACK;
@@ -2967,10 +2756,6 @@ bool ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	case HTT_T2H_MSG_TYPE_PEER_STATS:
 		ath10k_htt_fetch_peer_stats(ar, skb);
-		break;
-	case HTT_T2H_MSG_TYPE_CFR_DUMP_COMPL_IND:
-		if (ath10k_peer_cfr_capture_enabled(ar))
-			ath10k_htt_peer_cfr_compl_ind(ar, skb);
 		break;
 	case HTT_T2H_MSG_TYPE_EN_STATS:
 	default:

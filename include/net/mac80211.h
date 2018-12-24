@@ -799,24 +799,11 @@ enum mac80211_rate_control_flags {
 };
 
 
-#ifdef CONFIG_MAC80211_WIFI_DIAG
-#define IEEE80211_TX_INFO_COMMON_EXTRA			8
-#define IEEE80211_TX_INFO_STATUS_DRIVER_DATA_SIZE	8
-#define IEEE80211_TX_INFO_DRIVER_DATA_SIZE		32
-#define IEEE80211_TX_INFO_RATE_DRIVER_DATA_SIZE		16
-#else
-/* extra bytes added before union */
-#define IEEE80211_TX_INFO_COMMON_EXTRA			0
-
-/* status_driver_data */
-#define IEEE80211_TX_INFO_STATUS_DRIVER_DATA_SIZE	16
-
 /* there are 40 bytes if you don't need the rateset to be kept */
 #define IEEE80211_TX_INFO_DRIVER_DATA_SIZE 40
 
 /* if you do need the rateset, then you have less space */
 #define IEEE80211_TX_INFO_RATE_DRIVER_DATA_SIZE 24
-#endif
 
 /* maximum number of rate stages */
 #define IEEE80211_TX_MAX_RATES	4
@@ -914,11 +901,6 @@ struct ieee80211_tx_info {
 
 	u16 ack_frame_id;
 
-#ifdef CONFIG_MAC80211_WIFI_DIAG
-	u32 wifi_diag_cookie;
-	u32 tx_start_time;
-#endif
-
 	union {
 		struct {
 			union {
@@ -952,10 +934,7 @@ struct ieee80211_tx_info {
 			u8 ampdu_len;
 			u8 antenna;
 			u16 tx_time;
-			bool is_valid_ack_signal;
-			void *status_driver_data[
-				IEEE80211_TX_INFO_STATUS_DRIVER_DATA_SIZE /
-				sizeof(void *)];
+			void *status_driver_data[19 / sizeof(void *)];
 		} status;
 		struct {
 			struct ieee80211_tx_rate driver_rates[
@@ -1036,15 +1015,13 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
 		     offsetof(struct ieee80211_tx_info, control.rates));
 	BUILD_BUG_ON(offsetof(struct ieee80211_tx_info, status.rates) !=
 		     offsetof(struct ieee80211_tx_info, driver_rates));
-	BUILD_BUG_ON(offsetof(struct ieee80211_tx_info, status.rates) !=
-		     8 + IEEE80211_TX_INFO_COMMON_EXTRA);
+	BUILD_BUG_ON(offsetof(struct ieee80211_tx_info, status.rates) != 8);
 	/* clear the rate counts */
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++)
 		info->status.rates[i].count = 0;
 
 	BUILD_BUG_ON(
-	    offsetof(struct ieee80211_tx_info, status.ack_signal) !=
-	    20 + IEEE80211_TX_INFO_COMMON_EXTRA);
+	    offsetof(struct ieee80211_tx_info, status.ack_signal) != 20);
 	memset(&info->status.ampdu_ack_len, 0,
 	       sizeof(struct ieee80211_tx_info) -
 	       offsetof(struct ieee80211_tx_info, status.ampdu_ack_len));
@@ -1234,18 +1211,7 @@ struct ieee80211_rx_status {
 	u8 chains;
 	s8 chain_signal[IEEE80211_MAX_CHAINS];
 	u8 ampdu_delimiter_crc;
-#ifdef CONFIG_MAC80211_WIFI_DIAG
-	u32 wifi_diag_cookie;
-#endif
 };
-
-#define IEEE80211_TX_DELAY_SHIFT	10
-static inline u32 ieee80211_txdelay_get_time(void)
-{
-	u64 ns = ktime_get_ns();
-
-	return ns >> IEEE80211_TX_DELAY_SHIFT;
-}
 
 /**
  * struct ieee80211_vendor_radiotap - vendor radiotap data information
@@ -1818,8 +1784,6 @@ struct ieee80211_sta_rates {
  * @support_p2p_ps: indicates whether the STA supports P2P PS mechanism or not.
  * @max_rc_amsdu_len: Maximum A-MSDU size in bytes recommended by rate control.
  * @txq: per-TID data TX queues (if driver uses the TXQ abstraction)
- * @last_tx_bitrate: PHY rate for last successful data packet transmission. In
- *	the unit of 100Kbps.
  */
 struct ieee80211_sta {
 	u32 supp_rates[NUM_NL80211_BANDS];
@@ -1860,7 +1824,6 @@ struct ieee80211_sta {
 	u16 max_rc_amsdu_len;
 
 	struct ieee80211_txq *txq[IEEE80211_NUM_TIDS];
-	u32 last_tx_bitrate; /* in the unit of 100Kbps */
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));

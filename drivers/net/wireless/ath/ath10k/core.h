@@ -47,13 +47,9 @@
 #define ATH10K_FLUSH_TIMEOUT_HZ (5 * HZ)
 #define ATH10K_CONNECTION_LOSS_HZ (3 * HZ)
 #define ATH10K_NUM_CHANS 40
-#define ATH10K_FWLOG_MODULE_ID_MAX_10_2_4 28
-#define ATH10K_FWLOG_MODULE_ID_MAX_10_4 35
 
 /* Antenna noise floor */
 #define ATH10K_DEFAULT_NOISE_FLOOR -95
-
-#define ATH10K_INVALID_RSSI 128
 
 #define ATH10K_MAX_NUM_MGMT_PENDING 128
 
@@ -132,7 +128,6 @@ struct ath10k_skb_cb {
 	u16 msdu_id;
 	struct ieee80211_vif *vif;
 	struct ieee80211_txq *txq;
-	u32 airtime_est;
 } __packed;
 
 struct ath10k_skb_rxcb {
@@ -358,107 +353,10 @@ struct ath10k_peer {
 	struct ieee80211_key_conf *keys[WMI_MAX_KEY_INDEX + 1];
 };
 
-#define IEEE80211_ATF_QUANTUM		1000	/* 1ms */
-/* Upper bound for per TXQ airtime limit: 8ms */
-#define IEEE80211_ATF_TXQ_AIRTIME_MAX	8000
-/* lower bound for per TXQ airtime limit: 4ms */
-#define IEEE80211_ATF_TXQ_AIRTIME_MIN	4000
-#define IEEE80211_ATF_AIRTIME_MAX	40000	/* Maximium limit: 40ms */
-#define IEEE80211_ATF_AIRTIME_TARGET	12000	/* Airtime in FW: 12ms */
-
-struct atf_scheduler {
-	u32 quantum;
-	int deficit;
-	int deficit_max;
-	int frames_inflight;
-	int airtime_inflight;
-	u32 next_epoch;
-	u32 bytes_send;
-	u32 bytes_send_last_interval;
-};
-
 struct ath10k_txq {
 	struct list_head list;
 	unsigned long num_fw_queued;
 	unsigned long num_push_allowed;
-	struct atf_scheduler atf;
-};
-
-struct ath10k_tx_stats {
-	u64 succ_bytes_vht[VHT_MCS_NUM];
-	u64 succ_bytes_ht[HT_MCS_NUM];
-	u64 succ_bytes_bw[VHT_BW_NUM];
-	u64 succ_bytes_nss[VHT_NSS_NUM];
-	u64 succ_bytes_legacy_rates[LEGACY_RATE_NUM];
-	u64 succ_bytes_gi[VHT_GI_NUM];
-	u64 succ_bytes_rate_num[VHT_RATE_NUM];
-
-	u64 succ_pkts_vht[VHT_MCS_NUM];
-	u64 succ_pkts_ht[HT_MCS_NUM];
-	u64 succ_pkts_bw[VHT_BW_NUM];
-	u64 succ_pkts_nss[VHT_NSS_NUM];
-	u64 succ_pkts_legacy_rates[LEGACY_RATE_NUM];
-	u64 succ_pkts_gi[VHT_GI_NUM];
-	u64 succ_pkts_rate_num[VHT_RATE_NUM];
-
-	u64 fail_bytes_vht[VHT_MCS_NUM];
-	u64 fail_bytes_ht[HT_MCS_NUM];
-	u64 fail_bytes_bw[VHT_BW_NUM];
-	u64 fail_bytes_nss[VHT_NSS_NUM];
-	u64 fail_bytes_legacy_rates[LEGACY_RATE_NUM];
-	u64 fail_bytes_gi[VHT_GI_NUM];
-	u64 fail_bytes_rate_num[VHT_RATE_NUM];
-
-	u64 fail_pkts_vht[VHT_MCS_NUM];
-	u64 fail_pkts_ht[HT_MCS_NUM];
-	u64 fail_pkts_bw[VHT_BW_NUM];
-	u64 fail_pkts_nss[VHT_NSS_NUM];
-	u64 fail_pkts_legacy_rates[LEGACY_RATE_NUM];
-	u64 fail_pkts_gi[VHT_GI_NUM];
-	u64 fail_pkts_rate_num[VHT_RATE_NUM];
-
-	u64 ampdu_bytes_vht[VHT_MCS_NUM];
-	u64 ampdu_bytes_ht[HT_MCS_NUM];
-	u64 ampdu_bytes_bw[VHT_BW_NUM];
-	u64 ampdu_bytes_nss[VHT_NSS_NUM];
-	u64 ampdu_bytes_legacy_rates[LEGACY_RATE_NUM];
-	u64 ampdu_bytes_gi[VHT_GI_NUM];
-	u64 ampdu_bytes_rate_num[VHT_RATE_NUM];
-
-	u64 ampdu_pkts_vht[VHT_MCS_NUM];
-	u64 ampdu_pkts_ht[HT_MCS_NUM];
-	u64 ampdu_pkts_bw[VHT_BW_NUM];
-	u64 ampdu_pkts_nss[VHT_NSS_NUM];
-	u64 ampdu_pkts_legacy_rates[LEGACY_RATE_NUM];
-	u64 ampdu_pkts_gi[VHT_GI_NUM];
-	u64 ampdu_pkts_rate_num[VHT_RATE_NUM];
-
-	u64 retry_bytes_vht[VHT_MCS_NUM];
-	u64 retry_bytes_ht[HT_MCS_NUM];
-	u64 retry_bytes_bw[VHT_BW_NUM];
-	u64 retry_bytes_nss[VHT_NSS_NUM];
-	u64 retry_bytes_legacy_rates[LEGACY_RATE_NUM];
-	u64 retry_bytes_gi[VHT_GI_NUM];
-	u64 retry_bytes_rate_num[VHT_RATE_NUM];
-
-	u64 retry_pkts_vht[VHT_MCS_NUM];
-	u64 retry_pkts_ht[HT_MCS_NUM];
-	u64 retry_pkts_bw[VHT_BW_NUM];
-	u64 retry_pkts_nss[VHT_NSS_NUM];
-	u64 retry_pkts_legacy_rates[LEGACY_RATE_NUM];
-	u64 retry_pkts_gi[VHT_GI_NUM];
-	u64 retry_pkts_rate_num[VHT_RATE_NUM];
-
-	u64 tx_duration;
-	u64 ba_fails;
-	u64 ack_fails;
-};
-
-struct ath10k_cfr_capture {
-	u32 cfr_enable;
-	u32 cfr_period;
-	u32 cfr_bandwidth;
-	u32 cfr_method;
 };
 
 struct ath10k_sta {
@@ -478,13 +376,7 @@ struct ath10k_sta {
 #ifdef CONFIG_MAC80211_DEBUGFS
 	/* protected by conf_mutex */
 	bool aggr_mode;
-	struct ath10k_tx_stats tx_stats;
 #endif
-	u8 tpc;
-	u8 ampdu_subframe_count;
-	u32 peer_ps_state;
-
-	struct ath10k_cfr_capture cfr_capture;
 };
 
 #define ATH10K_VDEV_SETUP_TIMEOUT_HZ (5 * HZ)
@@ -586,17 +478,6 @@ struct ath10k_fw_crash_data {
 	size_t ramdump_buf_len;
 };
 
-#define ATH10K_DELAY_STATS_MAX_BIN	100
-struct ath10k_tx_delay_stats {
-	/* histogram of tx delay with 101 bins. The bucket size scales
-	 * linearly, from 10ms to 1000ms. Each bin is a counter of tx
-	 * packets with delay in that range.
-	 */
-	u32 counts[ATH10K_DELAY_STATS_MAX_BIN + 1];
-};
-
-#define ATH10K_FTMR_MAX_NUM_VDEVS 20
-
 struct ath10k_debug {
 	struct dentry *debugfs_phy;
 
@@ -605,7 +486,6 @@ struct ath10k_debug {
 	bool fw_stats_done;
 
 	unsigned long htt_stats_mask;
-	unsigned long reset_htt_stats;
 	struct delayed_work htt_stats_dwork;
 	struct ath10k_dfs_stats dfs_stats;
 	struct ath_dfs_pool_stats dfs_pool_stats;
@@ -614,7 +494,6 @@ struct ath10k_debug {
 	struct ath10k_tpc_stats *tpc_stats;
 
 	struct completion tpc_complete;
-	struct ath10k_tx_delay_stats *tx_delay_stats[IEEE80211_NUM_ACS];
 
 	/* protected by conf_mutex */
 	u64 fw_dbglog_mask;
@@ -622,7 +501,6 @@ struct ath10k_debug {
 	u32 reg_addr;
 	u32 nf_cal_period;
 	void *cal_data;
-	int ftmr_enabled[ATH10K_FTMR_MAX_NUM_VDEVS];
 };
 
 enum ath10k_state {
@@ -781,9 +659,6 @@ enum ath10k_dev_flags {
 
 	/* Per Station statistics service */
 	ATH10K_FLAG_PEER_STATS,
-
-	/* Do not use checksum offload */
-	ATH10K_FLAG_HW_CSUM_DISABLED,
 };
 
 enum ath10k_cal_mode {
@@ -800,11 +675,6 @@ enum ath10k_crypt_mode {
 	ATH10K_CRYPT_MODE_HW,
 	/* Only use software crypto engine */
 	ATH10K_CRYPT_MODE_SW,
-};
-
-enum ath10k_wlan_interfrc_mask {
-	ATH10K_SPECTRAL_INTERFRC	= 0x00000001,
-	ATH10K_SURVEY_INTERFRC		= 0x00000002,
 };
 
 static inline const char *ath10k_cal_mode_str(enum ath10k_cal_mode mode)
@@ -931,12 +801,10 @@ struct ath10k {
 	u32 vht_cap_info;
 	u32 num_rf_chains;
 	u32 max_spatial_stream;
-	u32 fwlog_max_moduleid;
 	/* protected by conf_mutex */
 	u32 low_5ghz_chan;
 	u32 high_5ghz_chan;
 	bool ani_enabled;
-	u8 ps_state_enable;
 
 	bool p2p;
 
@@ -1110,8 +978,6 @@ struct ath10k {
 		/* spectral_mode and spec_config are protected by conf_mutex */
 		enum ath10k_spectral_mode mode;
 		struct ath10k_spec_scan config;
-		u32 interfrc_5g;
-		u32 interfrc_2g;
 	} spectral;
 #endif
 
@@ -1138,13 +1004,8 @@ struct ath10k {
 		u32 fw_cold_reset_counter;
 	} stats;
 
-	/* Detect the adjacent wifi radio interference */
-	enum ath10k_wlan_interfrc_mask wlan_interfrc_mask;
-
 	struct ath10k_thermal thermal;
 	struct ath10k_wow wow;
-	struct work_struct fwlog_tx_work;
-	struct sk_buff_head fwlog_tx_queue;
 	struct ath10k_per_peer_tx_stats peer_tx_stats;
 
 	/* NAPI */
@@ -1166,45 +1027,11 @@ struct ath10k {
 
 	u32 ampdu_reference;
 
-	const u8 *wmi_key_cipher;
 	void *ce_priv;
 
-	const unsigned int *debug_mask;
-	int	airtime_inflight;
-	int	airtime_inflight_max;
-	int	atf_enabled;
-	u32	atf_next_interval;
-	u32	atf_sch_interval;
-	u32	atf_release_limit;
-	u32	atf_bytes_send;
-	u32	atf_bytes_send_last_interval;
-	u32	atf_max_num_pending_tx;
-	u32	atf_txq_limit_min;
-	u32	atf_txq_limit_max;
-	u32	atf_quantum;
-	u32	atf_quantum_mesh;
-
-	u32	cfr_enable;
-	struct rchan *rfs_cfr_capture;
-
-	u32 burst_dur[4];
-	struct completion peer_delete_done;
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
 };
-
-static inline bool ath10k_atf_scheduler_enabled(struct ath10k *ar)
-{
-	return ar->atf_enabled;
-}
-
-static inline bool ath10k_peer_cfr_capture_enabled(struct ath10k *ar)
-{
-	if (test_bit(WMI_SERVICE_CFR_CAPTURE_SUPPORT, ar->wmi.svc_map))
-		return true;
-
-	return false;
-}
 
 static inline bool ath10k_peer_stats_enabled(struct ath10k *ar)
 {

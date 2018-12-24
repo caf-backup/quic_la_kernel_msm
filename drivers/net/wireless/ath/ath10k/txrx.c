@@ -1,7 +1,6 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2016 Qualcomm Atheros, Inc.
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -51,60 +50,6 @@ out:
 	spin_unlock_bh(&ar->data_lock);
 }
 
-static inline u32 txdelay_time_to_10ms(u32 val)
-{
-	u64 valns = ((u64)val << IEEE80211_TX_DELAY_SHIFT);
-
-	do_div(valns, NSEC_PER_MSEC * 10);
-	return (u32)valns;
-}
-
-void ath10k_update_latency_stats(struct ath10k *ar, struct sk_buff *msdu, u8 ac)
-{
-	u32 enqueue_time = 0, now;
-	struct ieee80211_tx_info *info;
-	int bin;
-
-	now = ieee80211_txdelay_get_time();
-
-	info = IEEE80211_SKB_CB(msdu);
-#ifdef CONFIG_MAC80211_WIFI_DIAG
-	enqueue_time = info->tx_start_time;
-#endif
-	if (enqueue_time == 0)
-		return;
-
-	bin = txdelay_time_to_10ms(now - enqueue_time);
-	if (bin > ATH10K_DELAY_STATS_MAX_BIN)
-		bin = ATH10K_DELAY_STATS_MAX_BIN;
-
-	ar->debug.tx_delay_stats[ac]->counts[bin]++;
-}
-
-/* Update airtime upon tx completion. It is called while holding txq_lock */
-void ath10k_atf_tx_complete(struct ath10k *ar, struct sk_buff *skb)
-{
-	struct ieee80211_txq *txq;
-	struct ath10k_skb_cb *skb_cb;
-	struct ath10k_txq *artxq;
-	struct atf_scheduler *atf;
-
-	skb_cb = ATH10K_SKB_CB(skb);
-
-	txq = skb_cb->txq;
-	if (!txq)
-		return;
-	ar->airtime_inflight -= skb_cb->airtime_est;
-	ar->atf_bytes_send += skb->len;
-	artxq = (void *)txq->drv_priv;
-	atf = &artxq->atf;
-
-	atf->frames_inflight--;
-	atf->bytes_send += skb->len;
-	atf->airtime_inflight -= skb_cb->airtime_est;
-	trace_ath10k_atf_tx_complete(ar, skb, skb_cb->airtime_est, txq);
-}
-
 int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 			 const struct htt_tx_done *tx_done)
 {
@@ -141,7 +86,6 @@ int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 	if (txq) {
 		artxq = (void *)txq->drv_priv;
 		artxq->num_fw_queued--;
-		ath10k_atf_tx_complete(htt->ar, msdu);
 	}
 
 	ath10k_htt_tx_free_msdu_id(htt, tx_done->msdu_id);
@@ -155,10 +99,7 @@ int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 	ath10k_report_offchan_tx(htt->ar, msdu);
 
 	info = IEEE80211_SKB_CB(msdu);
-	if (txq)
-		ath10k_update_latency_stats(htt->ar, msdu, txq->ac);
 	memset(&info->status, 0, sizeof(info->status));
-	info->status.rates[0].idx = -1;
 	trace_ath10k_txrx_tx_unref(ar, tx_done->msdu_id);
 
 	if (tx_done->status == HTT_TX_COMPL_STATE_DISCARD) {
@@ -175,13 +116,6 @@ int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 	if ((tx_done->status == HTT_TX_COMPL_STATE_ACK) &&
 	    (info->flags & IEEE80211_TX_CTL_NO_ACK))
 		info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
-
-	if (tx_done->status == HTT_TX_COMPL_STATE_ACK &&
-	    tx_done->ack_rssi != ATH10K_INVALID_RSSI) {
-		info->status.ack_signal = ATH10K_DEFAULT_NOISE_FLOOR +
-						tx_done->ack_rssi;
-		info->status.is_valid_ack_signal = true;
-	}
 
 	ieee80211_tx_status(htt->ar->hw, msdu);
 	/* we do not own the msdu anymore */

@@ -20,10 +20,6 @@
 #include "led.h"
 #include "wme.h"
 
-#ifdef CONFIG_MAC80211_WIFI_DIAG
-#include "wifi_diag.h"
-#endif
-
 
 void ieee80211_tx_status_irqsafe(struct ieee80211_hw *hw,
 				 struct sk_buff *skb)
@@ -191,18 +187,9 @@ static void ieee80211_frame_acked(struct sta_info *sta, struct sk_buff *skb)
 	struct ieee80211_mgmt *mgmt = (void *) skb->data;
 	struct ieee80211_local *local = sta->local;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
-	struct ieee80211_tx_info *txinfo = IEEE80211_SKB_CB(skb);
 
-	if (ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS)) {
+	if (ieee80211_hw_check(&local->hw, REPORTS_TX_ACK_STATUS))
 		sta->status_stats.last_ack = jiffies;
-		if (txinfo->status.is_valid_ack_signal) {
-			sta->status_stats.last_ack_signal =
-					 (s8)txinfo->status.ack_signal;
-			sta->status_stats.ack_signal_filled = true;
-			ewma_avg_signal_add(&sta->status_stats.avg_ack_signal,
-					    -txinfo->status.ack_signal);
-		}
-	}
 
 	if (ieee80211_is_data_qos(mgmt->frame_control)) {
 		struct ieee80211_hdr *hdr = (void *) skb->data;
@@ -500,8 +487,6 @@ static void ieee80211_report_ack_skb(struct ieee80211_local *local,
 			    ieee80211_is_qos_nullfunc(hdr->frame_control))
 				cfg80211_probe_status(sdata->dev, hdr->addr1,
 						      cookie, acked,
-						      info->status.ack_signal,
-						      info->status.is_valid_ack_signal,
 						      GFP_ATOMIC);
 			else
 				cfg80211_mgmt_tx_status(&sdata->wdev, cookie,
@@ -705,14 +690,6 @@ void ieee80211_tx_monitor(struct ieee80211_local *local, struct sk_buff *skb,
 	dev_kfree_skb(skb);
 }
 
-static void ieee80211_tx_upd_rateinfo(struct sta_info *sta)
-{
-	struct rate_info rinfo;
-
-	sta_set_rate_info_tx(sta, &sta->tx_stats.last_rate, &rinfo);
-	sta->sta.last_tx_bitrate = cfg80211_calculate_bitrate(&rinfo);
-}
-
 static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 				  struct ieee80211_tx_status *status)
 {
@@ -730,10 +707,6 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 	struct ieee80211_bar *bar;
 	int shift = 0;
 	int tid = IEEE80211_NUM_TIDS;
-
-#ifdef CONFIG_MAC80211_WIFI_DIAG
-	WIFI_DIAG_TX_STATUS_LOCAL_DBG(local, skb, "");
-#endif
 
 	rates_idx = ieee80211_tx_get_rates(hw, info, &retry_count);
 
@@ -766,11 +739,9 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 
 		if (ieee80211_hw_check(&local->hw, HAS_RATE_CONTROL) &&
 		    (ieee80211_is_data(hdr->frame_control)) &&
-		    (rates_idx != -1)) {
+		    (rates_idx != -1))
 			sta->tx_stats.last_rate =
 				info->status.rates[rates_idx];
-			ieee80211_tx_upd_rateinfo(sta);
-		}
 
 		if ((info->flags & IEEE80211_TX_STAT_AMPDU_NO_BACK) &&
 		    (ieee80211_is_data_qos(fc))) {
@@ -829,7 +800,7 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 
 		rate_control_tx_status(local, sband, status);
 		if (ieee80211_vif_is_mesh(&sta->sdata->vif))
-			ieee80211s_update_metric(local, sta, skb, retry_count);
+			ieee80211s_update_metric(local, sta, skb);
 
 		if (!(info->flags & IEEE80211_TX_CTL_INJECTED) && acked)
 			ieee80211_frame_acked(sta, skb);

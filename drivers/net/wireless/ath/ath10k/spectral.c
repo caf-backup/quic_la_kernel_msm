@@ -93,15 +93,6 @@ int ath10k_spectral_process_fft(struct ath10k *ar,
 	reg0 = __le32_to_cpu(fftr->reg0);
 	reg1 = __le32_to_cpu(fftr->reg1);
 
-	spin_lock_bh(&ar->data_lock);
-	if (phyerr->phy_err_code == PHY_ERROR_SPECTRAL_SCAN) {
-		if (phyerr->rsvd0 & PHYERR_FLAG_INTERFRC_5G)
-			ar->spectral.interfrc_5g++;
-		if (phyerr->rsvd0 & PHYERR_FLAG_INTERFRC_2G)
-			ar->spectral.interfrc_2g++;
-	}
-	spin_unlock_bh(&ar->data_lock);
-
 	length = sizeof(*fft_sample) - sizeof(struct fft_sample_tlv) + bin_len;
 	fft_sample->tlv.type = ATH_FFT_SAMPLE_ATH10K;
 	fft_sample->tlv.length = __cpu_to_be16(length);
@@ -343,11 +334,6 @@ static ssize_t write_file_spec_scan_ctl(struct file *file,
 			 */
 			res = ath10k_spectral_scan_config(ar,
 							  ar->spectral.mode);
-			spin_lock_bh(&ar->data_lock);
-			ar->spectral.interfrc_5g = 0;
-			ar->spectral.interfrc_2g = 0;
-			spin_unlock_bh(&ar->data_lock);
-
 			if (res < 0) {
 				ath10k_warn(ar, "failed to reconfigure spectral scan: %d\n",
 					    res);
@@ -578,49 +564,5 @@ void ath10k_spectral_destroy(struct ath10k *ar)
 	if (ar->spectral.rfs_chan_spec_scan) {
 		relay_close(ar->spectral.rfs_chan_spec_scan);
 		ar->spectral.rfs_chan_spec_scan = NULL;
-	}
-}
-
-/*TODO: is this right place to do CFR relayfs ,thinking.*/
-
-void ath10k_cfr_finlalize_relay(struct ath10k *ar)
-{
-	if (!ar->rfs_cfr_capture)
-		return;
-
-	relay_flush(ar->rfs_cfr_capture);
-}
-
-void ath10k_cfr_dump_to_rfs(struct ath10k *ar, const void *buf,
-			    const int length)
-{
-	if (!ar->rfs_cfr_capture)
-		return;
-
-	relay_write(ar->rfs_cfr_capture, buf , length);
-}
-
-static struct rchan_callbacks rfs_cfr_capture_cb = {
-	.create_buf_file = create_buf_file_handler,
-	.remove_buf_file = remove_buf_file_handler,
-};
-
-int ath10k_cfr_capture_create(struct ath10k *ar)
-{
-	if (!test_bit(WMI_SERVICE_CFR_CAPTURE_SUPPORT, ar->wmi.svc_map))
-		return 0;
-
-	ar->rfs_cfr_capture = relay_open("cfr_dump",
-			      ar->debug.debugfs_phy,
-			      1100, 2000,
-			      &rfs_cfr_capture_cb, NULL);
-	return 0;
-}
-
-void ath10k_cfr_capture_destroy(struct ath10k *ar)
-{
-	if (ar->rfs_cfr_capture) {
-		relay_close(ar->rfs_cfr_capture);
-		ar->rfs_cfr_capture = NULL;
 	}
 }

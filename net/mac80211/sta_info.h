@@ -119,7 +119,6 @@ enum ieee80211_sta_info_flags {
 #define HT_AGG_STATE_START_CB		6
 #define HT_AGG_STATE_STOP_CB		7
 
-DECLARE_EWMA(avg_signal, 10, 8)
 enum ieee80211_agg_stop_reason {
 	AGG_STOP_DECLINED,
 	AGG_STOP_LOCAL_REQUEST,
@@ -271,13 +270,6 @@ struct sta_ampdu_mlme {
 
 #define IEEE80211_FAST_XMIT_MAX_IV	18
 
-#define IEEE80211_HT_MCS_NUM		32
-#define IEEE80211_VHT_MCS_NUM		10
-#define IEEE80211_BW_NUM		4
-#define IEEE80211_NSS_NUM		4
-#define IEEE80211_GI_NUM		2
-#define IEEE80211_RATE_TABLE_NUM	320
-#define IEEE80211_LEGACY_RATE_NUM	12
 /**
  * struct ieee80211_fast_tx - TX fastpath information
  * @key: key to use for hw crypto
@@ -387,9 +379,6 @@ struct mesh_sta {
 
 	/* moving percentage of failed MSDUs */
 	struct ewma_mesh_fail_avg fail_avg;
-
-	/* moving avg of bitrate in 1kbps */
-	u32 bitrate_avg;
 };
 
 DECLARE_EWMA(signal, 10, 8)
@@ -504,9 +493,6 @@ struct sta_info {
 
 #ifdef CONFIG_MAC80211_MESH
 	struct mesh_sta *mesh;
-	unsigned long mesh_last_tx;
-	u32 mesh_tx_bitrate;
-	u16 mesh_sample_cnt;
 #endif
 
 	struct work_struct drv_deliver_wk;
@@ -534,7 +520,6 @@ struct sta_info {
 
 	/* Updated from RX path only, no locking requirements */
 	struct ieee80211_sta_rx_stats rx_stats;
-	struct ewma avg_signal;
 	struct {
 		struct ewma_signal signal;
 		struct ewma_signal chain_signal[IEEE80211_MAX_CHAINS];
@@ -552,9 +537,6 @@ struct sta_info {
 		u64 msdu_retries[IEEE80211_NUM_TIDS + 1];
 		u64 msdu_failed[IEEE80211_NUM_TIDS + 1];
 		unsigned long last_ack;
-		s8 last_ack_signal;
-		bool ack_signal_filled;
-		struct ewma_avg_signal avg_ack_signal;
 	} status_stats;
 
 	/* Updated from TX path only, no locking requirements */
@@ -565,7 +547,6 @@ struct sta_info {
 		u64 msdu[IEEE80211_NUM_TIDS + 1];
 	} tx_stats;
 	u16 tid_seq[IEEE80211_QOS_CTL_TID_MASK + 1];
-	struct ieee80211_tx_rate last_tx_rate;
 
 	/*
 	 * Aggregation information, locked with lock.
@@ -574,24 +555,7 @@ struct sta_info {
 	u8 timer_to_tid[IEEE80211_NUM_TIDS];
 
 #ifdef CONFIG_MAC80211_DEBUGFS
-	/* force link degradation by this db */
-	u32 link_degrade_db;
 	struct dentry *debugfs_dir;
-
-	u64 rx_legacy_pkt[IEEE80211_LEGACY_RATE_NUM];
-	u64 rx_ht_pkt[IEEE80211_HT_MCS_NUM];
-	u64 rx_vht_pkt[IEEE80211_VHT_MCS_NUM];
-	u64 rx_bw_pkt[IEEE80211_BW_NUM];
-	u64 rx_nss_pkt[IEEE80211_NSS_NUM];
-	u64 rx_gi_pkt[IEEE80211_GI_NUM];
-	u64 rx_rate_pkt[IEEE80211_RATE_TABLE_NUM];
-	u64 rx_legacy_byte[IEEE80211_LEGACY_RATE_NUM];
-	u64 rx_ht_byte[IEEE80211_HT_MCS_NUM];
-	u64 rx_vht_byte[IEEE80211_VHT_MCS_NUM];
-	u64 rx_bw_byte[IEEE80211_BW_NUM];
-	u64 rx_nss_byte[IEEE80211_NSS_NUM];
-	u64 rx_gi_byte[IEEE80211_GI_NUM];
-	u64 rx_rate_byte[IEEE80211_RATE_TABLE_NUM];
 #endif
 
 	enum ieee80211_sta_rx_bandwidth cur_max_bandwidth;

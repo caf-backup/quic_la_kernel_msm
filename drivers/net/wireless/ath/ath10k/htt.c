@@ -99,8 +99,6 @@ static const enum htt_t2h_msg_type htt_tlv_t2h_msg_types[] = {
 	[HTT_TLV_T2H_MSG_TYPE_CHAN_CHANGE] = HTT_T2H_MSG_TYPE_CHAN_CHANGE,
 	[HTT_TLV_T2H_MSG_TYPE_RX_OFLD_PKT_ERR] =
 		HTT_T2H_MSG_TYPE_RX_OFLD_PKT_ERR,
-	[HTT_TLV_T2H_MSG_TYPE_CFR_DUMP_COMPL_IND] =
-		HTT_T2H_MSG_TYPE_CFR_DUMP_COMPL_IND,
 	[HTT_TLV_T2H_MSG_TYPE_TEST] = HTT_T2H_MSG_TYPE_TEST,
 };
 
@@ -141,8 +139,6 @@ static const enum htt_t2h_msg_type htt_10_4_t2h_msg_types[] = {
 				HTT_T2H_MSG_TYPE_TX_MODE_SWITCH_IND,
 	[HTT_10_4_T2H_MSG_TYPE_PEER_STATS] =
 				HTT_T2H_MSG_TYPE_PEER_STATS,
-	[HTT_10_4_T2H_MSG_TYPE_CFR_DUMP_COMPL_IND] =
-				HTT_T2H_MSG_TYPE_CFR_DUMP_COMPL_IND,
 };
 
 int ath10k_htt_connect(struct ath10k_htt *htt)
@@ -272,7 +268,7 @@ int ath10k_htt_setup(struct ath10k_htt *htt)
 		return status;
 	}
 
-	status = htt->tx_ops->htt_h2t_aggr_cfg_msg(htt,
+	status = ath10k_htt_h2t_aggr_cfg_msg(htt,
 					     htt->max_num_ampdu,
 					     htt->max_num_amsdu);
 	if (status) {

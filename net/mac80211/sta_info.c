@@ -355,7 +355,6 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 
 	sta->last_connected = ktime_get_seconds();
 	ewma_signal_init(&sta->rx_stats_avg.signal);
-	ewma_avg_signal_init(&sta->status_stats.avg_ack_signal);
 	for (i = 0; i < ARRAY_SIZE(sta->rx_stats_avg.chain_signal); i++)
 		ewma_signal_init(&sta->rx_stats_avg.chain_signal[i]);
 
@@ -2178,15 +2177,6 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 	    ieee80211_hw_check(&sta->local->hw, SIGNAL_UNSPEC)) {
 		if (!(sinfo->filled & BIT(NL80211_STA_INFO_SIGNAL))) {
 			sinfo->signal = (s8)last_rxstats->last_signal;
-#ifdef CONFIG_MAC80211_DEBUGFS
-			if (sta->link_degrade_db) {
-				if (((int)sinfo->signal - (int)sta->link_degrade_db) < -127) {
-					sinfo->signal = -127;
-				} else {
-					sinfo->signal -= (int)sta->link_degrade_db;
-				}
-			}
-#endif
 			sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
 		}
 
@@ -2194,15 +2184,6 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 		    !(sinfo->filled & BIT(NL80211_STA_INFO_SIGNAL_AVG))) {
 			sinfo->signal_avg =
 				-ewma_signal_read(&sta->rx_stats_avg.signal);
-#ifdef CONFIG_MAC80211_DEBUGFS
-			if (sta->link_degrade_db) {
-				if (((int)sinfo->signal_avg - (int)sta->link_degrade_db) < -127) {
-					sinfo->signal_avg = -127;
-				} else {
-					sinfo->signal_avg -= (int)sta->link_degrade_db;
-				}
-			}
-#endif
 			sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL_AVG);
 		}
 	}
@@ -2306,21 +2287,6 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 	if (thr != 0) {
 		sinfo->filled |= BIT(NL80211_STA_INFO_EXPECTED_THROUGHPUT);
 		sinfo->expected_throughput = thr;
-	}
-
-	if (!(sinfo->filled & BIT_ULL(NL80211_STA_INFO_ACK_SIGNAL)) &&
-	    sta->status_stats.ack_signal_filled) {
-		sinfo->ack_signal = sta->status_stats.last_ack_signal;
-		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_ACK_SIGNAL);
-	}
-
-	if (!(sinfo->filled & BIT_ULL(NL80211_STA_INFO_ACK_SIGNAL_AVG)) &&
-	    sta->status_stats.ack_signal_filled) {
-		sinfo->avg_ack_signal =
-			-(s8)ewma_avg_signal_read(
-				&sta->status_stats.avg_ack_signal);
-		sinfo->filled |=
-			BIT_ULL(NL80211_STA_INFO_ACK_SIGNAL_AVG);
 	}
 }
 

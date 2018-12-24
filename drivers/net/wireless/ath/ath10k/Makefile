@@ -13,8 +13,7 @@ ath10k_core-y += mac.o \
 		 bmi.o \
 		 hw.o \
 		 p2p.o \
-		 swap.o \
-		 fwlog.o
+		 swap.o
 
 ath10k_core-$(CONFIG_ATH10K_SPECTRAL) += spectral.o
 ath10k_core-$(CONFIG_NL80211_TESTMODE) += testmode.o

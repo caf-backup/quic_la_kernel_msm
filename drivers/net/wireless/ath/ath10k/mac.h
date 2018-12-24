@@ -39,8 +39,6 @@ struct rfc1042_hdr {
 	__be16 snap_type;
 } __packed;
 
-#define INTEROP_2G_256QAM_CAPBILITY   1
-
 struct ath10k *ath10k_mac_create(size_t priv_size);
 void ath10k_mac_destroy(struct ath10k *ar);
 int ath10k_mac_register(struct ath10k *ar);
@@ -85,7 +83,6 @@ struct ieee80211_txq *ath10k_mac_txq_lookup(struct ath10k *ar,
 					    u8 tid);
 int ath10k_mac_ext_resource_config(struct ath10k *ar, u32 val);
 void ath10k_mac_wait_tx_complete(struct ath10k *ar);
-void ath10k_atf_refill_deficit(struct ath10k *ar);
 
 static inline void ath10k_tx_h_seq_no(struct ieee80211_vif *vif,
 				      struct sk_buff *skb)

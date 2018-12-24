@@ -588,7 +588,7 @@ int ath10k_htt_h2t_ver_req_msg(struct ath10k_htt *htt)
 	return 0;
 }
 
-int ath10k_htt_h2t_stats_req(struct ath10k_htt *htt, u32 mask, u64 cookie)
+int ath10k_htt_h2t_stats_req(struct ath10k_htt *htt, u8 mask, u64 cookie)
 {
 	struct ath10k *ar = htt->ar;
 	struct htt_stats_req *req;
@@ -611,18 +611,11 @@ int ath10k_htt_h2t_stats_req(struct ath10k_htt *htt, u32 mask, u64 cookie)
 
 	memset(req, 0, sizeof(*req));
 
-	/* Currently we support max 24 bit masks so we need endian support*/
-	mask = cpu_to_le32(mask);
-
-	memcpy(req->upload_types, &mask, 3);
-
-#ifdef CONFIG_ATH10K_DEBUGFS
-	if (ar->debug.reset_htt_stats) {
-		memcpy(req->reset_types, &ar->debug.reset_htt_stats, 3);
-		ar->debug.reset_htt_stats = 0;
-	}
-#endif
-
+	/* currently we support only max 8 bit masks so no need to worry
+	 * about endian support
+	 */
+	req->upload_types[0] = mask;
+	req->reset_types[0] = mask;
 	req->stat_type = HTT_STATS_REQ_CFG_STAT_TYPE_INVALID;
 	req->cookie_lsb = cpu_to_le32(cookie & 0xffffffff);
 	req->cookie_msb = cpu_to_le32((cookie & 0xffffffff00000000ULL) >> 32);
@@ -972,53 +965,6 @@ int ath10k_htt_h2t_aggr_cfg_msg(struct ath10k_htt *htt,
 	cmd->hdr.msg_type = HTT_H2T_MSG_TYPE_AGGR_CFG;
 
 	aggr_conf = &cmd->aggr_conf;
-	aggr_conf->max_num_ampdu_subframes = max_subfrms_ampdu;
-	aggr_conf->max_num_amsdu_subframes = max_subfrms_amsdu;
-
-	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt h2t aggr cfg msg amsdu %d ampdu %d",
-		   aggr_conf->max_num_amsdu_subframes,
-		   aggr_conf->max_num_ampdu_subframes);
-
-	ret = ath10k_htc_send(&htt->ar->htc, htt->eid, skb);
-	if (ret) {
-		dev_kfree_skb_any(skb);
-		return ret;
-	}
-
-	return 0;
-}
-
-static int ath10k_htt_h2t_aggr_cfg_msg_v2(struct ath10k_htt *htt,
-					  u8 max_subfrms_ampdu,
-					  u8 max_subfrms_amsdu)
-{
-	struct ath10k *ar = htt->ar;
-	struct htt_aggr_conf_v2 *aggr_conf;
-	struct sk_buff *skb;
-	struct htt_cmd *cmd;
-	int len;
-	int ret;
-
-	/* Firmware defaults are: amsdu = 3 and ampdu = 64 */
-
-	if (max_subfrms_ampdu == 0 || max_subfrms_ampdu > 64)
-		return -EINVAL;
-
-	if (max_subfrms_amsdu == 0 || max_subfrms_amsdu > 31)
-		return -EINVAL;
-
-	len = sizeof(cmd->hdr);
-	len += sizeof(cmd->aggr_conf_v2);
-
-	skb = ath10k_htc_alloc_skb(ar, len);
-	if (!skb)
-		return -ENOMEM;
-
-	skb_put(skb, len);
-	cmd = (struct htt_cmd *)skb->data;
-	cmd->hdr.msg_type = HTT_H2T_MSG_TYPE_AGGR_CFG;
-
-	aggr_conf = &cmd->aggr_conf_v2;
 	aggr_conf->max_num_ampdu_subframes = max_subfrms_ampdu;
 	aggr_conf->max_num_amsdu_subframes = max_subfrms_amsdu;
 
@@ -1609,7 +1555,6 @@ static const struct ath10k_htt_tx_ops htt_tx_ops_32 = {
 	.htt_tx = ath10k_htt_tx_32,
 	.htt_alloc_txbuff = ath10k_htt_tx_alloc_cont_txbuf_32,
 	.htt_free_txbuff = ath10k_htt_tx_free_cont_txbuf_32,
-	.htt_h2t_aggr_cfg_msg = ath10k_htt_h2t_aggr_cfg_msg,
 };
 
 static const struct ath10k_htt_tx_ops htt_tx_ops_64 = {
@@ -1620,7 +1565,6 @@ static const struct ath10k_htt_tx_ops htt_tx_ops_64 = {
 	.htt_tx = ath10k_htt_tx_64,
 	.htt_alloc_txbuff = ath10k_htt_tx_alloc_cont_txbuf_64,
 	.htt_free_txbuff = ath10k_htt_tx_free_cont_txbuf_64,
-	.htt_h2t_aggr_cfg_msg = ath10k_htt_h2t_aggr_cfg_msg_v2,
 };
 
 void ath10k_htt_set_tx_ops(struct ath10k_htt *htt)

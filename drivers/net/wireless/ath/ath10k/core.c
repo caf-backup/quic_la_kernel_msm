@@ -34,14 +34,12 @@
 #include "testmode.h"
 #include "wmi-ops.h"
 #include "coredump.h"
-#include "fwlog.h"
 
 unsigned int ath10k_debug_mask;
 static unsigned int ath10k_cryptmode_param;
 static bool uart_print;
 static bool skip_otp;
 static bool rawmode;
-static bool hw_csum = true;
 
 /* Enable ATH10K_FW_CRASH_DUMP_REGISTERS and ATH10K_FW_CRASH_DUMP_CE_DATA
  * by default.
@@ -55,7 +53,6 @@ module_param(uart_print, bool, 0644);
 module_param(skip_otp, bool, 0644);
 module_param(rawmode, bool, 0644);
 module_param_named(coredump_mask, ath10k_coredump_mask, ulong, 0444);
-module_param(hw_csum, bool, 0644);
 
 MODULE_PARM_DESC(debug_mask, "Debugging mask");
 MODULE_PARM_DESC(uart_print, "Uart target debugging");
@@ -63,7 +60,6 @@ MODULE_PARM_DESC(skip_otp, "Skip otp failure for calibration in testmode");
 MODULE_PARM_DESC(cryptmode, "Crypto mode: 0-hardware, 1-software");
 MODULE_PARM_DESC(rawmode, "Use raw 802.11 frame datapath");
 MODULE_PARM_DESC(coredump_mask, "Bitfield of what to include in firmware crash file");
-MODULE_PARM_DESC(hw_csum, "Enable HW checksum offload (default: on)");
 
 static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 	{
@@ -573,7 +569,6 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.rri_on_ddr = true,
 		.hw_filter_reset_required = false,
 		.fw_diag_ce_download = false,
-		.n_cipher_suites = 11,
 	},
 };
 
@@ -1505,40 +1500,10 @@ out:
 	return 0;
 }
 
-static bool ath10k_core_fetch_country_str(struct device_node *node,
-					  char *country_str)
-{
-	int cc_len;
-
-	if (!of_get_property(node, "qcom,ath10k-country-code", &cc_len) ||
-	    cc_len > 3 ||
-	    of_property_read_u8_array(node, "qcom,ath10k-country-code",
-				      country_str, cc_len))
-		return false;
-
-	return true;
-}
-
-static void ath10k_country_str_sanitize(char *country_str)
-{
-	int i;
-
-	/* Make sure country string is in caps */
-	for (i = 0; i < strlen(country_str); i++) {
-		if (country_str[i] >= 'a')
-			country_str[i] = country_str[i] - 32;
-	}
-}
-
 int ath10k_core_fetch_board_file(struct ath10k *ar)
 {
 	char boardname[100];
 	int ret;
-	struct device_node *node;
-	char country_str[3], board_bin[100];
-	u16 rd;
-
-	node = ar->dev->of_node;
 
 	ret = ath10k_core_create_board_name(ar, boardname, sizeof(boardname));
 	if (ret) {
@@ -1547,25 +1512,6 @@ int ath10k_core_fetch_board_file(struct ath10k *ar)
 	}
 
 	ar->bd_api = 2;
-
-	if (node) {
-		if (ath10k_core_fetch_country_str(node, country_str)) {
-			scnprintf(board_bin, sizeof(board_bin),
-				  "board-2-%s.bin",
-				  country_str);
-			ath10k_country_str_sanitize(country_str);
-			rd = ath_regd_find_country_by_name(country_str);
-			if (rd != 0xffff)
-				ar->ath_common.regulatory.current_rd =
-						rd | COUNTRY_ERD_FLAG;
-
-			ret = ath10k_core_fetch_board_data_api_n(ar, boardname,
-								 board_bin);
-			if (!ret)
-				goto success;
-		}
-	}
-
 	ret = ath10k_core_fetch_board_data_api_n(ar, boardname,
 						 ATH10K_BOARD_API2_FILE);
 	if (!ret)
@@ -2140,9 +2086,6 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 		ar->htt.max_num_amsdu = 1;
 	}
 
-	if (!hw_csum)
-		set_bit(ATH10K_FLAG_HW_CSUM_DISABLED, &ar->dev_flags);
-
 	/* Backwards compatibility for firmwares without
 	 * ATH10K_FW_IE_WMI_OP_VERSION.
 	 */
@@ -2182,7 +2125,6 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 		ar->htt.max_num_pending_tx = TARGET_10X_NUM_MSDU_DESC;
 		ar->fw_stats_req_mask = WMI_STAT_PEER;
 		ar->max_spatial_stream = WMI_MAX_SPATIAL_STREAM;
-		ar->fwlog_max_moduleid = ATH10K_FWLOG_MODULE_ID_MAX_10_2_4;
 		break;
 	case ATH10K_FW_WMI_OP_VERSION_TLV:
 		ar->max_num_peers = TARGET_TLV_NUM_PEERS;
@@ -2206,7 +2148,6 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 					WMI_10_4_STAT_PEER_EXTD;
 		ar->max_spatial_stream = ar->hw_params.max_spatial_stream;
 		ar->max_num_tdls_vdevs = TARGET_10_4_NUM_TDLS_VDEVS;
-		ar->fwlog_max_moduleid = ATH10K_FWLOG_MODULE_ID_MAX_10_4;
 
 		if (test_bit(ATH10K_FW_FEATURE_PEER_FLOW_CONTROL,
 			     fw_file->fw_features))
@@ -2465,10 +2406,6 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 		if (test_bit(WMI_SERVICE_TDLS_UAPSD_BUFFER_STA,
 			     ar->wmi.svc_map))
 			val |= WMI_10_4_TDLS_UAPSD_BUFFER_STA;
-
-		if (test_bit(WMI_SERVICE_TX_DATA_ACK_RSSI,
-			     ar->wmi.svc_map))
-			val |= WMI_10_4_TX_DATA_ACK_RSSI;
 
 		status = ath10k_mac_ext_resource_config(ar, val);
 		if (status) {
@@ -2796,20 +2733,9 @@ static void ath10k_core_register_work(struct work_struct *work)
 		goto err_spectral_destroy;
 	}
 
-	status = ath10k_cfr_capture_create(ar);
-	if (status) {
-		ath10k_err(ar, "Could not init cfr rfs: %d\n",
-			   status);
-		goto err_thermal_unregister;
-	}
-
-	ath10k_fwlog_register(ar);
-
 	set_bit(ATH10K_FLAG_CORE_REGISTERED, &ar->dev_flags);
 	return;
 
-err_thermal_unregister:
-	ath10k_thermal_unregister(ar);
 err_spectral_destroy:
 	ath10k_spectral_destroy(ar);
 err_debug_destroy:
@@ -2831,8 +2757,7 @@ int ath10k_core_register(struct ath10k *ar, u32 chip_id)
 {
 	ar->chip_id = chip_id;
 	queue_work(ar->workqueue, &ar->register_work);
-	/* Based on suggestion in http://crosbug.com/p/38594#c122 */
-	flush_workqueue(ar->workqueue);
+
 	return 0;
 }
 EXPORT_SYMBOL(ath10k_core_register);
@@ -2851,8 +2776,6 @@ void ath10k_core_unregister(struct ath10k *ar)
 	 */
 	ath10k_spectral_destroy(ar);
 
-	ath10k_cfr_capture_destroy(ar);
-
 	/* We must unregister from mac80211 before we stop HTC and HIF.
 	 * Otherwise we will fail to submit commands to FW and mac80211 will be
 	 * unhappy about callback failures.
@@ -2865,7 +2788,6 @@ void ath10k_core_unregister(struct ath10k *ar)
 	ath10k_core_free_board_files(ar);
 
 	ath10k_debug_unregister(ar);
-	ath10k_fwlog_unregister(ar);
 }
 EXPORT_SYMBOL(ath10k_core_unregister);
 
@@ -2929,8 +2851,6 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 		goto err_free_mac;
 	}
 
-	ar->debug_mask = &ath10k_debug_mask;
-
 	init_completion(&ar->scan.started);
 	init_completion(&ar->scan.completed);
 	init_completion(&ar->scan.on_channel);
@@ -2941,7 +2861,6 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 	init_completion(&ar->vdev_setup_done);
 	init_completion(&ar->thermal.wmi_sync);
 	init_completion(&ar->bss_survey_done);
-	init_completion(&ar->peer_delete_done);
 
 	INIT_DELAYED_WORK(&ar->scan.timeout, ath10k_scan_timeout_work);
 
@@ -2985,15 +2904,6 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 	if (ret)
 		goto err_free_coredump;
 
-	ar->airtime_inflight_max = IEEE80211_ATF_AIRTIME_MAX;
-	ar->atf_release_limit = IEEE80211_ATF_AIRTIME_TARGET;
-	ar->atf_txq_limit_max = IEEE80211_ATF_TXQ_AIRTIME_MAX;
-	ar->atf_txq_limit_min = IEEE80211_ATF_TXQ_AIRTIME_MIN;
-	ar->atf_quantum = IEEE80211_ATF_QUANTUM;
-	ar->atf_quantum_mesh = IEEE80211_ATF_QUANTUM * 2;
-	ar->atf_enabled = false;
-	ar->atf_sch_interval = 200000; /* in us */
-	ar->atf_next_interval = codel_get_time() + ar->atf_sch_interval;
 	return ar;
 
 err_free_coredump:

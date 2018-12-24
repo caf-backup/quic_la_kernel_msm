@@ -33,11 +33,6 @@
 #include "tkip.h"
 #include "wme.h"
 #include "rate.h"
-#include "debugfs_sta.h"
-
-#ifdef CONFIG_MAC80211_WIFI_DIAG
-#include "wifi_diag.h"
-#endif
 
 static inline void ieee80211_rx_stats(struct net_device *dev, u32 len)
 {
@@ -1578,10 +1573,8 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 		 * match the current local configuration when processed.
 		 */
 		sta->rx_stats.last_rx = jiffies;
-		if (ieee80211_is_data(hdr->frame_control)) {
+		if (ieee80211_is_data(hdr->frame_control))
 			sta->rx_stats.last_rate = sta_stats_encode_rate(status);
-			ieee80211_rx_h_sta_stats(sta, skb);
-		}
 	}
 
 	if (rx->sdata->vif.type == NL80211_IFTYPE_STATION)
@@ -2211,7 +2204,7 @@ __ieee80211_data_to_8023(struct ieee80211_rx_data *rx, bool *port_control)
 
 		if (!sdata->u.mgd.use_4addr)
 			return -1;
-		else if (!ether_addr_equal(hdr->addr1, sdata->vif.addr))
+		else
 			check_port_control = true;
 	}
 
@@ -2497,7 +2490,6 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 		struct mesh_path *mppath;
 		char *proxied_addr;
 		char *mpp_addr;
-		bool mpp_table_updated = 0;
 
 		if (is_multicast_ether_addr(hdr->addr1)) {
 			mpp_addr = hdr->addr3;
@@ -2515,28 +2507,14 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 		mppath = mpp_path_lookup(sdata, proxied_addr);
 		if (!mppath) {
 			mpp_path_add(sdata, proxied_addr, mpp_addr);
-			rcu_read_unlock();
-			mpath_dbg(sdata, "MESH MPPU add mpp %pM dest %pM\n",
-				  mpp_addr, proxied_addr);
-			mpp_table_updated = 1;
 		} else {
-			u8 old_mpp[ETH_ALEN];
 			spin_lock_bh(&mppath->state_lock);
-			if (!ether_addr_equal(mppath->mpp, mpp_addr)) {
-				memcpy(old_mpp, mppath->mpp, ETH_ALEN);
+			if (!ether_addr_equal(mppath->mpp, mpp_addr))
 				memcpy(mppath->mpp, mpp_addr, ETH_ALEN);
-				mpp_table_updated = 1;
-			}
 			mppath->exp_time = jiffies;
 			spin_unlock_bh(&mppath->state_lock);
-			rcu_read_unlock();
-			if (mpp_table_updated) {
-				mpath_dbg(sdata, "MESH MPPU mpp changed from %pM to %pM for dest %pM\n",
-					  old_mpp, mpp_addr, proxied_addr);
-			}
 		}
-		if (mpp_table_updated)
-			mpp_path_table_debug_dump(sdata);
+		rcu_read_unlock();
 	}
 
 	/* Frame has reached destination.  Don't forward */
@@ -3387,23 +3365,13 @@ static void ieee80211_rx_handlers(struct ieee80211_rx_data *rx,
 {
 	ieee80211_rx_result res = RX_DROP_MONITOR;
 	struct sk_buff *skb;
-#ifdef CONFIG_MAC80211_WIFI_DIAG
-#define CALL_RXH(rxh)			\
-	do {                            \
-		res = rxh(rx);          \
-		if (res != RX_QUEUED && res != RX_CONTINUE)     \
-			WIFI_DIAG_RX_DBG(rx, res, "%s", #rxh);	\
-		if (res != RX_CONTINUE)	\
-			goto rxh_next;  \
-	} while (0);
-#else
+
 #define CALL_RXH(rxh)			\
 	do {				\
 		res = rxh(rx);		\
 		if (res != RX_CONTINUE)	\
 			goto rxh_next;  \
 	} while (0)
-#endif
 
 	/* Lock here to avoid hitting all of the data used in the RX
 	 * path (e.g. key data, station data, ...) concurrently when
@@ -3462,23 +3430,12 @@ static void ieee80211_invoke_rx_handlers(struct ieee80211_rx_data *rx)
 
 	__skb_queue_head_init(&reorder_release);
 
-#ifdef CONFIG_MAC80211_WIFI_DIAG
-#define CALL_RXH(rxh)			\
-	do {                            \
-		res = rxh(rx);          \
-		if (res != RX_QUEUED && res != RX_CONTINUE)     \
-			WIFI_DIAG_RX_DBG(rx, res, "%s", #rxh);	\
-		if (res != RX_CONTINUE)	\
-			goto rxh_next;  \
-	} while (0);
-#else
 #define CALL_RXH(rxh)			\
 	do {				\
 		res = rxh(rx);		\
 		if (res != RX_CONTINUE)	\
 			goto rxh_next;  \
 	} while (0)
-#endif
 
 	CALL_RXH(ieee80211_rx_h_check_dup);
 	CALL_RXH(ieee80211_rx_h_check);
@@ -4136,10 +4093,6 @@ static bool ieee80211_prepare_and_rx_handle(struct ieee80211_rx_data *rx,
 		if (fast_rx && ieee80211_invoke_fast_rx(rx, fast_rx))
 			return true;
 	}
-
-#ifdef CONFIG_MAC80211_WIFI_DIAG
-	WIFI_DIAG_SET_RX_STATUS(local, rx->sta, skb);
-#endif
 
 	if (!ieee80211_accept_frame(rx))
 		return false;

@@ -1,7 +1,6 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -358,13 +357,6 @@ struct htt_aggr_conf {
 	u8 max_num_amsdu_subframes;
 } __packed;
 
-struct htt_aggr_conf_v2 {
-	u8 max_num_ampdu_subframes;
-	/* amsdu_subframes is limited by 0x1F mask */
-	u8 max_num_amsdu_subframes;
-	u8 reserved;
-} __packed;
-
 #define HTT_MGMT_FRM_HDR_DOWNLOAD_LEN 32
 struct htt_mgmt_tx_desc_qca99x0 {
 	__le32 rate;
@@ -461,12 +453,6 @@ enum htt_tlv_t2h_msg_type {
 	HTT_TLV_T2H_MSG_TYPE_WDI_IPA_OP_RESPONSE       = 0x14,
 	HTT_TLV_T2H_MSG_TYPE_CHAN_CHANGE               = 0x15,
 	HTT_TLV_T2H_MSG_TYPE_RX_OFLD_PKT_ERR           = 0x16,
-	HTT_TLV_T2H_MSG_TYPE_PEER_MAP_V2               = 0x1e,
-	HTT_TLV_T2H_MSG_TYPE_PEER_UNMAP_V2             = 0x1f,
-	HTT_TLV_T2H_MSG_TYPE_MONITOR_MAC_HEADER_IND    = 0x20,
-	HTT_TLV_T2H_MSG_TYPE_FLOW_POOL_RESIZE          = 0x21,
-	HTT_TLV_T2H_MSG_TYPE_CFR_DUMP_COMPL_IND        = 0x22,
-
 	HTT_TLV_T2H_MSG_TYPE_TEST,
 	/* keep this last */
 	HTT_TLV_T2H_NUM_MSGS
@@ -501,8 +487,6 @@ enum htt_10_4_t2h_msg_type {
 	/* 0x19 to 0x2f are reserved */
 	HTT_10_4_T2H_MSG_TYPE_TX_MODE_SWITCH_IND     = 0x30,
 	HTT_10_4_T2H_MSG_TYPE_PEER_STATS	     = 0x31,
-	HTT_10_4_T2H_MSG_TYPE_CFR_DUMP_COMPL_IND     = 0x32,
-
 	/* keep this last */
 	HTT_10_4_T2H_NUM_MSGS
 };
@@ -538,7 +522,6 @@ enum htt_t2h_msg_type {
 	HTT_T2H_MSG_TYPE_TX_FETCH_CONFIRM,
 	HTT_T2H_MSG_TYPE_TX_MODE_SWITCH_IND,
 	HTT_T2H_MSG_TYPE_PEER_STATS,
-	HTT_T2H_MSG_TYPE_CFR_DUMP_COMPL_IND = 0x32,
 	/* keep this last */
 	HTT_T2H_NUM_MSGS
 };
@@ -563,18 +546,12 @@ struct htt_ver_resp {
 	u8 rsvd0;
 } __packed;
 
-#define HTT_MGMT_TX_CMPL_FLAG_ACK_RSSI BIT(0)
-
-#define HTT_MGMT_TX_CMPL_INFO_ACK_RSSI_MASK	GENMASK(7, 0)
-
 struct htt_mgmt_tx_completion {
 	u8 rsvd0;
 	u8 rsvd1;
-	u8 flags;
+	u8 rsvd2;
 	__le32 desc_id;
 	__le32 status;
-	__le32 ppdu_id;
-	__le32 info;
 } __packed;
 
 #define HTT_RX_INDICATION_INFO0_EXT_TID_MASK  (0x1F)
@@ -592,12 +569,6 @@ struct htt_mgmt_tx_completion {
 #define HTT_RX_INDICATION_INFO1_RELEASE_END_SEQNO_LSB    18
 #define HTT_RX_INDICATION_INFO1_NUM_MPDU_RANGES_MASK     0xFF000000
 #define HTT_RX_INDICATION_INFO1_NUM_MPDU_RANGES_LSB      24
-
-#define HTT_TX_CMPL_FLAG_DATA_RSSI BIT(0)
-
-#define HTT_TX_DATA_RSSI_ENABLE_WCN3990 BIT(3)
-#define HTT_TX_DATA_APPEND_RETRIES BIT(0)
-#define HTT_TX_DATA_APPEND_TIMESTAMP BIT(1)
 
 struct htt_rx_indication_hdr {
 	u8 info0; /* %HTT_RX_INDICATION_INFO0_ */
@@ -852,88 +823,6 @@ enum htt_data_tx_flags {
 
 #define HTT_TX_COMPL_INV_MSDU_ID 0xFFFF
 
-struct htt_append_retries {
-	__le16 msdu_id;
-	u8 tx_retries;
-	u8 flag;
-} __packed;
-
-struct htt_data_tx_completion_ext {
-	struct htt_append_retries a_retries;
-	__le32 t_stamp;
-	__le16 msdus_rssi[0];
-} __packed;
-
-/**
- * @brief target -> host TX completion indication message definition
- *
- * @details
- * The following diagram shows the format of the TX completion indication sent
- * from the target to the host
- *
- *          |31 28|27|26|25|24|23        16| 15 |14 11|10   8|7          0|
- *          |-------------------------------------------------------------|
- * header:  |rsvd |A2|TP|A1|A0|     num    | t_i| tid |status|  msg_type  |
- *          |-------------------------------------------------------------|
- * payload: |            MSDU1 ID          |         MSDU0 ID             |
- *          |-------------------------------------------------------------|
- *          :            MSDU3 ID          :         MSDU2 ID             :
- *          |-------------------------------------------------------------|
- *          |          struct htt_tx_compl_ind_append_retries             |
- *          |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -|
- *          |          struct htt_tx_compl_ind_append_tx_tstamp           |
- *          |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -|
- *          |           MSDU1 ACK RSSI     |        MSDU0 ACK RSSI        |
- *          |-------------------------------------------------------------|
- *          :           MSDU3 ACK RSSI     :        MSDU2 ACK RSSI        :
- *          |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -|
- *    -msg_type
- *     Bits 7:0
- *     Purpose: identifies this as HTT TX completion indication
- *    -status
- *     Bits 10:8
- *     Purpose: the TX completion status of payload fragmentations descriptors
- *     Value: could be HTT_TX_COMPL_IND_STAT_OK or HTT_TX_COMPL_IND_STAT_DISCARD
- *    -tid
- *     Bits 14:11
- *     Purpose: the tid associated with those fragmentation descriptors. It is
- *     valid or not, depending on the tid_invalid bit.
- *     Value: 0 to 15
- *    -tid_invalid
- *     Bits 15:15
- *     Purpose: this bit indicates whether the tid field is valid or not
- *     Value: 0 indicates valid, 1 indicates invalid
- *    -num
- *     Bits 23:16
- *     Purpose: the number of payload in this indication
- *     Value: 1 to 255
- *    -A0 = append
- *     Bits 24:24
- *     Purpose: append the struct htt_tx_compl_ind_append_retries which contains
- *            the number of tx retries for one MSDU at the end of this message
- *     Value: 0 indicates no appending, 1 indicates appending
- *    -A1 = append1
- *     Bits 25:25
- *     Purpose: Append the struct htt_tx_compl_ind_append_tx_tstamp which
- *            contains the timestamp info for each TX msdu id in payload.
- *     Value: 0 indicates no appending, 1 indicates appending
- *    -TP = MSDU tx power presence
- *     Bits 26:26
- *     Purpose: Indicate whether the TX_COMPL_IND includes a tx power report
- *            for each MSDU referenced by the TX_COMPL_IND message.
- *            The order of the per-MSDU tx power reports matches the order
- *            of the MSDU IDs.
- *     Value: 0 indicates not appending, 1 indicates appending
- *    -A2 = append2
- *     Bits 27:27
- *     Purpose: Indicate whether data ACK RSSI is appended for each MSDU in
- *            TX_COMP_IND message.  The order of the per-MSDU ACK RSSI report
- *            matches the order of the MSDU IDs.
- *            The ACK RSSI values are valid when status is COMPLETE_OK (and
- *            this append2 bit is set).
- *     Value: 0 indicates not appending, 1 indicates appending
- */
-
 struct htt_data_tx_completion {
 	union {
 		u8 flags;
@@ -944,7 +833,7 @@ struct htt_data_tx_completion {
 		} __packed;
 	} __packed;
 	u8 num_msdus;
-	u8 flags2; /* HTT_TX_CMPL_FLAG_DATA_RSSI */
+	u8 rsvd0;
 	__le16 msdus[0]; /* variable length based on %num_msdus */
 } __packed;
 
@@ -1686,45 +1575,6 @@ struct htt_per_peer_tx_stats_ind {
 	__le32	reserved2;
 } __packed;
 
-struct htt_mac_addr {
-	union {
-		u8 addr[6];
-		struct {
-			u32 word0;
-			u32 word1;
-		} __packed;
-	} __packed;
-} __packed;
-
-#define HTT_T2H_CFR_DUMP_TYPE1_MEM_REQ_ID_MASK  0X0000007F
-#define HTT_T2H_CFR_DUMP_TYPE1_MEM_REQ_ID_LSB   0
-#define HTT_T2H_CFR_DUMP_TYPE1_STATUS_MASK      0X00000080
-#define HTT_T2H_CFR_DUMP_TYPE1_STATUS_LSB       7
-#define HTT_T2H_CFR_DUMP_TYPE1_CAP_BW_MASK      0X00000700
-#define HTT_T2H_CFR_DUMP_TYPE1_CAP_BW_LSB       8
-#define HTT_T2H_CFR_DUMP_TYPE1_MODE_MASK        0X00003800
-#define HTT_T2H_CFR_DUMP_TYPE1_MODE_LSB         11
-#define HTT_T2H_CFR_DUMP_TYPE1_STS_MASK         0X0001C000
-#define HTT_T2H_CFR_DUMP_TYPE1_STS_LSB          14
-#define HTT_T2H_CFR_DUMP_TYPE1_CHAN_BW_MASK     0X000E0000
-#define HTT_T2H_CFR_DUMP_TYPE1_CHAN_BW_LSB      17
-#define HTT_T2H_CFR_DUMP_TYPE1_CAP_TYPE_MASK    0X00F00000
-#define HTT_T2H_CFR_DUMP_TYPE1_CAP_TYPE_LSB     20
-#define HTT_T2H_CFR_DUMP_TYPE1_VDEV_ID_MASK     0XFF000000
-#define HTT_T2H_CFR_DUMP_TYPE1_VDEV_ID_LSB      24
-struct htt_peer_cfr_dump_ind_lagacy {
-	u32	info;
-	struct htt_mac_addr mac_addr;
-	u32	index;
-	u32	length;
-	u32	timestamp;
-	u32	seq_no;
-	u32	chan_mhz;
-	u32	center_freq1;
-	u32	center_freq2;
-	u32	chan_phy_mode;
-} __packed;
-
 struct htt_peer_tx_stats {
 	u8 num_ppdu;
 	u8 ppdu_len;
@@ -1771,22 +1621,10 @@ struct htt_cmd {
 		struct htt_stats_req stats_req;
 		struct htt_oob_sync_req oob_sync_req;
 		struct htt_aggr_conf aggr_conf;
-		struct htt_aggr_conf_v2 aggr_conf_v2;
 		struct htt_frag_desc_bank_cfg32 frag_desc_bank_cfg32;
 		struct htt_frag_desc_bank_cfg64 frag_desc_bank_cfg64;
 		struct htt_tx_fetch_resp tx_fetch_resp;
 	};
-} __packed;
-
-enum htt_cfr_capture_msg_type {
-	HTT_PEER_CFR_CAPTURE_MSG_TYPE_LAGACY  = 0x1,
-	HTT_PEER_CFR_CAPTURE_MSG_TYPE_MAX,
-};
-
-struct htt_peer_cfr_dump_compl_ind {
-	u8 pad[3];
-	u32 cfr_msg_type;
-	struct htt_peer_cfr_dump_ind_lagacy cfr_dump_lagacy;
 } __packed;
 
 struct htt_resp {
@@ -1815,7 +1653,6 @@ struct htt_resp {
 		struct htt_tx_mode_switch_ind tx_mode_switch_ind;
 		struct htt_channel_change chan_change;
 		struct htt_peer_tx_stats peer_tx_stats;
-		struct htt_peer_cfr_dump_compl_ind cfr_dump_ind;
 	};
 } __packed;
 
@@ -1824,7 +1661,6 @@ struct htt_resp {
 struct htt_tx_done {
 	u16 msdu_id;
 	u16 status;
-	u8 ack_rssi;
 };
 
 enum htt_tx_compl_state {
@@ -2023,9 +1859,6 @@ struct ath10k_htt_tx_ops {
 		      struct sk_buff *msdu);
 	int (*htt_alloc_txbuff)(struct ath10k_htt *htt);
 	void (*htt_free_txbuff)(struct ath10k_htt *htt);
-	int (*htt_h2t_aggr_cfg_msg)(struct ath10k_htt *htt,
-				    u8 max_subfrms_ampdu,
-				    u8 max_subfrms_amsdu);
 };
 
 struct ath10k_htt_rx_ops {
@@ -2112,7 +1945,7 @@ void ath10k_htt_htc_tx_complete(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_htt_htc_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb);
 bool ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_htt_h2t_ver_req_msg(struct ath10k_htt *htt);
-int ath10k_htt_h2t_stats_req(struct ath10k_htt *htt, u32 mask, u64 cookie);
+int ath10k_htt_h2t_stats_req(struct ath10k_htt *htt, u8 mask, u64 cookie);
 int ath10k_htt_send_rx_ring_cfg_ll(struct ath10k_htt *htt);
 int ath10k_htt_h2t_aggr_cfg_msg(struct ath10k_htt *htt,
 				u8 max_subfrms_ampdu,

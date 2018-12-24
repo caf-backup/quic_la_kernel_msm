@@ -202,11 +202,6 @@ enum wmi_service {
 	WMI_SERVICE_TPC_STATS_FINAL,
 	WMI_SERVICE_RESET_CHIP,
 	WMI_SERVICE_SPOOF_MAC_SUPPORT,
-	WMI_SERVICE_CFR_CAPTURE_SUPPORT,
-	WMI_SERVICE_TX_DATA_ACK_RSSI,
-	WMI_SERVICE_VDEV_DIFFERENT_BEACON_INTERVAL_SUPPORT,
-	WMI_SERVICE_CFR_CAPTURE_IND_MSG_TYPE_LAGACY,
-	WMI_SERVICE_SUPPORT_EXTEND_ADDRESS,
 
 	/* keep last */
 	WMI_SERVICE_MAX,
@@ -244,8 +239,6 @@ enum wmi_10x_service {
 	WMI_10X_SERVICE_MESH,
 	WMI_10X_SERVICE_EXT_RES_CFG_SUPPORT,
 	WMI_10X_SERVICE_PEER_STATS,
-	WMI_10X_SERVICE_RESET_CHIP,
-	WMI_10X_SERVICE_HTT_MGMT_TX_COMP_VALID_FLAGS,
 };
 
 enum wmi_main_service {
@@ -351,16 +344,6 @@ enum wmi_10_4_service {
 	WMI_10_4_SERVICE_TDLS_CONN_TRACKER_IN_HOST_MODE,
 	WMI_10_4_SERVICE_TDLS_EXPLICIT_MODE_ONLY,
 	WMI_10_4_SERVICE_TDLS_WIDER_BANDWIDTH,
-	WMI_10_4_SERVICE_HTT_MGMT_TX_COMP_VALID_FLAGS,
-	WMI_10_4_SERVICE_DFS_HOST_CONFIRMATION,
-	WMI_10_4_SERVICE_TPC_STATS_FINAL,
-	WMI_10_4_SERVICE_CFR_CAPTURE_SUPPORT,
-	WMI_10_4_SERVICE_TX_DATA_ACK_RSSI,
-	WMI_10_4_SERVICE_CFR_CAPTURE_IND_MSG_TYPE_LAGACY,
-	WMI_10_4_SERVICE_PER_PACKET_SW_ENCRYPT,
-	WMI_10_4_SERVICE_PEER_TID_CONFIGS_SUPPORT,
-	WMI_10_4_SERVICE_VDEV_BCN_RATE_CONTROL,
-	WMI_10_4_SERVICE_VDEV_DIFFERENT_BEACON_INTERVAL_SUPPORT,
 };
 
 static inline char *wmi_service_name(int service_id)
@@ -454,7 +437,6 @@ static inline char *wmi_service_name(int service_id)
 	SVCSTR(WMI_SERVICE_MESH_11S);
 	SVCSTR(WMI_SERVICE_MESH_NON_11S);
 	SVCSTR(WMI_SERVICE_PEER_STATS);
-	SVCSTR(WMI_SERVICE_RESET_CHIP);
 	SVCSTR(WMI_SERVICE_RESTRT_CHNL_SUPPORT);
 	SVCSTR(WMI_SERVICE_PERIODIC_CHAN_STAT_SUPPORT);
 	SVCSTR(WMI_SERVICE_TX_MODE_PUSH_ONLY);
@@ -471,11 +453,6 @@ static inline char *wmi_service_name(int service_id)
 	SVCSTR(WMI_SERVICE_TDLS_CONN_TRACKER_IN_HOST_MODE);
 	SVCSTR(WMI_SERVICE_TDLS_EXPLICIT_MODE_ONLY);
 	SVCSTR(WMI_SERVICE_TDLS_WIDER_BANDWIDTH);
-	SVCSTR(WMI_SERVICE_BTCOEX);
-	SVCSTR(WMI_SERVICE_CFR_CAPTURE_SUPPORT);
-	SVCSTR(WMI_SERVICE_TX_DATA_ACK_RSSI);
-	SVCSTR(WMI_SERVICE_CFR_CAPTURE_IND_MSG_TYPE_LAGACY);
-	SVCSTR(WMI_SERVICE_VDEV_DIFFERENT_BEACON_INTERVAL_SUPPORT);
 	default:
 		return NULL;
 	}
@@ -487,16 +464,6 @@ static inline char *wmi_service_name(int service_id)
 	((svc_id) < (len) && \
 	 __le32_to_cpu((wmi_svc_bmap)[(svc_id) / (sizeof(u32))]) & \
 	 BIT((svc_id) % (sizeof(u32))))
-
-/* This extension is required to accommodate new services, current limit
- * for wmi_services is 64 as target is using only 4-bits of each 32-bit
- * wmi_service word. Extending this to make use of remaining unused bits
- * for new services.
- */
-#define WMI_EXT_SERVICE_IS_ENABLED(wmi_svc_bmap, svc_id, len) \
-	((svc_id) >= (len) && \
-	__le32_to_cpu((wmi_svc_bmap)[((svc_id) - (len)) / 28]) & \
-	BIT(((((svc_id) - (len)) % 28) & 0x1f) + 4))
 
 /* This extension is required to accommodate new services, current limit
  * for wmi_services is 64 as target is using only 4-bits of each 32-bit
@@ -576,10 +543,6 @@ static inline void wmi_10x_svc_map(const __le32 *in, unsigned long *out,
 	       WMI_SERVICE_EXT_RES_CFG_SUPPORT, len);
 	SVCMAP(WMI_10X_SERVICE_PEER_STATS,
 	       WMI_SERVICE_PEER_STATS, len);
-	SVCMAP(WMI_10X_SERVICE_RESET_CHIP,
-	       WMI_SERVICE_RESET_CHIP, len);
-	SVCMAP(WMI_10X_SERVICE_HTT_MGMT_TX_COMP_VALID_FLAGS,
-	       WMI_SERVICE_HTT_MGMT_TX_COMP_VALID_FLAGS, len);
 }
 
 static inline void wmi_main_svc_map(const __le32 *in, unsigned long *out,
@@ -788,14 +751,6 @@ static inline void wmi_10_4_svc_map(const __le32 *in, unsigned long *out,
 	       WMI_SERVICE_TDLS_EXPLICIT_MODE_ONLY, len);
 	SVCMAP(WMI_10_4_SERVICE_TDLS_WIDER_BANDWIDTH,
 	       WMI_SERVICE_TDLS_WIDER_BANDWIDTH, len);
-	SVCMAP(WMI_10_4_SERVICE_CFR_CAPTURE_SUPPORT,
-	       WMI_SERVICE_CFR_CAPTURE_SUPPORT, len);
-	SVCMAP(WMI_10_4_SERVICE_TX_DATA_ACK_RSSI,
-	       WMI_SERVICE_TX_DATA_ACK_RSSI, len);
-	SVCMAP(WMI_10_4_SERVICE_CFR_CAPTURE_IND_MSG_TYPE_LAGACY,
-	       WMI_SERVICE_CFR_CAPTURE_IND_MSG_TYPE_LAGACY, len);
-	SVCMAP(WMI_10_4_SERVICE_VDEV_DIFFERENT_BEACON_INTERVAL_SUPPORT,
-	       WMI_SERVICE_VDEV_DIFFERENT_BEACON_INTERVAL_SUPPORT, len);
 }
 
 #undef SVCMAP
@@ -995,8 +950,6 @@ struct wmi_cmd_map {
 	u32 vdev_sifs_trigger_time_cmdid;
 	u32 pdev_wds_entry_list_cmdid;
 	u32 tdls_set_offchan_mode_cmdid;
-	u32 peer_set_cfr_capture_conf_cmdid;
-	u32 vdev_aggr_size_per_ac_cmdid;
 };
 
 /*
@@ -1831,12 +1784,6 @@ enum wmi_10_4_cmd_id {
 	WMI_10_4_TDLS_SET_STATE_CMDID,
 	WMI_10_4_TDLS_PEER_UPDATE_CMDID,
 	WMI_10_4_TDLS_SET_OFFCHAN_MODE_CMDID,
-	WMI_10_4_PDEV_SEND_FD_CMDID,
-	WMI_10_4_ENABLE_FILS_CMDID,
-	WMI_10_4_PDEV_SET_BRIDGE_MACADDR_CMDID,
-	WMI_10_4_ATF_GROUP_WMM_AC_CONFIG_REQUEST_CMDID,
-	WMI_10_4_RADAR_FOUND_CMDID,
-	WMI_10_4_PEER_SET_CFR_CAPTURE_CONF_CMDID,
 	WMI_10_4_PDEV_UTF_CMDID = WMI_10_4_END_CMDID - 1,
 };
 
@@ -2185,10 +2132,6 @@ enum wlan_mode_capability {
 	WHAL_WLAN_11G_CAPABILITY   = 0x2,
 	WHAL_WLAN_11AG_CAPABILITY  = 0x3,
 };
-
-#define WMI_CHANNEL_CAPTURE_HOST_MEM_REQ_ID 9
-
-#define WMI_CHANNEL_CAPTURE_DEFAULT_READ_OFFSET 8
 
 /* structure used by FW for requesting host memory */
 struct wlan_host_mem_req {
@@ -2685,8 +2628,6 @@ enum wmi_10_2_feature_mask {
 	WMI_10_2_RX_BATCH_MODE = BIT(0),
 	WMI_10_2_ATF_CONFIG    = BIT(1),
 	WMI_10_2_COEX_GPIO     = BIT(3),
-	WMI_10_2_AUX_RADIO_SPECTRAL_INTF	= BIT(4),
-	WMI_10_2_AUX_RADIO_CHAN_LOAD_INTF	= BIT(5),
 	WMI_10_2_BSS_CHAN_INFO = BIT(6),
 	WMI_10_2_PEER_STATS    = BIT(7),
 };
@@ -2954,7 +2895,6 @@ enum wmi_coex_version {
  * @WMI_10_4_TDLS_CONN_TRACKER_IN_HOST_MODE: TDLS connection tracker in host
  *	enable/disable
  * @WMI_10_4_TDLS_EXPLICIT_MODE_ONLY:Explicit TDLS mode enable/disable
- * @WMI_10_4_TX_DATA_ACK_RSSI: Enable DATA ACK RSSI if firmware is capable
  */
 enum wmi_10_4_feature_mask {
 	WMI_10_4_LTEU_SUPPORT			= BIT(0),
@@ -2970,7 +2910,7 @@ enum wmi_10_4_feature_mask {
 	WMI_10_4_TDLS_UAPSD_SLEEP_STA		= BIT(10),
 	WMI_10_4_TDLS_CONN_TRACKER_IN_HOST_MODE = BIT(11),
 	WMI_10_4_TDLS_EXPLICIT_MODE_ONLY	= BIT(12),
-	WMI_10_4_TX_DATA_ACK_RSSI		= BIT(16),
+
 };
 
 struct wmi_ext_resource_config_10_4_cmd {
@@ -3181,42 +3121,6 @@ struct wmi_ssid_arg {
 
 struct wmi_bssid_arg {
 	const u8 *bssid;
-};
-
-#define WMI_PEER_CFR_CAPTURE_ENABLE   1
-#define WMI_PEER_CFR_CAPTURE_DISABLE  0
-
-#define WMI_PEER_CFR_PERIODICITY_MIN  0
-#define WMI_PEER_CFR_PERIODICITY_MAX  (10*60*1000)
-
-enum ath10k_wmi_cfr_capture_bw {
-	WMI_PEER_CFR_CAPTURE_BW_20MHZ = 0,
-	WMI_PEER_CFR_CAPTURE_BW_40MHZ = 1,
-	WMI_PEER_CFR_CAPTURE_BW_80MHZ = 2,
-	WMI_PEER_CFR_CAPTURE_BW_160MHZ   = 3,
-	WMI_PEER_CFR_CAPTURE_BW_80_80MHZ = 4,
-	WMI_PEER_CFR_CAPTURE_BW_MAX,
-};
-
-enum ath10k_wmi_cfr_capture_method {
-	WMI_PEER_CFR_CAPTURE_METHOD_NULL_FRAME = 0,
-	WMI_PEER_CFR_CAPTURE_METHOD_MAX,
-};
-
-struct wmi_peer_cfr_capture_conf_10_4_cmd {
-	 __le32 request;
-	struct wmi_mac_addr mac_addr;
-	__le32 vdev_id;
-	__le32 periodicity;
-	__le32 bandwidth;
-	__le32 capture_method;
-} __packed;
-
-struct wmi_peer_cfr_capture_conf_arg {
-	u32 request;
-	u32 periodicity;
-	u32 bandwidth;
-	u32 capture_method;
 };
 
 struct wmi_start_scan_arg {
@@ -3436,9 +3340,6 @@ enum phy_err_type {
 	PHY_ERROR_FALSE_RADAR_EXT,
 	PHY_ERROR_RADAR
 };
-
-#define PHYERR_FLAG_INTERFRC_5G			0x01
-#define PHYERR_FLAG_INTERFRC_2G			0x02
 
 struct wmi_phyerr {
 	__le32 tsf_timestamp;
@@ -3774,7 +3675,6 @@ struct wmi_pdev_param_map {
 	u32 arp_srcaddr;
 	u32 arp_dstaddr;
 	u32 enable_btcoex;
-	u32 enable_cfr_capture;
 };
 
 #define WMI_PDEV_PARAM_UNSUPPORTED 0
@@ -3987,11 +3887,7 @@ enum wmi_10x_pdev_param {
 	WMI_10X_PDEV_PARAM_REMOVE_MCAST2UCAST_BUFFER,
 	WMI_10X_PDEV_PARAM_PEER_STA_PS_STATECHG_ENABLE,
 	WMI_10X_PDEV_PARAM_RTS_FIXED_RATE,
-	WMI_10X_PDEV_PARAM_CAL_PERIOD,
-	WMI_10X_PDEV_PARAM_ATF_STRICT_SCH,
-	WMI_10X_PDEV_PARAM_ATF_SCHED_DURATION,
-	WMI_10X_PDEV_PARAM_SET_PROMISC_MODE_CMDID,
-	WMI_10X_PDEV_PARAM_PDEV_RESET
+	WMI_10X_PDEV_PARAM_CAL_PERIOD
 };
 
 enum wmi_10_4_pdev_param {
@@ -4095,14 +3991,6 @@ enum wmi_10_4_pdev_param {
 	WMI_10_4_PDEV_PARAM_ATF_DYNAMIC_ENABLE,
 	WMI_10_4_PDEV_PARAM_ATF_SSID_GROUP_POLICY,
 	WMI_10_4_PDEV_PARAM_ENABLE_BTCOEX,
-	WMI_10_4_PDEV_PARAM_ATF_PEER_STATS,
-	WMI_10_4_PDEV_PARAM_ANTENNA_GAIN_HALF_DB,
-	WMI_10_4_PDEV_PARAM_SOFT_TX_CHAIN_MASK,
-	WMI_10_4_PDEV_PARAM_TX_ACK_TIMEOUT,
-	WMI_10_4_PDEV_PARAM_RX_INDICATION_MITIGATION,
-	WMI_10_4_PDEV_PARAM_DYNAMIC_AUTO_BURST_ENABLE,
-	WMI_10_4_PDEV_PARAM_ESP_INDICATION_PERIOD,
-	WMI_10_4_PDEV_PARAM_PER_PEER_CFR_ENABLE,
 };
 
 struct wmi_pdev_set_param_cmd {
@@ -4118,18 +4006,12 @@ struct wmi_pdev_get_tpc_config_cmd {
 	__le32 param;
 } __packed;
 
-struct wmi_pdev_get_tpc_table_cmd {
-	/* parameter  */
-	__le32 param;
-} __packed;
-
 #define WMI_TPC_CONFIG_PARAM		1
-#define WMI_TPC_RATE_MAX		240
+#define WMI_TPC_RATE_MAX		160
 #define WMI_TPC_TX_N_CHAIN		4
 #define WMI_TPC_PREAM_TABLE_MAX		10
 #define WMI_TPC_FLAG			3
 #define WMI_TPC_BUF_SIZE		10
-#define WMI_TPC_BEAMFORMING		2
 
 enum wmi_tpc_table_type {
 	WMI_TPC_TABLE_TYPE_CDD = 0,
@@ -4160,31 +4042,6 @@ struct wmi_pdev_tpc_config_event {
 	s8 max_reg_allow_pow_agstbc[WMI_TPC_TX_N_CHAIN][WMI_TPC_TX_N_CHAIN];
 	s8 max_reg_allow_pow_agtxbf[WMI_TPC_TX_N_CHAIN][WMI_TPC_TX_N_CHAIN];
 	u8 rates_array[WMI_TPC_RATE_MAX];
-} __packed;
-
-struct wmi_peer_sta_ps_state_chg_event {
-	struct wmi_mac_addr peer_macaddr;
-	__le32 peer_ps_state;
-} __packed;
-
-struct wmi_pdev_tpc_final_table_event {
-	__le32 reg_domain;
-	__le32 chan_freq;
-	__le32 phy_mode;
-	__le32 twice_antenna_reduction;
-	__le32 twice_max_rd_power;
-	a_sle32 twice_antenna_gain;
-	__le32 power_limit;
-	__le32 rate_max;
-	__le32 num_tx_chain;
-	__le32 ctl;
-	__le32 flags;
-	s8 max_reg_allow_pow[WMI_TPC_TX_N_CHAIN];
-	s8 max_reg_allow_pow_agcdd[WMI_TPC_TX_N_CHAIN][WMI_TPC_TX_N_CHAIN];
-	s8 max_reg_allow_pow_agstbc[WMI_TPC_TX_N_CHAIN][WMI_TPC_TX_N_CHAIN];
-	s8 max_reg_allow_pow_agtxbf[WMI_TPC_TX_N_CHAIN][WMI_TPC_TX_N_CHAIN];
-	u8 rates_array[WMI_TPC_RATE_MAX];
-	u8 ctl_power_table[WMI_TPC_BEAMFORMING][WMI_TPC_TX_N_CHAIN][WMI_TPC_TX_N_CHAIN];
 } __packed;
 
 /* Transmit power scale factor. */
@@ -4278,30 +4135,6 @@ struct wmi_wmm_params_all_arg {
 	struct wmi_wmm_params_arg ac_bk;
 	struct wmi_wmm_params_arg ac_vi;
 	struct wmi_wmm_params_arg ac_vo;
-};
-
-enum wmi_vdev_custom_aggr_type {
-	WMI_VDEV_CUSTOM_AGGR_TYPE_AMPDU,
-	WMI_VDEV_CUSTOM_AGGR_TYPE_AMSDU,
-	WMI_VDEV_CUSTOM_AGGR_TYPE_MAX,
-};
-
-enum wmi_vdev_ac_type {
-	AC_BE,
-	AC_BK,
-	AC_VI,
-	AC_VO,
-	AC_MAX,
-};
-
-#define	SET_AMPDU_AGGREGATION BIT(5)
-#define	SET_AMSDU_AGGREGATION BIT(3)
-
-struct wmi_set_aggr_size_per_ac {
-	enum wmi_vdev_custom_aggr_type aggr_type;
-	enum wmi_vdev_ac_type ac;
-	u32 tx_aggr_size;
-	u32 rx_aggr_size;
 };
 
 struct wmi_pdev_stats_tx {
@@ -4932,30 +4765,15 @@ struct wmi_key_seq_counter {
 	__le32 key_seq_counter_h;
 } __packed;
 
-enum wmi_cipher_suites {
-	WMI_CIPHER_NONE,
-	WMI_CIPHER_WEP,
-	WMI_CIPHER_TKIP,
-	WMI_CIPHER_AES_OCB,
-	WMI_CIPHER_AES_CCM,
-	WMI_CIPHER_WAPI,
-	WMI_CIPHER_CKIP,
-	WMI_CIPHER_AES_CMAC,
-	WMI_CIPHER_AES_GCM,
-};
-
-enum wmi_tlv_cipher_suites {
-	WMI_TLV_CIPHER_NONE,
-	WMI_TLV_CIPHER_WEP,
-	WMI_TLV_CIPHER_TKIP,
-	WMI_TLV_CIPHER_AES_OCB,
-	WMI_TLV_CIPHER_AES_CCM,
-	WMI_TLV_CIPHER_WAPI,
-	WMI_TLV_CIPHER_CKIP,
-	WMI_TLV_CIPHER_AES_CMAC,
-	WMI_TLV_CIPHER_ANY,
-	WMI_TLV_CIPHER_AES_GCM,
-};
+#define WMI_CIPHER_NONE     0x0 /* clear key */
+#define WMI_CIPHER_WEP      0x1
+#define WMI_CIPHER_TKIP     0x2
+#define WMI_CIPHER_AES_OCB  0x3
+#define WMI_CIPHER_AES_CCM  0x4
+#define WMI_CIPHER_WAPI     0x5
+#define WMI_CIPHER_CKIP     0x6
+#define WMI_CIPHER_AES_CMAC 0x7
+#define WMI_CIPHER_AES_GCM  0x8
 
 struct wmi_vdev_install_key_cmd {
 	__le32 vdev_id;
@@ -5016,35 +4834,10 @@ enum wmi_rate_preamble {
 #define ATH10K_HW_GI(flags)		(((flags) >> 5) & 0x1)
 #define ATH10K_HW_RATECODE(rate, nss, preamble) \
 	(((preamble) << 6) | ((nss) << 4) | (rate))
-#define ATH10K_HW_AMPDU(flags)		(flags & 0x1)
-#define ATH10K_HW_BA_FAIL(flags)	(((flags) >> 1) & 0x3)
-#define ATH10K_HW_DATA_PKT(flags)	(((flags) >> 6) & 0x1)
- 
-#define LEGACY_RATE_NUM	12
+
 #define VHT_MCS_NUM     10
 #define VHT_BW_NUM      4
 #define VHT_NSS_NUM     4
-#define VHT_GI_NUM	2
-#define HT_MCS_NUM	32
-#define VHT_RATE_NUM	320
- 
-enum tx_ofdm_rates {
-	TX_OFDM_RATE_48_MBPS = 48,
-	TX_OFDM_RATE_24_MBPS = 24,
-	TX_OFDM_RATE_12_MBPS = 12,
-	TX_OFDM_RATE_54_MBPS = 54,
-	TX_OFDM_RATE_36_MBPS = 36,
-	TX_OFDM_RATE_18_MBPS = 18,
-	TX_OFDM_RATE_9_MBPS = 9,
-	TX_OFDM_RATE_6_MBPS = 6,
-};
-
-enum tx_cck_rates {
-	TX_CCK_RATE_11_MBPS = 11,
-	TX_CCK_RATE_5_5_MBPS = 5,
-	TX_CCK_RATE_2_MBPS = 2,
-	TX_CCK_RATE_1_MBPS = 1,
-};
 
 /* Value to disable fixed rate setting */
 #define WMI_FIXED_RATE_NONE    (0xff)
@@ -5118,7 +4911,6 @@ struct wmi_vdev_param_map {
 	u32 bw_nss_ratemask;
 	u32 inc_tsf;
 	u32 dec_tsf;
-	u32 rtt_responder_role;
 };
 
 #define WMI_VDEV_PARAM_UNSUPPORTED 0
@@ -5458,15 +5250,6 @@ enum wmi_10_4_vdev_param {
 	WMI_10_4_VDEV_PARAM_ATF_SSID_SCHED_POLICY,
 	WMI_10_4_VDEV_PARAM_DISABLE_DYN_BW_RTS,
 	WMI_10_4_VDEV_PARAM_TSF_DECREMENT,
-	WMI_10_4_VDEV_PARAM_SELFGEN_FIXED_RATE,
-	WMI_10_4_VDEV_PARAM_AMPDU_SUBFRAME_SIZE_PER_AC,
-	WMI_10_4_VDEV_PARAM_NSS_VHT160,
-	WMI_10_4_VDEV_PARAM_NSS_VHT80_80,
-	WMI_10_4_VDEV_PARAM_AMSDU_SUBFRAME_SIZE_PER_AC,
-	WMI_10_4_VDEV_PARAM_DISABLE_CABQ,
-	WMI_10_4_VDEV_PARAM_SIFS_TRIGGER_RATE,
-	WMI_10_4_VDEV_PARAM_TX_POWER,
-	WMI_10_4_VDEV_PARAM_SET_RTT_RESPONDER_ROLE,
 };
 
 #define WMI_VDEV_PARAM_TXBF_SU_TX_BFEE BIT(0)
@@ -6241,7 +6024,6 @@ enum wmi_peer_param {
 	WMI_PEER_CHAN_WIDTH = 0x4,
 	WMI_PEER_NSS        = 0x5,
 	WMI_PEER_USE_4ADDR  = 0x6,
-	WMI_PEER_USE_FIXED_PWR = 0x8,
 	WMI_PEER_DEBUG      = 0xa,
 	WMI_PEER_PHYMODE    = 0xd,
 	WMI_PEER_DUMMY_VAR  = 0xff, /* dummy parameter for STA PS workaround */
@@ -6333,7 +6115,6 @@ enum wmi_peer_flags {
 	WMI_PEER_QOS = 0x00000002,
 	WMI_PEER_NEED_PTK_4_WAY = 0x00000004,
 	WMI_PEER_NEED_GTK_2_WAY = 0x00000010,
-	WMI_PEER_DISABLE_AMSDU_REQ = 0x00000400,
 	WMI_PEER_APSD = 0x00000800,
 	WMI_PEER_HT = 0x00001000,
 	WMI_PEER_40MHZ = 0x00002000,
@@ -6346,8 +6127,7 @@ enum wmi_peer_flags {
 	WMI_PEER_80MHZ = 0x04000000,
 	WMI_PEER_VHT_2G = 0x08000000,
 	WMI_PEER_PMF = 0x10000000,
-	WMI_PEER_160MHZ = 0x20000000,
-	WMI_PEER_DISABLE_AMSDU_RESP = 0x40000000,
+	WMI_PEER_160MHZ = 0x20000000
 };
 
 enum wmi_10x_peer_flags {
@@ -6610,15 +6390,6 @@ struct wmi_force_fw_hang_cmd {
 	__le32 delay_ms;
 } __packed;
 
-enum wmi_pdev_reset_mode_type {
-	WMI_RST_MODE_TX_FLUSH = 1,
-	WMI_RST_MODE_WARM_RESET,
-	WMI_RST_MODE_COLD_RESET,
-	WMI_RST_MODE_WARM_RESET_RESTORE_CAL,
-	WMI_RST_MODE_COLD_RESET_RESTORE_CAL,
-	WMI_RST_MODE_MAX,
-};
-
 enum ath10k_dbglog_level {
 	ATH10K_DBGLOG_LEVEL_VERBOSE = 0,
 	ATH10K_DBGLOG_LEVEL_INFO = 1,
@@ -6718,32 +6489,10 @@ struct wmi_scan_ev_arg {
 	__le32 vdev_id;
 };
 
-struct mgmt_tx_compl_params {
-	u32 desc_id;
-	u32 status;
-	u32 ppdu_id;
-	int ack_rssi;
-};
-
 struct wmi_tlv_mgmt_tx_compl_ev_arg {
 	__le32 desc_id;
 	__le32 status;
 	__le32 pdev_id;
-	__le32 ppdu_id;
-	__le32 ack_rssi;
-};
-
-struct wmi_tlv_mgmt_tx_bundle_compl_ev_arg {
-	__le32 num_reports;
-	__le32 *desc_ids;
-	__le32 *status;
-	__le32 *ppdu_ids;
-	__le32 *ack_rssi;
-};
-
-struct wmi_peer_delete_resp_ev_arg {
-	__le32 vdev_id;
-	struct wmi_mac_addr peer_addr;
 };
 
 struct wmi_mgmt_rx_ev_arg {
@@ -6796,7 +6545,6 @@ struct wmi_phyerr_ev_arg {
 	u8 rssi_combined;
 	u8 chan_width_mhz;
 	u8 phy_err_code;
-	u8 rsvd0;
 	u16 nf_chains[4];
 	u32 buf_len;
 	const u8 *buf;
@@ -7216,11 +6964,8 @@ void ath10k_wmi_put_wmi_channel(struct wmi_channel *ch,
 int ath10k_wmi_start_scan_verify(const struct wmi_start_scan_arg *arg);
 
 int ath10k_wmi_event_scan(struct ath10k *ar, struct sk_buff *skb);
-int ath10k_wmi_tlv_event_peer_delete_resp(struct ath10k *ar,
-					  struct sk_buff *skb);
 int ath10k_wmi_event_mgmt_rx(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_wmi_event_mgmt_tx_compl(struct ath10k *ar, struct sk_buff *skb);
-int ath10k_wmi_event_mgmt_tx_bundle_compl(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_wmi_event_chan_info(struct ath10k *ar, struct sk_buff *skb);
 void ath10k_wmi_event_echo(struct ath10k *ar, struct sk_buff *skb);
 int ath10k_wmi_event_debug_mesg(struct ath10k *ar, struct sk_buff *skb);

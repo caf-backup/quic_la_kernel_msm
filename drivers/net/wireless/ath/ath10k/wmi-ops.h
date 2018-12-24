@@ -33,13 +33,8 @@ struct wmi_ops {
 			    struct wmi_mgmt_rx_ev_arg *arg);
 	int (*pull_mgmt_tx_compl)(struct ath10k *ar, struct sk_buff *skb,
 				  struct wmi_tlv_mgmt_tx_compl_ev_arg *arg);
-	int (*pull_mgmt_tx_bundle_compl)(
-				struct ath10k *ar, struct sk_buff *skb,
-				struct wmi_tlv_mgmt_tx_bundle_compl_ev_arg *arg);
 	int (*pull_ch_info)(struct ath10k *ar, struct sk_buff *skb,
 			    struct wmi_ch_info_ev_arg *arg);
-	int (*pull_peer_delete_resp)(struct ath10k *ar, struct sk_buff *skb,
-				     struct wmi_peer_delete_resp_ev_arg *arg);
 	int (*pull_vdev_start)(struct ath10k *ar, struct sk_buff *skb,
 			       struct wmi_vdev_start_ev_arg *arg);
 	int (*pull_peer_kick)(struct ath10k *ar, struct sk_buff *skb,
@@ -214,16 +209,6 @@ struct wmi_ops {
 					(struct ath10k *ar,
 					 enum wmi_bss_survey_req_type type);
 	struct sk_buff *(*gen_echo)(struct ath10k *ar, u32 value);
-
-	struct sk_buff *(*gen_pdev_get_tpc_table_cmdid)(struct ath10k *ar,
-							u32 param);
-
-	struct sk_buff *(*gen_peer_cfr_capture_conf)(struct ath10k *ar,
-						     u32 vdev_id, const u8 *mac,
-						     const struct wmi_peer_cfr_capture_conf_arg *arg);
-	struct sk_buff *(*gen_vdev_aggr_size_per_ac)
-				(struct ath10k *ar, u32 vdev_id,
-				 const struct wmi_set_aggr_size_per_ac *arg);
 };
 
 int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id);
@@ -281,16 +266,6 @@ ath10k_wmi_pull_mgmt_tx_compl(struct ath10k *ar, struct sk_buff *skb,
 }
 
 static inline int
-ath10k_wmi_pull_mgmt_tx_bundle_compl(struct ath10k *ar, struct sk_buff *skb,
-				     struct wmi_tlv_mgmt_tx_bundle_compl_ev_arg *arg)
-{
-	if (!ar->wmi.ops->pull_mgmt_tx_bundle_compl)
-		return -EOPNOTSUPP;
-
-	return ar->wmi.ops->pull_mgmt_tx_bundle_compl(ar, skb, arg);
-}
-
-static inline int
 ath10k_wmi_pull_mgmt_rx(struct ath10k *ar, struct sk_buff *skb,
 			struct wmi_mgmt_rx_ev_arg *arg)
 {
@@ -298,16 +273,6 @@ ath10k_wmi_pull_mgmt_rx(struct ath10k *ar, struct sk_buff *skb,
 		return -EOPNOTSUPP;
 
 	return ar->wmi.ops->pull_mgmt_rx(ar, skb, arg);
-}
-
-static inline int
-ath10k_wmi_pull_peer_delete_resp(struct ath10k *ar, struct sk_buff *skb,
-				 struct wmi_peer_delete_resp_ev_arg *arg)
-{
-	if (!ar->wmi.ops->pull_peer_delete_resp)
-		return -EOPNOTSUPP;
-
-	return ar->wmi.ops->pull_peer_delete_resp(ar, skb, arg);
 }
 
 static inline int
@@ -824,24 +789,6 @@ ath10k_wmi_vdev_wmm_conf(struct ath10k *ar, u32 vdev_id,
 		return PTR_ERR(skb);
 
 	cmd_id = ar->wmi.cmd->vdev_set_wmm_params_cmdid;
-	return ath10k_wmi_cmd_send(ar, skb, cmd_id);
-}
-
-static inline int
-ath10k_wmi_vdev_aggr_per_ac_conf(struct ath10k *ar, u32 vdev_id,
-				 const struct wmi_set_aggr_size_per_ac *arg)
-{
-	struct sk_buff *skb;
-	u32 cmd_id;
-
-	if (!ar->wmi.ops->gen_vdev_aggr_size_per_ac)
-		return -EOPNOTSUPP;
-
-	skb = ar->wmi.ops->gen_vdev_aggr_size_per_ac(ar, vdev_id, arg);
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
-
-	cmd_id = ar->wmi.cmd->vdev_aggr_size_per_ac_cmdid;
 	return ath10k_wmi_cmd_send(ar, skb, cmd_id);
 }
 
@@ -1541,23 +1488,6 @@ ath10k_wmi_pdev_bss_chan_info_request(struct ath10k *ar,
 }
 
 static inline int
-ath10k_wmi_pdev_get_tpc_table_cmdid(struct ath10k *ar, u32 param)
-{
-	struct sk_buff *skb;
-
-	if (!ar->wmi.ops->gen_pdev_get_tpc_table_cmdid)
-		return -EOPNOTSUPP;
-
-	skb = ar->wmi.ops->gen_pdev_get_tpc_table_cmdid(ar, param);
-
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
-
-	return ath10k_wmi_cmd_send(ar, skb,
-				   ar->wmi.cmd->pdev_get_tpc_table_cmdid);
-}
-
-static inline int
 ath10k_wmi_echo(struct ath10k *ar, u32 value)
 {
 	struct ath10k_wmi *wmi = &ar->wmi;
@@ -1573,21 +1503,4 @@ ath10k_wmi_echo(struct ath10k *ar, u32 value)
 	return ath10k_wmi_cmd_send(ar, skb, wmi->cmd->echo_cmdid);
 }
 
-static inline int
-ath10k_wmi_peer_set_cfr_capture_conf(struct ath10k *ar,
-				     u32 vdev_id, const u8 *mac,
-				     const struct wmi_peer_cfr_capture_conf_arg *arg)
-{
-	struct sk_buff *skb;
-
-	if (!ar->wmi.ops->gen_peer_cfr_capture_conf)
-		return -EOPNOTSUPP;
-
-	skb = ar->wmi.ops->gen_peer_cfr_capture_conf(ar, vdev_id, mac, arg);
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
-
-	return ath10k_wmi_cmd_send(ar, skb,
-				   ar->wmi.cmd->peer_set_cfr_capture_conf_cmdid);
-}
 #endif
