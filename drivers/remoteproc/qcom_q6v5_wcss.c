@@ -98,6 +98,7 @@ struct wcss_data {
 	int ssctl_id;
 	const struct rproc_ops *ops;
 	void (*pas_handover)(struct qcom_q6v5 *q6v5);
+	bool requires_force_stop;
 };
 
 struct q6v5_wcss {
@@ -143,6 +144,7 @@ struct q6v5_wcss {
 	size_t mem_size;
 	int crash_reason_smem;
 	int version;
+	bool requires_force_stop;
 };
 
 static int q6v5_wcss_reset(struct q6v5_wcss *wcss)
@@ -689,10 +691,12 @@ static int q6v5_wcss_stop(struct rproc *rproc)
 	int ret;
 
 	/* WCSS powerdown */
-	ret = qcom_q6v5_request_stop(&wcss->q6v5);
-	if (ret == -ETIMEDOUT) {
-		dev_err(wcss->dev, "timed out on wait\n");
-		return ret;
+	if (wcss->requires_force_stop) {
+		ret = qcom_q6v5_request_stop(&wcss->q6v5);
+		if (ret == -ETIMEDOUT) {
+			dev_err(wcss->dev, "timed out on wait\n");
+			return ret;
+		}
 	}
 
 	if (wcss->version == WCSS_QCS404) {
@@ -1019,6 +1023,7 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 	wcss->version = desc->version;
 
 	wcss->version = desc->version;
+	wcss->requires_force_stop = desc->requires_force_stop;
 
 	ret = q6v5_wcss_init_mmio(wcss, pdev);
 	if (ret)
@@ -1083,6 +1088,7 @@ static const struct wcss_data wcss_ipq8074_res_init = {
 	.aon_reset_required = true,
 	.pas_handover = NULL,
 	.ops = &q6v5_wcss_ipq8074_ops,
+	.requires_force_stop = true,
 };
 
 static const struct wcss_data wcss_qcs404_res_init = {
@@ -1095,6 +1101,7 @@ static const struct wcss_data wcss_qcs404_res_init = {
 	.ssctl_id = 0x12,
 	.ops = &q6v5_wcss_qcs404_ops,
 	.pas_handover = q6v5_wcss_handover,
+	.requires_force_stop = false,
 };
 
 static const struct of_device_id q6v5_wcss_of_match[] = {
