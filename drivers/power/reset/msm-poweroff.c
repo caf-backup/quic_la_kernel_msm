@@ -31,6 +31,7 @@ module_param(download_mode, bool, 0000);
 static void __iomem *msm_ps_hold;
 static struct regmap *tcsr_regmap;
 static unsigned int dload_mode_offset;
+static int do_always_reboot;
 
 static int do_msm_restart(struct notifier_block *nb, unsigned long action,
 			   void *data)
@@ -42,13 +43,23 @@ static int do_msm_restart(struct notifier_block *nb, unsigned long action,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block restart_nb = {
-	.notifier_call = do_msm_restart,
-	.priority = 128,
-};
+static int do_msm_reboot(struct notifier_block *nb, unsigned long action,
+			   void *data)
+{
+	pr_err("In %s @ %d\n", __func__, __LINE__);
+	regmap_write(tcsr_regmap, dload_mode_offset, 0x0);
+	writel(0, msm_ps_hold);
+	mdelay(10000);
+
+	return NOTIFY_DONE;
+}
 
 static struct notifier_block panic_blk = {
 	.notifier_call  = do_msm_restart,
+};
+
+static struct notifier_block reboot_blk = {
+	.notifier_call = do_msm_reboot,
 };
 
 static int msm_restart_probe(struct platform_device *pdev)
@@ -81,6 +92,14 @@ static int msm_restart_probe(struct platform_device *pdev)
 	msm_ps_hold = devm_ioremap_resource(dev, mem);
 	if (IS_ERR(msm_ps_hold))
 		return PTR_ERR(msm_ps_hold);
+
+	register_reboot_notifier(&reboot_blk);
+	if (do_always_reboot != 1)
+		atomic_notifier_chain_register(
+				&panic_notifier_list, &panic_blk);
+	else
+		atomic_notifier_chain_register(
+				&panic_notifier_list, &reboot_blk);
 
 	return 0;
 }
