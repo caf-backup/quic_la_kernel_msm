@@ -27,9 +27,7 @@
 #include <linux/cpu_pm.h>
 #include <linux/platform_device.h>
 #include <linux/wait.h>
-#if 0
 #include <soc/qcom/memory_dump.h>
-#endif
 #include <linux/dma-mapping.h>
 #include <linux/sched/clock.h>
 #include <linux/cpumask.h>
@@ -110,7 +108,7 @@ void msm_trigger_wdog_bite(void)
 	if (!wdog_data)
 		return;
 	pr_info("Causing a watchdog bite!");
-	__raw_writel(11, wdog_data->base + WDT0_EN);
+	__raw_writel(3, wdog_data->base + WDT0_EN);
 	__raw_writel(1, wdog_data->base + WDT0_BITE_TIME);
 	/* Mke sure bite time is written before we reset */
 	mb();
@@ -126,7 +124,6 @@ void msm_trigger_wdog_bite(void)
 		__raw_readl(wdog_data->base + WDT0_BITE_TIME));
 }
 
-#if 0
 static void configure_bark_dump(struct msm_watchdog_data *wdog_dd)
 {
 	int ret;
@@ -173,7 +170,7 @@ static void init_watchdog_data(struct msm_watchdog_data *wdog_dd)
 {
 		configure_bark_dump(wdog_dd);
 }
-#endif
+
 static const struct of_device_id msm_wdog_match_table[] = {
 	{ .compatible = "qcom,msm-watchdog" },
 	{}
@@ -235,7 +232,7 @@ static int msm_watchdog_probe(struct platform_device *pdev)
 	wdog_dd->dev = &pdev->dev;
 	platform_set_drvdata(pdev, wdog_dd);
 	cpumask_clear(&wdog_dd->alive_mask);
-	//init_watchdog_data(wdog_dd);
+	init_watchdog_data(wdog_dd);
 
 	return 0;
 err:
