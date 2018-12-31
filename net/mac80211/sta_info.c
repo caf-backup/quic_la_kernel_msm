@@ -2290,6 +2290,12 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 		sinfo->expected_throughput = thr;
 	}
 
+	if (ieee80211_vif_is_mesh(&sdata->vif)) {
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_AIRTIME_LINK_METRIC);
+		sinfo->airtime_link_metric =
+			airtime_link_metric_get(local, sta);
+	}
+
 	if (!(sinfo->filled & BIT_ULL(NL80211_STA_INFO_ACK_SIGNAL)) &&
 	    sta->status_stats.ack_signal_filled) {
 		sinfo->ack_signal = sta->status_stats.last_ack_signal;
