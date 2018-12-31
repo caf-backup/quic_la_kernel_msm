@@ -731,10 +731,6 @@
 	status = "ok";
 };
 
-&nss_crypto {
-	status = "ok";
-};
-
 &msm_imem {
 	status = "disabled";
 };

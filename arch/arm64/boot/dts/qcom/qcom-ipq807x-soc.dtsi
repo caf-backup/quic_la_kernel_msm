@@ -754,6 +754,7 @@
 			mx-supply = <&ipq807x_s5_corner>;
 		};
 
+		#ifndef __IPQ_MEM_PROFILE_256_MB__
 		nss1: nss@40800000 {
 			compatible = "qcom,nss";
 			interrupts = <0 390 0x1>, <0 391 0x1>, <0 392 0x1>,
@@ -809,6 +810,7 @@
 			compatible = "qcom,nss-crypto";
 			qcom,max-contexts = <64>;
 			qcom,max-context-size = <32>;
+			status = "ok";
 			ranges;
 
 			eip197_node {
@@ -878,6 +880,7 @@
 				};
 			};
 		};
+		#endif
 
 		watchdog: watchdog@b017000 {
 			compatible = "qcom,kpss-wdt-ipq807x";

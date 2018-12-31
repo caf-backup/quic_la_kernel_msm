@@ -694,10 +694,6 @@
 	qcom,max-frequency = <1497600000>;
 };
 
-&nss_crypto {
-	status = "ok";
-};
-
 &msm_imem {
 	status = "disabled";
 };
