@@ -1790,7 +1790,7 @@ static int msm_otg_probe(struct platform_device *pdev)
 					"msm_otg", motg);
 		if (ret) {
 			dev_err(&pdev->dev, "request irq failed\n");
-			goto disable_ldo;
+			goto disable_ldo_clk;
 		}
 	}
 
@@ -1810,7 +1810,7 @@ static int msm_otg_probe(struct platform_device *pdev)
 	ret = usb_add_phy_dev(&motg->phy);
 	if (ret) {
 		dev_err(&pdev->dev, "usb_add_phy failed\n");
-		goto disable_ldo;
+		goto disable_ldo_clk;
 	}
 
 	platform_set_drvdata(pdev, motg);
@@ -1839,11 +1839,9 @@ static int msm_otg_probe(struct platform_device *pdev)
 
 	return 0;
 
-disable_ldo:
+disable_ldo_clk:
 	msm_hsusb_ldo_init(motg, 0);
-disable_vddcx:
 	msm_hsusb_init_vddcx(motg, 0);
-disable_clks:
 	clk_disable_unprepare(motg->pclk);
 	clk_disable_unprepare(motg->clk);
 	if (!IS_ERR(motg->core_clk))

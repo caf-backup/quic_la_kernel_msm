@@ -199,7 +199,7 @@ err_free:
 }
 
 static ssize_t
-store_auth_enable(struct device *dev, struct attribute *attr,
+store_auth_enable(struct device *dev, struct device_attribute *attr,
 				const char *buf, size_t count)
 {
 	int err;
@@ -223,7 +223,7 @@ store_auth_enable(struct device *dev, struct attribute *attr,
 }
 
 static ssize_t
-show_auth_enable(struct device *dev, struct attribute *attr,
+show_auth_enable(struct device *dev, struct device_attribute *attr,
 				char *buf)
 {
 	return snprintf(buf, sizeof(auth_enable), "%d", auth_enable);

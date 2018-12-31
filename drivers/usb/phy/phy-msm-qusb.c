@@ -113,7 +113,7 @@ struct qusb_phy {
 
 	struct clk		*ref_clk_src;
 	struct clk		*ref_clk;
-	struct clk		*phy_reset;
+	struct reset_control	*phy_reset;
 
 	struct regulator	*vdd;
 	struct regulator	*vdda33;

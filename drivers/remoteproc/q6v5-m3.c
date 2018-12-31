@@ -102,7 +102,6 @@ static int m3_load(struct rproc *rproc, const struct firmware *fw)
 {
 	struct device *dev_rproc = rproc->dev.parent;
 	struct platform_device *pdev = to_platform_device(dev_rproc);
-	struct q6v5_rproc_pdata *pdata = platform_get_drvdata(pdev);
 
 	pr_info("Sanity check passed for M3 image\n");
 
