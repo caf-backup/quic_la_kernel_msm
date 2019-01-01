@@ -35,7 +35,8 @@ static unsigned int dload_mode_offset;
 static int do_msm_restart(struct notifier_block *nb, unsigned long action,
 			   void *data)
 {
-	writel(0, msm_ps_hold);
+	pr_err("In %s @ %d\n", __func__, __LINE__);
+	msm_trigger_wdog_bite();
 	mdelay(10000);
 
 	return NOTIFY_DONE;
@@ -46,11 +47,9 @@ static struct notifier_block restart_nb = {
 	.priority = 128,
 };
 
-static void do_msm_poweroff(void)
-{
-	/* TODO: Add poweroff capability */
-	do_msm_restart(&restart_nb, 0, NULL);
-}
+static struct notifier_block panic_blk = {
+	.notifier_call  = do_msm_restart,
+};
 
 static int msm_restart_probe(struct platform_device *pdev)
 {
@@ -82,10 +81,6 @@ static int msm_restart_probe(struct platform_device *pdev)
 	msm_ps_hold = devm_ioremap_resource(dev, mem);
 	if (IS_ERR(msm_ps_hold))
 		return PTR_ERR(msm_ps_hold);
-
-	register_restart_handler(&restart_nb);
-
-	pm_power_off = do_msm_poweroff;
 
 	return 0;
 }
