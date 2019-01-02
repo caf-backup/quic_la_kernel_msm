@@ -396,6 +396,12 @@
 			};
 		};
 
+		restart@4ab000 {
+			compatible = "qcom,pshold";
+			reg = <0x4ab000 0x4>;
+			qcom,dload-mode = <&tcsr 0x6100>;
+		};
+
 		spmi_bus: spmi@200f000 {
 			compatible = "qcom,spmi-pmic-arb";
 			reg = <0x200f000 0x001000>,
@@ -663,6 +669,11 @@
 			reg = <0x000e3000 0x1000>;
 			clocks = <&gcc GCC_PRNG_AHB_CLK>;
 			clock-names = "core";
+		};
+
+		tcsr: syscon@1937000 {
+			compatible = "syscon";
+			reg = <0x1937000 0x25000>;
 		};
 
 		usb3_phy: phy@78000 {
