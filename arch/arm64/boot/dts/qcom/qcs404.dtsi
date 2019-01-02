@@ -60,6 +60,12 @@
 			reg = <0 0x8a000000 0 0x100000>;
 			no-map;
 		};
+
+		dump_mem: mem_dump_region {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0 0x200000>;
+		};
 	};
 
 	cpus {
@@ -180,6 +186,19 @@
 			reg-names = "wdt-base";
 			interrupts = <0 3 0>, <0 4 0>;
 			status = "okay";
+		};
+
+		qcom,msm-imem@8600000 {
+			compatible = "qcom,msm-imem";
+			reg = <0x08600000 0x1000>;
+			ranges = <0x0 0x08600000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mem_dump_table@10 {
+				compatible = "qcom,msm-imem-mem_dump_table";
+				reg = <0x10 8>;
+			};
 		};
 
 		rpm_msg_ram: memory@60000 {
@@ -654,6 +673,16 @@
 			qcom,ee = <0>;
 
 			status = "okay";
+		};
+
+		mem_dump {
+			compatible = "qcom,mem-dump";
+			memory-region = <&dump_mem>;
+
+			pmic_dump {
+				qcom,dump-size = <0x10000>;
+				qcom,dump-id = <0xe4>;
+			};
 		};
 
 		apcs_glb: mailbox@b011000 {
