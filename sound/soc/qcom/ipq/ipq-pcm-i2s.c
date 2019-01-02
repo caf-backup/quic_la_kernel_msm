@@ -257,7 +257,7 @@ static int ipq_pcm_i2s_copy(struct snd_pcm_substream *substream, int chan,
 	struct ipq_pcm_rt_priv *pcm_rtpriv = runtime->private_data;
 	char *hwbuf;
 	u32 offset, size;
-	u32 period_size, i, no_of_descs;
+	u32 period_size, no_of_descs;
 
 	offset = frames_to_bytes(runtime, hwoff);
 	size = frames_to_bytes(runtime, frames);
@@ -446,7 +446,6 @@ static int ipq_pcm_i2s_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct ipq_pcm_rt_priv *pcm_rtpriv = runtime->private_data;
-	int ret;
 	unsigned int period_size, sample_size, sample_rate, frames, channels;
 
 	period_size = params_period_bytes(hw_params);

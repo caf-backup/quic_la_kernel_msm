@@ -481,6 +481,8 @@ static void test_cipher_speed(const char *algo, int enc, unsigned int secs,
 
 		b_size = block_sizes;
 		do {
+			struct scatterlist sg[TVMEMSIZE];
+
 			tfm = crypto_alloc_blkcipher(algo, 0, CRYPTO_ALG_ASYNC);
 
 			if (IS_ERR(tfm)) {
@@ -490,8 +492,6 @@ static void test_cipher_speed(const char *algo, int enc, unsigned int secs,
 			}
 			desc.tfm = tfm;
 			desc.flags = 0;
-
-			struct scatterlist sg[TVMEMSIZE];
 
 			if ((*keysize + *b_size) > TVMEMSIZE * PAGE_SIZE) {
 				printk("template (%u) too big for "

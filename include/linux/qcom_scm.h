@@ -13,6 +13,8 @@
 #ifndef __QCOM_SCM_H
 #define __QCOM_SCM_H
 
+#include <linux/scatterlist.h>
+
 struct qcom_scm_tcsr_req {
 	u32 mask;
 	u32 status;
