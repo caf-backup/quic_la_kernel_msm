@@ -24,6 +24,7 @@
 #include "cpr3-regulator.h"
 
 #define IPQ807x_NPU_FUSE_CORNERS		2
+#define IPQ817x_NPU_FUSE_CORNERS		1
 #define IPQ807x_NPU_FUSE_STEP_VOLT		8000
 #define IPQ807x_NPU_VOLTAGE_FUSE_SIZE		6
 #define IPQ807x_NPU_CPR_CLOCK_RATE		19200000
@@ -31,6 +32,7 @@
 #define IPQ807x_NPU_CPR_TCSR_START		6
 #define IPQ807x_NPU_CPR_TCSR_END		7
 
+u32 g_valid_npu_fuse_count = IPQ807x_NPU_FUSE_CORNERS;
 /**
  * struct cpr3_ipq807x_npu_fuses - NPU specific fuse data for IPQ807x
  * @init_voltage:	Initial (i.e. open-loop) voltage fuse parameter value
@@ -101,7 +103,7 @@ static int cpr3_ipq807x_npu_read_fuse_data(struct cpr3_regulator *vreg)
 	if (!fuse)
 		return -ENOMEM;
 
-	for (i = 0; i < IPQ807x_NPU_FUSE_CORNERS; i++) {
+	for (i = 0; i < g_valid_npu_fuse_count; i++) {
 		rc = cpr3_read_fuse_param(base,
 					  ipq807x_npu_init_voltage_param[i],
 					  &fuse->init_voltage[i]);
@@ -112,7 +114,7 @@ static int cpr3_ipq807x_npu_read_fuse_data(struct cpr3_regulator *vreg)
 		}
 	}
 
-	vreg->fuse_corner_count	= IPQ807x_NPU_FUSE_CORNERS;
+	vreg->fuse_corner_count	= g_valid_npu_fuse_count;
 	vreg->platform_fuses	= fuse;
 
 	return 0;
@@ -402,11 +404,37 @@ static int cpr3_npu_init_controller(struct cpr3_controller *ctrl)
 	return 0;
 }
 
+struct cpr3_npu_regulator_data {
+	u32 cpr_valid_fuse_count;
+};
+
+static const struct cpr3_npu_regulator_data ipq807x_cpr_npu = {
+	.cpr_valid_fuse_count = IPQ807x_NPU_FUSE_CORNERS
+};
+
+static const struct cpr3_npu_regulator_data ipq817x_cpr_npu = {
+	.cpr_valid_fuse_count = IPQ817x_NPU_FUSE_CORNERS
+};
+
+static struct of_device_id cpr3_regulator_match_table[] = {
+	{
+		.compatible = "cpr3-ipq807x-npu-regulator",
+		.data = &ipq807x_cpr_npu
+	},
+	{
+		.compatible = "cpr3-ipq817x-npu-regulator",
+		.data = &ipq817x_cpr_npu
+	},
+	{}
+};
+
 static int cpr3_npu_regulator_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct cpr3_controller *ctrl;
 	int i, rc;
+	const struct of_device_id *match;
+	const struct cpr3_npu_regulator_data *cpr_data;
 
 	if (!dev->of_node) {
 		dev_err(dev, "Device tree node is missing\n");
@@ -416,6 +444,14 @@ static int cpr3_npu_regulator_probe(struct platform_device *pdev)
 	ctrl = devm_kzalloc(dev, sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
 		return -ENOMEM;
+
+	match = of_match_device(cpr3_regulator_match_table, &pdev->dev);
+	if (!match)
+		return -ENODEV;
+
+	cpr_data = match->data;
+	g_valid_npu_fuse_count = cpr_data->cpr_valid_fuse_count;
+	dev_info(dev, "NPU CPR valid fuse count: %d\n", g_valid_npu_fuse_count);
 
 	ctrl->dev = dev;
 	/* Set to false later if anything precludes CPR operation. */
@@ -489,11 +525,6 @@ static int cpr3_npu_regulator_remove(struct platform_device *pdev)
 
 	return cpr3_open_loop_regulator_unregister(ctrl);
 }
-
-static const struct of_device_id cpr3_regulator_match_table[] = {
-	{ .compatible = "qcom,cpr3-ipq807x-npu-regulator", },
-	{}
-};
 
 static struct platform_driver cpr3_npu_regulator_driver = {
 	.driver		= {
