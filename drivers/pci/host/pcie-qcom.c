@@ -1262,7 +1262,7 @@ static int qcom_pcie_init_v3(struct qcom_pcie *pcie)
 		writel(DEVICE_TYPE_RC, pcie->parf + PCIE_PARF_DEVICE_TYPE);
 		writel(BYPASS | MSTR_AXI_CLK_EN | AHB_CLK_EN,
 			pcie->parf + PARF_MHI_CLOCK_RESET_CTRL);
-		writel(GEN3_EQUALIZATION_DISABLE | RXEQ_RGRDLESS_RXTS |
+		writel(RXEQ_RGRDLESS_RXTS |
 			GEN3_ZRXDC_NONCOMPL, pcie->dbi + PCIE30_GEN3_RELATED_OFF);
 	}
 
