@@ -569,7 +569,6 @@ static void subsystem_free_memory(struct subsys_device *dev, void *data)
 static void subsystem_powerup(struct subsys_device *dev, void *data)
 {
 	const char *name = dev->desc->name;
-	int ret;
 
 	pr_info("[%s:%d]: Powering up %s\n", current->comm, current->pid, name);
 

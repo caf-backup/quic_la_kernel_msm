@@ -106,7 +106,13 @@ static int __init ion_dummy_init(void)
 		heaps[i] = ion_heap_create(heap_data);
 		if (IS_ERR_OR_NULL(heaps[i])) {
 			err = PTR_ERR(heaps[i]);
-			goto err;
+			if (err == -EINVAL) {
+				pr_info("%s: Heap type is disabled: %d\n",
+					__func__, heap_data->type);
+				continue;
+			} else {
+				goto err;
+			}
 		}
 		ion_device_add_heap(idev, heaps[i]);
 	}

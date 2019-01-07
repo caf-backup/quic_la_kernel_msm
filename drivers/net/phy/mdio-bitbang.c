@@ -156,7 +156,7 @@ static int mdiobb_cmd_addr(struct mdiobb_ctrl *ctrl, int phy, u32 addr)
 static int mdiobb_read(struct mii_bus *bus, int phy, int reg)
 {
 	struct mdiobb_ctrl *ctrl = bus->priv;
-	int ret, i;
+	int ret;
 	long flags;
 
 	local_irq_save(flags);

@@ -69,6 +69,16 @@
 			status = "disabled";
 		};
 
+		blsp1_uart2: serial@78b0000 {
+			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
+			reg = <0x78b0000 0x200>;
+			interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_BLSP1_UART2_APPS_CLK>,
+				<&gcc GCC_BLSP1_AHB_CLK>;
+			clock-names = "core", "iface";
+			status = "disabled";
+		};
+
 		qcom_rng: qrng@e1000 {
 			compatible = "qcom,prng-ipq807x";
 			reg = <0xe3000 0x1000>;
@@ -470,6 +480,21 @@
 			status = "disabled";
 		};
 
+		spi_1: spi@78b6000 {
+			compatible = "qcom,spi-qup-v2.2.1";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x78b6000 0x600>;
+			interrupts = <0 96 0>;
+			spi-max-frequency = <50000000>;
+			clocks = <&gcc GCC_BLSP1_QUP2_SPI_APPS_CLK>,
+				<&gcc GCC_BLSP1_AHB_CLK>;
+			clock-names = "core", "iface";
+			dmas = <&blsp_dma 14>, <&blsp_dma 15>;
+			dma-names = "tx", "rx";
+			status = "disabled";
+		};
+
 		tcsr_mutex_block: syscon@1905000 {
 			compatible = "syscon";
 			reg = <0x1905000 0x8000>;
@@ -633,10 +658,45 @@
 			qcom,restart-group = <&q6v5_m3 &q6v5_wcss>;
 		};
 
+		q6v6_adsp: q6v6_adsp@AB00000 {
+			compatible = "qca,q6v6-adsp-rproc";
+			firmware = "IPQ6018/adsp.mdt";
+			reg = <0xAB00000 0x4040>,
+				<0x181F000 0x4>,
+				<0xA000000 0x48000>,
+				<0x1954010 0x20>;
+			reg-names = "adsp-base",
+					"gcc-adsp-bcr-base",
+					"adsp-cc-base",
+					"tcsr-base";
+			qca,auto-restart;
+			qca,extended-intc;
+			interrupts-extended = <&intc 0 30 1>,
+				<&adsp_smp2p_in 0 0>,
+				<&adsp_smp2p_in 1 0>,
+				<&adsp_smp2p_in 3 0>;
+			interrupt-names = "wdog",
+				  "qcom,gpio-err-fatal",
+				  "qcom,gpio-err-ready",
+				  "qcom,gpio-stop-ack";
+			qcom,smem-states = <&adsp_smp2p_out 0>,
+				   <&adsp_smp2p_out 1>;
+			qcom,smem-state-names = "shutdown",
+					"stop";
+		};
+
 		glink_mpss_ssr: qcom,glink-ssr-modem {
 			compatible = "qcom,glink_ssr";
 			label = "q6v5-wcss";
 			qcom,edge = "mpss";
+			qca,no-notify-edges;
+			qcom,xprt = "smem";
+		};
+
+		glink_adsp_ssr: qcom,glink-ssr-adsp {
+			compatible = "qcom,glink_ssr";
+			label = "q6v6-adsp";
+			qcom,edge = "lpass";
 			qca,no-notify-edges;
 			qcom,xprt = "smem";
 		};

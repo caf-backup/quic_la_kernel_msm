@@ -24,6 +24,7 @@
 
 	aliases {
 		serial0 = &blsp1_uart1;
+		serial1 = &blsp1_uart2;
 		sdhc1 = &sdhc_1;
 		/*
 		 * Aliases as required by u-boot
@@ -48,8 +49,16 @@
 		reg = <0x0 0x40000000 0x0 0x20000000>;
 	};
 
+	wifi0: wifi@c0000000 {
+		status = "disabled";
+	};
+
 	soc {
 		serial@78af000 {
+			status = "ok";
+		};
+
+		blsp1_uart2: serial@78b0000 {
 			status = "ok";
 		};
 
@@ -75,9 +84,25 @@
 			};
 		};
 
+		spi_1: spi@78b6000 { /* BLSP1 QUP1 */
+			mt29f@1 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "spinand,mt29f";
+				reg = <1>;
+				spi-max-frequency = <24000000>;
+				use-dummybyte-in-readid;
+			};
+		};
+
 		q6v5_wcss: q6v5_wcss@CD00000 {
 			qca,emulation;
 			img-addr = <0x4AB00000>;
+		};
+
+		q6v6_adsp: q6v6_adsp@AB00000 {
+			qca,emulation;
+			img-addr = <0x49100000>;
 		};
 
 		qpic_bam: dma@7984000{

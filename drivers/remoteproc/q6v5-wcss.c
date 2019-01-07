@@ -632,7 +632,6 @@ static void q6_powerdown(struct q6v5_rproc_pdata *pdata)
 static void save_wcss_regs(struct q6v5_rproc_pdata *pdata)
 {
 	int i = 0;
-	unsigned long val = 0;
 	unsigned int *buffer = NULL;
 
 	if (!(debug_wcss & DEBUG_DUMP_Q6_REG))
@@ -705,7 +704,6 @@ static int q6_rproc_emu_start(struct rproc *rproc)
 	struct q6v5_rproc_pdata *pdata = platform_get_drvdata(pdev);
 	int temp = 19;
 	unsigned long val = 0;
-	unsigned int nretry = 0;
 	int ret = 0;
 
 	atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_STARTING);

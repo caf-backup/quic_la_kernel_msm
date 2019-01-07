@@ -1466,7 +1466,7 @@ static int msm_hsl_console_setup(struct console *co, char *options)
 {
 	struct uart_port *port;
 	unsigned int vid;
-	int baud = 0, flow, bits, parity, mr2;
+	int baud = 0, flow, bits, parity;
 	int ret;
 
 	if (unlikely(co->index >= UART_NR || co->index < 0))

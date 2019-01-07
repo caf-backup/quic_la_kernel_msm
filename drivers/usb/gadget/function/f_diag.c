@@ -983,7 +983,6 @@ DECLARE_USB_FUNCTION(diag, diag_alloc_inst, diag_alloc);
 
 static int __init diag_init(void)
 {
-	struct device_node *np;
 	int ret;
 
 	INIT_LIST_HEAD(&diag_dev_list);

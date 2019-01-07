@@ -165,6 +165,12 @@ dtc_cpp_flags  = -Wp,-MD,$(depfile).pre.tmp -nostdinc                    \
 		 -I$(srctree)/drivers/of/testcase-data                   \
 		 -undef -D__DTS__
 
+#Add DDR profiling for different DDR size in dtsi
+ifeq ($(CONFIG_IPQ_MEM_PROFILE),256)
+dtc_cpp_flags += -D __IPQ_MEM_PROFILE_256_MB__
+else ifeq ($(CONFIG_IPQ_MEM_PROFILE),512)
+dtc_cpp_flags += -D __IPQ_MEM_PROFILE_512_MB__
+endif
 # Finds the multi-part object the current object will be linked into
 modname-multi = $(sort $(foreach m,$(multi-used),\
 		$(if $(filter $(subst $(obj)/,,$*.o), $($(m:.o=-objs)) $($(m:.o=-y))),$(m:.o=))))

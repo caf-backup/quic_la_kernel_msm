@@ -80,6 +80,37 @@ static void qcom_scm_clk_disable(void)
 	clk_disable_unprepare(__scm->bus_clk);
 }
 
+int qcom_scm_mem_prot_assign(struct sg_table *table, u32 *source_vm_copy,
+			    size_t source_vm_copy_size,
+			    struct dest_vm_and_perm_info *dest_vm_copy,
+			    size_t dest_vm_copy_size,
+			    struct mem_prot_info *sg_table_copy,
+			    size_t sg_table_copy_size,
+			    u32 *resp, size_t resp_size)
+{
+	int ret = 0;
+
+	ret = __qcom_scm_mem_prot_assign(__scm->dev, table, source_vm_copy,
+					source_vm_copy_size, dest_vm_copy,
+					dest_vm_copy_size, sg_table_copy,
+					sg_table_copy_size, resp, resp_size);
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_scm_mem_prot_assign);
+
+int qcom_scm_mem_protect_lock(struct cp2_lock_req *request, size_t req_size,
+			      u32 *resp, size_t resp_size)
+{
+	int ret = 0;
+
+	ret = __qcom_scm_mem_protect_lock(__scm->dev, request, req_size,
+					resp, resp_size);
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_scm_mem_protect_lock);
+
 int qcom_scm_qseecom_notify(struct qsee_notify_app *req, size_t req_size,
 			   struct qseecom_command_scm_resp *resp,
 			   size_t resp_size)
@@ -191,6 +222,16 @@ int qcom_config_sec_ice(void *buf, int size)
 	return __qcom_config_ice_sec(__scm->dev, buf, size);
 }
 EXPORT_SYMBOL(qcom_config_sec_ice);
+
+int qcom_scm_get_feat_version(u32 feat, u64 *version)
+{
+	int ret = 0;
+
+	ret = __qcom_scm_get_feat_version(__scm->dev, feat, version);
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_scm_get_feat_version);
 
 int qcom_qfprom_write_version(void *wrip, int size)
 {

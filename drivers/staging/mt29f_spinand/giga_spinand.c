@@ -311,6 +311,18 @@ int gigadevice_parse_id_v2(struct spi_device *spi_nand,
 	return 0;
 }
 
+int gigadevice_parse_id_v3(struct spi_device *spi_nand,
+			   struct spinand_ops *ops, u8 *nand_id, u8 *id)
+{
+	if (!(nand_id[2] == NAND_MFR_GIGA && nand_id[3] == ops->dev_id))
+		return -EINVAL;
+
+	id[0] = nand_id[2];
+	id[1] = nand_id[3];
+
+	return 0;
+}
+
 int macronix_parse_id(struct spi_device *spi_nand,
 		      struct spinand_ops *ops, u8 *nand_id, u8 *id)
 {

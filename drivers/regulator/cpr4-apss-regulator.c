@@ -36,6 +36,9 @@
 #include "cpr3-regulator.h"
 
 #define IPQ807x_APSS_FUSE_CORNERS	4
+#define IPQ817x_APPS_FUSE_CORNERS	2
+
+u32 g_valid_fuse_count = IPQ807x_APSS_FUSE_CORNERS;
 
 /**
  * struct cpr4_ipq807x_apss_fuses - APSS specific fuse data for IPQ807x
@@ -260,7 +263,7 @@ static int cpr4_ipq807x_apss_read_fuse_data(struct cpr3_regulator *vreg)
 		return -EINVAL;
 	}
 
-	for (i = 0; i < IPQ807x_APSS_FUSE_CORNERS; i++) {
+	for (i = 0; i < g_valid_fuse_count; i++) {
 		rc = cpr3_read_fuse_param(base,
 				ipq807x_apss_init_voltage_param[i],
 				&fuse->init_voltage[i]);
@@ -327,7 +330,7 @@ static int cpr4_ipq807x_apss_read_fuse_data(struct cpr3_regulator *vreg)
 
 	vreg->speed_bin_fuse	= fuse->speed_bin;
 	vreg->cpr_rev_fuse	= fuse->cpr_fusing_rev;
-	vreg->fuse_corner_count	= IPQ807x_APSS_FUSE_CORNERS;
+	vreg->fuse_corner_count	= g_valid_fuse_count;
 	vreg->platform_fuses	= fuse;
 
 	return 0;
@@ -669,7 +672,7 @@ static int cpr4_ipq807x_apss_calculate_target_quotients(
 
 	/* Log fused quotient values for debugging purposes. */
 	for (i = CPR4_IPQ807x_APSS_FUSE_CORNER_SVS;
-		i <= CPR4_IPQ807x_APSS_FUSE_CORNER_STURBO; i++)
+		i < vreg->fuse_corner_count; i++)
 		cpr3_info(vreg, "fused %8s: quot[%2llu]=%4llu, quot_offset[%2llu]=%4llu\n",
 			cpr4_ipq807x_apss_fuse_corner_name[i],
 			fuse->ro_sel[i], fuse->target_quot[i],
@@ -1337,10 +1340,36 @@ static int cpr4_apss_regulator_resume(struct platform_device *pdev)
 	return cpr3_regulator_resume(ctrl);
 }
 
+struct cpr4_apss_regulator_data {
+	u32 cpr_valid_fuse_count;
+};
+
+static const struct cpr4_apss_regulator_data ipq807x_cpr_apss = {
+	.cpr_valid_fuse_count = IPQ807x_APSS_FUSE_CORNERS
+};
+
+static const struct cpr4_apss_regulator_data ipq817x_cpr_apss = {
+	.cpr_valid_fuse_count = IPQ817x_APPS_FUSE_CORNERS
+};
+
+static struct of_device_id cpr4_regulator_match_table[] = {
+	{
+		.compatible = "qcom,cpr4-ipq807x-apss-regulator",
+		.data = &ipq807x_cpr_apss
+	},
+	{
+		.compatible = "qcom,cpr4-ipq817x-apss-regulator",
+		.data = &ipq817x_cpr_apss
+	},
+	{}
+};
+
 static int cpr4_apss_regulator_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct cpr3_controller *ctrl;
+	const struct of_device_id *match;
+	const struct cpr4_apss_regulator_data *cpr_data;
 	int i, rc;
 
 	if (!dev->of_node) {
@@ -1351,6 +1380,14 @@ static int cpr4_apss_regulator_probe(struct platform_device *pdev)
 	ctrl = devm_kzalloc(dev, sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
 		return -ENOMEM;
+
+	match = of_match_device(cpr4_regulator_match_table, &pdev->dev);
+	if (!match)
+		return -ENODEV;
+
+	cpr_data = match->data;
+	g_valid_fuse_count = cpr_data->cpr_valid_fuse_count;
+	dev_info(dev, "CPR valid fuse count: %d\n", g_valid_fuse_count);
 
 	ctrl->dev = dev;
 	/* Set to false later if anything precludes CPR operation. */
@@ -1424,11 +1461,6 @@ static int cpr4_apss_regulator_remove(struct platform_device *pdev)
 
 	return cpr3_regulator_unregister(ctrl);
 }
-
-static struct of_device_id cpr4_regulator_match_table[] = {
-	{ .compatible = "qcom,cpr4-ipq807x-apss-regulator", },
-	{}
-};
 
 static struct platform_driver cpr4_apss_regulator_driver = {
 	.driver		= {

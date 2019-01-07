@@ -1641,7 +1641,6 @@ struct sdhci_msm_pltfm_data *sdhci_msm_populate_pdata(struct device *dev,
 	int ice_clk_table_len;
 	u32 *ice_clk_table = NULL;
 	enum of_gpio_flags flags = OF_GPIO_ACTIVE_LOW;
-	const char *lower_bus_speed = NULL;
 	int sd_ldo, ret;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
@@ -2576,9 +2575,6 @@ static void sdhci_msm_set_clock(struct sdhci_host *host, unsigned int clock)
 	const struct sdhci_msm_offset *msm_host_offset =
 					msm_host->offset;
 	struct mmc_card *card = host->mmc->card;
-	u32 sup_clock, ddr_clock, dll_lock;
-	bool curr_pwrsave;
-	int rc;
 
 	if (curr_ios.timing == MMC_TIMING_MMC_HS400) {
 		/* Select the divided clock (free running MCLK/2) */
@@ -2916,9 +2912,6 @@ static inline void set_affine_irq(struct sdhci_msm_host *msm_host,
 
 static void sdhci_msm_init(struct sdhci_host *host)
 {
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct sdhci_msm_host *msm_host = pltfm_host->priv;
-
 	return;
 }
 
@@ -3751,7 +3744,6 @@ static int sdhci_msm_runtime_suspend(struct device *dev)
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_msm_host *msm_host = pltfm_host->priv;
-	ktime_t start = ktime_get();
 	int ret;
 
 	if (host->mmc->card && mmc_card_sdio(host->mmc->card))
@@ -3777,7 +3769,6 @@ static int sdhci_msm_runtime_resume(struct device *dev)
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_msm_host *msm_host = pltfm_host->priv;
-	ktime_t start = ktime_get();
 	int ret;
 
 	if (host->is_crypto_en) {
@@ -3811,7 +3802,6 @@ static int sdhci_msm_suspend(struct device *dev)
 	struct sdhci_msm_host *msm_host = pltfm_host->priv;
 	int ret = 0;
 	int sdio_cfg = 0;
-	ktime_t start = ktime_get();
 
 	if (gpio_is_valid(msm_host->pdata->status_gpio) &&
 		(msm_host->mmc->slot.cd_irq >= 0))
@@ -3841,7 +3831,6 @@ static int sdhci_msm_resume(struct device *dev)
 	struct sdhci_msm_host *msm_host = pltfm_host->priv;
 	int ret = 0;
 	int sdio_cfg = 0;
-	ktime_t start = ktime_get();
 
 	if (gpio_is_valid(msm_host->pdata->status_gpio) &&
 		(msm_host->mmc->slot.cd_irq >= 0))

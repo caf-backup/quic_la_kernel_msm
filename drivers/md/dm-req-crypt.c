@@ -100,7 +100,7 @@ static int req_crypt_map(struct dm_target *ti, struct request *clone,
 			 union map_info *map_context)
 {
 	struct req_dm_crypt_io *req_io = NULL;
-	int error = DM_REQ_CRYPT_ERROR, copy_bio_sector_to_req = 0;
+	int copy_bio_sector_to_req = 0;
 	struct bio *bio_src = NULL;
 	gfp_t gfp_flag = GFP_KERNEL;
 

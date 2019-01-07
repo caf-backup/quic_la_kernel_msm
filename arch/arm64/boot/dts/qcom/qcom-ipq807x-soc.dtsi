@@ -21,6 +21,7 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
 #include "qcom-ipq807x-mhi.dtsi"
+#include "qcom-ipq807x-memory.dtsi"
 
 / {
 	psci {
@@ -108,120 +109,14 @@
 					 IRQ_TYPE_LEVEL_HIGH)>;
 	};
 
-	memory {
-		device_type = "memory";
-		reg = <0x0 0x40000000 0x0 0x20000000>;
-	};
-
-	/*
-	 * +=========+==============+========================+
-	 * |        |              |                         |
-	 * | Region | Start Offset |          Size           |
-	 * |        |              |                         |
-	 * +--------+--------------+-------------------------+
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * |  NSS   |  0x40000000  |          16MB           |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * +--------+--------------+-------------------------+
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * | Linux  |  0x41000000  | Depends on total memory |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * +--------+--------------+-------------------------+
-	 * | TZ APP |  0x4A400000  |           2MB           |
-	 * +--------+--------------+-------------------------+
-	 * |        |              |                         |
-	 * | uboot  |  0x4A600000  |           4MB           |
-	 * |        |              |                         |
-	 * +--------+--------------+-------------------------+
-	 * |  SBL   |  0x4AA00000  |           1MB           |
-	 * +--------+--------------+-------------------------+
-	 * |  smem  |  0x4AB00000  |           1MB           |
-	 * +--------+--------------+-------------------------+
-	 * |        |              |                         |
-	 * |   TZ   |  0x4AC00000  |           4MB           |
-	 * |        |              |                         |
-	 * +--------+--------------+-------------------------+
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * |   Q6   |  0x4B000000  |          85MB           |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * +--------+--------------+-------------------------+
-	 * |                                                 |
-	 * |      Rest of the memory for Linux               |
-	 * |                                                 |
-	 * +=================================================+
-	 */
-
-	reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-
-		nss@40000000 {
-			no-map;
-			reg = <0x0 0x40000000 0x0 0x01000000>;
-		};
-
-		uboot@4a600000 {
-			no-map;
-			reg = <0x0 0x4a600000 0x0 0x00400000>;
-		};
-
-		sbl@4aa00000 {
-			no-map;
-			reg = <0x0 0x4aa00000 0x0 0x00100000>;
-		};
-
-		smem_region:smem@4ab00000 {
-			no-map;
-			reg = <0x0 0x4ab00000 0x0 0x00100000>;
-		};
-
-		tz@4ac00000 {	/* TZ */
-			no-map;
-			reg = <0x0 0x4ac00000 0x0 0x00400000>;
-		};
-
-		wcnss@4b000000 {
-			no-map;
-			reg = <0x0 0x4b000000 0x0 0x05500000>;
-		};
-
-		tzapp:tzapp@4a400000 {	/* TZAPPS */
-			no-map;
-			reg = <0x0 0x4a400000 0x0 0x00200000>;
-		};
-
-		wifi_dump@50500000 {
-			no-map;
-			reg = <0x0 0x50500000 0x0 0x600000>;
-		};
-
-		wigig_dump@50700000 {
-			no-map;
-			reg = <0x0 0x50700000 0x0 0x400000>;
-		};
-
-	};
-
 	firmware {
 		scm {
 			compatible = "qcom,scm-ipq807x";
 		};
 		qfprom {
 			compatible = "qcom,qfprom-sec";
-			img-addr = <0x4A600000>;
-			img-size = <0x00500000>;
+			img-addr = <0x4A400000>;
+			img-size = <0x00700000>;
 		};
 	};
 
@@ -859,6 +754,7 @@
 			mx-supply = <&ipq807x_s5_corner>;
 		};
 
+		#ifndef __IPQ_MEM_PROFILE_256_MB__
 		nss1: nss@40800000 {
 			compatible = "qcom,nss";
 			interrupts = <0 390 0x1>, <0 391 0x1>, <0 392 0x1>,
@@ -914,6 +810,7 @@
 			compatible = "qcom,nss-crypto";
 			qcom,max-contexts = <64>;
 			qcom,max-context-size = <32>;
+			status = "ok";
 			ranges;
 
 			eip197_node {
@@ -938,11 +835,13 @@
 				qcom,aes192-ecb;
 				qcom,aes256-ecb;
 				qcom,3des-cbc;
+				qcom,md5-hash;
 				qcom,sha160-hash;
 				qcom,sha224-hash;
 				qcom,sha384-hash;
 				qcom,sha512-hash;
 				qcom,sha256-hash;
+				qcom,md5-hmac;
 				qcom,sha160-hmac;
 				qcom,sha256-hmac;
 				qcom,sha384-hmac;
@@ -950,12 +849,19 @@
 				qcom,aes128-gcm-gmac;
 				qcom,aes192-gcm-gmac;
 				qcom,aes256-gcm-gmac;
+				qcom,aes128-cbc-md5-hmac;
 				qcom,aes128-cbc-sha160-hmac;
+				qcom,aes192-cbc-md5-hmac;
 				qcom,aes192-cbc-sha160-hmac;
+				qcom,aes256-cbc-md5-hmac;
 				qcom,aes256-cbc-sha160-hmac;
 				qcom,aes128-ctr-sha160-hmac;
 				qcom,aes192-ctr-sha160-hmac;
 				qcom,aes256-ctr-sha160-hmac;
+				qcom,aes128-ctr-md5-hmac;
+				qcom,aes192-ctr-md5-hmac;
+				qcom,aes256-ctr-md5-hmac;
+				qcom,3des-cbc-md5-hmac;
 				qcom,3des-cbc-sha160-hmac;
 				qcom,aes128-cbc-sha256-hmac;
 				qcom,aes192-cbc-sha256-hmac;
@@ -974,6 +880,7 @@
 				};
 			};
 		};
+		#endif
 
 		watchdog: watchdog@b017000 {
 			compatible = "qcom,kpss-wdt-ipq807x";
@@ -1014,7 +921,7 @@
 			interrupts = <0 168 1>;
 			label = "rpm";
 			qcom,subsys-id = <6>;
-			status = "ok";
+			status = "disabled";
 		};
 
 		rpm_bus: qcom,rpm-glink {
@@ -1744,7 +1651,13 @@
 			compatible = "qcom,cnss-qca8074";
 			reg = <0xc000000 0x2000000>;
 			qcom,hw-mode-id = <1>;
+		#ifdef __IPQ_MEM_PROFILE_256_MB__
+			qcom,tgt-mem-mode = <1>;
+		#elif __IPQ_MEM_PROFILE_512_MB__
+			qcom,tgt-mem-mode = <1>;
+		#else
 			qcom,tgt-mem-mode = <0>;
+		#endif
 			qcom,bdf-addr = <0x4BE00000 0x4BE00000>;
 			qcom,caldb-addr = <0x4BE40000 0x4BE40000>;
 			interrupts = <0 320 1>, /* o_wcss_apps_intr[0] =  */

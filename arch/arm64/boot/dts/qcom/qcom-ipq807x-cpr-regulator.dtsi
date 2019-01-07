@@ -15,7 +15,6 @@
  */
 
 #include "qcom-ipq807x-spmi-regulator.dtsi"
-#include "qcom-ipq807x-rpm-regulator.dtsi"
 
 &soc {
 	apc_apm: apm@b111000 {
@@ -124,7 +123,6 @@
 		reg-names = "fuse_base", "cpr_tcsr_reg";
 		qcom,cpr-ctrl-name = "npu";
 		vdd-supply = <&s4>;
-		system-supply = <&ipq807x_s5_corner>;
 		qcom,voltage-step = <8000>;
 		thread@0 {
 			qcom,cpr-thread-id = <0>;
@@ -146,7 +144,6 @@
 				qcom,cpr-speed-bin-corners = <2>;
 				qcom,allow-voltage-interpolation;
 				qcom,cpr-corner-fmax-map = <1 2>;
-				qcom,system-voltage = <5 7>;
 				qcom,cpr-voltage-ceiling =
 					<912000 992000>;
 				qcom,cpr-voltage-floor =

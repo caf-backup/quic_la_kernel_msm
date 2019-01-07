@@ -19,6 +19,7 @@
 #include <linux/qcom_scm.h>
 #include <linux/arm-smccc.h>
 #include <linux/dma-mapping.h>
+#include <asm/cacheflush.h>
 
 #include "qcom_scm.h"
 
@@ -209,6 +210,28 @@ int __qcom_scm_tls_hardening(struct device *dev,
 			    size_t buf_size, u32 cmd_id)
 {
 	return -ENOTSUPP;
+}
+
+int __qcom_scm_get_feat_version(struct device *dev, u32 feat, u64 *version)
+{
+	int ret;
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+
+	ret = __qcom_scm_is_call_available(dev, SCM_SVC_INFO,
+						GET_FEAT_VERSION_CMD);
+	if (ret <= 0)
+		return -EAGAIN;
+
+	desc.args[0] = feat;
+	desc.arginfo = SCM_ARGS(1);
+	ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, SCM_SVC_INFO,
+				GET_FEAT_VERSION_CMD, &desc, &res);
+
+	*version = (u64) res.a1;
+
+	return ret;
+
 }
 
 int __qcom_scm_is_call_available(struct device *dev, u32 svc_id, u32 cmd_id)
@@ -538,6 +561,103 @@ int __qcom_scm_sdi(struct device *dev, u32 svc_id, u32 cmd_id)
 			    SCM_CMD_TZ_CONFIG_HW_FOR_RAM_DUMP_ID, &desc, &res);
 
 	return ret ? : res.a1;
+}
+
+int __qcom_scm_mem_prot_assign(struct device *dev, struct sg_table *table,
+			      u32 *source_vm_copy,
+			      size_t source_vm_copy_size,
+			      struct dest_vm_and_perm_info *dest_vm_copy,
+			      size_t dest_vm_copy_size,
+			      struct mem_prot_info *sg_table_copy,
+			      size_t sg_table_copy_size,
+			      u32 *resp, size_t resp_size)
+{
+	int ret = 0;
+	int batch_start, batch_end;
+	u64 batch_size;
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+
+	desc.args[0] = virt_to_phys(sg_table_copy);
+	desc.args[1] = sg_table_copy_size;
+	desc.args[2] = virt_to_phys(source_vm_copy);
+	desc.args[3] = source_vm_copy_size;
+	desc.args[4] = virt_to_phys(dest_vm_copy);
+	desc.args[5] = dest_vm_copy_size;
+	desc.args[6] = 0;
+
+	desc.arginfo = SCM_ARGS(7, SCM_RO, SCM_VAL, SCM_RO, SCM_VAL,
+				SCM_RO, SCM_VAL, SCM_VAL);
+
+	dmac_flush_range(source_vm_copy,
+			 (void *)source_vm_copy + source_vm_copy_size);
+	dmac_flush_range(sg_table_copy,
+			 (void *)sg_table_copy + sg_table_copy_size);
+	dmac_flush_range(dest_vm_copy,
+			 (void *)dest_vm_copy + dest_vm_copy_size);
+
+	batch_start = 0;
+	while (batch_start < table->nents) {
+		/* Ensure no size zero batches */
+		batch_size = sg_table_copy[batch_start].size;
+		batch_end = batch_start + 1;
+		while (1) {
+			u64 size;
+
+			if (batch_end >= table->nents)
+				break;
+			if (batch_end - batch_start
+					>= BATCH_MAX_SECTIONS)
+				break;
+
+			size = sg_table_copy[batch_end].size;
+			if (size + batch_size >= BATCH_MAX_SIZE)
+				break;
+
+			batch_size += size;
+			batch_end++;
+		}
+
+		desc.args[0] =
+			virt_to_phys(&sg_table_copy[batch_start]);
+		desc.args[1] = (batch_end - batch_start) *
+				sizeof(sg_table_copy[0]);
+
+		ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, SCM_SVC_MP,
+					MEM_PROT_ASSIGN_ID, &desc, &res);
+		*resp = res.a1;
+
+		if (ret) {
+			pr_info("%s: Failed to assign memory protection, ret = %d\n",
+				__func__, ret);
+			break;
+		}
+		batch_start = batch_end;
+	}
+	return ret;
+}
+
+int __qcom_scm_mem_protect_lock(struct device *dev, struct cp2_lock_req *req,
+				size_t req_size, u32 *resp, size_t resp_size)
+{
+	int ret = 0;
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+
+	desc.args[0] = req->chunks.chunk_list;
+	desc.args[1] = req->chunks.chunk_list_size;
+	desc.args[2] = req->chunks.chunk_size;
+	desc.args[3] = req->mem_usage;
+	desc.args[4] = req->lock;
+	desc.args[5] = 0;
+	desc.arginfo = SCM_ARGS(6, SCM_RW, SCM_VAL, SCM_VAL, SCM_VAL,
+				SCM_VAL, SCM_VAL);
+
+	ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, SCM_SVC_MP,
+				MEM_PROTECT_LOCK_ID2_FLAT, &desc, &res);
+	*resp = res.a1;
+
+	return ret;
 }
 
 int __qcom_scm_qseecom_notify(struct device *dev,

@@ -18,7 +18,7 @@ obj-$(CONFIG_MSM_RPM_LOG)	+=	rpm_log.o
 obj-$(CONFIG_QCOM_RESTART_REASON) += restart_reason.o
 obj-$(CONFIG_MSM_IPC_ROUTER_MHI_XPRT) += ipc_router_mhi_xprt.o
 obj-$(CONFIG_QCOM_DCC) += dcc.o
-
+obj-$(CONFIG_MSM_SECURE_BUFFER) += secure_buffer.o
 obj-$(CONFIG_MSM_TEST_QMI_CLIENT) += qmi_test.o
 qmi_test-y += kernel_test_service_v01.o test_qmi_client.o
 
