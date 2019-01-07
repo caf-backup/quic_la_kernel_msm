@@ -199,22 +199,20 @@ static const struct parent_map gcc_xo_uniphy0_tx_rx_ubi32_bias_map[] = {
 	{ P_BIAS_PLL, 6 },
 };
 
-static const char * const gcc_xo_gpll4_gpll6_ubi32_gpll0_gpll0_div2[] = {
+static const char * const gcc_xo_gpll0_gpll6_ubi32_gpll0_div2[] = {
 	"xo",
-	"gpll4",
+	"gpll0",
 	"gpll6",
 	"ubi32_pll",
-	"gpll0",
 	"gpll0_out_main_div2",
 };
 
 static const struct parent_map
-gcc_xo_gpll4_gpll6_ubi32_gpll0_gpll0_div2_map[] = {
+gcc_xo_gpll0_gpll6_ubi32_gpll0_div2_map[] = {
 	{ P_XO, 0 },
-	{ P_GPLL4, 1 },
+	{ P_GPLL0, 1 },
 	{ P_GPLL6, 2 },
 	{ P_UBI32_PLL, 3 },
-	{ P_GPLL0, 5 },
 	{ P_GPLL0_DIV2, 6 },
 };
 
@@ -579,7 +577,7 @@ static struct clk_alpha_pll_postdiv gpll4 = {
 };
 
 static const struct freq_tbl ftbl_pcnoc_bfdcd_clk_src[] = {
-	F(19200000, P_XO, 1, 0, 0),
+	F(24000000, P_XO, 1, 0, 0),
 	F(50000000, P_GPLL0, 16, 0, 0),
 	F(100000000, P_GPLL0, 8, 0, 0),
 	{ }
@@ -681,7 +679,6 @@ static struct clk_alpha_pll_postdiv nss_crypto_pll = {
 static const struct freq_tbl ftbl_qdss_tsctr_clk_src[] = {
 	F(160000000, P_GPLL0_DIV2, 2.5, 0, 0),
 	F(320000000, P_GPLL0, 2.5, 0, 0),
-	F(600000000, P_GPLL6, 2, 0, 0),
 	{ }
 };
 
@@ -731,7 +728,7 @@ static struct clk_rcg2 qdss_at_clk_src = {
 };
 
 static const struct freq_tbl ftbl_nss_ppe_clk_src[] = {
-	F(19200000, P_XO, 1, 0, 0),
+	F(24000000, P_XO, 1, 0, 0),
 	F(300000000, P_BIAS_PLL, 1, 0, 0),
 	{ }
 };
@@ -767,7 +764,7 @@ static struct clk_branch gcc_xo_clk_src = {
 };
 
 static const struct freq_tbl ftbl_nss_ce_clk_src[] = {
-	F(19200000, P_XO, 1, 0, 0),
+	F(24000000, P_XO, 1, 0, 0),
 	F(200000000, P_GPLL0, 4, 0, 0),
 	{ }
 };
@@ -850,7 +847,7 @@ static struct clk_branch gcc_sleep_clk_src = {
 };
 
 static const struct freq_tbl ftbl_apss_ahb_clk_src[] = {
-	F(19200000, P_XO, 1, 0, 0),
+	F(24000000, P_XO, 1, 0, 0),
 	F(25000000, P_GPLL0_DIV2, 16, 0, 0),
 	F(50000000, P_GPLL0, 16, 0, 0),
 	F(100000000, P_GPLL0, 8, 0, 0),
@@ -871,7 +868,7 @@ static struct clk_rcg2 apss_ahb_clk_src = {
 };
 
 static const struct freq_tbl ftbl_nss_port5_rx_clk_src[] = {
-	F(19200000, P_XO, 1, 0, 0),
+	F(24000000, P_XO, 1, 0, 0),
 	F(25000000, P_UNIPHY1_RX, 12.5, 0, 0),
 	F(25000000, P_UNIPHY0_RX, 5, 0, 0),
 	F(78125000, P_UNIPHY1_RX, 4, 0, 0),
@@ -896,7 +893,7 @@ static struct clk_rcg2 nss_port5_rx_clk_src = {
 };
 
 static const struct freq_tbl ftbl_nss_port5_tx_clk_src[] = {
-	F(19200000, P_XO, 1, 0, 0),
+	F(24000000, P_XO, 1, 0, 0),
 	F(25000000, P_UNIPHY1_TX, 12.5, 0, 0),
 	F(25000000, P_UNIPHY0_TX, 5, 0, 0),
 	F(78125000, P_UNIPHY1_TX, 4, 0, 0),
@@ -921,27 +918,27 @@ static struct clk_rcg2 nss_port5_tx_clk_src = {
 };
 
 static const struct freq_tbl ftbl_pcie_axi_clk_src[] = {
-	F(19200000, P_XO, 1, 0, 0),
+	F(24000000, P_XO, 1, 0, 0),
 	F(200000000, P_GPLL0, 4, 0, 0),
+	F(240000000, P_GPLL4, 5, 0, 0),
 	{ }
 };
 
 static const struct freq_tbl ftbl_pcie_rchng_clk_src[] = {
-	F(19200000, P_XO, 1, 0, 0),
+	F(24000000, P_XO, 1, 0, 0),
 	F(100000000, P_GPLL0, 8, 0, 0),
 	{ }
 };
-
 
 static struct clk_rcg2 pcie0_axi_clk_src = {
 	.cmd_rcgr = 0x75050,
 	.freq_tbl = ftbl_pcie_axi_clk_src,
 	.hid_width = 5,
-	.parent_map = gcc_xo_gpll0_map,
+	.parent_map = gcc_xo_gpll0_gpll4_map,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "pcie0_axi_clk_src",
-		.parent_names = gcc_xo_gpll0,
-		.num_parents = 2,
+		.parent_names = gcc_xo_gpll0_gpll4,
+		.num_parents = 3,
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -998,7 +995,7 @@ static struct clk_fixed_factor gcc_xo_div4_clk_src = {
 };
 
 static const struct freq_tbl ftbl_nss_port1_rx_clk_src[] = {
-	F(19200000, P_XO, 1, 0, 0),
+	F(24000000, P_XO, 1, 0, 0),
 	F(25000000, P_UNIPHY0_RX, 5, 0, 0),
 	F(125000000, P_UNIPHY0_RX, 1, 0, 0),
 	{ }
@@ -1018,7 +1015,7 @@ static struct clk_rcg2 nss_port1_rx_clk_src = {
 };
 
 static const struct freq_tbl ftbl_nss_port1_tx_clk_src[] = {
-	F(19200000, P_XO, 1, 0, 0),
+	F(24000000, P_XO, 1, 0, 0),
 	F(25000000, P_UNIPHY0_TX, 5, 0, 0),
 	F(125000000, P_UNIPHY0_TX, 1, 0, 0),
 	{ }
@@ -1150,12 +1147,12 @@ static struct clk_regmap_div nss_port5_tx_div_clk_src = {
 };
 
 static const struct freq_tbl ftbl_apss_axi_clk_src[] = {
-	F(19200000, P_XO, 1, 0, 0),
+	F(24000000, P_XO, 1, 0, 0),
 	F(100000000, P_GPLL0_DIV2, 4, 0, 0),
 	F(200000000, P_GPLL0, 4, 0, 0),
 	F(308570000, P_GPLL6, 3.5, 0, 0),
 	F(400000000, P_GPLL0, 2, 0, 0),
-	F(600000000, P_GPLL4, 2, 0, 0),
+	F(533000000, P_GPLL0, 1.5, 0, 0),
 	{ }
 };
 
@@ -1163,18 +1160,18 @@ static struct clk_rcg2 apss_axi_clk_src = {
 	.cmd_rcgr = 0x38048,
 	.freq_tbl = ftbl_apss_axi_clk_src,
 	.hid_width = 5,
-	.parent_map = gcc_xo_gpll4_gpll6_ubi32_gpll0_gpll0_div2_map,
+	.parent_map = gcc_xo_gpll0_gpll6_ubi32_gpll0_div2_map,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "apss_axi_clk_src",
-		.parent_names = gcc_xo_gpll4_gpll6_ubi32_gpll0_gpll0_div2,
-		.num_parents = 6,
+		.parent_names = gcc_xo_gpll0_gpll6_ubi32_gpll0_div2,
+		.num_parents = 5,
 		.ops = &clk_rcg2_ops,
 	},
 };
 
 static const struct freq_tbl ftbl_nss_crypto_clk_src[] = {
-	F(19200000, P_XO, 1, 0, 0),
-	F(600000000, P_NSS_CRYPTO_PLL, 1, 0, 0),
+	F(24000000, P_XO, 1, 0, 0),
+	F(300000000, P_NSS_CRYPTO_PLL, 2, 0, 0),
 	{ }
 };
 
@@ -1329,16 +1326,14 @@ static struct clk_regmap_div nss_port4_tx_div_clk_src = {
 };
 
 static const struct freq_tbl ftbl_nss_ubi_clk_src[] = {
-	F(19200000, P_XO, 1, 0, 0),
-	F(187200000, P_UBI32_PLL, 8, 0, 0),
-	F(748800000, P_UBI32_PLL, 2, 0, 0),
-	F(1497600000, P_UBI32_PLL, 1, 0, 0),
-	F(1689600000, P_UBI32_PLL, 1, 0, 0),
+	F(24000000, P_XO, 1, 0, 0),
+	F(750000000, P_UBI32_PLL, 2, 0, 0),
+	F(1500000000, P_UBI32_PLL, 1, 0, 0),
 	{ }
 };
 
 static struct clk_rcg2 nss_ubi0_clk_src = {
-	.cmd_rcgr = 0x68100,
+	.cmd_rcgr = 0x68104,
 	.freq_tbl = ftbl_nss_ubi_clk_src,
 	.hid_width = 5,
 	.parent_map = gcc_xo_ubi32_gpll0_gpll2_gpll4_gpll6_map,
@@ -1352,8 +1347,8 @@ static struct clk_rcg2 nss_ubi0_clk_src = {
 };
 
 static const struct freq_tbl ftbl_adss_pwm_clk_src[] = {
-	F(19200000, P_XO, 1, 0, 0),
-	F(200000000, P_GPLL0, 4, 0, 0),
+	F(24000000, P_XO, 1, 0, 0),
+	F(100000000, P_GPLL0, 8, 0, 0),
 	{ }
 };
 
@@ -1371,7 +1366,7 @@ static struct clk_rcg2 adss_pwm_clk_src = {
 };
 
 static const struct freq_tbl ftbl_blsp1_qup_i2c_apps_clk_src[] = {
-	F(19200000, P_XO, 1, 0, 0),
+	F(24000000, P_XO, 1, 0, 0),
 	F(25000000, P_GPLL0_DIV2, 16, 0, 0),
 	F(50000000, P_GPLL0, 16, 0, 0),
 	{ }
@@ -1391,12 +1386,12 @@ static struct clk_rcg2 blsp1_qup1_i2c_apps_clk_src = {
 };
 
 static const struct freq_tbl ftbl_blsp1_qup_spi_apps_clk_src[] = {
-	F(960000, P_XO, 10, 1, 2),
-	F(4800000, P_XO, 4, 0, 0),
-	F(9600000, P_XO, 2, 0, 0),
+	F(960000, P_XO, 10, 2, 5),
+	F(4800000, P_XO, 5, 0, 0),
+	F(9600000, P_XO, 2, 4, 5),
 	F(12500000, P_GPLL0_DIV2, 16, 1, 2),
 	F(16000000, P_GPLL0, 10, 1, 5),
-	F(19200000, P_XO, 1, 0, 0),
+	F(24000000, P_XO, 1, 0, 0),
 	F(25000000, P_GPLL0, 16, 1, 2),
 	F(50000000, P_GPLL0, 16, 0, 0),
 	{ }
@@ -1556,7 +1551,7 @@ static const struct freq_tbl ftbl_blsp1_uart_apps_clk_src[] = {
 	F(7372800, P_GPLL0_DIV2, 1, 288, 15625),
 	F(14745600, P_GPLL0_DIV2, 1, 576, 15625),
 	F(16000000, P_GPLL0_DIV2, 5, 1, 5),
-	F(19200000, P_XO, 1, 0, 0),
+	F(24000000, P_XO, 1, 0, 0),
 	F(24000000, P_GPLL0, 1, 3, 100),
 	F(25000000, P_GPLL0, 16, 1, 2),
 	F(32000000, P_GPLL0, 1, 1, 25),
@@ -1677,7 +1672,11 @@ static struct clk_rcg2 crypto_clk_src = {
 };
 
 static const struct freq_tbl ftbl_gp_clk_src[] = {
-	F(19200000, P_XO, 1, 0, 0),
+	F(24000000, P_XO, 1, 0, 0),
+	F(50000000, P_GPLL0_DIV2, 8, 0, 0),
+	F(100000000, P_GPLL0, 8, 0, 0),
+	F(200000000, P_GPLL0, 4, 0, 0),
+	F(266666666, P_GPLL0, 3, 0, 0),
 	{ }
 };
 
@@ -1755,7 +1754,7 @@ static struct clk_regmap_div nss_ubi0_div_clk_src = {
 };
 
 static const struct freq_tbl ftbl_pcie_aux_clk_src[] = {
-	F(19200000, P_XO, 1, 0, 0),
+	F(24000000, P_XO, 1, 0, 0),
 };
 
 static struct clk_rcg2 pcie0_aux_clk_src = {
@@ -1789,8 +1788,8 @@ static struct clk_regmap_mux pcie0_pipe_clk_src = {
 };
 
 static const struct freq_tbl ftbl_sdcc_apps_clk_src[] = {
-	F(144000, P_XO, 16, 3, 25),
-	F(400000, P_XO, 12, 1, 4),
+	F(144000, P_XO, 16, 12, 125),
+	F(400000, P_XO, 12, 1, 5),
 	F(24000000, P_GPLL2, 12, 1, 4),
 	F(48000000, P_GPLL2, 12, 1, 2),
 	F(96000000, P_GPLL2, 12, 0, 0),
@@ -1815,7 +1814,7 @@ static struct clk_rcg2 sdcc1_apps_clk_src = {
 };
 
 static const struct freq_tbl ftbl_usb_aux_clk_src[] = {
-	F(19200000, P_XO, 1, 0, 0),
+	F(24000000, P_XO, 1, 0, 0),
 	{ }
 };
 
@@ -1834,8 +1833,7 @@ static struct clk_rcg2 usb0_aux_clk_src = {
 };
 
 static const struct freq_tbl ftbl_usb_mock_utmi_clk_src[] = {
-	F(19200000, P_XO, 1, 0, 0),
-	F(20000000, P_GPLL6, 6, 1, 9),
+	F(24000000, P_XO, 1, 0, 0),
 	F(60000000, P_GPLL6, 6, 1, 3),
 	{ }
 };
@@ -1871,8 +1869,9 @@ static struct clk_regmap_mux usb0_pipe_clk_src = {
 };
 
 static const struct freq_tbl ftbl_sdcc_ice_core_clk_src[] = {
-	F(19200000, P_XO, 1, 0, 0),
+	F(80000000, P_GPLL0_DIV2, 5, 0, 0),
 	F(160000000, P_GPLL0, 5, 0, 0),
+	F(216000000, P_GPLL6, 5, 0, 0),
 	F(308570000, P_GPLL6, 3.5, 0, 0),
 };
 
@@ -1940,7 +1939,7 @@ static struct clk_branch gcc_apss_ahb_clk = {
 };
 
 static const struct freq_tbl ftbl_system_noc_bfdcd_clk_src[] = {
-	F(19200000, P_XO, 1, 0, 0),
+	F(24000000, P_XO, 1, 0, 0),
 	F(50000000, P_GPLL0_DIV2, 8, 0, 0),
 	F(100000000, P_GPLL0, 8, 0, 0),
 	F(133333333, P_GPLL0, 6, 0, 0),
@@ -3691,9 +3690,9 @@ static struct clk_branch gcc_usb0_master_clk = {
 };
 
 static struct clk_branch gcc_snoc_bus_timeout2_ahb_clk = {
-	.halt_reg = 0x4700c,
+	.halt_reg = 0x47014,
 	.clkr = {
-		.enable_reg = 0x4700c,
+		.enable_reg = 0x47014,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_snoc_bus_timeout2_ahb_clk",
