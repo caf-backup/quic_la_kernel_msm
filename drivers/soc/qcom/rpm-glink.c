@@ -361,8 +361,6 @@ struct msm_rpm_ack_msg {
 
 LIST_HEAD(msm_rpm_ack_list);
 
-static struct tasklet_struct data_tasklet;
-
 static inline uint32_t msm_rpm_get_msg_id_from_ack(uint8_t *buf)
 {
 	return ((struct msm_rpm_ack_msg *)buf)->id_ack;

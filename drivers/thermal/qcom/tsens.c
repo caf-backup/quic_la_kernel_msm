@@ -21,7 +21,7 @@
 #include <linux/thermal.h>
 #include "tsens.h"
 
-static void tsens_panic_notify(void *data)
+static int tsens_panic_notify(void *data)
 {
 	const struct tsens_sensor *s = data;
 	struct tsens_device *tmdev = s->tmdev;
@@ -29,7 +29,7 @@ static void tsens_panic_notify(void *data)
 	if (tmdev->ops->panic_notify)
 		tmdev->ops->panic_notify(tmdev, s->id);
 
-	return;
+	return 0;
 }
 
 static int tsens_get_temp(void *data, int *temp)
@@ -51,9 +51,9 @@ static int tsens_get_trend(void *p, int trip, enum thermal_trend *trend)
 	return -ENOTSUPP;
 }
 
-static int  __maybe_unused tsens_suspend(void *data)
+static int  __maybe_unused tsens_suspend(struct device *data)
 {
-	struct tsens_sensor *s = data;
+	struct tsens_sensor *s = (struct tsens_sensor *)data;
 	struct tsens_device *tmdev = s->tmdev;
 
 	if (tmdev->ops && tmdev->ops->suspend)
@@ -62,9 +62,9 @@ static int  __maybe_unused tsens_suspend(void *data)
 	return 0;
 }
 
-static int __maybe_unused tsens_resume(void *data)
+static int __maybe_unused tsens_resume(struct device *data)
 {
-	struct tsens_sensor *s = data;
+	struct tsens_sensor *s = (struct tsens_sensor *)data;
 	struct tsens_device *tmdev = s->tmdev;
 
 	if (tmdev->ops && tmdev->ops->resume)
