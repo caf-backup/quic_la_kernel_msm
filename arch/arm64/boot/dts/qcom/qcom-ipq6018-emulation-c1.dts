@@ -66,6 +66,15 @@
 			status = "ok";
 		};
 
+		qpic_lcd: qcom_mdss_qpic@7980000 {
+			status = "ok";
+		};
+
+		qpic_lcd_panel: qcom_mdss_qpic_panel {
+			qcom,bam_timeout = <20000>;
+			status = "ok";
+		};
+
 		i2c_0: i2c@78b6000 {
 			status = "ok";
 		};
