@@ -9,6 +9,7 @@ Required properties:
 		= "qcom,cnss-qca8074v2"; for IPQ8074 v2 device
 		= "qcom,cnss-qca6018"; for IPQ6018 device
 		= "qcom,cnss-qca6290"; for QCA6290 device
+		= "qcom,ipq8074-wifi"; for Ath11k IPQ8074 device
   - reg = <baseaddr length>
   - interrupts = <list of msi and legacy interrupts>
   - interrupt-names = <list of interrupt's string name defined in the interrupts field. Please
