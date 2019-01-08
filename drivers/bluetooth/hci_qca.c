@@ -1247,9 +1247,10 @@ static int qca_setup(struct hci_uart *hu)
 	} else
 		qca_power_shutdown(hu);
 	/* Setup bdaddr */
-	if (qcadev->btsoc_type == QCA_WCN3990)
+	if (qcadev->btsoc_type == QCA_WCN3990) {
+		set_bit(HCI_QUIRK_USE_BDADDR_PROPERTY, &hdev->quirks);
 		hu->hdev->set_bdaddr = qca_set_device_bdaddr;
-	else
+	} else
 		hu->hdev->set_bdaddr = qca_set_bdaddr_rome;
 
 	return ret;
