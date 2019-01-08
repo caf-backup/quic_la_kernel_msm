@@ -302,6 +302,7 @@ static struct clk_regmap *gcc_ipq6018_clks[] = {
 	[GCC_SYS_NOC_PCIE0_AXI_CLK] = DEFINE_DUMMY_CLK(gcc_sys_noc_pcie0_axi_clk),
 	[GCC_MEM_NOC_UBI32_CLK] = DEFINE_DUMMY_CLK(gcc_mem_noc_ubi32_clk),
 	[GCC_SNOC_NSSNOC_CLK] = DEFINE_DUMMY_CLK(gcc_snoc_nssnoc_clk),
+	[PCIE0_RCHNG_CLK] = DEFINE_DUMMY_CLK(gcc_pcie0_rchng_clk),
 };
 
 static const struct qcom_reset_map gcc_ipq6018_resets[] = {
