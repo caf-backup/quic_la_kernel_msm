@@ -27,6 +27,8 @@
 #include <linux/utsname.h>
 #include <linux/sizes.h>
 
+#define TCSR_WONCE_REG 0x193d010
+
 static int in_panic;
 
 enum wdt_reg {
@@ -217,6 +219,17 @@ static long qcom_wdt_configure_bark_dump(void *arg)
 	}
 
 	return 0;
+}
+
+static int qcom_fiq_extwdt(unsigned int regaddr, unsigned int value)
+{
+	int ret;
+
+	ret = qcom_scm_extwdt(SCM_SVC_EXTWDT, SCM_CMD_EXTWDT, regaddr, value);
+	if (ret)
+		pr_err("Setting value to TCSR_WONCE register failed\n");
+
+	return ret;
 }
 
 static int qcom_wdt_start_secure(struct watchdog_device *wdd)
@@ -497,6 +510,7 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	u32 percpu_offset;
 	int ret, irq;
 	uint32_t val;
+	unsigned int retn, extwdt_val = 0, regaddr;
 
 	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
@@ -601,6 +615,16 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to setup restart handler\n");
 
 	platform_set_drvdata(pdev, wdt);
+
+	if (!of_property_read_u32(np, "extwdt-val", &val)) {
+		extwdt_val = val;
+
+		regaddr = TCSR_WONCE_REG;
+		retn = qcom_fiq_extwdt(regaddr, extwdt_val);
+		if (retn)
+			dev_err(&pdev->dev, "FIQ scm_call failed\n");
+	}
+
 	return 0;
 
 err_clk_unprepare:

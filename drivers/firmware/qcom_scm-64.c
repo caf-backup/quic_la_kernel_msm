@@ -521,6 +521,22 @@ int __qcom_scm_regsave(struct device *dev, u32 svc_id, u32 cmd_id,
 	return ret ? : res.a1;
 }
 
+int __qcom_scm_extwdt(struct device *dev, u32 svc_id, u32 cmd_id,
+			unsigned int regaddr, unsigned int val)
+{
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+	int ret;
+
+	desc.args[0] = (u64)regaddr;
+	desc.args[1] = val;
+	desc.arginfo = SCM_ARGS(2, SCM_RW, SCM_VAL);
+	ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, SCM_SVC_IO_ACCESS,
+			    QCOM_SCM_EXTWDT_CMD, &desc, &res);
+
+	return ret ? : res.a1;
+}
+
 int __qcom_scm_tcsr(struct device *dev, u32 svc_id, u32 cmd_id,
 			struct qcom_scm_tcsr_req *tcsr_cmd)
 {

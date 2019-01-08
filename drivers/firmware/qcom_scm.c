@@ -344,6 +344,14 @@ int qcom_scm_regsave(u32 svc_id, u32 cmd_id, void *scm_regsave,
 }
 EXPORT_SYMBOL(qcom_scm_regsave);
 
+int qcom_scm_extwdt(u32 svc_id, u32 cmd_id, unsigned int regaddr,
+						unsigned int val)
+{
+	return __qcom_scm_extwdt(__scm->dev, svc_id, cmd_id,
+						regaddr, val);
+}
+EXPORT_SYMBOL(qcom_scm_extwdt);
+
 int qcom_sec_upgrade_auth(unsigned int sw_type, unsigned int img_size,
 				 unsigned int load_addr)
 {

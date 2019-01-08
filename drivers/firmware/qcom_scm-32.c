@@ -1170,6 +1170,37 @@ int __qcom_scm_regsave(struct device *dev, u32 svc_id, u32 cmd_id,
 	return ret;
 }
 
+int __qcom_scm_extwdt(struct device *dev, u32 svc_id, u32 cmd_id,
+			unsigned int regaddr, unsigned int val)
+{
+	long ret;
+	struct {
+		unsigned addr;
+		int value;
+	} cmd_buf;
+
+	if (is_scm_armv8()) {
+		__le32 scm_ret;
+		struct scm_desc desc = {0};
+
+		desc.args[0] = (u64)regaddr;
+		desc.args[1] = val;
+		desc.arginfo = SCM_ARGS(2, SCM_RW, SCM_VAL);
+		ret = qcom_scm_call2(SCM_SIP_FNID(SCM_SVC_IO_ACCESS,
+					QCOM_SCM_EXTWDT_CMD), &desc);
+		scm_ret = desc.ret[0];
+		if (!ret)
+			return le32_to_cpu(scm_ret);
+	} else {
+		cmd_buf.addr = regaddr;
+		cmd_buf.value = val;
+		ret = qcom_scm_call(dev, svc_id, cmd_id, &cmd_buf,
+				sizeof(cmd_buf), NULL, 0);
+	}
+
+	return ret;
+}
+
 void __qcom_scm_init(void)
 {
 }
