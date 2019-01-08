@@ -851,15 +851,6 @@
 	};
 };
 
-&npu_cpr {
-	status = "disabled";
-};
-
-&nss0 {
-	npu-supply = <&dummy_reg>;
-	mx-supply = <&dummy_reg>;
-};
-
 &apc_cpr {
 	compatible = "qcom,cpr4-ipq817x-apss-regulator";
 
@@ -910,6 +901,30 @@
 				< 40000 40000 40000>,
 				< 40000 40000 40000>,
 				< 40000 40000 40000>;
+		};
+	};
+};
+
+&npu_cpr {
+	compatible = "cpr3-ipq817x-npu-regulator";
+
+	thread@0 {
+		npu_vreg: regulator {
+			regulator-min-microvolt = <1>;
+			regulator-max-microvolt = <2>;
+			qcom,cpr-fuse-corners = <1>;
+			qcom,cpr-fuse-combos = <1>;
+			qcom,cpr-corners = <1>;
+			qcom,cpr-speed-bins = <1>;
+			qcom,cpr-speed-bin-corners = <1>;
+			qcom,cpr-corner-fmax-map = <1>;
+			qcom,cpr-voltage-ceiling = <912000>;
+			qcom,cpr-voltage-floor = <752000>;
+			qcom,corner-frequencies = <1497600000>;
+			qcom,cpr-open-loop-voltage-fuse-adjustment-0 =
+				<40000>;
+			qcom,cpr-open-loop-voltage-fuse-adjustment-1 =
+				<24000>;
 		};
 	};
 };
