@@ -1365,9 +1365,9 @@ static int dcc_probe(struct platform_device *pdev)
 	drvdata->dcc_jiffies_64 = jiffies_64;
 	dev_info(dev, "jiffies_64: 0x%llx, cntvct_64: 0x%llx\n",
 		 drvdata->dcc_jiffies_64, drvdata->dcc_cntvct_64);
-	dev_info(dev, "gcnt_hi: 0x%08x(0x%08x)",
+	dev_info(dev, "gcnt_hi: 0x%08x(0x%p)",
 		 readl(drvdata->gcnt_base + 4), drvdata->gcnt_base + 4);
-	dev_info(dev, "gcnt_lo: 0x%08x(0x%08x)\n",
+	dev_info(dev, "gcnt_lo: 0x%08x(0x%p)\n",
 		 readl(drvdata->gcnt_base), drvdata->gcnt_base);
 
 	/* Add a dcc_magic as the first config entry */

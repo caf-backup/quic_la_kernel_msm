@@ -100,9 +100,6 @@ static struct rproc_ops m3_rproc_ops = {
 
 static int m3_load(struct rproc *rproc, const struct firmware *fw)
 {
-	struct device *dev_rproc = rproc->dev.parent;
-	struct platform_device *pdev = to_platform_device(dev_rproc);
-
 	pr_info("Sanity check passed for M3 image\n");
 
 	return mdt_load(rproc, fw);

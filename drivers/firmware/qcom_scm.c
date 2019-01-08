@@ -527,7 +527,7 @@ static int qcom_scm_pas_reset_deassert(struct reset_controller_dev *rcdev,
 	return __qcom_scm_pas_mss_reset(__scm->dev, 0);
 }
 
-static const struct reset_control_ops qcom_scm_pas_reset_ops = {
+static struct reset_control_ops qcom_scm_pas_reset_ops = {
 	.assert = qcom_scm_pas_reset_assert,
 	.deassert = qcom_scm_pas_reset_deassert,
 };
