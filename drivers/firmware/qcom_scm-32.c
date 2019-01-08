@@ -505,7 +505,7 @@ int __qcom_scm_get_feat_version(struct device *dev, u32 feat, u64 *version)
 	ret = qcom_scm_call2(SCM_SIP_FNID(SCM_SVC_INFO,
 					GET_FEAT_VERSION_CMD), &desc);
 
-	version = desc.ret[0];
+	*version = desc.ret[0];
 
 	return ret;
 }
