@@ -1380,7 +1380,7 @@ static bool arm_smmu_capable(enum iommu_cap cap)
 
 static int arm_smmu_match_node(struct device *dev, void *data)
 {
-	return dev->fwnode == data;
+	return &(dev->of_node->fwnode) == data;
 }
 
 static
@@ -2030,8 +2030,6 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, smmu);
 	arm_smmu_device_reset(smmu);
 	of_iommu_set_ops(dev->of_node, &arm_smmu_ops);
-
-	return 0;
 
 	/* Oh, for a proper bus abstraction */
 	if (!iommu_present(&platform_bus_type))
