@@ -8,6 +8,7 @@
 #include <linux/dma-debug.h>
 #include <linux/kmemcheck.h>
 #include <linux/kref.h>
+#include <linux/dma-mapping-fast.h>
 
 struct dma_iommu_mapping {
 	/* iommu specific data */
@@ -19,13 +20,16 @@ struct dma_iommu_mapping {
 	size_t			bitmap_size;	/* size of a single bitmap */
 	size_t			bits;		/* per bitmap */
 	dma_addr_t		base;
+	u64			size;
 
 	spinlock_t		lock;
 	struct kref		kref;
+
+	struct dma_fast_smmu_mapping *fast;
 };
 
-struct dma_iommu_mapping *
-arm_iommu_create_mapping(struct bus_type *bus, dma_addr_t base, u64 size);
+struct dma_iommu_mapping *arm_iommu_create_mapping(struct device *dev,
+			struct bus_type *bus, dma_addr_t base, u64 size);
 
 void arm_iommu_release_mapping(struct dma_iommu_mapping *mapping);
 

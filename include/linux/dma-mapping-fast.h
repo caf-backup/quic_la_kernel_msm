@@ -13,6 +13,8 @@
 #ifndef __LINUX_DMA_MAPPING_FAST_H
 #define __LINUX_DMA_MAPPING_FAST_H
 
+#define CONFIG_IOMMU_IO_PGTABLE_FAST
+
 #include <linux/iommu.h>
 #include <linux/io-pgtable-fast.h>
 
@@ -43,6 +45,7 @@ int fast_smmu_attach_device(struct device *dev,
 			    struct dma_iommu_mapping *mapping);
 void fast_smmu_detach_device(struct device *dev,
 			     struct dma_iommu_mapping *mapping);
+extern const struct dma_map_ops fast_smmu_dma_ops;
 #else
 static inline int fast_smmu_attach_device(struct device *dev,
 					  struct dma_iommu_mapping *mapping)

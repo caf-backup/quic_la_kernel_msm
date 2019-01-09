@@ -17,6 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/dma-mapping-fast.h>
 #include <linux/gfp.h>
 #include <linux/acpi.h>
 #include <linux/export.h>
@@ -804,16 +805,31 @@ struct iommu_dma_notifier_data {
 static LIST_HEAD(iommu_dma_masters);
 static DEFINE_MUTEX(iommu_dma_notifier_lock);
 
+/* fast mapping is always true for now */
+static bool fast = true;
+
 /*
  * Temporarily "borrow" a domain feature flag to to tell if we had to resort
  * to creating our own domain here, in case we need to clean it up again.
  */
 #define __IOMMU_DOMAIN_FAKE_DEFAULT		(1U << 31)
 
+static void release_iommu_mapping(struct kref *kref)
+{
+	struct dma_iommu_mapping *mapping =
+		container_of(kref, struct dma_iommu_mapping, kref);
+
+	kfree(mapping);
+}
+
 static bool do_iommu_attach(struct device *dev, const struct iommu_ops *ops,
 			   u64 dma_base, u64 size)
 {
 	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
+	struct dma_iommu_mapping *mapping;
+	unsigned int bits = size >> PAGE_SHIFT;
+	unsigned int bitmap_size = BITS_TO_LONGS(bits) * sizeof(long);
+	int ret = 0;
 
 	/*
 	 * Best case: The device is either part of a group which was
@@ -840,11 +856,37 @@ static bool do_iommu_attach(struct device *dev, const struct iommu_ops *ops,
 			goto out_put_domain;
 	}
 
-	if (iommu_dma_init_domain(domain, dma_base, size))
-		goto out_detach;
+	if (fast && !domain->handler_token) {
+		/* Detach the one to arm-smmu and attach to fast-smmu */
+		iommu_detach_device(domain, dev);
+		mapping = kzalloc(sizeof(struct dma_iommu_mapping), GFP_KERNEL);
+		kref_init(&mapping->kref);
+		mapping->base = dma_base;
+		mapping->bits = BITS_PER_BYTE * bitmap_size;
+		mapping->domain = domain;
 
-	dev->archdata.dma_ops = &iommu_dma_ops;
-	return true;
+		ret = fast_smmu_attach_device(dev, mapping);
+		if (ret)
+			goto out_put_domain;
+		if (iommu_dma_init_domain(domain, dma_base, size))
+			goto out_detach;
+
+		dev->archdata.dma_ops = &fast_smmu_dma_ops;
+	} else if (domain->handler_token) {
+
+		dev->archdata.dma_ops = &fast_smmu_dma_ops;
+		dev->archdata.mapping = domain->handler_token;
+		mapping = domain->handler_token;
+		kref_get(&mapping->kref);
+
+	} else {
+		if (iommu_dma_init_domain(domain, dma_base, size))
+			goto out_detach;
+
+		dev->archdata.dma_ops = &fast_smmu_dma_ops;
+	}
+
+	return ret;
 
 out_detach:
 	iommu_detach_device(domain, dev);
@@ -966,6 +1008,7 @@ static void __iommu_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 void arch_teardown_dma_ops(struct device *dev)
 {
 	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
+	struct dma_iommu_mapping *mapping;
 
 	if (domain) {
 		iommu_detach_device(domain, dev);
@@ -974,6 +1017,10 @@ void arch_teardown_dma_ops(struct device *dev)
 	}
 
 	dev->archdata.dma_ops = NULL;
+	mapping = dev->archdata.mapping;
+
+	if (mapping)
+		kref_put(&mapping->kref, release_iommu_mapping);
 }
 
 #else

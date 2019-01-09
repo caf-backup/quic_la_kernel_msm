@@ -92,6 +92,10 @@ enum iommu_cap {
 	IOMMU_CAP_NOEXEC,		/* IOMMU_NOEXEC flag */
 };
 
+struct iommu_pgtbl_info {
+	void *pmds;
+};
+
 /*
  * Following constraints are specifc to FSL_PAMUV1:
  *  -aperture must be power of 2, and naturally aligned
@@ -113,6 +117,7 @@ enum iommu_attr {
 	DOMAIN_ATTR_FSL_PAMU_ENABLE,
 	DOMAIN_ATTR_FSL_PAMUV1,
 	DOMAIN_ATTR_NESTING,	/* two stages of translation */
+	DOMAIN_ATTR_PGTBL_INFO,
 	DOMAIN_ATTR_MAX,
 };
 
@@ -149,6 +154,12 @@ struct iommu_dm_region {
  * @domain_set_attr: Change domain attributes
  * @of_xlate: add OF master IDs to iommu grouping
  * @pgsize_bitmap: bitmap of all possible supported page sizes
+ * @pgsize_bitmap: bitmap of supported page sizes
+ * @get_pgsize_bitmap: gets a bitmap of supported page sizes for a domain
+ *                     This takes precedence over @pgsize_bitmap.
+ * @trigger_fault: trigger a fault on the device attached to an iommu domain
+ * @tlbi_domain: Invalidate all TLBs covering an iommu domain
+ * @priv: per-instance data private to the iommu driver
  */
 struct iommu_ops {
 	bool (*capable)(enum iommu_cap);
@@ -186,6 +197,9 @@ struct iommu_ops {
 	int (*domain_set_windows)(struct iommu_domain *domain, u32 w_count);
 	/* Get the numer of window per domain */
 	u32 (*domain_get_windows)(struct iommu_domain *domain);
+	int (*dma_supported)(struct iommu_domain *domain, struct device *dev,
+			     u64 mask);
+	void (*tlbi_domain)(struct iommu_domain *domain);
 
 #ifdef CONFIG_OF_IOMMU
 	int (*of_xlate)(struct device *dev, struct of_phandle_args *args);
@@ -343,6 +357,15 @@ int iommu_fwspec_init(struct device *dev, struct fwnode_handle *iommu_fwnode,
 void iommu_fwspec_free(struct device *dev);
 int iommu_fwspec_add_ids(struct device *dev, u32 *ids, int num_ids);
 
+static inline void iommu_tlbiall(struct iommu_domain *domain)
+{
+	if (domain->ops->tlbi_domain)
+		domain->ops->tlbi_domain(domain);
+}
+
+/* Setup call for arch DMA mapping code */
+extern int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
+								u64 size);
 #else /* CONFIG_IOMMU_API */
 
 struct iommu_ops {};
@@ -571,6 +594,21 @@ static inline int iommu_fwspec_add_ids(struct device *dev, u32 *ids,
 	return -ENODEV;
 }
 
+static int iommu_dma_supported(struct iommu_domain *domain, struct device *dev,
+			       u64 mask)
+{
+	return -EINVAL;
+}
+
+static inline void iommu_tlbiall(struct iommu_domain *domain)
+{
+}
+
+static int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
+								u64 size)
+{
+	return -EINVAL;
+}
 #endif /* CONFIG_IOMMU_API */
 
 #endif /* __LINUX_IOMMU_H */

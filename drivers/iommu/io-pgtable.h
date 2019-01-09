@@ -11,6 +11,7 @@ enum io_pgtable_fmt {
 	ARM_64_LPAE_S1,
 	ARM_64_LPAE_S2,
 	ARM_V7S,
+	ARM_V8L_FAST,
 	IO_PGTABLE_NUM_FMTS,
 };
 
@@ -20,8 +21,8 @@ enum io_pgtable_fmt {
  * @tlb_flush_all: Synchronously invalidate the entire TLB context.
  * @tlb_add_flush: Queue up a TLB invalidation for a virtual address range.
  * @tlb_sync:      Ensure any queued TLB invalidation has taken effect, and
- *                 any corresponding page table updates are visible to the
- *                 IOMMU.
+ *		 any corresponding page table updates are visible to the
+ *		 IOMMU.
  *
  * Note that these can all be called in atomic context and must therefore
  * not block.
@@ -36,15 +37,15 @@ struct iommu_gather_ops {
 /**
  * struct io_pgtable_cfg - Configuration data for a set of page tables.
  *
- * @quirks:        A bitmap of hardware quirks that require some special
- *                 action by the low-level page table allocator.
+ * @quirks:	 A bitmap of hardware quirks that require some special
+ *		   action by the low-level page table allocator.
  * @pgsize_bitmap: A bitmap of page sizes supported by this set of page
- *                 tables.
- * @ias:           Input address (iova) size, in bits.
- * @oas:           Output address (paddr) size, in bits.
- * @tlb:           TLB management callbacks for this set of tables.
+ *		   tables.
+ * @ias:	    Input address (iova) size, in bits.
+ * @oas:	    Output address (paddr) size, in bits.
+ * @tlb:	    TLB management callbacks for this set of tables.
  * @iommu_dev:     The device representing the DMA configuration for the
- *                 page table walker.
+ *		   page table walker.
  */
 struct io_pgtable_cfg {
 	#define IO_PGTABLE_QUIRK_ARM_NS		BIT(0) /* Set NS bit in PTEs */
@@ -76,14 +77,20 @@ struct io_pgtable_cfg {
 			u32	nmrr;
 			u32	prrr;
 		} arm_v7s_cfg;
+		struct {
+			u64     ttbr[2];
+			u64     tcr;
+			u64     mair[2];
+			void    *pmds;
+		} av8l_fast_cfg;
 	};
 };
 
 /**
  * struct io_pgtable_ops - Page table manipulation API for IOMMU drivers.
  *
- * @map:          Map a physically contiguous memory region.
- * @unmap:        Unmap a physically contiguous memory region.
+ * @map:	   Map a physically contiguous memory region.
+ * @unmap:	 Unmap a physically contiguous memory region.
  * @iova_to_phys: Translate iova to physical address.
  *
  * These functions map directly onto the iommu_ops member functions with
@@ -103,10 +110,10 @@ struct io_pgtable_ops {
  *
  * @fmt:    The page table format.
  * @cfg:    The page table configuration. This will be modified to represent
- *          the configuration actually provided by the allocator (e.g. the
- *          pgsize_bitmap may be restricted).
+ *	   the configuration actually provided by the allocator (e.g. the
+ *	   pgsize_bitmap may be restricted).
  * @cookie: An opaque token provided by the IOMMU driver and passed back to
- *          the callback routines in cfg->tlb.
+ *	   the callback routines in cfg->tlb.
  */
 struct io_pgtable_ops *alloc_io_pgtable_ops(enum io_pgtable_fmt fmt,
 					    struct io_pgtable_cfg *cfg,
@@ -114,8 +121,8 @@ struct io_pgtable_ops *alloc_io_pgtable_ops(enum io_pgtable_fmt fmt,
 
 /**
  * free_io_pgtable_ops() - Free an io_pgtable_ops structure. The caller
- *                         *must* ensure that the page table is no longer
- *                         live, but the TLB can be dirty.
+ *			    *must* ensure that the page table is no longer
+ *			    live, but the TLB can be dirty.
  *
  * @ops: The ops returned from alloc_io_pgtable_ops.
  */
@@ -131,7 +138,7 @@ void free_io_pgtable_ops(struct io_pgtable_ops *ops);
  *
  * @fmt:    The page table format.
  * @cookie: An opaque token provided by the IOMMU driver and passed back to
- *          any callback routines.
+ *	   any callback routines.
  * @cfg:    A copy of the page table configuration.
  * @ops:    The page table operations in use for this set of page tables.
  */
@@ -144,7 +151,7 @@ struct io_pgtable {
 
 /**
  * struct io_pgtable_init_fns - Alloc/free a set of page tables for a
- *                              particular format.
+ *				  particular format.
  *
  * @alloc: Allocate a set of page tables described by cfg.
  * @free:  Free the page tables associated with iop.
@@ -159,5 +166,6 @@ extern struct io_pgtable_init_fns io_pgtable_arm_32_lpae_s2_init_fns;
 extern struct io_pgtable_init_fns io_pgtable_arm_64_lpae_s1_init_fns;
 extern struct io_pgtable_init_fns io_pgtable_arm_64_lpae_s2_init_fns;
 extern struct io_pgtable_init_fns io_pgtable_arm_v7s_init_fns;
+extern struct io_pgtable_init_fns io_pgtable_av8l_fast_init_fns;
 
 #endif /* __IO_PGTABLE_H */
