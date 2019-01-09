@@ -144,9 +144,9 @@ int dma_direction_to_prot(enum dma_data_direction dir, bool coherent)
 	case DMA_BIDIRECTIONAL:
 		return prot | IOMMU_READ | IOMMU_WRITE;
 	case DMA_TO_DEVICE:
-		return prot | IOMMU_READ;
+		return prot | IOMMU_READ | IOMMU_WRITE;
 	case DMA_FROM_DEVICE:
-		return prot | IOMMU_WRITE;
+		return prot | IOMMU_WRITE | IOMMU_READ;
 	default:
 		return 0;
 	}
