@@ -1540,6 +1540,8 @@ static int ion_sync_for_device(struct ion_client *client, int fd)
 {
 	struct dma_buf *dmabuf;
 	struct ion_buffer *buffer;
+	struct ion_heap *heap;
+	struct device *dev;
 
 	dmabuf = dma_buf_get(fd);
 	if (IS_ERR(dmabuf))
@@ -1553,13 +1555,15 @@ static int ion_sync_for_device(struct ion_client *client, int fd)
 		return -EINVAL;
 	}
 	buffer = dmabuf->priv;
+	heap = buffer->heap;
+	dev = heap->priv;
 
 	if (get_secure_vmid(buffer->flags) > 0) {
 		pr_err("%s: cannot sync a secure dmabuf\n", __func__);
 		dma_buf_put(dmabuf);
 		return -EINVAL;
 	}
-	dma_sync_sg_for_device(NULL, buffer->sg_table->sgl,
+	dma_sync_sg_for_device(dev, buffer->sg_table->sgl,
 			       buffer->sg_table->nents, DMA_BIDIRECTIONAL);
 	dma_buf_put(dmabuf);
 	return 0;
