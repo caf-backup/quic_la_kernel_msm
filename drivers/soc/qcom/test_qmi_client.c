@@ -32,7 +32,7 @@
 
 #define TEST_SERVICE_SVC_ID 0x0000000f
 #define TEST_SERVICE_V1 1
-#define TEST_SERVICE_INS_ID 0
+#define BUILD_INSTANCE_ID(vers, ins) (((vers) & 0xFF) | (((ins) & 0xFF) << 8))
 
 // Number of iterations to run during test
 static unsigned long iterations = 5;
@@ -50,9 +50,19 @@ module_param_named(nthreads, nthreads, ulong, S_IRUGO | S_IWUSR | S_IWGRP);
 static unsigned long debug_mask;
 module_param_named(debug_mask, debug_mask, ulong, S_IRUGO | S_IWUSR | S_IWGRP);
 
-#define D(x...) do { \
-	if (debug_mask) \
-	pr_debug(x); \
+/* set svc_ins_id - 0 for WCSS, 32 for ADSP
+ * then, echo reset > /sys/kernel/debug/qmi_test/service_reset
+ * This resets QMI client to attach with the new service instance
+ * based one the value in svc_ins_id.
+ */
+static unsigned long svc_ins_id;
+module_param_named(svc_ins_id, svc_ins_id, ulong, S_IRUGO | S_IWUSR | S_IWGRP);
+
+static int cur_svc_ins_id;
+
+#define D(x...) do {	\
+	if (debug_mask)	\
+	pr_info(x);	\
 } while (0)
 
 /* Variable to initiate the test through debugfs interface */
@@ -86,6 +96,7 @@ struct test_qmi_data {
 
 /* Variable to hold the test result */
 static unsigned long test_res;
+static unsigned long service_reset;
 
 // DebugFS directory structure for QMI
 static struct qmi_dir {
@@ -94,10 +105,12 @@ static struct qmi_dir {
 	umode_t mode;
 }qdentry[] = {
 	{"test", &test_res, S_IRUGO | S_IWUGO},
+	{"service_reset", &service_reset, S_IRUGO | S_IWUGO},
 	{"iterations", &iterations, S_IRUGO | S_IWUGO},
 	{"data_size", &data_size, S_IRUGO | S_IWUGO},
 	{"nthreads", &nthreads, S_IRUGO | S_IWUGO},
 	{"debug_mask", &debug_mask, S_IRUGO | S_IWUGO},
+	{"svc_ins_id", &svc_ins_id, S_IRUGO | S_IWUGO},
 };
 
 static atomic_t cnt, async_cnt, async_rsp, async_req, pass, fail;
@@ -346,7 +359,7 @@ static void test_clnt_svc_arrive(struct work_struct *work)
 	D("%s: Lookup server name\n", __func__);
 	rc = qmi_connect_to_service(test_clnt, TEST_SERVICE_SVC_ID,
 			TEST_SERVICE_V1,
-			TEST_SERVICE_INS_ID);
+			(uint32_t) svc_ins_id);
 	if (rc < 0) {
 		pr_err("%s: Server not found\n", __func__);
 		qmi_handle_destroy(test_clnt);
@@ -354,6 +367,9 @@ static void test_clnt_svc_arrive(struct work_struct *work)
 		return;
 	}
 	test_clnt_reset = 0;
+	pr_info("Test QMI client connected to server %08x:%08x\n",
+			TEST_SERVICE_SVC_ID,
+			BUILD_INSTANCE_ID(TEST_SERVICE_V1, svc_ins_id));
 	D("%s complete\n", __func__);
 }
 
@@ -458,7 +474,6 @@ int qmi_process_user_input(void *data)
 		} else {
 			test_res = 0;
 			pr_err("Invalid Test.\n");
-			break;
 		}
 
 		if (atomic_dec_and_test(&qmi_data->refs_count)) {
@@ -495,7 +510,6 @@ static int test_qmi_open(struct inode *ip, struct file *fp)
 	if (!test_clnt) {
 		pr_err("%s Test client is not initialized\n", __func__);
 		return -ENODEV;
-
 	}
 
 	pr_info("Total commands: %lu (Threads: %lu Iteration: %lu)\n",
@@ -506,6 +520,7 @@ static int test_qmi_open(struct inode *ip, struct file *fp)
 		snprintf(thread_name, sizeof(thread_name), "qmi_test_""%d", index);
 		qmi_task = kthread_run(qmi_process_user_input, &data_list, thread_name);
 	}
+
 	return 0;
 }
 
@@ -527,6 +542,34 @@ static ssize_t test_qmi_read(struct file *fp, char __user *buf,
 static int test_qmi_release(struct inode *ip, struct file *fp)
 {
 	return 0;
+}
+
+static struct notifier_block test_clnt_nb = {
+	.notifier_call = test_clnt_svc_event_notify,
+};
+
+static void test_service_reset(void)
+{
+	/* Deregister the current qmi client service instance and register
+	 * a qmi client with the value in the svc_ins_id param
+	 */
+	service_reset = qmi_svc_event_notifier_unregister(TEST_SERVICE_SVC_ID,
+			TEST_SERVICE_V1, cur_svc_ins_id, &test_clnt_nb);
+	if (service_reset) {
+		pr_err("%s: QMI svc notifier unregister failed\n", __func__);
+		return;
+	}
+	/* Kick off svc exit */
+	test_clnt_svc_exit(NULL);
+	service_reset = qmi_svc_event_notifier_register(TEST_SERVICE_SVC_ID,
+			TEST_SERVICE_V1, svc_ins_id, &test_clnt_nb);
+	if (service_reset) {
+		pr_err("%s: QMI svc notifier register failed\n", __func__);
+		return;
+	}
+
+	D("QMI service event notifier register successful\n");
+	cur_svc_ins_id = svc_ins_id;
 }
 
 static ssize_t test_qmi_write(struct file *fp, const char __user *buf,
@@ -554,7 +597,10 @@ static ssize_t test_qmi_write(struct file *fp, const char __user *buf,
 	for (index = 1; index < sizeof(qdentry)/sizeof(struct qmi_dir); index++) {
 		if (!strncmp(fp->f_path.dentry->d_iname, qdentry[index].string, \
 					sizeof(fp->f_path.dentry->d_iname))) {
-			kstrtoul(cmd, 0, qdentry[index].value);
+			if (index == 1)
+				test_service_reset();
+			else
+				kstrtoul(cmd, 0, qdentry[index].value);
 			return count;
 		}
 	}
@@ -570,13 +616,8 @@ static ssize_t test_qmi_write(struct file *fp, const char __user *buf,
 	atomic_set(&qmi_data->refs_count, 0);
 	list_add_tail(&qmi_data->list, &data_list);
 	complete_all(&qmi_complete);
-
 	return count;
 }
-
-static struct notifier_block test_clnt_nb = {
-	.notifier_call = test_clnt_svc_event_notify,
-};
 
 static const struct file_operations debug_ops = {
 	.owner = THIS_MODULE,
@@ -596,7 +637,7 @@ static int __init test_qmi_init(void)
 		return -EFAULT;
 
 	rc = qmi_svc_event_notifier_register(TEST_SERVICE_SVC_ID,
-			TEST_SERVICE_V1, TEST_SERVICE_INS_ID,
+			TEST_SERVICE_V1, (uint32_t) svc_ins_id,
 			&test_clnt_nb);
 	if (rc < 0) {
 		pr_err("%s: notifier register failed\n", __func__);
@@ -632,7 +673,7 @@ sub_dentry_failed:
 root_dentry_failed:
 	root_dentry = NULL;
 	qmi_svc_event_notifier_unregister(TEST_SERVICE_SVC_ID,
-			TEST_SERVICE_V1, TEST_SERVICE_INS_ID,
+			TEST_SERVICE_V1, (uint32_t) svc_ins_id,
 			&test_clnt_nb);
 	destroy_workqueue(test_clnt_workqueue);
 	return PTR_ERR(ret);
@@ -645,7 +686,7 @@ static void __exit test_qmi_exit(void)
 
 	qmi_svc_event_notifier_unregister(TEST_SERVICE_SVC_ID,
 			TEST_SERVICE_V1,
-			TEST_SERVICE_INS_ID, &test_clnt_nb);
+			(uint32_t) svc_ins_id, &test_clnt_nb);
 	destroy_workqueue(test_clnt_workqueue);
 	debugfs_remove_recursive(root_dentry);
 
