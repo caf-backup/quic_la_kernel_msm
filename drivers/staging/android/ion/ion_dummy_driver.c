@@ -14,6 +14,7 @@
  *
  */
 
+#include <linux/module.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -54,7 +55,6 @@ static struct ion_platform_heap dummy_heaps[] = {
 			.name	= "chunk",
 			.size	= SZ_4M,
 			.align	= SZ_16K,
-			.priv	= (void *)(SZ_16K),
 		},
 };
 
@@ -63,7 +63,7 @@ static struct ion_platform_data dummy_ion_pdata = {
 	.heaps = dummy_heaps,
 };
 
-static int __init ion_dummy_init(void)
+static int __init ion_dummy_init(struct platform_device *pdev)
 {
 	int i, err;
 
@@ -95,6 +95,8 @@ static int __init ion_dummy_init(void)
 
 	for (i = 0; i < dummy_ion_pdata.nr; i++) {
 		struct ion_platform_heap *heap_data = &dummy_ion_pdata.heaps[i];
+
+		heap_data->priv = &pdev->dev;
 
 		if (heap_data->type == ION_HEAP_TYPE_CARVEOUT &&
 							!heap_data->base)
@@ -134,9 +136,8 @@ err:
 	}
 	return err;
 }
-device_initcall(ion_dummy_init);
 
-static void __exit ion_dummy_exit(void)
+static int __exit ion_dummy_exit(void)
 {
 	int i;
 
@@ -156,5 +157,22 @@ static void __exit ion_dummy_exit(void)
 				dummy_heaps[ION_HEAP_TYPE_CHUNK].size);
 		chunk_ptr = NULL;
 	}
+
+	return 0;
 }
-__exitcall(ion_dummy_exit);
+
+static const struct of_device_id qcom_ion_dt_match[] = {
+	{ .compatible = "ipq60xx-ion-dummy",},
+	{}
+};
+MODULE_DEVICE_TABLE(of, qcom_ion_dt_match);
+
+static struct platform_driver qcom_ion_dummy_driver = {
+	.probe = ion_dummy_init,
+	.remove = ion_dummy_exit,
+	.driver = {
+		.name   = KBUILD_MODNAME,
+		.of_match_table = qcom_ion_dt_match,
+	},
+};
+module_platform_driver(qcom_ion_dummy_driver);

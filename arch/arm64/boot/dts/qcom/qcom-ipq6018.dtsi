@@ -1681,4 +1681,9 @@
 			"tcl2host-status-ring";
 		status = "ok";
 	};
+
+	ion_dummy {
+		compatible = "ipq60xx-ion-dummy";
+		status = "disabled";
+	};
 };
