@@ -531,6 +531,11 @@
 			status = "disabled";
 		};
 
+		qcom,diag@0 {
+			compatible = "qcom,diag";
+			status = "ok";
+		};
+
 		blsp_dma: dma@7884000 {
 			compatible = "qcom,bam-v1.7.0";
 			reg = <0x07884000 0x2b000>;
