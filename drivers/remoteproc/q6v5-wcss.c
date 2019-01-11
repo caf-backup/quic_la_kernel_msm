@@ -1120,6 +1120,7 @@ static int q6_rproc_probe(struct platform_device *pdev)
 	struct qcom_smem_state *state;
 	unsigned stop_bit;
 
+	pr_emerg("DEV CI test message\n");
 	state = qcom_smem_state_get(&pdev->dev, "stop",
 					&stop_bit);
 	if (IS_ERR(state)) {
