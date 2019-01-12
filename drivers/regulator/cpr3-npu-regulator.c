@@ -418,7 +418,7 @@ static const struct cpr3_npu_regulator_data ipq817x_cpr_npu = {
 
 static struct of_device_id cpr3_regulator_match_table[] = {
 	{
-		.compatible = "cpr3-ipq807x-npu-regulator",
+		.compatible = "qcom,cpr3-ipq807x-npu-regulator",
 		.data = &ipq807x_cpr_npu
 	},
 	{
