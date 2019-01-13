@@ -231,19 +231,6 @@ DECLARE_MSM_GPIO_PINS(77);
 DECLARE_MSM_GPIO_PINS(78);
 DECLARE_MSM_GPIO_PINS(79);
 
-static const unsigned int sdc1_clk_pins[] = { 80 };
-static const unsigned int sdc1_cmd_pins[] = { 81 };
-static const unsigned int sdc1_data_pins[] = { 82 };
-static const unsigned int sdc2_clk_pins[] = { 83 };
-static const unsigned int sdc2_cmd_pins[] = { 84 };
-static const unsigned int sdc2_data_pins[] = { 85 };
-static const unsigned int qdsd_clk_pins[] = { 86 };
-static const unsigned int qdsd_cmd_pins[] = { 87 };
-static const unsigned int qdsd_data0_pins[] = { 88 };
-static const unsigned int qdsd_data1_pins[] = { 89 };
-static const unsigned int qdsd_data2_pins[] = { 90 };
-static const unsigned int qdsd_data3_pins[] = { 91 };
-
 enum ipq6018_functions {
 	msm_mux_gpio,
 	msm_mux_blsp3_uart,
