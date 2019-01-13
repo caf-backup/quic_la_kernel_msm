@@ -113,7 +113,7 @@ static int of_thermal_set_trips(struct thermal_zone_device *tz,
 	return data->ops->set_trips(data->sensor_data, low, high);
 }
 
-static void of_thermal_panic_notify(struct thermal_zone_device *tz)
+static int of_thermal_panic_notify(struct thermal_zone_device *tz)
 {
 	struct __thermal_zone *data = tz->devdata;
 
@@ -121,7 +121,7 @@ static void of_thermal_panic_notify(struct thermal_zone_device *tz)
 			(data->mode != THERMAL_DEVICE_DISABLED))
 		data->ops->panic_notify(data->sensor_data);
 
-	return;
+	return 0;
 }
 
 /**

@@ -167,7 +167,7 @@ static int init_ipq807x(struct tsens_device *tmdev)
 	int ret, i;
 
 	tmdev->iomem_base = init_common(tmdev);
-	if (!tmdev->map)
+	if (!tmdev->iomem_base || !tmdev->map)
 		return -ENODEV;
 
 	/* Store all sensor address for future use */

@@ -3950,9 +3950,9 @@ static void rdev_init_debugfs(struct regulator_dev *rdev)
 	struct device *parent = rdev->dev.parent;
 	const char *rname = rdev_get_name(rdev);
 	char name[NAME_MAX];
-	struct detry *err_ptr;
-	struct regulator_ops *reg_ops = rdev->desc->ops;
-	mode_t mode = 0;
+	struct dentry *err_ptr;
+	const struct regulator_ops *reg_ops = rdev->desc->ops;
+	umode_t mode = 0;
 
 	/* Avoid duplicate debugfs directory names */
 	if (parent && rname == rdev->desc->name) {
