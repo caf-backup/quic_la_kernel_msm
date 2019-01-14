@@ -60,6 +60,12 @@
 			reg = <0 0x8a000000 0 0x100000>;
 			no-map;
 		};
+
+		dump_mem: mem_dump_region {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0 0x200000>;
+		};
 	};
 
 	cpus {
@@ -173,6 +179,27 @@
 		#size-cells = <1>;
 		ranges = <0 0 0 0xffffffff>;
 		compatible = "simple-bus";
+
+		qcom,wdt@b017000 {
+			compatible = "qcom,msm-watchdog";
+			reg = <0xb017000 0x1000>;
+			reg-names = "wdt-base";
+			interrupts = <0 3 0>, <0 4 0>;
+			status = "okay";
+		};
+
+		qcom,msm-imem@8600000 {
+			compatible = "qcom,msm-imem";
+			reg = <0x08600000 0x1000>;
+			ranges = <0x0 0x08600000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mem_dump_table@10 {
+				compatible = "qcom,msm-imem-mem_dump_table";
+				reg = <0x10 8>;
+			};
+		};
 
 		rpm_msg_ram: memory@60000 {
 			compatible = "qcom,rpm-msg-ram";
@@ -394,6 +421,12 @@
 				reg = <0xb128000 0x1000>;
 				status = "disabled";
 			};
+		};
+
+		restart@4ab000 {
+			compatible = "qcom,pshold";
+			reg = <0x4ab000 0x4>;
+			qcom,dload-mode = <&tcsr 0x6100>;
 		};
 
 		spmi_bus: spmi@200f000 {
@@ -642,6 +675,16 @@
 			status = "okay";
 		};
 
+		mem_dump {
+			compatible = "qcom,mem-dump";
+			memory-region = <&dump_mem>;
+
+			pmic_dump {
+				qcom,dump-size = <0x10000>;
+				qcom,dump-id = <0xe4>;
+			};
+		};
+
 		apcs_glb: mailbox@b011000 {
 			compatible = "qcom,qcs404-apcs-apps-global", "syscon";
 			reg = <0xb011000 0x1000>;
@@ -663,6 +706,11 @@
 			reg = <0x000e3000 0x1000>;
 			clocks = <&gcc GCC_PRNG_AHB_CLK>;
 			clock-names = "core";
+		};
+
+		tcsr: syscon@1937000 {
+			compatible = "syscon";
+			reg = <0x1937000 0x25000>;
 		};
 
 		usb3_phy: phy@78000 {
