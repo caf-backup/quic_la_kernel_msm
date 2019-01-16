@@ -1,6 +1,6 @@
 /dts-v1/;
 /*
- * Copyright (c) 2017 - 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017 - 2019, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -724,6 +724,12 @@
 
 &serial_blsp2 {
 	status = "disabled";
+};
+
+&nss0 {
+	qcom,low-frequency = <187200000>;
+	qcom,mid-frequency = <748800000>;
+	qcom,max-frequency = <1497600000>;
 };
 
 &msm_imem {
