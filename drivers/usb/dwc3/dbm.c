@@ -129,7 +129,7 @@ static LIST_HEAD(dbm_list);
  */
 static inline void msm_dbm_write_ep_reg_field(struct dbm *dbm,
 					      enum dbm_reg reg, int ep,
-					      const u32 mask, u32 val)
+					      const unsigned long mask, u32 val)
 {
 	u32 shift = find_first_bit((void *)&mask, 32);
 	u32 offset = dbm->reg_table[reg].offset +

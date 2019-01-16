@@ -200,7 +200,7 @@ static inline bool dwc3_msm_is_dev_superspeed(struct dwc3_of_simple *mdwc)
 }
 
 static inline void dwc3_msm_write_reg_field(void *base, u32 offset,
-					    const u32 mask, u32 val)
+					    const unsigned long mask, u32 val)
 {
 	u32 shift = find_first_bit((void *)&mask, 32);
 	u32 tmp = ioread32(base + offset);
