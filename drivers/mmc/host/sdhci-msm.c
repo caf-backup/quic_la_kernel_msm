@@ -1660,7 +1660,7 @@ struct sdhci_msm_pltfm_data *sdhci_msm_populate_pdata(struct device *dev,
 			dev_err(dev,
 				"failed to request sd-ldo-gpios %d\n",
 				sd_ldo);
-			return ret;
+			goto out;
 		}
 		dev_info(dev, "Got SD LDO GPIO #%d\n", sd_ldo);
 

@@ -490,7 +490,7 @@ store_sec_dat(struct device *dev, struct device_attribute *attr,
 		goto file_close;
 	}
 	fuse_blow.address = dma_req_addr;
-	fuse_blow.status = &fuse_status;
+	fuse_blow.status = fuse_status;
 
 	ret = qcom_fuseipq_scm_call(dev, QCOM_SCM_SVC_FUSE,
 				    TZ_BLOW_FUSE_SECDAT, &fuse_blow,
