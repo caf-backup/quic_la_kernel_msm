@@ -362,6 +362,16 @@ int msm_dwc3_reset_dbm_ep(struct usb_ep *ep)
 EXPORT_SYMBOL(msm_dwc3_reset_dbm_ep);
 
 
+static u32 dwc3_msm_gadget_ep_get_transfer_index(struct dwc3 *dwc, u8 number)
+{
+	u32	res_id;
+	u32	offs = DWC3_DEPCMD(number) - DWC3_GLOBALS_REGS_START;
+
+	res_id = readl(dwc->regs + offs);
+
+	return DWC3_DEPCMD_GET_RSC_IDX(res_id);
+}
+
 /**
  * Helper function.
  * See the header of the dwc3_msm_ep_queue function.
@@ -431,7 +441,7 @@ int __dwc3_msm_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 		return ret;
 	}
 	dep->flags |= DWC3_EP_BUSY;
-	dep->resource_index = dwc3_gadget_ep_get_transfer_index(dep->dwc,
+	dep->resource_index = dwc3_msm_gadget_ep_get_transfer_index(dep->dwc,
 								dep->number);
 
 	return ret;
