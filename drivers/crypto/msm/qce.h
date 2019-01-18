@@ -109,6 +109,7 @@ struct ce_hw_support {
 	bool sha_hmac; /* supports SHA1 and SHA256 MAX HMAC key of 64 bytes*/
 	bool cmac;
 	bool aes_key_192;
+	bool aes192_fb_sha1;
 	bool aes_xts;
 	bool aes_ccm;
 	bool ota;

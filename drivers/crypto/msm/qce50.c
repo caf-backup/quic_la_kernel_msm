@@ -6100,6 +6100,7 @@ int qce_hw_support(void *handle, struct ce_hw_support *ce_support)
 	ce_support->sha_hmac = true;
 	ce_support->cmac  = true;
 	ce_support->aes_key_192 = false;
+	ce_support->aes192_fb_sha1 = false;
 	ce_support->aes_xts = true;
 	if ((pce_dev->engines_avail & OTA_SUPPORT_MASK) == OTA_SUPPORT_MASK)
 		ce_support->ota = true;
