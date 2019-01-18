@@ -47,9 +47,10 @@ static int do_msm_reboot(struct notifier_block *nb, unsigned long action,
 			   void *data)
 {
 	pr_err("In %s @ %d\n", __func__, __LINE__);
-	regmap_write(tcsr_regmap, dload_mode_offset, 0x0);
+	if (download_mode)
+		regmap_write(tcsr_regmap, dload_mode_offset, 0x0);
 	writel(0, msm_ps_hold);
-	mdelay(10000);
+	mdelay(10);
 
 	return NOTIFY_DONE;
 }
