@@ -42,6 +42,11 @@ static int do_msm_restart(struct notifier_block *nb, unsigned long action,
 	return NOTIFY_DONE;
 }
 
+static void msm_poweroff(enum reboot_mode reboot_mode, const char *cmd)
+{
+	do_msm_restart(0, 0, 0);
+}
+
 static struct notifier_block restart_nb = {
 	.notifier_call = do_msm_restart,
 	.priority = 128,
@@ -57,7 +62,7 @@ static int do_msm_reboot_notifier(struct notifier_block *nb,
 				unsigned long action, void *data)
 {
 	/* Normal Reboot Enable PS HOLD reset sequence */
-	arm_pm_restart = do_msm_restart;
+	arm_pm_restart = msm_poweroff;
 	return NOTIFY_DONE;
 }
 

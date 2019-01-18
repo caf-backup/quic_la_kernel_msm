@@ -1262,7 +1262,7 @@ static int qcom_pcie_init_v3(struct qcom_pcie *pcie)
 		writel(DEVICE_TYPE_RC, pcie->parf + PCIE_PARF_DEVICE_TYPE);
 		writel(BYPASS | MSTR_AXI_CLK_EN | AHB_CLK_EN,
 			pcie->parf + PARF_MHI_CLOCK_RESET_CTRL);
-		writel(GEN3_EQUALIZATION_DISABLE | RXEQ_RGRDLESS_RXTS |
+		writel(RXEQ_RGRDLESS_RXTS |
 			GEN3_ZRXDC_NONCOMPL, pcie->dbi + PCIE30_GEN3_RELATED_OFF);
 	}
 
@@ -1687,7 +1687,15 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 				return PTR_ERR(pcie->phy);
 			pcie->is_gen3 = 0;
 		}
+	} else if (of_device_is_compatible(pdev->dev.of_node, "qcom,pcie-ipq6018")) {
+		if (!pcie->is_emulation) {
+			pcie->phy = devm_phy_optional_get(dev, "pciephy");
+			if (IS_ERR(pcie->phy))
+				return PTR_ERR(pcie->phy);
+		}
+		pcie->is_gen3 = 1;
 	}
+
 	if (pcie->is_gen3) {
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dm_iatu");
 		pcie->dm_iatu = devm_ioremap_resource(dev, res);
@@ -1863,6 +1871,7 @@ static const struct of_device_id qcom_pcie_match[] = {
 	{ .compatible = "qcom,pcie-apq8084", .data = &ops_v1 },
 	{ .compatible = "qcom,pcie-ipq4019", .data = &ops_v2 },
 	{ .compatible = "qcom,pcie-ipq807x", .data = &ops_v3 },
+	{ .compatible = "qcom,pcie-ipq6018", .data = &ops_v3 },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, qcom_pcie_match);

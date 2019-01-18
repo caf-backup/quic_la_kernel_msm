@@ -87,6 +87,27 @@
 			status = "disabled";
 		};
 
+		qpic_lcd: qcom_mdss_qpic@7980000 {
+			compatible = "qcom,mdss_qpic";
+			reg = <0x7980000 0x24000>;
+			interrupts = <GIC_SPI 151 IRQ_TYPE_NONE>;
+			clocks = <&gcc GCC_QPIC_CLK>,
+				<&gcc GCC_QPIC_AHB_CLK>;
+			clock-names = "core", "aon";
+			dmas = <&qpic_bam 6>;
+			dma-names = "chan";
+			status = "disabled";
+		};
+
+		qpic_lcd_panel: qcom_mdss_qpic_panel {
+			compatible = "qcom,mdss-qpic-panel";
+			label = "qpic lcd panel";
+			qcom,mdss-pan-res = <800 480>;
+			qcom,mdss-pan-bpp = <18>;
+			qcom,refresh_rate = <60>;
+			status = "disabled";
+		};
+
 		ssphy_0: ssphy@78000 {
 			compatible = "qcom,usb-ssphy-qmp";
 			reg = <0x78000 0x45c>,
@@ -441,6 +462,80 @@
 			};
 		};
 
+		pcie0: pci@20000000 {
+			compatible = "qcom,pcie-ipq6018";
+			reg =  <0x20000000 0xf1d
+				0x20000F20 0xa8
+				0x20001000 0x1000
+				0x80000 0x2000
+				0x20100000 0x1000>;
+			reg-names = "dbi", "elbi", "dm_iatu", "parf", "config";
+			device_type = "pci";
+			linux,pci-domain = <0>;
+			bus-range = <0x00 0xff>;
+			num-lanes = <1>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+
+			ranges = <0x81000000 0 0x20200000 0x20200000
+				  0 0x00100000   /* downstream I/O */
+				  0x82000000 0 0x20300000 0x20300000
+				  0 0x10000000>; /* non-prefetchable memory */
+
+			interrupts = <GIC_SPI 52 IRQ_TYPE_NONE>;
+			interrupt-names = "msi";
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0x7>;
+			interrupt-map = <0 0 0 1 &intc 0 75
+					 IRQ_TYPE_LEVEL_HIGH>, /* int_a */
+					<0 0 0 2 &intc 0 78
+					 IRQ_TYPE_LEVEL_HIGH>, /* int_b */
+					<0 0 0 3 &intc 0 79
+					 IRQ_TYPE_LEVEL_HIGH>, /* int_c */
+					<0 0 0 4 &intc 0 83
+					 IRQ_TYPE_LEVEL_HIGH>; /* int_d */
+
+			clocks = <&gcc GCC_SYS_NOC_PCIE0_AXI_CLK>,
+				 <&gcc GCC_PCIE0_AXI_M_CLK>,
+				 <&gcc GCC_PCIE0_AXI_S_CLK>,
+				 <&gcc GCC_PCIE0_AHB_CLK>,
+				 <&gcc GCC_PCIE0_AUX_CLK>,
+				 <&gcc GCC_PCIE0_AXI_S_BRIDGE_CLK>,
+				 <&gcc PCIE0_RCHNG_CLK>;
+
+			clock-names = "sys_noc",
+				      "axi_m",
+				      "axi_s",
+				      "ahb",
+				      "aux",
+				      "axi_bridge",
+				      "rchng";
+			resets = <&gcc GCC_PCIE0_PIPE_ARES>,
+				 <&gcc GCC_PCIE0_SLEEP_ARES>,
+				 <&gcc GCC_PCIE0_CORE_STICKY_ARES>,
+				 <&gcc GCC_PCIE0_AXI_MASTER_ARES>,
+				 <&gcc GCC_PCIE0_AXI_SLAVE_ARES>,
+				 <&gcc GCC_PCIE0_AHB_ARES>,
+				 <&gcc GCC_PCIE0_AXI_MASTER_STICKY_ARES>,
+				 <&gcc GCC_PCIE0_AXI_SLAVE_STICKY_ARES>;
+			reset-names = "pipe",
+				      "sleep",
+				      "sticky",
+				      "axi_m",
+				      "axi_s",
+				      "ahb",
+				      "axi_m_sticky",
+				      "axi_s_sticky";
+
+			perst-gpio = <&tlmm 60 1>;
+			status = "disabled";
+		};
+
+		qcom,diag@0 {
+			compatible = "qcom,diag";
+			status = "ok";
+		};
+
 		blsp_dma: dma@7884000 {
 			compatible = "qcom,bam-v1.7.0";
 			reg = <0x07884000 0x2b000>;
@@ -534,6 +629,25 @@
 			qcom,subsys-id = <2>;
 			smem-entry = <478>, <479>, <480>;
 			smem-entry-names = "ch", "tx_fifo", "rx_fifo";
+		};
+
+		glink_rpm: qcom,glink-rpm-native-xprt@60000 {
+			compatible = "qcom,glink-rpm-native-xprt";
+			reg = <0x60000 0x6000>, <0x0b111008 0x4>;
+			reg-names = "msgram", "irq-reg-base";
+			qcom,irq-mask = <0x1>;
+			interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
+			label = "rpm";
+			qcom,subsys-id = <6>;
+			status = "ok";
+		};
+
+		rpm_bus: qcom,rpm-glink {
+			compatible = "qcom,rpm-glink";
+			qcom,glink-edge = "rpm";
+			rpm-channel-name = "rpm_requests";
+			qcom,rpm-channel-type = <15>; //SMD_APPS_RPM
+			status = "ok";
 		};
 
 		ipc_router: qcom,ipc_router {
@@ -964,6 +1078,16 @@
 		acc3:clock-controller@b1b8000 {
 			compatible = "qcom,arm-cortex-acc";
 			reg = <0x0b1b8000 0x1000>;
+		};
+
+		tlmm: pinctrl@1000000 {
+			compatible = "qcom,ipq6018-pinctrl";
+			reg = <0x1000000 0x300000>;
+			interrupts = <GIC_SPI 0xd0 IRQ_TYPE_NONE>;
+			gpio-controller;
+			#gpio-cells = <0x2>;
+			interrupt-controller;
+			#interrupt-cells = <0x2>;
 		};
 
 		watchdog: watchdog@b017000 {
@@ -1556,5 +1680,10 @@
 			"wbm2host-tx-completions-ring1",
 			"tcl2host-status-ring";
 		status = "ok";
+	};
+
+	ion_dummy {
+		compatible = "ipq60xx-ion-dummy";
+		status = "disabled";
 	};
 };

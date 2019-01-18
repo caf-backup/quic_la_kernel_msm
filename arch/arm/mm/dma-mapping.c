@@ -28,6 +28,7 @@
 #include <linux/vmalloc.h>
 #include <linux/sizes.h>
 #include <linux/cma.h>
+#include <linux/dma-mapping-fast.h>
 
 #include <asm/memory.h>
 #include <asm/highmem.h>
@@ -38,6 +39,7 @@
 #include <asm/mach/map.h>
 #include <asm/system_info.h>
 #include <asm/dma-contiguous.h>
+#include <linux/dma-mapping-fast.h>
 
 #include "dma.h"
 #include "mm.h"
@@ -921,7 +923,7 @@ static void __dma_page_dev_to_cpu(struct page *page, unsigned long off,
 int arm_dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 		enum dma_data_direction dir, struct dma_attrs *attrs)
 {
-	struct dma_map_ops *ops = get_dma_ops(dev);
+	const struct dma_map_ops *ops = get_dma_ops(dev);
 	struct scatterlist *s;
 	int i, j;
 
@@ -955,7 +957,7 @@ int arm_dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 void arm_dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nents,
 		enum dma_data_direction dir, struct dma_attrs *attrs)
 {
-	struct dma_map_ops *ops = get_dma_ops(dev);
+	const struct dma_map_ops *ops = get_dma_ops(dev);
 	struct scatterlist *s;
 
 	int i;
@@ -974,7 +976,7 @@ void arm_dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nents,
 void arm_dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
 			int nents, enum dma_data_direction dir)
 {
-	struct dma_map_ops *ops = get_dma_ops(dev);
+	const struct dma_map_ops *ops = get_dma_ops(dev);
 	struct scatterlist *s;
 	int i;
 
@@ -993,7 +995,7 @@ void arm_dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
 void arm_dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 			int nents, enum dma_data_direction dir)
 {
-	struct dma_map_ops *ops = get_dma_ops(dev);
+	const struct dma_map_ops *ops = get_dma_ops(dev);
 	struct scatterlist *s;
 	int i;
 
@@ -1506,10 +1508,10 @@ static int __dma_direction_to_prot(enum dma_data_direction dir)
 		prot = IOMMU_READ | IOMMU_WRITE;
 		break;
 	case DMA_TO_DEVICE:
-		prot = IOMMU_READ;
+		prot = IOMMU_READ | IOMMU_WRITE;
 		break;
 	case DMA_FROM_DEVICE:
-		prot = IOMMU_WRITE;
+		prot = IOMMU_WRITE | IOMMU_READ;
 		break;
 	default:
 		prot = 0;
@@ -1869,7 +1871,7 @@ static void arm_iommu_sync_single_for_device(struct device *dev,
 	__dma_page_cpu_to_dev(page, offset, size, dir);
 }
 
-struct dma_map_ops iommu_ops = {
+const struct dma_map_ops iommu_ops = {
 	.alloc		= arm_iommu_alloc_attrs,
 	.free		= arm_iommu_free_attrs,
 	.mmap		= arm_iommu_mmap_attrs,
@@ -1888,7 +1890,7 @@ struct dma_map_ops iommu_ops = {
 	.set_dma_mask		= arm_dma_set_mask,
 };
 
-struct dma_map_ops iommu_coherent_ops = {
+const struct dma_map_ops iommu_coherent_ops = {
 	.alloc		= arm_iommu_alloc_attrs,
 	.free		= arm_iommu_free_attrs,
 	.mmap		= arm_iommu_mmap_attrs,
@@ -1917,13 +1919,19 @@ struct dma_map_ops iommu_coherent_ops = {
  * arm_iommu_attach_device function.
  */
 struct dma_iommu_mapping *
-arm_iommu_create_mapping(struct bus_type *bus, dma_addr_t base, u64 size)
+arm_iommu_create_mapping(struct device *dev, struct bus_type *bus,
+						dma_addr_t base, u64 size)
 {
 	unsigned int bits = size >> PAGE_SHIFT;
 	unsigned int bitmap_size = BITS_TO_LONGS(bits) * sizeof(long);
 	struct dma_iommu_mapping *mapping;
 	int extensions = 1;
 	int err = -ENOMEM;
+	struct iommu_domain *domain;
+
+	domain = iommu_get_domain_for_dev(dev);
+	if (domain->handler_token)
+		return (struct dma_iommu_mapping *)domain->handler_token;
 
 	/* currently only 32-bit DMA address space is supported */
 	if (size > DMA_BIT_MASK(32) + 1)
@@ -1955,6 +1963,7 @@ arm_iommu_create_mapping(struct bus_type *bus, dma_addr_t base, u64 size)
 	mapping->extensions = extensions;
 	mapping->base = base;
 	mapping->bits = BITS_PER_BYTE * bitmap_size;
+	mapping->size = size;
 
 	spin_lock_init(&mapping->lock);
 
@@ -2013,17 +2022,37 @@ void arm_iommu_release_mapping(struct dma_iommu_mapping *mapping)
 }
 EXPORT_SYMBOL_GPL(arm_iommu_release_mapping);
 
+/* fast mapping is always true for now */
+static bool fast = true;
+
 static int __arm_iommu_attach_device(struct device *dev,
 				     struct dma_iommu_mapping *mapping)
 {
+	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
 	int err;
 
-	err = iommu_attach_device(mapping->domain, dev);
-	if (err)
-		return err;
-
-	kref_get(&mapping->kref);
-	to_dma_iommu_mapping(dev) = mapping;
+	if (fast && !domain->handler_token) {
+		/* detach the existing and attach to fast mapping domain */
+		iommu_detach_device(mapping->domain, dev);
+		err = fast_smmu_attach_device(dev, mapping);
+		if (err)
+			return err;
+		err = iommu_dma_init_domain(domain, mapping->base,
+								mapping->size);
+		if (err)
+			/* Detach the domain? */
+			return err;
+		dev->archdata.dma_ops = &fast_smmu_dma_ops;
+	} else if (domain->handler_token) {
+		dev->archdata.dma_ops = &fast_smmu_dma_ops;
+		dev->archdata.mapping = domain->handler_token;
+		mapping = domain->handler_token;
+		kref_get(&mapping->kref);
+	} else {
+		err = iommu_attach_device(mapping->domain, dev);
+		if (err)
+			return err;
+	}
 
 	pr_debug("Attached IOMMU controller to %s device.\n", dev_name(dev));
 	return 0;
@@ -2051,6 +2080,7 @@ int arm_iommu_attach_device(struct device *dev,
 	if (err)
 		return err;
 
+	/* TODO: Should this be removed when fast DMA mapping is enabled? */
 	set_dma_ops(dev, &iommu_ops);
 	return 0;
 }
@@ -2087,8 +2117,15 @@ void arm_iommu_detach_device(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(arm_iommu_detach_device);
 
-static struct dma_map_ops *arm_get_iommu_dma_map_ops(bool coherent)
+static const struct dma_map_ops *arm_get_iommu_dma_map_ops(struct device *dev,
+								bool coherent)
 {
+	/* If fast DMA mapping is enabled, dma_ops is updated with
+	 * fast_smmu_dma_ops in __arm_iommu_attach_device(), use the same
+	 */
+	if (fast)
+		return dev->archdata.dma_ops;
+
 	return coherent ? &iommu_coherent_ops : &iommu_ops;
 }
 
@@ -2100,7 +2137,7 @@ static bool arm_setup_iommu_dma_ops(struct device *dev, u64 dma_base, u64 size,
 	if (!iommu)
 		return false;
 
-	mapping = arm_iommu_create_mapping(dev->bus, dma_base, size);
+	mapping = arm_iommu_create_mapping(dev, dev->bus, dma_base, size);
 	if (IS_ERR(mapping)) {
 		pr_warn("Failed to create %llu-byte IOMMU mapping for device %s\n",
 				size, dev_name(dev));
@@ -2142,7 +2179,8 @@ static void arm_teardown_iommu_dma_ops(struct device *dev) { }
 
 #endif	/* CONFIG_ARM_DMA_USE_IOMMU */
 
-static struct dma_map_ops *arm_get_dma_map_ops(bool coherent)
+static struct dma_map_ops *arm_get_dma_map_ops(struct device *dev,
+								bool coherent)
 {
 	return coherent ? &arm_coherent_dma_ops : &arm_dma_ops;
 }
@@ -2150,13 +2188,13 @@ static struct dma_map_ops *arm_get_dma_map_ops(bool coherent)
 void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 			const struct iommu_ops *iommu, bool coherent)
 {
-	struct dma_map_ops *dma_ops;
+	const struct dma_map_ops *dma_ops;
 
 	dev->archdata.dma_coherent = coherent;
 	if (arm_setup_iommu_dma_ops(dev, dma_base, size, iommu))
-		dma_ops = arm_get_iommu_dma_map_ops(coherent);
+		dma_ops = arm_get_iommu_dma_map_ops(dev, coherent);
 	else
-		dma_ops = arm_get_dma_map_ops(coherent);
+		dma_ops = arm_get_dma_map_ops(dev, coherent);
 
 	set_dma_ops(dev, dma_ops);
 }

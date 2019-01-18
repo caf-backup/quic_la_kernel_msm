@@ -213,6 +213,7 @@ static int __test_hash(struct hash_testvec *template, unsigned int tcount,
 	struct tcrypt_result tresult;
 	void *hash_buff;
 	char *xbuf[XBUFSIZE];
+	const char *algo;
 	int ret = -ENOMEM;
 
 	result = kmalloc(MAX_DIGEST_SIZE, GFP_KERNEL);
@@ -244,7 +245,7 @@ static int __test_hash(struct hash_testvec *template, unsigned int tcount,
 			return PTR_ERR(tfm);
 		}
 
-		const char *algo = crypto_tfm_alg_driver_name(crypto_ahash_tfm(tfm));
+		algo = crypto_tfm_alg_driver_name(crypto_ahash_tfm(tfm));
 
 		init_completion(&tresult.completion);
 
@@ -361,7 +362,7 @@ static int __test_hash(struct hash_testvec *template, unsigned int tcount,
 			return PTR_ERR(tfm);
 		}
 
-		const char *algo = crypto_tfm_alg_driver_name(crypto_ahash_tfm(tfm));
+		algo = crypto_tfm_alg_driver_name(crypto_ahash_tfm(tfm));
 
 		init_completion(&tresult.completion);
 
@@ -531,6 +532,7 @@ static int __test_aead(struct aead_testvec *template, unsigned int tcount,
 	char *xbuf[XBUFSIZE];
 	char *xoutbuf[XBUFSIZE];
 	char *axbuf[XBUFSIZE];
+	const char *algo;
 
 	iv = kzalloc(MAX_IVLEN, GFP_KERNEL);
 	if (!iv)
@@ -573,7 +575,7 @@ static int __test_aead(struct aead_testvec *template, unsigned int tcount,
 			return PTR_ERR(tfm);
 		}
 
-		const char *algo = crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm));
+		algo = crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm));
 
 		init_completion(&result.completion);
 
@@ -738,7 +740,7 @@ static int __test_aead(struct aead_testvec *template, unsigned int tcount,
 			return PTR_ERR(tfm);
 		}
 
-		const char *algo = crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm));
+		algo = crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm));
 
 		init_completion(&result.completion);
 
@@ -1120,6 +1122,7 @@ static int __test_skcipher(struct cipher_testvec *template, unsigned int tcount,
 	char *xoutbuf[XBUFSIZE];
 	int ret = -ENOMEM;
 	unsigned int ivsize;
+	const char *algo;
 
 	if (testmgr_alloc_buf(xbuf))
 		goto out_nobuf;
@@ -1152,7 +1155,7 @@ static int __test_skcipher(struct cipher_testvec *template, unsigned int tcount,
 
 		ivsize = crypto_skcipher_ivsize(tfm);
 
-		const char *algo = crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm));
+		algo = crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm));
 		init_completion(&result.completion);
 
 		req = skcipher_request_alloc(tfm, GFP_KERNEL);
@@ -1275,7 +1278,7 @@ static int __test_skcipher(struct cipher_testvec *template, unsigned int tcount,
 			return PTR_ERR(tfm);
 		}
 		ivsize = crypto_skcipher_ivsize(tfm);
-		const char *algo = crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm));
+		algo = crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm));
 		init_completion(&result.completion);
 
 		req = skcipher_request_alloc(tfm, GFP_KERNEL);

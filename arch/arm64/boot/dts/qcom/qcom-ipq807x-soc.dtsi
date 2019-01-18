@@ -1773,7 +1773,7 @@
 		};
 
 		wifi1: wifi1@c0000000 {
-			compatible = "qcom,cnss-qca8074v2";
+			compatible = "qcom,cnss-qca8074v2", "qcom,ipq8074-wifi";
 			reg = <0xc000000 0x2000000>;
 			qcom,hw-mode-id = <1>;
 			qcom,tgt-mem-mode = <0>;

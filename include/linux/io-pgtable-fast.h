@@ -26,6 +26,7 @@ void av8l_fast_unmap_public(av8l_fast_iopte *ptep, size_t size);
 /* events for notifiers passed to av8l_register_notify */
 #define MAPPED_OVER_STALE_TLB 1
 
+#define CONFIG_IOMMU_IO_PGTABLE_FAST_PROVE_TLB
 
 #ifdef CONFIG_IOMMU_IO_PGTABLE_FAST_PROVE_TLB
 /*
@@ -34,7 +35,7 @@ void av8l_fast_unmap_public(av8l_fast_iopte *ptep, size_t size);
  * platforms with erratum that require that a PTE actually be zero'd out
  * and not just have its valid bit unset.
  */
-#define AV8L_FAST_PTE_UNMAPPED_NEED_TLBI 0xa
+#define AV8L_FAST_PTE_UNMAPPED_NEED_TLBI 0x0
 
 void av8l_fast_clear_stale_ptes(av8l_fast_iopte *puds, bool skip_sync);
 void av8l_register_notify(struct notifier_block *nb);

@@ -72,4 +72,11 @@ static inline struct msi_controller *
 of_pci_find_msi_chip_by_node(struct device_node *of_node) { return NULL; }
 #endif
 
+static inline int of_pci_map_rid(struct device_node *np, u32 rid,
+			const char *map_name, const char *map_mask_name,
+			struct device_node **target, u32 *id_out)
+{
+	return -EINVAL;
+}
+
 #endif

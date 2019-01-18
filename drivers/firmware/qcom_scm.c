@@ -344,6 +344,14 @@ int qcom_scm_regsave(u32 svc_id, u32 cmd_id, void *scm_regsave,
 }
 EXPORT_SYMBOL(qcom_scm_regsave);
 
+int qcom_scm_extwdt(u32 svc_id, u32 cmd_id, unsigned int regaddr,
+						unsigned int val)
+{
+	return __qcom_scm_extwdt(__scm->dev, svc_id, cmd_id,
+						regaddr, val);
+}
+EXPORT_SYMBOL(qcom_scm_extwdt);
+
 int qcom_sec_upgrade_auth(unsigned int sw_type, unsigned int img_size,
 				 unsigned int load_addr)
 {
@@ -519,7 +527,7 @@ static int qcom_scm_pas_reset_deassert(struct reset_controller_dev *rcdev,
 	return __qcom_scm_pas_mss_reset(__scm->dev, 0);
 }
 
-static const struct reset_control_ops qcom_scm_pas_reset_ops = {
+static struct reset_control_ops qcom_scm_pas_reset_ops = {
 	.assert = qcom_scm_pas_reset_assert,
 	.deassert = qcom_scm_pas_reset_deassert,
 };

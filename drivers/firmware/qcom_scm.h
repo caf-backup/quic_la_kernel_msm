@@ -153,6 +153,9 @@ extern int __qcom_scm_hdcp_req(struct device *dev,
 extern int __qcom_scm_regsave(struct device *, u32 svc_id, u32 cmd_id, void *,
 					unsigned int buf_size);
 
+extern int __qcom_scm_extwdt(struct device *, u32 svc_id, u32 cmd_id,
+					unsigned int regaddr, unsigned int val);
+
 extern int __qcom_scm_dload(struct device *, u32 svc_id, u32 cmd_id,
 				void *cmd_buf);
 extern int qcom_scm_dload(u32 svc_id, u32 cmd_id, void *cmd_buf);
@@ -247,6 +250,7 @@ extern int __qcom_los_scm_call(struct device *, u32 svc_id, u32 cmd_id,
 
 #define QCOM_SCM_SVC_REGSAVE		0x3
 #define QCOM_SCM_REGSAVE_CMD		0x2
+#define QCOM_SCM_EXTWDT_CMD		0x2
 
 /* common error codes */
 #define QCOM_SCM_V2_EBUSY	-12
