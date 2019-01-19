@@ -842,7 +842,7 @@
 
 				bias-pull-down;
 				drive-strength = <2>;
-				output-high;
+				output-low;
 			};
 
 			pcie_dis_state: pcie-disable {
