@@ -114,7 +114,7 @@ static int qcom_smem_get_flash_partitions(struct smem_partition_table **pparts)
 		return PTR_ERR(p);
 	}
 
-	*pparts = (u64 *) p;
+	*pparts = (struct smem_partition_table *)p;
 	return 0;
 }
 

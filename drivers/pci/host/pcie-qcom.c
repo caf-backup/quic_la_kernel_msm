@@ -1703,9 +1703,7 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 			return PTR_ERR(pcie->dm_iatu);
 
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "parf");
-		if (!res)
-			return NULL;
-		else
+		if (res)
 			res->end += PCIE_V2_PARF_SIZE;
 		pcie->parf = devm_ioremap_resource(dev, res);
 		if (IS_ERR(pcie->parf))

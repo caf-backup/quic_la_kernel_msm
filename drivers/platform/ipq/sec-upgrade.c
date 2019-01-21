@@ -496,7 +496,7 @@ store_sec_dat(struct device *dev, struct device_attribute *attr,
 				    TZ_BLOW_FUSE_SECDAT, &fuse_blow,
 				    sizeof(fuse_blow));
 	if (ret) {
-		pr_err("Error in QFPROM write (%d %d)\n", ret, fuse_status);
+		pr_err("Error in QFPROM write (%d %llu)\n", ret, fuse_status);
 		goto free_mem;
 	}
 	if (fuse_status == FUSEPROV_SECDAT_LOCK_BLOWN)
