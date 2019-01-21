@@ -187,5 +187,9 @@
 		timer {
 			clock-frequency = <240000>;
 		};
+
+		smmu500: arm,smmu@1E00000 {
+			status = "ok";
+		};
 	};
 };
