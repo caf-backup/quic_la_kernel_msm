@@ -99,6 +99,14 @@
 #define TMC_REG_DUMP_MAGIC_V2		(0x42445953)
 #define TMC_REG_DUMP_VER		(1)
 
+typedef struct usb_qdss_ch *(usb_qdss_open_f)(const char *name, void *priv,
+	void (*notify)(void *, unsigned, struct qdss_request *,
+		struct usb_qdss_ch *));
+typedef struct usb_qdss_ch *(usb_qdss_close_f)(struct usb_qdss_ch *ch);
+
+usb_qdss_open_f *usb_qdss_open_ptr;
+usb_qdss_close_f *usb_qdss_close_ptr;
+
 enum tmc_config_type {
 	TMC_CONFIG_TYPE_ETB,
 	TMC_CONFIG_TYPE_ETR,
@@ -790,7 +798,7 @@ static int tmc_enable(struct tmc_drvdata *drvdata, enum tmc_mode mode)
 		coresight_cti_map_trigin(drvdata->cti_reset, 2, 0);
 	} else if (drvdata->config_type == TMC_CONFIG_TYPE_ETR &&
 		   drvdata->out_mode == TMC_ETR_OUT_MODE_USB) {
-		drvdata->usbch = usb_qdss_open("qdss", drvdata,
+		drvdata->usbch = usb_qdss_open_ptr("qdss", drvdata,
 					       usb_notifier);
 		if (IS_ERR_OR_NULL(drvdata->usbch)) {
 			dev_err(drvdata->dev, "usb_qdss_open failed\n");
@@ -815,7 +823,7 @@ static int tmc_enable(struct tmc_drvdata *drvdata, enum tmc_mode mode)
 
 		if (drvdata->config_type == TMC_CONFIG_TYPE_ETR
 		    && drvdata->out_mode == TMC_ETR_OUT_MODE_USB)
-			usb_qdss_close(drvdata->usbch);
+			usb_qdss_close_ptr(drvdata->usbch);
 		pm_runtime_put(drvdata->dev);
 
 		return -EBUSY;
@@ -1042,7 +1050,7 @@ out:
 	if (drvdata->config_type == TMC_CONFIG_TYPE_ETR
 	    && drvdata->out_mode == TMC_ETR_OUT_MODE_USB) {
 		tmc_etr_bam_disable(drvdata);
-		usb_qdss_close(drvdata->usbch);
+		usb_qdss_close_ptr(drvdata->usbch);
 	} else  if (drvdata->config_type == TMC_CONFIG_TYPE_ETR
 		    && drvdata->out_mode == TMC_ETR_OUT_MODE_MEM) {
 		coresight_cti_unmap_trigin(drvdata->cti_reset, 2, 0);
@@ -1636,7 +1644,7 @@ static ssize_t out_mode_store(struct device *dev,
 		coresight_cti_map_trigin(drvdata->cti_reset, 2, 0);
 
 		tmc_etr_bam_disable(drvdata);
-		usb_qdss_close(drvdata->usbch);
+		usb_qdss_close_ptr(drvdata->usbch);
 	} else if (!strcmp(str, str_tmc_etr_out_mode[TMC_ETR_OUT_MODE_USB])) {
 		if (drvdata->out_mode == TMC_ETR_OUT_MODE_USB)
 			goto out;
@@ -1658,7 +1666,7 @@ static ssize_t out_mode_store(struct device *dev,
 		coresight_cti_unmap_trigin(drvdata->cti_reset, 2, 0);
 		coresight_cti_unmap_trigout(drvdata->cti_flush, 3, 0);
 
-		drvdata->usbch = usb_qdss_open("qdss", drvdata,
+		drvdata->usbch = usb_qdss_open_ptr("qdss", drvdata,
 					       usb_notifier);
 		if (IS_ERR(drvdata->usbch)) {
 			dev_err(drvdata->dev, "usb_qdss_open failed\n");
@@ -1835,6 +1843,20 @@ static int tmc_set_reg_dump(struct tmc_drvdata *drvdata)
 
 	return 0;
 }
+
+void register_usb_qdss_open(void *fn)
+{
+	usb_qdss_open_ptr = fn;
+	return;
+}
+EXPORT_SYMBOL(register_usb_qdss_open);
+
+void register_usb_qdss_close(void *fn)
+{
+	usb_qdss_close_ptr = fn;
+	return;
+}
+EXPORT_SYMBOL(register_usb_qdss_close);
 
 static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 {

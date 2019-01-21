@@ -349,6 +349,7 @@ int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
 		udelay(1);
 	} while (1);
 }
+EXPORT_SYMBOL(dwc3_send_gadget_ep_cmd);
 
 static dma_addr_t dwc3_trb_dma_offset(struct dwc3_ep *dep,
 		struct dwc3_trb *trb)
@@ -1713,6 +1714,15 @@ static int dwc3_gadget_stop(struct usb_gadget *g)
 	return 0;
 }
 
+static int dwc3_gadget_restart_usb_session(struct usb_gadget *g)
+{
+	struct dwc3		*dwc = gadget_to_dwc(g);
+
+	dev_warn(dwc->dev, "%s not supported\n",__func__);
+
+	return -EINVAL;
+}
+
 static const struct usb_gadget_ops dwc3_gadget_ops = {
 	.get_frame		= dwc3_gadget_get_frame,
 	.wakeup			= dwc3_gadget_wakeup,
@@ -1720,6 +1730,7 @@ static const struct usb_gadget_ops dwc3_gadget_ops = {
 	.pullup			= dwc3_gadget_pullup,
 	.udc_start		= dwc3_gadget_start,
 	.udc_stop		= dwc3_gadget_stop,
+	.restart		= dwc3_gadget_restart_usb_session,
 };
 
 /* -------------------------------------------------------------------------- */

@@ -643,6 +643,20 @@ struct dwc3_scratchpad_array {
 	__le64	dma_adr[DWC3_MAX_HIBER_SCRATCHBUFS];
 };
 
+#define DWC3_CONTROLLER_ERROR_EVENT			0
+#define DWC3_CONTROLLER_RESET_EVENT			1
+#define DWC3_CONTROLLER_POST_RESET_EVENT		2
+#define DWC3_CORE_PM_PREPARE_EVENT			3
+#define DWC3_CORE_PM_COMPLETE_EVENT			4
+#define DWC3_CORE_PM_SUSPEND_EVENT			5
+#define DWC3_CORE_PM_RESUME_EVENT			6
+#define DWC3_CONTROLLER_POST_INITIALIZATION_EVENT	7
+#define DWC3_CONTROLLER_CONNDONE_EVENT			8
+#define DWC3_CONTROLLER_NOTIFY_OTG_EVENT		9
+#define DWC3_CONTROLLER_SET_CURRENT_DRAW_EVENT		10
+#define DWC3_CONTROLLER_RESTART_USB_SESSION		11
+
+#define MAX_INTR_STATS					10
 /**
  * struct dwc3 - representation of our controller
  * @ctrl_req: usb control request which is used for ep0

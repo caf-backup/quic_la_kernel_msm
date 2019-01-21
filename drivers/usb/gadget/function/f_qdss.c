@@ -22,6 +22,7 @@
 #include <linux/usb/cdc.h>
 
 #include "f_qdss.h"
+#include <linux/coresight.h>
 
 static DEFINE_SPINLOCK(qdss_lock);
 static LIST_HEAD(usb_qdss_ch_list);
@@ -1039,7 +1040,7 @@ static struct usb_function *qdss_alloc(struct usb_function_instance *fi)
 	return &usb_qdss->port.function;
 }
 
-DECLARE_USB_FUNCTION_INIT(qdss, qdss_alloc_inst, qdss_alloc);
+DECLARE_USB_FUNCTION(qdss, qdss_alloc_inst, qdss_alloc);
 static int __init usb_qdss_init(void)
 {
 	int ret;
@@ -1050,6 +1051,9 @@ static int __init usb_qdss_init(void)
 		pr_err("%s: failed to register diag %d\n", __func__, ret);
 		return ret;
 	}
+	register_usb_qdss_open(usb_qdss_open);
+	register_usb_qdss_close(usb_qdss_close);
+
 	return ret;
 }
 
@@ -1061,4 +1065,5 @@ static void __exit usb_qdss_exit(void)
 
 module_init(usb_qdss_init);
 module_exit(usb_qdss_exit);
+MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("USB QDSS Function Driver");

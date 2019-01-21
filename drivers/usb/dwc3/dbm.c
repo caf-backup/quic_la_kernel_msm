@@ -129,7 +129,7 @@ static LIST_HEAD(dbm_list);
  */
 static inline void msm_dbm_write_ep_reg_field(struct dbm *dbm,
 					      enum dbm_reg reg, int ep,
-					      const u32 mask, u32 val)
+					      const unsigned long mask, u32 val)
 {
 	u32 shift = find_first_bit((void *)&mask, 32);
 	u32 offset = dbm->reg_table[reg].offset +
@@ -216,6 +216,7 @@ int dbm_soft_reset(struct dbm *dbm, bool reset)
 
 	return 0;
 }
+EXPORT_SYMBOL(dbm_soft_reset);
 
 /**
  * Soft reset specific DBM ep.
@@ -275,6 +276,7 @@ int dbm_ep_soft_reset(struct dbm *dbm, u8 usb_ep, bool enter_reset)
 	pr_debug("Setting USB ep %d reset to %d\n", usb_ep, enter_reset);
 	return ep_soft_reset(dbm, dbm_ep, enter_reset);
 }
+EXPORT_SYMBOL(dbm_ep_soft_reset);
 
 /**
  * Configure a USB DBM ep to work in BAM mode.
@@ -343,6 +345,7 @@ int dbm_ep_config(struct dbm *dbm, u8 usb_ep, u8 bam_pipe, bool producer,
 
 	return dbm_ep;
 }
+EXPORT_SYMBOL(dbm_ep_config);
 
 /**
  * Return number of configured DBM endpoints.
@@ -363,7 +366,7 @@ int dbm_get_num_of_eps_configured(struct dbm *dbm)
 
 	return count;
 }
-
+EXPORT_SYMBOL(dbm_get_num_of_eps_configured);
 /**
  * Configure a USB DBM ep to work in normal mode.
  *
@@ -401,6 +404,7 @@ int dbm_ep_unconfig(struct dbm *dbm, u8 usb_ep)
 	 */
 	return 0;
 }
+EXPORT_SYMBOL(dbm_ep_unconfig);
 
 /**
  * Configure the DBM with the USB3 core event buffer.
@@ -439,6 +443,7 @@ int dbm_event_buffer_config(struct dbm *dbm, u32 addr_lo, u32 addr_hi, int size)
 
 	return 0;
 }
+EXPORT_SYMBOL(dbm_event_buffer_config);
 
 /**
  * Disable update xfer before queueing stop xfer command to USB3 core.
@@ -496,6 +501,7 @@ int dbm_data_fifo_config(struct dbm *dbm, u8 dep_num, phys_addr_t addr,
 
 	return 0;
 }
+EXPORT_SYMBOL(dbm_data_fifo_config);
 
 void dbm_set_speed(struct dbm *dbm, bool speed)
 {
@@ -506,6 +512,7 @@ void dbm_set_speed(struct dbm *dbm, bool speed)
 
 	msm_dbm_write_reg(dbm, DBM_GEN_CFG, speed);
 }
+EXPORT_SYMBOL(dbm_set_speed);
 
 void dbm_enable(struct dbm *dbm)
 {
@@ -520,6 +527,7 @@ void dbm_enable(struct dbm *dbm)
 	msm_dbm_write_reg(dbm, DBM_DATA_FIFO_ADDR_EN, 0x000000FF);
 	msm_dbm_write_reg(dbm, DBM_DATA_FIFO_SIZE_EN, 0x000000FF);
 }
+EXPORT_SYMBOL(dbm_enable);
 
 bool dbm_reset_ep_after_lpm(struct dbm *dbm)
 {
@@ -530,6 +538,7 @@ bool dbm_reset_ep_after_lpm(struct dbm *dbm)
 
 	return dbm->dbm_reset_ep_after_lpm;
 }
+EXPORT_SYMBOL(dbm_reset_ep_after_lpm);
 
 bool dbm_l1_lpm_interrupt(struct dbm *dbm)
 {
@@ -638,6 +647,7 @@ struct dbm *usb_get_dbm_by_phandle(struct device *dev, const char *phandle)
 
 	return of_usb_find_dbm(node);
 }
+EXPORT_SYMBOL(usb_get_dbm_by_phandle);
 
 MODULE_DESCRIPTION("MSM USB DBM driver");
 MODULE_LICENSE("GPL v2");
