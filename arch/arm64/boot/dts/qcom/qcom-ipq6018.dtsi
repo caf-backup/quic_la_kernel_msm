@@ -1429,6 +1429,12 @@
 		};
 	};
 
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
+		status = "disabled";
+	};
+
 	cpus {
 		#address-cells = <0x1>;
 		#size-cells = <0x0>;
