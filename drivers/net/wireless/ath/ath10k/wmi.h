@@ -1025,6 +1025,7 @@ struct wmi_cmd_map {
 	u32 vdev_aggr_size_per_ac_cmdid;
 	u32 per_peer_per_tid_config_cmdid;
 	u32 radar_found_cmdid;
+	u32 set_coex_param_cmdid;
 };
 
 /*
