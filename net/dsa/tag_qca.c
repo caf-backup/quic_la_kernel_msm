@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015, 2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -114,6 +114,7 @@ static struct sk_buff *qca_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 }
 
 const struct dsa_device_ops qca_netdev_ops = {
-	.xmit	= qca_tag_xmit,
-	.rcv	= qca_tag_rcv,
+	.xmit		= qca_tag_xmit,
+	.rcv		= qca_tag_rcv,
+	.tag_len	= QCA_HDR_LEN,
 };
