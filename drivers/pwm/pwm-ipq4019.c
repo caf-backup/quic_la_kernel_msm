@@ -22,6 +22,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <asm/div64.h>
 
 #include "ipq-adss.h"
 
@@ -75,15 +76,19 @@ static struct ipq4019_pwm_chip *to_ipq4019_pwm_chip(struct pwm_chip *chip)
 }
 
 static void config_div_and_duty(struct pwm_device *pwm, int pre_div,
-				int pwm_div, int period_ns, int duty_ns)
+			unsigned long long pwm_div, unsigned long period_ns,
+			unsigned long long duty_ns)
 {
 	unsigned long hi_dur;
+	unsigned long long quotient;
 	unsigned long ctrl_reg_val = 0;
 
 	/* high duration = pwm duty * ( pwm div + 1)
 	 * pwm duty = duty_ns / period_ns
 	 */
-	hi_dur = ((pwm_div + 1) * duty_ns) / period_ns;
+	quotient = (pwm_div + 1) * duty_ns;
+	do_div(quotient, period_ns);
+	hi_dur = quotient;
 
 	ctrl_reg_val |= ((pre_div & MAX_PRE_DIV) << PWM_CTRL_PRE_DIV_SHIFT);
 	ctrl_reg_val |= ((hi_dur & MAX_HI_DUR) << PWM_CTRL_HI_SHIFT);
@@ -122,9 +127,6 @@ static int ipq4019_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	unsigned long rate = clk_get_rate(ipq4019_chip->clk);
 	unsigned long min_diff = rate;
 
-	/* freq in Hz for period in nano second*/
-	freq = NSEC_PER_SEC / period_ns;
-
 	if (period_ns > MAX_PERIOD_NS || period_ns < MIN_PERIOD_NS) {
 		pr_err("PWM Frequency range supported is 762Hz to 100MHz\n"
 			"Switching to default configuration values\n");
@@ -133,6 +135,9 @@ static int ipq4019_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		pwm->period = period_ns;
 		pwm->duty_cycle = duty_ns;
 	}
+
+	/* freq in Hz for period in nano second*/
+	freq = NSEC_PER_SEC / period_ns;
 
 	ipq4019_pwm_disable(chip, pwm);
 
