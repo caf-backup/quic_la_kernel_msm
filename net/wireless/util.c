@@ -1009,7 +1009,9 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 	/* if it's part of a bridge, reject changing type to station/ibss */
 	if ((dev->priv_flags & IFF_BRIDGE_PORT) &&
 	    (ntype == NL80211_IFTYPE_ADHOC ||
+#ifdef DONT_ALLOW_STA_MODE_BRIDGE
 	     ntype == NL80211_IFTYPE_STATION ||
+#endif
 	     ntype == NL80211_IFTYPE_P2P_CLIENT))
 		return -EBUSY;
 
@@ -1061,7 +1063,14 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 		case NL80211_IFTYPE_OCB:
 		case NL80211_IFTYPE_P2P_CLIENT:
 		case NL80211_IFTYPE_ADHOC:
+		/* Allow Station to be added to bridge. Normally a station
+		 * can not be used to bridge traffic with other interfaces
+		 * in the bridge. But this will allow a special case where a
+		 * bridge is created with a single station interface.
+		 */
+#ifdef DONT_ALLOW_STA_MODE_BRIDGE
 			dev->priv_flags |= IFF_DONT_BRIDGE;
+#endif
 			break;
 		case NL80211_IFTYPE_P2P_GO:
 		case NL80211_IFTYPE_AP:
