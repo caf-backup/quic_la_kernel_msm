@@ -1,7 +1,7 @@
 /*
  * qca_85xx_sw.c: QCA 85xx switch driver
  *
- * Copyright (c) 2015-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2017, 2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -36,6 +36,12 @@
 #include "qca_85xx_sw_regdef.h"
 
 #define QCA_85XX_SW_MAX_REG_SIZE 16
+
+/*
+ * In LACP mode, Port 27 is used in SGMII Mode and no trunk is used
+ */
+static bool configure_lacp;
+module_param(configure_lacp, bool, 0);
 
 struct of_device_id dt_qca_85xx_sw[] = {
 	{ .compatible =  "qcom,qca-85xx-sw" },
@@ -447,9 +453,10 @@ static int qca_85xx_sw_init_sgmii_port(enum qca_85xx_sw_gmac_port port,
 	/* Set the MAC-mode settings in SGMII_CTRL0 register */
 	sgmii_ctrl0_val = priv->read(sgmii_ctrl0_reg);
 
-	/* Place the SGMII mode into MAC mode */
-	/* for SGMII ports and 1000Base-X for SGMII+ */
-	if (sgmii_cfg->port_mode != QCA_85XX_SW_PORT_MODE_SGMII_PLUS)
+	/* Place the SGMII mode into MAC mode
+	 * and 1000Base-X for SGMII+ and SGMII_LACP
+	 */
+	if (sgmii_cfg->port_mode == QCA_85XX_SW_PORT_MODE_SGMII)
 		sgmii_ctrl0_val |= SGMII_CTRL0_SGMII_MODE_MAC;
 	else
 		sgmii_ctrl0_val &= ~(SGMII_CTRL0_SGMII_MODE_PHY
@@ -1615,6 +1622,19 @@ static const struct switch_dev_ops qca_85xx_sw_ops = {
 	.set_reg_val = NULL,
 };
 
+/*
+ * Initialize settings for 'lacp' mode. In this mode, Port 27 is used in
+ * 1G/SGMII mode and no trunk is configured in 85xx
+ */
+static void qca_85xx_sw_cfg_lacp_mode(struct qca_85xx_sw_platform_data *pdata)
+{
+	pdata->port_27_cfg.port_mode = QCA_85XX_SW_PORT_MODE_SGMII_LACP;
+	pdata->port_27_cfg.is_speed_forced = true;
+	pdata->port_27_cfg.forced_speed = SPEED_1000;
+	pdata->port_27_cfg.forced_duplex = DUPLEX_FULL;
+	pdata->trunk_cfg.is_trunk_enabled = false;
+}
+
 static void qca_85xx_sw_of_get_pdata(struct device_node *np,
 				     struct qca_85xx_sw_platform_data *pdata)
 {
@@ -1660,6 +1680,14 @@ static void qca_85xx_sw_of_get_pdata(struct device_node *np,
 		pdata->port_26_cfg.is_speed_forced = true;
 	else
 		pdata->port_26_cfg.is_speed_forced = false;
+
+	/*
+	 * Configure the 85xx for LACP mode is enabled
+	 */
+	if (configure_lacp) {
+		qca_85xx_sw_cfg_lacp_mode(pdata);
+		return;
+	}
 
 	is_config_set = 0;
 	of_property_read_u32(np,
@@ -1820,6 +1848,8 @@ static int qca_85xx_sw_probe(struct platform_device *pdev)
 	}
 
 	priv->sgmii_plus_link_speed = SPEED_UNKNOWN;
+
+	vfree(pdata);
 
 	return 0;
 
