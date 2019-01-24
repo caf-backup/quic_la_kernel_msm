@@ -388,6 +388,20 @@ static const struct parent_map gcc_xo_gpll0_gpll6_gpll0_div2_map[] = {
 	{ P_GPLL0_DIV2, 4 },
 };
 
+static const char * const gcc_xo_gpll0_gpll2_bias_pll_nss_noc_clk[] = {
+	"xo",
+	"gpll0",
+	"gpll2",
+	"bias_pll_nss_noc_clk",
+};
+
+static const struct parent_map gcc_xo_gpll0_gpll2_bias_pll_nss_noc_clk_map[] = {
+	{ P_XO, 0 },
+	{ P_GPLL0, 1 },
+	{ P_GPLL2, 3 },
+	{ P_BIAS_PLL_NSS_NOC, 4 },
+};
+
 static const u32 spark_pll_regs_offsets[] = {
 	[ALPHA_PLL_MODE] = 0x00,
 	[ALPHA_PLL_L_VAL] = 0x04,
@@ -782,39 +796,6 @@ static struct clk_rcg2 nss_ce_clk_src = {
 	},
 };
 
-static const struct freq_tbl ftbl_nss_noc_bfdcd_clk_src[] = {
-	F(19200000, P_XO, 1, 0, 0),
-	F(461500000, P_BIAS_PLL_NSS_NOC, 1, 0, 0),
-	{ }
-};
-
-static struct clk_rcg2 nss_noc_bfdcd_clk_src = {
-	.cmd_rcgr = 0x68088,
-	.freq_tbl = ftbl_nss_noc_bfdcd_clk_src,
-	.hid_width = 5,
-	.parent_map = gcc_xo_bias_pll_nss_noc_clk_gpll0_gpll2_map,
-	.clkr.hw.init = &(struct clk_init_data){
-		.name = "nss_noc_bfdcd_clk_src",
-		.parent_names = gcc_xo_bias_pll_nss_noc_clk_gpll0_gpll2,
-		.num_parents = 4,
-		.ops = &clk_rcg2_ops,
-	},
-};
-
-static struct clk_fixed_factor nss_noc_clk_src = {
-	.mult = 1,
-	.div = 1,
-	.hw.init = &(struct clk_init_data){
-		.name = "nss_noc_clk_src",
-		.parent_names = (const char *[]){
-			"nss_noc_bfdcd_clk_src"
-		},
-		.num_parents = 1,
-		.ops = &clk_fixed_factor_ops,
-		.flags = CLK_SET_RATE_PARENT,
-	},
-};
-
 static struct clk_fixed_factor system_noc_clk_src = {
 	.mult = 1,
 	.div = 1,
@@ -843,6 +824,43 @@ static struct clk_branch gcc_sleep_clk_src = {
 			.ops = &clk_branch2_ops,
 			.flags = CLK_IS_CRITICAL,
 		},
+	},
+};
+
+static const struct freq_tbl ftbl_snoc_nssnoc_bfdcd_clk_src[] = {
+	F(24000000, P_XO, 1, 0, 0),
+	F(50000000, P_GPLL0_DIV2, 8, 0, 0),
+	F(100000000, P_GPLL0, 8, 0, 0),
+	F(133333333, P_GPLL0, 6, 0, 0),
+	F(160000000, P_GPLL0, 5, 0, 0),
+	F(200000000, P_GPLL0, 4, 0, 0),
+	F(266666667, P_GPLL0, 3, 0, 0),
+	{ }
+};
+
+static struct clk_rcg2 snoc_nssnoc_bfdcd_clk_src = {
+	.cmd_rcgr = 0x76054,
+	.freq_tbl = ftbl_snoc_nssnoc_bfdcd_clk_src,
+	.hid_width = 5,
+	.parent_map = gcc_xo_gpll0_gpll6_gpll0_div2_map,
+	.clkr.hw.init = &(struct clk_init_data){
+		.name = "snoc_nssnoc_bfdcd_clk_src",
+		.parent_names = gcc_xo_gpll0_gpll6_gpll0_div2,
+		.num_parents = 4,
+		.ops = &clk_rcg2_ops,
+	},
+};
+
+static struct clk_fixed_factor snoc_nssnoc_clk_src = {
+	.mult = 1,
+	.div = 1,
+	.hw.init = &(struct clk_init_data){
+		.name = "snoc_nssnoc_clk_src",
+		.parent_names = (const char *[]){
+			"snoc_nssnoc_bfdcd_clk_src"
+		},
+		.num_parents = 1,
+		.ops = &clk_fixed_factor_ops,
 	},
 };
 
@@ -1964,6 +1982,39 @@ static struct clk_rcg2 system_noc_bfdcd_clk_src = {
 	},
 };
 
+static const struct freq_tbl ftbl_ubi32_mem_noc_bfdcd_clk_src[] = {
+	F(24000000, P_XO, 1, 0, 0),
+	F(307670000, P_BIAS_PLL_NSS_NOC, 1.5, 0, 0),
+	F(533333333, P_GPLL0, 1.5, 0, 0),
+	{ }
+};
+
+static struct clk_rcg2 ubi32_mem_noc_bfdcd_clk_src = {
+	.cmd_rcgr = 0x68088,
+	.freq_tbl = ftbl_ubi32_mem_noc_bfdcd_clk_src,
+	.hid_width = 5,
+	.parent_map = gcc_xo_gpll0_gpll2_bias_pll_nss_noc_clk_map,
+	.clkr.hw.init = &(struct clk_init_data){
+		.name = "ubi32_mem_noc_bfdcd_clk_src",
+		.parent_names = gcc_xo_gpll0_gpll2_bias_pll_nss_noc_clk,
+		.num_parents = 4,
+		.ops = &clk_rcg2_ops,
+	},
+};
+
+static struct clk_fixed_factor ubi32_mem_noc_clk_src = {
+	.mult = 1,
+	.div = 1,
+	.hw.init = &(struct clk_init_data){
+		.name = "ubi32_mem_noc_clk_src",
+		.parent_names = (const char *[]){
+			"ubi32_mem_noc_bfdcd_clk_src"
+		},
+		.num_parents = 1,
+		.ops = &clk_fixed_factor_ops,
+	},
+};
+
 static struct clk_branch gcc_apss_axi_clk = {
 	.halt_reg = 0x46020,
 	.halt_check = BRANCH_HALT_VOTED,
@@ -2603,7 +2654,7 @@ static struct clk_branch gcc_nss_noc_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_nss_noc_clk",
 			.parent_names = (const char *[]){
-				"nss_noc_clk_src"
+				"snoc_nssnoc_clk_src"
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -3115,7 +3166,7 @@ static struct clk_branch gcc_ubi0_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_ubi0_axi_clk",
 			.parent_names = (const char *[]){
-				"nss_noc_clk_src"
+				"ubi32_mem_noc_clk_src"
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -3133,7 +3184,7 @@ static struct clk_branch gcc_ubi0_nc_axi_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_ubi0_nc_axi_clk",
 			.parent_names = (const char *[]){
-				"nss_noc_clk_src"
+				"snoc_nssnoc_clk_src"
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -3847,7 +3898,7 @@ static struct clk_branch gcc_usb1_master_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_usb1_master_clk",
 			.parent_names = (const char *[]){
-				"usb1_master_clk_src"
+				"pcnoc_clk_src"
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -3978,9 +4029,10 @@ static struct clk_branch gcc_dcc_clk = {
 static struct clk_hw *gcc_ipq6018_hws[] = {
 	&gpll0_out_main_div2.hw,
 	&pcnoc_clk_src.hw,
-	&nss_noc_clk_src.hw,
+	&snoc_nssnoc_clk_src.hw,
 	&system_noc_clk_src.hw,
 	&gcc_xo_div4_clk_src.hw,
+	&ubi32_mem_noc_clk_src.hw,
 	&nss_ppe_cdiv_clk_src.hw,
 	&gpll6_out_main_div2.hw,
 	&qdss_dap_sync_clk_src.hw,
@@ -4101,6 +4153,7 @@ static struct clk_regmap *gcc_ipq6018_clks[] = {
 	[APSS_AHB_CLK_SRC] = &apss_ahb_clk_src.clkr,
 	[NSS_PORT5_RX_CLK_SRC] = &nss_port5_rx_clk_src.clkr,
 	[NSS_PORT5_TX_CLK_SRC] = &nss_port5_tx_clk_src.clkr,
+	[UBI32_MEM_NOC_BFDCD_CLK_SRC] = &ubi32_mem_noc_bfdcd_clk_src.clkr,
 	[PCIE0_AXI_CLK_SRC] = &pcie0_axi_clk_src.clkr,
 	[USB0_MASTER_CLK_SRC] = &usb0_master_clk_src.clkr,
 	[APSS_AHB_POSTDIV_CLK_SRC] = &apss_ahb_postdiv_clk_src.clkr,
@@ -4302,6 +4355,7 @@ static struct clk_regmap *gcc_ipq6018_dummy_clks[] = {
 	[APSS_AHB_CLK_SRC] = DEFINE_DUMMY_CLK(apss_ahb_clk_src),
 	[NSS_PORT5_RX_CLK_SRC] = DEFINE_DUMMY_CLK(nss_port5_rx_clk_src),
 	[NSS_PORT5_TX_CLK_SRC] = DEFINE_DUMMY_CLK(nss_port5_tx_clk_src),
+	[UBI32_MEM_NOC_BFDCD_CLK_SRC] = DEFINE_DUMMY_CLK(ubi32_mem_noc_bfdcd_clk_src),
 	[PCIE0_AXI_CLK_SRC] = DEFINE_DUMMY_CLK(pcie0_axi_clk_src),
 	[USB0_MASTER_CLK_SRC] = DEFINE_DUMMY_CLK(usb0_master_clk_src),
 	[APSS_AHB_POSTDIV_CLK_SRC] = DEFINE_DUMMY_CLK(apss_ahb_postdiv_clk_src),
