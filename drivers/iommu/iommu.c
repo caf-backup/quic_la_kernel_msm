@@ -436,6 +436,7 @@ rename:
 		__iommu_attach_device(group->domain, dev);
 	mutex_unlock(&group->mutex);
 
+
 	/* Notify any listeners about change to group. */
 	blocking_notifier_call_chain(&group->notifier,
 				     IOMMU_GROUP_NOTIFY_ADD_DEVICE, dev);
@@ -1090,6 +1091,7 @@ static struct iommu_domain *__iommu_domain_alloc(struct bus_type *bus,
 	domain->type = type;
 	/* Assume all sizes by default; the driver may override this later */
 	domain->pgsize_bitmap  = bus->iommu_ops->pgsize_bitmap;
+	memset(domain->name, 0, IOMMU_DOMAIN_NAME_LEN);
 
 	return domain;
 }
@@ -1114,8 +1116,14 @@ static int __iommu_attach_device(struct iommu_domain *domain,
 		return -ENODEV;
 
 	ret = domain->ops->attach_dev(domain, dev);
-	if (!ret)
+	if (!ret) {
 		trace_attach_device_to_domain(dev);
+
+		if (!strnlen(domain->name, IOMMU_DOMAIN_NAME_LEN)) {
+			strlcpy(domain->name, dev_name(dev),
+				IOMMU_DOMAIN_NAME_LEN);
+		}
+	}
 	return ret;
 }
 
@@ -1332,6 +1340,7 @@ int iommu_map(struct iommu_domain *domain, unsigned long iova,
 	unsigned long orig_iova = iova;
 	unsigned int min_pagesz;
 	size_t orig_size = size;
+	phys_addr_t orig_paddr = paddr;
 	int ret = 0;
 
 	if (unlikely(domain->ops->map == NULL ||
@@ -1376,7 +1385,7 @@ int iommu_map(struct iommu_domain *domain, unsigned long iova,
 	if (ret)
 		iommu_unmap(domain, orig_iova, orig_size - size);
 	else
-		trace_map(orig_iova, paddr, orig_size);
+		trace_map(domain, orig_iova, orig_paddr, orig_size, prot);
 
 	return ret;
 }
@@ -1429,10 +1438,22 @@ size_t iommu_unmap(struct iommu_domain *domain, unsigned long iova, size_t size)
 		unmapped += unmapped_page;
 	}
 
-	trace_unmap(orig_iova, size, unmapped);
+	trace_unmap(domain, orig_iova, size, unmapped);
 	return unmapped;
 }
 EXPORT_SYMBOL_GPL(iommu_unmap);
+
+size_t iommu_map_sg(struct iommu_domain *domain,
+				  unsigned long iova, struct scatterlist *sg,
+				  unsigned int nents, int prot)
+{
+	size_t mapped;
+
+	mapped = domain->ops->map_sg(domain, iova, sg, nents, prot);
+	trace_map_sg(domain, iova, mapped, prot);
+	return mapped;
+}
+EXPORT_SYMBOL(iommu_map_sg);
 
 size_t default_iommu_map_sg(struct iommu_domain *domain, unsigned long iova,
 			 struct scatterlist *sg, unsigned int nents, int prot)
@@ -1496,6 +1517,47 @@ void iommu_domain_window_disable(struct iommu_domain *domain, u32 wnd_nr)
 	return domain->ops->domain_window_disable(domain, wnd_nr);
 }
 EXPORT_SYMBOL_GPL(iommu_domain_window_disable);
+
+/**
+ * report_iommu_fault() - report about an IOMMU fault to the IOMMU framework
+ * @domain: the iommu domain where the fault has happened
+ * @dev: the device where the fault has happened
+ * @iova: the faulting address
+ * @flags: mmu fault flags (e.g. IOMMU_FAULT_READ/IOMMU_FAULT_WRITE/...)
+ *
+ * This function should be called by the low-level IOMMU implementations
+ * whenever IOMMU faults happen, to allow high-level users, that are
+ * interested in such events, to know about them.
+ *
+ * This event may be useful for several possible use cases:
+ * - mere logging of the event
+ * - dynamic TLB/PTE loading
+ * - if restarting of the faulting device is required
+ *
+ * Returns 0 on success and an appropriate error code otherwise (if dynamic
+ * PTE/TLB loading will one day be supported, implementations will be able
+ * to tell whether it succeeded or not according to this return value).
+ *
+ * Specifically, -ENOSYS is returned if a fault handler isn't installed
+ * (though fault handlers can also return -ENOSYS, in case they want to
+ * elicit the default behavior of the IOMMU drivers).
+ */
+int report_iommu_fault(struct iommu_domain *domain,
+		struct device *dev, unsigned long iova, int flags)
+{
+	int ret = -ENOSYS;
+
+	/*
+	 * if upper layers showed interest and installed a fault handler,
+	 * invoke it.
+	 */
+	if (domain->handler)
+		ret = domain->handler(domain, dev, iova, flags,
+						domain->handler_token);
+
+	trace_io_page_fault(dev, iova, flags);
+	return ret;
+}
 
 static int __init iommu_init(void)
 {
