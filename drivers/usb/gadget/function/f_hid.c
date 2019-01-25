@@ -502,7 +502,7 @@ static void hidg_disable(struct usb_function *f)
 {
 	struct f_hidg *hidg = func_to_hidg(f);
 	struct f_hidg_req_list *list, *next;
-        unsigned long flags;
+	unsigned long flags;
 
 	usb_ep_disable(hidg->in_ep);
 	usb_ep_disable(hidg->out_ep);
@@ -555,7 +555,7 @@ static int hidg_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 		}
 		status = usb_ep_enable(hidg->out_ep);
 		if (status < 0) {
-			ERROR(cdev, "Enable IN endpoint FAILED!\n");
+			ERROR(cdev, "Enable OUT endpoint FAILED!\n");
 			goto fail;
 		}
 		hidg->out_ep->driver_data = hidg;

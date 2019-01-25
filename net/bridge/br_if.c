@@ -466,8 +466,8 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	if (dev->netdev_ops->ndo_start_xmit == br_dev_xmit)
 		return -ELOOP;
 
-	/* Device is already being bridged */
-	if (br_port_exists(dev))
+	/* Device has master upper dev */
+	if (netdev_master_upper_dev_get(dev))
 		return -EBUSY;
 
 	/* No bridging devices that dislike that (e.g. wireless) */
@@ -521,8 +521,11 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	if (br_fdb_insert(br, p, dev->dev_addr, 0))
 		netdev_err(dev, "failed insert local address bridge forwarding table\n");
 
-	if (nbp_vlan_init(p))
+	err = nbp_vlan_init(p);
+	if (err) {
 		netdev_err(dev, "failed to initialize vlan filtering on this port\n");
+		goto err6;
+	}
 
 	spin_lock_bh(&br->lock);
 	changed_addr = br_stp_recalculate_bridge_id(br);
@@ -543,6 +546,12 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	call_netdevice_notifiers(NETDEV_BR_JOIN, dev);
 
 	return 0;
+
+err6:
+	list_del_rcu(&p->list);
+	br_fdb_delete_by_port(br, p, 0, 1);
+	nbp_update_port_count(br);
+	netdev_upper_dev_unlink(dev, br->dev);
 
 err5:
 	dev->priv_flags &= ~IFF_BRIDGE_PORT;

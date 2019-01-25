@@ -562,6 +562,7 @@ static int __test_aead(struct aead_testvec *template, unsigned int tcount,
 		e = "decryption";
 
 	pr_info("running aead test for %s driver\n", driver);
+
 	for (i = 0, j = 0; i < tcount; i++) {
 		if (template[i].np)
 			continue;
@@ -756,7 +757,7 @@ static int __test_aead(struct aead_testvec *template, unsigned int tcount,
 		j++;
 
 		if (template[i].iv)
-			memcpy(iv, template[i].iv, MAX_IVLEN);
+			memcpy(iv, template[i].iv, iv_len);
 		else
 			memset(iv, 0, MAX_IVLEN);
 
