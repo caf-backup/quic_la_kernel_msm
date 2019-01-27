@@ -804,6 +804,7 @@
 			qcom,dtls-enabled;
 			qcom,crypto-enabled;
 			qcom,ipsec-enabled;
+			qcom,qvpn-enabled;
 		};
 
 		nss_crypto: qcom,nss_crypto {
