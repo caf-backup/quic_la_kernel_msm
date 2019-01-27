@@ -210,7 +210,21 @@ static inline void dwc3_msm_write_reg_field(void *base, u32 offset,
 	iowrite32(val, base + offset);
 }
 
+static inline void dwc3_msm_writel(void __iomem *base, u32 offset, u32 value)
+{
+	u32 offs = offset - DWC3_GLOBALS_REGS_START;
 
+	writel(value, base + offs);
+}
+
+static inline u32 dwc3_msm_readl(void __iomem *base, u32 offset)
+{
+	u32 offs = offset - DWC3_GLOBALS_REGS_START;
+	u32 value;
+
+	value = readl(base + offs);
+	return value;
+}
 
 /**
  * Configure the DBM with the BAM's data fifo.
@@ -372,6 +386,36 @@ static u32 dwc3_msm_gadget_ep_get_transfer_index(struct dwc3 *dwc, u8 number)
 	return DWC3_DEPCMD_GET_RSC_IDX(res_id);
 }
 
+int dwc3_msm_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
+				unsigned cmd, struct dwc3_gadget_ep_cmd_params *params)
+{
+	struct dwc3_ep          *dep = dwc->eps[ep];
+	u32                     timeout = 500;
+	u32                     reg;
+
+	dwc3_msm_writel(dwc->regs, DWC3_DEPCMDPAR0(ep), params->param0);
+	dwc3_msm_writel(dwc->regs, DWC3_DEPCMDPAR1(ep), params->param1);
+	dwc3_msm_writel(dwc->regs, DWC3_DEPCMDPAR2(ep), params->param2);
+
+	dwc3_msm_writel(dwc->regs, DWC3_DEPCMD(ep), cmd | DWC3_DEPCMD_CMDACT);
+	do {
+		reg = dwc3_msm_readl(dwc->regs, DWC3_DEPCMD(ep));
+		if (!(reg & DWC3_DEPCMD_CMDACT)) {
+			if (DWC3_DEPCMD_STATUS(reg))
+				return -EINVAL;
+			return 0;
+		}
+
+		timeout--;
+		if (!timeout) {
+			return -ETIMEDOUT;
+		}
+
+		udelay(1);
+	} while (1);
+}
+
+
 /**
  * Helper function.
  * See the header of the dwc3_msm_ep_queue function.
@@ -431,7 +475,7 @@ int __dwc3_msm_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 
 	/* DBM requires IOC to be set */
 	cmd = DWC3_DEPCMD_STARTTRANSFER | DWC3_DEPCMD_CMDIOC;
-	ret = dwc3_send_gadget_ep_cmd(dep->dwc, dep->number, cmd, &params);
+	ret = dwc3_msm_send_gadget_ep_cmd(dep->dwc, dep->number, cmd, &params);
 	if (ret < 0) {
 		dev_dbg(dep->dwc->dev,
 			"%s: failed to send STARTTRANSFER command\n",
