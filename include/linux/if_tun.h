@@ -19,6 +19,12 @@
 
 #if defined(CONFIG_TUN) || defined(CONFIG_TUN_MODULE)
 struct socket *tun_get_socket(struct file *);
+#ifdef __KERNEL__
+typedef void (*tun_get_offload_stats_t)(struct net_device *dev,
+					struct rtnl_link_stats64 *stats);
+void tun_register_offload_stats_callback(tun_get_offload_stats_t stats_cb);
+void tun_unregister_offload_stats_callback(void);
+#endif
 #else
 #include <linux/err.h>
 #include <linux/errno.h>
