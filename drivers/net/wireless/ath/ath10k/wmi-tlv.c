@@ -2025,11 +2025,6 @@ static struct sk_buff *ath10k_wmi_tlv_op_gen_init(struct ath10k *ar)
 
 	cfg->host_capab = __cpu_to_le32(val);
 
-
-	if (ath10k_peer_stats_enabled(ar))
-		cfg->host_capab |=
-			__cpu_to_le32(WMI_RSRC_CFG_FLAG_TX_PEER_STATS);
-
 	ath10k_wmi_tlv_put_host_mem_chunks(ar, chunks);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi tlv init\n");
