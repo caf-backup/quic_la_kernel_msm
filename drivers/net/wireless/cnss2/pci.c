@@ -788,7 +788,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 {
 	struct cnss_pci_data *pci_priv = plat_priv->bus_priv;
 	struct cnss_fw_mem *fw_mem = plat_priv->fw_mem;
-	unsigned int bdf_location[2], caldb_location[2];
+	unsigned int bdf_location[3], caldb_location[3];
 	struct device *dev;
 	int i, idx, mode;
 
@@ -851,7 +851,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 		}
 		idx = 0;
 		mode = plat_priv->tgt_mem_cfg_mode;
-		if (mode >= 2)
+		if (mode >= 3)
 			CNSS_ASSERT(0);
 
 		for (i = 0; i < plat_priv->fw_mem_seg_len; i++) {
