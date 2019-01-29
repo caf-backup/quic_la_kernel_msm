@@ -391,6 +391,11 @@ int cnss_wlan_enable(struct device *dev,
 	if (!plat_priv)
 		return 0;
 
+	if (plat_priv->device_id == QCA6018_DEVICE_ID) {
+		cnss_pr_dbg("Disable cnss_wlan_enable for QCA6018\n");
+		return 0;
+	}
+
 	if (plat_priv->device_id == QCA6174_DEVICE_ID)
 		return 0;
 
@@ -714,6 +719,14 @@ static int cnss_driver_call_remove(struct cnss_plat_data *plat_priv)
 int cnss_is_fw_ready(struct device *dev)
 {
 	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
+
+	if (!plat_priv)
+		return 0;
+
+	if (plat_priv->device_id == QCA6018_DEVICE_ID) {
+		cnss_pr_err("ret cnss_is_fw_ready  true for QCA6018\n");
+		return 1;
+	}
 
 	if (test_bit(CNSS_FW_READY, &plat_priv->driver_state))
 		return 1;
