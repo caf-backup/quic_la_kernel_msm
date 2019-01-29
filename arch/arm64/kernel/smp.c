@@ -98,6 +98,9 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 	 * We need to tell the secondary core where to find its stack and the
 	 * page tables.
 	 */
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+	secondary_data.task = idle;
+#endif
 	secondary_data.stack = task_stack_page(idle) + THREAD_START_SP;
 	__flush_dcache_area(&secondary_data, sizeof(secondary_data));
 
@@ -120,7 +123,9 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 	} else {
 		pr_err("CPU%u: failed to boot: %d\n", cpu, ret);
 	}
-
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+	secondary_data.task = NULL;
+#endif
 	secondary_data.stack = NULL;
 
 	return ret;
@@ -138,7 +143,10 @@ static void smp_store_cpu_info(unsigned int cpuid)
 asmlinkage void secondary_start_kernel(void)
 {
 	struct mm_struct *mm = &init_mm;
-	unsigned int cpu = smp_processor_id();
+	unsigned int cpu;
+
+	cpu = task_cpu(current);
+	set_my_cpu_offset(per_cpu_offset(cpu));
 
 	/*
 	 * All kernel threads share the same mm context; grab a
@@ -146,8 +154,6 @@ asmlinkage void secondary_start_kernel(void)
 	 */
 	atomic_inc(&mm->mm_count);
 	current->active_mm = mm;
-
-	set_my_cpu_offset(per_cpu_offset(smp_processor_id()));
 
 	/*
 	 * TTBR0 is only used for the identity mapping at this stage. Make it
