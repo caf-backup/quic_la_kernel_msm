@@ -209,12 +209,6 @@
 		};
 	};
 
-	qfprom {
-		compatible = "qca,qfprom-sec";
-		img-addr = <0x44000000>;
-		img-size = <0x600000>;
-	};
-
 	nss-common {
 		compatible = "qcom,nss-common";
 		reg = <0x03000000 0x00001000>;
@@ -1035,6 +1029,12 @@
 				dma-names = "tx", "rx";
 			};
 		};
+	};
+
+	qfprom {
+		compatible = "qca,qfprom-sec";
+		img-addr = <0x44000000>;
+		img-size = <0x600000>;
 	};
 
 	chosen {
