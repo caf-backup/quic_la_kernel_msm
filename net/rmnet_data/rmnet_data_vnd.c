@@ -175,12 +175,6 @@ static netdev_tx_t rmnet_vnd_start_xmit(struct sk_buff *skb,
 	trace_rmnet_vnd_start_xmit(skb);
 	dev_conf = (struct rmnet_vnd_private_s *) netdev_priv(dev);
 	if (dev_conf->local_ep.egress_dev) {
-		struct rmnet_nss_cb *nss_cb;
-
-		nss_cb = rcu_dereference(rmnet_nss_callbacks);
-		if (nss_cb)
-			nss_cb->nss_rx(skb);
-
 		/* QoS header should come after MAP header */
 		if (dev_conf->qos_version)
 			rmnet_vnd_add_qos_header(skb,
