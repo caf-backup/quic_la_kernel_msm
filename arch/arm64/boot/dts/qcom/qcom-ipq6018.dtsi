@@ -1745,3 +1745,5 @@
 		status = "disabled";
 	};
 };
+
+#include "qcom-ipq6018-coresight.dtsi"
