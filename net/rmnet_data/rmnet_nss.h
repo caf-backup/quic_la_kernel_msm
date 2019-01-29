@@ -19,7 +19,6 @@ struct rmnet_nss_cb {
 	int (*nss_create)(struct net_device *dev);
 	int (*nss_free)(struct net_device *dev);
 	int (*nss_tx)(struct sk_buff *skb);
-	int (*nss_rx)(struct sk_buff *skb);
 };
 
 extern struct rmnet_nss_cb *rmnet_nss_callbacks;
