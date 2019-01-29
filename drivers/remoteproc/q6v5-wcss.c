@@ -707,6 +707,14 @@ static int q6_rproc_emu_start(struct rproc *rproc)
 	int ret = 0;
 
 	atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_STARTING);
+	/* Release Q6 and WCSS reset */
+	val = readl(pdata->gcc_bcr_base + GCC_WCSS_BCR);
+	val &= ~(BIT(0));
+	writel(val, pdata->gcc_bcr_base + GCC_WCSS_BCR);
+	val = readl(pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
+	val &= ~(BIT(0));
+	writel(val, pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
+
 	/* Last but two step in script */
 	val = readl(pdata->gcc_misc_base + 0x10);
 
@@ -1073,6 +1081,7 @@ static int stop_q6(const struct subsys_desc *subsys, bool force_stop)
 
 	if (pdata->emulation) {
 		pr_emerg("q6v5: Emulation stop, no smp2p messages\n");
+		q6_rproc_stop(rproc);
 		return 0;
 	}
 
