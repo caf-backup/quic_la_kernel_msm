@@ -1053,10 +1053,19 @@ static int ath10k_snoc_hif_set_target_log_mode(struct ath10k *ar,
 {
 	u8 fw_dbg_mode;
 
-	if (fw_log_mode)
-		fw_dbg_mode = ATH10K_ENABLE_FW_LOG_CE;
-	else
+	switch (fw_log_mode) {
+	case 0:
 		fw_dbg_mode = ATH10K_ENABLE_FW_LOG_DIAG;
+		break;
+	case 1:
+		fw_dbg_mode = ATH10K_ENABLE_FW_LOG_CE;
+		break;
+	case 2:
+		fw_dbg_mode = ATH10K_ENABLE_FW_LOG_DEBUG_MSG;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	return ath10k_qmi_set_fw_log_mode(ar, fw_dbg_mode);
 }

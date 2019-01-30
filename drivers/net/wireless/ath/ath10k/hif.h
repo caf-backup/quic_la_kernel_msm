@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2015,2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -27,6 +28,7 @@
 enum ath_dbg_mode {
 	ATH10K_ENABLE_FW_LOG_DIAG,
 	ATH10K_ENABLE_FW_LOG_CE,
+	ATH10K_ENABLE_FW_LOG_DEBUG_MSG
 };
 
 struct ath10k_hif_sg_item {

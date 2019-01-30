@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015,2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -37,7 +37,31 @@
 #define FW_DBGLOG_NUM_ARGS_MAX		5 /* it is limited bcoz of limitatios
                                              with Xtensa tool */
 
+#define FW_TLV_DBGLOG_MSGID_OFFSET	16
+#define FW_TLV_DBGLOG_MSGID_MASK	0xFFFF0000 /* Bit 0-15 */
 
+#define FW_TLV_DBGLOG_MODULEID_OFFSET	11
+#define FW_TLV_DBGLOG_MODULEID_MASK	0x0000F800 /* Bit 16-20 */
+
+#define FW_TLV_DBGLOG_LOGLEVEL_OFFSET	8
+#define FW_TLV_DBGLOG_LOGLEVEL_MASK	0x00000700 /* Bit 21-23 */
+
+#define FW_TLV_DBGLOG_ARG_LENGTH_OFFSET	0
+#define FW_TLV_DBGLOG_ARG_LENGTH_MASK	0x000000FF /* Bit 24-31 */
+
+#define FW_TLV_LOG_BUF_LEN 200
+
+#define FW_TLV_DBGLOG_GET_MSGID(arg) \
+	((arg & FW_TLV_DBGLOG_MSGID_MASK) >> FW_TLV_DBGLOG_MSGID_OFFSET)
+
+#define FW_TLV_DBGLOG_GET_MODULEID(arg) \
+	((arg & FW_TLV_DBGLOG_MODULEID_MASK) >> FW_TLV_DBGLOG_MODULEID_OFFSET)
+
+#define FW_TLV_DBGLOG_GET_LOGLEVEL(arg) \
+	((arg & FW_TLV_DBGLOG_LOGLEVEL_MASK) >> FW_TLV_DBGLOG_LOGLEVEL_OFFSET)
+
+#define FW_TLV_DBGLOG_GET_ARG_LENGTH(arg) \
+((arg & FW_TLV_DBGLOG_ARG_LENGTH_MASK) >> FW_TLV_DBGLOG_ARG_LENGTH_OFFSET)
 
 #define FW_DBGLOG_GET_DBGID(arg) \
     ((arg & FW_DBGLOG_DBGID_MASK) >> FW_DBGLOG_DBGID_OFFSET)
@@ -99,7 +123,6 @@ typedef enum {
 	WLAN_10_4_MODULE_ID_MAX = 35,
 	WLAN_10_4_MODULE_ID_INVALID = WLAN_10_4_MODULE_ID_MAX,
 } WLAN_10_4_MODULE_ID;
-
 
 char * DBG_MSG_ARR[WLAN_MODULE_ID_MAX][MAX_DBG_MSGS] =
 {
@@ -1449,6 +1472,77 @@ static void ath10k_fwlog_print(struct ath10k *ar, u32 mod_id, u16 vap_id,
 	printk(KERN_CONT " )\n");
 }
 
+static void ath10k_tlv_fwlog_parse_msg(struct ath10k *ar, u8 *data, int len)
+{
+	u8 buf_len = FW_TLV_LOG_BUF_LEN;
+	u8 log_buf[FW_TLV_LOG_BUF_LEN];
+	u32 message_id;
+	u16 arg_length;
+	u64 timestamp;
+	u8 module_id;
+	u8 log_level;
+	u8 num_args;
+	u32 *buffer;
+	u32 dropped;
+	u32 length;
+	u8 log_len;
+	u32 count;
+	u32 i;
+
+	/* 4 bytes for dropped and 28 bytes for header */
+	if (len < 32)
+		return;
+
+	dropped = *((u32 *)data);
+	data += sizeof(dropped);
+	len -= sizeof(dropped);
+
+	if (dropped > 0)
+		ath10k_info(ar, FW_DBGLOG_PRINT_PREFIX
+			    "%d log buffers are dropped\n", dropped);
+
+	count = 0;
+	buffer = (u32 *)data;
+	length = (len >> 2);
+
+	/* 7 words for header */
+	buffer += 7;
+	length -= 7;
+
+	while (count < length) {
+		timestamp = *buffer++; /* Timestamp High */
+		timestamp = timestamp << 32 | *buffer++; /* Timestamp Low */
+
+		message_id = FW_TLV_DBGLOG_GET_MSGID(*buffer);
+		module_id = FW_TLV_DBGLOG_GET_MODULEID(*buffer);
+		log_level = FW_TLV_DBGLOG_GET_LOGLEVEL(*buffer);
+		arg_length = FW_TLV_DBGLOG_GET_ARG_LENGTH(*buffer++);
+		num_args = arg_length / 4;
+
+		memset(log_buf, 0, sizeof(log_buf));
+		log_len = 0;
+		log_len += scnprintf(log_buf + log_len, buf_len - log_len,
+				     "[%s] ", wiphy_name(ar->hw->wiphy));
+
+		log_len += scnprintf(log_buf + log_len, buf_len - log_len,
+				     FW_DBGLOG_PRINT_PREFIX
+				     "[%ld] message_id %u ( ",
+				     timestamp, message_id);
+		for (i = 0; i < num_args; i++) {
+			log_len += scnprintf(log_buf + log_len,
+					     buf_len - log_len,
+					     "%#x", *buffer++);
+			if ((i + 1) < num_args)
+				log_len += scnprintf(log_buf + log_len,
+						     buf_len - log_len, ", ");
+		}
+		log_len += scnprintf(log_buf + log_len,
+				     buf_len - log_len, " )\n");
+		ath10k_info(ar, log_buf);
+		count += num_args + 3;
+	}
+}
+
 static void ath10k_fwlog_parse_msg(struct ath10k *ar, u8 *data, int len) {
 
 	u32 *buffer;
@@ -1508,7 +1602,11 @@ static void ath10k_fwlog_print_work(struct work_struct *work) {
 
 	skb = skb_dequeue(&ar->fwlog_tx_queue);
 	if (skb) {
-		ath10k_fwlog_parse_msg(ar, skb->data, skb->len);
+		if (ar->running_fw->fw_file.wmi_op_version ==
+		    ATH10K_FW_WMI_OP_VERSION_TLV)
+			ath10k_tlv_fwlog_parse_msg(ar, skb->data, skb->len);
+		else
+			ath10k_fwlog_parse_msg(ar, skb->data, skb->len);
 		dev_kfree_skb(skb);
 		if (skb_queue_len(&ar->fwlog_tx_queue)) {
 			ieee80211_queue_work(ar->hw,

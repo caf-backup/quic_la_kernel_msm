@@ -688,6 +688,44 @@ ath10k_wmi_tlv_event_tpc_config_dispatch(struct ath10k *ar, struct sk_buff *skb)
 	}
 }
 
+static int ath10k_wmi_tlv_event_debug_mesg(struct ath10k *ar,
+					   struct sk_buff *skb)
+{
+	const void **tb;
+	const void *data;
+	int ret;
+	u16 data_len;
+
+	tb = ath10k_wmi_tlv_parse_alloc(ar, skb->data, skb->len, GFP_ATOMIC);
+	if (IS_ERR(tb)) {
+		ret = PTR_ERR(tb);
+		ath10k_warn(ar, "failed to parse tlv: %d\n", ret);
+		return ret;
+	}
+
+	data = tb[WMI_TLV_TAG_ARRAY_BYTE];
+	if (!data) {
+		ath10k_warn(ar, "no data for debug mesg event\n");
+		kfree(tb);
+		return -EPROTO;
+	}
+
+	data_len = ath10k_wmi_tlv_len(data);
+	if (data_len > skb->len - sizeof(struct wmi_tlv)) {
+		ath10k_warn(ar, "invalid length[%u - %u] for debug mesg event\n",
+			    data_len, skb->len);
+		return -EINVAL;
+	}
+
+	skb_pull(skb, sizeof(struct wmi_tlv));
+	kfree(tb);
+
+	ath10k_dbg(ar, ATH10K_DBG_WMI, "wmi tlv debug mesg event len %u\n",
+		   data_len);
+	ath10k_wmi_event_debug_mesg(ar, skb);
+	return 0;
+}
+
 /***********/
 /* TLV ops */
 /***********/
@@ -733,7 +771,8 @@ static void ath10k_wmi_tlv_op_rx(struct ath10k *ar, struct sk_buff *skb)
 		ath10k_wmi_event_echo(ar, skb);
 		break;
 	case WMI_TLV_DEBUG_MESG_EVENTID:
-		ath10k_wmi_event_debug_mesg(ar, skb);
+		if (!ath10k_wmi_tlv_event_debug_mesg(ar, skb))
+			return;
 		break;
 	case WMI_TLV_UPDATE_STATS_EVENTID:
 		ath10k_wmi_event_update_stats(ar, skb);
@@ -3226,7 +3265,7 @@ ath10k_wmi_tlv_op_gen_dbglog_cfg(struct ath10k *ar, u64 module_enable,
 	if (module_enable) {
 		value = WMI_TLV_DBGLOG_LOG_LEVEL_VALUE(
 				module_enable,
-				WMI_TLV_DBGLOG_LOG_LEVEL_VERBOSE);
+				log_level);
 	} else {
 		value = WMI_TLV_DBGLOG_LOG_LEVEL_VALUE(
 				WMI_TLV_DBGLOG_ALL_MODULES,
