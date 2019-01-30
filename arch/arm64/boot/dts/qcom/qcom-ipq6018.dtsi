@@ -1611,7 +1611,7 @@
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
-		status = "disabled";
+		status = "ok";
 	};
 
 	cpus {
@@ -1620,22 +1620,22 @@
 
 		CPU0: cpu@0 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53";
+			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0x0>;
-			enable-method = "qcom,arm-cortex-acc";
+			enable-method = "psci";
 			qcom,acc = <&acc0>;
 			next-level-cache = <&L2_0>;
 
 			L2_0: l2-cache {
-				compatible = "arm,arch-cache";
+				compatible = "cache";
 				cache-level = <0x2>;
 			};
 		};
 
 		CPU1: cpu@1 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53";
-			enable-method = "qcom,arm-cortex-acc";
+			compatible = "arm,cortex-a53", "arm,armv8";
+			enable-method = "psci";
 			qcom,acc = <&acc1>;
 			reg = <0x1>;
 			next-level-cache = <&L2_0>;
@@ -1643,8 +1643,8 @@
 
 		CPU2: cpu@2 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53";
-			enable-method = "qcom,arm-cortex-acc";
+			compatible = "arm,cortex-a53", "arm,armv8";
+			enable-method = "psci";
 			qcom,acc = <&acc2>;
 			reg = <0x2>;
 			next-level-cache = <&L2_0>;
@@ -1652,8 +1652,8 @@
 
 		CPU3: cpu@3 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53";
-			enable-method = "qcom,arm-cortex-acc";
+			compatible = "arm,cortex-a53", "arm,armv8";
+			enable-method = "psci";
 			qcom,acc = <&acc3>;
 			reg = <0x3>;
 			next-level-cache = <&L2_0>;
