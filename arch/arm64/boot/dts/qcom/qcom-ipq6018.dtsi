@@ -1439,6 +1439,19 @@
 				     <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 		};
+
+		msm_imem: qcom,msm-imem@8600000 {
+			compatible = "qcom,msm-imem";
+			reg = <0x08600000 0x1000>;
+			ranges = <0x0 0x08600000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mem_dump_table@10 {
+				compatible = "qcom,msm-imem-mem_dump_table";
+				reg = <0x10 8>;
+			};
+		};
 	};
 
 	psci {
