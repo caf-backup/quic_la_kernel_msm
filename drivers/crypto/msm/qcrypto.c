@@ -62,8 +62,6 @@
 
 #define QCRYPTO_HIGH_BANDWIDTH_TIMEOUT 1000
 
-
-
 /* Status of response workq */
 enum resp_workq_sts {
 	NOT_SCHEDULED  = 0,
@@ -1013,7 +1011,7 @@ static int _qcrypto_cra_aead_aes_sha1_init(struct crypto_aead *tfm)
 		return rc;
 	ctx->cipher_aes192_fb = NULL;
 	ctx->ahash_aead_aes192_fb = NULL;
-	if (!cp->ce_support.aes_key_192) {
+	if (!cp->ce_support.aes_key_192 && cp->ce_support.aes192_fb_sha1) {
 		ctx->cipher_aes192_fb = crypto_alloc_ablkcipher(
 							"cbc(aes)", 0, 0);
 		if (IS_ERR(ctx->cipher_aes192_fb)) {
