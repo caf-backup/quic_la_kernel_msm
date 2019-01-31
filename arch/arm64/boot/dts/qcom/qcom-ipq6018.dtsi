@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -939,7 +939,6 @@
 				 <&gcc GCC_NSS_PTP_REF_CLK>,
 				 <&gcc GCC_NSS_CSR_CLK>, <&gcc GCC_NSS_CFG_CLK>,
 				 <&gcc GCC_NSSNOC_QOSGEN_REF_CLK>,
-				 <&gcc GCC_MEM_NOC_NSS_AXI_CLK>,
 				 <&gcc GCC_NSSNOC_SNOC_CLK>,
 				 <&gcc GCC_NSSNOC_TIMEOUT_REF_CLK>,
 				 <&gcc GCC_NSS_CE_AXI_CLK>,
@@ -954,7 +953,6 @@
 			clock-names = "nss-noc-clk", "nss-ptp-ref-clk",
 				      "nss-csr-clk", "nss-cfg-clk",
 				      "nss-nssnoc-qosgen-ref-clk",
-				      "nss-mem-noc-nss-axi-clk",
 				      "nss-nssnoc-snoc-clk",
 				      "nss-nssnoc-timeout-ref-clk",
 				      "nss-ce-axi-clk", "nss-ce-apb-clk",
