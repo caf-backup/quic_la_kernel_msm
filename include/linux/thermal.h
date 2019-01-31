@@ -553,4 +553,8 @@ static inline int thermal_generate_netlink_event(struct thermal_zone_device *tz,
 }
 #endif
 
+/* Low temperature notification function */
+typedef void (*low_temp_notif_fn)(int sensor, int temp, int low_notif);
+int register_low_temp_notif(int sensor, int temp, low_temp_notif_fn fn);
+
 #endif /* __THERMAL_H__ */
