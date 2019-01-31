@@ -421,6 +421,7 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_FILS_CACHE_ID] = { .len = 2 },
 	[NL80211_ATTR_PMK] = { .type = NLA_BINARY, .len = PMK_MAX_LEN },
 	[NL80211_ATTR_SCHED_SCAN_MULTI] = { .type = NLA_FLAG },
+	[NL80211_ATTR_MAP] = { .type = NLA_U8},
 };
 
 /* policy for the key attributes */
@@ -2877,6 +2878,15 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 			return err;
 	} else {
 		params.use_4addr = -1;
+	}
+
+	if (info->attrs[NL80211_ATTR_MAP]) {
+		params.map_enabled = !!nla_get_u8(info->attrs[NL80211_ATTR_MAP]);
+		params.use_4addr = 1;
+		change = true;
+		err = nl80211_valid_4addr(rdev, dev, params.use_4addr, ntype);
+		if (err)
+			return err;
 	}
 
 	err = nl80211_parse_mon_options(rdev, ntype, info, &params);
