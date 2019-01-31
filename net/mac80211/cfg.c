@@ -3,7 +3,7 @@
  *
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2015  Intel Mobile Communications GmbH
- * Copyright (C) 2015-2017 Intel Deutschland GmbH
+ * Copyright (C) 2015-2016 Intel Deutschland GmbH
  *
  * This file is GPLv2 as found in COPYING.
  */
@@ -2137,7 +2137,6 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 					 params->basic_rates_len,
 					 &sdata->vif.bss_conf.basic_rates);
 		changed |= BSS_CHANGED_BASIC_RATES;
-		ieee80211_check_rate_mask(sdata);
 	}
 
 	if (params->ap_isolate >= 0) {
@@ -2803,21 +2802,6 @@ static int ieee80211_set_bitrate_mask(struct wiphy *wiphy,
 
 	if (!ieee80211_sdata_running(sdata))
 		return -ENETDOWN;
-
-	/*
-	 * If active validate the setting and reject it if it doesn't leave
-	 * at least one basic rate usable, since we really have to be able
-	 * to send something, and if we're an AP we have to be able to do
-	 * so at a basic rate so that all clients can receive it.
-	 */
-	if (rcu_access_pointer(sdata->vif.chanctx_conf) &&
-	    sdata->vif.bss_conf.chandef.chan) {
-		u32 basic_rates = sdata->vif.bss_conf.basic_rates;
-		enum nl80211_band band = sdata->vif.bss_conf.chandef.chan->band;
-
-		if (!(mask->control[band].legacy & basic_rates))
-			return -EINVAL;
-	}
 
 	if (ieee80211_hw_check(&local->hw, HAS_RATE_CONTROL)) {
 		ret = drv_set_bitrate_mask(local, sdata, mask);
