@@ -3041,6 +3041,40 @@ done:
 }
 
 /**
+ * cpr3_handle_temp_open_loop_adjustment() - voltage based cold temperature
+ *
+ * @rdev:		Regulator device pointer for the cpr3-regulator
+ * @is_cold:		Flag to denote enter/exit cold condition
+ *
+ * This function is adjusts voltage margin based on cold condition
+ *
+ * Return: 0 = success
+ */
+
+int cpr3_handle_temp_open_loop_adjustment(struct cpr3_controller *ctrl,
+								bool is_cold)
+{
+	int i ,j, k, rc;
+	struct cpr3_regulator *vreg;
+
+	mutex_lock(&ctrl->lock);
+	for (i = 0; i < ctrl->thread_count; i++) {
+		for (j = 0; j < ctrl->thread[i].vreg_count; j++) {
+			vreg = &ctrl->thread[i].vreg[j];
+			for (k = 0; k < vreg->corner_count; k++) {
+				vreg->corner[k].open_loop_volt = is_cold ?
+				    vreg->corner[k].cold_temp_open_loop_volt :
+				    vreg->corner[k].normal_temp_open_loop_volt;
+			}
+		}
+	}
+	rc = cpr3_regulator_update_ctrl_state(ctrl);
+	mutex_unlock(&ctrl->lock);
+
+	return rc;
+}
+
+/**
  * cpr3_regulator_get_voltage() - get the voltage corner for the CPR3 regulator
  *			associated with the regulator device
  * @rdev:		Regulator device pointer for the cpr3-regulator
