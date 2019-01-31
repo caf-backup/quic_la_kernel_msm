@@ -25,6 +25,10 @@ struct qce_cipher_ctx {
 	struct crypto_ablkcipher *fallback;
 };
 
+struct qce_config_key_sec {
+	uint32_t keylen;
+}__attribute__((packed));
+
 /**
  * struct qce_cipher_reqctx - holds private cipher objects per request
  * @flags: operation flags
