@@ -219,10 +219,12 @@ static int qce_ablkcipher_setkey(struct crypto_ablkcipher *ablk, const u8 *key,
 			goto weakkey;
 	}
 
-	ret = qce_setkey_sec(keylen);
-	if (ret){
-		pr_err("%s: qce key configuration fail\n", __func__);
-		return ret;
+	if (use_fixed_key) {
+		ret = qce_setkey_sec(keylen);
+		if (ret){
+			pr_err("%s: qce key configuration fail\n", __func__);
+			return ret;
+		}
 	}
 
 	ctx->enc_keylen = keylen;

@@ -18,6 +18,7 @@
 #include "core.h"
 
 #define QCE_MAX_KEY_SIZE	64
+extern bool use_fixed_key;
 
 struct qce_cipher_ctx {
 	u8 enc_key[QCE_MAX_KEY_SIZE];
