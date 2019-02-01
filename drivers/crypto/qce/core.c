@@ -416,6 +416,7 @@ static int qce_debug_init(struct qce_device *qce)
 		rc = PTR_ERR(stats_dent);
 		goto err;
 	}
+	qce->qce_debug_dent = qce_dent;
 	return 0;
 err:
 	debugfs_remove_recursive(qce_dent);
@@ -515,6 +516,7 @@ static int qce_crypto_remove(struct platform_device *pdev)
 	clk_disable_unprepare(qce->bus);
 	clk_disable_unprepare(qce->iface);
 	clk_disable_unprepare(qce->core);
+	debugfs_remove_recursive(qce->qce_debug_dent);
 	return 0;
 }
 
