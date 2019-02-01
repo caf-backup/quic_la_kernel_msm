@@ -49,7 +49,7 @@ static int bhi_alloc_bhie_xfer(struct mhi_device_ctxt *mhi_dev_ctxt,
 
 	mhi_log(mhi_dev_ctxt, MHI_MSG_INFO,
 		"Total size:%lu total_seg:%d seg_size:%lu\n",
-		size, segments, seg_size);
+		(unsigned long)size, segments, (unsigned long)seg_size);
 
 	sg_list = kcalloc(segments, sizeof(*sg_list), GFP_KERNEL);
 	if (!sg_list)
@@ -88,7 +88,7 @@ static int bhi_alloc_bhie_xfer(struct mhi_device_ctxt *mhi_dev_ctxt,
 			(info->phys_addr - info->dma_handle);
 		mhi_log(mhi_dev_ctxt, MHI_MSG_INFO,
 				"Seg:%d unaligned Img: 0x%llx aligned:0x%llx\n",
-				i, info->dma_handle, info->phys_addr);
+			i, (u64)info->dma_handle, (u64)info->phys_addr);
 	}
 
 	sg_init_table(sg_list, segments);
@@ -140,8 +140,8 @@ static int bhi_alloc_pbl_xfer(struct mhi_device_ctxt *mhi_dev_ctxt,
 						     mem_info->dma_handle);
 	mhi_log(mhi_dev_ctxt, MHI_MSG_INFO,
 		"alloc_size:%lu image_size:%lu unal_addr:0x%llx0x al_addr:0x%llx\n",
-		mem_info->alloc_size, mem_info->size,
-		mem_info->dma_handle, mem_info->phys_addr);
+		(unsigned long)mem_info->alloc_size, (unsigned long)mem_info->size,
+		(u64)mem_info->dma_handle, (u64)mem_info->phys_addr);
 
 	return 0;
 }
@@ -611,7 +611,7 @@ int bhi_probe(struct mhi_device_ctxt *mhi_dev_ctxt)
 
 	mhi_log(mhi_dev_ctxt, MHI_MSG_INFO,
 		"max sbl image size:%lu segment size:%lu\n",
-		fw_info->max_sbl_len, fw_info->segment_size);
+		(unsigned long)fw_info->max_sbl_len, (unsigned long)fw_info->segment_size);
 
 	/* Read the fw image */
 	ret = request_firmware(&firmware, fw_info->fw_image,
