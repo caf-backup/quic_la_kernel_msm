@@ -20,6 +20,7 @@
 #include <asm/errno.h>
 
 #ifdef CONFIG_IOMMU_DMA
+#include <linux/dma-mapping.h>
 #include <linux/iommu.h>
 
 struct dma_iommu_mapping {

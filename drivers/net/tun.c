@@ -183,6 +183,8 @@ struct tun_struct {
 	kgid_t			group;
 
 	struct net_device	*dev;
+	struct rtnl_link_stats64 stats;
+	spinlock_t stats64_lock;	/* protects statistics counters */
 	netdev_features_t	set_features;
 #define TUN_USER_FEATURES (NETIF_F_HW_CSUM|NETIF_F_TSO_ECN|NETIF_F_TSO| \
 			  NETIF_F_TSO6|NETIF_F_UFO)
@@ -205,6 +207,8 @@ struct tun_struct {
 	void *security;
 	u32 flow_count;
 };
+
+static tun_get_offload_stats_t tun_get_offload_stats_cb;
 
 #ifdef CONFIG_TUN_VNET_CROSS_LE
 static inline bool tun_legacy_is_little_endian(struct tun_struct *tun)
@@ -921,6 +925,28 @@ static netdev_features_t tun_net_fix_features(struct net_device *dev,
 
 	return (features & tun->set_features) | (features & ~TUN_USER_FEATURES);
 }
+
+struct rtnl_link_stats64 *tun_net_get_stats64(struct net_device *dev,
+					     struct rtnl_link_stats64 *stats)
+{
+	struct tun_struct *tun = netdev_priv(dev);
+
+	memset(stats, 0, sizeof(struct rtnl_link_stats64));
+	spin_lock(&tun->stats64_lock);
+
+	if (tun_get_offload_stats_cb)
+		tun_get_offload_stats_cb(dev, stats);
+
+	stats->rx_frame_errors += dev->stats.rx_frame_errors;
+	stats->rx_packets += dev->stats.rx_packets;
+	stats->rx_bytes += dev->stats.rx_bytes;
+	stats->tx_packets += dev->stats.tx_packets;
+	stats->tx_bytes += dev->stats.tx_bytes;
+
+	spin_unlock(&tun->stats64_lock);
+	return stats;
+}
+
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void tun_poll_controller(struct net_device *dev)
 {
@@ -946,6 +972,7 @@ static const struct net_device_ops tun_netdev_ops = {
 	.ndo_change_mtu		= tun_net_change_mtu,
 	.ndo_fix_features	= tun_net_fix_features,
 	.ndo_select_queue	= tun_select_queue,
+	.ndo_get_stats64        = tun_net_get_stats64,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= tun_poll_controller,
 #endif
@@ -2359,7 +2386,6 @@ static const struct ethtool_ops tun_ethtool_ops = {
 	.get_ts_info	= ethtool_op_get_ts_info,
 };
 
-
 static int __init tun_init(void)
 {
 	int ret = 0;
@@ -2406,6 +2432,21 @@ struct socket *tun_get_socket(struct file *file)
 	return &tfile->socket;
 }
 EXPORT_SYMBOL_GPL(tun_get_socket);
+
+/* Register tun offload statistics callback */
+void tun_register_offload_stats_callback(tun_get_offload_stats_t stats_cb)
+{
+	BUG_ON(tun_get_offload_stats_cb);
+	rcu_assign_pointer(tun_get_offload_stats_cb, stats_cb);
+}
+EXPORT_SYMBOL(tun_register_offload_stats_callback);
+
+/* Unregister tun offload statistics callback */
+void tun_unregister_offload_stats_callback(void)
+{
+	rcu_assign_pointer(tun_get_offload_stats_cb, NULL);
+}
+EXPORT_SYMBOL(tun_unregister_offload_stats_callback);
 
 module_init(tun_init);
 module_exit(tun_cleanup);
