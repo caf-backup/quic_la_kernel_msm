@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2016-2018 Linaro Ltd.
+ * Copyright (C) 2016-2019 Linaro Ltd.
  * Copyright (C) 2014 Sony Mobile Communications AB
- * Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
  */
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -754,6 +754,7 @@ static const struct rproc_ops q6v5_wcss_qcs404_ops = {
 	.da_to_va = q6v5_wcss_da_to_va,
 	.load = q6v5_wcss_load,
 	.get_boot_addr = rproc_elf_get_boot_addr,
+	.parse_fw = qcom_register_dump_segments,
 };
 
 static int q6v5_wcss_init_reset(struct q6v5_wcss *wcss,
