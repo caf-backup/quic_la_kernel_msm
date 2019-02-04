@@ -24,19 +24,20 @@
 #include <linux/regmap.h>
 #include <linux/pm.h>
 
-static bool download_mode = IS_ENABLED(CONFIG_POWER_RESET_MSM_DOWNLOAD_MODE);
-module_param(download_mode, bool, 0000);
-
 #define QCOM_SET_DLOAD_MODE 0x10
 static void __iomem *msm_ps_hold;
 static struct regmap *tcsr_regmap;
 static unsigned int dload_mode_offset;
 static int do_always_reboot;
+unsigned int *readvalue;
 
 static int do_msm_restart(struct notifier_block *nb, unsigned long action,
 			   void *data)
 {
 	pr_err("In %s @ %d\n", __func__, __LINE__);
+	regmap_read(tcsr_regmap, dload_mode_offset, readvalue);
+	pr_err("Download mode cookie is %s\n cookie val is %d\n",
+		(*readvalue != 0 ? "yes" : "No"), *readvalue);
 	msm_trigger_wdog_bite();
 	mdelay(10000);
 
@@ -47,8 +48,15 @@ static int do_msm_reboot(struct notifier_block *nb, unsigned long action,
 			   void *data)
 {
 	pr_err("In %s @ %d\n", __func__, __LINE__);
-	if (download_mode)
-		regmap_write(tcsr_regmap, dload_mode_offset, 0x0);
+
+	regmap_read(tcsr_regmap, dload_mode_offset, readvalue);
+	pr_err("Download mode cookie is %s\n cookie val is %d\n",
+		(*readvalue != 0 ? "yes" : "No"), *readvalue);
+	regmap_write(tcsr_regmap, dload_mode_offset, 0x0);
+	regmap_read(tcsr_regmap, dload_mode_offset, readvalue);
+	pr_err("Download mode cookie is %s\n cookie val is %d\n",
+		(*readvalue != 0 ? "yes" : "No"), *readvalue);
+
 	writel(0, msm_ps_hold);
 	mdelay(10);
 
@@ -70,24 +78,29 @@ static int msm_restart_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *mem;
 
-	if (download_mode) {
-		ret = of_parse_phandle_with_fixed_args(dev->of_node,
-						       "qcom,dload-mode", 1, 0,
-						       &args);
-		if (ret < 0)
-			return ret;
+	readvalue = devm_kzalloc(&pdev->dev,
+						sizeof(*readvalue), GFP_KERNEL);
+	ret = of_parse_phandle_with_fixed_args
+				(dev->of_node, "qcom,dload-mode",
+				1, 0, &args);
+	if (ret < 0)
+		return ret;
 
-		tcsr_regmap = syscon_node_to_regmap(args.np);
-		of_node_put(args.np);
-		if (IS_ERR(tcsr_regmap))
-			return PTR_ERR(tcsr_regmap);
+	tcsr_regmap = syscon_node_to_regmap(args.np);
+	of_node_put(args.np);
+	if (IS_ERR(tcsr_regmap))
+		return PTR_ERR(tcsr_regmap);
 
-		dload_mode_offset = args.args[0];
+	dload_mode_offset = args.args[0];
 
-		/* Enable download mode by writing the cookie */
-		regmap_write(tcsr_regmap, dload_mode_offset,
-			     QCOM_SET_DLOAD_MODE);
-	}
+	/* Enable download mode by writing the cookie */
+	regmap_write(tcsr_regmap, dload_mode_offset,
+		     QCOM_SET_DLOAD_MODE);
+
+	regmap_read(tcsr_regmap,
+			dload_mode_offset, readvalue);
+	pr_err("Download mode cookie is %s\n cookie val is %d\n",
+		(*readvalue != 0 ? "yes" : "No"), *readvalue);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	msm_ps_hold = devm_ioremap_resource(dev, mem);
@@ -108,9 +121,7 @@ static int msm_restart_probe(struct platform_device *pdev)
 static void msm_restart_shutdown(struct platform_device *pdev)
 {
 	/* Clean shutdown, disable download mode to allow normal restart */
-	if (download_mode) {
-		regmap_write(tcsr_regmap, dload_mode_offset, 0x0);
-	}
+	regmap_write(tcsr_regmap, dload_mode_offset, 0x0);
 }
 
 static const struct of_device_id of_msm_restart_match[] = {
