@@ -14,6 +14,7 @@
 #ifndef _CORE_H_
 #define _CORE_H_
 
+#include <linux/kobject.h>
 #include "dma.h"
 
 #define DEBUG_MAX_RW_BUF 2048
@@ -97,6 +98,9 @@ struct qce_device {
 	int (*async_req_enqueue)(struct qce_device *qce,
 				 struct crypto_async_request *req);
 	void (*async_req_done)(struct qce_device *qce, int ret);
+	struct kset *parent_kset;
+	struct kobject kobj;
+	int fixed_key;
 };
 
 /**
