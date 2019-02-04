@@ -1761,6 +1761,19 @@
 		qca,scm_restart_reason {
 			compatible = "qca,scm_restart_reason";
 		};
+
+		slim_aud: slim@a2c0000 {
+			cell-index = <1>;
+			compatible = "qcom,slim-ngd";
+			reg = <0xA2C0000 0x2c000>,
+				<0xA284000 0x2a000>;
+			reg-names = "slimbus_physical", "slimbus_bam_physical";
+			interrupts = <0 31 0>, <0 32 0>;
+			interrupt-names = "slimbus_irq", "slimbus_bam_irq";
+			qcom,apps-ch-pipes = <0x7c0000>;
+			qcom,ea-pc = <0x320>;
+			status = "disabled";
+		};
 	};
 
 	psci {
