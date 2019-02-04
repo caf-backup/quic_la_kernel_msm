@@ -32,6 +32,9 @@
 
 bool use_fixed_key = false;
 
+#define to_qce_obj(x) container_of(x, struct qce_device, kobj)
+#define to_qce_attr(x) container_of(x, struct qce_attribute, attr)
+
 static const struct qce_algo_ops *qce_ops[] = {
 	&ablkcipher_ops,
 	&ahash_ops,
@@ -425,6 +428,144 @@ err:
 	return rc;
 }
 
+/* a custom attribute that works just for a struct qce_sysfs*/
+struct qce_attribute {
+	struct attribute attr;
+	ssize_t (*show)(struct qce_device *qce, struct qce_attribute *attr,
+				char *buf);
+	ssize_t (*store)(struct qce_device *qce, struct qce_attribute *attr,
+				const char *buf, size_t count);
+};
+
+/*
+ * The default show function that must be passed to sysfs.  This will be
+ * called by sysfs for whenever a show function is called by the user on a
+ * sysfs file associated with the kobjects we have registered.  We need to
+ * transpose back from a "default" kobject to our custom struct qce_sysfs and
+ * then call the show function for that specific object.
+ */
+static ssize_t qce_attr_show(struct kobject *kobj, struct attribute *attr,
+				char *buf)
+{
+	struct qce_attribute *attribute;
+	struct qce_device *qce;
+	attribute = to_qce_attr(attr);
+	qce = to_qce_obj(kobj);
+	if (!attribute->show)
+		return -EIO;
+	return attribute->show(qce, attribute, buf);
+}
+
+/*
+ * Just like the default show function above, but this one is for when the
+ * sysfs "store" is requested (when a value is written to a file.
+ */
+static ssize_t qce_attr_store(struct kobject *kobj,struct attribute *attr,
+				const char *buf, size_t len)
+{
+	struct qce_attribute *attribute;
+	struct qce_device *qce;
+	attribute = to_qce_attr(attr);
+	qce = to_qce_obj(kobj);
+	if (!attribute->store)
+		return -EIO;
+	return attribute->store(qce, attribute, buf, len);
+}
+
+/*Our custom sysfs_ops that we will associate with our ktype later on*/
+static struct sysfs_ops qce_sysfs_ops = {
+	.show = qce_attr_show,
+	.store = qce_attr_store,
+};
+
+/* The "fixed_sec_key" file where the .fixed_key variable is read from
+ * and written to
+ */
+static ssize_t qce_show(struct qce_device *qce, struct qce_attribute *attr,
+				char *buf)
+{
+	return snprintf(buf, sizeof(int), "%d\n", qce->fixed_key);
+}
+
+static ssize_t qce_store(struct qce_device *qce, struct qce_attribute *attr,
+				const char *buf, size_t count)
+{
+	sscanf(buf, "%du", &qce->fixed_key);
+	if (qce->fixed_key == 1)
+		use_fixed_key = true;
+	else
+		use_fixed_key = false;
+
+	return count;
+}
+
+static struct qce_attribute qce_attribute = __ATTR(fixed_sec_key, 0644, qce_show,
+							qce_store);
+
+/*
+ * Create a group of attributes so that we can create and destory them all
+ * at once.
+ */
+static struct attribute *qce_default_attrs[] = {
+	&qce_attribute.attr,
+	NULL,
+};
+
+/*
+ * Our own ktype for our kobjects.  Here we specify our sysfs ops, the
+ * release function, and the set of default attributes we want created
+ * whenever a kobject of this type is registered with the kernel.
+ */
+
+static struct kobj_type qce_ktype = {
+	.sysfs_ops = &qce_sysfs_ops,
+	.default_attrs = qce_default_attrs,
+};
+
+static int create_qce_obj(struct qce_device *qce, char *name)
+{
+	int ret;
+
+	qce->fixed_key = 0;
+
+	/* As we have a kset for this kobject, we need to set
+	 * it before calling the kobject core.
+	 */
+	qce->kobj.kset = qce->parent_kset;
+
+	/*
+	 * Initialize and add the kobject to the kernel.  All the default files
+	 * will be created here.  As we have already specified a kset for this
+	 * kobject, we don't have to set a parent for the kobject, the kobject
+	 * will be placed beneath that kset automatically.
+	 */
+	ret = kobject_init_and_add(&qce->kobj, &qce_ktype, NULL, "%s", name);
+	if (ret)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int qce_sysfs_init(struct qce_device *qce)
+{
+	int ret;
+	/*
+	 * Create a simple kset with the name of "crypto",
+	 * located under /sys/kernel/
+	 */
+	qce->parent_kset = kset_create_and_add("crypto", NULL, kernel_kobj);
+	if (!qce->parent_kset) {
+		pr_err("Error in creating sys entry crypto\n");
+		return -ENOMEM;
+	}
+	/* Create an object and register it with our kset*/
+	ret = create_qce_obj(qce, "qce");
+	if(ret)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int qce_crypto_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -498,6 +639,10 @@ static int qce_crypto_probe(struct platform_device *pdev)
 	ret = qce_debug_init(qce);
 	if (ret)
 		goto err_dma;
+
+	ret = qce_sysfs_init(qce);
+	if (ret)
+		goto err_dma;
 	return 0;
 
 err_dma:
@@ -522,6 +667,8 @@ static int qce_crypto_remove(struct platform_device *pdev)
 	clk_disable_unprepare(qce->iface);
 	clk_disable_unprepare(qce->core);
 	debugfs_remove_recursive(qce->qce_debug_dent);
+	kobject_put(&qce->kobj);
+	kset_unregister(qce->parent_kset);
 	return 0;
 }
 
