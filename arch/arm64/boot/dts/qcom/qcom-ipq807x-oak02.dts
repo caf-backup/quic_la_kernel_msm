@@ -934,3 +934,11 @@
 		};
 	};
 };
+
+&wifi0 {
+	qcom,board_id = <0x12>;
+};
+
+&wifi1 {
+	qcom,board_id = <0x212>;
+};
