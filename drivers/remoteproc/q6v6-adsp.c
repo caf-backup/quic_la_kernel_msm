@@ -191,7 +191,8 @@ static struct dumpdev {
 	char ss_name[8];
 	phys_addr_t dump_phy_addr;
 	size_t dump_size;
-} q6dump = {"q6mem", &q6_dump_ops, FMODE_UNSIGNED_OFFSET | FMODE_EXCL, "adsp"};
+} q6dump = {"adsp_q6mem", &q6_dump_ops,
+		FMODE_UNSIGNED_OFFSET | FMODE_EXCL, "lpass"};
 
 static void open_timeout_func(unsigned long data)
 {
