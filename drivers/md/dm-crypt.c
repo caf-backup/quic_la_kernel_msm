@@ -1567,7 +1567,7 @@ static int crypt_ctr_cipher(struct dm_target *ti,
 			    char *cipher_in, char *key)
 {
 	struct crypt_config *cc = ti->private;
-	char *tmp, *cipher, *chainmode, *ivmode, *ivopts, *keycount;
+	char *tmp, *cipher, *chainmode, *ivmode, *ivopts, *keycount, *qcengine;
 	char *cipher_api = NULL;
 	int ret = -EINVAL;
 	char dummy;
@@ -1605,6 +1605,11 @@ static int crypt_ctr_cipher(struct dm_target *ti,
 		goto bad_mem;
 
 	chainmode = strsep(&tmp, "-");
+	if (strnstr(tmp, "qce", sizeof("qce")))
+		qcengine = strsep(&tmp, "-");
+	else
+		qcengine = NULL;
+
 	ivopts = strsep(&tmp, "-");
 	ivmode = strsep(&ivopts, ":");
 
@@ -1629,8 +1634,12 @@ static int crypt_ctr_cipher(struct dm_target *ti,
 	if (!cipher_api)
 		goto bad_mem;
 
-	ret = snprintf(cipher_api, CRYPTO_MAX_ALG_NAME,
-		       "%s(%s)", chainmode, cipher);
+	if (qcengine)
+		ret = snprintf(cipher_api, CRYPTO_MAX_ALG_NAME,
+				"%s-%s-%s", chainmode, cipher, qcengine);
+	else
+		ret = snprintf(cipher_api, CRYPTO_MAX_ALG_NAME,
+				"%s(%s)", chainmode, cipher);
 	if (ret < 0) {
 		kfree(cipher_api);
 		goto bad_mem;
