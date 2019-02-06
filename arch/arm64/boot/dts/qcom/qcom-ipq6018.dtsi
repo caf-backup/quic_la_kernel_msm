@@ -18,11 +18,17 @@
 #include <dt-bindings/clock/qcom,gcc-ipq6018.h>
 #include <dt-bindings/reset/qcom,gcc-ipq6018.h>
 #include "qcom-ipq6018-memory.dtsi"
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
+#include <dt-bindings/sound/qcom,gpr.h>
 
 / {
 	model = "Qualcomm Technologies, Inc. IPQ6018";
 	compatible = "qcom,ipq6018";
 	qcom,msm-id = <0x192 0x0>;
+
+	aliases {
+		swr0 = &swr0;
+	};
 
 	soc: soc {
 		#address-cells = <0x1>;
@@ -835,6 +841,26 @@
 			status = "disabled";
 		};
 
+		qcom,gpr {
+			compatible = "qcom,gpr";
+			qcom,glink-channels = "to_apps";
+			qcom,intents = <0x200 20>;
+			reg = <GPR_DOMAIN_ADSP>;
+			gecko_core {
+				compatible = "qcom,gecko_core";
+				reg = <GPR_SVC_ADSP_CORE>;
+			};
+			audio-pkt {
+				compatible = "qcom,audio-pkt";
+				qcom,audiopkt-ch-name = "apr_audio_svc";
+				reg = <GPR_SVC_MAX>;
+			};
+			q6prm {
+				compatible = "qcom,q6prm";
+				reg = <GPR_SVC_ASM>;
+			};
+		};
+
 		glink_rpm: qcom,glink-rpm-native-xprt@60000 {
 			compatible = "qcom,glink-rpm-native-xprt";
 			reg = <0x60000 0x6000>, <0x0b111008 0x4>;
@@ -1474,6 +1500,231 @@
 			#gpio-cells = <0x2>;
 			interrupt-controller;
 			#interrupt-cells = <0x2>;
+
+			wsa_swr_clk_pin {
+				wsa_swr_clk_sleep: wsa_swr_clk_sleep {
+					mux {
+						pins = "gpio23";
+						function = "wsa_swrm";
+					};
+
+					config {
+						pins = "gpio23";
+						drive-strength = <2>;
+						bias-bus-hold;
+					};
+				};
+
+				wsa_swr_clk_active: wsa_swr_clk_active {
+					mux {
+						pins = "gpio23";
+						function = "wsa_swrm";
+					};
+
+					config {
+						pins = "gpio23";
+						drive-strength = <2>;
+						bias-bus-hold;
+					};
+				};
+			};
+
+			wsa_swr_data_pin {
+				wsa_swr_data_sleep: wsa_swr_data_sleep {
+					mux {
+						pins = "gpio24";
+						function = "wsa_swrm";
+					};
+
+					config {
+						pins = "gpio24";
+						drive-strength = <4>;
+						bias-bus-hold;
+					};
+				};
+
+				wsa_swr_data_active: wsa_swr_data_active {
+					mux {
+						pins = "gpio24";
+						function = "wsa_swrm";
+					};
+
+					config {
+						pins = "gpio24";
+						drive-strength = <4>;
+						bias-bus-hold;
+					};
+				};
+			};
+
+			/* WSA speaker reset pins */
+			spkr_1_sd_n {
+				spkr_1_sd_n_sleep: spkr_1_sd_n_sleep {
+					mux {
+						pins = "gpio27";
+						function = "gpio";
+					};
+
+					config {
+						pins = "gpio27";
+						drive-strength = <2>;
+						bias-pull-down;
+						input-enable;
+					};
+				};
+
+				spkr_1_sd_n_active: spkr_1_sd_n_active {
+					mux {
+						pins = "gpio27";
+						function = "gpio";
+					};
+
+					config {
+						pins = "gpio27";
+						drive-strength = <16>;
+						bias-disable;
+						output-high;
+					};
+				};
+			};
+
+			spkr_2_sd_n {
+				spkr_2_sd_n_sleep: spkr_2_sd_n_sleep {
+					mux {
+						pins = "gpio28";
+						function = "gpio";
+					};
+
+					config {
+						pins = "gpio28";
+						drive-strength = <2>;
+						bias-pull-down;
+						input-enable;
+					};
+				};
+
+				spkr_2_sd_n_active: spkr_2_sd_n_active {
+					mux {
+						pins = "gpio28";
+						function = "gpio";
+					};
+
+					config {
+						pins = "gpio28";
+						drive-strength = <16>;
+						bias-disable;
+						output-high;
+					};
+				};
+			};
+
+			cdc_dmic01_clk_active: dmic01_clk_active {
+				mux {
+					pins = "gpio29";
+					function = "lpass_pdm";
+				};
+
+				config {
+					pins = "gpio29";
+					drive-strength = <8>;
+					output-high;
+				};
+			};
+
+			cdc_dmic01_clk_sleep: dmic01_clk_sleep {
+				mux {
+					pins = "gpio29";
+					function = "lpass_pdm";
+				};
+
+				config {
+					pins = "gpio29";
+					drive-strength = <2>;
+					bias-disable;
+					output-low;
+				};
+			};
+
+			cdc_dmic01_data_active: dmic01_data_active {
+				mux {
+					pins = "gpio30";
+					function = "lpass_pdm";
+				};
+
+				config {
+					pins = "gpio30";
+					drive-strength = <8>;
+					input-enable;
+				};
+			};
+
+			cdc_dmic01_data_sleep: dmic01_data_sleep {
+				mux {
+					pins = "gpio30";
+					function = "lpass_pdm";
+				};
+
+				config {
+					pins = "gpio30";
+					drive-strength = <2>;
+					pull-down;
+					input-enable;
+				};
+			};
+
+			cdc_dmic23_clk_active: dmic23_clk_active {
+				mux {
+					pins = "gpio31";
+					function = "lpass_pdm";
+				};
+
+				config {
+					pins = "gpio31";
+					drive-strength = <8>;
+					output-high;
+				};
+			};
+
+			cdc_dmic23_clk_sleep: dmic23_clk_sleep {
+				mux {
+					pins = "gpio31";
+					function = "lpass_pdm";
+				};
+
+				config {
+					pins = "gpio31";
+					drive-strength = <2>;
+					bias-disable;
+					output-low;
+				};
+			};
+
+			cdc_dmic23_data_active: dmic23_data_active {
+				mux {
+					pins = "gpio32";
+					function = "lpass_pdm";
+				};
+
+				config {
+					pins = "gpio32";
+					drive-strength = <8>;
+					input-enable;
+				};
+			};
+
+			cdc_dmic23_data_sleep: dmic23_data_sleep {
+				mux {
+					pins = "gpio32";
+					function = "lpass_pdm";
+				};
+
+				config {
+					pins = "gpio32";
+					drive-strength = <2>;
+					pull-down;
+					input-enable;
+				};
+			};
 		};
 
 		watchdog: watchdog@b017000 {
@@ -2147,3 +2398,4 @@
 #include "qcom-ipq6018-rpm-regulator.dtsi"
 #include "qcom-ipq6018-cpr-regulator.dtsi"
 #include "qcom-ipq6018-cp-cpu.dtsi"
+#include "qcom-ipq6018-audio.dtsi"
