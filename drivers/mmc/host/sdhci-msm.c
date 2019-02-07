@@ -957,8 +957,11 @@ static int sdhci_msm_cm_dll_sdc4_calibration(struct sdhci_host *host)
 	struct sdhci_msm_host *msm_host = pltfm_host->priv;
 	const struct sdhci_msm_offset *msm_host_offset =
 					msm_host->offset;
+	struct device *dev = &msm_host->pdev->dev;
+
 	u32 dll_status, ddr_config;
 	int ret = 0;
+	u32 ext_rclk_dly_val = 0;
 
 	pr_debug("%s: Enter %s\n", mmc_hostname(host->mmc), __func__);
 
@@ -975,6 +978,12 @@ static int sdhci_msm_cm_dll_sdc4_calibration(struct sdhci_host *host)
 		ddr_config |= DDR_CONFIG_PRG_RCLK_DLY;
 		writel_relaxed(ddr_config, host->ioaddr +
 			msm_host_offset->CORE_DDR_CONFIG);
+	}
+
+	if (!of_property_read_u32(dev->of_node, "qcom,ext_prg_rclk_dly_en",
+					&ext_rclk_dly_val)) {
+		writel_relaxed(ext_rclk_dly_val, host->ioaddr +
+				msm_host_offset->CORE_DDR_CONFIG_2);
 	}
 
 	if (msm_host->enhanced_strobe && mmc_card_strobe(msm_host->mmc->card))
