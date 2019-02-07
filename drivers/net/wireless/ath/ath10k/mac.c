@@ -8974,6 +8974,9 @@ int ath10k_mac_register(struct ath10k *ar)
 		ieee80211_hw_set(ar->hw, TX_AMPDU_SETUP_IN_HW);
 	}
 
+	ar->hw->wiphy->features |= NL80211_FEATURE_DS_PARAM_SET_IE_IN_PROBES |
+				   NL80211_FEATURE_QUIET;
+
 	ar->hw->wiphy->max_scan_ssids = WLAN_SCAN_PARAMS_MAX_SSID;
 	ar->hw->wiphy->max_scan_ie_len = WLAN_SCAN_PARAMS_MAX_IE_LEN;
 
