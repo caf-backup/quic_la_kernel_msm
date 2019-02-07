@@ -425,8 +425,14 @@ struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
 
 #ifdef CONFIG_SKB_RECYCLER
 	skb = skb_recycler_alloc(dev, length);
-	if (likely(skb))
+	if (likely(skb)) {
+		/* SKBs in the recycler are from various unknown sources.
+		 * Their truesize is unknown. We should set truesize
+		 * as the needed buffer size before using it.
+		 */
+		skb->truesize = SKB_TRUESIZE(SKB_DATA_ALIGN(len + NET_SKB_PAD));
 		return skb;
+	}
 
 	len = SKB_RECYCLE_SIZE;
 	if (unlikely(length > SKB_RECYCLE_SIZE))
@@ -436,6 +442,13 @@ struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
 			  SKB_ALLOC_RX, NUMA_NO_NODE);
 	if (!skb)
 		goto skb_fail;
+
+	/* Set truesize as the needed buffer size
+	 * rather than the allocated size by __alloc_skb().
+	 */
+	if (length + NET_SKB_PAD < SKB_WITH_OVERHEAD(PAGE_SIZE))
+		skb->truesize = SKB_TRUESIZE(SKB_DATA_ALIGN(length + NET_SKB_PAD));
+
 	goto skb_success;
 #else
 	len += NET_SKB_PAD;
