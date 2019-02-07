@@ -553,7 +553,7 @@ int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 	char filename[30];
 	const struct firmware *fw;
 	char *bdf_addr;
-	unsigned int bdf_addr_pa, location[2];
+	unsigned int bdf_addr_pa, location[2], board_id;
 	int size;
 	struct device *dev;
 
@@ -561,13 +561,37 @@ int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 
 	switch (bdf_type) {
 	case BDF_TYPE_GOLDEN:
-		if (plat_priv->board_info.board_id == 0xFF)
-			snprintf(filename, sizeof(filename),
-					"IPQ8074/" DEFAULT_BDF_FILE_NAME);
-		else
-			snprintf(filename, sizeof(filename),
-					"IPQ8074/" BDF_FILE_NAME_PREFIX "%02x",
+		if (!of_property_read_u32(dev->of_node, "qcom,board_id",
+					  &board_id)) {
+			if ((board_id == 0xFF) &&
+			    (plat_priv->board_info.board_id == 0xFF)) {
+				snprintf(filename, sizeof(filename),
+					 "IPQ8074/" DEFAULT_BDF_FILE_NAME);
+			} else if (board_id == 0xFF) {
+				snprintf(filename, sizeof(filename),
+					 "IPQ8074/" BDF_FILE_NAME_PREFIX "%02x",
+					 plat_priv->board_info.board_id);
+			} else {
+				if (board_id != plat_priv->board_info.board_id)
+					cnss_pr_info(
+					"Boardid from dts:%02x,FW:%02x\n",
+					board_id,
 					plat_priv->board_info.board_id);
+
+				snprintf(filename, sizeof(filename),
+					 "IPQ8074/" BDF_FILE_NAME_PREFIX "%02x",
+					 board_id);
+			}
+		} else {
+			cnss_pr_info("No board_id entry in device tree\n");
+			if (plat_priv->board_info.board_id == 0xFF)
+				snprintf(filename, sizeof(filename),
+					 "IPQ8074/" DEFAULT_BDF_FILE_NAME);
+			else
+				snprintf(filename, sizeof(filename),
+					 "IPQ8074/" BDF_FILE_NAME_PREFIX "%02x",
+					 plat_priv->board_info.board_id);
+		}
 		break;
 	case BDF_TYPE_CALDATA:
 		if (bdf_type == BDF_TYPE_CALDATA)

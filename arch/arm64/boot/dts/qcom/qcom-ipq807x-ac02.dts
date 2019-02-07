@@ -796,3 +796,11 @@
 	npu-supply = <&dummy_reg>;
 	mx-supply = <&dummy_reg>;
 };
+
+&wifi0 {
+	qcom,board_id = <0x92>;
+};
+
+&wifi1 {
+	qcom,board_id = <0x292>;
+};

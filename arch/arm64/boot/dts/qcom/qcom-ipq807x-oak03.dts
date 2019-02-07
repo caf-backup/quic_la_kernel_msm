@@ -935,3 +935,11 @@
 		};
 	};
 };
+
+&wifi0 {
+	qcom,board_id = <0x13>;
+};
+
+&wifi1 {
+	qcom,board_id = <0x213>;
+};
