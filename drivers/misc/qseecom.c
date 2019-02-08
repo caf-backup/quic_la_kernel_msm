@@ -240,7 +240,7 @@ store_key(struct device *dev, struct device_attribute *attr,
 	if (count != KEY_SIZE) {
 		pr_info("\nInvalid input\n");
 		pr_info("Key length is %lu bytes\n", (unsigned long)count);
-		pr_info("Key length must be %u bytes\n", KEY_SIZE);
+		pr_info("Key length must be %u bytes\n",(unsigned int)KEY_SIZE);
 		return -EINVAL;
 	}
 
@@ -395,7 +395,7 @@ store_key_blob(struct device *dev, struct device_attribute *attr,
 	if (count != KEY_BLOB_SIZE) {
 		pr_info("\nInvalid input\n");
 		pr_info("Key blob length is %lu bytes\n", (unsigned long)count);
-		pr_info("Key blob length must be %u bytes\n", KEY_BLOB_SIZE);
+		pr_info("Key blob length must be %u bytes\n", (unsigned int)KEY_BLOB_SIZE);
 		return -EINVAL;
 	}
 
@@ -417,7 +417,7 @@ store_unsealed_data(struct device *dev, struct device_attribute *attr,
 		pr_info("Plain data length is %lu bytes\n",
 		       (unsigned long)count);
 		pr_info("Plain data length must be > 0 bytes and <= %u bytes\n",
-		       MAX_PLAIN_DATA_SIZE);
+		       (unsigned int)MAX_PLAIN_DATA_SIZE);
 		return -EINVAL;
 	}
 
@@ -593,7 +593,7 @@ store_sealed_data(struct device *dev, struct device_attribute *attr,
 		pr_info("Encrypted data length is %lu bytes\n",
 		       (unsigned long)count);
 		pr_info("Encrypted data length must be > 0 bytes and <= %u bytes\n",
-		       MAX_ENCRYPTED_DATA_SIZE);
+		       (unsigned int)MAX_ENCRYPTED_DATA_SIZE);
 		return -EINVAL;
 	}
 
@@ -904,7 +904,7 @@ store_rsa_key(struct device *dev, struct device_attribute *attr,
 		pr_info("Key material length is %lu bytes\n",
 		       (unsigned long)count);
 		pr_info("Key material length must be %u bytes\n",
-		       RSA_KEY_MATERIAL_SIZE);
+		       (unsigned int)RSA_KEY_MATERIAL_SIZE);
 		return -EINVAL;
 	}
 
@@ -1105,7 +1105,7 @@ store_rsa_key_blob(struct device *dev, struct device_attribute *attr,
 		pr_info("\nInvalid input\n");
 		pr_info("Key blob length is %lu bytes\n", (unsigned long)count);
 		pr_info("Key blob length must be %u bytes\n",
-		       RSA_KEY_BLOB_SIZE);
+		       (unsigned int)RSA_KEY_BLOB_SIZE);
 		return -EINVAL;
 	}
 
@@ -1128,7 +1128,7 @@ store_rsa_plain_data(struct device *dev, struct device_attribute *attr,
 		pr_info("Plain data length is %lu bytes\n",
 		       (unsigned long)count);
 		pr_info("Plain data length must be > 0 bytes and <= %u bytes\n",
-		       MAX_RSA_PLAIN_DATA_SIZE);
+		       (unsigned int)MAX_RSA_PLAIN_DATA_SIZE);
 		return -EINVAL;
 	}
 
@@ -1310,7 +1310,7 @@ store_rsa_signed_data(struct device *dev, struct device_attribute *attr,
 		pr_info("\nInvalid input\n");
 		pr_info("Signed data length is %lu\n", (unsigned long)count);
 		pr_info("Signed data length must be > 0 bytes and <= %u bytes\n",
-		       MAX_RSA_SIGN_DATA_SIZE);
+		       (unsigned int)MAX_RSA_SIGN_DATA_SIZE);
 		return -EINVAL;
 	}
 
@@ -2282,7 +2282,7 @@ store_basic_input(struct device *dev, struct device_attribute *attr,
 		pr_err("\n Input cannot be NULL!");
 		return -EINVAL;
 	}
-	if (kstrtouint(buf, 10, &basic_input) || basic_input > (U32_MAX / 10))
+	if (kstrtouint(buf, 10, (unsigned int *)&basic_input) || basic_input > (U32_MAX / 10))
 		pr_err("\n Please enter a valid unsigned integer less than %u",
 			(U32_MAX / 10));
 	else

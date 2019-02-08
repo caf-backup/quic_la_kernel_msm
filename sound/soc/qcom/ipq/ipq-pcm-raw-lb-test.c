@@ -488,7 +488,7 @@ static int ipq_pcm_lb_probe(struct platform_device *pdev)
 	if (!match)
 		return -ENODEV;
 
-	ipq_hw = (u32)match->data;
+	ipq_hw = (enum ipq_hw_type)match->data;
 
 	return pcm_lb_drv_attr_init(pdev);
 }

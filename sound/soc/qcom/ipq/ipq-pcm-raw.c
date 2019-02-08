@@ -628,7 +628,7 @@ static int ipq_pcm_driver_probe(struct platform_device *pdev)
 	if (!match)
 		return -ENODEV;
 
-	ipq_hw = (u32)match->data;
+	ipq_hw = (enum ipq_hw_type)match->data;
 
 	if (!pdev)
 		return -EINVAL;

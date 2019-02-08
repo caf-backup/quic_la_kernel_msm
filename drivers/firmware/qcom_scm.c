@@ -585,7 +585,7 @@ static int qcom_scm_probe(struct platform_device *pdev)
 
 	id = of_match_device(qcom_scm_dt_match, &pdev->dev);
 	if (id)
-		scm->is_clkdisabled = (unsigned int)id->data;
+		scm->is_clkdisabled = (int)((uintptr_t)id->data);
 	else
 		scm->is_clkdisabled = 0;
 

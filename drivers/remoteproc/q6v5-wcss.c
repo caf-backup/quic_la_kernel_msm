@@ -314,7 +314,7 @@ static ssize_t q6_dump_read(struct file *file, char __user *buf, size_t count,
 		if (!buffer) {
 			pr_err("can not map physical address %x : %d\n",
 					(unsigned int)q6dump.dump_phy_addr +
-					dfp->rel_addr_off, count);
+					dfp->rel_addr_off, (int)count);
 			return -ENOMEM;
 		}
 		dfp->rel_addr_off = dfp->rel_addr_off + count;
@@ -380,13 +380,13 @@ static int crashdump_init(int check, const struct subsys_desc *desc)
 		goto dump_dev_failed;
 	}
 
-	ret = of_property_read_u32_index(node, "reg", 1, &q6dump.dump_phy_addr);
+	ret = of_property_read_u32_index(node, "reg", 1, (u32 *)&q6dump.dump_phy_addr);
 	if (ret) {
 		pr_err("could not retrieve reg property: %d\n", ret);
 		goto dump_dev_failed;
 	}
 
-	ret = of_property_read_u32_index(node, "reg", 3, &q6dump.dump_size);
+	ret = of_property_read_u32_index(node, "reg", 3, (u32 *)&q6dump.dump_size);
 	if (ret) {
 		pr_err("could not retrieve reg property: %d\n",
 				ret);

@@ -1574,8 +1574,8 @@ int qcom_pcie_register_event(struct qcom_pcie_register_event *reg)
 		pr_info("Event 0x%x is registered for RC %d\n", reg->events,
 				qcom_pcie->rc_idx);
 	} else {
-		pr_err("PCIe: did not find RC for pci endpoint device 0x%x.\n",
-				(u32)reg->user);
+		pr_err("PCIe: did not find RC for pci endpoint device %p\n",
+				reg->user);
 		ret = -ENODEV;
 	}
 
@@ -1608,8 +1608,8 @@ int qcom_pcie_deregister_event(struct qcom_pcie_register_event *reg)
 		pr_info("Event is deregistered for RC %d\n",
 				qcom_pcie->rc_idx);
 	} else {
-		pr_err("PCIe: did not find RC for pci endpoint device 0x%x.\n",
-				(u32)reg->user);
+		pr_err("PCIe: did not find RC for pci endpoint device %p\n",
+				reg->user);
 		ret = -ENODEV;
 	}
 

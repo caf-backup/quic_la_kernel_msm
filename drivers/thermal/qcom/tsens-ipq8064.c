@@ -226,7 +226,7 @@ static void tsens_scheduler_fn(struct work_struct *work)
 	if (ret)
 		return;
 
-	mask = ~(LOWER_STATUS_CLR | UPPER_STATUS_CLR);
+	mask = (unsigned int)(~(LOWER_STATUS_CLR | UPPER_STATUS_CLR));
 	ret = regmap_read(tmdev->map, THRESHOLD_ADDR, &threshold);
 	if (ret)
 		return;
