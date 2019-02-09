@@ -961,7 +961,7 @@
 			};
 		};
 
-		cryptobam: dma@8e04000 {
+		cryptobam: dma@704000 {
 			compatible = "qcom,bam-v1.7.0";
 			reg = <0x00704000 0x20000>;
 			interrupts = <GIC_SPI 207 0>;
@@ -972,7 +972,7 @@
 			qcom,controlled-remotely;
 		};
 
-		crypto: crypto@8e3a000 {
+		crypto: crypto@73a000 {
 			compatible = "qcom,crypto-v5.1";
 			reg = <0x0073a000 0x6000>;
 			clocks = <&gcc GCC_CRYPTO_AHB_CLK>,
