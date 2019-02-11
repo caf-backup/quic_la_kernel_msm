@@ -940,6 +940,23 @@ int __qcom_set_qcekey_sec(struct device *dev, void *confBuf, int size)
 	return ret;
 }
 
+int __qcom_sec_release_xpu_prot(struct device *dev)
+{
+	int ret;
+	__le32 scm_ret;
+	struct scm_desc desc = {0};
+
+	desc.arginfo = SCM_ARGS(0, QCOM_SCM_PARAM_VAL);
+	ret = qcom_scm_call2(SCM_SIP_FNID(QCOM_SCM_QCE_CRYPTO_SIP,
+				QCOM_SCM_QCE_UNLOCK_CMD), &desc);
+
+	scm_ret = desc.ret[0];
+	if (!ret)
+		return le32_to_cpu(scm_ret);
+
+	return ret;
+}
+
 int __qcom_sec_upgrade_auth(struct device *dev, unsigned int sw_type,
 				unsigned int img_size, unsigned int load_addr)
 {

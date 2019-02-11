@@ -84,6 +84,7 @@ extern int qcom_scm_pshold(void);
 
 extern int qcom_config_sec_ice(void *buf, int size);
 extern int qcom_set_qcekey_sec(void *buf, int size);
+extern int qce_sec_release_xpu_prot(void);
 
 #define QCOM_SCM_CPU_PWR_DOWN_L2_ON	0x0
 #define QCOM_SCM_CPU_PWR_DOWN_L2_OFF	0x1
