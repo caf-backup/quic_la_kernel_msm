@@ -232,6 +232,15 @@ int qcom_set_qcekey_sec(void *buf, int size)
 }
 EXPORT_SYMBOL(qcom_set_qcekey_sec);
 
+/*
+ * qce_sec_release_xpu_prot() - release XPU protection
+ */
+int qce_sec_release_xpu_prot(void)
+{
+	return __qcom_sec_release_xpu_prot(__scm->dev);
+}
+EXPORT_SYMBOL(qce_sec_release_xpu_prot);
+
 int qcom_scm_get_feat_version(u32 feat, u64 *version)
 {
 	int ret = 0;

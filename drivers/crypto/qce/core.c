@@ -21,6 +21,7 @@
 #include <crypto/algapi.h>
 #include <crypto/internal/hash.h>
 #include <crypto/sha.h>
+#include <linux/qcom_scm.h>
 
 #include <linux/debugfs.h>
 #include "core.h"
@@ -493,8 +494,11 @@ static ssize_t qce_store(struct qce_device *qce, struct qce_attribute *attr,
 	sscanf(buf, "%du", &qce->fixed_key);
 	if (qce->fixed_key == 1)
 		use_fixed_key = true;
-	else
+	else if (qce->fixed_key == 0) {
+		if (qce_sec_release_xpu_prot())
+			pr_err("qce XPU proctection release fail\n");
 		use_fixed_key = false;
+	}
 
 	return count;
 }
