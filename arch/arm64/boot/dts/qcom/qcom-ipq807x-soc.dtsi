@@ -335,6 +335,8 @@
 
 		qca,scm_restart_reason {
 			compatible = "qca,scm_restart_reason";
+			dload_status = <0>;
+			dload_warm_reset = <0>;
 		};
 
 		qcom,rpm-log@29fc00 {
