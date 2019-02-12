@@ -80,6 +80,8 @@ static int scm_restart_reason_probe(struct platform_device *pdev)
 {
 	int ret, dload_dis_sec;
 	struct device_node *np;
+	unsigned int magic_cookie = SET_MAGIC_WARMRESET;
+	unsigned int dload_warm_reset = 0;
 
 	np = of_node_get(pdev->dev.of_node);
 	if (!np)
@@ -88,6 +90,10 @@ static int scm_restart_reason_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(np, "dload_status", &dload_dis);
 	if (ret)
 		dload_dis = 0;
+
+	ret = of_property_read_u32(np, "dload_warm_reset", &dload_warm_reset);
+	if (ret)
+		dload_warm_reset = 0;
 
 	ret = of_property_read_u32(np, "dload_sec_status", &dload_dis_sec);
 	if (ret)
@@ -101,7 +107,12 @@ static int scm_restart_reason_probe(struct platform_device *pdev)
 	/* Ensure Disable before enabling the dload and sdi bits
 	 * to make sure they are disabled during boot */
 	if (dload_dis) {
-		scm_restart_dload_mode_disable();
+		if (!dload_warm_reset)
+			scm_restart_dload_mode_disable();
+		else
+			qcom_scm_dload(QCOM_SCM_SVC_BOOT,
+				       SCM_CMD_TZ_FORCE_DLOAD_ID,
+				       &magic_cookie);
 		scm_restart_sdi_disable();
 	} else {
 		scm_restart_dload_mode_enable();

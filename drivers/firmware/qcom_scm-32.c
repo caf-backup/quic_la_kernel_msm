@@ -1384,10 +1384,14 @@ static int __qcom_scm_dload_v8(struct device *dev, void *cmd_buf)
 #define TCSR_BOOT_MISC_REG		0x193d100ull
 #define DLOAD_MODE_ENABLE		0x10ull
 #define DLOAD_MODE_DISABLE		0x00ull
+#define DLOAD_MODE_ENABLE_WARMRESET	0x20ull
 
 	enable = cmd_buf ? *((unsigned int *)cmd_buf) : 0;
 	desc.args[0] = TCSR_BOOT_MISC_REG;
-	desc.args[1] = enable ? DLOAD_MODE_ENABLE : DLOAD_MODE_DISABLE;
+	if (enable == SET_MAGIC_WARMRESET)
+		desc.args[1] = DLOAD_MODE_ENABLE_WARMRESET;
+	else
+		desc.args[1] = enable ? DLOAD_MODE_ENABLE : DLOAD_MODE_DISABLE;
 	desc.arginfo = SCM_ARGS(2, SCM_VAL, SCM_VAL);
 	ret = qcom_scm_call2(SCM_SIP_FNID(SCM_SVC_IO_ACCESS,
 					SCM_IO_WRITE), &desc);
