@@ -210,10 +210,13 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 	 * If we have reason to believe the IOMMU driver missed the initial
 	 * add_device callback for dev, replay it to get things in order.
 	 */
-	if (ops && ops->add_device && dev->bus && !dev->iommu_group)
+	if (ops && ops->add_device && dev->bus && !dev->iommu_group) {
 		err = ops->add_device(dev);
-
-	printk(KERN_ALERT "%s add_device returned %d\n", __func__, err);
+		if (err) {
+			pr_err("IOMMU add device failed for device %s, ret = %d\n",
+							dev_name(dev), err);
+		}
+	}
 
 	return ops;
 
