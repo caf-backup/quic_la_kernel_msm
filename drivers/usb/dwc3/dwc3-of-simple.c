@@ -389,7 +389,6 @@ static u32 dwc3_msm_gadget_ep_get_transfer_index(struct dwc3 *dwc, u8 number)
 int dwc3_msm_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
 				unsigned cmd, struct dwc3_gadget_ep_cmd_params *params)
 {
-	struct dwc3_ep          *dep = dwc->eps[ep];
 	u32                     timeout = 500;
 	u32                     reg;
 

@@ -308,8 +308,8 @@ static int mhi_init_inbound(struct uci_client *client_handle)
 		uci_buf->data = data_loc;
 		uci_buf->pkt_id = chan_attributes->pkt_count++;
 		uci_log(client_handle->uci_ipc_log, UCI_DBG_INFO,
-			"Allocated buffer %llu size %ld for chan:%d\n",
-			uci_buf->pkt_id, buf_size, chan_attributes->chan_id);
+			"Allocated buffer %llu size %lu for chan:%d\n",
+			uci_buf->pkt_id, (unsigned long)buf_size, chan_attributes->chan_id);
 		ret_val = mhi_queue_xfer(client_handle->in_attr.mhi_handle,
 					 data_loc, buf_size, MHI_EOT);
 		if (0 != ret_val) {
@@ -369,7 +369,7 @@ static int mhi_uci_send_packet(struct mhi_client_handle **client_handle,
 
 		uci_log(uci_handle->uci_ipc_log, UCI_DBG_VERBOSE,
 			"At trb i = %d/%d, size = %lu, id %llu chan %d\n",
-			i, nr_avail_trbs, data_to_insert_now, uci_buf->pkt_id,
+			i, nr_avail_trbs, (unsigned long)data_to_insert_now, uci_buf->pkt_id,
 			uci_handle->out_attr.chan_id);
 		ret_val = mhi_queue_xfer(*client_handle, uci_buf->data,
 					data_to_insert_now, MHI_EOT);
@@ -904,7 +904,7 @@ static ssize_t mhi_uci_client_read(struct file *file,
 		goto read_error;
 	uci_log(uci_handle->uci_ipc_log, UCI_DBG_VERBOSE,
 		"Copied %lu of %llu bytes for chan:%d\n",
-		bytes_copied, *bytes_pending, chan);
+		(unsigned long)bytes_copied, *bytes_pending, chan);
 	*bytes_pending -= bytes_copied;
 
 	/* We finished with this buffer, map it back */
@@ -926,7 +926,7 @@ static ssize_t mhi_uci_client_read(struct file *file,
 	}
 	uci_log(uci_handle->uci_ipc_log, UCI_DBG_VERBOSE,
 		"Returning %lu bytes, %llu bytes left\n",
-		bytes_copied, *bytes_pending);
+		(unsigned long)bytes_copied, *bytes_pending);
 	mutex_unlock(chan_lock);
 	return bytes_copied;
 

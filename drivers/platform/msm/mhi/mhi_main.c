@@ -56,7 +56,7 @@ static int enable_bb_ctxt(struct mhi_device_ctxt *mhi_dev_ctxt,
 
 		mhi_log(mhi_dev_ctxt, MHI_MSG_INFO,
 			"Creating pool %s for chan:%d payload: 0x%lx\n",
-			pool_name, chan, max_payload);
+			pool_name, chan, (unsigned long)max_payload);
 
 		bb_ctxt->dma_pool = dma_pool_create(pool_name,
 			&mhi_dev_ctxt->plat_dev->dev, max_payload, 0, 0);
@@ -1322,7 +1322,7 @@ int parse_xfer_event(struct mhi_device_ctxt *mhi_dev_ctxt,
 
 			if (!VALID_BUF(trb_data_loc, xfer_len, mhi_dev_ctxt)) {
 				mhi_log(mhi_dev_ctxt, MHI_MSG_CRITICAL,
-					"Bad buf ptr: %llx.\n", trb_data_loc);
+					"Bad buf ptr: %llx.\n", (u64)trb_data_loc);
 				return -EINVAL;
 			}
 			if (local_chan_ctxt->dir == MHI_IN) {
@@ -1861,7 +1861,7 @@ int mhi_register_device(struct mhi_device *mhi_device,
 			core_info->bar0_end = (void __iomem *)res->end;
 			mhi_log(mhi_dev_ctxt, MHI_MSG_INFO,
 				"bar mapped to:0x%llx - 0x%llx (virtual)\n",
-				res->start, res->end);
+				(u64)res->start, (u64)res->end);
 			break;
 		case IORESOURCE_IRQ:
 			core_info->irq_base = (u32)res->start;
@@ -1909,7 +1909,7 @@ int mhi_register_device(struct mhi_device *mhi_device,
 
 		mhi_log(mhi_dev_ctxt, MHI_MSG_INFO,
 			"Device support rddm of size:0x%lx bytes\n",
-			mhi_dev_ctxt->bhi_ctxt.rddm_size);
+			(unsigned long)mhi_dev_ctxt->bhi_ctxt.rddm_size);
 	}
 
 	/* notify all the registered clients we probed */
@@ -1967,7 +1967,7 @@ void mhi_process_db_brstmode(struct mhi_device_ctxt *mhi_dev_ctxt,
 
 	mhi_log(mhi_dev_ctxt, MHI_MSG_VERBOSE,
 		"db.set addr: %p io_offset %u val:0x%llx\n",
-		io_addr, chan, val);
+		io_addr, chan, (u64)val);
 
 	mhi_update_ctxt(mhi_dev_ctxt, io_addr, chan, val);
 
@@ -1989,7 +1989,7 @@ void mhi_process_db_brstmode_disable(struct mhi_device_ctxt *mhi_dev_ctxt,
 {
 	mhi_log(mhi_dev_ctxt, MHI_MSG_VERBOSE,
 		"db.set addr: %p io_offset %u val:0x%llx\n",
-		io_addr, chan, val);
+		io_addr, chan, (u64)val);
 	mhi_update_ctxt(mhi_dev_ctxt, io_addr, chan, val);
 	mhi_write_db(mhi_dev_ctxt, io_addr, chan, val);
 }
@@ -2002,7 +2002,7 @@ void mhi_process_db(struct mhi_device_ctxt *mhi_dev_ctxt,
 
 	mhi_log(mhi_dev_ctxt, MHI_MSG_VERBOSE,
 		"db.set addr: %p io_offset %u val:0x%llx\n",
-		io_addr, chan, val);
+		io_addr, chan, (u64)val);
 
 	mhi_update_ctxt(mhi_dev_ctxt, io_addr, chan, val);
 
