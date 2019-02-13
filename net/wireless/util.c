@@ -1584,11 +1584,36 @@ bool ieee80211_chandef_to_operating_class(struct cfg80211_chan_def *chandef,
 }
 EXPORT_SYMBOL(ieee80211_chandef_to_operating_class);
 
+/**
+ * This function returns the max number of different
+ * beacon intervals, and stores the "bi" in the array
+ * of unique beacon intervals already set.
+ */
+static int cfg80211_check_and_add_unique_bi(u32 *unique_bi, u32 bi)
+{
+	int bi_idx, is_unique_bi = 1;
+
+	for (bi_idx = 0; bi_idx < CFG80211_MAX_NUM_DIFFERENT_BI; bi_idx++) {
+		if (!unique_bi[bi_idx])
+			break;
+
+		if (bi == unique_bi[bi_idx])
+			is_unique_bi = 0;
+	}
+
+	if (is_unique_bi && bi_idx < CFG80211_MAX_NUM_DIFFERENT_BI)
+		unique_bi[bi_idx] = bi;
+
+	return bi_idx + 1;
+}
+
 static void cfg80211_calculate_bi_data(struct wiphy *wiphy, u32 new_beacon_int,
 				       u32 *beacon_int_gcd,
-				       bool *beacon_int_different)
+				       bool *beacon_int_different,
+				       int *num_unique_bi)
 {
 	struct wireless_dev *wdev;
+	int unique_bi[CFG80211_MAX_NUM_DIFFERENT_BI] = {0};
 
 	*beacon_int_gcd = 0;
 	*beacon_int_different = false;
@@ -1596,6 +1621,10 @@ static void cfg80211_calculate_bi_data(struct wiphy *wiphy, u32 new_beacon_int,
 	list_for_each_entry(wdev, &wiphy->wdev_list, list) {
 		if (!wdev->beacon_interval)
 			continue;
+
+		*num_unique_bi =
+		cfg80211_check_and_add_unique_bi(unique_bi,
+						 wdev->beacon_interval);
 
 		if (!*beacon_int_gcd) {
 			*beacon_int_gcd = wdev->beacon_interval;
@@ -1608,6 +1637,9 @@ static void cfg80211_calculate_bi_data(struct wiphy *wiphy, u32 new_beacon_int,
 		*beacon_int_different = true;
 		*beacon_int_gcd = gcd(*beacon_int_gcd, wdev->beacon_interval);
 	}
+
+	*num_unique_bi = cfg80211_check_and_add_unique_bi(unique_bi,
+							  new_beacon_int);
 
 	if (new_beacon_int && *beacon_int_gcd != new_beacon_int) {
 		if (*beacon_int_gcd)
@@ -1642,7 +1674,7 @@ int cfg80211_iter_combinations(struct wiphy *wiphy,
 	const struct ieee80211_regdomain *regdom;
 	enum nl80211_dfs_regions region = 0;
 	int i, j, iftype;
-	int num_interfaces = 0;
+	int num_interfaces = 0, num_unique_bi = 0;
 	u32 used_iftypes = 0;
 	u32 beacon_int_gcd;
 	bool beacon_int_different;
@@ -1658,7 +1690,8 @@ int cfg80211_iter_combinations(struct wiphy *wiphy,
 	 * interfaces (while being brought up) and channel/radar data.
 	 */
 	cfg80211_calculate_bi_data(wiphy, params->new_beacon_int,
-				   &beacon_int_gcd, &beacon_int_different);
+				   &beacon_int_gcd, &beacon_int_different,
+				   &num_unique_bi);
 
 	if (params->radar_detect) {
 		rcu_read_lock();
@@ -1728,6 +1761,9 @@ int cfg80211_iter_combinations(struct wiphy *wiphy,
 			if (!c->beacon_int_min_gcd && beacon_int_different)
 				goto cont;
 		}
+
+		if (num_unique_bi > c->num_beacon_interval)
+			goto cont;
 
 		/* This combination covered all interface types and
 		 * supported the requested numbers, so we're good.

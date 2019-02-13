@@ -818,6 +818,7 @@ struct cfg80211_csa_settings {
 };
 
 #define CFG80211_MAX_NUM_DIFFERENT_CHANNELS 10
+#define CFG80211_MAX_NUM_DIFFERENT_BI		10
 
 /**
  * struct iface_combination_params - input parameters for interface combinations
@@ -3477,6 +3478,13 @@ struct ieee80211_iface_combination {
 	 *   combination must be greater or equal to this value.
 	 */
 	u32 beacon_int_min_gcd;
+
+	/**
+	 * @num_beacon_interval:
+	 * Number of different beacon intervals supported.
+	 *
+	 */
+	u32 num_beacon_interval;
 };
 
 struct ieee80211_txrx_stypes {
