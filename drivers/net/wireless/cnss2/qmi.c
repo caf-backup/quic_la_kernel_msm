@@ -84,7 +84,7 @@ void cnss_dump_qmi_history(void)
 }
 EXPORT_SYMBOL(cnss_dump_qmi_history);
 
-void qmi_record(u8 msg_id, u8 error_msg)
+void qmi_record(u16 msg_id, u8 error_msg)
 {
 	spin_lock(&qmi_log_spinlock);
 	qmi_log[qmi_history_index].msg_id = msg_id;
