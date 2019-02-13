@@ -2267,7 +2267,7 @@ static ssize_t
 show_basic_output(struct device *dev, struct device_attribute *attr,
 					char *buf)
 {
-	return snprintf(buf, (basic_data_len + 1), "%d\n", basic_output);
+	return snprintf(buf, (basic_data_len + 1), "%lu\n", basic_output);
 }
 
 /* Basic multiplication App*/
