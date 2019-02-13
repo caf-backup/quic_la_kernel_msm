@@ -764,6 +764,10 @@ static int q6_rproc_emu_start(struct rproc *rproc)
 	/* Enable the core to run */
 	writel(0x4, pdata->q6_base + QDSP6SS_RESET);
 
+	do {
+		ret = wait_for_err_ready(pdata);
+	} while (ret);
+
 	atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_RUNNING);
 	pr_emerg("Q6 Emulation reset out is done\n");
 
