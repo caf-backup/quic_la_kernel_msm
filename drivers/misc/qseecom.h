@@ -269,7 +269,7 @@ enum qseecom_qceos_cmd_status {
 
 static uint32_t qsee_app_id;
 static void *qsee_sbuffer;
-static int32_t basic_output;
+static unsigned long basic_output;
 static size_t enc_len;
 static size_t dec_len;
 static int basic_data_len;
