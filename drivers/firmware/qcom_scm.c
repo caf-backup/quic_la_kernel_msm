@@ -223,6 +223,15 @@ int qcom_config_sec_ice(void *buf, int size)
 }
 EXPORT_SYMBOL(qcom_config_sec_ice);
 
+/*
+ * qcom_set_qcekey_sec() - Configure key securely
+ */
+int qcom_set_qcekey_sec(void *buf, int size)
+{
+	return __qcom_set_qcekey_sec(__scm->dev, buf, size);
+}
+EXPORT_SYMBOL(qcom_set_qcekey_sec);
+
 int qcom_scm_get_feat_version(u32 feat, u64 *version)
 {
 	int ret = 0;

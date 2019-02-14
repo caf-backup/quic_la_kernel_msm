@@ -18,12 +18,17 @@
 #include "core.h"
 
 #define QCE_MAX_KEY_SIZE	64
+extern bool use_fixed_key;
 
 struct qce_cipher_ctx {
 	u8 enc_key[QCE_MAX_KEY_SIZE];
 	unsigned int enc_keylen;
 	struct crypto_ablkcipher *fallback;
 };
+
+struct qce_config_key_sec {
+	uint32_t keylen;
+}__attribute__((packed));
 
 /**
  * struct qce_cipher_reqctx - holds private cipher objects per request
