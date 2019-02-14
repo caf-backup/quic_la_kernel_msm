@@ -20,9 +20,9 @@
 / {
 	#address-cells = <0x2>;
 	#size-cells = <0x2>;
-	model = "Qualcomm Technologies, Inc. IPQ807x/AP-AC01.1";
-	compatible = "qcom,ipq807x-ac01.1", "qcom,ipq807x";
-	qcom,msm-id = <0x177 0x0>;
+	model = "Qualcomm Technologies, Inc. IPQ807x/AP-AC02";
+	compatible = "qcom,ipq807x-ac02", "qcom,ipq807x";
+	qcom,msm-id = <0x178 0x0>;
 	interrupt-parent = <&intc>;
 	qcom,board-id = <0x8 0x0>;
 	qcom,pmic-id = <0x0 0x0 0x0 0x0>;

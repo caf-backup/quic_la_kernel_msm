@@ -486,6 +486,26 @@ static int aquantia_update_link(struct phy_device *phydev)
 	return 0;
 }
 
+static int aquantia_suspend(struct phy_device *phydev)
+{
+	int reg;
+
+	reg = phy_read_mmd(phydev, MDIO_MMD_VEND1, MII_BMCR);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MII_BMCR, reg | BMCR_PDOWN);
+
+	return 0;
+}
+
+static int aquantia_resume(struct phy_device *phydev)
+{
+	int reg;
+
+	reg = phy_read_mmd(phydev, MDIO_MMD_VEND1, MII_BMCR);
+	phy_write_mmd(phydev, MDIO_MMD_VEND1, MII_BMCR, reg & ~BMCR_PDOWN);
+
+	return 0;
+}
+
 static int aquantia_match_phy_device(struct phy_device *phydev)
 {
 	return phydev->c45_ids.device_ids[4] == PHY_ID_AQR107;
@@ -526,6 +546,8 @@ static struct phy_driver aquantia_driver[] = {
 	.config_intr	= aquantia_config_intr,
 	.ack_interrupt	= aquantia_ack_interrupt,
 	.read_status	= aquantia_read_status,
+	.suspend	= aquantia_suspend,
+	.resume		= aquantia_resume,
 	.driver		= { .owner = THIS_MODULE,},
 },
 {
@@ -539,6 +561,8 @@ static struct phy_driver aquantia_driver[] = {
 	.config_intr	= aquantia_config_intr,
 	.ack_interrupt	= aquantia_ack_interrupt,
 	.read_status	= aquantia_read_status,
+	.suspend	= aquantia_suspend,
+	.resume		= aquantia_resume,
 	.driver		= { .owner = THIS_MODULE,},
 },
 {
@@ -552,6 +576,8 @@ static struct phy_driver aquantia_driver[] = {
 	.config_intr	= aquantia_config_intr,
 	.ack_interrupt	= aquantia_ack_interrupt,
 	.read_status	= aquantia_read_status,
+	.suspend	= aquantia_suspend,
+	.resume		= aquantia_resume,
 	.driver		= { .owner = THIS_MODULE,},
 },
 {
@@ -565,6 +591,8 @@ static struct phy_driver aquantia_driver[] = {
 	.config_intr	= aquantia_config_intr,
 	.ack_interrupt	= aquantia_ack_interrupt,
 	.read_status	= aquantia_read_status,
+	.suspend	= aquantia_suspend,
+	.resume		= aquantia_resume,
 	.driver		= { .owner = THIS_MODULE,},
 },
 {
@@ -581,6 +609,8 @@ static struct phy_driver aquantia_driver[] = {
 	.config_intr	= aquantia_config_intr,
 	.ack_interrupt	= aquantia_ack_interrupt,
 	.read_status	= aquantia_read_status,
+	.suspend	= aquantia_suspend,
+	.resume		= aquantia_resume,
 	.update_link	= aquantia_update_link,
 	.match_phy_device	= aquantia_match_phy_device,
 	.driver		= { .owner = THIS_MODULE,},
@@ -599,6 +629,8 @@ static struct phy_driver aquantia_driver[] = {
 	.config_intr	= aquantia_config_intr,
 	.ack_interrupt	= aquantia_ack_interrupt,
 	.read_status	= aquantia_read_status,
+	.suspend	= aquantia_suspend,
+	.resume		= aquantia_resume,
 	.update_link	= aquantia_update_link,
 	.driver		= { .owner = THIS_MODULE,},
 },
@@ -616,6 +648,8 @@ static struct phy_driver aquantia_driver[] = {
 	.config_intr	= aquantia_config_intr,
 	.ack_interrupt	= aquantia_ack_interrupt,
 	.read_status	= aquantia_read_status,
+	.suspend	= aquantia_suspend,
+	.resume		= aquantia_resume,
 	.update_link	= aquantia_update_link,
 	.driver		= { .owner = THIS_MODULE,},
 },
@@ -633,6 +667,8 @@ static struct phy_driver aquantia_driver[] = {
 	.config_intr	= aquantia_config_intr,
 	.ack_interrupt	= aquantia_ack_interrupt,
 	.read_status	= aquantia_read_status,
+	.suspend	= aquantia_suspend,
+	.resume		= aquantia_resume,
 	.update_link	= aquantia_update_link,
 	.driver		= { .owner = THIS_MODULE,},
 },
@@ -650,6 +686,8 @@ static struct phy_driver aquantia_driver[] = {
 	.config_intr    = aquantia_config_intr,
 	.ack_interrupt  = aquantia_ack_interrupt,
 	.read_status    = aquantia_read_status,
+	.suspend        = aquantia_suspend,
+	.resume         = aquantia_resume,
 	.update_link    = aquantia_update_link,
 	.driver         = { .owner = THIS_MODULE,},
 },
@@ -667,6 +705,8 @@ static struct phy_driver aquantia_driver[] = {
 	.config_intr	= aquantia_config_intr,
 	.ack_interrupt	= aquantia_ack_interrupt,
 	.read_status	= aquantia_read_status,
+	.suspend	= aquantia_suspend,
+	.resume		= aquantia_resume,
 	.update_link	= aquantia_update_link,
 	.driver		= { .owner = THIS_MODULE,},
 },
