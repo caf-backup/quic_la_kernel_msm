@@ -1466,6 +1466,8 @@
 		download_mode@0 {
 			compatible = "qcom,msm-imem-download_mode";
 			reg = <0x0 8>;
+			#address-cells = <1>;
+			#size-cells = <1>;
 
 			l2_dump_offset@14 {
 				compatible = "qcom,msm-imem-l2_dump_offset";
