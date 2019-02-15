@@ -34,6 +34,15 @@ config ARCH_IPQ807x
 	  This enables support for the IPQ807x chipset. If you dont
 	  know what do here, say N
 
+config ARCH_IPQ6018
+	bool "Enable Support for IPQ6018"
+	select PINCTRL_IPQ6018
+	select COMMON_CLK_QCOM
+	select IPQ_GCC_6018
+	help
+	  This enables support for the IPQ6018 chipset. If you dont
+	  know what do here, say N
+
 config IPQ_MEM_PROFILE
 	int "Select Memory Profile"
 	range 0 1024
