@@ -108,6 +108,7 @@ enum bam_reg {
 	BAM_P_DESC_FIFO_ADDR,
 	BAM_P_EVNT_GEN_TRSHLD,
 	BAM_P_FIFO_SIZES,
+	BAM_P_TRUST_REG,
 };
 
 struct reg_offset_data {
@@ -142,6 +143,7 @@ static const struct reg_offset_data bam_v1_3_reg_info[] = {
 	[BAM_P_DESC_FIFO_ADDR]	= { 0x101C, 0x00, 0x40, 0x00 },
 	[BAM_P_EVNT_GEN_TRSHLD]	= { 0x1028, 0x00, 0x40, 0x00 },
 	[BAM_P_FIFO_SIZES]	= { 0x1020, 0x00, 0x40, 0x00 },
+	[BAM_P_TRUST_REG]	= { 0x1030, 0x1000, 0x00, 0x00 },
 };
 
 static const struct reg_offset_data bam_v1_4_reg_info[] = {
@@ -171,6 +173,7 @@ static const struct reg_offset_data bam_v1_4_reg_info[] = {
 	[BAM_P_DESC_FIFO_ADDR]	= { 0x181C, 0x00, 0x1000, 0x00 },
 	[BAM_P_EVNT_GEN_TRSHLD]	= { 0x1828, 0x00, 0x1000, 0x00 },
 	[BAM_P_FIFO_SIZES]	= { 0x1820, 0x00, 0x1000, 0x00 },
+	[BAM_P_TRUST_REG]	= { 0x1030, 0x1000, 0x00, 0x00 },
 };
 
 static const struct reg_offset_data bam_v1_7_reg_info[] = {
@@ -200,6 +203,7 @@ static const struct reg_offset_data bam_v1_7_reg_info[] = {
 	[BAM_P_DESC_FIFO_ADDR]	= { 0x1381C, 0x00, 0x1000, 0x00 },
 	[BAM_P_EVNT_GEN_TRSHLD]	= { 0x13828, 0x00, 0x1000, 0x00 },
 	[BAM_P_FIFO_SIZES]	= { 0x13820, 0x00, 0x1000, 0x00 },
+	[BAM_P_TRUST_REG]	= { 0x02020, 0x04, 0x00, 0x00 },
 };
 
 /* BAM CTRL */
@@ -392,6 +396,7 @@ struct bam_device {
 	/* execution environment ID, from DT */
 	u32 ee;
 	u32 controlled_remotely;
+	u32 config_pipe_trust_reg;
 
 	const struct reg_offset_data *layout;
 
@@ -474,6 +479,16 @@ static void bam_chan_init_hw(struct bam_chan *bchan,
 	val = readl_relaxed(bam_addr(bdev, 0, BAM_IRQ_SRCS_MSK_EE));
 	val |= BIT(bchan->id);
 	writel_relaxed(val, bam_addr(bdev, 0, BAM_IRQ_SRCS_MSK_EE));
+
+	/* BAM Trusted configurations: set the configuration of the
+	 * pipe interrupt to the EE configured in the dts
+	 */
+	if (bdev->config_pipe_trust_reg && !bdev->controlled_remotely) {
+		val = readl_relaxed(bam_addr(bdev, bchan->id, BAM_P_TRUST_REG));
+		val &= 0xFFFFFFF8;
+		val |= bdev->ee;
+		writel_relaxed(val, bam_addr(bdev, bchan->id, BAM_P_TRUST_REG));
+	}
 
 	/* don't allow cpu to reorder the channel enable done below */
 	wmb();
@@ -1310,6 +1325,9 @@ static int bam_dma_probe(struct platform_device *pdev)
 
 	of_property_read_u32(pdev->dev.of_node, "qcom,controlled-remotely",
 						&bdev->controlled_remotely);
+
+	of_property_read_u32(pdev->dev.of_node, "qcom,config-pipe-trust-reg",
+						&bdev->config_pipe_trust_reg);
 
 	bdev->bamclk = devm_clk_get(bdev->dev, "bam_clk");
 	if (IS_ERR(bdev->bamclk))
