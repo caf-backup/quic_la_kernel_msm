@@ -914,7 +914,6 @@ static struct hash_testvec sha1_tv_template[] = {
 	}
 };
 
-
 /*
  * SHA224 test vectors from from FIPS PUB 180-2
  */
@@ -1662,7 +1661,6 @@ static struct hash_testvec sha512_tv_template[] = {
 	}
 };
 
-
 /*
  * WHIRLPOOL test vectors from Whirlpool package
  * by Vincent Rijmen and Paulo S. L. M. Barreto as part of the NESSIE
@@ -1682,7 +1680,6 @@ static struct hash_testvec wp512_tv_template[] = {
 			  "\xCF\x88\xE3\xE0\x3C\x4F\x07\x57"
 			  "\xEA\x89\x64\xE5\x9B\x63\xD9\x37"
 			  "\x08\xB1\x38\xCC\x42\xA6\x6E\xB3",
-
 
 	}, {
 		.plaintext = "a",
@@ -1779,7 +1776,6 @@ static struct hash_testvec wp384_tv_template[] = {
 			  "\x3E\x83\xBE\x69\x8B\x28\x8F\xEB"
 			  "\xCF\x88\xE3\xE0\x3C\x4F\x07\x57",
 
-
 	}, {
 		.plaintext = "a",
 		.psize	= 1,
@@ -1858,7 +1854,6 @@ static struct hash_testvec wp256_tv_template[] = {
 			  "\x9B\x44\xE3\x9C\x1D\x2E\x17\x26"
 			  "\xC5\x30\x23\x21\x30\xD4\x07\xF8"
 			  "\x9A\xFE\xE0\x96\x49\x97\xF7\xA7",
-
 
 	}, {
 		.plaintext = "a",
@@ -2431,7 +2426,6 @@ static struct hash_testvec hmac_sha1_tv_template[] = {
 			  "\x7b\xe1\xd5\x8b\xb9\x32\x4a\x9a\x5a\x04",
 	},
 };
-
 
 /*
  * SHA224 HMAC test vectors from RFC4231
@@ -9859,7 +9853,6 @@ static struct cipher_testvec tnepres_enc_tv_template[] = {
 	},
 };
 
-
 static struct cipher_testvec serpent_dec_tv_template[] = {
 	{
 		.input	= "\x12\x07\xfc\xce\x9b\xd0\xd6\x47"
@@ -13913,7 +13906,6 @@ static struct cipher_testvec cast6_xts_dec_tv_template[] = {
 	},
 };
 
-
 /*
  * AES test vectors.
  */
@@ -15467,7 +15459,7 @@ static struct aead_testvec hmac_sha256_aes_cbc_enc_tv_temp[] = {
 };
 
 static struct aead_testvec hmac_sha384_aes_cbc_enc_tv_temp[] = {
-	{ /* RFC 3602 Case 1 */
+	{ /* RFC 3602 Case 1. aes128 */
 #ifdef __LITTLE_ENDIAN
 		.key    = "\x08\x00"		/* rta length */
 			  "\x01\x00"		/* rta type */
@@ -15922,6 +15914,7 @@ static struct aead_testvec hmac_sha512_aes_cbc_enc_tv_temp[] = {
 			  "\xbc\x46\x90\x3d\xba\x29\x03\x49",
 		.klen   = 8 + 64 + 16,
 		.iv     = "\x8c\xe8\x2e\xef\xbe\xa0\xda\x3c"
+
 			  "\x44\x69\x9e\xd7\xdb\x51\xb7\xd9",
 		.assoc	= "\x8c\xe8\x2e\xef\xbe\xa0\xda\x3c"
 			  "\x44\x69\x9e\xd7\xdb\x51\xb7\xd9",
@@ -17962,7 +17955,6 @@ static struct cipher_testvec aes_xts_dec_tv_template[] = {
 		.tap	= { 512 - 20, 4, 16 },
 	}
 };
-
 
 static struct cipher_testvec aes_ctr_enc_tv_template[] = {
 	{ /* From NIST Special Publication 800-38A, Appendix F.5 */

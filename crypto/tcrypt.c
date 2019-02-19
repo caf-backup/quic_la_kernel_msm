@@ -402,7 +402,6 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
 			printk(KERN_INFO "test %u (%d bit key, %d byte blocks): ",
 					i, *keysize * 8, *b_size);
 
-
 			memset(tvmem[0], 0xff, PAGE_SIZE);
 
 			if (ret) {
@@ -1619,6 +1618,10 @@ static int do_test(const char *alg, u32 type, u32 mask, int m)
 	case 191:
 		ret += tcrypt_test("authenc(hmac(sha384),cbc(aes))");
 		break;
+	case 192:
+		ret += tcrypt_test("authenc(hmac(sha512),cbc(aes))");
+		break;
+
 	case 200:
 		test_cipher_speed("ecb(aes)", ENCRYPT, sec, NULL, 0,
 				speed_template_16_24_32);
@@ -1829,7 +1832,6 @@ static int do_test(const char *alg, u32 type, u32 mask, int m)
 		test_cipher_speed("chacha20", ENCRYPT, sec, NULL, 0,
 				  speed_template_32);
 		break;
-
 
 	case 300:
 		if (alg) {
