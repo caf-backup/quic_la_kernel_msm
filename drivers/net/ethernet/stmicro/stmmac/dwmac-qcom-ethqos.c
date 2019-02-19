@@ -70,6 +70,8 @@
 #define RGMII_CONFIG2_DATA_DIVIDE_CLK_SEL	BIT(6)
 #define RGMII_CONFIG2_TX_CLK_PHASE_SHIFT_EN	BIT(5)
 
+#define PTP_FREQ 250000000
+
 struct ethqos_emac_por {
 	unsigned int offset;
 	unsigned int value;
@@ -82,6 +84,7 @@ struct qcom_ethqos {
 	unsigned int num_clks;
 	struct clk_bulk_data *clks;
 	unsigned int rgmii_clk_rate;
+	unsigned int ptp_clk_rate;
 	unsigned int speed;
 
 	const struct ethqos_emac_por *por;
@@ -156,6 +159,13 @@ ethqos_update_rgmii_clk(struct qcom_ethqos *ethqos, unsigned int speed)
 
 	/* clk[0] is rgmii clk */
 	clk_set_rate(ethqos->clks[0].clk, ethqos->rgmii_clk_rate);
+}
+
+static void
+ethqos_update_ptp_clk(struct qcom_ethqos *ethqos, unsigned int clk_rate)
+{
+	ethqos->ptp_clk_rate = clk_rate;
+	clk_set_rate(ethqos->clks[3].clk, ethqos->ptp_clk_rate);
 }
 
 static void ethqos_set_func_clk_en(struct qcom_ethqos *ethqos)
@@ -504,6 +514,7 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 
 	ethqos->speed = SPEED_1000;
 	ethqos_update_rgmii_clk(ethqos, SPEED_1000);
+	ethqos_update_ptp_clk(ethqos, PTP_FREQ);
 	ethqos_set_func_clk_en(ethqos);
 
 	/* FIXME: Do we need plat_data->init, if so add here */
@@ -516,6 +527,10 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	plat_dat->has_gmac4 = 1;
 	plat_dat->pmt = 1;
 	plat_dat->tso_en = of_property_read_bool(np, "snps,tso");
+
+	plat_dat->clk_ptp_ref = devm_clk_get(&pdev->dev, "ptp_ref");
+	ret = clk_prepare_enable(plat_dat->clk_ptp_ref);
+	plat_dat->clk_ptp_rate = clk_get_rate(plat_dat->clk_ptp_ref);
 
 	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 	if (ret)

@@ -64,7 +64,18 @@ static int stmmac_init_systime(void __iomem *ioaddr, u32 sec, u32 nsec)
 {
 	int limit;
 	u32 value;
-
+	unsigned long RETRYCOUNT = 100000;
+	unsigned long prev_count;
+	/* wait for previous(if any) time initialization to complete. */
+	prev_count = 0;
+	while (1) {
+		if (prev_count > RETRYCOUNT)
+			return -1;
+		if (!(readl(ioaddr + PTP_TCR) &  PTP_TCR_TSINIT))
+			break;
+		prev_count++;
+		mdelay(1);
+	}
 	writel(sec, ioaddr + PTP_STSUR);
 	writel(nsec, ioaddr + PTP_STNSUR);
 	/* issue command to initialize the system time value */
@@ -114,6 +125,20 @@ static int stmmac_adjust_systime(void __iomem *ioaddr, u32 sec, u32 nsec,
 {
 	u32 value;
 	int limit;
+	unsigned long RETRYCOUNT = 100000;
+	unsigned long prev_count;
+
+	prev_count = 0;
+	/* wait for previous(if any) time adjust/update to complete. */
+	while (1) {
+		if (prev_count > RETRYCOUNT)
+			return -1;
+		if (!(readl(ioaddr + PTP_TCR) & PTP_TCR_TSUPDT))
+			break;
+		prev_count++;
+		mdelay(1);
+	}
+	value = readl(ioaddr + PTP_TCR);
 
 	if (add_sub) {
 		/* If the new sec value needs to be subtracted with
