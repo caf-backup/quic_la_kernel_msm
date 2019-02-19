@@ -66,6 +66,11 @@
 			status = "ok";
 		};
 
+		cryptobam: dma@704000 {
+			qcom,controlled-remotely = <0>;
+			qcom,config-pipe-trust-reg = <1>;
+		};
+
 		qpic_lcd: qcom_mdss_qpic@7980000 {
 			status = "ok";
 		};
