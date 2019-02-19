@@ -31,6 +31,8 @@
 #define PCIE_PHY_POWER_DOWN_CONTROL		0x604
 #define PCIE_PHY_PCS_STATUS			0x6c8
 
+#define PHY_DELAY_MS				0xFFFFFFFF
+#define PHY_DELAY_TIME				1000
 #define PHY_DELAY_MIN_US			995
 #define PHY_DELAY_MAX_US			1005
 #define PHY_RETRIES_COUNT			10
@@ -242,13 +244,14 @@ struct qca_pcie_qmp_phy {
 	struct device *dev;
 	u32 is_phy_gen3;
 	enum qca_pcie_phy_type phy_type;
+	unsigned int *qmp_pcie_phy_init_seq;
+	int init_seq_len;
 };
 
 struct phy_regs {
 	u32 reg_offset;
 	u32 val;
 };
-
 
 static const struct phy_regs pcie_phy_regs[] = {
 	{ PCIE_USB3_PCS_POWER_DOWN_CONTROL,			0x00000003 },
@@ -341,131 +344,147 @@ static inline void qca_pcie_write_reg(void *base, u32 offset, u32 value)
 
 static int qca_pcie_qmp_phy_v2_init(struct qca_pcie_qmp_phy *pcie)
 {
-	qca_pcie_write_reg(pcie->base, PCS_COM_POWER_DOWN_CONTROL, 0x1);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_BIAS_EN_CLKBUFLR_EN, 0x18);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_BIAS_EN_CTRL_BY_PSM, 0x1);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_CLK_SELECT, 0x31);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_PLL_IVCO, 0xF);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_BG_TRIM, 0xF);
+	if (pcie->qmp_pcie_phy_init_seq) {
+		const struct phy_regs *regs = NULL;
+		int i;
+
+		regs = (const struct phy_regs *)pcie->qmp_pcie_phy_init_seq;
+		for (i = 0; i < pcie->init_seq_len; i++) {
+			if (regs[i].reg_offset == PHY_DELAY_MS)
+				usleep_range(PHY_DELAY_TIME * regs[i].val,
+					     PHY_DELAY_TIME * regs[i].val + 10);
+			else
+				qca_pcie_write_reg(pcie->base,
+						   regs[i].reg_offset,
+						   regs[i].val);
+		}
+	} else {
+		qca_pcie_write_reg(pcie->base, PCS_COM_POWER_DOWN_CONTROL, 0x1);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_BIAS_EN_CLKBUFLR_EN, 0x18);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_BIAS_EN_CTRL_BY_PSM, 0x1);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_CLK_SELECT, 0x31);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_PLL_IVCO, 0xF);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_BG_TRIM, 0xF);
+		usleep_range(PHY_DELAY_MIN_US, PHY_DELAY_MAX_US);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_CMN_CONFIG, 0x6);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_LOCK_CMP_EN, 0x42);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_RESETSM_CNTRL, 0x20);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_SVS_MODE_CLK_SEL, 0x1);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_VCO_TUNE_MAP, 0x4);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_SVS_MODE_CLK_SEL, 0x5);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_VCO_TUNE_TIMER1, 0xFF);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_VCO_TUNE_TIMER2, 0x3F);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_CORE_CLK_EN, 0x30);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_HSCLK_SEL, 0x21);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_DEC_START_MODE0, 0x82);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_DIV_FRAC_START3_MODE0, 0x3);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_DIV_FRAC_START2_MODE0, 0x355);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_DIV_FRAC_START1_MODE0, 0x35555);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_LOCK_CMP2_MODE0, 0x1A);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_LOCK_CMP1_MODE0, 0x1A0A);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_CP_CTRL_MODE0, 0xB);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_PLL_RCTRL_MODE0, 0x16);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_PLL_CCTRL_MODE0, 0x28);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_INTEGLOOP_GAIN1_MODE0, 0x0);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_INTEGLOOP_GAIN0_MODE0, 0x40);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_VCO_TUNE2_MODE0, 0x2);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_VCO_TUNE1_MODE0, 0x24);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_SVS_MODE_CLK_SEL, 0x5);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_CORE_CLK_EN, 0x20);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_CORECLK_DIV, 0xA);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_CLK_SELECT, 0x32);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_SYS_CLK_CTRL, 0x2);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_SYSCLK_BUF_ENABLE, 0x7);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_SYSCLK_EN_SEL, 0x8);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_BG_TIMER, 0xA);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_HSCLK_SEL, 0x1);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_DEC_START_MODE1, 0x68);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_DIV_FRAC_START3_MODE1, 0x2);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_DIV_FRAC_START2_MODE1, 0x2AA);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_DIV_FRAC_START1_MODE1, 0x2AAAB);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_LOCK_CMP2_MODE1, 0x34);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_LOCK_CMP1_MODE1, 0x3414);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_CP_CTRL_MODE1, 0xB);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_PLL_RCTRL_MODE1, 0x16);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_PLL_CCTRL_MODE1, 0x28);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_INTEGLOOP_GAIN1_MODE1, 0x0);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_INTEGLOOP_GAIN0_MODE1, 0x40);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_VCO_TUNE2_MODE1, 0x3);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_VCO_TUNE1_MODE1, 0xB4);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_SVS_MODE_CLK_SEL, 0x5);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_CORE_CLK_EN, 0x0);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_CORECLK_DIV_MODE1, 0x8);
+
+		/*qmp_tx_init*/
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_TX0_RES_CODE_LANE_OFFSET_TX, 0x2);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_TX0_RCV_DETECT_LVL_2, 0x12);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_TX0_HIGHZ_DRVR_EN, 0x10);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_TX0_LANE_MODE_1, 0x6);
+
+		/*qmp_rx_init*/
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_SIGDET_CNTRL, 0x3);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_SIGDET_ENABLES, 0x1C);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_SIGDET_DEGLITCH_CNTRL, 0x14);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_EQU_ADAPTOR_CNTRL2, 0xE);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_EQU_ADAPTOR_CNTRL3, 0x4);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_EQU_ADAPTOR_CNTRL4, 0x1B);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_DFE_EN_TIMER, 0x4);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_UCDR_SO_SATURATION_AND_ENABLE, 0x7F);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_UCDR_PI_CONTROLS, 0x70);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_EQ_OFFSET_ADAPTOR_CNTRL1, 0x73);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_OFFSET_ADAPTOR_CNTRL2, 0x80);
+
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_10_LOW, 0x0);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_10_HIGH, 0x2);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_10_HIGH2, 0xC8);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_10_HIGH3, 0x9);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_10_HIGH4, 0xB1);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_01_LOW, 0x0);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_01_HIGH, 0x2);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_01_HIGH2, 0xC8);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_01_HIGH3, 0x9);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_01_HIGH4, 0xB1);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_00_LOW, 0xF0);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_00_HIGH, 0x2);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_00_HIGH2, 0x2F);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_00_HIGH3, 0xD3);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_00_HIGH4, 0x40);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_IDAC_TSETTLE_HIGH, 0x0);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_IDAC_TSETTLE_LOW, 0xC0);
+
+		/* pcie fll config*/
+		qca_pcie_write_reg(pcie->base, PCIE_0_PCS_COM_FLL_CNTRL2, 0x83);
+		qca_pcie_write_reg(pcie->base, PCIE_0_PCS_COM_FLL_CNT_VAL_L, 0x9);
+		qca_pcie_write_reg(pcie->base, PCIE_0_PCS_COM_FLL_CNT_VAL_H_TOL, 0xA2);
+		qca_pcie_write_reg(pcie->base, PCIE_0_PCS_COM_FLL_MAN_CODE, 0x40);
+		qca_pcie_write_reg(pcie->base, PCIE_0_PCS_COM_FLL_CNTRL1, 0x1);
+		qca_pcie_write_reg(pcie->base, PCIE_0_PCS_COM_P2U3_WAKEUP_DLY_TIME_AUXCLK_H, 0x0);
+		qca_pcie_write_reg(pcie->base, PCIE_0_PCS_COM_P2U3_WAKEUP_DLY_TIME_AUXCLK_L, 0x1);
+		qca_pcie_write_reg(pcie->base, PCIE_0_PCS_PCIE_OSC_DTCT_ACTIONS, 0x0);
+		qca_pcie_write_reg(pcie->base, PCIE_0_PCS_PCIE_L1P1_WAKEUP_DLY_TIME_AUXCLK_H, 0x0);
+		qca_pcie_write_reg(pcie->base, PCIE_0_PCS_PCIE_L1P1_WAKEUP_DLY_TIME_AUXCLK_L, 0x1);
+		qca_pcie_write_reg(pcie->base, PCIE_0_PCS_PCIE_L1P2_WAKEUP_DLY_TIME_AUXCLK_H, 0x0);
+		qca_pcie_write_reg(pcie->base, PCIE_0_PCS_PCIE_L1P2_WAKEUP_DLY_TIME_AUXCLK_L, 0x1);
+		qca_pcie_write_reg(pcie->base, PCIE_0_PCS_PCIE_EQ_CONFIG1, 0x11);
+		qca_pcie_write_reg(pcie->base, PCIE_0_PCS_PCIE_EQ_CONFIG2, 0xB);
+		qca_pcie_write_reg(pcie->base, PCIE_0_PCS_PCIE_POWER_STATE_CONFIG4, 0x7);
+		qca_pcie_write_reg(pcie->base, PCIE_0_PCS_PCIE_OSC_DTCT_CONFIG2, 0x52);
+		qca_pcie_write_reg(pcie->base, PCIE_0_PCS_PCIE_OSC_DTCT_MODE2_CONFIG2, 0x50);
+		qca_pcie_write_reg(pcie->base, PCIE_0_PCS_PCIE_OSC_DTCT_MODE2_CONFIG4, 0x1A);
+		qca_pcie_write_reg(pcie->base, PCIE_0_PCS_PCIE_OSC_DTCT_MODE2_CONFIG5, 0x6);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_CLK_EP_DIV_MODE0, 0x19);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_CLK_EP_DIV_MODE1, 0x28);
+		qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_CLK_ENABLE1, 0x90);
+		qca_pcie_write_reg(pcie->base, PCIE_0_PCS_COM_POWER_DOWN_CONTROL, 0x3);
+		qca_pcie_write_reg(pcie->base, PCIE_0_PCS_PCIE_ENDPOINT_REFCLK_DRIVE, 0xC1);
+		qca_pcie_write_reg(pcie->base, PCIE_0_PCS_COM_RX_DCC_CAL_CONFIG, 0x1);
+		qca_pcie_write_reg(pcie->base, PCIE_0_PCS_COM_RX_SIGDET_LVL, 0xAA);
+		qca_pcie_write_reg(pcie->base, PCIE_0_PCS_COM_REFGEN_REQ_CONFIG1, 0xD);
+		qca_pcie_write_reg(pcie->base, PCIE_0_PCS_COM_SW_RESET, 0x0);
+		qca_pcie_write_reg(pcie->base, PCIE_0_PCS_COM_START_CONTROL, 0x3);
+	}
+
 	usleep_range(PHY_DELAY_MIN_US, PHY_DELAY_MAX_US);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_CMN_CONFIG, 0x6);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_LOCK_CMP_EN, 0x42);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_RESETSM_CNTRL, 0x20);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_SVS_MODE_CLK_SEL, 0x1);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_VCO_TUNE_MAP, 0x4);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_SVS_MODE_CLK_SEL, 0x5);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_VCO_TUNE_TIMER1, 0xFF);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_VCO_TUNE_TIMER2, 0x3F);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_CORE_CLK_EN, 0x30);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_HSCLK_SEL, 0x21);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_DEC_START_MODE0, 0x82);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_DIV_FRAC_START3_MODE0, 0x3);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_DIV_FRAC_START2_MODE0, 0x355);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_DIV_FRAC_START1_MODE0, 0x35555);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_LOCK_CMP2_MODE0, 0x1A);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_LOCK_CMP1_MODE0, 0x1A0A);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_CP_CTRL_MODE0, 0xB);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_PLL_RCTRL_MODE0, 0x16);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_PLL_CCTRL_MODE0, 0x28);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_INTEGLOOP_GAIN1_MODE0, 0x0);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_INTEGLOOP_GAIN0_MODE0, 0x40);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_VCO_TUNE2_MODE0, 0x2);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_VCO_TUNE1_MODE0, 0x24);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_SVS_MODE_CLK_SEL, 0x5);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_CORE_CLK_EN, 0x20);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_CORECLK_DIV, 0xA);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_CLK_SELECT, 0x32);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_SYS_CLK_CTRL, 0x2);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_SYSCLK_BUF_ENABLE, 0x7);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_SYSCLK_EN_SEL, 0x8);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_BG_TIMER, 0xA);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_HSCLK_SEL, 0x1);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_DEC_START_MODE1, 0x68);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_DIV_FRAC_START3_MODE1, 0x2);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_DIV_FRAC_START2_MODE1, 0x2AA);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_DIV_FRAC_START1_MODE1, 0x2AAAB);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_LOCK_CMP2_MODE1, 0x34);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_LOCK_CMP1_MODE1, 0x3414);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_CP_CTRL_MODE1, 0xB);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_PLL_RCTRL_MODE1, 0x16);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_PLL_CCTRL_MODE1, 0x28);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_INTEGLOOP_GAIN1_MODE1, 0x0);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_INTEGLOOP_GAIN0_MODE1, 0x40);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_VCO_TUNE2_MODE1, 0x3);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_VCO_TUNE1_MODE1, 0xB4);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_SVS_MODE_CLK_SEL, 0x5);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_CORE_CLK_EN, 0x0);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_CORECLK_DIV_MODE1, 0x8);
-
-	/*qmp_tx_init*/
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_TX0_RES_CODE_LANE_OFFSET_TX, 0x2);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_TX0_RCV_DETECT_LVL_2, 0x12);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_TX0_HIGHZ_DRVR_EN, 0x10);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_TX0_LANE_MODE_1, 0x6);
-
-	/*qmp_rx_init*/
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_SIGDET_CNTRL, 0x3);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_SIGDET_ENABLES, 0x1C);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_SIGDET_DEGLITCH_CNTRL, 0x14);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_EQU_ADAPTOR_CNTRL2, 0xE);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_EQU_ADAPTOR_CNTRL3, 0x4);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_EQU_ADAPTOR_CNTRL4, 0x1B);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_DFE_EN_TIMER, 0x4);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_UCDR_SO_SATURATION_AND_ENABLE, 0x7F);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_UCDR_PI_CONTROLS, 0x70);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_EQ_OFFSET_ADAPTOR_CNTRL1, 0x73);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_OFFSET_ADAPTOR_CNTRL2, 0x80);
-
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_10_LOW, 0x0);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_10_HIGH, 0x2);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_10_HIGH2, 0xC8);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_10_HIGH3, 0x9);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_10_HIGH4, 0xB1);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_01_LOW, 0x0);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_01_HIGH, 0x2);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_01_HIGH2, 0xC8);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_01_HIGH3, 0x9);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_01_HIGH4, 0xB1);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_00_LOW, 0xF0);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_00_HIGH, 0x2);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_00_HIGH2, 0x2F);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_00_HIGH3, 0xD3);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_MODE_00_HIGH4, 0x40);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_IDAC_TSETTLE_HIGH, 0x0);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_RX0_RX_IDAC_TSETTLE_LOW, 0xC0);
-
-	/* pcie fll config*/
-	qca_pcie_write_reg(pcie->base, PCIE_0_PCS_COM_FLL_CNTRL2, 0x83);
-	qca_pcie_write_reg(pcie->base, PCIE_0_PCS_COM_FLL_CNT_VAL_L, 0x9);
-	qca_pcie_write_reg(pcie->base, PCIE_0_PCS_COM_FLL_CNT_VAL_H_TOL, 0xA2);
-	qca_pcie_write_reg(pcie->base, PCIE_0_PCS_COM_FLL_MAN_CODE, 0x40);
-	qca_pcie_write_reg(pcie->base, PCIE_0_PCS_COM_FLL_CNTRL1, 0x1);
-	qca_pcie_write_reg(pcie->base, PCIE_0_PCS_COM_P2U3_WAKEUP_DLY_TIME_AUXCLK_H, 0x0);
-	qca_pcie_write_reg(pcie->base, PCIE_0_PCS_COM_P2U3_WAKEUP_DLY_TIME_AUXCLK_L, 0x1);
-	qca_pcie_write_reg(pcie->base, PCIE_0_PCS_PCIE_OSC_DTCT_ACTIONS, 0x0);
-	qca_pcie_write_reg(pcie->base, PCIE_0_PCS_PCIE_L1P1_WAKEUP_DLY_TIME_AUXCLK_H, 0x0);
-	qca_pcie_write_reg(pcie->base, PCIE_0_PCS_PCIE_L1P1_WAKEUP_DLY_TIME_AUXCLK_L, 0x1);
-	qca_pcie_write_reg(pcie->base, PCIE_0_PCS_PCIE_L1P2_WAKEUP_DLY_TIME_AUXCLK_H, 0x0);
-	qca_pcie_write_reg(pcie->base, PCIE_0_PCS_PCIE_L1P2_WAKEUP_DLY_TIME_AUXCLK_L, 0x1);
-	qca_pcie_write_reg(pcie->base, PCIE_0_PCS_PCIE_EQ_CONFIG1, 0x11);
-	qca_pcie_write_reg(pcie->base, PCIE_0_PCS_PCIE_EQ_CONFIG2, 0xB);
-	qca_pcie_write_reg(pcie->base, PCIE_0_PCS_PCIE_POWER_STATE_CONFIG4, 0x7);
-	qca_pcie_write_reg(pcie->base, PCIE_0_PCS_PCIE_OSC_DTCT_CONFIG2, 0x52);
-	qca_pcie_write_reg(pcie->base, PCIE_0_PCS_PCIE_OSC_DTCT_MODE2_CONFIG2, 0x50);
-	qca_pcie_write_reg(pcie->base, PCIE_0_PCS_PCIE_OSC_DTCT_MODE2_CONFIG4, 0x1A);
-	qca_pcie_write_reg(pcie->base, PCIE_0_PCS_PCIE_OSC_DTCT_MODE2_CONFIG5, 0x6);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_CLK_EP_DIV_MODE0, 0x19);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_CLK_EP_DIV_MODE1, 0x28);
-	qca_pcie_write_reg(pcie->base, PCIE_0_QSERDES_PLL_CLK_ENABLE1, 0x90);
-	qca_pcie_write_reg(pcie->base, PCIE_0_PCS_COM_POWER_DOWN_CONTROL, 0x3);
-	qca_pcie_write_reg(pcie->base, PCIE_0_PCS_PCIE_ENDPOINT_REFCLK_DRIVE, 0xC1);
-	qca_pcie_write_reg(pcie->base, PCIE_0_PCS_COM_RX_DCC_CAL_CONFIG, 0x1);
-	qca_pcie_write_reg(pcie->base, PCIE_0_PCS_COM_RX_SIGDET_LVL, 0xAA);
-	qca_pcie_write_reg(pcie->base, PCIE_0_PCS_COM_REFGEN_REQ_CONFIG1, 0xD);
-	qca_pcie_write_reg(pcie->base, PCIE_0_PCS_COM_SW_RESET, 0x0);
-	qca_pcie_write_reg(pcie->base, PCIE_0_PCS_COM_START_CONTROL, 0x3);
-	usleep_range(PHY_DELAY_MIN_US, PHY_DELAY_MAX_US);
-
 	return 0;
 }
 
@@ -560,12 +579,14 @@ static int qca_pcie_qmp_phy_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct phy *phy;
 	const int *soc_version_major;
+	int size = 0;
 
 	soc_version_major = read_ipq_soc_version_major();
 	BUG_ON(!soc_version_major);
 	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
 		return -ENOMEM;
+
 	pcie->phy_type = (enum qca_pcie_phy_type)of_device_get_match_data(dev);
 	if ((*soc_version_major == 1) && ( pcie->phy_type == PHY_TYPE_PCIE_GEN3)) {
 		devm_kfree(dev, pcie);
@@ -579,6 +600,22 @@ static int qca_pcie_qmp_phy_probe(struct platform_device *pdev)
 		pcie->is_phy_gen3 = 1;
 	else
 		pcie->is_phy_gen3 = 0;
+
+	of_get_property(dev->of_node, "qcom,qmp-pcie-phy-init-seq", &size);
+	if (size) {
+		pcie->qmp_pcie_phy_init_seq = devm_kzalloc(dev,
+				size, GFP_KERNEL);
+		if (pcie->qmp_pcie_phy_init_seq) {
+			pcie->init_seq_len =
+				size / sizeof(*pcie->qmp_pcie_phy_init_seq) / 2;
+			of_property_read_u32_array(dev->of_node,
+					"qcom,qmp-pcie-phy-init-seq",
+					pcie->qmp_pcie_phy_init_seq,
+					pcie->init_seq_len * 2);
+		} else {
+			dev_err(dev, "%s: error allocating memory for phy_init_seq\n", __func__);
+		}
+	}
 
 	pcie->dev = &pdev->dev;
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
