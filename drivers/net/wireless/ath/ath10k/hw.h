@@ -776,9 +776,9 @@ ath10k_get_skipped_rate_ctrl(struct ath10k_hw_params *hw, u8 flags)
 #define TARGET_TLV_MGMT_NUM_MSDU_DESC		(50)
 
 /* Target specific defines for WMI-HL-1.0 firmware */
-#define TARGET_HL_10_TLV_NUM_PEERS		14
-#define TARGET_HL_10_TLV_AST_SKID_LIMIT		6
-#define TARGET_HL_10_TLV_NUM_WDS_ENTRIES	2
+#define TARGET_HL_TLV_NUM_PEERS			33
+#define TARGET_HL_TLV_AST_SKID_LIMIT		16
+#define TARGET_HL_TLV_NUM_WDS_ENTRIES		2
 
 /* Diagnostic Window */
 #define CE_DIAG_PIPE	7
