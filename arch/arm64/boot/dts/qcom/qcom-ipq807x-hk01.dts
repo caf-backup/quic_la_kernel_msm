@@ -706,7 +706,7 @@
 };
 
 &msm_imem {
-	status = "disabled";
+	status = "enabled";
 };
 
 &ssphy_0 {
