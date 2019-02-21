@@ -524,11 +524,70 @@
 			#hwlock-cells = <1>;
 		};
 
+		tcsr_q6_block: syscon@1945000 {
+			compatible = "syscon";
+			reg = <0x1945000 0xE000>;
+		};
+
+		apcs_glb: mailbox@b111000 {
+			compatible = "qcom,msm8996-apcs-hmss-global";
+			qcom,ipc = <&apcs 8 8>;
+
+			#mbox-cells = <1>;
+		};
+
 		mdio@90000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "qcom,ipq40xx-mdio";
 			reg = <0x90000 0x64>;
+		};
+
+		qcom_q6v5_wcss: qcom_q6v5_wcss@CD00000 {
+			compatible = "qcom,ipq8074-wcss-pil";
+			reg = <0xCD00000 0x4040>,
+				<0x4ab000 0x20>;
+			reg-names = "qdsp6",
+				"rmb";
+			qca,auto-restart;
+			qca,extended-intc;
+			interrupts-extended = <&intc 0 325 1>,
+					<&wcss_smp2p_in 0 0>,
+					<&wcss_smp2p_in 1 0>,
+					<&wcss_smp2p_in 2 0>,
+					<&wcss_smp2p_in 3 0>;
+			interrupt-names = "wdog",
+					"fatal",
+					"ready",
+					"handover",
+					"stop-ack";
+
+			resets = <&gcc GCC_WCSSAON_RESET>,
+				<&gcc GCC_WCSS_BCR>,
+				<&gcc GCC_WCSS_Q6_BCR>;
+
+			reset-names = "wcss_aon_reset",
+				"wcss_reset",
+				"wcss_q6_reset";
+
+			qcom,halt-regs = <&tcsr_q6_block 0xA000 0xD000 0x0>;
+
+			qcom,smem-states = <&wcss_smp2p_out 0>,
+					<&wcss_smp2p_out 1>;
+			qcom,smem-state-names = "shutdown",
+						"stop";
+
+			memory-region = <&q6_region>;
+
+			glink-edge {
+				interrupts = <GIC_SPI 321 IRQ_TYPE_EDGE_RISING>;
+				qcom,remote-pid = <1>;
+				mboxes = <&apcs_glb 8>;
+
+				rpm_requests {
+					qcom,glink-channels = "IPCRTR";
+				};
+			};
 		};
 
 		ess-switch@3a000000 {
