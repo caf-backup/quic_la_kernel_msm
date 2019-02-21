@@ -391,7 +391,7 @@ struct bam_device {
 
 	/* execution environment ID, from DT */
 	u32 ee;
-	bool controlled_remotely;
+	u32 controlled_remotely;
 
 	const struct reg_offset_data *layout;
 
@@ -1308,8 +1308,8 @@ static int bam_dma_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	bdev->controlled_remotely = of_property_read_bool(pdev->dev.of_node,
-						"qcom,controlled-remotely");
+	of_property_read_u32(pdev->dev.of_node, "qcom,controlled-remotely",
+						&bdev->controlled_remotely);
 
 	bdev->bamclk = devm_clk_get(bdev->dev, "bam_clk");
 	if (IS_ERR(bdev->bamclk))
