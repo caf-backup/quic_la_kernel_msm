@@ -452,7 +452,7 @@ static int rpmsg_dev_probe(struct device *dev)
 
 	err = dev_pm_domain_attach(dev, true);
 	if (err)
-		goto out;
+		pr_info("No pm domain\n");
 
 	if (rpdrv->callback) {
 		strncpy(chinfo.name, rpdev->id.name, RPMSG_NAME_SIZE);
