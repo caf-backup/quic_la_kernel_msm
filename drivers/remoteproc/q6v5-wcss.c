@@ -894,14 +894,6 @@ static void *q6_da_to_va(struct rproc *rproc, u64 da, int len)
 	return ioremap(addr, len);
 }
 
-static struct rproc_ops q6v5_rproc_ops = {
-	.start		= q6_rproc_start,
-	.da_to_va	= q6_da_to_va,
-	.stop		= q6_rproc_stop,
-};
-
-static struct rproc_fw_ops q6_fw_ops;
-
 static char *rproc_q6_state(enum rproc_wcss_state state)
 {
 	switch (state) {
@@ -1045,12 +1037,6 @@ static int start_q6(const struct subsys_desc *subsys)
 		return 0;
 	}
 
-	ret = rproc_add(rproc);
-	if (ret)
-		return ret;
-
-	wait_for_completion(&rproc->firmware_loading_complete);
-
 	ret = rproc_boot(rproc);
 	if (ret) {
 		pr_err("couldn't boot q6v5: %d\n", ret);
@@ -1086,7 +1072,6 @@ static int stop_q6(const struct subsys_desc *subsys, bool force_stop)
 	}
 
 	rproc_shutdown(rproc);
-	rproc_del(rproc);
 
 	return 0;
 }
@@ -1123,6 +1108,14 @@ static int q6v5_load(struct rproc *rproc, const struct firmware *fw)
 
 	return mdt_load(rproc, fw);
 }
+
+static struct rproc_ops q6v5_rproc_ops = {
+	.start          = q6_rproc_start,
+	.da_to_va       = q6_da_to_va,
+	.stop           = q6_rproc_stop,
+	.find_loaded_rsc_table = q6v5_find_loaded_rsc_table,
+	.load = q6v5_load,
+};
 
 static int q6_rproc_probe(struct platform_device *pdev)
 {
@@ -1183,11 +1176,6 @@ static int q6_rproc_probe(struct platform_device *pdev)
 							GFP_KERNEL);
 	if (q6v5_rproc_pdata->reg_save_buffer == NULL)
 		goto free_rproc;
-
-	q6_fw_ops = *(rproc->fw_ops);
-	q6_fw_ops.find_rsc_table = q6v5_find_rsc_table;
-	q6_fw_ops.find_loaded_rsc_table = q6v5_find_loaded_rsc_table;
-	q6_fw_ops.load = q6v5_load;
 
 	if (!q6v5_rproc_pdata->secure) {
 		resource = platform_get_resource_byname(pdev, IORESOURCE_MEM,
@@ -1264,8 +1252,6 @@ static int q6_rproc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, q6v5_rproc_pdata);
 
-	rproc->fw_ops = &q6_fw_ops;
-
 	q6v5_rproc_pdata->err_ready_irq = platform_get_irq_byname(pdev,
 						"qcom,gpio-err-ready");
 	if (q6v5_rproc_pdata->err_ready_irq < 0) {
@@ -1324,6 +1310,11 @@ static int q6_rproc_probe(struct platform_device *pdev)
 	init_completion(&q6v5_rproc_pdata->err_ready);
 	atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_STOPPED);
 
+	rproc->auto_boot = false;
+	ret = rproc_add(rproc);
+	if (ret)
+		goto free_rproc;
+
 	return 0;
 
 free_rproc:
@@ -1349,7 +1340,7 @@ free_rproc:
 		iounmap(q6v5_rproc_pdata->tcsr_global_base);
 
 
-	rproc_put(rproc);
+	rproc_free(rproc);
 	return -EIO;
 }
 
@@ -1362,7 +1353,7 @@ static int q6_rproc_remove(struct platform_device *pdev)
 	rproc = q6v5_rproc_pdata->rproc;
 
 	rproc_del(rproc);
-	rproc_put(rproc);
+	rproc_free(rproc);
 
 	subsys_unregister(pdata->subsys);
 
