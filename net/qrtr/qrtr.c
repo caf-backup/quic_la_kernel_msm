@@ -902,7 +902,7 @@ static int qrtr_connect(struct socket *sock, struct sockaddr *saddr,
 }
 
 static int qrtr_getname(struct socket *sock, struct sockaddr *saddr,
-			int peer)
+			int *sockaddr_len, int peer)
 {
 	struct qrtr_sock *ipc = qrtr_sk(sock->sk);
 	struct sockaddr_qrtr qaddr;
@@ -921,11 +921,13 @@ static int qrtr_getname(struct socket *sock, struct sockaddr *saddr,
 	}
 	release_sock(sk);
 
+	*sockaddr_len = sizeof(qaddr);
+
 	qaddr.sq_family = AF_QIPCRTR;
 
 	memcpy(saddr, &qaddr, sizeof(qaddr));
 
-	return sizeof(qaddr);
+	return 0;
 }
 
 static int qrtr_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
@@ -1077,8 +1079,7 @@ static const struct nla_policy qrtr_policy[IFA_MAX + 1] = {
 	[IFA_LOCAL] = { .type = NLA_U32 },
 };
 
-static int qrtr_addr_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
-			  struct netlink_ext_ack *extack)
+static int qrtr_addr_doit(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct nlattr *tb[IFA_MAX + 1];
 	struct ifaddrmsg *ifm;
@@ -1092,7 +1093,7 @@ static int qrtr_addr_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	ASSERT_RTNL();
 
-	rc = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, qrtr_policy, extack);
+	rc = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, qrtr_policy);
 	if (rc < 0)
 		return rc;
 
@@ -1123,14 +1124,9 @@ static int __init qrtr_proto_init(void)
 		proto_unregister(&qrtr_proto);
 		return rc;
 	}
+	rtnl_register(PF_QIPCRTR, RTM_NEWADDR, qrtr_addr_doit, NULL, NULL);
 
-	rc = rtnl_register_module(THIS_MODULE, PF_QIPCRTR, RTM_NEWADDR, qrtr_addr_doit, NULL, 0);
-	if (rc) {
-		sock_unregister(qrtr_family.family);
-		proto_unregister(&qrtr_proto);
-	}
-
-	return rc;
+	return 0;
 }
 postcore_initcall(qrtr_proto_init);
 

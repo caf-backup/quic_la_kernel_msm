@@ -84,7 +84,7 @@ static ssize_t qrtr_tun_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (!kbuf)
 		return -ENOMEM;
 
-	if (!copy_from_iter_full(kbuf, len, from))
+	if (!copy_from_iter(kbuf, len, from))
 		return -EFAULT;
 
 	ret = qrtr_endpoint_post(&tun->ep, kbuf, len);
