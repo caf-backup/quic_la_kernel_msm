@@ -376,7 +376,7 @@ static ssize_t modalias_show(struct device *dev,
 	struct rpmsg_device *rpdev = to_rpmsg_device(dev);
 	ssize_t len;
 
-	len = of_device_modalias(dev, buf, PAGE_SIZE);
+	len = of_device_get_modalias(dev, buf, PAGE_SIZE - 2);
 	if (len != -ENODEV)
 		return len;
 
