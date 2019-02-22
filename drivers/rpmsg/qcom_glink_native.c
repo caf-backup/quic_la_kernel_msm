@@ -19,6 +19,7 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/mailbox_client.h>
+#include <linux/delay.h>
 
 #include "rpmsg_internal.h"
 #include "qcom_glink_native.h"
