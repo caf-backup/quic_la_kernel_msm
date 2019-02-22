@@ -15,6 +15,9 @@
 #include <linux/soc/qcom/mdt_loader.h>
 #include "qcom_common.h"
 #include "qcom_q6v5.h"
+#include <linux/rpmsg/qcom_glink.h>
+#include <linux/interrupt.h>
+#include <linux/qcom_scm.h>
 
 #define WCSS_CRASH_REASON		421
 
@@ -75,6 +78,7 @@ struct q6v5_wcss {
 
 	void __iomem *reg_base;
 	void __iomem *rmb_base;
+	void __iomem *aon_reset;
 
 	struct regmap *halt_map;
 	u32 halt_q6;
@@ -86,6 +90,11 @@ struct q6v5_wcss {
 	struct reset_control *wcss_q6_reset;
 
 	struct qcom_q6v5 q6v5;
+
+	struct qcom_rproc_subdev smd_subdev;
+	struct qcom_rproc_glink glink_subdev;
+	struct qcom_rproc_ssr ssr_subdev;
+	struct qcom_sysmon *sysmon;
 
 	phys_addr_t mem_phys;
 	phys_addr_t mem_reloc;
@@ -103,7 +112,6 @@ static int q6v5_wcss_reset(struct q6v5_wcss *wcss)
 	val = readl(wcss->reg_base + Q6SS_RESET_REG);
 	val |= Q6SS_CORE_ARES | Q6SS_BUS_ARES_ENABLE | Q6SS_STOP_CORE;
 	writel(val, wcss->reg_base + Q6SS_RESET_REG);
-
 	/* BHS require xo cbcr to be enabled */
 	val = readl(wcss->reg_base + Q6SS_XO_CBCR);
 	val |= 0x1;
@@ -181,6 +189,7 @@ static int q6v5_wcss_start(struct rproc *rproc)
 {
 	struct q6v5_wcss *wcss = rproc->priv;
 	int ret;
+	struct qcom_q6v5 *q6v5 = &wcss->q6v5;
 
 	qcom_q6v5_prepare(&wcss->q6v5);
 
@@ -468,7 +477,7 @@ static int q6v5_wcss_init_mmio(struct q6v5_wcss *wcss,
 	int ret;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "qdsp6");
-	wcss->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	wcss->reg_base = ioremap(res->start, resource_size(res));
 	if (IS_ERR(wcss->reg_base))
 		return PTR_ERR(wcss->reg_base);
 
@@ -531,6 +540,8 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 	struct rproc *rproc;
 	int ret;
 
+	struct qcom_rproc_glink *glink;
+
 	rproc = rproc_alloc(&pdev->dev, pdev->name, &q6v5_wcss_ops,
 			    "IPQ8074/q6_fw.mdt", sizeof(*wcss));
 	if (!rproc) {
@@ -561,7 +572,10 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 	if (ret)
 		goto free_rproc;
 
+	qcom_add_glink_subdev(rproc, &wcss->glink_subdev);
+	qcom_add_ssr_subdev(rproc, &wcss->ssr_subdev, "rproc");
 	platform_set_drvdata(pdev, rproc);
+
 
 	return 0;
 
@@ -574,8 +588,14 @@ free_rproc:
 static int q6v5_wcss_remove(struct platform_device *pdev)
 {
 	struct rproc *rproc = platform_get_drvdata(pdev);
+	struct q6v5_wcss *wcss;
+
+	wcss = rproc->priv;
+	wcss->dev = &pdev->dev;
 
 	rproc_del(rproc);
+	qcom_remove_glink_subdev(rproc, &wcss->glink_subdev);
+	qcom_remove_ssr_subdev(rproc, &wcss->ssr_subdev);
 	rproc_free(rproc);
 
 	return 0;
