@@ -1759,10 +1759,11 @@ int cfg80211_iter_combinations(struct wiphy *wiphy,
 				goto cont;
 			if (!c->beacon_int_min_gcd && beacon_int_different)
 				goto cont;
+			if (c->num_beacon_interval &&
+			    num_unique_bi > c->num_beacon_interval)
+				goto cont;
 		}
 
-		if (num_unique_bi > c->num_beacon_interval)
-			goto cont;
 
 		/* This combination covered all interface types and
 		 * supported the requested numbers, so we're good.
