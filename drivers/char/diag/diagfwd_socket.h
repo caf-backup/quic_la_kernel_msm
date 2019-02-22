@@ -14,7 +14,11 @@
 #define DIAGFWD_SOCKET_H
 
 #include <linux/socket.h>
+#ifdef CONFIG_QCOM_QMI_HELPERS
+#include <linux/soc/qcom/qmi.h>
+#else
 #include <linux/msm_ipc.h>
+#endif
 
 #define DIAG_SOCKET_NAME_SZ		24
 
@@ -24,9 +28,9 @@
 #define PORT_TYPE_SERVER		0
 #define PORT_TYPE_CLIENT		1
 
-#define PEPIPHERAL_AFTER_BOOT		0
-#define PEPIPHERAL_SSR_DOWN		1
-#define PEPIPHERAL_SSR_UP		2
+#define PERIPHERAL_AFTER_BOOT		0
+#define PERIPHERAL_SSR_DOWN		1
+#define PERIPHERAL_SSR_UP		2
 
 #define CNTL_CMD_NEW_SERVER		4
 #define CNTL_CMD_REMOVE_SERVER		5
@@ -57,7 +61,11 @@ struct diag_socket_info {
 	char name[DIAG_SOCKET_NAME_SZ];
 	spinlock_t lock;
 	wait_queue_head_t wait_q;
+#ifdef CONFIG_QCOM_QMI_HELPERS
+	struct sockaddr_qrtr remote_addr;
+#else
 	struct sockaddr_msm_ipc remote_addr;
+#endif
 	struct socket *hdl;
 	struct workqueue_struct *wq;
 	struct work_struct init_work;
@@ -98,7 +106,11 @@ extern struct diag_socket_info socket_dci[NUM_PERIPHERALS];
 extern struct diag_socket_info socket_cmd[NUM_PERIPHERALS];
 extern struct diag_socket_info socket_dci_cmd[NUM_PERIPHERALS];
 
+#ifdef CONFIG_QCOM_QMI_HELPERS
+extern struct qmi_handle *cntl_qmi;
+#else
 extern struct diag_cntl_socket_info *cntl_socket;
+#endif
 
 int diag_socket_init(void);
 int diag_socket_init_peripheral(uint8_t peripheral);
