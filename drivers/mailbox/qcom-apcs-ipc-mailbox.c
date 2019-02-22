@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/mailbox_controller.h>
+#include <linux/mfd/syscon.h>
 
 #define QCOM_APCS_IPC_BITS	32
 
@@ -28,7 +29,8 @@ struct qcom_apcs_ipc {
 	struct mbox_chan mbox_chans[QCOM_APCS_IPC_BITS];
 
 	struct regmap *regmap;
-	unsigned long offset;
+	unsigned int offset;
+	unsigned int bit;
 	struct platform_device *clk;
 };
 
@@ -46,7 +48,7 @@ static int qcom_apcs_ipc_send_data(struct mbox_chan *chan, void *data)
 						  struct qcom_apcs_ipc, mbox);
 	unsigned long idx = (unsigned long)chan->con_priv;
 
-	return regmap_write(apcs->regmap, apcs->offset, BIT(idx));
+	return regmap_write(apcs->regmap, apcs->offset, BIT(apcs->bit));
 }
 
 static const struct mbox_chan_ops qcom_apcs_ipc_ops = {
@@ -64,23 +66,36 @@ static int qcom_apcs_ipc_probe(struct platform_device *pdev)
 	unsigned long i;
 	int ret;
 
+	struct device_node *syscon;
+	const char *key;
+
 	apcs = devm_kzalloc(&pdev->dev, sizeof(*apcs), GFP_KERNEL);
 	if (!apcs)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
+	syscon = of_parse_phandle(np, "qcom,ipc", 0);
+	if (!syscon) {
+		pr_err("no qcom,ipc node\n");
+		return -ENODEV;
+	}
 
-	regmap = devm_regmap_init_mmio(&pdev->dev, base, &apcs_regmap_config);
-	if (IS_ERR(regmap))
-		return PTR_ERR(regmap);
+	apcs->regmap = syscon_node_to_regmap(syscon);
+	if (IS_ERR(apcs->regmap))
+		return PTR_ERR(apcs->regmap);
 
-	offset = (unsigned long)of_device_get_match_data(&pdev->dev);
+	key = "qcom,ipc";
+	ret = of_property_read_u32_index(np, key, 1, &apcs->offset);
+	if (ret < 0) {
+		pr_err("no offset in %s\n", key);
+		return -EINVAL;
+	}
 
-	apcs->regmap = regmap;
-	apcs->offset = offset;
+	ret = of_property_read_u32_index(np, key, 2, &apcs->bit);
+	if (ret < 0) {
+		pr_err("no bit in %s\n", key);
+		return -EINVAL;
+	}
+
 
 	/* Initialize channel identifiers */
 	for (i = 0; i < ARRAY_SIZE(apcs->mbox_chans); i++)
@@ -124,7 +139,7 @@ static int qcom_apcs_ipc_remove(struct platform_device *pdev)
 /* .data is the offset of the ipc register within the global block */
 static const struct of_device_id qcom_apcs_ipc_of_match[] = {
 	{ .compatible = "qcom,msm8916-apcs-kpss-global", .data = (void *)8 },
-	{ .compatible = "qcom,msm8996-apcs-hmss-global", .data = (void *)16 },
+	{ .compatible = "qcom,msm8996-apcs-hmss-global", .data = (void *)8 },
 	{ .compatible = "qcom,msm8998-apcs-hmss-global", .data = (void *)8 },
 	{ .compatible = "qcom,qcs404-apcs-apps-global", .data = (void *)8 },
 	{ .compatible = "qcom,sdm845-apss-shared", .data = (void *)12 },
