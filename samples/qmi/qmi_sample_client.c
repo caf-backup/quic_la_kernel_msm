@@ -17,6 +17,7 @@
 #include <linux/string.h>
 #include <net/sock.h>
 #include <linux/soc/qcom/qmi.h>
+#include <linux/kthread.h>
 
 #define PING_REQ1_TLV_TYPE		0x1
 #define PING_RESP1_TLV_TYPE		0x2
@@ -36,6 +37,53 @@
 
 #define TEST_PING_REQ_MAX_MSG_LEN_V01	266
 #define TEST_DATA_REQ_MAX_MSG_LEN_V01	8456
+
+struct file *qmi_fp;	/* for getting private_data */
+
+/* Number of iterations to run during test */
+static unsigned long iterations = 5;
+module_param_named(iterations, iterations, ulong, S_IRUGO | S_IWUSR | S_IWGRP);
+
+/* Size of data during "data" command */
+static unsigned long data_size = 50;
+module_param_named(data_size, data_size, ulong, S_IRUGO | S_IWUSR | S_IWGRP);
+
+/* Number of cuncurrent Threads running during test */
+static unsigned long nthreads = 5;
+module_param_named(nthreads, nthreads, ulong, S_IRUGO | S_IWUSR | S_IWGRP);
+
+/* Variable to hold the test result */
+static unsigned long test_res;
+
+/* List to hold the incoming command from user-space */
+static struct list_head data_list;
+
+/* Data element to be queued during multiple commands */
+struct test_qmi_data {
+	struct list_head list;
+	char data[64];
+	atomic_t refs_count;
+};
+
+static unsigned long test_count;
+
+/* Completion variable to avoid race between threads and fs write operation */
+static struct completion qmi_complete;
+
+/* DebugFS directory structure for QMI */
+static struct qmi_dir {
+	char string[16];
+	unsigned long *value;
+	umode_t mode;
+}qdentry[] = {
+	{"test", &test_res, S_IRUGO | S_IWUGO},
+	{"iterations", &iterations, S_IRUGO | S_IWUGO},
+	{"data_size", &data_size, S_IRUGO | S_IWUGO},
+	{"nthreads", &nthreads, S_IRUGO | S_IWUGO},
+};
+
+static atomic_t cnt, async_cnt, async_rsp, async_req, pass, fail;
+static struct mutex status_print_lock;
 
 struct test_name_type_v01 {
 	u32 name_len;
@@ -306,6 +354,7 @@ static ssize_t ping_write(struct file *file, const char __user *user_buf,
 	struct qmi_txn txn;
 	int ret;
 
+
 	memcpy(req.ping, "ping", sizeof(req.ping));
 
 	ret = qmi_txn_init(qmi, &txn, NULL, NULL);
@@ -348,6 +397,7 @@ static void ping_pong_cb(struct qmi_handle *qmi, struct sockaddr_qrtr *sq,
 	else if (!resp->pong_valid || memcmp(resp->pong, "pong", 4))
 		txn->result = -EINVAL;
 
+	pr_info("Response for ping is %s\n", resp->pong);
 	complete(&txn->completion);
 }
 
@@ -415,6 +465,7 @@ static ssize_t data_write(struct file *file, const char __user *user_buf,
 		goto out;
 	}
 
+	pr_info("Response data is %s\n", resp->data);
 	ret = count;
 
 out:
@@ -446,16 +497,283 @@ struct qmi_sample {
 	struct dentry *de_dir;
 	struct dentry *de_data;
 	struct dentry *de_ping;
+	struct dentry *de_test;
 };
 
 static struct dentry *qmi_debug_dir;
+
+static void update_status(void)
+{
+	unsigned int max = nthreads * iterations;
+	unsigned int count = atomic_read(&cnt);
+	unsigned int percent;
+	static unsigned int pre_percent;
+
+	percent = (count * 100)/max;
+
+	if (percent > pre_percent)
+		pr_info("Completed(%d%%)...\n", percent);
+
+	pre_percent = percent;
+}
+
+static int test_qmi_ping_pong_send_msg(void)
+{
+	struct qmi_handle *qmi = qmi_fp->private_data;
+	struct test_ping_req_msg_v01 req = {};
+	struct qmi_txn txn;
+	int ret;
+
+	atomic_inc(&cnt);
+
+	memcpy(req.ping, "ping", sizeof(req.ping));
+
+	ret = qmi_txn_init(qmi, &txn, NULL, NULL);
+	if (ret < 0)
+		return ret;
+
+	ret = qmi_send_request(qmi, NULL, &txn,
+			TEST_PING_REQ_MSG_ID_V01,
+			TEST_PING_REQ_MAX_MSG_LEN_V01,
+			test_ping_req_msg_v01_ei, &req);
+	if (ret < 0) {
+		atomic_inc(&fail);
+		qmi_txn_cancel(&txn);
+		return ret;
+	}
+
+	ret = qmi_txn_wait(&txn, 5 * HZ);
+	if (ret < 0)
+		test_count = ret;
+
+	atomic_inc(&pass);
+	mutex_lock(&status_print_lock);
+	update_status();
+	mutex_unlock(&status_print_lock);
+	return test_count;
+
+}
+
+static int test_qmi_data_send_msg(unsigned int data_len)
+{
+	struct qmi_handle *qmi = qmi_fp->private_data;
+	struct test_data_resp_msg_v01 *resp;
+	struct test_data_req_msg_v01 *req;
+	struct qmi_txn txn;
+	int ret, i;
+
+	atomic_inc(&cnt);
+
+	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	if (!req) {
+		atomic_inc(&fail);
+		return -ENOMEM;
+	}
+
+	resp = kzalloc(sizeof(*resp), GFP_KERNEL);
+	if (!resp) {
+		kfree(req);
+		atomic_inc(&fail);
+		return -ENOMEM;
+	}
+
+	req->data_len = min_t(size_t, sizeof(req->data), test_count);
+	for (i = 0; i < req->data_len; i = i + sizeof(int))
+		memcpy(req->data + i, (uint8_t *)&i, sizeof(int));
+
+	ret = qmi_txn_init(qmi, &txn, test_data_resp_msg_v01_ei, resp);
+	if (ret < 0) {
+		atomic_inc(&fail);
+		goto out;
+	}
+
+	ret = qmi_send_request(qmi, NULL, &txn,
+			TEST_DATA_REQ_MSG_ID_V01,
+			TEST_DATA_REQ_MAX_MSG_LEN_V01,
+			test_data_req_msg_v01_ei, req);
+	if (ret < 0) {
+		qmi_txn_cancel(&txn);
+		atomic_inc(&fail);
+		goto out;
+	}
+
+	ret = qmi_txn_wait(&txn, 5 * HZ);
+
+	if (ret < 0) {
+		goto out;
+	} else if (!resp->data_valid ||
+			resp->data_len != req->data_len ||
+			memcmp(resp->data, req->data, req->data_len)) {
+		pr_err("response data doesn't match expectation\n");
+		atomic_inc(&fail);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	pr_info("Response data is %s\n", resp->data);
+	ret = test_count;
+
+	mutex_lock(&status_print_lock);
+	update_status();
+	mutex_unlock(&status_print_lock);
+
+out:
+	kfree(resp);
+	kfree(req);
+
+	return ret;
+}
+
+int qmi_process_user_input(void *data)
+{
+	struct test_qmi_data *qmi_data, *temp_qmi_data;
+	unsigned short index = 0;
+
+	wait_for_completion_timeout(&qmi_complete, msecs_to_jiffies(1000));
+
+	list_for_each_entry_safe(qmi_data, temp_qmi_data, &data_list, list) {
+		atomic_inc(&qmi_data->refs_count);
+
+		if (!strncmp(qmi_data->data, "ping_pong", sizeof(qmi_data->data))) {
+			for (index = 0; index < iterations; index++) {
+				test_res = test_qmi_ping_pong_send_msg();
+			}
+		} else if (!strncmp(qmi_data->data, "data", sizeof(qmi_data->data))) {
+			for (index = 0; index < iterations; index++) {
+				test_res = test_qmi_data_send_msg(data_size);
+			}
+		} else {
+			test_res = 0;
+			pr_err("Invalid Test.\n");
+			break;
+		}
+
+		if (atomic_dec_and_test(&qmi_data->refs_count)) {
+			pr_info("Test Completed. Pass: %d Fail: %d\n",
+					atomic_read(&pass), atomic_read(&fail));
+			list_del(&qmi_data->list);
+			kfree(qmi_data);
+			qmi_data = NULL;
+		}
+	}
+	return 0;
+}
+
+static int test_qmi_open(struct inode *ip, struct file *fp)
+{
+	char thread_name[32];
+	struct task_struct *qmi_task;
+	int index = 0;
+
+	if (ip->i_private)
+		fp->private_data = ip->i_private;
+
+	atomic_set(&cnt, 0);
+	atomic_set(&pass, 0);
+	atomic_set(&fail, 0);
+	atomic_set(&async_cnt, 0);
+	atomic_set(&async_req, 0);
+	atomic_set(&async_rsp, 0);
+	for (index = 1; index < sizeof(qdentry)/sizeof(struct qmi_dir); index++) {
+		if (!strncmp(fp->f_path.dentry->d_iname, qdentry[index].string, \
+					sizeof(fp->f_path.dentry->d_iname)))
+			return 0;
+	}
+	pr_info("Total commands: %lu (Threads: %lu Iteration: %lu)\n",
+			nthreads * iterations, nthreads, iterations);
+	init_completion(&qmi_complete);
+	for (index = 0; index < nthreads; index++) {
+		snprintf(thread_name, sizeof(thread_name), "qmi_test_""%d", index);
+		qmi_task = kthread_run(qmi_process_user_input, &data_list, thread_name);
+	}
+	return 0;
+
+}
+
+static ssize_t test_qmi_read(struct file *fp, char __user *buf,
+		size_t count, loff_t *pos)
+{
+	char _buf[16] = {0};
+	int index = 0;
+
+	for (index = 0; index < sizeof(qdentry)/sizeof(struct qmi_dir); index++) {
+		if (!strncmp(fp->f_path.dentry->d_iname, qdentry[index].string, \
+					sizeof(fp->f_path.dentry->d_iname)))
+			snprintf(_buf, sizeof(_buf), "%lu\n", *qdentry[index].value);
+	}
+
+	return simple_read_from_buffer(buf, count, pos, _buf, strnlen(_buf, 16));
+
+}
+
+static int test_qmi_release(struct inode *ip, struct file *fp)
+{
+	return 0;
+}
+
+static ssize_t test_qmi_write(struct file *fp, const char __user *buf,
+		size_t count, loff_t *pos)
+{
+	unsigned char cmd[64];
+	int len;
+	int index = 0;
+	struct test_qmi_data *qmi_data;
+
+	qmi_fp = fp;
+	if (count < 1)
+		return 0;
+
+	len = min(count, (sizeof(cmd) - 1));
+
+	if (copy_from_user(cmd, buf, len))
+		return -EFAULT;
+
+	cmd[len] = 0;
+	if (cmd[len-1] == '\n') {
+		cmd[len-1] = 0;
+		len--;
+	}
+
+	for (index = 1; index < sizeof(qdentry)/sizeof(struct qmi_dir); index++) {
+		if (!strncmp(fp->f_path.dentry->d_iname, qdentry[index].string, \
+					sizeof(fp->f_path.dentry->d_iname))) {
+			kstrtoul(cmd, 0, qdentry[index].value);
+			return count;
+		}
+	}
+
+	qmi_data = kmalloc(sizeof(struct test_qmi_data), GFP_KERNEL);
+	if (!qmi_data) {
+		pr_err("Unable to allocate memory for qmi_data\n");
+		return -ENOMEM;
+	}
+
+	memcpy(qmi_data->data, cmd, sizeof(cmd));
+
+	atomic_set(&qmi_data->refs_count, 0);
+	list_add_tail(&qmi_data->list, &data_list);
+	test_count = count;
+	complete_all(&qmi_complete);
+
+
+	return count;
+
+}
+
+static const struct file_operations debug_ops = {
+	.open = test_qmi_open,
+	.read = test_qmi_read,
+	.write = test_qmi_write,
+	.release = test_qmi_release,
+};
 
 static int qmi_sample_probe(struct platform_device *pdev)
 {
 	struct sockaddr_qrtr *sq;
 	struct qmi_sample *sample;
 	char path[20];
-	int ret;
+	int ret, index = 0;
+	struct dentry *test_entry;
 
 	sample = devm_kzalloc(&pdev->dev, sizeof(*sample), GFP_KERNEL);
 	if (!sample)
@@ -495,6 +813,27 @@ static int qmi_sample_probe(struct platform_device *pdev)
 	if (IS_ERR(sample->de_ping)) {
 		ret = PTR_ERR(sample->de_ping);
 		goto err_remove_de_data;
+	}
+
+	sample->de_test = debugfs_create_file("test", 0600,  sample->de_dir,
+					      sample, &debug_ops);
+
+	if (IS_ERR(sample->de_test)) {
+		pr_err("Failed to create debugfs entry for %s\n",
+				qdentry[index].string);
+		goto err_remove_de_data;
+	}
+
+	for (index = 1; index < sizeof(qdentry)/sizeof(struct qmi_dir); index++) {
+		test_entry = debugfs_create_file(qdentry[index].string,
+						 qdentry[index].mode,
+						 sample->de_dir, NULL,
+						 &debug_ops);
+		if (IS_ERR(sample->de_test)) {
+			pr_err("Failed to create debugfs entry for %s\n",
+					qdentry[index].string);
+			goto err_remove_de_data;
+		}
 	}
 
 	platform_set_drvdata(pdev, sample);
@@ -578,7 +917,7 @@ static struct qmi_ops lookup_ops = {
 
 static int qmi_sample_init(void)
 {
-	int ret;
+	int ret, index = 0;
 
 	qmi_debug_dir = debugfs_create_dir("qmi_sample", NULL);
 	if (IS_ERR(qmi_debug_dir)) {
@@ -596,6 +935,9 @@ static int qmi_sample_init(void)
 
 	qmi_add_lookup(&lookup_client, 15, 0, 0);
 
+	INIT_LIST_HEAD(&data_list);
+	mutex_init(&status_print_lock);
+
 	return 0;
 
 err_unregister_driver:
@@ -608,11 +950,19 @@ err_remove_debug_dir:
 
 static void qmi_sample_exit(void)
 {
+	struct test_qmi_data *qmi_data, *temp_qmi_data;
+
 	qmi_handle_release(&lookup_client);
 
 	platform_driver_unregister(&qmi_sample_driver);
 
 	debugfs_remove(qmi_debug_dir);
+
+	list_for_each_entry_safe(qmi_data, temp_qmi_data, &data_list, list) {
+		list_del(&qmi_data->list);
+		kfree(qmi_data);
+	}
+	list_del(&data_list);
 }
 
 module_init(qmi_sample_init);
