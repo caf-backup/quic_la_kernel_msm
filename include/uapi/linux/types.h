@@ -39,6 +39,8 @@ typedef __u64 __bitwise __be64;
 typedef __u16 __bitwise __sum16;
 typedef __u32 __bitwise __wsum;
 
+typedef unsigned __bitwise __poll_t;
+
 /*
  * aligned_u64 should be used in defining kernel<->userspace ABIs to avoid
  * common 32/64-bit compat problems.
