@@ -42,6 +42,7 @@ static unsigned int ath10k_cryptmode_param;
 static bool uart_print;
 static bool skip_otp;
 static bool rawmode;
+static bool fw_diag_log;
 
 /* Enable ATH10K_FW_CRASH_DUMP_REGISTERS and ATH10K_FW_CRASH_DUMP_CE_DATA
  * by default.
@@ -54,6 +55,7 @@ module_param_named(cryptmode, ath10k_cryptmode_param, uint, 0644);
 module_param(uart_print, bool, 0644);
 module_param(skip_otp, bool, 0644);
 module_param(rawmode, bool, 0644);
+module_param(fw_diag_log, bool, 0644);
 module_param_named(coredump_mask, ath10k_coredump_mask, ulong, 0444);
 
 MODULE_PARM_DESC(debug_mask, "Debugging mask");
@@ -2546,6 +2548,14 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 	status = ath10k_debug_start(ar);
 	if (status)
 		goto err_hif_stop;
+
+	status = ath10k_hif_set_target_log_mode(ar, fw_diag_log);
+	if (status && status != -EOPNOTSUPP) {
+		ath10k_warn(ar, "set traget log mode faileds: %d\n", status);
+		goto err_hif_stop;
+	}
+	/* set default log level to WARN for all fw modules */
+	ath10k_wmi_dbglog_cfg(ar, 0, 0);
 
 	return 0;
 

@@ -658,6 +658,7 @@ struct ath10k_debug {
 	void *cal_data;
 	u32 enable_extd_tx_stats;
 	int ftmr_enabled[ATH10K_FTMR_MAX_NUM_VDEVS];
+	u8 fw_dbglog_mode;
 };
 
 enum ath10k_state {
