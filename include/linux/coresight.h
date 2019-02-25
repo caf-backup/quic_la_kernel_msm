@@ -247,8 +247,8 @@ static inline void coresight_disable(struct coresight_device *csdev) {}
 static inline int coresight_timeout(void __iomem *addr, u32 offset,
 				     int position, int value) { return 1; }
 static inline void coresight_abort(void) {}
-static inline void register_usb_qdss_open(void *fn);
-static inline void register_usb_qdss_close(void *fn);
+static inline void register_usb_qdss_open(void *fn) {}
+static inline void register_usb_qdss_close(void *fn) {}
 #endif
 
 #if defined(CONFIG_OF) && defined(CONFIG_CORESIGHT)
