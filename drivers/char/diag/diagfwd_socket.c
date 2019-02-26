@@ -443,7 +443,7 @@ static void __socket_close_channel(struct diag_socket_info *info)
 	if (!atomic_read(&info->opened))
 		return;
 
-	if (bootup_req[info->peripheral] == PEPIPHERAL_SSR_UP) {
+	if (bootup_req[info->peripheral] == PERIPHERAL_SSR_UP) {
 		DIAG_LOG(DIAG_DEBUG_PERIPHERALS,
 		"Modem is powered up, stopping cleanup: bootup_req[%s] = %d\n",
 		info->name, (int)bootup_req[info->peripheral]);
@@ -902,7 +902,7 @@ static int restart_notifier_cb(struct notifier_block *this, unsigned long code,
 	case SUBSYS_BEFORE_SHUTDOWN:
 		DIAG_LOG(DIAG_DEBUG_PERIPHERALS,
 		"diag: %s: SUBSYS_BEFORE_SHUTDOWN\n", __func__);
-		bootup_req[notifier->processor] = PEPIPHERAL_SSR_DOWN;
+		bootup_req[notifier->processor] = PERIPHERAL_SSR_DOWN;
 		break;
 
 	case SUBSYS_AFTER_SHUTDOWN:
@@ -919,10 +919,10 @@ static int restart_notifier_cb(struct notifier_block *this, unsigned long code,
 		DIAG_LOG(DIAG_DEBUG_PERIPHERALS,
 		"diag: %s: SUBSYS_AFTER_POWERUP\n", __func__);
 		if (!bootup_req[notifier->processor]) {
-			bootup_req[notifier->processor] = PEPIPHERAL_SSR_DOWN;
+			bootup_req[notifier->processor] = PERIPHERAL_SSR_DOWN;
 			break;
 		}
-		bootup_req[notifier->processor] = PEPIPHERAL_SSR_UP;
+		bootup_req[notifier->processor] = PERIPHERAL_SSR_UP;
 		break;
 
 	default:
