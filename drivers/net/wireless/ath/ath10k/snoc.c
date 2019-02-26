@@ -20,6 +20,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 
 #include "ce.h"
@@ -1207,6 +1208,18 @@ static int ath10k_snoc_resource_init(struct ath10k *ar)
 			goto out;
 		}
 		ar_snoc->ce_irqs[i].irq_line = res->start;
+	}
+
+	ret = device_property_read_u32(&pdev->dev, "xo-cal-data",
+				       &ar_snoc->xo_cal_data);
+	if (ret) {
+		ath10k_dbg(ar, ATH10K_DBG_SNOC,
+			   "failed to get xo-cal-data property\n");
+		ret = 0;
+	} else {
+		ar_snoc->xo_cal_supported = true;
+		ath10k_dbg(ar, ATH10K_DBG_SNOC, "xo cal data %x\n",
+			   ar_snoc->xo_cal_data);
 	}
 
 out:
