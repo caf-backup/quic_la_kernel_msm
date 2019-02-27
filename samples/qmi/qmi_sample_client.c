@@ -41,8 +41,8 @@
 struct file *qmi_fp;	/* for getting private_data */
 
 /* Number of iterations to run during test */
-static unsigned long iterations = 5;
-module_param_named(iterations, iterations, ulong, S_IRUGO | S_IWUSR | S_IWGRP);
+static unsigned long niterations = 5;
+module_param_named(niterations, niterations, ulong, S_IRUGO | S_IWUSR | S_IWGRP);
 
 /* Size of data during "data" command */
 static unsigned long data_size = 50;
@@ -77,7 +77,7 @@ static struct qmi_dir {
 	umode_t mode;
 }qdentry[] = {
 	{"test", &test_res, S_IRUGO | S_IWUGO},
-	{"iterations", &iterations, S_IRUGO | S_IWUGO},
+	{"niterations", &niterations, S_IRUGO | S_IWUGO},
 	{"data_size", &data_size, S_IRUGO | S_IWUGO},
 	{"nthreads", &nthreads, S_IRUGO | S_IWUGO},
 };
@@ -498,13 +498,16 @@ struct qmi_sample {
 	struct dentry *de_data;
 	struct dentry *de_ping;
 	struct dentry *de_test;
+	struct dentry *de_nthreads;
+	struct dentry *de_niterations;
+	struct dentry *de_data_size;
 };
 
 static struct dentry *qmi_debug_dir;
 
 static void update_status(void)
 {
-	unsigned int max = nthreads * iterations;
+	unsigned int max = nthreads * niterations;
 	unsigned int count = atomic_read(&cnt);
 	unsigned int percent;
 	static unsigned int pre_percent;
@@ -577,7 +580,7 @@ static int test_qmi_data_send_msg(unsigned int data_len)
 		return -ENOMEM;
 	}
 
-	req->data_len = min_t(size_t, sizeof(req->data), test_count);
+	req->data_len = data_len;
 	for (i = 0; i < req->data_len; i = i + sizeof(int))
 		memcpy(req->data + i, (uint8_t *)&i, sizeof(int));
 
@@ -608,9 +611,11 @@ static int test_qmi_data_send_msg(unsigned int data_len)
 		atomic_inc(&fail);
 		ret = -EINVAL;
 		goto out;
+	} else {
+		pr_info("Data valid\n");
+		atomic_inc(&pass);
 	}
 
-	pr_info("Response data is %s\n", resp->data);
 	ret = test_count;
 
 	mutex_lock(&status_print_lock);
@@ -635,16 +640,17 @@ int qmi_process_user_input(void *data)
 		atomic_inc(&qmi_data->refs_count);
 
 		if (!strncmp(qmi_data->data, "ping_pong", sizeof(qmi_data->data))) {
-			for (index = 0; index < iterations; index++) {
+			for (index = 0; index < niterations; index++) {
 				test_res = test_qmi_ping_pong_send_msg();
 			}
 		} else if (!strncmp(qmi_data->data, "data", sizeof(qmi_data->data))) {
-			for (index = 0; index < iterations; index++) {
+			for (index = 0; index < niterations; index++) {
 				test_res = test_qmi_data_send_msg(data_size);
 			}
 		} else {
 			test_res = 0;
 			pr_err("Invalid Test.\n");
+			list_del(&qmi_data->list);
 			break;
 		}
 
@@ -680,7 +686,7 @@ static int test_qmi_open(struct inode *ip, struct file *fp)
 			return 0;
 	}
 	pr_info("Total commands: %lu (Threads: %lu Iteration: %lu)\n",
-			nthreads * iterations, nthreads, iterations);
+			nthreads * niterations, nthreads, niterations);
 	init_completion(&qmi_complete);
 	for (index = 0; index < nthreads; index++) {
 		snprintf(thread_name, sizeof(thread_name), "qmi_test_""%d", index);
@@ -772,8 +778,7 @@ static int qmi_sample_probe(struct platform_device *pdev)
 	struct sockaddr_qrtr *sq;
 	struct qmi_sample *sample;
 	char path[20];
-	int ret, index = 0;
-	struct dentry *test_entry;
+	int ret;
 
 	sample = devm_kzalloc(&pdev->dev, sizeof(*sample), GFP_KERNEL);
 	if (!sample)
@@ -815,31 +820,49 @@ static int qmi_sample_probe(struct platform_device *pdev)
 		goto err_remove_de_data;
 	}
 
-	sample->de_test = debugfs_create_file("test", 0600,  sample->de_dir,
+	sample->de_test = debugfs_create_file("test", 0600, sample->de_dir,
 					      sample, &debug_ops);
 
 	if (IS_ERR(sample->de_test)) {
-		pr_err("Failed to create debugfs entry for %s\n",
-				qdentry[index].string);
+		pr_err("Failed to create debugfs entry for test\n");
 		goto err_remove_de_data;
 	}
 
-	for (index = 1; index < sizeof(qdentry)/sizeof(struct qmi_dir); index++) {
-		test_entry = debugfs_create_file(qdentry[index].string,
-						 qdentry[index].mode,
-						 sample->de_dir, NULL,
-						 &debug_ops);
-		if (IS_ERR(sample->de_test)) {
-			pr_err("Failed to create debugfs entry for %s\n",
-					qdentry[index].string);
-			goto err_remove_de_data;
-		}
+	sample->de_nthreads = debugfs_create_file("nthreads", 0600,
+						  sample->de_dir, NULL,
+						  &debug_ops);
+	if (IS_ERR(sample->de_nthreads)) {
+		pr_err("Failed to create debugfs entry for nthreads\n");
+		goto err_remove_de_test;
+	}
+
+	sample->de_niterations = debugfs_create_file("niterations", 0600,
+						     sample->de_dir, NULL,
+						     &debug_ops);
+
+	if (IS_ERR(sample->de_niterations)) {
+		pr_err("Failed to create debugfs entry for niterations\n");
+		goto err_remove_de_nthreads;
+	}
+
+	sample->de_data_size = debugfs_create_file("data_size", 0600,
+						   sample->de_dir, NULL,
+						   &debug_ops);
+	if (IS_ERR(sample->de_data_size)) {
+		pr_err("Failed to create debugfs entry for data size\n");
+		goto err_remove_de_niterations;
 	}
 
 	platform_set_drvdata(pdev, sample);
 
 	return 0;
 
+err_remove_de_niterations:
+	debugfs_remove(sample->de_niterations);
+err_remove_de_nthreads:
+	debugfs_remove(sample->de_nthreads);
+err_remove_de_test:
+	debugfs_remove(sample->de_test);
 err_remove_de_data:
 	debugfs_remove(sample->de_data);
 err_remove_de_dir:
@@ -854,6 +877,10 @@ static int qmi_sample_remove(struct platform_device *pdev)
 {
 	struct qmi_sample *sample = platform_get_drvdata(pdev);
 
+	debugfs_remove(sample->de_data_size);
+	debugfs_remove(sample->de_niterations);
+	debugfs_remove(sample->de_nthreads);
+	debugfs_remove(sample->de_test);
 	debugfs_remove(sample->de_ping);
 	debugfs_remove(sample->de_data);
 	debugfs_remove(sample->de_dir);
@@ -903,6 +930,7 @@ err_put_device:
 static void qmi_sample_del_server(struct qmi_handle *qmi,
 				  struct qmi_service *service)
 {
+
 	struct platform_device *pdev = service->priv;
 
 	platform_device_unregister(pdev);
@@ -917,7 +945,7 @@ static struct qmi_ops lookup_ops = {
 
 static int qmi_sample_init(void)
 {
-	int ret, index = 0;
+	int ret;
 
 	qmi_debug_dir = debugfs_create_dir("qmi_sample", NULL);
 	if (IS_ERR(qmi_debug_dir)) {
