@@ -29,7 +29,7 @@ config MSM_SECURE_BUFFER
 
 config QCOM_SMEM
 	tristate "Qualcomm Shared Memory Manager (SMEM)"
-	depends on ARCH_QCOM
+	depends on ARCH_QCOM || COMPILE_TEST
 	depends on HWSPINLOCK
 	help
 	  Say y here to enable support for the Qualcomm Shared Memory Manager.
@@ -64,7 +64,9 @@ config QCOM_SMEM_STATE
 config QCOM_SMP2P
 	bool "Qualcomm Shared Memory Point to Point support"
 	depends on QCOM_SMEM
+	depends on MAILBOX
 	select QCOM_SMEM_STATE
+	select IRQ_DOMAIN
 	help
 	  Say yes here to support the Qualcomm Shared Memory Point to Point
 	  protocol.
@@ -288,3 +290,26 @@ config QCOM_TZ_LOG
 	  This option enables a driver with a debugfs interface for messages
 	  produced by the Secure code (Trust zone). These messages provide
 	  diagnostic information about TZ operation.
+
+config QCOM_MDT_LOADER
+	tristate
+	select QCOM_SCM
+
+config QCOM_QMI_HELPERS
+	tristate
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on NET
+	help
+	  Helper library for handling QMI encoded messages.  QMI encoded
+	  messages are used in communication between the majority of QRTR
+	  clients and this helpers provide the common functionality needed for
+	  doing this from a kernel driver.
+
+config QCOM_GLINK_SSR
+	tristate "Qualcomm Glink SSR driver"
+	depends on RPMSG
+	depends on QCOM_RPROC_COMMON
+	help
+	  Say y here to enable GLINK SSR support. The GLINK SSR driver
+	  implements the SSR protocol for notifying the remote processor about
+	  neighboring subsystems going up or down.
