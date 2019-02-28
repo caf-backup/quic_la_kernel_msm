@@ -116,7 +116,7 @@
 
 				interrupts = <4>;
 
-				clocks = <&pll 2>;
+				clocks = <&pll 3>;
 				clock-names = "wdt";
 			};
 
