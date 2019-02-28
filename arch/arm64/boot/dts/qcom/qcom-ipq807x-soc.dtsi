@@ -1388,7 +1388,7 @@
 				interrupts = <0 135 0>;
 
 				qcom,bam-type = <0>;
-				qcom,usb-bam-fifo-baseaddr = <0x08603000>;
+				qcom,usb-bam-fifo-baseaddr = <0x4A600000>;
 				qcom,usb-bam-num-pipes = <4>;
 				qcom,ignore-core-reset-ack;
 				qcom,disable-clk-gating;
