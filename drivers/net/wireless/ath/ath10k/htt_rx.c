@@ -2466,6 +2466,7 @@ ath10k_accumulate_per_peer_tx_stats(struct ath10k *ar,
 		return;
 
 	tx_stats = arsta->tx_stats;
+	flags = txrate->flags;
 	gi = test_bit(ATH10K_RATE_INFO_FLAGS_SGI_BIT, &flags);
 	mcs = ATH10K_HW_MCS_RATE(pstats->ratecode);
 	bw = txrate->bw;
