@@ -314,7 +314,7 @@ static ssize_t q6_dump_read(struct file *file, char __user *buf, size_t count,
 		if (!buffer) {
 			pr_err("can not map physical address %x : %d\n",
 					(unsigned int)q6dump.dump_phy_addr +
-					dfp->rel_addr_off, count);
+					dfp->rel_addr_off, (int)count);
 			return -ENOMEM;
 		}
 		dfp->rel_addr_off = dfp->rel_addr_off + count;
@@ -380,13 +380,13 @@ static int crashdump_init(int check, const struct subsys_desc *desc)
 		goto dump_dev_failed;
 	}
 
-	ret = of_property_read_u32_index(node, "reg", 1, &q6dump.dump_phy_addr);
+	ret = of_property_read_u32_index(node, "reg", 1, (u32 *)&q6dump.dump_phy_addr);
 	if (ret) {
 		pr_err("could not retrieve reg property: %d\n", ret);
 		goto dump_dev_failed;
 	}
 
-	ret = of_property_read_u32_index(node, "reg", 3, &q6dump.dump_size);
+	ret = of_property_read_u32_index(node, "reg", 3, (u32 *)&q6dump.dump_size);
 	if (ret) {
 		pr_err("could not retrieve reg property: %d\n",
 				ret);
@@ -707,6 +707,14 @@ static int q6_rproc_emu_start(struct rproc *rproc)
 	int ret = 0;
 
 	atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_STARTING);
+	/* Release Q6 and WCSS reset */
+	val = readl(pdata->gcc_bcr_base + GCC_WCSS_BCR);
+	val &= ~(BIT(0));
+	writel(val, pdata->gcc_bcr_base + GCC_WCSS_BCR);
+	val = readl(pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
+	val &= ~(BIT(0));
+	writel(val, pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
+
 	/* Last but two step in script */
 	val = readl(pdata->gcc_misc_base + 0x10);
 
@@ -1073,6 +1081,7 @@ static int stop_q6(const struct subsys_desc *subsys, bool force_stop)
 
 	if (pdata->emulation) {
 		pr_emerg("q6v5: Emulation stop, no smp2p messages\n");
+		q6_rproc_stop(rproc);
 		return 0;
 	}
 

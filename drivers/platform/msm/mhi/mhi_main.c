@@ -97,7 +97,7 @@ static void mhi_write_db(struct mhi_device_ctxt *mhi_dev_ctxt,
 	uintptr_t io_offset = chan * sizeof(u64);
 	void __iomem *io_addr_upper =
 		(void __iomem *)((uintptr_t)io_addr_lower + 4);
-	mhi_reg_write(mhi_dev_ctxt, io_addr_upper, io_offset, val >> 32);
+	mhi_reg_write(mhi_dev_ctxt, io_addr_upper, io_offset, (u64)val >> 32);
 	mhi_reg_write(mhi_dev_ctxt, io_addr_lower, io_offset, (u32)val);
 }
 

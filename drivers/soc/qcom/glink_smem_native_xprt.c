@@ -2287,7 +2287,7 @@ static int glink_smem_native_probe(struct platform_device *pdev)
 	}
 
 	einfo->tx_ch_desc = qcom_smem_get(einfo->remote_proc_id, entry,
-								&ch_desc_size);
+								(size_t *)&ch_desc_size);
 	if (PTR_ERR(einfo->tx_ch_desc) == -EPROBE_DEFER) {
 		goto smem_alloc_fail;
 	}

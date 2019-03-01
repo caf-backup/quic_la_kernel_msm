@@ -90,24 +90,24 @@ static void mdss_qpic_pan_display(struct msm_fb_data_type *mfd)
 
 	if (offset > fbi->fix.smem_len) {
 		pr_err("invalid fb offset=%u total length=%u\n",
-		       offset, fbi->fix.smem_len);
+		       (unsigned int)offset, fbi->fix.smem_len);
 		return;
 	}
 	if (use_bam)
 		fb_offset = (u32)fbi->fix.smem_start + offset;
 	else
-		fb_offset = (u32)mfd->fbi->screen_base + offset;
+		fb_offset = (u32)(uintptr_t)(mfd->fbi->screen_base + offset);
 
 	mdss_qpic_panel_on(qpic_res->panel_data, &qpic_res->panel_io);
 	size = fbi->var.xres * fbi->var.yres * bpp;
 
 	if (size < (1024 * 1024)) {
 		qpic_send_frame(0, 0, fbi->var.xres - 1, fbi->var.yres - 1,
-			(u32 *)fb_offset, size);
+		(u32 *)((uintptr_t)fb_offset), size);
 	} else {
 		/* LCDC BAM can't trnasfer more than 1MB */
 		qpic_send_frame(0, 0, fbi->var.xres - 1, fbi->var.yres - 1,
-			(u32 *)fb_offset, size / 2);
+		(u32 *)((uintptr_t)fb_offset), size / 2);
 
 		/* Disable vsync interrupt for second packet */
 		if (use_vsync) {
@@ -117,8 +117,8 @@ static void mdss_qpic_pan_display(struct msm_fb_data_type *mfd)
 		}
 
 		qpic_send_frame(0,  fbi->var.yres / 2, fbi->var.xres - 1,
-			 fbi->var.yres - 1, (u32 *)(fb_offset + (size / 2)),
-			 size / 2);
+			 fbi->var.yres - 1, (u32 *)((uintptr_t)(fb_offset +
+(size / 2))), size / 2);
 
 		/* Enable vsync interrupt after sending second packet */
 		if (use_vsync) {
@@ -166,14 +166,14 @@ int mdss_qpic_alloc_fb_mem(struct msm_fb_data_type *mfd)
 	if (!qpic_res->cmd_buf_virt) {
 		qpic_res->cmd_buf_virt = dma_alloc_writecombine(
 			&qpic_res->pdev->dev, QPIC_MAX_CMD_BUF_SIZE,
-			&qpic_res->cmd_buf_phys, GFP_KERNEL);
+			(dma_addr_t *)&qpic_res->cmd_buf_phys, GFP_KERNEL);
 		if (!qpic_res->cmd_buf_virt) {
 			pr_err("%s cmd buf allocation failed", __func__);
 			return -ENOMEM;
 		}
 
-		pr_debug("%s cmd_buf virt=%x phys=%x", __func__,
-			(int)qpic_res->cmd_buf_virt,
+		pr_debug("%s cmd_buf virt=%p phys=%x", __func__,
+			qpic_res->cmd_buf_virt,
 			qpic_res->cmd_buf_phys);
 	}
 
@@ -181,7 +181,7 @@ int mdss_qpic_alloc_fb_mem(struct msm_fb_data_type *mfd)
 		qpic_res->fb_virt = (void *)dmam_alloc_coherent(
 						&qpic_res->pdev->dev,
 						size,
-						&qpic_res->fb_phys,
+						(dma_addr_t *)&qpic_res->fb_phys,
 						GFP_KERNEL);
 		if (!qpic_res->fb_virt) {
 			pr_err("%s fb allocation failed", __func__);
@@ -193,9 +193,9 @@ int mdss_qpic_alloc_fb_mem(struct msm_fb_data_type *mfd)
 			return -ENOMEM;
 		}
 
-		pr_debug("%s size=%d vir_addr=%x phys_addr=%x",
-			__func__, size, (int)qpic_res->fb_virt,
-			(int)qpic_res->fb_phys);
+		pr_debug("%s size=%d vir_addr=%p phys_addr=0x%x",
+			__func__, (int)size, qpic_res->fb_virt,
+			qpic_res->fb_phys);
 
 		qpic_res->fb_size = size;
 		mdss_qpic_dma_pages_ops(qpic_res->fb_phys, size, get_page);
@@ -653,9 +653,9 @@ static int mdss_qpic_probe(struct platform_device *pdev)
 		goto probe_done;
 	}
 	qpic_res->qpic_phys = res->start;
-	pr_info("MDSS QPIC HW Base phy_Address=0x%x virt=0x%x\n",
+	pr_info("MDSS QPIC HW Base phy_Address=0x%x virt=%p\n",
 		(int) res->start,
-		(int) qpic_res->qpic_base);
+		(void *)qpic_res->qpic_base);
 
 	qpic_res->irq = platform_get_irq(pdev, 0);
 	if (qpic_res->irq < 0) {

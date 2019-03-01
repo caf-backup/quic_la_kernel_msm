@@ -277,13 +277,13 @@ static void *adm_process_fc_descriptors(struct adm_chan *achan,
 	if (direction == DMA_DEV_TO_MEM) {
 		crci_cmd = ADM_CMD_SRC_CRCI(crci);
 		row_offset = burst;
-		src = &achan->slave.src_addr;
+		src = (u32 *)(&achan->slave.src_addr);
 		dst = &mem_addr;
 	} else {
 		crci_cmd = ADM_CMD_DST_CRCI(crci);
 		row_offset = burst << 16;
 		src = &mem_addr;
-		dst = &achan->slave.dst_addr;
+		dst = (u32 *)(&achan->slave.dst_addr);
 	}
 
 	while (remainder >= burst) {
@@ -343,11 +343,11 @@ static void *adm_process_non_fc_descriptors(struct adm_chan *achan,
 	u32 *src, *dst;
 
 	if (direction == DMA_DEV_TO_MEM) {
-		src = &achan->slave.src_addr;
+		src = (u32 *)(&achan->slave.src_addr);
 		dst = &mem_addr;
 	} else {
 		src = &mem_addr;
-		dst = &achan->slave.dst_addr;
+		dst = (u32 *)(&achan->slave.dst_addr);
 	}
 
 	do {
@@ -462,7 +462,7 @@ static struct dma_async_tx_descriptor *adm_prep_slave_sg(struct dma_chan *chan,
 					&async_desc->dma_addr, GFP_NOWAIT);
 
 	if (!async_desc->cpl) {
-		dev_err(adev->dev, "failed to allocate cpl memory %d\n",
+		dev_err(adev->dev, "failed to allocate cpl memory %zu\n",
 				async_desc->dma_len);
 		kfree(async_desc);
 		return NULL;

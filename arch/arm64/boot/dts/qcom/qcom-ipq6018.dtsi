@@ -87,6 +87,29 @@
 			status = "disabled";
 		};
 
+		cryptobam: dma@704000 {
+			compatible = "qcom,bam-v1.7.0";
+			reg = <0x00704000 0x20000>;
+			interrupts = <GIC_SPI 207 IRQ_TYPE_NONE>;
+			clocks = <&gcc GCC_CRYPTO_AHB_CLK>;
+			clock-names = "bam_clk";
+			#dma-cells = <1>;
+			qcom,ee = <1>;
+			qcom,controlled-remotely = <1>;
+			qcom,config-pipe-trust-reg = <0>;
+		};
+
+		crypto: crypto@73a000 {
+			compatible = "qcom,crypto-v5.1";
+			reg = <0x0073a000 0x6000>;
+			clocks = <&gcc GCC_CRYPTO_AHB_CLK>,
+				<&gcc GCC_CRYPTO_AXI_CLK>,
+				<&gcc GCC_CRYPTO_CLK>;
+			clock-names = "iface", "bus", "core";
+			dmas = <&cryptobam 2>, <&cryptobam 3>;
+			dma-names = "rx", "tx";
+		};
+
 		qpic_lcd: qcom_mdss_qpic@7980000 {
 			compatible = "qcom,mdss_qpic";
 			reg = <0x7980000 0x24000>;
@@ -958,6 +981,52 @@
 				 <&gcc GCC_SDCC1_ICE_CORE_CLK>;
 			clock-names = "iface_clk", "core_clk", "ice_core_clk";
 			qcom,ice-clk-rates = <160000000 308570000>;
+			qcom,large-address-bus;
+			qcom,disable-aggressive-pm;
+
+			status = "disabled";
+		};
+
+		sdhc_2: sdhci_sd@7804000 {
+			compatible = "qcom,sdhci-msm-v5";
+			reg = <0x7804000 0x1000>;
+			reg-names = "hc_mem";
+
+			interrupts = <GIC_SPI 123 IRQ_TYPE_NONE>,
+					<GIC_SPI 138 IRQ_TYPE_NONE>;
+			interrupt-names = "hc_irq", "pwr_irq";
+
+			qcom,bus-width = <4>;
+			qcom,dedicated-io = <1>;
+			/* device core power supply */
+			qcom,vdd-voltage-level = <2950000 2950000>;
+			qcom,vdd-current-level = <15000 400000>;
+
+			/* device communication power supply */
+			qcom,vdd-io-lpm-sup;
+			qcom,vdd-io-voltage-level = <1800000 2950000>;
+			qcom,vdd-io-current-level = <200 22000>;
+			qcom,vdd-io-always-on;
+
+			qcom,cpu-dma-latency-us = <701>;
+			qcom,msm-bus,name = "sdhc2";
+			qcom,msm-bus,num-cases = <8>;
+			qcom,msm-bus,num-paths = <1>;
+			qcom,msm-bus,vectors-KBps = <81 512 0 0>, /* No vote */
+				<81 512 1046 3200>,    /* 400 KB/s*/
+				<81 512 52286 160000>, /* 20 MB/s */
+				<81 512 65360 200000>, /* 25 MB/s */
+				<81 512 130718 400000>, /* 50 MB/s */
+				<81 512 261438 800000>, /* 100 MB/s */
+				<81 512 261438 800000>, /* 200 MB/s */
+				<81 512 1338562 4096000>; /* Max. bandwidth */
+			qcom,bus-bw-vectors-bps = <0 400000 20000000 25000000 \
+						50000000 100000000 200000000 \
+						4294967295>;
+
+			clocks = <&gcc GCC_SDCC1_AHB_CLK>,
+				 <&gcc GCC_SDCC1_APPS_CLK>;
+			clock-names = "iface_clk", "core_clk";
 			qcom,large-address-bus;
 			qcom,disable-aggressive-pm;
 

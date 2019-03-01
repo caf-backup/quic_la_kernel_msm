@@ -797,7 +797,7 @@ static int ipq_mbox_probe(struct platform_device *pdev)
 	if (!match)
 		return -ENODEV;
 
-	ipq_mbox_info.ipq_hw = (u32)match->data;
+	ipq_mbox_info.ipq_hw = (enum ipq_hw_type)match->data;
 
 	np = pdev->dev.of_node;
 

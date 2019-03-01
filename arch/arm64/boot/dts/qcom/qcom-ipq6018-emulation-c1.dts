@@ -26,6 +26,7 @@
 		serial0 = &blsp1_uart1;
 		serial1 = &blsp1_uart2;
 		sdhc1 = &sdhc_1;
+		sdhc2 = &sdhc_2;
 		/*
 		 * Aliases as required by u-boot
 		 * to patch MAC addresses
@@ -64,6 +65,11 @@
 
 		qcom_rng: qrng@e1000 {
 			status = "ok";
+		};
+
+		cryptobam: dma@704000 {
+			qcom,controlled-remotely = <0>;
+			qcom,config-pipe-trust-reg = <1>;
 		};
 
 		qpic_lcd: qcom_mdss_qpic@7980000 {
@@ -141,6 +147,14 @@
 			qcom,nonremovable;
 			qcom,emulation = <1>;
 			status = "ok";
+		};
+
+		sdhc_2: sdhci_sd@7804000 {
+			qcom,clk-rates = <400000 25000000 50000000 100000000 \
+					192000000>;
+			qcom,bus-speed-mode = "HS200_1p8v", "DDR_1p8v";
+
+			qcom,emulation = <1>;
 		};
 
 		pcie0: pci@20000000 {

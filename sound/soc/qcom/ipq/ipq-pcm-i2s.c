@@ -99,7 +99,7 @@ static struct device *ss2dev(struct snd_pcm_substream *substream)
  */
 static int ipq_mbox_buf_is_aligned(void *c_ptr, ssize_t size)
 {
-	u32 ptr = (u32)c_ptr;
+	uintptr_t ptr = (uintptr_t)c_ptr;
 
 	return (ptr & 0xF0000000) == ((ptr + size - 1) & 0xF0000000);
 }
@@ -423,7 +423,7 @@ static int ipq_pcm_i2s_trigger(struct snd_pcm_substream *substream, int cmd)
 
 		dev_dbg(ss2dev(substream),
 			"period_size:%u rate:%u sample_bits:%u channels:%u desc_delay:%u\n",
-			frames_to_bytes(runtime, runtime->period_size),
+			(unsigned int)frames_to_bytes(runtime, runtime->period_size),
 			runtime->rate, runtime->sample_bits, runtime->channels,
 			desc_duration);
 
@@ -476,8 +476,8 @@ static int ipq_pcm_i2s_open(struct snd_pcm_substream *substream)
 	if (!pcm_rtpriv)
 		return -ENOMEM;
 
-	dev_dbg(ss2dev(substream), "%s: 0x%xB allocated at 0x%08x\n",
-			__func__, sizeof(*pcm_rtpriv), (u32) pcm_rtpriv);
+	dev_dbg(ss2dev(substream), "%s: 0x%xB allocated at %p\n",
+		__func__, (unsigned int)sizeof(*pcm_rtpriv), pcm_rtpriv);
 	pcm_rtpriv->last_played = NULL;
 	pcm_rtpriv->dev = substream->pcm->card->dev;
 	pcm_rtpriv->channel = ipq_get_mbox_id(substream, intf);
