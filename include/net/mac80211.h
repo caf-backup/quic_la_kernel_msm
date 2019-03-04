@@ -1493,6 +1493,8 @@ enum ieee80211_vif_flags {
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void \*).
  * @txq: the multicast data TX queue (if driver uses the TXQ abstraction)
+ * @txqs_stopped: per AC flag to indicate that intermediate TXQs are stopped,
+ *	protected by fq->lock.
  */
 struct ieee80211_vif {
 	enum nl80211_iftype type;
@@ -1518,6 +1520,8 @@ struct ieee80211_vif {
 	unsigned int probe_req_reg;
 
 	struct ieee80211_tid_conf tid_conf;
+
+	bool txqs_stopped[IEEE80211_NUM_ACS];
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
