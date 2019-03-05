@@ -93,6 +93,14 @@
 			qcom,emulation = <1>;
 		};
 
+		usb2: usb2@7000000 {
+			status = "ok";
+		};
+
+		usb3: usb3@8A00000 {
+			status = "ok";
+		};
+
 		i2c_0: i2c@78b6000 {
 			status = "ok";
 		};

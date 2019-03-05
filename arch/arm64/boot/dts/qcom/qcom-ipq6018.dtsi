@@ -328,7 +328,7 @@
 						<133330000>,
 						<20000000>;
 			qca,host = <1>;
-			status = "ok";
+			status = "disabled";
 
 			dwc_0: dwc3@8A00000 {
 			       compatible = "snps,dwc3";
@@ -369,7 +369,7 @@
 			assigned-clock-rates = <133330000>,
 					       <20000000>;
 			qca,host = <1>;
-			status = "ok";
+			status = "disabled";
 
 			dwc_1: dwc3@7000000 {
 			       compatible = "snps,dwc3";
