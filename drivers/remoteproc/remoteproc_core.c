@@ -57,6 +57,7 @@ static int rproc_alloc_carveout(struct rproc *rproc,
 				struct rproc_mem_entry *mem);
 static int rproc_release_carveout(struct rproc *rproc,
 				  struct rproc_mem_entry *mem);
+static bool default_domain;
 
 /* Unique indices for remoteproc devices */
 static DEFINE_IDA(rproc_dev_index);
@@ -110,19 +111,24 @@ static int rproc_enable_iommu(struct rproc *rproc)
 		return 0;
 	}
 
-	domain = iommu_domain_alloc(dev->bus);
+	domain = iommu_get_domain_for_dev(dev);
 	if (!domain) {
-		dev_err(dev, "can't alloc iommu domain\n");
-		return -ENOMEM;
+		domain = iommu_domain_alloc(dev->bus);
+		if (!domain) {
+			dev_err(dev, "can't alloc iommu domain\n");
+			return -ENOMEM;
+		}
+
+		ret = iommu_attach_device(domain, dev);
+		if (ret) {
+			dev_err(dev, "can't attach iommu device: %d\n", ret);
+			goto free_domain;
+		}
+	} else {
+		default_domain = true;
 	}
 
 	iommu_set_fault_handler(domain, rproc_iommu_fault, rproc);
-
-	ret = iommu_attach_device(domain, dev);
-	if (ret) {
-		dev_err(dev, "can't attach iommu device: %d\n", ret);
-		goto free_domain;
-	}
 
 	rproc->domain = domain;
 
@@ -138,7 +144,12 @@ static void rproc_disable_iommu(struct rproc *rproc)
 	struct iommu_domain *domain = rproc->domain;
 	struct device *dev = rproc->dev.parent;
 
-	if (!domain)
+	/**
+	 * if we are attached to default_domain, that means
+	 * we are using a shared domain with some other master.
+	 * So let's not free that.
+	 */
+	if (!domain || default_domain)
 		return;
 
 	iommu_detach_device(domain, dev);
