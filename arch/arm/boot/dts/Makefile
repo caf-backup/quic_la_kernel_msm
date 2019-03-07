@@ -551,6 +551,7 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-msm8960-cdp.dtb \
 	qcom-msm8974-sony-xperia-honami.dtb \
 	qcom-ipq6018-cp01.dtb \
+	qcom-ipq6018-cp02.dtb \
 	qcom-ipq807x-hk01.dtb \
 	qcom-ipq807x-hk01.c2.dtb \
 	qcom-ipq807x-hk01.c3.dtb \
