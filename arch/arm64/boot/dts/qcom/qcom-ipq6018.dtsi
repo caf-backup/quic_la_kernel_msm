@@ -590,6 +590,17 @@
 			status = "disabled";
 		};
 
+		pwm {
+			compatible = "qca,ipq6018-pwm";
+			reg = <0x1941010 0x20>;
+			clocks = <&gcc GCC_ADSS_PWM_CLK>;
+			clock-names = "core";
+			src-freq = <100000000>;
+			pwm-base-index = <0>;
+			used-pwm-indices = <1>, <1>, <1>, <1>;
+			status = "disabled";
+		};
+
 		tcsr_mutex_block: syscon@1905000 {
 			compatible = "syscon";
 			reg = <0x1905000 0x8000>;
