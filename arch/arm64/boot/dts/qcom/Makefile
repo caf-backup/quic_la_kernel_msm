@@ -1,6 +1,9 @@
 dtb-$(CONFIG_ARCH_QCOM)	+= apq8016-sbc.dtb msm8916-mtp.dtb msm8952-mtp.dtb \
 				qcom-ipq6018-emulation-c1.dtb \
 				qcom-ipq6018-emulation-c2.dtb \
+				qcom-ipq6018-cp01.dtb \
+				qcom-ipq6018-cp02.dtb \
+				qcom-ipq6018-cp03.dtb \
 				qcom-ipq807x-hk01.dtb \
 				qcom-ipq807x-hk01.c2.dtb \
 				qcom-ipq807x-hk01.c3.dtb \
