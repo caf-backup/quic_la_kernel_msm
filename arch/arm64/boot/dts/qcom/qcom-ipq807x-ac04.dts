@@ -37,7 +37,6 @@
 		ethernet2 = "/soc/dp3";
 		ethernet3 = "/soc/dp4";
 		ethernet4 = "/soc/dp5";
-		ethernet5 = "/soc/dp6";
 	};
 
 	chosen {
@@ -612,19 +611,7 @@
 		qcom,mactype = <0>;
 		local-mac-address = [000000000000];
 		qcom,link-poll = <1>;
-		qcom,phy-mdio-addr = <24>;
-		phy-mode = "sgmii";
-	};
-
-	dp6 {
-		device_type = "network";
-		compatible = "qcom,nss-dp";
-		qcom,id = <6>;
-		reg = <0x3a001a00 0x200>;
-		qcom,mactype = <0>;
-		local-mac-address = [000000000000];
-		qcom,link-poll = <1>;
-		qcom,phy-mdio-addr = <28>;
+		qcom,phy-mdio-addr = <4>;
 		phy-mode = "sgmii";
 	};
 
