@@ -20,7 +20,7 @@
 / {
 	#address-cells = <0x2>;
 	#size-cells = <0x2>;
-	model = "Qualcomm Technologies, Inc. IPQ6018/AP-CP02";
+	model = "Qualcomm Technologies, Inc. IPQ6018/AP-CP02-C1";
 	compatible = "qcom,ipq6018-cp02", "qcom,ipq6018";
 	interrupt-parent = <&intc>;
 
