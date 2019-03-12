@@ -258,6 +258,15 @@ config ARM64_ERRATUM_827319
 
 	  If unsure, say Y.
 
+config IPQ_MEM_PROFILE
+	int "Select Memory Profile"
+	range 0 1024
+	default 0
+	---help---
+	This option select memory profile to be used,which defines
+	the reserved memory configuration used in device tree.
+	If unsure, say 0
+
 config ARM64_ERRATUM_824069
 	bool "Cortex-A53: 824069: Cache line might not be marked as clean after a CleanShared snoop"
 	default y
