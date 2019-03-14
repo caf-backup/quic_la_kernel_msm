@@ -14,5 +14,5 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "../../../arm64/boot/dts/qcom/qcom-ipq6018-cp03.dts"
+#include "../../../arm64/boot/dts/qcom/qcom-ipq6018-cp03-c1.dts"
 #include "qcom-ipq6018.dtsi"
