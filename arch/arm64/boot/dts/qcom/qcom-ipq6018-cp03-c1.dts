@@ -164,7 +164,6 @@
 };
 
 &qusb_phy_0 {
-	qcom,emulation = <1>;
 	status = "ok";
 };
 

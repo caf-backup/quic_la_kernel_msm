@@ -76,18 +76,6 @@
 			status = "ok";
 		};
 
-		ssphy_0: ssphy@78000 {
-			qcom,emulation = <1>;
-		};
-
-		qusb_phy_0: qusb@79000 {
-			qcom,emulation = <1>;
-		};
-
-		qusb_phy_1: qusb@59000 {
-			qcom,emulation = <1>;
-		};
-
 		usb3: usb3@8A00000 {
 			status = "ok";
 		};
