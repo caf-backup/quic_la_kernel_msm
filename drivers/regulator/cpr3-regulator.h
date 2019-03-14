@@ -887,6 +887,8 @@ int cpr3_adjust_target_quotients(struct cpr3_regulator *vreg,
 int cpr3_handle_temp_open_loop_adjustment(struct cpr3_controller *ctrl,
 			bool is_cold);
 int cpr3_get_cold_temp_threshold(struct cpr3_regulator *vreg, int *cold_temp);
+bool cpr3_can_adjust_cold_temp(struct cpr3_regulator *vreg);
+
 #else
 
 static inline int cpr3_regulator_register(struct platform_device *pdev,
@@ -1117,8 +1119,14 @@ cpr3_handle_temp_open_loop_adjustment(struct cpr3_controller *ctrl,
 	return 0;
 }
 
+static inline bool
+cpr3_can_adjust_cold_temp(struct cpr3_regulator *vreg)
+{
+	return false;
+}
+
 static inline int
-cpr3_get_cold_temp_threshold(struct device *dev, int *cold_temp)
+cpr3_get_cold_temp_threshold(struct cpr3_regulator *vreg, int *cold_temp)
 {
 	return 0;
 }

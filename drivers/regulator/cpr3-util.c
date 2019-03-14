@@ -1642,6 +1642,37 @@ done:
 }
 
 /**
+ * cpr3_can_adjust_cold_temp() - Is cold temperature adjustment available
+ *
+ * @vreg:		Pointer to the CPR3 regulator
+ *
+ * This function checks the cold temperature threshold is available
+ *
+ * Return: true on cold temperature threshold is available, else false
+ */
+bool cpr3_can_adjust_cold_temp(struct cpr3_regulator *vreg)
+{
+	int rc;
+	char prop_str[75];
+	const int *soc_version_major = read_ipq_soc_version_major();
+
+	BUG_ON(!soc_version_major);
+
+	if (*soc_version_major > 1)
+		strlcpy(prop_str, "qcom,cpr-cold-temp-threshold-v2",
+			sizeof(prop_str));
+	else
+		strlcpy(prop_str, "qcom,cpr-cold-temp-threshold",
+			sizeof(prop_str));
+
+	if (!of_find_property(vreg->of_node, prop_str, NULL)) {
+		/* No adjustment required. */
+		return false;
+	} else
+		return true;
+}
+
+/**
  * cpr3_get_cold_temp_threshold() - get cold temperature threshold
  *
  * @vreg:		Pointer to the CPR3 regulator
