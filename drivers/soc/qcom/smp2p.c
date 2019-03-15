@@ -228,8 +228,10 @@ static irqreturn_t qcom_smp2p_intr(int irq, void *data)
 
 			if ((val & BIT(i) && test_bit(i, entry->irq_rising)) ||
 			    (!(val & BIT(i)) && test_bit(i, entry->irq_falling))) {
+				struct irq_desc *desc = NULL;
 				irq_pin = irq_find_mapping(entry->domain, i);
-				handle_nested_irq(irq_pin);
+				desc = irq_to_desc(irq_pin);
+				handle_simple_irq(desc);
 			}
 		}
 	}
@@ -292,7 +294,6 @@ static int smp2p_irq_map(struct irq_domain *d,
 
 	irq_set_chip_and_handler(irq, &smp2p_irq_chip, handle_level_irq);
 	irq_set_chip_data(irq, entry);
-	irq_set_nested_thread(irq, 1);
 	irq_set_noprobe(irq);
 
 	return 0;
@@ -531,7 +532,7 @@ static int qcom_smp2p_probe(struct platform_device *pdev)
 	qcom_smp2p_kick(smp2p);
 
 	ret = devm_request_threaded_irq(&pdev->dev, irq,
-					NULL, qcom_smp2p_intr,
+					qcom_smp2p_intr, NULL,
 					IRQF_ONESHOT,
 					"smp2p", (void *)smp2p);
 	if (ret) {
