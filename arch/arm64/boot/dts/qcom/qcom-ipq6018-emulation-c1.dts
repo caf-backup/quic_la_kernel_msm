@@ -130,6 +130,11 @@
 			};
 		};
 
+		pwm {
+			used-pwm-indices = <1>, <0>, <0>, <0>;
+			status = "ok";
+		};
+
 		q6v5_wcss: q6v5_wcss@CD00000 {
 			qca,emulation;
 			img-addr = <0x4AB00000>;
