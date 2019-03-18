@@ -1,5 +1,5 @@
 /dts-v1/;
-/* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2019, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -18,8 +18,8 @@
 / {
 	#address-cells = <0x2>;
 	#size-cells = <0x2>;
-	model = "Qualcomm Technologies, Inc. IPQ6018-EMULATION-C1";
-	compatible = "qcom,ipq6018-emulation-c1", "qcom,ipq6018";
+	model = "Qualcomm Technologies, Inc. IPQ6018-EMULATION-C3";
+	compatible = "qcom,ipq6018-emulation-c3", "qcom,ipq6018";
 	interrupt-parent = <&intc>;
 
 	aliases {
@@ -67,15 +67,6 @@
 			status = "ok";
 		};
 
-		cryptobam: dma@704000 {
-			qcom,controlled-remotely = <0>;
-			qcom,config-pipe-trust-reg = <1>;
-		};
-
-		qca,scm_restart_reason {
-			status = "disabled";
-		};
-
 		qpic_lcd: qcom_mdss_qpic@7980000 {
 			status = "ok";
 		};
@@ -95,10 +86,6 @@
 
 		qusb_phy_1: qusb@59000 {
 			qcom,emulation = <1>;
-		};
-
-		usb2: usb2@7000000 {
-			status = "ok";
 		};
 
 		usb3: usb3@8A00000 {
@@ -140,12 +127,10 @@
 		};
 
 		q6v5_wcss: q6v5_wcss@CD00000 {
-			qca,emulation;
 			img-addr = <0x4AB00000>;
 		};
 
 		q6v6_adsp: q6v6_adsp@AB00000 {
-			qca,emulation;
 			img-addr = <0x49100000>;
 		};
 
@@ -233,36 +218,6 @@
 
 		smmu500: arm,smmu@1E00000 {
 			status = "ok";
-		};
-	};
-
-	psci {
-		status = "disabled";
-	};
-
-	cpus {
-		CPU0: cpu@0 {
-			compatible = "arm,cortex-a53";
-			enable-method = "qcom,arm-cortex-acc";
-
-			L2_0: l2-cache {
-				compatible = "arm,arch-cache";
-			};
-		};
-
-		CPU1: cpu@1 {
-			compatible = "arm,cortex-a53";
-			enable-method = "qcom,arm-cortex-acc";
-		};
-
-		CPU2: cpu@2 {
-			compatible = "arm,cortex-a53";
-			enable-method = "qcom,arm-cortex-acc";
-		};
-
-		CPU3: cpu@3 {
-			compatible = "arm,cortex-a53";
-			enable-method = "qcom,arm-cortex-acc";
 		};
 	};
 };

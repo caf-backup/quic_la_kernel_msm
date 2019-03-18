@@ -1,5 +1,5 @@
 /dts-v1/;
-/* Copyright (c) 2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -54,6 +54,10 @@
 	soc {
 		serial@78af000 {
 			status = "ok";
+		};
+
+		qca,scm_restart_reason {
+			status = "disabled";
 		};
 
 		glink_adsp: qcom,glink-smem-native-xprt-adsp@48C00000 {
@@ -132,6 +136,36 @@
 
 		nss_crypto {
 			status = "ok";
+		};
+	};
+
+	psci {
+		status = "disabled";
+	};
+
+	cpus {
+		CPU0: cpu@0 {
+			compatible = "arm,cortex-a53";
+			enable-method = "qcom,arm-cortex-acc";
+
+			L2_0: l2-cache {
+				compatible = "arm,arch-cache";
+			};
+		};
+
+		CPU1: cpu@1 {
+			compatible = "arm,cortex-a53";
+			enable-method = "qcom,arm-cortex-acc";
+		};
+
+		CPU2: cpu@2 {
+			compatible = "arm,cortex-a53";
+			enable-method = "qcom,arm-cortex-acc";
+		};
+
+		CPU3: cpu@3 {
+			compatible = "arm,cortex-a53";
+			enable-method = "qcom,arm-cortex-acc";
 		};
 	};
 };
