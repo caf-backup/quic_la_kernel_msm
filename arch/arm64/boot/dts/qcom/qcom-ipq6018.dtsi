@@ -1602,6 +1602,10 @@
 				reg = <0x10 8>;
 			};
 		};
+
+		qca,scm_restart_reason {
+			compatible = "qca,scm_restart_reason";
+		};
 	};
 
 	psci {
