@@ -197,6 +197,7 @@
 				qcom,cpr-part-types = <2>;
 				qcom,cpr-parts-voltage = <968000>;
 				qcom,cpr-parts-voltage-v2 = <832001>;
+				qcom,cpr-cold-temp-threshold = <0>;
 				qcom,cpr-cold-temp-threshold-v2 = <30>;
 				qcom,cpr-fuse-corners = <2>;
 				qcom,cpr-fuse-combos = <1>;
@@ -213,11 +214,11 @@
 					<1497600000 1689600000>;
 
 				/* TT/FF parts i.e. turbo OL voltage < 968 mV */
-				qcom,cpr-open-loop-voltage-fuse-adjustment-0 =
+				qcom,cpr-cold-temp-voltage-adjustment-0 =
 					<40000   40000>;
 
 				/* SS parts i.e turbo OL voltage >= 968 mV */
-				qcom,cpr-open-loop-voltage-fuse-adjustment-1 =
+				qcom,cpr-cold-temp-voltage-adjustment-1 =
 					<24000   24000>;
 
 				/* FF parts i.e. turbo OL voltage <= 832 mV */

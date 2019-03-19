@@ -418,7 +418,6 @@ static int cpr3_npu_init_regulator(struct cpr3_regulator *vreg)
 {
 	struct cpr3_ipq807x_npu_fuses *fuse;
 	int rc, cold_temp = 0;
-	bool can_adj_cold_temp = cpr3_can_adjust_cold_temp(vreg);
 
 	rc = cpr3_ipq807x_npu_read_fuse_data(vreg);
 	if (rc) {
@@ -444,13 +443,11 @@ static int cpr3_npu_init_regulator(struct cpr3_regulator *vreg)
 		return rc;
 	}
 
-	if (can_adj_cold_temp) {
-		rc = cpr3_ipq807x_npu_calc_temp_based_ol_voltages(vreg, true);
-		if (rc) {
-			cpr3_err(vreg,
+	rc = cpr3_ipq807x_npu_calc_temp_based_ol_voltages(vreg, true);
+	if (rc) {
+		cpr3_err(vreg,
 			"unable to calculate open-loop voltages, rc=%d\n", rc);
-			return rc;
-		}
+		return rc;
 	}
 
 	rc = cpr3_ipq807x_npu_calc_temp_based_ol_voltages(vreg, false);
@@ -460,19 +457,16 @@ static int cpr3_npu_init_regulator(struct cpr3_regulator *vreg)
 		return rc;
 	}
 
-	if (can_adj_cold_temp) {
-		cpr3_info(vreg,
+	cpr3_info(vreg,
 		"Normal and Cold condition init done. Default to normal.\n");
 
-		rc = cpr3_get_cold_temp_threshold(vreg, &cold_temp);
-		if (rc) {
-			cpr3_err(vreg,
+	rc = cpr3_get_cold_temp_threshold(vreg, &cold_temp);
+	if (rc) {
+		cpr3_err(vreg,
 			"Get cold temperature threshold failed, rc=%d\n", rc);
-			return rc;
-		}
-		register_low_temp_notif(NPU_TSENS, cold_temp,
-							cpr3_npu_temp_notify);
+		return rc;
 	}
+	register_low_temp_notif(NPU_TSENS, cold_temp, cpr3_npu_temp_notify);
 
 	return rc;
 }
