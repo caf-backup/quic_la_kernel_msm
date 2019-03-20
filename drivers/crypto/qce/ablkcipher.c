@@ -17,6 +17,8 @@
 #include <crypto/aes.h>
 #include <crypto/algapi.h>
 #include <crypto/des.h>
+#include <linux/cache.h>
+#include <linux/qcom_scm.h>
 
 #include "cipher.h"
 
@@ -149,6 +151,46 @@ error_free:
 	return ret;
 }
 
+static int qce_setkey_sec(unsigned int keylen)
+{
+	struct qce_config_key_sec *key;
+	struct kmem_cache *qce_cache;
+	int ret;
+
+	qce_cache = kmem_cache_create("qce_sec_key", max(L1_CACHE_BYTES,
+				sizeof(struct qce_config_key_sec)),
+			L1_CACHE_BYTES, SLAB_PANIC, NULL);
+	if (!qce_cache) {
+		pr_info("%s: Error in creating cache\n",__func__);
+		return -ENOMEM;
+	}
+
+	key = kmem_cache_alloc(qce_cache, GFP_KERNEL);
+	if (!key) {
+		pr_info("%s: Error in alloacting cache.\n",__func__);
+		ret = -ENOMEM;
+		goto destroy;
+	}
+
+	/*update the key length value */
+	key->keylen = keylen;
+
+	ret = qcom_set_qcekey_sec(key, sizeof(struct qce_config_key_sec));
+	if (ret) {
+		pr_err("%s: qce key configuration fail\n", __func__);
+		ret = -EINVAL;
+		goto free;
+	}
+
+free:
+	kmem_cache_free(qce_cache, key);
+
+destroy:
+	kmem_cache_destroy(qce_cache);
+
+	return ret;
+}
+
 static int qce_ablkcipher_setkey(struct crypto_ablkcipher *ablk, const u8 *key,
 				 unsigned int keylen)
 {
@@ -175,6 +217,12 @@ static int qce_ablkcipher_setkey(struct crypto_ablkcipher *ablk, const u8 *key,
 		if (!ret && crypto_ablkcipher_get_flags(ablk) &
 		    CRYPTO_TFM_REQ_WEAK_KEY)
 			goto weakkey;
+	}
+
+	ret = qce_setkey_sec(keylen);
+	if (ret){
+		pr_err("%s: qce key configuration fail\n", __func__);
+		return ret;
 	}
 
 	ctx->enc_keylen = keylen;

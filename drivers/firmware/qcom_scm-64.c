@@ -439,6 +439,31 @@ int __qcom_config_ice_sec(struct device *dev, void *confBuf, int size)
 	return ret ? : res.a1;
 }
 
+int __qcom_set_qcekey_sec(struct device *dev, void *confBuf, int size)
+{
+	int ret;
+	struct arm_smccc_res res;
+	struct qcom_scm_desc desc = {0};
+	dma_addr_t conf_phys;
+
+	conf_phys = dma_map_single(dev, confBuf, size, DMA_TO_DEVICE);
+
+	ret = dma_mapping_error(dev, conf_phys);
+	if (ret) {
+		dev_err(dev, "Allocation fail for conf buffer\n");
+		return -ENOMEM;
+	}
+	desc.arginfo = SCM_ARGS(1, QCOM_SCM_PARAM_BUF_RO);
+	desc.args[0] = (u64)conf_phys;
+	desc.args[1] = size;
+
+	ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, QCOM_SCM_QCE_CRYPTO_SIP,
+			    QCOM_SCM_QCE_CMD, &desc, &res);
+
+	dma_unmap_single(dev, conf_phys, size, DMA_TO_DEVICE);
+	return ret ? : res.a1;
+}
+
 int __qcom_sec_upgrade_auth(struct device *dev, unsigned int sw_type,
 			unsigned int img_size, unsigned int load_addr)
 {
