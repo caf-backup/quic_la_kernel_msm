@@ -1031,10 +1031,7 @@ static int msm_ssphy_qmp_probe(struct platform_device *pdev)
 
 	phy->phy.dev			= dev;
 	phy->phy.init			= msm_ssphy_qmp_init;
-
-	if (!(of_machine_is_compatible("qcom,ipq807x")))
-		phy->phy.set_suspend = msm_ssphy_qmp_set_suspend;
-
+	phy->phy.set_suspend		= msm_ssphy_qmp_set_suspend;
 	phy->phy.notify_connect		= msm_ssphy_qmp_notify_connect;
 	phy->phy.notify_disconnect	= msm_ssphy_qmp_notify_disconnect;
 	phy->phy.type			= USB_PHY_TYPE_USB3;
