@@ -591,6 +591,7 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 	if (ret)
 		goto free_rproc;
 
+	rproc->auto_boot = false;
 	ret = rproc_add(rproc);
 	if (ret)
 		goto free_rproc;
