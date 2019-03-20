@@ -898,28 +898,6 @@
 				<     0      0>,
 				<     0      0>;
 
-			qcom,cpr-open-loop-voltage-fuse-adjustment-v2-0 =
-				/* Speed bin 0; CPR rev 0..7 */
-				<     0      0>,
-				<  4000  36000>,
-				<     0      0>,
-				<     0      0>,
-				<     0      0>,
-				<     0      0>,
-				<     0      0>,
-				<     0      0>;
-
-			qcom,cpr-open-loop-voltage-fuse-adjustment-v2-1 =
-				/* Speed bin 0; CPR rev 0..7 */
-				<     0      0>,
-				<  4000  36000>,
-				<     0      0>,
-				<     0      0>,
-				<     0      0>,
-				<     0      0>,
-				<     0      0>,
-				<     0      0>;
-
 			qcom,cpr-floor-to-ceiling-max-range =
 				< 40000 40000 40000>,
 				< 40000 40000 40000>,
@@ -953,14 +931,6 @@
 				<40000>;
 			qcom,cpr-open-loop-voltage-fuse-adjustment-1 =
 				<24000>;
-			qcom,cpr-open-loop-voltage-fuse-adjustment-v2-0=
-				<40000>;
-			qcom,cpr-open-loop-voltage-fuse-adjustment-v2-1=
-				<40000>;
-			qcom,cpr-cold-temp-voltage-adjustment-v2-0 =
-				<0>;
-			qcom,cpr-cold-temp-voltage-adjustment-v2-1 =
-				<27000>;
 		};
 	};
 };
