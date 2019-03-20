@@ -20,6 +20,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/slab.h>
+#include <linux/thermal.h>
 
 #include "cpr3-regulator.h"
 
@@ -31,6 +32,8 @@
 
 #define IPQ807x_NPU_CPR_TCSR_START		6
 #define IPQ807x_NPU_CPR_TCSR_END		7
+
+#define NPU_TSENS				5
 
 u32 g_valid_npu_fuse_count = IPQ807x_NPU_FUSE_CORNERS;
 /**
@@ -82,6 +85,27 @@ ipq807x_npu_fuse_ref_volt [IPQ807x_NPU_FUSE_CORNERS] = {
 	912000,
 	992000,
 };
+
+struct cpr3_controller *g_ctrl;
+
+void cpr3_npu_temp_notify(int sensor, int temp, int low_notif)
+{
+	u32 prev_sensor_state;
+
+	if (sensor != NPU_TSENS)
+		return;
+
+	prev_sensor_state = g_ctrl->cur_sensor_state;
+	if (low_notif)
+		g_ctrl->cur_sensor_state |= BIT(sensor);
+	else
+		g_ctrl->cur_sensor_state &= ~BIT(sensor);
+
+	if (!prev_sensor_state && g_ctrl->cur_sensor_state)
+		cpr3_handle_temp_open_loop_adjustment(g_ctrl, true);
+	else if (prev_sensor_state && !g_ctrl->cur_sensor_state)
+		cpr3_handle_temp_open_loop_adjustment(g_ctrl, false);
+}
 
 /**
  * cpr3_ipq807x_npu_read_fuse_data() - load NPU specific fuse parameter values
@@ -144,6 +168,7 @@ static int cpr3_npu_parse_corner_data(struct cpr3_regulator *vreg)
  * cpr3_ipq807x_npu_calculate_open_loop_voltages() - calculate the open-loop
  *		voltage for each corner of a CPR3 regulator
  * @vreg:		Pointer to the CPR3 regulator
+ * @temp_correction:    Temperature based correction
  *
  * If open-loop voltage interpolation is allowed in device tree, then
  * this function calculates the open-loop voltage for a given corner using
@@ -158,7 +183,7 @@ static int cpr3_npu_parse_corner_data(struct cpr3_regulator *vreg)
  * Return: 0 on success, errno on failure
  */
 static int cpr3_ipq807x_npu_calculate_open_loop_voltages(
-			struct cpr3_regulator *vreg)
+			struct cpr3_regulator *vreg, bool temp_correction)
 {
 	struct cpr3_ipq807x_npu_fuses *fuse = vreg->platform_fuses;
 	struct cpr3_controller *ctrl = vreg->thread->ctrl;
@@ -195,22 +220,35 @@ static int cpr3_ipq807x_npu_calculate_open_loop_voltages(
 	rc = cpr3_determine_part_type(vreg,
 			fuse_volt[CPR3_IPQ807x_NPU_FUSE_CORNER_TURBO]);
 	if (rc) {
-		cpr3_err(vreg, "fused part type detection failed failed, rc=%d\n",
-			rc);
+		cpr3_err(vreg,
+			"fused part type detection failed failed, rc=%d\n", rc);
 		goto done;
 	}
 
 	rc = cpr3_adjust_fused_open_loop_voltages(vreg, fuse_volt);
 	if (rc) {
-		cpr3_err(vreg, "fused open-loop voltage adjustment failed, rc=%d\n",
-			 rc);
+		cpr3_err(vreg,
+			"fused open-loop voltage adjustment failed, rc=%d\n",
+			rc);
 		goto done;
+	}
+	if (temp_correction) {
+		rc = cpr3_determine_temp_base_open_loop_correction(vreg,
+								fuse_volt);
+		if (rc) {
+			cpr3_err(vreg,
+				"temp open-loop voltage adj. failed, rc=%d\n",
+				rc);
+			goto done;
+		}
 	}
 
 	for (i = 1; i < vreg->fuse_corner_count; i++) {
 		if (fuse_volt[i] < fuse_volt[i - 1]) {
 			cpr3_info(vreg,
-				  "fuse corner %d voltage=%d uV < fuse corner %d voltage=%d uV; overriding: fuse corner %d voltage=%d\n",
+				"fuse corner %d voltage=%d uV < fuse corner %d \
+				voltage=%d uV; overriding: fuse corner %d \
+				voltage=%d\n",
 				  i, fuse_volt[i], i - 1, fuse_volt[i - 1],
 				  i, fuse_volt[i - 1]);
 			fuse_volt[i] = fuse_volt[i - 1];
@@ -261,7 +299,8 @@ done:
 
 		rc = cpr3_adjust_open_loop_voltages(vreg);
 		if (rc)
-			cpr3_err(vreg, "open-loop voltage adjustment failed, rc=%d\n",
+			cpr3_err(vreg,
+				"open-loop voltage adjustment failed, rc=%d\n",
 				 rc);
 	}
 
@@ -280,7 +319,9 @@ static void cpr3_npu_print_settings(struct cpr3_regulator *vreg)
 	struct cpr3_corner *corner;
 	int i;
 
-	cpr3_debug(vreg, "Corner: Frequency (Hz), Fuse Corner, Floor (uV), Open-Loop (uV), Ceiling (uV)\n");
+	cpr3_debug(vreg,
+		"Corner: Frequency (Hz), Fuse Corner, Floor (uV), \
+		Open-Loop (uV), Ceiling (uV)\n");
 	for (i = 0; i < vreg->corner_count; i++) {
 		corner = &vreg->corner[i];
 		cpr3_debug(vreg, "%3d: %10u, %2d, %7d, %7d, %7d\n",
@@ -296,65 +337,22 @@ static void cpr3_npu_print_settings(struct cpr3_regulator *vreg)
 }
 
 /**
- * cpr3_npu_init_thread() - perform steps necessary to initialize the
- *		configuration data for a CPR3 thread
- * @thread:		Pointer to the CPR3 thread
- *
- * Return: 0 on success, errno on failure
+ * cpr3_ipq807x_npu_calc_temp_based_ol_voltages() - Calculate the open loop
+ * voltages based on temperature based correction margins
+ * @vreg:               Pointer to the CPR3 regulator
  */
-static int cpr3_npu_init_thread(struct cpr3_thread *thread)
+
+static int
+cpr3_ipq807x_npu_calc_temp_based_ol_voltages(struct cpr3_regulator *vreg,
+						bool temp_correction)
 {
-	int rc;
+	int rc, i;
 
-	rc = cpr3_parse_common_thread_data(thread);
+	rc = cpr3_ipq807x_npu_calculate_open_loop_voltages(vreg,
+							temp_correction);
 	if (rc) {
-		cpr3_err(thread->ctrl, "thread %u unable to read CPR thread data from device tree, rc=%d\n",
-			 thread->thread_id, rc);
-		return rc;
-	}
-
-	return 0;
-}
-
-/**
- * cpr3_npu_init_regulator() - perform all steps necessary to initialize the
- *		configuration data for a CPR3 regulator
- * @vreg:		Pointer to the CPR3 regulator
- *
- * Return: 0 on success, errno on failure
- */
-static int cpr3_npu_init_regulator(struct cpr3_regulator *vreg)
-{
-	struct cpr3_ipq807x_npu_fuses *fuse;
-	int rc;
-
-	rc = cpr3_ipq807x_npu_read_fuse_data(vreg);
-	if (rc) {
-		cpr3_err(vreg, "unable to read CPR fuse data, rc=%d\n", rc);
-		return rc;
-	}
-
-	fuse = vreg->platform_fuses;
-
-	rc = cpr3_npu_parse_corner_data(vreg);
-	if (rc) {
-		cpr3_err(vreg, "unable to read CPR corner data from device tree, rc=%d\n",
-			 rc);
-		return rc;
-	}
-
-	rc = cpr3_mem_acc_init(vreg);
-	if (rc) {
-		if (rc != -EPROBE_DEFER)
-			cpr3_err(vreg, "unable to initialize mem-acc regulator settings, rc=%d\n",
-				 rc);
-		return rc;
-	}
-
-	rc = cpr3_ipq807x_npu_calculate_open_loop_voltages(vreg);
-	if (rc) {
-		cpr3_err(vreg, "unable to calculate open-loop voltages, rc=%d\n",
-			 rc);
+		cpr3_err(vreg,
+			"unable to calculate open-loop voltages, rc=%d\n", rc);
 		return rc;
 	}
 
@@ -373,7 +371,108 @@ static int cpr3_npu_init_regulator(struct cpr3_regulator *vreg)
 		return rc;
 	}
 
+	for (i = 0; i < vreg->corner_count; i++) {
+		if (temp_correction)
+			vreg->corner[i].cold_temp_open_loop_volt =
+				vreg->corner[i].open_loop_volt;
+		else
+			vreg->corner[i].normal_temp_open_loop_volt =
+				vreg->corner[i].open_loop_volt;
+	}
+
 	cpr3_npu_print_settings(vreg);
+
+	return rc;
+}
+
+/**
+ * cpr3_npu_init_thread() - perform steps necessary to initialize the
+ *		configuration data for a CPR3 thread
+ * @thread:		Pointer to the CPR3 thread
+ *
+ * Return: 0 on success, errno on failure
+ */
+static int cpr3_npu_init_thread(struct cpr3_thread *thread)
+{
+	int rc;
+
+	rc = cpr3_parse_common_thread_data(thread);
+	if (rc) {
+		cpr3_err(thread->ctrl,
+			"thread %u CPR thread data from DT- failed, rc=%d\n",
+			 thread->thread_id, rc);
+		return rc;
+	}
+
+	return 0;
+}
+
+/**
+ * cpr3_npu_init_regulator() - perform all steps necessary to initialize the
+ *		configuration data for a CPR3 regulator
+ * @vreg:		Pointer to the CPR3 regulator
+ *
+ * Return: 0 on success, errno on failure
+ */
+static int cpr3_npu_init_regulator(struct cpr3_regulator *vreg)
+{
+	struct cpr3_ipq807x_npu_fuses *fuse;
+	int rc, cold_temp = 0;
+	bool can_adj_cold_temp = cpr3_can_adjust_cold_temp(vreg);
+
+	rc = cpr3_ipq807x_npu_read_fuse_data(vreg);
+	if (rc) {
+		cpr3_err(vreg, "unable to read CPR fuse data, rc=%d\n", rc);
+		return rc;
+	}
+
+	fuse = vreg->platform_fuses;
+
+	rc = cpr3_npu_parse_corner_data(vreg);
+	if (rc) {
+		cpr3_err(vreg,
+			"Cannot read CPR corner data from DT, rc=%d\n", rc);
+		return rc;
+	}
+
+	rc = cpr3_mem_acc_init(vreg);
+	if (rc) {
+		if (rc != -EPROBE_DEFER)
+			cpr3_err(vreg,
+			"Cannot initialize mem-acc regulator settings, rc=%d\n",
+			 rc);
+		return rc;
+	}
+
+	if (can_adj_cold_temp) {
+		rc = cpr3_ipq807x_npu_calc_temp_based_ol_voltages(vreg, true);
+		if (rc) {
+			cpr3_err(vreg,
+			"unable to calculate open-loop voltages, rc=%d\n", rc);
+			return rc;
+		}
+	}
+
+	rc = cpr3_ipq807x_npu_calc_temp_based_ol_voltages(vreg, false);
+	if (rc) {
+		cpr3_err(vreg,
+			"unable to calculate open-loop voltages, rc=%d\n", rc);
+		return rc;
+	}
+
+	if (can_adj_cold_temp) {
+		cpr3_info(vreg,
+		"Normal and Cold condition init done. Default to normal.\n");
+
+		rc = cpr3_get_cold_temp_threshold(vreg, &cold_temp);
+		if (rc) {
+			cpr3_err(vreg,
+			"Get cold temperature threshold failed, rc=%d\n", rc);
+			return rc;
+		}
+		register_low_temp_notif(NPU_TSENS, cold_temp,
+							cpr3_npu_temp_notify);
+	}
 
 	return rc;
 }
@@ -444,6 +543,7 @@ static int cpr3_npu_regulator_probe(struct platform_device *pdev)
 	ctrl = devm_kzalloc(dev, sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
 		return -ENOMEM;
+	g_ctrl = ctrl;
 
 	match = of_match_device(cpr3_regulator_match_table, &pdev->dev);
 	if (!match)
