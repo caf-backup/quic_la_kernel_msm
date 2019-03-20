@@ -1064,16 +1064,21 @@ static int msm_ssphy_qmp_remove(struct platform_device *pdev)
 		return 0;
 
 	usb_remove_phy(&phy->phy);
-	if (phy->ref_clk)
-		clk_disable_unprepare(phy->ref_clk);
-	if (phy->ref_clk_src)
-		clk_disable_unprepare(phy->ref_clk_src);
+
+	if (phy->clk_enabled) {
+		if (phy->ref_clk)
+			clk_disable_unprepare(phy->ref_clk);
+		if (phy->ref_clk_src)
+			clk_disable_unprepare(phy->ref_clk_src);
+		clk_disable_unprepare(phy->aux_clk);
+		clk_disable_unprepare(phy->pipe_clk);
+		phy->clk_enabled = false;
+	}
+
 	msm_ssusb_qmp_ldo_enable(phy, 0);
 	if (phy->vdd)
 		regulator_disable(phy->vdd);
 	msm_ssusb_qmp_config_vdd(phy, 0);
-	clk_disable_unprepare(phy->aux_clk);
-	clk_disable_unprepare(phy->pipe_clk);
 	return 0;
 }
 
