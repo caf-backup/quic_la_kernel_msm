@@ -14,6 +14,7 @@
 #include <linux/clk.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
@@ -29,6 +30,7 @@
 #define QCE_MAJOR_VERSION5	0x05
 #define QCE_QUEUE_LENGTH	1
 
+bool use_fixed_key = false;
 
 static const struct qce_algo_ops *qce_ops[] = {
 	&ablkcipher_ops,
@@ -445,6 +447,9 @@ static int qce_crypto_probe(struct platform_device *pdev)
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 	if (ret < 0)
 		return ret;
+
+	if (device_property_read_bool(dev, "qce,use_fixed_hw_key"))
+		use_fixed_key = true;
 
 	qce->core = devm_clk_get(qce->dev, "core");
 	if (IS_ERR(qce->core))
