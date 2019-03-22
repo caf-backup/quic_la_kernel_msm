@@ -794,11 +794,6 @@ static int dwc3_of_simple_remove(struct platform_device *pdev)
 	struct device		*dev = &pdev->dev;
 	int			i;
 
-	for (i = (simple->num_clocks-1); i >= 0; i--) {
-		clk_disable_unprepare(simple->clks[i]);
-		clk_put(simple->clks[i]);
-	}
-
 	if (!IS_ERR(simple->mstr_rst))
 		reset_control_assert(simple->mstr_rst);
 
@@ -806,6 +801,11 @@ static int dwc3_of_simple_remove(struct platform_device *pdev)
 
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
+
+	for (i = (simple->num_clocks-1); i >= 0; i--) {
+		clk_disable_unprepare(simple->clks[i]);
+		clk_put(simple->clks[i]);
+	}
 
 	return 0;
 }
