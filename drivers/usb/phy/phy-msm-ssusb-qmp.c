@@ -358,7 +358,6 @@ struct msm_ssphy_qmp {
 	bool			cable_connected;
 	bool			in_suspend;
 	bool			override_pll_cal;
-	bool			emulation;
 	bool			misc_config;
 	unsigned int		*phy_reg; /* revision based offset */
 	unsigned int		*qmp_phy_init_seq;
@@ -435,7 +434,7 @@ static int msm_ssusb_qmp_config_vdd(struct msm_ssphy_qmp *phy, int high)
 {
 	int min, ret;
 
-	if (phy->emulation)
+	if (!phy->vdd)
 		return 0;
 
 	min = high ? 1 : 0; /* low or none? */
@@ -455,7 +454,7 @@ static int msm_ssusb_qmp_ldo_enable(struct msm_ssphy_qmp *phy, int on)
 {
 	int rc = 0;
 
-	if (phy->emulation)
+	if (!phy->vdda18)
 		return 0;
 
 	dev_dbg(phy->phy.dev, "reg (%s)\n", on ? "HPM" : "LPM");
@@ -681,7 +680,7 @@ static int msm_ssphy_power_enable(struct msm_ssphy_qmp *phy, bool on)
 	bool host = phy->phy.flags & PHY_HOST_MODE;
 	int ret = 0;
 
-	if (phy->emulation)
+	if (!phy->vdd)
 		return 0;
 
 	/*
@@ -812,6 +811,7 @@ static int msm_ssphy_qmp_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret = 0, size = 0;
 	const struct of_device_id *phy_ver;
+	struct device_node *reg_node;
 
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
@@ -963,9 +963,8 @@ static int msm_ssphy_qmp_probe(struct platform_device *pdev)
 		}
 	}
 
-	phy->emulation = of_property_read_bool(dev->of_node,
-						"qcom,emulation");
-	if (!phy->emulation) {
+	reg_node = of_parse_phandle(dev->of_node, "vdd-supply", 0);
+	if (reg_node) {
 		ret = of_property_read_u32_array(dev->of_node,
 				"qcom,vdd-voltage-level",
 				(u32 *) phy->vdd_levels,
@@ -1006,7 +1005,10 @@ static int msm_ssphy_qmp_probe(struct platform_device *pdev)
 			dev_err(dev, "ssusb vreg enable failed\n");
 			goto disable_ss_vdd;
 		}
+	} else {
+		dev_dbg(dev, "voltage supply not specified in dts\n");
 	}
+
 	phy->ref_clk_src = devm_clk_get(dev, "ref_clk_src");
 	if (IS_ERR(phy->ref_clk_src))
 		phy->ref_clk_src = NULL;
@@ -1044,8 +1046,7 @@ static int msm_ssphy_qmp_probe(struct platform_device *pdev)
 disable_ss_ldo:
 	msm_ssusb_qmp_ldo_enable(phy, 0);
 disable_ss_vdd:
-	if (!phy->emulation)
-		regulator_disable(phy->vdd);
+	regulator_disable(phy->vdd);
 unconfig_ss_vdd:
 	msm_ssusb_qmp_config_vdd(phy, 0);
 err:
@@ -1060,16 +1061,21 @@ static int msm_ssphy_qmp_remove(struct platform_device *pdev)
 		return 0;
 
 	usb_remove_phy(&phy->phy);
-	if (phy->ref_clk)
-		clk_disable_unprepare(phy->ref_clk);
-	if (phy->ref_clk_src)
-		clk_disable_unprepare(phy->ref_clk_src);
+
+	if (phy->clk_enabled) {
+		if (phy->ref_clk)
+			clk_disable_unprepare(phy->ref_clk);
+		if (phy->ref_clk_src)
+			clk_disable_unprepare(phy->ref_clk_src);
+		clk_disable_unprepare(phy->aux_clk);
+		clk_disable_unprepare(phy->pipe_clk);
+		phy->clk_enabled = false;
+	}
+
 	msm_ssusb_qmp_ldo_enable(phy, 0);
-	if (!phy->emulation)
+	if (phy->vdd)
 		regulator_disable(phy->vdd);
 	msm_ssusb_qmp_config_vdd(phy, 0);
-	clk_disable_unprepare(phy->aux_clk);
-	clk_disable_unprepare(phy->pipe_clk);
 	return 0;
 }
 
