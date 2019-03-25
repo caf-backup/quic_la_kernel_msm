@@ -50,10 +50,6 @@
 		reg = <0x0 0x40000000 0x0 0x20000000>;
 	};
 
-	wifi0: wifi@c0000000 {
-		status = "disabled";
-	};
-
 	soc {
 		serial@78af000 {
 			status = "ok";
@@ -218,6 +214,9 @@
 
 		smmu500: arm,smmu@1E00000 {
 			status = "ok";
+		};
+		wifi0: wifi@c000000 {
+			status = "disabled";
 		};
 	};
 };
