@@ -2795,8 +2795,7 @@ wil_cfg80211_sched_scan_start(struct wiphy *wiphy,
 }
 
 static int
-wil_cfg80211_sched_scan_stop(struct wiphy *wiphy, struct net_device *dev,
-			     u64 reqid)
+wil_cfg80211_sched_scan_stop(struct wiphy *wiphy, struct net_device *dev)
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 	struct wil6210_vif *vif = ndev_to_vif(dev);
