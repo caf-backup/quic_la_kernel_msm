@@ -1346,8 +1346,8 @@ static int subsys_setup_irqs(struct subsys_device *subsys)
 	int ret;
 
 	if (desc->err_fatal_irq && desc->err_fatal_handler) {
-		ret = devm_request_irq(desc->dev, desc->err_fatal_irq,
-				desc->err_fatal_handler,
+		ret = devm_request_threaded_irq(desc->dev, desc->err_fatal_irq,
+				NULL, desc->err_fatal_handler,
 				IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 				"err_fatal_interrupt", desc);
 		if (ret < 0) {
@@ -1358,8 +1358,8 @@ static int subsys_setup_irqs(struct subsys_device *subsys)
 	}
 
 	if (desc->stop_ack_irq && desc->stop_ack_handler) {
-		ret = devm_request_irq(desc->dev, desc->stop_ack_irq,
-				desc->stop_ack_handler,
+		ret = devm_request_threaded_irq(desc->dev, desc->stop_ack_irq,
+				NULL, desc->stop_ack_handler,
 				IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 				"stop_ack_interrupt", desc);
 		if (ret < 0) {
@@ -1370,8 +1370,8 @@ static int subsys_setup_irqs(struct subsys_device *subsys)
 	}
 
 	if (desc->wdog_bite_irq && desc->wdog_bite_handler) {
-		ret = devm_request_irq(desc->dev, desc->wdog_bite_irq,
-				desc->wdog_bite_handler,
+		ret = devm_request_threaded_irq(desc->dev, desc->wdog_bite_irq,
+				NULL, desc->wdog_bite_handler,
 				IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 				"q6_wdog_interrupt", desc);
 		if (ret < 0) {
