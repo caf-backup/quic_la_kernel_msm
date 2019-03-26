@@ -863,7 +863,6 @@ int rmnet_usb_ctrl_probe(struct usb_interface *intf,
 	cudev->inturb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!cudev->inturb) {
 		dev_err(&intf->dev, "Error allocating int urb\n");
-		kfree(cudev);
 		return -ENOMEM;
 	}
 
@@ -874,7 +873,6 @@ int rmnet_usb_ctrl_probe(struct usb_interface *intf,
 	cudev->intbuf = kmalloc(wMaxPacketSize, GFP_KERNEL);
 	if (!cudev->intbuf) {
 		usb_free_urb(cudev->inturb);
-		kfree(cudev);
 		dev_err(&intf->dev, "Error allocating int buffer\n");
 		return -ENOMEM;
 	}
@@ -898,8 +896,7 @@ int rmnet_usb_ctrl_probe(struct usb_interface *intf,
 	ret = rmnet_usb_ctrl_start_rx(cudev);
 	if (ret) {
 		usb_free_urb(cudev->inturb);
-		kfree(cudev->intbuf);
-		kfree(cudev);
+		dev_err(&intf->dev, "Error starting rx\n");
 		return ret;
 	}
 
