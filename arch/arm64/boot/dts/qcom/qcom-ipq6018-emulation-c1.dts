@@ -253,4 +253,10 @@
 			enable-method = "qcom,arm-cortex-acc";
 		};
 	};
+
+	firmware {
+		qfprom {
+			status = "disabled";
+		};
+	};
 };
