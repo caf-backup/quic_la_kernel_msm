@@ -24,7 +24,38 @@ MODULE_AUTHOR("Rusty Russell <rusty@rustcorp.com.au>");
 MODULE_DESCRIPTION("ftp NAT helper");
 MODULE_ALIAS("ip_nat_ftp");
 
+static ushort psid = 0;
+module_param(psid, ushort, 0644);
+MODULE_PARM_DESC(psid, "MAP_E devices's psid");
+
+static uint psid_len = 0;
+module_param(psid_len, uint, 0644);
+MODULE_PARM_DESC(psid_len, "MAP_E devices's psid length");
+
+static uint offset = 0;
+module_param(offset, uint, 0644);
+MODULE_PARM_DESC(offset, "MAP_E devices's psid offset");
+
 /* FIXME: Time out? --RR */
+
+/**
+ * nf_nat_port_valid_check - check the port is in the range of psid
+ *   @skb the packets to be translated
+ *   @port the port to be checked.
+ **/
+static int nf_nat_port_valid_check(struct sk_buff *skb, u16 port)
+{
+	if (psid == 0 || psid_len == 0 || offset == 0)
+		return 1;
+
+	if ((psid_len + offset) > 16)
+		return 1;
+
+	if ((((port >> (16 - psid_len - offset)) & ((1 << psid_len) - 1))) == psid)
+		return 1;
+
+	return 0;
+}
 
 static int nf_nat_ftp_fmt_cmd(struct nf_conn *ct, enum nf_ct_ftp_type type,
 			      char *buffer, size_t buflen,
@@ -84,15 +115,13 @@ static unsigned int nf_nat_ftp(struct sk_buff *skb,
 
 	/* In the case of MAP-E, the FTP ALG source port number must use its own
 	 * PSID. Otherwise the returned packets from ftp server will use other
-	 * than its own IPv6 address. The port number of MAP-E has the format
-	 * like offset | psid | pad. The offset length is usually 6 bits long.
-	 * So this change reuses the least  10 bits which include the valid PSID
-	 * and tries different offset value with a step size of 1024 till a
-	 * free port number is available. */
-	port = (ntohs(exp->saved_proto.tcp.port) & ~((1 << 10) - 1)) +
-		(ntohs(ct->tuplehash[!dir].tuple.dst.u.tcp.port) & ((1 << 10) - 1));
-	for (; port != 0; port += (1 << 10)) {
+	 * than its own IPv6 address.
+	 * so let the check hook to validate the port*/
+	for (port = ntohs(exp->saved_proto.tcp.port); port != 0; port++) {
 		int ret;
+
+		if (!nf_nat_port_valid_check(skb, port))
+			continue;
 
 		exp->tuple.dst.u.tcp.port = htons(port);
 		ret = nf_ct_expect_related(exp);
