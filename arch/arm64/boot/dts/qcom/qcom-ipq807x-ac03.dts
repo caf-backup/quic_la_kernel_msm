@@ -693,19 +693,7 @@
 	status = "ok";
 };
 
-&ssphy_1 {
-	status = "ok";
-};
-
-&qusb_phy_1 {
-	status = "ok";
-};
-
 &usb3_0 {
-	status = "ok";
-};
-
-&usb3_1 {
 	status = "ok";
 };
 
