@@ -462,6 +462,34 @@ static struct snd_info_entry *create_subdir(struct module *mod,
 	return entry;
 }
 
+/*
+ * snd_info_create_subdir - create and register a subdir for a given parent
+ * @mod: the module pointer
+ * @name: the module name
+ * @parent: the parent directory
+ *
+ * Creates and registers new subdir entry inside a given parent.
+ *
+ * Return: The pointer of the new instance, or NULL on failure.
+ */
+struct snd_info_entry *snd_info_create_subdir(struct module *mod,
+					      const char *name,
+					      struct snd_info_entry *parent)
+{
+	struct snd_info_entry *entry;
+
+	entry = snd_info_create_module_entry(mod, name, parent);
+	if (!entry)
+		return NULL;
+	entry->mode = S_IFDIR | S_IRUGO | S_IXUGO;
+	if (snd_info_register(entry) < 0) {
+		snd_info_free_entry(entry);
+		return NULL;
+	}
+	return entry;
+}
+EXPORT_SYMBOL(snd_info_create_subdir);
+
 static struct snd_info_entry *
 snd_info_create_entry(const char *name, struct snd_info_entry *parent);
 
