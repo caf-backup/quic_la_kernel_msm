@@ -494,7 +494,6 @@ static int q6v5_wcss_start(struct rproc *rproc)
 {
 	struct q6v5_wcss *wcss = rproc->priv;
 	int ret;
-	struct qcom_q6v5 *q6v5 = &wcss->q6v5;
 
 	ret = qcom_scm_pas_auth_and_reset(WCNSS_PAS_ID, 0);
 	if (ret) {
@@ -866,8 +865,6 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 	struct rproc *rproc;
 	struct qcom_q6v5 *q6v5;
 	int ret;
-
-	struct qcom_rproc_glink *glink;
 
 	rproc = rproc_alloc(&pdev->dev, pdev->name, &q6v5_wcss_ops,
 			    "IPQ8074/q6_fw.mdt", sizeof(*wcss));
