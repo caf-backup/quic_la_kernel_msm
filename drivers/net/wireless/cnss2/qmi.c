@@ -660,7 +660,7 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv)
 	struct wlfw_bdf_download_req_msg_v01 *req;
 	struct wlfw_bdf_download_resp_msg_v01 resp;
 	struct msg_desc req_desc, resp_desc;
-	char filename[30];
+	char filename[64];
 	const struct firmware *fw_entry;
 	const u8 *temp;
 	unsigned int remaining;
