@@ -736,8 +736,6 @@ static void ag71xx_hw_setup(struct ag71xx *ag)
 	struct ag71xx_platform_data *pdata = ag71xx_get_pdata(ag);
 
 	/* setup MAC configuration registers */
-	ag71xx_wr(ag, AG71XX_REG_MAC_CFG1, MAC_CFG1_INIT);
-
 	ag71xx_sb(ag, AG71XX_REG_MAC_CFG2,
 		  MAC_CFG2_PAD_CRC_EN | MAC_CFG2_LEN_CHECK);
 
