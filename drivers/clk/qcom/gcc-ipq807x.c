@@ -5638,6 +5638,7 @@ static const struct qcom_reset_map gcc_ipq807x_resets[] = {
 	[GCC_USB1_BCR] = { 0x3f070, 0 },
 	[GCC_QUSB2_0_PHY_BCR] = { 0x4103c, 0 },
 	[GCC_QUSB2_1_PHY_BCR] = { 0x41040, 0 },
+	[GCC_WCSSAON_RESET] = { 0x18010, 0 },
 	[GCC_SDCC1_BCR] = { 0x42000, 0 },
 	[GCC_SDCC2_BCR] = { 0x43000, 0 },
 	[GCC_SNOC_BUS_TIMEOUT0_BCR] = { 0x47000, 0 },

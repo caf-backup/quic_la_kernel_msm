@@ -59,7 +59,6 @@ static struct m3_rtable m3_rtable = {
 	},
 };
 
-static struct rproc_fw_ops m3_fw_ops;
 
 static struct resource_table *m3_find_loaded_rsc_table(struct rproc *rproc,
 	const struct firmware *fw)
@@ -92,12 +91,6 @@ static int m3_rproc_stop(struct rproc *rproc)
 	return 0;
 }
 
-static struct rproc_ops m3_rproc_ops = {
-	.start		= m3_rproc_start,
-	.da_to_va	= m3_da_to_va,
-	.stop		= m3_rproc_stop,
-};
-
 static int m3_load(struct rproc *rproc, const struct firmware *fw)
 {
 	pr_info("Sanity check passed for M3 image\n");
@@ -116,11 +109,6 @@ static int start_m3(const struct subsys_desc *subsys)
 		return 0;
 	}
 
-	ret = rproc_add(rproc);
-	if (ret)
-		return ret;
-
-	wait_for_completion(&rproc->firmware_loading_complete);
 	ret = rproc_boot(rproc);
 	if (ret) {
 		pdata->missing_m3 = 1;
@@ -140,9 +128,16 @@ static int stop_m3(const struct subsys_desc *subsys, bool force_stop)
 		return 0;
 
 	rproc_shutdown(rproc);
-	rproc_del(rproc);
 	return 0;
 }
+
+static struct rproc_ops m3_rproc_ops = {
+	.start          = m3_rproc_start,
+	.da_to_va       = m3_da_to_va,
+	.stop           = m3_rproc_stop,
+	.find_loaded_rsc_table = m3_find_loaded_rsc_table,
+	.load = m3_load,
+};
 
 static int m3_rproc_probe(struct platform_device *pdev)
 {
@@ -177,14 +172,6 @@ static int m3_rproc_probe(struct platform_device *pdev)
 
 	rproc->has_iommu = false;
 
-	m3_fw_ops = *(rproc->fw_ops);
-	m3_rtable.rtable.offset[0] = sizeof(struct resource_table);
-	m3_fw_ops.find_rsc_table = m3_find_rsc_table;
-	m3_fw_ops.find_loaded_rsc_table = m3_find_loaded_rsc_table;
-	m3_fw_ops.load = m3_load;
-
-	rproc->fw_ops = &m3_fw_ops;
-
 	m3_rproc_pdata->subsys_desc.is_not_loadable = 0;
 	m3_rproc_pdata->subsys_desc.name = "q6v5-m3";
 	m3_rproc_pdata->subsys_desc.dev = &pdev->dev;
@@ -199,11 +186,16 @@ static int m3_rproc_probe(struct platform_device *pdev)
 		goto free_rproc;
 	}
 
+	rproc->auto_boot = false;
+	ret = rproc_add(rproc);
+	if (ret)
+		goto free_rproc;
+
 	return 0;
 
 free_rproc:
 
-	rproc_put(rproc);
+	rproc_free(rproc);
 	return -EIO;
 }
 
@@ -216,7 +208,7 @@ static int m3_rproc_remove(struct platform_device *pdev)
 	rproc = m3_rproc_pdata->rproc;
 
 	rproc_del(rproc);
-	rproc_put(rproc);
+	rproc_free(rproc);
 
 	subsys_unregister(pdata->subsys);
 
