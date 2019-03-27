@@ -73,6 +73,8 @@
 #define TCSR_WCSS_CLK_MASK	0x1F
 #define TCSR_WCSS_CLK_ENABLE	0x14
 
+#define WCNSS_PAS_ID		6
+
 struct q6v5_wcss {
 	struct device *dev;
 
@@ -191,6 +193,17 @@ static int q6v5_wcss_start(struct rproc *rproc)
 	int ret;
 	struct qcom_q6v5 *q6v5 = &wcss->q6v5;
 
+	ret = qcom_scm_pas_auth_and_reset(WCNSS_PAS_ID, 0);
+	if (ret) {
+		dev_err(wcss->dev, "q6-wcss reset failed\n");
+		return ret;
+	} else {
+
+		/* q6-wcss reset done. wait for ready interrupt */
+		goto skip_reset;
+	}
+
+
 	qcom_q6v5_prepare(&wcss->q6v5);
 
 	/* Release Q6 and WCSS reset */
@@ -227,6 +240,7 @@ static int q6v5_wcss_start(struct rproc *rproc)
 	if (ret)
 		goto wcss_q6_reset;
 
+skip_reset:
 	ret = qcom_q6v5_wait_for_start(&wcss->q6v5, 5 * HZ);
 	if (ret == -ETIMEDOUT)
 		dev_err(wcss->dev, "start timed out\n");
@@ -394,6 +408,15 @@ static int q6v5_wcss_stop(struct rproc *rproc)
 	struct q6v5_wcss *wcss = rproc->priv;
 	int ret;
 
+	ret = qcom_scm_pas_shutdown(WCNSS_PAS_ID);
+	if (ret) {
+		dev_err(wcss->dev, "not able to shutdown\n");
+		return ret;
+	} else {
+		qcom_q6v5_unprepare(&wcss->q6v5);
+		return ret;
+	}
+
 	/* WCSS powerdown */
 	ret = qcom_q6v5_request_stop(&wcss->q6v5);
 	if (ret == -ETIMEDOUT) {
@@ -431,9 +454,9 @@ static int q6v5_wcss_load(struct rproc *rproc, const struct firmware *fw)
 {
 	struct q6v5_wcss *wcss = rproc->priv;
 
-	return qcom_mdt_load_no_init(wcss->dev, fw, rproc->firmware,
-				     0, wcss->mem_region, wcss->mem_phys,
-				     wcss->mem_size, &wcss->mem_reloc);
+	return qcom_mdt_load(wcss->dev, fw, rproc->firmware,
+			     WCNSS_PAS_ID, wcss->mem_region, wcss->mem_phys,
+			     wcss->mem_size, &wcss->mem_reloc);
 }
 
 static const struct rproc_ops q6v5_wcss_ops = {

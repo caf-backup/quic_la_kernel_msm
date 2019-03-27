@@ -1,15 +1,47 @@
 menu "Remoteproc drivers"
 
+# REMOTEPROC gets selected by whoever wants it
 config REMOTEPROC
 	tristate "Support for Remote Processor subsystem"
 	depends on HAS_DMA
 	select CRC32
 	select FW_LOADER
 	select VIRTIO
+	select VIRTUALIZATION
 	select WANT_DEV_COREDUMP
 	help
 	  Support for remote processors (such as DSP coprocessors). These
 	  are mainly used on embedded systems.
+
+config IPQ807X_REMOTEPROC
+	tristate "IPQ807x Q6-WCSS rproc support"
+	depends on REMOTEPROC && QCOM_SMP2P
+	select IPQ_SUBSYTEM_DUMP
+	help
+	  Say y here to support IPQ807x q6v5 wcss remote processors
+	  via the remote processor framework. Q6v5 WCSS are DSP remote
+	  processors. They need reset and loading of firmware for them
+	  to run. This config enables drivers to do that.
+
+config IPQ_REMOTEPROC_ADSP
+	tristate "IPQ Q6-ADSP rproc support"
+	depends on REMOTEPROC && QCOM_SMP2P
+	select IPQ_SUBSYTEM_DUMP
+	help
+	  Say y here to support IPQ q6v6 adsp remote processors
+	  via the remote processor framework. Q6v6 ADSP are DSP remote
+	  processors. They need reset and loading of firmware for them
+	  to run. This config enables drivers to do that.
+
+config STE_MODEM_RPROC
+	tristate "STE-Modem remoteproc support"
+	depends on HAS_DMA
+	select REMOTEPROC
+	default n
+	help
+	  Say y or m here to support STE-Modem shared memory driver.
+	  This can be either built-in or a loadable module.
+	  If unsure say N.
 
 if REMOTEPROC
 
@@ -92,53 +124,6 @@ config QCOM_Q6V5_COMMON
 	depends on ARCH_QCOM
 	depends on QCOM_SMEM
 
-config QCOM_Q6V5_ADSP
-	tristate "Qualcomm Technology Inc ADSP Peripheral Image Loader"
-	depends on OF && ARCH_QCOM
-	depends on QCOM_SMEM
-	depends on RPMSG_QCOM_SMD || (COMPILE_TEST && RPMSG_QCOM_SMD=n)
-	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SMEM=n
-	depends on QCOM_SYSMON || QCOM_SYSMON=n
-	select MFD_SYSCON
-	select QCOM_MDT_LOADER
-	select QCOM_Q6V5_COMMON
-	select QCOM_RPROC_COMMON
-	help
-	  Say y here to support the Peripheral Image Loader
-	  for the Qualcomm Technology Inc. ADSP remote processors.
-
-config QCOM_Q6V5_MSS
-	tristate "Qualcomm Hexagon V5 self-authenticating modem subsystem support"
-	depends on OF && ARCH_QCOM
-	depends on QCOM_SMEM
-	depends on RPMSG_QCOM_SMD || (COMPILE_TEST && RPMSG_QCOM_SMD=n)
-	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SMEM=n
-	depends on QCOM_SYSMON || QCOM_SYSMON=n
-	select MFD_SYSCON
-	select QCOM_Q6V5_COMMON
-	select QCOM_RPROC_COMMON
-	select QCOM_SCM
-	help
-	  Say y here to support the Qualcomm self-authenticating modem
-	  subsystem based on Hexagon V5.
-
-config QCOM_Q6V5_PAS
-	tristate "Qualcomm Hexagon v5 Peripheral Authentication Service support"
-	depends on OF && ARCH_QCOM
-	depends on QCOM_SMEM
-	depends on RPMSG_QCOM_SMD || (COMPILE_TEST && RPMSG_QCOM_SMD=n)
-	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SMEM=n
-	depends on QCOM_SYSMON || QCOM_SYSMON=n
-	select MFD_SYSCON
-	select QCOM_MDT_LOADER
-	select QCOM_Q6V5_COMMON
-	select QCOM_RPROC_COMMON
-	select QCOM_SCM
-	help
-	  Say y here to support the TrustZone based Peripherial Image Loader
-	  for the Qualcomm Hexagon v5 based remote processors. This is commonly
-	  used to control subsystems such as ADSP, Compute and Sensor.
-
 config QCOM_Q6V5_WCSS
 	tristate "Qualcomm Hexagon based WCSS Peripheral Image Loader"
 	depends on OF && ARCH_QCOM
@@ -169,20 +154,6 @@ config QCOM_SYSMON
 
 	  Say y here if your system runs firmware on any other subsystems, e.g.
 	  modem or DSP.
-
-config QCOM_WCNSS_PIL
-	tristate "Qualcomm WCNSS Peripheral Image Loader"
-	depends on OF && ARCH_QCOM
-	depends on RPMSG_QCOM_SMD || (COMPILE_TEST && RPMSG_QCOM_SMD=n)
-	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SMEM=n
-	depends on QCOM_SMEM
-	depends on QCOM_SYSMON || QCOM_SYSMON=n
-	select QCOM_MDT_LOADER
-	select QCOM_RPROC_COMMON
-	select QCOM_SCM
-	help
-	  Say y here to support the Peripheral Image Loader for the Qualcomm
-	  Wireless Connectivity Subsystem.
 
 config ST_REMOTEPROC
 	tristate "ST remoteproc support"
