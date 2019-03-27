@@ -1784,6 +1784,9 @@
 		scm {
 			compatible = "qcom,scm-ipq6018";
 		};
+		qfprom {
+			compatible = "qcom,qfprom-sec";
+		};
 	};
 
 	pmu {
