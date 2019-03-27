@@ -1554,9 +1554,15 @@
 			compatible = "qcom,cnss-qca6018";
 			reg = <0xc000000 0x1000000>;
 			qcom,hw-mode-id = <1>;
+		#ifdef __IPQ_MEM_PROFILE_256_MB__
+			qcom,tgt-mem-mode = <2>;
+		#elif __IPQ_MEM_PROFILE_512_MB__
+			qcom,tgt-mem-mode = <1>;
+		#else
 			qcom,tgt-mem-mode = <0>;
-			qcom,bdf-addr = <0x4B900000 0x4B900000>;
-			qcom,caldb-addr = <0x4B940000 0x4B940000>;
+		#endif
+			qcom,bdf-addr = <0x4B900000 0x4B900000 0x4B900000>;
+			qcom,caldb-addr = <0x4B940000 0x4B940000 0x4B940000>;
 			interrupts = <0 320 1>, /* o_wcss_apps_intr[0] =  */
 			<0 319 1>,
 			<0 318 1>,
