@@ -283,6 +283,18 @@ config IPQ_SUBSYSTEM_DUMP
 	 It also notifies the userspace of the dump collection event, which can
 	 be configured in hotplug daemon.
 
+config IPQ_SS_DUMP
+	bool "IPQ Subsystem Dump Collection for upstream driver"
+        depends on QCOM_Q6V5_WCSS
+	help
+	 This option enables the IPQ subsytem dump collection for upstream
+	 driver.
+
+	 The IPQ subsystem dump collection provides the support to collect the
+	 subsytem dump based on its memory region provided in device tree.
+	 It also notifies the userspace of the dump collection event, which can
+	 be configured in hotplug daemon.
+
 config QCOM_TZ_LOG
 	tristate "Trust Zone (TZ) Log Driver"
 	depends on DEBUG_FS
