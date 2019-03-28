@@ -206,19 +206,6 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 		idx++;
 	}
 
-	/*
-	 * If we have reason to believe the IOMMU driver missed the initial
-	 * add_device callback for dev, replay it to get things in order.
-	 */
-	if (ops && ops->add_device && dev->bus && !dev->iommu_group) {
-		err = ops->add_device(dev);
-		if (err) {
-			pr_err("IOMMU add device failed for device %s, ret = %d\n",
-							dev_name(dev), err);
-			goto err_put_node;
-		}
-	}
-
 	return ops;
 
 err_put_node:
