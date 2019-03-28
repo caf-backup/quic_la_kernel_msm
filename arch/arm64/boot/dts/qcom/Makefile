@@ -19,7 +19,6 @@ dtb-$(CONFIG_ARCH_QCOM)	+= apq8016-sbc.dtb msm8916-mtp.dtb msm8952-mtp.dtb \
 				qcom-ipq807x-ac02.dtb \
 				qcom-ipq807x-ac03.dtb \
 				qcom-ipq807x-ac04.dtb \
-				qcom-ipq807x-oak01.dtb \
 				qcom-ipq807x-oak02.dtb \
 				qcom-ipq807x-oak03.dtb \
 				qcom-ipq807x-db.hk01.dtb \

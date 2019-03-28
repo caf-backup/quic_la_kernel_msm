@@ -27,7 +27,6 @@ compatible strings
 	"qcom,ipq807x-ac02"
 	"qcom,ipq807x-ac03"
 	"qcom,ipq807x-ac04"
-	"qcom,ipq807x-oak01"
 	"qcom,ipq807x-oak02"
 	"qcom,ipq807x-oak03"
 	"qcom,ipq8064-ap160"
