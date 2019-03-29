@@ -2284,7 +2284,7 @@ static int __init __iommu_dma_init(void)
 		__iommu_attach_notifier(NULL, BUS_NOTIFY_ADD_DEVICE, NULL);
 	return ret;
 }
-arch_initcall(__iommu_dma_init);
+postcore_initcall_sync(__iommu_dma_init);
 
 #else
 
