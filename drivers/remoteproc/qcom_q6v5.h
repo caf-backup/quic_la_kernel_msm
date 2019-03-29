@@ -6,6 +6,8 @@
 #include <linux/kernel.h>
 #include <linux/completion.h>
 
+#define EM_QDSP6 164
+
 struct rproc;
 struct qcom_smem_state;
 
@@ -26,6 +28,7 @@ struct qcom_q6v5 {
 
 	struct completion start_done;
 	struct completion stop_done;
+	struct work_struct crash_handler;
 
 	int crash_reason;
 
