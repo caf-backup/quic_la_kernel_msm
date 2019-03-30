@@ -271,6 +271,11 @@ int unregister_ipcrtr_af_init_notifier(struct notifier_block *nb);
 
 #else
 
+int register_ipcrtr_af_init_notifier(struct notifier_block *nb)
+{
+	return -ENODEV;
+}
+
 struct msm_ipc_port *msm_ipc_router_create_port(
 	void (*notify)(unsigned event, void *oob_data,
 		       size_t oob_data_len, void *priv),
