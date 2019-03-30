@@ -89,7 +89,6 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 	size_t fw_name_len;
 	ssize_t offset;
 	char *fw_name;
-	bool relocate = false;
 	void *ptr;
 	int ret;
 	int i;
@@ -122,9 +121,6 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 		if (!mdt_phdr_valid(phdr))
 			continue;
 
-		if (phdr->p_flags & QCOM_MDT_RELOCATABLE)
-			relocate = true;
-
 		if (phdr->p_paddr < min_addr)
 			min_addr = phdr->p_paddr;
 
@@ -132,19 +128,7 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 			max_addr = ALIGN(phdr->p_paddr + phdr->p_memsz, SZ_4K);
 	}
 
-	if (relocate) {
-		/*
-		 * The image is relocatable, so offset each segment based on
-		 * the lowest segment address.
-		 */
-		mem_reloc = min_addr;
-	} else {
-		/*
-		 * Image is not relocatable, so offset each segment based on
-		 * the allocated physical chunk of memory.
-		 */
-		mem_reloc = mem_phys;
-	}
+	mem_reloc = mem_phys;
 
 	for (i = 0; i < ehdr->e_phnum; i++) {
 		phdr = &phdrs[i];
