@@ -755,7 +755,24 @@ static void *q6v5_wcss_da_to_va(struct rproc *rproc, u64 da, int len)
 static int q6v5_wcss_load(struct rproc *rproc, const struct firmware *fw)
 {
 	struct q6v5_wcss *wcss = rproc->priv;
+	struct firmware *m3_fw;
+	int ret;
 
+	ret = request_firmware(&m3_fw, "IPQ8074/m3_fw.mdt", wcss->dev);
+	if (ret) {
+		dev_info(wcss->dev, "skipping firmware %s\n", "m3_fw.mdt");
+		goto skip_m3;
+	}
+
+	ret = qcom_mdt_load_no_init(wcss->dev, m3_fw, "IPQ8074/m3_fw.mdt", 0,
+				    wcss->mem_region, wcss->mem_phys,
+				    wcss->mem_size, &wcss->mem_reloc);
+	if (ret) {
+		dev_err(wcss->dev, "can't load %s\n", "m3_fw.bXX");
+		return ret;
+	}
+
+skip_m3:
 	return qcom_mdt_load(wcss->dev, fw, rproc->firmware,
 			     WCNSS_PAS_ID, wcss->mem_region, wcss->mem_phys,
 			     wcss->mem_size, &wcss->mem_reloc);
