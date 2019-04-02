@@ -2256,20 +2256,6 @@ static int dummy_tx_cmd_tracer_pkt(struct glink_transport_if *if_ptr,
 }
 
 /**
- * dummy_deallocate_rx_intent() - a dummy rx intent deallocation function that
- *				does not deallocate anything
- * @if_ptr:	The transport the intent is associated with.
- * @intent:	Pointer to the intent structure.
- *
- * Return:	Success.
- */
-static int dummy_deallocate_rx_intent(struct glink_transport_if *if_ptr,
-				struct glink_core_rx_intent *intent)
-{
-	return 0;
-}
-
-/**
  * dummy_tx_cmd_local_rx_intent() - dummy local rx intent request
  * @if_ptr:	The transport to transmit on.
  * @lcid:	The local channel id to encode.
