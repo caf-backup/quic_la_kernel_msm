@@ -1115,6 +1115,7 @@ static struct rproc_ops q6v5_rproc_ops = {
 	.stop           = q6_rproc_stop,
 	.find_loaded_rsc_table = q6v5_find_loaded_rsc_table,
 	.load = q6v5_load,
+	.get_boot_addr = rproc_elf_get_boot_addr,
 };
 
 static int q6_rproc_probe(struct platform_device *pdev)
