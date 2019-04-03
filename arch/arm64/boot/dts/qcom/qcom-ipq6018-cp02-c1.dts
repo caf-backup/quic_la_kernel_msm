@@ -39,8 +39,8 @@
 		mux {
 			pins = "gpio44", "gpio45";
 			function = "blsp2_uart";
-			drive-strength = <8>;
-			bias-disable;
+			drive-strength = <2>;
+			bias-pull-up;
 		};
 	};
 
@@ -48,8 +48,8 @@
 		mux {
 			pins = "gpio46", "gpio47";
 			function = "blsp5_i2c";
-			drive-strength = <8>;
-			bias-disable;
+			drive-strength = <2>;
+			bias-pull-up;
 		};
 	};
 
@@ -58,7 +58,7 @@
 			pins = "gpio38", "gpio39", "gpio40", "gpio41";
 			function = "blsp0_spi";
 			drive-strength = <8>;
-			bias-disable;
+			bias-pull-down;
 		};
 	};
 
@@ -66,57 +66,57 @@
 		data_0 {
 			pins = "gpio15";
 			function = "qpic_pad0";
-			drive-strength = <8>;
-			bias-disable;
+			drive-strength = <2>;
+			bias-pull-down;
 		};
 		data_1 {
 			pins = "gpio12";
 			function = "qpic_pad1";
-			drive-strength = <8>;
-			bias-disable;
+			drive-strength = <2>;
+			bias-pull-down;
 		};
 		data_2 {
 			pins = "gpio13";
 			function = "qpic_pad2";
-			drive-strength = <8>;
-			bias-disable;
+			drive-strength = <2>;
+			bias-pull-down;
 		};
 		data_3 {
 			pins = "gpio14";
 			function = "qpic_pad3";
-			drive-strength = <8>;
-			bias-disable;
+			drive-strength = <2>;
+			bias-pull-down;
 		};
 		data_4 {
 			pins = "gpio5";
 			function = "qpic_pad4";
-			drive-strength = <8>;
-			bias-disable;
+			drive-strength = <2>;
+			bias-pull-down;
 		};
 		data_5 {
 			pins = "gpio6";
 			function = "qpic_pad5";
-			drive-strength = <8>;
-			bias-disable;
+			drive-strength = <2>;
+			bias-pull-down;
 		};
 		data_6 {
 			pins = "gpio7";
 			function = "qpic_pad6";
-			drive-strength = <8>;
-			bias-disable;
+			drive-strength = <2>;
+			bias-pull-down;
 		};
 		data_7 {
 			pins = "gpio8";
 			function = "qpic_pad7";
-			drive-strength = <8>;
-			bias-disable;
+			drive-strength = <2>;
+			bias-pull-down;
 		};
 		qpic_pad {
 			pins = "gpio1", "gpio3", "gpio4",
 			       "gpio10", "gpio11", "gpio17";
 			function = "qpic_pad";
-			drive-strength = <8>;
-			bias-disable;
+			drive-strength = <2>;
+			bias-pull-down;
 		};
 	};
 
@@ -124,8 +124,8 @@
 		wps_button {
 			pins = "gpio9";
 			function = "gpio";
-			drive-strength = <8>;
-			bias-pull-up;
+			drive-strength = <2>;
+			bias-pull-down;
 		};
 	};
 };
