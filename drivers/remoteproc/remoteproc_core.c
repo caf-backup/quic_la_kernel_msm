@@ -1642,6 +1642,9 @@ static void rproc_crash_handler_work(struct work_struct *work)
 
 	if (!rproc->recovery_disabled)
 		rproc_trigger_recovery(rproc);
+	else
+		panic("remoteproc %s: Resetting the SoC - %s crashed",
+		      dev_name(&rproc->dev), rproc->name);
 }
 
 /**
