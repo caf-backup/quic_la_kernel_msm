@@ -753,7 +753,7 @@ static void *q6v5_wcss_da_to_va(struct rproc *rproc, u64 da, int len)
 static int q6v5_wcss_load(struct rproc *rproc, const struct firmware *fw)
 {
 	struct q6v5_wcss *wcss = rproc->priv;
-	struct firmware *m3_fw;
+	const struct firmware *m3_fw;
 	int ret;
 
 	ret = request_firmware(&m3_fw, "IPQ8074/m3_fw.mdt", wcss->dev);
