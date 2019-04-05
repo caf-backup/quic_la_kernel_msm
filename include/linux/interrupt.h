@@ -221,6 +221,11 @@ struct irq_affinity_notify {
 	void (*release)(struct kref *ref);
 };
 
+struct irq_affinity {
+	int     pre_vectors;
+	int     post_vectors;
+};
+
 #if defined(CONFIG_SMP)
 
 extern cpumask_var_t irq_default_affinity;
