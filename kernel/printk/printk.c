@@ -1919,6 +1919,14 @@ asmlinkage __visible int printk(const char *fmt, ...)
 }
 EXPORT_SYMBOL(printk);
 
+#ifdef CONFIG_QCOM_MINIDUMP
+void get_log_buf_info(uint64_t *plog_buf, uint64_t *plog_buf_len)
+{
+       *plog_buf = log_buf;
+       *plog_buf_len = (uint64_t)__pa(&log_buf_len);
+}
+#endif
+
 #else /* CONFIG_PRINTK */
 
 #define LOG_LINE_MAX		0

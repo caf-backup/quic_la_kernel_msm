@@ -155,7 +155,9 @@ extern int __printk_ratelimit(const char *func);
 #define printk_ratelimit() __printk_ratelimit(__func__)
 extern bool printk_timed_ratelimit(unsigned long *caller_jiffies,
 				   unsigned int interval_msec);
-
+#ifdef CONFIG_QCOM_MINIDUMP
+extern void get_log_buf_info(uint64_t *log_buf, uint64_t *log_buf_len);
+#endif
 extern int printk_delay_msec;
 extern int dmesg_restrict;
 extern int kptr_restrict;

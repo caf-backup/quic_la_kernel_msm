@@ -23,7 +23,6 @@
 #include <linux/dma-contiguous.h>
 #include <linux/sizes.h>
 #include <linux/stop_machine.h>
-
 #include <asm/cp15.h>
 #include <asm/mach-types.h>
 #include <asm/memblock.h>
@@ -474,6 +473,7 @@ static void __init free_highpages(void)
  */
 void __init mem_init(void)
 {
+
 #ifdef CONFIG_HAVE_TCM
 	/* These pointers are filled in on TCM detection */
 	extern u32 dtcm_end;
@@ -568,6 +568,7 @@ void __init mem_init(void)
 		 */
 		sysctl_overcommit_memory = OVERCOMMIT_ALWAYS;
 	}
+
 }
 
 #ifdef CONFIG_ARM_KERNMEM_PERMS
@@ -783,4 +784,34 @@ static int __init keepinitrd_setup(char *__unused)
 }
 
 __setup("keepinitrd", keepinitrd_setup);
+#endif
+
+#ifdef CONFIG_QCOM_MINIDUMP
+void get_l1_page_info(uint64_t *pt_start, uint64_t *pt_len)
+{
+	*pt_start = swapper_pg_dir;
+	*pt_len = SZ_16K;
+}
+
+unsigned long dump_mmu_info(const void *vmalloc_addr)
+{
+	unsigned long addr = (unsigned long) vmalloc_addr;
+	struct page *page = NULL;
+	pgd_t *pgd = pgd_offset_k(addr);
+	unsigned long phys_addr = 0;
+
+	if (!pgd_none(*pgd)) {
+		pud_t *pud = pud_offset(pgd, addr);
+		if (!pud_none(*pud)) {
+			pmd_t *pmd = pmd_offset(pud, addr);
+			if (!pmd_none(*pmd)) {
+				page = pmd_page(*(pmd));
+				phys_addr = (unsigned long) pmd_val(*pmd) &
+					 (~(1024 - 1));
+			}
+		}
+	}
+
+	return phys_addr;
+}
 #endif
