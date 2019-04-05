@@ -314,13 +314,12 @@ static const struct file_operations q6_dump_ops = {
 	.release	=       q6_dump_release,
 };
 
-static void crashdump_init(struct work_struct *work)
+static void crashdump_init(struct rproc *rproc, struct rproc_dump_segment *segment, void *dest)
 {
 	int ret = 0;
 	int dump_major = 0;
 	struct device *dump_dev = NULL;
 	struct device_node *node = NULL;
-	struct qcom_q6v5 *q6v5 = container_of(work, struct qcom_q6v5, crash_handler);
 
 	init_completion(&open_complete);
 	atomic_set(&open_timedout, 0);
@@ -387,7 +386,6 @@ static void crashdump_init(struct work_struct *work)
 	}
 
 	del_timer_sync(&dump_timeout);
-	rproc_report_crash(q6v5->rproc, -1);
 	return;
 
 dump_dev_failed:
@@ -400,7 +398,7 @@ reg_failed:
 	return;
 }
 #else
-static inline void crashdump_init(struct work_struct *work)
+static void crashdump_init(struct rproc *rproc, struct rproc_dump_segment *segment, void *dest)
 {
 	return;
 }
@@ -755,7 +753,7 @@ static void *q6v5_wcss_da_to_va(struct rproc *rproc, u64 da, int len)
 static int q6v5_wcss_load(struct rproc *rproc, const struct firmware *fw)
 {
 	struct q6v5_wcss *wcss = rproc->priv;
-	struct firmware *m3_fw;
+	const struct firmware *m3_fw;
 	int ret;
 
 	ret = request_firmware(&m3_fw, "IPQ8074/m3_fw.mdt", wcss->dev);
@@ -880,7 +878,6 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 {
 	struct q6v5_wcss *wcss;
 	struct rproc *rproc;
-	struct qcom_q6v5 *q6v5;
 	int ret;
 
 	rproc = rproc_alloc(&pdev->dev, pdev->name, &q6v5_wcss_ops,
@@ -892,7 +889,6 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 
 	wcss = rproc->priv;
 	wcss->dev = &pdev->dev;
-	q6v5 = &wcss->q6v5;
 
 	ret = q6v5_wcss_init_mmio(wcss, pdev);
 	if (ret)
@@ -915,11 +911,17 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 	if (ret)
 		goto free_rproc;
 
+	/*
+	 * Registering custom coredump function with a dummy dump segment as the
+	 * dump regions are taken care by the dump function itself
+	 */
+	ret = rproc_coredump_add_custom_segment(rproc, 0, 0, crashdump_init, NULL);
+	if (ret)
+		goto free_rproc;
+
 	qcom_add_glink_subdev(rproc, &wcss->glink_subdev);
 	qcom_add_ssr_subdev(rproc, &wcss->ssr_subdev, "rproc");
 	platform_set_drvdata(pdev, rproc);
-
-	INIT_WORK(&q6v5->crash_handler, crashdump_init);
 
 	return 0;
 
