@@ -1189,6 +1189,7 @@ ar8xxx_sw_reset_switch(struct switch_dev *dev)
 	priv->monitor_port = 0;
 
 	chip->init_globals(priv);
+	chip->atu_flush(priv);
 
 	mutex_unlock(&priv->reg_mutex);
 
