@@ -18,7 +18,7 @@
 / {
 	#address-cells = <0x2>;
 	#size-cells = <0x2>;
-	model = "Qualcomm Technologies, Inc. IPQ6018-EMULATION-C2";
+	model = "Qualcomm Technologies, Inc. IPQ6018/AP-CP01-C1";
 	compatible = "qcom,ipq6018-emulation-c2", "qcom,ipq6018";
 	interrupt-parent = <&intc>;
 
