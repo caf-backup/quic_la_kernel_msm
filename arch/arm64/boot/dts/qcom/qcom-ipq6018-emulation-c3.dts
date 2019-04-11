@@ -64,11 +64,11 @@
 		};
 
 		qpic_lcd: qcom_mdss_qpic@7980000 {
+			qcom,bam_timeout = <20000>;
 			status = "ok";
 		};
 
 		qpic_lcd_panel: qcom_mdss_qpic_panel {
-			qcom,bam_timeout = <20000>;
 			status = "ok";
 		};
 
