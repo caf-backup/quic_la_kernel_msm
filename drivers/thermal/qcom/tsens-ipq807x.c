@@ -66,6 +66,7 @@
 
 #define TSENS_TM_SN_CRITICAL_THRESHOLD_MASK	0xfff
 #define TSENS_TM_SN_CRITICAL_THRESHOLD(n)	((n * 4) + 0x1060)
+#define TSENS_TM_SN_CRITICAL_THRESHOLD_VALUE(n)	((n) & 0xfff)
 #define TSENS_TM_SN_STATUS			0x10a0
 #define TSENS_TM_SN_STATUS_VALID_BIT		BIT(21)
 #define TSENS_TM_SN_STATUS_CRITICAL_STATUS	BIT(19)
@@ -78,16 +79,224 @@
 #define MAX_TEMP				204 /* Celcius */
 #define MIN_TEMP				0   /* Celcius */
 
+struct low_temp_notification {
+	int temp;
+	low_temp_notif_fn cb;
+};
+
+static struct low_temp_notification low_temp_notif[MAX_SENSOR];
+static int up_thres_backup[MAX_SENSOR];
+
 /* Trips: from very hot to very cold */
 enum tsens_trip_type {
-	TSENS_TRIP_STAGE3 = 0,
-	TSENS_TRIP_STAGE2,
-	TSENS_TRIP_STAGE1,
-	TSENS_TRIP_STAGE0,
+	TSENS_TRIP_STAGE3 = 0, /* Critical high */
+	TSENS_TRIP_STAGE2,     /* Configurable high */
+	TSENS_TRIP_STAGE1,     /* Configurable low */
+	TSENS_TRIP_STAGE0,     /* Critical low */
 	TSENS_TRIP_NUM,
 };
 
 static int get_temp_ipq807x(struct tsens_device *tmdev, int id, int *temp);
+static int set_trip_temp(struct tsens_device *tmdev, int sensor,
+					enum tsens_trip_type trip, int temp);
+static int set_trip_mode(struct tsens_device *tmdev, int sensor, int trip,
+					enum thermal_trip_activation_mode mode);
+static struct tsens_device *g_tmdev;
+
+int register_low_temp_notif(int sensor, int cold_temp, low_temp_notif_fn fn)
+{
+	int rc;
+
+	if (sensor < 0 || sensor >= MAX_SENSOR)
+		return -EINVAL;
+
+	low_temp_notif[sensor].temp = cold_temp;
+	low_temp_notif[sensor].cb = fn;
+
+	if (!g_tmdev) {
+		pr_info("g_tmdevn not initialzied.\n");
+		return -EINVAL;
+	}
+
+	rc = set_trip_temp(g_tmdev, sensor, TSENS_TRIP_STAGE1, cold_temp);
+	if (rc) {
+		pr_info("Failed to set cold trip temp.\n");
+		return rc;
+	}
+
+	rc = set_trip_mode(g_tmdev, sensor, TSENS_TRIP_STAGE1,
+					THERMAL_TRIP_ACTIVATION_ENABLED);
+	if (rc) {
+		pr_info("Failed to enable cold trip point.\n");
+		return rc;
+	}
+
+	return 0;
+}
+
+bool is_sensor_used_internally(int sensor)
+{
+	int i;
+
+	if (sensor < 0 || sensor >= MAX_SENSOR)
+		return false;
+
+	for (i = 0; i < MAX_SENSOR; i++) {
+		if (low_temp_notif[sensor].cb)
+			return true;
+	}
+
+	return false;
+}
+
+/*
+ * Returns Trip temp in degree Celcius
+ * Note: IPQ807x does not support -ve trip temperatures
+ */
+static int get_trip_temp(struct tsens_device *tmdev, int sensor,
+						enum tsens_trip_type trip)
+{
+	unsigned int reg_th;
+
+	if (!tmdev)
+		return -EINVAL;
+
+	if ((sensor < 0) || (sensor > (MAX_SENSOR - 1)))
+		return -EINVAL;
+
+	switch (trip) {
+	case TSENS_TRIP_STAGE3:
+		regmap_read(tmdev->map,
+			TSENS_TM_SN_CRITICAL_THRESHOLD(sensor), &reg_th);
+		return (TSENS_TM_SN_CRITICAL_THRESHOLD_VALUE(reg_th))/10;
+	case TSENS_TRIP_STAGE2:
+		regmap_read(tmdev->map,
+			TSENS_TM_UPPER_LOWER_THRESHOLD(sensor), &reg_th);
+		return (TSENS_TM_UPPER_THRESHOLD_VALUE(reg_th))/10;
+	case TSENS_TRIP_STAGE1:
+		regmap_read(tmdev->map,
+			TSENS_TM_UPPER_LOWER_THRESHOLD(sensor), &reg_th);
+		return (TSENS_TM_LOWER_THRESHOLD_VALUE(reg_th))/10;
+	default:
+		return -EINVAL;
+	}
+
+	return -EINVAL;
+}
+
+/*
+ * Set Trip temp in degree Celcius
+ * Note: IPQ807x does not support -ve trip temperatures
+ */
+static int set_trip_temp(struct tsens_device *tmdev, int sensor,
+					enum tsens_trip_type trip, int temp)
+{
+	u32 reg_th, th_cri, th_hi, th_lo, reg_th_offset, reg_cri_th_offset;
+
+	if (!tmdev)
+		return -EINVAL;
+
+	if ((sensor < 0) || (sensor > (MAX_SENSOR - 1)))
+		return -EINVAL;
+
+	if ((temp < MIN_TEMP) && (temp > MAX_TEMP))
+		return -EINVAL;
+
+	/* Convert temp to the required format */
+	temp = temp * 10;
+
+	reg_th_offset = TSENS_TM_UPPER_LOWER_THRESHOLD(sensor);
+	reg_cri_th_offset = TSENS_TM_SN_CRITICAL_THRESHOLD(sensor);
+
+	regmap_read(tmdev->map,
+		TSENS_TM_SN_CRITICAL_THRESHOLD(sensor), &th_cri);
+	regmap_read(tmdev->map,
+		TSENS_TM_UPPER_LOWER_THRESHOLD(sensor), &reg_th);
+
+	th_hi = TSENS_TM_UPPER_THRESHOLD_VALUE(reg_th);
+	th_lo = TSENS_TM_LOWER_THRESHOLD_VALUE(reg_th);
+
+	switch (trip) {
+	case TSENS_TRIP_STAGE3:
+		if (temp < th_hi)
+			return -EINVAL;
+
+		reg_th_offset = reg_cri_th_offset;
+		reg_th = temp;
+		break;
+	case TSENS_TRIP_STAGE2:
+		if ((temp <= th_lo) || (temp >= th_cri))
+			return -EINVAL;
+
+		temp = TSENS_TM_UPPER_THRESHOLD_SET(temp);
+		reg_th &= TSENS_TM_UPPER_THRESHOLD_CLEAR;
+		reg_th |= temp;
+		break;
+	case TSENS_TRIP_STAGE1:
+		if (temp >= th_hi)
+			return -EINVAL;
+
+		reg_th &= TSENS_TM_LOWER_THRESHOLD_CLEAR;
+		reg_th |= temp;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	regmap_write(tmdev->map, reg_th_offset, reg_th);
+
+	/* Sync registers */
+	mb();
+
+	return 0;
+}
+
+static int set_trip_mode(struct tsens_device *tmdev, int sensor, int trip,
+					enum thermal_trip_activation_mode mode)
+{
+	unsigned int reg_val, reg_offset;
+
+	if (!tmdev)
+		return -EINVAL;
+
+	if ((sensor < 0) || (sensor > (MAX_SENSOR - 1)))
+		return -EINVAL;
+
+	switch (trip) {
+	case TSENS_TRIP_STAGE3:
+		reg_offset = TSENS_TM_CRITICAL_INT_MASK;
+		regmap_read(tmdev->map, reg_offset, &reg_val);
+		if (mode == THERMAL_TRIP_ACTIVATION_DISABLED)
+			reg_val = reg_val | (1 << sensor);
+		else
+			reg_val = reg_val & ~(1 << sensor);
+		break;
+	case TSENS_TRIP_STAGE2:
+		reg_offset = TSENS_TM_UPPER_LOWER_INT_MASK;
+		regmap_read(tmdev->map, reg_offset, &reg_val);
+		if (mode == THERMAL_TRIP_ACTIVATION_DISABLED)
+			reg_val = reg_val | (TSENS_TM_UPPER_INT_SET(sensor));
+		else
+			reg_val = reg_val & ~(TSENS_TM_UPPER_INT_SET(sensor));
+		break;
+	case TSENS_TRIP_STAGE1:
+		reg_offset = TSENS_TM_UPPER_LOWER_INT_MASK;
+		regmap_read(tmdev->map, reg_offset, &reg_val);
+		if (mode == THERMAL_TRIP_ACTIVATION_DISABLED)
+			reg_val = reg_val | (1 << sensor);
+		else
+			reg_val = reg_val & ~(1 << sensor);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	regmap_write(tmdev->map, reg_offset, reg_val);
+
+	/* Sync registers */
+	mb();
+	return 0;
+}
 
 static void notify_uspace_tsens_fn(struct work_struct *work)
 {
@@ -99,6 +308,59 @@ static void notify_uspace_tsens_fn(struct work_struct *work)
 		return;
 
 	sysfs_notify(&s->tzd->device.kobj, NULL, "type");
+}
+
+/*
+ * This function handles cold condition.
+ * More specifically when the temperature drops below 0c and
+ * when the temperature is raising from 0c to +ve temperature.
+ */
+static void handle_cold_condition(struct tsens_device *tmdev,
+						int sensor, int dropping)
+{
+	int temp, i;
+	int cold_cond_enter_threshold, cold_cond_exit_threshold;
+
+	if (sensor < 0 || sensor >= MAX_SENSOR)
+		return;
+
+	cold_cond_enter_threshold = low_temp_notif[sensor].temp;
+	cold_cond_exit_threshold = cold_cond_enter_threshold + 5;
+
+	if (get_temp_ipq807x(tmdev, sensor, &temp))
+		return;
+
+	if (dropping && (temp <= cold_cond_enter_threshold)) {
+		/* Disable lower threshold interrupt
+		 * to avoid interrupt flooding
+		*/
+		set_trip_mode(tmdev, sensor, TSENS_TRIP_STAGE1,
+					THERMAL_TRIP_ACTIVATION_DISABLED);
+
+		/* Backup current upper threshold temperature */
+		up_thres_backup[sensor] = get_trip_temp(tmdev, sensor,
+					TSENS_TRIP_STAGE2);
+
+		/* Set cold condition exit temperature as upper threshold */
+		set_trip_temp(tmdev, sensor, TSENS_TRIP_STAGE2,
+					cold_cond_exit_threshold);
+
+	} else if (!dropping && (temp >= cold_cond_exit_threshold)) {
+		/* Activate lower threshold interrupt */
+		set_trip_mode(tmdev, sensor, TSENS_TRIP_STAGE1,
+					THERMAL_TRIP_ACTIVATION_ENABLED);
+
+		/* Restore previous trip temp */
+		set_trip_temp(tmdev, sensor, TSENS_TRIP_STAGE2,
+					up_thres_backup[sensor]);
+	} else /* Do nothing */
+		return;
+
+	/* Notify to registered functions */
+	for (i = 0; i < MAX_SENSOR; i++) {
+		if (low_temp_notif[i].cb)
+			low_temp_notif[i].cb(sensor, temp, dropping);
+        }
 }
 
 static void tsens_scheduler_fn(struct work_struct *work)
@@ -139,12 +401,13 @@ static void tsens_scheduler_fn(struct work_struct *work)
 		}
 
 		if (th_upper || th_lower) {
+			handle_cold_condition( tmdev, i, th_lower);
 			regmap_write(tmdev->map, reg_addr, reg_thr);
 			/* Notify user space */
 			schedule_work(&tmdev->sensor[i].notify_work);
 
 			if (!get_temp_ipq807x(tmdev, i, &temp))
-				pr_info("Trigger (%d degrees) for sensor %d\n",
+				pr_debug("Trigger (%d degrees) for sensor %d\n",
 					temp, i);
 		}
 	}
@@ -191,7 +454,7 @@ static int init_ipq807x(struct tsens_device *tmdev)
 		pr_err("%s: request_irq FAIL: %d\n", __func__, ret);
 		return ret;
 	}
-
+	g_tmdev = tmdev;
 	enable_irq_wake(tmdev->tsens_irq);
 
 	/* Sync registers */
@@ -279,127 +542,29 @@ static int get_temp_ipq807x(struct tsens_device *tmdev, int id, int *temp)
 
 static int set_trip_temp_ipq807x(void *data, int trip, int temp)
 {
-	unsigned int reg_th, reg_th_offset, reg_cri_th_offset;
-	int ret = 0, th_cri, th_hi, th_lo;
 	const struct tsens_sensor *s = data;
-	struct tsens_device *tmdev;
 
 	if (!s)
 		return -EINVAL;
 
-	if ((s->id < 0) || (s->id > (MAX_SENSOR - 1)))
+	if (is_sensor_used_internally(s->id))
 		return -EINVAL;
 
-	if ((temp < MIN_TEMP) && (temp > MAX_TEMP))
-		return -EINVAL;
-
-	/* Convert temp to the required format */
-	temp = temp * 10;
-
-	tmdev = s->tmdev;
-	reg_th_offset = TSENS_TM_UPPER_LOWER_THRESHOLD(s->id);
-	reg_cri_th_offset = TSENS_TM_SN_CRITICAL_THRESHOLD(s->id);
-
-	regmap_read(tmdev->map, reg_cri_th_offset, &th_cri);
-	regmap_read(tmdev->map, reg_th_offset, &reg_th);
-
-	th_hi = TSENS_TM_UPPER_THRESHOLD_VALUE(reg_th);
-	th_lo = TSENS_TM_LOWER_THRESHOLD_VALUE(reg_th);
-
-	switch (trip) {
-	case TSENS_TRIP_STAGE3:
-		if (temp < th_hi) {
-			ret = -EINVAL;
-			break;
-		}
-		reg_th_offset = reg_cri_th_offset;
-		reg_th = temp;
-		break;
-	case TSENS_TRIP_STAGE2:
-		if ((temp <= th_lo) || (temp >= th_cri)) {
-			ret = -EINVAL;
-			break;
-		}
-		temp = TSENS_TM_UPPER_THRESHOLD_SET(temp);
-		reg_th &= TSENS_TM_UPPER_THRESHOLD_CLEAR;
-		reg_th |= temp;
-		break;
-	case TSENS_TRIP_STAGE1:
-		if (temp >= th_hi) {
-			ret = -EINVAL;
-			break;
-		}
-		reg_th &= TSENS_TM_LOWER_THRESHOLD_CLEAR;
-		reg_th |= temp;
-		break;
-	case TSENS_TRIP_STAGE0:
-		/* Cannot handle critical low temp */
-		ret = -EINVAL;
-		break;
-	default:
-		ret = -EINVAL;
-	}
-
-	regmap_write(tmdev->map, reg_th_offset, reg_th);
-
-	/* Sync registers */
-	mb();
-	return ret;
+	return set_trip_temp(s->tmdev, s->id, trip, temp);
 }
 
 static int set_trip_activate_ipq807x(void *data, int trip,
 					enum thermal_trip_activation_mode mode)
 {
 	const struct tsens_sensor *s = data;
-	struct tsens_device *tmdev;
-	unsigned int reg_val, reg_offset, mask;
 
 	if (!s)
 		return -EINVAL;
 
-	if ((s->id < 0) || (s->id > (MAX_SENSOR - 1)))
+	if (is_sensor_used_internally(s->id))
 		return -EINVAL;
 
-	tmdev = s->tmdev;
-	if (!tmdev)
-		return -EINVAL;
-
-	mask = s->id;
-
-	switch (trip) {
-	case TSENS_TRIP_STAGE3:
-		reg_offset = TSENS_TM_CRITICAL_INT_MASK;
-		regmap_read(tmdev->map, reg_offset, &reg_val);
-		if (mode == THERMAL_TRIP_ACTIVATION_DISABLED)
-			reg_val = reg_val | (1 << mask);
-		else
-			reg_val = reg_val & ~(1 << mask);
-		break;
-	case TSENS_TRIP_STAGE2:
-		reg_offset = TSENS_TM_UPPER_LOWER_INT_MASK;
-		regmap_read(tmdev->map, reg_offset, &reg_val);
-		if (mode == THERMAL_TRIP_ACTIVATION_DISABLED)
-			reg_val = reg_val | (TSENS_TM_UPPER_INT_SET(mask));
-		else
-			reg_val = reg_val & ~(TSENS_TM_UPPER_INT_SET(mask));
-		break;
-	case TSENS_TRIP_STAGE1:
-		reg_offset = TSENS_TM_UPPER_LOWER_INT_MASK;
-		regmap_read(tmdev->map, reg_offset, &reg_val);
-		if (mode == THERMAL_TRIP_ACTIVATION_DISABLED)
-			reg_val = reg_val | (1 << mask);
-		else
-			reg_val = reg_val & ~(1 << mask);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	regmap_write(tmdev->map, reg_offset, reg_val);
-
-	/* Sync registers */
-	mb();
-	return 0;
+	return set_trip_mode(s->tmdev, s->id, trip, mode);
 }
 
 const struct tsens_ops ops_ipq807x = {

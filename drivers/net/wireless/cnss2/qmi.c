@@ -84,7 +84,7 @@ void cnss_dump_qmi_history(void)
 }
 EXPORT_SYMBOL(cnss_dump_qmi_history);
 
-void qmi_record(u8 msg_id, u8 error_msg)
+void qmi_record(u16 msg_id, u8 error_msg)
 {
 	spin_lock(&qmi_log_spinlock);
 	qmi_log[qmi_history_index].msg_id = msg_id;
@@ -553,7 +553,7 @@ int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 	char filename[30];
 	const struct firmware *fw;
 	char *bdf_addr;
-	unsigned int bdf_addr_pa, location[2], board_id;
+	unsigned int bdf_addr_pa, location[3], board_id;
 	int size;
 	struct device *dev;
 
@@ -660,7 +660,7 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv)
 	struct wlfw_bdf_download_req_msg_v01 *req;
 	struct wlfw_bdf_download_resp_msg_v01 resp;
 	struct msg_desc req_desc, resp_desc;
-	char filename[30];
+	char filename[64];
 	const struct firmware *fw_entry;
 	const u8 *temp;
 	unsigned int remaining;

@@ -263,4 +263,5 @@
 #define PCIE0_RCHNG_CLK_SRC			244
 #define GCC_PCIE0_AXI_S_BRIDGE_CLK		245
 #define PCIE0_RCHNG_CLK				246
+#define GCC_WCSSAON_RESET			89
 #endif

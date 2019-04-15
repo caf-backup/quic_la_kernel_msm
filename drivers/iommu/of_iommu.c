@@ -215,6 +215,7 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 		if (err) {
 			pr_err("IOMMU add device failed for device %s, ret = %d\n",
 							dev_name(dev), err);
+			goto err_put_node;
 		}
 	}
 

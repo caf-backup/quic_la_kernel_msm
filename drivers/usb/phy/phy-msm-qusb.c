@@ -133,9 +133,6 @@ struct qusb_phy {
 	bool			ulpi_mode;
 	bool			rm_pulldown;
 	bool			dpdm_pulsing_enabled;
-
-	/* emulation targets specific */
-	bool			emulation;
 };
 
 static void qusb_reset(struct qusb_phy *qphy, u32 action)
@@ -180,9 +177,6 @@ static int qusb_phy_config_vdd(struct qusb_phy *qphy, int high)
 {
 	int min, ret;
 
-	if (qphy->emulation)
-		return 0;
-
 	min = high ? 1 : 0; /* low or none? */
 	ret = regulator_set_voltage(qphy->vdd, qphy->vdd_levels[min],
 						qphy->vdd_levels[2]);
@@ -201,7 +195,7 @@ static int qusb_phy_enable_power(struct qusb_phy *qphy, bool on,
 {
 	int ret = 0;
 
-	if (qphy->emulation)
+	if (!(qphy->vdd && qphy->vdda18 && qphy->vdda33))
 		return 0;
 
 	dev_dbg(qphy->phy.dev, "%s turn %s regulators. power_enabled:%d\n",
@@ -699,6 +693,7 @@ static int qusb_phy_probe(struct platform_device *pdev)
 	int ret = 0, size = 0;
 	const char *phy_type;
 	bool hold_phy_reset;
+	struct device_node *reg_node;
 
 	qphy = devm_kzalloc(dev, sizeof(*qphy), GFP_KERNEL);
 	if (!qphy)
@@ -789,9 +784,6 @@ static int qusb_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(qphy->phy_reset))
 		return PTR_ERR(qphy->phy_reset);
 
-	qphy->emulation = of_property_read_bool(dev->of_node,
-					"qcom,emulation");
-
 	of_get_property(dev->of_node, "qcom,qusb-phy-init-seq", &size);
 	if (size) {
 		qphy->qusb_phy_init_seq = devm_kzalloc(dev,
@@ -826,7 +818,8 @@ static int qusb_phy_probe(struct platform_device *pdev)
 
 	hold_phy_reset = of_property_read_bool(dev->of_node, "qcom,hold-reset");
 
-	if (!qphy->emulation) {
+	reg_node = of_parse_phandle(dev->of_node, "vdd-supply", 0);
+	if (reg_node) {
 		ret = of_property_read_u32_array(dev->of_node,
 				"qcom,vdd-voltage-level",
 				(u32 *) qphy->vdd_levels,
@@ -853,6 +846,8 @@ static int qusb_phy_probe(struct platform_device *pdev)
 			dev_err(dev, "unable to get vdda18 supply\n");
 			return PTR_ERR(qphy->vdda18);
 		}
+	} else {
+		dev_dbg(dev, "voltage supply not specified in dts\n");
 	}
 
 	platform_set_drvdata(pdev, qphy);

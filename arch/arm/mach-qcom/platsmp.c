@@ -174,6 +174,53 @@ static int scss_release_secondary(unsigned int cpu)
 	return 0;
 }
 
+static int a7ss_release_secondary(unsigned int cpu)
+{
+	struct device_node *node;
+	void __iomem *base;
+	struct resource res;
+
+	node = of_find_compatible_node(NULL, NULL, "qcom,arm-cortex-a7acc");
+	if (!node) {
+		pr_err("%s: can't find node\n", __func__);
+		return -ENXIO;
+	}
+
+	if (of_address_to_resource(node, 0, &res)) {
+		of_node_put(node);
+		return -ENXIO;
+	}
+
+	res.start += cpu * 0x10000;
+
+	base = ioremap(res.start, 0x1000);
+	of_node_put(node);
+
+	if (!base)
+		return -ENOMEM;
+
+	/* Enable Clamp signal and assert core reset */
+	writel_relaxed(0x00000033, base + 0x04);
+	mb(); /* barrier */
+
+	/* Set GDHS and delay counter */
+	writel_relaxed(0x20000001, base + 0x14);
+	mb(); /* barrier */
+
+	udelay(2);
+
+	/* Enable Core memory HS */
+	writel_relaxed(0x00020008, base + 0x04);
+	mb(); /* barrier */
+
+	/* Report that the CPU is powered up */
+	writel_relaxed(0x00020088, base + 0x04);
+	mb(); /* barrier */
+
+	iounmap(base);
+	return 0;
+}
+
 static int kpssv1_release_secondary(unsigned int cpu)
 {
 	int ret = 0;
@@ -397,6 +444,11 @@ static int msm8660_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	return qcom_boot_secondary(cpu, scss_release_secondary);
 }
 
+static int a7ss_boot_secondary(unsigned int cpu, struct task_struct *idle)
+{
+	return qcom_boot_secondary(cpu, a7ss_release_secondary);
+}
+
 static int kpssv1_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	return qcom_boot_secondary(cpu, kpssv1_release_secondary);
@@ -461,3 +513,13 @@ static struct smp_operations qcom_smp_kpssv2_ops __initdata = {
 #endif
 };
 CPU_METHOD_OF_DECLARE(qcom_smp_kpssv2, "qcom,kpss-acc-v2", &qcom_smp_kpssv2_ops);
+
+static struct smp_operations qcom_smp_a7ss_ops __initdata = {
+	.smp_prepare_cpus       = qcom_smp_prepare_cpus,
+	.smp_secondary_init     = qcom_secondary_init,
+	.smp_boot_secondary     = a7ss_boot_secondary,
+#ifdef CONFIG_HOTPLUG_CPU
+	.cpu_die                = qcom_cpu_die,
+#endif
+};
+CPU_METHOD_OF_DECLARE(qcom_smp_a7ss, "qcom,arm-cortex-a7acc", &qcom_smp_a7ss_ops);

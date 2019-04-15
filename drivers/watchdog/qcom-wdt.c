@@ -26,11 +26,15 @@
 #include <linux/smp.h>
 #include <linux/utsname.h>
 #include <linux/sizes.h>
+#ifdef CONFIG_QCOM_MINIDUMP
+#include <linux/minidump_tlv.h>
+#include <linux/spinlock.h>
+#include <linux/pfn.h>
+#endif
 
 #define TCSR_WONCE_REG 0x193d010
 
 static int in_panic;
-
 enum wdt_reg {
 	WDT_RST,
 	WDT_EN,
@@ -70,26 +74,23 @@ struct qcom_wdt {
 	struct resource *tlv_res;
 };
 
-struct qcom_wdt_scm_tlv_msg {
-	unsigned char *msg_buffer;
-	unsigned char *cur_msg_buffer_pos;
-	unsigned int len;
-};
+#ifdef CONFIG_QCOM_MINIDUMP
+qcom_wdt_scm_tlv_msg_t tlv_msg;
+DEFINE_SPINLOCK(minidump_tlv_spinlock);
+static int qcom_wdt_scm_add_tlv(struct qcom_wdt_scm_tlv_msg *scm_tlv_msg,
+			unsigned char type, unsigned int size, const char *data);
 
-#define QCOM_WDT_SCM_TLV_TYPE_SIZE	1
-#define QCOM_WDT_SCM_TLV_LEN_SIZE	2
-#define QCOM_WDT_SCM_TLV_TYPE_LEN_SIZE	(QCOM_WDT_SCM_TLV_TYPE_SIZE +\
-						QCOM_WDT_SCM_TLV_LEN_SIZE)
-enum {
-	QCOM_WDT_LOG_DUMP_TYPE_INVALID,
-	QCOM_WDT_LOG_DUMP_TYPE_UNAME,
-};
-
+extern void get_l1_page_info(uint64_t *pt_start, uint64_t *pt_len);
+extern unsigned long get_l2_page_info(const void *vmalloc_addr);
+extern unsigned long get_l3_page_info(const void *vmalloc_addr);
+extern unsigned long dump_mmu_info(const void *vmalloc_addr);
+#endif
 static void __iomem *wdt_addr(struct qcom_wdt *wdt, enum wdt_reg reg)
 {
 	return wdt->base + wdt->dev_props->layout[reg];
 };
 
+#ifdef CONFIG_QCOM_MINIDUMP
 static int qcom_wdt_scm_add_tlv(struct qcom_wdt_scm_tlv_msg *scm_tlv_msg,
 			unsigned char type, unsigned int size, const char *data)
 {
@@ -107,34 +108,452 @@ static int qcom_wdt_scm_add_tlv(struct qcom_wdt_scm_tlv_msg *scm_tlv_msg,
 
 	scm_tlv_msg->cur_msg_buffer_pos +=
 		(size + QCOM_WDT_SCM_TLV_TYPE_LEN_SIZE);
-
 	return 0;
 }
+
+int get_highmem_info(const void *vmalloc_addr, unsigned char type)
+{
+	struct minidump_tlv_info minidump_mmu_tlv_info;
+	struct qcom_wdt_scm_tlv_msg *scm_tlv_msg = &tlv_msg;
+	int ret;
+
+	if (IS_ENABLED(CONFIG_ARM64)) {
+		minidump_mmu_tlv_info.start = get_l2_page_info((const void *)
+							vmalloc_addr);
+		minidump_mmu_tlv_info.size = SZ_4K;
+		if (!minidump_mmu_tlv_info.start) {
+			return -1;
+		}
+		spin_lock(&minidump_tlv_spinlock);
+		ret = qcom_wdt_scm_add_tlv(&tlv_msg, type,
+			sizeof(minidump_mmu_tlv_info),
+			(unsigned char *)&minidump_mmu_tlv_info);
+		if (ret) {
+			spin_unlock(&minidump_tlv_spinlock);
+			return ret;
+		}
+		if (scm_tlv_msg->cur_msg_buffer_pos >=
+			scm_tlv_msg->msg_buffer + scm_tlv_msg->len){
+			spin_unlock(&minidump_tlv_spinlock);
+			return -ENOBUFS;
+		}
+		*scm_tlv_msg->cur_msg_buffer_pos =
+			QCA_WDT_LOG_DUMP_TYPE_INVALID;
+		spin_unlock(&minidump_tlv_spinlock);
+
+		minidump_mmu_tlv_info.start = get_l3_page_info
+				((const void *)vmalloc_addr);
+		minidump_mmu_tlv_info.size = SZ_4K;
+		if (!minidump_mmu_tlv_info.start) {
+			return -1;
+		}
+		spin_lock(&minidump_tlv_spinlock);
+		ret = qcom_wdt_scm_add_tlv(&tlv_msg, type
+			, sizeof(minidump_mmu_tlv_info),
+			(unsigned char *)&minidump_mmu_tlv_info);
+		if (ret) {
+			spin_unlock(&minidump_tlv_spinlock);
+				return ret;
+		}
+		if (scm_tlv_msg->cur_msg_buffer_pos >=
+			scm_tlv_msg->msg_buffer + scm_tlv_msg->len){
+			spin_unlock(&minidump_tlv_spinlock);
+			return -ENOBUFS;
+		}
+		*scm_tlv_msg->cur_msg_buffer_pos =
+					QCA_WDT_LOG_DUMP_TYPE_INVALID;
+		spin_unlock(&minidump_tlv_spinlock);
+	} else {
+		minidump_mmu_tlv_info.start = dump_mmu_info((const void *)
+						vmalloc_addr);
+		minidump_mmu_tlv_info.size = SZ_2K;
+		if (!minidump_mmu_tlv_info.start) {
+			return -1;
+		}
+		spin_lock(&minidump_tlv_spinlock);
+		ret = qcom_wdt_scm_add_tlv(&tlv_msg, type,
+			sizeof(minidump_mmu_tlv_info),
+			(unsigned char *)&minidump_mmu_tlv_info);
+		if (ret) {
+			spin_unlock(&minidump_tlv_spinlock);
+			return ret;
+		}
+		if (scm_tlv_msg->cur_msg_buffer_pos >=
+			scm_tlv_msg->msg_buffer + scm_tlv_msg->len){
+			spin_unlock(&minidump_tlv_spinlock);
+			return -ENOBUFS;
+		}
+		*scm_tlv_msg->cur_msg_buffer_pos =
+			QCA_WDT_LOG_DUMP_TYPE_INVALID;
+		spin_unlock(&minidump_tlv_spinlock);
+	}
+	return 0;
+}
+
+int fill_minidump_segments(uint64_t start_addr, uint64_t size, unsigned char type)
+{
+	int ret;
+	struct minidump_tlv_info minidump_tlv_info;
+	struct page *minidump_tlv_page;
+	uint64_t phys_addr;
+	uint64_t temp_start_addr = start_addr;
+	struct qcom_wdt_scm_tlv_msg *scm_tlv_msg = &tlv_msg;
+
+	/* VA to PA address translation for low mem addresses*/
+	if ((unsigned long)start_addr >= PAGE_OFFSET && (unsigned long)
+					start_addr
+					< (unsigned long)high_memory) {
+		minidump_tlv_info.start = (uint64_t)__pa(start_addr);
+		minidump_tlv_info.size = size;
+		spin_lock(&minidump_tlv_spinlock);
+		ret = qcom_wdt_scm_add_tlv(&tlv_msg, type,
+			sizeof(minidump_tlv_info),
+			(unsigned char *)&minidump_tlv_info);
+		if (ret) {
+			spin_unlock(&minidump_tlv_spinlock);
+			pr_err("MINIDUMP TLV failed with error %d \n", ret);
+			return ret;
+		}
+		if (scm_tlv_msg->cur_msg_buffer_pos >=
+			scm_tlv_msg->msg_buffer + scm_tlv_msg->len){
+			spin_unlock(&minidump_tlv_spinlock);
+			pr_err("MINIDUMP buffer overflow %d \n", (int)type);
+			return -ENOBUFS;
+		}
+		*scm_tlv_msg->cur_msg_buffer_pos =
+			QCA_WDT_LOG_DUMP_TYPE_INVALID;
+		spin_unlock(&minidump_tlv_spinlock);
+		if (IS_ENABLED(CONFIG_ARM64) && type ==
+				 QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD) {
+			ret = get_highmem_info((const void *)(temp_start_addr
+				& (~(PAGE_SIZE - 1))),
+				type);
+			if (ret) {
+				pr_err("MINIDUMP error dumping MMU %d \n", ret);
+				return ret;
+			}
+		}
+	} else {
+		/* Dump Level 2 pagetable for high mem addresses*/
+		ret = get_highmem_info((const void *) (start_addr &
+					(~(PAGE_SIZE - 1))), type);
+		if (ret) {
+			pr_info("MINIDUMP error dumping MMU %d \n", ret);
+			return ret;
+		}
+
+		/* VA to PA address translation for high mem addresses*/
+		minidump_tlv_page = vmalloc_to_page((const void *)
+				(start_addr & (~(PAGE_SIZE - 1))));
+		phys_addr = page_to_phys(minidump_tlv_page) +
+				offset_in_page(start_addr);
+		minidump_tlv_info.start = phys_addr;
+		minidump_tlv_info.size = size;
+		spin_lock(&minidump_tlv_spinlock);
+		ret = qcom_wdt_scm_add_tlv(&tlv_msg, type,
+				sizeof(minidump_tlv_info),
+				(unsigned char *)&minidump_tlv_info);
+		if (ret) {
+			spin_unlock(&minidump_tlv_spinlock);
+			pr_info("MINIDUMP TLV failed with  %d \n", ret);
+			return ret;
+		}
+		if (scm_tlv_msg->cur_msg_buffer_pos >=
+			scm_tlv_msg->msg_buffer + scm_tlv_msg->len){
+			spin_unlock(&minidump_tlv_spinlock);
+			pr_info("MINIDUMP buffer overflow %d ", (int)type);
+			return -ENOBUFS;
+		}
+		*scm_tlv_msg->cur_msg_buffer_pos =
+			QCA_WDT_LOG_DUMP_TYPE_INVALID;
+		spin_unlock(&minidump_tlv_spinlock);
+
+	}
+	return 0;
+}
+EXPORT_SYMBOL(fill_minidump_segments);
 
 static int qcom_wdt_scm_fill_log_dump_tlv(
 			struct qcom_wdt_scm_tlv_msg *scm_tlv_msg)
 {
 	struct new_utsname *uname;
 	int ret_val;
-
+	struct minidump_tlv_info pagetable_tlv_info;
+	struct minidump_tlv_info log_buf_info;
 	uname = utsname();
 
 	ret_val = qcom_wdt_scm_add_tlv(scm_tlv_msg,
-			QCOM_WDT_LOG_DUMP_TYPE_UNAME,
+			QCA_WDT_LOG_DUMP_TYPE_UNAME,
 			sizeof(*uname),
 			(unsigned char *)uname);
 
 	if (ret_val)
 		return ret_val;
+	get_log_buf_info(&log_buf_info.start, &log_buf_info.size);
+	ret_val = fill_minidump_segments(log_buf_info.start, log_buf_info.size,
+						QCA_WDT_LOG_DUMP_TYPE_DMESG);
+	if (ret_val) {
+		pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
+		return ret_val;
+	}
+
+	get_l1_page_info(&pagetable_tlv_info.start, &pagetable_tlv_info.size);
+	ret_val = fill_minidump_segments(pagetable_tlv_info.start,
+			pagetable_tlv_info.size,
+			QCA_WDT_LOG_DUMP_TYPE_LEVEL1_PT);
+	if (ret_val) {
+		pr_err("MINIDUMP failed while MMU info %d \n", ret_val);
+		return ret_val;
+	}
 
 	if (scm_tlv_msg->cur_msg_buffer_pos >=
 		scm_tlv_msg->msg_buffer + scm_tlv_msg->len)
-		return -ENOBUFS;
-
-	*scm_tlv_msg->cur_msg_buffer_pos++ = QCOM_WDT_LOG_DUMP_TYPE_INVALID;
+	return -ENOBUFS;
 
 	return 0;
 }
+
+
+/*Notfier Call back for WLAN MODULE LIST */
+
+static int wlan_module_notifier(struct notifier_block *nb, unsigned long event,
+				void *data)
+{
+	struct module *mod = data;
+	struct minidump_tlv_info module_tlv_info;
+	int ret_val;
+	unsigned int i;
+
+	if ((!strcmp("ecm", mod->name)) && (event == MODULE_STATE_LIVE)) {
+
+		module_tlv_info.start = (uintptr_t)mod;
+		module_tlv_info.size = sizeof(struct module);
+		ret_val = fill_minidump_segments(module_tlv_info.start,
+			module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+		if (ret_val) {
+			pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
+			return ret_val;
+		}
+		module_tlv_info.start = (unsigned long)mod->list.prev;
+		module_tlv_info.size = sizeof(struct module);
+		ret_val = fill_minidump_segments(module_tlv_info.start,
+				module_tlv_info.size,
+				QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+		if (ret_val) {
+			pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
+			return ret_val;
+		}
+	}
+
+	if ((!strcmp("smart_antenna", mod->name)) &&
+			(event == MODULE_STATE_LIVE)) {
+		module_tlv_info.start = (uintptr_t)mod;
+		module_tlv_info.size = sizeof(struct module);
+		ret_val = fill_minidump_segments(module_tlv_info.start,
+			module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+		if (ret_val) {
+			pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
+			return ret_val;
+		}
+	}
+
+	if ((!strcmp("ath_pktlog", mod->name)) &&
+			(event == MODULE_STATE_LIVE)) {
+
+		module_tlv_info.start = (uintptr_t)mod;
+		module_tlv_info.size = sizeof(struct module);
+		ret_val = fill_minidump_segments(module_tlv_info.start,
+				module_tlv_info.size,
+				QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+		if (ret_val) {
+			pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
+			return ret_val;
+		}
+	}
+
+	if ((!strcmp("wifi_2_0", mod->name)) &&
+			(event == MODULE_STATE_LIVE)) {
+		module_tlv_info.start = (uintptr_t)mod;
+		module_tlv_info.size = sizeof(struct module);
+		ret_val = fill_minidump_segments(module_tlv_info.start,
+			 module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+		if (ret_val) {
+			pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
+			return ret_val;
+		}
+	}
+
+	if ((!strcmp("wifi_3_0", mod->name)) && (event == MODULE_STATE_LIVE)) {
+		module_tlv_info.start = (unsigned long)mod->sect_attrs;
+		/* Revisit on how to get secion size */
+		module_tlv_info.size = SZ_2K;
+		ret_val = fill_minidump_segments(module_tlv_info.start,
+				 module_tlv_info.size,
+				QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+		if (ret_val) {
+			pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
+			return ret_val;
+		}
+		for (i = 0; i <= mod->sect_attrs->nsections; i++) {
+			if ((!strcmp(".bss", mod->sect_attrs->attrs[i].name))) {
+				module_tlv_info.start = (unsigned long)
+					 mod->sect_attrs->attrs[i].address;
+				module_tlv_info.size = (unsigned long)mod->module_core
+					+ (unsigned long) mod->core_size
+					- (unsigned long)
+					mod->sect_attrs->attrs[i].address;
+			      pr_err("\n MINIDUMP VA .bss start=%lx module=%s",
+					(unsigned long)
+					mod->sect_attrs->attrs[i].address,
+						 mod->name);
+				ret_val = fill_minidump_segments(
+					module_tlv_info.start,
+					module_tlv_info.size,
+					QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+				if (ret_val) {
+					pr_err("MINIDUMP TLV failure error %d",
+					ret_val);
+					return ret_val;
+				}
+			}
+		}
+
+		module_tlv_info.start = (uintptr_t)mod;
+		module_tlv_info.size = sizeof(struct module);
+		ret_val = fill_minidump_segments(module_tlv_info.start,
+					 module_tlv_info.size,
+					 QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+		if (ret_val) {
+			pr_err("MINIDUMP TLV failure error %d \n", ret_val);
+			return ret_val;
+		}
+	}
+
+	if ((!strcmp("qca_ol", mod->name)) && (event == MODULE_STATE_LIVE)) {
+
+		module_tlv_info.start = (unsigned long)mod->sect_attrs;
+		module_tlv_info.size = SZ_2K;
+		ret_val = fill_minidump_segments(module_tlv_info.start,
+			 module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+		if (ret_val) {
+			pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
+			return ret_val;
+		}
+		for (i = 0; i <= mod->sect_attrs->nsections; i++) {
+			if ((!strcmp(".bss", mod->sect_attrs->attrs[i].name))) {
+					 module_tlv_info.start =
+					(unsigned long)
+					mod->sect_attrs->attrs[i].address;
+					module_tlv_info.size = (unsigned long)
+					mod->module_core + (unsigned long)
+					mod->core_size - (unsigned long)
+					mod->sect_attrs->attrs[i].address;
+			      pr_err("\n MINIDUMP VA .bss start=%lx module=%s",
+					(unsigned long)
+					mod->sect_attrs->attrs[i].address,
+					mod->name);
+				ret_val = fill_minidump_segments(module_tlv_info.start,
+					module_tlv_info.size,
+					QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+				if (ret_val) {
+					pr_err("MINIDUMP TLV  error %d \n ", ret_val);
+					return ret_val;
+				}
+			}
+		}
+		module_tlv_info.start = (uintptr_t)mod;
+		module_tlv_info.size = sizeof(struct module);
+		ret_val = fill_minidump_segments(module_tlv_info.start,
+			module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+		if (ret_val) {
+			pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
+			return ret_val;
+		}
+	}
+
+	if ((!strcmp("qca_spectral", mod->name)) && (event == MODULE_STATE_LIVE)) {
+		module_tlv_info.start = (uintptr_t)mod;
+		module_tlv_info.size = sizeof(struct module);
+		ret_val = fill_minidump_segments(module_tlv_info.start,
+			module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+		if (ret_val) {
+			pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
+			return ret_val;
+		}
+	}
+
+	if ((!strcmp("umac", mod->name)) && (event == MODULE_STATE_LIVE)) {
+		module_tlv_info.start = (unsigned long)mod->sect_attrs;
+		module_tlv_info.size = SZ_2K;
+		ret_val = fill_minidump_segments(module_tlv_info.start,
+			module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+		if (ret_val) {
+			pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
+			return ret_val;
+		}
+		for (i = 0; i <= mod->sect_attrs->nsections; i++) {
+			if ((!strcmp(".bss", mod->sect_attrs->attrs[i].name))) {
+				module_tlv_info.start = (unsigned long)
+					mod->sect_attrs->attrs[i].address;
+				module_tlv_info.size =
+					(unsigned long)mod->module_core +
+				(unsigned long) mod->core_size -
+				(unsigned long)
+					mod->sect_attrs->attrs[i].address;
+			       pr_err("\n MINIDUMP VA .bss start=%lx module=%s",
+					(unsigned long)
+					mod->sect_attrs->attrs[i].address,
+					mod->name);
+				ret_val = fill_minidump_segments(
+					module_tlv_info.start,
+					module_tlv_info.size,
+					QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+				if (ret_val) {
+					pr_err("MINIDUMP TLV  error %d \n",
+						ret_val);
+					return ret_val;
+				}
+			}
+		}
+		module_tlv_info.start = (uintptr_t)mod;
+		module_tlv_info.size = sizeof(struct module);
+		ret_val = fill_minidump_segments(module_tlv_info.start,
+			module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+		if (ret_val) {
+			pr_err("MINIDUMP TLV failed with error %d \n ", ret_val);
+			return ret_val;
+		}
+	}
+
+	if ((!strcmp("asf", mod->name)) && (event == MODULE_STATE_LIVE)) {
+		module_tlv_info.start = (uintptr_t)mod;
+		module_tlv_info.size = sizeof(struct module);
+		ret_val = fill_minidump_segments(module_tlv_info.start,
+			module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+		if (ret_val) {
+			pr_err(" MINIDUMP TLV  failure error %d \n", ret_val);
+			return ret_val;
+		}
+	}
+
+	if ((!strcmp("qdf", mod->name)) && (event == MODULE_STATE_LIVE)) {
+		module_tlv_info.start = (uintptr_t)mod;
+		 module_tlv_info.size = sizeof(struct module);
+		ret_val = fill_minidump_segments(module_tlv_info.start,
+			module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+		if (ret_val) {
+			pr_err("MINIDUMP TLV failure error %d \n", ret_val);
+			return ret_val;
+		}
+	}
+	return NOTIFY_OK;
+};
+
+static struct notifier_block wlan_nb = {
+	.notifier_call  = wlan_module_notifier,
+};
+
+#endif /*CONFIG_QCOM_MINIDUMP  */
 
 static inline
 struct qcom_wdt *to_qcom_wdt(struct watchdog_device *wdd)
@@ -156,7 +575,6 @@ static struct notifier_block panic_blk = {
 static long qcom_wdt_configure_bark_dump(void *arg)
 {
 	void *scm_regsave;
-	struct qcom_wdt_scm_tlv_msg tlv_msg;
 	void *tlv_ptr;
 	resource_size_t tlv_base;
 	resource_size_t tlv_size;
@@ -179,11 +597,11 @@ static long qcom_wdt_configure_bark_dump(void *arg)
 	}
 
 	/* Initialize the tlv and fill all the details */
+#ifdef CONFIG_QCOM_MINIDUMP
 	tlv_msg.msg_buffer = scm_regsave + device_props->tlv_msg_offset;
 	tlv_msg.cur_msg_buffer_pos = tlv_msg.msg_buffer;
 	tlv_msg.len = device_props->crashdump_page_size -
 				 device_props->tlv_msg_offset;
-
 	ret = qcom_wdt_scm_fill_log_dump_tlv(&tlv_msg);
 
 	/* if failed, we still return 0 because it should not
@@ -194,6 +612,7 @@ static long qcom_wdt_configure_bark_dump(void *arg)
 		pr_err("log dump initialization failed\n");
 		return 0;
 	}
+#endif
 
 	if (res) {
 		tlv_base = res->start;
@@ -213,7 +632,9 @@ static long qcom_wdt_configure_bark_dump(void *arg)
 			return 0;
 		}
 
+#ifdef CONFIG_QCOM_MINIDUMP
 		memcpy_toio(tlv_ptr, tlv_msg.msg_buffer, tlv_msg.len);
+#endif
 		iounmap(tlv_ptr);
 		release_mem_region(tlv_base, tlv_size);
 	}
@@ -363,7 +784,7 @@ const struct qcom_wdt_props qcom_wdt_props_ipq807x = {
 	 *		 ---------------
 	 */
 	.crashdump_page_size = (SZ_8K + (384 * SZ_1K) + (SZ_8K) + (3 * SZ_1K) +
-				(15 * SZ_1K) + (94 * SZ_1K)),
+				(15 * SZ_1K) + (156 * SZ_1K)),
 	.secure_wdog = true,
 };
 
@@ -614,6 +1035,11 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	if (ret)
 		dev_err(&pdev->dev, "failed to setup restart handler\n");
 
+#ifdef CONFIG_QCOM_MINIDUMP
+	ret = register_module_notifier(&wlan_nb);
+	if (ret)
+		dev_err(&pdev->dev, "failed to register WLAN modules callback \n");
+#endif
 	platform_set_drvdata(pdev, wdt);
 
 	if (!of_property_read_u32(np, "extwdt-val", &val)) {

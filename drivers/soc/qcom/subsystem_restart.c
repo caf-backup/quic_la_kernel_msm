@@ -493,30 +493,6 @@ static void notify_each_subsys_device(struct subsys_device **list,
 	}
 }
 
-static void enable_all_irqs(struct subsys_device *dev)
-{
-	if (dev->desc->wdog_bite_irq && dev->desc->wdog_bite_handler) {
-		enable_irq(dev->desc->wdog_bite_irq);
-		irq_set_irq_wake(dev->desc->wdog_bite_irq, 1);
-	}
-	if (dev->desc->err_fatal_irq && dev->desc->err_fatal_handler)
-		enable_irq(dev->desc->err_fatal_irq);
-	if (dev->desc->stop_ack_irq && dev->desc->stop_ack_handler)
-		enable_irq(dev->desc->stop_ack_irq);
-}
-
-static void disable_all_irqs(struct subsys_device *dev)
-{
-	if (dev->desc->wdog_bite_irq && dev->desc->wdog_bite_handler) {
-		disable_irq(dev->desc->wdog_bite_irq);
-		irq_set_irq_wake(dev->desc->wdog_bite_irq, 0);
-	}
-	if (dev->desc->err_fatal_irq && dev->desc->err_fatal_handler)
-		disable_irq(dev->desc->err_fatal_irq);
-	if (dev->desc->stop_ack_irq && dev->desc->stop_ack_handler)
-		disable_irq(dev->desc->stop_ack_irq);
-}
-
 int wait_for_shutdown_ack(struct subsys_desc *desc)
 {
 	int count;

@@ -454,39 +454,6 @@ static ssize_t show_auto_cmd21(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", msm_host->en_auto_cmd21);
 }
 
-/* MSM auto-tuning handler */
-static int sdhci_msm_config_auto_tuning_cmd(struct sdhci_host *host,
-					    bool enable,
-					    u32 type)
-{
-	int rc = 0;
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct sdhci_msm_host *msm_host = pltfm_host->priv;
-	const struct sdhci_msm_offset *msm_host_offset =
-					msm_host->offset;
-	u32 val = 0;
-
-	if (!msm_host->en_auto_cmd21)
-		return 0;
-
-	if (type == MMC_SEND_TUNING_BLOCK_HS200)
-		val = CORE_HC_AUTO_CMD21_EN;
-	else
-		return 0;
-
-	if (enable) {
-		rc = msm_enable_cdr_cm_sdc4_dll(host);
-		writel_relaxed(readl_relaxed(host->ioaddr +
-			msm_host_offset->CORE_VENDOR_SPEC) | val,
-			host->ioaddr + msm_host_offset->CORE_VENDOR_SPEC);
-	} else {
-		writel_relaxed(readl_relaxed(host->ioaddr +
-			msm_host_offset->CORE_VENDOR_SPEC) & ~val,
-			host->ioaddr + msm_host_offset->CORE_VENDOR_SPEC);
-	}
-	return rc;
-}
-
 static int msm_config_cm_dll_phase(struct sdhci_host *host, u8 phase)
 {
 	int rc = 0;
@@ -2304,68 +2271,6 @@ store_polling(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-
-static void sdhci_msm_check_power_status(struct sdhci_host *host, u32 req_type)
-{
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct sdhci_msm_host *msm_host = pltfm_host->priv;
-	const struct sdhci_msm_offset *msm_host_offset =
-					msm_host->offset;
-	unsigned long flags;
-	bool done = false;
-	u32 io_sig_sts;
-
-	spin_lock_irqsave(&host->lock, flags);
-	pr_debug("%s: %s: request %d curr_pwr_state %x curr_io_level %x\n",
-			mmc_hostname(host->mmc), __func__, req_type,
-			msm_host->curr_pwr_state, msm_host->curr_io_level);
-	io_sig_sts = sdhci_msm_readl_relaxed(host,
-			msm_host_offset->CORE_GENERICS);
-
-	/*
-	 * The IRQ for request type IO High/Low will be generated when -
-	 * 1. SWITCHABLE_SIGNALLING_VOL is enabled in HW.
-	 * 2. If 1 is true and when there is a state change in 1.8V enable
-	 * bit (bit 3) of SDHCI_HOST_CONTROL2 register. The reset state of
-	 * that bit is 0 which indicates 3.3V IO voltage. So, when MMC core
-	 * layer tries to set it to 3.3V before card detection happens, the
-	 * IRQ doesn't get triggered as there is no state change in this bit.
-	 * The driver already handles this case by changing the IO voltage
-	 * level to high as part of controller power up sequence. Hence, check
-	 * for host->pwr to handle a case where IO voltage high request is
-	 * issued even before controller power up.
-	 */
-	if (req_type & (REQ_IO_HIGH | REQ_IO_LOW)) {
-		if (!(io_sig_sts & SWITCHABLE_SIGNALLING_VOL) ||
-				((req_type & REQ_IO_HIGH) && !host->pwr)) {
-			pr_debug("%s: do not wait for power IRQ that never comes\n",
-					mmc_hostname(host->mmc));
-			spin_unlock_irqrestore(&host->lock, flags);
-			return;
-		}
-	}
-
-	if ((req_type & msm_host->curr_pwr_state) ||
-			(req_type & msm_host->curr_io_level))
-		done = true;
-	spin_unlock_irqrestore(&host->lock, flags);
-
-	/*
-	 * This is needed here to hanlde a case where IRQ gets
-	 * triggered even before this function is called so that
-	 * x->done counter of completion gets reset. Otherwise,
-	 * next call to wait_for_completion returns immediately
-	 * without actually waiting for the IRQ to be handled.
-	 */
-	if (done)
-		init_completion(&msm_host->pwr_irq_completion);
-	else
-		wait_for_completion(&msm_host->pwr_irq_completion);
-
-	pr_debug("%s: %s: request %d done\n", mmc_hostname(host->mmc),
-			__func__, req_type);
-}
-
 static void sdhci_msm_toggle_cdr(struct sdhci_host *host, bool enable)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -2388,11 +2293,6 @@ static void sdhci_msm_toggle_cdr(struct sdhci_host *host, bool enable)
 	}
 }
 
-static unsigned int sdhci_msm_max_segs(void)
-{
-	return SDHCI_MSM_MAX_SEGMENTS;
-}
-
 static unsigned int sdhci_msm_get_min_clock(struct sdhci_host *host)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -2411,32 +2311,6 @@ static unsigned int sdhci_msm_get_max_clock(struct sdhci_host *host)
 		max_clk_index = SDHC_EMU_MAX_CLOCKS;
 
 	return msm_host->pdata->sup_clk_table[max_clk_index - 1];
-}
-
-static unsigned int sdhci_msm_get_sup_clk_rate(struct sdhci_host *host,
-						u32 req_clk)
-{
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct sdhci_msm_host *msm_host = pltfm_host->priv;
-	unsigned int sel_clk = -1;
-	unsigned char cnt;
-
-	if (req_clk < sdhci_msm_get_min_clock(host)) {
-		sel_clk = sdhci_msm_get_min_clock(host);
-		return sel_clk;
-	}
-
-	for (cnt = 0; cnt < msm_host->pdata->sup_clk_cnt; cnt++) {
-		if (msm_host->pdata->sup_clk_table[cnt] > req_clk) {
-			break;
-		} else if (msm_host->pdata->sup_clk_table[cnt] == req_clk) {
-			sel_clk = msm_host->pdata->sup_clk_table[cnt];
-			break;
-		} else {
-			sel_clk = msm_host->pdata->sup_clk_table[cnt];
-		}
-	}
-	return sel_clk;
 }
 
 static int sdhci_msm_enable_controller_clock(struct sdhci_host *host)
@@ -2484,94 +2358,6 @@ disable_host_clk:
 disable_pclk:
 	if (!IS_ERR(msm_host->pclk))
 		clk_disable_unprepare(msm_host->pclk);
-out:
-	return rc;
-}
-
-
-
-static int sdhci_msm_prepare_clocks(struct sdhci_host *host, bool enable)
-{
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct sdhci_msm_host *msm_host = pltfm_host->priv;
-	int rc = 0;
-
-	if (enable && !atomic_read(&msm_host->clks_on)) {
-		pr_debug("%s: request to enable clocks\n",
-				mmc_hostname(host->mmc));
-
-
-		rc = sdhci_msm_enable_controller_clock(host);
-		if (rc)
-			goto out;
-
-		if (!IS_ERR_OR_NULL(msm_host->bus_clk)) {
-			rc = clk_prepare_enable(msm_host->bus_clk);
-			if (rc) {
-				pr_err("%s: %s: failed to enable the bus-clock with error %d\n",
-					mmc_hostname(host->mmc), __func__, rc);
-				goto disable_controller_clk;
-			}
-		}
-		if (!IS_ERR(msm_host->ff_clk)) {
-			rc = clk_prepare_enable(msm_host->ff_clk);
-			if (rc) {
-				pr_err("%s: %s: failed to enable the ff_clk with error %d\n",
-					mmc_hostname(host->mmc), __func__, rc);
-				goto disable_bus_clk;
-			}
-		}
-		if (!IS_ERR(msm_host->sleep_clk)) {
-			rc = clk_prepare_enable(msm_host->sleep_clk);
-			if (rc) {
-				pr_err("%s: %s: failed to enable the sleep_clk with error %d\n",
-					mmc_hostname(host->mmc), __func__, rc);
-				goto disable_ff_clk;
-			}
-		}
-		mb();
-
-	} else if (!enable && atomic_read(&msm_host->clks_on)) {
-		sdhci_writew(host, 0, SDHCI_CLOCK_CONTROL);
-		mb();
-		/*
-		 * During 1.8V signal switching the clock source must
-		 * still be ON as it requires accessing SDHC
-		 * registers (SDHCi host control2 register bit 3 must
-		 * be written and polled after stopping the SDCLK).
-		 */
-		pr_debug("%s: request to disable clocks\n",
-				mmc_hostname(host->mmc));
-		if (!IS_ERR_OR_NULL(msm_host->sleep_clk))
-			clk_disable_unprepare(msm_host->sleep_clk);
-		if (!IS_ERR_OR_NULL(msm_host->ff_clk))
-			clk_disable_unprepare(msm_host->ff_clk);
-		clk_disable_unprepare(msm_host->clk);
-		if (!IS_ERR(msm_host->ice_clk))
-			clk_disable_unprepare(msm_host->ice_clk);
-		if (!IS_ERR(msm_host->pclk))
-			clk_disable_unprepare(msm_host->pclk);
-		if (!IS_ERR_OR_NULL(msm_host->bus_clk))
-			clk_disable_unprepare(msm_host->bus_clk);
-
-		atomic_set(&msm_host->controller_clock, 0);
-	}
-	atomic_set(&msm_host->clks_on, enable);
-	goto out;
-disable_ff_clk:
-	if (!IS_ERR_OR_NULL(msm_host->ff_clk))
-		clk_disable_unprepare(msm_host->ff_clk);
-disable_bus_clk:
-	if (!IS_ERR_OR_NULL(msm_host->bus_clk))
-		clk_disable_unprepare(msm_host->bus_clk);
-disable_controller_clk:
-	if (!IS_ERR_OR_NULL(msm_host->clk))
-		clk_disable_unprepare(msm_host->clk);
-	if (!IS_ERR(msm_host->ice_clk))
-		clk_disable_unprepare(msm_host->ice_clk);
-	if (!IS_ERR_OR_NULL(msm_host->pclk))
-		clk_disable_unprepare(msm_host->pclk);
-	atomic_set(&msm_host->controller_clock, 0);
 out:
 	return rc;
 }
@@ -2831,60 +2617,6 @@ void sdhci_msm_reset(struct sdhci_host *host, u8 mask)
 		writel_relaxed(1, host->ioaddr + CORE_VENDOR_SPEC_ICE_CTRL);
 
 	sdhci_reset(host, mask);
-}
-
-/*
- * sdhci_msm_enhanced_strobe_mask :-
- * Before running CMDQ transfers in HS400 Enhanced Strobe mode,
- * SW should write 3 to
- * HC_VENDOR_SPECIFIC_FUNC3.CMDEN_HS400_INPUT_MASK_CNT register.
- * The default reset value of this register is 2.
- */
-static void sdhci_msm_enhanced_strobe_mask(struct sdhci_host *host, bool set)
-{
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct sdhci_msm_host *msm_host = pltfm_host->priv;
-	const struct sdhci_msm_offset *msm_host_offset =
-					msm_host->offset;
-
-	if (!msm_host->enhanced_strobe ||
-			!mmc_card_strobe(msm_host->mmc->card)) {
-		pr_debug("%s: host/card does not support hs400 enhanced strobe\n",
-				mmc_hostname(host->mmc));
-		return;
-	}
-
-	if (set) {
-		writel_relaxed((readl_relaxed(host->ioaddr +
-			msm_host_offset->CORE_VENDOR_SPEC3)
-			| CORE_CMDEN_HS400_INPUT_MASK_CNT),
-			host->ioaddr + msm_host_offset->CORE_VENDOR_SPEC3);
-	} else {
-		writel_relaxed((readl_relaxed(host->ioaddr +
-			msm_host_offset->CORE_VENDOR_SPEC3)
-			& ~CORE_CMDEN_HS400_INPUT_MASK_CNT),
-			host->ioaddr + msm_host_offset->CORE_VENDOR_SPEC3);
-	}
-}
-
-static void sdhci_msm_clear_set_dumpregs(struct sdhci_host *host, bool set)
-{
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct sdhci_msm_host *msm_host = pltfm_host->priv;
-	const struct sdhci_msm_offset *msm_host_offset =
-					msm_host->offset;
-
-	if (set) {
-		sdhci_msm_writel_relaxed(msm_host_offset->CORE_TESTBUS_ENA,
-			host, msm_host_offset->CORE_TESTBUS_CONFIG);
-	} else {
-		u32 value;
-		value = sdhci_msm_readl_relaxed(host,
-			msm_host_offset->CORE_TESTBUS_CONFIG);
-		value &= ~(msm_host_offset->CORE_TESTBUS_ENA);
-		sdhci_msm_writel_relaxed(value, host,
-			msm_host_offset->CORE_TESTBUS_CONFIG);
-	}
 }
 
 int sdhci_msm_notify_load(struct sdhci_host *host, enum mmc_load state)

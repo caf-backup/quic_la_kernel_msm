@@ -537,6 +537,15 @@ config QCOM_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called qcom_wdt.
 
+config QCOM_MINIDUMP
+	bool "QCOM minidump feature"
+	depends on QCOM_WDT
+	help
+	  Say Y here to include QCOM minidump feature.
+	  This feature enables dumping desired regions
+	  instead of dumping whole DDR up on system crash
+	  Currently supports  IPQ8074 target.
+
 config MESON_WATCHDOG
 	tristate "Amlogic Meson SoCs watchdog support"
 	depends on ARCH_MESON

@@ -16,10 +16,12 @@
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/qcom,gcc-ipq6018.h>
+#include "qcom-ipq6018-memory.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. IPQ6018";
 	compatible = "qcom,ipq6018";
+	qcom,msm-id = <0x192 0x0>;
 
 	soc: soc {
 		#address-cells = <0x1>;
@@ -74,6 +76,16 @@
 			reg = <0x78b0000 0x200>;
 			interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_UART2_APPS_CLK>,
+				<&gcc GCC_BLSP1_AHB_CLK>;
+			clock-names = "core", "iface";
+			status = "disabled";
+		};
+
+		blsp1_uart3: serial@78b1000 {
+			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
+			reg = <0x78b1000 0x200>;
+			interrupts = <GIC_SPI 306 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_BLSP1_UART3_APPS_CLK>,
 				<&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
 			status = "disabled";
@@ -328,7 +340,7 @@
 						<133330000>,
 						<20000000>;
 			qca,host = <1>;
-			status = "ok";
+			status = "disabled";
 
 			dwc_0: dwc3@8A00000 {
 			       compatible = "snps,dwc3";
@@ -369,7 +381,7 @@
 			assigned-clock-rates = <133330000>,
 					       <20000000>;
 			qca,host = <1>;
-			status = "ok";
+			status = "disabled";
 
 			dwc_1: dwc3@7000000 {
 			       compatible = "snps,dwc3";
@@ -653,6 +665,17 @@
 			clock-names = "core", "iface";
 			dmas = <&blsp_dma 14>, <&blsp_dma 15>;
 			dma-names = "tx", "rx";
+			status = "disabled";
+		};
+
+		pwm {
+			compatible = "qca,ipq6018-pwm";
+			reg = <0x1941010 0x20>;
+			clocks = <&gcc GCC_ADSS_PWM_CLK>;
+			clock-names = "core";
+			src-freq = <100000000>;
+			pwm-base-index = <0>;
+			used-pwm-indices = <1>, <1>, <1>, <1>;
 			status = "disabled";
 		};
 
@@ -1247,6 +1270,7 @@
 			switch_cpu_bmp = <0x1>;  /* cpu port bitmap */
 			switch_lan_bmp = <0x1e>; /* lan port bitmap */
 			switch_wan_bmp = <0x20>; /* wan port bitmap */
+			switch_inner_bmp = <0xc0>; /*inner port bitmap*/
 			switch_mac_mode = <0x0>; /* mac mode for uniphy 0*/
 			switch_mac_mode1 = <0xd>; /* mac mode for uniphy 1*/
 			switch_mac_mode2 = <0xff>; /* mac mode for uniphy 2*/
@@ -1526,249 +1550,20 @@
 			};
 		};
 
-		smmu500: arm,smmu@1E00000 {
-			compatible = "arm,smmu-v2";
-			reg = <0x01E00000 0x40000>;
-			#iommu-cells = <1>;
-			#global-interrupts = <1>;
-			interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 241 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 242 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 245 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 247 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 248 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 249 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 250 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 251 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 252 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 253 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 254 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 255 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
-			status = "disabled";
-		};
-
-		msm_imem: qcom,msm-imem@8600000 {
-			compatible = "qcom,msm-imem";
-			reg = <0x08600000 0x1000>;
-			ranges = <0x0 0x08600000 0x1000>;
-			#address-cells = <1>;
-			#size-cells = <1>;
-
-			mem_dump_table@10 {
-				compatible = "qcom,msm-imem-mem_dump_table";
-				reg = <0x10 8>;
-			};
-		};
-	};
-
-	psci {
-		compatible = "arm,psci-1.0";
-		method = "smc";
-		status = "disabled";
-	};
-
-	cpus {
-		#address-cells = <0x1>;
-		#size-cells = <0x0>;
-
-		CPU0: cpu@0 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a53";
-			reg = <0x0>;
-			enable-method = "qcom,arm-cortex-acc";
-			qcom,acc = <&acc0>;
-			next-level-cache = <&L2_0>;
-
-			L2_0: l2-cache {
-				compatible = "arm,arch-cache";
-				cache-level = <0x2>;
-			};
-		};
-
-		CPU1: cpu@1 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a53";
-			enable-method = "qcom,arm-cortex-acc";
-			qcom,acc = <&acc1>;
-			reg = <0x1>;
-			next-level-cache = <&L2_0>;
-		};
-
-		CPU2: cpu@2 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a53";
-			enable-method = "qcom,arm-cortex-acc";
-			qcom,acc = <&acc2>;
-			reg = <0x2>;
-			next-level-cache = <&L2_0>;
-		};
-
-		CPU3: cpu@3 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a53";
-			enable-method = "qcom,arm-cortex-acc";
-			qcom,acc = <&acc3>;
-			reg = <0x3>;
-			next-level-cache = <&L2_0>;
-		};
-	};
-
-	firmware {
-		scm {
-			compatible = "qcom,scm-ipq6018";
-		};
-	};
-
-	pmu {
-		compatible = "arm,armv8-pmuv3";
-		interrupts = <GIC_PPI 7 (GIC_CPU_MASK_SIMPLE(4) |
-					 IRQ_TYPE_LEVEL_HIGH)>;
-	};
-
-	memory {
-		device_type = "memory";
-		reg = <0x0 0x40000000 0x0 0x20000000>;
-	};
-
-	/*
-	 * +=========+==============+========================+
-	 * |        |              |                         |
-	 * | Region | Start Offset |          Size           |
-	 * |        |              |                         |
-	 * +--------+--------------+-------------------------+
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * |  NSS   |  0x40000000  |          16MB           |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * +--------+--------------+-------------------------+
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * | Linux  |  0x41000000  |         119MB           |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * +--------+--------------+-------------------------+
-	 * |        |              |                         |
-	 * | uboot  |  0x48700000  |           4MB           |
-	 * |        |              |                         |
-	 * +--------+--------------+-------------------------+
-	 * |  SBL   |  0x48B00000  |           1MB           |
-	 * +--------+--------------+-------------------------+
-	 * |  smem  |  0x48C00000  |           1MB           |
-	 * +--------+--------------+-------------------------+
-	 * |        |              |                         |
-	 * | TZ+HYP |  0x48D00000  |           4MB           |
-	 * |        |              |                         |
-	 * +--------+--------------+-------------------------+
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * | LPASS  |              |                         |
-	 * |   Q6   |  0x49100000  |          26MB           |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * +--------+--------------+-------------------------+
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * | WLAN   |              |                         |
-	 * |   Q6   |  0x4AB00000  |          85MB           |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * +--------+--------------+-------------------------+
-	 * |                                                 |
-	 * |            256MB memory for Linux               |
-	 * |                                                 |
-	 * +=================================================+
-	 */
-
-	reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-
-		nss@40000000 {
-			no-map;
-			reg = <0x0 0x40000000 0x0 0x01000000>;
-		};
-
-		uboot@48700000 {
-			no-map;
-			reg = <0x0 0x48700000 0x0 0x00400000>;
-		};
-
-		sbl@48b00000 {
-			no-map;
-			reg = <0x0 0x48b00000 0x0 0x00100000>;
-		};
-
-		smem_region:smem@48c00000 {
-			no-map;
-			reg = <0x0 0x48c00000 0x0 0x00100000>;
-		};
-
-		tz@48d00000 {
-			no-map;
-			reg = <0x0 0x48d00000 0x0 0x00400000>;
-		};
-
-		lpass@49100000 {
-			no-map;
-			reg = <0x0 0x49100000 0x0 0x01a00000>;
-		};
-
-		wcnss@4ab00000 {
-			no-map;
-			reg = <0x0 0x4ab00000 0x0 0x05500000>;
-		};
-
-	};
-
-	clocks {
-		sleep_clk: sleep_clk {
-			compatible = "fixed-clock";
-			clock-frequency = <32000>;
-			#clock-cells = <0>;
-		};
-
-		xo: xo {
-			compatible = "fixed-clock";
-			clock-frequency = <24000000>;
-			#clock-cells = <0>;
-		};
-	};
-
-	wifi0: wifi@c0000000 {
-		compatible = "qcom,cnss-qca6018";
-		reg = <0xc000000 0x2000000>;
-		qcom,hw-mode-id = <1>;
-		qcom,tgt-mem-mode = <0>;
-		qcom,bdf-addr = <0x4BE00000 0x4BE00000>;
-		qcom,caldb-addr = <0x4BE40000 0x4BE40000>;
-		interrupts = <0 320 1>, /* o_wcss_apps_intr[0] =  */
+		wifi0: wifi@c000000 {
+			compatible = "qcom,cnss-qca6018";
+			reg = <0xc000000 0x1000000>;
+			qcom,hw-mode-id = <1>;
+		#ifdef __IPQ_MEM_PROFILE_256_MB__
+			qcom,tgt-mem-mode = <2>;
+		#elif __IPQ_MEM_PROFILE_512_MB__
+			qcom,tgt-mem-mode = <1>;
+		#else
+			qcom,tgt-mem-mode = <0>;
+		#endif
+			qcom,bdf-addr = <0x4B900000 0x4B900000 0x4B900000>;
+			qcom,caldb-addr = <0x4B940000 0x4B940000 0x4B940000>;
+			interrupts = <0 320 1>, /* o_wcss_apps_intr[0] =  */
 			<0 319 1>,
 			<0 318 1>,
 			<0 317 1>,
@@ -1825,7 +1620,7 @@
 			<0 157 1>,
 			<0 156 1>; /* o_wcss_apps_intr[51] */
 
-		interrupt-names = "misc-pulse1",
+			interrupt-names = "misc-pulse1",
 			"misc-latch",
 			"sw-exception",
 			"watchdog",
@@ -1877,7 +1672,147 @@
 			"wbm2host-tx-completions-ring2",
 			"wbm2host-tx-completions-ring1",
 			"tcl2host-status-ring";
+			status = "ok";
+		};
+
+		smmu500: arm,smmu@1E00000 {
+			compatible = "arm,smmu-v2";
+			reg = <0x01E00000 0x40000>;
+			#iommu-cells = <1>;
+			#global-interrupts = <1>;
+			interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 241 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 242 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 245 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 247 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 248 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 249 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 250 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 251 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 252 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 253 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 254 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 255 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		msm_imem: qcom,msm-imem@8600000 {
+			compatible = "qcom,msm-imem";
+			reg = <0x08600000 0x1000>;
+			ranges = <0x0 0x08600000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mem_dump_table@10 {
+				compatible = "qcom,msm-imem-mem_dump_table";
+				reg = <0x10 8>;
+			};
+		};
+
+		qca,scm_restart_reason {
+			compatible = "qca,scm_restart_reason";
+		};
+	};
+
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
 		status = "ok";
+	};
+
+	cpus {
+		#address-cells = <0x1>;
+		#size-cells = <0x0>;
+
+		CPU0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53", "arm,armv8";
+			reg = <0x0>;
+			enable-method = "psci";
+			qcom,acc = <&acc0>;
+			next-level-cache = <&L2_0>;
+
+			L2_0: l2-cache {
+				compatible = "cache";
+				cache-level = <0x2>;
+			};
+		};
+
+		CPU1: cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53", "arm,armv8";
+			enable-method = "psci";
+			qcom,acc = <&acc1>;
+			reg = <0x1>;
+			next-level-cache = <&L2_0>;
+		};
+
+		CPU2: cpu@2 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53", "arm,armv8";
+			enable-method = "psci";
+			qcom,acc = <&acc2>;
+			reg = <0x2>;
+			next-level-cache = <&L2_0>;
+		};
+
+		CPU3: cpu@3 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53", "arm,armv8";
+			enable-method = "psci";
+			qcom,acc = <&acc3>;
+			reg = <0x3>;
+			next-level-cache = <&L2_0>;
+		};
+	};
+
+	firmware {
+		scm {
+			compatible = "qcom,scm-ipq6018";
+		};
+		qfprom {
+			compatible = "qcom,qfprom-sec";
+		};
+	};
+
+	pmu {
+		compatible = "arm,armv8-pmuv3";
+		interrupts = <GIC_PPI 7 (GIC_CPU_MASK_SIMPLE(4) |
+					 IRQ_TYPE_LEVEL_HIGH)>;
+	};
+
+	clocks {
+		sleep_clk: sleep_clk {
+			compatible = "fixed-clock";
+			clock-frequency = <32000>;
+			#clock-cells = <0>;
+		};
+
+		xo: xo {
+			compatible = "fixed-clock";
+			clock-frequency = <24000000>;
+			#clock-cells = <0>;
+		};
 	};
 
 	ion_dummy {

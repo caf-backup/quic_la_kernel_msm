@@ -158,6 +158,8 @@ struct cpr4_sdelta {
 struct cpr3_corner {
 	int			floor_volt;
 	int			ceiling_volt;
+	int			cold_temp_open_loop_volt;
+	int			normal_temp_open_loop_volt;
 	int			open_loop_volt;
 	int			last_volt;
 	int			abs_ceiling_volt;
@@ -785,6 +787,7 @@ struct cpr3_controller {
 	bool			aging_failed;
 	struct cpr3_aging_sensor_info *aging_sensor;
 	int			aging_sensor_count;
+	u32			cur_sensor_state;
 	u32			aging_possible_mask;
 	u32			aging_possible_val;
 
@@ -863,6 +866,8 @@ void cpr3_open_loop_voltage_as_ceiling(struct cpr3_regulator *vreg);
 int cpr3_limit_floor_voltages(struct cpr3_regulator *vreg);
 void cpr3_print_quots(struct cpr3_regulator *vreg);
 int cpr3_determine_part_type(struct cpr3_regulator *vreg, int fuse_volt);
+int cpr3_determine_temp_base_open_loop_correction(struct cpr3_regulator *vreg,
+			int *fuse_volt);
 int cpr3_adjust_fused_open_loop_voltages(struct cpr3_regulator *vreg,
 			int *fuse_volt);
 int cpr3_adjust_open_loop_voltages(struct cpr3_regulator *vreg);
@@ -879,6 +884,11 @@ void cprh_adjust_voltages_for_apm(struct cpr3_regulator *vreg);
 void cprh_adjust_voltages_for_mem_acc(struct cpr3_regulator *vreg);
 int cpr3_adjust_target_quotients(struct cpr3_regulator *vreg,
 			int *fuse_volt_adjust);
+int cpr3_handle_temp_open_loop_adjustment(struct cpr3_controller *ctrl,
+			bool is_cold);
+int cpr3_get_cold_temp_threshold(struct cpr3_regulator *vreg, int *cold_temp);
+bool cpr3_can_adjust_cold_temp(struct cpr3_regulator *vreg);
+
 #else
 
 static inline int cpr3_regulator_register(struct platform_device *pdev,
@@ -1037,6 +1047,13 @@ cpr3_determine_part_type(struct cpr3_regulator *vreg, int fuse_volt)
 	return -EPERM;
 }
 
+static inline int
+cpr3_determine_temp_base_open_loop_correction(struct cpr3_regulator *vreg,
+			int *fuse_volt)
+{
+	return -EPERM;
+}
+
 static inline int cpr3_adjust_fused_open_loop_voltages(
 			struct cpr3_regulator *vreg, int *fuse_volt)
 {
@@ -1095,6 +1112,24 @@ static inline int cpr3_adjust_target_quotients(struct cpr3_regulator *vreg,
 	return 0;
 }
 
+static inline int
+cpr3_handle_temp_open_loop_adjustment(struct cpr3_controller *ctrl,
+			bool is_cold)
+{
+	return 0;
+}
+
+static inline bool
+cpr3_can_adjust_cold_temp(struct cpr3_regulator *vreg)
+{
+	return false;
+}
+
+static inline int
+cpr3_get_cold_temp_threshold(struct cpr3_regulator *vreg, int *cold_temp)
+{
+	return 0;
+}
 #endif /* CONFIG_REGULATOR_CPR3 */
 
 #endif /* __REGULATOR_CPR_REGULATOR_H__ */

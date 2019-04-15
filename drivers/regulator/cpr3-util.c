@@ -27,6 +27,8 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 
+#include <soc/qcom/socinfo.h>
+
 #include "cpr3-regulator.h"
 
 #define BYTES_PER_FUSE_ROW		8
@@ -1537,13 +1539,25 @@ int cpr3_determine_part_type(struct cpr3_regulator *vreg, int fuse_volt)
 {
 	int i, rc, len;
 	u32 volt;
+	const int *soc_version_major;
+	char prop_name[100];
+	const char prop_name_def[] = "qcom,cpr-parts-voltage";
+	const char prop_name_v2[] = "qcom,cpr-parts-voltage-v2";
+
+	soc_version_major = read_ipq_soc_version_major();
+        BUG_ON(!soc_version_major);
 
 	if (of_property_read_u32(vreg->of_node, "qcom,cpr-part-types",
 				  &vreg->part_type_supported))
 		return 0;
 
-	if (!of_find_property(vreg->of_node, "qcom,cpr-parts-voltage", &len)) {
-		cpr3_err(vreg, "property qcom,cpr-parts-voltage is missing\n");
+	if (*soc_version_major > 1)
+		strlcpy(prop_name, prop_name_v2, sizeof(prop_name_v2));
+	else
+		strlcpy(prop_name, prop_name_def, sizeof(prop_name_def));
+
+	if (!of_find_property(vreg->of_node, prop_name, &len)) {
+		cpr3_err(vreg, "property %s is missing\n", prop_name);
 		return -EINVAL;
 	}
 
@@ -1554,11 +1568,10 @@ int cpr3_determine_part_type(struct cpr3_regulator *vreg, int fuse_volt)
 
 	for (i = 0; i < vreg->part_type_supported - 1; i++) {
 		rc = of_property_read_u32_index(vreg->of_node,
-						"qcom,cpr-parts-voltage",
-						i, &volt);
+					prop_name, i, &volt);
 		if (rc) {
 			cpr3_err(vreg, "error reading property %s, rc=%d\n",
-				 "qcom,cpr-parts-voltage", rc);
+				 prop_name, rc);
 			return rc;
 		}
 
@@ -1567,6 +1580,160 @@ int cpr3_determine_part_type(struct cpr3_regulator *vreg, int fuse_volt)
 	}
 
 	vreg->part_type = i;
+	return 0;
+}
+
+int cpr3_determine_temp_base_open_loop_correction(struct cpr3_regulator *vreg,
+		int *fuse_volt)
+{
+	int i, rc, prev_volt;
+	int *volt_adjust;
+	char prop_str[75];
+	const int *soc_version_major = read_ipq_soc_version_major();
+
+	BUG_ON(!soc_version_major);
+
+	if (vreg->part_type_supported) {
+		if (*soc_version_major > 1)
+			snprintf(prop_str, sizeof(prop_str),
+			"qcom,cpr-cold-temp-voltage-adjustment-v2-%d",
+			vreg->part_type);
+		else
+			snprintf(prop_str, sizeof(prop_str),
+			"qcom,cpr-cold-temp-voltage-adjustment-%d",
+			vreg->part_type);
+	} else {
+		strlcpy(prop_str, "qcom,cpr-cold-temp-voltage-adjustment",
+			sizeof(prop_str));
+	}
+
+	if (!of_find_property(vreg->of_node, prop_str, NULL)) {
+		/* No adjustment required. */
+		cpr3_info(vreg, "No cold temperature adjustment required.\n");
+		return 0;
+	}
+
+	volt_adjust = kcalloc(vreg->fuse_corner_count, sizeof(*volt_adjust),
+	GFP_KERNEL);
+	if (!volt_adjust)
+		return -ENOMEM;
+
+	rc = cpr3_parse_array_property(vreg, prop_str,
+			vreg->fuse_corner_count, volt_adjust);
+	if (rc) {
+		cpr3_err(vreg, "could not load cold temp voltage adjustments, rc=%d\n",
+			rc);
+		goto done;
+	}
+
+	for (i = 0; i < vreg->fuse_corner_count; i++) {
+		if (volt_adjust[i]) {
+			prev_volt = fuse_volt[i];
+			fuse_volt[i] += volt_adjust[i];
+			cpr3_debug(vreg,
+				"adjusted fuse corner %d open-loop voltage: %d -> %d uV\n",
+				i, prev_volt, fuse_volt[i]);
+		}
+	}
+
+done:
+	kfree(volt_adjust);
+	return rc;
+}
+
+/**
+ * cpr3_can_adjust_cold_temp() - Is cold temperature adjustment available
+ *
+ * @vreg:		Pointer to the CPR3 regulator
+ *
+ * This function checks the cold temperature threshold is available
+ *
+ * Return: true on cold temperature threshold is available, else false
+ */
+bool cpr3_can_adjust_cold_temp(struct cpr3_regulator *vreg)
+{
+	int rc;
+	char prop_str[75];
+	const int *soc_version_major = read_ipq_soc_version_major();
+
+	BUG_ON(!soc_version_major);
+
+	if (*soc_version_major > 1)
+		strlcpy(prop_str, "qcom,cpr-cold-temp-threshold-v2",
+			sizeof(prop_str));
+	else
+		strlcpy(prop_str, "qcom,cpr-cold-temp-threshold",
+			sizeof(prop_str));
+
+	if (!of_find_property(vreg->of_node, prop_str, NULL)) {
+		/* No adjustment required. */
+		return false;
+	} else
+		return true;
+}
+
+/**
+ * cpr3_get_cold_temp_threshold() - get cold temperature threshold
+ *
+ * @vreg:		Pointer to the CPR3 regulator
+ * @cold_temp:		cold temperature read.
+ *
+ * This function reads the cold temperature threshold below which
+ * cold temperature adjustment margins will be applied.
+ *
+ * Return: 0 on success, errno on failure
+ */
+int cpr3_get_cold_temp_threshold(struct cpr3_regulator *vreg, int *cold_temp)
+{
+	int rc;
+	u32 temp;
+	char req_prop_str[75], prop_str[75];
+	const int *soc_version_major = read_ipq_soc_version_major();
+
+	BUG_ON(!soc_version_major);
+
+	if (vreg->part_type_supported) {
+		if (*soc_version_major > 1)
+			snprintf(req_prop_str, sizeof(req_prop_str),
+			"qcom,cpr-cold-temp-voltage-adjustment-v2-%d",
+			vreg->part_type);
+		else
+			snprintf(req_prop_str, sizeof(req_prop_str),
+			"qcom,cpr-cold-temp-voltage-adjustment-%d",
+			vreg->part_type);
+	} else {
+		strlcpy(req_prop_str, "qcom,cpr-cold-temp-voltage-adjustment",
+			sizeof(req_prop_str));
+	}
+
+	if (*soc_version_major > 1)
+		strlcpy(prop_str, "qcom,cpr-cold-temp-threshold-v2",
+			sizeof(prop_str));
+	else
+		strlcpy(prop_str, "qcom,cpr-cold-temp-threshold",
+			sizeof(prop_str));
+
+	if (!of_find_property(vreg->of_node, req_prop_str, NULL)) {
+		/* No adjustment required. */
+		cpr3_info(vreg, "Cold temperature adjustment not required.\n");
+		return 0;
+	}
+
+	if (!of_find_property(vreg->of_node, prop_str, NULL)) {
+		/* No adjustment required. */
+                cpr3_err(vreg, "Missing %s required for %s\n",
+			prop_str, req_prop_str);
+		return -EINVAL;
+        }
+
+	rc = of_property_read_u32(vreg->of_node, prop_str, &temp);
+	if (rc) {
+		cpr3_err(vreg, "error reading property %s, rc=%d\n",
+			prop_str, rc);
+		return rc;
+	}
+
+	*cold_temp = temp;
 	return 0;
 }
 
@@ -1587,8 +1754,16 @@ int cpr3_adjust_fused_open_loop_voltages(struct cpr3_regulator *vreg,
 	int i, rc, prev_volt;
 	int *volt_adjust;
 	char prop_str[75];
+	const int *soc_version_major = read_ipq_soc_version_major();
+
+	BUG_ON(!soc_version_major);
 
 	if (vreg->part_type_supported) {
+		if (*soc_version_major > 1)
+			snprintf(prop_str, sizeof(prop_str),
+			"qcom,cpr-open-loop-voltage-fuse-adjustment-v2-%d",
+			vreg->part_type);
+		else
 		snprintf(prop_str, sizeof(prop_str),
 			 "qcom,cpr-open-loop-voltage-fuse-adjustment-%d",
 			 vreg->part_type);
@@ -1796,16 +1971,18 @@ int cpr3_parse_closed_loop_voltage_adjustments(
 	int i, rc;
 	u32 *ro_all_scale;
 
-	if (!of_find_property(vreg->of_node,
-			"qcom,cpr-closed-loop-voltage-adjustment", NULL)
-	    && !of_find_property(vreg->of_node,
-			"qcom,cpr-closed-loop-voltage-fuse-adjustment", NULL)
+	char volt_adj[] = "qcom,cpr-closed-loop-voltage-adjustment";
+	char volt_fuse_adj[] = "qcom,cpr-closed-loop-voltage-fuse-adjustment";
+	char ro_scaling[] = "qcom,cpr-ro-scaling-factor";
+
+	if (!of_find_property(vreg->of_node, volt_adj, NULL)
+	    && !of_find_property(vreg->of_node, volt_fuse_adj, NULL)
 	    && !vreg->aging_allowed) {
 		/* No adjustment required. */
 		return 0;
-	} else if (!of_find_property(vreg->of_node,
-			"qcom,cpr-ro-scaling-factor", NULL)) {
-		cpr3_err(vreg, "qcom,cpr-ro-scaling-factor is required for closed-loop voltage adjustment, but is missing\n");
+	} else if (!of_find_property(vreg->of_node, ro_scaling, NULL)) {
+		cpr3_err(vreg, "Missing %s required for closed-loop voltage adjustment.\n",
+				ro_scaling);
 		return -EINVAL;
 	}
 
@@ -1814,7 +1991,7 @@ int cpr3_parse_closed_loop_voltage_adjustments(
 	if (!ro_all_scale)
 		return -ENOMEM;
 
-	rc = cpr3_parse_array_property(vreg, "qcom,cpr-ro-scaling-factor",
+	rc = cpr3_parse_array_property(vreg, ro_scaling,
 		vreg->fuse_corner_count * CPR3_RO_COUNT, ro_all_scale);
 	if (rc) {
 		cpr3_err(vreg, "could not load RO scaling factors, rc=%d\n",
@@ -1830,10 +2007,8 @@ int cpr3_parse_closed_loop_voltage_adjustments(
 		 &ro_all_scale[vreg->corner[i].cpr_fuse_corner * CPR3_RO_COUNT],
 		 sizeof(*ro_all_scale) * CPR3_RO_COUNT);
 
-	if (of_find_property(vreg->of_node,
-			"qcom,cpr-closed-loop-voltage-fuse-adjustment", NULL)) {
-		rc = cpr3_parse_array_property(vreg,
-			"qcom,cpr-closed-loop-voltage-fuse-adjustment",
+	if (of_find_property(vreg->of_node, volt_fuse_adj, NULL)) {
+		rc = cpr3_parse_array_property(vreg, volt_fuse_adj,
 			vreg->fuse_corner_count, volt_adjust_fuse);
 		if (rc) {
 			cpr3_err(vreg, "could not load closed-loop fused voltage adjustments, rc=%d\n",
@@ -1842,10 +2017,8 @@ int cpr3_parse_closed_loop_voltage_adjustments(
 		}
 	}
 
-	if (of_find_property(vreg->of_node,
-			"qcom,cpr-closed-loop-voltage-adjustment", NULL)) {
-		rc = cpr3_parse_corner_array_property(vreg,
-			"qcom,cpr-closed-loop-voltage-adjustment",
+	if (of_find_property(vreg->of_node, volt_adj, NULL)) {
+		rc = cpr3_parse_corner_array_property(vreg, volt_adj,
 			1, volt_adjust);
 		if (rc) {
 			cpr3_err(vreg, "could not load closed-loop voltage adjustments, rc=%d\n",

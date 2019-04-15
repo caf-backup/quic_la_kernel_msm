@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 - 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -13,14 +13,6 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#include "../../../arm64/boot/dts/qcom/qcom-ipq807x-oak01.dts"
 
-/ {
-	soc {
-		pmu {
-			compatible = "arm,cortex-a7-pmu";
-			interrupts = <GIC_PPI 7 (GIC_CPU_MASK_SIMPLE(4) |
-					IRQ_TYPE_LEVEL_HIGH)>;
-		};
-	};
-};
+#include "../../../arm64/boot/dts/qcom/qcom-ipq6018-cp03-c1.dts"
+#include "qcom-ipq6018.dtsi"

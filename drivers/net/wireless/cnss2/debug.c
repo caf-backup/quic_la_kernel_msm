@@ -16,10 +16,11 @@
 #include "main.h"
 #include "debug.h"
 #include "pci.h"
-
 #define CNSS_IPC_LOG_PAGES		32
 
 void *cnss_ipc_log_context;
+extern void qmi_record(u16, u8);
+extern void cnss_dump_qmi_history(void);
 
 static int cnss_pin_connect_show(struct seq_file *s, void *data)
 {
@@ -150,7 +151,6 @@ static ssize_t cnss_dev_boot_debug_write(struct file *fp,
 
 	buf[len] = '\0';
 	cmd = (char *)buf;
-
 	if (sysfs_streq("on", cmd)) {
 		ret = cnss_power_on_device(plat_priv, 0);
 	} else if (sysfs_streq("off", cmd)) {
@@ -214,12 +214,47 @@ static const struct file_operations cnss_dev_boot_debug_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= seq_lseek,
 };
+
+static ssize_t cnss_qmi_record_debug_write(struct file *fp,
+					   const char __user *user_buf,
+					   size_t count, loff_t *off)
+{
+	char buf[2];
+
+	if (copy_from_user(buf, user_buf, 2))
+		return -EFAULT;
+	qmi_record(0xD000 | buf[0], buf[1]);
+	return count;
+}
+
+static int cnss_qmi_record_debug_show(struct seq_file *s, void *data)
+{
+	cnss_dump_qmi_history();
+	return 0;
+}
+
+static int cnss_qmi_record_debug_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, cnss_qmi_record_debug_show, inode->i_private);
+}
+
+static const struct file_operations cnss_qmi_record_debug_fops = {
+	.read		= seq_read,
+	.write		= cnss_qmi_record_debug_write,
+	.release	= single_release,
+	.open		= cnss_qmi_record_debug_open,
+	.owner		= THIS_MODULE,
+	.llseek		= seq_lseek,
+};
+
 static int cnss_create_debug_only_node(struct cnss_plat_data *plat_priv)
 {
 	struct dentry *root_dentry = plat_priv->root_dentry;
 
 	debugfs_create_file("dev_boot", 0600, root_dentry, plat_priv,
 			    &cnss_dev_boot_debug_fops);
+	debugfs_create_file("qmi_record", 0600, root_dentry, plat_priv,
+			    &cnss_qmi_record_debug_fops);
 
 	return 0;
 }

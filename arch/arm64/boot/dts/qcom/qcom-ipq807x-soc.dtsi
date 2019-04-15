@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -524,11 +524,70 @@
 			#hwlock-cells = <1>;
 		};
 
+		tcsr_q6_block: syscon@1945000 {
+			compatible = "syscon";
+			reg = <0x1945000 0xE000>;
+		};
+
+		apcs_glb: mailbox@b111000 {
+			compatible = "qcom,msm8996-apcs-hmss-global";
+			qcom,ipc = <&apcs 8 8>;
+
+			#mbox-cells = <1>;
+		};
+
 		mdio@90000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "qcom,ipq40xx-mdio";
 			reg = <0x90000 0x64>;
+		};
+
+		qcom_q6v5_wcss: qcom_q6v5_wcss@CD00000 {
+			compatible = "qcom,ipq8074-wcss-pil";
+			reg = <0xCD00000 0x4040>,
+				<0x4ab000 0x20>;
+			reg-names = "qdsp6",
+				"rmb";
+			qca,auto-restart;
+			qca,extended-intc;
+			interrupts-extended = <&intc 0 325 1>,
+					<&wcss_smp2p_in 0 0>,
+					<&wcss_smp2p_in 1 0>,
+					<&wcss_smp2p_in 2 0>,
+					<&wcss_smp2p_in 3 0>;
+			interrupt-names = "wdog",
+					"fatal",
+					"ready",
+					"handover",
+					"stop-ack";
+
+			resets = <&gcc GCC_WCSSAON_RESET>,
+				<&gcc GCC_WCSS_BCR>,
+				<&gcc GCC_WCSS_Q6_BCR>;
+
+			reset-names = "wcss_aon_reset",
+				"wcss_reset",
+				"wcss_q6_reset";
+
+			qcom,halt-regs = <&tcsr_q6_block 0xA000 0xD000 0x0>;
+
+			qcom,smem-states = <&wcss_smp2p_out 0>,
+					<&wcss_smp2p_out 1>;
+			qcom,smem-state-names = "shutdown",
+						"stop";
+
+			memory-region = <&q6_region>;
+
+			glink-edge {
+				interrupts = <GIC_SPI 321 IRQ_TYPE_EDGE_RISING>;
+				qcom,remote-pid = <1>;
+				mboxes = <&apcs_glb 8>;
+
+				rpm_requests {
+					qcom,glink-channels = "IPCRTR";
+				};
+			};
 		};
 
 		ess-switch@3a000000 {
@@ -807,6 +866,7 @@
 			qcom,crypto-enabled;
 			qcom,ipsec-enabled;
 			qcom,qvpn-enabled;
+			qcom,pvxlan-enabled;
 		};
 
 		nss_crypto: qcom,nss_crypto {
@@ -1381,38 +1441,39 @@
 				qcom,emulation = <1>;
 				dr_mode = "host";
 			};
-	                qcom,usbbam@8B04000 {
-				compatible = "qcom,usb-bam-msm";
-				reg = <0x8B04000 0x17000>;
-				interrupt-parent = <&intc>;
-				interrupts = <0 135 0>;
 
-				qcom,bam-type = <0>;
-				qcom,usb-bam-fifo-baseaddr = <0x4A600000>;
-				qcom,usb-bam-num-pipes = <4>;
-				qcom,ignore-core-reset-ack;
-				qcom,disable-clk-gating;
-				qcom,usb-bam-override-threshold = <0x4001>;
-				qcom,usb-bam-max-mbps-highspeed = <400>;
-				qcom,usb-bam-max-mbps-superspeed = <3600>;
-				qcom,reset-bam-on-connect;
+		};
 
-				qcom,pipe0 {
-					label = "ssusb-qdss-in-0";
-					qcom,usb-bam-mem-type = <2>;
-					qcom,dir = <1>;
-					qcom,pipe-num = <0>;
-					qcom,peer-bam = <0>;
-					qcom,peer-bam-physical-address = <0x6044000>;
-					qcom,src-bam-pipe-index = <0>;
-					qcom,dst-bam-pipe-index = <0>;
-					qcom,data-fifo-offset = <0x0>;
-					qcom,data-fifo-size = <0xe00>;
-					qcom,descriptor-fifo-offset = <0xe00>;
-					qcom,descriptor-fifo-size = <0x200>;
-				};
+                qcom,usbbam@8B04000 {
+			compatible = "qcom,usb-bam-msm";
+			reg = <0x8B04000 0x17000>;
+			interrupt-parent = <&intc>;
+			interrupts = <0 135 0>;
+
+			qcom,bam-type = <0>;
+			qcom,usb-bam-fifo-baseaddr = <0x4A600000>;
+			qcom,usb-bam-num-pipes = <4>;
+			qcom,ignore-core-reset-ack;
+			qcom,disable-clk-gating;
+			qcom,usb-bam-override-threshold = <0x4001>;
+			qcom,usb-bam-max-mbps-highspeed = <400>;
+			qcom,usb-bam-max-mbps-superspeed = <3600>;
+			qcom,reset-bam-on-connect;
+
+			qcom,pipe0 {
+				label = "ssusb-qdss-in-0";
+				qcom,usb-bam-mem-type = <2>;
+				qcom,dir = <1>;
+				qcom,pipe-num = <0>;
+				qcom,peer-bam = <0>;
+				qcom,peer-bam-physical-address = <0x6044000>;
+				qcom,src-bam-pipe-index = <0>;
+				qcom,dst-bam-pipe-index = <0>;
+				qcom,data-fifo-offset = <0x0>;
+				qcom,data-fifo-size = <0xe00>;
+				qcom,descriptor-fifo-offset = <0xe00>;
+				qcom,descriptor-fifo-size = <0x200>;
 			};
-
 		};
 
 		usb3_1: usb3@8C00000 {
@@ -1696,14 +1757,14 @@
 			reg = <0xc000000 0x2000000>;
 			qcom,hw-mode-id = <1>;
 		#ifdef __IPQ_MEM_PROFILE_256_MB__
-			qcom,tgt-mem-mode = <1>;
+			qcom,tgt-mem-mode = <2>;
 		#elif __IPQ_MEM_PROFILE_512_MB__
 			qcom,tgt-mem-mode = <1>;
 		#else
 			qcom,tgt-mem-mode = <0>;
 		#endif
-			qcom,bdf-addr = <0x4BE00000 0x4BE00000>;
-			qcom,caldb-addr = <0x4BE40000 0x4BE40000>;
+			qcom,bdf-addr = <0x4B0C0000 0x4B0C0000 0x4B0C0000>;
+			qcom,caldb-addr = <0x4BA00000 0x4BA00000 0x0>;
 			interrupts = <0 320 1>, /* o_wcss_apps_intr[0] =  */
 				<0 319 1>,
 				<0 318 1>,
@@ -1821,14 +1882,15 @@
 			reg = <0xc000000 0x2000000>;
 			qcom,hw-mode-id = <1>;
 		#ifdef __IPQ_MEM_PROFILE_256_MB__
-			qcom,tgt-mem-mode = <1>;
+			qcom,tgt-mem-mode = <2>;
 		#elif __IPQ_MEM_PROFILE_512_MB__
 			qcom,tgt-mem-mode = <1>;
 		#else
 			qcom,tgt-mem-mode = <0>;
 		#endif
-			qcom,bdf-addr = <0x4BE00000 0x4BE00000>;
-			qcom,caldb-addr = <0x4BE40000 0x4BE40000>;
+			qcom,rproc = <&qcom_q6v5_wcss>;
+			qcom,bdf-addr = <0x4B0C0000 0x4B0C0000 0x4B0C0000>;
+			qcom,caldb-addr = <0x4BA00000 0x4BA00000 0x0>;
 			interrupts = <0 320 1>, /* o_wcss_apps_intr[0] =  */
 				<0 319 1>,
 				<0 318 1>,

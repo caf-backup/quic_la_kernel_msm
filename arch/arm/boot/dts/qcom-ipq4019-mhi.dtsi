@@ -25,7 +25,7 @@
 			compatible  = "qcom,cnss-qca6290";
 			qcom,mhi = <&mhi_wlan>;
 			qcom,wlan-ramdump-dynamic = <0x400000>;
-			status = "ok";
+			status = "disabled";
 		};
 
 		mhi: qcom,mhi {

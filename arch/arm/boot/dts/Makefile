@@ -516,6 +516,7 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-ipq4019-ap.dk07.1-c4.dtb \
 	qcom-ipq6018-emulation-c1.dtb \
 	qcom-ipq6018-emulation-c2.dtb \
+	qcom-ipq6018-emulation-c3.dtb \
 	qcom-apq8064-cm-qs600.dtb \
 	qcom-apq8064-ifc6410.dtb \
 	qcom-apq8074-dragonboard.dtb \
@@ -550,6 +551,9 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-msm8660-surf.dtb \
 	qcom-msm8960-cdp.dtb \
 	qcom-msm8974-sony-xperia-honami.dtb \
+	qcom-ipq6018-cp01-c1.dtb \
+	qcom-ipq6018-cp02-c1.dtb \
+	qcom-ipq6018-cp03-c1.dtb \
 	qcom-ipq807x-hk01.dtb \
 	qcom-ipq807x-hk01.c2.dtb \
 	qcom-ipq807x-hk01.c3.dtb \
@@ -565,7 +569,6 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-ipq807x-ac02.dtb \
 	qcom-ipq807x-ac03.dtb \
 	qcom-ipq807x-ac04.dtb \
-	qcom-ipq807x-oak01.dtb \
 	qcom-ipq807x-oak02.dtb \
 	qcom-ipq807x-oak03.dtb \
 	qcom-ipq807x-db.hk01.dtb \

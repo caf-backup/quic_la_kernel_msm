@@ -27,11 +27,11 @@
 #define Q6_CALDB_SIZE_QCA6290 0x100000
 #define Q6_CALDB_ADDR 0x50000000
 #define Q6_CALDB_SIZE 0x480000
-#define QMI_HISTORY_SIZE 64
+#define QMI_HISTORY_SIZE 128
 struct qmi_history {
-	u8  msg_id;
+	u16  msg_id;
 	u8  error_msg;
-	u8  reserved[6];
+	u8  reserved[5];
 	u64 timestamp;
 };
 

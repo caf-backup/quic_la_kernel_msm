@@ -121,6 +121,8 @@ enum wil_nl_60g_evt_type {
 
 enum wil_nl_60g_debug_cmd {
 	NL_60G_DBG_FORCE_WMI_SEND,
+	NL_60G_GEN_RADAR_ALLOC_BUFFER,
+	NL_60G_GEN_FW_RESET,
 };
 
 struct wil_nl_60g_send_receive_wmi {
@@ -2795,8 +2797,7 @@ wil_cfg80211_sched_scan_start(struct wiphy *wiphy,
 }
 
 static int
-wil_cfg80211_sched_scan_stop(struct wiphy *wiphy, struct net_device *dev,
-			     u64 reqid)
+wil_cfg80211_sched_scan_stop(struct wiphy *wiphy, struct net_device *dev)
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 	struct wil6210_vif *vif = ndev_to_vif(dev);
@@ -4060,6 +4061,23 @@ static int wil_nl_60g_handle_cmd(struct wiphy *wiphy, struct wireless_dev *wdev,
 
 			wil_dbg_wmi(wil, "force sending wmi commands %d\n",
 				    wil->force_wmi_send);
+			break;
+		case NL_60G_GEN_FW_RESET:
+			if (!test_bit(WMI_FW_CAPABILITY_WMI_ONLY,
+				      wil->fw_capabilities)) {
+				rc = -EOPNOTSUPP;
+				break;
+			}
+
+			wil_dbg_misc(wil,
+				     "NL_60G_GEN_FW_RESET, resetting...\n");
+
+			mutex_lock(&wil->mutex);
+			down_write(&wil->mem_lock);
+			rc = wil_reset(wil, true);
+			up_write(&wil->mem_lock);
+			mutex_unlock(&wil->mutex);
+
 			break;
 		default:
 			rc = -EINVAL;
