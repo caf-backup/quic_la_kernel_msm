@@ -389,44 +389,6 @@ out:
 	return rc;
 }
 
-/*
- * Enable CDR to track changes of DAT lines and adjust sampling
- * point according to voltage/temperature variations
- */
-static int msm_enable_cdr_cm_sdc4_dll(struct sdhci_host *host)
-{
-	int rc = 0;
-	u32 config;
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct sdhci_msm_host *msm_host = pltfm_host->priv;
-	const struct sdhci_msm_offset *msm_host_offset =
-					msm_host->offset;
-
-	config = readl_relaxed(host->ioaddr +
-		msm_host_offset->CORE_DLL_CONFIG);
-	config |= CORE_CDR_EN;
-	config &= ~(CORE_CDR_EXT_EN | CORE_CK_OUT_EN);
-	writel_relaxed(config, host->ioaddr +
-		msm_host_offset->CORE_DLL_CONFIG);
-
-	rc = msm_dll_poll_ck_out_en(host, 0);
-	if (rc)
-		goto err;
-
-	writel_relaxed((readl_relaxed(host->ioaddr +
-		msm_host_offset->CORE_DLL_CONFIG) | CORE_CK_OUT_EN),
-		host->ioaddr + msm_host_offset->CORE_DLL_CONFIG);
-
-	rc = msm_dll_poll_ck_out_en(host, 1);
-	if (rc)
-		goto err;
-	goto out;
-err:
-	pr_err("%s: %s: failed\n", mmc_hostname(host->mmc), __func__);
-out:
-	return rc;
-}
-
 static ssize_t store_auto_cmd21(struct device *dev, struct device_attribute
 				*attr, const char *buf, size_t count)
 {
