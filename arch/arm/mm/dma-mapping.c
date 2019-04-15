@@ -1942,7 +1942,7 @@ arm_iommu_create_mapping(struct device *dev, struct bus_type *bus,
 	struct iommu_domain *domain;
 
 	domain = iommu_get_domain_for_dev(dev);
-	if (domain->handler_token)
+	if (domain && domain->handler_token)
 		return (struct dma_iommu_mapping *)domain->handler_token;
 
 	/* currently only 32-bit DMA address space is supported */
@@ -2049,12 +2049,6 @@ static int __arm_iommu_attach_device(struct device *dev,
 		err = fast_smmu_attach_device(dev, mapping);
 		if (err)
 			return err;
-		err = iommu_dma_init_domain(domain, mapping->base,
-								mapping->size);
-		if (err)
-			/* Detach the domain? */
-			return err;
-		dev->archdata.dma_ops = &fast_smmu_dma_ops;
 	} else if (domain->handler_token) {
 		dev->archdata.dma_ops = &fast_smmu_dma_ops;
 		dev->archdata.mapping = domain->handler_token;
@@ -2064,6 +2058,8 @@ static int __arm_iommu_attach_device(struct device *dev,
 		err = iommu_attach_device(mapping->domain, dev);
 		if (err)
 			return err;
+		kref_get(&mapping->kref);
+		to_dma_iommu_mapping(dev) = mapping;
 	}
 
 	pr_debug("Attached IOMMU controller to %s device.\n", dev_name(dev));
@@ -2132,12 +2128,6 @@ EXPORT_SYMBOL_GPL(arm_iommu_detach_device);
 static const struct dma_map_ops *arm_get_iommu_dma_map_ops(struct device *dev,
 								bool coherent)
 {
-	/* If fast DMA mapping is enabled, dma_ops is updated with
-	 * fast_smmu_dma_ops in __arm_iommu_attach_device(), use the same
-	 */
-	if (fast)
-		return dev->archdata.dma_ops;
-
 	return coherent ? &iommu_coherent_ops : &iommu_ops;
 }
 
