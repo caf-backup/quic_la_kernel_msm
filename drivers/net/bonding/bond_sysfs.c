@@ -909,7 +909,7 @@ static ssize_t bonding_show_l2da_multimac(struct device *d,
 					  char *buf)
 {
 	struct bonding *bond = to_bond(d);
-	struct bond_opt_value *val;
+	const struct bond_opt_value *val;
 
 	val = bond_opt_get_val(BOND_OPT_L2DA_MULTIMAC,
 			       bond->l2da_info.multimac);
@@ -1030,4 +1030,3 @@ void bond_prepare_sysfs_group(struct bonding *bond)
 {
 	bond->dev->sysfs_groups[0] = &bonding_group;
 }
-

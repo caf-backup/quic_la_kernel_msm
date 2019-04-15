@@ -132,5 +132,5 @@ static inline void __bond_opt_init(struct bond_opt_value *optval,
 
 void bond_option_arp_ip_targets_clear(struct bonding *bond);
 int bond_option_l2da_multimac_set(struct bonding *bond,
-				  struct bond_opt_value *newval);
+				  const struct bond_opt_value *newval);
 #endif /* _NET_BOND_OPTIONS_H */
