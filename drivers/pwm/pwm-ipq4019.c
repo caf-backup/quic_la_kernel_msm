@@ -237,8 +237,8 @@ static int ipq4019_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			period_ns < ipq4019_chip->ops->min_period_ns) {
 		pr_err("PWM Frequency range supported is %dHz to %dHz\n"
 			"Switching to default configuration values\n",
-			NSEC_PER_SEC / ipq4019_chip->ops->max_period_ns,
-			NSEC_PER_SEC / ipq4019_chip->ops->min_period_ns);
+		       (int)NSEC_PER_SEC / ipq4019_chip->ops->max_period_ns,
+		       (int)NSEC_PER_SEC / ipq4019_chip->ops->min_period_ns);
 		period_ns = DEFAULT_PERIOD_NS;
 		duty_ns = DEFAULT_DUTY_CYCLE_NS;
 		pwm->period = period_ns;
@@ -337,7 +337,7 @@ static int ipq4019_pwm_probe(struct platform_device *pdev)
 	}
 
 	pwm->ops = (struct ipq_pwm_ops*) dev_data;
-	of_property_read_u64(dev->of_node, "src-freq", src_freq);
+	of_property_read_u64(dev->of_node, "src-freq", (u64 *)src_freq);
 
 	pwm->clk = devm_clk_get(dev, "core");
 	if (!IS_ERR(pwm->clk)) {

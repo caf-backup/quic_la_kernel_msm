@@ -440,15 +440,6 @@ static struct resource_table *q6v5_find_loaded_rsc_table(struct rproc *rproc,
 	return &(q6v5_rtable.rtable);
 }
 
-static struct resource_table *q6v5_find_rsc_table(struct rproc *rproc,
-	const struct firmware *fw, int *tablesz)
-{
-	*tablesz = sizeof(struct q6v5_rtable);
-
-	q6v5_rtable.rtable.offset[0] = sizeof(struct resource_table);
-	return &(q6v5_rtable.rtable);
-}
-
 static void wcss_powerdown(struct q6v5_rproc_pdata *pdata)
 {
 	unsigned int nretry = 0;

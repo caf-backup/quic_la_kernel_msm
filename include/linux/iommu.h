@@ -555,21 +555,10 @@ static inline int iommu_fwspec_add_ids(struct device *dev, u32 *ids,
 	return -ENODEV;
 }
 
-static int iommu_dma_supported(struct iommu_domain *domain, struct device *dev,
-			       u64 mask)
-{
-	return -EINVAL;
-}
-
 static inline void iommu_tlbiall(struct iommu_domain *domain)
 {
 }
 
-static int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
-								u64 size)
-{
-	return -EINVAL;
-}
 #endif /* CONFIG_IOMMU_API */
 
 #endif /* __LINUX_IOMMU_H */

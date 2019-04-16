@@ -66,14 +66,6 @@ static struct resource_table *m3_find_loaded_rsc_table(struct rproc *rproc,
 	return &(m3_rtable.rtable);
 }
 
-static struct resource_table *m3_find_rsc_table(struct rproc *rproc,
-	const struct firmware *fw, int *tablesz)
-{
-	*tablesz = sizeof(struct m3_rtable);
-
-	return &(m3_rtable.rtable);
-}
-
 static void *m3_da_to_va(struct rproc *rproc, u64 da, int len)
 {
 	unsigned long addr = (__force unsigned long)(da & 0xFFFFFFFF);
