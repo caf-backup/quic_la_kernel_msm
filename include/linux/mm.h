@@ -1821,7 +1821,10 @@ extern void zone_pcp_reset(struct zone *zone);
 
 /* page_alloc.c */
 extern int min_free_kbytes;
-extern int low_free_kbytes_ratio;
+
+#ifndef CONFIG_NUMA
+extern int min_max_free_kbytes[2];
+#endif /* CONFIG_NUMA */
 
 /* nommu.c */
 extern atomic_long_t mmap_pages_allocated;

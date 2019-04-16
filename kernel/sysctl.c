@@ -1392,14 +1392,16 @@ static struct ctl_table vm_table[] = {
 		.proc_handler	= min_free_kbytes_sysctl_handler,
 		.extra1		= &zero,
 	},
+#ifndef CONFIG_NUMA
 	{
-		.procname	= "low_free_kbytes_ratio",
-		.data		= &low_free_kbytes_ratio,
-		.maxlen		= sizeof(low_free_kbytes_ratio),
+		.procname	= "min_max_free_kbytes",
+		.data		= &min_max_free_kbytes,
+		.maxlen		= sizeof(min_max_free_kbytes),
 		.mode		= 0644,
-		.proc_handler	= low_free_kbytes_ratio_sysctl_handler,
+		.proc_handler	= min_max_free_kbytes_sysctl_handler,
 		.extra1		= &zero,
 	},
+#endif /* !CONFIG_NUMA */
 	{
 		.procname	= "percpu_pagelist_fraction",
 		.data		= &percpu_pagelist_fraction,

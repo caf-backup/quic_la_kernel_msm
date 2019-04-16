@@ -239,7 +239,9 @@ compound_page_dtor * const compound_page_dtors[] = {
 };
 
 int min_free_kbytes = 1024;
-int low_free_kbytes_ratio;
+#ifndef CONFIG_NUMA
+int min_max_free_kbytes[2];
+#endif /* !CONFIG_NUMA */
 int user_min_free_kbytes = -1;
 
 static unsigned long __meminitdata nr_kernel_pages;
@@ -6041,7 +6043,6 @@ static void setup_per_zone_lowmem_reserve(void)
 static void __setup_per_zone_wmarks(void)
 {
 	unsigned long pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
-	unsigned long pages_low;
 	unsigned long lowmem_pages = 0;
 	struct zone *zone;
 	unsigned long flags;
@@ -6081,22 +6082,23 @@ static void __setup_per_zone_wmarks(void)
 			zone->watermark[WMARK_MIN] = tmp;
 		}
 
+#ifndef CONFIG_NUMA
 		if ((zone == &zone->zone_pgdat->node_zones[ZONE_NORMAL]) &&
-							low_free_kbytes_ratio) {
-			pages_low = (zone->managed_pages *
-					low_free_kbytes_ratio) / 100;
-			zone->watermark[WMARK_LOW]  = pages_low;
-			zone->watermark[WMARK_HIGH] = pages_low +
-							(pages_low >> 1);
+			min_max_free_kbytes[0] && min_max_free_kbytes[1]) {
+			zone->watermark[WMARK_LOW]  = min_max_free_kbytes[0];
+			zone->watermark[WMARK_HIGH] = min_max_free_kbytes[1];
 			pr_info("Modified watermark limit:low:%lukB\thigh:%lukB\n",
 				K(zone->watermark[WMARK_LOW]),
 				K(zone->watermark[WMARK_HIGH]));
 		} else {
+#endif /* !CONFIG_NUMA */
 			zone->watermark[WMARK_LOW] = min_wmark_pages(zone) +
 							(tmp >> 2);
 			zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) +
 							(tmp >> 1);
+#ifndef CONFIG_NUMA
 		}
+#endif /* !CONFIG_NUMA */
 
 		__mod_zone_page_state(zone, NR_ALLOC_BATCH,
 			high_wmark_pages(zone) - low_wmark_pages(zone) -
@@ -6237,33 +6239,61 @@ int min_free_kbytes_sysctl_handler(struct ctl_table *table, int write,
 	return 0;
 }
 
+#ifndef CONFIG_NUMA
+unsigned int default_min_wmark;
+
+static int __init default_minmax_wmark(void)
+{
+	struct zone *zone;
+
+	/* There is only one ZONE_NORMAL */
+	for_each_zone(zone) {
+		if (zone == &zone->zone_pgdat->node_zones[ZONE_NORMAL]) {
+			default_min_wmark = zone->watermark[WMARK_LOW];
+		}
+	}
+
+	return 0;
+}
+fs_initcall(default_minmax_wmark);
+
 /*
- * low_free_kbytes_ratio_sysctl_handler - just a wrapper around proc_dointvec()
- *	so that we can call two helper functions whenever low_free_kbytes_ratio
+ * min_max_free_kbytes_sysctl_handler - just a wrapper around proc_dointvec()
+ *	so that we can call two helper functions whenever min_max_free_kbytes
  *	changes.
  */
-int low_free_kbytes_ratio_sysctl_handler(struct ctl_table *table, int write,
+int min_max_free_kbytes_sysctl_handler(struct ctl_table *table, int write,
 	void __user *buffer, size_t *length, loff_t *ppos)
 {
 	int rc;
-	int tmp = low_free_kbytes_ratio;
+	int tmp = min_max_free_kbytes[0];
+	int tmp1 = min_max_free_kbytes[1];
 
 	rc = proc_dointvec_minmax(table, write, buffer, length, ppos);
 	if (rc)
 		return rc;
 
 	if (write) {
-		if (low_free_kbytes_ratio && (low_free_kbytes_ratio < 10 ||
-						low_free_kbytes_ratio > 40)) {
-			pr_warn("low_free_kbytes_ratio is not in the permissible range\n");
-			low_free_kbytes_ratio = tmp;
+		if (min_max_free_kbytes[0] >= min_max_free_kbytes[1]) {
+			pr_warn("min should be less than max\n");
+			min_max_free_kbytes[0] = tmp;
+			min_max_free_kbytes[1] = tmp1;
 			return -EINVAL;
 		}
+
+		if (min_max_free_kbytes[0] < default_min_wmark) {
+			pr_warn("min must be > %dkB\n", default_min_wmark * 4);
+			min_max_free_kbytes[0] = tmp;
+			min_max_free_kbytes[1] = tmp1;
+			return -EINVAL;
+		}
+
 		setup_per_zone_wmarks();
 	}
 
 	return 0;
 }
+#endif /* !CONFIG_NUMA */
 
 #ifdef CONFIG_NUMA
 int sysctl_min_unmapped_ratio_sysctl_handler(struct ctl_table *table, int write,
