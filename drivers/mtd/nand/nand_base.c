@@ -3949,7 +3949,7 @@ ident_done:
 		*maf_id, *dev_id);
 
 	if (chip->onfi_version)
-		pr_info("%s %s\n", nand_manuf_ids[maf_idx].name,
+		pr_info("ONFI %d-Compliant %s %s\n", chip->onfi_version, nand_manuf_ids[maf_idx].name,
 				chip->onfi_params.model);
 	else if (chip->jedec_version)
 		pr_info("%s %s\n", nand_manuf_ids[maf_idx].name,
