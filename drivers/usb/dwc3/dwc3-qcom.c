@@ -143,8 +143,7 @@ static int dwc3_qcom_register_extcon(struct dwc3_qcom *qcom)
 	if (IS_ERR(qcom->host_edev))
 		qcom->host_edev = NULL;
 
-	ret = devm_extcon_register_notifier(dev, qcom->edev, EXTCON_USB,
-					    &qcom->vbus_nb);
+	ret = extcon_register_notifier(qcom->edev, EXTCON_USB, &qcom->vbus_nb);
 	if (ret < 0) {
 		dev_err(dev, "VBUS notifier register failed\n");
 		return ret;
@@ -156,16 +155,16 @@ static int dwc3_qcom_register_extcon(struct dwc3_qcom *qcom)
 		host_edev = qcom->edev;
 
 	qcom->host_nb.notifier_call = dwc3_qcom_host_notifier;
-	ret = devm_extcon_register_notifier(dev, host_edev, EXTCON_USB_HOST,
-					    &qcom->host_nb);
+	ret = extcon_register_notifier(host_edev, EXTCON_USB_HOST,
+				       &qcom->host_nb);
 	if (ret < 0) {
 		dev_err(dev, "Host notifier register failed\n");
 		return ret;
 	}
 
 	/* Update initial VBUS override based on extcon state */
-	if (extcon_get_state(qcom->edev, EXTCON_USB) ||
-	    !extcon_get_state(host_edev, EXTCON_USB_HOST))
+	if (extcon_get_cable_state_(qcom->edev, EXTCON_USB) ||
+	    !extcon_get_cable_state_(host_edev, EXTCON_USB_HOST))
 		dwc3_qcom_vbus_notifier(&qcom->vbus_nb, true, qcom->edev);
 	else
 		dwc3_qcom_vbus_notifier(&qcom->vbus_nb, false, qcom->edev);
@@ -425,25 +424,24 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, qcom);
 	qcom->dev = &pdev->dev;
 
-	qcom->resets = devm_reset_control_array_get_optional_exclusive(dev);
+	qcom->resets = devm_reset_control_get(dev, "usb30_mstr_rst");
 	if (IS_ERR(qcom->resets)) {
 		ret = PTR_ERR(qcom->resets);
-		dev_err(&pdev->dev, "failed to get resets, err=%d\n", ret);
-		return ret;
-	}
+		dev_dbg(dev, "failed to get resets, err=%d\n", ret);
+	} else {
+		ret = reset_control_assert(qcom->resets);
+		if (ret) {
+			dev_err(dev, "failed to assert resets, err=%d\n", ret);
+			return ret;
+		}
 
-	ret = reset_control_assert(qcom->resets);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to assert resets, err=%d\n", ret);
-		return ret;
-	}
+		usleep_range(10, 1000);
 
-	usleep_range(10, 1000);
-
-	ret = reset_control_deassert(qcom->resets);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to deassert resets, err=%d\n", ret);
-		goto reset_assert;
+		ret = reset_control_deassert(qcom->resets);
+		if (ret) {
+			dev_err(dev, "failed to deassert resets, err=%d\n", ret);
+			goto reset_assert;
+		}
 	}
 
 	ret = dwc3_qcom_clk_init(qcom, of_count_phandle_with_args(np,
@@ -521,7 +519,8 @@ clk_disable:
 		clk_put(qcom->clks[i]);
 	}
 reset_assert:
-	reset_control_assert(qcom->resets);
+	if (!IS_ERR(qcom->resets))
+		reset_control_assert(qcom->resets);
 
 	return ret;
 }
@@ -540,7 +539,8 @@ static int dwc3_qcom_remove(struct platform_device *pdev)
 	}
 	qcom->num_clocks = 0;
 
-	reset_control_assert(qcom->resets);
+	if (!IS_ERR(qcom->resets))
+		reset_control_assert(qcom->resets);
 
 	pm_runtime_allow(dev);
 	pm_runtime_disable(dev);
