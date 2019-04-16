@@ -883,7 +883,7 @@ static bool do_iommu_attach(struct device *dev, const struct iommu_ops *ops,
 		if (iommu_dma_init_domain(domain, dma_base, size))
 			goto out_detach;
 
-		dev->archdata.dma_ops = &fast_smmu_dma_ops;
+		dev->archdata.dma_ops = &iommu_dma_ops;
 	}
 
 	return ret;
