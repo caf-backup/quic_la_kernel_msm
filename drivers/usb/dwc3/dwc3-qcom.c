@@ -56,6 +56,12 @@ struct dwc3_qcom {
 	struct notifier_block	vbus_nb;
 	struct notifier_block	host_nb;
 
+	bool			vbus_status;
+	bool			id_status;
+	struct work_struct	vbus_work;
+	struct work_struct	host_work;
+	struct workqueue_struct	*dwc3_wq;
+
 	enum usb_dr_mode	mode;
 	bool			is_suspended;
 	bool			pm_suspended;
@@ -100,13 +106,61 @@ static void dwc3_qcom_vbus_overrride_enable(struct dwc3_qcom *qcom, bool enable)
 	}
 }
 
+static void dwc3_otg_start_peripheral(struct work_struct *w)
+{
+	struct dwc3_qcom *qcom = container_of(w, struct dwc3_qcom, vbus_work);
+	struct dwc3 *dwc = platform_get_drvdata(qcom->dwc3);
+	int ret;
+
+	dwc3_qcom_vbus_overrride_enable(qcom, qcom->vbus_status);
+	if (qcom->vbus_status) {
+		dev_dbg(qcom->dev, "turn on dwc3 gadget\n");
+		dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_DEVICE);
+		ret = usb_gadget_vbus_connect(&dwc->gadget);
+		if (ret)
+			dev_err(qcom->dev, "%s: vbus connect  failed\n",
+								__func__);
+	} else {
+		dev_dbg(qcom->dev, "turn off dwc3 gadget\n");
+		ret = usb_gadget_vbus_disconnect(&dwc->gadget);
+		if (ret)
+			dev_err(qcom->dev, "%s: vbus disconnect failed\n",
+								__func__);
+	}
+}
+
+static void dwc3_otg_start_host(struct work_struct *w)
+{
+	struct dwc3_qcom *qcom = container_of(w, struct dwc3_qcom, host_work);
+	struct dwc3 *dwc = platform_get_drvdata(qcom->dwc3);
+	int ret;
+
+	dwc3_qcom_vbus_overrride_enable(qcom, qcom->id_status);
+	if (qcom->id_status) {
+		dev_dbg(qcom->dev, "turn on dwc3 host\n");
+		dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_HOST);
+		ret = dwc3_host_init(dwc);
+		if (ret)
+			dev_err(dwc->dev, "failed to register xHCI device\n");
+
+	} else {
+		dev_dbg(qcom->dev, "turn off dwc3 host\n");
+		dwc3_host_exit(dwc);
+	}
+}
+
+
 static int dwc3_qcom_vbus_notifier(struct notifier_block *nb,
 				   unsigned long event, void *ptr)
 {
 	struct dwc3_qcom *qcom = container_of(nb, struct dwc3_qcom, vbus_nb);
 
-	/* enable vbus override for device mode */
-	dwc3_qcom_vbus_overrride_enable(qcom, event);
+	if (qcom->vbus_status == event)
+		return NOTIFY_DONE;
+
+	qcom->vbus_status = event;
+	queue_work(qcom->dwc3_wq, &qcom->vbus_work);
+
 	qcom->mode = event ? USB_DR_MODE_PERIPHERAL : USB_DR_MODE_HOST;
 
 	return NOTIFY_DONE;
@@ -117,8 +171,12 @@ static int dwc3_qcom_host_notifier(struct notifier_block *nb,
 {
 	struct dwc3_qcom *qcom = container_of(nb, struct dwc3_qcom, host_nb);
 
-	/* disable vbus override in host mode */
-	dwc3_qcom_vbus_overrride_enable(qcom, !event);
+	if (qcom->id_status == event)
+		return NOTIFY_DONE;
+
+	qcom->id_status = event;
+	queue_work(qcom->dwc3_wq, &qcom->host_work);
+
 	qcom->mode = event ? USB_DR_MODE_HOST : USB_DR_MODE_PERIPHERAL;
 
 	return NOTIFY_DONE;
@@ -424,6 +482,15 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, qcom);
 	qcom->dev = &pdev->dev;
 
+	INIT_WORK(&qcom->vbus_work, dwc3_otg_start_peripheral);
+	INIT_WORK(&qcom->host_work, dwc3_otg_start_host);
+
+	qcom->dwc3_wq = alloc_ordered_workqueue("dwc3_wq", 0);
+	if (!qcom->dwc3_wq) {
+		pr_err("%s: Unable to create workqueue dwc3_wq\n", __func__);
+		return -ENOMEM;
+	}
+
 	qcom->resets = devm_reset_control_get(dev, "usb30_mstr_rst");
 	if (IS_ERR(qcom->resets)) {
 		ret = PTR_ERR(qcom->resets);
@@ -522,6 +589,7 @@ reset_assert:
 	if (!IS_ERR(qcom->resets))
 		reset_control_assert(qcom->resets);
 
+	destroy_workqueue(qcom->dwc3_wq);
 	return ret;
 }
 
@@ -530,6 +598,11 @@ static int dwc3_qcom_remove(struct platform_device *pdev)
 	struct dwc3_qcom *qcom = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
 	int i;
+
+	extcon_unregister_notifier(qcom->edev, EXTCON_USB, &qcom->vbus_nb);
+	extcon_unregister_notifier(qcom->host_edev, EXTCON_USB_HOST,
+				   &qcom->host_nb);
+	destroy_workqueue(qcom->dwc3_wq);
 
 	of_platform_depopulate(dev);
 
