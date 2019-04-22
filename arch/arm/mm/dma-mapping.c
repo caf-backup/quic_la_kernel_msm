@@ -1979,9 +1979,13 @@ arm_iommu_create_mapping(struct device *dev, struct bus_type *bus,
 
 	spin_lock_init(&mapping->lock);
 
-	mapping->domain = iommu_domain_alloc(bus);
-	if (!mapping->domain)
-		goto err4;
+	if (domain) {
+		mapping->domain = domain;
+	} else {
+		mapping->domain = iommu_domain_alloc(bus);
+		if (!mapping->domain)
+			goto err4;
+	}
 
 	kref_init(&mapping->kref);
 	return mapping;
@@ -2043,23 +2047,31 @@ static int __arm_iommu_attach_device(struct device *dev,
 	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
 	int err;
 
-	if (fast && !domain->handler_token) {
-		/* detach the existing and attach to fast mapping domain */
-		iommu_detach_device(mapping->domain, dev);
-		err = fast_smmu_attach_device(dev, mapping);
-		if (err)
-			return err;
-	} else if (domain->handler_token) {
-		dev->archdata.dma_ops = &fast_smmu_dma_ops;
-		dev->archdata.mapping = domain->handler_token;
-		mapping = domain->handler_token;
-		kref_get(&mapping->kref);
+	if (fast) {
+		if (!domain->handler_token) {
+			/**
+			 * detach the existing and attach to fast mapping
+			 * domain
+			 */
+			iommu_detach_device(mapping->domain, dev);
+			err = fast_smmu_attach_device(dev, mapping);
+			if (err)
+				return err;
+		} else {
+			dev->archdata.dma_ops = &fast_smmu_dma_ops;
+			dev->archdata.mapping = domain->handler_token;
+			mapping = domain->handler_token;
+			kref_get(&mapping->kref);
+		}
 	} else {
-		err = iommu_attach_device(mapping->domain, dev);
-		if (err)
-			return err;
+		/**
+		 * device is already attached to the default domain. So just
+		 * take the reference for the mapping structure
+		 */
 		kref_get(&mapping->kref);
 		to_dma_iommu_mapping(dev) = mapping;
+		if (!domain->handler_token)
+			domain->handler_token = mapping;
 	}
 
 	pr_debug("Attached IOMMU controller to %s device.\n", dev_name(dev));
@@ -2084,9 +2096,11 @@ int arm_iommu_attach_device(struct device *dev,
 {
 	int err;
 
-	err = __arm_iommu_attach_device(dev, mapping);
+	err = iommu_attach_device(mapping->domain, dev);
 	if (err)
 		return err;
+	kref_get(&mapping->kref);
+	to_dma_iommu_mapping(dev) = mapping;
 
 	/* TODO: Should this be removed when fast DMA mapping is enabled? */
 	set_dma_ops(dev, &iommu_ops);
