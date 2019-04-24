@@ -43,6 +43,20 @@ struct cnss_plat_data;
 extern bool daemon_support;
 extern bool cold_boot_support;
 
+#define QDSS_TRACE_SEG_LEN_MAX 32
+#define QDSS_TRACE_FILE_NAME_MAX 16
+struct cnss_mem_seg {
+	u64 addr;
+	u32 size;
+};
+
+struct cnss_qmi_event_qdss_trace_save_data {
+	u32 total_size;
+	u32 mem_seg_len;
+	struct cnss_mem_seg mem_seg[QDSS_TRACE_SEG_LEN_MAX];
+	char file_name[QDSS_TRACE_FILE_NAME_MAX + 1];
+};
+
 void cnss_dump_qmi_history(void);
 int cnss_qmi_init(struct cnss_plat_data *plat_priv);
 void cnss_qmi_deinit(struct cnss_plat_data *plat_priv);
@@ -67,5 +81,6 @@ int cnss_wlfw_athdiag_write_send_sync(struct cnss_plat_data *plat_priv,
 				      u32 data_len, u8 *data);
 int cnss_wlfw_ini_send_sync(struct cnss_plat_data *plat_priv,
 			    u8 fw_log_mode);
+int cnss_wlfw_qdss_trace_mem_info_send_sync(struct cnss_plat_data *plat_priv);
 
 #endif /* _CNSS_QMI_H */

@@ -6,3 +6,4 @@ cnss2-y += pci.o
 cnss2-y += power.o
 cnss2-y += qmi.o
 cnss2-y += wlan_firmware_service_v01.o
+cnss2-y += bus.o
