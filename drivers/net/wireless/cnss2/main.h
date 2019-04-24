@@ -24,12 +24,7 @@
 #include "qmi.h"
 
 #define MAX_NO_OF_MAC_ADDR		4
-
-enum cnss_dev_bus_type {
-	CNSS_BUS_NONE = -1,
-	CNSS_BUS_PCI,
-	CNSS_BUS_AHB,
-};
+#define QMI_WLFW_MAX_NUM_MEM_SEG 32
 
 struct cnss_vreg_info {
 	struct regulator *reg;
@@ -131,6 +126,9 @@ enum cnss_driver_event_type {
 	CNSS_DRIVER_EVENT_FORCE_FW_ASSERT,
 	CNSS_DRIVER_EVENT_POWER_UP,
 	CNSS_DRIVER_EVENT_POWER_DOWN,
+	CNSS_DRIVER_EVENT_QDSS_TRACE_REQ_MEM,
+	CNSS_DRIVER_EVENT_QDSS_TRACE_SAVE,
+	CNSS_DRIVER_EVENT_QDSS_TRACE_FREE,
 	CNSS_DRIVER_EVENT_MAX,
 };
 
@@ -208,6 +206,8 @@ struct cnss_plat_data {
 	u32 fw_mem_seg_len;
 	struct cnss_fw_mem fw_mem[QMI_WLFW_MAX_NUM_MEM_SEG_V01];
 	struct cnss_fw_mem m3_mem;
+	u32 qdss_mem_seg_len;
+	struct cnss_fw_mem qdss_mem[QMI_WLFW_MAX_NUM_MEM_SEG];
 	int tgt_mem_cfg_mode;
 	struct cnss_pin_connect_result pin_result;
 	struct dentry *root_dentry;
@@ -221,8 +221,6 @@ struct cnss_plat_data {
 	int table_index;
 };
 
-void *cnss_bus_dev_to_bus_priv(struct device *dev);
-struct cnss_plat_data *cnss_bus_dev_to_plat_priv(struct device *dev);
 int cnss_driver_event_post(struct cnss_plat_data *plat_priv,
 			   enum cnss_driver_event_type type,
 			   bool sync, void *data);
@@ -235,6 +233,6 @@ void cnss_unregister_ramdump(struct cnss_plat_data *plat_priv);
 void cnss_set_pin_connect_status(struct cnss_plat_data *plat_priv);
 u32 cnss_get_wake_msi(struct cnss_plat_data *plat_priv);
 struct cnss_plat_data *cnss_get_plat_priv_by_device_id(int id);
+struct cnss_plat_data *cnss_get_plat_priv(struct platform_device *plat_dev);
 int cnss_qca6290_shutdown_part2(struct cnss_plat_data *plat_priv);
-
 #endif /* _CNSS_MAIN_H */

@@ -21,6 +21,7 @@
 #include "main.h"
 #include "debug.h"
 #include "pci.h"
+#include "bus.h"
 
 #define PCI_LINK_UP			1
 #define PCI_LINK_DOWN			0
@@ -908,6 +909,63 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 #endif
 
 	return 0;
+}
+
+int cnss_pci_alloc_qdss_mem(struct cnss_pci_data *pci_priv)
+{
+	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
+	struct cnss_fw_mem *qdss_mem = plat_priv->qdss_mem;
+	int i, j;
+
+	for (i = 0; i < plat_priv->qdss_mem_seg_len; i++) {
+		if (!qdss_mem[i].va && qdss_mem[i].size) {
+			qdss_mem[i].va =
+				dma_alloc_coherent(&pci_priv->pci_dev->dev,
+						   qdss_mem[i].size,
+						   &qdss_mem[i].pa,
+						   GFP_KERNEL);
+			if (!qdss_mem[i].va) {
+				cnss_pr_err("Failed to allocate QDSS memory for FW, size: 0x%zx, type: %u, chuck-ID: %d\n",
+					    qdss_mem[i].size,
+					    qdss_mem[i].type, i);
+				break;
+			}
+		}
+	}
+
+	/* Best-effort allocation for QDSS trace */
+	if (i < plat_priv->qdss_mem_seg_len) {
+		for (j = i; j < plat_priv->qdss_mem_seg_len; j++) {
+			qdss_mem[j].type = 0;
+			qdss_mem[j].size = 0;
+		}
+		plat_priv->qdss_mem_seg_len = i;
+	}
+
+	return 0;
+}
+
+void cnss_pci_free_qdss_mem(struct cnss_pci_data *pci_priv)
+{
+	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
+	struct cnss_fw_mem *qdss_mem = plat_priv->qdss_mem;
+	int i;
+
+	for (i = 0; i < plat_priv->qdss_mem_seg_len; i++) {
+		if (qdss_mem[i].va && qdss_mem[i].size) {
+			cnss_pr_dbg("Freeing memory for QDSS: pa: %pa, size: 0x%zx, type: %u\n",
+				    &qdss_mem[i].pa, qdss_mem[i].size,
+				    qdss_mem[i].type);
+			dma_free_coherent(&pci_priv->pci_dev->dev,
+					  qdss_mem[i].size, qdss_mem[i].va,
+					  qdss_mem[i].pa);
+			qdss_mem[i].va = NULL;
+			qdss_mem[i].pa = 0;
+			qdss_mem[i].size = 0;
+			qdss_mem[i].type = 0;
+		}
+	}
+	plat_priv->qdss_mem_seg_len = 0;
 }
 
 static void cnss_pci_free_fw_mem(struct cnss_pci_data *pci_priv)
@@ -1860,6 +1918,7 @@ void cnss_pci_remove(struct pci_dev *pci_dev)
 
 	cnss_pci_free_m3_mem(pci_priv);
 	cnss_pci_free_fw_mem(pci_priv);
+	cnss_pci_free_qdss_mem(pci_priv);
 	mhi_free_irq(&pci_priv->mhi_dev);
 
 	switch (pci_dev->device) {
