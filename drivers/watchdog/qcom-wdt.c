@@ -26,7 +26,7 @@
 #include <linux/smp.h>
 #include <linux/utsname.h>
 #include <linux/sizes.h>
-#ifdef CONFIG_QCOM_MINIDUMP
+#ifdef CONFIG_QCA_MINIDUMP
 #include <linux/minidump_tlv.h>
 #include <linux/spinlock.h>
 #include <linux/pfn.h>
@@ -74,23 +74,25 @@ struct qcom_wdt {
 	struct resource *tlv_res;
 };
 
-#ifdef CONFIG_QCOM_MINIDUMP
+#ifdef CONFIG_QCA_MINIDUMP
+char mod_log[BUFLEN];
+int mod_log_len;
 qcom_wdt_scm_tlv_msg_t tlv_msg;
 DEFINE_SPINLOCK(minidump_tlv_spinlock);
 static int qcom_wdt_scm_add_tlv(struct qcom_wdt_scm_tlv_msg *scm_tlv_msg,
 			unsigned char type, unsigned int size, const char *data);
 
-extern void get_l1_page_info(uint64_t *pt_start, uint64_t *pt_len);
-extern unsigned long get_l2_page_info(const void *vmalloc_addr);
-extern unsigned long get_l3_page_info(const void *vmalloc_addr);
-extern unsigned long dump_mmu_info(const void *vmalloc_addr);
+extern void get_pgd_info(uint64_t *pt_start, uint64_t *pt_len);
+extern unsigned long get_pt_info(const void *vmalloc_addr);
+extern unsigned long get_pmd_info(const void *vmalloc_addr);
+extern void get_linux_buf_info(uint64_t *plinux_buf, uint64_t *plinux_buf_len);
 #endif
 static void __iomem *wdt_addr(struct qcom_wdt *wdt, enum wdt_reg reg)
 {
 	return wdt->base + wdt->dev_props->layout[reg];
 };
 
-#ifdef CONFIG_QCOM_MINIDUMP
+#ifdef CONFIG_QCA_MINIDUMP
 static int qcom_wdt_scm_add_tlv(struct qcom_wdt_scm_tlv_msg *scm_tlv_msg,
 			unsigned char type, unsigned int size, const char *data)
 {
@@ -111,6 +113,10 @@ static int qcom_wdt_scm_add_tlv(struct qcom_wdt_scm_tlv_msg *scm_tlv_msg,
 	return 0;
 }
 
+/* For 32 bit config we need corresponding PT entries in addition to PGD for
+pagetable walk construction. For 64 bit we require corrsponding PMD
+and PT enteries,in addition to PGD to construct pagetable walk */
+
 int get_highmem_info(const void *vmalloc_addr, unsigned char type)
 {
 	struct minidump_tlv_info minidump_mmu_tlv_info;
@@ -118,7 +124,7 @@ int get_highmem_info(const void *vmalloc_addr, unsigned char type)
 	int ret;
 
 	if (IS_ENABLED(CONFIG_ARM64)) {
-		minidump_mmu_tlv_info.start = get_l2_page_info((const void *)
+		minidump_mmu_tlv_info.start = get_pt_info((const void *)
 							vmalloc_addr);
 		minidump_mmu_tlv_info.size = SZ_4K;
 		if (!minidump_mmu_tlv_info.start) {
@@ -141,7 +147,7 @@ int get_highmem_info(const void *vmalloc_addr, unsigned char type)
 			QCA_WDT_LOG_DUMP_TYPE_INVALID;
 		spin_unlock(&minidump_tlv_spinlock);
 
-		minidump_mmu_tlv_info.start = get_l3_page_info
+		minidump_mmu_tlv_info.start = get_pmd_info
 				((const void *)vmalloc_addr);
 		minidump_mmu_tlv_info.size = SZ_4K;
 		if (!minidump_mmu_tlv_info.start) {
@@ -164,7 +170,7 @@ int get_highmem_info(const void *vmalloc_addr, unsigned char type)
 					QCA_WDT_LOG_DUMP_TYPE_INVALID;
 		spin_unlock(&minidump_tlv_spinlock);
 	} else {
-		minidump_mmu_tlv_info.start = dump_mmu_info((const void *)
+		minidump_mmu_tlv_info.start = get_pt_info((const void *)
 						vmalloc_addr);
 		minidump_mmu_tlv_info.size = SZ_2K;
 		if (!minidump_mmu_tlv_info.start) {
@@ -190,7 +196,7 @@ int get_highmem_info(const void *vmalloc_addr, unsigned char type)
 	return 0;
 }
 
-int fill_minidump_segments(uint64_t start_addr, uint64_t size, unsigned char type)
+int fill_minidump_segments(uint64_t start_addr, uint64_t size, unsigned char type, char *name)
 {
 	int ret;
 	struct minidump_tlv_info minidump_tlv_info;
@@ -199,7 +205,14 @@ int fill_minidump_segments(uint64_t start_addr, uint64_t size, unsigned char typ
 	uint64_t temp_start_addr = start_addr;
 	struct qcom_wdt_scm_tlv_msg *scm_tlv_msg = &tlv_msg;
 
-	/* VA to PA address translation for low mem addresses*/
+    if ( name != NULL )
+        store_module_info(name ,(unsigned long) start_addr, type);
+
+/* VA to PA translation for low mem addresses. For 32 bit config
+we use __pa() API to get the PA and only PGD is used for
+pagetable walk construction. For 64 bit config we use __pa() API
+to get the PA and we require corrsponding PMD and PT enteries,
+in addition to PGD to construct pagetable walk */
 	if ((unsigned long)start_addr >= PAGE_OFFSET && (unsigned long)
 					start_addr
 					< (unsigned long)high_memory) {
@@ -223,6 +236,8 @@ int fill_minidump_segments(uint64_t start_addr, uint64_t size, unsigned char typ
 		*scm_tlv_msg->cur_msg_buffer_pos =
 			QCA_WDT_LOG_DUMP_TYPE_INVALID;
 		spin_unlock(&minidump_tlv_spinlock);
+
+		/* For 64 bit config, additonally dump PMD and PT entries */
 		if (IS_ENABLED(CONFIG_ARM64) && type ==
 				 QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD) {
 			ret = get_highmem_info((const void *)(temp_start_addr
@@ -234,7 +249,10 @@ int fill_minidump_segments(uint64_t start_addr, uint64_t size, unsigned char typ
 			}
 		}
 	} else {
-		/* Dump Level 2 pagetable for high mem addresses*/
+		/* VA to PA translation for high mem addresses. For 32 bit config
+		we need crooesponding PT entries in addition to PGD for
+		pagetable walk construction. For 64 bit we require corrsponding PMD
+		and PT enteries,in addition to PGD to construct pagetable walk */
 		ret = get_highmem_info((const void *) (start_addr &
 					(~(PAGE_SIZE - 1))), type);
 		if (ret) {
@@ -242,7 +260,9 @@ int fill_minidump_segments(uint64_t start_addr, uint64_t size, unsigned char typ
 			return ret;
 		}
 
-		/* VA to PA address translation for high mem addresses*/
+		/* VA to PA address translation for high mem addresses
+		cannot be done using __pa() API. Use vmalloc_to_page ()
+		and page_to_phys() APIs for the same */
 		minidump_tlv_page = vmalloc_to_page((const void *)
 				(start_addr & (~(PAGE_SIZE - 1))));
 		phys_addr = page_to_phys(minidump_tlv_page) +
@@ -273,6 +293,40 @@ int fill_minidump_segments(uint64_t start_addr, uint64_t size, unsigned char typ
 }
 EXPORT_SYMBOL(fill_minidump_segments);
 
+/* Function to store module address info */
+
+int store_module_info(char *name ,unsigned long address, unsigned char type)
+{
+	char substring[MOD_LOG_LEN];
+	int ret_val =0;
+
+	if ( type == QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD ) {
+		ret_val = snprintf(substring,MOD_LOG_LEN,
+			"\n WLAN DS \"%s\" virtual address = %lx ",
+				name , address);
+	} else if ( type == QCA_WDT_LOG_DUMP_TYPE_LEVEL1_PT ) {
+		ret_val = snprintf(substring,MOD_LOG_LEN,
+			"\n \"%s\"  physical address = %lx ",
+				name , address);
+	} else {
+		ret_val = snprintf(substring,MOD_LOG_LEN,
+			"\n module \"%s.ko\" .bss virtual address = %lx ",
+				name , address);
+	}
+
+	if ( ret_val > MOD_LOG_LEN )
+		ret_val = MOD_LOG_LEN;
+
+	if ( mod_log_len + ret_val >=  BUFLEN )
+        return -ENOBUFS;
+
+    snprintf(mod_log + mod_log_len, MOD_LOG_LEN,"%s",substring);
+    mod_log_len=strlen(mod_log);
+	return 0;
+}
+EXPORT_SYMBOL(store_module_info);
+
+
 static int qcom_wdt_scm_fill_log_dump_tlv(
 			struct qcom_wdt_scm_tlv_msg *scm_tlv_msg)
 {
@@ -280,7 +334,12 @@ static int qcom_wdt_scm_fill_log_dump_tlv(
 	int ret_val;
 	struct minidump_tlv_info pagetable_tlv_info;
 	struct minidump_tlv_info log_buf_info;
+	struct minidump_tlv_info linux_banner_info;
+	mod_log_len = 0;
 	uname = utsname();
+
+	snprintf(mod_log,BUFLEN,"\nModule Info\n");
+	mod_log_len = strlen(mod_log);
 
 	ret_val = qcom_wdt_scm_add_tlv(scm_tlv_msg,
 			QCA_WDT_LOG_DUMP_TYPE_UNAME,
@@ -291,18 +350,34 @@ static int qcom_wdt_scm_fill_log_dump_tlv(
 		return ret_val;
 	get_log_buf_info(&log_buf_info.start, &log_buf_info.size);
 	ret_val = fill_minidump_segments(log_buf_info.start, log_buf_info.size,
-						QCA_WDT_LOG_DUMP_TYPE_DMESG);
+						QCA_WDT_LOG_DUMP_TYPE_DMESG, NULL);
 	if (ret_val) {
 		pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
 		return ret_val;
 	}
 
-	get_l1_page_info(&pagetable_tlv_info.start, &pagetable_tlv_info.size);
+	get_pgd_info(&pagetable_tlv_info.start, &pagetable_tlv_info.size);
 	ret_val = fill_minidump_segments(pagetable_tlv_info.start,
-			pagetable_tlv_info.size,
-			QCA_WDT_LOG_DUMP_TYPE_LEVEL1_PT);
+				pagetable_tlv_info.size,QCA_WDT_LOG_DUMP_TYPE_LEVEL1_PT, NULL);
 	if (ret_val) {
 		pr_err("MINIDUMP failed while MMU info %d \n", ret_val);
+		return ret_val;
+	}
+
+	ret_val = store_module_info("PGD",(unsigned long)__pa(pagetable_tlv_info.start),
+								QCA_WDT_LOG_DUMP_TYPE_LEVEL1_PT);
+	get_linux_buf_info(&linux_banner_info.start, &linux_banner_info.size);
+	ret_val = fill_minidump_segments(linux_banner_info.start, linux_banner_info.size,
+				QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
+	if (ret_val) {
+		pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
+		return ret_val;
+	}
+
+	ret_val = fill_minidump_segments((uint64_t) mod_log,(uint64_t)__pa(&mod_log_len),
+					QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD_INFO, NULL);
+	if (ret_val) {
+		pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
 		return ret_val;
 	}
 
@@ -312,7 +387,6 @@ static int qcom_wdt_scm_fill_log_dump_tlv(
 
 	return 0;
 }
-
 
 /*Notfier Call back for WLAN MODULE LIST */
 
@@ -329,7 +403,7 @@ static int wlan_module_notifier(struct notifier_block *nb, unsigned long event,
 		module_tlv_info.start = (uintptr_t)mod;
 		module_tlv_info.size = sizeof(struct module);
 		ret_val = fill_minidump_segments(module_tlv_info.start,
-			module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+			module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 		if (ret_val) {
 			pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
 			return ret_val;
@@ -338,7 +412,7 @@ static int wlan_module_notifier(struct notifier_block *nb, unsigned long event,
 		module_tlv_info.size = sizeof(struct module);
 		ret_val = fill_minidump_segments(module_tlv_info.start,
 				module_tlv_info.size,
-				QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+				QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 		if (ret_val) {
 			pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
 			return ret_val;
@@ -350,7 +424,7 @@ static int wlan_module_notifier(struct notifier_block *nb, unsigned long event,
 		module_tlv_info.start = (uintptr_t)mod;
 		module_tlv_info.size = sizeof(struct module);
 		ret_val = fill_minidump_segments(module_tlv_info.start,
-			module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+			module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 		if (ret_val) {
 			pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
 			return ret_val;
@@ -364,7 +438,7 @@ static int wlan_module_notifier(struct notifier_block *nb, unsigned long event,
 		module_tlv_info.size = sizeof(struct module);
 		ret_val = fill_minidump_segments(module_tlv_info.start,
 				module_tlv_info.size,
-				QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+				QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 		if (ret_val) {
 			pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
 			return ret_val;
@@ -376,7 +450,7 @@ static int wlan_module_notifier(struct notifier_block *nb, unsigned long event,
 		module_tlv_info.start = (uintptr_t)mod;
 		module_tlv_info.size = sizeof(struct module);
 		ret_val = fill_minidump_segments(module_tlv_info.start,
-			 module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+			 module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 		if (ret_val) {
 			pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
 			return ret_val;
@@ -389,7 +463,7 @@ static int wlan_module_notifier(struct notifier_block *nb, unsigned long event,
 		module_tlv_info.size = SZ_2K;
 		ret_val = fill_minidump_segments(module_tlv_info.start,
 				 module_tlv_info.size,
-				QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+				QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 		if (ret_val) {
 			pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
 			return ret_val;
@@ -402,14 +476,20 @@ static int wlan_module_notifier(struct notifier_block *nb, unsigned long event,
 					+ (unsigned long) mod->core_size
 					- (unsigned long)
 					mod->sect_attrs->attrs[i].address;
-			      pr_err("\n MINIDUMP VA .bss start=%lx module=%s",
+					pr_err("\n MINIDUMP VA .bss start=%lx module=%s",
 					(unsigned long)
 					mod->sect_attrs->attrs[i].address,
-						 mod->name);
+						mod->name);
+
+				/* Log .bss VA of module in buffer */
+				ret_val = store_module_info(mod->name,
+								mod->sect_attrs->attrs[i].address,
+								QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD_INFO);
+
 				ret_val = fill_minidump_segments(
 					module_tlv_info.start,
 					module_tlv_info.size,
-					QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+					QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 				if (ret_val) {
 					pr_err("MINIDUMP TLV failure error %d",
 					ret_val);
@@ -422,7 +502,7 @@ static int wlan_module_notifier(struct notifier_block *nb, unsigned long event,
 		module_tlv_info.size = sizeof(struct module);
 		ret_val = fill_minidump_segments(module_tlv_info.start,
 					 module_tlv_info.size,
-					 QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+					 QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 		if (ret_val) {
 			pr_err("MINIDUMP TLV failure error %d \n", ret_val);
 			return ret_val;
@@ -434,7 +514,7 @@ static int wlan_module_notifier(struct notifier_block *nb, unsigned long event,
 		module_tlv_info.start = (unsigned long)mod->sect_attrs;
 		module_tlv_info.size = SZ_2K;
 		ret_val = fill_minidump_segments(module_tlv_info.start,
-			 module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+			 module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 		if (ret_val) {
 			pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
 			return ret_val;
@@ -452,9 +532,14 @@ static int wlan_module_notifier(struct notifier_block *nb, unsigned long event,
 					(unsigned long)
 					mod->sect_attrs->attrs[i].address,
 					mod->name);
+				/* Log .bss VA of module in buffer */
+				ret_val = store_module_info(mod->name,
+							mod->sect_attrs->attrs[i].address,
+							QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD_INFO);
+
 				ret_val = fill_minidump_segments(module_tlv_info.start,
-					module_tlv_info.size,
-					QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+							module_tlv_info.size,
+							QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 				if (ret_val) {
 					pr_err("MINIDUMP TLV  error %d \n ", ret_val);
 					return ret_val;
@@ -464,7 +549,7 @@ static int wlan_module_notifier(struct notifier_block *nb, unsigned long event,
 		module_tlv_info.start = (uintptr_t)mod;
 		module_tlv_info.size = sizeof(struct module);
 		ret_val = fill_minidump_segments(module_tlv_info.start,
-			module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+			module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 		if (ret_val) {
 			pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
 			return ret_val;
@@ -475,7 +560,7 @@ static int wlan_module_notifier(struct notifier_block *nb, unsigned long event,
 		module_tlv_info.start = (uintptr_t)mod;
 		module_tlv_info.size = sizeof(struct module);
 		ret_val = fill_minidump_segments(module_tlv_info.start,
-			module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+			module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 		if (ret_val) {
 			pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
 			return ret_val;
@@ -486,7 +571,7 @@ static int wlan_module_notifier(struct notifier_block *nb, unsigned long event,
 		module_tlv_info.start = (unsigned long)mod->sect_attrs;
 		module_tlv_info.size = SZ_2K;
 		ret_val = fill_minidump_segments(module_tlv_info.start,
-			module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+			module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 		if (ret_val) {
 			pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
 			return ret_val;
@@ -504,10 +589,15 @@ static int wlan_module_notifier(struct notifier_block *nb, unsigned long event,
 					(unsigned long)
 					mod->sect_attrs->attrs[i].address,
 					mod->name);
+				/* Log .bss VA of module in buffer */
+				ret_val = store_module_info(mod->name,
+							mod->sect_attrs->attrs[i].address,
+							QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD_INFO);
+
 				ret_val = fill_minidump_segments(
 					module_tlv_info.start,
 					module_tlv_info.size,
-					QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+					QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 				if (ret_val) {
 					pr_err("MINIDUMP TLV  error %d \n",
 						ret_val);
@@ -518,7 +608,7 @@ static int wlan_module_notifier(struct notifier_block *nb, unsigned long event,
 		module_tlv_info.start = (uintptr_t)mod;
 		module_tlv_info.size = sizeof(struct module);
 		ret_val = fill_minidump_segments(module_tlv_info.start,
-			module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+			module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 		if (ret_val) {
 			pr_err("MINIDUMP TLV failed with error %d \n ", ret_val);
 			return ret_val;
@@ -529,7 +619,7 @@ static int wlan_module_notifier(struct notifier_block *nb, unsigned long event,
 		module_tlv_info.start = (uintptr_t)mod;
 		module_tlv_info.size = sizeof(struct module);
 		ret_val = fill_minidump_segments(module_tlv_info.start,
-			module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+			module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 		if (ret_val) {
 			pr_err(" MINIDUMP TLV  failure error %d \n", ret_val);
 			return ret_val;
@@ -540,7 +630,7 @@ static int wlan_module_notifier(struct notifier_block *nb, unsigned long event,
 		module_tlv_info.start = (uintptr_t)mod;
 		 module_tlv_info.size = sizeof(struct module);
 		ret_val = fill_minidump_segments(module_tlv_info.start,
-			module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD);
+			module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 		if (ret_val) {
 			pr_err("MINIDUMP TLV failure error %d \n", ret_val);
 			return ret_val;
@@ -553,7 +643,7 @@ static struct notifier_block wlan_nb = {
 	.notifier_call  = wlan_module_notifier,
 };
 
-#endif /*CONFIG_QCOM_MINIDUMP  */
+#endif /*CONFIG_QCA_MINIDUMP  */
 
 static inline
 struct qcom_wdt *to_qcom_wdt(struct watchdog_device *wdd)
@@ -597,7 +687,7 @@ static long qcom_wdt_configure_bark_dump(void *arg)
 	}
 
 	/* Initialize the tlv and fill all the details */
-#ifdef CONFIG_QCOM_MINIDUMP
+#ifdef CONFIG_QCA_MINIDUMP
 	tlv_msg.msg_buffer = scm_regsave + device_props->tlv_msg_offset;
 	tlv_msg.cur_msg_buffer_pos = tlv_msg.msg_buffer;
 	tlv_msg.len = device_props->crashdump_page_size -
@@ -632,7 +722,7 @@ static long qcom_wdt_configure_bark_dump(void *arg)
 			return 0;
 		}
 
-#ifdef CONFIG_QCOM_MINIDUMP
+#ifdef CONFIG_QCA_MINIDUMP
 		memcpy_toio(tlv_ptr, tlv_msg.msg_buffer, tlv_msg.len);
 #endif
 		iounmap(tlv_ptr);
@@ -1035,7 +1125,7 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	if (ret)
 		dev_err(&pdev->dev, "failed to setup restart handler\n");
 
-#ifdef CONFIG_QCOM_MINIDUMP
+#ifdef CONFIG_QCA_MINIDUMP
 	ret = register_module_notifier(&wlan_nb);
 	if (ret)
 		dev_err(&pdev->dev, "failed to register WLAN modules callback \n");
