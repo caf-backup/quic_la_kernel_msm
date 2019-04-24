@@ -382,14 +382,18 @@ static int __init keepinitrd_setup(char *__unused)
 __setup("keepinitrd", keepinitrd_setup);
 #endif
 
-#ifdef CONFIG_QCOM_MINIDUMP
-void get_l1_page_info(uint64_t *pt_start, uint64_t *pt_len)
+#ifdef CONFIG_QCA_MINIDUMP
+/* Get base address of PGD*/
+void get_pgd_info(uint64_t *pt_start, uint64_t *pt_len)
 {
 	*pt_start = swapper_pg_dir;
 	*pt_len = SZ_32K;
 }
 
-unsigned long get_l2_page_info(const void *vmalloc_addr)
+/*Get base address of PT. pmd_offset() gives
+Page Middle Directory offset. The value at this address
+corresponds to the base address of the Page Table */
+unsigned long get_pt_info(const void *vmalloc_addr)
 {
 	unsigned long addr = (unsigned long) vmalloc_addr;
 	struct page *page = NULL;
@@ -409,7 +413,10 @@ unsigned long get_l2_page_info(const void *vmalloc_addr)
 	return phys_addr;
 }
 
-unsigned long get_l3_page_info(const void *vmalloc_addr)
+/*Get base address of PMD. pud_offset() gives
+Page Upper Directory offset. The value at this address
+corresponds to the base address of Page Middle Directory */
+unsigned long get_pmd_info(const void *vmalloc_addr)
 {
 	unsigned long addr = (unsigned long) vmalloc_addr;
 	struct page *page = NULL;
