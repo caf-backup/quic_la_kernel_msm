@@ -27,6 +27,7 @@
 #include "pci.h"
 #include "qmi.h"
 #include "bus.h"
+#include "genl.h"
 
 #define CNSS_DUMP_FORMAT_VER		0x11
 #define CNSS_DUMP_FORMAT_VER_V2		0x22
@@ -2745,6 +2746,10 @@ skip_soc_version_checks:
 
 	init_completion(&plat_priv->power_up_complete);
 
+	ret = cnss_genl_init();
+	if (ret < 0)
+		cnss_pr_err("CNSS genl init failed %d\n", ret);
+
 	cnss_pr_info("Platform driver probed successfully.\n");
 
 	return 0;
@@ -2782,6 +2787,7 @@ static int cnss_remove(struct platform_device *plat_dev)
 #ifdef CONFIG_CNSS2_PM
 	unregister_pm_notifier(&cnss_pm_notifier);
 #endif
+	cnss_genl_exit();
 	del_timer(&plat_priv->fw_boot_timer);
 	cnss_debugfs_destroy(plat_priv);
 	cnss_qmi_deinit(plat_priv);
