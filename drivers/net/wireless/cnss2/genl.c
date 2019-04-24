@@ -100,8 +100,8 @@ static int cnss_genl_send_data(u8 type, char *file_name, u32 total_size,
 	int ret = 0;
 	char filename[CNSS_GENL_STR_LEN_MAX + 1];
 
-	cnss_pr_dbg("type: %u, file_name %s, total_size: %x, seg_id %u, end %u, data_len %u\n",
-		    type, file_name, total_size, seg_id, end, data_len);
+	pr_debug("type:%u, file:%s, size:%x, segid:%u, end:%u, datalen:%u\n",
+		 type, file_name, total_size, seg_id, end, data_len);
 
 	if (!file_name)
 		strlcpy(filename, "default", sizeof(filename));
@@ -156,7 +156,7 @@ static int cnss_genl_send_data(u8 type, char *file_name, u32 total_size,
 
 	return ret;
 fail:
-	cnss_pr_err("genl msg send fail: %d\n", ret);
+	pr_err("genl msg send fail: %d\n", ret);
 	if (skb)
 		nlmsg_free(skb);
 	return ret;
@@ -171,7 +171,7 @@ int cnss_genl_send_msg(void *buff, u8 type, char *file_name, u32 total_size)
 	u32 data_len = 0;
 	u8 end = 0;
 
-	cnss_pr_dbg("type: %u, total_size: %x\n", type, total_size);
+	pr_debug("type: %u, total_size: %x\n", type, total_size);
 
 	while (remaining) {
 		if (remaining > CNSS_GENL_DATA_LEN_MAX) {
@@ -183,7 +183,7 @@ int cnss_genl_send_msg(void *buff, u8 type, char *file_name, u32 total_size)
 		ret = cnss_genl_send_data(type, file_name, total_size,
 					  seg_id, end, data_len, msg_buff);
 		if (ret < 0) {
-			cnss_pr_err("fail to send genl data, ret %d\n", ret);
+			pr_err("fail to send genl data, ret %d\n", ret);
 			return ret;
 		}
 
@@ -200,8 +200,9 @@ int cnss_genl_init(void)
 	int ret = 0;
 
 	ret = genl_register_family(&cnss_genl_family);
+
 	if (ret != 0)
-		cnss_pr_err("genl_register_family fail: %d\n", ret);
+		pr_err("genl_register_family fail: %d\n", ret);
 
 	return ret;
 }
