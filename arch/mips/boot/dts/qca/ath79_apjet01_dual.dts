@@ -36,7 +36,7 @@
 		reg = <0x0 0x2000000>;
 	};
 	chosen {
-		bootargs = "board=DTB console=ttyS0,115200 mtdparts=spi0.1:64m(rootfs),2m(kernel),62m(reserved2),66m@0x0(firmware)rootfstype=squashfs,jffs2 noinitrd crashkernel=10M@20M";
+		bootargs = "board=DTB console=ttyS0,115200 mtdparts=spi0.0:256k(u-boot),64k(u-boot-env),1664k(reserved1),64k(art);spi0.1:64m(rootfs),2m(kernel),62m(reserved2),66m@0x0(firmware) rootfstype=squashfs,jffs2 noinitrd crashkernel=10M@20M";
 };
 	extosc: oscillator {
 		compatible = "fixed-clock";
@@ -98,26 +98,6 @@
 				linux,modalias = "m25p80", "n25q128a11";
 				reg = <0>;
 				spi-max-frequency = <25000000>;
-
-				partition@0 {
-					label = "u-boot";
-					reg = <0x000000 0x040000>;
-				};
-
-				partition@1 {
-					label = "u-boot-env";
-					reg = <0x040000 0x050000>;
-				};
-
-				partition@2 {
-					label = "reserved1";
-					reg = <0x050000 0x1f0000>;
-				};
-
-				partition@3 {
-					label = "art";
-					reg = <0x1f0000 0x200000>;
-				};
 			};
 			mt29f@1 {
 				#address-cells = <1>;
@@ -126,24 +106,6 @@
 				reg = <1>;
 				spi-max-frequency = <50000000>;
 				status = "okay";
-
-				partition@0 {
-					label = "rootfs";
-					reg = <0x0000000 0x4000000>;
-				};
-
-				partition@1 {
-					label = "kernel";
-					reg = <0x4000000 0x4200000>;
-				};
-				partition@2 {
-					label = "reserved2";
-					reg = <0x4200000 0x8000000>;
-				};
-				partition@3 {
-					label = "firmware";
-					reg = <0x0000000 0x4200000>;
-				};
 			};
 		};
 
