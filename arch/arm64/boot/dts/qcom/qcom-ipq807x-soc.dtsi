@@ -115,8 +115,13 @@
 		};
 		qfprom {
 			compatible = "qcom,qfprom-sec";
+		#if defined(__IPQ_MEM_PROFILE_256_MB__) || defined(__IPQ_MEM_PROFILE_512_MB__)
+			img-addr = <0x4A600000>;
+			img-size = <0x00500000>;
+		#else
 			img-addr = <0x4A400000>;
 			img-size = <0x00700000>;
+		#endif
 		};
 	};
 
