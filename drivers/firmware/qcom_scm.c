@@ -826,3 +826,17 @@ int qcom_fuseipq_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
 				       cmd_buf, size);
 }
 EXPORT_SYMBOL(qcom_fuseipq_scm_call);
+
+int qcom_scm_lock_subsys_mem(u32 subsys_id, void *paddr, size_t size)
+{
+	return __qcom_scm_lock_subsys_mem(__scm->dev, subsys_id, paddr, size);
+}
+EXPORT_SYMBOL(qcom_scm_lock_subsys_mem);
+
+int qcom_scm_unlock_subsys_mem(u32 subsys_id, void *paddr, size_t size,
+								uint8_t key)
+{
+	return __qcom_scm_unlock_subsys_mem(__scm->dev, subsys_id, paddr,
+								size, key);
+}
+EXPORT_SYMBOL(qcom_scm_unlock_subsys_mem);

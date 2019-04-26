@@ -23,6 +23,9 @@
 #define SCM_CMD_PSHOLD				0x16
 #define SCM_SVC_ID_SHIFT			0xA
 
+#define QCOM_SCM_CMD_PIL_PROTECT_MEM_SUBSYS_ID	0x0C
+#define QCOM_SCM_CMD_PIL_CLEAR_PROTECT_MEM_SUBSYS_ID	0x0D
+
 extern int __qcom_scm_tls_hardening(struct device *dev,
 				   struct scm_cmd_buf_t *scm_cmd_buf,
 				   size_t buf_size, u32 cmd_id);
@@ -62,6 +65,10 @@ extern int __qcom_sec_upgrade_auth(struct device *dev, unsigned int sw_type,
 
 extern int __qcom_fuseipq_scm_call(struct device *, u32 svc_id, u32 cmd_id,
 			       void *cmd_buf, size_t size);
+extern int __qcom_scm_lock_subsys_mem(struct device *dev, u32 subsys_id,
+						void *paddr, size_t size);
+extern int __qcom_scm_unlock_subsys_mem(struct device *dev, u32 subsys_id,
+					void *paddr, size_t size, uint8_t key);
 
 #define QCOM_SCM_CMD_TERMINATE_PC	0x2
 #define QCOM_SCM_FLUSH_FLAG_MASK	0x3
