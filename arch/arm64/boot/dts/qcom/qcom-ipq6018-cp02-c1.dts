@@ -160,6 +160,41 @@
 			bias-pull-down;
 		};
 	};
+
+	mdio_pins: mdio_pinmux {
+		mux_0 {
+			pins = "gpio64";
+			function = "mdc";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+		mux_1 {
+			pins = "gpio65";
+			function = "mdio";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+		mux_2 {
+			pins = "gpio77";
+			function = "gpio";
+			bias-pull-up;
+		};
+	};
+};
+
+&soc {
+	mdio@90000 {
+		pinctrl-0 = <&mdio_pins>;
+		pinctrl-names = "default";
+		phy-reset-gpio = <&tlmm 77 0>;
+		status = "ok";
+		phy0: ethernet-phy@0 {
+			reg = <0x10>;
+		};
+		phy1: ethernet-phy@1 {
+			reg = <0x14>;
+		};
+	};
 };
 
 &blsp1_uart3 {
