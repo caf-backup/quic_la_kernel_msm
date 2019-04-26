@@ -201,7 +201,7 @@ struct ucred {
 #define AF_NFC		39	/* NFC sockets			*/
 #define AF_VSOCK	40	/* vSockets			*/
 #define AF_OVPN		41	/* OpenVPN Sockets		*/
-#define AF_QIPCRTR	42	/* Qualcomm IPC Router		*/
+#define AF_QIPCRTR	42	/* Qualcomm Technology Inc IPC Router */
 #define AF_MAX		43	/* For now.. */
 
 /* Protocol families, same as address families. */
