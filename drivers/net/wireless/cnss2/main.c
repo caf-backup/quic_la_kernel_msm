@@ -26,6 +26,7 @@
 #include "debug.h"
 #include "pci.h"
 #include "qmi.h"
+#include "bus.h"
 
 #define CNSS_DUMP_FORMAT_VER		0x11
 #define CNSS_DUMP_FORMAT_VER_V2		0x22
@@ -98,23 +99,6 @@ struct cnss_driver_event {
 	void *data;
 };
 
-
-static enum cnss_dev_bus_type cnss_get_dev_bus_type(struct device *dev)
-{
-	if (!dev)
-		return CNSS_BUS_NONE;
-
-	if (!dev->bus)
-		return CNSS_BUS_NONE;
-
-	if (memcmp(dev->bus->name, "pci", 3) == 0)
-		return CNSS_BUS_PCI;
-	else if (memcmp(dev->bus->name, "platform", 8) == 0)
-		return CNSS_BUS_AHB;
-	else
-		return CNSS_BUS_NONE;
-}
-
 static void cnss_set_plat_priv(struct platform_device *plat_dev,
 			       struct cnss_plat_data *plat_priv)
 {
@@ -148,7 +132,7 @@ struct cnss_plat_data *cnss_get_plat_priv_by_device_id(int id)
 	return NULL;
 }
 
-static struct cnss_plat_data *cnss_get_plat_priv(struct platform_device
+struct cnss_plat_data *cnss_get_plat_priv(struct platform_device
 						 *plat_dev)
 {
 	int i;
@@ -161,47 +145,6 @@ static struct cnss_plat_data *cnss_get_plat_priv(struct platform_device
 			return plat_env[i];
 	}
 	return NULL;
-}
-
-void *cnss_bus_dev_to_bus_priv(struct device *dev)
-{
-	if (!dev)
-		return NULL;
-
-	switch (cnss_get_dev_bus_type(dev)) {
-	case CNSS_BUS_PCI:
-		return cnss_get_pci_priv(to_pci_dev(dev));
-	case CNSS_BUS_AHB:
-		return NULL;
-	default:
-		return NULL;
-	}
-}
-
-struct cnss_plat_data *cnss_bus_dev_to_plat_priv(struct device *dev)
-{
-	void *bus_priv;
-	struct pci_dev *pdev;
-
-	if (!dev)
-		return cnss_get_plat_priv(NULL);
-
-	bus_priv = cnss_bus_dev_to_bus_priv(dev);
-	if (cnss_get_dev_bus_type(dev) == CNSS_BUS_PCI) {
-		pdev = to_pci_dev(dev);
-		if (pdev->device != QCA6290_DEVICE_ID) {
-			return NULL;
-		}
-	}
-
-	switch (cnss_get_dev_bus_type(dev)) {
-	case CNSS_BUS_PCI:
-		return cnss_pci_priv_to_plat_priv(bus_priv);
-	case CNSS_BUS_AHB:
-		return cnss_get_plat_priv(to_platform_device(dev));
-	default:
-		return NULL;
-	}
 }
 
 static int cnss_pm_notify(struct notifier_block *b,
@@ -811,6 +754,12 @@ static char *cnss_driver_event_to_str(enum cnss_driver_event_type type)
 		return "POWER_UP";
 	case CNSS_DRIVER_EVENT_POWER_DOWN:
 		return "POWER_DOWN";
+	case CNSS_DRIVER_EVENT_QDSS_TRACE_REQ_MEM:
+		return "QDSS_TRACE_REQ_MEM";
+	case CNSS_DRIVER_EVENT_QDSS_TRACE_SAVE:
+		return "QDSS_TRACE_SAVE";
+	case CNSS_DRIVER_EVENT_QDSS_TRACE_FREE:
+		return "QDSS_TRACE_FREE";
 	case CNSS_DRIVER_EVENT_MAX:
 		return "EVENT_MAX";
 	}
@@ -2000,6 +1949,109 @@ static int cnss_power_down_hdlr(struct cnss_plat_data *plat_priv)
 	return 0;
 }
 
+static int cnss_qdss_trace_req_mem_hdlr(struct cnss_plat_data *plat_priv)
+{
+	int ret = 0;
+
+	ret = cnss_bus_alloc_qdss_mem(plat_priv);
+	if (ret < 0)
+		return ret;
+
+	return cnss_wlfw_qdss_trace_mem_info_send_sync(plat_priv);
+}
+
+static void *cnss_qdss_trace_pa_to_va(struct cnss_plat_data *plat_priv,
+				      u64 pa, u32 size, int *seg_id)
+{
+	int i = 0;
+	struct cnss_fw_mem *qdss_mem = plat_priv->qdss_mem;
+	u64 offset = 0;
+	void *va = NULL;
+	u64 local_pa;
+	u32 local_size;
+
+	for (i = 0; i < plat_priv->qdss_mem_seg_len; i++) {
+		local_pa = (u64)qdss_mem[i].pa;
+		local_size = (u32)qdss_mem[i].size;
+		if (pa == local_pa && size <= local_size) {
+			va = qdss_mem[i].va;
+			break;
+		}
+		if (pa > local_pa &&
+		    pa < local_pa + local_size &&
+		    pa + size <= local_pa + local_size) {
+			offset = pa - local_pa;
+			va = qdss_mem[i].va + offset;
+			break;
+		}
+	}
+
+	*seg_id = i;
+	return va;
+}
+
+static int cnss_qdss_trace_save_hdlr(struct cnss_plat_data *plat_priv,
+				     void *data)
+{
+	struct cnss_qmi_event_qdss_trace_save_data *event_data = data;
+	struct cnss_fw_mem *qdss_mem = plat_priv->qdss_mem;
+	int ret = 0;
+	int i;
+	void *va = NULL;
+	u64 pa;
+	u32 size;
+	int seg_id = 0;
+
+	if (!plat_priv->qdss_mem_seg_len) {
+		cnss_pr_err("Memory for QDSS trace is not available\n");
+		return -ENOMEM;
+	}
+
+	if (event_data->mem_seg_len == 0) {
+		for (i = 0; i < plat_priv->qdss_mem_seg_len; i++) {
+			ret = cnss_genl_send_msg(qdss_mem[i].va,
+						 CNSS_GENL_MSG_TYPE_QDSS,
+						 event_data->file_name,
+						 qdss_mem[i].size);
+			if (ret < 0) {
+				cnss_pr_err("Fail to save QDSS data: %d\n",
+					    ret);
+				break;
+			}
+		}
+	} else {
+		for (i = 0; i < event_data->mem_seg_len; i++) {
+			pa = event_data->mem_seg[i].addr;
+			size = event_data->mem_seg[i].size;
+			va = cnss_qdss_trace_pa_to_va(plat_priv, pa,
+						      size, &seg_id);
+			if (!va) {
+				cnss_pr_err("Fail to find matching va for pa %p\n",
+					    pa);
+				ret = -EINVAL;
+				break;
+			}
+			ret = cnss_genl_send_msg(va, CNSS_GENL_MSG_TYPE_QDSS,
+						 event_data->file_name, size);
+			if (ret < 0) {
+				cnss_pr_err("Fail to save QDSS data: %d\n",
+					    ret);
+				break;
+			}
+		}
+	}
+
+	kfree(data);
+	return ret;
+}
+
+static int cnss_qdss_trace_free_hdlr(struct cnss_plat_data *plat_priv)
+{
+	cnss_bus_free_qdss_mem(plat_priv);
+
+	return 0;
+}
+
 static void cnss_driver_event_work(struct work_struct *work)
 {
 	struct cnss_plat_data *plat_priv =
@@ -2071,6 +2123,16 @@ static void cnss_driver_event_work(struct work_struct *work)
 			break;
 		case CNSS_DRIVER_EVENT_POWER_DOWN:
 			ret = cnss_power_down_hdlr(plat_priv);
+			break;
+		case CNSS_DRIVER_EVENT_QDSS_TRACE_REQ_MEM:
+			ret = cnss_qdss_trace_req_mem_hdlr(plat_priv);
+			break;
+		case CNSS_DRIVER_EVENT_QDSS_TRACE_SAVE:
+			ret = cnss_qdss_trace_save_hdlr(plat_priv,
+							event->data);
+			break;
+		case CNSS_DRIVER_EVENT_QDSS_TRACE_FREE:
+			ret = cnss_qdss_trace_free_hdlr(plat_priv);
 			break;
 		default:
 			cnss_pr_err("Invalid driver event type: %d",
