@@ -1807,6 +1807,8 @@
 		};
 		qfprom {
 			compatible = "qcom,qfprom-sec";
+			img-addr = <0x48700000>;
+			img-size = <0x00500000>;
 		};
 	};
 
