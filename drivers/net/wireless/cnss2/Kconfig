@@ -45,3 +45,9 @@ config CNSS2_RAMDUMP
 	depends on CNSS2
 	---help---
 	  This option is to enable cnss2 ramdump support
+
+config CNSS2_GENL
+	bool "CNSS2 genl support"
+	depends on CNSS2
+	---help---
+	  This option is to enable cnss2 genl support

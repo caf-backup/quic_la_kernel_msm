@@ -18,7 +18,7 @@ enum cnss_genl_msg_type {
 	CNSS_GENL_MSG_TYPE_QDSS,
 };
 
-#ifdef CONFIG_CNSS2_DEBUG
+#ifdef CONFIG_CNSS2_GENL
 int cnss_genl_init(void);
 void cnss_genl_exit(void);
 int cnss_genl_send_msg(void *buff, u8 type,
