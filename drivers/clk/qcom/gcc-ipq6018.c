@@ -4653,6 +4653,13 @@ static const struct qcom_reset_map gcc_ipq6018_resets[] = {
 	[GCC_NSSPORT3_RESET] = { 0x68014, 0, 0x4000030},
 	[GCC_NSSPORT4_RESET] = { 0x68014, 0, 0x8000300},
 	[GCC_NSSPORT5_RESET] = { 0x68014, 0, 0x10000c00},
+	[GCC_UNIPHY0_PORT1_ARES] = { 0x56004, 0, 0x30},
+	[GCC_UNIPHY0_PORT2_ARES] = { 0x56004, 0, 0xc0},
+	[GCC_UNIPHY0_PORT3_ARES] = { 0x56004, 0, 0x300},
+	[GCC_UNIPHY0_PORT4_ARES] = { 0x56004, 0, 0xc00},
+	[GCC_UNIPHY0_PORT5_ARES] = { 0x56004, 0, 0x3000},
+	[GCC_UNIPHY0_PORT_4_5_RESET] = { 0x56004, 0, 0x3c02},
+	[GCC_UNIPHY0_PORT_4_RESET] = { 0x56004, 0, 0xc02},
 };
 
 static const struct of_device_id gcc_ipq6018_match_table[] = {

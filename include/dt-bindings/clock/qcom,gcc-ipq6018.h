@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -350,5 +350,12 @@
 #define GCC_NSSPORT3_RESET			118
 #define GCC_NSSPORT4_RESET			119
 #define GCC_NSSPORT5_RESET			120
+#define GCC_UNIPHY0_PORT1_ARES			121
+#define GCC_UNIPHY0_PORT2_ARES			122
+#define GCC_UNIPHY0_PORT3_ARES			123
+#define GCC_UNIPHY0_PORT4_ARES			124
+#define GCC_UNIPHY0_PORT5_ARES			125
+#define GCC_UNIPHY0_PORT_4_5_RESET		126
+#define GCC_UNIPHY0_PORT_4_RESET		127
 
 #endif
