@@ -42,6 +42,8 @@
 #include <linux/stringify.h>
 #include <linux/iommu.h>
 #include <linux/sizes.h>
+#include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include "rproc_mdt_loader.h"
 
 enum rproc_adsp_state {
@@ -167,6 +169,7 @@ static struct q6v6_rproc_pdata *q6v6_rproc_pdata;
 
 #define	OPEN_TIMEOUT	5000
 #define	DUMP_TIMEOUT	10000
+#define	NUM_LPASS_CLKS	9
 
 static struct timer_list dump_timeout;
 static struct completion dump_complete;
@@ -195,6 +198,41 @@ static struct dumpdev {
 	size_t dump_size;
 } q6dump = {"adsp_q6mem", &q6_dump_ops,
 		FMODE_UNSIGNED_OFFSET | FMODE_EXCL, "lpass"};
+
+
+static int lpass_clks_enable(struct device *dev)
+{
+	int ret, i;
+	const char *lpass_clk_names[NUM_LPASS_CLKS] = {
+						"lpass_core_axim_clk",
+						"lpass_snoc_cfg_clk",
+						"lpass_q6_axim_clk",
+						"lpass_q6_atbm_at_clk",
+						"lpass_q6_pclkdbg_clk",
+						"lpass_q6ss_tsctr_1to2_clk",
+						"lpass_q6ss_trig_clk",
+						"lpass_tbu_clk",
+						"pcnoc_lpass_clk"
+					};
+	struct clk *lpass_clks[NUM_LPASS_CLKS];
+
+	for (i = 0; i < NUM_LPASS_CLKS; i++) {
+		lpass_clks[i] = devm_clk_get(dev, lpass_clk_names[i]);
+		if (IS_ERR(lpass_clks[i])) {
+			pr_err("unable to get clock %s\n", lpass_clk_names[i]);
+			return PTR_ERR(lpass_clks[i]);
+		}
+
+		ret = clk_prepare_enable(lpass_clks[i]);
+		if (ret) {
+			pr_err("unable to enable clock %s\n",
+						lpass_clk_names[i]);
+			return ret;
+		}
+	}
+
+	return 0;
+}
 
 static void open_timeout_func(unsigned long data)
 {
@@ -1175,6 +1213,9 @@ static int q6_rproc_probe(struct platform_device *pdev)
 	q6v6_rproc_pdata->reg_save_buffer = kzalloc((Q6_REGISTER_SAVE_SIZE * 4),
 							GFP_KERNEL);
 	if (q6v6_rproc_pdata->reg_save_buffer == NULL)
+		goto free_rproc;
+
+	if (lpass_clks_enable(&pdev->dev))
 		goto free_rproc;
 
 	if (!q6v6_rproc_pdata->secure) {
