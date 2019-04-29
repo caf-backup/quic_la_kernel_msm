@@ -279,6 +279,9 @@ enum arm_smmu_s2cr_privcfg {
 
 #define FSYNR0_WNR			(1 << 4)
 
+/* fast mapping is always true for now */
+static bool fast = true;
+
 static int force_stage;
 module_param(force_stage, int, S_IRUGO);
 MODULE_PARM_DESC(force_stage,
@@ -939,7 +942,9 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 	};
 
 	smmu_domain->smmu = smmu;
-	fmt = ARM_V8L_FAST;
+
+	if (fast)
+		fmt = ARM_V8L_FAST;
 
 	pgtbl_ops = alloc_io_pgtable_ops(fmt, &smmu_domain->pgtbl_cfg,
 								smmu_domain);
@@ -1024,11 +1029,13 @@ static struct iommu_domain *arm_smmu_domain_alloc(unsigned type)
 	if (!smmu_domain)
 		return NULL;
 
+#if defined(CONFIG_ARM64)
 	if (type == IOMMU_DOMAIN_DMA && (using_legacy_binding ||
 	    iommu_get_dma_cookie(&smmu_domain->domain))) {
 		kfree(smmu_domain);
 		return NULL;
 	}
+#endif
 
 	mutex_init(&smmu_domain->init_mutex);
 	spin_lock_init(&smmu_domain->pgtbl_lock);
@@ -1044,7 +1051,9 @@ static void arm_smmu_domain_free(struct iommu_domain *domain)
 	 * Free the domain resources. We assume that all devices have
 	 * already been detached.
 	 */
+#if defined(CONFIG_ARM64)
 	iommu_put_dma_cookie(domain);
+#endif
 	arm_smmu_destroy_domain_context(domain);
 	kfree(smmu_domain);
 }

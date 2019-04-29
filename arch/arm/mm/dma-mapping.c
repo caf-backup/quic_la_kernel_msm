@@ -1039,6 +1039,18 @@ fs_initcall(dma_debug_do_init);
 
 /* IOMMU */
 
+#include <linux/platform_device.h>
+#include <linux/amba/bus.h>
+
+struct iommu_dma_notifier_data {
+	struct list_head list;
+	struct device *dev;
+	u64 dma_base;
+	u64 size;
+};
+static LIST_HEAD(iommu_dma_masters);
+static DEFINE_MUTEX(iommu_dma_notifier_lock);
+
 static int extend_iommu_mapping(struct dma_iommu_mapping *mapping);
 
 static inline dma_addr_t __alloc_iova(struct dma_iommu_mapping *mapping,
@@ -1930,7 +1942,7 @@ arm_iommu_create_mapping(struct device *dev, struct bus_type *bus,
 	struct iommu_domain *domain;
 
 	domain = iommu_get_domain_for_dev(dev);
-	if (domain->handler_token)
+	if (domain && domain->handler_token)
 		return (struct dma_iommu_mapping *)domain->handler_token;
 
 	/* currently only 32-bit DMA address space is supported */
@@ -1967,9 +1979,13 @@ arm_iommu_create_mapping(struct device *dev, struct bus_type *bus,
 
 	spin_lock_init(&mapping->lock);
 
-	mapping->domain = iommu_domain_alloc(bus);
-	if (!mapping->domain)
-		goto err4;
+	if (domain) {
+		mapping->domain = domain;
+	} else {
+		mapping->domain = iommu_domain_alloc(bus);
+		if (!mapping->domain)
+			goto err4;
+	}
 
 	kref_init(&mapping->kref);
 	return mapping;
@@ -2031,27 +2047,31 @@ static int __arm_iommu_attach_device(struct device *dev,
 	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
 	int err;
 
-	if (fast && !domain->handler_token) {
-		/* detach the existing and attach to fast mapping domain */
-		iommu_detach_device(mapping->domain, dev);
-		err = fast_smmu_attach_device(dev, mapping);
-		if (err)
-			return err;
-		err = iommu_dma_init_domain(domain, mapping->base,
-								mapping->size);
-		if (err)
-			/* Detach the domain? */
-			return err;
-		dev->archdata.dma_ops = &fast_smmu_dma_ops;
-	} else if (domain->handler_token) {
-		dev->archdata.dma_ops = &fast_smmu_dma_ops;
-		dev->archdata.mapping = domain->handler_token;
-		mapping = domain->handler_token;
-		kref_get(&mapping->kref);
+	if (fast) {
+		if (!domain->handler_token) {
+			/**
+			 * detach the existing and attach to fast mapping
+			 * domain
+			 */
+			iommu_detach_device(mapping->domain, dev);
+			err = fast_smmu_attach_device(dev, mapping);
+			if (err)
+				return err;
+		} else {
+			dev->archdata.dma_ops = &fast_smmu_dma_ops;
+			dev->archdata.mapping = domain->handler_token;
+			mapping = domain->handler_token;
+			kref_get(&mapping->kref);
+		}
 	} else {
-		err = iommu_attach_device(mapping->domain, dev);
-		if (err)
-			return err;
+		/**
+		 * device is already attached to the default domain. So just
+		 * take the reference for the mapping structure
+		 */
+		kref_get(&mapping->kref);
+		to_dma_iommu_mapping(dev) = mapping;
+		if (!domain->handler_token)
+			domain->handler_token = mapping;
 	}
 
 	pr_debug("Attached IOMMU controller to %s device.\n", dev_name(dev));
@@ -2076,9 +2096,11 @@ int arm_iommu_attach_device(struct device *dev,
 {
 	int err;
 
-	err = __arm_iommu_attach_device(dev, mapping);
+	err = iommu_attach_device(mapping->domain, dev);
 	if (err)
 		return err;
+	kref_get(&mapping->kref);
+	to_dma_iommu_mapping(dev) = mapping;
 
 	/* TODO: Should this be removed when fast DMA mapping is enabled? */
 	set_dma_ops(dev, &iommu_ops);
@@ -2120,38 +2142,63 @@ EXPORT_SYMBOL_GPL(arm_iommu_detach_device);
 static const struct dma_map_ops *arm_get_iommu_dma_map_ops(struct device *dev,
 								bool coherent)
 {
-	/* If fast DMA mapping is enabled, dma_ops is updated with
-	 * fast_smmu_dma_ops in __arm_iommu_attach_device(), use the same
-	 */
-	if (fast)
-		return dev->archdata.dma_ops;
-
 	return coherent ? &iommu_coherent_ops : &iommu_ops;
+}
+
+static void queue_iommu_attach(struct device *dev, u64 dma_base, u64 size)
+{
+	struct iommu_dma_notifier_data *iommudata;
+
+	iommudata = kzalloc(sizeof(*iommudata), GFP_KERNEL);
+	if (!iommudata)
+		return;
+
+	iommudata->dev = dev;
+	iommudata->dma_base = dma_base;
+	iommudata->size = size;
+
+	mutex_lock(&iommu_dma_notifier_lock);
+	list_add(&iommudata->list, &iommu_dma_masters);
+	mutex_unlock(&iommu_dma_notifier_lock);
 }
 
 static bool arm_setup_iommu_dma_ops(struct device *dev, u64 dma_base, u64 size,
 				    const struct iommu_ops *iommu)
 {
 	struct dma_iommu_mapping *mapping;
+	struct iommu_group *group;
 
 	if (!iommu)
 		return false;
 
-	mapping = arm_iommu_create_mapping(dev, dev->bus, dma_base, size);
-	if (IS_ERR(mapping)) {
-		pr_warn("Failed to create %llu-byte IOMMU mapping for device %s\n",
-				size, dev_name(dev));
-		return false;
-	}
+	/**
+	 * By this time, device may not added to IOMMU core, so we don't have
+	 * the IOMMU group. So queue the IOMMU attach device which will be
+	 * triggered after the IOMMU add_device once the device issues
+	 * the BUS_NOTIFY_ADD_DEVICE event.
+	 */
+	group = iommu_group_get(dev);
+	if (group) {
+		iommu_group_put(group);
 
-	if (__arm_iommu_attach_device(dev, mapping)) {
-		pr_warn("Failed to attached device %s to IOMMU_mapping\n",
-				dev_name(dev));
-		arm_iommu_release_mapping(mapping);
-		return false;
-	}
+		mapping = arm_iommu_create_mapping(dev, dev->bus, dma_base,
+									size);
+		if (IS_ERR(mapping)) {
+			pr_warn("Failed to create %llu-byte IOMMU mapping for device %s\n",
+							size, dev_name(dev));
+			return false;
+		}
 
-	return true;
+		if (__arm_iommu_attach_device(dev, mapping)) {
+			pr_warn("Failed to attached device %s to IOMMU_mapping\n",
+								dev_name(dev));
+			arm_iommu_release_mapping(mapping);
+			return false;
+		}
+	} else {
+		queue_iommu_attach(dev, dma_base, size);
+		return true;
+	}
 }
 
 static void arm_teardown_iommu_dma_ops(struct device *dev)
@@ -2164,6 +2211,84 @@ static void arm_teardown_iommu_dma_ops(struct device *dev)
 	__arm_iommu_detach_device(dev);
 	arm_iommu_release_mapping(mapping);
 }
+
+static int __iommu_attach_notifier(struct notifier_block *nb,
+				   unsigned long action, void *data)
+{
+	struct iommu_dma_notifier_data *master, *tmp;
+	struct dma_iommu_mapping *mapping;
+
+	if (action != BUS_NOTIFY_ADD_DEVICE)
+		return 0;
+
+	mutex_lock(&iommu_dma_notifier_lock);
+	list_for_each_entry_safe(master, tmp, &iommu_dma_masters, list) {
+
+		mapping = arm_iommu_create_mapping(master->dev,
+							master->dev->bus,
+							master->dma_base,
+							master->size);
+		if (IS_ERR(mapping)) {
+			pr_warn("Failed to create %llu-byte IOMMU mapping for device %s\n",
+							master->size,
+							dev_name(master->dev));
+			goto err;
+		}
+		if (__arm_iommu_attach_device(master->dev, mapping)) {
+			pr_warn("Failed to attached device %s to IOMMU_mapping\n",
+							dev_name(master->dev));
+			arm_iommu_release_mapping(mapping);
+		}
+err:
+		list_del(&master->list);
+		kfree(master);
+	}
+	mutex_unlock(&iommu_dma_notifier_lock);
+	return 0;
+}
+
+static int register_iommu_dma_ops_notifier(struct bus_type *bus)
+{
+	struct notifier_block *nb = kzalloc(sizeof(*nb), GFP_KERNEL);
+	int ret;
+
+	if (!nb)
+		return -ENOMEM;
+	/*
+	 * The device must be attached to a domain before the driver probe
+	 * routine gets a chance to start allocating DMA buffers. However,
+	 * the IOMMU driver also needs a chance to configure the iommu_group
+	 * via its add_device callback first, so we need to make the attach
+	 * happen between those two points. Since the IOMMU core uses a bus
+	 * notifier with default priority for add_device, do the same but
+	 * with a lower priority to ensure the appropriate ordering.
+	 */
+	nb->notifier_call = __iommu_attach_notifier;
+	nb->priority = -100;
+
+	ret = bus_register_notifier(bus, nb);
+	if (ret) {
+		pr_warn("Failed to register DMA domain notifier; IOMMU DMA ops unavailable on bus '%s'\n",
+			bus->name);
+		kfree(nb);
+	}
+	return ret;
+}
+
+static int __init __iommu_dma_init(void)
+{
+	int ret;
+
+	ret = register_iommu_dma_ops_notifier(&platform_bus_type);
+	if (!ret)
+		ret = register_iommu_dma_ops_notifier(&amba_bustype);
+
+	/* handle devices queued before this arch_initcall */
+	if (!ret)
+		__iommu_attach_notifier(NULL, BUS_NOTIFY_ADD_DEVICE, NULL);
+	return ret;
+}
+postcore_initcall_sync(__iommu_dma_init);
 
 #else
 
