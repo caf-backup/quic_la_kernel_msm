@@ -28,6 +28,38 @@
 		bootargs = "console=ttyMSM0,115200,n8 rw init=/init";
 		bootargs-append = " swiotlb=1";
 	};
+
+	/*
+	 * +=========+==============+========================+
+	 * |        |              |                         |
+	 * | Region | Start Offset |          Size           |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * | Linux  |  0x41000000  |         143MB           |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * | TZ App |  0x49F00000  |           2MB           |
+	 * +--------+--------------+-------------------------+
+	 *
+	 * From the available 145 MB for Linux in the first 256 MB,
+	 * we are reserving 2 MB for TZAPP.
+	 *
+	 * Refer arch/arm64/boot/dts/qcom/qcom-ipq6018-memory.dtsi
+	 * for memory layout.
+	 */
+
+	reserved-memory {
+		tzapp:tzapp@49F00000 {	/* TZAPPS */
+			no-map;
+			reg = <0x0 0x49F00000 0x0 0x00200000>;
+		};
+	};
 };
 
 &tlmm {
