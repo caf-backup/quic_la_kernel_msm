@@ -1317,12 +1317,26 @@
 				 <&gcc GCC_NSSPORT2_RESET>,
 				 <&gcc GCC_NSSPORT3_RESET>,
 				 <&gcc GCC_NSSPORT4_RESET>,
-				 <&gcc GCC_NSSPORT5_RESET>;
+				 <&gcc GCC_NSSPORT5_RESET>,
+				 <&gcc GCC_UNIPHY0_PORT1_ARES>,
+				 <&gcc GCC_UNIPHY0_PORT2_ARES>,
+				 <&gcc GCC_UNIPHY0_PORT3_ARES>,
+				 <&gcc GCC_UNIPHY0_PORT4_ARES>,
+				 <&gcc GCC_UNIPHY0_PORT5_ARES>,
+				 <&gcc GCC_UNIPHY0_PORT_4_5_RESET>,
+				 <&gcc GCC_UNIPHY0_PORT_4_RESET>;
 			reset-names = "ppe_rst", "uniphy0_soft_rst",
 					"uniphy0_xpcs_rst", "uniphy1_soft_rst",
 					"uniphy1_xpcs_rst", "nss_port1_rst",
 					"nss_port2_rst", "nss_port3_rst",
-					"nss_port4_rst", "nss_port5_rst";
+					"nss_port4_rst", "nss_port5_rst",
+					"uniphy0_port1_dis",
+					"uniphy0_port2_dis",
+					"uniphy0_port3_dis",
+					"uniphy0_port4_dis",
+					"uniphy0_port5_dis",
+					"uniphy0_port_4_5_rst",
+					"uniphy0_port_4_rst";
 			switch_cpu_bmp = <0x1>;  /* cpu port bitmap */
 			switch_lan_bmp = <0x1e>; /* lan port bitmap */
 			switch_wan_bmp = <0x20>; /* wan port bitmap */
