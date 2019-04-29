@@ -848,6 +848,24 @@ static void ag71xx_set_speed(struct ag71xx *ag)
 }
 #endif
 
+static void ag71xx_disable_inline_chksum_engine(struct ag71xx *ag)
+{
+	void __iomem *dam = ioremap_nocache(QCA956X_DAM_RESET_OFFSET,
+			QCA956X_DAM_RESET_SIZE);
+	if (!dam) {
+		dev_err(&ag->dev, "unable to ioremap DAM_RESET_OFFSET\n");
+	} else {
+		/*
+		* can not use the wr, rr functions since this is outside of
+		* the normal ag71xx register block
+		*/
+		__raw_writel(__raw_readl(dam) & ~QCA956X_INLINE_CHKSUM_ENG,
+				dam);
+		(void)__raw_readl(dam);
+		iounmap(dam);
+	}
+}
+
 void ag71xx_link_adjust(struct ag71xx *ag)
 {
 	struct ag71xx_platform_data *pdata = ag71xx_get_pdata(ag);
@@ -923,6 +941,9 @@ void ag71xx_link_adjust(struct ag71xx *ag)
 	ag71xx_wr(ag, AG71XX_REG_MAC_CFG2, cfg2);
 	ag71xx_wr(ag, AG71XX_REG_FIFO_CFG5, fifo5);
 	ag71xx_wr(ag, AG71XX_REG_MAC_IFCTL, ifctl);
+
+	if (soc_is_qca953x())
+		ag71xx_disable_inline_chksum_engine(ag);
 
 	ag71xx_hw_start(ag);
 	netif_start_queue(ag->dev);
