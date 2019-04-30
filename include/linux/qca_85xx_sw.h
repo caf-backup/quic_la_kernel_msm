@@ -1,7 +1,7 @@
 /*
  * QCA 85xx switch driver platform data
  *
- * Copyright (c) 2015-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2017, 2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -39,6 +39,7 @@ enum qca_85xx_sw_port_mode {
 	QCA_85XX_SW_PORT_MODE_SGMII = 2,
 	QCA_85XX_SW_PORT_MODE_SGMII_PLUS = 3,
 	QCA_85XX_SW_PORT_MODE_XAUI = 4,
+	QCA_85XX_SW_PORT_MODE_SGMII_LACP = 5,
 };
 
 /* QSGMII port platform configuration data */
