@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2016, 2019, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -512,6 +512,9 @@ static void skb_recycler_init_procfs(void)
 void __init skb_recycler_init(void)
 {
 	int cpu;
+#ifdef CONFIG_SKB_RECYCLER_MULTI_CPU
+	unsigned int i;
+#endif
 
 	for_each_possible_cpu(cpu) {
 		skb_queue_head_init(&per_cpu(recycle_list, cpu));
@@ -523,7 +526,6 @@ void __init skb_recycler_init(void)
 	}
 
 	spin_lock_init(&glob_recycler.lock);
-	unsigned int i;
 
 	for (i = 0; i < SKB_RECYCLE_MAX_SHARED_POOLS; i++)
 		skb_queue_head_init(&glob_recycler.pool[i]);
@@ -557,7 +559,6 @@ void skb_recycler_print_all_lists(void)
 	preempt_disable();
 	local_irq_save(flags);
 	for_each_possible_cpu(cpu) {
-		unsigned long flags;
 		struct sk_buff_head *h;
 
 		h = &per_cpu(recycle_spare_list, cpu);
@@ -570,7 +571,6 @@ void skb_recycler_print_all_lists(void)
 	preempt_disable();
 	local_irq_save(flags);
 	for_each_possible_cpu(cpu) {
-		unsigned long flags;
 		struct sk_buff_head *h;
 
 		h = &per_cpu(recycle_list, cpu);

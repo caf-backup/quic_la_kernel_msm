@@ -1467,7 +1467,7 @@ static int bond_option_ad_user_port_key_set(struct bonding *bond,
 }
 
 int bond_option_l2da_multimac_set(struct bonding *bond,
-				  struct bond_opt_value *newval)
+				  const struct bond_opt_value *newval)
 {
 	pr_info("%s: Setting l2da_multimac to (%llu).\n",
 		bond->dev->name, newval->value);

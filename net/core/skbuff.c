@@ -415,12 +415,14 @@ EXPORT_SYMBOL(napi_alloc_frag);
 struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
 				   unsigned int length, gfp_t gfp_mask)
 {
+#ifndef CONFIG_SKB_RECYCLER
 	struct page_frag_cache *nc;
 	unsigned long flags;
-	struct sk_buff *skb;
 	bool pfmemalloc;
 	void *data;
+#endif
 
+	struct sk_buff *skb;
 	unsigned int len = length;
 
 #ifdef CONFIG_SKB_RECYCLER
