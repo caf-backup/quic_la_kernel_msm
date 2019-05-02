@@ -744,6 +744,10 @@ struct dwc3_scratchpad_array {
  * 	1	- -3.5dB de-emphasis
  * 	2	- No de-emphasis
  * 	3	- Reserved
+ * @is_drd: device supports dual-role or not
+ * @vbus_active: Indicate if the gadget was powered by the otg driver
+ * @soft_connect: Indicate if software connect was issued
+ *			by the usb_gadget_driver
  */
 struct dwc3 {
 	struct usb_ctrlrequest	*ctrl_req;
@@ -899,6 +903,9 @@ struct dwc3 {
 	unsigned		enable_usb2_host_discon_quirk:1;
 	u32			phy_misc_reg;
 	u32			phy_host_disc_on;
+	unsigned		is_drd:1;
+	unsigned		vbus_active:1;
+	unsigned		softconnect:1;
 };
 
 /* -------------------------------------------------------------------------- */
@@ -1115,5 +1122,7 @@ static inline int dwc3_ulpi_init(struct dwc3 *dwc)
 static inline void dwc3_ulpi_exit(struct dwc3 *dwc)
 { }
 #endif
+
+int dwc3_event_buffers_setup(struct dwc3 *dwc);
 
 #endif /* __DRIVERS_USB_DWC3_CORE_H */

@@ -35,6 +35,12 @@
 #include "gadget.h"
 #include "io.h"
 
+static void dwc3_gadget_disconnect_interrupt(struct dwc3 *dwc);
+static int __dwc3_gadget_start(struct dwc3 *dwc);
+static void dwc3_gadget_disable_irq(struct dwc3 *dwc);
+static irqreturn_t dwc3_interrupt(int irq, void *_dwc);
+static irqreturn_t dwc3_thread_interrupt(int irq, void *_dwc);
+
 /**
  * dwc3_gadget_set_test_mode - Enables USB2 Test Modes
  * @dwc: pointer to our context structure
@@ -1486,6 +1492,9 @@ static int dwc3_gadget_run_stop(struct dwc3 *dwc, int is_on, int suspend)
 
 	reg = dwc3_readl(dwc->regs, DWC3_DCTL);
 	if (is_on) {
+		dwc3_event_buffers_setup(dwc);
+		__dwc3_gadget_start(dwc);
+
 		if (dwc->revision <= DWC3_REVISION_187A) {
 			reg &= ~DWC3_DCTL_TRGTULST_MASK;
 			reg |= DWC3_DCTL_TRGTULST_RX_DET;
@@ -1500,6 +1509,10 @@ static int dwc3_gadget_run_stop(struct dwc3 *dwc, int is_on, int suspend)
 
 		dwc->pullups_connected = true;
 	} else {
+		dwc3_gadget_disable_irq(dwc);
+		__dwc3_gadget_ep_disable(dwc->eps[0]);
+		__dwc3_gadget_ep_disable(dwc->eps[1]);
+
 		reg &= ~DWC3_DCTL_RUN_STOP;
 
 		if (dwc->has_hibernation && !suspend)
@@ -1541,6 +1554,16 @@ static int dwc3_gadget_pullup(struct usb_gadget *g, int is_on)
 
 	is_on = !!is_on;
 
+	dwc->softconnect = is_on;
+
+	if ((dwc->is_drd && !dwc->vbus_active) || !dwc->gadget_driver) {
+		/*
+		 * Need to wait for vbus_session(on) from otg driver or to
+		 * the udc_start.
+		 */
+		return 0;
+	}
+
 	spin_lock_irqsave(&dwc->lock, flags);
 	ret = dwc3_gadget_run_stop(dwc, is_on, false);
 	spin_unlock_irqrestore(&dwc->lock, flags);
@@ -1572,44 +1595,55 @@ static void dwc3_gadget_disable_irq(struct dwc3 *dwc)
 	dwc3_writel(dwc->regs, DWC3_DEVTEN, 0x00);
 }
 
-static irqreturn_t dwc3_interrupt(int irq, void *_dwc);
-static irqreturn_t dwc3_thread_interrupt(int irq, void *_dwc);
-
-static int dwc3_gadget_start(struct usb_gadget *g,
-		struct usb_gadget_driver *driver)
+static int dwc3_gadget_vbus_session(struct usb_gadget *_gadget, int is_active)
 {
-	struct dwc3		*dwc = gadget_to_dwc(g);
-	struct dwc3_ep		*dep;
-	unsigned long		flags;
-	int			ret = 0;
-	int			irq;
-	u32			reg;
+	struct dwc3 *dwc = gadget_to_dwc(_gadget);
+	unsigned long flags;
 
-	irq = platform_get_irq(to_platform_device(dwc->dev), 0);
-	if (dwc->emulation)
-		ret = request_irq(irq, dwc3_interrupt, IRQF_SHARED, "dwc3",
-				  dwc);
-	else
-		ret = request_threaded_irq(irq, dwc3_interrupt,
-					   dwc3_thread_interrupt,
-					   IRQF_SHARED, "dwc3", dwc);
-	if (ret) {
-		dev_err(dwc->dev, "failed to request irq #%d --> %d\n",
-				irq, ret);
-		goto err0;
-	}
+	if (!dwc->is_drd)
+		return -EPERM;
+
+	is_active = !!is_active;
 
 	spin_lock_irqsave(&dwc->lock, flags);
 
-	if (dwc->gadget_driver) {
-		dev_err(dwc->dev, "%s is already bound to %s\n",
-				dwc->gadget.name,
-				dwc->gadget_driver->driver.name);
-		ret = -EBUSY;
-		goto err1;
+	/* Mark that the vbus was powered */
+	dwc->vbus_active = is_active;
+
+	/*
+	 * Check if upper level usb_gadget_driver was already registered with
+	 * this udc controller driver (if dwc3_gadget_start was called)
+	 */
+	if (dwc->gadget_driver && dwc->softconnect) {
+		if (dwc->vbus_active) {
+			/*
+			 * Both vbus was activated by otg and pullup was
+			 * signaled by the gadget driver.
+			 */
+			dwc3_gadget_run_stop(dwc, 1, false);
+		} else {
+			dwc3_gadget_run_stop(dwc, 0, false);
+		}
 	}
 
-	dwc->gadget_driver	= driver;
+	/*
+	 * Clearing run/stop bit might occur before disconnect event is seen.
+	 * Make sure to let gadget driver know in that case.
+	 */
+	if (!dwc->vbus_active) {
+		dev_dbg(dwc->dev, "calling disconnect from %s\n", __func__);
+		dwc3_gadget_disconnect_interrupt(dwc);
+	}
+
+	spin_unlock_irqrestore(&dwc->lock, flags);
+	return 0;
+}
+
+static int __dwc3_gadget_start(struct dwc3 *dwc)
+{
+	struct dwc3_ep		*dep;
+	int			ret = 0;
+	u32			reg;
 
 	reg = dwc3_readl(dwc->regs, DWC3_DCFG);
 	reg &= ~(DWC3_DCFG_SPEED_MASK);
@@ -1656,7 +1690,7 @@ static int dwc3_gadget_start(struct usb_gadget *g,
 			false);
 	if (ret) {
 		dev_err(dwc->dev, "failed to enable %s\n", dep->name);
-		goto err2;
+		return ret;
 	}
 
 	dep = dwc->eps[1];
@@ -1664,7 +1698,8 @@ static int dwc3_gadget_start(struct usb_gadget *g,
 			false);
 	if (ret) {
 		dev_err(dwc->dev, "failed to enable %s\n", dep->name);
-		goto err3;
+		__dwc3_gadget_ep_disable(dwc->eps[0]);
+		return ret;
 	}
 
 	/* begin to receive SETUP packets */
@@ -1673,19 +1708,54 @@ static int dwc3_gadget_start(struct usb_gadget *g,
 
 	dwc3_gadget_enable_irq(dwc);
 
+	return ret;
+}
+
+static int dwc3_gadget_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
+{
+	struct dwc3		*dwc = gadget_to_dwc(g);
+	unsigned long		flags;
+	int			ret = 0;
+	int			irq;
+
+	irq = platform_get_irq(to_platform_device(dwc->dev), 0);
+	if (dwc->emulation)
+		ret = request_irq(irq, dwc3_interrupt, IRQF_SHARED, "dwc3",
+				  dwc);
+	else
+		ret = request_threaded_irq(irq, dwc3_interrupt,
+					   dwc3_thread_interrupt,
+					   IRQF_SHARED, "dwc3", dwc);
+	if (ret) {
+		dev_err(dwc->dev, "failed to request irq #%d --> %d\n",
+				irq, ret);
+		goto err0;
+	}
+
+	spin_lock_irqsave(&dwc->lock, flags);
+
+	if (dwc->gadget_driver) {
+		dev_err(dwc->dev, "%s is already bound to %s\n",
+				dwc->gadget.name,
+				dwc->gadget_driver->driver.name);
+		ret = -EBUSY;
+		goto err1;
+	}
+
+	dwc->gadget_driver	= driver;
+
+	/*
+	 * For DRD, this might get called by gadget driver during bootup
+	 * even though host mode might be active. Don't actually perform
+	 * device-specific initialization until device mode is activated.
+	 * In that case __dwc3_gadget_start() will handle it.
+	 */
 	spin_unlock_irqrestore(&dwc->lock, flags);
-
 	return 0;
-
-err3:
-	__dwc3_gadget_ep_disable(dwc->eps[0]);
-
-err2:
-	dwc->gadget_driver = NULL;
 
 err1:
 	spin_unlock_irqrestore(&dwc->lock, flags);
-
 	free_irq(irq, dwc);
 
 err0:
@@ -1727,6 +1797,7 @@ static const struct usb_gadget_ops dwc3_gadget_ops = {
 	.get_frame		= dwc3_gadget_get_frame,
 	.wakeup			= dwc3_gadget_wakeup,
 	.set_selfpowered	= dwc3_gadget_set_selfpowered,
+	.vbus_session		= dwc3_gadget_vbus_session,
 	.pullup			= dwc3_gadget_pullup,
 	.udc_start		= dwc3_gadget_start,
 	.udc_stop		= dwc3_gadget_stop,
@@ -2638,6 +2709,12 @@ static void dwc3_process_event_entry(struct dwc3 *dwc,
 		const union dwc3_event *event)
 {
 	trace_dwc3_event(event->raw);
+
+	/* skip event processing in absence of vbus */
+	if (!dwc->vbus_active) {
+		dev_dbg(dwc->dev, "SKIP EVT : event->raw: %x\n", event->raw);
+		return;
+	}
 
 	/* Endpoint IRQ, handle it and return early */
 	if (event->type.is_devspec == 0) {

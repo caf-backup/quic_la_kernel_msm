@@ -103,6 +103,7 @@ void dwc3_set_mode(struct dwc3 *dwc, u32 mode)
 	reg |= DWC3_GCTL_PRTCAPDIR(mode);
 	dwc3_writel(dwc->regs, DWC3_GCTL, reg);
 }
+EXPORT_SYMBOL(dwc3_set_mode);
 
 /**
  * dwc3_core_soft_reset - Issues core soft reset and PHY reset
@@ -309,7 +310,7 @@ static int dwc3_alloc_event_buffers(struct dwc3 *dwc, unsigned length)
  *
  * Returns 0 on success otherwise negative errno.
  */
-static int dwc3_event_buffers_setup(struct dwc3 *dwc)
+int dwc3_event_buffers_setup(struct dwc3 *dwc)
 {
 	struct dwc3_event_buffer	*evt;
 	int				n;
@@ -333,6 +334,7 @@ static int dwc3_event_buffers_setup(struct dwc3 *dwc)
 
 	return 0;
 }
+EXPORT_SYMBOL(dwc3_event_buffers_setup);
 
 static void dwc3_event_buffers_cleanup(struct dwc3 *dwc)
 {
@@ -824,6 +826,7 @@ static int dwc3_core_init_mode(struct dwc3 *dwc)
 
 	switch (dwc->dr_mode) {
 	case USB_DR_MODE_PERIPHERAL:
+		dwc->vbus_active = 1;
 		dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_DEVICE);
 		ret = dwc3_gadget_init(dwc);
 		if (ret) {
@@ -841,12 +844,6 @@ static int dwc3_core_init_mode(struct dwc3 *dwc)
 		break;
 	case USB_DR_MODE_OTG:
 		dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_OTG);
-		ret = dwc3_host_init(dwc);
-		if (ret) {
-			dev_err(dev, "failed to initialize host\n");
-			return ret;
-		}
-
 		ret = dwc3_gadget_init(dwc);
 		if (ret) {
 			dev_err(dev, "failed to initialize gadget\n");
@@ -871,7 +868,6 @@ static void dwc3_core_exit_mode(struct dwc3 *dwc)
 		dwc3_host_exit(dwc);
 		break;
 	case USB_DR_MODE_OTG:
-		dwc3_host_exit(dwc);
 		dwc3_gadget_exit(dwc);
 		break;
 	default:
@@ -1116,6 +1112,9 @@ static int dwc3_probe(struct platform_device *pdev)
 
 	if (dwc->dr_mode == USB_DR_MODE_UNKNOWN)
 		dwc->dr_mode = USB_DR_MODE_OTG;
+
+	if (dwc->dr_mode == USB_DR_MODE_OTG)
+		dwc->is_drd = 1;
 
 	ret = dwc3_core_init(dwc);
 	if (ret) {
