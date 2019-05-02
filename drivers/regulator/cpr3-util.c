@@ -1652,7 +1652,6 @@ done:
  */
 bool cpr3_can_adjust_cold_temp(struct cpr3_regulator *vreg)
 {
-	int rc;
 	char prop_str[75];
 	const int *soc_version_major = read_ipq_soc_version_major();
 
