@@ -111,11 +111,11 @@ static const struct parent_map parents_apcs_alias0_clk_src_map[] = {
 
 static const struct freq_tbl ftbl_apcs_alias0_clk_src[] = {
 	F(24000000, P_XO, 1, 0, 0),
-	F(850000000, P_APSS_PLL_EARLY, 1, 0, 0),
-	F(1050000000, P_APSS_PLL_EARLY, 1, 0, 0),
-	F(1300000000, P_APSS_PLL_EARLY, 1, 0, 0),
-	F(1430000000, P_APSS_PLL_EARLY, 1, 0, 0),
-	F(1600000000, P_APSS_PLL_EARLY, 1, 0, 0),
+	F(864000000, P_APSS_PLL_EARLY, 1, 0, 0),
+	F(1056000000, P_APSS_PLL_EARLY, 1, 0, 0),
+	F(1320000000, P_APSS_PLL_EARLY, 1, 0, 0),
+	F(1440000000, P_APSS_PLL_EARLY, 1, 0, 0),
+	F(1608000000, P_APSS_PLL_EARLY, 1, 0, 0),
 	F(1800000000, P_APSS_PLL_EARLY, 1, 0, 0),
 	{ }
 };
@@ -159,6 +159,14 @@ static struct clk_regmap *apss_ipq6018_clks[] = {
 	[APCS_ALIAS0_CORE_CLK] = &apcs_alias0_core_clk.clkr,
 };
 
+static const struct alpha_pll_config apss_pll_config = {
+	.l = 0x37,
+	.config_ctl_val = 0x00141200,
+	.config_ctl_hi_val = 0x0,
+	.early_output_mask = BIT(3),
+	.main_output_mask = BIT(0),
+};
+
 static const struct of_device_id apss_ipq6018_match_table[] = {
 	{ .compatible = "qcom,apss-ipq6018" },
 	{ }
@@ -182,8 +190,15 @@ static const struct qcom_cc_desc apss_ipq6018_desc = {
 static int apss_ipq6018_probe(struct platform_device *pdev)
 {
 	int ret;
+	struct regmap *regmap;
 
-	ret = qcom_cc_probe(pdev, &apss_ipq6018_desc);
+	regmap = qcom_cc_map(pdev, &apss_ipq6018_desc);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
+
+	clk_alpha_pll_configure(&apss_pll_early, regmap, &apss_pll_config);
+
+	ret = qcom_cc_really_probe(pdev, &apss_ipq6018_desc, regmap);
 
 	dev_dbg(&pdev->dev, "Registered ipq6018 apss clock provider\n");
 
