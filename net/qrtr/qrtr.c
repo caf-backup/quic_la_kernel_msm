@@ -160,7 +160,7 @@ struct qrtr_node {
 	atomic_t hello_sent;
 
 	struct radix_tree_root qrtr_tx_flow;
-	struct wait_queue_head resume_tx;
+	wait_queue_head_t resume_tx;
 	struct mutex qrtr_tx_lock;	/* for qrtr_tx_flow */
 
 	struct sk_buff_head rx_queue;
@@ -346,7 +346,7 @@ static void __qrtr_node_release(struct kref *kref)
 	}
 	mutex_unlock(&node->qrtr_tx_lock);
 
-	kthread_flush_worker(&node->kworker);
+	flush_kthread_worker(&node->kworker);
 	kthread_stop(node->task);
 
 	skb_queue_purge(&node->rx_queue);
@@ -740,7 +740,7 @@ int qrtr_endpoint_post(struct qrtr_endpoint *ep, const void *data, size_t len)
 	qrtr_log_rx_msg(node, skb);
 
 	skb_queue_tail(&node->rx_queue, skb);
-	kthread_queue_work(&node->kworker, &node->read_data);
+	queue_kthread_work(&node->kworker, &node->read_data);
 
 	return 0;
 
@@ -926,8 +926,8 @@ int qrtr_endpoint_register(struct qrtr_endpoint *ep, unsigned int net_id)
 	node->ep = ep;
 	atomic_set(&node->hello_sent, 0);
 
-	kthread_init_work(&node->read_data, qrtr_node_rx_work);
-	kthread_init_worker(&node->kworker);
+	init_kthread_work(&node->read_data, qrtr_node_rx_work);
+	init_kthread_worker(&node->kworker);
 	node->task = kthread_run(kthread_worker_fn, &node->kworker, "qrtr_rx");
 	if (IS_ERR(node->task)) {
 		kfree(node);
