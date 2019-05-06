@@ -330,6 +330,7 @@ store_sec_auth(struct device *dev,
 	struct device_node *np;
 	struct file *file;
 	struct kstat st;
+	u32 scm_cmd_id;
 
 	file_name = kzalloc(count+1, GFP_KERNEL);
 	if (file_name == NULL)
@@ -382,6 +383,10 @@ store_sec_auth(struct device *dev,
 		goto put_node;
 	}
 
+	ret = of_property_read_u32(np, "scm-cmd-id", &scm_cmd_id);
+	if (ret)
+		scm_cmd_id = QCOM_KERNEL_AUTH_CMD;
+
 	file_buf = ioremap_nocache(img_addr, img_size);
 	if (file_buf == NULL) {
 		ret = -ENOMEM;
@@ -396,7 +401,7 @@ store_sec_auth(struct device *dev,
 		goto un_map;
 	}
 
-	ret = qcom_sec_upgrade_auth(sw_type, size, img_addr);
+	ret = qcom_sec_upgrade_auth(scm_cmd_id, sw_type, size, img_addr);
 	if (ret) {
 		pr_err("sec_upgrade_auth failed with return=%d\n", ret);
 		goto un_map;
@@ -619,6 +624,8 @@ static int qfprom_probe(struct platform_device *pdev)
 {
 	int err, ret;
 	int16_t sw_bitmap = 0;
+	struct device_node *np = pdev->dev.of_node;
+	u32 scm_cmd_id;
 
 	if (!qcom_scm_is_available()) {
 		pr_info("SCM call is not initialized, defering probe\n");
@@ -649,10 +656,15 @@ static int qfprom_probe(struct platform_device *pdev)
 		return ret;
 
 	if (ret == 1) {
+
+		err = of_property_read_u32(np, "scm-cmd-id", &scm_cmd_id);
+		if (err)
+			scm_cmd_id = QCOM_KERNEL_AUTH_CMD;
+
 		/*
 		 * Checking if secure sysupgrade scm_call is supported
 		 */
-		if (!qcom_scm_sec_auth_available()) {
+		if (!qcom_scm_sec_auth_available(scm_cmd_id)) {
 			pr_info("qcom_scm_sec_auth_available is not supported\n");
 		} else {
 			sec_kobj = kobject_create_and_add("sec_upgrade", NULL);

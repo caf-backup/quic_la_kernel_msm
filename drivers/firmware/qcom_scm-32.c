@@ -1094,8 +1094,10 @@ int __qcom_sec_release_xpu_prot(struct device *dev)
 	return ret;
 }
 
-int __qcom_sec_upgrade_auth(struct device *dev, unsigned int sw_type,
-				unsigned int img_size, unsigned int load_addr)
+int __qcom_sec_upgrade_auth(struct device *dev, unsigned int scm_cmd_id,
+							unsigned int sw_type,
+							unsigned int img_size,
+							unsigned int load_addr)
 {
 	int ret;
 	struct {
@@ -1109,7 +1111,7 @@ int __qcom_sec_upgrade_auth(struct device *dev, unsigned int sw_type,
 		cmd_buf.size = img_size;
 		cmd_buf.addr = load_addr;
 		ret = qcom_scm_call(dev, QCOM_SCM_SVC_BOOT,
-					QCOM_KERNEL_AUTH_CMD, &cmd_buf,
+					scm_cmd_id, &cmd_buf,
 					sizeof(cmd_buf), NULL, 0);
 	} else {
 		__le32 scm_ret;
@@ -1120,7 +1122,7 @@ int __qcom_sec_upgrade_auth(struct device *dev, unsigned int sw_type,
 		desc.args[2] = (u64)load_addr;
 		desc.arginfo = SCM_ARGS(3, SCM_VAL, SCM_VAL, SCM_RW);
 		ret = qcom_scm_call2(SCM_SIP_FNID(QCOM_SCM_SVC_BOOT,
-				QCOM_KERNEL_AUTH_CMD), &desc);
+							scm_cmd_id), &desc);
 		scm_ret = desc.ret[0];
 
 		if (!ret)

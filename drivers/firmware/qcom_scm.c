@@ -370,10 +370,10 @@ int qcom_scm_extwdt(u32 svc_id, u32 cmd_id, unsigned int regaddr,
 }
 EXPORT_SYMBOL(qcom_scm_extwdt);
 
-int qcom_sec_upgrade_auth(unsigned int sw_type, unsigned int img_size,
-				 unsigned int load_addr)
+int qcom_sec_upgrade_auth(unsigned int scm_cmd_id, unsigned int sw_type,
+				unsigned int img_size, unsigned int load_addr)
 {
-	return __qcom_sec_upgrade_auth(__scm->dev, sw_type,
+	return __qcom_sec_upgrade_auth(__scm->dev, scm_cmd_id, sw_type,
 						img_size, load_addr);
 }
 EXPORT_SYMBOL(qcom_sec_upgrade_auth);
@@ -383,12 +383,12 @@ EXPORT_SYMBOL(qcom_sec_upgrade_auth);
  *
  * Return true if SEC_AUTH is supported, false if not.
  */
-bool qcom_scm_sec_auth_available(void)
+bool qcom_scm_sec_auth_available(unsigned int scm_cmd_id)
 {
 	int ret;
 
 	ret = __qcom_scm_is_call_available(__scm->dev, QCOM_SCM_SVC_SEC_AUTH,
-						QCOM_SCM_CMD_SEC_AUTH);
+								scm_cmd_id);
 
 	return ret > 0 ? true : false;
 }
