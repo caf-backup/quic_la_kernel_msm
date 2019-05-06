@@ -40,6 +40,8 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/timer.h>
+#include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/stringify.h>
 #include "rproc_mdt_loader.h"
 
@@ -142,6 +144,7 @@ static struct q6v5_rproc_pdata *q6v5_rproc_pdata;
 
 #define	OPEN_TIMEOUT	5000
 #define	DUMP_TIMEOUT	10000
+#define	NUM_WCSS_CLKS	8
 
 static struct timer_list dump_timeout;
 static struct completion dump_complete;
@@ -152,6 +155,7 @@ static atomic_t open_timedout;
 
 static const struct file_operations q6_dump_ops;
 static struct class *dump_class;
+static struct clk *wcss_clks[NUM_WCSS_CLKS];
 
 struct dump_file_private {
 	int remaining_bytes;
@@ -169,6 +173,57 @@ struct dumpdev {
 	phys_addr_t dump_phy_addr;
 	size_t dump_size;
 } q6dump = {"q6mem", &q6_dump_ops, FMODE_UNSIGNED_OFFSET | FMODE_EXCL, "wcnss"};
+
+static const char *wcss_clk_names[NUM_WCSS_CLKS] = {"wcss_axi_m_clk",
+							"sys_noc_wcss_ahb_clk",
+							"q6_axim_clk",
+							"q6ss_atbm_clk",
+							"q6ss_pclkdbg_clk",
+							"q6_tsctr_1to2_clk",
+							"wcss_core_tbu_clk",
+							"wcss_q6_tbu_clk"
+							};
+
+static void ipq60xx_wcss_clks_disable(struct device *dev, int count)
+{
+	int i;
+
+	for (i = 0; i < count; i++) {
+		clk_disable_unprepare(wcss_clks[i]);
+		devm_clk_put(dev, wcss_clks[i]);
+	}
+
+	return 0;
+}
+
+static int ipq60xx_wcss_clks_prepare_enable(struct device *dev)
+{
+	int i, ret;
+
+	for (i = 0; i < NUM_WCSS_CLKS; i++) {
+		wcss_clks[i] = devm_clk_get(dev, wcss_clk_names[i]);
+		if (IS_ERR(wcss_clks[i])) {
+			pr_err("%s unable to get clk %s\n",
+					__func__, wcss_clk_names[i]);
+			ret = PTR_ERR(wcss_clks[i]);
+			goto disable_clk;
+		}
+		ret = clk_prepare_enable(wcss_clks[i]);
+		if (ret) {
+			pr_err("%s unable to enable clk %s\n",
+					__func__, wcss_clk_names[i]);
+			goto put_disable_clk;
+		}
+	}
+
+	return 0;
+
+put_disable_clk:
+	devm_clk_put(dev, wcss_clks[i]);
+disable_clk:
+	ipq60xx_wcss_clks_disable(dev, i);
+	return ret;
+}
 
 static void open_timeout_func(unsigned long data)
 {
@@ -1391,7 +1446,9 @@ static int q6_rproc_probe(struct platform_device *pdev)
 	if (!ops) {
 		dev_err(&pdev->dev, "chipset not supported\n");
 		return -EIO;
-	}
+	} else if ((ops == &ipq60xx_q6v5_rproc_ops) &&
+			ipq60xx_wcss_clks_prepare_enable(&pdev->dev))
+		return -EIO;
 
 	rproc = rproc_alloc(&pdev->dev, "q6v5-wcss", ops, firmware_name,
 						sizeof(*q6v5_rproc_pdata));
