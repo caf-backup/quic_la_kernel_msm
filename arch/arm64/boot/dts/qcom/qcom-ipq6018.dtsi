@@ -21,6 +21,7 @@
 #include "qcom-ipq6018-memory.dtsi"
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/sound/qcom,gpr.h>
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "Qualcomm Technologies, Inc. IPQ6018";
@@ -482,6 +483,11 @@
 				qcom,descriptor-fifo-offset = <0xe00>;
 				qcom,descriptor-fifo-size = <0x200>;
 			};
+		};
+
+		extcon_usb: extcon_usb {
+			compatible = "linux,extcon-usb-gpio";
+			status = "disabled";
 		};
 
 		usb2: usb2@7000000 {
