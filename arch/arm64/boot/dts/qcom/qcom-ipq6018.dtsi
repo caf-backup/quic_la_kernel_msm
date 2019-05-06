@@ -919,6 +919,22 @@
 					"gcc-wcss-bcr-base",
 					"gcc-wcss-misc-base",
 					"tcsr-global";
+			clocks = <&gcc GCC_WCSS_AXI_M_CLK>,
+					<&gcc GCC_SYS_NOC_WCSS_AHB_CLK>,
+					<&gcc GCC_Q6_AXIM_CLK>,
+					<&gcc GCC_Q6SS_ATBM_CLK>,
+					<&gcc GCC_Q6SS_PCLKDBG_CLK>,
+					<&gcc GCC_Q6_TSCTR_1TO2_CLK>,
+					<&gcc GCC_WCSS_CORE_TBU_CLK>,
+					<&gcc GCC_WCSS_Q6_TBU_CLK>;
+			clock-names = "wcss_axi_m_clk",
+					"sys_noc_wcss_ahb_clk",
+					"q6_axim_clk",
+					"q6ss_atbm_clk",
+					"q6ss_pclkdbg_clk",
+					"q6_tsctr_1to2_clk",
+					"wcss_core_tbu_clk",
+					"wcss_q6_tbu_clk";
 			qca,auto-restart;
 			qca,extended-intc;
 			interrupts-extended = <&intc 0 325 1>,
