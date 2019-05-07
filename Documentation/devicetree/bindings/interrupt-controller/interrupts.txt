@@ -108,3 +108,57 @@ commonly used:
 			sensitivity = <7>;
 		};
 	};
+
+3) Interrupt wakeup parent
+--------------------------
+
+Some interrupt controllers in a SoC, are always powered on and have a select
+interrupts routed to them, so that they can wakeup the SoC from suspend. These
+interrupt controllers do not fall into the category of a parent interrupt
+controller and can be specified by the "wakeup-parent" property and contain a
+single phandle referring to the wakeup capable interrupt controller.
+
+   Example:
+	wakeup-parent = <&pdc_intc>;
+
+
+4) Interrupt mapping
+--------------------
+
+Sometimes interrupts may be detected by more than one interrupt controller
+(depending on which controller is active). The interrupt controllers may not
+be in hierarchy and therefore the interrupt controller driver is required to
+establish the relationship between the same interrupt at different interrupt
+controllers. If these interrupts are not sequential then a map needs to be
+specified to help identify these interrupts.
+
+Mapping the interrupt specifiers in the device tree can be done using the
+"irqdomain-map" property. The property contains interrupt specifier at the
+current interrupt controller followed by the interrupt specifier at the mapped
+interrupt controller.
+
+   irqdomain-map = <incoming-interrupt-specifier mapped-interrupt-specifier>
+
+The optional properties "irqdomain-map-mask" and "irqdomain-map-pass-thru" may
+be provided to help interpret the valid bits of the incoming and mapped
+interrupt specifiers respectively.
+
+   Example:
+	intc: interrupt-controller@17a00000 {
+		#interrupt-cells = <3>;
+	};
+
+	pinctrl@3400000 {
+		#interrupt-cells = <2>;
+		irqdomain-map = <22 0 &intc 36 0>, <24 0 &intc 37 0>;
+		irqdomain-map-mask = <0xff 0>;
+		irqdomain-map-pass-thru = <0 0xff>;
+	};
+
+In the above example, the input interrupt specifier map-mask <0xff 0> applied
+on the incoming interrupt specifier of the map <22 0>, <24 0>, returns the
+input interrupt 22, 24 etc. The second argument being irq type is immaterial
+from the map and is used from the incoming request instead. The pass-thru
+specifier parses the output interrupt specifier from the rest of the unparsed
+argments from the map <&intc 36 0>, <&intc 37 0> etc to return the output
+interrupt 36, 37 etc.
