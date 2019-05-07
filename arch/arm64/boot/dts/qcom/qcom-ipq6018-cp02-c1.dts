@@ -26,6 +26,12 @@
 
 	aliases {
 		sdhc1 = &sdhc_1;
+		/*
+		 * Aliases as required by u-boot
+		 * to patch MAC addresses
+		 */
+		ethernet0 = "/soc/dp1";
+		ethernet1 = "/soc/dp2";
 	};
 
 	chosen {
@@ -195,6 +201,31 @@
 			reg = <0x14>;
 		};
 	};
+
+	dp1 {
+		device_type = "network";
+		compatible = "qcom,nss-dp";
+		qcom,id = <1>;
+		reg = <0x3a001000 0x200>;
+		qcom,mactype = <0>;
+		local-mac-address = [000000000000];
+		qcom,link-poll = <1>;
+		qcom,phy-mdio-addr = <16>;
+		phy-mode = "sgmii";
+	};
+
+	dp2 {
+		device_type = "network";
+		compatible = "qcom,nss-dp";
+		qcom,id = <2>;
+		reg = <0x3a001200 0x200>;
+		qcom,mactype = <0>;
+		local-mac-address = [000000000000];
+		qcom,link-poll = <1>;
+		qcom,phy-mdio-addr = <20>;
+		phy-mode = "sgmii";
+	};
+
 };
 
 &blsp1_uart3 {

@@ -24,6 +24,15 @@
 	compatible = "qcom,ipq6018-cp03", "qcom,ipq6018";
 	interrupt-parent = <&intc>;
 
+	aliases {
+		/*
+		 * Aliases as required by u-boot
+		 * to patch MAC addresses
+		 */
+		ethernet0 = "/soc/dp1";
+		ethernet1 = "/soc/dp2";
+	};
+
 	chosen {
 		bootargs = "console=ttyMSM0,115200,n8 clk_ignore_unused rw init=/init";
 		bootargs-append = " swiotlb=1";
@@ -182,6 +191,31 @@
 			reg = <4>;
 		};
 	};
+
+	dp1 {
+		device_type = "network";
+		compatible = "qcom,nss-dp";
+		qcom,id = <3>;
+		reg = <0x3a001400 0x200>;
+		qcom,mactype = <0>;
+		local-mac-address = [000000000000];
+		qcom,link-poll = <1>;
+		qcom,phy-mdio-addr = <2>;
+		phy-mode = "sgmii";
+	};
+
+	dp2 {
+		device_type = "network";
+		compatible = "qcom,nss-dp";
+		qcom,id = <4>;
+		reg = <0x3a001600 0x200>;
+		qcom,mactype = <0>;
+		local-mac-address = [000000000000];
+		qcom,link-poll = <1>;
+		qcom,phy-mdio-addr = <3>;
+		phy-mode = "sgmii";
+	};
+
 };
 
 &blsp1_uart3 {
