@@ -1132,8 +1132,36 @@ static void tmc_abort(struct coresight_device *csdev)
 	} else if (drvdata->config_type == TMC_CONFIG_TYPE_ETR) {
 		if (drvdata->out_mode == TMC_ETR_OUT_MODE_MEM)
 			tmc_etr_disable_hw(drvdata);
-		else if (drvdata->out_mode == TMC_ETR_OUT_MODE_Q6MEM)
+		else if (drvdata->out_mode == TMC_ETR_OUT_MODE_Q6MEM) {
+			uint32_t rrp;
+			uint32_t rwp;
+			uint32_t sts;
+			uint32_t phy_offset;
+			dma_addr_t rrp_phy;
+			uint32_t q6mem_magic = 0xdeadbeef;
+			void __iomem *q6_etr_waddr;
+
 			tmc_etr_disable_hw(drvdata);
+
+			rrp = readl_relaxed(drvdata->base + TMC_RRP);
+			rrp_phy = rrp;
+			sts = readl_relaxed(drvdata->base + TMC_STS);
+			rwp = readl_relaxed(drvdata->base + TMC_RWP);
+
+			phy_offset = ((rrp_phy - drvdata->q6_etr_paddr) &
+					0xffffffff);
+			q6_etr_waddr = drvdata->q6_etr_vaddr + phy_offset;
+
+			memcpy_toio(q6_etr_waddr, &q6mem_magic,
+						sizeof(q6mem_magic));
+			q6_etr_waddr += sizeof(q6mem_magic);
+			memcpy_toio(q6_etr_waddr, &sts, sizeof(sts));
+			q6_etr_waddr += sizeof(sts);
+			memcpy_toio(q6_etr_waddr, &rrp, sizeof(rrp));
+			q6_etr_waddr += sizeof(rrp);
+			memcpy_toio(q6_etr_waddr, &rwp, sizeof(rwp));
+			q6_etr_waddr += sizeof(rwp);
+		}
 		else if (drvdata->out_mode == TMC_ETR_OUT_MODE_USB)
 			__tmc_etr_disable_to_bam(drvdata);
 	} else {
