@@ -554,6 +554,8 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-ipq6018-cp01-c1.dtb \
 	qcom-ipq6018-cp02-c1.dtb \
 	qcom-ipq6018-cp03-c1.dtb \
+	qcom-ipq6018-db-cp01.dtb \
+	qcom-ipq6018-db-cp02.dtb \
 	qcom-ipq807x-hk01.dtb \
 	qcom-ipq807x-hk01.c2.dtb \
 	qcom-ipq807x-hk01.c3.dtb \
