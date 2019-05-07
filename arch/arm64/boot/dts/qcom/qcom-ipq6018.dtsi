@@ -1016,6 +1016,24 @@
 						&smmu500 0x00B9
 						&smmu500 0x00BA
 						&smmu500 0x00BB>;
+			clocks = <&gcc GCC_LPASS_CORE_AXIM_CLK>,
+				<&gcc GCC_LPASS_SNOC_CFG_CLK>,
+				<&gcc GCC_LPASS_Q6_AXIM_CLK>,
+				<&gcc GCC_LPASS_Q6_ATBM_AT_CLK>,
+				<&gcc GCC_LPASS_Q6_PCLKDBG_CLK>,
+				<&gcc GCC_LPASS_Q6SS_TSCTR_1TO2_CLK>,
+				<&gcc GCC_LPASS_Q6SS_TRIG_CLK>,
+				<&gcc GCC_LPASS_TBU_CLK>,
+				<&gcc GCC_PCNOC_LPASS_CLK>;
+			clock-names = "lpass_core_axim_clk",
+					"lpass_snoc_cfg_clk",
+					"lpass_q6_axim_clk",
+					"lpass_q6_atbm_at_clk",
+					"lpass_q6_pclkdbg_clk",
+					"lpass_q6ss_tsctr_1to2_clk",
+					"lpass_q6ss_trig_clk",
+					"lpass_tbu_clk",
+					"pcnoc_lpass_clk";
 			};
 		};
 
