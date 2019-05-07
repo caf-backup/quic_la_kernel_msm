@@ -1512,6 +1512,7 @@ static int ssr_panic_handler(struct notifier_block *this,
 
 static struct notifier_block panic_nb = {
 	.notifier_call  = ssr_panic_handler,
+	.priority = 100,
 };
 
 static int __init subsys_restart_init(void)
