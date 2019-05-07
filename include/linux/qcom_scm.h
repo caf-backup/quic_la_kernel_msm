@@ -311,4 +311,8 @@ extern int qcom_los_scm_call(struct device *, u32 svc_id, u32 cmd_id,
 extern int qcom_fuseipq_scm_call(struct device *, u32 svc_id, u32 cmd_id,
 			     void *cmd_buf, size_t size);
 
+extern int qcom_scm_lock_subsys_mem(u32 subsys_id, void *paddr, size_t size);
+
+extern int qcom_scm_unlock_subsys_mem(u32 subsys_id, void *paddr, size_t size,
+								uint8_t key);
 #endif

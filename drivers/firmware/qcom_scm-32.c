@@ -1699,3 +1699,43 @@ int __qcom_fuseipq_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
 
 	return ret ? : le32_to_cpu(desc.ret[0]);
 }
+
+int __qcom_scm_lock_subsys_mem(struct device *dev, u32 subsys_id,
+						void *paddr, size_t size)
+{
+	struct scm_desc desc = {0};
+	int ret;
+
+	if (!is_scm_armv8())
+		return -ENOTSUPP;
+
+	desc.args[0] = subsys_id;
+	desc.args[1] = (u64)paddr;
+	desc.args[2] = size;
+	desc.arginfo = SCM_ARGS(3);
+	ret = qcom_scm_call2(SCM_SIP_FNID(QCOM_SCM_SVC_PIL,
+				QCOM_SCM_CMD_PIL_PROTECT_MEM_SUBSYS_ID),
+				&desc);
+
+	return ret ? : le32_to_cpu(desc.ret[0]);
+}
+
+int __qcom_scm_unlock_subsys_mem(struct device *dev, u32 subsys_id,
+					void *paddr, size_t size, uint8_t key)
+{
+	struct scm_desc desc = {0};
+	int ret;
+
+	if (!is_scm_armv8())
+		return -ENOTSUPP;
+
+	desc.args[0] = subsys_id;
+	desc.args[1] = (u64)paddr;
+	desc.args[2] = size;
+	desc.args[3] = key;
+	desc.arginfo = SCM_ARGS(4);
+	ret = qcom_scm_call2(SCM_SIP_FNID(QCOM_SCM_SVC_PIL,
+				QCOM_SCM_CMD_PIL_CLEAR_PROTECT_MEM_SUBSYS_ID),
+				&desc);
+	return ret ? : le32_to_cpu(desc.ret[0]);
+}
