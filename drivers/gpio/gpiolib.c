@@ -1843,6 +1843,19 @@ static void gpiochip_irq_relres(struct irq_data *d)
 
 static int gpiochip_to_irq(struct gpio_chip *chip, unsigned offset)
 {
+#ifdef CONFIG_OF_GPIO
+	struct irq_fwspec fwspec;
+
+	if (chip->of_node) {
+		fwspec.fwnode = of_node_to_fwnode(chip->of_node);
+		fwspec.param[0] = offset;
+		fwspec.param[1] = IRQ_TYPE_NONE;
+		fwspec.param_count = 2;
+
+		return irq_create_fwspec_mapping(&fwspec);
+	}
+#endif
+
 	if (!gpiochip_irqchip_irq_valid(chip, offset))
 		return -ENXIO;
 
