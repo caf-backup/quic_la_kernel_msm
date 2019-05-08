@@ -25,7 +25,7 @@
 	interrupt-parent = <&intc>;
 
 	chosen {
-		bootargs = "console=ttyMSM0,115200,n8 rw init=/init";
+		bootargs = "console=ttyMSM0,115200,n8 clk_ignore_unused rw init=/init";
 		bootargs-append = " swiotlb=1";
 	};
 
