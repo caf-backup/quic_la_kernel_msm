@@ -43,7 +43,7 @@ static int __mhi_download_rddm_in_panic(struct mhi_controller *mhi_cntrl)
 	u32 rx_status;
 	enum mhi_ee ee;
 	struct image_info *rddm_image = mhi_cntrl->rddm_image;
-	const u32 delayus = 5000;
+	const u32 delayus = 2000;
 	u32 retry = (mhi_cntrl->timeout_ms * 1000) / delayus;
 	const u32 rddm_timeout_us = 200000;
 	int rddm_retry = rddm_timeout_us / delayus; /* time to enter rddm */
