@@ -240,7 +240,7 @@ static void mhi_netdev_queue(struct mhi_netdev *mhi_netdev)
 			cur_index = (cur_index + 1) & pool_size;
 
 			/* page == 1 idle, buffer is free to reclaim */
-			if (page_ref_count(mhi_buf->page) == 1) {
+			if (atomic_read(&mhi_buf->page->_count) == 1) {
 				netbuf = tmp;
 				break;
 			}
@@ -253,7 +253,7 @@ static void mhi_netdev_queue(struct mhi_netdev *mhi_netdev)
 		/* increment reference count so when network stack is done
 		 * with buffer, the buffer won't be freed
 		 */
-		page_ref_inc(mhi_buf->page);
+		atomic_inc(&mhi_buf->page->_count);
 		dma_sync_single_for_device(dev, mhi_buf->dma_addr, mhi_buf->len,
 					   DMA_FROM_DEVICE);
 		ret = mhi_queue_transfer(mhi_dev, DMA_FROM_DEVICE, mhi_buf,
@@ -262,7 +262,7 @@ static void mhi_netdev_queue(struct mhi_netdev *mhi_netdev)
 			MSG_ERR("Failed to queue buffer, ret:%d\n", ret);
 			netbuf->unmap(dev, mhi_buf->dma_addr, mhi_buf->len,
 				      DMA_FROM_DEVICE);
-			page_ref_dec(mhi_buf->page);
+			atomic_dec(&mhi_buf->page->_count);
 			return;
 		}
 		mhi_netdev->current_index = cur_index;
