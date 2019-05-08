@@ -716,6 +716,7 @@
 			clock-frequency  = <400000>;
 			dmas = <&blsp_dma 15>, <&blsp_dma 14>;
 			dma-names = "rx", "tx";
+			status = "disabled";
 		};
 
 		spi_0: spi@78b5000 { /* BLSP1 QUP0 */
