@@ -40,6 +40,8 @@
 #include <linux/of.h>
 #include <linux/timer.h>
 #include <linux/stringify.h>
+#include <linux/iommu.h>
+#include <linux/sizes.h>
 #include "rproc_mdt_loader.h"
 
 enum rproc_adsp_state {
@@ -979,6 +981,41 @@ static int stop_q6(const struct subsys_desc *subsys, bool force_stop)
 		return 0;
 	}
 
+	if (rproc->domain) {
+		/* DDR region */
+		iommu_unmap(rproc->domain, 0x49100000, 26 * SZ_1M);
+		/* SMEM region */
+		iommu_unmap(rproc->domain, 0x48C00000, 1 * SZ_1M);
+		/* LPASS region */
+		iommu_unmap(rproc->domain, 0x0A000000, 16 * SZ_1M);
+		/* Core TCSR region */
+		iommu_unmap(rproc->domain, 0x01900000, 1 * SZ_1M);
+		/* TLMM region */
+		iommu_unmap(rproc->domain, 0x01000000, 4 * SZ_1M);
+		/* CLK CTL region */
+		iommu_unmap(rproc->domain, 0x01800000, 1 * SZ_1M);
+		/* RPM_MSG_RAM_BASE */
+		iommu_unmap(rproc->domain, 0x00060000,
+						(1 * SZ_16K) + (1 * SZ_8K));
+		/* SPDM_WRAPPER_TOP */
+		iommu_unmap(rproc->domain, 0x00040000, 1 * SZ_32K);
+		/* PRNG_PRNG_TOP */
+		iommu_unmap(rproc->domain, 0x000E0000, 1 * SZ_64K);
+		/* MPM2_MPM */
+		iommu_unmap(rproc->domain, 0x004A0000, 1 * SZ_64K);
+		/* PC_NOC_WRAPPER */
+		iommu_unmap(rproc->domain, 0x00500000, 1 * SZ_512K);
+		/* SYSTEM_NOC_WRAPPER */
+		iommu_unmap(rproc->domain, 0x00580000, 1 * SZ_512K);
+		/* QDSS_APB_DEC_QDSS_APB */
+		iommu_unmap(rproc->domain, 0x06000000, 1 * SZ_512K);
+		/* BLSP1_BLSP */
+		iommu_unmap(rproc->domain, 0x07880000, 1 * SZ_256K);
+		/* RPM */
+		iommu_unmap(rproc->domain, 0x00080000,
+						(1 * SZ_32K) + (1 * SZ_4K));
+	}
+
 	rproc_shutdown(rproc);
 
 	return 0;
@@ -1014,7 +1051,62 @@ static int q6v6_load(struct rproc *rproc, const struct firmware *fw)
 	}
 	pr_info("Sanity check passed for the image\n");
 
-	return mdt_load(rproc, fw);
+	ret = mdt_load(rproc, fw);
+	if (ret)
+		return ret;
+
+	/* IOMMU Identical Mappings */
+	if (rproc->domain) {
+		/* DDR region */
+		iommu_map(rproc->domain, 0x49100000, 0x49100000, 26 * SZ_1M,
+				IOMMU_READ | IOMMU_WRITE);
+		/* SMEM region */
+		iommu_map(rproc->domain, 0x48C00000, 0x48C00000, 1 * SZ_1M,
+				IOMMU_READ | IOMMU_WRITE);
+		/* LPASS region */
+		iommu_map(rproc->domain, 0x0A000000, 0x0A000000, 16 * SZ_1M,
+				IOMMU_READ | IOMMU_WRITE);
+		/* Core TCSR region */
+		iommu_map(rproc->domain, 0x01900000, 0x01900000, 1 * SZ_1M,
+				IOMMU_READ | IOMMU_WRITE);
+		/* TLMM region */
+		iommu_map(rproc->domain, 0x01000000, 0x01000000, 4 * SZ_1M,
+				IOMMU_READ | IOMMU_WRITE);
+		/* CLK CTL region */
+		iommu_map(rproc->domain, 0x01800000, 0x01800000, 1 * SZ_1M,
+				IOMMU_READ | IOMMU_WRITE);
+		/* RPM_MSG_RAM_BASE */
+		iommu_map(rproc->domain, 0x00060000, 0x00060000,
+						(1 * SZ_16K) + (1 * SZ_8K),
+						IOMMU_READ | IOMMU_WRITE);
+		/* SPDM_WRAPPER_TOP */
+		iommu_map(rproc->domain, 0x00040000, 0x00040000, 1 * SZ_32K,
+				IOMMU_READ | IOMMU_WRITE);
+		/* PRNG_PRNG_TOP */
+		iommu_map(rproc->domain, 0x000E0000, 0x000E0000, 1 * SZ_64K,
+				IOMMU_READ | IOMMU_WRITE);
+		/* MPM2_MPM */
+		iommu_map(rproc->domain, 0x004A0000, 0x004A0000, 1 * SZ_64K,
+				IOMMU_READ | IOMMU_WRITE);
+		/* PC_NOC_WRAPPER */
+		iommu_map(rproc->domain, 0x00500000, 0x00500000, 1 * SZ_512K,
+				IOMMU_READ | IOMMU_WRITE);
+		/* SYSTEM_NOC_WRAPPER */
+		iommu_map(rproc->domain, 0x00580000, 0x00580000, 1 * SZ_512K,
+				IOMMU_READ | IOMMU_WRITE);
+		/* QDSS_APB_DEC_QDSS_APB */
+		iommu_map(rproc->domain, 0x06000000, 0x06000000, 1 * SZ_512K,
+				IOMMU_READ | IOMMU_WRITE);
+		/* BLSP1_BLSP */
+		iommu_map(rproc->domain, 0x07880000, 0x07880000, 1 * SZ_256K,
+				IOMMU_READ | IOMMU_WRITE);
+		/* RPM */
+		iommu_map(rproc->domain, 0x00080000, 0x00080000,
+						(1 * SZ_32K) + (1 * SZ_4K),
+						IOMMU_READ | IOMMU_WRITE);
+	}
+
+	return 0;
 }
 
 static struct rproc_ops q6v6_rproc_ops = {
@@ -1078,7 +1170,7 @@ static int q6_rproc_probe(struct platform_device *pdev)
 		debug_adsp |= DEBUG_DUMP_Q6_REG;
 
 	q6v6_rproc_pdata->spurios_irqs = 0;
-	rproc->has_iommu = false;
+	rproc->has_iommu = true;
 	/* We will record the values before q6 and adsp powerdown */
 	q6v6_rproc_pdata->reg_save_buffer = kzalloc((Q6_REGISTER_SAVE_SIZE * 4),
 							GFP_KERNEL);
