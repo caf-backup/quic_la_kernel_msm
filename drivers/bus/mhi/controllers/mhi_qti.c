@@ -118,7 +118,7 @@ static int mhi_init_pci_dev(struct mhi_controller *mhi_cntrl)
 	}
 
 	ret = pci_alloc_irq_vectors(pci_dev, mhi_cntrl->msi_required,
-				    mhi_cntrl->msi_required, PCI_IRQ_MSI);
+				    mhi_cntrl->msi_required, PCI_IRQ_NOMSIX);
 	if (IS_ERR_VALUE((ulong)ret) || ret < mhi_cntrl->msi_required) {
 		MHI_ERR("Failed to enable MSI, ret:%d\n", ret);
 		goto error_req_msi;
@@ -644,10 +644,6 @@ int mhi_pci_probe(struct pci_dev *pci_dev,
 	if (ret)
 		return ret;
 
-	ret = mhi_arch_iommu_init(mhi_cntrl);
-	if (ret)
-		goto error_iommu_init;
-
 	ret = mhi_init_pci_dev(mhi_cntrl);
 	if (ret)
 		goto error_init_pci;
@@ -670,9 +666,6 @@ error_power_up:
 	mhi_deinit_pci_dev(mhi_cntrl);
 
 error_init_pci:
-	mhi_arch_iommu_deinit(mhi_cntrl);
-
-error_iommu_init:
 	mhi_arch_pcie_deinit(mhi_cntrl);
 
 	return ret;
