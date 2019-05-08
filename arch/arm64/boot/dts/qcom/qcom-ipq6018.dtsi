@@ -720,6 +720,21 @@
 			status = "disabled";
 		};
 
+		i2c_1: i2c@78b9000 {
+			compatible = "qcom,i2c-qup-v2.2.1";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x78b9000 0x600>;
+			interrupts = <GIC_SPI 299 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_BLSP1_AHB_CLK>,
+				<&gcc GCC_BLSP1_QUP5_I2C_APPS_CLK>;
+			clock-names = "iface", "core";
+			clock-frequency  = <400000>;
+			dmas = <&blsp_dma 21>, <&blsp_dma 20>;
+			dma-names = "rx", "tx";
+			status = "disabled";
+		};
+
 		spi_0: spi@78b5000 { /* BLSP1 QUP0 */
 			compatible = "qcom,spi-qup-v2.2.1";
 			#address-cells = <1>;
