@@ -221,7 +221,7 @@ static const struct file_operations debugfs_chan_ops = {
 	.read = seq_read,
 };
 
-DEFINE_DEBUGFS_ATTRIBUTE(debugfs_trigger_reset_fops, NULL,
+DEFINE_SIMPLE_ATTRIBUTE(debugfs_trigger_reset_fops, NULL,
 			 mhi_debugfs_trigger_reset, "%llu\n");
 
 void mhi_init_debugfs(struct mhi_controller *mhi_cntrl)
@@ -240,13 +240,13 @@ void mhi_init_debugfs(struct mhi_controller *mhi_cntrl)
 	if (IS_ERR_OR_NULL(dentry))
 		return;
 
-	debugfs_create_file_unsafe("states", 0444, dentry, mhi_cntrl,
+	debugfs_create_file("states", 0444, dentry, mhi_cntrl,
 				   &debugfs_state_ops);
-	debugfs_create_file_unsafe("events", 0444, dentry, mhi_cntrl,
+	debugfs_create_file("events", 0444, dentry, mhi_cntrl,
 				   &debugfs_ev_ops);
-	debugfs_create_file_unsafe("chan", 0444, dentry, mhi_cntrl,
+	debugfs_create_file("chan", 0444, dentry, mhi_cntrl,
 				   &debugfs_chan_ops);
-	debugfs_create_file_unsafe("reset", 0444, dentry, mhi_cntrl,
+	debugfs_create_file("reset", 0444, dentry, mhi_cntrl,
 				   &debugfs_trigger_reset_fops);
 	mhi_cntrl->dentry = dentry;
 }
