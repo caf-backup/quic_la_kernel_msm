@@ -396,7 +396,6 @@
 			       snps,dis_u2_susphy_quirk;
 			       snps,dis_u3_susphy_quirk;
 			       usb2-susphy-quirk;
-			       qcom,emulation = <1>;
 			       dr_mode = "host";
 			};
 		};
@@ -437,7 +436,6 @@
 			       snps,dis_u2_susphy_quirk;
 			       snps,dis_u3_susphy_quirk;
 			       usb2-susphy-quirk;
-			       qcom,emulation = <1>;
 			       dr_mode = "host";
 			};
 		};
