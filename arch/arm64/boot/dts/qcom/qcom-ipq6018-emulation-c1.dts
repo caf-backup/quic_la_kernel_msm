@@ -130,7 +130,7 @@
 
 		q6v6_adsp: q6v6_adsp@AB00000 {
 			qca,emulation;
-			img-addr = <0x49100000>;
+			img-addr = <0x48700000>;
 		};
 
 		qpic_bam: dma@7984000{
