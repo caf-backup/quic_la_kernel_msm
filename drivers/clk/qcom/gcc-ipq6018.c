@@ -25,6 +25,7 @@
 
 #include <linux/reset-controller.h>
 #include <dt-bindings/clock/qcom,gcc-ipq6018.h>
+#include <dt-bindings/reset/qcom,gcc-ipq6018.h>
 
 #include "common.h"
 #include "clk-regmap.h"
@@ -4779,6 +4780,7 @@ static struct clk_hw *gcc_ipq6018_hws[] = {
 	&nss_ppe_cdiv_clk_src.hw,
 	&gpll6_out_main_div2.hw,
 	&qdss_dap_sync_clk_src.hw,
+	&qdss_tsctr_div2_clk_src.hw,
 };
 
 static const struct alpha_pll_config ubi32_pll_config = {
@@ -5404,8 +5406,6 @@ static const struct qcom_reset_map gcc_ipq6018_resets[] = {
 	[GCC_USB0_PHY_BCR] = { 0x3e034, 0 },
 	[GCC_USB3PHY_0_PHY_BCR] = { 0x3e03c, 0 },
 	[GCC_USB0_BCR] = { 0x3e070, 0 },
-	[GCC_USB1_PHY_BCR] = { 0x3f034, 0 },
-	[GCC_USB3PHY_1_PHY_BCR] = { 0x3f03c, 0 },
 	[GCC_USB1_BCR] = { 0x3f070, 0 },
 	[GCC_QUSB2_0_PHY_BCR] = { 0x4103c, 0 },
 	[GCC_QUSB2_1_PHY_BCR] = { 0x41040, 0 },
@@ -5447,6 +5447,7 @@ static const struct qcom_reset_map gcc_ipq6018_resets[] = {
 	[GCC_UBI0_CORE_CLAMP_ENABLE] = { 0x68010, 4 },
 	[GCC_UBI0_CLKRST_CLAMP_ENABLE] = { 0x68010, 5 },
 	[GCC_UBI0_UTCM_ARES] = { 0x68010, 6 },
+	[GCC_UBI0_CORE_ARES] = { 0x68010, 7 },
 	[GCC_NSS_CFG_ARES] = { 0x68010, 16 },
 	[GCC_NSS_NOC_ARES] = { 0x68010, 18 },
 	[GCC_NSS_CRYPTO_ARES] = { 0x68010, 19 },
@@ -5487,6 +5488,28 @@ static const struct qcom_reset_map gcc_ipq6018_resets[] = {
 	[GCC_UNIPHY0_PORT5_ARES] = { 0x56004, 0, 0x3000},
 	[GCC_UNIPHY0_PORT_4_5_RESET] = { 0x56004, 0, 0x3c02},
 	[GCC_UNIPHY0_PORT_4_RESET] = { 0x56004, 0, 0xc02},
+	[GCC_LPASS_BCR] = {0x1F000, 0},
+	[GCC_UBI32_TBU_BCR] = {0x65000, 0},
+	[GCC_LPASS_TBU_BCR] = {0x6C000, 0},
+	[GCC_WCSSAON_RESET] = {0x59010, 0},
+	[GCC_LPASS_Q6_AXIM_ARES] = {0x1F004, 0},
+	[GCC_LPASS_Q6SS_TSCTR_1TO2_ARES] = {0x1F004, 1},
+	[GCC_LPASS_Q6SS_TRIG_ARES] = {0x1F004, 2},
+	[GCC_LPASS_Q6_ATBM_AT_ARES] = {0x1F004, 3},
+	[GCC_LPASS_Q6_PCLKDBG_ARES] = {0x1F004, 4},
+	[GCC_LPASS_CORE_AXIM_ARES] = {0x1F004, 5},
+	[GCC_LPASS_SNOC_CFG_ARES] = {0x1F004, 6},
+	[GCC_WCSS_DBG_ARES] = {0x59008, 0},
+	[GCC_WCSS_ECAHB_ARES] = {0x59008, 1},
+	[GCC_WCSS_ACMT_ARES] = {0x59008, 2},
+	[GCC_WCSS_DBG_BDG_ARES] = {0x59008, 3},
+	[GCC_WCSS_AHB_S_ARES] = {0x59008, 4},
+	[GCC_WCSS_AXI_M_ARES] = {0x59008, 5},
+	[GCC_Q6SS_DBG_ARES] = {0x59110, 0},
+	[GCC_Q6_AHB_S_ARES] = {0x59110, 1},
+	[GCC_Q6_AHB_ARES] = {0x59110, 2},
+	[GCC_Q6_AXIM2_ARES] = {0x59110, 3},
+	[GCC_Q6_AXIM_ARES] = {0x59110, 4},
 };
 
 static const struct of_device_id gcc_ipq6018_match_table[] = {

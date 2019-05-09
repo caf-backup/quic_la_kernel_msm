@@ -16,6 +16,7 @@
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/qcom,gcc-ipq6018.h>
+#include <dt-bindings/reset/qcom,gcc-ipq6018.h>
 #include "qcom-ipq6018-memory.dtsi"
 
 / {
