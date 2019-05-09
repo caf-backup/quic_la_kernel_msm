@@ -107,7 +107,7 @@
 
 		q6_region: wcnss@4b000000 {
 			no-map;
-			reg = <0x0 0x4b000000 0x0 0x02900000>;
+			reg = <0x0 0x4b000000 0x0 0x02800000>;
 		};
 
 		q6_etr_region:q6_etr_dump@4d800000 {
@@ -201,7 +201,7 @@
 
 		q6_region: wcnss@4b000000 {
 			no-map;
-			reg = <0x0 0x4b000000 0x0 0x03800000>;
+			reg = <0x0 0x4b000000 0x0 0x03700000>;
 		};
 
 		q6_etr_region:q6_etr_dump@4e700000 {
@@ -295,7 +295,7 @@
 
 		q6_region: wcnss@4b000000 {
 			no-map;
-			reg = <0x0 0x4b000000 0x0 0x06000000>;
+			reg = <0x0 0x4b000000 0x0 0x05f00000>;
 		};
 
 		tzapp:tzapp@4a400000 {	/* TZAPPS */
