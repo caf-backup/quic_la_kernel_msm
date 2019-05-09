@@ -981,7 +981,7 @@ static const struct freq_tbl ftbl_pcie_rchng_clk_src[] = {
 };
 
 static struct clk_rcg2 pcie0_axi_clk_src = {
-	.cmd_rcgr = 0x75050,
+	.cmd_rcgr = 0x75054,
 	.freq_tbl = ftbl_pcie_axi_clk_src,
 	.hid_width = 5,
 	.parent_map = gcc_xo_gpll0_gpll4_map,
@@ -1809,7 +1809,7 @@ static const struct freq_tbl ftbl_pcie_aux_clk_src[] = {
 };
 
 static struct clk_rcg2 pcie0_aux_clk_src = {
-	.cmd_rcgr = 0x75020,
+	.cmd_rcgr = 0x75024,
 	.freq_tbl = ftbl_pcie_aux_clk_src,
 	.mnd_width = 16,
 	.hid_width = 5,
@@ -1975,7 +1975,7 @@ static struct clk_branch gcc_apss_ahb_clk = {
 	.halt_reg = 0x4601c,
 	.halt_check = BRANCH_HALT_VOTED,
 	.clkr = {
-		.enable_reg = 0x01008,
+		.enable_reg = 0x0b004,
 		.enable_mask = BIT(14),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_apss_ahb_clk",
