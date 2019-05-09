@@ -38,6 +38,7 @@
 #include <uapi/linux/major.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/timer.h>
 #include <linux/stringify.h>
 #include "rproc_mdt_loader.h"
@@ -128,6 +129,7 @@ struct q6v5_rproc_pdata {
 	int emulation;
 	int secure;
 	int spurios_irqs;
+	int stop_retry_count;
 	void *reg_save_buffer;
 	unsigned int img_addr;
 };
@@ -456,7 +458,7 @@ static void wcss_powerdown(struct q6v5_rproc_pdata *pdata)
 			break;
 		mdelay(1);
 		nretry++;
-		if (nretry >= 10) {
+		if (nretry >= pdata->stop_retry_count) {
 			pr_warn("can't get TCSR haltACK\n");
 			break;
 		}
@@ -491,7 +493,7 @@ static void wcss_powerdown(struct q6v5_rproc_pdata *pdata)
 			break;
 		nretry++;
 		mdelay(1);
-		if (nretry == 10) {
+		if (nretry == pdata->stop_retry_count) {
 			pr_warn("can't get SSCAON_STATUS\n");
 			break;
 		}
@@ -537,7 +539,7 @@ static void q6_powerdown(struct q6v5_rproc_pdata *pdata)
 			break;
 		mdelay(1);
 		nretry++;
-		if (nretry >= 10) {
+		if (nretry >= pdata->stop_retry_count) {
 			pr_err("can't get TCSR Q6 haltACK\n");
 			break;
 		}
@@ -594,7 +596,7 @@ static void q6_powerdown(struct q6v5_rproc_pdata *pdata)
 			break;
 		mdelay(1);
 		nretry++;
-		if (nretry >= 10) {
+		if (nretry >= pdata->stop_retry_count) {
 			pr_err("BHS_STATUS not OFF\n");
 			break;
 		}
@@ -688,7 +690,118 @@ wait_again:
 	return 0;
 }
 
-static int q6_rproc_emu_start(struct rproc *rproc)
+static int ipq60xx_q6_rproc_emu_start(struct rproc *rproc)
+{
+	struct device *dev = rproc->dev.parent;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct q6v5_rproc_pdata *pdata = platform_get_drvdata(pdev);
+	int temp = 19;
+	unsigned long val = 0;
+	int ret = 0;
+	unsigned int nretry = 0;
+
+	atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_STARTING);
+	/* Release Q6 and WCSS reset */
+	val = readl(pdata->gcc_bcr_base + GCC_WCSS_BCR);
+	val &= ~(BIT(0));
+	writel(val, pdata->gcc_bcr_base + GCC_WCSS_BCR);
+	val = readl(pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
+	val &= ~(BIT(0));
+	writel(val, pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
+
+	/* Last but two step in script */
+	val = readl(pdata->gcc_misc_base + 0x10);
+
+	/*set CFG[18:15]=1* and clear CFG[1]=0*/
+	val = readl(pdata->mpm_base + SSCAON_CONFIG);
+	val &= 0xfff8fffd;
+	val |= (1<<15);
+	writel(val, pdata->mpm_base + SSCAON_CONFIG);
+
+	/* Set MPM_SSCAON_CONFIG 13 - 2 */
+	/* Last but one step in script */
+	val = readl(pdata->mpm_base + SSCAON_CONFIG);
+	val |= 0x1;
+	writel(val, pdata->mpm_base + SSCAON_CONFIG);
+	mdelay(100);
+
+	/* This is for Lithium configuration - clock gating */
+	/* Last step in script */
+	val = readl(pdata->tcsr_global_base + TCSR_GLOBAL_CFG0);
+	val |= 0x14;
+	writel(val, pdata->tcsr_global_base + TCSR_GLOBAL_CFG0);
+
+	/* This is for Lithium configuration - bus arbitration */
+	val = readl(pdata->tcsr_global_base + TCSR_GLOBAL_CFG1);
+	val = 0;
+	writel(val, pdata->tcsr_global_base + TCSR_GLOBAL_CFG1);
+
+	writel(pdata->img_addr >> 4, pdata->q6_base + QDSP6SS_RST_EVB);
+	writel(0x1, pdata->q6_base + QDSP6SS_XO_CBCR);
+	writel(0x1700000, pdata->q6_base + QDSP6SS_PWR_CTL);
+	mdelay(10);
+	/* Put LDO in bypass mode */
+	writel(0x3700000, pdata->q6_base + QDSP6SS_PWR_CTL);
+	/* De-assert QDSP6 complier memory clamp */
+	writel(0x3300000, pdata->q6_base + QDSP6SS_PWR_CTL);
+	/* De-assert memory peripheral sleep and L2 memory standby */
+	writel(0x33c0000, pdata->q6_base + QDSP6SS_PWR_CTL);
+
+	/* turn on QDSP6 memory foot/head switch one bank at a time */
+	while  (temp >= 0) {
+		val = readl(pdata->q6_base + QDSP6SS_MEM_PWR_CTL);
+		val = val | 1 << temp;
+		writel(val, pdata->q6_base + QDSP6SS_MEM_PWR_CTL);
+		val = readl(pdata->q6_base + QDSP6SS_MEM_PWR_CTL);
+		mdelay(10);
+		temp -= 1;
+	}
+
+	/* Remove the QDSP6 core memory word line clamp */
+	writel(0x31FFFFF, pdata->q6_base + QDSP6SS_PWR_CTL);
+	/* Remove QDSP6 I/O clamp */
+	writel(0x30FFFFF, pdata->q6_base + QDSP6SS_PWR_CTL);
+
+	if (debug_wcss & DEBUG_WCSS_BREAK_AT_START)
+		writel(0x20000001, pdata->q6_base + QDSP6SS_DBG_CFG);
+
+	/* Bring Q6 out of reset and stop the core */
+	writel(0x5, pdata->q6_base + QDSP6SS_RESET);
+	mdelay(100);
+	/* Retain debugger state during next QDSP6 reset */
+	if (!(debug_wcss & DEBUG_WCSS_BREAK_AT_START))
+		writel(0x0, pdata->q6_base + QDSP6SS_DBG_CFG);
+
+	/* Turn on the QDSP6 core clock */
+	writel(0x102, pdata->q6_base + QDSP6SS_GFMUX_CTL);
+	/* Enable the core to run */
+	writel(0x4, pdata->q6_base + QDSP6SS_RESET);
+
+	nretry = 0;
+	while (1) {
+		val = readl(pdata->mpm_base + SSCAON_STATUS);
+		if (0x10 == (val & 0xffff))
+			break;
+		mdelay(1);
+		nretry++;
+		if (nretry >= 10000) {
+			pr_err("[%s]: Boot Error, SSCAON=0x%08X\n",
+					pdata->subsys_desc.name, val);
+			break;
+		}
+	}
+
+	do {
+		ret = wait_for_err_ready(pdata);
+	} while (ret);
+
+	atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_RUNNING);
+	pr_emerg("Q6 Emulation reset out is done\n");
+
+	return ret;
+}
+
+static int ipq807x_q6_rproc_emu_start(struct rproc *rproc)
 {
 	struct device *dev = rproc->dev.parent;
 	struct platform_device *pdev = to_platform_device(dev);
@@ -773,7 +886,131 @@ static int q6_rproc_emu_start(struct rproc *rproc)
 	return ret;
 }
 
-static int q6_rproc_start(struct rproc *rproc)
+static int ipq60xx_q6_rproc_start(struct rproc *rproc)
+{
+	struct device *dev = rproc->dev.parent;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct q6v5_rproc_pdata *pdata = platform_get_drvdata(pdev);
+	int temp = 19;
+	unsigned long val = 0;
+	unsigned int nretry = 0;
+	int ret = 0;
+
+	atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_STARTING);
+	if (pdata->secure) {
+		ret = qcom_scm_pas_auth_and_reset(WCNSS_PAS_ID,
+			(debug_wcss & DEBUG_WCSS_BREAK_AT_START));
+		if (ret) {
+			dev_err(dev, "q6-wcss reset failed\n");
+			return ret;
+		}
+		goto skip_reset;
+	}
+
+	/* Release Q6 and WCSS reset */
+	val = readl(pdata->gcc_bcr_base + GCC_WCSS_BCR);
+	val &= ~(BIT(0));
+	writel(val, pdata->gcc_bcr_base + GCC_WCSS_BCR);
+	val = readl(pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
+	val &= ~(BIT(0));
+	writel(val, pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
+
+	/*set CFG[18:15]=1* and clear CFG[1]=0*/
+	val = readl(pdata->mpm_base + SSCAON_CONFIG);
+	val &= 0xfff8fffd;
+	val |= (1<<15);
+	writel(val, pdata->mpm_base + SSCAON_CONFIG);
+
+	/* This is for Lithium configuration - clock gating */
+	val = readl(pdata->tcsr_global_base + TCSR_GLOBAL_CFG0);
+	val |= 0x14;
+	writel(val, pdata->tcsr_global_base + TCSR_GLOBAL_CFG0);
+
+	/* This is for Lithium configuration - bus arbitration */
+	val = readl(pdata->tcsr_global_base + TCSR_GLOBAL_CFG1);
+	val = 0;
+	writel(val, pdata->tcsr_global_base + TCSR_GLOBAL_CFG1);
+
+	/* Write bootaddr to EVB so that Q6WCSS will jump there after reset */
+	writel(rproc->bootaddr >> 4, pdata->q6_base + QDSP6SS_RST_EVB);
+	/* Turn on XO clock. It is required for BHS and memory operation */
+	writel(0x1, pdata->q6_base + QDSP6SS_XO_CBCR);
+	/* Turn on BHS */
+	writel(0x1700000, pdata->q6_base + QDSP6SS_PWR_CTL);
+	udelay(1);
+
+	/* Wait till BHS Reset is done */
+	while (1) {
+		val = readl(pdata->q6_base + QDSP6SS_BHS_STATUS);
+		if (val & BHS_EN_REST_ACK)
+			break;
+		mdelay(1);
+		nretry++;
+		if (nretry >= 10) {
+			pr_err("BHS_STATUS not ON\n");
+			break;
+		}
+	}
+
+	/* Put LDO in bypass mode */
+	writel(0x3700000, pdata->q6_base + QDSP6SS_PWR_CTL);
+	/* De-assert QDSP6 complier memory clamp */
+	writel(0x3300000, pdata->q6_base + QDSP6SS_PWR_CTL);
+	/* De-assert memory peripheral sleep and L2 memory standby */
+	writel(0x33c0000, pdata->q6_base + QDSP6SS_PWR_CTL);
+
+	/* turn on QDSP6 memory foot/head switch one bank at a time */
+	while  (temp >= 0) {
+		val = readl(pdata->q6_base + QDSP6SS_MEM_PWR_CTL);
+		val = val | 1 << temp;
+		writel(val, pdata->q6_base + QDSP6SS_MEM_PWR_CTL);
+		val = readl(pdata->q6_base + QDSP6SS_MEM_PWR_CTL);
+		mdelay(10);
+		temp -= 1;
+	}
+	/* Remove the QDSP6 core memory word line clamp */
+	writel(0x31FFFFF, pdata->q6_base + QDSP6SS_PWR_CTL);
+	/* Remove QDSP6 I/O clamp */
+	writel(0x30FFFFF, pdata->q6_base + QDSP6SS_PWR_CTL);
+
+	if (debug_wcss & DEBUG_WCSS_BREAK_AT_START)
+		writel(0x20000001, pdata->q6_base + QDSP6SS_DBG_CFG);
+
+	/* Bring Q6 out of reset and stop the core */
+	writel(0x5, pdata->q6_base + QDSP6SS_RESET);
+
+	/* Retain debugger state during next QDSP6 reset */
+	if (!(debug_wcss & DEBUG_WCSS_BREAK_AT_START))
+		writel(0x0, pdata->q6_base + QDSP6SS_DBG_CFG);
+
+	/* Turn on the QDSP6 core clock */
+	writel(0x102, pdata->q6_base + QDSP6SS_GFMUX_CTL);
+	/* Enable the core to run */
+	writel(0x4, pdata->q6_base + QDSP6SS_RESET);
+
+	nretry = 0;
+	while (1) {
+		val = readl(pdata->mpm_base + SSCAON_STATUS);
+		if (0x10 == (val & 0xffff))
+			break;
+		mdelay(1);
+		nretry++;
+		if (nretry >= 1000) {
+			pr_err("[%s]: Boot Error, SSCAON=0x%08X\n",
+					pdata->subsys_desc.name, val);
+			break;
+		}
+	}
+skip_reset:
+
+	ret = wait_for_err_ready(pdata);
+	if (!ret)
+		atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_RUNNING);
+
+	return ret;
+}
+
+static int ipq807x_q6_rproc_start(struct rproc *rproc)
 {
 	struct device *dev = rproc->dev.parent;
 	struct platform_device *pdev = to_platform_device(dev);
@@ -1024,7 +1261,7 @@ static int start_q6(const struct subsys_desc *subsys)
 
 	if (pdata->emulation) {
 		pr_emerg("q6v5: Emulation start, no smp2p messages\n");
-		q6_rproc_emu_start(rproc);
+		rproc->ops->start(rproc);
 		return 0;
 	}
 
@@ -1100,8 +1337,17 @@ static int q6v5_load(struct rproc *rproc, const struct firmware *fw)
 	return mdt_load(rproc, fw);
 }
 
-static struct rproc_ops q6v5_rproc_ops = {
-	.start          = q6_rproc_start,
+static struct rproc_ops ipq807x_q6v5_rproc_ops = {
+	.start          = ipq807x_q6_rproc_start,
+	.da_to_va       = q6_da_to_va,
+	.stop           = q6_rproc_stop,
+	.find_loaded_rsc_table = q6v5_find_loaded_rsc_table,
+	.load = q6v5_load,
+	.get_boot_addr = rproc_elf_get_boot_addr,
+};
+
+static struct rproc_ops ipq60xx_q6v5_rproc_ops = {
+	.start          = ipq60xx_q6_rproc_start,
 	.da_to_va       = q6_da_to_va,
 	.stop           = q6_rproc_stop,
 	.find_loaded_rsc_table = q6v5_find_loaded_rsc_table,
@@ -1117,6 +1363,7 @@ static int q6_rproc_probe(struct platform_device *pdev)
 	struct resource *resource;
 	struct qcom_smem_state *state;
 	unsigned stop_bit;
+	struct rproc_ops *ops;
 
 	pr_emerg("DEV CI test message\n");
 	state = qcom_smem_state_get(&pdev->dev, "stop",
@@ -1140,20 +1387,30 @@ static int q6_rproc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rproc = rproc_alloc(&pdev->dev, "q6v5-wcss", &q6v5_rproc_ops,
-				firmware_name,
-				sizeof(*q6v5_rproc_pdata));
+	ops = (void *)of_device_get_match_data(&pdev->dev);
+	if (!ops) {
+		dev_err(&pdev->dev, "chipset not supported\n");
+		return -EIO;
+	}
+
+	rproc = rproc_alloc(&pdev->dev, "q6v5-wcss", ops, firmware_name,
+						sizeof(*q6v5_rproc_pdata));
 	if (unlikely(!rproc))
 		return -ENOMEM;
 
 	q6v5_rproc_pdata = rproc->priv;
 	q6v5_rproc_pdata->rproc = rproc;
+	q6v5_rproc_pdata->stop_retry_count = 10;
 	q6v5_rproc_pdata->emulation = of_property_read_bool(pdev->dev.of_node,
 					"qca,emulation");
 	if (q6v5_rproc_pdata->emulation) {
 		q6v5_rproc_pdata->img_addr = DEFAULT_IMG_ADDR;
 		ret = of_property_read_u32(pdev->dev.of_node, "img-addr",
 						&q6v5_rproc_pdata->img_addr);
+		if (ops == &ipq807x_q6v5_rproc_ops)
+			ops->start = ipq807x_q6_rproc_emu_start;
+		else if (ops == &ipq60xx_q6v5_rproc_ops)
+			ops->start = ipq60xx_q6_rproc_emu_start;
 	}
 
 	q6v5_rproc_pdata->secure = of_property_read_bool(pdev->dev.of_node,
@@ -1353,7 +1610,8 @@ static int q6_rproc_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id q6_match_table[] = {
-	{ .compatible = "qca,q6v5-wcss-rproc" },
+	{ .compatible = "qca,q6v5-wcss-rproc-ipq807x", .data = &ipq807x_q6v5_rproc_ops },
+	{ .compatible = "qca,q6v5-wcss-rproc-ipq60xx", .data = &ipq60xx_q6v5_rproc_ops },
 	{}
 };
 
