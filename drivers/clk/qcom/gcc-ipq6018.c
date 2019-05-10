@@ -5552,6 +5552,9 @@ static int gcc_ipq6018_probe(struct platform_device *pdev)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
+	/* SW Workaround for UBI Huyara PLL */
+	regmap_update_bits(regmap, 0x2501c, BIT(26), BIT(26));
+
 	clk_alpha_pll_configure(&ubi32_pll_main, regmap, &ubi32_pll_config);
 
 	clk_alpha_pll_configure(&nss_crypto_pll_main, regmap,
