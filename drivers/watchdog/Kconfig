@@ -537,11 +537,11 @@ config QCOM_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called qcom_wdt.
 
-config QCOM_MINIDUMP
-	bool "QCOM minidump feature"
+config QCA_MINIDUMP
+	bool "QCA minidump feature"
 	depends on QCOM_WDT
 	help
-	  Say Y here to include QCOM minidump feature.
+	  Say Y here to include QCA minidump feature.
 	  This feature enables dumping desired regions
 	  instead of dumping whole DDR up on system crash
 	  Currently supports  IPQ8074 target.
