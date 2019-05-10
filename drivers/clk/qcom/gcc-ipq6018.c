@@ -5552,6 +5552,11 @@ static int gcc_ipq6018_probe(struct platform_device *pdev)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
+	/* Disable SW_COLLAPSE for USB0 GDSCR */
+	regmap_update_bits(regmap, 0x3e078, BIT(0), 0x0);
+	/* Disable SW_COLLAPSE for USB1 GDSCR */
+	regmap_update_bits(regmap, 0x3f078, BIT(0), 0x0);
+
 	/* SW Workaround for UBI Huyara PLL */
 	regmap_update_bits(regmap, 0x2501c, BIT(26), BIT(26));
 
