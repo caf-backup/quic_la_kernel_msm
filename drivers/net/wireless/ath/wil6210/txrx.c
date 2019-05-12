@@ -46,9 +46,9 @@ bool rx_align_2;
 module_param(rx_align_2, bool, 0444);
 MODULE_PARM_DESC(rx_align_2, " align Rx buffers on 4*n+2, default - no");
 
-bool rx_large_buf = true;
+bool rx_large_buf;
 module_param(rx_large_buf, bool, 0444);
-MODULE_PARM_DESC(rx_large_buf, " allocate 8KB RX buffers, default - yes");
+MODULE_PARM_DESC(rx_large_buf, " allocate 8KB RX buffers, default - no");
 
 #define WIL6210_MAX_HEADROOM_SIZE	(256)
 
