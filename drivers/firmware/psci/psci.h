@@ -4,6 +4,7 @@
 #define __PSCI_H
 
 struct cpuidle_driver;
+struct device;
 struct device_node;
 
 int psci_set_osi_mode(void);
@@ -16,10 +17,12 @@ int psci_dt_parse_state_node(struct device_node *np, u32 *state);
 int psci_dt_init_pm_domains(struct device_node *np);
 int psci_dt_pm_domains_parse_states(struct cpuidle_driver *drv,
 		struct device_node *cpu_node, u32 *psci_states);
+struct device *psci_dt_attach_cpu(int cpu);
 #else
 static inline int psci_dt_init_pm_domains(struct device_node *np) { return 0; }
 static inline int psci_dt_pm_domains_parse_states(struct cpuidle_driver *drv,
 		struct device_node *cpu_node, u32 *psci_states) { return 0; }
+static inline struct device *psci_dt_attach_cpu(int cpu) { return NULL; }
 #endif
 #endif
 

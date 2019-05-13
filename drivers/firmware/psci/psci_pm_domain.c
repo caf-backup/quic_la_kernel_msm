@@ -12,8 +12,10 @@
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/pm_domain.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/cpu.h>
 #include <linux/cpuidle.h>
 #include <linux/cpu_pm.h>
 
@@ -382,5 +384,20 @@ int psci_dt_pm_domains_parse_states(struct cpuidle_driver *drv,
 	}
 
 	return 0;
+}
+
+struct device *psci_dt_attach_cpu(int cpu)
+{
+	struct device *dev, *cpu_dev = get_cpu_device(cpu);
+
+	dev = dev_pm_domain_attach_by_name(cpu_dev, "psci");
+	if (IS_ERR_OR_NULL(dev))
+		return dev;
+
+	pm_runtime_irq_safe(dev);
+	if (cpu_online(cpu))
+		pm_runtime_get_sync(dev);
+
+	return dev;
 }
 #endif
