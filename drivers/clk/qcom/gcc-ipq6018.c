@@ -3254,6 +3254,24 @@ struct clk_branch gcc_rbcpr_wcss_ahb_clk = {
 	},
 };
 
+struct clk_branch gcc_mem_noc_q6_axi_clk = {
+	.halt_reg = 0x1D038,
+	.clkr = {
+		.enable_reg = 0x1D038,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "gcc_mem_noc_q6_axi_clk",
+			.parent_names = (const char *[]){
+				"q6_axi_clk_src"
+			},
+			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
+
 static struct clk_branch gcc_lpass_core_axim_clk = {
 	.halt_reg = 0x1F028,
 	.clkr = {
@@ -5105,6 +5123,7 @@ static struct clk_regmap *gcc_ipq6018_clks[] = {
 	[GCC_RBCPR_WCSS_CLK] = &gcc_rbcpr_wcss_clk.clkr,
 	[RBCPR_WCSS_CLK_SRC] = &rbcpr_wcss_clk_src.clkr,
 	[GCC_RBCPR_WCSS_AHB_CLK] = &gcc_rbcpr_wcss_ahb_clk.clkr,
+	[GCC_MEM_NOC_Q6_AXI_CLK] = &gcc_mem_noc_q6_axi_clk.clkr,
 	[GCC_LPASS_CORE_AXIM_CLK] = &gcc_lpass_core_axim_clk.clkr,
 	[LPASS_CORE_AXIM_CLK_SRC] = &lpass_core_axim_clk_src.clkr,
 	[GCC_LPASS_SNOC_CFG_CLK] = &gcc_lpass_snoc_cfg_clk.clkr,
@@ -5349,6 +5368,7 @@ static struct clk_regmap *gcc_ipq6018_dummy_clks[] = {
 	[GCC_RBCPR_WCSS_CLK] = DEFINE_DUMMY_CLK(gcc_rbcpr_wcss_clk),
 	[RBCPR_WCSS_CLK_SRC] = DEFINE_DUMMY_CLK(rbcpr_wcss_clk_src),
 	[GCC_RBCPR_WCSS_AHB_CLK] = DEFINE_DUMMY_CLK(gcc_rbcpr_wcss_ahb_clk),
+	[GCC_MEM_NOC_Q6_AXI_CLK] = DEFINE_DUMMY_CLK(gcc_mem_noc_q6_axi_clk),
 	[GCC_LPASS_CORE_AXIM_CLK] = DEFINE_DUMMY_CLK(gcc_lpass_core_axim_clk),
 	[LPASS_CORE_AXIM_CLK_SRC] = DEFINE_DUMMY_CLK(lpass_core_axim_clk_src),
 	[GCC_LPASS_SNOC_CFG_CLK] = DEFINE_DUMMY_CLK(gcc_lpass_snoc_cfg_clk),
