@@ -56,7 +56,7 @@
 			status = "disabled";
 		};
 
-		glink_adsp: qcom,glink-smem-native-xprt-adsp@48C00000 {
+		glink_adsp: qcom,glink-smem-native-xprt-adsp@4AA00000 {
 			status = "disabled";
 		};
 

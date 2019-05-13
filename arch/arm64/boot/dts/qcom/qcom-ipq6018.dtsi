@@ -772,15 +772,15 @@
 			#hwlock-cells = <1>;
 		};
 
-		smem: qcom,smem@48C00000 {
+		smem: qcom,smem@4AA00000 {
 			compatible = "qcom,smem";
 			memory-region = <&smem_region>;
 			hwlocks = <&tcsr_mutex 0>;
 		};
 
-		glink_modem: qcom,glink-smem-native-xprt-modem@48C00000 {
+		glink_modem: qcom,glink-smem-native-xprt-modem@4AA00000 {
 			compatible = "qcom,glink-smem-native-xprt";
-			reg = <0x48C00000 0x100000>, <0x0b111008 0x4>;
+			reg = <0x4AA00000 0x100000>, <0x0b111008 0x4>;
 			reg-names = "smem", "irq-reg-base";
 			qcom,irq-mask = <0x100>;
 			interrupts = <GIC_SPI 321 IRQ_TYPE_EDGE_RISING>;
@@ -790,9 +790,9 @@
 			smem-entry-names = "ch", "tx_fifo", "rx_fifo";
 		};
 
-		glink_adsp: qcom,glink-smem-native-xprt-adsp@48C00000 {
+		glink_adsp: qcom,glink-smem-native-xprt-adsp@4AA00000 {
 			compatible = "qcom,glink-smem-native-xprt";
-			reg = <0x48C00000 0x100000>, <0x0b111008 0x4>;
+			reg = <0x4AA00000 0x100000>, <0x0b111008 0x4>;
 			reg-names = "smem", "irq-reg-base";
 			qcom,irq-mask = <0x800000>;
 			interrupts = <0 24 1>;
