@@ -226,3 +226,7 @@
 &usb3 {
 	status = "ok";
 };
+
+&nss_crypto {
+	status = "ok";
+};
