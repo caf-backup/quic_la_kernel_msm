@@ -20,6 +20,7 @@
 #include <linux/linkage.h>
 #include <linux/of.h>
 #include <linux/pm.h>
+#include <linux/pm_runtime.h>
 #include <linux/printk.h>
 #include <linux/psci.h>
 #include <linux/reboot.h>
@@ -287,6 +288,7 @@ static int __init psci_features(u32 psci_func_id)
 
 struct psci_cpuidle_data {
 	u32 *psci_states;
+	u32 rpm_state_id;
 	struct device *dev;
 };
 
@@ -374,6 +376,7 @@ static int psci_dt_cpu_init_idle(struct cpuidle_driver *drv,
 			goto free_mem;
 
 		data->dev = dev;
+		data->rpm_state_id = drv->state_count - 1;
 	}
 
 	/* Idle states parsed correctly, store them in the per-cpu struct. */
@@ -470,8 +473,11 @@ static int psci_suspend_finisher(unsigned long index)
 int psci_cpu_suspend_enter(unsigned long index)
 {
 	int ret;
-	u32 *state = __this_cpu_read(psci_cpuidle_data.psci_states);
-	u32 composite_state = state[index - 1] | psci_get_domain_state();
+	struct psci_cpuidle_data *data = this_cpu_ptr(&psci_cpuidle_data);
+	u32 *states = data->psci_states;
+	struct device *dev = data->dev;
+	bool runtime_pm = (dev && data->rpm_state_id == index);
+	u32 composite_state;
 
 	/*
 	 * idle state index 0 corresponds to wfi, should never be called
@@ -480,10 +486,22 @@ int psci_cpu_suspend_enter(unsigned long index)
 	if (WARN_ON_ONCE(!index))
 		return -EINVAL;
 
+	/*
+	 * Do runtime PM if we are using the hierarchical CPU toplogy, but only
+	 * when cpuidle have selected the deepest idle state for the CPU.
+	 */
+	if (runtime_pm)
+		pm_runtime_put_sync_suspend(dev);
+
+	composite_state = states[index - 1] | psci_get_domain_state();
+
 	if (!psci_power_state_loses_context(composite_state))
 		ret = psci_ops.cpu_suspend(composite_state, 0);
 	else
 		ret = cpu_suspend(index, psci_suspend_finisher);
+
+	if (runtime_pm)
+		pm_runtime_get_sync(dev);
 
 	/* Clear the domain state to start fresh when back from idle. */
 	psci_set_domain_state(0);
