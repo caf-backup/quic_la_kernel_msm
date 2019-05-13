@@ -107,7 +107,7 @@ static int __init arm_idle_init_cpu(int cpu)
 	 * Call arch CPU operations in order to initialize
 	 * idle states suspend back-end specific data
 	 */
-	ret = arm_cpuidle_init(cpu);
+	ret = arm_cpuidle_init(drv, cpu);
 
 	/*
 	 * Allow the initialization to continue for other CPUs, if the reported

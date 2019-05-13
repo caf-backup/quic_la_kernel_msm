@@ -19,6 +19,8 @@
 #include <linux/init.h>
 #include <linux/threads.h>
 
+struct cpuidle_driver;
+
 /**
  * struct cpu_operations - Callback operations for hotplugging CPUs.
  *
@@ -58,7 +60,7 @@ struct cpu_operations {
 	int		(*cpu_kill)(unsigned int cpu);
 #endif
 #ifdef CONFIG_CPU_IDLE
-	int		(*cpu_init_idle)(unsigned int);
+	int		(*cpu_init_idle)(struct cpuidle_driver *, unsigned int);
 	int		(*cpu_suspend)(unsigned long);
 #endif
 };

@@ -20,9 +20,11 @@
 #define PSCI_POWER_STATE_TYPE_STANDBY		0
 #define PSCI_POWER_STATE_TYPE_POWER_DOWN	1
 
+struct cpuidle_driver;
+
 bool psci_tos_resident_on(int cpu);
 
-int psci_cpu_init_idle(unsigned int cpu);
+int psci_cpu_init_idle(struct cpuidle_driver *drv, unsigned int cpu);
 int psci_cpu_suspend_enter(unsigned long index);
 
 enum psci_conduit {

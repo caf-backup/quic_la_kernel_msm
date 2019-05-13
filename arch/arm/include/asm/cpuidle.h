@@ -32,7 +32,7 @@ struct device_node;
 
 struct cpuidle_ops {
 	int (*suspend)(unsigned long arg);
-	int (*init)(struct device_node *, int cpu);
+	int (*init)(struct cpuidle_driver *, struct device_node *, int cpu);
 };
 
 struct of_cpuidle_method {
@@ -47,6 +47,6 @@ struct of_cpuidle_method {
 
 extern int arm_cpuidle_suspend(int index);
 
-extern int arm_cpuidle_init(int cpu);
+extern int arm_cpuidle_init(struct cpuidle_driver *drv, int cpu);
 
 #endif
