@@ -941,9 +941,15 @@
 				qcom,aes128-cbc-sha384-hmac;
 				qcom,aes192-cbc-sha384-hmac;
 				qcom,aes256-cbc-sha384-hmac;
+				qcom,aes128-ctr-sha384-hmac;
+				qcom,aes192-ctr-sha384-hmac;
+				qcom,aes256-ctr-sha384-hmac;
 				qcom,aes128-cbc-sha512-hmac;
 				qcom,aes192-cbc-sha512-hmac;
 				qcom,aes256-cbc-sha512-hmac;
+				qcom,aes128-ctr-sha512-hmac;
+				qcom,aes192-ctr-sha512-hmac;
+				qcom,aes256-ctr-sha512-hmac;
 
 				engine0 {
 					reg_offset = <0x80000>;
