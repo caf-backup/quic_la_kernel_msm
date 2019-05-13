@@ -284,7 +284,13 @@ static int __init psci_features(u32 psci_func_id)
 }
 
 #ifdef CONFIG_CPU_IDLE
-static DEFINE_PER_CPU_READ_MOSTLY(u32 *, psci_power_state);
+
+struct psci_cpuidle_data {
+	u32 *psci_states;
+	struct device *dev;
+};
+
+static DEFINE_PER_CPU_READ_MOSTLY(struct psci_cpuidle_data, psci_cpuidle_data);
 static DEFINE_PER_CPU(u32, domain_state);
 static bool psci_dt_topology;
 
@@ -321,8 +327,9 @@ static int psci_dt_cpu_init_idle(struct cpuidle_driver *drv,
 	int i, ret = 0, num_state_nodes = drv->state_count - 1;
 	u32 *psci_states;
 	struct device_node *state_node;
+	struct psci_cpuidle_data *data = per_cpu_ptr(&psci_cpuidle_data, cpu);
 
-	psci_states = kcalloc(num_state_nodes, sizeof(*psci_states),
+	psci_states = kcalloc(CPUIDLE_STATE_MAX, sizeof(*psci_states),
 			GFP_KERNEL);
 	if (!psci_states)
 		return -ENOMEM;
@@ -346,8 +353,31 @@ static int psci_dt_cpu_init_idle(struct cpuidle_driver *drv,
 		goto free_mem;
 	}
 
-	/* Idle states parsed correctly, initialize per-cpu pointer */
-	per_cpu(psci_power_state, cpu) = psci_states;
+	/*
+	 * If the hierarchical CPU topology is used, let's attach the CPU device
+	 * to its corresponding PM domain. If OSI mode isn't supported, convert
+	 * the additional domain idle states from the hierarchical DT layout
+	 * into regular flattened cpuidle states, as to let cpuidle manage them.
+	 */
+	if (psci_dt_topology) {
+		struct device *dev;
+
+		if (!psci_has_osi_support()) {
+			ret = psci_dt_pm_domains_parse_states(drv, cpu_node,
+							      psci_states);
+			if (ret)
+				goto free_mem;
+		}
+
+		dev = psci_dt_attach_cpu(cpu);
+		if (IS_ERR_OR_NULL(dev))
+			goto free_mem;
+
+		data->dev = dev;
+	}
+
+	/* Idle states parsed correctly, store them in the per-cpu struct. */
+	data->psci_states = psci_states;
 	return 0;
 
 free_mem:
@@ -392,8 +422,8 @@ static int __maybe_unused psci_acpi_cpu_init_idle(unsigned int cpu)
 		}
 		psci_states[i] = state;
 	}
-	/* Idle states parsed correctly, initialize per-cpu pointer */
-	per_cpu(psci_power_state, cpu) = psci_states;
+	/* Idle states parsed correctly, store them in the per-cpu struct. */
+	per_cpu(psci_cpuidle_data.psci_states, cpu) = psci_states;
 	return 0;
 }
 #else
@@ -431,7 +461,7 @@ int psci_cpu_init_idle(struct cpuidle_driver *drv, unsigned int cpu)
 
 static int psci_suspend_finisher(unsigned long index)
 {
-	u32 *state = __this_cpu_read(psci_power_state);
+	u32 *state = __this_cpu_read(psci_cpuidle_data.psci_states);
 	u32 composite_state = state[index - 1] | psci_get_domain_state();
 
 	return psci_ops.cpu_suspend(composite_state, __pa_symbol(cpu_resume));
@@ -440,7 +470,7 @@ static int psci_suspend_finisher(unsigned long index)
 int psci_cpu_suspend_enter(unsigned long index)
 {
 	int ret;
-	u32 *state = __this_cpu_read(psci_power_state);
+	u32 *state = __this_cpu_read(psci_cpuidle_data.psci_states);
 	u32 composite_state = state[index - 1] | psci_get_domain_state();
 
 	/*
