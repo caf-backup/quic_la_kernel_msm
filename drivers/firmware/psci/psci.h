@@ -11,6 +11,11 @@ bool psci_has_osi_support(void);
 #ifdef CONFIG_CPU_IDLE
 void psci_set_domain_state(u32 state);
 int psci_dt_parse_state_node(struct device_node *np, u32 *state);
+#ifdef CONFIG_PM_GENERIC_DOMAINS_OF
+int psci_dt_init_pm_domains(struct device_node *np);
+#else
+static inline int psci_dt_init_pm_domains(struct device_node *np) { return 0; }
+#endif
 #endif
 
 #endif /* __PSCI_H */
