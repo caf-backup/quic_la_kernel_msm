@@ -4784,8 +4784,9 @@ static struct clk_hw *gcc_ipq6018_hws[] = {
 };
 
 static const struct alpha_pll_config ubi32_pll_config = {
-	.l = 0x4e,
-	.config_ctl_val = 0x200d4aa8,
+	.l = 0x3f,
+	.alpha = 0x8000,
+	.config_ctl_val = 0x200d6aa8,
 	.config_ctl_hi_val = 0x3c2,
 	.main_output_mask = BIT(0),
 	.aux_output_mask = BIT(1),
@@ -4796,9 +4797,9 @@ static const struct alpha_pll_config ubi32_pll_config = {
 };
 
 static const struct alpha_pll_config nss_crypto_pll_config = {
-	.l = 0x3e,
+	.l = 0x32,
 	.alpha = 0x0,
-	.alpha_hi = 0x80,
+	.alpha_hi = 0x0,
 	.config_ctl_val = 0x4001055b,
 	.main_output_mask = BIT(0),
 	.pre_div_val = 0x0,
@@ -5545,8 +5546,18 @@ static const struct qcom_cc_desc gcc_ipq6018_dummy_desc = {
 static int gcc_ipq6018_probe(struct platform_device *pdev)
 {
 	int ret;
+	struct regmap *regmap;
 
-	ret = qcom_cc_probe(pdev, &gcc_ipq6018_dummy_desc);
+	regmap = qcom_cc_map(pdev, &gcc_ipq6018_dummy_desc);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
+
+	clk_alpha_pll_configure(&ubi32_pll_main, regmap, &ubi32_pll_config);
+
+	clk_alpha_pll_configure(&nss_crypto_pll_main, regmap,
+				&nss_crypto_pll_config);
+
+	ret = qcom_cc_really_probe(pdev, &gcc_ipq6018_dummy_desc, regmap);
 
 	dev_dbg(&pdev->dev, "Registered ipq6018 dummy clock provider");
 
