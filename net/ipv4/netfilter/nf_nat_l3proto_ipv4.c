@@ -25,7 +25,9 @@
 #include <net/netfilter/nf_nat_core.h>
 #include <net/netfilter/nf_nat_l3proto.h>
 #include <net/netfilter/nf_nat_l4proto.h>
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 #include <net/netfilter/br_netfilter.h>
+#endif
 
 static const struct nf_nat_l3proto nf_nat_l3proto_ipv4;
 
