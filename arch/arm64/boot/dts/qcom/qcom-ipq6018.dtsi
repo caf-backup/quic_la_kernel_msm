@@ -1913,7 +1913,7 @@
 		status = "ok";
 	};
 
-	cpus {
+	cpus: cpus {
 		#address-cells = <0x1>;
 		#size-cells = <0x0>;
 
@@ -1998,3 +1998,6 @@
 };
 
 #include "qcom-ipq6018-coresight.dtsi"
+#include "qcom-ipq6018-rpm-regulator.dtsi"
+#include "qcom-ipq6018-cpr-regulator.dtsi"
+#include "qcom-ipq6018-cp-cpu.dtsi"
