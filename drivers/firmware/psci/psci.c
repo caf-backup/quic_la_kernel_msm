@@ -15,6 +15,7 @@
 
 #include <linux/acpi.h>
 #include <linux/arm-smccc.h>
+#include <linux/cpu.h>
 #include <linux/cpuidle.h>
 #include <linux/errno.h>
 #include <linux/linkage.h>
@@ -91,6 +92,9 @@ static u32 psci_function_id[PSCI_FN_MAX];
 				PSCI_1_0_EXT_POWER_STATE_TYPE_MASK)
 
 static u32 psci_cpu_suspend_feature;
+
+static void psci_cpuidle_cpu_off(void);
+static void psci_cpuidle_cpu_on(unsigned long cpuid);
 
 static inline bool psci_has_ext_power_state(void)
 {
@@ -187,6 +191,8 @@ static int psci_cpu_off(u32 state)
 	int err;
 	u32 fn;
 
+	psci_cpuidle_cpu_off();
+
 	fn = psci_function_id[PSCI_FN_CPU_OFF];
 	err = invoke_psci_fn(fn, state, 0, 0);
 	return psci_to_linux_errno(err);
@@ -199,7 +205,13 @@ static int psci_cpu_on(unsigned long cpuid, unsigned long entry_point)
 
 	fn = psci_function_id[PSCI_FN_CPU_ON];
 	err = invoke_psci_fn(fn, cpuid, entry_point, 0);
-	return psci_to_linux_errno(err);
+	err = psci_to_linux_errno(err);
+	if (err)
+		return err;
+
+	psci_cpuidle_cpu_on(cpuid);
+
+	return 0;
 }
 
 static int psci_migrate(unsigned long cpuid)
@@ -529,8 +541,41 @@ static int __init _psci_dt_topology_init(struct device_node *np)
 
 	return ret;
 }
+
+static void psci_cpuidle_cpu_off(void)
+{
+	struct device *dev = __this_cpu_read(psci_cpuidle_data.dev);
+
+	/*
+	 * Drop the runtime PM usage count if the CPU has been attached to a
+	 * CPU PM domain. This is needed to, for example, not prevent other
+	 * master domains in the hierarchy to remain powered on.
+	 */
+	if (dev)
+		pm_runtime_put_sync_suspend(dev);
+}
+
+static void psci_cpuidle_cpu_on(unsigned long cpuid)
+{
+	struct device *dev;
+	int cpu;
+
+	if (!psci_dt_topology)
+		return;
+
+	cpu = get_logical_index(cpuid);
+	if (cpu < 0)
+		return;
+
+	dev = per_cpu(psci_cpuidle_data.dev, cpu);
+	if (dev)
+		pm_runtime_get_sync(dev);
+}
+
 #else
 static inline int _psci_dt_topology_init(struct device_node *np) { return 0; }
+static void psci_cpuidle_cpu_off(void) {}
+static void psci_cpuidle_cpu_on(unsigned long cpuid) {}
 #endif
 
 static int psci_system_suspend(unsigned long unused)
