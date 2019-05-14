@@ -20,7 +20,7 @@
 / {
 	#address-cells = <0x2>;
 	#size-cells = <0x2>;
-	model = "Qualcomm Technologies, Inc. IPQ6018/AP-CP01-C1";
+	model = "Qualcomm Technologies, Inc. IPQ6018/AP-CP01-C2";
 	compatible = "qcom,ipq6018-cp01", "qcom,ipq6018";
 	interrupt-parent = <&intc>;
 
@@ -29,7 +29,7 @@
 	};
 
 	chosen {
-		bootargs = "console=ttyMSM0,115200,n8 rw init=/init";
+		bootargs = "console=ttyMSM0,115200,n8 clk_ignore_unused rw init=/init";
 		bootargs-append = " swiotlb=1";
 	};
 
