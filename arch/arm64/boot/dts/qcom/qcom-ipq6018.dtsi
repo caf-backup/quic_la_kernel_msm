@@ -1913,7 +1913,7 @@
 		};
 	};
 
-	psci {
+	psci: psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
 		status = "ok";
@@ -1965,7 +1965,7 @@
 		};
 	};
 
-	firmware {
+	firmware: firmware {
 		scm {
 			compatible = "qcom,scm-ipq6018";
 		};
