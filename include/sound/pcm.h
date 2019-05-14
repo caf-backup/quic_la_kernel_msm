@@ -79,12 +79,12 @@ struct snd_pcm_ops {
 			struct snd_pcm_audio_tstamp_config *audio_tstamp_config,
 			struct snd_pcm_audio_tstamp_report *audio_tstamp_report);
 	int (*copy)(struct snd_pcm_substream *substream, int channel,
-		    snd_pcm_uframes_t pos,
-		    void __user *buf, snd_pcm_uframes_t count);
+			snd_pcm_uframes_t pos,
+			void __user *buf, snd_pcm_uframes_t count);
 	int (*silence)(struct snd_pcm_substream *substream, int channel, 
-		       snd_pcm_uframes_t pos, snd_pcm_uframes_t count);
+			snd_pcm_uframes_t pos, snd_pcm_uframes_t count);
 	struct page *(*page)(struct snd_pcm_substream *substream,
-			     unsigned long offset);
+				unsigned long offset);
 	int (*mmap)(struct snd_pcm_substream *substream, struct vm_area_struct *vma);
 	int (*ack)(struct snd_pcm_substream *substream);
 };
