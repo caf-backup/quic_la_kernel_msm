@@ -5567,10 +5567,14 @@ static int gcc_ipq6018_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct regmap *regmap;
+	struct device *dev = &pdev->dev;
 
 	regmap = qcom_cc_map(pdev, &gcc_ipq6018_dummy_desc);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
+
+	clk_register_fixed_rate(dev, "pcie20_phy0_pipe_clk", NULL, CLK_IS_ROOT,
+                                      250000000);
 
 	/* Disable SW_COLLAPSE for USB0 GDSCR */
 	regmap_update_bits(regmap, 0x3e078, BIT(0), 0x0);
