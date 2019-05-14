@@ -761,6 +761,21 @@
 			status = "disabled";
 		};
 
+		dcc: dcc@b3000 {
+			compatible = "qca,dcc";
+			status = "disabled";
+			reg = <0xb3000 0x1000>,
+				<0xb4000 0x800>,
+				<0x004A2000 0x8>;
+			reg-names = "dcc-base", "dcc-ram-base", "gcnt_lo_hi";
+
+			clocks = <&gcc GCC_DCC_CLK>;
+			clock-names = "dcc_clk";
+
+			no_xpu_support;
+			qca,save-reg;
+		};
+
 		tcsr_mutex_block: syscon@1905000 {
 			compatible = "syscon";
 			reg = <0x1905000 0x8000>;
