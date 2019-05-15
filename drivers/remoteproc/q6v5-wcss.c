@@ -1414,7 +1414,8 @@ static int q6_rproc_probe(struct platform_device *pdev)
 {
 	const char *firmware_name;
 	struct rproc *rproc;
-	int ret;
+	int ret, emulation;
+	unsigned int img_addr;
 	struct resource *resource;
 	struct qcom_smem_state *state;
 	unsigned stop_bit;
@@ -1450,6 +1451,17 @@ static int q6_rproc_probe(struct platform_device *pdev)
 			ipq60xx_wcss_clks_prepare_enable(&pdev->dev))
 		return -EIO;
 
+	emulation = of_property_read_bool(pdev->dev.of_node, "qca,emulation");
+	img_addr = DEFAULT_IMG_ADDR;
+	if (emulation) {
+		ret = of_property_read_u32(pdev->dev.of_node, "img-addr",
+							&img_addr);
+		if (ops == &ipq807x_q6v5_rproc_ops)
+			ops->start = ipq807x_q6_rproc_emu_start;
+		else if (ops == &ipq60xx_q6v5_rproc_ops)
+			ops->start = ipq60xx_q6_rproc_emu_start;
+	}
+
 	rproc = rproc_alloc(&pdev->dev, "q6v5-wcss", ops, firmware_name,
 						sizeof(*q6v5_rproc_pdata));
 	if (unlikely(!rproc))
@@ -1458,17 +1470,8 @@ static int q6_rproc_probe(struct platform_device *pdev)
 	q6v5_rproc_pdata = rproc->priv;
 	q6v5_rproc_pdata->rproc = rproc;
 	q6v5_rproc_pdata->stop_retry_count = 10;
-	q6v5_rproc_pdata->emulation = of_property_read_bool(pdev->dev.of_node,
-					"qca,emulation");
-	if (q6v5_rproc_pdata->emulation) {
-		q6v5_rproc_pdata->img_addr = DEFAULT_IMG_ADDR;
-		ret = of_property_read_u32(pdev->dev.of_node, "img-addr",
-						&q6v5_rproc_pdata->img_addr);
-		if (ops == &ipq807x_q6v5_rproc_ops)
-			ops->start = ipq807x_q6_rproc_emu_start;
-		else if (ops == &ipq60xx_q6v5_rproc_ops)
-			ops->start = ipq60xx_q6_rproc_emu_start;
-	}
+	q6v5_rproc_pdata->emulation = emulation;
+	q6v5_rproc_pdata->img_addr = img_addr;
 
 	q6v5_rproc_pdata->secure = of_property_read_bool(pdev->dev.of_node,
 					"qca,secure");
