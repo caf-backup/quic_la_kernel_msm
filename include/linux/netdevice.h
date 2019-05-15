@@ -1325,6 +1325,7 @@ enum netdev_priv_flags {
 	IFF_PPP_PPTP			= 1<<28,
 	IFF_GRE_V4_TAP			= 1<<29,
 	IFF_GRE_V6_TAP			= 1<<30,
+	IFF_IFB				= 1<<31,
 };
 
 #define IFF_802_1Q_VLAN			IFF_802_1Q_VLAN
@@ -3972,6 +3973,11 @@ static inline bool netif_is_bridge_port(const struct net_device *dev)
 static inline bool netif_is_ovs_master(const struct net_device *dev)
 {
 	return dev->priv_flags & IFF_OPENVSWITCH;
+}
+
+static inline bool netif_is_ifb_dev(const struct net_device *dev)
+{
+	return dev->priv_flags & IFF_IFB;
 }
 
 /* This device needs to keep skb dst for qdisc enqueue or ndo_start_xmit() */
