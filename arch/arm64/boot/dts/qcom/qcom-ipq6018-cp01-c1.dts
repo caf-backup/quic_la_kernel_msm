@@ -16,6 +16,7 @@
  */
 
 #include "qcom-ipq6018.dtsi"
+#include "qcom-ipq6018-circular-pca9956.dtsi"
 
 / {
 	#address-cells = <0x2>;
@@ -83,6 +84,25 @@
 			function = "blsp2_uart";
 			drive-strength = <2>;
 			bias-pull-down;
+		};
+	};
+
+	i2c_1_pins: i2c_1_pins {
+		mux {
+			pins = "gpio42", "gpio43";
+			function = "blsp4_i2c";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
+
+	pca9956b_reset_gpio: pca9956b_reset_gpio {
+		mux {
+			pins = "gpio25";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-down;
+			output-high;
 		};
 	};
 
@@ -214,6 +234,11 @@
 		reg = <0>;
 		spi-max-frequency = <24000000>;
 	};
+};
+
+&i2c_1 {
+	pinctrl-0 = <&i2c_1_pins>;
+	pinctrl-names = "default";
 };
 
 &qpic_bam {
