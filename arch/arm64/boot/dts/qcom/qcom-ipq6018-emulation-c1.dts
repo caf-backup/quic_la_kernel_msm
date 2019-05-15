@@ -50,6 +50,48 @@
 		reg = <0x0 0x40000000 0x0 0x20000000>;
 	};
 
+	/*
+	 * +=========+==============+========================+
+	 * |        |              |                         |
+	 * | Region | Start Offset |          Size           |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * | Linux  |  0x41000000  |         117MB           |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * | TZ App |  0x48500000  |           2MB           |
+	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * | LPASS  |              |                         |
+	 * |   Q6   |  0x48700000  |          26MB           |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 *
+	 * From the available 145 MB for Linux in the first 256 MB,
+	 * we are reserving 26 MB for LPASS and 2 MB for TZAPP.
+	 *
+	 * Refer arch/arm64/boot/dts/qcom/qcom-ipq6018-memory.dtsi
+	 * for memory layout.
+	 */
+
+	reserved-memory {
+		tzapp:tzapp@48500000 {	/* TZAPPS */
+			no-map;
+			reg = <0x0 0x48500000 0x0 0x00200000>;
+		};
+
+		lpass@48700000 {
+			no-map;
+			reg = <0x0 0x48700000 0x0 0x01a00000>;
+		};
+	};
+
 	soc {
 		serial@78af000 {
 			status = "ok";
