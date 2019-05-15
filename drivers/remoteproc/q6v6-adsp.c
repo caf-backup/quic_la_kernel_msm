@@ -1021,9 +1021,9 @@ static int stop_q6(const struct subsys_desc *subsys, bool force_stop)
 
 	if (rproc->domain) {
 		/* DDR region */
-		iommu_unmap(rproc->domain, 0x49100000, 26 * SZ_1M);
+		iommu_unmap(rproc->domain, 0x48700000, 26 * SZ_1M);
 		/* SMEM region */
-		iommu_unmap(rproc->domain, 0x48C00000, 1 * SZ_1M);
+		iommu_unmap(rproc->domain, 0x4AA00000, 1 * SZ_1M);
 		/* LPASS region */
 		iommu_unmap(rproc->domain, 0x0A000000, 16 * SZ_1M);
 		/* Core TCSR region */
@@ -1096,10 +1096,10 @@ static int q6v6_load(struct rproc *rproc, const struct firmware *fw)
 	/* IOMMU Identical Mappings */
 	if (rproc->domain) {
 		/* DDR region */
-		iommu_map(rproc->domain, 0x49100000, 0x49100000, 26 * SZ_1M,
+		iommu_map(rproc->domain, 0x48700000, 0x48700000, 26 * SZ_1M,
 				IOMMU_READ | IOMMU_WRITE);
 		/* SMEM region */
-		iommu_map(rproc->domain, 0x48C00000, 0x48C00000, 1 * SZ_1M,
+		iommu_map(rproc->domain, 0x4AA00000, 0x4AA00000, 1 * SZ_1M,
 				IOMMU_READ | IOMMU_WRITE);
 		/* LPASS region */
 		iommu_map(rproc->domain, 0x0A000000, 0x0A000000, 16 * SZ_1M,
