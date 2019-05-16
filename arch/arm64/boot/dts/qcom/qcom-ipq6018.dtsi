@@ -1110,7 +1110,7 @@
 			clock-names = "bam_clk";
 			#dma-cells = <1>;
 			qcom,ee = <0>;
-			status = "disbaled";
+			status = "disabled";
 		};
 
 		qcom,sps {
