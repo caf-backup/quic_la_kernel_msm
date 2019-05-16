@@ -2009,7 +2009,7 @@
 		};
 	};
 
-	pmu {
+	pmuv8: pmu {
 		compatible = "arm,armv8-pmuv3";
 		interrupts = <GIC_PPI 7 (GIC_CPU_MASK_SIMPLE(4) |
 					 IRQ_TYPE_LEVEL_HIGH)>;
