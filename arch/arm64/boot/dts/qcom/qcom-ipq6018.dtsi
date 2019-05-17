@@ -1877,6 +1877,12 @@
 			};
 		};
 
+		ess-uniphy@7a00000 {
+			compatible = "qcom,ess-uniphy";
+			reg = <0x7a00000 0x30000>;
+			uniphy_access_mode = "local bus";
+		};
+
 		wifi0: wifi@c000000 {
 			compatible = "qcom,cnss-qca6018";
 			reg = <0xc000000 0x1000000>;
