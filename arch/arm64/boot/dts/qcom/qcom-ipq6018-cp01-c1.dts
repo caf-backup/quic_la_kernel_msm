@@ -285,3 +285,7 @@
 &nss_crypto {
 	status = "ok";
 };
+
+&smmu500 {
+	status = "ok";
+};

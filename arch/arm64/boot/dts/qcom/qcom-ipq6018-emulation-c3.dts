@@ -100,10 +100,6 @@
 			status = "ok";
 		};
 
-		qcom_rng: qrng@e1000 {
-			status = "ok";
-		};
-
 		qpic_lcd: qcom_mdss_qpic@7980000 {
 			qcom,bam_timeout = <20000>;
 			status = "ok";

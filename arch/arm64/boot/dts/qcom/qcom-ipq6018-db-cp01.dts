@@ -223,3 +223,7 @@
 &usb3 {
 	status = "ok";
 };
+
+&smmu500 {
+	status = "ok";
+};

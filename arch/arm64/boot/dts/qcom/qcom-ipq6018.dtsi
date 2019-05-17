@@ -141,7 +141,7 @@
 			reg = <0xe3000 0x1000>;
 			clocks = <&gcc GCC_PRNG_AHB_CLK>;
 			clock-names = "core";
-			status = "disabled";
+			status = "ok";
 		};
 
 		cryptobam: dma@704000 {

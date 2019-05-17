@@ -101,10 +101,6 @@
 			status = "ok";
 		};
 
-		qcom_rng: qrng@e1000 {
-			status = "ok";
-		};
-
 		cryptobam: dma@704000 {
 			qcom,controlled-remotely = <0>;
 			qcom,config-pipe-trust-reg = <1>;
