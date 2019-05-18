@@ -166,6 +166,26 @@
 			img-addr = <0x4AB00000>;
 		};
 
+		glink_adsp: qcom,glink-smem-native-xprt-adsp@4AA00000 {
+			status = "ok";
+		};
+
+		ipc_router_adsp: qcom,ipc_router_adsp_xprt {
+			status = "ok";
+		};
+
+		smp2p_adsp: smp2p-adsp {
+			status = "ok";
+		};
+
+		q6v6_adsp: q6v6_adsp@AB00000 {
+			status = "ok";
+		};
+
+		glink_adsp_ssr: qcom,glink-ssr-adsp {
+			status = "ok";
+		};
+
 		q6v6_adsp: q6v6_adsp@AB00000 {
 			qca,emulation;
 			img-addr = <0x48700000>;
