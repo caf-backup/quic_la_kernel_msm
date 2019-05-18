@@ -229,7 +229,7 @@
 		status = "disabled";
 
 		eip197_node {
-			status = "disbled";
+			status = "disabled";
 		};
 	};
 
