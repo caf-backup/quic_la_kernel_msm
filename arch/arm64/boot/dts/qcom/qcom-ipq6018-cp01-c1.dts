@@ -404,3 +404,35 @@
 &nss_crypto {
 	status = "ok";
 };
+
+&smmu500 {
+	status = "ok";
+};
+
+&glink_adsp {
+	status = "ok";
+};
+
+&ipc_router_adsp {
+	status = "ok";
+};
+
+&smp2p_adsp {
+	status = "ok";
+};
+
+&q6v6_adsp {
+	status = "ok";
+};
+
+&glink_adsp_ssr {
+	status = "ok";
+};
+
+&pcie_phy {
+	status = "ok";
+};
+
+&pcie0 {
+	status = "ok";
+};
