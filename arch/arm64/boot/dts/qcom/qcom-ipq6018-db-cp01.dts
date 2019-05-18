@@ -247,3 +247,11 @@
 &glink_adsp_ssr {
 	status = "ok";
 };
+
+&pcie_phy {
+	status = "ok";
+};
+
+&pcie0 {
+	status = "ok";
+};
