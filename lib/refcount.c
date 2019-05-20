@@ -37,6 +37,31 @@
 #include <linux/refcount.h>
 #include <linux/bug.h>
 
+static bool atomic_try_cmpxchg_release_operation(atomic_t *p, unsigned int *po,
+						 unsigned int n)
+{
+	unsigned int *val = po;
+	unsigned int r, o = *val;
+
+	r = atomic_cmpxchg_release(p, o, n);
+	if (unlikely(r != o))
+		*po = r;
+	return likely(r == o);
+}
+
+static bool atomic_try_cmpxchg_relaxed_operation(atomic_t *p, unsigned int *po,
+						 unsigned int n)
+{
+	unsigned int *val = po;
+	unsigned int r, o = *val;
+
+	r = atomic_cmpxchg_relaxed(p, o, n);
+	if (unlikely(r != o))
+		*po = r;
+	return likely(r == o);
+}
+
+
 /**
  * refcount_add_not_zero - add a value to a refcount unless it is 0
  * @i: the value to add to the refcount
@@ -70,7 +95,7 @@ bool refcount_add_not_zero(unsigned int i, refcount_t *r)
 		if (new < val)
 			new = UINT_MAX;
 
-	} while (!atomic_try_cmpxchg_relaxed(&r->refs, &val, new));
+	} while (!atomic_try_cmpxchg_relaxed_operation(&r->refs, &val, new));
 
 	WARN_ONCE(new == UINT_MAX, "refcount_t: saturated; leaking memory.\n");
 
@@ -125,7 +150,7 @@ bool refcount_inc_not_zero(refcount_t *r)
 		if (unlikely(!new))
 			return true;
 
-	} while (!atomic_try_cmpxchg_relaxed(&r->refs, &val, new));
+	} while (!atomic_try_cmpxchg_relaxed_operation(&r->refs, &val, new));
 
 	WARN_ONCE(new == UINT_MAX, "refcount_t: saturated; leaking memory.\n");
 
@@ -185,7 +210,7 @@ bool refcount_sub_and_test(unsigned int i, refcount_t *r)
 			return false;
 		}
 
-	} while (!atomic_try_cmpxchg_release(&r->refs, &val, new));
+	} while (!atomic_try_cmpxchg_release_operation(&r->refs, &val, new));
 
 	return !new;
 }
@@ -246,7 +271,7 @@ bool refcount_dec_if_one(refcount_t *r)
 {
 	int val = 1;
 
-	return atomic_try_cmpxchg_release(&r->refs, &val, 0);
+	return atomic_try_cmpxchg_release_operation(&r->refs, &val, 0);
 }
 EXPORT_SYMBOL_GPL(refcount_dec_if_one);
 
@@ -278,7 +303,7 @@ bool refcount_dec_not_one(refcount_t *r)
 			return true;
 		}
 
-	} while (!atomic_try_cmpxchg_release(&r->refs, &val, new));
+	} while (!atomic_try_cmpxchg_release_operation(&r->refs, &val, new));
 
 	return true;
 }
