@@ -172,6 +172,8 @@ struct dumpdev {
 	char ss_name[8];
 	phys_addr_t dump_phy_addr;
 	size_t dump_size;
+	phys_addr_t dump_aphy_addr;
+	size_t adump_size;
 } q6dump = {"q6mem", &q6_dump_ops, FMODE_UNSIGNED_OFFSET | FMODE_EXCL, "wcnss"};
 
 static const char *wcss_clk_names[NUM_WCSS_CLKS] = {"wcss_axi_m_clk",
@@ -260,7 +262,7 @@ static int q6_dump_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 	}
 
-	dfp->remaining_bytes = q6dump.dump_size;
+	dfp->remaining_bytes = q6dump.dump_size + q6dump.adump_size;
 	dfp->rel_addr_off = 0;
 	dfp->pdesc = current;
 
@@ -338,7 +340,8 @@ static ssize_t q6_dump_read(struct file *file, char __user *buf, size_t count,
 		phdr->p_type = PT_LOAD;
 		phdr->p_offset = elfcore_hdrsize;
 		phdr->p_vaddr = phdr->p_paddr = q6dump.dump_phy_addr;
-		phdr->p_filesz = phdr->p_memsz = q6dump.dump_size;
+		phdr->p_filesz = phdr->p_memsz = q6dump.dump_size +
+							q6dump.adump_size;
 		phdr->p_flags = PF_R | PF_W | PF_X;
 
 		dfp->ehdr_remaining_bytes = elfcore_hdrsize;
@@ -376,6 +379,22 @@ static ssize_t q6_dump_read(struct file *file, char __user *buf, size_t count,
 		}
 		dfp->rel_addr_off = dfp->rel_addr_off + count;
 		copy_to_user(buf, buffer, count);
+	} else if (q6dump.adump_size) {
+		if ((dfp->rel_addr_off <
+				(q6dump.dump_size + q6dump.adump_size))) {
+			buffer = ioremap(q6dump.dump_aphy_addr +
+					(dfp->rel_addr_off - q6dump.dump_size),
+					count);
+			if (!buffer) {
+				pr_err("can not map physical address %x : %d\n",
+					(unsigned int)q6dump.dump_aphy_addr +
+					dfp->rel_addr_off - q6dump.dump_size,
+					(int)count);
+				return -ENOMEM;
+			}
+			dfp->rel_addr_off = dfp->rel_addr_off + count;
+			copy_to_user(buf, buffer, count);
+		}
 	} else
 		return 0;
 
@@ -450,6 +469,27 @@ static int crashdump_init(int check, const struct subsys_desc *desc)
 		goto dump_dev_failed;
 	}
 
+	q6dump.dump_aphy_addr = 0;
+	q6dump.adump_size = 0;
+	node = of_find_node_by_name(NULL, "q6_etr_dump");
+	if (node != NULL) {
+		ret = of_property_read_u32_index(node, "reg", 1,
+				(u32 *)&q6dump.dump_aphy_addr);
+		if (ret) {
+			q6dump.dump_aphy_addr = 0;
+			q6dump.adump_size = 0;
+			goto skip_etr;
+		}
+
+		ret = of_property_read_u32_index(node, "reg", 3,
+				(u32 *)&q6dump.adump_size);
+		if (ret) {
+			q6dump.dump_aphy_addr = 0;
+			q6dump.adump_size = 0;
+		}
+	}
+
+skip_etr:
 	/* This avoids race condition between the scheduled timer and the opened
 	 * file discriptor during delay in user space app execution.
 	 */

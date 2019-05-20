@@ -25,6 +25,8 @@
 #include <linux/of_platform.h>
 #include <linux/delay.h>
 
+#include <linux/notifier.h>
+
 #include "coresight-priv.h"
 
 static DEFINE_MUTEX(coresight_mutex);
@@ -402,6 +404,25 @@ out:
 }
 EXPORT_SYMBOL_GPL(coresight_abort);
 
+static int coresight_panic_handler(struct notifier_block *this,
+			unsigned long event, void *ptr)
+{
+	if (!curr_sink)
+		goto out;
+
+	if (curr_sink->enable && sink_ops(curr_sink)->abort) {
+		sink_ops(curr_sink)->abort(curr_sink);
+		curr_sink->enable = false;
+	}
+
+out:
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block panic_nb = {
+	.notifier_call = coresight_panic_handler,
+};
+
 static int coresight_disable_all_source(struct device *dev, void *data)
 {
 	struct coresight_device *csdev;
@@ -739,7 +760,16 @@ struct bus_type coresight_bustype = {
 
 static int __init coresight_init(void)
 {
-	return bus_register(&coresight_bustype);
+	int ret = 0;
+
+	ret = bus_register(&coresight_bustype);
+	if (ret)
+		return ret;
+
+	ret = atomic_notifier_chain_register(&panic_notifier_list,
+			&panic_nb);
+
+	return ret;
 }
 postcore_initcall(coresight_init);
 
