@@ -125,8 +125,8 @@ static int cnss_set_pci_config_space(struct cnss_pci_data *pci_priv, bool save)
 
 static int cnss_set_pci_link(struct cnss_pci_data *pci_priv, bool link_up)
 {
-	int ret = 0;
 #ifdef CONFIG_PCI_MSM
+	int ret = 0;
 	struct pci_dev *pci_dev = pci_priv->pci_dev;
 #endif
 	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
@@ -273,20 +273,18 @@ int cnss_pci_link_down(struct device *dev)
 }
 EXPORT_SYMBOL(cnss_pci_link_down);
 
+#ifdef CONFIG_CNSS2_SMMU
 static int cnss_pci_init_smmu(struct cnss_pci_data *pci_priv)
 {
 	int ret = 0;
 	struct device *dev;
 	struct dma_iommu_mapping *mapping;
 	int disable_htw = 1;
-#ifdef CONFIG_CNSS2_SMMU
 	int atomic_ctx = 1;
-#endif
 	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
 
 	dev = &pci_priv->pci_dev->dev;
 
-#ifdef CONFIG_CNSS2_SMMU
 	mapping = arm_iommu_create_mapping(&platform_bus_type,
 					   pci_priv->smmu_iova_start,
 					   pci_priv->smmu_iova_len);
@@ -295,19 +293,16 @@ static int cnss_pci_init_smmu(struct cnss_pci_data *pci_priv)
 		cnss_pr_err("Failed to create SMMU mapping, err = %d\n", ret);
 		goto out;
 	}
-#endif
 
-#ifdef CONFIG_CNSS2_SMMU
 	ret = iommu_domain_set_attr(mapping->domain,
 				    DOMAIN_ATTR_COHERENT_HTW_DISABLE,
 				    &disable_htw);
-#endif
 	if (ret) {
 		cnss_pr_err("Failed to set SMMU disable_htw attribute, err = %d\n",
 			    ret);
 		goto release_mapping;
 	}
-#ifdef CONFIG_CNSS2_SMMU
+
 	ret = iommu_domain_set_attr(mapping->domain,
 				    DOMAIN_ATTR_ATOMIC,
 				    &atomic_ctx);
@@ -324,27 +319,24 @@ static int cnss_pci_init_smmu(struct cnss_pci_data *pci_priv)
 	}
 
 	pci_priv->smmu_mapping = mapping;
-#endif
 
 	return ret;
 release_mapping:
-#ifdef CONFIG_CNSS2_SMMU
 	arm_iommu_release_mapping(mapping);
-#endif
 out:
 	return ret;
 }
 
 static void cnss_pci_deinit_smmu(struct cnss_pci_data *pci_priv)
 {
-#if CONFIG_CNSS2_SMMU
 	arm_iommu_detach_device(&pci_priv->pci_dev->dev);
 	arm_iommu_release_mapping(pci_priv->smmu_mapping);
 
 	pci_priv->smmu_mapping = NULL;
-#endif
 }
+#endif
 
+#ifdef CONFIG_PCI_MSM
 static void cnss_pci_event_cb(struct msm_pcie_notify *notify)
 {
 	unsigned long flags;
@@ -400,7 +392,6 @@ static int cnss_reg_pci_event(struct cnss_pci_data *pci_priv)
 {
 	int ret = 0;
 	struct msm_pcie_register_event *pci_event;
-	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
 
 	pci_event = &pci_priv->msm_pci_event;
 	pci_event->events = MSM_PCIE_EVENT_LINKDOWN |
@@ -409,22 +400,19 @@ static int cnss_reg_pci_event(struct cnss_pci_data *pci_priv)
 	pci_event->mode = MSM_PCIE_TRIGGER_CALLBACK;
 	pci_event->callback = cnss_pci_event_cb;
 	pci_event->options = MSM_PCIE_CONFIG_NO_RECOVERY;
-#ifdef CONFIG_PCI_MSM
 	ret = msm_pcie_register_event(pci_event);
 	if (ret)
 		cnss_pr_err("Failed to register MSM PCI event, err = %d\n",
 			    ret);
-#endif
 
 	return ret;
 }
 
 static void cnss_dereg_pci_event(struct cnss_pci_data *pci_priv)
 {
-#ifdef CONFIG_PCI_MSM
 	msm_pcie_deregister_event(&pci_priv->msm_pci_event);
-#endif
 }
+#endif
 
 static int cnss_pci_suspend(struct device *dev)
 {
@@ -787,7 +775,9 @@ int cnss_pm_request_resume(struct cnss_pci_data *pci_priv)
 
 int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 {
+#ifdef CONFIG_CNSS2_SMMU
 	struct cnss_pci_data *pci_priv = plat_priv->bus_priv;
+#endif
 	struct cnss_fw_mem *fw_mem = plat_priv->fw_mem;
 	unsigned int bdf_location[3], caldb_location[3];
 	struct device *dev;
@@ -799,7 +789,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 	     plat_priv->device_id == QCA8074V2_DEVICE_ID ||
 	     plat_priv->device_id == QCA6018_DEVICE_ID) &&
 	    of_property_read_u32_array(dev->of_node, "qcom,caldb-addr",
-				       &caldb_location,
+				       caldb_location,
 				       ARRAY_SIZE(caldb_location))) {
 		pr_err("Error: Couldn't read caldb_addr from device_tree\n");
 		CNSS_ASSERT(0);
@@ -816,7 +806,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 					CNSS_ASSERT(0);
 				}
 				fw_mem[i].pa = Q6_CALDB_ADDR_QCA6290;
-				fw_mem[i].va = Q6_CALDB_ADDR_QCA6290;
+				fw_mem[i].va = (void *)Q6_CALDB_ADDR_QCA6290;
 				break;
 			case HOST_DDR_REGION_TYPE:
 				if (fw_mem[i].size > Q6_HOST_ADDR_SZ_QCA6290) {
@@ -844,7 +834,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 	    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
 	    plat_priv->device_id == QCA6018_DEVICE_ID) {
 		if (of_property_read_u32_array(dev->of_node, "qcom,bdf-addr",
-					       &bdf_location,
+					       bdf_location,
 					       ARRAY_SIZE(bdf_location))) {
 			pr_err("Error: No bdf_addr in device_tree\n");
 			CNSS_ASSERT(0);
@@ -859,7 +849,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 			switch (fw_mem[i].type) {
 			case BDF_MEM_REGION_TYPE:
 				fw_mem[idx].pa = bdf_location[mode];
-				fw_mem[idx].va = bdf_location[mode];
+				fw_mem[idx].va = (void *)bdf_location[mode];
 				fw_mem[idx].size = fw_mem[i].size;
 				fw_mem[idx].type = fw_mem[i].type;
 				idx++;
@@ -876,7 +866,8 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 					fw_mem[idx].va = 0;
 				} else {
 					fw_mem[idx].pa = caldb_location[mode];
-					fw_mem[idx].va = caldb_location[mode];
+					fw_mem[idx].va = (void *)
+							 caldb_location[mode];
 				}
 				fw_mem[idx].size = fw_mem[i].size;
 				fw_mem[idx].type = fw_mem[i].type;
@@ -972,9 +963,9 @@ static void cnss_pci_free_fw_mem(struct cnss_pci_data *pci_priv)
 {
 	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
 	struct cnss_fw_mem *fw_mem = plat_priv->fw_mem;
+#ifdef CONFIG_CNSS2_SMMU
 	int i;
 
-#ifdef CONFIG_CNSS2_SMMU
 	for (i = 0; i < plat_priv->fw_mem_seg_len; i++) {
 		if (fw_mem[i].va && fw_mem[i].size) {
 			cnss_pr_dbg("Freeing memory for FW, va: 0x%pK, pa: %pa, size: 0x%zx, type: %u\n",
@@ -1287,7 +1278,7 @@ static int cnss_pci_enable_bus(struct cnss_pci_data *pci_priv)
 
 	pci_set_master(pci_dev);
 
-	pci_priv->mem_start = pci_resource_start(pci_dev, 0);
+	pci_priv->mem_start = (void __iomem *)pci_resource_start(pci_dev, 0);
 	pci_priv->mem_end = pci_priv->mem_start + pci_resource_len(pci_dev, 0);
 
 	pci_priv->bar = cnss_pci_iomap(pci_dev, PCI_BAR_NUM, 0);
@@ -1493,7 +1484,6 @@ static int cnss_pci_register_mhi(struct cnss_pci_data *pci_priv)
 {
 	int ret = 0;
 	struct pci_dev *pci_dev = pci_priv->pci_dev;
-	const struct pci_device_id *id = pci_priv->pci_device_id;
 	struct mhi_device *mhi_dev = &pci_priv->mhi_dev;
 	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
 
@@ -1527,7 +1517,7 @@ static int cnss_pci_register_mhi(struct cnss_pci_data *pci_priv)
 
 #ifdef CONFIG_MSM_MHI
 	ret = mhi_register_device(mhi_dev, MHI_NODE_NAME,
-				  (unsigned long)pci_priv);
+				  (void *)pci_priv);
 	if (ret) {
 		cnss_pr_err("Failed to register as MHI device, err = %d\n",
 			    ret);
@@ -1769,8 +1759,9 @@ int cnss_pci_probe(struct pci_dev *pci_dev,
 	int ret = 0;
 	struct cnss_pci_data *pci_priv;
 	struct cnss_plat_data *plat_priv;
+#ifdef CONFIG_CNSS2_SMMU
 	struct resource *res;
-
+#endif
 	if (!pci_dev) {
 		printk(KERN_ERR "%s: ERROR: PCI device is NULL\n", __func__);
 		return -EINVAL;
@@ -1825,7 +1816,7 @@ int cnss_pci_probe(struct pci_dev *pci_dev,
 	ret = cnss_register_ramdump(plat_priv);
 	if (ret)
 		goto unregister_subsys;
-#ifdef CONFIG_CNSS2_RAMDUMP
+#ifdef CONFIG_CNSS2_SMMU
 	res = platform_get_resource_byname(plat_priv->plat_dev, IORESOURCE_MEM,
 					   "smmu_iova_base");
 	if (res) {
@@ -1889,17 +1880,18 @@ int cnss_pci_probe(struct pci_dev *pci_dev,
 disable_bus:
 	cnss_pci_disable_bus(pci_priv);
 dereg_pci_event:
+#ifdef CONFIG_PCI_MSM
 	cnss_dereg_pci_event(pci_priv);
-deinit_smmu:
+#endif
 #ifdef CONFIG_CNSS2_SMMU
+deinit_smmu:
 	if (pci_priv->smmu_mapping)
 		cnss_pci_deinit_smmu(pci_priv);
-#endif
 unregister_ramdump:
+#endif
 	cnss_unregister_ramdump(plat_priv);
 unregister_subsys:
 	cnss_unregister_subsys(plat_priv);
-reset_ctx:
 	plat_priv->bus_priv = NULL;
 out:
 	return ret;
@@ -1932,7 +1924,9 @@ void cnss_pci_remove(struct pci_dev *pci_dev)
 	}
 
 	cnss_pci_disable_bus(pci_priv);
+#ifdef CONFIG_PCI_MSM
 	cnss_dereg_pci_event(pci_priv);
+#endif
 #ifdef CONFIG_CNSS2_SMMU
 	if (pci_priv->smmu_mapping)
 		cnss_pci_deinit_smmu(pci_priv);
@@ -1972,10 +1966,10 @@ struct pci_driver cnss_pci_driver = {
 int cnss_pci_init(struct cnss_plat_data *plat_priv)
 {
 	int ret = 0;
+#ifdef CONFIG_PCI_MSM
 	struct device *dev = &plat_priv->plat_dev->dev;
 	u32 rc_num;
 
-#ifdef CONFIG_PCI_MSM
 	ret = of_property_read_u32(dev->of_node, "qcom,wlan-rc-num", &rc_num);
 	if (ret) {
 		cnss_pr_err("Failed to find PCIe RC number, err = %d\n", ret);

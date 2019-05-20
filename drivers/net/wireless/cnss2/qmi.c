@@ -66,6 +66,7 @@ MODULE_PARM_DESC(bdf_bypass, "If BDF is not found, send dummy BDF to FW");
 struct qmi_history qmi_log[QMI_HISTORY_SIZE];
 int qmi_history_index;
 DEFINE_SPINLOCK(qmi_log_spinlock);
+struct wlfw_request_mem_ind_msg_v01 ind_message = {0};
 
 void cnss_dump_qmi_history(void)
 {
@@ -221,7 +222,7 @@ static int cnss_wlfw_host_cap_send_sync(struct cnss_plat_data *plat_priv)
 
 	req.mem_cfg_mode = plat_priv->tgt_mem_cfg_mode;
 	req.mem_cfg_mode_valid = 1;
-	cnss_pr_info("device_id : 0x%x mem mode : [%d]\n",
+	cnss_pr_info("device_id : %lu mem mode : [%d]\n",
 		     plat_priv->device_id,
 		     plat_priv->tgt_mem_cfg_mode);
 
@@ -344,34 +345,33 @@ static int cnss_wlfw_request_mem_ind_hdlr(struct cnss_plat_data *plat_priv,
 					  void *msg, unsigned int msg_len)
 {
 	struct msg_desc ind_desc;
-	struct wlfw_request_mem_ind_msg_v01 ind_msg = {0};
 	int ret, i;
 
 	ind_desc.msg_id = QMI_WLFW_REQUEST_MEM_IND_V01;
 	ind_desc.max_msg_len = WLFW_REQUEST_MEM_IND_MSG_V01_MAX_MSG_LEN;
 	ind_desc.ei_array = wlfw_request_mem_ind_msg_v01_ei;
 
-	ret = qmi_kernel_decode(&ind_desc, &ind_msg, msg, msg_len);
+	ret = qmi_kernel_decode(&ind_desc, &ind_message, msg, msg_len);
 	if (ret < 0) {
 		cnss_pr_err("Failed to decode request memory indication, msg_len: %u, err = %d\n",
 			    ret, msg_len);
 		goto out;
 	}
 
-	if (ind_msg.mem_seg_len == 0 ||
-	    ind_msg.mem_seg_len > QMI_WLFW_MAX_NUM_MEM_SEG_V01) {
+	if (ind_message.mem_seg_len == 0 ||
+	    ind_message.mem_seg_len > QMI_WLFW_MAX_NUM_MEM_SEG_V01) {
 		cnss_pr_err("Invalid memory segment length: %u\n",
-			    ind_msg.mem_seg_len);
+			    ind_message.mem_seg_len);
 		ret = -EINVAL;
 		goto out;
 	}
 
-	cnss_pr_dbg("FW memory segment count is %u\n", ind_msg.mem_seg_len);
-	plat_priv->fw_mem_seg_len = ind_msg.mem_seg_len;
+	cnss_pr_dbg("FW memory segment count is %u\n", ind_message.mem_seg_len);
+	plat_priv->fw_mem_seg_len = ind_message.mem_seg_len;
 
 	for (i = 0; i < plat_priv->fw_mem_seg_len; i++) {
-		plat_priv->fw_mem[i].type = ind_msg.mem_seg[i].type;
-		plat_priv->fw_mem[i].size = ind_msg.mem_seg[i].size;
+		plat_priv->fw_mem[i].type = ind_message.mem_seg[i].type;
+		plat_priv->fw_mem[i].size = ind_message.mem_seg[i].size;
 	}
 
 	cnss_driver_event_post(plat_priv, CNSS_DRIVER_EVENT_REQUEST_MEM,
@@ -617,7 +617,7 @@ int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 		return ret;
 	}
 	size = fw->size;
-	if (of_property_read_u32_array(dev->of_node, "qcom,bdf-addr", &location,
+	if (of_property_read_u32_array(dev->of_node, "qcom,bdf-addr", location,
 				       ARRAY_SIZE(location))) {
 		pr_err("Error: No bdf_addr in device_tree\n");
 		CNSS_ASSERT(0);
@@ -633,12 +633,12 @@ int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 	}
 	if (size != 0 && size <= BDF_MAX_SIZE) {
 		if (bdf_type == BDF_TYPE_GOLDEN) {
-			cnss_pr_info("BDF location : 0x%p\n", bdf_addr_pa);
+			cnss_pr_info("BDF location : %u\n", bdf_addr_pa);
 			cnss_pr_info("BDF %s size %d\n", filename, fw->size);
 			memcpy(bdf_addr, fw->data, fw->size);
 		}
 		if (bdf_type == BDF_TYPE_CALDATA) {
-			cnss_pr_info("per device BDF location : 0x%p\n",
+			cnss_pr_info("per device BDF location : %u\n",
 				     CALDATA_OFFSET(bdf_addr_pa));
 			memcpy(CALDATA_OFFSET(bdf_addr), fw->data, fw->size);
 			cnss_pr_info("CALDATA %s size %d offset 0x%x\n",
@@ -1206,7 +1206,7 @@ static void cnss_wlfw_qdss_trace_save_ind_cb(struct cnss_plat_data *plat_priv,
 		cnss_pr_dbg("QDSS_trace_save seg len %u\n",
 			    ind_msg->mem_seg_len);
 		event_data->mem_seg_len = ind_msg->mem_seg_len;
-		for (i = 0; i < ind_msg->mem_seg_len; i) {
+		for (i = 0; i < ind_msg->mem_seg_len; i++) {
 			event_data->mem_seg[i].addr = ind_msg->mem_seg[i].addr;
 			event_data->mem_seg[i].size = ind_msg->mem_seg[i].size;
 			cnss_pr_dbg("seg-%d: addr 0x%llx size 0x%x\n",

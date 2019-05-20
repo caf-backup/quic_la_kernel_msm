@@ -21,8 +21,6 @@ enum cnss_dev_bus_type {
 	CNSS_BUS_AHB,
 };
 
-static enum cnss_dev_bus_type cnss_get_dev_bus_type(struct device *dev);
-static enum cnss_dev_bus_type cnss_get_bus_type(unsigned long device_id);
 void *cnss_bus_dev_to_bus_priv(struct device *dev);
 struct cnss_plat_data *cnss_bus_dev_to_plat_priv(struct device *dev);
 int cnss_bus_alloc_qdss_mem(struct cnss_plat_data *plat_priv);
