@@ -538,11 +538,6 @@ static struct mhi_controller *mhi_register_controller(struct pci_dev *pci_dev)
 	mhi_cntrl->bus = pci_dev->bus->number;
 	mhi_cntrl->slot = PCI_SLOT(pci_dev->devfn);
 
-	ret = of_property_read_u32(of_node, "qti,smmu-cfg",
-				   &mhi_dev->smmu_cfg);
-	if (ret)
-		goto error_register;
-
 	use_bb = of_property_read_bool(of_node, "mhi,use-bb");
 
 	/*
@@ -644,6 +639,7 @@ int mhi_pci_probe(struct pci_dev *pci_dev,
 	if (ret)
 		return ret;
 
+	mhi_cntrl->dev = &pci_dev->dev;
 	ret = mhi_init_pci_dev(mhi_cntrl);
 	if (ret)
 		goto error_init_pci;
