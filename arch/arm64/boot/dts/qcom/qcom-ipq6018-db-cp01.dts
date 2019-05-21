@@ -16,6 +16,7 @@
  */
 
 #include "qcom-ipq6018.dtsi"
+#include "qcom-ipq6018-audio-overlay.dtsi"
 
 / {
 	#address-cells = <0x2>;
