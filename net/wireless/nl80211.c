@@ -10691,7 +10691,6 @@ static int nl80211_set_fils_aad(struct sk_buff *skb,
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_fils_aad fils_aad = {};
 	u8 *nonces;
 
