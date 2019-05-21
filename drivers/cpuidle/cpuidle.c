@@ -35,6 +35,12 @@ static int enabled_devices;
 static int off __read_mostly;
 static int initialized __read_mostly;
 
+s32 msm_cpuidle_get_deep_idle_latency(void)
+{
+	return 10;
+}
+EXPORT_SYMBOL_GPL(msm_cpuidle_get_deep_idle_latency);
+
 int cpuidle_disabled(void)
 {
 	return off;
