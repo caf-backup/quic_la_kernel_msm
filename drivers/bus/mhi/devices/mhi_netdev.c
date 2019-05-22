@@ -552,7 +552,7 @@ static int mhi_netdev_enable_iface(struct mhi_netdev *mhi_netdev)
 
 	mhi_netdev->alias = of_alias_get_id(of_node, "mhi-netdev");
 	if (mhi_netdev->alias < 0)
-		return -ENODEV;
+		mhi_netdev->alias = 0;
 
 	ret = of_property_read_string(of_node, "mhi,interface-name",
 				      &mhi_netdev->interface_name);
