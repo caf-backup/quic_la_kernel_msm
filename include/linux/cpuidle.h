@@ -249,4 +249,6 @@ static inline int cpuidle_register_governor(struct cpuidle_governor *gov)
 #define CPUIDLE_DRIVER_STATE_START	0
 #endif
 
+s32 msm_cpuidle_get_deep_idle_latency(void);
+
 #endif /* _LINUX_CPUIDLE_H */
