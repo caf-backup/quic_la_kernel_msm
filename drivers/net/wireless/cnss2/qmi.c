@@ -1265,9 +1265,14 @@ static void cnss_wlfw_clnt_ind(struct qmi_handle *handle,
 		cnss_wlfw_request_mem_ind_hdlr(plat_priv, msg, msg_len);
 		break;
 	case QMI_WLFW_FW_MEM_READY_IND_V01:
-		cnss_driver_event_post(plat_priv,
-				       CNSS_DRIVER_EVENT_FW_MEM_READY,
-				       false, NULL);
+	/* WAR Conditional check of driver state to hinder processing */
+	/* FW_mem_ready msg i.e. received twice from QMI stack occasionally */
+		if (!test_bit(CNSS_FW_MEM_READY, &plat_priv->driver_state))
+			cnss_driver_event_post(plat_priv,
+					       CNSS_DRIVER_EVENT_FW_MEM_READY,
+					       false, NULL);
+		else
+			cnss_pr_err("FW_Mem_Ready_Ind received twice\n");
 		break;
 	case QMI_WLFW_FW_READY_IND_V01:
 		cnss_driver_event_post(plat_priv,
