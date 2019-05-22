@@ -1741,7 +1741,7 @@
 		mdio@90000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
-			compatible = "qcom,qca-mdio";
+			compatible = "qcom,qca-mdio", "qcom,ipq40xx-mdio";
 			reg = <0x90000 0x64>;
 			status = "disabled";
                 };
