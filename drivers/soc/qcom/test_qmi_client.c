@@ -367,7 +367,7 @@ static void test_clnt_svc_arrive(struct work_struct *work)
 		return;
 	}
 	test_clnt_reset = 0;
-	pr_info("Test QMI client connected to server %08x:%08x\n",
+	pr_info("Test QMI client connected to server %08x:%08lu\n",
 			TEST_SERVICE_SVC_ID,
 			BUILD_INSTANCE_ID(TEST_SERVICE_V1, svc_ins_id));
 	D("%s complete\n", __func__);

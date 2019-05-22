@@ -110,6 +110,7 @@ out:
 	return ret;
 }
 
+#ifdef CONFIG_CNSS2_PM
 static int cnss_vreg_on(struct cnss_plat_data *plat_priv)
 {
 	int ret = 0;
@@ -229,6 +230,7 @@ static int cnss_vreg_off(struct cnss_plat_data *plat_priv)
 
 	return ret;
 }
+#endif
 
 int cnss_get_pinctrl(struct cnss_plat_data *plat_priv)
 {
@@ -318,10 +320,9 @@ out:
 	return ret;
 }
 
-int cnss_power_on_device(struct device *dev, int device_id)
+int cnss_power_on_device(struct cnss_plat_data *plat_priv, int device_id)
 {
 	int ret;
-	struct cnss_plat_data *plat_priv = (struct cnss_plat_data *)dev;
 
 	if (!plat_priv) {
 		plat_priv = cnss_get_plat_priv_by_device_id(device_id);
@@ -341,9 +342,8 @@ int cnss_power_on_device(struct device *dev, int device_id)
 }
 EXPORT_SYMBOL(cnss_power_on_device);
 
-int cnss_power_off_device(struct device *dev, int device_id)
+int cnss_power_off_device(struct cnss_plat_data *plat_priv, int device_id)
 {
-	struct cnss_plat_data *plat_priv = (struct cnss_plat_data *)dev;
 	int ret;
 
 	if (!plat_priv) {
