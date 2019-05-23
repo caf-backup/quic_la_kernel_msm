@@ -14,6 +14,7 @@
 #include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/netlink.h>
+#include <linux/refcount.h>
 #include <linux/qrtr.h>
 #include <linux/termios.h>	/* For TIOCINQ/OUTQ */
 #include <linux/wait.h>
@@ -301,7 +302,11 @@ static inline int kref_put_rwsem_lock(struct kref *kref,
 				      void (*release)(struct kref *kref),
 				      struct rw_semaphore *sem)
 {
-	if (refcount_dec_and_rwsem_lock(&kref->refcount, sem)) {
+	refcount_t r;
+
+	r.refs.counter = kref->refcount.counter;
+
+	if (refcount_dec_and_rwsem_lock(&r, sem)) {
 		release(kref);
 		return 1;
 	}
