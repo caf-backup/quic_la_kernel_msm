@@ -314,7 +314,7 @@
 		qcom,mactype = <0>;
 		local-mac-address = [000000000000];
 		qcom,link-poll = <1>;
-		qcom,phy-mdio-addr = <4>;
+		qcom,phy-mdio-addr = <24>;
 		phy-mode = "sgmii";
 	};
 
