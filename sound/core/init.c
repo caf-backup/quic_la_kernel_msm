@@ -34,6 +34,8 @@
 #include <sound/control.h>
 #include <sound/info.h>
 
+#define SND_CARD_STATE_MAX_LEN 16
+
 /* monitor files for graceful shutdown (hotplug) */
 struct snd_monitor_file {
 	struct file *file;
