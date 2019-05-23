@@ -21,6 +21,16 @@ config DIAG_OVER_USB
 	 This feature helps segregate code required for DIAG traffic to go over USB.
 endmenu
 
+menu "DIAG traffic over QRTR"
+
+config DIAG_OVER_QRTR
+	bool "Enable DIAG traffic to go over QRTR"
+        depends on QRTR
+	default n
+	help
+	 This feature helps segregate code required for DIAG traffic to go over QRTR.
+endmenu
+
 menu "HSIC/SMUX support for DIAG"
 
 config DIAGFWD_BRIDGE_CODE
