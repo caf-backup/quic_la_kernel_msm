@@ -1172,6 +1172,7 @@
 
 			qcom,bus-width = <8>;
 			sdhc-msm-crypto = <&sdcc1_ice>;
+			qcom,max_clk = <192000000>;
 
 			qcom,dedicated-io = <1>;
 
