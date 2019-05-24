@@ -830,7 +830,7 @@ const struct qcom_wdt_props qcom_wdt_props_ipq8064 = {
 
 const struct qcom_wdt_props qcom_wdt_props_ipq807x = {
 	.layout = reg_offset_data_kpss,
-	.tlv_msg_offset = SZ_4K,
+	.tlv_msg_offset = (496 * SZ_1K),
 	/* As SBL overwrites the NSS IMEM, TZ has to copy it to some memory
 	 * on crash before it restarts the system. Hence, reserving of 384K
 	 * is required to copy the NSS IMEM before restart is done.
@@ -841,7 +841,8 @@ const struct qcom_wdt_props qcom_wdt_props_ipq807x = {
 	 * so when we pass 400K as argument 512K will be allocated.
 	 * 3K is required for DCC regsave memory.
 	 * 15K is required for CPR.
-	 * 94K is unused currently and can be used based on future needs.
+	* 78K is unused currently and can be used based on future needs.
+	* 16K is used for crashdump TLV buffer for Minidump feature.
 	 */
 	/*
 	 * The memory is allocated using alloc_pages, hence it will be in
@@ -868,13 +869,17 @@ const struct qcom_wdt_props qcom_wdt_props_ipq807x = {
 	 *		|    CPR Reg   |
 	 *		 --------------
 	 *		|		|
-	 *		|     94K	|
+	 *		|     78K	|
 	 *		|    Unused	|
 	 *		|		|
 	 *		 ---------------
-	 */
+	*		|     16 K     |
+	*		|   TLV Buffer |
+	*		 ---------------
+	*
+	*/
 	.crashdump_page_size = (SZ_8K + (384 * SZ_1K) + (SZ_8K) + (3 * SZ_1K) +
-				(15 * SZ_1K) + (156 * SZ_1K)),
+				(15 * SZ_1K) + (94 * SZ_1K)),
 	.secure_wdog = true,
 };
 
