@@ -19,6 +19,7 @@
 #include <linux/rwsem.h>
 #include <linux/suspend.h>
 #include <linux/timer.h>
+#include <linux/coresight.h>
 #include <soc/qcom/ramdump.h>
 #include <soc/qcom/subsystem_notif.h>
 
@@ -973,6 +974,7 @@ static int cnss_qca8074_notifier_nb(struct notifier_block *nb,
 	} else if (code == SUBSYS_BEFORE_SHUTDOWN) {
 		driver_ops->remove((struct pci_dev *)plat_priv->plat_dev);
 	} else if (code == SUBSYS_RAMDUMP_NOTIFICATION) {
+		coresight_abort();
 		driver_ops->reinit((struct pci_dev *)plat_priv->plat_dev,
 				   (const struct pci_device_id *)
 				   plat_priv->plat_dev_id);
