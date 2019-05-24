@@ -200,6 +200,16 @@
 		switch_mac_mode = <0x0>; /* mac mode for uniphy instance0*/
 		switch_mac_mode1 = <0xff>; /* mac mode for uniphy instance1*/
 		switch_mac_mode2 = <0xff>; /* mac mode for uniphy instance2*/
+		qcom,port_phyinfo {
+			port@3 {
+				port_id = <3>;
+				phy_address = <4>;
+			};
+			port@4 {
+				port_id = <4>;
+				phy_address = <3>;
+			};
+		};
 	};
 
 	dp1 {
@@ -210,7 +220,7 @@
 		qcom,mactype = <0>;
 		local-mac-address = [000000000000];
 		qcom,link-poll = <1>;
-		qcom,phy-mdio-addr = <2>;
+		qcom,phy-mdio-addr = <4>;
 		phy-mode = "sgmii";
 	};
 
