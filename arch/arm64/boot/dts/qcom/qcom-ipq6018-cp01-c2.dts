@@ -225,14 +225,8 @@
 		status = "disabled";
 	};
 
-
-
 	nss_crypto: qcom,nss_crypto {
-		status = "disabled";
-
-		eip197_node {
-			status = "disabled";
-		};
+		status = "ok";
 	};
 
 	watchdog: watchdog@b017000 {
