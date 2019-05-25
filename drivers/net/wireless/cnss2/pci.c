@@ -1313,6 +1313,7 @@ static void cnss_pci_disable_bus(struct cnss_pci_data *pci_priv)
 	pci_disable_device(pci_dev);
 }
 
+#ifdef CONFIG_MSM_MHI
 static int cnss_mhi_pm_runtime_get(struct pci_dev *pci_dev)
 {
 	return pm_runtime_get(&pci_dev->dev);
@@ -1322,6 +1323,7 @@ static void cnss_mhi_pm_runtime_put_noidle(struct pci_dev *pci_dev)
 {
 	pm_runtime_put_noidle(&pci_dev->dev);
 }
+#endif
 
 static char *cnss_mhi_state_to_str(enum cnss_mhi_state mhi_state)
 {
@@ -1455,6 +1457,7 @@ void cnss_pci_clear_dump_info(struct cnss_pci_data *pci_priv)
 	plat_priv->ramdump_info_v2.dump_data_valid = false;
 }
 
+#ifdef CONFIG_MSM_MHI
 static void cnss_mhi_notify_status(enum MHI_CB_REASON reason, void *priv)
 {
 	struct cnss_pci_data *pci_priv = priv;
@@ -1515,7 +1518,6 @@ static int cnss_pci_register_mhi(struct cnss_pci_data *pci_priv)
 	mhi_dev->rddm_size = QCA6290_RDDM_SIZE;
 	mhi_dev->status_cb = cnss_mhi_notify_status;
 
-#ifdef CONFIG_MSM_MHI
 	ret = mhi_register_device(mhi_dev, MHI_NODE_NAME,
 				  (void *)pci_priv);
 	if (ret) {
@@ -1523,7 +1525,6 @@ static int cnss_pci_register_mhi(struct cnss_pci_data *pci_priv)
 			    ret);
 		return ret;
 	}
-#endif
 
 	cnss_pci_start_mhi(pci_priv);
 
@@ -1533,6 +1534,7 @@ static int cnss_pci_register_mhi(struct cnss_pci_data *pci_priv)
 static void cnss_pci_unregister_mhi(struct cnss_pci_data *pci_priv)
 {
 }
+#endif
 
 static enum mhi_dev_ctrl cnss_to_mhi_dev_state(enum cnss_mhi_state state)
 {
@@ -1916,7 +1918,9 @@ void cnss_pci_remove(struct pci_dev *pci_dev)
 	switch (pci_dev->device) {
 	case QCA6290_EMULATION_DEVICE_ID:
 	case QCA6290_DEVICE_ID:
+#ifdef CONFIG_MSM_MHI
 		cnss_pci_unregister_mhi(pci_priv);
+#endif
 		cnss_pci_disable_msi(pci_priv);
 		break;
 	default:
