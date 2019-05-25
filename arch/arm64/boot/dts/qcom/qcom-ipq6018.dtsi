@@ -1253,6 +1253,7 @@
 					<GIC_SPI 138 IRQ_TYPE_NONE>;
 			interrupt-names = "hc_irq", "pwr_irq";
 
+			qcom,max_clk = <192000000>;
 			qcom,bus-width = <4>;
 			qcom,dedicated-io = <1>;
 			/* device core power supply */

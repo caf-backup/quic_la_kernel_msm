@@ -197,7 +197,7 @@
 			pins = "gpio62";
 			function = "sd_card";
 			drive-strength = <2>;
-			bias-pull-down;
+			bias-pull-up;
 		};
 	};
 
