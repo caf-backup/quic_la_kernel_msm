@@ -579,21 +579,34 @@ static int qca_pcie_qmp_phy_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct phy *phy;
 	const int *soc_version_major;
-	int size = 0;
+	const char *name;
+	int size = 0, ret;
 
-	soc_version_major = read_ipq_soc_version_major();
-	BUG_ON(!soc_version_major);
 	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
 		return -ENOMEM;
 
-	pcie->phy_type = (enum qca_pcie_phy_type)of_device_get_match_data(dev);
-	if ((*soc_version_major == 1) && ( pcie->phy_type == PHY_TYPE_PCIE_GEN3)) {
-		devm_kfree(dev, pcie);
-		return 0;
-	} else if ((*soc_version_major == 2) && ( pcie->phy_type == PHY_TYPE_PCIE_GEN2)) {
-		devm_kfree(dev, pcie);
-		return 0;
+	ret = of_property_read_string(dev->of_node, "phy-type",&name);
+	if (!ret) {
+		if (!strcmp(name, "gen3")) {
+			pcie->phy_type = PHY_TYPE_PCIE_GEN3;
+		} else {
+			dev_err(dev, "%s, unknown gen type\n", __func__);
+			goto err;
+		}
+	} else if (ret == -EINVAL) {
+		soc_version_major = read_ipq_soc_version_major();
+		BUG_ON(!soc_version_major);
+
+		pcie->phy_type = (enum qca_pcie_phy_type)of_device_get_match_data(dev);
+		if ((*soc_version_major == 1) && ( pcie->phy_type == PHY_TYPE_PCIE_GEN3)) {
+			goto err;
+		} else if ((*soc_version_major == 2) && ( pcie->phy_type == PHY_TYPE_PCIE_GEN2)) {
+			goto err;
+		}
+	} else {
+		dev_err(dev, "%s, unknown gen type\n", __func__);
+		goto err;
 	}
 
 	if (pcie->phy_type == PHY_TYPE_PCIE_GEN3)
@@ -653,7 +666,9 @@ static int qca_pcie_qmp_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(provider))
 		return PTR_ERR(provider);
 
-
+	return 0;
+err:
+	devm_kfree(dev, pcie);
 	return 0;
 }
 

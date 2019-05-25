@@ -494,6 +494,7 @@
 		pcie_phy: phy@84000 {
 			compatible = "qca,pcie-qmp-phy-gen3";
 			reg = <0x84000 0x1000>;
+			phy-type = "gen3";
 			qcom,qmp-pcie-phy-init-seq = <0x840 0x03 /*PCS_COM_POWER_DOWN_CONTROL */
 						      0x03C 0x18 /* PCIE_0_QSERDES_PLL_BIAS_EN_CLKBUFLR_EN */
 						      0x0A4 0x01 /* PCIE_0_QSERDES_PLL_BIAS_EN_CTRL_BY_PSM */
