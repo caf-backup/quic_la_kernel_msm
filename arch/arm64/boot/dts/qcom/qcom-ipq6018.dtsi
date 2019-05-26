@@ -2289,6 +2289,7 @@
 
 		qca,scm_restart_reason {
 			compatible = "qca,scm_restart_reason";
+			dload_status = <1>;
 		};
 
 		slim_aud: slim@a2c0000 {
