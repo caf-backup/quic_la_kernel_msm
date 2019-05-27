@@ -113,6 +113,10 @@
 };
 
 &soc {
+	gcc: gcc@1800000 {
+		gcc-use-dummy;
+	};
+
 	cryptobam: dma@704000 {
 		status = "disabled";
 	};

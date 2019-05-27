@@ -5590,8 +5590,13 @@ static int gcc_ipq6018_probe(struct platform_device *pdev)
 	struct regmap *regmap;
 	struct clk *clk;
 	struct device *dev = &pdev->dev;
+	struct qcom_cc_desc ipq6018_desc = gcc_ipq6018_desc;
+	struct device_node *np = (&pdev->dev)->of_node;
 
-	regmap = qcom_cc_map(pdev, &gcc_ipq6018_dummy_desc);
+	if (of_property_read_bool(np, "gcc-use-dummy"))
+		ipq6018_desc = gcc_ipq6018_dummy_desc;
+
+	regmap = qcom_cc_map(pdev, &ipq6018_desc);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
@@ -5621,9 +5626,9 @@ static int gcc_ipq6018_probe(struct platform_device *pdev)
 	clk_alpha_pll_configure(&nss_crypto_pll_main, regmap,
 				&nss_crypto_pll_config);
 
-	ret = qcom_cc_really_probe(pdev, &gcc_ipq6018_dummy_desc, regmap);
+	ret = qcom_cc_really_probe(pdev, &ipq6018_desc, regmap);
 
-	dev_dbg(&pdev->dev, "Registered ipq6018 dummy clock provider");
+	dev_dbg(&pdev->dev, "Registered ipq6018 clock provider");
 
 	return ret;
 }
