@@ -1332,6 +1332,7 @@
 				 <&gcc GCC_NSSNOC_QOSGEN_REF_CLK>,
 				 <&gcc GCC_NSSNOC_SNOC_CLK>,
 				 <&gcc GCC_NSSNOC_TIMEOUT_REF_CLK>,
+				 <&gcc GCC_MEM_NOC_UBI32_CLK>,
 				 <&gcc GCC_NSS_CE_AXI_CLK>,
 				 <&gcc GCC_NSS_CE_APB_CLK>,
 				 <&gcc GCC_NSSNOC_CE_AXI_CLK>,
@@ -1347,6 +1348,7 @@
 				      "nss-nssnoc-qosgen-ref-clk",
 				      "nss-nssnoc-snoc-clk",
 				      "nss-nssnoc-timeout-ref-clk",
+				      "nss-mem-noc-ubi32-clk",
 				      "nss-ce-axi-clk", "nss-ce-apb-clk",
 				      "nss-nssnoc-ce-axi-clk",
 				      "nss-nssnoc-ce-apb-clk",
@@ -1745,7 +1747,7 @@
 			compatible = "qcom,qca-mdio", "qcom,ipq40xx-mdio";
 			reg = <0x90000 0x64>;
 			status = "disabled";
-                };
+		};
 
 		ess-switch@3a000000 {
 			compatible = "qcom,ess-switch-ipq60xx";
