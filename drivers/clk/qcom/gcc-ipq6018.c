@@ -742,7 +742,7 @@ static struct clk_fixed_factor qdss_dap_sync_clk_src = {
 
 static const struct freq_tbl ftbl_qdss_at_clk_src[] = {
 	F(66670000, P_GPLL0_DIV2, 6, 0, 0),
-	F(240000000, P_GPLL6, 6, 0, 0),
+	F(240000000, P_GPLL4, 5, 0, 0),
 	{ }
 };
 
@@ -775,7 +775,7 @@ static struct clk_fixed_factor qdss_tsctr_div2_clk_src = {
 
 static const struct freq_tbl ftbl_nss_ppe_clk_src[] = {
 	F(24000000, P_XO, 1, 0, 0),
-	F(300000000, P_BIAS_PLL, 2, 0, 0),
+	F(300000000, P_BIAS_PLL, 1, 0, 0),
 	{ }
 };
 
@@ -1233,6 +1233,7 @@ static struct clk_rcg2 nss_crypto_clk_src = {
 	.mnd_width = 16,
 	.hid_width = 5,
 	.parent_map = gcc_xo_nss_crypto_pll_gpll0_map,
+	.flags = CLK_RCG2_HW_CONTROLLED,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "nss_crypto_clk_src",
 		.parent_names = gcc_xo_nss_crypto_pll_gpll0,
@@ -1379,8 +1380,8 @@ static struct clk_regmap_div nss_port4_tx_div_clk_src = {
 
 static const struct freq_tbl ftbl_nss_ubi_clk_src[] = {
 	F(24000000, P_XO, 1, 0, 0),
-	F(750000000, P_UBI32_PLL, 2, 0, 0),
-	F(1500000000, P_UBI32_PLL, 1, 0, 0),
+	F(748800000, P_UBI32_PLL, 2, 0, 0),
+	F(1497600000, P_UBI32_PLL, 1, 0, 0),
 	{ }
 };
 
@@ -1389,6 +1390,7 @@ static struct clk_rcg2 nss_ubi0_clk_src = {
 	.freq_tbl = ftbl_nss_ubi_clk_src,
 	.hid_width = 5,
 	.parent_map = gcc_xo_ubi32_gpll0_gpll2_gpll4_gpll6_map,
+	.flags = CLK_RCG2_HW_CONTROLLED,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "nss_ubi0_clk_src",
 		.parent_names = gcc_xo_ubi32_pll_gpll0_gpll2_gpll4_gpll6,
@@ -1776,7 +1778,7 @@ static struct clk_rcg2 gp3_clk_src = {
 
 static struct clk_fixed_factor nss_ppe_cdiv_clk_src = {
 	.mult = 1,
-	.div = 2,
+	.div = 4,
 	.hw.init = &(struct clk_init_data){
 		.name = "nss_ppe_cdiv_clk_src",
 		.parent_names = (const char *[]){
@@ -2884,7 +2886,7 @@ static struct clk_branch gcc_q6_axim2_clk = {
 		.enable_reg = 0x59150,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_q6_axim_clk",
+			.name = "gcc_q6_axim2_clk",
 			.parent_names = (const char *[]){
 				"q6_axi_clk_src"
 			},
@@ -4819,8 +4821,8 @@ static struct clk_hw *gcc_ipq6018_hws[] = {
 };
 
 static const struct alpha_pll_config ubi32_pll_config = {
-	.l = 0x3f,
-	.alpha = 0x8000,
+	.l = 0x3e,
+	.alpha = 0x57,
 	.config_ctl_val = 0x200d6aa8,
 	.config_ctl_hi_val = 0x3c2,
 	.main_output_mask = BIT(0),
@@ -5584,21 +5586,32 @@ static const struct qcom_cc_desc gcc_ipq6018_dummy_desc = {
 
 static int gcc_ipq6018_probe(struct platform_device *pdev)
 {
-	int ret;
+	int i, ret;
 	struct regmap *regmap;
+	struct clk *clk;
 	struct device *dev = &pdev->dev;
 
 	regmap = qcom_cc_map(pdev, &gcc_ipq6018_dummy_desc);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
+	for (i = 0; i < ARRAY_SIZE(gcc_ipq6018_hws); i++) {
+		clk = devm_clk_register(&pdev->dev, gcc_ipq6018_hws[i]);
+		if (IS_ERR(clk))
+			return PTR_ERR(clk);
+	}
+
 	clk_register_fixed_rate(dev, "pcie20_phy0_pipe_clk", NULL, CLK_IS_ROOT,
                                       250000000);
 
 	/* Disable SW_COLLAPSE for USB0 GDSCR */
 	regmap_update_bits(regmap, 0x3e078, BIT(0), 0x0);
+	/* Enable SW_OVERRIDE for USB0 GDSCR */
+	regmap_update_bits(regmap, 0x3e078, BIT(2), BIT(2));
 	/* Disable SW_COLLAPSE for USB1 GDSCR */
 	regmap_update_bits(regmap, 0x3f078, BIT(0), 0x0);
+	/* Enable SW_OVERRIDE for USB1 GDSCR */
+	regmap_update_bits(regmap, 0x3f078, BIT(2), BIT(2));
 
 	/* SW Workaround for UBI Huyara PLL */
 	regmap_update_bits(regmap, 0x2501c, BIT(26), BIT(26));
