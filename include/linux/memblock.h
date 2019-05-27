@@ -40,6 +40,7 @@ struct memblock_type {
 	unsigned long cnt;	/* number of regions */
 	unsigned long max;	/* size of the allocated array */
 	phys_addr_t total_size;	/* size of all regions */
+	phys_addr_t start_base;	/* start of the region */
 	struct memblock_region *regions;
 };
 
