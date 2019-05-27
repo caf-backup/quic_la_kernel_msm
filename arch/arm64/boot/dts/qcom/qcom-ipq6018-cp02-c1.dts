@@ -35,8 +35,8 @@
 	};
 
 	chosen {
-		bootargs = "console=ttyMSM0,115200,n8 clk_ignore_unused rw init=/init";
-		bootargs-append = " swiotlb=1";
+		bootargs = "console=ttyMSM0,115200,n8 rw init=/init";
+		bootargs-append = " swiotlb=1 clk_ignore_unused";
 	};
 
 	/*
