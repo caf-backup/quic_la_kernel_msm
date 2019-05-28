@@ -633,12 +633,12 @@ int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 	}
 	if (size != 0 && size <= BDF_MAX_SIZE) {
 		if (bdf_type == BDF_TYPE_GOLDEN) {
-			cnss_pr_info("BDF location : %u\n", bdf_addr_pa);
+			cnss_pr_info("BDF location : 0x%pK\n", bdf_addr_pa);
 			cnss_pr_info("BDF %s size %d\n", filename, fw->size);
 			memcpy(bdf_addr, fw->data, fw->size);
 		}
 		if (bdf_type == BDF_TYPE_CALDATA) {
-			cnss_pr_info("per device BDF location : %u\n",
+			cnss_pr_info("per device BDF location : 0x%pK\n",
 				     CALDATA_OFFSET(bdf_addr_pa));
 			memcpy(CALDATA_OFFSET(bdf_addr), fw->data, fw->size);
 			cnss_pr_info("CALDATA %s size %d offset 0x%x\n",
