@@ -849,7 +849,8 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 			switch (fw_mem[i].type) {
 			case BDF_MEM_REGION_TYPE:
 				fw_mem[idx].pa = bdf_location[mode];
-				fw_mem[idx].va = (void *)bdf_location[mode];
+				fw_mem[idx].va = (void *)(unsigned long)
+						 bdf_location[mode];
 				fw_mem[idx].size = fw_mem[i].size;
 				fw_mem[idx].type = fw_mem[i].type;
 				idx++;
@@ -866,7 +867,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 					fw_mem[idx].va = 0;
 				} else {
 					fw_mem[idx].pa = caldb_location[mode];
-					fw_mem[idx].va = (void *)
+					fw_mem[idx].va = (void *)(unsigned long)
 							 caldb_location[mode];
 				}
 				fw_mem[idx].size = fw_mem[i].size;
