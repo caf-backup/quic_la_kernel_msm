@@ -386,6 +386,26 @@
 	status = "ok";
 };
 
+&ssphy_0 {
+	status = "ok";
+};
+
+&qusb_phy_0 {
+	status = "ok";
+};
+
+&qusb_phy_1 {
+	status = "ok";
+};
+
+&usb2 {
+	status = "ok";
+};
+
+&usb3 {
+	status = "ok";
+};
+
 &nss_crypto {
 	status = "ok";
 };
@@ -414,4 +434,10 @@
 	status = "ok";
 };
 
+&pcie_phy {
+	status = "ok";
+};
 
+&pcie0 {
+	status = "ok";
+};
