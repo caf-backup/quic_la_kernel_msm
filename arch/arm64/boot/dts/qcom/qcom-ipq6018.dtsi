@@ -1094,7 +1094,9 @@
 						&smmu500 0x0172
 						&smmu500 0x0174
 						&smmu500 0x0176>;
-			clocks = <&gcc GCC_LPASS_CORE_AXIM_CLK>,
+			clocks = <&gcc GCC_MEM_NOC_LPASS_CLK>,
+				<&gcc GCC_SNOC_LPASS_CFG_CLK>,
+				<&gcc GCC_LPASS_CORE_AXIM_CLK>,
 				<&gcc GCC_LPASS_SNOC_CFG_CLK>,
 				<&gcc GCC_LPASS_Q6_AXIM_CLK>,
 				<&gcc GCC_LPASS_Q6_ATBM_AT_CLK>,
@@ -1103,7 +1105,9 @@
 				<&gcc GCC_LPASS_Q6SS_TRIG_CLK>,
 				<&gcc GCC_LPASS_TBU_CLK>,
 				<&gcc GCC_PCNOC_LPASS_CLK>;
-			clock-names = "lpass_core_axim_clk",
+			clock-names = "mem_noc_lpass_clk",
+					"snoc_lpass_cfg_clk",
+					"lpass_core_axim_clk",
 					"lpass_snoc_cfg_clk",
 					"lpass_q6_axim_clk",
 					"lpass_q6_atbm_at_clk",
