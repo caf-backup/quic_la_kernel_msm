@@ -2391,7 +2391,7 @@
 
 		bias_pll_cc_clk {
 			compatible = "fixed-clock";
-			clock-frequency = <600000000>;
+			clock-frequency = <300000000>;
 			#clock-cells = <0>;
 		};
 
