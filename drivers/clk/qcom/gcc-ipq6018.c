@@ -3427,6 +3427,41 @@ static struct clk_branch gcc_pcnoc_lpass_clk = {
 	},
 };
 
+static struct clk_branch gcc_mem_noc_lpass_clk = {
+	.halt_reg = 0x1D044,
+	.clkr = {
+		.enable_reg = 0x1D044,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "gcc_mem_noc_lpass_clk",
+			.parent_names = (const char *[]){
+				"lpass_q6_axim_clk_src"
+			},
+			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
+static struct clk_branch gcc_snoc_lpass_cfg_clk = {
+	.halt_reg = 0x26074,
+	.clkr = {
+		.enable_reg = 0x26074,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "gcc_snoc_lpass_cfg_clk",
+			.parent_names = (const char *[]){
+				"lpass_snoc_cfg_clk_src"
+			},
+			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
+
 static struct clk_branch gcc_mem_noc_ubi32_clk = {
 	.halt_reg = 0x1D03C,
 	.clkr = {
@@ -5156,6 +5191,8 @@ static struct clk_regmap *gcc_ipq6018_clks[] = {
 	[GCC_LPASS_TBU_CLK] = &gcc_lpass_tbu_clk.clkr,
 	[GCC_PCNOC_LPASS_CLK] = &gcc_pcnoc_lpass_clk.clkr,
 	[GCC_MEM_NOC_UBI32_CLK] = &gcc_mem_noc_ubi32_clk.clkr,
+	[GCC_MEM_NOC_LPASS_CLK] = &gcc_mem_noc_lpass_clk.clkr,
+	[GCC_SNOC_LPASS_CFG_CLK] = &gcc_snoc_lpass_cfg_clk.clkr,
 };
 
 static struct clk_regmap *gcc_ipq6018_dummy_clks[] = {
@@ -5402,6 +5439,8 @@ static struct clk_regmap *gcc_ipq6018_dummy_clks[] = {
 	[GCC_LPASS_TBU_CLK] = DEFINE_DUMMY_CLK(gcc_lpass_tbu_clk),
 	[GCC_PCNOC_LPASS_CLK] = DEFINE_DUMMY_CLK(gcc_pcnoc_lpass_clk),
 	[GCC_MEM_NOC_UBI32_CLK] = DEFINE_DUMMY_CLK(gcc_mem_noc_ubi32_clk),
+	[GCC_MEM_NOC_LPASS_CLK] = DEFINE_DUMMY_CLK(gcc_mem_noc_lpass_clk),
+	[GCC_SNOC_LPASS_CFG_CLK] = DEFINE_DUMMY_CLK(gcc_snoc_lpass_cfg_clk),
 };
 
 static const struct qcom_reset_map gcc_ipq6018_resets[] = {
