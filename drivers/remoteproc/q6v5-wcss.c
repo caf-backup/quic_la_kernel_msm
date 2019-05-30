@@ -1021,6 +1021,7 @@ static int ipq60xx_q6_rproc_start(struct rproc *rproc)
 	val = readl(pdata->gcc_misc_base + GCC_WCSSAON_RESET);
 	val &= ~(BIT(0));
 	writel(val, pdata->gcc_misc_base + GCC_WCSSAON_RESET);
+	mdelay(1);
 
 	if(ipq60xx_wcss_clks_prepare_enable(&pdev->dev))
 		goto skip_reset;
