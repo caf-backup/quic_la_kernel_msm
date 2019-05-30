@@ -137,6 +137,7 @@ struct q6v5_rproc_pdata {
 };
 
 static struct q6v5_rproc_pdata *q6v5_rproc_pdata;
+static struct rproc_ops ipq60xx_q6v5_rproc_ops;
 
 #define subsys_to_pdata(d) container_of(d, struct q6v5_rproc_pdata, subsys_desc)
 
@@ -595,9 +596,9 @@ static void wcss_powerdown(struct q6v5_rproc_pdata *pdata)
 	}
 
 	/* Enable Q6/WCSS BLOCK ARES - 6 */
-	val = readl(pdata->gcc_bcr_base + GCC_WCSSAON_RESET);
+	val = readl(pdata->gcc_misc_base + GCC_WCSSAON_RESET);
 	val |= BIT(0);
-	writel(val, pdata->gcc_bcr_base + GCC_WCSSAON_RESET);
+	writel(val, pdata->gcc_misc_base + GCC_WCSSAON_RESET);
 	mdelay(1);
 
 	/* Enable MPM_WCSSAON_CONFIG 13 - 7 */
@@ -761,6 +762,12 @@ static int q6_rproc_stop(struct rproc *rproc)
 
 		/* Q6 Power down */
 		q6_powerdown(pdata);
+
+		/*Disable clocks*/
+		if (of_device_get_match_data(&pdev->dev) ==
+					&ipq60xx_q6v5_rproc_ops)
+			ipq60xx_wcss_clks_disable(dev, NUM_WCSS_CLKS);
+
 		atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_STOPPED);
 	}
 
@@ -1006,9 +1013,17 @@ static int ipq60xx_q6_rproc_start(struct rproc *rproc)
 	val = readl(pdata->gcc_bcr_base + GCC_WCSS_BCR);
 	val &= ~(BIT(0));
 	writel(val, pdata->gcc_bcr_base + GCC_WCSS_BCR);
+
 	val = readl(pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
 	val &= ~(BIT(0));
 	writel(val, pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
+
+	val = readl(pdata->gcc_misc_base + GCC_WCSSAON_RESET);
+	val &= ~(BIT(0));
+	writel(val, pdata->gcc_misc_base + GCC_WCSSAON_RESET);
+
+	if(ipq60xx_wcss_clks_prepare_enable(&pdev->dev))
+		goto skip_reset;
 
 	/*set CFG[18:15]=1* and clear CFG[1]=0*/
 	val = readl(pdata->mpm_base + SSCAON_CONFIG);
@@ -1133,6 +1148,11 @@ static int ipq807x_q6_rproc_start(struct rproc *rproc)
 	val = readl(pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
 	val &= ~(BIT(0));
 	writel(val, pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
+
+	val = readl(pdata->gcc_misc_base + GCC_WCSSAON_RESET);
+	val &= ~(BIT(0));
+	writel(val, pdata->gcc_misc_base + GCC_WCSSAON_RESET);
+	mdelay(1);
 
 	/* This is for Lithium configuration - clock gating */
 	val = readl(pdata->tcsr_global_base + TCSR_GLOBAL_CFG0);
@@ -1487,9 +1507,7 @@ static int q6_rproc_probe(struct platform_device *pdev)
 	if (!ops) {
 		dev_err(&pdev->dev, "chipset not supported\n");
 		return -EIO;
-	} else if ((ops == &ipq60xx_q6v5_rproc_ops) &&
-			ipq60xx_wcss_clks_prepare_enable(&pdev->dev))
-		return -EIO;
+	}
 
 	emulation = of_property_read_bool(pdev->dev.of_node, "qca,emulation");
 	img_addr = DEFAULT_IMG_ADDR;
