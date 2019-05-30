@@ -280,7 +280,7 @@ enum arm_smmu_s2cr_privcfg {
 #define FSYNR0_WNR			(1 << 4)
 
 /* fast mapping is always true for now */
-static bool fast = true;
+static bool fast;
 
 static int force_stage;
 module_param(force_stage, int, S_IRUGO);
