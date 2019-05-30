@@ -261,6 +261,10 @@
 	status = "ok";
 };
 
+&ssphy_0 {
+	status = "ok";
+};
+
 &qusb_phy_0 {
 	status = "ok";
 };
