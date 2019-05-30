@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/etherdevice.h>
@@ -32,11 +21,6 @@
 #include <nss_api_if.h>
 #endif
 #include "txrx_edma.h"
-
-static bool rtap_include_phy_info;
-module_param(rtap_include_phy_info, bool, 0444);
-MODULE_PARM_DESC(rtap_include_phy_info,
-		 " Include PHY info in the radiotap header, default - no");
 
 #if defined(CONFIG_WIL6210_NSS_SUPPORT)
 bool rx_align_2 = true;
@@ -423,46 +407,10 @@ static void wil_rx_add_radiotap_header(struct wil6210_priv *wil,
 		u8 mcs_flags;
 		u8 mcs_index;
 	} __packed;
-	struct wil6210_rtap_vendor {
-		struct wil6210_rtap rtap;
-		/* vendor */
-		u8 vendor_oui[3] __aligned(2);
-		u8 vendor_ns;
-		__le16 vendor_skip;
-		u8 vendor_data[0];
-	} __packed;
 	struct vring_rx_desc *d = wil_skb_rxdesc(skb);
-	struct wil6210_rtap_vendor *rtap_vendor;
+	struct wil6210_rtap *rtap;
 	int rtap_len = sizeof(struct wil6210_rtap);
-	int phy_length = 0; /* phy info header size, bytes */
-	static char phy_data[128];
 	struct ieee80211_channel *ch = wil->monitor_chandef.chan;
-
-	if (rtap_include_phy_info) {
-		rtap_len = sizeof(*rtap_vendor) + sizeof(*d);
-		/* calculate additional length */
-		if (d->dma.status & RX_DMA_STATUS_PHY_INFO) {
-			/**
-			 * PHY info starts from 8-byte boundary
-			 * there are 8-byte lines, last line may be partially
-			 * written (HW bug), thus FW configures for last line
-			 * to be excessive. Driver skips this last line.
-			 */
-			int len = min_t(int, 8 + sizeof(phy_data),
-					wil_rxdesc_phy_length(d));
-
-			if (len > 8) {
-				void *p = skb_tail_pointer(skb);
-				void *pa = PTR_ALIGN(p, 8);
-
-				if (skb_tailroom(skb) >= len + (pa - p)) {
-					phy_length = len - 8;
-					memcpy(phy_data, pa, phy_length);
-				}
-			}
-		}
-		rtap_len += phy_length;
-	}
 
 	if (skb_headroom(skb) < rtap_len &&
 	    pskb_expand_head(skb, rtap_len, 0, GFP_ATOMIC)) {
@@ -470,40 +418,23 @@ static void wil_rx_add_radiotap_header(struct wil6210_priv *wil,
 		return;
 	}
 
-	rtap_vendor = (void *)skb_push(skb, rtap_len);
-	memset(rtap_vendor, 0, rtap_len);
+	rtap = (void *)skb_push(skb, rtap_len);
+	memset(rtap, 0, rtap_len);
 
-	rtap_vendor->rtap.rthdr.it_version = PKTHDR_RADIOTAP_VERSION;
-	rtap_vendor->rtap.rthdr.it_len = cpu_to_le16(rtap_len);
-	rtap_vendor->rtap.rthdr.it_present = cpu_to_le32(
-			(1 << IEEE80211_RADIOTAP_FLAGS) |
+	rtap->rthdr.it_version = PKTHDR_RADIOTAP_VERSION;
+	rtap->rthdr.it_len = cpu_to_le16(rtap_len);
+	rtap->rthdr.it_present = cpu_to_le32((1 << IEEE80211_RADIOTAP_FLAGS) |
 			(1 << IEEE80211_RADIOTAP_CHANNEL) |
 			(1 << IEEE80211_RADIOTAP_MCS));
 	if (d->dma.status & RX_DMA_STATUS_ERROR)
-		rtap_vendor->rtap.flags |= IEEE80211_RADIOTAP_F_BADFCS;
+		rtap->flags |= IEEE80211_RADIOTAP_F_BADFCS;
 
-	rtap_vendor->rtap.chnl_freq = cpu_to_le16(ch ? ch->center_freq : 58320);
-	rtap_vendor->rtap.chnl_flags = cpu_to_le16(0);
+	rtap->chnl_freq = cpu_to_le16(ch ? ch->center_freq : 58320);
+	rtap->chnl_flags = cpu_to_le16(0);
 
-	rtap_vendor->rtap.mcs_present = IEEE80211_RADIOTAP_MCS_HAVE_MCS;
-	rtap_vendor->rtap.mcs_flags = 0;
-	rtap_vendor->rtap.mcs_index = wil_rxdesc_mcs(d);
-
-	if (rtap_include_phy_info) {
-		rtap_vendor->rtap.rthdr.it_present |= cpu_to_le32(1 <<
-				IEEE80211_RADIOTAP_VENDOR_NAMESPACE);
-		/* OUI for Wilocity 04:ce:14 */
-		rtap_vendor->vendor_oui[0] = 0x04;
-		rtap_vendor->vendor_oui[1] = 0xce;
-		rtap_vendor->vendor_oui[2] = 0x14;
-		rtap_vendor->vendor_ns = 1;
-		/* Rx descriptor + PHY data  */
-		rtap_vendor->vendor_skip = cpu_to_le16(sizeof(*d) +
-						       phy_length);
-		memcpy(rtap_vendor->vendor_data, (void *)d, sizeof(*d));
-		memcpy(rtap_vendor->vendor_data + sizeof(*d), phy_data,
-		       phy_length);
-	}
+	rtap->mcs_present = IEEE80211_RADIOTAP_MCS_HAVE_MCS;
+	rtap->mcs_flags = 0;
+	rtap->mcs_index = wil_rxdesc_mcs(d);
 }
 
 static bool wil_is_rx_idle(struct wil6210_priv *wil)
@@ -529,7 +460,6 @@ static int wil_rx_get_cid_by_skb(struct wil6210_priv *wil, struct sk_buff *skb)
 	 */
 	int cid = wil_rxdesc_cid(d);
 	unsigned int snaplen = wil_rx_snaplen();
-	struct ethhdr *eth;
 	struct ieee80211_hdr_3addr *hdr;
 	int i;
 	unsigned char *ta;
@@ -547,8 +477,7 @@ static int wil_rx_get_cid_by_skb(struct wil6210_priv *wil, struct sk_buff *skb)
 					    skb->len);
 			return -ENOENT;
 		}
-		eth = (void *)skb->data;
-		ta = eth->h_source;
+		ta = wil_skb_get_sa(skb);
 	} else {
 		if (unlikely(skb->len < sizeof(struct ieee80211_hdr_3addr))) {
 			wil_err_ratelimited(wil, "Short frame, len = %d\n",
@@ -885,11 +814,11 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 	unsigned int len = skb->len;
 	int cid;
 	int security;
-	struct ethhdr *eth = (void *)skb->data;
+	u8 *sa, *da = wil_skb_get_da(skb);
 	/* here looking for DA, not A1, thus Rxdesc's 'mcast' indication
 	 * is not suitable, need to look at data
 	 */
-	int mcast = is_multicast_ether_addr(eth->h_dest);
+	int mcast = is_multicast_ether_addr(da);
 	struct wil_net_stats *stats;
 	struct sk_buff *xmit_skb = NULL;
 	static const char * const gro_res_str[] = {
@@ -922,15 +851,22 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 		return;
 	}
 
-	if (wdev->iftype == NL80211_IFTYPE_AP && !vif->ap_isolate) {
+	if (wdev->iftype == NL80211_IFTYPE_STATION) {
+		sa = wil_skb_get_sa(skb);
+		if (mcast && ether_addr_equal(sa, ndev->dev_addr)) {
+			/* mcast packet looped back to us */
+			rc = GRO_DROP;
+			dev_kfree_skb(skb);
+			goto stats;
+		}
+	} else if (wdev->iftype == NL80211_IFTYPE_AP && !vif->ap_isolate) {
 		if (mcast) {
 			/* send multicast frames both to higher layers in
 			 * local net stack and back to the wireless medium
 			 */
 			xmit_skb = skb_copy(skb, GFP_ATOMIC);
 		} else {
-			int xmit_cid = wil_find_cid(wil, vif->mid,
-						    eth->h_dest);
+			int xmit_cid = wil_find_cid(wil, vif->mid, da);
 
 			if (xmit_cid >= 0) {
 				/* The destination station is associated to
@@ -1399,7 +1335,7 @@ static struct wil_ring *wil_find_tx_ucast(struct wil6210_priv *wil,
 					  struct sk_buff *skb)
 {
 	int i, cid;
-	struct ethhdr *eth = (void *)skb->data;
+	const u8 *da = wil_skb_get_da(skb);
 	int min_ring_id = wil_get_min_tx_ring_id(wil);
 
 	if (WIL_Q_PER_STA_USED(vif))
@@ -1410,7 +1346,7 @@ static struct wil_ring *wil_find_tx_ucast(struct wil6210_priv *wil,
 			skb_get_queue_mapping(skb) / WIL6210_TX_AC_QUEUES :
 			skb_get_queue_mapping(skb);
 	else
-		cid = wil_find_cid(wil, vif->mid, eth->h_dest);
+		cid = wil_find_cid(wil, vif->mid, da);
 
 	if (cid < 0 || cid >= max_assoc_sta)
 		return NULL;
@@ -1425,7 +1361,7 @@ static struct wil_ring *wil_find_tx_ucast(struct wil6210_priv *wil,
 			struct wil_ring_tx_data *txdata = &wil->ring_tx_data[i];
 
 			wil_dbg_txrx(wil, "find_tx_ucast: (%pM) -> [%d]\n",
-				     eth->h_dest, i);
+				     da, i);
 			if (v->va && txdata->enabled) {
 				return v;
 			} else {
@@ -1516,10 +1452,10 @@ static struct wil_ring *wil_find_tx_bcast_1(struct wil6210_priv *wil,
 static void wil_set_da_for_vring(struct wil6210_priv *wil,
 				 struct sk_buff *skb, int vring_index)
 {
-	struct ethhdr *eth = (void *)skb->data;
+	u8 *da = wil_skb_get_da(skb);
 	int cid = wil->ring2cid_tid[vring_index][0];
 
-	ether_addr_copy(eth->h_dest, wil->sta[cid].addr);
+	ether_addr_copy(da, wil->sta[cid].addr);
 }
 
 static struct wil_ring *wil_find_tx_bcast_2(struct wil6210_priv *wil,
@@ -1530,8 +1466,7 @@ static struct wil_ring *wil_find_tx_bcast_2(struct wil6210_priv *wil,
 	struct sk_buff *skb2;
 	int i;
 	u8 cid;
-	struct ethhdr *eth = (void *)skb->data;
-	char *src = eth->h_source;
+	const u8 *src = wil_skb_get_sa(skb);
 	struct wil_ring_tx_data *txdata, *txdata2;
 	int min_ring_id = wil_get_min_tx_ring_id(wil);
 
@@ -2414,8 +2349,8 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct wil6210_vif *vif = ndev_to_vif(ndev);
 	struct wil6210_priv *wil = vif_to_wil(vif);
-	struct ethhdr *eth = (void *)skb->data;
-	bool bcast = is_multicast_ether_addr(eth->h_dest);
+	const u8 *da = wil_skb_get_da(skb);
+	bool bcast = is_multicast_ether_addr(da);
 	struct wil_ring *ring;
 	static bool pr_once_fw;
 	int rc;
@@ -2462,7 +2397,7 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		ring = wil_find_tx_ucast(wil, vif, skb);
 	}
 	if (unlikely(!ring)) {
-		wil_dbg_txrx(wil, "No Tx RING found for %pM\n", eth->h_dest);
+		wil_dbg_txrx(wil, "No Tx RING found for %pM\n", da);
 		goto drop;
 	}
 	/* set up vring entry */
