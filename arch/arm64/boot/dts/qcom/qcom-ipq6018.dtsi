@@ -1799,7 +1799,8 @@
 				 <&gcc GCC_UNIPHY1_PORT5_RX_CLK>,
 				 <&gcc GCC_UNIPHY1_PORT5_TX_CLK>,
 				 <&gcc NSS_PORT5_RX_CLK_SRC>,
-				 <&gcc NSS_PORT5_TX_CLK_SRC>;
+				 <&gcc NSS_PORT5_TX_CLK_SRC>,
+				 <&gcc GCC_SNOC_NSSNOC_CLK>;
 			clock-names = "cmn_ahb_clk", "cmn_sys_clk",
 					"uniphy0_ahb_clk", "uniphy0_sys_clk",
 					"uniphy1_ahb_clk", "uniphy1_sys_clk",
@@ -1832,7 +1833,8 @@
 					"uniphy1_port5_rx_clk",
 					"uniphy1_port5_tx_clk",
 					"nss_port5_rx_clk_src",
-					"nss_port5_tx_clk_src";
+					"nss_port5_tx_clk_src",
+					"gcc_snoc_nssnoc_clk";
 			resets = <&gcc GCC_PPE_FULL_RESET>,
 				 <&gcc GCC_UNIPHY0_SOFT_RESET>,
 				 <&gcc GCC_UNIPHY0_XPCS_RESET>,
