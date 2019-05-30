@@ -2039,7 +2039,7 @@ void arm_iommu_release_mapping(struct dma_iommu_mapping *mapping)
 EXPORT_SYMBOL_GPL(arm_iommu_release_mapping);
 
 /* fast mapping is always true for now */
-static bool fast = true;
+static bool fast;
 
 static int __arm_iommu_attach_device(struct device *dev,
 				     struct dma_iommu_mapping *mapping)

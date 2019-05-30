@@ -806,7 +806,7 @@ static LIST_HEAD(iommu_dma_masters);
 static DEFINE_MUTEX(iommu_dma_notifier_lock);
 
 /* fast mapping is always true for now */
-static bool fast = true;
+static bool fast;
 
 /*
  * Temporarily "borrow" a domain feature flag to to tell if we had to resort
