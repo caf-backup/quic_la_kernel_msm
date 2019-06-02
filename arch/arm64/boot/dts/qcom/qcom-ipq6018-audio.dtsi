@@ -25,20 +25,27 @@
 		qcom,clk-mult = <10>;
 	};
 
+	audio-ion {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges;
+		dma-ranges = <0x10000000 0x0 0x0FFFFFFF>;
+		qcom,msm-audio-ion {
+			compatible = "qcom,msm-audio-ion";
+			qcom,smmu-version = <2>;
+			qcom,smmu-enabled;
+			iommus = <&smmu500 0x1001>;
+			qcom,smmu-sid-mask = /bits/ 64 <0xf>;
+		};
+	};
+
 	gecko_core_platform: gecko_core_platform {
 		compatible = "qcom,gecko-core-platform";
 	};
 };
 
 &gecko_core_platform {
-		msm_audio_ion: qcom,msm-audio-ion {
-		compatible = "qcom,msm-audio-ion";
-		qcom,smmu-version = <2>;
-		qcom,smmu-enabled;
-		/*iommus = <&apps_smmu 0x1001 0x0>;*/
-		qcom,smmu-sid-mask = /bits/ 64 <0xf>;
-	};
-
 	bolero: bolero-cdc {
 		compatible = "qcom,bolero-codec";
 		tx_macro: tx-macro@A460000 {
