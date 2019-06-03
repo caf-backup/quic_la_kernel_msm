@@ -261,7 +261,10 @@ static void tmc_disable_hw(struct tmc_drvdata *drvdata)
 static void tmc_etb_enable_hw(struct tmc_drvdata *drvdata)
 {
 	/* Zero out the memory to help with debug */
-	memset(drvdata->buf, 0, drvdata->size);
+	if (drvdata->out_mode == TMC_ETR_OUT_MODE_Q6MEM)
+		memset_io(drvdata->buf, 0, drvdata->size);
+	else
+		memset(drvdata->buf, 0, drvdata->size);
 
 	CS_UNLOCK(drvdata->base);
 
@@ -536,8 +539,12 @@ static void tmc_etr_free_mem(struct tmc_drvdata *drvdata)
 static void tmc_etr_mem_reset(struct tmc_drvdata *drvdata)
 {
 	if (drvdata->vaddr) {
-		if (drvdata->memtype == TMC_ETR_MEM_TYPE_CONTIG)
-			memset(drvdata->vaddr, 0, drvdata->size);
+		if (drvdata->memtype == TMC_ETR_MEM_TYPE_CONTIG) {
+			if (drvdata->out_mode == TMC_ETR_OUT_MODE_Q6MEM)
+				memset_io(drvdata->vaddr, 0, drvdata->size);
+			else
+				memset(drvdata->vaddr, 0, drvdata->size);
+		}
 		else
 			tmc_etr_sg_mem_reset((uint32_t *)drvdata->vaddr,
 					     drvdata->size);
