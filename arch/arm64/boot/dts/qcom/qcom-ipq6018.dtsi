@@ -1053,7 +1053,6 @@
 				qcom,smem-state-names = "shutdown",
 						"stop";
 				iommus = <&smmu500 0x1000
-						&smmu500 0x1001
 						&smmu500 0x1003
 						&smmu500 0x1004
 						&smmu500 0x1005
