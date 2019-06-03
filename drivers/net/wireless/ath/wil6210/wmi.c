@@ -3726,8 +3726,9 @@ int wmi_mgmt_tx(struct wil6210_vif *vif, const u8 *buf, size_t len)
 	rc = wmi_call(wil, WMI_SW_TX_REQ_CMDID, vif->mid, cmd, total,
 		      WMI_SW_TX_COMPLETE_EVENTID, &evt, sizeof(evt), 2000);
 	if (!rc && evt.evt.status != WMI_FW_STATUS_SUCCESS) {
-		wil_err(wil, "mgmt_tx failed with status %d\n", evt.evt.status);
-		rc = -EINVAL;
+		wil_dbg_wmi(wil, "mgmt_tx failed with status %d\n",
+			    evt.evt.status);
+		rc = -EAGAIN;
 	}
 
 	kfree(cmd);
@@ -3779,9 +3780,9 @@ int wmi_mgmt_tx_ext(struct wil6210_vif *vif, const u8 *buf, size_t len,
 	rc = wmi_call(wil, WMI_SW_TX_REQ_EXT_CMDID, vif->mid, cmd, total,
 		      WMI_SW_TX_COMPLETE_EVENTID, &evt, sizeof(evt), 2000);
 	if (!rc && evt.evt.status != WMI_FW_STATUS_SUCCESS) {
-		wil_err(wil, "mgmt_tx_ext failed with status %d\n",
-			evt.evt.status);
-		rc = -EINVAL;
+		wil_dbg_wmi(wil, "mgmt_tx_ext failed with status %d\n",
+			    evt.evt.status);
+		rc = -EAGAIN;
 	}
 
 	kfree(cmd);
