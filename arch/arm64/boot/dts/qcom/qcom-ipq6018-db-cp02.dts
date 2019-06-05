@@ -27,6 +27,12 @@
 
 	aliases {
 		sdhc1 = &sdhc_1;
+		/*
+		 * Aliases as required by u-boot
+		 * to patch MAC addresses
+		 */
+		ethernet0 = "/soc/dp1";
+		ethernet1 = "/soc/dp2";
 	};
 
 	chosen {
@@ -196,7 +202,44 @@
 		switch_mac_mode = <0xf>; /* mac mode for uniphy instance0*/
 		switch_mac_mode1 = <0xf>; /* mac mode for uniphy instance1*/
 		switch_mac_mode2 = <0xff>; /* mac mode for uniphy instance2*/
+		qcom,port_phyinfo {
+			port@4 {
+				port_id = <4>;
+				phy_address = <0x10>;
+				port_mac_sel = "QGMAC_PORT";
+			};
+			port@5 {
+				port_id = <5>;
+				phy_address = <0x14>;
+				port_mac_sel = "QGMAC_PORT";
+			};
+		};
 	};
+
+	dp1 {
+		device_type = "network";
+		compatible = "qcom,nss-dp";
+		qcom,id = <4>;
+		reg = <0x3a001600 0x200>;
+		qcom,mactype = <0>;
+		local-mac-address = [000000000000];
+		qcom,link-poll = <1>;
+		qcom,phy-mdio-addr = <16>;
+		phy-mode = "sgmii";
+	};
+
+	dp2 {
+		device_type = "network";
+		compatible = "qcom,nss-dp";
+		qcom,id = <5>;
+		reg = <0x3a001800 0x200>;
+		qcom,mactype = <0>;
+		local-mac-address = [000000000000];
+		qcom,link-poll = <1>;
+		qcom,phy-mdio-addr = <20>;
+		phy-mode = "sgmii";
+	};
+
 };
 
 &blsp1_uart3 {
