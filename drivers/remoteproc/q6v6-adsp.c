@@ -73,6 +73,7 @@ static int debug_adsp;
 #define QDSP6SS_XO_CBCR 0x38
 #define QDSP6SS_MEM_PWR_CTL 0xb0
 #define QDSP6SS_SLEEP_CBCR 0x3C
+#define QDSP6SS_CLOCK_SPDM_MON 0x48
 #define QDSP6SS_BHS_STATUS 0x78
 #define LPASS_QDSP6SS_CORE_CBCR_ADDR 0x20
 #define QDSP6SS_PWR_CTL 0x30
@@ -87,6 +88,7 @@ static int debug_adsp;
 #define LPASS_Q6SS_BCR	0xA000
 #define LPASS_Q6SS_BCR_SLP_CBCR 0xA004
 #define LPASS_AUDIO_CORE_GDSCR	0xB000
+#define LPASS_AON_CMD_RCGR	0x14000
 #define LPASS_AON_CFG_RCGR	0x14004
 #define LPASS_AUDIO_WRAPPER_AON_CBCR	0x14098
 #define LPASS_AUDIO_CORE_AUD_SLIMBUS_CORE_CBCR	0x17018
@@ -94,6 +96,8 @@ static int debug_adsp;
 #define LPASS_AUDIO_CORE_LPM_CORE_CBCR	0x1E000
 #define LPASS_AUDIO_CORE_CORE_CBCR	0x1F000
 #define LPASS_Q6SS_AHBM_AON_CBCR	0x26000
+#define LPASS_Q6SS_ALT_RESET_AON_CBCR	0x2A000
+#define LPASS_Q6SS_Q6_AXIM_CBCR		0x2D000
 #define LPASS_Q6SS_AHBS_AON_CBCR	0x33000
 #define LPASS_AUDIO_CORE_LPAIF_RXTX_WR_MEM_CBCR	0x40000
 #define LPASS_AUDIO_CORE_LPAIF_RXTX_RD_MEM_CBCR	0x40004
@@ -103,13 +107,13 @@ static int debug_adsp;
 #define TCSR_GLOBAL_CFG0 0x0
 #define TCSR_GLOBAL_CFG1 0x4
 
-#define TCSR_LPASS_PWR_ON 			0x0
-#define TCSR_LPASS2SNOC_HALTREQ 		0x4
-#define TCSR_LPASS_CORE_AXIM_HALTREQ 		0x8
-#define TCSR_LPASS2SNOC_HALTACK 		0xC
-#define TCSR_LPASS_CORE_AXIM_HALTACK 		0x10
-#define TCSR_LPASS2SNOC_MASTER_IDLE 		0x14
-#define TCSR_LPASS_CORE_AXIM_MASTER_IDLE 	0x18
+#define TCSR_LPASS_PWR_ON			0x0
+#define TCSR_LPASS2SNOC_HALTREQ			0x4
+#define TCSR_LPASS_CORE_AXIM_HALTREQ		0x8
+#define TCSR_LPASS2SNOC_HALTACK			0xC
+#define TCSR_LPASS_CORE_AXIM_HALTACK		0x10
+#define TCSR_LPASS2SNOC_MASTER_IDLE		0x14
+#define TCSR_LPASS_CORE_AXIM_MASTER_IDLE	0x18
 #define TCSR_LPASS2SNOC_MASTER_REQPEND		0x1C
 
 #define SSCAON_CONFIG 0x8
@@ -169,7 +173,7 @@ static struct q6v6_rproc_pdata *q6v6_rproc_pdata;
 
 #define	OPEN_TIMEOUT	5000
 #define	DUMP_TIMEOUT	10000
-#define	NUM_LPASS_CLKS	9
+#define	NUM_LPASS_CLKS	11
 
 static struct timer_list dump_timeout;
 static struct completion dump_complete;
@@ -204,6 +208,8 @@ static int lpass_clks_enable(struct device *dev)
 {
 	int ret, i;
 	const char *lpass_clk_names[NUM_LPASS_CLKS] = {
+						"mem_noc_lpass_clk",
+						"snoc_lpass_cfg_clk",
 						"lpass_core_axim_clk",
 						"lpass_snoc_cfg_clk",
 						"lpass_q6_axim_clk",
@@ -760,21 +766,6 @@ static int q6_rproc_start(struct rproc *rproc)
 		}
 		goto skip_reset;
 	}
-
-
-	/*  enable LPASS XO clock */
-	val = readl(pdata->q6_base + QDSP6SS_XO_CBCR);
-	val |= 0x1;
-	writel(val, pdata->q6_base + QDSP6SS_XO_CBCR);
-
-	/*  enable LPASS core clock */
-	writel(0x1, pdata->q6_base + LPASS_QDSP6SS_CORE_CBCR_ADDR);
-
-	/*  enable LPASS sleep clock */
-	val = readl(pdata->q6_base + QDSP6SS_SLEEP_CBCR);
-	val |= 0x1;
-	writel(val, pdata->q6_base + QDSP6SS_SLEEP_CBCR);
-
 	/*  configure root clock generator(RCG) configuration register */
 	val = readl(pdata->q6_base + LPASS_QDSP6SS_CORE_CFG_RCGR);
 	val &= 0xFFFFF8E0;
@@ -785,23 +776,58 @@ static int q6_rproc_start(struct rproc *rproc)
 	val |= 0x1;
 	writel(val, pdata->q6_base + LPASS_QDSP6SS_CORE_CMD_RCGR);
 
-	pr_debug("Enable_Talos_Turing And GCC_clks complete\n");
-
-	val = readl(pdata->q6ss_cc_base + LPASS_AUDIO_WRAPPER_AON_CBCR);
+	/*  enable LPASS SLP clock */
+	val = readl(pdata->q6ss_cc_base + LPASS_Q6SS_BCR_SLP_CBCR);
 	val |= 0x1;
-	writel(val, pdata->q6ss_cc_base + LPASS_AUDIO_WRAPPER_AON_CBCR);
+	writel(val, pdata->q6ss_cc_base + LPASS_Q6SS_BCR_SLP_CBCR);
 
+	/*Configure AON bus to use XO*/
 	val = readl(pdata->q6ss_cc_base + LPASS_AON_CFG_RCGR);
 	val &= ~(GENMASK(10, 8));
-	writel(val, pdata->q6ss_cc_base + LPASS_AON_CFG_RCGR);
+	writel(0x0, pdata->q6ss_cc_base + LPASS_AON_CFG_RCGR);
 
+	val = readl(pdata->q6ss_cc_base + LPASS_AON_CMD_RCGR);
+	val |= 1;
+	writel(val, pdata->q6ss_cc_base + LPASS_AON_CMD_RCGR);
+
+	/*AHBS*/
 	val = readl(pdata->q6ss_cc_base + LPASS_Q6SS_AHBS_AON_CBCR);
 	val |= 0x1;
 	writel(val, pdata->q6ss_cc_base + LPASS_Q6SS_AHBS_AON_CBCR);
 
+	/*AHBM*/
 	val = readl(pdata->q6ss_cc_base + LPASS_Q6SS_AHBM_AON_CBCR);
 	val |= 0x1;
 	writel(val, pdata->q6ss_cc_base + LPASS_Q6SS_AHBM_AON_CBCR);
+
+	/*AXIM*/
+	val = readl(pdata->q6ss_cc_base + LPASS_Q6SS_Q6_AXIM_CBCR);
+	val |= 0x1;
+	writel(val, pdata->q6ss_cc_base + LPASS_Q6SS_Q6_AXIM_CBCR);
+
+	/*Enable core CBCR*/
+	val = readl(pdata->q6_base + QDSP6SS_XO_CBCR);
+	val |= 0x1;
+	writel(val, pdata->q6_base + QDSP6SS_XO_CBCR);
+
+	/*  enable LPASS sleep clock */
+	val = readl(pdata->q6_base + QDSP6SS_SLEEP_CBCR);
+	val |= 0x1;
+	writel(val, pdata->q6_base + QDSP6SS_SLEEP_CBCR);
+
+	/*  enable LPASS core clock */
+	writel(0x1, pdata->q6_base + LPASS_QDSP6SS_CORE_CBCR_ADDR);
+
+	pr_debug("Enable_Talos_Turing And GCC_clks complete\n");
+
+	/*Turn on aon wrapper clock and alt reset*/
+	val = readl(pdata->q6ss_cc_base + LPASS_AUDIO_WRAPPER_AON_CBCR);
+	val |= 1;
+	writel(val, pdata->q6ss_cc_base + LPASS_AUDIO_WRAPPER_AON_CBCR);
+
+	val = readl(pdata->q6ss_cc_base + LPASS_Q6SS_ALT_RESET_AON_CBCR);
+	val |= 0x1;
+	writel(val, pdata->q6ss_cc_base + LPASS_Q6SS_ALT_RESET_AON_CBCR);
 
 	/*  set boot address in EVB so that Q6LPASS will jump there after reset */
 	writel(rproc->bootaddr >> 4, pdata->q6_base + QDSP6SS_RST_EVB);

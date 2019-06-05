@@ -1026,11 +1026,16 @@ static int ipq60xx_q6_rproc_start(struct rproc *rproc)
 	if(ipq60xx_wcss_clks_prepare_enable(&pdev->dev))
 		goto skip_reset;
 
+	val = readl(pdata->mpm_base + SSCAON_CONFIG);
+	val |= 0x1;
+	writel(val, pdata->mpm_base + SSCAON_CONFIG);
+	mdelay(1);
 	/*set CFG[18:15]=1* and clear CFG[1]=0*/
 	val = readl(pdata->mpm_base + SSCAON_CONFIG);
 	val &= 0xfff8fffd;
 	val |= (1<<15);
 	writel(val, pdata->mpm_base + SSCAON_CONFIG);
+	mdelay(1);
 
 	/* This is for Lithium configuration - clock gating */
 	val = readl(pdata->tcsr_global_base + TCSR_GLOBAL_CFG0);
