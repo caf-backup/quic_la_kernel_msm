@@ -36,8 +36,11 @@ struct req_crypt_result {
 	int err;
 };
 
+struct crypto_config_dev {
+	struct dm_dev *dev;
+	sector_t start;
+};
 
-static struct dm_dev *dev;
 static struct kmem_cache *_req_crypt_io_pool;
 static sector_t start_sector_orig;
 static mempool_t *req_io_pool;
@@ -103,6 +106,7 @@ static int req_crypt_map(struct dm_target *ti, struct request *clone,
 	int copy_bio_sector_to_req = 0;
 	struct bio *bio_src = NULL;
 	gfp_t gfp_flag = GFP_KERNEL;
+	struct crypto_config_dev *cd = ti->private;
 
 	if (in_interrupt() || irqs_disabled())
 		gfp_flag = GFP_NOWAIT;
@@ -122,11 +126,11 @@ static int req_crypt_map(struct dm_target *ti, struct request *clone,
 	atomic_set(&req_io->pending, 0);
 
 	/* Get the queue of the underlying original device */
-	clone->q = bdev_get_queue(dev->bdev);
-	clone->rq_disk = dev->bdev->bd_disk;
+	clone->q = bdev_get_queue(cd->dev->bdev);
+	clone->rq_disk = cd->dev->bdev->bd_disk;
 
 	__rq_for_each_bio(bio_src, clone) {
-		bio_src->bi_bdev = dev->bdev;
+		bio_src->bi_bdev = cd->dev->bdev;
 		/* Currently the way req-dm works is that once the underlying
 		 * device driver completes the request by calling into the
 		 * block layer. The block layer completes the bios (clones) and
@@ -165,6 +169,9 @@ static void req_crypt_dtr(struct dm_target *ti)
 {
 	DMDEBUG("dm-req-crypt Destructor.\n");
 
+	struct crypto_config_dev *cd = ti->private;
+	ti->private = NULL;
+
 	if (req_io_pool) {
 		mempool_destroy(req_io_pool);
 		req_io_pool = NULL;
@@ -176,10 +183,13 @@ static void req_crypt_dtr(struct dm_target *ti)
 	if (_req_crypt_io_pool)
 		kmem_cache_destroy(_req_crypt_io_pool);
 
-	if (dev) {
-		dm_put_device(ti, dev);
-		dev = NULL;
+	if (cd->dev) {
+		dm_put_device(ti, cd->dev);
+		cd->dev = NULL;
 	}
+
+	kfree(cd);
+	cd = NULL;
 }
 
 static int qcom_set_ice_config(char **argv)
@@ -217,6 +227,7 @@ static int req_crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	int err = DM_REQ_CRYPT_ERROR;
 	unsigned long long tmpll;
 	char dummy;
+	struct crypto_config_dev *cd;
 
 	DMDEBUG("dm-req-crypt Constructor.\n");
 
@@ -226,9 +237,17 @@ static int req_crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto ctr_exit;
 	}
 
+	cd = kzalloc(sizeof(*cd), GFP_KERNEL);
+	if (!cd) {
+		ti->error = "Cannot allocate encryption context";
+		return -ENOMEM;
+	}
+
+	ti->private = cd;
+
 	if (argv[3]) {
 		if (dm_get_device(ti, argv[3],
-				dm_table_get_mode(ti->table), &dev)) {
+				dm_table_get_mode(ti->table), &cd->dev)) {
 			DMERR(" %s Device Lookup failed\n", __func__);
 			err =  DM_REQ_CRYPT_ERROR;
 			goto ctr_exit;
@@ -250,7 +269,8 @@ static int req_crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		err =  DM_REQ_CRYPT_ERROR;
 		goto ctr_exit;
 	}
-	start_sector_orig = tmpll;
+
+	cd->start = tmpll;
 
 	_req_crypt_io_pool = KMEM_CACHE(req_dm_crypt_io, 0);
 	if (!_req_crypt_io_pool) {
@@ -344,7 +364,8 @@ ctr_exit:
 static int req_crypt_iterate_devices(struct dm_target *ti,
 				 iterate_devices_callout_fn fn, void *data)
 {
-	return fn(ti, dev, start_sector_orig, ti->len, data);
+	struct crypto_config_dev *cd = ti->private;
+	return fn(ti, cd->dev, cd->start, ti->len, data);
 }
 
 static struct target_type req_crypt_target = {
