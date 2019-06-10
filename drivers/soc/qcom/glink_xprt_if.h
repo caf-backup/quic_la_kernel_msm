@@ -72,6 +72,7 @@ struct glink_core_tx_pkt {
 	uint32_t size_remaining;
 	size_t intent_size;
 	bool tracer_pkt;
+	bool free_buf;
 	void *iovec;
 	void * (*vprovider)(void *iovec, size_t offset, size_t *size);
 	void * (*pprovider)(void *iovec, size_t offset, size_t *size);

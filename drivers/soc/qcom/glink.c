@@ -2835,6 +2835,8 @@ static void glink_tx_pkt_release(struct rwref_lock *tx_pkt_ref)
 		list_del_init(&tx_info->list_done);
 	if (!list_empty(&tx_info->list_node))
 		list_del_init(&tx_info->list_node);
+	if (tx_info->free_buf)
+		kfree(tx_info->data);
 	kfree(tx_info);
 }
 
@@ -3016,6 +3018,7 @@ static int glink_tx_common(void *handle, void *pkt_priv,
 	tx_info->size_remaining = size;
 	tx_info->tracer_pkt = tx_flags & GLINK_TX_TRACER_PKT ? true : false;
 	tx_info->iovec = iovec ? iovec : (void *)tx_info;
+	tx_info->free_buf = iovec ? false : true;
 	tx_info->vprovider = vbuf_provider;
 	tx_info->pprovider = pbuf_provider;
 	tx_info->intent_size = intent_size;
@@ -3053,7 +3056,11 @@ glink_tx_common_err_2:
 int glink_tx(void *handle, void *pkt_priv, void *data, size_t size,
 							uint32_t tx_flags)
 {
-	return glink_tx_common(handle, pkt_priv, data, NULL, size,
+	void *data_tmp = kzalloc(size, GFP_KERNEL);
+	if (!data_tmp)
+		return -ENOMEM;
+	memcpy(data_tmp, data, size);
+	return glink_tx_common(handle, pkt_priv, data_tmp, NULL, size,
 			       tx_linear_vbuf_provider, NULL, tx_flags);
 }
 EXPORT_SYMBOL(glink_tx);
@@ -5298,6 +5305,8 @@ static void xprt_schedule_tx(struct glink_core_xprt_ctx *xprt_ptr,
 
 	if (unlikely(xprt_ptr->local_state == GLINK_XPRT_DOWN)) {
 		GLINK_ERR_CH(ch_ptr, "%s: Error XPRT is down\n", __func__);
+		if (tx_info->free_buf)
+			kfree(tx_info->data);
 		kfree(tx_info);
 		return;
 	}
@@ -5307,6 +5316,8 @@ static void xprt_schedule_tx(struct glink_core_xprt_ctx *xprt_ptr,
 		spin_unlock_irqrestore(&xprt_ptr->tx_ready_lock_lhb3, flags);
 		GLINK_ERR_CH(ch_ptr, "%s: Channel closed before tx\n",
 			     __func__);
+		if (tx_info->free_buf)
+			kfree(tx_info->data);
 		kfree(tx_info);
 		return;
 	}
@@ -5347,6 +5358,8 @@ static int xprt_single_threaded_tx(struct glink_core_xprt_ctx *xprt_ptr,
 	if (ret < 0 || tx_info->size_remaining) {
 		GLINK_ERR_CH(ch_ptr, "%s: Error %d writing data\n",
 			     __func__, ret);
+		if (tx_info->free_buf)
+			kfree(tx_info->data);
 		kfree(tx_info);
 	} else {
 		list_add_tail(&tx_info->list_done,
