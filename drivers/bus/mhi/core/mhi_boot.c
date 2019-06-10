@@ -200,7 +200,7 @@ int mhi_download_rddm_img(struct mhi_controller *mhi_cntrl, bool in_panic)
 			    sequence_id);
 	read_unlock_bh(pm_lock);
 
-	MHI_LOG("Upper:0x%x Lower:0x%x len:0x%lx sequence:%u\n",
+	MHI_LOG("Upper:0x%x Lower:0x%x len:0x%zx sequence:%u\n",
 		upper_32_bits(mhi_buf->dma_addr),
 		lower_32_bits(mhi_buf->dma_addr),
 		mhi_buf->len, sequence_id);
@@ -252,7 +252,7 @@ static int mhi_fw_load_amss(struct mhi_controller *mhi_cntrl,
 			    mhi_cntrl->sequence_id);
 	read_unlock_bh(pm_lock);
 
-	MHI_LOG("Upper:0x%x Lower:0x%x len:0x%lx sequence:%u\n",
+	MHI_LOG("Upper:0x%x Lower:0x%x len:0x%zx sequence:%u\n",
 		upper_32_bits(mhi_buf->dma_addr),
 		lower_32_bits(mhi_buf->dma_addr),
 		mhi_buf->len, mhi_cntrl->sequence_id);
@@ -401,8 +401,9 @@ int mhi_alloc_bhie_table(struct mhi_controller *mhi_cntrl,
 		if (!mhi_buf->buf)
 			goto error_alloc_segment;
 
-		MHI_LOG("Entry:%d Address:0x%llx size:%lu\n", i,
-			mhi_buf->dma_addr, mhi_buf->len);
+		MHI_LOG("Entry:%d Address:0x%llx size:%zu\n", i,
+			(unsigned long long)mhi_buf->dma_addr,
+			mhi_buf->len);
 	}
 
 	img_info->bhi_vec = img_info->mhi_buf[segments - 1].buf;
