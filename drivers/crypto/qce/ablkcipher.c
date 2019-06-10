@@ -158,7 +158,7 @@ static int qce_setkey_sec(unsigned int keylen)
 	int ret;
 
 	qce_cache = kmem_cache_create("qce_sec_key", max(L1_CACHE_BYTES,
-				sizeof(struct qce_config_key_sec)),
+				(int)sizeof(struct qce_config_key_sec)),
 			L1_CACHE_BYTES, SLAB_PANIC, NULL);
 	if (!qce_cache) {
 		pr_info("%s: Error in creating cache\n",__func__);
