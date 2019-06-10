@@ -216,6 +216,58 @@ static void dwc3_frame_length_adjustment(struct dwc3 *dwc, u32 fladj)
 }
 
 /**
+ * dwc3_ref_clk_adjustment - Reference clock settings for SOF and ITP
+ *		Default reference clock configurations are calculated assuming
+ *		19.2 MHz clock source. For other clock source, this will set
+ *		configuration in DWC3_GFLADJ register
+ * @dwc: Pointer to our controller context structure
+ * @ref_clk_adj: Value of reference clock settings
+ */
+static void dwc3_ref_clk_adjustment(struct dwc3 *dwc, u32 ref_clk_adj)
+{
+	u32 reg;
+	u32 dft;
+
+	if (ref_clk_adj == 0)
+		return;
+
+	reg = dwc3_readl(dwc->regs, DWC3_GFLADJ);
+	dft = ((reg & DWC3_GFLADJ_REFCLK_MASK) >> DWC3_GFLADJ_REFCLK_SEL);
+	if (!dev_WARN_ONCE(dwc->dev, dft == ref_clk_adj,
+		"ref clk adjustment value same as default, ignoring\n")) {
+		reg &= ~DWC3_GFLADJ_REFCLK_MASK;
+		reg |=  (ref_clk_adj << DWC3_GFLADJ_REFCLK_SEL);
+		dwc3_writel(dwc->regs, DWC3_GFLADJ, reg);
+	}
+}
+
+/**
+ * dwc3_ref_clk_period - Reference clock period configuration
+ *		Default reference clock period is calculated assuming
+ *		19.2 MHz as clock source. For other clock source, this
+ *		will set clock period in DWC3_GUCTL register
+ * @dwc: Pointer to our controller context structure
+ * @ref_clk_per: reference clock period in ns
+ */
+static void dwc3_ref_clk_period(struct dwc3 *dwc, u32 ref_clk_per)
+{
+    u32 reg;
+	u32 dft;
+
+	if (ref_clk_per == 0)
+		return;
+
+	reg = dwc3_readl(dwc->regs, DWC3_GUCTL);
+	dft = ((reg & DWC3_GUCTL_REFCLKPER_MASK ) >> DWC3_GUCTL_REFCLKPER_SEL);
+	if (!dev_WARN_ONCE(dwc->dev, dft == ref_clk_per,
+		"ref clk period value same as default, ignoring\n")) {
+		reg &= ~DWC3_GUCTL_REFCLKPER_MASK;
+		reg |=  (ref_clk_per << DWC3_GUCTL_REFCLKPER_SEL);
+		dwc3_writel(dwc->regs, DWC3_GUCTL, reg);
+	}
+}
+
+/**
  * dwc3_free_one_event_buffer - Frees one event buffer
  * @dwc: Pointer to our controller context structure
  * @evt: Pointer to event buffer to be freed
@@ -888,6 +940,8 @@ static int dwc3_probe(struct platform_device *pdev)
 	u8			tx_de_emphasis;
 	u8			hird_threshold;
 	u32			fladj = 0;
+	u32			ref_clk_adj = 0;
+	u32			ref_clk_per = 0;
 
 	int			ret;
 
@@ -1015,6 +1069,10 @@ static int dwc3_probe(struct platform_device *pdev)
 				    &dwc->hsphy_interface);
 	device_property_read_u32(dev, "snps,quirk-frame-length-adjustment",
 				 &fladj);
+	device_property_read_u32(dev, "snps,quirk-ref-clock-adjustment",
+				 &ref_clk_adj);
+	device_property_read_u32(dev, "snps,quirk-ref-clock-period",
+				 &ref_clk_per);
 	dwc->emulation = of_property_read_bool(dev->of_node,
 					"qcom,emulation");
 
@@ -1124,6 +1182,12 @@ static int dwc3_probe(struct platform_device *pdev)
 
 	/* Adjust Frame Length */
 	dwc3_frame_length_adjustment(dwc, fladj);
+
+	/* Adjust Reference Clock Settings */
+	dwc3_ref_clk_adjustment(dwc, ref_clk_adj);
+
+	/* Adjust Reference Clock Period */
+	dwc3_ref_clk_period(dwc, ref_clk_per);
 
 	usb_phy_set_suspend(dwc->usb2_phy, 0);
 	usb_phy_set_suspend(dwc->usb3_phy, 0);

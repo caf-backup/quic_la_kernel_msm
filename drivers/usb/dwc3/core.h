@@ -127,6 +127,7 @@
 #define DWC3_GEVNTCOUNT(n)	(0xc40c + (n * 0x10))
 
 #define DWC3_GHWPARAMS8		0xc600
+#define DWC3_GUCTL		0xc12c
 #define DWC3_GFLADJ		0xc630
 
 /* Device Registers */
@@ -239,6 +240,14 @@
 
 /* Global HWPARAMS6 Register */
 #define DWC3_GHWPARAMS6_EN_FPGA			(1 << 7)
+
+/* Global User Control Register*/
+#define DWC3_GUCTL_REFCLKPER_MASK		0xffc00000
+#define DWC3_GUCTL_REFCLKPER_SEL		22
+
+/* Global reference clock Adjustment Register */
+#define DWC3_GFLADJ_REFCLK_MASK			0xffffff00
+#define DWC3_GFLADJ_REFCLK_SEL			8
 
 /* Global Frame Length Adjustment Register */
 #define DWC3_GFLADJ_30MHZ_SDBND_SEL		(1 << 7)
