@@ -396,7 +396,7 @@
 					  <&gcc GCC_USB0_MOCK_UTMI_CLK>;
 			assigned-clock-rates = <133330000>,
 						<133330000>,
-						<20000000>;
+						<24000000>;
 			qca,host = <1>;
 			qcom,usb-dbm = <&dbm_1p5>;
 			status = "disabled";
@@ -413,6 +413,8 @@
 			       snps,hird-threshold = /bits/ 8 <0x0>;
 			       snps,dis_u2_susphy_quirk;
 			       snps,dis_u3_susphy_quirk;
+				   snps,quirk-ref-clock-adjustment = <0xA87F0>;
+				   snps,quirk-ref-clock-period = <0x29>;
 			       usb2-susphy-quirk;
 			       dr_mode = "host";
 			};
@@ -470,7 +472,7 @@
 			assigned-clocks = <&gcc GCC_USB1_MASTER_CLK>,
 					  <&gcc GCC_USB1_MOCK_UTMI_CLK>;
 			assigned-clock-rates = <133330000>,
-					       <20000000>;
+					       <24000000>;
 			qca,host = <1>;
 			status = "disabled";
 
@@ -486,6 +488,8 @@
 			       snps,hird-threshold = /bits/ 8 <0x0>;
 			       snps,dis_u2_susphy_quirk;
 			       snps,dis_u3_susphy_quirk;
+				   snps,quirk-ref-clock-adjustment = <0xA87F0>;
+				   snps,quirk-ref-clock-period = <0x29>;
 			       usb2-susphy-quirk;
 			       dr_mode = "host";
 			};
