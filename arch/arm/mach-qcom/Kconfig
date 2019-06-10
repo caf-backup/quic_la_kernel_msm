@@ -24,6 +24,13 @@ config ARCH_MSM8974
 	bool "Enable support for MSM8974"
 	select HAVE_ARM_ARCH_TIMER
 
+config ARCH_IPQ256M
+	bool "Enable 256M config"
+	default n
+	help
+	  This sets the text offset of 256M profile, which makes kernel aware of
+          first 16MB of DDR.
+
 config ARCH_IPQ807x
 	bool "Enable Support for IPQ807x"
 	select PINCTRL_IPQ807x
