@@ -3291,7 +3291,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 				__func__, msm_host->pdata->sdiowakeup_irq, ret);
 			msm_host->pdata->sdiowakeup_irq = -1;
 			msm_host->is_sdiowakeup_enabled = false;
-			goto free_cd_gpio;
+			goto vreg_deinit;
 		} else {
 			spin_lock_irqsave(&host->lock, flags);
 			sdhci_msm_cfg_sdiowakeup_gpio_irq(host, false);
@@ -3304,7 +3304,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	ret = sdhci_add_host(host);
 	if (ret) {
 		dev_err(&pdev->dev, "Add host failed (%d)\n", ret);
-		goto free_cd_gpio;
+		goto vreg_deinit;
 	}
 
 	pm_runtime_set_active(&pdev->dev);
@@ -3342,9 +3342,6 @@ remove_host:
 	dead = (readl_relaxed(host->ioaddr + SDHCI_INT_STATUS) == 0xffffffff);
 	pm_runtime_disable(&pdev->dev);
 	sdhci_remove_host(host, dead);
-free_cd_gpio:
-	if (gpio_is_valid(msm_host->pdata->status_gpio))
-		sdhci_msm_gpio_free_cd(msm_host);
 vreg_deinit:
 	sdhci_msm_vreg_init(&pdev->dev, msm_host->pdata, false);
 sleep_clk_disable:
