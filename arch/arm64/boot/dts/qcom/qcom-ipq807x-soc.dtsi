@@ -1657,6 +1657,10 @@
 			qcom,msi-gicm-base = <0x1c0>;
 
 			status = "ok";
+
+			pcie0_rp: pcie0_rp {
+				reg = <0 0 0 0 0>;
+			};
 		};
 
 		pcie_phy1: phy@8e000 {
