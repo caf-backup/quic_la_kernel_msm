@@ -22,6 +22,8 @@
 		reg = <0x6028000 0x1000>,
 		      <0x6044000 0x15000>;
 		reg-names = "tmc-base", "bam-base";
+		memory_region = <&q6_etr_region>;
+
 		interrupts = <0 166 0>;
 		interrupt-names = "byte-cntr-irq";
 
