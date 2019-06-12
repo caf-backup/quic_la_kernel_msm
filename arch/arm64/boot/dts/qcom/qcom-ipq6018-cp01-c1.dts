@@ -403,6 +403,7 @@
 	pinctrl-names = "default";
 	cd-gpios = <&tlmm 62 1>;
 	sd-ldo-gpios = <&tlmm 66 0>;
+	vqmmc-supply = <&ipq6018_l2_corner>;
 	status = "ok";
 };
 
