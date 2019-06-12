@@ -109,7 +109,6 @@ struct qusb_phy {
 	void __iomem		*tune2_efuse_reg;
 	void __iomem		*ref_clk_base;
 	void __iomem		*tcsr_phy_clk_scheme_sel;
-	void __iomem		*usb3_guctl_addr;
 
 	struct clk		*ref_clk_src;
 	struct clk		*ref_clk;
@@ -400,16 +399,6 @@ static int qusb_phy_init(struct usb_phy *phy)
 		/* Make sure that above write complete to get ref clk OFF */
 		wmb();
 	}
-
-	/* Configure ref clock period */
-	if (qphy->usb3_guctl_addr) {
-		writel_relaxed((readl_relaxed(qphy->usb3_guctl_addr) &
-					(~0xffc00000)) | 0x0c800000,
-					qphy->usb3_guctl_addr);
-		/* Make sure that above write complete */
-		wmb();
-	}
-
 	/* Perform phy reset */
 	qusb_reset(qphy, CLK_RESET_ASSERT);
 	usleep_range(100, 150);
@@ -747,15 +736,6 @@ static int qusb_phy_probe(struct platform_device *pdev)
 				res->start, resource_size(res));
 		if (IS_ERR(qphy->ref_clk_base))
 			dev_dbg(dev, "ref_clk_address is not available.\n");
-	}
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-							"usb3_guctl_addr");
-	if (res) {
-		qphy->usb3_guctl_addr = devm_ioremap_nocache(dev,
-				res->start, resource_size(res));
-		if (IS_ERR(qphy->usb3_guctl_addr))
-			dev_dbg(dev, "usb3_guctl_addr is not available.\n");
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,

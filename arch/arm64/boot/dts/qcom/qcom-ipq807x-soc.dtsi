@@ -1348,12 +1348,10 @@
 			  compatible = "qcom,qusb2phy";
 			  reg = <0x079000 0x180>,
 				<0x08af8800 0x400>,
-				<0x01841030 0x4>,
-				<0x08A0C12C 0x4>;
+				<0x01841030 0x4>;
 			  reg-names = "qusb_phy_base",
 				  "qscratch_base",
-				  "ref_clk_addr",
-				  "usb3_guctl_addr";
+				  "ref_clk_addr";
 
 			  qcom,qusb-phy-init-seq = <0xF8 0x80
 				  0x83 0x84
@@ -1377,12 +1375,10 @@
 			  compatible = "qcom,qusb2phy";
 			  reg = <0x059000 0x180>,
 				<0x08cf8800 0x400>,
-				<0x01841030 0x4>,
-				<0x08C0C12C 0x4>;
+				<0x01841030 0x4>;
 			  reg-names = "qusb_phy_base",
 				  "qscratch_base",
-				  "ref_clk_addr",
-				  "usb3_guctl_addr";
+				  "ref_clk_addr";
 			  qcom,qusb-phy-init-seq = <0xF8 0x80
 				  0x83 0x84
 				  0x83 0x88
@@ -1454,6 +1450,7 @@
 				snps,hird-threshold = /bits/ 8 <0x0>;
 				snps,dis_u2_susphy_quirk;
 				snps,dis_u3_susphy_quirk;
+				snps,quirk-ref-clock-period = <0x32>;
 				usb2-susphy-quirk;
 				qcom,emulation = <1>;
 				dr_mode = "host";
@@ -1539,6 +1536,7 @@
 				snps,hird-threshold = /bits/ 8 <0x0>;
 				snps,dis_u2_susphy_quirk;
 				snps,dis_u3_susphy_quirk;
+				snps,quirk-ref-clock-period = <0x32>;
 				usb2-susphy-quirk;
 				qcom,emulation = <1>;
 				dr_mode = "host";
