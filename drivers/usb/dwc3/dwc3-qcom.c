@@ -222,10 +222,13 @@ static int dwc3_qcom_register_extcon(struct dwc3_qcom *qcom)
 
 	/* Update initial VBUS override based on extcon state */
 	if (extcon_get_cable_state_(qcom->edev, EXTCON_USB) ||
-	    !extcon_get_cable_state_(host_edev, EXTCON_USB_HOST))
+	    !extcon_get_cable_state_(host_edev, EXTCON_USB_HOST)) {
+		dwc3_qcom_host_notifier(&qcom->host_nb, false, host_edev);
 		dwc3_qcom_vbus_notifier(&qcom->vbus_nb, true, qcom->edev);
-	else
+	} else {
 		dwc3_qcom_vbus_notifier(&qcom->vbus_nb, false, qcom->edev);
+		dwc3_qcom_host_notifier(&qcom->host_nb, true, host_edev);
+	}
 
 	return 0;
 }
