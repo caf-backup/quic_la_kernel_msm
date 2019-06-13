@@ -530,7 +530,7 @@ static int qrtr_node_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 		}
 	}
 
-	hdr = skb_push(skb, sizeof(*hdr));
+	hdr = (struct qrtr_hdr_v1 *)skb_push(skb, sizeof(*hdr));
 	hdr->version = cpu_to_le32(QRTR_PROTO_VER_1);
 	hdr->type = cpu_to_le32(type);
 	hdr->src_node_id = cpu_to_le32(from->sq_node);
