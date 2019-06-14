@@ -11,7 +11,9 @@ platforms.
 		    "qcom,msm8916-apcs-kpss-global",
 		    "qcom,msm8996-apcs-hmss-global"
 		    "qcom,msm8998-apcs-hmss-global"
+		    "qcom,sc7180-apss-shared"
 		    "qcom,sdm845-apss-shared"
+		    "qcom,sm8150-apss-shared"
 
 - reg:
 	Usage: required
