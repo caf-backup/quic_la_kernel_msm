@@ -13,7 +13,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#include "../../../arm64/boot/dts/qcom/qcom-ipq807x-hk01.c4.dts"
+#include "../../../arm64/boot/dts/qcom/qcom-ipq807x-hk01.c5.dts"
 
 / {
 	soc {
