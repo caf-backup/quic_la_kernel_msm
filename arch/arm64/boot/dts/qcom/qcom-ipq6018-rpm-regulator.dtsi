@@ -39,17 +39,16 @@
 		qcom,resource-name = "smpa";
 		qcom,resource-id = <2>;
 		qcom,regulator-type = <1>;
-		qcom,hpm-min-load = <100000>;
-		status = "disabled";
+		status = "ok";
 
 		ipq6018_s2_corner: regulator-s2 {
 			compatible = "qcom,rpm-glink-regulator";
 			regulator-name = "ipq6018_s2";
 			regulator-min-microvolt = <587500>;
-			regulator-max-microvolt = <1062500>;
+			regulator-max-microvolt = <1100000>;
 			qcom,always-send-voltage;
-			qcom,set = <1>;
-			status = "disabled";
+			qcom,set = <3>;
+			status = "ok";
 		};
 	};
 
