@@ -133,6 +133,7 @@ static DECLARE_RWSEM(qrtr_node_lock);
 /* local port allocation management */
 static DEFINE_IDR(qrtr_ports);
 static DEFINE_MUTEX(qrtr_port_lock);
+static DEFINE_MUTEX(qrtr_node_locking);
 
 /**
  * struct qrtr_node - endpoint node
@@ -335,7 +336,7 @@ static void __qrtr_node_release(struct kref *kref)
 	}
 
 	list_del(&node->item);
-	up_write(&qrtr_node_lock);
+	mutex_unlock(&qrtr_node_locking);
 
 	/* Free tx flow counters */
 	mutex_lock(&node->qrtr_tx_lock);
@@ -371,7 +372,7 @@ static void qrtr_node_release(struct qrtr_node *node)
 {
 	if (!node)
 		return;
-	kref_put_rwsem_lock(&node->ref, __qrtr_node_release, &qrtr_node_lock);
+	kref_put_mutex(&node->ref, __qrtr_node_release, &qrtr_node_locking);
 }
 
 /**
