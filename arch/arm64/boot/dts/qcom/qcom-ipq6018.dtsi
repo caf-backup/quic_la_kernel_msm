@@ -17,6 +17,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/qcom,gcc-ipq6018.h>
 #include <dt-bindings/reset/qcom,gcc-ipq6018.h>
+#include <dt-bindings/clock/qca,apss-ipq6018.h>
 #include "qcom-ipq6018-memory.dtsi"
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/sound/qcom,gpr.h>
@@ -59,6 +60,13 @@
 			reg = <0x1800000 0x80000>;
 			#clock-cells = <0x1>;
 			#reset-cells = <0x1>;
+		};
+
+		apss_clk: qcom,apss_clk@b111000 {
+			compatible = "qcom,apss-ipq6018";
+			reg = <0xb111000 0x6000>;
+			#clock-cells = <0x1>;
+			#reset-cells = <1>;
 		};
 
 		adsp_mem: adsp_region {
@@ -2133,6 +2141,8 @@
 			enable-method = "psci";
 			qcom,acc = <&acc0>;
 			next-level-cache = <&L2_0>;
+			clocks = <&apss_clk APCS_ALIAS0_CORE_CLK>;
+			clock-names = "cpu";
 
 			L2_0: l2-cache {
 				compatible = "cache";
@@ -2147,6 +2157,8 @@
 			qcom,acc = <&acc1>;
 			reg = <0x1>;
 			next-level-cache = <&L2_0>;
+			clocks = <&apss_clk APCS_ALIAS0_CORE_CLK>;
+			clock-names = "cpu";
 		};
 
 		CPU2: cpu@2 {
@@ -2156,6 +2168,8 @@
 			qcom,acc = <&acc2>;
 			reg = <0x2>;
 			next-level-cache = <&L2_0>;
+			clocks = <&apss_clk APCS_ALIAS0_CORE_CLK>;
+			clock-names = "cpu";
 		};
 
 		CPU3: cpu@3 {
@@ -2165,6 +2179,8 @@
 			qcom,acc = <&acc3>;
 			reg = <0x3>;
 			next-level-cache = <&L2_0>;
+			clocks = <&apss_clk APCS_ALIAS0_CORE_CLK>;
+			clock-names = "cpu";
 		};
 	};
 
