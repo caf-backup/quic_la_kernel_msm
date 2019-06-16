@@ -33,6 +33,8 @@ bit 8: when set --> Request not to classify on ingress.
 
 bits 9,10,11: redirect counter -  redirect TTL. Loop avoidance
 
+bit 12: when set --> Request not to apply NSS ingress shaping on packets.
+
  *
  * */
 
@@ -54,6 +56,10 @@ bits 9,10,11: redirect counter -  redirect TTL. Loop avoidance
 #define G_TC_AT(x)       _TC_GETVALUE(x,S_TC_AT,M_TC_AT)
 #define V_TC_AT(x)       _TC_MAKEVALUE(x,S_TC_AT)
 #define SET_TC_AT(v,n)   ((V_TC_AT(n)) | (v & ~M_TC_AT))
+
+#define TC_NCLS_NSS          _TC_MAKEMASK1(12)
+#define SET_TC_NCLS_NSS(v)   ( TC_NCLS_NSS | ((v) & ~TC_NCLS_NSS))
+#define CLR_TC_NCLS_NSS(v)   ( (v) & ~TC_NCLS_NSS)
 
 #define MAX_REC_LOOP 4
 #define MAX_RED_LOOP 4
