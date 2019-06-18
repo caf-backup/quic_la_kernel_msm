@@ -447,7 +447,6 @@
 			       snps,dis_u3_susphy_quirk;
 				   snps,quirk-ref-clock-adjustment = <0xA87F0>;
 				   snps,quirk-ref-clock-period = <0x29>;
-			       usb2-susphy-quirk;
 			       dr_mode = "host";
 			};
 		};
@@ -522,7 +521,6 @@
 			       snps,dis_u3_susphy_quirk;
 				   snps,quirk-ref-clock-adjustment = <0xA87F0>;
 				   snps,quirk-ref-clock-period = <0x29>;
-			       usb2-susphy-quirk;
 			       dr_mode = "host";
 			};
 		};
