@@ -266,33 +266,6 @@ static int __fast_dma_direction_to_prot(enum dma_data_direction dir)
 	}
 }
 
-
-static void __iommu_sync_single_for_cpu(struct device *dev,
-					dma_addr_t dev_addr, size_t size,
-					enum dma_data_direction dir)
-{
-	phys_addr_t phys;
-
-	if (is_device_dma_coherent(dev))
-		return;
-
-	phys = iommu_iova_to_phys(iommu_get_domain_for_dev(dev), dev_addr);
-	__dma_unmap_area(phys_to_virt(phys), size, dir);
-}
-
-static void __iommu_sync_single_for_device(struct device *dev,
-					   dma_addr_t dev_addr, size_t size,
-					   enum dma_data_direction dir)
-{
-	phys_addr_t phys;
-
-	if (is_device_dma_coherent(dev))
-		return;
-
-	phys = iommu_iova_to_phys(iommu_get_domain_for_dev(dev), dev_addr);
-	__dma_map_area(phys_to_virt(phys), size, dir);
-}
-
 static dma_addr_t fast_smmu_map_page(struct device *dev, struct page *page,
 				   unsigned long offset, size_t size,
 				   enum dma_data_direction dir,
@@ -435,7 +408,6 @@ static struct page **__fast_smmu_alloc_pages(unsigned int count, gfp_t gfp)
 {
 	struct page **pages;
 	unsigned int i = 0, array_size = count * sizeof(*pages);
-	unsigned int order = get_order(count * PAGE_SIZE);
 
 	if (array_size <= PAGE_SIZE)
 		pages = kzalloc(array_size, GFP_KERNEL);
@@ -459,50 +431,6 @@ static struct page **__fast_smmu_alloc_pages(unsigned int count, gfp_t gfp)
 	}
 
 	return pages;
-}
-
-/* Thankfully, all cache ops are by VA so we can ignore phys here */
-static void flush_page(struct device *dev, const void *virt, phys_addr_t phys)
-{
-	__dma_flush_range(virt, virt + PAGE_SIZE);
-}
-
-static void *__iommu_alloc_attrs(struct device *dev, size_t size,
-				 dma_addr_t *handle, gfp_t gfp,
-				 struct dma_attrs *attrs)
-{
-	bool coherent = is_device_dma_coherent(dev);
-	int ioprot = IOMMU_READ | IOMMU_WRITE;
-	size_t iosize = size;
-	void *addr;
-
-	if (WARN(!dev, "cannot create IOMMU mapping for unknown device\n"))
-		return NULL;
-
-	size = PAGE_ALIGN(size);
-
-	/*
-	 * Some drivers rely on this, and we probably don't want the
-	 * possibility of stale kernel data being read by devices anyway.
-	 */
-	gfp |= __GFP_ZERO;
-
-	if (gfpflags_allow_blocking(gfp)) {
-		struct page **pages;
-		pgprot_t prot = pgprot_writecombine(PAGE_KERNEL);
-
-		pages = iommu_dma_alloc(dev, iosize, gfp, attrs, ioprot,
-					handle, flush_page);
-		if (!pages)
-			return NULL;
-
-		addr = dma_common_pages_remap(pages, size, VM_USERMAP, prot,
-					      __builtin_return_address(0));
-		if (!addr)
-			iommu_dma_free(dev, pages, iosize, handle);
-	}
-
-	return addr;
 }
 
 static void *fast_smmu_alloc(struct device *dev, size_t size,
@@ -765,7 +693,6 @@ err:
 int fast_smmu_attach_device(struct device *dev,
 			    struct dma_iommu_mapping *mapping)
 {
-	int atomic_domain = 1;
 	struct iommu_domain *domain = mapping->domain;
 	struct iommu_pgtbl_info info;
 	u64 size = (u64)mapping->bits << PAGE_SHIFT;
