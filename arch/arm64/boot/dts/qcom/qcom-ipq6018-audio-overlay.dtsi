@@ -17,6 +17,8 @@
 &bolero {
 	qcom,num-macros = <3>;
 	qcom,va-without-decimation;
+	#address-cells = <1>;
+	#size-cells = <1>;
 	tx_macro: tx-macro@A460000 {
 		compatible = "qcom,tx-macro";
 		reg = <0xA460000 0x0>;
