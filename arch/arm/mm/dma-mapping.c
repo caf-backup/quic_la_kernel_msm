@@ -2197,8 +2197,9 @@ static bool arm_setup_iommu_dma_ops(struct device *dev, u64 dma_base, u64 size,
 		}
 	} else {
 		queue_iommu_attach(dev, dma_base, size);
-		return true;
 	}
+
+	return true;
 }
 
 static void arm_teardown_iommu_dma_ops(struct device *dev)
