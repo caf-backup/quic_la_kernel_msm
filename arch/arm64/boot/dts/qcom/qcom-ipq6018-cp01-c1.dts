@@ -120,11 +120,30 @@
 
 	spi_1_pins: spi_1_pins {
 		mux {
-			pins = "gpio69", "gpio70", "gpio71", "gpio72";
+			pins = "gpio69", "gpio71", "gpio72";
 			function = "blsp1_spi";
 			drive-strength = <8>;
 			bias-pull-down;
 		};
+		spi_cs {
+			pins = "gpio70";
+			function = "blsp1_spi";
+			drive-strength = <8>;
+			bias-disable;
+		};
+		quartz_interrupt {
+			pins = "gpio78";
+			function = "gpio";
+			input;
+			bias-disable;
+		};
+		quartz_reset {
+			pins = "gpio79";
+			function = "gpio";
+			output-low;
+			bias-disable;
+		};
+
 	};
 
 	qpic_pins: qpic_pins {
@@ -379,8 +398,9 @@
 &spi_1 { /* BLSP1 QUP1 */
 	pinctrl-0 = <&spi_1_pins>;
 	pinctrl-names = "default";
+	cs-select = <0>;
+	quartz-reset-gpio = <&tlmm 79 1>;
 	status = "ok";
-
 	spidev1: spi@1 {
 		compatible = "qca,spidev";
 		reg = <0>;

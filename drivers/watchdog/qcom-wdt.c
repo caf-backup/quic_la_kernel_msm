@@ -240,7 +240,7 @@ in addition to PGD to construct pagetable walk */
 		/* For 64 bit config, additonally dump PMD and PT entries */
 		if (IS_ENABLED(CONFIG_ARM64) && type ==
 				 QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD) {
-			ret = get_highmem_info((const void *)(temp_start_addr
+			ret = get_highmem_info((const void *)(uintptr_t)(temp_start_addr
 				& (~(PAGE_SIZE - 1))),
 				type);
 			if (ret) {
@@ -253,7 +253,7 @@ in addition to PGD to construct pagetable walk */
 		we need crooesponding PT entries in addition to PGD for
 		pagetable walk construction. For 64 bit we require corrsponding PMD
 		and PT enteries,in addition to PGD to construct pagetable walk */
-		ret = get_highmem_info((const void *) (start_addr &
+		ret = get_highmem_info((const void *)(uintptr_t)(start_addr &
 					(~(PAGE_SIZE - 1))), type);
 		if (ret) {
 			pr_info("MINIDUMP error dumping MMU %d \n", ret);
@@ -263,7 +263,7 @@ in addition to PGD to construct pagetable walk */
 		/* VA to PA address translation for high mem addresses
 		cannot be done using __pa() API. Use vmalloc_to_page ()
 		and page_to_phys() APIs for the same */
-		minidump_tlv_page = vmalloc_to_page((const void *)
+		minidump_tlv_page = vmalloc_to_page((const void *)(uintptr_t)
 				(start_addr & (~(PAGE_SIZE - 1))));
 		phys_addr = page_to_phys(minidump_tlv_page) +
 				offset_in_page(start_addr);
@@ -374,7 +374,7 @@ static int qcom_wdt_scm_fill_log_dump_tlv(
 		return ret_val;
 	}
 
-	ret_val = fill_minidump_segments((uint64_t) mod_log,(uint64_t)__pa(&mod_log_len),
+	ret_val = fill_minidump_segments((uint64_t)(uintptr_t)mod_log,(uint64_t)__pa(&mod_log_len),
 					QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD_INFO, NULL);
 	if (ret_val) {
 		pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
