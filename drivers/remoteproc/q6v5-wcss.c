@@ -195,8 +195,6 @@ static void ipq60xx_wcss_clks_disable(struct device *dev, int count)
 		clk_disable_unprepare(wcss_clks[i]);
 		devm_clk_put(dev, wcss_clks[i]);
 	}
-
-	return 0;
 }
 
 static int ipq60xx_wcss_clks_prepare_enable(struct device *dev)
@@ -389,7 +387,8 @@ static ssize_t q6_dump_read(struct file *file, char __user *buf, size_t count,
 			if (!buffer) {
 				pr_err("can not map physical address %x : %d\n",
 					(unsigned int)q6dump.dump_aphy_addr +
-					dfp->rel_addr_off - q6dump.dump_size,
+					dfp->rel_addr_off -
+					(unsigned int)q6dump.dump_size,
 					(int)count);
 				return -ENOMEM;
 			}
@@ -887,7 +886,7 @@ static int ipq60xx_q6_rproc_emu_start(struct rproc *rproc)
 		mdelay(1);
 		nretry++;
 		if (nretry >= 10000) {
-			pr_err("[%s]: Boot Error, SSCAON=0x%08X\n",
+			pr_err("[%s]: Boot Error, SSCAON=0x%08lX\n",
 					pdata->subsys_desc.name, val);
 			break;
 		}
@@ -1112,7 +1111,7 @@ static int ipq60xx_q6_rproc_start(struct rproc *rproc)
 		mdelay(1);
 		nretry++;
 		if (nretry >= 1000) {
-			pr_err("[%s]: Boot Error, SSCAON=0x%08X\n",
+			pr_err("[%s]: Boot Error, SSCAON=0x%08lX\n",
 					pdata->subsys_desc.name, val);
 			break;
 		}
