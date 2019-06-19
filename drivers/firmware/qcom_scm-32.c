@@ -1712,7 +1712,7 @@ int __qcom_scm_lock_subsys_mem(struct device *dev, u32 subsys_id,
 		return -ENOTSUPP;
 
 	desc.args[0] = subsys_id;
-	desc.args[1] = (u64)paddr;
+	desc.args[1] = (u32)paddr;
 	desc.args[2] = size;
 	desc.arginfo = SCM_ARGS(3);
 	ret = qcom_scm_call2(SCM_SIP_FNID(QCOM_SCM_SVC_PIL,
@@ -1732,7 +1732,7 @@ int __qcom_scm_unlock_subsys_mem(struct device *dev, u32 subsys_id,
 		return -ENOTSUPP;
 
 	desc.args[0] = subsys_id;
-	desc.args[1] = (u64)paddr;
+	desc.args[1] = (u32)paddr;
 	desc.args[2] = size;
 	desc.args[3] = key;
 	desc.arginfo = SCM_ARGS(4);
