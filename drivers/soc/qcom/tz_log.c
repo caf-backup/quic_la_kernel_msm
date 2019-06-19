@@ -32,18 +32,17 @@
 #include <linux/of_device.h>
 #include <linux/mm.h>
 #include <linux/gfp.h>
+#include <linux/sizes.h>
 
-#define BUF_LEN_V8 0x2000
-#define BUF_LEN_V7 0x1000
+#define DEFAULT_TZBSP_DIAG_BUF_LEN	SZ_4K
 
 static unsigned int paniconaccessviolation = 0;
 
 /* Maximum size for buffers to support AARCH64 TZ */
-#define HVC_PRESENT BIT(0)
-#define TZ_64 BIT(1)
-#define TZ_KPSS BIT(2)
-
-#define TZ64_HVC_PRESENT (HVC_PRESENT | TZ_64)
+#define TZ_64 BIT(0)
+#define TZ_KPSS BIT(1)
+#define TZ_HK BIT(2)
+#define TZ_CP BIT(3)
 
 struct tzbsp_log_pos_t {
 	uint16_t wrap;		/* Ring buffer wrap-around ctr */
@@ -77,13 +76,23 @@ struct tzbsp_diag_t_kpss {
 };
 
 /* Below structure to support AARCH64 TZ */
-struct tzbsp_diag_t_v8 {
+struct ipq807x_tzbsp_diag_t_v8 {
 	uint32_t unused[7];	/* Unused variable is to support the
 				 * corresponding structure in trustzone
 				 * and size is varying based on AARCH64 TZ
 				 */
 	uint32_t ring_off;
 	uint32_t unused1[571];
+	struct tzbsp_diag_log_t log;
+};
+
+struct ipq6018_tzbsp_diag_t_v8 {
+	uint32_t unused[7];	/* Unused variable is to support the
+				 * corresponding structure in trustzone
+				 * and size is varying based on AARCH64 TZ
+				 */
+	uint32_t ring_off;
+	uint32_t unused1[802];
 	struct tzbsp_diag_log_t log;
 };
 
@@ -117,6 +126,7 @@ struct tz_hvc_log_struct {
 	int copy_len;
 	int flags;
 	int buf_len;
+	u32 hyp_scm_cmd_id;
 	struct mutex lock;
 };
 
@@ -128,7 +138,8 @@ static int tz_log_open(struct inode *inode, struct file *file)
 	uint32_t buf_len;
 	uint16_t wrap;
 	struct tzbsp_diag_t *tz_diag;
-	struct tzbsp_diag_t_v8 *tz_diag_v8;
+	struct ipq807x_tzbsp_diag_t_v8 *ipq807x_diag_buf;
+	struct ipq6018_tzbsp_diag_t_v8 *ipq6018_diag_buf;
 	struct tzbsp_diag_t_kpss *tz_diag_kpss;
 	struct tzbsp_diag_log_t *log;
 	uint16_t offset;
@@ -160,10 +171,16 @@ static int tz_log_open(struct inode *inode, struct file *file)
 		memcpy(tmp_buf, (ker_buf + ring), (buf_len - ring));
 		tz_hvc_log->copy_len = buf_len - ring;
 	} else {
-		if (tz_hvc_log->flags & TZ_64) {
-			tz_diag_v8 = (struct tzbsp_diag_t_v8 *)ker_buf;
-			ring = tz_diag_v8->ring_off;
-			log = &tz_diag_v8->log;
+		if (tz_hvc_log->flags & TZ_HK) {
+			ipq807x_diag_buf =
+				(struct ipq807x_tzbsp_diag_t_v8 *)ker_buf;
+			ring = ipq807x_diag_buf->ring_off;
+			log = &ipq807x_diag_buf->log;
+		} else if (tz_hvc_log->flags & TZ_CP) {
+			ipq6018_diag_buf =
+				(struct ipq6018_tzbsp_diag_t_v8 *)ker_buf;
+			ring = ipq6018_diag_buf->ring_off;
+			log = &ipq6018_diag_buf->log;
 		} else {
 			tz_diag = (struct tzbsp_diag_t *) ker_buf;
 			ring = tz_diag->ring_off;
@@ -233,7 +250,8 @@ static int hvc_log_open(struct inode *inode, struct file *file)
 	buf_len = tz_hvc_log->buf_len;
 
 	/* SCM call to TZ to get the hvc log */
-	ret = qcom_scm_hvc_log(ker_buf, buf_len);
+	ret = qcom_scm_hvc_log(SCM_SVC_INFO, tz_hvc_log->hyp_scm_cmd_id,
+							ker_buf, buf_len);
 	if (ret != 0) {
 		pr_err("Error in getting hvc log\n");
 		mutex_unlock(&tz_hvc_log->lock);
@@ -307,7 +325,8 @@ static irqreturn_t tzerr_irq(int irq, void *data)
 
 static const struct of_device_id qca_tzlog_of_match[] = {
 	{ .compatible = "qca,tzlog" },
-	{ .compatible = "qca,tz64-hv-log", .data = (void *)TZ64_HVC_PRESENT},
+	{ .compatible = "qca,tz64-hv-log", .data = (void *)TZ_HK},
+	{ .compatible = "qca,tzlog_ipq6018", .data = (void *)TZ_CP},
 	{ .compatible = "qca,tz64log", .data = (void *)TZ_64},
 	{ .compatible = "qca,tzlog_ipq806x", .data = (void *)TZ_KPSS },
 	{}
@@ -323,6 +342,7 @@ static int qca_tzlog_probe(struct platform_device *pdev)
 	struct dentry *hvc_fileret;
 	struct tz_hvc_log_struct *tz_hvc_log;
 	struct page *page_buf;
+	struct device_node *np = pdev->dev.of_node;
 
 	tz_hvc_log = (struct tz_hvc_log_struct *)
 			kzalloc(sizeof(struct tz_hvc_log_struct), GFP_KERNEL);
@@ -333,16 +353,12 @@ static int qca_tzlog_probe(struct platform_device *pdev)
 
 	id = of_match_device(qca_tzlog_of_match, &pdev->dev);
 
-	if (id) {
-		tz_hvc_log->flags = (unsigned long)id->data;
-		if (tz_hvc_log->flags & TZ_KPSS)
-			tz_hvc_log->buf_len = BUF_LEN_V7;
-		else
-			tz_hvc_log->buf_len = BUF_LEN_V8;
-	} else {
-		tz_hvc_log->flags = 0;
-		tz_hvc_log->buf_len = BUF_LEN_V7;
-	}
+	tz_hvc_log->flags = id ? (unsigned long)id->data : 0;
+
+	ret = of_property_read_u32(np, "qca,tzbsp-diag-buf-size",
+						&(tz_hvc_log->buf_len));
+	if (ret)
+		tz_hvc_log->buf_len = DEFAULT_TZBSP_DIAG_BUF_LEN;
 
 	page_buf = alloc_pages(GFP_KERNEL,
 					get_order(tz_hvc_log->buf_len));
@@ -381,7 +397,13 @@ static int qca_tzlog_probe(struct platform_device *pdev)
 		goto remove_debugfs;
 	}
 
-	if ((tz_hvc_log->flags) & HVC_PRESENT) {
+	if (of_property_read_bool(np, "qca,hyp-enabled")) {
+
+		ret = of_property_read_u32(np, "hyp-scm-cmd-id",
+						&(tz_hvc_log->hyp_scm_cmd_id));
+		if (ret)
+			tz_hvc_log->hyp_scm_cmd_id = HVC_INFO_GET_DIAG_ID;
+
 		hvc_fileret = debugfs_create_file("hvc_log", 0444,
 			tz_hvc_log->tz_dirret, tz_hvc_log, &fops_hvc_log);
 		if (IS_ERR_OR_NULL(hvc_fileret)) {
