@@ -311,3 +311,11 @@
 &pcie0 {
 	status = "ok";
 };
+
+&qpic_lcd {
+	status = "ok";
+};
+
+&qpic_lcd_panel {
+	status = "ok";
+};
