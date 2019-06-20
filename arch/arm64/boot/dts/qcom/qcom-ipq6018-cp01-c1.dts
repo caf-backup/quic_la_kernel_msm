@@ -213,6 +213,15 @@
 		};
 	};
 
+	extcon_usb_pins: extcon_usb_pins {
+		mux {
+			pins = "gpio26";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
+
 	button_pins: button_pins {
 		wps_button {
 			pins = "gpio9";
@@ -249,6 +258,13 @@
 };
 
 &soc {
+	extcon_usb: extcon_usb {
+		pinctrl-0 = <&extcon_usb_pins>;
+		pinctrl-names = "default";
+		id-gpio = <&tlmm 26 GPIO_ACTIVE_LOW>;
+		status = "ok";
+	};
+
 	mdio: mdio@90000 {
 		pinctrl-0 = <&mdio_pins>;
 		pinctrl-names = "default";
