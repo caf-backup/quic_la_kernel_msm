@@ -226,19 +226,14 @@ static void dwc3_frame_length_adjustment(struct dwc3 *dwc, u32 fladj)
 static void dwc3_ref_clk_adjustment(struct dwc3 *dwc, u32 ref_clk_adj)
 {
 	u32 reg;
-	u32 dft;
 
 	if (ref_clk_adj == 0)
 		return;
 
 	reg = dwc3_readl(dwc->regs, DWC3_GFLADJ);
-	dft = ((reg & DWC3_GFLADJ_REFCLK_MASK) >> DWC3_GFLADJ_REFCLK_SEL);
-	if (!dev_WARN_ONCE(dwc->dev, dft == ref_clk_adj,
-		"ref clk adjustment value same as default, ignoring\n")) {
-		reg &= ~DWC3_GFLADJ_REFCLK_MASK;
-		reg |=  (ref_clk_adj << DWC3_GFLADJ_REFCLK_SEL);
-		dwc3_writel(dwc->regs, DWC3_GFLADJ, reg);
-	}
+	reg &= ~DWC3_GFLADJ_REFCLK_MASK;
+	reg |=  (ref_clk_adj << DWC3_GFLADJ_REFCLK_SEL);
+	dwc3_writel(dwc->regs, DWC3_GFLADJ, reg);
 }
 
 /**
@@ -251,20 +246,15 @@ static void dwc3_ref_clk_adjustment(struct dwc3 *dwc, u32 ref_clk_adj)
  */
 static void dwc3_ref_clk_period(struct dwc3 *dwc, u32 ref_clk_per)
 {
-    u32 reg;
-	u32 dft;
+	u32 reg;
 
 	if (ref_clk_per == 0)
 		return;
 
 	reg = dwc3_readl(dwc->regs, DWC3_GUCTL);
-	dft = ((reg & DWC3_GUCTL_REFCLKPER_MASK ) >> DWC3_GUCTL_REFCLKPER_SEL);
-	if (!dev_WARN_ONCE(dwc->dev, dft == ref_clk_per,
-		"ref clk period value same as default, ignoring\n")) {
-		reg &= ~DWC3_GUCTL_REFCLKPER_MASK;
-		reg |=  (ref_clk_per << DWC3_GUCTL_REFCLKPER_SEL);
-		dwc3_writel(dwc->regs, DWC3_GUCTL, reg);
-	}
+	reg &= ~DWC3_GUCTL_REFCLKPER_MASK;
+	reg |=  (ref_clk_per << DWC3_GUCTL_REFCLKPER_SEL);
+	dwc3_writel(dwc->regs, DWC3_GUCTL, reg);
 }
 
 /**
