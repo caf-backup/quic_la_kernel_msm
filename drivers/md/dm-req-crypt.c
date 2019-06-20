@@ -42,7 +42,6 @@ struct crypto_config_dev {
 };
 
 static struct kmem_cache *_req_crypt_io_pool;
-static sector_t start_sector_orig;
 static mempool_t *req_io_pool;
 static struct ice_crypto_setting *ice_settings;
 
@@ -167,9 +166,10 @@ static int req_crypt_map(struct dm_target *ti, struct request *clone,
 
 static void req_crypt_dtr(struct dm_target *ti)
 {
+	struct crypto_config_dev *cd = ti->private;
+
 	DMDEBUG("dm-req-crypt Destructor.\n");
 
-	struct crypto_config_dev *cd = ti->private;
 	ti->private = NULL;
 
 	if (req_io_pool) {
