@@ -514,9 +514,6 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-ipq4019-ap.dk07.1-c2.dtb \
 	qcom-ipq4019-ap.dk07.1-c3.dtb \
 	qcom-ipq4019-ap.dk07.1-c4.dtb \
-	qcom-ipq6018-emulation-c1.dtb \
-	qcom-ipq6018-emulation-c2.dtb \
-	qcom-ipq6018-emulation-c3.dtb \
 	qcom-apq8064-cm-qs600.dtb \
 	qcom-apq8064-ifc6410.dtb \
 	qcom-apq8074-dragonboard.dtb \
@@ -550,13 +547,20 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-ipq8064-v3.0-ak01.dtb \
 	qcom-msm8660-surf.dtb \
 	qcom-msm8960-cdp.dtb \
-	qcom-msm8974-sony-xperia-honami.dtb \
-	qcom-ipq6018-cp01-c1.dtb \
+	qcom-msm8974-sony-xperia-honami.dtb
+ifneq ($(CONFIG_IPQ_MEM_PROFILE),$(filter $(CONFIG_IPQ_MEM_PROFILE),256 512))
+dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-ipq6018-cp01-c2.dtb \
-	qcom-ipq6018-cp02-c1.dtb \
-	qcom-ipq6018-cp03-c1.dtb \
 	qcom-ipq6018-db-cp01.dtb \
 	qcom-ipq6018-db-cp02.dtb \
+	qcom-ipq6018-emulation-c1.dtb \
+	qcom-ipq6018-emulation-c2.dtb \
+	qcom-ipq6018-emulation-c3.dtb
+endif
+dtb-$(CONFIG_ARCH_QCOM) += \
+	qcom-ipq6018-cp01-c1.dtb \
+	qcom-ipq6018-cp02-c1.dtb \
+	qcom-ipq6018-cp03-c1.dtb \
 	qcom-ipq807x-hk01.dtb \
 	qcom-ipq807x-hk01.c2.dtb \
 	qcom-ipq807x-hk01.c3.dtb \
