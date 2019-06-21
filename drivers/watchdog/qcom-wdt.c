@@ -892,7 +892,7 @@ const struct qcom_wdt_props qcom_wdt_props_ipq40xx = {
 
 const struct qcom_wdt_props qcom_wdt_props_ipq6018 = {
 	.layout = reg_offset_data_kpss,
-	.tlv_msg_offset = SZ_4K,
+	.tlv_msg_offset = (240 * SZ_1K),
 	/* As XBL overwrites the NSS UTCM, TZ has to copy it to some memory
 	 * on crash before it restarts the system. Hence, reserving of 192K
 	 * is required to copy the NSS UTCM before restart is done.
@@ -902,7 +902,12 @@ const struct qcom_wdt_props qcom_wdt_props_ipq6018 = {
 	 *
 	 * get_order function returns the next higher order as output,
 	 * so when we pass 203K as argument 256K will be allocated.
-	 * 53K is unused currently and can be used based on future needs.
+	 * 37K is unused currently and can be used based on future needs.
+	 * 16K is used for crashdump TLV buffer for Minidump feature.
+	 * For minidump feature, last 16K of crashdump page size is used for
+	 * TLV buffer in the case of ipq807x. Same offset (last 16 K from end
+	 * of crashdump page) is used for ipq60xx as well, to keep design
+	 * consistent.
 	 */
 	/*
 	 * The memory is allocated using alloc_pages, hence it will be in
@@ -922,13 +927,17 @@ const struct qcom_wdt_props qcom_wdt_props_ipq6018 = {
 	 *		|    3K - DCC	|
 	 *		 ---------------
 	 *		|		|
-	 *		|     53K	|
+	 *		|     37K	|
 	 *		|    Unused	|
 	 *		|		|
 	 *		 ---------------
-	 */
+	*		|     16 K     |
+	*		|   TLV Buffer |
+	*		---------------
+	*
+*/
 	.crashdump_page_size = (SZ_8K + (192 * SZ_1K) + (3 * SZ_1K) +
-				(53 * SZ_1K)),
+				(37 * SZ_1K) + (16 * SZ_1K)),
 	.secure_wdog = true,
 };
 
