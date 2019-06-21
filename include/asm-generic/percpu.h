@@ -17,7 +17,11 @@
 #ifndef __per_cpu_offset
 extern unsigned long __per_cpu_offset[NR_CPUS];
 
+#ifdef __KLOCWORK__
+#define per_cpu_offset(x) ((x < NR_CPUS) ? __per_cpu_offset[x] : 0)
+#else
 #define per_cpu_offset(x) (__per_cpu_offset[x])
+#endif
 #endif
 
 /*
