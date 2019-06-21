@@ -1026,7 +1026,7 @@ static int stop_q6(const struct subsys_desc *subsys, bool force_stop)
 	struct rproc *rproc = pdata->rproc;
 	int ret = 0;
 
-	if (!subsys_get_crash_status(pdata->subsys) && force_stop) {
+	if (!subsys_get_crash_status(pdata->subsys) && !force_stop) {
 		qcom_smem_state_update_bits(pdata->state,
 			BIT(pdata->stop_bit), BIT(pdata->stop_bit));
 
