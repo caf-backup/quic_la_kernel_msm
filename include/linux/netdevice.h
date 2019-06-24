@@ -3556,6 +3556,15 @@ void dev_uc_flush(struct net_device *dev);
 void dev_uc_init(struct net_device *dev);
 
 /**
+ *  ifb_update_offload_stats - Update the IFB interface stats
+ *  @dev: IFB device to update the stats
+ *  @offload_stats: per CPU stats structure
+ *
+ *  Allows update of IFB stats when flows are offloaded to an accelerator.
+ **/
+void ifb_update_offload_stats(struct net_device *dev, struct pcpu_sw_netstats *offload_stats);
+
+/**
  *  __dev_uc_sync - Synchonize device's unicast list
  *  @dev:  device to sync
  *  @sync: function to call if address should be added
