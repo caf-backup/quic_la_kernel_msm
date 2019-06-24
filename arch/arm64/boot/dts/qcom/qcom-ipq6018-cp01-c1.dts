@@ -45,10 +45,13 @@
 	 * for memory layout.
 	 */
 
+/* TZAPP is enabled in default memory profile only */
+#if !defined(__IPQ_MEM_PROFILE_256_MB__) && !defined(__IPQ_MEM_PROFILE_512_MB__)
 	reserved-memory {
 		tzapp:tzapp@49F00000 {	/* TZAPPS */
 			no-map;
 			reg = <0x0 0x49F00000 0x0 0x00200000>;
 		};
 	};
+#endif
 };

@@ -79,11 +79,13 @@
 				qcom,ion-heap-type = "SYSTEM";
 			};
 
+#if !defined(__IPQ_MEM_PROFILE_256_MB__) && !defined(__IPQ_MEM_PROFILE_512_MB__)
 			qcom,ion-heap@22 { /* ADSP HEAP */
 				reg = <22>;
 				memory-region = <&adsp_mem>;
 				qcom,ion-heap-type = "DMA";
 			};
+#endif
 		};
 
 		smmu500: arm,smmu@1E00000 {
