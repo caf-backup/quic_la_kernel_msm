@@ -17,6 +17,7 @@
 
 #include "qcom-ipq6018-cp01.dtsi"
 #include "qcom-ipq6018-audio-overlay.dtsi"
+#include "qcom-ipq6018-circular-pca9956.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. IPQ6018/AP-CP01-C2";
@@ -64,6 +65,24 @@
 	};
 };
 
+&tlmm {
+	i2c_1_pins: i2c_1_pins {
+		mux {
+			pins = "gpio42", "gpio43";
+			function = "blsp2_i2c";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+		pca9956b_reset_gpio {
+			pins = "gpio25";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-down;
+			output-high;
+		};
+	};
+};
+
 &glink_adsp {
 	status = "ok";
 };
@@ -82,4 +101,9 @@
 
 &glink_adsp_ssr {
 	status = "ok";
+};
+
+&i2c_1 {
+	pinctrl-0 = <&i2c_1_pins>;
+	pinctrl-names = "default";
 };
