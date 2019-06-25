@@ -17,13 +17,16 @@
 &bolero {
 	qcom,num-macros = <3>;
 	qcom,va-without-decimation;
+	#address-cells = <1>;
+	#size-cells = <1>;
 	tx_macro: tx-macro@A460000 {
 		compatible = "qcom,tx-macro";
 		reg = <0xA460000 0x0>;
 		clock-names = "tx_core_clk", "tx_npl_clk";
 		clocks = <&clock_audio_tx_1 0>,
 			 <&clock_audio_tx_2 0>;
-		qcom,tx-dmic-sample-rate = <2400000>;
+		qcom,tx-dmic-sample-rate = <3072000>;
+		qcom,tx-mclk-freq = <12288000>;
 	};
 
 	wsa_macro: wsa-macro@A480000 {
@@ -32,6 +35,7 @@
 		clock-names = "wsa_core_clk", "wsa_npl_clk";
 		clocks = <&clock_audio_wsa_1 0>,
 			 <&clock_audio_wsa_2 0>;
+		qcom,wsa-mclk-freq = <12288000>;
 		qcom,wsa-swr-gpios = <&wsa_swr_gpios>;
 		swr0: wsa_swr_master {
 			compatible = "qcom,swr-mstr";
@@ -48,6 +52,7 @@
 				<6 SPKR_R_BOOST 0x3>, <7 SPKR_L_VI 0x3>,
 				<8 SPKR_R_VI 0x3>;
 			qcom,swr-num-dev = <2>;
+			qcom,swr-mclk-freq = <12288000>;
 			wsa881x_0211: wsa881x@20170211 {
 				compatible = "qcom,wsa881x";
 				reg = <0x0 0x20170211>;
@@ -316,6 +321,14 @@
 	qcom,msm-mi2s-master = <1>, <1>, <1>, <1>, <1>;
 	qcom,audio-routing =
 		"TX_AIF1 CAP", "VA_MCLK",
+		"TX DMIC0", "TX MIC BIAS1",
+		"TX MIC BIAS1", "Digital Mic0",
+		"TX DMIC1", "TX MIC BIAS1",
+		"TX MIC BIAS1", "Digital Mic1",
+		"TX DMIC2", "TX MIC BIAS1",
+		"TX MIC BIAS1", "Digital Mic2",
+		"TX DMIC3", "TX MIC BIAS1",
+		"TX MIC BIAS1", "Digital Mic3",
 		"TX_AIF2 CAP", "VA_MCLK",
 		"WSA_TX DEC0_INP", "TX DEC0 MUX",
 		"WSA_TX DEC1_INP", "TX DEC1 MUX",
@@ -375,7 +388,7 @@
 	clock_audio_wsa_1: wsa_core_clk {
 		compatible = "qcom,audio-ref-clk";
 		qcom,codec-ext-clk-src = <AUDIO_LPASS_MCLK_2>;
-		qcom,codec-lpass-ext-clk-freq = <19200000>;
+		qcom,codec-lpass-ext-clk-freq = <24576000>;
 		qcom,codec-lpass-clk-id = <0x305>;
 		#clock-cells = <1>;
 	};
@@ -383,7 +396,7 @@
 	clock_audio_wsa_2: wsa_npl_clk {
 		compatible = "qcom,audio-ref-clk";
 		qcom,codec-ext-clk-src = <AUDIO_LPASS_MCLK_3>;
-		qcom,codec-lpass-ext-clk-freq = <19200000>;
+		qcom,codec-lpass-ext-clk-freq = <24576000>;
 		qcom,codec-lpass-clk-id = <0x306>;
 		#clock-cells = <1>;
 	};
@@ -391,7 +404,7 @@
 	clock_audio_tx_1: tx_core_clk {
 		compatible = "qcom,audio-ref-clk";
 		qcom,codec-ext-clk-src = <AUDIO_LPASS_MCLK_6>;
-		qcom,codec-lpass-ext-clk-freq = <19200000>;
+		qcom,codec-lpass-ext-clk-freq = <24576000>;
 		qcom,codec-lpass-clk-id = <0x30C>;
 		#clock-cells = <1>;
 	};
@@ -399,14 +412,14 @@
 	clock_audio_tx_2: tx_npl_clk {
 		compatible = "qcom,audio-ref-clk";
 		qcom,codec-ext-clk-src = <AUDIO_LPASS_MCLK_7>;
-		qcom,codec-lpass-ext-clk-freq = <19200000>;
+		qcom,codec-lpass-ext-clk-freq = <24576000>;
 		qcom,codec-lpass-clk-id = <0x30D>;
 		#clock-cells = <1>;
 	};
 	clock_audio_va: va_core_clk {
 		compatible = "qcom,audio-ref-clk";
 		qcom,codec-ext-clk-src = <AUDIO_LPASS_MCLK_1>;
-		qcom,codec-lpass-ext-clk-freq = <19200000>;
+		qcom,codec-lpass-ext-clk-freq = <24576000>;
 		qcom,codec-lpass-clk-id = <0x307>;
 		#clock-cells = <1>;
 	};

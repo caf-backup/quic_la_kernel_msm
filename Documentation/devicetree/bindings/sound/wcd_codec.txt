@@ -460,6 +460,9 @@ Required properties:
 			 required to be configured to receive interrupts
 			 in BCL block of WSA macro
 
+Optional properties:
+ - qcom,wsa-mclk-freq: Specifies the mclk frequency
+
 Example:
 
 &bolero {
@@ -543,6 +546,7 @@ Required properties:
 Optional Properties:
  - qcom,swr-wakeup-irq: Specifies whether the interrupt line is on GPIO
 			or GQIC
+ - qcom,tx-mclk-freq: Specifies the mclk frequency
 
 Example:
 

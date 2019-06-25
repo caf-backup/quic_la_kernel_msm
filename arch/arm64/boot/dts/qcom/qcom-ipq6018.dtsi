@@ -876,6 +876,8 @@
 			compatible = "qcom,gpr";
 			qcom,glink-channels = "to_apps";
 			qcom,intents = <0x200 20>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			reg = <GPR_DOMAIN_ADSP>;
 			gecko_core {
 				compatible = "qcom,gecko_core";
