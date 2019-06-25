@@ -516,6 +516,8 @@
 		tzlog: qca,tzlog {
 			compatible = "qca,tz64-hv-log";
 			interrupts = <0 244 1>;
+			qca,tzbsp-diag-buf-size = <0x2000>;
+			qca,hyp-enabled;
 		};
 
 		tcsr_mutex_block: syscon@1905000 {

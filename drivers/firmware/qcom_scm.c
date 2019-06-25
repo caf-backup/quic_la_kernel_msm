@@ -798,15 +798,14 @@ EXPORT_SYMBOL(qcom_scm_send_cache_dump_addr);
 
 int qcom_scm_tz_log(u32 svc_id, u32 cmd_id, void *ker_buf, u32 buf_len)
 {
-	return __qcom_scm_tz_log(__scm->dev, SCM_SVC_INFO, TZ_INFO_GET_DIAG_ID,
-					ker_buf, buf_len);
+	return __qcom_scm_tz_log(__scm->dev, svc_id, cmd_id, ker_buf, buf_len);
 }
 EXPORT_SYMBOL(qcom_scm_tz_log);
 
-int qcom_scm_hvc_log(void *ker_buf, u32 buf_len)
+int qcom_scm_hvc_log(u32 svc_id, u32 cmd_id, void *ker_buf, u32 buf_len)
 {
-	return __qcom_scm_hvc_log(__scm->dev, SCM_SVC_INFO,
-			HVC_INFO_GET_DIAG_ID, ker_buf, buf_len);
+	return __qcom_scm_hvc_log(__scm->dev, svc_id, cmd_id, ker_buf,
+								buf_len);
 }
 EXPORT_SYMBOL(qcom_scm_hvc_log);
 
