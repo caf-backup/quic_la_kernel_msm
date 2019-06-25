@@ -75,6 +75,7 @@ static int debug_adsp;
 #define QDSP6SS_SLEEP_CBCR 0x3C
 #define QDSP6SS_CLOCK_SPDM_MON 0x48
 #define QDSP6SS_BHS_STATUS 0x78
+#define QDSP6SS_CP_CLK_CTL 0x508
 #define LPASS_QDSP6SS_CORE_CBCR_ADDR 0x20
 #define QDSP6SS_PWR_CTL 0x30
 #define LPASS_QDSP6SS_CORE_CFG_RCGR 0x2c
@@ -582,6 +583,11 @@ static void q6_powerdown(struct q6v6_rproc_pdata *pdata)
 		}
 	}
 
+	/*HVX*/
+	val = readl(pdata->q6_base + QDSP6SS_CP_CLK_CTL);
+	val &= ~(BIT(0));
+	writel(val, pdata->q6_base + QDSP6SS_CP_CLK_CTL);
+
 	/*  enable the sleep clock branch*/
 	val = readl(pdata->q6ss_cc_base + LPASS_Q6SS_BCR_SLP_CBCR);
 	val |= 0x1;
@@ -828,6 +834,11 @@ static int q6_rproc_start(struct rproc *rproc)
 	val = readl(pdata->q6ss_cc_base + LPASS_Q6SS_ALT_RESET_AON_CBCR);
 	val |= 0x1;
 	writel(val, pdata->q6ss_cc_base + LPASS_Q6SS_ALT_RESET_AON_CBCR);
+
+	/*HVX clock*/
+	val = readl(pdata->q6_base + QDSP6SS_CP_CLK_CTL);
+	val |= 1;
+	writel(val, pdata->q6_base + QDSP6SS_CP_CLK_CTL);
 
 	/*  set boot address in EVB so that Q6LPASS will jump there after reset */
 	writel(rproc->bootaddr >> 4, pdata->q6_base + QDSP6SS_RST_EVB);
