@@ -46,8 +46,6 @@ static int qcom_apcs_ipc_send_data(struct mbox_chan *chan, void *data)
 {
 	struct qcom_apcs_ipc *apcs = container_of(chan->mbox,
 						  struct qcom_apcs_ipc, mbox);
-	unsigned long idx = (unsigned long)chan->con_priv;
-
 	return regmap_write(apcs->regmap, apcs->offset, BIT(apcs->bit));
 }
 
@@ -59,10 +57,6 @@ static int qcom_apcs_ipc_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct qcom_apcs_ipc *apcs;
-	struct regmap *regmap;
-	struct resource *res;
-	unsigned long offset;
-	void __iomem *base;
 	unsigned long i;
 	int ret;
 
