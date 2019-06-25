@@ -17,6 +17,7 @@
 
 #include "qcom-ipq6018-cp01.dtsi"
 #include "qcom-ipq6018-audio-overlay.dtsi"
+#include "qcom-ipq6018-circular-pca9956.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. IPQ6018/AP-CP01-C2";
@@ -64,6 +65,102 @@
 	};
 };
 
+&tlmm {
+	i2c_1_pins: i2c_1_pins {
+		mux {
+			pins = "gpio42", "gpio43";
+			function = "blsp2_i2c";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+		pca9956b_reset_gpio {
+			pins = "gpio25";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-down;
+			output-high;
+		};
+	};
+
+	button_pins: button_pins {
+		mute_button {
+			pins = "gpio0";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+		volume_down {
+			pins = "gpio2";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+		mic_pwr {
+			pins = "gpio16";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+		home {
+			pins = "gpio18";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+		volume_up {
+			pins = "gpio34";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+	};
+
+};
+
+&soc {
+	gpio_keys {
+		vol_mute {
+			label = "vol_mute";
+			gpios = <&tlmm 0 GPIO_ACTIVE_LOW>;
+			linux,input-type = <1>;
+			linux,code = <KEY_MUTE>;
+			debounce-interval = <15>;
+		};
+
+		vol_down {
+			label = "vol_down";
+			gpios = <&tlmm 2 GPIO_ACTIVE_LOW>;
+			linux,input-type = <1>;
+			linux,code = <KEY_VOLUMEDOWN>;
+			debounce-interval = <15>;
+		};
+
+		power {
+			label = "power";
+			gpios = <&tlmm 16 GPIO_ACTIVE_LOW>;
+			linux,input-type = <1>;
+			linux,code = <KEY_POWER>;
+			debounce-interval = <15>;
+		};
+
+		home {
+			label = "action";
+			gpios = <&tlmm 18 GPIO_ACTIVE_LOW>;
+			linux,input-type = <1>;
+			linux,code = <KEY_HOME>;
+			debounce-interval = <15>;
+		};
+
+		vol_up {
+			label = "vol_up";
+			gpios = <&tlmm 34 GPIO_ACTIVE_LOW>;
+			linux,input-type = <1>;
+			linux,code = <KEY_VOLUMEUP>;
+			debounce-interval = <15>;
+		};
+	};
+};
+
 &glink_adsp {
 	status = "ok";
 };
@@ -82,4 +179,9 @@
 
 &glink_adsp_ssr {
 	status = "ok";
+};
+
+&i2c_1 {
+	pinctrl-0 = <&i2c_1_pins>;
+	pinctrl-names = "default";
 };
