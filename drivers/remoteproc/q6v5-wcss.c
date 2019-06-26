@@ -159,23 +159,25 @@ static struct class *dump_class;
 static struct clk *wcss_clks[NUM_WCSS_CLKS];
 
 struct dump_file_private {
-	int remaining_bytes;
-	int rel_addr_off;
 	int ehdr_remaining_bytes;
-	char *ehdr;
+	struct list_head dump_segments;
+	Elf32_Ehdr *ehdr;
 	struct task_struct *pdesc;
+};
+
+struct dump_segment {
+	struct list_head node;
+	phys_addr_t addr;
+	size_t size;
+	loff_t offset;
 };
 
 struct dumpdev {
 	const char *name;
 	const struct file_operations *fops;
 	fmode_t fmode;
-	char ss_name[8];
-	phys_addr_t dump_phy_addr;
-	size_t dump_size;
-	phys_addr_t dump_aphy_addr;
-	size_t adump_size;
-} q6dump = {"q6mem", &q6_dump_ops, FMODE_UNSIGNED_OFFSET | FMODE_EXCL, "wcnss"};
+	struct list_head dump_segments;
+} q6dump = {"q6mem", &q6_dump_ops, FMODE_UNSIGNED_OFFSET | FMODE_EXCL};
 
 static const char *wcss_clk_names[NUM_WCSS_CLKS] = {"wcss_axi_m_clk",
 							"sys_noc_wcss_ahb_clk",
@@ -246,10 +248,18 @@ static void dump_timeout_func(unsigned long data)
 static int q6_dump_open(struct inode *inode, struct file *file)
 {
 	struct dump_file_private *dfp = NULL;
+	struct dump_segment *segment, *tmp;
+	int nsegments = 0;
+	size_t elfcore_hdrsize, p_off;
+	Elf32_Ehdr *ehdr;
+	Elf32_Phdr *phdr;
 
 	del_timer_sync(&open_timeout);
 
 	if (atomic_read(&open_timedout) == 1)
+		return -ENODEV;
+
+	if (list_empty(&q6dump.dump_segments))
 		return -ENODEV;
 
 	file->f_mode |= q6dump.fmode;
@@ -261,8 +271,58 @@ static int q6_dump_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 	}
 
-	dfp->remaining_bytes = q6dump.dump_size + q6dump.adump_size;
-	dfp->rel_addr_off = 0;
+	INIT_LIST_HEAD(&dfp->dump_segments);
+	list_for_each_entry(segment, &q6dump.dump_segments, node) {
+		struct dump_segment *s;
+
+		s = kzalloc(sizeof(*s), GFP_KERNEL);
+		if (!s)
+			goto err;
+		s->addr = segment->addr;
+		s->size = segment->size;
+		s->offset = segment->offset;
+		list_add_tail(&s->node, &dfp->dump_segments);
+
+		nsegments++;
+	}
+
+	elfcore_hdrsize = sizeof(*ehdr) + sizeof(*phdr) * nsegments;
+	ehdr = kzalloc(elfcore_hdrsize, GFP_KERNEL);
+	if (ehdr == NULL)
+		goto err;
+
+	memcpy(ehdr->e_ident, ELFMAG, SELFMAG);
+	ehdr->e_ident[EI_CLASS] = ELFCLASS32;
+	ehdr->e_ident[EI_DATA] = ELFDATA2LSB;
+	ehdr->e_ident[EI_VERSION] = EV_CURRENT;
+	ehdr->e_ident[EI_OSABI] = ELFOSABI_NONE;
+	ehdr->e_type = ET_CORE;
+	ehdr->e_machine = EM_QDSP6;
+	ehdr->e_version = EV_CURRENT;
+	ehdr->e_phoff = sizeof(*ehdr);
+	ehdr->e_ehsize = sizeof(*ehdr);
+	ehdr->e_phentsize = sizeof(*phdr);
+	ehdr->e_phnum = nsegments;
+
+	/* There are 'nsegments' of phdr in the elf header */
+	phdr = (void *)ehdr + ehdr->e_phoff;
+	memset(phdr, 0, sizeof(*phdr) * nsegments);
+
+	p_off = elfcore_hdrsize;
+	list_for_each_entry(segment, &q6dump.dump_segments, node) {
+		phdr->p_type = PT_LOAD;
+		phdr->p_offset = p_off;
+		phdr->p_vaddr = phdr->p_paddr = segment->addr;
+		phdr->p_filesz = phdr->p_memsz = segment->size;
+		phdr->p_flags = PF_R | PF_W | PF_X;
+
+		p_off += phdr->p_filesz;
+
+		phdr++;
+	}
+
+	dfp->ehdr = ehdr;
+	dfp->ehdr_remaining_bytes = elfcore_hdrsize;
 	dfp->pdesc = current;
 
 	file->private_data = dfp;
@@ -278,6 +338,16 @@ static int q6_dump_open(struct inode *inode, struct file *file)
 	complete(&open_complete);
 
 	return 0;
+
+err:
+	list_for_each_entry_safe(segment, tmp, &dfp->dump_segments, node) {
+		list_del(&segment->node);
+		kfree(segment);
+	}
+
+	kfree(dfp);
+
+	return -ENOMEM;
 }
 
 static int q6_dump_release(struct inode *inode, struct file *file)
@@ -285,7 +355,19 @@ static int q6_dump_release(struct inode *inode, struct file *file)
 	int dump_minor =  iminor(inode);
 	int dump_major = imajor(inode);
 
-	kfree(file->private_data);
+	struct dump_segment *segment, *tmp;
+
+	struct dump_file_private *dfp = (struct dump_file_private *)
+		file->private_data;
+
+	list_for_each_entry_safe(segment, tmp, &dfp->dump_segments, node) {
+		list_del(&segment->node);
+		kfree(segment);
+	}
+
+	kfree(dfp->ehdr);
+
+	kfree(dfp);
 
 	device_destroy(dump_class, MKDEV(dump_major, dump_minor));
 
@@ -300,110 +382,67 @@ static ssize_t q6_dump_read(struct file *file, char __user *buf, size_t count,
 		loff_t *ppos)
 {
 	void *buffer = NULL;
-	size_t elfcore_hdrsize;
-	Elf32_Phdr *phdr;
-	Elf32_Ehdr *ehdr;
-	int nsegments = 1;
-	size_t count2 = 0;
 	struct dump_file_private *dfp = (struct dump_file_private *)
 		file->private_data;
+	struct dump_segment *segment, *tmp;
+	size_t copied = 0, to_copy = count;
 
 	if (dump_timeout.data == -ETIMEDOUT)
 		return 0;
 
 	mod_timer(&dump_timeout, jiffies + msecs_to_jiffies(DUMP_TIMEOUT));
 
-	if (dfp->ehdr == NULL) {
-		elfcore_hdrsize = sizeof(*ehdr) + sizeof(*phdr) * nsegments;
-
-		ehdr = kzalloc(elfcore_hdrsize, GFP_KERNEL);
-		if (ehdr == NULL)
-			return -ENOMEM;
-
-		dfp->ehdr = (char *)ehdr;
-		phdr = (Elf32_Phdr *)(ehdr + 1);
-
-		memcpy(ehdr->e_ident, ELFMAG, SELFMAG);
-		ehdr->e_ident[EI_CLASS] = ELFCLASS32;
-		ehdr->e_ident[EI_DATA] = ELFDATA2LSB;
-		ehdr->e_ident[EI_VERSION] = EV_CURRENT;
-		ehdr->e_ident[EI_OSABI] = ELFOSABI_NONE;
-		ehdr->e_type = ET_CORE;
-		ehdr->e_machine = EM_QDSP6;
-		ehdr->e_version = EV_CURRENT;
-		ehdr->e_phoff = sizeof(*ehdr);
-		ehdr->e_ehsize = sizeof(*ehdr);
-		ehdr->e_phentsize = sizeof(*phdr);
-		ehdr->e_phnum = nsegments;
-
-		phdr->p_type = PT_LOAD;
-		phdr->p_offset = elfcore_hdrsize;
-		phdr->p_vaddr = phdr->p_paddr = q6dump.dump_phy_addr;
-		phdr->p_filesz = phdr->p_memsz = q6dump.dump_size +
-							q6dump.adump_size;
-		phdr->p_flags = PF_R | PF_W | PF_X;
-
-		dfp->ehdr_remaining_bytes = elfcore_hdrsize;
-	}
-
-	if (dfp->ehdr_remaining_bytes) {
-		if (count > dfp->ehdr_remaining_bytes) {
-			count2 = dfp->ehdr_remaining_bytes;
-			copy_to_user(buf, dfp->ehdr + *ppos, count2);
-			buf += count2;
-			dfp->ehdr_remaining_bytes -= count2;
-			count -= count2;
-			kfree(dfp->ehdr);
-		} else {
-			copy_to_user(buf, dfp->ehdr + *ppos, count);
-			dfp->ehdr_remaining_bytes -= count;
-			if (!dfp->ehdr_remaining_bytes)
-				kfree(dfp->ehdr);
-			*ppos = *ppos + count;
-			return count;
-		}
-	}
-
-	if (count > dfp->remaining_bytes)
-		count = dfp->remaining_bytes;
-
-	if (dfp->rel_addr_off < q6dump.dump_size) {
-		buffer = ioremap(q6dump.dump_phy_addr + dfp->rel_addr_off,
-				count);
-		if (!buffer) {
-			pr_err("can not map physical address %x : %d\n",
-					(unsigned int)q6dump.dump_phy_addr +
-					dfp->rel_addr_off, (int)count);
-			return -ENOMEM;
-		}
-		dfp->rel_addr_off = dfp->rel_addr_off + count;
-		copy_to_user(buf, buffer, count);
-	} else if (q6dump.adump_size) {
-		if ((dfp->rel_addr_off <
-				(q6dump.dump_size + q6dump.adump_size))) {
-			buffer = ioremap(q6dump.dump_aphy_addr +
-					(dfp->rel_addr_off - q6dump.dump_size),
-					count);
-			if (!buffer) {
-				pr_err("can not map physical address %x : %d\n",
-					(unsigned int)q6dump.dump_aphy_addr +
-					dfp->rel_addr_off -
-					(unsigned int)q6dump.dump_size,
-					(int)count);
-				return -ENOMEM;
-			}
-			dfp->rel_addr_off = dfp->rel_addr_off + count;
-			copy_to_user(buf, buffer, count);
-		}
-	} else
+	if (list_empty(&dfp->dump_segments))
 		return 0;
 
-	dfp->remaining_bytes = dfp->remaining_bytes - count;
+	if (dfp->ehdr_remaining_bytes) {
+		if (to_copy > dfp->ehdr_remaining_bytes)
+			to_copy = dfp->ehdr_remaining_bytes;
 
-	iounmap(buffer);
+		copy_to_user(buf, (char *)dfp->ehdr + *ppos, to_copy);
+		buf += to_copy;
+		dfp->ehdr_remaining_bytes -= to_copy;
+		copied += to_copy;
 
-	*ppos = *ppos + count + count2;
-	return count + count2;
+		if (copied == to_copy) {
+			*ppos += to_copy;
+			return copied;
+		}
+	}
+
+	list_for_each_entry_safe(segment, tmp, &dfp->dump_segments, node) {
+		size_t pending = 0;
+
+		pending = segment->size - segment->offset;
+		if (pending > to_copy)
+			pending = to_copy;
+
+		buffer = ioremap((void *)segment->addr + segment->offset,
+				 pending);
+		if (!buffer) {
+			pr_err("ioremap failed for 0x%p of size 0x%zx\n",
+				segment->addr, segment->offset, pending);
+			return -ENOMEM;
+		}
+		copy_to_user(buf, buffer, pending);
+		iounmap(buffer);
+
+		segment->offset += pending;
+		buf += pending;
+		copied += pending;
+		to_copy -= pending;
+
+		if (segment->offset == segment->size) {
+			list_del(&segment->node);
+			kfree(segment);
+		}
+
+		if (to_copy == 0)
+			break;
+	}
+
+	*ppos += copied;
+	return copied;
 }
 
 static ssize_t q6_dump_write(struct file *file, const char __user *buf,
@@ -419,12 +458,54 @@ static const struct file_operations q6_dump_ops = {
 	.release	=       q6_dump_release,
 };
 
+int crashdump_add_segment(phys_addr_t dump_addr, size_t dump_size)
+{
+	struct dump_segment *segment;
+
+	segment = kzalloc(sizeof(*segment), GFP_KERNEL);
+	if (!segment)
+		return -ENOMEM;
+
+	segment->addr = dump_addr;
+	segment->size = dump_size;
+	segment->offset = 0;
+
+	list_add_tail(&segment->node, &q6dump.dump_segments);
+
+	return 0;
+}
+EXPORT_SYMBOL(crashdump_add_segment);
+
+static int add_segment(struct dumpdev *dumpdev, struct device_node *node)
+{
+	struct dump_segment segment = {0};
+	int ret;
+
+	ret = of_property_read_u32_index(node, "reg", 1, (u32 *)&segment.addr);
+	if (ret) {
+		pr_err("Could not retrieve reg property: %d\n", ret);
+		goto fail;
+	}
+
+	ret = of_property_read_u32_index(node, "reg", 3, (u32 *)&segment.size);
+	if (ret) {
+		pr_err("Could not retrieve reg property: %d\n", ret);
+		goto fail;
+	}
+
+	ret = crashdump_add_segment(segment.addr, segment.size);
+
+fail:
+	return ret;
+}
+
 static int crashdump_init(int check, const struct subsys_desc *desc)
 {
 	int ret = 0;
+	int index = 0;
 	int dump_major = 0;
 	struct device *dump_dev = NULL;
-	struct device_node *node = NULL;
+	struct device_node *node = NULL, *np = NULL;
 
 	init_completion(&open_complete);
 	atomic_set(&open_timedout, 0);
@@ -450,46 +531,23 @@ static int crashdump_init(int check, const struct subsys_desc *desc)
 		goto device_failed;
 	}
 
-	node = of_find_node_by_name(NULL, q6dump.ss_name);
-	if (node == NULL) {
-		ret = -ENODEV;
-		goto dump_dev_failed;
+	INIT_LIST_HEAD(&q6dump.dump_segments);
+
+	np = of_find_node_by_name(NULL, "qcom_q6v5_wcss");
+	while (1) {
+		node = of_parse_phandle(np, "memory-region", index);
+		if (node == NULL)
+			break;
+
+		ret = add_segment(&q6dump, node);
+		of_node_put(node);
+		if (ret != 0)
+			break;
+
+		index++;
 	}
+	of_node_put(np);
 
-	ret = of_property_read_u32_index(node, "reg", 1, (u32 *)&q6dump.dump_phy_addr);
-	if (ret) {
-		pr_err("could not retrieve reg property: %d\n", ret);
-		goto dump_dev_failed;
-	}
-
-	ret = of_property_read_u32_index(node, "reg", 3, (u32 *)&q6dump.dump_size);
-	if (ret) {
-		pr_err("could not retrieve reg property: %d\n",
-				ret);
-		goto dump_dev_failed;
-	}
-
-	q6dump.dump_aphy_addr = 0;
-	q6dump.adump_size = 0;
-	node = of_find_node_by_name(NULL, "q6_etr_dump");
-	if (node != NULL) {
-		ret = of_property_read_u32_index(node, "reg", 1,
-				(u32 *)&q6dump.dump_aphy_addr);
-		if (ret) {
-			q6dump.dump_aphy_addr = 0;
-			q6dump.adump_size = 0;
-			goto skip_etr;
-		}
-
-		ret = of_property_read_u32_index(node, "reg", 3,
-				(u32 *)&q6dump.adump_size);
-		if (ret) {
-			q6dump.dump_aphy_addr = 0;
-			q6dump.adump_size = 0;
-		}
-	}
-
-skip_etr:
 	/* This avoids race condition between the scheduled timer and the opened
 	 * file discriptor during delay in user space app execution.
 	 */
