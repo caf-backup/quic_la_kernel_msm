@@ -301,6 +301,7 @@ struct qcom_pcie {
 	uint32_t force_gen1;
 	uint32_t force_gen2;
 	u32 is_emulation;
+	u32 compliance;
 	u32 use_delay;
 	u32 link_retries_count;
 	u32 cap_active_state_link_pm;
@@ -1484,12 +1485,20 @@ static int qcom_pcie_host_init(struct pcie_port *pp)
 		goto err;
 
 	return 0;
+
 err:
+	if (pcie->compliance == 1)
+		return 0;
+
 	if (!pcie->is_emulation)
 		qcom_ep_reset_assert(pcie);
 
 	phy_power_off(pcie->phy);
+
 err_deinit:
+	if (pcie->compliance == 1)
+		return 0;
+
 	pcie->ops->deinit(pcie);
 	return ret;
 }
@@ -1802,6 +1811,7 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	u32 is_emulation = 0;
 	u32 use_delay = 0;
 	u32 link_retries_count = 0;
+	u32 compliance = 0;
 	static int rc_idx;
 	int i;
 	char irq_name[20];
@@ -1814,6 +1824,9 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 
 	pcie->ops = (struct qcom_pcie_ops *)of_device_get_match_data(dev);
 	pcie->dev = dev;
+
+	of_property_read_u32(np, "compliance", &compliance);
+	pcie->compliance = compliance;
 
 	of_property_read_u32(np, "is_emulation", &is_emulation);
 	pcie->is_emulation = is_emulation;
