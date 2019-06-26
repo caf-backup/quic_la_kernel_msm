@@ -199,8 +199,8 @@ static struct dumpdev {
 	const struct file_operations *fops;
 	fmode_t fmode;
 	char ss_name[8];
-	phys_addr_t dump_phy_addr;
-	size_t dump_size;
+	u32 dump_phy_addr;
+	u32 dump_size;
 } q6dump = {"adsp_q6mem", &q6_dump_ops,
 		FMODE_UNSIGNED_OFFSET | FMODE_EXCL, "lpass"};
 
@@ -385,7 +385,7 @@ static ssize_t q6_dump_read(struct file *file, char __user *buf, size_t count,
 		buffer = ioremap(q6dump.dump_phy_addr + dfp->rel_addr_off,
 				count);
 		if (!buffer) {
-			pr_err("can not map physical address %x : %d\n",
+			pr_err("can not map physical address %x : %zd\n",
 					(unsigned int)q6dump.dump_phy_addr +
 					dfp->rel_addr_off, count);
 			return -ENOMEM;
@@ -513,15 +513,6 @@ static struct resource_table *q6v6_find_loaded_rsc_table(struct rproc *rproc,
 	return &(q6v6_rtable.rtable);
 }
 
-static struct resource_table *q6v6_find_rsc_table(struct rproc *rproc,
-	const struct firmware *fw, int *tablesz)
-{
-	*tablesz = sizeof(struct q6v6_rtable);
-
-	q6v6_rtable.rtable.offset[0] = sizeof(struct resource_table);
-	return &(q6v6_rtable.rtable);
-}
-
 static void adsp_powerdown(struct q6v6_rproc_pdata *pdata)
 {
 	unsigned long val = 0;
@@ -625,7 +616,6 @@ static void q6_powerdown(struct q6v6_rproc_pdata *pdata)
 static void save_adsp_regs(struct q6v6_rproc_pdata *pdata)
 {
 	int i = 0;
-	unsigned long val = 0;
 	unsigned int *buffer = NULL;
 
 	if (!(debug_adsp & DEBUG_DUMP_Q6_REG))
