@@ -441,10 +441,6 @@
 	status = "ok";
 };
 
-&smmu500 {
-	status = "ok";
-};
-
 &pcie_phy {
 	status = "ok";
 };

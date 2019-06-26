@@ -372,6 +372,10 @@
 	status = "ok";
 };
 
+&ion {
+	status = "ok";
+};
+
 &smmu500 {
 	status = "ok";
 };

@@ -161,6 +161,14 @@
 	};
 };
 
+&ion {
+	status = "ok";
+};
+
+&smmu500 {
+	status = "ok";
+};
+
 &glink_adsp {
 	status = "ok";
 };

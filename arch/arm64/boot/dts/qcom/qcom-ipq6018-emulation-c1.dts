@@ -267,9 +267,14 @@
 			clock-frequency = <240000>;
 		};
 
+		ion: qcom,ion {
+			status = "ok";
+		};
+
 		smmu500: arm,smmu@1E00000 {
 			status = "ok";
 		};
+
 		wifi0: wifi@c000000 {
 			status = "disabled";
 		};
