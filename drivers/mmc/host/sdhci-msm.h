@@ -169,6 +169,8 @@ struct sdhci_msm_host {
 	u32 ice_clk_rate;
 	bool mci_removed;
 	const struct sdhci_msm_offset *offset;
+	int sd_ldo;
+	struct notifier_block reboot_notifier;
 };
 
 extern char *saved_command_line;
