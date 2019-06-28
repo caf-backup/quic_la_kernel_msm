@@ -8,7 +8,7 @@
 # conmakehash:	 Create arrays for initializing the kernel console tables
 # docproc:       Used in Documentation/DocBook
 # check-lc_ctype: Used in Documentation/DocBook
-
+KBUILD_CFLAGS += -Werror
 HOST_EXTRACFLAGS += -I$(srctree)/tools/include
 
 hostprogs-$(CONFIG_KALLSYMS)     += kallsyms
