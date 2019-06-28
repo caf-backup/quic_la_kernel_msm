@@ -1331,7 +1331,8 @@ int __qcom_scm_pas_mem_setup(struct device *dev, u32 peripheral,
 	return ret ? : le32_to_cpu(scm_ret);
 }
 
-int __qcom_scm_pas_auth_and_reset(struct device *dev, u32 peripheral, u32 debug)
+int __qcom_scm_pas_auth_and_reset(struct device *dev, u32 peripheral,
+					u32 debug, u32 reset_cmd_id)
 {
 	__le32 out;
 	__le32 in;
@@ -1342,7 +1343,7 @@ int __qcom_scm_pas_auth_and_reset(struct device *dev, u32 peripheral, u32 debug)
 	if (debug) {
 		ret = __qcom_scm_is_call_available(dev,
 				QCOM_SCM_SVC_PIL,
-				QCOM_SCM_PAS_AUTH_DEBUG_RESET_CMD);
+				reset_cmd_id);
 		if (!ret)
 			pr_err("No Break at reset supported\n");
 		else
@@ -1353,7 +1354,7 @@ int __qcom_scm_pas_auth_and_reset(struct device *dev, u32 peripheral, u32 debug)
 		if (break_support) {
 			in = cpu_to_le32(debug);
 			ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL,
-					QCOM_SCM_PAS_AUTH_DEBUG_RESET_CMD,
+					reset_cmd_id,
 					&in, sizeof(in),
 					&out, sizeof(out));
 			if (ret || le32_to_cpu(out))
@@ -1362,7 +1363,7 @@ int __qcom_scm_pas_auth_and_reset(struct device *dev, u32 peripheral, u32 debug)
 
 		in = cpu_to_le32(peripheral);
 		ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL,
-			    QCOM_SCM_PAS_AUTH_AND_RESET_CMD,
+			    reset_cmd_id,
 			    &in, sizeof(in),
 			    &out, sizeof(out));
 	} else {

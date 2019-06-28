@@ -89,6 +89,7 @@ struct q6v5_wcss {
 	u32 halt_q6;
 	u32 halt_wcss;
 	u32 halt_nc;
+	u32 reset_cmd_id;
 
 	struct reset_control *wcss_aon_reset;
 	struct reset_control *wcss_reset;
@@ -493,7 +494,7 @@ static int q6v5_wcss_start(struct rproc *rproc)
 	struct q6v5_wcss *wcss = rproc->priv;
 	int ret;
 
-	ret = qcom_scm_pas_auth_and_reset(WCNSS_PAS_ID, 0);
+	ret = qcom_scm_pas_auth_and_reset(WCNSS_PAS_ID, 0, wcss->reset_cmd_id);
 	if (ret) {
 		dev_err(wcss->dev, "q6-wcss reset failed\n");
 		return ret;
@@ -918,6 +919,11 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 	ret = rproc_coredump_add_custom_segment(rproc, 0, 0, crashdump_init, NULL);
 	if (ret)
 		goto free_rproc;
+
+	ret = of_property_read_u32(pdev->dev.of_node, "qca,sec-reset-cmd",
+				   &wcss->reset_cmd_id);
+	if (ret)
+		wcss->reset_cmd_id = QCOM_SCM_PAS_AUTH_DEBUG_RESET_CMD;
 
 	qcom_add_glink_subdev(rproc, &wcss->glink_subdev);
 	qcom_add_ssr_subdev(rproc, &wcss->ssr_subdev, "rproc");
