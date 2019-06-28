@@ -1036,6 +1036,7 @@
 					"wcss_q6_tbu_clk";
 			qca,auto-restart;
 			qca,extended-intc;
+			qca,sec-reset-cmd = <0x18>;
 			interrupts-extended = <&intc 0 325 1>,
 				<&wcss_smp2p_in 0 0>,
 				<&wcss_smp2p_in 1 0>,
@@ -1078,6 +1079,7 @@
 					"tcsr-base";
 				qca,auto-restart;
 				qca,extended-intc;
+				qca,sec-reset-cmd = <0x18>;
 				interrupts-extended = <&intc 0 30 1>,
 					<&adsp_smp2p_in 0 0>,
 					<&adsp_smp2p_in 1 0>,
