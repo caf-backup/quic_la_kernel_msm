@@ -39,6 +39,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
+#include <linux/reboot.h>
 
 #include "sdhci-msm-ice.h"
 #include "sdhci-msm.h"
@@ -1579,7 +1580,7 @@ struct sdhci_msm_pltfm_data *sdhci_msm_populate_pdata(struct device *dev,
 	int ice_clk_table_len;
 	u32 *ice_clk_table = NULL;
 	enum of_gpio_flags flags = OF_GPIO_ACTIVE_LOW;
-	int sd_ldo, ret;
+	int ret;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
@@ -1591,22 +1592,22 @@ struct sdhci_msm_pltfm_data *sdhci_msm_populate_pdata(struct device *dev,
 	if (gpio_is_valid(pdata->status_gpio) & !(flags & OF_GPIO_ACTIVE_LOW))
 		pdata->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
 
-	sd_ldo = of_get_named_gpio(np, "sd-ldo-gpios", 0);
-	if (gpio_is_valid(sd_ldo)) {
-		ret = devm_gpio_request(dev, sd_ldo, "sd-ldo-gpios");
+	msm_host->sd_ldo = of_get_named_gpio(np, "sd-ldo-gpios", 0);
+	if (gpio_is_valid(msm_host->sd_ldo)) {
+		ret = devm_gpio_request(dev, msm_host->sd_ldo, "sd-ldo-gpios");
 		if (ret) {
 			dev_err(dev,
 				"failed to request sd-ldo-gpios %d\n",
-				sd_ldo);
+				msm_host->sd_ldo);
 			goto out;
 		}
-		dev_info(dev, "Got SD LDO GPIO #%d\n", sd_ldo);
+		dev_info(dev, "Got SD LDO GPIO #%d\n", msm_host->sd_ldo);
 
 		/* Toggle SD LDO GPIO on Init */
-		gpio_direction_output(sd_ldo, 1);
-		gpio_set_value(sd_ldo, 0);
+		gpio_direction_output(msm_host->sd_ldo, 1);
+		gpio_set_value(msm_host->sd_ldo, 0);
 		mdelay(100);
-		gpio_set_value(sd_ldo, 1);
+		gpio_set_value(msm_host->sd_ldo, 1);
 	}
 
 
@@ -2864,6 +2865,40 @@ static void set_sdcc_hdrv_pull(struct platform_device *pdev,
 		dev_err(&pdev->dev, "Failed to set SDCC with drive strength:0x%08x\n", regval);
 }
 
+static int sdhci_msm_reboot_hdlr(struct notifier_block *nb,
+				unsigned long action, void *data)
+{
+	struct sdhci_msm_host *msm_host;
+	msm_host = container_of(nb, struct sdhci_msm_host, reboot_notifier);
+	if (gpio_is_valid(msm_host->sd_ldo)) {
+		gpio_set_value(msm_host->sd_ldo, 0);
+	}
+
+	return NOTIFY_DONE;
+}
+
+static int sdhci_msm_register_rb(struct sdhci_msm_host *msm_host,
+				struct platform_device *pdev)
+{
+	int ret;
+	msm_host->reboot_notifier.notifier_call = sdhci_msm_reboot_hdlr;
+	ret = atomic_notifier_chain_register(&panic_notifier_list,
+						&msm_host->reboot_notifier);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to setup panic handler\n");
+		return -EINVAL;
+	}
+
+	ret = register_reboot_notifier(&msm_host->reboot_notifier);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to setup reboot handler\n");
+		atomic_notifier_chain_unregister(&panic_notifier_list,
+						&msm_host->reboot_notifier);
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int sdhci_msm_probe(struct platform_device *pdev)
 {
 	const struct sdhci_msm_offset *msm_host_offset;
@@ -3320,6 +3355,12 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 		msm_host->polling.attr.name = "polling";
 		msm_host->polling.attr.mode = S_IRUGO | S_IWUSR;
 		ret = device_create_file(&pdev->dev, &msm_host->polling);
+		if (ret)
+			goto remove_host;
+	}
+
+	if (of_property_read_bool(np, "qcom,cut-card-voltage-in-reboot")) {
+		ret = sdhci_msm_register_rb(msm_host, pdev);
 		if (ret)
 			goto remove_host;
 	}
