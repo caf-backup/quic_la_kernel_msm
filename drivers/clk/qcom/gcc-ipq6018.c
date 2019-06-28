@@ -1380,6 +1380,10 @@ static struct clk_regmap_div nss_port4_tx_div_clk_src = {
 
 static const struct freq_tbl ftbl_nss_ubi_clk_src[] = {
 	F(24000000, P_XO, 1, 0, 0),
+	F(149760000, P_UBI32_PLL, 10, 0, 0),
+	F(187200000, P_UBI32_PLL, 8, 0, 0),
+	F(249600000, P_UBI32_PLL, 6, 0, 0),
+	F(374400000, P_UBI32_PLL, 4, 0, 0),
 	F(748800000, P_UBI32_PLL, 2, 0, 0),
 	F(1497600000, P_UBI32_PLL, 1, 0, 0),
 	{ }
