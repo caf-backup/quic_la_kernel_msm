@@ -55,3 +55,20 @@
 	};
 #endif
 };
+
+&tlmm {
+	i2c_1_pins: i2c_1_pins {
+		mux {
+			pins = "gpio42", "gpio43";
+			function = "blsp2_i2c";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+	};
+};
+
+&i2c_1 {
+	pinctrl-0 = <&i2c_1_pins>;
+	pinctrl-names = "default";
+	status = "ok";
+};
