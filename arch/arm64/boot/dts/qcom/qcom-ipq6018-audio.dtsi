@@ -14,8 +14,13 @@
 
 #include <dt-bindings/clock/qcom,audio-ext-clk.h>
 #include "msm-audio-lpass.dtsi"
+#include <dt-bindings/sound/qcom,gpr.h>
 
 &soc {
+	aliases {
+		swr0 = &swr0;
+	};
+
 	qcom,avtimer@A22E000 {
 		compatible = "qcom,avtimer";
 		reg = <0xA22E00C 0x4>,
@@ -37,6 +42,28 @@
 			qcom,smmu-enabled;
 			iommus = <&smmu500 0x1001>;
 			qcom,smmu-sid-mask = /bits/ 64 <0xf>;
+		};
+	};
+
+	qcom,gpr {
+		compatible = "qcom,gpr";
+		qcom,glink-channels = "to_apps";
+		qcom,intents = <0x200 20>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <GPR_DOMAIN_ADSP>;
+		gecko_core {
+			compatible = "qcom,gecko_core";
+			reg = <GPR_SVC_ADSP_CORE>;
+		};
+		audio-pkt {
+			compatible = "qcom,audio-pkt";
+			qcom,audiopkt-ch-name = "apr_audio_svc";
+			reg = <GPR_SVC_MAX>;
+		};
+		q6prm {
+			compatible = "qcom,q6prm";
+			reg = <GPR_SVC_ASM>;
 		};
 	};
 
