@@ -10,28 +10,48 @@
  * GNU General Public License for more details.
  *
  */
-
+#ifndef MINIDUMP_H
+#define MINIDUMP_H
 
 #include <linux/module.h>
 typedef struct qcom_wdt_scm_tlv_msg {
 	unsigned char *msg_buffer;
 	unsigned char *cur_msg_buffer_pos;
 	unsigned int len;
+	spinlock_t minidump_tlv_spinlock;
 } qcom_wdt_scm_tlv_msg_t;
 
 struct minidump_tlv_info {
-    uint64_t start;
-    uint64_t size;
+	uint64_t start;
+	uint64_t size;
+};
+
+/* Metadata List for bookkeeping and managing entries and invalidation of
+* TLVs into the global crashdump buffer and the Metadata text file
+*/
+struct minidump_metadata_list {
+	struct list_head list;	/*kernel’s list structure*/
+	char *name;				/* Name associated with the TLV */
+	unsigned long va;		/* Virtual address of TLV. Set to 0 if invalid*/
+	unsigned char *tlv_offset;	/* Offset associated with the TLV entry in
+					* the crashdump buffer
+					*/
+	unsigned long modinfo_offset; /* Offset associated with the entry for
+					* module information in Metadata text file
+					*/
 };
 
 #define QCOM_WDT_SCM_TLV_TYPE_SIZE	1
 #define QCOM_WDT_SCM_TLV_LEN_SIZE	2
 #define QCOM_WDT_SCM_TLV_TYPE_LEN_SIZE (QCOM_WDT_SCM_TLV_TYPE_SIZE + QCOM_WDT_SCM_TLV_LEN_SIZE)
+#define INVALID 0
 
-#define BUFLEN 4096
-#define MOD_LOG_LEN 256
+#define BUFLEN 8192
+#define MOD_LOG_LEN 50
+#define NAME_LEN 28
 int fill_minidump_segments(uint64_t start_addr, uint64_t size, unsigned char type, char *name);
 int store_module_info(char *name ,unsigned long address, unsigned char type);
+int remove_minidump_segments(uint64_t virtual_address);
 
 struct module_sect_attr {
 	struct module_attribute mattr;
@@ -53,4 +73,7 @@ enum {
 	QCA_WDT_LOG_DUMP_TYPE_LEVEL1_PT,
 	QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD,
 	QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD_INFO,
+	QCA_WDT_LOG_DUMP_TYPE_EMPTY,
 };
+
+#endif /*MINIDUMP_H*/
