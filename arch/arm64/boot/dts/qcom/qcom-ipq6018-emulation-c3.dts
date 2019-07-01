@@ -14,6 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include "qcom-ipq6018.dtsi"
+#include "qcom-ipq6018-ion.dtsi"
 
 / {
 	#address-cells = <0x2>;
@@ -220,10 +221,6 @@
 
 		timer {
 			clock-frequency = <240000>;
-		};
-
-		ion: qcom,ion {
-			status = "ok";
 		};
 
 		smmu500: arm,smmu@1E00000 {

@@ -70,26 +70,6 @@
 			#reset-cells = <1>;
 		};
 
-		ion: qcom,ion {
-			compatible = "qcom,msm-ion";
-			#address-cells = <1>;
-			#size-cells = <0>;
-			status = "disabled";
-
-			system_heap: qcom,ion-heap@25 {
-				reg = <25>;
-				qcom,ion-heap-type = "SYSTEM";
-			};
-
-#if !defined(__IPQ_MEM_PROFILE_256_MB__) && !defined(__IPQ_MEM_PROFILE_512_MB__)
-			qcom,ion-heap@22 { /* ADSP HEAP */
-				reg = <22>;
-				memory-region = <&adsp_mem>;
-				qcom,ion-heap-type = "DMA";
-			};
-#endif
-		};
-
 		smmu500: arm,smmu@1E00000 {
 			compatible = "arm,smmu-v2";
 			reg = <0x01E00000 0x40000>;

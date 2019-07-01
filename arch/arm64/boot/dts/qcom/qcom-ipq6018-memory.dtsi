@@ -290,14 +290,6 @@
 			no-map;
 			reg = <0x0 0x4ab00000 0x0 0x05500000>;
 		};
-
-		adsp_mem: adsp_region {
-			compatible = "shared-dma-pool";
-			alloc-ranges = <0 0x00000000 0 0xffffffff>;
-			reusable;
-			alignment = <0 0x400000>;
-			size = <0 0x800000>;
-		};
 	};
 #endif
 };
