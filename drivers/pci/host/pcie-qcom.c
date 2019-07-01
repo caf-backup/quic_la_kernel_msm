@@ -150,7 +150,9 @@
 
 #define PCIE20_LNK_CONTROL2_LINK_STATUS2        0xA0
 #define PCIE_CAP_CURR_DEEMPHASIS		BIT(16)
+#define SPEED_GEN1				0x1
 #define SPEED_GEN3				0x3
+#define PCIE_CAP_TARGET_LINK_SPEED_MASK		__mask(3, 0)
 
 #define __set(v, a, b)	(((v) << (b)) & GENMASK(a, b))
 #define __mask(a, b)	(((1 << ((a) + 1)) - 1) & ~((1 << (b)) - 1))
@@ -818,8 +820,9 @@ static int qcom_pcie_init_v0(struct qcom_pcie *pcie)
 	/* wait for clock acquisition */
 	usleep_range(1000, 1500);
 	if (pcie->force_gen1) {
-		writel_relaxed((readl_relaxed(
-			pcie->dbi + PCIE20_LNK_CONTROL2_LINK_STATUS2) | 1),
+		writel_relaxed(((readl_relaxed(
+			pcie->dbi + PCIE20_LNK_CONTROL2_LINK_STATUS2)
+			& (~PCIE_CAP_TARGET_LINK_SPEED_MASK)) | SPEED_GEN1),
 			pcie->dbi + PCIE20_LNK_CONTROL2_LINK_STATUS2);
 	}
 
@@ -1291,14 +1294,17 @@ static int qcom_pcie_init_v3(struct qcom_pcie *pcie)
 		BIT(10) | BIT(11), 0);
 	writel(PCIE_CAP_CPL_TIMEOUT_DISABLE, pcie->dbi +
 		PCIE20_DEVICE_CONTROL2_STATUS2);
-	if (pcie->force_gen1) {
-		writel_relaxed((readl_relaxed(
-			pcie->dbi + PCIE20_LNK_CONTROL2_LINK_STATUS2) | 1),
-			pcie->dbi + PCIE20_LNK_CONTROL2_LINK_STATUS2);
-	}
+
 	if (pcie->is_gen3)
 		writel_relaxed(PCIE_CAP_CURR_DEEMPHASIS | SPEED_GEN3,
 			pcie->dbi + PCIE20_LNK_CONTROL2_LINK_STATUS2);
+
+	if (pcie->force_gen1) {
+		writel_relaxed(((readl_relaxed(
+			pcie->dbi + PCIE20_LNK_CONTROL2_LINK_STATUS2)
+			& (~PCIE_CAP_TARGET_LINK_SPEED_MASK)) | SPEED_GEN1),
+			pcie->dbi + PCIE20_LNK_CONTROL2_LINK_STATUS2);
+	}
 
 	writel(LTSSM_EN, pcie->parf + PCIE20_PARF_LTSSM);
 	if (pcie->is_gen3) {
