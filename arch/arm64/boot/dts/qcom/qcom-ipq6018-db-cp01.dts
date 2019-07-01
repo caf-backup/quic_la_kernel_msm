@@ -16,6 +16,7 @@
  */
 
 #include "qcom-ipq6018.dtsi"
+#include "qcom-ipq6018-ion.dtsi"
 #include "qcom-ipq6018-audio-overlay.dtsi"
 
 / {
@@ -369,10 +370,6 @@
 };
 
 &usb3 {
-	status = "ok";
-};
-
-&ion {
 	status = "ok";
 };
 
