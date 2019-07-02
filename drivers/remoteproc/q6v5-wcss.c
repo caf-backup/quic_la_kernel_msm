@@ -134,6 +134,7 @@ struct q6v5_rproc_pdata {
 	int stop_retry_count;
 	void *reg_save_buffer;
 	unsigned int img_addr;
+	u32 reset_cmd_id;
 };
 
 static struct q6v5_rproc_pdata *q6v5_rproc_pdata;
@@ -1058,7 +1059,8 @@ static int ipq60xx_q6_rproc_start(struct rproc *rproc)
 	atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_STARTING);
 	if (pdata->secure) {
 		ret = qcom_scm_pas_auth_and_reset(WCNSS_PAS_ID,
-			(debug_wcss & DEBUG_WCSS_BREAK_AT_START));
+			(debug_wcss & DEBUG_WCSS_BREAK_AT_START),
+						pdata->reset_cmd_id);
 		if (ret) {
 			dev_err(dev, "q6-wcss reset failed\n");
 			return ret;
@@ -1196,7 +1198,8 @@ static int ipq807x_q6_rproc_start(struct rproc *rproc)
 	atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_STARTING);
 	if (pdata->secure) {
 		ret = qcom_scm_pas_auth_and_reset(WCNSS_PAS_ID,
-			(debug_wcss & DEBUG_WCSS_BREAK_AT_START));
+			(debug_wcss & DEBUG_WCSS_BREAK_AT_START),
+						pdata->reset_cmd_id);
 		if (ret) {
 			dev_err(dev, "q6-wcss reset failed\n");
 			return ret;
@@ -1606,6 +1609,11 @@ static int q6_rproc_probe(struct platform_device *pdev)
 							GFP_KERNEL);
 	if (q6v5_rproc_pdata->reg_save_buffer == NULL)
 		goto free_rproc;
+
+	ret = of_property_read_u32(pdev->dev.of_node, "qca,sec-reset-cmd",
+					&q6v5_rproc_pdata->reset_cmd_id);
+	if (ret)
+		q6v5_rproc_pdata->reset_cmd_id = QCOM_SCM_PAS_AUTH_DEBUG_RESET_CMD;
 
 	if (!q6v5_rproc_pdata->secure) {
 		resource = platform_get_resource_byname(pdev, IORESOURCE_MEM,
