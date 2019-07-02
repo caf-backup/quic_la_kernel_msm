@@ -25,6 +25,8 @@
 	interrupt-parent = <&intc>;
 
 	aliases {
+		serial0 = &blsp1_uart3;
+		serial1 = &blsp1_uart5;
 		sdhc1 = &sdhc_1;
 		/*
 		 * Aliases as required by u-boot
@@ -207,6 +209,15 @@
 			bias-pull-up;
 		};
 	};
+
+	hsuart_pins: hsuart_pins {
+		mux {
+			pins = "gpio55", "gpio56", "gpio57", "gpio58";
+			function = "blsp4_uart";
+			drive-strength = <8>;
+			bias-disable;
+		};
+	};
 };
 
 &soc {
@@ -286,6 +297,12 @@
 
 &blsp1_uart3 {
 	pinctrl-0 = <&uart_pins>;
+	pinctrl-names = "default";
+	status = "ok";
+};
+
+&blsp1_uart5 {
+	pinctrl-0 = <&hsuart_pins>;
 	pinctrl-names = "default";
 	status = "ok";
 };
