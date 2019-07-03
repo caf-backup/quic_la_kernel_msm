@@ -387,6 +387,7 @@ static ssize_t q6_dump_read(struct file *file, char __user *buf, size_t count,
 		file->private_data;
 	struct dump_segment *segment, *tmp;
 	size_t copied = 0, to_copy = count;
+	int segment_num = 0;
 
 	if (dump_timeout.data == -ETIMEDOUT)
 		return 0;
@@ -414,15 +415,15 @@ static ssize_t q6_dump_read(struct file *file, char __user *buf, size_t count,
 	list_for_each_entry_safe(segment, tmp, &dfp->dump_segments, node) {
 		size_t pending = 0;
 
+		segment_num++;
 		pending = segment->size - segment->offset;
 		if (pending > to_copy)
 			pending = to_copy;
 
-		buffer = ioremap((void *)segment->addr + segment->offset,
-				 pending);
+		buffer = ioremap(segment->addr + segment->offset, pending);
 		if (!buffer) {
-			pr_err("ioremap failed for 0x%p of size 0x%zx\n",
-				segment->addr, segment->offset, pending);
+			pr_err("ioremap failed for segment %d, offset 0x%llx of size 0x%zx\n",
+			       segment_num, segment->offset, pending);
 			return -ENOMEM;
 		}
 		copy_to_user(buf, buffer, pending);
