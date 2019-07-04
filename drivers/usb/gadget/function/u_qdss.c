@@ -14,6 +14,7 @@
 #include <linux/device.h>
 #include <linux/usb/msm_hsusb.h>
 #include <linux/usb_bam.h>
+#include <linux/module.h>
 
 #include "f_qdss.h"
 static int alloc_sps_req(struct usb_ep *data_ep)
@@ -120,3 +121,6 @@ int uninit_data(struct usb_ep *ep)
 	return res;
 }
 EXPORT_SYMBOL(uninit_data);
+
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("USB QDSS Function Driver");
