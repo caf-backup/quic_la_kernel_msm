@@ -2869,31 +2869,40 @@ static int sdhci_msm_reboot_hdlr(struct notifier_block *nb,
 				unsigned long action, void *data)
 {
 	struct sdhci_msm_host *msm_host;
-	msm_host = container_of(nb, struct sdhci_msm_host, reboot_notifier);
-	if (gpio_is_valid(msm_host->sd_ldo)) {
-		gpio_set_value(msm_host->sd_ldo, 0);
+
+	if (action) {
+		msm_host = container_of(nb, struct sdhci_msm_host,
+					sdhci_msm_reboot_nb);
+	} else {
+		msm_host = container_of(nb, struct sdhci_msm_host,
+					sdhci_msm_panic_nb);
 	}
+
+	if (gpio_is_valid(msm_host->sd_ldo))
+		gpio_set_value(msm_host->sd_ldo, 0);
 
 	return NOTIFY_DONE;
 }
 
-static int sdhci_msm_register_rb(struct sdhci_msm_host *msm_host,
+static int sdhci_msm_register_notifier(struct sdhci_msm_host *msm_host,
 				struct platform_device *pdev)
 {
 	int ret;
-	msm_host->reboot_notifier.notifier_call = sdhci_msm_reboot_hdlr;
+	msm_host->sdhci_msm_reboot_nb.notifier_call = sdhci_msm_reboot_hdlr;
+	msm_host->sdhci_msm_panic_nb.notifier_call = sdhci_msm_reboot_hdlr;
+
 	ret = atomic_notifier_chain_register(&panic_notifier_list,
-						&msm_host->reboot_notifier);
+						&msm_host->sdhci_msm_panic_nb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to setup panic handler\n");
 		return -EINVAL;
 	}
 
-	ret = register_reboot_notifier(&msm_host->reboot_notifier);
+	ret = register_reboot_notifier(&msm_host->sdhci_msm_reboot_nb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to setup reboot handler\n");
 		atomic_notifier_chain_unregister(&panic_notifier_list,
-						&msm_host->reboot_notifier);
+						&msm_host->sdhci_msm_panic_nb);
 		return -EINVAL;
 	}
 	return 0;
@@ -3360,7 +3369,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	}
 
 	if (of_property_read_bool(np, "qcom,cut-card-voltage-in-reboot")) {
-		ret = sdhci_msm_register_rb(msm_host, pdev);
+		ret = sdhci_msm_register_notifier(msm_host, pdev);
 		if (ret)
 			goto remove_host;
 	}
