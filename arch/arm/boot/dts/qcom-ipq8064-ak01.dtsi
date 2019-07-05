@@ -299,6 +299,7 @@
 			qcom,pppoe-enabled;
 			qcom,pptp-enabled;
 			qcom,shaping-enabled;
+			qcom,vxlan-enabled;
 			qcom,wlan-dataplane-offload-enabled;
 		};
 
