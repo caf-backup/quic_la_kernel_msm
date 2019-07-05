@@ -37,6 +37,7 @@
 
 #define IPQ807x_APSS_FUSE_CORNERS	4
 #define IPQ817x_APPS_FUSE_CORNERS	2
+#define IPQ6018_APSS_FUSE_CORNERS 	4
 
 u32 g_valid_fuse_count = IPQ807x_APSS_FUSE_CORNERS;
 
@@ -173,7 +174,7 @@ static const struct cpr3_fuse_param ipq807x_misc_fuse_volt_adj_param[] = {
 /*
  * Open loop voltage fuse reference voltages in microvolts for IPQ807x
  */
-static const int ipq807x_apss_fuse_ref_volt
+static int ipq807x_apss_fuse_ref_volt
 	[IPQ807x_APSS_FUSE_CORNERS] = {
 	720000,
 	864000,
@@ -211,6 +212,31 @@ static const int ipq807x_apss_fuse_ref_volt
  * indicate boost enable/disable status.
  */
 static bool boost_fuse[MAX_BOOST_CONFIG_FUSE_VALUE] = {0, 1, 1, 1, 1, 1, 1, 1};
+
+/*
+ * IPQ6018 (Few parameters are changed, remaining are same as IPQ807x)
+ */
+#define IPQ6018_APSS_FUSE_STEP_VOLT		10000
+#define IPQ6018_APSS_CPR_CLOCK_RATE		24000000
+
+/*
+ * Boost voltage fuse reference and ceiling voltages in microvolts for
+ * IPQ6018.
+ */
+#define IPQ6018_APSS_BOOST_FUSE_REF_VOLT	1140000
+#define IPQ6018_APSS_BOOST_CEILING_VOLT	1140000
+#define IPQ6018_APSS_BOOST_FLOOR_VOLT	900000
+
+/*
+ * Open loop voltage fuse reference voltages in microvolts for IPQ807x
+ */
+static int ipq6018_apss_fuse_ref_volt
+	[IPQ6018_APSS_FUSE_CORNERS] = {
+	725000,
+	862500,
+	987500,
+	1062500,
+};
 
 /**
  * cpr4_ipq807x_apss_read_fuse_data() - load APSS specific fuse parameter values
@@ -468,11 +494,11 @@ static int cpr4_ipq807x_apss_calculate_open_loop_voltages(
 
 	for (i = 0; i < vreg->fuse_corner_count; i++) {
 		if (ctrl->cpr_global_setting == CPR_DISABLED)
-			fuse_volt[i] = ipq807x_apss_fuse_ref_volt[i];
+			fuse_volt[i] = vreg->cpr4_regulator_data->fuse_ref_volt[i];
 		else
 			fuse_volt[i] = cpr3_convert_open_loop_voltage_fuse(
-				ipq807x_apss_fuse_ref_volt[i],
-				IPQ807x_APSS_FUSE_STEP_VOLT,
+				vreg->cpr4_regulator_data->fuse_ref_volt[i],
+				vreg->cpr4_regulator_data->fuse_step_volt,
 				fuse->init_voltage[i],
 				IPQ807x_APSS_VOLTAGE_FUSE_SIZE);
 
@@ -1019,8 +1045,8 @@ static int cpr4_apss_parse_boost_properties(struct cpr3_regulator *vreg)
 	}
 
 	boost_voltage = cpr3_convert_open_loop_voltage_fuse(
-				IPQ807x_APSS_BOOST_FUSE_REF_VOLT,
-				IPQ807x_APSS_FUSE_STEP_VOLT,
+				vreg->cpr4_regulator_data->boost_fuse_ref_volt,
+				vreg->cpr4_regulator_data->fuse_step_volt,
 				fuse->boost_voltage,
 				IPQ807x_APSS_VOLTAGE_FUSE_SIZE);
 
@@ -1045,8 +1071,8 @@ static int cpr4_apss_parse_boost_properties(struct cpr3_regulator *vreg)
 	}
 
 	/* Limit boost voltage value between ceiling and floor voltage limits */
-	boost_voltage = min(boost_voltage, IPQ807x_APSS_BOOST_CEILING_VOLT);
-	boost_voltage = max(boost_voltage, IPQ807x_APSS_BOOST_FLOOR_VOLT);
+	boost_voltage = min(boost_voltage, vreg->cpr4_regulator_data->boost_ceiling_volt);
+	boost_voltage = max(boost_voltage, vreg->cpr4_regulator_data->boost_floor_volt);
 
 	/*
 	 * The boost feature can only be used for the highest voltage corner.
@@ -1115,9 +1141,9 @@ static int cpr4_apss_parse_boost_properties(struct cpr3_regulator *vreg)
 		 * and floor voltage limits
 		 */
 		final_boost_volt = min(final_boost_volt,
-					IPQ807x_APSS_BOOST_CEILING_VOLT);
+					vreg->cpr4_regulator_data->boost_ceiling_volt);
 		final_boost_volt = max(final_boost_volt,
-					IPQ807x_APSS_BOOST_FLOOR_VOLT);
+					vreg->cpr4_regulator_data->boost_floor_volt);
 
 		boost_table[i] = (corner->open_loop_volt - final_boost_volt)
 					/ ctrl->step_volt;
@@ -1125,7 +1151,7 @@ static int cpr4_apss_parse_boost_properties(struct cpr3_regulator *vreg)
 			i, boost_table[i]);
 	}
 
-	corner->ceiling_volt = IPQ807x_APSS_BOOST_CEILING_VOLT;
+	corner->ceiling_volt = vreg->cpr4_regulator_data->boost_ceiling_volt;
 	corner->sdelta->boost_table = boost_table;
 	corner->sdelta->allow_boost = true;
 	corner->sdelta->allow_core_count_adj = false;
@@ -1317,7 +1343,6 @@ static int cpr4_apss_init_controller(struct cpr3_controller *ctrl)
 	if (!ctrl->sensor_owner)
 		return -ENOMEM;
 
-	ctrl->cpr_clock_rate = IPQ807x_APSS_CPR_CLOCK_RATE;
 	ctrl->ctrl_type = CPR_CTRL_TYPE_CPR4;
 	ctrl->supports_hw_closed_loop = false;
 	ctrl->use_hw_closed_loop = of_property_read_bool(ctrl->dev->of_node,
@@ -1340,16 +1365,34 @@ static int cpr4_apss_regulator_resume(struct platform_device *pdev)
 	return cpr3_regulator_resume(ctrl);
 }
 
-struct cpr4_apss_regulator_data {
-	u32 cpr_valid_fuse_count;
+static const struct cpr4_reg_data ipq807x_cpr_apss = {
+	.cpr_valid_fuse_count = IPQ807x_APSS_FUSE_CORNERS,
+	.fuse_ref_volt = ipq807x_apss_fuse_ref_volt,
+	.fuse_step_volt = IPQ807x_APSS_FUSE_STEP_VOLT,
+	.cpr_clk_rate = IPQ807x_APSS_CPR_CLOCK_RATE,
+	.boost_fuse_ref_volt= IPQ807x_APSS_BOOST_FUSE_REF_VOLT,
+	.boost_ceiling_volt= IPQ807x_APSS_BOOST_CEILING_VOLT,
+	.boost_floor_volt= IPQ807x_APSS_BOOST_FLOOR_VOLT,
 };
 
-static const struct cpr4_apss_regulator_data ipq807x_cpr_apss = {
-	.cpr_valid_fuse_count = IPQ807x_APSS_FUSE_CORNERS
+static const struct cpr4_reg_data ipq817x_cpr_apss = {
+	.cpr_valid_fuse_count = IPQ817x_APPS_FUSE_CORNERS,
+	.fuse_ref_volt = ipq807x_apss_fuse_ref_volt,
+	.fuse_step_volt = IPQ807x_APSS_FUSE_STEP_VOLT,
+	.cpr_clk_rate = IPQ807x_APSS_CPR_CLOCK_RATE,
+	.boost_fuse_ref_volt= IPQ807x_APSS_BOOST_FUSE_REF_VOLT,
+	.boost_ceiling_volt= IPQ807x_APSS_BOOST_CEILING_VOLT,
+	.boost_floor_volt= IPQ807x_APSS_BOOST_FLOOR_VOLT,
 };
 
-static const struct cpr4_apss_regulator_data ipq817x_cpr_apss = {
-	.cpr_valid_fuse_count = IPQ817x_APPS_FUSE_CORNERS
+static const struct cpr4_reg_data ipq6018_cpr_apss = {
+	.cpr_valid_fuse_count = IPQ6018_APSS_FUSE_CORNERS,
+	.fuse_ref_volt = ipq6018_apss_fuse_ref_volt,
+	.fuse_step_volt = IPQ6018_APSS_FUSE_STEP_VOLT,
+	.cpr_clk_rate = IPQ6018_APSS_CPR_CLOCK_RATE,
+	.boost_fuse_ref_volt = IPQ6018_APSS_BOOST_FUSE_REF_VOLT,
+	.boost_ceiling_volt = IPQ6018_APSS_BOOST_CEILING_VOLT,
+	.boost_floor_volt = IPQ6018_APSS_BOOST_FLOOR_VOLT
 };
 
 static struct of_device_id cpr4_regulator_match_table[] = {
@@ -1361,6 +1404,10 @@ static struct of_device_id cpr4_regulator_match_table[] = {
 		.compatible = "qcom,cpr4-ipq817x-apss-regulator",
 		.data = &ipq817x_cpr_apss
 	},
+	{
+		.compatible = "qcom,cpr4-ipq6018-apss-regulator",
+		.data = &ipq6018_cpr_apss
+	},
 	{}
 };
 
@@ -1369,7 +1416,7 @@ static int cpr4_apss_regulator_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct cpr3_controller *ctrl;
 	const struct of_device_id *match;
-	const struct cpr4_apss_regulator_data *cpr_data;
+	struct cpr4_reg_data *cpr_data;
 	int i, rc;
 
 	if (!dev->of_node) {
@@ -1385,9 +1432,10 @@ static int cpr4_apss_regulator_probe(struct platform_device *pdev)
 	if (!match)
 		return -ENODEV;
 
-	cpr_data = match->data;
+	cpr_data = (struct cpr4_reg_data *)match->data;
 	g_valid_fuse_count = cpr_data->cpr_valid_fuse_count;
 	dev_info(dev, "CPR valid fuse count: %d\n", g_valid_fuse_count);
+	ctrl->cpr_clock_rate = cpr_data->cpr_clk_rate;
 
 	ctrl->dev = dev;
 	/* Set to false later if anything precludes CPR operation. */
@@ -1442,6 +1490,7 @@ static int cpr4_apss_regulator_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < ctrl->thread[0].vreg_count; i++) {
+		ctrl->thread[0].vreg[i].cpr4_regulator_data = cpr_data;
 		rc = cpr4_apss_init_regulator(&ctrl->thread[0].vreg[i]);
 		if (rc) {
 			cpr3_err(&ctrl->thread[0].vreg[i], "regulator initialization failed, rc=%d\n",
