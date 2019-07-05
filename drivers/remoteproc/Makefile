@@ -3,7 +3,6 @@
 # Generic framework for controlling remote processors
 #
 
-KBUILD_CFLAGS := $(filter-out -Werror, $(KBUILD_CFLAGS))
 obj-$(CONFIG_REMOTEPROC)		+= remoteproc.o
 obj-$(CONFIG_IPQ807X_REMOTEPROC)	+= q6v5-wcss.o rproc_mdt_loader.o q6v5-m3.o
 obj-$(CONFIG_IPQ_REMOTEPROC_ADSP)	+= q6v6-adsp.o
