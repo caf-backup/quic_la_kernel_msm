@@ -23,11 +23,10 @@
 		qcom,apm-halt-clk-delay = <0x11>;
 		qcom,apm-resume-clk-delay = <0x10>;
 		qcom,apm-sel-switch-delay = <0x01>;
-		status = "disabled";
 	};
 
 	apc_cpr: cpr4-ctrl@b018000 {
-		compatible = "qcom,cpr4-ipq807x-apss-regulator";
+		compatible = "qcom,cpr4-ipq6018-apss-regulator";
 		reg = <0xb018000 0x4000>, <0xa4000 0x1000>, <0x0193d008 0x4>;
 		reg-names = "cpr_ctrl", "fuse_base", "cpr_tcsr_reg";
 		interrupts = <GIC_SPI 15 IRQ_TYPE_EDGE_RISING>;
@@ -43,10 +42,9 @@
 		qcom,cpr-down-error-step-limit = <1>;
 		qcom,cpr-up-error-step-limit = <1>;
 		qcom,apm-ctrl = <&apc_apm>;
-		qcom,apm-threshold-voltage = <848000>;
+		qcom,apm-threshold-voltage = <850000>;
 		vdd-supply = <&ipq6018_s2_corner>;
-		qcom,voltage-step = <8000>;
-		status = "disabled";
+		qcom,voltage-step = <12500>;
 
 		thread@0 {
 			qcom,cpr-thread-id = <0>;
@@ -72,106 +70,14 @@
 				qcom,allow-quotient-interpolation;
 				qcom,cpr-scaled-open-loop-voltage-as-ceiling;
 				qcom,cpr-voltage-ceiling =
-					<840000 904000 944000
-					 984000 992000 1064000>;
+					<725000 787500 862500
+					 925000 987500 1062500>;
 				qcom,cpr-voltage-floor =
-					<592000 648000 712000
-					 744000 784000 848000>;
+					<587500 650000 712500
+					 750000 787500 850000>;
 				qcom,corner-frequencies =
-					<1017600000 1382400000 1651200000
-					1843200000 1920000000 2208000000>;
-
-				/* TT/FF parts i.e. turbo L1 OL voltage < 1048 mV */
-				qcom,cpr-open-loop-voltage-fuse-adjustment-0 =
-					/* Speed bin 0; CPR rev 0..7 */
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					<     0      0      0 12000>,
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					<     0      0      0     0>;
-
-				/* SS parts i.e turbo L1 OL voltage >= 1048 mV */
-				qcom,cpr-open-loop-voltage-fuse-adjustment-1 =
-					/* Speed bin 0; CPR rev 0..7 */
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					< 20000  26000      0 20000>,
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					<     0      0      0     0>;
-
-				/* v2 - FF parts i.e. turbo L1 OL voltage < 992 mV */
-				qcom,cpr-open-loop-voltage-fuse-adjustment-v2-0 =
-					/* Speed bin 0; CPR rev 0..7 */
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					<     0      0      0     0>;
-
-				/* v2 - SS/TT parts i.e turbo L1 OL voltage >= 992 mV */
-				qcom,cpr-open-loop-voltage-fuse-adjustment-v2-1 =
-					/* Speed bin 0; CPR rev 0..7 */
-					<     0      0      0     0>,
-					<     0   7000  36000  4000>,
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					<     0      0      0     0>;
-
-				/* v2 - FF parts i.e. turbo L1 OL voltage < 992 mV */
-				qcom,cpr-closed-loop-voltage-adjustment-v2-0 =
-					/* Speed bin 0; CPR rev 0..7 */
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					<     0      0      0     0>;
-
-				/* v2 - SS/TT parts i.e turbo L1 OL voltage >= 992 mV */
-				qcom,cpr-closed-loop-voltage-adjustment-v2-1 =
-					/* Speed bin 0; CPR rev 0..7 */
-					<     0      0      0     0>,
-					<     0      0      19000 0>,
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					<     0      0      0     0>,
-					<     0      0      0     0>;
-
-				qcom,cpr-ro-scaling-factor =
-					< 3970 4150 0    2280 2520 2470 2250 2280
-					  2390 2330 2530 2500  850 2900 2510 2170 >,
-					< 3970 4150 0    2280 2520 2470 2250 2280
-					  2390 2330 2530 2500  850 2900 2510 2170 >,
-					< 3970 4150 0    2280 2520 2470 2250 2280
-					  2390 2330 2530 2500  850 2900 2510 2170 >,
-					< 3970 4150 0    2280 2520 2470 2250 2280
-					  2390 2330 2530 2500  850 2900 2510 2170 >;
-
-				qcom,cpr-floor-to-ceiling-max-range =
-					< 40000 40000 40000 40000 40000 40000>,
-					< 40000 40000 40000 40000 40000 40000>,
-					< 40000 40000 40000 40000 40000 40000>,
-					< 40000 40000 40000 40000 40000 40000>,
-					< 40000 40000 40000 40000 40000 40000>,
-					< 40000 40000 40000 40000 40000 40000>,
-					< 40000 40000 40000 40000 40000 40000>,
-					< 40000 40000 40000 40000 40000 40000>;
+					<864000000 1056000000 1320000000
+					1440000000 1608000000 1800000000>;
 			};
 		};
 	};
