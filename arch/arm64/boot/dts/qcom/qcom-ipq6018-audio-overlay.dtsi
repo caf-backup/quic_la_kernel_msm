@@ -13,6 +13,7 @@
 
 #include <dt-bindings/clock/qcom,audio-ext-clk.h>
 #include <dt-bindings/sound/audio-codec-port-types.h>
+#include "qcom-ipq6018-audio.dtsi"
 
 &bolero {
 	qcom,num-macros = <3>;
