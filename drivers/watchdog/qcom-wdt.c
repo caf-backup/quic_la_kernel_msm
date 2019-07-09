@@ -299,6 +299,10 @@ int remove_minidump_segments(uint64_t virt_addr)
 	unsigned long pte_offset = pmd_offset + sizeof(struct minidump_tlv_info) +
 								QCOM_WDT_SCM_TLV_TYPE_LEN_SIZE;
 
+	if (!virt_addr) {
+		pr_info("\nMINIDUMP: Attempt to remove an invalid VA.");
+		return 0;
+	}
 	spin_lock_irqsave(&scm_tlv_msg->minidump_tlv_spinlock, flags);
 	/* Traverse Metadata list*/
 	list_for_each(pos, &metadata_list.list) {
@@ -433,18 +437,31 @@ int traverse_metadata_list(char *name, unsigned long virt_addr, unsigned long ph
 					cur_node->modinfo_offset = 0;
 				}
 			}
-		spin_unlock_irqrestore(&scm_tlv_msg->minidump_tlv_spinlock, flags);
+		spin_unlock_irqrestore(&scm_tlv_msg->minidump_tlv_spinlock,
+							 flags);
 		/* return REPLACE to indicate TLV needs to be inserted to the crashdump buffer*/
 		return REPLACE;
 		}
 
 	}
-	/* If not invalid entry was found,create new node.*/
+
+	/*
+	* If no invalid entry was found, create new node provided the
+	* crashdump buffer or metadata file are not full.
+	*/
+	if ((scm_tlv_msg->cur_msg_buffer_pos + QCOM_WDT_SCM_TLV_TYPE_LEN_SIZE +
+			sizeof(struct minidump_tlv_info) >=
+			scm_tlv_msg->msg_buffer + scm_tlv_msg->len) ||
+			(mod_log_len + MOD_LOG_LEN >= BUFLEN)) {
+		spin_unlock_irqrestore(&scm_tlv_msg->minidump_tlv_spinlock, flags);
+		return -ENOMEM;
+	}
 	cur_node = (struct minidump_metadata_list *)
 					kmalloc(sizeof(struct minidump_metadata_list), GFP_KERNEL);
 
 	if (!cur_node) {
-		spin_unlock_irqrestore(&scm_tlv_msg->minidump_tlv_spinlock, flags);
+		spin_unlock_irqrestore(&scm_tlv_msg->minidump_tlv_spinlock,
+							flags);
 		return -ENOMEM;
 	}
 
@@ -597,7 +614,6 @@ int fill_minidump_segments(uint64_t start_addr, uint64_t size, unsigned char typ
 	}
 
 	store_module_info(name, start_addr, type);
-
 	return 0;
 }
 EXPORT_SYMBOL(fill_minidump_segments);
@@ -623,6 +639,26 @@ int store_module_info(char *name ,unsigned long address, unsigned char type)
 	struct qcom_wdt_scm_tlv_msg *scm_tlv_msg = &tlv_msg;
 	unsigned long flags;
 
+	/* Check for Metadata file overflow */
+	if (mod_log_len + MOD_LOG_LEN >= BUFLEN) {
+		pr_err("\nMINIDUMP Metadata file overflow error");
+		return 0;
+	}
+
+	/*
+	* Check for valid cur_modinfo_offset value. Ensure
+	* that the offset is not NULL and is within bounds
+	* of the Metadata file.
+	*/
+	if ((!(void *)(uintptr_t)cur_modinfo_offset) ||
+		(cur_modinfo_offset < (uintptr_t)mod_log) ||
+		(cur_modinfo_offset + MOD_LOG_LEN >=
+		((uintptr_t)mod_log + BUFLEN))) {
+		pr_err("\nMINIDUMP Metadata file offset error");
+		return  -ENOBUFS;
+	}
+
+	/* Check for valid name */
 	if (!name)
 		return 0;
 
@@ -630,8 +666,10 @@ int store_module_info(char *name ,unsigned long address, unsigned char type)
 	if (!mod_name)
 		return 0;
 
-	if (strlen(mod_name) > NAME_LEN)
+	/* Truncate name if name is greater than 28 char */
+	if (strlen(mod_name) > NAME_LEN) {
 		mod_name[NAME_LEN] = '\0';
+	}
 
 	if (type == QCA_WDT_LOG_DUMP_TYPE_LEVEL1_PT) {
 		ret_val = snprintf(substring, MOD_LOG_LEN,
@@ -641,10 +679,8 @@ int store_module_info(char *name ,unsigned long address, unsigned char type)
 		"\n%s va=%lx", mod_name, address);
 	}
 
-	if (ret_val > MOD_LOG_LEN)
-		ret_val = MOD_LOG_LEN;
-
-	if (mod_log_len + ret_val >=  BUFLEN) {
+	/* Check for Metadatafile overflow */
+	if (mod_log_len + MOD_LOG_LEN >=  BUFLEN) {
 		kfree(mod_name);
 		return -ENOBUFS;
 	}
