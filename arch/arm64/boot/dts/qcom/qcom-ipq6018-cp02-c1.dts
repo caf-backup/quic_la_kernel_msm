@@ -304,6 +304,9 @@
 &blsp1_uart5 {
 	pinctrl-0 = <&hsuart_pins>;
 	pinctrl-names = "default";
+	dmas = <&blsp_dma 8>,
+		<&blsp_dma 9>;
+	dma-names = "tx", "rx";
 	status = "ok";
 };
 
