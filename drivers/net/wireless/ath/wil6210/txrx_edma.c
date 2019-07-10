@@ -33,8 +33,6 @@
 #define WIL_EDMA_MAX_DATA_OFFSET (2)
 /* RX buffer size must be aligned to 4 bytes */
 #define WIL_EDMA_RX_BUF_LEN_DEFAULT (2048)
-#define WIL_EDMA_MAX_NUM_DESC_RETRY (3)
-#define WIL_EDMA_RING_ID_RETRY (3)
 
 static void wil_tx_desc_unmap_edma(struct device *dev,
 				   union wil_tx_desc *desc,
@@ -1128,16 +1126,6 @@ wil_get_next_tx_status_msg(struct wil_status_ring *sring,
 	*msg = *_msg;
 }
 
-static inline void
-wil_tx_status_reset_msg(struct wil_status_ring *sring)
-{
-	struct wil_ring_tx_status *_msg = (struct wil_ring_tx_status *)
-		(sring->va + (sring->elem_size * sring->swhead));
-
-	_msg->num_descriptors = 0;
-	_msg->ring_id = 0;
-}
-
 /**
  * Clean up transmitted skb's from the Tx descriptor RING.
  * Return number of descriptors cleared.
@@ -1169,34 +1157,15 @@ int wil_tx_sring_handler(struct wil6210_priv *wil,
 	/* Process completion messages while DR bit has the expected polarity */
 	while (dr_bit == sring->desc_rdy_pol) {
 		num_descs = msg.num_descriptors;
-		while (!num_descs) {
-			int num_desc_retry = 0;
-
-			if (++num_desc_retry > WIL_EDMA_MAX_NUM_DESC_RETRY)
-				break;
-			wil_get_next_tx_status_msg(sring, &msg);
-			num_descs = msg.num_descriptors;
-		}
-
-		if (unlikely(!num_descs)) {
+		if (!num_descs) {
 			wil_err(wil, "invalid num_descs 0\n");
 			goto again;
 		}
 
 		/* Find the corresponding descriptor ring */
 		ring_id = msg.ring_id;
-		while (!ring_id) {
-			int ring_id_retry = 0;
 
-			if (++ring_id_retry > WIL_EDMA_RING_ID_RETRY)
-				break;
-			wil_get_next_tx_status_msg(sring, &msg);
-			ring_id = msg.ring_id;
-		}
-
-		wil_tx_status_reset_msg(sring);
-
-		if (unlikely(!ring_id  || ring_id >= WIL6210_MAX_TX_RINGS)) {
+		if (unlikely(ring_id >= WIL6210_MAX_TX_RINGS)) {
 			wil_err(wil, "invalid ring id %d\n", ring_id);
 			goto again;
 		}
