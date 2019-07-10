@@ -48,6 +48,9 @@ struct dwc3_of_simple {
 };
 
 #define USB30_QSCRATCH_GENERAL_CFG_OFFSET    (0x08)
+#define PIPE_UTMI_CLK_SEL			BIT(0)
+#define PIPE3_PHYSTATUS_SW			BIT(3)
+#define PIPE_UTMI_CLK_DIS			BIT(8)
 #define DSTS_CONNECTSPD_SS              0x4
 struct dwc3_msm_req_complete {
 	struct list_head list_item;
@@ -56,6 +59,22 @@ struct dwc3_msm_req_complete {
 			      struct usb_request *req);
 };
 
+static void dwc3_qcom_disable_ss(struct dwc3_of_simple *qcom)
+{
+	/* Configure dwc3 to use UTMI clock as PIPE clock not present */
+	writel((readl(qcom->qscratch_base+USB30_QSCRATCH_GENERAL_CFG_OFFSET) | PIPE_UTMI_CLK_DIS),
+			qcom->qscratch_base+USB30_QSCRATCH_GENERAL_CFG_OFFSET);
+
+	usleep_range(100, 1000);
+
+	writel((readl(qcom->qscratch_base+USB30_QSCRATCH_GENERAL_CFG_OFFSET) | PIPE_UTMI_CLK_SEL |
+		PIPE3_PHYSTATUS_SW),qcom->qscratch_base+USB30_QSCRATCH_GENERAL_CFG_OFFSET);
+
+	usleep_range(100, 1000);
+
+	writel((readl(qcom->qscratch_base+USB30_QSCRATCH_GENERAL_CFG_OFFSET) & ~PIPE_UTMI_CLK_DIS),
+			qcom->qscratch_base+USB30_QSCRATCH_GENERAL_CFG_OFFSET);
+}
 
 static int dwc3_of_simple_probe(struct platform_device *pdev)
 {
@@ -67,6 +86,7 @@ static int dwc3_of_simple_probe(struct platform_device *pdev)
 	unsigned int		count;
 	int			ret;
 	int			i;
+	bool			ignore_pipe_clk;
 
 	simple = devm_kzalloc(dev, sizeof(*simple), GFP_KERNEL);
 	if (!simple)
@@ -148,6 +168,14 @@ static int dwc3_of_simple_probe(struct platform_device *pdev)
 			simple->dwc3_base = NULL;
 		}
 	}
+	/*
+	 * Disable pipe_clk requirement if specified. Used when dwc3
+	 * operates without SSPHY and only HS/FS/LS modes are supported.
+	 */
+	ignore_pipe_clk = device_property_read_bool(dev,
+				"qcom,disable-ss");
+	if (ignore_pipe_clk)
+		dwc3_qcom_disable_ss(simple);
 
 	INIT_LIST_HEAD(&simple->req_complete_list);
 
