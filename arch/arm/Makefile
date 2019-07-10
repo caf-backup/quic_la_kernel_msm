@@ -32,6 +32,8 @@ ifndef CONFIG_FUNCTION_TRACER
 KBUILD_CFLAGS_KERNEL += -ffunction-sections -fdata-sections
 endif
 
+KBUILD_CFLAGS_KERNEL += -Werror
+
 # Never generate .eh_frame
 KBUILD_CFLAGS	+= $(call cc-option,-fno-dwarf2-cfi-asm)
 
