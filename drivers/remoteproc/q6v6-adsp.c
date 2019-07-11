@@ -164,6 +164,7 @@ struct q6v6_rproc_pdata {
 	int spurios_irqs;
 	void *reg_save_buffer;
 	unsigned int img_addr;
+	u32 reset_cmd_id;
 };
 
 static struct q6v6_rproc_pdata *q6v6_rproc_pdata;
@@ -755,7 +756,8 @@ static int q6_rproc_start(struct rproc *rproc)
 	atomic_set(&q6v6_rproc_pdata->running, RPROC_Q6V6_STARTING);
 	if (pdata->secure) {
 		ret = qcom_scm_pas_auth_and_reset(ADSP_PAS_ID,
-			(debug_adsp & DEBUG_ADSP_BREAK_AT_START));
+			(debug_adsp & DEBUG_ADSP_BREAK_AT_START),
+				pdata->reset_cmd_id);
 		if (ret) {
 			dev_err(dev, "q6-adsp reset failed\n");
 			return ret;
@@ -1244,6 +1246,11 @@ static int q6_rproc_probe(struct platform_device *pdev)
 
 	if (lpass_clks_enable(&pdev->dev))
 		goto free_rproc;
+
+	ret = of_property_read_u32(pdev->dev.of_node, "qca,sec-reset-cmd",
+					&q6v6_rproc_pdata->reset_cmd_id);
+	if (ret)
+		q6v6_rproc_pdata->reset_cmd_id = QCOM_SCM_PAS_AUTH_DEBUG_RESET_CMD;
 
 	if (!q6v6_rproc_pdata->secure) {
 		resource = platform_get_resource_byname(pdev, IORESOURCE_MEM,

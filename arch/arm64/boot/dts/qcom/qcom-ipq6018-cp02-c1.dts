@@ -25,6 +25,8 @@
 	interrupt-parent = <&intc>;
 
 	aliases {
+		serial0 = &blsp1_uart3;
+		serial1 = &blsp1_uart5;
 		sdhc1 = &sdhc_1;
 		/*
 		 * Aliases as required by u-boot
@@ -36,7 +38,7 @@
 
 	chosen {
 		bootargs = "console=ttyMSM0,115200,n8 rw init=/init";
-		bootargs-append = " swiotlb=1 clk_ignore_unused";
+		bootargs-append = " swiotlb=1 clk_ignore_unused coherent_pool=2M";
 	};
 
 	/*
@@ -64,12 +66,15 @@
 	 * for memory layout.
 	 */
 
+/* TZAPP is enabled only in default memory profile */
+#if !defined(__IPQ_MEM_PROFILE_256_MB__) && !defined(__IPQ_MEM_PROFILE_512_MB__)
 	reserved-memory {
 		tzapp:tzapp@49F00000 {	/* TZAPPS */
 			no-map;
 			reg = <0x0 0x49F00000 0x0 0x00200000>;
 		};
 	};
+#endif
 };
 
 &tlmm {
@@ -204,6 +209,15 @@
 			bias-pull-up;
 		};
 	};
+
+	hsuart_pins: hsuart_pins {
+		mux {
+			pins = "gpio55", "gpio56", "gpio57", "gpio58";
+			function = "blsp4_uart";
+			drive-strength = <8>;
+			bias-disable;
+		};
+	};
 };
 
 &soc {
@@ -284,6 +298,15 @@
 &blsp1_uart3 {
 	pinctrl-0 = <&uart_pins>;
 	pinctrl-names = "default";
+	status = "ok";
+};
+
+&blsp1_uart5 {
+	pinctrl-0 = <&hsuart_pins>;
+	pinctrl-names = "default";
+	dmas = <&blsp_dma 8>,
+		<&blsp_dma 9>;
+	dma-names = "tx", "rx";
 	status = "ok";
 };
 

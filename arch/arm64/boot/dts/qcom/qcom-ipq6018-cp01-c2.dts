@@ -16,6 +16,7 @@
  */
 
 #include "qcom-ipq6018-cp01.dtsi"
+#include "qcom-ipq6018-ion.dtsi"
 #include "qcom-ipq6018-audio-overlay.dtsi"
 #include "qcom-ipq6018-circular-pca9956.dtsi"
 
@@ -159,6 +160,10 @@
 			debounce-interval = <15>;
 		};
 	};
+};
+
+&smmu500 {
+	status = "ok";
 };
 
 &glink_adsp {

@@ -16,6 +16,7 @@
 #include <linux/scatterlist.h>
 
 #define QCOM_KERNEL_AUTH_CMD		0x15
+#define QCOM_SCM_PAS_AUTH_DEBUG_RESET_CMD	0x14
 
 struct qcom_scm_tcsr_req {
 	u32 mask;
@@ -69,7 +70,7 @@ extern int qcom_scm_pas_init_image(u32 peripheral, const void *metadata,
 		size_t size);
 extern int qcom_scm_pas_mem_setup(u32 peripheral, phys_addr_t addr,
 		phys_addr_t size);
-extern int qcom_scm_pas_auth_and_reset(u32 peripheral, u32 debug);
+extern int qcom_scm_pas_auth_and_reset(u32 peripheral, u32 debug, u32 cmd);
 extern int qcom_scm_pas_shutdown(u32 peripheral);
 
 #define SCM_SVC_UTIL		0x3

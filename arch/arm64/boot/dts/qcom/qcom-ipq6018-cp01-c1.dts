@@ -45,10 +45,30 @@
 	 * for memory layout.
 	 */
 
+/* TZAPP is enabled in default memory profile only */
+#if !defined(__IPQ_MEM_PROFILE_256_MB__) && !defined(__IPQ_MEM_PROFILE_512_MB__)
 	reserved-memory {
 		tzapp:tzapp@49F00000 {	/* TZAPPS */
 			no-map;
 			reg = <0x0 0x49F00000 0x0 0x00200000>;
 		};
 	};
+#endif
+};
+
+&tlmm {
+	i2c_1_pins: i2c_1_pins {
+		mux {
+			pins = "gpio42", "gpio43";
+			function = "blsp2_i2c";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+	};
+};
+
+&i2c_1 {
+	pinctrl-0 = <&i2c_1_pins>;
+	pinctrl-names = "default";
+	status = "ok";
 };

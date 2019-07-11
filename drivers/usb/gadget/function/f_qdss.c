@@ -1066,5 +1066,5 @@ static void __exit usb_qdss_exit(void)
 
 module_init(usb_qdss_init);
 module_exit(usb_qdss_exit);
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("USB QDSS Function Driver");

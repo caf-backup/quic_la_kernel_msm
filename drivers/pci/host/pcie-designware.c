@@ -534,10 +534,35 @@ static void msi_teardown_irq(struct msi_controller *chip, unsigned int irq)
 	}
 }
 
+static void msi_teardown_irqs(struct pci_dev *dev)
+{
+	struct msi_desc *entry;
+	struct pcie_port *pp = dev->bus->sysdata;
+
+	list_for_each_entry(entry, &dev->dev.msi_list, list) {
+		int i, nvec;
+
+		if (entry->irq == 0)
+			continue;
+		nvec = 1 << entry->msi_attrib.multiple;
+		pp = (struct pcie_port *) msi_desc_to_pci_sysdata(entry);
+		for (i = 0; i < nvec; i++) {
+			if (pp->msi_gicm_addr)
+				pcie_destroy_qgic_msi_irq(entry->irq + i, pp);
+			else {
+				struct msi_controller *chip = irq_get_chip_data(entry->irq + i);
+
+				dw_msi_teardown_irq(chip, entry->irq + i);
+			}
+		}
+	}
+}
+
 static struct msi_controller dw_pcie_msi_chip = {
 	.setup_irq = msi_setup_irq,
 	.setup_irqs = msi_setup_irqs,
 	.teardown_irq = msi_teardown_irq,
+	.teardown_irqs = msi_teardown_irqs,
 };
 
 int dw_pcie_wait_for_link(struct pcie_port *pp)

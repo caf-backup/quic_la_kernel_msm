@@ -1,6 +1,7 @@
 #
 # Makefile for the linux kernel signature checking certificates.
 #
+KBUILD_CFLAGS += -Werror
 
 obj-$(CONFIG_SYSTEM_TRUSTED_KEYRING) += system_keyring.o system_certificates.o
 

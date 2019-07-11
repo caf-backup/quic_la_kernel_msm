@@ -39,7 +39,7 @@
 
 	chosen {
 		bootargs = "console=ttyMSM0,115200,n8 rw init=/init";
-		bootargs-append = " swiotlb=1 clk_ignore_unused";
+		bootargs-append = " swiotlb=1 clk_ignore_unused coherent_pool=2M";
 	};
 
 };
@@ -413,6 +413,7 @@
 	cd-gpios = <&tlmm 62 1>;
 	sd-ldo-gpios = <&tlmm 66 0>;
 	vqmmc-supply = <&ipq6018_l2_corner>;
+	qcom,cut-card-voltage-in-reboot;
 	status = "ok";
 };
 
@@ -437,10 +438,6 @@
 };
 
 &nss_crypto {
-	status = "ok";
-};
-
-&smmu500 {
 	status = "ok";
 };
 
