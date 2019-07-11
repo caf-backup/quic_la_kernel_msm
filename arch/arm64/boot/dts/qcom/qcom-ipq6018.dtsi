@@ -713,6 +713,11 @@
 			status = "ok";
 		};
 
+		gadget_diag: qcom,gadget_diag@0 {
+			compatible = "qcom,gadget-diag";
+			status = "disabled";
+		};
+
 		blsp_dma: dma@7884000 {
 			compatible = "qcom,bam-v1.7.0";
 			reg = <0x07884000 0x2b000>;
