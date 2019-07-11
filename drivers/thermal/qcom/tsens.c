@@ -110,6 +110,9 @@ static const struct of_device_id tsens_table[] = {
 	}, {
 		.compatible = "qcom,ipq807x-tsens",
 		.data = &data_ipq807x,
+	}, {
+		.compatible = "qcom,ipq6018-tsens",
+		.data = &data_ipq807x,
 	},
 	{}
 };
