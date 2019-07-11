@@ -2098,6 +2098,18 @@
 			qca,hyp-enabled;
 			hyp-scm-cmd-id = <0xA>;
 		};
+
+		qcom,rpm-log@29fc00 {
+			compatible = "qcom,rpm-log";
+			reg = <0x29fc00 0x4000>;
+			qcom,rpm-addr-phys = <0x200000>;
+			qcom,offset-version = <4>;
+			qcom,offset-page-buffer-addr = <36>;
+			qcom,offset-log-len = <40>;
+			qcom,offset-log-len-mask = <44>;
+			qcom,offset-page-indices = <56>;
+		};
+
 	};
 
 	psci: psci {
