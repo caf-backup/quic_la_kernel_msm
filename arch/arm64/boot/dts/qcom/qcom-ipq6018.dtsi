@@ -1395,6 +1395,7 @@
 			qcom,crypto-enabled;
 			qcom,ipsec-enabled;
 			qcom,qvpn-enabled;
+			qcom,pvxlan-enabled;
 		};
 
 		nss_crypto: qcom,nss_crypto {
