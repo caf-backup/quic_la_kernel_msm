@@ -166,6 +166,7 @@ struct msi_controller {
 	int (*setup_irqs)(struct msi_controller *chip, struct pci_dev *dev,
 			  int nvec, int type);
 	void (*teardown_irq)(struct msi_controller *chip, unsigned int irq);
+	void (*teardown_irqs)(struct pci_dev *dev);
 };
 
 #ifdef CONFIG_GENERIC_MSI_IRQ_DOMAIN
