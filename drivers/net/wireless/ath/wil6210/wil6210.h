@@ -466,7 +466,7 @@ static inline void parse_cidxtid(u8 cidxtid, u8 *cid, u8 *tid)
  * wil_cid_valid - check cid is valid
  * @cid: CID value
  */
-static inline bool wil_cid_valid(u8 cid)
+static inline bool wil_cid_valid(int cid)
 {
 	return (cid >= 0 && cid < max_assoc_sta);
 }
@@ -1481,6 +1481,7 @@ int wmi_stop_sched_scan(struct wil6210_priv *wil);
 int wmi_mgmt_tx(struct wil6210_vif *vif, const u8 *buf, size_t len);
 int wmi_mgmt_tx_ext(struct wil6210_vif *vif, const u8 *buf, size_t len,
 		    u8 channel, u16 duration_ms);
+int wmi_rbufcap_cfg(struct wil6210_priv *wil, bool enable, u16 threshold);
 
 void wil_ftm_init(struct wil6210_vif *vif);
 void wil_ftm_deinit(struct wil6210_vif *vif);
@@ -1530,4 +1531,5 @@ int wil_spec2wmi_ch(u8 spec_ch, u8 *wmi_ch);
 
 void update_supported_bands(struct wil6210_priv *wil);
 
+void wil_clear_fw_log_addr(struct wil6210_priv *wil);
 #endif /* __WIL6210_H__ */
