@@ -1511,6 +1511,13 @@ const struct qseecom_props qseecom_props_ipq807x = {
 	.logging_support_enabled = true,
 };
 
+const struct qseecom_props qseecom_props_ipq6018 = {
+	.function = (MUL | CRYPTO),
+	.tz_arch = QSEE_64,
+	.libraries_inbuilt = false,
+	.logging_support_enabled = true,
+};
+
 static const struct of_device_id qseecom_of_table[] = {
 	{	.compatible = "ipq40xx-qseecom",
 		.data = (void *) &qseecom_props_ipq40xx,
@@ -1520,6 +1527,9 @@ static const struct of_device_id qseecom_of_table[] = {
 	},
 	{	.compatible = "ipq807x-qseecom",
 		.data = (void *) &qseecom_props_ipq807x,
+	},
+	{	.compatible = "ipq6018-qseecom",
+		.data = (void *) &qseecom_props_ipq6018,
 	},
 	{}
 };
