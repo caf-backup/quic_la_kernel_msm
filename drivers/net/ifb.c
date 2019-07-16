@@ -129,6 +129,31 @@ resched:
 
 }
 
+void ifb_update_offload_stats(struct net_device *dev, struct pcpu_sw_netstats *offload_stats)
+{
+	struct ifb_dev_private *dp;
+	struct ifb_q_private *txp;
+
+	if (!dev || !offload_stats) {
+		return;
+	}
+
+	if (!(dev->priv_flags & IFF_IFB)) {
+		return;
+	}
+
+	dp = netdev_priv(dev);
+	txp = dp->tx_private;
+
+	u64_stats_update_begin(&txp->rsync);
+	txp->rx_packets += offload_stats->rx_packets;
+	txp->rx_bytes += offload_stats->rx_bytes;
+	txp->tx_packets += offload_stats->tx_packets;
+	txp->tx_bytes += offload_stats->tx_bytes;
+	u64_stats_update_end(&txp->rsync);
+}
+EXPORT_SYMBOL(ifb_update_offload_stats);
+
 static struct rtnl_link_stats64 *ifb_stats64(struct net_device *dev,
 					     struct rtnl_link_stats64 *stats)
 {
@@ -230,6 +255,7 @@ static void ifb_setup(struct net_device *dev)
 	dev->flags |= IFF_NOARP;
 	dev->flags &= ~IFF_MULTICAST;
 	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
+	dev->priv_flags |= IFF_IFB;	/* Mark the device as an IFB device. */
 	netif_keep_dst(dev);
 	eth_hw_addr_random(dev);
 	dev->destructor = ifb_dev_free;
