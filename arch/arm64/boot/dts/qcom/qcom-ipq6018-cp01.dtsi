@@ -189,6 +189,12 @@
 			drive-strength = <8>;
 			bias-pull-up;
 		};
+		reset_button {
+			pins = "gpio19";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
 	};
 
 	mdio_pins: mdio_pinmux {
@@ -407,6 +413,13 @@
 			label = "wps";
 			linux,code = <KEY_WPS_BUTTON>;
 			gpios = <&tlmm 9 GPIO_ACTIVE_LOW>;
+			linux,input-type = <1>;
+			debounce-interval = <60>;
+		};
+		reset {
+			label = "reset";
+			linux,code = <KEY_POWER>;
+			gpios = <&tlmm 19 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
 			debounce-interval = <60>;
 		};
