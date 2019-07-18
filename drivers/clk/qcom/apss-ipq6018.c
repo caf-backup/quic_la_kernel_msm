@@ -113,6 +113,7 @@ static const struct freq_tbl ftbl_apcs_alias0_clk_src[] = {
 	F(24000000, P_XO, 1, 0, 0),
 	F(864000000, P_APSS_PLL_EARLY, 1, 0, 0),
 	F(1056000000, P_APSS_PLL_EARLY, 1, 0, 0),
+	F(1200000000, P_APSS_PLL_EARLY, 1, 0, 0),
 	F(1320000000, P_APSS_PLL_EARLY, 1, 0, 0),
 	F(1440000000, P_APSS_PLL_EARLY, 1, 0, 0),
 	F(1608000000, P_APSS_PLL_EARLY, 1, 0, 0),
