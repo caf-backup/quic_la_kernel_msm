@@ -179,6 +179,21 @@
 			bias-pull-up;
 		};
 	};
+
+	leds_pins: leds_pins {
+		led_5g {
+			pins = "gpio35";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+		led_2g {
+			pins = "gpio37";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+	};
 };
 
 &soc {
@@ -239,6 +254,24 @@
 		phy-mode = "sgmii";
 	};
 
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-0 = <&leds_pins>;
+		pinctrl-names = "default";
+
+		led@35 {
+			label = "led_5g";
+			gpios = <&tlmm 35 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "led_5g";
+			default-state = "off";
+		};
+		led@37 {
+			label = "led_2g";
+			gpios = <&tlmm 37 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "led_2g";
+			default-state = "off";
+		};
+	};
 };
 
 &blsp1_uart3 {
