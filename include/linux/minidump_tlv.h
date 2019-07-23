@@ -49,8 +49,8 @@ struct minidump_metadata_list {
 #define QCOM_WDT_SCM_TLV_TYPE_LEN_SIZE (QCOM_WDT_SCM_TLV_TYPE_SIZE + QCOM_WDT_SCM_TLV_LEN_SIZE)
 #define INVALID 0
 
-#define BUFLEN 8192
-#define MOD_LOG_LEN 50
+#define METADATA_FILE_SZ 12288
+#define METADATA_FILE_ENTRY_LEN 50
 #define NAME_LEN 28
 int fill_minidump_segments(uint64_t start_addr, uint64_t size, unsigned char type, char *name);
 int store_module_info(char *name ,unsigned long address, unsigned char type);

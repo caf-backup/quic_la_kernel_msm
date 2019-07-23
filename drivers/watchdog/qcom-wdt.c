@@ -78,7 +78,7 @@ struct qcom_wdt {
 };
 
 #ifdef CONFIG_QCA_MINIDUMP
-char mod_log[BUFLEN];
+char mod_log[METADATA_FILE_SZ];
 unsigned long mod_log_len;
 unsigned long cur_modinfo_offset;
 qcom_wdt_scm_tlv_msg_t tlv_msg;
@@ -426,7 +426,7 @@ int traverse_metadata_list(char *name, unsigned long virt_addr, unsigned long ph
 				* value at mod_offset.
 				*/
 				cur_modinfo_offset = cur_node->modinfo_offset;
-				memset((void *)(uintptr_t)cur_modinfo_offset, '\0', MOD_LOG_LEN);
+				memset((void *)(uintptr_t)cur_modinfo_offset, '\0', METADATA_FILE_ENTRY_LEN);
 			} else {
 				if (name != NULL) {
 					/* If the metadta list node does not have an entry in the
@@ -465,7 +465,7 @@ int traverse_metadata_list(char *name, unsigned long virt_addr, unsigned long ph
 	if ((scm_tlv_msg->cur_msg_buffer_pos + QCOM_WDT_SCM_TLV_TYPE_LEN_SIZE +
 			sizeof(struct minidump_tlv_info) >=
 			scm_tlv_msg->msg_buffer + scm_tlv_msg->len) ||
-			(mod_log_len + MOD_LOG_LEN >= BUFLEN)) {
+			(mod_log_len + METADATA_FILE_ENTRY_LEN >= METADATA_FILE_SZ)) {
 		return -ENOMEM;
 	}
 	cur_node = (struct minidump_metadata_list *)
@@ -602,10 +602,10 @@ int fill_minidump_segments(uint64_t start_addr, uint64_t size, unsigned char typ
 			return ret;
 		}
 
-		if (type == QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD) {
+		if (type == QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD || IS_ENABLED(CONFIG_ARM64)) {
 			ret = get_mmu_entry((const void *)(uintptr_t)(temp_start_addr
-				& (~(PAGE_SIZE - 1))), type, replace, tlv_offset + pmd_offset,
-				tlv_offset + pte_offset);
+				& (~(PAGE_SIZE - 1))), QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, replace,
+				tlv_offset + pmd_offset, tlv_offset + pte_offset);
 			if (ret) {
 				pr_err("MINIDUMP error dumping MMU %d \n", ret);
 				return ret;
@@ -625,8 +625,8 @@ int fill_minidump_segments(uint64_t start_addr, uint64_t size, unsigned char typ
 			return ret;
 		}
 		ret = get_mmu_entry((const void *)(uintptr_t)(start_addr &
-				(~(PAGE_SIZE - 1))), type, replace, tlv_offset + pmd_offset,
-				tlv_offset + pte_offset);
+				(~(PAGE_SIZE - 1))), QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD,
+				replace, tlv_offset + pmd_offset, tlv_offset + pte_offset);
 		if (ret) {
 			pr_info("MINIDUMP error dumping MMU %d\n", ret);
 			return ret;
@@ -653,14 +653,15 @@ EXPORT_SYMBOL(fill_minidump_segments);
 int store_module_info(char *name ,unsigned long address, unsigned char type)
 {
 
-	char substring[MOD_LOG_LEN];
+	char substring[METADATA_FILE_ENTRY_LEN];
 	char *mod_name;
 	int ret_val =0;
 	struct qcom_wdt_scm_tlv_msg *scm_tlv_msg = &tlv_msg;
 	unsigned long flags;
 
 	/* Check for Metadata file overflow */
-	if (mod_log_len + MOD_LOG_LEN >= BUFLEN) {
+	if ((cur_modinfo_offset == (uintptr_t)mod_log + mod_log_len) &&
+		(mod_log_len + METADATA_FILE_ENTRY_LEN >= METADATA_FILE_SZ)) {
 		pr_err("\nMINIDUMP Metadata file overflow error");
 		return 0;
 	}
@@ -672,8 +673,8 @@ int store_module_info(char *name ,unsigned long address, unsigned char type)
 	*/
 	if ((!(void *)(uintptr_t)cur_modinfo_offset) ||
 		(cur_modinfo_offset < (uintptr_t)mod_log) ||
-		(cur_modinfo_offset + MOD_LOG_LEN >=
-		((uintptr_t)mod_log + BUFLEN))) {
+		(cur_modinfo_offset + METADATA_FILE_ENTRY_LEN >=
+		((uintptr_t)mod_log + METADATA_FILE_SZ))) {
 		pr_err("\nMINIDUMP Metadata file offset error");
 		return  -ENOBUFS;
 	}
@@ -692,25 +693,25 @@ int store_module_info(char *name ,unsigned long address, unsigned char type)
 	}
 
 	if (type == QCA_WDT_LOG_DUMP_TYPE_LEVEL1_PT) {
-		ret_val = snprintf(substring, MOD_LOG_LEN,
+		ret_val = snprintf(substring, METADATA_FILE_ENTRY_LEN,
 		"\n%s pa=%lx", mod_name, (unsigned long)__pa(address));
 	} else {
-		ret_val = snprintf(substring, MOD_LOG_LEN,
+		ret_val = snprintf(substring, METADATA_FILE_ENTRY_LEN,
 		"\n%s va=%lx", mod_name, address);
 	}
 
 	/* Check for Metadatafile overflow */
-	if (mod_log_len + MOD_LOG_LEN >=  BUFLEN) {
+	if (mod_log_len + METADATA_FILE_ENTRY_LEN >=  METADATA_FILE_SZ) {
 		kfree(mod_name);
 		return -ENOBUFS;
 	}
 
 	spin_lock_irqsave(&scm_tlv_msg->minidump_tlv_spinlock, flags);
-	memset((void *)(uintptr_t)cur_modinfo_offset, '\0', MOD_LOG_LEN);
-	snprintf((char *)(uintptr_t)cur_modinfo_offset, MOD_LOG_LEN, "%s", substring);
+	memset((void *)(uintptr_t)cur_modinfo_offset, '\0', METADATA_FILE_ENTRY_LEN);
+	snprintf((char *)(uintptr_t)cur_modinfo_offset, METADATA_FILE_ENTRY_LEN, "%s", substring);
 
 	if (cur_modinfo_offset == (uintptr_t)mod_log + mod_log_len) {
-		mod_log_len = mod_log_len + MOD_LOG_LEN;
+		mod_log_len = mod_log_len + METADATA_FILE_ENTRY_LEN;
 		cur_modinfo_offset = (uintptr_t)mod_log + mod_log_len;
 	} else {
 		cur_modinfo_offset = (uintptr_t)mod_log + mod_log_len;
@@ -958,8 +959,8 @@ static int wlan_modinfo_panic_handler(struct notifier_block *this,
 			pr_info(" un-named [%lx] ---> ",cur_node->va);
 	}
 	pr_err("\n Minidump: # nodes in the Metadata list = %d\n",count);
-	pr_err("\n Minidump: Size of node in Metadata list = %d\n",
-		sizeof(struct minidump_metadata_list));
+	pr_err("\n Minidump: Size of node in Metadata list = %ld\n",
+		(unsigned long)sizeof(struct minidump_metadata_list));
 	return NOTIFY_DONE;
 }
 
@@ -1155,7 +1156,7 @@ const struct qcom_wdt_props qcom_wdt_props_ipq8064 = {
 
 const struct qcom_wdt_props qcom_wdt_props_ipq807x = {
 	.layout = reg_offset_data_kpss,
-	.tlv_msg_offset = (496 * SZ_1K),
+	.tlv_msg_offset = (500 * SZ_1K),
 	/* As SBL overwrites the NSS IMEM, TZ has to copy it to some memory
 	 * on crash before it restarts the system. Hence, reserving of 384K
 	 * is required to copy the NSS IMEM before restart is done.
@@ -1166,8 +1167,8 @@ const struct qcom_wdt_props qcom_wdt_props_ipq807x = {
 	 * so when we pass 400K as argument 512K will be allocated.
 	 * 3K is required for DCC regsave memory.
 	 * 15K is required for CPR.
-	* 78K is unused currently and can be used based on future needs.
-	* 16K is used for crashdump TLV buffer for Minidump feature.
+	* 82K is unused currently and can be used based on future needs.
+	* 12K is used for crashdump TLV buffer for Minidump feature.
 	 */
 	/*
 	 * The memory is allocated using alloc_pages, hence it will be in
@@ -1194,17 +1195,17 @@ const struct qcom_wdt_props qcom_wdt_props_ipq807x = {
 	 *		|    CPR Reg   |
 	 *		 --------------
 	 *		|		|
-	 *		|     78K	|
+	 *		|     82K	|
 	 *		|    Unused	|
 	 *		|		|
 	 *		 ---------------
-	*		|     16 K     |
+	*		|     12 K     |
 	*		|   TLV Buffer |
 	*		 ---------------
 	*
 	*/
 	.crashdump_page_size = (SZ_8K + (384 * SZ_1K) + (SZ_8K) + (3 * SZ_1K) +
-				(15 * SZ_1K) + (94 * SZ_1K)),
+				(15 * SZ_1K) + (82 * SZ_1K) + (12 * SZ_1K)),
 	.secure_wdog = true,
 };
 
@@ -1217,7 +1218,7 @@ const struct qcom_wdt_props qcom_wdt_props_ipq40xx = {
 
 const struct qcom_wdt_props qcom_wdt_props_ipq6018 = {
 	.layout = reg_offset_data_kpss,
-	.tlv_msg_offset = (240 * SZ_1K),
+	.tlv_msg_offset = (244 * SZ_1K),
 	/* As XBL overwrites the NSS UTCM, TZ has to copy it to some memory
 	 * on crash before it restarts the system. Hence, reserving of 192K
 	 * is required to copy the NSS UTCM before restart is done.
@@ -1227,8 +1228,8 @@ const struct qcom_wdt_props qcom_wdt_props_ipq6018 = {
 	 *
 	 * get_order function returns the next higher order as output,
 	 * so when we pass 203K as argument 256K will be allocated.
-	 * 37K is unused currently and can be used based on future needs.
-	 * 16K is used for crashdump TLV buffer for Minidump feature.
+	 * 41K is unused currently and can be used based on future needs.
+	 * 12K is used for crashdump TLV buffer for Minidump feature.
 	 * For minidump feature, last 16K of crashdump page size is used for
 	 * TLV buffer in the case of ipq807x. Same offset (last 16 K from end
 	 * of crashdump page) is used for ipq60xx as well, to keep design
@@ -1252,17 +1253,17 @@ const struct qcom_wdt_props qcom_wdt_props_ipq6018 = {
 	 *		|    3K - DCC	|
 	 *		 ---------------
 	 *		|		|
-	 *		|     37K	|
+	 *		|     41K	|
 	 *		|    Unused	|
 	 *		|		|
 	 *		 ---------------
-	 *		|     16 K     |
+	 *		|     12 K     |
 	 *		|   TLV Buffer |
 	 *		---------------
 	 *
 */
 	.crashdump_page_size = (SZ_8K + (192 * SZ_1K) + (3 * SZ_1K) +
-				(37 * SZ_1K) + (16 * SZ_1K)),
+				(41 * SZ_1K) + (12 * SZ_1K)),
 	.secure_wdog = true,
 };
 
