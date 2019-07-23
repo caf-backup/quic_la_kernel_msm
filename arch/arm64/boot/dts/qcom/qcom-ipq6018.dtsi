@@ -1003,6 +1003,7 @@
 				   <&wcss_smp2p_out 1>;
 			qcom,smem-state-names = "shutdown",
 					"stop";
+			memory-region = <&q6_region>, <&q6_etr_region>;
 		};
 
 		q6v5_m3: q6v5_m3 {
