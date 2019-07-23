@@ -90,7 +90,7 @@ static int qcom_wdt_scm_replace_tlv(struct qcom_wdt_scm_tlv_msg *scm_tlv_msg,
 static int qcom_wdt_scm_add_tlv(struct qcom_wdt_scm_tlv_msg *scm_tlv_msg,
 		unsigned char type, unsigned int size, const char *data);
 static int traverse_metadata_list(char *name, unsigned long virt_addr, unsigned long phy_addr,
-		unsigned char **tlv_offset);
+		unsigned char **tlv_offset, unsigned long size);
 extern void get_pgd_info(uint64_t *pt_start, uint64_t *pt_len);
 extern void get_linux_buf_info(uint64_t *plinux_buf, uint64_t *plinux_buf_len);
 extern int get_mmu_info(const void *vmalloc_addr, unsigned long *pt_address,
@@ -391,10 +391,11 @@ EXPORT_SYMBOL(remove_minidump_segments);
 * Return: 'REPLACE' if TLV needs to be inserted into the crashdump buffer at
 *	offset position. 'APPEND' if TLV needs to be appended to the crashdump buffer.
 *	Also tlv_offset is updated to offset at which corresponding TLV entry will be
-*	added to the crashdump buffer.
+*	added to the crashdump buffer. Return -ENOMEM if new list node was not created
+*   due to either an alloc failure or an attempt to add a duplicate entry
 */
 int traverse_metadata_list(char *name, unsigned long virt_addr, unsigned long phy_addr,
-		unsigned char **tlv_offset)
+		unsigned char **tlv_offset, unsigned long size)
 {
 
 	unsigned long flags;
@@ -406,13 +407,18 @@ int traverse_metadata_list(char *name, unsigned long virt_addr, unsigned long ph
 	list_for_each(pos, &metadata_list.list) {
 		/* Traverse Metadata list to check if invalid entry exits */
 		cur_node = list_entry(pos, struct minidump_metadata_list, list);
-		if (cur_node->va == INVALID) {
+		if(cur_node->va == virt_addr && cur_node->size == size) {
+			spin_unlock_irqrestore(&scm_tlv_msg->minidump_tlv_spinlock,
+					flags);
+			return -ENOMEM;
+		} else if (cur_node->va == INVALID) {
 			/* If an invalid entry exits, update node entries and use
 			* offset values to write TLVs to the crashdump buffer and
 			* an entry in the Metadata file if applicable. 
 			*/
 			*tlv_offset = cur_node->tlv_offset;
 			cur_node->va = virt_addr;
+			cur_node->size = size;
 
 			if (cur_node->modinfo_offset != 0) {
 				/* If the metadata list node has an entry in the Metadata file,
@@ -428,13 +434,19 @@ int traverse_metadata_list(char *name, unsigned long virt_addr, unsigned long ph
 					* to the end of the metadata file.
 					*/
 					cur_node->modinfo_offset = cur_modinfo_offset;
+					#ifdef CONFIG_QCA_MINIDUMP_DEBUG
+					kfree(cur_node->name);
 					cur_node->name = kstrndup(name, strlen(name), GFP_KERNEL);
+					#endif
 				} else {
 					/* If dump segment does not have a valid name, set name
 					* to null and mod_offset to 0.
 					*/
-					cur_node->name = NULL;
 					cur_node->modinfo_offset = 0;
+					#ifdef CONFIG_QCA_MINIDUMP_DEBUG
+					kfree(cur_node->name);
+					cur_node->name = NULL;
+					#endif
 				}
 			}
 		spin_unlock_irqrestore(&scm_tlv_msg->minidump_tlv_spinlock,
@@ -445,6 +457,7 @@ int traverse_metadata_list(char *name, unsigned long virt_addr, unsigned long ph
 
 	}
 
+	spin_unlock_irqrestore(&scm_tlv_msg->minidump_tlv_spinlock, flags);
 	/*
 	* If no invalid entry was found, create new node provided the
 	* crashdump buffer or metadata file are not full.
@@ -453,15 +466,12 @@ int traverse_metadata_list(char *name, unsigned long virt_addr, unsigned long ph
 			sizeof(struct minidump_tlv_info) >=
 			scm_tlv_msg->msg_buffer + scm_tlv_msg->len) ||
 			(mod_log_len + MOD_LOG_LEN >= BUFLEN)) {
-		spin_unlock_irqrestore(&scm_tlv_msg->minidump_tlv_spinlock, flags);
 		return -ENOMEM;
 	}
 	cur_node = (struct minidump_metadata_list *)
 					kmalloc(sizeof(struct minidump_metadata_list), GFP_KERNEL);
 
 	if (!cur_node) {
-		spin_unlock_irqrestore(&scm_tlv_msg->minidump_tlv_spinlock,
-							flags);
 		return -ENOMEM;
 	}
 
@@ -469,18 +479,25 @@ int traverse_metadata_list(char *name, unsigned long virt_addr, unsigned long ph
 		/* If dump segment has a valid name, update name and offset with
 		* pointer to the Metadata file
 		*/
-		cur_node->name = kstrndup(name, strlen(name), GFP_KERNEL);
 		cur_node->modinfo_offset = cur_modinfo_offset;
+		#ifdef CONFIG_QCA_MINIDUMP_DEBUG
+		cur_node->name = kstrndup(name, strlen(name), GFP_KERNEL);
+		#endif
 	} else {
 		/* If dump segment does not have a valid name, set name to null and
 		* mod_offset to 0
 		*/
-		cur_node->name = NULL;
 		cur_node->modinfo_offset = 0;
+		#ifdef CONFIG_QCA_MINIDUMP_DEBUG
+		cur_node->name = NULL;
+		#endif
 	}
 	/* Update va and offset to crashdump buffer*/
 	cur_node->va = virt_addr;
+	cur_node->size = size;
 	cur_node->tlv_offset = scm_tlv_msg->cur_msg_buffer_pos;
+
+	spin_lock_irqsave(&scm_tlv_msg->minidump_tlv_spinlock, flags);
 	list_add_tail(&(cur_node->list), &(metadata_list.list));
 	spin_unlock_irqrestore(&scm_tlv_msg->minidump_tlv_spinlock, flags);
 	/* return APPEND to indicate TLV needs to be appended to the crashdump buffer*/
@@ -573,7 +590,10 @@ int fill_minidump_segments(uint64_t start_addr, uint64_t size, unsigned char typ
 	if ((unsigned long)start_addr >= PAGE_OFFSET && (unsigned long) start_addr
 						< (unsigned long)high_memory) {
 		phys_addr = (uint64_t)__pa(start_addr);
-		replace = traverse_metadata_list(name, start_addr, phys_addr, &tlv_offset);
+		replace = traverse_metadata_list(name, start_addr, phys_addr, &tlv_offset, size);
+		/* return value of -ENOMEM indicates  new list node was not created
+		* due to either an alloc failure or an attempt to add a duplicate entry
+		*/
 		if (replace == -ENOMEM)
 			return replace;
 
@@ -595,7 +615,7 @@ int fill_minidump_segments(uint64_t start_addr, uint64_t size, unsigned char typ
 		minidump_tlv_page =	vmalloc_to_page((const void *)(uintptr_t)
 							(start_addr & (~(PAGE_SIZE - 1))));
 		phys_addr = page_to_phys(minidump_tlv_page) + offset_in_page(start_addr);
-		replace = traverse_metadata_list(name, start_addr, phys_addr, &tlv_offset);
+		replace = traverse_metadata_list(name, start_addr, phys_addr, &tlv_offset, size);
 
 		if (replace == -ENOMEM)
 			return replace;
@@ -918,6 +938,35 @@ static struct notifier_block wlan_module_exit_nb = {
 	.notifier_call  = wlan_module_notify_exit,
 };
 
+#ifdef CONFIG_QCA_MINIDUMP_DEBUG
+static int wlan_modinfo_panic_handler(struct notifier_block *this,
+				unsigned long event, void *ptr)
+{
+	struct minidump_metadata_list *cur_node;
+	struct list_head *pos;
+	int count = 0;
+
+	pr_err("\n Minidump: Size of Metadata file = %ld\n",mod_log_len);
+	pr_err("\n Minidump: Printing out contents of Metadata list\n");
+
+	list_for_each(pos, &metadata_list.list) {
+		count ++;
+		cur_node = list_entry(pos, struct minidump_metadata_list, list);
+		if (cur_node->name != NULL)
+			pr_info(" %s [%lx] ---> ",cur_node->name,cur_node->va);
+		else
+			pr_info(" un-named [%lx] ---> ",cur_node->va);
+	}
+	pr_err("\n Minidump: # nodes in the Metadata list = %d\n",count);
+	pr_err("\n Minidump: Size of node in Metadata list = %d\n",
+		sizeof(struct minidump_metadata_list));
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block wlan_panic_nb = {
+	.notifier_call  = wlan_modinfo_panic_handler,
+};
+#endif /* CONFIG_QCA_MINIDUMP_DEBUG */
 #endif /*CONFIG_QCA_MINIDUMP  */
 
 static inline
@@ -1422,7 +1471,14 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	ret = register_module_notifier(&wlan_module_exit_nb);
 	if (ret)
 		dev_err(&pdev->dev, "Failed to register WLAN module exit notifier\n");
-#endif
+#ifdef CONFIG_QCA_MINIDUMP_DEBUG
+	ret = atomic_notifier_chain_register(&panic_notifier_list,
+				&wlan_panic_nb);
+	if (ret)
+		dev_err(&pdev->dev,
+			"Failed to register panic notifier for WLAN module info\n");
+#endif /*CONFIG_QCA_MINIDUMP_DEBUG*/
+#endif /*CONFIG_QCA_MINIDUMP*/
 	platform_set_drvdata(pdev, wdt);
 
 	if (!of_property_read_u32(np, "extwdt-val", &val)) {
