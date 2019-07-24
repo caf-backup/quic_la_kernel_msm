@@ -136,6 +136,7 @@ enum cnss_driver_mode {
 	CNSS_CCPM,
 	CNSS_QVIT,
 	CNSS_CALIBRATION,
+	CNSS_FTM_CALIBRATION = 10,
 };
 
 enum cnss_recovery_reason {
