@@ -14,7 +14,7 @@
 #define DIAGFWD_SOCKET_H
 
 #include <linux/socket.h>
-#ifdef CONFIG_QCOM_QMI_HELPERS
+#ifdef CONFIG_DIAG_OVER_QRTR
 #include <linux/soc/qcom/qmi.h>
 #else
 #include <linux/msm_ipc.h>
@@ -61,7 +61,7 @@ struct diag_socket_info {
 	char name[DIAG_SOCKET_NAME_SZ];
 	spinlock_t lock;
 	wait_queue_head_t wait_q;
-#ifdef CONFIG_QCOM_QMI_HELPERS
+#ifdef CONFIG_DIAG_OVER_QRTR
 	struct sockaddr_qrtr remote_addr;
 #else
 	struct sockaddr_msm_ipc remote_addr;
@@ -106,7 +106,7 @@ extern struct diag_socket_info socket_dci[NUM_PERIPHERALS];
 extern struct diag_socket_info socket_cmd[NUM_PERIPHERALS];
 extern struct diag_socket_info socket_dci_cmd[NUM_PERIPHERALS];
 
-#ifdef CONFIG_QCOM_QMI_HELPERS
+#ifdef CONFIG_DIAG_OVER_QRTR
 extern struct qmi_handle *cntl_qmi;
 #else
 extern struct diag_cntl_socket_info *cntl_socket;

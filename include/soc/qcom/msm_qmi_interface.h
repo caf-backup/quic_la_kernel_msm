@@ -149,8 +149,8 @@ struct qmi_svc_ops_options {
 #ifdef CONFIG_MSM_QMI_INTERFACE
 
 /* Element info array describing common qmi response structure */
-extern struct elem_info qmi_response_type_v01_ei[];
-#define get_qmi_response_type_v01_ei() qmi_response_type_v01_ei
+extern struct elem_info qcom_qmi_response_type_v01_ei[];
+#define get_qmi_response_type_v01_ei() qcom_qmi_response_type_v01_ei
 
 /**
  * qmi_handle_create() - Create a QMI handle
