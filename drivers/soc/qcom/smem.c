@@ -281,7 +281,7 @@ struct qcom_smem {
 	struct smem_region regions[0];
 };
 
-#define CPU_NAME_MAX_SIZE 8
+#define CPU_NAME_MAX_SIZE 16
 
 static int __init print_soc_version_info(void)
 {
@@ -357,6 +357,33 @@ static int __init print_soc_version_info(void)
 		break;
 	case 376:
 		strlcpy(cpu_type_name, "IPQ8071", CPU_NAME_MAX_SIZE);
+		break;
+	case 389:
+		strlcpy(cpu_type_name, "IPQ8072A", CPU_NAME_MAX_SIZE);
+		break;
+	case 390:
+		strlcpy(cpu_type_name, "IPQ8074A", CPU_NAME_MAX_SIZE);
+		break;
+	case 391:
+		strlcpy(cpu_type_name, "IPQ8076A", CPU_NAME_MAX_SIZE);
+		break;
+	case 392:
+		strlcpy(cpu_type_name, "IPQ8078A", CPU_NAME_MAX_SIZE);
+		break;
+	case 395:
+		strlcpy(cpu_type_name, "IPQ8070A", CPU_NAME_MAX_SIZE);
+		break;
+	case 396:
+		strlcpy(cpu_type_name, "IPQ8071A", CPU_NAME_MAX_SIZE);
+		break;
+	case 397:
+		strlcpy(cpu_type_name, "IPQ8172", CPU_NAME_MAX_SIZE);
+		break;
+	case 398:
+		strlcpy(cpu_type_name, "IPQ8173", CPU_NAME_MAX_SIZE);
+		break;
+	case 399:
+		strlcpy(cpu_type_name, "IPQ8174", CPU_NAME_MAX_SIZE);
 		break;
 	case 402:
 		strlcpy(cpu_type_name, "IPQ6018", CPU_NAME_MAX_SIZE);
