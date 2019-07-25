@@ -95,7 +95,11 @@ static int l2tp_eth_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct l2tp_eth *priv = netdev_priv(dev);
 	struct l2tp_session *session = priv->session;
 	unsigned int len = skb->len;
-	int ret = l2tp_xmit_skb(session, skb, session->hdr_len);
+	int ret;
+
+	skb->skb_iif = dev->ifindex;
+
+	ret = l2tp_xmit_skb(session, skb, session->hdr_len);
 
 	if (likely(ret == NET_XMIT_SUCCESS)) {
 		atomic_long_add(len, &priv->tx_bytes);
@@ -133,6 +137,7 @@ static void l2tp_eth_dev_setup(struct net_device *dev)
 {
 	ether_setup(dev);
 	dev->priv_flags		&= ~IFF_TX_SKB_SHARING;
+	dev->priv_flags		|= IFF_PPP_L2TPV3;
 	dev->features		|= NETIF_F_LLTX;
 	dev->netdev_ops		= &l2tp_eth_netdev_ops;
 	dev->destructor		= free_netdev;
@@ -165,6 +170,8 @@ static void l2tp_eth_dev_recv(struct l2tp_session *session, struct sk_buff *skb,
 
 	skb_dst_drop(skb);
 	nf_reset(skb);
+
+	skb->skb_iif = dev->ifindex;
 
 	if (dev_forward_skb(dev, skb) == NET_RX_SUCCESS) {
 		atomic_long_inc(&priv->rx_packets);
