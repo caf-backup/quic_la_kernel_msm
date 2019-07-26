@@ -262,6 +262,15 @@ config SC_GPUCC_7180
 	  Say Y if you want to support graphics controller devices and
 	  functionality such as 3D graphics.
 
+config SC_VIDEOCC_7180
+	tristate "SC7180 Video Clock Controller"
+	select SC_GCC_7180
+	help
+	  Support for the video clock controller on Qualcomm Technologies, Inc.
+	  SC7180 devices.
+	  Say Y if you want to support video devices and functionality such as
+	  video encode and decode.
+
 config SDM_GCC_845
 	tristate "SDM845 Global Clock Controller"
 	select QCOM_GDSC
@@ -317,3 +326,4 @@ config SPMI_PMIC_CLKDIV
 	  Technologies, Inc. SPMI PMIC. It configures the frequency of
 	  clkdiv outputs of the PMIC. These clocks are typically wired
 	  through alternate functions on GPIO pins.
+
