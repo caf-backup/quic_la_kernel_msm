@@ -544,7 +544,15 @@ config QCA_MINIDUMP
 	  Say Y here to include QCA minidump feature.
 	  This feature enables dumping desired regions
 	  instead of dumping whole DDR up on system crash
-	  Currently supports  IPQ8074 target.
+	  Currently supported on IPQ807x /IPQ60xx targets.
+
+config QCA_MINIDUMP_DEBUG
+	bool "QCA minidump debug feauture"
+	depends on QCA_MINIDUMP
+	help
+		Say Y here to include QCA minidump debug feature.
+		This feature enables debug prints for QCA Minidump.
+		Currently supported on IPQ807x / IPQ60xx targets.
 
 config MESON_WATCHDOG
 	tristate "Amlogic Meson SoCs watchdog support"

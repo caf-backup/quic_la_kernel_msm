@@ -387,7 +387,7 @@ __setup("keepinitrd", keepinitrd_setup);
 void get_pgd_info(uint64_t *pt_start, uint64_t *pt_len)
 {
 	*pt_start = (uintptr_t)swapper_pg_dir;
-	*pt_len = SZ_32K;
+	*pt_len = SZ_4K;
 }
 
 /* Get base address of PT and PMD.
