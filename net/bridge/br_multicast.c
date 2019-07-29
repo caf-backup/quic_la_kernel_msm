@@ -1695,7 +1695,7 @@ static int br_ndisc_send_na(struct net_device *dev,
 	msg = (struct nd_msg *)skb_put(skb, sizeof(*msg));
 	*msg = (struct nd_msg) {
 		.icmph = {
-			.icmp6_type = NDISC_NEIGHBOUR_ADVERTISEMENT,
+			.icmp6_type = ICMPV6_NDISC_NBR_ADVERTISEMENT,
 			.icmp6_router = false,
 			.icmp6_solicited = solicited,
 			.icmp6_override = override,
@@ -1843,7 +1843,7 @@ static void br_do_proxy_ndisc(struct sk_buff *skb, struct net_bridge *br,
 
 	msg = (struct nd_msg *)skb_transport_header(skb);
 	if (msg->icmph.icmp6_code != 0 ||
-	    msg->icmph.icmp6_type != NDISC_NEIGHBOUR_SOLICITATION)
+	    msg->icmph.icmp6_type != ICMPV6_NDISC_NBR_SOLICITATION)
 		return;
 
 	if (ipv6_addr_loopback(daddr) ||
@@ -1944,7 +1944,7 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 		src = eth_hdr(skb)->h_source;
 		br_ip6_multicast_leave_group(br, port, &mld->mld_mca, vid, src);
 		break;
-	case NDISC_NEIGHBOUR_SOLICITATION:
+	case ICMPV6_NDISC_NBR_SOLICITATION:
 		br_do_proxy_ndisc(skb, br, vid, port);
 		break;
 	}
