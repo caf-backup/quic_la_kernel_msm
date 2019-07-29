@@ -1485,7 +1485,9 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	if (!of_property_read_u32(np, "extwdt-val", &val)) {
 		extwdt_val = val;
 
-		regaddr = TCSR_WONCE_REG;
+		if (of_property_read_u32(np, "tcsr-reg", &regaddr))
+			regaddr = TCSR_WONCE_REG;
+
 		retn = qcom_fiq_extwdt(regaddr, extwdt_val);
 		if (retn)
 			dev_err(&pdev->dev, "FIQ scm_call failed\n");

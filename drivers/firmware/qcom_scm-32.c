@@ -1243,7 +1243,7 @@ int __qcom_scm_extwdt(struct device *dev, u32 svc_id, u32 cmd_id,
 
 		desc.args[0] = (u64)regaddr;
 		desc.args[1] = val;
-		desc.arginfo = SCM_ARGS(2, SCM_RW, SCM_VAL);
+		desc.arginfo = SCM_ARGS(2, SCM_VAL, SCM_VAL);
 		ret = qcom_scm_call2(SCM_SIP_FNID(SCM_SVC_IO_ACCESS,
 					QCOM_SCM_EXTWDT_CMD), &desc);
 		scm_ret = desc.ret[0];
