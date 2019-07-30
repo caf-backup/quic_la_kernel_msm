@@ -69,6 +69,58 @@ struct iommu_group_attribute {
 			 const char *buf, size_t count);
 };
 
+static DEFINE_MUTEX(iommu_debug_lock);
+static LIST_HEAD(iommu_debug_attachments);
+
+/*
+ * Used by debug tools to display the name of the device(s) associated
+ * with a particular domain.
+ */
+struct iommu_debug_attachment {
+	struct iommu_domain *domain;
+	struct iommu_group *group;
+	struct list_head list;
+};
+
+void iommu_debug_attach_device(struct iommu_domain *domain,
+			       struct device *dev)
+{
+	struct iommu_debug_attachment *attach;
+	struct iommu_group *group;
+
+	group = iommu_group_get(dev);
+	if (!group)
+		return;
+
+	attach = kzalloc(sizeof(*attach), GFP_KERNEL);
+	if (!attach)
+		return;
+
+	attach->domain = domain;
+	attach->group = group;
+	INIT_LIST_HEAD(&attach->list);
+
+	mutex_lock(&iommu_debug_lock);
+	list_add(&attach->list, &iommu_debug_attachments);
+	mutex_unlock(&iommu_debug_lock);
+}
+
+void iommu_debug_domain_remove(struct iommu_domain *domain)
+{
+	struct iommu_debug_attachment *it, *tmp;
+
+	mutex_lock(&iommu_debug_lock);
+	list_for_each_entry_safe(it, tmp, &iommu_debug_attachments, list) {
+		if (it->domain != domain)
+			continue;
+		list_del(&it->list);
+		iommu_group_put(it->group);
+		kfree(it);
+	}
+
+	mutex_unlock(&iommu_debug_lock);
+}
+
 #define IOMMU_GROUP_ATTR(_name, _mode, _show, _store)		\
 struct iommu_group_attribute iommu_group_attr_##_name =		\
 	__ATTR(_name, _mode, _show, _store)
@@ -1117,6 +1169,7 @@ static int __iommu_attach_device(struct iommu_domain *domain,
 	ret = domain->ops->attach_dev(domain, dev);
 	if (!ret) {
 		trace_attach_device_to_domain(dev);
+		iommu_debug_attach_device(domain, dev);
 
 		if (!strnlen(domain->name, IOMMU_DOMAIN_NAME_LEN)) {
 			strlcpy(domain->name, dev_name(dev),
@@ -1158,6 +1211,8 @@ EXPORT_SYMBOL_GPL(iommu_attach_device);
 static void __iommu_detach_device(struct iommu_domain *domain,
 				  struct device *dev)
 {
+	iommu_debug_domain_remove(domain);
+
 	if (unlikely(domain->ops->detach_dev == NULL))
 		return;
 
