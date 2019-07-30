@@ -119,6 +119,8 @@ static char *cnss_qmi_mode_to_str(enum wlfw_driver_mode_enum_v01 mode)
 		return "QVIT";
 	case QMI_WLFW_CALIBRATION_V01:
 		return "CALIBRATION";
+	case QMI_WLFW_FTM_CALIBRATION_V01:
+		return "FTM CALIBRATION";
 	default:
 		return "UNKNOWN";
 	}
