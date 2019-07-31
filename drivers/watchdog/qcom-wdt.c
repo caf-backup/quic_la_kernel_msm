@@ -343,7 +343,7 @@ EXPORT_SYMBOL(remove_minidump_segments);
 * to the TLV in the crashdump buffer and the entry in the Metadata
 * file.
 *
-*                    Metadata file (8 K)
+*                    Metadata file (12 K)
 *                   |----------------|
 *                   |     Entry 1    |<----------|
 *                   |----------------|           |
@@ -373,7 +373,7 @@ EXPORT_SYMBOL(remove_minidump_segments);
 *   | TLV    | TLV     | TLV   | TLV   | TLV    | TLV   | TLV    |
 *   |        |         |       |       |        |       |        |
 *   --------------------------------------------------------------
-*                      Crashdump Buffer (16K)
+*                      Crashdump Buffer (12 K)
 *
 * When a dump segment needs to be added, the Metadata list is travered
 * to check if any invalid entries (entries with va = 0) exist. If an invalid
@@ -400,61 +400,74 @@ int traverse_metadata_list(char *name, unsigned long virt_addr, unsigned long ph
 
 	unsigned long flags;
 	struct minidump_metadata_list *cur_node;
+	struct minidump_metadata_list *list_node;
 	struct list_head *pos;
 	struct qcom_wdt_scm_tlv_msg *scm_tlv_msg = &tlv_msg;
+	int invalid_flag = 0;
+	cur_node = NULL;
 
 	spin_lock_irqsave(&scm_tlv_msg->minidump_tlv_spinlock, flags);
 	list_for_each(pos, &metadata_list.list) {
-		/* Traverse Metadata list to check if invalid entry exits */
-		cur_node = list_entry(pos, struct minidump_metadata_list, list);
-		if(cur_node->va == virt_addr && cur_node->size == size) {
+		/* Traverse Metadata list to check if dump sgment to be added
+		already has a duplicate entry in the crashdump buffer. Also store address
+		of first invalid entry , if it exists*/
+		list_node = list_entry(pos, struct minidump_metadata_list, list);
+		if (list_node->va == virt_addr && list_node->size == size) {
 			spin_unlock_irqrestore(&scm_tlv_msg->minidump_tlv_spinlock,
 					flags);
 			return -ENOMEM;
-		} else if (cur_node->va == INVALID) {
-			/* If an invalid entry exits, update node entries and use
-			* offset values to write TLVs to the crashdump buffer and
-			* an entry in the Metadata file if applicable. 
-			*/
-			*tlv_offset = cur_node->tlv_offset;
-			cur_node->va = virt_addr;
-			cur_node->size = size;
+		}
 
-			if (cur_node->modinfo_offset != 0) {
-				/* If the metadata list node has an entry in the Metadata file,
-				* invalidate that entry and update metadata file pointer with the
-				* value at mod_offset.
-				*/
-				cur_modinfo_offset = cur_node->modinfo_offset;
-				memset((void *)(uintptr_t)cur_modinfo_offset, '\0', METADATA_FILE_ENTRY_LEN);
-			} else {
-				if (name != NULL) {
-					/* If the metadta list node does not have an entry in the
-					* Metdata file, update metadata file pointer to point
-					* to the end of the metadata file.
-					*/
-					cur_node->modinfo_offset = cur_modinfo_offset;
-					#ifdef CONFIG_QCA_MINIDUMP_DEBUG
-					kfree(cur_node->name);
-					cur_node->name = kstrndup(name, strlen(name), GFP_KERNEL);
-					#endif
-				} else {
-					/* If dump segment does not have a valid name, set name
-					* to null and mod_offset to 0.
-					*/
-					cur_node->modinfo_offset = 0;
-					#ifdef CONFIG_QCA_MINIDUMP_DEBUG
-					kfree(cur_node->name);
-					cur_node->name = NULL;
-					#endif
-				}
+		if (!invalid_flag) {
+			if (list_node->va == INVALID) {
+				cur_node = list_node;
+				invalid_flag = 1;
 			}
+		}
+	}
+
+	if (invalid_flag && cur_node) {
+		/* If an invalid entry exits, update node entries and use
+		* offset values to write TLVs to the crashdump buffer and
+		* an entry in the Metadata file if applicable.
+		*/
+		*tlv_offset = cur_node->tlv_offset;
+		cur_node->va = virt_addr;
+		cur_node->size = size;
+
+		if (cur_node->modinfo_offset != 0) {
+		/* If the metadata list node has an entry in the Metadata file,
+		* invalidate that entry and update metadata file pointer with the
+		* value at mod_offset.
+		*/
+			cur_modinfo_offset = cur_node->modinfo_offset;
+			memset((void *)(uintptr_t)cur_modinfo_offset, '\0', METADATA_FILE_ENTRY_LEN);
+		} else {
+			if (name != NULL) {
+				/* If the metadta list node does not have an entry in the
+				* Metdata file, update metadata file pointer to point
+				* to the end of the metadata file.
+				*/
+				cur_node->modinfo_offset = cur_modinfo_offset;
+				#ifdef CONFIG_QCA_MINIDUMP_DEBUG
+				kfree(cur_node->name);
+				cur_node->name = kstrndup(name, strlen(name), GFP_KERNEL);
+				#endif
+			} else {
+				/* If dump segment does not have a valid name, set name
+				* to null and mod_offset to 0.
+				*/
+				cur_node->modinfo_offset = 0;
+				#ifdef CONFIG_QCA_MINIDUMP_DEBUG
+				kfree(cur_node->name);
+				cur_node->name = NULL;
+				#endif
+			}
+		}
 		spin_unlock_irqrestore(&scm_tlv_msg->minidump_tlv_spinlock,
 							 flags);
 		/* return REPLACE to indicate TLV needs to be inserted to the crashdump buffer*/
 		return REPLACE;
-		}
-
 	}
 
 	spin_unlock_irqrestore(&scm_tlv_msg->minidump_tlv_spinlock, flags);
