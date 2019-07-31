@@ -26,14 +26,14 @@
 bool rx_align_2 = true;
 MODULE_PARM_DESC(rx_align_2, " align Rx buffers on 4*n+2, default - true");
 
-static bool drop_if_ring_full = true;
+bool drop_if_ring_full = true;
 MODULE_PARM_DESC(drop_if_ring_full,
                  " drop Tx packets in case tx ring is full, default - true");
 #else
 bool rx_align_2;
 MODULE_PARM_DESC(rx_align_2, " align Rx buffers on 4*n+2, default - no");
 
-static bool drop_if_ring_full;
+bool drop_if_ring_full;
 MODULE_PARM_DESC(drop_if_ring_full,
                  " drop Tx packets in case tx ring is full, default - no");
 #endif
