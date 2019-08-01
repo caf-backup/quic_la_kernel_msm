@@ -170,8 +170,7 @@ struct sdhci_msm_host {
 	bool mci_removed;
 	const struct sdhci_msm_offset *offset;
 	int sd_ldo;
-	struct notifier_block sdhci_msm_reboot_nb;
-	struct notifier_block sdhci_msm_panic_nb;
+	struct notifier_block reboot_notifier;
 };
 
 extern char *saved_command_line;
