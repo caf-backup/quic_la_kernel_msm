@@ -125,11 +125,14 @@
 		};
 	};
 
+/* TZAPP is enabled only in default memory profile */
+#if !defined(__IPQ_MEM_PROFILE_256_MB__) && !defined(__IPQ_MEM_PROFILE_512_MB__)
 	qseecom {
 		compatible = "ipq807x-qseecom";
 		mem-start = <0x4a400000>;
 		mem-size = <0x200000>;
 	};
+#endif
 
 	soc: soc {
 		#address-cells = <0x1>;
