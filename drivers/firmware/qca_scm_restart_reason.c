@@ -23,9 +23,17 @@
 #include <linux/platform_device.h>
 #include <linux/notifier.h>
 #include <linux/reboot.h>
+#include <soc/qcom/rpm-glink.h>
+#include <asm/system_misc.h>
 #include "qcom_scm.h"
 
 static int dload_dis;
+static int enable_coldboot;
+static void __iomem *restart_settings_regs;
+
+#define WARM_RST_OFFSET 0x10
+#define RPM_RESET_RESOURCE	0x747372	/*'rst' in little endian format*/
+#define RPM_COLD_RESET_KEY	0x646c6f63	/*'cold' in little endian format*/
 
 static void scm_restart_dload_mode_enable(void)
 {
@@ -34,6 +42,44 @@ static void scm_restart_dload_mode_enable(void)
 		qcom_scm_dload(QCOM_SCM_SVC_BOOT, SCM_CMD_TZ_FORCE_DLOAD_ID,
 				&magic_cookie);
 	}
+}
+
+static void scm_restart_reason_rpm_cold_restart (enum reboot_mode reboot_mode,
+			const char *cmd)
+{
+	struct msm_rpm_request *rpm_req;
+	uint32_t key, resource, value, msg_id;
+	int ret;
+
+	/*'rst' in little endian format*/
+	resource = RPM_RESET_RESOURCE;
+	rpm_req = msm_rpm_create_request(MSM_RPM_CTX_ACTIVE_SET,
+			resource, 0, 1);
+	if (IS_ERR_OR_NULL(rpm_req)) {
+		pr_err("%s RPM create request failed %p\n", __func__, rpm_req);
+		return;
+	}
+
+	/*'cold' as we are sending cold reset req*/
+	key = RPM_COLD_RESET_KEY;
+	value = 1;
+	ret = msm_rpm_add_kvp_data(rpm_req, key, (const uint8_t *)&value,
+							(int)4);
+	if (ret) {
+		pr_err("%s unable to add kvp data for device shutdown\n",
+				__func__);
+		return;
+	}
+
+	msg_id = msm_rpm_send_request(rpm_req);
+	if(!msg_id) {
+		pr_err("%s unable to send rpm message\n", __func__);
+		return;
+	}
+
+	ret = msm_rpm_wait_for_ack(msg_id);
+	if (ret)
+		pr_err("%s wait for rpm ack failed %d\n", __func__, ret);
 }
 
 static void scm_restart_dload_mode_disable(void)
@@ -68,6 +114,13 @@ static int scm_restart_reason_reboot(struct notifier_block *nb,
 	scm_restart_sdi_disable();
 	scm_restart_dload_mode_disable();
 
+	if (enable_coldboot) {
+		if (IS_ERR_OR_NULL(restart_settings_regs))
+			pr_err("%s unable to get tcsr regs\n", __func__);
+		else if (!readl(restart_settings_regs + WARM_RST_OFFSET))
+			arm_pm_restart = scm_restart_reason_rpm_cold_restart;
+	}
+
 	return NOTIFY_DONE;
 }
 
@@ -80,6 +133,7 @@ static int scm_restart_reason_probe(struct platform_device *pdev)
 {
 	int ret, dload_dis_sec;
 	struct device_node *np;
+	struct resource *resource;
 	unsigned int magic_cookie = SET_MAGIC_WARMRESET;
 	unsigned int dload_warm_reset = 0;
 
@@ -98,6 +152,13 @@ static int scm_restart_reason_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(np, "dload_sec_status", &dload_dis_sec);
 	if (ret)
 		dload_dis_sec = 0;
+
+	enable_coldboot = of_property_read_bool(np, "qca,coldreboot-enabled");
+	if (enable_coldboot) {
+		resource = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		restart_settings_regs =
+			devm_ioremap_resource(&pdev->dev, resource);
+	}
 
 	if (dload_dis_sec) {
 		qcom_scm_dload(QCOM_SCM_SVC_BOOT,
