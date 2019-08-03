@@ -816,13 +816,13 @@ void diag_send_error_rsp(unsigned char *buf, int len)
 int diag_process_apps_pkt(unsigned char *buf, int len,
 			struct diag_md_session_t *info)
 {
-	int i;
 	int mask_ret;
 	int write_len = 0;
 	unsigned char *temp = NULL;
 	struct diag_cmd_reg_entry_t entry;
 	struct diag_cmd_reg_entry_t *temp_entry = NULL;
 	struct diag_cmd_reg_t *reg_item = NULL;
+	int i;
 
 	if (!buf)
 		return -EIO;
@@ -877,7 +877,6 @@ int diag_process_apps_pkt(unsigned char *buf, int len,
 	}
 	mutex_unlock(&driver->cmd_reg_mutex);
 
-#if defined(CONFIG_DIAG_OVER_USB)
 	/* Check for the command/respond msg for the maximum packet length */
 	if ((*buf == 0x4b) && (*(buf+1) == 0x12) &&
 		(*(uint16_t *)(buf+2) == 0x0055)) {
@@ -1035,7 +1034,6 @@ int diag_process_apps_pkt(unsigned char *buf, int len,
 		mutex_unlock(&driver->hdlc_disable_mutex);
 		return 0;
 	}
-#endif
 
 	/* We have now come to the end of the function. */
 	if (chk_apps_only())
@@ -1134,9 +1132,11 @@ static int diagfwd_mux_open(int id, int mode)
 	unsigned long flags;
 
 	switch (mode) {
+#ifdef CONFIG_DIAG_OVER_USB
 	case DIAG_USB_MODE:
 		driver->usb_connected = 1;
 		break;
+#endif
 	case DIAG_MEMORY_DEVICE_MODE:
 		break;
 	default:
@@ -1167,9 +1167,11 @@ static int diagfwd_mux_close(int id, int mode)
 	uint8_t i;
 
 	switch (mode) {
+#ifdef CONFIG_DIAG_OVER_USB
 	case DIAG_USB_MODE:
 		driver->usb_connected = 0;
 		break;
+#endif
 	case DIAG_MEMORY_DEVICE_MODE:
 		break;
 	default:
