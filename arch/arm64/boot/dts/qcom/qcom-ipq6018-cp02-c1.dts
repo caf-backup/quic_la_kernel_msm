@@ -51,16 +51,16 @@
 	 * |        |              |                         |
 	 * |        |              |                         |
 	 * |        |              |                         |
-	 * | Linux  |  0x41000000  |         143MB           |
+	 * | Linux  |  0x41000000  |         139MB           |
 	 * |        |              |                         |
 	 * |        |              |                         |
 	 * |        |              |                         |
 	 * +--------+--------------+-------------------------+
-	 * | TZ App |  0x49F00000  |           2MB           |
+	 * | TZ App |  0x49B00000  |           6MB           |
 	 * +--------+--------------+-------------------------+
 	 *
 	 * From the available 145 MB for Linux in the first 256 MB,
-	 * we are reserving 2 MB for TZAPP.
+	 * we are reserving 6 MB for TZAPP.
 	 *
 	 * Refer arch/arm64/boot/dts/qcom/qcom-ipq6018-memory.dtsi
 	 * for memory layout.
@@ -69,9 +69,9 @@
 /* TZAPP is enabled only in default memory profile */
 #if !defined(__IPQ_MEM_PROFILE_256_MB__) && !defined(__IPQ_MEM_PROFILE_512_MB__)
 	reserved-memory {
-		tzapp:tzapp@49F00000 {	/* TZAPPS */
+		tzapp:tzapp@49B00000 {	/* TZAPPS */
 			no-map;
-			reg = <0x0 0x49F00000 0x0 0x00200000>;
+			reg = <0x0 0x49B00000 0x0 0x00600000>;
 		};
 	};
 #endif
@@ -377,3 +377,12 @@
 &pcie0 {
 	status = "ok";
 };
+
+/* TZAPP is enabled in default memory profile only */
+#if !defined(__IPQ_MEM_PROFILE_256_MB__) && !defined(__IPQ_MEM_PROFILE_512_MB__)
+&qseecom {
+	mem-start = <0x49B00000>;
+	mem-size = <0x600000>;
+	status = "ok";
+};
+#endif

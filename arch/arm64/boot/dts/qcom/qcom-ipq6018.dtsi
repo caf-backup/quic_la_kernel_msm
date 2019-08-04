@@ -2175,6 +2175,11 @@
 		};
 	};
 
+	qseecom: qseecom {
+		compatible = "ipq6018-qseecom";
+		status = "disabled";
+	};
+
 	firmware: firmware {
 		scm {
 			compatible = "qcom,scm-ipq6018";
