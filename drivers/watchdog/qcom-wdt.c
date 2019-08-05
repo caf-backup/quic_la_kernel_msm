@@ -857,7 +857,8 @@ static int wlan_module_notifier(struct notifier_block *nb, unsigned long event, 
 	/* For umac , qca_ol, wifi_3_0 modules, additionally dump module sections and bss */
 
 		if ((!strcmp("qca_ol", mod->name)) || (!strcmp("umac", mod->name)) ||
-					(!strcmp("wifi_3_0", mod->name))) {
+					(!strcmp("wifi_3_0", mod->name)) ||
+					(!strcmp("qdf", mod->name))) {
 			module_tlv_info.start = (unsigned long)mod->sect_attrs;
 			module_tlv_info.size = SZ_2K;
 			ret_val = fill_minidump_segments(module_tlv_info.start,
@@ -927,7 +928,8 @@ static int wlan_module_notify_exit(struct notifier_block *self,
 
 		ret = remove_minidump_segments((uint64_t)(uintptr_t)mod);
 		if ((!strcmp("qca_ol", mod->name)) || (!strcmp("umac", mod->name)) ||
-						(!strcmp("wifi_3_0", mod->name))) {
+					(!strcmp("wifi_3_0", mod->name)) ||
+					(!strcmp("qdf", mod->name))) {
 			ret = remove_minidump_segments((uint64_t)
 						(uintptr_t)mod->sect_attrs);
 			ret = remove_minidump_segments((uint64_t)
