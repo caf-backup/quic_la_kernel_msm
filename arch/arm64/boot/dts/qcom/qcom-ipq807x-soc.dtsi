@@ -811,6 +811,7 @@
 			qcom,l2tpv2-enabled;
 			qcom,gre-enabled;
 			qcom,gre-redir-enabled;
+			qcom,gre-redir-mark-enabled;
 			qcom,map-t-enabled;
 			qcom,portid-enabled;
 			qcom,ppe-enabled;
