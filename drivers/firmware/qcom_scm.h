@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright (c) 2010-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010-2019, The Linux Foundation. All rights reserved.
  */
 #ifndef __QCOM_SCM_INT_H
 #define __QCOM_SCM_INT_H
@@ -101,4 +101,7 @@ extern int  __qcom_scm_assign_mem(struct device *dev,
 				  phys_addr_t src, size_t src_sz,
 				  phys_addr_t dest, size_t dest_sz);
 
+#define QCOM_SCM_SVC_UTIL		0x3
+#define QCOM_HW_ENABLE_CHECK_VALUE	0x10
+extern int __qcom_scm_tpdm_enable(struct device *dev);
 #endif

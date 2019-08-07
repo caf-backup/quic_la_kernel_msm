@@ -179,6 +179,12 @@ out:
 	if (!used)
 		kfree(buf);
 
+	if (!ret) {
+		coresight_cti_map_trigin(drvdata->cti_reset, 0, 0);
+		coresight_cti_map_trigout(drvdata->cti_flush, 1, 0);
+		dev_info(drvdata->dev, "TMC-ETB/ETF enabled\n");
+	}
+
 	return ret;
 }
 
@@ -255,6 +261,9 @@ static void tmc_disable_etf_sink(struct coresight_device *csdev)
 	}
 
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
+
+	coresight_cti_unmap_trigin(drvdata->cti_reset, 0, 0);
+	coresight_cti_unmap_trigout(drvdata->cti_flush, 1, 0);
 
 	dev_info(drvdata->dev, "TMC-ETB/ETF disabled\n");
 }
@@ -542,11 +551,13 @@ int tmc_read_prepare_etb(struct tmc_drvdata *drvdata)
 		goto out;
 	}
 
-	/* There is no point in reading a TMC in HW FIFO mode */
-	mode = readl_relaxed(drvdata->base + TMC_MODE);
-	if (mode != TMC_MODE_CIRCULAR_BUFFER) {
-		ret = -EINVAL;
-		goto out;
+	if (drvdata->enable) {
+		/* There is no point in reading a TMC in HW FIFO mode */
+		mode = readl_relaxed(drvdata->base + TMC_MODE);
+		if (mode != TMC_MODE_CIRCULAR_BUFFER) {
+			ret = -EINVAL;
+			goto out;
+		}
 	}
 
 	/* Don't interfere if operated from Perf */
@@ -585,11 +596,13 @@ int tmc_read_unprepare_etb(struct tmc_drvdata *drvdata)
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
-	/* There is no point in reading a TMC in HW FIFO mode */
-	mode = readl_relaxed(drvdata->base + TMC_MODE);
-	if (mode != TMC_MODE_CIRCULAR_BUFFER) {
-		spin_unlock_irqrestore(&drvdata->spinlock, flags);
-		return -EINVAL;
+	if (drvdata->enable) {
+		/* There is no point in reading a TMC in HW FIFO mode */
+		mode = readl_relaxed(drvdata->base + TMC_MODE);
+		if (mode != TMC_MODE_CIRCULAR_BUFFER) {
+			spin_unlock_irqrestore(&drvdata->spinlock, flags);
+			return -EINVAL;
+		}
 	}
 
 	/* Re-enable the TMC if need be */

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015, 2019, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/io.h>
@@ -501,4 +501,16 @@ int __qcom_scm_io_writel(struct device *dev, phys_addr_t addr, unsigned int val)
 
 	return qcom_scm_call(dev, QCOM_SCM_SVC_IO, QCOM_SCM_IO_WRITE,
 			     &desc, &res);
+}
+
+int __qcom_scm_tpdm_enable(struct device *dev)
+{
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+	int ret;
+
+	ret = qcom_scm_call(dev, QCOM_SCM_SVC_UTIL, QCOM_HW_ENABLE_CHECK_VALUE,
+			     &desc, &res);
+
+	return ret ? : res.a0;
 }

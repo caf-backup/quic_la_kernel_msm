@@ -2,7 +2,7 @@
 /*
  * Qualcomm SCM driver
  *
- * Copyright (c) 2010,2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010, 2015, 2019, The Linux Foundation. All rights reserved.
  * Copyright (C) 2015 Linaro Ltd.
  */
 #include <linux/platform_device.h>
@@ -355,6 +355,12 @@ int qcom_scm_io_writel(phys_addr_t addr, unsigned int val)
 	return __qcom_scm_io_writel(__scm->dev, addr, val);
 }
 EXPORT_SYMBOL(qcom_scm_io_writel);
+
+int qcom_scm_tpdm_enable(struct device *dev)
+{
+	return __qcom_scm_tpdm_enable(dev);
+}
+EXPORT_SYMBOL(qcom_scm_tpdm_enable);
 
 static void qcom_scm_set_download_mode(bool enable)
 {

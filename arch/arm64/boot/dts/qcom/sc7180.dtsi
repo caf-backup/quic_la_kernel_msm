@@ -660,6 +660,19 @@
 				};
 			};
 
+			trigout_a: trigout_a {
+				mux {
+					pins = "gpio72";
+					function = "qdss_cti";
+				};
+
+				config {
+					pins = "gpio72";
+					drive-strength = <2>;
+					bias-disable;
+				};
+			};
+
 			sdc1_on: sdc1-on {
 				clk {
 					pins = "sdc1_clk";
@@ -1201,4 +1214,5 @@
 
 #include "pm6150.dtsi"
 #include "pm6150l.dtsi"
+#include "sc7180-coresight.dtsi"
 #include "sc7180-regulator.dtsi"
