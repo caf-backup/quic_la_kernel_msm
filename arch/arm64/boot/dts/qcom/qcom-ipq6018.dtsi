@@ -2079,6 +2079,7 @@
 
 		qca,scm_restart_reason {
 			compatible = "qca,scm_restart_reason";
+			reg = <0x0193d000 0x14>;
 		};
 
 		slim_aud: slim@a2c0000 {
