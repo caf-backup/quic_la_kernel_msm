@@ -548,3 +548,4 @@
 
 #include "pm6150.dtsi"
 #include "pm6150l.dtsi"
+#include "sc7180-regulator.dtsi"
