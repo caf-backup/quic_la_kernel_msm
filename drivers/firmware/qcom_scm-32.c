@@ -1371,7 +1371,7 @@ int __qcom_scm_pas_auth_and_reset(struct device *dev, u32 peripheral,
 			desc.args[0] = debug;
 			desc.arginfo = SCM_ARGS(1);
 			ret = qcom_scm_call2(SCM_SIP_FNID(QCOM_SCM_SVC_PIL,
-				QCOM_SCM_PAS_AUTH_DEBUG_RESET_CMD), &desc);
+					     reset_cmd_id), &desc);
 			out = desc.ret[0];
 			if (ret || le32_to_cpu(out))
 				return ret ? : le32_to_cpu(out);
