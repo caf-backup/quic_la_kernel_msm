@@ -31,6 +31,13 @@ config ARCH_IPQ256M
 	  This sets the text offset of 256M profile, which makes kernel aware of
           first 16MB of DDR.
 
+config SKB_FIXED_SIZE_2K
+	bool "SKB size fixed at 2K"
+	default n
+	help
+		This is a hint to the NSS driver that the ‘skbuff’ size might
+		need to be fixed at 2KB, to conserve memory.
+
 config ARCH_IPQ807x
 	bool "Enable Support for IPQ807x"
 	select PINCTRL_IPQ807x
