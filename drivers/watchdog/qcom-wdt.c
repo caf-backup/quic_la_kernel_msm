@@ -123,6 +123,10 @@ static int qcom_wdt_scm_replace_tlv(struct qcom_wdt_scm_tlv_msg *scm_tlv_msg,
 	unsigned char *y;
 	unsigned long flags;
 
+	if (!scm_tlv_msg) {
+		return -ENOBUFS;
+	}
+
 	spin_lock_irqsave(&scm_tlv_msg->minidump_tlv_spinlock, flags);
 	x = offset;
 	y = scm_tlv_msg->msg_buffer + scm_tlv_msg->len;
@@ -159,6 +163,10 @@ static int qcom_wdt_scm_add_tlv(struct qcom_wdt_scm_tlv_msg *scm_tlv_msg,
 	unsigned char *x;
 	unsigned char *y;
 	unsigned long flags;
+
+	if (!scm_tlv_msg) {
+		return -ENOBUFS;
+	}
 
 	spin_lock_irqsave(&scm_tlv_msg->minidump_tlv_spinlock, flags);
 	x = scm_tlv_msg->cur_msg_buffer_pos;
@@ -293,11 +301,17 @@ int remove_minidump_segments(uint64_t virt_addr)
 	struct minidump_metadata_list *cur_node;
 	struct list_head *pos;
 	unsigned long flags;
-	struct qcom_wdt_scm_tlv_msg *scm_tlv_msg = &tlv_msg;
+	struct qcom_wdt_scm_tlv_msg *scm_tlv_msg;
 	unsigned long pmd_offset = sizeof(struct minidump_tlv_info) +
 								QCOM_WDT_SCM_TLV_TYPE_LEN_SIZE;
 	unsigned long pte_offset = pmd_offset + sizeof(struct minidump_tlv_info) +
 								QCOM_WDT_SCM_TLV_TYPE_LEN_SIZE;
+
+	if (!tlv_msg.msg_buffer) {
+		return -ENOMEM;
+	}
+
+	scm_tlv_msg = &tlv_msg;
 
 	if (!virt_addr) {
 		pr_info("\nMINIDUMP: Attempt to remove an invalid VA.");
@@ -402,10 +416,16 @@ int traverse_metadata_list(char *name, unsigned long virt_addr, unsigned long ph
 	struct minidump_metadata_list *cur_node;
 	struct minidump_metadata_list *list_node;
 	struct list_head *pos;
-	struct qcom_wdt_scm_tlv_msg *scm_tlv_msg = &tlv_msg;
+	struct qcom_wdt_scm_tlv_msg *scm_tlv_msg;
 	int invalid_flag = 0;
 	cur_node = NULL;
 
+	/* If tlv_msg has not been initialized with non NULL value , return error*/
+	if (!tlv_msg.msg_buffer) {
+		return -ENOMEM;
+	}
+
+	scm_tlv_msg = &tlv_msg;
 	spin_lock_irqsave(&scm_tlv_msg->minidump_tlv_spinlock, flags);
 	list_for_each(pos, &metadata_list.list) {
 		/* Traverse Metadata list to check if dump sgment to be added
@@ -669,8 +689,14 @@ int store_module_info(char *name ,unsigned long address, unsigned char type)
 	char substring[METADATA_FILE_ENTRY_LEN];
 	char *mod_name;
 	int ret_val =0;
-	struct qcom_wdt_scm_tlv_msg *scm_tlv_msg = &tlv_msg;
+	struct qcom_wdt_scm_tlv_msg *scm_tlv_msg;
 	unsigned long flags;
+
+	if (!tlv_msg.msg_buffer) {
+		return -ENOBUFS;
+	}
+
+	scm_tlv_msg = &tlv_msg;
 
 	/* Check for Metadata file overflow */
 	if ((cur_modinfo_offset == (uintptr_t)mod_log + mod_log_len) &&
@@ -962,6 +988,11 @@ static int wlan_modinfo_panic_handler(struct notifier_block *this,
 	struct list_head *pos;
 	int count = 0;
 
+	if (!tlv_msg.msg_buffer) {
+		pr_err("\n Minidump: Crashdump buffer is empty");
+		return NOTIFY_OK;
+	}
+
 	pr_err("\n Minidump: Size of Metadata file = %ld\n",mod_log_len);
 	pr_err("\n Minidump: Printing out contents of Metadata list\n");
 
@@ -1020,6 +1051,7 @@ static long qcom_wdt_configure_bark_dump(void *arg)
 
 	ret = qcom_scm_regsave(SCM_SVC_UTIL, SCM_CMD_SET_REGSAVE,
 			scm_regsave, device_props->crashdump_page_size);
+
 	if (ret) {
 		pr_err("Setting register save address failed.\n"
 			"Registers won't be dumped on a dog bite\n");
