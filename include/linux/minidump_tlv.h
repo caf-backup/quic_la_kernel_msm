@@ -31,14 +31,17 @@ struct minidump_tlv_info {
 */
 struct minidump_metadata_list {
 	struct list_head list;	/*kernel’s list structure*/
-	char *name;				/* Name associated with the TLV */
 	unsigned long va;		/* Virtual address of TLV. Set to 0 if invalid*/
+	unsigned long modinfo_offset; /* Offset associated with the entry for
+				* module information in Metadata text file
+				*/
+	unsigned long size; /*size associated with TLV entry */
 	unsigned char *tlv_offset;	/* Offset associated with the TLV entry in
 					* the crashdump buffer
 					*/
-	unsigned long modinfo_offset; /* Offset associated with the entry for
-					* module information in Metadata text file
-					*/
+	#ifdef CONFIG_QCA_MINIDUMP_DEBUG
+	char *name;  /* Name associated with the TLV */
+	#endif
 };
 
 #define QCOM_WDT_SCM_TLV_TYPE_SIZE	1
@@ -46,8 +49,8 @@ struct minidump_metadata_list {
 #define QCOM_WDT_SCM_TLV_TYPE_LEN_SIZE (QCOM_WDT_SCM_TLV_TYPE_SIZE + QCOM_WDT_SCM_TLV_LEN_SIZE)
 #define INVALID 0
 
-#define BUFLEN 8192
-#define MOD_LOG_LEN 50
+#define METADATA_FILE_SZ 12288
+#define METADATA_FILE_ENTRY_LEN 50
 #define NAME_LEN 28
 int fill_minidump_segments(uint64_t start_addr, uint64_t size, unsigned char type, char *name);
 int store_module_info(char *name ,unsigned long address, unsigned char type);

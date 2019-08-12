@@ -25,6 +25,8 @@
 	interrupt-parent = <&intc>;
 
 	aliases {
+		serial0 = &blsp1_uart3;
+		serial1 = &blsp1_uart2;
 		sdhc2 = &sdhc_2;
 		/*
 		 * Aliases as required by u-boot
@@ -185,7 +187,7 @@
 			pins = "gpio9";
 			function = "gpio";
 			drive-strength = <8>;
-			bias-pull-down;
+			bias-pull-up;
 		};
 	};
 
@@ -231,6 +233,35 @@
 			pins = "gpio50";
 			function = "gpio";
 			drive-strength = <8>;
+			bias-pull-down;
+		};
+	};
+
+	hsuart_pins: hsuart_pins {
+		mux {
+			pins = "gpio71", "gpio72", "gpio69", "gpio70";
+			function = "blsp1_uart";
+			bias-disable;
+		};
+	};
+
+	btcoex_pins: btcoex_pins {
+		mux_0 {
+			pins = "gpio51";
+			function = "pta1_1";
+			drive-strength = <6>;
+			bias-pull-down;
+		};
+		mux_1 {
+			pins = "gpio53";
+			function = "pta1_0";
+			drive-strength = <6>;
+			bias-pull-down;
+		};
+		mux_2 {
+			pins = "gpio52";
+			function = "pta1_2";
+			drive-strength = <6>;
 			bias-pull-down;
 		};
 	};
@@ -429,12 +460,18 @@
 	};
 };
 
+&blsp1_uart2 {
+	pinctrl-0 = <&hsuart_pins &btcoex_pins>;
+	pinctrl-names = "default";
+	status = "ok";
+};
+
 &spi_1 { /* BLSP1 QUP1 */
 	pinctrl-0 = <&spi_1_pins>;
 	pinctrl-names = "default";
 	cs-select = <0>;
 	quartz-reset-gpio = <&tlmm 79 1>;
-	status = "ok";
+	status = "disabled";
 	spidev1: spi@1 {
 		compatible = "qca,spidev";
 		reg = <0>;
@@ -458,7 +495,6 @@
 	cd-gpios = <&tlmm 62 1>;
 	sd-ldo-gpios = <&tlmm 66 0>;
 	vqmmc-supply = <&ipq6018_l2_corner>;
-	qcom,cut-card-voltage-in-reboot;
 	status = "ok";
 };
 

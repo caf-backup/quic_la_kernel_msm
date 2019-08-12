@@ -595,6 +595,15 @@ static int __init qfprom_create_files(int size, int16_t sw_bitmap)
 			return err;
 		}
 	}
+
+	/* setup the DMA framework for the device 'qfprom' */
+	device_qfprom.coherent_dma_mask = DMA_BIT_MASK(32);
+	device_qfprom.dma_pfn_offset = 0;
+	INIT_LIST_HEAD(&device_qfprom.dma_pools);
+	dma_coerce_mask_and_coherent(&device_qfprom, DMA_BIT_MASK(32));
+
+	arch_setup_dma_ops(&device_qfprom, 0, 0, NULL, 0);
+
 	return 0;
 }
 
