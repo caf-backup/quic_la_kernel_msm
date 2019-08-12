@@ -42,7 +42,11 @@
 
 	chosen {
 		bootargs = "console=ttyMSM0,115200,n8 root=/dev/ram0 rw init=/init";
-		bootargs-append = " swiotlb=1";
+		#ifdef __IPQ_MEM_PROFILE_256_MB__
+			bootargs-append = " swiotlb=1";
+		#else
+			bootargs-append = " swiotlb=1 coherent_pool=2M";
+		#endif
 	};
 };
 
