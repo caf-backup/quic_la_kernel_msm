@@ -1399,6 +1399,7 @@
 			qcom,ipsec-enabled;
 			qcom,qvpn-enabled;
 			qcom,pvxlan-enabled;
+			qcom,clmap-enabled;
 		};
 
 		nss_crypto: qcom,nss_crypto {
