@@ -31,7 +31,6 @@
 		#address-cells = <0x1>;
 		#size-cells = <0x1>;
 		ranges = <0 0 0 0xffffffff>;
-		dma-ranges;
 		compatible = "simple-bus";
 
 		intc: interrupt-controller@b000000 {
@@ -1015,81 +1014,33 @@
 		};
 
 		q6v6_adsp: q6v6_adsp@AB00000 {
-			#address-cells = <1>;
-			#size-cells = <1>;
-			compatible = "simple-bus";
-			ranges;
-			dma-ranges = <0x50000000 0x0 0x40000000>;
 			status = "disabled";
-
-			adsp_rproc {
-				compatible = "qca,q6v6-adsp-rproc";
-				firmware = "IPQ6018/adsp.mdt";
-				reg = <0xAB00000 0x4040>,
-				    <0x181F000 0x4>,
-				    <0xA000000 0x48000>,
-				    <0x1954010 0x20>;
-				reg-names = "adsp-base",
+			compatible = "qca,q6v6-adsp-rproc";
+			firmware = "IPQ6018/adsp.mdt";
+			reg = <0xAB00000 0x4040>,
+				<0x181F000 0x4>,
+				<0xA000000 0x48000>,
+				<0x1954010 0x20>;
+			reg-names = "adsp-base",
 					"gcc-adsp-bcr-base",
 					"adsp-cc-base",
 					"tcsr-base";
-				qca,auto-restart;
-				qca,extended-intc;
-				qca,sec-reset-cmd = <0x18>;
-				qca,secure;
-				interrupts-extended = <&intc 0 30 1>,
-					<&adsp_smp2p_in 0 0>,
-					<&adsp_smp2p_in 1 0>,
-					<&adsp_smp2p_in 3 0>;
-				interrupt-names = "wdog",
-					"qcom,gpio-err-fatal",
-					"qcom,gpio-err-ready",
-					"qcom,gpio-stop-ack";
-				qcom,smem-states = <&adsp_smp2p_out 0>,
-					<&adsp_smp2p_out 1>;
-				qcom,smem-state-names = "shutdown",
+			qca,auto-restart;
+			qca,extended-intc;
+			qca,sec-reset-cmd = <0x18>;
+			qca,secure;
+			interrupts-extended = <&intc 0 30 1>,
+						<&adsp_smp2p_in 0 0>,
+						<&adsp_smp2p_in 1 0>,
+						<&adsp_smp2p_in 3 0>;
+			interrupt-names = "wdog",
+						"qcom,gpio-err-fatal",
+						"qcom,gpio-err-ready",
+						"qcom,gpio-stop-ack";
+			qcom,smem-states = <&adsp_smp2p_out 0>,
+						<&adsp_smp2p_out 1>;
+			qcom,smem-state-names = "shutdown",
 						"stop";
-				iommus = <&smmu500 0x1000
-						&smmu500 0x1003
-						&smmu500 0x1004
-						&smmu500 0x1005
-						&smmu500 0x1006
-						&smmu500 0x1007
-						&smmu500 0x1008
-						&smmu500 0x1009
-						&smmu500 0x100A
-						&smmu500 0x100B
-						&smmu500 0x100C
-						&smmu500 0x100D
-						&smmu500 0x100F
-						&smmu500 0x0140
-						&smmu500 0x0142
-						&smmu500 0x0144
-						&smmu500 0x0146
-						&smmu500 0x0148
-						&smmu500 0x014A
-						&smmu500 0x014C
-						&smmu500 0x014E
-						&smmu500 0x0150
-						&smmu500 0x0152
-						&smmu500 0x0154
-						&smmu500 0x0156
-						&smmu500 0x0158
-						&smmu500 0x015A
-						&smmu500 0x015C
-						&smmu500 0x015E
-						&smmu500 0x0160
-						&smmu500 0x0162
-						&smmu500 0x0164
-						&smmu500 0x0166
-						&smmu500 0x0168
-						&smmu500 0x016A
-						&smmu500 0x016C
-						&smmu500 0x016E
-						&smmu500 0x0170
-						&smmu500 0x0172
-						&smmu500 0x0174
-						&smmu500 0x0176>;
 			clocks = <&gcc GCC_MEM_NOC_LPASS_CLK>,
 				<&gcc GCC_SNOC_LPASS_CFG_CLK>,
 				<&gcc GCC_LPASS_CORE_AXIM_CLK>,
@@ -1112,7 +1063,6 @@
 					"lpass_q6ss_trig_clk",
 					"lpass_tbu_clk",
 					"pcnoc_lpass_clk";
-			};
 		};
 
 		glink_mpss_ssr: qcom,glink-ssr-modem {
