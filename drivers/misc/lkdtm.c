@@ -330,9 +330,10 @@ static void do_overwritten(void)
 static noinline void corrupt_stack(void)
 {
 	/* Use default char array length that triggers stack protection. */
-	char data[8];
-
+	volatile char data[8];
 	memset((void *)data, 0, 64);
+	/* print data so that compiler wouldn't optimize the code */
+	pr_info("print data[0]:%c\n", data[0]);
 }
 
 static void execute_location(void *dst)
