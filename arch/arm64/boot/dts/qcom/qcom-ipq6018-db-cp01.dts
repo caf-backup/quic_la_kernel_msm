@@ -197,6 +197,15 @@
 			bias-pull-up;
 		};
 	};
+
+	pwm_pins: pwm_pinmux {
+		mux_1 {
+			pins = "gpio18";
+			function = "pwm00";
+			drive-strength = <8>;
+		};
+	};
+
 };
 
 &soc {
@@ -320,6 +329,13 @@
 				port_mac_sel = "QGMAC_PORT";
 			};
 		};
+	};
+
+	pwm {
+		pinctrl-0 = <&pwm_pins>;
+		pinctrl-names = "default";
+		used-pwm-indices = <1>, <0>, <0>, <0>;
+		status = "disabled";
 	};
 };
 
