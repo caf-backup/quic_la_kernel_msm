@@ -37,6 +37,7 @@ ifdef CONFIG_IPQ_SUBSYSTEM_RESTART
 	obj-$(CONFIG_IPQ_SUBSYSTEM_RESTART_TEST) += testssr.o
 endif
 
+obj-$(CONFIG_SOC_BUS)  +=      socinfo.o
 obj-$(CONFIG_QCOM_TZ_LOG) += tz_log.o
 obj-$(CONFIG_QCOM_MDT_LOADER)	+= mdt_loader.o
 obj-$(CONFIG_QCOM_GLINK_SSR)	+= qcom_glink_ssr.o

@@ -54,6 +54,7 @@ config ARCH_IPQ6018
 	select COMMON_CLK_QCOM
 	select IPQ_APSS_6018
 	select IPQ_GCC_6018
+	select SOC_BUS
 	help
 	  This enables support for the IPQ6018 chipset. If you dont
 	  know what do here, say N
