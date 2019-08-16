@@ -223,6 +223,9 @@ struct dpu_hw_intr_ops {
  * @save_irq_status:  array of IRQ status reg storage created during init
  * @irq_idx_tbl_size: total number of irq_idx mapped in the hw_interrupts
  * @irq_lock:         spinlock for accessing IRQ resources
+ * @dpu_irq_size:     total number of elements of the sde_irq_tbl
+ * @dpu_irq_tbl:      table with the registesrs offsets of the dpu interrupts
+ *		supported by the hw
  */
 struct dpu_hw_intr {
 	struct dpu_hw_blk_reg_map hw;
@@ -231,6 +234,8 @@ struct dpu_hw_intr {
 	u32 *save_irq_status;
 	u32 irq_idx_tbl_size;
 	spinlock_t irq_lock;
+	u32 dpu_irq_size;
+	struct dpu_intr_reg *dpu_irq_tbl;
 };
 
 /**

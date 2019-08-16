@@ -71,6 +71,25 @@ enum {
 #define IS_UBWC_20_SUPPORTED(rev)       ((rev) >= DPU_HW_UBWC_VER_20)
 
 /**
+ * DPU INTERRUPTS - maintains the possible hw irq's allowed by HW
+ * The order in this enum must match the order of the irqs defined
+ * by 'dpu_irq_map'
+ */
+enum dpu_intr_blk_type {
+	MDSS_INTR_SSPP_TOP0_INTR,
+	MDSS_INTR_SSPP_TOP0_INTR2,
+	MDSS_INTR_SSPP_TOP0_HIST_INTR,
+	MDSS_INTR_INTF_0_INTR,
+	MDSS_INTR_INTF_1_INTR,
+	MDSS_INTR_INTF_2_INTR,
+	MDSS_INTR_INTF_3_INTR,
+	MDSS_INTR_INTF_4_INTR,
+	MDSS_INTR_AD4_0_INTR,
+	MDSS_INTR_AD4_1_INTR,
+	MDSS_INTR_MAX
+};
+
+/**
  * MDP TOP BLOCK features
  * @DPU_MDP_PANIC_PER_PIPE Panic configuration needs to be be done per pipe
  * @DPU_MDP_10BIT_SUPPORT, Chipset supports 10 bit pixel formats
@@ -653,6 +672,7 @@ struct dpu_perf_cfg {
  * @dma_formats        Supported formats for dma pipe
  * @cursor_formats     Supported formats for cursor pipe
  * @vig_formats        Supported formats for vig pipe
+ * @mdss_irqs          Bitmap with the irqs supported by the target
  */
 struct dpu_mdss_cfg {
 	u32 hwversion;
@@ -691,6 +711,8 @@ struct dpu_mdss_cfg {
 	struct dpu_format_extended *dma_formats;
 	struct dpu_format_extended *cursor_formats;
 	struct dpu_format_extended *vig_formats;
+
+	DECLARE_BITMAP(mdss_irqs, MDSS_INTR_MAX);
 };
 
 struct dpu_mdss_hw_cfg_handler {

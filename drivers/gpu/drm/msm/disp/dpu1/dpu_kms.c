@@ -791,7 +791,7 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 	struct dpu_kms *dpu_kms;
 	struct drm_device *dev;
 	struct msm_drm_private *priv;
-	int i, rc = -EINVAL;
+	int i, j, rc = -EINVAL;
 
 	if (!kms) {
 		DPU_ERROR("invalid kms\n");
@@ -853,6 +853,9 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 	pr_info("dpu hardware revision:0x%x\n", dpu_kms->core_rev);
 
 	dpu_kms->catalog = dpu_hw_catalog_init(dpu_kms->core_rev);
+	for (j = 0; j < MDSS_INTR_MAX; j++)
+		set_bit(j, dpu_kms->catalog->mdss_irqs);
+
 	if (IS_ERR_OR_NULL(dpu_kms->catalog)) {
 		rc = PTR_ERR(dpu_kms->catalog);
 		if (!dpu_kms->catalog)

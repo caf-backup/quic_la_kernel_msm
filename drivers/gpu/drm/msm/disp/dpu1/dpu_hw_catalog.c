@@ -588,6 +588,9 @@ static void sc7180_cfg_init(struct dpu_mdss_cfg *dpu_cfg)
 		.dma_cfg = sdm845_regdma,
 		.perf = sc7180_perf_data,
 	};
+
+	clear_bit(MDSS_INTR_AD4_0_INTR, dpu_cfg->mdss_irqs);
+	clear_bit(MDSS_INTR_AD4_1_INTR, dpu_cfg->mdss_irqs);
 }
 
 static struct dpu_mdss_hw_cfg_handler cfg_handler[] = {
