@@ -34,6 +34,9 @@
 #include <soc/qcom/socinfo.h>
 #include <soc/qcom/smem.h>
 #include <soc/qcom/boot_stats.h>
+#include <linux/soc/qcom/smem.h>
+#include <linux/soc/qcom/smem_state.h>
+
 
 #define BUILD_ID_LENGTH 32
 #define SMEM_IMAGE_VERSION_BLOCKS_COUNT 32
@@ -573,6 +576,10 @@ static struct msm_soc_info cpu_of_id[] = {
 
 	/* 455 ID */
 	[385] = {MSM_CPU_455, "SDM455"},
+
+	/* IPQ ID */
+	[402] = {IPQ_CPU_6018, "IPQ6018"},
+	[403] = {IPQ_CPU_6028, "IPQ6028"},
 
 	/* Uninitialized IDs are not known to run Linux.
 	   MSM_CPU_UNKNOWN is set to 0 to ensure these IDs are
@@ -1313,6 +1320,14 @@ static void * __init setup_dummy_socinfo(void)
 		dummy_socinfo.id = 319;
 		strlcpy(dummy_socinfo.build_id, "apq8098 - ",
 			sizeof(dummy_socinfo.build_id));
+	} else if (early_machine_is_ipq6018()) {
+		dummy_socinfo.id = 402;
+		strlcpy(dummy_socinfo.build_id, "ipq6018 - ",
+			sizeof(dummy_socinfo.build_id));
+	} else if (early_machine_is_ipq6028()) {
+		dummy_socinfo.id = 403;
+		strlcpy(dummy_socinfo.build_id, "ipq6028 - ",
+			sizeof(dummy_socinfo.build_id));
 	}
 
 	strlcat(dummy_socinfo.build_id, "Dummy socinfo",
@@ -1582,13 +1597,12 @@ static void socinfo_select_format(void)
 int __init socinfo_init(void)
 {
 	static bool socinfo_init_done;
-	unsigned size;
+	size_t size;
 
 	if (socinfo_init_done)
 		return 0;
 
-	socinfo = smem_get_entry(SMEM_HW_SW_BUILD_ID, &size, 0,
-				 SMEM_ANY_HOST_FLAG);
+	socinfo = qcom_smem_get(QCOM_SMEM_HOST_ANY, SMEM_HW_SW_BUILD_ID, &size);
 	if (IS_ERR_OR_NULL(socinfo)) {
 		pr_warn("Can't find SMEM_HW_SW_BUILD_ID; falling back on dummy values.\n");
 		socinfo = setup_dummy_socinfo();
