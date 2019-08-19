@@ -122,6 +122,7 @@ static int __init arm_cpuidle_read_ops(struct device_node *dn, int cpu)
 
 /**
  * arm_cpuidle_init() - Initialize cpuidle_ops for a specific cpu
+ * @drv: the drv to be initialized
  * @cpu: the cpu to be initialized
  *
  * Initialize the cpuidle ops with the device for the cpu and then call
@@ -137,7 +138,7 @@ static int __init arm_cpuidle_read_ops(struct device_node *dn, int cpu)
  *  -ENXIO if the HW reports a failure or a misconfiguration,
  *  -ENOMEM if the HW report an memory allocation failure 
  */
-int __init arm_cpuidle_init(int cpu)
+int __init arm_cpuidle_init(struct cpuidle_driver *drv, int cpu)
 {
 	struct device_node *cpu_node = of_cpu_device_node_get(cpu);
 	int ret;
@@ -147,7 +148,7 @@ int __init arm_cpuidle_init(int cpu)
 
 	ret = arm_cpuidle_read_ops(cpu_node, cpu);
 	if (!ret)
-		ret = cpuidle_ops[cpu].init(cpu_node, cpu);
+		ret = cpuidle_ops[cpu].init(drv, cpu_node, cpu);
 
 	of_node_put(cpu_node);
 

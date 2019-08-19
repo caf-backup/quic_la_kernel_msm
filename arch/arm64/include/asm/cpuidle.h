@@ -4,11 +4,13 @@
 
 #include <asm/proc-fns.h>
 
+struct cpuidle_driver;
+
 #ifdef CONFIG_CPU_IDLE
-extern int arm_cpuidle_init(unsigned int cpu);
+extern int arm_cpuidle_init(struct cpuidle_driver *drv, unsigned int cpu);
 extern int arm_cpuidle_suspend(int index);
 #else
-static inline int arm_cpuidle_init(unsigned int cpu)
+static inline int arm_cpuidle_init(struct cpuidle_driver *drv, unsigned int cpu)
 {
 	return -EOPNOTSUPP;
 }
