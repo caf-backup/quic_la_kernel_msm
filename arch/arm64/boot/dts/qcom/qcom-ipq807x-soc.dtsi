@@ -924,6 +924,7 @@
 				qcom,sha256-hash;
 				qcom,md5-hmac;
 				qcom,sha160-hmac;
+				qcom,sha224-hmac;
 				qcom,sha256-hmac;
 				qcom,sha384-hmac;
 				qcom,sha512-hmac;
