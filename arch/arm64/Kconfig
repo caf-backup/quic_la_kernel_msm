@@ -267,6 +267,13 @@ config IPQ_MEM_PROFILE
 	the reserved memory configuration used in device tree.
 	If unsure, say 0
 
+config SKB_FIXED_SIZE_2K
+	bool "SKB size fixed at 2K"
+	default n
+	help
+		This is a hint to the NSS driver that the ‘skbuff’ size might
+		need to be fixed at 2KB, to conserve memory.
+
 config ARM64_ERRATUM_824069
 	bool "Cortex-A53: 824069: Cache line might not be marked as clean after a CleanShared snoop"
 	default y
