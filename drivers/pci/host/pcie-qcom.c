@@ -1451,11 +1451,18 @@ void qcom_pcie_remove_bus(void)
 	for (i = 0; i < MAX_RC_NUM; i++) {
 		if (qcom_pcie_dev[i]) {
 			struct pcie_port *pp;
+			struct qcom_pcie *pcie;
 
 			pr_notice("---> Removing %d", i);
+			pcie = qcom_pcie_dev[i];
 			pp = &qcom_pcie_dev[i]->pp;
 			pci_stop_root_bus(pp->pci_bus);
 			pci_remove_root_bus(pp->pci_bus);
+
+			if (!pcie->is_emulation)
+				qcom_ep_reset_assert(pcie);
+			phy_power_off(pcie->phy);
+
 			qcom_pcie_dev[i]->ops->deinit(qcom_pcie_dev[i]);
 			pp->pci_bus = NULL;
 			pr_notice(" ... done<---\n");
