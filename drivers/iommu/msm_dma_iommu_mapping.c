@@ -190,7 +190,7 @@ static inline int __msm_dma_map_sg(struct device *dev, struct scatterlist *sg,
 	mutex_lock(&iommu_meta->lock);
 	iommu_map = msm_iommu_lookup(iommu_meta, dev);
 	if (!iommu_map) {
-		iommu_map = kmalloc(sizeof(*iommu_map), GFP_ATOMIC);
+		iommu_map = kzalloc(sizeof(*iommu_map), GFP_ATOMIC);
 
 		if (!iommu_map) {
 			ret = -ENOMEM;
