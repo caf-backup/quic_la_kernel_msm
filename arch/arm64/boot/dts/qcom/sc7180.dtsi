@@ -445,5 +445,10 @@
 					  <WAKE_TCS    3>,
 					  <CONTROL_TCS 1>;
 		};
+
+		rpmh_sleep_stats: soc-sleep-stats@c3f0000 {
+			compatible = "qcom,rpmh-sleep-stats";
+			reg = <0 0xc3f0000 0 0x400>;
+		};
 	};
 };
