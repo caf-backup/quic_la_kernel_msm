@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * SC7180 IDP board device tree source
+ *
+ * Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ */
+
+/dts-v1/;
+
+#include "sc7180.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. SC7180 IDP";
+	compatible = "qcom,sc7180-idp";
+
+	aliases {
+		serial0 = &uart2;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+};
+
+&qupv3_id_0 {
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+};
+
+&qup_uart2_default {
+	pinconf-tx {
+		pins = "gpio44";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	pinconf-rx {
+		pins = "gpio45";
+		drive-strength = <2>;
+		bias-pull-up;
+	};
+};
