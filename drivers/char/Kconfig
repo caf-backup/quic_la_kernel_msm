@@ -605,5 +605,13 @@ config TILE_SROM
 
 source "drivers/char/xillybus/Kconfig"
 
+config MSM_ADSPRPC
+	tristate "QTI ADSP RPC driver"
+	depends on MSM_GLINK && ION_MSM
+	default n
+	help
+          Provides a communication mechanism that allows clients to
+          make remote method invocations across processor boundary to
+          applications on DSP processor.
 endmenu
 
