@@ -91,7 +91,6 @@
 #define PCIE_ATU_LOWER_TARGET_OUTBOUND_7_GEN3		0xE14
 #define PCIE_ATU_UPPER_TARGET_OUTBOUND_7_GEN3		0xE18
 
-#
 static struct pci_ops dw_pcie_ops;
 
 int dw_pcie_cfg_read(void __iomem *addr, int size, u32 *val)
