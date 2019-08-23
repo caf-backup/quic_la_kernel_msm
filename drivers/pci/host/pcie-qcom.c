@@ -170,6 +170,12 @@
 
 #define PCIE_V2_PARF_SIZE	0x2000
 
+#define PCIE20_INT_ALL_STATUS		0x224
+#define PCIE20_INT_ALL_CLEAR		0x228
+#define PCIE20_INT_ALL_MASK		0x22c
+#define PCIE_LINK_UP			0x2000
+#define PCIE_LINK_DOWN			0x2
+
 struct qcom_pcie_resources_v0 {
 	struct clk *iface_clk;
 	struct clk *core_clk;
@@ -269,6 +275,7 @@ struct qcom_pcie {
 	uint32_t force_gen1;
 	u32 is_emulation;
 	u32 is_gen3;
+	int global_irq;
 	int link_down_irq;
 	int link_up_irq;
 	uint32_t rc_idx;
@@ -364,6 +371,33 @@ static irqreturn_t handle_link_up_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+/* PCIe global int handler*/
+static irqreturn_t qcom_pcie_global_irq_handler(int irq, void *arg)
+{
+	u32 status = 0;
+	unsigned long val, val_status, val_mask;
+	irqreturn_t ret = IRQ_HANDLED;
+
+	struct pcie_port *pp = arg;
+	struct qcom_pcie *pcie = to_qcom_pcie(pp);
+
+	val_status = readl_relaxed(pcie->parf + PCIE20_INT_ALL_STATUS);
+	val_mask = readl_relaxed(pcie->parf + PCIE20_INT_ALL_MASK);
+	status = val_status & val_mask;
+
+	/* Clear PARF status register */
+	val = readl_relaxed(pcie->parf + PCIE20_INT_ALL_CLEAR) | status;
+	writel_relaxed(val, pcie->parf + PCIE20_INT_ALL_CLEAR);
+	/* ensure data is written to hw register */
+	wmb();
+
+	if (status & PCIE_LINK_DOWN)
+		pr_info("PCIe: link_up IRQ for RC=%d\n", pcie->rc_idx);
+	if (status & PCIE_LINK_UP)
+		pr_info("PCIe: link_down IRQ for RC=%d\n", pcie->rc_idx);
+
+	return ret;
+}
 static void qcom_pcie_prog_viewport_cfg0(struct qcom_pcie *pcie, u32 busdev)
 {
 	struct pcie_port *pp = &pcie->pp;
@@ -1755,6 +1789,17 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 				handle_link_up_irq,
 				IRQF_TRIGGER_RISING, "pci_link_up",
 				pcie);
+	}
+
+	pcie->global_irq = platform_get_irq_byname(pdev, "global");
+	if (pcie->global_irq >= 0) {
+		ret = devm_request_irq(&pdev->dev, pcie->global_irq,
+				qcom_pcie_global_irq_handler,
+				IRQF_TRIGGER_RISING, "qcom-pcie-global", pcie);
+		if (ret) {
+			dev_err(&pdev->dev, "cannot request global irq\n");
+			return ret;
+		}
 	}
 
 	pp->msi_gicm_addr = 0;
