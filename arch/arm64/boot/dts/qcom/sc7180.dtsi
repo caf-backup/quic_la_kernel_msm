@@ -518,6 +518,11 @@
 					  <SLEEP_TCS   3>,
 					  <WAKE_TCS    3>,
 					  <CONTROL_TCS 1>;
+
+			rpmhcc: clock-controller {
+			    compatible = "qcom,sc7180-rpmh-clk";
+			    #clock-cells = <1>;
+			};
 		};
 
 		rpmh_sleep_stats: soc-sleep-stats@c3f0000 {
