@@ -15,7 +15,7 @@
  */
 
 &soc {
-	tmc_etr: tmc@6028000 {
+	tmc_etr: tmc@6048000 {
 		compatible = "arm,primecell";
 		arm,primecell-periphid = <0x0003b961>;
 
@@ -44,7 +44,7 @@
 		};
 	};
 
-	replicator: replicator@6026000 {
+	replicator: replicator@6046000 {
 		compatible = "arm,primecell";
 		arm,primecell-periphid = <0x0003b909>;
 
@@ -79,7 +79,7 @@
 		};
 	};
 
-	tmc_etf: tmc@6027000 {
+	tmc_etf: tmc@6047000 {
 		compatible = "arm,primecell";
 		arm,primecell-periphid = <0x0003b961>;
 
@@ -116,7 +116,7 @@
 		};
 	};
 
-	funnel_in0: funnel@6021000 {
+	funnel_in0: funnel@6041000 {
 		compatible = "arm,primecell";
 		arm,primecell-periphid = <0x0003b908>;
 
@@ -157,6 +157,14 @@
 				};
 			};
 			port@3 {
+				reg = <5>;
+				funnel_in0_in_funnel_mm:endpoint {
+					slave-mode;
+					remote-endpoint =
+						<&funnel_mm_out_funnel_in0>;
+				};
+			};
+			port@4 {
 				reg = <6>;
 				funnel_in0_in_tpda:endpoint {
 					slave-mode;
@@ -164,7 +172,7 @@
 						<&tpda_out_funnel_in0>;
 				};
 			};
-			port@4 {
+			port@5 {
 				reg = <7>;
 				funnel_in0_in_stm:endpoint {
 					slave-mode;
@@ -172,7 +180,7 @@
 						<&stm_out_funnel_in0>;
 				};
 			};
-			port@5 {
+			port@6 {
 				reg = <0>;
 				funnel_in0_in_rpm_etm0:endpoint {
 					slave-mode;
@@ -213,6 +221,33 @@
 					slave-mode;
 					remote-endpoint =
 						<&dbgui_out_funnel_center>;
+				};
+			};
+		};
+	};
+
+	funnel_mm: funnel@6130000 {
+		compatible = "arm,primecell";
+		arm,primecell-periphid = <0x0003b908>;
+
+		reg = <0x6130000 0x1000>;
+		reg-names = "funnel-base";
+
+		coresight-name = "coesight-funnel-mm";
+
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
+		clock-names = "apb_pclk", "core_a_clk";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				funnel_mm_out_funnel_in0:endpoint {
+					remote-endpoint =
+						<&funnel_in0_in_funnel_mm>;
 				};
 			};
 		};
@@ -718,7 +753,7 @@
 		};
 	};
 
-	tpda: tpda@6003000 {
+	tpda: tpda@6004000 {
 		compatible = "qcom,coresight-tpda";
 		reg = <0x6004000 0x1000>;
 		reg-names = "tpda-base";
