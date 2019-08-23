@@ -89,6 +89,8 @@
 
 #define PCIE20_ELBI_SYS_CTRL			0x04
 #define PCIE20_ELBI_SYS_CTRL_LT_ENABLE		BIT(0)
+#define PCIE20_ELBI_SYS_STTS			0x08
+#define XMLH_LINK_UP				0x400
 
 #define PCIE20_CAP				0x70
 #define PCIE20_CAP_LINKCTRLSTATUS		(PCIE20_CAP + 0x10)
@@ -1363,9 +1365,12 @@ static int qcom_pcie_init_v3(struct qcom_pcie *pcie)
 static int qcom_pcie_link_up(struct pcie_port *pp)
 {
 	struct qcom_pcie *pcie = to_qcom_pcie(pp);
-	u16 val = readw(pcie->dbi + PCIE20_CAP + PCI_EXP_LNKSTA);
+	u32 val;
 
-	return !!(val & PCI_EXP_LNKSTA_DLLLA);
+	val = readl_relaxed(pcie->elbi + PCIE20_ELBI_SYS_STTS);
+	if (val & XMLH_LINK_UP)
+		return 1;
+	return 0;
 }
 
 static int qcom_pcie_host_init(struct pcie_port *pp)
