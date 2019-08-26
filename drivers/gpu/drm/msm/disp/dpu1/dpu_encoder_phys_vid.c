@@ -242,7 +242,7 @@ static void dpu_encoder_phys_vid_setup_timing_engine(
 	unsigned long lock_flags;
 	struct dpu_hw_intf_cfg intf_cfg = { 0 };
 
-	if (!phys_enc || !phys_enc->hw_ctl->ops.setup_intf_cfg) {
+	if (!phys_enc) {
 		DPU_ERROR("invalid encoder %d\n", phys_enc != 0);
 		return;
 	}
@@ -275,15 +275,27 @@ static void dpu_encoder_phys_vid_setup_timing_engine(
 	fmt = dpu_get_dpu_format(fmt_fourcc);
 	DPU_DEBUG_VIDENC(vid_enc, "fmt_fourcc 0x%X\n", fmt_fourcc);
 
-	intf_cfg.intf = vid_enc->hw_intf->idx;
-	intf_cfg.intf_mode_sel = DPU_CTL_MODE_SEL_VID;
-	intf_cfg.stream_sel = 0; /* Don't care value for video mode */
-	intf_cfg.mode_3d = dpu_encoder_helper_get_3d_blend_mode(phys_enc);
-
 	spin_lock_irqsave(phys_enc->enc_spinlock, lock_flags);
 	vid_enc->hw_intf->ops.setup_timing_gen(vid_enc->hw_intf,
 			&timing_params, fmt);
-	phys_enc->hw_ctl->ops.setup_intf_cfg(phys_enc->hw_ctl, &intf_cfg);
+
+	/* setup which pp blk will connect to this intf */
+	if (vid_enc->hw_intf->ops.bind_pingpong_blk)
+		vid_enc->hw_intf->ops.bind_pingpong_blk(
+				vid_enc->hw_intf,
+				true,
+				phys_enc->hw_pp->idx);
+
+	if (phys_enc->hw_ctl->ops.setup_intf_cfg) {
+		intf_cfg.intf = vid_enc->hw_intf->idx;
+		intf_cfg.intf_mode_sel = DPU_CTL_MODE_SEL_VID;
+		intf_cfg.stream_sel = 0; /* Don't care value for video mode */
+		intf_cfg.mode_3d =
+			dpu_encoder_helper_get_3d_blend_mode(phys_enc);
+		phys_enc->hw_ctl->ops.setup_intf_cfg(phys_enc->hw_ctl,
+							&intf_cfg);
+	}
+
 	spin_unlock_irqrestore(phys_enc->enc_spinlock, lock_flags);
 
 	programmable_fetch_config(phys_enc, &timing_params);
@@ -457,7 +469,6 @@ static void dpu_encoder_phys_vid_enable(struct dpu_encoder_phys *phys_enc)
 	struct dpu_encoder_phys_vid *vid_enc;
 	struct dpu_rm_hw_iter iter;
 	struct dpu_hw_ctl *ctl;
-	u32 flush_mask = 0;
 
 	if (!phys_enc || !phys_enc->parent || !phys_enc->parent->dev ||
 			!phys_enc->parent->dev->dev_private) {
@@ -502,12 +513,11 @@ static void dpu_encoder_phys_vid_enable(struct dpu_encoder_phys *phys_enc)
 		!dpu_encoder_phys_vid_is_master(phys_enc))
 		goto skip_flush;
 
-	ctl->ops.get_bitmask_intf(ctl, &flush_mask, vid_enc->hw_intf->idx);
-	ctl->ops.update_pending_flush(ctl, flush_mask);
+	ctl->ops.update_bitmask_intf(ctl, vid_enc->hw_intf->idx, 1);
 
 skip_flush:
-	DPU_DEBUG_VIDENC(vid_enc, "update pending flush ctl %d flush_mask %x\n",
-		ctl->idx - CTL_0, flush_mask);
+	DPU_DEBUG_VIDENC(vid_enc, "update pending flush ctl %d \n",
+		ctl->idx - CTL_0);
 
 	/* ctl_flush & timing engine enable will be triggered by framework */
 	if (phys_enc->enable_state == DPU_ENC_DISABLED)

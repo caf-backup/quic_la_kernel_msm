@@ -541,7 +541,7 @@ static struct msm_display_topology dpu_encoder_get_topology(
 			intf_count++;
 
 	/* User split topology for width > 1080 */
-	topology.num_lm = (mode->vdisplay > MAX_VDISPLAY_SPLIT) ? 2 : 1;
+	topology.num_lm = (mode->hdisplay > MAX_VDISPLAY_SPLIT) ? 2 : 1;
 	topology.num_enc = 0;
 	topology.num_intf = intf_count;
 
@@ -1060,6 +1060,7 @@ static void _dpu_encoder_virt_enable_helper(struct drm_encoder *drm_enc)
 	struct dpu_encoder_virt *dpu_enc = NULL;
 	struct msm_drm_private *priv;
 	struct dpu_kms *dpu_kms;
+	struct dpu_hw_intf_cfg intf_cfg = { 0 };
 
 	if (!drm_enc || !drm_enc->dev || !drm_enc->dev->dev_private) {
 		DPU_ERROR("invalid parameters\n");
@@ -1084,6 +1085,18 @@ static void _dpu_encoder_virt_enable_helper(struct drm_encoder *drm_enc)
 		dpu_enc->cur_master->hw_mdptop->ops.reset_ubwc(
 				dpu_enc->cur_master->hw_mdptop,
 				dpu_kms->catalog);
+
+	if (dpu_enc->cur_master->hw_ctl &&
+			dpu_enc->cur_master->hw_ctl->ops.setup_intf_cfg_v1) {
+		intf_cfg.intf = dpu_enc->cur_master->intf_idx;
+		if (dpu_enc->cur_master->intf_mode == INTF_MODE_CMD)
+			intf_cfg.intf_mode_sel = DPU_CTL_MODE_SEL_CMD;
+		else
+			intf_cfg.intf_mode_sel = DPU_CTL_MODE_SEL_VID;
+		dpu_enc->cur_master->hw_ctl->ops.setup_intf_cfg_v1(
+				dpu_enc->cur_master->hw_ctl,
+				&intf_cfg);
+	}
 
 	_dpu_encoder_update_vsync_source(dpu_enc, &dpu_enc->disp_info);
 }

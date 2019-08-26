@@ -58,11 +58,11 @@ static void _dpu_encoder_phys_cmd_update_intf_cfg(
 	struct dpu_hw_ctl *ctl;
 	struct dpu_hw_intf_cfg intf_cfg = { 0 };
 
-	if (!phys_enc)
+	if (!phys_enc || !ctl->ops.setup_intf_cfg)
 		return;
 
 	ctl = phys_enc->hw_ctl;
-	if (!ctl || !ctl->ops.setup_intf_cfg)
+	if (!ctl)
 		return;
 
 	intf_cfg.intf = phys_enc->intf_idx;
@@ -467,7 +467,6 @@ static void dpu_encoder_phys_cmd_enable_helper(
 		struct dpu_encoder_phys *phys_enc)
 {
 	struct dpu_hw_ctl *ctl;
-	u32 flush_mask = 0;
 
 	if (!phys_enc || !phys_enc->hw_ctl || !phys_enc->hw_pp) {
 		DPU_ERROR("invalid arg(s), encoder %d\n", phys_enc != 0);
@@ -482,8 +481,7 @@ static void dpu_encoder_phys_cmd_enable_helper(
 		return;
 
 	ctl = phys_enc->hw_ctl;
-	ctl->ops.get_bitmask_intf(ctl, &flush_mask, phys_enc->intf_idx);
-	ctl->ops.update_pending_flush(ctl, flush_mask);
+	ctl->ops.update_bitmask_intf(ctl, phys_enc->intf_idx, 1);
 }
 
 static void dpu_encoder_phys_cmd_enable(struct dpu_encoder_phys *phys_enc)

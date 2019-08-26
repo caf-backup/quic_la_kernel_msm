@@ -104,6 +104,15 @@ struct dpu_hw_ctl_ops {
 	u32 (*get_flush_register)(struct dpu_hw_ctl *ctx);
 
 	/**
+	 * Setup ctl_path interface config for DPU_CTL_ACTIVE_CFG
+	 * @ctx   : ctl path ctx pointer
+	 * @cfg    : interface config structure pointer
+	 * @Return: error code
+	 */
+	void (*setup_intf_cfg_v1)(struct dpu_hw_ctl *ctx,
+		struct dpu_hw_intf_cfg *cfg);
+
+	/**
 	 * Setup ctl_path interface config
 	 * @ctx
 	 * @cfg    : interface config structure pointer
@@ -130,10 +139,6 @@ struct dpu_hw_ctl_ops {
 	uint32_t (*get_bitmask_mixer)(struct dpu_hw_ctl *ctx,
 		enum dpu_lm blk);
 
-	int (*get_bitmask_intf)(struct dpu_hw_ctl *ctx,
-		u32 *flushbits,
-		enum dpu_intf blk);
-
 	/**
 	 * Set all blend stages to disabled
 	 * @ctx       : ctl path ctx pointer
@@ -148,6 +153,9 @@ struct dpu_hw_ctl_ops {
 	 */
 	void (*setup_blendstage)(struct dpu_hw_ctl *ctx,
 		enum dpu_lm lm, struct dpu_hw_stage_cfg *cfg);
+
+	int (*update_bitmask_intf)(struct dpu_hw_ctl *ctx,
+				enum dpu_intf intf, bool enable);
 };
 
 /**
@@ -159,6 +167,7 @@ struct dpu_hw_ctl_ops {
  * @mixer_count: number of mixers
  * @mixer_hw_caps: mixer hardware capabilities
  * @pending_flush_mask: storage for pending ctl_flush managed via ops
+ * @pending_intf_flush_mask: pending INTF flush
  * @ops: operation list
  */
 struct dpu_hw_ctl {
@@ -171,6 +180,7 @@ struct dpu_hw_ctl {
 	int mixer_count;
 	const struct dpu_lm_cfg *mixer_hw_caps;
 	u32 pending_flush_mask;
+	u32 pending_intf_flush_mask;
 
 	/* ops */
 	struct dpu_hw_ctl_ops ops;
