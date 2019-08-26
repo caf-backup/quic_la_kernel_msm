@@ -106,6 +106,10 @@ enum mhi_dev_state {
 	MHI_STATE_MAX,
 };
 
+extern const char * const mhi_ee_str[MHI_EE_MAX];
+#define TO_MHI_EXEC_STR(ee) (((ee) >= MHI_EE_MAX) ? \
+			     "INVALID_EE" : mhi_ee_str[ee])
+
 /**
  * struct image_info - firmware and rddm table table
  * @mhi_buf - Contain device firmware and rddm table

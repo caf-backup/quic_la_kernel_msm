@@ -15,7 +15,10 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/mhi.h>
+#include <linux/msi.h>
+#include <linux/interrupt.h>
 #include "mhi_qti.h"
+#include "../core/mhi_internal.h"
 
 struct firmware_info {
 	unsigned int dev_id;
@@ -667,6 +670,52 @@ error_init_pci:
 	return ret;
 }
 
+void mhi_pci_device_removed(struct pci_dev *pci_dev)
+{
+	struct mhi_controller *mhi_cntrl;
+	u32 domain = pci_domain_nr(pci_dev->bus);
+	u32 bus = pci_dev->bus->number;
+	u32 dev_id = pci_dev->device;
+	u32 slot = PCI_SLOT(pci_dev->devfn);
+
+	mhi_cntrl = mhi_bdf_to_controller(domain, bus, slot, dev_id);
+
+	if (mhi_cntrl) {
+
+		struct mhi_dev *mhi_dev = mhi_controller_get_devdata(mhi_cntrl);
+
+		pm_stay_awake(&mhi_cntrl->mhi_dev->dev);
+
+		/* if link is in drv suspend, wake it up */
+		pm_runtime_get_sync(&pci_dev->dev);
+
+		mutex_lock(&mhi_cntrl->pm_mutex);
+		if (!mhi_dev->powered_on) {
+			MHI_LOG("Not in active state\n");
+			mutex_unlock(&mhi_cntrl->pm_mutex);
+			pm_runtime_put_noidle(&pci_dev->dev);
+			return;
+		}
+		mhi_dev->powered_on = false;
+		mutex_unlock(&mhi_cntrl->pm_mutex);
+
+		pm_runtime_put_noidle(&pci_dev->dev);
+
+		MHI_LOG("Triggering shutdown process\n");
+		mhi_power_down(mhi_cntrl, false);
+
+		/* turn the link off */
+		mhi_deinit_pci_dev(mhi_cntrl);
+		mhi_arch_link_off(mhi_cntrl, false);
+
+		mhi_arch_pcie_deinit(mhi_cntrl);
+
+		pm_relax(&mhi_cntrl->mhi_dev->dev);
+
+		mhi_unregister_mhi_controller(mhi_cntrl);
+	}
+}
+
 static const struct dev_pm_ops pm_ops = {
 	SET_RUNTIME_PM_OPS(mhi_runtime_suspend,
 			   mhi_runtime_resume,
@@ -690,6 +739,7 @@ static struct pci_driver mhi_pcie_driver = {
 	.name = "mhi",
 	.id_table = mhi_pcie_device_id,
 	.probe = mhi_pci_probe,
+	.remove = mhi_pci_device_removed,
 	.driver = {
 		.pm = &pm_ops
 	}
