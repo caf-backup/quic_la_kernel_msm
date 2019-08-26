@@ -18,9 +18,6 @@
 #define MHI_RPM_SUSPEND_TMR_MS (250)
 #define MHI_PCI_BAR_NUM (0)
 
-extern const char * const mhi_ee_str[MHI_EE_MAX];
-#define TO_MHI_EXEC_STR(ee) (ee >= MHI_EE_MAX ? "INVALID_EE" : mhi_ee_str[ee])
-
 struct mhi_dev {
 	struct pci_dev *pci_dev;
 	u32 smmu_cfg;
@@ -36,6 +33,7 @@ void mhi_deinit_pci_dev(struct mhi_controller *mhi_cntrl);
 int mhi_pci_probe(struct pci_dev *pci_dev,
 		  const struct pci_device_id *device_id);
 
+void mhi_pci_device_removed(struct pci_dev *pci_dev);
 int mhi_arch_pcie_init(struct mhi_controller *mhi_cntrl);
 void mhi_arch_pcie_deinit(struct mhi_controller *mhi_cntrl);
 int mhi_arch_iommu_init(struct mhi_controller *mhi_cntrl);
