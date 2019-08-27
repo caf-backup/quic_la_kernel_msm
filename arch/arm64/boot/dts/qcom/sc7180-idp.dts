@@ -50,4 +50,12 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&sdc1_on>;
 	pinctrl-1 = <&sdc1_off>;
+	vmmc-supply = <&src_pp2960_l19a>;
+	vqmmc-supply = <&src_pp1800_l12a>;
+
+	max-frequency = <100000000>;
+
+	/delete-property/ mmc-hs200-1_8v;
+	/delete-property/ mmc-hs400-1_8v;
+	/delete-property/ mmc-hs400-enhanced-strobe;
 };
