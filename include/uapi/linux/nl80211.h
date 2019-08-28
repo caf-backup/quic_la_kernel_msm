@@ -1056,6 +1056,58 @@
  *	user space through the connect result as the user space would have
  *	initiated the connection through the connect request.
  *
+ * @NL80211_CMD_GET_FTM_RESPONDER_STATS: Retrieve FTM responder statistics, in
+ *	the %NL80211_ATTR_FTM_RESPONDER_STATS attribute.
+ *
+ * @NL80211_CMD_PEER_MEASUREMENT_START: start a (set of) peer measurement(s)
+ *	with the given parameters, which are encapsulated in the nested
+ *	%NL80211_ATTR_PEER_MEASUREMENTS attribute. Optionally, MAC address
+ *	randomization may be enabled and configured by specifying the
+ *	%NL80211_ATTR_MAC and %NL80211_ATTR_MAC_MASK attributes.
+ *	If a timeout is requested, use the %NL80211_ATTR_TIMEOUT attribute.
+ *	A u64 cookie for further %NL80211_ATTR_COOKIE use is is returned in
+ *	the netlink extended ack message.
+ *
+ *	To cancel a measurement, close the socket that requested it.
+ *
+ *	Measurement results are reported to the socket that requested the
+ *	measurement using @NL80211_CMD_PEER_MEASUREMENT_RESULT when they
+ *	become available, so applications must ensure a large enough socket
+ *	buffer size.
+ *
+ *	Depending on driver support it may or may not be possible to start
+ *	multiple concurrent measurements.
+ * @NL80211_CMD_PEER_MEASUREMENT_RESULT: This command number is used for the
+ *	result notification from the driver to the requesting socket.
+ * @NL80211_CMD_PEER_MEASUREMENT_COMPLETE: Notification only, indicating that
+ *	the measurement completed, using the measurement cookie
+ *	(%NL80211_ATTR_COOKIE).
+ *
+ * @NL80211_CMD_NOTIFY_RADAR: Notify the kernel that a radar signal was
+ *	detected and reported by a neighboring device on the channel
+ *	indicated by %NL80211_ATTR_WIPHY_FREQ and other attributes
+ *	determining the width and type.
+ *
+ * @NL80211_CMD_UPDATE_OWE_INFO: This interface allows the host driver to
+ *	offload OWE processing to user space. This intends to support
+ *	OWE AKM by the host drivers that implement SME but rely
+ *	on the user space for the cryptographic/DH IE processing in AP mode.
+ *
+ * @NL80211_CMD_PROBE_MESH_LINK: The requirement for mesh link metric
+ *	refreshing, is that from one mesh point we be able to send some data
+ *	frames to other mesh points which are not currently selected as a
+ *	primary traffic path, but which are only 1 hop away. The absence of
+ *	the primary path to the chosen node makes it necessary to apply some
+ *	form of marking on a chosen packet stream so that the packets can be
+ *	properly steered to the selected node for testing, and not by the
+ *	regular mesh path lookup. Further, the packets must be of type data
+ *	so that the rate control (often embedded in firmware) is used for
+ *	rate selection.
+ *
+ *	Here attribute %NL80211_ATTR_MAC is used to specify connected mesh
+ *	peer MAC address and %NL80211_ATTR_FRAME is used to specify the frame
+ *	content. The frame is ethernet data.
+ *
  * @NL80211_CMD_SET_FILS_AAD: Set FILS AAD data to the driver using
  *	&NL80211_ATTR_MAC - for STA MAC address
  *	&NL80211_ATTR_FILS_KEK - for KEK
@@ -1273,6 +1325,18 @@ enum nl80211_commands {
 	NL80211_CMD_STA_OPMODE_CHANGED,
 
 	NL80211_CMD_CONTROL_PORT_FRAME,
+
+	NL80211_CMD_GET_FTM_RESPONDER_STATS,
+
+	NL80211_CMD_PEER_MEASUREMENT_START,
+	NL80211_CMD_PEER_MEASUREMENT_RESULT,
+	NL80211_CMD_PEER_MEASUREMENT_COMPLETE,
+
+	NL80211_CMD_NOTIFY_RADAR,
+
+	NL80211_CMD_UPDATE_OWE_INFO,
+
+	NL80211_CMD_PROBE_MESH_LINK,
 
 	NL80211_CMD_SET_FILS_AAD,
 
@@ -2264,6 +2328,39 @@ enum nl80211_commands {
  *      enforced.
  * @NL80211_ATTR_TXQ_QUANTUM: TXQ scheduler quantum (bytes). Number of bytes
  *      a flow is assigned on each round of the DRR scheduler.
+ * @NL80211_ATTR_HE_CAPABILITY: HE Capability information element (from
+ *	association request when used with NL80211_CMD_NEW_STATION). Can be set
+ *	only if %NL80211_STA_FLAG_WME is set.
+ *
+ * @NL80211_ATTR_FTM_RESPONDER: nested attribute which user-space can include
+ *	in %NL80211_CMD_START_AP or %NL80211_CMD_SET_BEACON for fine timing
+ *	measurement (FTM) responder functionality and containing parameters as
+ *	possible, see &enum nl80211_ftm_responder_attr
+ *
+ * @NL80211_ATTR_FTM_RESPONDER_STATS: Nested attribute with FTM responder
+ *	statistics, see &enum nl80211_ftm_responder_stats.
+ *
+ * @NL80211_ATTR_TIMEOUT: Timeout for the given operation in milliseconds (u32),
+ *	if the attribute is not given no timeout is requested. Note that 0 is an
+ *	invalid value.
+ *
+ * @NL80211_ATTR_PEER_MEASUREMENTS: peer measurements request (and result)
+ *	data, uses nested attributes specified in
+ *	&enum nl80211_peer_measurement_attrs.
+ *	This is also used for capability advertisement in the wiphy information,
+ *	with the appropriate sub-attributes.
+ *
+ * @NL80211_ATTR_AIRTIME_WEIGHT: Station's weight when scheduled by the airtime
+ *	scheduler.
+ *
+ * @NL80211_ATTR_STA_TX_POWER_SETTING: Transmit power setting type (u8) for
+ *	station associated with the AP. See &enum nl80211_tx_power_setting for
+ *	possible values.
+ * @NL80211_ATTR_STA_TX_POWER: Transmit power level (s16) in dBm units. This
+ *	allows to set Tx power for a station. If this attribute is not included,
+ *	the default per-interface tx power setting will be overriding. Driver
+ *	should be picking up the lowest tx power, either tx power per-interface
+ *	or per-station.
  *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
@@ -2703,6 +2800,20 @@ enum nl80211_attrs {
 	NL80211_ATTR_TXQ_LIMIT,
 	NL80211_ATTR_TXQ_MEMORY_LIMIT,
 	NL80211_ATTR_TXQ_QUANTUM,
+
+	NL80211_ATTR_HE_CAPABILITY,
+
+	NL80211_ATTR_FTM_RESPONDER,
+
+	NL80211_ATTR_FTM_RESPONDER_STATS,
+
+	NL80211_ATTR_TIMEOUT,
+
+	NL80211_ATTR_PEER_MEASUREMENTS,
+
+	NL80211_ATTR_AIRTIME_WEIGHT,
+	NL80211_ATTR_STA_TX_POWER_SETTING,
+	NL80211_ATTR_STA_TX_POWER,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -5769,6 +5880,78 @@ enum nl80211_nan_match_attributes {
 enum nl80211_external_auth_action {
 	NL80211_EXTERNAL_AUTH_START,
 	NL80211_EXTERNAL_AUTH_ABORT,
+};
+
+/**
+ * enum nl80211_ftm_responder_attributes - fine timing measurement
+ *	responder attributes
+ * @__NL80211_FTM_RESP_ATTR_INVALID: Invalid
+ * @NL80211_FTM_RESP_ATTR_ENABLED: FTM responder is enabled
+ * @NL80211_FTM_RESP_ATTR_LCI: The content of Measurement Report Element
+ *	(9.4.2.22 in 802.11-2016) with type 8 - LCI (9.4.2.22.10),
+ *	i.e. starting with the measurement token
+ * @NL80211_FTM_RESP_ATTR_CIVIC: The content of Measurement Report Element
+ *	(9.4.2.22 in 802.11-2016) with type 11 - Civic (Section 9.4.2.22.13),
+ *	i.e. starting with the measurement token
+ * @__NL80211_FTM_RESP_ATTR_LAST: Internal
+ * @NL80211_FTM_RESP_ATTR_MAX: highest FTM responder attribute.
+ */
+enum nl80211_ftm_responder_attributes {
+	__NL80211_FTM_RESP_ATTR_INVALID,
+
+	NL80211_FTM_RESP_ATTR_ENABLED,
+	NL80211_FTM_RESP_ATTR_LCI,
+	NL80211_FTM_RESP_ATTR_CIVICLOC,
+
+	/* keep last */
+	__NL80211_FTM_RESP_ATTR_LAST,
+	NL80211_FTM_RESP_ATTR_MAX = __NL80211_FTM_RESP_ATTR_LAST - 1,
+};
+
+/*
+ * enum nl80211_ftm_responder_stats - FTM responder statistics
+ *
+ * These attribute types are used with %NL80211_ATTR_FTM_RESPONDER_STATS
+ * when getting FTM responder statistics.
+ *
+ * @__NL80211_FTM_STATS_INVALID: attribute number 0 is reserved
+ * @NL80211_FTM_STATS_SUCCESS_NUM: number of FTM sessions in which all frames
+ *	were ssfully answered (u32)
+ * @NL80211_FTM_STATS_PARTIAL_NUM: number of FTM sessions in which part of the
+ *	frames were successfully answered (u32)
+ * @NL80211_FTM_STATS_FAILED_NUM: number of failed FTM sessions (u32)
+ * @NL80211_FTM_STATS_ASAP_NUM: number of ASAP sessions (u32)
+ * @NL80211_FTM_STATS_NON_ASAP_NUM: number of non-ASAP sessions (u32)
+ * @NL80211_FTM_STATS_TOTAL_DURATION_MSEC: total sessions durations - gives an
+ *	indication of how much time the responder was busy (u64, msec)
+ * @NL80211_FTM_STATS_UNKNOWN_TRIGGERS_NUM: number of unknown FTM triggers -
+ *	triggers from initiators that didn't finish successfully the negotiation
+ *	phase with the responder (u32)
+ * @NL80211_FTM_STATS_RESCHEDULE_REQUESTS_NUM: number of FTM reschedule requests
+ *	- initiator asks for a new scheduling although it already has scheduled
+ *	FTM slot (u32)
+ * @NL80211_FTM_STATS_OUT_OF_WINDOW_TRIGGERS_NUM: number of FTM triggers out of
+ *	scheduled window (u32)
+ * @NL80211_FTM_STATS_PAD: used for padding, ignore
+ * @__NL80211_TXQ_ATTR_AFTER_LAST: Internal
+ * @NL80211_FTM_STATS_MAX: highest possible FTM responder stats attribute
+ */
+enum nl80211_ftm_responder_stats {
+	__NL80211_FTM_STATS_INVALID,
+	NL80211_FTM_STATS_SUCCESS_NUM,
+	NL80211_FTM_STATS_PARTIAL_NUM,
+	NL80211_FTM_STATS_FAILED_NUM,
+	NL80211_FTM_STATS_ASAP_NUM,
+	NL80211_FTM_STATS_NON_ASAP_NUM,
+	NL80211_FTM_STATS_TOTAL_DURATION_MSEC,
+	NL80211_FTM_STATS_UNKNOWN_TRIGGERS_NUM,
+	NL80211_FTM_STATS_RESCHEDULE_REQUESTS_NUM,
+	NL80211_FTM_STATS_OUT_OF_WINDOW_TRIGGERS_NUM,
+	NL80211_FTM_STATS_PAD,
+
+	/* keep last */
+	__NL80211_FTM_STATS_AFTER_LAST,
+	NL80211_FTM_STATS_MAX = __NL80211_FTM_STATS_AFTER_LAST - 1
 };
 
 #endif /* __LINUX_NL80211_H */
