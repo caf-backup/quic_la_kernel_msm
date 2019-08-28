@@ -49,48 +49,6 @@
 };
 
 &tlmm {
-	pinctrl-0 = <&btcoex_pins>;
-	pinctrl-names = "default";
-
-	btcoex_pins: btcoex_pins {
-		mux_0 {
-			pins = "gpio64";
-			function = "pta1_1";
-			drive-strength = <6>;
-			bias-pull-down;
-		};
-		mux_1 {
-			pins = "gpio65";
-			function = "pta1_2";
-			drive-strength = <6>;
-			bias-pull-down;
-		};
-		mux_2 {
-			pins = "gpio66";
-			function = "pta1_0";
-			drive-strength = <6>;
-			bias-pull-down;
-		};
-		mux_3 {
-			pins = "gpio54";
-			function = "pta2_0";
-			drive-strength = <6>;
-			bias-pull-down;
-		};
-		mux_4 {
-			pins = "gpio55";
-			function = "pta2_1";
-			drive-strength = <6>;
-			bias-pull-down;
-		};
-		mux_5 {
-			pins = "gpio56";
-			function = "pta2_2";
-			drive-strength = <6>;
-			bias-pull-down;
-		};
-	};
-
 	mdio_pins: mdio_pinmux {
 		mux_0 {
 			pins = "gpio68";
@@ -110,15 +68,6 @@
 		mux {
 			pins = "gpio23", "gpio24";
 			function = "blsp4_uart1";
-			drive-strength = <8>;
-			bias-disable;
-		};
-	};
-
-	i2c_0_pins: i2c_0_pinmux {
-		mux {
-			pins = "gpio42", "gpio43";
-			function = "blsp1_i2c";
 			drive-strength = <8>;
 			bias-disable;
 		};
@@ -197,15 +146,6 @@
 		};
 	};
 
-	sd_pins: sd_pins {
-		mux {
-			pins = "gpio63";
-			function = "sd_card";
-			drive-strength = <8>;
-			bias-pull-up;
-		};
-	};
-
 	hsuart_pins: hsuart_pins {
 		mux {
 			pins = "gpio46", "gpio47", "gpio48", "gpio49";
@@ -245,39 +185,9 @@
 		};
 	};
 
-	uniphy_pins: uniphy_pinmux {
-		mux {
-			pins = "gpio60";
-			function = "rx2";
-			bias-disable;
-		};
-
-		sfp_tx {
-			pins = "gpio59";
-			function = "gpio";
-			drive-strength = <8>;
-			bias-pull-down;
-			output-low;
-		};
-	};
-
-	pwm_pins: pwm_pinmux {
-		mux_1 {
-			pins = "gpio25";
-			function = "pwm02";
-			drive-strength = <8>;
-		};
-	};
 };
 
 &soc {
-	pwm {
-		pinctrl-0 = <&pwm_pins>;
-		pinctrl-names = "default";
-		used-pwm-indices = <1>, <0>, <0>, <0>;
-		status = "disabled";
-	};
-
 	gpio_keys {
 		compatible = "gpio-keys";
 		pinctrl-0 = <&button_pins>;
@@ -318,8 +228,6 @@
 	};
 
 	ess-switch@3a000000 {
-		pinctrl-0 = <&uniphy_pins>;
-		pinctrl-names = "default";
 		switch_cpu_bmp = <0x1>;  /* cpu port bitmap */
 		switch_lan_bmp = <0x3e>; /* lan port bitmap */
 		switch_wan_bmp = <0x40>; /* wan port bitmap */
@@ -738,16 +646,6 @@
 
 &crypto {
 	status = "ok";
-};
-
-&i2c_0 {
-	pinctrl-0 = <&i2c_0_pins>;
-	pinctrl-names = "default";
-	status = "ok";
-};
-
-&i2c_1 {
-	status = "disabled";
 };
 
 &sdhc_1 {
