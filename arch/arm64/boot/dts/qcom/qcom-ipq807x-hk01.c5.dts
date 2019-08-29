@@ -49,6 +49,55 @@
 };
 
 &tlmm {
+	pinctrl-0 = <&pcie_sdx_gpio>;
+	pinctrl-names = "default";
+
+	pcie_sdx_gpio: pcie_sdx_gpio {
+		mdm2ap_status {
+			pins = "gpio25";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+		ap2mdm_status {
+			pins = "gpio26";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+		ap2mdm_err_ftl {
+			pins = "gpio27";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+		ap2mdm_gp_rst_n {
+			pins = "gpio29";
+			function = "gpio";
+			drive-strength = <8>;
+			output-high;
+		};
+		sdx_pon_gpio {
+			pins = "gpio30";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-up;
+			output-high;
+		};
+		mdm2ap_err_ftl {
+			pins = "gpio33";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+		pcie0_wake {
+			pins = "gpio59";
+			function = "pcie0_wake";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+	};
+
 	mdio_pins: mdio_pinmux {
 		mux_0 {
 			pins = "gpio68";
