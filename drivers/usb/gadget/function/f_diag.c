@@ -29,13 +29,9 @@
 #include <linux/debugfs.h>
 #include <linux/kmemleak.h>
 
-#define MAX_INST_NAME_LEN	40
+#include "u_diag.h"
 
-/* for configfs support */
-struct diag_opts {
-	struct usb_function_instance func_inst;
-	char *name;
-};
+#define MAX_INST_NAME_LEN	40
 
 static inline struct diag_opts *to_diag_opts(struct config_item *item)
 {
