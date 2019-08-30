@@ -801,7 +801,7 @@
 
 		dcc: dcc@b3000 {
 			compatible = "qca,dcc";
-			status = "disabled";
+			status = "ok";
 			reg = <0xb3000 0x1000>,
 				<0xb4000 0x800>,
 				<0x004A2000 0x8>;
