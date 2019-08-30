@@ -1152,7 +1152,7 @@ static int q6_rproc_probe(struct platform_device *pdev)
 	if (q6v6_rproc_pdata->reg_save_buffer == NULL)
 		goto free_rproc;
 
-	if (lpass_clks_enable(&pdev->dev))
+	if (!q6v6_rproc_pdata->secure && lpass_clks_enable(&pdev->dev))
 		goto free_rproc;
 
 	ret = of_property_read_u32(pdev->dev.of_node, "qca,sec-reset-cmd",
