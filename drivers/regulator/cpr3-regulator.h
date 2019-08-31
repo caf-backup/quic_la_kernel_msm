@@ -193,6 +193,32 @@ struct cprh_corner_band {
 	int			corner;
 	struct cpr4_sdelta	*sdelta;
 };
+
+/**
+ * struct cpr3_fuse_parameters - CPR4 fuse specific data structure which has
+ * 			the required fuse parameters need for Close Loop CPR
+ * @(*apss_ro_sel_param)[2]:       Pointer to RO select fuse details
+ * @(*apss_init_voltage_param)[2]: Pointer to Target voltage fuse details
+ * @(*apss_target_quot_param)[2]:  Pointer to Target quot fuse details
+ * @(*apss_quot_offset_param)[2]:  Pointer to quot offset fuse details
+ * @cpr_fusing_rev_param:          Pointer to CPR revision fuse details
+ * @apss_speed_bin_param:          Pointer to Speed bin fuse details
+ * @cpr_boost_fuse_cfg_param:      Pointer to Boost fuse cfg details
+ * @apss_boost_fuse_volt_param:    Pointer to Boost fuse volt details
+ * @misc_fuse_volt_adj_param:      Pointer to Misc fuse volt fuse details
+ */
+struct cpr3_fuse_parameters {
+	struct cpr3_fuse_param (*apss_ro_sel_param)[2];
+	struct cpr3_fuse_param (*apss_init_voltage_param)[2];
+	struct cpr3_fuse_param (*apss_target_quot_param)[2];
+	struct cpr3_fuse_param (*apss_quot_offset_param)[2];
+	struct cpr3_fuse_param *cpr_fusing_rev_param;
+	struct cpr3_fuse_param *apss_speed_bin_param;
+	struct cpr3_fuse_param *cpr_boost_fuse_cfg_param;
+	struct cpr3_fuse_param *apss_boost_fuse_volt_param;
+	struct cpr3_fuse_param *misc_fuse_volt_adj_param;
+};
+
 /**
  * struct cpr4_reg_data - CPR4 regulator specific data structure which is
  * target specific
@@ -203,6 +229,7 @@ struct cprh_corner_band {
  * @boost_fuse_ref_volt:  Boost fuse reference voltage
  * @boost_ceiling_volt:   Boost ceiling voltage
  * @boost_floor_volt: 	  Boost floor voltage
+ * @cpr3_fuse_params:     Pointer to CPR fuse parameters
  **/
 struct cpr4_reg_data {
 	u32 cpr_valid_fuse_count;
@@ -212,6 +239,7 @@ struct cpr4_reg_data {
 	int boost_fuse_ref_volt;
 	int boost_ceiling_volt;
 	int boost_floor_volt;
+	struct cpr3_fuse_parameters *cpr3_fuse_params;
 };
 /**
  * struct cpr3_regulator - CPR3 logical regulator instance associated with a
