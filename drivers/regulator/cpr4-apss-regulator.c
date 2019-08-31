@@ -108,7 +108,7 @@ static const char * const cpr4_ipq807x_apss_fuse_corner_name[] = {
  *		order to form the full fuse parameter value.  The segments for
  *		a given parameter may correspond to different fuse rows.
  */
-static const struct cpr3_fuse_param
+static struct cpr3_fuse_param
 ipq807x_apss_ro_sel_param[IPQ807x_APSS_FUSE_CORNERS][2] = {
 	{{73,  8, 11}, {} },
 	{{73,  4,  7}, {} },
@@ -116,7 +116,7 @@ ipq807x_apss_ro_sel_param[IPQ807x_APSS_FUSE_CORNERS][2] = {
 	{{73, 12, 15}, {} },
 };
 
-static const struct cpr3_fuse_param
+static struct cpr3_fuse_param
 ipq807x_apss_init_voltage_param[IPQ807x_APSS_FUSE_CORNERS][2] = {
 	{{71, 18, 23}, {} },
 	{{71, 12, 17}, {} },
@@ -124,7 +124,7 @@ ipq807x_apss_init_voltage_param[IPQ807x_APSS_FUSE_CORNERS][2] = {
 	{{71,  0,  5}, {} },
 };
 
-static const struct cpr3_fuse_param
+static struct cpr3_fuse_param
 ipq807x_apss_target_quot_param[IPQ807x_APSS_FUSE_CORNERS][2] = {
 	{{72, 32, 43}, {} },
 	{{72, 20, 31}, {} },
@@ -132,7 +132,7 @@ ipq807x_apss_target_quot_param[IPQ807x_APSS_FUSE_CORNERS][2] = {
 	{{72, 44, 55}, {} },
 };
 
-static const struct cpr3_fuse_param
+static struct cpr3_fuse_param
 ipq807x_apss_quot_offset_param[IPQ807x_APSS_FUSE_CORNERS][2] = {
 	{{} },
 	{{71, 46, 52}, {} },
@@ -140,29 +140,41 @@ ipq807x_apss_quot_offset_param[IPQ807x_APSS_FUSE_CORNERS][2] = {
 	{{71, 32, 38}, {} },
 };
 
-static const struct cpr3_fuse_param ipq807x_cpr_fusing_rev_param[] = {
+static struct cpr3_fuse_param ipq807x_cpr_fusing_rev_param[] = {
 	{71, 53, 55},
 	{},
 };
 
-static const struct cpr3_fuse_param ipq807x_apss_speed_bin_param[] = {
+static struct cpr3_fuse_param ipq807x_apss_speed_bin_param[] = {
 	{36, 40, 42},
 	{},
 };
 
-static const struct cpr3_fuse_param ipq807x_cpr_boost_fuse_cfg_param[] = {
+static struct cpr3_fuse_param ipq807x_cpr_boost_fuse_cfg_param[] = {
 	{36, 43, 45},
 	{},
 };
 
-static const struct cpr3_fuse_param ipq807x_apss_boost_fuse_volt_param[] = {
+static struct cpr3_fuse_param ipq807x_apss_boost_fuse_volt_param[] = {
 	{71, 0, 5},
 	{},
 };
 
-static const struct cpr3_fuse_param ipq807x_misc_fuse_volt_adj_param[] = {
+static struct cpr3_fuse_param ipq807x_misc_fuse_volt_adj_param[] = {
 	{36, 54, 54},
 	{},
+};
+
+static struct cpr3_fuse_parameters ipq807x_fuse_params = {
+	.apss_ro_sel_param = ipq807x_apss_ro_sel_param,
+	.apss_init_voltage_param = ipq807x_apss_init_voltage_param,
+	.apss_target_quot_param = ipq807x_apss_target_quot_param,
+	.apss_quot_offset_param = ipq807x_apss_quot_offset_param,
+	.cpr_fusing_rev_param = ipq807x_cpr_fusing_rev_param,
+	.apss_speed_bin_param = ipq807x_apss_speed_bin_param,
+	.cpr_boost_fuse_cfg_param = ipq807x_cpr_boost_fuse_cfg_param,
+	.apss_boost_fuse_volt_param = ipq807x_apss_boost_fuse_volt_param,
+	.misc_fuse_volt_adj_param = ipq807x_misc_fuse_volt_adj_param
 };
 
 /*
@@ -219,6 +231,76 @@ static bool boost_fuse[MAX_BOOST_CONFIG_FUSE_VALUE] = {0, 1, 1, 1, 1, 1, 1, 1};
 #define IPQ6018_APSS_FUSE_STEP_VOLT		10000
 #define IPQ6018_APSS_CPR_CLOCK_RATE		24000000
 
+static struct cpr3_fuse_param
+ipq6018_apss_ro_sel_param[IPQ6018_APSS_FUSE_CORNERS][2] = {
+	{{75,  8, 11}, {} },
+	{{75,  4,  7}, {} },
+	{{75,  0,  3}, {} },
+	{{75, 12, 15}, {} },
+};
+
+static struct cpr3_fuse_param
+ipq6018_apss_init_voltage_param[IPQ6018_APSS_FUSE_CORNERS][2] = {
+	{{73, 18, 23}, {} },
+	{{73, 12, 17}, {} },
+	{{73,  6, 11}, {} },
+	{{73,  0,  5}, {} },
+};
+
+static struct cpr3_fuse_param
+ipq6018_apss_target_quot_param[IPQ6018_APSS_FUSE_CORNERS][2] = {
+	{{74, 32, 43}, {} },
+	{{74, 20, 31}, {} },
+	{{74,  8, 19}, {} },
+	{{74, 44, 55}, {} },
+};
+
+static struct cpr3_fuse_param
+ipq6018_apss_quot_offset_param[IPQ6018_APSS_FUSE_CORNERS][2] = {
+	{{} },
+	{{73, 46, 52}, {} },
+	{{73, 39, 45}, {} },
+	{{73, 32, 38}, {} },
+};
+
+static struct cpr3_fuse_param ipq6018_cpr_fusing_rev_param[] = {
+	{73, 53, 55},
+	{},
+};
+
+static struct cpr3_fuse_param ipq6018_apss_speed_bin_param[] = {
+	{36, 40, 42},
+	{},
+};
+
+static struct cpr3_fuse_param ipq6018_cpr_boost_fuse_cfg_param[] = {
+	{36, 43, 45},
+	{},
+};
+
+static struct cpr3_fuse_param ipq6018_apss_boost_fuse_volt_param[] = {
+	{73, 0, 5},
+	{},
+};
+
+static struct cpr3_fuse_param ipq6018_misc_fuse_volt_adj_param[] = {
+	{36, 54, 54},
+	{},
+};
+
+static struct cpr3_fuse_parameters ipq6018_fuse_params = {
+	.apss_ro_sel_param = ipq6018_apss_ro_sel_param,
+	.apss_init_voltage_param = ipq6018_apss_init_voltage_param,
+	.apss_target_quot_param = ipq6018_apss_target_quot_param,
+	.apss_quot_offset_param = ipq6018_apss_quot_offset_param,
+	.cpr_fusing_rev_param = ipq6018_cpr_fusing_rev_param,
+	.apss_speed_bin_param = ipq6018_apss_speed_bin_param,
+	.cpr_boost_fuse_cfg_param = ipq6018_cpr_boost_fuse_cfg_param,
+	.apss_boost_fuse_volt_param = ipq6018_apss_boost_fuse_volt_param,
+	.misc_fuse_volt_adj_param = ipq6018_misc_fuse_volt_adj_param
+};
+
+
 /*
  * Boost voltage fuse reference and ceiling voltages in microvolts for
  * IPQ6018.
@@ -258,7 +340,7 @@ static int cpr4_ipq807x_apss_read_fuse_data(struct cpr3_regulator *vreg)
 	if (!fuse)
 		return -ENOMEM;
 
-	rc = cpr3_read_fuse_param(base, ipq807x_apss_speed_bin_param,
+	rc = cpr3_read_fuse_param(base, vreg->cpr4_regulator_data->cpr3_fuse_params->apss_speed_bin_param,
 				  &fuse->speed_bin);
 	if (rc) {
 		cpr3_err(vreg, "Unable to read speed bin fuse, rc=%d\n", rc);
@@ -266,7 +348,7 @@ static int cpr4_ipq807x_apss_read_fuse_data(struct cpr3_regulator *vreg)
 	}
 	cpr3_info(vreg, "speed bin = %llu\n", fuse->speed_bin);
 
-	rc = cpr3_read_fuse_param(base, ipq807x_cpr_fusing_rev_param,
+	rc = cpr3_read_fuse_param(base, vreg->cpr4_regulator_data->cpr3_fuse_params->cpr_fusing_rev_param,
 				  &fuse->cpr_fusing_rev);
 	if (rc) {
 		cpr3_err(vreg, "Unable to read CPR fusing revision fuse, rc=%d\n",
@@ -275,7 +357,7 @@ static int cpr4_ipq807x_apss_read_fuse_data(struct cpr3_regulator *vreg)
 	}
 	cpr3_info(vreg, "CPR fusing revision = %llu\n", fuse->cpr_fusing_rev);
 
-	rc = cpr3_read_fuse_param(base, ipq807x_misc_fuse_volt_adj_param,
+	rc = cpr3_read_fuse_param(base, vreg->cpr4_regulator_data->cpr3_fuse_params->misc_fuse_volt_adj_param,
 				  &fuse->misc);
 	if (rc) {
 		cpr3_err(vreg, "Unable to read misc voltage adjustment fuse, rc=%d\n",
@@ -291,7 +373,7 @@ static int cpr4_ipq807x_apss_read_fuse_data(struct cpr3_regulator *vreg)
 
 	for (i = 0; i < g_valid_fuse_count; i++) {
 		rc = cpr3_read_fuse_param(base,
-				ipq807x_apss_init_voltage_param[i],
+				vreg->cpr4_regulator_data->cpr3_fuse_params->apss_init_voltage_param[i],
 				&fuse->init_voltage[i]);
 		if (rc) {
 			cpr3_err(vreg, "Unable to read fuse-corner %d initial voltage fuse, rc=%d\n",
@@ -300,7 +382,7 @@ static int cpr4_ipq807x_apss_read_fuse_data(struct cpr3_regulator *vreg)
 		}
 
 		rc = cpr3_read_fuse_param(base,
-				ipq807x_apss_target_quot_param[i],
+				vreg->cpr4_regulator_data->cpr3_fuse_params->apss_target_quot_param[i],
 				&fuse->target_quot[i]);
 		if (rc) {
 			cpr3_err(vreg, "Unable to read fuse-corner %d target quotient fuse, rc=%d\n",
@@ -309,7 +391,7 @@ static int cpr4_ipq807x_apss_read_fuse_data(struct cpr3_regulator *vreg)
 		}
 
 		rc = cpr3_read_fuse_param(base,
-				ipq807x_apss_ro_sel_param[i],
+				vreg->cpr4_regulator_data->cpr3_fuse_params->apss_ro_sel_param[i],
 				&fuse->ro_sel[i]);
 		if (rc) {
 			cpr3_err(vreg, "Unable to read fuse-corner %d RO select fuse, rc=%d\n",
@@ -318,7 +400,7 @@ static int cpr4_ipq807x_apss_read_fuse_data(struct cpr3_regulator *vreg)
 		}
 
 		rc = cpr3_read_fuse_param(base,
-				ipq807x_apss_quot_offset_param[i],
+				vreg->cpr4_regulator_data->cpr3_fuse_params->apss_quot_offset_param[i],
 				&fuse->quot_offset[i]);
 		if (rc) {
 			cpr3_err(vreg, "Unable to read fuse-corner %d quotient offset fuse, rc=%d\n",
@@ -327,7 +409,7 @@ static int cpr4_ipq807x_apss_read_fuse_data(struct cpr3_regulator *vreg)
 		}
 	}
 
-	rc = cpr3_read_fuse_param(base, ipq807x_cpr_boost_fuse_cfg_param,
+	rc = cpr3_read_fuse_param(base, vreg->cpr4_regulator_data->cpr3_fuse_params->cpr_boost_fuse_cfg_param,
 				  &fuse->boost_cfg);
 	if (rc) {
 		cpr3_err(vreg, "Unable to read CPR boost config fuse, rc=%d\n",
@@ -339,7 +421,7 @@ static int cpr4_ipq807x_apss_read_fuse_data(struct cpr3_regulator *vreg)
 			? "enable" : "disable");
 
 	rc = cpr3_read_fuse_param(base,
-				ipq807x_apss_boost_fuse_volt_param,
+				vreg->cpr4_regulator_data->cpr3_fuse_params->apss_boost_fuse_volt_param,
 				&fuse->boost_voltage);
 	if (rc) {
 		cpr3_err(vreg, "failed to read boost fuse voltage, rc=%d\n",
@@ -1373,6 +1455,7 @@ static const struct cpr4_reg_data ipq807x_cpr_apss = {
 	.boost_fuse_ref_volt= IPQ807x_APSS_BOOST_FUSE_REF_VOLT,
 	.boost_ceiling_volt= IPQ807x_APSS_BOOST_CEILING_VOLT,
 	.boost_floor_volt= IPQ807x_APSS_BOOST_FLOOR_VOLT,
+	.cpr3_fuse_params = &ipq807x_fuse_params,
 };
 
 static const struct cpr4_reg_data ipq817x_cpr_apss = {
@@ -1383,6 +1466,7 @@ static const struct cpr4_reg_data ipq817x_cpr_apss = {
 	.boost_fuse_ref_volt= IPQ807x_APSS_BOOST_FUSE_REF_VOLT,
 	.boost_ceiling_volt= IPQ807x_APSS_BOOST_CEILING_VOLT,
 	.boost_floor_volt= IPQ807x_APSS_BOOST_FLOOR_VOLT,
+	.cpr3_fuse_params = &ipq807x_fuse_params,
 };
 
 static const struct cpr4_reg_data ipq6018_cpr_apss = {
@@ -1392,7 +1476,8 @@ static const struct cpr4_reg_data ipq6018_cpr_apss = {
 	.cpr_clk_rate = IPQ6018_APSS_CPR_CLOCK_RATE,
 	.boost_fuse_ref_volt = IPQ6018_APSS_BOOST_FUSE_REF_VOLT,
 	.boost_ceiling_volt = IPQ6018_APSS_BOOST_CEILING_VOLT,
-	.boost_floor_volt = IPQ6018_APSS_BOOST_FLOOR_VOLT
+	.boost_floor_volt = IPQ6018_APSS_BOOST_FLOOR_VOLT,
+	.cpr3_fuse_params = &ipq6018_fuse_params,
 };
 
 static struct of_device_id cpr4_regulator_match_table[] = {
