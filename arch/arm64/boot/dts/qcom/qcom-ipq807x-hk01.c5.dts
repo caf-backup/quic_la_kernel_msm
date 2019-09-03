@@ -845,6 +845,7 @@
 	status = "ok";
 	aliases {
 		mhi-netdev0 = &mhi_netdev_0;
+		mhi_netdev2 = &mhi_netdev_2;
 	};
 	mhi_0: qcom,mhi@0 {
 		reg = <0 0 0 0 0 >;
@@ -997,6 +998,28 @@
 				mhi,auto-start;
 			};
 
+			mhi_chan@46 {
+				reg = <46>;
+				label = "IP_SW0";
+				mhi,num-elements = <512>;
+				mhi,event-ring = <4>;
+				mhi,chan-dir = <1>;
+				mhi,data-type = <1>;
+				mhi,doorbell-mode = <2>;
+				mhi,ee = <0x4>;
+			};
+
+			mhi_chan@47 {
+				reg = <47>;
+				label = "IP_SW0";
+				mhi,num-elements = <512>;
+				mhi,event-ring = <5>;
+				mhi,chan-dir = <2>;
+				mhi,data-type = <4>;
+				mhi,doorbell-mode = <2>;
+				mhi,ee = <0x4>;
+			};
+
 			mhi_chan@100 {
 				reg = <100>;
 				label = "IP_HW0";
@@ -1072,23 +1095,22 @@
 			};
 
 			mhi_event@4 {
-				mhi,num-elements = <512>;
+				mhi,num-elements = <1024>;
 				mhi,intmod = <5>;
-				mhi,msi = <0>;
+				mhi,msi = <5>;
+				mhi,chan = <46>;
 				mhi,priority = <1>;
-				mhi,brstmode = <3>;
-				mhi,client-manage;
-				mhi,offload;
+				mhi,brstmode = <2>;
 			};
 
 			mhi_event@5 {
-				mhi,num-elements = <512>;
+				mhi,num-elements = <1024>;
 				mhi,intmod = <5>;
-				mhi,msi = <0>;
+				mhi,msi = <6>;
+				mhi,chan = <47>;
 				mhi,priority = <1>;
-				mhi,brstmode = <3>;
+				mhi,brstmode = <2>;
 				mhi,client-manage;
-				mhi,offload;
 			};
 
 
@@ -1202,6 +1224,15 @@
 				mhi,chan = "IP_HW0_RSC";
 				mhi,mru = <0x8000>;
 				mhi,rsc-parent = <&mhi_netdev_0>;
+			};
+
+			mhi_netdev_2: mhi_rmnet@2 {
+				reg = <0x2>;
+				mhi,chan = "IP_SW0";
+				mhi,interface-name = "rmnet_mhi_sw";
+				mhi,mru = <0x4000>;
+				mhi,ethernet-interface;
+				mhi,disable-chain-skb;
 			};
 
 			mhi_qrtr {
