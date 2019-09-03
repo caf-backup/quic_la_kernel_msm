@@ -72,6 +72,7 @@ extern int qcom_scm_pas_mem_setup(u32 peripheral, phys_addr_t addr,
 		phys_addr_t size);
 extern int qcom_scm_pas_auth_and_reset(u32 peripheral, u32 debug, u32 cmd);
 extern int qcom_scm_pas_shutdown(u32 peripheral);
+extern int qcom_scm_set_resettype(u32 reset_type);
 
 #define SCM_SVC_UTIL		0x3
 #define SCM_CMD_SET_REGSAVE 	0x2
