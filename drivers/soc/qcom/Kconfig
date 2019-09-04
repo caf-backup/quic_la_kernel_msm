@@ -329,6 +329,8 @@ config QCOM_GLINK_SSR
 
 config QTI_ADSPRPC_LOADER
 	tristate "IPQ subsystem adsp loader driver"
+	depends on MSM_ADSPRPC
+	default n
 	help
 	  Say y here to enable ADSP loader support. The ADSP loader driver
 	  provides the support to take adsp out of reset.

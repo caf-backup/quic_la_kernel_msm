@@ -17,7 +17,6 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
-#include <ipc/apr.h>
 #include <linux/of_device.h>
 #include <linux/sysfs.h>
 #include <linux/workqueue.h>
@@ -64,93 +63,25 @@ static void adsp_load_fw(struct work_struct *adsp_ldr_work)
 	struct platform_device *pdev = adsp_private;
 	struct adsp_loader_private *priv = NULL;
 
-	const char *adsp_dt = "qti,adsp-state";
-	int rc = 0;
-	u32 adsp_state;
-	const char *img_name;
-
 	if (!pdev) {
 		dev_err(&pdev->dev, "%s: Platform device null\n", __func__);
 		goto fail;
 	}
 
-	if (!pdev->dev.of_node) {
+	priv = platform_get_drvdata(pdev);
+	if (!priv) {
 		dev_err(&pdev->dev,
-			"%s: Device tree information missing\n", __func__);
+		" %s: Private data get failed\n", __func__);
 		goto fail;
 	}
 
-	rc = of_property_read_u32(pdev->dev.of_node, adsp_dt, &adsp_state);
-	if (rc) {
-		dev_err(&pdev->dev,
-			"%s: ADSP state = %x\n", __func__, adsp_state);
+	priv->pil_h = subsystem_get("q6v6-adsp");
+	if (IS_ERR_OR_NULL(priv->pil_h)) {
+		dev_err(&pdev->dev, "%s: pil get failed err: %lx\n",
+				__func__, PTR_ERR(priv->pil_h));
 		goto fail;
 	}
 
-	rc = of_property_read_string(pdev->dev.of_node,
-					"qti,proc-img-to-load",
-					&img_name);
-
-	if (rc) {
-		dev_dbg(&pdev->dev,
-			"%s: loading default image ADSP\n", __func__);
-		goto load_adsp;
-	}
-	if (!strcmp(img_name, "modem")) {
-		/* adsp_state always returns "0". So load modem image based on
-		 * apr_modem_state to prevent loading of image twice
-		 */
-		adsp_state = apr_get_modem_state();
-		if (adsp_state == APR_SUBSYS_DOWN) {
-			priv = platform_get_drvdata(pdev);
-			if (!priv) {
-				dev_err(&pdev->dev,
-				" %s: Private data get failed\n", __func__);
-				goto fail;
-			}
-
-			priv->pil_h = subsystem_get("modem");
-			if (IS_ERR(priv->pil_h)) {
-				dev_err(&pdev->dev, "%s: pil get failed,\n",
-					__func__);
-				goto fail;
-			}
-
-			/* Set the state of the ADSP in APR driver */
-			apr_set_modem_state(APR_SUBSYS_LOADED);
-		} else if (adsp_state == APR_SUBSYS_LOADED) {
-			dev_dbg(&pdev->dev,
-			"%s: MDSP state = %x\n", __func__, adsp_state);
-		}
-
-		dev_dbg(&pdev->dev, "%s: Q6/MDSP image is loaded\n", __func__);
-		return;
-	}
-load_adsp:
-	{
-		adsp_state = apr_get_q6_state();
-		if (adsp_state == APR_SUBSYS_DOWN) {
-			priv = platform_get_drvdata(pdev);
-			if (!priv) {
-				dev_err(&pdev->dev,
-				" %s: Private data get failed\n", __func__);
-				goto fail;
-			}
-
-			priv->pil_h = subsystem_get("adsp");
-			if (IS_ERR(priv->pil_h)) {
-				dev_err(&pdev->dev, "%s: pil get failed,\n",
-					__func__);
-				goto fail;
-			}
-		} else if (adsp_state == APR_SUBSYS_LOADED) {
-			dev_dbg(&pdev->dev,
-			"%s: ADSP state = %x\n", __func__, adsp_state);
-		}
-
-		dev_dbg(&pdev->dev, "%s: Q6/ADSP image is loaded\n", __func__);
-		return;
-	}
 fail:
 	dev_err(&pdev->dev, "%s: Q6 image loading failed\n", __func__);
 }
@@ -264,7 +195,7 @@ static int adsp_loader_init_sysfs(struct platform_device *pdev)
 
 	priv->attr_group->attrs = attrs;
 
-	priv->boot_adsp_obj = kobject_create_and_add("boot_adsp", kernel_kobj);
+	priv->boot_adsp_obj = kobject_create_and_add("boot_adsprpc", kernel_kobj);
 	if (!priv->boot_adsp_obj) {
 		dev_err(&pdev->dev, "%s: sysfs create and add failed\n",
 						__func__);
@@ -331,14 +262,15 @@ static int adsp_loader_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id adsp_loader_dt_match[] = {
-	{ .compatible = "qti,adsp-loader" },
+
+	{ .compatible = "qti,adsprpc-loader" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, adsp_loader_dt_match);
 
 static struct platform_driver adsp_loader_driver = {
 	.driver = {
-		.name = "adsp-loader",
+		.name = "adsprpc-loader",
 		.owner = THIS_MODULE,
 		.of_match_table = adsp_loader_dt_match,
 		.suppress_bind_attrs = true,
