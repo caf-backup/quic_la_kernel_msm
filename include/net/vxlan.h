@@ -206,6 +206,7 @@ struct vxlan_fdb_event {
 
 extern void vxlan_fdb_register_notify(struct notifier_block *nb);
 extern void vxlan_fdb_unregister_notify(struct notifier_block *nb);
+extern void vxlan_fdb_update_mac(struct vxlan_dev *vxlan, const u8 *mac);
 
 struct net_device *vxlan_dev_create(struct net *net, const char *name,
 				    u8 name_assign_type, struct vxlan_config *conf);
@@ -261,6 +262,22 @@ static inline void vxlan_get_rx_port(struct net_device *netdev)
 {
 }
 #endif
+
+/*
+ * is_vxlan_dev()
+ *	Check if it is a VxLAN netdevice.
+ */
+static inline bool is_vxlan_dev(const struct net_device *dev)
+{
+	if (!dev)
+		return false;
+
+	if ((dev->dev.type) &&
+		!strncmp(dev->dev.type->name, "vxlan", sizeof("vxlan"))) {
+		return true;
+	}
+	return false;
+}
 
 static inline unsigned short vxlan_get_sk_family(struct vxlan_sock *vs)
 {
