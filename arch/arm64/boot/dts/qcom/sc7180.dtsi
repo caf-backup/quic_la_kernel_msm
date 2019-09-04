@@ -9,6 +9,8 @@
 #include <dt-bindings/clock/qcom,dispcc-sc7180.h>
 #include <dt-bindings/clock/qcom,gcc-sc7180.h>
 #include <dt-bindings/clock/qcom,gpucc-sc7180.h>
+#include <dt-bindings/clock/qcom,rpmh.h>
+#include <dt-bindings/clock/qcom,videocc-sc7180.h>
 #include <dt-bindings/soc/qcom,rpmh-rsc.h>
 #include <dt-bindings/phy/phy-qcom-qusb2.h>
 
@@ -171,22 +173,6 @@
 		};
 	};
 
-	bi_tcxo: bi_tcxo {
-		compatible = "fixed-factor-clock";
-		clocks = <&xo_board>;
-		clock-mult = <1>;
-		clock-div = <2>;
-		#clock-cells = <0>;
-	};
-
-	bi_tcxo_ao: bi_tcxo_ao {
-		compatible = "fixed-factor-clock";
-		clocks = <&xo_board>;
-		clock-mult = <1>;
-		clock-div = <2>;
-		#clock-cells = <0>;
-	};
-
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
@@ -202,7 +188,8 @@
 		gcc: clock-controller@100000 {
 			compatible = "qcom,gcc-sc7180";
 			reg = <0 0x00100000 0 0x1f0000>;
-			clocks = <&bi_tcxo>, <&bi_tcxo_ao>;
+			clocks = <&rpmhcc RPMH_CXO_CLK>,
+				<&rpmhcc RPMH_CXO_CLK_A>;
 			clock-names = "bi_tcxo", "bi_tcxo_ao";
 			#clock-cells = <1>;
 			#reset-cells = <1>;
@@ -212,8 +199,19 @@
 		dispcc: clock-controller@af00000 {
 			compatible = "qcom,sc7180-dispcc";
 			reg = <0 0x0af00000 0 0x200000>;
-			clocks = <&bi_tcxo>, <&gcc GCC_DISP_GPLL0_CLK_SRC>;
+			clocks = <&rpmhcc RPMH_CXO_CLK>,
+				<&gcc GCC_DISP_GPLL0_CLK_SRC>;
 			clock-names = "bi_tcxo", "gcc_disp_gpll0_clk_src";
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+			#power-domain-cells = <1>;
+		};
+
+		videocc: clock-controller@ab00000 {
+			compatible = "qcom,sc7180-videocc";
+			reg = <0 0x0ab00000 0 0x10000>;
+			clocks = <&rpmhcc RPMH_CXO_CLK>;
+			clock-names = "bi_tcxo";
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 			#power-domain-cells = <1>;
@@ -222,7 +220,8 @@
 		gpucc: clock-controller@5090000 {
 			compatible = "qcom,sc7180-gpucc";
 			reg = <0 0x5090000 0 0x9000>;
-			clocks = <&bi_tcxo>, <&gcc GCC_GPU_GPLL0_DIV_CLK_SRC>;
+			clocks = <&rpmhcc RPMH_CXO_CLK>,
+				 <&gcc GCC_GPU_GPLL0_DIV_CLK_SRC>;
 			clock-names = "bi_tcxo", "gcc_gpu_gpll0_div_clk_src";
 			#clock-cells = <1>;
 			#reset-cells = <1>;
@@ -247,7 +246,7 @@
 			status = "disabled";
 			#phy-cells = <0>;
 			clocks = <&gcc GCC_USB_PHY_CFG_AHB2PHY_CLK>,
-			<&bi_tcxo>;
+			<&rpmhcc RPMH_CXO_CLK>;
 			clock-names = "cfg_ahb","ref";
 			resets = <&gcc GCC_QUSB2PHY_PRIM_BCR>;
 
