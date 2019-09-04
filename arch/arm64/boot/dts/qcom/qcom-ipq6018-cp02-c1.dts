@@ -16,6 +16,7 @@
  */
 
 #include "qcom-ipq6018.dtsi"
+#include "qcom-ipq6018-ion.dtsi"
 
 / {
 	#address-cells = <0x2>;
@@ -51,27 +52,37 @@
 	 * |        |              |                         |
 	 * |        |              |                         |
 	 * |        |              |                         |
-	 * | Linux  |  0x41000000  |         139MB           |
+	 * | Linux  |  0x41000000  |         113MB           |
 	 * |        |              |                         |
 	 * |        |              |                         |
 	 * |        |              |                         |
 	 * +--------+--------------+-------------------------+
-	 * | TZ App |  0x49B00000  |           6MB           |
+	 * | TZ App |  0x48100000  |           6MB           |
+	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * | LPASS  |              |                         |
+	 * |   Q6   |  0x48700000  |          26MB           |
+	 * |        |              |                         |
 	 * +--------+--------------+-------------------------+
 	 *
 	 * From the available 145 MB for Linux in the first 256 MB,
-	 * we are reserving 6 MB for TZAPP.
+	 * we are reserving 26 MB for LPASS and 6 MB for TZAPP.
 	 *
 	 * Refer arch/arm64/boot/dts/qcom/qcom-ipq6018-memory.dtsi
 	 * for memory layout.
 	 */
 
-/* TZAPP is enabled only in default memory profile */
 #if !defined(__IPQ_MEM_PROFILE_256_MB__) && !defined(__IPQ_MEM_PROFILE_512_MB__)
 	reserved-memory {
-		tzapp:tzapp@49B00000 {	/* TZAPPS */
+/* TZAPP is enabled only in default memory profile */
+		tzapp:tzapp@48100000 {	/* TZAPPS */
 			no-map;
-			reg = <0x0 0x49B00000 0x0 0x00600000>;
+			reg = <0x0 0x48100000 0x0 0x00600000>;
+		};
+
+		lpass@48700000 {
+			no-map;
+			reg = <0x0 0x48700000 0x0 0x01a00000>;
 		};
 	};
 #endif
@@ -353,6 +364,32 @@
 	pinctrl-names = "default";
 	status = "ok";
 };
+
+#if !defined(__IPQ_MEM_PROFILE_256_MB__) && !defined(__IPQ_MEM_PROFILE_512_MB__)
+&smmu500 {
+	status = "ok";
+};
+
+&glink_adsp {
+	status = "ok";
+};
+
+&ipc_router_adsp {
+	status = "ok";
+};
+
+&smp2p_adsp {
+	status = "ok";
+};
+
+&q6v6_adsp {
+	status = "ok";
+};
+
+&glink_adsp_ssr {
+	status = "ok";
+};
+#endif
 
 &ssphy_0 {
 	status = "ok";
