@@ -385,10 +385,6 @@ enum MHI_BRSTMODE {
 #define MHI_INVALID_BRSTMODE(mode) (mode != MHI_BRSTMODE_DISABLE && \
 				    mode != MHI_BRSTMODE_ENABLE)
 
-extern const char * const mhi_ee_str[MHI_EE_MAX];
-#define TO_MHI_EXEC_STR(ee) (((ee) >= MHI_EE_MAX) ? \
-			     "INVALID_EE" : mhi_ee_str[ee])
-
 #define MHI_IN_PBL(ee) (ee == MHI_EE_PBL || ee == MHI_EE_PTHRU || \
 			ee == MHI_EE_EDL)
 
