@@ -27,6 +27,8 @@
 #include "rmnet_handlers.h"
 #include "rmnet_descriptor.h"
 
+#include <linux/rmnet_nss.h>
+
 #define RMNET_IP_VERSION_4 0x40
 #define RMNET_IP_VERSION_6 0x60
 #define CREATE_TRACE_POINTS
@@ -101,9 +103,18 @@ rmnet_deliver_skb(struct sk_buff *skb, struct rmnet_port *port)
 {
 	int (*rmnet_shs_stamp)(struct sk_buff *skb, struct rmnet_port *port);
 	struct rmnet_priv *priv = netdev_priv(skb->dev);
+	struct rmnet_nss_cb *nss_cb;
 
 	trace_rmnet_low(RMNET_MODULE, RMNET_DLVR_SKB, 0xDEF, 0xDEF,
 			0xDEF, 0xDEF, (void *)skb, NULL);
+
+		/* Pass off the packet to NSS driver if we can */
+	nss_cb = rcu_dereference(rmnet_nss_callbacks);
+	if (nss_cb) {
+		nss_cb->nss_tx(skb);
+		return;
+	}
+
 	skb_reset_transport_header(skb);
 	skb_reset_network_header(skb);
 	rmnet_vnd_rx_fixup(skb->dev, skb->len);

@@ -528,6 +528,12 @@ int rmnet_del_bridge(struct net_device *rmnet_dev,
 	return 0;
 }
 
+#ifndef CONFIG_RMNET_DATA
+/* ***************** Callback Hooks ***************************************** */
+struct rmnet_nss_cb *rmnet_nss_callbacks __rcu __read_mostly;
+EXPORT_SYMBOL(rmnet_nss_callbacks);
+#endif
+
 /* Startup/Shutdown */
 
 static int __init rmnet_init(void)

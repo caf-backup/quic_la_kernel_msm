@@ -24,6 +24,8 @@
 #include "rmnet_map.h"
 #include "rmnet_vnd.h"
 
+#include <linux/rmnet_nss.h>
+
 /* RX/TX Fixup */
 
 void rmnet_vnd_rx_fixup(struct net_device *dev, u32 skb_len)
@@ -297,6 +299,7 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 		      struct rmnet_endpoint *ep)
 {
 	struct rmnet_priv *priv = netdev_priv(rmnet_dev);
+	struct rmnet_nss_cb *nss_cb;
 	int rc;
 
 	if (ep->egress_dev)
@@ -325,17 +328,37 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 		netdev_dbg(rmnet_dev, "rmnet dev created\n");
 	}
 
+	nss_cb = rcu_dereference(rmnet_nss_callbacks);
+	if (nss_cb) {
+		rc = nss_cb->nss_create(rmnet_dev);
+		if (rc) {
+			/* Log, but don't fail the device creation */
+			netdev_err(rmnet_dev, "Device will not use NSS path: %d\n", rc);
+			rc = 0;
+		} else {
+			netdev_dbg(rmnet_dev, "NSS context created\n");
+		}
+	}
+
 	return rc;
 }
 
 int rmnet_vnd_dellink(u8 id, struct rmnet_port *port,
 		      struct rmnet_endpoint *ep)
 {
+	struct rmnet_nss_cb *nss_cb;
+
 	if (id >= RMNET_MAX_LOGICAL_EP || !ep->egress_dev)
 		return -EINVAL;
 
+	if (ep->egress_dev) {
+		nss_cb = rcu_dereference(rmnet_nss_callbacks);
+		if (nss_cb)
+			nss_cb->nss_free(ep->egress_dev);
+	}
 	ep->egress_dev = NULL;
 	port->nr_rmnet_devs--;
+
 	return 0;
 }
 
