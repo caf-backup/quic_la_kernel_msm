@@ -1,5 +1,4 @@
-/*
- * Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2017, 2019 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -107,7 +106,7 @@ static void rmnet_vnd_add_qos_header(struct sk_buff *skb,
 /* ***************** RX/TX Fixup ******************************************** */
 
 /**
- * rmnet_vnd_rx_fixup() - Virtual Network Device receive fixup hook
+ * rmnet_data_vnd_rx_fixup() - Virtual Network Device receive fixup hook
  * @skb:        Socket buffer ("packet") to modify
  * @dev:        Virtual network device
  *
@@ -118,7 +117,7 @@ static void rmnet_vnd_add_qos_header(struct sk_buff *skb,
  *      - RX_HANDLER_CONSUMED if packet should not be processed in stack
  *
  */
-int rmnet_vnd_rx_fixup(struct sk_buff *skb, struct net_device *dev)
+int rmnet_data_vnd_rx_fixup(struct sk_buff *skb, struct net_device *dev)
 {
 	if (unlikely(!dev || !skb))
 		BUG();
@@ -130,7 +129,7 @@ int rmnet_vnd_rx_fixup(struct sk_buff *skb, struct net_device *dev)
 }
 
 /**
- * rmnet_vnd_tx_fixup() - Virtual Network Device transmic fixup hook
+ * rmnet_data_vnd_tx_fixup() - Virtual Network Device transmic fixup hook
  * @skb:      Socket buffer ("packet") to modify
  * @dev:      Virtual network device
  *
@@ -140,7 +139,7 @@ int rmnet_vnd_rx_fixup(struct sk_buff *skb, struct net_device *dev)
  *      - RX_HANDLER_PASS if packet should continue to be transmitted
  *      - RX_HANDLER_CONSUMED if packet should not be transmitted by stack
  */
-int rmnet_vnd_tx_fixup(struct sk_buff *skb, struct net_device *dev)
+int rmnet_data_vnd_tx_fixup(struct sk_buff *skb, struct net_device *dev)
 {
 	struct rmnet_vnd_private_s *dev_conf;
 	dev_conf = (struct rmnet_vnd_private_s *) netdev_priv(dev);
@@ -181,7 +180,7 @@ static netdev_tx_t rmnet_vnd_start_xmit(struct sk_buff *skb,
 						 dev,
 						 dev_conf->qos_version);
 		skb_orphan(skb);
-		rmnet_egress_handler(skb, &dev_conf->local_ep);
+		rmnet_data_egress_handler(skb, &dev_conf->local_ep);
 	} else {
 		dev->stats.tx_dropped++;
 		rmnet_kfree_skb(skb, RMNET_STATS_SKBFREE_VND_NO_EGRESS);
@@ -1015,7 +1014,7 @@ int rmnet_vnd_del_tc_flow(uint32_t id, uint32_t map_flow, uint32_t tc_flow)
 }
 
 /**
- * rmnet_vnd_do_flow_control() - Process flow control request
+ * rmnet_data_vnd_do_flow_control() - Process flow control request
  * @dev: Virtual network device node to do lookup on
  * @map_flow_id: Flow ID from MAP message
  * @v4_seq: pointer to IPv4 indication sequence number
@@ -1027,7 +1026,7 @@ int rmnet_vnd_del_tc_flow(uint32_t id, uint32_t map_flow, uint32_t tc_flow)
  *      - 1 if no mapping is found
  *      - 2 if dev is not RmNet virtual network device node
  */
-int rmnet_vnd_do_flow_control(struct net_device *dev,
+int rmnet_data_vnd_do_flow_control(struct net_device *dev,
 			       uint32_t map_flow_id,
 			       uint16_t v4_seq,
 			       uint16_t v6_seq,
