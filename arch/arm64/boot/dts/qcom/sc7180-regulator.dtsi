@@ -40,7 +40,7 @@
 			regulator-max-microvolt = <1064000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_LPM>;
 		};
-
+		vdda_usb1_ss_core:
 		src_pp880_l4a: ldo4 {
 			regulator-min-microvolt = <824000>;
 			regulator-max-microvolt = <928000>;
@@ -71,6 +71,7 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_LPM>;
 		};
 
+		vdda_qusb_hs0_1p8:
 		src_pp1800_l11a: ldo11 {
 			regulator-min-microvolt = <1696000>;
 			regulator-max-microvolt = <1904000>;
@@ -107,6 +108,7 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_LPM>;
 		};
 
+		vdda_qusb_hs0_3p1:
 		src_pp3088_l17a: ldo17 {
 			regulator-min-microvolt = <2920000>;
 			regulator-max-microvolt = <3232000>;
@@ -147,6 +149,7 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_LPM>;
 		};
 
+		vdda_usb1_ss_1p2:
 		src_pp1200_l3c: ldo3 {
 			regulator-min-microvolt = <1144000>;
 			regulator-max-microvolt = <1304000>;
