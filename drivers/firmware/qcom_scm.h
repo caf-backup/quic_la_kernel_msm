@@ -148,6 +148,8 @@ extern void __qcom_scm_init(void);
 #define QCOM_QFPROM_ROW_READ_CMD                     0x8
 #define QCOM_QFPROM_ROW_WRITE_CMD                    0x9
 #define QCOM_SCM_PAS_MSS_RESET		0xa
+#define QCOM_SCM_SVC_RESETTYPE_CMD	0x18
+
 extern bool __qcom_scm_pas_supported(struct device *dev, u32 peripheral);
 extern int  __qcom_scm_pas_init_image(struct device *dev, u32 peripheral,
 		dma_addr_t metadata_phys);
@@ -297,5 +299,7 @@ static inline int qcom_scm_remap_error(long err)
 	}
 	return -EINVAL;
 }
+
+extern int  __qcom_scm_set_resettype(struct device *dev, u32 reset_type);
 
 #endif

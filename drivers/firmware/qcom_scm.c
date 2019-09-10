@@ -840,3 +840,24 @@ int qcom_scm_unlock_subsys_mem(u32 subsys_id, void *paddr, size_t size,
 								size, key);
 }
 EXPORT_SYMBOL(qcom_scm_unlock_subsys_mem);
+
+/**
+ * qcom_scm_resettype () - cold or warm reset
+ * @reset type: 0 cold 1 warm
+ *
+ * Returns 0 on success.
+ */
+int qcom_scm_set_resettype(u32 reset_type)
+{
+	int ret;
+
+	ret = qcom_scm_clk_enable();
+	if (ret)
+		return ret;
+
+	ret = __qcom_scm_set_resettype(__scm->dev, reset_type);
+	qcom_scm_clk_disable();
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_scm_set_resettype);

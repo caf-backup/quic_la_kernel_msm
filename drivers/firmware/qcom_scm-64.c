@@ -1020,3 +1020,19 @@ int __qcom_scm_unlock_subsys_mem(struct device *dev, u32 subsys_id,
 				&desc, &res);
 	return ret ? : res.a1;
 }
+
+int __qcom_scm_set_resettype(struct device *dev, u32 reset_type)
+{
+	int ret;
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+
+	desc.args[0] = reset_type;
+	desc.arginfo = QCOM_SCM_ARGS(1);
+
+	ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, QCOM_SCM_SVC_BOOT,
+			    QCOM_SCM_SVC_RESETTYPE_CMD, &desc, &res);
+
+	return ret ? false : !!res.a1;
+
+}
