@@ -1762,3 +1762,25 @@ int __qcom_scm_set_resettype(struct device *dev, u32 reset_type)
 	}
 	return ret ? : le32_to_cpu(out);
 }
+
+int __qcom_scm_get_smmustate(struct device *dev)
+{
+	__le32 out;
+	__le32 in;
+	int ret;
+	struct scm_desc desc = {0};
+
+	if (!is_scm_armv8()) {
+		in = cpu_to_le32(-1);
+		ret = qcom_scm_call(dev, QCOM_SCM_SVC_BOOT,
+			    QCOM_SCM_SVC_SMMUSTATE_CMD,
+			    NULL, 0,
+			    &out, sizeof(out));
+	} else {
+		desc.arginfo = SCM_ARGS(0);
+		ret = qcom_scm_call2(SCM_SIP_FNID(QCOM_SCM_SVC_BOOT,
+				QCOM_SCM_SVC_SMMUSTATE_CMD), &desc);
+		out = desc.ret[0];
+	}
+	return ret ? -1 : le32_to_cpu(out);
+}

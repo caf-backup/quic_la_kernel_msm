@@ -155,6 +155,7 @@ extern void __qcom_scm_init(void);
 #define QCOM_QFPROM_ROW_WRITE_CMD                    0x9
 #define QCOM_SCM_PAS_MSS_RESET		0xa
 #define QCOM_SCM_SVC_RESETTYPE_CMD	0x18
+#define QCOM_SCM_SVC_SMMUSTATE_CMD	0x19
 
 extern bool __qcom_scm_pas_supported(struct device *dev, u32 peripheral);
 extern int  __qcom_scm_pas_init_image(struct device *dev, u32 peripheral,
@@ -307,5 +308,6 @@ static inline int qcom_scm_remap_error(long err)
 }
 
 extern int  __qcom_scm_set_resettype(struct device *dev, u32 reset_type);
+extern int  __qcom_scm_get_smmustate(struct device *dev);
 
 #endif

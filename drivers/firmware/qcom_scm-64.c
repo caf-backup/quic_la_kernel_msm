@@ -1033,3 +1033,18 @@ int __qcom_scm_set_resettype(struct device *dev, u32 reset_type)
 	return ret ? false : !!res.a1;
 
 }
+
+int __qcom_scm_get_smmustate(struct device *dev)
+{
+	int ret;
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+
+	desc.arginfo = QCOM_SCM_ARGS(0);
+
+	ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, QCOM_SCM_SVC_BOOT,
+			    QCOM_SCM_SVC_SMMUSTATE_CMD, &desc, &res);
+
+	return ret ? -1 : res.a1;
+
+}
