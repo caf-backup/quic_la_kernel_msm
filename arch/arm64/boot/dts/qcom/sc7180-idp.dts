@@ -15,7 +15,8 @@
 	compatible = "qcom,sc7180-idp";
 
 	aliases {
-		serial0 = &uart2;
+		hsuart0 = &uart3;
+		serial0 = &uart8;
 	};
 
 	chosen {
@@ -23,15 +24,73 @@
 	};
 };
 
+&i2c7 {
+	status = "okay";
+	clock-frequency = <400000>;
+};
+
 &qupv3_id_0 {
 	status = "okay";
 };
 
-&uart2 {
+&qupv3_id_1 {
 	status = "okay";
 };
 
-&qup_uart2_default {
+&uart3 {
+	status = "okay";
+};
+
+&uart8 {
+	status = "okay";
+};
+
+/* PINCTRL - additions to nodes defined in sc7180.dtsi */
+
+&qup_i2c7_default {
+	pinconf {
+		pins = "gpio6", "gpio7";
+		drive-strength = <2>;
+		bias-disable;
+	};
+};
+
+&qup_uart3_default {
+	/* Change pinmux to all 4 pins since CTS and RTS are connected */
+	pinmux {
+		pins = "gpio38", "gpio39",
+		       "gpio40", "gpio41";
+	};
+
+	pinconf-cts {
+		/*
+		 * Configure a pull-down on 38 (CTS) to match the pull of
+		 * the Bluetooth module.
+		 */
+		pins = "gpio38";
+		bias-pull-down;
+	};
+
+	pinconf-rts-tx {
+		/* We'll drive 39 (RTS) and 40 (TX), so no pull */
+		pins = "gpio39", "gpio40";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	pinconf-rx {
+		/*
+		 * Configure a pull-up on 41 (RX). This is needed to avoid
+		 * garbage data when the TX pin of the Bluetooth module is
+		 * in tri-state (module powered off or not driving the
+		 * signal yet).
+		 */
+		pins = "gpio41";
+		bias-pull-up;
+	};
+};
+
+&qup_uart8_default {
 	pinconf-tx {
 		pins = "gpio44";
 		drive-strength = <2>;
@@ -159,4 +218,49 @@
 
 &dsi0_phy {
 	status = "okay";
+};
+
+&qspi {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&qspi_clk &qspi_cs0 &qspi_data01>;
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+
+		/*
+		 * In theory chip supports up to 104 MHz and controller up
+		 * to 80 MHz, but above 25 MHz wasn't reliable so we'll use
+		 * that for now.  b:117440651
+		 */
+		spi-max-frequency = <25000000>;
+		spi-tx-bus-width = <2>;
+		spi-rx-bus-width = <2>;
+	};
+};
+
+/* PINCTRL - additions to nodes defined in sc7180.dtsi */
+
+&qspi_cs0 {
+		pinconf {
+			pins = "gpio68";
+			bias-disable;
+		};
+};
+
+&qspi_clk {
+		pinconf {
+			pins = "gpio63";
+			bias-disable;
+		};
+};
+
+&qspi_data01 {
+		pinconf {
+			pins = "gpio64", "gpio65";
+
+			/* High-Z when no transfers; nice to park the lines */
+			bias-pull-up;
+		};
 };
