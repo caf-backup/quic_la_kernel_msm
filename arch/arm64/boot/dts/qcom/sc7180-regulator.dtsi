@@ -169,9 +169,9 @@
 		};
 
 		src_pp2960_l6c: ldo6 {
-			regulator-min-microvolt = <2696000>;
+			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <3304000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_LPM>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
 		src_pp3008_l7c: ldo7 {
@@ -189,7 +189,7 @@
 		src_pp2960_l9c: ldo9 {
 			regulator-min-microvolt = <2952000>;
 			regulator-max-microvolt = <3304000>;
-			regulator-initial-mode = <RPMH_REGULATOR_MODE_LPM>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
 		src_pp3304_l10c: ldo10 {

@@ -1565,6 +1565,50 @@
 					bias-pull-down;
 				};
 			};
+
+			sdc2_on: sdc2_on {
+				clk {
+					pins = "sdc2_clk";
+					bias-disable;
+					drive-strength = <16>;
+				};
+				cmd {
+					pins = "sdc2_cmd";
+					bias-pull-up;
+					drive-strength = <10>;
+				};
+				data {
+					pins = "sdc2_data";
+					bias-pull-up;
+					drive-strength = <10>;
+				};
+				sd-cd-odl {
+						pins = "gpio69";
+						bias-pull-down;
+				};
+			};
+
+			sdc2_off: sdc2_off {
+				clk {
+					pins = "sdc2_clk";
+					bias-disable;
+					drive-strength = <2>;
+				};
+				cmd {
+					pins = "sdc2_cmd";
+					bias-pull-up;
+					drive-strength = <2>;
+				};
+				data {
+					pins = "sdc2_data";
+					bias-pull-up;
+					drive-strength = <2>;
+				};
+				sd-cd-odl {
+						pins = "gpio69";
+						bias-pull-down;
+				};
+			};
 		};
 
 		pdc_reset: reset-controller@b2e0000 {
@@ -1834,6 +1878,24 @@
 			mmc-hs200-1_8v;
 			mmc-hs400-1_8v;
 			mmc-hs400-enhanced-strobe;
+
+			status = "disabled";
+		};
+
+		sdhc_2: sdhci@8804000 {
+			compatible = "qcom,sdhci-msm-v5";
+			reg = <0 0x08804000 0 0x1000>;
+			reg-names = "hc_mem";
+
+			interrupts = <GIC_SPI 204 IRQ_TYPE_LEVEL_HIGH>,
+						<GIC_SPI 222 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "hc_irq", "pwr_irq";
+
+			clocks = <&gcc GCC_SDCC2_APPS_CLK>,
+					<&gcc GCC_SDCC2_AHB_CLK>;
+			clock-names = "core","iface";
+
+			bus-width = <4>;
 
 			status = "disabled";
 		};
