@@ -446,6 +446,12 @@ static int aquantia_read_status(struct phy_device *phydev)
 	else
 		phydev->link = 0;
 
+	if (!phydev->link) {
+		phydev->speed = SPEED_10;
+		phydev->duplex = DUPLEX_HALF;
+		return 0;
+	}
+
 	reg = phy_read_mmd(phydev, MDIO_MMD_AN,
 			   AQ_PHY_REG_AUTONEG_VENDOR_STATUS);
 	mdelay(10);
