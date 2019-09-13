@@ -200,6 +200,7 @@ struct sbl_if_dualboot_info_type_v2 *read_bootconfig_mtd(
 	return bootconfig_mtd;
 }
 
+#ifdef CONFIG_MMC
 struct sbl_if_dualboot_info_type_v2 *read_bootconfig_emmc(struct gendisk *disk,
 						struct hd_struct *part)
 {
@@ -244,6 +245,7 @@ struct sbl_if_dualboot_info_type_v2 *read_bootconfig_emmc(struct gendisk *disk,
 
 	return bootconfig_emmc;
 }
+#endif
 
 #define BOOTCONFIG_PARTITION	"0:BOOTCONFIG"
 #define BOOTCONFIG_PARTITION1	"0:BOOTCONFIG1"
@@ -253,11 +255,13 @@ static int __init bootconfig_partition_init(void)
 {
 	struct per_part_info *part_info;
 	int i;
+#ifdef CONFIG_MMC
 	struct gendisk *disk = NULL;
 	struct disk_part_iter piter;
 	struct hd_struct *part;
-	struct mtd_info *mtd;
 	int partno;
+#endif
+	struct mtd_info *mtd;
 
 	/*
 	 * In case of NOR\NAND boot, there is a chance that emmc
@@ -281,7 +285,9 @@ static int __init bootconfig_partition_init(void)
 		}
 
 		bootconfig2 = read_bootconfig_mtd(mtd, 0);
-	} else if (flash_type_emmc == 1) {
+	}
+#ifdef CONFIG_MMC
+	else if (flash_type_emmc == 1) {
 		flash_type_emmc = 0;
 		for (i = 0; i < MAX_MMC_DEVICE; i++) {
 
@@ -313,6 +319,7 @@ static int __init bootconfig_partition_init(void)
 			       break;
 		}
 	}
+#endif
 
 	if (!bootconfig1) {
 		if (bootconfig2)
