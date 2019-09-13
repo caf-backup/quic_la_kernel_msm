@@ -52,12 +52,10 @@
 	 * |        |              |                         |
 	 * |        |              |                         |
 	 * |        |              |                         |
-	 * | Linux  |  0x41000000  |         113MB           |
+	 * | Linux  |  0x41000000  |         119MB           |
 	 * |        |              |                         |
 	 * |        |              |                         |
 	 * |        |              |                         |
-	 * +--------+--------------+-------------------------+
-	 * | TZ App |  0x48100000  |           6MB           |
 	 * +--------+--------------+-------------------------+
 	 * |        |              |                         |
 	 * | LPASS  |              |                         |
@@ -66,7 +64,7 @@
 	 * +--------+--------------+-------------------------+
 	 *
 	 * From the available 145 MB for Linux in the first 256 MB,
-	 * we are reserving 26 MB for LPASS and 6 MB for TZAPP.
+	 * we are reserving 26 MB for LPASS.
 	 *
 	 * Refer arch/arm64/boot/dts/qcom/qcom-ipq6018-memory.dtsi
 	 * for memory layout.
@@ -74,12 +72,6 @@
 
 #if !defined(__IPQ_MEM_PROFILE_256_MB__) && !defined(__IPQ_MEM_PROFILE_512_MB__)
 	reserved-memory {
-/* TZAPP is enabled only in default memory profile */
-		tzapp:tzapp@48100000 {	/* TZAPPS */
-			no-map;
-			reg = <0x0 0x48100000 0x0 0x00600000>;
-		};
-
 		lpass@48700000 {
 			no-map;
 			reg = <0x0 0x48700000 0x0 0x01a00000>;
@@ -414,12 +406,3 @@
 &pcie0 {
 	status = "ok";
 };
-
-/* TZAPP is enabled in default memory profile only */
-#if !defined(__IPQ_MEM_PROFILE_256_MB__) && !defined(__IPQ_MEM_PROFILE_512_MB__)
-&qseecom {
-	mem-start = <0x49B00000>;
-	mem-size = <0x600000>;
-	status = "ok";
-};
-#endif
