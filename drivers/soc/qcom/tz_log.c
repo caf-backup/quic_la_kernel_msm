@@ -353,12 +353,17 @@ static int qca_tzlog_probe(struct platform_device *pdev)
 
 	id = of_match_device(qca_tzlog_of_match, &pdev->dev);
 
-	tz_hvc_log->flags = id ? (unsigned long)id->data : 0;
+	if (is_scm_armv8()) {
+		tz_hvc_log->flags = id ? (unsigned long)id->data : 0;
 
-	ret = of_property_read_u32(np, "qca,tzbsp-diag-buf-size",
-						&(tz_hvc_log->buf_len));
-	if (ret)
-		tz_hvc_log->buf_len = DEFAULT_TZBSP_DIAG_BUF_LEN;
+		ret = of_property_read_u32(np, "qca,tzbsp-diag-buf-size",
+				&(tz_hvc_log->buf_len));
+		if (ret)
+			tz_hvc_log->buf_len = DEFAULT_TZBSP_DIAG_BUF_LEN;
+	} else {
+		tz_hvc_log->flags = 0;
+		tz_hvc_log->buf_len = 0x1000;
+	}
 
 	page_buf = alloc_pages(GFP_KERNEL,
 					get_order(tz_hvc_log->buf_len));
@@ -397,7 +402,7 @@ static int qca_tzlog_probe(struct platform_device *pdev)
 		goto remove_debugfs;
 	}
 
-	if (of_property_read_bool(np, "qca,hyp-enabled")) {
+	if (is_scm_armv8() && of_property_read_bool(np, "qca,hyp-enabled")) {
 
 		ret = of_property_read_u32(np, "hyp-scm-cmd-id",
 						&(tz_hvc_log->hyp_scm_cmd_id));

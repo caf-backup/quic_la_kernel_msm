@@ -71,6 +71,11 @@ static DEFINE_MUTEX(qcom_scm_lock);
 #define FIRST_EXT_ARG_IDX 3
 #define N_REGISTER_ARGS (MAX_QCOM_SCM_ARGS - N_EXT_QCOM_SCM_ARGS + 1)
 
+bool is_scm_armv8(void)
+{
+	return true;
+}
+
 /**
  * qcom_scm_call() - Invoke a syscall in the secure world
  * @dev:	device
