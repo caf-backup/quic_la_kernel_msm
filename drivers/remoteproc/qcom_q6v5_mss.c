@@ -119,6 +119,10 @@
 #define SLEEP_CHECK_MAX_LOOPS           200
 #define BOOT_FSM_TIMEOUT                10000
 
+/* Debug Timeout Timeout */
+#define QDSP6SS_COMPLETION_TIMEOUT	((is_timeout_disabled()) ? \
+							100000000 : 5000)
+
 struct reg_info {
 	struct regulator *reg;
 	int uV;
@@ -403,6 +407,8 @@ static int q6v5_load(struct rproc *rproc, const struct firmware *fw)
 	struct q6v5 *qproc = rproc->priv;
 
 	memcpy(qproc->mba_region, fw->data, fw->size);
+	pil_mdt_write_image_info(qproc->dev, NULL,
+				 MDT_IMAGE_ID_MODEM);
 
 	return 0;
 }
@@ -463,7 +469,7 @@ static int q6v5_rmb_pbl_wait(struct q6v5 *qproc, int ms)
 		if (val)
 			break;
 
-		if (time_after(jiffies, timeout))
+		if (time_after(jiffies, timeout) && (!is_timeout_disabled()))
 			return -ETIMEDOUT;
 
 		msleep(1);
@@ -489,7 +495,7 @@ static int q6v5_rmb_mba_wait(struct q6v5 *qproc, u32 status, int ms)
 		else if (status && val == status)
 			break;
 
-		if (time_after(jiffies, timeout))
+		if (time_after(jiffies, timeout) && (!is_timeout_disabled()))
 			return -ETIMEDOUT;
 
 		msleep(1);
@@ -553,6 +559,8 @@ static int q6v5proc_reset(struct q6v5 *qproc)
 			q6v5_reset_deassert(qproc);
 			return ret;
 		}
+
+		dev_info(qproc->dev, "QDSP6SS out of reset.\n");
 
 		goto pbl_wait;
 	} else if (qproc->version == MSS_MSM8996) {
@@ -1017,6 +1025,8 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 	void *ptr;
 	int ret;
 	int i;
+	char mpss_dev_name[8] = "modem";
+	struct pil_mdt_image_info mpss_info;
 
 	fw_name_len = strlen(qproc->hexagon_mdt_image);
 	if (fw_name_len <= 4)
@@ -1118,6 +1128,12 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 	else if (ret < 0)
 		dev_err(qproc->dev, "MPSS authentication failed: %d\n", ret);
 
+	strlcpy(mpss_info.name, mpss_dev_name, ARRAY_SIZE(mpss_info.name));
+	mpss_info.start = qproc->mpss_phys;
+	mpss_info.size =  size;
+	pil_mdt_write_image_info(qproc->dev, &mpss_info,
+				 MDT_IMAGE_ID_MODEM);
+
 release_firmware:
 	release_firmware(fw);
 out:
@@ -1136,8 +1152,6 @@ static void qcom_q6v5_dump_segment(struct rproc *rproc,
 	void *ptr = rproc_da_to_va(rproc, segment->da, segment->size);
 
 	/* Unlock mba before copying segments */
-	if (!qproc->dump_mba_loaded)
-		ret = q6v5_mba_load(qproc);
 
 	if (!ptr || ret)
 		memset(dest, 0xff, segment->size);
@@ -1147,10 +1161,6 @@ static void qcom_q6v5_dump_segment(struct rproc *rproc,
 	qproc->dump_segment_mask |= mask;
 
 	/* Reclaim mba after copying segments */
-	if (qproc->dump_segment_mask == qproc->dump_complete_mask) {
-		if (qproc->dump_mba_loaded)
-			q6v5_mba_reclaim(qproc);
-	}
 }
 
 static int q6v5_start(struct rproc *rproc)
@@ -1169,7 +1179,8 @@ static int q6v5_start(struct rproc *rproc)
 	if (ret)
 		goto reclaim_mpss;
 
-	ret = qcom_q6v5_wait_for_start(&qproc->q6v5, msecs_to_jiffies(5000));
+	ret = qcom_q6v5_wait_for_start(&qproc->q6v5,
+			msecs_to_jiffies(QDSP6SS_COMPLETION_TIMEOUT));
 	if (ret == -ETIMEDOUT) {
 		dev_err(qproc->dev, "start timed out\n");
 		goto reclaim_mpss;

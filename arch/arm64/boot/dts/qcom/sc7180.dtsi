@@ -733,6 +733,19 @@
 			#power-domain-cells = <1>;
 		};
 
+		imem@146aa000 {
+			compatible = "qcom,msm-imem";
+			reg = <0 0x146aa000 0 0x1000>;
+			ranges = <0x0 0x0 0x0 0x146aa000 0x0 0x1000>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+
+			pil@94c {
+				compatible = "qcom,msm-imem-pil";
+				reg = <0x0 0x94c 0x0 0x4>;
+			};
+		};
+
 		apps_smmu: iommu@15000000 {
 			compatible = "qcom,sc7180-smmu-500", "arm,mmu-500";
 			reg = <0 0x15000000 0 0x100000>;
