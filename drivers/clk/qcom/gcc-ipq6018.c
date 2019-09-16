@@ -4823,7 +4823,7 @@ static struct clk_branch gcc_sdcc1_ice_core_clk = {
 				"sdcc1_ice_core_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+			.flags = CLK_SET_RATE_PARENT,
 			.ops = &clk_branch2_ops,
 		},
 	},
