@@ -368,6 +368,15 @@ APSS specific properties:
 		    speed bins 1-to-1 or exactly 1 list which is used regardless
 		    of the speed bin found on a given chip.
 
+- qcom,cpr-ro-sel
+	Usage:      optional
+	Value type: <prop-encoded-array>
+	Definition: A list of integers which defines the RO select values for
+		    each corner per CPR revision.
+
+		    The tuple list should be used when fused RO select values are
+		    not proper.
+
 =======
 Example
 =======
