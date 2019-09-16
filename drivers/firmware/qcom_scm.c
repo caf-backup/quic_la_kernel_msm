@@ -861,3 +861,26 @@ int qcom_scm_set_resettype(u32 reset_type)
 	return ret;
 }
 EXPORT_SYMBOL(qcom_scm_set_resettype);
+
+/**
+ * qcom_scm_get_smmustate () - get SMMU state
+ *
+ * Returns 0 - SMMU_DISABLE_NONE
+ *         1 - SMMU_DISABLE_S2
+ *         2 - SMMU_DISABLE_ALL on success.
+ *	   -1 - Failure
+ */
+int qcom_scm_get_smmustate()
+{
+	int ret;
+
+	ret = qcom_scm_clk_enable();
+	if (ret)
+		return ret;
+
+	ret = __qcom_scm_get_smmustate(__scm->dev);
+	qcom_scm_clk_disable();
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_scm_get_smmustate);

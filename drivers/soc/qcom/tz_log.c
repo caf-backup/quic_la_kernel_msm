@@ -229,6 +229,47 @@ static ssize_t tz_log_read(struct file *fp, char __user *user_buffer,
 					tz_hvc_log->copy_len);
 }
 
+static int tz_smmu_state_open(struct inode *inode, struct file *file)
+{
+	return 0;
+}
+
+/* Read file operation */
+#define SMMU_DISABLE_NONE  0x0 //SMMU Stage2 Enabled
+#define SMMU_DISABLE_S2    0x1 //SMMU Stage2 bypass
+#define SMMU_DISABLE_ALL   0x2 //SMMU Disabled
+
+static ssize_t tz_smmu_state_read(struct file *fp, char __user *user_buffer,
+				size_t count, loff_t *position)
+{
+	char *smmu_state;
+	int ret;
+
+	ret = qcom_scm_get_smmustate();
+	switch(ret) {
+		case SMMU_DISABLE_NONE:
+			smmu_state = "SMMU Stage2 Enabled\n";
+			break;
+		case SMMU_DISABLE_S2:
+			smmu_state = "SMMU Stage2 Bypass\n";
+			break;
+		case SMMU_DISABLE_ALL:
+			smmu_state = "SMMU is Disabled\n";
+			break;
+		default:
+			smmu_state = "Can't detect SMMU State\n";
+	}
+
+	return simple_read_from_buffer(user_buffer, count, position,
+				smmu_state, strlen(smmu_state));
+}
+
+static int tz_smmu_state_release(struct inode *inode, struct file *file)
+{
+	return 0;
+}
+
+
 static int hvc_log_open(struct inode *inode, struct file *file)
 {
 	struct tz_hvc_log_struct *tz_hvc_log;
@@ -311,6 +352,12 @@ static const struct file_operations fops_hvc_log = {
 	.release = hvc_log_release,
 };
 
+static const struct file_operations fops_tz_smmu_state = {
+	.open = tz_smmu_state_open,
+	.read = tz_smmu_state_read,
+	.release = tz_smmu_state_release,
+};
+
 static irqreturn_t tzerr_irq(int irq, void *data)
 {
 	if (paniconaccessviolation) {
@@ -339,10 +386,12 @@ static int qca_tzlog_probe(struct platform_device *pdev)
 	int ret = 0;
 	const struct of_device_id *id;
 	struct dentry *tz_fileret;
+	struct dentry *tz_smmustate;
 	struct dentry *hvc_fileret;
 	struct tz_hvc_log_struct *tz_hvc_log;
 	struct page *page_buf;
 	struct device_node *np = pdev->dev.of_node;
+	char *smmu_state;
 
 	tz_hvc_log = (struct tz_hvc_log_struct *)
 			kzalloc(sizeof(struct tz_hvc_log_struct), GFP_KERNEL);
@@ -408,6 +457,32 @@ static int qca_tzlog_probe(struct platform_device *pdev)
 			tz_hvc_log->tz_dirret, tz_hvc_log, &fops_hvc_log);
 		if (IS_ERR_OR_NULL(hvc_fileret)) {
 			dev_err(&pdev->dev, "can't create hvc_log debugfs\n");
+			ret = -EIO;
+			goto remove_debugfs;
+		}
+	}
+
+	if ((tz_hvc_log->flags & TZ_CP) || (tz_hvc_log->flags & TZ_HK)) {
+		ret = qcom_scm_get_smmustate();
+		switch(ret) {
+			case SMMU_DISABLE_NONE:
+				smmu_state = "SMMU Stage2 Enabled\n";
+				break;
+			case SMMU_DISABLE_S2:
+				smmu_state = "SMMU Stage2 Bypass\n";
+				break;
+			case SMMU_DISABLE_ALL:
+				smmu_state = "SMMU is Disabled\n";
+				break;
+			default:
+				smmu_state = "Can't detect SMMU State\n";
+		}
+		pr_notice("TZ SMMU State: %s", smmu_state);
+
+		tz_smmustate = debugfs_create_file("tz_smmu_state", 0444,
+			tz_hvc_log->tz_dirret, tz_hvc_log, &fops_tz_smmu_state);
+		if (IS_ERR_OR_NULL(tz_smmustate)) {
+			dev_err(&pdev->dev, "can't create tz_smmu_state\n");
 			ret = -EIO;
 			goto remove_debugfs;
 		}
