@@ -1030,7 +1030,6 @@
 					"gcc-adsp-bcr-base",
 					"adsp-cc-base",
 					"tcsr-base";
-			qca,auto-restart;
 			qca,extended-intc;
 			qca,sec-reset-cmd = <0x18>;
 			qca,secure;
