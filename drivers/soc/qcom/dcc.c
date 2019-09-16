@@ -1206,7 +1206,7 @@ static void dcc_allocate_dump_mem(struct dcc_drvdata *drvdata)
 		reg_dump_entry.addr = virt_to_phys(&drvdata->reg_data);
 		ret = msm_dump_data_register(MSM_DUMP_TABLE_APPS,
 					     &reg_dump_entry);
-		if (ret) {
+		if (ret < 0) {
 			dev_err(dev, "DCC REG dump setup failed\n");
 			devm_kfree(dev, drvdata->reg_buf);
 		}
@@ -1225,7 +1225,7 @@ static void dcc_allocate_dump_mem(struct dcc_drvdata *drvdata)
 		sram_dump_entry.addr = virt_to_phys(&drvdata->sram_data);
 		ret = msm_dump_data_register(MSM_DUMP_TABLE_APPS,
 					     &sram_dump_entry);
-		if (ret) {
+		if (ret < 0) {
 			dev_err(dev, "DCC SRAM dump setup failed\n");
 			devm_kfree(dev, drvdata->sram_buf);
 		}
