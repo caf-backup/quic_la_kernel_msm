@@ -371,7 +371,7 @@ static enum scm_interface_version {
  * calling conventions for AARCH64 TZ is different, we need to
  * use them.
  */
-static bool is_scm_armv8(void)
+bool is_scm_armv8(void)
 {
 	int ret;
 	u64 ret1, x0;
