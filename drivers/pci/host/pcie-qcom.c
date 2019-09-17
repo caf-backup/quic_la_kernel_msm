@@ -274,10 +274,12 @@ struct qcom_pcie {
 	struct phy *phy;
 	struct gpio_desc *reset;
 	struct qcom_pcie_ops *ops;
+	struct work_struct handle_wake_work;
 	uint32_t force_gen1;
 	u32 is_emulation;
 	u32 is_gen3;
 	int global_irq;
+	int wake_irq;
 	int link_down_irq;
 	int link_up_irq;
 	bool enumerated;
@@ -373,6 +375,41 @@ static irqreturn_t handle_link_up_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+/* PCIe wake-irq handler */
+static void handle_wake_func(struct work_struct *work)
+{
+	int ret;
+	struct qcom_pcie *pcie = container_of(work, struct qcom_pcie,
+						handle_wake_work);
+	struct pcie_port *pp = &pcie->pp;
+
+	pci_lock_rescan_remove();
+	if (pcie->enumerated) {
+		pr_info("PCIe: RC%d has been already enumerated\n", pcie->rc_idx);
+		pci_unlock_rescan_remove();
+		return;
+	}
+
+	ret = dw_pcie_host_init_pm(pp);
+	if (ret)
+		pr_err("PCIe: failed to enable RC%d upon wake request from the device\n", pcie->rc_idx);
+	else {
+		pcie->enumerated = true;
+		pr_info("PCIe: enumerated RC%d successfully upon wake request from the device\n", pcie->rc_idx);
+	}
+
+	pci_unlock_rescan_remove();
+}
+
+static irqreturn_t qcom_pcie_wake_irq_handler(int irq, void *data)
+{
+	struct qcom_pcie *pcie = data;
+
+	schedule_work(&pcie->handle_wake_work);
+
+	return IRQ_HANDLED;
+}
+
 /* PCIe global int handler */
 static irqreturn_t qcom_pcie_global_irq_handler(int irq, void *data)
 {
@@ -398,6 +435,7 @@ static irqreturn_t qcom_pcie_global_irq_handler(int irq, void *data)
 
 	return ret;
 }
+
 static void qcom_pcie_prog_viewport_cfg0(struct qcom_pcie *pcie, u32 busdev)
 {
 	struct pcie_port *pp = &pcie->pp;
@@ -1835,10 +1873,29 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	pcie->wake_irq = platform_get_irq_byname(pdev, "wake_gpio");
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
-		dev_err(dev, "cannot initialize host\n");
-		return ret;
+		if (pcie->wake_irq < 0) {
+			dev_err(dev, "cannot initialize host\n");
+			return ret;
+		}
+		pr_info("PCIe: RC%d is not enabled during bootup; it will be enumerated upon client request\n", rc_idx);
+	} else {
+		pcie->enumerated = true;
+		pr_info("PCIe: RC%d enabled during bootup\n", rc_idx);
+	}
+
+	if (pcie->wake_irq >= 0) {
+		INIT_WORK(&pcie->handle_wake_work, handle_wake_func);
+
+		ret = devm_request_irq(&pdev->dev, pcie->wake_irq,
+				qcom_pcie_wake_irq_handler,
+				IRQF_TRIGGER_FALLING, "qcom-pcie-wake", pcie);
+		if (ret) {
+			dev_err(&pdev->dev, "Unable to request wake irq\n");
+			return ret;
+		}
 	}
 
 	platform_set_drvdata(pdev, pcie);
@@ -1875,7 +1932,6 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 			return ret;
 		}
 	}
-	pcie->enumerated = true;
 
 	qcom_pcie_dev[rc_idx++] = pcie;
 	pcie->rc_idx = rc_idx;
