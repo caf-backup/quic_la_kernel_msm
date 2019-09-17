@@ -89,12 +89,13 @@
 			drive-strength = <8>;
 			bias-pull-down;
 		};
-		pcie0_wake {
-			pins = "gpio59";
-			function = "pcie0_wake";
-			drive-strength = <8>;
-			bias-pull-up;
-		};
+	};
+
+	pcie_wake_pins: pcie0_wake_gpio {
+		pins = "gpio59";
+		function = "pcie0_wake";
+		drive-strength = <8>;
+		bias-pull-up;
 	};
 
 	mdio_pins: mdio_pinmux {
@@ -712,6 +713,25 @@
 	pinctrl-0 = <&qpic_pins>;
 	pinctrl-names = "default";
 	status = "ok";
+};
+
+&pcie0 {
+	interrupts-extended = <&intc 0 52 0>, <&intc 0 416 0>, <&intc 0 417 0>,
+				<&intc 0 418 0>, <&intc 0 419 0>, <&intc 0 420 0>,
+				<&intc 0 421 0>, <&intc 0 422 0>, <&intc 0 423 0>,
+				<&intc 0 424 0>, <&intc 0 425 0>, <&intc 0 426 0>,
+				<&intc 0 427 0>, <&intc 0 428 0>, <&intc 0 429 0>,
+				<&intc 0 430 0>, <&intc 0 431 0>, <&tlmm 59 0>;
+
+	interrupt-names = "msi", "msi_0", "msi_1",
+			"msi_2", "msi_3", "msi_4",
+			"msi_5", "msi_6", "msi_7",
+			"msi_8", "msi_9", "msi_10",
+			"msi_11", "msi_12", "msi_13",
+			"msi_14", "msi_15", "wake_gpio";
+
+	pinctrl-0 = <&pcie_wake_pins>;
+	pinctrl-names = "default";
 };
 
 &pcie1 {
