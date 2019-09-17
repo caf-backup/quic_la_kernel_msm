@@ -431,7 +431,7 @@
 		led@50 {
 			label = "led_usb0";
 			gpios = <&tlmm 50 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "led_usb0";
+			linux,default-trigger = "usb-host";
 			default-state = "off";
 		};
 	};
