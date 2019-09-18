@@ -406,7 +406,8 @@ EXPORT_SYMBOL(remove_minidump_segments);
 *	offset position. 'APPEND' if TLV needs to be appended to the crashdump buffer.
 *	Also tlv_offset is updated to offset at which corresponding TLV entry will be
 *	added to the crashdump buffer. Return -ENOMEM if new list node was not created
-*   due to either an alloc failure or an attempt to add a duplicate entry
+*   due to an alloc failure or NULL address. Return -EINVAL if there is an attempt to
+*   add a duplicate entry
 */
 int traverse_metadata_list(char *name, unsigned long virt_addr, unsigned long phy_addr,
 		unsigned char **tlv_offset, unsigned long size)
@@ -430,12 +431,13 @@ int traverse_metadata_list(char *name, unsigned long virt_addr, unsigned long ph
 	list_for_each(pos, &metadata_list.list) {
 		/* Traverse Metadata list to check if dump sgment to be added
 		already has a duplicate entry in the crashdump buffer. Also store address
-		of first invalid entry , if it exists*/
+		of first invalid entry , if it exists. Return EINVAL*/
 		list_node = list_entry(pos, struct minidump_metadata_list, list);
 		if (list_node->va == virt_addr && list_node->size == size) {
 			spin_unlock_irqrestore(&scm_tlv_msg->minidump_tlv_spinlock,
 					flags);
-			return -ENOMEM;
+			pr_debug("Minidump: TLV entry with this VA is already present\n");
+			return -EINVAL;
 		}
 
 		if (!invalid_flag) {
@@ -625,8 +627,12 @@ int fill_minidump_segments(uint64_t start_addr, uint64_t size, unsigned char typ
 		phys_addr = (uint64_t)__pa(start_addr);
 		replace = traverse_metadata_list(name, start_addr, phys_addr, &tlv_offset, size);
 		/* return value of -ENOMEM indicates  new list node was not created
-		* due to either an alloc failure or an attempt to add a duplicate entry
+		* due to an alloc failure. return value of -EINVAL indicates an attempt to
+		* add a duplicate entry
 		*/
+		if (replace == -EINVAL)
+			return 0;
+
 		if (replace == -ENOMEM)
 			return replace;
 
@@ -649,6 +655,9 @@ int fill_minidump_segments(uint64_t start_addr, uint64_t size, unsigned char typ
 							(start_addr & (~(PAGE_SIZE - 1))));
 		phys_addr = page_to_phys(minidump_tlv_page) + offset_in_page(start_addr);
 		replace = traverse_metadata_list(name, start_addr, phys_addr, &tlv_offset, size);
+
+		if (replace == -EINVAL)
+			return 0;
 
 		if (replace == -ENOMEM)
 			return replace;
