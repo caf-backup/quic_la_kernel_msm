@@ -1877,8 +1877,8 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 		}
 	}
 
-	qcom_pcie_dev[rc_idx++] = pcie;
 	pcie->rc_idx = rc_idx;
+	qcom_pcie_dev[rc_idx++] = pcie;
 
 	return 0;
 }
