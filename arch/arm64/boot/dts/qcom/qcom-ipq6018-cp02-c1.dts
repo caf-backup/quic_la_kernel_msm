@@ -362,6 +362,15 @@
 	status = "ok";
 };
 
+&adsprpc_mem {
+	memory-region = <&adsp_mem>;
+	status = "ok";
+};
+
+&fastrpc_cb {
+	status = "ok";
+};
+
 &glink_adsp {
 	status = "ok";
 };
