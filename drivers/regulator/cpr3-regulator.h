@@ -219,6 +219,11 @@ struct cpr3_fuse_parameters {
 	struct cpr3_fuse_param *misc_fuse_volt_adj_param;
 };
 
+struct cpr4_mem_acc_func {
+	void (*set_mem_acc)(struct regulator_dev *);
+	void (*clear_mem_acc)(struct regulator_dev *);
+};
+
 /**
  * struct cpr4_reg_data - CPR4 regulator specific data structure which is
  * target specific
@@ -230,6 +235,7 @@ struct cpr3_fuse_parameters {
  * @boost_ceiling_volt:   Boost ceiling voltage
  * @boost_floor_volt: 	  Boost floor voltage
  * @cpr3_fuse_params:     Pointer to CPR fuse parameters
+ * @mem_acc_funcs:        Pointer to MEM ACC set/clear functions
  **/
 struct cpr4_reg_data {
 	u32 cpr_valid_fuse_count;
@@ -240,6 +246,7 @@ struct cpr4_reg_data {
 	int boost_ceiling_volt;
 	int boost_floor_volt;
 	struct cpr3_fuse_parameters *cpr3_fuse_params;
+	struct cpr4_mem_acc_func *mem_acc_funcs;
 };
 /**
  * struct cpr3_regulator - CPR3 logical regulator instance associated with a
