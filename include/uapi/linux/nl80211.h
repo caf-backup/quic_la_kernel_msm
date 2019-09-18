@@ -258,6 +258,17 @@
  */
 
 /**
+ * DOC: VLAN offload support for setting group keys and binding STAs to VLANs
+ *
+ * By setting @NL80211_EXT_FEATURE_VLAN_OFFLOAD flag drivers can indicate they
+ * support offloading VLAN functionality in a manner where the driver exposes a
+ * single netdev that used VLAN tagged frames and separate VLAN-specific netdevs
+ * can then be added using vconfig similarly to the Ethernet case.
+ * %NL80211_CMD_NEW_KEY and %NL80211_CMD_SET_STATION will optionally specify
+ * vlan_id using %NL80211_ATTR_VLAN_ID.
+ */
+
+/**
  * enum nl80211_commands - supported nl80211 commands
  *
  * @NL80211_CMD_UNSPEC: unspecified command to catch errors
@@ -2362,6 +2373,8 @@ enum nl80211_commands {
  *	should be picking up the lowest tx power, either tx power per-interface
  *	or per-station.
  *
+ * @NL80211_ATTR_VLAN_ID: VLAN ID for the station and VLAN group key (u16).
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -2814,6 +2827,7 @@ enum nl80211_attrs {
 	NL80211_ATTR_AIRTIME_WEIGHT,
 	NL80211_ATTR_STA_TX_POWER_SETTING,
 	NL80211_ATTR_STA_TX_POWER,
+	NL80211_ATTR_VLAN_ID,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -5305,6 +5319,10 @@ enum nl80211_feature_flags {
  *	Userspace has to share FILS AAD details to the driver by using
  *	@NL80211_CMD_SET_FILS_AAD.
  *
+ * @NL80211_EXT_FEATURE_VLAN_OFFLOAD: The driver supports a single netdev
+ *	with VLAN tagged frames and separate VLAN-specific netdevs added using
+ *	vconfig similarly to the Ethernet case.
+ *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
  */
@@ -5351,6 +5369,7 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_EXT_KEY_ID,
 	NL80211_EXT_FEATURE_STA_TX_PWR,
 	NL80211_EXT_FEATURE_FILS_CRYPTO_OFFLOAD,
+	NL80211_EXT_FEATURE_VLAN_OFFLOAD,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,
