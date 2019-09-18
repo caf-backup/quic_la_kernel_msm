@@ -576,7 +576,7 @@ int fill_tlv_crashdump_buffer(uint64_t start_addr, uint64_t size,
 	}
 
 	if (ret) {
-		pr_err("MINIDUMP TLV failed with error %d\n", ret);
+		pr_err("Minidump: Crashdump buffer is full %d\n", ret);
 		return ret;
 	}
 
@@ -794,7 +794,7 @@ static int qcom_wdt_scm_fill_log_dump_tlv(
 	ret_val = fill_minidump_segments(log_buf_info.start, log_buf_info.size,
 						QCA_WDT_LOG_DUMP_TYPE_DMESG, NULL);
 	if (ret_val) {
-		pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
+		pr_err("Minidump: Crashdump buffer is full %d \n", ret_val);
 		return ret_val;
 	}
 
@@ -802,7 +802,7 @@ static int qcom_wdt_scm_fill_log_dump_tlv(
 	ret_val = fill_minidump_segments(pagetable_tlv_info.start,
 				pagetable_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_LEVEL1_PT, "PGD");
 	if (ret_val) {
-		pr_err("MINIDUMP failed while MMU info %d \n", ret_val);
+		pr_err("Minidump: Crashdump buffer is full %d \n", ret_val);
 		return ret_val;
 	}
 
@@ -810,14 +810,14 @@ static int qcom_wdt_scm_fill_log_dump_tlv(
 	ret_val = fill_minidump_segments(linux_banner_info.start, linux_banner_info.size,
 				QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 	if (ret_val) {
-		pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
+		pr_err("Minidump: Crashdump buffer is full %d \n", ret_val);
 		return ret_val;
 	}
 
 	ret_val = fill_minidump_segments((uint64_t)(uintptr_t)mod_log, (uint64_t)__pa(&mod_log_len),
 					QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD_INFO, NULL);
 	if (ret_val) {
-		pr_err("MINIDUMP TLV failed with error %d \n", ret_val);
+		pr_err("Minidump: Crashdump buffer is full %d \n", ret_val);
 		return ret_val;
 	}
 
@@ -863,7 +863,7 @@ static int wlan_module_notifier(struct notifier_block *nb, unsigned long event, 
 		ret_val = fill_minidump_segments(module_tlv_info.start,
 				module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 		if (ret_val) {
-			pr_err("MINIDUMP TLV failed with error %d\n", ret_val);
+			pr_err("Minidump: Crashdump buffer is full %d\n", ret_val);
 			return ret_val;
 		}
 
@@ -875,7 +875,7 @@ static int wlan_module_notifier(struct notifier_block *nb, unsigned long event, 
 			ret_val = fill_minidump_segments(module_tlv_info.start,
 				module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 			if (ret_val) {
-				pr_err("MINIDUMP TLV failed with error %d\n", ret_val);
+				pr_err("Minidump: Crashdump buffer is full %d\n", ret_val);
 				return ret_val;
 			}
 		}
@@ -890,7 +890,7 @@ static int wlan_module_notifier(struct notifier_block *nb, unsigned long event, 
 			ret_val = fill_minidump_segments(module_tlv_info.start,
 					module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 			if (ret_val) {
-				pr_err("MINIDUMP TLV failed with error %d\n", ret_val);
+				pr_err("Minidump: Crashdump buffer is full %d\n", ret_val);
 				return ret_val;
 			}
 
@@ -910,7 +910,7 @@ static int wlan_module_notifier(struct notifier_block *nb, unsigned long event, 
 					module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD,
 					mod->name);
 					if (ret_val) {
-						pr_err("MINIDUMP TLV failure error %d", ret_val);
+						pr_err("Minidump: Crashdump buffer is full %d", ret_val);
 						return ret_val;
 					}
 				}
