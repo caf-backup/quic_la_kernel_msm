@@ -1144,6 +1144,7 @@ void rmnet_frag_ingress_handler(struct sk_buff *skb,
 {
 	rmnet_perf_chain_hook_t rmnet_perf_opt_chain_end;
 	LIST_HEAD(desc_list);
+	int i = 0;
 
 	/* Deaggregation and freeing of HW originating
 	 * buffers is done within here
@@ -1151,15 +1152,18 @@ void rmnet_frag_ingress_handler(struct sk_buff *skb,
 	while (skb) {
 		struct sk_buff *skb_frag;
 
-		rmnet_frag_deaggregate(skb_shinfo(skb)->frags, port,
-				       &desc_list);
-		if (!list_empty(&desc_list)) {
-			struct rmnet_frag_descriptor *frag_desc, *tmp;
+		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+			rmnet_frag_deaggregate(&skb_shinfo(skb)->frags[i], port,
+					       &desc_list);
+			if (!list_empty(&desc_list)) {
+				struct rmnet_frag_descriptor *frag_desc, *tmp;
 
-			list_for_each_entry_safe(frag_desc, tmp, &desc_list,
-						 list) {
-				list_del_init(&frag_desc->list);
-				__rmnet_frag_ingress_handler(frag_desc, port);
+				list_for_each_entry_safe(frag_desc, tmp,
+							 &desc_list, list) {
+					list_del_init(&frag_desc->list);
+					__rmnet_frag_ingress_handler(frag_desc,
+								     port);
+				}
 			}
 		}
 
