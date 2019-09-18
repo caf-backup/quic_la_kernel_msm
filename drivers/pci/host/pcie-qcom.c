@@ -373,15 +373,13 @@ static irqreturn_t handle_link_up_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-/* PCIe global int handler*/
-static irqreturn_t qcom_pcie_global_irq_handler(int irq, void *arg)
+/* PCIe global int handler */
+static irqreturn_t qcom_pcie_global_irq_handler(int irq, void *data)
 {
 	u32 status = 0;
 	unsigned long val, val_status, val_mask;
 	irqreturn_t ret = IRQ_HANDLED;
-
-	struct pcie_port *pp = arg;
-	struct qcom_pcie *pcie = to_qcom_pcie(pp);
+	struct qcom_pcie *pcie = data;
 
 	val_status = readl_relaxed(pcie->parf + PCIE20_INT_ALL_STATUS);
 	val_mask = readl_relaxed(pcie->parf + PCIE20_INT_ALL_MASK);
