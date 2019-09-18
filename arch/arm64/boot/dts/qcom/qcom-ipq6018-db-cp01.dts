@@ -17,7 +17,7 @@
 
 #include "qcom-ipq6018.dtsi"
 #include "qcom-ipq6018-ion.dtsi"
-#include "qcom-ipq6018-audio-overlay.dtsi"
+#include "qcom-ipq6018-db-cp01-audio-overlay.dtsi"
 
 / {
 	#address-cells = <0x2>;
