@@ -68,6 +68,7 @@
 #define Q6SS_RST_EVB		0x10
 
 #define BHS_EN_REST_ACK		BIT(0)
+#define WCSS_HM_RET			BIT(1)
 #define SSCAON_ENABLE		BIT(13)
 #define SSCAON_BUS_EN		BIT(15)
 #define SSCAON_BUS_MUX_MASK	GENMASK(18, 16)
@@ -106,6 +107,8 @@ struct q6v5_wcss {
 	phys_addr_t mem_reloc;
 	void *mem_region;
 	size_t mem_size;
+	const char *m3_fw_name;
+	unsigned wcss_aon_seq;
 };
 
 #if defined(CONFIG_IPQ_SS_DUMP)
@@ -412,6 +415,20 @@ static int q6v5_wcss_reset(struct q6v5_wcss *wcss)
 	u32 val;
 	int i;
 
+	if (wcss->wcss_aon_seq) {
+		val = readl(wcss->rmb_base + SSCAON_CONFIG);
+		val |= BIT(0);
+		writel(val, wcss->rmb_base + SSCAON_CONFIG);
+		mdelay(1);
+
+		/*set CFG[18:15]=1* and clear CFG[1]=0*/
+		val = readl(wcss->rmb_base + SSCAON_CONFIG);
+		val &= ~(SSCAON_BUS_MUX_MASK | WCSS_HM_RET);
+		val |= SSCAON_BUS_EN;
+		writel(val, wcss->rmb_base + SSCAON_CONFIG);
+		mdelay(1);
+	}
+
 	/* Assert resets, stop core */
 	val = readl(wcss->reg_base + Q6SS_RESET_REG);
 	val |= Q6SS_CORE_ARES | Q6SS_BUS_ARES_ENABLE | Q6SS_STOP_CORE;
@@ -485,6 +502,17 @@ static int q6v5_wcss_reset(struct q6v5_wcss *wcss)
 	val = readl(wcss->reg_base + Q6SS_RESET_REG);
 	val &= ~Q6SS_STOP_CORE;
 	writel(val, wcss->reg_base + Q6SS_RESET_REG);
+
+	if (wcss->wcss_aon_seq) {
+		/* Wait for SSCAON_STATUS */
+		val = readl(wcss->rmb_base + SSCAON_STATUS);
+		ret = readl_poll_timeout(wcss->rmb_base + SSCAON_STATUS,
+			val, (val & 0xffff) == 0x10, 1000, HALT_CHECK_MAX_LOOPS);
+		if (ret) {
+			dev_err(wcss->dev, " Boot Error, SSCAON=0x%08X\n", val);
+			return ret;
+		}
+	}
 
 	return 0;
 }
@@ -761,13 +789,18 @@ static int q6v5_wcss_load(struct rproc *rproc, const struct firmware *fw)
 	const struct firmware *m3_fw;
 	int ret;
 
-	ret = request_firmware(&m3_fw, "IPQ8074/m3_fw.mdt", wcss->dev);
+	if (!wcss->m3_fw_name) {
+		dev_info(wcss->dev, "skipping firmware %s\n", "m3_fw.mdt");
+		goto skip_m3;
+	}
+
+	ret = request_firmware(&m3_fw, wcss->m3_fw_name, wcss->dev);
 	if (ret) {
 		dev_info(wcss->dev, "skipping firmware %s\n", "m3_fw.mdt");
 		goto skip_m3;
 	}
 
-	ret = qcom_mdt_load_no_init(wcss->dev, m3_fw, "IPQ8074/m3_fw.mdt", 0,
+	ret = qcom_mdt_load_no_init(wcss->dev, m3_fw, wcss->m3_fw_name, 0,
 				    wcss->mem_region, wcss->mem_phys,
 				    wcss->mem_size, &wcss->mem_reloc);
 	if (ret) {
@@ -884,9 +917,17 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 	struct q6v5_wcss *wcss;
 	struct rproc *rproc;
 	int ret;
+	const char *firmware_name;
+
+	ret = of_property_read_string(pdev->dev.of_node, "firmware",
+		&firmware_name);
+	if (ret) {
+		dev_err(&pdev->dev, "couldn't read firmware name: %d\n", ret);
+		return ret;
+	}
 
 	rproc = rproc_alloc(&pdev->dev, pdev->name, &q6v5_wcss_ops,
-			    "IPQ8074/q6_fw.mdt", sizeof(*wcss));
+			    firmware_name, sizeof(*wcss));
 	if (!rproc) {
 		dev_err(&pdev->dev, "failed to allocate rproc\n");
 		return -ENOMEM;
@@ -929,6 +970,14 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 	if (ret)
 		wcss->reset_cmd_id = QCOM_SCM_PAS_AUTH_DEBUG_RESET_CMD;
 
+	wcss->wcss_aon_seq = of_property_read_bool(pdev->dev.of_node,
+							"qca,wcss-aon-reset-seq");
+
+	ret = of_property_read_string(pdev->dev.of_node, "m3_firmware",
+					&wcss->m3_fw_name);
+	if (ret)
+		wcss->m3_fw_name = NULL;
+
 	qcom_add_glink_subdev(rproc, &wcss->glink_subdev);
 	qcom_add_ssr_subdev(rproc, &wcss->ssr_subdev, "rproc");
 	platform_set_drvdata(pdev, rproc);
@@ -959,6 +1008,7 @@ static int q6v5_wcss_remove(struct platform_device *pdev)
 
 static const struct of_device_id q6v5_wcss_of_match[] = {
 	{ .compatible = "qcom,ipq8074-wcss-pil" },
+	{ .compatible = "qcom,ipq60xx-wcss-pil" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, q6v5_wcss_of_match);

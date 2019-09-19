@@ -556,6 +556,8 @@
 
 		qcom_q6v5_wcss: qcom_q6v5_wcss@CD00000 {
 			compatible = "qcom,ipq8074-wcss-pil";
+			firmware = "IPQ8074/q6_fw.mdt";
+			m3_firmware = "IPQ8074/m3_fw.mdt";
 			reg = <0xCD00000 0x4040>,
 				<0x4ab000 0x20>;
 			reg-names = "qdsp6",
