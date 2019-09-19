@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -30,7 +30,7 @@
 #include "diagfwd_mhi.h"
 #include "diag_dci.h"
 
-#ifdef CONFIG_MSM_MHI
+#ifdef CONFIG_MHI_BUS
 #define diag_mdm_init		diag_mhi_init
 #else
 #define diag_mdm_init		diag_hsic_init
@@ -314,7 +314,9 @@ uint16_t diag_get_remote_device_mask()
 
 	for (i = 0; i < NUM_REMOTE_DEV; i++) {
 		if (bridge_info[i].inited &&
-		    bridge_info[i].type == DIAG_DATA_TYPE) {
+		    bridge_info[i].type == DIAG_DATA_TYPE &&
+		    (bridge_info[i].dev_ops->remote_proc_check &&
+		    bridge_info[i].dev_ops->remote_proc_check())) {
 			remote_dev |= 1 << i;
 		}
 	}

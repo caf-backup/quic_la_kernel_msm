@@ -23,7 +23,6 @@
 #include <linux/ratelimit.h>
 #include <linux/timer.h>
 #include <linux/platform_device.h>
-#include <linux/msm_mhi.h>
 #ifdef CONFIG_DIAG_OVER_USB
 #include <linux/usb/usbdiag.h>
 #endif
@@ -44,6 +43,7 @@
 #include "diag_mux.h"
 #include "diag_ipc_logging.h"
 #include "diagfwd_peripheral.h"
+#include "diagfwd_mhi.h"
 
 #include <linux/coresight-stm.h>
 #include <linux/kernel.h>
@@ -920,7 +920,7 @@ exit:
 }
 
 #ifdef CONFIG_DIAGFWD_BRIDGE_CODE
-static int diag_remote_init(void)
+int diag_remote_init(void)
 {
 	diagmem_setsize(POOL_TYPE_MDM, itemsize_mdm, poolsize_mdm);
 	diagmem_setsize(POOL_TYPE_MDM2, itemsize_mdm, poolsize_mdm);
@@ -935,6 +935,9 @@ static int diag_remote_init(void)
 			poolsize_mdm_dci_write);
 	diagmem_setsize(POOL_TYPE_QSC_MUX, itemsize_qsc_usb,
 			poolsize_qsc_usb);
+	diag_md_mdm_init();
+	if (diag_dci_init_remote())
+		return -ENOMEM;
 	driver->hdlc_encode_buf = kzalloc(DIAG_MAX_HDLC_BUF_SIZE, GFP_KERNEL);
 	if (!driver->hdlc_encode_buf)
 		return -ENOMEM;
@@ -942,7 +945,7 @@ static int diag_remote_init(void)
 	return 0;
 }
 
-static void diag_remote_exit(void)
+void diag_remote_exit(void)
 {
 	kfree(driver->hdlc_encode_buf);
 }
@@ -1086,12 +1089,12 @@ static int diag_process_userspace_remote(int proc, void *buf, int len)
 	return diagfwd_bridge_write(bridge_index, buf, len);
 }
 #else
-static int diag_remote_init(void)
+int diag_remote_init(void)
 {
 	return 0;
 }
 
-static void diag_remote_exit(void)
+void diag_remote_exit(void)
 {
 	return;
 }
@@ -3503,9 +3506,6 @@ static int diag_probe(struct platform_device *pdev)
 	ret = diag_masks_init();
 	if (ret)
 		goto fail;
-	ret = diag_remote_init();
-	if (ret)
-		goto fail;
 	ret = diag_mux_init();
 	if (ret)
 		goto fail;
@@ -3542,9 +3542,9 @@ static int diag_probe(struct platform_device *pdev)
 		goto fail;
 
 	pr_debug("diagchar initialized now");
-	ret = diagfwd_bridge_init();
-	if (ret)
-		diagfwd_bridge_exit();
+	#ifdef CONFIG_DIAGFWD_BRIDGE_CODE
+	diag_register_with_mhi();
+	#endif
 	return 0;
 
 fail:
