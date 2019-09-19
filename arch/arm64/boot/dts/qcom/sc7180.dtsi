@@ -1578,6 +1578,16 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 
+			mem_dump_table@10 {
+				compatible = "qcom,msm-imem-mem_dump_table";
+				reg = <0 0x10 0 8>;
+			};
+
+			kaslr_offset@6d0 {
+				compatible = "qcom,msm-imem-kaslr_offset";
+				reg = <0 0x6d0 0 12>;
+			};
+
 			pil@94c {
 				compatible = "qcom,msm-imem-pil";
 				reg = <0x0 0x94c 0x0 0x4>;
@@ -1998,24 +2008,6 @@
 			reg = <0x1620000 0x17080>;
 			interconnect-cells = <1>;
 			qcom,bcm-voter = <&apps_bcm_voter>;
-		};
-
-		qcom,msm-imem@146aa000 {
-			compatible = "qcom,msm-imem";
-			reg = <0 0x146aa000 0 0x1000>;
-			ranges = <0x0 0 0x0 0x146aa000 0x0 0x1000>;
-			#address-cells = <2>;
-			#size-cells = <2>;
-
-			mem_dump_table@10 {
-				compatible = "qcom,msm-imem-mem_dump_table";
-				reg = <0 0x10 0 8>;
-			};
-
-			kaslr_offset@6d0 {
-				compatible = "qcom,msm-imem-kaslr_offset";
-				reg = <0 0x6d0 0 12>;
-			};
 		};
 
 		cpuss_dump {
