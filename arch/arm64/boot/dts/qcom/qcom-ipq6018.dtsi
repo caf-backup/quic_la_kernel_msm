@@ -1069,6 +1069,11 @@
 					"pcnoc_lpass_clk";
 		};
 
+		adsprpc_loader: qcom,adsprpc_loader {
+			compatible = "qti,adsprpc-loader";
+			status = "disabled";
+		};
+
 		glink_mpss_ssr: qcom,glink-ssr-modem {
 			compatible = "qcom,glink_ssr";
 			label = "q6v5-wcss";

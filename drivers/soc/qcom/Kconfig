@@ -326,3 +326,11 @@ config QCOM_GLINK_SSR
 	  Say y here to enable GLINK SSR support. The GLINK SSR driver
 	  implements the SSR protocol for notifying the remote processor about
 	  neighboring subsystems going up or down.
+
+config QTI_ADSPRPC_LOADER
+	tristate "IPQ subsystem adsp loader driver"
+	depends on MSM_ADSPRPC
+	default n
+	help
+	  Say y here to enable ADSP loader support. The ADSP loader driver
+	  provides the support to take adsp out of reset.

@@ -42,4 +42,5 @@ obj-$(CONFIG_QCOM_TZ_LOG) += tz_log.o
 obj-$(CONFIG_QCOM_MDT_LOADER)	+= mdt_loader.o
 obj-$(CONFIG_QCOM_GLINK_SSR)	+= qcom_glink_ssr.o
 obj-$(CONFIG_QCOM_QMI_HELPERS)	+= qmi_helpers.o
+obj-$(CONFIG_QTI_ADSPRPC_LOADER) += adsp-loader.o
 qmi_helpers-y	+= qmi_encdec.o qcom_qmi_interface.o

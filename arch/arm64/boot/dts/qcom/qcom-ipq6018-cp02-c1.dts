@@ -378,6 +378,10 @@
 	status = "ok";
 };
 
+&adsprpc_loader {
+	status = "ok";
+};
+
 &glink_adsp_ssr {
 	status = "ok";
 };
