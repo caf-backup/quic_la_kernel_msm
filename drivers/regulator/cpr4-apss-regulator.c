@@ -228,7 +228,7 @@ static bool boost_fuse[MAX_BOOST_CONFIG_FUSE_VALUE] = {0, 1, 1, 1, 1, 1, 1, 1};
 /*
  * IPQ6018 (Few parameters are changed, remaining are same as IPQ807x)
  */
-#define IPQ6018_APSS_FUSE_STEP_VOLT		10000
+#define IPQ6018_APSS_FUSE_STEP_VOLT		12500
 #define IPQ6018_APSS_CPR_CLOCK_RATE		24000000
 
 static struct cpr3_fuse_param
@@ -258,13 +258,13 @@ ipq6018_apss_target_quot_param[IPQ6018_APSS_FUSE_CORNERS][2] = {
 static struct cpr3_fuse_param
 ipq6018_apss_quot_offset_param[IPQ6018_APSS_FUSE_CORNERS][2] = {
 	{{} },
-	{{73, 46, 52}, {} },
-	{{73, 39, 45}, {} },
-	{{73, 32, 38}, {} },
+	{{73, 48, 55}, {} },
+	{{73, 40, 47}, {} },
+	{{73, 32, 39}, {} },
 };
 
 static struct cpr3_fuse_param ipq6018_cpr_fusing_rev_param[] = {
-	{73, 53, 55},
+	{75, 16, 18},
 	{},
 };
 
@@ -453,7 +453,10 @@ static int cpr4_ipq807x_apss_read_fuse_data(struct cpr3_regulator *vreg)
  */
 static int cpr4_apss_parse_corner_data(struct cpr3_regulator *vreg)
 {
-	int rc;
+	struct device_node *node = vreg->of_node;
+	struct cpr4_ipq807x_apss_fuses *fuse = vreg->platform_fuses;
+	u32 *temp = NULL;
+	int i, rc;
 
 	rc = cpr3_parse_common_corner_data(vreg);
 	if (rc) {
@@ -461,6 +464,28 @@ static int cpr4_apss_parse_corner_data(struct cpr3_regulator *vreg)
 		return rc;
 	}
 
+	/* If fuse has incorrect RO Select values and dtsi has "qcom,cpr-ro-sel"
+	 * entry with RO select values other than zero, then dtsi values will
+	 * be used.
+	 */
+	if (of_find_property(node, "qcom,cpr-ro-sel", NULL)) {
+		temp = kcalloc(vreg->fuse_corner_count, sizeof(*temp),
+				GFP_KERNEL);
+		if (!temp)
+			return -ENOMEM;
+
+		rc = cpr3_parse_array_property(vreg, "qcom,cpr-ro-sel",
+				vreg->fuse_corner_count, temp);
+		if (rc)
+			goto done;
+
+		for (i = 0; i < vreg->fuse_corner_count; i++) {
+			if (temp[i] != 0)
+				fuse->ro_sel[i] = temp[i];
+		}
+	}
+done:
+	kfree(temp);
 	return rc;
 }
 
