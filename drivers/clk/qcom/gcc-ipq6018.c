@@ -2273,7 +2273,7 @@ static struct clk_branch gcc_blsp1_qup6_i2c_apps_clk = {
 				"blsp1_qup6_i2c_apps_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2844,7 +2844,7 @@ static struct clk_branch gcc_wcss_axi_m_clk = {
 				"system_noc_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2861,7 +2861,7 @@ static struct clk_branch gcc_sys_noc_wcss_ahb_clk = {
 				"wcss_ahb_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2878,7 +2878,7 @@ static struct clk_branch gcc_q6_axim_clk = {
 				"q6_axi_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2895,7 +2895,7 @@ static struct clk_branch gcc_q6_axim2_clk = {
 				"q6_axi_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2912,7 +2912,7 @@ static struct clk_branch gcc_q6ss_atbm_clk = {
 				"qdss_at_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2929,7 +2929,7 @@ static struct clk_branch gcc_q6ss_pclkdbg_clk = {
 				"qdss_dap_sync_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2946,7 +2946,7 @@ static struct clk_branch gcc_q6_tsctr_1to2_clk = {
 				"qdss_tsctr_div2_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2963,7 +2963,7 @@ static struct clk_branch gcc_wcss_core_tbu_clk = {
 				"system_noc_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2980,7 +2980,7 @@ static struct clk_branch gcc_wcss_q6_tbu_clk = {
 				"q6_axi_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2997,7 +2997,7 @@ static struct clk_branch gcc_q6_ahb_clk = {
 				"wcss_ahb_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -3014,7 +3014,7 @@ static struct clk_branch gcc_q6_ahb_s_clk = {
 				"wcss_ahb_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -3031,7 +3031,7 @@ static struct clk_branch gcc_wcss_dbg_ifc_apb_clk = {
 				"qdss_dap_sync_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -3048,7 +3048,7 @@ static struct clk_branch gcc_wcss_dbg_ifc_atb_clk = {
 				"qdss_at_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -3065,7 +3065,7 @@ static struct clk_branch gcc_wcss_dbg_ifc_nts_clk = {
 				"qdss_tsctr_div2_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -3082,7 +3082,7 @@ static struct clk_branch gcc_wcss_dbg_ifc_dapbus_clk = {
 				"qdss_dap_sync_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -3099,7 +3099,7 @@ static struct clk_branch gcc_wcss_dbg_ifc_apb_bdg_clk = {
 				"qdss_dap_sync_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -3116,7 +3116,7 @@ static struct clk_branch gcc_wcss_dbg_ifc_atb_bdg_clk = {
 				"qdss_at_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -3133,7 +3133,7 @@ static struct clk_branch gcc_wcss_dbg_ifc_nts_bdg_clk = {
 				"qdss_tsctr_div2_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -3150,7 +3150,7 @@ static struct clk_branch gcc_wcss_dbg_ifc_dapbus_bdg_clk = {
 				"qdss_dap_sync_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -3167,7 +3167,7 @@ static struct clk_branch gcc_wcss_ecahb_clk = {
 				"wcss_ahb_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -3184,7 +3184,7 @@ static struct clk_branch gcc_wcss_acmt_clk = {
 				"wcss_ahb_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -3201,7 +3201,7 @@ static struct clk_branch gcc_wcss_ahb_s_clk = {
 				"wcss_ahb_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -3237,7 +3237,7 @@ struct clk_branch gcc_rbcpr_wcss_clk = {
 				"rbcpr_wcss_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -3254,7 +3254,7 @@ struct clk_branch gcc_rbcpr_wcss_ahb_clk = {
 				"pcnoc_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -3271,7 +3271,7 @@ struct clk_branch gcc_mem_noc_q6_axi_clk = {
 				"q6_axi_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -4823,7 +4823,7 @@ static struct clk_branch gcc_sdcc1_ice_core_clk = {
 				"sdcc1_ice_core_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
