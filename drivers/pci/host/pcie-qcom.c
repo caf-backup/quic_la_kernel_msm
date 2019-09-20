@@ -1359,6 +1359,7 @@ static int qcom_pcie_init_v3(struct qcom_pcie *pcie)
 			writel(0x0, pcie->parf + PARF_BDF_TO_SID_TABLE + (4 * i));
 	}
 
+	phy_power_off(pcie->phy);
 	return 0;
 }
 
