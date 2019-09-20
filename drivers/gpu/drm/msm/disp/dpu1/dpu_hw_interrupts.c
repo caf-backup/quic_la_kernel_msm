@@ -1178,7 +1178,6 @@ static inline int _dpu_hw_intr_init_irq_tbl(u32 irq_tbl_size,
 			dpu_irq->status_off =
 				MDP_INTF_4_OFF+INTF_INTR_STATUS;
 			break;
-		/*
 		case MDSS_INTR_AD4_0_INTR:
 			dpu_irq->clr_off =
 				MDP_AD4_0_OFF + MDP_AD4_INTR_CLEAR_OFF;
@@ -1195,11 +1194,10 @@ static inline int _dpu_hw_intr_init_irq_tbl(u32 irq_tbl_size,
 			dpu_irq->status_off =
 				MDP_AD4_1_OFF + MDP_AD4_INTR_STATUS_OFF;
 			break;
-		*/
 		default:
 			pr_err("wrong irq idx %d\n",
 				dpu_irq->dpu_irq_idx);
-			//return -EINVAL;
+			return -EINVAL;
 		}
 
 		pr_debug("idx:%d irq_idx:%d clr:0x%x en:0x%x status:0x%x\n",
