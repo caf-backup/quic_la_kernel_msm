@@ -14,9 +14,15 @@
 
 #include <linux/qcom_scm.h>
 #define QCOM_SCM_SVC_BOOT			0x1
-#define SET_MAGIC				0x1
 #define CLEAR_MAGIC				0x0
+#define SET_MAGIC				0x1
 #define SET_MAGIC_WARMRESET			0x2
+#define ABNORMAL_MAGIC				0x3
+#define TCSR_BOOT_MISC_REG			0x193d100ull
+#define DLOAD_MODE_ENABLE			0x10ull
+#define DLOAD_MODE_DISABLE			0x00ull
+#define DLOAD_MODE_ENABLE_WARMRESET		0x20ull
+#define DLOAD_MODE_DISABLE_ABNORMALRESET	0x40ull
 #define SCM_CMD_TZ_CONFIG_HW_FOR_RAM_DUMP_ID	0x9
 #define SCM_CMD_TZ_FORCE_DLOAD_ID		0x10
 #define SCM_CMD_TZ_SET_DLOAD_FOR_SECURE_BOOT	0x14

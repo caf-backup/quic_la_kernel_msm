@@ -2032,7 +2032,7 @@
 		};
 
 		qca,scm_restart_reason {
-			compatible = "qca,scm_restart_reason";
+			compatible = "qca_ipq6018,scm_restart_reason";
 			reg = <0x0193d000 0x14>;
 		};
 
