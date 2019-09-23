@@ -3027,11 +3027,19 @@ static int cpr3_regulator_set_voltage(struct regulator_dev *rdev,
 	last_corner = vreg->current_corner;
 	vreg->current_corner = corner;
 
+	if (vreg->cpr4_regulator_data != NULL)
+		if (vreg->cpr4_regulator_data->mem_acc_funcs != NULL)
+			vreg->cpr4_regulator_data->mem_acc_funcs->set_mem_acc(rdev);
+
 	rc = cpr3_regulator_update_ctrl_state(ctrl);
 	if (rc) {
 		cpr3_err(vreg, "could not update CPR state, rc=%d\n", rc);
 		vreg->current_corner = last_corner;
 	}
+
+	if (vreg->cpr4_regulator_data != NULL)
+		if (vreg->cpr4_regulator_data->mem_acc_funcs != NULL)
+			vreg->cpr4_regulator_data->mem_acc_funcs->clear_mem_acc(rdev);
 
 	cpr3_debug(vreg, "set corner=%d\n", corner);
 done:
