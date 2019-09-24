@@ -280,6 +280,7 @@ struct qcom_pcie {
 	int global_irq;
 	int link_down_irq;
 	int link_up_irq;
+	bool enumerated;
 	uint32_t rc_idx;
 	struct qcom_pcie_register_event *event_reg;
 };
@@ -288,8 +289,6 @@ struct qcom_pcie {
 
 #define MAX_RC_NUM	3
 static struct qcom_pcie *qcom_pcie_dev[MAX_RC_NUM];
-static atomic_t rc_removed;
-static atomic_t slot_removed;
 
 static inline void
 writel_masked(void __iomem *addr, u32 clear_mask, u32 set_mask)
@@ -1458,23 +1457,23 @@ static const struct qcom_pcie_ops ops_v3 = {
 
 int qcom_pcie_rescan(void)
 {
-	int i;
+	int i, ret;
 	struct pcie_port *pp;
-
-	if (!atomic_read(&rc_removed))
-		return 0;
 
 	for (i = 0; i < MAX_RC_NUM; i++) {
 		/* reset and enumerate the pcie devices */
 		if (qcom_pcie_dev[i]) {
-			pr_notice("---> Initializing %d", i);
+			pr_notice("---> Initializing %d\n", i);
+			if (qcom_pcie_dev[i]->enumerated)
+				continue;
+
 			pp = &qcom_pcie_dev[i]->pp;
-			dw_pcie_host_init_pm(pp);
+			ret = dw_pcie_host_init_pm(pp);
+			if (!ret)
+				qcom_pcie_dev[i]->enumerated = true;
 			pr_notice(" ... done<---\n");
 		}
 	}
-	atomic_set(&rc_removed, 0);
-
 	return 0;
 }
 
@@ -1482,16 +1481,17 @@ void qcom_pcie_remove_bus(void)
 {
 	int i;
 
-	if (atomic_read(&rc_removed))
-		return;
-
 	for (i = 0; i < MAX_RC_NUM; i++) {
 		if (qcom_pcie_dev[i]) {
 			struct pcie_port *pp;
 			struct qcom_pcie *pcie;
 
-			pr_notice("---> Removing %d", i);
+			pr_notice("---> Removing %d\n", i);
+
 			pcie = qcom_pcie_dev[i];
+			if (!pcie->enumerated)
+				continue;
+
 			pp = &qcom_pcie_dev[i]->pp;
 			pci_stop_root_bus(pp->pci_bus);
 			pci_remove_root_bus(pp->pci_bus);
@@ -1502,10 +1502,10 @@ void qcom_pcie_remove_bus(void)
 
 			qcom_pcie_dev[i]->ops->deinit(qcom_pcie_dev[i]);
 			pp->pci_bus = NULL;
+			pcie->enumerated = false;
 			pr_notice(" ... done<---\n");
 		}
 	}
-	atomic_set(&rc_removed, 1);
 }
 
 static ssize_t qcom_bus_rescan_store(struct bus_type *bus, const char *buf,
@@ -1546,24 +1546,26 @@ static ssize_t qcom_slot_rescan_store(struct bus_type *bus, const char *buf,
 		size_t count)
 {
 	unsigned long val;
-
-	if (!atomic_read(&slot_removed))
-		return 0;
+	struct pcie_port *pp;
 
 	if (kstrtoul(buf, 0, &val) < 0)
 		return -EINVAL;
 
-	if (val < MAX_RC_NUM) {
-		pci_lock_rescan_remove();
-		if (qcom_pcie_dev[val]) {
-			struct pcie_port *pp;
+	pci_lock_rescan_remove();
 
-			pp = &qcom_pcie_dev[val]->pp;
-			dw_pcie_host_init_pm(pp);
-			atomic_set(&slot_removed, 0);
+	if (val < MAX_RC_NUM) {
+		if (qcom_pcie_dev[val]) {
+			if (qcom_pcie_dev[val]->enumerated) {
+				return 0;
+			} else {
+				pp = &qcom_pcie_dev[val]->pp;
+				dw_pcie_host_init_pm(pp);
+				qcom_pcie_dev[val]->enumerated = true;
+			}
 		}
-		pci_unlock_rescan_remove();
 	}
+	pci_unlock_rescan_remove();
+
 	return count;
 }
 static BUS_ATTR(slot_rescan, (S_IWUSR|S_IWGRP), NULL, qcom_slot_rescan_store);
@@ -1572,29 +1574,32 @@ static ssize_t qcom_slot_remove_store(struct bus_type *bus, const char *buf,
 		size_t count)
 {
 	unsigned long val;
-
-	if (atomic_read(&slot_removed))
-		return 0;
+	struct pcie_port *pp;
 
 	if (kstrtoul(buf, 0, &val) < 0)
 		return -EINVAL;
 
-	if (val < MAX_RC_NUM) {
-		pci_lock_rescan_remove();
-		if (qcom_pcie_dev[val]) {
-			struct pcie_port *pp;
+	pci_lock_rescan_remove();
 
-			pr_notice("---> Removing %ld", val);
-			pp = &qcom_pcie_dev[val]->pp;
-			qcom_pcie_dev[val]->ops->deinit(qcom_pcie_dev[val]);
-			pci_stop_root_bus(pp->pci_bus);
-			pci_remove_root_bus(pp->pci_bus);
-			pp->pci_bus = NULL;
-			pr_notice(" ... done<---\n");
-			atomic_set(&slot_removed, 1);
+	if (val < MAX_RC_NUM) {
+		if (qcom_pcie_dev[val]) {
+			if (!qcom_pcie_dev[val]->enumerated) {
+				return 0;
+			}
+			else {
+				pr_notice("---> Removing %ld", val);
+				pp = &qcom_pcie_dev[val]->pp;
+				qcom_pcie_dev[val]->ops->deinit(qcom_pcie_dev[val]);
+				pci_stop_root_bus(pp->pci_bus);
+				pci_remove_root_bus(pp->pci_bus);
+				pp->pci_bus = NULL;
+				qcom_pcie_dev[val]->enumerated = false;
+				pr_notice(" ... done<---\n");
+			}
 		}
-		pci_unlock_rescan_remove();
 	}
+	pci_unlock_rescan_remove();
+
 	return count;
 }
 static BUS_ATTR(slot_remove, (S_IWUSR|S_IWGRP), NULL, qcom_slot_remove_store);
@@ -1874,6 +1879,7 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 			return ret;
 		}
 	}
+	pcie->enumerated = true;
 
 	pcie->rc_idx = rc_idx;
 	qcom_pcie_dev[rc_idx++] = pcie;
