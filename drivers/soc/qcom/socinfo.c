@@ -618,7 +618,7 @@ char *socinfo_get_build_id(void)
 
 static char *msm_read_hardware_id(void)
 {
-	static char msm_soc_str[256] = "QTI ";
+	static char msm_soc_str[256] = "Qualcomm Technologies, Inc ";
 	static bool string_generated;
 	int ret = 0;
 
