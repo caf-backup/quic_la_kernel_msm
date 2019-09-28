@@ -1139,18 +1139,24 @@ recycle:
 rmnet_perf_chain_hook_t rmnet_perf_chain_end __rcu __read_mostly;
 EXPORT_SYMBOL(rmnet_perf_chain_end);
 
+#include <linux/rmnet_nss.h>
+
 void rmnet_frag_ingress_handler(struct sk_buff *skb,
 				struct rmnet_port *port)
 {
 	rmnet_perf_chain_hook_t rmnet_perf_opt_chain_end;
 	LIST_HEAD(desc_list);
 	int i = 0;
+	struct rmnet_nss_cb *nss_cb;
 
 	/* Deaggregation and freeing of HW originating
 	 * buffers is done within here
 	 */
 	while (skb) {
 		struct sk_buff *skb_frag;
+
+		port->chain_head = NULL;
+		port->chain_tail = NULL;
 
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 			rmnet_frag_deaggregate(&skb_shinfo(skb)->frags[i], port,
@@ -1166,6 +1172,10 @@ void rmnet_frag_ingress_handler(struct sk_buff *skb,
 				}
 			}
 		}
+
+		nss_cb = rcu_dereference(rmnet_nss_callbacks);
+		if (nss_cb && port->chain_head)
+			netif_receive_skb(port->chain_head);
 
 		skb_frag = skb_shinfo(skb)->frag_list;
 		skb_shinfo(skb)->frag_list = NULL;

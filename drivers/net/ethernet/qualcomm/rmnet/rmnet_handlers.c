@@ -111,7 +111,12 @@ rmnet_deliver_skb(struct sk_buff *skb, struct rmnet_port *port)
 		/* Pass off the packet to NSS driver if we can */
 	nss_cb = rcu_dereference(rmnet_nss_callbacks);
 	if (nss_cb) {
-		nss_cb->nss_tx(skb);
+		if (!port->chain_head)
+			port->chain_head = skb;
+		else
+			skb_shinfo(port->chain_tail)->frag_list = skb;
+
+		port->chain_tail = skb;
 		return;
 	}
 
@@ -435,6 +440,9 @@ rx_handler_result_t rmnet_rx_handler(struct sk_buff **pskb)
 	dev = skb->dev;
 	port = rmnet_get_port(dev);
 
+	port->chain_head = NULL;
+	port->chain_tail = NULL;
+
 	switch (port->rmnet_mode) {
 	case RMNET_EPMODE_VND:
 		rmnet_map_ingress_handler(skb, port);
@@ -448,6 +456,40 @@ done:
 	return RX_HANDLER_CONSUMED;
 }
 EXPORT_SYMBOL(rmnet_rx_handler);
+
+rx_handler_result_t rmnet_rx_priv_handler(struct sk_buff **pskb)
+{
+	struct sk_buff *skb = *pskb;
+	struct rmnet_nss_cb *nss_cb;
+	struct sk_buff *skbn;
+
+	if (!skb)
+		return RX_HANDLER_CONSUMED;
+
+	if (skb->pkt_type == PACKET_LOOPBACK)
+		return RX_HANDLER_PASS;
+
+	/* Check this so that we dont loop around netif_receive_skb */
+	if (skb->cb[0] == 1) {
+		skb->cb[0] = 0;
+
+		return RX_HANDLER_PASS;
+	}
+
+	while (skb) {
+		struct sk_buff *skb_frag = skb_shinfo(skb)->frag_list;
+
+		skb_shinfo(skb)->frag_list = NULL;
+
+		nss_cb = rcu_dereference(rmnet_nss_callbacks);
+		if (nss_cb)
+			nss_cb->nss_tx(skb);
+
+		skb = skb_frag;
+	}
+
+	return RX_HANDLER_CONSUMED;
+}
 
 /* Modifies packet as per logical endpoint configuration and egress data format
  * for egress device configured in logical endpoint. Packet is then transmitted
