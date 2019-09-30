@@ -347,7 +347,8 @@ int cnss_wlan_enable(struct device *dev,
 	if (qmi_bypass)
 		return 0;
 
-	if (mode == CNSS_CALIBRATION || mode == CNSS_WALTEST)
+	if (mode == CNSS_CALIBRATION || mode == CNSS_WALTEST ||
+	    mode == CNSS_FTM_CALIBRATION)
 		goto skip_cfg;
 
 	if (!config || !host_version) {
@@ -405,7 +406,8 @@ int cnss_wlan_enable(struct device *dev,
 #else
 	req.shadow_reg_v2_valid = 0;
 #endif
-	if (mode != QMI_WLFW_CALIBRATION_V01) {
+	if (mode != QMI_WLFW_CALIBRATION_V01 &&
+	    mode != QMI_WLFW_FTM_CALIBRATION_V01) {
 		ret = cnss_wlfw_wlan_cfg_send_sync(plat_priv, &req);
 		if (ret)
 			goto out;
@@ -413,7 +415,7 @@ int cnss_wlan_enable(struct device *dev,
 
 skip_cfg:
 
-	if (mode == CNSS_CALIBRATION)
+	if (mode == CNSS_CALIBRATION || mode == CNSS_FTM_CALIBRATION)
 		set_bit(CNSS_COLD_BOOT_CAL, &plat_priv->driver_state);
 
 	ret = cnss_wlfw_wlan_mode_send_sync(plat_priv, mode);
