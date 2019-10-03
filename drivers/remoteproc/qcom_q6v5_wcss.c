@@ -504,9 +504,6 @@ static int q6v5_wcss_start(struct rproc *rproc)
 		goto skip_reset;
 	}
 
-
-	qcom_q6v5_prepare(&wcss->q6v5);
-
 	/* Release Q6 and WCSS reset */
 	ret = reset_control_deassert(wcss->wcss_reset);
 	if (ret) {
@@ -542,9 +539,16 @@ static int q6v5_wcss_start(struct rproc *rproc)
 		goto wcss_q6_reset;
 
 skip_reset:
+	qcom_q6v5_prepare(&wcss->q6v5);
 	ret = qcom_q6v5_wait_for_start(&wcss->q6v5, 5 * HZ);
-	if (ret == -ETIMEDOUT)
+	if (ret == -ETIMEDOUT) {
+		struct qcom_q6v5 *q6v5 = &wcss->q6v5;
+
 		dev_err(wcss->dev, "start timed out\n");
+		qcom_scm_pas_shutdown(WCNSS_PAS_ID);
+		q6v5->running = false;
+		goto wcss_q6_reset;
+	}
 
 	return ret;
 
