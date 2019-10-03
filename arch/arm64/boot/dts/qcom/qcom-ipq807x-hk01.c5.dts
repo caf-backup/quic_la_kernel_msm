@@ -1200,7 +1200,6 @@
 				mhi,chan = "IP_SW0";
 				mhi,interface-name = "rmnet_mhi_sw";
 				mhi,mru = <0x4000>;
-				mhi,ethernet-interface;
 				mhi,disable-chain-skb;
 			};
 
