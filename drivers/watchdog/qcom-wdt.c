@@ -18,7 +18,6 @@
 static struct qcom_wdt *wdata;
 
 #define MAX_CPU_CTX_SIZE	2048
-#define MAX_CPU_SCANDUMP_SIZE	0x10100
 
 enum wdt_reg {
 	WDT_RST,
@@ -52,6 +51,7 @@ struct qcom_wdt {
 	void __iomem		*base;
 	const u32		*layout;
 	cpumask_t		alive_mask;
+	unsigned int		cpu_scandump_sizes[NR_CPUS];
 };
 
 static void __iomem *wdt_addr(struct qcom_wdt *wdt, enum wdt_reg reg)
@@ -243,8 +243,10 @@ static void qcom_wdt_configure_scandump(struct qcom_wdt *wdt)
 	int cpu;
 	static dma_addr_t dump_addr;
 	static void *dump_vaddr;
+	unsigned int scandump_size;
 
 	for_each_cpu(cpu, cpu_present_mask) {
+		scandump_size = wdt->cpu_scandump_sizes[cpu];
 		cpu_data = devm_kzalloc(wdt->dev,
 					sizeof(struct msm_dump_data),
 					GFP_KERNEL);
@@ -252,17 +254,17 @@ static void qcom_wdt_configure_scandump(struct qcom_wdt *wdt)
 			continue;
 
 		dump_vaddr = (void *) dma_alloc_coherent(wdt->dev,
-							 MAX_CPU_SCANDUMP_SIZE,
+							 scandump_size,
 							 &dump_addr,
 							 GFP_KERNEL);
 		if (!dump_vaddr) {
 			dev_err(wdt->dev, "Couldn't get memory for dump\n");
 			continue;
 		}
-		memset(dump_vaddr, 0x0, MAX_CPU_SCANDUMP_SIZE);
+		memset(dump_vaddr, 0x0, scandump_size);
 
 		cpu_data->addr = dump_addr;
-		cpu_data->len = MAX_CPU_SCANDUMP_SIZE;
+		cpu_data->len = scandump_size;
 		snprintf(cpu_data->name, sizeof(cpu_data->name),
 			"KSCANDUMP%d", cpu);
 		dump_entry.id = MSM_DUMP_DATA_SCANDUMP_PER_CPU + cpu;
@@ -272,7 +274,7 @@ static void qcom_wdt_configure_scandump(struct qcom_wdt *wdt)
 		if (ret) {
 			dev_err(wdt->dev, "Dump setup failed, id = %d\n",
 				MSM_DUMP_DATA_SCANDUMP_PER_CPU + cpu);
-			dma_free_coherent(wdt->dev, MAX_CPU_SCANDUMP_SIZE,
+			dma_free_coherent(wdt->dev, scandump_size,
 					  dump_vaddr,
 					  dump_addr);
 			devm_kfree(wdt->dev, cpu_data);
@@ -304,7 +306,7 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	const u32 *regs;
 	u32 percpu_offset;
-	int ret;
+	int ret, cpu, num_scandump_sizes;
 
 	regs = of_device_get_match_data(&pdev->dev);
 	if (!regs) {
@@ -336,6 +338,18 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get input clock\n");
 		return PTR_ERR(wdt->clk);
 	}
+
+	num_scandump_sizes = of_property_count_elems_of_size(np,
+							"qcom,scandump-sizes",
+							sizeof(u32));
+	if (num_scandump_sizes < 0 || num_scandump_sizes != num_possible_cpus())
+		dev_info(&pdev->dev, "%s scandump sizes property not correct\n",
+			__func__);
+	else
+		for_each_cpu(cpu, cpu_present_mask)
+			of_property_read_u32_index(np, "qcom,scandump-sizes",
+						   cpu,
+					&wdt->cpu_scandump_sizes[cpu]);
 
 	ret = clk_prepare_enable(wdt->clk);
 	if (ret) {
