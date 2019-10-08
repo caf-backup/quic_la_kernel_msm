@@ -52,7 +52,7 @@
 #define RPM_FIFO_ADDR_ALIGN_BYTES 3
 #define TRACER_PKT_FEATURE BIT(2)
 
-#define NUM_SMEM_SUBSYSTEMS 3
+#define NUM_SMEM_SUBSYSTEMS 7
 
 /**
  * enum command_types - definition of the types of commands sent/received
