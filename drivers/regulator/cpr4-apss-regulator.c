@@ -320,6 +320,30 @@ static int ipq6018_apss_fuse_ref_volt
 	1062500,
 };
 
+/*
+ * IPQ6018 Memory ACC settings on TCSR
+ *
+ * Turbo_L1: write TCSR_MEM_ACC_SW_OVERRIDE_LEGACY_APC0 0x10
+ *           write TCSR_CUSTOM_VDDAPC0_ACC_1            0x1
+ * Other modes: write TCSR_MEM_ACC_SW_OVERRIDE_LEGACY_APC0 0x0
+ *              write TCSR_CUSTOM_VDDAPC0_ACC_1            0x0
+ *
+ */
+#define IPQ6018_APSS_MEM_ACC_TCSR_COUNT         2
+#define TCSR_MEM_ACC_SW_OVERRIDE_LEGACY_APC0    0x1946178
+#define TCSR_CUSTOM_VDDAPC0_ACC_1               0x1946124
+
+struct mem_acc_tcsr {
+	u32 phy_addr;
+	void __iomem *ioremap_addr;
+	u32 value;
+};
+
+static struct mem_acc_tcsr ipq6018_mem_acc_tcsr[IPQ6018_APSS_MEM_ACC_TCSR_COUNT] = {
+	{TCSR_MEM_ACC_SW_OVERRIDE_LEGACY_APC0, NULL, 0x10},
+	{TCSR_CUSTOM_VDDAPC0_ACC_1, NULL, 0x1},
+};
+
 /**
  * cpr4_ipq807x_apss_read_fuse_data() - load APSS specific fuse parameter values
  * @vreg:		Pointer to the CPR3 regulator
@@ -1472,6 +1496,46 @@ static int cpr4_apss_regulator_resume(struct platform_device *pdev)
 	return cpr3_regulator_resume(ctrl);
 }
 
+static void ipq6018_set_mem_acc(struct regulator_dev *rdev)
+{
+	struct cpr3_regulator *vreg = rdev_get_drvdata(rdev);
+
+	ipq6018_mem_acc_tcsr[0].ioremap_addr =
+		ioremap(ipq6018_mem_acc_tcsr[0].phy_addr, 0x4);
+	ipq6018_mem_acc_tcsr[1].ioremap_addr =
+		ioremap(ipq6018_mem_acc_tcsr[1].phy_addr, 0x4);
+
+	if ((ipq6018_mem_acc_tcsr[0].ioremap_addr != NULL) &&
+			(ipq6018_mem_acc_tcsr[1].ioremap_addr != NULL) &&
+			(vreg->current_corner == (vreg->corner_count - CPR3_CORNER_OFFSET))) {
+
+		writel_relaxed(ipq6018_mem_acc_tcsr[0].value,
+				ipq6018_mem_acc_tcsr[0].ioremap_addr);
+		writel_relaxed(ipq6018_mem_acc_tcsr[1].value,
+				ipq6018_mem_acc_tcsr[1].ioremap_addr);
+	}
+}
+
+static void ipq6018_clr_mem_acc(struct regulator_dev *rdev)
+{
+	struct cpr3_regulator *vreg = rdev_get_drvdata(rdev);
+
+	if ((ipq6018_mem_acc_tcsr[0].ioremap_addr != NULL) &&
+			(ipq6018_mem_acc_tcsr[1].ioremap_addr != NULL) &&
+			(vreg->current_corner != vreg->corner_count - CPR3_CORNER_OFFSET)) {
+		writel_relaxed(0x0, ipq6018_mem_acc_tcsr[0].ioremap_addr);
+		writel_relaxed(0x0, ipq6018_mem_acc_tcsr[1].ioremap_addr);
+	}
+
+	iounmap(ipq6018_mem_acc_tcsr[0].ioremap_addr);
+	iounmap(ipq6018_mem_acc_tcsr[1].ioremap_addr);
+}
+
+static struct cpr4_mem_acc_func ipq6018_mem_acc_funcs = {
+	.set_mem_acc = ipq6018_set_mem_acc,
+	.clear_mem_acc = ipq6018_clr_mem_acc
+};
+
 static const struct cpr4_reg_data ipq807x_cpr_apss = {
 	.cpr_valid_fuse_count = IPQ807x_APSS_FUSE_CORNERS,
 	.fuse_ref_volt = ipq807x_apss_fuse_ref_volt,
@@ -1481,6 +1545,7 @@ static const struct cpr4_reg_data ipq807x_cpr_apss = {
 	.boost_ceiling_volt= IPQ807x_APSS_BOOST_CEILING_VOLT,
 	.boost_floor_volt= IPQ807x_APSS_BOOST_FLOOR_VOLT,
 	.cpr3_fuse_params = &ipq807x_fuse_params,
+	.mem_acc_funcs = NULL,
 };
 
 static const struct cpr4_reg_data ipq817x_cpr_apss = {
@@ -1492,6 +1557,7 @@ static const struct cpr4_reg_data ipq817x_cpr_apss = {
 	.boost_ceiling_volt= IPQ807x_APSS_BOOST_CEILING_VOLT,
 	.boost_floor_volt= IPQ807x_APSS_BOOST_FLOOR_VOLT,
 	.cpr3_fuse_params = &ipq807x_fuse_params,
+	.mem_acc_funcs = NULL,
 };
 
 static const struct cpr4_reg_data ipq6018_cpr_apss = {
@@ -1503,6 +1569,7 @@ static const struct cpr4_reg_data ipq6018_cpr_apss = {
 	.boost_ceiling_volt = IPQ6018_APSS_BOOST_CEILING_VOLT,
 	.boost_floor_volt = IPQ6018_APSS_BOOST_FLOOR_VOLT,
 	.cpr3_fuse_params = &ipq6018_fuse_params,
+	.mem_acc_funcs = &ipq6018_mem_acc_funcs,
 };
 
 static struct of_device_id cpr4_regulator_match_table[] = {
