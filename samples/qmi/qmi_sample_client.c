@@ -85,6 +85,8 @@ static struct qmi_dir {
 static atomic_t cnt, async_cnt, async_rsp, async_req, pass, fail;
 static struct mutex status_print_lock;
 
+static struct qmi_handle *qmi_test_handle;
+
 struct test_name_type_v01 {
 	u32 name_len;
 	char name[TEST_MAX_NAME_SIZE_V01];
@@ -522,7 +524,7 @@ static void update_status(void)
 
 static int test_qmi_ping_pong_send_msg(void)
 {
-	struct qmi_handle *qmi = qmi_fp->private_data;
+	struct qmi_handle *qmi = qmi_test_handle;
 	struct test_ping_req_msg_v01 req = {};
 	struct qmi_txn txn;
 	int ret;
@@ -546,20 +548,23 @@ static int test_qmi_ping_pong_send_msg(void)
 	}
 
 	ret = qmi_txn_wait(&txn, 5 * HZ);
-	if (ret < 0)
-		test_count = ret;
+	if (ret < 0) {
+		pr_err("Failed to get response on the txn\n");
+		atomic_inc(&fail);
+		return ret;
+	}
 
 	atomic_inc(&pass);
 	mutex_lock(&status_print_lock);
 	update_status();
 	mutex_unlock(&status_print_lock);
-	return test_count;
+	return ret;
 
 }
 
 static int test_qmi_data_send_msg(unsigned int data_len)
 {
-	struct qmi_handle *qmi = qmi_fp->private_data;
+	struct qmi_handle *qmi = qmi_test_handle;
 	struct test_data_resp_msg_v01 *resp;
 	struct test_data_req_msg_v01 *req;
 	struct qmi_txn txn;
@@ -583,6 +588,7 @@ static int test_qmi_data_send_msg(unsigned int data_len)
 	req->data_len = data_len;
 	for (i = 0; i < req->data_len; i = i + sizeof(int))
 		memcpy(req->data + i, (uint8_t *)&i, sizeof(int));
+	req->client_name_valid = 0;
 
 	ret = qmi_txn_init(qmi, &txn, test_data_resp_msg_v01_ei, resp);
 	if (ret < 0) {
@@ -603,8 +609,11 @@ static int test_qmi_data_send_msg(unsigned int data_len)
 	ret = qmi_txn_wait(&txn, 5 * HZ);
 
 	if (ret < 0) {
+		atomic_inc(&fail);
 		goto out;
-	} else if (!resp->data_valid ||
+	}
+
+	if (!resp->data_valid ||
 			resp->data_len != req->data_len ||
 			memcmp(resp->data, req->data, req->data_len)) {
 		pr_err("response data doesn't match expectation\n");
@@ -612,11 +621,9 @@ static int test_qmi_data_send_msg(unsigned int data_len)
 		ret = -EINVAL;
 		goto out;
 	} else {
-		pr_info("Data valid\n");
+		pr_debug("Data valid\n");
 		atomic_inc(&pass);
 	}
-
-	ret = test_count;
 
 	mutex_lock(&status_print_lock);
 	update_status();
@@ -789,6 +796,8 @@ static int qmi_sample_probe(struct platform_device *pdev)
 			      qmi_sample_handlers);
 	if (ret < 0)
 		return ret;
+
+	qmi_test_handle = &sample->qmi;
 
 	sq = dev_get_platdata(&pdev->dev);
 	ret = kernel_connect(sample->qmi.sock, (struct sockaddr *)sq,
