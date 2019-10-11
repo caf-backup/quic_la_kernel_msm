@@ -647,8 +647,6 @@ static void mhi_netdev_push_skb(struct mhi_netdev *mhi_netdev,
 				mhi_result->bytes_xferd, mhi_netdev->mru);
 		skb->dev = mhi_netdev->ndev;
 		skb->protocol = mhi_netdev_ip_type_trans(*(u8 *)mhi_buf->buf);
-		if (skb_linearize(skb))
-			return;
 	} else {
 		skb_add_rx_frag(skb, 0, mhi_buf->page, ETH_HLEN,
 				mhi_result->bytes_xferd - ETH_HLEN,
