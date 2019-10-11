@@ -1177,6 +1177,7 @@ static void rmnet_force_unassociate_device(struct net_device *dev)
 		return;
 	}
 
+	LOGH("Kernel is trying to unregister %s", dev->name);
 	trace_rmnet_unregister_cb_clear_vnds(dev);
 	vnd_work = kmalloc(sizeof(*vnd_work), GFP_KERNEL);
 	if (!vnd_work) {
@@ -1261,7 +1262,6 @@ int rmnet_config_notify_cb(struct notifier_block *nb,
 	case NETDEV_UNREGISTER_FINAL:
 	case NETDEV_UNREGISTER:
 		trace_rmnet_unregister_cb_entry(dev);
-		LOGH("Kernel is trying to unregister %s", dev->name);
 		rmnet_force_unassociate_device(dev);
 		trace_rmnet_unregister_cb_exit(dev);
 		break;
