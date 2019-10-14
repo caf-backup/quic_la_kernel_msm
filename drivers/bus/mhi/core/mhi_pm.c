@@ -150,6 +150,7 @@ void mhi_set_mhi_state(struct mhi_controller *mhi_cntrl,
 			MHICTRL_MHISTATE_MASK, MHICTRL_MHISTATE_SHIFT, state);
 	}
 }
+EXPORT_SYMBOL(mhi_set_mhi_state);
 
 /* set device wake */
 void mhi_assert_dev_wake(struct mhi_controller *mhi_cntrl, bool force)
