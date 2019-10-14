@@ -39,6 +39,15 @@
 
 &uart3 {
 	status = "okay";
+	bluetooth: wcn3990-bt {
+		compatible = "qcom,wcn3990-bt";
+		vddio-supply = <&src_pp1800_l10a>;
+		vddxo-supply = <&src_pp1800_l1c>;
+		vddrf-supply = <&src_pp1304_l2c>;
+		vddch0-supply = <&src_pp3304_l10c>;
+		max-speed = <3200000>;
+		status = "okay";
+	};
 };
 
 &uart8 {
