@@ -1421,6 +1421,7 @@
 			qcom,qvpn-enabled;
 			qcom,pvxlan-enabled;
 			qcom,clmap-enabled;
+			qcom,vxlan-enabled;
 		};
 
 		nss_crypto: qcom,nss_crypto {

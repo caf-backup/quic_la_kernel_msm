@@ -364,6 +364,7 @@
 			qcom,pptp-enabled;
 			qcom,tunipip6-enabled;
 			qcom,shaping-enabled;
+			qcom,vxlan-enabled;
 			qcom,wlan-dataplane-offload-enabled;
 		};
 
