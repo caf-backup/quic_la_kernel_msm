@@ -1786,6 +1786,9 @@ static int vxlan6_xmit_skb(struct dst_entry *dst, struct sock *sk,
 
 	skb_set_inner_protocol(skb, htons(ETH_P_TEB));
 
+	/* Reset the skb_iif to Tunnels interface index */
+	skb->skb_iif = dev->ifindex;
+
 	udp_tunnel6_xmit_skb(dst, sk, skb, dev, saddr, daddr, prio,
 			     ttl, src_port, dst_port,
 			     !!(vxflags & VXLAN_F_UDP_ZERO_CSUM6_TX));
@@ -2069,6 +2072,9 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 			vxlan_encap_bypass(skb, vxlan, dst_vxlan);
 			return;
 		}
+
+		/* Reset the skb_iif to Tunnels interface index */
+		skb->skb_iif = dev->ifindex;
 
 		tos = ip_tunnel_ecn_encap(tos, old_iph, skb);
 		ttl = ttl ? : ip4_dst_hoplimit(&rt->dst);
