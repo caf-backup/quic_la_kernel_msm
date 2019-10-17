@@ -17,8 +17,46 @@
 #include <linux/mhi.h>
 #include <linux/msi.h>
 #include <linux/interrupt.h>
+#include <linux/notifier.h>
+#include <linux/io.h>
+#include <linux/gpio/consumer.h>
 #include "mhi_qti.h"
 #include "../core/mhi_internal.h"
+
+#define WDOG_TIMEOUT	30
+#define MHI_PANIC_TIMER_STEP	1000
+
+volatile int mhi_panic_timeout;
+
+void __iomem *wdt;
+
+static struct kobject *mhi_kobj;
+
+struct notifier_block *global_mhi_panic_notifier;
+
+static ssize_t sysfs_show(struct kobject *kobj, struct kobj_attribute *attr,
+			  char *buf);
+static ssize_t sysfs_store(struct kobject *kobj, struct kobj_attribute *attr,
+			   const char *buf, size_t count);
+
+static struct kobj_attribute mhi_attr =
+	__ATTR(mhi_panic_timeout, 0660, sysfs_show, sysfs_store);
+
+static ssize_t sysfs_show(struct kobject *kobj, struct kobj_attribute *attr,
+			  char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", mhi_panic_timeout);
+}
+
+static ssize_t sysfs_store(struct kobject *kobj, struct kobj_attribute *attr,
+			   const char *buf, size_t count)
+{
+	if (sscanf(buf, "%du", &mhi_panic_timeout) != 1) {
+		pr_err("failed to read timeout value from string\n");
+		return -EINVAL;
+	}
+	return count;
+}
 
 struct firmware_info {
 	unsigned int dev_id;
@@ -77,6 +115,7 @@ void mhi_deinit_pci_dev(struct mhi_controller *mhi_cntrl)
 	kfree(mhi_cntrl->irq);
 	mhi_cntrl->irq = NULL;
 	iounmap(mhi_cntrl->regs);
+	iounmap(wdt);
 	mhi_cntrl->regs = NULL;
 	pci_clear_master(pci_dev);
 	pci_release_region(pci_dev, mhi_dev->resn);
@@ -616,6 +655,75 @@ error_register:
 	return ERR_PTR(-EINVAL);
 }
 
+static int mhi_panic_handler(struct notifier_block *this,
+			     unsigned long event, void *ptr)
+{
+	int mdmreboot = 0, i;
+	struct gpio_desc *ap2mdm, *mdm2ap;
+	struct mhi_controller *mhi_cntrl = container_of(this,
+		       struct mhi_controller, mhi_panic_notifier);
+
+	ap2mdm = devm_gpiod_get_optional(mhi_cntrl->dev, "ap2mdm",
+					 GPIOD_OUT_LOW);
+	if (IS_ERR(ap2mdm))
+		return PTR_ERR(ap2mdm);
+
+	mdm2ap = devm_gpiod_get_optional(mhi_cntrl->dev, "mdm2ap", GPIOD_IN);
+	if (IS_ERR(mdm2ap))
+		return PTR_ERR(mdm2ap);
+
+
+	/*
+	 * ap2mdm_status is set to 0 to indicate the SDX
+	 * that IPQ has crashed. Now the SDX has to take
+	 * dump.
+	 */
+	gpiod_set_value(ap2mdm, 0);
+
+	if (mhi_panic_timeout) {
+		if (mhi_panic_timeout > WDOG_TIMEOUT)
+			writel(0, wdt);
+
+		for (i = 0; i < mhi_panic_timeout; i++) {
+
+			/*
+			 * Waiting for the mdm2ap status to be 0
+			 * which indicates that SDX is rebooting and entering
+			 * the crashdump path.
+			 */
+			if (!mdmreboot && gpiod_get_value(mdm2ap)) {
+				MHI_LOG("MDM is rebooting and entering the crashdump path\n");
+				mdmreboot = 1;
+			}
+
+
+			/*
+			 * Waiting for the mdm2ap status to be 1
+			 * which indicates that SDX has completed crashdump
+			 * collection and booted successfully.
+			 */
+			if (mdmreboot && !(gpiod_get_value(mdm2ap))) {
+				MHI_LOG("MDM has completed crashdump collection and booted successfully\n");
+				break;
+			}
+
+			mdelay(MHI_PANIC_TIMER_STEP);
+		}
+
+		if (mhi_panic_timeout > WDOG_TIMEOUT)
+			writel(1, wdt);
+	}
+
+	return NOTIFY_DONE;
+}
+
+void mhi_wdt_panic_handler(void)
+{
+	mhi_panic_handler(global_mhi_panic_notifier,
+			0, NULL);
+}
+EXPORT_SYMBOL(mhi_wdt_panic_handler);
+
 int mhi_pci_probe(struct pci_dev *pci_dev,
 		  const struct pci_device_id *device_id)
 {
@@ -626,6 +734,7 @@ int mhi_pci_probe(struct pci_dev *pci_dev,
 	u32 slot = PCI_SLOT(pci_dev->devfn);
 	struct mhi_dev *mhi_dev;
 	int ret;
+	bool use_panic_notifier;
 
 	/* see if we already registered */
 	mhi_cntrl = mhi_bdf_to_controller(domain, bus, slot, dev_id);
@@ -656,6 +765,33 @@ int mhi_pci_probe(struct pci_dev *pci_dev,
 
 	pm_runtime_mark_last_busy(&pci_dev->dev);
 	pm_runtime_allow(&pci_dev->dev);
+
+	use_panic_notifier = of_property_read_bool(mhi_cntrl->of_node, "mhi,use-panic-notifer");
+
+	if (use_panic_notifier) {
+		mhi_cntrl->mhi_panic_notifier.notifier_call = mhi_panic_handler;
+
+		global_mhi_panic_notifier = &(mhi_cntrl->mhi_panic_notifier);
+
+		ret = atomic_notifier_chain_register(&panic_notifier_list,
+				&mhi_cntrl->mhi_panic_notifier);
+		MHI_LOG("MHI panic notifier registered\n");
+
+		wdt = ioremap(0x0B017008, 4);
+
+		/* Creating a directory in /sys/kernel/ */
+		mhi_kobj = kobject_create_and_add("mhi", kernel_kobj);
+
+		if (mhi_kobj) {
+			/* Creating sysfs file for mhi_panic_timeout */
+			if (sysfs_create_file(mhi_kobj, &mhi_attr.attr)) {
+				MHI_ERR("Cannot create sysfs file for mhi_panic_timeout\n");
+				kobject_put(mhi_kobj);
+			}
+		} else {
+			MHI_ERR("Unable to create mhi sysfs entry\n");
+		}
+	}
 
 	MHI_LOG("Return successful\n");
 

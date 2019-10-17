@@ -34,10 +34,12 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #endif
+#include <linux/mhi.h>
 
 #define TCSR_WONCE_REG 0x193d010
 
 static int in_panic;
+bool mhi_wdt_panic_enable;
 enum wdt_reg {
 	WDT_RST,
 	WDT_EN,
@@ -1380,6 +1382,11 @@ static irqreturn_t wdt_bark_isr(int irq, void *wdd)
 	nanosec_rem = do_div(t, 1000000000);
 	pr_info("Watchdog bark! Now = %lu.%06lu\n", (unsigned long) t,
 							nanosec_rem / 1000);
+#ifdef CONFIG_MHI_BUS
+	if (mhi_wdt_panic_enable)
+		mhi_wdt_panic_handler();
+#endif
+
 	pr_info("Causing a watchdog bite!");
 	writel(0, wdt_addr(wdt, WDT_EN));
 	writel(1, wdt_addr(wdt, WDT_BITE_TIME));
@@ -1449,7 +1456,14 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 
 	wdt->dev_props = (struct qcom_wdt_props *)id->data;
 
-	if (wdt->dev_props->secure_wdog)
+	mhi_wdt_panic_enable = of_property_read_bool(np, "mhi-wdt-panic-enable");
+
+	/*
+	 * mhi-wdt-panic-enable if set, BARK and BITE time should have
+	 * enough difference for the MDM to collect crash dump and
+	 * reboot i.e BITE time should be set twice as BARK time.
+	 */
+	if (wdt->dev_props->secure_wdog && !mhi_wdt_panic_enable)
 		wdt->bite = 1;
 
 	if (irq > 0)
