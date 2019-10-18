@@ -908,8 +908,7 @@ static int fastrpc_mmap_create(struct fastrpc_file *fl, int fd,
 		else if (map->attr & FASTRPC_ATTR_COHERENT)
 			dma_set_attr(DMA_ATTR_FORCE_COHERENT, &attrs);
 
-		VERIFY(err, map->table->nents ==
-				msm_dma_map_sg_attrs(sess->smmu.dev,
+		VERIFY(err, 0 < msm_dma_map_sg_attrs(sess->smmu.dev,
 				map->table->sgl, map->table->nents,
 				DMA_BIDIRECTIONAL, map->buf, &attrs));
 			if (err)
