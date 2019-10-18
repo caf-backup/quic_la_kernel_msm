@@ -100,6 +100,7 @@ extern void qcom_scm_cpu_power_down(u32 flags);
 #define QCOM_SCM_VERSION(major, minor) (((major) << 16) | ((minor) & 0xFF))
 
 extern u32 qcom_scm_get_version(void);
+extern bool is_scm_armv8(void);
 
 extern s32 qcom_scm_pinmux_read(u32 arg1);
 extern s32 qcom_scm_pinmux_write(u32 arg1, u32 arg2);

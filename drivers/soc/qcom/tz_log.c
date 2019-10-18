@@ -335,10 +335,16 @@ static int qca_tzlog_probe(struct platform_device *pdev)
 
 	if (id) {
 		tz_hvc_log->flags = (unsigned long)id->data;
-		if (tz_hvc_log->flags & TZ_KPSS)
+		if (tz_hvc_log->flags & TZ_KPSS) {
 			tz_hvc_log->buf_len = BUF_LEN_V7;
-		else
-			tz_hvc_log->buf_len = BUF_LEN_V8;
+		} else {
+			if (is_scm_armv8()) {
+				tz_hvc_log->buf_len = BUF_LEN_V8;
+			} else {
+				tz_hvc_log->flags = 0;
+				tz_hvc_log->buf_len = BUF_LEN_V7;
+			}
+		}
 	} else {
 		tz_hvc_log->flags = 0;
 		tz_hvc_log->buf_len = BUF_LEN_V7;
