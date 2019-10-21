@@ -24,7 +24,7 @@
        interrupt-parent = <&intc>;
 
        aliases {
-               serial0 = &blsp1_uart2;
+               serial0 = &blsp1_uart1;
        };
 
        chosen {
@@ -40,7 +40,7 @@
        };
 
        soc {
-               serial@78b0000 {
+               serial@78af000 {
                        status = "ok";
                };
 
