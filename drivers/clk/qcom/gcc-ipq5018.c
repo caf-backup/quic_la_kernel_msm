@@ -25,6 +25,7 @@
 
 #include <linux/reset-controller.h>
 #include <dt-bindings/clock/qcom,gcc-ipq5018.h>
+#include <dt-bindings/reset/qcom,gcc-ipq5018.h>
 
 #include "common.h"
 #include "clk-regmap.h"
