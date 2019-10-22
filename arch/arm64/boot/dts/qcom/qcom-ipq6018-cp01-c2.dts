@@ -77,6 +77,13 @@
 	};
 
 	button_pins: button_pins {
+		mic_mute {
+			pins = "gpio21";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-up;
+			output-high;
+		};
 		mute_button {
 			pins = "gpio0";
 			function = "gpio";
