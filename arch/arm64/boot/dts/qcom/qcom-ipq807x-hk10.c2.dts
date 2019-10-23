@@ -722,6 +722,9 @@
 			default-state = "off";
 		};
 	};
+	qcom,test@0 {
+		status = "ok";
+	};
 };
 
 &serial_blsp4 {
