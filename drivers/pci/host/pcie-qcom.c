@@ -178,6 +178,22 @@
 #define PCIE_LINK_UP			0x2000
 #define PCIE_LINK_DOWN			0x2
 
+#define PCIE_ATU_CR1_OUTBOUND_6_GEN3			0xC00
+#define PCIE_ATU_CR2_OUTBOUND_6_GEN3			0xC04
+#define PCIE_ATU_LOWER_BASE_OUTBOUND_6_GEN3		0xC08
+#define PCIE_ATU_UPPER_BASE_OUTBOUND_6_GEN3		0xC0C
+#define PCIE_ATU_LIMIT_OUTBOUND_6_GEN3			0xC10
+#define PCIE_ATU_LOWER_TARGET_OUTBOUND_6_GEN3		0xC14
+#define PCIE_ATU_UPPER_TARGET_OUTBOUND_6_GEN3		0xC18
+
+#define PCIE_ATU_CR1_OUTBOUND_7_GEN3			0xE00
+#define PCIE_ATU_CR2_OUTBOUND_7_GEN3			0xE04
+#define PCIE_ATU_LOWER_BASE_OUTBOUND_7_GEN3		0xE08
+#define PCIE_ATU_UPPER_BASE_OUTBOUND_7_GEN3		0xE0C
+#define PCIE_ATU_LIMIT_OUTBOUND_7_GEN3			0xE10
+#define PCIE_ATU_LOWER_TARGET_OUTBOUND_7_GEN3		0xE14
+#define PCIE_ATU_UPPER_TARGET_OUTBOUND_7_GEN3		0xE18
+
 struct qcom_pcie_resources_v0 {
 	struct clk *iface_clk;
 	struct clk *core_clk;
@@ -1341,18 +1357,10 @@ static int qcom_pcie_init_v3(struct qcom_pcie *pcie)
 			GEN3_ZRXDC_NONCOMPL, pcie->dbi + PCIE30_GEN3_RELATED_OFF);
 	}
 
-	if (pcie->is_gen3)
-		writel(ECAM_BLOCKER_EN_RANGE2 | MAC_PHY_POWERDOWN_IN_P2_D_MUX_EN
-		| ECAM_REMOVE_OFFSET_EN | ECAM_BLOCKER_EN |
-		MST_WAKEUP_EN | SLV_WAKEUP_EN | MSTR_ACLK_CGC_DIS
-		| SLV_ACLK_CGC_DIS | AUX_PWR_DET |
-		CORE_CLK_2AUX_CLK_MUX_DIS | L23_CLK_RMV_DIS,
-		pcie->parf + PCIE20_PARF_SYS_CTRL);
-	else
-		writel(MST_WAKEUP_EN | SLV_WAKEUP_EN | MSTR_ACLK_CGC_DIS
-		| SLV_ACLK_CGC_DIS | CORE_CLK_CGC_DIS |
-		AUX_PWR_DET | L23_CLK_RMV_DIS | L1_CLK_RMV_DIS,
-		pcie->parf + PCIE20_PARF_SYS_CTRL);
+	writel(MST_WAKEUP_EN | SLV_WAKEUP_EN | MSTR_ACLK_CGC_DIS
+			| SLV_ACLK_CGC_DIS | CORE_CLK_CGC_DIS |
+			AUX_PWR_DET | L23_CLK_RMV_DIS | L1_CLK_RMV_DIS,
+			pcie->parf + PCIE20_PARF_SYS_CTRL);
 
 	writel(0, pcie->parf + PCIE20_PARF_Q2A_FLUSH);
 	if (pcie->is_gen3)
@@ -1380,19 +1388,22 @@ static int qcom_pcie_init_v3(struct qcom_pcie *pcie)
 
 	writel(LTSSM_EN, pcie->parf + PCIE20_PARF_LTSSM);
 	if (pcie->is_gen3) {
-		writel(0x20001000, pcie->parf + PARF_BLOCK_SLV_AXI_WR_BASE);
-		writel(0x20100000, pcie->parf + PARF_BLOCK_SLV_AXI_WR_LIMIT);
-		writel(0x20001000, pcie->parf + PARF_BLOCK_SLV_AXI_RD_BASE);
-		writel(0x20100000, pcie->parf + PARF_BLOCK_SLV_AXI_RD_LIMIT);
-		writel(0x20000000, pcie->parf + PARF_ECAM_BASE);
-		writel(0x20001000, pcie->parf + PARF_ECAM_OFFSET_REMOVAL_BASE);
-		writel(0x20200000, pcie->parf + PARF_ECAM_OFFSET_REMOVAL_LIMIT);
-		writel(0x20108000, pcie->parf + PARF_BLOCK_SLV_AXI_WR_BASE_2);
-		writel(0x20200000, pcie->parf + PARF_BLOCK_SLV_AXI_WR_LIMIT_2);
-		writel(0x20108000, pcie->parf + PARF_BLOCK_SLV_AXI_RD_BASE_2);
-		writel(0x20200000, pcie->parf + PARF_BLOCK_SLV_AXI_RD_LIMIT_2);
 		for (i = 0; i < 255; i++)
 			writel(0x0, pcie->parf + PARF_BDF_TO_SID_TABLE + (4 * i));
+		writel( 0x4, pcie->dm_iatu + PCIE_ATU_CR1_OUTBOUND_6_GEN3);
+		writel( 0x90000000, pcie->dm_iatu + PCIE_ATU_CR2_OUTBOUND_6_GEN3);
+		writel( 0x0, pcie->dm_iatu + PCIE_ATU_LOWER_BASE_OUTBOUND_6_GEN3);
+		writel( 0x0, pcie->dm_iatu + PCIE_ATU_UPPER_BASE_OUTBOUND_6_GEN3);
+		writel( 0x00107FFFF, pcie->dm_iatu + PCIE_ATU_LIMIT_OUTBOUND_6_GEN3);
+		writel( 0x0, pcie->dm_iatu + PCIE_ATU_LOWER_TARGET_OUTBOUND_6_GEN3);
+		writel( 0x0, pcie->dm_iatu + PCIE_ATU_UPPER_TARGET_OUTBOUND_6_GEN3);
+		writel( 0x5, pcie->dm_iatu + PCIE_ATU_CR1_OUTBOUND_7_GEN3);
+		writel( 0x90000000, pcie->dm_iatu + PCIE_ATU_CR2_OUTBOUND_7_GEN3);
+		writel( 0x200000, pcie->dm_iatu + PCIE_ATU_LOWER_BASE_OUTBOUND_7_GEN3);
+		writel( 0x0, pcie->dm_iatu+ PCIE_ATU_UPPER_BASE_OUTBOUND_7_GEN3);
+		writel( 0x7FFFFF, pcie->dm_iatu + PCIE_ATU_LIMIT_OUTBOUND_7_GEN3);
+		writel( 0x0, pcie->dm_iatu + PCIE_ATU_LOWER_TARGET_OUTBOUND_7_GEN3);
+		writel( 0x0, pcie->dm_iatu + PCIE_ATU_UPPER_TARGET_OUTBOUND_7_GEN3);
 	}
 
 	phy_power_off(pcie->phy);
@@ -1425,8 +1436,6 @@ static int qcom_pcie_host_init(struct pcie_port *pp)
 	ret = phy_power_on(pcie->phy);
 	if (ret)
 		goto err_deinit;
-
-	dw_pcie_setup_rc(pp);
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		if (!pp->msi_gicm_addr)
