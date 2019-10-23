@@ -84,14 +84,14 @@ static const struct clk_ops clk_dummy_ops = {
 	.determine_rate = clk_dummy_determine_rate,
 };
 
-#define DEFINE_DUMMY_CLK(clk_name) 			\
-(&(struct clk_regmap) {                                 \
-	.hw.init = &(struct clk_init_data){             \
-	.name = #clk_name,                              \
-	.parent_names = (const char *[]){ "xo"},        \
-	.num_parents = 1,                               \
-	.ops = &clk_dummy_ops,                          \
-	},                                              \
+#define DEFINE_DUMMY_CLK(clk_name)			\
+(&(struct clk_regmap) {					\
+	.hw.init = &(struct clk_init_data){		\
+	.name = #clk_name,				\
+	.parent_names = (const char *[]){ "xo"},	\
+	.num_parents = 1,				\
+	.ops = &clk_dummy_ops,				\
+	},						\
 })
 
 static struct clk_regmap *gcc_ipq5018_clks[] = {
@@ -136,9 +136,9 @@ static struct clk_regmap *gcc_ipq5018_clks[] = {
 	[UBI_MPT_CLK_SRC] = DEFINE_DUMMY_CLK(ubi_mpt_clk_src),
 	[BLSP1_QUP1_I2C_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_qup1_i2c_apps_clk_src),
 	[BLSP1_QUP1_SPI_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_qup1_spi_apps_clk_src),
-        [BLSP1_QUP2_I2C_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_qup2_i2c_apps_clk_src),
-        [BLSP1_QUP2_SPI_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_qup2_spi_apps_clk_src),
-        [BLSP1_QUP3_I2C_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_qup3_i2c_apps_clk_src),
+	[BLSP1_QUP2_I2C_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_qup2_i2c_apps_clk_src),
+	[BLSP1_QUP2_SPI_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_qup2_spi_apps_clk_src),
+	[BLSP1_QUP3_I2C_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_qup3_i2c_apps_clk_src),
 	[BLSP1_QUP3_SPI_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_qup3_spi_apps_clk_src),
 	[BLSP1_QUP4_I2C_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_qup4_i2c_apps_clk_src),
 	[BLSP1_QUP4_SPI_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_qup4_spi_apps_clk_src),
