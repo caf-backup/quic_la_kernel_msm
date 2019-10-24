@@ -3184,6 +3184,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Lazy RCU callbacks are those which RCU can
 			prove do nothing more than free memory.
 
+	rcutree.rcu_cpu_stall_panic= [KNL]
+			Panic when CPU stall
+
 	rcutorture.cbflood_inter_holdoff= [KNL]
 			Set holdoff time (jiffies) between successive
 			callback-flood tests.
