@@ -146,7 +146,7 @@ static struct rproc_ops ipq60xx_q6v5_rproc_ops;
 
 #define	OPEN_TIMEOUT	5000
 #define	DUMP_TIMEOUT	10000
-#define	NUM_WCSS_CLKS	8
+#define	NUM_WCSS_CLKS	9
 
 static struct timer_list dump_timeout;
 static struct completion dump_complete;
@@ -187,7 +187,8 @@ static const char *wcss_clk_names[NUM_WCSS_CLKS] = {"wcss_axi_m_clk",
 							"q6ss_pclkdbg_clk",
 							"q6_tsctr_1to2_clk",
 							"wcss_core_tbu_clk",
-							"wcss_q6_tbu_clk"
+							"wcss_q6_tbu_clk",
+							"gcc_q6_ahb_clk"
 							};
 
 static void ipq60xx_wcss_clks_disable(struct device *dev, int count)
