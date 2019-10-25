@@ -553,6 +553,7 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-ipq6018-cp01-c2.dtb \
 	qcom-ipq6018-db-cp01.dtb \
 	qcom-ipq6018-db-cp02.dtb \
+	qcom-ipq5018-emulation-c1.dtb \
 	qcom-ipq6018-emulation-c1.dtb \
 	qcom-ipq6018-emulation-c2.dtb \
 	qcom-ipq6018-emulation-c3.dtb
