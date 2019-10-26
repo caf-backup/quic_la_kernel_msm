@@ -75,21 +75,15 @@
 #define PCIE_PHY_DEBUG_R1		(PLR_OFFSET + 0x2c)
 #define PCIE_PHY_DEBUG_R1_LINK_UP	0x00000010
 
-#define PCIE_ATU_CR1_OUTBOUND_6_GEN3			0xC00
-#define PCIE_ATU_CR2_OUTBOUND_6_GEN3			0xC04
-#define PCIE_ATU_LOWER_BASE_OUTBOUND_6_GEN3		0xC08
-#define PCIE_ATU_UPPER_BASE_OUTBOUND_6_GEN3		0xC0C
-#define PCIE_ATU_LIMIT_OUTBOUND_6_GEN3			0xC10
-#define PCIE_ATU_LOWER_TARGET_OUTBOUND_6_GEN3		0xC14
-#define PCIE_ATU_UPPER_TARGET_OUTBOUND_6_GEN3		0xC18
+#define PCIE_IATU_BASE(n)	(n * 0x200)
 
-#define PCIE_ATU_CR1_OUTBOUND_7_GEN3			0xE00
-#define PCIE_ATU_CR2_OUTBOUND_7_GEN3			0xE04
-#define PCIE_ATU_LOWER_BASE_OUTBOUND_7_GEN3		0xE08
-#define PCIE_ATU_UPPER_BASE_OUTBOUND_7_GEN3		0xE0C
-#define PCIE_ATU_LIMIT_OUTBOUND_7_GEN3			0xE10
-#define PCIE_ATU_LOWER_TARGET_OUTBOUND_7_GEN3		0xE14
-#define PCIE_ATU_UPPER_TARGET_OUTBOUND_7_GEN3		0xE18
+#define PCIE_IATU_CTRL1(n)	(PCIE_IATU_BASE(n) + 0x00)
+#define PCIE_IATU_CTRL2(n)	(PCIE_IATU_BASE(n) + 0x04)
+#define PCIE_IATU_LBAR(n)	(PCIE_IATU_BASE(n) + 0x08)
+#define PCIE_IATU_UBAR(n)	(PCIE_IATU_BASE(n) + 0x0c)
+#define PCIE_IATU_LAR(n)	(PCIE_IATU_BASE(n) + 0x10)
+#define PCIE_IATU_LTAR(n)	(PCIE_IATU_BASE(n) + 0x14)
+#define PCIE_IATU_UTAR(n)	(PCIE_IATU_BASE(n) + 0x18)
 
 static struct pci_ops dw_pcie_ops;
 
@@ -174,20 +168,23 @@ static void dw_pcie_prog_outbound_atu(struct pcie_port *pp, int index,
 		int type, u64 cpu_addr, u64 pci_addr, u32 size)
 {
 	if (pp->is_gen3) {
-		dw_pcie_writel_rc_gen3(pp, 0x4, PCIE_ATU_CR1_OUTBOUND_6_GEN3);
-		dw_pcie_writel_rc_gen3(pp, 0x90000000, PCIE_ATU_CR2_OUTBOUND_6_GEN3);
-		dw_pcie_writel_rc_gen3(pp, 0x0, PCIE_ATU_LOWER_BASE_OUTBOUND_6_GEN3);
-		dw_pcie_writel_rc_gen3(pp, 0x0, PCIE_ATU_UPPER_BASE_OUTBOUND_6_GEN3);
-		dw_pcie_writel_rc_gen3(pp, 0x00107FFFF, PCIE_ATU_LIMIT_OUTBOUND_6_GEN3);
-		dw_pcie_writel_rc_gen3(pp, 0x0, PCIE_ATU_LOWER_TARGET_OUTBOUND_6_GEN3);
-		dw_pcie_writel_rc_gen3(pp, 0x0, PCIE_ATU_UPPER_TARGET_OUTBOUND_6_GEN3);
-		dw_pcie_writel_rc_gen3(pp, 0x5, PCIE_ATU_CR1_OUTBOUND_7_GEN3);
-		dw_pcie_writel_rc_gen3(pp, 0x90000000, PCIE_ATU_CR2_OUTBOUND_7_GEN3);
-		dw_pcie_writel_rc_gen3(pp, 0x200000, PCIE_ATU_LOWER_BASE_OUTBOUND_7_GEN3);
-		dw_pcie_writel_rc_gen3(pp, 0x0, PCIE_ATU_UPPER_BASE_OUTBOUND_7_GEN3);
-		dw_pcie_writel_rc_gen3(pp, 0x7FFFFF, PCIE_ATU_LIMIT_OUTBOUND_7_GEN3);
-		dw_pcie_writel_rc_gen3(pp, 0x0, PCIE_ATU_LOWER_TARGET_OUTBOUND_7_GEN3);
-		dw_pcie_writel_rc_gen3(pp, 0x0, PCIE_ATU_UPPER_TARGET_OUTBOUND_7_GEN3);
+		dw_pcie_writel_rc_gen3(pp, 0, PCIE_IATU_CTRL2(index));
+		wmb();
+		dw_pcie_writel_rc_gen3(pp, type, PCIE_IATU_CTRL1(index));
+		dw_pcie_writel_rc_gen3(pp, lower_32_bits(cpu_addr),
+					PCIE_IATU_LBAR(index));
+		dw_pcie_writel_rc_gen3(pp, upper_32_bits(cpu_addr),
+					PCIE_IATU_UBAR(index));
+		dw_pcie_writel_rc_gen3(pp, lower_32_bits(cpu_addr + size - 1),
+					PCIE_IATU_LAR(index));
+		dw_pcie_writel_rc_gen3(pp, lower_32_bits(pci_addr),
+					PCIE_IATU_LTAR(index));
+		dw_pcie_writel_rc_gen3(pp, upper_32_bits(pci_addr),
+					PCIE_IATU_UTAR(index));
+		wmb();
+		dw_pcie_writel_rc_gen3(pp, BIT(31), PCIE_IATU_CTRL2(index));
+		wmb();
+
 	} else {
 		dw_pcie_writel_rc(pp, PCIE_ATU_REGION_OUTBOUND | index,
 				PCIE_ATU_VIEWPORT);
@@ -620,10 +617,8 @@ int dw_pcie_host_init(struct pcie_port *pp)
 
 	cfg_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "config");
 	if (cfg_res) {
-		pp->cfg0_size = resource_size(cfg_res)/2;
-		pp->cfg1_size = resource_size(cfg_res)/2;
+		pp->cfg0_size = resource_size(cfg_res);
 		pp->cfg0_base = cfg_res->start;
-		pp->cfg1_base = cfg_res->start + pp->cfg0_size;
 	} else if (!pp->va_cfg0_base) {
 		dev_err(pp->dev, "missing *config* reg space\n");
 	}
@@ -655,10 +650,8 @@ int dw_pcie_host_init(struct pcie_port *pp)
 			break;
 		case 0:
 			pp->cfg = win->res;
-			pp->cfg0_size = resource_size(pp->cfg)/2;
-			pp->cfg1_size = resource_size(pp->cfg)/2;
+			pp->cfg0_size = resource_size(pp->cfg);
 			pp->cfg0_base = pp->cfg->start;
-			pp->cfg1_base = pp->cfg->start + pp->cfg0_size;
 			break;
 		case IORESOURCE_BUS:
 			pp->busn = win->res;
@@ -684,15 +677,6 @@ int dw_pcie_host_init(struct pcie_port *pp)
 						pp->cfg0_size);
 		if (!pp->va_cfg0_base) {
 			dev_err(pp->dev, "error with ioremap in function\n");
-			return -ENOMEM;
-		}
-	}
-
-	if (!pp->va_cfg1_base) {
-		pp->va_cfg1_base = devm_ioremap(pp->dev, pp->cfg1_base,
-						pp->cfg1_size);
-		if (!pp->va_cfg1_base) {
-			dev_err(pp->dev, "error with ioremap\n");
 			return -ENOMEM;
 		}
 	}
@@ -841,16 +825,13 @@ static int dw_pcie_rd_other_conf(struct pcie_port *pp, struct pci_bus *bus,
 	busdev = PCIE_ATU_BUS(bus->number) | PCIE_ATU_DEV(PCI_SLOT(devfn)) |
 		 PCIE_ATU_FUNC(PCI_FUNC(devfn));
 
+	cpu_addr = pp->cfg0_base;
+	cfg_size = pp->cfg0_size;
+	va_cfg_base = pp->va_cfg0_base;
 	if (bus->parent->number == pp->root_bus_nr) {
 		type = PCIE_ATU_TYPE_CFG0;
-		cpu_addr = pp->cfg0_base;
-		cfg_size = pp->cfg0_size;
-		va_cfg_base = pp->va_cfg0_base;
 	} else {
 		type = PCIE_ATU_TYPE_CFG1;
-		cpu_addr = pp->cfg1_base;
-		cfg_size = pp->cfg1_size;
-		va_cfg_base = pp->va_cfg1_base;
 	}
 
 	dw_pcie_prog_outbound_atu(pp, PCIE_ATU_REGION_INDEX0,
@@ -875,16 +856,13 @@ static int dw_pcie_wr_other_conf(struct pcie_port *pp, struct pci_bus *bus,
 	busdev = PCIE_ATU_BUS(bus->number) | PCIE_ATU_DEV(PCI_SLOT(devfn)) |
 		 PCIE_ATU_FUNC(PCI_FUNC(devfn));
 
+	cpu_addr = pp->cfg0_base;
+	cfg_size = pp->cfg0_size;
+	va_cfg_base = pp->va_cfg0_base;
 	if (bus->parent->number == pp->root_bus_nr) {
 		type = PCIE_ATU_TYPE_CFG0;
-		cpu_addr = pp->cfg0_base;
-		cfg_size = pp->cfg0_size;
-		va_cfg_base = pp->va_cfg0_base;
 	} else {
 		type = PCIE_ATU_TYPE_CFG1;
-		cpu_addr = pp->cfg1_base;
-		cfg_size = pp->cfg1_size;
-		va_cfg_base = pp->va_cfg1_base;
 	}
 
 	dw_pcie_prog_outbound_atu(pp, PCIE_ATU_REGION_INDEX0,
