@@ -1139,11 +1139,15 @@ recycle:
 rmnet_perf_chain_hook_t rmnet_perf_chain_end __rcu __read_mostly;
 EXPORT_SYMBOL(rmnet_perf_chain_end);
 
+#include <linux/rmnet_nss.h>
+
 void rmnet_frag_ingress_handler(struct sk_buff *skb,
 				struct rmnet_port *port)
 {
 	rmnet_perf_chain_hook_t rmnet_perf_opt_chain_end;
 	LIST_HEAD(desc_list);
+	int i = 0;
+	struct rmnet_nss_cb *nss_cb;
 
 	/* Deaggregation and freeing of HW originating
 	 * buffers is done within here
@@ -1151,17 +1155,27 @@ void rmnet_frag_ingress_handler(struct sk_buff *skb,
 	while (skb) {
 		struct sk_buff *skb_frag;
 
-		rmnet_frag_deaggregate(skb_shinfo(skb)->frags, port,
-				       &desc_list);
-		if (!list_empty(&desc_list)) {
-			struct rmnet_frag_descriptor *frag_desc, *tmp;
+		port->chain_head = NULL;
+		port->chain_tail = NULL;
 
-			list_for_each_entry_safe(frag_desc, tmp, &desc_list,
-						 list) {
-				list_del_init(&frag_desc->list);
-				__rmnet_frag_ingress_handler(frag_desc, port);
+		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+			rmnet_frag_deaggregate(&skb_shinfo(skb)->frags[i], port,
+					       &desc_list);
+			if (!list_empty(&desc_list)) {
+				struct rmnet_frag_descriptor *frag_desc, *tmp;
+
+				list_for_each_entry_safe(frag_desc, tmp,
+							 &desc_list, list) {
+					list_del_init(&frag_desc->list);
+					__rmnet_frag_ingress_handler(frag_desc,
+								     port);
+				}
 			}
 		}
+
+		nss_cb = rcu_dereference(rmnet_nss_callbacks);
+		if (nss_cb && port->chain_head)
+			netif_receive_skb(port->chain_head);
 
 		skb_frag = skb_shinfo(skb)->frag_list;
 		skb_shinfo(skb)->frag_list = NULL;
