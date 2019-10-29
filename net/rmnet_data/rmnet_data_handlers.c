@@ -29,6 +29,7 @@
 #include "rmnet_data_stats.h"
 #include "rmnet_data_trace.h"
 #include "rmnet_data_handlers.h"
+#include <linux/rmnet_nss.h>
 
 RMNET_LOG_MODULE(RMNET_DATA_LOGMASK_HANDLER);
 
@@ -325,10 +326,21 @@ static rx_handler_result_t __rmnet_deliver_skb(struct sk_buff *skb,
 					 struct rmnet_logical_ep_conf_s *ep)
 {
 	struct napi_struct *napi = NULL;
+	struct rmnet_nss_cb *nss_cb;
 	gro_result_t gro_res;
 	unsigned int skb_size;
 
 	trace___rmnet_deliver_skb(skb);
+
+	/* Pass off the packet to NSS driver if we can */
+	nss_cb = rcu_dereference(rmnet_nss_callbacks);
+	if (nss_cb) {
+		int rc = nss_cb->nss_tx(skb);
+
+		if (rc >= 0)
+			return RX_HANDLER_CONSUMED;
+	}
+
 	switch (ep->rmnet_mode) {
 	case RMNET_EPMODE_NONE:
 		return RX_HANDLER_PASS;

@@ -451,12 +451,12 @@ static struct sk_buff *rmnet_alloc_skb(struct rmnet_frag_descriptor *frag_desc,
 	if (frag_desc->hdrs_valid) {
 		u16 hdr_len = frag_desc->ip_len + frag_desc->trans_len;
 
-		head_skb = alloc_skb(hdr_len + RMNET_MAP_DEAGGR_HEADROOM,
+		head_skb = alloc_skb(hdr_len + RMNET_MAP_DESC_HEADROOM,
 				     GFP_ATOMIC);
 		if (!head_skb)
 			return NULL;
 
-		skb_reserve(head_skb, RMNET_MAP_DEAGGR_HEADROOM);
+		skb_reserve(head_skb, RMNET_MAP_DESC_HEADROOM);
 		skb_put_data(head_skb, frag_desc->hdr_ptr, hdr_len);
 		skb_reset_network_header(head_skb);
 
@@ -480,12 +480,12 @@ static struct sk_buff *rmnet_alloc_skb(struct rmnet_frag_descriptor *frag_desc,
 		/* Allocate enough space to avoid penalties in the stack
 		 * from __pskb_pull_tail()
 		 */
-		head_skb = alloc_skb(256 + RMNET_MAP_DEAGGR_HEADROOM,
+		head_skb = alloc_skb(256 + RMNET_MAP_DESC_HEADROOM,
 				     GFP_ATOMIC);
 		if (!head_skb)
 			return NULL;
 
-		skb_reserve(head_skb, RMNET_MAP_DEAGGR_HEADROOM);
+		skb_reserve(head_skb, RMNET_MAP_DESC_HEADROOM);
 	}
 
 	/* Add main fragment */
@@ -559,9 +559,12 @@ skip_frags:
 	}
 
 	/* Handle csum offloading */
-	if (frag_desc->csum_valid) {
+	if (frag_desc->csum_valid && frag_desc->hdrs_valid) {
 		/* Set the partial checksum information */
 		rmnet_frag_partial_csum(head_skb, frag_desc);
+	} else if (frag_desc->csum_valid) {
+		/* Non-RSB/RSC/perf packet. The current checksum is fine */
+		head_skb->ip_summed = CHECKSUM_UNNECESSARY;
 	} else if (frag_desc->hdrs_valid &&
 		   (frag_desc->trans_proto == IPPROTO_TCP ||
 		    frag_desc->trans_proto == IPPROTO_UDP)) {

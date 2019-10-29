@@ -30,6 +30,7 @@
 #include "rmnet_data_vnd.h"
 #include "rmnet_data_stats.h"
 #include "rmnet_data_trace.h"
+#include <linux/rmnet_nss.h>
 
 RMNET_LOG_MODULE(RMNET_DATA_LOGMASK_VND);
 
@@ -571,6 +572,7 @@ int rmnet_vnd_create_dev(int id, struct net_device **new_device,
 			 const char *prefix, int use_name)
 {
 	struct net_device *dev;
+	struct rmnet_nss_cb *nss_cb;
 	char dev_prefix[IFNAMSIZ];
 	int p, rc = 0;
 
@@ -636,6 +638,19 @@ int rmnet_vnd_create_dev(int id, struct net_device **new_device,
 
 	rmnet_vnd_disable_offload(dev);
 
+	nss_cb = rcu_dereference(rmnet_nss_callbacks);
+	if (nss_cb) {
+		rc = nss_cb->nss_create(dev);
+		if (rc) {
+			/* Log, but don't fail the device creation */
+			LOGH("Device %s will not use NSS path: %d",
+			     dev->name, rc);
+			rc = 0;
+		} else {
+			LOGH("NSS context for %s created", dev->name);
+		}
+	}
+
 	LOGM("Registered device %s", dev->name);
 	return rc;
 }
@@ -660,6 +675,7 @@ int rmnet_vnd_free_dev(int id)
 {
 	struct rmnet_logical_ep_conf_s *epconfig_l;
 	struct net_device *dev;
+	struct rmnet_nss_cb *nss_cb;
 
 	rtnl_lock();
 	if ((id < 0) || (id >= RMNET_DATA_MAX_VND) || !rmnet_devices[id]) {
@@ -679,6 +695,9 @@ int rmnet_vnd_free_dev(int id)
 	rtnl_unlock();
 
 	if (dev) {
+		nss_cb = rcu_dereference(rmnet_nss_callbacks);
+		if (nss_cb)
+			nss_cb->nss_free(dev);
 		unregister_netdev(dev);
 		free_netdev(dev);
 		return 0;
