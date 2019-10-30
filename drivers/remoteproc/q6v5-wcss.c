@@ -146,7 +146,7 @@ static struct rproc_ops ipq60xx_q6v5_rproc_ops;
 
 #define	OPEN_TIMEOUT	5000
 #define	DUMP_TIMEOUT	10000
-#define	NUM_WCSS_CLKS	9
+#define	NUM_WCSS_CLKS	ARRAY_SIZE(wcss_clk_names)
 
 static struct timer_list dump_timeout;
 static struct completion dump_complete;
@@ -157,7 +157,6 @@ static atomic_t open_timedout;
 
 static const struct file_operations q6_dump_ops;
 static struct class *dump_class;
-static struct clk *wcss_clks[NUM_WCSS_CLKS];
 
 struct dump_file_private {
 	int ehdr_remaining_bytes;
@@ -180,7 +179,7 @@ struct dumpdev {
 	struct list_head dump_segments;
 } q6dump = {"q6mem", &q6_dump_ops, FMODE_UNSIGNED_OFFSET | FMODE_EXCL};
 
-static const char *wcss_clk_names[NUM_WCSS_CLKS] = {"wcss_axi_m_clk",
+static const char *wcss_clk_names[] = {"wcss_axi_m_clk",
 							"sys_noc_wcss_ahb_clk",
 							"q6_axim_clk",
 							"q6ss_atbm_clk",
@@ -190,6 +189,8 @@ static const char *wcss_clk_names[NUM_WCSS_CLKS] = {"wcss_axi_m_clk",
 							"wcss_q6_tbu_clk",
 							"gcc_q6_ahb_clk"
 							};
+
+static struct clk *wcss_clks[NUM_WCSS_CLKS];
 
 static void ipq60xx_wcss_clks_disable(struct device *dev, int count)
 {
