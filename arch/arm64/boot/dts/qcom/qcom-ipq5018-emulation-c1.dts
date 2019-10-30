@@ -49,6 +49,14 @@
 			clock-frequency = <240000>;
 		};
 
+		qpic_bam: dma@7984000{
+			status = "ok";
+		};
+
+		nand: qpic-nand@79b0000 {
+			status = "ok";
+		};
+
 		spi_0: spi@78b5000 { /* BLSP1 QUP0 */
 			status = "ok";
 
