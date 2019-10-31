@@ -389,7 +389,7 @@ static int cnss_qmi_pin_result_ind_hdlr(struct cnss_plat_data *plat_priv,
 					void *msg, unsigned int msg_len)
 {
 	struct msg_desc ind_desc;
-	struct wlfw_pin_connect_result_ind_msg_v01 ind_msg;
+	struct wlfw_pin_connect_result_ind_msg_v01 ind_msg = {0};
 	int ret = 0;
 
 	memset(&ind_msg, 0, sizeof(ind_msg));
@@ -1153,10 +1153,12 @@ out:
 }
 
 static void cnss_wlfw_qdss_trace_req_mem_ind_cb(struct cnss_plat_data
-						*plat_priv, const void *data)
+						*plat_priv, void *msg,
+						unsigned int msg_len)
 {
-	const struct wlfw_qdss_trace_req_mem_ind_msg_v01 *ind_msg = data;
-	int i;
+	struct msg_desc ind_desc;
+	struct wlfw_qdss_trace_req_mem_ind_msg_v01 ind_msg;
+	int ret, i;
 
 	cnss_pr_dbg("Received QMI WLFW QDSS trace request mem indication\n");
 
@@ -1166,12 +1168,29 @@ static void cnss_wlfw_qdss_trace_req_mem_ind_cb(struct cnss_plat_data
 		return;
 	}
 
-	plat_priv->qdss_mem_seg_len = ind_msg->mem_seg_len;
+	ind_desc.msg_id = QMI_WLFW_QDSS_TRACE_REQ_MEM_IND_V01;
+	ind_desc.max_msg_len = WLFW_QDSS_TRACE_REQ_MEM_IND_MSG_V01_MAX_MSG_LEN;
+	ind_desc.ei_array = wlfw_qdss_trace_req_mem_ind_msg_v01_ei;
+
+	ret = qmi_kernel_decode(&ind_desc, &ind_msg, msg, msg_len);
+	if (ret < 0) {
+		cnss_pr_err("Failed to decode QDSS mem req ind, msg_len: %u, err = %d\n",
+			    ret, msg_len);
+		return;
+	}
+
+	plat_priv->qdss_mem_seg_len = ind_msg.mem_seg_len;
+	if (ind_msg.mem_seg_len > 1) {
+		cnss_pr_dbg("FW requests %d segments, overwriting it with 1",
+			    ind_message.mem_seg_len);
+		plat_priv->qdss_mem_seg_len = 1;
+	}
+
 	for (i = 0; i < plat_priv->qdss_mem_seg_len; i++) {
 		cnss_pr_dbg("QDSS requests for memory, size: 0x%zx, type: %u\n",
-			    ind_msg->mem_seg[i].size, ind_msg->mem_seg[i].type);
-		plat_priv->qdss_mem[i].type = ind_msg->mem_seg[i].type;
-		plat_priv->qdss_mem[i].size = ind_msg->mem_seg[i].size;
+			    ind_msg.mem_seg[i].size, ind_msg.mem_seg[i].type);
+		plat_priv->qdss_mem[i].type = ind_msg.mem_seg[i].type;
+		plat_priv->qdss_mem[i].size = ind_msg.mem_seg[i].size;
 	}
 
 	cnss_driver_event_post(plat_priv, CNSS_DRIVER_EVENT_QDSS_TRACE_REQ_MEM,
@@ -1290,7 +1309,7 @@ static void cnss_wlfw_clnt_ind(struct qmi_handle *handle,
 		cnss_qmi_pin_result_ind_hdlr(plat_priv, msg, msg_len);
 		break;
 	case QMI_WLFW_QDSS_TRACE_REQ_MEM_IND_V01:
-		cnss_wlfw_qdss_trace_req_mem_ind_cb(plat_priv, msg);
+		cnss_wlfw_qdss_trace_req_mem_ind_cb(plat_priv, msg, msg_len);
 		break;
 	case QMI_WLFW_QDSS_TRACE_SAVE_IND_V01:
 		cnss_wlfw_qdss_trace_save_ind_cb(plat_priv, msg);
@@ -1329,10 +1348,8 @@ int cnss_wlfw_qdss_trace_mem_info_send_sync(struct cnss_plat_data *plat_priv)
 
 	req->mem_seg_len = plat_priv->qdss_mem_seg_len;
 	for (i = 0; i < req->mem_seg_len; i++) {
-		cnss_pr_dbg("Memory for FW, va: 0x%pK, pa: %pa, size: 0x%zx, type: %u\n",
-			    qdss_mem[i].va, &qdss_mem[i].pa,
-			    qdss_mem[i].size, qdss_mem[i].type);
-
+		cnss_pr_dbg("Memory for FW, pa: 0x%x, size: 0x%x, type: %u\n",
+			    qdss_mem[i].pa, qdss_mem[i].size, qdss_mem[i].type);
 		req->mem_seg[i].addr = qdss_mem[i].pa;
 		req->mem_seg[i].size = qdss_mem[i].size;
 		req->mem_seg[i].type = qdss_mem[i].type;
@@ -1353,7 +1370,7 @@ int cnss_wlfw_qdss_trace_mem_info_send_sync(struct cnss_plat_data *plat_priv)
 		goto out;
 	}
 
-	cnss_pr_err("QDSS trace mem info response , result: %d, err: 0x%X\n",
+	cnss_pr_dbg("QDSS trace mem info response , result: %d, err: 0x%X\n",
 		    resp.resp.result, resp.resp.error);
 	if (resp.resp.result != QMI_RESULT_SUCCESS_V01) {
 		cnss_pr_err("QDSS trace meminfo req failed,res: %d,err: 0x%X\n",
