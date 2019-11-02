@@ -1654,6 +1654,12 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
+static int br_ndisc_send_na_finish(struct net *net, struct sock *sk,
+				   struct sk_buff *skb)
+{
+	return dev_queue_xmit(skb);
+}
+
 static int br_ndisc_send_na(struct net_device *dev,
 			    const struct in6_addr *daddr,
 			    const struct in6_addr *solicited_addr,
@@ -1773,9 +1779,8 @@ static int br_ndisc_send_na(struct net_device *dev,
 	idev = __in6_dev_get(dst->dev);
 	IP6_UPD_PO_STATS(net, idev, IPSTATS_MIB_OUT, skb->len);
 
-	err = NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT, dev_net(dev),
-		      NULL, skb, NULL, dst->dev,
-		      dest_hw ? br_dev_queue_push_xmit : dst_output);
+	err = NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT, net, sk, skb, NULL,
+		      dst->dev, dest_hw ? br_ndisc_send_na_finish : dst_output);
 
 	if (!err) {
 		ICMP6MSGOUT_INC_STATS(net, idev, type);
