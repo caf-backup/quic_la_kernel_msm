@@ -801,7 +801,7 @@
 };
 
 &pcie1 {
-	status = "disabled";
+	status = "ok";
 };
 
 &pcie0_rp {
