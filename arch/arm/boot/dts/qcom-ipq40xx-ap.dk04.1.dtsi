@@ -323,6 +323,8 @@
 					qcom,mtd-name = "0:ART";
 					qcom,cal-offset = <0x9000>;
 					qcom,cal-len = <12064>;
+					qcom,wifi-dump = <0x87900000>;
+					qcom,dump-len = <2097152>;
 				};
 			};
 		};
@@ -416,6 +418,8 @@
 			qcom,mtd-name = "0:ART";
 			qcom,cal-offset = <0x1000>;
 			qcom,cal-len = <12064>;
+			qcom,wifi-dump = <0x87500000>;
+			qcom,dump-len = <2097152>;
 		};
 
 		wifi1: wifi@a800000 {
@@ -424,5 +428,7 @@
 			qcom,mtd-name = "0:ART";
 			qcom,cal-offset = <0x5000>;
 			qcom,cal-len = <12064>;
+			qcom,wifi-dump = <0x87700000>;
+			qcom,dump-len = <2097152>;
 		};
 	};
