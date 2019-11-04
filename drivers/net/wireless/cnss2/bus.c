@@ -13,6 +13,7 @@
 #include "pci.h"
 #include "bus.h"
 #include "debug.h"
+#include <linux/of_address.h>
 
 static enum cnss_dev_bus_type cnss_get_dev_bus_type(struct device *dev)
 {
@@ -49,6 +50,10 @@ int cnss_bus_alloc_qdss_mem(struct cnss_plat_data *plat_priv)
 {
 	int i;
 	int bus_type;
+	struct device_node *dev_node = NULL;
+	struct resource q6_etr;
+	int num_addr_cell, num_size_cell, ret;
+	unsigned int registerdetails[4] = {0};
 
 	if (!plat_priv)
 		return -ENODEV;
@@ -59,12 +64,28 @@ int cnss_bus_alloc_qdss_mem(struct cnss_plat_data *plat_priv)
 	case CNSS_BUS_PCI:
 		return cnss_pci_alloc_qdss_mem(plat_priv->bus_priv);
 	case CNSS_BUS_AHB:
+		dev_node = of_find_node_by_name(NULL, "q6_etr_dump");
+		if (!dev_node) {
+			cnss_pr_err("No q6_etr_dump available in dts");
+			return -ENOMEM;
+		}
+
+		ret = of_address_to_resource(dev_node, 0, &q6_etr);
+		if (ret) {
+			cnss_pr_err("Failed to get resource for q6_etr_dump");
+			return -EINVAL;
+		}
+
 		for (i = 0; i < plat_priv->qdss_mem_seg_len; i++) {
 			plat_priv->qdss_mem[i].va = NULL;
-			plat_priv->qdss_mem[i].pa = 0;
-			plat_priv->qdss_mem[i].size = 0;
-			plat_priv->qdss_mem[i].type = 0;
-		    }
+			plat_priv->qdss_mem[i].pa = q6_etr.start;
+			plat_priv->qdss_mem[i].size = resource_size(&q6_etr);
+			plat_priv->qdss_mem[i].type = QMI_WLFW_MEM_QDSS_V01;
+			cnss_pr_dbg("QDSS mem addr 0x%x, size 0x%x",
+				    plat_priv->qdss_mem[i].pa,
+				    plat_priv->qdss_mem[i].size);
+		}
+
 		return 0;
 	default:
 		cnss_pr_err("Unsupported bus type:%d\n", bus_type);
