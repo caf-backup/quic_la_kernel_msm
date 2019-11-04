@@ -796,6 +796,12 @@
 	status = "disabled";
 };
 
+&serial_blsp2 {
+	pinctrl-0 = <&hsuart_pins>;
+	pinctrl-names = "default";
+	status = "ok";
+};
+
 &pcie0 {
 	status = "ok";
 };
