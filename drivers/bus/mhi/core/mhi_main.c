@@ -932,11 +932,8 @@ static int parse_xfer_event(struct mhi_controller *mhi_cntrl,
 		local_rp = tre_ring->rp;
 		while (local_rp != dev_rp) {
 			buf_info = buf_ring->rp;
-			/* if it's last tre get len from the event */
-			if (local_rp == ev_tre)
-				xfer_len = MHI_TRE_GET_EV_LEN(event);
-			else
-				xfer_len = buf_info->len;
+			/* Always get the get len from the event */
+			xfer_len = MHI_TRE_GET_EV_LEN(event);
 
 			/* unmap if it's not premapped by client */
 			if (likely(!buf_info->pre_mapped))
