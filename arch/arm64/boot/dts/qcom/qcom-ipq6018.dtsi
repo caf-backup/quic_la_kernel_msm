@@ -1665,9 +1665,14 @@
 				rpm_requests {
 					qcom,glink-channels = "IPCRTR";
 				};
+
+				qcom,msm_fastrpc_rpmsg {
+					compatible = "qcom,msm-fastrpc-rpmsg";
+					qcom,glink-channels = "fastrpcglink-apps-dsp";
+					qcom,intents = <0x64 64>;
+				};
 			};
 		};
-
 
 		ess-switch@3a000000 {
 			compatible = "qcom,ess-switch-ipq60xx";
