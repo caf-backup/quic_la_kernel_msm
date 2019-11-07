@@ -162,7 +162,7 @@ static struct clk_regmap *apss_ipq6018_clks[] = {
 
 static const struct alpha_pll_config apss_pll_config = {
 	.l = 0x37,
-	.config_ctl_val = 0x00141200,
+	.config_ctl_val = 0x04141200,
 	.config_ctl_hi_val = 0x0,
 	.early_output_mask = BIT(3),
 	.main_output_mask = BIT(0),
