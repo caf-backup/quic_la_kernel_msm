@@ -802,7 +802,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 			case CALDB_MEM_REGION_TYPE:
 				if (fw_mem[i].size > Q6_CALDB_SIZE_QCA6290) {
 					pr_err("Error: Need more memory %x\n",
-					       fw_mem[i].size);
+					       (unsigned int)fw_mem[i].size);
 					CNSS_ASSERT(0);
 				}
 				fw_mem[i].pa = Q6_CALDB_ADDR_QCA6290;
@@ -811,7 +811,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 			case HOST_DDR_REGION_TYPE:
 				if (fw_mem[i].size > Q6_HOST_ADDR_SZ_QCA6290) {
 					pr_err("Error: Need more memory %x\n",
-					       fw_mem[i].size);
+					       (unsigned int)fw_mem[i].size);
 					CNSS_ASSERT(0);
 				}
 				fw_mem[i].pa = Q6_HOST_ADDR_QCA6290;
@@ -858,7 +858,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 			case CALDB_MEM_REGION_TYPE:
 				if (fw_mem[i].size > Q6_CALDB_SIZE) {
 					pr_err("Error: Need more memory %x\n",
-					       fw_mem[i].size);
+					       (unsigned int)fw_mem[i].size);
 					CNSS_ASSERT(0);
 					return -ENOMEM;
 				}

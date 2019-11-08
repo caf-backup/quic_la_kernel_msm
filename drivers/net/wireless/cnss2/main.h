@@ -196,7 +196,8 @@ struct cnss_plat_data {
 	struct work_struct event_work;
 	struct workqueue_struct *event_wq;
 	struct workqueue_struct *qmi_resp_wq;
-	struct qmi_handle *qmi_wlfw_clnt;
+	struct qmi_handle qmi_wlfw;
+	struct sockaddr_qrtr sq;
 	struct work_struct qmi_recv_msg_work;
 	struct notifier_block qmi_wlfw_clnt_nb;
 	struct wlfw_rf_chip_info_s_v01 chip_info;

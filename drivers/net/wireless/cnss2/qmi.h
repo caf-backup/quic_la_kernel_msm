@@ -28,6 +28,7 @@
 #define Q6_CALDB_ADDR 0x50000000
 #define Q6_CALDB_SIZE 0x480000
 #define QMI_HISTORY_SIZE 128
+
 struct qmi_history {
 	u16  msg_id;
 	u8  error_msg;
@@ -40,6 +41,11 @@ extern int qmi_history_index;
 
 
 struct cnss_plat_data;
+struct cnss_qmi_event_server_arrive_data {
+	unsigned int node;
+	unsigned int port;
+
+};
 extern bool daemon_support;
 extern bool cold_boot_support;
 
@@ -60,7 +66,7 @@ struct cnss_qmi_event_qdss_trace_save_data {
 void cnss_dump_qmi_history(void);
 int cnss_qmi_init(struct cnss_plat_data *plat_priv);
 void cnss_qmi_deinit(struct cnss_plat_data *plat_priv);
-int cnss_wlfw_server_arrive(struct cnss_plat_data *plat_priv);
+int cnss_wlfw_server_arrive(struct cnss_plat_data *plat_priv, void *data);
 int cnss_wlfw_server_exit(struct cnss_plat_data *plat_priv);
 int cnss_wlfw_respond_mem_send_sync(struct cnss_plat_data *plat_priv);
 int cnss_wlfw_tgt_cap_send_sync(struct cnss_plat_data *plat_priv);

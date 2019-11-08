@@ -53,8 +53,7 @@ int cnss_bus_alloc_qdss_mem(struct cnss_plat_data *plat_priv)
 	int bus_type;
 	struct device_node *dev_node = NULL;
 	struct resource q6_etr;
-	int num_addr_cell, num_size_cell, ret;
-	unsigned int registerdetails[4] = {0};
+	int ret;
 
 	if (!plat_priv)
 		return -ENODEV;
@@ -83,8 +82,8 @@ int cnss_bus_alloc_qdss_mem(struct cnss_plat_data *plat_priv)
 			plat_priv->qdss_mem[i].size = resource_size(&q6_etr);
 			plat_priv->qdss_mem[i].type = QMI_WLFW_MEM_QDSS_V01;
 			cnss_pr_dbg("QDSS mem addr 0x%x, size 0x%x",
-				    plat_priv->qdss_mem[i].pa,
-				    plat_priv->qdss_mem[i].size);
+				    (unsigned int)plat_priv->qdss_mem[i].pa,
+				    (unsigned int)plat_priv->qdss_mem[i].size);
 		}
 
 		return 0;
