@@ -897,6 +897,13 @@ static void qrtr_node_rx_work(struct kthread_work *work)
 			if (!ipc) {
 				kfree_skb(skb);
 			} else {
+				/* Translate DEL_PROC to BYE for local enqueue */
+				if (cb->type == QRTR_TYPE_DEL_PROC) {
+					cb->type = QRTR_TYPE_BYE;
+					pkt = (struct qrtr_ctrl_pkt *)skb->data;
+					memset(pkt, 0, sizeof(struct qrtr_ctrl_pkt));
+					pkt->cmd = cpu_to_le32(QRTR_TYPE_BYE);
+				}
 				if (sock_queue_rcv_skb(&ipc->sk, skb))
 					kfree_skb(skb);
 
