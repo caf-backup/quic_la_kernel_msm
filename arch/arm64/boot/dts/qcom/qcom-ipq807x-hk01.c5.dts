@@ -1161,7 +1161,7 @@
 				mhi,chan = "IP_HW0";
 				mhi,interface-name = "rmnet_mhi";
 				mhi,mru = <0x4000>;
-				mhi,disable-chain-skb;
+				mhi,chain-skb;
 			};
 
 			mhi_rmnet@1 {
