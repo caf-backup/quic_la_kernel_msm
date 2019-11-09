@@ -4,8 +4,9 @@
 #
 
 obj-$(CONFIG_REMOTEPROC)		+= remoteproc.o
-obj-$(CONFIG_IPQ807X_REMOTEPROC)	+= q6v5-wcss.o rproc_mdt_loader.o q6v5-m3.o
+obj-$(CONFIG_IPQ807X_REMOTEPROC)	+= q6v5-wcss.o q6v5-m3.o
 obj-$(CONFIG_IPQ_REMOTEPROC_ADSP)	+= q6v6-adsp.o
+obj-$(CONFIG_QCOM_MDT_LOADER)		+= rproc_mdt_loader.o
 remoteproc-y				:= remoteproc_core.o
 remoteproc-y				+= remoteproc_debugfs.o
 remoteproc-y				+= remoteproc_sysfs.o

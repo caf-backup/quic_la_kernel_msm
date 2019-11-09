@@ -17,6 +17,8 @@ config IPQ807X_REMOTEPROC
 	tristate "IPQ807x Q6-WCSS rproc support"
 	depends on REMOTEPROC && QCOM_SMP2P
 	select IPQ_SUBSYTEM_DUMP
+	select QCOM_MDT_LOADER
+	select QCOM_SCM
 	help
 	  Say y here to support IPQ807x q6v5 wcss remote processors
 	  via the remote processor framework. Q6v5 WCSS are DSP remote
@@ -26,7 +28,9 @@ config IPQ807X_REMOTEPROC
 config IPQ_REMOTEPROC_ADSP
 	tristate "IPQ Q6-ADSP rproc support"
 	depends on REMOTEPROC && QCOM_SMP2P
-	select IPQ_SUBSYTEM_DUMP
+	select IPQ_SUBSYSTEM_DUMP
+	select QCOM_MDT_LOADER
+	select QCOM_SCM
 	help
 	  Say y here to support IPQ q6v6 adsp remote processors
 	  via the remote processor framework. Q6v6 ADSP are DSP remote
