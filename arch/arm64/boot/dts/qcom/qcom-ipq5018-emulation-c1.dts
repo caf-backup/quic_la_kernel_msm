@@ -24,6 +24,7 @@
 	interrupt-parent = <&intc>;
 
 	aliases {
+		sdhc1 = &sdhc_1; /* SDC1 eMMC slot */
 		serial0 = &blsp1_uart1;
 	};
 
@@ -48,4 +49,13 @@
 			clock-frequency = <240000>;
 		};
 	};
+};
+
+&sdhc_1 {
+	qcom,clk-rates = <400000 25000000 50000000 100000000 \
+			 192000000 384000000>;
+	qcom,bus-speed-mode = "DDR_1p8v";
+	qcom,nonremovable;
+	qcom,emulation = <1>;
+	status = "ok";
 };

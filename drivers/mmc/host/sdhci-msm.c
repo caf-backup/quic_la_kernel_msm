@@ -174,7 +174,7 @@
 #define SDHCI_BASE_SDCLK_FREQ		0xc800
 #define SDHCI_TIMEOUT_CLK_FREQ		0xb2
 
-#define SDHC_EMU_MAX_CLOCKS	4
+#define SDHC_EMU_MAX_CLOCKS	5
 
 struct sdhci_msm_offset {
 	u32 CORE_MCI_DATA_CNT;
@@ -3132,6 +3132,9 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	host->caps1 = SDHCI_SUPPORT_SDR104 | SDHCI_SUPPORT_SDR50 |
 			SDHCI_SUPPORT_DDR50;
 	host->quirks  |= SDHCI_QUIRK_MISSING_CAPS;
+
+	if (msm_host->emulation)
+		host->quirks2 |= SDHCI_QUIRK2_BROKEN_HS200;
 
 	/*
 	 * Set the PAD_PWR_SWTICH_EN bit so that the PAD_PWR_SWITCH bit can
