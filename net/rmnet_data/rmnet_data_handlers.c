@@ -337,13 +337,8 @@ static rx_handler_result_t __rmnet_deliver_skb(struct sk_buff *skb,
 	if (nss_cb) {
 		int rc = nss_cb->nss_tx(skb);
 
-		if (!rc)
+		if (rc >= 0)
 			return RX_HANDLER_CONSUMED;
-		else if (rc > 0)
-			/* NSS had a problem. Clean up and just handle it
-			 * ourselves as normal.
-			 */
-			nss_cb->nss_rx(skb);
 	}
 
 	switch (ep->rmnet_mode) {
