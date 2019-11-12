@@ -162,10 +162,14 @@ static struct clk_regmap *apss_ipq6018_clks[] = {
 
 static const struct alpha_pll_config apss_pll_config = {
 	.l = 0x37,
-	.config_ctl_val = 0x00141200,
-	.config_ctl_hi_val = 0x0,
+	.config_ctl_val = 0x240D4828,
+	.config_ctl_hi_val = 0x6,
 	.early_output_mask = BIT(3),
+	.aux2_output_mask = BIT(2),
+	.aux_output_mask = BIT(1),
 	.main_output_mask = BIT(0),
+	.test_ctl_val = 0x1C0000C0,
+	.test_ctl_hi_val = 0x4000,
 };
 
 static const struct of_device_id apss_ipq6018_match_table[] = {
