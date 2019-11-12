@@ -496,7 +496,7 @@ static void rmnet_vnd_setup(struct net_device *dev)
 	/* Raw IP mode */
 	dev->header_ops = 0;  /* No header */
 	dev->type = ARPHRD_RAWIP;
-	dev->hard_header_len = 0;
+	dev->hard_header_len = RMNET_QMAP_HEADER_LENGTH;
 	dev->flags &= ~(IFF_BROADCAST | IFF_MULTICAST);
 
 	/* This perm addr will be used as interface identifier by IPv6 */
