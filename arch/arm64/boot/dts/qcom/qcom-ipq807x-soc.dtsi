@@ -1768,6 +1768,10 @@
 			qcom,msi-gicm-base = <0x1d0>;
 
 			status = "ok";
+
+			pcie1_rp: pcie1_rp {
+				reg = <0 0 0 0 0>;
+			};
 		};
 
 		ledc: ledc@191E000  {

@@ -17,6 +17,8 @@
 #include <linux/mhi.h>
 #include "mhi_internal.h"
 
+#define QRTR_INSTANCE_MASK	0x0000FFFF
+#define QRTR_INSTANCE_SHIFT	0
 
 /* setup rddm vector table for rddm transfer */
 static void mhi_rddm_prepare(struct mhi_controller *mhi_cntrl,
@@ -464,6 +466,7 @@ void mhi_fw_load_worker(struct work_struct *work)
 	void *buf;
 	dma_addr_t dma_addr;
 	size_t size;
+	u32 instance;
 
 	mhi_cntrl = container_of(work, struct mhi_controller, fw_worker);
 
@@ -582,6 +585,17 @@ void mhi_fw_load_worker(struct work_struct *work)
 			       &image_info->mhi_buf[image_info->entries - 1]);
 
 	MHI_LOG("amss fw_load, ret:%d\n", ret);
+
+	if (!ret && mhi_cntrl->dev->of_node) {
+		ret = of_property_read_u32(mhi_cntrl->dev->of_node,
+					   "qrtr_instance_id", &instance);
+		if (!ret) {
+			instance &= QRTR_INSTANCE_MASK;
+			mhi_write_reg_field(mhi_cntrl, mhi_cntrl->bhi,
+					    BHI_ERRDBG3, QRTR_INSTANCE_MASK,
+					    QRTR_INSTANCE_SHIFT, instance);
+		}
+	}
 
 	release_firmware(firmware);
 

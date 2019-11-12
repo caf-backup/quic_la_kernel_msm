@@ -809,3 +809,19 @@
 &pcie1 {
 	status = "ok";
 };
+
+&pcie0_rp {
+	status = "ok";
+
+	mhi_0: qcom,mhi@0 {
+		qrtr_instance_id = <0x8001>;
+	};
+};
+
+&pcie1_rp {
+	status = "ok";
+
+	mhi_1: qcom,mhi@1 {
+		qrtr_instance_id = <0x8002>;
+	};
+};
