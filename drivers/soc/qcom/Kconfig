@@ -184,6 +184,20 @@ config MSM_RPM_GLINK
 	 Say M here if you want to include support for the QCA RPM as a
 	 module. This will build a module called "qcom-rpm-glink".
 
+config MSM_RPM_RPMSG
+	tristate "QCA Resource Power Manager (RPM) over GLINK RPMSG"
+	depends on RPMSG && OF
+	help
+	 If you say yes to this option, support will be included for the
+	 Resource Power Manager system found in the QTI 8974 based
+	 devices.
+
+	 This is required to access many regulators, clocks and bus
+	 frequencies controlled by the RPM on these devices.
+
+	 Say M here if you want to include support for the QCA RPM as a
+	 module. This will build a module called "qcom-rpm-rpmsg".
+
 config MSM_RPM_LOG
 	tristate "QCOM Resource Power Manager Log Driver"
 	depends on MFD_QCOM_RPM

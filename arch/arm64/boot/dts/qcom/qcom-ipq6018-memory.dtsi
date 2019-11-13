@@ -119,6 +119,11 @@
 			no-map;
 			reg = <0x0 0x4D300000 0x0 0x100000>;
 		};
+
+		rpm_msg_ram: rpm_msg_ram@0x60000 {
+			no-map;
+			reg = <0x0 0x60000 0x0 0x6000>;
+		};
 	};
 
 	/*		    512 MB Profile
@@ -218,6 +223,11 @@
 			no-map;
 			reg = <0x0 0x4E200000 0x0 0x100000>;
 		};
+
+		rpm_msg_ram: rpm_msg_ram@0x60000 {
+			no-map;
+			reg = <0x0 0x60000 0x0 0x6000>;
+		};
 	};
 
 	/*		  Default Profile
@@ -316,6 +326,11 @@
 		q6_etr_region: q6_etr_dump@1 {
 			no-map;
 			reg = <0x0 0x50000000 0x0 0x100000>;
+		};
+
+		rpm_msg_ram: rpm_msg_ram@0x60000 {
+			no-map;
+			reg = <0x0 0x60000 0x0 0x6000>;
 		};
 	};
 #endif

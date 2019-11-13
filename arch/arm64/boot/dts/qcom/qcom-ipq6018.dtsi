@@ -887,6 +887,12 @@
 			#mbox-cells = <1>;
 		};
 
+		apcs_rpm: mailboxrpm@b111000 {
+			compatible = "qcom,msm8996-apcs-hmss-global";
+			qcom,ipc = <&apcs 8 0>;
+			#mbox-cells = <1>;
+		};
+
 		smem: qcom,smem@4AA00000 {
 			compatible = "qcom,smem";
 			memory-region = <&smem_region>;
@@ -927,6 +933,20 @@
 			label = "rpm";
 			qcom,subsys-id = <6>;
 			status = "ok";
+		};
+
+		rpmsg_rpm: qcom,rpmsg-rpm@60000 {
+			compatible = "qcom,glink-rpm";
+			qcom,rpm-msg-ram = <&rpm_msg_ram>;
+			interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
+			label = "rpm";
+			qcom,subsys-id = <6>;
+			mboxes = <&apcs_rpm 8>;
+			status = "ok";
+			glink_edge {
+				qcom,glink-channels = "rpm_requests";
+				qcom,rpm-channel-type = <15>;
+			};
 		};
 
 		rpm_bus: qcom,rpm-glink {
