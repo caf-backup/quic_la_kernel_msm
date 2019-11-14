@@ -834,6 +834,7 @@
 			qcom,igs-enabled;
 			qcom,vxlan-enabled;
 			qcom,match-enabled;
+			qcom,mirror-enabled;
 			npu-supply = <&npu_vreg>;
 			mx-supply = <&ipq807x_s5_corner>;
 		};
