@@ -4912,7 +4912,7 @@ static struct clk_branch gcc_sys_noc_qdss_stm_axi_clk = {
 				"qdss_stm_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -4929,7 +4929,7 @@ static struct clk_branch gcc_qdss_stm_clk = {
 				"qdss_stm_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -4946,7 +4946,7 @@ static struct clk_branch gcc_qdss_traceclkin_clk = {
 				"qdss_traceclkin_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
