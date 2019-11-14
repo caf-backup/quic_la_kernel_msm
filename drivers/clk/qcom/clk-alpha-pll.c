@@ -522,7 +522,7 @@ alpha_pll_huayra_round_rate(unsigned long rate, unsigned long prate,
 			    u32 *l, u32 *a)
 {
 	unsigned long remainder;
-	unsigned long quotient;
+	unsigned long long quotient;
 
 	quotient = rate;
 	remainder = do_div(quotient, prate);
@@ -533,7 +533,7 @@ alpha_pll_huayra_round_rate(unsigned long rate, unsigned long prate,
 		return rate;
 	}
 
-	quotient = remainder << PLL_HUAYRA_ALPHA_WIDTH;
+	quotient = (unsigned long long)remainder << PLL_HUAYRA_ALPHA_WIDTH;
 	remainder = do_div(quotient, prate);
 
 	if (remainder)
