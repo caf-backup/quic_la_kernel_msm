@@ -36,6 +36,7 @@ static int secure_buffer_change_chunk(u32 chunks, u32 nchunks,
 	kmap_flush_unused();
 	kmap_atomic_flush_unused();
 
+	request.chunks.chunk_list = chunks;
 	request.chunks.chunk_list_size = nchunks;
 	request.chunks.chunk_size = chunk_size;
 	/* Usage is now always 0 */
