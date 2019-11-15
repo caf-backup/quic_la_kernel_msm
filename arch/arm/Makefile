@@ -13,6 +13,8 @@
 # Ensure linker flags are correct
 LDFLAGS		:=
 
+KASAN_SANITIZE := n
+
 LDFLAGS_vmlinux	:=-p --no-undefined -X --pic-veneer
 ifeq ($(CONFIG_CPU_ENDIAN_BE8),y)
 LDFLAGS_vmlinux	+= --be8
