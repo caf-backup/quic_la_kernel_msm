@@ -886,6 +886,7 @@
 			qcom,qvpn-enabled;
 			qcom,pvxlan-enabled;
 			qcom,clmap-enabled;
+			qcom,rmnet_rx-enabled;
 		};
 
 		nss_crypto: qcom,nss_crypto {
@@ -1475,7 +1476,7 @@
 
 		};
 
-                qcom,usbbam@8B04000 {
+		qcom,usbbam@8B04000 {
 			compatible = "qcom,usb-bam-msm";
 			reg = <0x8B04000 0x17000>;
 			interrupt-parent = <&intc>;
