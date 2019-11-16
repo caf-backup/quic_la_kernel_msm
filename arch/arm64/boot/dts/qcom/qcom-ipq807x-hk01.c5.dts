@@ -76,6 +76,13 @@
 			drive-strength = <8>;
 			bias-pull-down;
 		};
+		ap2mdm_status {
+			pins = "gpio26";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-up;
+			output-high;
+		};
 	};
 
 	pcie_wake_pins: pcie0_wake_gpio {
