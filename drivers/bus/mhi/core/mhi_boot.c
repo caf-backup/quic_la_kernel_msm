@@ -20,6 +20,76 @@
 #define QRTR_INSTANCE_MASK	0x0000FFFF
 #define QRTR_INSTANCE_SHIFT	0
 
+#define MAX_RAMDUMP_TABLE_SIZE	6
+#define COREDUMP_DESC		"Q6-COREDUMP"
+
+typedef struct
+{
+	uint64_t base_address;
+	uint64_t actual_phys_address;
+	uint64_t size;
+	char description[20];
+	char file_name[20];
+}ramdump_entry;
+
+typedef struct
+{
+	uint32_t version;
+	uint32_t header_size;
+	ramdump_entry ramdump_table[MAX_RAMDUMP_TABLE_SIZE];
+}ramdump_header_t;
+
+void get_crash_reason(struct mhi_controller *mhi_cntrl)
+{
+	int i;
+	uint64_t coredump_offset = 0;
+	struct image_info *rddm_image;
+	ramdump_header_t *ramdump_header;
+	ramdump_entry *ramdump_table;
+	struct mhi_buf *mhi_buf;
+	char *msg = ERR_PTR(-EPROBE_DEFER);
+
+	rddm_image = mhi_cntrl->rddm_image;
+	mhi_buf = rddm_image->mhi_buf;
+
+	/* Get RDDM header size */
+	ramdump_header = (ramdump_header_t *)mhi_buf[0].buf;
+	ramdump_table = ramdump_header->ramdump_table;
+	coredump_offset += ramdump_header->header_size;
+
+	/* Traverse ramdump table to get coredump offset */
+	i = 0;
+	while(i < MAX_RAMDUMP_TABLE_SIZE) {
+		if (!strncmp(ramdump_table->description, COREDUMP_DESC,
+			sizeof(COREDUMP_DESC))) {
+			break;
+		}
+		coredump_offset += ramdump_table->size;
+		ramdump_table++;
+		i++;
+	}
+
+	if( i == MAX_RAMDUMP_TABLE_SIZE) {
+		MHI_LOG("Cannot find '%s' entry in ramdump\n", COREDUMP_DESC);
+		return;
+	}
+
+	/* Locate coredump data from the ramdump segments */
+	for (i = 0; i < rddm_image->entries; i++) {
+		if (coredump_offset < mhi_buf[i].len) {
+			msg = mhi_buf[i].buf + coredump_offset;
+			break;
+		} else {
+			coredump_offset -= mhi_buf[i].len;
+		}
+	}
+
+	if (!IS_ERR(msg) && msg && msg[0])
+		MHI_LOG("Crash Reason: %s\n", msg);
+}
+
+
+
 /* setup rddm vector table for rddm transfer */
 static void mhi_rddm_prepare(struct mhi_controller *mhi_cntrl,
 			     struct image_info *img_info)
@@ -127,6 +197,7 @@ static int __mhi_download_rddm_in_panic(struct mhi_controller *mhi_cntrl)
 
 		if (rx_status == BHIE_RXVECSTATUS_STATUS_XFER_COMPL) {
 			MHI_LOG("RDDM successfully collected\n");
+			get_crash_reason(mhi_cntrl);
 			return 0;
 		}
 
@@ -220,6 +291,9 @@ int mhi_download_rddm_img(struct mhi_controller *mhi_cntrl, bool in_panic)
 
 	if (MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state))
 		return -EIO;
+
+	if (rx_status == BHIE_RXVECSTATUS_STATUS_XFER_COMPL)
+		get_crash_reason(mhi_cntrl);
 
 	return (rx_status == BHIE_RXVECSTATUS_STATUS_XFER_COMPL) ? 0 : -EIO;
 }
