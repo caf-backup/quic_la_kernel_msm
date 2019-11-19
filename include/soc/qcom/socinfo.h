@@ -291,6 +291,11 @@ int __init socinfo_init(void) __must_check;
 #define CPU_IPQ8173  398
 #define CPU_IPQ8174  399
 
+/* TBD the CHIP IDs */
+#define CPU_IPQ5000 400
+#define CPU_IPQ5010 401
+#define CPU_IPQ5018 402
+
 static inline const int* read_ipq_soc_version_major(void)
 {
 	const int *prop;
@@ -557,6 +562,33 @@ static inline int cpu_is_ipq8174(void)
 #endif
 }
 
+static inline int cpu_is_ipq5000(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ5000;
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq5010(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ5010;
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq5018(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ5018;
+#else
+	return 0;
+#endif
+}
+
 static inline int cpu_is_ipq807x(void)
 {
 #ifdef CONFIG_ARCH_QCOM
@@ -568,6 +600,16 @@ static inline int cpu_is_ipq807x(void)
 		cpu_is_ipq8070a() || cpu_is_ipq8071a() ||
 		cpu_is_ipq8172() || cpu_is_ipq8173() ||
 		cpu_is_ipq8174();
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq50xx(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return  cpu_is_ipq5000() || cpu_is_ipq5010() ||
+		cpu_is_ipq5018();
 #else
 	return 0;
 #endif
