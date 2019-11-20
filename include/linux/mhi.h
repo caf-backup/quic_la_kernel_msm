@@ -4,6 +4,8 @@
 #ifndef _MHI_H_
 #define _MHI_H_
 
+#include <linux/dma-direction.h>
+
 struct mhi_chan;
 struct mhi_event;
 struct mhi_ctxt;
@@ -290,6 +292,7 @@ struct mhi_controller {
 	void *log_buf;
 	struct dentry *dentry;
 	struct dentry *parent;
+	struct notifier_block mhi_panic_notifier;
 };
 
 /**
@@ -651,6 +654,8 @@ static inline bool mhi_is_active(struct mhi_device *mhi_dev)
  * @mhi_cntrl: MHI controller
  */
 void mhi_debug_reg_dump(struct mhi_controller *mhi_cntrl);
+
+void mhi_wdt_panic_handler(void);
 
 #ifndef CONFIG_ARCH_QCOM
 

@@ -50,20 +50,7 @@
 &tlmm {
 	pinctrl-0 = <&pcie_sdx_gpio>;
 	pinctrl-names = "default";
-
 	pcie_sdx_gpio: pcie_sdx_gpio {
-		mdm2ap_status {
-			pins = "gpio25";
-			function = "gpio";
-			drive-strength = <8>;
-			bias-pull-down;
-		};
-		ap2mdm_status {
-			pins = "gpio26";
-			function = "gpio";
-			drive-strength = <8>;
-			bias-pull-down;
-		};
 		ap2mdm_err_ftl {
 			pins = "gpio27";
 			function = "gpio";
@@ -782,6 +769,10 @@
 	};
 };
 
+&watchdog {
+	mhi-wdt-panic-enable;
+};
+
 &pcie0_rp {
 
 	#address-cells = <5>;
@@ -795,6 +786,9 @@
 	mhi_0: qcom,mhi@0 {
 		reg = <0 0 0 0 0 >;
 
+		ap2mdm-gpio = <&tlmm 26 0>;
+		mdm2ap-gpio = <&tlmm 25 0>;
+
 		/* controller specific configuration */
 		qcom,iommu-dma = "disabled";
 
@@ -802,6 +796,8 @@
 		/* mhi bus specific settings */
 		mhi,max-channels = <110>;
 		mhi,timeout = <60000>;
+
+		mhi,use-panic-notifer;
 
 		mhi_channels: mhi_channels {
 			#address-cells = <1>;
