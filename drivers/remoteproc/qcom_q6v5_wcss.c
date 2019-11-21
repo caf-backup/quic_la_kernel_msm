@@ -8,13 +8,14 @@
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
+#include <linux/soc/qcom/smem.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/soc/qcom/mdt_loader.h>
-#include "qcom_common.h"
 #include "qcom_q6v5.h"
+#include "qcom_common.h"
 #include <linux/rpmsg/qcom_glink.h>
 #include <linux/interrupt.h>
 #include <linux/qcom_scm.h>
@@ -417,8 +418,48 @@ static void crashdump_init(struct rproc *rproc, struct rproc_dump_segment *segme
 {
 	return;
 }
+
 #endif /* CONFIG_IPQ_SS_DUMP */
 
+#ifdef CONFIG_CNSS2
+static int crashdump_init_new(int check, const struct subsys_desc *subsys)
+{
+	struct qcom_q6v5 *q6v5 = subsys_to_pdata(subsys);
+	struct rproc *rproc = q6v5->rproc;
+	struct rproc_dump_segment *segment = NULL;
+	void *dest = NULL;
+
+	crashdump_init(rproc, segment, dest);
+	return 0;
+}
+
+static int start_q6(const struct subsys_desc *subsys)
+{
+	struct qcom_q6v5 *q6v5 = subsys_to_pdata(subsys);
+	struct rproc *rproc = q6v5->rproc;
+	int ret = 0;
+
+	ret = rproc_boot(rproc);
+	if (ret)
+		pr_err("couldn't boot q6v5: %d\n", ret);
+	else
+		q6v5->running = true;
+
+	return ret;
+}
+
+static int stop_q6(const struct subsys_desc *subsys, bool force_stop)
+{
+	struct qcom_q6v5 *q6v5 = subsys_to_pdata(subsys);
+	struct rproc *rproc = q6v5->rproc;
+	int ret = 0;
+
+	rproc_shutdown(rproc);
+
+	q6v5->running = false;
+	return ret;
+}
+#endif
 
 static int q6v5_wcss_reset(struct q6v5_wcss *wcss)
 {
@@ -1006,6 +1047,7 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 	int ret;
 	const char *firmware_name;
 	struct q6_platform_data *pdata;
+	struct qcom_q6v5 *q6v5;
 
 	ret = of_property_read_string(pdev->dev.of_node, "firmware",
 		&firmware_name);
@@ -1036,10 +1078,35 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 	if (ret)
 		goto free_rproc;
 
-	ret = qcom_q6v5_init(&wcss->q6v5, pdev, rproc, WCSS_CRASH_REASON, NULL);
+	q6v5 = &wcss->q6v5;
+	ret = qcom_q6v5_init(q6v5, pdev, rproc, WCSS_CRASH_REASON, NULL);
 	if (ret)
 		goto free_rproc;
 
+#ifdef CONFIG_CNSS2
+	/*
+	 * subsys-register
+	 */
+	q6v5->subsys_desc.is_not_loadable = 0;
+	q6v5->subsys_desc.name = pdev->dev.of_node->name;
+	q6v5->subsys_desc.dev = &pdev->dev;
+	q6v5->subsys_desc.owner = THIS_MODULE;
+	q6v5->subsys_desc.shutdown = stop_q6;
+	q6v5->subsys_desc.powerup = start_q6;
+	q6v5->subsys_desc.ramdump = crashdump_init_new;
+	q6v5->subsys_desc.err_fatal_handler = q6v5_fatal_interrupt;
+	q6v5->subsys_desc.stop_ack_handler = q6v5_ready_interrupt;
+	q6v5->subsys_desc.wdog_bite_handler = q6v5_wdog_interrupt;
+
+	q6v5->subsys = subsys_register(&q6v5->subsys_desc);
+	if (IS_ERR(q6v5->subsys)) {
+		dev_err(&pdev->dev, "failed to register with ssr\n");
+		ret = PTR_ERR(q6v5->subsys);
+		goto free_rproc;
+	}
+	dev_info(wcss->dev, "ssr registeration success %s\n",
+					q6v5->subsys_desc.name);
+#endif
 	rproc->auto_boot = false;
 	ret = rproc_add(rproc);
 	if (ret)
@@ -1097,10 +1164,15 @@ static int q6v5_wcss_remove(struct platform_device *pdev)
 {
 	struct rproc *rproc = platform_get_drvdata(pdev);
 	struct q6v5_wcss *wcss;
+	struct qcom_q6v5 *q6v5;
 
 	wcss = rproc->priv;
 	wcss->dev = &pdev->dev;
+	q6v5 = &wcss->q6v5;
 
+#ifdef CONFIG_CNSS2
+	subsys_unregister(q6v5->subsys);
+#endif
 	rproc_del(rproc);
 	qcom_remove_glink_subdev(rproc, &wcss->glink_subdev);
 	qcom_remove_ssr_subdev(rproc, &wcss->ssr_subdev);

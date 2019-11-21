@@ -48,9 +48,13 @@ int qcom_q6v5_unprepare(struct qcom_q6v5 *q6v5)
 }
 EXPORT_SYMBOL_GPL(qcom_q6v5_unprepare);
 
-static irqreturn_t q6v5_wdog_interrupt(int irq, void *data)
+irqreturn_t q6v5_wdog_interrupt(int irq, void *data)
 {
+#ifdef CONFIG_CNSS2
+	struct qcom_q6v5 *q6v5 = subsys_to_pdata(data);
+#else
 	struct qcom_q6v5 *q6v5 = data;
+#endif
 	size_t len;
 	char *msg;
 
@@ -66,14 +70,23 @@ static irqreturn_t q6v5_wdog_interrupt(int irq, void *data)
 	else
 		dev_err(q6v5->dev, "watchdog without message\n");
 
+#ifdef CONFIG_CNSS2
+	subsys_set_crash_status(q6v5->subsys, CRASH_STATUS_WDOG_BITE);
+	subsystem_restart_dev(q6v5->subsys);
+#else
 	rproc_report_crash(q6v5->rproc, RPROC_WATCHDOG);
+#endif
 
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t q6v5_fatal_interrupt(int irq, void *data)
+irqreturn_t q6v5_fatal_interrupt(int irq, void *data)
 {
+#ifdef CONFIG_CNSS2
+	struct qcom_q6v5 *q6v5 = subsys_to_pdata(data);
+#else
 	struct qcom_q6v5 *q6v5 = data;
+#endif
 	size_t len;
 	char *msg;
 
@@ -84,12 +97,18 @@ static irqreturn_t q6v5_fatal_interrupt(int irq, void *data)
 		dev_err(q6v5->dev, "fatal error without message\n");
 
 	q6v5->running = false;
+
+#ifdef CONFIG_CNSS2
+	subsys_set_crash_status(q6v5->subsys, CRASH_STATUS_ERR_FATAL);
+	subsystem_restart_dev(q6v5->subsys);
+#else
 	rproc_report_crash(q6v5->rproc, RPROC_FATAL_ERROR);
+#endif
 
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t q6v5_ready_interrupt(int irq, void *data)
+irqreturn_t q6v5_ready_interrupt(int irq, void *data)
 {
 	struct qcom_q6v5 *q6v5 = data;
 
@@ -131,6 +150,7 @@ static irqreturn_t q6v5_handover_interrupt(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+#if !defined(CONFIG_CNSS2)
 static irqreturn_t q6v5_stop_interrupt(int irq, void *data)
 {
 	struct qcom_q6v5 *q6v5 = data;
@@ -139,6 +159,7 @@ static irqreturn_t q6v5_stop_interrupt(int irq, void *data)
 
 	return IRQ_HANDLED;
 }
+#endif
 
 /**
  * qcom_q6v5_request_stop() - request the remote processor to stop
@@ -185,6 +206,7 @@ int qcom_q6v5_init(struct qcom_q6v5 *q6v5, struct platform_device *pdev,
 	init_completion(&q6v5->start_done);
 	init_completion(&q6v5->stop_done);
 
+#if !defined(CONFIG_CNSS2)
 	q6v5->wdog_irq = platform_get_irq_byname(pdev, "wdog");
 	if (q6v5->wdog_irq < 0) {
 		if (q6v5->wdog_irq != -EPROBE_DEFER)
@@ -220,6 +242,7 @@ int qcom_q6v5_init(struct qcom_q6v5 *q6v5, struct platform_device *pdev,
 		dev_err(&pdev->dev, "failed to acquire fatal IRQ\n");
 		return ret;
 	}
+#endif
 
 	q6v5->ready_irq = platform_get_irq_byname(pdev, "ready");
 	if (q6v5->ready_irq < 0) {
@@ -258,6 +281,7 @@ int qcom_q6v5_init(struct qcom_q6v5 *q6v5, struct platform_device *pdev,
 	}
 	disable_irq(q6v5->handover_irq);
 
+#if !defined(CONFIG_CNSS2)
 	q6v5->stop_irq = platform_get_irq_byname(pdev, "stop-ack");
 	if (q6v5->stop_irq < 0) {
 		if (q6v5->stop_irq != -EPROBE_DEFER)
@@ -275,6 +299,7 @@ int qcom_q6v5_init(struct qcom_q6v5 *q6v5, struct platform_device *pdev,
 		dev_err(&pdev->dev, "failed to acquire stop-ack IRQ\n");
 		return ret;
 	}
+#endif
 
 	q6v5->state = qcom_smem_state_get(&pdev->dev, "stop", &q6v5->stop_bit);
 	if (IS_ERR(q6v5->state)) {

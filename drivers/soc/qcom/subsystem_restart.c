@@ -1275,12 +1275,12 @@ static int subsys_parse_devicetree(struct subsys_desc *desc)
 	struct platform_device *pdev = container_of(desc->dev,
 					struct platform_device, dev);
 
-	ret = __get_irq(desc, "qcom,gpio-err-fatal", &desc->err_fatal_irq,
+	ret = __get_irq(desc, "fatal", &desc->err_fatal_irq,
 							&desc->err_fatal_gpio);
 	if (ret && ret != -ENOENT)
 		return ret;
 
-	ret = __get_irq(desc, "qcom,gpio-stop-ack", &desc->stop_ack_irq, NULL);
+	ret = __get_irq(desc, "stop-ack", &desc->stop_ack_irq, NULL);
 	if (ret && ret != -ENOENT)
 		return ret;
 

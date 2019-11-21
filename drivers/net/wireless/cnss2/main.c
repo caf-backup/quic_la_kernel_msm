@@ -2225,7 +2225,7 @@ int cnss_register_subsys(struct cnss_plat_data *plat_priv)
 	case QCA8074_DEVICE_ID:
 	case QCA8074V2_DEVICE_ID:
 	case QCA6018_DEVICE_ID:
-		subsys_info->subsys_desc.name = "q6v5-wcss";
+		subsys_info->subsys_desc.name = "qcom_q6v5_wcss";
 		return 0;
 	default:
 		cnss_pr_err("Unknown device ID: 0x%lx\n", plat_priv->device_id);
