@@ -691,7 +691,7 @@ static int mhi_panic_handler(struct notifier_block *this,
 			 * which indicates that SDX is rebooting and entering
 			 * the crashdump path.
 			 */
-			if (!mdmreboot && gpiod_get_value(mdm2ap)) {
+			if (!mdmreboot && !gpiod_get_value(mdm2ap)) {
 				MHI_LOG("MDM is rebooting and entering the crashdump path\n");
 				mdmreboot = 1;
 			}
@@ -702,7 +702,7 @@ static int mhi_panic_handler(struct notifier_block *this,
 			 * which indicates that SDX has completed crashdump
 			 * collection and booted successfully.
 			 */
-			if (mdmreboot && !(gpiod_get_value(mdm2ap))) {
+			if (mdmreboot && gpiod_get_value(mdm2ap)) {
 				MHI_LOG("MDM has completed crashdump collection and booted successfully\n");
 				break;
 			}
