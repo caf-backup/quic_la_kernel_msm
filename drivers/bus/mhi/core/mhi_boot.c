@@ -592,7 +592,7 @@ void mhi_fw_load_worker(struct work_struct *work)
 		if (!ret) {
 			instance &= QRTR_INSTANCE_MASK;
 			mhi_write_reg_field(mhi_cntrl, mhi_cntrl->bhi,
-					    BHI_ERRDBG3, QRTR_INSTANCE_MASK,
+					    BHI_ERRDBG2, QRTR_INSTANCE_MASK,
 					    QRTR_INSTANCE_SHIFT, instance);
 		}
 	}
