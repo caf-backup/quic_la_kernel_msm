@@ -283,6 +283,7 @@ config IPQ_SUBSYSTEM_RESTART
 
 config IPQ_SUBSYSTEM_RESTART_TEST
 	tristate "IPQ SSR test module"
+        depends on IPQ_SUBSYSTEM_RESTART || QCOM_Q6V5_WCSS
 	help
 	  This option enables the IPQ SSR test module.
 
