@@ -19,7 +19,6 @@
 #define CNSS_IPC_LOG_PAGES		32
 
 void *cnss_ipc_log_context;
-extern void qmi_record(u16, u8);
 extern void cnss_dump_qmi_history(void);
 
 static int cnss_pin_connect_show(struct seq_file *s, void *data)
@@ -219,11 +218,11 @@ static ssize_t cnss_qmi_record_debug_write(struct file *fp,
 					   const char __user *user_buf,
 					   size_t count, loff_t *off)
 {
-	char buf[2];
+	char buf[3];
 
-	if (copy_from_user(buf, user_buf, 2))
+	if (copy_from_user(buf, user_buf, 3))
 		return -EFAULT;
-	qmi_record(0xD000 | buf[0], buf[1]);
+	qmi_record(0xD000 | buf[0], buf[1], buf[2]);
 	return count;
 }
 

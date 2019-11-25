@@ -31,8 +31,9 @@
 
 struct qmi_history {
 	u16  msg_id;
-	u8  error_msg;
-	u8  reserved[5];
+	s8  error_msg;
+	s8  resp_err_msg;
+	u8  reserved[4];
 	u64 timestamp;
 };
 

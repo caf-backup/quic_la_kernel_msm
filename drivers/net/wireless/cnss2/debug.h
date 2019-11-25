@@ -63,5 +63,6 @@ int cnss_debug_init(void);
 void cnss_debug_deinit(void);
 int cnss_debugfs_create(struct cnss_plat_data *plat_priv);
 void cnss_debugfs_destroy(struct cnss_plat_data *plat_priv);
+void qmi_record(u16 msg_id, s8 error_msg, s8 resp_err_msg);
 
 #endif /* _CNSS_DEBUG_H */
