@@ -25,6 +25,7 @@
 #include <soc/qcom/subsystem_notif.h>
 #include <soc/qcom/subsystem_restart.h>
 #include <linux/platform_device.h>
+#include <linux/remoteproc.h>
 
 /*
  * To call subsystem get & put for WCSS alone,
@@ -36,6 +37,10 @@
  * To call subsystem get & put for both WCSS and LPASS,
  * 1) insmod testssr.ko test_id=3
  * 2) rmmod testssr
+ * Same as default case, just directly using rproc APIs
+ * used for open source/profile
+ * 1)insmod testssr.ko test_id=4
+ * 2)rmmod testssr.ko
  */
 
 static void *wcss_notif_handle;
@@ -149,10 +154,43 @@ static void *test_subsystem_get(const char *subsys_name)
 	return subsys_handle;
 }
 
+#if defined(CONFIG_QCOM_Q6V5_WCSS)
+static struct rproc * get_rproc_from_phandle(void) {
+		struct device_node *of_np;
+		phandle rproc_phandle;
+		struct rproc *q6rproc;
+
+       of_np = of_find_node_with_property(NULL, "qcom,rproc");
+		if (!of_np) {
+			pr_err("no node with qcom,rproc NULLi\n");
+			return NULL;
+		}
+		if (of_property_read_u32(of_np, "qcom,rproc", &rproc_phandle)) {
+			printk("could not get rproc phandle\n");
+			return  NULL;
+		}
+		q6rproc  = rproc_get_by_phandle(rproc_phandle);
+		if(!q6rproc) {
+			pr_err("could not get the rproc handle\n");
+			return NULL;
+		}
+		return q6rproc;
+}
+#endif
+
 static int __init testssr_init(void)
 {
+#if defined(CONFIG_QCOM_Q6V5_WCSS)
+	struct rproc *q6rproc;
+	int ret;
+#endif
 	nb.notifier_call = tssr_notifier;
 	atomic_nb.notifier_call = tssr_notifier;
+#if defined(CONFIG_QCOM_Q6V5_WCSS)
+	if (test_id != 4) {
+		test_id = 4; /* Let's use direct rproc APIs */
+	}
+#endif
 
 	switch (test_id) {
 	case 1:
@@ -185,6 +223,20 @@ static int __init testssr_init(void)
 		if (!adsp_subsys_handle)
 			goto err;
 		break;
+#if defined(CONFIG_QCOM_Q6V5_WCSS)
+	case 4:
+		q6rproc = get_rproc_from_phandle();
+		if(!q6rproc) {
+			pr_err("could not get rproc..\n");
+			return -ENODEV;
+		}
+		ret = rproc_boot(q6rproc);
+		if (ret) {
+			pr_err("couldn't boot q6v5: %d\n", ret);
+			return ret;
+		}
+		break;
+#endif
 	default:
 		pr_err("Enter a valid test case id\n");
 	}
@@ -212,6 +264,9 @@ static void adsp_test_exit(void)
 
 static void __exit testssr_exit(void)
 {
+#if defined(CONFIG_QCOM_Q6V5_WCSS)
+	struct rproc *q6rproc;
+#endif
 	switch (test_id) {
 	case 1:
 		wcss_test_exit();
@@ -223,6 +278,16 @@ static void __exit testssr_exit(void)
 		wcss_test_exit();
 		adsp_test_exit();
 		break;
+#if defined(CONFIG_QCOM_Q6V5_WCSS)
+	case 4:
+		q6rproc = get_rproc_from_phandle();
+		if(!q6rproc) {
+			pr_err("could not get rproc..\n");
+			return;
+		}
+		rproc_shutdown(q6rproc);
+		break;
+#endif
 	default:
 		break;
 	}
