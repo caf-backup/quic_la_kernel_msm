@@ -249,6 +249,17 @@
 			qca,auto-restart;
 			qcom,restart-group = <&q6v5_m3 &q6v5_wcss>;
 		};
+
+		tcsr_mutex_block: syscon@1905000 {
+			compatible = "syscon";
+			reg = <0x1905000 0x8000>;
+		};
+
+		tcsr_mutex: hwlock@1905000 {
+			compatible = "qcom,tcsr-mutex";
+			syscon = <&tcsr_mutex_block 0 0x80>;
+			#hwlock-cells = <1>;
+		};
 	};
 
 	cpus {
