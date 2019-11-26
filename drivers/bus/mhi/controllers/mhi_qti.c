@@ -848,6 +848,8 @@ void mhi_pci_device_removed(struct pci_dev *pci_dev)
 
 		pm_relax(&mhi_cntrl->mhi_dev->dev);
 
+		kobject_put(mhi_kobj);
+
 		mhi_unregister_mhi_controller(mhi_cntrl);
 	}
 }
