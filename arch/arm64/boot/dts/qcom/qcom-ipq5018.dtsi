@@ -260,6 +260,12 @@
 			syscon = <&tcsr_mutex_block 0 0x80>;
 			#hwlock-cells = <1>;
 		};
+
+		smem: qcom,smem@4AB00000 {
+			compatible = "qcom,smem";
+			memory-region = <&smem_region>;
+			hwlocks = <&tcsr_mutex 0>;
+		};
 	};
 
 	cpus {
