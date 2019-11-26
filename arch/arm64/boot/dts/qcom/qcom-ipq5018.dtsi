@@ -151,6 +151,31 @@
 			compatible = "syscon";
 			reg = <0x0B111000 0x1000>;
 		};
+
+		wcss: smp2p-wcss {
+			compatible = "qcom,smp2p";
+			qcom,smem = <435>, <428>;
+
+			interrupt-parent = <&intc>;
+			interrupts = <0 177 1>;
+
+			qcom,ipc = <&apcs 8 9>;
+
+			qcom,local-pid = <0>;
+			qcom,remote-pid = <1>;
+
+			wcss_smp2p_out: master-kernel {
+				qcom,entry-name = "master-kernel";
+				qcom,smp2p-feature-ssr-ack;
+				#qcom,smem-state-cells = <1>;
+			};
+
+			wcss_smp2p_in: slave-kernel {
+				qcom,entry-name = "slave-kernel";
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+		};
 	};
 
 	cpus {
