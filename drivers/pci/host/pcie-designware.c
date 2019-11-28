@@ -572,8 +572,6 @@ int dw_pcie_wait_for_link(struct pcie_port *pp)
 			return 0;
 		}
 		usleep_range(LINK_WAIT_USLEEP_MIN, LINK_WAIT_USLEEP_MAX);
-		if (pp->use_delay)
-			mdelay(10000);
 	}
 
 	dev_err(pp->dev, "phy link never came up\n");
