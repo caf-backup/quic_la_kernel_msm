@@ -803,6 +803,9 @@ static int q6v5_wcss_load(struct rproc *rproc, const struct firmware *fw)
 	ret = qcom_mdt_load_no_init(wcss->dev, m3_fw, wcss->m3_fw_name, 0,
 				    wcss->mem_region, wcss->mem_phys,
 				    wcss->mem_size, &wcss->mem_reloc);
+
+	release_firmware(m3_fw);
+
 	if (ret) {
 		dev_err(wcss->dev, "can't load %s\n", "m3_fw.bXX");
 		return ret;
