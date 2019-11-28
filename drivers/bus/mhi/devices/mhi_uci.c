@@ -32,6 +32,7 @@ struct uci_buf {
 	void *data;
 	size_t len;
 	struct list_head node;
+	bool done;
 };
 
 struct uci_dev {
@@ -172,14 +173,19 @@ static int mhi_uci_release(struct inode *inode, struct file *file)
 
 		/* clean inbound channel */
 		uci_chan = &uci_dev->dl_chan;
+
+		spin_lock_bh(&uci_chan->lock);
 		list_for_each_entry_safe(itr, tmp, &uci_chan->pending, node) {
-			list_del(&itr->node);
-			kfree(itr->data);
+			if (!itr->done) {
+				list_del(&itr->node);
+				kfree(itr->data);
+			}
 		}
 		if (uci_chan->cur_buf)
 			kfree(uci_chan->cur_buf->data);
 
 		uci_chan->cur_buf = NULL;
+		spin_unlock_bh(&uci_chan->lock);
 
 		if (!uci_dev->enabled) {
 			MSG_LOG("Node is deleted, freeing dev node\n");
@@ -377,7 +383,10 @@ static ssize_t mhi_uci_read(struct file *file,
 			goto read_error;
 		}
 
-		list_del(&uci_buf->node);
+		if (!uci_buf->done)
+			list_del(&uci_buf->node);
+
+		uci_buf->done = 1;
 		uci_chan->cur_buf = uci_buf;
 		uci_chan->rx_size = uci_buf->len;
 		MSG_VERB("Got pkt of size:%zu\n", uci_chan->rx_size);
@@ -638,6 +647,7 @@ static void mhi_dl_xfer_cb(struct mhi_device *mhi_dev,
 	buf->data = mhi_result->buf_addr;
 	buf->len = mhi_result->bytes_xferd;
 	list_add_tail(&buf->node, &uci_chan->pending);
+	buf->done = 0;
 	spin_unlock_irqrestore(&uci_chan->lock, flags);
 
 	if (mhi_dev->dev.power.wakeup)
