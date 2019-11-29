@@ -1769,17 +1769,18 @@ int __qcom_scm_get_smmustate(struct device *dev)
 	__le32 in;
 	int ret;
 	struct scm_desc desc = {0};
+	struct qcom_scm_cmd_ids *ids = dev_get_drvdata(dev);
 
 	if (!is_scm_armv8()) {
 		in = cpu_to_le32(-1);
 		ret = qcom_scm_call(dev, QCOM_SCM_SVC_BOOT,
-			    QCOM_SCM_SVC_SMMUSTATE_CMD,
-			    NULL, 0,
-			    &out, sizeof(out));
+					ids->smmu_state_cmd_id, NULL, 0, &out,
+					sizeof(out));
 	} else {
 		desc.arginfo = SCM_ARGS(0);
 		ret = qcom_scm_call2(SCM_SIP_FNID(QCOM_SCM_SVC_BOOT,
-				QCOM_SCM_SVC_SMMUSTATE_CMD), &desc);
+							ids->smmu_state_cmd_id),
+							&desc);
 		out = desc.ret[0];
 	}
 	return ret ? -1 : le32_to_cpu(out);

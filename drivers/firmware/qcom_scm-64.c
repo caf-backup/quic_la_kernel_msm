@@ -1044,11 +1044,12 @@ int __qcom_scm_get_smmustate(struct device *dev)
 	int ret;
 	struct qcom_scm_desc desc = {0};
 	struct arm_smccc_res res;
+	struct qcom_scm_cmd_ids *ids = dev_get_drvdata(dev);
 
 	desc.arginfo = QCOM_SCM_ARGS(0);
 
 	ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, QCOM_SCM_SVC_BOOT,
-			    QCOM_SCM_SVC_SMMUSTATE_CMD, &desc, &res);
+					ids->smmu_state_cmd_id, &desc, &res);
 
 	return ret ? -1 : res.a1;
 
