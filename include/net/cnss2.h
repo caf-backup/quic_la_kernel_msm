@@ -194,6 +194,8 @@ void cnss_subsystem_put(struct device *dev);
 int cnss_pcie_rescan(void);
 void cnss_pcie_remove_bus(void);
 void *cnss_get_pci_dev_by_device_id(int device_id);
+void *cnss_get_pci_dev_from_plat_dev(void *pdev);
+void *cnss_get_pci_dev_id_from_plat_dev(void *pdev);
 extern unsigned int cnss_get_qmi_timeout(void);
 extern int cnss_athdiag_read(struct device *dev, uint32_t offset,
 			     uint32_t mem_type, uint32_t data_len,

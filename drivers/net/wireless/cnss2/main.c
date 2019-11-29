@@ -1068,6 +1068,40 @@ reset_ctx:
 }
 EXPORT_SYMBOL(cnss_wlan_register_driver);
 
+void *cnss_get_pci_dev_from_plat_dev(void *pdev)
+{
+	struct platform_device *plat_dev = (struct platform_device *)pdev;
+	struct cnss_plat_data *plat_priv;
+
+	if (!plat_dev)
+		return NULL;
+
+	plat_priv = platform_get_drvdata(plat_dev);
+
+	if (!plat_priv)
+		return NULL;
+
+	return plat_priv->pci_dev;
+}
+EXPORT_SYMBOL(cnss_get_pci_dev_from_plat_dev);
+
+void *cnss_get_pci_dev_id_from_plat_dev(void *pdev)
+{
+	struct platform_device *plat_dev = (struct platform_device *)pdev;
+	struct cnss_plat_data *plat_priv;
+
+	if (!plat_dev)
+		return NULL;
+
+	plat_priv = platform_get_drvdata(plat_dev);
+
+	if (!plat_priv)
+		return NULL;
+
+	return plat_priv->pci_dev_id;
+}
+EXPORT_SYMBOL(cnss_get_pci_dev_id_from_plat_dev);
+
 void cnss_wlan_unregister_driver(struct cnss_wlan_driver *driver_ops)
 {
 	struct cnss_plat_data *plat_priv;
