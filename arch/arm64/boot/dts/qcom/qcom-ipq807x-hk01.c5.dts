@@ -702,8 +702,6 @@
 
 	pinctrl-0 = <&pcie_wake_pins>;
 	pinctrl-names = "default";
-	use_delay = <1>;
-
 };
 
 &pcie1 {
