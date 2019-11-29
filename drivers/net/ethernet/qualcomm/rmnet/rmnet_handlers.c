@@ -108,7 +108,9 @@ rmnet_deliver_skb(struct sk_buff *skb, struct rmnet_port *port)
 	trace_rmnet_low(RMNET_MODULE, RMNET_DLVR_SKB, 0xDEF, 0xDEF,
 			0xDEF, 0xDEF, (void *)skb, NULL);
 
-		/* Pass off the packet to NSS driver if we can */
+	rmnet_vnd_rx_fixup(skb->dev, skb->len);
+
+	/* Pass off the packet to NSS driver if we can */
 	nss_cb = rcu_dereference(rmnet_nss_callbacks);
 	if (nss_cb) {
 		if (!port->chain_head)
@@ -122,7 +124,6 @@ rmnet_deliver_skb(struct sk_buff *skb, struct rmnet_port *port)
 
 	skb_reset_transport_header(skb);
 	skb_reset_network_header(skb);
-	rmnet_vnd_rx_fixup(skb->dev, skb->len);
 
 	skb->pkt_type = PACKET_HOST;
 	skb_set_mac_header(skb, 0);
