@@ -44,6 +44,7 @@
 #define Q6SS_BOOT_CORE_START		0x400
 #define Q6SS_BOOT_CMD			0x404
 #define Q6SS_BOOT_STATUS		0x408
+#define Q6SS_DBG_CFG			0x18
 
 /* Q6SS_GFMUX_CTL */
 #define Q6SS_CLK_ENABLE			BIT(1)
@@ -118,6 +119,8 @@ struct q6_platform_data {
 	bool nosecure;
 	bool is_q6v6;
 };
+
+static int debug_wcss;
 
 #if defined(CONFIG_IPQ_SS_DUMP)
 
@@ -590,6 +593,9 @@ skip_secure:
 	if (ret)
 		goto wcss_q6_reset;
 
+	if (debug_wcss)
+		writel(0x20000001, wcss->reg_base + Q6SS_DBG_CFG);
+
 	/* Write bootaddr to EVB so that Q6WCSS will jump there after reset */
 	writel(rproc->bootaddr >> 4, wcss->reg_base + Q6SS_RST_EVB);
 
@@ -600,6 +606,9 @@ skip_secure:
 		if (ret)
 			goto wcss_q6_reset;
 	}
+
+	if (debug_wcss)
+		writel(0x0, wcss->reg_base + Q6SS_DBG_CFG);
 
 skip_reset:
 	qcom_q6v5_prepare(&wcss->q6v5);
@@ -1108,6 +1117,7 @@ static struct platform_driver q6v5_wcss_driver = {
 	},
 };
 module_platform_driver(q6v5_wcss_driver);
+module_param(debug_wcss, int, 0644);
 
 MODULE_DESCRIPTION("Hexagon WCSS Peripheral Image Loader");
 MODULE_LICENSE("GPL v2");
