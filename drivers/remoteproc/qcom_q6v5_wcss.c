@@ -41,6 +41,9 @@
 #define Q6SS_STOP_CORE			BIT(0)
 #define Q6SS_CORE_ARES			BIT(1)
 #define Q6SS_BUS_ARES_ENABLE		BIT(2)
+#define Q6SS_BOOT_CORE_START		0x400
+#define Q6SS_BOOT_CMD			0x404
+#define Q6SS_BOOT_STATUS		0x408
 
 /* Q6SS_GFMUX_CTL */
 #define Q6SS_CLK_ENABLE			BIT(1)
@@ -109,6 +112,10 @@ struct q6v5_wcss {
 	size_t mem_size;
 	const char *m3_fw_name;
 	unsigned wcss_aon_seq;
+};
+
+struct q6_platform_data {
+	bool is_q6v6;
 };
 
 #if defined(CONFIG_IPQ_SS_DUMP)
@@ -517,9 +524,27 @@ static int q6v5_wcss_reset(struct q6v5_wcss *wcss)
 	return 0;
 }
 
+static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
+{
+	unsigned long val;
+
+	/* Trigger Boot FSM, to bring core out of rst */
+	writel(0x1, wcss->reg_base + Q6SS_BOOT_CMD);
+
+	/* Boot core start */
+	writel(0x1, wcss->reg_base + Q6SS_BOOT_CORE_START);
+
+	mdelay(10);
+	val = readl(wcss->reg_base + Q6SS_BOOT_STATUS);
+	pr_err("%s: start %s\n", wcss->q6v5.rproc->name,
+					val == 1 ? "successful" : "failed");
+	wcss->q6v5.running = val == 1 ? true : false;
+}
+
 static int q6v5_wcss_start(struct rproc *rproc)
 {
 	struct q6v5_wcss *wcss = rproc->priv;
+	struct q6_platform_data *pdata = dev_get_platdata(wcss->dev);
 	int ret;
 
 	ret = qcom_scm_pas_auth_and_reset(WCNSS_PAS_ID, 0, wcss->reset_cmd_id);
@@ -562,9 +587,13 @@ static int q6v5_wcss_start(struct rproc *rproc)
 	/* Write bootaddr to EVB so that Q6WCSS will jump there after reset */
 	writel(rproc->bootaddr >> 4, wcss->reg_base + Q6SS_RST_EVB);
 
-	ret = q6v5_wcss_reset(wcss);
-	if (ret)
-		goto wcss_q6_reset;
+	if (pdata->is_q6v6) {
+		q6v6_wcss_reset(wcss);
+	} else {
+		ret = q6v5_wcss_reset(wcss);
+		if (ret)
+			goto wcss_q6_reset;
+	}
 
 skip_reset:
 	qcom_q6v5_prepare(&wcss->q6v5);
@@ -669,11 +698,18 @@ static int q6v5_wcss_powerdown(struct q6v5_wcss *wcss)
 	return 0;
 }
 
+static void q6v6_q6_powerdown(struct q6v5_wcss *wcss)
+{
+	/* Disbale Boot FSM */
+	writel(0x0, wcss->reg_base + Q6SS_BOOT_CMD);
+}
+
 static int q6v5_q6_powerdown(struct q6v5_wcss *wcss)
 {
 	int ret;
 	u32 val;
 	int i;
+	struct q6_platform_data *pdata = dev_get_platdata(wcss->dev);
 
 	/* 1 - Halt Q6 bus interface */
 	q6v5_wcss_halt_axi_port(wcss, wcss->halt_map, wcss->halt_q6);
@@ -682,6 +718,11 @@ static int q6v5_q6_powerdown(struct q6v5_wcss *wcss)
 	val = readl(wcss->reg_base + Q6SS_GFMUX_CTL_REG);
 	val &= ~Q6SS_CLK_ENABLE;
 	writel(val, wcss->reg_base + Q6SS_GFMUX_CTL_REG);
+
+	if (pdata->is_q6v6) {
+		q6v6_q6_powerdown(wcss);
+		goto assert;
+	}
 
 	/* 3 - Clamp I/O */
 	val = readl(wcss->reg_base + Q6SS_PWR_CTL_REG);
@@ -727,6 +768,7 @@ static int q6v5_q6_powerdown(struct q6v5_wcss *wcss)
 		return ret;
 	}
 
+assert:
 	/* 11 -  Assert WCSS reset */
 	reset_control_assert(wcss->wcss_reset);
 
@@ -739,6 +781,7 @@ static int q6v5_q6_powerdown(struct q6v5_wcss *wcss)
 static int q6v5_wcss_stop(struct rproc *rproc)
 {
 	struct q6v5_wcss *wcss = rproc->priv;
+	struct q6_platform_data *pdata = dev_get_platdata(wcss->dev);
 	int ret;
 
 	ret = qcom_scm_pas_shutdown(WCNSS_PAS_ID);
@@ -757,9 +800,11 @@ static int q6v5_wcss_stop(struct rproc *rproc)
 		return ret;
 	}
 
-	ret = q6v5_wcss_powerdown(wcss);
-	if (ret)
-		return ret;
+	if (!pdata->is_q6v6) {
+		ret = q6v5_wcss_powerdown(wcss);
+		if (ret)
+			return ret;
+	}
 
 	/* Q6 Power down */
 	ret = q6v5_q6_powerdown(wcss);
@@ -918,6 +963,7 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 	struct rproc *rproc;
 	int ret;
 	const char *firmware_name;
+	struct q6_platform_data *pdata;
 
 	ret = of_property_read_string(pdev->dev.of_node, "firmware",
 		&firmware_name);
@@ -978,6 +1024,18 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 	if (ret)
 		wcss->m3_fw_name = NULL;
 
+	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
+	if (!pdata) {
+		ret = PTR_ERR(pdata);
+		goto skip_pdata;
+	}
+
+	pdata->is_q6v6 = of_property_read_bool(pdev->dev.of_node, "qcom,q6v6");
+
+	platform_device_add_data(pdev, pdata, sizeof(*pdata));
+	kfree(pdata);
+
+skip_pdata:
 	qcom_add_glink_subdev(rproc, &wcss->glink_subdev);
 	qcom_add_ssr_subdev(rproc, &wcss->ssr_subdev, "rproc");
 	platform_set_drvdata(pdev, rproc);
@@ -1009,6 +1067,7 @@ static int q6v5_wcss_remove(struct platform_device *pdev)
 static const struct of_device_id q6v5_wcss_of_match[] = {
 	{ .compatible = "qcom,ipq8074-wcss-pil" },
 	{ .compatible = "qcom,ipq60xx-wcss-pil" },
+	{ .compatible = "qcom,ipq5018-wcss-pil" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, q6v5_wcss_of_match);
