@@ -93,3 +93,7 @@
 	qcom,emulation = <1>;
 	status = "ok";
 };
+
+&qcom_q6v5_wcss {
+	qcom,nosecure;
+};
