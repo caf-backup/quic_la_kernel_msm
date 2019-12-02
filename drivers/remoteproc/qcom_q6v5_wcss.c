@@ -115,6 +115,7 @@ struct q6v5_wcss {
 };
 
 struct q6_platform_data {
+	bool nosecure;
 	bool is_q6v6;
 };
 
@@ -544,8 +545,12 @@ static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 static int q6v5_wcss_start(struct rproc *rproc)
 {
 	struct q6v5_wcss *wcss = rproc->priv;
+	struct qcom_q6v5 *q6v5 = &wcss->q6v5;
 	struct q6_platform_data *pdata = dev_get_platdata(wcss->dev);
 	int ret;
+
+	if (pdata->nosecure)
+		goto skip_secure;
 
 	ret = qcom_scm_pas_auth_and_reset(WCNSS_PAS_ID, 0, wcss->reset_cmd_id);
 	if (ret) {
@@ -557,6 +562,7 @@ static int q6v5_wcss_start(struct rproc *rproc)
 		goto skip_reset;
 	}
 
+skip_secure:
 	/* Release Q6 and WCSS reset */
 	ret = reset_control_deassert(wcss->wcss_reset);
 	if (ret) {
@@ -599,14 +605,21 @@ skip_reset:
 	qcom_q6v5_prepare(&wcss->q6v5);
 	ret = qcom_q6v5_wait_for_start(&wcss->q6v5, 5 * HZ);
 	if (ret == -ETIMEDOUT) {
-		struct qcom_q6v5 *q6v5 = &wcss->q6v5;
 
-		dev_err(wcss->dev, "start timed out\n");
-		qcom_scm_pas_shutdown(WCNSS_PAS_ID);
-		q6v5->running = false;
-		goto wcss_q6_reset;
+		if (!pdata->nosecure)
+			qcom_scm_pas_shutdown(WCNSS_PAS_ID);
+
+		if (q6v5->running) {
+			ret = 0;
+			pr_err("%s up without err ready\n", q6v5->rproc->name);
+		} else {
+			dev_err(wcss->dev, "start timed out\n");
+			q6v5->running = false;
+			goto wcss_q6_reset;
+		}
 	}
 
+	q6v5->running = true;
 	return ret;
 
 wcss_q6_reset:
@@ -784,6 +797,9 @@ static int q6v5_wcss_stop(struct rproc *rproc)
 	struct q6_platform_data *pdata = dev_get_platdata(wcss->dev);
 	int ret;
 
+	if (pdata->nosecure)
+		goto skip_secure;
+
 	ret = qcom_scm_pas_shutdown(WCNSS_PAS_ID);
 	if (ret) {
 		dev_err(wcss->dev, "not able to shutdown\n");
@@ -793,6 +809,7 @@ static int q6v5_wcss_stop(struct rproc *rproc)
 		return ret;
 	}
 
+skip_secure:
 	/* WCSS powerdown */
 	ret = qcom_q6v5_request_stop(&wcss->q6v5);
 	if (ret == -ETIMEDOUT) {
@@ -831,6 +848,7 @@ static void *q6v5_wcss_da_to_va(struct rproc *rproc, u64 da, int len)
 static int q6v5_wcss_load(struct rproc *rproc, const struct firmware *fw)
 {
 	struct q6v5_wcss *wcss = rproc->priv;
+	struct q6_platform_data *pdata = dev_get_platdata(wcss->dev);
 	const struct firmware *m3_fw;
 	int ret;
 
@@ -854,9 +872,16 @@ static int q6v5_wcss_load(struct rproc *rproc, const struct firmware *fw)
 	}
 
 skip_m3:
-	return qcom_mdt_load(wcss->dev, fw, rproc->firmware,
+	if (pdata->nosecure)
+		ret = qcom_mdt_load_no_init(wcss->dev, fw, rproc->firmware,
 			     WCNSS_PAS_ID, wcss->mem_region, wcss->mem_phys,
 			     wcss->mem_size, &wcss->mem_reloc);
+	else
+		ret = qcom_mdt_load(wcss->dev, fw, rproc->firmware,
+			     WCNSS_PAS_ID, wcss->mem_region, wcss->mem_phys,
+			     wcss->mem_size, &wcss->mem_reloc);
+
+	return ret;
 }
 
 static const struct rproc_ops q6v5_wcss_ops = {
@@ -1031,6 +1056,8 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 	}
 
 	pdata->is_q6v6 = of_property_read_bool(pdev->dev.of_node, "qcom,q6v6");
+	pdata->nosecure = of_property_read_bool(pdev->dev.of_node,
+							"qcom,nosecure");
 
 	platform_device_add_data(pdev, pdata, sizeof(*pdata));
 	kfree(pdata);
