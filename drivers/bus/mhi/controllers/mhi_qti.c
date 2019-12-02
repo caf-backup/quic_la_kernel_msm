@@ -28,6 +28,8 @@
 
 volatile int mhi_panic_timeout;
 
+int ap2mdm_gpio, mdm2ap_gpio;
+
 void __iomem *wdt;
 
 static struct kobject *mhi_kobj;
@@ -663,12 +665,11 @@ static int mhi_panic_handler(struct notifier_block *this,
 	struct mhi_controller *mhi_cntrl = container_of(this,
 		       struct mhi_controller, mhi_panic_notifier);
 
-	ap2mdm = devm_gpiod_get_optional(mhi_cntrl->dev, "ap2mdm",
-					 GPIOD_OUT_LOW);
+	ap2mdm = gpio_to_desc(ap2mdm_gpio);
 	if (IS_ERR(ap2mdm))
 		return PTR_ERR(ap2mdm);
 
-	mdm2ap = devm_gpiod_get_optional(mhi_cntrl->dev, "mdm2ap", GPIOD_IN);
+	mdm2ap = gpio_to_desc(mdm2ap_gpio);
 	if (IS_ERR(mdm2ap))
 		return PTR_ERR(mdm2ap);
 
@@ -769,6 +770,16 @@ int mhi_pci_probe(struct pci_dev *pci_dev,
 	use_panic_notifier = of_property_read_bool(mhi_cntrl->of_node, "mhi,use-panic-notifer");
 
 	if (use_panic_notifier) {
+		ret = of_property_read_u32(mhi_cntrl->of_node, "ap2mdm",
+						&ap2mdm_gpio);
+		if (ret != 0)
+			pr_err("AP2MDM GPIO not configured\n");
+
+		ret = of_property_read_u32(mhi_cntrl->of_node, "mdm2ap",
+						&mdm2ap_gpio);
+		if (ret != 0)
+			pr_err("MDM2AP GPIO not configured\n");
+
 		mhi_cntrl->mhi_panic_notifier.notifier_call = mhi_panic_handler;
 
 		global_mhi_panic_notifier = &(mhi_cntrl->mhi_panic_notifier);

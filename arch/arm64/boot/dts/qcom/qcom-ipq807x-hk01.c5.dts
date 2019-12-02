@@ -791,8 +791,8 @@
 	mhi_0: qcom,mhi@0 {
 		reg = <0 0 0 0 0 >;
 
-		ap2mdm-gpio = <&tlmm 26 0>;
-		mdm2ap-gpio = <&tlmm 25 0>;
+		ap2mdm = <26>;
+		mdm2ap = <25>;
 
 		/* controller specific configuration */
 		qcom,iommu-dma = "disabled";
