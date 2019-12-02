@@ -70,7 +70,7 @@ struct qcom_adsp {
 	struct clk *xo;
 
 	int num_clks;
-	struct clk_bulk_data *clks;
+	struct clk *clks[ARRAY_SIZE(adsp_clk_id)];
 
 	void __iomem *qdsp6ss_base;
 
@@ -95,6 +95,45 @@ struct qcom_adsp {
 	struct qcom_sysmon *sysmon;
 };
 
+static void adsp_clk_bulk_disable_unprepare(int count, struct qcom_adsp *adsp)
+{
+	int i;
+
+	for (i = 0; i < count; i++) {
+		clk_disable_unprepare(adsp->clks[i]);
+		devm_clk_put(adsp->dev, adsp->clks[i]);
+	}
+}
+
+static int adsp_clk_bulk_prepare_enable(int count, struct qcom_adsp *adsp)
+{
+	int i, ret;
+
+	for (i = 0; i < count; i++) {
+		adsp->clks[i] = devm_clk_get(adsp->dev, adsp_clk_id[i]);
+		if (IS_ERR(adsp->clks[i])) {
+			pr_err("%s unable to get clk %s\n",
+					__func__, adsp_clk_id[i]);
+			ret = PTR_ERR(adsp->clks[i]);
+			goto disable_clk;
+		}
+		ret = clk_prepare_enable(adsp->clks[i]);
+		if (ret) {
+			pr_err("%s unable to enable clk %s\n",
+					__func__, adsp_clk_id[i]);
+			goto put_disable_clk;
+		}
+	}
+
+	return 0;
+
+put_disable_clk:
+	devm_clk_put(adsp->dev, adsp->clks[i]);
+disable_clk:
+	adsp_clk_bulk_disable_unprepare(i, adsp);
+	return ret;
+}
+
 static int qcom_adsp_shutdown(struct qcom_adsp *adsp)
 {
 	unsigned long timeout;
@@ -106,7 +145,7 @@ static int qcom_adsp_shutdown(struct qcom_adsp *adsp)
 	val |= 0x1;
 	writel(val, adsp->qdsp6ss_base + RET_CFG_REG);
 
-	clk_bulk_disable_unprepare(adsp->num_clks, adsp->clks);
+	adsp_clk_bulk_disable_unprepare(adsp->num_clks, adsp);
 
 	/* QDSP6 master port needs to be explicitly halted */
 	ret = regmap_read(adsp->halt_map,
@@ -181,12 +220,11 @@ static int adsp_start(struct rproc *rproc)
 	if (ret)
 		goto disable_irqs;
 
-	dev_pm_genpd_set_performance_state(adsp->dev, INT_MAX);
 	ret = pm_runtime_get_sync(adsp->dev);
 	if (ret)
 		goto disable_xo_clk;
 
-	ret = clk_bulk_prepare_enable(adsp->num_clks, adsp->clks);
+	ret = adsp_clk_bulk_prepare_enable(adsp->num_clks, adsp);
 	if (ret) {
 		dev_err(adsp->dev, "adsp clk_enable failed\n");
 		goto disable_power_domain;
@@ -218,9 +256,8 @@ static int adsp_start(struct rproc *rproc)
 	return 0;
 
 disable_adsp_clks:
-	clk_bulk_disable_unprepare(adsp->num_clks, adsp->clks);
+	adsp_clk_bulk_disable_unprepare(adsp->num_clks, adsp);
 disable_power_domain:
-	dev_pm_genpd_set_performance_state(adsp->dev, 0);
 	pm_runtime_put(adsp->dev);
 disable_xo_clk:
 	clk_disable_unprepare(adsp->xo);
@@ -235,7 +272,6 @@ static void qcom_adsp_pil_handover(struct qcom_q6v5 *q6v5)
 	struct qcom_adsp *adsp = container_of(q6v5, struct qcom_adsp, q6v5);
 
 	clk_disable_unprepare(adsp->xo);
-	dev_pm_genpd_set_performance_state(adsp->dev, 0);
 	pm_runtime_put(adsp->dev);
 }
 
@@ -282,7 +318,7 @@ static const struct rproc_ops adsp_ops = {
 
 static int adsp_init_clock(struct qcom_adsp *adsp)
 {
-	int i, ret;
+	int ret;
 
 	adsp->xo = devm_clk_get(adsp->dev, "xo");
 	if (IS_ERR(adsp->xo)) {
@@ -293,31 +329,20 @@ static int adsp_init_clock(struct qcom_adsp *adsp)
 	}
 
 	adsp->num_clks = ARRAY_SIZE(adsp_clk_id);
-	adsp->clks = devm_kcalloc(adsp->dev, adsp->num_clks,
-				sizeof(*adsp->clks), GFP_KERNEL);
-	if (IS_ERR(adsp->clks)) {
-		ret = PTR_ERR(adsp->clks);
-		if (ret != -EPROBE_DEFER)
-			dev_err(adsp->dev, "failed to get adsp clock");
-		return ret;
-	}
 
-	for (i = 0; i < adsp->num_clks; i++)
-		adsp->clks[i].id = adsp_clk_id[i];
-
-	return devm_clk_bulk_get(adsp->dev, adsp->num_clks, adsp->clks);
+	return 0;
 }
 
 static int adsp_init_reset(struct qcom_adsp *adsp)
 {
-	adsp->pdc_sync_reset = devm_reset_control_get_exclusive(adsp->dev,
+	adsp->pdc_sync_reset = devm_reset_control_get(adsp->dev,
 			"pdc_sync");
 	if (IS_ERR(adsp->pdc_sync_reset)) {
 		dev_err(adsp->dev, "failed to acquire pdc_sync reset\n");
 		return PTR_ERR(adsp->pdc_sync_reset);
 	}
 
-	adsp->cc_lpass_restart = devm_reset_control_get_exclusive(adsp->dev,
+	adsp->cc_lpass_restart = devm_reset_control_get(adsp->dev,
 			"cc_lpass");
 	if (IS_ERR(adsp->cc_lpass_restart)) {
 		dev_err(adsp->dev, "failed to acquire cc_lpass restart\n");
