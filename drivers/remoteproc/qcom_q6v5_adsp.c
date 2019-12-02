@@ -21,6 +21,7 @@
 #include <linux/regmap.h>
 #include <linux/remoteproc.h>
 #include <linux/reset.h>
+#include <linux/qcom_scm.h>
 #include <linux/soc/qcom/mdt_loader.h>
 #include <linux/soc/qcom/smem.h>
 #include <linux/soc/qcom/smem_state.h>
@@ -46,19 +47,15 @@
 #define LPASS_PWR_ON_REG		0x10
 #define LPASS_HALTREQ_REG		0x0
 
+#define ADSP_PAS_ID		1
+#define ADSP_RESET_CMD_ID	0x18
+#define DEBUG_ADSP_BREAK_AT_START	1
+
+static int debug_adsp;
 /* list of clocks required by ADSP PIL */
 static const char * const adsp_clk_id[] = {
 	"sway_cbcr", "lpass_aon", "lpass_ahbs_aon_cbcr", "lpass_ahbm_aon_cbcr",
 	"qdsp6ss_xo", "qdsp6ss_sleep", "qdsp6ss_core",
-};
-
-struct adsp_pil_data {
-	int crash_reason_smem;
-	const char *firmware_name;
-
-	const char *ssr_name;
-	const char *sysmon_name;
-	int ssctl_id;
 };
 
 struct qcom_adsp {
@@ -94,6 +91,49 @@ struct qcom_adsp {
 	struct qcom_rproc_ssr ssr_subdev;
 	struct qcom_sysmon *sysmon;
 };
+
+struct adsp_pil_data {
+	int crash_reason_smem;
+	const char *firmware_name;
+
+	const char *ssr_name;
+	const char *sysmon_name;
+	int ssctl_id;
+	int (*init_clock)(struct qcom_adsp *);
+	int (*init_reset)(struct qcom_adsp *);
+	int (*init_mmio)(struct qcom_adsp *, struct platform_device *);
+	void (*handover)(struct qcom_q6v5 *);
+	const struct rproc_ops *adsp_ops;
+};
+
+#ifdef CONFIG_CNSS2
+static int start_q6(const struct subsys_desc *subsys)
+{
+	struct qcom_q6v5 *q6v5 = subsys_to_pdata(subsys);
+	struct rproc *rproc = q6v5->rproc;
+	int ret = 0;
+
+	ret = rproc_boot(rproc);
+	if (ret)
+		pr_err("couldn't boot q6v5: %d\n", ret);
+	else
+		q6v5->running = true;
+
+	return ret;
+}
+
+static int stop_q6(const struct subsys_desc *subsys, bool force_stop)
+{
+	struct qcom_q6v5 *q6v5 = subsys_to_pdata(subsys);
+	struct rproc *rproc = q6v5->rproc;
+	int ret = 0;
+
+	rproc_shutdown(rproc);
+
+	q6v5->running = false;
+	return ret;
+}
+#endif
 
 static void adsp_clk_bulk_disable_unprepare(int count, struct qcom_adsp *adsp)
 {
@@ -199,6 +239,22 @@ reset:
 	return 0;
 }
 
+static int ipq6018_adsp_load(struct rproc *rproc, const struct firmware *fw)
+{
+	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
+	int ret;
+
+	ret = qcom_scm_pas_init_image(ADSP_PAS_ID, fw->data, fw->size);
+	if (ret) {
+		dev_err(adsp->dev, "image auth failed\n");
+		return ret;
+	}
+
+	return qcom_mdt_load_no_init(adsp->dev, fw, rproc->firmware, 0,
+			     adsp->mem_region, adsp->mem_phys, adsp->mem_size,
+			     &adsp->mem_reloc);
+}
+
 static int adsp_load(struct rproc *rproc, const struct firmware *fw)
 {
 	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
@@ -206,6 +262,27 @@ static int adsp_load(struct rproc *rproc, const struct firmware *fw)
 	return qcom_mdt_load_no_init(adsp->dev, fw, rproc->firmware, 0,
 			     adsp->mem_region, adsp->mem_phys, adsp->mem_size,
 			     &adsp->mem_reloc);
+}
+
+static int ipq6018_adsp_start(struct rproc *rproc)
+{
+	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
+	int ret;
+
+	ret = qcom_scm_pas_auth_and_reset(ADSP_PAS_ID,
+		(debug_adsp & DEBUG_ADSP_BREAK_AT_START),
+			ADSP_RESET_CMD_ID);
+	if (ret) {
+		dev_err(adsp->dev, "q6-adsp reset failed\n");
+		return ret;
+	}
+
+	ret = qcom_q6v5_wait_for_start(&adsp->q6v5, msecs_to_jiffies(5 * HZ));
+	if (ret == -ETIMEDOUT) {
+		dev_err(adsp->dev, "start timed out\n");
+		return ret;
+	}
+	return 0;
 }
 
 static int adsp_start(struct rproc *rproc)
@@ -275,6 +352,22 @@ static void qcom_adsp_pil_handover(struct qcom_q6v5 *q6v5)
 	pm_runtime_put(adsp->dev);
 }
 
+static int ipq6018_adsp_stop(struct rproc *rproc)
+{
+	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
+	int ret;
+
+	ret = qcom_q6v5_request_stop(&adsp->q6v5);
+	if (ret == -ETIMEDOUT)
+		dev_err(adsp->dev, "timed out on wait\n");
+
+	ret = qcom_scm_pas_shutdown(ADSP_PAS_ID);
+	if (ret)
+		dev_err(adsp->dev, "failed to shutdown adsp%d\n", ret);
+
+	return ret;
+}
+
 static int adsp_stop(struct rproc *rproc)
 {
 	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
@@ -314,6 +407,14 @@ static const struct rproc_ops adsp_ops = {
 	.da_to_va = adsp_da_to_va,
 	.parse_fw = qcom_register_dump_segments,
 	.load = adsp_load,
+};
+
+static const struct rproc_ops ipq6018_adsp_ops = {
+	.start = ipq6018_adsp_start,
+	.stop = ipq6018_adsp_stop,
+	.da_to_va = adsp_da_to_va,
+	.parse_fw = qcom_register_dump_segments,
+	.load = ipq6018_adsp_load,
 };
 
 static int adsp_init_clock(struct qcom_adsp *adsp)
@@ -421,6 +522,7 @@ static int adsp_probe(struct platform_device *pdev)
 {
 	const struct adsp_pil_data *desc;
 	struct qcom_adsp *adsp;
+	struct qcom_q6v5 *q6v5;
 	struct rproc *rproc;
 	int ret;
 
@@ -428,7 +530,7 @@ static int adsp_probe(struct platform_device *pdev)
 	if (!desc)
 		return -EINVAL;
 
-	rproc = rproc_alloc(&pdev->dev, pdev->name, &adsp_ops,
+	rproc = rproc_alloc(&pdev->dev, pdev->name, desc->adsp_ops,
 			    desc->firmware_name, sizeof(*adsp));
 	if (!rproc) {
 		dev_err(&pdev->dev, "unable to allocate remoteproc\n");
@@ -444,31 +546,64 @@ static int adsp_probe(struct platform_device *pdev)
 	if (ret)
 		goto free_rproc;
 
-	ret = adsp_init_clock(adsp);
-	if (ret)
-		goto free_rproc;
+	if (desc->init_clock) {
+		ret = desc->init_clock(adsp);
+		if (ret)
+			goto free_rproc;
+	}
 
 	pm_runtime_enable(adsp->dev);
 
-	ret = adsp_init_reset(adsp);
-	if (ret)
-		goto disable_pm;
+	if (desc->init_reset) {
+		ret = desc->init_reset(adsp);
+		if (ret)
+			goto disable_pm;
+	}
 
-	ret = adsp_init_mmio(adsp, pdev);
-	if (ret)
-		goto disable_pm;
+	if (desc->init_mmio) {
+		ret = desc->init_mmio(adsp, pdev);
+		if (ret)
+			goto disable_pm;
+	}
 
-	ret = qcom_q6v5_init(&adsp->q6v5, pdev, rproc, desc->crash_reason_smem,
-			     qcom_adsp_pil_handover);
+	q6v5 = &adsp->q6v5;
+	ret = qcom_q6v5_init(q6v5, pdev, rproc, desc->crash_reason_smem,
+			     desc->handover);
 	if (ret)
 		goto disable_pm;
 
 	qcom_add_glink_subdev(rproc, &adsp->glink_subdev);
 	qcom_add_ssr_subdev(rproc, &adsp->ssr_subdev, desc->ssr_name);
-	adsp->sysmon = qcom_add_sysmon_subdev(rproc,
-					      desc->sysmon_name,
-					      desc->ssctl_id);
 
+	if (desc->ssctl_id)
+		adsp->sysmon = qcom_add_sysmon_subdev(rproc,
+						      desc->sysmon_name,
+						      desc->ssctl_id);
+#ifdef CONFIG_CNSS2
+	/*
+	 * subsys-register
+	 */
+	q6v5->subsys_desc.is_not_loadable = 0;
+	q6v5->subsys_desc.name = "q6v6-adsp";
+	q6v5->subsys_desc.dev = &pdev->dev;
+	q6v5->subsys_desc.owner = THIS_MODULE;
+	q6v5->subsys_desc.shutdown = stop_q6;
+	q6v5->subsys_desc.powerup = start_q6;
+	q6v5->subsys_desc.ramdump = NULL;
+	q6v5->subsys_desc.err_fatal_handler = q6v5_fatal_interrupt;
+	q6v5->subsys_desc.stop_ack_handler = q6v5_ready_interrupt;
+	q6v5->subsys_desc.wdog_bite_handler = q6v5_wdog_interrupt;
+
+	q6v5->subsys = subsys_register(&q6v5->subsys_desc);
+	if (IS_ERR(q6v5->subsys)) {
+		dev_err(&pdev->dev, "failed to register with ssr\n");
+		ret = PTR_ERR(q6v5->subsys);
+		goto free_rproc;
+	}
+	dev_info(adsp->dev, "ssr registeration success %s\n",
+					q6v5->subsys_desc.name);
+#endif
+	rproc->auto_boot = false;
 	ret = rproc_add(rproc);
 	if (ret)
 		goto disable_pm;
@@ -487,6 +622,9 @@ static int adsp_remove(struct platform_device *pdev)
 {
 	struct qcom_adsp *adsp = platform_get_drvdata(pdev);
 
+#ifdef CONFIG_CNSS2
+	subsys_unregister(adsp->q6v5.subsys);
+#endif
 	rproc_del(adsp->rproc);
 
 	qcom_remove_glink_subdev(adsp->rproc, &adsp->glink_subdev);
@@ -498,16 +636,29 @@ static int adsp_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct adsp_pil_data adsp_resource_init = {
+static const struct adsp_pil_data sdm845_adsp_resource_init = {
 	.crash_reason_smem = 423,
 	.firmware_name = "adsp.mdt",
 	.ssr_name = "lpass",
 	.sysmon_name = "adsp",
 	.ssctl_id = 0x14,
+	.init_clock = adsp_init_clock,
+	.init_reset = adsp_init_reset,
+	.init_mmio = adsp_init_mmio,
+	.handover = qcom_adsp_pil_handover,
+	.adsp_ops = &adsp_ops,
+};
+
+static const struct adsp_pil_data ipq6018_adsp_resource_init = {
+	.crash_reason_smem = 423,
+	.firmware_name = "IPQ6018/adsp.mdt",
+	.ssr_name = "adsp",
+	.adsp_ops = &ipq6018_adsp_ops,
 };
 
 static const struct of_device_id adsp_of_match[] = {
-	{ .compatible = "qcom,sdm845-adsp-pil", .data = &adsp_resource_init },
+	{ .compatible = "qcom,sdm845-adsp-pil", .data = &sdm845_adsp_resource_init },
+	{ .compatible = "qcom,ipq6018-adsp-pil", .data = &ipq6018_adsp_resource_init},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, adsp_of_match);
@@ -522,5 +673,6 @@ static struct platform_driver adsp_pil_driver = {
 };
 
 module_platform_driver(adsp_pil_driver);
-MODULE_DESCRIPTION("QTI SDM845 ADSP Peripheral Image Loader");
+MODULE_DESCRIPTION("QTI ADSP Peripheral Image Loader");
 MODULE_LICENSE("GPL v2");
+module_param(debug_adsp, int, 0644);
