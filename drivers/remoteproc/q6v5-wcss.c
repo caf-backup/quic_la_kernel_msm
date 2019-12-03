@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016, 2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -123,7 +123,7 @@ struct q6v5_rproc_pdata {
 	struct subsys_desc subsys_desc;
 	struct completion stop_done;
 	struct completion err_ready;
-	unsigned int err_ready_irq;
+	int err_ready_irq;
 	struct qcom_smem_state *state;
 	unsigned stop_bit;
 	unsigned shutdown_bit;
@@ -1696,7 +1696,7 @@ static int q6_rproc_probe(struct platform_device *pdev)
 	q6v5_rproc_pdata->err_ready_irq = platform_get_irq_byname(pdev,
 						"qcom,gpio-err-ready");
 	if (q6v5_rproc_pdata->err_ready_irq < 0) {
-		pr_err("Can't get err-ready irq number %d\n",
+		pr_err("Can't get err-ready irq number %d\t deffered\n",
 			q6v5_rproc_pdata->err_ready_irq);
 		goto free_rproc;
 	}
@@ -1706,7 +1706,8 @@ static int q6_rproc_probe(struct platform_device *pdev)
 				IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 				"error_ready_interrupt", q6v5_rproc_pdata);
 	if (ret < 0) {
-		pr_err("Can't register err ready handler\n");
+		pr_err("Can't register err ready handler irq = %d ret = %d\n",
+				q6v5_rproc_pdata->err_ready_irq, ret);
 		goto free_rproc;
 	}
 
