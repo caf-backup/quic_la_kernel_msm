@@ -88,6 +88,7 @@ static int debug_wcss;
 #define GCC_WCSSAON_RESET 0x10
 #define GCC_WCSS_Q6_BCR 0x100
 #define GCC_MISC_RESET_ADDR 0x8
+#define QDSP6SS_BOOT_CORE_START 0x400
 #define HALTACK BIT(0)
 #define BHS_EN_REST_ACK BIT(0)
 
@@ -118,6 +119,7 @@ struct q6v5_rproc_pdata {
 	void __iomem *gcc_bcr_base;
 	void __iomem *gcc_misc_base;
 	void __iomem *tcsr_global_base;
+	void __iomem *tcsr_q6_boot_trig;
 	struct rproc *rproc;
 	struct subsys_device *subsys;
 	struct subsys_desc subsys_desc;
@@ -139,6 +141,7 @@ struct q6v5_rproc_pdata {
 
 static struct q6v5_rproc_pdata *q6v5_rproc_pdata;
 static struct rproc_ops ipq60xx_q6v5_rproc_ops;
+static struct rproc_ops ipq50xx_q6v5_rproc_ops;
 
 #define subsys_to_pdata(d) container_of(d, struct q6v5_rproc_pdata, subsys_desc)
 
@@ -599,6 +602,40 @@ static struct resource_table *q6v5_find_loaded_rsc_table(struct rproc *rproc,
 	return &(q6v5_rtable.rtable);
 }
 
+static void halt_q6(struct q6v5_rproc_pdata *pdata)
+{
+	unsigned int nretry = 0;
+	unsigned long val = 0;
+
+	/* Halt Q6 bus interface - 9*/
+	val = readl(pdata->tcsr_q6_base + TCSR_Q6_HALTREQ);
+	val |= BIT(0);
+	writel(val, pdata->tcsr_q6_base + TCSR_Q6_HALTREQ);
+
+	nretry = 0;
+	while (1) {
+		val = readl(pdata->tcsr_q6_base + TCSR_Q6_HALTACK);
+		if (val & HALTACK)
+			break;
+		mdelay(1);
+		nretry++;
+		if (nretry >= pdata->stop_retry_count) {
+			pr_err("can't get TCSR Q6 haltACK\n");
+			break;
+		}
+	}
+}
+
+static void halt_clr(struct q6v5_rproc_pdata *pdata)
+{
+	unsigned long val = 0;
+
+	/* HALT CLEAR - 18 */
+	val = readl(pdata->tcsr_q6_base + TCSR_Q6_HALTREQ);
+	val &= ~(BIT(0));
+	writel(val, pdata->tcsr_q6_base + TCSR_Q6_HALTREQ);
+}
+
 static void wcss_powerdown(struct q6v5_rproc_pdata *pdata)
 {
 	unsigned int nretry = 0;
@@ -675,6 +712,42 @@ static void wcss_powerdown(struct q6v5_rproc_pdata *pdata)
 	return;
 }
 
+static void ipq50xx_q6_powerdown(struct q6v5_rproc_pdata *pdata)
+{
+	unsigned long val = 0;
+
+	/*halt q6 bus*/
+	halt_q6(pdata);
+
+	/* Enable Q6 Block reset - 19 */
+	val = readl(pdata->gcc_bcr_base + 0x4);
+	val |= BIT(0);
+	writel(val, pdata->gcc_bcr_base + 0x4);
+	mdelay(2);
+
+	/* Enable Q6 Axix Ares */
+	val = readl(pdata->gcc_misc_base + 0x158);
+	val |= BIT(0);
+	writel(val, pdata->gcc_misc_base + 0x158);
+
+	/* Disable Q6 Core clock - 10 */
+	val = readl(pdata->q6_base + QDSP6SS_GFMUX_CTL);
+	val &= (~(BIT(0)));
+	writel(val, pdata->q6_base + QDSP6SS_GFMUX_CTL);
+
+	/* Disable Q6 Block reset - 19 */
+	val = readl(pdata->gcc_bcr_base + 0x4);
+	val &= (~(BIT(0)));
+	writel(val, pdata->gcc_bcr_base + 0x4);
+	mdelay(2);
+
+	/* Disbale Boot FSM */
+	writel(0x0, pdata->tcsr_q6_boot_trig);
+
+	/*halt clear*/
+	halt_clr(pdata);
+}
+
 static void q6_powerdown(struct q6v5_rproc_pdata *pdata)
 {
 	int i = 0;
@@ -684,23 +757,8 @@ static void q6_powerdown(struct q6v5_rproc_pdata *pdata)
 	/* To retain power domain after q6 powerdown */
 	writel(0x1, pdata->q6_base + QDSP6SS_DBG_CFG);
 
-	/* Halt Q6 bus interface - 9*/
-	val = readl(pdata->tcsr_q6_base + TCSR_Q6_HALTREQ);
-	val |= BIT(0);
-	writel(val, pdata->tcsr_q6_base + TCSR_Q6_HALTREQ);
-
-	nretry = 0;
-	while (1) {
-		val = readl(pdata->tcsr_q6_base + TCSR_Q6_HALTACK);
-		if (val & HALTACK)
-			break;
-		mdelay(1);
-		nretry++;
-		if (nretry >= pdata->stop_retry_count) {
-			pr_err("can't get TCSR Q6 haltACK\n");
-			break;
-		}
-	}
+	/*halt q6 bus*/
+	halt_q6(pdata);
 
 	/* Disable Q6 Core clock - 10 */
 	val = readl(pdata->q6_base + QDSP6SS_GFMUX_CTL);
@@ -727,7 +785,9 @@ static void q6_powerdown(struct q6v5_rproc_pdata *pdata)
 	val &= (~(BIT(19)));
 	writel(val, pdata->q6_base + QDSP6SS_PWR_CTL);
 
-	/* turn off QDSP6 memory foot/head switch one bank at a time - 15*/
+	/* turn off QDSP6 memory foot/head switch one
+	 * bank at a time - 15
+	 */
 	for (i = 0; i < 20; i++) {
 		val = readl(pdata->q6_base + QDSP6SS_MEM_PWR_CTL);
 		val &= (~(BIT(i)));
@@ -745,6 +805,7 @@ static void q6_powerdown(struct q6v5_rproc_pdata *pdata)
 	val &= (~(BIT(24)));
 	writel(val, pdata->q6_base + QDSP6SS_PWR_CTL);
 	udelay(1);
+
 	/* Wait till BHS Reset is done */
 	nretry = 0;
 	while (1) {
@@ -771,10 +832,8 @@ static void q6_powerdown(struct q6v5_rproc_pdata *pdata)
 	writel(val, pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
 	mdelay(2);
 
-	/* HALT CLEAR - 18 */
-	val = readl(pdata->tcsr_q6_base + TCSR_Q6_HALTREQ);
-	val &= ~(BIT(0));
-	writel(val, pdata->tcsr_q6_base + TCSR_Q6_HALTREQ);
+	/*halt clear*/
+	halt_clr(pdata);
 
 	return;
 }
@@ -818,11 +877,17 @@ static int q6_rproc_stop(struct rproc *rproc)
 		/* Non secure */
 		/* Print registers for debug of powerdown issue */
 		save_wcss_regs(pdata);
-		/* WCSS powerdown */
-		wcss_powerdown(pdata);
 
-		/* Q6 Power down */
-		q6_powerdown(pdata);
+		if (of_device_get_match_data(&pdev->dev) ==
+					&ipq50xx_q6v5_rproc_ops) {
+			ipq50xx_q6_powerdown(pdata);
+		} else {
+			/* WCSS powerdown */
+			wcss_powerdown(pdata);
+
+			/* Q6 Power down */
+			q6_powerdown(pdata);
+		}
 
 		/*Disable clocks*/
 		if (of_device_get_match_data(&pdev->dev) ==
@@ -851,6 +916,42 @@ wait_again:
 	}
 
 	return 0;
+}
+
+static int ipq50xx_q6_rproc_emu_start(struct rproc *rproc)
+{
+	struct device *dev = rproc->dev.parent;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct q6v5_rproc_pdata *pdata = platform_get_drvdata(pdev);
+	int ret = 0;
+
+	atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_STARTING);
+
+	/*Debugging*/
+	if (debug_wcss & DEBUG_WCSS_BREAK_AT_START)
+		writel(0x20000001, pdata->q6_base + QDSP6SS_DBG_CFG);
+
+	/* Boot adderss */
+	writel(pdata->img_addr >> 4, pdata->q6_base + QDSP6SS_RST_EVB);
+
+	/* Trigger Boot FSM, to bring core out of rst */
+	writel(0x1, pdata->tcsr_q6_boot_trig);
+
+	/* Retain debugger state during next QDSP6 reset */
+	if (!(debug_wcss & DEBUG_WCSS_BREAK_AT_START))
+		writel(0x0, pdata->q6_base + QDSP6SS_DBG_CFG);
+
+	/* Boot core start */
+	writel(0x1, pdata->q6_base + QDSP6SS_BOOT_CORE_START);
+
+	do {
+		ret = wait_for_err_ready(pdata);
+	} while (ret);
+
+	atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_RUNNING);
+	pr_emerg("Q6 Emulation reset out is done\n");
+
+	return ret;
 }
 
 static int ipq60xx_q6_rproc_emu_start(struct rproc *rproc)
@@ -1181,6 +1282,49 @@ static int ipq60xx_q6_rproc_start(struct rproc *rproc)
 	}
 skip_reset:
 
+	ret = wait_for_err_ready(pdata);
+	if (!ret)
+		atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_RUNNING);
+
+	return ret;
+}
+
+static int ipq50xx_q6_rproc_start(struct rproc *rproc)
+{
+	struct device *dev = rproc->dev.parent;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct q6v5_rproc_pdata *pdata = platform_get_drvdata(pdev);
+	int ret = 0;
+
+	atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_STARTING);
+	if (pdata->secure) {
+		ret = qcom_scm_pas_auth_and_reset(WCNSS_PAS_ID,
+				(debug_wcss & DEBUG_WCSS_BREAK_AT_START),
+				pdata->reset_cmd_id);
+		if (ret) {
+			dev_err(dev, "q6-wcss reset failed\n");
+			return ret;
+		}
+		goto skip_reset;
+	}
+
+	if (debug_wcss & DEBUG_WCSS_BREAK_AT_START)
+		writel(0x20000001, pdata->q6_base + QDSP6SS_DBG_CFG);
+
+	/*Boot adderss */
+	writel(pdata->img_addr >> 4, pdata->q6_base + QDSP6SS_RST_EVB);
+
+	/* Trigger Boot FSM, to bring core out of rst */
+	writel(0x1, pdata->tcsr_q6_boot_trig);
+
+	/* Retain debugger state during next QDSP6 reset */
+	if (!(debug_wcss & DEBUG_WCSS_BREAK_AT_START))
+		writel(0x0, pdata->q6_base + QDSP6SS_DBG_CFG);
+
+	/* Boot core start */
+	writel(0x1, pdata->q6_base + QDSP6SS_BOOT_CORE_START);
+
+skip_reset:
 	ret = wait_for_err_ready(pdata);
 	if (!ret)
 		atomic_set(&q6v5_rproc_pdata->running, RPROC_Q6V5_RUNNING);
@@ -1539,6 +1683,15 @@ static struct rproc_ops ipq60xx_q6v5_rproc_ops = {
 	.get_boot_addr = rproc_elf_get_boot_addr,
 };
 
+static struct rproc_ops ipq50xx_q6v5_rproc_ops = {
+	.start          = ipq50xx_q6_rproc_start,
+	.da_to_va       = q6_da_to_va,
+	.stop           = q6_rproc_stop,
+	.find_loaded_rsc_table = q6v5_find_loaded_rsc_table,
+	.load = q6v5_load,
+	.get_boot_addr = rproc_elf_get_boot_addr,
+};
+
 static int q6_rproc_probe(struct platform_device *pdev)
 {
 	const char *firmware_name;
@@ -1587,6 +1740,8 @@ static int q6_rproc_probe(struct platform_device *pdev)
 			ops->start = ipq807x_q6_rproc_emu_start;
 		else if (ops == &ipq60xx_q6v5_rproc_ops)
 			ops->start = ipq60xx_q6_rproc_emu_start;
+		else if (ops == &ipq50xx_q6v5_rproc_ops)
+			ops->start = ipq50xx_q6_rproc_emu_start;
 	}
 
 	rproc = rproc_alloc(&pdev->dev, "q6v5-wcss", ops, firmware_name,
@@ -1719,6 +1874,17 @@ static int q6_rproc_probe(struct platform_device *pdev)
 			goto free_rproc;
 		}
 
+		resource = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						 "tcsr-q6-boot-trig");
+		if (resource != NULL) {
+			q6v5_rproc_pdata->tcsr_q6_boot_trig =
+				ioremap(resource->start,
+						resource_size(resource));
+			if (!q6v5_rproc_pdata->tcsr_q6_boot_trig) {
+				ret = -ENOMEM;
+				goto free_rproc;
+			}
+		}
 	}
 
 	platform_set_drvdata(pdev, q6v5_rproc_pdata);
@@ -1738,7 +1904,7 @@ static int q6_rproc_probe(struct platform_device *pdev)
 				"error_ready_interrupt", q6v5_rproc_pdata);
 	if (ret < 0) {
 		pr_err("Can't register err ready handler irq = %d ret = %d\n",
-				q6v5_rproc_pdata->err_ready_irq, ret);
+			q6v5_rproc_pdata->err_ready_irq, ret);
 		goto free_rproc;
 	}
 
@@ -1814,6 +1980,9 @@ free_rproc:
 	if (q6v5_rproc_pdata->tcsr_global_base)
 		iounmap(q6v5_rproc_pdata->tcsr_global_base);
 
+	if (q6v5_rproc_pdata->tcsr_q6_boot_trig)
+		iounmap(q6v5_rproc_pdata->tcsr_q6_boot_trig);
+
 	rproc_free(rproc);
 
 	return ret;
@@ -1838,6 +2007,8 @@ static int q6_rproc_remove(struct platform_device *pdev)
 static const struct of_device_id q6_match_table[] = {
 	{ .compatible = "qca,q6v5-wcss-rproc-ipq807x", .data = &ipq807x_q6v5_rproc_ops },
 	{ .compatible = "qca,q6v5-wcss-rproc-ipq60xx", .data = &ipq60xx_q6v5_rproc_ops },
+	{ .compatible = "qca,q6v5-wcss-rproc-ipq50xx",
+	  .data = &ipq50xx_q6v5_rproc_ops },
 	{}
 };
 
