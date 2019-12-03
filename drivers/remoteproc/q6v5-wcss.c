@@ -1610,8 +1610,10 @@ static int q6_rproc_probe(struct platform_device *pdev)
 	/* We will record the values before q6 and wcss powerdown */
 	q6v5_rproc_pdata->reg_save_buffer = kzalloc((Q6_REGISTER_SAVE_SIZE * 4),
 							GFP_KERNEL);
-	if (q6v5_rproc_pdata->reg_save_buffer == NULL)
+	if (q6v5_rproc_pdata->reg_save_buffer == NULL) {
+		ret = -ENOMEM;
 		goto free_rproc;
+	}
 
 	ret = of_property_read_u32(pdev->dev.of_node, "qca,sec-reset-cmd",
 					&q6v5_rproc_pdata->reset_cmd_id);
@@ -1621,73 +1623,101 @@ static int q6_rproc_probe(struct platform_device *pdev)
 	if (!q6v5_rproc_pdata->secure) {
 		resource = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						"wcss-base");
-		if (unlikely(!resource))
+		if (unlikely(!resource)) {
+			ret = -EINVAL;
 			goto free_rproc;
+		}
 
 		q6v5_rproc_pdata->q6_base = ioremap(resource->start,
 				resource_size(resource));
-		if (!q6v5_rproc_pdata->q6_base)
+		if (!q6v5_rproc_pdata->q6_base) {
+			ret = -ENOMEM;
 			goto free_rproc;
+		}
 
 		resource = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						"tcsr-q6-base");
-		if (unlikely(!resource))
+		if (unlikely(!resource)) {
+			ret = -EINVAL;
 			goto free_rproc;
+		}
 
 		q6v5_rproc_pdata->tcsr_q6_base = ioremap(resource->start,
 				resource_size(resource));
-		if (!q6v5_rproc_pdata->tcsr_q6_base)
+		if (!q6v5_rproc_pdata->tcsr_q6_base) {
+			ret = -ENOMEM;
 			goto free_rproc;
+		}
 
 		resource = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						"tcsr-base");
-		if (unlikely(!resource))
+		if (unlikely(!resource)) {
+			ret = -EINVAL;
 			goto free_rproc;
+		}
 
 		q6v5_rproc_pdata->tcsr_base = ioremap(resource->start,
 				resource_size(resource));
-		if (!q6v5_rproc_pdata->tcsr_base)
+		if (!q6v5_rproc_pdata->tcsr_base) {
+			ret = -ENOMEM;
 			goto free_rproc;
+		}
 
 		resource = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						"mpm-base");
-		if (unlikely(!resource))
+		if (unlikely(!resource)) {
+			ret = -EINVAL;
 			goto free_rproc;
+		}
 
 		q6v5_rproc_pdata->mpm_base = ioremap(resource->start,
 				resource_size(resource));
-		if (!q6v5_rproc_pdata->mpm_base)
+		if (!q6v5_rproc_pdata->mpm_base) {
+			ret = -ENOMEM;
 			goto free_rproc;
+		}
 
 		resource = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						"gcc-wcss-bcr-base");
-		if (unlikely(!resource))
+		if (unlikely(!resource)) {
+			ret = -EINVAL;
 			goto free_rproc;
+		}
 
 		q6v5_rproc_pdata->gcc_bcr_base = ioremap(resource->start,
 				resource_size(resource));
-		if (!q6v5_rproc_pdata->gcc_bcr_base)
+		if (!q6v5_rproc_pdata->gcc_bcr_base) {
+			ret = -ENOMEM;
 			goto free_rproc;
+		}
 
 		resource = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						"gcc-wcss-misc-base");
-		if (unlikely(!resource))
+		if (unlikely(!resource)) {
+			ret = -EINVAL;
 			goto free_rproc;
+		}
 
 		q6v5_rproc_pdata->gcc_misc_base = ioremap(resource->start,
 				resource_size(resource));
-		if (!q6v5_rproc_pdata->gcc_misc_base)
+		if (!q6v5_rproc_pdata->gcc_misc_base) {
+			ret = -ENOMEM;
 			goto free_rproc;
+		}
 
 		resource = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						"tcsr-global");
-		if (unlikely(!resource))
+		if (unlikely(!resource)) {
+			ret = -EINVAL;
 			goto free_rproc;
+		}
 
 		q6v5_rproc_pdata->tcsr_global_base = ioremap(resource->start,
 				resource_size(resource));
-		if (!q6v5_rproc_pdata->tcsr_global_base)
+		if (!q6v5_rproc_pdata->tcsr_global_base) {
+			ret = -ENOMEM;
 			goto free_rproc;
+		}
 
 	}
 
@@ -1698,6 +1728,7 @@ static int q6_rproc_probe(struct platform_device *pdev)
 	if (q6v5_rproc_pdata->err_ready_irq < 0) {
 		pr_err("Can't get err-ready irq number %d\t deffered\n",
 			q6v5_rproc_pdata->err_ready_irq);
+		ret = q6v5_rproc_pdata->err_ready_irq;
 		goto free_rproc;
 	}
 	ret = devm_request_threaded_irq(&pdev->dev,
@@ -1715,6 +1746,7 @@ static int q6_rproc_probe(struct platform_device *pdev)
 			&q6v5_rproc_pdata->stop_bit);
 	if (IS_ERR(q6v5_rproc_pdata->state)) {
 		pr_err("Can't get stop bit status fro SMP2P\n");
+		ret = PTR_ERR(q6v5_rproc_pdata->state);
 		goto free_rproc;
 	}
 
@@ -1722,6 +1754,7 @@ static int q6_rproc_probe(struct platform_device *pdev)
 			&q6v5_rproc_pdata->shutdown_bit);
 	if (IS_ERR(q6v5_rproc_pdata->state)) {
 		pr_err("Can't get shutdown bit status fro SMP2P\n");
+		ret = PTR_ERR(q6v5_rproc_pdata->state);
 		goto free_rproc;
 	}
 
@@ -1781,9 +1814,9 @@ free_rproc:
 	if (q6v5_rproc_pdata->tcsr_global_base)
 		iounmap(q6v5_rproc_pdata->tcsr_global_base);
 
-
 	rproc_free(rproc);
-	return -EIO;
+
+	return ret;
 }
 
 static int q6_rproc_remove(struct platform_device *pdev)
