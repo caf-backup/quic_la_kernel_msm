@@ -982,8 +982,8 @@ static int cnss_qca8074_notifier_nb(struct notifier_block *nb,
 		return NOTIFY_DONE;
 	} else {
 		driver_ops->update_status((struct pci_dev *)plat_priv->plat_dev,
-					  code, (const struct pci_device_id *)
-					  plat_priv->plat_dev_id);
+					  (const struct pci_device_id *)
+					  plat_priv->plat_dev_id, code);
 	}
 
 	return NOTIFY_OK;
@@ -1044,9 +1044,14 @@ int cnss_wlan_register_driver(struct cnss_wlan_driver *driver_ops)
 				goto reset_ctx;
 			}
 		}
-
+		/*
+		 * Skip cnss_wlan_driver_register for PCI if pci device is not
+		 * connected to board. If PCI device is connected, probe_basic
+		 * function will initialize plat_priv->pci_dev
+		 */
 		if (plat_priv->device_id == QCA6290_DEVICE_ID &&
-				(strcmp(driver_ops->name, "pld_pcie") == 0)) {
+		    plat_priv->pci_dev &&
+		    (strcmp(driver_ops->name, "pld_pcie") == 0)) {
 			cnss_pci_init(plat_priv);
 			plat_priv->driver_status = CNSS_LOAD_UNLOAD;
 			plat_priv->driver_ops = driver_ops;
@@ -1736,8 +1741,8 @@ static int cnss_do_recovery(struct cnss_plat_data *plat_priv,
 	if (plat_priv->driver_ops &&
 	    test_bit(CNSS_DRIVER_PROBED, &plat_priv->driver_state))
 		plat_priv->driver_ops->update_status(pci_priv->pci_dev,
-						     CNSS_RECOVERY,
-						     pci_priv->pci_device_id);
+						     pci_priv->pci_device_id,
+						     CNSS_RECOVERY);
 
 	switch (reason) {
 	case CNSS_REASON_LINK_DOWN:
