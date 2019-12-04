@@ -915,6 +915,7 @@ struct dwc3 {
 	unsigned		is_drd:1;
 	unsigned		vbus_active:1;
 	unsigned		softconnect:1;
+	unsigned		disable_ep_cache_eviction_quirk:1;
 };
 
 /* -------------------------------------------------------------------------- */

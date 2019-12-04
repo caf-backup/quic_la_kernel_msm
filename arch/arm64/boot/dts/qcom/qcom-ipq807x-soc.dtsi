@@ -1459,6 +1459,7 @@
 				interrupts = <0 140 0>;
 				usb-phy = <&qusb_phy_0>, <&ssphy_0>;
 				tx-fifo-resize;
+				snps,dis_ep_cache_eviction;
 				snps,usb3-u1u2-disable;
 				snps,nominal-elastic-buffer;
 				snps,is-utmi-l1-suspend;
@@ -1545,6 +1546,7 @@
 				interrupts = <0 99 0>;
 				usb-phy = <&qusb_phy_1>, <&ssphy_1>;
 				tx-fifo-resize;
+				snps,dis_ep_cache_eviction;
 				snps,usb3-u1u2-disable;
 				snps,nominal-elastic-buffer;
 				snps,is-utmi-l1-suspend;

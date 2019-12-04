@@ -410,6 +410,7 @@
 			       reg = <0x8A00000 0xcd00>;
 			       interrupts = <GIC_SPI 140 IRQ_TYPE_NONE>;
 			       usb-phy = <&qusb_phy_0>, <&ssphy_0>;
+			       snps,dis_ep_cache_eviction;
 			       tx-fifo-resize;
 			       snps,usb3-u1u2-disable;
 			       snps,nominal-elastic-buffer;
@@ -489,6 +490,7 @@
 			       reg = <0x7000000 0xcd00>;
 			       interrupts = <GIC_SPI 99 IRQ_TYPE_NONE>;
 			       usb-phy = <&qusb_phy_1>;
+			       snps,dis_ep_cache_eviction;
 			       tx-fifo-resize;
 			       snps,usb3-u1u2-disable;
 			       snps,nominal-elastic-buffer;

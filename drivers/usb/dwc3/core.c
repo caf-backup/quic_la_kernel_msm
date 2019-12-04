@@ -748,15 +748,13 @@ static int dwc3_core_init(struct dwc3 *dwc)
 	ret = dwc3_setup_scratch_buffers(dwc);
 	if (ret)
 		goto err2;
-	/*
-	 * Enable ENABLEEPCACHEEVICT for 3.00a dwc3 host,
-	 * fixed in 3.20a controller
-	 */
-	if (dwc->revision == DWC3_REVISION_300A) {
+
+	if (dwc->disable_ep_cache_eviction_quirk) {
 		reg = dwc3_readl(dwc->regs, DWC3_GUCTL2);
 		reg |= DWC3_GCTL2_ENABLEEPCACHEEVICT;
 		dwc3_writel(dwc->regs, DWC3_GUCTL2, reg);
 	}
+
 	return 0;
 
 err2:
@@ -1065,6 +1063,8 @@ static int dwc3_probe(struct platform_device *pdev)
 				 &ref_clk_per);
 	dwc->emulation = of_property_read_bool(dev->of_node,
 					"qcom,emulation");
+	dwc->disable_ep_cache_eviction_quirk = device_property_read_bool(dev,
+				"snps,dis_ep_cache_eviction");
 
 	if (pdata) {
 		dwc->maximum_speed = pdata->maximum_speed;
