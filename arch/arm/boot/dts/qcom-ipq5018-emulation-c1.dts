@@ -15,3 +15,9 @@
 + */
 
 #include "../../../arm64/boot/dts/qcom/qcom-ipq5018-emulation-c1.dts"
+
+/ {
+	pmuv8: pmu {
+		compatible = "arm,cortex-a7-pmu";
+	};
+};
