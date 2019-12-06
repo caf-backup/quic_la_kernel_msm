@@ -16,6 +16,8 @@
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/qcom,gcc-ipq5018.h>
+#include <dt-bindings/reset/qcom,gcc-ipq5018.h>
+#include <dt-bindings/clock/qca,apss-ipq5018.h>
 
 / {
 	model = "Qualcomm Technologies, Inc. IPQ5018";
