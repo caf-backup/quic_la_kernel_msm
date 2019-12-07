@@ -33,6 +33,8 @@ struct pcie_port {
 	void __iomem		*dbi_base;
 	void __iomem *dm_iatu;
 	u32 is_gen3;
+	u32 use_delay;
+	u32 link_retries_count;
 	u64			cfg0_base;
 	void __iomem		*va_cfg0_base;
 	u32			cfg0_size;

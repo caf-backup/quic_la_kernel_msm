@@ -563,15 +563,22 @@ static struct msi_controller dw_pcie_msi_chip = {
 
 int dw_pcie_wait_for_link(struct pcie_port *pp)
 {
-	int retries;
+	int retries, max_link_retries;
+
+	if(pp->link_retries_count != 0)
+		max_link_retries = pp->link_retries_count;
+	else
+		max_link_retries = LINK_WAIT_MAX_RETRIES;
 
 	/* check if the link is up or not */
-	for (retries = 0; retries < LINK_WAIT_MAX_RETRIES; retries++) {
+	for (retries = 0; retries < max_link_retries; retries++) {
 		if (dw_pcie_link_up(pp)) {
 			dev_info(pp->dev, "link up\n");
 			return 0;
 		}
 		usleep_range(LINK_WAIT_USLEEP_MIN, LINK_WAIT_USLEEP_MAX);
+		if(pp->use_delay)
+			mdelay(10000);
 	}
 
 	dev_err(pp->dev, "phy link never came up\n");
