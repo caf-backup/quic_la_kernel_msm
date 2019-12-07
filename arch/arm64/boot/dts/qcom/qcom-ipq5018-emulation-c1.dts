@@ -48,6 +48,20 @@
 		timer {
 			clock-frequency = <240000>;
 		};
+
+		spi_0: spi@78b5000 { /* BLSP1 QUP0 */
+			status = "ok";
+
+			m25p80@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0>;
+				compatible = "n25q128a11";
+				linux,modalias = "m25p80", "n25q128a11";
+				spi-max-frequency = <50000000>;
+				use-default-sizes;
+			};
+		};
 	};
 };
 
