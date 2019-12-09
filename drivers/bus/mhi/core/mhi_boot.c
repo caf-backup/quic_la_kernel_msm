@@ -70,7 +70,7 @@ void get_crash_reason(struct mhi_controller *mhi_cntrl)
 	}
 
 	if( i == MAX_RAMDUMP_TABLE_SIZE) {
-		MHI_LOG("Cannot find '%s' entry in ramdump\n", COREDUMP_DESC);
+		MHI_ERR("Cannot find '%s' entry in ramdump\n", COREDUMP_DESC);
 		return;
 	}
 
@@ -85,7 +85,7 @@ void get_crash_reason(struct mhi_controller *mhi_cntrl)
 	}
 
 	if (!IS_ERR(msg) && msg && msg[0])
-		MHI_LOG("Crash Reason: %s\n", msg);
+		MHI_ERR("Crash Reason: %s\n", msg);
 }
 
 
