@@ -293,6 +293,8 @@ struct qcom_pcie {
 	struct work_struct handle_wake_work;
 	uint32_t force_gen1;
 	u32 is_emulation;
+	u32 use_delay;
+	u32 link_retries_count;
 	u32 is_gen3;
 	int global_irq;
 	int wake_irq;
@@ -1730,6 +1732,8 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	uint32_t force_gen1 = 0;
 	struct device_node *np = pdev->dev.of_node;
 	u32 is_emulation = 0;
+	u32 use_delay = 0;
+	u32 link_retries_count = 0;
 	static int rc_idx;
 	int i;
 	char irq_name[20];
@@ -1745,6 +1749,12 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 
 	of_property_read_u32(np, "is_emulation", &is_emulation);
 	pcie->is_emulation = is_emulation;
+
+	of_property_read_u32(np, "use_delay", &use_delay);
+        pcie->use_delay = use_delay;
+
+	of_property_read_u32(np, "link_retries_count", &link_retries_count);
+	pcie->link_retries_count = link_retries_count;
 
 	pcie->reset = devm_gpiod_get_optional(dev, "perst", GPIOD_OUT_LOW);
 	if (IS_ERR(pcie->reset))
@@ -1827,6 +1837,8 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	pp->dbi_base = pcie->dbi;
 	pp->dm_iatu = pcie->dm_iatu;
 	pp->is_gen3 = pcie->is_gen3;
+        pp->use_delay = pcie->use_delay;
+	pp->link_retries_count = pcie->link_retries_count;
 	pp->root_bus_nr = -1;
 	pp->ops = &qcom_pcie_dw_ops;
 
