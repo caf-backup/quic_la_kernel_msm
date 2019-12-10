@@ -41,6 +41,10 @@
 	};
 
 	soc {
+		gcc: gcc@1800000 {
+			gcc-use-dummy;
+		};
+
 		serial@78af000 {
 			status = "ok";
 		};
