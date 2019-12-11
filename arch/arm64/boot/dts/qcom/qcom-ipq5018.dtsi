@@ -164,6 +164,12 @@
 			status = "ok";
 		};
 
+		qca,scm_restart_reason {
+			compatible = "qca,scm_restart_reason";
+			dload_status = <0>;
+			dload_warm_reset = <0>;
+		};
+
 		watchdog: watchdog@b017000 {
 			compatible = "qcom,kpss-wdt-ipq5018";
 			reg = <0xb017000 0x1000>;
