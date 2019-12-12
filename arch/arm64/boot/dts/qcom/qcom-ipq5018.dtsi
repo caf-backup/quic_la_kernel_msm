@@ -286,6 +286,11 @@
 
 			#mbox-cells = <1>;
 		};
+
+		tcsr_q6_block: syscon@1945000 {
+			compatible = "syscon";
+			reg = <0x1945000 0xE000>;
+		};
 	};
 
 	cpus {
