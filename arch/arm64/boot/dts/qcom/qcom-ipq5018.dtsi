@@ -81,7 +81,7 @@
 
 		blsp_dma: dma@7884000 {
 			compatible = "qcom,bam-v1.7.0";
-			reg = <0x07884000 0x2b000>;
+			reg = <0x07884000 0x1d000>;
 			interrupts = <GIC_SPI 238 IRQ_TYPE_NONE>;
 			clocks = <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "bam_clk";
