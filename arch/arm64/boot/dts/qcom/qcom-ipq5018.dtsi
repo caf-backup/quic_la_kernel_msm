@@ -279,6 +279,13 @@
 			memory-region = <&smem_region>;
 			hwlocks = <&tcsr_mutex 0>;
 		};
+
+		apcs_glb: mailbox@b111000 {
+			compatible = "qcom,msm8996-apcs-hmss-global";
+			qcom,ipc = <&apcs 8 8>;
+
+			#mbox-cells = <1>;
+		};
 	};
 
 	cpus {
