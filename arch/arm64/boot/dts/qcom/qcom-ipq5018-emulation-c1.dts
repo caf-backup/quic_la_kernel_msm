@@ -78,6 +78,10 @@
 				};
 			};
 		};
+
+		qca,scm_restart_reason {
+			status = "disabled";
+		};
 	};
 };
 
