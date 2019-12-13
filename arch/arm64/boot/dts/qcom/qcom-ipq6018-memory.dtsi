@@ -115,7 +115,7 @@
 			reg = <0x0 0x4ab00000 0x0 0x02800000>;
 		};
 
-		q6_etr_region: q6_etr_dump@0x4D300000 {
+		q6_etr_region: q6_etr_dump@1 {
 			no-map;
 			reg = <0x0 0x4D300000 0x0 0x100000>;
 		};
@@ -214,7 +214,7 @@
 			reg = <0x0 0x4ab00000 0x0 0x03700000>;
 		};
 
-		q6_etr_region: q6_etr_dump@0x4D300000 {
+		q6_etr_region: q6_etr_dump@1 {
 			no-map;
 			reg = <0x0 0x4E200000 0x0 0x100000>;
 		};
@@ -313,7 +313,7 @@
 			reg = <0x0 0x4ab00000 0x0 0x05500000>;
 		};
 
-		q6_etr_region: q6_etr_dump@0x4D300000 {
+		q6_etr_region: q6_etr_dump@1 {
 			no-map;
 			reg = <0x0 0x50000000 0x0 0x100000>;
 		};
