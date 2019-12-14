@@ -52,6 +52,13 @@
 			#reset-cells = <0x1>;
 		};
 
+		apss_clk: qcom,apss_clk@b111000 {
+			compatible = "qcom,apss-ipq5018";
+			reg = <0xb111000 0x6000>;
+			#clock-cells = <0x1>;
+			#reset-cells = <1>;
+		};
+
 		blsp1_uart2: serial@78b0000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0x78b0000 0x200>;
@@ -285,6 +292,8 @@
 			qcom,acc = <&acc0>;
 			next-level-cache = <&L2_0>;
 			enable-method = "qcom,arm-cortex-acc";
+			clocks = <&apss_clk APCS_ALIAS0_CORE_CLK>;
+			clock-names = "cpu";
 		};
 
 		CPU1: cpu@1 {
@@ -294,6 +303,8 @@
 			reg = <0x1>;
 			qcom,acc = <&acc1>;
 			next-level-cache = <&L2_0>;
+			clocks = <&apss_clk APCS_ALIAS0_CORE_CLK>;
+			clock-names = "cpu";
 		};
 
 		L2_0: l2-cache {
