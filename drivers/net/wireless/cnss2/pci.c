@@ -2686,32 +2686,57 @@ int cnss_pci_alloc_qdss_mem(struct cnss_pci_data *pci_priv)
 {
 	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
 	struct cnss_fw_mem *qdss_mem = plat_priv->qdss_mem;
-	int i, j;
+	struct device *dev = &plat_priv->plat_dev->dev;
+	u32 i, addr = 0;
 
+	if (plat_priv->device_id != QCN9000_DEVICE_ID) {
+		cnss_pr_err("%s: Unknown device id 0x%lx",
+			    __func__, plat_priv->device_id);
+		return -EINVAL;
+	}
+
+	if (plat_priv->qdss_mem_seg_len > 1) {
+		cnss_pr_err("%s: FW requests %d segments, max allowed is 1",
+			    __func__, plat_priv->qdss_mem_seg_len);
+		return -EINVAL;
+	}
+
+	/* Currently we support qdss_mem_seg_len = 1 only, however, if required
+	 * this can be extended to support multiple QDSS memory segments
+	 */
 	for (i = 0; i < plat_priv->qdss_mem_seg_len; i++) {
-		if (!qdss_mem[i].va && qdss_mem[i].size) {
-			qdss_mem[i].va =
-				dma_alloc_coherent(&pci_priv->pci_dev->dev,
-						   qdss_mem[i].size,
-						   &qdss_mem[i].pa,
-						   GFP_KERNEL);
-			if (!qdss_mem[i].va) {
-				cnss_pr_err("Failed to allocate QDSS memory for FW, size: 0x%zx, type: %u, chuck-ID: %d\n",
-					    qdss_mem[i].size,
-					    qdss_mem[i].type, i);
-				break;
+		switch (qdss_mem[i].type) {
+		case QDSS_ETR_MEM_REGION_TYPE:
+			if (qdss_mem[i].size > Q6_QDSS_ETR_SIZE_QCN9000) {
+				cnss_pr_err("%s: FW requests more memory 0x%x\n",
+					    __func__, qdss_mem[i].size);
+				return -ENOMEM;
 			}
+			if (of_property_read_u32(dev->of_node, "etr-addr",
+						 &addr)) {
+				cnss_pr_err("Error: No etr-addr in dts\n");
+				CNSS_ASSERT(0);
+				return -ENOMEM;
+			}
+
+			qdss_mem[i].pa = (phys_addr_t)addr;
+			qdss_mem[i].va = ioremap(qdss_mem[i].pa,
+						 qdss_mem[i].size);
+			if (!qdss_mem[i].va) {
+				cnss_pr_err("WARNING etr-addr remap failed\n");
+				return -ENOMEM;
+			}
+			break;
+		default:
+			cnss_pr_err("%s: Unknown type %d\n",
+				    __func__, qdss_mem[i].type);
+			break;
 		}
 	}
 
-	/* Best-effort allocation for QDSS trace */
-	if (i < plat_priv->qdss_mem_seg_len) {
-		for (j = i; j < plat_priv->qdss_mem_seg_len; j++) {
-			qdss_mem[j].type = 0;
-			qdss_mem[j].size = 0;
-		}
-		plat_priv->qdss_mem_seg_len = i;
-	}
+	cnss_pr_dbg("%s: seg_len %d, type %d, size 0x%x, pa: 0x%x, va: 0x%p",
+		    __func__, plat_priv->qdss_mem_seg_len, qdss_mem[0].type,
+		    qdss_mem[0].size, qdss_mem[0].pa, qdss_mem[0].va);
 
 	return 0;
 }

@@ -16,6 +16,7 @@
 #include <net/netlink.h>
 #include <net/genetlink.h>
 
+#define CNSS_GENL_STR_LEN_MAX 32
 enum cnss_genl_msg_type {
 	CNSS_GENL_MSG_TYPE_UNSPEC,
 	CNSS_GENL_MSG_TYPE_QDSS,

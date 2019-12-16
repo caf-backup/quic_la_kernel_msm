@@ -179,8 +179,8 @@ static int cnss_wlfw_ind_register_send_sync(struct cnss_plat_data *plat_priv)
 	req->cal_done_enable = 1;
 	req->qdss_trace_req_mem_enable_valid = 1;
 	req->qdss_trace_req_mem_enable = 1;
-	req->qdss_trace_save_enable_valid = 0;
-	req->qdss_trace_save_enable = 0;
+	req->qdss_trace_save_enable_valid = 1;
+	req->qdss_trace_save_enable = 1;
 	req->qdss_trace_free_enable_valid = 1;
 	req->qdss_trace_free_enable = 1;
 	req->m3_dump_upload_req_enable_valid = 1;
@@ -2087,8 +2087,8 @@ static void cnss_wlfw_qdss_trace_req_mem_ind_cb(struct qmi_handle *qmi_wlfw,
 	}
 	plat_priv->qdss_mem_seg_len = ind_msg->mem_seg_len;
 	if (ind_msg->mem_seg_len > 1) {
-		cnss_pr_dbg("FW requests %d segments, overwriting it with 1",
-			    ind_msg->mem_seg_len);
+		cnss_pr_dbg("%s: FW requests %d segments, overwriting it with 1",
+			    __func__, ind_msg->mem_seg_len);
 		plat_priv->qdss_mem_seg_len = 1;
 	}
 

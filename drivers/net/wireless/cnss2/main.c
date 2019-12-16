@@ -1999,8 +1999,8 @@ static int cnss_qdss_trace_req_mem_hdlr(struct cnss_plat_data *plat_priv)
 	return cnss_wlfw_qdss_trace_mem_info_send_sync(plat_priv);
 }
 
-static void *cnss_qdss_trace_pa_to_va(struct cnss_plat_data *plat_priv,
-				      u64 pa, u32 size, int *seg_id)
+void *cnss_qdss_trace_pa_to_va(struct cnss_plat_data *plat_priv,
+			       u64 pa, u32 size, int *seg_id)
 {
 	int i = 0;
 	struct cnss_fw_mem *qdss_mem = plat_priv->qdss_mem;
@@ -2036,21 +2036,37 @@ static int cnss_qdss_trace_save_hdlr(struct cnss_plat_data *plat_priv,
 	struct cnss_fw_mem *qdss_mem = plat_priv->qdss_mem;
 	int ret = 0;
 	int i;
-	void *va = NULL;
-	u64 pa;
-	u32 size;
-	int seg_id = 0;
+	char *file_suffix = NULL;
+	char file_prefix[QDSS_TRACE_FILE_NAME_MAX] = {};
+	char file_name[CNSS_GENL_STR_LEN_MAX];
 
 	if (!plat_priv->qdss_mem_seg_len) {
 		cnss_pr_err("Memory for QDSS trace is not available\n");
 		return -ENOMEM;
 	}
 
+	file_suffix = strnstr(event_data->file_name, ".bin",
+			      QDSS_TRACE_FILE_NAME_MAX);
+	if (file_suffix) {
+		strlcpy(file_prefix, event_data->file_name,
+			(file_suffix - &event_data->file_name[0]) + 1);
+		snprintf(file_name, sizeof(file_name),
+			 "%s_qcn9000_pci%d%s",
+			 file_prefix,
+			 (plat_priv->wlfw_service_instance_id - NODE_ID_BASE),
+			 file_suffix);
+	} else {
+		snprintf(file_name, sizeof(file_name),
+			 "%s_qcn9000_pci%d",
+			 event_data->file_name,
+			 (plat_priv->wlfw_service_instance_id - NODE_ID_BASE));
+	}
+
 	if (event_data->mem_seg_len == 0) {
 		for (i = 0; i < plat_priv->qdss_mem_seg_len; i++) {
 			ret = cnss_genl_send_msg(qdss_mem[i].va,
 						 CNSS_GENL_MSG_TYPE_QDSS,
-						 event_data->file_name,
+						 file_name,
 						 qdss_mem[i].size);
 			if (ret < 0) {
 				cnss_pr_err("Fail to save QDSS data: %d\n",
@@ -2058,28 +2074,74 @@ static int cnss_qdss_trace_save_hdlr(struct cnss_plat_data *plat_priv,
 				break;
 			}
 		}
-	} else {
-		for (i = 0; i < event_data->mem_seg_len; i++) {
-			pa = event_data->mem_seg[i].addr;
-			size = event_data->mem_seg[i].size;
-			va = cnss_qdss_trace_pa_to_va(plat_priv, pa,
-						      size, &seg_id);
-			if (!va) {
-				cnss_pr_err("Fail to find matching va for pa %pa\n",
-					    &pa);
-				ret = -EINVAL;
-				break;
-			}
-			ret = cnss_genl_send_msg(va, CNSS_GENL_MSG_TYPE_QDSS,
-						 event_data->file_name, size);
-			if (ret < 0) {
-				cnss_pr_err("Fail to save QDSS data: %d\n",
-					    ret);
-				break;
-			}
+	} else if ((event_data->mem_seg_len == 1) &&
+		   (event_data->mem_seg[0].addr == qdss_mem[0].pa) &&
+		   (event_data->mem_seg[0].size <= qdss_mem[0].size)) {
+		ret = cnss_genl_send_msg(qdss_mem[0].va,
+					 CNSS_GENL_MSG_TYPE_QDSS,
+					 file_name,
+					 event_data->mem_seg[0].size);
+		if (ret < 0) {
+			cnss_pr_err("Fail to save QDSS data: %d\n", ret);
+			goto out;
 		}
+		cnss_pr_info("QDSS Data saved in /data/vendor/wifi/%s",
+			     file_name);
+	} else if (event_data->mem_seg_len == 2) {
+		/* FW sends the 2 segments in below format, we need to send
+		 * segment 0 first then segment 1
+		 *
+		 *  QDSS ETR Memory - 1MB
+		 * +---------------------+
+		 * |   segment 1 start   |
+		 * |                     |
+		 * |                     |
+		 * |                     |
+		 * |   segment 1 end     |
+		 * +---------------------+
+		 * |   segment 0 start   |
+		 * |                     |
+		 * |                     |
+		 * |   segment 0 end     |
+		 * +---------------------+
+		 */
+		if (event_data->mem_seg[1].addr != qdss_mem[0].pa) {
+			cnss_pr_err("Invalid seg 0 addr 0x%llx",
+				    event_data->mem_seg[1].addr);
+			goto out;
+		}
+		if (event_data->mem_seg[0].size + event_data->mem_seg[1].size !=
+		    qdss_mem[0].size) {
+			cnss_pr_err("Invalid total size 0x%x 0x%x",
+				    event_data->mem_seg[0].size,
+				    event_data->mem_seg[1].size);
+			goto out;
+		}
+
+		ret = cnss_genl_send_msg((qdss_mem[0].va +
+					 event_data->mem_seg[1].size),
+					 CNSS_GENL_MSG_TYPE_QDSS,
+					 file_name,
+					 event_data->mem_seg[0].size);
+		if (ret < 0) {
+			cnss_pr_err("Fail to save QDSS data 0: %d\n", ret);
+			goto out;
+		}
+		ret = cnss_genl_send_msg((qdss_mem[0].va),
+					 CNSS_GENL_MSG_TYPE_QDSS,
+					 file_name,
+					 event_data->mem_seg[1].size);
+		if (ret < 0) {
+			cnss_pr_err("Fail to save QDSS data 1: %d\n", ret);
+			goto out;
+		}
+		cnss_pr_info("QDSS Data saved in /data/vendor/wifi/%s",
+			     file_name);
+	} else {
+		cnss_pr_err("Inavalid mem seg len %d", event_data->mem_seg_len);
 	}
 
+out:
 	kfree(data);
 	return ret;
 }

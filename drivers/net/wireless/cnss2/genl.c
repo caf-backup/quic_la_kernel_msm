@@ -22,8 +22,7 @@
 #define CNSS_GENL_FAMILY_NAME "cnss-genl"
 #define CNSS_GENL_MCAST_GROUP_NAME "cnss-genl-grp"
 #define CNSS_GENL_VERSION 1
-#define CNSS_GENL_DATA_LEN_MAX (15 * 1024)
-#define CNSS_GENL_STR_LEN_MAX 16
+#define CNSS_GENL_DATA_LEN_MAX 4000
 
 enum {
 	CNSS_GENL_ATTR_MSG_UNSPEC,
@@ -218,6 +217,11 @@ int cnss_genl_send_msg(void *buff, u8 type, char *file_name, u32 total_size)
 
 		remaining -= data_len;
 		msg_buff += data_len;
+		/* There is a known issue where without this msleep, NL send
+		 * msg fails. Work in progress to fix this
+		 */
+		if ((seg_id % 10) == 0)
+			msleep(50);
 		seg_id++;
 	}
 

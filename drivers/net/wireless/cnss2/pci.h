@@ -48,6 +48,7 @@
 #define BDF_MEM_REGION_TYPE		0x2
 #define M3_DUMP_REGION_TYPE		0x3
 #define CALDB_MEM_REGION_TYPE		0x4
+#define QDSS_ETR_MEM_REGION_TYPE	0x6
 
 enum cnss_mhi_state {
 	CNSS_MHI_INIT,
