@@ -245,14 +245,7 @@
 
 	led_pins: led_pins {
 		led_2g {
-			pins = "gpio42";
-			function = "gpio";
-			drive-strength = <8>;
-			bias-pull-down;
-		};
-
-		led_5g {
-			pins = "gpio43";
+			pins = "gpio18";
 			function = "gpio";
 			drive-strength = <8>;
 			bias-pull-down;
@@ -734,13 +727,7 @@
 
 		led_2g {
 			label = "led_2g";
-			gpio = <&tlmm 42 GPIO_ACTIVE_HIGH>;
-			default-state = "off";
-		};
-
-		led_5g {
-			label = "led_5g";
-			gpio = <&tlmm 43 GPIO_ACTIVE_HIGH>;
+			gpio = <&tlmm 18 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 	};
