@@ -26,7 +26,6 @@ int qcom_q6v5_prepare(struct qcom_q6v5 *q6v5)
 	reinit_completion(&q6v5->start_done);
 	reinit_completion(&q6v5->stop_done);
 
-	q6v5->running = true;
 	q6v5->handover_issued = false;
 
 	enable_irq(q6v5->handover_irq);
