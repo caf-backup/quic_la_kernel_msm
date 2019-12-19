@@ -718,11 +718,11 @@ static ssize_t cnss_qmi_record_debug_write(struct file *fp,
 					   const char __user *user_buf,
 					   size_t count, loff_t *off)
 {
-	char buf[3];
+	char buf[4];
 
-	if (copy_from_user(buf, user_buf, 3))
+	if (copy_from_user(buf, user_buf, 4))
 		return -EFAULT;
-	qmi_record(0xD000 | buf[0], buf[1], buf[2]);
+	qmi_record(buf[0], 0xD000 | buf[1], buf[2], buf[3]);
 	return count;
 }
 
