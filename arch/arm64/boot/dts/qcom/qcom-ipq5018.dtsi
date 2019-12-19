@@ -24,6 +24,12 @@
 	model = "Qualcomm Technologies, Inc. IPQ5018";
 	compatible = "qcom,ipq5018";
 
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
+		status = "ok";
+	};
+
 	soc: soc {
 		#address-cells = <0x1>;
 		#size-cells = <0x1>;
@@ -352,9 +358,9 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x0>;
+			enable-method = "psci";
 			qcom,acc = <&acc0>;
 			next-level-cache = <&L2_0>;
-			enable-method = "qcom,arm-cortex-acc";
 			clocks = <&apss_clk APCS_ALIAS0_CORE_CLK>;
 			clock-names = "cpu";
 		};
@@ -362,8 +368,8 @@
 		CPU1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
-			enable-method = "qcom,arm-cortex-acc";
 			reg = <0x1>;
+			enable-method = "psci";
 			qcom,acc = <&acc1>;
 			next-level-cache = <&L2_0>;
 			clocks = <&apss_clk APCS_ALIAS0_CORE_CLK>;
@@ -395,4 +401,11 @@
 		interrupts = <GIC_PPI 7 (GIC_CPU_MASK_SIMPLE(4) |
 					 IRQ_TYPE_LEVEL_HIGH)>;
 	};
+
+	firmware {
+		scm {
+			compatible = "qcom,scm-ipq5018";
+		};
+	};
+
 };

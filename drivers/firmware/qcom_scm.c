@@ -568,6 +568,7 @@ static const struct of_device_id qcom_scm_dt_match[] = {
 	{ .compatible = "qcom,scm-ipq806x", .data = (void *)SCM_NOCLK },
 	{ .compatible = "qcom,scm-ipq40xx", .data = (void *)SCM_NOCLK },
 	{ .compatible = "qcom,scm-ipq6018", .data = (void *)SCM_NOCLK },
+	{ .compatible = "qcom,scm-ipq5018", .data = (void *)SCM_NOCLK },
 	{ .compatible = "qcom,scm-msm8960",},
 	{ .compatible = "qcom,scm-msm8960",},
 	{ .compatible = "qcom,scm",},
