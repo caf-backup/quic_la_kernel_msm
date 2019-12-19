@@ -2268,6 +2268,7 @@
 	firmware: firmware {
 		scm {
 			compatible = "qcom,scm-ipq6018";
+			smmu-state-scm-cmd-id = <0x20>;
 		};
 		qfprom {
 			compatible = "qcom,qfprom-sec";
