@@ -89,3 +89,31 @@
 	qcom,emulation = <1>;
 	status = "ok";
 };
+
+&tlmm {
+	pinctrl-0 = <&uart_pins>;
+	pinctrl-names = "default";
+
+	uart_pins: uart_pins {
+		mux_0 {
+			pins = "gpio20", "gpio21";
+			function = "blsp0_uart0";
+			bias-pull-down;
+		};
+		mux_1 {
+			pins = "gpio10";
+			function = "blsp1_uart0";
+			bias-pull-down;
+                };
+		mux_2 {
+			pins = "gpio11", "gpio12";
+			function = "blsp1_uart0";
+			bias-pull-down;
+                };
+		mux_3 {
+			pins = "gpio13";
+			function = "blsp1_uart0";
+			bias-pull-down;
+		};
+	};
+};
