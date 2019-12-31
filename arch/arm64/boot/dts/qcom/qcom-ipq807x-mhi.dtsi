@@ -161,7 +161,7 @@
 
 				mhi_chan@4 {
 					reg = <4>;
-					label = "DIAG";
+					label = "DIAG2";
 					mhi,num-elements = <32>;
 					mhi,event-ring = <1>;
 					mhi,chan-dir = <1>;
@@ -172,7 +172,7 @@
 
 				mhi_chan@5 {
 					reg = <5>;
-					label = "DIAG";
+					label = "DIAG2";
 					mhi,num-elements = <32>;
 					mhi,event-ring = <1>;
 					mhi,chan-dir = <2>;
