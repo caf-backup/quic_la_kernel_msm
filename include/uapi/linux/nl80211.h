@@ -52,6 +52,11 @@
 #define NL80211_MULTICAST_GROUP_NAN		"nan"
 #define NL80211_MULTICAST_GROUP_TESTMODE	"testmode"
 
+#define NL80211_EDMG_BW_CONFIG_MIN	4
+#define NL80211_EDMG_BW_CONFIG_MAX	15
+#define NL80211_EDMG_CHANNELS_MIN	1
+#define NL80211_EDMG_CHANNELS_MAX	0x3c /* 0b00111100 */
+
 /**
  * DOC: Station handling
  *
@@ -2373,6 +2378,21 @@ enum nl80211_commands {
  *	should be picking up the lowest tx power, either tx power per-interface
  *	or per-station.
  *
+ * @NL80211_ATTR_SAE_PASSWORD: attribute for passing SAE password material. It
+ *      is used with %NL80211_CMD_CONNECT to provide password for offloading
+ *      SAE authentication for WPA3-Personal networks.
+ *
+ * @NL80211_ATTR_TWT_RESPONDER: Enable target wait time responder support.
+ *
+ * @NL80211_ATTR_HE_OBSS_PD: nested attribute for OBSS Packet Detection
+ *      functionality.
+ *
+ * @NL80211_ATTR_WIPHY_EDMG_CHANNELS: bitmap that indicates the 2.16 GHz
+ *      channel(s) that are allowed to be used for EDMG transmissions.
+ *      Defined by IEEE P802.11ay/D4.0 section 9.4.2.251. (u8 attribute)
+ * @NL80211_ATTR_WIPHY_EDMG_BW_CONFIG: Channel BW Configuration subfield encodes
+ *      the allowed channel bandwidth configurations. (u8 attribute)
+ *      Defined by IEEE P802.11ay/D4.0 section 9.4.2.251, Table 13.
  * @NL80211_ATTR_VLAN_ID: VLAN ID for the station and VLAN group key (u16).
  *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
@@ -2827,6 +2847,15 @@ enum nl80211_attrs {
 	NL80211_ATTR_AIRTIME_WEIGHT,
 	NL80211_ATTR_STA_TX_POWER_SETTING,
 	NL80211_ATTR_STA_TX_POWER,
+	NL80211_ATTR_SAE_PASSWORD,
+
+	NL80211_ATTR_TWT_RESPONDER,
+
+	NL80211_ATTR_HE_OBSS_PD,
+
+	NL80211_ATTR_WIPHY_EDMG_CHANNELS,
+	NL80211_ATTR_WIPHY_EDMG_BW_CONFIG,
+
 	NL80211_ATTR_VLAN_ID,
 
 	/* add attributes here, update the policy in nl80211.c */
@@ -3333,6 +3362,14 @@ enum nl80211_mpath_info {
  * @NL80211_BAND_ATTR_VHT_MCS_SET: 32-byte attribute containing the MCS set as
  *	defined in 802.11ac
  * @NL80211_BAND_ATTR_VHT_CAPA: VHT capabilities, as in the HT information IE
+ * @NL80211_BAND_ATTR_IFTYPE_DATA: nested array attribute, with each entry using
+ *	attributes from &enum nl80211_band_iftype_attr
+ * @NL80211_BAND_ATTR_EDMG_CHANNELS: bitmap that indicates the 2.16 GHz
+ *      channel(s) that are allowed to be used for EDMG transmissions.
+ *      Defined by IEEE P802.11ay/D4.0 section 9.4.2.251.
+ * @NL80211_BAND_ATTR_EDMG_BW_CONFIG: Channel BW Configuration subfield encodes
+ *      the allowed channel bandwidth configurations.
+ *      Defined by IEEE P802.11ay/D4.0 section 9.4.2.251, Table 13.
  * @NL80211_BAND_ATTR_MAX: highest band attribute currently defined
  * @__NL80211_BAND_ATTR_AFTER_LAST: internal use
  */
@@ -3348,6 +3385,10 @@ enum nl80211_band_attr {
 
 	NL80211_BAND_ATTR_VHT_MCS_SET,
 	NL80211_BAND_ATTR_VHT_CAPA,
+	NL80211_BAND_ATTR_IFTYPE_DATA,
+
+	NL80211_BAND_ATTR_EDMG_CHANNELS,
+	NL80211_BAND_ATTR_EDMG_BW_CONFIG,
 
 	/* keep last */
 	__NL80211_BAND_ATTR_AFTER_LAST,
@@ -5314,14 +5355,17 @@ enum nl80211_feature_flags {
  * @NL80211_EXT_FEATURE_STA_TX_PWR: This driver supports controlling tx power
  *	to a station.
  *
- * @NL80211_EXT_FEATURE_FILS_CRYPTO_OFFLOAD: Driver running in AP mode supports
- *	FILS encryption/decryption for (Re)Association Request/Response frames.
- *	Userspace has to share FILS AAD details to the driver by using
- *	@NL80211_CMD_SET_FILS_AAD.
+ * @NL80211_EXT_FEATURE_SAE_OFFLOAD: Device wants to do SAE authentication in
+ *	station mode (SAE password is passed as part of the connect command).
  *
  * @NL80211_EXT_FEATURE_VLAN_OFFLOAD: The driver supports a single netdev
  *	with VLAN tagged frames and separate VLAN-specific netdevs added using
  *	vconfig similarly to the Ethernet case.
+ *
+ * @NL80211_EXT_FEATURE_FILS_CRYPTO_OFFLOAD: Driver running in AP mode supports
+ *	FILS encryption/decryption for (Re)Association Request/Response frames.
+ *	Userspace has to share FILS AAD details to the driver by using
+ *	@NL80211_CMD_SET_FILS_AAD.
  *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
@@ -5368,8 +5412,9 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_SCHED_SCAN_BAND_SPECIFIC_RSSI_THOLD,
 	NL80211_EXT_FEATURE_EXT_KEY_ID,
 	NL80211_EXT_FEATURE_STA_TX_PWR,
-	NL80211_EXT_FEATURE_FILS_CRYPTO_OFFLOAD,
+	NL80211_EXT_FEATURE_SAE_OFFLOAD,
 	NL80211_EXT_FEATURE_VLAN_OFFLOAD,
+	NL80211_EXT_FEATURE_FILS_CRYPTO_OFFLOAD,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,

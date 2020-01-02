@@ -18,6 +18,7 @@
 #include <dt-bindings/clock/qcom,gcc-ipq5018.h>
 #include <dt-bindings/reset/qcom,gcc-ipq5018.h>
 #include <dt-bindings/clock/qca,apss-ipq5018.h>
+#include "qcom-ipq5018-memory.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. IPQ5018";
@@ -49,6 +50,13 @@
 			reg = <0x1800000 0x80000>;
 			#clock-cells = <0x1>;
 			#reset-cells = <0x1>;
+		};
+
+		apss_clk: qcom,apss_clk@b111000 {
+			compatible = "qcom,apss-ipq5018";
+			reg = <0xb111000 0x6000>;
+			#clock-cells = <0x1>;
+			#reset-cells = <1>;
 		};
 
 		blsp1_uart2: serial@78b0000 {
@@ -163,6 +171,12 @@
 			status = "ok";
 		};
 
+		qca,scm_restart_reason {
+			compatible = "qca,scm_restart_reason";
+			dload_status = <0>;
+			dload_warm_reset = <0>;
+		};
+
 		watchdog: watchdog@b017000 {
 			compatible = "qcom,kpss-wdt-ipq5018";
 			reg = <0xb017000 0x1000>;
@@ -203,6 +217,68 @@
 				#interrupt-cells = <2>;
 			};
 		};
+
+		q6v5_wcss: q6v5_wcss@CD00000 {
+			compatible = "qca,q6v5-wcss-rproc-ipq50xx";
+			firmware = "IPQ5018/wcss.mdt";
+			reg = <0xCD00000 0x10000>,
+				<0x194f000 0x10>,
+				<0x1952000 0x10>,
+				<0x4ab000 0x20>,
+				<0x1818000 0x10>,
+				<0x1859000 0x10>,
+				<0x1945000 0x10>,
+				<0x193D204 0x4>;
+			reg-names = "wcss-base",
+					"tcsr-q6-base",
+					"tcsr-base",
+					"mpm-base",
+					"gcc-wcss-bcr-base",
+					"gcc-wcss-misc-base",
+					"tcsr-global",
+					"tcsr-q6-boot-trig";
+			qca,auto-restart;
+			qca,extended-intc;
+			qca,dump-q6-reg;
+			qca,emulation;
+			memory-region = <&q6_region>, <&q6_etr_region>;
+			interrupts-extended = <&intc 0 325 1>,
+					<&wcss_smp2p_in 0 0>,
+					<&wcss_smp2p_in 1 0>,
+					<&wcss_smp2p_in 3 0>;
+			interrupt-names = "wdog",
+					"qcom,gpio-err-fatal",
+					"qcom,gpio-err-ready",
+					"qcom,gpio-stop-ack";
+			qcom,smem-states = <&wcss_smp2p_out 0>,
+					<&wcss_smp2p_out 1>;
+			qcom,smem-state-names = "shutdown",
+						"stop";
+		};
+
+		q6v5_m3: q6v5_m3 {
+			compatible = "qca,q6v5-m3-rproc";
+			firmware = "IPQ5018/m3_fw.mdt";
+			qca,auto-restart;
+			qcom,restart-group = <&q6v5_m3 &q6v5_wcss>;
+		};
+
+		tcsr_mutex_block: syscon@1905000 {
+			compatible = "syscon";
+			reg = <0x1905000 0x8000>;
+		};
+
+		tcsr_mutex: hwlock@1905000 {
+			compatible = "qcom,tcsr-mutex";
+			syscon = <&tcsr_mutex_block 0 0x80>;
+			#hwlock-cells = <1>;
+		};
+
+		smem: qcom,smem@4AB00000 {
+			compatible = "qcom,smem";
+			memory-region = <&smem_region>;
+			hwlocks = <&tcsr_mutex 0>;
+		};
 	};
 
 	cpus {
@@ -216,6 +292,8 @@
 			qcom,acc = <&acc0>;
 			next-level-cache = <&L2_0>;
 			enable-method = "qcom,arm-cortex-acc";
+			clocks = <&apss_clk APCS_ALIAS0_CORE_CLK>;
+			clock-names = "cpu";
 		};
 
 		CPU1: cpu@1 {
@@ -225,6 +303,8 @@
 			reg = <0x1>;
 			qcom,acc = <&acc1>;
 			next-level-cache = <&L2_0>;
+			clocks = <&apss_clk APCS_ALIAS0_CORE_CLK>;
+			clock-names = "cpu";
 		};
 
 		L2_0: l2-cache {

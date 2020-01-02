@@ -908,11 +908,16 @@ static int fastrpc_mmap_create(struct fastrpc_file *fl, int fd,
 		else if (map->attr & FASTRPC_ATTR_COHERENT)
 			dma_set_attr(DMA_ATTR_FORCE_COHERENT, &attrs);
 
-		VERIFY(err, 0 < msm_dma_map_sg_attrs(sess->smmu.dev,
+		VERIFY(err, map->table->nents ==
+				msm_dma_map_sg_attrs(sess->smmu.dev,
 				map->table->sgl, map->table->nents,
 				DMA_BIDIRECTIONAL, map->buf, &attrs));
-			if (err)
-				goto bail;
+		if (err) {
+			err = -EBADF;
+			pr_err("DMA map for buffer with fd:%d, size:0x%zx failed",
+					fd, map->buf->size);
+			goto bail;
+		}
 		} else {
 			VERIFY(err, map->table->nents == 1);
 			if (err)
@@ -1455,9 +1460,13 @@ static int get_args(uint32_t kernel, struct smq_invoke_ctx *ctx)
 			if (ctx->attrs)
 				attrs = ctx->attrs[i];
 
-			fastrpc_mmap_create(ctx->fl, ctx->fds[i],
-					attrs, buf, len,
-					mflags, &ctx->maps[i]);
+			VERIFY(err, !(err = fastrpc_mmap_create(ctx->fl,
+					ctx->fds[i], attrs, buf, len,
+					mflags, &ctx->maps[i])));
+			if (err) {
+				mutex_unlock(&ctx->fl->fl_map_mutex);
+				goto bail;
+			}
 		}
 		mutex_unlock(&ctx->fl->fl_map_mutex);
 		ipage += 1;

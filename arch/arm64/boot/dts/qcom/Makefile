@@ -2,6 +2,7 @@ dtb-$(CONFIG_ARCH_QCOM)	+= apq8016-sbc.dtb msm8916-mtp.dtb msm8952-mtp.dtb
 ifneq ($(CONFIG_IPQ_MEM_PROFILE),$(filter $(CONFIG_IPQ_MEM_PROFILE),256 512))
 dtb-$(CONFIG_ARCH_QCOM) += \
 				qcom-ipq5018-emulation-c1.dtb \
+				qcom-ipq5018-emulation-c2.dtb \
 				qcom-ipq6018-emulation-c1.dtb \
 				qcom-ipq6018-emulation-c2.dtb \
 				qcom-ipq6018-emulation-c3.dtb \
@@ -25,6 +26,7 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 				qcom-ipq807x-hk09.dtb \
 				qcom-ipq807x-hk10.dtb \
 				qcom-ipq807x-hk10.c2.dtb \
+				qcom-ipq807x-hk11.c1.dtb \
 				qcom-ipq807x-ac01.dtb \
 				qcom-ipq807x-ac02.dtb \
 				qcom-ipq807x-ac03.dtb \

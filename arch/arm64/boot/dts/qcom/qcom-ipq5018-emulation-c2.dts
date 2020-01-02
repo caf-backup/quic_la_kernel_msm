@@ -20,7 +20,7 @@
 	#address-cells = <0x2>;
 	#size-cells = <0x2>;
 	model = "Qualcomm Technologies, Inc. IPQ5018-EMULATION-C1";
-	compatible = "qcom,ipq5018-emulation-c1", "qcom,ipq5018";
+	compatible = "qcom,ipq5018-emulation-c2", "qcom,ipq5018";
 	interrupt-parent = <&intc>;
 
 	aliases {
@@ -77,10 +77,6 @@
 					phy_address = <1>;
 				};
 			};
-		};
-
-		qca,scm_restart_reason {
-			status = "disabled";
 		};
 	};
 };
