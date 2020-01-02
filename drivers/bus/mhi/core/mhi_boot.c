@@ -52,6 +52,10 @@ void get_crash_reason(struct mhi_controller *mhi_cntrl)
 	rddm_image = mhi_cntrl->rddm_image;
 	mhi_buf = rddm_image->mhi_buf;
 
+	MHI_ERR("CRASHED - [DID:DOMAIN:BUS:SLOT] - %x:%04u:%02u:%02u\n",
+		mhi_cntrl->dev_id, mhi_cntrl->domain, mhi_cntrl->bus,
+					mhi_cntrl->slot);
+
 	/* Get RDDM header size */
 	ramdump_header = (ramdump_header_t *)mhi_buf[0].buf;
 	ramdump_table = ramdump_header->ramdump_table;
@@ -85,7 +89,7 @@ void get_crash_reason(struct mhi_controller *mhi_cntrl)
 	}
 
 	if (!IS_ERR(msg) && msg && msg[0])
-		MHI_ERR("Crash Reason: %s\n", msg);
+		MHI_ERR("Fatal error received from wcss software!\n%s\n", msg);
 }
 
 
