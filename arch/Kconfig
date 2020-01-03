@@ -356,6 +356,33 @@ config SECCOMP_FILTER
 
 	  See Documentation/prctl/seccomp_filter.txt for details.
 
+config HAVE_GCC_PLUGINS
+	bool
+	help
+	  An arch should select this symbol if it supports building with
+	  GCC plugins.
+
+menuconfig GCC_PLUGINS
+	bool "GCC plugins"
+	depends on HAVE_GCC_PLUGINS
+	help
+	  GCC plugins are loadable modules that provide extra features to the
+	  compiler. They are useful for runtime instrumentation and static analysis.
+
+	  See Documentation/gcc-plugins.txt for details.
+
+config GCC_PLUGIN_CYC_COMPLEXITY
+	bool "Compute the cyclomatic complexity of a function"
+	depends on GCC_PLUGINS
+	help
+	  The complexity M of a function's control flow graph is defined as:
+	   M = E - N + 2P
+	  where
+
+	  E = the number of edges
+	  N = the number of nodes
+	  P = the number of connected components (exit nodes).
+
 config HAVE_CC_STACKPROTECTOR
 	bool
 	help
