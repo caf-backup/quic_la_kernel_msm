@@ -25,7 +25,8 @@
 / {
 	model = "Qualcomm Technologies, Inc. IPQ6018";
 	compatible = "qcom,ipq6018";
-	qcom,msm-id = <0x192 0x0>;
+	qcom,board-id = <0x8 0x0>;
+	qcom,pmic-id = <0x0 0x0 0x0 0x0>;
 
 	soc: soc {
 		#address-cells = <0x1>;
