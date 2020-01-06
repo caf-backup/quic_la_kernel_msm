@@ -928,6 +928,10 @@ static int parse_xfer_event(struct mhi_controller *mhi_cntrl,
 
 		result.dir = mhi_chan->dir;
 
+		if (dev_rp < tre_ring->base)
+			panic("Panic since device read pointer for"
+			      " channel %s is not valid.\n", mhi_chan->name);
+
 		/* local rp */
 		local_rp = tre_ring->rp;
 		while (local_rp != dev_rp) {

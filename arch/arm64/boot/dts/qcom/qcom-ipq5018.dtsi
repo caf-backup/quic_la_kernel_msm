@@ -24,6 +24,12 @@
 	model = "Qualcomm Technologies, Inc. IPQ5018";
 	compatible = "qcom,ipq5018";
 
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
+		status = "ok";
+	};
+
 	soc: soc {
 		#address-cells = <0x1>;
 		#size-cells = <0x1>;
@@ -81,7 +87,7 @@
 
 		blsp_dma: dma@7884000 {
 			compatible = "qcom,bam-v1.7.0";
-			reg = <0x07884000 0x2b000>;
+			reg = <0x07884000 0x1d000>;
 			interrupts = <GIC_SPI 238 IRQ_TYPE_NONE>;
 			clocks = <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "bam_clk";
@@ -279,6 +285,83 @@
 			memory-region = <&smem_region>;
 			hwlocks = <&tcsr_mutex 0>;
 		};
+
+		apcs_glb: mailbox@b111000 {
+			compatible = "qcom,msm8996-apcs-hmss-global";
+			qcom,ipc = <&apcs 8 8>;
+
+			#mbox-cells = <1>;
+		};
+
+		tcsr_q6_block: syscon@1945000 {
+			compatible = "syscon";
+			reg = <0x1945000 0xE000>;
+		};
+
+		qcom_q6v5_wcss: qcom_q6v5_wcss@CD00000 {
+			compatible = "qcom,ipq5018-wcss-pil";
+			firmware = "IPQ5018/wcss.mdt";
+			m3_firmware = "IPQ5018/m3_fw.mdt";
+			reg = <0xCD00000 0x4040>,
+				<0x4ab000 0x20>;
+			reg-names = "qdsp6",
+				"rmb";
+			qca,auto-restart;
+			qca,extended-intc;
+			interrupts-extended = <&intc 0 325 1>,
+					<&wcss_smp2p_in 0 0>,
+					<&wcss_smp2p_in 1 0>,
+					<&wcss_smp2p_in 2 0>,
+					<&wcss_smp2p_in 3 0>;
+			interrupt-names = "wdog",
+					"fatal",
+					"ready",
+					"handover",
+					"stop-ack";
+
+			resets = <&gcc GCC_WCSSAON_RESET>,
+				<&gcc GCC_WCSS_BCR>,
+				<&gcc GCC_WCSS_Q6_BCR>;
+
+			reset-names = "wcss_aon_reset",
+				"wcss_reset",
+				"wcss_q6_reset";
+
+			qcom,halt-regs = <&tcsr_q6_block 0xA000 0xD000 0x0>;
+
+			qcom,smem-states = <&wcss_smp2p_out 0>,
+					<&wcss_smp2p_out 1>;
+			qcom,smem-state-names = "shutdown",
+						"stop";
+
+			memory-region = <&q6_region>;
+
+			qcom,q6v6;
+
+			glink-edge {
+				interrupts = <GIC_SPI 179 IRQ_TYPE_EDGE_RISING>;
+				qcom,remote-pid = <1>;
+				mboxes = <&apcs_glb 8>;
+
+				rpm_requests {
+					qcom,glink-channels = "IPCRTR";
+				};
+			};
+		};
+
+		i2c_0: i2c@78b6000 {
+			compatible = "qcom,i2c-qup-v2.2.1";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x78b6000 0x600>;
+			interrupts = <GIC_SPI 96 0x4>;
+			clocks = <&gcc GCC_BLSP1_AHB_CLK>,
+				<&gcc GCC_BLSP1_QUP2_I2C_APPS_CLK>;
+			clock-names = "iface", "core";
+			clock-frequency  = <400000>;
+			dmas = <&blsp_dma 7>, <&blsp_dma 6>;
+			dma-names = "rx", "tx";
+		};
 	};
 
 	cpus {
@@ -289,9 +372,9 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x0>;
+			enable-method = "psci";
 			qcom,acc = <&acc0>;
 			next-level-cache = <&L2_0>;
-			enable-method = "qcom,arm-cortex-acc";
 			clocks = <&apss_clk APCS_ALIAS0_CORE_CLK>;
 			clock-names = "cpu";
 		};
@@ -299,8 +382,8 @@
 		CPU1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
-			enable-method = "qcom,arm-cortex-acc";
 			reg = <0x1>;
+			enable-method = "psci";
 			qcom,acc = <&acc1>;
 			next-level-cache = <&L2_0>;
 			clocks = <&apss_clk APCS_ALIAS0_CORE_CLK>;
@@ -332,4 +415,11 @@
 		interrupts = <GIC_PPI 7 (GIC_CPU_MASK_SIMPLE(4) |
 					 IRQ_TYPE_LEVEL_HIGH)>;
 	};
+
+	firmware {
+		scm {
+			compatible = "qcom,scm-ipq5018";
+		};
+	};
+
 };

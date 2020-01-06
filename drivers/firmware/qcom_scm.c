@@ -568,6 +568,7 @@ static const struct of_device_id qcom_scm_dt_match[] = {
 	{ .compatible = "qcom,scm-ipq806x", .data = (void *)SCM_NOCLK },
 	{ .compatible = "qcom,scm-ipq40xx", .data = (void *)SCM_NOCLK },
 	{ .compatible = "qcom,scm-ipq6018", .data = (void *)SCM_NOCLK },
+	{ .compatible = "qcom,scm-ipq5018", .data = (void *)SCM_NOCLK },
 	{ .compatible = "qcom,scm-msm8960",},
 	{ .compatible = "qcom,scm-msm8960",},
 	{ .compatible = "qcom,scm",},
@@ -577,11 +578,16 @@ static const struct of_device_id qcom_scm_dt_match[] = {
 static int qcom_scm_probe(struct platform_device *pdev)
 {
 	struct qcom_scm *scm;
+	struct qcom_scm_cmd_ids *ids;
 	const struct of_device_id *id;
 	int ret;
 
 	scm = devm_kzalloc(&pdev->dev, sizeof(*scm), GFP_KERNEL);
 	if (!scm)
+		return -ENOMEM;
+
+	ids = devm_kzalloc(&pdev->dev, sizeof(*ids), GFP_KERNEL);
+	if (!ids)
 		return -ENOMEM;
 
 	id = of_match_device(qcom_scm_dt_match, &pdev->dev);
@@ -629,6 +635,13 @@ static int qcom_scm_probe(struct platform_device *pdev)
 		if (ret)
 			return ret;
 	}
+
+	ret = of_property_read_u32(pdev->dev.of_node, "smmu-state-scm-cmd-id",
+						&(ids->smmu_state_cmd_id));
+	if (ret)
+		ids->smmu_state_cmd_id = QCOM_SCM_SVC_SMMUSTATE_CMD;
+
+	platform_set_drvdata(pdev, ids);
 
 	__qcom_scm_init();
 

@@ -37,6 +37,7 @@
 #define DEFAULT_TZBSP_DIAG_BUF_LEN	SZ_4K
 
 static unsigned int paniconaccessviolation = 0;
+static char *smmu_state;
 
 /* Maximum size for buffers to support AARCH64 TZ */
 #define TZ_64 BIT(0)
@@ -242,24 +243,6 @@ static int tz_smmu_state_open(struct inode *inode, struct file *file)
 static ssize_t tz_smmu_state_read(struct file *fp, char __user *user_buffer,
 				size_t count, loff_t *position)
 {
-	char *smmu_state;
-	int ret;
-
-	ret = qcom_scm_get_smmustate();
-	switch(ret) {
-		case SMMU_DISABLE_NONE:
-			smmu_state = "SMMU Stage2 Enabled\n";
-			break;
-		case SMMU_DISABLE_S2:
-			smmu_state = "SMMU Stage2 Bypass\n";
-			break;
-		case SMMU_DISABLE_ALL:
-			smmu_state = "SMMU is Disabled\n";
-			break;
-		default:
-			smmu_state = "Can't detect SMMU State\n";
-	}
-
 	return simple_read_from_buffer(user_buffer, count, position,
 				smmu_state, strlen(smmu_state));
 }
@@ -391,7 +374,6 @@ static int qca_tzlog_probe(struct platform_device *pdev)
 	struct tz_hvc_log_struct *tz_hvc_log;
 	struct page *page_buf;
 	struct device_node *np = pdev->dev.of_node;
-	char *smmu_state;
 
 	tz_hvc_log = (struct tz_hvc_log_struct *)
 			kzalloc(sizeof(struct tz_hvc_log_struct), GFP_KERNEL);

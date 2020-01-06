@@ -82,6 +82,8 @@ static void adsp_load_fw(struct work_struct *adsp_ldr_work)
 		goto fail;
 	}
 
+	return;
+
 fail:
 	dev_err(&pdev->dev, "%s: Q6 image loading failed\n", __func__);
 }

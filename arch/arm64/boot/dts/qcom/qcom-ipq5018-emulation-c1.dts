@@ -83,6 +83,27 @@
 			status = "disabled";
 		};
 	};
+
+	psci {
+		status = "disabled";
+	};
+
+	cpus {
+		CPU0: cpu@0 {
+			enable-method = "qcom,arm-cortex-acc";
+		};
+
+		CPU1: cpu@1 {
+			enable-method = "qcom,arm-cortex-acc";
+		};
+	};
+
+	firmware {
+		scm {
+			status = "disabled";
+		};
+	};
+
 };
 
 &sdhc_1 {
@@ -92,4 +113,8 @@
 	qcom,nonremovable;
 	qcom,emulation = <1>;
 	status = "ok";
+};
+
+&qcom_q6v5_wcss {
+	qcom,nosecure;
 };

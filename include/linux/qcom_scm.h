@@ -89,6 +89,7 @@ extern int qcom_scm_extwdt(u32 svc_id, u32 cmd_id, unsigned int regaddr,
 #define TZ_INFO_GET_DIAG_ID	0x2
 #define SCM_SVC_INFO		0x6
 #define HVC_INFO_GET_DIAG_ID	0x7
+#define QCOM_SCM_SVC_SMMUSTATE_CMD	0x19
 
 extern int qcom_scm_tz_log(u32 svc_id, u32 cmd_id, void *ker_buf, u32 buf_len);
 extern int qcom_scm_hvc_log(u32 svc_id, u32 cmd_id, void *ker_buf,
