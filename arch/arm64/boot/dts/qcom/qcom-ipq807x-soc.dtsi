@@ -433,6 +433,10 @@
 			compatible = "qcom,diag";
 			status = "ok";
 		};
+		qcom,test@0 {
+			compatible = "qcom,testmhi";
+			status = "disabled";
+		};
 
 		sdhc_2: sdhci@7864900 {
 			compatible = "qcom,sdhci-msm";
