@@ -194,6 +194,7 @@ struct nand_manufacturers nand_manuf_ids[] = {
 	{NAND_MFR_GIGA, "GigaDevice"},
 	{NAND_MFR_ATO, "ATO"},
 	{NAND_MFR_WINBOND, "Winbond"},
+	{NAND_MFR_FIDELIX, "Fidelix"},
 	{0x0, "Unknown"}
 };
 
