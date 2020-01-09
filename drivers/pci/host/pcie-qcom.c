@@ -328,6 +328,7 @@ static void qcom_ep_reset_assert(struct qcom_pcie *pcie)
 
 static void qcom_ep_reset_deassert(struct qcom_pcie *pcie)
 {
+	msleep(100);
 	gpiod_set_value(pcie->reset, 0);
 	usleep_range(PERST_DELAY_US, PERST_DELAY_US + 500);
 }
@@ -1756,7 +1757,7 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	of_property_read_u32(np, "link_retries_count", &link_retries_count);
 	pcie->link_retries_count = link_retries_count;
 
-	pcie->reset = devm_gpiod_get_optional(dev, "perst", GPIOD_OUT_LOW);
+	pcie->reset = devm_gpiod_get_optional(dev, "perst", GPIOD_OUT_HIGH);
 	if (IS_ERR(pcie->reset))
 		return PTR_ERR(pcie->reset);
 
