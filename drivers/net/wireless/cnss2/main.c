@@ -1073,6 +1073,17 @@ reset_ctx:
 }
 EXPORT_SYMBOL(cnss_wlan_register_driver);
 
+bool cnss_is_dev_initialized(struct device *dev)
+{
+	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
+
+	if (!plat_priv)
+		return NULL;
+
+	return (plat_priv->driver_status == CNSS_INITIALIZED) ? 1 : 0;
+}
+EXPORT_SYMBOL(cnss_is_dev_initialized);
+
 void *cnss_get_pci_dev_from_plat_dev(void *pdev)
 {
 	struct platform_device *plat_dev = (struct platform_device *)pdev;
