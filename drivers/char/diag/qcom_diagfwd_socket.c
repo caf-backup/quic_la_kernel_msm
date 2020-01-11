@@ -993,7 +993,7 @@ int diag_socket_init(void)
 		info = &socket_cmd[peripheral];
 		pr_info("nik %d info->svc_id\n", info->svc_id);
 		qmi_add_lookup(cntl_qmi, info->svc_id,
-			       info->ins_id & 0xFF, info->ins_id >> 8);
+				info->ins_id & 0xFF, info->ins_id >> 8);
 
 		info = &socket_dci_cmd[peripheral];
 		qmi_add_lookup(cntl_qmi, info->svc_id,
@@ -1004,9 +1004,22 @@ int diag_socket_init(void)
 
 		info = &socket_data[peripheral];
 		socket_init_work_fn(&info->init_work);
+		/* Read function should always be there after server init,
+		 * otherwise there could be loss of packets and eventually
+		 * memory leak in kernel*/
+		diagfwd_register(TRANSPORT_SOCKET, info->peripheral,
+				info->type, (void *)info, &socket_ops,
+				&info->fwd_ctxt);
+		diagfwd_open(peripheral, TYPE_DATA);
+		queue_work(info->wq, &(info->read_work));
 
 		info = &socket_dci[peripheral];
 		socket_init_work_fn(&info->init_work);
+		diagfwd_register(TRANSPORT_SOCKET, info->peripheral,
+				info->type, (void *)info, &socket_ops,
+				&info->fwd_ctxt);
+		diagfwd_open(peripheral, TYPE_DCI);
+		queue_work(info->wq, &(info->read_work));
 	}
 	DIAG_LOG(DIAG_DEBUG_PERIPHERALS, "%s: init done\n", __func__);
 
