@@ -975,7 +975,8 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 		wcss->m3_fw_name = NULL;
 
 	qcom_add_glink_subdev(rproc, &wcss->glink_subdev);
-	qcom_add_ssr_subdev(rproc, &wcss->ssr_subdev, "rproc");
+	if (!of_property_read_bool(pdev->dev.of_node, "qca,no-ssr"))
+		qcom_add_ssr_subdev(rproc, &wcss->ssr_subdev, "rproc");
 	platform_set_drvdata(pdev, rproc);
 
 	return 0;
