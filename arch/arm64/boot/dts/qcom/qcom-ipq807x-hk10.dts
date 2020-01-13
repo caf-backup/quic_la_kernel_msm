@@ -55,12 +55,12 @@
 #if !defined(__IPQ_MEM_PROFILE_256_MB__)
 		qcn9000_pcie0@50f00000 {
 			no-map;
-			reg = <0x0 0x51000000 0x0 0x02800000>;
+			reg = <0x0 0x51000000 0x0 0x03700000>;
 		};
 
 		qcn9000_pcie1@53700000 {
 			no-map;
-			reg = <0x0 0x53800000 0x0 0x02800000>;
+			reg = <0x0 0x54700000 0x0 0x03700000>;
 		};
 #ifdef __IPQ_MEM_PROFILE_512_MB__
 		/delete-node/ wifi_dump@50500000;
@@ -876,7 +876,7 @@
 
 	mhi_0: qcom,mhi@0 {
 		reg = <0 0 0 0 0 >;
-		qrtr_instance_id = <0x8001>;
+		qrtr_instance_id = <0x20>;
 	};
 };
 
@@ -885,6 +885,6 @@
 
 	mhi_1: qcom,mhi@1 {
 		reg = <0 0 0 0 0 >;
-		qrtr_instance_id = <0x8002>;
+		qrtr_instance_id = <0x21>;
 	};
 };
