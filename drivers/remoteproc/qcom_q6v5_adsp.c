@@ -461,8 +461,13 @@ static int adsp_init_mmio(struct qcom_adsp *adsp,
 	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (IS_ERR_OR_NULL(res)) {
+		dev_err(adsp->dev, "memory resource not available\n");
+		return -EINVAL;
+	}
+
 	adsp->qdsp6ss_base = devm_ioremap(&pdev->dev, res->start,
-			resource_size(res));
+						resource_size(res));
 	if (IS_ERR(adsp->qdsp6ss_base)) {
 		dev_err(adsp->dev, "failed to map QDSP6SS registers\n");
 		return PTR_ERR(adsp->qdsp6ss_base);
