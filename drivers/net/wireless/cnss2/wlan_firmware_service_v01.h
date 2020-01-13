@@ -13,7 +13,6 @@
 
 #ifndef WLAN_FIRMWARE_SERVICE_V01_H
 #define WLAN_FIRMWARE_SERVICE_V01_H
-
 #include <linux/soc/qcom/qmi.h>
 
 #define WLFW_SERVICE_ID_V01_NPR 0x45
@@ -21,16 +20,19 @@
 #define WLFW_SERVICE_ID_V01 (plat_priv->service_id)
 #define WLFW_SERVICE_VERS_V01 0x01
 
+#define QMI_WLFW_WFC_CALL_STATUS_REQ_V01 0x0049
 #define QMI_WLFW_BDF_DOWNLOAD_REQ_V01 0x0025
 #define QMI_WLFW_FW_MEM_READY_IND_V01 0x0037
 #define QMI_WLFW_QDSS_TRACE_CONFIG_DOWNLOAD_REQ_V01 0x0044
 #define QMI_WLFW_INITIATE_CAL_UPDATE_IND_V01 0x002A
 #define QMI_WLFW_CAL_DONE_IND_V01 0x003E
+#define QMI_WLFW_WFC_CALL_STATUS_RESP_V01 0x0049
 #define QMI_WLFW_HOST_CAP_REQ_V01 0x0034
 #define QMI_WLFW_DYNAMIC_FEATURE_MASK_RESP_V01 0x003B
 #define QMI_WLFW_M3_INFO_REQ_V01 0x003C
 #define QMI_WLFW_CAP_REQ_V01 0x0024
 #define QMI_WLFW_FW_INIT_DONE_IND_V01 0x0038
+#define QMI_WLFW_ANTENNA_GRANT_RESP_V01 0x0048
 #define QMI_WLFW_CAL_REPORT_REQ_V01 0x0026
 #define QMI_WLFW_M3_INFO_RESP_V01 0x003C
 #define QMI_WLFW_CAL_UPDATE_RESP_V01 0x0029
@@ -39,6 +41,7 @@
 #define QMI_WLFW_INI_RESP_V01 0x002F
 #define QMI_WLFW_CAL_REPORT_RESP_V01 0x0026
 #define QMI_WLFW_QDSS_TRACE_MEM_INFO_REQ_V01 0x0040
+#define QMI_WLFW_ANTENNA_SWITCH_REQ_V01 0x0047
 #define QMI_WLFW_QDSS_TRACE_REQ_MEM_IND_V01 0x003F
 #define QMI_WLFW_SHUTDOWN_RESP_V01 0x0043
 #define QMI_WLFW_MAC_ADDR_RESP_V01 0x0033
@@ -62,6 +65,7 @@
 #define QMI_WLFW_FW_READY_IND_V01 0x0021
 #define QMI_WLFW_QDSS_TRACE_SAVE_IND_V01 0x0041
 #define QMI_WLFW_QDSS_TRACE_MEM_INFO_RESP_V01 0x0040
+#define QMI_WLFW_ANTENNA_GRANT_REQ_V01 0x0048
 #define QMI_WLFW_MSA_READY_RESP_V01 0x002E
 #define QMI_WLFW_QDSS_TRACE_DATA_REQ_V01 0x0042
 #define QMI_WLFW_CAL_UPDATE_REQ_V01 0x0029
@@ -76,6 +80,7 @@
 #define QMI_WLFW_ATHDIAG_READ_RESP_V01 0x0030
 #define QMI_WLFW_SHUTDOWN_REQ_V01 0x0043
 #define QMI_WLFW_VBATT_REQ_V01 0x0032
+#define QMI_WLFW_ANTENNA_SWITCH_RESP_V01 0x0047
 #define QMI_WLFW_MAC_ADDR_REQ_V01 0x0033
 #define QMI_WLFW_RESPOND_MEM_RESP_V01 0x0036
 #define QMI_WLFW_VBATT_RESP_V01 0x0032
@@ -94,6 +99,7 @@
 #define QMI_WLFW_MAX_NUM_CE_V01 12
 #define QMI_WLFW_MAX_TIMESTAMP_LEN_V01 32
 #define QMI_WLFW_MAX_ATHDIAG_DATA_SIZE_V01 6144
+#define QMI_WLFW_MAX_WFC_CALL_STATUS_DATA_SIZE_V01 256
 #define QMI_WLFW_MAX_NUM_GPIO_V01 32
 #define QMI_WLFW_MAX_BUILD_ID_LEN_V01 128
 #define QMI_WLFW_MAX_NUM_MEM_CFG_V01 2
@@ -902,5 +908,51 @@ struct wlfw_shutdown_resp_msg_v01 {
 
 #define WLFW_SHUTDOWN_RESP_MSG_V01_MAX_MSG_LEN 7
 extern struct qmi_elem_info wlfw_shutdown_resp_msg_v01_ei[];
+
+struct wlfw_antenna_switch_req_msg_v01 {
+	char placeholder;
+};
+
+#define WLFW_ANTENNA_SWITCH_REQ_MSG_V01_MAX_MSG_LEN 0
+extern struct qmi_elem_info wlfw_antenna_switch_req_msg_v01_ei[];
+
+struct wlfw_antenna_switch_resp_msg_v01 {
+	struct qmi_response_type_v01 resp;
+	u8 antenna_valid;
+	u64 antenna;
+};
+
+#define WLFW_ANTENNA_SWITCH_RESP_MSG_V01_MAX_MSG_LEN 18
+extern struct qmi_elem_info wlfw_antenna_switch_resp_msg_v01_ei[];
+
+struct wlfw_antenna_grant_req_msg_v01 {
+	u8 grant_valid;
+	u64 grant;
+};
+
+#define WLFW_ANTENNA_GRANT_REQ_MSG_V01_MAX_MSG_LEN 11
+extern struct qmi_elem_info wlfw_antenna_grant_req_msg_v01_ei[];
+
+struct wlfw_antenna_grant_resp_msg_v01 {
+	struct qmi_response_type_v01 resp;
+};
+
+#define WLFW_ANTENNA_GRANT_RESP_MSG_V01_MAX_MSG_LEN 7
+extern struct qmi_elem_info wlfw_antenna_grant_resp_msg_v01_ei[];
+
+struct wlfw_wfc_call_status_req_msg_v01 {
+	u32 wfc_call_status_len;
+	u8 wfc_call_status[QMI_WLFW_MAX_WFC_CALL_STATUS_DATA_SIZE_V01];
+};
+
+#define WLFW_WFC_CALL_STATUS_REQ_MSG_V01_MAX_MSG_LEN 261
+extern struct qmi_elem_info wlfw_wfc_call_status_req_msg_v01_ei[];
+
+struct wlfw_wfc_call_status_resp_msg_v01 {
+	struct qmi_response_type_v01 resp;
+};
+
+#define WLFW_WFC_CALL_STATUS_RESP_MSG_V01_MAX_MSG_LEN 7
+extern struct qmi_elem_info wlfw_wfc_call_status_resp_msg_v01_ei[];
 
 #endif
