@@ -36,6 +36,7 @@ struct ramdump_device {
 	unsigned int data_ready;
 	unsigned int consumer_present;
 	int ramdump_status;
+	int index;
 
 	struct completion ramdump_complete;
 	wait_queue_head_t dump_wait_q;
@@ -287,7 +288,7 @@ void *create_ramdump_device(const char *dev_name, struct device *parent)
 			__func__);
 		return NULL;
 	}
-
+	rd_dev->index = device_index;
 	g_rd_dev[device_index++] = rd_dev;
 	snprintf(rd_dev->name, ARRAY_SIZE(rd_dev->name), "ramdump_%s",
 		 dev_name);
@@ -326,8 +327,9 @@ int create_ramdump_device_file(void *handle)
 		goto class_failed;
 	}
 
-	dump_dev = device_create(dump_class, NULL, MKDEV(dump_major, 0), rd_dev,
-			rd_dev->name);
+	dump_dev = device_create(dump_class, NULL,
+				 MKDEV(dump_major, rd_dev->index), rd_dev,
+				 rd_dev->name);
 	if (IS_ERR(dump_dev)) {
 		pr_err("Unable to create a device");
 		ret = PTR_ERR(dump_dev);
