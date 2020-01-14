@@ -20,11 +20,13 @@
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/notifier.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/phy/phy.h>
+#include <linux/reboot.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
@@ -309,6 +311,7 @@ struct qcom_pcie {
 	bool enumerated;
 	uint32_t rc_idx;
 	struct qcom_pcie_register_event *event_reg;
+	struct notifier_block pci_reboot_notifier;
 };
 
 #define to_qcom_pcie(x)		container_of(x, struct qcom_pcie, pp)
@@ -1771,6 +1774,16 @@ int qcom_pcie_deregister_event(struct qcom_pcie_register_event *reg)
 }
 EXPORT_SYMBOL(qcom_pcie_deregister_event);
 
+static int pci_reboot_handler(struct notifier_block *this,
+			     unsigned long event, void *ptr)
+{
+	pci_lock_rescan_remove();
+	qcom_pcie_remove_bus();
+	pci_unlock_rescan_remove();
+
+	return 0;
+}
+
 static int qcom_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1923,6 +1936,14 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 
 		if (ret) {
 			dev_err(&pdev->dev, "Unable to request mdm2ap_e911 irq\n");
+			return ret;
+		}
+
+		pcie->pci_reboot_notifier.notifier_call = pci_reboot_handler;
+		ret = register_reboot_notifier(&pcie->pci_reboot_notifier);
+		if (ret) {
+			pr_warn("%s: Failed to register notifier (%d)\n",
+					__func__, ret);
 			return ret;
 		}
 	}
