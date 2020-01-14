@@ -542,6 +542,9 @@
 		scm {
 			compatible = "qcom,scm-ipq5018";
 		};
+		qfprom {
+			compatible = "qcom,qfprom-sec";
+		};
 	};
 
 };
