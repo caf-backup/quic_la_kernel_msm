@@ -937,6 +937,11 @@ static int q6v5_wcss_init_mmio(struct q6v5_wcss *wcss,
 	int ret;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "qdsp6");
+	if (IS_ERR_OR_NULL(res)) {
+		dev_err(&pdev->dev, "qdsp6 resource not available\n");
+		return -EINVAL;
+	}
+
 	wcss->reg_base = ioremap(res->start, resource_size(res));
 	if (IS_ERR(wcss->reg_base))
 		return PTR_ERR(wcss->reg_base);
