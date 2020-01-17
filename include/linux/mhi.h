@@ -522,6 +522,117 @@ int mhi_poll(struct mhi_device *mhi_dev, u32 budget);
  */
 long mhi_ioctl(struct mhi_device *mhi_dev, unsigned int cmd, unsigned long arg);
 
+
+
+/**
+ * mhi_bdf_to_controller - Look up a registered controller
+ * Search for controller based on device identification
+ * @domain: RC domain of the device
+ * @bus: Bus device connected to
+ * @slot: Slot device assigned to
+ * @dev_id: Device Identification
+ */
+struct mhi_controller *mhi_bdf_to_controller(u32 domain, u32 bus, u32 slot,
+					     u32 dev_id);
+
+
+/**
+ * mhi_async_power_up - Starts MHI power up sequence
+ * @mhi_cntrl: MHI controller
+ */
+int mhi_async_power_up(struct mhi_controller *mhi_cntrl);
+
+
+/**
+ * mhi_pm_suspend - Move MHI into a suspended state
+ * Transition to MHI state M3 state from M0||M1||M2 state
+ * @mhi_cntrl: MHI controller
+ */
+int mhi_pm_suspend(struct mhi_controller *mhi_cntrl);
+
+/**
+ * mhi_pm_resume - Resume MHI from suspended state
+ * Transition to MHI state M0 state from M3 state
+ * @mhi_cntrl: MHI controller
+ */
+int mhi_pm_resume(struct mhi_controller *mhi_cntrl);
+
+
+
+/**
+ * mhi_get_remote_time_sync - Get external soc time relative to local soc time
+ * using MMIO method.
+ * @mhi_dev: Device associated with the channels
+ * @t_host: Pointer to output local soc time
+ * @t_dev: Pointer to output remote soc time
+ */
+int mhi_get_remote_time_sync(struct mhi_device *mhi_dev,
+			     u64 *t_host,
+			     u64 *t_dev);
+
+/**
+ * mhi_get_mhi_state - Return MHI state of device
+ * @mhi_cntrl: MHI controller
+ */
+enum mhi_dev_state mhi_get_mhi_state(struct mhi_controller *mhi_cntrl);
+
+
+
+/**
+ * mhi_is_active - helper function to determine if MHI in active state
+ * @mhi_dev: client device
+ */
+static inline bool mhi_is_active(struct mhi_device *mhi_dev)
+{
+	struct mhi_controller *mhi_cntrl = mhi_dev->mhi_cntrl;
+
+	return (mhi_cntrl->dev_state >= MHI_STATE_M0 &&
+		mhi_cntrl->dev_state <= MHI_STATE_M3);
+}
+
+void mhi_wdt_panic_handler(void);
+#ifdef CONFIG_QRTR_MHI
+/**
+ * mhi_prepare_for_power_up - Do pre-initialization before power up
+ * This is optional, call this before power up if controller do not
+ * want bus framework to automatically free any allocated memory during shutdown
+ * process.
+ * @mhi_cntrl: MHI controller
+ */
+int mhi_prepare_for_power_up(struct mhi_controller *mhi_cntrl);
+
+/**
+ * mhi_unprepare_after_powre_down - free any allocated memory for power up
+ * @mhi_cntrl: MHI controller
+ */
+void mhi_unprepare_after_power_down(struct mhi_controller *mhi_cntrl);
+
+int mhi_sync_power_up(struct mhi_controller *mhi_cntrl);
+
+/**
+ * mhi_power_down - Start MHI power down sequence
+ * @mhi_cntrl: MHI controller
+ * @graceful: link is still accessible, do a graceful shutdown process otherwise
+ * we will shutdown host w/o putting device into RESET state
+ */
+void mhi_power_down(struct mhi_controller *mhi_cntrl, bool graceful);
+
+/**
+ * mhi_force_rddm_mode - Force external device into rddm mode
+ * to collect device ramdump. This is useful if host driver assert
+ * and we need to see device state as well.
+ * @mhi_cntrl: MHI controller
+ */
+int mhi_force_rddm_mode(struct mhi_controller *mhi_cntrl);
+
+/**
+ * mhi_set_mhi_state - Set device state
+ * @mhi_cntrl: MHI controller
+ * @state: state to set
+ */
+void mhi_set_mhi_state(struct mhi_controller *mhi_cntrl,
+		       enum mhi_dev_state state);
+
 /**
  * mhi_alloc_controller - Allocate mhi_controller structure
  * Allocate controller structure and additional data for controller
@@ -541,61 +652,6 @@ int of_register_mhi_controller(struct mhi_controller *mhi_cntrl);
 void mhi_unregister_mhi_controller(struct mhi_controller *mhi_cntrl);
 
 /**
- * mhi_bdf_to_controller - Look up a registered controller
- * Search for controller based on device identification
- * @domain: RC domain of the device
- * @bus: Bus device connected to
- * @slot: Slot device assigned to
- * @dev_id: Device Identification
- */
-struct mhi_controller *mhi_bdf_to_controller(u32 domain, u32 bus, u32 slot,
-					     u32 dev_id);
-
-/**
- * mhi_prepare_for_power_up - Do pre-initialization before power up
- * This is optional, call this before power up if controller do not
- * want bus framework to automatically free any allocated memory during shutdown
- * process.
- * @mhi_cntrl: MHI controller
- */
-int mhi_prepare_for_power_up(struct mhi_controller *mhi_cntrl);
-
-/**
- * mhi_async_power_up - Starts MHI power up sequence
- * @mhi_cntrl: MHI controller
- */
-int mhi_async_power_up(struct mhi_controller *mhi_cntrl);
-int mhi_sync_power_up(struct mhi_controller *mhi_cntrl);
-
-/**
- * mhi_power_down - Start MHI power down sequence
- * @mhi_cntrl: MHI controller
- * @graceful: link is still accessible, do a graceful shutdown process otherwise
- * we will shutdown host w/o putting device into RESET state
- */
-void mhi_power_down(struct mhi_controller *mhi_cntrl, bool graceful);
-
-/**
- * mhi_unprepare_after_powre_down - free any allocated memory for power up
- * @mhi_cntrl: MHI controller
- */
-void mhi_unprepare_after_power_down(struct mhi_controller *mhi_cntrl);
-
-/**
- * mhi_pm_suspend - Move MHI into a suspended state
- * Transition to MHI state M3 state from M0||M1||M2 state
- * @mhi_cntrl: MHI controller
- */
-int mhi_pm_suspend(struct mhi_controller *mhi_cntrl);
-
-/**
- * mhi_pm_resume - Resume MHI from suspended state
- * Transition to MHI state M0 state from M3 state
- * @mhi_cntrl: MHI controller
- */
-int mhi_pm_resume(struct mhi_controller *mhi_cntrl);
-
-/**
  * mhi_download_rddm_img - Download ramdump image from device for
  * debugging purpose.
  * @mhi_cntrl: MHI controller
@@ -604,58 +660,60 @@ int mhi_pm_resume(struct mhi_controller *mhi_cntrl);
 int mhi_download_rddm_img(struct mhi_controller *mhi_cntrl, bool in_panic);
 
 /**
- * mhi_force_rddm_mode - Force external device into rddm mode
- * to collect device ramdump. This is useful if host driver assert
- * and we need to see device state as well.
- * @mhi_cntrl: MHI controller
- */
-int mhi_force_rddm_mode(struct mhi_controller *mhi_cntrl);
-
-/**
- * mhi_get_remote_time_sync - Get external soc time relative to local soc time
- * using MMIO method.
- * @mhi_dev: Device associated with the channels
- * @t_host: Pointer to output local soc time
- * @t_dev: Pointer to output remote soc time
- */
-int mhi_get_remote_time_sync(struct mhi_device *mhi_dev,
-			     u64 *t_host,
-			     u64 *t_dev);
-
-/**
- * mhi_get_mhi_state - Return MHI state of device
- * @mhi_cntrl: MHI controller
- */
-enum mhi_dev_state mhi_get_mhi_state(struct mhi_controller *mhi_cntrl);
-
-/**
- * mhi_set_mhi_state - Set device state
- * @mhi_cntrl: MHI controller
- * @state: state to set
- */
-void mhi_set_mhi_state(struct mhi_controller *mhi_cntrl,
-		       enum mhi_dev_state state);
-
-
-/**
- * mhi_is_active - helper function to determine if MHI in active state
- * @mhi_dev: client device
- */
-static inline bool mhi_is_active(struct mhi_device *mhi_dev)
-{
-	struct mhi_controller *mhi_cntrl = mhi_dev->mhi_cntrl;
-
-	return (mhi_cntrl->dev_state >= MHI_STATE_M0 &&
-		mhi_cntrl->dev_state <= MHI_STATE_M3);
-}
-
-/**
  * mhi_debug_reg_dump - dump MHI registers for debug purpose
  * @mhi_cntrl: MHI controller
  */
 void mhi_debug_reg_dump(struct mhi_controller *mhi_cntrl);
 
-void mhi_wdt_panic_handler(void);
+#else
+static inline int mhi_prepare_for_power_up(struct mhi_controller *mhi_cntrl)
+{
+	return -1;
+}
+static inline void mhi_unprepare_after_power_down(struct mhi_controller *mhi_cntrl)
+{
+	return;
+}
+static inline int mhi_sync_power_up(struct mhi_controller *mhi_cntrl)
+{
+	return -1;
+}
+static inline void mhi_power_down(struct mhi_controller *mhi_cntrl, bool graceful)
+{
+	return;
+}
+static inline int mhi_force_rddm_mode(struct mhi_controller *mhi_cntrl)
+{
+	return -1;
+}
+
+static inline void mhi_set_mhi_state(struct mhi_controller *mhi_cntrl,
+		       enum mhi_dev_state state)
+{
+	return;
+}
+static inline struct mhi_controller *mhi_alloc_controller(size_t size)
+{
+	return NULL;
+}
+static inline int of_register_mhi_controller(struct mhi_controller *mhi_cntrl)
+{
+	return -1;
+}
+static inline void mhi_unregister_mhi_controller(struct mhi_controller *mhi_cntrl)
+{
+	return;
+}
+static inline int mhi_download_rddm_img(struct mhi_controller *mhi_cntrl, bool in_panic)
+{
+	return -1;
+}
+
+static inline void mhi_debug_reg_dump(struct mhi_controller *mhi_cntrl)
+{
+	return;
+}
+#endif
 
 #ifndef CONFIG_ARCH_QCOM
 
