@@ -886,6 +886,7 @@
 			qcom,load-addr = <0x40800000>;
 			qcom,capwap-enabled;
 			qcom,dtls-enabled;
+			qcom,tls-enabled;
 			qcom,crypto-enabled;
 			qcom,ipsec-enabled;
 			qcom,qvpn-enabled;
