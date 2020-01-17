@@ -35,6 +35,9 @@
 #define DIAG_USB_MAX_SIZE	16384
 #ifndef CONFIG_DIAG_OVER_USB
 #define DIAG_LEGACY             "diag"
+#define DIAG_MDM		"diag_mdm"
+#define DIAG_QSC		"diag_qsc"
+#define DIAG_MDM2		"diag_mdm2"
 #endif
 
 struct diag_usb_info diag_usb[NUM_DIAG_USB_DEV] = {
