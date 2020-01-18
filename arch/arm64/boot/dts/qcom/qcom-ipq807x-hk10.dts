@@ -888,3 +888,16 @@
 		qrtr_instance_id = <0x21>;
 	};
 };
+
+&wifi0 {
+	status = "disabled";
+};
+&wifi1 {
+	status = "disabled";
+};
+&wifi2 {
+	status = "ok";
+};
+&wifi3 {
+	status = "ok";
+};
