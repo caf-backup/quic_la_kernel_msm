@@ -2055,7 +2055,7 @@
 			qcom,coex-mode = <0x2>;
 			qcom,bt-active-time = <0x12>;
 			qcom,bt-priority-time = <0x0c>;
-			qcom,coex-algo = <0x1>;
+			qcom,coex-algo = <0x2>;
 			qcom,pta-priority = <0x80800505>;
 		};
 		wifi2: wifi2@f00000 {
