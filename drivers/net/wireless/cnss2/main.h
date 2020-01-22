@@ -320,6 +320,7 @@ struct cnss_plat_data {
 	void *pci_dev_id;
 	void *bus_priv;
 	int qrtr_node_id;
+	char device_name[16];
 	struct cnss_vreg_info *vreg_info;
 	enum cnss_dev_bus_type bus_type;
 	struct list_head vreg_list;
@@ -385,6 +386,8 @@ struct cnss_plat_data {
 	struct qmi_handle ims_qmi;
 	struct qmi_txn txn;
 	u64 dynamic_feature;
+	u64 target_assert_timestamp;
+	u8 target_asserted;
 };
 
 #ifdef CONFIG_ARCH_QCOM
