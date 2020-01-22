@@ -484,6 +484,57 @@
 			interrupt-controller;
 			#interrupt-cells = <0x2>;
 		};
+
+		usb3: usb3@8A00000 {
+			compatible = "qcom,ipq5018-dwc3";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			reg = <0x8AF8800 0x100>,
+				<0x8A00000 0xe000>;
+			reg-names = "qscratch_base", "dwc3_base";
+			clocks = <&gcc GCC_SNOC_BUS_TIMEOUT2_AHB_CLK>,
+				<&gcc GCC_SYS_NOC_USB0_AXI_CLK>,
+				<&gcc GCC_USB0_MASTER_CLK>,
+				<&gcc GCC_USB0_SLEEP_CLK>,
+				<&gcc GCC_USB0_MOCK_UTMI_CLK>,
+				<&gcc GCC_USB0_PHY_CFG_AHB_CLK>,
+				<&gcc GCC_USB0_AUX_CLK>,
+				<&gcc GCC_USB0_PIPE_CLK>;
+			clock-names = "snoc_bus_timeout2",
+				"sys_noc_axi",
+				"master",
+				"sleep",
+				"mock_utmi",
+				"cfg_ahb_clk",
+				"aux_clk",
+				"pipe_clk";
+			assigned-clocks = <&gcc GCC_SYS_NOC_USB0_AXI_CLK>,
+					<&gcc GCC_USB0_MASTER_CLK>,
+					<&gcc GCC_USB0_MOCK_UTMI_CLK>;
+			assigned-clock-rates = <133330000>,
+					<133330000>,
+					<20000000>;
+			qca,host = <1>;
+			status = "disabled";
+
+			dwc_0: dwc3@8A00000 {
+				compatible = "snps,dwc3";
+				reg = <0x8A00000 0xe000>;
+				interrupts = <GIC_SPI 140 IRQ_TYPE_NONE>;
+				snps,dis_ep_cache_eviction;
+				tx-fifo-resize;
+				snps,usb3-u1u2-disable;
+				snps,nominal-elastic-buffer;
+				snps,is-utmi-l1-suspend;
+				snps,hird-threshold = /bits/ 8 <0x0>;
+				snps,dis_u2_susphy_quirk;
+				snps,dis_u3_susphy_quirk;
+				snps,quirk-ref-clock-adjustment = <0xA87F0>;
+				snps,quirk-ref-clock-period = <0x29>;
+				dr_mode = "host";
+			};
+		};
 	};
 
 	cpus {
