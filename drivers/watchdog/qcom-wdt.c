@@ -94,10 +94,11 @@ static int qcom_wdt_scm_replace_tlv(struct qcom_wdt_scm_tlv_msg *scm_tlv_msg,
 		unsigned char type, unsigned int size, const char *data, unsigned char *offset);
 static int qcom_wdt_scm_add_tlv(struct qcom_wdt_scm_tlv_msg *scm_tlv_msg,
 		unsigned char type, unsigned int size, const char *data);
-static int traverse_metadata_list(char *name, unsigned long virt_addr, unsigned long phy_addr,
+static int minidump_traverse_metadata_list(const char *name, const unsigned long virt_addr, const unsigned long phy_addr,
 		unsigned char **tlv_offset, unsigned long size);
-extern void get_pgd_info(uint64_t *pt_start, uint64_t *pt_len);
-extern void get_linux_buf_info(uint64_t *plinux_buf, uint64_t *plinux_buf_len);
+extern void minidump_get_pgd_info(uint64_t *pt_start, uint64_t *pt_len);
+extern void minidump_get_linux_buf_info(uint64_t *plinux_buf, uint64_t *plinux_buf_len);
+extern void minidump_get_log_buf_info(uint64_t *plog_buf, uint64_t *plog_buf_len);
 extern struct list_head *minidump_modules;
 char *minidump_module_list[MINIDUMP_MODULE_COUNT] = {"qca_ol", "wifi_3_0", "umac", "qdf"};
 #endif
@@ -195,8 +196,18 @@ static int qcom_wdt_scm_add_tlv(struct qcom_wdt_scm_tlv_msg *scm_tlv_msg,
 	return 0;
 }
 
+int remove_minidump_segments(uint64_t virt_addr)
+{
+
+ int ret = 0;
+ ret = minidump_remove_segments((const uint64_t)virt_addr);
+ return ret;
+
+}
+EXPORT_SYMBOL(remove_minidump_segments);
+
 /*
-* Function: remove_minidump_segments
+* Function: minidump_remove_segments
 * Description: Traverse metadata list and search for the TLV
 * entry corresponding to the input virtual address. If found,
 * set va of the Metadata list node to 0 and invalidate the TLV
@@ -207,7 +218,7 @@ static int qcom_wdt_scm_add_tlv(struct qcom_wdt_scm_tlv_msg *scm_tlv_msg,
 *
 * Return: 0
 */
-int remove_minidump_segments(uint64_t virt_addr)
+int minidump_remove_segments(const uint64_t virt_addr)
 {
 	struct minidump_metadata_list *cur_node;
 	struct list_head *pos;
@@ -243,10 +254,10 @@ int remove_minidump_segments(uint64_t virt_addr)
 	spin_unlock_irqrestore(&scm_tlv_msg->minidump_tlv_spinlock, flags);
 	return 0;
 }
-EXPORT_SYMBOL(remove_minidump_segments);
+EXPORT_SYMBOL(minidump_remove_segments);
 
 /*
-* Function: traverse_metadata_list
+* Function: minidump_traverse_metadata_list
 *
 * Description: Maintain a Metadata list to keep track
 * of TLVs in the crashdump buffer and entries in the Meta
@@ -310,7 +321,7 @@ EXPORT_SYMBOL(remove_minidump_segments);
 *   due to an alloc failure or NULL address. Return -EINVAL if there is an attempt to
 *   add a duplicate entry
 */
-int traverse_metadata_list(char *name, unsigned long virt_addr, unsigned long phy_addr,
+int minidump_traverse_metadata_list(const char *name, const unsigned long virt_addr, const unsigned long phy_addr,
 		unsigned char **tlv_offset, unsigned long size)
 {
 
@@ -462,7 +473,7 @@ int traverse_metadata_list(char *name, unsigned long virt_addr, unsigned long ph
 }
 
 /*
-* Function: fill_tlv_crashdump_buffer
+* Function: minidump_fill_tlv_crashdump_buffer
 *
 * Description: Add TLV entries into the global crashdump
 * buffer at specified offset.
@@ -478,8 +489,8 @@ int traverse_metadata_list(char *name, unsigned long virt_addr, unsigned long ph
 *
 * Return: 0 on success, -ENOBUFS on failure
 */
-int fill_tlv_crashdump_buffer(uint64_t start_addr, uint64_t size,
-		unsigned char type, unsigned int replace, unsigned char *tlv_offset)
+int minidump_fill_tlv_crashdump_buffer(const uint64_t start_addr, uint64_t size,
+		minidump_tlv_type_t type, unsigned int replace, unsigned char *tlv_offset)
 {
 	struct minidump_tlv_info minidump_tlv_info;
 	struct qcom_wdt_scm_tlv_msg *scm_tlv_msg = &tlv_msg;
@@ -514,8 +525,17 @@ int fill_tlv_crashdump_buffer(uint64_t start_addr, uint64_t size,
 
 	return 0;
 }
+
+int fill_minidump_segments(uint64_t start_addr, uint64_t size, unsigned char type,char *name)
+{
+	int ret = 0;
+	ret = minidump_fill_segments((const uint64_t)start_addr,size,type, (const char *)name);
+	return ret;
+
+}
+EXPORT_SYMBOL(fill_minidump_segments);
 /*
-* Function: fill_minidump_segment
+* Function: minidump_fill_segments
 *
 * Description: Add a dump segment as a TLV entry in the Metadata list
 * and global crashdump buffer. Store relevant VA and PA information in
@@ -529,7 +549,7 @@ int fill_tlv_crashdump_buffer(uint64_t start_addr, uint64_t size,
 *
 * Return: 0 on success, -ENOMEM on failure
 */
-int fill_minidump_segments(uint64_t start_addr, uint64_t size, unsigned char type, char *name)
+int minidump_fill_segments(const uint64_t start_addr, uint64_t size, minidump_tlv_type_t type, const char *name)
 {
 
 	int ret = 0;
@@ -553,7 +573,7 @@ int fill_minidump_segments(uint64_t start_addr, uint64_t size, unsigned char typ
 		highmem = 1;
 	}
 
-	replace = traverse_metadata_list(name, start_addr, phys_addr, &tlv_offset, size);
+	replace = minidump_traverse_metadata_list(name, start_addr,(const unsigned long)phys_addr, &tlv_offset, size);
 	/* return value of -ENOMEM indicates  new list node was not created
     * due to an alloc failure. return value of -EINVAL indicates an attempt to
     * add a duplicate entry
@@ -564,21 +584,21 @@ int fill_minidump_segments(uint64_t start_addr, uint64_t size, unsigned char typ
 	if (replace == -ENOMEM)
 		return replace;
 
-	ret = fill_tlv_crashdump_buffer(phys_addr, size, type, replace, tlv_offset);
+	ret = minidump_fill_tlv_crashdump_buffer((const uint64_t)phys_addr, size, type, replace, tlv_offset);
 	if (ret)
 		return ret;
 
 	if (IS_ENABLED(CONFIG_ARM64) || highmem )
-		store_mmu_info(start_addr,phys_addr);
+		minidump_store_mmu_info(start_addr,(const unsigned long)phys_addr);
 
 	if (name)
-		store_module_info(name, start_addr, phys_addr, type);
+		minidump_store_module_info(name, start_addr,(const unsigned long)phys_addr, type);
 
 	return 0;
 }
-EXPORT_SYMBOL(fill_minidump_segments);
+EXPORT_SYMBOL(minidump_fill_segments);
 /*
-* Function: store_mmu_info
+* Function: minidump_store_mmu_info
 * Description: Add virtual address and physical address
 * information to a metadata file 'MMU_INFO.txt' at the
 * specified offset. Useful for post processing with the
@@ -589,7 +609,7 @@ EXPORT_SYMBOL(fill_minidump_segments);
 *
 * Return: 0 on success, -ENOBUFS on failure
 */
-int store_mmu_info(unsigned long va, unsigned long pa)
+int minidump_store_mmu_info(const unsigned long va, const unsigned long pa)
 {
 
 	char substring[MMU_FILE_ENTRY_LEN];
@@ -658,8 +678,8 @@ int store_mmu_info(unsigned long va, unsigned long pa)
 *
 * Return: 0 on success, -ENOBUFS on failure
 */
-int store_module_info(char *name ,unsigned long va,
-					unsigned long pa,unsigned char type)
+int minidump_store_module_info(const char *name ,const unsigned long va,
+					const unsigned long pa, minidump_tlv_type_t type)
 {
 
 	char substring[METADATA_FILE_ENTRY_LEN];
@@ -772,38 +792,38 @@ static int qcom_wdt_scm_fill_log_dump_tlv(
 	if (ret_val)
 		return ret_val;
 
-	get_log_buf_info(&log_buf_info.start, &log_buf_info.size);
-	ret_val = fill_minidump_segments(log_buf_info.start, log_buf_info.size,
+	minidump_get_log_buf_info(&log_buf_info.start, &log_buf_info.size);
+	ret_val = minidump_fill_segments(log_buf_info.start, log_buf_info.size,
 						QCA_WDT_LOG_DUMP_TYPE_DMESG, NULL);
 	if (ret_val) {
 		pr_err("Minidump: Crashdump buffer is full %d \n", ret_val);
 		return ret_val;
 	}
 
-	get_pgd_info(&pagetable_tlv_info.start, &pagetable_tlv_info.size);
-	ret_val = fill_minidump_segments(pagetable_tlv_info.start,
+	minidump_get_pgd_info(&pagetable_tlv_info.start, &pagetable_tlv_info.size);
+	ret_val = minidump_fill_segments(pagetable_tlv_info.start,
 				pagetable_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_LEVEL1_PT, "PGD");
 	if (ret_val) {
 		pr_err("Minidump: Crashdump buffer is full %d \n", ret_val);
 		return ret_val;
 	}
 
-	get_linux_buf_info(&linux_banner_info.start, &linux_banner_info.size);
-	ret_val = fill_minidump_segments(linux_banner_info.start, linux_banner_info.size,
+	minidump_get_linux_buf_info(&linux_banner_info.start, &linux_banner_info.size);
+	ret_val = minidump_fill_segments(linux_banner_info.start, linux_banner_info.size,
 				QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 	if (ret_val) {
 		pr_err("Minidump: Crashdump buffer is full %d \n", ret_val);
 		return ret_val;
 	}
 
-	ret_val = fill_minidump_segments((uint64_t)(uintptr_t)mod_log, (uint64_t)__pa(&mod_log_len),
+	ret_val = minidump_fill_segments((uint64_t)(uintptr_t)mod_log,(uint64_t)__pa(&mod_log_len),
 					QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD_INFO, NULL);
 	if (ret_val) {
 		pr_err("Minidump: Crashdump buffer is full %d \n", ret_val);
 		return ret_val;
 	}
 
-	ret_val = fill_minidump_segments((uint64_t)(uintptr_t)mmu_log, (uint64_t)__pa(&mmu_log_len),
+	ret_val = minidump_fill_segments((uint64_t)(uintptr_t)mmu_log,(uint64_t)__pa(&mmu_log_len),
 					QCA_WDT_LOG_DUMP_TYPE_WLAN_MMU_INFO, NULL);
 	if (ret_val) {
 		pr_err("Minidump: Crashdump buffer is full %d \n", ret_val);
@@ -845,7 +865,7 @@ int minidump_dump_wlan_modules(void){
 	/*Dump list head*/
 	module_tlv_info.start = (uintptr_t)minidump_modules;
 	module_tlv_info.size = sizeof(struct module);
-	ret_val = fill_minidump_segments(module_tlv_info.start,
+	ret_val = minidump_fill_segments(module_tlv_info.start,
 		module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 	if (ret_val) {
 		pr_err("Minidump: Crashdump buffer is full %d\n", ret_val);
@@ -870,7 +890,7 @@ int minidump_dump_wlan_modules(void){
 			wlan_count++ ;
 			module_tlv_info.start = (uintptr_t)mod;
 			module_tlv_info.size = sizeof(struct module);
-			ret_val = fill_minidump_segments(module_tlv_info.start,
+			ret_val = minidump_fill_segments(module_tlv_info.start,
 				module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 			if (ret_val) {
 				pr_err("Minidump: Crashdump buffer is full %d\n", ret_val);
@@ -879,7 +899,7 @@ int minidump_dump_wlan_modules(void){
 
 			module_tlv_info.start = (unsigned long)mod->sect_attrs;
 			module_tlv_info.size = SZ_2K;
-			ret_val = fill_minidump_segments(module_tlv_info.start,
+			ret_val = minidump_fill_segments(module_tlv_info.start,
 				module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 			if (ret_val) {
 				pr_err("Minidump: Crashdump buffer is full %d\n", ret_val);
@@ -898,7 +918,7 @@ int minidump_dump_wlan_modules(void){
 						mod->name);
 
 					/* Log .bss VA of module in buffer */
-					ret_val = fill_minidump_segments(module_tlv_info.start,
+					ret_val = minidump_fill_segments(module_tlv_info.start,
 					module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD,
 						mod->name);
 					if (ret_val) {
@@ -912,7 +932,7 @@ int minidump_dump_wlan_modules(void){
 			/* For all other modules dump module meta data*/
 			module_tlv_info.start = (unsigned long)mod;
 			module_tlv_info.size = sizeof(mod->list) + sizeof(mod->state) + sizeof(mod->name);
-			ret_val = fill_minidump_segments(module_tlv_info.start,
+			ret_val = minidump_fill_segments(module_tlv_info.start,
 				module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 			if (ret_val) {
 				pr_err("Minidump: Crashdump buffer is full %d\n", ret_val);

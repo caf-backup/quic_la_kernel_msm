@@ -788,7 +788,7 @@ __setup("keepinitrd", keepinitrd_setup);
 
 #ifdef CONFIG_QCA_MINIDUMP
 /* Get base address of PGD.*/
-void get_pgd_info(uint64_t *pt_start, uint64_t *pt_len)
+void minidump_get_pgd_info(uint64_t *pt_start, uint64_t *pt_len)
 {
 	*pt_start = (uintptr_t)swapper_pg_dir;
 	*pt_len = SZ_16K;
