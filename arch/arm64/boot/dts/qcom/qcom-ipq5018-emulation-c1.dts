@@ -160,3 +160,7 @@
 	snps,quirk-ref-clock-period = <0x32>;
 	qcom,emulation = <1>;
 };
+
+&usb3 {
+	status = "ok";
+};
