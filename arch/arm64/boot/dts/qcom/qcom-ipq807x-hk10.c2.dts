@@ -53,20 +53,29 @@
 	reserved-memory {
 /* No Pine attach in 256M profile */
 #if !defined(__IPQ_MEM_PROFILE_256_MB__)
-		qcn9000_pcie0@50f00000 {
+#ifdef __IPQ_MEM_PROFILE_512_MB__
+		qcn9000_pcie0@4e900000 {
 			no-map;
-			reg = <0x0 0x51000000 0x0 0x03700000>;
+			reg = <0x0 0x4e900000 0x0 0x03700000>;
 		};
 
-		qcn9000_pcie1@53700000 {
+		qcn9000_pcie1@52000000 {
 			no-map;
-			reg = <0x0 0x54700000 0x0 0x03700000>;
+			reg = <0x0 0x52000000 0x0 0x03700000>;
 		};
-#ifdef __IPQ_MEM_PROFILE_512_MB__
-		/delete-node/ wifi_dump@50500000;
+		/delete-node/ wifi_dump@4e900000;
 #else
-		/delete-node/ wifi_dump@51000000;
-		/delete-node/ wigig_dump@51200000;
+		qcn9000_pcie0@51100000 {
+			no-map;
+			reg = <0x0 0x51100000 0x0 0x03700000>;
+		};
+
+		qcn9000_pcie1@54800000 {
+			no-map;
+			reg = <0x0 0x54800000 0x0 0x03700000>;
+		};
+		/delete-node/ wifi_dump@51100000;
+		/delete-node/ wigig_dump@51300000;
 #endif
 #endif
 	};

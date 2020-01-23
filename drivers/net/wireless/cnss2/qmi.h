@@ -62,6 +62,12 @@ struct cnss_qmi_event_qdss_trace_save_data {
 	char file_name[QDSS_TRACE_FILE_NAME_MAX + 1];
 };
 
+struct cnss_qmi_event_m3_dump_upload_req_data {
+	u32 pdev_id;
+	u64 addr;
+	u64 size;
+};
+
 #ifdef CONFIG_CNSS2_QMI
 #include "wlan_firmware_service_v01.h"
 #include "coexistence_service_v01.h"
@@ -104,6 +110,8 @@ int coex_antenna_switch_to_mdm_send_sync_msg(struct cnss_plat_data *plat_priv);
 int cnss_wlfw_qdss_trace_mem_info_send_sync(struct cnss_plat_data *plat_priv);
 int cnss_register_ims_service(struct cnss_plat_data *plat_priv);
 void cnss_unregister_ims_service(struct cnss_plat_data *plat_priv);
+int cnss_wlfw_m3_dump_upload_done_send_sync(struct cnss_plat_data *plat_priv,
+					    u32 pdev_id, int status);
 #else
 #define QMI_WLFW_TIMEOUT_MS		10000
 
@@ -244,6 +252,12 @@ int cnss_register_ims_service(struct cnss_plat_data *plat_priv)
 static inline
 void cnss_unregister_ims_service(struct cnss_plat_data *plat_priv) {}
 
+static inline
+int cnss_wlfw_m3_dump_upload_done_send_sync(struct cnss_plat_data *plat_priv,
+					    u32 pdev_id, int status)
+{
+	return 0;
+}
 #endif /* CONFIG_CNSS2_QMI */
 
 #endif /* _CNSS_QMI_H */

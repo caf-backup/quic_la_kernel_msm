@@ -186,6 +186,8 @@ static int cnss_wlfw_ind_register_send_sync(struct cnss_plat_data *plat_priv)
 	req->qdss_trace_save_enable = 0;
 	req->qdss_trace_free_enable_valid = 1;
 	req->qdss_trace_free_enable = 1;
+	req->m3_dump_upload_req_enable_valid = 1;
+	req->m3_dump_upload_req_enable = 1;
 
 	qmi_record(plat_priv->wlfw_service_instance_id,
 		   QMI_WLFW_IND_REGISTER_REQ_V01, ret, resp_error_msg);
@@ -1773,6 +1775,75 @@ out:
 	return ret;
 }
 
+int cnss_wlfw_m3_dump_upload_done_send_sync(struct cnss_plat_data *plat_priv,
+					    u32 pdev_id, int status)
+{
+	struct wlfw_m3_dump_upload_done_req_msg_v01 *req;
+	struct wlfw_m3_dump_upload_done_resp_msg_v01 *resp;
+	struct qmi_txn txn;
+	int ret = 0;
+	int resp_error_msg = 0;
+
+	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	if (!req)
+		return -ENOMEM;
+
+	resp = kzalloc(sizeof(*resp), GFP_KERNEL);
+	if (!resp) {
+		kfree(req);
+		return -ENOMEM;
+	}
+
+	cnss_pr_dbg("Sending M3 Upload done req, pdev %d, status %d\n",
+		    pdev_id, status);
+
+	req->pdev_id = pdev_id;
+	req->status = status;
+
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_M3_DUMP_UPLOAD_DONE_REQ_V01, ret, resp_error_msg);
+	ret = qmi_txn_init(&plat_priv->qmi_wlfw, &txn,
+			   wlfw_m3_dump_upload_done_resp_msg_v01_ei, resp);
+	if (ret < 0) {
+		cnss_pr_err("Fail to initialize txn for M3 dump upload done req: err %d\n",
+			    ret);
+		goto out;
+	}
+
+	ret = qmi_send_request(&plat_priv->qmi_wlfw, NULL, &txn,
+			       QMI_WLFW_M3_DUMP_UPLOAD_DONE_REQ_V01,
+			       WLFW_M3_DUMP_UPLOAD_DONE_REQ_MSG_V01_MAX_MSG_LEN,
+			       wlfw_m3_dump_upload_done_req_msg_v01_ei, req);
+	if (ret < 0) {
+		qmi_txn_cancel(&txn);
+		cnss_pr_err("Fail to send M3 dump upload done request: err %d\n",
+			    ret);
+		goto out;
+	}
+
+	ret = qmi_txn_wait(&txn, QMI_WLFW_TIMEOUT_JF);
+	if (ret < 0) {
+		cnss_pr_err("Fail to wait for response of M3 dump upload done request, err %d\n",
+			    ret);
+		goto out;
+	}
+
+	if (resp->resp.result != QMI_RESULT_SUCCESS_V01) {
+		cnss_pr_err("M3 Dump Upload Done Req failed, result: %d, err: 0x%X\n",
+			    resp->resp.result, resp->resp.error);
+		ret = -resp->resp.result;
+		resp_error_msg = resp->resp.error;
+		goto out;
+	}
+
+out:
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_M3_DUMP_UPLOAD_DONE_REQ_V01, ret, resp_error_msg);
+	kfree(req);
+	kfree(resp);
+	return ret;
+}
+
 unsigned int cnss_get_qmi_timeout(struct cnss_plat_data *plat_priv)
 {
 	cnss_pr_dbg("QMI timeout is %u ms\n", QMI_WLFW_TIMEOUT_MS);
@@ -2066,6 +2137,40 @@ static void cnss_wlfw_qdss_trace_free_ind_cb(struct qmi_handle *qmi_wlfw,
 			       0, NULL);
 }
 
+static void cnss_wlfw_m3_dump_upload_req_ind_cb(struct qmi_handle *qmi_wlfw,
+						struct sockaddr_qrtr *sq,
+						struct qmi_txn *txn,
+						const void *data)
+{
+	struct cnss_plat_data *plat_priv =
+		container_of(qmi_wlfw, struct cnss_plat_data, qmi_wlfw);
+	const struct wlfw_m3_dump_upload_req_ind_msg_v01 *ind_msg = data;
+	struct cnss_qmi_event_m3_dump_upload_req_data *event_data;
+
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_M3_DUMP_UPLOAD_REQ_IND_V01, 0, 0);
+	cnss_pr_dbg("Received QMI WLFW M3 Dump Upload indication\n");
+
+	if (!txn) {
+		cnss_pr_err("Spurious indication\n");
+		return;
+	}
+
+	cnss_pr_dbg("M3 Dump upload info: pdev_id %d addr: 0x%llx size 0x%llx\n",
+		    ind_msg->pdev_id, ind_msg->addr, ind_msg->size);
+
+	event_data = kzalloc(sizeof(*event_data), GFP_KERNEL);
+	if (!event_data)
+		return;
+
+	event_data->pdev_id = ind_msg->pdev_id;
+	event_data->addr = ind_msg->addr;
+	event_data->size = ind_msg->size;
+
+	cnss_driver_event_post(plat_priv, CNSS_DRIVER_EVENT_M3_DUMP_UPLOAD_REQ,
+			       0, event_data);
+}
+
 static struct qmi_msg_handler qmi_wlfw_msg_handlers[] = {
 	{
 		.type = QMI_INDICATION,
@@ -2133,6 +2238,14 @@ static struct qmi_msg_handler qmi_wlfw_msg_handlers[] = {
 		.decoded_size =
 			sizeof(struct wlfw_qdss_trace_free_ind_msg_v01),
 		.fn = cnss_wlfw_qdss_trace_free_ind_cb,
+	},
+	{
+		.type = QMI_INDICATION,
+		.msg_id = QMI_WLFW_M3_DUMP_UPLOAD_REQ_IND_V01,
+		.ei = wlfw_m3_dump_upload_req_ind_msg_v01_ei,
+		.decoded_size =
+			sizeof(struct wlfw_m3_dump_upload_req_ind_msg_v01),
+		.fn = cnss_wlfw_m3_dump_upload_req_ind_cb,
 	},
 	{}
 };

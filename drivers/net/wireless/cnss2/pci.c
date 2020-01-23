@@ -20,6 +20,7 @@
 #include <linux/memblock.h>
 #include <linux/completion.h>
 #include <soc/qcom/ramdump.h>
+#include <linux/of_address.h>
 
 #include "main.h"
 #include "debug.h"
@@ -2441,6 +2442,8 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 	u32 addr = 0;
 	struct device *dev;
 	int i, idx, mode;
+	struct device_node *dev_node = NULL;
+	struct resource m3_dump;
 
 	dev = &plat_priv->plat_dev->dev;
 
@@ -2548,6 +2551,37 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 				}
 				fw_mem[idx].size = fw_mem[i].size;
 				fw_mem[idx].type = fw_mem[i].type;
+				idx++;
+				break;
+			case M3_DUMP_REGION_TYPE:
+				dev_node = of_find_node_by_name(NULL,
+								"m3_dump");
+				if (!dev_node) {
+					pr_err("%s: Unable to find m3_dump_region",
+					       __func__);
+					break;
+				}
+				if (of_address_to_resource(dev_node, 0,
+							   &m3_dump)) {
+					pr_err("%s: Unable to get m3_dump_region",
+					       __func__);
+					break;
+				}
+
+				if (!fw_mem[i].size) {
+					pr_err("FW requests size 0");
+					break;
+				}
+				if (fw_mem[i].size > resource_size(&m3_dump)) {
+					pr_err("Error: Need more memory %x\n",
+					       fw_mem[idx].size);
+					CNSS_ASSERT(0);
+				}
+				fw_mem[idx].size = fw_mem[i].size;
+				fw_mem[idx].type = fw_mem[i].type;
+				fw_mem[idx].pa = m3_dump.start;
+				fw_mem[idx].va = (void *)(unsigned long)
+						 fw_mem[idx].pa;
 				idx++;
 				break;
 			default:
