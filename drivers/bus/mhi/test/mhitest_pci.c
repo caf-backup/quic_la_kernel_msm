@@ -895,7 +895,7 @@ int mhitest_pci_probe2(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	}
 
 	/* TODO: uses this as per device*/
-	np = of_find_compatible_node(NULL, NULL, "qcom,cnss-qca6290");
+	np = of_find_compatible_node(NULL, NULL, "qcom,cnss-qcn9000");
 	if (!np) {
 		pr_mhitest2("Couldn't find necessary node\n ");
 		return -ENODEV;
