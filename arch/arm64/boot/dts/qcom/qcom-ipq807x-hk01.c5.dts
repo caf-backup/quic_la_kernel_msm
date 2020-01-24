@@ -843,8 +843,7 @@
 		/* mhi bus specific settings */
 		mhi,max-channels = <110>;
 		mhi,timeout = <60000>;
-
-		mhi,use-panic-notifer;
+		mhi,ssr-negotiate;
 
 		mhi_channels: mhi_channels {
 			#address-cells = <1>;
