@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -21,11 +21,14 @@
 #define WLFW_SERVICE_VERS_V01 0x01
 
 #define QMI_WLFW_WFC_CALL_STATUS_REQ_V01 0x0049
+#define QMI_WLFW_DEVICE_INFO_RESP_V01 0x004C
 #define QMI_WLFW_BDF_DOWNLOAD_REQ_V01 0x0025
 #define QMI_WLFW_FW_MEM_READY_IND_V01 0x0037
 #define QMI_WLFW_QDSS_TRACE_CONFIG_DOWNLOAD_REQ_V01 0x0044
+#define QMI_WLFW_GET_INFO_REQ_V01 0x004A
 #define QMI_WLFW_INITIATE_CAL_UPDATE_IND_V01 0x002A
 #define QMI_WLFW_CAL_DONE_IND_V01 0x003E
+#define QMI_WLFW_M3_DUMP_UPLOAD_REQ_IND_V01 0x004D
 #define QMI_WLFW_WFC_CALL_STATUS_RESP_V01 0x0049
 #define QMI_WLFW_HOST_CAP_REQ_V01 0x0034
 #define QMI_WLFW_DYNAMIC_FEATURE_MASK_RESP_V01 0x003B
@@ -34,8 +37,10 @@
 #define QMI_WLFW_FW_INIT_DONE_IND_V01 0x0038
 #define QMI_WLFW_ANTENNA_GRANT_RESP_V01 0x0048
 #define QMI_WLFW_CAL_REPORT_REQ_V01 0x0026
+#define QMI_WLFW_RESPOND_GET_INFO_IND_V01 0x004B
 #define QMI_WLFW_M3_INFO_RESP_V01 0x003C
 #define QMI_WLFW_CAL_UPDATE_RESP_V01 0x0029
+#define QMI_WLFW_M3_DUMP_UPLOAD_DONE_RESP_V01 0x004E
 #define QMI_WLFW_CAL_DOWNLOAD_RESP_V01 0x0027
 #define QMI_WLFW_XO_CAL_IND_V01 0x003D
 #define QMI_WLFW_INI_RESP_V01 0x002F
@@ -60,6 +65,7 @@
 #define QMI_WLFW_ATHDIAG_WRITE_REQ_V01 0x0031
 #define QMI_WLFW_WLAN_MODE_RESP_V01 0x0022
 #define QMI_WLFW_RESPOND_MEM_REQ_V01 0x0036
+#define QMI_WLFW_GET_INFO_RESP_V01 0x004A
 #define QMI_WLFW_QDSS_TRACE_MODE_RESP_V01 0x0045
 #define QMI_WLFW_PIN_CONNECT_RESULT_IND_V01 0x002C
 #define QMI_WLFW_FW_READY_IND_V01 0x0021
@@ -75,12 +81,14 @@
 #define QMI_WLFW_MSA_INFO_RESP_V01 0x002D
 #define QMI_WLFW_MSA_READY_REQ_V01 0x002E
 #define QMI_WLFW_QDSS_TRACE_DATA_RESP_V01 0x0042
+#define QMI_WLFW_M3_DUMP_UPLOAD_DONE_REQ_V01 0x004E
 #define QMI_WLFW_CAP_RESP_V01 0x0024
 #define QMI_WLFW_REJUVENATE_ACK_REQ_V01 0x003A
 #define QMI_WLFW_ATHDIAG_READ_RESP_V01 0x0030
 #define QMI_WLFW_SHUTDOWN_REQ_V01 0x0043
 #define QMI_WLFW_VBATT_REQ_V01 0x0032
 #define QMI_WLFW_ANTENNA_SWITCH_RESP_V01 0x0047
+#define QMI_WLFW_DEVICE_INFO_REQ_V01 0x004C
 #define QMI_WLFW_MAC_ADDR_REQ_V01 0x0033
 #define QMI_WLFW_RESPOND_MEM_RESP_V01 0x0036
 #define QMI_WLFW_VBATT_RESP_V01 0x0032
@@ -284,9 +292,13 @@ struct wlfw_ind_register_req_msg_v01 {
 	u8 qdss_trace_save_enable;
 	u8 qdss_trace_free_enable_valid;
 	u8 qdss_trace_free_enable;
+	u8 respond_get_info_enable_valid;
+	u8 respond_get_info_enable;
+	u8 m3_dump_upload_req_enable_valid;
+	u8 m3_dump_upload_req_enable;
 };
 
-#define WLFW_IND_REGISTER_REQ_MSG_V01_MAX_MSG_LEN 66
+#define WLFW_IND_REGISTER_REQ_MSG_V01_MAX_MSG_LEN 74
 extern struct qmi_elem_info wlfw_ind_register_req_msg_v01_ei[];
 
 struct wlfw_ind_register_resp_msg_v01 {
@@ -395,9 +407,15 @@ struct wlfw_cap_resp_msg_v01 {
 	char fw_build_id[QMI_WLFW_MAX_BUILD_ID_LEN_V01 + 1];
 	u8 num_macs_valid;
 	u8 num_macs;
+	u8 voltage_mv_valid;
+	u32 voltage_mv;
+	u8 time_freq_hz_valid;
+	u32 time_freq_hz;
+	u8 otp_version_valid;
+	u32 otp_version;
 };
 
-#define WLFW_CAP_RESP_MSG_V01_MAX_MSG_LEN 207
+#define WLFW_CAP_RESP_MSG_V01_MAX_MSG_LEN 228
 extern struct qmi_elem_info wlfw_cap_resp_msg_v01_ei[];
 
 struct wlfw_bdf_download_req_msg_v01 {
@@ -954,5 +972,77 @@ struct wlfw_wfc_call_status_resp_msg_v01 {
 
 #define WLFW_WFC_CALL_STATUS_RESP_MSG_V01_MAX_MSG_LEN 7
 extern struct qmi_elem_info wlfw_wfc_call_status_resp_msg_v01_ei[];
+
+struct wlfw_get_info_req_msg_v01 {
+	u8 type;
+	u32 data_len;
+	u8 data[QMI_WLFW_MAX_DATA_SIZE_V01];
+};
+
+#define WLFW_GET_INFO_REQ_MSG_V01_MAX_MSG_LEN 6153
+extern struct qmi_elem_info wlfw_get_info_req_msg_v01_ei[];
+
+struct wlfw_get_info_resp_msg_v01 {
+	struct qmi_response_type_v01 resp;
+};
+
+#define WLFW_GET_INFO_RESP_MSG_V01_MAX_MSG_LEN 7
+extern struct qmi_elem_info wlfw_get_info_resp_msg_v01_ei[];
+
+struct wlfw_respond_get_info_ind_msg_v01 {
+	u32 data_len;
+	u8 data[QMI_WLFW_MAX_DATA_SIZE_V01];
+	u8 type_valid;
+	u8 type;
+	u8 is_last_valid;
+	u8 is_last;
+	u8 seq_no_valid;
+	u32 seq_no;
+};
+
+#define WLFW_RESPOND_GET_INFO_IND_MSG_V01_MAX_MSG_LEN 6164
+extern struct qmi_elem_info wlfw_respond_get_info_ind_msg_v01_ei[];
+
+struct wlfw_device_info_req_msg_v01 {
+	char placeholder;
+};
+
+#define WLFW_DEVICE_INFO_REQ_MSG_V01_MAX_MSG_LEN 0
+extern struct qmi_elem_info wlfw_device_info_req_msg_v01_ei[];
+
+struct wlfw_device_info_resp_msg_v01 {
+	struct qmi_response_type_v01 resp;
+	u8 bar_addr_valid;
+	u64 bar_addr;
+	u8 bar_size_valid;
+	u32 bar_size;
+};
+
+#define WLFW_DEVICE_INFO_RESP_MSG_V01_MAX_MSG_LEN 25
+extern struct qmi_elem_info wlfw_device_info_resp_msg_v01_ei[];
+
+struct wlfw_m3_dump_upload_req_ind_msg_v01 {
+	u32 pdev_id;
+	u64 addr;
+	u64 size;
+};
+
+#define WLFW_M3_DUMP_UPLOAD_REQ_IND_MSG_V01_MAX_MSG_LEN 29
+extern struct qmi_elem_info wlfw_m3_dump_upload_req_ind_msg_v01_ei[];
+
+struct wlfw_m3_dump_upload_done_req_msg_v01 {
+	u32 pdev_id;
+	u32 status;
+};
+
+#define WLFW_M3_DUMP_UPLOAD_DONE_REQ_MSG_V01_MAX_MSG_LEN 14
+extern struct qmi_elem_info wlfw_m3_dump_upload_done_req_msg_v01_ei[];
+
+struct wlfw_m3_dump_upload_done_resp_msg_v01 {
+	struct qmi_response_type_v01 resp;
+};
+
+#define WLFW_M3_DUMP_UPLOAD_DONE_RESP_MSG_V01_MAX_MSG_LEN 7
+extern struct qmi_elem_info wlfw_m3_dump_upload_done_resp_msg_v01_ei[];
 
 #endif
