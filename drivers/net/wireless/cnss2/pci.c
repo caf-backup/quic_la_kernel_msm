@@ -1423,8 +1423,8 @@ static void cnss_qcn9000_crash_shutdown(struct cnss_pci_data *pci_priv)
 {
 	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
 
-	cnss_pr_dbg("Crash shutdown with driver_state 0x%lx\n",
-		    plat_priv->driver_state);
+	cnss_pr_err("Crash shutdown device %s with driver_state 0x%lx\n",
+		    plat_priv->device_name, plat_priv->driver_state);
 
 	cnss_pci_collect_dump_info(pci_priv, true);
 }
@@ -3307,6 +3307,7 @@ void cnss_pci_collect_dump_info(struct cnss_pci_data *pci_priv, bool in_panic)
 	if (cnss_pci_check_link_status(pci_priv))
 		return;
 
+	plat_priv->target_assert_timestamp = ktime_to_ms(ktime_get());
 	cnss_pci_dump_qdss_reg(pci_priv);
 
 	ret = mhi_download_rddm_img(pci_priv->mhi_ctrl, in_panic);
@@ -3488,6 +3489,11 @@ static void cnss_mhi_notify_status(struct mhi_controller *mhi_ctrl, void *priv,
 		return;
 	}
 	cnss_pr_err("XXX TARGET ASSERTED XXX\n");
+	cnss_pr_err("XXX TARGET %s instance_id 0x%x XXX\n",
+		    plat_priv->device_name,
+		    plat_priv->wlfw_service_instance_id);
+	plat_priv->target_asserted = 1;
+	plat_priv->target_assert_timestamp = ktime_to_ms(ktime_get());
 
 	cnss_schedule_recovery(&pci_priv->pci_dev->dev, cnss_reason);
 }

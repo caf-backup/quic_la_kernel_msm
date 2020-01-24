@@ -77,7 +77,6 @@ static struct cnss_fw_files FW_FILES_DEFAULT = {
 	"utfbd.bin", "epping.bin", "evicted.bin"
 };
 
-char radioname[2][15] = { "QCN9000_PCI0", "QCN9000_PCI1" };
 struct cnss_driver_event {
 	struct list_head list;
 	enum cnss_driver_event_type type;
@@ -1065,7 +1064,7 @@ void *cnss_register_qcn9000_cb(struct cnss_plat_data *plat_priv)
 
 	subsys_info = &plat_priv->subsys_info;
 	index = plat_priv->wlfw_service_instance_id - NODE_ID_BASE;
-	subsys_info->subsys_desc.name = radioname[index];
+	subsys_info->subsys_desc.name = plat_priv->device_name;
 	plat_priv->modem_nb.notifier_call = cnss_qcn9000_notifier_nb;
 	ss_handle = subsys_notif_register_notifier(
 		subsys_info->subsys_desc.name, &plat_priv->modem_nb);
@@ -2142,7 +2141,7 @@ int cnss_register_subsys(struct cnss_plat_data *plat_priv)
 	case QCN9000_EMULATION_DEVICE_ID:
 	case QCN9000_DEVICE_ID:
 		index = plat_priv->wlfw_service_instance_id - NODE_ID_BASE;
-		subsys_info->subsys_desc.name = radioname[index];
+		subsys_info->subsys_desc.name = plat_priv->device_name;
 		break;
 	case QCA8074_DEVICE_ID:
 	case QCA8074V2_DEVICE_ID:
@@ -2623,6 +2622,36 @@ static const struct of_device_id cnss_of_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, cnss_of_match_table);
 
+static int cnss_set_device_name(struct cnss_plat_data *plat_priv)
+{
+	u8 index = 0;
+
+	switch (plat_priv->device_id) {
+	case QCN9000_DEVICE_ID:
+		index = plat_priv->wlfw_service_instance_id - NODE_ID_BASE;
+		snprintf(plat_priv->device_name, sizeof(plat_priv->device_name),
+			 "QCN9000_PCI%d", index);
+		break;
+	case QCA8074_DEVICE_ID:
+		snprintf(plat_priv->device_name, sizeof(plat_priv->device_name),
+			 "QCA8074");
+		break;
+	case QCA8074V2_DEVICE_ID:
+		snprintf(plat_priv->device_name, sizeof(plat_priv->device_name),
+			 "QCA8074v2");
+		break;
+	case QCA6018_DEVICE_ID:
+		snprintf(plat_priv->device_name, sizeof(plat_priv->device_name),
+			 "QCA6018");
+		break;
+	default:
+		cnss_pr_err("No such device id %p\n", plat_priv->device_id);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 static int cnss_probe(struct platform_device *plat_dev)
 {
 	int ret = 0;
@@ -2727,6 +2756,10 @@ skip_soc_version_checks:
 		cnss_pr_err("No such device id %p\n", device_id);
 		return -ENODEV;
 	}
+	ret = cnss_set_device_name(plat_priv);
+	if (ret)
+		return -ENODEV;
+
 	cnss_set_plat_priv(plat_dev, plat_priv);
 	platform_set_drvdata(plat_dev, plat_priv);
 	memset(&qmi_log, 0, sizeof(struct qmi_history) * QMI_HISTORY_SIZE);
