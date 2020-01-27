@@ -11,7 +11,9 @@
 #include <linux/clk-provider.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
+#if defined(CONFIG_IPQ_DWC3_QCOM_EXTCON)
 #include <linux/extcon.h>
+#endif
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/phy/phy.h>
@@ -57,6 +59,7 @@ struct dwc3_qcom {
 	int			dm_hs_phy_irq;
 	int			ss_phy_irq;
 
+#if defined(CONFIG_IPQ_DWC3_QCOM_EXTCON)
 	struct extcon_dev	*edev;
 	struct extcon_dev	*host_edev;
 	struct notifier_block	vbus_nb;
@@ -67,6 +70,7 @@ struct dwc3_qcom {
 	struct work_struct	vbus_work;
 	struct work_struct	host_work;
 	struct workqueue_struct	*dwc3_wq;
+#endif
 
 	enum usb_dr_mode	mode;
 	bool			is_suspended;
@@ -123,6 +127,7 @@ static void dwc3_qcom_vbus_overrride_enable(struct dwc3_qcom *qcom, bool enable)
 	}
 }
 
+#if defined(CONFIG_IPQ_DWC3_QCOM_EXTCON)
 static void dwc3_otg_start_peripheral(struct work_struct *w)
 {
 	struct dwc3_qcom *qcom = container_of(w, struct dwc3_qcom, vbus_work);
@@ -249,6 +254,7 @@ static int dwc3_qcom_register_extcon(struct dwc3_qcom *qcom)
 
 	return 0;
 }
+#endif
 
 static void dwc3_qcom_disable_interrupts(struct dwc3_qcom *qcom)
 {
@@ -502,6 +508,7 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, qcom);
 	qcom->dev = &pdev->dev;
 
+#if defined(CONFIG_IPQ_DWC3_QCOM_EXTCON)
 	INIT_WORK(&qcom->vbus_work, dwc3_otg_start_peripheral);
 	INIT_WORK(&qcom->host_work, dwc3_otg_start_host);
 
@@ -510,6 +517,7 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
 		pr_err("%s: Unable to create workqueue dwc3_wq\n", __func__);
 		return -ENOMEM;
 	}
+#endif
 
 	qcom->resets = devm_reset_control_get(dev, "usb30_mstr_rst");
 	if (IS_ERR(qcom->resets)) {
@@ -608,10 +616,12 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
 	if (qcom->mode == USB_DR_MODE_PERIPHERAL)
 		dwc3_qcom_vbus_overrride_enable(qcom, true);
 
+#if defined(CONFIG_IPQ_DWC3_QCOM_EXTCON)
 	/* register extcon to override sw_vbus on Vbus change later */
 	ret = dwc3_qcom_register_extcon(qcom);
 	if (ret)
 		goto depopulate;
+#endif
 
 	device_init_wakeup(&pdev->dev, 1);
 	qcom->is_suspended = false;
@@ -632,7 +642,9 @@ reset_assert:
 	if (!IS_ERR(qcom->resets))
 		reset_control_assert(qcom->resets);
 
+#if defined(CONFIG_IPQ_DWC3_QCOM_EXTCON)
 	destroy_workqueue(qcom->dwc3_wq);
+#endif
 	return ret;
 }
 
@@ -642,11 +654,12 @@ static int dwc3_qcom_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int i;
 
+#if defined(CONFIG_IPQ_DWC3_QCOM_EXTCON)
 	extcon_unregister_notifier(qcom->edev, EXTCON_USB, &qcom->vbus_nb);
 	extcon_unregister_notifier(qcom->host_edev, EXTCON_USB_HOST,
 				   &qcom->host_nb);
 	destroy_workqueue(qcom->dwc3_wq);
-
+#endif
 	of_platform_depopulate(dev);
 
 	for (i = qcom->num_clocks - 1; i >= 0; i--) {
