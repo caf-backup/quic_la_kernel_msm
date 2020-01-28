@@ -83,6 +83,9 @@ struct qcom_wdt {
 char mod_log[METADATA_FILE_SZ];
 unsigned long mod_log_len;
 unsigned long cur_modinfo_offset;
+char mmu_log[MMU_FILE_SZ];
+unsigned long mmu_log_len;
+unsigned long cur_mmuinfo_offset;
 qcom_wdt_scm_tlv_msg_t tlv_msg;
 struct minidump_metadata_list metadata_list;
 #define REPLACE 1
@@ -95,8 +98,8 @@ static int traverse_metadata_list(char *name, unsigned long virt_addr, unsigned 
 		unsigned char **tlv_offset, unsigned long size);
 extern void get_pgd_info(uint64_t *pt_start, uint64_t *pt_len);
 extern void get_linux_buf_info(uint64_t *plinux_buf, uint64_t *plinux_buf_len);
-extern int get_mmu_info(const void *vmalloc_addr, unsigned long *pt_address,
-							unsigned long *pmd_address);
+extern struct list_head *minidump_modules;
+char *minidump_module_list[MINIDUMP_MODULE_COUNT] = {"qca_ol", "wifi_3_0", "umac", "qdf"};
 #endif
 static void __iomem *wdt_addr(struct qcom_wdt *wdt, enum wdt_reg reg)
 {
@@ -191,100 +194,6 @@ static int qcom_wdt_scm_add_tlv(struct qcom_wdt_scm_tlv_msg *scm_tlv_msg,
 	spin_unlock_irqrestore(&scm_tlv_msg->minidump_tlv_spinlock, flags);
 	return 0;
 }
-/*
-* Function: fill_mmu_info
-* Description: Adds PMD and PTE TLV entries into the global crashdump
-* buffer at specified offset.
-*
-* @param: [in] start_address - Physical address of PMD / PTE entry
-*		[in] type - Type associated with Dump segment
-*		[in] replace - Flag used to determine if TLV entry needs to be
-*		inserted at a specified offset or appended to the
-*		end of the crashdump buffer
-*		[in] mmu_offset - pmd or pte offset at which PMD or PTE TLV
-*		entries are added to the crashdump buffer
-*
-* Return: 0 on success, -ENOBUFS on failure
-*/
-int fill_mmu_info(unsigned long start_address, unsigned char type,
-			unsigned int replace, unsigned char *mmu_offset)
-{
-	struct minidump_tlv_info minidump_mmu_tlv_info;
-	struct qcom_wdt_scm_tlv_msg *scm_tlv_msg = &tlv_msg;
-	int ret;
-
-	if (IS_ENABLED(CONFIG_ARM64)) {
-		minidump_mmu_tlv_info.size = SZ_4K;
-	} else {
-		minidump_mmu_tlv_info.size = SZ_2K;
-	}
-
-	minidump_mmu_tlv_info.start = start_address;
-	if (!minidump_mmu_tlv_info.start)
-		return -ENOBUFS;
-
-	if (replace && (*(mmu_offset) == QCA_WDT_LOG_DUMP_TYPE_EMPTY)) {
-		ret = qcom_wdt_scm_replace_tlv(&tlv_msg, type,
-				sizeof(minidump_mmu_tlv_info),
-				(unsigned char *)&minidump_mmu_tlv_info, mmu_offset);
-	} else {
-		ret = qcom_wdt_scm_add_tlv(&tlv_msg, type,
-				sizeof(minidump_mmu_tlv_info),
-				(unsigned char *)&minidump_mmu_tlv_info);
-	}
-
-	if (ret)
-		return ret;
-
-	if (scm_tlv_msg->cur_msg_buffer_pos >=
-			scm_tlv_msg->msg_buffer + scm_tlv_msg->len){
-		return -ENOBUFS;
-	}
-	*scm_tlv_msg->cur_msg_buffer_pos =
-	QCA_WDT_LOG_DUMP_TYPE_INVALID;
-	return 0;
-}
-
-/*
-* Function: get_mmu_entry
-*
-* Description: Calculate PMD and PTE entries corresponding to a
-* particular dump segment.
-*
-* @param: [in] vmalloc_addr - Virtual address of Dump segment
-*		[in] type - Type associated with Dump segment
-*		[in] replace - Flag used to determine if TLV entry needs to be
-*		inserted at a specified offset or appended to the
-*		end of the crashdump buffer
-*		[in] pmd_offset - offset at which corresponding PMD TLV entry
-*		will be added to the crashdump buffer
-*		[in] pte_offset - offset at which corresponding PTE TLV entry
-*		will be added to the crashdump buffer
-*
-* Return: 0 on success, -ENOBUFS on failure
-*/
-
-int get_mmu_entry(const void *vmalloc_addr, unsigned char type,
-	unsigned int replace, unsigned char *pmd_offset, unsigned char *pte_offset)
-{
-	int ret;
-	unsigned long pmd_address = 0;
-	unsigned long pte_address = 0;
-
-	ret = get_mmu_info((const void *)vmalloc_addr, &pte_address, &pmd_address);
-	if (ret)
-		return ret;
-
-	ret = fill_mmu_info(pmd_address, type, replace, pmd_offset);
-	if (ret)
-		return ret;
-
-	ret = fill_mmu_info(pte_address, type, replace, pte_offset);
-	if (ret)
-		return ret;
-
-	return 0;
-}
 
 /*
 * Function: remove_minidump_segments
@@ -304,10 +213,6 @@ int remove_minidump_segments(uint64_t virt_addr)
 	struct list_head *pos;
 	unsigned long flags;
 	struct qcom_wdt_scm_tlv_msg *scm_tlv_msg;
-	unsigned long pmd_offset = sizeof(struct minidump_tlv_info) +
-								QCOM_WDT_SCM_TLV_TYPE_LEN_SIZE;
-	unsigned long pte_offset = pmd_offset + sizeof(struct minidump_tlv_info) +
-								QCOM_WDT_SCM_TLV_TYPE_LEN_SIZE;
 
 	if (!tlv_msg.msg_buffer) {
 		return -ENOMEM;
@@ -333,12 +238,6 @@ int remove_minidump_segments(uint64_t virt_addr)
 			* QCA_WDT_LOG_DUMP_TYPE_EMPTY
 			*/
 			*(cur_node->tlv_offset) = QCA_WDT_LOG_DUMP_TYPE_EMPTY;
-			/* Also invalidate PMD and PTE TLV entries in the crashdump buffer*/
-			*(cur_node->tlv_offset + pmd_offset) = QCA_WDT_LOG_DUMP_TYPE_EMPTY;
-			*(cur_node->tlv_offset + pte_offset) = QCA_WDT_LOG_DUMP_TYPE_EMPTY;
-			/* Retain offsets to the crashdump buffer and metadata file
-			* which will be used by the next dump segment to be added
-			*/
 		}
 	}
 	spin_unlock_irqrestore(&scm_tlv_msg->minidump_tlv_spinlock, flags);
@@ -351,37 +250,37 @@ EXPORT_SYMBOL(remove_minidump_segments);
 *
 * Description: Maintain a Metadata list to keep track
 * of TLVs in the crashdump buffer and entries in the Meta
-* data file.
+* data file and MMU Metadata file.
 *
 * Each node in the Metadata list stores the name and virtual
-* address associated with the dump segments and two offsets,
-* tlv_offset and mod_offset, that stores the offset corresponding
-* to the TLV in the crashdump buffer and the entry in the Metadata
-* file.
+* address associated with the dump segments and three offsets,
+* tlv_offset, mod_offset and mmu_offset that stores the offset
+* corresponding to the TLV in the crashdump buffer and the
+* entries in the Metadata file and MMU Metadata file.
 *
-*                    Metadata file (12 K)
-*                   |----------------|
-*                   |     Entry 1    |<----------|
-*                   |----------------|           |
-*                   |    Entry 2     |           |
-*                   |----------------|           |
-*              |--->|    Entry 3     |           |
-*              |    |----------------|           |
-*              |    |    Entry 4     |           |
-*              |    |----------------|           |
-*              |    |    Entry n     |           |
-*              |    |----------------|           |
-*              |                                 |
-*              |                                 |
-*              |          Metadata List          |
+*                    Metadata file (12 K)   MMU Metadata file(12 K)
+*                   |-------------|             |------------|
+*                   |  Entry 1    |<--|         |  Entry 1   |
+*                   |-------------|   |         |------------|
+*                   |  Entry 2    |   | |---->  |  Entry 2   |
+*                   |-------------|   | |       |------------|
+*              |--->|  Entry 3    |   | |       |  Entry 3   |
+*              |    |-------------|   | |       |------------|
+*              |    |  Entry 4    |   | |   |-->|  Entry 4   |
+*              |    |-------------|   | |   |   |------------|
+*              |    |  Entry n    |   | |   |   |  Entry n   |
+*              |    |-------------|   | |   |   |------------|
+*              |                      | |   |
+*              | |--------------------|-|---|
+*              | |     Metadata List  | |
+*      --------------------------------------------------------
+*     | Node | Node | Node | Node | Node | Node | Node | Node |
+*     |  1   |  2   |  3   |  4   |  5   |  6   |  7   |  n   |
 *     --------------------------------------------------------
-*    | Node | Node | Node | Node | Node | Node | Node | Node |
-*    |  1   |  2   |  3   |  4   |  5   |  6   |  7   |  n   |
-*    ---------------------------------------------------------
-*              |                                  |
-*              |                                  |
-*              |-------------------|              |
-*                         ------------------------|
+*              |                        |
+*              |                        |
+*              |-------------------|    |
+*                         --------------|
 *                         |        |
 *                        \/       \/
 *   --------------------------------------------------------------
@@ -488,8 +387,20 @@ int traverse_metadata_list(char *name, unsigned long virt_addr, unsigned long ph
 				#endif
 			}
 		}
+
+		if (cur_node->mmuinfo_offset != 0) {
+		/* If the metadata list node has an entry in the MMU Metadata file,
+		* invalidate that entry and update the MMU metadata file pointer with the
+		* value at mmu_offset.
+		*/
+			cur_mmuinfo_offset = cur_node->mmuinfo_offset;
+			memset((void *)(uintptr_t)cur_mmuinfo_offset, '\0', MMU_FILE_ENTRY_LEN);
+		} else {
+			cur_node->mmuinfo_offset = cur_mmuinfo_offset;
+		}
+
 		spin_unlock_irqrestore(&scm_tlv_msg->minidump_tlv_spinlock,
-							 flags);
+				flags);
 		/* return REPLACE to indicate TLV needs to be inserted to the crashdump buffer*/
 		return REPLACE;
 	}
@@ -497,7 +408,7 @@ int traverse_metadata_list(char *name, unsigned long virt_addr, unsigned long ph
 	spin_unlock_irqrestore(&scm_tlv_msg->minidump_tlv_spinlock, flags);
 	/*
 	* If no invalid entry was found, create new node provided the
-	* crashdump buffer or metadata file are not full.
+	* crashdump buffer, metadata file and mmu metadata file are not full.
 	*/
 	if ((scm_tlv_msg->cur_msg_buffer_pos + QCOM_WDT_SCM_TLV_TYPE_LEN_SIZE +
 			sizeof(struct minidump_tlv_info) >=
@@ -505,6 +416,14 @@ int traverse_metadata_list(char *name, unsigned long virt_addr, unsigned long ph
 			(mod_log_len + METADATA_FILE_ENTRY_LEN >= METADATA_FILE_SZ)) {
 		return -ENOMEM;
 	}
+
+	if ((scm_tlv_msg->cur_msg_buffer_pos + QCOM_WDT_SCM_TLV_TYPE_LEN_SIZE +
+			sizeof(struct minidump_tlv_info) >=
+			scm_tlv_msg->msg_buffer + scm_tlv_msg->len) ||
+			(mmu_log_len + MMU_FILE_ENTRY_LEN >= MMU_FILE_SZ)) {
+		return -ENOMEM;
+	}
+
 	cur_node = (struct minidump_metadata_list *)
 					kmalloc(sizeof(struct minidump_metadata_list), GFP_KERNEL);
 
@@ -529,10 +448,11 @@ int traverse_metadata_list(char *name, unsigned long virt_addr, unsigned long ph
 		cur_node->name = NULL;
 		#endif
 	}
-	/* Update va and offset to crashdump buffer*/
+	/* Update va and offsets to crashdump buffer and MMU Metadata file*/
 	cur_node->va = virt_addr;
 	cur_node->size = size;
 	cur_node->tlv_offset = scm_tlv_msg->cur_msg_buffer_pos;
+	cur_node->mmuinfo_offset = cur_mmuinfo_offset;
 
 	spin_lock_irqsave(&scm_tlv_msg->minidump_tlv_spinlock, flags);
 	list_add_tail(&(cur_node->list), &(metadata_list.list));
@@ -598,10 +518,9 @@ int fill_tlv_crashdump_buffer(uint64_t start_addr, uint64_t size,
 * Function: fill_minidump_segment
 *
 * Description: Add a dump segment as a TLV entry in the Metadata list
-* and global crashdump buffer. Call a function to retrieve MMU info
-* corresponding to the dump segment and add TLVs to the crashdump buffer.
-* Also writes module information to Metadata text file, which is
-* useful for post processing of collected dumps.
+* and global crashdump buffer. Store relevant VA and PA information in
+* MMU Metadata file. Also writes module information to Metadata text
+* file, which is useful for post processing of collected dumps.
 *
 * @param: [in] start_address - Virtual address of Dump segment
 *		[in] type - Type associated with the Dump segment
@@ -615,72 +534,117 @@ int fill_minidump_segments(uint64_t start_addr, uint64_t size, unsigned char typ
 
 	int ret = 0;
 	unsigned int replace = 0;
+	int highmem = 0;
 	struct page *minidump_tlv_page;
 	uint64_t phys_addr;
-	uint64_t temp_start_addr = start_addr;
 	unsigned char *tlv_offset = NULL;
-	unsigned long pmd_offset = sizeof(struct minidump_tlv_info) +
-							QCOM_WDT_SCM_TLV_TYPE_LEN_SIZE;
-	unsigned long pte_offset = pmd_offset + sizeof(struct minidump_tlv_info) +
-							QCOM_WDT_SCM_TLV_TYPE_LEN_SIZE;
 
+	/*
+	* Calculate PA of Dump segment using relevant APIs for lowmem and highmem
+	* virtual address.
+	*/
 	if ((unsigned long)start_addr >= PAGE_OFFSET && (unsigned long) start_addr
-						< (unsigned long)high_memory) {
+				< (unsigned long)high_memory) {
 		phys_addr = (uint64_t)__pa(start_addr);
-		replace = traverse_metadata_list(name, start_addr, phys_addr, &tlv_offset, size);
-		/* return value of -ENOMEM indicates  new list node was not created
-		* due to an alloc failure. return value of -EINVAL indicates an attempt to
-		* add a duplicate entry
-		*/
-		if (replace == -EINVAL)
-			return 0;
-
-		if (replace == -ENOMEM)
-			return replace;
-
-		ret = fill_tlv_crashdump_buffer(phys_addr, size, type, replace, tlv_offset);
-		if (ret) {
-			return ret;
-		}
-
-		if (type == QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD || IS_ENABLED(CONFIG_ARM64)) {
-			ret = get_mmu_entry((const void *)(uintptr_t)(temp_start_addr
-				& (~(PAGE_SIZE - 1))), QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, replace,
-				tlv_offset + pmd_offset, tlv_offset + pte_offset);
-			if (ret) {
-				pr_err("MINIDUMP error dumping MMU %d \n", ret);
-				return ret;
-			}
-		}
 	} else {
-		minidump_tlv_page =	vmalloc_to_page((const void *)(uintptr_t)
-							(start_addr & (~(PAGE_SIZE - 1))));
+		minidump_tlv_page = vmalloc_to_page((const void *)(uintptr_t)
+				(start_addr & (~(PAGE_SIZE - 1))));
 		phys_addr = page_to_phys(minidump_tlv_page) + offset_in_page(start_addr);
-		replace = traverse_metadata_list(name, start_addr, phys_addr, &tlv_offset, size);
-
-		if (replace == -EINVAL)
-			return 0;
-
-		if (replace == -ENOMEM)
-			return replace;
-
-		fill_tlv_crashdump_buffer(phys_addr, size, type, replace, tlv_offset);
-		if (ret) {
-			return ret;
-		}
-		ret = get_mmu_entry((const void *)(uintptr_t)(start_addr &
-				(~(PAGE_SIZE - 1))), QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD,
-				replace, tlv_offset + pmd_offset, tlv_offset + pte_offset);
-		if (ret) {
-			pr_info("MINIDUMP error dumping MMU %d\n", ret);
-			return ret;
-		}
+		highmem = 1;
 	}
 
-	store_module_info(name, start_addr, type);
+	replace = traverse_metadata_list(name, start_addr, phys_addr, &tlv_offset, size);
+	/* return value of -ENOMEM indicates  new list node was not created
+    * due to an alloc failure. return value of -EINVAL indicates an attempt to
+    * add a duplicate entry
+    */
+	if (replace == -EINVAL)
+		return 0;
+
+	if (replace == -ENOMEM)
+		return replace;
+
+	ret = fill_tlv_crashdump_buffer(phys_addr, size, type, replace, tlv_offset);
+	if (ret)
+		return ret;
+
+	if (IS_ENABLED(CONFIG_ARM64) || highmem )
+		store_mmu_info(start_addr,phys_addr);
+
+	if (name)
+		store_module_info(name, start_addr, phys_addr, type);
+
 	return 0;
 }
 EXPORT_SYMBOL(fill_minidump_segments);
+/*
+* Function: store_mmu_info
+* Description: Add virtual address and physical address
+* information to a metadata file 'MMU_INFO.txt' at the
+* specified offset. Useful for post processing with the
+* collected dumps and offline pagetable constuction
+*
+* @param: [in] va - Virtual address of Dump segment
+*       [in] pa - Physical address of the Dump segment
+*
+* Return: 0 on success, -ENOBUFS on failure
+*/
+int store_mmu_info(unsigned long va, unsigned long pa)
+{
+
+	char substring[MMU_FILE_ENTRY_LEN];
+	int ret_val =0;
+	struct qcom_wdt_scm_tlv_msg *scm_tlv_msg;
+	unsigned long flags;
+
+	if (!tlv_msg.msg_buffer) {
+		return -ENOBUFS;
+	}
+
+	scm_tlv_msg = &tlv_msg;
+
+	/* Check for Metadata file overflow */
+	if ((cur_mmuinfo_offset == (uintptr_t)mmu_log + mmu_log_len) &&
+		(mmu_log_len + MMU_FILE_ENTRY_LEN >= MMU_FILE_SZ)) {
+		pr_err("\nMINIDUMP Metadata file overflow error");
+		return 0;
+	}
+
+	/*
+	* Check for valid cur_modinfo_offset value. Ensure
+	* that the offset is not NULL and is within bounds
+	* of the Metadata file.
+	*/
+
+	if ((!(void *)(uintptr_t)cur_mmuinfo_offset) ||
+		(cur_mmuinfo_offset < (uintptr_t)mmu_log) ||
+		(cur_mmuinfo_offset + MMU_FILE_ENTRY_LEN >=
+		((uintptr_t)mmu_log + MMU_FILE_SZ))) {
+		pr_err("\nMINIDUMP Metadata file offset error");
+		return  -ENOBUFS;
+	}
+
+	ret_val = snprintf(substring, MMU_FILE_ENTRY_LEN,
+			"\nva=%lx pa=%lx", va,pa);
+
+    /* Check for Metadatafile overflow */
+	if (mmu_log_len + MMU_FILE_ENTRY_LEN >=  MMU_FILE_SZ) {
+		return -ENOBUFS;
+	}
+
+	spin_lock_irqsave(&scm_tlv_msg->minidump_tlv_spinlock, flags);
+	memset((void *)(uintptr_t)cur_mmuinfo_offset, '\0', MMU_FILE_ENTRY_LEN);
+	snprintf((char *)(uintptr_t)cur_mmuinfo_offset, MMU_FILE_ENTRY_LEN, "%s", substring);
+
+	if (cur_mmuinfo_offset == (uintptr_t)mmu_log + mmu_log_len) {
+		mmu_log_len = mmu_log_len + MMU_FILE_ENTRY_LEN;
+		cur_mmuinfo_offset = (uintptr_t)mmu_log + mmu_log_len;
+	} else {
+		cur_mmuinfo_offset = (uintptr_t)mmu_log + mmu_log_len;
+	}
+	spin_unlock_irqrestore(&scm_tlv_msg->minidump_tlv_spinlock, flags);
+	return 0;
+}
 /*
 * Function: store_module_info
 * Description: Add module name and virtual address information
@@ -694,7 +658,8 @@ EXPORT_SYMBOL(fill_minidump_segments);
 *
 * Return: 0 on success, -ENOBUFS on failure
 */
-int store_module_info(char *name ,unsigned long address, unsigned char type)
+int store_module_info(char *name ,unsigned long va,
+					unsigned long pa,unsigned char type)
 {
 
 	char substring[METADATA_FILE_ENTRY_LEN];
@@ -744,10 +709,13 @@ int store_module_info(char *name ,unsigned long address, unsigned char type)
 
 	if (type == QCA_WDT_LOG_DUMP_TYPE_LEVEL1_PT) {
 		ret_val = snprintf(substring, METADATA_FILE_ENTRY_LEN,
-		"\n%s pa=%lx", mod_name, (unsigned long)__pa(address));
+		"\n%s pa=%lx", mod_name, (unsigned long)pa);
+	} else if (type == QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD_DEBUGFS) {
+		ret_val = snprintf(substring, METADATA_FILE_ENTRY_LEN,
+		"\nDFS %s pa=%lx", mod_name, (unsigned long)pa);
 	} else {
 		ret_val = snprintf(substring, METADATA_FILE_ENTRY_LEN,
-		"\n%s va=%lx", mod_name, address);
+		"\n%s va=%lx", mod_name, va);
 	}
 
 	/* Check for Metadatafile overflow */
@@ -790,6 +758,9 @@ static int qcom_wdt_scm_fill_log_dump_tlv(
 	struct minidump_tlv_info linux_banner_info;
 	mod_log_len = 0;
 	cur_modinfo_offset = (uintptr_t)mod_log;
+	mmu_log_len = 0;
+	cur_mmuinfo_offset = (uintptr_t)mmu_log;
+
 	uname = utsname();
 
 	INIT_LIST_HEAD(&metadata_list.list);
@@ -832,56 +803,72 @@ static int qcom_wdt_scm_fill_log_dump_tlv(
 		return ret_val;
 	}
 
+	ret_val = fill_minidump_segments((uint64_t)(uintptr_t)mmu_log, (uint64_t)__pa(&mmu_log_len),
+					QCA_WDT_LOG_DUMP_TYPE_WLAN_MMU_INFO, NULL);
+	if (ret_val) {
+		pr_err("Minidump: Crashdump buffer is full %d \n", ret_val);
+		return ret_val;
+	}
+
 	if (scm_tlv_msg->cur_msg_buffer_pos >=
 		scm_tlv_msg->msg_buffer + scm_tlv_msg->len)
 	return -ENOBUFS;
 
 	return 0;
 }
+
 /*
-* Function: wlan_module_notifier
-* Description: Notfier Call back for WLAN MODULE LIST when modules are loaded.
-* Add modules structure , section attributes and bss sections to the
-* Metadata list for specified modules.
+* Function: minidump_dump_wlan_modules
+* Description: Add module structure, section attributes and bss sections
+* of specified modules to the Metadata list. Also include a subset of
+* kernel module list in the Metadata list due to T32 limitaion
 *
-* @param: [in] nb - notifier block object
-*		[in] event - current state of module
-*		[in] data - pointer to module structure
+* T32 Limitation: T32 scripts expect to parse the module list from
+* the list head , and allows loading of specific modules only if it
+* is included in this list. Instead of dumping each node of the complete
+* kernel module list ( which is very large and will take up a lot of TLVs ),
+* dump only a subset of the list that is required to load the specified modules.
 *
-* Return: 0 on success, -ENOBUFS on failure
+* @param: none
+*
+* Return: NOTIFY_DONE on success, -ENOMEM on failure
 */
-static int wlan_module_notifier(struct notifier_block *nb, unsigned long event, void *data)
-{
-	struct module *mod = data;
-	struct minidump_tlv_info module_tlv_info;
-	int ret_val;
-	unsigned int i;
+int minidump_dump_wlan_modules(void){
 
-	if ((event == MODULE_STATE_LIVE) && ((!strcmp("ecm", mod->name)) ||
-					(!strcmp("smart_antenna", mod->name)) ||
-					(!strcmp("ath_pktlog", mod->name))    ||
-					(!strcmp("wifi_2_0", mod->name))      ||
-					(!strcmp("wifi_3_0", mod->name))      ||
-					(!strcmp("qca_ol", mod->name))        ||
-					(!strcmp("qca_spectral", mod->name))  ||
-					(!strcmp("umac", mod->name))          ||
-					(!strcmp("asf", mod->name))           ||
-					(!strcmp("qdf", mod->name)))) {
+	struct module *mod;
+    struct minidump_tlv_info module_tlv_info;
+    int ret_val;
+    unsigned int i;
+	int wlan_count = 0;
+	int minidump_module_list_index;
 
-		/* For all modules dump module meta data*/
-		module_tlv_info.start = (uintptr_t)mod;
-		module_tlv_info.size = sizeof(struct module);
-		ret_val = fill_minidump_segments(module_tlv_info.start,
-				module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
-		if (ret_val) {
-			pr_err("Minidump: Crashdump buffer is full %d\n", ret_val);
-			return ret_val;
+	/*Dump list head*/
+	module_tlv_info.start = (uintptr_t)minidump_modules;
+	module_tlv_info.size = sizeof(struct module);
+	ret_val = fill_minidump_segments(module_tlv_info.start,
+		module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
+	if (ret_val) {
+		pr_err("Minidump: Crashdump buffer is full %d\n", ret_val);
+		return ret_val;
+	}
+
+	list_for_each_entry_rcu(mod, minidump_modules, list) {
+		if (mod->state != MODULE_STATE_LIVE)
+			continue;
+
+		minidump_module_list_index = 0;
+		while (minidump_module_list_index < MINIDUMP_MODULE_COUNT) {
+			if (!strcmp(minidump_module_list[minidump_module_list_index], mod->name))
+				break;
+			minidump_module_list_index ++;
 		}
 
-		/* For ecm, also dump previous*/
+	/* For specified modules in minidump modules list,
+		dump module struct, sections and bss */
 
-		if ((!strcmp("ecm", mod->name))) {
-			module_tlv_info.start = (unsigned long)mod->list.prev;
+	if (minidump_module_list_index < MINIDUMP_MODULE_COUNT ) {
+			wlan_count++ ;
+			module_tlv_info.start = (uintptr_t)mod;
 			module_tlv_info.size = sizeof(struct module);
 			ret_val = fill_minidump_segments(module_tlv_info.start,
 				module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
@@ -889,17 +876,11 @@ static int wlan_module_notifier(struct notifier_block *nb, unsigned long event, 
 				pr_err("Minidump: Crashdump buffer is full %d\n", ret_val);
 				return ret_val;
 			}
-		}
 
-	/* For umac , qca_ol, wifi_3_0 modules, additionally dump module sections and bss */
-
-		if ((!strcmp("qca_ol", mod->name)) || (!strcmp("umac", mod->name)) ||
-					(!strcmp("wifi_3_0", mod->name)) ||
-					(!strcmp("qdf", mod->name))) {
 			module_tlv_info.start = (unsigned long)mod->sect_attrs;
 			module_tlv_info.size = SZ_2K;
 			ret_val = fill_minidump_segments(module_tlv_info.start,
-					module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
+				module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 			if (ret_val) {
 				pr_err("Minidump: Crashdump buffer is full %d\n", ret_val);
 				return ret_val;
@@ -919,93 +900,55 @@ static int wlan_module_notifier(struct notifier_block *nb, unsigned long event, 
 					/* Log .bss VA of module in buffer */
 					ret_val = fill_minidump_segments(module_tlv_info.start,
 					module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD,
-					mod->name);
+						mod->name);
 					if (ret_val) {
 						pr_err("Minidump: Crashdump buffer is full %d", ret_val);
 						return ret_val;
 					}
 				}
 			}
+		} else {
 
-		}
-	}
-
-	return NOTIFY_OK;
-};
-/*
-* Function: wlan_module_notify_ecit
-*
-* Description: Notfier Call back for WLAN MODULE LIST when modules are unloaded.
-* Remove / invalidate modules structure , section attributes and bss
-* sections from the Metadata list for specified modules.
-*
-* @param: [in] self - notifier block object
-*		[in] event - current state of module
-*		[in] data - pointer to module structure
-*
-* Return: NOTIFY_OK on success, -ENOBUFS on failure
-*/
-static int wlan_module_notify_exit(struct notifier_block *self,
-									unsigned long event, void *data)
-{
-	int ret;
-	int i = 0;
-	struct module *mod = data;
-
-	if ((event == MODULE_STATE_GOING) && ((!strcmp("ecm", mod->name)) ||
-					(!strcmp("smart_antenna", mod->name)) ||
-					(!strcmp("ath_pktlog", mod->name))    ||
-					(!strcmp("wifi_2_0", mod->name))      ||
-					(!strcmp("wifi_3_0", mod->name))      ||
-					(!strcmp("qca_ol", mod->name))        ||
-					(!strcmp("qca_spectral", mod->name))  ||
-					(!strcmp("umac", mod->name))          ||
-					(!strcmp("asf", mod->name))           ||
-					(!strcmp("qdf", mod->name)))) {
-
-		ret = remove_minidump_segments((uint64_t)(uintptr_t)mod);
-		if ((!strcmp("qca_ol", mod->name)) || (!strcmp("umac", mod->name)) ||
-					(!strcmp("wifi_3_0", mod->name)) ||
-					(!strcmp("qdf", mod->name))) {
-			ret = remove_minidump_segments((uint64_t)
-						(uintptr_t)mod->sect_attrs);
-			ret = remove_minidump_segments((uint64_t)
-						(uintptr_t)mod);
-			for (i = 0; i <= mod->sect_attrs->nsections; i++) {
-				if ((!strcmp(".bss", mod->sect_attrs->attrs[i].name))) {
-					ret = remove_minidump_segments((uint64_t)
-					(uintptr_t)mod->sect_attrs->attrs[i].address);
-				}
+			/* For all other modules dump module meta data*/
+			module_tlv_info.start = (unsigned long)mod;
+			module_tlv_info.size = sizeof(mod->list) + sizeof(mod->state) + sizeof(mod->name);
+			ret_val = fill_minidump_segments(module_tlv_info.start,
+				module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
+			if (ret_val) {
+				pr_err("Minidump: Crashdump buffer is full %d\n", ret_val);
+				return ret_val;
 			}
 		}
+ 
+		if ( wlan_count == MINIDUMP_MODULE_COUNT)
+			return NOTIFY_DONE;
 	}
+	return NOTIFY_DONE;
+}
 
-	return NOTIFY_OK;
-};
-
-static struct notifier_block wlan_nb = {
-	.notifier_call  = wlan_module_notifier,
-};
-
-static struct notifier_block wlan_module_exit_nb = {
-	.notifier_call  = wlan_module_notify_exit,
-};
-
-#ifdef CONFIG_QCA_MINIDUMP_DEBUG
 static int wlan_modinfo_panic_handler(struct notifier_block *this,
 				unsigned long event, void *ptr)
 {
+	int ret;
+
+	#ifdef CONFIG_QCA_MINIDUMP_DEBUG
+	int count =0;
 	struct minidump_metadata_list *cur_node;
 	struct list_head *pos;
-	int count = 0;
+	#endif
 
 	if (!tlv_msg.msg_buffer) {
 		pr_err("\n Minidump: Crashdump buffer is empty");
 		return NOTIFY_OK;
 	}
 
-	pr_err("\n Minidump: Size of Metadata file = %ld\n",mod_log_len);
-	pr_err("\n Minidump: Printing out contents of Metadata list\n");
+	ret = minidump_dump_wlan_modules();
+	if (ret)
+		pr_err("Minidump: Error dumping modules: %d", ret);
+
+	#ifdef CONFIG_QCA_MINIDUMP_DEBUG
+	pr_err("\n Minidump: Size of Metadata file = %ld",mod_log_len);
+	pr_err("\n Minidump: Printing out contents of Metadata list");
 
 	list_for_each(pos, &metadata_list.list) {
 		count ++;
@@ -1015,16 +958,17 @@ static int wlan_modinfo_panic_handler(struct notifier_block *this,
 		else
 			pr_info(" un-named [%lx] ---> ",cur_node->va);
 	}
-	pr_err("\n Minidump: # nodes in the Metadata list = %d\n",count);
+	pr_err("\n Minidump: # nodes in the Metadata list = %d",count);
 	pr_err("\n Minidump: Size of node in Metadata list = %ld\n",
 		(unsigned long)sizeof(struct minidump_metadata_list));
+
+	#endif
 	return NOTIFY_DONE;
 }
 
 static struct notifier_block wlan_panic_nb = {
 	.notifier_call  = wlan_modinfo_panic_handler,
 };
-#endif /* CONFIG_QCA_MINIDUMP_DEBUG */
 #endif /*CONFIG_QCA_MINIDUMP  */
 
 static inline
@@ -1588,19 +1532,11 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to setup restart handler\n");
 
 #ifdef CONFIG_QCA_MINIDUMP
-	ret = register_module_notifier(&wlan_nb);
-	if (ret)
-		dev_err(&pdev->dev, "failed to register WLAN modules callback\n");
-	ret = register_module_notifier(&wlan_module_exit_nb);
-	if (ret)
-		dev_err(&pdev->dev, "Failed to register WLAN module exit notifier\n");
-#ifdef CONFIG_QCA_MINIDUMP_DEBUG
 	ret = atomic_notifier_chain_register(&panic_notifier_list,
 				&wlan_panic_nb);
 	if (ret)
 		dev_err(&pdev->dev,
 			"Failed to register panic notifier for WLAN module info\n");
-#endif /*CONFIG_QCA_MINIDUMP_DEBUG*/
 #endif /*CONFIG_QCA_MINIDUMP*/
 	platform_set_drvdata(pdev, wdt);
 
