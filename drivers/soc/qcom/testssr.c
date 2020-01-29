@@ -47,7 +47,7 @@ static void *subsys_handle;
 static struct notifier_block nb;
 static struct notifier_block atomic_nb;
 
-#define TEST_SSR_WCSS "q6v5-wcss"
+#define TEST_SSR_WCSS "qcom_q6v5_wcss"
 #define TEST_SSR_LPASS "q6v6-adsp"
 
 static int test_id = 1;
