@@ -16,7 +16,7 @@
 #include<linux/platform_device.h>
 #include<linux/device.h>
 #include<linux/sched.h>
-#define DEFAULT_FW_FILE_NAME	"IPQ8074/WIFI_FW/amss.bin"
+#define DEFAULT_FW_FILE_NAME	"qcn9000/amss.bin"
 #define HST_FW_FILE_NAME	"amssh.bin"/*for test purpose in same folder*/
 int mhitest_ss_powerup(const struct subsys_desc *subsys_desc)
 {
