@@ -16,7 +16,6 @@
  */
 
 #include "qcom-ipq6018.dtsi"
-#include "qcom-ipq6018-ion.dtsi"
 
 / {
 	#address-cells = <0x2>;
@@ -361,50 +360,6 @@
 	pinctrl-names = "default";
 	status = "ok";
 };
-
-#if !defined(__IPQ_MEM_PROFILE_256_MB__) && !defined(__IPQ_MEM_PROFILE_512_MB__)
-&smmu500 {
-	status = "ok";
-};
-
-&adsprpc_mem {
-	memory-region = <&adsp_mem>;
-	status = "ok";
-};
-
-&fastrpc_cb {
-	status = "ok";
-};
-
-&glink_adsp {
-	status = "ok";
-};
-
-&ipc_router_adsp {
-	status = "ok";
-};
-
-&smp2p_adsp {
-	status = "ok";
-};
-
-&q6v6_adsp {
-	status = "ok";
-};
-
-&qcom_q6v6_adsp {
-	memory-region = <&lpass_q6_region>;
-	status = "ok";
-};
-
-&adsprpc_loader {
-	status = "ok";
-};
-
-&glink_adsp_ssr {
-	status = "ok";
-};
-#endif
 
 &ssphy_0 {
 	status = "ok";
