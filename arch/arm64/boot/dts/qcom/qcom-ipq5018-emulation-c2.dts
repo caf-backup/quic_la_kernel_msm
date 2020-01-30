@@ -90,6 +90,11 @@
 				};
 			};
 		};
+
+		pcie0: pci@80000000 {
+			is_emulation = <1>;
+			status = "ok";
+		};
 	};
 };
 
@@ -103,7 +108,7 @@
 };
 
 &tlmm {
-	pinctrl-0 = <&uart_pins>;
+	pinctrl-0 = <&uart_pins>, <&pcie0_pins>;
 	pinctrl-names = "default";
 
 	uart_pins: uart_pins {
@@ -126,6 +131,30 @@
 			pins = "gpio13";
 			function = "blsp1_uart0";
 			bias-pull-down;
+		};
+	};
+
+	pcie0_pins: pcie0_pins {
+		mux_0 {
+			pins = "gpio14";
+			function = "gpio";
+			output-low;
+			bias-pull-down;
+			drive-strength = <2>;
+		};
+
+		mux_1 {
+			pins = "gpio15";
+			function = "gpio";
+			output-low;
+			bias-pull-down;
+			drive-strength = <2>;
+		};
+
+		mux_2 {
+			pins = "gpio16";
+			function = "gpio";
+			input;
 		};
 	};
 };
