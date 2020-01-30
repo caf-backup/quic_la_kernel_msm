@@ -99,6 +99,11 @@
 			is_emulation = <1>;
 			status = "ok";
 		};
+
+		pcie1: pci@a0000000 {
+			is_emulation = <1>;
+			status = "ok";
+		};
 	};
 
 	psci {
@@ -137,7 +142,7 @@
 };
 
 &tlmm {
-	pinctrl-0 = <&uart_pins>, <&pcie0_pins>;
+	pinctrl-0 = <&uart_pins>, <&pcie0_pins>, <&pcie1_pins>;
 	pinctrl-names = "default";
 
 	uart_pins: uart_pins {
@@ -182,6 +187,30 @@
 
 		mux_2 {
 			pins = "gpio16";
+			function = "gpio";
+			input;
+		};
+	};
+
+	pcie1_pins: pcie1_pins {
+		mux_0 {
+			pins = "gpio17";
+			function = "gpio";
+			output-low;
+			bias-pull-down;
+			drive-strength = <2>;
+		};
+
+		mux_1 {
+			pins = "gpio18";
+			function = "gpio";
+			output-low;
+			bias-pull-down;
+			drive-strength = <2>;
+		};
+
+		mux_2 {
+			pins = "gpio19";
 			function = "gpio";
 			input;
 		};
