@@ -734,7 +734,7 @@ static int qcom_pcie_get_resources_v3(struct qcom_pcie *pcie)
 
 		res->rchng_clk = devm_clk_get(dev, "rchng");
 		if (IS_ERR(res->rchng_clk))
-			return PTR_ERR(res->rchng_clk);
+			res->rchng_clk = NULL;
 	}
 
 	res->axi_m_reset = devm_reset_control_get(dev, "axi_m");
@@ -1293,16 +1293,19 @@ static int qcom_pcie_enable_resources_v3(struct qcom_pcie *pcie)
 			goto err_clk_axi_bridge;
 		}
 
-		ret = clk_prepare_enable(res->rchng_clk);
-		if (ret) {
-			dev_err(dev, "cannot prepare/enable rchng_clk clock\n");
-			goto err_clk_rchng;
-		}
+		if (res->rchng_clk) {
+			ret = clk_prepare_enable(res->rchng_clk);
+			if (ret) {
+				dev_err(dev, "cannot prepare/enable rchng_clk clock\n");
+				goto err_clk_rchng;
+			}
 
-		ret = clk_set_rate(res->rchng_clk, RCHNG_CLK_RATE);
-		if (ret) {
-			dev_err(dev, "rchng_clk rate set failed (%d)\n", ret);
-			goto err_clk_rchng;
+			ret = clk_set_rate(res->rchng_clk, RCHNG_CLK_RATE);
+			if (ret) {
+				dev_err(dev, "rchng_clk rate set failed (%d)\n",
+					ret);
+				goto err_clk_rchng;
+			}
 		}
 	}
 
@@ -1396,6 +1399,9 @@ static int qcom_pcie_init_v3(struct qcom_pcie *pcie)
 	}
 
 	writel(LTSSM_EN, pcie->parf + PCIE20_PARF_LTSSM);
+	if (pcie->is_emulation)
+		qcom_ep_reset_deassert(pcie);
+
 	if (pcie->is_gen3) {
 		for (i = 0; i < 255; i++)
 			writel(0x0, pcie->parf + PARF_BDF_TO_SID_TABLE + (4 * i));
@@ -1818,6 +1824,14 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 				return PTR_ERR(pcie->phy);
 		}
 		pcie->is_gen3 = 1;
+	} else if (of_device_is_compatible(pdev->dev.of_node,
+					   "qcom,pcie-ipq5018")) {
+		if (!pcie->is_emulation) {
+			pcie->phy = devm_phy_optional_get(dev, "pciephy");
+			if (IS_ERR(pcie->phy))
+				return PTR_ERR(pcie->phy);
+		}
+		pcie->is_gen3 = 1;
 	}
 
 	if (pcie->is_gen3) {
@@ -2026,6 +2040,7 @@ static const struct of_device_id qcom_pcie_match[] = {
 	{ .compatible = "qcom,pcie-ipq4019", .data = &ops_v2 },
 	{ .compatible = "qcom,pcie-ipq807x", .data = &ops_v3 },
 	{ .compatible = "qcom,pcie-ipq6018", .data = &ops_v3 },
+	{ .compatible = "qcom,pcie-ipq5018", .data = &ops_v3 },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, qcom_pcie_match);
