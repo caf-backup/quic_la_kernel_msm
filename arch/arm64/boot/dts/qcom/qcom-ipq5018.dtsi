@@ -269,6 +269,7 @@
 			qcom,clmap-enabled;
 			qcom,vxlan-enabled;
 			qcom,match-enabled;
+			qcom,mirror-enabled;
 		};
 
 		acc0:clock-controller@b188000 {

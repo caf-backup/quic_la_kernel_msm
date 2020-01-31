@@ -302,6 +302,7 @@
 			qcom,vxlan-enabled;
 			qcom,match-enabled;
 			qcom,wlan-dataplane-offload-enabled;
+			qcom,mirror-enabled;
 		};
 
 		nss1: nss@40800000 {

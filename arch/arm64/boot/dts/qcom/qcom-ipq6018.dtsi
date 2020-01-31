@@ -1447,6 +1447,7 @@
 			qcom,clmap-enabled;
 			qcom,vxlan-enabled;
 			qcom,match-enabled;
+			qcom,mirror-enabled;
 		};
 
 		nss_crypto: qcom,nss_crypto {
