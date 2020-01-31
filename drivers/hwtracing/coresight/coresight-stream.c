@@ -44,7 +44,7 @@ MODULE_PARM_DESC (stream_src_addr, "IPv4 src address");
 STRING_MODULE_PARM (stream_dst_addr, "127.0.0.1");
 MODULE_PARM_DESC (stream_dst_addr, "IPv4 src address");
 
-unsigned int qld_seq_no;
+unsigned int udp_packet_no;
 #define QLD_STREAM_PORT 5004
 #define SEQ_NO_SIZE 4
 
@@ -57,34 +57,52 @@ void qld_stream_work_hdlr(struct work_struct *work)
 	struct page *transfer_page;
 	void *vaddr, *next_page;
 	unsigned long flags;
+	unsigned int need_to_enable;
+	int wrapped_around_seq_no;
+
+	need_to_enable = 0;
+
+	spin_lock_irqsave(&drvdata->spinlock, flags);
+	if (atomic_read(&drvdata->seq_no) > COMP_PAGES_PER_DATA) {
+		wrapped_around_seq_no = (atomic_read(&drvdata->seq_no) %
+					TOTAL_PAGES_PER_DATA);
+		need_to_enable = 1;
+	}
+	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
 	for (i = atomic_read(&drvdata->completed_seq_no);
-			i < atomic_read(&drvdata->seq_no); i++) {
-		vaddr = phys_to_virt(TMC_ETR_SG_ENT_TO_BLK(((uint32_t *)drvdata->vaddr)[i]));
+		(i < atomic_read(&drvdata->seq_no))
+		&& (i < TOTAL_PAGES_PER_DATA) ; i++) {
+
+		vaddr = phys_to_virt(TMC_ETR_SG_ENT_TO_BLK(((uint32_t *)
+					drvdata->vaddr)[i]));
 		next_page = vaddr + PAGE_SIZE;
-		qld_seq_no++;
-		*(unsigned int *)next_page = qld_seq_no;
-		dmac_flush_range((void *)next_page, (void *)next_page + SEQ_NO_SIZE);
+		udp_packet_no++;
+		*(unsigned int *)next_page = udp_packet_no;
+		dmac_flush_range((void *)next_page, (void *)next_page
+					+ SEQ_NO_SIZE);
 		transfer_page = virt_to_page(vaddr);
-		ret = kernel_sendpage(drvdata->qld_stream_sock, transfer_page, 0,
-				PAGE_SIZE + SEQ_NO_SIZE, MSG_DONTWAIT);
+		ret = kernel_sendpage(drvdata->qld_stream_sock, transfer_page,
+				0, PAGE_SIZE + SEQ_NO_SIZE, MSG_DONTWAIT);
 		if (ret < PAGE_SIZE + SEQ_NO_SIZE) {
 			pr_emerg("ERROR: Can't send 4096 bytes %d\n", ret);
 		}
 		atomic_inc(&drvdata->completed_seq_no);
 	}
-	spin_lock_irqsave(&drvdata->spinlock, flags);
-	if (atomic_read(&drvdata->seq_no) > COMP_PAGES_PER_DATA) {
 
-		if (atomic_read(&drvdata->completed_seq_no) == TOTAL_PAGES_PER_DATA) {
+	if (need_to_enable) {
+		spin_lock_irqsave(&drvdata->spinlock, flags);
+		if (atomic_read(&drvdata->completed_seq_no)
+				== TOTAL_PAGES_PER_DATA) {
 			atomic_set(&drvdata->completed_seq_no, 0);
-			atomic_set(&drvdata->seq_no, 0);
+			atomic_set(&drvdata->seq_no, wrapped_around_seq_no);
 		}
 		CS_UNLOCK(drvdata->base);
 		tmc_enable_hw(drvdata);
 		CS_LOCK(drvdata->base);
+		spin_unlock_irqrestore(&drvdata->spinlock, flags);
 	}
-	spin_unlock_irqrestore(&drvdata->spinlock, flags);
+
 	return;
 }
 EXPORT_SYMBOL(qld_stream_work_hdlr);
