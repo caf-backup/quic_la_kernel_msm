@@ -899,7 +899,7 @@
 	status = "disabled";
 };
 &wifi1 {
-	status = "disabled";
+	status = "ok";
 };
 &wifi2 {
 	status = "ok";
