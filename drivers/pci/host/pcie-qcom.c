@@ -194,6 +194,9 @@
 #define PCIE_ATU_LOWER_TARGET_OUTBOUND_7_GEN3		0xE14
 #define PCIE_ATU_UPPER_TARGET_OUTBOUND_7_GEN3		0xE18
 
+#define PCIE_ASPM_MASK	0x3
+#define PCIE_ASPM_POS	10
+
 struct qcom_pcie_resources_v0 {
 	struct clk *iface_clk;
 	struct clk *core_clk;
@@ -295,6 +298,7 @@ struct qcom_pcie {
 	u32 is_emulation;
 	u32 use_delay;
 	u32 link_retries_count;
+	u32 cap_active_state_link_pm;
 	u32 is_gen3;
 	int global_irq;
 	int wake_irq;
@@ -1372,8 +1376,11 @@ static int qcom_pcie_init_v3(struct qcom_pcie *pcie)
 	writel(DBI_RO_WR_EN, pcie->dbi + PCIE20_MISC_CONTROL_1_REG);
 	writel(PCIE_CAP_LINK1_VAL, pcie->dbi + PCIE20_CAP_LINK_1);
 
+	/* Configure PCIe link capabilities for ASPM */
 	writel_masked(pcie->dbi + PCIE20_CAP_LINK_CAPABILITIES,
-		BIT(10) | BIT(11), 0);
+		      PCIE_ASPM_MASK << PCIE_ASPM_POS,
+		      (pcie->cap_active_state_link_pm & PCIE_ASPM_MASK) << PCIE_ASPM_POS);
+
 	writel(PCIE_CAP_CPL_TIMEOUT_DISABLE, pcie->dbi +
 		PCIE20_DEVICE_CONTROL2_STATUS2);
 
@@ -1756,6 +1763,9 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 
 	of_property_read_u32(np, "link_retries_count", &link_retries_count);
 	pcie->link_retries_count = link_retries_count;
+
+	of_property_read_u32(np, "pcie-cap-active-state-link-pm",
+			     &pcie->cap_active_state_link_pm);
 
 	pcie->reset = devm_gpiod_get_optional(dev, "perst", GPIOD_OUT_HIGH);
 	if (IS_ERR(pcie->reset))
