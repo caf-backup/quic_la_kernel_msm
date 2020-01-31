@@ -295,6 +295,7 @@ int __init socinfo_init(void) __must_check;
 #define CPU_IPQ6028 403
 #define CPU_IPQ6000 421
 #define CPU_IPQ6010 422
+#define CPU_IPQ6005 453
 
 /* TBD the CHIP IDs */
 #define CPU_IPQ5000 425
@@ -603,6 +604,15 @@ static inline int cpu_is_ipq6010(void)
 #endif
 }
 
+static inline int cpu_is_ipq6005(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ6005;
+#else
+	return 0;
+#endif
+}
+
 static inline int cpu_is_ipq5000(void)
 {
 #ifdef CONFIG_ARCH_QCOM
@@ -650,7 +660,8 @@ static inline int cpu_is_ipq60xx(void)
 {
 #ifdef CONFIG_ARCH_QCOM
 	return  cpu_is_ipq6018() || cpu_is_ipq6028() ||
-		cpu_is_ipq6000() || cpu_is_ipq6010();
+		cpu_is_ipq6000() || cpu_is_ipq6010() ||
+		cpu_is_ipq6005();
 #else
 	return 0;
 #endif
