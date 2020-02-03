@@ -43,6 +43,7 @@
 #define QCA8074_DEVICE_ID               0xFFFF
 #define QCA8074V2_DEVICE_ID             0xFFFE
 #define QCA6018_DEVICE_ID               0xFFFD
+#define QCA5018_DEVICE_ID               0xFFFC
 #define HOST_DDR_REGION_TYPE		0x1
 #define BDF_MEM_REGION_TYPE		0x2
 #define CALDB_MEM_REGION_TYPE		0x4
