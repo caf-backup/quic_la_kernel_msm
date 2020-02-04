@@ -294,6 +294,7 @@ struct qcom_pcie {
 	struct gpio_desc *reset;
 	struct qcom_pcie_ops *ops;
 	struct work_struct handle_wake_work;
+	struct work_struct handle_e911_work;
 	uint32_t force_gen1;
 	u32 is_emulation;
 	u32 use_delay;
@@ -304,6 +305,7 @@ struct qcom_pcie {
 	int wake_irq;
 	int link_down_irq;
 	int link_up_irq;
+	int mdm2ap_e911_irq;
 	bool enumerated;
 	uint32_t rc_idx;
 	struct qcom_pcie_register_event *event_reg;
@@ -313,6 +315,7 @@ struct qcom_pcie {
 
 #define MAX_RC_NUM	3
 static struct qcom_pcie *qcom_pcie_dev[MAX_RC_NUM];
+struct gpio_desc *mdm2ap_e911;
 
 static inline void
 writel_masked(void __iomem *addr, u32 clear_mask, u32 set_mask)
@@ -412,12 +415,17 @@ static void handle_wake_func(struct work_struct *work)
 		return;
 	}
 
-	ret = dw_pcie_host_init_pm(pp);
-	if (ret)
-		pr_err("PCIe: failed to enable RC%d upon wake request from the device\n", pcie->rc_idx);
-	else {
-		pcie->enumerated = true;
-		pr_info("PCIe: enumerated RC%d successfully upon wake request from the device\n", pcie->rc_idx);
+	if (!gpiod_get_value(mdm2ap_e911)) {
+		ret = dw_pcie_host_init_pm(pp);
+
+		if (ret)
+			pr_err("PCIe: failed to enable RC%d upon wake request from the device\n",
+					pcie->rc_idx);
+		else {
+			pcie->enumerated = true;
+			pr_info("PCIe: enumerated RC%d successfully upon wake request from the device\n",
+					pcie->rc_idx);
+		}
 	}
 
 	pci_unlock_rescan_remove();
@@ -1441,6 +1449,9 @@ static int qcom_pcie_host_init(struct pcie_port *pp)
 	struct qcom_pcie *pcie = to_qcom_pcie(pp);
 	int ret;
 
+	if (gpiod_get_value(mdm2ap_e911))
+		return -EBUSY;
+
 	if (!pcie->is_emulation)
 		qcom_ep_reset_assert(pcie);
 
@@ -1572,6 +1583,27 @@ void qcom_pcie_remove_bus(void)
 	}
 }
 
+static void handle_e911_func(struct work_struct *work)
+{
+	pci_lock_rescan_remove();
+
+	if (gpiod_get_value(mdm2ap_e911))
+		qcom_pcie_remove_bus();
+	else
+		qcom_pcie_rescan();
+
+	pci_unlock_rescan_remove();
+}
+
+static irqreturn_t handle_mdm2ap_e911_irq(int irq, void *data)
+{
+	struct qcom_pcie *pcie = data;
+
+	schedule_work(&pcie->handle_e911_work);
+
+	return IRQ_HANDLED;
+}
+
 static ssize_t qcom_bus_rescan_store(struct bus_type *bus, const char *buf,
 					size_t count)
 {
@@ -1579,6 +1611,9 @@ static ssize_t qcom_bus_rescan_store(struct bus_type *bus, const char *buf,
 
 	if (kstrtoul(buf, 0, &val) < 0)
 		return -EINVAL;
+
+	if (gpiod_get_value(mdm2ap_e911))
+		return -EBUSY;
 
 	if (val) {
 		pci_lock_rescan_remove();
@@ -1867,6 +1902,31 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	pp->root_bus_nr = -1;
 	pp->ops = &qcom_pcie_dw_ops;
 
+	pcie->mdm2ap_e911_irq = platform_get_irq_byname(pdev,
+					"mdm2ap_e911");
+	if (pcie->mdm2ap_e911_irq >= 0) {
+		mdm2ap_e911 = devm_gpiod_get_optional(&pdev->dev, "e911",
+						      GPIOD_IN);
+
+		if (IS_ERR(mdm2ap_e911)) {
+			pr_err("requesting for e911 gpio failed %ld\n",
+					PTR_ERR(mdm2ap_e911));
+			return PTR_ERR(mdm2ap_e911);
+		}
+
+		INIT_WORK(&pcie->handle_e911_work, handle_e911_func);
+
+		ret = devm_request_irq(&pdev->dev, pcie->mdm2ap_e911_irq,
+				handle_mdm2ap_e911_irq,
+				IRQ_TYPE_EDGE_BOTH, "mdm2ap_e911",
+				pcie);
+
+		if (ret) {
+			dev_err(&pdev->dev, "Unable to request mdm2ap_e911 irq\n");
+			return ret;
+		}
+	}
+
 	pcie->link_down_irq = platform_get_irq_byname(pdev,
 					"int_link_down");
 	if (pcie->link_down_irq >= 0) {
@@ -1925,13 +1985,16 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 		return ret;
 
 	pcie->wake_irq = platform_get_irq_byname(pdev, "wake_gpio");
+
 	ret = dw_pcie_host_init(pp);
+
 	if (ret) {
 		if (pcie->wake_irq < 0) {
 			dev_err(dev, "cannot initialize host\n");
 			return ret;
 		}
-		pr_info("PCIe: RC%d is not enabled during bootup; it will be enumerated upon client request\n", rc_idx);
+		pr_info("PCIe: RC%d is not enabled during bootup;it will be enumerated upon client request\n",
+			rc_idx);
 	} else {
 		pcie->enumerated = true;
 		pr_info("PCIe: RC%d enabled during bootup\n", rc_idx);

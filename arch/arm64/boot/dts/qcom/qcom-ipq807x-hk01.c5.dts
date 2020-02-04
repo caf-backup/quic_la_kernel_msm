@@ -110,12 +110,6 @@
 			bias-pull-up;
 			output-high;
 		};
-		mdm2ap_err_ftl {
-			pins = "gpio33";
-			function = "gpio";
-			drive-strength = <8>;
-			bias-pull-down;
-		};
 		ap2mdm_status {
 			pins = "gpio26";
 			function = "gpio";
@@ -123,6 +117,12 @@
 			bias-pull-up;
 			output-high;
 		};
+	};
+
+	mdm2ap_e911_status: mdm2ap_e911_status {
+		pins = "gpio33";
+		drive-strength = <8>;
+		bias-pull-down;
 	};
 
 	pcie_wake_pins: pcie0_wake_gpio {
@@ -731,19 +731,22 @@
 				<&intc 0 421 0>, <&intc 0 422 0>, <&intc 0 423 0>,
 				<&intc 0 424 0>, <&intc 0 425 0>, <&intc 0 426 0>,
 				<&intc 0 427 0>, <&intc 0 428 0>, <&intc 0 429 0>,
-				<&intc 0 430 0>, <&intc 0 431 0>, <&tlmm 59 0>;
+				<&intc 0 430 0>, <&intc 0 431 0>, <&tlmm 59 0>,
+				<&tlmm 33 0>;
 
 	interrupt-names = "msi", "msi_0", "msi_1",
 			"msi_2", "msi_3", "msi_4",
 			"msi_5", "msi_6", "msi_7",
 			"msi_8", "msi_9", "msi_10",
 			"msi_11", "msi_12", "msi_13",
-			"msi_14", "msi_15", "wake_gpio";
+			"msi_14", "msi_15", "wake_gpio",
+			"mdm2ap_e911";
 
-	pinctrl-0 = <&pcie_wake_pins>;
+	pinctrl-0 = <&pcie_wake_pins &mdm2ap_e911_status>;
+	e911-gpio =  <&tlmm 33 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	link_retries_count = <100>;
-	use_delay = <1>;
+	use_delay = <0>;
 };
 
 &pcie1 {
