@@ -1,0 +1,156 @@
+/dts-v1/;
+/* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+#include "qcom-ipq5018.dtsi"
+
+/ {
+	#address-cells = <0x2>;
+	#size-cells = <0x2>;
+	model = "Qualcomm Technologies, Inc. IPQ5018-EMULATION-C1";
+	compatible = "qcom,ipq5018-emulation-c1", "qcom,ipq5018";
+	interrupt-parent = <&intc>;
+
+	aliases {
+		sdhc1 = &sdhc_1; /* SDC1 eMMC slot */
+		serial0 = &blsp1_uart1;
+	};
+
+	chosen {
+		linux,initrd-end = <0x46000000>;
+		linux,initrd-start = <0x44000000>;
+		bootargs = "root=/dev/ram0 rw init=/init nosmp";
+		stdout-path = "serial0";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x40000000 0x0 0x20000000>;
+	};
+
+	soc {
+		serial@78af000 {
+			status = "ok";
+		};
+
+		timer {
+			clock-frequency = <240000>;
+		};
+
+		qpic_bam: dma@7984000{
+			status = "disabled";
+		};
+
+		nand: qpic-nand@79b0000 {
+			status = "disabled";
+		};
+
+		spi_0: spi@78b5000 { /* BLSP1 QUP0 */
+			status = "disabled";
+
+			m25p80@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0>;
+				compatible = "n25q128a11";
+				linux,modalias = "m25p80", "n25q128a11";
+				spi-max-frequency = <50000000>;
+				use-default-sizes;
+			};
+		};
+
+		ess-switch@0x39c00000 {
+			compatible = "qcom,ess-switch-ipq50xx";
+			reg = <0x39c00000 0x200000>;
+			switch_access_mode = "local bus";
+			qcom,port_phyinfo {
+				port@0 {
+					port_id = <1>;
+					phy_address = <7>;
+				};
+				port@1 {
+					port_id = <2>;
+					phy_address = <1>;
+				};
+			};
+		};
+
+		qca,scm_restart_reason {
+			status = "ok";
+		};
+	};
+
+	psci {
+		status = "disabled";
+	};
+
+	cpus {
+		CPU0: cpu@0 {
+			enable-method = "qcom,arm-cortex-acc";
+		};
+
+		CPU1: cpu@1 {
+			enable-method = "qcom,arm-cortex-acc";
+		};
+	};
+
+	firmware {
+		scm {
+			status = "disabled";
+		};
+	};
+
+};
+
+&sdhc_1 {
+	qcom,clk-rates = <400000 25000000 50000000 100000000 \
+			 192000000 384000000>;
+	qcom,bus-speed-mode = "DDR_1p8v";
+	qcom,nonremovable;
+	qcom,emulation = <1>;
+	status = "disabled";
+};
+
+&qcom_q6v5_wcss {
+	qcom,nosecure;
+};
+
+&tlmm {
+	pinctrl-0 = <&uart_pins>;
+	pinctrl-names = "default";
+
+	uart_pins: uart_pins {
+		mux_0 {
+			pins = "gpio20", "gpio21";
+			function = "blsp0_uart0";
+			bias-pull-down;
+		};
+		mux_1 {
+			pins = "gpio10";
+			function = "blsp1_uart0";
+			bias-pull-down;
+		};
+		mux_2 {
+			pins = "gpio11", "gpio12";
+			function = "blsp1_uart0";
+			bias-pull-down;
+		};
+		mux_3 {
+			pins = "gpio13";
+			function = "blsp1_uart0";
+			bias-pull-down;
+		};
+	};
+};

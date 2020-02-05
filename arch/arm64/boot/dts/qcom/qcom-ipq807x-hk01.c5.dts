@@ -16,6 +16,7 @@
  */
 #include "qcom-ipq807x-soc.dtsi"
 #include "qcom-ipq807x-hk-cpu.dtsi"
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 
 / {
 	#address-cells = <0x2>;
@@ -44,6 +45,45 @@
 	chosen {
 		bootargs = "console=ttyMSM0,115200,n8 root=/dev/ram0 rw init=/init";
 		bootargs-append = " swiotlb=1";
+	};
+};
+
+&spmi_bus {
+	pmic@0 {
+		compatible ="qcom,spmi-pmic";
+		reg = <0x0 SPMI_USID>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pmm8074_gpios: gpios@c000 {
+			compatible = "qcom,pma8084-gpio";
+			reg = <0xc000 0xc00>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupts = <0 0xc0 0 IRQ_TYPE_NONE>,
+				     <0 0xc1 0 IRQ_TYPE_NONE>,
+				     <0 0xc2 0 IRQ_TYPE_NONE>,
+				     <0 0xc3 0 IRQ_TYPE_NONE>,
+				     <0 0xc4 0 IRQ_TYPE_NONE>,
+				     <0 0xc5 0 IRQ_TYPE_NONE>,
+				     <0 0xc6 0 IRQ_TYPE_NONE>,
+				     <0 0xc7 0 IRQ_TYPE_NONE>,
+				     <0 0xc8 0 IRQ_TYPE_NONE>,
+				     <0 0xc9 0 IRQ_TYPE_NONE>,
+				     <0 0xca 0 IRQ_TYPE_NONE>,
+				     <0 0xcb 0 IRQ_TYPE_NONE>;
+			pinctrl-0 = <&pmm8074_gpio>;
+			pinctrl-names = "default";
+
+			pmm8074_gpio: pmm8074_gpio {
+				pinconf {
+					pins = "gpio6";
+					function = PMIC_GPIO_FUNC_NORMAL;
+					bias-pull-up;
+					output-high;
+				};
+			};
+		};
 	};
 };
 

@@ -23,7 +23,6 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/flashchip.h>
 #include <linux/mtd/bbm.h>
-
 struct mtd_info;
 struct nand_flash_dev;
 struct device_node;
@@ -88,6 +87,14 @@ extern int nand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
 #define NAND_CMD_GET_FEATURES	0xee
 #define NAND_CMD_SET_FEATURES	0xef
 #define NAND_CMD_RESET		0xff
+
+/*
+ * Serial NAND flash commands
+ */
+#define NAND_CMD_READID_SERIAL		0x9F
+#define NAND_CMD_ERASE_SERIAL		0xd8
+#define NAND_CMD_SET_FEATURE_SERIAL	0x1F
+#define NAND_CMD_GET_FEATURE_SERIAL	0x0F
 
 #define NAND_CMD_LOCK		0x2a
 #define NAND_CMD_UNLOCK1	0x23
@@ -762,6 +769,7 @@ static inline struct mtd_info *nand_to_mtd(struct nand_chip *chip)
 #define NAND_MFR_GIGA		0xc8
 #define NAND_MFR_ATO		0x9b
 #define NAND_MFR_WINBOND	0xef
+#define NAND_MFR_FIDELIX	0xe5
 
 /* The maximum expected count of bytes in the NAND ID sequence */
 #define NAND_MAX_ID_LEN 8

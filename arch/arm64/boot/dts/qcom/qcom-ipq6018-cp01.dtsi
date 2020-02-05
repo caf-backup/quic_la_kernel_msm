@@ -23,6 +23,7 @@
 	#size-cells = <0x2>;
 	compatible = "qcom,ipq6018-cp01", "qcom,ipq6018";
 	interrupt-parent = <&intc>;
+	qcom,msm-id = <0x192 0x0>, <0x193 0x0>;
 
 	aliases {
 		serial0 = &blsp1_uart3;

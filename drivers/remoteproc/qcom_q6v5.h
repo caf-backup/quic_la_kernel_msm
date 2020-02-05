@@ -5,6 +5,9 @@
 
 #include <linux/kernel.h>
 #include <linux/completion.h>
+#include <linux/irqreturn.h>
+#include <soc/qcom/subsystem_restart.h>
+#include "qcom_common.h"
 
 #define EM_QDSP6 164
 
@@ -24,6 +27,10 @@ struct qcom_q6v5 {
 	int handover_irq;
 	int stop_irq;
 
+#ifdef CONFIG_CNSS2
+	struct subsys_device *subsys;
+	struct subsys_desc subsys_desc;
+#endif
 	bool handover_issued;
 
 	struct completion start_done;
@@ -37,6 +44,8 @@ struct qcom_q6v5 {
 	void (*handover)(struct qcom_q6v5 *q6v5);
 };
 
+#define subsys_to_pdata(d) container_of(d, struct qcom_q6v5, subsys_desc)
+
 int qcom_q6v5_init(struct qcom_q6v5 *q6v5, struct platform_device *pdev,
 		   struct rproc *rproc, int crash_reason,
 		   void (*handover)(struct qcom_q6v5 *q6v5));
@@ -46,4 +55,7 @@ int qcom_q6v5_unprepare(struct qcom_q6v5 *q6v5);
 int qcom_q6v5_request_stop(struct qcom_q6v5 *q6v5);
 int qcom_q6v5_wait_for_start(struct qcom_q6v5 *q6v5, int timeout);
 
+irqreturn_t q6v5_wdog_interrupt(int irq, void *data);
+irqreturn_t q6v5_fatal_interrupt(int irq, void *data);
+irqreturn_t q6v5_ready_interrupt(int irq, void *data);
 #endif

@@ -16,11 +16,19 @@
 #include <linux/ipc_logging.h>
 #include <linux/printk.h>
 
+#define CNSS_IPC_LOG_PAGES		32
+
 extern void *cnss_ipc_log_context;
+extern void *cnss_ipc_log_long_context;
 
 #define cnss_ipc_log_string(_x...) do {					\
 		if (cnss_ipc_log_context)				\
 			ipc_log_string(cnss_ipc_log_context, _x);	\
+	} while (0)
+
+#define cnss_ipc_log_long_string(_x...) do {				\
+		if (cnss_ipc_log_long_context)				\
+			ipc_log_string(cnss_ipc_log_long_context, _x);	\
 	} while (0)
 
 #define cnss_pr_err(_fmt, ...) do {					\
@@ -50,6 +58,12 @@ extern void *cnss_ipc_log_context;
 				    ##__VA_ARGS__);			\
 	} while (0)
 
+#define cnss_pr_vdbg(_fmt, ...) do {					\
+		pr_err("cnss: " _fmt, ##__VA_ARGS__);	\
+		cnss_ipc_log_long_string("%scnss: " _fmt, "",		\
+					 ##__VA_ARGS__);		\
+	} while (0)
+
 #define CNSS_ASSERT(_condition) do {					\
 		if (!(_condition)) {					\
 			cnss_dump_qmi_history();			\
@@ -59,9 +73,13 @@ extern void *cnss_ipc_log_context;
 		}							\
 	} while (0)
 
+#define cnss_fatal_err(_fmt, ...)					\
+	pr_err("fatal: " _fmt, ##__VA_ARGS__)
+
 int cnss_debug_init(void);
 void cnss_debug_deinit(void);
 int cnss_debugfs_create(struct cnss_plat_data *plat_priv);
 void cnss_debugfs_destroy(struct cnss_plat_data *plat_priv);
+void qmi_record(u16 msg_id, s8 error_msg, s8 resp_err_msg);
 
 #endif /* _CNSS_DEBUG_H */

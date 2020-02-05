@@ -39,6 +39,9 @@ struct minidump_metadata_list {
 	unsigned char *tlv_offset;	/* Offset associated with the TLV entry in
 					* the crashdump buffer
 					*/
+	unsigned long mmuinfo_offset; /* Offset associated with the entry for
+				* mmu information in MMU Metadata text file
+				*/
 	#ifdef CONFIG_QCA_MINIDUMP_DEBUG
 	char *name;  /* Name associated with the TLV */
 	#endif
@@ -49,11 +52,28 @@ struct minidump_metadata_list {
 #define QCOM_WDT_SCM_TLV_TYPE_LEN_SIZE (QCOM_WDT_SCM_TLV_TYPE_SIZE + QCOM_WDT_SCM_TLV_LEN_SIZE)
 #define INVALID 0
 
+/* Module Meta Data File is currently set to 12K size
+* by default, where (12K / 50) = 245 entries can be supported.
+* To support max capacity of 646 entries,please modify
+* METADATA_FILE_SZ from 12K to 32K.
+*
+* MMU Meta Data File is currently set to 12K size
+* by default, where (12K / 33) = 372 entries can be supported.
+* To support max capacity of 646 entries , please modify
+* MMU_FILE_SZ from 12K to 21K.
+*/
+
 #define METADATA_FILE_SZ 12288
 #define METADATA_FILE_ENTRY_LEN 50
 #define NAME_LEN 28
+#define MINIDUMP_MODULE_COUNT 4
+
+#define MMU_FILE_SZ 12288
+#define MMU_FILE_ENTRY_LEN 33
+
 int fill_minidump_segments(uint64_t start_addr, uint64_t size, unsigned char type, char *name);
-int store_module_info(char *name ,unsigned long address, unsigned char type);
+int store_module_info(char *name , unsigned long va, unsigned long pa,unsigned char type);
+int store_mmu_info(unsigned long va,unsigned long pa);
 int remove_minidump_segments(uint64_t virtual_address);
 
 struct module_sect_attr {
@@ -75,8 +95,9 @@ enum {
 	QCA_WDT_LOG_DUMP_TYPE_DMESG,
 	QCA_WDT_LOG_DUMP_TYPE_LEVEL1_PT,
 	QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD,
+	QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD_DEBUGFS,
 	QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD_INFO,
+	QCA_WDT_LOG_DUMP_TYPE_WLAN_MMU_INFO,
 	QCA_WDT_LOG_DUMP_TYPE_EMPTY,
 };
-
 #endif /*MINIDUMP_H*/

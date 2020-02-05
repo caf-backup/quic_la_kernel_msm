@@ -52,7 +52,7 @@
 	 */
 
 	reserved-memory {
-		lpass@48700000 {
+		lpass_q6_region: lpass@48700000 {
 			no-map;
 			reg = <0x0 0x48700000 0x0 0x01a00000>;
 		};
@@ -188,6 +188,11 @@
 };
 
 &q6v6_adsp {
+	status = "ok";
+};
+
+&qcom_q6v6_adsp {
+	memory-region = <&lpass_q6_region>;
 	status = "ok";
 };
 

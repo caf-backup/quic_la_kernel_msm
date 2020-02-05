@@ -12,6 +12,7 @@
 #include <linux/qrtr.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
+#include <linux/mutex.h>
 
 struct socket;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -25,7 +25,8 @@
 / {
 	model = "Qualcomm Technologies, Inc. IPQ6018";
 	compatible = "qcom,ipq6018";
-	qcom,msm-id = <0x192 0x0>;
+	qcom,board-id = <0x8 0x0>;
+	qcom,pmic-id = <0x0 0x0 0x0 0x0>;
 
 	soc: soc {
 		#address-cells = <0x1>;
@@ -881,6 +882,18 @@
 			#mbox-cells = <1>;
 		};
 
+		apcs_lpass: mailboxlpass@b111000 {
+			compatible = "qcom,msm8996-apcs-hmss-global";
+			qcom,ipc = <&apcs 8 23>;
+			#mbox-cells = <1>;
+		};
+
+		apcs_rpm: mailboxrpm@b111000 {
+			compatible = "qcom,msm8996-apcs-hmss-global";
+			qcom,ipc = <&apcs 8 0>;
+			#mbox-cells = <1>;
+		};
+
 		smem: qcom,smem@4AA00000 {
 			compatible = "qcom,smem";
 			memory-region = <&smem_region>;
@@ -921,6 +934,20 @@
 			label = "rpm";
 			qcom,subsys-id = <6>;
 			status = "ok";
+		};
+
+		rpmsg_rpm: qcom,rpmsg-rpm@60000 {
+			compatible = "qcom,glink-rpm";
+			qcom,rpm-msg-ram = <&rpm_msg_ram>;
+			interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
+			label = "rpm";
+			qcom,subsys-id = <6>;
+			mboxes = <&apcs_rpm 8>;
+			status = "ok";
+			glink_edge {
+				qcom,glink-channels = "rpm_requests";
+				qcom,rpm-channel-type = <15>;
+			};
 		};
 
 		rpm_bus: qcom,rpm-glink {
@@ -1412,12 +1439,15 @@
 			qcom,vlan-enabled;
 			qcom,capwap-enabled;
 			qcom,dtls-enabled;
+			qcom,tls-enabled;
 			qcom,crypto-enabled;
 			qcom,ipsec-enabled;
 			qcom,qvpn-enabled;
 			qcom,pvxlan-enabled;
 			qcom,clmap-enabled;
 			qcom,vxlan-enabled;
+			qcom,match-enabled;
+			qcom,mirror-enabled;
 		};
 
 		nss_crypto: qcom,nss_crypto {
@@ -1566,6 +1596,7 @@
 					<0x4ab000 0x20>;
 			reg-names = "qdsp6",
 						"rmb";
+			qca,no-ssr;
 			qca,auto-restart;
 			qca,extended-intc;
 			qcom,wcss-aon-reset-quirk;
@@ -1610,6 +1641,43 @@
 			};
 		};
 
+		qcom_q6v6_adsp: qcom_q6v6_adsp@AB00000 {
+			status = "disabled";
+			compatible = "qcom,ipq6018-adsp-pil";
+
+			interrupts-extended = <&intc 0 30 1>,
+					<&adsp_smp2p_in 0 0>,
+					<&adsp_smp2p_in 1 0>,
+					<&adsp_smp2p_in 2 0>,
+					<&adsp_smp2p_in 3 0>;
+			interrupt-names = "wdog",
+					"fatal",
+					"ready",
+					"handover",
+					"stop-ack";
+
+			qcom,smem-states = <&adsp_smp2p_out 0>,
+					<&adsp_smp2p_out 1>;
+
+			qcom,smem-state-names = "shutdown",
+						"stop";
+
+			glink-edge {
+				interrupts = <GIC_SPI 24 IRQ_TYPE_EDGE_RISING>;
+				qcom,remote-pid = <2>;
+				mboxes = <&apcs_lpass 8>;
+
+				rpm_requests {
+					qcom,glink-channels = "IPCRTR";
+				};
+
+				qcom,msm_fastrpc_rpmsg {
+					compatible = "qcom,msm-fastrpc-rpmsg";
+					qcom,glink-channels = "fastrpcglink-apps-dsp";
+					qcom,intents = <0x64 64>;
+				};
+			};
+		};
 
 		ess-switch@3a000000 {
 			compatible = "qcom,ess-switch-ipq60xx";

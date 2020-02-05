@@ -195,19 +195,26 @@ int cnss_genl_send_msg(void *buff, u8 type, char *file_name, u32 total_size)
 	return ret;
 }
 
+static bool genl_registered;
 int cnss_genl_init(void)
 {
 	int ret = 0;
 
-	ret = genl_register_family(&cnss_genl_family);
+	if (!genl_registered) {
+		ret = genl_register_family(&cnss_genl_family);
 
-	if (ret != 0)
-		pr_err("genl_register_family fail: %d\n", ret);
-
+		if (ret != 0)
+			pr_err("genl_register_family fail: %d\n", ret);
+		else
+			genl_registered = true;
+	}
 	return ret;
 }
 
 void cnss_genl_exit(void)
 {
-	genl_unregister_family(&cnss_genl_family);
+	if (genl_registered) {
+		genl_unregister_family(&cnss_genl_family);
+		genl_registered = false;
+	}
 }
