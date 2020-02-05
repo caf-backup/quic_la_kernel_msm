@@ -550,7 +550,6 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-msm8974-sony-xperia-honami.dtb
 ifneq ($(CONFIG_IPQ_MEM_PROFILE),$(filter $(CONFIG_IPQ_MEM_PROFILE),256 512))
 dtb-$(CONFIG_ARCH_QCOM) += \
-	qcom-ipq6018-cp01-c2.dtb \
 	qcom-ipq6018-db-cp01.dtb \
 	qcom-ipq6018-db-cp02.dtb \
 	qcom-ipq5018-emulation-c1.dtb \
