@@ -494,22 +494,18 @@
 			reg = <0x8AF8800 0x100>,
 				<0x8A00000 0xe000>;
 			reg-names = "qscratch_base", "dwc3_base";
-			clocks = <&gcc GCC_SNOC_BUS_TIMEOUT2_AHB_CLK>,
-				<&gcc GCC_SYS_NOC_USB0_AXI_CLK>,
+			clocks = <&gcc GCC_SYS_NOC_USB0_AXI_CLK>,
 				<&gcc GCC_USB0_MASTER_CLK>,
 				<&gcc GCC_USB0_SLEEP_CLK>,
 				<&gcc GCC_USB0_MOCK_UTMI_CLK>,
 				<&gcc GCC_USB0_PHY_CFG_AHB_CLK>,
-				<&gcc GCC_USB0_AUX_CLK>,
-				<&gcc GCC_USB0_PIPE_CLK>;
-			clock-names = "snoc_bus_timeout2",
-				"sys_noc_axi",
+				<&gcc GCC_USB0_AUX_CLK>;
+			clock-names = "sys_noc_axi",
 				"master",
 				"sleep",
 				"mock_utmi",
 				"cfg_ahb_clk",
-				"aux_clk",
-				"pipe_clk";
+				"aux_clk";
 			assigned-clocks = <&gcc GCC_SYS_NOC_USB0_AXI_CLK>,
 					<&gcc GCC_USB0_MASTER_CLK>,
 					<&gcc GCC_USB0_MOCK_UTMI_CLK>;
