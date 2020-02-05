@@ -128,7 +128,7 @@ config QCOM_Q6V5_COMMON
 	depends on ARCH_QCOM
 	depends on QCOM_SMEM
 
-config QCOM_Q6V5_ADSP
+config QTI_Q6V5_ADSP
 	tristate "Qualcomm Technology Inc ADSP Peripheral Image Loader"
 	depends on OF && ARCH_QCOM
 	depends on QCOM_SMEM
