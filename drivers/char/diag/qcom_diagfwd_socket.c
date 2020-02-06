@@ -467,10 +467,14 @@ static void __socket_close_channel(struct diag_socket_info *info)
 	info->hdl->sk->sk_data_ready = NULL;
 	info->hdl->sk->sk_error_report = NULL;
 	write_unlock_bh(&info->hdl->sk->sk_callback_lock);
-	sock_release(info->hdl);
-	info->hdl = NULL;
 
-	cancel_work_sync(&info->read_work);
+	/*
+	 * Do not release socket. Release it whenever go for rmmod
+	 * sock_release(info->hdl);
+	 * info->hdl = NULL;
+	 *
+	 * cancel_work_sync(&info->read_work);
+	 */
 	wake_up_interruptible(&info->read_wait_q);
 
 	spin_lock_irqsave(&info->lock, flags);
