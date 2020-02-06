@@ -91,8 +91,9 @@ void cnss_dump_qmi_history(void)
 	for (i = 0; i < QMI_HISTORY_SIZE; i++) {
 		if (qmi_log[i].msg_id)
 			pr_err(
-			"qmi_history[%d]:timestamp[%llu] msg_id[%X] err[%d] resp_err[%d]\n",
+			"qmi_history[%d]:timestamp[%llu] instance_id [%X] msg_id[%X] err[%d] resp_err[%d]\n",
 			i, qmi_log[i].timestamp,
+			qmi_log[i].instance_id,
 			qmi_log[i].msg_id,
 			qmi_log[i].error_msg,
 			qmi_log[i].resp_err_msg);
@@ -100,9 +101,10 @@ void cnss_dump_qmi_history(void)
 }
 EXPORT_SYMBOL(cnss_dump_qmi_history);
 
-void qmi_record(u16 msg_id, s8 error_msg, s8 resp_err_msg)
+void qmi_record(u8 instance_id, u16 msg_id, s8 error_msg, s8 resp_err_msg)
 {
 	spin_lock(&qmi_log_spinlock);
+	qmi_log[qmi_history_index].instance_id = instance_id;
 	qmi_log[qmi_history_index].msg_id = msg_id;
 
 	if (error_msg < 0 || resp_err_msg != 0)
@@ -185,7 +187,8 @@ static int cnss_wlfw_ind_register_send_sync(struct cnss_plat_data *plat_priv)
 	req->qdss_trace_free_enable_valid = 1;
 	req->qdss_trace_free_enable = 1;
 
-	qmi_record(QMI_WLFW_IND_REGISTER_REQ_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_IND_REGISTER_REQ_V01, ret, resp_error_msg);
 	ret = qmi_txn_init(&plat_priv->qmi_wlfw, &txn,
 			   wlfw_ind_register_resp_msg_v01_ei, resp);
 	if (ret < 0) {
@@ -229,10 +232,12 @@ static int cnss_wlfw_ind_register_send_sync(struct cnss_plat_data *plat_priv)
 
 	kfree(req);
 	kfree(resp);
-	qmi_record(QMI_WLFW_IND_REGISTER_REQ_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_IND_REGISTER_REQ_V01, ret, resp_error_msg);
 	return 0;
 out:
-	qmi_record(QMI_WLFW_IND_REGISTER_REQ_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_IND_REGISTER_REQ_V01, ret, resp_error_msg);
 	CNSS_ASSERT(0);
 
 qmi_registered:
@@ -294,7 +299,8 @@ static int cnss_wlfw_host_cap_send_sync(struct cnss_plat_data *plat_priv)
 	req->cal_done = plat_priv->cal_done;
 	cnss_pr_dbg("Calibration done is %d\n", plat_priv->cal_done);
 
-	qmi_record(QMI_WLFW_HOST_CAP_REQ_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_HOST_CAP_REQ_V01, ret, resp_error_msg);
 	ret = qmi_txn_init(&plat_priv->qmi_wlfw, &txn,
 			   wlfw_host_cap_resp_msg_v01_ei, resp);
 	if (ret < 0) {
@@ -328,13 +334,15 @@ static int cnss_wlfw_host_cap_send_sync(struct cnss_plat_data *plat_priv)
 		resp_error_msg = resp->resp.error;
 		goto out;
 	}
-	qmi_record(QMI_WLFW_HOST_CAP_REQ_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_HOST_CAP_REQ_V01, ret, resp_error_msg);
 
 	kfree(req);
 	kfree(resp);
 	return 0;
 out:
-	qmi_record(QMI_WLFW_HOST_CAP_REQ_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_HOST_CAP_REQ_V01, ret, resp_error_msg);
 	CNSS_ASSERT(0);
 
 	return ret;
@@ -386,7 +394,8 @@ int cnss_wlfw_respond_mem_send_sync(struct cnss_plat_data *plat_priv)
 		req->mem_seg[i].type = fw_mem[i].type;
 	}
 
-	qmi_record(QMI_WLFW_RESPOND_MEM_REQ_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_RESPOND_MEM_REQ_V01, ret, resp_error_msg);
 	ret = qmi_txn_init(&plat_priv->qmi_wlfw, &txn,
 			   wlfw_respond_mem_resp_msg_v01_ei, resp);
 	if (ret < 0) {
@@ -420,13 +429,15 @@ int cnss_wlfw_respond_mem_send_sync(struct cnss_plat_data *plat_priv)
 		resp_error_msg = resp->resp.error;
 		goto out;
 	}
-	qmi_record(QMI_WLFW_RESPOND_MEM_REQ_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_RESPOND_MEM_REQ_V01, ret, resp_error_msg);
 
 	kfree(req);
 	kfree(resp);
 	return 0;
 out:
-	qmi_record(QMI_WLFW_RESPOND_MEM_REQ_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_RESPOND_MEM_REQ_V01, ret, resp_error_msg);
 	CNSS_ASSERT(0);
 	kfree(req);
 	kfree(resp);
@@ -463,7 +474,8 @@ int cnss_wlfw_tgt_cap_send_sync(struct cnss_plat_data *plat_priv)
 		goto out;
 	}
 
-	qmi_record(QMI_WLFW_CAP_RESP_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_CAP_RESP_V01, ret, resp_error_msg);
 
 	ret = qmi_send_request(&plat_priv->qmi_wlfw, NULL, &txn,
 			       QMI_WLFW_CAP_REQ_V01,
@@ -491,7 +503,8 @@ int cnss_wlfw_tgt_cap_send_sync(struct cnss_plat_data *plat_priv)
 		goto out;
 	}
 
-	qmi_record(QMI_WLFW_CAP_RESP_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_CAP_RESP_V01, ret, resp_error_msg);
 	if (resp->chip_info_valid) {
 		plat_priv->chip_info.chip_id = resp->chip_info.chip_id;
 		plat_priv->chip_info.chip_family = resp->chip_info.chip_family;
@@ -540,7 +553,8 @@ int cnss_wlfw_tgt_cap_send_sync(struct cnss_plat_data *plat_priv)
 	return 0;
 
 out:
-	qmi_record(QMI_WLFW_CAP_RESP_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_CAP_RESP_V01, ret, resp_error_msg);
 	CNSS_ASSERT(0);
 	kfree(req);
 	kfree(resp);
@@ -801,7 +815,8 @@ bypass_bdf:
 		}
 
 		memcpy(req->data, temp, req->data_len);
-		qmi_record(QMI_WLFW_BDF_DOWNLOAD_REQ_V01, ret, resp_error_msg);
+		qmi_record(plat_priv->wlfw_service_instance_id,
+			   QMI_WLFW_BDF_DOWNLOAD_REQ_V01, ret, resp_error_msg);
 		ret = qmi_txn_init(&plat_priv->qmi_wlfw, &txn,
 				   wlfw_bdf_download_resp_msg_v01_ei, resp);
 		if (ret < 0) {
@@ -836,7 +851,8 @@ bypass_bdf:
 			resp_error_msg = resp->resp.error;
 			goto err_send;
 		}
-		qmi_record(QMI_WLFW_BDF_DOWNLOAD_REQ_V01, ret, resp_error_msg);
+		qmi_record(plat_priv->wlfw_service_instance_id,
+			   QMI_WLFW_BDF_DOWNLOAD_REQ_V01, ret, resp_error_msg);
 		remaining -= req->data_len;
 		temp += req->data_len;
 		req->seg_id++;
@@ -853,7 +869,8 @@ err_req_fw:
 	if (bdf_type != CNSS_BDF_REGDB)
 		CNSS_ASSERT(0);
 	kfree(req);
-	qmi_record(QMI_WLFW_BDF_DOWNLOAD_REQ_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_BDF_DOWNLOAD_REQ_V01, ret, resp_error_msg);
 	if (ret < 0)
 		CNSS_ASSERT(0);
 	else
@@ -895,7 +912,8 @@ int cnss_wlfw_m3_dnld_send_sync(struct cnss_plat_data *plat_priv)
 	req->addr = plat_priv->m3_mem.pa;
 	req->size = plat_priv->m3_mem.size;
 
-	qmi_record(QMI_WLFW_M3_INFO_REQ_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_M3_INFO_REQ_V01, ret, resp_error_msg);
 	ret = qmi_txn_init(&plat_priv->qmi_wlfw, &txn,
 			   wlfw_m3_info_resp_msg_v01_ei, resp);
 	if (ret < 0) {
@@ -930,13 +948,15 @@ int cnss_wlfw_m3_dnld_send_sync(struct cnss_plat_data *plat_priv)
 		goto out;
 	}
 
-	qmi_record(QMI_WLFW_M3_INFO_REQ_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_M3_INFO_REQ_V01, ret, resp_error_msg);
 	kfree(req);
 	kfree(resp);
 	return 0;
 
 out:
-	qmi_record(QMI_WLFW_M3_INFO_REQ_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_M3_INFO_REQ_V01, ret, resp_error_msg);
 	CNSS_ASSERT(0);
 	kfree(req);
 	kfree(resp);
@@ -977,7 +997,8 @@ int cnss_wlfw_wlan_mode_send_sync(struct cnss_plat_data *plat_priv,
 	req->mode = (enum wlfw_driver_mode_enum_v01)mode;
 	req->hw_debug_valid = 1;
 	req->hw_debug = 0;
-	qmi_record(QMI_WLFW_WLAN_MODE_REQ_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_WLAN_MODE_REQ_V01, ret, resp_error_msg);
 	ret = qmi_txn_init(&plat_priv->qmi_wlfw, &txn,
 			   wlfw_wlan_mode_resp_msg_v01_ei, resp);
 	if (ret < 0) {
@@ -1012,14 +1033,16 @@ int cnss_wlfw_wlan_mode_send_sync(struct cnss_plat_data *plat_priv,
 		resp_error_msg = resp->resp.error;
 		goto out;
 	}
-	qmi_record(QMI_WLFW_WLAN_MODE_REQ_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_WLAN_MODE_REQ_V01, ret, resp_error_msg);
 
 	kfree(req);
 	kfree(resp);
 	return 0;
 
 out:
-	qmi_record(QMI_WLFW_WLAN_MODE_REQ_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_WLAN_MODE_REQ_V01, ret, resp_error_msg);
 	if (mode == CNSS_OFF) {
 		cnss_pr_dbg("WLFW service is disconnected while sending mode off request\n");
 		ret = 0;
@@ -1097,7 +1120,8 @@ int cnss_wlfw_wlan_cfg_send_sync(struct cnss_plat_data *plat_priv,
 	       sizeof(struct wlfw_shadow_reg_v2_cfg_s_v01)
 	       * req->shadow_reg_v2_len);
 
-	qmi_record(QMI_WLFW_WLAN_CFG_REQ_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_WLAN_CFG_REQ_V01, ret, resp_error_msg);
 
 	ret = qmi_txn_init(&plat_priv->qmi_wlfw, &txn,
 			   wlfw_wlan_cfg_resp_msg_v01_ei, resp);
@@ -1132,14 +1156,16 @@ int cnss_wlfw_wlan_cfg_send_sync(struct cnss_plat_data *plat_priv,
 		resp_error_msg = resp->resp.error;
 		goto out;
 	}
-	qmi_record(QMI_WLFW_WLAN_CFG_REQ_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_WLAN_CFG_REQ_V01, ret, resp_error_msg);
 
 	kfree(req);
 	kfree(resp);
 	return 0;
 
 out:
-	qmi_record(QMI_WLFW_WLAN_CFG_REQ_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_WLAN_CFG_REQ_V01, ret, resp_error_msg);
 	CNSS_ASSERT(0);
 	kfree(req);
 	kfree(resp);
@@ -1407,7 +1433,8 @@ int cnss_wlfw_antenna_switch_send_sync(struct cnss_plat_data *plat_priv)
 		return -ENOMEM;
 	}
 
-	qmi_record(QMI_WLFW_ANTENNA_SWITCH_REQ_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_ANTENNA_SWITCH_REQ_V01, ret, resp_error_msg);
 	ret = qmi_txn_init(&plat_priv->qmi_wlfw, &txn,
 			   wlfw_antenna_switch_resp_msg_v01_ei, resp);
 	if (ret < 0) {
@@ -1448,13 +1475,15 @@ int cnss_wlfw_antenna_switch_send_sync(struct cnss_plat_data *plat_priv)
 	cnss_pr_dbg("Antenna valid: %u, antenna 0x%llx\n",
 		    resp->antenna_valid, resp->antenna);
 
-	qmi_record(QMI_WLFW_ANTENNA_SWITCH_REQ_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_ANTENNA_SWITCH_REQ_V01, ret, resp_error_msg);
 	kfree(req);
 	kfree(resp);
 	return 0;
 
 out:
-	qmi_record(QMI_WLFW_ANTENNA_SWITCH_REQ_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_ANTENNA_SWITCH_REQ_V01, ret, resp_error_msg);
 	kfree(req);
 	kfree(resp);
 	return ret;
@@ -1563,7 +1592,8 @@ int cnss_wlfw_qdss_trace_mem_info_send_sync(struct cnss_plat_data *plat_priv)
 		req->mem_seg[i].type = qdss_mem[i].type;
 	}
 
-	qmi_record(QMI_WLFW_QDSS_TRACE_MEM_INFO_REQ_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_QDSS_TRACE_MEM_INFO_REQ_V01, ret, resp_error_msg);
 	ret = qmi_txn_init(&plat_priv->qmi_wlfw, &txn,
 			   wlfw_qdss_trace_mem_info_resp_msg_v01_ei, resp);
 	if (ret < 0) {
@@ -1598,13 +1628,15 @@ int cnss_wlfw_qdss_trace_mem_info_send_sync(struct cnss_plat_data *plat_priv)
 		goto out;
 	}
 
-	qmi_record(QMI_WLFW_QDSS_TRACE_MEM_INFO_REQ_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_QDSS_TRACE_MEM_INFO_REQ_V01, ret, resp_error_msg);
 	kfree(req);
 	kfree(resp);
 	return 0;
 
 out:
-	qmi_record(QMI_WLFW_QDSS_TRACE_MEM_INFO_REQ_V01, ret, resp_error_msg);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_QDSS_TRACE_MEM_INFO_REQ_V01, ret, resp_error_msg);
 	kfree(req);
 	kfree(resp);
 	return ret;
@@ -1760,7 +1792,8 @@ static void cnss_wlfw_request_mem_ind_cb(struct qmi_handle *qmi_wlfw,
 
 	cnss_pr_dbg("Received QMI WLFW request memory indication\n");
 
-	qmi_record(QMI_WLFW_REQUEST_MEM_IND_V01, 0, 0);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_REQUEST_MEM_IND_V01, 0, 0);
 	if (!txn) {
 		cnss_pr_err("Spurious indication\n");
 		return;
@@ -1797,7 +1830,8 @@ static void cnss_wlfw_fw_mem_ready_ind_cb(struct qmi_handle *qmi_wlfw,
 		cnss_pr_err("Spurious indication\n");
 		return;
 	}
-	qmi_record(QMI_WLFW_FW_MEM_READY_IND_V01, 0, 0);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_FW_MEM_READY_IND_V01, 0, 0);
 	/* WAR Conditional check of driver state to hinder processing */
 	/* FW_mem_ready msg i.e. received twice from QMI stack occasionally */
 	if (!test_bit(CNSS_FW_MEM_READY, &plat_priv->driver_state))
@@ -1827,7 +1861,8 @@ static void cnss_wlfw_fw_ready_ind_cb(struct qmi_handle *qmi_wlfw,
 	if (!cal_info)
 		return;
 
-	qmi_record(QMI_WLFW_FW_READY_IND_V01, 0, 0);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_FW_READY_IND_V01, 0, 0);
 	cal_info->cal_status = CNSS_CAL_DONE;
 	cnss_driver_event_post(plat_priv, CNSS_DRIVER_EVENT_COLD_BOOT_CAL_DONE,
 			       0, cal_info);
@@ -1846,7 +1881,8 @@ static void cnss_wlfw_fw_init_done_ind_cb(struct qmi_handle *qmi_wlfw,
 		cnss_pr_err("Spurious indication\n");
 		return;
 	}
-	qmi_record(QMI_WLFW_FW_INIT_DONE_IND_V01, 0, 0);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_FW_INIT_DONE_IND_V01, 0, 0);
 	cnss_driver_event_post(plat_priv,
 				CNSS_DRIVER_EVENT_FW_READY,
 				0, NULL);
@@ -1862,7 +1898,8 @@ static void cnss_wlfw_pin_result_ind_cb(struct qmi_handle *qmi_wlfw,
 
 	cnss_pr_dbg("Received QMI WLFW pin connect result indication\n");
 
-	qmi_record(QMI_WLFW_PIN_CONNECT_RESULT_IND_V01, 0, 0);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_PIN_CONNECT_RESULT_IND_V01, 0, 0);
 	if (!txn) {
 		cnss_pr_err("Spurious indication\n");
 		return;
@@ -1917,7 +1954,8 @@ static void cnss_wlfw_qdss_trace_req_mem_ind_cb(struct qmi_handle *qmi_wlfw,
 	int i;
 
 	cnss_pr_dbg("Received QMI WLFW QDSS trace request mem indication\n");
-	qmi_record(QMI_WLFW_QDSS_TRACE_REQ_MEM_IND_V01, 0, 0);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_QDSS_TRACE_REQ_MEM_IND_V01, 0, 0);
 
 	if (!txn) {
 		cnss_pr_err("Spurious indication\n");
@@ -1958,7 +1996,8 @@ static void cnss_wlfw_qdss_trace_save_ind_cb(struct qmi_handle *qmi_wlfw,
 	struct cnss_qmi_event_qdss_trace_save_data *event_data;
 	int i = 0;
 
-	qmi_record(QMI_WLFW_QDSS_TRACE_SAVE_IND_V01, 0, 0);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_QDSS_TRACE_SAVE_IND_V01, 0, 0);
 	cnss_pr_dbg("Received QMI WLFW QDSS trace save indication\n");
 
 	if (!txn) {
@@ -2021,7 +2060,8 @@ static void cnss_wlfw_qdss_trace_free_ind_cb(struct qmi_handle *qmi_wlfw,
 	struct cnss_plat_data *plat_priv =
 		container_of(qmi_wlfw, struct cnss_plat_data, qmi_wlfw);
 
-	qmi_record(QMI_WLFW_QDSS_TRACE_FREE_IND_V01, 0, 0);
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_QDSS_TRACE_FREE_IND_V01, 0, 0);
 	cnss_driver_event_post(plat_priv, CNSS_DRIVER_EVENT_QDSS_TRACE_FREE,
 			       0, NULL);
 }
