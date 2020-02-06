@@ -2084,7 +2084,13 @@
 			"wbm2host-tx-completions-ring2",
 			"wbm2host-tx-completions-ring1",
 			"tcl2host-status-ring";
-			status = "ok";
+		status = "ok";
+		qcom,pta-num = <0>;
+		qcom,coex-mode = <0x2>;
+		qcom,bt-active-time = <0x18>;
+		qcom,bt-priority-time = <0x12>;
+		qcom,coex-algo = <0x2>;
+		qcom,pta-priority = <0x80800505>;
 		};
 
 		msm_imem: qcom,msm-imem@8600000 {
