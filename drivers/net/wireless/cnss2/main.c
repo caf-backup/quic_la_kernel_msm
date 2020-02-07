@@ -1896,9 +1896,7 @@ static int cnss_cold_boot_cal_done_hdlr(struct cnss_plat_data *plat_priv,
 		break;
 	}
 
-	cnss_wlfw_wlan_mode_send_sync(plat_priv, CNSS_OFF);
 	cnss_release_antenna_sharing(plat_priv);
-	cnss_bus_dev_shutdown(plat_priv);
 	complete(&plat_priv->cal_complete);
 	clear_bit(CNSS_COLD_BOOT_CAL, &plat_priv->driver_state);
 
