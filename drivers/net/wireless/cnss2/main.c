@@ -86,6 +86,27 @@ struct cnss_driver_event {
 	void *data;
 };
 
+#define M3_DUMP_OPEN_TIMEOUT 5000
+#define M3_DUMP_COMPLETE_TIMEOUT 10000
+struct m3_dump {
+	u32 pdev_id;
+	u32 size;
+	u64 timestamp;
+	bool file_open;
+	char *addr;
+	struct task_struct *task;
+};
+
+static struct m3_dump m3_dump_data;
+static struct timer_list m3_dump_timer;
+static struct completion m3_dump_complete;
+
+static struct timer_list m3_dump_open_timer;
+static struct completion m3_dump_open_complete;
+static atomic_t m3_dump_open_timedout;
+static struct class *m3_dump_class;
+static bool m3_dump_file_open;
+
 static void cnss_set_plat_priv(struct platform_device *plat_dev,
 			       struct cnss_plat_data *plat_priv)
 {
@@ -677,6 +698,8 @@ static char *cnss_driver_event_to_str(enum cnss_driver_event_type type)
 		return "QDSS_TRACE_SAVE";
 	case CNSS_DRIVER_EVENT_QDSS_TRACE_FREE:
 		return "QDSS_TRACE_FREE";
+	case CNSS_DRIVER_EVENT_M3_DUMP_UPLOAD_REQ:
+		return "M3_DUMP_UPLOAD_REQ";
 	case CNSS_DRIVER_EVENT_MAX:
 		return "EVENT_MAX";
 	}
@@ -2006,6 +2029,215 @@ static int cnss_qdss_trace_free_hdlr(struct cnss_plat_data *plat_priv)
 	return 0;
 }
 
+static void open_timeout_func(unsigned long data)
+{
+	atomic_set(&m3_dump_open_timedout, 1);
+	complete(&m3_dump_open_complete);
+	pr_err("open time Out: M3 dump collection failed\n");
+}
+
+static void dump_timeout_func(unsigned long data)
+{
+	pr_err("Time Out: Q6 crash dump collection failed\n");
+
+	m3_dump_timer.data = -ETIMEDOUT;
+	if (m3_dump_data.task)
+		send_sig(SIGKILL, m3_dump_data.task, 0);
+	complete(&m3_dump_complete);
+}
+
+static int m3_dump_open(struct inode *inode, struct file *file)
+{
+	if (m3_dump_file_open)
+		return -EBUSY;
+
+	del_timer_sync(&m3_dump_open_timer);
+	if (atomic_read(&m3_dump_open_timedout) == 1)
+		return -ENODEV;
+
+	nonseekable_open(inode, file);
+	m3_dump_data.task = current;
+	m3_dump_file_open = true;
+
+	init_completion(&m3_dump_complete);
+	setup_timer(&m3_dump_timer, dump_timeout_func, 0);
+	mod_timer(&m3_dump_timer,
+		  jiffies + msecs_to_jiffies(M3_DUMP_COMPLETE_TIMEOUT));
+
+	complete(&m3_dump_open_complete);
+	return 0;
+}
+
+static ssize_t m3_dump_read(struct file *file, char __user *data, size_t len,
+			    loff_t *ppos)
+{
+	char *bufp = m3_dump_data.addr + *ppos;
+
+	mod_timer(&m3_dump_timer,
+		  jiffies + msecs_to_jiffies(M3_DUMP_COMPLETE_TIMEOUT));
+
+	if (*ppos + len > m3_dump_data.size)
+		len = m3_dump_data.size - *ppos;
+
+	if (copy_to_user(data, bufp, len)) {
+		pr_err("%s: copy_to_user failed\n", __func__);
+		return -EFAULT;
+	}
+
+	*ppos += len;
+
+	return len;
+}
+
+static int m3_dump_release(struct inode *inode, struct file *file)
+{
+	int dump_minor =  iminor(inode);
+	int dump_major = imajor(inode);
+
+	device_destroy(m3_dump_class, MKDEV(dump_major, dump_minor));
+	class_destroy(m3_dump_class);
+	complete(&m3_dump_complete);
+	m3_dump_file_open = false;
+	return 0;
+}
+
+static const struct file_operations m3_dump_fops = {
+	.owner          = THIS_MODULE,
+	.open		= m3_dump_open,
+	.read		= m3_dump_read,
+	.release	= m3_dump_release,
+};
+
+static int cnss_do_m3_dump_upload(struct cnss_plat_data *plat_priv,
+				  const char *dump_file_name)
+{
+	int ret = 0;
+	int dump_major = 0;
+	struct device *dump_dev = NULL;
+
+	init_completion(&m3_dump_open_complete);
+	atomic_set(&m3_dump_open_timedout, 0);
+
+	dump_major = register_chrdev(UNNAMED_MAJOR, "dump", &m3_dump_fops);
+	if (dump_major < 0) {
+		ret = dump_major;
+		cnss_pr_err("%s: Unable to allocate a major number err = %d",
+			    __func__, ret);
+		goto reg_failed;
+	}
+
+	m3_dump_class = class_create(THIS_MODULE, "dump");
+	if (IS_ERR(m3_dump_class)) {
+		ret = PTR_ERR(m3_dump_class);
+		cnss_pr_err("%s: Unable to create class = %d",
+			    __func__, ret);
+		goto class_failed;
+	}
+
+	dump_dev = device_create(m3_dump_class, NULL, MKDEV(dump_major, 0),
+				 NULL, dump_file_name);
+	if (IS_ERR(dump_dev)) {
+		ret = PTR_ERR(dump_dev);
+		cnss_pr_err("%s: Unable to create device = %d",
+			    __func__, ret);
+		goto device_failed;
+	}
+
+	/* This avoids race condition between the scheduled timer and the opened
+	 * file discriptor during delay in user space app execution.
+	 */
+	setup_timer(&m3_dump_open_timer, open_timeout_func, 0);
+
+	mod_timer(&m3_dump_open_timer,
+		  jiffies + msecs_to_jiffies(M3_DUMP_OPEN_TIMEOUT));
+
+	wait_for_completion(&m3_dump_open_complete);
+
+	if (atomic_read(&m3_dump_open_timedout) == 1) {
+		ret = -ETIMEDOUT;
+		cnss_pr_err("%s: Failed to open M3 dump", __func__);
+		goto dump_dev_failed;
+	}
+
+	wait_for_completion(&m3_dump_complete);
+
+	if (m3_dump_timer.data == -ETIMEDOUT) {
+		ret = m3_dump_timer.data;
+		cnss_pr_err("%s: Failed to collect M3 dump", __func__);
+		m3_dump_timer.data = 0;
+	}
+
+	del_timer_sync(&m3_dump_timer);
+	return ret;
+
+dump_dev_failed:
+	device_destroy(m3_dump_class, MKDEV(dump_major, 0));
+device_failed:
+	class_destroy(m3_dump_class);
+class_failed:
+	unregister_chrdev(dump_major, "dump");
+reg_failed:
+	return ret;
+}
+
+static int cnss_m3_dump_upload_req_hdlr(struct cnss_plat_data *plat_priv,
+					void *data)
+{
+	struct cnss_qmi_event_m3_dump_upload_req_data *event_data = data;
+	struct cnss_fw_mem *fw_mem = plat_priv->fw_mem;
+	char dump_file_name[20];
+	int i, ret = 0;
+
+	cnss_pr_dbg("%s: %d pdev_id %d addr 0x%llx size %llu",
+		    __func__, __LINE__,
+		    event_data->pdev_id, event_data->addr, event_data->size);
+
+	for (i = 0; i < plat_priv->fw_mem_seg_len; i++) {
+		if (fw_mem[i].pa == event_data->addr &&
+		    event_data->size <= fw_mem[i].size)
+			break;
+	}
+
+	if (i == plat_priv->fw_mem_seg_len) {
+		cnss_pr_err("Invalid pa 0x%llx from FW for M3 Dump",
+			    event_data->addr);
+		ret = -EINVAL;
+		goto send_resp;
+	}
+
+	memset(&m3_dump_data, 0, sizeof(m3_dump_data));
+
+	m3_dump_data.addr = ioremap(fw_mem[i].pa, fw_mem[i].size);
+	if (!m3_dump_data.addr) {
+		cnss_pr_err("Failed to ioremap M3 Dump region");
+		ret = -ENOMEM;
+		goto send_resp;
+	}
+
+	m3_dump_data.size = event_data->size;
+	m3_dump_data.pdev_id = event_data->pdev_id;
+	m3_dump_data.timestamp = ktime_to_ms(ktime_get());
+	cnss_pr_dbg("%s: %d: pdev_id: %d va 0x%p size %d\n",
+		    __func__, __LINE__,
+		    m3_dump_data.pdev_id, m3_dump_data.addr,
+		    m3_dump_data.size);
+
+	snprintf(dump_file_name, sizeof(dump_file_name),
+		 "m3_dump_wifi%d.bin", m3_dump_data.pdev_id);
+
+	ret = cnss_do_m3_dump_upload(plat_priv, (const char *)dump_file_name);
+	if (ret)
+		cnss_pr_err("M3 Dump upload failed with ret %d", ret);
+
+	iounmap(m3_dump_data.addr);
+send_resp:
+	cnss_wlfw_m3_dump_upload_done_send_sync(plat_priv,
+						event_data->pdev_id,
+						ret);
+
+	return ret;
+}
+
 static void cnss_driver_event_work(struct work_struct *work)
 {
 	struct cnss_plat_data *plat_priv =
@@ -2099,6 +2331,10 @@ static void cnss_driver_event_work(struct work_struct *work)
 			break;
 		case CNSS_DRIVER_EVENT_QDSS_TRACE_FREE:
 			ret = cnss_qdss_trace_free_hdlr(plat_priv);
+			break;
+		case CNSS_DRIVER_EVENT_M3_DUMP_UPLOAD_REQ:
+			ret = cnss_m3_dump_upload_req_hdlr(plat_priv,
+							   event->data);
 			break;
 		default:
 			cnss_pr_err("Invalid driver event type: %d",

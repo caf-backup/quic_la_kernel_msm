@@ -45,6 +45,7 @@
 #define QCA6018_DEVICE_ID               0xFFFD
 #define HOST_DDR_REGION_TYPE		0x1
 #define BDF_MEM_REGION_TYPE		0x2
+#define M3_DUMP_REGION_TYPE		0x3
 #define CALDB_MEM_REGION_TYPE		0x4
 
 enum cnss_mhi_state {
