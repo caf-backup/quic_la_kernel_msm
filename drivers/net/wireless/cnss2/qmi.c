@@ -683,7 +683,7 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv,
 {
 	struct qmi_txn txn;
 	char filename[MAX_BDF_FILE_NAME];
-	const struct firmware *fw_entry;
+	const struct firmware *fw_entry = NULL;
 	const u8 *temp;
 	char *folder;
 	unsigned int remaining;
@@ -859,6 +859,9 @@ bypass_bdf:
 		temp += req->data_len;
 		req->seg_id++;
 	}
+
+	if (fw_entry)
+		release_firmware(fw_entry);
 
 	kfree(req);
 	kfree(resp);
