@@ -67,6 +67,10 @@ int plat_env_index;
 static DECLARE_RWSEM(cnss_pm_sem);
 #endif
 
+bool ramdump_enabled;
+module_param(ramdump_enabled, bool, 0600);
+MODULE_PARM_DESC(ramdump_enabled, "ramdump_enabled");
+
 static struct cnss_fw_files FW_FILES_QCA6174_FW_3_0 = {
 	"qwlan30.bin", "bdwlan30.bin", "otp30.bin", "utf30.bin",
 	"utfbd30.bin", "epping30.bin", "evicted30.bin"
@@ -607,6 +611,22 @@ int cnss_is_cold_boot_cal_done(struct device *dev)
 	return 1;
 }
 EXPORT_SYMBOL(cnss_is_cold_boot_cal_done);
+
+void cnss_set_ramdump_enabled(struct device *dev, bool enabled)
+{
+	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
+
+	if (!plat_priv) {
+		pr_err("%s: Failed to get plat_priv", __func__);
+		return;
+	}
+
+	plat_priv->ramdump_enabled = enabled;
+	cnss_pr_dbg("Setting ramdump_enabled to %d for %s",
+		    plat_priv->ramdump_enabled,
+		    plat_priv->device_name);
+}
+EXPORT_SYMBOL(cnss_set_ramdump_enabled);
 
 static int cnss_fw_ready_hdlr(struct cnss_plat_data *plat_priv)
 {
@@ -1658,7 +1678,8 @@ static int cnss_do_recovery(struct cnss_plat_data *plat_priv,
 		break;
 	}
 
-	cnss_bus_dev_ramdump(plat_priv);
+	if (plat_priv->ramdump_enabled)
+		cnss_bus_dev_ramdump(plat_priv);
 
 	if (!subsys_info->subsys_device)
 		return 0;
@@ -2964,6 +2985,7 @@ skip_soc_version_checks:
 	plat_priv->plat_dev = plat_dev;
 	plat_priv->device_id = device_id->driver_data;
 	plat_priv->plat_dev_id = (struct platform_device_id *)device_id;
+	plat_priv->ramdump_enabled = ramdump_enabled;
 
 	if (device_id->driver_data == QCN9000_DEVICE_ID)
 		plat_priv->bus_type = CNSS_BUS_PCI;
