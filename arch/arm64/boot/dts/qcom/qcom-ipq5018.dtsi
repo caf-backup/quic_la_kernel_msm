@@ -339,7 +339,7 @@
 
 		q6v5_wcss: q6v5_wcss@CD00000 {
 			compatible = "qca,q6v5-wcss-rproc-ipq50xx";
-			firmware = "IPQ5018/wcss.mdt";
+			firmware = "IPQ5018/q6_fw.mdt";
 			reg = <0xCD00000 0x10000>,
 				<0x194f000 0x10>,
 				<0x1952000 0x10>,
@@ -413,7 +413,7 @@
 
 		qcom_q6v5_wcss: qcom_q6v5_wcss@CD00000 {
 			compatible = "qcom,ipq5018-wcss-pil";
-			firmware = "IPQ5018/wcss.mdt";
+			firmware = "IPQ5018/q6_fw.mdt";
 			m3_firmware = "IPQ5018/m3_fw.mdt";
 			reg = <0xCD00000 0x4040>,
 				<0x4ab000 0x20>;
