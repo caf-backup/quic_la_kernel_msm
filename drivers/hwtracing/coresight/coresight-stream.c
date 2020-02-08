@@ -63,7 +63,7 @@ void qld_stream_work_hdlr(struct work_struct *work)
 	need_to_enable = 0;
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
-	if (atomic_read(&drvdata->seq_no) > COMP_PAGES_PER_DATA) {
+	if (atomic_read(&drvdata->seq_no) >= COMP_PAGES_PER_DATA) {
 		wrapped_around_seq_no = (atomic_read(&drvdata->seq_no) %
 					TOTAL_PAGES_PER_DATA);
 		need_to_enable = 1;
