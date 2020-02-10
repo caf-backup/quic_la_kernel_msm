@@ -97,12 +97,10 @@
 
 		pcie0: pci@80000000 {
 			is_emulation = <1>;
-			status = "ok";
 		};
 
 		pcie1: pci@a0000000 {
 			is_emulation = <1>;
-			status = "ok";
 		};
 	};
 
