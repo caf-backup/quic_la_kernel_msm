@@ -67,6 +67,14 @@ int plat_env_index;
 static DECLARE_RWSEM(cnss_pm_sem);
 #endif
 
+static int bdf_pci0;
+module_param(bdf_pci0, int, 0644);
+MODULE_PARM_DESC(bdf_pci0, "bdf_pci0");
+
+static int bdf_pci1;
+module_param(bdf_pci1, int, 0644);
+MODULE_PARM_DESC(bdf_pci1, "bdf_pci0");
+
 static struct cnss_fw_files FW_FILES_QCA6174_FW_3_0 = {
 	"qwlan30.bin", "bdwlan30.bin", "otp30.bin", "utf30.bin",
 	"utfbd30.bin", "epping30.bin", "evicted30.bin"
@@ -2743,6 +2751,13 @@ skip_soc_version_checks:
 		}
 		plat_priv->qrtr_node_id = node_id;
 		plat_priv->wlfw_service_instance_id = node_id + FW_ID_BASE;
+
+		if (plat_priv->wlfw_service_instance_id == NODE_ID_BASE)
+			plat_priv->board_info.board_id_override = bdf_pci0;
+		else if (plat_priv->wlfw_service_instance_id ==
+			 NODE_ID_BASE + 1)
+			plat_priv->board_info.board_id_override = bdf_pci1;
+
 		break;
 	case QCA8074_DEVICE_ID:
 	case QCA8074V2_DEVICE_ID:
