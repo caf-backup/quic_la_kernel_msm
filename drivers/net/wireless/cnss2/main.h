@@ -159,6 +159,7 @@ struct wlfw_rf_chip_info {
 
 struct wlfw_rf_board_info {
 	u32 board_id;
+	u32 board_id_override;
 };
 
 struct wlfw_soc_info {
