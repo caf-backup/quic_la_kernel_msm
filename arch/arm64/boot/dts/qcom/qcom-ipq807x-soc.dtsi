@@ -767,7 +767,8 @@
 			compatible = "qcom,nss";
 			interrupts = <0 377 0x1>, <0 378 0x1>, <0 379 0x1>,
 				     <0 380 0x1>, <0 381 0x1>, <0 382 0x1>,
-				     <0 383 0x1>, <0 384 0x1>, <0 385 0x1>;
+				     <0 383 0x1>, <0 384 0x1>, <0 385 0x1>,
+				     <0 386 0x1>;
 			reg = <0x39000000 0x1000>, <0x38000000 0x30000>,
 			      <0x0b111000 0x1000>;
 			reg-names = "nphys", "vphys", "qgic-phys";
@@ -805,7 +806,7 @@
 				      "nss-nc-axi-clk";
 			qcom,id = <0>;
 			qcom,num-queue = <4>;
-			qcom,num-irq = <9>;
+			qcom,num-irq = <10>;
 			qcom,num-pri = <4>;
 			qcom,load-addr = <0x40000000>;
 			qcom,low-frequency = <748800000>;
@@ -844,7 +845,8 @@
 			compatible = "qcom,nss";
 			interrupts = <0 390 0x1>, <0 391 0x1>, <0 392 0x1>,
 				     <0 393 0x1>, <0 394 0x1>, <0 395 0x1>,
-				     <0 396 0x1>, <0 397 0x1>, <0 398 0x1>;
+				     <0 396 0x1>, <0 397 0x1>, <0 398 0x1>,
+				     <0 399 0x1>;
 			reg = <0x39400000 0x1000>, <0x38030000 0x30000>,
 				<0x0b111000 0x1000>;
 			reg-names = "nphys", "vphys", "qgic-phys";
@@ -882,7 +884,7 @@
 				      "nss-nc-axi-clk";
 			qcom,id = <1>;
 			qcom,num-queue = <4>;
-			qcom,num-irq = <9>;
+			qcom,num-irq = <10>;
 			qcom,num-pri = <4>;
 			qcom,load-addr = <0x40800000>;
 			qcom,capwap-enabled;

@@ -11,7 +11,7 @@
 #include <linux/clk-provider.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#if defined(CONFIG_IPQ_DWC3_QCOM_EXTCON)
+#if defined(CONFIG_IPQ_DWC3_QTI_EXTCON)
 #include <linux/extcon.h>
 #endif
 #include <linux/of_platform.h>
@@ -59,7 +59,7 @@ struct dwc3_qcom {
 	int			dm_hs_phy_irq;
 	int			ss_phy_irq;
 
-#if defined(CONFIG_IPQ_DWC3_QCOM_EXTCON)
+#if defined(CONFIG_IPQ_DWC3_QTI_EXTCON)
 	struct extcon_dev	*edev;
 	struct extcon_dev	*host_edev;
 	struct notifier_block	vbus_nb;
@@ -127,7 +127,7 @@ static void dwc3_qcom_vbus_overrride_enable(struct dwc3_qcom *qcom, bool enable)
 	}
 }
 
-#if defined(CONFIG_IPQ_DWC3_QCOM_EXTCON)
+#if defined(CONFIG_IPQ_DWC3_QTI_EXTCON)
 static void dwc3_otg_start_peripheral(struct work_struct *w)
 {
 	struct dwc3_qcom *qcom = container_of(w, struct dwc3_qcom, vbus_work);
@@ -508,7 +508,7 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, qcom);
 	qcom->dev = &pdev->dev;
 
-#if defined(CONFIG_IPQ_DWC3_QCOM_EXTCON)
+#if defined(CONFIG_IPQ_DWC3_QTI_EXTCON)
 	INIT_WORK(&qcom->vbus_work, dwc3_otg_start_peripheral);
 	INIT_WORK(&qcom->host_work, dwc3_otg_start_host);
 
@@ -616,7 +616,7 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
 	if (qcom->mode == USB_DR_MODE_PERIPHERAL)
 		dwc3_qcom_vbus_overrride_enable(qcom, true);
 
-#if defined(CONFIG_IPQ_DWC3_QCOM_EXTCON)
+#if defined(CONFIG_IPQ_DWC3_QTI_EXTCON)
 	/* register extcon to override sw_vbus on Vbus change later */
 	ret = dwc3_qcom_register_extcon(qcom);
 	if (ret)
@@ -642,7 +642,7 @@ reset_assert:
 	if (!IS_ERR(qcom->resets))
 		reset_control_assert(qcom->resets);
 
-#if defined(CONFIG_IPQ_DWC3_QCOM_EXTCON)
+#if defined(CONFIG_IPQ_DWC3_QTI_EXTCON)
 	destroy_workqueue(qcom->dwc3_wq);
 #endif
 	return ret;
@@ -654,7 +654,7 @@ static int dwc3_qcom_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int i;
 
-#if defined(CONFIG_IPQ_DWC3_QCOM_EXTCON)
+#if defined(CONFIG_IPQ_DWC3_QTI_EXTCON)
 	extcon_unregister_notifier(qcom->edev, EXTCON_USB, &qcom->vbus_nb);
 	extcon_unregister_notifier(qcom->host_edev, EXTCON_USB_HOST,
 				   &qcom->host_nb);

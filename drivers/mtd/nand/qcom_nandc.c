@@ -272,7 +272,7 @@ enum {
 	NAND_READ_LOCATION_LAST_CW_1,
 	NAND_READ_LOCATION_LAST_CW_2,
 	NAND_READ_LOCATION_LAST_CW_3,
-#if IS_ENABLED(CONFIG_MTD_NAND_QCOM_SERIAL)
+#if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 	NAND_FLASH_XFR_STEP1,
 	NAND_FLASH_XFR_STEP2,
 	NAND_FLASH_XFR_STEP3,
@@ -381,7 +381,7 @@ struct nandc_regs {
 	__le32 read_location1;
 	__le32 read_location2;
 	__le32 read_location3;
-#if IS_ENABLED(CONFIG_MTD_NAND_QCOM_SERIAL)
+#if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 	__le32 read_location_last0;
 	__le32 read_location_last1;
 	__le32 read_location_last2;
@@ -535,7 +535,7 @@ struct qcom_nand_host {
 	u32 clrflashstatus;
 	u32 clrreadstatus;
 	u32 hw_version;
-#if IS_ENABLED(CONFIG_MTD_NAND_QCOM_SERIAL)
+#if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 	bool quad_mode;
 	bool check_qe_bit;
 #endif
@@ -661,7 +661,7 @@ u32 regs_offsets_v2_1_1[] = {
 	[NAND_READ_LOCATION_3] = 0xf2c,
 	[NAND_DEV_CMD1_RESTORE] = 0xdead,
 	[NAND_DEV_CMD_VLD_RESTORE] = 0xbeef,
-#if IS_ENABLED(CONFIG_MTD_NAND_QCOM_SERIAL)
+#if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 	[NAND_FLASH_XFR_STEP1] = 0x7070,
 	[NAND_FLASH_XFR_STEP2] = 0x7074,
 	[NAND_FLASH_XFR_STEP3] = 0x7078,
@@ -809,7 +809,7 @@ static __le32 *offset_to_nandc_reg(struct nandc_regs *regs, int offset)
 		return &regs->read_location2;
 	case NAND_READ_LOCATION_3:
 		return &regs->read_location3;
-#if IS_ENABLED(CONFIG_MTD_NAND_QCOM_SERIAL)
+#if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 	case NAND_READ_LOCATION_LAST_CW_0:
 		return &regs->read_location_last0;
 	case NAND_READ_LOCATION_LAST_CW_1:
@@ -865,7 +865,7 @@ static void update_rw_regs(struct qcom_nand_host *host, int num_cw, bool read)
 
 	cmd = PAGE_ACC | LAST_PAGE;
 
-#if IS_ENABLED(CONFIG_MTD_NAND_QCOM_SERIAL)
+#if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 	/* For serial NAND the cmd register value as per HPG is
 	 * 0x78000034 i.e opcode should be 0x4 = PAGE_READ_WITH_ECC_SPARE
 	 * but in kernel we are using opcode 0x3 = PAGE_READ_WITH_ECC
@@ -1285,7 +1285,7 @@ static void config_bam_cw_read(struct qcom_nand_controller *nandc, bool use_ecc)
 {
 	if (nandc->dma_bam_enabled) {
 		write_reg_dma(nandc, NAND_READ_LOCATION_0, 4, 0);
-#if IS_ENABLED(CONFIG_MTD_NAND_QCOM_SERIAL)
+#if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 		write_reg_dma(nandc, NAND_READ_LOCATION_LAST_CW_0, 4, 0);
 #endif
 	}
@@ -1404,7 +1404,7 @@ static int erase_block(struct qcom_nand_host *host, int page_addr)
 
 	clear_bam_transaction(nandc);
 
-#if IS_ENABLED(CONFIG_MTD_NAND_QCOM_SERIAL)
+#if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 	erase_val = (BLOCK_ERASE | QPIC_SPI_TRANSFER_MODE_x1 |
 			QPIC_SPI_WP | QPIC_SPI_HOLD);
 	page_addr <<= 16;
@@ -1443,7 +1443,7 @@ static int read_id(struct qcom_nand_host *host, int column)
 	if (column == -1)
 		return 0;
 
-#if IS_ENABLED(CONFIG_MTD_NAND_QCOM_SERIAL)
+#if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 	cmd = (FETCH_ID | QPIC_SPI_TRANSFER_MODE_x1 |
 			QPIC_SPI_WP | QPIC_SPI_HOLD);
 #endif
@@ -1471,7 +1471,7 @@ static int reset(struct qcom_nand_host *host)
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 
 	clear_bam_transaction(nandc);
-#if IS_ENABLED(CONFIG_MTD_NAND_QCOM_SERIAL)
+#if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 	/* This reset sequence as per QPIC2.0 HPG
 	 * NAND_DEV0_CFG = 0x005400D0
 	 * NAND_DEVn_CFG1 = 0x87476B1
@@ -2964,7 +2964,7 @@ static int qcom_nand_host_setup(struct qcom_nand_host *host)
 
 	bad_block_byte = mtd->writesize - host->cw_size * (cwperpage - 1) + 1;
 
-#if IS_ENABLED(CONFIG_MTD_NAND_QCOM_SERIAL)
+#if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 	/* As per HPG below value should be valid for Serial NAND
 	 * configuration
 	 */
@@ -3153,7 +3153,7 @@ static int qcom_nandc_setup(struct qcom_nand_controller *nandc)
 		/* For serila NAND as per HPG the value of this register should
 		 * be 0x341
 		 */
-#if IS_ENABLED(CONFIG_MTD_NAND_QCOM_SERIAL)
+#if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 		nand_ctrl |= NANDC_READ_DELAY_COUNTER_VAL;
 #endif
 		/*
@@ -3173,7 +3173,7 @@ static int qcom_nandc_setup(struct qcom_nand_controller *nandc)
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_MTD_NAND_QCOM_SERIAL)
+#if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 static int qpic_serial_check_status(__le32 *status)
 {
 	if (*(__le32 *)status & FLASH_ERROR) {
@@ -3569,7 +3569,7 @@ static int qcom_nand_host_init(struct qcom_nand_controller *nandc,
 	/* set up initial status value */
 	host->status = NAND_STATUS_READY | NAND_STATUS_WP;
 
-#if IS_ENABLED(CONFIG_MTD_NAND_QCOM_SERIAL)
+#if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 	qcom_serial_nand_init(mtd);
 #endif
 	ret = nand_scan_ident(mtd, 1, NULL);
@@ -3580,7 +3580,7 @@ static int qcom_nand_host_init(struct qcom_nand_controller *nandc,
 	if (ret)
 		return ret;
 
-#if IS_ENABLED(CONFIG_MTD_NAND_QCOM_SERIAL)
+#if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 	ret = qcom_serial_device_config(mtd, host);
 	if (ret)
 		return ret;

@@ -207,7 +207,7 @@
 			compatible = "qcom,nss";
 			interrupts = <0 402 0x1>, <0 401 0x1>, <0 400 0x1>,
 				     <0 399 0x1>, <0 398 0x1>, <0 397 0x1>,
-				     <0 396 0x1>;
+				     <0 396 0x1>, <0 395 0x1>;
 			reg = <0x07a00000 0x100>, <0x0b111000 0x1000>;
 			reg-names = "nphys", "qgic-phys";
 			clocks = <&gcc GCC_NSS_NOC_CLK>,
@@ -242,7 +242,7 @@
 				      "nss-snoc-nssnoc-clk";
 			qcom,id = <0>;
 			qcom,num-queue = <4>;
-			qcom,num-irq = <7>;
+			qcom,num-irq = <8>;
 			qcom,num-pri = <4>;
 			qcom,load-addr = <0x40000000>;
 			qcom,low-frequency = <850000000>;
