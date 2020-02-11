@@ -452,7 +452,16 @@ static int stop_q6(const struct subsys_desc *subsys, bool force_stop)
 {
 	struct qcom_q6v5 *q6v5 = subsys_to_pdata(subsys);
 	struct rproc *rproc = q6v5->rproc;
+	struct q6v5_wcss *wcss = rproc->priv;
 	int ret = 0;
+
+	if (!subsys_get_crash_status(q6v5->subsys) && force_stop) {
+		ret = qcom_q6v5_request_stop(&wcss->q6v5);
+		if (ret == -ETIMEDOUT) {
+			dev_err(wcss->dev, "timed out on wait\n");
+			return ret;
+		}
+	}
 
 	rproc_shutdown(rproc);
 
@@ -861,12 +870,6 @@ static int q6v5_wcss_stop(struct rproc *rproc)
 
 skip_secure:
 	/* WCSS powerdown */
-	ret = qcom_q6v5_request_stop(&wcss->q6v5);
-	if (ret == -ETIMEDOUT) {
-		dev_err(wcss->dev, "timed out on wait\n");
-		return ret;
-	}
-
 	if (!pdata->is_q6v6) {
 		ret = q6v5_wcss_powerdown(wcss);
 		if (ret)
