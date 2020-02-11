@@ -1148,8 +1148,7 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 
 skip_pdata:
 	qcom_add_glink_subdev(rproc, &wcss->glink_subdev);
-	if (!of_property_read_bool(pdev->dev.of_node, "qca,no-ssr"))
-		qcom_add_ssr_subdev(rproc, &wcss->ssr_subdev, "rproc");
+	qcom_add_ssr_subdev(rproc, &wcss->ssr_subdev, "mpss");
 	platform_set_drvdata(pdev, rproc);
 
 	return 0;
