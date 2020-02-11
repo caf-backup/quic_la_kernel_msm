@@ -204,7 +204,9 @@ int mhitest_post_event(struct mhitest_platform *,
 	struct mhitest_recovery_data *, enum mhitest_event_type, u32 flags);
 struct platform_device *get_plat_device(void);
 int mhitest_store_mplat(struct mhitest_platform *);
+void mhitest_free_mplat(struct mhitest_platform *);
 int mhitest_event_work_init(struct mhitest_platform *);
+void mhitest_event_work_deinit(struct mhitest_platform *);
 int mhitest_pci_start_mhi(struct mhitest_platform *);
 void mhitest_global_soc_reset(struct mhitest_platform *);
 int mhitest_ss_powerup(const struct subsys_desc *);

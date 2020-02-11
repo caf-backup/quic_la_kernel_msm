@@ -74,8 +74,14 @@ out:
 int mhitest_ss_shutdown(const struct subsys_desc *desc, bool force_stop)
 {
 
-	pr_mhitest2("Going for shutdown...returning 1\n");
-	return 1;
+	struct mhitest_platform *mplat = (struct mhitest_platform *)desc->dev->driver_data;
+	pr_mhitest2("Going for shutdown...\n");
+
+	mhitest_pci_set_mhi_state(mplat, MHI_POWER_OFF);
+//	msleep(1000);
+	mhitest_pci_set_mhi_state(mplat, MHI_DEINIT);
+	mhitest_pci_remove_all(mplat);
+	return 0;
 }
 void mhitest_ss_crash_shutdown(const struct subsys_desc *mhitest_ss_desc)
 {
@@ -113,7 +119,6 @@ int mhitest_ss_ramdump(int enable, const struct subsys_desc *desc)
 
 int mhitest_subsystem_register(struct mhitest_platform *mplat)
 {
-#if 1
 	int ret = 1;
 	struct subsys_desc *mhitest_ss_desc;
 
@@ -135,7 +140,13 @@ int mhitest_subsystem_register(struct mhitest_platform *mplat)
 	mhitest_ss_desc->crash_shutdown = mhitest_ss_crash_shutdown;
 	mhitest_ss_desc->ramdump = mhitest_ss_ramdump;
 	mhitest_ss_desc->dev = &mplat->plat_dev->dev;
-	pr_mhitest("SS name :%s\n", mplat->mhitest_ss_desc.name);
+	if (mplat->device_id == QCA6390_DEVICE_ID)
+		snprintf(mhitest_ss_desc->fw_name, sizeof(mplat->fw_name),
+							HST_FW_FILE_NAME);
+	else
+		snprintf(mhitest_ss_desc->fw_name, sizeof(mplat->fw_name),
+							DEFAULT_FW_FILE_NAME);
+	pr_mhitest("SS name :%s and ss_desc->fw_name:%s\n", mplat->mhitest_ss_desc.name, mhitest_ss_desc->fw_name);
 	if (!mhitest_ss_desc->dev) {
 		pr_mhitest("dev is null\n");
 		ret = -ENODEV;
@@ -147,7 +158,6 @@ int mhitest_subsystem_register(struct mhitest_platform *mplat)
 			goto error;
 		}
 	}
-#if 1
 	mplat->mhitest_ss_device = subsys_register(&mplat->mhitest_ss_desc);
 		if (IS_ERR(mplat->mhitest_ss_device)) {
 			ret = PTR_ERR(mplat->mhitest_ss_device);
@@ -155,9 +165,7 @@ int mhitest_subsystem_register(struct mhitest_platform *mplat)
 		goto error;
 	}
 
-#endif
 
-#if 1
 	mplat->subsys_handle = subsystem_get(mhitest_ss_desc->name);
 	if (!mplat->subsys_handle) {
 		pr_mhitest2("Error: ss_handle NULL\n");
@@ -169,9 +177,6 @@ int mhitest_subsystem_register(struct mhitest_platform *mplat)
 		goto error;
 	}
 	pr_mhitest2("Pass SS get ss_handle:[%p]\n", mplat->subsys_handle);
-#endif
-
-#endif
 
 	return 0;
 error:
@@ -185,9 +190,13 @@ void mhitest_subsystem_unregister(struct mhitest_platform *mplat)
 		return;
 	}
 	if (!mplat->mhitest_ss_device) {
-		pr_mhitest("tnimkar-mplat->mhitest_ss_device--NULL\n");
+		pr_mhitest("mplat->mhitest_ss_device--NULL\n");
 		return;
 	}
+	if (mplat->subsys_handle)
+		subsystem_put(mplat->subsys_handle);
+	mplat->subsys_handle = NULL;
 	subsys_unregister(mplat->mhitest_ss_device);
+	mplat->mhitest_ss_device = NULL;
 }
 

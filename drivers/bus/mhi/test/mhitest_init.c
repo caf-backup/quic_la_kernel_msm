@@ -36,7 +36,7 @@ struct platform_device *get_plat_device(void)
 int mhitest_store_mplat(struct mhitest_platform *temp)
 {
 
-	if (temp->d_instance < MHI_MAX_DEVICE) {
+	if (d_instance < MHI_MAX_DEVICE) {
 		mplat_g[d_instance] = temp;
 		mplat_g[d_instance]->d_instance = d_instance;
 		pr_mhitest2("mplat_g[%d]:%p temp:%p same ? d_instance:%d\n",
@@ -46,6 +46,11 @@ int mhitest_store_mplat(struct mhitest_platform *temp)
 	}
 	pr_mhitest2("Error Max device support count exceeds ...\n");
 	return 1;
+}
+void mhitest_free_mplat(struct mhitest_platform *temp)
+{
+	pr_mhitest2("##\n");
+	devm_kfree(&temp->plat_dev->dev, temp);
 }
 
 struct mhitest_platform *get_mhitest_mplat(int id)
@@ -78,7 +83,7 @@ void mhitest_recovery_post_rddm(struct mhitest_platform *mplat)
 	msleep(10000); /*Let's wait for some time !*/
 
 	mhitest_pci_set_mhi_state(mplat, MHI_POWER_OFF);
-	msleep(1000);
+//	msleep(1000);
 	mhitest_pci_set_mhi_state(mplat, MHI_DEINIT);
 
 	pr_mhitest2("in_reset:%d - before sleep\n", in_reset);
@@ -144,8 +149,6 @@ static void mhitest_event_work(struct work_struct *work)
 		pr_mhitest2("NULL mplat\n");
 		return;
 	}
-	pr_mhitest2("tnimkar same ? mplat:%p\n", mplat);
-
 	spin_lock_irqsave(&mplat->event_lock, flags);
 	while (!list_empty(&mplat->event_list)) {
 		event = list_first_entry(&mplat->event_list,
@@ -199,13 +202,8 @@ error_pci_reg:
 void mhitest_unregister_driver(void)
 {
 	pr_mhitest2("Unregistering...\n");
-	/*
-	*TODO
-	if (!mplat) {
-		pr_mhitest2("mplat:NULL..\n");
-		return ;
-	}
-	*/
+
+	/* add driver related unregister stuffs here */
 	mhitest_pci_unregister();
 
 }
@@ -224,49 +222,20 @@ int mhitest_event_work_init(struct mhitest_platform *mplat)
 
 	return 0;
 }
-
+void mhitest_event_work_deinit(struct mhitest_platform *mplat)
+{
+	pr_mhitest2("##\n");
+	if (mplat->event_wq)
+		destroy_workqueue(mplat->event_wq);
+}
 static int mhitest_probe(struct platform_device *plat_dev)
 {
 	int ret;
 
 	pr_mhitest2("## Start\n");
-#if 0
-	struct mhitest_platform *mplat;
-	int ret = 1;
 
-	if (!plat_dev) {
-		pr_info("#--NULL %s [%d]\n", __func__, __LINE__);
-		goto fail_probe;
-	}
-	pr_mhitest2("## Start\n");
-/*
- * pr_mhitest("mplat:%p before platform probe allocation\n",mplat);
-*/
-	mplat = devm_kzalloc(&plat_dev->dev, sizeof(*mplat), GFP_KERNEL);
-	if (!mplat) {
-		pr_mhitest2("Error: not able to allocate memory ...\n");
-		ret = -ENOMEM;
-		goto fail_probe;
-	}
-	/*pr_mhitest("mplat:%p after platform probe allocation\n", mplat);*/
-	mplat->plat_dev = plat_dev;
-	platform_set_drvdata(plat_dev, mplat);
-	/*
-	*pr_info("#%s [%d] plat name :%s plat id:%d driver_override:%s\n",
-	*		_func__, __LINE__, plat_dev->name, plat_dev->id,
-	*				plat_dev->driver_override);
-	*/
-	ret = mhitest_event_work_init(mplat);
-	if (ret)
-		goto out2;
-#endif
-
-
-#if 0
-	mhitest_store_mplat(mplat);
-#endif
 	m_plat_dev = plat_dev;
-/*TODO check here for error condition?*/
+
 	ret = mhitest_register_driver();
 	if (ret) {
 		pr_mhitest2("Error..\n");
@@ -274,17 +243,15 @@ static int mhitest_probe(struct platform_device *plat_dev)
 	}
 	pr_mhitest2("## End\n");
 	return 0;
-/*
- * out2:
- * kfree(mplat);
- */
+
 fail_probe:
-	pr_mhitest2("## End Error: ret:%d\n", ret);
 	return ret;
 }
 static int mhitest_remove(struct platform_device *plat_dev)
 {
-	pr_info("#--%s [%d]\n", __func__, __LINE__);
+	pr_mhitest2("##\n");
+	mhitest_unregister_driver();
+	m_plat_dev = NULL;
 	return 0;
 }
 
@@ -317,13 +284,11 @@ int mhitest_pci_remove_all(struct mhitest_platform *mplat)
 return 0;
 }
 
-#if 1
-/* TODO : will see this needed or not ?*/
 static const struct platform_device_id test_platform_id_table[] = {
 	{ .name = "qcn90xx", .driver_data = QCN90xx_DEVICE_ID, },
 	{ .name = "qca6390", .driver_data = QCA6390_DEVICE_ID, },
 };
-#endif
+
 static const struct of_device_id test_of_match_table[] = {
 	{
 	.compatible = "qcom,testmhi",
@@ -339,21 +304,23 @@ struct platform_driver mhitest_platform_driver = {
 	.driver = {
 		.name = "mhitest",
 		.owner = THIS_MODULE,
-		.of_match_table = test_of_match_table,/*TODO: optimise this*/
+		.of_match_table = test_of_match_table,
 	},
 };
 
 int __init mhitest_init(void)
 {
 	int ret;
-
+	pr_mhitest2("Inserting--->...\n");
 	ret = platform_driver_register(&mhitest_platform_driver);
 	if (ret)
 		pr_mhitest("Error: Platform driver reg.ret:%d\n", ret);
+	pr_mhitest2("...<---done\n");
 	return ret;
 }
 void __exit mhitest_exit(void)
 {
+	pr_mhitest2("##\n");
 	platform_driver_unregister(&mhitest_platform_driver);
 }
 

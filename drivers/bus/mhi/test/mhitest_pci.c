@@ -355,11 +355,7 @@ void mhitest_mhi_notify_status(struct mhi_controller *mhi_cntrl, void *priv,
 				mhitest_get_reson_str(reason), reason);
 		return;
 	}
-#if 1
 	mhitest_sch_do_recovery(temp, reason);
-#else
-	mhitest_do_recovery(temp, reason);
-#endif
 }
 
 int mhitest_mhi_pm_runtime_get(struct mhi_controller *mhi_cntrl, void *priv)
@@ -367,14 +363,14 @@ int mhitest_mhi_pm_runtime_get(struct mhi_controller *mhi_cntrl, void *priv)
 
 	struct mhitest_platform *temp2 = (struct mhitest_platform *)priv;
 
-	pr_mhitest2("\n");
 	if (!temp2)
 		return -ENODEV;
-	/*
-	* pr_mhitest2("tnimkar  -mplat same ?:[%p]\n",
-	*		(struct mhitest_platform *)priv);
-	*/
+	if (!temp2->pci_dev)
+		return -ENODEV;
+	if (!&temp2->pci_dev->dev)
+		return -ENODEV;
 
+	pr_mhitest2("\n");
 	return pm_runtime_get(&temp2->pci_dev->dev);
 }
 
@@ -383,14 +379,14 @@ void mhitest_mhi_pm_runtime_put_noidle(struct mhi_controller *mhi_cntrl,
 {
 	struct mhitest_platform *temp2 = (struct mhitest_platform *)priv;
 
-	pr_mhitest2("\n");
 	if (!temp2)
 		return;
-	/*
-	* pr_mhitest2("tnimkar  -mplat same ?:[%p]\n",
-	*		(struct mhitest_platform *)priv);
-	*/
+	if (!temp2->pci_dev)
+		return;
+	if (!&temp2->pci_dev->dev)
+		return;
 
+	pr_mhitest2("\n");
 	pm_runtime_put_noidle(&temp2->pci_dev->dev);
 }
 
@@ -423,7 +419,7 @@ int mhitest_pci_register_mhi(struct mhitest_platform *mplat)
 		pr_mhitest2("fw_name is NULLL\n");
 		return -EINVAL;
 	}
-	pr_mhitest2("tnimkar mhi_ctrl->of_node-name;%s\n",
+	pr_mhitest2("mhi_ctrl->of_node-name;%s\n",
 						mhi_ctrl->of_node->name);
 	pr_mhitest("firmware name is :%s\n", mplat->fw_name);
 	mhi_ctrl->fw_image = mplat->fw_name;
@@ -886,7 +882,7 @@ int mhitest_pci_probe2(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	int ret;
 	struct device_node *np;
 
-	pr_mhitest2("## Start\n");
+	pr_mhitest2("Device Probe--->...\n");
 	mplat = devm_kzalloc(&plat_dev->dev, sizeof(*mplat), GFP_KERNEL);
 	if (!mplat) {
 		pr_err("Error: not able to allocate memory ...\n");
@@ -894,7 +890,6 @@ int mhitest_pci_probe2(struct pci_dev *pci_dev, const struct pci_device_id *id)
 		goto fail_probe;
 	}
 
-	/* TODO: uses this as per device*/
 	np = of_find_compatible_node(NULL, NULL, "qcom,cnss-qcn9000");
 	if (!np) {
 		pr_mhitest2("Couldn't find necessary node\n ");
@@ -925,7 +920,7 @@ int mhitest_pci_probe2(struct pci_dev *pci_dev, const struct pci_device_id *id)
 		goto error_ss_reg;
 	}
 
-	pr_mhitest2("############End returing\n");
+	pr_mhitest2("...<---done device Probe\n");
 	return 0;
 error_ss_reg:
 	mhitest_subsystem_unregister(mplat);
@@ -937,7 +932,32 @@ fail_probe:
 }
 void mhitest_pci_remove(struct pci_dev *pci_dev)
 {
-	pr_mhitest2("mhitest PCI removed\n");
+	struct mhitest_platform *mplat;
+	struct platform_device *plat_dev = get_plat_device();
+	struct device_node *np;
+	static int index = 0;
+	pr_mhitest2("mhitest PCI removing...\n");
+
+	np = of_find_compatible_node(NULL, NULL, "qcom,testmhi");
+	if (!np) {
+		pr_mhitest2("Couldn't find necessary node\n");
+		return;
+	}
+	/* Revert back */
+	plat_dev->dev.of_node = np;
+
+	mplat = get_mhitest_mplat(index++);
+/*
+	mhitest_pci_set_mhi_state(mplat, MHI_POWER_OFF);
+	msleep(1000);
+	mhitest_pci_set_mhi_state(mplat, MHI_DEINIT);
+	mhitest_pci_remove_all(mplat);
+*/
+	mhitest_subsystem_unregister(mplat);
+	mhitest_event_work_deinit(mplat);
+	pci_load_and_free_saved_state(pci_dev, &mplat->pci_dev_default_state);
+	kfree(mplat->mhi_ctrl);
+	mhitest_free_mplat(mplat);
 }
 static const struct pci_device_id mhitest_pci_id_table[] = {
 		/*
