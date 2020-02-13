@@ -19,6 +19,7 @@
 #include <dt-bindings/reset/qcom,gcc-ipq5018.h>
 #include <dt-bindings/clock/qca,apss-ipq5018.h>
 #include "qcom-ipq5018-memory.dtsi"
+#include "qcom-ipq5018-mhi.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. IPQ5018";
@@ -866,6 +867,10 @@
 
 			perst-gpio = <&tlmm 27 1>;
 			status = "disabled";
+
+			pcie0_rp: pcie0_rp {
+				reg = <0 0 0 0 0>;
+			};
 		};
 
 		pcie1: pci@a0000000 {
@@ -936,6 +941,11 @@
 				      "axi_s_sticky";
 
 			perst-gpio = <&tlmm 28 1>;
+			status = "disabled";
+		};
+
+		qcom,test@0 {
+			compatible = "qcom,testmhi";
 			status = "disabled";
 		};
 

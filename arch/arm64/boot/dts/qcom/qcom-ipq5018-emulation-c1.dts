@@ -129,6 +129,19 @@
 			local-mac-address = [000000000000];
 			phy-mode = "sgmii";
 		};
+
+		qcom,test@0 {
+			status = "ok";
+		};
+
+		pcie0_rp {
+		        status = "ok";
+
+			mhi_0: qcom,mhi@0 {
+				reg = <0 0 0 0 0 >;
+				qrtr_instance_id = <0x8001>;
+			};
+		};
 	};
 
 	psci {
