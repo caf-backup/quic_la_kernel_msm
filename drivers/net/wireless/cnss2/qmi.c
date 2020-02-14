@@ -31,7 +31,7 @@
 #define BIN_BDF_FILE_NAME		"bdwlan.bin"
 #define BIN_BDF_FILE_NAME_PREFIX	"bdwlan.b"
 #define DEFAULT_BDF_FILE_NAME		"bdwlan.bin"
-#define BDF_FILE_NAME_PREFIX		"bdwlan.b"
+#define BDF_WIN_FILE_NAME_PREFIX	"bdwlan.b"
 #define REGDB_FILE_NAME			"regdb.bin"
 #define DUMMY_BDF_FILE_NAME		"bdwlan.dmy"
 
@@ -46,10 +46,9 @@ EXPORT_SYMBOL(qmi_timeout);
 
 #define QMI_WLFW_TIMEOUT_MS		qmi_timeout
 #else
-#define QMI_WLFW_TIMEOUT_MS		5000
+#define QMI_WLFW_TIMEOUT_MS		(plat_priv->ctrl_params.qmi_timeout)
 #endif
 
-#define QMI_WLFW_TIMEOUT_MS		(plat_priv->ctrl_params.qmi_timeout)
 #define QMI_WLFW_TIMEOUT_JF		msecs_to_jiffies(QMI_WLFW_TIMEOUT_MS)
 #define COEX_TIMEOUT			QMI_WLFW_TIMEOUT_JF
 #define IMS_TIMEOUT                     QMI_WLFW_TIMEOUT_JF
@@ -71,8 +70,8 @@ unsigned int qca8074_fw_mem_mode = 0xFF;
 module_param(qca8074_fw_mem_mode, uint, 0600);
 MODULE_PARM_DESC(qca8074_fw_mem_mode, "qca8074_fw_mem_mode");
 
-static bool bdf_bypass = true;
 #ifdef CONFIG_CNSS2_DEBUG
+static bool bdf_bypass = true;
 module_param(bdf_bypass, bool, 0600);
 MODULE_PARM_DESC(bdf_bypass, "If BDF is not found, send dummy BDF to FW");
 #endif
@@ -588,7 +587,7 @@ int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 					 "%s" DEFAULT_BDF_FILE_NAME, folder);
 			} else if (board_id == 0xFF) {
 				snprintf(filename, sizeof(filename),
-					 "%s" BDF_FILE_NAME_PREFIX "%02x",
+					 "%s" BDF_WIN_FILE_NAME_PREFIX "%02x",
 					 folder,
 					 plat_priv->board_info.board_id);
 			} else {
@@ -599,7 +598,7 @@ int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 					plat_priv->board_info.board_id);
 
 				snprintf(filename, sizeof(filename),
-					 "%s" BDF_FILE_NAME_PREFIX "%02x",
+					 "%s" BDF_WIN_FILE_NAME_PREFIX "%02x",
 					 folder, board_id);
 			}
 		} else {
@@ -609,7 +608,7 @@ int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 					 "%s" DEFAULT_BDF_FILE_NAME, folder);
 			else
 				snprintf(filename, sizeof(filename),
-					 "%s" BDF_FILE_NAME_PREFIX "%02x",
+					 "%s" BDF_WIN_FILE_NAME_PREFIX "%02x",
 					 folder,
 					 plat_priv->board_info.board_id);
 		}
@@ -747,14 +746,14 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv,
 		if (plat_priv->device_id == QCN9000_DEVICE_ID &&
 		    plat_priv->board_info.board_id_override)
 			snprintf(filename, sizeof(filename),
-				 "%s" BDF_FILE_NAME_PREFIX "%02x", folder,
+				 "%s" BDF_WIN_FILE_NAME_PREFIX "%02x", folder,
 				 plat_priv->board_info.board_id_override);
 		else if (plat_priv->board_info.board_id == 0xFF)
 			snprintf(filename, sizeof(filename),
 				 "%s" DEFAULT_BDF_FILE_NAME, folder);
 		else
 			snprintf(filename, sizeof(filename),
-				 "%s" BDF_FILE_NAME_PREFIX "%02x", folder,
+				 "%s" BDF_WIN_FILE_NAME_PREFIX "%02x", folder,
 				 plat_priv->board_info.board_id);
 
 		if (plat_priv->device_id == QCA8074_DEVICE_ID ||
@@ -1427,7 +1426,6 @@ int cnss_wlfw_antenna_switch_send_sync(struct cnss_plat_data *plat_priv)
 	struct qmi_txn txn;
 	int ret = 0;
 	int resp_error_msg = 0;
-	int i;
 
 	if (!plat_priv)
 		return -ENODEV;
@@ -1654,6 +1652,7 @@ out:
 	return ret;
 }
 
+#ifdef CNSS2_IMS
 static int cnss_wlfw_wfc_call_status_send_sync(struct cnss_plat_data *plat_priv,
 					       u32 data_len, const void *data)
 {
@@ -1720,6 +1719,7 @@ out:
 	kfree(resp);
 	return ret;
 }
+#endif
 
 int cnss_wlfw_dynamic_feature_mask_send_sync(struct cnss_plat_data *plat_priv)
 {

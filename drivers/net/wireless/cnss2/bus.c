@@ -276,8 +276,9 @@ int cnss_bus_force_fw_assert_hdlr(struct cnss_plat_data *plat_priv)
 	}
 }
 
-void cnss_bus_fw_boot_timeout_hdlr(struct timer_list *t)
+void cnss_bus_fw_boot_timeout_hdlr(unsigned long data)
 {
+	struct timer_list *t = (void *)data;
 	struct cnss_plat_data *plat_priv =
 		container_of(t, struct cnss_plat_data, fw_boot_timer);
 	if (!plat_priv)
@@ -285,13 +286,13 @@ void cnss_bus_fw_boot_timeout_hdlr(struct timer_list *t)
 
 	switch (plat_priv->bus_type) {
 	case CNSS_BUS_PCI:
-		return cnss_pci_fw_boot_timeout_hdlr(plat_priv->bus_priv);
+		cnss_pci_fw_boot_timeout_hdlr(plat_priv->bus_priv);
+		break;
 	case CNSS_BUS_AHB:
-		return 0;
+		break;
 	default:
 		cnss_pr_err("Unsupported bus type: %d\n",
 			    plat_priv->bus_type);
-		return;
 	}
 }
 

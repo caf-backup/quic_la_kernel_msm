@@ -203,15 +203,12 @@ void cnss_pci_free_qdss_mem(struct cnss_pci_data *pci_priv);
 int cnss_pci_load_m3(struct cnss_pci_data *pci_priv);
 int cnss_pci_get_bar_info(struct cnss_pci_data *pci_priv, void __iomem **va,
 			  phys_addr_t *pa);
-static int cnss_pci_set_mhi_state(struct cnss_pci_data *pci_priv,
-				  enum cnss_mhi_state state);
 int cnss_pci_start_mhi(struct cnss_pci_data *pci_priv);
 void cnss_pci_stop_mhi(struct cnss_pci_data *pci_priv);
 void cnss_pci_collect_dump_info(struct cnss_pci_data *pci_priv, bool in_panic);
 void cnss_pci_clear_dump_info(struct cnss_pci_data *pci_priv);
 int cnss_pm_request_resume(struct cnss_pci_data *pci_priv);
 void cnss_pci_remove(struct pci_dev *pci_dev);
-static void cnss_pci_disable_msi(struct cnss_pci_data *pci_priv);
 int cnss_pci_probe(struct pci_dev *pci_dev,
 		   const struct pci_device_id *id,
 		   struct cnss_plat_data *plat_priv);

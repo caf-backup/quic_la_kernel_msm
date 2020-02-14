@@ -337,8 +337,9 @@ MODULE_PARM_DESC(pci_link_down_panic,
 		 "Trigger kernel panic when PCI link down is detected");
 
 struct paging_header hdr;
-static bool fbc_bypass;
+
 #ifdef CONFIG_CNSS2_DEBUG
+static bool fbc_bypass;
 module_param(fbc_bypass, bool, 0600);
 MODULE_PARM_DESC(fbc_bypass,
 		 "Bypass firmware download when loading WLAN driver");
@@ -362,6 +363,7 @@ void cnss_pcie_remove_bus(void)
 }
 EXPORT_SYMBOL(cnss_pcie_remove_bus);
 
+#ifdef CONFIG_PCI_SUSPENDRESUME
 static int cnss_set_pci_config_space(struct cnss_pci_data *pci_priv, bool save)
 {
 	struct pci_dev *pci_dev = pci_priv->pci_dev;
@@ -394,6 +396,7 @@ static int cnss_set_pci_config_space(struct cnss_pci_data *pci_priv, bool save)
 
 	return 0;
 }
+#endif
 
 static int cnss_pci_get_link_status(struct cnss_pci_data *pci_priv)
 {
@@ -418,10 +421,10 @@ static int cnss_pci_get_link_status(struct cnss_pci_data *pci_priv)
 	return 0;
 }
 
+#ifdef CONFIG_PCI_MSM
 static int cnss_set_pci_link_status(struct cnss_pci_data *pci_priv,
 				    enum pci_link_status status)
 {
-#ifdef CONFIG_PCI_MSM
 	u16 link_speed, link_width;
 	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
 
@@ -451,10 +454,10 @@ static int cnss_set_pci_link_status(struct cnss_pci_data *pci_priv,
 
 	return msm_pcie_set_link_bandwidth(pci_priv->pci_dev,
 					   link_speed, link_width);
-#endif
-	return 0;
 }
+#endif
 
+#ifdef CONFIG_PCI_SUSPENDRESUME
 static int cnss_set_pci_link(struct cnss_pci_data *pci_priv, bool link_up)
 {
 #ifdef CONFIG_PCI_MSM
@@ -490,6 +493,7 @@ static int cnss_set_pci_link(struct cnss_pci_data *pci_priv, bool link_up)
 
 	return 0;
 }
+#endif
 
 int cnss_suspend_pci_link(struct cnss_pci_data *pci_priv)
 {
@@ -936,7 +940,8 @@ static int cnss_pci_update_timestamp(struct cnss_pci_data *pci_priv)
 		goto force_wake_put;
 
 	if (host_time_us < device_time_us) {
-		cnss_pr_err("Host time (%llu us) is smaller than device time (%llu us), stop\n");
+		cnss_pr_err("Host time (%llu us) is smaller than device time (%llu us), stop\n",
+			    host_time_us, device_time_us);
 		ret = -EINVAL;
 		goto force_wake_put;
 	}
@@ -1363,10 +1368,6 @@ static int cnss_qcn9000_powerup(struct cnss_pci_data *pci_priv)
 
 	return 0;
 
-stop_mhi:
-	cnss_pci_power_off_mhi(pci_priv);
-	cnss_suspend_pci_link(pci_priv);
-	cnss_pci_deinit_mhi(pci_priv);
 power_off:
 	cnss_power_off_device(plat_priv, 0);
 out:
@@ -1416,7 +1417,6 @@ static int cnss_qcn9000_shutdown(struct cnss_pci_data *pci_priv)
 	cnss_pci_remove(plat_priv->pci_dev);
 	plat_priv->driver_state = 0;
 
-out:
 	return ret;
 }
 
@@ -1713,6 +1713,7 @@ int cnss_pci_unregister_driver_hdlr(struct cnss_pci_data *pci_priv)
 	return 0;
 }
 
+#ifdef CONFIG_PCI_MSM
 static bool cnss_pci_is_drv_supported(struct cnss_pci_data *pci_priv)
 {
 	struct pci_dev *root_port = pci_find_pcie_root_port(pci_priv->pci_dev);
@@ -1730,7 +1731,6 @@ static bool cnss_pci_is_drv_supported(struct cnss_pci_data *pci_priv)
 	return drv_supported;
 }
 
-#ifdef CONFIG_PCI_MSM
 static void cnss_pci_event_cb(struct msm_pcie_notify *notify)
 {
 	unsigned long flags;
@@ -2436,7 +2436,6 @@ EXPORT_SYMBOL(cnss_pci_force_wake_release);
 
 int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 {
-	struct cnss_pci_data *pci_priv = plat_priv->bus_priv;
 	struct cnss_fw_mem *fw_mem = plat_priv->fw_mem;
 	unsigned int bdf_location[3], caldb_location[3];
 	u32 addr = 0;
@@ -2444,6 +2443,9 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 	int i, idx, mode;
 	struct device_node *dev_node = NULL;
 	struct resource m3_dump;
+#ifdef CONFIG_CNSS2_SMMU
+	struct cnss_pci_data *pci_priv = plat_priv->bus_priv;
+#endif
 
 	dev = &plat_priv->plat_dev->dev;
 
@@ -2576,7 +2578,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 				}
 				if (fw_mem[i].size > resource_size(&m3_dump)) {
 					pr_err("Error: Need more memory %x\n",
-					       fw_mem[idx].size);
+					       (unsigned int)fw_mem[idx].size);
 					CNSS_ASSERT(0);
 				}
 				fw_mem[idx].size = fw_mem[i].size;
@@ -2878,12 +2880,12 @@ static int cnss_pci_init_smmu(struct cnss_pci_data *pci_priv)
 }
 #endif
 
+#ifdef CONFIG_CNSS2_SMMU
 static void cnss_pci_deinit_smmu(struct cnss_pci_data *pci_priv)
 {
-#ifdef CONFIG_CNSS2_SMMU
 	pci_priv->iommu_domain = NULL;
-#endif
 }
+#endif
 
 struct iommu_domain *cnss_smmu_get_domain(struct device *dev)
 {
@@ -3089,8 +3091,6 @@ EXPORT_SYMBOL(cnss_get_user_msi_assignment);
 int cnss_get_msi_irq(struct device *dev, unsigned int vector)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
-	struct cnss_pci_data *pci_priv = cnss_get_pci_priv(to_pci_dev(dev));
-	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
 	int irq_num;
 
 	irq_num = pci_irq_vector(pci_dev, vector);
@@ -3458,11 +3458,11 @@ static char *cnss_mhi_notify_status_to_str(enum MHI_CB status)
 	}
 };
 
-static void cnss_dev_rddm_timeout_hdlr(struct timer_list *t)
+static void cnss_dev_rddm_timeout_hdlr(unsigned long data)
 {
+	struct timer_list *t = (void *)data;
 	struct cnss_pci_data *pci_priv =
 		container_of(t, struct cnss_pci_data, dev_rddm_timer);
-	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
 
 	if (!pci_priv)
 		return;

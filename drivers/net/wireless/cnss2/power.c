@@ -493,6 +493,7 @@ out:
 	return ret;
 }
 
+#ifdef CONFIG_CNSS2_PM
 static int cnss_select_pinctrl_state(struct cnss_plat_data *plat_priv,
 				     bool state)
 {
@@ -536,6 +537,7 @@ static int cnss_select_pinctrl_state(struct cnss_plat_data *plat_priv,
 out:
 	return ret;
 }
+#endif
 
 int cnss_power_on_device(struct cnss_plat_data *plat_priv, int device_id)
 {
@@ -557,6 +559,8 @@ int cnss_power_on_device(struct cnss_plat_data *plat_priv, int device_id)
 	}
 
 	return ret;
+#else
+	return 0;
 #endif
 }
 EXPORT_SYMBOL(cnss_power_on_device);
@@ -580,6 +584,8 @@ int cnss_power_off_device(struct cnss_plat_data *plat_priv, int device_id)
 		cnss_pr_err("Failed to select pinctrl state, err = %d\n", ret);
 
 	return ret;
+#else
+	return 0;
 #endif
 }
 EXPORT_SYMBOL(cnss_power_off_device);

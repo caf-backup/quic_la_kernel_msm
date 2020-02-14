@@ -963,7 +963,7 @@ EXPORT_SYMBOL(cnss_idle_shutdown);
 
 static int cnss_get_resources(struct cnss_plat_data *plat_priv)
 {
-#if CNSS2_NOCLOCK
+#ifdef CNSS2_NOCLOCK
 	int ret;
 
 	ret = cnss_get_vreg_type(plat_priv, CNSS_VREG_PRIM);
@@ -998,7 +998,7 @@ out:
 
 static void cnss_put_resources(struct cnss_plat_data *plat_priv)
 {
-#if CNSS2_NOCLOCK
+#ifdef CNSS2_NOCLOCK
 	cnss_put_clk(plat_priv);
 	cnss_put_vreg_type(plat_priv, CNSS_VREG_PRIM);
 #endif
@@ -1555,7 +1555,6 @@ static int cnss_subsys_powerup(const struct subsys_desc *subsys_desc)
 static int cnss_subsys_shutdown(const struct subsys_desc *subsys_desc,
 				bool force_stop)
 {
-	int ret = 0;
 	struct cnss_plat_data *plat_priv;
 
 	if (!subsys_desc->dev) {
@@ -1658,7 +1657,6 @@ static int cnss_do_recovery(struct cnss_plat_data *plat_priv,
 {
 	struct cnss_subsys_info *subsys_info =
 		&plat_priv->subsys_info;
-	struct cnss_pci_data *pci_priv = plat_priv->bus_priv;
 
 	plat_priv->recovery_count++;
 
@@ -1723,7 +1721,7 @@ static int cnss_driver_recovery_hdlr(struct cnss_plat_data *plat_priv,
 	}
 
 	if (test_bit(CNSS_DRIVER_RECOVERY, &plat_priv->driver_state)) {
-		cnss_pr_err("Recovery is already in progress, state 0x%x\n",
+		cnss_pr_err("Recovery is already in progress, state 0x%lx\n",
 			    plat_priv->driver_state);
 		ret = -EINVAL;
 		goto out;
@@ -1938,7 +1936,6 @@ out:
 
 static int cnss_power_up_hdlr(struct cnss_plat_data *plat_priv)
 {
-	struct cnss_subsys_info *subsys_info = &plat_priv->subsys_info;
 	int ret;
 
 	ret = cnss_bus_dev_powerup(plat_priv);
@@ -2803,9 +2800,6 @@ static int cnss_event_work_init(struct cnss_plat_data *plat_priv)
 	INIT_LIST_HEAD(&plat_priv->event_list);
 
 	return 0;
-free_wq:
-	destroy_workqueue(plat_priv->event_wq);
-	return -EFAULT;
 }
 
 static void cnss_event_work_deinit(struct cnss_plat_data *plat_priv)
@@ -2920,7 +2914,7 @@ static int cnss_set_device_name(struct cnss_plat_data *plat_priv)
 			 "QCA5018");
 		break;
 	default:
-		cnss_pr_err("No such device id %p\n", plat_priv->device_id);
+		cnss_pr_err("No such device id 0x%lx\n", plat_priv->device_id);
 		return -ENODEV;
 	}
 
@@ -3101,7 +3095,7 @@ skip_soc_version_checks:
 	if (ret < 0)
 		cnss_pr_err("CNSS genl init failed %d\n", ret);
 
-	cnss_pr_info("Platform driver probed successfully. plat %p tgt 0x%x\n",
+	cnss_pr_info("Platform driver probed successfully. plat %p tgt 0x%lx\n",
 		     plat_priv, plat_priv->device_id);
 
 	return 0;
@@ -3123,7 +3117,6 @@ deinit_bus:
 #endif
 	if (!test_bit(SKIP_DEVICE_BOOT, &plat_priv->ctrl_params.quirks))
 		cnss_bus_deinit(plat_priv);
-power_off:
 	if (!test_bit(SKIP_DEVICE_BOOT, &plat_priv->ctrl_params.quirks))
 		cnss_power_off_device(plat_priv, plat_priv->device_id);
 free_res:
