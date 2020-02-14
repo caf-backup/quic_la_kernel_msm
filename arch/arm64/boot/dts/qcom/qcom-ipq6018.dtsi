@@ -1512,7 +1512,6 @@
 					<0x4ab000 0x20>;
 			reg-names = "qdsp6",
 						"rmb";
-			qca,no-ssr;
 			qca,auto-restart;
 			qca,extended-intc;
 			qcom,wcss-aon-reset-quirk;
