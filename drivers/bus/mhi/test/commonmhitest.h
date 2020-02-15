@@ -76,6 +76,7 @@
 #define QCA8074_DEVICE_ID               0xFFFF
 #define QCA8074V2_DEVICE_ID             0xFFFE
 #define QCA6018_DEVICE_ID               0xFFFD
+#define QCA5018_DEVICE_ID               0xFFFC
 
 #define PCI_LINK_UP                     1
 #define PCI_LINK_DOWN                   0
