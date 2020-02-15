@@ -61,7 +61,7 @@
 #define Q6SS_BHS_ON		BIT(24)
 #define Q6SS_CLAMP_WL		BIT(21)
 #define Q6SS_CLAMP_QMC_MEM		BIT(22)
-#define HALT_CHECK_MAX_LOOPS		200
+#define Q6SS_TIMEOUT_US		1000
 #define Q6SS_XO_CBCR		GENMASK(5, 3)
 
 /* Q6SS config/status registers */
@@ -493,7 +493,7 @@ static int q6v5_wcss_reset(struct q6v5_wcss *wcss)
 	/* Read CLKOFF bit to go low indicating CLK is enabled */
 	ret = readl_poll_timeout(wcss->reg_base + Q6SS_XO_CBCR,
 				 val, !(val & BIT(31)), 1,
-				 HALT_CHECK_MAX_LOOPS);
+				 Q6SS_TIMEOUT_US);
 	if (ret) {
 		dev_err(wcss->dev,
 			"xo cbcr enabling timed out (rc:%d)\n", ret);
@@ -559,7 +559,8 @@ static int q6v5_wcss_reset(struct q6v5_wcss *wcss)
 		/* Wait for SSCAON_STATUS */
 		val = readl(wcss->rmb_base + SSCAON_STATUS);
 		ret = readl_poll_timeout(wcss->rmb_base + SSCAON_STATUS,
-			val, (val & 0xffff) == 0x10, 1000, HALT_CHECK_MAX_LOOPS);
+					 val, (val & 0xffff) == 0x10, 1000,
+					 Q6SS_TIMEOUT_US * 1000);
 		if (ret) {
 			dev_err(wcss->dev, " Boot Error, SSCAON=0x%08X\n", val);
 			return ret;
@@ -740,7 +741,7 @@ static int q6v5_wcss_powerdown(struct q6v5_wcss *wcss)
 	/* 5 - wait for SSCAON_STATUS */
 	ret = readl_poll_timeout(wcss->rmb_base + SSCAON_STATUS,
 				 val, (val & 0xffff) == 0x400, 1000,
-				 HALT_CHECK_MAX_LOOPS);
+				 Q6SS_TIMEOUT_US * 10);
 	if (ret) {
 		dev_err(wcss->dev,
 			"can't get SSCAON_STATUS rc:%d)\n", ret);
@@ -825,7 +826,7 @@ static int q6v5_q6_powerdown(struct q6v5_wcss *wcss)
 	/* 10 - Wait till BHS Reset is done */
 	ret = readl_poll_timeout(wcss->reg_base + Q6SS_BHS_STATUS,
 				 val, !(val & BHS_EN_REST_ACK), 1000,
-				 HALT_CHECK_MAX_LOOPS);
+				 Q6SS_TIMEOUT_US * 10);
 	if (ret) {
 		dev_err(wcss->dev, "BHS_STATUS not OFF (rc:%d)\n", ret);
 		return ret;
