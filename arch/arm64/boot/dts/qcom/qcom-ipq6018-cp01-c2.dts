@@ -251,3 +251,11 @@
 	pinctrl-0 = <&i2c_1_pins>;
 	pinctrl-names = "default";
 };
+
+&gadget_diag {
+	status = "ok";
+};
+
+&dwc_0 {
+	dr_mode = "peripheral";
+};
