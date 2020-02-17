@@ -175,7 +175,60 @@
 #define SPI_FLASH_MICRON_ID		0x2c
 #define SPI_FLASH_GIGA_ID		0xc8
 #define QPIC_VERSION_V2_0		0x2
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+/* Auto status enable for all the 6 status register
+ * for now we are only using 3 status register
+ * so enable auto status only for these three register
+ */
+#define QPIC_AUTO_STATUS_EN_MASK	0x000B000B
+#define QPIC_PAGE_SCOPE_CMD_EN		(1 << 23)
+#define QPIC_MULTI_PAGE_CMD_EN		(1 << 22)
+#define QPIC_PAGE_SCOPE			(1 << 0)
+#define QPIC_MULTI_PAGE			(1 << 1)
+#define PAGE_SCOPE_MULTI_PAGE_CMD_EXE	(1 << 2)
+#define PAGE_SCOPE_MULTI_PAGE_STATUS_DESC (1 << 3)
 
+#define MAX_STATUS_REG			12
+#define PAGE_2KiB_STATUS_BUF_SIZE	48
+#define PAGE_4KiB_STATUS_BUF_SIZE	96
+#define PAGE_8KiB_STATUS_BUF_SIZE	192
+#define PAGE_2KiB			2048
+#define PAGE_4KiB			4096
+#define PAGE_8KiB			8192
+#define GET_STATUS_BUFF_PARSE_SIZE_PER_PAGE(page_size, parse_size) ({	\
+		switch(page_size) {					\
+			case PAGE_2KiB:					\
+				parse_size = PAGE_2KiB_STATUS_BUF_SIZE;	\
+				break;					\
+			case PAGE_4KiB:					\
+				parse_size = PAGE_4KiB_STATUS_BUF_SIZE;	\
+				break;					\
+			case PAGE_8KiB:					\
+				parse_size = PAGE_8KiB_STATUS_BUF_SIZE;	\
+				break;					\
+			default:					\
+				break;					\
+		}							\
+	})
+#define GET_STATUS_BUFF_ALLOC_SIZE(page_size, status_buf_size) ({	\
+		switch(page_size) {					\
+			case PAGE_2KiB:					\
+				status_buf_size = PAGE_2KiB_STATUS_BUF_SIZE * \
+							MAX_MULTI_PAGE;	\
+				break;					\
+			case PAGE_4KiB:					\
+				status_buf_size = PAGE_4KiB_STATUS_BUF_SIZE * \
+							MAX_MULTI_PAGE;	\
+				break;					\
+			case PAGE_8KiB:					\
+				status_buf_size = PAGE_8KiB_STATUS_BUF_SIZE * \
+							MAX_MULTI_PAGE;	\
+				break;					\
+			default:					\
+				break;					\
+		}							\
+	})
+#endif
 #define UD_SIZE_BYTES_MASK	(0x3ff << UD_SIZE_BYTES)
 #define SPARE_SIZE_BYTES_MASK	(0xf << SPARE_SIZE_BYTES)
 #define ECC_NUM_DATA_BYTES_MASK	(0x3ff << ECC_NUM_DATA_BYTES)
@@ -227,8 +280,21 @@
 #define BAM_CMD_ELEMENT_SIZE	(256)
 /* command sgl size in bam transaction */
 #define BAM_CMD_SGL_SIZE	(256)
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+/* for 4KiB page and 8KiB page the total no of
+ * code word will be more so change value 5 & 4
+ * as well
+ *
+ * data sgl size in bam transaction */
+#define BAM_DATA_SGL_SIZE	(10 * MAX_MULTI_PAGE)
+/* status sgl size in bam transaction */
+#define BAM_STATUS_SGL_SIZE	(8 * MAX_MULTI_PAGE)
+#else
 /* data sgl size in bam transaction */
 #define BAM_DATA_SGL_SIZE	(128)
+/* status sgl size in bam transaction */
+#define BAM_STATUS_SGL_SIZE	(128)
+#endif
 
 #define QPIC_NAND_COMPLETION_TIMEOUT	msecs_to_jiffies(1000)
 
@@ -245,6 +311,7 @@ enum {
 	NAND_DEV0_CFG1,
 	NAND_DEV0_ECC_CFG,
 	NAND_DEV1_ECC_CFG,
+	NAND_AUTO_STATUS_EN,
 	NAND_DEV1_CFG0,
 	NAND_DEV1_CFG1,
 	NAND_READ_ID,
@@ -272,6 +339,7 @@ enum {
 	NAND_READ_LOCATION_LAST_CW_1,
 	NAND_READ_LOCATION_LAST_CW_2,
 	NAND_READ_LOCATION_LAST_CW_3,
+	NAND_MULTI_PAGE_CMD,
 #if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 	NAND_FLASH_XFR_STEP1,
 	NAND_FLASH_XFR_STEP2,
@@ -281,7 +349,6 @@ enum {
 	NAND_FLASH_XFR_STEP6,
 	NAND_FLASH_XFR_STEP7,
 	NAND_FLASH_FEATURES,
-	NAND_AUTO_STATUS_EN,
 	NAND_DEV_CMD7,
 	NAND_DEV_CMD8,
 	NAND_DEV_CMD9,
@@ -325,11 +392,17 @@ struct bam_transaction {
 	struct qcom_bam_sgl cmd_sgl[BAM_CMD_SGL_SIZE];
 	struct qcom_bam_sgl tx_sgl[BAM_DATA_SGL_SIZE];
 	struct qcom_bam_sgl rx_sgl[BAM_DATA_SGL_SIZE];
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+	struct qcom_bam_sgl status_sgl[BAM_DATA_SGL_SIZE];
+#endif
 	uint32_t bam_ce_index;
 	uint32_t pre_bam_ce_index;
 	uint32_t cmd_sgl_cnt;
 	uint32_t tx_sgl_cnt;
 	uint32_t rx_sgl_cnt;
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+	uint32_t status_sgl_cnt;
+#endif
 	uint32_t chans_cnt;
 	uint32_t completed_chans;
 	struct completion txn_done;
@@ -366,7 +439,9 @@ struct nandc_regs {
 	__le32 cfg0;
 	__le32 cfg1;
 	__le32 ecc_bch_cfg;
-
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+	__le32 auto_status_en;
+#endif
 	__le32 clrflashstatus;
 	__le32 clrreadstatus;
 
@@ -381,6 +456,9 @@ struct nandc_regs {
 	__le32 read_location1;
 	__le32 read_location2;
 	__le32 read_location3;
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+	__le32 multi_page_cmd;
+#endif
 #if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 	__le32 read_location_last0;
 	__le32 read_location_last1;
@@ -449,6 +527,9 @@ struct qcom_nand_controller {
 			struct dma_chan *tx_chan;
 			struct dma_chan *rx_chan;
 			struct dma_chan *cmd_chan;
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+			struct dma_chan *status_chan;
+#endif
 		};
 		struct {
 			struct dma_chan *chan;
@@ -461,6 +542,11 @@ struct qcom_nand_controller {
 	struct bam_transaction *bam_txn;
 
 	u8		*data_buffer;
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+	u8		*status_buf;
+	int		ps_mp_flag;
+	int		status_buf_size;
+#endif
 	bool		dma_bam_enabled;
 	bool		create_sys_boot_layout;
 	bool		boot_layout;
@@ -642,6 +728,9 @@ u32 regs_offsets_v2_1_1[] = {
 	[NAND_DEV0_CFG1] = 0x24,
 	[NAND_DEV0_ECC_CFG] = 0x28,
 	[NAND_DEV1_ECC_CFG] = 0x602c,
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+	[NAND_AUTO_STATUS_EN] = 0x2c,
+#endif
 	[NAND_DEV1_CFG0] = 0x30,
 	[NAND_READ_ID] = 0x40,
 	[NAND_READ_STATUS] = 0x44,
@@ -661,6 +750,9 @@ u32 regs_offsets_v2_1_1[] = {
 	[NAND_READ_LOCATION_3] = 0xf2c,
 	[NAND_DEV_CMD1_RESTORE] = 0xdead,
 	[NAND_DEV_CMD_VLD_RESTORE] = 0xbeef,
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+	[NAND_MULTI_PAGE_CMD] = 0x0f60,
+#endif
 #if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 	[NAND_FLASH_XFR_STEP1] = 0x7070,
 	[NAND_FLASH_XFR_STEP2] = 0x7074,
@@ -670,7 +762,6 @@ u32 regs_offsets_v2_1_1[] = {
 	[NAND_FLASH_XFR_STEP6] = 0x7084,
 	[NAND_FLASH_XFR_STEP7] = 0x7088,
 	[NAND_FLASH_FEATURES] = 0x0F64,
-	[NAND_AUTO_STATUS_EN] = 0x2c,
 	[NAND_DEV_CMD7] = 0x70b0,
 	[NAND_DEV_CMD8] = 0x70b4,
 	[NAND_DEV_CMD9] = 0x70b8,
@@ -700,6 +791,9 @@ struct bam_transaction *alloc_bam_transaction(
 	qcom_bam_sg_init_table(bam_txn->cmd_sgl, BAM_CMD_SGL_SIZE);
 	qcom_bam_sg_init_table(bam_txn->tx_sgl, BAM_DATA_SGL_SIZE);
 	qcom_bam_sg_init_table(bam_txn->rx_sgl, BAM_DATA_SGL_SIZE);
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+	qcom_bam_sg_init_table(bam_txn->status_sgl, BAM_STATUS_SGL_SIZE);
+#endif
 
 	/* command channel will be always used so initialize with 1 */
 	bam_txn->chans_cnt = 1;
@@ -721,6 +815,9 @@ void clear_bam_transaction(struct qcom_nand_controller *nandc)
 	bam_txn->cmd_sgl_cnt = 0;
 	bam_txn->tx_sgl_cnt = 0;
 	bam_txn->rx_sgl_cnt = 0;
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+	bam_txn->status_sgl_cnt = 0;
+#endif
 	/* command channel will be always used so initialize with 1 */
 	bam_txn->chans_cnt = 1;
 	bam_txn->completed_chans = 0;
@@ -787,6 +884,10 @@ static __le32 *offset_to_nandc_reg(struct nandc_regs *regs, int offset)
 		return &regs->cfg1;
 	case NAND_DEV0_ECC_CFG:
 		return &regs->ecc_bch_cfg;
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+	case NAND_AUTO_STATUS_EN:
+		return &regs->auto_status_en;
+#endif
 	case NAND_READ_STATUS:
 		return &regs->clrreadstatus;
 	case NAND_DEV_CMD1:
@@ -809,6 +910,10 @@ static __le32 *offset_to_nandc_reg(struct nandc_regs *regs, int offset)
 		return &regs->read_location2;
 	case NAND_READ_LOCATION_3:
 		return &regs->read_location3;
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+	case NAND_MULTI_PAGE_CMD:
+		return &regs->multi_page_cmd;
+#endif
 #if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 	case NAND_READ_LOCATION_LAST_CW_0:
 		return &regs->read_location_last0;
@@ -879,6 +984,16 @@ static void update_rw_regs(struct qcom_nand_host *host, int num_cw, bool read)
 	cmd |= QPIC_SPI_WP | QPIC_SPI_HOLD;
 #endif
 	if (read) {
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+		if ((nandc->ps_mp_flag & QPIC_PAGE_SCOPE)) {
+			cmd |= QPIC_PAGE_SCOPE_CMD_EN;
+			cmd &= ~QPIC_MULTI_PAGE_CMD_EN;
+		}
+		if ((nandc->ps_mp_flag & QPIC_MULTI_PAGE)) {
+			cmd |= QPIC_MULTI_PAGE_CMD_EN;
+			cmd &= ~QPIC_PAGE_SCOPE_CMD_EN;
+		}
+#endif
 		if (host->use_ecc) {
 			cmd |= PAGE_READ_WITH_ECC;
 		} else {
@@ -928,6 +1043,13 @@ static void update_rw_regs(struct qcom_nand_host *host, int num_cw, bool read)
 	nandc_set_reg(nandc, NAND_DEV0_CFG0, cfg0);
 	nandc_set_reg(nandc, NAND_DEV0_CFG1, cfg1);
 	nandc_set_reg(nandc, NAND_DEV0_ECC_CFG, ecc_bch_cfg);
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+	if (nandc->ps_mp_flag & QPIC_PAGE_SCOPE ||
+		nandc->ps_mp_flag & QPIC_MULTI_PAGE) {
+			nandc_set_reg(nandc, NAND_AUTO_STATUS_EN,
+		QPIC_AUTO_STATUS_EN_MASK);
+	}
+#endif
 	nandc_set_reg(nandc, NAND_EBI2_ECC_BUF_CFG, host->ecc_buf_cfg);
 	nandc_set_reg(nandc, NAND_FLASH_STATUS, host->clrflashstatus);
 	nandc_set_reg(nandc, NAND_READ_STATUS, host->clrreadstatus);
@@ -1019,6 +1141,7 @@ static int prep_dma_desc_data_bam(struct qcom_nand_controller *nandc, bool read,
 				vaddr, size);
 		bam_txn->rx_sgl[bam_txn->rx_sgl_cnt].dma_flags = 0;
 		bam_txn->rx_sgl_cnt++;
+
 	} else {
 		sg_set_buf(&bam_txn->tx_sgl[bam_txn->tx_sgl_cnt].sgl,
 				vaddr, size);
@@ -1235,7 +1358,8 @@ static int write_data_dma(struct qcom_nand_controller *nandc, int reg_off,
  * helper to prepare dma descriptors to configure registers needed for reading a
  * codeword/step in a page
  */
-static void config_cw_read(struct qcom_nand_controller *nandc, bool use_ecc)
+static void config_cw_read(struct qcom_nand_host *host,
+		struct qcom_nand_controller *nandc, bool use_ecc)
 {
 	write_reg_dma(nandc, NAND_FLASH_CMD, 3, 0);
 	write_reg_dma(nandc, NAND_DEV0_CFG0, 3, 0);
@@ -1244,10 +1368,14 @@ static void config_cw_read(struct qcom_nand_controller *nandc, bool use_ecc)
 	write_reg_dma(nandc, NAND_ERASED_CW_DETECT_CFG, 1, 0);
 	write_reg_dma(nandc, NAND_ERASED_CW_DETECT_CFG, 1,
 				DMA_DESC_ERASED_CW_SET);
-	if (nandc->dma_bam_enabled)
-		write_reg_dma(nandc, NAND_READ_LOCATION_0, 1,
-				DMA_DESC_FLAG_BAM_NEXT_SGL);
-
+	if (nandc->dma_bam_enabled) {
+		if (host->hw_version >= QPIC_VERSION_V2_0)
+			write_reg_dma(nandc, NAND_READ_LOCATION_LAST_CW_0, 1,
+					DMA_DESC_FLAG_BAM_NEXT_SGL);
+		else
+			write_reg_dma(nandc, NAND_READ_LOCATION_0, 1,
+					DMA_DESC_FLAG_BAM_NEXT_SGL);
+	}
 
 	write_reg_dma(nandc, NAND_EXEC_CMD, 1, DMA_DESC_FLAG_BAM_NWD |
 				DMA_DESC_FLAG_BAM_NEXT_SGL);
@@ -1268,13 +1396,22 @@ static void config_cw_read(struct qcom_nand_controller *nandc, bool use_ecc)
  */
 static void config_bam_page_read(struct qcom_nand_controller *nandc)
 {
+	uint32_t cnt = 0x3;
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+	cnt = 0x4;
+#endif
 	write_reg_dma(nandc, NAND_FLASH_CMD, 3, 0);
-	write_reg_dma(nandc, NAND_DEV0_CFG0, 3, 0);
+	write_reg_dma(nandc, NAND_DEV0_CFG0, cnt, 0);
 	write_reg_dma(nandc, NAND_EBI2_ECC_BUF_CFG, 1, 0);
 	write_reg_dma(nandc, NAND_ERASED_CW_DETECT_CFG, 1, 0);
 	write_reg_dma(nandc, NAND_ERASED_CW_DETECT_CFG, 1,
 				DMA_DESC_ERASED_CW_SET |
 				DMA_DESC_FLAG_BAM_NEXT_SGL);
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+	if (nandc->ps_mp_flag & QPIC_MULTI_PAGE)
+		write_reg_dma(nandc, NAND_MULTI_PAGE_CMD, 1,
+				DMA_DESC_FLAG_BAM_NEXT_SGL);
+#endif
 }
 
 /*
@@ -1289,18 +1426,34 @@ static void config_bam_cw_read(struct qcom_nand_controller *nandc, bool use_ecc)
 		write_reg_dma(nandc, NAND_READ_LOCATION_LAST_CW_0, 4, 0);
 #endif
 	}
+	/* for page scope and multi page read status will be read
+	 * via separate status pipe so no need to queue descriptor
+	 * to read the status register directaly.
+	 * For page scope and multi page read command the exe pulse
+	 * should be only once per page or for all page.
+	 */
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+	if ((nandc->ps_mp_flag & PAGE_SCOPE_MULTI_PAGE_CMD_EXE)) {
 
+		write_reg_dma(nandc, NAND_FLASH_CMD, 1,
+				DMA_DESC_FLAG_BAM_NEXT_SGL);
+		write_reg_dma(nandc, NAND_EXEC_CMD, 1,
+				DMA_DESC_FLAG_BAM_NEXT_SGL);
+		nandc->ps_mp_flag &= ~PAGE_SCOPE_MULTI_PAGE_CMD_EXE;
+	}
+#else
 	write_reg_dma(nandc, NAND_FLASH_CMD, 1, DMA_DESC_FLAG_BAM_NEXT_SGL);
 	write_reg_dma(nandc, NAND_EXEC_CMD, 1, DMA_DESC_FLAG_BAM_NEXT_SGL);
 
 	if (use_ecc) {
 		read_reg_dma(nandc, NAND_FLASH_STATUS, 2, 0);
 		read_reg_dma(nandc, NAND_ERASED_CW_DETECT_STATUS, 1,
-			     DMA_DESC_FLAG_BAM_NEXT_SGL);
+				DMA_DESC_FLAG_BAM_NEXT_SGL);
 	} else {
 		read_reg_dma(nandc, NAND_FLASH_STATUS, 1,
-			     DMA_DESC_FLAG_BAM_NEXT_SGL);
+				DMA_DESC_FLAG_BAM_NEXT_SGL);
 	}
+#endif
 }
 
 /*
@@ -1382,7 +1535,7 @@ static int nandc_param(struct qcom_nand_host *host)
 	nandc->buf_count = 512;
 	memset(nandc->data_buffer, 0xff, nandc->buf_count);
 
-	config_cw_read(nandc, false);
+	config_cw_read(host, nandc, false);
 
 	read_data_dma(nandc, FLASH_BUF_ACC, nandc->data_buffer,
 		      nandc->buf_count, 0);
@@ -1567,7 +1720,17 @@ static int submit_descs(struct qcom_nand_controller *nandc)
 
 			bam_txn->chans_cnt++;
 		}
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+		if (bam_txn->status_sgl_cnt) {
+			r = prepare_bam_async_desc(nandc, nandc->status_chan,
+				bam_txn->status_sgl, bam_txn->status_sgl_cnt,
+				DMA_DEV_TO_MEM);
+			if (r)
+				return r;
 
+			bam_txn->chans_cnt++;
+		}
+#endif
 		if (bam_txn->tx_sgl_cnt) {
 			r = prepare_bam_async_desc(nandc, nandc->tx_chan,
 				bam_txn->tx_sgl, bam_txn->tx_sgl_cnt,
@@ -1591,6 +1754,9 @@ static int submit_descs(struct qcom_nand_controller *nandc)
 	if (nandc->dma_bam_enabled) {
 		dma_async_issue_pending(nandc->tx_chan);
 		dma_async_issue_pending(nandc->rx_chan);
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+		dma_async_issue_pending(nandc->status_chan);
+#endif
 		dma_async_issue_pending(nandc->cmd_chan);
 
 		if (!wait_for_completion_timeout(&bam_txn->txn_done, QPIC_NAND_COMPLETION_TIMEOUT))
@@ -1842,6 +2008,45 @@ static int check_flash_errors(struct qcom_nand_host *host, int cw_cnt)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+static void parse_status_buf(struct qcom_nand_controller *nandc,
+		u8 *status_buf, int n_iter)
+{
+	int i, j = 0;
+	__le32 tmp = 0x0;
+	u8 *tmp_buf = status_buf;
+
+	for (i = 0; i < n_iter; i++) {
+		tmp |= tmp_buf[i++];
+		tmp <<= 8;
+		tmp |= tmp_buf[i++];
+		tmp <<= 8;
+		tmp |= tmp_buf[i++];
+		tmp <<= 8;
+		tmp |= tmp_buf[i];
+		tmp = ((tmp >> 24) & 0xff) |
+			((tmp << 8) & 0xff0000) |
+			((tmp >> 8) & 0xff00) |
+			((tmp << 24) & 0xff000000);
+		nandc->reg_read_buf[j++] = tmp;
+		tmp = 0x0;
+	}
+}
+
+static int prep_dma_desc_status_bam(struct qcom_nand_controller *nandc,
+		const void *vaddr, int size, unsigned int flags)
+{
+	struct bam_transaction *bam_txn = nandc->bam_txn;
+
+	sg_set_buf(&bam_txn->status_sgl[bam_txn->status_sgl_cnt].sgl,
+			vaddr, size);
+	bam_txn->status_sgl[bam_txn->status_sgl_cnt].dma_flags = 0;
+	bam_txn->status_sgl_cnt++;
+
+	return 0;
+}
+#endif
+
 /*
  * Helper to perform the page raw read operation. The read_cw_mask will be
  * used to specify the codewords for which the data should be read. The
@@ -1861,6 +2066,20 @@ static int nandc_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 	int i, ret;
 	int read_location, start_step, last_step;
 
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+	u8 *tmp_status_buf = NULL;
+	int status_buf_parse_size = 0x0;
+	memset(nandc->status_buf, 0, nandc->status_buf_size);
+	tmp_status_buf = nandc->status_buf;
+	nandc->ps_mp_flag |= QPIC_PAGE_SCOPE;
+	nandc->ps_mp_flag &= ~QPIC_MULTI_PAGE;
+	/*Here once again upadate the register value , because
+	 * for each read access upper layer will call the bad block
+	 * check and for bad block check we are using legacy page read
+	 * instead of page scope and multi page read.
+	 */
+	update_rw_regs(host, ecc->steps, true);
+#endif
 	host->use_ecc = false;
 	start_step = ffs(read_cw_mask) - 1;
 	last_step = fls(read_cw_mask);
@@ -1897,7 +2116,7 @@ static int nandc_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 					(1 << READ_LOCATION_LAST));
 				config_bam_cw_read(nandc, false);
 			} else {
-				config_cw_read(nandc, false);
+				config_cw_read(host, nandc, false);
 			}
 
 			data_buf += data_size1 + data_size2;
@@ -1955,10 +2174,13 @@ static int nandc_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 				(read_location << READ_LOCATION_OFFSET) |
 				(oob_size2 << READ_LOCATION_SIZE) |
 				(1 << READ_LOCATION_LAST));
-
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+			if (i == (ecc->steps - 1))
+				nandc->ps_mp_flag |= PAGE_SCOPE_MULTI_PAGE_CMD_EXE;
+#endif
 			config_bam_cw_read(nandc, false);
 		} else {
-			config_cw_read(nandc, false);
+			config_cw_read(host, nandc, false);
 		}
 
 		read_data_dma(nandc, reg_off, data_buf, data_size1, 0);
@@ -1975,6 +2197,14 @@ static int nandc_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 
 		read_data_dma(nandc, reg_off, oob_buf, oob_size2, 0);
 		oob_buf += oob_size2;
+
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+		if (tmp_status_buf) {
+			prep_dma_desc_status_bam(nandc, (void *)tmp_status_buf,
+					MAX_STATUS_REG, 0);
+			tmp_status_buf += MAX_STATUS_REG;
+		}
+#endif
 	}
 
 	ret = submit_descs(nandc);
@@ -1983,8 +2213,15 @@ static int nandc_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 
 	free_descs(nandc);
 
-	if (!ret)
+	if (!ret) {
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+	GET_STATUS_BUFF_PARSE_SIZE_PER_PAGE(mtd->writesize,
+			status_buf_parse_size);
+	parse_status_buf(nandc, nandc->status_buf,
+			status_buf_parse_size);
+#endif
 		ret = check_flash_errors(host, last_step - start_step);
+	}
 
 	return 0;
 }
@@ -2156,14 +2393,28 @@ static int parse_read_errors(struct qcom_nand_host *host, u8 *data_buf,
  * helper to perform the actual page read operation, used by ecc->read_page(),
  * ecc->read_oob()
  */
-static int read_page_ecc(struct qcom_nand_host *host, u8 *data_buf,
-			 u8 *oob_buf, int page)
+static int read_page_ecc(struct mtd_info *mtd, struct qcom_nand_host *host,
+		u8 *data_buf, u8 *oob_buf, int page)
 {
 	struct nand_chip *chip = &host->chip;
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
 	u8 *data_buf_start = data_buf, *oob_buf_start = oob_buf;
 	int i, ret;
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+	u8 *tmp_status_buf = NULL;
+	int status_buf_parse_size = 0x0;
+	memset(nandc->status_buf, 0, nandc->status_buf_size);
+	tmp_status_buf = nandc->status_buf;
+	nandc->ps_mp_flag |= QPIC_PAGE_SCOPE;
+	nandc->ps_mp_flag &= ~QPIC_MULTI_PAGE;
+	/*Here once again upadate the register value , because
+	 * for each read access upper layer will call the bad block
+	 * check and for bad block check we are using legacy page read
+	 * instead of page scope and multi page read.
+	 */
+	update_rw_regs(host, ecc->steps, true);
+#endif
 
 	if (nandc->dma_bam_enabled)
 		config_bam_page_read(nandc);
@@ -2192,40 +2443,64 @@ static int read_page_ecc(struct qcom_nand_host *host, u8 *data_buf,
 					(oob_size << READ_LOCATION_SIZE) |
 					(1 << READ_LOCATION_LAST));
 			} else if (data_buf) {
-				if ((i == (ecc->steps - 1)) && host->hw_version >= QPIC_VERSION_V2_0) {
-					nandc_set_reg(nandc, NAND_READ_LOCATION_LAST_CW_0,
+				if (host->hw_version >= QPIC_VERSION_V2_0) {
+					if (i == (ecc->steps - 1)) {
+						nandc_set_reg(nandc, NAND_READ_LOCATION_LAST_CW_0,
+							(0 << READ_LOCATION_OFFSET) |
+							(data_size << READ_LOCATION_SIZE) |
+							(1 << READ_LOCATION_LAST));
+					} else {
+						nandc_set_reg(nandc, NAND_READ_LOCATION_0,
+						(0 << READ_LOCATION_OFFSET) |
+						(data_size << READ_LOCATION_SIZE) |
+						(1 << READ_LOCATION_LAST));
+					}
+				} else {
+					nandc_set_reg(nandc, NAND_READ_LOCATION_0,
 						(0 << READ_LOCATION_OFFSET) |
 						(data_size << READ_LOCATION_SIZE) |
 						(1 << READ_LOCATION_LAST));
 				}
-
-				nandc_set_reg(nandc, NAND_READ_LOCATION_0,
-					(0 << READ_LOCATION_OFFSET) |
-					(data_size << READ_LOCATION_SIZE) |
-					(1 << READ_LOCATION_LAST));
 			} else {
-				if ((i == (ecc->steps - 1)) && host->hw_version >= QPIC_VERSION_V2_0) {
-					nandc_set_reg(nandc, NAND_READ_LOCATION_LAST_CW_0,
+				if (host->hw_version >= QPIC_VERSION_V2_0) {
+					if (i == (ecc->steps - 1)) {
+						nandc_set_reg(nandc, NAND_READ_LOCATION_LAST_CW_0,
+							(data_size << READ_LOCATION_OFFSET) |
+							(oob_size << READ_LOCATION_SIZE) |
+							(1 << READ_LOCATION_LAST));
+					} else {
+						nandc_set_reg(nandc, NAND_READ_LOCATION_0,
+							(data_size << READ_LOCATION_OFFSET) |
+							(oob_size << READ_LOCATION_SIZE) |
+							(1 << READ_LOCATION_LAST));
+					}
+				} else {
+					nandc_set_reg(nandc, NAND_READ_LOCATION_0,
 						(data_size << READ_LOCATION_OFFSET) |
 						(oob_size << READ_LOCATION_SIZE) |
 						(1 << READ_LOCATION_LAST));
 				}
-
-				nandc_set_reg(nandc, NAND_READ_LOCATION_0,
-					(data_size << READ_LOCATION_OFFSET) |
-					(oob_size << READ_LOCATION_SIZE) |
-					(1 << READ_LOCATION_LAST));
 			}
-
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+			if (i == (ecc->steps - 1))
+				nandc->ps_mp_flag |= PAGE_SCOPE_MULTI_PAGE_CMD_EXE;
+#endif
 			config_bam_cw_read(nandc, true);
 		} else {
-			config_cw_read(nandc, true);
+			config_cw_read(host, nandc, true);
 		}
 
 		if (data_buf)
 			read_data_dma(nandc, FLASH_BUF_ACC, data_buf,
 				      data_size, 0);
 
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+		if (tmp_status_buf) {
+			prep_dma_desc_status_bam(nandc, (void *)tmp_status_buf,
+					MAX_STATUS_REG, 0);
+			tmp_status_buf += MAX_STATUS_REG;
+		}
+#endif
 		/*
 		 * when ecc is enabled, the controller doesn't read the real
 		 * or dummy bad block markers in each chunk. To maintain a
@@ -2255,6 +2530,12 @@ static int read_page_ecc(struct qcom_nand_host *host, u8 *data_buf,
 
 	free_descs(nandc);
 
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+	GET_STATUS_BUFF_PARSE_SIZE_PER_PAGE(mtd->writesize,
+			status_buf_parse_size);
+	parse_status_buf(nandc, nandc->status_buf,
+			status_buf_parse_size);
+#endif
 	if (!ret)
 		ret = parse_read_errors(host, data_buf_start, oob_buf_start,
 					false, page);
@@ -2283,6 +2564,15 @@ static int copy_last_cw(struct qcom_nand_host *host, int page)
 	memset(nandc->data_buffer, 0xff, size);
 
 	set_address(host, host->cw_size * (ecc->steps - 1), page);
+	/* If page scope and multi page config is enable then
+	 * to read only last code wrod no need to set page
+	 * scope and multi page bit of command register.
+	 * just fall back to legacy page read mode.
+	 */
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+	nandc->ps_mp_flag &= ~QPIC_PAGE_SCOPE;
+	nandc->ps_mp_flag &= ~QPIC_MULTI_PAGE;
+#endif
 	update_rw_regs(host, 1, true);
 
 	if (host->hw_version >= QPIC_VERSION_V2_0)
@@ -2295,7 +2585,7 @@ static int copy_last_cw(struct qcom_nand_host *host, int page)
 			(size << READ_LOCATION_SIZE) |
 			(1 << READ_LOCATION_LAST));
 
-	config_cw_read(nandc, host->use_ecc);
+	config_cw_read(host, nandc, host->use_ecc);
 
 	read_data_dma(nandc, FLASH_BUF_ACC, nandc->data_buffer, size, 0);
 
@@ -2316,7 +2606,155 @@ static int copy_last_cw(struct qcom_nand_host *host, int page)
 
 	return ret;
 }
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
 
+static int qcom_nandc_read_multi_page(struct mtd_info *mtd, struct nand_chip *chip,
+			uint8_t *buf, int oob_required, int page, int num_pages)
+{
+	struct qcom_nand_host *host = to_qcom_nand_host(chip);
+	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
+	struct nand_ecc_ctrl *ecc = &chip->ecc;
+	int i, ret, j;
+
+	u8 *data_buf, *oob_buf = NULL;
+	u8 *tmp_status_buf = NULL;
+	int status_buf_parse_size =0x0;
+	u8 *data_buf_start = NULL;
+	u8 *oob_buf_start = NULL;
+	data_buf = buf;
+	oob_buf = oob_required ? chip->oob_poi : NULL;
+	data_buf_start = data_buf;
+	oob_buf_start = oob_buf;
+
+	clear_bam_transaction(nandc);
+
+	memset(nandc->status_buf, 0, nandc->status_buf_size);
+	tmp_status_buf = nandc->status_buf;
+	nandc->ps_mp_flag |= QPIC_MULTI_PAGE;
+	nandc->ps_mp_flag &= ~QPIC_PAGE_SCOPE;
+	/*Here once again upadate the register value , because
+	 * for each read access upper layer will call the bad block
+	 * check and for bad block check we are using legacy page read
+	 * instead of page scope and multi page read.
+	 */
+	update_rw_regs(host, ecc->steps, true);
+	/* set number of pages for this transaction*/
+	nandc_set_reg(nandc, NAND_MULTI_PAGE_CMD, (num_pages - 1));
+
+	if (nandc->dma_bam_enabled)
+		config_bam_page_read(nandc);
+
+	for (j = 0; j < num_pages; j++) {
+		/* queue cmd descs for each codeword */
+		for (i = 0; i < ecc->steps; i++) {
+			int data_size, oob_size;
+
+			if ((i == (ecc->steps - 1)) && !nandc->boot_layout) {
+				data_size = ecc->size - ((ecc->steps - 1) << 2);
+				oob_size = (ecc->steps << 2) + host->ecc_bytes_hw +
+					host->spare_bytes;
+			} else {
+				data_size = host->cw_data;
+				oob_size = host->ecc_bytes_hw + host->spare_bytes;
+			}
+
+			if (data_buf && oob_buf) {
+				nandc_set_reg(nandc, NAND_READ_LOCATION_0,
+					(0 << READ_LOCATION_OFFSET) |
+					(data_size << READ_LOCATION_SIZE) |
+					(0 << READ_LOCATION_LAST));
+				nandc_set_reg(nandc, NAND_READ_LOCATION_1,
+					(data_size << READ_LOCATION_OFFSET) |
+					(oob_size << READ_LOCATION_SIZE) |
+					(1 << READ_LOCATION_LAST));
+			} else if (data_buf) {
+				if (i == (ecc->steps - 1)) {
+					nandc_set_reg(nandc, NAND_READ_LOCATION_LAST_CW_0,
+						(0 << READ_LOCATION_OFFSET) |
+						(data_size << READ_LOCATION_SIZE) |
+						(1 << READ_LOCATION_LAST));
+				} else {
+					nandc_set_reg(nandc, NAND_READ_LOCATION_0,
+						(0 << READ_LOCATION_OFFSET) |
+						(data_size << READ_LOCATION_SIZE) |
+						(1 << READ_LOCATION_LAST));
+				}
+			} else {
+				if (i == (ecc->steps - 1)) {
+					nandc_set_reg(nandc, NAND_READ_LOCATION_LAST_CW_0,
+						(data_size << READ_LOCATION_OFFSET) |
+						(oob_size << READ_LOCATION_SIZE) |
+						(1 << READ_LOCATION_LAST));
+				} else {
+					nandc_set_reg(nandc, NAND_READ_LOCATION_0,
+						(data_size << READ_LOCATION_OFFSET) |
+						(oob_size << READ_LOCATION_SIZE) |
+						(1 << READ_LOCATION_LAST));
+				}
+			}
+
+			if (i == (ecc->steps - 1) && (j == num_pages - 1)) {
+				nandc->ps_mp_flag |= PAGE_SCOPE_MULTI_PAGE_CMD_EXE;
+				config_bam_cw_read(nandc, true);
+			} else if (i == 0 && j == 0) {
+				config_bam_cw_read(nandc, true);
+			}
+
+			if (data_buf)
+				read_data_dma(nandc, FLASH_BUF_ACC, data_buf,
+				      data_size, 0);
+			if (tmp_status_buf) {
+				prep_dma_desc_status_bam(nandc, (void *)tmp_status_buf,
+						MAX_STATUS_REG, 0);
+
+				tmp_status_buf += MAX_STATUS_REG;
+			}
+			/*
+			 * when ecc is enabled, the controller doesn't read the real
+			 * or dummy bad block markers in each chunk. To maintain a
+			 * consistent layout across RAW and ECC reads, we just
+			 * leave the real/dummy BBM offsets empty (i.e, filled with
+			 * 0xffs)
+			 */
+			if (oob_buf) {
+				int j;
+
+				for (j = 0; j < host->bbm_size; j++)
+					*oob_buf++ = 0xff;
+
+				read_data_dma(nandc, FLASH_BUF_ACC + data_size,
+				      oob_buf, oob_size, 0);
+			}
+
+			if (data_buf)
+				data_buf += data_size;
+			if (oob_buf)
+				oob_buf += oob_size;
+		}
+	}
+
+	ret = submit_descs(nandc);
+	if (ret)
+		dev_err(nandc->dev, "failure to read page/oob\n");
+
+	free_descs(nandc);
+
+	GET_STATUS_BUFF_PARSE_SIZE_PER_PAGE(mtd->writesize,
+			status_buf_parse_size);
+
+	/* Check the error for each code word */
+	for (j = 0; j < num_pages; j++) {
+		parse_status_buf(nandc, nandc->status_buf + j * status_buf_parse_size,
+				status_buf_parse_size);
+
+		if (!ret)
+			ret = parse_read_errors(host, data_buf_start, oob_buf_start,
+					false, page);
+	}
+
+	return ret;
+}
+#endif
 /* implements ecc->read_page() */
 static int qcom_nandc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 				uint8_t *buf, int oob_required, int page)
@@ -2330,7 +2768,7 @@ static int qcom_nandc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 	clear_bam_transaction(nandc);
 
-	return read_page_ecc(host, data_buf, oob_buf, page);
+	return read_page_ecc(mtd, host, data_buf, oob_buf, page);
 }
 
 /* implements ecc->read_page_raw() */
@@ -2357,7 +2795,7 @@ static int qcom_nandc_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 	set_address(host, 0, page);
 	update_rw_regs(host, ecc->steps, true);
 
-	return read_page_ecc(host, NULL, chip->oob_poi, page);
+	return read_page_ecc(mtd, host, NULL, chip->oob_poi, page);
 }
 
 /* implements ecc->write_page() */
@@ -2587,7 +3025,6 @@ static int qcom_nandc_block_bad(struct mtd_info *mtd, loff_t ofs)
 	}
 
 	bbpos = mtd->writesize - host->cw_size * (ecc->steps - 1);
-
 	bad = nandc->data_buffer[bbpos] != 0xff;
 
 	if (chip->options & NAND_BUSWIDTH_16)
@@ -2930,6 +3367,9 @@ static int qcom_nand_host_setup(struct qcom_nand_host *host)
 	ecc->bytes = host->ecc_bytes_hw + host->spare_bytes + host->bbm_size;
 
 	ecc->read_page		= qcom_nandc_read_page;
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+	ecc->read_multi_page	= qcom_nandc_read_multi_page;
+#endif
 	ecc->read_page_raw	= qcom_nandc_read_page_raw;
 	ecc->read_oob		= qcom_nandc_read_oob;
 	ecc->write_page		= qcom_nandc_write_page;
@@ -3098,7 +3538,13 @@ static int qcom_nandc_alloc(struct qcom_nand_controller *nandc)
 			dev_err(nandc->dev, "failed to request cmd channel\n");
 			return -ENODEV;
 		}
-
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+		nandc->status_chan = dma_request_slave_channel(nandc->dev, "status");
+		if (!nandc->status_chan) {
+			dev_err(nandc->dev, "failed to request status channel\n");
+			return -ENODEV;
+		}
+#endif
 		nandc->bam_txn = alloc_bam_transaction(nandc);
 		if (!nandc->bam_txn) {
 			dev_err(nandc->dev, "failed to allocate bam transaction\n");
@@ -3512,6 +3958,24 @@ void qcom_serial_nand_init(struct mtd_info *mtd)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+static int qpic_alloc_status_buff(struct qcom_nand_controller *nandc,
+		struct mtd_info *mtd)
+{
+	GET_STATUS_BUFF_ALLOC_SIZE(mtd->writesize,
+			nandc->status_buf_size);
+
+	nandc->status_buf = devm_kzalloc(nandc->dev, nandc->status_buf_size,
+				GFP_KERNEL);
+		if (!nandc->status_buf)
+			return -ENOMEM;
+
+		nandc->ps_mp_flag = 0x0;
+
+	return 0;
+}
+#endif
+
 static int qcom_nand_host_init(struct qcom_nand_controller *nandc,
 			       struct qcom_nand_host *host,
 			       struct device_node *dn)
@@ -3575,6 +4039,23 @@ static int qcom_nand_host_init(struct qcom_nand_controller *nandc,
 	ret = nand_scan_ident(mtd, 1, NULL);
 	if (ret)
 		return ret;
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+	/* allocate memory for status buffer. we are doing
+	 * this here because we do not know the device page
+	 * siz ein advance if nand flash is parallel nand and ONFI
+	 * complaint. so status buffer size will vary based on page size
+	 * e.g if page size is 2KiB then status buffer size for one page
+	 * will be 48-bytes similary for 4KiB page , status buffer size
+	 * will be 96-bytes for one page and so on.
+	 * QPIC controller support max page isze is 8 KiB now so maximum
+	 * status buffer size for one page will be 192-bytes. for multi page
+	 * read the status buffer size will be multiple of maximum pages supported
+	 * in multipage.
+	 */
+	ret = qpic_alloc_status_buff(nandc, mtd);
+	if (ret)
+		return ret;
+#endif
 
 	ret = qcom_nand_host_setup(host);
 	if (ret)
