@@ -72,7 +72,8 @@ static DEFINE_SPINLOCK(pci_reg_window_lock);
 
 #define MHI_TIMEOUT_OVERWRITE_MS	(plat_priv->ctrl_params.mhi_timeout)
 
-#define QCA6390_PCIE_REMAP_BAR_CTRL_OFFSET	0x310C
+#define QCA6390_PCIE_REMAP_BAR_CTRL_OFFSET     0x310C
+#define QCN9000_PCIE_REMAP_BAR_CTRL_OFFSET	0x310C
 #define QCN9000_PCIE_SOC_GLOBAL_RESET_ADDRESS 0x3008
 #define QCN9000_PCIE_SOC_GLOBAL_RESET_VALUE 0x5
 
@@ -125,6 +126,10 @@ static DEFINE_SPINLOCK(pci_reg_window_lock);
 #define QCA6390_WLAON_GLOBAL_COUNTER_CTRL4	0x1F8011C
 #define QCA6390_WLAON_GLOBAL_COUNTER_CTRL5	0x1F80120
 
+#define QCN9000_WLAON_GLOBAL_COUNTER_CTRL3	0x1F80118
+#define QCN9000_WLAON_GLOBAL_COUNTER_CTRL4	0x1F8011C
+#define QCN9000_WLAON_GLOBAL_COUNTER_CTRL5	0x1F80120
+
 #define SHADOW_REG_INTER_COUNT			43
 #define QCA6390_PCIE_SHADOW_REG_INTER_0		0x1E05000
 #define QCA6390_PCIE_SHADOW_REG_HUNG		0x1E050A8
@@ -149,6 +154,9 @@ static DEFINE_SPINLOCK(pci_reg_window_lock);
 
 #define QCA6390_TIME_SYNC_ENABLE		0x80000000
 #define QCA6390_TIME_SYNC_CLEAR			0x0
+
+#define QCN9000_TIME_SYNC_ENABLE		0x80000000
+#define QCN9000_TIME_SYNC_CLEAR			0x0
 
 static struct cnss_pci_reg ce_src[] = {
 	{ "SRC_RING_BASE_LSB", QCA6390_CE_SRC_RING_BASE_LSB_OFFSET },
@@ -227,17 +235,28 @@ static int cnss_pci_check_link_status(struct cnss_pci_data *pci_priv)
 static void cnss_pci_select_window(struct cnss_pci_data *pci_priv, u32 offset)
 {
 	u32 window = (offset >> WINDOW_SHIFT) & WINDOW_VALUE_MASK;
-	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
+	u32 prev_window = 0, curr_window = 0, prev_cleared_window = 0;
 
-	writel_relaxed(WINDOW_ENABLE_BIT | window,
-		       QCA6390_PCIE_REMAP_BAR_CTRL_OFFSET +
+	prev_window = readl_relaxed(pci_priv->bar +
+					QCN9000_PCIE_REMAP_BAR_CTRL_OFFSET);
+
+	/* Clear out last 6 bits of window register */
+	prev_cleared_window = prev_window & ~(0x3f);
+
+	/* Write the new last 6 bits of window register. Only window 1 values
+	 * are changed. Window 2 and 3 are unaffected.
+	 */
+	curr_window = prev_cleared_window | window;
+
+	/* Skip writing into window register if the read value
+	 * is same as calculated value.
+	 */
+	if (curr_window == prev_window)
+		return;
+
+	writel_relaxed(WINDOW_ENABLE_BIT | curr_window,
+		       QCN9000_PCIE_REMAP_BAR_CTRL_OFFSET +
 		       pci_priv->bar);
-
-	if (window != pci_priv->remap_window) {
-		pci_priv->remap_window = window;
-		cnss_pr_dbg("Config PCIe remap window register to 0x%x\n",
-			    WINDOW_ENABLE_BIT | window);
-	}
 }
 
 static int cnss_pci_reg_read(struct cnss_pci_data *pci_priv,
@@ -904,13 +923,13 @@ static int cnss_pci_get_device_timestamp(struct cnss_pci_data *pci_priv,
 		return -EINVAL;
 	}
 
-	cnss_pci_reg_write(pci_priv, QCA6390_WLAON_GLOBAL_COUNTER_CTRL5,
-			   QCA6390_TIME_SYNC_CLEAR);
-	cnss_pci_reg_write(pci_priv, QCA6390_WLAON_GLOBAL_COUNTER_CTRL5,
-			   QCA6390_TIME_SYNC_ENABLE);
+	cnss_pci_reg_write(pci_priv, QCN9000_WLAON_GLOBAL_COUNTER_CTRL5,
+			   QCN9000_TIME_SYNC_CLEAR);
+	cnss_pci_reg_write(pci_priv, QCN9000_WLAON_GLOBAL_COUNTER_CTRL5,
+			   QCN9000_TIME_SYNC_ENABLE);
 
-	cnss_pci_reg_read(pci_priv, QCA6390_WLAON_GLOBAL_COUNTER_CTRL3, &low);
-	cnss_pci_reg_read(pci_priv, QCA6390_WLAON_GLOBAL_COUNTER_CTRL4, &high);
+	cnss_pci_reg_read(pci_priv, QCN9000_WLAON_GLOBAL_COUNTER_CTRL3, &low);
+	cnss_pci_reg_read(pci_priv, QCN9000_WLAON_GLOBAL_COUNTER_CTRL4, &high);
 
 	device_ticks = (u64)high << 32 | low;
 	do_div(device_ticks, plat_priv->device_freq_hz / 100000);
@@ -968,6 +987,51 @@ force_wake_put:
 
 	return ret;
 }
+
+static u64 cnss_pci_get_q6_time(struct cnss_pci_data *pci_priv)
+{
+	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
+	u64 device_time_us;
+	int ret;
+
+	ret = cnss_pci_check_link_status(pci_priv);
+	if (ret) {
+		cnss_pr_err("PCI link status is down\n");
+		return 0;
+	}
+
+	cnss_pci_get_device_timestamp(pci_priv, &device_time_us);
+
+	return device_time_us;
+}
+
+u64 cnss_get_q6_time(struct device *dev)
+{
+	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
+	struct cnss_pci_data *pci_priv;
+
+	if (!plat_priv) {
+		pr_err("Plat Priv is null\n");
+		return 0;
+	}
+
+	switch (plat_priv->bus_type) {
+	case CNSS_BUS_PCI:
+		pci_priv = plat_priv->bus_priv;
+
+		if (!pci_priv) {
+			cnss_pr_err("Pci Priv is null\n");
+			return 0;
+		}
+		return cnss_pci_get_q6_time(pci_priv);
+	case CNSS_BUS_AHB:
+		return cnss_get_host_timestamp(plat_priv);
+	default:
+		cnss_pr_err("Unsupported bus type\n");
+		return 0;
+	}
+}
+EXPORT_SYMBOL(cnss_get_q6_time);
 
 static void cnss_pci_time_sync_work_hdlr(struct work_struct *work)
 {
