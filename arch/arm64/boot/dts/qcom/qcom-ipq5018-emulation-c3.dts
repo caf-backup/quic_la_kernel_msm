@@ -122,6 +122,7 @@
 
 &qcom_q6v5_wcss {
 	qcom,nosecure;
+	qcom,emulation;
 };
 
 &tlmm {
