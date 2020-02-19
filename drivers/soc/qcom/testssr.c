@@ -186,11 +186,6 @@ static int __init testssr_init(void)
 #endif
 	nb.notifier_call = tssr_notifier;
 	atomic_nb.notifier_call = tssr_notifier;
-#if defined(CONFIG_QCOM_Q6V5_WCSS)
-	if (test_id != 4) {
-		test_id = 4; /* Let's use direct rproc APIs */
-	}
-#endif
 
 	switch (test_id) {
 	case 1:
