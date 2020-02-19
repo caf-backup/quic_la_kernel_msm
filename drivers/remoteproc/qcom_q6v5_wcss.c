@@ -26,10 +26,12 @@
 #define WCSS_CRASH_REASON		421
 
 /* Q6SS Register Offsets */
-#define Q6SS_RESET_REG		0x014
+#define Q6SS_RESET_REG			0x014
 #define Q6SS_GFMUX_CTL_REG		0x020
 #define Q6SS_PWR_CTL_REG		0x030
 #define Q6SS_MEM_PWR_CTL		0x0B0
+#define Q6SS_AHB_UPPER			0x104
+#define Q6SS_AHB_LOWER			0x108
 
 /* AXI Halt Register Offsets */
 #define AXI_HALTREQ_REG			0x0
@@ -89,6 +91,10 @@ struct q6v5_wcss {
 
 	void __iomem *reg_base;
 	void __iomem *rmb_base;
+	void __iomem *mpm_base;
+	void __iomem *tcsr_msip_base;
+	void __iomem *wcss_wcmn_base;
+	void __iomem *wcmn_core_base;
 	void __iomem *aon_reset;
 
 	struct regmap *halt_map;
@@ -119,6 +125,7 @@ struct q6v5_wcss {
 struct q6_platform_data {
 	bool nosecure;
 	bool is_q6v6;
+	bool emulation;
 };
 
 static int debug_wcss;
@@ -582,6 +589,50 @@ static int q6v5_wcss_reset(struct q6v5_wcss *wcss)
 static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 {
 	unsigned long val;
+	struct q6_platform_data *pdata = dev_get_platdata(wcss->dev);
+	int ret;
+	int temp = 0;
+
+	ret = reset_control_deassert(wcss->wcss_aon_reset);
+	if (ret) {
+		dev_err(wcss->dev, "wcss_aon_reset failed\n");
+		return;
+	 }
+
+	if (pdata->emulation) {
+		/*Disable clock gating*/
+		regmap_update_bits(wcss->halt_map,
+				wcss->halt_nc + TCSR_GLOBAL_CFG0,
+				1, 0x1);
+
+		/*Secure access to WIFI phy register*/
+		regmap_update_bits(wcss->halt_map,
+				wcss->halt_nc + TCSR_GLOBAL_CFG1,
+				TCSR_WCSS_CLK_MASK,
+				0x18);
+	 }
+
+	/*Enable global counter for qtimer*/
+	if (wcss->mpm_base)
+		writel(0x1, wcss->mpm_base + 0x00);
+
+	/*Q6 AHB upper & lower address*/
+	writel(0x00cdc000, wcss->reg_base + Q6SS_AHB_UPPER);
+	writel(0x00ca0000, wcss->reg_base + Q6SS_AHB_LOWER);
+
+	/*Configure MSIP*/
+	if (wcss->tcsr_msip_base)
+		writel(0x1, wcss->tcsr_msip_base + 0x00);
+
+	if (pdata->emulation) {
+		/*Configure emu phy*/
+		if (wcss->wcmn_core_base)
+			writel(0x1, wcss->wcmn_core_base + 0x00);
+
+		/*Disable CGC for emu phy*/
+		if (wcss->wcss_wcmn_base)
+			writel(0xFFFFFFFF, wcss->wcss_wcmn_base + 0x00);
+	 }
 
 	/* Trigger Boot FSM, to bring core out of rst */
 	writel(0x1, wcss->reg_base + Q6SS_BOOT_CMD);
@@ -589,8 +640,14 @@ static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 	/* Boot core start */
 	writel(0x1, wcss->reg_base + Q6SS_BOOT_CORE_START);
 
-	mdelay(10);
-	val = readl(wcss->reg_base + Q6SS_BOOT_STATUS);
+	while (temp < 20) {
+		val = readl(wcss->reg_base + Q6SS_BOOT_STATUS);
+		if (val & 0x01)
+			break;
+		mdelay(1);
+		temp += 1;
+	}
+
 	pr_err("%s: start %s\n", wcss->q6v5.rproc->name,
 					val == 1 ? "successful" : "failed");
 	wcss->q6v5.running = val == 1 ? true : false;
@@ -996,6 +1053,31 @@ static int q6v5_wcss_init_mmio(struct q6v5_wcss *wcss,
 	if (IS_ERR(wcss->rmb_base))
 		return PTR_ERR(wcss->rmb_base);
 
+	if (of_property_read_bool(pdev->dev.of_node, "qcom,q6v6")) {
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mpm");
+		wcss->mpm_base = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(wcss->mpm_base))
+			return PTR_ERR(wcss->mpm_base);
+
+		res = platform_get_resource_byname(pdev,
+				IORESOURCE_MEM, "tcsr-msip");
+		wcss->tcsr_msip_base = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(wcss->tcsr_msip_base))
+			return PTR_ERR(wcss->tcsr_msip_base);
+
+		res = platform_get_resource_byname(pdev,
+				IORESOURCE_MEM, "wcss-wcmn");
+		wcss->wcss_wcmn_base = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(wcss->wcss_wcmn_base))
+			return PTR_ERR(wcss->wcss_wcmn_base);
+
+		res = platform_get_resource_byname(pdev,
+				IORESOURCE_MEM, "wcmn-core");
+		wcss->wcmn_core_base = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(wcss->wcmn_core_base))
+			return PTR_ERR(wcss->wcmn_core_base);
+	}
+
 	ret = of_parse_phandle_with_fixed_args(pdev->dev.of_node,
 					       "qcom,halt-regs", 3, 0, &args);
 	if (ret < 0) {
@@ -1146,6 +1228,8 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 	pdata->is_q6v6 = of_property_read_bool(pdev->dev.of_node, "qcom,q6v6");
 	pdata->nosecure = of_property_read_bool(pdev->dev.of_node,
 							"qcom,nosecure");
+	pdata->emulation = of_property_read_bool(pdev->dev.of_node,
+							"qcom,emulation");
 
 	platform_device_add_data(pdev, pdata, sizeof(*pdata));
 	kfree(pdata);
