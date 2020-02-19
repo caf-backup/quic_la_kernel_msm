@@ -408,9 +408,17 @@
 			firmware = "IPQ5018/q6_fw.mdt";
 			m3_firmware = "IPQ5018/m3_fw.mdt";
 			reg = <0xCD00000 0x4040>,
-				<0x4ab000 0x20>;
+				<0x4ab000 0x20>,
+				<0x4a1000 0x10>,
+				<0x1938000 0x8>,
+				<0xCB50230 0x10>,
+				<0xCB582c0 0x10>;
 			reg-names = "qdsp6",
-				"rmb";
+				"rmb",
+				"mpm",
+				"tcsr-msip",
+				"wcss-wcmn",
+				"wcmn-core";
 			qca,auto-restart;
 			qca,extended-intc;
 			interrupts-extended = <&intc 0 325 1>,
