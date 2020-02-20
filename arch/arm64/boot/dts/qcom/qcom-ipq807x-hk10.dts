@@ -351,6 +351,8 @@
 	};
 
 	ess-switch@3a000000 {
+		pinctrl-0 = <&uniphy_pins>;
+		pinctrl-names = "default";
 		switch_cpu_bmp = <0x1>;  /* cpu port bitmap */
 		switch_lan_bmp = <0x3e>; /* lan port bitmap */
 		switch_wan_bmp = <0x40>; /* wan port bitmap */
