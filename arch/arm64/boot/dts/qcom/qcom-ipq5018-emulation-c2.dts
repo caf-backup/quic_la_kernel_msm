@@ -19,7 +19,7 @@
 / {
 	#address-cells = <0x2>;
 	#size-cells = <0x2>;
-	model = "Qualcomm Technologies, Inc. IPQ5018-EMULATION-C1";
+	model = "Qualcomm Technologies, Inc. IPQ5018/MP-EMU";
 	compatible = "qcom,ipq5018-emulation-c2", "qcom,ipq5018";
 	interrupt-parent = <&intc>;
 
