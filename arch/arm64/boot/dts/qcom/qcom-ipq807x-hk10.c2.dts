@@ -285,7 +285,15 @@
 		};
 	};
 	uniphy_pins: uniphy_pinmux {
-		mux {
+		mux1 {
+			pins = "gpio27";
+			function = "gpio";
+			drive-strength = <16>;
+			output-high;
+			bias-pull-up;
+		};
+
+		mux2 {
 			pins = "gpio60";
 			function = "rx2";
 			bias-disable;
