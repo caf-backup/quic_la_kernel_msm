@@ -117,6 +117,8 @@
 	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,ipq6000")
 #define early_machine_is_ipq6010()	\
 	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,ipq6010")
+#define early_machine_is_ipq6005()	\
+	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,ipq6005")
 #else
 #define of_board_is_sim()		0
 #define of_board_is_rumi()		0
@@ -166,6 +168,7 @@
 #define early_machine_is_ipq6028()	0
 #define early_machine_is_ipq6000()	0
 #define early_machine_is_ipq6010()	0
+#define early_machine_is_ipq6005()	0
 #endif
 
 #define PLATFORM_SUBTYPE_MDM	1
@@ -232,6 +235,7 @@ enum msm_cpu {
 	IPQ_CPU_6028,
 	IPQ_CPU_6000,
 	IPQ_CPU_6010,
+	IPQ_CPU_6005,
 };
 
 struct msm_soc_info {
