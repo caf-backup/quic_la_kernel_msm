@@ -116,7 +116,7 @@ int cnss_genl_process_msg(struct sk_buff *skb, struct genl_info *info)
 	instance_id = nla_get_u32(attrs[CNSS_GENL_ATTR_MSG_INSTANCE_ID]);
 	value = nla_get_u32(attrs[CNSS_GENL_ATTR_MSG_VALUE]);
 
-	cnss_update_daemon_cold_boot_support(type, instance_id, value);
+	cnss_update_platform_feature_support(type, instance_id, value);
 
 	return 0;
 }
