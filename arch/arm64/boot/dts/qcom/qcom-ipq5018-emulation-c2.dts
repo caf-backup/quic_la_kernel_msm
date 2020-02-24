@@ -76,9 +76,6 @@
 		};
 
 		ess-switch@0x39c00000 {
-			compatible = "qcom,ess-switch-ipq50xx";
-			reg = <0x39c00000 0x200000>;
-			switch_access_mode = "local bus";
 			qcom,port_phyinfo {
 				port@0 {
 					port_id = <1>;
