@@ -580,6 +580,8 @@ static struct msm_soc_info cpu_of_id[] = {
 	/* IPQ ID */
 	[402] = {IPQ_CPU_6018, "IPQ6018"},
 	[403] = {IPQ_CPU_6028, "IPQ6028"},
+	[421] = {IPQ_CPU_6000, "IPQ6000"},
+	[422] = {IPQ_CPU_6010, "IPQ6010"},
 
 	/* Uninitialized IDs are not known to run Linux.
 	   MSM_CPU_UNKNOWN is set to 0 to ensure these IDs are
@@ -1327,6 +1329,14 @@ static void * __init setup_dummy_socinfo(void)
 	} else if (early_machine_is_ipq6028()) {
 		dummy_socinfo.id = 403;
 		strlcpy(dummy_socinfo.build_id, "ipq6028 - ",
+			sizeof(dummy_socinfo.build_id));
+	} else if (early_machine_is_ipq6000()) {
+		dummy_socinfo.id = 421;
+		strlcpy(dummy_socinfo.build_id, "ipq6000 - ",
+			sizeof(dummy_socinfo.build_id));
+	} else if (early_machine_is_ipq6010()) {
+		dummy_socinfo.id = 422;
+		strlcpy(dummy_socinfo.build_id, "ipq6010 - ",
 			sizeof(dummy_socinfo.build_id));
 	}
 
