@@ -3109,6 +3109,12 @@ void cnss_get_msi_address(struct device *dev, u32 *msi_addr_low,
 
 	pci_read_config_dword(pci_dev, pci_dev->msi_cap + PCI_MSI_ADDRESS_HI,
 			      msi_addr_high);
+
+	/* Since q6 supports only 32 bit addresses, mask the msi_addr_high
+	 * value. If this is programmed into the register, q6 interprets it
+	 * as an internal address and causes unwanted writes/reads.
+	 */
+	*msi_addr_high = 0;
 }
 EXPORT_SYMBOL(cnss_get_msi_address);
 
