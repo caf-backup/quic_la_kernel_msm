@@ -111,6 +111,22 @@
 			status = "disabled";
 		};
 
+		mdio0: mdio@88000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "qcom,qca-mdio", "qcom,ipq40xx-mdio";
+			reg = <0x88000 0x64>;
+			status = "disabled";
+		};
+
+		mdio1: mdio@90000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "qcom,qca-mdio";
+			reg = <0x90000 0x64>;
+			status = "disabled";
+		};
+
 		ess-switch@0x39c00000 {
 			compatible = "qcom,ess-switch-ipq50xx";
 			reg = <0x39c00000 0x200000>;
