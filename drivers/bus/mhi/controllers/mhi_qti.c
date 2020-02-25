@@ -29,6 +29,7 @@
 volatile int mhi_panic_timeout;
 
 int ap2mdm_gpio, mdm2ap_gpio;
+bool mhi_ssr_negotiate;
 
 void __iomem *wdt;
 
@@ -735,7 +736,6 @@ int mhi_pci_probe(struct pci_dev *pci_dev,
 	u32 slot = PCI_SLOT(pci_dev->devfn);
 	struct mhi_dev *mhi_dev;
 	int ret;
-	bool use_panic_notifier;
 
 	/* see if we already registered */
 	mhi_cntrl = mhi_bdf_to_controller(domain, bus, slot, dev_id);
@@ -767,9 +767,9 @@ int mhi_pci_probe(struct pci_dev *pci_dev,
 	pm_runtime_mark_last_busy(&pci_dev->dev);
 	pm_runtime_allow(&pci_dev->dev);
 
-	use_panic_notifier = of_property_read_bool(mhi_cntrl->of_node, "mhi,use-panic-notifer");
+	mhi_ssr_negotiate = of_property_read_bool(mhi_cntrl->of_node, "mhi,ssr-negotiate");
 
-	if (use_panic_notifier) {
+	if (mhi_ssr_negotiate) {
 		ret = of_property_read_u32(mhi_cntrl->of_node, "ap2mdm",
 						&ap2mdm_gpio);
 		if (ret != 0)
@@ -824,6 +824,8 @@ void mhi_pci_device_removed(struct pci_dev *pci_dev)
 	u32 bus = pci_dev->bus->number;
 	u32 dev_id = pci_dev->device;
 	u32 slot = PCI_SLOT(pci_dev->devfn);
+	struct gpio_desc *mdm2ap;
+	bool graceful = 0;
 
 	mhi_cntrl = mhi_bdf_to_controller(domain, bus, slot, dev_id);
 
@@ -848,8 +850,16 @@ void mhi_pci_device_removed(struct pci_dev *pci_dev)
 
 		pm_runtime_put_noidle(&pci_dev->dev);
 
+		if (mhi_ssr_negotiate) {
+			mdm2ap = gpio_to_desc(mdm2ap_gpio);
+			if (IS_ERR(mdm2ap))
+				MHI_ERR("Unable to acquire mdm2ap_gpio");
+
+			graceful = gpiod_get_value(mdm2ap);
+		}
+
 		MHI_LOG("Triggering shutdown process\n");
-		mhi_power_down(mhi_cntrl, false);
+		mhi_power_down(mhi_cntrl, graceful);
 
 		/* turn the link off */
 		mhi_deinit_pci_dev(mhi_cntrl);
