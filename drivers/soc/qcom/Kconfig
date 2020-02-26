@@ -319,8 +319,10 @@ config QCOM_TZ_LOG
 	  diagnostic information about TZ operation.
 
 config QCOM_MDT_LOADER
-	tristate
+	tristate "QCOM MDT based peripheral image downloader"
 	select QCOM_SCM
+	help
+	 This enables support for downloading MDT based peripheral images.
 
 config QCOM_QMI_HELPERS
 	tristate
