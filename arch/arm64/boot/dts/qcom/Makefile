@@ -9,6 +9,7 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 endif
 dtb-$(CONFIG_ARCH_QCOM) += \
 				qcom-ipq6018-cp01-c1.dtb \
+				qcom-ipq6018-cp01-c3.dtb \
 				qcom-ipq6018-cp02-c1.dtb \
 				qcom-ipq6018-cp03-c1.dtb \
 				qcom-ipq807x-hk01.dtb \
