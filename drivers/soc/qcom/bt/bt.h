@@ -204,6 +204,7 @@ struct bt_descriptor {
 	void (*recvmsg_cb)(struct bt_descriptor *, unsigned char *, int);
 	spinlock_t lock;
 	atomic_t state;
+	struct notifier_block panic_nb;
 };
 
 extern int bt_ipc_init(struct bt_descriptor *btDesc);

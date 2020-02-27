@@ -26,6 +26,7 @@
 #include <linux/of_irq.h>
 #include <linux/kthread.h>
 #include <linux/debugfs.h>
+#include <linux/notifier.h>
 #include <linux/mfd/syscon.h>
 #include <uapi/linux/major.h>
 #include <linux/completion.h>
@@ -385,6 +386,16 @@ static irqreturn_t bt_ipc_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static
+int ipc_panic_handler(struct notifier_block *nb, unsigned long event, void *ptr)
+{
+	struct bt_descriptor *btDesc = container_of(nb, struct bt_descriptor,
+								panic_nb);
+	bt_ipc_cust_msg(btDesc, IPC_CMD_PREPARE_DUMP);
+
+	return NOTIFY_DONE;
+}
+
 int bt_ipc_init(struct bt_descriptor *btDesc)
 {
 	int ret;
@@ -402,10 +413,19 @@ int bt_ipc_init(struct bt_descriptor *btDesc)
 		goto irq_err;
 	}
 
+	btDesc->panic_nb.notifier_call = ipc_panic_handler;
+
+	ret = atomic_notifier_chain_register(&panic_notifier_list,
+							&btDesc->panic_nb);
+	if (ret)
+		goto panic_nb_err;
+
 	btDesc->sendmsg_cb = bt_ipc_sendmsg;
 
 	return 0;
 
+panic_nb_err:
+	devm_free_irq(dev, ipc->irq, btDesc);
 irq_err:
 	return ret;
 }
@@ -416,6 +436,8 @@ void bt_ipc_deinit(struct bt_descriptor *btDesc)
 	struct bt_ipc *ipc = &btDesc->ipc;
 	struct device *dev = &btDesc->pdev->dev;
 
+	atomic_notifier_chain_unregister(&panic_notifier_list,
+							&btDesc->panic_nb);
 	devm_free_irq(dev, ipc->irq, btDesc);
 }
 EXPORT_SYMBOL(bt_ipc_deinit);
