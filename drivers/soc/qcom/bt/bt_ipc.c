@@ -181,19 +181,37 @@ void bt_ipc_free_lmsg(struct bt_descriptor *btDesc, void *lmsg, uint16_t len)
 	btmem->lmsg_ctxt.lmsg_free_cnt += blks;
 }
 
-static
-void bt_ipc_cust_msg(struct bt_descriptor *btDesc, uint8_t type, uint8_t *buf,
-								uint16_t len)
+static void bt_ipc_cust_msg(struct bt_descriptor *btDesc, uint8_t msgid)
 {
 	struct device *dev = &btDesc->pdev->dev;
+	uint16_t msg_hdr = 0;
+	int ret;
 
-	switch (type) {
+	msg_hdr |= msgid;
+
+	switch (msgid) {
+	case IPC_CMD_IPC_STOP:
+		atomic_set(&btDesc->state, 0);
+		msg_hdr |= IPC_RACK_MASK;
+		dev_info(dev, "BT IPC Stopped, gracefully stopping APSS IPC\n");
+		break;
+	case IPC_CMD_SWITCH_TO_UART:
+		dev_info(dev, "Configured UART, Swithing BT to debug mode\n");
+		break;
+	case IPC_CMD_PREPARE_DUMP:
+		dev_info(dev, "IPQ crashed, inform BT to prepare dump\n");
+		break;
 	case IPC_CMD_COLLECT_DUMP:
 		dev_info(dev, "BT Crashed, gracefully stopping IPC\n");
-		break;
+		return;
 	default:
-		dev_info(dev, "invalid custom message\n");
+		dev_err(dev, "invalid custom message\n");
+		return;
 	}
+
+	ret = bt_ipc_send_msg(btDesc, msg_hdr, NULL, 0);
+	if (ret)
+		dev_err(dev, "err: sending message\n");
 }
 
 static bool bt_ipc_process_peer_msgs(struct bt_descriptor *btDesc,
@@ -257,8 +275,7 @@ static bool bt_ipc_process_peer_msgs(struct bt_descriptor *btDesc,
 			btDesc->recvmsg_cb(btDesc, buf, rbuf->len);
 			break;
 		case IPC_CUST_PKT:
-			bt_ipc_cust_msg(btDesc, IPC_GET_MSG_ID(rbuf->msg_hdr),
-					rxbuf, rbuf->len);
+			bt_ipc_cust_msg(btDesc, IPC_GET_MSG_ID(rbuf->msg_hdr));
 			break;
 		case IPC_AUDIO_PKT:
 			break;
@@ -308,14 +325,10 @@ int bt_ipc_sendmsg(struct bt_descriptor *btDesc, unsigned char *buf, int len)
 	struct device *dev = &btDesc->pdev->dev;
 	unsigned long flags;
 
-	spin_lock_irqsave(&btDesc->lock, flags);
+	if (!atomic_read(&btDesc->state))
+		return -ENODEV;
 
-	if (IS_HCI_PKT(msg_hdr))
-		dev_dbg(dev, "Received HCI pkt\n");
-	else if (IS_CUST_PKT(msg_hdr))
-		dev_dbg(dev, "Received Custom pkt\n");
-	else
-		dev_dbg(dev, "Received Unknown pkt\n");
+	spin_lock_irqsave(&btDesc->lock, flags);
 
 	ret = bt_ipc_send_msg(btDesc, msg_hdr, (uint8_t *)buf, (uint16_t)len);
 	if (ret)
@@ -337,14 +350,19 @@ static irqreturn_t bt_ipc_irq_handler(int irq, void *data)
 	disable_irq_nosync(btDesc->ipc.irq);
 	spin_lock_irqsave(&btDesc->lock, flags);
 
-	btmem->rx_ctxt = (struct context_info *)(btDesc->btmem.virt + 0xe000);
-	btmem->tx_ctxt = (struct context_info *)((void *)btmem->rx_ctxt +
-			btmem->rx_ctxt->TotalMemorySize);
+	if (unlikely(!atomic_read(&btDesc->state))) {
+		btmem->rx_ctxt = (struct context_info *)
+			(btDesc->btmem.virt + 0xe000);
+		btmem->tx_ctxt = (struct context_info *)((void *)
+			btmem->rx_ctxt + btmem->rx_ctxt->TotalMemorySize);
 
-	btmem->lmsg_ctxt.widx = 0;
-	btmem->lmsg_ctxt.ridx = 0;
-	btmem->lmsg_ctxt.smsg_free_cnt = btmem->tx_ctxt->smsg_buf_cnt;
-	btmem->lmsg_ctxt.lmsg_free_cnt = btmem->tx_ctxt->lmsg_buf_cnt;
+		btmem->lmsg_ctxt.widx = 0;
+		btmem->lmsg_ctxt.ridx = 0;
+		btmem->lmsg_ctxt.smsg_free_cnt = btmem->tx_ctxt->smsg_buf_cnt;
+		btmem->lmsg_ctxt.lmsg_free_cnt = btmem->tx_ctxt->lmsg_buf_cnt;
+
+		atomic_set(&btDesc->state, 1);
+	}
 
 	bt_ipc_process_ack(btDesc);
 

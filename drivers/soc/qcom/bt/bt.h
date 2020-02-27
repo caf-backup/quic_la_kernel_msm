@@ -114,7 +114,6 @@
 #define IPC_CMD_IPC_STOP	(0x01)
 #define IPC_CMD_SWITCH_TO_UART	(0x02)
 #define IPC_CMD_PREPARE_DUMP	(0x03)
-
 #define IPC_CMD_COLLECT_DUMP	(0x04)
 
 /*-------------------------------------------------------------------------
@@ -204,6 +203,7 @@ struct bt_descriptor {
 	int (*sendmsg_cb)(struct bt_descriptor *, unsigned char *, int);
 	void (*recvmsg_cb)(struct bt_descriptor *, unsigned char *, int);
 	spinlock_t lock;
+	atomic_t state;
 };
 
 extern int bt_ipc_init(struct bt_descriptor *btDesc);
