@@ -68,7 +68,7 @@ static void *bt_ipc_alloc_lmsg(struct bt_descriptor *btDesc, uint32_t len,
 	btmem->lmsg_ctxt.lmsg_free_cnt -= blks;
 
 	if (btmem->lmsg_ctxt.lmsg_free_cnt <=
-			((btmem->tx_ctxt->lmsg_buf_cnt * 80) / 100))
+			((btmem->tx_ctxt->lmsg_buf_cnt * 20) / 100))
 		*is_lbuf_full = 1;
 
 	return (TO_APPS_ADDR(btmem->tx_ctxt->lring_buf) +
@@ -89,8 +89,8 @@ static struct ring_buffer_info *bt_ipc_get_tx_rbuf(struct bt_descriptor *btDesc,
 		if (idx != rinfo->tidx) {
 			btmem->lmsg_ctxt.smsg_free_cnt--;
 
-			if (btmem->lmsg_ctxt.smsg_free_cnt >=
-				((btmem->tx_ctxt->smsg_buf_cnt * 80) / 100))
+			if (btmem->lmsg_ctxt.smsg_free_cnt <=
+				((btmem->tx_ctxt->smsg_buf_cnt * 20) / 100))
 				*is_sbuf_full = 1;
 
 			return rinfo;
