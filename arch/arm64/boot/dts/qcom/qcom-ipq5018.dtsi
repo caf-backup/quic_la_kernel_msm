@@ -462,6 +462,131 @@
 			};
 		};
 
+		wifi0: wifi@c000000 {
+			compatible = "qcom,cnss-qca5018", "qcom,ipq5018-wifi";
+			reg = <0xc000000 0x1000000>;
+		#ifdef __IPQ_MEM_PROFILE_256_MB__
+			qcom,tgt-mem-mode = <2>;
+		#elif __IPQ_MEM_PROFILE_512_MB__
+			qcom,tgt-mem-mode = <1>;
+		#else
+			qcom,tgt-mem-mode = <0>;
+		#endif
+			qcom,bdf-addr = <0x4B0C0000 0x4B0C0000 0x4B0C0000>;
+			qcom,caldb-addr = <0x4BA00000 0x4BA00000 0x0>;
+			qcom,rproc = <&qcom_q6v5_wcss>;
+			interrupts = <0 288 1>, /* o_wcss_apps_intr[0] =  */
+			<0 289 1>,
+			<0 290 1>,
+			<0 291 1>,
+			<0 292 1>,
+			<0 293 1>,
+			<0 294 1>,
+			<0 295 1>,
+			<0 296 1>,
+			<0 297 1>,
+			<0 298 1>,
+			<0 299 1>,
+			<0 300 1>,
+			<0 301 1>,
+			<0 302 1>,
+			<0 303 1>,
+			<0 304 1>,
+			<0 305 1>,
+			<0 306 1>,
+			<0 307 1>,
+			<0 308 1>,
+			<0 309 1>,
+			<0 310 1>,
+			<0 311 1>,
+			<0 312 1>,
+			<0 313 1>, /* o_wcss_apps_intr[25] */
+
+			<0 314 1>,
+			<0 315 1>,
+			<0 316 1>,
+			<0 317 1>,
+			<0 318 1>,
+			<0 319 1>,
+			<0 320 1>,
+			<0 321 1>,
+			<0 322 1>,
+			<0 323 1>,
+			<0 324 1>,
+			<0 325 1>,
+
+			<0 326 1>,
+
+			<0 327 1>,
+			<0 328 1>,
+			<0 329 1>,
+			<0 330 1>,
+			<0 331 1>,
+			<0 332 1>,
+
+			<0 333 1>,
+			<0 334 1>,
+			<0 335 1>,
+			<0 336 1>,
+			<0 337 1>,
+			<0 338 1>,
+			<0 339 1>; /* o_wcss_apps_intr[51] */
+
+			interrupt-names = "misc-pulse1",
+			"misc-latch",
+			"sw-exception",
+			"watchdog",
+			"ce0",
+			"ce1",
+			"ce2",
+			"ce3",
+			"ce4",
+			"ce5",
+			"ce6",
+			"ce7",
+			"ce8",
+			"ce9",
+			"ce10",
+			"ce11",
+			"host2wbm-desc-feed",
+			"host2reo-re-injection",
+			"host2reo-command",
+			"host2rxdma-monitor-ring3",
+			"host2rxdma-monitor-ring2",
+			"host2rxdma-monitor-ring1",
+			"reo2ost-exception",
+			"wbm2host-rx-release",
+			"reo2host-status",
+			"reo2host-destination-ring4",
+			"reo2host-destination-ring3",
+			"reo2host-destination-ring2",
+			"reo2host-destination-ring1",
+			"rxdma2host-monitor-destination-mac3",
+			"rxdma2host-monitor-destination-mac2",
+			"rxdma2host-monitor-destination-mac1",
+			"ppdu-end-interrupts-mac3",
+			"ppdu-end-interrupts-mac2",
+			"ppdu-end-interrupts-mac1",
+			"rxdma2host-monitor-status-ring-mac3",
+			"rxdma2host-monitor-status-ring-mac2",
+			"rxdma2host-monitor-status-ring-mac1",
+			"host2rxdma-host-buf-ring-mac3",
+			"host2rxdma-host-buf-ring-mac2",
+			"host2rxdma-host-buf-ring-mac1",
+			"rxdma2host-destination-ring-mac3",
+			"rxdma2host-destination-ring-mac2",
+			"rxdma2host-destination-ring-mac1",
+			"host2tcl-input-ring4",
+			"host2tcl-input-ring3",
+			"host2tcl-input-ring2",
+			"host2tcl-input-ring1",
+			"wbm2host-tx-completions-ring3",
+			"wbm2host-tx-completions-ring2",
+			"wbm2host-tx-completions-ring1",
+			"tcl2host-status-ring";
+		status = "disabled";
+		};
+
 		i2c_0: i2c@78b6000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			#address-cells = <1>;

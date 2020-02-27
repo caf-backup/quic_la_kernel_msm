@@ -84,6 +84,10 @@
 			};
 		};
 
+		wifi0: wifi@c000000 {
+			status = "ok";
+		};
+
 		qca,scm_restart_reason {
 			status = "ok";
 		};

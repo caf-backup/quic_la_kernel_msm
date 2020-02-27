@@ -88,6 +88,10 @@
 			};
 		};
 
+		wifi0: wifi@c000000 {
+			status = "disabled";
+		};
+
 		pcie0: pci@80000000 {
 			is_emulation = <1>;
 		};
