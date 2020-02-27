@@ -45,15 +45,30 @@
 	 * for memory layout.
 	 */
 
+	reserved-memory {
 /* TZAPP is enabled in default memory profile only */
 #if !defined(__IPQ_MEM_PROFILE_256_MB__) && !defined(__IPQ_MEM_PROFILE_512_MB__)
-	reserved-memory {
 		tzapp:tzapp@49B00000 {	/* TZAPPS */
 			no-map;
 			reg = <0x0 0x49B00000 0x0 0x00600000>;
 		};
-	};
 #endif
+
+/* No Pine attach in 256M profile */
+#if !defined(__IPQ_MEM_PROFILE_256_MB__)
+#ifdef __IPQ_MEM_PROFILE_512_MB__
+		qcn9000_pcie0@4e300000 {
+			no-map;
+			reg = <0x0 0x4e300000 0x0 0x03700000>;
+		};
+#else
+		qcn9000_pcie0@50100000 {
+			no-map;
+			reg = <0x0 0x50100000 0x0 0x03700000>;
+		};
+#endif
+#endif
+	};
 };
 
 &tlmm {
