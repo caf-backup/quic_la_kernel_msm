@@ -32,6 +32,9 @@
 #include <linux/remoteproc.h>
 #include "bt.h"
 
+static bool btss_debug;
+module_param(btss_debug, bool, 0644);
+
 static int bt_open(struct tty_struct *tty, struct file *file)
 {
 	return 0;
@@ -312,6 +315,19 @@ int bt_parse_clks(struct bt_descriptor *btDesc)
 	return 0;
 }
 
+int bt_parse_pinctrl(struct bt_descriptor *btDesc)
+{
+	struct device *dev = &btDesc->pdev->dev;
+
+	btDesc->pinctrl = devm_pinctrl_get(dev);
+	if (IS_ERR_OR_NULL(btDesc->pinctrl)) {
+		dev_err(dev, "unable to get pinctrl\n");
+		return PTR_ERR(btDesc->pinctrl);
+	}
+
+	return 0;
+}
+
 int bt_parse_dt(struct bt_descriptor *btDesc)
 {
 	int ret;
@@ -339,6 +355,12 @@ int bt_parse_dt(struct bt_descriptor *btDesc)
 	ret = bt_parse_clks(btDesc);
 	if (ret < 0) {
 		dev_err(dev, "could not get clk info, ret = %d\n", ret);
+		return ret;
+	}
+
+	ret = bt_parse_pinctrl(btDesc);
+	if (ret < 0) {
+		dev_err(dev, "could not get pinctrl info, ret = %d\n", ret);
 		return ret;
 	}
 
@@ -426,6 +448,7 @@ static int bt_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct bt_descriptor *btDesc;
+	struct pinctrl_state *pin_state;
 
 	btDesc = devm_kzalloc(&pdev->dev, sizeof(*btDesc), GFP_KERNEL);
 	if (!btDesc)
@@ -443,10 +466,27 @@ static int bt_probe(struct platform_device *pdev)
 	if (ret < 0)
 		dev_err(&pdev->dev, "err register debugFs, ret = %d\n", ret);
 
-	ret = bt_tty_init(btDesc);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "err initializing TTY, ret = %d\n", ret);
-		goto err;
+	if (!btss_debug) {
+		ret = bt_tty_init(btDesc);
+		if (ret < 0) {
+			dev_err(&pdev->dev,
+				"err initializing TTY, ret = %d\n", ret);
+			goto err;
+		}
+
+		btDesc->recvmsg_cb = bt_read;
+	} else {
+		btDesc->debug_en = true;
+
+		pin_state = pinctrl_lookup_state(btDesc->pinctrl, "btss_pins");
+		if (IS_ERR(pin_state)) {
+			ret = PTR_ERR(pin_state);
+			dev_err(&pdev->dev,
+				"btss pinctrl state err, ret = %d\n", ret);
+			goto err;
+		}
+		pinctrl_select_state(btDesc->pinctrl, pin_state);
+
 	}
 
 	btDesc->rproc_pdev = platform_device_register_data(&pdev->dev,
@@ -459,7 +499,6 @@ static int bt_probe(struct platform_device *pdev)
 		goto err_deinit_tty;
 	}
 
-	btDesc->recvmsg_cb = bt_read;
 
 	ret = bt_ipc_init(btDesc);
 	if (ret) {

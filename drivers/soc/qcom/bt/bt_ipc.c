@@ -380,6 +380,9 @@ static irqreturn_t bt_ipc_irq_handler(int irq, void *data)
 				BIT(btDesc->ipc.bit));
 	}
 
+	if (btDesc->debug_en)
+		bt_ipc_cust_msg(btDesc, IPC_CMD_SWITCH_TO_UART);
+
 	spin_unlock_irqrestore(&btDesc->lock, flags);
 	enable_irq(btDesc->ipc.irq);
 

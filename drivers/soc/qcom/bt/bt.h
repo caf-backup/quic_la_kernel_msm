@@ -23,6 +23,7 @@
 #include <linux/serial_core.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
+#include <linux/pinctrl/consumer.h>
 
 
 #define BT_M0_WARM_RST_ORIDE	0x0
@@ -205,6 +206,8 @@ struct bt_descriptor {
 	spinlock_t lock;
 	atomic_t state;
 	struct notifier_block panic_nb;
+	struct pinctrl *pinctrl;
+	bool debug_en;
 };
 
 extern int bt_ipc_init(struct bt_descriptor *btDesc);
