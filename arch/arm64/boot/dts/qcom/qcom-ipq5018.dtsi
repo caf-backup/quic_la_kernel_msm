@@ -942,6 +942,10 @@
 
 			perst-gpio = <&tlmm 28 1>;
 			status = "disabled";
+
+			pcie1_rp: pcie1_rp {
+				reg = <0 0 0 0 0>;
+			};
 		};
 
 		qcom,test@0 {
