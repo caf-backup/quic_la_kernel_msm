@@ -147,6 +147,7 @@ static int bt_ipc_send_msg(struct bt_descriptor *btDesc, uint16_t msg_hdr,
 			memcpy_toio(aux_ptr.buf, (pData + (len - aux_ptr.len)),
 					aux_ptr.len);
 
+		rbuf->payload.lmsg_data = TO_BT_ADDR(rbuf->payload.lmsg_data);
 	} else {
 		memcpy_toio(rbuf->payload.smsg_data, pData, len);
 	}
@@ -301,7 +302,7 @@ static void bt_ipc_process_ack(struct bt_descriptor *btDesc)
 			rinfo = rinfo->next) {
 		uint8_t tidx = rinfo->tidx;
 		struct ring_buffer *rbuf = (struct ring_buffer *)
-			TO_APPS_ADDR(btmem->rx_ctxt->sring_buf_info.rbuf);
+			TO_APPS_ADDR(rinfo->rbuf);
 
 		while (tidx != rinfo->ridx) {
 			if (IS_LONG_MSG(rbuf[tidx].msg_hdr)) {

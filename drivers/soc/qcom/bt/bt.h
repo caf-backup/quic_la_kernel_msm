@@ -35,6 +35,7 @@
 #define IPC_TX_LBUF_SZ		0x0108
 
 #define	TO_APPS_ADDR(a)		(btmem->virt + (int)(uintptr_t)a)
+#define	TO_BT_ADDR(a)		(void *)(a - btmem->virt)
 
 #define IPC_MSG_HDR_SZ		(4u)
 #define IPC_MSG_PLD_SZ		(40u)
