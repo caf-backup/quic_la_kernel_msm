@@ -2286,6 +2286,10 @@
 			qcom,offset-page-indices = <56>;
 		};
 
+		mhi_test: qcom,test@0 {
+			compatible = "qcom,testmhi";
+			status = "disabled";
+		};
 	};
 
 	psci: psci {
