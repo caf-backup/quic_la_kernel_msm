@@ -88,7 +88,7 @@ void cnss_dump_qmi_history(void)
 	for (i = 0; i < QMI_HISTORY_SIZE; i++) {
 		if (qmi_log[i].msg_id)
 			pr_err(
-			"qmi_history[%d]:timestamp[%llu] instance_id [%X] msg_id[%X] err[%d] resp_err[%d]\n",
+			"qmi_history[%d]:timestamp[%llu] instance_id [0x%X] msg_id[0x%X] err[%d] resp_err[%d]\n",
 			i, qmi_log[i].timestamp,
 			qmi_log[i].instance_id,
 			qmi_log[i].msg_id,

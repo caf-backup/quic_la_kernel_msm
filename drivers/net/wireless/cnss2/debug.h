@@ -18,6 +18,17 @@
 
 #define CNSS_IPC_LOG_PAGES		32
 
+enum cnss_log_level {
+	CNSS_LOG_LEVEL_NONE,
+	CNSS_LOG_LEVEL_ERROR,
+	CNSS_LOG_LEVEL_WARN,
+	CNSS_LOG_LEVEL_INFO,
+	CNSS_LOG_LEVEL_DEBUG,
+	CNSS_LOG_LEVEL_MAX
+};
+
+extern int log_level;
+
 extern void *cnss_ipc_log_context;
 extern void *cnss_ipc_log_long_context;
 
@@ -32,30 +43,80 @@ extern void *cnss_ipc_log_long_context;
 	} while (0)
 
 #define cnss_pr_err(_fmt, ...) do {					\
-		pr_err("cnss: " _fmt, ##__VA_ARGS__);			\
-		cnss_ipc_log_string("[%04X] ERR: " pr_fmt(_fmt),	\
-				    plat_priv->device_id,		\
-				    ##__VA_ARGS__);			\
+		if (plat_priv) {					\
+			pr_err("cnss[%x]: ERR: " _fmt,			\
+			       plat_priv->wlfw_service_instance_id,	\
+			       ##__VA_ARGS__);				\
+			cnss_ipc_log_string("[%x] ERR: " pr_fmt(_fmt),	\
+					    plat_priv->			\
+					    wlfw_service_instance_id,	\
+					    ##__VA_ARGS__);		\
+		} else {						\
+			pr_err("cnss: " _fmt, ##__VA_ARGS__);		\
+		}							\
 	} while (0)
 
 #define cnss_pr_warn(_fmt, ...) do {					\
-		pr_warn("cnss: " _fmt, ##__VA_ARGS__);			\
-		cnss_ipc_log_string("WRN: " pr_fmt(_fmt),		\
-				    ##__VA_ARGS__);			\
+		if (plat_priv) {					\
+			if (log_level >= CNSS_LOG_LEVEL_WARN)		\
+				pr_err("cnss[%x]: WARN: " _fmt,		\
+				       plat_priv->			\
+				       wlfw_service_instance_id,	\
+				       ##__VA_ARGS__);			\
+			else						\
+				pr_warn("cnss[%x]: WARN: " _fmt,	\
+					plat_priv->			\
+					wlfw_service_instance_id,	\
+					##__VA_ARGS__);			\
+			cnss_ipc_log_string("[%x] WRN: " pr_fmt(_fmt),	\
+					    plat_priv->			\
+					    wlfw_service_instance_id,	\
+					    ##__VA_ARGS__);		\
+		} else {						\
+			pr_err("cnss: " _fmt, ##__VA_ARGS__);		\
+		}							\
 	} while (0)
 
 #define cnss_pr_info(_fmt, ...) do {					\
-		pr_info("cnss: " _fmt, ##__VA_ARGS__);			\
-		cnss_ipc_log_string("[%04X] INF: " pr_fmt(_fmt),	\
-				    plat_priv->device_id,		\
-				    ##__VA_ARGS__);			\
+		if (plat_priv) {					\
+			if (log_level >= CNSS_LOG_LEVEL_INFO)		\
+				pr_err("cnss[%x]: INFO: " _fmt,		\
+				       plat_priv->			\
+				       wlfw_service_instance_id,	\
+				       ##__VA_ARGS__);			\
+			else						\
+				pr_info("cnss[%x]: INFO: " _fmt,	\
+					plat_priv->			\
+					wlfw_service_instance_id,	\
+					##__VA_ARGS__);			\
+			cnss_ipc_log_string("[%x] INF: " pr_fmt(_fmt),	\
+					    plat_priv->			\
+					    wlfw_service_instance_id,	\
+					    ##__VA_ARGS__);		\
+		} else {						\
+			pr_err("cnss: " _fmt, ##__VA_ARGS__);		\
+		}							\
 	} while (0)
 
 #define cnss_pr_dbg(_fmt, ...) do {					\
-		pr_debug("cnss: " _fmt, ##__VA_ARGS__);			\
-		cnss_ipc_log_string("[%04X] DBG: " pr_fmt(_fmt),	\
-				    plat_priv->device_id,		\
-				    ##__VA_ARGS__);			\
+		if (plat_priv) {					\
+			if (log_level >= CNSS_LOG_LEVEL_DEBUG)		\
+				pr_err("cnss[%x]: DBG: " _fmt,		\
+				       plat_priv->			\
+				       wlfw_service_instance_id,	\
+				       ##__VA_ARGS__);			\
+			else						\
+				pr_debug("cnss[%x]: DBG: " _fmt,	\
+					 plat_priv->			\
+					 wlfw_service_instance_id,	\
+					 ##__VA_ARGS__);		\
+			cnss_ipc_log_string("[%x] DBG: " pr_fmt(_fmt),	\
+					    plat_priv->			\
+					    wlfw_service_instance_id,	\
+					    ##__VA_ARGS__);		\
+		} else {						\
+			pr_err("cnss: " _fmt, ##__VA_ARGS__);		\
+		}							\
 	} while (0)
 
 #define cnss_pr_vdbg(_fmt, ...) do {					\

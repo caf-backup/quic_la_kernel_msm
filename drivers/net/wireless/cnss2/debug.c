@@ -22,6 +22,11 @@ void *cnss_ipc_log_context;
 void *cnss_ipc_log_long_context;
 extern void cnss_dump_qmi_history(void);
 
+int log_level = CNSS_LOG_LEVEL_INFO;
+EXPORT_SYMBOL(log_level);
+module_param(log_level, int, 0644);
+MODULE_PARM_DESC(log_level, "CNSS2 Module Log Level");
+
 static int cnss_pin_connect_show(struct seq_file *s, void *data)
 {
 	struct cnss_plat_data *cnss_priv = s->private;
