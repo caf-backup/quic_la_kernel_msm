@@ -805,6 +805,12 @@
 			status = "disabled";
 		};
 
+		tzlog: qca,tzlog {
+			compatible = "qca,tzlog_ipq50xx";
+			interrupts = <GIC_SPI 267 IRQ_TYPE_EDGE_RISING>;
+			qca,tzbsp-diag-buf-size = <0x2000>;
+		};
+
 		bt: bt@7000000 {
 			compatible = "qcom,bt";
 			firmware = "IPQ5018/bt_fw.mdt";
