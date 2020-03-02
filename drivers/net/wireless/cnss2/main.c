@@ -48,10 +48,6 @@
 #else
 #define CNSS_MHI_TIMEOUT_DEFAULT	90000
 #endif
-bool skip_cnss;
-EXPORT_SYMBOL(skip_cnss);
-module_param(skip_cnss, bool, 0600);
-MODULE_PARM_DESC(skip_cnss, "skip_cnss");
 #define CNSS_QMI_TIMEOUT_DEFAULT	10000
 #define CNSS_BDF_TYPE_DEFAULT		CNSS_BDF_ELF
 #define CNSS_TIME_SYNC_PERIOD_DEFAULT	900000
@@ -78,6 +74,17 @@ MODULE_PARM_DESC(bdf_pci0, "bdf_pci0");
 static int bdf_pci1;
 module_param(bdf_pci1, int, 0644);
 MODULE_PARM_DESC(bdf_pci1, "bdf_pci0");
+
+static int skip_cnss;
+module_param(skip_cnss, int, 0644);
+MODULE_PARM_DESC(skip_cnss, "skip_cnss");
+
+enum skip_cnss_options {
+	CNSS_SKIP_NONE,
+	CNSS_SKIP_ALL,
+	CNSS_SKIP_AHB,
+	CNSS_SKIP_PCI
+};
 
 static struct cnss_fw_files FW_FILES_QCA6174_FW_3_0 = {
 	"qwlan30.bin", "bdwlan30.bin", "otp30.bin", "utf30.bin",
@@ -2930,10 +2937,6 @@ static int cnss_probe(struct platform_device *plat_dev)
 	u32 node_id;
 	const int *soc_version_major;
 
-	if (skip_cnss) {
-		pr_err("Skipping CNSS_PROBE\n");
-		return 0;
-	}
 	if (cnss_get_plat_priv(plat_dev)) {
 		pr_err("Driver is already initialized!\n");
 		ret = -EEXIST;
@@ -2947,6 +2950,25 @@ static int cnss_probe(struct platform_device *plat_dev)
 	}
 
 	device_id = (const struct platform_device_id *)of_id->data;
+
+	if (skip_cnss == CNSS_SKIP_ALL) {
+		pr_err("Skipping cnss_probe for device 0x%lx\n",
+		       device_id->driver_data);
+		goto out;
+	} else if (skip_cnss == CNSS_SKIP_PCI &&
+		   device_id->driver_data == QCN9000_DEVICE_ID) {
+		pr_err("Skipping cnss_probe for device 0x%lx\n",
+		       device_id->driver_data);
+		goto out;
+	} else if (skip_cnss == CNSS_SKIP_AHB &&
+		   (device_id->driver_data == QCA8074_DEVICE_ID ||
+		   device_id->driver_data == QCA8074V2_DEVICE_ID ||
+		   device_id->driver_data == QCA6018_DEVICE_ID ||
+		   device_id->driver_data == QCA5018_DEVICE_ID)) {
+		pr_err("Skipping cnss_probe for device 0x%lx\n",
+		       device_id->driver_data);
+		goto out;
+	}
 
 #ifdef CONFIG_CNSS_QCN9000
 	if (device_id->driver_data == QCA6174_DEVICE_ID) {
@@ -3000,11 +3022,9 @@ skip_soc_version_checks:
 	plat_priv->plat_dev_id = (struct platform_device_id *)device_id;
 	plat_priv->ramdump_enabled = ramdump_enabled;
 
-	if (device_id->driver_data == QCN9000_DEVICE_ID)
-		plat_priv->bus_type = CNSS_BUS_PCI;
-
 	switch (plat_priv->device_id) {
 	case QCN9000_DEVICE_ID:
+		plat_priv->bus_type = CNSS_BUS_PCI;
 		plat_priv->service_id = WLFW_SERVICE_ID_V01_NPR;
 		if (of_property_read_u32(plat_dev->dev.of_node, "qrtr_node_id",
 					 &node_id)) {
