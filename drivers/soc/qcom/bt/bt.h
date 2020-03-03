@@ -23,6 +23,7 @@
 #include <linux/serial_core.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
+#include <linux/pinctrl/consumer.h>
 
 
 #define BT_M0_WARM_RST_ORIDE	0x0
@@ -34,6 +35,7 @@
 #define IPC_TX_LBUF_SZ		0x0108
 
 #define	TO_APPS_ADDR(a)		(btmem->virt + (int)(uintptr_t)a)
+#define	TO_BT_ADDR(a)		(void *)(a - btmem->virt)
 
 #define IPC_MSG_HDR_SZ		(4u)
 #define IPC_MSG_PLD_SZ		(40u)
@@ -114,7 +116,6 @@
 #define IPC_CMD_IPC_STOP	(0x01)
 #define IPC_CMD_SWITCH_TO_UART	(0x02)
 #define IPC_CMD_PREPARE_DUMP	(0x03)
-
 #define IPC_CMD_COLLECT_DUMP	(0x04)
 
 /*-------------------------------------------------------------------------
@@ -204,6 +205,10 @@ struct bt_descriptor {
 	int (*sendmsg_cb)(struct bt_descriptor *, unsigned char *, int);
 	void (*recvmsg_cb)(struct bt_descriptor *, unsigned char *, int);
 	spinlock_t lock;
+	atomic_t state;
+	struct notifier_block panic_nb;
+	struct pinctrl *pinctrl;
+	bool debug_en;
 };
 
 extern int bt_ipc_init(struct bt_descriptor *btDesc);

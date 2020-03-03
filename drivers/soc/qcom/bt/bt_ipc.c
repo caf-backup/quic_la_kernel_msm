@@ -26,6 +26,7 @@
 #include <linux/of_irq.h>
 #include <linux/kthread.h>
 #include <linux/debugfs.h>
+#include <linux/notifier.h>
 #include <linux/mfd/syscon.h>
 #include <uapi/linux/major.h>
 #include <linux/completion.h>
@@ -68,7 +69,7 @@ static void *bt_ipc_alloc_lmsg(struct bt_descriptor *btDesc, uint32_t len,
 	btmem->lmsg_ctxt.lmsg_free_cnt -= blks;
 
 	if (btmem->lmsg_ctxt.lmsg_free_cnt <=
-			((btmem->tx_ctxt->lmsg_buf_cnt * 80) / 100))
+			((btmem->tx_ctxt->lmsg_buf_cnt * 20) / 100))
 		*is_lbuf_full = 1;
 
 	return (TO_APPS_ADDR(btmem->tx_ctxt->lring_buf) +
@@ -89,8 +90,8 @@ static struct ring_buffer_info *bt_ipc_get_tx_rbuf(struct bt_descriptor *btDesc,
 		if (idx != rinfo->tidx) {
 			btmem->lmsg_ctxt.smsg_free_cnt--;
 
-			if (btmem->lmsg_ctxt.smsg_free_cnt >=
-				((btmem->tx_ctxt->smsg_buf_cnt * 80) / 100))
+			if (btmem->lmsg_ctxt.smsg_free_cnt <=
+				((btmem->tx_ctxt->smsg_buf_cnt * 20) / 100))
 				*is_sbuf_full = 1;
 
 			return rinfo;
@@ -146,6 +147,7 @@ static int bt_ipc_send_msg(struct bt_descriptor *btDesc, uint16_t msg_hdr,
 			memcpy_toio(aux_ptr.buf, (pData + (len - aux_ptr.len)),
 					aux_ptr.len);
 
+		rbuf->payload.lmsg_data = TO_BT_ADDR(rbuf->payload.lmsg_data);
 	} else {
 		memcpy_toio(rbuf->payload.smsg_data, pData, len);
 	}
@@ -181,19 +183,37 @@ void bt_ipc_free_lmsg(struct bt_descriptor *btDesc, void *lmsg, uint16_t len)
 	btmem->lmsg_ctxt.lmsg_free_cnt += blks;
 }
 
-static
-void bt_ipc_cust_msg(struct bt_descriptor *btDesc, uint8_t type, uint8_t *buf,
-								uint16_t len)
+static void bt_ipc_cust_msg(struct bt_descriptor *btDesc, uint8_t msgid)
 {
 	struct device *dev = &btDesc->pdev->dev;
+	uint16_t msg_hdr = 0;
+	int ret;
 
-	switch (type) {
+	msg_hdr |= msgid;
+
+	switch (msgid) {
+	case IPC_CMD_IPC_STOP:
+		atomic_set(&btDesc->state, 0);
+		msg_hdr |= IPC_RACK_MASK;
+		dev_info(dev, "BT IPC Stopped, gracefully stopping APSS IPC\n");
+		break;
+	case IPC_CMD_SWITCH_TO_UART:
+		dev_info(dev, "Configured UART, Swithing BT to debug mode\n");
+		break;
+	case IPC_CMD_PREPARE_DUMP:
+		dev_info(dev, "IPQ crashed, inform BT to prepare dump\n");
+		break;
 	case IPC_CMD_COLLECT_DUMP:
 		dev_info(dev, "BT Crashed, gracefully stopping IPC\n");
-		break;
+		return;
 	default:
-		dev_info(dev, "invalid custom message\n");
+		dev_err(dev, "invalid custom message\n");
+		return;
 	}
+
+	ret = bt_ipc_send_msg(btDesc, msg_hdr, NULL, 0);
+	if (ret)
+		dev_err(dev, "err: sending message\n");
 }
 
 static bool bt_ipc_process_peer_msgs(struct bt_descriptor *btDesc,
@@ -257,8 +277,7 @@ static bool bt_ipc_process_peer_msgs(struct bt_descriptor *btDesc,
 			btDesc->recvmsg_cb(btDesc, buf, rbuf->len);
 			break;
 		case IPC_CUST_PKT:
-			bt_ipc_cust_msg(btDesc, IPC_GET_MSG_ID(rbuf->msg_hdr),
-					rxbuf, rbuf->len);
+			bt_ipc_cust_msg(btDesc, IPC_GET_MSG_ID(rbuf->msg_hdr));
 			break;
 		case IPC_AUDIO_PKT:
 			break;
@@ -283,7 +302,7 @@ static void bt_ipc_process_ack(struct bt_descriptor *btDesc)
 			rinfo = rinfo->next) {
 		uint8_t tidx = rinfo->tidx;
 		struct ring_buffer *rbuf = (struct ring_buffer *)
-			TO_APPS_ADDR(btmem->rx_ctxt->sring_buf_info.rbuf);
+			TO_APPS_ADDR(rinfo->rbuf);
 
 		while (tidx != rinfo->ridx) {
 			if (IS_LONG_MSG(rbuf[tidx].msg_hdr)) {
@@ -308,14 +327,10 @@ int bt_ipc_sendmsg(struct bt_descriptor *btDesc, unsigned char *buf, int len)
 	struct device *dev = &btDesc->pdev->dev;
 	unsigned long flags;
 
-	spin_lock_irqsave(&btDesc->lock, flags);
+	if (!atomic_read(&btDesc->state))
+		return -ENODEV;
 
-	if (IS_HCI_PKT(msg_hdr))
-		dev_dbg(dev, "Received HCI pkt\n");
-	else if (IS_CUST_PKT(msg_hdr))
-		dev_dbg(dev, "Received Custom pkt\n");
-	else
-		dev_dbg(dev, "Received Unknown pkt\n");
+	spin_lock_irqsave(&btDesc->lock, flags);
 
 	ret = bt_ipc_send_msg(btDesc, msg_hdr, (uint8_t *)buf, (uint16_t)len);
 	if (ret)
@@ -337,14 +352,19 @@ static irqreturn_t bt_ipc_irq_handler(int irq, void *data)
 	disable_irq_nosync(btDesc->ipc.irq);
 	spin_lock_irqsave(&btDesc->lock, flags);
 
-	btmem->rx_ctxt = (struct context_info *)(btDesc->btmem.virt + 0xe000);
-	btmem->tx_ctxt = (struct context_info *)((void *)btmem->rx_ctxt +
-			btmem->rx_ctxt->TotalMemorySize);
+	if (unlikely(!atomic_read(&btDesc->state))) {
+		btmem->rx_ctxt = (struct context_info *)
+			(btDesc->btmem.virt + 0xe000);
+		btmem->tx_ctxt = (struct context_info *)((void *)
+			btmem->rx_ctxt + btmem->rx_ctxt->TotalMemorySize);
 
-	btmem->lmsg_ctxt.widx = 0;
-	btmem->lmsg_ctxt.ridx = 0;
-	btmem->lmsg_ctxt.smsg_free_cnt = btmem->tx_ctxt->smsg_buf_cnt;
-	btmem->lmsg_ctxt.lmsg_free_cnt = btmem->tx_ctxt->lmsg_buf_cnt;
+		btmem->lmsg_ctxt.widx = 0;
+		btmem->lmsg_ctxt.ridx = 0;
+		btmem->lmsg_ctxt.smsg_free_cnt = btmem->tx_ctxt->smsg_buf_cnt;
+		btmem->lmsg_ctxt.lmsg_free_cnt = btmem->tx_ctxt->lmsg_buf_cnt;
+
+		atomic_set(&btDesc->state, 1);
+	}
 
 	bt_ipc_process_ack(btDesc);
 
@@ -361,10 +381,23 @@ static irqreturn_t bt_ipc_irq_handler(int irq, void *data)
 				BIT(btDesc->ipc.bit));
 	}
 
+	if (btDesc->debug_en)
+		bt_ipc_cust_msg(btDesc, IPC_CMD_SWITCH_TO_UART);
+
 	spin_unlock_irqrestore(&btDesc->lock, flags);
 	enable_irq(btDesc->ipc.irq);
 
 	return IRQ_HANDLED;
+}
+
+static
+int ipc_panic_handler(struct notifier_block *nb, unsigned long event, void *ptr)
+{
+	struct bt_descriptor *btDesc = container_of(nb, struct bt_descriptor,
+								panic_nb);
+	bt_ipc_cust_msg(btDesc, IPC_CMD_PREPARE_DUMP);
+
+	return NOTIFY_DONE;
 }
 
 int bt_ipc_init(struct bt_descriptor *btDesc)
@@ -384,10 +417,19 @@ int bt_ipc_init(struct bt_descriptor *btDesc)
 		goto irq_err;
 	}
 
+	btDesc->panic_nb.notifier_call = ipc_panic_handler;
+
+	ret = atomic_notifier_chain_register(&panic_notifier_list,
+							&btDesc->panic_nb);
+	if (ret)
+		goto panic_nb_err;
+
 	btDesc->sendmsg_cb = bt_ipc_sendmsg;
 
 	return 0;
 
+panic_nb_err:
+	devm_free_irq(dev, ipc->irq, btDesc);
 irq_err:
 	return ret;
 }
@@ -398,6 +440,8 @@ void bt_ipc_deinit(struct bt_descriptor *btDesc)
 	struct bt_ipc *ipc = &btDesc->ipc;
 	struct device *dev = &btDesc->pdev->dev;
 
+	atomic_notifier_chain_unregister(&panic_notifier_list,
+							&btDesc->panic_nb);
 	devm_free_irq(dev, ipc->irq, btDesc);
 }
 EXPORT_SYMBOL(bt_ipc_deinit);
