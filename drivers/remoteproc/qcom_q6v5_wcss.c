@@ -85,6 +85,7 @@
 #define TCSR_WCSS_CLK_ENABLE	0x14
 
 #define WCNSS_PAS_ID		6
+#define DEFAULT_IMG_ADDR        0x4b000000
 
 struct q6v5_wcss {
 	struct device *dev;
@@ -445,6 +446,15 @@ static int start_q6(const struct subsys_desc *subsys)
 	struct qcom_q6v5 *q6v5 = subsys_to_pdata(subsys);
 	struct rproc *rproc = q6v5->rproc;
 	int ret = 0;
+	struct q6_platform_data *pdata =
+		dev_get_platdata(((struct q6v5_wcss *)rproc->priv)->dev);
+
+	if (pdata->emulation) {
+		pr_info("q6v5: Emulation start, PIL loading skipped\n");
+		rproc->bootaddr = DEFAULT_IMG_ADDR;
+		rproc->ops->start(rproc);
+		return 0;
+	}
 
 	ret = rproc_boot(rproc);
 	if (ret)
@@ -461,6 +471,7 @@ static int stop_q6(const struct subsys_desc *subsys, bool force_stop)
 	struct rproc *rproc = q6v5->rproc;
 	struct q6v5_wcss *wcss = rproc->priv;
 	int ret = 0;
+	struct q6_platform_data *pdata = dev_get_platdata(wcss->dev);
 
 	if (!subsys_get_crash_status(q6v5->subsys) && force_stop) {
 		ret = qcom_q6v5_request_stop(&wcss->q6v5);
@@ -470,8 +481,15 @@ static int stop_q6(const struct subsys_desc *subsys, bool force_stop)
 		}
 	}
 
+	if (pdata->emulation) {
+		pr_info("q6v5: Emulation stop\n");
+		rproc->ops->stop(rproc);
+		goto stop_flag;
+	}
+
 	rproc_shutdown(rproc);
 
+stop_flag:
 	q6v5->running = false;
 	return ret;
 }
