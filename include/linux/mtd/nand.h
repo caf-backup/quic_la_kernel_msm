@@ -114,6 +114,10 @@ extern int nand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
 #define NAND_STATUS_READY	0x40
 #define NAND_STATUS_WP		0x80
 
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+#define MAX_MULTI_PAGE		64
+#endif
+
 /*
  * Constants for ECC_MODES
  */
@@ -514,6 +518,10 @@ struct nand_ecc_ctrl {
 			const uint8_t *buf, int oob_required, int page);
 	int (*read_page)(struct mtd_info *mtd, struct nand_chip *chip,
 			uint8_t *buf, int oob_required, int page);
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+	int (*read_multi_page)(struct mtd_info *mtd, struct nand_chip *chip,
+			uint8_t *buf, int oob_required, int page, int no_pages);
+#endif
 	int (*read_subpage)(struct mtd_info *mtd, struct nand_chip *chip,
 			uint32_t offs, uint32_t len, uint8_t *buf, int page);
 	int (*write_subpage)(struct mtd_info *mtd, struct nand_chip *chip,
