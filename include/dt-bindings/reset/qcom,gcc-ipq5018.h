@@ -115,6 +115,7 @@
 #define	GCC_UNIPHY_SYS_ARES			95
 #define	GCC_UNIPHY_RX_ARES			96
 #define	GCC_UNIPHY_TX_ARES			97
+#define	GCC_UNIPHY_SOFT_RESET			110
 #define	GCC_USB0_BCR				98
 #define	GCC_USB0_PHY_BCR			99
 #define	GCC_WCSS_BCR				100
