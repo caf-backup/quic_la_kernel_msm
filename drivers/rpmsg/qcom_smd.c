@@ -746,7 +746,7 @@ static int __qcom_smd_send(struct qcom_smd_channel *channel, const void *data,
 	__le32 hdr[5] = { cpu_to_le32(len), };
 	int tlen = sizeof(hdr) + len;
 	unsigned long flags;
-	int ret;
+	int ret = 0;
 
 	/* Word aligned channels only accept word size aligned data */
 	if (channel->info_word && len % 4)
@@ -914,7 +914,7 @@ static struct rpmsg_endpoint *qcom_smd_create_ept(struct rpmsg_device *rpdev,
 	ret = wait_event_interruptible_timeout(edge->new_channel_event,
 			(channel = qcom_smd_find_channel(edge, name)) != NULL,
 			HZ);
-	if (!ret)
+	if (!ret || !channel)
 		return NULL;
 
 	if (channel->state != SMD_CHANNEL_CLOSED) {

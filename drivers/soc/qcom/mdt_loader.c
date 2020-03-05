@@ -91,7 +91,7 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 	char *fw_name;
 	bool relocate = false;
 	void *ptr;
-	int ret;
+	int ret = 0;
 	int i;
 
 	if (!fw || !mem_region || !mem_phys || !mem_size)
