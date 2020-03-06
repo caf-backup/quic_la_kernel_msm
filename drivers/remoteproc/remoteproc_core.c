@@ -1050,7 +1050,7 @@ unroll_preparation:
 	return ret;
 }
 
-static int rproc_start_subdevices(struct rproc *rproc)
+int rproc_start_subdevices(struct rproc *rproc)
 {
 	struct rproc_subdev *subdev;
 	int ret;
@@ -1073,6 +1073,7 @@ unroll_registration:
 
 	return ret;
 }
+EXPORT_SYMBOL(rproc_start_subdevices);
 
 static void rproc_stop_subdevices(struct rproc *rproc, bool crashed)
 {
