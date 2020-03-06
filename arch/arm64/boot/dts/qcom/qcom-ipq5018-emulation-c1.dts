@@ -244,10 +244,6 @@
 	qcom,emulation = <1>;
 };
 
-&usb3 {
-	status = "ok";
-};
-
 &bt {
 	pinctrl-names = "btss_pins";
 	pinctrl-0 = <&btss_pins>;
