@@ -53,6 +53,8 @@
 #define	ECC_PARITY_SIZE_BYTES_RS	19
 #define	SPARE_SIZE_BYTES		23
 #define	NUM_ADDR_CYCLES			27
+#define	NUM_ADDR_CYCLES_MASK		0x7
+#define	NUM_ADDR_CYCLES_5		5
 #define	STATUS_BFR_READ			30
 #define	SET_RD_MODE_AFTER_STATUS	31
 
@@ -553,6 +555,7 @@ struct qcom_nand_controller {
 	int		buf_size;
 	int		buf_count;
 	int		buf_start;
+	uint32_t	param_read_addr_cycle;
 
 	__le32 *reg_read_buf;
 	dma_addr_t reg_read_buf_phys;
@@ -1501,7 +1504,7 @@ static int nandc_param(struct qcom_nand_host *host)
 	nandc_set_reg(nandc, NAND_ADDR1, 0);
 	nandc_set_reg(nandc, NAND_DEV0_CFG0, 0 << CW_PER_PAGE
 					| 512 << UD_SIZE_BYTES
-					| 5 << NUM_ADDR_CYCLES
+					| nandc->param_read_addr_cycle << NUM_ADDR_CYCLES
 					| 0 << SPARE_SIZE_BYTES);
 	nandc_set_reg(nandc, NAND_DEV0_CFG1, 7 << NAND_RECOVERY_CYCLES
 					| 0 << CS_ACTIVE_BSY
@@ -4168,6 +4171,11 @@ static int qcom_nandc_probe(struct platform_device *pdev)
 	}
 
 	driver_data = (struct qcom_nand_driver_data *)dev_data;
+
+	nandc->param_read_addr_cycle = NUM_ADDR_CYCLES_5;
+	device_property_read_u32(dev, "param-read-addr-cycle",
+				 &nandc->param_read_addr_cycle);
+	nandc->param_read_addr_cycle &= NUM_ADDR_CYCLES_MASK;
 
 	nandc->ecc_modes = driver_data->ecc_modes;
 	nandc->dma_bam_enabled = driver_data->dma_bam_enabled;

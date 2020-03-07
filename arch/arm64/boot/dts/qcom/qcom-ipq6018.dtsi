@@ -1229,6 +1229,7 @@
 			clocks = <&gcc GCC_QPIC_CLK>,
 				<&gcc GCC_QPIC_AHB_CLK>;
 			clock-names = "core", "aon";
+			param-read-addr-cycle = <0x1>;
 
 			dmas = <&qpic_bam 0>,
 				<&qpic_bam 1>,
