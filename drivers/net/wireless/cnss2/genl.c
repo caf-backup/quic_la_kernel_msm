@@ -14,9 +14,8 @@
 
 #include <linux/err.h>
 #include <linux/module.h>
-#include <net/netlink.h>
-#include <net/genetlink.h>
 
+#include "genl.h"
 #include "main.h"
 #include "debug.h"
 
@@ -35,6 +34,8 @@ enum {
 	CNSS_GENL_ATTR_MSG_END,
 	CNSS_GENL_ATTR_MSG_DATA_LEN,
 	CNSS_GENL_ATTR_MSG_DATA,
+	CNSS_GENL_ATTR_MSG_INSTANCE_ID,
+	CNSS_GENL_ATTR_MSG_VALUE,
 	__CNSS_GENL_ATTR_MAX,
 };
 
@@ -58,12 +59,9 @@ static struct nla_policy cnss_genl_msg_policy[CNSS_GENL_ATTR_MAX + 1] = {
 	[CNSS_GENL_ATTR_MSG_DATA_LEN] = { .type = NLA_U32 },
 	[CNSS_GENL_ATTR_MSG_DATA] = { .type = NLA_BINARY,
 				      .len = CNSS_GENL_DATA_LEN_MAX },
+	[CNSS_GENL_ATTR_MSG_INSTANCE_ID] = { .type = NLA_U32 },
+	[CNSS_GENL_ATTR_MSG_VALUE] = { .type = NLA_U32 },
 };
-
-static int cnss_genl_process_msg(struct sk_buff *skb, struct genl_info *info)
-{
-	return 0;
-}
 
 static struct genl_ops cnss_genl_ops[] = {
 	{
@@ -91,6 +89,37 @@ static struct genl_family cnss_genl_family = {
 	.mcgrps = cnss_genl_mcast_grp,
 	.n_mcgrps = ARRAY_SIZE(cnss_genl_mcast_grp),
 };
+
+int cnss_genl_process_msg(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nlmsghdr *nl_header = nlmsg_hdr(skb);
+	struct genlmsghdr *genl_header = nlmsg_data(nl_header);
+	struct nlattr *attrs[CNSS_GENL_ATTR_MAX + 1];
+	int ret = 0;
+	u8 type;
+	u32 instance_id;
+	u32 value;
+
+	if (genl_header->cmd != CNSS_GENL_CMD_MSG) {
+		pr_err("%s: Invalid cmd %d on NL", __func__, genl_header->cmd);
+		return -EINVAL;
+	}
+
+	ret = genlmsg_parse(nl_header, &cnss_genl_family, attrs,
+			    CNSS_GENL_ATTR_MAX, NULL);
+	if (ret < 0) {
+		pr_err("%s: RX NLMSG: Parse fail %d", __func__, ret);
+		return -EINVAL;
+	}
+
+	type = nla_get_u8(attrs[CNSS_GENL_ATTR_MSG_TYPE]);
+	instance_id = nla_get_u32(attrs[CNSS_GENL_ATTR_MSG_INSTANCE_ID]);
+	value = nla_get_u32(attrs[CNSS_GENL_ATTR_MSG_VALUE]);
+
+	cnss_update_daemon_cold_boot_support(type, instance_id, value);
+
+	return 0;
+}
 
 static int cnss_genl_send_data(u8 type, char *file_name, u32 total_size,
 			       u32 seg_id, u8 end, u32 data_len, u8 *msg_buff)

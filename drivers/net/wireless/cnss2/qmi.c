@@ -274,10 +274,9 @@ static int cnss_wlfw_host_cap_send_sync(struct cnss_plat_data *plat_priv)
 	else
 		req->num_clients = 1;
 
-	req->num_clients = daemon_support ? 2 : 1;
-
-	if (plat_priv->device_id == QCN9000_DEVICE_ID)
-		req->num_clients = 1;
+	req->num_clients = 1;
+	if (plat_priv->daemon_support || daemon_support)
+		req->num_clients = 2;
 
 	cnss_pr_dbg("Number of clients is %d\n", req->num_clients);
 
@@ -373,7 +372,9 @@ int cnss_wlfw_respond_mem_send_sync(struct cnss_plat_data *plat_priv)
 
 	req->mem_seg_len = plat_priv->fw_mem_seg_len;
 	for (i = 0; i < req->mem_seg_len; i++) {
-		if (cold_boot_support && (!fw_mem[i].pa || !fw_mem[i].size)) {
+		if ((cold_boot_support ||
+		     plat_priv->cold_boot_support) &&
+		    (!fw_mem[i].pa || !fw_mem[i].size)) {
 			if (fw_mem[i].type == 0) {
 				cnss_pr_err("Invalid memory for FW type, segment = %d\n",
 					    i);

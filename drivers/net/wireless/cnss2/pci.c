@@ -2545,7 +2545,8 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 					CNSS_ASSERT(0);
 					return -ENOMEM;
 				}
-				if (!cold_boot_support) {
+				if (!(cold_boot_support ||
+				      plat_priv->cold_boot_support)) {
 					fw_mem[idx].pa = 0;
 					fw_mem[idx].va = 0;
 				} else {
