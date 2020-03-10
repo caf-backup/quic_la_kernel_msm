@@ -232,13 +232,12 @@ void cnss_bus_free_qdss_mem(struct cnss_plat_data *plat_priv)
 
 	switch (bus_type) {
 	case CNSS_BUS_PCI:
-		cnss_pci_free_qdss_mem(plat_priv->bus_priv);
-		return;
 	case CNSS_BUS_AHB:
-		return;
+		cnss_pci_free_qdss_mem(plat_priv);
+		break;
 	default:
 		cnss_pr_err("Unsupported bus type %d\n", bus_type);
-		return;
+		break;
 	}
 }
 
