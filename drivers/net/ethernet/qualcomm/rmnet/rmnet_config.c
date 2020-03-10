@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -47,7 +47,8 @@
 /* Local Definitions and Declarations */
 
 enum {
-	IFLA_RMNET_UL_AGG_PARAMS = __IFLA_RMNET_MAX,
+	IFLA_RMNET_DFC_QOS = __IFLA_RMNET_MAX,
+	IFLA_RMNET_UL_AGG_PARAMS,
 	__IFLA_RMNET_EXT_MAX,
 };
 
@@ -57,6 +58,9 @@ static const struct nla_policy rmnet_policy[__IFLA_RMNET_EXT_MAX] = {
 	},
 	[IFLA_RMNET_FLAGS] = {
 		.len = sizeof(struct ifla_rmnet_flags)
+	},
+	[IFLA_RMNET_DFC_QOS] = {
+		.len = sizeof(struct tcmsg)
 	},
 	[IFLA_RMNET_UL_AGG_PARAMS] = {
 		.len = sizeof(struct rmnet_egress_agg_params)
@@ -415,6 +419,8 @@ static size_t rmnet_get_size(const struct net_device *dev)
 		nla_total_size(2) +
 		/* IFLA_RMNET_FLAGS */
 		nla_total_size(sizeof(struct ifla_rmnet_flags)) +
+		/* IFLA_RMNET_DFC_QOS */
+		nla_total_size(sizeof(struct tcmsg)) +
 		/* IFLA_RMNET_UL_AGG_PARAMS */
 		nla_total_size(sizeof(struct rmnet_egress_agg_params));
 }
