@@ -90,6 +90,10 @@
 		qca,scm_restart_reason {
 			status = "ok";
 		};
+
+		tzlog: qca,tzlog {
+			status = "disabled";
+		};
 	};
 
 	psci {

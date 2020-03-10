@@ -98,6 +98,10 @@
 		pcie1: pci@a0000000 {
 			is_emulation = <1>;
 		};
+
+		tzlog: qca,tzlog {
+			status = "disabled";
+		};
 	};
 
 	psci {
