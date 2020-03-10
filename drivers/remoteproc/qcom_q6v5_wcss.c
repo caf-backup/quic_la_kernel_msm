@@ -453,6 +453,7 @@ static int start_q6(const struct subsys_desc *subsys)
 		pr_info("q6v5: Emulation start, PIL loading skipped\n");
 		rproc->bootaddr = DEFAULT_IMG_ADDR;
 		rproc->ops->start(rproc);
+		rproc_start_subdevices(rproc);
 		return 0;
 	}
 
