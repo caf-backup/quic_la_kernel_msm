@@ -32,6 +32,13 @@
 #define PCIE_SOC_GLOBAL_RESET_ADDRESS	0x3008
 
 /* Add DEBUG related here  */
+
+enum MHITEST_DEBUG_KLVL{
+	MHITEST_LOG_LVL_VERBOSE,
+	MHITEST_LOG_LVL_INFO,
+	MHITEST_LOG_LVL_ERR,
+};
+extern int debug_lvl;
 #define PCI_MHI_TEST_DEBUG 1
 #ifdef PCI_MHI_TEST_DEBUG
 #define pr_mhitest(msg, ...)  pr_err("[mhitest]: " msg,  ##__VA_ARGS__)
@@ -43,6 +50,25 @@
 #define pr_mhitest2(msg) \
 	do { } while (0)
 #endif
+
+#define MHITEST_EMERG(msg, ...) do {\
+		pr_err("[mhitest][A]: [%s] " msg, __func__,   ##__VA_ARGS__);\
+} while (0)
+
+#define MHITEST_ERR(msg, ...) do {\
+	if  (debug_lvl <= MHITEST_LOG_LVL_ERR) \
+		pr_err("[mhitest][E]: [%s] " msg, __func__,   ##__VA_ARGS__);\
+} while (0)
+
+#define MHITEST_VERB(msg, ...) do {\
+	if  (debug_lvl <= MHITEST_LOG_LVL_VERBOSE) \
+		pr_err("[mhitest][D]: %s[%d] " msg, __func__, __LINE__,   ##__VA_ARGS__);\
+} while (0)
+
+#define MHITEST_LOG(msg, ...) do {\
+	if  (debug_lvl <= MHITEST_LOG_LVL_INFO) \
+		pr_err("[mhitest][I]: [%s] " msg, __func__,   ##__VA_ARGS__);\
+} while (0)
 
 #define VERIFY_ME(val, announce)\
 	do {		\
@@ -159,6 +185,8 @@ struct mhitest_platform {
 	struct workqueue_struct *event_wq;
 /* probed device no. 0 to (MAX-1)*/
 	int d_instance;
+/* klog level for mhitest driver */
+	enum MHITEST_DEBUG_KLVL  mhitest_klog_lvl;
 
 };
 
