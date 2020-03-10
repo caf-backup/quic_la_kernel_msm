@@ -491,7 +491,7 @@ static int bt_probe(struct platform_device *pdev)
 
 	btDesc->rproc_pdev = platform_device_register_data(&pdev->dev,
 							"bt_rproc_driver",
-							pdev->id, btDesc,
+							pdev->id, &btDesc,
 							sizeof(*btDesc));
 	if (IS_ERR(btDesc->rproc_pdev)) {
 		ret = PTR_ERR(btDesc->rproc_pdev);
