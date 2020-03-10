@@ -25,6 +25,8 @@
 #include "rmnet_map.h"
 #include "rmnet_descriptor.h"
 
+#include <linux/rmnet_nss.h>
+
 /* Locking scheme -
  * The shared resource which needs to be protected is realdev->rx_handler_data.
  * For the writer path, this is using rtnl_lock(). The writer paths are
@@ -49,6 +51,7 @@
 enum {
 	IFLA_RMNET_DFC_QOS = __IFLA_RMNET_MAX,
 	IFLA_RMNET_UL_AGG_PARAMS,
+	IFLA_RMNET_NSS_OFFLOAD,
 	__IFLA_RMNET_EXT_MAX,
 };
 
@@ -64,6 +67,9 @@ static const struct nla_policy rmnet_policy[__IFLA_RMNET_EXT_MAX] = {
 	},
 	[IFLA_RMNET_UL_AGG_PARAMS] = {
 		.len = sizeof(struct rmnet_egress_agg_params)
+	},
+	[IFLA_RMNET_NSS_OFFLOAD] = {
+		.type = NLA_U8
 	},
 };
 
@@ -165,6 +171,38 @@ static void rmnet_unregister_bridge(struct net_device *dev,
 	}
 }
 
+static void rmnet_nss_register(struct net_device *rmnet_dev,
+			       struct rmnet_priv *priv)
+{
+	struct rmnet_nss_cb *nss_cb;
+	int rc;
+
+	nss_cb = rcu_dereference(rmnet_nss_callbacks);
+	if (nss_cb) {
+		rc = nss_cb->nss_create(rmnet_dev);
+		if (rc) {
+			/* Log, but don't fail the device creation */
+			netdev_err(rmnet_dev, "NSS create err: %d\n", rc);
+			rc = 0;
+		} else {
+			netdev_dbg(rmnet_dev, "NSS context created\n");
+			priv->offload = 1;
+		}
+	}
+}
+
+static void rmnet_nss_unregister(struct net_device *rmnet_dev,
+				 struct rmnet_priv *priv)
+{
+	struct rmnet_nss_cb *nss_cb;
+
+	nss_cb = rcu_dereference(rmnet_nss_callbacks);
+	if (nss_cb)
+		nss_cb->nss_free(rmnet_dev);
+
+	priv->offload = 0;
+}
+
 static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 			 struct nlattr *tb[], struct nlattr *data[])
 {
@@ -223,6 +261,13 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 		spin_unlock_irqrestore(&port->agg_lock, irq_flags);
 	}
 
+	if (data[IFLA_RMNET_NSS_OFFLOAD]) {
+		struct rmnet_priv *priv = netdev_priv(dev);
+
+		if (nla_get_u8(data[IFLA_RMNET_NSS_OFFLOAD]))
+			rmnet_nss_register(dev, priv);
+	}
+
 	return 0;
 
 err1:
@@ -258,6 +303,9 @@ static void rmnet_dellink(struct net_device *dev, struct list_head *head)
 		kfree(ep);
 	}
 
+	if (priv->offload)
+		rmnet_nss_unregister(dev, priv);
+
 	rmnet_unregister_real_device(real_dev, port);
 
 	unregister_netdevice_queue(dev, head);
@@ -282,6 +330,11 @@ static void rmnet_force_unassociate_device(struct net_device *dev)
 	rmnet_unregister_bridge(dev, port);
 
 	hash_for_each_safe(port->muxed_ep, bkt_ep, tmp_ep, ep, hlnode) {
+		struct rmnet_priv *priv = netdev_priv(ep->egress_dev);
+
+		if (priv->offload)
+			rmnet_nss_unregister(ep->egress_dev, priv);
+
 		unregister_netdevice_queue(ep->egress_dev, &list);
 		rmnet_vnd_dellink(ep->mux_id, port, ep);
 
@@ -409,6 +462,18 @@ static int rmnet_changelink(struct net_device *dev, struct nlattr *tb[],
 		spin_unlock_irqrestore(&port->agg_lock, irq_flags);
 	}
 
+	if (data[IFLA_RMNET_NSS_OFFLOAD]) {
+		struct rmnet_priv *priv = netdev_priv(dev);
+
+		if (nla_get_u8(data[IFLA_RMNET_NSS_OFFLOAD])) {
+			if (!priv->offload)
+				rmnet_nss_register(dev, priv);
+		} else {
+			if (priv->offload)
+				rmnet_nss_unregister(dev, priv);
+		}
+	}
+
 	return 0;
 }
 
@@ -422,7 +487,9 @@ static size_t rmnet_get_size(const struct net_device *dev)
 		/* IFLA_RMNET_DFC_QOS */
 		nla_total_size(sizeof(struct tcmsg)) +
 		/* IFLA_RMNET_UL_AGG_PARAMS */
-		nla_total_size(sizeof(struct rmnet_egress_agg_params));
+		nla_total_size(sizeof(struct rmnet_egress_agg_params)) +
+		/* IFLA_RMNET_NSS_OFFLOAD */
+		nla_total_size(1);
 }
 
 static int rmnet_fill_info(struct sk_buff *skb, const struct net_device *dev)
@@ -455,6 +522,9 @@ static int rmnet_fill_info(struct sk_buff *skb, const struct net_device *dev)
 			    &port->egress_agg_params))
 			goto nla_put_failure;
 	}
+
+	if (nla_put_u8(skb, IFLA_RMNET_NSS_OFFLOAD, priv->offload))
+		goto nla_put_failure;
 
 	return 0;
 
