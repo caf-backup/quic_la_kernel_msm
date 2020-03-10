@@ -1,4 +1,4 @@
-config QCOM_BT_TTY
+config QTI_BT_TTY
 	tristate "TTY interface support for BT over IMEM"
 	default n
 	help
