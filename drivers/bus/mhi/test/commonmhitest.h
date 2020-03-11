@@ -27,7 +27,7 @@
 /*PCI/PCIe specific macro here  */
 #define PCI_BAR_NUM                     0
 #define PCI_DMA_MASK_64_BIT		64
-#define MHI_TIMEOUT_DEFAULT		90000
+#define MHI_TIMEOUT_DEFAULT		10000
 #define PCIE_SOC_GLOBAL_RESET_VALUE	0x5
 #define PCIE_SOC_GLOBAL_RESET_ADDRESS	0x3008
 
@@ -44,12 +44,6 @@ extern int debug_lvl;
 #define pr_mhitest(msg, ...)  pr_err("[mhitest]: " msg,  ##__VA_ARGS__)
 #define pr_mhitest2(msg, ...) \
 	pr_err("[mhitest]: %s[%d] " msg, __func__, __LINE__,   ##__VA_ARGS__)
-#else
-#define pr_mhitest(msg) \
-	do { } while (0)
-#define pr_mhitest2(msg) \
-	do { } while (0)
-#endif
 
 #define MHITEST_EMERG(msg, ...) do {\
 		pr_err("[mhitest][A]: [%s] " msg, __func__,   ##__VA_ARGS__);\
@@ -62,13 +56,28 @@ extern int debug_lvl;
 
 #define MHITEST_VERB(msg, ...) do {\
 	if  (debug_lvl <= MHITEST_LOG_LVL_VERBOSE) \
-		pr_err("[mhitest][D]: %s[%d] " msg, __func__, __LINE__,   ##__VA_ARGS__);\
+		pr_err("[mhitest][D]: [%s][%d] " msg, __func__, __LINE__,   ##__VA_ARGS__);\
 } while (0)
 
 #define MHITEST_LOG(msg, ...) do {\
 	if  (debug_lvl <= MHITEST_LOG_LVL_INFO) \
 		pr_err("[mhitest][I]: [%s] " msg, __func__,   ##__VA_ARGS__);\
 } while (0)
+#else
+#define pr_mhitest(msg) \
+	do { } while (0)
+#define pr_mhitest2(msg) \
+	do { } while (0)
+
+#define MHITEST_EMERG(msg, ...) do {\
+	} while (0)
+#define MHITEST_ERR(msg, ...) \
+	do { } while (0)
+#define MHITEST_VERB(msg, ...) \
+	do { } while (0)
+#define MHITEST_LOG(msg, ...) \
+	do { } while (0)
+#endif
 
 #define VERIFY_ME(val, announce)\
 	do {		\

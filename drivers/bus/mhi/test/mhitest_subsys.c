@@ -169,15 +169,17 @@ int mhitest_subsystem_register(struct mhitest_platform *mplat)
 	if (!mplat->subsys_handle) {
 		MHITEST_ERR("Error: ss_handle NULL\n");
 		ret = -EINVAL;
-		goto error;
+		goto error2;
 	} else if (IS_ERR(mplat->subsys_handle)) {
 		ret = PTR_ERR(mplat->subsys_handle);
 		MHITEST_ERR("Error SS get ret:%d\n", ret);
-		goto error;
+		goto error2;
 	}
 	MHITEST_VERB("Pass SS get ss_handle:[%p]\n", mplat->subsys_handle);
 
 	return 0;
+error2:
+	mhitest_subsystem_unregister(mplat);
 error:
 	return ret;
 }
@@ -189,7 +191,7 @@ void mhitest_subsystem_unregister(struct mhitest_platform *mplat)
 		return;
 	}
 	if (!mplat->mhitest_ss_device) {
-		MHITEST_ERR("mplat->mhitest_ss_device--NULL\n");
+		MHITEST_ERR("mplat->mhitest_ss_device-NULL\n");
 		return;
 	}
 	if (mplat->subsys_handle)

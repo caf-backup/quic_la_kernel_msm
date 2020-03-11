@@ -786,6 +786,24 @@ out:
 	return ret;
 }
 
+char *mhitest_get_mhi_state_str(enum mhi_state state)
+{
+	switch (state) {
+	case MHI_INIT:
+		return "MHI_INIT";
+	case MHI_DEINIT:
+		return "MHI_DEINIT";
+	case MHI_POWER_ON:
+		return "MHI_POWER_ON";
+	case MHI_POWER_OFF:
+		return "MHI_POWER_OFF";
+	case MHI_FORCE_POWER_OFF:
+		return "MHI_FORCE_POWER_OFF";
+	default:
+		return "UNKNOWN";
+	}
+}
+
 int mhitest_pci_set_mhi_state(struct mhitest_platform *mplat,
 						enum mhi_state state)
 {
@@ -795,7 +813,8 @@ int mhitest_pci_set_mhi_state(struct mhitest_platform *mplat,
 		MHITEST_ERR("Invalid MHI state : %d\n", state);
 		return -EINVAL;
 	}
-
+	MHITEST_EMERG("Set MHI_STATE- [%s]-(%d)\n",
+				mhitest_get_mhi_state_str(state), state);
 	switch (state) {
 	case MHI_INIT:
 		ret = mhi_prepare_for_power_up(mplat->mhi_ctrl);
@@ -817,7 +836,6 @@ int mhitest_pci_set_mhi_state(struct mhitest_platform *mplat,
 		ret = -EINVAL;
 	}
 	return ret;
-
 }
 
 int mhitest_pci_start_mhi(struct mhitest_platform *mplat)
@@ -830,21 +848,32 @@ int mhitest_pci_start_mhi(struct mhitest_platform *mplat)
 		return -EINVAL;
 	}
 
-	mplat->mhi_ctrl->timeout_ms = MHI_TIMEOUT_DEFAULT * 1000;
+	mplat->mhi_ctrl->timeout_ms = MHI_TIMEOUT_DEFAULT;
 
 	ret = mhitest_pci_set_mhi_state(mplat, MHI_INIT);
 	if (ret) {
 		MHITEST_ERR("Error not able to set mhi init. returning..\n");
-		return ret;
+		goto out1;
 	}
 	ret = mhitest_pci_set_mhi_state(mplat, MHI_POWER_ON);
 	if (ret) {
-		MHITEST_ERR("Error not able to POWER On. returning..\n");
-		return ret;
+		MHITEST_ERR("Error not able to POWER ON\n");
+		if (ret == -ETIMEDOUT) {
+		/* Thought it is ETIMEOUT we are returning 0 here so that
+		 * we should be able to do rcremove and rmmod.
+		 * rcremove api are not exported so mhitest driver can not call
+		 * them. Printing Error message here to know the user.
+		 */
+			MHITEST_ERR("###### -ETIMEDOUT ERRRORR, do rcremove and rmmod to clean-up\n");
+			ret = 0;
+		}
+		goto out1;
 	}
-
+	return ret;
 	MHITEST_VERB("Exit\n");
-	return 0;
+out1:
+	MHITEST_VERB("Exit-Error\n");
+	return ret;
 }
 int mhitest_prepare_start_mhi(struct mhitest_platform *mplat)
 {
@@ -853,19 +882,19 @@ int mhitest_prepare_start_mhi(struct mhitest_platform *mplat)
 	/* 1. power on , resume link if?*/
 	ret = mhitest_power_on_device(mplat);
 	if (ret) {
-		MHITEST_ERR("Error not able to power on:%d\n", ret);
+		MHITEST_ERR("Error ret:%d\n", ret);
 		goto out;
 	}
 	ret = mhitest_resume_pci_link(mplat);
 	if (ret) {
-		MHITEST_ERR("Error not resume PCI link:%d\n", ret);
+		MHITEST_ERR("Error ret: %d\n", ret);
 		goto out;
 	}
 
 	/* 2. start mhi*/
 	ret = mhitest_pci_start_mhi(mplat);
 	if (ret) {
-		MHITEST_ERR("Error not able start pci mhi:%d\n", ret);
+		MHITEST_ERR("Error ret: %d\n", ret);
 		goto out;
 	}
 
@@ -932,19 +961,17 @@ int mhitest_pci_probe2(struct pci_dev *pci_dev, const struct pci_device_id *id)
 
 	ret = mhitest_store_mplat(mplat);
 	if (ret) {
-		MHITEST_ERR("Error returing\n");
+		MHITEST_ERR("Error ret:%d\n", ret);
 		goto out1;
 	}
 	ret = mhitest_subsystem_register(mplat);
 	if (ret) {
 		MHITEST_ERR("Error subsystem register: ret:%d\n", ret);
-		goto error_ss_reg;
+		goto out1;
 	}
 
 	MHITEST_EMERG("<---done\n");
 	return 0;
-error_ss_reg:
-	mhitest_subsystem_unregister(mplat);
 out1:
 	kfree(mplat);
 fail_probe:
