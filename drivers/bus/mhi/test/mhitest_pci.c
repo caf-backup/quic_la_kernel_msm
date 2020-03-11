@@ -620,12 +620,31 @@ void mhitest_global_soc_reset(struct mhitest_platform *mplat)
 void mhitest_pci_disable_bus(struct mhitest_platform *mplat)
 {
 	struct pci_dev *pci_dev = mplat->pci_dev;
+	u32 in_reset = -1, temp = -1, retries = 3;
 
 	mhitest_global_soc_reset(mplat);
 
 	msleep(2000);
 
 	mhi_set_mhi_state(mplat->mhi_ctrl, MHI_STATE_RESET);
+
+	while (retries--) {
+		temp = readl_relaxed(mplat->mhi_ctrl->regs  + 0x38);
+		in_reset = (temp & 0x2) >> 0x1;
+		if (in_reset){
+			pr_mhitest2("Number of retry left:%d- trying again\n",
+								retries);
+			udelay(10);
+			continue;
+		}
+		break;
+	}
+
+	if (in_reset) {
+		pr_mhitest2("Device failed to exit RESET state\n");
+		return;
+	}
+	pr_mhitest2("MHI Reset good !!!\n");
 
 	if (mplat->bar) {
 		pci_iounmap(pci_dev, mplat->bar);

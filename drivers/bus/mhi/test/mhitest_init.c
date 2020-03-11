@@ -77,7 +77,6 @@ char *mhitest_recov_reason_to_str(enum mhitest_recovery_reason reason)
 void mhitest_recovery_post_rddm(struct mhitest_platform *mplat)
 {
 	int ret;
-	u32 in_reset = -1, temp = -1;
 
 	pr_mhitest2("##Start...\n");
 	msleep(10000); /*Let's wait for some time !*/
@@ -86,16 +85,8 @@ void mhitest_recovery_post_rddm(struct mhitest_platform *mplat)
 //	msleep(1000);
 	mhitest_pci_set_mhi_state(mplat, MHI_DEINIT);
 
-	pr_mhitest2("in_reset:%d - before sleep\n", in_reset);
 	mhitest_pci_remove_all(mplat);
-	temp = readl_relaxed(mplat->mhi_ctrl->regs  + 0x38);
-	in_reset = (temp & 0x2) >> 0x1;
-	pr_mhitest2("in_reset0?:%d- after sleep\n", in_reset);
-	if (in_reset) {
-		pr_mhitest2("Device failed to exit RESET state\n");
-		return;
-	}
-	pr_mhitest2("MHI Reset good !!!\n");
+
 	ret = mhitest_ss_powerup(&mplat->mhitest_ss_desc);
 	if (ret) {
 		pr_mhitest2("ERRORRRR..ret:%d\n", ret);
