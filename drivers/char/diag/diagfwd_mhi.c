@@ -61,6 +61,23 @@ struct diag_mhi_info diag_mhi[NUM_MHI_DEV] = {
 			.type = TYPE_MHI_WRITE_CH,
 		}
 	},
+	{
+		.id = MHI_2,
+		.dev_id = DIAGFWD_MDM2,
+		.name = "MDM2",
+		.enabled = 0,
+		.num_read = 0,
+		.mempool = POOL_TYPE_MDM2,
+		.mempool_init = 0,
+		.mhi_wq = NULL,
+		.mhi_dev = NULL,
+		.read_ch = {
+			.type = TYPE_MHI_READ_CH,
+		},
+		.write_ch = {
+			.type = TYPE_MHI_WRITE_CH,
+		}
+	},
 #ifdef CONFIG_MHI_DCI
 	{
 		.id = MHI_DCI_1,
@@ -491,7 +508,7 @@ static int mhi_write(int id, unsigned char *buf, int len, int ctxt)
 				len, mhi_flags);
 	spin_unlock_irqrestore(&ch->lock, flags);
 	if (err) {
-		pr_err_ratelimited("diag: In %s, cannot write to MHI channel %pK, len %d, err: %d\n",
+		pr_err_ratelimited("diag: In %s, cannot write to MHI channel %s, len %d, err: %d\n",
 				   __func__, diag_mhi[id].name, len, err);
 		mhi_buf_tbl_remove(&diag_mhi[id], TYPE_MHI_WRITE_CH, buf, len);
 		goto fail;
@@ -518,9 +535,9 @@ static int mhi_fwd_complete(int id, unsigned char *buf, int len, int ctxt)
 	return 0;
 }
 
-static int mhi_remote_proc_check(void)
+static int mhi_remote_proc_check(int i)
 {
-	return diag_mhi[MHI_1].enabled;
+	return diag_mhi[i].enabled;
 }
 
 static struct diag_mhi_info *diag_get_mhi_info(struct mhi_device *mhi_dev)
@@ -714,7 +731,8 @@ void diag_mhi_exit()
 }
 
 static const struct mhi_device_id diag_mhi_match_table[] = {
-	{ .chan = "DIAG", .driver_data = MHI_1 },
+	{ .chan = "DIAG", .driver_data = MHI_1, },
+	{ .chan = "DIAG2", .driver_data = MHI_2, },
 #ifdef CONFIG_MHI_DCI
 	{ .chan = "DCI", .driver_data = MHI_DCI_1 },
 #endif

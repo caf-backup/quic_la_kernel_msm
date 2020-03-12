@@ -362,9 +362,16 @@ static void __qrtr_node_release(struct kref *kref)
 /* Increment reference to node. */
 static struct qrtr_node *qrtr_node_acquire(struct qrtr_node *node)
 {
-	if (node)
-		kref_get(&node->ref);
-	return node;
+	if (node) {
+		if (likely(kref_get_unless_zero(&node->ref))) {
+			return node;
+		} else {
+			pr_err("WARN: %s qrtr node is getting acquired while"
+					"being destroyed\n", __func__);
+			WARN_ON(1);
+		}
+	}
+	return NULL;
 }
 
 /* Decrement reference to node and release as necessary. */

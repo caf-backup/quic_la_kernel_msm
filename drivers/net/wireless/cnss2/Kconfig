@@ -2,7 +2,7 @@ config CNSS2
 	bool "CNSS2 Platform Driver for Wi-Fi Module"
 	---help---
 	  This module adds the support for Connectivity Subsystem (CNSS) used
-	  for PCIe based Wi-Fi devices with QCA6174/QCA6290 chipsets.
+	  for PCIe based Wi-Fi devices with QCA6174/QCN9000 chipsets.
 	  This driver also adds support to integrate WLAN module to subsystem
 	  restart framework.
 

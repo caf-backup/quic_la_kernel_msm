@@ -20,11 +20,13 @@
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/notifier.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/phy/phy.h>
+#include <linux/reboot.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
@@ -194,6 +196,9 @@
 #define PCIE_ATU_LOWER_TARGET_OUTBOUND_7_GEN3		0xE14
 #define PCIE_ATU_UPPER_TARGET_OUTBOUND_7_GEN3		0xE18
 
+#define PCIE_ASPM_MASK	0x3
+#define PCIE_ASPM_POS	10
+
 struct qcom_pcie_resources_v0 {
 	struct clk *iface_clk;
 	struct clk *core_clk;
@@ -291,24 +296,29 @@ struct qcom_pcie {
 	struct gpio_desc *reset;
 	struct qcom_pcie_ops *ops;
 	struct work_struct handle_wake_work;
+	struct work_struct handle_e911_work;
 	uint32_t force_gen1;
 	u32 is_emulation;
 	u32 use_delay;
 	u32 link_retries_count;
+	u32 cap_active_state_link_pm;
 	u32 is_gen3;
 	int global_irq;
 	int wake_irq;
 	int link_down_irq;
 	int link_up_irq;
+	int mdm2ap_e911_irq;
 	bool enumerated;
 	uint32_t rc_idx;
 	struct qcom_pcie_register_event *event_reg;
+	struct notifier_block pci_reboot_notifier;
 };
 
 #define to_qcom_pcie(x)		container_of(x, struct qcom_pcie, pp)
 
 #define MAX_RC_NUM	3
 static struct qcom_pcie *qcom_pcie_dev[MAX_RC_NUM];
+struct gpio_desc *mdm2ap_e911;
 
 static inline void
 writel_masked(void __iomem *addr, u32 clear_mask, u32 set_mask)
@@ -328,6 +338,7 @@ static void qcom_ep_reset_assert(struct qcom_pcie *pcie)
 
 static void qcom_ep_reset_deassert(struct qcom_pcie *pcie)
 {
+	msleep(100);
 	gpiod_set_value(pcie->reset, 0);
 	usleep_range(PERST_DELAY_US, PERST_DELAY_US + 500);
 }
@@ -407,12 +418,17 @@ static void handle_wake_func(struct work_struct *work)
 		return;
 	}
 
-	ret = dw_pcie_host_init_pm(pp);
-	if (ret)
-		pr_err("PCIe: failed to enable RC%d upon wake request from the device\n", pcie->rc_idx);
-	else {
-		pcie->enumerated = true;
-		pr_info("PCIe: enumerated RC%d successfully upon wake request from the device\n", pcie->rc_idx);
+	if (!gpiod_get_value(mdm2ap_e911)) {
+		ret = dw_pcie_host_init_pm(pp);
+
+		if (ret)
+			pr_err("PCIe: failed to enable RC%d upon wake request from the device\n",
+					pcie->rc_idx);
+		else {
+			pcie->enumerated = true;
+			pr_info("PCIe: enumerated RC%d successfully upon wake request from the device\n",
+					pcie->rc_idx);
+		}
 	}
 
 	pci_unlock_rescan_remove();
@@ -729,7 +745,7 @@ static int qcom_pcie_get_resources_v3(struct qcom_pcie *pcie)
 
 		res->rchng_clk = devm_clk_get(dev, "rchng");
 		if (IS_ERR(res->rchng_clk))
-			return PTR_ERR(res->rchng_clk);
+			res->rchng_clk = NULL;
 	}
 
 	res->axi_m_reset = devm_reset_control_get(dev, "axi_m");
@@ -1288,16 +1304,19 @@ static int qcom_pcie_enable_resources_v3(struct qcom_pcie *pcie)
 			goto err_clk_axi_bridge;
 		}
 
-		ret = clk_prepare_enable(res->rchng_clk);
-		if (ret) {
-			dev_err(dev, "cannot prepare/enable rchng_clk clock\n");
-			goto err_clk_rchng;
-		}
+		if (res->rchng_clk) {
+			ret = clk_prepare_enable(res->rchng_clk);
+			if (ret) {
+				dev_err(dev, "cannot prepare/enable rchng_clk clock\n");
+				goto err_clk_rchng;
+			}
 
-		ret = clk_set_rate(res->rchng_clk, RCHNG_CLK_RATE);
-		if (ret) {
-			dev_err(dev, "rchng_clk rate set failed (%d)\n", ret);
-			goto err_clk_rchng;
+			ret = clk_set_rate(res->rchng_clk, RCHNG_CLK_RATE);
+			if (ret) {
+				dev_err(dev, "rchng_clk rate set failed (%d)\n",
+					ret);
+				goto err_clk_rchng;
+			}
 		}
 	}
 
@@ -1371,8 +1390,11 @@ static int qcom_pcie_init_v3(struct qcom_pcie *pcie)
 	writel(DBI_RO_WR_EN, pcie->dbi + PCIE20_MISC_CONTROL_1_REG);
 	writel(PCIE_CAP_LINK1_VAL, pcie->dbi + PCIE20_CAP_LINK_1);
 
+	/* Configure PCIe link capabilities for ASPM */
 	writel_masked(pcie->dbi + PCIE20_CAP_LINK_CAPABILITIES,
-		BIT(10) | BIT(11), 0);
+		      PCIE_ASPM_MASK << PCIE_ASPM_POS,
+		      (pcie->cap_active_state_link_pm & PCIE_ASPM_MASK) << PCIE_ASPM_POS);
+
 	writel(PCIE_CAP_CPL_TIMEOUT_DISABLE, pcie->dbi +
 		PCIE20_DEVICE_CONTROL2_STATUS2);
 
@@ -1388,6 +1410,9 @@ static int qcom_pcie_init_v3(struct qcom_pcie *pcie)
 	}
 
 	writel(LTSSM_EN, pcie->parf + PCIE20_PARF_LTSSM);
+	if (pcie->is_emulation)
+		qcom_ep_reset_deassert(pcie);
+
 	if (pcie->is_gen3) {
 		for (i = 0; i < 255; i++)
 			writel(0x0, pcie->parf + PARF_BDF_TO_SID_TABLE + (4 * i));
@@ -1426,6 +1451,9 @@ static int qcom_pcie_host_init(struct pcie_port *pp)
 {
 	struct qcom_pcie *pcie = to_qcom_pcie(pp);
 	int ret;
+
+	if (gpiod_get_value(mdm2ap_e911))
+		return -EBUSY;
 
 	if (!pcie->is_emulation)
 		qcom_ep_reset_assert(pcie);
@@ -1558,6 +1586,27 @@ void qcom_pcie_remove_bus(void)
 	}
 }
 
+static void handle_e911_func(struct work_struct *work)
+{
+	pci_lock_rescan_remove();
+
+	if (gpiod_get_value(mdm2ap_e911))
+		qcom_pcie_remove_bus();
+	else
+		qcom_pcie_rescan();
+
+	pci_unlock_rescan_remove();
+}
+
+static irqreturn_t handle_mdm2ap_e911_irq(int irq, void *data)
+{
+	struct qcom_pcie *pcie = data;
+
+	schedule_work(&pcie->handle_e911_work);
+
+	return IRQ_HANDLED;
+}
+
 static ssize_t qcom_bus_rescan_store(struct bus_type *bus, const char *buf,
 					size_t count)
 {
@@ -1565,6 +1614,9 @@ static ssize_t qcom_bus_rescan_store(struct bus_type *bus, const char *buf,
 
 	if (kstrtoul(buf, 0, &val) < 0)
 		return -EINVAL;
+
+	if (gpiod_get_value(mdm2ap_e911))
+		return -EBUSY;
 
 	if (val) {
 		pci_lock_rescan_remove();
@@ -1722,6 +1774,16 @@ int qcom_pcie_deregister_event(struct qcom_pcie_register_event *reg)
 }
 EXPORT_SYMBOL(qcom_pcie_deregister_event);
 
+static int pci_reboot_handler(struct notifier_block *this,
+			     unsigned long event, void *ptr)
+{
+	pci_lock_rescan_remove();
+	qcom_pcie_remove_bus();
+	pci_unlock_rescan_remove();
+
+	return 0;
+}
+
 static int qcom_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1756,7 +1818,10 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	of_property_read_u32(np, "link_retries_count", &link_retries_count);
 	pcie->link_retries_count = link_retries_count;
 
-	pcie->reset = devm_gpiod_get_optional(dev, "perst", GPIOD_OUT_LOW);
+	of_property_read_u32(np, "pcie-cap-active-state-link-pm",
+			     &pcie->cap_active_state_link_pm);
+
+	pcie->reset = devm_gpiod_get_optional(dev, "perst", GPIOD_OUT_HIGH);
 	if (IS_ERR(pcie->reset))
 		return PTR_ERR(pcie->reset);
 
@@ -1807,6 +1872,14 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 				return PTR_ERR(pcie->phy);
 		}
 		pcie->is_gen3 = 1;
+	} else if (of_device_is_compatible(pdev->dev.of_node,
+					   "qcom,pcie-ipq5018")) {
+		if (!pcie->is_emulation) {
+			pcie->phy = devm_phy_optional_get(dev, "pciephy");
+			if (IS_ERR(pcie->phy))
+				return PTR_ERR(pcie->phy);
+		}
+		pcie->is_gen3 = 1;
 	}
 
 	if (pcie->is_gen3) {
@@ -1841,6 +1914,39 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	pp->link_retries_count = pcie->link_retries_count;
 	pp->root_bus_nr = -1;
 	pp->ops = &qcom_pcie_dw_ops;
+
+	pcie->mdm2ap_e911_irq = platform_get_irq_byname(pdev,
+					"mdm2ap_e911");
+	if (pcie->mdm2ap_e911_irq >= 0) {
+		mdm2ap_e911 = devm_gpiod_get_optional(&pdev->dev, "e911",
+						      GPIOD_IN);
+
+		if (IS_ERR(mdm2ap_e911)) {
+			pr_err("requesting for e911 gpio failed %ld\n",
+					PTR_ERR(mdm2ap_e911));
+			return PTR_ERR(mdm2ap_e911);
+		}
+
+		INIT_WORK(&pcie->handle_e911_work, handle_e911_func);
+
+		ret = devm_request_irq(&pdev->dev, pcie->mdm2ap_e911_irq,
+				handle_mdm2ap_e911_irq,
+				IRQ_TYPE_EDGE_BOTH, "mdm2ap_e911",
+				pcie);
+
+		if (ret) {
+			dev_err(&pdev->dev, "Unable to request mdm2ap_e911 irq\n");
+			return ret;
+		}
+
+		pcie->pci_reboot_notifier.notifier_call = pci_reboot_handler;
+		ret = register_reboot_notifier(&pcie->pci_reboot_notifier);
+		if (ret) {
+			pr_warn("%s: Failed to register notifier (%d)\n",
+					__func__, ret);
+			return ret;
+		}
+	}
 
 	pcie->link_down_irq = platform_get_irq_byname(pdev,
 					"int_link_down");
@@ -1900,13 +2006,16 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 		return ret;
 
 	pcie->wake_irq = platform_get_irq_byname(pdev, "wake_gpio");
+
 	ret = dw_pcie_host_init(pp);
+
 	if (ret) {
 		if (pcie->wake_irq < 0) {
 			dev_err(dev, "cannot initialize host\n");
 			return ret;
 		}
-		pr_info("PCIe: RC%d is not enabled during bootup; it will be enumerated upon client request\n", rc_idx);
+		pr_info("PCIe: RC%d is not enabled during bootup;it will be enumerated upon client request\n",
+			rc_idx);
 	} else {
 		pcie->enumerated = true;
 		pr_info("PCIe: RC%d enabled during bootup\n", rc_idx);
@@ -2015,6 +2124,7 @@ static const struct of_device_id qcom_pcie_match[] = {
 	{ .compatible = "qcom,pcie-ipq4019", .data = &ops_v2 },
 	{ .compatible = "qcom,pcie-ipq807x", .data = &ops_v3 },
 	{ .compatible = "qcom,pcie-ipq6018", .data = &ops_v3 },
+	{ .compatible = "qcom,pcie-ipq5018", .data = &ops_v3 },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, qcom_pcie_match);

@@ -397,6 +397,9 @@ static int __init print_soc_version_info(void)
 	case 422:
 		strlcpy(cpu_type_name, "IPQ6010", CPU_NAME_MAX_SIZE);
 		break;
+	case 453:
+		strlcpy(cpu_type_name, "IPQ6005", CPU_NAME_MAX_SIZE);
+		break;
 	default:
 		strlcpy(cpu_type_name, "unavail", CPU_NAME_MAX_SIZE);
 		break;

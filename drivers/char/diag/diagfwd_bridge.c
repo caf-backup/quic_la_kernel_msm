@@ -52,6 +52,18 @@ struct diagfwd_bridge_info bridge_info[NUM_REMOTE_DEV] = {
 		.dci_wq = NULL,
 	},
 	{
+		.id = DIAGFWD_MDM2,
+		.type = DIAG_DATA_TYPE,
+		.name = "MDM2",
+		.inited = 0,
+		.ctxt = 0,
+		.dev_ops = NULL,
+		.dci_read_ptr = NULL,
+		.dci_read_buf = NULL,
+		.dci_read_len = 0,
+		.dci_wq = NULL,
+	},
+	{
 		.id = DIAGFWD_SMUX,
 		.type = DIAG_DATA_TYPE,
 		.name = "SMUX",
@@ -316,7 +328,7 @@ uint16_t diag_get_remote_device_mask()
 		if (bridge_info[i].inited &&
 		    bridge_info[i].type == DIAG_DATA_TYPE &&
 		    (bridge_info[i].dev_ops->remote_proc_check &&
-		    bridge_info[i].dev_ops->remote_proc_check())) {
+		    bridge_info[i].dev_ops->remote_proc_check(i))) {
 			remote_dev |= 1 << i;
 		}
 	}

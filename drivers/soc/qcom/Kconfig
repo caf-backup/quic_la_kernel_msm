@@ -184,6 +184,20 @@ config MSM_RPM_GLINK
 	 Say M here if you want to include support for the QCA RPM as a
 	 module. This will build a module called "qcom-rpm-glink".
 
+config MSM_RPM_RPMSG
+	tristate "QCA Resource Power Manager (RPM) over GLINK RPMSG"
+	depends on RPMSG && OF
+	help
+	 If you say yes to this option, support will be included for the
+	 Resource Power Manager system found in the QTI 8974 based
+	 devices.
+
+	 This is required to access many regulators, clocks and bus
+	 frequencies controlled by the RPM on these devices.
+
+	 Say M here if you want to include support for the QCA RPM as a
+	 module. This will build a module called "qcom-rpm-rpmsg".
+
 config MSM_RPM_LOG
 	tristate "QCOM Resource Power Manager Log Driver"
 	depends on MFD_QCOM_RPM
@@ -269,6 +283,7 @@ config IPQ_SUBSYSTEM_RESTART
 
 config IPQ_SUBSYSTEM_RESTART_TEST
 	tristate "IPQ SSR test module"
+        depends on IPQ_SUBSYSTEM_RESTART || QCOM_Q6V5_WCSS
 	help
 	  This option enables the IPQ SSR test module.
 
@@ -304,8 +319,10 @@ config QCOM_TZ_LOG
 	  diagnostic information about TZ operation.
 
 config QCOM_MDT_LOADER
-	tristate
+	tristate "QTI MDT based peripheral image downloader"
 	select QCOM_SCM
+	help
+	 This enables support for downloading MDT based peripheral images.
 
 config QCOM_QMI_HELPERS
 	tristate
@@ -334,3 +351,5 @@ config QTI_ADSPRPC_LOADER
 	help
 	  Say y here to enable ADSP loader support. The ADSP loader driver
 	  provides the support to take adsp out of reset.
+
+source "drivers/soc/qcom/bt/Kconfig"

@@ -72,7 +72,7 @@ extern unsigned int dci_max_clients;
 
 #define DCI_REMOTE_DATA	0
 
-#define NUM_REMOTE_DATA_DEV     2
+#define NUM_REMOTE_DATA_DEV     3
 #define DIAGFWD_MDM_DCI         NUM_REMOTE_DATA_DEV
 #define NUM_REMOTE_DCI_DEV      (DIAGFWD_MDM_DCI - NUM_REMOTE_DATA_DEV + 1)
 

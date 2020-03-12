@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -21,11 +21,13 @@
 #include "qcom-ipq6018-memory.dtsi"
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/gpio/gpio.h>
+#include "qcom-ipq6018-mhi.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. IPQ6018";
 	compatible = "qcom,ipq6018";
-	qcom,msm-id = <0x192 0x0>;
+	qcom,board-id = <0x8 0x0>;
+	qcom,pmic-id = <0x0 0x0 0x0 0x0>;
 
 	soc: soc {
 		#address-cells = <0x1>;
@@ -704,8 +706,20 @@
 				  0x82000000 0 0x20300000 0x20300000
 				  0 0x10000000>; /* non-prefetchable memory */
 
-			interrupts = <GIC_SPI 52 IRQ_TYPE_NONE>;
-			interrupt-names = "msi";
+			interrupts = <0 52 0>, <0 416 0>, <0 417 0>,
+				     <0 418 0>, <0 419 0>, <0 420 0>,
+				     <0 421 0>, <0 422 0>, <0 423 0>,
+				     <0 424 0>, <0 425 0>, <0 426 0>,
+				     <0 427 0>, <0 428 0>, <0 429 0>,
+				     <0 430 0>, <0 431 0>;
+
+			interrupt-names = "msi", "msi_0", "msi_1",
+					  "msi_2", "msi_3", "msi_4",
+					  "msi_5", "msi_6", "msi_7",
+					  "msi_8", "msi_9", "msi_10",
+					  "msi_11", "msi_12", "msi_13",
+					  "msi_14", "msi_15";
+
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 0x7>;
 			interrupt-map = <0 0 0 1 &intc 0 75
@@ -750,7 +764,15 @@
 				      "axi_s_sticky";
 
 			perst-gpio = <&tlmm 60 1>;
+
+			qcom,msi-gicm-addr = <0x0B00A040>;
+			qcom,msi-gicm-base = <0x1c0>;
+
 			status = "disabled";
+
+			pcie0_rp: pcie0_rp {
+				reg = <0 0 0 0 0>;
+			};
 		};
 
 		qcom,diag@0 {
@@ -881,6 +903,18 @@
 			#mbox-cells = <1>;
 		};
 
+		apcs_lpass: mailboxlpass@b111000 {
+			compatible = "qcom,msm8996-apcs-hmss-global";
+			qcom,ipc = <&apcs 8 23>;
+			#mbox-cells = <1>;
+		};
+
+		apcs_rpm: mailboxrpm@b111000 {
+			compatible = "qcom,msm8996-apcs-hmss-global";
+			qcom,ipc = <&apcs 8 0>;
+			#mbox-cells = <1>;
+		};
+
 		smem: qcom,smem@4AA00000 {
 			compatible = "qcom,smem";
 			memory-region = <&smem_region>;
@@ -921,6 +955,20 @@
 			label = "rpm";
 			qcom,subsys-id = <6>;
 			status = "ok";
+		};
+
+		rpmsg_rpm: qcom,rpmsg-rpm@60000 {
+			compatible = "qcom,glink-rpm";
+			qcom,rpm-msg-ram = <&rpm_msg_ram>;
+			interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
+			label = "rpm";
+			qcom,subsys-id = <6>;
+			mboxes = <&apcs_rpm 8>;
+			status = "ok";
+			glink_edge {
+				qcom,glink-channels = "rpm_requests";
+				qcom,rpm-channel-type = <15>;
+			};
 		};
 
 		rpm_bus: qcom,rpm-glink {
@@ -1181,6 +1229,7 @@
 			clocks = <&gcc GCC_QPIC_CLK>,
 				<&gcc GCC_QPIC_AHB_CLK>;
 			clock-names = "core", "aon";
+			param-read-addr-cycle = <0x1>;
 
 			dmas = <&qpic_bam 0>,
 				<&qpic_bam 1>,
@@ -1348,7 +1397,8 @@
 			compatible = "qcom,nss";
 			interrupts = <0 402 0x1>, <0 401 0x1>, <0 400 0x1>,
 				     <0 399 0x1>, <0 398 0x1>, <0 397 0x1>,
-				     <0 396 0x1>, <0 395 0x1>, <0 394 0x1>;
+				     <0 396 0x1>, <0 395 0x1>, <0 394 0x1>,
+				     <0 393 0x1>;
 			reg = <0x39000000 0x1000>, <0x0b111000 0x1000>;
 			reg-names = "nphys", "qgic-phys";
 			clocks = <&gcc GCC_NSS_NOC_CLK>,
@@ -1384,7 +1434,7 @@
 				      "nss-utcm-clk", "nss-snoc-nssnoc-clk";
 			qcom,id = <0>;
 			qcom,num-queue = <4>;
-			qcom,num-irq = <9>;
+			qcom,num-irq = <10>;
 			qcom,num-pri = <4>;
 			qcom,load-addr = <0x40000000>;
 			qcom,low-frequency = <187200000>;
@@ -1412,12 +1462,15 @@
 			qcom,vlan-enabled;
 			qcom,capwap-enabled;
 			qcom,dtls-enabled;
+			qcom,tls-enabled;
 			qcom,crypto-enabled;
 			qcom,ipsec-enabled;
 			qcom,qvpn-enabled;
 			qcom,pvxlan-enabled;
 			qcom,clmap-enabled;
 			qcom,vxlan-enabled;
+			qcom,match-enabled;
+			qcom,mirror-enabled;
 		};
 
 		nss_crypto: qcom,nss_crypto {
@@ -1610,6 +1663,43 @@
 			};
 		};
 
+		qcom_q6v6_adsp: qcom_q6v6_adsp@AB00000 {
+			status = "disabled";
+			compatible = "qcom,ipq6018-adsp-pil";
+
+			interrupts-extended = <&intc 0 30 1>,
+					<&adsp_smp2p_in 0 0>,
+					<&adsp_smp2p_in 1 0>,
+					<&adsp_smp2p_in 2 0>,
+					<&adsp_smp2p_in 3 0>;
+			interrupt-names = "wdog",
+					"fatal",
+					"ready",
+					"handover",
+					"stop-ack";
+
+			qcom,smem-states = <&adsp_smp2p_out 0>,
+					<&adsp_smp2p_out 1>;
+
+			qcom,smem-state-names = "shutdown",
+						"stop";
+
+			glink-edge {
+				interrupts = <GIC_SPI 24 IRQ_TYPE_EDGE_RISING>;
+				qcom,remote-pid = <2>;
+				mboxes = <&apcs_lpass 8>;
+
+				rpm_requests {
+					qcom,glink-channels = "IPCRTR";
+				};
+
+				qcom,msm_fastrpc_rpmsg {
+					compatible = "qcom,msm-fastrpc-rpmsg";
+					qcom,glink-channels = "fastrpcglink-apps-dsp";
+					qcom,intents = <0x64 64>;
+				};
+			};
+		};
 
 		ess-switch@3a000000 {
 			compatible = "qcom,ess-switch-ipq60xx";
@@ -2144,8 +2234,26 @@
 		qcom,coex-mode = <0x2>;
 		qcom,bt-active-time = <0x18>;
 		qcom,bt-priority-time = <0x12>;
-		qcom,coex-algo = <0x1>;
+		qcom,coex-algo = <0x2>;
 		qcom,pta-priority = <0x80800505>;
+		};
+
+		wifi1: wifi1@f00000 {
+			compatible  = "qcom,cnss-qcn9000";
+
+/* No Pine attach in 256M profile */
+#if !defined(__IPQ_MEM_PROFILE_256_MB__)
+#ifdef __IPQ_MEM_PROFILE_512_MB__
+			base-addr = <0x4e300000>;
+			caldb-addr = <0x51200000>;
+#else
+			base-addr = <0x50100000>;
+			caldb-addr = <0x53000000>;
+#endif
+#endif
+			qrtr_node_id = <0x20>;
+			qca,auto-restart;
+			status = "disabled";
 		};
 
 		msm_imem: qcom,msm-imem@8600000 {
@@ -2198,6 +2306,10 @@
 			qcom,offset-page-indices = <56>;
 		};
 
+		mhi_test: qcom,test@0 {
+			compatible = "qcom,testmhi";
+			status = "disabled";
+		};
 	};
 
 	psci: psci {

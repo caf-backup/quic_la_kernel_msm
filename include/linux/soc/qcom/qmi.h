@@ -12,6 +12,7 @@
 #include <linux/qrtr.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
+#include <linux/mutex.h>
 
 struct socket;
 
@@ -234,6 +235,9 @@ struct qmi_handle {
 	struct mutex txn_lock;
 
 	const struct qmi_msg_handler *handlers;
+	struct list_head data_list;
+	struct completion complete;
+	atomic_t cnt, async_cnt, async_rsp, async_req, pass, fail;
 };
 
 int qmi_add_lookup(struct qmi_handle *qmi, unsigned int service,

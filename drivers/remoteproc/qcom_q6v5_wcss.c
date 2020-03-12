@@ -8,13 +8,14 @@
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
+#include <linux/soc/qcom/smem.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/soc/qcom/mdt_loader.h>
-#include "qcom_common.h"
 #include "qcom_q6v5.h"
+#include "qcom_common.h"
 #include <linux/rpmsg/qcom_glink.h>
 #include <linux/interrupt.h>
 #include <linux/qcom_scm.h>
@@ -25,10 +26,12 @@
 #define WCSS_CRASH_REASON		421
 
 /* Q6SS Register Offsets */
-#define Q6SS_RESET_REG		0x014
+#define Q6SS_RESET_REG			0x014
 #define Q6SS_GFMUX_CTL_REG		0x020
 #define Q6SS_PWR_CTL_REG		0x030
 #define Q6SS_MEM_PWR_CTL		0x0B0
+#define Q6SS_AHB_UPPER			0x104
+#define Q6SS_AHB_LOWER			0x108
 
 /* AXI Halt Register Offsets */
 #define AXI_HALTREQ_REG			0x0
@@ -60,7 +63,7 @@
 #define Q6SS_BHS_ON		BIT(24)
 #define Q6SS_CLAMP_WL		BIT(21)
 #define Q6SS_CLAMP_QMC_MEM		BIT(22)
-#define HALT_CHECK_MAX_LOOPS		200
+#define Q6SS_TIMEOUT_US		1000
 #define Q6SS_XO_CBCR		GENMASK(5, 3)
 
 /* Q6SS config/status registers */
@@ -82,12 +85,17 @@
 #define TCSR_WCSS_CLK_ENABLE	0x14
 
 #define WCNSS_PAS_ID		6
+#define DEFAULT_IMG_ADDR        0x4b000000
 
 struct q6v5_wcss {
 	struct device *dev;
 
 	void __iomem *reg_base;
 	void __iomem *rmb_base;
+	void __iomem *mpm_base;
+	void __iomem *tcsr_msip_base;
+	void __iomem *wcss_wcmn_base;
+	void __iomem *wcmn_core_base;
 	void __iomem *aon_reset;
 
 	struct regmap *halt_map;
@@ -118,6 +126,7 @@ struct q6v5_wcss {
 struct q6_platform_data {
 	bool nosecure;
 	bool is_q6v6;
+	bool emulation;
 };
 
 static int debug_wcss;
@@ -417,8 +426,75 @@ static void crashdump_init(struct rproc *rproc, struct rproc_dump_segment *segme
 {
 	return;
 }
+
 #endif /* CONFIG_IPQ_SS_DUMP */
 
+#ifdef CONFIG_CNSS2
+static int crashdump_init_new(int check, const struct subsys_desc *subsys)
+{
+	struct qcom_q6v5 *q6v5 = subsys_to_pdata(subsys);
+	struct rproc *rproc = q6v5->rproc;
+	struct rproc_dump_segment *segment = NULL;
+	void *dest = NULL;
+
+	crashdump_init(rproc, segment, dest);
+	return 0;
+}
+
+static int start_q6(const struct subsys_desc *subsys)
+{
+	struct qcom_q6v5 *q6v5 = subsys_to_pdata(subsys);
+	struct rproc *rproc = q6v5->rproc;
+	int ret = 0;
+	struct q6_platform_data *pdata =
+		dev_get_platdata(((struct q6v5_wcss *)rproc->priv)->dev);
+
+	if (pdata->emulation) {
+		pr_info("q6v5: Emulation start, PIL loading skipped\n");
+		rproc->bootaddr = DEFAULT_IMG_ADDR;
+		rproc->ops->start(rproc);
+		rproc_start_subdevices(rproc);
+		return 0;
+	}
+
+	ret = rproc_boot(rproc);
+	if (ret)
+		pr_err("couldn't boot q6v5: %d\n", ret);
+	else
+		q6v5->running = true;
+
+	return ret;
+}
+
+static int stop_q6(const struct subsys_desc *subsys, bool force_stop)
+{
+	struct qcom_q6v5 *q6v5 = subsys_to_pdata(subsys);
+	struct rproc *rproc = q6v5->rproc;
+	struct q6v5_wcss *wcss = rproc->priv;
+	int ret = 0;
+	struct q6_platform_data *pdata = dev_get_platdata(wcss->dev);
+
+	if (!subsys_get_crash_status(q6v5->subsys) && force_stop) {
+		ret = qcom_q6v5_request_stop(&wcss->q6v5);
+		if (ret == -ETIMEDOUT) {
+			dev_err(wcss->dev, "timed out on wait\n");
+			return ret;
+		}
+	}
+
+	if (pdata->emulation) {
+		pr_info("q6v5: Emulation stop\n");
+		rproc->ops->stop(rproc);
+		goto stop_flag;
+	}
+
+	rproc_shutdown(rproc);
+
+stop_flag:
+	q6v5->running = false;
+	return ret;
+}
+#endif
 
 static int q6v5_wcss_reset(struct q6v5_wcss *wcss)
 {
@@ -452,7 +528,7 @@ static int q6v5_wcss_reset(struct q6v5_wcss *wcss)
 	/* Read CLKOFF bit to go low indicating CLK is enabled */
 	ret = readl_poll_timeout(wcss->reg_base + Q6SS_XO_CBCR,
 				 val, !(val & BIT(31)), 1,
-				 HALT_CHECK_MAX_LOOPS);
+				 Q6SS_TIMEOUT_US);
 	if (ret) {
 		dev_err(wcss->dev,
 			"xo cbcr enabling timed out (rc:%d)\n", ret);
@@ -518,7 +594,8 @@ static int q6v5_wcss_reset(struct q6v5_wcss *wcss)
 		/* Wait for SSCAON_STATUS */
 		val = readl(wcss->rmb_base + SSCAON_STATUS);
 		ret = readl_poll_timeout(wcss->rmb_base + SSCAON_STATUS,
-			val, (val & 0xffff) == 0x10, 1000, HALT_CHECK_MAX_LOOPS);
+					 val, (val & 0xffff) == 0x10, 1000,
+					 Q6SS_TIMEOUT_US * 1000);
 		if (ret) {
 			dev_err(wcss->dev, " Boot Error, SSCAON=0x%08X\n", val);
 			return ret;
@@ -531,6 +608,50 @@ static int q6v5_wcss_reset(struct q6v5_wcss *wcss)
 static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 {
 	unsigned long val;
+	struct q6_platform_data *pdata = dev_get_platdata(wcss->dev);
+	int ret;
+	int temp = 0;
+
+	ret = reset_control_deassert(wcss->wcss_aon_reset);
+	if (ret) {
+		dev_err(wcss->dev, "wcss_aon_reset failed\n");
+		return;
+	 }
+
+	if (pdata->emulation) {
+		/*Disable clock gating*/
+		regmap_update_bits(wcss->halt_map,
+				wcss->halt_nc + TCSR_GLOBAL_CFG0,
+				1, 0x1);
+
+		/*Secure access to WIFI phy register*/
+		regmap_update_bits(wcss->halt_map,
+				wcss->halt_nc + TCSR_GLOBAL_CFG1,
+				TCSR_WCSS_CLK_MASK,
+				0x18);
+	 }
+
+	/*Enable global counter for qtimer*/
+	if (wcss->mpm_base)
+		writel(0x1, wcss->mpm_base + 0x00);
+
+	/*Q6 AHB upper & lower address*/
+	writel(0x00cdc000, wcss->reg_base + Q6SS_AHB_UPPER);
+	writel(0x00ca0000, wcss->reg_base + Q6SS_AHB_LOWER);
+
+	/*Configure MSIP*/
+	if (wcss->tcsr_msip_base)
+		writel(0x1, wcss->tcsr_msip_base + 0x00);
+
+	if (pdata->emulation) {
+		/*Configure emu phy*/
+		if (wcss->wcmn_core_base)
+			writel(0x1, wcss->wcmn_core_base + 0x00);
+
+		/*Disable CGC for emu phy*/
+		if (wcss->wcss_wcmn_base)
+			writel(0xFFFFFFFF, wcss->wcss_wcmn_base + 0x00);
+	 }
 
 	/* Trigger Boot FSM, to bring core out of rst */
 	writel(0x1, wcss->reg_base + Q6SS_BOOT_CMD);
@@ -538,8 +659,14 @@ static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 	/* Boot core start */
 	writel(0x1, wcss->reg_base + Q6SS_BOOT_CORE_START);
 
-	mdelay(10);
-	val = readl(wcss->reg_base + Q6SS_BOOT_STATUS);
+	while (temp < 20) {
+		val = readl(wcss->reg_base + Q6SS_BOOT_STATUS);
+		if (val & 0x01)
+			break;
+		mdelay(1);
+		temp += 1;
+	}
+
 	pr_err("%s: start %s\n", wcss->q6v5.rproc->name,
 					val == 1 ? "successful" : "failed");
 	wcss->q6v5.running = val == 1 ? true : false;
@@ -699,7 +826,7 @@ static int q6v5_wcss_powerdown(struct q6v5_wcss *wcss)
 	/* 5 - wait for SSCAON_STATUS */
 	ret = readl_poll_timeout(wcss->rmb_base + SSCAON_STATUS,
 				 val, (val & 0xffff) == 0x400, 1000,
-				 HALT_CHECK_MAX_LOOPS);
+				 Q6SS_TIMEOUT_US * 10);
 	if (ret) {
 		dev_err(wcss->dev,
 			"can't get SSCAON_STATUS rc:%d)\n", ret);
@@ -784,7 +911,7 @@ static int q6v5_q6_powerdown(struct q6v5_wcss *wcss)
 	/* 10 - Wait till BHS Reset is done */
 	ret = readl_poll_timeout(wcss->reg_base + Q6SS_BHS_STATUS,
 				 val, !(val & BHS_EN_REST_ACK), 1000,
-				 HALT_CHECK_MAX_LOOPS);
+				 Q6SS_TIMEOUT_US * 10);
 	if (ret) {
 		dev_err(wcss->dev, "BHS_STATUS not OFF (rc:%d)\n", ret);
 		return ret;
@@ -820,12 +947,6 @@ static int q6v5_wcss_stop(struct rproc *rproc)
 
 skip_secure:
 	/* WCSS powerdown */
-	ret = qcom_q6v5_request_stop(&wcss->q6v5);
-	if (ret == -ETIMEDOUT) {
-		dev_err(wcss->dev, "timed out on wait\n");
-		return ret;
-	}
-
 	if (!pdata->is_q6v6) {
 		ret = q6v5_wcss_powerdown(wcss);
 		if (ret)
@@ -937,6 +1058,11 @@ static int q6v5_wcss_init_mmio(struct q6v5_wcss *wcss,
 	int ret;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "qdsp6");
+	if (IS_ERR_OR_NULL(res)) {
+		dev_err(&pdev->dev, "qdsp6 resource not available\n");
+		return -EINVAL;
+	}
+
 	wcss->reg_base = ioremap(res->start, resource_size(res));
 	if (IS_ERR(wcss->reg_base))
 		return PTR_ERR(wcss->reg_base);
@@ -945,6 +1071,31 @@ static int q6v5_wcss_init_mmio(struct q6v5_wcss *wcss,
 	wcss->rmb_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(wcss->rmb_base))
 		return PTR_ERR(wcss->rmb_base);
+
+	if (of_property_read_bool(pdev->dev.of_node, "qcom,q6v6")) {
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mpm");
+		wcss->mpm_base = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(wcss->mpm_base))
+			return PTR_ERR(wcss->mpm_base);
+
+		res = platform_get_resource_byname(pdev,
+				IORESOURCE_MEM, "tcsr-msip");
+		wcss->tcsr_msip_base = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(wcss->tcsr_msip_base))
+			return PTR_ERR(wcss->tcsr_msip_base);
+
+		res = platform_get_resource_byname(pdev,
+				IORESOURCE_MEM, "wcss-wcmn");
+		wcss->wcss_wcmn_base = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(wcss->wcss_wcmn_base))
+			return PTR_ERR(wcss->wcss_wcmn_base);
+
+		res = platform_get_resource_byname(pdev,
+				IORESOURCE_MEM, "wcmn-core");
+		wcss->wcmn_core_base = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(wcss->wcmn_core_base))
+			return PTR_ERR(wcss->wcmn_core_base);
+	}
 
 	ret = of_parse_phandle_with_fixed_args(pdev->dev.of_node,
 					       "qcom,halt-regs", 3, 0, &args);
@@ -1001,6 +1152,7 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 	int ret;
 	const char *firmware_name;
 	struct q6_platform_data *pdata;
+	struct qcom_q6v5 *q6v5;
 
 	ret = of_property_read_string(pdev->dev.of_node, "firmware",
 		&firmware_name);
@@ -1031,10 +1183,35 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 	if (ret)
 		goto free_rproc;
 
-	ret = qcom_q6v5_init(&wcss->q6v5, pdev, rproc, WCSS_CRASH_REASON, NULL);
+	q6v5 = &wcss->q6v5;
+	ret = qcom_q6v5_init(q6v5, pdev, rproc, WCSS_CRASH_REASON, NULL);
 	if (ret)
 		goto free_rproc;
 
+#ifdef CONFIG_CNSS2
+	/*
+	 * subsys-register
+	 */
+	q6v5->subsys_desc.is_not_loadable = 0;
+	q6v5->subsys_desc.name = pdev->dev.of_node->name;
+	q6v5->subsys_desc.dev = &pdev->dev;
+	q6v5->subsys_desc.owner = THIS_MODULE;
+	q6v5->subsys_desc.shutdown = stop_q6;
+	q6v5->subsys_desc.powerup = start_q6;
+	q6v5->subsys_desc.ramdump = crashdump_init_new;
+	q6v5->subsys_desc.err_fatal_handler = q6v5_fatal_interrupt;
+	q6v5->subsys_desc.stop_ack_handler = q6v5_ready_interrupt;
+	q6v5->subsys_desc.wdog_bite_handler = q6v5_wdog_interrupt;
+
+	q6v5->subsys = subsys_register(&q6v5->subsys_desc);
+	if (IS_ERR(q6v5->subsys)) {
+		dev_err(&pdev->dev, "failed to register with ssr\n");
+		ret = PTR_ERR(q6v5->subsys);
+		goto free_rproc;
+	}
+	dev_info(wcss->dev, "ssr registeration success %s\n",
+					q6v5->subsys_desc.name);
+#endif
 	rproc->auto_boot = false;
 	ret = rproc_add(rproc);
 	if (ret)
@@ -1070,13 +1247,15 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 	pdata->is_q6v6 = of_property_read_bool(pdev->dev.of_node, "qcom,q6v6");
 	pdata->nosecure = of_property_read_bool(pdev->dev.of_node,
 							"qcom,nosecure");
+	pdata->emulation = of_property_read_bool(pdev->dev.of_node,
+							"qcom,emulation");
 
 	platform_device_add_data(pdev, pdata, sizeof(*pdata));
 	kfree(pdata);
 
 skip_pdata:
 	qcom_add_glink_subdev(rproc, &wcss->glink_subdev);
-	qcom_add_ssr_subdev(rproc, &wcss->ssr_subdev, "rproc");
+	qcom_add_ssr_subdev(rproc, &wcss->ssr_subdev, "mpss");
 	platform_set_drvdata(pdev, rproc);
 
 	return 0;
@@ -1091,10 +1270,15 @@ static int q6v5_wcss_remove(struct platform_device *pdev)
 {
 	struct rproc *rproc = platform_get_drvdata(pdev);
 	struct q6v5_wcss *wcss;
+	struct qcom_q6v5 *q6v5;
 
 	wcss = rproc->priv;
 	wcss->dev = &pdev->dev;
+	q6v5 = &wcss->q6v5;
 
+#ifdef CONFIG_CNSS2
+	subsys_unregister(q6v5->subsys);
+#endif
 	rproc_del(rproc);
 	qcom_remove_glink_subdev(rproc, &wcss->glink_subdev);
 	qcom_remove_ssr_subdev(rproc, &wcss->ssr_subdev);

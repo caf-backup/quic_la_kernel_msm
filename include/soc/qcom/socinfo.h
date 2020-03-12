@@ -113,6 +113,12 @@
 	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,ipq6018")
 #define early_machine_is_ipq6028()	\
 	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,ipq6028")
+#define early_machine_is_ipq6000()	\
+	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,ipq6000")
+#define early_machine_is_ipq6010()	\
+	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,ipq6010")
+#define early_machine_is_ipq6005()	\
+	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,ipq6005")
 #else
 #define of_board_is_sim()		0
 #define of_board_is_rumi()		0
@@ -160,6 +166,9 @@
 #define early_machine_is_sda630()	0
 #define early_machine_is_ipq6018()	0
 #define early_machine_is_ipq6028()	0
+#define early_machine_is_ipq6000()	0
+#define early_machine_is_ipq6010()	0
+#define early_machine_is_ipq6005()	0
 #endif
 
 #define PLATFORM_SUBTYPE_MDM	1
@@ -224,6 +233,9 @@ enum msm_cpu {
 	MSM_CPU_636,
 	IPQ_CPU_6018,
 	IPQ_CPU_6028,
+	IPQ_CPU_6000,
+	IPQ_CPU_6010,
+	IPQ_CPU_6005,
 };
 
 struct msm_soc_info {
@@ -295,6 +307,7 @@ int __init socinfo_init(void) __must_check;
 #define CPU_IPQ6028 403
 #define CPU_IPQ6000 421
 #define CPU_IPQ6010 422
+#define CPU_IPQ6005 453
 
 /* TBD the CHIP IDs */
 #define CPU_IPQ5000 425
@@ -603,6 +616,15 @@ static inline int cpu_is_ipq6010(void)
 #endif
 }
 
+static inline int cpu_is_ipq6005(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ6005;
+#else
+	return 0;
+#endif
+}
+
 static inline int cpu_is_ipq5000(void)
 {
 #ifdef CONFIG_ARCH_QCOM
@@ -650,7 +672,8 @@ static inline int cpu_is_ipq60xx(void)
 {
 #ifdef CONFIG_ARCH_QCOM
 	return  cpu_is_ipq6018() || cpu_is_ipq6028() ||
-		cpu_is_ipq6000() || cpu_is_ipq6010();
+		cpu_is_ipq6000() || cpu_is_ipq6010() ||
+		cpu_is_ipq6005();
 #else
 	return 0;
 #endif

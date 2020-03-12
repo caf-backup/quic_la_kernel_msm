@@ -44,6 +44,7 @@ static char *smmu_state;
 #define TZ_KPSS BIT(1)
 #define TZ_HK BIT(2)
 #define TZ_CP BIT(3)
+#define TZ_MP BIT(4)
 
 struct tzbsp_log_pos_t {
 	uint16_t wrap;		/* Ring buffer wrap-around ctr */
@@ -97,6 +98,16 @@ struct ipq6018_tzbsp_diag_t_v8 {
 	struct tzbsp_diag_log_t log;
 };
 
+struct ipq50xx_tzbsp_diag_t_v8 {
+	uint32_t unused[7];	/* Unused variable is to support the
+				 * corresponding structure in trustzone
+				 * and size is varying based on AARCH64 TZ
+				 */
+	uint32_t ring_off;
+	uint32_t unused1[447];
+	struct tzbsp_diag_log_t log;
+};
+
 typedef struct hyp_log_pos_s {
 	uint16_t wrap;
 	uint16_t offset;
@@ -141,6 +152,7 @@ static int tz_log_open(struct inode *inode, struct file *file)
 	struct tzbsp_diag_t *tz_diag;
 	struct ipq807x_tzbsp_diag_t_v8 *ipq807x_diag_buf;
 	struct ipq6018_tzbsp_diag_t_v8 *ipq6018_diag_buf;
+	struct ipq50xx_tzbsp_diag_t_v8 *ipq50xx_diag_buf;
 	struct tzbsp_diag_t_kpss *tz_diag_kpss;
 	struct tzbsp_diag_log_t *log;
 	uint16_t offset;
@@ -182,6 +194,11 @@ static int tz_log_open(struct inode *inode, struct file *file)
 				(struct ipq6018_tzbsp_diag_t_v8 *)ker_buf;
 			ring = ipq6018_diag_buf->ring_off;
 			log = &ipq6018_diag_buf->log;
+		} else if (tz_hvc_log->flags & TZ_MP) {
+			ipq50xx_diag_buf =
+				(struct ipq50xx_tzbsp_diag_t_v8 *)ker_buf;
+			ring = ipq50xx_diag_buf->ring_off;
+			log = &ipq50xx_diag_buf->log;
 		} else {
 			tz_diag = (struct tzbsp_diag_t *) ker_buf;
 			ring = tz_diag->ring_off;
@@ -359,6 +376,7 @@ static const struct of_device_id qca_tzlog_of_match[] = {
 	{ .compatible = "qca,tzlog_ipq6018", .data = (void *)TZ_CP},
 	{ .compatible = "qca,tz64log", .data = (void *)TZ_64},
 	{ .compatible = "qca,tzlog_ipq806x", .data = (void *)TZ_KPSS },
+	{ .compatible = "qca,tzlog_ipq50xx", .data = (void *)TZ_MP },
 	{}
 };
 MODULE_DEVICE_TABLE(of, qca_tzlog_of_match);
