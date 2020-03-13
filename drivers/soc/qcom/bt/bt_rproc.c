@@ -17,6 +17,7 @@
 #include <linux/soc/qcom/mdt_loader.h>
 #include <linux/platform_device.h>
 #include <linux/firmware.h>
+#include <linux/delay.h>
 #include "bt.h"
 
 unsigned
@@ -53,9 +54,10 @@ int m0_btss_start(struct rproc *rproc)
 		dev_err(&btDesc->pdev->dev, "btss_reset failed\n");
 		return ret;
 	}
+	mdelay(50);
 
-	writel(0x0, btDesc->warm_reset + BT_M0_WARM_RST_ORIDE);
 	writel(0x1, btDesc->warm_reset + BT_M0_WARM_RST);
+	writel(0x0, btDesc->warm_reset + BT_M0_WARM_RST_ORIDE);
 
 	dev_err(rproc->dev.parent, "%s\n", __func__);
 
@@ -65,13 +67,25 @@ int m0_btss_start(struct rproc *rproc)
 int m0_btss_stop(struct rproc *rproc)
 {
 	struct bt_descriptor *btDesc = rproc->priv;
+	int ret = 0;
+
+	ret = reset_control_assert(btDesc->btss_reset);
+	if (ret) {
+		dev_err(&btDesc->pdev->dev, "assert failed ret = %d\n", ret);
+		return ret;
+	}
+
+	mdelay(50);
 
 	writel(0x0, btDesc->warm_reset + BT_M0_WARM_RST);
-	writel(0x0, btDesc->warm_reset + BT_M0_WARM_RST_ORIDE);
+	writel(0x1, btDesc->warm_reset + BT_M0_WARM_RST_ORIDE);
 
-	reset_control_assert(btDesc->btss_reset);
-
-	dev_err(rproc->dev.parent, "%s\n", __func__);
+	mdelay(50);
+	ret = reset_control_deassert(btDesc->btss_reset);
+	if (ret) {
+		dev_err(&btDesc->pdev->dev, "deassert failed ret = %d\n", ret);
+		return ret;
+	}
 
 	return 0;
 }
@@ -106,7 +120,8 @@ static const struct rproc_ops m0_btss_ops = {
 static int bt_rproc_probe(struct platform_device *pdev)
 {
 	int ret;
-	struct bt_descriptor *btDesc = pdev->dev.platform_data;
+	struct bt_descriptor *btDesc = *((struct bt_descriptor **)
+						pdev->dev.platform_data);
 	struct rproc *rproc;
 
 	rproc = rproc_alloc(&pdev->dev, pdev->name, &m0_btss_ops,
@@ -122,6 +137,13 @@ static int bt_rproc_probe(struct platform_device *pdev)
 	if (!rproc->dev.class->p) {
 		dev_err(&pdev->dev, "class not registered defering probe\n");
 		return -EPROBE_DEFER;
+	}
+
+	ret = reset_control_deassert(btDesc->btss_reset);
+	if (ret) {
+		dev_err(&btDesc->pdev->dev, "btss_reset failed\n");
+		rproc_free(rproc);
+		return ret;
 	}
 
 	ret = rproc_add(rproc);
@@ -141,7 +163,9 @@ static int bt_rproc_probe(struct platform_device *pdev)
 static int bt_rproc_remove(struct platform_device *pdev)
 {
 	struct rproc *rproc = platform_get_drvdata(pdev);
+	struct bt_descriptor *btDesc = rproc->priv;
 
+	atomic_set(&btDesc->state, 0);
 	rproc_del(rproc);
 	rproc_free(rproc);
 
