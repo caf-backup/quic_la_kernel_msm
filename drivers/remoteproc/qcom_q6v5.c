@@ -112,6 +112,8 @@ irqreturn_t q6v5_ready_interrupt(int irq, void *data)
 {
 	struct qcom_q6v5 *q6v5 = data;
 
+	pr_info("Subsystem error monitoring/handling services are up\n");
+
 	complete(&q6v5->start_done);
 
 	return IRQ_HANDLED;
