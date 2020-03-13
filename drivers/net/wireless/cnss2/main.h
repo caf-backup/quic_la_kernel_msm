@@ -391,6 +391,8 @@ struct cnss_plat_data {
 	u64 dynamic_feature;
 	u64 target_assert_timestamp;
 	u8 target_asserted;
+	u32 daemon_support;
+	u32 cold_boot_support;
 };
 
 #ifdef CONFIG_ARCH_QCOM
@@ -442,9 +444,11 @@ void cnss_set_pin_connect_status(struct cnss_plat_data *plat_priv);
 u32 cnss_get_wake_msi(struct cnss_plat_data *plat_priv);
 struct cnss_plat_data *cnss_get_plat_priv_by_device_id(int id);
 struct cnss_plat_data *cnss_get_plat_priv_by_qrtr_node_id(int node_id);
+struct cnss_plat_data *cnss_get_plat_priv_by_instance_id(int instance_id);
 struct cnss_plat_data *cnss_get_plat_priv(struct platform_device *plat_dev);
 int cnss_qca9000_shutdown_part2(struct cnss_plat_data *plat_priv);
 int cnss_get_cpr_info(struct cnss_plat_data *plat_priv);
 int cnss_update_cpr_info(struct cnss_plat_data *plat_priv);
+void cnss_update_daemon_cold_boot_support(u8 type, u32 instance_id, u32 value);
 
 #endif /* _CNSS_MAIN_H */

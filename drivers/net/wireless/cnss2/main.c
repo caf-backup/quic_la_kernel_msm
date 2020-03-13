@@ -73,7 +73,11 @@ MODULE_PARM_DESC(bdf_pci0, "bdf_pci0");
 
 static int bdf_pci1;
 module_param(bdf_pci1, int, 0644);
-MODULE_PARM_DESC(bdf_pci1, "bdf_pci0");
+MODULE_PARM_DESC(bdf_pci1, "bdf_pci1");
+
+static int driver_mode;
+module_param(driver_mode, int, 0644);
+MODULE_PARM_DESC(driver_mode, "driver_mode");
 
 static int skip_cnss;
 module_param(skip_cnss, int, 0644);
@@ -165,6 +169,17 @@ struct cnss_plat_data *cnss_get_plat_priv_by_qrtr_node_id(int node_id)
 
 	for (i = 0; i < plat_env_index; i++) {
 		if (plat_env[i]->qrtr_node_id == node_id)
+			return plat_env[i];
+	}
+	return NULL;
+}
+
+struct cnss_plat_data *cnss_get_plat_priv_by_instance_id(int instance_id)
+{
+	int i;
+
+	for (i = 0; i < plat_env_index; i++) {
+		if (plat_env[i]->wlfw_service_instance_id == instance_id)
 			return plat_env[i];
 	}
 	return NULL;
@@ -1206,6 +1221,14 @@ int cnss_wlan_register_driver(struct cnss_wlan_driver *driver_ops)
 		if (!plat_priv)
 			continue;
 
+		if (!plat_priv->cold_boot_support &&
+		    (driver_mode == CNSS_CALIBRATION ||
+		     driver_mode == CNSS_FTM_CALIBRATION)) {
+			cnss_pr_info("Skipping driver register for device 0x%lx for mode %d",
+				     plat_priv->device_id, driver_mode);
+			continue;
+		}
+
 		if ((plat_priv->device_id == QCA8074_DEVICE_ID ||
 		     plat_priv->device_id == QCA8074V2_DEVICE_ID ||
 		     plat_priv->device_id == QCA5018_DEVICE_ID ||
@@ -1316,6 +1339,14 @@ void cnss_wlan_unregister_driver(struct cnss_wlan_driver *driver_ops)
 		if (!plat_priv) {
 			printk(KERN_ERR "%s plat_priv is NULL!\n", __func__);
 			return;
+		}
+
+		if (!plat_priv->cold_boot_support &&
+		    (driver_mode == CNSS_CALIBRATION ||
+		     driver_mode == CNSS_FTM_CALIBRATION)) {
+			cnss_pr_info("Skipping driver unregister for device 0x%lx for mode %d",
+				     plat_priv->device_id, driver_mode);
+			continue;
 		}
 
 		plat_priv->driver_status = CNSS_LOAD_UNLOAD;
@@ -2927,6 +2958,34 @@ static int cnss_set_device_name(struct cnss_plat_data *plat_priv)
 	}
 
 	return 0;
+}
+
+void cnss_update_daemon_cold_boot_support(u8 type, u32 instance_id, u32 value)
+{
+	struct cnss_plat_data *plat_priv;
+
+	plat_priv = cnss_get_plat_priv_by_instance_id(instance_id);
+	if (!plat_priv) {
+		pr_err("Failed to get plat_priv for instance_id %d",
+		       instance_id);
+		return;
+	}
+
+	switch (type) {
+	case CNSS_GENL_MSG_TYPE_DAEMON_SUPPORT:
+		plat_priv->daemon_support = value;
+		cnss_pr_info("Setting daemon_support=%d for instance_id %d",
+			     value, instance_id);
+		break;
+	case CNSS_GENL_MSG_TYPE_COLD_BOOT_SUPPORT:
+		plat_priv->cold_boot_support = value;
+		cnss_pr_info("Setting cold_boot_support=%d for instance_id %d",
+			     value, instance_id);
+		break;
+	default:
+		cnss_pr_err("Unknown type %d", type);
+		break;
+	}
 }
 
 static int cnss_probe(struct platform_device *plat_dev)
