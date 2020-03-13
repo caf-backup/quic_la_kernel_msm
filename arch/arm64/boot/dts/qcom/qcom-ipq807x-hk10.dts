@@ -899,6 +899,7 @@
 	status = "disabled";
 };
 &wifi1 {
+	qcom,board_id = <0x216>;
 	status = "ok";
 };
 &wifi2 {
