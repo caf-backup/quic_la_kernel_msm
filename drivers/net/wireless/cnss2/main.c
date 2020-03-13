@@ -1164,6 +1164,10 @@ static int cnss_qca8074_notifier_nb(struct notifier_block *nb,
 				   plat_priv->plat_dev_id);
 		return NOTIFY_DONE;
 	} else {
+		if (code == SUBSYS_AFTER_SHUTDOWN) {
+			clear_bit(CNSS_FW_READY, &plat_priv->driver_state);
+			clear_bit(CNSS_FW_MEM_READY, &plat_priv->driver_state);
+		}
 		driver_ops->update_status((struct pci_dev *)plat_priv->plat_dev,
 					  (const struct pci_device_id *)
 					  plat_priv->plat_dev_id, code);
