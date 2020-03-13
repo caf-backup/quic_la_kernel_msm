@@ -373,4 +373,3 @@ config QTI_ADSPRPC_LOADER
 	  Say y here to enable ADSP loader support. The ADSP loader driver
 	  provides the support to take adsp out of reset.
 
-source "drivers/soc/qcom/bt/Kconfig"
