@@ -240,5 +240,6 @@ extern int cnss_athdiag_write(struct device *dev, uint32_t offset,
 			      uint8_t *input);
 extern int cnss_set_fw_log_mode(struct device *dev, uint8_t fw_log_mode);
 bool cnss_is_dev_initialized(struct device *dev);
+u64 cnss_get_q6_time(struct device *dev);
 
 #endif /* _NET_CNSS2_H */
