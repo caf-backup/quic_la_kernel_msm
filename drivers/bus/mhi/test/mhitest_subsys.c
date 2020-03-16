@@ -23,17 +23,17 @@ int mhitest_ss_powerup(const struct subsys_desc *subsys_desc)
 	int ret;
 	struct mhitest_platform *temp;
 
-	pr_mhitest2("-Start\n");
+	MHITEST_LOG("Enter\n");
 	if (!subsys_desc->dev) {
-		pr_mhitest("Error mhitest_ss_power ..\n");
+		MHITEST_ERR("Error mhitest_ss_power\n");
 		return -ENODEV;
 	}
 	temp = (struct mhitest_platform *)subsys_desc->dev->driver_data;
 	if (!temp) {
-		pr_mhitest("Error not dev data..\n");
+		MHITEST_ERR("Error not dev data\n");
 		return -EINVAL;
 	}
-	pr_mhitest2("temp:[%p]\n", temp);
+	MHITEST_VERB("temp:[%p]\n", temp);
 
 	if (!temp->pci_dev) {
 		pr_mhitest2("temp->pci_Dev is NUlll\n");
@@ -53,17 +53,17 @@ int mhitest_ss_powerup(const struct subsys_desc *subsys_desc)
 
 	ret = mhitest_prepare_pci_mhi_msi(temp);
 	if (ret) {
-		pr_mhitest("Error prep. pci_mhi_msi  ret:%d\n", ret);
+		MHITEST_ERR("Error prep. pci_mhi_msi  ret:%d\n", ret);
 		goto out;
 	}
 
 	ret = mhitest_prepare_start_mhi(temp);
 	if (ret) {
-		pr_mhitest("Error ..preapare start mhi  ret:%d\n", ret);
+		MHITEST_ERR("Error preapare start mhi  ret:%d\n", ret);
 		goto out;
 	}
 
-	pr_mhitest2("-End\n");
+	MHITEST_LOG("Exit\n");
 	return 0;
 out:
 /*	mhitest_subsystem_unregister(temp); */
@@ -75,7 +75,7 @@ int mhitest_ss_shutdown(const struct subsys_desc *desc, bool force_stop)
 {
 
 	struct mhitest_platform *mplat = (struct mhitest_platform *)desc->dev->driver_data;
-	pr_mhitest2("Going for shutdown...\n");
+	MHITEST_VERB("Going for shutdown\n");
 
 	mhitest_pci_set_mhi_state(mplat, MHI_POWER_OFF);
 //	msleep(1000);
@@ -95,25 +95,24 @@ void mhitest_ss_crash_shutdown(const struct subsys_desc *mhitest_ss_desc)
 		crash_d_instance = 1;
 	temp = get_mhitest_mplat(crash_d_instance);
 
-	pr_mhitest2("Going for shutdown... start temp:%p\n", temp);
+	MHITEST_LOG("Going for shutdown temp:%p\n", temp);
 	if (!temp)
 		return;
 	if ((strcmp(temp->mhitest_ss_desc.name, mhitest_ss_desc->name))) {
-		pr_mhitest2("Error not a same subsystem\n");
+		MHITEST_ERR("Error not a same subsystem\n");
 		return;
 	}
 	ret = mhitest_dump_info(temp, true);
 	if (ret) {
-		pr_mhitest2("Error :ret:%d\n", ret);
+		MHITEST_ERR("Error :ret:%d\n", ret);
 		return;
 	}
-	pr_mhitest2("Shutdown... End temp:%p\n", temp);
 
 }
 
 int mhitest_ss_ramdump(int enable, const struct subsys_desc *desc)
 {
-	pr_mhitest2("Going for ss_ramdump...returning 1\n");
+	MHITEST_LOG("## returning 1\n");
 	return 1;
 }
 
@@ -122,7 +121,7 @@ int mhitest_subsystem_register(struct mhitest_platform *mplat)
 	int ret = 1;
 	struct subsys_desc *mhitest_ss_desc;
 
-	pr_mhitest2("Going for ss_reg.\n");
+	MHITEST_VERB("Going for ss_reg.\n");
 	mhitest_ss_desc = &mplat->mhitest_ss_desc;
 
 	/*
@@ -146,14 +145,14 @@ int mhitest_subsystem_register(struct mhitest_platform *mplat)
 	else
 		snprintf(mhitest_ss_desc->fw_name, sizeof(mplat->fw_name),
 							DEFAULT_FW_FILE_NAME);
-	pr_mhitest("SS name :%s and ss_desc->fw_name:%s\n", mplat->mhitest_ss_desc.name, mhitest_ss_desc->fw_name);
+	MHITEST_VERB("SS name :%s and ss_desc->fw_name:%s\n", mplat->mhitest_ss_desc.name, mhitest_ss_desc->fw_name);
 	if (!mhitest_ss_desc->dev) {
-		pr_mhitest("dev is null\n");
+		MHITEST_ERR("dev is null\n");
 		ret = -ENODEV;
 		goto error;
 	} else {
 		if (!mhitest_ss_desc->dev->of_node) {
-			pr_mhitest("of node is null\n");
+			MHITEST_ERR("of node is null\n");
 			ret = -ENODEV;
 			goto error;
 		}
@@ -161,22 +160,22 @@ int mhitest_subsystem_register(struct mhitest_platform *mplat)
 	mplat->mhitest_ss_device = subsys_register(&mplat->mhitest_ss_desc);
 		if (IS_ERR(mplat->mhitest_ss_device)) {
 			ret = PTR_ERR(mplat->mhitest_ss_device);
-		pr_mhitest2("Error! SS reg ret:%d\n", ret);
+		MHITEST_ERR("Error SS reg ret:%d\n", ret);
 		goto error;
 	}
 
 
 	mplat->subsys_handle = subsystem_get(mhitest_ss_desc->name);
 	if (!mplat->subsys_handle) {
-		pr_mhitest2("Error: ss_handle NULL\n");
+		MHITEST_ERR("Error: ss_handle NULL\n");
 		ret = -EINVAL;
 		goto error;
 	} else if (IS_ERR(mplat->subsys_handle)) {
 		ret = PTR_ERR(mplat->subsys_handle);
-		pr_mhitest2("Error SS get ret:%d\n", ret);
+		MHITEST_ERR("Error SS get ret:%d\n", ret);
 		goto error;
 	}
-	pr_mhitest2("Pass SS get ss_handle:[%p]\n", mplat->subsys_handle);
+	MHITEST_VERB("Pass SS get ss_handle:[%p]\n", mplat->subsys_handle);
 
 	return 0;
 error:
@@ -186,11 +185,11 @@ error:
 void mhitest_subsystem_unregister(struct mhitest_platform *mplat)
 {
 	if (!mplat) {
-		pr_mhitest("mplat is null no subsystem unregister\n");
+		MHITEST_ERR("mplat is null no subsystem unregister\n");
 		return;
 	}
 	if (!mplat->mhitest_ss_device) {
-		pr_mhitest("mplat->mhitest_ss_device--NULL\n");
+		MHITEST_ERR("mplat->mhitest_ss_device--NULL\n");
 		return;
 	}
 	if (mplat->subsys_handle)
