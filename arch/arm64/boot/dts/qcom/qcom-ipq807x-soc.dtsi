@@ -131,6 +131,7 @@
 		compatible = "ipq807x-qseecom";
 		mem-start = <0x4a400000>;
 		mem-size = <0x200000>;
+		notify-align = <1>;
 	};
 #endif
 

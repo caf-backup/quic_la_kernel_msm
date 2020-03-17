@@ -2562,7 +2562,13 @@ static int __init qseecom_probe(struct platform_device *pdev)
 		pr_err("No mem-region specified, using default\n");
 		goto load;
 	}
-
+	/* 4KB adjustment is to ensure TZApp does not overlap
+	 * the region alloted for SMMU WAR
+	 */
+	if (of_property_read_bool(of_node, "notify-align")) {
+		start += PAGE_SIZE;
+		size -= PAGE_SIZE;
+	}
 	notify_app.applications_region_addr = start;
 	notify_app.applications_region_size = size;
 
