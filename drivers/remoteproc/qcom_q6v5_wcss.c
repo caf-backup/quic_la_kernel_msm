@@ -94,8 +94,6 @@ struct q6v5_wcss {
 	void __iomem *rmb_base;
 	void __iomem *mpm_base;
 	void __iomem *tcsr_msip_base;
-	void __iomem *wcss_wcmn_base;
-	void __iomem *wcmn_core_base;
 	void __iomem *aon_reset;
 
 	struct regmap *halt_map;
@@ -643,16 +641,6 @@ static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 	if (wcss->tcsr_msip_base)
 		writel(0x1, wcss->tcsr_msip_base + 0x00);
 
-	if (pdata->emulation) {
-		/*Configure emu phy*/
-		if (wcss->wcmn_core_base)
-			writel(0x1, wcss->wcmn_core_base + 0x00);
-
-		/*Disable CGC for emu phy*/
-		if (wcss->wcss_wcmn_base)
-			writel(0xFFFFFFFF, wcss->wcss_wcmn_base + 0x00);
-	 }
-
 	/* Trigger Boot FSM, to bring core out of rst */
 	writel(0x1, wcss->reg_base + Q6SS_BOOT_CMD);
 
@@ -1083,18 +1071,6 @@ static int q6v5_wcss_init_mmio(struct q6v5_wcss *wcss,
 		wcss->tcsr_msip_base = devm_ioremap_resource(&pdev->dev, res);
 		if (IS_ERR(wcss->tcsr_msip_base))
 			return PTR_ERR(wcss->tcsr_msip_base);
-
-		res = platform_get_resource_byname(pdev,
-				IORESOURCE_MEM, "wcss-wcmn");
-		wcss->wcss_wcmn_base = devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(wcss->wcss_wcmn_base))
-			return PTR_ERR(wcss->wcss_wcmn_base);
-
-		res = platform_get_resource_byname(pdev,
-				IORESOURCE_MEM, "wcmn-core");
-		wcss->wcmn_core_base = devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(wcss->wcmn_core_base))
-			return PTR_ERR(wcss->wcmn_core_base);
 	}
 
 	ret = of_parse_phandle_with_fixed_args(pdev->dev.of_node,
