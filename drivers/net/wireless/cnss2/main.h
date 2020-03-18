@@ -393,6 +393,7 @@ struct cnss_plat_data {
 	u64 target_assert_timestamp;
 	u8 target_asserted;
 	u32 flashcal_support;
+	u32 eeprom_caldata_read_timeout;
 };
 
 #ifdef CONFIG_ARCH_QCOM

@@ -539,13 +539,18 @@ int cnss_wlfw_tgt_cap_send_sync(struct cnss_plat_data *plat_priv)
 		plat_priv->otp_version = resp->otp_version;
 #endif
 
-	cnss_pr_info("Target capability: chip_id: 0x%x, chip_family: 0x%x, board_id: 0x%x, soc_id: 0x%x, fw_version: 0x%x, fw_build_timestamp: %s, otp_version: 0x%x\n",
+	if (resp->eeprom_caldata_read_timeout_valid)
+		plat_priv->eeprom_caldata_read_timeout =
+			resp->eeprom_caldata_read_timeout;
+
+	cnss_pr_info("Target capability: chip_id: 0x%x, chip_family: 0x%x, board_id: 0x%x, soc_id: 0x%x, fw_version: 0x%x, fw_build_timestamp: %s, otp_version: 0x%x eeprom_caldata_read_timeout %ds\n",
 		     plat_priv->chip_info.chip_id,
 		     plat_priv->chip_info.chip_family,
 		     plat_priv->board_info.board_id, plat_priv->soc_info.soc_id,
 		     plat_priv->fw_version_info.fw_version,
 		     plat_priv->fw_version_info.fw_build_timestamp,
-		     plat_priv->otp_version);
+		     plat_priv->otp_version,
+		     plat_priv->eeprom_caldata_read_timeout);
 
 	kfree(req);
 	kfree(resp);
@@ -785,6 +790,14 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv,
 			remaining = MAX_BDF_FILE_NAME;
 			goto bypass_bdf;
 		}
+
+		if (plat_priv->eeprom_caldata_read_timeout &&
+		    plat_priv->device_id == QCN9000_DEVICE_ID) {
+			fw_bdf_type = BDF_TYPE_EEPROM;
+			temp = filename;
+			remaining = MAX_BDF_FILE_NAME;
+			goto bypass_bdf;
+		}
 		break;
 	default:
 		cnss_pr_err("Invalid BDF type: %d\n",
@@ -856,7 +869,17 @@ bypass_bdf:
 			goto err_send;
 		}
 
-		ret = qmi_txn_wait(&txn, QMI_WLFW_TIMEOUT_JF);
+		if (fw_bdf_type == BDF_TYPE_EEPROM) {
+			cnss_pr_info("EEPROM READ WAIT STARTED: %d seconds",
+				     plat_priv->eeprom_caldata_read_timeout);
+			ret = qmi_txn_wait(&txn,
+					   msecs_to_jiffies(
+					   plat_priv->
+					   eeprom_caldata_read_timeout * 1000));
+		} else {
+			ret = qmi_txn_wait(&txn, QMI_WLFW_TIMEOUT_JF);
+		}
+
 		if (ret < 0) {
 			cnss_pr_err("Failed to wait for response of BDF download request, err: %d\n",
 				    ret);
