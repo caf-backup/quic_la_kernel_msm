@@ -2435,7 +2435,4 @@
 };
 
 #include "qcom-ipq6018-coresight.dtsi"
-#include "qcom-ipq6018-rpm-regulator.dtsi"
-#include "qcom-ipq6018-cpr-regulator.dtsi"
-#include "qcom-ipq6018-cp-cpu.dtsi"
 #include "qcom-ipq6018-thermal.dtsi"
