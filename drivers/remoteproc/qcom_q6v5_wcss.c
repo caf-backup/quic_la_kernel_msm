@@ -473,7 +473,7 @@ static void crashdump_init(struct rproc *rproc, struct rproc_dump_segment *segme
 
 	INIT_LIST_HEAD(&q6dump.dump_segments);
 
-	np = of_find_node_by_name(NULL, "q6v5_wcss");
+	np = of_find_node_by_name(NULL, "qcom_q6v5_wcss");
 	while (1) {
 		node = of_parse_phandle(np, "memory-region", index);
 		if (node == NULL)
