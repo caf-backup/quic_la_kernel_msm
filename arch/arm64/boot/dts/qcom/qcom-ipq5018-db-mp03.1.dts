@@ -67,6 +67,7 @@
 		};
 
 		ess-switch@0x39c00000 {
+			switch_mac_mode = <0xf>; /* mac mode for uniphy instance*/
 			qcom,port_phyinfo {
 				port@0 {
 					port_id = <1>;
