@@ -395,6 +395,7 @@ struct cnss_plat_data {
 	u32 daemon_support;
 	u32 cold_boot_support;
 	u32 flashcal_support;
+	u32 eeprom_caldata_read_timeout;
 };
 
 #ifdef CONFIG_ARCH_QCOM
