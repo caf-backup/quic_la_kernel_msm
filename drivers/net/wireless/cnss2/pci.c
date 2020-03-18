@@ -937,11 +937,14 @@ int cnss_pci_alloc_qdss_mem(struct cnss_pci_data *pci_priv)
 	return 0;
 }
 
-void cnss_pci_free_qdss_mem(struct cnss_pci_data *pci_priv)
+void cnss_pci_free_qdss_mem(struct cnss_plat_data *plat_priv)
 {
-	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
 	struct cnss_fw_mem *qdss_mem = plat_priv->qdss_mem;
 	int i;
+
+#ifdef CONFIG_CNSS2_SMMU
+	struct cnss_pci_data *pci_priv =
+			(struct cnss_pci_data *)plat_priv->bus_priv;
 
 	for (i = 0; i < plat_priv->qdss_mem_seg_len; i++) {
 		if (qdss_mem[i].va && qdss_mem[i].size) {
@@ -957,15 +960,25 @@ void cnss_pci_free_qdss_mem(struct cnss_pci_data *pci_priv)
 			qdss_mem[i].type = 0;
 		}
 	}
+#endif
+	for (i = 0; i < plat_priv->qdss_mem_seg_len; i++) {
+		if (qdss_mem[i].va) {
+			iounmap(qdss_mem[i].va);
+			qdss_mem[i].va = NULL;
+			qdss_mem[i].size = 0;
+		}
+	}
 	plat_priv->qdss_mem_seg_len = 0;
 }
 
-static void cnss_pci_free_fw_mem(struct cnss_pci_data *pci_priv)
+static void cnss_pci_free_fw_mem(struct cnss_plat_data *plat_priv)
 {
-	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
 	struct cnss_fw_mem *fw_mem = plat_priv->fw_mem;
+
 #ifdef CONFIG_CNSS2_SMMU
 	int i;
+	struct cnss_pci_data *pci_priv =
+			(struct cnss_pci_data *)plat_priv->bus_priv;
 
 	for (i = 0; i < plat_priv->fw_mem_seg_len; i++) {
 		if (fw_mem[i].va && fw_mem[i].size) {
@@ -983,8 +996,11 @@ static void cnss_pci_free_fw_mem(struct cnss_pci_data *pci_priv)
 	}
 #endif
 	plat_priv->fw_mem_seg_len = 0;
-	if (fw_mem[0].va)
+	if (fw_mem[0].va) {
 		iounmap(fw_mem[0].va);
+		fw_mem[0].va = NULL;
+		fw_mem[0].size = 0;
+	}
 }
 
 int cnss_pci_load_m3(struct cnss_plat_data *plat_priv)
@@ -1024,10 +1040,11 @@ int cnss_pci_load_m3(struct cnss_plat_data *plat_priv)
 	return 0;
 }
 
-static void cnss_pci_free_m3_mem(struct cnss_pci_data *pci_priv)
+static void cnss_pci_free_m3_mem(struct cnss_plat_data *plat_priv)
 {
-	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
 	struct cnss_fw_mem *m3_mem = &plat_priv->m3_mem;
+	struct cnss_pci_data *pci_priv =
+			(struct cnss_pci_data *)plat_priv->bus_priv;
 
 	if (m3_mem->va && m3_mem->size) {
 		cnss_pr_dbg("Freeing memory for M3, va: 0x%pK, pa: %pa, size: 0x%zx\n",
@@ -1911,9 +1928,14 @@ void cnss_pci_remove(struct pci_dev *pci_dev)
 	struct cnss_plat_data *plat_priv =
 		cnss_bus_dev_to_plat_priv(&pci_dev->dev);
 
-	cnss_pci_free_m3_mem(pci_priv);
-	cnss_pci_free_fw_mem(pci_priv);
-	cnss_pci_free_qdss_mem(pci_priv);
+	if (plat_priv) {
+		pr_err("%s: plat_priv is NULL", __func__);
+		return;
+	}
+
+	cnss_pci_free_m3_mem(plat_priv);
+	cnss_pci_free_fw_mem(plat_priv);
+	cnss_pci_free_qdss_mem(plat_priv);
 	mhi_free_irq(&pci_priv->mhi_dev);
 
 	switch (pci_dev->device) {
