@@ -671,6 +671,11 @@ static int test_qmi_open(struct inode *ip, struct file *fp)
 	int index = 0;
 	struct qmi_handle *qmi;
 
+	for (index = 1; index < sizeof(qdentry)/sizeof(struct qmi_dir); index++) {
+		if (!strncmp(fp->f_path.dentry->d_iname, qdentry[index].string, \
+					sizeof(fp->f_path.dentry->d_iname)))
+			return 0;
+	}
 
 	if (!ip->i_private)
 		return -ENODATA;
@@ -678,11 +683,6 @@ static int test_qmi_open(struct inode *ip, struct file *fp)
 	fp->private_data = ip->i_private;
 	qmi = fp->private_data;
 
-	for (index = 1; index < sizeof(qdentry)/sizeof(struct qmi_dir); index++) {
-		if (!strncmp(fp->f_path.dentry->d_iname, qdentry[index].string, \
-					sizeof(fp->f_path.dentry->d_iname)))
-			return 0;
-	}
 	pr_info("Total commands: %lu (Threads: %lu Iteration: %lu)\n",
 			nthreads * niterations, nthreads, niterations);
 
