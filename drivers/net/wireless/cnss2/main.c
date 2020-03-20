@@ -51,9 +51,6 @@
 #define CNSS_QMI_TIMEOUT_DEFAULT	10000
 #define CNSS_BDF_TYPE_DEFAULT		CNSS_BDF_ELF
 #define CNSS_TIME_SYNC_PERIOD_DEFAULT	900000
-/*NODE_ID_BASE is derived by qrtr_node_id in DTS + FW base node id 7 */
-#define NODE_ID_BASE 0x27
-#define FW_ID_BASE 7
 
 #define MAX_NUMBER_OF_SOCS 4
 struct cnss_plat_data *plat_env[MAX_NUMBER_OF_SOCS];
@@ -78,6 +75,10 @@ MODULE_PARM_DESC(bdf_pci1, "bdf_pci0");
 static int skip_cnss;
 module_param(skip_cnss, int, 0644);
 MODULE_PARM_DESC(skip_cnss, "skip_cnss");
+
+bool flashcal_support = true;
+module_param(flashcal_support, bool, S_IRUSR | S_IWUSR);
+MODULE_PARM_DESC(flashcal_support, "flash caldata support");
 
 enum skip_cnss_options {
 	CNSS_SKIP_NONE,
@@ -546,6 +547,14 @@ static int cnss_fw_mem_ready_hdlr(struct cnss_plat_data *plat_priv)
 	if (ret) {
 		cnss_pr_err("bdf load failed. ret %d\n", ret);
 		goto out;
+	}
+
+	if (plat_priv->flashcal_support) {
+		ret = cnss_wlfw_bdf_dnld_send_sync(plat_priv, CNSS_CALDATA_WIN);
+		if (ret) {
+			cnss_pr_err("caldata load failed. ret %d\n", ret);
+			goto out;
+		}
 	}
 
 	if (plat_priv->device_id == QCN9000_DEVICE_ID) {
@@ -3022,6 +3031,7 @@ skip_soc_version_checks:
 	plat_priv->device_id = device_id->driver_data;
 	plat_priv->plat_dev_id = (struct platform_device_id *)device_id;
 	plat_priv->ramdump_enabled = ramdump_enabled;
+	plat_priv->flashcal_support = flashcal_support;
 
 	switch (plat_priv->device_id) {
 	case QCN9000_DEVICE_ID:

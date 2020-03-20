@@ -37,6 +37,8 @@
 
 #define DEFAULT_CAL_FILE_NAME		"caldata.bin"
 #define CAL_FILE_NAME_PREFIX		"caldata.b"
+#define DEFAULT_CAL_FILE_PREFIX         "caldata_"
+#define DEFAULT_CAL_FILE_SUFFIX         ".bin"
 
 #ifdef CONFIG_CNSS2_DEBUG
 static unsigned int qmi_timeout = 5000;
@@ -61,10 +63,6 @@ MODULE_PARM_DESC(daemon_support, "User space has cnss-daemon support or not");
 bool cold_boot_support;
 module_param(cold_boot_support, bool, 0600);
 MODULE_PARM_DESC(cold_boot_support, "User space has cold_boot_support or not");
-
-bool caldata_support = true;
-module_param(caldata_support, bool, S_IRUSR | S_IWUSR);
-MODULE_PARM_DESC(caldata_support, "caldata support");
 
 unsigned int qca8074_fw_mem_mode = 0xFF;
 module_param(qca8074_fw_mem_mode, uint, 0600);
@@ -562,9 +560,10 @@ out:
 	return ret;
 }
 
-int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
-		struct cnss_plat_data *plat_priv, unsigned int remaining,
-		uint8_t is_end, uint8_t bdf_type)
+static int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
+			      struct cnss_plat_data *plat_priv,
+			      unsigned int remaining,
+			      uint8_t bdf_type)
 {
 	int ret;
 	char filename[30];
@@ -663,12 +662,12 @@ int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 		req->end_valid = 1;
 		req->end = 1;
 		req->data_len = remaining;
-		req->bdf_type = 0;
-		req->bdf_type_valid = 0;
+		req->bdf_type = bdf_type;
+		req->bdf_type_valid = 1;
 	} else {
 		cnss_pr_info("bdf size %d > segsz %d\n", size, BDF_MAX_SIZE);
 		req->data_len = remaining;
-		req->end = is_end;
+		req->end = 1;
 	}
 	iounmap(bdf_addr);
 out:
@@ -690,7 +689,7 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv,
 	struct wlfw_bdf_download_resp_msg_v01 *resp;
 	int ret = 0;
 	int resp_error_msg = 0;
-	int bdf_downloaded = 0;
+	u8 fw_bdf_type = BDF_TYPE_GOLDEN;
 
 	cnss_pr_dbg("Sending BDF download message, state: 0x%lx, type: %d\n",
 		    plat_priv->driver_state, bdf_type);
@@ -705,7 +704,7 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv,
 		return -ENOMEM;
 	}
 
-	folder = (plat_priv->device_id == QCN9000_DEVICE_ID) ? "qcn9000/" : NULL;
+	folder = (plat_priv->device_id == QCN9000_DEVICE_ID) ? "qcn9000/" : "";
 	switch (bdf_type) {
 	case CNSS_BDF_ELF:
 		if (plat_priv->board_info.board_id == 0xFF)
@@ -762,8 +761,28 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv,
 		    plat_priv->device_id == QCA6018_DEVICE_ID) {
 			temp = filename;
 			remaining = MAX_BDF_FILE_NAME;
-			if (caldata_support)
-				remaining = MAX_BDF_FILE_NAME * 2;
+			goto bypass_bdf;
+		}
+		break;
+	case CNSS_CALDATA_WIN:
+		fw_bdf_type = BDF_TYPE_CALDATA;
+		if (plat_priv->device_id == QCN9000_DEVICE_ID) {
+			snprintf(filename, sizeof(filename),
+				 "%s" DEFAULT_CAL_FILE_PREFIX
+				 "%d" DEFAULT_CAL_FILE_SUFFIX,
+				 folder,
+				 (plat_priv->wlfw_service_instance_id -
+				  (NODE_ID_BASE - 1)));
+		} else {
+			snprintf(filename, sizeof(filename),
+				 "%s" DEFAULT_CAL_FILE_NAME, folder);
+		}
+
+		if (plat_priv->device_id == QCA8074_DEVICE_ID ||
+		    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
+		    plat_priv->device_id == QCA6018_DEVICE_ID) {
+			temp = filename;
+			remaining = MAX_BDF_FILE_NAME;
 			goto bypass_bdf;
 		}
 		break;
@@ -774,7 +793,6 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv,
 		goto err_req_fw;
 	}
 
-	cnss_pr_info("Downloading bdf %s\n", filename);
 	ret = request_firmware(&fw_entry, filename, &plat_priv->plat_dev->dev);
 	if (ret) {
 		cnss_pr_err("Failed to load BDF: %s\n", filename);
@@ -785,8 +803,10 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv,
 	remaining = fw_entry->size;
 
 bypass_bdf:
-	cnss_pr_dbg("Downloading BDF: %s, size: %u\n", filename, remaining);
+	cnss_pr_info("Downloading BDF: %s, size: %u\n", filename, remaining);
 
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_BDF_DOWNLOAD_REQ_V01, ret, resp_error_msg);
 	while (remaining) {
 		req->valid = 1;
 		req->file_id_valid = 1;
@@ -797,7 +817,7 @@ bypass_bdf:
 		req->data_valid = 1;
 		req->end_valid = 1;
 		req->bdf_type_valid = 1;
-		req->bdf_type = 0;
+		req->bdf_type = fw_bdf_type;
 
 		if (remaining > QMI_WLFW_MAX_DATA_SIZE_V01) {
 			req->data_len = QMI_WLFW_MAX_DATA_SIZE_V01;
@@ -809,22 +829,13 @@ bypass_bdf:
 		    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
 		    plat_priv->device_id == QCA5018_DEVICE_ID ||
 		    plat_priv->device_id == QCA6018_DEVICE_ID) {
-			if (bdf_downloaded) {
-				cnss_wlfw_load_bdf(req, plat_priv,
-						MAX_BDF_FILE_NAME,
-						1, BDF_TYPE_CALDATA);
-				temp = filename;
-			} else {
-				cnss_wlfw_load_bdf(req, plat_priv,
-						MAX_BDF_FILE_NAME,
-						0, BDF_TYPE_GOLDEN);
-				bdf_downloaded = 1;
-			}
+			cnss_wlfw_load_bdf(req, plat_priv,
+					   MAX_BDF_FILE_NAME,
+					   fw_bdf_type);
 		}
 
 		memcpy(req->data, temp, req->data_len);
-		qmi_record(plat_priv->wlfw_service_instance_id,
-			   QMI_WLFW_BDF_DOWNLOAD_REQ_V01, ret, resp_error_msg);
+
 		ret = qmi_txn_init(&plat_priv->qmi_wlfw, &txn,
 				   wlfw_bdf_download_resp_msg_v01_ei, resp);
 		if (ret < 0) {
@@ -859,8 +870,6 @@ bypass_bdf:
 			resp_error_msg = resp->resp.error;
 			goto err_send;
 		}
-		qmi_record(plat_priv->wlfw_service_instance_id,
-			   QMI_WLFW_BDF_DOWNLOAD_REQ_V01, ret, resp_error_msg);
 		remaining -= req->data_len;
 		temp += req->data_len;
 		req->seg_id++;
@@ -869,6 +878,8 @@ bypass_bdf:
 	if (fw_entry)
 		release_firmware(fw_entry);
 
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_BDF_DOWNLOAD_REQ_V01, ret, resp_error_msg);
 	kfree(req);
 	kfree(resp);
 	return 0;
@@ -877,11 +888,13 @@ err_send:
 	if (plat_priv->ctrl_params.bdf_type != CNSS_BDF_DUMMY)
 		release_firmware(fw_entry);
 err_req_fw:
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_BDF_DOWNLOAD_REQ_V01, ret, resp_error_msg);
 	if (bdf_type != CNSS_BDF_REGDB)
 		CNSS_ASSERT(0);
 	kfree(req);
-	qmi_record(plat_priv->wlfw_service_instance_id,
-		   QMI_WLFW_BDF_DOWNLOAD_REQ_V01, ret, resp_error_msg);
+	kfree(resp);
+
 	if (ret < 0)
 		CNSS_ASSERT(0);
 	else

@@ -269,6 +269,7 @@ enum cnss_bdf_type {
 	CNSS_BDF_ELF,
 	CNSS_BDF_REGDB = 4,
 	CNSS_BDF_WIN,
+	CNSS_CALDATA_WIN,
 	CNSS_BDF_DUMMY = 255,
 };
 
@@ -391,6 +392,7 @@ struct cnss_plat_data {
 	u64 dynamic_feature;
 	u64 target_assert_timestamp;
 	u8 target_asserted;
+	u32 flashcal_support;
 };
 
 #ifdef CONFIG_ARCH_QCOM
