@@ -20,11 +20,16 @@
 #define BDF_MAX_SIZE (256 * 1024)
 #define BDF_TYPE_GOLDEN 0
 #define BDF_TYPE_CALDATA 2
+#define BDF_TYPE_EEPROM 3
 #define CALDATA_OFFSET(addr) (addr + (128 * 1024))
 #define Q6_HOST_ADDR_SZ_QCN9000  0x2F00000
 #define Q6_CALDB_SIZE_QCN9000 0x800000
 #define Q6_CALDB_SIZE_HKCYP 0x480000
 #define QMI_HISTORY_SIZE 128
+
+/*NODE_ID_BASE is derived by qrtr_node_id in DTS + FW base node id 7 */
+#define NODE_ID_BASE 0x27
+#define FW_ID_BASE 7
 
 struct qmi_history {
 	u16  msg_id;
@@ -83,9 +88,6 @@ int cnss_wlfw_respond_mem_send_sync(struct cnss_plat_data *plat_priv);
 int cnss_wlfw_tgt_cap_send_sync(struct cnss_plat_data *plat_priv);
 int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv,
 				 u32 bdf_type);
-int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
-		struct cnss_plat_data *plat_priv, unsigned int remaining,
-		uint8_t is_end, uint8_t bdf_type);
 int cnss_wlfw_m3_dnld_send_sync(struct cnss_plat_data *plat_priv);
 int cnss_wlfw_wlan_mode_send_sync(struct cnss_plat_data *plat_priv,
 				  enum cnss_driver_mode mode);

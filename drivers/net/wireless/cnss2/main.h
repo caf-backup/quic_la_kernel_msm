@@ -269,6 +269,7 @@ enum cnss_bdf_type {
 	CNSS_BDF_ELF,
 	CNSS_BDF_REGDB = 4,
 	CNSS_BDF_WIN,
+	CNSS_CALDATA_WIN,
 	CNSS_BDF_DUMMY = 255,
 };
 
@@ -393,6 +394,8 @@ struct cnss_plat_data {
 	u8 target_asserted;
 	u32 daemon_support;
 	u32 cold_boot_support;
+	u32 flashcal_support;
+	u32 eeprom_caldata_read_timeout;
 };
 
 #ifdef CONFIG_ARCH_QCOM
@@ -449,6 +452,6 @@ struct cnss_plat_data *cnss_get_plat_priv(struct platform_device *plat_dev);
 int cnss_qca9000_shutdown_part2(struct cnss_plat_data *plat_priv);
 int cnss_get_cpr_info(struct cnss_plat_data *plat_priv);
 int cnss_update_cpr_info(struct cnss_plat_data *plat_priv);
-void cnss_update_daemon_cold_boot_support(u8 type, u32 instance_id, u32 value);
+void cnss_update_platform_feature_support(u8 type, u32 instance_id, u32 value);
 
 #endif /* _CNSS_MAIN_H */

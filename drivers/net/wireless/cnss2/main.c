@@ -51,9 +51,6 @@
 #define CNSS_QMI_TIMEOUT_DEFAULT	10000
 #define CNSS_BDF_TYPE_DEFAULT		CNSS_BDF_ELF
 #define CNSS_TIME_SYNC_PERIOD_DEFAULT	900000
-/*NODE_ID_BASE is derived by qrtr_node_id in DTS + FW base node id 7 */
-#define NODE_ID_BASE 0x27
-#define FW_ID_BASE 7
 
 #define MAX_NUMBER_OF_SOCS 4
 struct cnss_plat_data *plat_env[MAX_NUMBER_OF_SOCS];
@@ -82,6 +79,10 @@ MODULE_PARM_DESC(driver_mode, "driver_mode");
 static int skip_cnss;
 module_param(skip_cnss, int, 0644);
 MODULE_PARM_DESC(skip_cnss, "skip_cnss");
+
+bool flashcal_support = true;
+module_param(flashcal_support, bool, S_IRUSR | S_IWUSR);
+MODULE_PARM_DESC(flashcal_support, "flash caldata support");
 
 enum skip_cnss_options {
 	CNSS_SKIP_NONE,
@@ -545,6 +546,14 @@ static int cnss_fw_mem_ready_hdlr(struct cnss_plat_data *plat_priv)
 	if (ret) {
 		cnss_pr_err("bdf load failed. ret %d\n", ret);
 		goto out;
+	}
+
+	if (plat_priv->flashcal_support) {
+		ret = cnss_wlfw_bdf_dnld_send_sync(plat_priv, CNSS_CALDATA_WIN);
+		if (ret) {
+			cnss_pr_err("caldata load failed. ret %d\n", ret);
+			goto out;
+		}
 	}
 
 	if (plat_priv->device_id == QCN9000_DEVICE_ID) {
@@ -2948,7 +2957,7 @@ static int cnss_set_device_name(struct cnss_plat_data *plat_priv)
 	return 0;
 }
 
-void cnss_update_daemon_cold_boot_support(u8 type, u32 instance_id, u32 value)
+void cnss_update_platform_feature_support(u8 type, u32 instance_id, u32 value)
 {
 	struct cnss_plat_data *plat_priv;
 
@@ -2968,6 +2977,11 @@ void cnss_update_daemon_cold_boot_support(u8 type, u32 instance_id, u32 value)
 	case CNSS_GENL_MSG_TYPE_COLD_BOOT_SUPPORT:
 		plat_priv->cold_boot_support = value;
 		cnss_pr_info("Setting cold_boot_support=%d for instance_id %d",
+			     value, instance_id);
+		break;
+	case CNSS_GENL_MSG_TYPE_FLASHCAL_SUPPORT:
+		plat_priv->flashcal_support = value;
+		cnss_pr_info("Setting caldata_support=%d for instance_id %d",
 			     value, instance_id);
 		break;
 	default:
@@ -3069,6 +3083,7 @@ skip_soc_version_checks:
 	plat_priv->device_id = device_id->driver_data;
 	plat_priv->plat_dev_id = (struct platform_device_id *)device_id;
 	plat_priv->ramdump_enabled = ramdump_enabled;
+	plat_priv->flashcal_support = flashcal_support;
 
 	switch (plat_priv->device_id) {
 	case QCN9000_DEVICE_ID:
