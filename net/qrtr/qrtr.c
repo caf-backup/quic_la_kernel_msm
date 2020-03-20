@@ -368,7 +368,6 @@ static struct qrtr_node *qrtr_node_acquire(struct qrtr_node *node)
 		} else {
 			pr_err("WARN: %s qrtr node is getting acquired while"
 					"being destroyed\n", __func__);
-			WARN_ON(1);
 		}
 	}
 	return NULL;
