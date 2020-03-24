@@ -125,6 +125,14 @@
 	status = "ok";
 };
 
+&rpmsg_rpm {
+	status = "disabled";
+};
+
+&rpm_bus {
+	status = "disabled";
+};
+
 /* TZAPP is enabled in default memory profile only */
 #if !defined(__IPQ_MEM_PROFILE_256_MB__) && !defined(__IPQ_MEM_PROFILE_512_MB__)
 &qseecom {
