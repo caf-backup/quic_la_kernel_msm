@@ -782,12 +782,13 @@ static int q6v5_wcss_start(struct rproc *rproc)
 	if (pdata->nosecure)
 		goto skip_secure;
 
+	qcom_q6v5_prepare(&wcss->q6v5);
 	ret = qcom_scm_pas_auth_and_reset(WCNSS_PAS_ID, 0, wcss->reset_cmd_id);
 	if (ret) {
 		dev_err(wcss->dev, "q6-wcss reset failed\n");
+		qcom_q6v5_unprepare(&wcss->q6v5);
 		return ret;
 	} else {
-
 		/* q6-wcss reset done. wait for ready interrupt */
 		goto skip_reset;
 	}
@@ -838,7 +839,6 @@ skip_secure:
 		writel(0x0, wcss->reg_base + Q6SS_DBG_CFG);
 
 skip_reset:
-	qcom_q6v5_prepare(&wcss->q6v5);
 	ret = qcom_q6v5_wait_for_start(&wcss->q6v5, 5 * HZ);
 	if (ret == -ETIMEDOUT) {
 
