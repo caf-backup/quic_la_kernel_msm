@@ -33,6 +33,14 @@
  */
 #define WIL_EDMG_CHANNELS (BIT(0) | BIT(1) | BIT(2) | BIT(3))
 
+enum wil_edmg_channel {
+	WIL_EDMG_CHANNEL_9 = 9,
+	WIL_EDMG_CHANNEL_10 = 10,
+	WIL_EDMG_CHANNEL_11 = 11,
+	WIL_EDMG_CHANNEL_12 = 12,
+	WIL_EDMG_CHANNEL_13 = 13,
+};
+
 bool disable_ap_sme;
 module_param(disable_ap_sme, bool, 0444);
 MODULE_PARM_DESC(disable_ap_sme, " let user space handle AP mode SME");
@@ -100,6 +108,9 @@ static struct ieee80211_channel wil_60ghz_channels[] = {
 	CHAN60G(3, 0),
 	CHAN60G(4, 0),
 };
+
+/* this must be in sync with wil_60ghz_channels */
+#define WIL_MAX_SINGLE_CHANNEL 4
 
 /* Rx channel bonding mode */
 enum wil_rx_cb_mode {
@@ -281,11 +292,23 @@ void update_supported_bands(struct wil6210_priv *wil)
 
 enum qca_wlan_vendor_attr_acs_offload {
 	QCA_WLAN_VENDOR_ATTR_ACS_CHANNEL_INVALID = 0,
-	QCA_WLAN_VENDOR_ATTR_ACS_PRIMARY_CHANNEL,
-	QCA_WLAN_VENDOR_ATTR_ACS_SECONDARY_CHANNEL,
-	QCA_WLAN_VENDOR_ATTR_ACS_HW_MODE,
-	QCA_WLAN_VENDOR_ATTR_ACS_HT_ENABLED,
-	QCA_WLAN_VENDOR_ATTR_ACS_HT40_ENABLED,
+	QCA_WLAN_VENDOR_ATTR_ACS_PRIMARY_CHANNEL = 1,
+	QCA_WLAN_VENDOR_ATTR_ACS_SECONDARY_CHANNEL = 2,
+	QCA_WLAN_VENDOR_ATTR_ACS_HW_MODE = 3,
+	QCA_WLAN_VENDOR_ATTR_ACS_HT_ENABLED = 4,
+	QCA_WLAN_VENDOR_ATTR_ACS_HT40_ENABLED = 5,
+	QCA_WLAN_VENDOR_ATTR_ACS_VHT_ENABLED = 6,
+	QCA_WLAN_VENDOR_ATTR_ACS_CHWIDTH = 7,
+	QCA_WLAN_VENDOR_ATTR_ACS_CH_LIST = 8,
+	QCA_WLAN_VENDOR_ATTR_ACS_VHT_SEG0_CENTER_CHANNEL = 9,
+	QCA_WLAN_VENDOR_ATTR_ACS_VHT_SEG1_CENTER_CHANNEL = 10,
+	QCA_WLAN_VENDOR_ATTR_ACS_FREQ_LIST = 11,
+	QCA_WLAN_VENDOR_ATTR_ACS_PRIMARY_FREQUENCY = 12,
+	QCA_WLAN_VENDOR_ATTR_ACS_SECONDARY_FREQUENCY = 13,
+	QCA_WLAN_VENDOR_ATTR_ACS_VHT_SEG0_CENTER_FREQUENCY = 14,
+	QCA_WLAN_VENDOR_ATTR_ACS_VHT_SEG1_CENTER_FREQUENCY = 15,
+	QCA_WLAN_VENDOR_ATTR_ACS_EDMG_ENABLED = 16,
+	QCA_WLAN_VENDOR_ATTR_ACS_EDMG_CHANNEL = 17,
 	/* keep last */
 	QCA_WLAN_VENDOR_ATTR_ACS_AFTER_LAST,
 	QCA_WLAN_VENDOR_ATTR_ACS_MAX =
@@ -302,6 +325,8 @@ enum qca_wlan_vendor_acs_hw_mode {
 static const struct
 nla_policy qca_wlan_acs_vendor_attr[QCA_WLAN_VENDOR_ATTR_ACS_MAX + 1] = {
 	[QCA_WLAN_VENDOR_ATTR_ACS_HW_MODE] = { .type = NLA_U8 },
+	[QCA_WLAN_VENDOR_ATTR_ACS_EDMG_ENABLED] = { .type = NLA_FLAG },
+	[QCA_WLAN_VENDOR_ATTR_ACS_EDMG_CHANNEL] = { .type = NLA_U8 },
 };
 
 #define WIL_MAX_RF_SECTORS (128)
@@ -3422,9 +3447,61 @@ static int wil_start_acs_survey(struct wil6210_priv *wil, uint dwell_time,
 	return 0;
 }
 
-static u8 wil_acs_calc_channel(struct wil6210_priv *wil)
+static int get_edmg_intersection(struct wil6210_priv *wil, u8 primary_channel)
 {
-	int i, best_channel = ACS_DEFAULT_BEST_CHANNEL - 1;
+	int i, contiguous = 0;
+	u8 num_channels = wil->survey_reply.evt.num_scanned_channels;
+	u8 channel;
+
+	for (i = 0; i < num_channels; i++) {
+		channel = wil->survey_reply.ch_info[i].channel;
+		if (channel == primary_channel - 1 ||
+		    channel == primary_channel + 1)
+			contiguous++;
+	}
+	return contiguous;
+}
+
+static int select_edmg_channel(struct wil6210_priv *wil, u8 best_channel,
+			       u64 *acs_calc_channel)
+{
+	int i, edmg_channel;
+	u8 num_channels = wil->survey_reply.evt.num_scanned_channels;
+
+	/* Select the best EDMG channel given the selected channel */
+	edmg_channel = (WIL_EDMG_CHANNEL_9 + best_channel);
+
+	switch (get_edmg_intersection(wil, best_channel)) {
+	case 0:
+		edmg_channel = 0;
+		break;
+	case 1:
+		/* Check if the contiguous channel is on the left */
+		if (best_channel == 0)
+			break;
+		for (i = 0; i < num_channels; i++) {
+			if (wil->survey_reply.ch_info[i].channel ==
+			    best_channel - 1) {
+				edmg_channel--;
+				break;
+			}
+		}
+		break;
+	case 2:
+		if (best_channel == 0 || best_channel >= WIL_MAX_SINGLE_CHANNEL)
+			break;
+		if (acs_calc_channel[best_channel - 1] <
+		    acs_calc_channel[best_channel + 1])
+			edmg_channel--;
+		break;
+	}
+	return edmg_channel;
+}
+
+static int wil_acs_calc_channel(struct wil6210_priv *wil, int edmg_enabled,
+				u8 *channel, u8 *edmg_channel)
+{
+	u8 i, best_channel = ACS_DEFAULT_BEST_CHANNEL - 1;
 	struct scan_acs_info *ch;
 	u64 dwell_time = le32_to_cpu(wil->survey_reply.evt.dwell_time);
 	u16 filled = le16_to_cpu(wil->survey_reply.evt.filled);
@@ -3432,6 +3509,7 @@ static u8 wil_acs_calc_channel(struct wil6210_priv *wil)
 	u64 busy_time, tx_time;
 	u64 min_i_ch = (u64)-1, cur_i_ch;
 	u8 p_min = 0, ch_noise;
+	u64 acs_calc_channel[WIL_MAX_SINGLE_CHANNEL];
 
 	wil_dbg_misc(wil,
 		     "acs_calc_channel: filled info: 0x%04X, for %u channels\n",
@@ -3439,7 +3517,7 @@ static u8 wil_acs_calc_channel(struct wil6210_priv *wil)
 
 	if (!num_channels) {
 		wil_err(wil, "received results with no channel info\n");
-		return 0;
+		return -EINVAL;
 	}
 
 	/* find P_min */
@@ -3499,25 +3577,39 @@ static u8 wil_acs_calc_channel(struct wil6210_priv *wil)
 			     ch->channel + 1, acs_ch_weight[ch->channel],
 			     cur_i_ch);
 
+		acs_calc_channel[ch->channel] = cur_i_ch;
+
 		if (i == 0 || cur_i_ch < min_i_ch) {
 			min_i_ch = cur_i_ch;
 			best_channel = ch->channel;
 		}
 	}
 
-	wil_dbg_misc(wil,
-		     "acs_calc_channel: best channel %d with I_ch of %llu\n",
-		     best_channel + 1, min_i_ch);
+	*channel = best_channel;
 
-	return best_channel;
+	/* Select the best EDMG channel given the selected channel */
+	if (edmg_enabled)
+		*edmg_channel = select_edmg_channel(wil, best_channel,
+						    acs_calc_channel);
+
+	wil_dbg_misc(wil,
+		     "acs_calc_channel: best channel %d with I_ch of %llu edmg channel %d\n",
+		     best_channel + 1, min_i_ch, *edmg_channel);
+	return 0;
 }
 
-static void wil_acs_report_channel(struct wil6210_priv *wil)
+static void wil_acs_report_channel(struct wil6210_priv *wil, int edmg_enabled)
 {
 	struct sk_buff *vendor_event;
 	int ret_val;
 	struct nlattr *nla;
-	u8 channel = wil_acs_calc_channel(wil);
+	u8 channel = 0;
+	u8 edmg_channel = 0;
+
+	if (wil_acs_calc_channel(wil, edmg_enabled, &channel, &edmg_channel)) {
+		wil_err(wil, "wil_acs_calc_channel failed\n");
+		return;
+	}
 
 	vendor_event = cfg80211_vendor_event_alloc(
 		wil_to_wiphy(wil), NULL, 2 * sizeof(u8) + 4 + NLMSG_HDRLEN,
@@ -3566,6 +3658,18 @@ static void wil_acs_report_channel(struct wil6210_priv *wil)
 		kfree_skb(vendor_event);
 		return;
 	}
+	/* report edmg channel */
+	if (edmg_channel) {
+		ret_val = nla_put_u8(vendor_event,
+				     QCA_WLAN_VENDOR_ATTR_ACS_EDMG_CHANNEL,
+				     edmg_channel);
+		if (ret_val) {
+			wil_err(wil,
+				"QCA_WLAN_VENDOR_ATTR_ACS_EDMG_CHANNEL put fail\n");
+			kfree_skb(vendor_event);
+			return;
+		}
+	}
 
 	cfg80211_vendor_event(vendor_event, GFP_KERNEL);
 }
@@ -3578,6 +3682,7 @@ static int wil_do_acs(struct wiphy *wiphy, struct wireless_dev *wdev,
 	int rc;
 	struct nlattr *tb[QCA_WLAN_VENDOR_ATTR_ACS_MAX + 1];
 	u8 hw_mode;
+	u8 edmg_enabled = 0;
 	struct ieee80211_channel reg_channels[ARRAY_SIZE(wil_60ghz_channels)];
 	int num_channels;
 	const struct ieee80211_reg_rule *reg_rule;
@@ -3602,6 +3707,10 @@ static int wil_do_acs(struct wiphy *wiphy, struct wireless_dev *wdev,
 			hw_mode, QCA_ACS_MODE_IEEE80211AD);
 		goto out;
 	}
+
+	if (tb[QCA_WLAN_VENDOR_ATTR_ACS_EDMG_ENABLED])
+		edmg_enabled =
+			nla_get_flag(tb[QCA_WLAN_VENDOR_ATTR_ACS_EDMG_ENABLED]);
 
 	/* get list of channels allowed by regulatory */
 	num_channels = 0;
@@ -3647,7 +3756,7 @@ static int wil_do_acs(struct wiphy *wiphy, struct wireless_dev *wdev,
 				  num_channels);
 
 	if (!rc)
-		wil_acs_report_channel(wil);
+		wil_acs_report_channel(wil, edmg_enabled);
 out:
 	if (!rc) {
 		temp_skbuff = cfg80211_vendor_cmd_alloc_reply_skb(wiphy,
