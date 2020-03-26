@@ -253,3 +253,7 @@
 	pinctrl-names = "btss_pins";
 	pinctrl-0 = <&btss_pins>;
 };
+
+&msm_imem {
+	status = "enabled";
+};
