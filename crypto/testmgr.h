@@ -726,15 +726,25 @@ static struct hash_testvec crct10dif_tv_template[] = {
  * SHA1 test vectors  from from FIPS PUB 180-1
  * Long vector from CAVS 5.0
  */
+#ifdef CONFIG_CRYPTO_NO_ZERO_LEN_HASH
+#define SHA1_TEST_VECTORS	5
+#else
 #define SHA1_TEST_VECTORS	6
+#endif
 
 static struct hash_testvec sha1_tv_template[] = {
+#ifndef CONFIG_CRYPTO_NO_ZERO_LEN_HASH
+	/*
+	 * zero-length input data length is not supported in ipq50xx
+	 */
 	{
 		.plaintext = "",
 		.psize	= 0,
 		.digest	= "\xda\x39\xa3\xee\x5e\x6b\x4b\x0d\x32\x55"
 			  "\xbf\xef\x95\x60\x18\x90\xaf\xd8\x07\x09",
-	}, {
+	},
+#endif
+	{
 		.plaintext = "abc",
 		.psize	= 3,
 		.digest	= "\xa9\x99\x3e\x36\x47\x06\x81\x6a\xba\x3e"
@@ -1091,9 +1101,17 @@ static struct hash_testvec sha224_tv_template[] = {
 /*
  * SHA256 test vectors from from NIST
  */
+#ifdef CONFIG_CRYPTO_NO_ZERO_LEN_HASH
+#define SHA256_TEST_VECTORS	4
+#else
 #define SHA256_TEST_VECTORS	5
+#endif
 
 static struct hash_testvec sha256_tv_template[] = {
+#ifndef CONFIG_CRYPTO_NO_ZERO_LEN_HASH
+	/*
+	 * zero-length input data length is not supported in ipq50xx
+	 */
 	{
 		.plaintext = "",
 		.psize	= 0,
@@ -1101,7 +1119,9 @@ static struct hash_testvec sha256_tv_template[] = {
 			  "\x9a\xfb\xf4\xc8\x99\x6f\xb9\x24"
 			  "\x27\xae\x41\xe4\x64\x9b\x93\x4c"
 			  "\xa4\x95\x99\x1b\x78\x52\xb8\x55",
-	}, {
+	},
+#endif
+	{
 		.plaintext = "abc",
 		.psize	= 3,
 		.digest	= "\xba\x78\x16\xbf\x8f\x01\xcf\xea"
