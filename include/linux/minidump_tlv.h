@@ -71,9 +71,24 @@ struct minidump_metadata_list {
 #define MMU_FILE_SZ 12288
 #define MMU_FILE_ENTRY_LEN 33
 
+/* TLV_Types */
+typedef enum {
+    QCA_WDT_LOG_DUMP_TYPE_INVALID,
+    QCA_WDT_LOG_DUMP_TYPE_UNAME,
+    QCA_WDT_LOG_DUMP_TYPE_DMESG,
+    QCA_WDT_LOG_DUMP_TYPE_LEVEL1_PT,
+    QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD,
+    QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD_DEBUGFS,
+    QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD_INFO,
+    QCA_WDT_LOG_DUMP_TYPE_WLAN_MMU_INFO,
+    QCA_WDT_LOG_DUMP_TYPE_EMPTY,
+} minidump_tlv_type_t;
+
+int minidump_fill_segments(const uint64_t start_addr, uint64_t size, minidump_tlv_type_t type, const char *name);
+int minidump_store_module_info(const char *name , const unsigned long va, const unsigned long pa, minidump_tlv_type_t type);
+int minidump_store_mmu_info(const unsigned long va, const unsigned long pa);
+int minidump_remove_segments(const uint64_t virtual_address);
 int fill_minidump_segments(uint64_t start_addr, uint64_t size, unsigned char type, char *name);
-int store_module_info(char *name , unsigned long va, unsigned long pa,unsigned char type);
-int store_mmu_info(unsigned long va,unsigned long pa);
 int remove_minidump_segments(uint64_t virtual_address);
 
 struct module_sect_attr {
@@ -88,16 +103,4 @@ struct module_sect_attrs {
 	struct module_sect_attr attrs[0];
 };
 
-/* TLV_Types */
-enum {
-	QCA_WDT_LOG_DUMP_TYPE_INVALID,
-	QCA_WDT_LOG_DUMP_TYPE_UNAME,
-	QCA_WDT_LOG_DUMP_TYPE_DMESG,
-	QCA_WDT_LOG_DUMP_TYPE_LEVEL1_PT,
-	QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD,
-	QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD_DEBUGFS,
-	QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD_INFO,
-	QCA_WDT_LOG_DUMP_TYPE_WLAN_MMU_INFO,
-	QCA_WDT_LOG_DUMP_TYPE_EMPTY,
-};
 #endif /*MINIDUMP_H*/
