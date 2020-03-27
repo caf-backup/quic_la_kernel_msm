@@ -131,7 +131,7 @@ static int debug_wcss;
 
 #if defined(CONFIG_IPQ_SS_DUMP)
 
-#define	OPEN_TIMEOUT	5000
+#define	OPEN_TIMEOUT	60000
 #define	DUMP_TIMEOUT	10000
 
 static struct timer_list dump_timeout;
