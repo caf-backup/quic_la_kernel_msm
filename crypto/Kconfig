@@ -225,6 +225,13 @@ config CRYPTO_NO_ZERO_LEN_HASH
 	help
 	  Do not support 0-len hash test cases
 
+config CRYPTO_DISABLE_AES192_TEST
+	bool "Disable testcases with 192 key length"
+	default y
+	depends on CRYPTO_TEST
+	help
+	  Disable testcases with 192 key length
+
 config CRYPTO_ABLK_HELPER
 	tristate
 	select CRYPTO_CRYPTD
