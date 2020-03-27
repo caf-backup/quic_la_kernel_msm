@@ -2344,9 +2344,6 @@ enum nl80211_commands {
  *      enforced.
  * @NL80211_ATTR_TXQ_QUANTUM: TXQ scheduler quantum (bytes). Number of bytes
  *      a flow is assigned on each round of the DRR scheduler.
- * @NL80211_ATTR_HE_CAPABILITY: HE Capability information element (from
- *	association request when used with NL80211_CMD_NEW_STATION). Can be set
- *	only if %NL80211_STA_FLAG_WME is set.
  *
  * @NL80211_ATTR_FTM_RESPONDER: nested attribute which user-space can include
  *	in %NL80211_CMD_START_AP or %NL80211_CMD_SET_BEACON for fine timing
@@ -2833,8 +2830,6 @@ enum nl80211_attrs {
 	NL80211_ATTR_TXQ_LIMIT,
 	NL80211_ATTR_TXQ_MEMORY_LIMIT,
 	NL80211_ATTR_TXQ_QUANTUM,
-
-	NL80211_ATTR_HE_CAPABILITY,
 
 	NL80211_ATTR_FTM_RESPONDER,
 
@@ -3362,8 +3357,6 @@ enum nl80211_mpath_info {
  * @NL80211_BAND_ATTR_VHT_MCS_SET: 32-byte attribute containing the MCS set as
  *	defined in 802.11ac
  * @NL80211_BAND_ATTR_VHT_CAPA: VHT capabilities, as in the HT information IE
- * @NL80211_BAND_ATTR_IFTYPE_DATA: nested array attribute, with each entry using
- *	attributes from &enum nl80211_band_iftype_attr
  * @NL80211_BAND_ATTR_EDMG_CHANNELS: bitmap that indicates the 2.16 GHz
  *      channel(s) that are allowed to be used for EDMG transmissions.
  *      Defined by IEEE P802.11ay/D4.0 section 9.4.2.251.
@@ -3385,7 +3378,6 @@ enum nl80211_band_attr {
 
 	NL80211_BAND_ATTR_VHT_MCS_SET,
 	NL80211_BAND_ATTR_VHT_CAPA,
-	NL80211_BAND_ATTR_IFTYPE_DATA,
 
 	NL80211_BAND_ATTR_EDMG_CHANNELS,
 	NL80211_BAND_ATTR_EDMG_BW_CONFIG,
