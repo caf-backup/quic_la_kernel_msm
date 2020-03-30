@@ -433,7 +433,6 @@
 				"rmb",
 				"mpm",
 				"tcsr-msip";
-			qca,auto-restart;
 			qca,extended-intc;
 			interrupts-extended = <&intc 0 291 1>,
 					<&wcss_smp2p_in 0 0>,
