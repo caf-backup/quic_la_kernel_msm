@@ -29,7 +29,8 @@
 
 #define PCIE_PHY_SW_RESET			0x600
 #define PCIE_PHY_POWER_DOWN_CONTROL		0x604
-#define PCIE_PHY_PCS_STATUS			0x6c8
+#define PCIE_GEN3_PHY_PCS_STATUS		0x814
+#define PCIE_GEN2_PHY_PCS_STATUS		0x974
 
 #define PHY_DELAY_MS				0xFFFFFFFF
 #define PHY_DELAY_TIME				1000
@@ -488,7 +489,12 @@ static int qca_pcie_qmp_phy_v2_init(struct qca_pcie_qmp_phy *pcie)
 
 static bool qca_pcie_qmp_phy_is_ready(struct qca_pcie_qmp_phy *pcie)
 {
-	u32 val = readl(pcie->base + PCIE_PHY_PCS_STATUS);
+	u32 val;
+
+	if (pcie->is_phy_gen3)
+		val = readl(pcie->base + PCIE_GEN3_PHY_PCS_STATUS);
+	else
+		val = readl(pcie->base + PCIE_GEN2_PHY_PCS_STATUS);
 
 	return val & BIT(6) ? false : true;
 }
