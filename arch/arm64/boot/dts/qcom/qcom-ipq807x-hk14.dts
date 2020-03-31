@@ -48,6 +48,26 @@
 			bootargs-append = " swiotlb=1 coherent_pool=2M";
 		#endif
 	};
+
+	reserved-memory {
+/* No Pine attach in 256M profile */
+#if !defined(__IPQ_MEM_PROFILE_256_MB__)
+#ifdef __IPQ_MEM_PROFILE_512_MB__
+		qcn9000_pcie0@4e900000 {
+			no-map;
+			reg = <0x0 0x4e900000 0x0 0x03700000>;
+		};
+		/delete-node/ wifi_dump@4e900000;
+#else
+		qcn9000_pcie0@51100000 {
+			no-map;
+			reg = <0x0 0x51100000 0x0 0x03700000>;
+		};
+		/delete-node/ wifi_dump@51100000;
+		/delete-node/ wigig_dump@51300000;
+#endif
+#endif
+	};
 };
 
 &tlmm {
@@ -840,9 +860,13 @@
 	status = "disabled";
 };
 
-&nss0 {
-	npu-supply = <&dummy_reg>;
-	mx-supply = <&dummy_reg>;
+&pcie0_rp {
+	status = "ok";
+
+	mhi_0: qcom,mhi@0 {
+		reg = <0 0 0 0 0 >;
+		qrtr_instance_id = <0x20>;
+	};
 };
 
 &wifi0 {
