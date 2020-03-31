@@ -272,15 +272,19 @@
 		phy4: ethernet-phy@4 {
 			reg = <4>;
 		};
+		phy5: ethernet-phy@5 {
+			compatible ="ethernet-phy-ieee802.3-c45";
+			reg = <7>;
+		};
 	};
 
 	ess-switch@3a000000 {
 		switch_cpu_bmp = <0x1>;  /* cpu port bitmap */
 		switch_lan_bmp = <0x1e>; /* lan port bitmap */
-		switch_wan_bmp = <0x20>; /* wan port bitmap */
+		switch_wan_bmp = <0x40>; /* wan port bitmap */
 		switch_mac_mode = <0x0>; /* mac mode for uniphy instance0*/
 		switch_mac_mode1 = <0xff>; /* mac mode for uniphy instance1*/
-		switch_mac_mode2 = <0xff>; /* mac mode for uniphy instance2*/
+		switch_mac_mode2 = <0xd>; /* mac mode for uniphy instance2*/
 		bm_tick_mode = <0>; /* bm tick mode */
 		tm_tick_mode = <0>; /* tm tick mode */
 		qcom,port_phyinfo {
@@ -301,8 +305,9 @@
 				phy_address = <3>;
 			};
 			port@4 {
-				port_id = <5>;
-				phy_address = <4>;
+				port_id = <6>;
+				phy_address = <7>;
+				ethernet-phy-ieee802.3-c45;
 			};
 		};
 		port_scheduler_resource {
@@ -625,12 +630,12 @@
 	dp5 {
 		device_type = "network";
 		compatible = "qcom,nss-dp";
-		qcom,id = <5>;
-		reg = <0x3a001800 0x200>;
-		qcom,mactype = <0>;
+		qcom,id = <6>;
+		reg = <0x3a007000 0x3fff>;
+		qcom,mactype = <1>;
 		local-mac-address = [000000000000];
 		qcom,link-poll = <1>;
-		qcom,phy-mdio-addr = <4>;
+		qcom,phy-mdio-addr = <7>;
 		phy-mode = "sgmii";
 	};
 
