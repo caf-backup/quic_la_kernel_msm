@@ -59,6 +59,9 @@
 struct qmi_handle *cntl_qmi;
 static uint64_t bootup_req[NUM_SOCKET_SUBSYSTEMS];
 
+static unsigned long peripheral_mask = BIT(PERIPHERAL_WCNSS);
+module_param(peripheral_mask, ulong, S_IRUGO | S_IWUSR | S_IWGRP);
+
 struct diag_socket_info socket_data[NUM_PERIPHERALS] = {
 	{
 		.peripheral = PERIPHERAL_MODEM,
@@ -902,6 +905,8 @@ static struct diag_socket_info *diag_get_svc_sock_info(struct qmi_service *svc)
 
 	inst = svc->version | (svc->instance << 8);
 	for (i = 0; i < NUM_PERIPHERALS; i++) {
+		if (!test_bit(i, &peripheral_mask))
+			continue;
 		if ((svc->service == socket_cmd[i].svc_id) &&
 		    (inst == socket_cmd[i].ins_id)) {
 			info = &socket_cmd[i];
@@ -964,6 +969,10 @@ int diag_socket_init(void)
 	int i;
 
 	for (peripheral = 0; peripheral < NUM_PERIPHERALS; peripheral++) {
+		pr_err("TRACK: P[%d]\tPMask[%lu]\n", peripheral, peripheral_mask);
+		if (!test_bit(peripheral, &peripheral_mask))
+			continue;
+
 		info = &socket_cntl[peripheral];
 		__diag_socket_init(&socket_cntl[peripheral]);
 
@@ -977,6 +986,9 @@ int diag_socket_init(void)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(restart_notifiers); i++) {
+		if (!test_bit(i, &peripheral_mask))
+			continue;
+
 		nb = &restart_notifiers[i];
 		handle = subsys_notif_register_notifier(nb->name, &nb->nb);
 		DIAG_LOG(DIAG_DEBUG_PERIPHERALS,
@@ -994,6 +1006,8 @@ int diag_socket_init(void)
 		goto fail;
 
 	for (peripheral = 0; peripheral < NUM_PERIPHERALS; peripheral++) {
+		if (!test_bit(peripheral, &peripheral_mask))
+			continue;
 		info = &socket_cmd[peripheral];
 		pr_info("nik %d info->svc_id\n", info->svc_id);
 		qmi_add_lookup(cntl_qmi, info->svc_id,
@@ -1073,6 +1087,9 @@ void diag_socket_exit(void)
 		kfree(cntl_qmi);
 	}
 	for (i = 0; i < NUM_PERIPHERALS; i++) {
+		if (!test_bit(i, &peripheral_mask))
+			continue;
+
 		__diag_socket_exit(&socket_cntl[i]);
 		__diag_socket_exit(&socket_data[i]);
 		__diag_socket_exit(&socket_cmd[i]);
