@@ -2963,29 +2963,29 @@ void cnss_update_platform_feature_support(u8 type, u32 instance_id, u32 value)
 
 	plat_priv = cnss_get_plat_priv_by_instance_id(instance_id);
 	if (!plat_priv) {
-		pr_err("Failed to get plat_priv for instance_id %d",
-		       instance_id);
+		cnss_pr_err("Failed to get plat_priv for instance_id %d\n",
+			    instance_id);
 		return;
 	}
 
 	switch (type) {
 	case CNSS_GENL_MSG_TYPE_DAEMON_SUPPORT:
 		plat_priv->daemon_support = value;
-		cnss_pr_info("Setting daemon_support=%d for instance_id %d",
+		cnss_pr_info("Setting daemon_support=%d for instance_id %d\n",
 			     value, instance_id);
 		break;
 	case CNSS_GENL_MSG_TYPE_COLD_BOOT_SUPPORT:
 		plat_priv->cold_boot_support = value;
-		cnss_pr_info("Setting cold_boot_support=%d for instance_id %d",
+		cnss_pr_info("Setting cold_boot_support=%d for instance_id %d\n",
 			     value, instance_id);
 		break;
 	case CNSS_GENL_MSG_TYPE_FLASHCAL_SUPPORT:
 		plat_priv->flashcal_support = value;
-		cnss_pr_info("Setting caldata_support=%d for instance_id %d",
+		cnss_pr_info("Setting caldata_support=%d for instance_id %d\n",
 			     value, instance_id);
 		break;
 	default:
-		cnss_pr_err("Unknown type %d", type);
+		cnss_pr_err("Unknown type %d\n", type);
 		break;
 	}
 }
