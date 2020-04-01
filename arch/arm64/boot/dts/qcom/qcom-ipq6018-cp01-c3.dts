@@ -20,6 +20,22 @@
 #include "qcom-ipq6018-cpr-regulator.dtsi"
 #include "qcom-ipq6018-cp-cpu.dtsi"
 
+#if !defined(__IPQ_MEM_PROFILE_256_MB__)
+#ifdef __IPQ_MEM_PROFILE_512_MB__
+&tmc_etr {
+	/delete-property/ memory_region;
+};
+
+&q6v5_wcss {
+	memory-region = <&q6_region>;
+};
+
+&qcom_q6v5_wcss {
+	memory-region = <&q6_region>;
+};
+#endif
+#endif
+
 / {
 	model = "Qualcomm Technologies, Inc. IPQ6018/AP-CP01-C3";
 
@@ -60,9 +76,67 @@
 /* No Pine attach in 256M profile */
 #if !defined(__IPQ_MEM_PROFILE_256_MB__)
 #ifdef __IPQ_MEM_PROFILE_512_MB__
+	      /*	    512 MB Profile for cp01-c3
+	       * +=========+==============+========================+
+	       * |        |              |                         |
+	       * | Region | Start Offset |          Size           |
+	       * |        |              |                         |
+	       * +--------+--------------+-------------------------+
+	       * |        |              |                         |
+	       * |  NSS   |  0x40000000  |          16MB           |
+	       * |        |              |                         |
+	       * +--------+--------------+-------------------------+
+	       * |        |              |                         |
+	       * |        |              |                         |
+	       * |        |              |                         |
+	       * |        |              |                         |
+	       * | Linux  |  0x41000000  |         145MB           |
+	       * |        |              |                         |
+	       * |        |              |                         |
+	       * |        |              |                         |
+	       * +--------+--------------+-------------------------+
+	       * |        |              |                         |
+	       * | uboot  |  0x4A100000  |           4MB           |
+	       * |        |              |                         |
+	       * +--------+--------------+-------------------------+
+	       * |  SBL   |  0x4A500000  |           1MB           |
+	       * +--------+--------------+-------------------------+
+	       * |        |              |                         |
+	       * | TZ+HYP |  0x4A600000  |           4MB           |
+	       * |        |              |                         |
+	       * +--------+--------------+-------------------------+
+	       * |  smem  |  0x4AA00000  |           1MB           |
+	       * +--------+--------------+-------------------------+
+	       * |        |              |                         |
+	       * |        |              |                         |
+	       * | WLAN   |              |                         |
+	       * |   Q6   |  0x4AB00000  |          40MB           |
+	       * |        |              |                         |
+	       * |        |              |                         |
+	       * +--------+--------------+-------------------------+
+	       * |        |              |                         |
+	       * |  Pine  |  0x4D300000  |          55MB           |
+	       * |        |              |  (on CP01-C3 RDP only)  |
+	       * +=================================================+
+	       * |                                                 |
+	       * |                                                 |
+	       * |                                                 |
+	       * |           Remaining memory for Linux            |
+	       * |                                                 |
+	       * |                                                 |
+	       * |                                                 |
+	       * +=================================================+
+	       */
+		/delete-node/ wcnss@4ab00000;
+		/delete-node/ q6_etr_dump@1;
+		q6_region: wcnss@4ab00000 {
+			no-map;
+			reg = <0x0 0x4ab00000 0x0 0x02800000>;
+		};
+
 		qcn9000_pcie0@4e300000 {
 			no-map;
-			reg = <0x0 0x4e300000 0x0 0x03700000>;
+			reg = <0x0 0x4D300000 0x0 0x03700000>;
 		};
 #else
 		qcn9000_pcie0@50100000 {
@@ -123,7 +197,18 @@
        status = "ok";
 };
 
+#ifdef __IPQ_MEM_PROFILE_512_MB__
+&wifi0 {
+	qcom,tgt-mem-mode = <2>;
+};
+#endif
+
 &wifi1 {
+#ifdef __IPQ_MEM_PROFILE_512_MB__
+	base-addr = <0x4D300000>;
+	etr-addr = <0x50100000>;
+	caldb-addr = <0x50200000>;
+#endif
 	status = "ok";
 };
 
