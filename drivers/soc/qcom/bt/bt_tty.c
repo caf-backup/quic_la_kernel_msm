@@ -364,7 +364,10 @@ int bt_parse_dt(struct bt_descriptor *btDesc)
 		return ret;
 	}
 
-	dev_err(dev, "%s\n", __func__);
+	btDesc->nosecure = of_property_read_bool(dev->of_node, "qcom,nosecure");
+
+	dev_info(dev, "%s operating in %s mode\n", __func__,
+				btDesc->nosecure ? "non secure" : "secure");
 
 	return 0;
 }
