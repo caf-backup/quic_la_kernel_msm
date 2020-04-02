@@ -91,6 +91,25 @@
 	status = "ok";
 };
 
+&pcie0 {
+	interrupts = <0 52 0>, <0 416 0>, <0 417 0>,
+		     <0 418 0>, <0 419 0>, <0 420 0>,
+		     <0 421 0>, <0 422 0>, <0 423 0>,
+		     <0 424 0>, <0 425 0>, <0 426 0>,
+		     <0 427 0>, <0 428 0>, <0 429 0>,
+		     <0 430 0>, <0 431 0>;
+
+	interrupt-names = "msi", "msi_0", "msi_1",
+			  "msi_2", "msi_3", "msi_4",
+			  "msi_5", "msi_6", "msi_7",
+			  "msi_8", "msi_9", "msi_10",
+			  "msi_11", "msi_12", "msi_13",
+			  "msi_14", "msi_15";
+
+	qcom,msi-gicm-addr = <0x0B00A040>;
+	qcom,msi-gicm-base = <0x1c0>;
+};
+
 &pcie0_rp {
 	status = "ok";
 
