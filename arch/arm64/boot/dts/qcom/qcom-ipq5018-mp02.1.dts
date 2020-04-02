@@ -69,6 +69,25 @@
 			};
 		};
 
+		mdio0: mdio@88000 {
+			status = "ok";
+
+			ethernet-phy@0 {
+				reg = <7>;
+			};
+		};
+
+		mdio1: mdio@90000 {
+			status = "ok";
+			pinctrl-0 = <&mdio1_pins>;
+			pinctrl-names = "default";
+			phy-reset-gpio = <&tlmm 26 0>;
+
+			ethernet-phy@0 {
+				reg = <4>;
+			};
+		};
+
 		ess-switch@0x39c00000 {
 			switch_mac_mode = <0xf>; /* mac mode for uniphy instance*/
 			qcom,port_phyinfo {
@@ -152,6 +171,22 @@
 			function = "blsp0_spi";
 			drive-strength = <8>;
 			bias-disable;
+		};
+	};
+
+	mdio1_pins: mdio_pinmux {
+		mux_0 {
+			pins = "gpio36";
+			function = "mdc";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+
+		mux_1 {
+			pins = "gpio37";
+			function = "mdio";
+			drive-strength = <8>;
+			bias-pull-up;
 		};
 	};
 };
