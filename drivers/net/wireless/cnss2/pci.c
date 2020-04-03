@@ -447,7 +447,7 @@ static int cnss_set_pci_link_status(struct cnss_pci_data *pci_priv,
 	u16 link_speed, link_width;
 	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
 
-	cnss_pr_vdbg("Set PCI link status to: %u\n", status);
+	cnss_pr_dbg("Set PCI link status to: %u\n", status);
 
 	switch (status) {
 	case PCI_GEN1:
@@ -794,8 +794,8 @@ static int cnss_pci_set_mhi_state(struct cnss_pci_data *pci_priv,
 	ret = cnss_pci_check_mhi_state_bit(pci_priv, mhi_state);
 	if (ret)
 		goto out;
-	cnss_pr_vdbg("Setting MHI state: %s(%d)\n",
-		     cnss_mhi_state_to_str(mhi_state), mhi_state);
+	cnss_pr_dbg("Setting MHI state: %s(%d)\n",
+		    cnss_mhi_state_to_str(mhi_state), mhi_state);
 
 	switch (mhi_state) {
 	case CNSS_MHI_INIT:
@@ -2609,8 +2609,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 					CNSS_ASSERT(0);
 					return -ENOMEM;
 				}
-				if (!(cold_boot_support ||
-				      plat_priv->cold_boot_support)) {
+				if (!plat_priv->cold_boot_support) {
 					fw_mem[idx].pa = 0;
 					fw_mem[idx].va = 0;
 				} else {
@@ -3353,7 +3352,7 @@ static void cnss_pci_dump_qdss_reg(struct cnss_pci_data *pci_priv)
 			return;
 	}
 
-	for (i = 0; qdss_csr[i].name; i++) {
+	for (i = 0; i < array_size && qdss_csr[i].name; i++) {
 		reg_offset = QDSS_APB_DEC_CSR_BASE + qdss_csr[i].offset;
 		if (cnss_pci_reg_read(pci_priv, reg_offset,
 				      &plat_priv->qdss_reg[i]))

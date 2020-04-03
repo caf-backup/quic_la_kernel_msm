@@ -49,8 +49,6 @@ struct cnss_qmi_event_server_arrive_data {
 	unsigned int node;
 	unsigned int port;
 };
-extern bool daemon_support;
-extern bool cold_boot_support;
 
 #define QDSS_TRACE_SEG_LEN_MAX 32
 #define QDSS_TRACE_FILE_NAME_MAX 16

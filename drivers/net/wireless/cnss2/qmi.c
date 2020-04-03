@@ -56,14 +56,6 @@ EXPORT_SYMBOL(qmi_timeout);
 #define IMS_TIMEOUT                     QMI_WLFW_TIMEOUT_JF
 
 #define QMI_WLFW_MAX_RECV_BUF_SIZE	SZ_8K
-bool daemon_support;
-module_param(daemon_support, bool, 0600);
-MODULE_PARM_DESC(daemon_support, "User space has cnss-daemon support or not");
-
-bool cold_boot_support;
-module_param(cold_boot_support, bool, 0600);
-MODULE_PARM_DESC(cold_boot_support, "User space has cold_boot_support or not");
-
 unsigned int qca8074_fw_mem_mode = 0xFF;
 module_param(qca8074_fw_mem_mode, uint, 0600);
 MODULE_PARM_DESC(qca8074_fw_mem_mode, "qca8074_fw_mem_mode");
@@ -88,7 +80,7 @@ void cnss_dump_qmi_history(void)
 	for (i = 0; i < QMI_HISTORY_SIZE; i++) {
 		if (qmi_log[i].msg_id)
 			pr_err(
-			"qmi_history[%d]:timestamp[%llu] instance_id [%X] msg_id[%X] err[%d] resp_err[%d]\n",
+			"qmi_history[%d]:timestamp[%llu] instance_id [0x%X] msg_id[0x%X] err[%d] resp_err[%d]\n",
 			i, qmi_log[i].timestamp,
 			qmi_log[i].instance_id,
 			qmi_log[i].msg_id,
@@ -273,7 +265,7 @@ static int cnss_wlfw_host_cap_send_sync(struct cnss_plat_data *plat_priv)
 		req->num_clients = 1;
 
 	req->num_clients = 1;
-	if (plat_priv->daemon_support || daemon_support)
+	if (plat_priv->daemon_support)
 		req->num_clients = 2;
 
 	cnss_pr_dbg("Number of clients is %d\n", req->num_clients);
@@ -370,8 +362,7 @@ int cnss_wlfw_respond_mem_send_sync(struct cnss_plat_data *plat_priv)
 
 	req->mem_seg_len = plat_priv->fw_mem_seg_len;
 	for (i = 0; i < req->mem_seg_len; i++) {
-		if ((cold_boot_support ||
-		     plat_priv->cold_boot_support) &&
+		if (plat_priv->cold_boot_support &&
 		    (!fw_mem[i].pa || !fw_mem[i].size)) {
 			if (fw_mem[i].type == 0) {
 				cnss_pr_err("Invalid memory for FW type, segment = %d\n",
