@@ -3136,14 +3136,23 @@ int cnss_get_user_msi_assignment(struct device *dev, char *user_name,
 				 int *num_vectors, u32 *user_base_data,
 				 u32 *base_vector)
 {
-	struct cnss_pci_data *pci_priv = cnss_get_pci_priv(to_pci_dev(dev));
-	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	struct cnss_pci_data *pci_priv = NULL;
+	struct cnss_plat_data *plat_priv = NULL;
 	struct cnss_msi_config *msi_config;
 	int idx;
 
+	if (pci_dev->device != QCN9000_DEVICE_ID) {
+		cnss_pr_err("MSI not supported on device 0x%x",
+			    pci_dev->device);
+		return -EINVAL;
+	}
+
+	pci_priv = cnss_get_pci_priv(pci_dev);
 	if (!pci_priv)
 		return -ENODEV;
 
+	plat_priv = pci_priv->plat_priv;
 	msi_config = pci_priv->msi_config;
 	if (!msi_config) {
 		cnss_pr_err("MSI is not supported.\n");
