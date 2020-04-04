@@ -2063,9 +2063,11 @@
 			compatible  = "qcom,cnss-qcn9000";
 #ifdef __IPQ_MEM_PROFILE_512_MB__
 			base-addr = <0x4E900000>;
+			etr-addr = <0x51700000>;
 			caldb-addr = <0x51800000>;
 #else
 			base-addr = <0x51100000>;
+			etr-addr = <0x53F00000>;
 			caldb-addr = <0x54000000>;
 #endif
 			qrtr_node_id = <0x20>;
@@ -2076,9 +2078,11 @@
 			compatible  = "qcom,cnss-qcn9000";
 #ifdef __IPQ_MEM_PROFILE_512_MB__
 			base-addr = <0x52000000>;
+			etr-addr = <0x54E00000>;
 			caldb-addr = <0x54F00000>;
 #else
 			base-addr = <0x54800000>;
+			etr-addr = <0x57600000>;
 			caldb-addr = <0x57700000>;
 #endif
 			qrtr_node_id = <0x21>;

@@ -2232,9 +2232,11 @@
 #if !defined(__IPQ_MEM_PROFILE_256_MB__)
 #ifdef __IPQ_MEM_PROFILE_512_MB__
 			base-addr = <0x4e300000>;
+			etr-addr = <0x51100000>;
 			caldb-addr = <0x51200000>;
 #else
 			base-addr = <0x50100000>;
+			etr-addr = <0x52F00000>;
 			caldb-addr = <0x53000000>;
 #endif
 #endif
