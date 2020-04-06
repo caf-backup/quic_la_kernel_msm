@@ -25,7 +25,8 @@
 #include <linux/platform_device.h>
 #include <linux/pinctrl/consumer.h>
 
-
+#define	PAS_ID	0xC
+#define	CMD_ID	0x14
 #define BT_M0_WARM_RST_ORIDE	0x0
 #define BT_M0_WARM_RST		0x4
 
@@ -209,6 +210,7 @@ struct bt_descriptor {
 	struct notifier_block panic_nb;
 	struct pinctrl *pinctrl;
 	bool debug_en;
+	bool nosecure;
 };
 
 extern int bt_ipc_init(struct bt_descriptor *btDesc);
