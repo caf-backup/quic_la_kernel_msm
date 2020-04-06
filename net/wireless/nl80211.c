@@ -3389,8 +3389,8 @@ static void nl80211_check_ap_rate_selectors(struct cfg80211_ap_settings *params,
 static void nl80211_calculate_ap_params(struct cfg80211_ap_settings *params)
 {
 	const struct cfg80211_beacon_data *bcn = &params->beacon;
-	size_t ies_len = bcn->beacon_ies_len;
-	const u8 *ies = bcn->beacon_ies;
+	size_t ies_len = bcn->tail_len;
+	const u8 *ies = bcn->tail;
 	const u8 *rates;
 	const u8 *cap;
 
@@ -3406,6 +3406,9 @@ static void nl80211_calculate_ap_params(struct cfg80211_ap_settings *params)
 	cap = cfg80211_find_ie(WLAN_EID_VHT_CAPABILITY, ies, ies_len);
 	if (cap && cap[1] >= sizeof(*params->vht_cap))
 		params->vht_cap = (void *)(cap + 2);
+	cap = cfg80211_find_ext_ie(WLAN_EID_EXT_HE_CAPABILITY, ies, ies_len);
+	if (cap && cap[1] >= sizeof(*params->he_cap) + 1)
+		params->he_cap = (void *)(cap + 3);
 }
 
 static bool nl80211_get_ap_channel(struct cfg80211_registered_device *rdev,
