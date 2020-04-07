@@ -40,8 +40,7 @@
 	};
 
 	chosen {
-		bootargs = "console=ttyMSM0,115200,n8 root=/dev/ram0 rw \
-			init=/init";
+		bootargs = "console=ttyMSM0,115200,n8 root=/dev/ram0 rw init=/init";
 		#ifdef __IPQ_MEM_PROFILE_256_MB__
 			bootargs-append = " swiotlb=1";
 		#else
@@ -109,11 +108,6 @@
 			bias-pull-up;
 		};
 		mux_2 {
-			pins = "gpio25";
-			function = "gpio";
-			bias-pull-up;
-		};
-		mux_3 {
 			pins = "gpio44";
 			function = "gpio";
 			bias-pull-up;
@@ -231,12 +225,11 @@
 		};
 	};
 
-	usb_mux_sel_pins: usb_mux_pins {
+	uniphy_pins: uniphy_pinmux {
 		mux {
-			pins = "gpio27";
-			function = "gpio";
-			drive-strength = <8>;
-			bias-pull-down;
+			pins = "gpio60";
+			function = "rx2";
+			bias-disable;
 		};
 	};
 
@@ -272,7 +265,7 @@
 		};
 	};
 
-	mdio: mdio@90000 {
+	mdio@90000 {
 		pinctrl-0 = <&mdio_pins>;
 		pinctrl-names = "default";
 		phy-reset-gpio = <&tlmm 37 0>;
@@ -299,6 +292,8 @@
 	};
 
 	ess-switch@3a000000 {
+		pinctrl-0 = <&uniphy_pins>;
+		pinctrl-names = "default";
 		switch_cpu_bmp = <0x1>;  /* cpu port bitmap */
 		switch_lan_bmp = <0x1e>; /* lan port bitmap */
 		switch_wan_bmp = <0x40>; /* wan port bitmap */
@@ -330,6 +325,7 @@
 				ethernet-phy-ieee802.3-c45;
 			};
 		};
+
 		port_scheduler_resource {
 			port@0 {
 				port_id = <0>;
@@ -587,10 +583,15 @@
 						sp = <60>;
 						cfg = <0 32 0 32>;
 					};
+					group@1 {
+						sp = <61>;
+						cfg = <1 33 1 33>;
+					};
 				};
 				l0scheduler {
 					group@0 {
 						ucast_queue = <240>;
+						ucast_loop_pri = <16>;
 						mcast_queue = <296>;
 						cfg = <60 0 144 0 144>;
 					};
@@ -757,102 +758,10 @@
 	status = "disabled";
 };
 
-&ledc {
-	status = "disabled";
-};
-
 &pcie0 {
 	status = "ok";
 };
 
-&pcie1 {
-	status = "disabled";
-};
-
-&glink_rpm {
-	status = "disabled";
-};
-
-&apc_cpr {
-	/* Same CPR configuration as OAK */
-	compatible = "qcom,cpr4-ipq817x-apss-regulator";
-
-	thread@0 {
-		apc_vreg: regulator {
-			regulator-min-microvolt = <1>;
-			regulator-max-microvolt = <2>;
-			qcom,cpr-fuse-corners = <2>;
-			qcom,cpr-corners = <3>;
-			qcom,cpr-speed-bin-corners = <3>;
-			qcom,cpr-corner-fmax-map = <1 3>;
-
-			qcom,cpr-voltage-ceiling =
-				<840000 904000 944000>;
-			qcom,cpr-voltage-floor =
-				<592000 648000 712000>;
-			qcom,corner-frequencies =
-				<1017600000 1382400000 1382400000>;
-
-			qcom,cpr-open-loop-voltage-fuse-adjustment-0 =
-				/* Speed bin 0; CPR rev 0..7 */
-				< 0      0>,
-				< 0      0>,
-				< 0      0>,
-				< 0      0>,
-				< 0      0>,
-				< 0      0>,
-				< 0      0>,
-				< 0      0>;
-
-			qcom,cpr-open-loop-voltage-fuse-adjustment-1 =
-				/* Speed bin 0; CPR rev 0..7 */
-				<     0      0>,
-				<     0      0>,
-				<     0      0>,
-				< 20000  26000>,
-				<     0      0>,
-				<     0      0>,
-				<     0      0>,
-				<     0      0>;
-
-			qcom,cpr-open-loop-voltage-fuse-adjustment-v2-0 =
-				/* Speed bin 0; CPR rev 0..7 */
-				<     0      0>,
-				<     0      0>,
-				<     0      0>,
-				<     0      0>,
-				<     0      0>,
-				<     0      0>,
-				<     0      0>,
-				<     0      0>;
-
-			qcom,cpr-open-loop-voltage-fuse-adjustment-v2-1 =
-				/* Speed bin 0; CPR rev 0..7 */
-				<     0      0>,
-				<     0   7000>,
-				<     0      0>,
-				<     0      0>,
-				<     0      0>,
-				<     0      0>,
-				<     0      0>,
-				<     0      0>;
-
-			qcom,cpr-floor-to-ceiling-max-range =
-				< 40000 40000 40000>,
-				< 40000 40000 40000>,
-				< 40000 40000 40000>,
-				< 40000 40000 40000>,
-				< 40000 40000 40000>,
-				< 40000 40000 40000>,
-				< 40000 40000 40000>,
-				< 40000 40000 40000>;
-		};
-	};
-};
-
-&npu_cpr {
-	status = "disabled";
-};
 
 &pcie0_rp {
 	status = "ok";
@@ -863,10 +772,3 @@
 	};
 };
 
-&wifi0 {
-	qcom,board_id = <0x92>;
-};
-
-&wifi1 {
-	qcom,board_id = <0x292>;
-};
