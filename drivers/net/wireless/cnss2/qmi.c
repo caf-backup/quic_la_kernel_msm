@@ -244,6 +244,8 @@ static int cnss_wlfw_host_cap_send_sync(struct cnss_plat_data *plat_priv)
 	struct qmi_txn txn;
 	int ret = 0;
 	int resp_error_msg = 0;
+	const char *model = NULL;
+	struct device_node *root;
 
 	cnss_pr_dbg("Sending host capability message, state: 0x%lx\n",
 		    plat_priv->driver_state);
@@ -288,6 +290,17 @@ static int cnss_wlfw_host_cap_send_sync(struct cnss_plat_data *plat_priv)
 	req->cal_done_valid = 1;
 	req->cal_done = plat_priv->cal_done;
 	cnss_pr_dbg("Calibration done is %d\n", plat_priv->cal_done);
+
+	root = of_find_node_by_path("/");
+	if (root) {
+		model = of_get_property(root, "model", NULL);
+		if (model) {
+			req->platform_name_valid = 1;
+			strlcpy(req->platform_name, model,
+				QMI_WLFW_MAX_PLATFORM_NAME_LEN_V01);
+			cnss_pr_info("platform name: %s", req->platform_name);
+		}
+	}
 
 	qmi_record(plat_priv->wlfw_service_instance_id,
 		   QMI_WLFW_HOST_CAP_REQ_V01, ret, resp_error_msg);

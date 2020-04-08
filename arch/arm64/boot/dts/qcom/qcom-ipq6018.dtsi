@@ -2105,6 +2105,7 @@
 		#endif
 			qcom,bdf-addr = <0x4ABC0000 0x4ABC0000 0x4ABC0000>;
 			qcom,caldb-addr = <0x4B500000 0x4B500000 0x4B500000>;
+			qcom,caldb-size = <0x480000>;
 
 			qcom,rproc = <&qcom_q6v5_wcss>;
 			interrupts = <0 320 1>, /* o_wcss_apps_intr[0] =  */
@@ -2240,6 +2241,7 @@
 			caldb-addr = <0x53000000>;
 #endif
 #endif
+			caldb-size = <0x800000>;
 			qrtr_node_id = <0x20>;
 			qca,auto-restart;
 			status = "disabled";

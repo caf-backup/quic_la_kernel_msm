@@ -1080,3 +1080,11 @@
 		linux,default-trigger = "none";
 	};
 };
+
+&wifi0 {
+	qcom,caldb-size = <0x1300000>;
+};
+
+&wifi1 {
+	qcom,caldb-size = <0x1300000>;
+};
