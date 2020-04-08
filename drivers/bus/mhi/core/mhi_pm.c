@@ -188,7 +188,10 @@ void mhi_deassert_dev_wake(struct mhi_controller *mhi_cntrl, bool override)
 {
 	unsigned long flags;
 
-	MHI_ASSERT(atomic_read(&mhi_cntrl->dev_wake) == 0, "dev_wake == 0");
+	//MHI_ASSERT(atomic_read(&mhi_cntrl->dev_wake) == 0, "dev_wake == 0");
+
+	if (atomic_read(&mhi_cntrl->dev_wake) == 0)
+		printk("%s dev_wake already 0, assert !!!\n", __func__);
 
 	/* resources not dropping to 0, decrement and exit */
 	if (likely(atomic_add_unless(&mhi_cntrl->dev_wake, -1, 1)))

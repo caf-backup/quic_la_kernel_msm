@@ -1737,6 +1737,9 @@ static void mhi_reset_data_chan(struct mhi_controller *mhi_cntrl,
 	tre_ring = &mhi_chan->tre_ring;
 	result.transaction_status = -ENOTCONN;
 	result.bytes_xferd = 0;
+
+	printk("%s rp %p wp %p\n", __func__, tre_ring->rp, tre_ring->wp);
+
 	while (tre_ring->rp != tre_ring->wp) {
 		struct mhi_buf_info *buf_info = buf_ring->rp;
 

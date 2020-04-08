@@ -1455,6 +1455,8 @@ static int mhi_driver_remove(struct device *dev)
 
 	MHI_LOG("Removing device for chan:%s\n", mhi_dev->chan_name);
 
+	printk("Removing device for chan:%s\n", mhi_dev->chan_name);
+
 	/* reset both channels */
 	for (dir = 0; dir < 2; dir++) {
 		mhi_chan = dir ? mhi_dev->ul_chan : mhi_dev->dl_chan;
