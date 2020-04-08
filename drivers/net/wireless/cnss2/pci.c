@@ -2503,6 +2503,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 	struct cnss_fw_mem *fw_mem = plat_priv->fw_mem;
 	unsigned int bdf_location[3], caldb_location[3];
 	u32 addr = 0;
+	u32 caldb_size = 0;
 	struct device *dev;
 	int i, idx, mode;
 	struct device_node *dev_node = NULL;
@@ -2529,9 +2530,17 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 		for (i = 0; i < plat_priv->fw_mem_seg_len; i++) {
 			switch (fw_mem[i].type) {
 			case CALDB_MEM_REGION_TYPE:
-				if (fw_mem[i].size > Q6_CALDB_SIZE_QCN9000) {
-					pr_err("Error: Need more memory %x\n",
-					       (unsigned int)fw_mem[i].size);
+				if (of_property_read_u32(dev->of_node,
+							 "caldb-size",
+							 &caldb_size)) {
+					pr_err("Error: No caldb-size in dts\n");
+					CNSS_ASSERT(0);
+					return -ENOMEM;
+				}
+				if (fw_mem[i].size > caldb_size) {
+					pr_err("Error: Need more memory for caldb, fw req:0x%x max:0x%x\n",
+					       (unsigned int)fw_mem[i].size,
+					       caldb_size);
 					CNSS_ASSERT(0);
 				}
 				if (of_property_read_u32(dev->of_node,
@@ -2603,9 +2612,17 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 				idx++;
 				break;
 			case CALDB_MEM_REGION_TYPE:
-				if (fw_mem[i].size > Q6_CALDB_SIZE_HKCYP) {
-					pr_err("Error: Need more memory %x\n",
-					       (unsigned int)fw_mem[i].size);
+				if (of_property_read_u32(dev->of_node,
+							 "qcom,caldb-size",
+							 &caldb_size)) {
+					pr_err("Error: No caldb-size in dts\n");
+					CNSS_ASSERT(0);
+					return -ENOMEM;
+				}
+				if (fw_mem[i].size > caldb_size) {
+					pr_err("Error: Need more memory for caldb, fw req:0x%x max:0x%x\n",
+					       (unsigned int)fw_mem[i].size,
+					       caldb_size);
 					CNSS_ASSERT(0);
 					return -ENOMEM;
 				}
@@ -2707,7 +2724,7 @@ int cnss_pci_alloc_qdss_mem(struct cnss_pci_data *pci_priv)
 		switch (qdss_mem[i].type) {
 		case QDSS_ETR_MEM_REGION_TYPE:
 			if (qdss_mem[i].size > Q6_QDSS_ETR_SIZE_QCN9000) {
-				cnss_pr_err("%s: FW requests more memory 0x%x\n",
+				cnss_pr_err("%s: FW requests more memory 0x%lx\n",
 					    __func__, qdss_mem[i].size);
 				return -ENOMEM;
 			}
@@ -2733,7 +2750,7 @@ int cnss_pci_alloc_qdss_mem(struct cnss_pci_data *pci_priv)
 		}
 	}
 
-	cnss_pr_dbg("%s: seg_len %d, type %d, size 0x%x, pa: 0x%x, va: 0x%p",
+	cnss_pr_dbg("%s: seg_len %d, type %d, size 0x%lx, pa: 0x%llx, va: 0x%p",
 		    __func__, plat_priv->qdss_mem_seg_len, qdss_mem[0].type,
 		    qdss_mem[0].size, qdss_mem[0].pa, qdss_mem[0].va);
 

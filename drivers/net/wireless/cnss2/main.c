@@ -3153,7 +3153,7 @@ skip_soc_version_checks:
 		plat_priv->service_id = WLFW_SERVICE_ID_V01_NPR;
 		if (of_property_read_u32(plat_dev->dev.of_node, "qrtr_node_id",
 					 &node_id)) {
-			pr_err("Error: No caldb-addr in device_tree\n");
+			pr_err("Error: No qrtr_node_id in device_tree\n");
 			CNSS_ASSERT(0);
 			return -ENOMEM;
 		}

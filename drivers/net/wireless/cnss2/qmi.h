@@ -24,8 +24,6 @@
 #define CALDATA_OFFSET(addr) (addr + (128 * 1024))
 #define Q6_HOST_ADDR_SZ_QCN9000  0x2E00000
 #define Q6_QDSS_ETR_SIZE_QCN9000 0x100000
-#define Q6_CALDB_SIZE_QCN9000 0x800000
-#define Q6_CALDB_SIZE_HKCYP 0x480000
 #define QMI_HISTORY_SIZE 128
 
 /*NODE_ID_BASE is derived by qrtr_node_id in DTS + FW base node id 7 */
