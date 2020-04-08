@@ -772,3 +772,18 @@
 	};
 };
 
+&npu_cpr {
+	status = "disabled";
+};
+
+&nss0 {
+	npu-supply = <&dummy_reg>;
+	mx-supply = <&dummy_reg>;
+};
+
+#ifndef __IPQ_MEM_PROFILE_256_MB__
+&nss1 {
+	npu-supply = <&dummy_reg>;
+	mx-supply = <&dummy_reg>;
+};
+#endif
