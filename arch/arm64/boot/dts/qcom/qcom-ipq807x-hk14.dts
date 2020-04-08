@@ -787,3 +787,12 @@
 	mx-supply = <&dummy_reg>;
 };
 #endif
+
+&wifi1 {
+	qcom,board_id = <0x290>;
+	status = "ok";
+};
+
+&wifi2 {
+	status = "ok";
+};
