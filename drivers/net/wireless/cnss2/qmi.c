@@ -183,8 +183,10 @@ static int cnss_wlfw_ind_register_send_sync(struct cnss_plat_data *plat_priv)
 	req->qdss_trace_save_enable = 0;
 	req->qdss_trace_free_enable_valid = 1;
 	req->qdss_trace_free_enable = 1;
+#ifdef CONFIG_CNSS2_UCODE_DUMP
 	req->m3_dump_upload_req_enable_valid = 1;
 	req->m3_dump_upload_req_enable = 1;
+#endif /* CONFIG_CNSS2_UCODE_DUMP */
 
 	qmi_record(plat_priv->wlfw_service_instance_id,
 		   QMI_WLFW_IND_REGISTER_REQ_V01, ret, resp_error_msg);
@@ -1821,6 +1823,7 @@ out:
 	return ret;
 }
 
+#ifdef CONFIG_CNSS2_UCODE_DUMP
 int cnss_wlfw_m3_dump_upload_done_send_sync(struct cnss_plat_data *plat_priv,
 					    u32 pdev_id, int status)
 {
@@ -1889,6 +1892,7 @@ out:
 	kfree(resp);
 	return ret;
 }
+#endif /* CONFIG_CNSS2_UCODE_DUMP */
 
 unsigned int cnss_get_qmi_timeout(struct cnss_plat_data *plat_priv)
 {
@@ -2183,6 +2187,7 @@ static void cnss_wlfw_qdss_trace_free_ind_cb(struct qmi_handle *qmi_wlfw,
 			       0, NULL);
 }
 
+#ifdef CONFIG_CNSS2_UCODE_DUMP
 static void cnss_wlfw_m3_dump_upload_req_ind_cb(struct qmi_handle *qmi_wlfw,
 						struct sockaddr_qrtr *sq,
 						struct qmi_txn *txn,
@@ -2216,6 +2221,7 @@ static void cnss_wlfw_m3_dump_upload_req_ind_cb(struct qmi_handle *qmi_wlfw,
 	cnss_driver_event_post(plat_priv, CNSS_DRIVER_EVENT_M3_DUMP_UPLOAD_REQ,
 			       0, event_data);
 }
+#endif /* CONFIG_CNSS2_UCODE_DUMP */
 
 static struct qmi_msg_handler qmi_wlfw_msg_handlers[] = {
 	{
@@ -2285,6 +2291,7 @@ static struct qmi_msg_handler qmi_wlfw_msg_handlers[] = {
 			sizeof(struct wlfw_qdss_trace_free_ind_msg_v01),
 		.fn = cnss_wlfw_qdss_trace_free_ind_cb,
 	},
+#ifdef CONFIG_CNSS2_UCODE_DUMP
 	{
 		.type = QMI_INDICATION,
 		.msg_id = QMI_WLFW_M3_DUMP_UPLOAD_REQ_IND_V01,
@@ -2293,6 +2300,7 @@ static struct qmi_msg_handler qmi_wlfw_msg_handlers[] = {
 			sizeof(struct wlfw_m3_dump_upload_req_ind_msg_v01),
 		.fn = cnss_wlfw_m3_dump_upload_req_ind_cb,
 	},
+#endif /* CONFIG_CNSS2_UCODE_DUMP */
 	{}
 };
 

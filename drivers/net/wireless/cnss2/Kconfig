@@ -51,3 +51,9 @@ config CNSS2_GENL
 	depends on CNSS2
 	---help---
 	  This option is to enable cnss2 genl support
+
+config CNSS2_UCODE_DUMP
+	bool "CNSS2 FW ucode dump support"
+	depends on CNSS2
+	---help---
+	  This option is to enable cnss2 FW ucode dump collection support

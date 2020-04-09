@@ -2441,8 +2441,10 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 	u32 addr = 0;
 	struct device *dev;
 	int i, idx, mode;
+#ifdef CONFIG_CNSS2_UCODE_DUMP
 	struct device_node *dev_node = NULL;
 	struct resource m3_dump;
+#endif /* CONFIG_CNSS2_UCODE_DUMP */
 #ifdef CONFIG_CNSS2_SMMU
 	struct cnss_pci_data *pci_priv = plat_priv->bus_priv;
 #endif
@@ -2557,6 +2559,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 				fw_mem[idx].type = fw_mem[i].type;
 				idx++;
 				break;
+#ifdef CONFIG_CNSS2_UCODE_DUMP
 			case M3_DUMP_REGION_TYPE:
 				dev_node = of_find_node_by_name(NULL,
 								"m3_dump");
@@ -2588,6 +2591,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 						 fw_mem[idx].pa;
 				idx++;
 				break;
+#endif /* CONFIG_CNSS2_UCODE_DUMP */
 			default:
 				pr_err("Ignore mem req type %d\n",
 				       fw_mem[i].type);

@@ -106,6 +106,7 @@ struct cnss_driver_event {
 	void *data;
 };
 
+#ifdef CONFIG_CNSS2_UCODE_DUMP
 #define M3_DUMP_OPEN_TIMEOUT 5000
 #define M3_DUMP_COMPLETE_TIMEOUT 10000
 struct m3_dump {
@@ -126,6 +127,7 @@ static struct completion m3_dump_open_complete;
 static atomic_t m3_dump_open_timedout;
 static struct class *m3_dump_class;
 static bool m3_dump_file_open;
+#endif /* CONFIG_CNSS2_UCODE_DUMP */
 
 static void cnss_set_plat_priv(struct platform_device *plat_dev,
 			       struct cnss_plat_data *plat_priv)
@@ -2072,6 +2074,7 @@ static int cnss_qdss_trace_free_hdlr(struct cnss_plat_data *plat_priv)
 	return 0;
 }
 
+#ifdef CONFIG_CNSS2_UCODE_DUMP
 static void open_timeout_func(unsigned long data)
 {
 	atomic_set(&m3_dump_open_timedout, 1);
@@ -2280,6 +2283,7 @@ send_resp:
 
 	return ret;
 }
+#endif /* CONFIG_CNSS2_UCODE_DUMP */
 
 static void cnss_driver_event_work(struct work_struct *work)
 {
@@ -2375,10 +2379,12 @@ static void cnss_driver_event_work(struct work_struct *work)
 		case CNSS_DRIVER_EVENT_QDSS_TRACE_FREE:
 			ret = cnss_qdss_trace_free_hdlr(plat_priv);
 			break;
+#ifdef CONFIG_CNSS2_UCODE_DUMP
 		case CNSS_DRIVER_EVENT_M3_DUMP_UPLOAD_REQ:
 			ret = cnss_m3_dump_upload_req_hdlr(plat_priv,
 							   event->data);
 			break;
+#endif /* CONFIG_CNSS2_UCODE_DUMP */
 		default:
 			cnss_pr_err("Invalid driver event type: %d",
 				    event->type);
