@@ -616,4 +616,7 @@ void rproc_add_subdev(struct rproc *rproc, struct rproc_subdev *subdev);
 void rproc_remove_subdev(struct rproc *rproc, struct rproc_subdev *subdev);
 
 int rproc_start_subdevices(struct rproc *rproc);
+
+void rproc_stop_subdevices(struct rproc *rproc, bool crashed);
+
 #endif /* REMOTEPROC_H */

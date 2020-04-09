@@ -1075,7 +1075,7 @@ unroll_registration:
 }
 EXPORT_SYMBOL(rproc_start_subdevices);
 
-static void rproc_stop_subdevices(struct rproc *rproc, bool crashed)
+void rproc_stop_subdevices(struct rproc *rproc, bool crashed)
 {
 	struct rproc_subdev *subdev;
 
@@ -1084,6 +1084,7 @@ static void rproc_stop_subdevices(struct rproc *rproc, bool crashed)
 			subdev->stop(subdev, crashed);
 	}
 }
+EXPORT_SYMBOL(rproc_stop_subdevices);
 
 static void rproc_unprepare_subdevices(struct rproc *rproc)
 {
