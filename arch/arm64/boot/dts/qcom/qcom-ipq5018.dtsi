@@ -428,12 +428,33 @@
 			reg = <0xCD00000 0x4040>,
 				<0x4ab000 0x20>,
 				<0x4a1000 0x10>,
-				<0x1938000 0x8>;
+				<0x1938000 0x8>,
+				<0x193D204 0x4>;
 			reg-names = "qdsp6",
 				"rmb",
 				"mpm",
-				"tcsr-msip";
+				"tcsr-msip",
+				"tcsr-q6-boot-trig";
+			clocks = <&gcc GCC_Q6_AXIS_CLK>,
+					<&gcc GCC_WCSS_AHB_S_CLK>,
+					<&gcc GCC_WCSS_ECAHB_CLK>,
+					<&gcc GCC_WCSS_ACMT_CLK>,
+					<&gcc GCC_WCSS_AXI_M_CLK>,
+					<&gcc GCC_Q6_AXIM_CLK>,
+					<&gcc GCC_Q6_AXIM2_CLK>,
+					<&gcc GCC_Q6_AHB_CLK>,
+					<&gcc GCC_Q6_AHB_S_CLK>;
+			clock-names = "gcc_q6_axis_clk",
+					"gcc_wcss_ahb_s_clk",
+					"gcc_wcss_ecahb_clk",
+					"gcc_wcss_acmt_clk",
+					"gcc_wcss_axi_m_clk",
+					"gcc_q6_axim_clk",
+					"gcc_q6_axim2_clk",
+					"gcc_q6_ahb_clk",
+					"gcc_q6_ahb_s_clk";
 			qca,extended-intc;
+			qca,wcss-aon-reset-seq;
 			interrupts-extended = <&intc 0 291 1>,
 					<&wcss_smp2p_in 0 0>,
 					<&wcss_smp2p_in 1 0>,
