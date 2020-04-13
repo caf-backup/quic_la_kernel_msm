@@ -1,6 +1,6 @@
 /dts-v1/;
 /*
- * Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -120,12 +120,7 @@
 			bias-pull-up;
 		};
 		mux_2 {
-			pins = "gpio25";
-			function = "gpio";
-			bias-pull-up;
-		};
-		mux_3 {
-			pins = "gpio44";
+			pins = "gpio26";
 			function = "gpio";
 			bias-pull-up;
 		};
@@ -284,29 +279,6 @@
 			bias-pull-down;
 		};
 	};
-	uniphy_pins: uniphy_pinmux {
-		mux1 {
-			pins = "gpio27";
-			function = "gpio";
-			drive-strength = <16>;
-			output-high;
-			bias-pull-up;
-		};
-
-		mux2 {
-			pins = "gpio60";
-			function = "rx2";
-			bias-disable;
-		};
-
-		sfp_tx {
-			pins = "gpio59";
-			function = "gpio";
-			drive-strength = <8>;
-			bias-pull-down;
-			output-low;
-		};
-	};
 
 	button_pins: button_pins {
 		wps_button {
@@ -336,7 +308,7 @@
 	mdio: mdio@90000 {
 		pinctrl-0 = <&mdio_pins>;
 		pinctrl-names = "default";
-		phy-reset-gpio = <&tlmm 37 0>;
+		phy-reset-gpio = <&tlmm 37 0 &tlmm 26 1>;
 		phy0: ethernet-phy@0 {
 			reg = <0>;
 		};
@@ -350,23 +322,21 @@
 			reg = <3>;
 		};
 		phy4: ethernet-phy@4 {
-			reg = <7>;
-			compatible ="ethernet-phy-ieee802.3-c45";
+			reg = <0x1c>;
 		};
 		phy5: ethernet-phy@5 {
-			reg = <30>;
+			reg = <7>;
+			compatible ="ethernet-phy-ieee802.3-c45";
 		};
 	};
 
 	ess-switch@3a000000 {
-		pinctrl-0 = <&uniphy_pins>;
-		pinctrl-names = "default";
 		switch_cpu_bmp = <0x1>;  /* cpu port bitmap */
 		switch_lan_bmp = <0x3e>; /* lan port bitmap */
 		switch_wan_bmp = <0x40>; /* wan port bitmap */
 		switch_mac_mode = <0x0>; /* mac mode for uniphy instance0*/
-		switch_mac_mode1 = <0xd>; /* mac mode for uniphy instance1*/
-		switch_mac_mode2 = <0xe>; /* mac mode for uniphy instance2*/
+		switch_mac_mode1 = <0xf>; /* mac mode for uniphy instance1*/
+		switch_mac_mode2 = <0xd>; /* mac mode for uniphy instance2*/
 		bm_tick_mode = <0>; /* bm tick mode */
 		tm_tick_mode = <0>; /* tm tick mode */
 		cmnblk_clk = "external_50MHz"; /* cmnblk clock source */
@@ -389,14 +359,13 @@
 			};
 			port@4 {
 				port_id = <5>;
-				phy_address = <7>;
-				ethernet-phy-ieee802.3-c45;
+				phy_address = <0x1c>;
+				port_mac_sel = "QGMAC_PORT";
 			};
 			port@5 {
 				port_id = <6>;
-				phy_address = <30>;
-				phy_i2c_address = <30>;
-				phy-i2c-mode; /*i2c access phy */
+				phy_address = <7>;
+				ethernet-phy-ieee802.3-c45;
 			};
 		};
 		port_scheduler_resource {
@@ -720,11 +689,11 @@
 		device_type = "network";
 		compatible = "qcom,nss-dp";
 		qcom,id = <5>;
-		reg = <0x3a003000 0x3fff>;
-		qcom,mactype = <1>;
+		reg = <0x3a001800 0x200>;
+		qcom,mactype = <0>;
 		local-mac-address = [000000000000];
 		qcom,link-poll = <1>;
-		qcom,phy-mdio-addr = <7>;
+		qcom,phy-mdio-addr = <0x1c>;
 		phy-mode = "sgmii";
 	};
 
@@ -736,7 +705,7 @@
 		qcom,mactype = <1>;
 		local-mac-address = [000000000000];
 		qcom,link-poll = <1>;
-		qcom,phy-mdio-addr = <30>;
+		qcom,phy-mdio-addr = <7>;
 		phy-mode = "sgmii";
 	};
 
@@ -751,6 +720,14 @@
 			default-state = "off";
 		};
 	};
+
+	nss-macsec0 {
+		compatible = "qcom,nss-macsec";
+		phy_addr = <0x1c>;
+		phy_access_mode = <0>;
+		mdiobus = <&mdio>;
+	};
+
 	qcom,test@0 {
 		status = "ok";
 	};
