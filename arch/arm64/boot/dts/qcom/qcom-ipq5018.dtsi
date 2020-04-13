@@ -280,6 +280,48 @@
 			qcom,vxlan-enabled;
 			qcom,match-enabled;
 			qcom,mirror-enabled;
+			qcom,crypto-enabled;
+		};
+
+		nss_crypto: qcom,nss_crypto {
+			compatible = "qcom,nss-crypto";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			qcom,max-contexts = <64>;
+			qcom,max-context-size = <144>;
+			ranges;
+			ce5_node {
+				compatible = "qcom,ce5";
+				reg-names = "crypto_pbase", "bam_base";
+				reg = <0x0073a000 0x6000>,
+				    <0x00704000 0x20000>;
+				qcom,dma-mask = <0x0c>;
+				qcom,transform-enabled;
+				qcom,aes128-cbc;
+				qcom,aes256-cbc;
+				qcom,aes128-ctr;
+				qcom,aes256-ctr;
+				qcom,aes128-ecb;
+				qcom,aes256-ecb;
+				qcom,3des-cbc;
+				qcom,sha160-hash;
+				qcom,sha256-hash;
+				qcom,sha160-hmac;
+				qcom,sha256-hmac;
+				qcom,aes128-cbc-sha160-hmac;
+				qcom,aes256-cbc-sha160-hmac;
+				qcom,aes128-ctr-sha160-hmac;
+				qcom,aes256-ctr-sha160-hmac;
+				qcom,3des-cbc-sha160-hmac;
+				qcom,3des-cbc-sha256-hmac;
+				qcom,aes128-cbc-sha256-hmac;
+				qcom,aes256-cbc-sha256-hmac;
+				qcom,aes128-ctr-sha256-hmac;
+				qcom,aes256-ctr-sha256-hmac;
+				engine0 {
+					qcom,ee = <2 3>;
+				};
+			};
 		};
 
 		acc0:clock-controller@b188000 {
