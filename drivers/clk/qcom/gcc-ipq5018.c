@@ -4328,11 +4328,6 @@ static int gcc_ipq5018_probe(struct platform_device *pdev)
 			return PTR_ERR(clk);
 	}
 
-	/* Disable SW_COLLAPSE for USB0 GDSCR */
-	regmap_update_bits(regmap, 0x3e078, BIT(0), 0x0);
-	/* Enable SW_OVERRIDE for USB0 GDSCR */
-	regmap_update_bits(regmap, 0x3e078, BIT(2), BIT(2));
-
 	clk_alpha_pll_configure(&ubi32_pll_main, regmap, &ubi32_pll_config);
 
 	ret = qcom_cc_really_probe(pdev, &ipq5018_desc, regmap);
