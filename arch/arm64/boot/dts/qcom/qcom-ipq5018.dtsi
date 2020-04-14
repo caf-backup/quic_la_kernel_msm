@@ -974,6 +974,12 @@
 			next-level-cache = <&L2_0>;
 			clocks = <&apss_clk APCS_ALIAS0_CORE_CLK>;
 			clock-names = "cpu";
+			operating-points = <
+				/* kHz   uV (fixed) */
+				772000	1100000
+				983000	1100000
+			>;
+			clock-latency = <200000>;
 		};
 
 		CPU1: cpu@1 {
@@ -985,6 +991,12 @@
 			next-level-cache = <&L2_0>;
 			clocks = <&apss_clk APCS_ALIAS0_CORE_CLK>;
 			clock-names = "cpu";
+			operating-points = <
+				/* kHz   uV (fixed) */
+				772000	1100000
+				983000	1100000
+			>;
+			clock-latency = <200000>;
 		};
 
 		L2_0: l2-cache {
