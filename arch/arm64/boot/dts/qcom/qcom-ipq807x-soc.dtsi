@@ -20,7 +20,6 @@
 #include <dt-bindings/clock/qca,apss-ipq807x.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
-#include "qcom-ipq807x-mhi.dtsi"
 #include "qcom-ipq807x-memory.dtsi"
 
 / {
@@ -2072,6 +2071,9 @@
 			etr-addr = <0x53F00000>;
 			caldb-addr = <0x54000000>;
 #endif
+			qcom,wlan-ramdump-dynamic = <0x400000>;
+			mhi,max-channels = <30>;
+			mhi,timeout = <10000>;
 			caldb-size = <0x800000>;
 			qrtr_node_id = <0x20>;
 			qca,auto-restart;
@@ -2088,6 +2090,9 @@
 			etr-addr = <0x57600000>;
 			caldb-addr = <0x57700000>;
 #endif
+			qcom,wlan-ramdump-dynamic = <0x400000>;
+			mhi,max-channels = <30>;
+			mhi,timeout = <10000>;
 			caldb-size = <0x800000>;
 			qrtr_node_id = <0x21>;
 			qca,auto-restart;
