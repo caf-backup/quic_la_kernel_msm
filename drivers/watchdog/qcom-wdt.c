@@ -196,16 +196,6 @@ static int qcom_wdt_scm_add_tlv(struct qcom_wdt_scm_tlv_msg *scm_tlv_msg,
 	return 0;
 }
 
-int remove_minidump_segments(uint64_t virt_addr)
-{
-
- int ret = 0;
- ret = minidump_remove_segments((const uint64_t)virt_addr);
- return ret;
-
-}
-EXPORT_SYMBOL(remove_minidump_segments);
-
 /*
 * Function: minidump_remove_segments
 * Description: Traverse metadata list and search for the TLV
@@ -526,14 +516,6 @@ int minidump_fill_tlv_crashdump_buffer(const uint64_t start_addr, uint64_t size,
 	return 0;
 }
 
-int fill_minidump_segments(uint64_t start_addr, uint64_t size, unsigned char type,char *name)
-{
-	int ret = 0;
-	ret = minidump_fill_segments((const uint64_t)start_addr,size,type, (const char *)name);
-	return ret;
-
-}
-EXPORT_SYMBOL(fill_minidump_segments);
 /*
 * Function: minidump_fill_segments
 *
