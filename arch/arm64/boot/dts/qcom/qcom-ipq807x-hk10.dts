@@ -883,6 +883,20 @@
 	mhi_0: qcom,mhi@0 {
 		reg = <0 0 0 0 0 >;
 		qrtr_instance_id = <0x20>;
+		#address-cells = <0x2>;
+		#size-cells = <0x2>;
+
+#if !defined(__CNSS2__)
+		base-addr = <0x51100000>;
+		qcom,caldb-addr = <0x54000000>;
+		qrtr_node_id = <0x20>;
+		mhi,max-channels = <30>;
+		mhi,timeout = <10000>;
+
+		qcom_mhi0: qcom_mhi0 {
+			status = "ok";
+		};
+#endif
 	};
 };
 
@@ -892,6 +906,20 @@
 	mhi_1: qcom,mhi@1 {
 		reg = <0 0 0 0 0 >;
 		qrtr_instance_id = <0x21>;
+		#address-cells = <0x2>;
+		#size-cells = <0x2>;
+
+#if !defined(__CNSS2__)
+		base-addr = <0x54800000>;
+		qcom,caldb-addr = <0x57700000>;
+		qrtr_node_id = <0x21>;
+		mhi,max-channels = <30>;
+		mhi,timeout = <10000>;
+
+		qcom_mhi1: qcom_mhi1 {
+			status = "ok";
+		};
+#endif
 	};
 };
 
@@ -904,7 +932,19 @@
 };
 &wifi2 {
 	status = "ok";
+#if defined(__CNSS2__)
+	qcom_mhi0: qcom_mhi0 {
+		status = "ok";
+	};
+#endif
 };
 &wifi3 {
 	status = "ok";
+#if defined(__CNSS2__)
+	qcom_mhi1: qcom_mhi1 {
+		status = "ok";
+	};
+#endif
 };
+
+#include "qcom-ipq807x-mhi.dtsi"
