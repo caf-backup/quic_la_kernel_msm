@@ -87,6 +87,19 @@
 		wifi0: wifi@c000000 {
 			status = "disabled";
 		};
+
+		qcom,test@0 {
+			status = "ok";
+		};
+
+		pcie1_rp {
+		        status = "ok";
+
+			mhi_1: qcom,mhi@1 {
+				reg = <0 0 0 0 0 >;
+				qrtr_instance_id = <0x8002>;
+			};
+		};
 	};
 };
 
