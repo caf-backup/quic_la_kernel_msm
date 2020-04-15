@@ -344,6 +344,7 @@ struct tmc_drvdata {
 	struct coresight_cti	*cti_reset;
 	char			*reg_buf;
 	bool			force_reg_dump;
+	bool			is_emulation;
 	bool			dump_reg;
 	void __iomem		*q6_etr_vaddr;
 	dma_addr_t		q6_etr_paddr;

@@ -636,7 +636,11 @@ static int tmc_etr_bam_enable(struct tmc_drvdata *drvdata)
 
 	bamdata->connect.mode = SPS_MODE_SRC;
 	bamdata->connect.source = bamdata->handle;
-	bamdata->connect.event_thresh = 0x4;
+	if (drvdata->is_emulation)
+		bamdata->connect.event_thresh = 0x800;
+	else
+		bamdata->connect.event_thresh = 0x4;
+
 	bamdata->connect.src_pipe_index = TMC_ETR_BAM_PIPE_INDEX;
 	bamdata->connect.options = SPS_O_AUTO_ENABLE;
 
@@ -2042,6 +2046,8 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 	drvdata->force_reg_dump = of_property_read_bool(np,
 							"qcom,force-reg-dump");
 
+	drvdata->is_emulation = of_property_read_bool(np,
+							"is_emulation");
 	devid = readl_relaxed(drvdata->base + CORESIGHT_DEVID);
 	drvdata->config_type = BMVAL(devid, 6, 7);
 
