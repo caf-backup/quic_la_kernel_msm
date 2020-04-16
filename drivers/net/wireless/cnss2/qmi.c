@@ -2419,6 +2419,8 @@ static struct qmi_ops qmi_wlfw_ops = {
 	.del_server = wlfw_del_server,
 };
 
+struct qmi_handle *whandle;
+
 int cnss_qmi_init(struct cnss_plat_data *plat_priv)
 {
 	int ret = 0;
@@ -2457,6 +2459,8 @@ int cnss_qmi_init(struct cnss_plat_data *plat_priv)
 		cnss_pr_err("Failed to add QMI lookup, err: %d\n", ret);
 		return ret;
 	}
+
+	whandle = &plat_priv->qmi_wlfw;
 
 out:
 	return ret;
