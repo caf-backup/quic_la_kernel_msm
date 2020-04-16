@@ -80,10 +80,6 @@
 			};
 		};
 
-		pcie0: pci@80000000 {
-			status = "ok";
-		};
-
 		pcie1: pci@a0000000 {
 			status = "ok";
 		};
