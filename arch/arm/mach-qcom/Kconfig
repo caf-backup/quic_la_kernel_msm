@@ -59,6 +59,16 @@ config ARCH_IPQ6018
 	  This enables support for the IPQ6018 chipset. If you dont
 	  know what do here, say N
 
+config ARCH_IPQ5018
+	bool "Enable Support for IPQ5018"
+	select PINCTRL_IPQ5018
+	select COMMON_CLK_QCOM
+	select IPQ_APSS_5018
+	select IPQ_GCC_5018
+	help
+	  This enables support for the IPQ5018 chipset. If you dont
+	  know what do here, say N
+
 config IPQ_MEM_PROFILE
 	int "Select Memory Profile"
 	range 0 1024
