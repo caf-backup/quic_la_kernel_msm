@@ -188,6 +188,10 @@
 	status = "ok";
 };
 
+&eud {
+	status = "ok";
+};
+
 &pcie0 {
 	status = "ok";
 	perst-gpio = <&tlmm 15 1>;
