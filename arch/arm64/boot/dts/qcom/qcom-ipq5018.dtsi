@@ -1113,3 +1113,4 @@
 };
 
 #include "qcom-ipq5018-coresight.dtsi"
+#include "qcom-ipq5018-thermal.dtsi"
