@@ -157,6 +157,9 @@ static DEFINE_SPINLOCK(pci_reg_window_lock);
 
 #define QCN9000_TIME_SYNC_ENABLE		0x80000000
 #define QCN9000_TIME_SYNC_CLEAR			0x0
+#define MAX_RAMDUMP_TRANSFER_WAIT_CNT		50 /* x 20msec */
+#define MAX_SOC_GLOBAL_RESET_WAIT_CNT		50 /* x 20msec */
+#define BHI_ERRDBG1 (0x34)
 
 static struct cnss_pci_reg ce_src[] = {
 	{ "SRC_RING_BASE_LSB", QCA6390_CE_SRC_RING_BASE_LSB_OFFSET },
@@ -3349,11 +3352,43 @@ out:
 
 void cnss_pci_global_reset(struct cnss_pci_data *pci_priv)
 {
-	writel_relaxed(QCN9000_PCIE_SOC_GLOBAL_RESET_VALUE,
-		       QCN9000_PCIE_SOC_GLOBAL_RESET_ADDRESS +
-		       pci_priv->bar);
-}
+	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
+	int resetcount = 0, tx_count = 0;
+	int current_ee;
+	u32 errdbg1 = 0;
 
+	current_ee = mhi_get_exec_env(pci_priv->mhi_ctrl);
+
+	/* Wait for the Ramdump transfer to complete */
+	if (current_ee == MHI_EE_RDDM) {
+		errdbg1 = readl_relaxed(pci_priv->mhi_ctrl->bhi + BHI_ERRDBG1);
+		while (errdbg1 != MHI_RAMDUMP_DUMP_COMPLETE &&
+		       tx_count < MAX_RAMDUMP_TRANSFER_WAIT_CNT) {
+			msleep(20);
+			errdbg1 = readl_relaxed(pci_priv->mhi_ctrl->bhi +
+						BHI_ERRDBG1);
+			tx_count++;
+		}
+	}
+
+	if (tx_count > 25)
+		cnss_pr_warn("Dump time exceeds %d mseconds\n", tx_count * 20);
+
+	/* Reset the Target */
+	do {
+		writel_relaxed(QCN9000_PCIE_SOC_GLOBAL_RESET_VALUE,
+			       QCN9000_PCIE_SOC_GLOBAL_RESET_ADDRESS +
+			       pci_priv->bar);
+		resetcount++;
+		msleep(20);
+		current_ee = mhi_get_exec_env(pci_priv->mhi_ctrl);
+	} while (current_ee != MHI_EE_PBL &&
+		 resetcount < MAX_SOC_GLOBAL_RESET_WAIT_CNT);
+
+	if (resetcount > 10)
+		cnss_pr_warn("SOC_GLOBAL_RESET at rst cnt %d tx_cnt %d\n",
+			     resetcount, tx_count);
+}
 static void cnss_pci_disable_bus(struct cnss_pci_data *pci_priv)
 {
 	struct pci_dev *pci_dev = pci_priv->pci_dev;
@@ -3361,7 +3396,6 @@ static void cnss_pci_disable_bus(struct cnss_pci_data *pci_priv)
 	/* Call global reset here */
 	cnss_pci_global_reset(pci_priv);
 
-	msleep(2000);
 
 	mhi_set_mhi_state(pci_priv->mhi_ctrl, MHI_STATE_RESET);
 
