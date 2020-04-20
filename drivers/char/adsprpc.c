@@ -2699,6 +2699,11 @@ bail:
 	return err;
 }
 
+/*
+ *	fastrpc_internal_munmap_fd can only be used for buffers
+ *	mapped with persist attributes. This can only be called
+ *	once for any persist buffer
+ */
 static int fastrpc_internal_munmap_fd(struct fastrpc_file *fl,
 					struct fastrpc_ioctl_munmap_fd *ud) {
 	int err = 0;
@@ -2716,8 +2721,10 @@ static int fastrpc_internal_munmap_fd(struct fastrpc_file *fl,
 		mutex_unlock(&fl->fl_map_mutex);
 		goto bail;
 	}
-	if (map)
+	if (map && (map->attr & FASTRPC_ATTR_KEEP_MAP)) {
+		map->attr = map->attr & (~FASTRPC_ATTR_KEEP_MAP);
 		fastrpc_mmap_free(map, 0);
+	}
 	mutex_unlock(&fl->fl_map_mutex);
 bail:
 	return err;
