@@ -813,11 +813,15 @@
 
 &wifi2 {
 	status = "ok";
+	board_id = <0xa2>;
 #if defined(__CNSS2__)
 	qcom_mhi0: qcom_mhi0 {
 		status = "ok";
 	};
 #endif
+};
+&wifi3 {
+	status = "disabled";
 };
 
 &pcie1_rp {
