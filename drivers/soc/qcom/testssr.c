@@ -140,6 +140,12 @@ static void *test_subsystem_get(const char *subsys_name)
 	if (IS_ERR_OR_NULL(subsys_handle)) {
 		pr_emerg("Subsystem get failed\n");
 
+		subsys_handle = subsys_notif_add_subsys(subsys_name);
+		if (IS_ERR_OR_NULL(subsys_handle)) {
+			pr_err("Subsystem not found\n");
+			return subsys_handle;
+		}
+
 		ret = subsys_notif_unregister_notifier(subsys_handle, &nb);
 		if (ret < 0)
 			pr_emerg("Can't unregister subsys notifier\n");
