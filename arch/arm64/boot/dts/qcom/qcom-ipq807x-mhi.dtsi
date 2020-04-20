@@ -15,8 +15,6 @@
  */
 
 &qcom_mhi0 {
-
-	status = "ok";
 	#address-cells = <1>;
 	#size-cells = <0>;
 
@@ -129,9 +127,6 @@
 };
 
 &qcom_mhi1 {
-
-	status = "ok";
-
 	#address-cells = <1>;
 	#size-cells = <0>;
 
