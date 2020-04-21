@@ -800,6 +800,7 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv,
 
 		if (plat_priv->device_id == QCA8074_DEVICE_ID ||
 		    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
+		    plat_priv->device_id == QCA5018_DEVICE_ID ||
 		    plat_priv->device_id == QCA6018_DEVICE_ID) {
 			temp = filename;
 			remaining = MAX_BDF_FILE_NAME;
