@@ -694,7 +694,8 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv,
 	const struct firmware *fw_entry = NULL;
 	const u8 *temp;
 	char *folder;
-	unsigned int remaining;
+	struct device *dev;
+	unsigned int remaining, id = 0;
 	struct wlfw_bdf_download_req_msg_v01 *req;
 	struct wlfw_bdf_download_resp_msg_v01 *resp;
 	int ret = 0;
@@ -752,6 +753,15 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv,
 		remaining = MAX_BDF_FILE_NAME;
 		goto bypass_bdf;
 	case CNSS_BDF_WIN:
+		if (plat_priv->device_id == QCN9000_DEVICE_ID &&
+		    !plat_priv->board_info.board_id_override) {
+			dev = &plat_priv->plat_dev->dev;
+			if (!of_property_read_u32(dev->of_node, "board_id",
+						  &id)) {
+				plat_priv->board_info.board_id_override = id;
+			}
+		}
+
 		if (plat_priv->device_id == QCN9000_DEVICE_ID &&
 		    plat_priv->board_info.board_id_override)
 			snprintf(filename, sizeof(filename),
@@ -820,8 +830,8 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv,
 	temp = fw_entry->data;
 	remaining = fw_entry->size;
 
-bypass_bdf:
 	cnss_pr_info("Downloading BDF: %s, size: %u\n", filename, remaining);
+bypass_bdf:
 
 	qmi_record(plat_priv->wlfw_service_instance_id,
 		   QMI_WLFW_BDF_DOWNLOAD_REQ_V01, ret, resp_error_msg);
