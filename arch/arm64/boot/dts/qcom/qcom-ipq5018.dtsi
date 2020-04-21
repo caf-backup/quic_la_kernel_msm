@@ -820,8 +820,34 @@
 				  0x82000000 0 0x80300000 0x80300000
 				  0 0x10000000>; /* non-prefetchable memory */
 
-			interrupts = <GIC_SPI 111 IRQ_TYPE_NONE>;
-			interrupt-names = "msi";
+			interrupts = <GIC_SPI 111 IRQ_TYPE_NONE>,
+				<0 416 IRQ_TYPE_NONE>, <0 417 IRQ_TYPE_NONE>,
+				<0 418 IRQ_TYPE_NONE>, <0 419 IRQ_TYPE_NONE>,
+				<0 420 IRQ_TYPE_NONE>, <0 421 IRQ_TYPE_NONE>,
+				<0 422 IRQ_TYPE_NONE>, <0 423 IRQ_TYPE_NONE>,
+				<0 424 IRQ_TYPE_NONE>, <0 425 IRQ_TYPE_NONE>,
+				<0 426 IRQ_TYPE_NONE>, <0 427 IRQ_TYPE_NONE>,
+				<0 428 IRQ_TYPE_NONE>, <0 429 IRQ_TYPE_NONE>,
+				<0 430 IRQ_TYPE_NONE>, <0 431 IRQ_TYPE_NONE>,
+				<0 432 IRQ_TYPE_NONE>, <0 433 IRQ_TYPE_NONE>,
+				<0 434 IRQ_TYPE_NONE>, <0 435 IRQ_TYPE_NONE>,
+				<0 436 IRQ_TYPE_NONE>, <0 437 IRQ_TYPE_NONE>,
+				<0 438 IRQ_TYPE_NONE>, <0 439 IRQ_TYPE_NONE>,
+				<0 440 IRQ_TYPE_NONE>, <0 441 IRQ_TYPE_NONE>,
+				<0 442 IRQ_TYPE_NONE>, <0 443 IRQ_TYPE_NONE>,
+				<0 444 IRQ_TYPE_NONE>, <0 445 IRQ_TYPE_NONE>,
+				<0 446 IRQ_TYPE_NONE>, <0 447 IRQ_TYPE_NONE>;
+			interrupt-names = "msi", "msi_0", "msi_1",
+					"msi_2", "msi_3", "msi_4",
+					"msi_5", "msi_6", "msi_7",
+					"msi_8", "msi_9", "msi_10",
+					"msi_11", "msi_12", "msi_13",
+					"msi_14", "msi_15", "msi_16",
+					"msi_17", "msi_18", "msi_19",
+					"msi_20", "msi_21", "msi_22",
+					"msi_23", "msi_24", "msi_25",
+					"msi_26", "msi_27", "msi_28",
+					"msi_29", "msi_30", "msi_31";
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 0x7>;
 			interrupt-map = <0 0 0 1 &intc 0 142
@@ -866,6 +892,10 @@
 				      "axi_s_sticky";
 
 			perst-gpio = <&tlmm 27 1>;
+
+			qcom,msi-gicm-addr = <0x0B00A040>;
+			qcom,msi-gicm-base = <0x1c0>;
+
 			status = "disabled";
 
 			pcie0_rp: pcie0_rp {
@@ -895,8 +925,34 @@
 				  0x82000000 0 0xa0300000 0xa0300000
 				  0 0x10000000>; /* non-prefetchable memory */
 
-			interrupts = <GIC_SPI 52 IRQ_TYPE_NONE>;
-			interrupt-names = "msi";
+			interrupts = <GIC_SPI 52 IRQ_TYPE_NONE>,
+				<0 448 IRQ_TYPE_NONE>, <0 449 IRQ_TYPE_NONE>,
+				<0 450 IRQ_TYPE_NONE>, <0 451 IRQ_TYPE_NONE>,
+				<0 452 IRQ_TYPE_NONE>, <0 453 IRQ_TYPE_NONE>,
+				<0 454 IRQ_TYPE_NONE>, <0 455 IRQ_TYPE_NONE>,
+				<0 456 IRQ_TYPE_NONE>, <0 457 IRQ_TYPE_NONE>,
+				<0 458 IRQ_TYPE_NONE>, <0 459 IRQ_TYPE_NONE>,
+				<0 460 IRQ_TYPE_NONE>, <0 461 IRQ_TYPE_NONE>,
+				<0 462 IRQ_TYPE_NONE>, <0 463 IRQ_TYPE_NONE>,
+				<0 464 IRQ_TYPE_NONE>, <0 465 IRQ_TYPE_NONE>,
+				<0 466 IRQ_TYPE_NONE>, <0 467 IRQ_TYPE_NONE>,
+				<0 468 IRQ_TYPE_NONE>, <0 469 IRQ_TYPE_NONE>,
+				<0 470 IRQ_TYPE_NONE>, <0 471 IRQ_TYPE_NONE>,
+				<0 472 IRQ_TYPE_NONE>, <0 473 IRQ_TYPE_NONE>,
+				<0 474 IRQ_TYPE_NONE>, <0 475 IRQ_TYPE_NONE>,
+				<0 476 IRQ_TYPE_NONE>, <0 477 IRQ_TYPE_NONE>,
+				<0 478 IRQ_TYPE_NONE>, <0 479 IRQ_TYPE_NONE>;
+			interrupt-names = "msi", "msi_0", "msi_1",
+					"msi_2", "msi_3", "msi_4",
+					"msi_5", "msi_6", "msi_7",
+					"msi_8", "msi_9", "msi_10",
+					"msi_11", "msi_12", "msi_13",
+					"msi_14", "msi_15", "msi_16",
+					"msi_17", "msi_18", "msi_19",
+					"msi_20", "msi_21", "msi_22",
+					"msi_23", "msi_24", "msi_25",
+					"msi_26", "msi_27", "msi_28",
+					"msi_29", "msi_30", "msi_31";
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 0x7>;
 			interrupt-map = <0 0 0 1 &intc 0 75
@@ -941,7 +997,15 @@
 				      "axi_s_sticky";
 
 			perst-gpio = <&tlmm 28 1>;
+
+			qcom,msi-gicm-addr = <0x0B00A040>;
+			qcom,msi-gicm-base = <0x1d0>;
+
 			status = "disabled";
+
+			pcie1_rp: pcie1_rp {
+				reg = <0 0 0 0 0>;
+			};
 		};
 
 		qcom,test@0 {
