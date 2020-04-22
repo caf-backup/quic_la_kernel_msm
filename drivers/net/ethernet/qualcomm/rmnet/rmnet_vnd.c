@@ -1,14 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2013-2020, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  *
  * RMNET Data virtual network driver
  *
@@ -23,8 +14,12 @@
 #include "rmnet_private.h"
 #include "rmnet_map.h"
 #include "rmnet_vnd.h"
+#include "rmnet_trace.h"
 
 #include <linux/rmnet_nss.h>
+
+#include <soc/qcom/qmi_rmnet.h>
+#include <soc/qcom/rmnet_qmi.h>
 
 /* RX/TX Fixup */
 
@@ -60,10 +55,20 @@ static netdev_tx_t rmnet_vnd_start_xmit(struct sk_buff *skb,
 					struct net_device *dev)
 {
 	struct rmnet_priv *priv;
+	int ip_type;
+	u32 mark;
+	unsigned int len;
 
 	priv = netdev_priv(dev);
 	if (priv->real_dev) {
+		ip_type = (ip_hdr(skb)->version == 4) ?
+					AF_INET : AF_INET6;
+		mark = skb->mark;
+		len = skb->len;
+		trace_rmnet_xmit_skb(skb);
 		rmnet_egress_handler(skb);
+		qmi_rmnet_burst_fc_check(dev, ip_type, mark, len);
+		qmi_rmnet_work_maybe_restart(rmnet_get_rmnet_port(dev));
 	} else {
 		this_cpu_inc(priv->pcpu_stats->stats.tx_drops);
 		kfree_skb(skb);
@@ -108,13 +113,18 @@ static int rmnet_vnd_init(struct net_device *dev)
 static void rmnet_vnd_uninit(struct net_device *dev)
 {
 	struct rmnet_priv *priv = netdev_priv(dev);
+	void *qos;
 
 	gro_cells_destroy(&priv->gro_cells);
 	free_percpu(priv->pcpu_stats);
+
+	qos = priv->qos_info;
+	RCU_INIT_POINTER(priv->qos_info, NULL);
+	qmi_rmnet_qos_exit_pre(qos);
 }
 
-static void rmnet_get_stats64(struct net_device *dev,
-			      struct rtnl_link_stats64 *s)
+static struct rtnl_link_stats64 *rmnet_get_stats64(struct net_device *dev,
+						   struct rtnl_link_stats64 *s)
 {
 	struct rmnet_priv *priv = netdev_priv(dev);
 	struct rmnet_vnd_stats total_stats;
@@ -142,6 +152,22 @@ static void rmnet_get_stats64(struct net_device *dev,
 	s->tx_packets = total_stats.tx_pkts;
 	s->tx_bytes = total_stats.tx_bytes;
 	s->tx_dropped = total_stats.tx_drops;
+
+	return s;
+}
+
+static u16 rmnet_vnd_select_queue(struct net_device *dev,
+				  struct sk_buff *skb,
+				  void *accel_priv,
+				  select_queue_fallback_t fallback)
+{
+	struct rmnet_priv *priv = netdev_priv(dev);
+	int txq = 0;
+
+	if (priv->real_dev)
+		txq = qmi_rmnet_get_queue(dev, skb);
+
+	return (txq < dev->real_num_tx_queues) ? txq : 0;
 }
 
 static const struct net_device_ops rmnet_vnd_ops = {
@@ -153,6 +179,7 @@ static const struct net_device_ops rmnet_vnd_ops = {
 	.ndo_init       = rmnet_vnd_init,
 	.ndo_uninit     = rmnet_vnd_uninit,
 	.ndo_get_stats64 = rmnet_get_stats64,
+	.ndo_select_queue = rmnet_vnd_select_queue,
 };
 
 static const char rmnet_gstrings_stats[][ETH_GSTRING_LEN] = {
@@ -187,6 +214,11 @@ static const char rmnet_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"Coalescing packets over VEID1",
 	"Coalescing packets over VEID2",
 	"Coalescing packets over VEID3",
+	"Coalescing TCP frames",
+	"Coalescing TCP bytes",
+	"Coalescing UDP frames",
+	"Coalescing UDP bytes",
+	"Uplink priority packets",
 };
 
 static const char rmnet_port_gstrings_stats[][ETH_GSTRING_LEN] = {
@@ -202,6 +234,8 @@ static const char rmnet_port_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"DL header total pkts received",
 	"DL trailer last seen sequence",
 	"DL trailer pkts received",
+	"UL agg reuse",
+	"UL agg alloc",
 };
 
 static void rmnet_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
@@ -252,6 +286,7 @@ static int rmnet_stats_reset(struct net_device *dev)
 {
 	struct rmnet_priv *priv = netdev_priv(dev);
 	struct rmnet_port_priv_stats *stp;
+	struct rmnet_priv_stats *st;
 	struct rmnet_port *port;
 
 	port = rmnet_get_port(priv->real_dev);
@@ -261,6 +296,11 @@ static int rmnet_stats_reset(struct net_device *dev)
 	stp = &port->stats;
 
 	memset(stp, 0, sizeof(*stp));
+
+	st = &priv->stats;
+
+	memset(st, 0, sizeof(*st));
+
 	return 0;
 }
 
@@ -323,6 +363,7 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 		rmnet_dev->rtnl_link_ops = &rmnet_link_ops;
 
 		priv->mux_id = id;
+		priv->qos_info = qmi_rmnet_qos_init(real_dev, id);
 
 		netdev_dbg(rmnet_dev, "rmnet dev created\n");
 	}
@@ -333,8 +374,6 @@ int rmnet_vnd_newlink(u8 id, struct net_device *rmnet_dev,
 int rmnet_vnd_dellink(u8 id, struct rmnet_port *port,
 		      struct rmnet_endpoint *ep)
 {
-	struct rmnet_nss_cb *nss_cb;
-
 	if (id >= RMNET_MAX_LOGICAL_EP || !ep->egress_dev)
 		return -EINVAL;
 
