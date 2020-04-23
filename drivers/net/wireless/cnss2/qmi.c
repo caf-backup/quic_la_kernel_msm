@@ -584,7 +584,18 @@ static int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 	struct device *dev;
 
 	dev = &plat_priv->plat_dev->dev;
-	folder = (plat_priv->device_id == 0xFFFD) ? "IPQ6018/" : "IPQ8074/";
+
+	switch (plat_priv->device_id) {
+	case QCA6018_DEVICE_ID:
+		folder = "IPQ6018/";
+		break;
+	case QCA5018_DEVICE_ID:
+		folder = "IPQ5018/";
+		break;
+	default:
+		folder = "IPQ8074/";
+		break;
+	}
 
 	switch (bdf_type) {
 	case BDF_TYPE_GOLDEN:
