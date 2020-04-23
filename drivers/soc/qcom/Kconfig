@@ -79,16 +79,25 @@ config QCOM_DCC
 	  captured data from DCC's internal SRAM.
 
 config QTI_EUD
-       tristate "QTI Embedded USB Debugger (EUD)"
-       depends on ARCH_QCOM
-       help
-         The Embedded USB Debugger (EUD) driver is a driver for the
-         control peripheral which waits on events like USB attach/detach
-         and charger enable/disable. The control peripheral further helps
-         support the USB-based debug and trace capabilities.
-         This module enables support for Qualcomm Technologies, Inc.
-         Embedded USB Debugger (EUD).
-         If unsure, say N.
+	tristate "QTI Embedded USB Debugger (EUD)"
+	depends on ARCH_QCOM
+	help
+	  The Embedded USB Debugger (EUD) driver is a driver for the
+	  control peripheral which waits on events like USB attach/detach
+	  and charger enable/disable. The control peripheral further helps
+	  support the USB-based debug and trace capabilities.
+	  This module enables support for Qualcomm Technologies, Inc.
+	  Embedded USB Debugger (EUD).
+	  If unsure, say N.
+
+config EUD_EXTCON_SUPPORT
+	bool "QTI EUD driver supports extcon devices"
+	depends on QTI_EUD
+	default n
+	help
+	  An extcon device can be registered with EUD for charging the
+	  device's battery through USB.
+	  Say y here, if battery power is supported.
 
 config MSM_GLINK
 	bool "Generic Link (G-Link)"
