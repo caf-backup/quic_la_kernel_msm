@@ -889,8 +889,6 @@
 				      "axi_m_sticky",
 				      "axi_s_sticky";
 
-			perst-gpio = <&tlmm 27 1>;
-
 			qcom,msi-gicm-addr = <0x0B00A040>;
 			qcom,msi-gicm-base = <0x1c0>;
 
@@ -993,8 +991,6 @@
 				      "ahb",
 				      "axi_m_sticky",
 				      "axi_s_sticky";
-
-			perst-gpio = <&tlmm 28 1>;
 
 			qcom,msi-gicm-addr = <0x0B00A040>;
 			qcom,msi-gicm-base = <0x1d0>;
