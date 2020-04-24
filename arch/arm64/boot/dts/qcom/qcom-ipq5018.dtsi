@@ -1019,7 +1019,7 @@
 
 		bt: bt@7000000 {
 			compatible = "qcom,bt";
-			firmware = "IPQ5018/bt_fw.mdt";
+			firmware = "IPQ5018/bt_fw_patch.mdt";
 
 			reg = <0x01943008 0x8>;
 			reg-names = "bt_warm_rst";
