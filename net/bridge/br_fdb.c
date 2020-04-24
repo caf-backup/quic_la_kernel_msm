@@ -1084,6 +1084,19 @@ static int __br_fdb_delete(struct net_bridge_port *p,
 	return err;
 }
 
+int br_fdb_delete_by_netdev(struct net_device *dev,
+			    const unsigned char *addr, u16 vid)
+{
+	int err;
+
+	rtnl_lock();
+	err = br_fdb_delete(NULL, NULL, dev, addr, vid);
+	rtnl_unlock();
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(br_fdb_delete_by_netdev);
+
 /* Remove neighbor entry with RTM_DELNEIGH */
 int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 		  struct net_device *dev,
