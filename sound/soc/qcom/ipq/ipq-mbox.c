@@ -685,8 +685,10 @@ static void irq_proc_status(struct ipq_mbox_rt_dir_priv *priv, int irq,
 		if (cb && priv->callback)
 			priv->callback(irq, priv->dai_priv);
 
-		if (stats)
+		if (stats) {
+			ipq_mbox_dma_start(priv->channel_id);
 			priv->err_stats++;
+		}
 	}
 }
 
