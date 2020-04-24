@@ -369,6 +369,24 @@ enum {
 #define QPIC_FLASH_XFR_STEP5_VAL	0xC000C000
 #define QPIC_FLASH_XFR_STEP6_VAL	0xC000C000
 #define QPIC_FLASH_XFR_STEP7_VAL	0xC000C000
+#if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
+/* SPI nand flash Table */
+struct nand_flash_dev qspinand_flash_ids[] = {
+	{"GD5F1GQ4RE9IG SPI NAND 1G 1.8V",
+		{ .id = {0xc8, 0xc1} },
+		SZ_2K, SZ_128, SZ_128K, 0, 2, 128, NAND_ECC_INFO(8, SZ_512), 0},
+	{"GD5F1GQ4RE9IH SPI NAND 1G 1.8V",
+		{ .id = {0xc8, 0xc9} },
+		SZ_2K, SZ_128, SZ_128K, 0, 2, 64, NAND_ECC_INFO(4, SZ_512), 0},
+	{"GD5F2GQ5REYIH SPI NAND 2G",
+		{ .id = {0xc8, 0x22} },
+		SZ_2K, SZ_256, SZ_128K, 0, 2, 64, NAND_ECC_INFO(4, SZ_512), 0},
+	{"MT29F1G01ABBFDWB-IT SPI NAND 1G 1.8V",
+		{ .id = {0x2c, 0x15} },
+		SZ_2K, SZ_128, SZ_128K, 0, 2, 128, NAND_ECC_INFO(8, SZ_512), 0},
+	{NULL}
+};
+#endif
 /*
  * This data type corresponds to the BAM transaction which will be used for any
  * nand request.
@@ -1602,6 +1620,12 @@ static int read_id(struct qcom_nand_host *host, int column)
 #if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 	cmd = (FETCH_ID | QPIC_SPI_TRANSFER_MODE_x1 |
 			QPIC_SPI_WP | QPIC_SPI_HOLD);
+	/* For spi nand read 2-bytes id only
+	 * else if nandc->buf_count == 4; then the id value
+	 * will repeat and the SLC device will detect as MLC.
+	 * so set the nandc->buf_count == 2;
+	 */
+	nandc->buf_count = 2;
 #endif
 	clear_bam_transaction(nandc);
 
@@ -4038,8 +4062,11 @@ static int qcom_nand_host_init(struct qcom_nand_controller *nandc,
 
 #if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 	qcom_serial_nand_init(mtd);
-#endif
+
+	ret = nand_scan_ident(mtd, 1, qspinand_flash_ids);
+#else
 	ret = nand_scan_ident(mtd, 1, NULL);
+#endif
 	if (ret)
 		return ret;
 #if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
