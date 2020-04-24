@@ -21,6 +21,9 @@
 #include <linux/qcom_scm.h>
 #include "bt.h"
 
+static bool auto_load;
+module_param(auto_load, bool, 0644);
+
 unsigned
 int m0_btss_load_address(struct rproc *rproc, const struct firmware *fw)
 {
@@ -165,7 +168,7 @@ static int bt_rproc_probe(struct platform_device *pdev)
 	}
 
 	rproc->priv = btDesc;
-	rproc->auto_boot = true;
+	rproc->auto_boot = auto_load;
 
 	if (!rproc->dev.class->p) {
 		dev_err(&pdev->dev, "class not registered defering probe\n");
