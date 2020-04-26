@@ -783,7 +783,7 @@
 		mhi,max-channels = <30>;
 		mhi,timeout = <10000>;
 
-		qcom_mhi0: qcom_mhi0 {
+		pcie0_mhi: pcie0_mhi {
 			status = "ok";
 		};
 #endif
@@ -815,7 +815,7 @@
 	status = "ok";
 	board_id = <0xa2>;
 #if defined(__CNSS2__)
-	qcom_mhi0: qcom_mhi0 {
+	pcie0_mhi: pcie0_mhi {
 		status = "ok";
 	};
 #endif
@@ -828,7 +828,7 @@
 	status = "disabled";
 
 	mhi_1: qcom,mhi@1 {
-		qcom_mhi1: qcom_mhi1 {
+		pcie1_mhi: pcie1_mhi {
 			status = "disabled";
 		};
 	};

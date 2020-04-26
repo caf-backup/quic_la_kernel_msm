@@ -1,6 +1,6 @@
 /dts-v1/;
 /*
- * Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -893,7 +893,7 @@
 		mhi,max-channels = <30>;
 		mhi,timeout = <10000>;
 
-		qcom_mhi0: qcom_mhi0 {
+		pcie0_mhi: pcie0_mhi {
 			status = "ok";
 		};
 #endif
@@ -916,7 +916,7 @@
 		mhi,max-channels = <30>;
 		mhi,timeout = <10000>;
 
-		qcom_mhi1: qcom_mhi1 {
+		pcie1_mhi: pcie1_mhi {
 			status = "ok";
 		};
 #endif
@@ -933,7 +933,7 @@
 &wifi2 {
 	status = "ok";
 #if defined(__CNSS2__)
-	qcom_mhi0: qcom_mhi0 {
+	pcie0_mhi: pcie0_mhi {
 		status = "ok";
 	};
 #endif
@@ -941,7 +941,7 @@
 &wifi3 {
 	status = "ok";
 #if defined(__CNSS2__)
-	qcom_mhi1: qcom_mhi1 {
+	pcie1_mhi: pcie1_mhi {
 		status = "ok";
 	};
 #endif
