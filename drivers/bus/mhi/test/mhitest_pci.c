@@ -611,9 +611,27 @@ out:
 }
 void mhitest_global_soc_reset(struct mhitest_platform *mplat)
 {
+	u32 current_ee;
+	u32 count = 0;
+
+	current_ee = mhi_get_exec_env(mplat->mhi_ctrl);
 	MHITEST_EMERG("Soc Globle Reset issued\n");
-	writel_relaxed(PCIE_SOC_GLOBAL_RESET_VALUE,
-			PCIE_SOC_GLOBAL_RESET_ADDRESS + mplat->bar);
+
+	do {
+		writel_relaxed(PCIE_SOC_GLOBAL_RESET_VALUE,
+			       PCIE_SOC_GLOBAL_RESET_ADDRESS +
+			       mplat->bar);
+		msleep(20);
+		current_ee = mhi_get_exec_env(mplat->mhi_ctrl);
+		count++;
+	} while (current_ee != MHI_EE_PBL &&
+		 count < MAX_SOC_GLOBAL_RESET_WAIT_CNT);
+
+	if (current_ee != MHI_EE_PBL && count >= MAX_SOC_GLOBAL_RESET_WAIT_CNT)
+		MHITEST_EMERG("SoC global reset failed! Reset count : %d\n",
+			      count);
+	else
+		MHITEST_ERR("SOC Global reset count: %d\n", count);
 }
 
 void mhitest_pci_disable_bus(struct mhitest_platform *mplat)
