@@ -2727,7 +2727,7 @@ int cnss_pci_alloc_qdss_mem(struct cnss_pci_data *pci_priv)
 		switch (qdss_mem[i].type) {
 		case QDSS_ETR_MEM_REGION_TYPE:
 			if (qdss_mem[i].size > Q6_QDSS_ETR_SIZE_QCN9000) {
-				cnss_pr_err("%s: FW requests more memory 0x%lx\n",
+				cnss_pr_err("%s: FW requests more memory 0x%zx\n",
 					    __func__, qdss_mem[i].size);
 				return -ENOMEM;
 			}
@@ -2753,9 +2753,9 @@ int cnss_pci_alloc_qdss_mem(struct cnss_pci_data *pci_priv)
 		}
 	}
 
-	cnss_pr_dbg("%s: seg_len %d, type %d, size 0x%lx, pa: 0x%llx, va: 0x%p",
+	cnss_pr_dbg("%s: seg_len %d, type %d, size 0x%zx, pa: 0x%pa, va: 0x%p",
 		    __func__, plat_priv->qdss_mem_seg_len, qdss_mem[0].type,
-		    qdss_mem[0].size, qdss_mem[0].pa, qdss_mem[0].va);
+		    qdss_mem[0].size, &qdss_mem[0].pa, qdss_mem[0].va);
 
 	return 0;
 }

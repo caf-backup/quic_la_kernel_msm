@@ -470,6 +470,9 @@ int cnss_wlfw_tgt_cap_send_sync(struct cnss_plat_data *plat_priv)
 		return -ENOMEM;
 	}
 
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_CAP_REQ_V01, ret, resp_error_msg);
+
 	ret = qmi_txn_init(&plat_priv->qmi_wlfw, &txn,
 			   wlfw_cap_resp_msg_v01_ei, resp);
 	if (ret < 0) {
@@ -477,9 +480,6 @@ int cnss_wlfw_tgt_cap_send_sync(struct cnss_plat_data *plat_priv)
 			    ret);
 		goto out;
 	}
-
-	qmi_record(plat_priv->wlfw_service_instance_id,
-		   QMI_WLFW_CAP_RESP_V01, ret, resp_error_msg);
 
 	ret = qmi_send_request(&plat_priv->qmi_wlfw, NULL, &txn,
 			       QMI_WLFW_CAP_REQ_V01,
