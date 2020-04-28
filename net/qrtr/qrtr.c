@@ -20,6 +20,7 @@
 #include <linux/wait.h>
 #include <linux/rwsem.h>
 #include <linux/ipc_logging.h>
+#include <linux/signal.h>
 #include <linux/uidgid.h>
 
 #include <net/sock.h>
@@ -397,6 +398,8 @@ static void qrtr_tx_resume(struct qrtr_node *node, struct sk_buff *skb)
 	struct sk_buff *skbn;
 	unsigned long key;
 
+	printk("%s for node %d\n", __func__, node->nid);
+
 	pkt = (struct qrtr_ctrl_pkt *)skb->data;
 	if (le32_to_cpu(pkt->cmd) != QRTR_TYPE_RESUME_TX)
 		return;
@@ -452,6 +455,9 @@ static int qrtr_tx_wait(struct qrtr_node *node, struct sockaddr_qrtr *to,
 	int confirm_rx = 0;
 	long timeo;
 	long ret;
+	int nsig = _NSIG_WORDS;
+	sigset_t *set;
+	int i = 0;
 
 	/* Never set confirm_rx on non-data packets */
 	if (type != QRTR_TYPE_DATA)
@@ -501,8 +507,17 @@ static int qrtr_tx_wait(struct qrtr_node *node, struct sockaddr_qrtr *to,
 				!node->ep ||
 				atomic_read(&flow->pending) < QRTR_TX_FLOW_HIGH,
 				timeo);
-		if (ret < 0)
+		if (ret < 0) {
+			if (signal_pending(current)) {
+				printk("%s signal pending \n", __func__);
+				set = &current->pending.signal;
+				while (i < nsig) {
+					printk("sig[%d] = %lu\n", i, set->sig[i]);
+					i++;
+				}
+			}
 			return ret;
+		}
 		if (!node->ep)
 			return -EPIPE;
 	}
