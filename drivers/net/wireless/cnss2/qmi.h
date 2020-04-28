@@ -111,6 +111,7 @@ int cnss_register_ims_service(struct cnss_plat_data *plat_priv);
 void cnss_unregister_ims_service(struct cnss_plat_data *plat_priv);
 int cnss_wlfw_m3_dump_upload_done_send_sync(struct cnss_plat_data *plat_priv,
 					    u32 pdev_id, int status);
+int cnss_wlfw_device_info_send_sync(struct cnss_plat_data *plat_priv);
 #else
 #define QMI_WLFW_TIMEOUT_MS		10000
 
@@ -254,6 +255,12 @@ void cnss_unregister_ims_service(struct cnss_plat_data *plat_priv) {}
 static inline
 int cnss_wlfw_m3_dump_upload_done_send_sync(struct cnss_plat_data *plat_priv,
 					    u32 pdev_id, int status)
+{
+	return 0;
+}
+
+static inline
+int cnss_wlfw_device_info_send_sync(struct cnss_plat_data *plat_priv)
 {
 	return 0;
 }

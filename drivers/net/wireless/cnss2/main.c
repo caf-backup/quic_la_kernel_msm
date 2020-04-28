@@ -554,6 +554,14 @@ static int cnss_fw_mem_ready_hdlr(struct cnss_plat_data *plat_priv)
 	if (ret)
 		goto out;
 
+	if (plat_priv->device_id == QCN9100_DEVICE_ID) {
+		ret = cnss_wlfw_device_info_send_sync(plat_priv);
+		if (ret) {
+			cnss_pr_err("Device info msg failed. ret %d\n", ret);
+			goto out;
+		}
+	}
+
 	ret = cnss_wlfw_bdf_dnld_send_sync(plat_priv, CNSS_BDF_WIN);
 	if (ret) {
 		cnss_pr_err("bdf load failed. ret %d\n", ret);
@@ -3102,6 +3110,7 @@ static const struct platform_device_id cnss_platform_id_table[] = {
 	{ .name = "qca8074v2", .driver_data = QCA8074V2_DEVICE_ID, },
 	{ .name = "qca6018", .driver_data = QCA6018_DEVICE_ID, },
 	{ .name = "qca5018", .driver_data = QCA5018_DEVICE_ID, },
+	{ .name = "qcn9100", .driver_data = QCN9100_DEVICE_ID, },
 };
 
 static const struct of_device_id cnss_of_match_table[] = {
@@ -3123,6 +3132,9 @@ static const struct of_device_id cnss_of_match_table[] = {
 	{
 		.compatible = "qcom,cnss-qca5018",
 		.data = (void *)&cnss_platform_id_table[5]},
+	{
+		.compatible = "qcom,cnss-qcn9100",
+		.data = (void *)&cnss_platform_id_table[6]},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, cnss_of_match_table);

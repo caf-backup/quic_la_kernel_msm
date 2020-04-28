@@ -436,6 +436,12 @@ struct m3_dump {
 	void *dump_addr;
 };
 
+struct target_qcn9100 {
+	void *bar_addr_va;
+	u64 bar_addr_pa;
+	u32 bar_size;
+};
+
 struct cnss_plat_data {
 	void *wlan_priv;
 	struct platform_device *plat_dev;
@@ -518,6 +524,9 @@ struct cnss_plat_data {
 	u32 flashcal_support;
 	u32 eeprom_caldata_read_timeout;
 	struct m3_dump m3_dump_data;
+	union {
+		struct target_qcn9100 qcn9100;
+	};
 };
 
 #ifdef CONFIG_ARCH_QCOM

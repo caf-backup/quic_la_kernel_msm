@@ -3227,8 +3227,13 @@ int cnss_get_soc_info(struct device *dev, struct cnss_soc_info *info)
 	if (!plat_priv)
 		return -ENODEV;
 
-	info->va = pci_priv->bar;
-	info->pa = pci_resource_start(pci_priv->pci_dev, PCI_BAR_NUM);
+	if (plat_priv->device_id == QCN9100_DEVICE_ID) {
+		info->va = plat_priv->qcn9100.bar_addr_va;
+		info->pa = (phys_addr_t)plat_priv->qcn9100.bar_addr_pa;
+	} else {
+		info->va = pci_priv->bar;
+		info->pa = pci_resource_start(pci_priv->pci_dev, PCI_BAR_NUM);
+	}
 
 	memcpy(&info->device_version, &plat_priv->device_version,
 	       sizeof(info->device_version));
