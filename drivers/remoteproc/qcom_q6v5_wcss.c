@@ -132,6 +132,7 @@ struct q6_platform_data {
 };
 
 static int debug_wcss;
+static int load_pil = 1;
 
 #if defined(CONFIG_IPQ_SS_DUMP)
 
@@ -614,7 +615,7 @@ static int start_q6(const struct subsys_desc *subsys)
 	struct q6_platform_data *pdata =
 		dev_get_platdata(((struct q6v5_wcss *)rproc->priv)->dev);
 
-	if (pdata->emulation) {
+	if (pdata->emulation && !load_pil) {
 		pr_info("q6v5: Emulation start, PIL loading skipped\n");
 		rproc->bootaddr = DEFAULT_IMG_ADDR;
 		rproc->ops->start(rproc);
@@ -1541,6 +1542,7 @@ static struct platform_driver q6v5_wcss_driver = {
 };
 module_platform_driver(q6v5_wcss_driver);
 module_param(debug_wcss, int, 0644);
+module_param(load_pil, int, 0644);
 
 MODULE_DESCRIPTION("Hexagon WCSS Peripheral Image Loader");
 MODULE_LICENSE("GPL v2");
