@@ -153,3 +153,7 @@
 	status = "ok";
 	perst-gpio = <&tlmm 27 1>;
 };
+
+&eud {
+	status = "ok";
+};
