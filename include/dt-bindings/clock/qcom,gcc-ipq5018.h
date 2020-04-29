@@ -209,5 +209,10 @@
 #define USB0_MASTER_CLK_SRC				189
 #define USB0_MOCK_UTMI_CLK_SRC				190
 #define WCSS_AHB_CLK_SRC				191
-
+#define PCIE0_PIPE_CLK_SRC				192
+#define PCIE1_PIPE_CLK_SRC				193
+#define GCC_PCIE0_PIPE_CLK				194
+#define GCC_PCIE1_PIPE_CLK				195
+#define USB0_PIPE_CLK_SRC				196
+#define GCC_USB0_PIPE_CLK				197
 #endif
