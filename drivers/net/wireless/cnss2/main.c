@@ -84,6 +84,11 @@ bool flashcal_support = true;
 module_param(flashcal_support, bool, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(flashcal_support, "flash caldata support");
 
+#define FW_READY_DELAY	100  /* in msecs */
+static int fw_ready_timeout = 15;
+module_param(fw_ready_timeout, int, 0644);
+MODULE_PARM_DESC(fw_ready_timeout, "fw ready timeout in seconds");
+
 enum skip_cnss_options {
 	CNSS_SKIP_NONE,
 	CNSS_SKIP_ALL,
@@ -624,6 +629,35 @@ int cnss_is_fw_ready(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(cnss_is_fw_ready);
+
+void cnss_wait_for_fw_ready(struct device *dev)
+{
+	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
+	int count = 0;
+
+	if (!plat_priv)
+		return;
+
+	if (plat_priv->device_id == QCA8074_DEVICE_ID ||
+	    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
+	    plat_priv->device_id == QCA6018_DEVICE_ID ||
+	    plat_priv->device_id == QCA5018_DEVICE_ID ||
+	    plat_priv->device_id == QCN9000_DEVICE_ID) {
+		cnss_pr_info("Waiting for FW ready. Device: 0x%lx, FW ready timeout: %d seconds\n",
+			     plat_priv->device_id, fw_ready_timeout);
+		while (!test_bit(CNSS_FW_READY, &plat_priv->driver_state)) {
+			msleep(FW_READY_DELAY);
+			if (count++ > fw_ready_timeout * 10) {
+				cnss_pr_err("FW ready timed-out %d seconds\n",
+					    fw_ready_timeout);
+				CNSS_ASSERT(0);
+			}
+		}
+		cnss_pr_info("FW ready received for device 0x%lx\n",
+			     plat_priv->device_id);
+	}
+}
+EXPORT_SYMBOL(cnss_wait_for_fw_ready);
 
 int cnss_is_cold_boot_cal_done(struct device *dev)
 {
@@ -3025,7 +3059,7 @@ void cnss_update_platform_feature_support(u8 type, u32 instance_id, u32 value)
 
 	plat_priv = cnss_get_plat_priv_by_instance_id(instance_id);
 	if (!plat_priv) {
-		cnss_pr_err("Failed to get plat_priv for instance_id %d\n",
+		cnss_pr_err("Failed to get plat_priv for instance_id 0x%x\n",
 			    instance_id);
 		return;
 	}
@@ -3033,17 +3067,17 @@ void cnss_update_platform_feature_support(u8 type, u32 instance_id, u32 value)
 	switch (type) {
 	case CNSS_GENL_MSG_TYPE_DAEMON_SUPPORT:
 		plat_priv->daemon_support = value;
-		cnss_pr_info("Setting daemon_support=%d for instance_id %d\n",
+		cnss_pr_info("Setting daemon_support=%d for instance_id 0x%x\n",
 			     value, instance_id);
 		break;
 	case CNSS_GENL_MSG_TYPE_COLD_BOOT_SUPPORT:
 		plat_priv->cold_boot_support = value;
-		cnss_pr_info("Setting cold_boot_support=%d for instance_id %d\n",
+		cnss_pr_info("Setting cold_boot_support=%d for instance_id 0x%x\n",
 			     value, instance_id);
 		break;
 	case CNSS_GENL_MSG_TYPE_FLASHCAL_SUPPORT:
 		plat_priv->flashcal_support = value;
-		cnss_pr_info("Setting caldata_support=%d for instance_id %d\n",
+		cnss_pr_info("Setting caldata_support=%d for instance_id 0x%x\n",
 			     value, instance_id);
 		break;
 	default:
