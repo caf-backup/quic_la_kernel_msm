@@ -382,6 +382,9 @@ static void qrtr_node_release(struct qrtr_node *node)
 	kref_put_mutex(&node->ref, __qrtr_node_release, &qrtr_node_locking);
 }
 
+static bool sig_pending;
+static bool sig_pending_node;
+
 /**
  * qrtr_tx_resume() - reset flow control counter
  * @node:	qrtr_node that the QRTR_TYPE_RESUME_TX packet arrived on
@@ -398,7 +401,8 @@ static void qrtr_tx_resume(struct qrtr_node *node, struct sk_buff *skb)
 	struct sk_buff *skbn;
 	unsigned long key;
 
-	printk("%s for node %d\n", __func__, node->nid);
+	if (sig_pending && (node->nid == sig_pending_node))
+		printk("%s for node %d\n", __func__, node->nid);
 
 	pkt = (struct qrtr_ctrl_pkt *)skb->data;
 	if (le32_to_cpu(pkt->cmd) != QRTR_TYPE_RESUME_TX)
@@ -510,6 +514,8 @@ static int qrtr_tx_wait(struct qrtr_node *node, struct sockaddr_qrtr *to,
 		if (ret < 0) {
 			if (signal_pending(current)) {
 				printk("%s signal pending \n", __func__);
+				sig_pending_node = node->nid;
+				sig_pending = true;
 				set = &current->pending.signal;
 				while (i < nsig) {
 					printk("sig[%d] = %lu\n", i, set->sig[i]);
