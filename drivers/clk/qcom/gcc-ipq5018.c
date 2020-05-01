@@ -51,6 +51,9 @@ enum {
 	P_UNIPHY_RX,
 	P_UNIPHY_TX,
 	P_CORE_PI_SLEEP_CLK,
+	P_PCIE20_PHY0_PIPE,
+	P_PCIE20_PHY1_PIPE,
+	P_USB3PHY_0_PIPE,
 };
 
 static const char * const gcc_xo_gpll0_gpll0_out_main_div2[] = {
@@ -284,6 +287,36 @@ static const struct parent_map gcc_xo_uniphy_gcc_tx_uniphy_gcc_rx_ubi32_pll_gpll
 	{ P_UNIPHY_RX, 2 },
 	{ P_UBI32_PLL, 3 },
 	{ P_GPLL0, 4 },
+};
+
+static const char * const gcc_pcie20_phy0_pipe_clk_xo[] = {
+	"pcie20_phy0_pipe_clk",
+	"xo",
+};
+
+static const struct parent_map gcc_pcie20_phy0_pipe_clk_xo_map[] = {
+	{ P_PCIE20_PHY0_PIPE, 0 },
+	{ P_XO, 2 },
+};
+
+static const char * const gcc_pcie20_phy1_pipe_clk_xo[] = {
+	"pcie20_phy1_pipe_clk",
+	"xo",
+};
+
+static const struct parent_map gcc_pcie20_phy1_pipe_clk_xo_map[] = {
+	{ P_PCIE20_PHY1_PIPE, 0 },
+	{ P_XO, 2 },
+};
+
+static const char * const gcc_usb3phy_0_cc_pipe_clk_xo[] = {
+	"usb3phy_0_cc_pipe_clk",
+	"xo",
+};
+
+static const struct parent_map gcc_usb3phy_0_cc_pipe_clk_xo_map[] = {
+	{ P_USB3PHY_0_PIPE, 0 },
+	{ P_XO, 2 },
 };
 
 static const u32 stromer_pll_regs_offsets[] = {
@@ -891,6 +924,38 @@ static struct clk_rcg2 pcie1_axi_clk_src = {
 	},
 };
 
+static struct clk_regmap_mux pcie0_pipe_clk_src = {
+	.reg = 0x7501c,
+	.shift = 8,
+	.width = 2,
+	.parent_map = gcc_pcie20_phy0_pipe_clk_xo_map,
+	.clkr = {
+		.hw.init = &(struct clk_init_data){
+			.name = "pcie0_pipe_clk_src",
+			.parent_names = gcc_pcie20_phy0_pipe_clk_xo,
+			.num_parents = 2,
+			.ops = &clk_regmap_mux_closest_ops,
+			.flags = CLK_SET_RATE_PARENT,
+		},
+	},
+};
+
+static struct clk_regmap_mux pcie1_pipe_clk_src = {
+	.reg = 0x7601c,
+	.shift = 8,
+	.width = 2,
+	.parent_map = gcc_pcie20_phy1_pipe_clk_xo_map,
+	.clkr = {
+		.hw.init = &(struct clk_init_data){
+			.name = "pcie1_pipe_clk_src",
+			.parent_names = gcc_pcie20_phy1_pipe_clk_xo,
+			.num_parents = 2,
+			.ops = &clk_regmap_mux_closest_ops,
+			.flags = CLK_SET_RATE_PARENT,
+		},
+	},
+};
+
 static const struct freq_tbl ftbl_pcnoc_bfdcd_clk_src[] = {
 	F(100000000, P_GPLL0, 8, 0, 0),
 	{ }
@@ -1246,6 +1311,22 @@ static struct clk_rcg2 usb0_mock_utmi_clk_src = {
 		.parent_names = gcc_xo_gpll4_gpll0_gpll0_out_main_div2,
 		.num_parents = 4,
 		.ops = &clk_rcg2_ops,
+	},
+};
+
+static struct clk_regmap_mux usb0_pipe_clk_src = {
+	.reg = 0x3e048,
+	.shift = 8,
+	.width = 2,
+	.parent_map = gcc_usb3phy_0_cc_pipe_clk_xo_map,
+	.clkr = {
+		.hw.init = &(struct clk_init_data){
+			.name = "usb0_pipe_clk_src",
+			.parent_names = gcc_usb3phy_0_cc_pipe_clk_xo,
+			.num_parents = 2,
+			.ops = &clk_regmap_mux_closest_ops,
+			.flags = CLK_SET_RATE_PARENT,
+		},
 	},
 };
 
@@ -2342,6 +2423,25 @@ static struct clk_branch gcc_pcie0_axi_s_clk = {
 	},
 };
 
+static struct clk_branch gcc_pcie0_pipe_clk = {
+	.halt_reg = 0x75018,
+	.halt_check = BRANCH_HALT_DELAY,
+	.halt_bit = 31,
+	.clkr = {
+		.enable_reg = 0x75018,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "gcc_pcie0_pipe_clk",
+			.parent_names = (const char *[]){
+				"pcie0_pipe_clk_src"
+			},
+			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
 static struct clk_branch gcc_pcie1_ahb_clk = {
 	.halt_reg = 0x76010,
 	.clkr = {
@@ -2419,6 +2519,25 @@ static struct clk_branch gcc_pcie1_axi_s_clk = {
 			.name = "gcc_pcie1_axi_s_clk",
 			.parent_names = (const char *[]){
 				"pcie1_axi_clk_src"
+			},
+			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
+static struct clk_branch gcc_pcie1_pipe_clk = {
+	.halt_reg = 0x76018,
+	.halt_check = BRANCH_HALT_DELAY,
+	.halt_bit = 31,
+	.clkr = {
+		.enable_reg = 0x76018,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "gcc_pcie1_pipe_clk",
+			.parent_names = (const char *[]){
+				"pcie1_pipe_clk_src"
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -3457,6 +3576,24 @@ static struct clk_branch gcc_usb0_sleep_clk = {
 	},
 };
 
+static struct clk_branch gcc_usb0_pipe_clk = {
+	.halt_reg = 0x3e040,
+	.halt_check = BRANCH_HALT_DELAY,
+	.clkr = {
+		.enable_reg = 0x3e040,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "gcc_usb0_pipe_clk",
+			.parent_names = (const char *[]){
+				"usb0_pipe_clk_src"
+			},
+			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
 static struct clk_branch gcc_wcss_acmt_clk = {
 	.halt_reg = 0x59064,
 	.clkr = {
@@ -3963,6 +4100,12 @@ static struct clk_regmap *gcc_ipq5018_clks[] = {
 	[USB0_MASTER_CLK_SRC] = &usb0_master_clk_src.clkr,
 	[USB0_MOCK_UTMI_CLK_SRC] = &usb0_mock_utmi_clk_src.clkr,
 	[WCSS_AHB_CLK_SRC] = &wcss_ahb_clk_src.clkr,
+	[PCIE0_PIPE_CLK_SRC] = &pcie0_pipe_clk_src.clkr,
+	[PCIE1_PIPE_CLK_SRC] = &pcie1_pipe_clk_src.clkr,
+	[GCC_PCIE0_PIPE_CLK] = &gcc_pcie0_pipe_clk.clkr,
+	[GCC_PCIE1_PIPE_CLK] = &gcc_pcie1_pipe_clk.clkr,
+	[USB0_PIPE_CLK_SRC] = &usb0_pipe_clk_src.clkr,
+	[GCC_USB0_PIPE_CLK] = &gcc_usb0_pipe_clk.clkr,
 };
 
 static struct clk_regmap *gcc_ipq5018_dummy_clks[] = {
@@ -4159,6 +4302,12 @@ static struct clk_regmap *gcc_ipq5018_dummy_clks[] = {
 	[USB0_MASTER_CLK_SRC] = DEFINE_DUMMY_CLK(usb0_master_clk_src),
 	[USB0_MOCK_UTMI_CLK_SRC] = DEFINE_DUMMY_CLK(usb0_mock_utmi_clk_src),
 	[WCSS_AHB_CLK_SRC] = DEFINE_DUMMY_CLK(wcss_ahb_clk_src),
+	[PCIE0_PIPE_CLK_SRC] = DEFINE_DUMMY_CLK(pcie0_pipe_clk_src),
+	[PCIE1_PIPE_CLK_SRC] = DEFINE_DUMMY_CLK(pcie1_pipe_clk_src),
+	[GCC_PCIE0_PIPE_CLK] = DEFINE_DUMMY_CLK(gcc_pcie0_pipe_clk),
+	[GCC_PCIE1_PIPE_CLK] = DEFINE_DUMMY_CLK(gcc_pcie1_pipe_clk),
+	[USB0_PIPE_CLK_SRC] = DEFINE_DUMMY_CLK(usb0_pipe_clk_src),
+	[GCC_USB0_PIPE_CLK] = DEFINE_DUMMY_CLK(gcc_usb0_pipe_clk),
 };
 
 static const struct qcom_reset_map gcc_ipq5018_resets[] = {
@@ -4327,6 +4476,11 @@ static int gcc_ipq5018_probe(struct platform_device *pdev)
 		if (IS_ERR(clk))
 			return PTR_ERR(clk);
 	}
+	/*Gen2 PHY*/
+	clk_register_fixed_rate(&pdev->dev, "pcie20_phy0_pipe_clk", NULL,
+					CLK_IS_ROOT, 125000000);
+	clk_register_fixed_rate(&pdev->dev, "pcie20_phy1_pipe_clk", NULL,
+					CLK_IS_ROOT, 125000000);
 
 	clk_alpha_pll_configure(&ubi32_pll_main, regmap, &ubi32_pll_config);
 
