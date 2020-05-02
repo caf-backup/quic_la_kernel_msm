@@ -17,6 +17,23 @@
 #include "qcom-ipq807x-soc.dtsi"
 #include "qcom-ipq807x-hk-cpu.dtsi"
 
+/* Internal radio is not enabled on hk10.c2, so delete the
+ * references to internal radio's reserved memory
+ */
+#if !defined(__IPQ_MEM_PROFILE_256_MB__)
+&tmc_etr {
+	/delete-property/ memory_region;
+};
+
+&q6v5_wcss {
+	/delete-property/ memory-region;
+};
+
+&qcom_q6v5_wcss {
+	/delete-property/ memory-region;
+};
+#endif
+
 / {
 	#address-cells = <0x2>;
 	#size-cells = <0x2>;
@@ -54,28 +71,131 @@
 /* No Pine attach in 256M profile */
 #if !defined(__IPQ_MEM_PROFILE_256_MB__)
 #ifdef __IPQ_MEM_PROFILE_512_MB__
-		qcn9000_pcie0@4e900000 {
-			no-map;
-			reg = <0x0 0x4e900000 0x0 0x03700000>;
-		};
-
-		qcn9000_pcie1@52000000 {
-			no-map;
-			reg = <0x0 0x52000000 0x0 0x03700000>;
-		};
+	/*                      512 MB Profile
+	 * +=========+==============+========================+
+	 * |        |              |                         |
+	 * | Region | Start Offset |          Size           |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * |  NSS   |  0x40000000  |          16MB           |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * | Linux  |  0x41000000  | Depends on total memory |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * | TZ APP |  0x4A400000  |           1MB           |
+	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * | uboot  |  0x4A600000  |           4MB           |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * |  SBL   |  0x4AA00000  |           1MB           |
+	 * +--------+--------------+-------------------------+
+	 * |  smem  |  0x4AB00000  |           1MB           |
+	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * |   TZ   |  0x4AC00000  |           4MB           |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * |  Pine  |  0x4B000000  |          55MB           |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * |  Pine  |  0x4E700000  |          55MB           |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * |                                                 |
+	 * |      Rest of the memory for Linux               |
+	 * |                                                 |
+	 * +=================================================+
+	 */
+		/delete-node/ wcnss@4b000000;
+		/delete-node/ q6_etr_dump@4e700000;
+		/delete-node/ m3_dump@4e800000;
 		/delete-node/ wifi_dump@4e900000;
-#else
-		qcn9000_pcie0@51100000 {
+		qcn9000_pcie0@4b000000 {
 			no-map;
-			reg = <0x0 0x51100000 0x0 0x03700000>;
+			reg = <0x0 0x4b000000 0x0 0x03700000>;
 		};
 
-		qcn9000_pcie1@54800000 {
+		qcn9000_pcie1@4e700000 {
 			no-map;
-			reg = <0x0 0x54800000 0x0 0x03700000>;
+			reg = <0x0 0x4e700000 0x0 0x03700000>;
 		};
+#else
+	/*                   Default Profile
+	 * +=========+==============+========================+
+	 * |        |              |                         |
+	 * | Region | Start Offset |          Size           |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * |  NSS   |  0x40000000  |          16MB           |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * | Linux  |  0x41000000  | Depends on total memory |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * | TZ APP |  0x4A400000  |           2MB           |
+	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * | uboot  |  0x4A600000  |           4MB           |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * |  SBL   |  0x4AA00000  |           1MB           |
+	 * +--------+--------------+-------------------------+
+	 * |  smem  |  0x4AB00000  |           1MB           |
+	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * |   TZ   |  0x4AC00000  |           4MB           |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * |  Pine  |  0x4B000000  |          55MB           |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * |  Pine  |  0x4E700000  |          55MB           |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * |                                                 |
+	 * |      Rest of the memory for Linux               |
+	 * |                                                 |
+	 * +=================================================+
+	 */
+		/delete-node/ wcnss@4b000000;
+		/delete-node/ q6_etr_dump@50f00000;
+		/delete-node/ m3_dump@51000000;
 		/delete-node/ wifi_dump@51100000;
 		/delete-node/ wigig_dump@51300000;
+		qcn9000_pcie0@4b000000 {
+			no-map;
+			reg = <0x0 0x4b000000 0x0 0x03700000>;
+		};
+
+		qcn9000_pcie1@4e700000 {
+			no-map;
+			reg = <0x0 0x4e700000 0x0 0x03700000>;
+		};
 #endif
 #endif
 	};
@@ -888,8 +1008,8 @@
 		qrtr_instance_id = <0x20>;
 
 #if !defined(__CNSS2__)
-		base-addr = <0x51100000>;
-		qcom,caldb-addr = <0x54000000>;
+		base-addr = <0x4B000000>;
+		qcom,caldb-addr = <0x4DF00000>;
 		qrtr_node_id = <0x20>;
 		mhi,max-channels = <30>;
 		mhi,timeout = <10000>;
@@ -911,8 +1031,8 @@
 		qrtr_instance_id = <0x21>;
 
 #if !defined(__CNSS2__)
-		base-addr = <0x54800000>;
-		qcom,caldb-addr = <0x57700000>;
+		base-addr = <0x4E700000>;
+		qcom,caldb-addr = <0x51600000>;
 		qrtr_node_id = <0x21>;
 		mhi,max-channels = <30>;
 		mhi,timeout = <10000>;
@@ -927,19 +1047,40 @@
 &wifi0 {
 	status = "disabled";
 };
+
 &wifi1 {
 	status = "disabled";
 };
+
 &wifi2 {
 	status = "ok";
+#ifdef __IPQ_MEM_PROFILE_512_MB__
+	base-addr = <0x4B000000>;
+	etr-addr = <0x4DE00000>;
+	caldb-addr = <0x4DF00000>;
+#else
+	base-addr = <0x4B000000>;
+	etr-addr = <0x4DE00000>;
+	caldb-addr = <0x4DF00000>;
+#endif
 #if defined(__CNSS2__)
 	pcie0_mhi: pcie0_mhi {
 		status = "ok";
 	};
 #endif
 };
+
 &wifi3 {
 	status = "ok";
+#ifdef __IPQ_MEM_PROFILE_512_MB__
+	base-addr = <0x4E700000>;
+	etr-addr = <0x51500000>;
+	caldb-addr = <0x51600000>;
+#else
+	base-addr = <0x4E700000>;
+	etr-addr = <0x51500000>;
+	caldb-addr = <0x51600000>;
+#endif
 #if defined(__CNSS2__)
 	pcie1_mhi: pcie1_mhi {
 		status = "ok";
