@@ -755,6 +755,21 @@
 			qcom,reset-ep-after-lpm-resume;
 		};
 
+		ssuniphy_0: ssuniphy@5d000 {
+			compatible = "qca,ipq5018-uni-ssphy";
+			reg = <0x5d000 0x800>;
+			clocks = <&gcc GCC_USB0_PIPE_CLK>,
+					<&gcc GCC_USB0_PHY_CFG_AHB_CLK>;
+
+			clock-names = "pipe_clk", "phy_cfg_ahb_clk";
+
+			resets =  <&gcc GCC_USB0_PHY_BCR>;
+			reset-names = "por_rst";
+
+			qcom,phy-mux-regs = <&tcsr_q6_block 0x2540>;
+			status = "disabled";
+		};
+
 		usb3: usb3@8A00000 {
 			compatible = "qcom,ipq5018-dwc3";
 			#address-cells = <1>;
@@ -789,6 +804,7 @@
 				compatible = "snps,dwc3";
 				reg = <0x8A00000 0xe000>;
 				interrupts = <GIC_SPI 140 IRQ_TYPE_NONE>;
+				usb-phy = <&ssuniphy_0>;
 				snps,dis_ep_cache_eviction;
 				tx-fifo-resize;
 				snps,usb3-u1u2-disable;
