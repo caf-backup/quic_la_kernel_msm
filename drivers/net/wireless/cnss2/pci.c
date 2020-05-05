@@ -3627,9 +3627,7 @@ static char *cnss_mhi_notify_status_to_str(enum MHI_CB status)
 
 static void cnss_dev_rddm_timeout_hdlr(unsigned long data)
 {
-	struct timer_list *t = (void *)data;
-	struct cnss_pci_data *pci_priv =
-		container_of(t, struct cnss_pci_data, dev_rddm_timer);
+	struct cnss_pci_data *pci_priv = (struct cnss_pci_data *)data;
 
 	if (!pci_priv)
 		return;
@@ -3905,7 +3903,8 @@ int cnss_pci_probe(struct pci_dev *pci_dev,
 	case QCA6390_DEVICE_ID:
 	case QCA6490_DEVICE_ID:
 		setup_timer(&pci_priv->dev_rddm_timer,
-			    cnss_dev_rddm_timeout_hdlr, 0);
+			    cnss_dev_rddm_timeout_hdlr,
+			    (unsigned long)pci_priv);
 		INIT_DELAYED_WORK(&pci_priv->time_sync_work,
 				  cnss_pci_time_sync_work_hdlr);
 

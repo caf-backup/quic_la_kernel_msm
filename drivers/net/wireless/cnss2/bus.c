@@ -277,9 +277,7 @@ int cnss_bus_force_fw_assert_hdlr(struct cnss_plat_data *plat_priv)
 
 void cnss_bus_fw_boot_timeout_hdlr(unsigned long data)
 {
-	struct timer_list *t = (void *)data;
-	struct cnss_plat_data *plat_priv =
-		container_of(t, struct cnss_plat_data, fw_boot_timer);
+	struct cnss_plat_data *plat_priv = (struct cnss_plat_data *)data;
 	if (!plat_priv)
 		return;
 
