@@ -3506,6 +3506,7 @@ void cnss_pci_collect_dump_info(struct cnss_pci_data *pci_priv, bool in_panic)
 		plat_priv->ramdump_info_v2.dump_data_vaddr;
 	struct image_info *fw_image, *rddm_image;
 	struct cnss_fw_mem *fw_mem = plat_priv->fw_mem;
+	struct cnss_fw_mem *qdss_mem = plat_priv->qdss_mem;
 	int ret, i;
 
 	if (test_bit(CNSS_MHI_RDDM_DONE, &pci_priv->mhi_state)) {
@@ -3565,8 +3566,37 @@ void cnss_pci_collect_dump_info(struct cnss_pci_data *pci_priv, bool in_panic)
 
 	cnss_pr_dbg("Collect remote heap dump segment\n");
 	for (i = 0; i < plat_priv->fw_mem_seg_len; i++) {
-		if (fw_mem[i].type == CNSS_MEM_TYPE_DDR ||
-		    fw_mem[i].type == CNSS_MEM_CAL_V01) {
+		if (fw_mem[i].type == CNSS_MEM_TYPE_DDR) {
+			dump_seg->address = fw_mem[i].pa;
+			dump_seg->v_address = fw_mem[i].va;
+			dump_seg->size = fw_mem[i].size;
+			dump_seg->type = CNSS_FW_REMOTE_HEAP;
+			cnss_pr_dbg("seg-%d: address 0x%lx, v_address %pK, size 0x%lx\n",
+				    i, dump_seg->address, dump_seg->v_address,
+				    dump_seg->size);
+			dump_seg++;
+			dump_data->nentries++;
+		}
+	}
+
+	cnss_pr_dbg("Collect QDSS dump segment\n");
+	for (i = 0; i < plat_priv->qdss_mem_seg_len; i++) {
+		if (qdss_mem[i].type == CNSS_MEM_ETR) {
+			dump_seg->address = qdss_mem[i].pa;
+			dump_seg->v_address = qdss_mem[i].va;
+			dump_seg->size = qdss_mem[i].size;
+			dump_seg->type = CNSS_FW_REMOTE_HEAP;
+			cnss_pr_dbg("QDSS seg-%d: address 0x%lx, v_address %pK, size 0x%lx\n",
+				    i, dump_seg->address, dump_seg->v_address,
+				    dump_seg->size);
+			dump_seg++;
+			dump_data->nentries++;
+		}
+	}
+
+	cnss_pr_dbg("Collect Caldb dump segment\n");
+	for (i = 0; i < plat_priv->fw_mem_seg_len; i++) {
+		if (fw_mem[i].type == CNSS_MEM_CAL_V01) {
 			dump_seg->address = fw_mem[i].pa;
 			dump_seg->v_address = fw_mem[i].va;
 			dump_seg->size = fw_mem[i].size;
