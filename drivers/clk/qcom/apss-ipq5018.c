@@ -51,20 +51,23 @@ static const u32 apss_pll_regs_offsets[] = {
 	[ALPHA_PLL_MODE] = 0x00,
 	[ALPHA_PLL_L_VAL] = 0x08,
 	[ALPHA_PLL_ALPHA_VAL] = 0x10,
-	[ALPHA_PLL_ALPHA_VAL_U] = 0xff,
+	[ALPHA_PLL_ALPHA_VAL_U] = 0x14,
 	[ALPHA_PLL_USER_CTL] = 0x18,
-	[ALPHA_PLL_USER_CTL_U] = 0xff,
+	[ALPHA_PLL_USER_CTL_U] = 0x1c,
 	[ALPHA_PLL_CONFIG_CTL] = 0x20,
-	[ALPHA_PLL_CONFIG_CTL_U] = 0x24,
+	[ALPHA_PLL_CONFIG_CTL_U] = 0xff,
 	[ALPHA_PLL_TEST_CTL] = 0x30,
 	[ALPHA_PLL_TEST_CTL_U] = 0x34,
 	[ALPHA_PLL_STATUS] = 0x28,
 };
 
+/* Stromer PLL configs
+ *  ALPHA_WIDTH : 40-bit
+ *  CONFIG CTL  : 32-bit
+ */
 static struct clk_alpha_pll apss_pll_early = {
 	.offset = 0x5000,
 	.regs_offsets = apss_pll_regs_offsets,
-	.flags = SUPPORTS_16BIT_ALPHA | SUPPORTS_64BIT_CTL,
 	.clkr = {
 		.enable_reg = 0x5000,
 		.enable_mask = BIT(0),
@@ -74,7 +77,7 @@ static struct clk_alpha_pll apss_pll_early = {
 				"xo"
 			},
 			.num_parents = 1,
-			.ops = &clk_alpha_pll_huayra_ops,
+			.ops = &clk_alpha_pll_stromer_ops,
 		},
 	},
 };
@@ -111,13 +114,8 @@ static const struct parent_map parents_apcs_alias0_clk_src_map[] = {
 
 static const struct freq_tbl ftbl_apcs_alias0_clk_src[] = {
 	F(24000000, P_XO, 1, 0, 0),
-	F(864000000, P_APSS_PLL_EARLY, 1, 0, 0),
-	F(1056000000, P_APSS_PLL_EARLY, 1, 0, 0),
-	F(1200000000, P_APSS_PLL_EARLY, 1, 0, 0),
-	F(1320000000, P_APSS_PLL_EARLY, 1, 0, 0),
-	F(1440000000, P_APSS_PLL_EARLY, 1, 0, 0),
-	F(1608000000, P_APSS_PLL_EARLY, 1, 0, 0),
-	F(1800000000, P_APSS_PLL_EARLY, 1, 0, 0),
+	F(772000000, P_APSS_PLL_EARLY, 1, 0, 0),
+	F(983000000, P_APSS_PLL_EARLY, 1, 0, 0),
 	{ }
 };
 
@@ -161,11 +159,18 @@ static struct clk_regmap *apss_ipq5018_clks[] = {
 };
 
 static const struct alpha_pll_config apss_pll_config = {
-	.l = 0x37,
-	.config_ctl_val = 0x00141200,
-	.config_ctl_hi_val = 0x0,
-	.early_output_mask = BIT(3),
+	.l = 0x20,
+	.alpha = 0xAAAAAAAA,
+	.alpha_hi = 0x2A,
+	.config_ctl_val = 0x4001075B,
 	.main_output_mask = BIT(0),
+	.aux_output_mask = BIT(1),
+	.early_output_mask = BIT(3),
+	.alpha_en_mask = BIT(24),
+	.vco_val = 0x0,
+	.vco_mask = GENMASK(21, 20),
+	.test_ctl_val = 0x0,
+	.test_ctl_hi_val = 0x00400003,
 };
 
 static const struct of_device_id apss_ipq5018_match_table[] = {

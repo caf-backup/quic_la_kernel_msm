@@ -345,7 +345,7 @@ static struct clk_alpha_pll gpll0_main = {
 				"xo"
 			},
 			.num_parents = 1,
-			.ops = &clk_alpha_pll_ops,
+			.ops = &clk_alpha_pll_stromer_ops,
 			.flags = CLK_IS_CRITICAL,
 		},
 	},
@@ -392,7 +392,7 @@ static struct clk_alpha_pll gpll2_main = {
 				"xo"
 			},
 			.num_parents = 1,
-			.ops = &clk_alpha_pll_ops,
+			.ops = &clk_alpha_pll_stromer_ops,
 			.flags = CLK_IS_CRITICAL,
 		},
 	},
@@ -425,7 +425,7 @@ static struct clk_alpha_pll gpll4_main = {
 				"xo"
 			},
 			.num_parents = 1,
-			.ops = &clk_alpha_pll_ops,
+			.ops = &clk_alpha_pll_stromer_ops,
 			.flags = CLK_IS_CRITICAL,
 		},
 	},
@@ -459,7 +459,7 @@ static struct clk_alpha_pll ubi32_pll_main = {
 				"xo"
 			},
 			.num_parents = 1,
-			.ops = &clk_alpha_pll_huayra_ops,
+			.ops = &clk_alpha_pll_stromer_ops,
 		},
 	},
 };
