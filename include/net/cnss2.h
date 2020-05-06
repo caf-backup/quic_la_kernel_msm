@@ -224,6 +224,7 @@ extern unsigned int cnss_get_boot_timeout(struct device *dev);
 int cnss_is_cold_boot_cal_done(struct device *dev);
 int cnss_is_fw_ready(struct device *dev);
 void cnss_wait_for_fw_ready(struct device *dev);
+void cnss_wait_for_cold_boot_cal_done(struct device *dev);
 void cnss_set_ramdump_enabled(struct device *dev, bool enabled);
 void *cnss_subsystem_get(struct device *dev, int device_id);
 void cnss_subsystem_put(struct device *dev);

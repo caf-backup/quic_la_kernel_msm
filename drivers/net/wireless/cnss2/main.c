@@ -38,7 +38,6 @@
 #define CNSS_DUMP_SEG_VER		0x1
 #define WLAN_RECOVERY_DELAY		1000
 #define FILE_SYSTEM_READY		1
-#define FW_READY_TIMEOUT		20000
 #define FW_ASSERT_TIMEOUT		5000
 #define CNSS_EVENT_PENDING		2989
 
@@ -88,6 +87,10 @@ MODULE_PARM_DESC(flashcal_support, "flash caldata support");
 static int fw_ready_timeout = 15;
 module_param(fw_ready_timeout, int, 0644);
 MODULE_PARM_DESC(fw_ready_timeout, "fw ready timeout in seconds");
+
+static int cold_boot_cal_timeout = 40;
+module_param(cold_boot_cal_timeout, int, 0644);
+MODULE_PARM_DESC(cold_boot_cal_timeout, "Cold boot cal timeout in seconds");
 
 enum skip_cnss_options {
 	CNSS_SKIP_NONE,
@@ -668,6 +671,42 @@ int cnss_is_cold_boot_cal_done(struct device *dev)
 	return 1;
 }
 EXPORT_SYMBOL(cnss_is_cold_boot_cal_done);
+
+void cnss_wait_for_cold_boot_cal_done(struct device *dev)
+{
+	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
+	int count = 0;
+
+	if (!plat_priv)
+		return;
+
+	if (plat_priv->device_id == QCA8074_DEVICE_ID ||
+	    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
+	    plat_priv->device_id == QCA6018_DEVICE_ID ||
+	    plat_priv->device_id == QCA5018_DEVICE_ID ||
+	    plat_priv->device_id == QCN9000_DEVICE_ID) {
+		/* Cold boot Calibration is done parallely for multiple devices
+		 * Check if this device has already completed cold boot cal
+		 * If already completed, we need not wait
+		 */
+		if (!test_bit(CNSS_COLD_BOOT_CAL, &plat_priv->driver_state))
+			return;
+
+		cnss_pr_info("Coldboot Calbration wait started for Device: 0x%lx, timeout: %d seconds\n",
+			     plat_priv->device_id, cold_boot_cal_timeout);
+		while (test_bit(CNSS_COLD_BOOT_CAL, &plat_priv->driver_state)) {
+			msleep(FW_READY_DELAY);
+			if (count++ > cold_boot_cal_timeout * 10) {
+				cnss_pr_err("Coldboot calibration timed out %d seconds\n",
+					    cold_boot_cal_timeout);
+				CNSS_ASSERT(0);
+			}
+		}
+		cnss_pr_info("Coldboot Calibration wait ended for device 0x%lx\n",
+			     plat_priv->device_id);
+	}
+}
+EXPORT_SYMBOL(cnss_wait_for_cold_boot_cal_done);
 
 void cnss_set_ramdump_enabled(struct device *dev, bool enabled)
 {
@@ -1255,7 +1294,7 @@ int cnss_wlan_register_driver(struct cnss_wlan_driver *driver_ops)
 		if (!plat_priv->cold_boot_support &&
 		    (driver_mode == CNSS_CALIBRATION ||
 		     driver_mode == CNSS_FTM_CALIBRATION)) {
-			cnss_pr_info("Skipping driver register for device 0x%lx for mode %d",
+			cnss_pr_info("Skipping driver register for device 0x%lx for mode %d\n",
 				     plat_priv->device_id, driver_mode);
 			continue;
 		}
@@ -1375,7 +1414,7 @@ void cnss_wlan_unregister_driver(struct cnss_wlan_driver *driver_ops)
 		if (!plat_priv->cold_boot_support &&
 		    (driver_mode == CNSS_CALIBRATION ||
 		     driver_mode == CNSS_FTM_CALIBRATION)) {
-			cnss_pr_info("Skipping driver unregister for device 0x%lx for mode %d",
+			cnss_pr_info("Skipping driver unregister for device 0x%lx for mode %d\n",
 				     plat_priv->device_id, driver_mode);
 			continue;
 		}
@@ -1983,7 +2022,8 @@ static int cnss_cold_boot_cal_done_hdlr(struct cnss_plat_data *plat_priv,
 
 	switch (cal_info->cal_status) {
 	case CNSS_CAL_DONE:
-		cnss_pr_dbg("Calibration completed successfully\n");
+		cnss_pr_info("Coldboot Calibration completed successfully for device 0x%lx\n",
+			     plat_priv->device_id);
 		plat_priv->cal_done = true;
 		break;
 	case CNSS_CAL_TIMEOUT:
