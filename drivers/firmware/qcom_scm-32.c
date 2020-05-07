@@ -1681,15 +1681,15 @@ int __qcom_fuseipq_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
 {
 	int ret;
 	struct scm_desc desc = {0};
-	uint64_t *status;
+	uint32_t *status;
 
 	if (is_scm_armv8()) {
 
 		desc.arginfo = SCM_ARGS(1, SCM_RO);
-		desc.args[0] = *((unsigned int *)cmd_buf);
+		desc.args[0] = *((uint32_t *)cmd_buf);
 
 		ret = qcom_scm_call2(SCM_SIP_FNID(svc_id, cmd_id), &desc);
-		status = (uint64_t *)(*(((uint32_t *)cmd_buf) + 1));
+		status = (uint32_t *)(((uint32_t *)cmd_buf) + 1);
 		*status = desc.ret[0];
 
 	} else {

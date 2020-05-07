@@ -979,10 +979,10 @@ int __qcom_fuseipq_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
 	uint64_t *status;
 
 	desc.arginfo = SCM_ARGS(1, SCM_RO);
-	desc.args[0] = *((unsigned int *)cmd_buf);
+	desc.args[0] = *((uint64_t *)cmd_buf);
 	ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, svc_id,
 			    cmd_id, &desc, &res);
-	status = (uint64_t *)(*(((uint64_t *)cmd_buf) + 1));
+	status = (uint64_t *)(((uint64_t *)cmd_buf) + 1);
 	*status = res.a1;
 	return ret ? : res.a1;
 }
