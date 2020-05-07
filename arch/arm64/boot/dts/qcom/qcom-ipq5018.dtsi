@@ -213,14 +213,18 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			clocks = <&gcc GCC_QPIC_CLK>,
-				<&gcc GCC_QPIC_AHB_CLK>;
-			clock-names = "core", "aon";
+				<&gcc GCC_QPIC_AHB_CLK>,
+				<&gcc GCC_QPIC_IO_MACRO_CLK>;
+			clock-names = "core", "aon", "io_macro";
 
 			dmas = <&qpic_bam 0>,
 				<&qpic_bam 1>,
 				<&qpic_bam 2>,
 				<&qpic_bam 3>;
 			dma-names = "tx", "rx", "cmd", "status";
+
+			qpic,io_macro_clk_rates = <24000000 100000000 200000000 \
+							320000000 400000000>;
 			status = "disabled";
 
 			nandcs@0 {
