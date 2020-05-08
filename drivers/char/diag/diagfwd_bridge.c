@@ -263,7 +263,7 @@ int diag_remote_dev_write_done(int id, unsigned char *buf, int len, int ctxt)
 	if (bridge_info[id].type == DIAG_DATA_TYPE) {
 		if (buf == driver->hdlc_encode_buf)
 			driver->hdlc_encode_buf_len = 0;
-		if (buf == driver->user_space_data_buf)
+		if (buf == (driver->user_space_data_buf + sizeof(int)))
 			driver->user_space_data_busy = 0;
 		err = diag_mux_queue_read(BRIDGE_TO_MUX(id));
 	} else {
