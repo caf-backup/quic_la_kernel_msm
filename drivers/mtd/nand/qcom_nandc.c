@@ -386,6 +386,13 @@ struct nand_flash_dev qspinand_flash_ids[] = {
 		SZ_2K, SZ_128, SZ_128K, 0, 2, 128, NAND_ECC_INFO(8, SZ_512), 0},
 	{NULL}
 };
+
+struct qpic_nand_pltfm_data {
+	u32 *io_macro_clk_table;
+	unsigned char io_macro_clk_cnt;
+};
+
+#define FEEDBACK_CLK_EN		(1 << 4)
 #endif
 /*
  * This data type corresponds to the BAM transaction which will be used for any
@@ -541,7 +548,10 @@ struct qcom_nand_controller {
 
 	struct clk *core_clk;
 	struct clk *aon_clk;
-
+#if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
+	struct clk *io_macro_clk;
+	struct qpic_nand_pltfm_data *pdata;
+#endif
 	union {
 		struct {
 			struct dma_chan *tx_chan;
@@ -3789,6 +3799,72 @@ static void qcom_check_quad_mode(struct mtd_info *mtd, struct qcom_nand_host *ho
 		host->check_qe_bit = true;
 }
 
+static int qpic_nand_dt_array(struct device *dev, const char *prop_name,
+		u32 **out, int *len)
+{
+	int ret = 0;
+	struct device_node *np = dev->of_node;
+	size_t sz;
+	u32 *arr = NULL;
+
+	if (!of_get_property(np, prop_name, len)) {
+		ret = -EINVAL;
+		goto out;
+	}
+	sz = *len = *len / sizeof(*arr);
+	if (sz <= 0) {
+		dev_err(dev, "%s invalid size\n", prop_name);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	arr = devm_kzalloc(dev, sz * sizeof(*arr), GFP_KERNEL);
+	if (!arr) {
+		dev_err(dev, "%s failed allocating memory\n", prop_name);
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = of_property_read_u32_array(np, prop_name, arr, sz);
+	if (ret < 0) {
+		dev_err(dev, "%s failed reading array %d\n", prop_name, ret);
+		goto out;
+	}
+	*out = arr;
+
+out:
+	if (ret)
+		*len = 0;
+	return ret;
+}
+
+static struct qpic_nand_pltfm_data *qpic_nand_populate_pdata(struct device *dev,
+		struct qcom_nand_controller *nandc)
+{
+	struct qpic_nand_pltfm_data *pdata = NULL;
+	int io_macro_clk_len;
+	u32 *io_macro_clk_table = NULL;
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata) {
+		dev_err(dev, "failed to allocate memory for platform data\n");
+		goto out;
+	}
+
+	if(qpic_nand_dt_array(dev, "qpic,io_macro_clk_rates",
+				&io_macro_clk_table, &io_macro_clk_len)) {
+		dev_err(dev, "failed parsing supported io_macro clock rates\n");
+		goto out;
+	}
+
+	pdata->io_macro_clk_table = io_macro_clk_table;
+	pdata->io_macro_clk_cnt = io_macro_clk_len;
+
+	return pdata;
+out:
+	return NULL;
+}
+
 int qcom_serial_device_config(struct mtd_info *mtd, struct qcom_nand_host *host)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
@@ -4240,6 +4316,38 @@ static int qcom_nandc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_aon_clk;
 
+#if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
+	nandc->pdata = qpic_nand_populate_pdata(nandc->dev, nandc);
+	if (!nandc->pdata) {
+		pr_err("QPIC platform data not populated\n");
+	}
+
+	/* Initially enable feedback clock bit to avoid serial
+	 * tarining done by software manually
+	 * for feed back clock the maximum IO_MACRO_CLK should
+	 * be 50MHz. so supply 200MHz as input source to IO_MACRO
+	 * to enable feedback clock bit write into register
+	 * NAND_QSPI_MSTR_CONFIG.
+	 */
+	nandc_write(nandc, NAND_QSPI_MSTR_CONFIG, FEEDBACK_CLK_EN);
+
+	nandc->io_macro_clk = devm_clk_get(dev, "io_macro");
+	if (IS_ERR(nandc->io_macro_clk))
+		return PTR_ERR(nandc->io_macro_clk);
+
+	/* set the clock io_macro rate and then enable
+	 * the io_macro clock
+	 */
+	ret =  clk_set_rate(nandc->io_macro_clk,
+			nandc->pdata->io_macro_clk_table[2]);
+	if (ret)
+		goto err_io_macro_clk;
+
+	ret = clk_prepare_enable(nandc->io_macro_clk);
+	if (ret)
+		goto err_io_macro_clk;
+#endif
+
 	ret = qcom_nandc_setup(nandc);
 	if (ret)
 		goto err_setup;
@@ -4280,6 +4388,10 @@ static int qcom_nandc_probe(struct platform_device *pdev)
 err_cs_init:
 	list_for_each_entry(host, &nandc->host_list, node)
 		nand_release(nand_to_mtd(&host->chip));
+#if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
+err_io_macro_clk:
+	clk_disable_unprepare(nandc->io_macro_clk);
+#endif
 err_setup:
 	clk_disable_unprepare(nandc->aon_clk);
 err_aon_clk:

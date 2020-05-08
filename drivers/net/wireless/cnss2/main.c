@@ -1605,6 +1605,8 @@ static int cnss_subsys_powerup(const struct subsys_desc *subsys_desc)
 	if (!plat_priv)
 		return -ENODEV;
 
+	plat_priv->target_asserted = 0;
+	plat_priv->target_assert_timestamp = 0;
 	set_bit(CNSS_DRIVER_LOADING, &plat_priv->driver_state);
 	ret = cnss_pci_probe(plat_priv->pci_dev,
 			     plat_priv->pci_dev_id,
@@ -2945,8 +2947,8 @@ static int cnss_misc_init(struct cnss_plat_data *plat_priv)
 	int ret;
 
 	setup_timer(&plat_priv->fw_boot_timer,
-		    cnss_bus_fw_boot_timeout_hdlr, 0);
-
+		    cnss_bus_fw_boot_timeout_hdlr,
+		    (unsigned long)plat_priv);
 #ifdef CONFIG_CNSS2_PM
 	register_pm_notifier(&cnss_pm_notifier);
 #endif
