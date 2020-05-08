@@ -192,6 +192,32 @@
 			bias-pull-up;
 		};
 	};
+
+	btss_pins: btss_pins {
+		mux_0 {
+			pins = "gpio4";
+			function = "btss0";
+			bias-pull-down;
+		};
+
+		mux_1 {
+			pins = "gpio5";
+			function = "btss1";
+			bias-pull-down;
+		};
+
+		mux_2 {
+			pins = "gpio6";
+			function = "btss2";
+			bias-pull-down;
+		};
+
+		mux_3 {
+			pins = "gpio7";
+			function = "btss3";
+			bias-pull-down;
+		};
+	};
 };
 
 &usb3 {
