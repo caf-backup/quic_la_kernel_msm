@@ -2228,20 +2228,6 @@
 
 		wifi1: wifi1@f00000 {
 			compatible  = "qcom,cnss-qcn9000";
-
-/* No Pine attach in 256M profile */
-#if !defined(__IPQ_MEM_PROFILE_256_MB__)
-#ifdef __IPQ_MEM_PROFILE_512_MB__
-			base-addr = <0x4e300000>;
-			etr-addr = <0x51100000>;
-			caldb-addr = <0x51200000>;
-#else
-			base-addr = <0x50100000>;
-			etr-addr = <0x52F00000>;
-			caldb-addr = <0x53000000>;
-#endif
-#endif
-			caldb-size = <0x800000>;
 			qrtr_node_id = <0x20>;
 			qca,auto-restart;
 			status = "disabled";
