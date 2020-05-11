@@ -178,6 +178,7 @@ enum cnss_mem_type {
 	CNSS_MEM_M3,
 	CNSS_MEM_CAL_V01,
 	CNSS_MEM_DPD_V01,
+	CNSS_MEM_ETR,
 };
 
 enum cnss_fw_dump_type {

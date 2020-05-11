@@ -126,9 +126,9 @@ static char *cnss_qmi_mode_to_str(enum cnss_driver_mode mode)
 	case CNSS_QVIT:
 		return "QVIT";
 	case CNSS_CALIBRATION:
-		return "CALIBRATION";
+		return "COLDBOOT CALIBRATION";
 	case QMI_WLFW_FTM_CALIBRATION_V01:
-		return "FTM CALIBRATION";
+		return "FTM COLDBOOT CALIBRATION";
 	default:
 		return "UNKNOWN";
 	}
@@ -1049,8 +1049,8 @@ int cnss_wlfw_wlan_mode_send_sync(struct cnss_plat_data *plat_priv,
 	if (!plat_priv)
 		return -ENODEV;
 
-	cnss_pr_dbg("Sending mode message, mode: %s(%d), state: 0x%lx\n",
-		    cnss_qmi_mode_to_str(mode), mode, plat_priv->driver_state);
+	cnss_pr_info("Sending mode message, mode: %s(%d), state: 0x%lx\n",
+		     cnss_qmi_mode_to_str(mode), mode, plat_priv->driver_state);
 
 	if (mode == CNSS_OFF &&
 	    test_bit(CNSS_DRIVER_RECOVERY, &plat_priv->driver_state)) {

@@ -30,10 +30,15 @@
 #define DATA_OPT2_TLV_TYPE		0x11
 
 #define TEST_MED_DATA_SIZE_V01		8192
+#define TEST_SML_DATA_SIZE_V01		255
 #define TEST_MAX_NAME_SIZE_V01		255
 
 #define TEST_PING_REQ_MSG_ID_V01	0x20
 #define TEST_DATA_REQ_MSG_ID_V01	0x21
+
+#define TEST_PMIC_GET_RAIL_INFO		0x29
+
+#define TEST_PMIC_SET_RAIL_VOLT		0x2A
 
 #define TEST_PING_REQ_MAX_MSG_LEN_V01	266
 #define TEST_DATA_REQ_MAX_MSG_LEN_V01	8456
@@ -73,6 +78,8 @@ static struct qmi_dir {
 };
 
 static struct mutex status_print_lock;
+u8 rail_id;
+u32 rail_voltage_uv;
 
 struct test_name_type_v01 {
 	u32 name_len;
@@ -97,6 +104,180 @@ static struct qmi_elem_info test_name_type_v01_ei[] = {
 		.tlv_type	= QMI_COMMON_TLV_TYPE,
 		.offset		= offsetof(struct test_name_type_v01,
 					   name),
+	},
+	{}
+};
+
+struct qmi_pmic_railinfo {
+	u8 rail_id;
+	u8 cpr_mode;
+	char name[14];
+	u32 voltage_uv; /* value in micro volts */
+}__packed;
+
+struct pmic_rail_info_req_v01 {
+	union {
+		char arr[4];
+		u32 rail_id;
+	};
+
+	u8 client_name_valid;
+	struct test_name_type_v01 client_name;
+}__packed;
+
+static struct qmi_elem_info pmic_rail_info_req_v01_ei[] = {
+	{
+		.data_type	= QMI_UNSIGNED_1_BYTE,
+		.elem_len	= 4,
+		.elem_size	= sizeof(char),
+		.array_type	= STATIC_ARRAY,
+		.tlv_type	= PING_REQ1_TLV_TYPE,
+		.offset		= offsetof(struct pmic_rail_info_req_v01,
+					   arr),
+	},
+	{
+		.data_type	= QMI_OPT_FLAG,
+		.elem_len	= 1,
+		.elem_size	= sizeof(u8),
+		.array_type	= NO_ARRAY,
+		.tlv_type	= PING_OPT1_TLV_TYPE,
+		.offset		= offsetof(struct pmic_rail_info_req_v01,
+					   client_name_valid),
+	},
+	{
+		.data_type	= QMI_STRUCT,
+		.elem_len	= 1,
+		.elem_size	= sizeof(struct test_name_type_v01),
+		.array_type	= NO_ARRAY,
+		.tlv_type	= PING_OPT1_TLV_TYPE,
+		.offset		= offsetof(struct pmic_rail_info_req_v01,
+					   client_name),
+		.ei_array	= test_name_type_v01_ei,
+	},
+	{}
+};
+
+struct pmic_rail_info_resp_v01 {
+	struct qmi_response_type_v01 resp;
+
+	u8 data_valid;
+	struct qmi_pmic_railinfo railinfo;
+}__packed;
+
+static struct qmi_elem_info pmic_rail_info_resp_v01_ei[] = {
+	{
+		.data_type	= QMI_STRUCT,
+		.elem_len	= 1,
+		.elem_size	= sizeof(struct qmi_response_type_v01),
+		.array_type	= NO_ARRAY,
+		.tlv_type	= DATA_RESP1_TLV_TYPE,
+		.offset		= offsetof(struct pmic_rail_info_resp_v01,
+					   resp),
+		.ei_array	= qmi_response_type_v01_ei,
+	},
+	{
+		.data_type	= QMI_OPT_FLAG,
+		.elem_len	= 1,
+		.elem_size	= sizeof(u8),
+		.array_type	= NO_ARRAY,
+		.tlv_type	= DATA_OPT1_TLV_TYPE,
+		.offset		= offsetof(struct pmic_rail_info_resp_v01,
+					   data_valid),
+	},
+	{
+		.data_type	= QMI_UNSIGNED_1_BYTE,
+		.elem_len	= 20,
+		.elem_size	= sizeof(u8),
+		.array_type	= STATIC_ARRAY,
+		.tlv_type	= DATA_OPT1_TLV_TYPE,
+		.offset		= offsetof(struct pmic_rail_info_resp_v01,
+					   railinfo),
+	},
+	{}
+};
+
+union pmic_rail_volt_set_req_v01 {
+	char arr[5];
+	struct {
+		u8 rail_id;
+		u32 rail_voltage_uv; /* value in micro volts */
+	}__packed;
+}__packed;
+
+static struct qmi_elem_info pmic_rail_volt_set_req_v01_ei[] = {
+	{
+		.data_type	= QMI_UNSIGNED_1_BYTE,
+		.elem_len	= 5,
+		.elem_size	= sizeof(char),
+		.array_type	= STATIC_ARRAY,
+		.tlv_type	= DATA_REQ1_TLV_TYPE,
+		.offset		= offsetof(union pmic_rail_volt_set_req_v01,
+					   arr),
+
+	},
+	{}
+};
+
+struct pmic_rail_volt_set_resp_v01 {
+	struct qmi_response_type_v01 resp;
+
+	u8 data_valid;
+	union {
+		char arr[4];
+		u32 rail_voltage_uv; /* value in micro volts */
+	};
+
+	u8 service_name_valid;
+	struct test_name_type_v01 service_name;
+}__packed;
+
+static struct qmi_elem_info pmic_rail_volt_set_resp_v01_ei[] = {
+	{
+		.data_type	= QMI_STRUCT,
+		.elem_len	= 1,
+		.elem_size	= sizeof(struct qmi_response_type_v01),
+		.array_type	= NO_ARRAY,
+		.tlv_type	= PING_RESP1_TLV_TYPE,
+		.offset		= offsetof(struct pmic_rail_volt_set_resp_v01,
+					   resp),
+		.ei_array	= qmi_response_type_v01_ei,
+	},
+	{
+		.data_type	= QMI_OPT_FLAG,
+		.elem_len	= 1,
+		.elem_size	= sizeof(u8),
+		.array_type	= NO_ARRAY,
+		.tlv_type	= PING_OPT1_TLV_TYPE,
+		.offset		= offsetof(struct pmic_rail_volt_set_resp_v01,
+					   data_valid),
+	},
+	{
+		.data_type	= QMI_UNSIGNED_1_BYTE,
+		.elem_len	= 4,
+		.elem_size	= sizeof(char),
+		.array_type	= STATIC_ARRAY,
+		.tlv_type	= PING_OPT1_TLV_TYPE,
+		.offset		= offsetof(struct pmic_rail_volt_set_resp_v01,
+					   arr),
+	},
+	{
+		.data_type	= QMI_OPT_FLAG,
+		.elem_len	= 1,
+		.elem_size	= sizeof(u8),
+		.array_type	= NO_ARRAY,
+		.tlv_type	= PING_OPT2_TLV_TYPE,
+		.offset		= offsetof(struct pmic_rail_volt_set_resp_v01,
+					   service_name_valid),
+	},
+	{
+		.data_type	= QMI_STRUCT,
+		.elem_len	= 1,
+		.elem_size	= sizeof(struct test_name_type_v01),
+		.array_type	= NO_ARRAY,
+		.tlv_type	= PING_OPT2_TLV_TYPE,
+		.offset		= offsetof(struct pmic_rail_volt_set_resp_v01,
+					   service_name),
+		.ei_array	= test_name_type_v01_ei,
 	},
 	{}
 };
@@ -471,6 +652,140 @@ static const struct file_operations data_fops = {
 	.write = data_write,
 };
 
+static ssize_t pmic_write(struct file *fp, const char __user *user_buf,
+			  size_t count, loff_t *ppos)
+
+{
+	struct qmi_handle *qmi = fp->private_data;
+	struct qmi_txn txn;
+	int ret;
+
+	if (count < 1)
+		return 0;
+
+	if (!strncmp(fp->f_path.dentry->d_iname, "rail_id",
+		     sizeof(fp->f_path.dentry->d_iname))) {
+		struct pmic_rail_info_req_v01 req = {};
+
+		ret = kstrtou8_from_user(user_buf, count, 0, &rail_id);
+		if (ret)
+			return ret;
+
+		req.rail_id = rail_id;
+
+		ret = qmi_txn_init(qmi, &txn, NULL, NULL);
+		if (ret < 0)
+			return ret;
+
+		ret = qmi_send_request(qmi, NULL,
+				       &txn, TEST_PMIC_GET_RAIL_INFO,
+				       TEST_SML_DATA_SIZE_V01,
+				       pmic_rail_info_req_v01_ei, &req);
+
+	} else if (!strncmp(fp->f_path.dentry->d_iname, "rail_voltage_uv",
+		   sizeof(fp->f_path.dentry->d_iname))) {
+		union pmic_rail_volt_set_req_v01 req = {};
+
+		ret = kstrtouint_from_user(user_buf, count, 0,
+					   &rail_voltage_uv);
+		if (ret)
+			return ret;
+
+		req.rail_id = rail_id;
+		req.rail_voltage_uv = rail_voltage_uv;
+
+		ret = qmi_txn_init(qmi, &txn, NULL, NULL);
+		if (ret < 0)
+			return ret;
+
+		ret = qmi_send_request(qmi, NULL, &txn,
+				       TEST_PMIC_SET_RAIL_VOLT,
+				       TEST_SML_DATA_SIZE_V01,
+				       pmic_rail_volt_set_req_v01_ei, &req);
+	} else {
+		return -EIO;
+	}
+
+	if (ret < 0) {
+		qmi_txn_cancel(&txn);
+		return ret;
+	}
+
+	ret = qmi_txn_wait(&txn, 5 * HZ);
+	if (ret < 0)
+		count = ret;
+
+	return count;
+}
+
+static ssize_t pmic_read(struct file *fp, char __user *buf,
+		size_t count, loff_t *pos)
+{
+	char _buf[16] = {0};
+
+	if (!strncmp(fp->f_path.dentry->d_iname, "rail_id",
+		     sizeof(fp->f_path.dentry->d_iname))) {
+		snprintf(_buf, sizeof(_buf), "%u\n", rail_id);
+	} else if (!strncmp(fp->f_path.dentry->d_iname, "rail_voltage_uv",
+			    sizeof(fp->f_path.dentry->d_iname))) {
+		snprintf(_buf, sizeof(_buf), "%u\n", rail_voltage_uv);
+	}
+
+	return simple_read_from_buffer(buf, count, pos, _buf, strnlen(_buf, 16));
+}
+
+static const struct file_operations pmic_fops = {
+	.open = simple_open,
+	.write = pmic_write,
+	.read = pmic_read,
+};
+
+static void rail_info_cb(struct qmi_handle *qmi, struct sockaddr_qrtr *sq,
+			 struct qmi_txn *txn, const void *data)
+{
+	const struct pmic_rail_info_resp_v01 *resp = data;
+
+	if (!txn) {
+		pr_err("spurious rail info response\n");
+		return;
+	}
+
+	if (resp->resp.result == QMI_RESULT_FAILURE_V01)
+		txn->result = -ENXIO;
+	else if (!resp->data_valid)
+		txn->result = -EINVAL;
+
+	pr_info("Rail info requested from %d:%d handle[%p]\n",
+		qmi->sq.sq_port, qmi->sq.sq_node, qmi);
+	pr_info("==========================================================\n");
+	pr_info("Rail ID   CPR Mode  Rail Voltage(uV)   Name \n");
+	pr_info("%02d        %02d        %08d           %s\n",
+		resp->railinfo.rail_id,  resp->railinfo.cpr_mode,
+		resp->railinfo.voltage_uv, resp->railinfo.name);
+	pr_info("==========================================================\n");
+
+	complete(&txn->completion);
+}
+
+static void volt_set_cb(struct qmi_handle *qmi, struct sockaddr_qrtr *sq,
+			 struct qmi_txn *txn, const void *data)
+{
+	const struct pmic_rail_volt_set_resp_v01 *resp = data;
+
+	if (!txn) {
+		pr_err("spurious voltage set response\n");
+		return;
+	}
+
+	if (resp->resp.result == QMI_RESULT_FAILURE_V01)
+		txn->result = -ENXIO;
+
+	pr_info("Voltage set requested from %d:%d handle[%p] is successful!\n",
+		qmi->sq.sq_port, qmi->sq.sq_node, qmi);
+
+	complete(&txn->completion);
+}
+
 static struct qmi_msg_handler qmi_sample_handlers[] = {
 	{
 		.type = QMI_RESPONSE,
@@ -478,6 +793,20 @@ static struct qmi_msg_handler qmi_sample_handlers[] = {
 		.ei = test_ping_resp_msg_v01_ei,
 		.decoded_size = sizeof(struct test_ping_req_msg_v01),
 		.fn = ping_pong_cb
+	},
+	{
+		.type = QMI_RESPONSE,
+		.msg_id = TEST_PMIC_GET_RAIL_INFO,
+		.ei = pmic_rail_info_resp_v01_ei,
+		.decoded_size = sizeof(struct pmic_rail_info_resp_v01),
+		.fn = rail_info_cb
+	},
+	{
+		.type = QMI_RESPONSE,
+		.msg_id = TEST_PMIC_SET_RAIL_VOLT,
+		.ei = pmic_rail_volt_set_resp_v01_ei,
+		.decoded_size = sizeof(struct pmic_rail_volt_set_resp_v01),
+		.fn = volt_set_cb
 	},
 	{}
 };
@@ -492,6 +821,9 @@ struct qmi_sample {
 	struct dentry *de_nthreads;
 	struct dentry *de_niterations;
 	struct dentry *de_data_size;
+	struct dentry *de_pmic_dir;
+	struct dentry *de_rail_id;
+	struct dentry *de_rail_voltage_uv;
 };
 
 static struct dentry *qmi_debug_dir;
@@ -861,10 +1193,39 @@ static int qmi_sample_probe(struct platform_device *pdev)
 		goto err_remove_de_niterations;
 	}
 
+	sample->de_pmic_dir = debugfs_create_dir("pmic", sample->de_dir);
+	if (IS_ERR(sample->de_pmic_dir)) {
+		ret = PTR_ERR(sample->de_pmic_dir);
+		goto err_remove_de_data_size;
+	}
+
+	sample->de_rail_id = debugfs_create_file("rail_id", 0600,
+						      sample->de_pmic_dir,
+						      sample, &pmic_fops);
+	if (IS_ERR(sample->de_rail_id)) {
+		ret = PTR_ERR(sample->de_rail_id);
+		goto err_remove_de_pmic_dir;
+	}
+
+	sample->de_rail_voltage_uv = debugfs_create_file("rail_voltage_uv",
+							   0600,
+							   sample->de_pmic_dir,
+							   sample, &pmic_fops);
+	if (IS_ERR(sample->de_rail_voltage_uv)) {
+		ret = PTR_ERR(sample->de_rail_voltage_uv);
+		goto err_remove_de_rail_id;
+	}
+
 	platform_set_drvdata(pdev, sample);
 
 	return 0;
 
+err_remove_de_rail_id:
+	debugfs_remove(sample->de_rail_id);
+err_remove_de_pmic_dir:
+	debugfs_remove(sample->de_pmic_dir);
+err_remove_de_data_size:
+	debugfs_remove(sample->de_data_size);
 err_remove_de_niterations:
 	debugfs_remove(sample->de_niterations);
 err_remove_de_nthreads:
@@ -887,6 +1248,9 @@ static int qmi_sample_remove(struct platform_device *pdev)
 	struct qmi_handle *qmi = &sample->qmi;
 	struct test_qmi_data *qmi_data, *temp_qmi_data;
 
+	debugfs_remove(sample->de_rail_voltage_uv);
+	debugfs_remove(sample->de_rail_id);
+	debugfs_remove(sample->de_pmic_dir);
 	debugfs_remove(sample->de_data_size);
 	debugfs_remove(sample->de_niterations);
 	debugfs_remove(sample->de_nthreads);

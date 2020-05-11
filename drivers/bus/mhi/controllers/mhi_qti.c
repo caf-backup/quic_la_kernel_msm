@@ -885,7 +885,6 @@ static const struct dev_pm_ops pm_ops = {
 static struct pci_device_id mhi_pcie_device_id[] = {
 	{PCI_DEVICE(MHI_PCIE_VENDOR_ID, 0x0300)},
 	{PCI_DEVICE(MHI_PCIE_VENDOR_ID, 0x0301)},
-	{PCI_DEVICE(MHI_PCIE_VENDOR_ID, 0x0302)},
 	{PCI_DEVICE(MHI_PCIE_VENDOR_ID, 0x0303)},
 	{PCI_DEVICE(MHI_PCIE_VENDOR_ID, 0x0304)},
 	{PCI_DEVICE(MHI_PCIE_VENDOR_ID, 0x0305)},
