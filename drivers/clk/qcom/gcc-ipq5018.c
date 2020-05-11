@@ -663,7 +663,7 @@ static const struct freq_tbl ftbl_blsp1_uart_apps_clk_src[] = {
 	F(56000000, P_GPLL0, 1, 7, 100),
 	F(58982400, P_GPLL0, 1, 1152, 15625),
 	F(60000000, P_GPLL0, 1, 3, 40),
-	F(64000000, P_GPLL0, 12.5, 1, 1),
+	F(64000000, P_GPLL0, 10, 4, 5),
 	{ }
 };
 
@@ -766,7 +766,7 @@ static struct clk_rcg2 gmac1_tx_clk_src = {
 };
 
 static const struct freq_tbl ftbl_gmac_clk_src[] = {
-	F(266666667, P_GPLL0, 3, 0, 0),
+	F(240000000, P_GPLL4, 5, 0, 0),
 	{ }
 };
 
@@ -831,7 +831,7 @@ static struct clk_rcg2 gp3_clk_src = {
 };
 
 static const struct freq_tbl ftbl_lpass_axim_clk_src[] = {
-	F(133330000, P_GPLL0, 6, 0, 0),
+	F(133333334, P_GPLL0, 6, 0, 0),
 	{ }
 };
 
@@ -848,9 +848,14 @@ struct clk_rcg2 lpass_axim_clk_src = {
 	},
 };
 
+static const struct freq_tbl ftbl_lpass_sway_clk_src[] = {
+	F(266666667, P_GPLL0, 12, 0, 0),
+	{ }
+};
+
 struct clk_rcg2 lpass_sway_clk_src = {
 	.cmd_rcgr = 0x2E040,
-	.freq_tbl = ftbl_lpass_axim_clk_src,
+	.freq_tbl = ftbl_lpass_sway_clk_src,
 	.hid_width = 5,
 	.parent_map = gcc_xo_gpll0_map,
 	.clkr.hw.init = &(struct clk_init_data){
@@ -990,7 +995,6 @@ static struct clk_fixed_factor pcnoc_clk_src = {
 };
 
 static const struct freq_tbl ftbl_qdss_at_clk_src[] = {
-	F(66670000, P_GPLL0_DIV2, 6, 0, 0),
 	F(240000000, P_GPLL4, 5, 0, 0),
 	{ }
 };
@@ -1009,9 +1013,6 @@ static struct clk_rcg2 qdss_at_clk_src = {
 };
 
 static const struct freq_tbl ftbl_qdss_stm_clk_src[] = {
-	F(24000000, P_XO, 1, 0, 0),
-	F(50000000, P_GPLL0_DIV2, 8, 0, 0),
-	F(100000000, P_GPLL0, 8, 0, 0),
 	F(200000000, P_GPLL0, 4, 0, 0),
 	{ }
 };
@@ -1030,7 +1031,7 @@ static struct clk_rcg2 qdss_stm_clk_src = {
 };
 
 static const struct freq_tbl ftbl_qdss_traceclkin_clk_src[] = {
-	F(300000000, P_GPLL4, 4, 0, 0),
+	F(266666667, P_GPLL0, 3, 0, 0),
 	{ }
 };
 
@@ -1107,11 +1108,7 @@ static struct clk_fixed_factor eud_at_clk_src = {
 };
 
 static const struct freq_tbl ftbl_qpic_io_macro_clk_src[] = {
-	F(400000000, P_GPLL0, 2, 0, 0),
-	F(320000000, P_GPLL0, 0, 2, 5),
-	F(200000000, P_GPLL0, 4, 0, 0),
-	F(100000000, P_GPLL0, 8, 0, 0),
-	F(24000000, P_XO, 1, 0, 0),
+	F(320000000, P_GPLL0, 1, 2, 5),
 	{ }
 };
 
@@ -1134,7 +1131,7 @@ static const struct freq_tbl ftbl_sdcc1_apps_clk_src[] = {
 	F(24000000, P_XO, 1, 0, 0),
 	F(48000000, P_GPLL2, 12, 1, 2),
 	F(96000000, P_GPLL2, 12, 0, 0),
-	F(177777778, P_GPLL0, 4.5, 0, 0),
+	F(177777778, P_GPLL0, 1, 2, 9),
 	F(192000000, P_GPLL2, 6, 0, 0),
 	F(200000000, P_GPLL0, 4, 0, 0),
 	{ }
@@ -1155,7 +1152,7 @@ static struct clk_rcg2 sdcc1_apps_clk_src = {
 };
 
 static const struct freq_tbl ftbl_sys_noc_tprb_clk_src[] = {
-	F(320000000, P_GPLL0, 2.5, 0, 0),
+	F(320000000, P_GPLL0, 1, 2, 5),
 	{ }
 };
 
@@ -3417,7 +3414,7 @@ static struct clk_branch gcc_uniphy_rx_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_uniphy_rx_clk",
 			.parent_names = (const char *[]){
-				"gmac1_rx_div_clk_src"
+				"gmac1_rx_clk_src"
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -3434,7 +3431,7 @@ static struct clk_branch gcc_uniphy_tx_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_uniphy_tx_clk",
 			.parent_names = (const char *[]){
-				"gmac1_tx_div_clk_src"
+				"gmac1_tx_clk_src"
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
