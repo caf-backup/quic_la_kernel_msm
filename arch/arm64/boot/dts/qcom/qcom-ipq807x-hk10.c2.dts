@@ -108,11 +108,11 @@
 	 * |        |              |                         |
 	 * +--------+--------------+-------------------------+
 	 * |        |              |                         |
-	 * |  Pine  |  0x4B000000  |          55MB           |
+	 * |  Pine  |  0x4B000000  |          40MB           |
 	 * |        |              |                         |
 	 * +--------+--------------+-------------------------+
 	 * |        |              |                         |
-	 * |  Pine  |  0x4E700000  |          55MB           |
+	 * |  Pine  |  0x4D800000  |          40MB           |
 	 * |        |              |                         |
 	 * +--------+--------------+-------------------------+
 	 * |                                                 |
@@ -126,12 +126,12 @@
 		/delete-node/ wifi_dump@4e900000;
 		qcn9000_pcie0@4b000000 {
 			no-map;
-			reg = <0x0 0x4b000000 0x0 0x03700000>;
+			reg = <0x0 0x4b000000 0x0 0x02800000>;
 		};
 
-		qcn9000_pcie1@4e700000 {
+		qcn9000_pcie1@4d800000 {
 			no-map;
-			reg = <0x0 0x4e700000 0x0 0x03700000>;
+			reg = <0x0 0x4d800000 0x0 0x02800000>;
 		};
 #else
 	/*                   Default Profile
@@ -1053,16 +1053,43 @@
 };
 
 &wifi2 {
-	status = "ok";
 #ifdef __IPQ_MEM_PROFILE_512_MB__
+      /* QCN9000 tgt-mem-mode=1 layout - 40MB
+       * +=========+==============+=========+
+       * |  Region | Start Offset |   Size  |
+       * +---------+--------------+---------+
+       * | HREMOTE |  0x4B000000  |   31MB  |
+       * +---------+--------------+---------+
+       * |   ETR   |  0x4CF00000  |   1MB   |
+       * +---------+--------------+---------+
+       * |  Caldb  |  0x4D000000  |   8MB   |
+       * +==================================+
+       */
 	base-addr = <0x4B000000>;
-	etr-addr = <0x4DE00000>;
-	caldb-addr = <0x4DF00000>;
+	etr-addr = <0x4CF00000>;
+	caldb-addr = <0x4D000000>;
+	hremote-size = <0x1F00000>;
+	tgt-mem-mode = <0x1>;
 #else
+      /* QCN9000 tgt-mem-mode=0 layout - 55MB
+       * +=========+==============+=========+
+       * |  Region | Start Offset |   Size  |
+       * +---------+--------------+---------+
+       * | HREMOTE |  0x4B000000  |   46MB  |
+       * +---------+--------------+---------+
+       * |   ETR   |  0x4DE00000  |   1MB   |
+       * +---------+--------------+---------+
+       * |  Caldb  |  0x4DF00000  |   8MB   |
+       * +==================================+
+       */
 	base-addr = <0x4B000000>;
 	etr-addr = <0x4DE00000>;
 	caldb-addr = <0x4DF00000>;
+	hremote-size = <0x2E00000>;
+	tgt-mem-mode = <0x0>;
 #endif
+	caldb-size = <0x800000>;
+	status = "ok";
 #if defined(__CNSS2__)
 	pcie0_mhi: pcie0_mhi {
 		status = "ok";
@@ -1071,16 +1098,43 @@
 };
 
 &wifi3 {
-	status = "ok";
 #ifdef __IPQ_MEM_PROFILE_512_MB__
-	base-addr = <0x4E700000>;
-	etr-addr = <0x51500000>;
-	caldb-addr = <0x51600000>;
+      /* QCN9000 tgt-mem-mode=1 layout - 40MB
+       * +=========+==============+=========+
+       * |  Region | Start Offset |   Size  |
+       * +---------+--------------+---------+
+       * | HREMOTE |  0x4D800000  |   31MB  |
+       * +---------+--------------+---------+
+       * |   ETR   |  0x4F700000  |   1MB   |
+       * +---------+--------------+---------+
+       * |  Caldb  |  0x4F800000  |   8MB   |
+       * +==================================+
+       */
+	base-addr = <0x4D800000>;
+	etr-addr = <0x4F700000>;
+	caldb-addr = <0x4F800000>;
+	hremote-size = <0x1F00000>;
+	tgt-mem-mode = <0x1>;
 #else
+      /* QCN9000 tgt-mem-mode=0 layout - 55MB
+       * +=========+==============+=========+
+       * |  Region | Start Offset |   Size  |
+       * +---------+--------------+---------+
+       * | HREMOTE |  0x4E700000  |   46MB  |
+       * +---------+--------------+---------+
+       * |   ETR   |  0x51500000  |   1MB   |
+       * +---------+--------------+---------+
+       * |  Caldb  |  0x51600000  |   8MB   |
+       * +==================================+
+       */
 	base-addr = <0x4E700000>;
 	etr-addr = <0x51500000>;
 	caldb-addr = <0x51600000>;
+	hremote-size = <0x2E00000>;
+	tgt-mem-mode = <0x0>;
 #endif
+	caldb-size = <0x800000>;
+	status = "ok";
 #if defined(__CNSS2__)
 	pcie1_mhi: pcie1_mhi {
 		status = "ok";

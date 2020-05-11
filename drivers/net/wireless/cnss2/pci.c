@@ -2507,6 +2507,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 	unsigned int bdf_location[3], caldb_location[3];
 	u32 addr = 0;
 	u32 caldb_size = 0;
+	u32 hremote_size = 0;
 	struct device *dev;
 	int i, idx, mode;
 	struct device_node *dev_node = NULL;
@@ -2560,7 +2561,14 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 					pr_err("WARNING caldb remap failed\n");
 				break;
 			case HOST_DDR_REGION_TYPE:
-				if (fw_mem[i].size > Q6_HOST_ADDR_SZ_QCN9000) {
+				if (of_property_read_u32(dev->of_node,
+							 "hremote-size",
+							 &hremote_size)) {
+					pr_err("Error: No hremote-size in dts\n");
+					CNSS_ASSERT(0);
+					return -ENOMEM;
+				}
+				if (fw_mem[i].size > hremote_size) {
 					pr_err("Error: Need more memory %x\n",
 					       (unsigned int)fw_mem[i].size);
 					CNSS_ASSERT(0);
