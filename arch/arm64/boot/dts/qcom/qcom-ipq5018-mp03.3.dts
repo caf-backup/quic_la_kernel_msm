@@ -107,14 +107,6 @@
 			};
 		};
 
-		pcie0: pci@80000000 {
-			status = "ok";
-		};
-
-		pcie1: pci@a0000000 {
-			status = "ok";
-		};
-
 		wifi0: wifi@c000000 {
 			status = "disabled";
 		};
@@ -230,4 +222,10 @@
 &pcie1 {
 	status = "ok";
 	perst-gpio = <&tlmm 18 1>;
+};
+
+&dwc_0 {
+	/delete-property/ snps,quirk-ref-clock-adjustment;
+	snps,quirk-ref-clock-period = <0x32>;
+	qcom,emulation = <1>;
 };

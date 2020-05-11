@@ -195,3 +195,9 @@
 &eud {
 	status = "ok";
 };
+
+&dwc_0 {
+	/delete-property/ snps,quirk-ref-clock-adjustment;
+	snps,quirk-ref-clock-period = <0x32>;
+	qcom,emulation = <1>;
+};
