@@ -221,6 +221,21 @@ struct cnss_plat_data *cnss_get_plat_priv(struct platform_device
 	return NULL;
 }
 
+int cnss_get_plat_env_index_from_plat_priv(struct cnss_plat_data *plat_priv)
+{
+	int i;
+
+	if (!plat_priv)
+		return -EINVAL;
+
+	for (i = 0; i < plat_env_index; i++) {
+		if (plat_env[i] == plat_priv)
+			return i;
+	}
+
+	return -EINVAL;
+}
+
 #ifdef CONFIG_CNSS2_PM
 static int cnss_pm_notify(struct notifier_block *b,
 			  unsigned long event, void *p)
