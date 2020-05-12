@@ -3734,9 +3734,10 @@ static void cnss_mhi_notify_status(struct mhi_controller *mhi_ctrl, void *priv,
 		return;
 	}
 	cnss_pr_err("XXX TARGET ASSERTED XXX\n");
-	cnss_pr_err("XXX TARGET %s instance_id 0x%x XXX\n",
+	cnss_pr_err("XXX TARGET %s instance_id 0x%x plat_env idx %d XXX\n",
 		    plat_priv->device_name,
-		    plat_priv->wlfw_service_instance_id);
+		    plat_priv->wlfw_service_instance_id,
+		    cnss_get_plat_env_index_from_plat_priv(plat_priv));
 	plat_priv->target_asserted = 1;
 	plat_priv->target_assert_timestamp = ktime_to_ms(ktime_get());
 
