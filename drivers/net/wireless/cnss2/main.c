@@ -88,7 +88,7 @@ static int fw_ready_timeout = 15;
 module_param(fw_ready_timeout, int, 0644);
 MODULE_PARM_DESC(fw_ready_timeout, "fw ready timeout in seconds");
 
-static int cold_boot_cal_timeout = 40;
+static int cold_boot_cal_timeout = 60;
 module_param(cold_boot_cal_timeout, int, 0644);
 MODULE_PARM_DESC(cold_boot_cal_timeout, "Cold boot cal timeout in seconds");
 
