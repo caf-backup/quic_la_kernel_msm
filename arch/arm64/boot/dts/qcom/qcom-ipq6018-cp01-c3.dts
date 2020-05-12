@@ -20,22 +20,6 @@
 #include "qcom-ipq6018-cpr-regulator.dtsi"
 #include "qcom-ipq6018-cp-cpu.dtsi"
 
-#if !defined(__IPQ_MEM_PROFILE_256_MB__)
-#ifdef __IPQ_MEM_PROFILE_512_MB__
-&tmc_etr {
-	/delete-property/ memory_region;
-};
-
-&q6v5_wcss {
-	memory-region = <&q6_region>;
-};
-
-&qcom_q6v5_wcss {
-	memory-region = <&q6_region>;
-};
-#endif
-#endif
-
 / {
 	model = "Qualcomm Technologies, Inc. IPQ6018/AP-CP01-C3";
 
@@ -114,8 +98,12 @@
 	       * |        |              |                         |
 	       * |        |              |                         |
 	       * +--------+--------------+-------------------------+
+	       * | WLAN   |              |                         |
+	       * | Q6 ETR |  0x4D300000  |          1MB            |
+	       * | Region |              |                         |
+	       * +--------+--------------+-------------------------+
 	       * |        |              |                         |
-	       * |  Pine  |  0x4D300000  |          55MB           |
+	       * |  Pine  |  0x4D400000  |          40MB           |
 	       * |        |              |  (on CP01-C3 RDP only)  |
 	       * +=================================================+
 	       * |                                                 |
@@ -134,9 +122,14 @@
 			reg = <0x0 0x4ab00000 0x0 0x02800000>;
 		};
 
-		qcn9000_pcie0@4e300000 {
+		q6_etr_region: q6_etr_dump@1 {
 			no-map;
-			reg = <0x0 0x4D300000 0x0 0x03700000>;
+			reg = <0x0 0x4D300000 0x0 0x100000>;
+		};
+
+		qcn9000_pcie0@4d400000 {
+			no-map;
+			reg = <0x0 0x4D400000 0x0 0x02800000>;
 		};
 #else
 		qcn9000_pcie0@50100000 {
@@ -205,10 +198,41 @@
 
 &wifi1 {
 #ifdef __IPQ_MEM_PROFILE_512_MB__
-	base-addr = <0x4D300000>;
-	etr-addr = <0x50100000>;
-	caldb-addr = <0x50200000>;
+      /* QCN9000 tgt-mem-mode=1 layout - 40MB
+       * +=========+==============+=========+
+       * |  Region | Start Offset |   Size  |
+       * +---------+--------------+---------+
+       * | HREMOTE |  0x4D400000  |   31MB  |
+       * +---------+--------------+---------+
+       * |   ETR   |  0x4F300000  |   1MB   |
+       * +---------+--------------+---------+
+       * |  Caldb  |  0x4F400000  |   8MB   |
+       * +==================================+
+       */
+	base-addr = <0x4D400000>;
+	etr-addr = <0x4F300000>;
+	caldb-addr = <0x4F400000>;
+	hremote-size = <0x1F00000>;
+	tgt-mem-mode = <0x1>;
+#else
+      /* QCN9000 tgt-mem-mode=0 layout - 55MB
+       * +=========+==============+=========+
+       * |  Region | Start Offset |   Size  |
+       * +---------+--------------+---------+
+       * | HREMOTE |  0x50100000  |   46MB  |
+       * +---------+--------------+---------+
+       * |   ETR   |  0x52F00000  |   1MB   |
+       * +---------+--------------+---------+
+       * |  Caldb  |  0x53000000  |   8MB   |
+       * +==================================+
+       */
+	base-addr = <0x50100000>;
+	etr-addr = <0x52F00000>;
+	caldb-addr = <0x53000000>;
+	hremote-size = <0x2E00000>;
+	tgt-mem-mode = <0x0>;
 #endif
+	caldb-size = <0x800000>;
 	status = "ok";
 };
 

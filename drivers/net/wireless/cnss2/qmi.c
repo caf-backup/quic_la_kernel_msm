@@ -2464,6 +2464,13 @@ int cnss_qmi_init(struct cnss_plat_data *plat_priv)
 			pr_info("No qca8074_tgt_mem_mode entry in dev-tree.\n");
 			plat_priv->tgt_mem_cfg_mode = 0;
 		}
+	} else if (plat_priv->device_id == QCN9000_DEVICE_ID) {
+		if (of_property_read_u32(dev->of_node,
+					 "tgt-mem-mode",
+					 &plat_priv->tgt_mem_cfg_mode)) {
+			pr_info("No tgt-mem-mode entry in dev-tree.\n");
+			plat_priv->tgt_mem_cfg_mode = 0;
+		}
 	}
 
 	ret = qmi_handle_init(&plat_priv->qmi_wlfw,
