@@ -1125,9 +1125,12 @@
 
 		eud: qcom,msm-eud{
 			compatible = "qcom,msm-eud";
-			reg = <0x58000 0x4000
-				0x5a000 0x1000>;
-			reg-names = "eud_base", "eud_mode_mgr2";
+			reg = <0x58000 0x1000>,
+			      <0x59000 0x2000>,
+			      <0x5a000 0x1000>;
+			reg-names = "eud_base",
+				    "eud_mode_mgr",
+				    "eud_mode_mgr2";
 			interrupts = <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "eud_irq";
 			status = "disabled";
