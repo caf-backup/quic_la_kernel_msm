@@ -10,6 +10,7 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 				qcom-ipq6018-db-cp02.dtb
 endif
 dtb-$(CONFIG_ARCH_QCOM) += \
+				qcom-ipq5018-sod.dtb \
 				qcom-ipq5018-emulation-c1.dtb \
 				qcom-ipq5018-emulation-c2.dtb \
 				qcom-ipq5018-emulation-c3.dtb \
