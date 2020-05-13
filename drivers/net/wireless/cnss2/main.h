@@ -450,6 +450,7 @@ struct cnss_plat_data *cnss_get_plat_priv_by_device_id(int id);
 struct cnss_plat_data *cnss_get_plat_priv_by_qrtr_node_id(int node_id);
 struct cnss_plat_data *cnss_get_plat_priv_by_instance_id(int instance_id);
 struct cnss_plat_data *cnss_get_plat_priv(struct platform_device *plat_dev);
+int cnss_get_plat_env_index_from_plat_priv(struct cnss_plat_data *plat_priv);
 int cnss_qca9000_shutdown_part2(struct cnss_plat_data *plat_priv);
 int cnss_get_cpr_info(struct cnss_plat_data *plat_priv);
 int cnss_update_cpr_info(struct cnss_plat_data *plat_priv);

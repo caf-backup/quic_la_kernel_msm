@@ -88,7 +88,7 @@ static int fw_ready_timeout = 15;
 module_param(fw_ready_timeout, int, 0644);
 MODULE_PARM_DESC(fw_ready_timeout, "fw ready timeout in seconds");
 
-static int cold_boot_cal_timeout = 40;
+static int cold_boot_cal_timeout = 60;
 module_param(cold_boot_cal_timeout, int, 0644);
 MODULE_PARM_DESC(cold_boot_cal_timeout, "Cold boot cal timeout in seconds");
 
@@ -219,6 +219,21 @@ struct cnss_plat_data *cnss_get_plat_priv(struct platform_device
 			return plat_env[i];
 	}
 	return NULL;
+}
+
+int cnss_get_plat_env_index_from_plat_priv(struct cnss_plat_data *plat_priv)
+{
+	int i;
+
+	if (!plat_priv)
+		return -EINVAL;
+
+	for (i = 0; i < plat_env_index; i++) {
+		if (plat_env[i] == plat_priv)
+			return i;
+	}
+
+	return -EINVAL;
 }
 
 #ifdef CONFIG_CNSS2_PM
