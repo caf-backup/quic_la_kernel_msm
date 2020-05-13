@@ -1023,7 +1023,7 @@ u64 cnss_get_q6_time(struct device *dev)
 		pci_priv = plat_priv->bus_priv;
 
 		if (!pci_priv) {
-			cnss_pr_err("Pci Priv is null\n");
+			cnss_pr_dbg("Pci Priv is null\n");
 			return 0;
 		}
 		return cnss_pci_get_q6_time(pci_priv);
