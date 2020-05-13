@@ -25,14 +25,12 @@
 
 	aliases {
 		sdhc1 = &sdhc_1; /* SDC1 eMMC slot */
-		serial0 = &blsp1_uart1;
 	};
 
 	chosen {
 		linux,initrd-end = <0x46000000>;
 		linux,initrd-start = <0x44000000>;
-		bootargs = "root=/dev/ram0 rw init=/init";
-		stdout-path = "serial0";
+		bootargs = "console=ttyMSM0,115200,n8 root=/dev/ram0 rw init=/init";
 	};
 
 	soc {
@@ -45,20 +43,20 @@
 		};
 
 		qpic_bam: dma@7984000{
-			status = "ok";
+			status = "disabled";
 		};
 
 		nand: qpic-nand@79b0000 {
-			pinctrl-0 = <&qspi_nand_pins>;
-			pinctrl-names = "default";
-			status = "ok";
+			/* pinctrl-0 = <&qspi_nand_pins>;
+			pinctrl-names = "default"; */
+			status = "disabled";
 		};
 
 		spi_0: spi@78b5000 { /* BLSP1 QUP0 */
-			pinctrl-0 = <&blsp0_spi_pins>;
-			pinctrl-names = "default";
+			/* pinctrl-0 = <&blsp0_spi_pins>;
+			pinctrl-names = "default"; */
 			cs-select = <0>;
-			status = "ok";
+			status = "disabled";
 
 			m25p80@0 {
 				#address-cells = <1>;
@@ -72,7 +70,7 @@
 		};
 
 		mdio0: mdio@88000 {
-			status = "ok";
+			status = "disabled";
 
 			ethernet-phy@0 {
 				reg = <7>;
@@ -80,9 +78,9 @@
 		};
 
 		mdio1: mdio@90000 {
-			status = "ok";
-			pinctrl-0 = <&mdio1_pins>;
-			pinctrl-names = "default";
+			status = "disabled";
+			/* pinctrl-0 = <&mdio1_pins>;
+			pinctrl-names = "default"; */
 			phy-reset-gpio = <&tlmm 39 0>;
 			ethernet-phy@0 {
 				reg = <0>;
@@ -101,39 +99,139 @@
 			};
 		};
 
-		ess-switch@0x39c00000 {
-			switch_mac_mode = <0xf>; /* mac mode for uniphy instance*/
-			qcom,port_phyinfo {
-				port@0 {
-					port_id = <1>;
-					phy_address = <7>;
-				};
-				port@1 {
-					port_id = <2>;
-					phy_address = <1>;
+		ess-instance {
+			status = "disabled";
+			num_devices = <0x2>;
+			ess-switch@0x39c00000 {
+				status = "disabled";
+				compatible = "qcom,ess-switch-ipq50xx";
+				device_id = <0>;
+				switch_mac_mode = <0xf>; /* mac mode for uniphy instance*/
+				qcom,port_phyinfo {
+					port@0 {
+						port_id = <1>;
+						phy_address = <7>;
+					};
+					port@1 {
+						port_id = <2>;
+						forced-speed = <1000>;
+						forced-duplex = <1>;
+					};
 				};
 			};
-		};
-
-		pcie1: pci@a0000000 {
-			status = "ok";
+			ess-switch1@1 {
+				status = "disabled";
+				compatible = "qcom,ess-switch-qca83xx";
+				device_id = <1>;
+				switch_access_mode = "mdio";
+				/* mdio-bus = <&mdio1>; */
+				switch_cpu_bmp = <0x40>;  /* cpu port bitmap */
+				switch_lan_bmp = <0x1e>; /* lan port bitmap */
+				switch_wan_bmp = <0x0>;  /* wan port bitmap */
+				qca,ar8327-initvals = <
+						0x00004 0x7600000   /* PAD0_MODE */
+						0x00008 0x1000000   /* PAD5_MODE */
+						0x0000c 0x80        /* PAD6_MODE */
+						0x000e4 0xaa545     /* MAC_POWER_SEL */
+						0x000e0 0xc74164de  /* SGMII_CTRL */
+						0x0007c 0x4e        /* PORT0_STATUS */
+						0x00094 0x4e        /* PORT6_STATUS */
+				>;
+				qcom,port_phyinfo {
+					port@0 {
+						port_id = <1>;
+						phy_address = <0>;
+					};
+					port@1 {
+						port_id = <2>;
+						phy_address = <1>;
+					};
+					port@2 {
+						port_id = <3>;
+						phy_address = <2>;
+					};
+					port@3 {
+						port_id = <4>;
+						phy_address = <3>;
+					};
+				};
+			};
 		};
 
 		wifi0: wifi@c000000 {
 			status = "disabled";
 		};
 
-		qcom,test@0 {
-			status = "ok";
+		nss-common {
+			status = "disabled";
+		};
+
+		ess-uniphy@98000 {
+			status = "disabled";
+		};
+
+		qcom,sps {
+			status = "disabled";
+		};
+
+		qcom,usbbam@8B04000 {
+			status = "disabled";
+		};
+
+		qcom,diag@0 {
+			status = "disabled";
+		};
+
+		pcie1: pci@a0000000 {
+			status = "disabled";
+		};
+
+		pcie0_rp {
+		        status = "disabled";
+
+			mhi_0: qcom,mhi@0 {
+				reg = <0 0 0 0 0 >;
+				qrtr_instance_id = <0x8001>;
+			};
 		};
 
 		pcie1_rp {
-		        status = "ok";
+		        status = "disabled";
 
 			mhi_1: qcom,mhi@1 {
 				reg = <0 0 0 0 0 >;
 				qrtr_instance_id = <0x8002>;
 			};
+		};
+
+		rpm_etm0 {
+			status = "disabled";
+		};
+	};
+
+	psci {
+		status = "disabled";
+	};
+
+	cpus {
+		CPU0: cpu@0 {
+			enable-method = "qcom,arm-cortex-acc";
+			/delete-property/ operating-points;
+		};
+
+		CPU1: cpu@1 {
+			enable-method = "qcom,arm-cortex-acc";
+			/delete-property/ operating-points;
+		};
+	};
+
+	thermal-zones {
+		status = "disabled";
+	};
+
+	firmware {
+		scm {
+			status = "disabled";
 		};
 	};
 };
@@ -143,7 +241,7 @@
 			 192000000 384000000>;
 	qcom,bus-speed-mode = "DDR_1p8v";
 	qcom,nonremovable;
-	status = "ok";
+	status = "disabled";
 };
 
 &tlmm {
@@ -158,7 +256,7 @@
 		};
 	};
 
-	blsp0_spi_pins: blsp0_spi_pins {
+	/* blsp0_spi_pins: blsp0_spi_pins {
 		mux {
 			pins = "gpio10", "gpio11", "gpio12", "gpio13";
 			function = "blsp0_spi";
@@ -214,23 +312,250 @@
 			drive-strength = <8>;
 			bias-pull-up;
 		};
-	};
+	}; */
 };
 
 &usb3 {
-	status = "ok";
+	status = "disabled";
 };
 
 &eud {
-	status = "ok";
+	status = "disabled";
 };
 
 &pcie0 {
-	status = "ok";
+	status = "disabled";
 	perst-gpio = <&tlmm 15 1>;
 };
 
 &pcie1 {
-	status = "ok";
+	status = "disabled";
 	perst-gpio = <&tlmm 18 1>;
+};
+
+&qcom_rng {
+	status = "disabled";
+};
+
+&bt {
+	status = "disabled";
+};
+
+&tzlog {
+	status = "disabled";
+};
+
+&nss0 {
+	status = "disabled";
+};
+
+&nss_crypto {
+	status = "disabled";
+	ce5_node {
+		status = "disabled";
+	};
+};
+
+&wcss {
+	status = "disabled";
+};
+
+&q6v5_wcss {
+	status = "disabled";
+};
+
+&q6v5_m3 {
+	status = "disabled";
+};
+
+&tcsr_mutex_block {
+	status = "disabled";
+};
+
+&tcsr_mutex {
+	status = "disabled";
+};
+
+&smem {
+	status = "disabled";
+};
+
+&apcs_glb {
+	status = "disabled";
+};
+
+&tcsr_q6_block {
+	status = "disabled";
+};
+
+&qcom_q6v5_wcss {
+	status = "disabled";
+};
+
+&wifi0 {
+	status = "disabled";
+};
+
+&i2c_0 {
+	status = "disabled";
+};
+
+&dbm_1p5 {
+	status = "disabled";
+};
+
+&tsens {
+	status = "disabled";
+};
+
+&tmc_etr {
+	status = "disabled";
+};
+
+&replicator {
+	status = "disabled";
+};
+
+&tmc_etf {
+	status = "disabled";
+};
+
+&funnel_in0 {
+	status = "disabled";
+};
+
+&funnel_center {
+	status = "disabled";
+};
+
+&funnel_right {
+	status = "disabled";
+};
+
+&funnel_mm {
+	status = "disabled";
+};
+
+&funnel_apss0 {
+	status = "disabled";
+};
+
+&etm0 {
+	status = "disabled";
+};
+
+&etm1 {
+	status = "disabled";
+};
+
+&stm {
+	status = "disabled";
+};
+
+&cti0 {
+	status = "disabled";
+};
+
+&cti1 {
+	status = "disabled";
+};
+
+&cti2 {
+	status = "disabled";
+};
+
+&cti3 {
+	status = "disabled";
+};
+
+&cti4 {
+	status = "disabled";
+};
+
+&cti5 {
+	status = "disabled";
+};
+
+&cti6 {
+	status = "disabled";
+};
+
+&cti7 {
+	status = "disabled";
+};
+
+&cti8 {
+	status = "disabled";
+};
+
+&cti9 {
+	status = "disabled";
+};
+
+&cti10 {
+	status = "disabled";
+};
+
+&cti11 {
+	status = "disabled";
+};
+
+&cti12 {
+	status = "disabled";
+};
+
+&cti13 {
+	status = "disabled";
+};
+
+&cti14 {
+	status = "disabled";
+};
+
+&cti15 {
+	status = "disabled";
+};
+
+&cti_cpu0{
+	status = "disabled";
+};
+
+&cti_cpu1{
+	status = "disabled";
+};
+
+&cti_rpm_cpu0 {
+	status = "disabled";
+};
+
+&csr {
+	status = "disabled";
+};
+
+&dbgui {
+	status = "disabled";
+};
+
+&tpda {
+	status = "disabled";
+};
+
+&tpdm_dcc {
+	status = "disabled";
+};
+
+&hwevent {
+	status = "disabled";
+};
+
+&msm_imem {
+	status = "disabled";
+};
+
+&blsp1_uart1 {
+	status = "ok";
+};
+
+&pmuv8 {
+	status = "disabled";
 };
