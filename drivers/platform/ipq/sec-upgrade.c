@@ -526,7 +526,7 @@ out:
 }
 
 static struct device_attribute sec_dat_attr =
-	__ATTR(sec_dat, 0644, NULL, store_sec_dat);
+	__ATTR(sec_dat, 0200, NULL, store_sec_dat);
 
 /*
  * Do not change the order of attributes.
