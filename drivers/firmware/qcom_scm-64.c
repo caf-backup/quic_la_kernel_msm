@@ -1054,3 +1054,18 @@ int __qcom_scm_get_smmustate(struct device *dev)
 	return ret ? -1 : res.a1;
 
 }
+
+int __qcom_scm_load_otp(struct device *dev, u32 peripheral)
+{
+	int ret;
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+
+	desc.args[0] = peripheral;
+	desc.arginfo = QCOM_SCM_ARGS(1);
+
+	ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, QCOM_SCM_SVC_OTP,
+			    QCOM_SCM_CMD_OTP, &desc, &res);
+
+	return ret ? false : !!res.a1;
+}
