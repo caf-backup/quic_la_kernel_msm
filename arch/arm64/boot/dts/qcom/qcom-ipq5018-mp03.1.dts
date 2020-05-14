@@ -265,3 +265,11 @@
 	snps,quirk-ref-clock-period = <0x32>;
 	qcom,emulation = <1>;
 };
+
+&ssuniphy_0 {
+	status = "disabled";
+};
+
+&hs_m31phy_0 {
+	status = "disabled";
+};
