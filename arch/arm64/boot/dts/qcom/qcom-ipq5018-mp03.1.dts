@@ -157,10 +157,6 @@
 			};
 		};
 
-		pcie1: pci@a0000000 {
-			status = "ok";
-		};
-
 		wifi0: wifi@c000000 {
 			status = "disabled";
 		};
@@ -169,12 +165,12 @@
 			status = "ok";
 		};
 
-		pcie1_rp {
+		pcie0_rp {
 		        status = "ok";
 
-			mhi_1: qcom,mhi@1 {
+			mhi_0: qcom,mhi@0 {
 				reg = <0 0 0 0 0 >;
-				qrtr_instance_id = <0x8002>;
+				qrtr_instance_id = <0x8001>;
 			};
 		};
 	};
@@ -264,7 +260,8 @@
 	perst-gpio = <&tlmm 15 1>;
 };
 
-&pcie1 {
-	status = "ok";
-	perst-gpio = <&tlmm 18 1>;
+&dwc_0 {
+	/delete-property/ snps,quirk-ref-clock-adjustment;
+	snps,quirk-ref-clock-period = <0x32>;
+	qcom,emulation = <1>;
 };
