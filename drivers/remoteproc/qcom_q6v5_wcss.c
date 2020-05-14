@@ -987,6 +987,37 @@ wcss_reset:
 	return ret;
 }
 
+static void q6v6_wcss_halt_axi_port(struct q6v5_wcss *wcss,
+				    struct regmap *halt_map,
+				    u32 offset)
+{
+	unsigned long timeout;
+	unsigned int val;
+	int ret;
+
+	/* Assert halt request */
+	regmap_write(halt_map, offset + AXI_HALTREQ_REG, 1);
+
+	/* Wait for halt */
+	timeout = jiffies + msecs_to_jiffies(HALT_ACK_TIMEOUT_MS);
+	for (;;) {
+		ret = regmap_read(halt_map, offset + AXI_HALTACK_REG, &val);
+		if (ret || val || time_after(jiffies, timeout))
+			break;
+
+		msleep(1);
+	}
+
+	if (offset == wcss->halt_q6) {
+		ret = regmap_read(halt_map, offset + AXI_IDLE_REG, &val);
+		if (ret || !val)
+			dev_err(wcss->dev, "port failed halt\n");
+	}
+
+	/* Clear halt request (port will remain halted until reset) */
+	regmap_write(halt_map, offset + AXI_HALTREQ_REG, 0);
+}
+
 static void q6v5_wcss_halt_axi_port(struct q6v5_wcss *wcss,
 				    struct regmap *halt_map,
 				    u32 offset)
@@ -1028,7 +1059,10 @@ static int q6v5_wcss_powerdown(struct q6v5_wcss *wcss)
 	struct q6_platform_data *pdata = dev_get_platdata(wcss->dev);
 
 	/* 1 - Assert WCSS/Q6 HALTREQ */
-	q6v5_wcss_halt_axi_port(wcss, wcss->halt_map, wcss->halt_wcss);
+	if (!pdata->is_q6v6)
+		q6v5_wcss_halt_axi_port(wcss, wcss->halt_map, wcss->halt_wcss);
+	else
+		q6v6_wcss_halt_axi_port(wcss, wcss->halt_map, wcss->halt_wcss);
 
 	if (!pdata->is_q6v6) {
 		/* 2 - Enable WCSSAON_CONFIG */
@@ -1105,7 +1139,10 @@ static int q6v5_q6_powerdown(struct q6v5_wcss *wcss)
 	struct q6_platform_data *pdata = dev_get_platdata(wcss->dev);
 
 	/* 1 - Halt Q6 bus interface */
-	q6v5_wcss_halt_axi_port(wcss, wcss->halt_map, wcss->halt_q6);
+	if (!pdata->is_q6v6)
+		q6v5_wcss_halt_axi_port(wcss, wcss->halt_map, wcss->halt_q6);
+	else
+		q6v6_wcss_halt_axi_port(wcss, wcss->halt_map, wcss->halt_q6);
 
 	/* 2 - Disable Q6 Core clock */
 	val = readl(wcss->reg_base + Q6SS_GFMUX_CTL_REG);
