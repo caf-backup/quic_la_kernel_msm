@@ -124,17 +124,24 @@ int m0_btss_load(struct rproc *rproc, const struct firmware *fw)
 
 	offset = m0_btss_load_address(rproc, fw);
 
-	if (!btDesc->nosecure)
+
+
+	if (!btDesc->nosecure) {
 		ret = qcom_mdt_load(rproc->dev.parent, fw, rproc->firmware,
 				PAS_ID, btDesc->btmem.virt + offset,
 				btDesc->btmem.phys, btDesc->btmem.size,
 				&btDesc->btmem.reloc);
 
-	else
+	} else {
+		ret = qcom_scm_load_otp(PAS_ID);
+		if (ret)
+			dev_info(rproc->dev.parent, "secure OTP copy failed\n");
+
 		ret = qcom_mdt_load_no_init(rproc->dev.parent, fw,
 				rproc->firmware, 0, btDesc->btmem.virt + offset,
 				btDesc->btmem.phys, btDesc->btmem.size,
 				&btDesc->btmem.reloc);
+	}
 
 
 	if (ret)
