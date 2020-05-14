@@ -648,7 +648,7 @@ static int stop_q6(const struct subsys_desc *subsys, bool force_stop)
 		}
 	}
 
-	if (pdata->emulation) {
+	if (pdata->emulation && !load_pil) {
 		pr_info("q6v5: Emulation stop\n");
 		rproc_stop_subdevices(rproc, false);
 		rproc->ops->stop(rproc);
