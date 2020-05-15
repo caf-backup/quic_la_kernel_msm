@@ -326,3 +326,4 @@ extern int qcom_scm_unlock_subsys_mem(u32 subsys_id, void *paddr, size_t size,
 								uint8_t key);
 extern int qcom_scm_load_otp(u32 peripheral);
 #endif
+extern int qcom_scm_wcss_boot(u32 svc_id, u32 cmd_id, void *cmd_buf);

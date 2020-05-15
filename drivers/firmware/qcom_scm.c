@@ -722,6 +722,23 @@ int qcom_scm_dload(u32 svc_id, u32 cmd_id, void *cmd_buf)
 }
 EXPORT_SYMBOL(qcom_scm_dload);
 
+int qcom_scm_wcss_boot(u32 svc_id, u32 cmd_id, void *cmd_buf)
+{
+	int ret;
+
+	ret = qcom_scm_clk_enable();
+	if (ret)
+		return ret;
+
+	ret = __qcom_scm_wcss_boot(__scm->dev, svc_id, cmd_id, cmd_buf);
+
+	qcom_scm_clk_disable();
+
+	return ret;
+
+}
+EXPORT_SYMBOL(qcom_scm_wcss_boot);
+
 int qcom_scm_pshold(void)
 {
 	int ret;

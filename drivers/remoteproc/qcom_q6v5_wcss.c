@@ -90,6 +90,9 @@
 #define WCNSS_PAS_ID		6
 #define DEFAULT_IMG_ADDR        0x4b000000
 
+#define Q6_BOOT_TRIG_SVC_ID	0x5
+#define Q6_BOOT_TRIG_CMD_ID	0x2
+
 struct q6v5_wcss {
 	struct device *dev;
 
@@ -778,6 +781,7 @@ static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 	struct q6_platform_data *pdata = dev_get_platdata(wcss->dev);
 	int ret;
 	int temp = 0;
+	unsigned int cookie;
 
 	/*Assert Q6 BLK Reset*/
 	ret = reset_control_assert(wcss->wcss_q6_reset);
@@ -832,8 +836,9 @@ static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 			wcss->halt_nc + TCSR_GLOBAL_CFG0, 0x40, 0xF0);
 
 	/*Enable global counter for qtimer*/
-	if (wcss->mpm_base)
+	if (wcss->mpm_base && !qcom_scm_is_available())
 		writel(0x1, wcss->mpm_base + 0x00);
+
 
 	/*Q6 AHB upper & lower address*/
 	writel(0x00cdc000, wcss->reg_base + Q6SS_AHB_UPPER);
@@ -870,8 +875,17 @@ static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 		}
 	}
 
-	/* Trigger Boot FSM, to bring core out of rst */
-	writel(0x1, wcss->tcsr_q6_boot_trig + 0x0);
+	if (qcom_scm_is_available()) {
+		cookie = 1;
+		ret = qcom_scm_wcss_boot(Q6_BOOT_TRIG_SVC_ID,
+						Q6_BOOT_TRIG_CMD_ID, &cookie);
+		if (ret) {
+			dev_err(wcss->dev, "q6-boot trigger scm failed\n");
+			return;
+		}
+	} else
+		/* Trigger Boot FSM, to bring core out of rst */
+		writel(0x1, wcss->tcsr_q6_boot_trig + 0x0);
 
 	/* Boot core start */
 	writel(0x1, wcss->reg_base + Q6SS_BOOT_CORE_START);
@@ -1120,6 +1134,8 @@ static int q6v5_wcss_powerdown(struct q6v5_wcss *wcss)
 static void q6v6_q6_powerdown(struct q6v5_wcss *wcss)
 {
 	int ret;
+	unsigned int cookie;
+
 	/*Disable clocks*/
 	ret = wcss_clks_prepare_disable(wcss->dev, 1, NUM_WCSS_CLKS);
 	if (ret) {
@@ -1127,8 +1143,17 @@ static void q6v6_q6_powerdown(struct q6v5_wcss *wcss)
 		return;
 	}
 
-	/* Disbale Boot FSM */
-	writel(0x0, wcss->tcsr_q6_boot_trig + 0x0);
+	if (qcom_scm_is_available()) {
+		cookie = 0;
+		ret = qcom_scm_wcss_boot(Q6_BOOT_TRIG_SVC_ID,
+						Q6_BOOT_TRIG_CMD_ID, &cookie);
+		if (ret) {
+			dev_err(wcss->dev, "q6-stop trigger scm failed\n");
+			return;
+		}
+	} else
+		/* Disbale Boot FSM */
+		writel(0x0, wcss->tcsr_q6_boot_trig + 0x0);
 }
 
 static int q6v5_q6_powerdown(struct q6v5_wcss *wcss)

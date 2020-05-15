@@ -31,6 +31,7 @@
 
 #define QCOM_SCM_CMD_PIL_PROTECT_MEM_SUBSYS_ID	0x0C
 #define QCOM_SCM_CMD_PIL_CLEAR_PROTECT_MEM_SUBSYS_ID	0x0D
+#define TCSR_Q6SS_BOOT_TRIG_REG			0x193d204ull
 
 extern int __qcom_scm_tls_hardening(struct device *dev,
 				   struct scm_cmd_buf_t *scm_cmd_buf,
@@ -183,6 +184,9 @@ extern int __qcom_scm_extwdt(struct device *, u32 svc_id, u32 cmd_id,
 extern int __qcom_scm_dload(struct device *, u32 svc_id, u32 cmd_id,
 				void *cmd_buf);
 extern int qcom_scm_dload(u32 svc_id, u32 cmd_id, void *cmd_buf);
+extern int __qcom_scm_wcss_boot(struct device *, u32 svc_id, u32 cmd_id,
+				void *cmd_buf);
+extern int qcom_scm_wcss_boot(u32 svc_id, u32 cmd_id, void *cmd_buf);
 extern int __qcom_scm_tcsr(struct device *, u32 svc_id, u32 cmd_id,
 			struct qcom_scm_tcsr_req *tcsr_cmd);
 
