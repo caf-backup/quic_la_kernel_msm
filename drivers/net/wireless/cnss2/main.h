@@ -403,8 +403,9 @@ struct cnss_plat_data {
 static inline u64 cnss_get_host_timestamp(struct cnss_plat_data *plat_priv)
 {
 	u64 ticks = arch_counter_get_cntvct();
+	u32 freq = arch_timer_get_cntfrq();
 
-	do_div(ticks, TIME_CLOCK_FREQ_HZ / 100000);
+	do_div(ticks, freq / 100000);
 
 	return ticks * 10;
 }
