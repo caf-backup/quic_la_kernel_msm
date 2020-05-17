@@ -313,4 +313,8 @@ struct qcom_scm_cmd_ids {
 	u32 smmu_state_cmd_id;
 };
 
+#define QCOM_SCM_SVC_OTP	0x2
+#define QCOM_SCM_CMD_OTP	0x15
+
+extern int  __qcom_scm_load_otp(struct device *dev, u32 peripheral);
 #endif

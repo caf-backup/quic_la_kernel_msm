@@ -1785,3 +1785,27 @@ int __qcom_scm_get_smmustate(struct device *dev)
 	}
 	return ret ? -1 : le32_to_cpu(out);
 }
+
+int __qcom_scm_load_otp(struct device *dev, u32 peripheral)
+{
+	__le32 out;
+	__le32 in;
+	int ret;
+	struct scm_desc desc = {0};
+
+	if (!is_scm_armv8()) {
+		in = cpu_to_le32(peripheral);
+		ret = qcom_scm_call(dev, QCOM_SCM_SVC_OTP, QCOM_SCM_CMD_OTP,
+			    &in, sizeof(in),
+			    &out, sizeof(out));
+	} else {
+		desc.args[0] = peripheral;
+		desc.arginfo = SCM_ARGS(1);
+		ret = qcom_scm_call2(SCM_SIP_FNID(QCOM_SCM_SVC_OTP,
+						  QCOM_SCM_CMD_OTP), &desc);
+
+		out = desc.ret[0];
+	}
+	return ret ? : le32_to_cpu(out);
+}
+
