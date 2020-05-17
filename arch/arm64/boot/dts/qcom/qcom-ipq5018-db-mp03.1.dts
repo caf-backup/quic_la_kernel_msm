@@ -275,3 +275,7 @@
 &hs_m31phy_0 {
 	status = "disabled";
 };
+
+&pcie_phy1 {
+	status = "disabled";
+};
