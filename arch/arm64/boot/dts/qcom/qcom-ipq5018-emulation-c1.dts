@@ -95,11 +95,11 @@
 			status = "disabled";
 		};
 
-		pcie0: pci@80000000 {
+		pcie_x1: pci@80000000 {
 			is_emulation = <1>;
 		};
 
-		pcie1: pci@a0000000 {
+		pcie_x2: pci@a0000000 {
 			is_emulation = <1>;
 		};
 
@@ -137,7 +137,7 @@
 			status = "ok";
 		};
 
-		pcie0_rp {
+		pcie_x1_rp {
 		        status = "ok";
 
 			mhi_0: qcom,mhi@0 {
@@ -146,7 +146,7 @@
 			};
 		};
 
-		pcie1_rp {
+		pcie_x2_rp {
 		        status = "ok";
 
 			mhi_1: qcom,mhi@1 {
@@ -193,7 +193,7 @@
 };
 
 &tlmm {
-	pinctrl-0 = <&uart_pins>, <&pcie0_pins>, <&pcie1_pins>;
+	pinctrl-0 = <&uart_pins>, <&pcie_x1_pins>, <&pcie_x2_pins>;
 	pinctrl-names = "default";
 
 	uart_pins: uart_pins {
@@ -219,7 +219,7 @@
 		};
 	};
 
-	pcie0_pins: pcie0_pins {
+	pcie_x1_pins: pcie_x1_pins {
 		mux_0 {
 			pins = "gpio14";
 			function = "gpio";
@@ -243,7 +243,7 @@
 		};
 	};
 
-	pcie1_pins: pcie1_pins {
+	pcie_x2_pins: pcie_x2_pins {
 		mux_0 {
 			pins = "gpio17";
 			function = "gpio";
