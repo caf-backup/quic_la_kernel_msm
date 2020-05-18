@@ -551,6 +551,7 @@ struct qcom_nand_controller {
 #if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 	struct clk *io_macro_clk;
 	struct qpic_nand_pltfm_data *pdata;
+	bool	stnd_alone_flag;
 #endif
 	union {
 		struct {
@@ -4010,15 +4011,17 @@ void qcom_serial_nand_init(struct mtd_info *mtd)
 	cmd3_val = NAND_FLASH_DEV_CMD3_VAL;
 	cmd7_val = NAND_FLASH_DEV_CMD7_VAL;
 
-	spi_cfg_val |= (SPI_LOAD_CLK_CNTR_INIT_EN | SPI_FLASH_MODE_EN |
+	if (nandc->stnd_alone_flag) {
+		spi_cfg_val |= (SPI_LOAD_CLK_CNTR_INIT_EN | SPI_FLASH_MODE_EN |
 			(SPI_CFG_CLK_CNTR_INIT_VAL_VEC << 16) | SPI_FEA_STATUS_DEV_ADDR|
 			(SPI_NUM_ADDR2_CYCLES << 2));
 
-	nandc_write(nandc, NAND_FLASH_SPI_CFG , 0x0);
-	nandc_write(nandc, NAND_FLASH_SPI_CFG , spi_cfg_val);
+		nandc_write(nandc, NAND_FLASH_SPI_CFG , 0x0);
+		nandc_write(nandc, NAND_FLASH_SPI_CFG , spi_cfg_val);
 
-	spi_cfg_val &= ~(SPI_LOAD_CLK_CNTR_INIT_EN);
-	nandc_write(nandc, NAND_FLASH_SPI_CFG , spi_cfg_val);
+		spi_cfg_val &= ~(SPI_LOAD_CLK_CNTR_INIT_EN);
+		nandc_write(nandc, NAND_FLASH_SPI_CFG , spi_cfg_val);
+	}
 
 	/* According to HPG Setting Xfer steps and spi_num_addr_cycles
 	 * is part of initialization flow before reset.However these
@@ -4056,8 +4059,12 @@ void qcom_serial_nand_init(struct mtd_info *mtd)
 
 	nandc_write(nandc, NAND_DEV_CMD_VLD, NAND_DEV_CMD_VLD_SERIAL_VAL);
 
-	nandc_write(nandc, NAND_SPI_NUM_ADDR_CYCLES, SPI_NO_OF_ADDR_CYCLE);
-	nandc_write(nandc, NAND_SPI_BUSY_CHECK_WAIT_CNT, busy_wait_check_cnt);
+	if (nandc->stnd_alone_flag) {
+		nandc_write(nandc, NAND_SPI_NUM_ADDR_CYCLES,
+				SPI_NO_OF_ADDR_CYCLE);
+		nandc_write(nandc, NAND_SPI_BUSY_CHECK_WAIT_CNT,
+				busy_wait_check_cnt);
+	}
 }
 #endif
 
@@ -4317,6 +4324,9 @@ static int qcom_nandc_probe(struct platform_device *pdev)
 		goto err_aon_clk;
 
 #if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
+	nandc->stnd_alone_flag = of_property_read_bool(dev->of_node,
+			"qcom,qpic_stand_alone_kernel");
+
 	nandc->pdata = qpic_nand_populate_pdata(nandc->dev, nandc);
 	if (!nandc->pdata) {
 		pr_err("QPIC platform data not populated\n");
@@ -4329,7 +4339,8 @@ static int qcom_nandc_probe(struct platform_device *pdev)
 	 * to enable feedback clock bit write into register
 	 * NAND_QSPI_MSTR_CONFIG.
 	 */
-	nandc_write(nandc, NAND_QSPI_MSTR_CONFIG, FEEDBACK_CLK_EN);
+	if (nandc->stnd_alone_flag)
+		nandc_write(nandc, NAND_QSPI_MSTR_CONFIG, FEEDBACK_CLK_EN);
 
 	nandc->io_macro_clk = devm_clk_get(dev, "io_macro");
 	if (IS_ERR(nandc->io_macro_clk))

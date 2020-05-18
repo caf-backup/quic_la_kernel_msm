@@ -50,6 +50,7 @@
 			/* pinctrl-0 = <&qspi_nand_pins>;
 			pinctrl-names = "default"; */
 			status = "disabled";
+			qcom,qpic_stand_alone_kernel;
 		};
 
 		spi_0: spi@78b5000 { /* BLSP1 QUP0 */
