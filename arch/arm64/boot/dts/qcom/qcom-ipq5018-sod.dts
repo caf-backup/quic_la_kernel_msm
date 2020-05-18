@@ -575,3 +575,7 @@
 &pcie_phy1 {
 	status = "disabled";
 };
+
+&watchdog {
+	status = "disabled";
+};
