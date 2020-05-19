@@ -44,6 +44,7 @@ enum cnss_dev_bus_type cnss_get_bus_type(unsigned long device_id)
 	case QCA8074V2_DEVICE_ID:
 	case QCA6018_DEVICE_ID:
 	case QCA5018_DEVICE_ID:
+	case QCN9100_DEVICE_ID:
 		return CNSS_BUS_AHB;
 	default:
 		pr_err("Unknown device_id: 0x%lx\n", device_id);

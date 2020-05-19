@@ -102,8 +102,8 @@ void qmi_record(u8 instance_id, u16 msg_id, s8 error_msg, s8 resp_err_msg)
 		qmi_log[qmi_history_index].error_msg = 0;
 
 	qmi_log[qmi_history_index].resp_err_msg = resp_err_msg;
-
 	qmi_log[qmi_history_index++].timestamp = ktime_to_ms(ktime_get());
+
 	qmi_history_index &= (QMI_HISTORY_SIZE - 1);
 	spin_unlock(&qmi_log_spinlock);
 }
@@ -592,6 +592,9 @@ static int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 	case QCA5018_DEVICE_ID:
 		folder = "IPQ5018/";
 		break;
+	case QCN9100_DEVICE_ID:
+		folder = "QCN9100/";
+		break;
 	default:
 		folder = "IPQ8074/";
 		break;
@@ -789,6 +792,7 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv,
 		if (plat_priv->device_id == QCA8074_DEVICE_ID ||
 		    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
 		    plat_priv->device_id == QCA5018_DEVICE_ID ||
+		    plat_priv->device_id == QCN9100_DEVICE_ID ||
 		    plat_priv->device_id == QCA6018_DEVICE_ID) {
 			temp = filename;
 			remaining = MAX_BDF_FILE_NAME;
@@ -812,6 +816,7 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv,
 		if (plat_priv->device_id == QCA8074_DEVICE_ID ||
 		    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
 		    plat_priv->device_id == QCA5018_DEVICE_ID ||
+		    plat_priv->device_id == QCN9100_DEVICE_ID ||
 		    plat_priv->device_id == QCA6018_DEVICE_ID) {
 			temp = filename;
 			remaining = MAX_BDF_FILE_NAME;
@@ -878,6 +883,7 @@ bypass_bdf:
 		if (plat_priv->device_id == QCA8074_DEVICE_ID ||
 		    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
 		    plat_priv->device_id == QCA5018_DEVICE_ID ||
+		    plat_priv->device_id == QCN9100_DEVICE_ID ||
 		    plat_priv->device_id == QCA6018_DEVICE_ID) {
 			cnss_wlfw_load_bdf(req, plat_priv,
 					   MAX_BDF_FILE_NAME,
@@ -2587,6 +2593,7 @@ int cnss_qmi_init(struct cnss_plat_data *plat_priv)
 	if (plat_priv->device_id == QCA8074_DEVICE_ID ||
 	    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
 	    plat_priv->device_id == QCA5018_DEVICE_ID ||
+	    plat_priv->device_id == QCN9100_DEVICE_ID ||
 	    plat_priv->device_id == QCA6018_DEVICE_ID) {
 		if (qca8074_fw_mem_mode != 0xFF) {
 			plat_priv->tgt_mem_cfg_mode = qca8074_fw_mem_mode;
