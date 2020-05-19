@@ -873,8 +873,9 @@
 			status = "ok";
 		};
 
-		pcie_phy0: phy@7e000{
+		pcie_x1phy: phy@7e000{
 			compatible = "qca,uni-pcie-phy-gen2";
+			reg = <0x7e000 0x800>;
 			phy-type = "gen2";
 			#phy-cells = <0>;
 			clocks = <&gcc GCC_PCIE1_PIPE_CLK>;
@@ -884,6 +885,7 @@
 				<&gcc GCC_PCIE1PHY_PHY_BCR>;
 			reset-names = "phy",
 					"phy_phy";
+			mode = "fixed";
 			status = "disabled";
 		};
 
@@ -902,7 +904,7 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 
-			phys = <&pcie_phy0>;
+			phys = <&pcie_x1phy>;
 			phy-names ="pciephy";
 
 			force_gen1 = <1>;
@@ -993,8 +995,9 @@
 			};
 		};
 
-		pcie_phy1: phy@86000{
+		pcie_x2phy: phy@86000{
 			compatible = "qca,uni-pcie-phy-gen2";
+			reg = <0x86000 0x1000>;
 			phy-type = "gen2";
 			#phy-cells = <0>;
 			clocks = <&gcc GCC_PCIE0_PIPE_CLK>;
@@ -1004,6 +1007,7 @@
 				<&gcc GCC_PCIE0PHY_PHY_BCR>;
 			reset-names = "phy",
 					"phy_phy";
+			mode = "fixed";
 			status = "disabled";
 		};
 
@@ -1022,7 +1026,7 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 
-			phys = <&pcie_phy1>;
+			phys = <&pcie_x2phy>;
 			phy-names ="pciephy";
 			force_gen1 = <1>;
 
