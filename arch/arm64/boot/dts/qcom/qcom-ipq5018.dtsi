@@ -890,7 +890,7 @@
 			status = "disabled";
 		};
 
-		pcie0: pci@80000000 {
+		pcie_x1: pci@80000000 {
 			compatible = "qcom,pcie-ipq5018";
 			reg =  <0x80000000 0xf1d
 				0x80000F20 0xa8
@@ -954,12 +954,12 @@
 					<0 0 0 4 &intc 0 145
 					 IRQ_TYPE_LEVEL_HIGH>; /* int_d */
 
-			clocks = <&gcc GCC_SYS_NOC_PCIE0_AXI_CLK>,
-				 <&gcc GCC_PCIE0_AXI_M_CLK>,
-				 <&gcc GCC_PCIE0_AXI_S_CLK>,
-				 <&gcc GCC_PCIE0_AHB_CLK>,
-				 <&gcc GCC_PCIE0_AUX_CLK>,
-				 <&gcc GCC_PCIE0_AXI_S_BRIDGE_CLK>;
+			clocks = <&gcc GCC_SYS_NOC_PCIE1_AXI_CLK>,
+				 <&gcc GCC_PCIE1_AXI_M_CLK>,
+				 <&gcc GCC_PCIE1_AXI_S_CLK>,
+				 <&gcc GCC_PCIE1_AHB_CLK>,
+				 <&gcc GCC_PCIE1_AUX_CLK>,
+				 <&gcc GCC_PCIE1_AXI_S_BRIDGE_CLK>;
 
 			clock-names = "sys_noc",
 				      "axi_m",
@@ -968,14 +968,14 @@
 				      "aux",
 				      "axi_bridge";
 
-			resets = <&gcc GCC_PCIE0_PIPE_ARES>,
-				 <&gcc GCC_PCIE0_SLEEP_ARES>,
-				 <&gcc GCC_PCIE0_CORE_STICKY_ARES>,
-				 <&gcc GCC_PCIE0_AXI_MASTER_ARES>,
-				 <&gcc GCC_PCIE0_AXI_SLAVE_ARES>,
-				 <&gcc GCC_PCIE0_AHB_ARES>,
-				 <&gcc GCC_PCIE0_AXI_MASTER_STICKY_ARES>,
-				 <&gcc GCC_PCIE0_AXI_SLAVE_STICKY_ARES>;
+			resets = <&gcc GCC_PCIE1_PIPE_ARES>,
+				 <&gcc GCC_PCIE1_SLEEP_ARES>,
+				 <&gcc GCC_PCIE1_CORE_STICKY_ARES>,
+				 <&gcc GCC_PCIE1_AXI_MASTER_ARES>,
+				 <&gcc GCC_PCIE1_AXI_SLAVE_ARES>,
+				 <&gcc GCC_PCIE1_AHB_ARES>,
+				 <&gcc GCC_PCIE1_AXI_MASTER_STICKY_ARES>,
+				 <&gcc GCC_PCIE1_AXI_SLAVE_STICKY_ARES>;
 
 			reset-names = "pipe",
 				      "sleep",
@@ -991,7 +991,7 @@
 
 			status = "disabled";
 
-			pcie0_rp: pcie0_rp {
+			pcie_x1_rp: pcie_x1_rp {
 				reg = <0 0 0 0 0>;
 			};
 		};
@@ -1012,7 +1012,7 @@
 			status = "disabled";
 		};
 
-		pcie1: pci@a0000000 {
+		pcie_x2: pci@a0000000 {
 			compatible = "qcom,pcie-ipq5018";
 			reg =  <0xa0000000 0xf1d
 				0xa0000F20 0xa8
@@ -1075,12 +1075,12 @@
 					<0 0 0 4 &intc 0 83
 					 IRQ_TYPE_LEVEL_HIGH>; /* int_d */
 
-			clocks = <&gcc GCC_SYS_NOC_PCIE1_AXI_CLK>,
-				 <&gcc GCC_PCIE1_AXI_M_CLK>,
-				 <&gcc GCC_PCIE1_AXI_S_CLK>,
-				 <&gcc GCC_PCIE1_AHB_CLK>,
-				 <&gcc GCC_PCIE1_AUX_CLK>,
-				 <&gcc GCC_PCIE1_AXI_S_BRIDGE_CLK>;
+			clocks = <&gcc GCC_SYS_NOC_PCIE0_AXI_CLK>,
+				 <&gcc GCC_PCIE0_AXI_M_CLK>,
+				 <&gcc GCC_PCIE0_AXI_S_CLK>,
+				 <&gcc GCC_PCIE0_AHB_CLK>,
+				 <&gcc GCC_PCIE0_AUX_CLK>,
+				 <&gcc GCC_PCIE0_AXI_S_BRIDGE_CLK>;
 
 			clock-names = "sys_noc",
 				      "axi_m",
@@ -1089,14 +1089,14 @@
 				      "aux",
 				      "axi_bridge";
 
-			resets = <&gcc GCC_PCIE1_PIPE_ARES>,
-				 <&gcc GCC_PCIE1_SLEEP_ARES>,
-				 <&gcc GCC_PCIE1_CORE_STICKY_ARES>,
-				 <&gcc GCC_PCIE1_AXI_MASTER_ARES>,
-				 <&gcc GCC_PCIE1_AXI_SLAVE_ARES>,
-				 <&gcc GCC_PCIE1_AHB_ARES>,
-				 <&gcc GCC_PCIE1_AXI_MASTER_STICKY_ARES>,
-				 <&gcc GCC_PCIE1_AXI_SLAVE_STICKY_ARES>;
+			resets = <&gcc GCC_PCIE0_PIPE_ARES>,
+				 <&gcc GCC_PCIE0_SLEEP_ARES>,
+				 <&gcc GCC_PCIE0_CORE_STICKY_ARES>,
+				 <&gcc GCC_PCIE0_AXI_MASTER_ARES>,
+				 <&gcc GCC_PCIE0_AXI_SLAVE_ARES>,
+				 <&gcc GCC_PCIE0_AHB_ARES>,
+				 <&gcc GCC_PCIE0_AXI_MASTER_STICKY_ARES>,
+				 <&gcc GCC_PCIE0_AXI_SLAVE_STICKY_ARES>;
 
 			reset-names = "pipe",
 				      "sleep",
@@ -1112,7 +1112,7 @@
 
 			status = "disabled";
 
-			pcie1_rp: pcie1_rp {
+			pcie_x2_rp: pcie_x2_rp {
 				reg = <0 0 0 0 0>;
 			};
 		};

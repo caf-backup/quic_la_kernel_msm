@@ -166,7 +166,7 @@
 			status = "ok";
 		};
 
-		pcie0_rp {
+		pcie_x1_rp {
 		        status = "ok";
 
 			mhi_0: qcom,mhi@0 {
@@ -264,7 +264,7 @@
 	status = "ok";
 };
 
-&pcie0 {
+&pcie_x1 {
 	status = "ok";
 	perst-gpio = <&tlmm 15 1>;
 };

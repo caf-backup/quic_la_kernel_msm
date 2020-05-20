@@ -183,11 +183,7 @@
 			status = "disabled";
 		};
 
-		pcie1: pci@a0000000 {
-			status = "disabled";
-		};
-
-		pcie0_rp {
+		pcie_x1_rp {
 		        status = "disabled";
 
 			mhi_0: qcom,mhi@0 {
@@ -196,7 +192,7 @@
 			};
 		};
 
-		pcie1_rp {
+		pcie_x2_rp {
 		        status = "disabled";
 
 			mhi_1: qcom,mhi@1 {
@@ -324,12 +320,12 @@
 	status = "disabled";
 };
 
-&pcie0 {
+&pcie_x1 {
 	status = "disabled";
 	perst-gpio = <&tlmm 15 1>;
 };
 
-&pcie1 {
+&pcie_x2 {
 	status = "disabled";
 	perst-gpio = <&tlmm 18 1>;
 };
