@@ -27,6 +27,19 @@
 
 #define PIPE_CLK_DELAY_MIN_US			5000
 #define PIPE_CLK_DELAY_MAX_US			5100
+#define CDR_CTRL_REG_1		0x80
+#define CDR_CTRL_REG_2		0x84
+#define CDR_CTRL_REG_3		0x88
+#define CDR_CTRL_REG_4		0x8C
+#define CDR_CTRL_REG_5		0x90
+#define CDR_CTRL_REG_6		0x94
+#define CDR_CTRL_REG_7		0x98
+#define SSCG_CTRL_REG_1		0x9c
+#define SSCG_CTRL_REG_2		0xa0
+#define SSCG_CTRL_REG_3		0xa4
+#define SSCG_CTRL_REG_4		0xa8
+#define SSCG_CTRL_REG_5		0xac
+#define SSCG_CTRL_REG_6		0xb0
 
 enum qca_uni_pcie_phy_type {
 	PHY_TYPE_PCIE,
@@ -42,6 +55,9 @@ struct qca_uni_pcie_phy {
 	struct reset_control *res_phy;
 	struct reset_control *res_phy_phy;
 	u32 is_phy_gen3;
+	const char *mode;
+	bool is_x2;
+	void __iomem *reg_base;
 };
 
 #define	phy_to_dw_phy(x)	container_of((x), struct qca_uni_pcie_phy, phy)
@@ -52,7 +68,6 @@ static int qca_uni_pcie_phy_power_off(struct phy *x)
 
 	reset_control_assert(phy->res_phy);
 	reset_control_assert(phy->res_phy_phy);
-	clk_disable_unprepare(phy->pipe_clk);
 
 	return 0;
 }
@@ -70,6 +85,41 @@ static int qca_uni_pcie_phy_reset(struct qca_uni_pcie_phy *phy)
 	return 0;
 }
 
+static void qca_uni_pcie_phy_init(struct qca_uni_pcie_phy *phy)
+{
+	int loop = 0;
+
+	while (loop < 2) {
+		phy->reg_base += (loop * 0x800);
+		/*set frequency initial value*/
+		writel(0x1cb9, phy->reg_base + SSCG_CTRL_REG_4);
+		writel(0x023a, phy->reg_base + SSCG_CTRL_REG_5);
+		/*set spectrum spread count*/
+		writel(0x1360, phy->reg_base + SSCG_CTRL_REG_3);
+		if (strcmp(phy->mode, "fixed")) {
+			/*set fstep*/
+			writel(0x0, phy->reg_base + SSCG_CTRL_REG_1);
+			writel(0x0, phy->reg_base + SSCG_CTRL_REG_2);
+		} else {
+			/*set fstep*/
+			writel(0x1, phy->reg_base + SSCG_CTRL_REG_1);
+			writel(0xeb, phy->reg_base + SSCG_CTRL_REG_2);
+			/*set FLOOP initial value*/
+			writel(0x3f9, phy->reg_base + CDR_CTRL_REG_4);
+			writel(0x1c9, phy->reg_base + CDR_CTRL_REG_5);
+			/*set upper boundary level*/
+			writel(0x419, phy->reg_base + CDR_CTRL_REG_2);
+			/*set fixed offset*/
+			writel(0x200, phy->reg_base + CDR_CTRL_REG_1);
+		}
+
+		if (phy->is_x2)
+			loop += 1;
+		else
+			break;
+	}
+}
+
 static int qca_uni_pcie_phy_power_on(struct phy *x)
 {
 	struct qca_uni_pcie_phy *phy = phy_get_drvdata(x);
@@ -82,7 +132,9 @@ static int qca_uni_pcie_phy_power_on(struct phy *x)
 
 	usleep_range(PIPE_CLK_DELAY_MIN_US, PIPE_CLK_DELAY_MAX_US);
 	clk_prepare_enable(phy->pipe_clk);
-
+	clk_disable_unprepare(phy->pipe_clk);
+	usleep_range(30, 50);
+	qca_uni_pcie_phy_init(phy);
 	return 0;
 }
 
@@ -91,6 +143,14 @@ static int qca_uni_pcie_get_resources(struct platform_device *pdev,
 {
 	int ret;
 	const char *name;
+	struct resource *res;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	phy->reg_base = devm_ioremap_resource(phy->dev, res);
+	if (IS_ERR(phy->reg_base)) {
+		dev_err(phy->dev, "cannot get phy registers\n");
+		return PTR_ERR(phy->reg_base);
+	}
 
 	phy->pipe_clk = devm_clk_get(phy->dev, "pipe_clk");
 	if (IS_ERR(phy->pipe_clk)) {
@@ -123,6 +183,14 @@ static int qca_uni_pcie_get_resources(struct platform_device *pdev,
 		dev_err(phy->dev, "%s, unknown gen type\n", __func__);
 		return ret;
 	}
+
+	ret = of_property_read_string(phy->dev->of_node, "mode", &phy->mode);
+	if (ret) {
+		dev_err(phy->dev, "%s, cannot get mode\n", __func__);
+		return ret;
+	}
+
+	phy->is_x2 = strstr(pdev->dev.of_node->name, "x2") ? 1 : 0;
 	return 0;
 }
 

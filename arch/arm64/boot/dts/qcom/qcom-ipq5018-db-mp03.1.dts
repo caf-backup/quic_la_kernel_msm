@@ -277,6 +277,6 @@
 	status = "disabled";
 };
 
-&pcie_phy1 {
+&pcie_x2phy {
 	status = "disabled";
 };
