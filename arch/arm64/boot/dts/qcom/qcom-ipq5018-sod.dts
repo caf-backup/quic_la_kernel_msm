@@ -204,6 +204,10 @@
 		rpm_etm0 {
 			status = "disabled";
 		};
+
+		qca,scm_restart_reason {
+			status = "disabled";
+		};
 	};
 
 	psci {
