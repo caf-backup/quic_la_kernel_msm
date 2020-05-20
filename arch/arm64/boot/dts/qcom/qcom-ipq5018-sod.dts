@@ -576,3 +576,7 @@
 &pcie_x2phy {
 	status = "disabled";
 };
+
+&watchdog {
+	status = "disabled";
+};
