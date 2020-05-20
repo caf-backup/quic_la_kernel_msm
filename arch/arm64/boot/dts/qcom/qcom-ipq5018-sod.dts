@@ -237,12 +237,18 @@
 	cpus {
 		CPU0: cpu@0 {
 			enable-method = "qcom,arm-cortex-acc";
+			/delete-property/ clocks;
+			/delete-property/ clock-names;
 			/delete-property/ operating-points;
+			/delete-property/ clock-latency;
 		};
 
 		CPU1: cpu@1 {
 			enable-method = "qcom,arm-cortex-acc";
+			/delete-property/ clocks;
+			/delete-property/ clock-names;
 			/delete-property/ operating-points;
+			/delete-property/ clock-latency;
 		};
 	};
 
@@ -594,5 +600,9 @@
 };
 
 &watchdog {
+	status = "disabled";
+};
+
+&apss_clk {
 	status = "disabled";
 };
