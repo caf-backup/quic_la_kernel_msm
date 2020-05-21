@@ -424,7 +424,7 @@
 };
 
 &wcss {
-	status = "disabled";
+	status = "ok";
 };
 
 &q6v5_wcss {
@@ -436,27 +436,28 @@
 };
 
 &tcsr_mutex_block {
-	status = "disabled";
+	status = "ok";
 };
 
 &tcsr_mutex {
-	status = "disabled";
+	status = "ok";
 };
 
 &smem {
-	status = "disabled";
+	status = "ok";
 };
 
 &apcs_glb {
-	status = "disabled";
+	status = "ok";
 };
 
 &tcsr_q6_block {
-	status = "disabled";
+	status = "ok";
 };
 
 &qcom_q6v5_wcss {
-	status = "disabled";
+	qcom,nosecure;
+	status = "ok";
 };
 
 &wifi0 {
