@@ -67,7 +67,7 @@
 		};
 
 		mdio0: mdio@88000 {
-			status = "disabled";
+			status = "ok";
 
 			ethernet-phy@0 {
 				reg = <7>;
@@ -75,9 +75,9 @@
 		};
 
 		mdio1: mdio@90000 {
-			status = "disabled";
-			/* pinctrl-0 = <&mdio1_pins>;
-			pinctrl-names = "default"; */
+			status = "ok";
+			pinctrl-0 = <&mdio1_pins>;
+			pinctrl-names = "default";
 			phy-reset-gpio = <&tlmm 39 0>;
 			ethernet-phy@0 {
 				reg = <0>;
@@ -97,10 +97,8 @@
 		};
 
 		ess-instance {
-			status = "disabled";
 			num_devices = <0x2>;
 			ess-switch@0x39c00000 {
-				status = "disabled";
 				compatible = "qcom,ess-switch-ipq50xx";
 				device_id = <0>;
 				switch_mac_mode = <0xf>; /* mac mode for uniphy instance*/
@@ -117,11 +115,10 @@
 				};
 			};
 			ess-switch1@1 {
-				status = "disabled";
 				compatible = "qcom,ess-switch-qca83xx";
 				device_id = <1>;
 				switch_access_mode = "mdio";
-				/* mdio-bus = <&mdio1>; */
+				mdio-bus = <&mdio1>;
 				switch_cpu_bmp = <0x40>;  /* cpu port bitmap */
 				switch_lan_bmp = <0x1e>; /* lan port bitmap */
 				switch_wan_bmp = <0x0>;  /* wan port bitmap */
@@ -129,6 +126,7 @@
 						0x00004 0x7600000   /* PAD0_MODE */
 						0x00008 0x1000000   /* PAD5_MODE */
 						0x0000c 0x80        /* PAD6_MODE */
+						0x00010 0x2613a0    /* PORT6 FORCE MODE*/
 						0x000e4 0xaa545     /* MAC_POWER_SEL */
 						0x000e0 0xc74164de  /* SGMII_CTRL */
 						0x0007c 0x4e        /* PORT0_STATUS */
@@ -321,7 +319,7 @@
 			};
 	};
 
-	/* blsp0_spi_pins: blsp0_spi_pins {
+	blsp0_spi_pins: blsp0_spi_pins {
 		mux {
 			pins = "gpio10", "gpio11", "gpio12", "gpio13";
 			function = "blsp0_spi";
@@ -377,7 +375,7 @@
 			drive-strength = <8>;
 			bias-pull-up;
 		};
-	}; */
+	};
 };
 
 &usb3 {
