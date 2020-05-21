@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -111,15 +111,17 @@ rmnet_deliver_skb(struct sk_buff *skb, struct rmnet_port *port)
 	rmnet_vnd_rx_fixup(skb->dev, skb->len);
 
 	/* Pass off the packet to NSS driver if we can */
-	nss_cb = rcu_dereference(rmnet_nss_callbacks);
-	if (nss_cb) {
-		if (!port->chain_head)
-			port->chain_head = skb;
-		else
-			skb_shinfo(port->chain_tail)->frag_list = skb;
+	if (priv->offload) {
+		nss_cb = rcu_dereference(rmnet_nss_callbacks);
+		if (nss_cb) {
+			if (!port->chain_head)
+				port->chain_head = skb;
+			else
+				skb_shinfo(port->chain_tail)->frag_list = skb;
 
-		port->chain_tail = skb;
-		return;
+			port->chain_tail = skb;
+			return;
+		}
 	}
 
 	skb_reset_transport_header(skb);

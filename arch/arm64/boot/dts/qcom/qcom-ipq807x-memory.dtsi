@@ -43,7 +43,7 @@
 	 * |        |              |                         |
 	 * |        |              |                         |
 	 * |        |              |                         |
-	 * | Linux  |  0x41000000  | Depends on total memory |
+	 * | Linux  |  0x40800000  | Depends on total memory |
 	 * |        |              |                         |
 	 * |        |              |                         |
 	 * |        |              |                         |

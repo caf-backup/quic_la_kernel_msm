@@ -1442,12 +1442,33 @@ static int __qcom_scm_dload_v8(struct device *dev, void *cmd_buf)
 
 	enable = cmd_buf ? *((unsigned int *)cmd_buf) : 0;
 	desc.args[0] = TCSR_BOOT_MISC_REG;
+
 	if (enable == SET_MAGIC_WARMRESET)
 		desc.args[1] = DLOAD_MODE_ENABLE_WARMRESET;
 	else if (enable == ABNORMAL_MAGIC)
 		desc.args[1] = DLOAD_MODE_DISABLE_ABNORMALRESET;
 	else
 		desc.args[1] = enable ? DLOAD_MODE_ENABLE : DLOAD_MODE_DISABLE;
+
+	desc.arginfo = SCM_ARGS(2, SCM_VAL, SCM_VAL);
+	ret = qcom_scm_call2(SCM_SIP_FNID(SCM_SVC_IO_ACCESS,
+					SCM_IO_WRITE), &desc);
+	if (ret)
+		return ret;
+
+	return le32_to_cpu(desc.ret[0]);
+}
+
+static int __qcom_scm_wcss_boot_v8(struct device *dev, void *cmd_buf)
+{
+	struct scm_desc desc = {0};
+	int ret;
+	unsigned int enable;
+
+	enable = cmd_buf ? *((unsigned int *)cmd_buf) : 0;
+	desc.args[0] = TCSR_Q6SS_BOOT_TRIG_REG;
+	desc.args[1] = enable;
+
 	desc.arginfo = SCM_ARGS(2, SCM_VAL, SCM_VAL);
 	ret = qcom_scm_call2(SCM_SIP_FNID(SCM_SVC_IO_ACCESS,
 					SCM_IO_WRITE), &desc);
@@ -1475,6 +1496,23 @@ int __qcom_scm_dload(struct device *dev, u32 svc_id, u32 cmd_id, void *cmd_buf)
 
 	if (is_scm_armv8())
 		return __qcom_scm_dload_v8(dev, cmd_buf);
+
+	if (cmd_buf)
+		ret = qcom_scm_call(dev, svc_id, cmd_id, cmd_buf,
+				sizeof(cmd_buf), NULL, 0);
+	else
+		ret = qcom_scm_call(dev, svc_id, cmd_id, NULL, 0, NULL, 0);
+
+	return ret;
+}
+
+int __qcom_scm_wcss_boot(struct device *dev, u32 svc_id, u32 cmd_id,
+				void *cmd_buf)
+{
+	long ret;
+
+	if (is_scm_armv8())
+		return __qcom_scm_wcss_boot_v8(dev, cmd_buf);
 
 	if (cmd_buf)
 		ret = qcom_scm_call(dev, svc_id, cmd_id, cmd_buf,
@@ -1681,15 +1719,15 @@ int __qcom_fuseipq_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
 {
 	int ret;
 	struct scm_desc desc = {0};
-	uint64_t *status;
+	uint32_t *status;
 
 	if (is_scm_armv8()) {
 
 		desc.arginfo = SCM_ARGS(1, SCM_RO);
-		desc.args[0] = *((unsigned int *)cmd_buf);
+		desc.args[0] = *((uint32_t *)cmd_buf);
 
 		ret = qcom_scm_call2(SCM_SIP_FNID(svc_id, cmd_id), &desc);
-		status = (uint64_t *)(*(((uint32_t *)cmd_buf) + 1));
+		status = (uint32_t *)(((uint32_t *)cmd_buf) + 1);
 		*status = desc.ret[0];
 
 	} else {
@@ -1785,3 +1823,27 @@ int __qcom_scm_get_smmustate(struct device *dev)
 	}
 	return ret ? -1 : le32_to_cpu(out);
 }
+
+int __qcom_scm_load_otp(struct device *dev, u32 peripheral)
+{
+	__le32 out;
+	__le32 in;
+	int ret;
+	struct scm_desc desc = {0};
+
+	if (!is_scm_armv8()) {
+		in = cpu_to_le32(peripheral);
+		ret = qcom_scm_call(dev, QCOM_SCM_SVC_OTP, QCOM_SCM_CMD_OTP,
+			    &in, sizeof(in),
+			    &out, sizeof(out));
+	} else {
+		desc.args[0] = peripheral;
+		desc.arginfo = SCM_ARGS(1);
+		ret = qcom_scm_call2(SCM_SIP_FNID(QCOM_SCM_SVC_OTP,
+						  QCOM_SCM_CMD_OTP), &desc);
+
+		out = desc.ret[0];
+	}
+	return ret ? : le32_to_cpu(out);
+}
+

@@ -196,16 +196,6 @@ static int qcom_wdt_scm_add_tlv(struct qcom_wdt_scm_tlv_msg *scm_tlv_msg,
 	return 0;
 }
 
-int remove_minidump_segments(uint64_t virt_addr)
-{
-
- int ret = 0;
- ret = minidump_remove_segments((const uint64_t)virt_addr);
- return ret;
-
-}
-EXPORT_SYMBOL(remove_minidump_segments);
-
 /*
 * Function: minidump_remove_segments
 * Description: Traverse metadata list and search for the TLV
@@ -526,14 +516,6 @@ int minidump_fill_tlv_crashdump_buffer(const uint64_t start_addr, uint64_t size,
 	return 0;
 }
 
-int fill_minidump_segments(uint64_t start_addr, uint64_t size, unsigned char type,char *name)
-{
-	int ret = 0;
-	ret = minidump_fill_segments((const uint64_t)start_addr,size,type, (const char *)name);
-	return ret;
-
-}
-EXPORT_SYMBOL(fill_minidump_segments);
 /*
 * Function: minidump_fill_segments
 *
@@ -1291,7 +1273,7 @@ const struct qcom_wdt_props qcom_wdt_props_ipq6018 = {
 
 const struct qcom_wdt_props qcom_wdt_props_ipq5018 = {
 	.layout = reg_offset_data_kpss,
-	.tlv_msg_offset = (500 * SZ_1K),
+	.tlv_msg_offset = (1012 * SZ_1K),
 	/* As SBL overwrites the NSS IMEM, TZ has to copy it to some memory
 	 * on crash before it restarts the system. Hence, reserving of 384K
 	 * is required to copy the NSS IMEM before restart is done.
@@ -1316,15 +1298,18 @@ const struct qcom_wdt_props qcom_wdt_props_ipq5018 = {
 	 *		|    regsave	|
 	 *		 ---------------
 	 *		|		|
-	 *		|     384K	|
+	 *		|     192K	|
 	 *		|    NSS IMEM	|
 	 *		|		|
 	 *		|		|
 	 *		 ---------------
+	 *		|     352 K     |
+	 *		|    BTSS RAM   |
+	 *		 ---------------
 	 *		|    3K - DCC	|
 	 *		 ---------------
 	 *		|		|
-	 *		|     82K	|
+	 *		|     457K	|
 	 *		|    Unused	|
 	 *		|		|
 	 *		 ---------------
@@ -1333,8 +1318,8 @@ const struct qcom_wdt_props qcom_wdt_props_ipq5018 = {
 	 *		 ---------------
 	 *
 	 */
-	.crashdump_page_size = (SZ_8K + (384 * SZ_1K) + (3 * SZ_1K) +
-				(82 * SZ_1K) + (12 * SZ_1K)),
+	.crashdump_page_size = (SZ_8K + (192 * SZ_1K) + (352 * SZ_1K) +
+				(3 * SZ_1K) + (457 * SZ_1K) + (12 * SZ_1K)),
 	.secure_wdog = true,
 };
 

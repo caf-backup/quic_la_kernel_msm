@@ -38,7 +38,6 @@
 #define CNSS_DUMP_SEG_VER		0x1
 #define WLAN_RECOVERY_DELAY		1000
 #define FILE_SYSTEM_READY		1
-#define FW_READY_TIMEOUT		20000
 #define FW_ASSERT_TIMEOUT		5000
 #define CNSS_EVENT_PENDING		2989
 
@@ -83,6 +82,15 @@ MODULE_PARM_DESC(skip_cnss, "skip_cnss");
 bool flashcal_support = true;
 module_param(flashcal_support, bool, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(flashcal_support, "flash caldata support");
+
+#define FW_READY_DELAY	100  /* in msecs */
+static int fw_ready_timeout = 15;
+module_param(fw_ready_timeout, int, 0644);
+MODULE_PARM_DESC(fw_ready_timeout, "fw ready timeout in seconds");
+
+static int cold_boot_cal_timeout = 60;
+module_param(cold_boot_cal_timeout, int, 0644);
+MODULE_PARM_DESC(cold_boot_cal_timeout, "Cold boot cal timeout in seconds");
 
 enum skip_cnss_options {
 	CNSS_SKIP_NONE,
@@ -211,6 +219,21 @@ struct cnss_plat_data *cnss_get_plat_priv(struct platform_device
 			return plat_env[i];
 	}
 	return NULL;
+}
+
+int cnss_get_plat_env_index_from_plat_priv(struct cnss_plat_data *plat_priv)
+{
+	int i;
+
+	if (!plat_priv)
+		return -EINVAL;
+
+	for (i = 0; i < plat_env_index; i++) {
+		if (plat_env[i] == plat_priv)
+			return i;
+	}
+
+	return -EINVAL;
 }
 
 #ifdef CONFIG_CNSS2_PM
@@ -625,6 +648,35 @@ int cnss_is_fw_ready(struct device *dev)
 }
 EXPORT_SYMBOL(cnss_is_fw_ready);
 
+void cnss_wait_for_fw_ready(struct device *dev)
+{
+	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
+	int count = 0;
+
+	if (!plat_priv)
+		return;
+
+	if (plat_priv->device_id == QCA8074_DEVICE_ID ||
+	    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
+	    plat_priv->device_id == QCA6018_DEVICE_ID ||
+	    plat_priv->device_id == QCA5018_DEVICE_ID ||
+	    plat_priv->device_id == QCN9000_DEVICE_ID) {
+		cnss_pr_info("Waiting for FW ready. Device: 0x%lx, FW ready timeout: %d seconds\n",
+			     plat_priv->device_id, fw_ready_timeout);
+		while (!test_bit(CNSS_FW_READY, &plat_priv->driver_state)) {
+			msleep(FW_READY_DELAY);
+			if (count++ > fw_ready_timeout * 10) {
+				cnss_pr_err("FW ready timed-out %d seconds\n",
+					    fw_ready_timeout);
+				CNSS_ASSERT(0);
+			}
+		}
+		cnss_pr_info("FW ready received for device 0x%lx\n",
+			     plat_priv->device_id);
+	}
+}
+EXPORT_SYMBOL(cnss_wait_for_fw_ready);
+
 int cnss_is_cold_boot_cal_done(struct device *dev)
 {
 	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
@@ -634,6 +686,42 @@ int cnss_is_cold_boot_cal_done(struct device *dev)
 	return 1;
 }
 EXPORT_SYMBOL(cnss_is_cold_boot_cal_done);
+
+void cnss_wait_for_cold_boot_cal_done(struct device *dev)
+{
+	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
+	int count = 0;
+
+	if (!plat_priv)
+		return;
+
+	if (plat_priv->device_id == QCA8074_DEVICE_ID ||
+	    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
+	    plat_priv->device_id == QCA6018_DEVICE_ID ||
+	    plat_priv->device_id == QCA5018_DEVICE_ID ||
+	    plat_priv->device_id == QCN9000_DEVICE_ID) {
+		/* Cold boot Calibration is done parallely for multiple devices
+		 * Check if this device has already completed cold boot cal
+		 * If already completed, we need not wait
+		 */
+		if (!test_bit(CNSS_COLD_BOOT_CAL, &plat_priv->driver_state))
+			return;
+
+		cnss_pr_info("Coldboot Calbration wait started for Device: 0x%lx, timeout: %d seconds\n",
+			     plat_priv->device_id, cold_boot_cal_timeout);
+		while (test_bit(CNSS_COLD_BOOT_CAL, &plat_priv->driver_state)) {
+			msleep(FW_READY_DELAY);
+			if (count++ > cold_boot_cal_timeout * 10) {
+				cnss_pr_err("Coldboot calibration timed out %d seconds\n",
+					    cold_boot_cal_timeout);
+				CNSS_ASSERT(0);
+			}
+		}
+		cnss_pr_info("Coldboot Calibration wait ended for device 0x%lx\n",
+			     plat_priv->device_id);
+	}
+}
+EXPORT_SYMBOL(cnss_wait_for_cold_boot_cal_done);
 
 void cnss_set_ramdump_enabled(struct device *dev, bool enabled)
 {
@@ -1221,7 +1309,7 @@ int cnss_wlan_register_driver(struct cnss_wlan_driver *driver_ops)
 		if (!plat_priv->cold_boot_support &&
 		    (driver_mode == CNSS_CALIBRATION ||
 		     driver_mode == CNSS_FTM_CALIBRATION)) {
-			cnss_pr_info("Skipping driver register for device 0x%lx for mode %d",
+			cnss_pr_info("Skipping driver register for device 0x%lx for mode %d\n",
 				     plat_priv->device_id, driver_mode);
 			continue;
 		}
@@ -1341,7 +1429,7 @@ void cnss_wlan_unregister_driver(struct cnss_wlan_driver *driver_ops)
 		if (!plat_priv->cold_boot_support &&
 		    (driver_mode == CNSS_CALIBRATION ||
 		     driver_mode == CNSS_FTM_CALIBRATION)) {
-			cnss_pr_info("Skipping driver unregister for device 0x%lx for mode %d",
+			cnss_pr_info("Skipping driver unregister for device 0x%lx for mode %d\n",
 				     plat_priv->device_id, driver_mode);
 			continue;
 		}
@@ -1571,6 +1659,8 @@ static int cnss_subsys_powerup(const struct subsys_desc *subsys_desc)
 	if (!plat_priv)
 		return -ENODEV;
 
+	plat_priv->target_asserted = 0;
+	plat_priv->target_assert_timestamp = 0;
 	set_bit(CNSS_DRIVER_LOADING, &plat_priv->driver_state);
 	ret = cnss_pci_probe(plat_priv->pci_dev,
 			     plat_priv->pci_dev_id,
@@ -1949,7 +2039,8 @@ static int cnss_cold_boot_cal_done_hdlr(struct cnss_plat_data *plat_priv,
 
 	switch (cal_info->cal_status) {
 	case CNSS_CAL_DONE:
-		cnss_pr_dbg("Calibration completed successfully\n");
+		cnss_pr_info("Coldboot Calibration completed successfully for device 0x%lx\n",
+			     plat_priv->device_id);
 		plat_priv->cal_done = true;
 		break;
 	case CNSS_CAL_TIMEOUT:
@@ -2911,8 +3002,8 @@ static int cnss_misc_init(struct cnss_plat_data *plat_priv)
 	int ret;
 
 	setup_timer(&plat_priv->fw_boot_timer,
-		    cnss_bus_fw_boot_timeout_hdlr, 0);
-
+		    cnss_bus_fw_boot_timeout_hdlr,
+		    (unsigned long)plat_priv);
 #ifdef CONFIG_CNSS2_PM
 	register_pm_notifier(&cnss_pm_notifier);
 #endif
@@ -3025,7 +3116,7 @@ void cnss_update_platform_feature_support(u8 type, u32 instance_id, u32 value)
 
 	plat_priv = cnss_get_plat_priv_by_instance_id(instance_id);
 	if (!plat_priv) {
-		cnss_pr_err("Failed to get plat_priv for instance_id %d\n",
+		cnss_pr_err("Failed to get plat_priv for instance_id 0x%x\n",
 			    instance_id);
 		return;
 	}
@@ -3033,17 +3124,17 @@ void cnss_update_platform_feature_support(u8 type, u32 instance_id, u32 value)
 	switch (type) {
 	case CNSS_GENL_MSG_TYPE_DAEMON_SUPPORT:
 		plat_priv->daemon_support = value;
-		cnss_pr_info("Setting daemon_support=%d for instance_id %d\n",
+		cnss_pr_info("Setting daemon_support=%d for instance_id 0x%x\n",
 			     value, instance_id);
 		break;
 	case CNSS_GENL_MSG_TYPE_COLD_BOOT_SUPPORT:
 		plat_priv->cold_boot_support = value;
-		cnss_pr_info("Setting cold_boot_support=%d for instance_id %d\n",
+		cnss_pr_info("Setting cold_boot_support=%d for instance_id 0x%x\n",
 			     value, instance_id);
 		break;
 	case CNSS_GENL_MSG_TYPE_FLASHCAL_SUPPORT:
 		plat_priv->flashcal_support = value;
-		cnss_pr_info("Setting caldata_support=%d for instance_id %d\n",
+		cnss_pr_info("Setting caldata_support=%d for instance_id 0x%x\n",
 			     value, instance_id);
 		break;
 	default:

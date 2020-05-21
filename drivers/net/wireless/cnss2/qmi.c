@@ -126,9 +126,9 @@ static char *cnss_qmi_mode_to_str(enum cnss_driver_mode mode)
 	case CNSS_QVIT:
 		return "QVIT";
 	case CNSS_CALIBRATION:
-		return "CALIBRATION";
+		return "COLDBOOT CALIBRATION";
 	case QMI_WLFW_FTM_CALIBRATION_V01:
-		return "FTM CALIBRATION";
+		return "FTM COLDBOOT CALIBRATION";
 	default:
 		return "UNKNOWN";
 	}
@@ -470,6 +470,9 @@ int cnss_wlfw_tgt_cap_send_sync(struct cnss_plat_data *plat_priv)
 		return -ENOMEM;
 	}
 
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_CAP_REQ_V01, ret, resp_error_msg);
+
 	ret = qmi_txn_init(&plat_priv->qmi_wlfw, &txn,
 			   wlfw_cap_resp_msg_v01_ei, resp);
 	if (ret < 0) {
@@ -477,9 +480,6 @@ int cnss_wlfw_tgt_cap_send_sync(struct cnss_plat_data *plat_priv)
 			    ret);
 		goto out;
 	}
-
-	qmi_record(plat_priv->wlfw_service_instance_id,
-		   QMI_WLFW_CAP_RESP_V01, ret, resp_error_msg);
 
 	ret = qmi_send_request(&plat_priv->qmi_wlfw, NULL, &txn,
 			       QMI_WLFW_CAP_REQ_V01,
@@ -584,7 +584,18 @@ static int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 	struct device *dev;
 
 	dev = &plat_priv->plat_dev->dev;
-	folder = (plat_priv->device_id == 0xFFFD) ? "IPQ6018/" : "IPQ8074/";
+
+	switch (plat_priv->device_id) {
+	case QCA6018_DEVICE_ID:
+		folder = "IPQ6018/";
+		break;
+	case QCA5018_DEVICE_ID:
+		folder = "IPQ5018/";
+		break;
+	default:
+		folder = "IPQ8074/";
+		break;
+	}
 
 	switch (bdf_type) {
 	case BDF_TYPE_GOLDEN:
@@ -694,7 +705,8 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv,
 	const struct firmware *fw_entry = NULL;
 	const u8 *temp;
 	char *folder;
-	unsigned int remaining;
+	struct device *dev;
+	unsigned int remaining, id = 0;
 	struct wlfw_bdf_download_req_msg_v01 *req;
 	struct wlfw_bdf_download_resp_msg_v01 *resp;
 	int ret = 0;
@@ -753,6 +765,15 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv,
 		goto bypass_bdf;
 	case CNSS_BDF_WIN:
 		if (plat_priv->device_id == QCN9000_DEVICE_ID &&
+		    !plat_priv->board_info.board_id_override) {
+			dev = &plat_priv->plat_dev->dev;
+			if (!of_property_read_u32(dev->of_node, "board_id",
+						  &id)) {
+				plat_priv->board_info.board_id_override = id;
+			}
+		}
+
+		if (plat_priv->device_id == QCN9000_DEVICE_ID &&
 		    plat_priv->board_info.board_id_override)
 			snprintf(filename, sizeof(filename),
 				 "%s" BDF_WIN_FILE_NAME_PREFIX "%02x", folder,
@@ -790,6 +811,7 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv,
 
 		if (plat_priv->device_id == QCA8074_DEVICE_ID ||
 		    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
+		    plat_priv->device_id == QCA5018_DEVICE_ID ||
 		    plat_priv->device_id == QCA6018_DEVICE_ID) {
 			temp = filename;
 			remaining = MAX_BDF_FILE_NAME;
@@ -820,8 +842,8 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv,
 	temp = fw_entry->data;
 	remaining = fw_entry->size;
 
-bypass_bdf:
 	cnss_pr_info("Downloading BDF: %s, size: %u\n", filename, remaining);
+bypass_bdf:
 
 	qmi_record(plat_priv->wlfw_service_instance_id,
 		   QMI_WLFW_BDF_DOWNLOAD_REQ_V01, ret, resp_error_msg);
@@ -1027,8 +1049,8 @@ int cnss_wlfw_wlan_mode_send_sync(struct cnss_plat_data *plat_priv,
 	if (!plat_priv)
 		return -ENODEV;
 
-	cnss_pr_dbg("Sending mode message, mode: %s(%d), state: 0x%lx\n",
-		    cnss_qmi_mode_to_str(mode), mode, plat_priv->driver_state);
+	cnss_pr_info("Sending mode message, mode: %s(%d), state: 0x%lx\n",
+		     cnss_qmi_mode_to_str(mode), mode, plat_priv->driver_state);
 
 	if (mode == CNSS_OFF &&
 	    test_bit(CNSS_DRIVER_RECOVERY, &plat_priv->driver_state)) {
@@ -2419,6 +2441,8 @@ static struct qmi_ops qmi_wlfw_ops = {
 	.del_server = wlfw_del_server,
 };
 
+struct qmi_handle *whandle;
+
 int cnss_qmi_init(struct cnss_plat_data *plat_priv)
 {
 	int ret = 0;
@@ -2440,6 +2464,13 @@ int cnss_qmi_init(struct cnss_plat_data *plat_priv)
 			pr_info("No qca8074_tgt_mem_mode entry in dev-tree.\n");
 			plat_priv->tgt_mem_cfg_mode = 0;
 		}
+	} else if (plat_priv->device_id == QCN9000_DEVICE_ID) {
+		if (of_property_read_u32(dev->of_node,
+					 "tgt-mem-mode",
+					 &plat_priv->tgt_mem_cfg_mode)) {
+			pr_info("No tgt-mem-mode entry in dev-tree.\n");
+			plat_priv->tgt_mem_cfg_mode = 0;
+		}
 	}
 
 	ret = qmi_handle_init(&plat_priv->qmi_wlfw,
@@ -2457,6 +2488,8 @@ int cnss_qmi_init(struct cnss_plat_data *plat_priv)
 		cnss_pr_err("Failed to add QMI lookup, err: %d\n", ret);
 		return ret;
 	}
+
+	whandle = &plat_priv->qmi_wlfw;
 
 out:
 	return ret;

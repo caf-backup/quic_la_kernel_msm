@@ -1,5 +1,5 @@
 /dts-v1/;
-/* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -70,16 +70,19 @@
 			};
 		};
 
-		ess-switch@0x39c00000 {
-			switch_mac_mode = <0xf>; /* mac mode for uniphy instance*/
-			qcom,port_phyinfo {
-				port@0 {
-					port_id = <1>;
-					phy_address = <7>;
-				};
-				port@1 {
-					port_id = <2>;
-					phy_address = <1>;
+		ess-instance {
+			num_devices = <0x1>;
+			ess-switch@0x39c00000 {
+				switch_mac_mode = <0xf>; /* mac mode for uniphy instance*/
+				qcom,port_phyinfo {
+					port@0 {
+						port_id = <1>;
+						phy_address = <7>;
+					};
+					port@1 {
+						port_id = <2>;
+						phy_address = <1>;
+					};
 				};
 			};
 		};
@@ -94,6 +97,32 @@
 
 		tzlog: qca,tzlog {
 			status = "disabled";
+		};
+
+		nss0: nss@40000000 {
+			qcom,low-frequency = <10000000>;
+			qcom,mid-frequency = <10000000>;
+			qcom,max-frequency = <10000000>;
+		};
+
+		dp1 {
+			device_type = "network";
+			compatible = "qcom,nss-dp";
+			qcom,id = <1>;
+			reg = <0x39C00000 0x10000>;
+			qcom,mactype = <2>;
+			local-mac-address = [000000000000];
+			phy-mode = "sgmii";
+		};
+
+		dp2 {
+			device_type = "network";
+			compatible = "qcom,nss-dp";
+			qcom,id = <2>;
+			reg = <0x39D00000 0x10000>;
+			qcom,mactype = <2>;
+			local-mac-address = [000000000000];
+			phy-mode = "sgmii";
 		};
 	};
 

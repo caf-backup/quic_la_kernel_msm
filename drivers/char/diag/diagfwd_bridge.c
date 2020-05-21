@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -103,19 +103,6 @@ static int diagfwd_bridge_mux_disconnect(int id, int mode)
 	if (id < 0 || id >= NUM_REMOTE_DEV)
 		return -EINVAL;
 
-	if ((mode == DIAG_USB_MODE &&
-		driver->logging_mode == DIAG_MEMORY_DEVICE_MODE) ||
-		(mode == DIAG_MEMORY_DEVICE_MODE &&
-		driver->logging_mode == DIAG_USB_MODE)) {
-		/*
-		 * Don't close the MHI channels when usb is disconnected
-		 * and a process is running in memory device mode.
-		 */
-		return 0;
-	}
-
-	if (bridge_info[id].dev_ops && bridge_info[id].dev_ops->close)
-		bridge_info[id].dev_ops->close(bridge_info[id].ctxt);
 	return 0;
 }
 
@@ -263,7 +250,7 @@ int diag_remote_dev_write_done(int id, unsigned char *buf, int len, int ctxt)
 	if (bridge_info[id].type == DIAG_DATA_TYPE) {
 		if (buf == driver->hdlc_encode_buf)
 			driver->hdlc_encode_buf_len = 0;
-		if (buf == driver->user_space_data_buf)
+		if (buf == (driver->user_space_data_buf + sizeof(int)))
 			driver->user_space_data_busy = 0;
 		err = diag_mux_queue_read(BRIDGE_TO_MUX(id));
 	} else {

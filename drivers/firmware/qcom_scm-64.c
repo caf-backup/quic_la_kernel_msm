@@ -611,6 +611,24 @@ int __qcom_scm_dload(struct device *dev, u32 svc_id, u32 cmd_id, void *cmd_buf)
 	return ret ? : res.a1;
 }
 
+int __qcom_scm_wcss_boot(struct device *dev, u32 svc_id, u32 cmd_id,
+				void *cmd_buf)
+{
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+	int ret;
+	unsigned int enable;
+
+	enable = cmd_buf ? *((unsigned int *)cmd_buf) : 0;
+	desc.args[0] = TCSR_Q6SS_BOOT_TRIG_REG;
+	desc.args[1] = enable;
+	desc.arginfo = SCM_ARGS(2, SCM_VAL, SCM_VAL);
+	ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, SCM_SVC_IO_ACCESS,
+			    SCM_IO_WRITE, &desc, &res);
+
+	return ret ? : res.a1;
+}
+
 int __qcom_scm_sdi(struct device *dev, u32 svc_id, u32 cmd_id)
 {
 	struct qcom_scm_desc desc = {0};
@@ -979,10 +997,10 @@ int __qcom_fuseipq_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
 	uint64_t *status;
 
 	desc.arginfo = SCM_ARGS(1, SCM_RO);
-	desc.args[0] = *((unsigned int *)cmd_buf);
+	desc.args[0] = *((uint64_t *)cmd_buf);
 	ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, svc_id,
 			    cmd_id, &desc, &res);
-	status = (uint64_t *)(*(((uint64_t *)cmd_buf) + 1));
+	status = (uint64_t *)(((uint64_t *)cmd_buf) + 1);
 	*status = res.a1;
 	return ret ? : res.a1;
 }
@@ -1053,4 +1071,19 @@ int __qcom_scm_get_smmustate(struct device *dev)
 
 	return ret ? -1 : res.a1;
 
+}
+
+int __qcom_scm_load_otp(struct device *dev, u32 peripheral)
+{
+	int ret;
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+
+	desc.args[0] = peripheral;
+	desc.arginfo = QCOM_SCM_ARGS(1);
+
+	ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, QCOM_SCM_SVC_OTP,
+			    QCOM_SCM_CMD_OTP, &desc, &res);
+
+	return ret ? false : !!res.a1;
 }

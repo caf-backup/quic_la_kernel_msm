@@ -144,6 +144,7 @@ static void set_mandatory_flags_band(struct ieee80211_supported_band *sband,
 
 	switch (band) {
 	case IEEE80211_BAND_5GHZ:
+	case NL80211_BAND_6GHZ:
 		want = 3;
 		for (i = 0; i < sband->n_bitrates; i++) {
 			if (sband->bitrates[i].bitrate == 60 ||
@@ -1464,6 +1465,9 @@ bool ieee80211_operating_class_to_band(u8 operating_class,
 	case 115 ... 127:
 	case 128 ... 130:
 		*band = IEEE80211_BAND_5GHZ;
+		return true;
+	case 131 ... 135:
+		*band = NL80211_BAND_6GHZ;
 		return true;
 	case 81:
 	case 82:

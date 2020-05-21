@@ -157,6 +157,9 @@ static DEFINE_SPINLOCK(pci_reg_window_lock);
 
 #define QCN9000_TIME_SYNC_ENABLE		0x80000000
 #define QCN9000_TIME_SYNC_CLEAR			0x0
+#define MAX_RAMDUMP_TRANSFER_WAIT_CNT		50 /* x 20msec */
+#define MAX_SOC_GLOBAL_RESET_WAIT_CNT		50 /* x 20msec */
+#define BHI_ERRDBG1 (0x34)
 
 static struct cnss_pci_reg ce_src[] = {
 	{ "SRC_RING_BASE_LSB", QCA6390_CE_SRC_RING_BASE_LSB_OFFSET },
@@ -1020,7 +1023,7 @@ u64 cnss_get_q6_time(struct device *dev)
 		pci_priv = plat_priv->bus_priv;
 
 		if (!pci_priv) {
-			cnss_pr_err("Pci Priv is null\n");
+			cnss_pr_dbg("Pci Priv is null\n");
 			return 0;
 		}
 		return cnss_pci_get_q6_time(pci_priv);
@@ -2504,6 +2507,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 	unsigned int bdf_location[3], caldb_location[3];
 	u32 addr = 0;
 	u32 caldb_size = 0;
+	u32 hremote_size = 0;
 	struct device *dev;
 	int i, idx, mode;
 	struct device_node *dev_node = NULL;
@@ -2557,7 +2561,14 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 					pr_err("WARNING caldb remap failed\n");
 				break;
 			case HOST_DDR_REGION_TYPE:
-				if (fw_mem[i].size > Q6_HOST_ADDR_SZ_QCN9000) {
+				if (of_property_read_u32(dev->of_node,
+							 "hremote-size",
+							 &hremote_size)) {
+					pr_err("Error: No hremote-size in dts\n");
+					CNSS_ASSERT(0);
+					return -ENOMEM;
+				}
+				if (fw_mem[i].size > hremote_size) {
 					pr_err("Error: Need more memory %x\n",
 					       (unsigned int)fw_mem[i].size);
 					CNSS_ASSERT(0);
@@ -2724,7 +2735,7 @@ int cnss_pci_alloc_qdss_mem(struct cnss_pci_data *pci_priv)
 		switch (qdss_mem[i].type) {
 		case QDSS_ETR_MEM_REGION_TYPE:
 			if (qdss_mem[i].size > Q6_QDSS_ETR_SIZE_QCN9000) {
-				cnss_pr_err("%s: FW requests more memory 0x%lx\n",
+				cnss_pr_err("%s: FW requests more memory 0x%zx\n",
 					    __func__, qdss_mem[i].size);
 				return -ENOMEM;
 			}
@@ -2750,9 +2761,9 @@ int cnss_pci_alloc_qdss_mem(struct cnss_pci_data *pci_priv)
 		}
 	}
 
-	cnss_pr_dbg("%s: seg_len %d, type %d, size 0x%lx, pa: 0x%llx, va: 0x%p",
+	cnss_pr_dbg("%s: seg_len %d, type %d, size 0x%zx, pa: 0x%pa, va: 0x%p",
 		    __func__, plat_priv->qdss_mem_seg_len, qdss_mem[0].type,
-		    qdss_mem[0].size, qdss_mem[0].pa, qdss_mem[0].va);
+		    qdss_mem[0].size, &qdss_mem[0].pa, qdss_mem[0].va);
 
 	return 0;
 }
@@ -3349,11 +3360,43 @@ out:
 
 void cnss_pci_global_reset(struct cnss_pci_data *pci_priv)
 {
-	writel_relaxed(QCN9000_PCIE_SOC_GLOBAL_RESET_VALUE,
-		       QCN9000_PCIE_SOC_GLOBAL_RESET_ADDRESS +
-		       pci_priv->bar);
-}
+	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
+	int resetcount = 0, tx_count = 0;
+	int current_ee;
+	u32 errdbg1 = 0;
 
+	current_ee = mhi_get_exec_env(pci_priv->mhi_ctrl);
+
+	/* Wait for the Ramdump transfer to complete */
+	if (current_ee == MHI_EE_RDDM) {
+		errdbg1 = readl_relaxed(pci_priv->mhi_ctrl->bhi + BHI_ERRDBG1);
+		while (errdbg1 != MHI_RAMDUMP_DUMP_COMPLETE &&
+		       tx_count < MAX_RAMDUMP_TRANSFER_WAIT_CNT) {
+			msleep(20);
+			errdbg1 = readl_relaxed(pci_priv->mhi_ctrl->bhi +
+						BHI_ERRDBG1);
+			tx_count++;
+		}
+	}
+
+	if (tx_count > 25)
+		cnss_pr_warn("Dump time exceeds %d mseconds\n", tx_count * 20);
+
+	/* Reset the Target */
+	do {
+		writel_relaxed(QCN9000_PCIE_SOC_GLOBAL_RESET_VALUE,
+			       QCN9000_PCIE_SOC_GLOBAL_RESET_ADDRESS +
+			       pci_priv->bar);
+		resetcount++;
+		msleep(20);
+		current_ee = mhi_get_exec_env(pci_priv->mhi_ctrl);
+	} while (current_ee != MHI_EE_PBL &&
+		 resetcount < MAX_SOC_GLOBAL_RESET_WAIT_CNT);
+
+	if (resetcount > 10)
+		cnss_pr_warn("SOC_GLOBAL_RESET at rst cnt %d tx_cnt %d\n",
+			     resetcount, tx_count);
+}
 static void cnss_pci_disable_bus(struct cnss_pci_data *pci_priv)
 {
 	struct pci_dev *pci_dev = pci_priv->pci_dev;
@@ -3361,7 +3404,6 @@ static void cnss_pci_disable_bus(struct cnss_pci_data *pci_priv)
 	/* Call global reset here */
 	cnss_pci_global_reset(pci_priv);
 
-	msleep(2000);
 
 	mhi_set_mhi_state(pci_priv->mhi_ctrl, MHI_STATE_RESET);
 
@@ -3472,6 +3514,7 @@ void cnss_pci_collect_dump_info(struct cnss_pci_data *pci_priv, bool in_panic)
 		plat_priv->ramdump_info_v2.dump_data_vaddr;
 	struct image_info *fw_image, *rddm_image;
 	struct cnss_fw_mem *fw_mem = plat_priv->fw_mem;
+	struct cnss_fw_mem *qdss_mem = plat_priv->qdss_mem;
 	int ret, i;
 
 	if (test_bit(CNSS_MHI_RDDM_DONE, &pci_priv->mhi_state)) {
@@ -3531,8 +3574,37 @@ void cnss_pci_collect_dump_info(struct cnss_pci_data *pci_priv, bool in_panic)
 
 	cnss_pr_dbg("Collect remote heap dump segment\n");
 	for (i = 0; i < plat_priv->fw_mem_seg_len; i++) {
-		if (fw_mem[i].type == CNSS_MEM_TYPE_DDR ||
-		    fw_mem[i].type == CNSS_MEM_CAL_V01) {
+		if (fw_mem[i].type == CNSS_MEM_TYPE_DDR) {
+			dump_seg->address = fw_mem[i].pa;
+			dump_seg->v_address = fw_mem[i].va;
+			dump_seg->size = fw_mem[i].size;
+			dump_seg->type = CNSS_FW_REMOTE_HEAP;
+			cnss_pr_dbg("seg-%d: address 0x%lx, v_address %pK, size 0x%lx\n",
+				    i, dump_seg->address, dump_seg->v_address,
+				    dump_seg->size);
+			dump_seg++;
+			dump_data->nentries++;
+		}
+	}
+
+	cnss_pr_dbg("Collect QDSS dump segment\n");
+	for (i = 0; i < plat_priv->qdss_mem_seg_len; i++) {
+		if (qdss_mem[i].type == CNSS_MEM_ETR) {
+			dump_seg->address = qdss_mem[i].pa;
+			dump_seg->v_address = qdss_mem[i].va;
+			dump_seg->size = qdss_mem[i].size;
+			dump_seg->type = CNSS_FW_REMOTE_HEAP;
+			cnss_pr_dbg("QDSS seg-%d: address 0x%lx, v_address %pK, size 0x%lx\n",
+				    i, dump_seg->address, dump_seg->v_address,
+				    dump_seg->size);
+			dump_seg++;
+			dump_data->nentries++;
+		}
+	}
+
+	cnss_pr_dbg("Collect Caldb dump segment\n");
+	for (i = 0; i < plat_priv->fw_mem_seg_len; i++) {
+		if (fw_mem[i].type == CNSS_MEM_CAL_V01) {
 			dump_seg->address = fw_mem[i].pa;
 			dump_seg->v_address = fw_mem[i].va;
 			dump_seg->size = fw_mem[i].size;
@@ -3593,9 +3665,7 @@ static char *cnss_mhi_notify_status_to_str(enum MHI_CB status)
 
 static void cnss_dev_rddm_timeout_hdlr(unsigned long data)
 {
-	struct timer_list *t = (void *)data;
-	struct cnss_pci_data *pci_priv =
-		container_of(t, struct cnss_pci_data, dev_rddm_timer);
+	struct cnss_pci_data *pci_priv = (struct cnss_pci_data *)data;
 
 	if (!pci_priv)
 		return;
@@ -3664,9 +3734,10 @@ static void cnss_mhi_notify_status(struct mhi_controller *mhi_ctrl, void *priv,
 		return;
 	}
 	cnss_pr_err("XXX TARGET ASSERTED XXX\n");
-	cnss_pr_err("XXX TARGET %s instance_id 0x%x XXX\n",
+	cnss_pr_err("XXX TARGET %s instance_id 0x%x plat_env idx %d XXX\n",
 		    plat_priv->device_name,
-		    plat_priv->wlfw_service_instance_id);
+		    plat_priv->wlfw_service_instance_id,
+		    cnss_get_plat_env_index_from_plat_priv(plat_priv));
 	plat_priv->target_asserted = 1;
 	plat_priv->target_assert_timestamp = ktime_to_ms(ktime_get());
 
@@ -3871,7 +3942,8 @@ int cnss_pci_probe(struct pci_dev *pci_dev,
 	case QCA6390_DEVICE_ID:
 	case QCA6490_DEVICE_ID:
 		setup_timer(&pci_priv->dev_rddm_timer,
-			    cnss_dev_rddm_timeout_hdlr, 0);
+			    cnss_dev_rddm_timeout_hdlr,
+			    (unsigned long)pci_priv);
 		INIT_DELAYED_WORK(&pci_priv->time_sync_work,
 				  cnss_pci_time_sync_work_hdlr);
 

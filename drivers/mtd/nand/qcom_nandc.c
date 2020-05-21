@@ -369,6 +369,31 @@ enum {
 #define QPIC_FLASH_XFR_STEP5_VAL	0xC000C000
 #define QPIC_FLASH_XFR_STEP6_VAL	0xC000C000
 #define QPIC_FLASH_XFR_STEP7_VAL	0xC000C000
+#if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
+/* SPI nand flash Table */
+struct nand_flash_dev qspinand_flash_ids[] = {
+	{"GD5F1GQ4RE9IG SPI NAND 1G 1.8V",
+		{ .id = {0xc8, 0xc1} },
+		SZ_2K, SZ_128, SZ_128K, 0, 2, 128, NAND_ECC_INFO(8, SZ_512), 0},
+	{"GD5F1GQ4RE9IH SPI NAND 1G 1.8V",
+		{ .id = {0xc8, 0xc9} },
+		SZ_2K, SZ_128, SZ_128K, 0, 2, 64, NAND_ECC_INFO(4, SZ_512), 0},
+	{"GD5F2GQ5REYIH SPI NAND 2G",
+		{ .id = {0xc8, 0x22} },
+		SZ_2K, SZ_256, SZ_128K, 0, 2, 64, NAND_ECC_INFO(4, SZ_512), 0},
+	{"MT29F1G01ABBFDWB-IT SPI NAND 1G 1.8V",
+		{ .id = {0x2c, 0x15} },
+		SZ_2K, SZ_128, SZ_128K, 0, 2, 128, NAND_ECC_INFO(8, SZ_512), 0},
+	{NULL}
+};
+
+struct qpic_nand_pltfm_data {
+	u32 *io_macro_clk_table;
+	unsigned char io_macro_clk_cnt;
+};
+
+#define FEEDBACK_CLK_EN		(1 << 4)
+#endif
 /*
  * This data type corresponds to the BAM transaction which will be used for any
  * nand request.
@@ -523,7 +548,11 @@ struct qcom_nand_controller {
 
 	struct clk *core_clk;
 	struct clk *aon_clk;
-
+#if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
+	struct clk *io_macro_clk;
+	struct qpic_nand_pltfm_data *pdata;
+	bool	stnd_alone_flag;
+#endif
 	union {
 		struct {
 			struct dma_chan *tx_chan;
@@ -1602,6 +1631,12 @@ static int read_id(struct qcom_nand_host *host, int column)
 #if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 	cmd = (FETCH_ID | QPIC_SPI_TRANSFER_MODE_x1 |
 			QPIC_SPI_WP | QPIC_SPI_HOLD);
+	/* For spi nand read 2-bytes id only
+	 * else if nandc->buf_count == 4; then the id value
+	 * will repeat and the SLC device will detect as MLC.
+	 * so set the nandc->buf_count == 2;
+	 */
+	nandc->buf_count = 2;
 #endif
 	clear_bam_transaction(nandc);
 
@@ -3765,6 +3800,72 @@ static void qcom_check_quad_mode(struct mtd_info *mtd, struct qcom_nand_host *ho
 		host->check_qe_bit = true;
 }
 
+static int qpic_nand_dt_array(struct device *dev, const char *prop_name,
+		u32 **out, int *len)
+{
+	int ret = 0;
+	struct device_node *np = dev->of_node;
+	size_t sz;
+	u32 *arr = NULL;
+
+	if (!of_get_property(np, prop_name, len)) {
+		ret = -EINVAL;
+		goto out;
+	}
+	sz = *len = *len / sizeof(*arr);
+	if (sz <= 0) {
+		dev_err(dev, "%s invalid size\n", prop_name);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	arr = devm_kzalloc(dev, sz * sizeof(*arr), GFP_KERNEL);
+	if (!arr) {
+		dev_err(dev, "%s failed allocating memory\n", prop_name);
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = of_property_read_u32_array(np, prop_name, arr, sz);
+	if (ret < 0) {
+		dev_err(dev, "%s failed reading array %d\n", prop_name, ret);
+		goto out;
+	}
+	*out = arr;
+
+out:
+	if (ret)
+		*len = 0;
+	return ret;
+}
+
+static struct qpic_nand_pltfm_data *qpic_nand_populate_pdata(struct device *dev,
+		struct qcom_nand_controller *nandc)
+{
+	struct qpic_nand_pltfm_data *pdata = NULL;
+	int io_macro_clk_len;
+	u32 *io_macro_clk_table = NULL;
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata) {
+		dev_err(dev, "failed to allocate memory for platform data\n");
+		goto out;
+	}
+
+	if(qpic_nand_dt_array(dev, "qpic,io_macro_clk_rates",
+				&io_macro_clk_table, &io_macro_clk_len)) {
+		dev_err(dev, "failed parsing supported io_macro clock rates\n");
+		goto out;
+	}
+
+	pdata->io_macro_clk_table = io_macro_clk_table;
+	pdata->io_macro_clk_cnt = io_macro_clk_len;
+
+	return pdata;
+out:
+	return NULL;
+}
+
 int qcom_serial_device_config(struct mtd_info *mtd, struct qcom_nand_host *host)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
@@ -3910,15 +4011,17 @@ void qcom_serial_nand_init(struct mtd_info *mtd)
 	cmd3_val = NAND_FLASH_DEV_CMD3_VAL;
 	cmd7_val = NAND_FLASH_DEV_CMD7_VAL;
 
-	spi_cfg_val |= (SPI_LOAD_CLK_CNTR_INIT_EN | SPI_FLASH_MODE_EN |
+	if (nandc->stnd_alone_flag) {
+		spi_cfg_val |= (SPI_LOAD_CLK_CNTR_INIT_EN | SPI_FLASH_MODE_EN |
 			(SPI_CFG_CLK_CNTR_INIT_VAL_VEC << 16) | SPI_FEA_STATUS_DEV_ADDR|
 			(SPI_NUM_ADDR2_CYCLES << 2));
 
-	nandc_write(nandc, NAND_FLASH_SPI_CFG , 0x0);
-	nandc_write(nandc, NAND_FLASH_SPI_CFG , spi_cfg_val);
+		nandc_write(nandc, NAND_FLASH_SPI_CFG , 0x0);
+		nandc_write(nandc, NAND_FLASH_SPI_CFG , spi_cfg_val);
 
-	spi_cfg_val &= ~(SPI_LOAD_CLK_CNTR_INIT_EN);
-	nandc_write(nandc, NAND_FLASH_SPI_CFG , spi_cfg_val);
+		spi_cfg_val &= ~(SPI_LOAD_CLK_CNTR_INIT_EN);
+		nandc_write(nandc, NAND_FLASH_SPI_CFG , spi_cfg_val);
+	}
 
 	/* According to HPG Setting Xfer steps and spi_num_addr_cycles
 	 * is part of initialization flow before reset.However these
@@ -3956,8 +4059,12 @@ void qcom_serial_nand_init(struct mtd_info *mtd)
 
 	nandc_write(nandc, NAND_DEV_CMD_VLD, NAND_DEV_CMD_VLD_SERIAL_VAL);
 
-	nandc_write(nandc, NAND_SPI_NUM_ADDR_CYCLES, SPI_NO_OF_ADDR_CYCLE);
-	nandc_write(nandc, NAND_SPI_BUSY_CHECK_WAIT_CNT, busy_wait_check_cnt);
+	if (nandc->stnd_alone_flag) {
+		nandc_write(nandc, NAND_SPI_NUM_ADDR_CYCLES,
+				SPI_NO_OF_ADDR_CYCLE);
+		nandc_write(nandc, NAND_SPI_BUSY_CHECK_WAIT_CNT,
+				busy_wait_check_cnt);
+	}
 }
 #endif
 
@@ -4038,8 +4145,11 @@ static int qcom_nand_host_init(struct qcom_nand_controller *nandc,
 
 #if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 	qcom_serial_nand_init(mtd);
-#endif
+
+	ret = nand_scan_ident(mtd, 1, qspinand_flash_ids);
+#else
 	ret = nand_scan_ident(mtd, 1, NULL);
+#endif
 	if (ret)
 		return ret;
 #if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
@@ -4213,6 +4323,42 @@ static int qcom_nandc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_aon_clk;
 
+#if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
+	nandc->stnd_alone_flag = of_property_read_bool(dev->of_node,
+			"qcom,qpic_stand_alone_kernel");
+
+	nandc->pdata = qpic_nand_populate_pdata(nandc->dev, nandc);
+	if (!nandc->pdata) {
+		pr_err("QPIC platform data not populated\n");
+	}
+
+	/* Initially enable feedback clock bit to avoid serial
+	 * tarining done by software manually
+	 * for feed back clock the maximum IO_MACRO_CLK should
+	 * be 50MHz. so supply 200MHz as input source to IO_MACRO
+	 * to enable feedback clock bit write into register
+	 * NAND_QSPI_MSTR_CONFIG.
+	 */
+	if (nandc->stnd_alone_flag)
+		nandc_write(nandc, NAND_QSPI_MSTR_CONFIG, FEEDBACK_CLK_EN);
+
+	nandc->io_macro_clk = devm_clk_get(dev, "io_macro");
+	if (IS_ERR(nandc->io_macro_clk))
+		return PTR_ERR(nandc->io_macro_clk);
+
+	/* set the clock io_macro rate and then enable
+	 * the io_macro clock
+	 */
+	ret =  clk_set_rate(nandc->io_macro_clk,
+			nandc->pdata->io_macro_clk_table[2]);
+	if (ret)
+		goto err_io_macro_clk;
+
+	ret = clk_prepare_enable(nandc->io_macro_clk);
+	if (ret)
+		goto err_io_macro_clk;
+#endif
+
 	ret = qcom_nandc_setup(nandc);
 	if (ret)
 		goto err_setup;
@@ -4253,6 +4399,10 @@ static int qcom_nandc_probe(struct platform_device *pdev)
 err_cs_init:
 	list_for_each_entry(host, &nandc->host_list, node)
 		nand_release(nand_to_mtd(&host->chip));
+#if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
+err_io_macro_clk:
+	clk_disable_unprepare(nandc->io_macro_clk);
+#endif
 err_setup:
 	clk_disable_unprepare(nandc->aon_clk);
 err_aon_clk:

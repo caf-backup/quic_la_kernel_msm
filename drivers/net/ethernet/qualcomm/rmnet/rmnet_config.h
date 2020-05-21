@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2017, 2019 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2017, 2019-2020 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -146,6 +146,7 @@ struct rmnet_priv {
 	struct rmnet_pcpu_stats __percpu *pcpu_stats;
 	struct gro_cells gro_cells;
 	struct rmnet_priv_stats stats;
+	u8 offload;
 };
 
 enum rmnet_dl_marker_prio {

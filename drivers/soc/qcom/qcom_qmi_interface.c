@@ -345,8 +345,7 @@ int qmi_txn_wait(struct qmi_txn *txn, unsigned long timeout)
 	struct qmi_handle *qmi = txn->qmi;
 	int ret;
 
-	ret = wait_for_completion_interruptible_timeout(&txn->completion,
-							timeout);
+	ret = wait_for_completion_timeout(&txn->completion, timeout);
 
 	mutex_lock(&qmi->txn_lock);
 	mutex_lock(&txn->lock);
@@ -354,9 +353,7 @@ int qmi_txn_wait(struct qmi_txn *txn, unsigned long timeout)
 	mutex_unlock(&txn->lock);
 	mutex_unlock(&qmi->txn_lock);
 
-	if (ret < 0)
-		return ret;
-	else if (ret == 0)
+	if (ret == 0)
 		return -ETIMEDOUT;
 	else
 		return txn->result;
@@ -471,6 +468,12 @@ static void qmi_handle_net_reset(struct qmi_handle *qmi)
 		qmi_send_new_server(qmi, svc);
 }
 
+struct ldebug {
+	struct qmi_handle *qhandle;
+	u64 s_timestamp;
+	u64 e_timestamp;
+} ldebug;
+
 static void qmi_handle_message(struct qmi_handle *qmi,
 			       struct sockaddr_qrtr *sq,
 			       const void *buf, size_t len)
@@ -479,6 +482,9 @@ static void qmi_handle_message(struct qmi_handle *qmi,
 	struct qmi_txn tmp_txn;
 	struct qmi_txn *txn = NULL;
 	int ret;
+
+	ldebug.qhandle = qmi;
+	ldebug.s_timestamp = ktime_to_us(ktime_get());
 
 	if (len < sizeof(*hdr)) {
 		pr_err("ignoring short QMI packet\n");
@@ -495,6 +501,7 @@ static void qmi_handle_message(struct qmi_handle *qmi,
 		/* Ignore unexpected responses */
 		if (!txn) {
 			mutex_unlock(&qmi->txn_lock);
+			ldebug.e_timestamp = ktime_to_us(ktime_get());
 			return;
 		}
 
@@ -520,6 +527,8 @@ static void qmi_handle_message(struct qmi_handle *qmi,
 
 		qmi_invoke_handler(qmi, sq, &tmp_txn, buf, len);
 	}
+
+	ldebug.e_timestamp = ktime_to_us(ktime_get());
 }
 
 static void qmi_data_ready_work(struct work_struct *work)

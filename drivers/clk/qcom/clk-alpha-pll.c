@@ -716,6 +716,90 @@ static int clk_alpha_pll_brammo_set_rate(struct clk_hw *hw, unsigned long rate,
 	return 0;
 }
 
+static unsigned long
+clk_alpha_pll_stromer_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
+{
+	u32 l, low, high, ctl, alpha_width = ALPHA_REG_BITWIDTH;
+	u64 a = 0, prate = parent_rate;
+	struct clk_alpha_pll *pll = to_clk_alpha_pll(hw);
+
+	regmap_read(pll->clkr.regmap, PLL_L_REG(pll), &l);
+
+	regmap_read(pll->clkr.regmap, PLL_USER_CTL_REG(pll), &ctl);
+	if (ctl & PLL_ALPHA_EN) {
+		regmap_read(pll->clkr.regmap, PLL_ALPHA_REG(pll), &low);
+		regmap_read(pll->clkr.regmap, PLL_ALPHA_U_REG(pll),
+			    &high);
+		if (high) {
+			a = (u64)high << ALPHA_BITWIDTH | low;
+			a >>= alpha_width - ALPHA_BITWIDTH;
+		} else {
+			a = low;
+		}
+	}
+
+	return alpha_pll_calc_rate(prate, l, a, alpha_width);
+}
+
+static int clk_alpha_pll_stromer_determine_rate(struct clk_hw *hw,
+					 struct clk_rate_request *req)
+{
+	unsigned long rate = req->rate;
+	u32 l;
+	u64 a;
+
+	rate = alpha_pll_round_rate(rate, req->best_parent_rate, &l, &a,
+				    ALPHA_REG_BITWIDTH);
+	return 0;
+}
+
+static int clk_alpha_pll_stromer_set_rate(struct clk_hw *hw, unsigned long rate,
+					 unsigned long prate)
+{
+	struct clk_alpha_pll *pll = to_clk_alpha_pll(hw);
+	u32 l;
+	int ret;
+	u64 a;
+
+	rate = alpha_pll_round_rate(rate, prate, &l, &a, ALPHA_REG_BITWIDTH);
+
+	/* Write desired values to registers */
+	regmap_write(pll->clkr.regmap, PLL_L_REG(pll), l);
+	regmap_write(pll->clkr.regmap, PLL_ALPHA_REG(pll), a);
+	regmap_write(pll->clkr.regmap, PLL_ALPHA_U_REG(pll),
+					a >> ALPHA_BITWIDTH);
+
+	regmap_update_bits(pll->clkr.regmap, PLL_USER_CTL_REG(pll),
+			   PLL_ALPHA_EN, PLL_ALPHA_EN);
+
+	if (!clk_hw_is_enabled(hw))
+		return 0;
+
+	regmap_update_bits(pll->clkr.regmap, PLL_MODE_REG(pll), PLL_UPDATE,
+			   PLL_UPDATE);
+	/* Make sure PLL_UPDATE request goes through
+	 * This has the effect of asserting the pll_latch_input signal,
+	 * which triggers the PLL to capture the new L and Alpha settings
+	 */
+	mb();
+
+	/* Wait for PLL_UPDATE to be cleared */
+	ret = wait_for_pll_update(pll);
+	if (ret)
+		return ret;
+
+	/* Wait 11or more PLL clk_ref ticks.
+	 * When using a reference clock of XO, the wait requirement is 570ns or more
+	 */
+
+	/* Poll LOCK_DET for one */
+	ret = wait_for_pll_enable_lock(pll);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 const struct clk_ops clk_alpha_pll_ops = {
 	.enable = clk_alpha_pll_enable,
 	.disable = clk_alpha_pll_disable,
@@ -755,6 +839,16 @@ const struct clk_ops clk_alpha_pll_brammo_ops = {
 	.set_rate = clk_alpha_pll_brammo_set_rate,
 };
 EXPORT_SYMBOL_GPL(clk_alpha_pll_brammo_ops);
+
+const struct clk_ops clk_alpha_pll_stromer_ops = {
+	.enable = clk_alpha_pll_enable,
+	.disable = clk_alpha_pll_disable,
+	.is_enabled = clk_alpha_pll_is_enabled,
+	.recalc_rate = clk_alpha_pll_stromer_recalc_rate,
+	.determine_rate = clk_alpha_pll_stromer_determine_rate,
+	.set_rate = clk_alpha_pll_stromer_set_rate,
+};
+EXPORT_SYMBOL_GPL(clk_alpha_pll_stromer_ops);
 
 static unsigned long
 clk_alpha_pll_postdiv_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)

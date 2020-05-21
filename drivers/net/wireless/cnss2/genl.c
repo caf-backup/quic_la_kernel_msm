@@ -179,9 +179,6 @@ static int cnss_genl_send_data(u8 type, char *file_name, u32 total_size,
 
 	genlmsg_end(skb, msg_header);
 	ret = genlmsg_multicast(&cnss_genl_family, skb, 0, 0, GFP_KERNEL);
-	if (ret < 0)
-		goto fail;
-
 	return ret;
 fail:
 	pr_err("genl msg send fail: %d\n", ret);
@@ -190,6 +187,7 @@ fail:
 	return ret;
 }
 
+#define MAX_RETRY 20
 int cnss_genl_send_msg(void *buff, u8 type, char *file_name, u32 total_size)
 {
 	int ret = 0;
@@ -198,30 +196,36 @@ int cnss_genl_send_msg(void *buff, u8 type, char *file_name, u32 total_size)
 	u32 seg_id = 0;
 	u32 data_len = 0;
 	u8 end = 0;
+	int retry_count;
 
 	pr_debug("type: %u, total_size: %x\n", type, total_size);
 
 	while (remaining) {
+		retry_count = 0;
 		if (remaining > CNSS_GENL_DATA_LEN_MAX) {
 			data_len = CNSS_GENL_DATA_LEN_MAX;
 		} else {
 			data_len = remaining;
 			end = 1;
 		}
+retry:
 		ret = cnss_genl_send_data(type, file_name, total_size,
 					  seg_id, end, data_len, msg_buff);
-		if (ret < 0) {
-			pr_err("fail to send genl data, ret %d\n", ret);
-			return ret;
+		if (ret < 0 && retry_count < MAX_RETRY) {
+			msleep(50);
+			retry_count++;
+			goto retry;
+		}
+		if (retry_count >= MAX_RETRY) {
+			pr_err("Failed to send genl data, seg_id  %d\n",
+			       seg_id);
+			pr_err("Fatal Err: Giving up after %d retries\n",
+			       MAX_RETRY);
+			pr_err("QDSS trace data is corrupted\n");
 		}
 
 		remaining -= data_len;
 		msg_buff += data_len;
-		/* There is a known issue where without this msleep, NL send
-		 * msg fails. Work in progress to fix this
-		 */
-		if ((seg_id % 10) == 0)
-			msleep(50);
 		seg_id++;
 	}
 

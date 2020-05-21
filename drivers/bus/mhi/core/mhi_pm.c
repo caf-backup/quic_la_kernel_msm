@@ -811,7 +811,7 @@ int mhi_async_power_up(struct mhi_controller *mhi_cntrl)
 
 	/* confirm device is in valid exec env */
 	if (!MHI_IN_PBL(current_ee) && current_ee != MHI_EE_AMSS) {
-		MHI_ERR("Not a valid ee for power on\n");
+		MHI_ERR("Not a valid ee for power on %d\n", current_ee);
 		ret = -EIO;
 		goto error_bhi_offset;
 	}

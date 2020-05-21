@@ -113,11 +113,6 @@ static int bt_ipc_send_msg(struct bt_descriptor *btDesc, uint16_t msg_hdr,
 	uint8_t is_sbuf_full = 0;
 	struct ipc_aux_ptr aux_ptr;
 
-	if (unlikely(!atomic_read(&btDesc->state))) {
-		dev_err(dev, "BT IPC not initialized, no message sent\n");
-		return -ENODEV;
-	}
-
 	rinfo = bt_ipc_get_tx_rbuf(btDesc, &is_sbuf_full);
 	if (rinfo == NULL) {
 		dev_err(dev, "no tx buffer left\n");
@@ -194,6 +189,11 @@ static void bt_ipc_cust_msg(struct bt_descriptor *btDesc, uint8_t msgid)
 	uint16_t msg_hdr = 0;
 	int ret;
 
+	if (unlikely(!atomic_read(&btDesc->state))) {
+		dev_err(dev, "BT IPC not initialized, no message sent\n");
+		return;
+	}
+
 	msg_hdr |= msgid;
 
 	switch (msgid) {
@@ -233,7 +233,6 @@ static bool bt_ipc_process_peer_msgs(struct bt_descriptor *btDesc,
 	bool ackReqd = false;
 	uint8_t *rxbuf = NULL;
 	unsigned char *buf;
-
 
 	ridx = rinfo->ridx;
 
@@ -331,6 +330,11 @@ int bt_ipc_sendmsg(struct bt_descriptor *btDesc, unsigned char *buf, int len)
 	uint16_t msg_hdr = 0x100;
 	struct device *dev = &btDesc->pdev->dev;
 	unsigned long flags;
+
+	if (unlikely(!atomic_read(&btDesc->state))) {
+		dev_err(dev, "BT IPC not initialized, no message sent\n");
+		return -ENODEV;
+	}
 
 	spin_lock_irqsave(&btDesc->lock, flags);
 

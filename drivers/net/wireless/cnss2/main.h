@@ -178,6 +178,7 @@ enum cnss_mem_type {
 	CNSS_MEM_M3,
 	CNSS_MEM_CAL_V01,
 	CNSS_MEM_DPD_V01,
+	CNSS_MEM_ETR,
 };
 
 enum cnss_fw_dump_type {
@@ -402,8 +403,9 @@ struct cnss_plat_data {
 static inline u64 cnss_get_host_timestamp(struct cnss_plat_data *plat_priv)
 {
 	u64 ticks = arch_counter_get_cntvct();
+	u32 freq = arch_timer_get_cntfrq();
 
-	do_div(ticks, TIME_CLOCK_FREQ_HZ / 100000);
+	do_div(ticks, freq / 100000);
 
 	return ticks * 10;
 }
@@ -449,6 +451,7 @@ struct cnss_plat_data *cnss_get_plat_priv_by_device_id(int id);
 struct cnss_plat_data *cnss_get_plat_priv_by_qrtr_node_id(int node_id);
 struct cnss_plat_data *cnss_get_plat_priv_by_instance_id(int instance_id);
 struct cnss_plat_data *cnss_get_plat_priv(struct platform_device *plat_dev);
+int cnss_get_plat_env_index_from_plat_priv(struct cnss_plat_data *plat_priv);
 int cnss_qca9000_shutdown_part2(struct cnss_plat_data *plat_priv);
 int cnss_get_cpr_info(struct cnss_plat_data *plat_priv);
 int cnss_update_cpr_info(struct cnss_plat_data *plat_priv);

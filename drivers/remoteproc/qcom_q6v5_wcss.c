@@ -90,6 +90,9 @@
 #define WCNSS_PAS_ID		6
 #define DEFAULT_IMG_ADDR        0x4b000000
 
+#define Q6_BOOT_TRIG_SVC_ID	0x5
+#define Q6_BOOT_TRIG_CMD_ID	0x2
+
 struct q6v5_wcss {
 	struct device *dev;
 
@@ -132,6 +135,7 @@ struct q6_platform_data {
 };
 
 static int debug_wcss;
+static int load_pil = 1;
 
 #if defined(CONFIG_IPQ_SS_DUMP)
 
@@ -614,7 +618,7 @@ static int start_q6(const struct subsys_desc *subsys)
 	struct q6_platform_data *pdata =
 		dev_get_platdata(((struct q6v5_wcss *)rproc->priv)->dev);
 
-	if (pdata->emulation) {
+	if (pdata->emulation && !load_pil) {
 		pr_info("q6v5: Emulation start, PIL loading skipped\n");
 		rproc->bootaddr = DEFAULT_IMG_ADDR;
 		rproc->ops->start(rproc);
@@ -647,7 +651,7 @@ static int stop_q6(const struct subsys_desc *subsys, bool force_stop)
 		}
 	}
 
-	if (pdata->emulation) {
+	if (pdata->emulation && !load_pil) {
 		pr_info("q6v5: Emulation stop\n");
 		rproc_stop_subdevices(rproc, false);
 		rproc->ops->stop(rproc);
@@ -777,6 +781,7 @@ static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 	struct q6_platform_data *pdata = dev_get_platdata(wcss->dev);
 	int ret;
 	int temp = 0;
+	unsigned int cookie;
 
 	/*Assert Q6 BLK Reset*/
 	ret = reset_control_assert(wcss->wcss_q6_reset);
@@ -831,8 +836,9 @@ static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 			wcss->halt_nc + TCSR_GLOBAL_CFG0, 0x40, 0xF0);
 
 	/*Enable global counter for qtimer*/
-	if (wcss->mpm_base)
+	if (wcss->mpm_base && !qcom_scm_is_available())
 		writel(0x1, wcss->mpm_base + 0x00);
+
 
 	/*Q6 AHB upper & lower address*/
 	writel(0x00cdc000, wcss->reg_base + Q6SS_AHB_UPPER);
@@ -869,8 +875,17 @@ static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 		}
 	}
 
-	/* Trigger Boot FSM, to bring core out of rst */
-	writel(0x1, wcss->tcsr_q6_boot_trig + 0x0);
+	if (qcom_scm_is_available()) {
+		cookie = 1;
+		ret = qcom_scm_wcss_boot(Q6_BOOT_TRIG_SVC_ID,
+						Q6_BOOT_TRIG_CMD_ID, &cookie);
+		if (ret) {
+			dev_err(wcss->dev, "q6-boot trigger scm failed\n");
+			return;
+		}
+	} else
+		/* Trigger Boot FSM, to bring core out of rst */
+		writel(0x1, wcss->tcsr_q6_boot_trig + 0x0);
 
 	/* Boot core start */
 	writel(0x1, wcss->reg_base + Q6SS_BOOT_CORE_START);
@@ -986,6 +1001,37 @@ wcss_reset:
 	return ret;
 }
 
+static void q6v6_wcss_halt_axi_port(struct q6v5_wcss *wcss,
+				    struct regmap *halt_map,
+				    u32 offset)
+{
+	unsigned long timeout;
+	unsigned int val;
+	int ret;
+
+	/* Assert halt request */
+	regmap_write(halt_map, offset + AXI_HALTREQ_REG, 1);
+
+	/* Wait for halt */
+	timeout = jiffies + msecs_to_jiffies(HALT_ACK_TIMEOUT_MS);
+	for (;;) {
+		ret = regmap_read(halt_map, offset + AXI_HALTACK_REG, &val);
+		if (ret || val || time_after(jiffies, timeout))
+			break;
+
+		msleep(1);
+	}
+
+	if (offset == wcss->halt_q6) {
+		ret = regmap_read(halt_map, offset + AXI_IDLE_REG, &val);
+		if (ret || !val)
+			dev_err(wcss->dev, "port failed halt\n");
+	}
+
+	/* Clear halt request (port will remain halted until reset) */
+	regmap_write(halt_map, offset + AXI_HALTREQ_REG, 0);
+}
+
 static void q6v5_wcss_halt_axi_port(struct q6v5_wcss *wcss,
 				    struct regmap *halt_map,
 				    u32 offset)
@@ -1027,7 +1073,10 @@ static int q6v5_wcss_powerdown(struct q6v5_wcss *wcss)
 	struct q6_platform_data *pdata = dev_get_platdata(wcss->dev);
 
 	/* 1 - Assert WCSS/Q6 HALTREQ */
-	q6v5_wcss_halt_axi_port(wcss, wcss->halt_map, wcss->halt_wcss);
+	if (!pdata->is_q6v6)
+		q6v5_wcss_halt_axi_port(wcss, wcss->halt_map, wcss->halt_wcss);
+	else
+		q6v6_wcss_halt_axi_port(wcss, wcss->halt_map, wcss->halt_wcss);
 
 	if (!pdata->is_q6v6) {
 		/* 2 - Enable WCSSAON_CONFIG */
@@ -1085,6 +1134,8 @@ static int q6v5_wcss_powerdown(struct q6v5_wcss *wcss)
 static void q6v6_q6_powerdown(struct q6v5_wcss *wcss)
 {
 	int ret;
+	unsigned int cookie;
+
 	/*Disable clocks*/
 	ret = wcss_clks_prepare_disable(wcss->dev, 1, NUM_WCSS_CLKS);
 	if (ret) {
@@ -1092,8 +1143,17 @@ static void q6v6_q6_powerdown(struct q6v5_wcss *wcss)
 		return;
 	}
 
-	/* Disbale Boot FSM */
-	writel(0x0, wcss->tcsr_q6_boot_trig + 0x0);
+	if (qcom_scm_is_available()) {
+		cookie = 0;
+		ret = qcom_scm_wcss_boot(Q6_BOOT_TRIG_SVC_ID,
+						Q6_BOOT_TRIG_CMD_ID, &cookie);
+		if (ret) {
+			dev_err(wcss->dev, "q6-stop trigger scm failed\n");
+			return;
+		}
+	} else
+		/* Disbale Boot FSM */
+		writel(0x0, wcss->tcsr_q6_boot_trig + 0x0);
 }
 
 static int q6v5_q6_powerdown(struct q6v5_wcss *wcss)
@@ -1104,7 +1164,10 @@ static int q6v5_q6_powerdown(struct q6v5_wcss *wcss)
 	struct q6_platform_data *pdata = dev_get_platdata(wcss->dev);
 
 	/* 1 - Halt Q6 bus interface */
-	q6v5_wcss_halt_axi_port(wcss, wcss->halt_map, wcss->halt_q6);
+	if (!pdata->is_q6v6)
+		q6v5_wcss_halt_axi_port(wcss, wcss->halt_map, wcss->halt_q6);
+	else
+		q6v6_wcss_halt_axi_port(wcss, wcss->halt_map, wcss->halt_q6);
 
 	/* 2 - Disable Q6 Core clock */
 	val = readl(wcss->reg_base + Q6SS_GFMUX_CTL_REG);
@@ -1541,6 +1604,7 @@ static struct platform_driver q6v5_wcss_driver = {
 };
 module_platform_driver(q6v5_wcss_driver);
 module_param(debug_wcss, int, 0644);
+module_param(load_pil, int, 0644);
 
 MODULE_DESCRIPTION("Hexagon WCSS Peripheral Image Loader");
 MODULE_LICENSE("GPL v2");
