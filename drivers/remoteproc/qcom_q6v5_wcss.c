@@ -778,7 +778,6 @@ static int q6v5_wcss_reset(struct q6v5_wcss *wcss)
 static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 {
 	u32 val;
-	struct q6_platform_data *pdata = dev_get_platdata(wcss->dev);
 	int ret;
 	int temp = 0;
 	unsigned int cookie;
@@ -818,18 +817,12 @@ static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 		return;
 	}
 
-	if (pdata->emulation) {
-		/*Disable clock gating*/
-		regmap_update_bits(wcss->halt_map,
-				wcss->halt_nc + TCSR_GLOBAL_CFG0,
-				1, 0x1);
-
+	if (!qcom_scm_is_available())
 		/*Secure access to WIFI phy register*/
 		regmap_update_bits(wcss->halt_map,
 				wcss->halt_nc + TCSR_GLOBAL_CFG1,
 				TCSR_WCSS_CLK_MASK,
 				0x18);
-	 }
 
 	/*Disable Q6 AXI2 select*/
 	regmap_update_bits(wcss->halt_map,
