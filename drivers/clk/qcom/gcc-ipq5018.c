@@ -1344,7 +1344,7 @@ static struct clk_rcg2 q6_axi_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "q6_axi_clk_src",
 		.parent_names = gcc_xo_gpll0_gpll2_gpll4,
-		.num_parents = 5,
+		.num_parents = 4,
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -1919,7 +1919,7 @@ static struct clk_branch gcc_dcd_xo_clk = {
 		.enable_reg = 0x2a004,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_dcc_clk",
+			.name = "gcc_dcd_xo_clk",
 			.parent_names = (const char *[]){
 				"gcc_xo_clk_src"
 			},

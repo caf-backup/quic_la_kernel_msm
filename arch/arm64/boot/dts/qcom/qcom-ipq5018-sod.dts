@@ -30,14 +30,10 @@
 	chosen {
 		linux,initrd-end = <0x46000000>;
 		linux,initrd-start = <0x44000000>;
-		bootargs = "console=ttyMSM0,115200,n8 root=/dev/ram0 rw init=/init";
+		bootargs = "console=ttyMSM0,115200,n8 root=/dev/ram0 rw init=/init clk_ignore_unused";
 	};
 
 	soc {
-		gcc: gcc@1800000 {
-			gcc-use-dummy;
-		};
-
 		serial@78af000 {
 			status = "ok";
 		};
