@@ -32,6 +32,7 @@ struct minidump_tlv_info {
 struct minidump_metadata_list {
 	struct list_head list;	/*kernel’s list structure*/
 	unsigned long va;		/* Virtual address of TLV. Set to 0 if invalid*/
+	unsigned long pa;		/*Physical address of TLV segment*/
 	unsigned long modinfo_offset; /* Offset associated with the entry for
 				* module information in Metadata text file
 				*/
@@ -42,6 +43,7 @@ struct minidump_metadata_list {
 	unsigned long mmuinfo_offset; /* Offset associated with the entry for
 				* mmu information in MMU Metadata text file
 				*/
+	unsigned char type;
 	#ifdef CONFIG_QCA_MINIDUMP_DEBUG
 	char *name;  /* Name associated with the TLV */
 	#endif
@@ -88,6 +90,7 @@ int minidump_fill_segments(const uint64_t start_addr, uint64_t size, minidump_tl
 int minidump_store_module_info(const char *name , const unsigned long va, const unsigned long pa, minidump_tlv_type_t type);
 int minidump_store_mmu_info(const unsigned long va, const unsigned long pa);
 int minidump_remove_segments(const uint64_t virtual_address);
+int do_minidump(void);
 
 struct module_sect_attr {
 	struct module_attribute mattr;

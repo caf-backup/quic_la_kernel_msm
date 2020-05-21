@@ -281,7 +281,8 @@ static u32 clear_idx;
 #define __LOG_BUF_LEN (1 << CONFIG_LOG_BUF_SHIFT)
 static char __log_buf[__LOG_BUF_LEN] __aligned(LOG_ALIGN);
 static char *log_buf = __log_buf;
-static u32 log_buf_len = __LOG_BUF_LEN;
+u32 log_buf_len = __LOG_BUF_LEN;
+EXPORT_SYMBOL(log_buf_len);
 
 /* Return log buffer address */
 char *log_buf_addr_get(void)
