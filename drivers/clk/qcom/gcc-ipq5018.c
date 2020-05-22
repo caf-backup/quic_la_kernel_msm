@@ -449,7 +449,6 @@ static struct clk_alpha_pll_postdiv gpll4 = {
 static struct clk_alpha_pll ubi32_pll_main = {
 	.offset = 0x25000,
 	.regs_offsets = stromer_pll_regs_offsets,
-	.flags = SUPPORTS_16BIT_ALPHA | SUPPORTS_64BIT_CTL,
 	.clkr = {
 		.enable_reg = 0x0b000,
 		.enable_mask = BIT(6),
@@ -1233,6 +1232,7 @@ static struct clk_rcg2 ubi0_axi_clk_src = {
 
 static const struct freq_tbl ftbl_ubi0_core_clk_src[] = {
 	F(850000000, P_UBI32_PLL, 1, 0, 0),
+	F(1000000000, P_UBI32_PLL, 1, 0, 0),
 };
 
 static struct clk_rcg2 ubi0_core_clk_src = {
@@ -1240,6 +1240,7 @@ static struct clk_rcg2 ubi0_core_clk_src = {
 	.freq_tbl = ftbl_ubi0_core_clk_src,
 	.hid_width = 5,
 	.parent_map = gcc_xo_ubi32_gpll0_map,
+	.flags = CLK_RCG2_HW_CONTROLLED,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "ubi0_core_clk_src",
 		.parent_names = gcc_xo_ubi32_gpll0,
@@ -1451,7 +1452,7 @@ static struct clk_branch gcc_xo_div4_clk = {
 
 static struct clk_branch gcc_ahb_clk = {
 	.halt_reg = 0x30014,
-	.halt_check = BRANCH_HALT,
+	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = 0x30014,
 		.enable_mask = BIT(0),
@@ -1469,7 +1470,7 @@ static struct clk_branch gcc_ahb_clk = {
 
 static struct clk_branch gcc_apc0_voltage_droop_detector_gpll0_clk = {
 	.halt_reg = 0x78004,
-	.halt_check = BRANCH_HALT,
+	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = 0x78004,
 		.enable_mask = BIT(0),
@@ -3283,7 +3284,7 @@ static struct clk_branch gcc_tlmm_clk = {
 
 static struct clk_branch gcc_ubi0_axi_clk = {
 	.halt_reg = 0x68200,
-	.halt_check = BRANCH_HALT,
+	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = 0x68200,
 		.enable_mask = BIT(0),
@@ -3301,7 +3302,7 @@ static struct clk_branch gcc_ubi0_axi_clk = {
 
 static struct clk_branch gcc_ubi0_cfg_clk = {
 	.halt_reg = 0x68160,
-	.halt_check = BRANCH_HALT,
+	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = 0x68160,
 		.enable_mask = BIT(0),
@@ -3319,7 +3320,7 @@ static struct clk_branch gcc_ubi0_cfg_clk = {
 
 static struct clk_branch gcc_ubi0_dbg_clk = {
 	.halt_reg = 0x68214,
-	.halt_check = BRANCH_HALT,
+	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = 0x68214,
 		.enable_mask = BIT(0),
@@ -3337,7 +3338,7 @@ static struct clk_branch gcc_ubi0_dbg_clk = {
 
 static struct clk_branch gcc_ubi0_core_clk = {
 	.halt_reg = 0x68210,
-	.halt_check = BRANCH_HALT,
+	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = 0x68210,
 		.enable_mask = BIT(0),
@@ -3355,7 +3356,7 @@ static struct clk_branch gcc_ubi0_core_clk = {
 
 static struct clk_branch gcc_ubi0_nc_axi_clk = {
 	.halt_reg = 0x68204,
-	.halt_check = BRANCH_HALT,
+	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = 0x68204,
 		.enable_mask = BIT(0),
@@ -3373,7 +3374,7 @@ static struct clk_branch gcc_ubi0_nc_axi_clk = {
 
 static struct clk_branch gcc_ubi0_utcm_clk = {
 	.halt_reg = 0x68208,
-	.halt_check = BRANCH_HALT,
+	.halt_check = BRANCH_HALT_DELAY,
 	.clkr = {
 		.enable_reg = 0x68208,
 		.enable_mask = BIT(0),
@@ -3828,19 +3829,17 @@ static struct clk_hw *gcc_ipq5018_hws[] = {
 };
 
 static const struct alpha_pll_config ubi32_pll_config = {
-	.l = 0x3e,
-	.alpha = 0x57,
-	.config_ctl_val = 0x240d4828,
-	.config_ctl_hi_val = 0x6,
+	.l = 0x23,
+	.alpha = 0xAAAAAAAA,
+	.alpha_hi = 0xAA,
+	.config_ctl_val = 0x4001075b,
 	.main_output_mask = BIT(0),
 	.aux_output_mask = BIT(1),
-	.pre_div_val = 0x0,
-	.pre_div_mask = BIT(12),
-	.post_div_val = 0x0,
-	.post_div_mask = GENMASK(9, 8),
 	.alpha_en_mask = BIT(24),
-	.test_ctl_val = 0x1C0000C0,
-	.test_ctl_hi_val = 0x4000,
+	.vco_val = 0x1,
+	.vco_mask = GENMASK(21, 20),
+	.test_ctl_val = 0x0,
+	.test_ctl_hi_val = 0x0,
 };
 
 static int clk_dummy_is_enabled(struct clk_hw *hw)
