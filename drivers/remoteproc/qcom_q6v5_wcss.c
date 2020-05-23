@@ -112,6 +112,7 @@ struct q6v5_wcss {
 	struct reset_control *wcss_aon_reset;
 	struct reset_control *wcss_reset;
 	struct reset_control *wcss_q6_reset;
+	struct reset_control *ce_reset;
 
 	struct qcom_q6v5 q6v5;
 
@@ -868,6 +869,13 @@ static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 		}
 	}
 
+	/*Deassert ce reset*/
+	ret = reset_control_deassert(wcss->ce_reset);
+	if (ret) {
+		dev_err(wcss->dev, "ce_reset failed\n");
+		return;
+	}
+
 	if (qcom_scm_is_available()) {
 		cookie = 1;
 		ret = qcom_scm_wcss_boot(Q6_BOOT_TRIG_SVC_ID,
@@ -1167,6 +1175,10 @@ static int q6v5_q6_powerdown(struct q6v5_wcss *wcss)
 	val &= ~Q6SS_CLK_ENABLE;
 	writel(val, wcss->reg_base + Q6SS_GFMUX_CTL_REG);
 
+	/*Assert ce reset*/
+	reset_control_assert(wcss->ce_reset);
+	mdelay(2);
+
 	if (pdata->is_q6v6) {
 		q6v6_q6_powerdown(wcss);
 		goto assert;
@@ -1342,6 +1354,12 @@ static int q6v5_wcss_init_reset(struct q6v5_wcss *wcss)
 	if (IS_ERR(wcss->wcss_q6_reset)) {
 		dev_err(wcss->dev, "unable to acquire wcss_q6_reset\n");
 		return PTR_ERR(wcss->wcss_q6_reset);
+	}
+
+	wcss->ce_reset = devm_reset_control_get(dev, "ce_reset");
+	if (IS_ERR(wcss->ce_reset)) {
+		dev_err(wcss->dev, "unable to acquire ce_reset\n");
+		return PTR_ERR(wcss->ce_reset);
 	}
 
 	return 0;
