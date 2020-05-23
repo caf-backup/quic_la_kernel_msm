@@ -213,7 +213,7 @@
 		};
 
 		pcie_x2_rp {
-		        status = "disabled";
+			status = "ok";
 
 			mhi_1: qcom,mhi@1 {
 				reg = <0 0 0 0 0 >;
@@ -346,12 +346,12 @@
 
 &pcie_x1 {
 	status = "disabled";
-	perst-gpio = <&tlmm 15 1>;
+	perst-gpio = <&tlmm 18 1>;
 };
 
 &pcie_x2 {
-	status = "disabled";
-	perst-gpio = <&tlmm 18 1>;
+	status = "ok";
+	perst-gpio = <&tlmm 15 1>;
 };
 
 &qcom_rng {
@@ -590,7 +590,7 @@
 };
 
 &pcie_x2phy {
-	status = "disabled";
+	status = "ok";
 };
 
 &watchdog {
