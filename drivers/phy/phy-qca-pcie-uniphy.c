@@ -132,7 +132,6 @@ static int qca_uni_pcie_phy_power_on(struct phy *x)
 
 	usleep_range(PIPE_CLK_DELAY_MIN_US, PIPE_CLK_DELAY_MAX_US);
 	clk_prepare_enable(phy->pipe_clk);
-	clk_disable_unprepare(phy->pipe_clk);
 	usleep_range(30, 50);
 	qca_uni_pcie_phy_init(phy);
 	return 0;
