@@ -549,7 +549,9 @@ struct qcom_nand_controller {
 	struct clk *core_clk;
 	struct clk *aon_clk;
 #if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
+#if 0
 	struct clk *io_macro_clk;
+#endif
 	struct qpic_nand_pltfm_data *pdata;
 	bool	stnd_alone_flag;
 #endif
@@ -4341,7 +4343,7 @@ static int qcom_nandc_probe(struct platform_device *pdev)
 	 */
 	if (nandc->stnd_alone_flag)
 		nandc_write(nandc, NAND_QSPI_MSTR_CONFIG, FEEDBACK_CLK_EN);
-
+#if 0
 	nandc->io_macro_clk = devm_clk_get(dev, "io_macro");
 	if (IS_ERR(nandc->io_macro_clk))
 		return PTR_ERR(nandc->io_macro_clk);
@@ -4357,6 +4359,7 @@ static int qcom_nandc_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(nandc->io_macro_clk);
 	if (ret)
 		goto err_io_macro_clk;
+#endif
 #endif
 
 	ret = qcom_nandc_setup(nandc);
@@ -4399,9 +4402,11 @@ static int qcom_nandc_probe(struct platform_device *pdev)
 err_cs_init:
 	list_for_each_entry(host, &nandc->host_list, node)
 		nand_release(nand_to_mtd(&host->chip));
+#if 0
 #if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 err_io_macro_clk:
 	clk_disable_unprepare(nandc->io_macro_clk);
+#endif
 #endif
 err_setup:
 	clk_disable_unprepare(nandc->aon_clk);
