@@ -158,10 +158,6 @@
 			status = "disabled";
 		};
 
-		nss-common {
-			status = "disabled";
-		};
-
 		ess-uniphy@98000 {
 			status = "disabled";
 		};
@@ -347,10 +343,6 @@
 
 &bt {
 	status = "ok";
-};
-
-&nss0 {
-	status = "disabled";
 };
 
 &nss_crypto {
