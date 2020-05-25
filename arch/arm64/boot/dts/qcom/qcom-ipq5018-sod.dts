@@ -163,10 +163,6 @@
 			status = "disabled";
 		};
 
-		nss-common {
-			status = "disabled";
-		};
-
 		dp1 {
 			device_type = "network";
 			compatible = "qcom,nss-dp";
@@ -367,10 +363,6 @@
 };
 
 &tzlog {
-	status = "disabled";
-};
-
-&nss0 {
 	status = "disabled";
 };
 
