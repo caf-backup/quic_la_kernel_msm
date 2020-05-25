@@ -58,7 +58,7 @@
 			pinctrl-0 = <&blsp0_spi_pins>;
 			pinctrl-names = "default";
 			cs-select = <0>;
-			status = "disabled";
+			status = "ok";
 
 			m25p80@0 {
 				#address-cells = <1>;
