@@ -223,7 +223,6 @@ static int qca_uni_ss_phy_init(struct phy *x)
 				ret);
 		clk_prepare_enable(phy->phy_cfg_ahb_clk);
 		clk_prepare_enable(phy->pipe_clk);
-		clk_disable_unprepare(phy->pipe_clk);
 		usleep_range(100, 150);
 		/*set frequency initial value*/
 		qca_uni_ss_write(phy->base, SSCG_CTRL_REG_4, 0x1cb9);
