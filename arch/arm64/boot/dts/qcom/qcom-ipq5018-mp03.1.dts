@@ -179,7 +179,7 @@
 		};
 
 		qcom,diag@0 {
-			status = "disabled";
+			status = "ok";
 		};
 
 		pcie_x1_rp {
@@ -308,7 +308,7 @@
 };
 
 &usb3 {
-	status = "disabled";
+	status = "ok";
 };
 
 &eud {
@@ -387,7 +387,7 @@
 };
 
 &dbm_1p5 {
-	status = "disabled";
+	status = "ok";
 };
 
 &tsens {
@@ -403,11 +403,11 @@
 };
 
 &ssuniphy_0 {
-	status = "disabled";
+	status = "ok";
 };
 
 &hs_m31phy_0 {
-	status = "disabled";
+	status = "ok";
 };
 
 &pcie_x1phy {

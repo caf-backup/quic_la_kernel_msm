@@ -548,11 +548,11 @@
 };
 
 &ssuniphy_0 {
-	status = "disabled";
+	status = "ok";
 };
 
 &hs_m31phy_0 {
-	status = "disabled";
+	status = "ok";
 };
 
 &pcie_x1phy {
