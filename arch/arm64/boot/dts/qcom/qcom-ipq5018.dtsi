@@ -550,7 +550,8 @@
 					<&gcc GCC_Q6_AXIM_CLK>,
 					<&gcc GCC_Q6_AXIM2_CLK>,
 					<&gcc GCC_Q6_AHB_CLK>,
-					<&gcc GCC_Q6_AHB_S_CLK>;
+					<&gcc GCC_Q6_AHB_S_CLK>,
+					<&gcc GCC_WCSS_AXI_S_CLK>;
 			clock-names = "gcc_q6_axis_clk",
 					"gcc_wcss_ahb_s_clk",
 					"gcc_wcss_ecahb_clk",
@@ -559,7 +560,8 @@
 					"gcc_q6_axim_clk",
 					"gcc_q6_axim2_clk",
 					"gcc_q6_ahb_clk",
-					"gcc_q6_ahb_s_clk";
+					"gcc_q6_ahb_s_clk",
+					"gcc_wcss_axi_s_clk";
 			qca,extended-intc;
 			qca,wcss-aon-reset-seq;
 			interrupts-extended = <&intc 0 291 1>,
