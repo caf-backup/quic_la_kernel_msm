@@ -790,6 +790,13 @@ static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 		return;
 	}
 
+	/* AON Reset */
+	ret = reset_control_deassert(wcss->wcss_aon_reset);
+	if (ret) {
+		dev_err(wcss->dev, "wcss_aon_reset failed\n");
+		return;
+	}
+
 	/*Enable Q6 AXIS CLOCK RESET*/
 	ret = wcss_clks_prepare_enable(wcss->dev, 0, 1);
 	if (ret) {
@@ -856,11 +863,6 @@ static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 		val &= ~(1<<1);
 		writel(val, wcss->rmb_base + SSCAON_CONFIG);
 
-		ret = reset_control_deassert(wcss->wcss_aon_reset);
-		if (ret) {
-			dev_err(wcss->dev, "wcss_aon_reset failed\n");
-			return;
-		}
 		/* Wait for SSCAON_STATUS */
 		val = readl(wcss->rmb_base + SSCAON_STATUS);
 		ret = readl_poll_timeout(wcss->rmb_base + SSCAON_STATUS,
