@@ -819,16 +819,19 @@ static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 		return;
 	}
 
-	if (!qcom_scm_is_available())
-		/*Secure access to WIFI phy register*/
-		regmap_update_bits(wcss->halt_map,
-				wcss->halt_nc + TCSR_GLOBAL_CFG1,
-				TCSR_WCSS_CLK_MASK,
-				0x18);
+	/*Secure access to WIFI phy register*/
+	regmap_update_bits(wcss->halt_map,
+			wcss->halt_nc + TCSR_GLOBAL_CFG1,
+			TCSR_WCSS_CLK_MASK,
+			0x18);
 
 	/*Disable Q6 AXI2 select*/
 	regmap_update_bits(wcss->halt_map,
 			wcss->halt_nc + TCSR_GLOBAL_CFG0, 0x40, 0xF0);
+
+	/*wcss axib ib status*/
+	regmap_update_bits(wcss->halt_map,
+			wcss->halt_nc + TCSR_GLOBAL_CFG0, 0x100, 0x100);
 
 	/*Enable global counter for qtimer*/
 	if (wcss->mpm_base && !qcom_scm_is_available())
