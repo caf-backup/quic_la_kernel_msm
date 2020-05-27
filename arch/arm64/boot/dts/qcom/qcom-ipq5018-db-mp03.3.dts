@@ -180,7 +180,7 @@
 
 	blsp1_uart_pins: blsp1_uart_pins {
 		uart_rx_tx {
-			pins = "gpio23", "gpio25";
+			pins = "gpio23", "gpio25", "gpio24", "gpio26";
 			function = "blsp1_uart2";
 			bias-disable;
 		};
