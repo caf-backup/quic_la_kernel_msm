@@ -347,13 +347,6 @@
 	status = "ok";
 };
 
-&nss_crypto {
-	status = "disabled";
-	ce5_node {
-		status = "disabled";
-	};
-};
-
 &wcss {
 	status = "ok";
 };
