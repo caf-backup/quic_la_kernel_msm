@@ -331,7 +331,7 @@
 };
 
 &bt {
-	status = "disabled";
+	status = "ok";
 };
 
 &nss0 {
