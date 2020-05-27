@@ -31,7 +31,8 @@
 	chosen {
 		linux,initrd-end = <0x46000000>;
 		linux,initrd-start = <0x44000000>;
-		bootargs = "root=/dev/ram0 rw init=/init clk_ignore_unused";
+		bootargs = "root=/dev/ram0 rw init=/init";
+		bootargs-append = " clk_ignore_unused";
 		stdout-path = "serial0";
 	};
 
