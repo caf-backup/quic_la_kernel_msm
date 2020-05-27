@@ -470,6 +470,10 @@ static void qmi_handle_net_reset(struct qmi_handle *qmi)
 
 struct ldebug {
 	struct qmi_handle *qhandle;
+	struct qmi_txn *txn;
+	struct mutex qmi_txn_lock;
+	struct mutex txn_lock;
+	int trace;
 	u64 s_timestamp;
 	u64 e_timestamp;
 } ldebug;
@@ -495,20 +499,30 @@ static void qmi_handle_message(struct qmi_handle *qmi,
 
 	/* If this is a response, find the matching transaction handle */
 	if (hdr->type == QMI_RESPONSE) {
+		ldebug.trace = 1;
+		ldebug.qmi_txn_lock = qmi->txn_lock;
 		mutex_lock(&qmi->txn_lock);
+		ldebug.qmi_txn_lock = qmi->txn_lock;
 		txn = idr_find(&qmi->txns, hdr->txn_id);
 
+		ldebug.trace = 2;
+		ldebug.txn = txn;
 		/* Ignore unexpected responses */
 		if (!txn) {
+			ldebug.trace = 3;
 			mutex_unlock(&qmi->txn_lock);
 			ldebug.e_timestamp = ktime_to_us(ktime_get());
 			return;
 		}
 
+		ldebug.txn_lock = txn->lock;
 		mutex_lock(&txn->lock);
+		ldebug.trace = 4;
 		mutex_unlock(&qmi->txn_lock);
+		ldebug.trace = 5;
 
 		if (txn->dest && txn->ei) {
+			ldebug.trace = 6;
 			ret = qmi_decode_message(buf, len, txn->ei, txn->dest);
 			if (ret < 0)
 				pr_err("failed to decode incoming message\n");
@@ -516,18 +530,23 @@ static void qmi_handle_message(struct qmi_handle *qmi,
 			txn->result = ret;
 			complete(&txn->completion);
 		} else  {
+			ldebug.trace = 7;
 			qmi_invoke_handler(qmi, sq, txn, buf, len);
 		}
 
+		ldebug.trace = 8;
+		ldebug.txn_lock = txn->lock;
 		mutex_unlock(&txn->lock);
 	} else {
 		/* Create a txn based on the txn_id of the incoming message */
 		memset(&tmp_txn, 0, sizeof(tmp_txn));
 		tmp_txn.id = hdr->txn_id;
 
+		ldebug.trace = 9;
 		qmi_invoke_handler(qmi, sq, &tmp_txn, buf, len);
 	}
 
+	ldebug.trace = 10;
 	ldebug.e_timestamp = ktime_to_us(ktime_get());
 }
 
