@@ -228,13 +228,21 @@
 };
 
 &tlmm {
-	pinctrl-0 = <&blsp0_uart_pins>;
+	pinctrl-0 = <&blsp0_uart_pins &blsp1_uart_pins>;
 	pinctrl-names = "default";
 
 	blsp0_uart_pins: blsp0_uart_pins {
 		blsp0_uart_rx_tx {
 			pins = "gpio20", "gpio21";
 			function = "blsp0_uart0";
+			bias-disable;
+		};
+	};
+
+	blsp1_uart_pins: blsp1_uart_pins {
+		blsp1_uart_rx_tx {
+			pins = "gpio23", "gpio25";
+			function = "blsp1_uart2";
 			bias-disable;
 		};
 	};

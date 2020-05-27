@@ -138,7 +138,7 @@
 };
 
 &tlmm {
-	pinctrl-0 = <&blsp0_uart_pins>;
+	pinctrl-0 = <&blsp0_uart_pins &blsp1_uart_pins>;
 	pinctrl-names = "default";
 
 	blsp0_uart_pins: blsp0_uart_pins {
