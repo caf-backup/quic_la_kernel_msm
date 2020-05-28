@@ -680,6 +680,7 @@ void mhi_fw_load_worker(struct work_struct *work)
 	return;
 
 error_read:
+	mhi_debug_reg_dump(mhi_cntrl);
 	mhi_free_bhie_table(mhi_cntrl, mhi_cntrl->fbc_image);
 	mhi_cntrl->fbc_image = NULL;
 
