@@ -2704,6 +2704,16 @@ static int diag_user_process_userspace_data(const char __user *buf, int len)
 		}
 	}
 
+	if (remote_proc && (*(driver->user_space_data_buf) == 0xFF ||
+	    *(driver->user_space_data_buf) == 0xFE) &&
+	    *(driver->user_space_data_buf + sizeof(int) + 1) == 0x0b) {
+		session_info = diag_md_session_get_pid(current->tgid);
+		if (session_info)
+			diag_process_hdlc_pkt((void *)(driver->user_space_data_buf + token_offset),
+					      len, session_info);
+		return 0;
+	}
+
 	/* send masks to local processor now */
 	if (!remote_proc) {
 		session_info = diag_md_session_get_pid(current->tgid);
