@@ -110,6 +110,7 @@
 			compatible = "qcom,nss-dp";
 			qcom,id = <1>;
 			reg = <0x39C00000 0x10000>;
+			interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
 			qcom,mactype = <2>;
 			local-mac-address = [000000000000];
 			phy-mode = "sgmii";
@@ -120,6 +121,7 @@
 			compatible = "qcom,nss-dp";
 			qcom,id = <2>;
 			reg = <0x39D00000 0x10000>;
+			interrupts = <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
 			qcom,mactype = <2>;
 			local-mac-address = [000000000000];
 			phy-mode = "sgmii";
