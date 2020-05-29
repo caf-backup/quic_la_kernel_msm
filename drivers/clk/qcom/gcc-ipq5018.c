@@ -3923,7 +3923,7 @@ static struct clk_hw *gcc_ipq5018_hws[] = {
 };
 
 static const struct alpha_pll_config ubi32_pll_config = {
-	.l = 0x23,
+	.l = 0x29,
 	.alpha = 0xAAAAAAAA,
 	.alpha_hi = 0xAA,
 	.config_ctl_val = 0x4001075b,
