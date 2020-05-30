@@ -413,7 +413,6 @@
 
 	mhi_0: qcom,mhi@0 {
 		reg = <0 0 0 0 0 >;
-		qrtr_instance_id = <0x8001>;
 	};
 };
 
@@ -422,6 +421,6 @@
 
 	mhi_1: qcom,mhi@1 {
 		reg = <0 0 0 0 0 >;
-		qrtr_instance_id = <0x8002>;
+		qrtr_instance_id = <0x20>;
 	};
 };

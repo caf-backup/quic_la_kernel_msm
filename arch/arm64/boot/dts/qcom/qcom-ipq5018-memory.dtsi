@@ -222,6 +222,11 @@
 			reg = <0x0 0x4cc00000 0x0 0x100000>;
 		};
 
+		qcn9000_pcie0@4cd00000 {
+			no-map;
+			reg = <0x0 0x4CD00000 0x0 0x02800000>;
+		};
+
 		bt_region: bt@7000000 {
 			no-map;
 			reg = <0x0 0x07000000 0x0 0x58000>;
