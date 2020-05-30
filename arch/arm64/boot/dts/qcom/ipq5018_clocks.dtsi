@@ -213,7 +213,11 @@
 			<&gcc GCC_PCIE0_PIPE_CLK>,
 			<&gcc USB0_PIPE_CLK_SRC>,
 			<&gcc GCC_PCIE1_PIPE_CLK>,
-			<&gcc GCC_USB0_PIPE_CLK>;
+			<&gcc GCC_USB0_PIPE_CLK>,
+			<&gcc GMAC0_RX_DIV_CLK_SRC>,
+			<&gcc GMAC0_TX_DIV_CLK_SRC>,
+			<&gcc GMAC1_RX_DIV_CLK_SRC>,
+			<&gcc GMAC1_TX_DIV_CLK_SRC>;
 		clock-names = "gpll0_main",
 				"gpll0",
 				"gpll2_main",
@@ -410,7 +414,11 @@
 				"gcc_pcie0_pipe_clk",
 				"gcc_pcie1_pipe_clk",
 				"usb0_pipe_clk_src",
-				"gcc_usb0_pipe_clk";
+				"gcc_usb0_pipe_clk",
+				"gmac0_rx_div_clk_src",
+				"gmac0_tx_div_clk_src",
+				"gmac1_rx_div_clk_src",
+				"gmac1_tx_div_clk_src";
 		resets = <&gcc GCC_APC0_VOLTAGE_DROOP_DETECTOR_BCR>,
 			<&gcc GCC_BLSP1_BCR>,
 			<&gcc GCC_BLSP1_QUP1_BCR>,
