@@ -308,7 +308,7 @@
 };
 
 &eud {
-	status = "disabled";
+	status = "ok";
 };
 
 &pcie_x1 {
