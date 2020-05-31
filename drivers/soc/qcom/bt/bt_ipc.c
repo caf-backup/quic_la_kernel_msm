@@ -31,7 +31,77 @@
 #include <uapi/linux/major.h>
 #include <linux/completion.h>
 #include <linux/ipc_logging.h>
+#include <linux/workqueue.h>
 #include "bt.h"
+
+void bt_ipc_purge_tx_queue(struct bt_descriptor *btDesc)
+{
+	struct ipc_intent *intent;
+
+	while (!list_empty(&btDesc->ipc.tx_q)) {
+		intent = list_first_entry(&btDesc->ipc.tx_q, struct ipc_intent,
+						list);
+
+		list_del(&intent->list);
+		kfree(intent->buf);
+		kfree(intent);
+	}
+
+	atomic_set(&btDesc->ipc.tx_q_cnt, 0);
+}
+EXPORT_SYMBOL(bt_ipc_purge_tx_queue);
+
+static void bt_ipc_process_pending_tx_queue(struct bt_descriptor *btDesc)
+{
+	int ret;
+	struct ipc_intent *intent;
+
+	while (!list_empty(&btDesc->ipc.tx_q)) {
+		intent = list_first_entry(&btDesc->ipc.tx_q, struct ipc_intent,
+						list);
+
+		ret = bt_ipc_send_msg(btDesc, (uint8_t)0x100, intent->buf,
+					intent->len, false);
+		if (ret) {
+			mdelay(50);
+			break;
+		}
+
+		list_del(&intent->list);
+		atomic_dec(&btDesc->ipc.tx_q_cnt);
+		kfree(intent->buf);
+		kfree(intent);
+	}
+}
+
+int
+bt_ipc_queue_tx(struct bt_descriptor *btDesc, const uint8_t *buf, uint16_t len)
+{
+	struct ipc_intent *intent;
+	uint8_t *buffer;
+
+	if (unlikely(atomic_read(&btDesc->ipc.tx_q_cnt) >= IPC_TX_QSIZE)) {
+		pr_err("TRACK: TX Queue Limit reached\n");
+		return -ENOSPC;
+	}
+
+	intent = kzalloc(sizeof(struct ipc_intent), GFP_KERNEL);
+	if (!intent)
+		return -ENOMEM;
+
+	buffer = kzalloc(len, GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
+
+	memcpy_toio(buffer, buf, len);
+	intent->buf = buffer;
+
+	intent->len = len;
+	list_add_tail(&intent->list, &btDesc->ipc.tx_q);
+	atomic_inc(&btDesc->ipc.tx_q_cnt);
+
+	return 0;
+}
 
 static void *bt_ipc_alloc_lmsg(struct bt_descriptor *btDesc, uint32_t len,
 		struct ipc_aux_ptr *aux_ptr, uint8_t *is_lbuf_full)
@@ -50,10 +120,8 @@ static void *bt_ipc_alloc_lmsg(struct bt_descriptor *btDesc, uint32_t len,
 	blks = GET_NO_OF_BLOCKS(len, TX);
 
 	if (!btmem->lmsg_ctxt.lmsg_free_cnt ||
-			(blks > btmem->lmsg_ctxt.lmsg_free_cnt)) {
-		dev_err(dev, "no long message buffer left\n");
-		return ERR_PTR(-ENOMEM);
-	}
+			(blks > btmem->lmsg_ctxt.lmsg_free_cnt))
+		return ERR_PTR(-EAGAIN);
 
 	idx = btmem->lmsg_ctxt.widx;
 
@@ -98,11 +166,11 @@ static struct ring_buffer_info *bt_ipc_get_tx_rbuf(struct bt_descriptor *btDesc,
 		}
 	}
 
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(-EAGAIN);
 }
 
-static int bt_ipc_send_msg(struct bt_descriptor *btDesc, uint16_t msg_hdr,
-		const uint8_t *pData, uint16_t len)
+int bt_ipc_send_msg(struct bt_descriptor *btDesc, uint16_t msg_hdr,
+		const uint8_t *pData, uint16_t len, bool dequeue)
 {
 	int ret = 0;
 	struct bt_mem *btmem = &btDesc->btmem;
@@ -113,10 +181,14 @@ static int bt_ipc_send_msg(struct bt_descriptor *btDesc, uint16_t msg_hdr,
 	uint8_t is_sbuf_full = 0;
 	struct ipc_aux_ptr aux_ptr;
 
+	if (dequeue)
+		bt_ipc_process_pending_tx_queue(btDesc);
+
 	rinfo = bt_ipc_get_tx_rbuf(btDesc, &is_sbuf_full);
 	if (rinfo == NULL) {
-		dev_err(dev, "no tx buffer left\n");
 		ret = PTR_ERR(rinfo);
+		if (dequeue)
+			ret = bt_ipc_queue_tx(btDesc, pData, len);
 		return ret;
 	}
 
@@ -135,8 +207,11 @@ static int bt_ipc_send_msg(struct bt_descriptor *btDesc, uint16_t msg_hdr,
 				&aux_ptr, &is_lbuf_full);
 
 		if (IS_ERR(rbuf->payload.lmsg_data)) {
-			dev_err(dev, "long message buffer allocation failed\n");
+			dev_err(dev, "long msg buf full, queuing msg[%d]\n",
+					atomic_read(&btDesc->ipc.tx_q_cnt));
 			ret = PTR_ERR(rbuf->payload.lmsg_data);
+			if (dequeue)
+				ret = bt_ipc_queue_tx(btDesc, pData, len);
 			return ret;
 		}
 
@@ -216,7 +291,7 @@ static void bt_ipc_cust_msg(struct bt_descriptor *btDesc, uint8_t msgid)
 		return;
 	}
 
-	ret = bt_ipc_send_msg(btDesc, msg_hdr, NULL, 0);
+	ret = bt_ipc_send_msg(btDesc, msg_hdr, NULL, 0, true);
 	if (ret)
 		dev_err(dev, "err: sending message\n");
 }
@@ -235,6 +310,9 @@ static bool bt_ipc_process_peer_msgs(struct bt_descriptor *btDesc,
 	unsigned char *buf;
 
 	ridx = rinfo->ridx;
+
+	rbuf = &((struct ring_buffer *)(TO_APPS_ADDR(
+			btmem->rx_ctxt->sring_buf_info.rbuf)))[ridx];
 
 	while (ridx != rinfo->widx) {
 		memset(&aux_ptr, 0, sizeof(struct ipc_aux_ptr));
@@ -292,6 +370,8 @@ static bool bt_ipc_process_peer_msgs(struct bt_descriptor *btDesc,
 		ridx = (ridx + 1) % rinfo->ring_buf_cnt;
 	}
 
+	wait_event(btDesc->ipc.wait_q,
+			((2 * rbuf->len) < bt_ipc_avail_size(btDesc)));
 	rinfo->ridx = ridx;
 
 	return ackReqd;
@@ -338,7 +418,8 @@ int bt_ipc_sendmsg(struct bt_descriptor *btDesc, unsigned char *buf, int len)
 
 	spin_lock_irqsave(&btDesc->lock, flags);
 
-	ret = bt_ipc_send_msg(btDesc, msg_hdr, (uint8_t *)buf, (uint16_t)len);
+	ret = bt_ipc_send_msg(btDesc, msg_hdr, (uint8_t *)buf, (uint16_t)len,
+				true);
 	if (ret)
 		dev_err(dev, "err: sending message\n");
 
@@ -347,20 +428,21 @@ int bt_ipc_sendmsg(struct bt_descriptor *btDesc, unsigned char *buf, int len)
 	return ret;
 }
 
-static irqreturn_t bt_ipc_irq_handler(int irq, void *data)
+static void bt_ipc_worker(struct work_struct *work)
 {
 	unsigned long flags;
 	struct ring_buffer_info *rinfo;
-	struct bt_descriptor *btDesc = data;
+
+	struct bt_ipc *ipc = container_of(work, struct bt_ipc, work);
+	struct bt_descriptor *btDesc = container_of(ipc, struct bt_descriptor,
+						    ipc);
 	struct bt_mem *btmem = &btDesc->btmem;
 	bool ackReqd = false;
 
-	disable_irq_nosync(btDesc->ipc.irq);
 	spin_lock_irqsave(&btDesc->lock, flags);
 
 	if (unlikely(!atomic_read(&btDesc->state))) {
-		btmem->rx_ctxt = (struct context_info *)
-			(btDesc->btmem.virt + 0xe000);
+		btmem->rx_ctxt = (struct context_info *)(btmem->virt + 0xe000);
 		btmem->tx_ctxt = (struct context_info *)((void *)
 			btmem->rx_ctxt + btmem->rx_ctxt->TotalMemorySize);
 
@@ -383,18 +465,26 @@ static irqreturn_t bt_ipc_irq_handler(int irq, void *data)
 	}
 
 	if (ackReqd) {
-		regmap_write(btDesc->ipc.regmap, btDesc->ipc.offset,
-				BIT(btDesc->ipc.bit));
+		regmap_write(ipc->regmap, ipc->offset, BIT(ipc->bit));
 	}
 
 	if (btDesc->debug_en)
 		bt_ipc_cust_msg(btDesc, IPC_CMD_SWITCH_TO_UART);
 
 	spin_unlock_irqrestore(&btDesc->lock, flags);
-	enable_irq(btDesc->ipc.irq);
+	enable_irq(ipc->irq);
+}
+
+static irqreturn_t bt_ipc_irq_handler(int irq, void *data)
+{
+	struct bt_descriptor *btDesc = data;
+
+	disable_irq_nosync(btDesc->ipc.irq);
+	queue_work(btDesc->ipc.wq, &btDesc->ipc.work);
 
 	return IRQ_HANDLED;
 }
+
 
 static
 int ipc_panic_handler(struct notifier_block *nb, unsigned long event, void *ptr)
@@ -413,6 +503,15 @@ int bt_ipc_init(struct bt_descriptor *btDesc)
 	struct device *dev = &btDesc->pdev->dev;
 
 	spin_lock_init(&btDesc->lock);
+	INIT_LIST_HEAD(&ipc->tx_q);
+
+	ipc->wq = create_singlethread_workqueue("bt_ipc");
+	if (!ipc->wq) {
+		dev_err(dev, "failed to initialize WQ\n");
+		return -EAGAIN;
+	}
+
+	INIT_WORK(&ipc->work, bt_ipc_worker);
 
 	ret = devm_request_threaded_irq(dev, ipc->irq, NULL, bt_ipc_irq_handler,
 		IRQF_TRIGGER_RISING | IRQF_ONESHOT, "bt_ipc_irq", btDesc);
