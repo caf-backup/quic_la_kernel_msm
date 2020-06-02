@@ -207,15 +207,11 @@
 
 	cpus {
 		CPU0: cpu@0 {
-			/delete-property/ clocks;
-			/delete-property/ clock-names;
 			/delete-property/ operating-points;
 			/delete-property/ clock-latency;
 		};
 
 		CPU1: cpu@1 {
-			/delete-property/ clocks;
-			/delete-property/ clock-names;
 			/delete-property/ operating-points;
 			/delete-property/ clock-latency;
 		};
@@ -552,8 +548,4 @@
 
 &pcie_x2phy {
 	status = "ok";
-};
-
-&apss_clk {
-	status = "disabled";
 };
