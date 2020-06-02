@@ -206,6 +206,15 @@ static int qca_uni_ss_phy_init(struct phy *x)
 		return ret;
 	}
 
+	if (!strcmp(compat_name, "qca,ipq5018-uni-ssphy")) {
+		/*usb phy mux sel*/
+		ret = regmap_write(phy->phy_mux_map, phy->phy_mux_reg, 0x1);
+		if (ret)
+			dev_err(phy->dev,
+				"Not able to configure phy mux selection:%d\n",
+				ret);
+	}
+
 	/* assert SS PHY POR reset */
 	reset_control_assert(phy->por_rst);
 
@@ -215,12 +224,6 @@ static int qca_uni_ss_phy_init(struct phy *x)
 	reset_control_deassert(phy->por_rst);
 
 	if (!strcmp(compat_name, "qca,ipq5018-uni-ssphy")) {
-		/*usb phy mux sel*/
-		ret = regmap_write(phy->phy_mux_map, phy->phy_mux_reg, 0x1);
-		if (ret)
-			dev_err(phy->dev,
-				"Not able to configure phy mux selection:%d\n",
-				ret);
 		clk_prepare_enable(phy->phy_cfg_ahb_clk);
 		clk_prepare_enable(phy->pipe_clk);
 		usleep_range(100, 150);
@@ -228,7 +231,7 @@ static int qca_uni_ss_phy_init(struct phy *x)
 		qca_uni_ss_write(phy->base, SSCG_CTRL_REG_4, 0x1cb9);
 		qca_uni_ss_write(phy->base, SSCG_CTRL_REG_5, 0x023a);
 		/*set spectrum spread count*/
-		qca_uni_ss_write(phy->base, SSCG_CTRL_REG_3, 0x1360);
+		qca_uni_ss_write(phy->base, SSCG_CTRL_REG_3, 0xd360);
 		/*set fstep*/
 		qca_uni_ss_write(phy->base, SSCG_CTRL_REG_1, 0x1);
 		qca_uni_ss_write(phy->base, SSCG_CTRL_REG_2, 0xeb);
