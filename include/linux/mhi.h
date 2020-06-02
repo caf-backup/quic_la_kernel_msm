@@ -142,6 +142,15 @@ struct image_info {
 	u32 entries;
 };
 
+enum mhi_er_data_type {
+	MHI_ER_DATA_ELEMENT_TYPE,
+	MHI_ER_DATA = 0,
+	MHI_ER_CTRL_ELEMENT_TYPE,
+	MHI_ER_CTRL = 1,
+	MHI_ER_TSYNC_ELEMENT_TYPE,
+	MHI_ER_DATA_TYPE_MAX = MHI_ER_TSYNC_ELEMENT_TYPE,
+};
+
 /**
  * enum mhi_db_brst_mode - Doorbell mode
  * @MHI_DB_BRST_DISABLE: Burst mode disable
@@ -293,7 +302,10 @@ struct mhi_controller {
 	struct mhi_device *mhi_dev;
 
 	/* device node for iommu ops */
-	struct device *dev;
+	union {
+		struct device *dev;
+		struct device *cntrl_dev;
+	};
 	struct device_node *of_node;
 
 	/* mmio base */
@@ -336,8 +348,14 @@ struct mhi_controller {
 	u32 total_ev_rings;
 	u32 hw_ev_rings;
 	u32 sw_ev_rings;
-	u32 msi_required;
-	u32 msi_allocated;
+	union {
+		u32 msi_required;
+		u32 nr_irqs_req;
+	};
+	union {
+		u32 msi_allocated;
+		u32 nr_irqs;
+	};
 	int *irq; /* interrupt table */
 	struct mhi_event *mhi_event;
 
@@ -376,7 +394,6 @@ struct mhi_controller {
 			  enum mhi_callback cb);
 	void (*wake_get)(struct mhi_controller *mhi_cntrl, bool override);
 	void (*wake_put)(struct mhi_controller *mhi_cntrl, bool override);
-	void (*wake_toggle)(struct mhi_controller *mhi_cntrl);
 	int (*runtime_get)(struct mhi_controller *mhi_cntrl);
 	void (*runtime_put)(struct mhi_controller *mhi_cntrl);
 	int (*map_single)(struct mhi_controller *mhi_cntrl,
@@ -415,6 +432,12 @@ struct mhi_controller {
 	struct dentry *dentry;
 	struct dentry *parent;
 	struct notifier_block mhi_panic_notifier;
+
+	/* upstream specific members */
+	u32 family_number;
+	u32 device_number;
+	u32 major_version;
+	u32 minor_version;
 };
 
 /**

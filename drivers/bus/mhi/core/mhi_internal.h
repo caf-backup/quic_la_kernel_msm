@@ -4,6 +4,8 @@
 #ifndef _MHI_INT_H
 #define _MHI_INT_H
 
+#include <linux/mhi.h>
+
 extern struct bus_type mhi_bus_type;
 
 /* MHI mmio register mapping */
@@ -215,6 +217,16 @@ extern struct bus_type mhi_bus_type;
 #define BHIE_RXVECSTATUS_STATUS_XFER_COMPL (0x02)
 #define BHIE_RXVECSTATUS_STATUS_ERROR (0x03)
 
+#define SOC_HW_VERSION_OFFS (0x224)
+#define SOC_HW_VERSION_FAM_NUM_BMSK (0xF0000000)
+#define SOC_HW_VERSION_FAM_NUM_SHFT (28)
+#define SOC_HW_VERSION_DEV_NUM_BMSK (0x0FFF0000)
+#define SOC_HW_VERSION_DEV_NUM_SHFT (16)
+#define SOC_HW_VERSION_MAJOR_VER_BMSK (0x0000FF00)
+#define SOC_HW_VERSION_MAJOR_VER_SHFT (8)
+#define SOC_HW_VERSION_MINOR_VER_BMSK (0x000000FF)
+#define SOC_HW_VERSION_MINOR_VER_SHFT (0)
+
 /* convert ticks to micro seconds by dividing by 19.2 */
 #define TIME_TICKS_TO_US(x) (div_u64((x) * 10, 192))
 
@@ -377,13 +389,8 @@ enum MHI_CH_STATE {
 	MHI_CH_STATE_ERROR = 0x5,
 };
 
-enum MHI_BRSTMODE {
-	MHI_BRSTMODE_DISABLE = 0x2,
-	MHI_BRSTMODE_ENABLE = 0x3,
-};
-
-#define MHI_INVALID_BRSTMODE(mode) (mode != MHI_BRSTMODE_DISABLE && \
-				    mode != MHI_BRSTMODE_ENABLE)
+#define MHI_INVALID_BRSTMODE(mode) (mode != MHI_DB_BRST_DISABLE && \
+				    mode != MHI_DB_BRST_ENABLE)
 
 #define MHI_IN_PBL(ee) (ee == MHI_EE_PBL || ee == MHI_EE_PTHRU || \
 			ee == MHI_EE_EDL)
@@ -478,13 +485,6 @@ enum MHI_ER_TYPE {
 	MHI_ER_TYPE_VALID = 0x1,
 };
 
-enum mhi_er_data_type {
-	MHI_ER_DATA_ELEMENT_TYPE,
-	MHI_ER_CTRL_ELEMENT_TYPE,
-	MHI_ER_TSYNC_ELEMENT_TYPE,
-	MHI_ER_DATA_TYPE_MAX = MHI_ER_TSYNC_ELEMENT_TYPE,
-};
-
 enum mhi_ch_ee_mask {
 	MHI_CH_EE_PBL = BIT(MHI_EE_PBL),
 	MHI_CH_EE_SBL = BIT(MHI_EE_SBL),
@@ -495,18 +495,11 @@ enum mhi_ch_ee_mask {
 	MHI_CH_EE_EDL = BIT(MHI_EE_EDL),
 };
 
-enum mhi_ch_type {
-	MHI_CH_TYPE_INVALID = 0,
-	MHI_CH_TYPE_OUTBOUND = DMA_TO_DEVICE,
-	MHI_CH_TYPE_INBOUND = DMA_FROM_DEVICE,
-	MHI_CH_TYPE_INBOUND_COALESCED = 3,
-};
-
 struct db_cfg {
 	bool reset_req;
 	bool db_mode;
 	u32 pollcfg;
-	enum MHI_BRSTMODE brstmode;
+	enum mhi_db_brst_mode brstmode;
 	dma_addr_t db_val;
 	void (*process_db)(struct mhi_controller *mhi_cntrl,
 			   struct db_cfg *db_cfg, void __iomem *io_addr,
@@ -567,7 +560,10 @@ struct mhi_buf_info {
 struct mhi_event {
 	u32 er_index;
 	u32 intmod;
-	u32 msi;
+	union {
+		u32 msi;
+		u32 irq;
+	};
 	int chan; /* this event ring is dedicated to a channel */
 	u32 priority;
 	enum mhi_er_data_type data_type;
