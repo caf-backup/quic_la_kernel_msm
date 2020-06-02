@@ -450,7 +450,7 @@ struct mhi_device {
 		       void *buf, size_t len, enum MHI_FLAGS flags);
 	int (*dl_xfer)(struct mhi_device *mhi_dev, struct mhi_chan *mhi_chan,
 		       void *buf, size_t size, enum MHI_FLAGS flags);
-	void (*status_cb)(struct mhi_device *mhi_dev, enum MHI_CB reason);
+	void (*status_cb)(struct mhi_device *mhi_dev, enum mhi_callback reason);
 };
 
 /**
@@ -504,7 +504,7 @@ struct mhi_driver {
 	void (*remove)(struct mhi_device *mhi_dev);
 	void (*ul_xfer_cb)(struct mhi_device *mhi_dev, struct mhi_result *res);
 	void (*dl_xfer_cb)(struct mhi_device *mhi_dev, struct mhi_result *res);
-	void (*status_cb)(struct mhi_device *mhi_dev, enum MHI_CB mhi_cb);
+	void (*status_cb)(struct mhi_device *mhi_dev, enum mhi_callback mhi_cb);
 	struct device_driver driver;
 };
 
