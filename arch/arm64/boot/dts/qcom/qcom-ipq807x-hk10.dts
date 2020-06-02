@@ -1010,6 +1010,9 @@
 #ifdef __IPQ_MEM_PROFILE_512_MB__
 	qcom,tgt-mem-mode = <2>;
 #endif
+	/* hw-mode id 7 belongs to PHYB2G mode
+	 */
+	wlan-hw-mode =  <7>;
 	qcom,board_id = <0x216>;
 	status = "ok";
 };
