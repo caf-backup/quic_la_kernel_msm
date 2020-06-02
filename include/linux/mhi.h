@@ -72,6 +72,22 @@ enum mhi_device_type {
 };
 
 /**
+ * enum mhi_ch_type - Channel types
+ * @MHI_CH_TYPE_INVALID: Invalid channel type
+ * @MHI_CH_TYPE_OUTBOUND: Outbound channel to the device
+ * @MHI_CH_TYPE_INBOUND: Inbound channel from the device
+ * @MHI_CH_TYPE_INBOUND_COALESCED: Coalesced channel for the device to combine
+ * 				   multiple packets and send them as a single
+ * 				   large packet to reduce CPU consumption
+ */
+enum mhi_ch_type {
+	MHI_CH_TYPE_INVALID = 0,
+	MHI_CH_TYPE_OUTBOUND = DMA_TO_DEVICE,
+	MHI_CH_TYPE_INBOUND = DMA_FROM_DEVICE,
+	MHI_CH_TYPE_INBOUND_COALESCED = 3,
+};
+
+/**
  * enum mhi_ee - device current execution enviornment
  * @MHI_EE_PBL - device in PBL
  * @MHI_EE_SBL - device in SBL
@@ -122,6 +138,105 @@ struct image_info {
 	struct mhi_buf *mhi_buf;
 	struct bhi_vec_entry *bhi_vec;
 	u32 entries;
+};
+
+/**
+ * enum mhi_db_brst_mode - Doorbell mode
+ * @MHI_DB_BRST_DISABLE: Burst mode disable
+ * @MHI_DB_BRST_ENABLE: Burst mode enable
+ */
+enum mhi_db_brst_mode {
+	MHI_DB_BRST_DISABLE = 0x2,
+	MHI_DB_BRST_ENABLE = 0x3,
+};
+
+/**
+ * struct mhi_channel_config - Channel configuration structure for controller
+ * @name: The name of this channel
+ * @num: The number assigned to this channel
+ * @num_elements: The number of elements that can be queued to this channel
+ * @local_elements: The local ring length of the channel
+ * @event_ring: The event rung index that services this channel
+ * @dir: Direction that data may flow on this channel
+ * @type: Channel type
+ * @ee_mask: Execution Environment mask for this channel
+ * @pollcfg: Polling configuration for burst mode.  0 is default.  milliseconds
+	     for UL channels, multiple of 8 ring elements for DL channels
+ * @doorbell: Doorbell mode
+ * @lpm_notify: The channel master requires low power mode notifications
+ * @offload_channel: The client manages the channel completely
+ * @doorbell_mode_switch: Channel switches to doorbell mode on M0 transition
+ * @auto_queue: Framework will automatically queue buffers for DL traffic
+ * @auto_start: Automatically start (open) this channel
+ * @wake-capable: Channel capable of waking up the system
+ */
+struct mhi_channel_config {
+	char *name;
+	u32 num;
+	u32 num_elements;
+	u32 local_elements;
+	u32 event_ring;
+	enum dma_data_direction dir;
+	enum mhi_ch_type type;
+	u32 ee_mask;
+	u32 pollcfg;
+	enum mhi_db_brst_mode doorbell;
+	bool lpm_notify;
+	bool offload_channel;
+	bool doorbell_mode_switch;
+	bool auto_queue;
+	bool auto_start;
+	bool wake_capable;
+};
+
+/**
+ * struct mhi_event_config - Event ring configuration structure for controller
+ * @num_elements: The number of elements that can be queued to this ring
+ * @irq_moderation_ms: Delay irq for additional events to be aggregated
+ * @irq: IRQ associated with this ring
+ * @channel: Dedicated channel number. U32_MAX indicates a non-dedicated ring
+ * @priority: Priority of this ring. Use 1 for now
+ * @mode: Doorbell mode
+ * @data_type: Type of data this ring will process
+ * @hardware_event: This ring is associated with hardware channels
+ * @client_managed: This ring is client managed
+ * @offload_channel: This ring is associated with an offloaded channel
+ */
+struct mhi_event_config {
+	u32 num_elements;
+	u32 irq_moderation_ms;
+	u32 irq;
+	u32 channel;
+	u32 priority;
+	enum mhi_db_brst_mode mode;
+	enum mhi_er_data_type data_type;
+	bool hardware_event;
+	bool client_managed;
+	bool offload_channel;
+};
+
+/**
+ * struct mhi_controller_config - Root MHI controller configuration
+ * @max_channels: Maximum number of channels supported
+ * @timeout_ms: Timeout value for operations. 0 means use default
+ * @buf_len: Size of automatically allocated buffers. 0 means use default
+ * @num_channels: Number of channels defined in @ch_cfg
+ * @ch_cfg: Array of defined channels
+ * @num_events: Number of event rings defined in @event_cfg
+ * @event_cfg: Array of defined event rings
+ * @use_bounce_buf: Use a bounce buffer pool due to limited DDR access
+ * @m2_no_db: Host is not allowed to ring DB in M2 state
+ */
+struct mhi_controller_config {
+	u32 max_channels;
+	u32 timeout_ms;
+	u32 buf_len;
+	u32 num_channels;
+	struct mhi_channel_config *ch_cfg;
+	u32 num_events;
+	struct mhi_event_config *event_cfg;
+	bool use_bounce_buf;
+	bool m2_no_db;
 };
 
 /**
@@ -651,6 +766,20 @@ struct mhi_controller *mhi_alloc_controller(size_t size);
 int of_register_mhi_controller(struct mhi_controller *mhi_cntrl);
 
 void mhi_unregister_mhi_controller(struct mhi_controller *mhi_cntrl);
+
+/**
+ * mhi_register_controller - Register MHI controller
+ * @mhi_cntrl: MHI controller to register
+ * @config: Configuration to use for the controller
+ */
+int mhi_register_controller(struct mhi_controller *mhi_cntrl,
+                            struct mhi_controller_config *config);
+
+/**
+ * mhi_unregister_controller - Unregister MHI controller
+ * @mhi_cntrl: MHI controller to unregister
+ */
+void mhi_unregister_controller(struct mhi_controller *mhi_cntrl);
 
 /**
  * mhi_download_rddm_img - Download ramdump image from device for

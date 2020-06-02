@@ -559,7 +559,7 @@ static const struct attribute_group mhi_group = {
 	.attrs = mhi_attrs,
 };
 
-static struct mhi_controller *mhi_register_controller(struct pci_dev *pci_dev)
+static struct mhi_controller *dt_register_mhi_controller(struct pci_dev *pci_dev)
 {
 	struct mhi_controller *mhi_cntrl;
 	struct mhi_dev *mhi_dev;
@@ -740,7 +740,7 @@ int mhi_pci_probe(struct pci_dev *pci_dev,
 	/* see if we already registered */
 	mhi_cntrl = mhi_bdf_to_controller(domain, bus, slot, dev_id);
 	if (!mhi_cntrl)
-		mhi_cntrl = mhi_register_controller(pci_dev);
+		mhi_cntrl = dt_register_mhi_controller(pci_dev);
 
 	if (IS_ERR(mhi_cntrl))
 		return PTR_ERR(mhi_cntrl);
