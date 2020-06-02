@@ -17,7 +17,7 @@ struct mhi_buf_info;
 
 #define MHI_RAMDUMP_DUMP_COMPLETE 0x5000
 /**
- * enum MHI_CB - MHI callback
+ * enum mhi_callback - MHI callback
  * @MHI_CB_IDLE: MHI entered idle state
  * @MHI_CB_PENDING_DATA: New data available for client to process
  * @MHI_CB_LPM_ENTER: MHI host entered low power mode
@@ -26,14 +26,16 @@ struct mhi_buf_info;
  * @MHI_CB_SYS_ERROR: MHI device enter error state (may recover)
  * @MHI_CB_FATAL_ERROR: MHI device entered fatal error
  */
-enum MHI_CB {
+enum mhi_callback {
 	MHI_CB_IDLE,
 	MHI_CB_PENDING_DATA,
 	MHI_CB_LPM_ENTER,
 	MHI_CB_LPM_EXIT,
 	MHI_CB_EE_RDDM,
+	MHI_CB_EE_MISSION_MODE,
 	MHI_CB_SYS_ERROR,
 	MHI_CB_FATAL_ERROR,
+	MHI_CB_BW_REQ,
 };
 
 /**
@@ -370,21 +372,25 @@ struct mhi_controller {
 	struct work_struct syserr_worker;
 	wait_queue_head_t state_event;
 
-	/* shadow functions */
-	void (*status_cb)(struct mhi_controller *mhi_cntrl, void *priv,
-			  enum MHI_CB reason);
-	int (*link_status)(struct mhi_controller *mhi_cntrl, void *priv);
+	void (*status_cb)(struct mhi_controller *mhi_cntrl,
+			  enum mhi_callback cb);
 	void (*wake_get)(struct mhi_controller *mhi_cntrl, bool override);
 	void (*wake_put)(struct mhi_controller *mhi_cntrl, bool override);
-	int (*runtime_get)(struct mhi_controller *mhi_cntrl, void *priv);
-	void (*runtime_put)(struct mhi_controller *mhi_cntrl, void *priv);
-	u64 (*time_get)(struct mhi_controller *mhi_cntrl, void *priv);
-	int (*lpm_disable)(struct mhi_controller *mhi_cntrl, void *priv);
-	int (*lpm_enable)(struct mhi_controller *mhi_cntrl, void *priv);
+	void (*wake_toggle)(struct mhi_controller *mhi_cntrl);
+	int (*runtime_get)(struct mhi_controller *mhi_cntrl);
+	void (*runtime_put)(struct mhi_controller *mhi_cntrl);
 	int (*map_single)(struct mhi_controller *mhi_cntrl,
 			  struct mhi_buf_info *buf);
 	void (*unmap_single)(struct mhi_controller *mhi_cntrl,
 			     struct mhi_buf_info *buf);
+	int (*read_reg)(struct mhi_controller *mhi_cntrl, void __iomem *addr,
+			u32 *out);
+	void (*write_reg)(struct mhi_controller *mhi_cntrl, void __iomem *addr,
+			  u32 val);
+	int (*link_status)(struct mhi_controller *mhi_cntrl);
+	u64 (*time_get)(struct mhi_controller *mhi_cntrl);
+	int (*lpm_disable)(struct mhi_controller *mhi_cntrl);
+	int (*lpm_enable)(struct mhi_controller *mhi_cntrl);
 
 	/* channel to control DTR messaging */
 	struct mhi_device *dtr_dev;

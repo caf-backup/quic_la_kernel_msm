@@ -354,9 +354,9 @@ int mhi_system_suspend(struct device *dev)
 }
 
 /* checks if link is down */
-static int mhi_link_status(struct mhi_controller *mhi_cntrl, void *priv)
+static int mhi_link_status(struct mhi_controller *mhi_cntrl)
 {
-	struct mhi_dev *mhi_dev = priv;
+	struct mhi_dev *mhi_dev = mhi_cntrl->priv_data;
 	u16 dev_id;
 	int ret;
 
@@ -367,9 +367,9 @@ static int mhi_link_status(struct mhi_controller *mhi_cntrl, void *priv)
 }
 
 /* disable PCIe L1 */
-static int mhi_lpm_disable(struct mhi_controller *mhi_cntrl, void *priv)
+static int mhi_lpm_disable(struct mhi_controller *mhi_cntrl)
 {
-	struct mhi_dev *mhi_dev = priv;
+	struct mhi_dev *mhi_dev = mhi_cntrl->priv_data;
 	struct pci_dev *pci_dev = mhi_dev->pci_dev;
 	int lnkctl = pci_dev->pcie_cap + PCI_EXP_LNKCTL;
 	u8 val;
@@ -398,9 +398,9 @@ static int mhi_lpm_disable(struct mhi_controller *mhi_cntrl, void *priv)
 }
 
 /* enable PCIe L1 */
-static int mhi_lpm_enable(struct mhi_controller *mhi_cntrl, void *priv)
+static int mhi_lpm_enable(struct mhi_controller *mhi_cntrl)
 {
-	struct mhi_dev *mhi_dev = priv;
+	struct mhi_dev *mhi_dev = mhi_cntrl->priv_data;
 	struct pci_dev *pci_dev = mhi_dev->pci_dev;
 	int lnkctl = pci_dev->pcie_cap + PCI_EXP_LNKCTL;
 	u8 val;
@@ -467,27 +467,26 @@ static int mhi_power_up(struct mhi_controller *mhi_cntrl)
 	return ret;
 }
 
-static int mhi_runtime_get(struct mhi_controller *mhi_cntrl, void *priv)
+static int mhi_runtime_get(struct mhi_controller *mhi_cntrl)
 {
-	struct mhi_dev *mhi_dev = priv;
+	struct mhi_dev *mhi_dev = mhi_cntrl->priv_data;
 	struct device *dev = &mhi_dev->pci_dev->dev;
 
 	return pm_runtime_get(dev);
 }
 
-static void mhi_runtime_put(struct mhi_controller *mhi_cntrl, void *priv)
+static void mhi_runtime_put(struct mhi_controller *mhi_cntrl)
 {
-	struct mhi_dev *mhi_dev = priv;
+	struct mhi_dev *mhi_dev = mhi_cntrl->priv_data;
 	struct device *dev = &mhi_dev->pci_dev->dev;
 
 	pm_runtime_put_noidle(dev);
 }
 
 static void mhi_status_cb(struct mhi_controller *mhi_cntrl,
-			  void *priv,
-			  enum MHI_CB reason)
+			  enum mhi_callback reason)
 {
-	struct mhi_dev *mhi_dev = priv;
+	struct mhi_dev *mhi_dev = mhi_cntrl->priv_data;
 	struct device *dev = &mhi_dev->pci_dev->dev;
 
 	if (reason == MHI_CB_IDLE) {
@@ -498,7 +497,7 @@ static void mhi_status_cb(struct mhi_controller *mhi_cntrl,
 }
 
 /* capture host SoC XO time in ticks */
-static u64 mhi_time_get(struct mhi_controller *mhi_cntrl, void *priv)
+static u64 mhi_time_get(struct mhi_controller *mhi_cntrl)
 {
 	return arch_counter_get_cntvct();
 }
