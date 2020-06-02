@@ -835,8 +835,18 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv,
 
 	ret = request_firmware(&fw_entry, filename, &plat_priv->plat_dev->dev);
 	if (ret) {
-		cnss_pr_err("Failed to load BDF: %s\n", filename);
-		goto err_req_fw;
+		/* If caldata download fails, skip caldata sequence and proceed
+		 * without error
+		 */
+		if (bdf_type == CNSS_CALDATA_WIN) {
+			cnss_pr_info("Failed to load CALDATA %s, skipping caldata download\n",
+				     filename);
+			ret = 0;
+			goto out;
+		} else {
+			cnss_pr_err("Failed to load BDF: %s\n", filename);
+			goto err_req_fw;
+		}
 	}
 
 	temp = fw_entry->data;
@@ -942,6 +952,7 @@ err_req_fw:
 		   QMI_WLFW_BDF_DOWNLOAD_REQ_V01, ret, resp_error_msg);
 	if (bdf_type != CNSS_BDF_REGDB)
 		CNSS_ASSERT(0);
+out:
 	kfree(req);
 	kfree(resp);
 
