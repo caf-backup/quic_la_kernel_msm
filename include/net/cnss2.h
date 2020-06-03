@@ -398,8 +398,6 @@ extern int cnss_wlan_enable(struct device *dev,
 			    const char *host_version);
 extern int cnss_wlan_disable(struct device *dev, enum cnss_driver_mode mode);
 extern unsigned int cnss_get_boot_timeout(struct device *dev);
-int cnss_is_cold_boot_cal_done(struct device *dev);
-int cnss_is_fw_ready(struct device *dev);
 void cnss_wait_for_fw_ready(struct device *dev);
 void cnss_wait_for_cold_boot_cal_done(struct device *dev);
 void cnss_set_ramdump_enabled(struct device *dev, bool enabled);
