@@ -211,6 +211,10 @@
 	thermal-zones {
 		status = "disabled";
 	};
+
+	thermal-zones {
+		status = "ok";
+	};
 };
 
 &tlmm {
@@ -414,5 +418,9 @@
 };
 
 &wifi3 {
+	status = "ok";
+};
+
+&tsens {
 	status = "ok";
 };
