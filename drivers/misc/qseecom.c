@@ -17,6 +17,58 @@
 
 #include "qseecom.h"
 
+struct qseecom_props {
+	const int function;
+	const int tz_arch;
+	bool libraries_inbuilt;
+	bool logging_support_enabled;
+};
+
+const struct qseecom_props qseecom_props_ipq40xx = {
+	.function = (MUL | CRYPTO | AUTH_OTP | AES_SEC_KEY | RSA_SEC_KEY),
+	.tz_arch = QSEE_32,
+	.libraries_inbuilt = false,
+	.logging_support_enabled = true,
+};
+
+const struct qseecom_props qseecom_props_ipq8064 = {
+	.function = (MUL | ENC | DEC),
+	.tz_arch = QSEE_32,
+	.libraries_inbuilt = true,
+	.logging_support_enabled = false,
+};
+
+const struct qseecom_props qseecom_props_ipq807x = {
+	.function = (MUL | CRYPTO | AES_SEC_KEY | RSA_SEC_KEY),
+	.tz_arch = QSEE_64,
+	.libraries_inbuilt = false,
+	.logging_support_enabled = true,
+};
+
+const struct qseecom_props qseecom_props_ipq6018 = {
+	.function = (MUL | CRYPTO | AES_SEC_KEY | RSA_SEC_KEY),
+	.tz_arch = QSEE_64,
+	.libraries_inbuilt = false,
+	.logging_support_enabled = true,
+};
+
+static const struct of_device_id qseecom_of_table[] = {
+	{	.compatible = "ipq40xx-qseecom",
+		.data = (void *) &qseecom_props_ipq40xx,
+	},
+	{	.compatible = "ipq8064-qseecom",
+		.data = (void *) &qseecom_props_ipq8064,
+	},
+	{	.compatible = "ipq807x-qseecom",
+		.data = (void *) &qseecom_props_ipq807x,
+	},
+	{	.compatible = "ipq6018-qseecom",
+		.data = (void *) &qseecom_props_ipq6018,
+	},
+	{}
+};
+MODULE_DEVICE_TABLE(of, qseecom_of_table);
+
 static int unload_app_libs(void)
 {
 	struct qseecom_unload_ireq req;
@@ -118,7 +170,10 @@ generate_key_blob(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	int rc = 0;
 	struct scm_cmd_buf_t scm_cmd_buf;
+
+	struct tz_storage_service_gen_key_cmd_32bit_t *req_ptr_32 = NULL;
 	struct tz_storage_service_gen_key_cmd_t *req_ptr = NULL;
+
 	struct tz_storage_service_gen_key_resp_t *resp_ptr = NULL;
 	size_t req_size = 0;
 	size_t resp_size = 0;
@@ -135,12 +190,18 @@ generate_key_blob(struct device *dev, struct device_attribute *attr, char *buf)
 
 	dev = qdev;
 
-	req_size = sizeof(struct tz_storage_service_gen_key_cmd_t);
+	if (props->tz_arch != QSEE_64)
+		req_size = sizeof(struct tz_storage_service_gen_key_cmd_32bit_t);
+	else
+		req_size = sizeof(struct tz_storage_service_gen_key_cmd_t);
 	req_order = get_order(req_size);
 	req_page = alloc_pages(GFP_KERNEL, req_order);
 
 	if (req_page)
-		req_ptr = page_address(req_page);
+		if (props->tz_arch != QSEE_64)
+			req_ptr_32 = page_address(req_page);
+		else
+			req_ptr = page_address(req_page);
 	else
 		return -ENOMEM;
 
@@ -152,7 +213,10 @@ generate_key_blob(struct device *dev, struct device_attribute *attr, char *buf)
 		resp_ptr = page_address(resp_page);
 	} else {
 		pr_err("\nCannot allocate memory for key material\n");
-		free_pages((unsigned long)req_ptr, req_order);
+		if (props->tz_arch != QSEE_64)
+			free_pages((unsigned long)req_ptr_32, req_order);
+		else
+			free_pages((unsigned long)req_ptr, req_order);
 		return -ENOMEM;
 	}
 
@@ -164,12 +228,21 @@ generate_key_blob(struct device *dev, struct device_attribute *attr, char *buf)
 		goto err_end;
 	}
 
-	req_ptr->cmd_id = TZ_STOR_SVC_GENERATE_KEY;
-	req_ptr->key_blob.key_material = (uint8_t *)dma_key_blob;
-	req_ptr->key_blob.key_material_len = KEY_BLOB_SIZE;
 
-	dma_req_addr = dma_map_single(dev, req_ptr, req_size, DMA_TO_DEVICE);
+	if (props->tz_arch != QSEE_64) {
+		req_ptr_32->key_blob.key_material = (uint8_t *)dma_key_blob;
+		req_ptr_32->cmd_id = TZ_STOR_SVC_GENERATE_KEY;
+		req_ptr_32->key_blob.key_material_len = KEY_BLOB_SIZE;
+		dma_req_addr = dma_map_single(dev, req_ptr_32, req_size, DMA_TO_DEVICE);
+	} else {
+		req_ptr->key_blob.key_material = (u64)dma_key_blob;
+		req_ptr->cmd_id = TZ_STOR_SVC_GENERATE_KEY;
+		req_ptr->key_blob.key_material_len = KEY_BLOB_SIZE;
+		dma_req_addr = dma_map_single(dev, req_ptr, req_size, DMA_TO_DEVICE);
+	}
+
 	rc = dma_mapping_error(dev, dma_req_addr);
+
 	if (rc) {
 		pr_err("DMA Mapping Error(request str)\n");
 		goto err_map_req;
@@ -188,8 +261,12 @@ generate_key_blob(struct device *dev, struct device_attribute *attr, char *buf)
 	scm_cmd_buf.resp_size = resp_size;
 	scm_cmd_buf.resp_addr = dma_resp_addr;
 
-	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
-				   CLIENT_CMD_CRYPTO_AES);
+	if (props->tz_arch != QSEE_64)
+		rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
+					   CLIENT_CMD_CRYPTO_AES);
+	else
+		rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
+					   CLIENT_CMD_CRYPTO_AES_64);
 
 	dma_unmap_single(dev, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
 	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
@@ -255,6 +332,7 @@ import_key_blob(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	int rc = 0;
 	struct scm_cmd_buf_t scm_cmd_buf;
+	struct tz_storage_service_import_key_cmd_32bit_t *req_ptr_32 = NULL;
 	struct tz_storage_service_import_key_cmd_t *req_ptr = NULL;
 	struct tz_storage_service_gen_key_resp_t *resp_ptr = NULL;
 	size_t req_size = 0;
@@ -278,12 +356,18 @@ import_key_blob(struct device *dev, struct device_attribute *attr, char *buf)
 
 	dev = qdev;
 
-	req_size = sizeof(struct tz_storage_service_import_key_cmd_t);
+	if (props->tz_arch != QSEE_64)
+		req_size = sizeof(struct tz_storage_service_import_key_cmd_32bit_t);
+	else
+		req_size = sizeof(struct tz_storage_service_import_key_cmd_t);
 	req_order = get_order(req_size);
 	req_page = alloc_pages(GFP_KERNEL, req_order);
 
 	if (req_page)
-		req_ptr = page_address(req_page);
+		if (props->tz_arch != QSEE_64)
+			req_ptr_32 = page_address(req_page);
+		else
+			req_ptr = page_address(req_page);
 	else
 		return -ENOMEM;
 
@@ -295,7 +379,10 @@ import_key_blob(struct device *dev, struct device_attribute *attr, char *buf)
 		resp_ptr = page_address(resp_page);
 	} else {
 		pr_err("\nCannot allocate memory for key material\n");
-		free_pages((unsigned long)req_ptr, req_order);
+		if (props->tz_arch != QSEE_64)
+			free_pages((unsigned long)req_ptr_32, req_order);
+		else
+			free_pages((unsigned long)req_ptr, req_order);
 		return -ENOMEM;
 	}
 
@@ -314,13 +401,25 @@ import_key_blob(struct device *dev, struct device_attribute *attr, char *buf)
 		goto err_map_key_blob;
 	}
 
-	req_ptr->cmd_id = TZ_STOR_SVC_IMPORT_KEY;
-	req_ptr->input_key = (uint8_t *)dma_key;
-	req_ptr->input_key_len = KEY_SIZE;
-	req_ptr->key_blob.key_material = (uint8_t *)dma_key_blob;
-	req_ptr->key_blob.key_material_len = KEY_BLOB_SIZE;
 
-	dma_req_addr = dma_map_single(dev, req_ptr, req_size, DMA_TO_DEVICE);
+	if (props->tz_arch != QSEE_64) {
+		req_ptr_32->input_key = (uint8_t *)dma_key;
+		req_ptr_32->key_blob.key_material = (uint8_t *)dma_key_blob;
+		req_ptr_32->cmd_id = TZ_STOR_SVC_IMPORT_KEY;
+		req_ptr_32->input_key_len = KEY_SIZE;
+		req_ptr_32->key_blob.key_material_len = KEY_BLOB_SIZE;
+
+		dma_req_addr = dma_map_single(dev, req_ptr_32, req_size, DMA_TO_DEVICE);
+	} else {
+		req_ptr->input_key = (u64)dma_key;
+		req_ptr->key_blob.key_material = (u64)dma_key_blob;
+		req_ptr->cmd_id = TZ_STOR_SVC_IMPORT_KEY;
+		req_ptr->input_key_len = KEY_SIZE;
+		req_ptr->key_blob.key_material_len = KEY_BLOB_SIZE;
+
+		dma_req_addr = dma_map_single(dev, req_ptr, req_size, DMA_TO_DEVICE);
+	}
+
 	rc = dma_mapping_error(dev, dma_req_addr);
 	if (rc) {
 		pr_err("DMA Mapping Error(request str)\n");
@@ -339,8 +438,12 @@ import_key_blob(struct device *dev, struct device_attribute *attr, char *buf)
 	scm_cmd_buf.resp_size = resp_size;
 	scm_cmd_buf.resp_addr = dma_resp_addr;
 
-	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
-				   CLIENT_CMD_CRYPTO_AES);
+	if (props->tz_arch != QSEE_64)
+		rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
+					   CLIENT_CMD_CRYPTO_AES);
+	else
+		rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
+					   CLIENT_CMD_CRYPTO_AES_64);
 
 	dma_unmap_single(dev, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
 	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
@@ -432,6 +535,7 @@ show_sealed_data(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	int rc = 0;
 	struct scm_cmd_buf_t scm_cmd_buf;
+	struct tz_storage_service_seal_data_cmd_32bit_t *req_ptr_32 = NULL;
 	struct tz_storage_service_seal_data_cmd_t *req_ptr = NULL;
 	struct tz_storage_service_seal_data_resp_t *resp_ptr = NULL;
 	size_t req_size = 0;
@@ -458,12 +562,18 @@ show_sealed_data(struct device *dev, struct device_attribute *attr, char *buf)
 
 	dev = qdev;
 
-	req_size = sizeof(struct tz_storage_service_seal_data_cmd_t);
+	if (props->tz_arch != QSEE_64)
+		req_size = sizeof(struct tz_storage_service_seal_data_cmd_32bit_t);
+	else
+		req_size = sizeof(struct tz_storage_service_seal_data_cmd_t);
 	req_order = get_order(req_size);
 	req_page = alloc_pages(GFP_KERNEL, req_order);
 
 	if (req_page)
-		req_ptr = page_address(req_page);
+		if (props->tz_arch != QSEE_64)
+			req_ptr_32 = page_address(req_page);
+		else
+			req_ptr = page_address(req_page);
 	else
 		return -ENOMEM;
 
@@ -475,7 +585,11 @@ show_sealed_data(struct device *dev, struct device_attribute *attr, char *buf)
 		resp_ptr = page_address(resp_page);
 	} else {
 		pr_err("\nCannot allocate memory for key material\n");
-		free_pages((unsigned long)req_ptr, req_order);
+		if (props->tz_arch != QSEE_64)
+			free_pages((unsigned long)req_ptr_32, req_order);
+		else
+			free_pages((unsigned long)req_ptr, req_order);
+
 		return -ENOMEM;
 	}
 
@@ -503,15 +617,29 @@ show_sealed_data(struct device *dev, struct device_attribute *attr, char *buf)
 		goto err_map_output_data;
 	}
 
-	req_ptr->cmd_id = TZ_STOR_SVC_SEAL_DATA;
-	req_ptr->key_blob.key_material = (uint8_t *)dma_key_blob;
-	req_ptr->key_blob.key_material_len = KEY_BLOB_SIZE;
-	req_ptr->plain_data = (uint8_t *)dma_plain_data;
-	req_ptr->plain_data_len = unseal_len;
-	req_ptr->output_buffer = (uint8_t *)dma_output_data;
-	req_ptr->output_len = output_len;
 
-	dma_req_addr = dma_map_single(dev, req_ptr, req_size, DMA_TO_DEVICE);
+	if (props->tz_arch != QSEE_64) {
+		req_ptr_32->key_blob.key_material = (uint8_t *)dma_key_blob;
+		req_ptr_32->plain_data = (uint8_t *)dma_plain_data;
+		req_ptr_32->output_buffer = (uint8_t *)dma_output_data;
+		req_ptr_32->cmd_id = TZ_STOR_SVC_SEAL_DATA;
+		req_ptr_32->key_blob.key_material_len = KEY_BLOB_SIZE;
+		req_ptr_32->plain_data_len = unseal_len;
+		req_ptr_32->output_len = output_len;
+
+		dma_req_addr = dma_map_single(dev, req_ptr_32, req_size, DMA_TO_DEVICE);
+	} else {
+		req_ptr->key_blob.key_material = (u64)dma_key_blob;
+		req_ptr->plain_data = (u64)dma_plain_data;
+		req_ptr->output_buffer = (u64)dma_output_data;
+		req_ptr->cmd_id = TZ_STOR_SVC_SEAL_DATA;
+		req_ptr->key_blob.key_material_len = KEY_BLOB_SIZE;
+		req_ptr->plain_data_len = unseal_len;
+		req_ptr->output_len = output_len;
+
+		dma_req_addr = dma_map_single(dev, req_ptr, req_size, DMA_TO_DEVICE);
+	}
+
 	rc = dma_mapping_error(dev, dma_req_addr);
 	if (rc) {
 		pr_err("DMA Mapping Error(request str)\n");
@@ -531,8 +659,12 @@ show_sealed_data(struct device *dev, struct device_attribute *attr, char *buf)
 	scm_cmd_buf.resp_size = resp_size;
 	scm_cmd_buf.resp_addr = dma_resp_addr;
 
-	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
-				   CLIENT_CMD_CRYPTO_AES);
+	if (props->tz_arch != QSEE_64)
+		rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
+					   CLIENT_CMD_CRYPTO_AES);
+	else
+		rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
+					   CLIENT_CMD_CRYPTO_AES_64);
 
 	dma_unmap_single(dev, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
 	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
@@ -608,6 +740,7 @@ show_unsealed_data(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	int rc = 0;
 	struct scm_cmd_buf_t scm_cmd_buf;
+	struct tz_storage_service_unseal_data_cmd_32bit_t *req_ptr_32 = NULL;
 	struct tz_storage_service_unseal_data_cmd_t *req_ptr = NULL;
 	struct tz_storage_service_unseal_data_resp_t *resp_ptr = NULL;
 	size_t req_size = 0;
@@ -634,12 +767,18 @@ show_unsealed_data(struct device *dev, struct device_attribute *attr, char *buf)
 
 	dev = qdev;
 
-	req_size = sizeof(struct tz_storage_service_unseal_data_cmd_t);
+	if (props->tz_arch != QSEE_64)
+		req_size = sizeof(struct tz_storage_service_unseal_data_cmd_32bit_t);
+	else
+		req_size = sizeof(struct tz_storage_service_unseal_data_cmd_t);
 	req_order = get_order(req_size);
 	req_page = alloc_pages(GFP_KERNEL, req_order);
 
 	if (req_page)
-		req_ptr = page_address(req_page);
+		if (props->tz_arch != QSEE_64)
+			req_ptr_32 = page_address(req_page);
+		else
+			req_ptr = page_address(req_page);
 	else
 		return -ENOMEM;
 
@@ -651,7 +790,10 @@ show_unsealed_data(struct device *dev, struct device_attribute *attr, char *buf)
 		resp_ptr = page_address(resp_page);
 	} else {
 		pr_err("\nCannot allocate memory for key material\n");
-		free_pages((unsigned long)req_ptr, req_order);
+		if (props->tz_arch != QSEE_64)
+			free_pages((unsigned long)req_ptr_32, req_order);
+		else
+			free_pages((unsigned long)req_ptr, req_order);
 		return -ENOMEM;
 	}
 
@@ -679,15 +821,29 @@ show_unsealed_data(struct device *dev, struct device_attribute *attr, char *buf)
 		goto err_map_output_data;
 	}
 
-	req_ptr->cmd_id = TZ_STOR_SVC_UNSEAL_DATA;
-	req_ptr->key_blob.key_material = (uint8_t *)dma_key_blob;
-	req_ptr->key_blob.key_material_len = KEY_BLOB_SIZE;
-	req_ptr->sealed_data = (uint8_t *)dma_sealed_data;
-	req_ptr->sealed_dlen = seal_len;
-	req_ptr->output_buffer = (uint8_t *)dma_output_data;
-	req_ptr->output_len = output_len;
 
-	dma_req_addr = dma_map_single(dev, req_ptr, req_size, DMA_TO_DEVICE);
+	if (props->tz_arch != QSEE_64) {
+		req_ptr_32->key_blob.key_material = (uint8_t *)dma_key_blob;
+		req_ptr_32->sealed_data = (uint8_t *)dma_sealed_data;
+		req_ptr_32->output_buffer = (uint8_t *)dma_output_data;
+		req_ptr_32->cmd_id = TZ_STOR_SVC_UNSEAL_DATA;
+		req_ptr_32->key_blob.key_material_len = KEY_BLOB_SIZE;
+		req_ptr_32->sealed_dlen = seal_len;
+		req_ptr_32->output_len = output_len;
+
+		dma_req_addr = dma_map_single(dev, req_ptr_32, req_size, DMA_TO_DEVICE);
+	} else {
+		req_ptr->key_blob.key_material = (u64)dma_key_blob;
+		req_ptr->sealed_data = (u64)dma_sealed_data;
+		req_ptr->output_buffer = (u64)dma_output_data;
+		req_ptr->cmd_id = TZ_STOR_SVC_UNSEAL_DATA;
+		req_ptr->key_blob.key_material_len = KEY_BLOB_SIZE;
+		req_ptr->sealed_dlen = seal_len;
+		req_ptr->output_len = output_len;
+
+		dma_req_addr = dma_map_single(dev, req_ptr, req_size, DMA_TO_DEVICE);
+	}
+
 	rc = dma_mapping_error(dev, dma_req_addr);
 	if (rc) {
 		pr_err("DMA Mapping Error(request str)\n");
@@ -707,8 +863,12 @@ show_unsealed_data(struct device *dev, struct device_attribute *attr, char *buf)
 	scm_cmd_buf.resp_size = resp_size;
 	scm_cmd_buf.resp_addr = dma_resp_addr;
 
-	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
-				   CLIENT_CMD_CRYPTO_AES);
+	if (props->tz_arch != QSEE_64)
+		rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
+					   CLIENT_CMD_CRYPTO_AES);
+	else
+		rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
+					   CLIENT_CMD_CRYPTO_AES_64);
 
 	dma_unmap_single(dev, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
 	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
@@ -763,6 +923,7 @@ generate_rsa_key_blob(struct device *dev, struct device_attribute *attr,
 {
 	int rc = 0;
 	struct scm_cmd_buf_t scm_cmd_buf;
+	struct tz_storage_service_rsa_gen_key_cmd_32bit_t *req_ptr_32 = NULL;
 	struct tz_storage_service_rsa_gen_key_cmd_t *req_ptr = NULL;
 	struct tz_storage_service_rsa_gen_key_resp_t *resp_ptr = NULL;
 	size_t req_size = 0;
@@ -780,13 +941,19 @@ generate_rsa_key_blob(struct device *dev, struct device_attribute *attr,
 
 	dev = qdev;
 
-	req_size = sizeof(struct tz_storage_service_rsa_gen_key_cmd_t);
+	if (props->tz_arch != QSEE_64)
+		req_size = sizeof(struct tz_storage_service_rsa_gen_key_cmd_32bit_t);
+	else
+		req_size = sizeof(struct tz_storage_service_rsa_gen_key_cmd_t);
 	req_order = get_order(req_size);
 	req_page = alloc_pages(GFP_KERNEL, req_order);
 
-	if (req_page)
-		req_ptr = page_address(req_page);
-	else
+	if (req_page) {
+		if (props->tz_arch != QSEE_64)
+			req_ptr_32 = page_address(req_page);
+		else
+			req_ptr = page_address(req_page);
+	} else
 		return -ENOMEM;
 
 	resp_size = sizeof(struct tz_storage_service_rsa_gen_key_resp_t);
@@ -797,7 +964,10 @@ generate_rsa_key_blob(struct device *dev, struct device_attribute *attr,
 		resp_ptr = page_address(resp_page);
 	} else {
 		pr_err("\nCannot allocate memory for key material\n");
-		free_pages((unsigned long)req_ptr, req_order);
+		if (props->tz_arch != QSEE_64)
+			free_pages((unsigned long)req_ptr_32, req_order);
+		else
+			free_pages((unsigned long)req_ptr, req_order);
 		return -ENOMEM;
 	}
 
@@ -809,16 +979,30 @@ generate_rsa_key_blob(struct device *dev, struct device_attribute *attr,
 		goto err_end;
 	}
 
-	req_ptr->cmd_id = TZ_STOR_SVC_RSA_GENERATE_KEY;
-	req_ptr->rsa_params.modulus_size = RSA_MODULUS_LEN;
-	req_ptr->rsa_params.public_exponent = RSA_PUBLIC_EXPONENT;
-	req_ptr->rsa_params.pad_algo =
-				TZ_STOR_SVC_RSA_DIGEST_PAD_PKCS115_SHA2_256;
-	req_ptr->key_blob.key_material =
-			(struct tz_storage_service_rsa_key_t *)dma_key_blob;
-	req_ptr->key_blob.key_material_len = RSA_KEY_BLOB_SIZE;
 
-	dma_req_addr = dma_map_single(dev, req_ptr, req_size, DMA_TO_DEVICE);
+	if (props->tz_arch != QSEE_64) {
+		req_ptr_32->key_blob.key_material =
+				(struct tz_storage_service_rsa_key_t *)dma_key_blob;
+		req_ptr_32->cmd_id = TZ_STOR_SVC_RSA_GENERATE_KEY;
+		req_ptr_32->rsa_params.modulus_size = RSA_MODULUS_LEN;
+		req_ptr_32->rsa_params.public_exponent = RSA_PUBLIC_EXPONENT;
+		req_ptr_32->rsa_params.pad_algo =
+				TZ_STOR_SVC_RSA_DIGEST_PAD_PKCS115_SHA2_256;
+		req_ptr_32->key_blob.key_material_len = RSA_KEY_BLOB_SIZE;
+
+		dma_req_addr = dma_map_single(dev, req_ptr_32, req_size, DMA_TO_DEVICE);
+	} else {
+		req_ptr->key_blob.key_material = (u64)dma_key_blob;
+		req_ptr->cmd_id = TZ_STOR_SVC_RSA_GENERATE_KEY;
+		req_ptr->rsa_params.modulus_size = RSA_MODULUS_LEN;
+		req_ptr->rsa_params.public_exponent = RSA_PUBLIC_EXPONENT;
+		req_ptr->rsa_params.pad_algo =
+				TZ_STOR_SVC_RSA_DIGEST_PAD_PKCS115_SHA2_256;
+		req_ptr->key_blob.key_material_len = RSA_KEY_BLOB_SIZE;
+
+		dma_req_addr = dma_map_single(dev, req_ptr, req_size, DMA_TO_DEVICE);
+	}
+
 	rc = dma_mapping_error(dev, dma_req_addr);
 	if (rc) {
 		pr_err("DMA Mapping Error(request str)\n");
@@ -838,8 +1022,12 @@ generate_rsa_key_blob(struct device *dev, struct device_attribute *attr,
 	scm_cmd_buf.resp_size = resp_size;
 	scm_cmd_buf.resp_addr = dma_resp_addr;
 
-	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
-				   CLIENT_CMD_CRYPTO_RSA);
+	if (props->tz_arch != QSEE_64)
+		rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
+					   CLIENT_CMD_CRYPTO_RSA);
+	else
+		rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
+					   CLIENT_CMD_CRYPTO_RSA_64);
 
 	dma_unmap_single(dev, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
 	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
@@ -955,8 +1143,6 @@ import_rsa_key_blob(struct device *dev, struct device_attribute *attr,
 {
 	int rc = 0;
 	struct scm_cmd_buf_t scm_cmd_buf;
-	struct tz_storage_service_rsa_import_key_cmd_t *req_ptr = NULL;
-	struct tz_storage_service_rsa_import_key_resp_t *resp_ptr = NULL;
 	size_t req_size = 0;
 	size_t resp_size = 0;
 	size_t req_order = 0;
@@ -966,6 +1152,10 @@ import_rsa_key_blob(struct device *dev, struct device_attribute *attr,
 	dma_addr_t dma_key_blob = 0;
 	struct page *req_page = NULL;
 	struct page *resp_page = NULL;
+
+	struct tz_storage_service_rsa_import_key_cmd_32bit_t *req_ptr_32 = NULL;
+	struct tz_storage_service_rsa_import_key_cmd_t *req_ptr = NULL;
+	struct tz_storage_service_rsa_import_key_resp_t *resp_ptr = NULL;
 
 	memset(rsa_key_blob, 0, RSA_KEY_BLOB_SIZE);
 	rsa_key_blob_len = 0;
@@ -987,12 +1177,18 @@ import_rsa_key_blob(struct device *dev, struct device_attribute *attr,
 
 	dev = qdev;
 
-	req_size = sizeof(struct tz_storage_service_rsa_import_key_cmd_t);
+	if (props->tz_arch != QSEE_64)
+		req_size = sizeof(struct tz_storage_service_rsa_import_key_cmd_32bit_t);
+	else
+		req_size = sizeof(struct tz_storage_service_rsa_import_key_cmd_t);
 	req_order = get_order(req_size);
 	req_page = alloc_pages(GFP_KERNEL, req_order);
 
 	if (req_page)
-		req_ptr = page_address(req_page);
+		if (props->tz_arch != QSEE_64)
+			req_ptr_32 = page_address(req_page);
+		else
+			req_ptr = page_address(req_page);
 	else
 		return -ENOMEM;
 
@@ -1004,7 +1200,10 @@ import_rsa_key_blob(struct device *dev, struct device_attribute *attr,
 		resp_ptr = page_address(resp_page);
 	} else {
 		pr_err("\nCannot allocate memory for key material\n");
-		free_pages((unsigned long)req_ptr, req_order);
+		if (props->tz_arch != QSEE_64)
+			free_pages((unsigned long)req_ptr_32, req_order);
+		else
+			free_pages((unsigned long)req_ptr, req_order);
 		return -ENOMEM;
 	}
 
@@ -1016,21 +1215,40 @@ import_rsa_key_blob(struct device *dev, struct device_attribute *attr,
 		goto err_end;
 	}
 
-	req_ptr->cmd_id = TZ_STOR_SVC_RSA_IMPORT_KEY;
-	memcpy(req_ptr->modulus, rsa_import_modulus, rsa_import_modulus_len);
-	req_ptr->modulus_len = rsa_import_modulus_len;
-	memcpy(req_ptr->public_exponent, rsa_import_public_exponent,
-	      rsa_import_public_exponent_len);
-	req_ptr->public_exponent_len = rsa_import_public_exponent_len;
-	req_ptr->digest_pad_type = TZ_STOR_SVC_RSA_DIGEST_PAD_PKCS115_SHA2_256;
-	memcpy(req_ptr->pvt_exponent, rsa_import_pvt_exponent,
-	      rsa_import_pvt_exponent_len);
-	req_ptr->pvt_exponent_len = rsa_import_pvt_exponent_len;
-	req_ptr->key_blob.key_material =
-			(struct tz_storage_service_rsa_key_t *)dma_key_blob;
-	req_ptr->key_blob.key_material_len = RSA_KEY_BLOB_SIZE;
 
-	dma_req_addr = dma_map_single(dev, req_ptr, req_size, DMA_TO_DEVICE);
+	if (props->tz_arch != QSEE_64) {
+		req_ptr_32->key_blob.key_material =
+			(struct tz_storage_service_rsa_key_t *)dma_key_blob;
+		req_ptr_32->cmd_id = TZ_STOR_SVC_RSA_IMPORT_KEY;
+		memcpy(req_ptr_32->modulus, rsa_import_modulus, rsa_import_modulus_len);
+		req_ptr_32->modulus_len = rsa_import_modulus_len;
+		memcpy(req_ptr_32->public_exponent, rsa_import_public_exponent,
+		      rsa_import_public_exponent_len);
+		req_ptr_32->public_exponent_len = rsa_import_public_exponent_len;
+		req_ptr_32->digest_pad_type = TZ_STOR_SVC_RSA_DIGEST_PAD_PKCS115_SHA2_256;
+		memcpy(req_ptr_32->pvt_exponent, rsa_import_pvt_exponent,
+		      rsa_import_pvt_exponent_len);
+		req_ptr_32->pvt_exponent_len = rsa_import_pvt_exponent_len;
+		req_ptr_32->key_blob.key_material_len = RSA_KEY_BLOB_SIZE;
+
+		dma_req_addr = dma_map_single(dev, req_ptr_32, req_size, DMA_TO_DEVICE);
+	} else {
+		req_ptr->key_blob.key_material = (u64)dma_key_blob;
+		req_ptr->cmd_id = TZ_STOR_SVC_RSA_IMPORT_KEY;
+		memcpy(req_ptr->modulus, rsa_import_modulus, rsa_import_modulus_len);
+		req_ptr->modulus_len = rsa_import_modulus_len;
+		memcpy(req_ptr->public_exponent, rsa_import_public_exponent,
+		      rsa_import_public_exponent_len);
+		req_ptr->public_exponent_len = rsa_import_public_exponent_len;
+		req_ptr->digest_pad_type = TZ_STOR_SVC_RSA_DIGEST_PAD_PKCS115_SHA2_256;
+		memcpy(req_ptr->pvt_exponent, rsa_import_pvt_exponent,
+		      rsa_import_pvt_exponent_len);
+		req_ptr->pvt_exponent_len = rsa_import_pvt_exponent_len;
+		req_ptr->key_blob.key_material_len = RSA_KEY_BLOB_SIZE;
+
+		dma_req_addr = dma_map_single(dev, req_ptr, req_size, DMA_TO_DEVICE);
+	}
+
 	rc = dma_mapping_error(dev, dma_req_addr);
 	if (rc) {
 		pr_err("DMA Mapping Error(request str)\n");
@@ -1039,6 +1257,7 @@ import_rsa_key_blob(struct device *dev, struct device_attribute *attr,
 
 	dma_resp_addr = dma_map_single(dev, resp_ptr, resp_size,
 				      DMA_FROM_DEVICE);
+
 	rc = dma_mapping_error(dev, dma_resp_addr);
 	if (rc) {
 		pr_err("DMA Mapping Error(response str)\n");
@@ -1050,8 +1269,12 @@ import_rsa_key_blob(struct device *dev, struct device_attribute *attr,
 	scm_cmd_buf.resp_size = resp_size;
 	scm_cmd_buf.resp_addr = dma_resp_addr;
 
-	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
-				   CLIENT_CMD_CRYPTO_RSA);
+	if (props->tz_arch != QSEE_64)
+		rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
+					   CLIENT_CMD_CRYPTO_RSA);
+	else
+		rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
+					   CLIENT_CMD_CRYPTO_RSA_64);
 
 	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
 	dma_unmap_single(dev, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
@@ -1062,6 +1285,7 @@ import_rsa_key_blob(struct device *dev, struct device_attribute *attr,
 		pr_err("SCM Call failed..SCM Call return value = %d\n", rc);
 		goto err_end;
 	}
+
 
 	if (resp_ptr->status) {
 		rc = resp_ptr->status;
@@ -1144,6 +1368,7 @@ show_rsa_signed_data(struct device *dev, struct device_attribute *attr,
 {
 	int rc = 0;
 	struct scm_cmd_buf_t scm_cmd_buf;
+	struct tz_storage_service_rsa_sign_data_cmd_32bit_t *req_ptr_32 = NULL;
 	struct tz_storage_service_rsa_sign_data_cmd_t *req_ptr = NULL;
 	struct tz_storage_service_rsa_sign_data_resp_t *resp_ptr = NULL;
 	size_t req_size = 0;
@@ -1169,12 +1394,18 @@ show_rsa_signed_data(struct device *dev, struct device_attribute *attr,
 
 	dev = qdev;
 
-	req_size = sizeof(struct tz_storage_service_rsa_sign_data_cmd_t);
+	if (props->tz_arch != QSEE_64)
+		req_size = sizeof(struct tz_storage_service_rsa_sign_data_cmd_32bit_t);
+	else
+		req_size = sizeof(struct tz_storage_service_rsa_sign_data_cmd_t);
 	req_order = get_order(req_size);
 	req_page = alloc_pages(GFP_KERNEL, req_order);
 
 	if (req_page)
-		req_ptr = page_address(req_page);
+		if (props->tz_arch != QSEE_64)
+			req_ptr_32 = page_address(req_page);
+		else
+			req_ptr = page_address(req_page);
 	else
 		return -ENOMEM;
 
@@ -1186,7 +1417,10 @@ show_rsa_signed_data(struct device *dev, struct device_attribute *attr,
 		resp_ptr = page_address(resp_page);
 	} else {
 		pr_err("\nCannot allocate memory for key material\n");
-		free_pages((unsigned long)req_ptr, req_order);
+		if (props->tz_arch != QSEE_64)
+			free_pages((unsigned long)req_ptr_32, req_order);
+		else
+			free_pages((unsigned long)req_ptr, req_order);
 		return -ENOMEM;
 	}
 
@@ -1215,16 +1449,30 @@ show_rsa_signed_data(struct device *dev, struct device_attribute *attr,
 		goto err_map_output_data;
 	}
 
-	req_ptr->cmd_id = TZ_STOR_SVC_RSA_SIGN_DATA;
-	req_ptr->key_blob.key_material =
-			(struct tz_storage_service_rsa_key_t *)dma_key_blob;
-	req_ptr->key_blob.key_material_len = RSA_KEY_BLOB_SIZE;
-	req_ptr->plain_data = (uint8_t *)dma_plain_data;
-	req_ptr->plain_data_len = rsa_plain_data_len;
-	req_ptr->output_buffer = (uint8_t *)dma_output_data;
-	req_ptr->output_len = MAX_RSA_SIGN_DATA_SIZE;
 
-	dma_req_addr = dma_map_single(dev, req_ptr, req_size, DMA_TO_DEVICE);
+	if (props->tz_arch != QSEE_64) {
+		req_ptr_32->key_blob.key_material =
+		        (struct tz_storage_service_rsa_key_t *)dma_key_blob;
+		req_ptr_32->plain_data = (uint8_t *)dma_plain_data;
+		req_ptr_32->output_buffer = (uint8_t *)dma_output_data;
+		req_ptr_32->cmd_id = TZ_STOR_SVC_RSA_SIGN_DATA;
+		req_ptr_32->key_blob.key_material_len = RSA_KEY_BLOB_SIZE;
+		req_ptr_32->plain_data_len = rsa_plain_data_len;
+		req_ptr_32->output_len = MAX_RSA_SIGN_DATA_SIZE;
+
+		dma_req_addr = dma_map_single(dev, req_ptr_32, req_size, DMA_TO_DEVICE);
+	} else {
+		req_ptr->key_blob.key_material = (u64)dma_key_blob;
+		req_ptr->plain_data = (u64)dma_plain_data;
+		req_ptr->output_buffer = (u64)dma_output_data;
+		req_ptr->cmd_id = TZ_STOR_SVC_RSA_SIGN_DATA;
+		req_ptr->key_blob.key_material_len = RSA_KEY_BLOB_SIZE;
+		req_ptr->plain_data_len = rsa_plain_data_len;
+		req_ptr->output_len = MAX_RSA_SIGN_DATA_SIZE;
+
+		dma_req_addr = dma_map_single(dev, req_ptr, req_size, DMA_TO_DEVICE);
+	}
+
 	rc = dma_mapping_error(dev, dma_req_addr);
 	if (rc) {
 		pr_err("DMA Mapping Error(request str)\n");
@@ -1244,8 +1492,12 @@ show_rsa_signed_data(struct device *dev, struct device_attribute *attr,
 	scm_cmd_buf.resp_size = resp_size;
 	scm_cmd_buf.resp_addr = dma_resp_addr;
 
-	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
-				   CLIENT_CMD_CRYPTO_RSA);
+	if (props->tz_arch != QSEE_64)
+		rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
+					   CLIENT_CMD_CRYPTO_RSA);
+	else
+		rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
+					   CLIENT_CMD_CRYPTO_RSA_64);
 
 	dma_unmap_single(dev, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
 	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
@@ -1326,7 +1578,10 @@ verify_rsa_signed_data(struct device *dev, struct device_attribute *attr,
 {
 	int rc = 0;
 	struct scm_cmd_buf_t scm_cmd_buf;
+
+	struct tz_storage_service_rsa_verify_data_cmd_32bit_t *req_ptr_32 = NULL;
 	struct tz_storage_service_rsa_verify_data_cmd_t *req_ptr = NULL;
+
 	struct tz_storage_service_rsa_verify_data_resp_t *resp_ptr = NULL;
 	size_t req_size = 0;
 	size_t resp_size = 0;
@@ -1351,12 +1606,18 @@ verify_rsa_signed_data(struct device *dev, struct device_attribute *attr,
 
 	dev = qdev;
 
-	req_size = sizeof(struct tz_storage_service_rsa_verify_data_cmd_t);
+	if (props->tz_arch != QSEE_64)
+		req_size = sizeof(struct tz_storage_service_rsa_verify_data_cmd_32bit_t);
+	else
+		req_size = sizeof(struct tz_storage_service_rsa_verify_data_cmd_t);
 	req_order = get_order(req_size);
 	req_page = alloc_pages(GFP_KERNEL, req_order);
 
 	if (req_page)
-		req_ptr = page_address(req_page);
+		if (props->tz_arch != QSEE_64)
+			req_ptr_32 = page_address(req_page);
+		else
+			req_ptr = page_address(req_page);
 	else
 		return -ENOMEM;
 
@@ -1368,7 +1629,10 @@ verify_rsa_signed_data(struct device *dev, struct device_attribute *attr,
 		resp_ptr = page_address(resp_page);
 	} else {
 		pr_err("\nCannot allocate memory for key material\n");
-		free_pages((unsigned long)req_ptr, req_order);
+		if (props->tz_arch != QSEE_64)
+			free_pages((unsigned long)req_ptr_32, req_order);
+		else
+			free_pages((unsigned long)req_ptr, req_order);
 		return -ENOMEM;
 	}
 
@@ -1396,16 +1660,30 @@ verify_rsa_signed_data(struct device *dev, struct device_attribute *attr,
 		goto err_map_output_data;
 	}
 
-	req_ptr->cmd_id = TZ_STOR_SVC_RSA_VERIFY_SIGNATURE;
-	req_ptr->key_blob.key_material =
-			(struct tz_storage_service_rsa_key_t *)dma_key_blob;
-	req_ptr->key_blob.key_material_len = rsa_key_blob_len;
-	req_ptr->signed_data = (uint8_t *)dma_signed_data;
-	req_ptr->signed_dlen = rsa_sign_data_len;
-	req_ptr->data = (uint8_t *)dma_plain_data;
-	req_ptr->data_len = rsa_plain_data_len;
 
-	dma_req_addr = dma_map_single(dev, req_ptr, req_size, DMA_TO_DEVICE);
+	if (props->tz_arch != QSEE_64) {
+		req_ptr_32->key_blob.key_material =
+		        (struct tz_storage_service_rsa_key_t *)dma_key_blob;
+		req_ptr_32->signed_data = (uint8_t *)dma_signed_data;
+		req_ptr_32->data = (uint8_t *)dma_plain_data;
+		req_ptr_32->cmd_id = TZ_STOR_SVC_RSA_VERIFY_SIGNATURE;
+		req_ptr_32->key_blob.key_material_len = rsa_key_blob_len;
+		req_ptr_32->signed_dlen = rsa_sign_data_len;
+		req_ptr_32->data_len = rsa_plain_data_len;
+
+		dma_req_addr = dma_map_single(dev, req_ptr_32, req_size, DMA_TO_DEVICE);
+	} else {
+		req_ptr->key_blob.key_material = (u64)dma_key_blob;
+		req_ptr->signed_data = (u64)dma_signed_data;
+		req_ptr->data = (u64)dma_plain_data;
+		req_ptr->cmd_id = TZ_STOR_SVC_RSA_VERIFY_SIGNATURE;
+		req_ptr->key_blob.key_material_len = rsa_key_blob_len;
+		req_ptr->signed_dlen = rsa_sign_data_len;
+		req_ptr->data_len = rsa_plain_data_len;
+
+		dma_req_addr = dma_map_single(dev, req_ptr, req_size, DMA_TO_DEVICE);
+	}
+
 	rc = dma_mapping_error(dev, dma_req_addr);
 	if (rc) {
 		pr_err("DMA Mapping Error(request str)\n");
@@ -1425,8 +1703,12 @@ verify_rsa_signed_data(struct device *dev, struct device_attribute *attr,
 	scm_cmd_buf.resp_size = resp_size;
 	scm_cmd_buf.resp_addr = dma_resp_addr;
 
-	rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
-				   CLIENT_CMD_CRYPTO_RSA);
+	if (props->tz_arch != QSEE_64)
+		rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
+					   CLIENT_CMD_CRYPTO_RSA);
+	else
+		rc = qcom_scm_tls_hardening(&scm_cmd_buf, sizeof(scm_cmd_buf),
+					   CLIENT_CMD_CRYPTO_RSA_64);
 
 	dma_unmap_single(dev, dma_resp_addr, resp_size, DMA_FROM_DEVICE);
 	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
@@ -1482,58 +1764,6 @@ end:
 
 	return message_len;
 }
-
-struct qseecom_props {
-	const int function;
-	const int tz_arch;
-	bool libraries_inbuilt;
-	bool logging_support_enabled;
-};
-
-const struct qseecom_props qseecom_props_ipq40xx = {
-	.function = (MUL | CRYPTO | AUTH_OTP | AES_SEC_KEY | RSA_SEC_KEY),
-	.tz_arch = QSEE_32,
-	.libraries_inbuilt = false,
-	.logging_support_enabled = true,
-};
-
-const struct qseecom_props qseecom_props_ipq8064 = {
-	.function = (MUL | ENC | DEC),
-	.tz_arch = QSEE_32,
-	.libraries_inbuilt = true,
-	.logging_support_enabled = false,
-};
-
-const struct qseecom_props qseecom_props_ipq807x = {
-	.function = (MUL | CRYPTO),
-	.tz_arch = QSEE_64,
-	.libraries_inbuilt = false,
-	.logging_support_enabled = true,
-};
-
-const struct qseecom_props qseecom_props_ipq6018 = {
-	.function = (MUL | CRYPTO),
-	.tz_arch = QSEE_64,
-	.libraries_inbuilt = false,
-	.logging_support_enabled = true,
-};
-
-static const struct of_device_id qseecom_of_table[] = {
-	{	.compatible = "ipq40xx-qseecom",
-		.data = (void *) &qseecom_props_ipq40xx,
-	},
-	{	.compatible = "ipq8064-qseecom",
-		.data = (void *) &qseecom_props_ipq8064,
-	},
-	{	.compatible = "ipq807x-qseecom",
-		.data = (void *) &qseecom_props_ipq807x,
-	},
-	{	.compatible = "ipq6018-qseecom",
-		.data = (void *) &qseecom_props_ipq6018,
-	},
-	{}
-};
-MODULE_DEVICE_TABLE(of, qseecom_of_table);
 
 static int __init rsa_sec_key_init(void)
 {

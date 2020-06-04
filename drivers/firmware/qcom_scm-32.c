@@ -922,10 +922,28 @@ int __qcom_scm_tls_hardening(struct device *dev,
 {
 	int ret = 0;
 
-	cmd_id = TZ_SYSCALL_CREATE_CMD_ID(TZ_SVC_CRYPTO, cmd_id);
+	if (is_scm_armv8()) {
+		__le32 scm_ret;
+		struct scm_desc desc = {0};
 
-	ret = qcom_scm_call(dev, TZ_SVC_CRYPTO, cmd_id, (void *)scm_cmd_buf,
-			   buf_size, NULL, 0);
+		desc.arginfo = SCM_ARGS(4, SCM_RW, SCM_VAL, SCM_RW, SCM_VAL);
+
+		desc.args[0] = (u64)scm_cmd_buf->req_addr;
+		desc.args[1] = scm_cmd_buf->req_size;
+		desc.args[2] = (u64)scm_cmd_buf->resp_addr;
+		desc.args[3] = scm_cmd_buf->resp_size;
+
+		ret = qcom_scm_call2(SCM_SIP_FNID(TZ_SVC_CRYPTO, cmd_id),
+				     &desc);
+		scm_ret = desc.ret[0];
+		if (!ret)
+			return le32_to_cpu(scm_ret);
+	} else {
+		cmd_id = TZ_SYSCALL_CREATE_CMD_ID(TZ_SVC_CRYPTO, cmd_id);
+
+		ret = qcom_scm_call(dev, TZ_SVC_CRYPTO, cmd_id,
+				    (void *)scm_cmd_buf, buf_size, NULL, 0);
+	}
 
 	return ret;
 }
