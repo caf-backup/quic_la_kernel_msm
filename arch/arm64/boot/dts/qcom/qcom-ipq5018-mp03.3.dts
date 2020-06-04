@@ -224,12 +224,12 @@
 
 &pcie_x1 {
 	status = "ok";
-	perst-gpio = <&tlmm 15 1>;
+	perst-gpio = <&tlmm 18 1>;
 };
 
 &pcie_x2 {
 	status = "ok";
-	perst-gpio = <&tlmm 18 1>;
+	perst-gpio = <&tlmm 15 1>;
 };
 
 &dwc_0 {
@@ -247,5 +247,5 @@
 };
 
 &pcie_x2phy {
-	status = "disabled";
+	status = "ok";
 };
