@@ -1247,7 +1247,7 @@
 		scm {
 			compatible = "qcom,scm-ipq5018";
 		};
-		qfprom {
+		qfprom_sec {
 			compatible = "qcom,qfprom-sec";
 			img-addr = <0x4A400000>;
 			img-size = <0x00700000>;
