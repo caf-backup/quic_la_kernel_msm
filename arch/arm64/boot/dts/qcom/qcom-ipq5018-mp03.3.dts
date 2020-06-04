@@ -35,6 +35,8 @@
 		bootargs = "root=/dev/ram0 rw init=/init";
 		bootargs-append = " clk_ignore_unused";
 		stdout-path = "serial0";
+		ethernet0 = "/soc/dp1";
+		ethernet1 = "/soc/dp2";
 	};
 
 	soc {
