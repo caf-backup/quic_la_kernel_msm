@@ -168,6 +168,7 @@
 			qcom,mactype = <2>;
 			qcom,link-poll = <1>;
 			qcom,phy-mdio-addr = <7>;
+			mdio-bus = <&mdio0>;
 			local-mac-address = [000000000000];
 			phy-mode = "sgmii";
 		};
