@@ -98,10 +98,13 @@
 					port@0 {
 						port_id = <1>;
 						phy_address = <7>;
+						mdiobus = <&mdio0>;
 					};
 					port@1 {
 						port_id = <2>;
 						phy_address = <0x1c>;
+						mdiobus = <&mdio1>;
+						port_mac_sel = "QGMAC_PORT";
 					};
 				};
 			};
