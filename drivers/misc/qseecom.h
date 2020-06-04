@@ -40,6 +40,8 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 
+#define CLIENT_CMD_CRYPTO_AES_64       6
+#define CLIENT_CMD_CRYPTO_RSA_64       5
 #define CLIENT_CMD_CRYPTO_RSA		3
 #define CLIENT_CMD_CRYPTO_AES		2
 #define CLIENT_CMD1_BASIC_DATA		1
@@ -98,16 +100,33 @@ enum tz_storage_service_digest_pad_algo_t {
 	TZ_STOR_SVC_RSA_DIGEST_PAD_PSS_SHA2_256     = 0x00000002,
 };
 
+struct tz_storage_service_key_blob_32bit_t {
+        uint8_t *key_material;
+        uint32_t key_material_len;
+};
+
 struct tz_storage_service_key_blob_t {
-	uint8_t *key_material;
-	size_t key_material_len;
+	uint64_t key_material;
+	uint32_t key_material_len;
+};
+
+struct tz_storage_service_import_key_cmd_32bit_t {
+        enum tz_storage_service_cmd_t cmd_id;
+        struct tz_storage_service_key_blob_32bit_t key_blob;
+        uint8_t *input_key;
+        uint32_t input_key_len;
 };
 
 struct tz_storage_service_import_key_cmd_t {
 	enum tz_storage_service_cmd_t cmd_id;
 	struct tz_storage_service_key_blob_t key_blob;
-	uint8_t *input_key;
-	size_t input_key_len;
+	uint64_t input_key;
+	uint32_t input_key_len;
+};
+
+struct tz_storage_service_gen_key_cmd_32bit_t {
+        enum tz_storage_service_cmd_t cmd_id;
+        struct tz_storage_service_key_blob_32bit_t key_blob;
 };
 
 struct tz_storage_service_gen_key_cmd_t {
@@ -118,37 +137,55 @@ struct tz_storage_service_gen_key_cmd_t {
 struct tz_storage_service_gen_key_resp_t {
 	enum tz_storage_service_cmd_t cmd_id;
 	int32_t status;
-	size_t key_blob_size;
+	uint32_t key_blob_size;
+};
+
+struct tz_storage_service_seal_data_cmd_32bit_t {
+        enum tz_storage_service_cmd_t cmd_id;
+        struct tz_storage_service_key_blob_32bit_t key_blob;
+        uint8_t *plain_data;
+        uint32_t plain_data_len;
+        uint8_t *output_buffer;
+        uint32_t output_len;
 };
 
 struct tz_storage_service_seal_data_cmd_t {
 	enum tz_storage_service_cmd_t cmd_id;
 	struct tz_storage_service_key_blob_t key_blob;
-	uint8_t *plain_data;
-	size_t plain_data_len;
-	uint8_t *output_buffer;
-	size_t output_len;
+	uint64_t plain_data;
+	uint32_t plain_data_len;
+	uint64_t output_buffer;
+	uint32_t output_len;
 };
 
 struct tz_storage_service_seal_data_resp_t {
 	enum tz_storage_service_cmd_t cmd_id;
 	int32_t status;
-	size_t sealed_data_len;
+	uint32_t sealed_data_len;
+};
+
+struct tz_storage_service_unseal_data_cmd_32bit_t {
+        enum tz_storage_service_cmd_t cmd_id;
+        struct tz_storage_service_key_blob_32bit_t key_blob;
+        uint8_t *sealed_data;
+        uint32_t sealed_dlen;
+        uint8_t *output_buffer;
+        uint32_t output_len;
 };
 
 struct tz_storage_service_unseal_data_cmd_t {
 	enum tz_storage_service_cmd_t cmd_id;
 	struct tz_storage_service_key_blob_t key_blob;
-	uint8_t *sealed_data;
-	size_t sealed_dlen;
-	uint8_t *output_buffer;
-	size_t output_len;
+	uint64_t sealed_data;
+	uint32_t sealed_dlen;
+	uint64_t output_buffer;
+	uint32_t output_len;
 };
 
 struct tz_storage_service_unseal_data_resp_t {
 	enum tz_storage_service_cmd_t cmd_id;
 	int32_t status;
-	size_t unsealed_data_len;
+	uint32_t unsealed_data_len;
 };
 
 struct tz_storage_service_rsa_key_t {
@@ -156,18 +193,23 @@ struct tz_storage_service_rsa_key_t {
 	uint32_t version;
 	enum tz_storage_service_digest_pad_algo_t pad_algo;
 	uint8_t modulus[RSA_KEY_SIZE_MAX];
-	size_t modulus_len;
+	uint32_t modulus_len;
 	uint8_t public_exponent[RSA_KEY_SIZE_MAX];
-	size_t public_exponent_len;
+	uint32_t public_exponent_len;
 	uint8_t iv[RSA_IV_LENGTH];
 	uint8_t pvt_exponent[RSA_KEY_SIZE_MAX];
-	size_t pvt_exponent_len;
+	uint32_t pvt_exponent_len;
 	uint8_t hmac[RSA_HMAC_LENGTH];
 };
 
+struct tz_storage_service_rsa_key_blob_32bit_t {
+        struct tz_storage_service_rsa_key_t *key_material;
+        uint32_t key_material_len;
+};
+
 struct tz_storage_service_rsa_key_blob_t {
-	struct tz_storage_service_rsa_key_t *key_material;
-	size_t key_material_len;
+	uint64_t key_material;
+	uint32_t key_material_len;
 };
 
 #define RSA_KEY_BLOB_SIZE sizeof(struct tz_storage_service_rsa_key_t)
@@ -176,6 +218,12 @@ struct tz_storage_service_rsa_keygen_params_t {
 	uint32_t modulus_size;
 	uint64_t public_exponent;
 	enum tz_storage_service_digest_pad_algo_t pad_algo;
+};
+
+struct tz_storage_service_rsa_gen_key_cmd_32bit_t {
+        enum tz_storage_service_rsa_cmd_t cmd_id;
+        struct tz_storage_service_rsa_key_blob_32bit_t key_blob;
+        struct tz_storage_service_rsa_keygen_params_t rsa_params;
 };
 
 struct tz_storage_service_rsa_gen_key_cmd_t {
@@ -187,17 +235,29 @@ struct tz_storage_service_rsa_gen_key_cmd_t {
 struct tz_storage_service_rsa_gen_key_resp_t {
 	enum tz_storage_service_rsa_cmd_t cmd_id;
 	int32_t status;
-	size_t key_blob_size;
+	uint32_t key_blob_size;
+};
+
+struct tz_storage_service_rsa_import_key_cmd_32bit_t {
+        enum tz_storage_service_rsa_cmd_t cmd_id;
+        uint8_t modulus[RSA_KEY_SIZE_MAX];
+        uint32_t modulus_len;
+        uint8_t public_exponent[RSA_PUB_EXP_SIZE_MAX];
+        uint32_t public_exponent_len;
+        uint8_t pvt_exponent[RSA_KEY_SIZE_MAX];
+        uint32_t pvt_exponent_len;
+        uint32_t digest_pad_type;
+        struct tz_storage_service_rsa_key_blob_32bit_t key_blob;
 };
 
 struct tz_storage_service_rsa_import_key_cmd_t {
 	enum tz_storage_service_rsa_cmd_t cmd_id;
 	uint8_t modulus[RSA_KEY_SIZE_MAX];
-	size_t modulus_len;
+	uint32_t modulus_len;
 	uint8_t public_exponent[RSA_PUB_EXP_SIZE_MAX];
-	size_t public_exponent_len;
+	uint32_t public_exponent_len;
 	uint8_t pvt_exponent[RSA_KEY_SIZE_MAX];
-	size_t pvt_exponent_len;
+	uint32_t pvt_exponent_len;
 	uint32_t digest_pad_type;
 	struct tz_storage_service_rsa_key_blob_t key_blob;
 };
@@ -207,28 +267,46 @@ struct tz_storage_service_rsa_import_key_resp_t {
 	int32_t status;
 };
 
+struct tz_storage_service_rsa_sign_data_cmd_32bit_t {
+        enum tz_storage_service_rsa_cmd_t cmd_id;
+        struct tz_storage_service_rsa_key_blob_32bit_t key_blob;
+        uint8_t *plain_data;
+        uint32_t plain_data_len;
+        uint8_t *output_buffer;
+        uint32_t output_len;
+};
+
 struct tz_storage_service_rsa_sign_data_cmd_t {
 	enum tz_storage_service_rsa_cmd_t cmd_id;
 	struct tz_storage_service_rsa_key_blob_t key_blob;
-	uint8_t *plain_data;
-	size_t plain_data_len;
-	uint8_t *output_buffer;
-	size_t output_len;
+	uint64_t plain_data;
+	uint32_t plain_data_len;
+	uint64_t output_buffer;
+	uint32_t output_len;
 };
 
 struct tz_storage_service_rsa_sign_data_resp_t {
 	enum tz_storage_service_rsa_cmd_t cmd_id;
-	size_t sealed_data_len;
+	uint32_t sealed_data_len;
 	int32_t status;
+};
+
+struct tz_storage_service_rsa_verify_data_cmd_32bit_t {
+        enum tz_storage_service_rsa_cmd_t cmd_id;
+        struct tz_storage_service_rsa_key_blob_32bit_t key_blob;
+        uint8_t *data;
+        uint32_t data_len;
+        uint8_t *signed_data;
+        uint32_t signed_dlen;
 };
 
 struct tz_storage_service_rsa_verify_data_cmd_t {
 	enum tz_storage_service_rsa_cmd_t cmd_id;
 	struct tz_storage_service_rsa_key_blob_t key_blob;
-	uint8_t *data;
-	size_t data_len;
-	uint8_t *signed_data;
-	size_t signed_dlen;
+	uint64_t data;
+	uint32_t data_len;
+	uint64_t signed_data;
+	uint32_t signed_dlen;
 };
 
 struct tz_storage_service_rsa_verify_data_resp_t {
