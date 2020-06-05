@@ -119,6 +119,8 @@
 			compatible = "qcom,qca-mdio", "qcom,ipq40xx-mdio";
 			reg = <0x88000 0x64>;
 			status = "disabled";
+			resets = <&gcc GCC_GEPHY_MDC_SW_ARES>;
+			reset-names = "gephy_mdc_rst";
 		};
 
 		mdio1: mdio@90000 {
