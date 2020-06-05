@@ -20,6 +20,7 @@
 #include <linux/of_address.h>
 #include <linux/clk.h>
 #include <linux/of_mdio.h>
+#include <linux/reset.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
 #include <linux/of_gpio.h>
@@ -250,13 +251,15 @@ static int qca_mdio_probe(struct platform_device *pdev)
 	struct qca_mdio_data *am;
 	struct resource *res;
 	int ret, i;
-	void __iomem *gcc_base = NULL;
+	struct reset_control *rst = ERR_PTR(-EINVAL);
 
 	if (of_machine_is_compatible("qcom,ipq5018")) {
 		qca_tcsr_ldo_rdy_set(true);
-		gcc_base = ioremap_nocache(GCC_GEPHY_ADDR, REG_SIZE);
-		if (gcc_base)
-			writel(0xc, gcc_base);
+		rst = of_reset_control_get(pdev->dev.of_node, "gephy_mdc_rst");
+		if (!IS_ERR(rst)) {
+			reset_control_deassert(rst);
+			usleep_range(100000, 110000);
+		}
 	}
 
 	ret = qca_phy_reset(pdev);
@@ -320,10 +323,8 @@ static int qca_mdio_probe(struct platform_device *pdev)
 
 	if (of_machine_is_compatible("qcom,ipq5018")) {
 		qca_tcsr_ldo_rdy_set(false);
-		if (gcc_base) {
-			writel(0xf, gcc_base);
-			iounmap(gcc_base);
-		}
+		if (!IS_ERR(rst))
+			reset_control_assert(rst);
 	}
 
 	return 0;
@@ -336,10 +337,8 @@ err_disable_clk:
 err_out:
 	if (of_machine_is_compatible("qcom,ipq5018")) {
 		qca_tcsr_ldo_rdy_set(false);
-		if (gcc_base) {
-			writel(0xf, gcc_base);
-			iounmap(gcc_base);
-		}
+		if (!IS_ERR(rst))
+			reset_control_assert(rst);
 	}
 	return ret;
 }
