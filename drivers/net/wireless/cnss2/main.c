@@ -635,19 +635,6 @@ static void cnss_release_antenna_sharing(struct cnss_plat_data *plat_priv)
 #endif
 }
 
-int cnss_is_fw_ready(struct device *dev)
-{
-	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
-
-	if (!plat_priv)
-		return 0;
-
-	if (test_bit(CNSS_FW_READY, &plat_priv->driver_state))
-		return 1;
-	return 0;
-}
-EXPORT_SYMBOL(cnss_is_fw_ready);
-
 void cnss_wait_for_fw_ready(struct device *dev)
 {
 	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
@@ -676,16 +663,6 @@ void cnss_wait_for_fw_ready(struct device *dev)
 	}
 }
 EXPORT_SYMBOL(cnss_wait_for_fw_ready);
-
-int cnss_is_cold_boot_cal_done(struct device *dev)
-{
-	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
-
-	if (test_bit(CNSS_COLD_BOOT_CAL, &plat_priv->driver_state))
-		return 0;
-	return 1;
-}
-EXPORT_SYMBOL(cnss_is_cold_boot_cal_done);
 
 void cnss_wait_for_cold_boot_cal_done(struct device *dev)
 {
