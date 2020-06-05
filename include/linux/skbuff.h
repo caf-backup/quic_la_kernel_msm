@@ -476,7 +476,7 @@ static inline bool skb_mstamp_after(const struct skb_mstamp *t1,
 	return diff > 0;
 }
 
-/** 
+/**
  *	struct sk_buff - socket buffer
  *	@next: Next buffer in list
  *	@prev: Previous buffer in list
@@ -557,9 +557,14 @@ struct sk_buff {
 				struct skb_mstamp skb_mstamp;
 			};
 		};
-		struct rb_node	rbnode; /* used in netem & tcp stack */
+		struct rb_node		rbnode; /* used in netem, ip4 defrag, and tcp stack */
 	};
-	struct sock		*sk;
+
+	union {
+		struct sock		*sk;
+		int			ip_defrag_offset;
+	};
+
 	struct net_device	*dev;
 
 	/*
@@ -752,7 +757,7 @@ static inline bool skb_pfmemalloc(const struct sk_buff *skb)
  */
 static inline struct dst_entry *skb_dst(const struct sk_buff *skb)
 {
-	/* If refdst was not refcounted, check we still are in a 
+	/* If refdst was not refcounted, check we still are in a
 	 * rcu_read_lock section
 	 */
 	WARN_ON((skb->_skb_refdst & SKB_DST_NOREF) &&
@@ -2356,6 +2361,8 @@ static inline void __skb_queue_purge(struct sk_buff_head *list)
 		kfree_skb(skb);
 }
 
+void skb_rbtree_purge(struct rb_root *root);
+
 void *netdev_alloc_frag(unsigned int fragsz);
 
 struct sk_buff *__netdev_alloc_skb(struct net_device *dev, unsigned int length,
@@ -2879,6 +2886,12 @@ static inline int pskb_trim_rcsum(struct sk_buff *skb, unsigned int len)
 		skb->ip_summed = CHECKSUM_NONE;
 	return __pskb_trim(skb, len);
 }
+
+#define rb_to_skb(rb) rb_entry_safe(rb, struct sk_buff, rbnode)
+#define skb_rb_first(root) rb_to_skb(rb_first(root))
+#define skb_rb_last(root)  rb_to_skb(rb_last(root))
+#define skb_rb_next(skb)   rb_to_skb(rb_next(&(skb)->rbnode))
+#define skb_rb_prev(skb)   rb_to_skb(rb_prev(&(skb)->rbnode))
 
 #define skb_queue_walk(queue, skb) \
 		for (skb = (queue)->next;					\
