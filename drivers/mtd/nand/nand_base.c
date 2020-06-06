@@ -1742,14 +1742,27 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 	while (1) {
 		unsigned int ecc_failures = mtd->ecc_stats.failed;
 #if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+		int rem = 0;
 		if (num_pages == MAX_MULTI_PAGE) {
 			/* fully multi page alinged page */
+			rem = (readlen % mtd->writesize);
 			req_pages = MAX_MULTI_PAGE;
-			bytes = (MAX_MULTI_PAGE * mtd->writesize);
-			aligned = (bytes == (mtd->writesize * MAX_MULTI_PAGE));
+			bytes = (req_pages * mtd->writesize);
+			if (rem) {
+				req_pages = MAX_MULTI_PAGE - 1;
+				bytes = readlen;
+			}
+			aligned = (bytes == (mtd->writesize * req_pages));
 		} else if (num_pages > MAX_MULTI_PAGE) {
 			req_pages = MAX_MULTI_PAGE;
 			bytes = (MAX_MULTI_PAGE * mtd->writesize);
+			if (num_pages == MAX_MULTI_PAGE + 1) {
+				rem = (readlen % mtd->writesize);
+				if (rem) {
+					req_pages = MAX_MULTI_PAGE - 1;
+					bytes = readlen;
+				}
+			}
 			aligned = (bytes == (mtd->writesize * MAX_MULTI_PAGE));
 		} else if (num_pages > 1 && num_pages < MAX_MULTI_PAGE) {
 			/* this check, to not break the page scope read */
@@ -1882,9 +1895,13 @@ read_retry:
 			retry_mode = 0;
 		}
 
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+		if (!readlen || (int)readlen < 0)
+			break;
+#else
 		if (!readlen)
 			break;
-
+#endif
 		/* For subsequent reads align to page boundary */
 		col = 0;
 		/* Increment page address */
