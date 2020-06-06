@@ -761,7 +761,7 @@
 
 		hs_m31phy_0: hs_m31phy@5b000 {
 			compatible = "qca,m31-usb-hsphy";
-			reg = <0x05b000 0x3000>,
+			reg = <0x05b000 0x120>,
 				<0x08af8800 0x400>;
 			reg-names = "m31usb_phy_base",
 					"qscratch_base";
@@ -783,7 +783,7 @@
 
 			resets =  <&gcc GCC_USB0_PHY_BCR>;
 			reset-names = "por_rst";
-
+			#phy-cells = <0>;
 			qcom,phy-mux-regs = <&tcsr_q6_block 0x2540>;
 			status = "disabled";
 		};
@@ -824,7 +824,10 @@
 				compatible = "snps,dwc3";
 				reg = <0x8A00000 0xe000>;
 				interrupts = <GIC_SPI 140 IRQ_TYPE_NONE>;
-				usb-phy = <&hs_m31phy_0>, <&ssuniphy_0>;
+				usb-phy = <&hs_m31phy_0>;
+				#phy-cells = <0>;
+				phys = <&ssuniphy_0>;
+				phy-names = "usb3-phy";
 				snps,dis_ep_cache_eviction;
 				tx-fifo-resize;
 				snps,usb3-u1u2-disable;
@@ -833,8 +836,9 @@
 				snps,hird-threshold = /bits/ 8 <0x0>;
 				snps,dis_u2_susphy_quirk;
 				snps,dis_u3_susphy_quirk;
-				snps,quirk-ref-clock-adjustment = <0xA87F0>;
-				snps,quirk-ref-clock-period = <0x29>;
+				snps,quirk-ref-clock-adjustment = <0x49459>;
+				snps,quirk-ref-clock-period = <0x10>;
+				snps,quirk-30m-sb-sel = <0x0>;
 				dr_mode = "host";
 			};
 		};
