@@ -196,6 +196,12 @@
 	};
 
 	qspi_nand_pins: qspi_nand_pins {
+		qspi_clock {
+				pins = "gpio9";
+				function = "qspi_clk";
+				drive-strength = <8>;
+				bias-disable;
+			};
 		qspi_cs {
 				pins = "gpio8";
 				function = "qspi_cs";
