@@ -34,6 +34,7 @@
 
 #define IPC_RX_LBUF_SZ		0x0108
 #define IPC_TX_LBUF_SZ		0x0108
+#define IPC_TX_QSIZE		0x20
 
 #define	TO_APPS_ADDR(a)		(btmem->virt + (int)(uintptr_t)a)
 #define	TO_BT_ADDR(a)		(void *)(a - btmem->virt)
@@ -188,6 +189,11 @@ struct bt_ipc {
 	int offset;
 	int bit;
 	int irq;
+	struct list_head tx_q;
+	struct workqueue_struct *wq;
+	struct work_struct work;
+	wait_queue_head_t wait_q;
+	atomic_t tx_q_cnt;
 };
 
 struct bt_descriptor {
@@ -213,6 +219,16 @@ struct bt_descriptor {
 	bool nosecure;
 };
 
+struct ipc_intent {
+	uint8_t *buf;
+	uint16_t len;
+	struct list_head list;
+};
+
+extern int bt_ipc_send_msg(struct bt_descriptor *btDesc, uint16_t msg_hdr,
+		const uint8_t *pData, uint16_t len, bool dequeue);
+extern int bt_ipc_avail_size(struct bt_descriptor *btDesc);
+extern void bt_ipc_purge_tx_queue(struct bt_descriptor *btDesc);
 extern int bt_ipc_init(struct bt_descriptor *btDesc);
 extern void bt_ipc_deinit(struct bt_descriptor *btDesc);
 extern u32 rproc_elf_get_boot_addr(struct rproc *rproc,

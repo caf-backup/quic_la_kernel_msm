@@ -211,6 +211,7 @@ static int bt_rproc_remove(struct platform_device *pdev)
 	atomic_set(&btDesc->state, 0);
 	rproc_del(rproc);
 	rproc_free(rproc);
+	bt_ipc_purge_tx_queue(btDesc);
 
 	return 0;
 }
