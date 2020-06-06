@@ -183,7 +183,8 @@ static const char *wcss_clk_names[] = {"gcc_q6_axis_clk",
 					"gcc_q6_axim_clk",
 					"gcc_q6_axim2_clk",
 					"gcc_q6_ahb_clk",
-					"gcc_q6_ahb_s_clk"};
+					"gcc_q6_ahb_s_clk",
+					"gcc_wcss_axi_s_clk"};
 
 static struct clk *g_wcss_clks[NUM_WCSS_CLKS] = {NULL};
 
