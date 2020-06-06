@@ -58,7 +58,7 @@
 			pinctrl-0 = <&blsp0_spi_pins>;
 			pinctrl-names = "default";
 			cs-select = <0>;
-			status = "ok";
+			status = "disabled";
 
 			m25p80@0 {
 				#address-cells = <1>;
@@ -162,43 +162,67 @@
 			status = "disabled";
 		};
 
-		dp1 {
-			device_type = "network";
-			compatible = "qcom,nss-dp";
-			qcom,id = <1>;
-			reg = <0x39C00000 0x10000>;
-			interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
-			qcom,mactype = <2>;
-			qcom,link-poll = <1>;
-			qcom,phy-mdio-addr = <7>;
-			mdio-bus = <&mdio0>;
-			local-mac-address = [000000000000];
-			phy-mode = "sgmii";
+		nss-common {
+			status = "disabled";
 		};
 
-		dp2 {
-			device_type = "network";
-			compatible = "qcom,nss-dp";
-			qcom,id = <2>;
-			reg = <0x39D00000 0x10000>;
-			interrupts = <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
-			qcom,mactype = <2>;
-			local-mac-address = [000000000000];
-			phy-mode = "sgmii";
+		ess-uniphy@98000 {
+			status = "disabled";
 		};
 
-		qcom,test@0 {
-			status = "ok";
+		qcom,sps {
+			status = "disabled";
 		};
 
-		pcie_x2_rp {
-		        status = "ok";
+		qcom,usbbam@8B04000 {
+			status = "disabled";
+		};
+
+		qcom,diag@0 {
+			status = "disabled";
+		};
+
+		pcie_x1_rp {
+		        status = "disabled";
 
 			mhi_0: qcom,mhi@0 {
 				reg = <0 0 0 0 0 >;
 				qrtr_instance_id = <0x8001>;
 			};
 		};
+
+		pcie_x2_rp {
+		        status = "ok";
+
+			mhi_1: qcom,mhi@1 {
+				reg = <0 0 0 0 0 >;
+				qrtr_instance_id = <0x8002>;
+			};
+		};
+
+		rpm_etm0 {
+			status = "disabled";
+		};
+	};
+
+	cpus {
+		CPU0: cpu@0 {
+			/delete-property/ clocks;
+			/delete-property/ clock-names;
+			/delete-property/ operating-points;
+			/delete-property/ clock-latency;
+		};
+
+		CPU1: cpu@1 {
+			/delete-property/ clocks;
+			/delete-property/ clock-names;
+			/delete-property/ operating-points;
+			/delete-property/ clock-latency;
+		};
+	};
+
+	thermal-zones {
+		status = "disabled";
 	};
 };
 
@@ -210,14 +234,6 @@
 		blsp0_uart_rx_tx {
 			pins = "gpio20", "gpio21";
 			function = "blsp0_uart0";
-			bias-disable;
-		};
-	};
-
-	blsp1_uart_pins: blsp1_uart_pins {
-		blsp1_uart_rx_tx {
-			pins = "gpio23", "gpio25";
-			function = "blsp1_uart2";
 			bias-disable;
 		};
 	};
@@ -282,11 +298,16 @@
 };
 
 &usb3 {
-	status = "ok";
+	status = "disabled";
 };
 
 &eud {
-	status = "ok";
+	status = "disabled";
+};
+
+&pcie_x1 {
+	status = "disabled";
+	perst-gpio = <&tlmm 18 1>;
 };
 
 &pcie_x2 {
@@ -294,10 +315,225 @@
 	perst-gpio = <&tlmm 15 1>;
 };
 
-&dwc_0 {
-	/delete-property/ snps,quirk-ref-clock-adjustment;
-	snps,quirk-ref-clock-period = <0x32>;
-	qcom,emulation = <1>;
+&bt {
+	status = "disabled";
+};
+
+&nss0 {
+	status = "disabled";
+};
+
+&nss_crypto {
+	status = "disabled";
+	ce5_node {
+		status = "disabled";
+	};
+};
+
+&wcss {
+	status = "ok";
+};
+
+&q6v5_wcss {
+	status = "disabled";
+};
+
+&q6v5_m3 {
+	status = "disabled";
+};
+
+&tcsr_mutex_block {
+	status = "ok";
+};
+
+&tcsr_mutex {
+	status = "ok";
+};
+
+&smem {
+	status = "ok";
+};
+
+&apcs_glb {
+	status = "ok";
+};
+
+&tcsr_q6_block {
+	status = "ok";
+};
+
+&qcom_q6v5_wcss {
+	qcom,nosecure;
+	qcom,emulation;
+	status = "ok";
+};
+
+&wifi0 {
+	status = "disabled";
+};
+
+&i2c_0 {
+	status = "disabled";
+};
+
+&dbm_1p5 {
+	status = "disabled";
+};
+
+&tsens {
+	status = "disabled";
+};
+
+&tmc_etr {
+	status = "disabled";
+};
+
+&replicator {
+	status = "disabled";
+};
+
+&tmc_etf {
+	status = "disabled";
+};
+
+&funnel_in0 {
+	status = "disabled";
+};
+
+&funnel_center {
+	status = "disabled";
+};
+
+&funnel_right {
+	status = "disabled";
+};
+
+&funnel_mm {
+	status = "disabled";
+};
+
+&funnel_apss0 {
+	status = "disabled";
+};
+
+&etm0 {
+	status = "disabled";
+};
+
+&etm1 {
+	status = "disabled";
+};
+
+&stm {
+	status = "disabled";
+};
+
+&cti0 {
+	status = "disabled";
+};
+
+&cti1 {
+	status = "disabled";
+};
+
+&cti2 {
+	status = "disabled";
+};
+
+&cti3 {
+	status = "disabled";
+};
+
+&cti4 {
+	status = "disabled";
+};
+
+&cti5 {
+	status = "disabled";
+};
+
+&cti6 {
+	status = "disabled";
+};
+
+&cti7 {
+	status = "disabled";
+};
+
+&cti8 {
+	status = "disabled";
+};
+
+&cti9 {
+	status = "disabled";
+};
+
+&cti10 {
+	status = "disabled";
+};
+
+&cti11 {
+	status = "disabled";
+};
+
+&cti12 {
+	status = "disabled";
+};
+
+&cti13 {
+	status = "disabled";
+};
+
+&cti14 {
+	status = "disabled";
+};
+
+&cti15 {
+	status = "disabled";
+};
+
+&cti_cpu0{
+	status = "disabled";
+};
+
+&cti_cpu1{
+	status = "disabled";
+};
+
+&cti_rpm_cpu0 {
+	status = "disabled";
+};
+
+&csr {
+	status = "disabled";
+};
+
+&dbgui {
+	status = "disabled";
+};
+
+&tpda {
+	status = "disabled";
+};
+
+&tpdm_dcc {
+	status = "disabled";
+};
+
+&hwevent {
+	status = "disabled";
+};
+
+&msm_imem {
+	status = "disabled";
+};
+
+&blsp1_uart1 {
+	status = "ok";
+};
+
+&pmuv8 {
+	status = "disabled";
 };
 
 &ssuniphy_0 {
@@ -308,6 +544,18 @@
 	status = "disabled";
 };
 
+&pcie_x1phy {
+	status = "disabled";
+};
+
 &pcie_x2phy {
 	status = "ok";
+};
+
+&watchdog {
+	status = "disabled";
+};
+
+&apss_clk {
+	status = "disabled";
 };
