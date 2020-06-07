@@ -357,6 +357,7 @@ static bool bt_ipc_process_peer_msgs(struct bt_descriptor *btDesc,
 						aux_ptr.buf, aux_ptr.len);
 
 			btDesc->recvmsg_cb(btDesc, buf, rbuf->len);
+			kfree(buf);
 			break;
 		case IPC_CUST_PKT:
 			bt_ipc_cust_msg(btDesc, IPC_GET_MSG_ID(rbuf->msg_hdr));
