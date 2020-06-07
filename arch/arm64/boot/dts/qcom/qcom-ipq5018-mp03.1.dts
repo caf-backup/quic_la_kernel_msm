@@ -538,10 +538,6 @@
 	status = "ok";
 };
 
-&pmuv8 {
-	status = "disabled";
-};
-
 &ssuniphy_0 {
 	status = "disabled";
 };
@@ -556,10 +552,6 @@
 
 &pcie_x2phy {
 	status = "ok";
-};
-
-&watchdog {
-	status = "disabled";
 };
 
 &apss_clk {
