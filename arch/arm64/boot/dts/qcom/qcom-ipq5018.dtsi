@@ -1117,8 +1117,8 @@
 				      "axi_m_sticky",
 				      "axi_s_sticky";
 
-			qcom,msi-gicm-addr = <0x0B00A040>;
-			qcom,msi-gicm-base = <0x1d0>;
+			qcom,msi-gicm-addr = <0x0B00B040>;
+			qcom,msi-gicm-base = <0x1e0>;
 
 			status = "disabled";
 
