@@ -30,8 +30,6 @@
 		arm,buffer-size = <0x100000>;
 		arm,sg-enable;
 
-		is_emulation;
-
 		coresight-ctis = <&cti0 &cti8>;
 		coresight-name = "coresight-tmc-etr";
 
@@ -743,8 +741,8 @@
 		      <0x6131fb0 0x4>,
 		      <0x6130fb0 0x4>,
 		      <0x6130000 0x148>,
-		      <0x6021fb0 0x4>,
-		      <0x6021000 0x148>;
+		      <0x6041fb0 0x4>,
+		      <0x6041000 0x148>;
 		reg-names = "center-wrapper-mux", "center-wrapper-lockaccess",
 			    "right-wrapper-mux", "right-wrapper-lockaccess",
 			    "mm-wrapper-mux", "mm-wrapper-lockaccess",
