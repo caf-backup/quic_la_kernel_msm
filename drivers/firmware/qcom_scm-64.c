@@ -214,7 +214,21 @@ int __qcom_scm_tls_hardening(struct device *dev,
 			    struct scm_cmd_buf_t *scm_cmd_buf,
 			    size_t buf_size, u32 cmd_id)
 {
-	return -ENOTSUPP;
+	int ret = 0;
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+
+	desc.arginfo = SCM_ARGS(4, SCM_RW, SCM_VAL, SCM_RW, SCM_VAL);
+
+	desc.args[0] = scm_cmd_buf->req_addr;
+	desc.args[1] = scm_cmd_buf->req_size;
+	desc.args[2] = scm_cmd_buf->resp_addr;
+	desc.args[3] = scm_cmd_buf->resp_size;
+
+	ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, TZ_SVC_CRYPTO, cmd_id,
+			    &desc, &res);
+
+	return ret ? : res.a1;
 }
 
 int __qcom_scm_get_feat_version(struct device *dev, u32 feat, u64 *version)
