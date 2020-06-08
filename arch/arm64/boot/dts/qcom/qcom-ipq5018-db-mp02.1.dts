@@ -42,6 +42,8 @@
 	soc {
 		serial@78af000 {
 			status = "ok";
+			pinctrl-0 = <&blsp0_uart0_pins>;
+			pinctrl-names = "default";
 		};
 
 	spi_0: spi@78b5000 { /* BLSP1 QUP0 */
@@ -138,17 +140,11 @@
 			pins = "gpio28";
 			function = "blsp0_uart1";
 			drive-strength = <8>;
-			input-enable;
-			bias-disable;
-			bias-pull-up;
 		};
 		blsp0_uart_tx {
 			pins = "gpio29";
 			function = "blsp0_uart1";
 			drive-strength = <8>;
-			bias-disable;
-			output-high;
-			bias-pull-up;
 		};
 	};
 
@@ -209,6 +205,19 @@
 			function = "mdio";
 			drive-strength = <8>;
 			bias-pull-up;
+		};
+	};
+
+	blsp0_uart0_pins: blsp0_uart0_pins {
+		gpio_21 {
+			pins = "gpio21";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+		gpio_20 {
+			pins = "gpio20";
+			drive-strength = <8>;
+			bias-pull-down;
 		};
 	};
 };

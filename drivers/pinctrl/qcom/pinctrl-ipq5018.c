@@ -848,7 +848,7 @@ static const struct msm_pingroup ipq5018_groups[] = {
 		 NA, qdss_tracedata_b, NA, NA),
 	PINGROUP(28, audio_txbclk, wsa_swrm, blsp0_uart1, btss13,
 		 qdss_tracedata_b, NA, NA, NA, NA),
-	PINGROUP(29, audio_txfsync, blsp0_uart1, qdss_tracedata_b, NA, NA, NA,
+	PINGROUP(29, audio_txfsync, NA, blsp0_uart1, NA, qdss_tracedata_b, NA,
 		 NA, NA, NA),
 	PINGROUP(30, audio_txd, qdss_tracedata_b, NA, wsis_reset, NA, NA, NA,
 		 NA, NA),
