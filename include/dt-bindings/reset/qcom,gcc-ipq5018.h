@@ -128,5 +128,6 @@
 #define	GCC_WCSS_AXI_S_ARES			107
 #define	GCC_WCSS_Q6_BCR				108
 #define	GCC_WCSSAON_RESET			109
+#define	GCC_GEPHY_MISC_ARES			110
 
 #endif

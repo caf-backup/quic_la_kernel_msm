@@ -4329,7 +4329,7 @@ static const struct qcom_reset_map gcc_ipq5018_resets[] = {
 	[GCC_DDRSS_BCR] = { 0x1e000, 0 },
 	[GCC_EDPD_BCR] = { 0x3a000, 0 },
 	[GCC_GEPHY_BCR] = { 0x56000, 0 },
-	[GCC_GEPHY_MDC_SW_ARES] = { 0x56004, 0 },
+	[GCC_GEPHY_MDC_SW_ARES] = { 0x56004, 0, 0x3 },
 	[GCC_GEPHY_DSP_HW_ARES] = { 0x56004, 1 },
 	[GCC_GEPHY_RX_ARES] = { 0x56004, 2 },
 	[GCC_GEPHY_TX_ARES] = { 0x56004, 3 },
@@ -4422,6 +4422,7 @@ static const struct qcom_reset_map gcc_ipq5018_resets[] = {
 	[GCC_WCSS_AXI_S_ARES] = { 0x59008, 6 },
 	[GCC_WCSS_Q6_BCR] = { 0x18004, 0 },
 	[GCC_WCSSAON_RESET] = { 0x59010, 0},
+	[GCC_GEPHY_MISC_ARES] = { 0x56004, 0, 0xf },
 };
 
 static const struct of_device_id gcc_ipq5018_match_table[] = {
