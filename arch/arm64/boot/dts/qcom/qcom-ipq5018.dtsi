@@ -910,7 +910,7 @@
 				<&gcc GCC_PCIE1PHY_PHY_BCR>;
 			reset-names = "phy",
 					"phy_phy";
-			mode = "fixed";
+			mode_fixed = <1>;
 			status = "disabled";
 		};
 
@@ -931,8 +931,7 @@
 
 			phys = <&pcie_x1phy>;
 			phy-names ="pciephy";
-
-			force_gen1 = <1>;
+			force_gen2 = <1>;
 
 			ranges = <0x81000000 0 0x80200000 0x80200000
 				  0 0x00100000   /* downstream I/O */
@@ -1032,7 +1031,7 @@
 				<&gcc GCC_PCIE0PHY_PHY_BCR>;
 			reset-names = "phy",
 					"phy_phy";
-			mode = "fixed";
+			mode_fixed = <1>;
 			status = "disabled";
 		};
 
@@ -1047,13 +1046,13 @@
 			device_type = "pci";
 			linux,pci-domain = <1>;
 			bus-range = <0x00 0xff>;
-			num-lanes = <1>;
+			num-lanes = <2>;
 			#address-cells = <3>;
 			#size-cells = <2>;
 
 			phys = <&pcie_x2phy>;
 			phy-names ="pciephy";
-			force_gen1 = <1>;
+			force_gen2 = <1>;
 
 			ranges = <0x81000000 0 0xa0200000 0xa0200000
 				  0 0x00100000   /* downstream I/O */

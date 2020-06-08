@@ -41,6 +41,8 @@
 #define SSCG_CTRL_REG_5		0xac
 #define SSCG_CTRL_REG_6		0xb0
 
+#define PHY_MODE_FIXED		0x1
+
 enum qca_uni_pcie_phy_type {
 	PHY_TYPE_PCIE,
 	PHY_TYPE_PCIE_GEN2,
@@ -55,7 +57,7 @@ struct qca_uni_pcie_phy {
 	struct reset_control *res_phy;
 	struct reset_control *res_phy_phy;
 	u32 is_phy_gen3;
-	const char *mode;
+	u32 mode;
 	bool is_x2;
 	void __iomem *reg_base;
 };
@@ -95,8 +97,8 @@ static void qca_uni_pcie_phy_init(struct qca_uni_pcie_phy *phy)
 		writel(0x1cb9, phy->reg_base + SSCG_CTRL_REG_4);
 		writel(0x023a, phy->reg_base + SSCG_CTRL_REG_5);
 		/*set spectrum spread count*/
-		writel(0x1360, phy->reg_base + SSCG_CTRL_REG_3);
-		if (strcmp(phy->mode, "fixed")) {
+		writel(0xd360, phy->reg_base + SSCG_CTRL_REG_3);
+		if (phy->mode == PHY_MODE_FIXED) {
 			/*set fstep*/
 			writel(0x0, phy->reg_base + SSCG_CTRL_REG_1);
 			writel(0x0, phy->reg_base + SSCG_CTRL_REG_2);
@@ -183,7 +185,7 @@ static int qca_uni_pcie_get_resources(struct platform_device *pdev,
 		return ret;
 	}
 
-	ret = of_property_read_string(phy->dev->of_node, "mode", &phy->mode);
+	ret = of_property_read_u32(phy->dev->of_node, "mode_fixed", &phy->mode);
 	if (ret) {
 		dev_err(phy->dev, "%s, cannot get mode\n", __func__);
 		return ret;
