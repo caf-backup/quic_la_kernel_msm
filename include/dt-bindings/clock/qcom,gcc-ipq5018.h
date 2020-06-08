@@ -215,4 +215,8 @@
 #define GCC_PCIE1_PIPE_CLK				195
 #define USB0_PIPE_CLK_SRC				196
 #define GCC_USB0_PIPE_CLK				197
+#define GMAC0_RX_DIV_CLK_SRC				198
+#define GMAC0_TX_DIV_CLK_SRC				199
+#define GMAC1_RX_DIV_CLK_SRC				200
+#define GMAC1_TX_DIV_CLK_SRC				201
 #endif
