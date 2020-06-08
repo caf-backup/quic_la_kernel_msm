@@ -411,7 +411,7 @@
 };
 
 &bt {
-	status = "disabled";
+	status = "ok";
 };
 
 &tzlog {
