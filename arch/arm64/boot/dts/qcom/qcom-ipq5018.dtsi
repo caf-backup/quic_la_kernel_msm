@@ -150,7 +150,11 @@
 					<&gcc GCC_GMAC0_RX_CLK>,
 					<&gcc GCC_GMAC0_TX_CLK>,
 					<&gcc GCC_GMAC1_RX_CLK>,
-					<&gcc GCC_GMAC1_TX_CLK>;
+					<&gcc GCC_GMAC1_TX_CLK>,
+					<&gcc GCC_SNOC_GMAC0_AHB_CLK>,
+					<&gcc GCC_SNOC_GMAC1_AHB_CLK>,
+					<&gcc GCC_GMAC0_PTP_CLK>,
+					<&gcc GCC_GMAC1_PTP_CLK>;
 				clock-names = "cmn_ahb_clk", "cmn_sys_clk",
 						"uniphy_ahb_clk", "uniphy_sys_clk",
 						"gcc_mdio0_ahb_clk",
@@ -164,13 +168,19 @@
 						"uniphy1_port5_rx_clk",
 						"uniphy1_port5_tx_clk",
 						"nss_port1_rx_clk", "nss_port1_tx_clk",
-						"nss_port2_rx_clk", "nss_port2_tx_clk";
+						"nss_port2_rx_clk", "nss_port2_tx_clk",
+						"gcc_snoc_gmac0_ahb_clk",
+						"gcc_snoc_gmac1_ahb_clk",
+						"gcc_gmac0_ptp_clk",
+						"gcc_gmac1_ptp_clk";
 				resets = <&gcc GCC_GEPHY_BCR>, <&gcc GCC_UNIPHY_BCR>,
 					<&gcc GCC_GMAC0_BCR>, <&gcc GCC_GMAC1_BCR>,
-					<&gcc GCC_UNIPHY_SOFT_RESET>;
+					<&gcc GCC_UNIPHY_SOFT_RESET>,
+					<&gcc GCC_GEPHY_MISC_ARES>;
 				reset-names = "gephy_bcr_rst", "uniphy_bcr_rst",
 						"gmac0_bcr_rst", "gmac1_bcr_rst",
-						"uniphy1_soft_rst";
+						"uniphy1_soft_rst",
+						"gephy_misc_rst";
 			};
 		};
 
