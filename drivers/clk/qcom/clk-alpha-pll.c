@@ -44,6 +44,8 @@
 # define PLL_VCO_SHIFT		20
 # define PLL_VCO_MASK		0x3
 
+# define PLL_STATUS_REG_SHIFT	8
+
 #define PLL_HUAYRA_M_WIDTH		8
 #define PLL_HUAYRA_M_SHIFT		8
 #define PLL_HUAYRA_M_MASK		0xff
@@ -139,7 +141,7 @@ static int wait_for_pll(struct clk_alpha_pll *pll, u32 mask, bool inverse,
 void clk_alpha_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
 			     const struct alpha_pll_config *config)
 {
-	u32 val, mask;
+	u32 val, val_u, mask, mask_u;
 
 	regmap_write(regmap, PLL_L_REG(pll), config->l);
 	regmap_write(regmap, PLL_ALPHA_REG(pll), config->alpha);
@@ -173,6 +175,16 @@ void clk_alpha_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
 	mask |= config->alpha_mode_mask;
 
 	regmap_update_bits(regmap, PLL_USER_CTL_REG(pll), mask, val);
+
+	/* Stromer APSS PLL does not enable LOCK_DET by default, so enable it */
+	val_u = config->status_reg_val << PLL_STATUS_REG_SHIFT;
+	val_u |= config->lock_det;
+
+	mask_u = config->status_reg_mask;
+	mask_u |= config->lock_det;
+
+	if (val_u != 0)
+		regmap_update_bits(regmap, PLL_USER_CTL_U_REG(pll), mask_u, val_u);
 
 	if (config->test_ctl_val != 0)
 		regmap_write(regmap, PLL_TEST_CTL_REG(pll), config->test_ctl_val);

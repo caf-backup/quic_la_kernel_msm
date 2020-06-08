@@ -96,6 +96,9 @@ struct alpha_pll_config {
 	u32 vco_mask;
 	u32 test_ctl_val;
 	u32 test_ctl_hi_val;
+	u32 status_reg_val;
+	u32 status_reg_mask;
+	u32 lock_det;
 };
 
 extern const struct clk_ops clk_alpha_pll_ops;
