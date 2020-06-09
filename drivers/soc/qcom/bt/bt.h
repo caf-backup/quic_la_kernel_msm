@@ -37,7 +37,7 @@
 #define IPC_TX_QSIZE		0x20
 
 #define	TO_APPS_ADDR(a)		(btmem->virt + (int)(uintptr_t)a)
-#define	TO_BT_ADDR(a)		(void *)(a - btmem->virt)
+#define	TO_BT_ADDR(a)		(a - btmem->virt)
 
 #define IPC_MSG_HDR_SZ		(4u)
 #define IPC_MSG_PLD_SZ		(40u)
@@ -64,10 +64,10 @@
 #define	GET_NO_OF_BLOCKS(a, b) ((a + IPC_##b##_LBUF_SZ - 1) / IPC_##b##_LBUF_SZ)
 
 #define GET_RX_INDEX_FROM_BUF(x) \
-	((x - btmem->rx_ctxt->lring_buf) / IPC_RX_LBUF_SZ)
+	(((uint32_t)(uintptr_t)x - btmem->rx_ctxt->lring_buf) / IPC_RX_LBUF_SZ)
 
 #define GET_TX_INDEX_FROM_BUF(x) \
-	((x - btmem->tx_ctxt->lring_buf) / IPC_TX_LBUF_SZ)
+	(((uint32_t)(uintptr_t)x - btmem->tx_ctxt->lring_buf) / IPC_TX_LBUF_SZ)
 
 #define IS_RX_MEM_NON_CONTIGIOUS(pBuf, len)		\
 	(((int)(uintptr_t)pBuf + len) >			\
@@ -141,7 +141,7 @@ struct long_msg_info {
 
 struct ipc_aux_ptr {
 	uint32_t len;
-	uint8_t *buf;
+	uint32_t buf;
 };
 
 struct ring_buffer {
@@ -150,17 +150,17 @@ struct ring_buffer {
 
 	union {
 		uint8_t  smsg_data[IPC_MSG_PLD_SZ];
-		void  *lmsg_data;
+		uint32_t  lmsg_data;
 	} payload;
 };
 
 struct ring_buffer_info {
-	struct ring_buffer *rbuf;
+	uint32_t rbuf;
 	uint8_t ring_buf_cnt;
 	uint8_t ridx;
 	uint8_t widx;
 	uint8_t tidx;
-	struct ring_buffer_info *next;
+	uint32_t next;
 };
 
 struct context_info {
@@ -168,9 +168,9 @@ struct context_info {
 	uint8_t lmsg_buf_cnt;
 	uint8_t smsg_buf_cnt;
 	struct ring_buffer_info sring_buf_info;
-	uint8_t *sring_buf;
-	uint8_t *lring_buf;
-	uint8_t *reserved;
+	uint32_t sring_buf;
+	uint32_t lring_buf;
+	uint32_t reserved;
 };
 
 
