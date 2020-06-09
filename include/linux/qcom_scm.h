@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010-2018, 2020 The Linux Foundation. All rights reserved.
  * Copyright (C) 2015 Linaro Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -327,3 +327,4 @@ extern int qcom_scm_unlock_subsys_mem(u32 subsys_id, void *paddr, size_t size,
 extern int qcom_scm_load_otp(u32 peripheral);
 #endif
 extern int qcom_scm_wcss_boot(u32 svc_id, u32 cmd_id, void *cmd_buf);
+extern int qcom_scm_tcsr_reg_write(u32 arg1, u32 arg2);
