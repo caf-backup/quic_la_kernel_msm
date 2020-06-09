@@ -107,6 +107,10 @@
 	       * |        |              |                         |
 	       * |  Pine  |  0x4D500000  |          40MB           |
 	       * |        |              |  (on CP01-C3 RDP only)  |
+	       * +--------+--------------+-------------------------+
+	       * |        |              |                         |
+	       * |  MHI0  |  0x4FD00000  |          11MB           |
+	       * |        |              |  (on CP01-C3 RDP only)  |
 	       * +=================================================+
 	       * |                                                 |
 	       * |                                                 |
@@ -139,10 +143,22 @@
 			no-map;
 			reg = <0x0 0x4D500000 0x0 0x02800000>;
 		};
+
+		mhi_region0: dma_pool0@4fd00000 {
+			compatible = "shared-dma-pool";
+			no-map;
+			reg = <0x0 0x4fd00000 0x0 0x00b00000>;
+		};
 #else
 		qcn9000_pcie0@50200000 {
 			no-map;
 			reg = <0x0 0x50200000 0x0 0x03700000>;
+		};
+
+		mhi_region0: dma_pool0@53900000 {
+			compatible = "shared-dma-pool";
+			no-map;
+			reg = <0x0 0x53900000 0x0 0x01800000>;
 		};
 #endif
 #endif
@@ -191,6 +207,9 @@
 	mhi_0: qcom,mhi@0 {
 		reg = <0 0 0 0 0 >;
 		qrtr_instance_id = <0x20>;
+#if !defined(__IPQ_MEM_PROFILE_256_MB__)
+		memory-region = <&mhi_region0>;
+#endif
 	};
 };
 

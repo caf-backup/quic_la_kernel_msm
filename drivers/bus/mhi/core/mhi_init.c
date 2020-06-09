@@ -6,6 +6,7 @@
 #include <linux/dma-direction.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
+#include <linux/of_address.h>
 #include <linux/list.h>
 #include <linux/of.h>
 #include <linux/module.h>
@@ -1102,6 +1103,10 @@ int of_register_mhi_controller(struct mhi_controller *mhi_cntrl)
 	struct mhi_chan *mhi_chan;
 	struct mhi_cmd *mhi_cmd;
 	struct mhi_device *mhi_dev;
+	struct resource mhi_res;
+	struct device_node *cma_node;
+	phys_addr_t cma_addr;
+	size_t cma_size;
 
 	if (!mhi_cntrl->of_node)
 		return -EINVAL;
@@ -1174,6 +1179,28 @@ int of_register_mhi_controller(struct mhi_controller *mhi_cntrl)
 		goto error_alloc_dev;
 	}
 
+	cma_node = of_parse_phandle(mhi_cntrl->dev->of_node,
+				    "memory-region", 0);
+
+	if (cma_node && !of_address_to_resource(cma_node, 0, &mhi_res)) {
+		cma_addr = mhi_res.start;
+		cma_size = resource_size(&mhi_res);
+
+		ret = dma_declare_coherent_memory(&mhi_dev->dev, cma_addr,
+						  cma_addr, cma_size,
+						  DMA_MEMORY_IO |
+						  DMA_MEMORY_MAP |
+						  DMA_MEMORY_EXCLUSIVE);
+
+		if (!ret) {
+			ret = -EBUSY;
+			MHI_LOG("Failed to declare dma coherent memory");
+			goto error_alloc_dev;
+		}
+	} else {
+		MHI_ERR("mhi coherent pool is not reserved");
+	}
+
 	mhi_dev->dev_type = MHI_CONTROLLER_TYPE;
 	mhi_dev->mhi_cntrl = mhi_cntrl;
 	dev_set_name(&mhi_dev->dev, "%04x_%02u.%02u.%02u", mhi_dev->dev_id,
@@ -1195,6 +1222,7 @@ int of_register_mhi_controller(struct mhi_controller *mhi_cntrl)
 	return 0;
 
 error_add_dev:
+	dma_release_declared_memory(&mhi_dev->dev);
 	mhi_dealloc_device(mhi_cntrl, mhi_dev);
 
 error_alloc_dev:
@@ -1219,6 +1247,7 @@ void mhi_unregister_mhi_controller(struct mhi_controller *mhi_cntrl)
 
 	device_del(&mhi_dev->dev);
 	put_device(&mhi_dev->dev);
+	dma_release_declared_memory(&mhi_dev->dev);
 
 	mutex_lock(&mhi_bus.lock);
 	list_del(&mhi_cntrl->node);
@@ -1551,6 +1580,8 @@ struct mhi_device *mhi_alloc_device(struct mhi_controller *mhi_cntrl)
 	dev->bus = &mhi_bus_type;
 	dev->release = mhi_release_device;
 	dev->parent = mhi_cntrl->dev;
+	dev->coherent_dma_mask = mhi_cntrl->dev->coherent_dma_mask;
+	dev->archdata.dma_ops = mhi_cntrl->dev->archdata.dma_ops;
 	mhi_dev->mhi_cntrl = mhi_cntrl;
 	mhi_dev->dev_id = mhi_cntrl->dev_id;
 	mhi_dev->domain = mhi_cntrl->domain;

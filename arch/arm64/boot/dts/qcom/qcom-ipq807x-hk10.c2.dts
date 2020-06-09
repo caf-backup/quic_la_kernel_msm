@@ -115,6 +115,14 @@
 	 * |  Pine  |  0x4D800000  |          40MB           |
 	 * |        |              |                         |
 	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * |  MHI0  |  0x50000000  |          11MB           |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * |  MHI1  |  0x50B00000  |          11MB           |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
 	 * |                                                 |
 	 * |      Rest of the memory for Linux               |
 	 * |                                                 |
@@ -132,6 +140,18 @@
 		qcn9000_pcie1@4d800000 {
 			no-map;
 			reg = <0x0 0x4d800000 0x0 0x02800000>;
+		};
+
+		mhi_region0: dma_pool0@50000000 {
+			compatible = "shared-dma-pool";
+			no-map;
+			reg = <0x0 0x50000000 0x0 0x00b00000>;
+		};
+
+		mhi_region1: dma_pool1@50b00000 {
+			compatible = "shared-dma-pool";
+			no-map;
+			reg = <0x0 0x50b00000 0x0 0x00b00000>;
 		};
 #else
 	/*                   Default Profile
@@ -177,6 +197,14 @@
 	 * |  Pine  |  0x4E700000  |          55MB           |
 	 * |        |              |                         |
 	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * |  MHI0  |  0x51E00000  |          20MB           |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * |  MHI1  |  0x53600000  |          20MB           |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
 	 * |                                                 |
 	 * |      Rest of the memory for Linux               |
 	 * |                                                 |
@@ -195,6 +223,18 @@
 		qcn9000_pcie1@4e700000 {
 			no-map;
 			reg = <0x0 0x4e700000 0x0 0x03700000>;
+		};
+
+		mhi_region0: dma_pool0@51e00000 {
+			compatible = "shared-dma-pool";
+			no-map;
+			reg = <0x0 0x51e00000 0x0 0x01800000>;
+		};
+
+		mhi_region1: dma_pool1@53600000 {
+			compatible = "shared-dma-pool";
+			no-map;
+			reg = <0x0 0x53600000 0x0 0x01800000>;
 		};
 #endif
 #endif
@@ -1006,6 +1046,9 @@
 		#address-cells = <0x2>;
 		#size-cells = <0x2>;
 		qrtr_instance_id = <0x20>;
+#if !defined(__IPQ_MEM_PROFILE_256_MB__)
+		memory-region = <&mhi_region0>;
+#endif
 
 #if !defined(__CNSS2__)
 		base-addr = <0x4B000000>;
@@ -1029,6 +1072,9 @@
 		#address-cells = <0x2>;
 		#size-cells = <0x2>;
 		qrtr_instance_id = <0x21>;
+#if !defined(__IPQ_MEM_PROFILE_256_MB__)
+		memory-region = <&mhi_region1>;
+#endif
 
 #if !defined(__CNSS2__)
 		base-addr = <0x4E700000>;
