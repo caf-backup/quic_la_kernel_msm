@@ -46,6 +46,10 @@
 
 #define QCA_MDIO_CLK_RATE	100000000
 
+#define TCSR_LDO_ADDR		0x19475C4
+#define GCC_GEPHY_ADDR	0x1856004
+#define REG_SIZE		4
+
 struct qca_mdio_data {
 	struct mii_bus *mii_bus;
 	struct clk *mdio_clk;
@@ -221,11 +225,39 @@ static int qca_phy_reset(struct platform_device *pdev)
 	return 0;
 }
 
+static void qca_tcsr_ldo_rdy_set(bool ready)
+{
+	void __iomem *tcsr_base = NULL;
+	u32 val;
+
+	tcsr_base = ioremap_nocache(TCSR_LDO_ADDR, REG_SIZE);
+	if (!tcsr_base)
+		return;
+
+	val = readl(tcsr_base);
+	if (ready)
+		val |= 1;
+	else
+		val &= ~1;
+	writel(val, tcsr_base);
+	usleep_range(100000, 110000);
+
+	iounmap(tcsr_base);
+}
+
 static int qca_mdio_probe(struct platform_device *pdev)
 {
 	struct qca_mdio_data *am;
 	struct resource *res;
 	int ret, i;
+	void __iomem *gcc_base = NULL;
+
+	if (of_machine_is_compatible("qcom,ipq5018")) {
+		qca_tcsr_ldo_rdy_set(true);
+		gcc_base = ioremap_nocache(GCC_GEPHY_ADDR, REG_SIZE);
+		if (gcc_base)
+			writel(0xc, gcc_base);
+	}
 
 	ret = qca_phy_reset(pdev);
 	if (ret)
@@ -286,6 +318,14 @@ static int qca_mdio_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "qca-mdio driver was registered\n");
 
+	if (of_machine_is_compatible("qcom,ipq5018")) {
+		qca_tcsr_ldo_rdy_set(false);
+		if (gcc_base) {
+			writel(0xf, gcc_base);
+			iounmap(gcc_base);
+		}
+	}
+
 	return 0;
 
 err_free_bus:
@@ -294,6 +334,13 @@ err_disable_clk:
 	if (!IS_ERR(am->mdio_clk))
 		clk_disable_unprepare(am->mdio_clk);
 err_out:
+	if (of_machine_is_compatible("qcom,ipq5018")) {
+		qca_tcsr_ldo_rdy_set(false);
+		if (gcc_base) {
+			writel(0xf, gcc_base);
+			iounmap(gcc_base);
+		}
+	}
 	return ret;
 }
 
