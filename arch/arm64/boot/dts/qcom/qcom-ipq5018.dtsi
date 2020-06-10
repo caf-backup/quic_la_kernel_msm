@@ -589,11 +589,13 @@
 
 			resets = <&gcc GCC_WCSSAON_RESET>,
 				<&gcc GCC_WCSS_BCR>,
-				<&gcc GCC_WCSS_Q6_BCR>;
+				<&gcc GCC_WCSS_Q6_BCR>,
+				<&gcc GCC_CE_BCR>;
 
 			reset-names = "wcss_aon_reset",
 				"wcss_reset",
-				"wcss_q6_reset";
+				"wcss_q6_reset",
+				"ce_reset";
 
 			qcom,halt-regs = <&tcsr_q6_block 0xA000 0xD000 0x0>;
 
