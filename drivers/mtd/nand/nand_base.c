@@ -1768,7 +1768,15 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 			/* this check, to not break the page scope read */
 			req_pages = num_pages;
 			bytes = readlen;
+			rem = (readlen % mtd->writesize);
 			aligned = (bytes == (mtd->writesize * req_pages));
+			if (rem) {
+				if (col != 0) {
+					req_pages = 1;
+					bytes = min(mtd->writesize - col, readlen);
+					aligned = (bytes == mtd->writesize);
+				}
+			}
 		} else if (num_pages == 1 || num_pages == 0) {
 			bytes = min(mtd->writesize - col, readlen);
 			aligned = (bytes == mtd->writesize);
