@@ -159,7 +159,7 @@
 		};
 
 		wifi0: wifi@c000000 {
-			status = "disabled";
+			status = "ok";
 		};
 
 		nss-common {
@@ -376,10 +376,6 @@
 	qcom,nosecure;
 	qcom,emulation;
 	status = "ok";
-};
-
-&wifi0 {
-	status = "disabled";
 };
 
 &i2c_0 {
