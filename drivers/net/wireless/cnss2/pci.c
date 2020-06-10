@@ -610,10 +610,10 @@ int cnss_pci_link_down(struct device *dev)
 	unsigned long flags;
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct cnss_pci_data *pci_priv = cnss_get_pci_priv(pci_dev);
-	struct cnss_plat_data *plat_priv;
+	struct cnss_plat_data *plat_priv = NULL;
 
 	if (!pci_priv) {
-		cnss_pr_err("pci_priv is NULL\n");
+		cnss_pr_err("%s: pci_priv is NULL\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1227,11 +1227,14 @@ int cnss_pci_update_status(struct cnss_pci_data *pci_priv,
 			   enum cnss_driver_status status)
 {
 	struct cnss_wlan_driver *driver_ops;
-	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
+	struct cnss_plat_data *plat_priv = NULL;
 
-	if (!pci_priv)
+	if (!pci_priv) {
+		cnss_pr_err("%s: pci_priv is NULL", __func__);
 		return -ENODEV;
+	}
 
+	plat_priv = pci_priv->plat_priv;
 	driver_ops = pci_priv->driver_ops;
 	if (!driver_ops || !driver_ops->update_status)
 		return -EINVAL;
@@ -3266,11 +3269,14 @@ unsigned int cnss_pci_get_wake_msi(struct cnss_pci_data *pci_priv)
 {
 	int ret, num_vectors;
 	unsigned int user_base_data, base_vector;
-	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
+	struct cnss_plat_data *plat_priv = NULL;
 
-	if (!pci_priv)
+	if (!pci_priv) {
+		cnss_pr_err("%s: pci_priv is NULL\n", __func__);
 		return -ENODEV;
+	}
 
+	plat_priv = pci_priv->plat_priv;
 	ret = cnss_get_user_msi_assignment(&pci_priv->pci_dev->dev,
 					   WAKE_MSI_NAME, &num_vectors,
 					   &user_base_data, &base_vector);
@@ -3678,10 +3684,9 @@ static void cnss_dev_rddm_timeout_hdlr(unsigned long data)
 static int cnss_mhi_link_status(struct mhi_controller *mhi_ctrl, void *priv)
 {
 	struct cnss_pci_data *pci_priv = priv;
-	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
 
 	if (!pci_priv) {
-		cnss_pr_err("pci_priv is NULL\n");
+		pr_err("%s: pci_priv is NULL\n", __func__);
 		return -EINVAL;
 	}
 
@@ -3692,11 +3697,11 @@ static void cnss_mhi_notify_status(struct mhi_controller *mhi_ctrl, void *priv,
 				   enum MHI_CB reason)
 {
 	struct cnss_pci_data *pci_priv = priv;
-	struct cnss_plat_data *plat_priv;
+	struct cnss_plat_data *plat_priv = NULL;
 	enum cnss_recovery_reason cnss_reason;
 
 	if (!pci_priv) {
-		cnss_pr_err("pci_priv is NULL");
+		cnss_pr_err("%s: pci_priv is NULL\n", __func__);
 		return;
 	}
 

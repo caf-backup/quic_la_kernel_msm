@@ -2338,13 +2338,17 @@ static int cnss_wlfw_connect_to_server(struct cnss_plat_data *plat_priv,
 				       void *data)
 {
 	struct cnss_qmi_event_server_arrive_data *event_data = data;
-	struct qmi_handle *qmi_wlfw = &plat_priv->qmi_wlfw;
+	struct qmi_handle *qmi_wlfw;
 	struct sockaddr_qrtr sq = { 0 };
 	int ret = 0;
 
 	if (!event_data)
 		return -EINVAL;
 
+	if (!plat_priv)
+		return -ENODEV;
+
+	qmi_wlfw = &plat_priv->qmi_wlfw;
 	sq.sq_family = AF_QIPCRTR;
 	sq.sq_node = event_data->node;
 	sq.sq_port = event_data->port;

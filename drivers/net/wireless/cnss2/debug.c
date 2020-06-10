@@ -202,7 +202,7 @@ static ssize_t cnss_dev_boot_debug_write(struct file *fp,
 					     CNSS_DRIVER_EVENT_POWER_DOWN,
 					     0, NULL);
 		clear_bit(CNSS_DRIVER_DEBUG, &plat_priv->driver_state);
-	} else if (sysfs_streq(cmd, "assert")) {
+	} else if (sysfs_streq("assert", cmd)) {
 		ret = cnss_force_fw_assert(&pci_priv->pci_dev->dev);
 	} else {
 		cnss_pr_err("Device boot debugfs command is invalid\n");
@@ -476,21 +476,21 @@ static ssize_t cnss_runtime_pm_debug_write(struct file *fp,
 	buf[len] = '\0';
 	cmd = buf;
 
-	if (sysfs_streq(cmd, "usage_count")) {
+	if (sysfs_streq("usage_count", cmd)) {
 		cnss_pci_pm_runtime_show_usage_count(pci_priv);
-	} else if (sysfs_streq(cmd, "request_resume")) {
+	} else if (sysfs_streq("request_resume", cmd)) {
 		ret = cnss_pci_pm_request_resume(pci_priv);
-	} else if (sysfs_streq(cmd, "resume")) {
+	} else if (sysfs_streq("resume", cmd)) {
 		ret = cnss_pci_pm_runtime_resume(pci_priv);
-	} else if (sysfs_streq(cmd, "get")) {
+	} else if (sysfs_streq("get", cmd)) {
 		ret = cnss_pci_pm_runtime_get(pci_priv);
-	} else if (sysfs_streq(cmd, "get_noresume")) {
+	} else if (sysfs_streq("get_noresume", cmd)) {
 		cnss_pci_pm_runtime_get_noresume(pci_priv);
-	} else if (sysfs_streq(cmd, "put_autosuspend")) {
+	} else if (sysfs_streq("put_autosuspend", cmd)) {
 		ret = cnss_pci_pm_runtime_put_autosuspend(pci_priv);
-	} else if (sysfs_streq(cmd, "put_noidle")) {
+	} else if (sysfs_streq("put_noidle", cmd)) {
 		cnss_pci_pm_runtime_put_noidle(pci_priv);
-	} else if (sysfs_streq(cmd, "mark_last_busy")) {
+	} else if (sysfs_streq("mark_last_busy", cmd)) {
 		cnss_pci_pm_runtime_mark_last_busy(pci_priv);
 	} else {
 		cnss_pr_err("Runtime PM debugfs command is invalid\n");
