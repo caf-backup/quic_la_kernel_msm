@@ -611,12 +611,11 @@ void mhi_fw_load_worker(struct work_struct *work)
 		}
 	}
 
-	if (!mhi_cntrl->fbc_download || ret || mhi_cntrl->ee == MHI_EE_EDL)
-		release_firmware(firmware);
-
 	/* error or in edl, we're done */
-	if (ret || mhi_cntrl->ee == MHI_EE_EDL)
+	if (ret || mhi_cntrl->ee == MHI_EE_EDL) {
+		release_firmware(firmware);
 		return;
+	}
 
 	write_lock_irq(&mhi_cntrl->pm_lock);
 	mhi_cntrl->dev_state = MHI_STATE_RESET;
@@ -648,8 +647,10 @@ void mhi_fw_load_worker(struct work_struct *work)
 		TO_MHI_STATE_STR(mhi_cntrl->dev_state),
 		TO_MHI_EXEC_STR(mhi_cntrl->ee), ret);
 
-	if (!mhi_cntrl->fbc_download)
+	if (!mhi_cntrl->fbc_download) {
+		release_firmware(firmware);
 		return;
+	}
 
 	if (ret) {
 		MHI_ERR("Did not transition to READY state\n");
