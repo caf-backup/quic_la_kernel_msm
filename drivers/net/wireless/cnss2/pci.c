@@ -3706,6 +3706,16 @@ static void cnss_mhi_notify_status(struct mhi_controller *mhi_ctrl, void *priv,
 		cnss_pr_dbg("MHI status cb is called with reason %s(%d)\n",
 			    cnss_mhi_notify_status_to_str(reason), reason);
 
+	if (reason == MHI_CB_FATAL_ERROR || reason == MHI_CB_SYS_ERROR) {
+		cnss_pr_err("XXX TARGET ASSERTED XXX\n");
+		cnss_pr_err("XXX TARGET %s instance_id 0x%x plat_env idx %d XXX\n",
+			    plat_priv->device_name,
+			    plat_priv->wlfw_service_instance_id,
+			    cnss_get_plat_env_index_from_plat_priv(plat_priv));
+		plat_priv->target_asserted = 1;
+		plat_priv->target_assert_timestamp = ktime_to_ms(ktime_get());
+	}
+
 	switch (reason) {
 	case MHI_CB_IDLE:
 		return;
@@ -3733,13 +3743,6 @@ static void cnss_mhi_notify_status(struct mhi_controller *mhi_ctrl, void *priv,
 		cnss_pr_err("Unsupported MHI status cb reason: %d\n", reason);
 		return;
 	}
-	cnss_pr_err("XXX TARGET ASSERTED XXX\n");
-	cnss_pr_err("XXX TARGET %s instance_id 0x%x plat_env idx %d XXX\n",
-		    plat_priv->device_name,
-		    plat_priv->wlfw_service_instance_id,
-		    cnss_get_plat_env_index_from_plat_priv(plat_priv));
-	plat_priv->target_asserted = 1;
-	plat_priv->target_assert_timestamp = ktime_to_ms(ktime_get());
 
 	cnss_schedule_recovery(&pci_priv->pci_dev->dev, cnss_reason);
 }
