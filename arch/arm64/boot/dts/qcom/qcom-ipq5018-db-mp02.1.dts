@@ -232,13 +232,13 @@
 };
 
 &dwc_0 {
-	/delete-property/ snps,quirk-ref-clock-adjustment;
-	snps,quirk-ref-clock-period = <0x32>;
-	qcom,emulation = <1>;
+	/delete-property/ #phy-cells;
+	/delete-property/ phys;
+	/delete-property/ phy-names;
 };
 
 &hs_m31phy_0 {
-	status = "disabled";
+	status = "ok";
 };
 
 &pcie_x1phy {
