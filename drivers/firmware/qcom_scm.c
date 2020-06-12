@@ -1,7 +1,7 @@
 /*
  * Qualcomm SCM driver
  *
- * Copyright (c) 2010, 2015-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010, 2015-2018, 2020 The Linux Foundation. All rights reserved.
  * Copyright (C) 2015 Linaro Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -806,6 +806,12 @@ int qcom_scm_usb_mode_write(u32 arg1, u32 arg2)
 					arg1, arg2);
 }
 EXPORT_SYMBOL(qcom_scm_usb_mode_write);
+
+int qcom_scm_tcsr_reg_write(u32 arg1, u32 arg2)
+{
+	return __qcom_scm_tcsr_reg_write(__scm->dev, arg1, arg2);
+}
+EXPORT_SYMBOL(qcom_scm_tcsr_reg_write);
 
 int qcom_scm_cache_dump(u32 cpu)
 {

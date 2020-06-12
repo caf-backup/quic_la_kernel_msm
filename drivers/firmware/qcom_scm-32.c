@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010, 2015-2018, 2020 The Linux Foundation. All rights reserved.
  * Copyright (C) 2015 Linaro Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -1600,6 +1600,23 @@ int __qcom_scm_pinmux_write(u32 svc_id, u32 cmd_id, u32 arg1, u32 arg2)
 	ret = qcom_scm_call_atomic2(svc_id, cmd_id, arg1, arg2);
 
 	return ret;
+}
+
+int __qcom_scm_tcsr_reg_write(struct device *dev, u32 arg1, u32 arg2)
+{
+	struct scm_desc desc = {0};
+	int ret;
+
+	desc.args[0] = arg1;
+	desc.args[1] = arg2;
+
+	desc.arginfo = SCM_ARGS(2, SCM_VAL, SCM_VAL);
+	ret = qcom_scm_call2(SCM_SIP_FNID(SCM_SVC_IO_ACCESS,
+					SCM_IO_WRITE), &desc);
+	if (ret)
+		return ret;
+
+	return le32_to_cpu(desc.ret[0]);
 }
 
 int __qcom_scm_usb_mode_write(u32 svc_id, u32 cmd_id, u32 arg1, u32 arg2)

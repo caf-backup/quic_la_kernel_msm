@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -207,6 +207,9 @@ extern int qcom_scm_pshold(void);
 s32 __qcom_scm_pinmux_read(u32 svc_id, u32 cmd_id, u32 arg1);
 s32 __qcom_scm_pinmux_write(u32 svc_id, u32 cmd_id, u32 arg1, u32 arg2);
 s32 __qcom_scm_usb_mode_write(u32 svc_id, u32 cmd_id, u32 arg1, u32 arg2);
+
+extern int __qcom_scm_tcsr_reg_write(struct device *dev, u32 arg1, u32 arg2);
+extern int qcom_scm_tcsr_reg_write(u32 arg1, u32 arg2);
 
 extern int __qcom_scm_cache_dump(u32 cpu);
 extern int qcom_scm_cache_dump(u32 cpu);
