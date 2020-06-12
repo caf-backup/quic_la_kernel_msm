@@ -158,10 +158,6 @@
 			status = "disabled";
 		};
 
-		nss-common {
-			status = "disabled";
-		};
-
 		ess-uniphy@98000 {
 			status = "disabled";
 		};
@@ -176,6 +172,30 @@
 
 		qcom,diag@0 {
 			status = "ok";
+		};
+
+		dp1 {
+			device_type = "network";
+			compatible = "qcom,nss-dp";
+			qcom,id = <1>;
+			reg = <0x39C00000 0x10000>;
+			interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+			qcom,mactype = <2>;
+			qcom,link-poll = <1>;
+			qcom,phy-mdio-addr = <7>;
+			local-mac-address = [000000000000];
+			phy-mode = "sgmii";
+		};
+
+		dp2 {
+			device_type = "network";
+			compatible = "qcom,nss-dp";
+			qcom,id = <2>;
+			reg = <0x39D00000 0x10000>;
+			interrupts = <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
+			qcom,mactype = <2>;
+			local-mac-address = [000000000000];
+			phy-mode = "sgmii";
 		};
 
 		pcie_x1_rp {
@@ -323,10 +343,6 @@
 
 &bt {
 	status = "ok";
-};
-
-&nss0 {
-	status = "disabled";
 };
 
 &nss_crypto {
