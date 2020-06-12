@@ -304,6 +304,8 @@
 };
 
 &usb3 {
+	qcom,multiplexed-phy;
+	qcom,phy-mux-regs = <&tcsr_q6_block 0x2540>;
 	status = "ok";
 };
 
