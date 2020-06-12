@@ -106,24 +106,6 @@
 		qcom,test@0 {
 			status = "ok";
 		};
-
-		pcie_x1_rp {
-		        status = "ok";
-
-			mhi_0: qcom,mhi@0 {
-				reg = <0 0 0 0 0 >;
-				qrtr_instance_id = <0x8001>;
-			};
-		};
-
-		pcie_x2_rp {
-		        status = "ok";
-
-			mhi_1: qcom,mhi@1 {
-				reg = <0 0 0 0 0 >;
-				qrtr_instance_id = <0x8002>;
-			};
-		};
 	};
 };
 
@@ -227,12 +209,12 @@
 };
 
 &pcie_x1 {
-	status = "ok";
+	status = "disabled";
 	perst-gpio = <&tlmm 15 1>;
 };
 
 &pcie_x2 {
-	status = "ok";
+	status = "disabled";
 	perst-gpio = <&tlmm 27 1>;
 };
 
