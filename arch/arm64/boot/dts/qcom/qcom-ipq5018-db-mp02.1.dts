@@ -118,7 +118,7 @@
 };
 
 &tlmm {
-	pinctrl-0 = <&blsp0_uart_pins &blsp1_uart_pins>;
+	pinctrl-0 = <&blsp0_uart_pins &blsp1_uart_pins &phy_pins>;
 	pinctrl-names = "default";
 
 	blsp0_uart_pins: blsp0_uart_pins {
@@ -143,28 +143,12 @@
 			bias-disable;
 			bias-pull-up;
 		};
-		blsp1_uart_tx {
-			pins = "gpio25";
-			function = "blsp1_uart2";
-			drive-strength = <8>;
-			bias-disable;
-			output-high;
-			bias-pull-up;
-		};
 		blsp1_uart_rfr {
 			pins = "gpio24";
 			function = "blsp1_uart2";
 			drive-strength = <8>;
 			bias-disable;
 			output-high;
-			bias-pull-up;
-		};
-		blsp1_uart_cts {
-			pins = "gpio26";
-			function = "blsp1_uart2";
-			drive-strength = <8>;
-			bias-disable;
-			input-enable;
 			bias-pull-up;
 		};
 	};
@@ -175,6 +159,22 @@
 			function = "blsp0_spi";
 			drive-strength = <8>;
 			bias-disable;
+		};
+	};
+
+	phy_pins: phy_pins {
+		phy_intr {
+			pins = "gpio25";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+		phy_reset {
+			pins = "gpio26";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-down;
+			output-low;
 		};
 	};
 
