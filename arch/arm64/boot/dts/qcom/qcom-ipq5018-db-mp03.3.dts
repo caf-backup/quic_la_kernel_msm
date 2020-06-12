@@ -279,3 +279,7 @@
 		qrtr_instance_id = <0x20>;
 	};
 };
+
+&wifi3 {
+        status = "ok";
+};
