@@ -21,6 +21,8 @@
 #include <linux/reset.h>
 #include <linux/iopoll.h>
 #include <linux/usb/msm_hsusb.h>
+#include <linux/regmap.h>
+#include <linux/mfd/syscon.h>
 
 #include "core.h"
 #include "gadget.h"
@@ -79,6 +81,9 @@ struct dwc3_qcom {
 	struct dbm		*dbm;
 	const struct usb_ep_ops *original_ep_ops[DWC3_ENDPOINTS_NUM];
 	struct list_head req_complete_list;
+	bool			phy_mux;
+	struct regmap		*phy_mux_map;
+	u32			phy_mux_reg;
 };
 
 struct dwc3_msm_req_complete {
@@ -492,6 +497,37 @@ static int dwc3_qcom_clk_init(struct dwc3_qcom *qcom, int count)
 	return 0;
 }
 
+static int dwc3_qcom_phy_sel(struct dwc3_qcom *qcom)
+{
+	struct of_phandle_args args;
+	int ret;
+
+	ret = of_parse_phandle_with_fixed_args(qcom->dev->of_node,
+			"qcom,phy-mux-regs", 1, 0, &args);
+	if (ret) {
+		dev_err(qcom->dev, "failed to parse qcom,phy-mux-regs\n");
+		return ret;
+	}
+
+	qcom->phy_mux_map = syscon_node_to_regmap(args.np);
+	of_node_put(args.np);
+	if (IS_ERR(qcom->phy_mux_map)) {
+		pr_err("phy mux regs map failed:%ld\n",
+						PTR_ERR(qcom->phy_mux_map));
+		return PTR_ERR(qcom->phy_mux_map);
+	}
+
+	qcom->phy_mux_reg = args.args[0];
+	/*usb phy mux sel*/
+	ret = regmap_write(qcom->phy_mux_map, qcom->phy_mux_reg, 0x1);
+	if (ret) {
+		dev_err(qcom->dev,
+			"Not able to configure phy mux selection:%d\n", ret);
+		return ret;
+	}
+	return 0;
+}
+
 static int dwc3_qcom_probe(struct platform_device *pdev)
 {
 	struct device_node	*np = pdev->dev.of_node, *dwc3_np;
@@ -507,6 +543,11 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, qcom);
 	qcom->dev = &pdev->dev;
+
+	qcom->phy_mux = device_property_read_bool(dev,
+				"qcom,multiplexed-phy");
+	if (qcom->phy_mux)
+		dwc3_qcom_phy_sel(qcom);
 
 #if defined(CONFIG_IPQ_DWC3_QTI_EXTCON)
 	INIT_WORK(&qcom->vbus_work, dwc3_otg_start_peripheral);
@@ -670,6 +711,14 @@ static int dwc3_qcom_remove(struct platform_device *pdev)
 
 	if (!IS_ERR(qcom->resets))
 		reset_control_assert(qcom->resets);
+
+	if (qcom->phy_mux) {
+		/*usb phy mux deselection*/
+		int ret = regmap_write(qcom->phy_mux_map, qcom->phy_mux_reg, 0x0);
+		if (ret)
+			dev_err(qcom->dev,
+				"Not able to configure phy mux selection:%d\n", ret);
+	}
 
 	pm_runtime_allow(dev);
 	pm_runtime_disable(dev);
