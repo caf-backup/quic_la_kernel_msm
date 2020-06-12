@@ -537,7 +537,8 @@ struct frag_queue {
 	u8			ecn;
 };
 
-void ip6_expire_frag_queue(struct net *net, struct frag_queue *fq);
+void ip6_expire_frag_queue(struct net *net, struct frag_queue *fq,
+			   struct inet_frags *frags);
 
 static inline bool ipv6_addr_any(const struct in6_addr *a)
 {

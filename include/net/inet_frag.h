@@ -13,7 +13,6 @@ struct netns_frags {
 	int			timeout;
 	int			high_thresh;
 	int			low_thresh;
-	struct inet_frags	*f;
 };
 
 /**
@@ -117,20 +116,21 @@ static inline void inet_frags_uninit_net(struct netns_frags *nf)
 {
 	percpu_counter_destroy(&nf->mem);
 }
-void inet_frags_exit_net(struct netns_frags *nf);
 
-void inet_frag_kill(struct inet_frag_queue *q);
-void inet_frag_destroy(struct inet_frag_queue *q);
+void inet_frags_exit_net(struct netns_frags *nf, struct inet_frags *f);
+
+void inet_frag_kill(struct inet_frag_queue *q, struct inet_frags *f);
+void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f);
 struct inet_frag_queue *inet_frag_find(struct netns_frags *nf,
 		struct inet_frags *f, void *key, unsigned int hash);
 
 void inet_frag_maybe_warn_overflow(struct inet_frag_queue *q,
 				   const char *prefix);
 
-static inline void inet_frag_put(struct inet_frag_queue *q)
+static inline void inet_frag_put(struct inet_frag_queue *q, struct inet_frags *f)
 {
 	if (atomic_dec_and_test(&q->refcnt))
-		inet_frag_destroy(q);
+		inet_frag_destroy(q, f);
 }
 
 static inline bool inet_frag_evicting(struct inet_frag_queue *q)

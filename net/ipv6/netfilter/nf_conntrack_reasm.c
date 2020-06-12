@@ -184,7 +184,7 @@ static void nf_ct_frag6_expire(unsigned long data)
 	fq = container_of((struct inet_frag_queue *)data, struct frag_queue, q);
 	net = container_of(fq->q.net, struct net, nf_frag.frags);
 
-	ip6_expire_frag_queue(net, fq);
+	ip6_expire_frag_queue(net, fq, &nf_frags);
 }
 
 /* Creation primitives. */
@@ -362,7 +362,7 @@ found:
 	return 0;
 
 discard_fq:
-	inet_frag_kill(&fq->q);
+	inet_frag_kill(&fq->q, &nf_frags);
 err:
 	return -1;
 }
@@ -383,7 +383,7 @@ nf_ct_frag6_reasm(struct frag_queue *fq, struct net_device *dev)
 	int    payload_len;
 	u8 ecn;
 
-	inet_frag_kill(&fq->q);
+	inet_frag_kill(&fq->q, &nf_frags);
 
 	WARN_ON(head == NULL);
 	WARN_ON(NFCT_FRAG6_CB(head)->offset != 0);
@@ -630,7 +630,7 @@ struct sk_buff *nf_ct_frag6_gather(struct net *net, struct sk_buff *skb, u32 use
 	if (nf_ct_frag6_queue(fq, clone, fhdr, nhoff) < 0) {
 		spin_unlock_bh(&fq->q.lock);
 		pr_debug("Can't insert skb to queue\n");
-		inet_frag_put(&fq->q);
+		inet_frag_put(&fq->q, &nf_frags);
 		goto ret_orig;
 	}
 
@@ -642,7 +642,7 @@ struct sk_buff *nf_ct_frag6_gather(struct net *net, struct sk_buff *skb, u32 use
 	}
 	spin_unlock_bh(&fq->q.lock);
 
-	inet_frag_put(&fq->q);
+	inet_frag_put(&fq->q, &nf_frags);
 	return ret_skb;
 
 ret_orig:
@@ -671,8 +671,6 @@ static int nf_ct_net_init(struct net *net)
 	net->nf_frag.frags.high_thresh = IPV6_FRAG_HIGH_THRESH;
 	net->nf_frag.frags.low_thresh = IPV6_FRAG_LOW_THRESH;
 	net->nf_frag.frags.timeout = IPV6_FRAG_TIMEOUT;
-	net->nf_frag.frags.f = &nf_frags;
-
 	res = inet_frags_init_net(&net->nf_frag.frags);
 	if (res)
 		return res;
@@ -685,7 +683,7 @@ static int nf_ct_net_init(struct net *net)
 static void nf_ct_net_exit(struct net *net)
 {
 	nf_ct_frags6_sysctl_unregister(net);
-	inet_frags_exit_net(&net->nf_frag.frags);
+	inet_frags_exit_net(&net->nf_frag.frags, &nf_frags);
 }
 
 static struct pernet_operations nf_ct_net_ops = {
