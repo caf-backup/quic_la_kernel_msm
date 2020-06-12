@@ -1199,8 +1199,10 @@ static struct clk_fixed_factor eud_at_clk_src = {
 };
 
 static const struct freq_tbl ftbl_qpic_io_macro_clk_src[] = {
-	F(320000000, P_GPLL0, 1, 2, 5),
-	{ }
+	F(24000000, P_XO, 1, 0, 0),
+	F(100000000, P_GPLL0, 8, 0, 0),
+	F(200000000, P_GPLL0, 4, 0, 0),
+	F(320000000, P_GPLL0, 0, 2, 5),
 };
 
 static struct clk_rcg2 qpic_io_macro_clk_src = {
