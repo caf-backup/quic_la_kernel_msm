@@ -47,6 +47,9 @@
 #define SSCG_CTRL_REG_4		0xa8
 #define SSCG_CTRL_REG_5		0xac
 #define SSCG_CTRL_REG_6		0xb0
+#define CDR_CTRL_REG_1		0x80
+
+#define APB_FIXED_OFFSET	BIT(3)
 
 struct qca_uni_ss_phy {
 	struct phy phy;
@@ -59,8 +62,6 @@ struct qca_uni_ss_phy {
 	unsigned int host;
 	struct clk *pipe_clk;
 	struct clk *phy_cfg_ahb_clk;
-	struct regmap *phy_mux_map;
-	u32 phy_mux_reg;
 };
 
 struct qf_read {
@@ -103,13 +104,6 @@ static int qca_uni_ss_phy_shutdown(struct phy *x)
 	/* assert SS PHY POR reset */
 	reset_control_assert(phy->por_rst);
 
-	if (phy->phy_mux_reg) {
-		ret = regmap_write(phy->phy_mux_map, phy->phy_mux_reg, 0x0);
-		if (ret)
-			dev_err(phy->dev,
-				"Not able to configure phy mux selection:%d\n",
-				ret);
-	}
 	return ret;
 }
 
@@ -195,7 +189,7 @@ int qca_uni_ss_phy_usb_los_calibration(void __iomem *base)
 
 static int qca_uni_ss_phy_init(struct phy *x)
 {
-	int ret;
+	int ret, val;
 	struct qca_uni_ss_phy *phy = phy_get_drvdata(x);
 	const char *compat_name;
 
@@ -204,15 +198,6 @@ static int qca_uni_ss_phy_init(struct phy *x)
 	if (ret) {
 		dev_err(phy->dev, "couldn't compatible string: %d\n", ret);
 		return ret;
-	}
-
-	if (!strcmp(compat_name, "qca,ipq5018-uni-ssphy")) {
-		/*usb phy mux sel*/
-		ret = regmap_write(phy->phy_mux_map, phy->phy_mux_reg, 0x1);
-		if (ret)
-			dev_err(phy->dev,
-				"Not able to configure phy mux selection:%d\n",
-				ret);
 	}
 
 	/* assert SS PHY POR reset */
@@ -235,6 +220,10 @@ static int qca_uni_ss_phy_init(struct phy *x)
 		/*set fstep*/
 		qca_uni_ss_write(phy->base, SSCG_CTRL_REG_1, 0x1);
 		qca_uni_ss_write(phy->base, SSCG_CTRL_REG_2, 0xeb);
+
+		val = qca_uni_ss_read(phy->base, CDR_CTRL_REG_1);
+		val |= APB_FIXED_OFFSET;
+		qca_uni_ss_write(phy->base, CDR_CTRL_REG_1, val);
 	} else  /* USB LOS Calibration */
 		ret = qca_uni_ss_phy_usb_los_calibration(phy->base);
 
@@ -248,7 +237,6 @@ static int qca_uni_ss_get_resources(struct platform_device *pdev,
 	struct device_node *np = NULL;
 	const char *compat_name;
 	int ret;
-	struct of_phandle_args args;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	phy->base = devm_ioremap_resource(phy->dev, res);
@@ -279,20 +267,6 @@ static int qca_uni_ss_get_resources(struct platform_device *pdev,
 			dev_err(phy->dev, "can not get phy ahb clock\n");
 			return PTR_ERR(phy->phy_cfg_ahb_clk);
 		}
-
-		ret = of_parse_phandle_with_fixed_args(pdev->dev.of_node,
-				"qcom,phy-mux-regs", 1, 0, &args);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "failed to parse qcom,phy-mux-regs\n");
-			return -EINVAL;
-		}
-
-		phy->phy_mux_map = syscon_node_to_regmap(args.np);
-		of_node_put(args.np);
-		if (IS_ERR(phy->phy_mux_map))
-			return PTR_ERR(phy->phy_mux_map);
-
-		phy->phy_mux_reg = args.args[0];
 	} else {
 		if (of_property_read_u32(np, "qca,host", &phy->host)) {
 			pr_err("%s: error reading critical device node properties\n",

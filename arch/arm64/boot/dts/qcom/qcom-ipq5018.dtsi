@@ -800,7 +800,6 @@
 			resets =  <&gcc GCC_USB0_PHY_BCR>;
 			reset-names = "por_rst";
 			#phy-cells = <0>;
-			qcom,phy-mux-regs = <&tcsr_q6_block 0x2540>;
 			status = "disabled";
 		};
 
