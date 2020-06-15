@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2018, 2020 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -214,7 +214,21 @@ int __qcom_scm_tls_hardening(struct device *dev,
 			    struct scm_cmd_buf_t *scm_cmd_buf,
 			    size_t buf_size, u32 cmd_id)
 {
-	return -ENOTSUPP;
+	int ret = 0;
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+
+	desc.arginfo = SCM_ARGS(4, SCM_RW, SCM_VAL, SCM_RW, SCM_VAL);
+
+	desc.args[0] = scm_cmd_buf->req_addr;
+	desc.args[1] = scm_cmd_buf->req_size;
+	desc.args[2] = scm_cmd_buf->resp_addr;
+	desc.args[3] = scm_cmd_buf->resp_size;
+
+	ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, TZ_SVC_CRYPTO, cmd_id,
+			    &desc, &res);
+
+	return ret ? : res.a1;
 }
 
 int __qcom_scm_get_feat_version(struct device *dev, u32 feat, u64 *version)
@@ -879,6 +893,21 @@ int __qcom_scm_tz_register_log_buf(struct device *dev,
 	response->data = res.a3;
 
 	return ret;
+}
+
+int __qcom_scm_tcsr_reg_write(struct device *dev, u32 arg1, u32 arg2)
+{
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+	int ret;
+
+	desc.args[0] = arg1;
+	desc.args[1] = arg2;
+	desc.arginfo = SCM_ARGS(2, SCM_VAL, SCM_VAL);
+	ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, SCM_SVC_IO_ACCESS,
+			    SCM_IO_WRITE, &desc, &res);
+
+	return ret ? : res.a1;
 }
 
 

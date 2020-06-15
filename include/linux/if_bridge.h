@@ -68,6 +68,7 @@ extern void br_fdb_update_unregister_notify(struct notifier_block *nb);
 
 typedef int br_should_route_hook_t(struct sk_buff *skb);
 extern br_should_route_hook_t __rcu *br_should_route_hook;
+extern bool br_is_hairpin_enabled(struct net_device *dev);
 
 #if IS_ENABLED(CONFIG_BRIDGE) && IS_ENABLED(CONFIG_BRIDGE_IGMP_SNOOPING)
 int br_multicast_list_adjacent(struct net_device *dev,

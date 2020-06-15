@@ -2213,7 +2213,7 @@ static int nandc_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 				(oob_size2 << READ_LOCATION_SIZE) |
 				(1 << READ_LOCATION_LAST));
 #if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
-			if (i == (ecc->steps - 1))
+			if (i == (last_step - 1))
 				nandc->ps_mp_flag |= PAGE_SCOPE_MULTI_PAGE_CMD_EXE;
 #endif
 			config_bam_cw_read(nandc, false);
@@ -2786,8 +2786,8 @@ static int qcom_nandc_read_multi_page(struct mtd_info *mtd, struct nand_chip *ch
 				status_buf_parse_size);
 
 		if (!ret)
-			ret = parse_read_errors(host, data_buf_start, oob_buf_start,
-					false, page);
+			ret = parse_read_errors(host, data_buf_start + j * mtd->writesize, oob_buf_start,
+					false, page + j);
 	}
 
 	return ret;

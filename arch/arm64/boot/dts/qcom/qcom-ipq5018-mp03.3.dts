@@ -26,20 +26,20 @@
 	aliases {
 		sdhc1 = &sdhc_1; /* SDC1 eMMC slot */
 		serial0 = &blsp1_uart1;
+		serial1 = &blsp1_uart2;
 	};
 
 	chosen {
 		linux,initrd-end = <0x46000000>;
 		linux,initrd-start = <0x44000000>;
 		bootargs = "root=/dev/ram0 rw init=/init";
+		bootargs-append = " clk_ignore_unused";
 		stdout-path = "serial0";
+		ethernet0 = "/soc/dp1";
+		ethernet1 = "/soc/dp2";
 	};
 
 	soc {
-		gcc: gcc@1800000 {
-			gcc-use-dummy;
-		};
-
 		serial@78af000 {
 			status = "ok";
 		};
@@ -98,10 +98,13 @@
 					port@0 {
 						port_id = <1>;
 						phy_address = <7>;
+						mdiobus = <&mdio0>;
 					};
 					port@1 {
 						port_id = <2>;
 						phy_address = <0x1c>;
+						mdiobus = <&mdio1>;
+						port_mac_sel = "QGMAC_PORT";
 					};
 				};
 			};
@@ -109,6 +112,34 @@
 
 		wifi0: wifi@c000000 {
 			status = "disabled";
+		};
+
+		dp1 {
+			device_type = "network";
+			compatible = "qcom,nss-dp";
+			qcom,id = <1>;
+			reg = <0x39C00000 0x10000>;
+			interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+			qcom,mactype = <2>;
+			qcom,link-poll = <1>;
+			qcom,phy-mdio-addr = <7>;
+			mdio-bus = <&mdio0>;
+			local-mac-address = [000000000000];
+			phy-mode = "sgmii";
+		};
+
+		dp2 {
+			device_type = "network";
+			compatible = "qcom,nss-dp";
+			qcom,id = <2>;
+			reg = <0x39D00000 0x10000>;
+			interrupts = <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
+			qcom,mactype = <2>;
+			qcom,link-poll = <1>;
+			qcom,phy-mdio-addr = <28>;
+			mdio-bus = <&mdio1>;
+			local-mac-address = [000000000000];
+			phy-mode = "sgmii";
 		};
 
 		qcom,test@0 {
@@ -136,7 +167,7 @@
 };
 
 &tlmm {
-	pinctrl-0 = <&blsp0_uart_pins>;
+	pinctrl-0 = <&blsp0_uart_pins &blsp1_uart_pins>;
 	pinctrl-names = "default";
 
 	blsp0_uart_pins: uart_pins {
@@ -149,7 +180,7 @@
 
 	blsp1_uart_pins: blsp1_uart_pins {
 		blsp1_uart_rx_tx {
-			pins = "gpio23", "gpio25";
+			pins = "gpio23", "gpio25", "gpio24", "gpio26";
 			function = "blsp1_uart2";
 			bias-disable;
 		};
@@ -165,6 +196,12 @@
 	};
 
 	qspi_nand_pins: qspi_nand_pins {
+		qspi_clock {
+				pins = "gpio9";
+				function = "qspi_clk";
+				drive-strength = <8>;
+				bias-disable;
+			};
 		qspi_cs {
 				pins = "gpio8";
 				function = "qspi_cs";
@@ -224,22 +261,22 @@
 
 &pcie_x1 {
 	status = "ok";
-	perst-gpio = <&tlmm 15 1>;
+	perst-gpio = <&tlmm 18 1>;
 };
 
 &pcie_x2 {
 	status = "ok";
-	perst-gpio = <&tlmm 18 1>;
+	perst-gpio = <&tlmm 15 1>;
 };
 
 &dwc_0 {
-	/delete-property/ snps,quirk-ref-clock-adjustment;
-	snps,quirk-ref-clock-period = <0x32>;
-	qcom,emulation = <1>;
+	/delete-property/ #phy-cells;
+	/delete-property/ phys;
+	/delete-property/ phy-names;
 };
 
 &hs_m31phy_0 {
-	status = "disabled";
+	status = "ok";
 };
 
 &pcie_x1phy {
@@ -247,5 +284,5 @@
 };
 
 &pcie_x2phy {
-	status = "disabled";
+	status = "ok";
 };

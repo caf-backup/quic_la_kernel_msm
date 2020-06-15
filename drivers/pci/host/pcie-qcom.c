@@ -155,6 +155,7 @@
 #define PCIE20_LNK_CONTROL2_LINK_STATUS2        0xA0
 #define PCIE_CAP_CURR_DEEMPHASIS		BIT(16)
 #define SPEED_GEN1				0x1
+#define SPEED_GEN2				0x2
 #define SPEED_GEN3				0x3
 #define PCIE_CAP_TARGET_LINK_SPEED_MASK		__mask(3, 0)
 
@@ -298,6 +299,7 @@ struct qcom_pcie {
 	struct work_struct handle_wake_work;
 	struct work_struct handle_e911_work;
 	uint32_t force_gen1;
+	uint32_t force_gen2;
 	u32 is_emulation;
 	u32 use_delay;
 	u32 link_retries_count;
@@ -1398,8 +1400,11 @@ static int qcom_pcie_init_v3(struct qcom_pcie *pcie)
 	writel(PCIE_CAP_CPL_TIMEOUT_DISABLE, pcie->dbi +
 		PCIE20_DEVICE_CONTROL2_STATUS2);
 
-	if (pcie->is_gen3)
+	if (pcie->is_gen3 && !pcie->force_gen2)
 		writel_relaxed(PCIE_CAP_CURR_DEEMPHASIS | SPEED_GEN3,
+			pcie->dbi + PCIE20_LNK_CONTROL2_LINK_STATUS2);
+	else if (pcie->force_gen2)
+		writel_relaxed(PCIE_CAP_CURR_DEEMPHASIS | SPEED_GEN2,
 			pcie->dbi + PCIE20_LNK_CONTROL2_LINK_STATUS2);
 
 	if (pcie->force_gen1) {
@@ -1792,6 +1797,7 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	struct pcie_port *pp;
 	int ret;
 	uint32_t force_gen1 = 0;
+	uint32_t force_gen2 = 0;
 	struct device_node *np = pdev->dev.of_node;
 	u32 is_emulation = 0;
 	u32 use_delay = 0;
@@ -1827,6 +1833,9 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 
 	of_property_read_u32(np, "force_gen1", &force_gen1);
 	pcie->force_gen1 = force_gen1;
+
+	of_property_read_u32(np, "force_gen2", &force_gen2);
+	pcie->force_gen2 = force_gen2;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
 	pcie->dbi = devm_ioremap_resource(dev, res);

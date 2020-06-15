@@ -112,6 +112,7 @@ struct q6v5_wcss {
 	struct reset_control *wcss_aon_reset;
 	struct reset_control *wcss_reset;
 	struct reset_control *wcss_q6_reset;
+	struct reset_control *ce_reset;
 
 	struct qcom_q6v5 q6v5;
 
@@ -182,7 +183,8 @@ static const char *wcss_clk_names[] = {"gcc_q6_axis_clk",
 					"gcc_q6_axim_clk",
 					"gcc_q6_axim2_clk",
 					"gcc_q6_ahb_clk",
-					"gcc_q6_ahb_s_clk"};
+					"gcc_q6_ahb_s_clk",
+					"gcc_wcss_axi_s_clk"};
 
 static struct clk *g_wcss_clks[NUM_WCSS_CLKS] = {NULL};
 
@@ -778,7 +780,6 @@ static int q6v5_wcss_reset(struct q6v5_wcss *wcss)
 static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 {
 	u32 val;
-	struct q6_platform_data *pdata = dev_get_platdata(wcss->dev);
 	int ret;
 	int temp = 0;
 	unsigned int cookie;
@@ -787,6 +788,13 @@ static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 	ret = reset_control_assert(wcss->wcss_q6_reset);
 	if (ret) {
 		dev_err(wcss->dev, "wcss_q6_reset failed\n");
+		return;
+	}
+
+	/* AON Reset */
+	ret = reset_control_deassert(wcss->wcss_aon_reset);
+	if (ret) {
+		dev_err(wcss->dev, "wcss_aon_reset failed\n");
 		return;
 	}
 
@@ -818,22 +826,19 @@ static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 		return;
 	}
 
-	if (pdata->emulation) {
-		/*Disable clock gating*/
-		regmap_update_bits(wcss->halt_map,
-				wcss->halt_nc + TCSR_GLOBAL_CFG0,
-				1, 0x1);
-
-		/*Secure access to WIFI phy register*/
-		regmap_update_bits(wcss->halt_map,
-				wcss->halt_nc + TCSR_GLOBAL_CFG1,
-				TCSR_WCSS_CLK_MASK,
-				0x18);
-	 }
+	/*Secure access to WIFI phy register*/
+	regmap_update_bits(wcss->halt_map,
+			wcss->halt_nc + TCSR_GLOBAL_CFG1,
+			TCSR_WCSS_CLK_MASK,
+			0x18);
 
 	/*Disable Q6 AXI2 select*/
 	regmap_update_bits(wcss->halt_map,
 			wcss->halt_nc + TCSR_GLOBAL_CFG0, 0x40, 0xF0);
+
+	/*wcss axib ib status*/
+	regmap_update_bits(wcss->halt_map,
+			wcss->halt_nc + TCSR_GLOBAL_CFG0, 0x100, 0x100);
 
 	/*Enable global counter for qtimer*/
 	if (wcss->mpm_base && !qcom_scm_is_available())
@@ -859,11 +864,6 @@ static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 		val &= ~(1<<1);
 		writel(val, wcss->rmb_base + SSCAON_CONFIG);
 
-		ret = reset_control_deassert(wcss->wcss_aon_reset);
-		if (ret) {
-			dev_err(wcss->dev, "wcss_aon_reset failed\n");
-			return;
-		}
 		/* Wait for SSCAON_STATUS */
 		val = readl(wcss->rmb_base + SSCAON_STATUS);
 		ret = readl_poll_timeout(wcss->rmb_base + SSCAON_STATUS,
@@ -873,6 +873,13 @@ static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 			dev_err(wcss->dev, " Boot Error, SSCAON=0x%08X\n", val);
 			return;
 		}
+	}
+
+	/*Deassert ce reset*/
+	ret = reset_control_deassert(wcss->ce_reset);
+	if (ret) {
+		dev_err(wcss->dev, "ce_reset failed\n");
+		return;
 	}
 
 	if (qcom_scm_is_available()) {
@@ -1136,6 +1143,10 @@ static void q6v6_q6_powerdown(struct q6v5_wcss *wcss)
 	int ret;
 	unsigned int cookie;
 
+	/*Assert ce reset*/
+	reset_control_assert(wcss->ce_reset);
+	mdelay(2);
+
 	/*Disable clocks*/
 	ret = wcss_clks_prepare_disable(wcss->dev, 1, NUM_WCSS_CLKS);
 	if (ret) {
@@ -1349,6 +1360,14 @@ static int q6v5_wcss_init_reset(struct q6v5_wcss *wcss)
 	if (IS_ERR(wcss->wcss_q6_reset)) {
 		dev_err(wcss->dev, "unable to acquire wcss_q6_reset\n");
 		return PTR_ERR(wcss->wcss_q6_reset);
+	}
+
+	if (of_property_read_bool(dev->of_node, "qcom,q6v6")) {
+		wcss->ce_reset = devm_reset_control_get(dev, "ce_reset");
+		if (IS_ERR(wcss->ce_reset)) {
+			dev_err(wcss->dev, "unable to acquire ce_reset\n");
+			return PTR_ERR(wcss->ce_reset);
+		}
 	}
 
 	return 0;

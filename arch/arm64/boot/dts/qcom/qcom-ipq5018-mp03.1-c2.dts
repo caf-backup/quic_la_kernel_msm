@@ -55,7 +55,7 @@
 				pins = "gpio8";
 				function = "sdc1_cmd";
 				drive-strength = <8>;
-				bias-disable;
+				bias-pull-up;
 			};
 		emmc_data_0 {
 				pins = "gpio7";

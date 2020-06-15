@@ -30,14 +30,10 @@
 	chosen {
 		linux,initrd-end = <0x46000000>;
 		linux,initrd-start = <0x44000000>;
-		bootargs = "console=ttyMSM0,115200,n8 root=/dev/ram0 rw init=/init";
+		bootargs = "console=ttyMSM0,115200,n8 root=/dev/ram0 rw init=/init clk_ignore_unused";
 	};
 
 	soc {
-		gcc: gcc@1800000 {
-			gcc-use-dummy;
-		};
-
 		serial@78af000 {
 			status = "ok";
 		};
@@ -71,7 +67,7 @@
 		};
 
 		mdio0: mdio@88000 {
-			status = "disabled";
+			status = "ok";
 
 			ethernet-phy@0 {
 				reg = <7>;
@@ -79,9 +75,9 @@
 		};
 
 		mdio1: mdio@90000 {
-			status = "disabled";
-			/* pinctrl-0 = <&mdio1_pins>;
-			pinctrl-names = "default"; */
+			status = "ok";
+			pinctrl-0 = <&mdio1_pins>;
+			pinctrl-names = "default";
 			phy-reset-gpio = <&tlmm 39 0>;
 			ethernet-phy@0 {
 				reg = <0>;
@@ -101,10 +97,8 @@
 		};
 
 		ess-instance {
-			status = "disabled";
 			num_devices = <0x2>;
 			ess-switch@0x39c00000 {
-				status = "disabled";
 				compatible = "qcom,ess-switch-ipq50xx";
 				device_id = <0>;
 				switch_mac_mode = <0xf>; /* mac mode for uniphy instance*/
@@ -121,11 +115,10 @@
 				};
 			};
 			ess-switch1@1 {
-				status = "disabled";
 				compatible = "qcom,ess-switch-qca83xx";
 				device_id = <1>;
 				switch_access_mode = "mdio";
-				/* mdio-bus = <&mdio1>; */
+				mdio-bus = <&mdio1>;
 				switch_cpu_bmp = <0x40>;  /* cpu port bitmap */
 				switch_lan_bmp = <0x1e>; /* lan port bitmap */
 				switch_wan_bmp = <0x0>;  /* wan port bitmap */
@@ -133,6 +126,7 @@
 						0x00004 0x7600000   /* PAD0_MODE */
 						0x00008 0x1000000   /* PAD5_MODE */
 						0x0000c 0x80        /* PAD6_MODE */
+						0x00010 0x2613a0    /* PORT6 FORCE MODE*/
 						0x000e4 0xaa545     /* MAC_POWER_SEL */
 						0x000e0 0xc74164de  /* SGMII_CTRL */
 						0x0007c 0x4e        /* PORT0_STATUS */
@@ -163,8 +157,29 @@
 			status = "disabled";
 		};
 
-		nss-common {
-			status = "disabled";
+		dp1 {
+			device_type = "network";
+			compatible = "qcom,nss-dp";
+			qcom,id = <1>;
+			reg = <0x39C00000 0x10000>;
+			interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+			qcom,mactype = <2>;
+			qcom,link-poll = <1>;
+			qcom,phy-mdio-addr = <7>;
+			mdio-bus = <&mdio0>;
+			local-mac-address = [000000000000];
+			phy-mode = "sgmii";
+		};
+
+		dp2 {
+			device_type = "network";
+			compatible = "qcom,nss-dp";
+			qcom,id = <2>;
+			reg = <0x39D00000 0x10000>;
+			interrupts = <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
+			qcom,mactype = <2>;
+			local-mac-address = [000000000000];
+			phy-mode = "sgmii";
 		};
 
 		ess-uniphy@98000 {
@@ -180,7 +195,7 @@
 		};
 
 		qcom,diag@0 {
-			status = "disabled";
+			status = "ok";
 		};
 
 		pcie_x1_rp {
@@ -193,7 +208,7 @@
 		};
 
 		pcie_x2_rp {
-		        status = "disabled";
+			status = "ok";
 
 			mhi_1: qcom,mhi@1 {
 				reg = <0 0 0 0 0 >;
@@ -217,12 +232,18 @@
 	cpus {
 		CPU0: cpu@0 {
 			enable-method = "qcom,arm-cortex-acc";
+			/delete-property/ clocks;
+			/delete-property/ clock-names;
 			/delete-property/ operating-points;
+			/delete-property/ clock-latency;
 		};
 
 		CPU1: cpu@1 {
 			enable-method = "qcom,arm-cortex-acc";
+			/delete-property/ clocks;
+			/delete-property/ clock-names;
 			/delete-property/ operating-points;
+			/delete-property/ clock-latency;
 		};
 	};
 
@@ -238,18 +259,20 @@
 };
 
 &sdhc_1 {
+	pinctrl-0 = <&emmc_pins>;
+	pinctrl-names = "default";
 	qcom,clk-rates = <400000 25000000 50000000 100000000 \
 			 192000000 384000000>;
-	qcom,bus-speed-mode = "DDR_1p8v";
+	qcom,bus-speed-mode = "HS200_1p8v", "DDR_1p8v";
 	qcom,nonremovable;
-	status = "disabled";
+	status = "ok";
 };
 
 &tlmm {
-	pinctrl-0 = <&uart_pins>;
+	pinctrl-0 = <&blsp0_uart_pins &blsp1_uart_pins>;
 	pinctrl-names = "default";
 
-	uart_pins: uart_pins {
+	blsp0_uart_pins: blsp0_uart_pins {
 		uart_rx_tx {
 			pins = "gpio20", "gpio21";
 			function = "blsp0_uart0";
@@ -257,7 +280,54 @@
 		};
 	};
 
-	/* blsp0_spi_pins: blsp0_spi_pins {
+	blsp1_uart_pins: blsp1_uart_pins {
+		uart_rx_tx {
+			pins = "gpio23", "gpio25", "gpio24", "gpio26";
+			function = "blsp1_uart2";
+			bias-disable;
+		};
+	};
+
+	emmc_pins: emmc_pins {
+		emmc_clk {
+				pins = "gpio9";
+				function = "sdc1_clk";
+				drive-strength = <8>;
+				bias-pull-down;
+			};
+		emmc_cmd {
+				pins = "gpio8";
+				function = "sdc1_cmd";
+				drive-strength = <8>;
+				bias-pull-up;
+			};
+		emmc_data_0 {
+				pins = "gpio7";
+				function = "sdc10";
+				drive-strength = <8>;
+				bias-pull-down;
+			};
+		emmc_data_1 {
+				pins = "gpio6";
+				function = "sdc11";
+				drive-strength = <8>;
+				bias-pull-down;
+			};
+		emmc_data_2 {
+				pins = "gpio5";
+				function = "sdc12";
+				drive-strength = <8>;
+				bias-pull-down;
+			};
+		emmc_data_3 {
+				pins = "gpio4";
+				function = "sdc13";
+				drive-strength = <8>;
+				bias-pull-down;
+			};
+	};
+
+	blsp0_spi_pins: blsp0_spi_pins {
 		mux {
 			pins = "gpio10", "gpio11", "gpio12", "gpio13";
 			function = "blsp0_spi";
@@ -313,11 +383,11 @@
 			drive-strength = <8>;
 			bias-pull-up;
 		};
-	}; */
+	};
 };
 
 &usb3 {
-	status = "disabled";
+	status = "ok";
 };
 
 &eud {
@@ -326,12 +396,12 @@
 
 &pcie_x1 {
 	status = "disabled";
-	perst-gpio = <&tlmm 15 1>;
+	perst-gpio = <&tlmm 18 1>;
 };
 
 &pcie_x2 {
-	status = "disabled";
-	perst-gpio = <&tlmm 18 1>;
+	status = "ok";
+	perst-gpio = <&tlmm 15 1>;
 };
 
 &qcom_rng {
@@ -339,26 +409,15 @@
 };
 
 &bt {
-	status = "disabled";
+	status = "ok";
 };
 
 &tzlog {
 	status = "disabled";
 };
 
-&nss0 {
-	status = "disabled";
-};
-
-&nss_crypto {
-	status = "disabled";
-	ce5_node {
-		status = "disabled";
-	};
-};
-
 &wcss {
-	status = "disabled";
+	status = "ok";
 };
 
 &q6v5_wcss {
@@ -370,27 +429,28 @@
 };
 
 &tcsr_mutex_block {
-	status = "disabled";
+	status = "ok";
 };
 
 &tcsr_mutex {
-	status = "disabled";
+	status = "ok";
 };
 
 &smem {
-	status = "disabled";
+	status = "ok";
 };
 
 &apcs_glb {
-	status = "disabled";
+	status = "ok";
 };
 
 &tcsr_q6_block {
-	status = "disabled";
+	status = "ok";
 };
 
 &qcom_q6v5_wcss {
-	status = "disabled";
+	qcom,nosecure;
+	status = "ok";
 };
 
 &wifi0 {
@@ -402,7 +462,7 @@
 };
 
 &dbm_1p5 {
-	status = "disabled";
+	status = "ok";
 };
 
 &tsens {
@@ -562,11 +622,11 @@
 };
 
 &ssuniphy_0 {
-	status = "disabled";
+	status = "ok";
 };
 
 &hs_m31phy_0 {
-	status = "disabled";
+	status = "ok";
 };
 
 &pcie_x1phy {
@@ -574,9 +634,17 @@
 };
 
 &pcie_x2phy {
-	status = "disabled";
+	status = "ok";
 };
 
 &watchdog {
 	status = "disabled";
+};
+
+&apss_clk {
+	status = "disabled";
+};
+
+&dwc_0 {
+	dr_mode = "peripheral";
 };

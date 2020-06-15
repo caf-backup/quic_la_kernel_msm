@@ -835,8 +835,18 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv,
 
 	ret = request_firmware(&fw_entry, filename, &plat_priv->plat_dev->dev);
 	if (ret) {
-		cnss_pr_err("Failed to load BDF: %s\n", filename);
-		goto err_req_fw;
+		/* If caldata download fails, skip caldata sequence and proceed
+		 * without error
+		 */
+		if (bdf_type == CNSS_CALDATA_WIN) {
+			cnss_pr_info("Failed to load CALDATA %s, skipping caldata download\n",
+				     filename);
+			ret = 0;
+			goto out;
+		} else {
+			cnss_pr_err("Failed to load BDF: %s\n", filename);
+			goto err_req_fw;
+		}
 	}
 
 	temp = fw_entry->data;
@@ -942,6 +952,7 @@ err_req_fw:
 		   QMI_WLFW_BDF_DOWNLOAD_REQ_V01, ret, resp_error_msg);
 	if (bdf_type != CNSS_BDF_REGDB)
 		CNSS_ASSERT(0);
+out:
 	kfree(req);
 	kfree(resp);
 
@@ -2327,13 +2338,17 @@ static int cnss_wlfw_connect_to_server(struct cnss_plat_data *plat_priv,
 				       void *data)
 {
 	struct cnss_qmi_event_server_arrive_data *event_data = data;
-	struct qmi_handle *qmi_wlfw = &plat_priv->qmi_wlfw;
+	struct qmi_handle *qmi_wlfw;
 	struct sockaddr_qrtr sq = { 0 };
 	int ret = 0;
 
 	if (!event_data)
 		return -EINVAL;
 
+	if (!plat_priv)
+		return -ENODEV;
+
+	qmi_wlfw = &plat_priv->qmi_wlfw;
 	sq.sq_family = AF_QIPCRTR;
 	sq.sq_node = event_data->node;
 	sq.sq_port = event_data->port;

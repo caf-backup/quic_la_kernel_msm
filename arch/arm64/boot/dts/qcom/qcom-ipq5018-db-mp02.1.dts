@@ -26,22 +26,24 @@
 	aliases {
 		sdhc1 = &sdhc_1; /* SDC1 eMMC slot */
 		serial0 = &blsp1_uart1;
+		serial1 = &blsp1_uart2;
+		ethernet0 = "/soc/dp1";
+		ethernet1 = "/soc/dp2";
 	};
 
 	chosen {
 		linux,initrd-end = <0x46000000>;
 		linux,initrd-start = <0x44000000>;
 		bootargs = "root=/dev/ram0 rw init=/init";
+		bootargs-append = " clk_ignore_unused";
 		stdout-path = "serial0";
 	};
 
 	soc {
-		gcc: gcc@1800000 {
-			gcc-use-dummy;
-		};
-
 		serial@78af000 {
 			status = "ok";
+			pinctrl-0 = <&blsp0_uart0_pins>;
+			pinctrl-names = "default";
 		};
 
 	spi_0: spi@78b5000 { /* BLSP1 QUP0 */
@@ -130,24 +132,53 @@
 };
 
 &tlmm {
-	pinctrl-0 = <&uart_pins>;
+	pinctrl-0 = <&blsp0_uart_pins &blsp1_uart_pins>;
 	pinctrl-names = "default";
 
-	uart_pins: uart_pins {
+	blsp0_uart_pins: blsp0_uart_pins {
 		blsp0_uart_rx {
 			pins = "gpio28";
 			function = "blsp0_uart1";
 			drive-strength = <8>;
-			input-enable;
-			bias-disable;
-			bias-pull-up;
 		};
 		blsp0_uart_tx {
 			pins = "gpio29";
 			function = "blsp0_uart1";
 			drive-strength = <8>;
+		};
+	};
+
+	blsp1_uart_pins: blsp1_uart_pins {
+		blsp1_uart_rx {
+			pins = "gpio23";
+			function = "blsp1_uart2";
+			drive-strength = <8>;
+			input-enable;
+			bias-disable;
+			bias-pull-up;
+		};
+		blsp1_uart_tx {
+			pins = "gpio25";
+			function = "blsp1_uart2";
+			drive-strength = <8>;
 			bias-disable;
 			output-high;
+			bias-pull-up;
+		};
+		blsp1_uart_rfr {
+			pins = "gpio24";
+			function = "blsp1_uart2";
+			drive-strength = <8>;
+			bias-disable;
+			output-high;
+			bias-pull-up;
+		};
+		blsp1_uart_cts {
+			pins = "gpio26";
+			function = "blsp1_uart2";
+			drive-strength = <8>;
+			bias-disable;
+			input-enable;
 			bias-pull-up;
 		};
 	};
@@ -176,6 +207,19 @@
 			bias-pull-up;
 		};
 	};
+
+	blsp0_uart0_pins: blsp0_uart0_pins {
+		gpio_21 {
+			pins = "gpio21";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+		gpio_20 {
+			pins = "gpio20";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
+	};
 };
 
 &usb3 {
@@ -197,13 +241,13 @@
 };
 
 &dwc_0 {
-	/delete-property/ snps,quirk-ref-clock-adjustment;
-	snps,quirk-ref-clock-period = <0x32>;
-	qcom,emulation = <1>;
+	/delete-property/ #phy-cells;
+	/delete-property/ phys;
+	/delete-property/ phy-names;
 };
 
 &hs_m31phy_0 {
-	status = "disabled";
+	status = "ok";
 };
 
 &pcie_x1phy {

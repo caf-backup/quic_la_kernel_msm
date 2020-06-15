@@ -44,6 +44,8 @@
 # define PLL_VCO_SHIFT		20
 # define PLL_VCO_MASK		0x3
 
+# define PLL_STATUS_REG_SHIFT	8
+
 #define PLL_HUAYRA_M_WIDTH		8
 #define PLL_HUAYRA_M_SHIFT		8
 #define PLL_HUAYRA_M_MASK		0xff
@@ -139,7 +141,7 @@ static int wait_for_pll(struct clk_alpha_pll *pll, u32 mask, bool inverse,
 void clk_alpha_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
 			     const struct alpha_pll_config *config)
 {
-	u32 val, mask;
+	u32 val, val_u, mask, mask_u;
 
 	regmap_write(regmap, PLL_L_REG(pll), config->l);
 	regmap_write(regmap, PLL_ALPHA_REG(pll), config->alpha);
@@ -173,6 +175,16 @@ void clk_alpha_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
 	mask |= config->alpha_mode_mask;
 
 	regmap_update_bits(regmap, PLL_USER_CTL_REG(pll), mask, val);
+
+	/* Stromer APSS PLL does not enable LOCK_DET by default, so enable it */
+	val_u = config->status_reg_val << PLL_STATUS_REG_SHIFT;
+	val_u |= config->lock_det;
+
+	mask_u = config->status_reg_mask;
+	mask_u |= config->lock_det;
+
+	if (val_u != 0)
+		regmap_update_bits(regmap, PLL_USER_CTL_U_REG(pll), mask_u, val_u);
 
 	if (config->test_ctl_val != 0)
 		regmap_write(regmap, PLL_TEST_CTL_REG(pll), config->test_ctl_val);
@@ -717,9 +729,41 @@ static int clk_alpha_pll_brammo_set_rate(struct clk_hw *hw, unsigned long rate,
 }
 
 static unsigned long
+alpha_pll_stromer_calc_rate(u64 prate, u32 l, u64 a)
+{
+	return (prate * l) + ((prate * a) >> ALPHA_REG_BITWIDTH);
+}
+
+static unsigned long
+alpha_pll_stromer_round_rate(unsigned long rate, unsigned long prate, u32 *l, u64 *a)
+{
+	u64 remainder;
+	u64 quotient;
+
+	quotient = rate;
+	remainder = do_div(quotient, prate);
+	*l = quotient;
+
+	if (!remainder) {
+		*a = 0;
+		return rate;
+	}
+
+	quotient = remainder << ALPHA_REG_BITWIDTH;
+
+	remainder = do_div(quotient, prate);
+
+	if (remainder)
+		quotient++;
+
+	*a = quotient;
+	return alpha_pll_stromer_calc_rate(prate, *l, *a);
+}
+
+static unsigned long
 clk_alpha_pll_stromer_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 {
-	u32 l, low, high, ctl, alpha_width = ALPHA_REG_BITWIDTH;
+	u32 l, low, high, ctl;
 	u64 a = 0, prate = parent_rate;
 	struct clk_alpha_pll *pll = to_clk_alpha_pll(hw);
 
@@ -730,15 +774,10 @@ clk_alpha_pll_stromer_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 		regmap_read(pll->clkr.regmap, PLL_ALPHA_REG(pll), &low);
 		regmap_read(pll->clkr.regmap, PLL_ALPHA_U_REG(pll),
 			    &high);
-		if (high) {
-			a = (u64)high << ALPHA_BITWIDTH | low;
-			a >>= alpha_width - ALPHA_BITWIDTH;
-		} else {
-			a = low;
-		}
+		a = (u64)high << ALPHA_BITWIDTH | low;
 	}
 
-	return alpha_pll_calc_rate(prate, l, a, alpha_width);
+	return alpha_pll_stromer_calc_rate(prate, l, a);
 }
 
 static int clk_alpha_pll_stromer_determine_rate(struct clk_hw *hw,
@@ -748,8 +787,8 @@ static int clk_alpha_pll_stromer_determine_rate(struct clk_hw *hw,
 	u32 l;
 	u64 a;
 
-	rate = alpha_pll_round_rate(rate, req->best_parent_rate, &l, &a,
-				    ALPHA_REG_BITWIDTH);
+	rate = alpha_pll_stromer_round_rate(rate, req->best_parent_rate, &l, &a);
+
 	return 0;
 }
 
@@ -761,7 +800,7 @@ static int clk_alpha_pll_stromer_set_rate(struct clk_hw *hw, unsigned long rate,
 	int ret;
 	u64 a;
 
-	rate = alpha_pll_round_rate(rate, prate, &l, &a, ALPHA_REG_BITWIDTH);
+	rate = alpha_pll_stromer_round_rate(rate, prate, &l, &a);
 
 	/* Write desired values to registers */
 	regmap_write(pll->clkr.regmap, PLL_L_REG(pll), l);
@@ -775,12 +814,14 @@ static int clk_alpha_pll_stromer_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (!clk_hw_is_enabled(hw))
 		return 0;
 
+        /* Stromer PLL supports Dynamic programming.
+         * It allows the PLL frequency to be changed on-the-fly without first
+         * execution of a shutdown procedure followed by a bring up procedure.
+         */
+
 	regmap_update_bits(pll->clkr.regmap, PLL_MODE_REG(pll), PLL_UPDATE,
 			   PLL_UPDATE);
-	/* Make sure PLL_UPDATE request goes through
-	 * This has the effect of asserting the pll_latch_input signal,
-	 * which triggers the PLL to capture the new L and Alpha settings
-	 */
+	/* Make sure PLL_UPDATE request goes through */
 	mb();
 
 	/* Wait for PLL_UPDATE to be cleared */
@@ -788,9 +829,7 @@ static int clk_alpha_pll_stromer_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (ret)
 		return ret;
 
-	/* Wait 11or more PLL clk_ref ticks.
-	 * When using a reference clock of XO, the wait requirement is 570ns or more
-	 */
+	/* Wait 11or more PLL clk_ref ticks[to be explored more on wait] */
 
 	/* Poll LOCK_DET for one */
 	ret = wait_for_pll_enable_lock(pll);

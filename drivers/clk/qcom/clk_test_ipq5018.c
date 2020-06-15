@@ -53,7 +53,7 @@ static int clk_test_probe(struct platform_device *pdev)
 		}
 		ret_val = reset_control_deassert(temp_reset);
 
-		printk(KERN_ERR "clk-test op %d for %s is %s\n", test, ret_val ? "FAILURE" : "SUCCESS", clk_name);
+		printk(KERN_ERR "clk-test test-id#%d for %s is %s\n", test, clk_name, ret_val ? "FAILURE" : "SUCCESS");
 		return 0;
 	}
 
@@ -83,7 +83,7 @@ static int clk_test_probe(struct platform_device *pdev)
 			break;
 	}
 
-	printk(KERN_ERR "clk-test op %d for %s is %s\n", test, ret_val ? "FAILURE" : "SUCCESS", clk_name);
+	printk(KERN_ERR "clk-test test-id#%d for %s is %s\n", test, clk_name, ret_val ? "FAILURE" : "SUCCESS");
 
 	return 0;
 }

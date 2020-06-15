@@ -73,15 +73,20 @@
 		ess-instance {
 			num_devices = <0x1>;
 			ess-switch@0x39c00000 {
+				qcom,emulation;
 				switch_mac_mode = <0xf>; /* mac mode for uniphy instance*/
 				qcom,port_phyinfo {
 					port@0 {
 						port_id = <1>;
 						phy_address = <7>;
+		                                forced-speed = <1000>;
+                                                forced-duplex = <1>;
 					};
 					port@1 {
 						port_id = <2>;
 						phy_address = <1>;
+						forced-speed = <1000>;
+                                                forced-duplex = <1>;
 					};
 				};
 			};

@@ -27,13 +27,17 @@
 #include <linux/debugfs.h>
 #include <linux/mfd/syscon.h>
 #include <uapi/linux/major.h>
-#include <linux/completion.h>
 #include <linux/ipc_logging.h>
 #include <linux/remoteproc.h>
 #include "bt.h"
 
 static bool btss_debug;
 module_param(btss_debug, bool, 0644);
+
+int bt_ipc_avail_size(struct bt_descriptor *btDesc)
+{
+	return tty_buffer_space_avail(&btDesc->tty_port);
+}
 
 static int bt_open(struct tty_struct *tty, struct file *file)
 {
@@ -47,9 +51,10 @@ static void bt_close(struct tty_struct *tty, struct file *file)
 static
 void bt_read(struct bt_descriptor *btDesc, unsigned char *buf, int len)
 {
-	tty_buffer_request_room(&btDesc->tty_port, len);
 	tty_insert_flip_string(&btDesc->tty_port, buf, len);
 	tty_flip_buffer_push(&btDesc->tty_port);
+
+	wake_up(&btDesc->ipc.wait_q);
 }
 
 static
@@ -62,7 +67,7 @@ int bt_write(struct tty_struct *tty, const unsigned char *buf, int len)
 
 	if (btDesc->sendmsg_cb) {
 		ret = btDesc->sendmsg_cb(btDesc, (unsigned char *)buf, len);
-		if (ret)
+		if (ret < 0 && ret != EAGAIN)
 			dev_err(dev, "failed to send msg, ret = %d\n", ret);
 	}
 
@@ -118,6 +123,23 @@ int bt_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 	return ret;
 }
 
+void bt_throttle(struct tty_struct *tty)
+{
+	struct bt_descriptor *btDesc = container_of(tty->port,
+						struct bt_descriptor, tty_port);
+
+	disable_irq_nosync(btDesc->ipc.irq);
+}
+
+void bt_unthrottle(struct tty_struct *tty)
+{
+	struct bt_descriptor *btDesc = container_of(tty->port,
+						struct bt_descriptor, tty_port);
+
+	wake_up(&btDesc->ipc.wait_q);
+	enable_irq(btDesc->ipc.irq);
+}
+
 static int bt_tty_activate(struct tty_port *port, struct tty_struct *tty)
 {
 	return 0;
@@ -141,6 +163,8 @@ static const struct tty_operations bt_ops = {
 	.tiocmget	= bt_tiocmget,
 	.tiocmset	= bt_tiocmset,
 	.ioctl		= bt_ioctl,
+	.throttle	= bt_throttle,
+	.unthrottle	= bt_unthrottle,
 };
 
 int bt_tty_init(struct bt_descriptor *btDesc)
@@ -502,6 +526,8 @@ static int bt_probe(struct platform_device *pdev)
 		goto err_deinit_tty;
 	}
 
+
+	init_waitqueue_head(&btDesc->ipc.wait_q);
 
 	ret = bt_ipc_init(btDesc);
 	if (ret) {
