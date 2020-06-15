@@ -208,18 +208,6 @@
 		};
 	};
 
-	cpus {
-		CPU0: cpu@0 {
-			/delete-property/ operating-points;
-			/delete-property/ clock-latency;
-		};
-
-		CPU1: cpu@1 {
-			/delete-property/ operating-points;
-			/delete-property/ clock-latency;
-		};
-	};
-
 	thermal-zones {
 		status = "disabled";
 	};
