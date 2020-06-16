@@ -133,7 +133,6 @@ static DECLARE_RWSEM(qrtr_node_lock);
 /* local port allocation management */
 static DEFINE_IDR(qrtr_ports);
 static DEFINE_MUTEX(qrtr_port_lock);
-static DEFINE_MUTEX(qrtr_node_locking);
 
 /**
  * struct qrtr_node - endpoint node
@@ -303,11 +302,8 @@ static inline int kref_put_rwsem_lock(struct kref *kref,
 				      void (*release)(struct kref *kref),
 				      struct rw_semaphore *sem)
 {
-	refcount_t r;
 
-	r.refs.counter = kref->refcount.counter;
-
-	if (refcount_dec_and_rwsem_lock(&r, sem)) {
+	if (refcount_dec_and_rwsem_lock((refcount_t *)&kref->refcount, sem)) {
 		release(kref);
 		return 1;
 	}
@@ -336,7 +332,7 @@ static void __qrtr_node_release(struct kref *kref)
 	}
 
 	list_del(&node->item);
-	mutex_unlock(&qrtr_node_locking);
+	up_write(&qrtr_node_lock);
 
 	/* Free tx flow counters */
 	mutex_lock(&node->qrtr_tx_lock);
@@ -379,7 +375,7 @@ static void qrtr_node_release(struct qrtr_node *node)
 {
 	if (!node)
 		return;
-	kref_put_mutex(&node->ref, __qrtr_node_release, &qrtr_node_locking);
+	kref_put_rwsem_lock(&node->ref, __qrtr_node_release, &qrtr_node_lock);
 }
 
 /**
