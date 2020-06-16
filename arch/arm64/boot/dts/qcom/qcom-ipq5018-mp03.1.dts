@@ -187,6 +187,7 @@
 			qcom,mactype = <2>;
 			qcom,link-poll = <1>;
 			qcom,phy-mdio-addr = <7>;
+			mdio-bus = <&mdio0>;
 			local-mac-address = [000000000000];
 			phy-mode = "sgmii";
 		};
@@ -200,24 +201,6 @@
 			qcom,mactype = <2>;
 			local-mac-address = [000000000000];
 			phy-mode = "sgmii";
-		};
-
-		pcie_x1_rp {
-			status = "disabled";
-
-			mhi_0: qcom,mhi@0 {
-				reg = <0 0 0 0 0 >;
-				qrtr_instance_id = <0x8001>;
-			};
-		};
-
-		pcie_x2_rp {
-			status = "ok";
-
-			mhi_1: qcom,mhi@1 {
-				reg = <0 0 0 0 0 >;
-				qrtr_instance_id = <0x8002>;
-			};
 		};
 
 		rpm_etm0 {
@@ -422,5 +405,26 @@
 };
 
 &pcie_x2phy {
+	status = "ok";
+};
+
+&pcie_x1_rp {
+	status = "disabled";
+
+	mhi_0: qcom,mhi@0 {
+		reg = <0 0 0 0 0 >;
+	};
+};
+
+&pcie_x2_rp {
+	status = "ok";
+
+	mhi_1: qcom,mhi@1 {
+		reg = <0 0 0 0 0 >;
+		qrtr_instance_id = <0x20>;
+	};
+};
+
+&wifi3 {
 	status = "ok";
 };

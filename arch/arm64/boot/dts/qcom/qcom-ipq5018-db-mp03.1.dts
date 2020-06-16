@@ -204,24 +204,6 @@
 			status = "disabled";
 		};
 
-		pcie_x1_rp {
-		        status = "disabled";
-
-			mhi_0: qcom,mhi@0 {
-				reg = <0 0 0 0 0 >;
-				qrtr_instance_id = <0x8001>;
-			};
-		};
-
-		pcie_x2_rp {
-		        status = "disabled";
-
-			mhi_1: qcom,mhi@1 {
-				reg = <0 0 0 0 0 >;
-				qrtr_instance_id = <0x8002>;
-			};
-		};
-
 		rpm_etm0 {
 			status = "disabled";
 		};
@@ -347,7 +329,7 @@
 };
 
 &pcie_x2 {
-	status = "disabled";
+	status = "ok";
 	perst-gpio = <&tlmm 15 1>;
 };
 
@@ -577,9 +559,30 @@
 };
 
 &pcie_x2phy {
-	status = "disabled";
+	status = "ok";
 };
 
 &apss_clk {
 	status = "disabled";
+};
+
+&pcie_x1_rp {
+	status = "disabled";
+
+	mhi_0: qcom,mhi@0 {
+		reg = <0 0 0 0 0 >;
+	};
+};
+
+&pcie_x2_rp {
+	status = "ok";
+
+	mhi_1: qcom,mhi@1 {
+		reg = <0 0 0 0 0 >;
+		qrtr_instance_id = <0x20>;
+	};
+};
+
+&wifi3 {
+        status = "ok";
 };

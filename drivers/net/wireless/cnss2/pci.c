@@ -4087,7 +4087,7 @@ int cnss_pci_probe_basic(struct pci_dev *pci_dev,
 	ret = of_property_read_u32(pci_dev->dev.of_node,
 				   "qrtr_instance_id", &qrtr_instance);
 	if (ret) {
-		pr_err("Failed to get Instance ID\n");
+		pr_err("Failed to get Instance ID %d\n", ret);
 		return ret;
 	}
 
