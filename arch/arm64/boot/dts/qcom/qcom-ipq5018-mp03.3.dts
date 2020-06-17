@@ -33,7 +33,11 @@
 		linux,initrd-end = <0x46000000>;
 		linux,initrd-start = <0x44000000>;
 		bootargs = "root=/dev/ram0 rw init=/init";
-		bootargs-append = " clk_ignore_unused";
+	#ifdef __IPQ_MEM_PROFILE_256_MB__
+		bootargs-append = " clk_ignore_unused swiotlb=1";
+	#else
+		bootargs-append = " clk_ignore_unused swiotlb=1 coherent_pool=2M";
+	#endif
 		stdout-path = "serial0";
 		ethernet0 = "/soc/dp1";
 		ethernet1 = "/soc/dp2";
