@@ -209,10 +209,6 @@
 	};
 
 	thermal-zones {
-		status = "disabled";
-	};
-
-	thermal-zones {
 		status = "ok";
 	};
 };
@@ -370,10 +366,6 @@
 
 &dbm_1p5 {
 	status = "ok";
-};
-
-&tsens {
-	status = "disabled";
 };
 
 &msm_imem {
