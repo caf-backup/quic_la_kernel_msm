@@ -14,6 +14,9 @@
 #include <linux/workqueue.h>
 #include <linux/soc/qcom/qmi.h>
 
+#define QMI_HDR_LEN	10
+#define QMI_LOG_SIZE	256
+
 static struct socket *qmi_sock_create(struct qmi_handle *qmi,
 				      struct sockaddr_qrtr *sq);
 
@@ -550,6 +553,13 @@ static void qmi_handle_message(struct qmi_handle *qmi,
 	ldebug.e_timestamp = ktime_to_us(ktime_get());
 }
 
+struct qmi_data_rdy_wrk {
+	u64 timestamp;
+	unsigned char data[QMI_HDR_LEN];
+} qmi_data_rdy_wrk[QMI_LOG_SIZE];
+
+unsigned int qmidatardyindex;
+
 static void qmi_data_ready_work(struct work_struct *work)
 {
 	struct qmi_handle *qmi = container_of(work, struct qmi_handle, work);
@@ -585,6 +595,12 @@ static void qmi_data_ready_work(struct work_struct *work)
 			break;
 		}
 
+		qmi_data_rdy_wrk[qmidatardyindex].timestamp = ktime_to_us(ktime_get());
+		if (msglen > QMI_HDR_LEN)
+			memcpy(qmi_data_rdy_wrk[qmidatardyindex++].data, qmi->recv_buf, QMI_HDR_LEN);
+		else
+			memcpy(qmi_data_rdy_wrk[qmidatardyindex++].data, qmi->recv_buf, msglen);
+
 		if (sq.sq_node == qmi->sq.sq_node &&
 		    sq.sq_port == QRTR_PORT_CTRL) {
 			qmi_recv_ctrl_pkt(qmi, qmi->recv_buf, msglen);
@@ -593,6 +609,8 @@ static void qmi_data_ready_work(struct work_struct *work)
 		} else {
 			qmi_handle_message(qmi, &sq, qmi->recv_buf, msglen);
 		}
+
+		qmidatardyindex &= (QMI_LOG_SIZE - 1);
 	}
 }
 
