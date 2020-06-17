@@ -240,6 +240,7 @@
 				compatible = "qcom,ess-switch-ipq50xx";
 				device_id = <0>;
 				switch_mac_mode = <0xf>; /* mac mode for uniphy instance*/
+				cmnblk_clk = "internal_96MHz"; /* cmnblk clk*/
 				qcom,port_phyinfo {
 					port@0 {
 						port_id = <1>;

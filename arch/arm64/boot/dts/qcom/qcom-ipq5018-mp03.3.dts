@@ -96,6 +96,7 @@
 			num_devices = <0x1>;
 			ess-switch@0x39c00000 {
 				switch_mac_mode = <0xf>; /* mac mode for uniphy instance*/
+				cmnblk_clk = "internal_96MHz"; /* cmnblk clk*/
 				qcom,port_phyinfo {
 					port@0 {
 						port_id = <1>;
