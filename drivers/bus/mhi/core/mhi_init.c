@@ -1218,6 +1218,7 @@ int of_register_mhi_controller(struct mhi_controller *mhi_cntrl)
 	mhi_dev->mhi_cntrl = mhi_cntrl;
 	dev_set_name(&mhi_dev->dev, "%04x_%02u.%02u.%02u", mhi_dev->dev_id,
 		     mhi_dev->domain, mhi_dev->bus, mhi_dev->slot);
+	dev_set_name(mhi_cntrl->cntrl_dev, "%s", dev_name(&mhi_dev->dev));
 	ret = device_add(&mhi_dev->dev);
 	if (ret)
 		goto error_add_dev;

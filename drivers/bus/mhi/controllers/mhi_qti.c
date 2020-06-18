@@ -581,6 +581,7 @@ static struct mhi_controller *dt_register_mhi_controller(struct pci_dev *pci_dev
 	mhi_cntrl->dev_id = pci_dev->device;
 	mhi_cntrl->bus = pci_dev->bus->number;
 	mhi_cntrl->slot = PCI_SLOT(pci_dev->devfn);
+	mhi_cntrl->dev = &pci_dev->dev;
 
 	use_bb = of_property_read_bool(of_node, "mhi,use-bb");
 
