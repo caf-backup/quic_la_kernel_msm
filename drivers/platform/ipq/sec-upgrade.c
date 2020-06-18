@@ -360,9 +360,9 @@ store_sec_auth(struct device *dev,
 	}
 	size = (long)st.size;
 
-	np = of_find_node_by_name(NULL, "qfprom");
+	np = of_find_node_by_name(NULL, "qfprom_sec");
 	if (!np) {
-		pr_err("Unable to find qfprom node\n");
+		pr_err("Unable to find qfprom_sec node\n");
 		goto file_close;
 	}
 

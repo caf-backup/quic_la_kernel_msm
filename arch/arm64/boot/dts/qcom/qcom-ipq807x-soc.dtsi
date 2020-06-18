@@ -112,7 +112,7 @@
 		scm {
 			compatible = "qcom,scm-ipq807x";
 		};
-		qfprom {
+		qfprom_sec {
 			compatible = "qcom,qfprom-sec";
 		#if defined(__IPQ_MEM_PROFILE_256_MB__) || defined(__IPQ_MEM_PROFILE_512_MB__)
 			img-addr = <0x4A600000>;
