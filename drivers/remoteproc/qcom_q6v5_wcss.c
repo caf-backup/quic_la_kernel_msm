@@ -882,6 +882,11 @@ static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 		return;
 	}
 
+	if (debug_wcss)
+		writel(0x20000001, wcss->reg_base + Q6SS_DBG_CFG);
+	else
+		writel(0x0, wcss->reg_base + Q6SS_DBG_CFG);
+
 	if (qcom_scm_is_available()) {
 		cookie = 1;
 		ret = qcom_scm_wcss_boot(Q6_BOOT_TRIG_SVC_ID,
@@ -960,7 +965,7 @@ skip_secure:
 	if (ret)
 		goto wcss_q6_reset;
 
-	if (debug_wcss)
+	if (debug_wcss && !pdata->is_q6v6)
 		writel(0x20000001, wcss->reg_base + Q6SS_DBG_CFG);
 
 	/* Write bootaddr to EVB so that Q6WCSS will jump there after reset */
@@ -974,9 +979,8 @@ skip_secure:
 			goto wcss_q6_reset;
 	}
 
-	if (debug_wcss)
+	if (debug_wcss && !pdata->is_q6v6)
 		writel(0x0, wcss->reg_base + Q6SS_DBG_CFG);
-
 skip_reset:
 	ret = qcom_q6v5_wait_for_start(&wcss->q6v5, 5 * HZ);
 	if (ret == -ETIMEDOUT) {

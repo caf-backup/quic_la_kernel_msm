@@ -213,10 +213,6 @@
 	};
 
 	thermal-zones {
-		status = "disabled";
-	};
-
-	thermal-zones {
 		status = "ok";
 	};
 };
@@ -363,8 +359,6 @@
 };
 
 &qcom_q6v5_wcss {
-	qcom,nosecure;
-	qcom,emulation;
 	status = "ok";
 };
 
@@ -374,10 +368,6 @@
 
 &dbm_1p5 {
 	status = "ok";
-};
-
-&tsens {
-	status = "disabled";
 };
 
 &msm_imem {
