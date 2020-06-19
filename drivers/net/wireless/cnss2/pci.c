@@ -2841,6 +2841,48 @@ static void cnss_pci_free_fw_mem(struct cnss_plat_data *plat_priv)
 	plat_priv->fw_mem_seg_len = 0;
 }
 
+static int cnss_pci_alloc_m3_mem(struct cnss_plat_data *plat_priv)
+{
+	struct pci_dev *pci_dev;
+	struct cnss_fw_mem *m3_mem;
+
+	if (!plat_priv) {
+		cnss_pr_err("%s: plat_priv is NULL\n", __func__);
+		return -ENODEV;
+	}
+
+	pci_dev = plat_priv->pci_dev;
+	if (!pci_dev) {
+		cnss_pr_err("%s: pci_dev is NULL\n", __func__);
+		return -ENODEV;
+	}
+
+	m3_mem = &plat_priv->m3_mem;
+
+	if (m3_mem->va) {
+		cnss_pr_info("%s: m3_mem is already allocated\n", __func__);
+		return 0;
+	}
+
+	/* Allocate a block of 512K for M3 mem, but m3_mem->size is not
+	 * updated as 512K as it would hold the actual size of the M3 bin
+	 * to be sent to the FW
+	 */
+	m3_mem->va = dma_alloc_coherent(&pci_dev->dev,
+					SZ_512K, &m3_mem->pa,
+					GFP_KERNEL);
+	if (!m3_mem->va) {
+		cnss_pr_err("Failed to allocate memory for M3, size: 0x%zx\n",
+			    SZ_512K);
+		return -ENOMEM;
+	}
+
+	cnss_pr_dbg("M3 mem va: %p, pa: 0x%x, size: %d\n",
+		    m3_mem->va, m3_mem->pa, SZ_512K);
+
+	return 0;
+}
+
 int cnss_pci_load_m3(struct cnss_pci_data *pci_priv)
 {
 	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
@@ -2849,45 +2891,57 @@ int cnss_pci_load_m3(struct cnss_pci_data *pci_priv)
 	const struct firmware *fw_entry;
 	int ret = 0;
 
-	if (!m3_mem->va && !m3_mem->size) {
-		snprintf(filename, sizeof(filename),
-			 DEFAULT_M3_FILE_NAME);
-
-		ret = request_firmware(&fw_entry, filename,
-				       &pci_priv->pci_dev->dev);
-		if (ret) {
-			cnss_pr_err("Failed to load M3 image: %s\n", filename);
-			return ret;
-		}
-
-		m3_mem->va = dma_alloc_coherent(&pci_priv->pci_dev->dev,
-						fw_entry->size, &m3_mem->pa,
-						GFP_KERNEL);
-		if (!m3_mem->va) {
-			cnss_pr_err("Failed to allocate memory for M3, size: 0x%zx\n",
-				    fw_entry->size);
-			release_firmware(fw_entry);
-			return -ENOMEM;
-		}
-
-		memcpy(m3_mem->va, fw_entry->data, fw_entry->size);
-		m3_mem->size = fw_entry->size;
-		release_firmware(fw_entry);
+	/* M3 Mem should have been allocated during cnss_pci_probe_basic */
+	if (!m3_mem->va) {
+		cnss_pr_err("M3 Memory not allocated");
+		return -ENOMEM;
 	}
+
+	snprintf(filename, sizeof(filename),
+		 DEFAULT_M3_FILE_NAME);
+
+	ret = request_firmware(&fw_entry, filename,
+			       &pci_priv->pci_dev->dev);
+	if (ret) {
+		cnss_pr_err("Failed to load M3 image: %s\n", filename);
+		return ret;
+	}
+
+	if (fw_entry->size > SZ_512K) {
+		cnss_pr_err("M3 size %d more than allocated size %d",
+			    fw_entry->size, SZ_512K);
+		release_firmware(fw_entry);
+		return -ENOMEM;
+	}
+
+	memcpy(m3_mem->va, fw_entry->data, fw_entry->size);
+	m3_mem->size = fw_entry->size;
+	release_firmware(fw_entry);
 
 	return 0;
 }
 
 static void cnss_pci_free_m3_mem(struct cnss_plat_data *plat_priv)
 {
-	struct cnss_fw_mem *m3_mem = &plat_priv->m3_mem;
-	struct cnss_pci_data *pci_priv =
-			(struct cnss_pci_data *)plat_priv->bus_priv;
+	struct cnss_fw_mem *m3_mem;
+	struct pci_dev *pci_dev;
 
-	if (m3_mem->va && m3_mem->size) {
+	if (!plat_priv) {
+		cnss_pr_err("%s: plat_priv is NULL", __func__);
+		return;
+	}
+
+	pci_dev = plat_priv->pci_dev;
+	if (!pci_dev) {
+		cnss_pr_err("%s: pci_dev is NULL", __func__);
+		return;
+	}
+
+	m3_mem = &plat_priv->m3_mem;
+	if (m3_mem->va) {
 		cnss_pr_dbg("Freeing memory for M3, va: 0x%pK, pa: %pa, size: 0x%zx\n",
-			    m3_mem->va, &m3_mem->pa, m3_mem->size);
-		dma_free_coherent(&pci_priv->pci_dev->dev, m3_mem->size,
+			    m3_mem->va, &m3_mem->pa, SZ_512K);
+		dma_free_coherent(&pci_dev->dev, SZ_512K,
 				  m3_mem->va, m3_mem->pa);
 	}
 
@@ -4013,7 +4067,6 @@ void cnss_pci_remove(struct pci_dev *pci_dev)
 		return;
 	}
 
-	cnss_pci_free_m3_mem(plat_priv);
 	cnss_pci_free_fw_mem(plat_priv);
 	cnss_pci_free_qdss_mem(plat_priv);
 
@@ -4102,11 +4155,36 @@ int cnss_pci_probe_basic(struct pci_dev *pci_dev,
 	}
 	plat_priv->pci_dev = (struct platform_device *)pci_dev;
 	plat_priv->pci_dev_id = (struct platform_device_id *)id;
+
+	ret = cnss_pci_alloc_m3_mem(plat_priv);
+	if (ret) {
+		cnss_pr_err("%s: Failed to allocate M3 mem\n", __func__);
+		return ret;
+	}
+
 	return 0;
 }
 
 void cnss_pci_remove_basic(struct pci_dev *pci_dev)
 {
+	struct cnss_plat_data *plat_priv = NULL;
+	u32 qrtr_instance;
+	int ret;
+
+	ret = of_property_read_u32(pci_dev->dev.of_node,
+				   "qrtr_instance_id", &qrtr_instance);
+	if (ret) {
+		cnss_pr_err("%s: Failed to get Instance ID\n", __func__);
+		return;
+	}
+
+	plat_priv = cnss_get_plat_priv_by_qrtr_node_id(qrtr_instance);
+	if (!plat_priv) {
+		cnss_pr_err("%s plat_priv is NULL!\n", __func__);
+		return;
+	}
+
+	cnss_pci_free_m3_mem(plat_priv);
 }
 
 struct pci_driver cnss_pci_driver = {
