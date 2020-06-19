@@ -51,6 +51,8 @@
 
 #define QRTR_DATA_LEN	30
 
+#define MAX_QRTR_NODES	10
+
 /**
  * struct qrtr_hdr_v1 - (I|R)PCrouter packet header version 1
  * @version: protocol version
@@ -121,6 +123,22 @@ struct qrtr_sock {
 	int state;
 };
 
+struct qrtr_log_data {
+	u64 timestamp;
+	unsigned int src_node;
+	unsigned int src_port;
+	unsigned int dst_node;
+	unsigned int dst_port;
+	u8 type;
+	u8 confirm_rx;
+	unsigned char data[QRTR_DATA_LEN];
+};
+
+struct qrtr_debug {
+	struct qrtr_node *node;
+	u64 timestamp;
+} qrtrnode[MAX_QRTR_NODES];
+
 static inline struct qrtr_sock *qrtr_sk(struct sock *sk)
 {
 	BUILD_BUG_ON(offsetof(struct qrtr_sock, sk) != 0);
@@ -177,6 +195,11 @@ struct qrtr_node {
 	struct kthread_worker kworker;
 	struct task_struct *task;
 	struct kthread_work read_data;
+
+	struct qrtr_log_data qrtr_data_rcvd[QRTR_LOG_SIZE];
+	struct qrtr_log_data node_rx_work_data[QRTR_LOG_SIZE];
+	unsigned int qrtrdataindex;
+	unsigned int qrtrrxworkindex;
 
 	void *ilc;
 };
@@ -333,6 +356,17 @@ static void __qrtr_node_release(struct kref *kref)
 	struct qrtr_tx_flow *flow;
 	struct qrtr_node *node = container_of(kref, struct qrtr_node, ref);
 	void __rcu **slot;
+	int i;
+
+	for (i = 0; i < MAX_QRTR_NODES; i++) {
+		if (qrtrnode[i].node) {
+			if (node->nid == qrtrnode[i].node->nid) {
+				qrtrnode[i].timestamp = ktime_to_us(ktime_get());
+				qrtrnode[i].node = NULL;
+				break;
+			}
+		}
+	}
 
 	if (node->nid != QRTR_EP_NID_AUTO) {
 		radix_tree_for_each_slot(slot, &qrtr_nodes, &iter, 0) {
@@ -646,6 +680,7 @@ static void qrtr_node_assign(struct qrtr_node *node, unsigned int nid)
 
 	if (node->nid == QRTR_EP_NID_AUTO)
 		node->nid = nid;
+
 	up_write(&qrtr_node_lock);
 
 	if (!node->ilc) {
@@ -695,20 +730,6 @@ int qrtr_peek_pkt_size(const void *data)
 	return ALIGN(size, 4) + hdrlen;
 }
 EXPORT_SYMBOL(qrtr_peek_pkt_size);
-
-struct qrtr_data_rcvd {
-	u64 timestamp;
-	unsigned int src_node;
-	unsigned int src_port;
-	unsigned int dst_node;
-	unsigned int dst_port;
-	unsigned short type;
-	unsigned short confirm_rx;
-	unsigned char data[QRTR_DATA_LEN];
-
-} qrtr_data_rcvd[QRTR_LOG_SIZE];
-
-unsigned int qrtrdataindex;
 
 /**
  * qrtr_endpoint_post() - post incoming data
@@ -788,20 +809,20 @@ int qrtr_endpoint_post(struct qrtr_endpoint *ep, const void *data, size_t len)
 	    cb->type != QRTR_TYPE_RESUME_TX)
 		goto err;
 
-	qrtr_data_rcvd[qrtrdataindex].src_port = cb->src_port;
-	qrtr_data_rcvd[qrtrdataindex].dst_port = cb->dst_port;
-	qrtr_data_rcvd[qrtrdataindex].src_node = cb->src_node;
-	qrtr_data_rcvd[qrtrdataindex].dst_node = cb->dst_node;
-	qrtr_data_rcvd[qrtrdataindex].type = cb->type;
-	qrtr_data_rcvd[qrtrdataindex].confirm_rx = cb->confirm_rx;
-	qrtr_data_rcvd[qrtrdataindex].timestamp = ktime_to_us(ktime_get());
+	node->qrtr_data_rcvd[node->qrtrdataindex].src_port = cb->src_port;
+	node->qrtr_data_rcvd[node->qrtrdataindex].dst_port = cb->dst_port;
+	node->qrtr_data_rcvd[node->qrtrdataindex].src_node = cb->src_node;
+	node->qrtr_data_rcvd[node->qrtrdataindex].dst_node = cb->dst_node;
+	node->qrtr_data_rcvd[node->qrtrdataindex].type = cb->type;
+	node->qrtr_data_rcvd[node->qrtrdataindex].confirm_rx = cb->confirm_rx;
+	node->qrtr_data_rcvd[node->qrtrdataindex].timestamp = ktime_to_us(ktime_get());
 
-	if (size > sizeof(qrtr_data_rcvd[qrtrdataindex].data))
-		memcpy(qrtr_data_rcvd[qrtrdataindex++].data, data + hdrlen, QRTR_DATA_LEN);
+	if (size > QRTR_DATA_LEN)
+		memcpy(node->qrtr_data_rcvd[node->qrtrdataindex++].data, data + hdrlen, QRTR_DATA_LEN);
 	else
-		memcpy(qrtr_data_rcvd[qrtrdataindex++].data, data + hdrlen, size);
+		memcpy(node->qrtr_data_rcvd[node->qrtrdataindex++].data, data + hdrlen, size);
 
-	qrtrdataindex &= (QRTR_LOG_SIZE - 1);
+	node->qrtrdataindex &= (QRTR_LOG_SIZE - 1);
 
 	skb_put_data(skb, data + hdrlen, size);
 	qrtr_log_rx_msg(node, skb);
@@ -917,19 +938,6 @@ static void qrtr_fwd_pkt(struct sk_buff *skb, struct qrtr_cb *cb)
 	qrtr_node_release(node);
 }
 
-struct node_rx_work_data {
-	u64 timestamp;
-	unsigned int src_node;
-	unsigned int src_port;
-	unsigned int dst_node;
-	unsigned int dst_port;
-	unsigned short type;
-	unsigned short confirm_rx;
-	unsigned char data[QRTR_DATA_LEN];
-} node_rx_work_data[QRTR_LOG_SIZE];
-
-unsigned int noderxworkindex;
-
 /* Handle and route a received packet.
  *
  * This will auto-reply with resume-tx packet as necessary.
@@ -948,13 +956,13 @@ static void qrtr_node_rx_work(struct kthread_work *work)
 		cb = (struct qrtr_cb *)skb->cb;
 		qrtr_node_assign(node, cb->src_node);
 
-		node_rx_work_data[noderxworkindex].src_port = cb->src_port;
-		node_rx_work_data[noderxworkindex].dst_port = cb->dst_port;
-		node_rx_work_data[noderxworkindex].src_node = cb->src_node;
-		node_rx_work_data[noderxworkindex].dst_node = cb->dst_node;
-		node_rx_work_data[noderxworkindex].type = cb->type;
-		node_rx_work_data[noderxworkindex].confirm_rx = cb->confirm_rx;
-		node_rx_work_data[noderxworkindex].timestamp = ktime_to_us(ktime_get());
+		node->node_rx_work_data[node->qrtrrxworkindex].src_port = cb->src_port;
+		node->node_rx_work_data[node->qrtrrxworkindex].dst_port = cb->dst_port;
+		node->node_rx_work_data[node->qrtrrxworkindex].src_node = cb->src_node;
+		node->node_rx_work_data[node->qrtrrxworkindex].dst_node = cb->dst_node;
+		node->node_rx_work_data[node->qrtrrxworkindex].type = cb->type;
+		node->node_rx_work_data[node->qrtrrxworkindex].confirm_rx = cb->confirm_rx;
+		node->node_rx_work_data[node->qrtrrxworkindex].timestamp = ktime_to_us(ktime_get());
 
 		if (cb->type != QRTR_TYPE_DATA)
 			qrtr_fwd_ctrl_pkt(skb);
@@ -968,6 +976,8 @@ static void qrtr_node_rx_work(struct kthread_work *work)
 		if (cb->type == QRTR_TYPE_RESUME_TX) {
 			if (cb->dst_node != qrtr_local_nid) {
 				qrtr_fwd_pkt(skb, cb);
+				++node->qrtrrxworkindex;
+				node->qrtrrxworkindex &= (QRTR_LOG_SIZE - 1);
 				continue;
 			}
 			qrtr_tx_resume(node, skb);
@@ -988,9 +998,9 @@ static void qrtr_node_rx_work(struct kthread_work *work)
 					pkt->cmd = cpu_to_le32(QRTR_TYPE_BYE);
 				}
 				if (skb->len > QRTR_DATA_LEN)
-					memcpy(node_rx_work_data[noderxworkindex].data, skb->data, QRTR_DATA_LEN);
+					memcpy(node->node_rx_work_data[node->qrtrrxworkindex].data, skb->data, QRTR_DATA_LEN);
 				else
-					memcpy(node_rx_work_data[noderxworkindex].data, skb->data, skb->len);
+					memcpy(node->node_rx_work_data[node->qrtrrxworkindex].data, skb->data, skb->len);
 
 				if (sock_queue_rcv_skb(&ipc->sk, skb))
 					kfree_skb(skb);
@@ -999,24 +1009,11 @@ static void qrtr_node_rx_work(struct kthread_work *work)
 			}
 		}
 
-		++noderxworkindex;
-		noderxworkindex &= (QRTR_LOG_SIZE - 1);
+		++node->qrtrrxworkindex;
+		node->qrtrrxworkindex &= (QRTR_LOG_SIZE - 1);
 
 	}
 }
-
-struct qrtr_rcv_msg {
-	u64 timestamp;
-	unsigned int src_node;
-	unsigned int src_port;
-	unsigned int dst_node;
-	unsigned int dst_port;
-	unsigned short type;
-	unsigned short confirm_rx;
-	unsigned char data[QRTR_DATA_LEN];
-} qrtr_rcv_msg[QRTR_LOG_SIZE];
-
-unsigned int rcvmsgindex;
 
 /**
  * qrtr_endpoint_register() - register a new endpoint
@@ -1029,6 +1026,7 @@ unsigned int rcvmsgindex;
 int qrtr_endpoint_register(struct qrtr_endpoint *ep, unsigned int net_id)
 {
 	struct qrtr_node *node;
+	int i;
 
 	if (!ep || !ep->xmit)
 		return -EINVAL;
@@ -1060,6 +1058,15 @@ int qrtr_endpoint_register(struct qrtr_endpoint *ep, unsigned int net_id)
 	node->net_id = net_id;
 
 	down_write(&qrtr_node_lock);
+
+	for (i = 0; i < MAX_QRTR_NODES; i++) {
+		if (qrtrnode[i].node == NULL) {
+			qrtrnode[i].timestamp = ktime_to_us(ktime_get());
+			qrtrnode[i].node = node;
+			break;
+		}
+	}
+
 	list_add(&node->item, &qrtr_all_epts);
 	up_write(&qrtr_node_lock);
 	ep->node = node;
@@ -1641,21 +1648,6 @@ static int qrtr_recvmsg(struct socket *sock, struct msghdr *msg,
 		copied = size;
 		msg->msg_flags |= MSG_TRUNC;
 	}
-
-	qrtr_rcv_msg[rcvmsgindex].src_port = cb->src_port;
-	qrtr_rcv_msg[rcvmsgindex].src_node = cb->src_node;
-	qrtr_rcv_msg[rcvmsgindex].dst_node = cb->dst_node;
-	qrtr_rcv_msg[rcvmsgindex].dst_port = cb->dst_port;
-	qrtr_rcv_msg[rcvmsgindex].type = cb->type;
-	qrtr_rcv_msg[rcvmsgindex].confirm_rx = cb->confirm_rx;
-	qrtr_rcv_msg[rcvmsgindex].timestamp = ktime_to_us(ktime_get());
-
-	if (skb->len > QRTR_DATA_LEN)
-		memcpy(qrtr_rcv_msg[rcvmsgindex++].data, skb->data, QRTR_DATA_LEN);
-	else
-		memcpy(qrtr_rcv_msg[rcvmsgindex++].data, skb->data, skb->len);
-
-	rcvmsgindex &= (QRTR_LOG_SIZE - 1);
 
 	rc = skb_copy_datagram_msg(skb, 0, msg, copied);
 	if (rc < 0)
