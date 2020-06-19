@@ -70,9 +70,9 @@
 	(((uint32_t)(uintptr_t)x - btmem->tx_ctxt->lring_buf) / IPC_TX_LBUF_SZ)
 
 #define IS_RX_MEM_NON_CONTIGIOUS(pBuf, len)		\
-	(((int)(uintptr_t)pBuf + len) >			\
-	((int)(uintptr_t)btmem->tx_ctxt->lring_buf +	\
-	(IPC_RX_LBUF_SZ * btmem->tx_ctxt->lmsg_buf_cnt)))
+	((pBuf + len) >			\
+	(btmem->rx_ctxt->lring_buf +	\
+	(IPC_RX_LBUF_SZ * btmem->rx_ctxt->lmsg_buf_cnt)))
 
 /** Message header format.
  *
