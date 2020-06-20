@@ -90,7 +90,7 @@ int iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 		in_dev = __dev_get_by_index(&init_net, skb_iif);
 
 	if (proto == IPPROTO_IPV6 || proto == IPPROTO_GRE ||
-			is_vxlan_dev(in_dev))
+			netif_is_vxlan(in_dev))
 		skb->skb_iif = skb_iif;
 
 	err = ip_local_out(net, sk, skb);
