@@ -80,7 +80,6 @@ static void m31usb_reset(struct m31usb_phy *qphy, u32 action)
 		reset_control_assert(qphy->phy_reset);
 	else
 		reset_control_deassert(qphy->phy_reset);
-	usleep_range(100, 150);
 	wmb(); /* ensure data is written to hw register */
 }
 
@@ -112,12 +111,11 @@ static void m31usb_phy_enable_clock(struct m31usb_phy *qphy)
 static int m31usb_phy_init(struct usb_phy *phy)
 {
 	struct m31usb_phy *qphy = container_of(phy, struct m31usb_phy, phy);
-
 	dev_dbg(phy->dev, "%s\n", __func__);
 
 	/* Perform phy reset */
 	m31usb_reset(qphy, CLK_RESET_ASSERT);
-	usleep_range(100, 150);
+	usleep_range(1, 5);
 	m31usb_reset(qphy, CLK_RESET_DEASSERT);
 
 	/* configure for ULPI mode if requested */
