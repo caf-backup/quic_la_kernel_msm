@@ -2641,6 +2641,26 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 				if (!fw_mem[i].va)
 					pr_err("WARNING: Host DDR remap failed\n");
 				break;
+			case M3_DUMP_REGION_TYPE:
+				if (fw_mem[i].size > Q6_M3_DUMP_SIZE_QCN9000) {
+					pr_err("Error: Need more memory %x\n",
+					       (unsigned int)fw_mem[i].size);
+					CNSS_ASSERT(0);
+				}
+				if (of_property_read_u32(dev->of_node,
+							 "m3-dump-addr",
+							 &addr)) {
+					pr_err("Error: No m3-dump-addr in dts\n");
+					CNSS_ASSERT(0);
+					return -ENOMEM;
+				}
+				fw_mem[i].pa = (phys_addr_t)addr;
+				fw_mem[i].va = ioremap(fw_mem[i].pa,
+						       fw_mem[i].size);
+				if (!fw_mem[i].va)
+					pr_err("WARNING: M3 Dump addr remap failed\n");
+				break;
+
 			default:
 				pr_err("Ignore mem req type %d\n",
 				       fw_mem[i].type);
@@ -2731,8 +2751,11 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 				fw_mem[idx].size = fw_mem[i].size;
 				fw_mem[idx].type = fw_mem[i].type;
 				fw_mem[idx].pa = m3_dump.start;
-				fw_mem[idx].va = (void *)(unsigned long)
-						 fw_mem[idx].pa;
+				fw_mem[idx].va = ioremap(fw_mem[idx].pa,
+							 fw_mem[idx].size);
+				if (!fw_mem[idx].va)
+					pr_err("WARNING: M3 Dump addr remap failed\n");
+
 				idx++;
 				break;
 			default:
@@ -3686,7 +3709,8 @@ void cnss_pci_collect_dump_info(struct cnss_pci_data *pci_priv, bool in_panic)
 
 	cnss_pr_dbg("Collect remote heap dump segment\n");
 	for (i = 0; i < plat_priv->fw_mem_seg_len; i++) {
-		if (fw_mem[i].type == CNSS_MEM_TYPE_DDR) {
+		if (fw_mem[i].type == CNSS_MEM_TYPE_DDR ||
+		    fw_mem[i].type == CNSS_MEM_M3) {
 			dump_seg->address = fw_mem[i].pa;
 			dump_seg->v_address = fw_mem[i].va;
 			dump_seg->size = fw_mem[i].size;
