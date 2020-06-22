@@ -4,6 +4,11 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 				qcom-ipq6018-db-cp01.dtb \
 				qcom-ipq6018-db-cp02.dtb
 endif
+ifneq ($(CONFIG_IPQ_FLASH_16M_PROFILE),)
+dtb-$(CONFIG_ARCH_QCOM) += \
+	qcom-ipq5018-mp02.1.dtb \
+	qcom-ipq5018-mp03.1.dtb
+else
 dtb-$(CONFIG_ARCH_QCOM) += \
 				qcom-ipq5018-sod.dtb \
 				qcom-ipq5018-emulation-c1.dtb \
@@ -48,6 +53,7 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 				qcom-ipq807x-oak03.dtb \
 				qcom-ipq807x-db.hk01.dtb \
 				qcom-ipq807x-db.hk02.dtb
+endif
 
 always		:= $(dtb-y)
 subdir-y	:= $(dts-dirs)
