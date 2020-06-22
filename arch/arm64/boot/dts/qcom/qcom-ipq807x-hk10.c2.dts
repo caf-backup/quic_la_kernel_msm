@@ -1009,6 +1009,7 @@
 
 #if !defined(__CNSS2__)
 		base-addr = <0x4B000000>;
+		etr-addr = <0x4DE00000>;
 		qcom,caldb-addr = <0x4DF00000>;
 		qrtr_node_id = <0x20>;
 		mhi,max-channels = <30>;
@@ -1032,6 +1033,7 @@
 
 #if !defined(__CNSS2__)
 		base-addr = <0x4E700000>;
+		etr-addr = <0x51500000>;
 		qcom,caldb-addr = <0x51600000>;
 		qrtr_node_id = <0x21>;
 		mhi,max-channels = <30>;
