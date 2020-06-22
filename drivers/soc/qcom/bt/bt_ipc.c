@@ -329,14 +329,14 @@ static bool bt_ipc_process_peer_msgs(struct bt_descriptor *btDesc,
 			if (IS_RX_MEM_NON_CONTIGIOUS(rbuf->payload.lmsg_data,
 								rbuf->len)) {
 
-				lbuf_idx = GET_RX_INDEX_FROM_BUF(rxbuf);
+				lbuf_idx = GET_RX_INDEX_FROM_BUF(
+						rbuf->payload.lmsg_data);
 
 				blks_consumed = btmem->rx_ctxt->lmsg_buf_cnt -
 					lbuf_idx;
 				aux_ptr.len = rbuf->len -
 					(blks_consumed * IPC_RX_LBUF_SZ);
-				aux_ptr.buf = (uintptr_t)TO_APPS_ADDR(
-						btmem->rx_ctxt->lring_buf);
+				aux_ptr.buf = btmem->rx_ctxt->lring_buf;
 			}
 		} else {
 			rxbuf = rbuf->payload.smsg_data;
@@ -357,7 +357,7 @@ static bool bt_ipc_process_peer_msgs(struct bt_descriptor *btDesc,
 
 			if (aux_ptr.buf)
 				memcpy_fromio(buf + (rbuf->len - aux_ptr.len),
-				(void *)(uintptr_t)aux_ptr.buf, aux_ptr.len);
+					TO_APPS_ADDR(aux_ptr.buf), aux_ptr.len);
 
 			btDesc->recvmsg_cb(btDesc, buf, rbuf->len);
 			kfree(buf);

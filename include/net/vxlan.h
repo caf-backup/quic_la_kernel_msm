@@ -264,10 +264,19 @@ static inline void vxlan_get_rx_port(struct net_device *netdev)
 #endif
 
 /*
- * is_vxlan_dev()
+ * vxlan_get_vni()
+ *	Returns vni of corresponding tunnel
+ */
+static inline u32 vxlan_get_vni(struct vxlan_dev *vxlan_tun)
+{
+	return vxlan_tun->cfg.vni;
+}
+
+/*
+ * netif_is_vxlan()
  *	Check if it is a VxLAN netdevice.
  */
-static inline bool is_vxlan_dev(const struct net_device *dev)
+static inline bool netif_is_vxlan(const struct net_device *dev)
 {
 	if (!dev)
 		return false;

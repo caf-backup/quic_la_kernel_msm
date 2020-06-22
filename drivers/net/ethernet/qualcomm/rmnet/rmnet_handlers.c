@@ -1,13 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2013-2020, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * RMNET Data ingress/egress handler
  *
@@ -28,6 +20,9 @@
 #include "rmnet_descriptor.h"
 
 #include <linux/rmnet_nss.h>
+
+#include <soc/qcom/rmnet_qmi.h>
+#include <soc/qcom/qmi_rmnet.h>
 
 #define RMNET_IP_VERSION_4 0x40
 #define RMNET_IP_VERSION_6 0x60
@@ -56,7 +51,7 @@ static int rmnet_check_skb_can_gro(struct sk_buff *skb)
 {
 	unsigned char *data = rmnet_map_data_ptr(skb);
 
-	switch(skb->protocol) {
+	switch (skb->protocol) {
 	case htons(ETH_P_IP):
 		if (((struct iphdr *)data)->protocol == IPPROTO_TCP)
 			return 0;
@@ -86,7 +81,22 @@ void rmnet_set_skb_proto(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(rmnet_set_skb_proto);
 
+bool (*rmnet_shs_slow_start_detect)(u32 hash_key) __rcu __read_mostly;
+EXPORT_SYMBOL(rmnet_shs_slow_start_detect);
+
+bool rmnet_slow_start_on(u32 hash_key)
+{
+	bool (*rmnet_shs_slow_start_on)(u32 hash_key);
+
+	rmnet_shs_slow_start_on = rcu_dereference(rmnet_shs_slow_start_detect);
+	if (rmnet_shs_slow_start_on)
+		return rmnet_shs_slow_start_on(hash_key);
+	return false;
+}
+EXPORT_SYMBOL(rmnet_slow_start_on);
+
 /* Shs hook handler */
+
 int (*rmnet_shs_skb_entry)(struct sk_buff *skb,
 			   struct rmnet_port *port) __rcu __read_mostly;
 EXPORT_SYMBOL(rmnet_shs_skb_entry);
@@ -243,6 +253,7 @@ __rmnet_map_ingress_handler(struct sk_buff *skb,
 
 	qmap = (struct rmnet_map_header *)rmnet_map_data_ptr(skb);
 	if (qmap->cd_bit) {
+		qmi_rmnet_set_dl_msg_active(port);
 		if (port->data_format & RMNET_INGRESS_FORMAT_DL_MARKER) {
 			if (!rmnet_map_flow_command(skb, port, false))
 				return;
@@ -290,6 +301,11 @@ __rmnet_map_ingress_handler(struct sk_buff *skb,
 		__skb_queue_tail(&list, skb);
 	}
 
+#ifdef CONFIG_QCOM_QMI_HELPERS
+	if (port->data_format & RMNET_INGRESS_FORMAT_PS)
+		qmi_rmnet_work_maybe_restart(port);
+#endif
+
 	rmnet_deliver_skb_list(&list, port);
 	return;
 
@@ -310,7 +326,7 @@ rmnet_map_ingress_handler(struct sk_buff *skb,
 					   struct rmnet_port *port);
 
 	if (skb->dev->type == ARPHRD_ETHER) {
-		if (pskb_expand_head(skb, ETH_HLEN, 0, GFP_KERNEL)) {
+		if (pskb_expand_head(skb, ETH_HLEN, 0, GFP_ATOMIC)) {
 			kfree_skb(skb);
 			return;
 		}
@@ -376,7 +392,8 @@ static int rmnet_map_egress_handler(struct sk_buff *skb,
 	if (port->data_format & RMNET_FLAGS_EGRESS_MAP_CKSUMV4) {
 		additional_header_len = sizeof(struct rmnet_map_ul_csum_header);
 		csum_type = RMNET_FLAGS_EGRESS_MAP_CKSUMV4;
-	} else if (port->data_format & RMNET_FLAGS_EGRESS_MAP_CKSUMV5) {
+	} else if ((port->data_format & RMNET_FLAGS_EGRESS_MAP_CKSUMV5) ||
+		   (port->data_format & RMNET_EGRESS_FORMAT_PRIORITY)) {
 		additional_header_len = sizeof(struct rmnet_map_v5_csum_header);
 		csum_type = RMNET_FLAGS_EGRESS_MAP_CKSUMV5;
 	}
@@ -388,8 +405,14 @@ static int rmnet_map_egress_handler(struct sk_buff *skb,
 			return -ENOMEM;
 	}
 
+#ifdef CONFIG_QCOM_QMI_HELPERS
+	if (port->data_format & RMNET_INGRESS_FORMAT_PS)
+		qmi_rmnet_work_maybe_restart(port);
+#endif
+
 	if (csum_type)
-		rmnet_map_checksum_uplink_packet(skb, orig_dev, csum_type);
+		rmnet_map_checksum_uplink_packet(skb, port, orig_dev,
+						 csum_type);
 
 	map_header = rmnet_map_add_map_header(skb, additional_header_len, 0,
 					      port);
@@ -464,7 +487,6 @@ rx_handler_result_t rmnet_rx_priv_handler(struct sk_buff **pskb)
 {
 	struct sk_buff *skb = *pskb;
 	struct rmnet_nss_cb *nss_cb;
-	struct sk_buff *skbn;
 
 	if (!skb)
 		return RX_HANDLER_CONSUMED;
@@ -523,9 +545,9 @@ void rmnet_egress_handler(struct sk_buff *skb)
 
 	skb_len = skb->len;
 	err = rmnet_map_egress_handler(skb, port, mux_id, orig_dev);
-	if (err == -ENOMEM)
+	if (err == -ENOMEM) {
 		goto drop;
-	else if (err == -EINPROGRESS) {
+	} else if (err == -EINPROGRESS) {
 		rmnet_vnd_tx_fixup(orig_dev, skb_len);
 		return;
 	}
