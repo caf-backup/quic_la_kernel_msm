@@ -36,6 +36,9 @@ struct qmi_header {
 
 #define QMI_COMMON_TLV_TYPE 0
 
+#define QMI_HDR_LEN	10
+#define QMI_LOG_SIZE	256
+
 enum qmi_elem_type {
 	QMI_EOTI,
 	QMI_OPT_FLAG,
@@ -196,6 +199,11 @@ struct qmi_msg_handler {
 		   struct qmi_txn *txn, const void *decoded);
 };
 
+struct qmi_log_data {
+	u64 timestamp;
+	unsigned char data[QMI_HDR_LEN];
+};
+
 /**
  * struct qmi_handle - QMI context
  * @sock:	socket handle
@@ -237,6 +245,8 @@ struct qmi_handle {
 	const struct qmi_msg_handler *handlers;
 	struct list_head data_list;
 	struct completion complete;
+	struct qmi_log_data qmi_data_rdy_wrk[QMI_LOG_SIZE];
+	unsigned int qmidatardyindex;
 	atomic_t cnt, async_cnt, async_rsp, async_req, pass, fail;
 };
 
