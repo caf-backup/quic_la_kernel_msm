@@ -923,7 +923,7 @@ struct clk_rcg2 lpass_axim_clk_src = {
 };
 
 static const struct freq_tbl ftbl_lpass_sway_clk_src[] = {
-	F(266666667, P_GPLL0, 12, 0, 0),
+	F(66666667, P_GPLL0, 12, 0, 0),
 	{ }
 };
 
@@ -1458,7 +1458,7 @@ static struct clk_branch gcc_xo_clk = {
 				"gcc_xo_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IS_CRITICAL,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -1476,7 +1476,7 @@ static struct clk_branch gcc_apss_ahb_clk = {
 				"apss_ahb_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IS_CRITICAL,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -1494,7 +1494,7 @@ static struct clk_branch gcc_apss_axi_clk = {
 				"apss_axi_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IS_CRITICAL,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -1773,6 +1773,7 @@ static struct clk_branch gcc_dcc_clk = {
 
 static struct clk_branch gcc_gephy_rx_clk = {
 	.halt_reg = 0x56010,
+	.halt_check = BRANCH_VOTED,
 	.clkr = {
 		.enable_reg = 0x56010,
 		.enable_mask = BIT(0),
@@ -1790,6 +1791,7 @@ static struct clk_branch gcc_gephy_rx_clk = {
 
 static struct clk_branch gcc_gephy_tx_clk = {
 	.halt_reg = 0x56014,
+	.halt_check = BRANCH_VOTED,
 	.clkr = {
 		.enable_reg = 0x56014,
 		.enable_mask = BIT(0),
@@ -1841,6 +1843,7 @@ static struct clk_branch gcc_gmac0_ptp_clk = {
 
 static struct clk_branch gcc_gmac0_rx_clk = {
 	.halt_reg = 0x68240,
+	.halt_check = BRANCH_VOTED,
 	.clkr = {
 		.enable_reg = 0x68240,
 		.enable_mask = BIT(0),
@@ -1858,6 +1861,7 @@ static struct clk_branch gcc_gmac0_rx_clk = {
 
 static struct clk_branch gcc_gmac0_sys_clk = {
 	.halt_reg = 0x68190,
+	.halt_check = BRANCH_VOTED,
 	.clkr = {
 		.enable_reg = 0x683190,
 		.enable_mask = BIT(0),
@@ -1875,6 +1879,7 @@ static struct clk_branch gcc_gmac0_sys_clk = {
 
 static struct clk_branch gcc_gmac0_tx_clk = {
 	.halt_reg = 0x68244,
+	.halt_check = BRANCH_VOTED,
 	.clkr = {
 		.enable_reg = 0x68244,
 		.enable_mask = BIT(0),
@@ -2028,8 +2033,9 @@ static struct clk_branch gcc_gp3_clk = {
 
 static struct clk_branch gcc_lpass_core_axim_clk = {
 	.halt_reg = 0x2E048,
+	.halt_check = BRANCH_VOTED,
 	.clkr = {
-		.enable_reg = 0x1F028,
+		.enable_reg = 0x2E048,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_lpass_core_axim_clk",
@@ -2066,7 +2072,7 @@ static struct clk_branch gcc_mdio0_ahb_clk = {
 		.enable_reg = 0x58004,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gcc_mdioi0_ahb_clk",
+			.name = "gcc_mdio0_ahb_clk",
 			.parent_names = (const char *[]){
 				"pcnoc_clk_src"
 			},
@@ -2518,7 +2524,7 @@ static struct clk_branch gcc_qdss_cfg_ahb_clk = {
 				"pcnoc_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2535,7 +2541,7 @@ static struct clk_branch gcc_qdss_dap_ahb_clk = {
 				"pcnoc_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2552,7 +2558,7 @@ static struct clk_branch gcc_qdss_etr_usb_clk = {
 				"system_noc_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2569,7 +2575,7 @@ static struct clk_branch gcc_qdss_eud_at_clk = {
 				"eud_at_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2981,7 +2987,7 @@ static struct clk_branch gcc_ubi0_core_clk = {
 				"ubi0_core_clk_src"
 			},
 			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
+			.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 			.ops = &clk_branch2_ops,
 		},
 	},
