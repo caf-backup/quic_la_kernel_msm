@@ -30,9 +30,7 @@
 	};
 
 	chosen {
-		linux,initrd-end = <0x46000000>;
-		linux,initrd-start = <0x44000000>;
-		bootargs = "root=/dev/ram0 rw init=/init";
+		bootargs = "console=ttyMSM0,115200,n8 rw init=/init";
 	#ifdef __IPQ_MEM_PROFILE_256_MB__
 		bootargs-append = " clk_ignore_unused swiotlb=1";
 	#else
