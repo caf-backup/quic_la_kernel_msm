@@ -47,10 +47,8 @@
 #define SSCG_CTRL_REG_4		0xa8
 #define SSCG_CTRL_REG_5		0xac
 #define SSCG_CTRL_REG_6		0xb0
-#define CDR_CTRL_REG_1		0x80
 
-#define APB_FIXED_OFFSET	BIT(3)
-
+#define PHY_AUTOLOAD_PERIOD	35
 struct qca_uni_ss_phy {
 	struct phy phy;
 	struct device *dev;
@@ -187,9 +185,19 @@ int qca_uni_ss_phy_usb_los_calibration(void __iomem *base)
 	return 0;
 }
 
+static void phy_autoload(void)
+{
+	int temp = 0;
+
+	while (temp < PHY_AUTOLOAD_PERIOD) {
+		udelay(1);
+		temp += 1;
+	}
+}
+
 static int qca_uni_ss_phy_init(struct phy *x)
 {
-	int ret, val;
+	int ret;
 	struct qca_uni_ss_phy *phy = phy_get_drvdata(x);
 	const char *compat_name;
 
@@ -200,32 +208,31 @@ static int qca_uni_ss_phy_init(struct phy *x)
 		return ret;
 	}
 
-	/* assert SS PHY POR reset */
-	reset_control_assert(phy->por_rst);
-
-	msleep(100);
-
-	/* deassert SS PHY POR reset */
-	reset_control_deassert(phy->por_rst);
-
 	if (!strcmp(compat_name, "qca,ipq5018-uni-ssphy")) {
+		/* assert SS PHY POR reset */
+		reset_control_assert(phy->por_rst);
+		usleep_range(1, 5);
+		/* deassert SS PHY POR reset */
+		reset_control_deassert(phy->por_rst);
 		clk_prepare_enable(phy->phy_cfg_ahb_clk);
 		clk_prepare_enable(phy->pipe_clk);
-		usleep_range(100, 150);
+		phy_autoload();
 		/*set frequency initial value*/
-		qca_uni_ss_write(phy->base, SSCG_CTRL_REG_4, 0x1cb9);
-		qca_uni_ss_write(phy->base, SSCG_CTRL_REG_5, 0x023a);
+		writel(0x1cb9, phy->base + SSCG_CTRL_REG_4);
+		writel(0x023a, phy->base + SSCG_CTRL_REG_5);
 		/*set spectrum spread count*/
-		qca_uni_ss_write(phy->base, SSCG_CTRL_REG_3, 0xd360);
+		writel(0xd360, phy->base + SSCG_CTRL_REG_3);
 		/*set fstep*/
-		qca_uni_ss_write(phy->base, SSCG_CTRL_REG_1, 0x1);
-		qca_uni_ss_write(phy->base, SSCG_CTRL_REG_2, 0xeb);
-
-		val = qca_uni_ss_read(phy->base, CDR_CTRL_REG_1);
-		val |= APB_FIXED_OFFSET;
-		qca_uni_ss_write(phy->base, CDR_CTRL_REG_1, val);
-	} else  /* USB LOS Calibration */
+		writel(0x1, phy->base + SSCG_CTRL_REG_1);
+		writel(0xeb, phy->base + SSCG_CTRL_REG_2);
+	} else  { /* USB LOS Calibration */
+		/* assert SS PHY POR reset */
+		reset_control_assert(phy->por_rst);
+		msleep(100);
+		/* deassert SS PHY POR reset */
+		reset_control_deassert(phy->por_rst);
 		ret = qca_uni_ss_phy_usb_los_calibration(phy->base);
+	}
 
 	return ret;
 }
