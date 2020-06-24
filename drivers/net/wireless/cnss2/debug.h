@@ -52,7 +52,7 @@ extern void *cnss_ipc_log_long_context;
 					    wlfw_service_instance_id,	\
 					    ##__VA_ARGS__);		\
 		} else {						\
-			pr_err("cnss: " _fmt, ##__VA_ARGS__);		\
+			pr_err("cnss: ERR: " _fmt, ##__VA_ARGS__);	\
 		}							\
 	} while (0)
 
@@ -73,7 +73,7 @@ extern void *cnss_ipc_log_long_context;
 					    wlfw_service_instance_id,	\
 					    ##__VA_ARGS__);		\
 		} else {						\
-			pr_err("cnss: " _fmt, ##__VA_ARGS__);		\
+			pr_err("cnss: WARN: " _fmt, ##__VA_ARGS__);	\
 		}							\
 	} while (0)
 
@@ -94,7 +94,7 @@ extern void *cnss_ipc_log_long_context;
 					    wlfw_service_instance_id,	\
 					    ##__VA_ARGS__);		\
 		} else {						\
-			pr_err("cnss: " _fmt, ##__VA_ARGS__);		\
+			pr_err("cnss: INFO: " _fmt, ##__VA_ARGS__);	\
 		}							\
 	} while (0)
 
@@ -115,7 +115,7 @@ extern void *cnss_ipc_log_long_context;
 					    wlfw_service_instance_id,	\
 					    ##__VA_ARGS__);		\
 		} else {						\
-			pr_err("cnss: " _fmt, ##__VA_ARGS__);		\
+			pr_err("cnss: DBG: " _fmt, ##__VA_ARGS__);	\
 		}							\
 	} while (0)
 
@@ -134,8 +134,15 @@ extern void *cnss_ipc_log_long_context;
 		}							\
 	} while (0)
 
-#define cnss_fatal_err(_fmt, ...)					\
-	pr_err("fatal: " _fmt, ##__VA_ARGS__)
+#define cnss_fatal_err(_fmt, ...) do {					\
+		if (plat_priv) {					\
+			pr_err("cnss[%x]: FATAL: " _fmt,		\
+			       plat_priv->wlfw_service_instance_id,	\
+			       ##__VA_ARGS__);				\
+		} else {						\
+			pr_err("cnss: FATAL: " _fmt, ##__VA_ARGS__);	\
+		}							\
+	} while (0)
 
 int cnss_debug_init(void);
 void cnss_debug_deinit(void);
