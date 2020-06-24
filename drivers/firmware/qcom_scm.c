@@ -1,7 +1,7 @@
 /*
  * Qualcomm SCM driver
  *
- * Copyright (c) 2010, 2015-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010, 2015-2018, 2020 The Linux Foundation. All rights reserved.
  * Copyright (C) 2015 Linaro Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -722,6 +722,23 @@ int qcom_scm_dload(u32 svc_id, u32 cmd_id, void *cmd_buf)
 }
 EXPORT_SYMBOL(qcom_scm_dload);
 
+int qcom_scm_wcss_boot(u32 svc_id, u32 cmd_id, void *cmd_buf)
+{
+	int ret;
+
+	ret = qcom_scm_clk_enable();
+	if (ret)
+		return ret;
+
+	ret = __qcom_scm_wcss_boot(__scm->dev, svc_id, cmd_id, cmd_buf);
+
+	qcom_scm_clk_disable();
+
+	return ret;
+
+}
+EXPORT_SYMBOL(qcom_scm_wcss_boot);
+
 int qcom_scm_pshold(void)
 {
 	int ret;
@@ -789,6 +806,12 @@ int qcom_scm_usb_mode_write(u32 arg1, u32 arg2)
 					arg1, arg2);
 }
 EXPORT_SYMBOL(qcom_scm_usb_mode_write);
+
+int qcom_scm_tcsr_reg_write(u32 arg1, u32 arg2)
+{
+	return __qcom_scm_tcsr_reg_write(__scm->dev, arg1, arg2);
+}
+EXPORT_SYMBOL(qcom_scm_tcsr_reg_write);
 
 int qcom_scm_cache_dump(u32 cpu)
 {
@@ -897,3 +920,25 @@ int qcom_scm_get_smmustate()
 	return ret;
 }
 EXPORT_SYMBOL(qcom_scm_get_smmustate);
+
+/**
+ * qcom_scm_load_otp () - Load OTP to device memory
+ * @peripheral:	peripheral id
+ *
+ * Return 0 on success.
+ */
+int qcom_scm_load_otp(u32 peripheral)
+{
+	int ret;
+
+	ret = qcom_scm_clk_enable();
+	if (ret)
+		return ret;
+
+	ret = __qcom_scm_load_otp(__scm->dev, peripheral);
+	qcom_scm_clk_disable();
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_scm_load_otp);
+

@@ -26,20 +26,24 @@
 	aliases {
 		sdhc1 = &sdhc_1; /* SDC1 eMMC slot */
 		serial0 = &blsp1_uart1;
+		serial1 = &blsp1_uart2;
+		ethernet0 = "/soc/dp1";
+		ethernet1 = "/soc/dp2";
 	};
 
 	chosen {
 		linux,initrd-end = <0x46000000>;
 		linux,initrd-start = <0x44000000>;
 		bootargs = "root=/dev/ram0 rw init=/init";
+	#ifdef __IPQ_MEM_PROFILE_256_MB__
+		bootargs-append = " clk_ignore_unused swiotlb=1";
+	#else
+		bootargs-append = " clk_ignore_unused swiotlb=1 coherent_pool=2M";
+	#endif
 		stdout-path = "serial0";
 	};
 
 	soc {
-		gcc: gcc@1800000 {
-			gcc-use-dummy;
-		};
-
 		serial@78af000 {
 			status = "ok";
 		};
@@ -98,59 +102,72 @@
 					port@0 {
 						port_id = <1>;
 						phy_address = <7>;
+						mdiobus = <&mdio0>;
 					};
 					port@1 {
 						port_id = <2>;
 						phy_address = <0x1c>;
+						mdiobus = <&mdio1>;
+						port_mac_sel = "QGMAC_PORT";
 					};
 				};
 			};
 		};
 
-		pcie0: pci@80000000 {
-			status = "ok";
-		};
-
-		pcie1: pci@a0000000 {
-			status = "ok";
-		};
-
 		wifi0: wifi@c000000 {
-			status = "disabled";
+			status = "ok";
+		};
+
+		dp1 {
+			device_type = "network";
+			compatible = "qcom,nss-dp";
+			qcom,id = <1>;
+			reg = <0x39C00000 0x10000>;
+			interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+			qcom,mactype = <2>;
+			qcom,link-poll = <1>;
+			qcom,phy-mdio-addr = <7>;
+			mdio-bus = <&mdio0>;
+			local-mac-address = [000000000000];
+			phy-mode = "sgmii";
+		};
+
+		dp2 {
+			device_type = "network";
+			compatible = "qcom,nss-dp";
+			qcom,id = <2>;
+			reg = <0x39D00000 0x10000>;
+			interrupts = <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
+			qcom,mactype = <2>;
+			qcom,link-poll = <1>;
+			qcom,phy-mdio-addr = <28>;
+			mdio-bus = <&mdio1>;
+			local-mac-address = [000000000000];
+			phy-mode = "sgmii";
 		};
 
 		qcom,test@0 {
 			status = "ok";
 		};
-
-		pcie0_rp {
-		        status = "ok";
-
-			mhi_0: qcom,mhi@0 {
-				reg = <0 0 0 0 0 >;
-				qrtr_instance_id = <0x8001>;
-			};
-		};
-
-		pcie1_rp {
-		        status = "ok";
-
-			mhi_1: qcom,mhi@1 {
-				reg = <0 0 0 0 0 >;
-				qrtr_instance_id = <0x8002>;
-			};
-		};
 	};
 };
 
 &tlmm {
-	pinctrl-0 = <&uart_pins>;
+	pinctrl-0 = <&blsp0_uart_pins &blsp1_uart_pins>;
 	pinctrl-names = "default";
 
-	uart_pins: uart_pins {
+	blsp0_uart_pins: blsp0_uart_pins {
 		uart_rx_tx {
 			pins = "gpio20", "gpio21";
 			function = "blsp0_uart0";
+			bias-disable;
+		};
+	};
+
+	blsp1_uart_pins: blsp1_uart_pins {
+		uart_rx_tx {
+			pins = "gpio23", "gpio25", "gpio24", "gpio26";
+			function = "blsp1_uart2";
 			bias-disable;
 		};
 	};
@@ -222,12 +239,51 @@
 	status = "ok";
 };
 
-&pcie0 {
+&pcie_x1 {
+	status = "disabled";
+	perst-gpio = <&tlmm 18 1>;
+};
+
+&pcie_x2 {
 	status = "ok";
 	perst-gpio = <&tlmm 15 1>;
 };
 
-&pcie1 {
+&dwc_0 {
+	/delete-property/ #phy-cells;
+	/delete-property/ phys;
+	/delete-property/ phy-names;
+};
+
+&hs_m31phy_0 {
 	status = "ok";
-	perst-gpio = <&tlmm 18 1>;
+};
+
+&pcie_x1phy {
+	status = "disabled";
+};
+
+&pcie_x2phy {
+	status = "ok";
+};
+
+&pcie_x1_rp {
+	status = "disabled";
+
+	mhi_0: qcom,mhi@0 {
+		reg = <0 0 0 0 0 >;
+	};
+};
+
+&pcie_x2_rp {
+	status = "ok";
+
+	mhi_1: qcom,mhi@1 {
+		reg = <0 0 0 0 0 >;
+		qrtr_instance_id = <0x20>;
+	};
+};
+
+&wifi3 {
+        status = "ok";
 };

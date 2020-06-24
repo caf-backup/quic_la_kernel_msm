@@ -1273,7 +1273,7 @@ const struct qcom_wdt_props qcom_wdt_props_ipq6018 = {
 
 const struct qcom_wdt_props qcom_wdt_props_ipq5018 = {
 	.layout = reg_offset_data_kpss,
-	.tlv_msg_offset = (500 * SZ_1K),
+	.tlv_msg_offset = (1012 * SZ_1K),
 	/* As SBL overwrites the NSS IMEM, TZ has to copy it to some memory
 	 * on crash before it restarts the system. Hence, reserving of 384K
 	 * is required to copy the NSS IMEM before restart is done.
@@ -1298,15 +1298,18 @@ const struct qcom_wdt_props qcom_wdt_props_ipq5018 = {
 	 *		|    regsave	|
 	 *		 ---------------
 	 *		|		|
-	 *		|     384K	|
+	 *		|     192K	|
 	 *		|    NSS IMEM	|
 	 *		|		|
 	 *		|		|
 	 *		 ---------------
+	 *		|     352 K     |
+	 *		|    BTSS RAM   |
+	 *		 ---------------
 	 *		|    3K - DCC	|
 	 *		 ---------------
 	 *		|		|
-	 *		|     82K	|
+	 *		|     457K	|
 	 *		|    Unused	|
 	 *		|		|
 	 *		 ---------------
@@ -1315,8 +1318,8 @@ const struct qcom_wdt_props qcom_wdt_props_ipq5018 = {
 	 *		 ---------------
 	 *
 	 */
-	.crashdump_page_size = (SZ_8K + (384 * SZ_1K) + (3 * SZ_1K) +
-				(82 * SZ_1K) + (12 * SZ_1K)),
+	.crashdump_page_size = (SZ_8K + (192 * SZ_1K) + (352 * SZ_1K) +
+				(3 * SZ_1K) + (457 * SZ_1K) + (12 * SZ_1K)),
 	.secure_wdog = true,
 };
 

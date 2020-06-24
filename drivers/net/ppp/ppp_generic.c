@@ -3000,13 +3000,13 @@ ppp_connect_channel(struct channel *pch, int unit)
 
 	ppp_proto = ppp_channel_get_protocol(pch->chan);
 	if (ppp_proto == PX_PROTO_PPTP) {
-		ppp->dev->priv_flags |= IFF_PPP_PPTP;
+		ppp->dev->priv_flags_ext |= IFF_EXT_PPP_PPTP;
 	} else if (ppp_proto == PX_PROTO_OL2TP) {
 		version = ppp_channel_get_proto_version(pch->chan);
 		if (version == 2)
-			ppp->dev->priv_flags |= IFF_PPP_L2TPV2;
+			ppp->dev->priv_flags_ext |= IFF_EXT_PPP_L2TPV2;
 		else if (version == 3)
-			ppp->dev->priv_flags |= IFF_PPP_L2TPV3;
+			ppp->dev->priv_flags_ext |= IFF_EXT_PPP_L2TPV3;
 	}
 	notify = 1;
 

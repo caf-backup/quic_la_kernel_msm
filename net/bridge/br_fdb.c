@@ -1084,15 +1084,43 @@ static int __br_fdb_delete(struct net_bridge_port *p,
 	return err;
 }
 
+/* This function has to be called only for bridge-port netdevs.*/
+/* For bridge netdev br_fdb_delete has to be called.*/
 int br_fdb_delete_by_netdev(struct net_device *dev,
 			    const unsigned char *addr, u16 vid)
 {
 	int err;
+	struct net_bridge_vlan_group *vg;
+	struct net_bridge_vlan *v;
+	struct net_bridge_port *p = br_port_get_rcu(dev);
 
-	rtnl_lock();
-	err = br_fdb_delete(NULL, NULL, dev, addr, vid);
-	rtnl_unlock();
+	if (!p) {
+		pr_info("bridge: %s not a bridge port\n",
+			dev->name);
+		return -EINVAL;
+	}
+	vg = nbp_vlan_group(p);
 
+	if (vid) {
+		v = br_vlan_find(vg, vid);
+		if (!v) {
+			pr_info("bridge: with unconfigured vlan %d on %s\n"
+				, vid, dev->name);
+			return -EINVAL;
+		}
+
+		return __br_fdb_delete(p, addr, vid);
+	}
+	err = __br_fdb_delete(p, addr, 0);
+
+	if (!vg || !vg->num_vlans)
+		return err;
+
+	list_for_each_entry(v, &vg->vlan_list, vlist) {
+		if (!br_vlan_should_use(v))
+			continue;
+		err &= __br_fdb_delete(p, addr, v->vid);
+	}
 	return err;
 }
 EXPORT_SYMBOL_GPL(br_fdb_delete_by_netdev);

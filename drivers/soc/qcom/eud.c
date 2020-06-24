@@ -45,9 +45,14 @@
 #define EUD_REG_CTL_OUT_1	0x0074
 #define EUD_REG_VBUS_INT_CLR	0x0080
 #define EUD_REG_CHGR_INT_CLR	0x0084
-#define EUD_REG_CSR_EUD_EN	0x1014
-#define EUD_REG_SW_ATTACH_DET	0x1018
-#define EUD_EUD_EN2		0x2000
+
+#define EUD_DEV_ID_1		0x0004
+#define EUD_DEV_ID_2		0x0008
+#define EUD_DEV_ID_3		0x000c
+#define EUD_REG_CSR_EUD_EN	0x0014
+#define EUD_REG_SW_ATTACH_DET	0x0018
+
+#define EUD_EUD_EN2		0x1000
 
 #define EUD_INT_RX		BIT(0)
 #define EUD_INT_TX		BIT(1)
@@ -85,6 +90,7 @@ struct eud_chip {
 	struct device			*dev;
 	int				eud_irq;
 	void __iomem			*eud_reg_base;
+	void __iomem			*eud_mode_mgr;
 	struct uart_port		port;
 	bool				secure_eud_en;
 	bool				need_phy_clk_vote;
@@ -117,13 +123,18 @@ static void enable_eud(struct platform_device *pdev)
 #endif
 
 	/* set EUD_EN bit */
-	writel_relaxed(BIT(0), priv->eud_reg_base + EUD_EUD_EN2);
+	writel_relaxed(BIT(0), priv->eud_mode_mgr + EUD_EUD_EN2);
 	/* write into CSR to enable EUD */
-	writel_relaxed(BIT(0), priv->eud_reg_base + EUD_REG_CSR_EUD_EN);
+	writel_relaxed(BIT(0), priv->eud_mode_mgr + EUD_REG_CSR_EUD_EN);
 
 	/* Enable vbus, chgr & safe mode warning interrupts */
 	writel_relaxed(EUD_INT_VBUS | EUD_INT_CHGR | EUD_INT_SAFE_MODE,
 			priv->eud_reg_base + EUD_REG_INT1_EN_MASK);
+
+	/* write EUD DEV_ID */
+	writel_relaxed(0x80, priv->eud_mode_mgr + EUD_DEV_ID_1);
+	writel_relaxed(0x30, priv->eud_mode_mgr + EUD_DEV_ID_2);
+	writel_relaxed(0x79, priv->eud_mode_mgr + EUD_DEV_ID_3);
 
 #ifdef CONFIG_EUD_EXTCON_SUPPORT
 	/* Enable secure eud if supported */
@@ -158,9 +169,9 @@ static void disable_eud(struct platform_device *pdev)
 #endif
 
 	/* Unset EUD_EN bit */
-	writel_relaxed(0, priv->eud_reg_base + EUD_EUD_EN2);
+	writel_relaxed(0, priv->eud_mode_mgr + EUD_EUD_EN2);
 	/* write into CSR to disable EUD */
-	writel_relaxed(0, priv->eud_reg_base + EUD_REG_CSR_EUD_EN);
+	writel_relaxed(0, priv->eud_mode_mgr + EUD_REG_CSR_EUD_EN);
 
 #ifdef CONFIG_EUD_EXTCON_SUPPORT
 	/* Disable secure eud if supported */
@@ -287,21 +298,21 @@ static void pet_eud(struct eud_chip *chip)
 	u32 reg;
 
 	/* read sw_attach_det[0] to find attach/detach event */
-	reg = readl_relaxed(chip->eud_reg_base + EUD_REG_SW_ATTACH_DET);
+	reg = readl_relaxed(chip->eud_mode_mgr + EUD_REG_SW_ATTACH_DET);
 	if (reg & BIT(0)) {
 		/* Detach & Attach pet for EUD */
-		writel_relaxed(0, chip->eud_reg_base + EUD_REG_SW_ATTACH_DET);
+		writel_relaxed(0, chip->eud_mode_mgr + EUD_REG_SW_ATTACH_DET);
 		/* Ensure Register Writes Complete */
 		wmb();
 		/* Delay to make sure detach pet is done before attach pet */
 		udelay(100);
-		writel_relaxed(BIT(0), chip->eud_reg_base +
+		writel_relaxed(BIT(0), chip->eud_mode_mgr +
 					EUD_REG_SW_ATTACH_DET);
 		/* Ensure Register Writes Complete */
 		wmb();
 	} else {
 		/* Attach pet for EUD */
-		writel_relaxed(BIT(0), chip->eud_reg_base +
+		writel_relaxed(BIT(0), chip->eud_mode_mgr +
 					EUD_REG_SW_ATTACH_DET);
 		/* Ensure Register Writes Complete */
 		wmb();
@@ -594,7 +605,22 @@ static int msm_eud_probe(struct platform_device *pdev)
 	if (IS_ERR(chip->eud_reg_base))
 		return PTR_ERR(chip->eud_reg_base);
 
+	/* EUD_MODE_MANAGER for DEV_ID*/
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "eud_mode_mgr");
+	if (!res) {
+		dev_err(chip->dev, "%s: failed to get resource eud_mode_mgr\n",
+					__func__);
+		return -ENOMEM;
+	}
+
+	chip->eud_mode_mgr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(chip->eud_mode_mgr))
+		return PTR_ERR(chip->eud_mode_mgr);
+
 #ifdef CONFIG_EUD_EXTCON_SUPPORT
+	/* If secure EUD is supported, use EUD_MODE_MANAGER2 for EUD_EN
+	 * EUD_MODE_MANAGER size to be reduced to 0x1000 in dtsi
+	 */
 	chip->secure_eud_en = of_property_read_bool(pdev->dev.of_node,
 			      "qcom,secure-eud-en");
 	if (chip->secure_eud_en) {

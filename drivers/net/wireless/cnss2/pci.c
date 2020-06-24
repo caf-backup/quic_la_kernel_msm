@@ -610,10 +610,10 @@ int cnss_pci_link_down(struct device *dev)
 	unsigned long flags;
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct cnss_pci_data *pci_priv = cnss_get_pci_priv(pci_dev);
-	struct cnss_plat_data *plat_priv;
+	struct cnss_plat_data *plat_priv = NULL;
 
 	if (!pci_priv) {
-		cnss_pr_err("pci_priv is NULL\n");
+		cnss_pr_err("%s: pci_priv is NULL\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1023,7 +1023,7 @@ u64 cnss_get_q6_time(struct device *dev)
 		pci_priv = plat_priv->bus_priv;
 
 		if (!pci_priv) {
-			cnss_pr_err("Pci Priv is null\n");
+			cnss_pr_dbg("Pci Priv is null\n");
 			return 0;
 		}
 		return cnss_pci_get_q6_time(pci_priv);
@@ -1227,11 +1227,14 @@ int cnss_pci_update_status(struct cnss_pci_data *pci_priv,
 			   enum cnss_driver_status status)
 {
 	struct cnss_wlan_driver *driver_ops;
-	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
+	struct cnss_plat_data *plat_priv = NULL;
 
-	if (!pci_priv)
+	if (!pci_priv) {
+		cnss_pr_err("%s: pci_priv is NULL", __func__);
 		return -ENODEV;
+	}
 
+	plat_priv = pci_priv->plat_priv;
 	driver_ops = pci_priv->driver_ops;
 	if (!driver_ops || !driver_ops->update_status)
 		return -EINVAL;
@@ -2507,6 +2510,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 	unsigned int bdf_location[3], caldb_location[3];
 	u32 addr = 0;
 	u32 caldb_size = 0;
+	u32 hremote_size = 0;
 	struct device *dev;
 	int i, idx, mode;
 	struct device_node *dev_node = NULL;
@@ -2560,7 +2564,14 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 					pr_err("WARNING caldb remap failed\n");
 				break;
 			case HOST_DDR_REGION_TYPE:
-				if (fw_mem[i].size > Q6_HOST_ADDR_SZ_QCN9000) {
+				if (of_property_read_u32(dev->of_node,
+							 "hremote-size",
+							 &hremote_size)) {
+					pr_err("Error: No hremote-size in dts\n");
+					CNSS_ASSERT(0);
+					return -ENOMEM;
+				}
+				if (fw_mem[i].size > hremote_size) {
 					pr_err("Error: Need more memory %x\n",
 					       (unsigned int)fw_mem[i].size);
 					CNSS_ASSERT(0);
@@ -3258,11 +3269,14 @@ unsigned int cnss_pci_get_wake_msi(struct cnss_pci_data *pci_priv)
 {
 	int ret, num_vectors;
 	unsigned int user_base_data, base_vector;
-	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
+	struct cnss_plat_data *plat_priv = NULL;
 
-	if (!pci_priv)
+	if (!pci_priv) {
+		cnss_pr_err("%s: pci_priv is NULL\n", __func__);
 		return -ENODEV;
+	}
 
+	plat_priv = pci_priv->plat_priv;
 	ret = cnss_get_user_msi_assignment(&pci_priv->pci_dev->dev,
 					   WAKE_MSI_NAME, &num_vectors,
 					   &user_base_data, &base_vector);
@@ -3670,10 +3684,9 @@ static void cnss_dev_rddm_timeout_hdlr(unsigned long data)
 static int cnss_mhi_link_status(struct mhi_controller *mhi_ctrl, void *priv)
 {
 	struct cnss_pci_data *pci_priv = priv;
-	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
 
 	if (!pci_priv) {
-		cnss_pr_err("pci_priv is NULL\n");
+		pr_err("%s: pci_priv is NULL\n", __func__);
 		return -EINVAL;
 	}
 
@@ -3684,11 +3697,11 @@ static void cnss_mhi_notify_status(struct mhi_controller *mhi_ctrl, void *priv,
 				   enum MHI_CB reason)
 {
 	struct cnss_pci_data *pci_priv = priv;
-	struct cnss_plat_data *plat_priv;
+	struct cnss_plat_data *plat_priv = NULL;
 	enum cnss_recovery_reason cnss_reason;
 
 	if (!pci_priv) {
-		cnss_pr_err("pci_priv is NULL");
+		cnss_pr_err("%s: pci_priv is NULL\n", __func__);
 		return;
 	}
 
@@ -3697,6 +3710,16 @@ static void cnss_mhi_notify_status(struct mhi_controller *mhi_ctrl, void *priv,
 	if (reason != MHI_CB_IDLE)
 		cnss_pr_dbg("MHI status cb is called with reason %s(%d)\n",
 			    cnss_mhi_notify_status_to_str(reason), reason);
+
+	if (reason == MHI_CB_FATAL_ERROR || reason == MHI_CB_SYS_ERROR) {
+		cnss_pr_err("XXX TARGET ASSERTED XXX\n");
+		cnss_pr_err("XXX TARGET %s instance_id 0x%x plat_env idx %d XXX\n",
+			    plat_priv->device_name,
+			    plat_priv->wlfw_service_instance_id,
+			    cnss_get_plat_env_index_from_plat_priv(plat_priv));
+		plat_priv->target_asserted = 1;
+		plat_priv->target_assert_timestamp = ktime_to_ms(ktime_get());
+	}
 
 	switch (reason) {
 	case MHI_CB_IDLE:
@@ -3725,12 +3748,6 @@ static void cnss_mhi_notify_status(struct mhi_controller *mhi_ctrl, void *priv,
 		cnss_pr_err("Unsupported MHI status cb reason: %d\n", reason);
 		return;
 	}
-	cnss_pr_err("XXX TARGET ASSERTED XXX\n");
-	cnss_pr_err("XXX TARGET %s instance_id 0x%x XXX\n",
-		    plat_priv->device_name,
-		    plat_priv->wlfw_service_instance_id);
-	plat_priv->target_asserted = 1;
-	plat_priv->target_assert_timestamp = ktime_to_ms(ktime_get());
 
 	cnss_schedule_recovery(&pci_priv->pci_dev->dev, cnss_reason);
 }
@@ -3824,7 +3841,7 @@ static int cnss_pci_register_mhi(struct cnss_pci_data *pci_priv)
 
 	mhi_ctrl->rddm_size = pci_priv->plat_priv->ramdump_info_v2.ramdump_size;
 	mhi_ctrl->sbl_size = SZ_512K;
-	mhi_ctrl->seg_len = SZ_512K;
+	mhi_ctrl->seg_len = SZ_256K;
 	mhi_ctrl->fbc_download = true;
 
 	mhi_ctrl->log_buf = ipc_log_context_create(CNSS_IPC_LOG_PAGES,
@@ -4070,7 +4087,7 @@ int cnss_pci_probe_basic(struct pci_dev *pci_dev,
 	ret = of_property_read_u32(pci_dev->dev.of_node,
 				   "qrtr_instance_id", &qrtr_instance);
 	if (ret) {
-		pr_err("Failed to get Instance ID\n");
+		pr_err("Failed to get Instance ID %d\n", ret);
 		return ret;
 	}
 

@@ -97,12 +97,6 @@
 			drive-strength = <8>;
 			bias-pull-down;
 		};
-		ap2mdm_gp_rst_n {
-			pins = "gpio29";
-			function = "gpio";
-			drive-strength = <8>;
-			output-high;
-		};
 		sdx_pon_gpio {
 			pins = "gpio30";
 			function = "gpio";
@@ -110,13 +104,14 @@
 			bias-pull-up;
 			output-high;
 		};
-		ap2mdm_status {
-			pins = "gpio26";
-			function = "gpio";
-			drive-strength = <8>;
-			bias-pull-up;
-			output-high;
-		};
+	};
+
+	ap2mdm_status: ap2mdm_status {
+		pins = "gpio26";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-pull-up;
+		output-high;
 	};
 
 	mdm2ap_e911_status: mdm2ap_e911_status {
@@ -839,6 +834,8 @@
 		ap2mdm = <26>;
 		mdm2ap = <25>;
 
+		pinctrl-0 = <&ap2mdm_status>;
+		pinctrl-names = "default";
 		/* controller specific configuration */
 		qcom,iommu-dma = "disabled";
 
@@ -1044,6 +1041,28 @@
 				mhi,lpm-notify;
 			};
 
+			mhi_chan@105 {
+				reg = <105>;
+				label = "RMNET_CTL";
+				mhi,num-elements = <128>;
+				mhi,event-ring = <10>;
+				mhi,chan-dir = <1>;
+				mhi,data-type = <1>;
+				mhi,doorbell-mode = <2>;
+				mhi,ee = <0x4>;
+			};
+
+			mhi_chan@106 {
+				reg = <106>;
+				label = "RMNET_CTL";
+				mhi,num-elements = <128>;
+				mhi,event-ring = <11>;
+				mhi,chan-dir = <2>;
+				mhi,data-type = <0>;
+				mhi,doorbell-mode = <2>;
+				mhi,ee = <0x4>;
+			};
+
 		};
 
 		mhi_events: mhi_events {
@@ -1149,27 +1168,23 @@
 			};
 
 			mhi_event@10 {
-				mhi,num-elements = <0>;
-				mhi,intmod = <0>;
-				mhi,msi = <0>;
+				mhi,num-elements = <1024>;
+				mhi,intmod = <1>;
+				mhi,msi = <8>;
 				mhi,chan = <105>;
-				mhi,priority = <1>;
-				mhi,brstmode = <3>;
+				mhi,priority = <0>;
+				mhi,brstmode = <2>;
 				mhi,hw-ev;
-				mhi,client-manage;
-				mhi,offload;
 			};
 
 			mhi_event@11 {
-				mhi,num-elements = <0>;
+				mhi,num-elements = <1024>;
 				mhi,intmod = <0>;
-				mhi,msi = <0>;
+				mhi,msi = <9>;
 				mhi,chan = <106>;
-				mhi,priority = <1>;
-				mhi,brstmode = <3>;
+				mhi,priority = <0>;
+				mhi,brstmode = <2>;
 				mhi,hw-ev;
-				mhi,client-manage;
-				mhi,offload;
 			};
 
 			mhi_event@12 {

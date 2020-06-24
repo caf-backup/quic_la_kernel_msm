@@ -88,7 +88,7 @@ static int fw_ready_timeout = 15;
 module_param(fw_ready_timeout, int, 0644);
 MODULE_PARM_DESC(fw_ready_timeout, "fw ready timeout in seconds");
 
-static int cold_boot_cal_timeout = 40;
+static int cold_boot_cal_timeout = 60;
 module_param(cold_boot_cal_timeout, int, 0644);
 MODULE_PARM_DESC(cold_boot_cal_timeout, "Cold boot cal timeout in seconds");
 
@@ -219,6 +219,21 @@ struct cnss_plat_data *cnss_get_plat_priv(struct platform_device
 			return plat_env[i];
 	}
 	return NULL;
+}
+
+int cnss_get_plat_env_index_from_plat_priv(struct cnss_plat_data *plat_priv)
+{
+	int i;
+
+	if (!plat_priv)
+		return -EINVAL;
+
+	for (i = 0; i < plat_env_index; i++) {
+		if (plat_env[i] == plat_priv)
+			return i;
+	}
+
+	return -EINVAL;
 }
 
 #ifdef CONFIG_CNSS2_PM
@@ -620,19 +635,6 @@ static void cnss_release_antenna_sharing(struct cnss_plat_data *plat_priv)
 #endif
 }
 
-int cnss_is_fw_ready(struct device *dev)
-{
-	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
-
-	if (!plat_priv)
-		return 0;
-
-	if (test_bit(CNSS_FW_READY, &plat_priv->driver_state))
-		return 1;
-	return 0;
-}
-EXPORT_SYMBOL(cnss_is_fw_ready);
-
 void cnss_wait_for_fw_ready(struct device *dev)
 {
 	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
@@ -661,16 +663,6 @@ void cnss_wait_for_fw_ready(struct device *dev)
 	}
 }
 EXPORT_SYMBOL(cnss_wait_for_fw_ready);
-
-int cnss_is_cold_boot_cal_done(struct device *dev)
-{
-	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
-
-	if (test_bit(CNSS_COLD_BOOT_CAL, &plat_priv->driver_state))
-		return 0;
-	return 1;
-}
-EXPORT_SYMBOL(cnss_is_cold_boot_cal_done);
 
 void cnss_wait_for_cold_boot_cal_done(struct device *dev)
 {

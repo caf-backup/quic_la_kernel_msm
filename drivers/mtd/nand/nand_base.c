@@ -1677,7 +1677,7 @@ static int nand_setup_read_retry(struct mtd_info *mtd, int retry_mode)
 }
 
 static int get_read_page_count(struct mtd_info *mtd,
-		struct mtd_oob_ops *ops, loff_t to)
+		struct mtd_oob_ops *ops, loff_t to, uint32_t oob_per_page)
 {
 	struct nand_chip *chip = mtd->priv;
 	uint32_t start_page, end_page;
@@ -1686,6 +1686,10 @@ static int get_read_page_count(struct mtd_info *mtd,
 		start_page = to >> chip->page_shift;
 		end_page = (to + ops->len - 1) >> chip->page_shift;
 		return end_page - start_page + 1;
+	} else {
+		if (oob_per_page == 0)
+			return 0;
+		return (ops->ooblen + oob_per_page - 1) / oob_per_page;
 	}
 
 	return 0;
@@ -1729,7 +1733,7 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 	oob_required = oob ? 1 : 0;
 
 	if (readlen > mtd->writesize)
-		num_pages = get_read_page_count(mtd, ops, from);
+		num_pages = get_read_page_count(mtd, ops, from, max_oobsize);
 	else
 		num_pages = 1;
 	pr_debug("Total no of pages :%d\n",num_pages);
@@ -1738,23 +1742,46 @@ static int nand_do_read_ops(struct mtd_info *mtd, loff_t from,
 	while (1) {
 		unsigned int ecc_failures = mtd->ecc_stats.failed;
 #if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+		int rem = 0;
 		if (num_pages == MAX_MULTI_PAGE) {
 			/* fully multi page alinged page */
+			rem = (readlen % mtd->writesize);
 			req_pages = MAX_MULTI_PAGE;
-			bytes = (MAX_MULTI_PAGE * mtd->writesize);
-			aligned = (bytes == (mtd->writesize * MAX_MULTI_PAGE));
+			bytes = (req_pages * mtd->writesize);
+			if (rem) {
+				req_pages = MAX_MULTI_PAGE - 1;
+				bytes = readlen;
+			}
+			aligned = (bytes == (mtd->writesize * req_pages));
 		} else if (num_pages > MAX_MULTI_PAGE) {
 			req_pages = MAX_MULTI_PAGE;
 			bytes = (MAX_MULTI_PAGE * mtd->writesize);
+			if (num_pages == MAX_MULTI_PAGE + 1) {
+				rem = (readlen % mtd->writesize);
+				if (rem) {
+					req_pages = MAX_MULTI_PAGE - 1;
+					bytes = readlen;
+				}
+			}
 			aligned = (bytes == (mtd->writesize * MAX_MULTI_PAGE));
 		} else if (num_pages > 1 && num_pages < MAX_MULTI_PAGE) {
 			/* this check, to not break the page scope read */
 			req_pages = num_pages;
-			bytes = req_pages * mtd->writesize;
+			bytes = readlen;
+			rem = (readlen % mtd->writesize);
 			aligned = (bytes == (mtd->writesize * req_pages));
-		} else if (num_pages == 1) {
+			if (rem) {
+				if (col != 0) {
+					req_pages = 1;
+					bytes = min(mtd->writesize - col, readlen);
+					aligned = (bytes == mtd->writesize);
+				}
+			}
+		} else if (num_pages == 1 || num_pages == 0) {
 			bytes = min(mtd->writesize - col, readlen);
 			aligned = (bytes == mtd->writesize);
+		} else {
+			pr_info("Wrong number of pages:%d\n", num_pages);
 		}
 #else
 		bytes = min(mtd->writesize - col, readlen);
@@ -1876,15 +1903,22 @@ read_retry:
 			retry_mode = 0;
 		}
 
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+		if (!readlen || (int)readlen < 0)
+			break;
+#else
 		if (!readlen)
 			break;
-
+#endif
 		/* For subsequent reads align to page boundary */
 		col = 0;
 		/* Increment page address */
 #if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
-		realpage += req_pages;
 		num_pages -= req_pages;
+		if (num_pages == 0)
+			realpage++;
+		else
+			realpage += req_pages;
 #else
 		realpage++;
 #endif

@@ -1668,7 +1668,7 @@ static void qcom_glink_work(struct work_struct *work)
 			qcom_glink_handle_intent_req(glink, param1, param2);
 			break;
 		default:
-			WARN(1, "Unknown defer object %d\n", cmd);
+			WARN(1, "Unknown defer object cmd : %d, param1 : %d, param2 : %d\n", cmd, param1, param2);
 			break;
 		}
 

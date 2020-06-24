@@ -38,6 +38,20 @@ config SKB_FIXED_SIZE_2K
 		This is a hint to the NSS driver that the ‘skbuff’ size might
 		need to be fixed at 2KB, to conserve memory.
 
+config ARCH_IPQ40XX
+	bool "Enable Support for IPQ40XX"
+	help
+	  This enables support for the IPQ40XX chipset. This config can
+	  be used to enable/disable modules based on target type.
+	  If you dont know what do here, say N
+
+config ARCH_IPQ806x
+	bool "Enable Support for IPQ806x"
+	help
+	  This enables support for the IPQ806x chipset. This config can
+	  be used to enable/disable modules based on target type.
+	  If you dont know what do here, say N
+
 config ARCH_IPQ807x
 	bool "Enable Support for IPQ807x"
 	select PINCTRL_IPQ807x

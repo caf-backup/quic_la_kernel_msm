@@ -1240,8 +1240,7 @@ int mhi_process_data_event_ring(struct mhi_controller *mhi_cntrl,
 {
 	struct mhi_tre *dev_rp, *local_rp;
 	struct mhi_ring *ev_ring = &mhi_event->ring;
-	struct mhi_event_ctxt *er_ctxt =
-		&mhi_cntrl->mhi_ctxt->er_ctxt[mhi_event->er_index];
+	struct mhi_event_ctxt *er_ctxt;
 	int count = 0;
 	u32 chan;
 	struct mhi_chan *mhi_chan;
@@ -1252,6 +1251,7 @@ int mhi_process_data_event_ring(struct mhi_controller *mhi_cntrl,
 		return -EIO;
 	}
 
+	er_ctxt = &mhi_cntrl->mhi_ctxt->er_ctxt[mhi_event->er_index];
 	dev_rp = mhi_to_virtual(ev_ring, er_ctxt->rp);
 	local_rp = ev_ring->rp;
 
@@ -1727,6 +1727,39 @@ static void mhi_mark_stale_events(struct mhi_controller *mhi_cntrl,
 	spin_unlock_irqrestore(&mhi_event->lock, flags);
 }
 
+int mhi_test_rp_wp(struct device *dev, void *data)
+{
+	struct mhi_device *mhi_dev;
+	struct mhi_chan *mhi_chan;
+	struct mhi_ring *ring;
+	struct mhi_controller *mhi_cntrl;
+	int dir;
+
+	if (dev->bus != &mhi_bus_type)
+		return 0;
+
+	mhi_dev = to_mhi_device(dev);
+	mhi_cntrl = mhi_dev->mhi_cntrl;
+
+	if (mhi_dev->dev_type ==  MHI_CONTROLLER_TYPE)
+		return 0;
+
+	/* reset both channels */
+	for (dir = 0; dir < 2; dir++) {
+		mhi_chan = dir ? mhi_dev->ul_chan : mhi_dev->dl_chan;
+
+		if (!mhi_chan)
+			continue;
+
+		ring = &mhi_chan->tre_ring;
+
+		if (ring->wp >= (ring->base + ring->len))
+			printk("%s chan_name = %s rp %p wp %p\n", __func__,
+				 mhi_chan->name, ring->rp, ring->wp);
+	}
+	return 0;
+}
+
 static void mhi_reset_data_chan(struct mhi_controller *mhi_cntrl,
 				struct mhi_chan *mhi_chan)
 {
@@ -1740,6 +1773,7 @@ static void mhi_reset_data_chan(struct mhi_controller *mhi_cntrl,
 	result.bytes_xferd = 0;
 
 	printk("%s rp %p wp %p\n", __func__, tre_ring->rp, tre_ring->wp);
+	device_for_each_child(mhi_cntrl->dev, NULL, mhi_test_rp_wp);
 
 	while (tre_ring->rp != tre_ring->wp) {
 		struct mhi_buf_info *buf_info = buf_ring->rp;
