@@ -213,6 +213,7 @@ static int cnss_pci_check_link_status(struct cnss_pci_data *pci_priv)
 {
 #ifdef CONFIG_PCI_SUSPENDRESUME
 	u16 device_id;
+	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
 
 	if (pci_priv->pci_link_state == PCI_LINK_DOWN) {
 		cnss_pr_dbg("PCIe link is suspended\n");
@@ -2884,13 +2885,13 @@ static int cnss_pci_alloc_m3_mem(struct cnss_plat_data *plat_priv)
 					SZ_512K, &m3_mem->pa,
 					GFP_KERNEL);
 	if (!m3_mem->va) {
-		cnss_pr_err("Failed to allocate memory for M3, size: 0x%zx\n",
+		cnss_pr_err("Failed to allocate memory for M3, size: 0x%x\n",
 			    SZ_512K);
 		return -ENOMEM;
 	}
 
-	cnss_pr_dbg("M3 mem va: %p, pa: 0x%x, size: %d\n",
-		    m3_mem->va, m3_mem->pa, SZ_512K);
+	cnss_pr_dbg("M3 mem va: %p, pa: %pa, size: %d\n",
+		    m3_mem->va, &m3_mem->pa, SZ_512K);
 
 	return 0;
 }
@@ -2920,7 +2921,7 @@ int cnss_pci_load_m3(struct cnss_pci_data *pci_priv)
 	}
 
 	if (fw_entry->size > SZ_512K) {
-		cnss_pr_err("M3 size %d more than allocated size %d",
+		cnss_pr_err("M3 size %zd more than allocated size %d",
 			    fw_entry->size, SZ_512K);
 		release_firmware(fw_entry);
 		return -ENOMEM;
@@ -2951,7 +2952,7 @@ static void cnss_pci_free_m3_mem(struct cnss_plat_data *plat_priv)
 
 	m3_mem = &plat_priv->m3_mem;
 	if (m3_mem->va) {
-		cnss_pr_dbg("Freeing memory for M3, va: 0x%pK, pa: %pa, size: 0x%zx\n",
+		cnss_pr_dbg("Freeing memory for M3, va: 0x%pK, pa: %pa, size: 0x%x\n",
 			    m3_mem->va, &m3_mem->pa, SZ_512K);
 		dma_free_coherent(&pci_dev->dev, SZ_512K,
 				  m3_mem->va, m3_mem->pa);
@@ -3738,10 +3739,12 @@ static char *cnss_mhi_notify_status_to_str(enum MHI_CB status)
 static void cnss_dev_rddm_timeout_hdlr(unsigned long data)
 {
 	struct cnss_pci_data *pci_priv = (struct cnss_pci_data *)data;
+	struct cnss_plat_data *plat_priv = NULL;
 
 	if (!pci_priv)
 		return;
 
+	plat_priv = pci_priv->plat_priv;
 	cnss_fatal_err("Timeout waiting for RDDM notification\n");
 
 	cnss_schedule_recovery(&pci_priv->pci_dev->dev, CNSS_REASON_TIMEOUT);
