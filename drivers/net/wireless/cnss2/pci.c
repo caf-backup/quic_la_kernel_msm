@@ -267,10 +267,16 @@ static int cnss_pci_reg_read(struct cnss_pci_data *pci_priv,
 {
 	int ret;
 	unsigned long flags;
+	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
 
 	ret = cnss_pci_check_link_status(pci_priv);
 	if (ret)
 		return ret;
+
+	if (!pci_priv->bar) {
+		cnss_pr_err("PCI bar is not yet assigned\n");
+		return 0;
+	}
 
 	if (pci_priv->pci_dev->device == QCA6174_DEVICE_ID ||
 	    offset < MAX_UNWINDOWED_ADDRESS) {
@@ -293,10 +299,16 @@ static int cnss_pci_reg_write(struct cnss_pci_data *pci_priv, u32 offset,
 {
 	int ret;
 	unsigned long flags;
+	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
 
 	ret = cnss_pci_check_link_status(pci_priv);
 	if (ret)
 		return ret;
+
+	if (!pci_priv->bar) {
+		cnss_pr_err("PCI bar is not yet assigned\n");
+		return 0;
+	}
 
 	if (pci_priv->pci_dev->device == QCA6174_DEVICE_ID ||
 	    offset < MAX_UNWINDOWED_ADDRESS) {
@@ -918,7 +930,7 @@ static int cnss_pci_get_device_timestamp(struct cnss_pci_data *pci_priv,
 					 u64 *time_us)
 {
 	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
-	u32 low, high;
+	u32 low = 0, high = 0;
 	u64 device_ticks;
 
 	if (!plat_priv->device_freq_hz) {

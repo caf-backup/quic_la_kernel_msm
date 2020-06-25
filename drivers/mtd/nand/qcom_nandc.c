@@ -492,6 +492,10 @@ struct nandc_regs {
 	__le32 read_location_last2;
 	__le32 read_location_last3;
 	__le32 flash_feature;
+	__le32 spi_cfg;
+	__le32 spi_num_addr_cycle;
+	__le32 spi_busy_wait_cnt;
+	__le32 spi_mstr_cfg;
 #endif
 	__le32 erased_cw_detect_cfg_clr;
 	__le32 erased_cw_detect_cfg_set;
@@ -551,7 +555,8 @@ struct qcom_nand_controller {
 #if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 	struct clk *io_macro_clk;
 	struct qpic_nand_pltfm_data *pdata;
-	bool	stnd_alone_flag;
+	u32 io_macro_max_clk;
+	u32 phase;
 #endif
 	union {
 		struct {
@@ -957,6 +962,14 @@ static __le32 *offset_to_nandc_reg(struct nandc_regs *regs, int offset)
 		return &regs->read_location_last3;
 	case NAND_FLASH_FEATURES:
 		return &regs->flash_feature;
+	case NAND_FLASH_SPI_CFG:
+		return &regs->spi_cfg;
+	case NAND_SPI_NUM_ADDR_CYCLES:
+		return &regs->spi_num_addr_cycle;
+	case NAND_SPI_BUSY_CHECK_WAIT_CNT:
+		return &regs->spi_busy_wait_cnt;
+	case NAND_QSPI_MSTR_CONFIG:
+		return &regs->spi_mstr_cfg;
 #endif
 	default:
 		return NULL;
@@ -3658,6 +3671,25 @@ static int qcom_nandc_setup(struct qcom_nand_controller *nandc)
 }
 
 #if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
+static void qspi_write_reg_bam(struct qcom_nand_controller *nandc,
+		unsigned int val, unsigned int reg)
+{
+	int ret;
+
+	/* Clear the BAM transaction index */
+	clear_bam_transaction(nandc);
+
+	nandc_set_reg(nandc, reg, val);
+
+	write_reg_dma(nandc, reg, 1, DMA_DESC_FLAG_BAM_NEXT_SGL);
+
+	/* submit the descriptor to bam for execution*/
+	ret = submit_descs(nandc);
+	if (ret)
+		dev_err(nandc->dev, "Error in submitting descriptor to write config reg\n");
+	free_descs(nandc);
+}
+
 static int qpic_serial_check_status(__le32 *status)
 {
 	if (*(__le32 *)status & FLASH_ERROR) {
@@ -3843,8 +3875,9 @@ static struct qpic_nand_pltfm_data *qpic_nand_populate_pdata(struct device *dev,
 		struct qcom_nand_controller *nandc)
 {
 	struct qpic_nand_pltfm_data *pdata = NULL;
-	int io_macro_clk_len;
+	int io_macro_clk_len, i;
 	u32 *io_macro_clk_table = NULL;
+	u32 io_macromax_clk = 0, phase = 0;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
@@ -3861,8 +3894,48 @@ static struct qpic_nand_pltfm_data *qpic_nand_populate_pdata(struct device *dev,
 	pdata->io_macro_clk_table = io_macro_clk_table;
 	pdata->io_macro_clk_cnt = io_macro_clk_len;
 
+	/* Read phase value */
+	if (!of_property_read_u32(dev->of_node, "qcom,phase", &phase)) {
+		if (phase) {
+			nandc->phase = phase;
+		} else {
+			pr_err("phase not found in dts, falling to 50MHz\n");
+			goto out;
+		}
+	} else {
+		pr_err("qcom,phase property not found in dts\n");
+		goto out;
+	}
+
+	/* Read the io_macro_max_clk & phase value patched from u-boot */
+	if (!of_property_read_u32(dev->of_node, "qcom,iomacromax_clk",
+				&io_macromax_clk)) {
+		if (io_macromax_clk) {
+			for (i = 0; i < io_macro_clk_len; i++) {
+				if (pdata->io_macro_clk_table[i] == io_macromax_clk) {
+					nandc->io_macro_max_clk = io_macromax_clk;
+					break;
+				}
+			}
+		} else {
+			pr_err("qcom,iomacromax_clk not found in dts, falling to 50MHz\n");
+			goto out;
+		}
+		/* clear the feedback clock bit */
+		if (nandc->io_macro_max_clk > pdata->io_macro_clk_table[2]) {
+			qspi_write_reg_bam(nandc, (nandc_read(nandc,
+				NAND_QSPI_MSTR_CONFIG) & ~FEEDBACK_CLK_EN), NAND_QSPI_MSTR_CONFIG);
+		}
+	} else {
+		pr_err("qcom,iomacromax_clk not found in dts, falling to 50MHz\n");
+		goto out;
+	}
+
 	return pdata;
 out:
+	/* set 50MHz clock with feedback clock bit enabled */
+	nandc->io_macro_max_clk = pdata->io_macro_clk_table[2];
+
 	return NULL;
 }
 
@@ -4001,6 +4074,7 @@ void qcom_serial_nand_init(struct mtd_info *mtd)
 	 * Initialization sequence as per HPG.
 	 */
 	u32 spi_cfg_val = 0x0;
+	u32 nand_ctrl;
 	u32 busy_wait_check_cnt = SPI_BUSY_CHECK_WAIT_CNT;
 
 	u32 cmd0_val, cmd1_val, cmd2_val, cmd3_val, cmd7_val;
@@ -4011,11 +4085,25 @@ void qcom_serial_nand_init(struct mtd_info *mtd)
 	cmd3_val = NAND_FLASH_DEV_CMD3_VAL;
 	cmd7_val = NAND_FLASH_DEV_CMD7_VAL;
 
-	if (nandc->stnd_alone_flag) {
-		spi_cfg_val |= (SPI_LOAD_CLK_CNTR_INIT_EN | SPI_FLASH_MODE_EN |
-			(SPI_CFG_CLK_CNTR_INIT_VAL_VEC << 16) | SPI_FEA_STATUS_DEV_ADDR|
-			(SPI_NUM_ADDR2_CYCLES << 2));
+	spi_cfg_val |= (SPI_LOAD_CLK_CNTR_INIT_EN | SPI_FLASH_MODE_EN |
+			SPI_FEA_STATUS_DEV_ADDR| (SPI_NUM_ADDR2_CYCLES << 2));
 
+	if (nandc->phase == 0) {
+		spi_cfg_val |= SPI_CFG_CLK_CNTR_INIT_VAL_VEC << 16;
+	} else {
+		spi_cfg_val |= ((nandc->phase << 16) | (nandc->phase << 19) |
+				(nandc->phase << 22) | (nandc->phase << 25));
+	}
+
+	nand_ctrl = nandc_read(nandc, NAND_CTRL);
+	if (nand_ctrl & BAM_MODE_EN) {
+		/* write register via BAM */
+		qspi_write_reg_bam(nandc, 0x0, NAND_FLASH_SPI_CFG);
+		qspi_write_reg_bam(nandc, spi_cfg_val, NAND_FLASH_SPI_CFG);
+
+		spi_cfg_val &= ~(SPI_LOAD_CLK_CNTR_INIT_EN);
+		qspi_write_reg_bam(nandc, spi_cfg_val, NAND_FLASH_SPI_CFG);
+	} else {
 		nandc_write(nandc, NAND_FLASH_SPI_CFG , 0x0);
 		nandc_write(nandc, NAND_FLASH_SPI_CFG , spi_cfg_val);
 
@@ -4058,12 +4146,13 @@ void qcom_serial_nand_init(struct mtd_info *mtd)
 	/* CMD8 & CMD9 value default value should be used*/
 
 	nandc_write(nandc, NAND_DEV_CMD_VLD, NAND_DEV_CMD_VLD_SERIAL_VAL);
-
-	if (nandc->stnd_alone_flag) {
-		nandc_write(nandc, NAND_SPI_NUM_ADDR_CYCLES,
-				SPI_NO_OF_ADDR_CYCLE);
-		nandc_write(nandc, NAND_SPI_BUSY_CHECK_WAIT_CNT,
-				busy_wait_check_cnt);
+	if (nand_ctrl & BAM_MODE_EN) {
+		/* write register via bam */
+		qspi_write_reg_bam(nandc, SPI_NO_OF_ADDR_CYCLE, NAND_SPI_NUM_ADDR_CYCLES);
+		qspi_write_reg_bam(nandc, busy_wait_check_cnt, NAND_SPI_BUSY_CHECK_WAIT_CNT);
+	} else {
+		nandc_write(nandc, NAND_SPI_NUM_ADDR_CYCLES, SPI_NO_OF_ADDR_CYCLE);
+		nandc_write(nandc, NAND_SPI_BUSY_CHECK_WAIT_CNT, busy_wait_check_cnt);
 	}
 }
 #endif
@@ -4323,15 +4412,11 @@ static int qcom_nandc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_aon_clk;
 
+	ret = qcom_nandc_setup(nandc);
+	if (ret)
+		goto err_setup;
+
 #if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
-	nandc->stnd_alone_flag = of_property_read_bool(dev->of_node,
-			"qcom,qpic_stand_alone_kernel");
-
-	nandc->pdata = qpic_nand_populate_pdata(nandc->dev, nandc);
-	if (!nandc->pdata) {
-		pr_err("QPIC platform data not populated\n");
-	}
-
 	/* Initially enable feedback clock bit to avoid serial
 	 * tarining done by software manually
 	 * for feed back clock the maximum IO_MACRO_CLK should
@@ -4339,8 +4424,13 @@ static int qcom_nandc_probe(struct platform_device *pdev)
 	 * to enable feedback clock bit write into register
 	 * NAND_QSPI_MSTR_CONFIG.
 	 */
-	if (nandc->stnd_alone_flag)
-		nandc_write(nandc, NAND_QSPI_MSTR_CONFIG, FEEDBACK_CLK_EN);
+	qspi_write_reg_bam(nandc, (nandc_read(nandc,
+		NAND_QSPI_MSTR_CONFIG) | FEEDBACK_CLK_EN), NAND_QSPI_MSTR_CONFIG);
+
+	nandc->pdata = qpic_nand_populate_pdata(nandc->dev, nandc);
+	if (!nandc->pdata) {
+		pr_err("QPIC platform data not populated\n");
+	}
 
 	nandc->io_macro_clk = devm_clk_get(dev, "io_macro");
 	if (IS_ERR(nandc->io_macro_clk))
@@ -4349,8 +4439,7 @@ static int qcom_nandc_probe(struct platform_device *pdev)
 	/* set the clock io_macro rate and then enable
 	 * the io_macro clock
 	 */
-	ret =  clk_set_rate(nandc->io_macro_clk,
-			nandc->pdata->io_macro_clk_table[2]);
+	ret =  clk_set_rate(nandc->io_macro_clk, nandc->io_macro_max_clk);
 	if (ret)
 		goto err_io_macro_clk;
 
@@ -4358,11 +4447,6 @@ static int qcom_nandc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_io_macro_clk;
 #endif
-
-	ret = qcom_nandc_setup(nandc);
-	if (ret)
-		goto err_setup;
-
 	for_each_available_child_of_node(dn, child) {
 		if (of_device_is_compatible(child, "qcom,nandcs")) {
 			host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);

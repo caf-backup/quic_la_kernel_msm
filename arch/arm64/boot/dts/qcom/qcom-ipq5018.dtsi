@@ -237,8 +237,7 @@
 				<&qpic_bam 3>;
 			dma-names = "tx", "rx", "cmd", "status";
 
-			qpic,io_macro_clk_rates = <24000000 100000000 200000000 \
-							320000000 400000000>;
+			qpic,io_macro_clk_rates = <24000000 100000000 200000000 320000000>;
 			status = "disabled";
 
 			nandcs@0 {
