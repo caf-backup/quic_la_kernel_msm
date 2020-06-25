@@ -117,6 +117,10 @@
 			status = "ok";
 		};
 	};
+
+	thermal-zones {
+		status = "ok";
+	};
 };
 
 &sdhc_1 {
@@ -283,4 +287,12 @@
 	mhi_1: qcom,mhi@1 {
 		reg = <0 0 0 0 0 >;
 	};
+};
+
+&qfprom {
+	status = "ok";
+};
+
+&tsens {
+	status = "ok";
 };

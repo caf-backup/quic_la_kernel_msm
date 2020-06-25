@@ -111,6 +111,10 @@
 			status = "ok";
 		};
 	};
+
+	thermal-zones {
+		status = "ok";
+	};
 };
 
 &sdhc_1 {
@@ -242,4 +246,12 @@
 
 &pcie_x2phy {
 	status = "disabled";
+};
+
+&qfprom {
+	status = "ok";
+};
+
+&tsens {
+	status = "ok";
 };

@@ -212,7 +212,7 @@
 	};
 
 	thermal-zones {
-		status = "disabled";
+		status = "ok";
 	};
 };
 
@@ -373,10 +373,6 @@
 };
 
 &dbm_1p5 {
-	status = "disabled";
-};
-
-&tsens {
 	status = "disabled";
 };
 
@@ -563,4 +559,12 @@
 
 &wifi3 {
         status = "ok";
+};
+
+&qfprom {
+	status = "ok";
+};
+
+&tsens {
+	status = "ok";
 };
