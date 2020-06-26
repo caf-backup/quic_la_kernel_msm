@@ -271,6 +271,13 @@
 						forced-duplex = <1>;
 					};
 				};
+				led_source@0 {
+					source = <0>;
+					mode = "normal";
+					speed = "all";
+					blink_en = "enable";
+					active = "high";
+				};
 			};
 			ess-switch1@1 {
 				compatible = "qcom,ess-switch-qca83xx";
