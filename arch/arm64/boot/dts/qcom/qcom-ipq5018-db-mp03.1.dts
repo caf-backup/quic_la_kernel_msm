@@ -162,7 +162,7 @@
 		};
 
 		wifi0: wifi@c000000 {
-			status = "disabled";
+			status = "ok";
 		};
 
 		dp1 {
@@ -366,10 +366,6 @@
 
 &qcom_q6v5_wcss {
 	status = "ok";
-};
-
-&wifi0 {
-	status = "disabled";
 };
 
 &i2c_0 {
