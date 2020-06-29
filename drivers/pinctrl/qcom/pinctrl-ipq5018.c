@@ -291,6 +291,7 @@ enum ipq5018_functions {
 	msm_mux_qdss_cti_trig_in_b1,
 	msm_mux_wci7,
 	msm_mux_xfem7,
+	msm_mux_led0,
 	msm_mux_NA,
 };
 
@@ -658,6 +659,9 @@ static const char * const wci7_groups[] = {
 static const char * const xfem7_groups[] = {
 	"gpio45",
 };
+static const char * const led0_groups[] = {
+	"gpio46",
+};
 
 static const char * const gpio_groups[] = {
 	"gpio0", "gpio1", "gpio2", "gpio3", "gpio4", "gpio5", "gpio6", "gpio7",
@@ -789,6 +793,7 @@ static const struct msm_function ipq5018_functions[] = {
 	FUNCTION(qdss_cti_trig_in_b1),
 	FUNCTION(wci7),
 	FUNCTION(xfem7),
+	FUNCTION(led0),
 };
 
 static const struct msm_pingroup ipq5018_groups[] = {
@@ -876,7 +881,7 @@ static const struct msm_pingroup ipq5018_groups[] = {
 		 NA),
 	PINGROUP(45, pwm3, qdss_cti_trig_in_b1, wci7, wci7, xfem7, NA, NA, NA,
 		 NA),
-	PINGROUP(46, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(46, led0, NA, NA, NA, NA, NA, NA, NA, NA),
 };
 
 static const struct msm_pinctrl_soc_data ipq5018_pinctrl = {
