@@ -247,10 +247,6 @@
 		};
 	};
 
-	thermal-zones {
-		status = "disabled";
-	};
-
 	firmware {
 		scm {
 			status = "disabled";
@@ -463,10 +459,6 @@
 
 &dbm_1p5 {
 	status = "ok";
-};
-
-&tsens {
-	status = "disabled";
 };
 
 &tmc_etr {

@@ -185,7 +185,7 @@
 		#size-cells = <1>;
 		compatible = "qcom,qfprom";
 		reg = <0xa0000 0x1000>;
-		status = "ok";
+		status = "disabled";
 		tsens_calib: calib@248 {
 			reg = <0x248 0x10>;
 		};
