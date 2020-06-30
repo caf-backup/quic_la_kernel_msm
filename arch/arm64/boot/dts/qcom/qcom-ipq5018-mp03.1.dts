@@ -413,6 +413,10 @@
 	status = "ok";
 };
 
+&qfprom {
+	status = "ok";
+};
+
 &tsens {
 	status = "ok";
 };

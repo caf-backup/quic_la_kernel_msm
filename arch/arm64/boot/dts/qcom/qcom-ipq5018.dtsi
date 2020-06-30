@@ -573,6 +573,7 @@
 					"gcc_q6_ahb_clk",
 					"gcc_q6_ahb_s_clk",
 					"gcc_wcss_axi_s_clk";
+			qca,auto-restart;
 			qca,extended-intc;
 			qca,wcss-aon-reset-seq;
 			interrupts-extended = <&intc 0 291 1>,

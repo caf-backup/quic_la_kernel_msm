@@ -148,6 +148,10 @@
 			status = "ok";
 		};
 	};
+
+	thermal-zones {
+		status = "ok";
+	};
 };
 
 &tlmm {
@@ -289,5 +293,13 @@
 };
 
 &wifi3 {
+	status = "ok";
+};
+
+&qfprom {
+	status = "ok";
+};
+
+&tsens {
 	status = "ok";
 };
