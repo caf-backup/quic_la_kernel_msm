@@ -1520,20 +1520,54 @@ static int cnss_qcn9000_ramdump(struct cnss_pci_data *pci_priv)
 	struct cnss_dump_data *dump_data = &info_v2->dump_data;
 	struct cnss_dump_seg *dump_seg = info_v2->dump_data_vaddr;
 	struct ramdump_segment *ramdump_segs, *s;
+	struct cnss_dump_meta_info *meta_info;
 	int i, ret = 0;
 
 	if (!info_v2->dump_data_valid ||
 	    dump_data->nentries == 0)
 		return 0;
 
-	ramdump_segs = kcalloc(dump_data->nentries,
+	/* First segment of the dump_data will have meta info in
+	 * cnss_dump_meta_info structure format.
+	 * Allocate extra segment for meta info and start filling the dump_seg
+	 * entries from ramdump_segs + NUM_META_INFO_SEGMENTS.
+	 */
+	ramdump_segs = kcalloc(dump_data->nentries +
+			       CNSS_NUM_META_INFO_SEGMENTS,
 			       sizeof(*ramdump_segs),
 			       GFP_KERNEL);
 	if (!ramdump_segs)
 		return -ENOMEM;
 
-	s = ramdump_segs;
+	meta_info = kzalloc(sizeof(*meta_info), GFP_KERNEL);
+	if (!meta_info) {
+		kfree(ramdump_segs);
+		return -ENOMEM;
+	}
+
+	meta_info->magic = CNSS_RAMDUMP_MAGIC;
+	meta_info->version = CNSS_RAMDUMP_VERSION;
+	meta_info->chipset = pci_priv->device_id;
+	meta_info->total_entries = CNSS_FW_DUMP_TYPE_MAX;
+
+	ramdump_segs->v_address = meta_info;
+	ramdump_segs->size = sizeof(*meta_info);
+
+	s = ramdump_segs + CNSS_NUM_META_INFO_SEGMENTS;
 	for (i = 0; i < dump_data->nentries; i++) {
+		if (dump_seg->type >= CNSS_FW_DUMP_TYPE_MAX) {
+			cnss_pr_err("Unsupported dump type: %d\n",
+				    dump_seg->type);
+			continue;
+		}
+
+		if (meta_info->entry[dump_seg->type].entry_start == 0) {
+			meta_info->entry[dump_seg->type].type = dump_seg->type;
+			meta_info->entry[dump_seg->type].entry_start =
+						i + CNSS_NUM_META_INFO_SEGMENTS;
+		}
+		meta_info->entry[dump_seg->type].entry_num++;
+
 		s->address = dump_seg->address;
 		s->v_address = dump_seg->v_address;
 		s->size = dump_seg->size;
@@ -1543,12 +1577,14 @@ static int cnss_qcn9000_ramdump(struct cnss_pci_data *pci_priv)
 
 	ret = create_ramdump_device_file(info_v2->ramdump_dev);
 	if (ret) {
+		kfree(meta_info);
 		kfree(ramdump_segs);
 		return ret;
 	}
 
 	ret = do_elf_ramdump(info_v2->ramdump_dev, ramdump_segs,
-			     dump_data->nentries);
+			     dump_data->nentries + CNSS_NUM_META_INFO_SEGMENTS);
+	kfree(meta_info);
 	kfree(ramdump_segs);
 
 	cnss_pci_clear_dump_info(pci_priv);
