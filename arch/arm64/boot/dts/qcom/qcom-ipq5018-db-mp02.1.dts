@@ -34,9 +34,9 @@
 	chosen {
 		bootargs = "console=ttyMSM0,115200,n8 rw init=/init";
 	#ifdef __IPQ_MEM_PROFILE_256_MB__
-		bootargs-append = " clk_ignore_unused swiotlb=1";
+		bootargs-append = " swiotlb=1";
 	#else
-		bootargs-append = " clk_ignore_unused swiotlb=1 coherent_pool=2M";
+		bootargs-append = " swiotlb=1 coherent_pool=2M";
 	#endif
 		stdout-path = "serial0";
 	};
