@@ -1181,6 +1181,9 @@
 
 			resets = <&gcc GCC_BTSS_BCR>;
 			reset-names = "btss_reset";
+
+			clocks = <&gcc GCC_BTSS_LPO_CLK>;
+			clock-names = "lpo_clk";
 		};
 	};
 
