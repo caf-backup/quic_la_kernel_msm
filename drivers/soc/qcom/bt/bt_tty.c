@@ -29,6 +29,7 @@
 #include <uapi/linux/major.h>
 #include <linux/ipc_logging.h>
 #include <linux/remoteproc.h>
+#include <linux/clk.h>
 #include "bt.h"
 
 static bool btss_debug;
@@ -334,6 +335,12 @@ int bt_parse_clks(struct bt_descriptor *btDesc)
 	if (IS_ERR_OR_NULL(btDesc->btss_reset)) {
 		dev_err(dev, "unable to acquire btss_reset\n");
 		return PTR_ERR(btDesc->btss_reset);
+	}
+
+	btDesc->lpo_clk = devm_clk_get(dev, "lpo_clk");
+	if (IS_ERR(btDesc->lpo_clk)) {
+		dev_err(dev, "failed to get lpo_clk\n");
+		return PTR_ERR(btDesc->lpo_clk);
 	}
 
 	return 0;
