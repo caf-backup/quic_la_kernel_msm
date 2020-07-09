@@ -206,7 +206,7 @@ struct bt_descriptor {
 	struct bt_ipc ipc;
 	struct bt_mem btmem;
 	struct reset_control *btss_reset;
-	struct reset_control *btss_clk_ctl;
+	struct clk *lpo_clk;
 	struct dentry *dbgfs;
 	struct platform_device *rproc_pdev;
 	int (*sendmsg_cb)(struct bt_descriptor *, unsigned char *, int);

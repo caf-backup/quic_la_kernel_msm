@@ -19,6 +19,7 @@
 #include <linux/firmware.h>
 #include <linux/delay.h>
 #include <linux/qcom_scm.h>
+#include <linux/clk.h>
 #include "bt.h"
 
 static bool auto_load;
@@ -167,6 +168,12 @@ static int bt_rproc_probe(struct platform_device *pdev)
 						pdev->dev.platform_data);
 	struct rproc *rproc;
 
+	ret = clk_prepare_enable(btDesc->lpo_clk);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to prepare/enable clock\n");
+		return ret;
+	}
+
 	rproc = rproc_alloc(&pdev->dev, pdev->name, &m0_btss_ops,
 							btDesc->fw_name, 0);
 	if (!rproc) {
@@ -212,6 +219,7 @@ static int bt_rproc_remove(struct platform_device *pdev)
 	rproc_del(rproc);
 	rproc_free(rproc);
 	bt_ipc_purge_tx_queue(btDesc);
+	clk_disable_unprepare(btDesc->lpo_clk);
 
 	return 0;
 }
