@@ -2550,6 +2550,9 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 		for (i = 0; i < plat_priv->fw_mem_seg_len; i++) {
 			switch (fw_mem[i].type) {
 			case CALDB_MEM_REGION_TYPE:
+				if (!plat_priv->cold_boot_support) {
+					break;
+				}
 				if (of_property_read_u32(dev->of_node,
 							 "caldb-size",
 							 &caldb_size)) {
