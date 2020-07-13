@@ -110,7 +110,7 @@
 		};
 
 		wifi0: wifi@c000000 {
-			status = "disabled";
+			status = "ok";
 		};
 
 		qcom,test@0 {

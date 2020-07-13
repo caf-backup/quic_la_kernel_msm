@@ -9,6 +9,9 @@
 #include <linux/regmap.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/thermal.h>
+#include <linux/io.h>
+#include <linux/interrupt.h>
 #include "tsens.h"
 
 /* TSENS register data */
@@ -22,6 +25,9 @@
 #define TSENS_TM_TRDY			0x10e4
 #define TSENS_TRDY_MASK			BIT(0)
 
+#define TSENS_TM_INT_EN_ADDR		0x1000
+#define TSENS_TM_INT_EN			BIT(0)
+
 #define TSENS_TM_SN_STATUS			0x1044
 #define TSENS_TM_SN_STATUS_VALID_BIT		BIT(14)
 #define TSENS_TM_SN_STATUS_CRITICAL_STATUS	BIT(19)
@@ -29,7 +35,25 @@
 #define TSENS_TM_SN_STATUS_LOWER_STATUS		BIT(11)
 #define TSENS_TM_SN_LAST_TEMP_MASK		0x3ff
 
+#define TSENS_TM_UPPER_LOWER_STATUS_CTRL(n)	((0x4 * n) + 0x1004)
+#define TSENS_TM_UPPER_STATUS_CLEAR		BIT(21)
+#define TSENS_TM_LOWER_STATUS_CLEAR		BIT(20)
+#define TSENS_TM_UPPER_THRESHOLD_SET(n)		((n) << 10)
+#define TSENS_TM_UPPER_THRESHOLD_MASK		0xffc00
+#define TSENS_TM_LOWER_THRESHOLD_MASK		0x3ff
+#define TSENS_TM_UPPER_THRESHOLD_VALUE(n)	(((n) & TSENS_TM_UPPER_THRESHOLD_MASK) >> 10)
+#define TSENS_TM_LOWER_THRESHOLD_VALUE(n)	((n) & TSENS_TM_LOWER_THRESHOLD_MASK)
+
 #define MAX_SENSOR				5
+
+/*
+ * ADC is 10 bits long so it can't go beyond 1023
+ */
+#define MAX_ADC		1023
+#define MIN_ADC		0
+
+#define MAX_TEMP	243 /* Temperature for adc code 1023 */
+#define MIN_TEMP	-77 /* Temperature for adc code 0 */
 
 /* eeprom layout data for ipq5018 */
 #define S0_P1_MASK_4_0	0xf8000000
@@ -81,14 +105,182 @@
 #define MEASURE_PERIOD          1
 #define SENSOR0_SHIFT           3
 
+static bool int_clr_deassert_quirk;
+
+static int get_temp_ipq5018(struct tsens_device *tmdev, int id, int *temp);
+
+int code2degc_lut_degc[MAX_SENSOR][1024];
+
+/* Trips: from very hot to very cold */
+/* Maintain same enum values as in tsens-ipq807x.c:enum tsens_trip_type */
+enum tsens_trip_type {
+	TSENS_TRIP_STAGE3 = 0, /* Critical high, not available in IPQ5018 */
+	TSENS_TRIP_STAGE2 = 1, /* Configurable high */
+	TSENS_TRIP_STAGE1,     /* Configurable low */
+	TSENS_TRIP_STAGE0,     /* Critical low, not available in IPQ5018 */
+	TSENS_TRIP_NUM,
+};
+
+int degc_to_code(int temp, int sensor)
+{
+	int code;
+
+	for (code = 0; code < 1024; code++) {
+		if (temp == code2degc_lut_degc[sensor][code])
+			return code;
+	}
+
+	return MAX_TEMP;
+}
+
+/*
+ * Set Trip temp in degree Celcius
+ */
+static int set_trip_temp(struct tsens_device *tmdev, int sensor,
+					enum tsens_trip_type trip, int temp)
+{
+	u32 reg_th, th_hi, th_lo, reg_th_offset;
+
+	if (!tmdev)
+		return -EINVAL;
+
+	if ((sensor < 0) || (sensor > (MAX_SENSOR - 1)))
+		return -EINVAL;
+
+	if ((temp < MIN_TEMP) || (temp > MAX_TEMP))
+		return -EINVAL;
+
+	temp = degc_to_code(temp, sensor);
+
+	reg_th_offset = TSENS_TM_UPPER_LOWER_STATUS_CTRL(sensor);
+	regmap_read(tmdev->map,
+		TSENS_TM_UPPER_LOWER_STATUS_CTRL(sensor), &reg_th);
+
+	th_hi = TSENS_TM_UPPER_THRESHOLD_VALUE(reg_th);
+	th_lo = TSENS_TM_LOWER_THRESHOLD_VALUE(reg_th);
+
+	switch (trip) {
+	case TSENS_TRIP_STAGE2:
+		if (temp <= th_lo)
+			return -EINVAL;
+
+		temp = TSENS_TM_UPPER_THRESHOLD_SET(temp);
+		/* Don't change lower threshold */
+		reg_th &= TSENS_TM_LOWER_THRESHOLD_MASK;
+		reg_th |= temp;
+		break;
+	case TSENS_TRIP_STAGE1:
+		if (temp >= th_hi)
+			return -EINVAL;
+
+		/* Don't change upper threshold */
+		reg_th &= TSENS_TM_UPPER_THRESHOLD_MASK;
+		reg_th |= temp;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	regmap_write(tmdev->map, TSENS_TM_INT_EN_ADDR, 0);
+	regmap_write(tmdev->map, reg_th_offset, reg_th);
+	regmap_write(tmdev->map, TSENS_TM_INT_EN_ADDR, TSENS_TM_INT_EN);
+
+	/* Sync registers */
+	mb();
+
+	return 0;
+}
+
+static void notify_uspace_tsens_fn(struct work_struct *work)
+{
+	struct tsens_sensor *s = container_of(work, struct tsens_sensor,
+								notify_work);
+
+	if (!s || !s->tzd)
+		/* Do nothing. TSENS driver has not been registered yet */
+		return;
+
+	sysfs_notify(&s->tzd->device.kobj, NULL, "type");
+}
+
+static void tsens_scheduler_fn(struct work_struct *work)
+{
+	struct tsens_device *tmdev = container_of(work, struct tsens_device,
+					tsens_work);
+	int i, reg_thr, temp, th_upper = 0, th_lower = 0;
+	u32 reg_val, reg_addr;
+
+	/*Check whether TSENS is enabled */
+	regmap_read(tmdev->map, TSENS_CNTL_ADDR, &reg_val);
+	if (!(reg_val & TSENS_SN_CTRL_EN))
+		return;
+
+	/* Iterate through all sensors */
+	for (i = 0; i < tmdev->num_sensors; i++) {
+		/* Reset for each iteration */
+		reg_thr = th_upper = th_lower = 0;
+
+		regmap_read(tmdev->map, tmdev->sensor[i].status, &reg_val);
+
+		/* Check whether the temp is valid */
+		if (!(reg_val & TSENS_TM_SN_STATUS_VALID_BIT))
+			continue;
+
+		/* Check whether upper threshold is hit */
+		if (reg_val & TSENS_TM_SN_STATUS_UPPER_STATUS) {
+			reg_thr |= TSENS_TM_UPPER_STATUS_CLEAR;
+			reg_addr = TSENS_TM_UPPER_LOWER_STATUS_CTRL(i);
+			th_upper = 1;
+		}
+		/* Check whether lower threshold is hit */
+		if (reg_val & TSENS_TM_SN_STATUS_LOWER_STATUS) {
+			reg_thr |= TSENS_TM_LOWER_STATUS_CLEAR;
+			reg_addr = TSENS_TM_UPPER_LOWER_STATUS_CTRL(i);
+			th_lower = 1;
+		}
+
+		if (th_upper || th_lower) {
+			regmap_write(tmdev->map, reg_addr, reg_thr);
+			/* Notify user space */
+			schedule_work(&tmdev->sensor[i].notify_work);
+
+			if (int_clr_deassert_quirk)
+				regmap_write(tmdev->map, reg_addr, 0);
+
+			if (!get_temp_ipq5018(tmdev, i, &temp))
+				pr_debug("Trigger (%d degrees) for sensor %d\n",
+					temp, i);
+		}
+	}
+
+	/* Sync registers */
+	mb();
+}
+
+static irqreturn_t tsens_isr(int irq, void *data)
+{
+	struct tsens_device *tmdev = data;
+
+	schedule_work(&tmdev->tsens_work);
+	return IRQ_HANDLED;
+}
+
 static int init_ipq5018(struct tsens_device *tmdev)
 {
 	int ret;
+	int i;
 	u32 reg_cntl;
 
 	init_common(tmdev);
 	if (!tmdev->map)
 		return -ENODEV;
+
+	/* Store all sensor address for future use */
+	for (i = 0; i < tmdev->num_sensors; i++) {
+		tmdev->sensor[i].status = TSENS_TM_SN_STATUS + (i * 4);
+		INIT_WORK(&tmdev->sensor[i].notify_work,
+						notify_uspace_tsens_fn);
+	}
 
 	reg_cntl = SW_RST;
 	ret = regmap_update_bits(tmdev->map, TSENS_CNTL_ADDR, SW_RST, reg_cntl);
@@ -110,6 +302,25 @@ static int init_ipq5018(struct tsens_device *tmdev)
 	if (ret)
 		return ret;
 
+	/* Init tsens worker thread */
+	INIT_WORK(&tmdev->tsens_work, tsens_scheduler_fn);
+
+	/* Register and enable the ISR */
+	ret = devm_request_irq(tmdev->dev, tmdev->tsens_irq, tsens_isr,
+			IRQF_TRIGGER_RISING, "tsens_interrupt", tmdev);
+	if (ret < 0) {
+		pr_err("%s: request_irq FAIL: %d\n", __func__, ret);
+		return ret;
+	}
+	enable_irq_wake(tmdev->tsens_irq);
+
+	regmap_write(tmdev->map, TSENS_TM_INT_EN_ADDR, TSENS_TM_INT_EN);
+
+	int_clr_deassert_quirk = device_property_read_bool(tmdev->dev,
+				"tsens-up-low-int-clr-deassert-quirk");
+	/* Sync registers */
+	mb();
+
 	return 0;
 }
 
@@ -119,7 +330,7 @@ static int calibrate_ipq5018(struct tsens_device *tmdev)
 	u32 p1[MAX_SENSOR], p2[MAX_SENSOR];
 	u32 mode = 0, lsb = 0, msb = 0;
 	u32 *qfprom_cdata;
-	int i;
+	int i, sensor;
 
 	qfprom_cdata = (u32 *)qfprom_read(tmdev->dev, "calib");
 	if (IS_ERR(qfprom_cdata))
@@ -174,7 +385,24 @@ static int calibrate_ipq5018(struct tsens_device *tmdev)
 	compute_intercept_slope(tmdev, p1, p2, mode);
 	kfree(qfprom_cdata);
 
+	for (sensor = 0; sensor < tmdev->num_sensors; sensor++) {
+		for (i = MIN_ADC; i <= MAX_ADC; i++) {
+			code2degc_lut_degc[sensor][i] = code_to_degc(i,
+							&tmdev->sensor[sensor]);
+		}
+	}
+
 	return 0;
+}
+
+static int set_trip_temp_ipq5018(void *data, int trip, int temp)
+{
+	const struct tsens_sensor *s = data;
+
+	if (!s)
+		return -EINVAL;
+
+	return set_trip_temp(s->tmdev, s->id, trip, temp);
 }
 
 static int get_temp_ipq5018(struct tsens_device *tmdev, int id, int *temp)
@@ -229,6 +457,7 @@ static const struct tsens_ops ops_ipq5018 = {
 	.init		= init_ipq5018,
 	.calibrate	= calibrate_ipq5018,
 	.get_temp	= get_temp_ipq5018,
+	.set_trip_temp	= set_trip_temp_ipq5018,
 };
 
 const struct tsens_data data_ipq5018 = {
