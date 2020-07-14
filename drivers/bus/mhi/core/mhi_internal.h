@@ -3,6 +3,7 @@
 
 #ifndef _MHI_INT_H
 #define _MHI_INT_H
+#include <linux/sched.h>
 
 #include <linux/mhi.h>
 

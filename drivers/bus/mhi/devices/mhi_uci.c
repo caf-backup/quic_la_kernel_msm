@@ -659,8 +659,10 @@ static void mhi_dl_xfer_cb(struct mhi_device *mhi_dev,
 	buf->done = 0;
 	spin_unlock_irqrestore(&uci_chan->lock, flags);
 
+#ifdef CONFIG_PM
 	if (mhi_dev->dev.power.wakeup)
 		__pm_wakeup_event(mhi_dev->dev.power.wakeup, 0);
+#endif
 
 	wake_up(&uci_chan->wq);
 }
