@@ -153,6 +153,12 @@
 	 * |        |              |                         |
 	 * |QCN9000 |  0x4CC00000  |          40MB           |
 	 * |        |              |                         |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * |QCN9000 |  0x4F400000  |          40MB           |
+	 * |        |              |                         |
+	 * |        |              |                         |
 	 * +--------+--------------+-------------------------+
 	 * |                                                 |
 	 * |      Rest of the memory for Linux               |
@@ -162,6 +168,11 @@
 		qcn9000_pcie0@4cc00000 {
 			no-map;
 			reg = <0x0 0x4CC00000 0x0 0x02800000>;
+		};
+
+		qcn9000_pcie1@4f400000 {
+			no-map;
+			reg = <0x0 0x4F400000 0x0 0x02800000>;
 		};
 	#endif
 	};
@@ -383,7 +394,7 @@
 };
 
 &pcie_x1 {
-	status = "disabled";
+	status = "ok";
 	perst-gpio = <&tlmm 18 1>;
 };
 
@@ -403,7 +414,7 @@
 };
 
 &pcie_x1phy {
-	status = "disabled";
+	status = "ok";
 };
 
 &pcie_x2phy {
@@ -411,10 +422,11 @@
 };
 
 &pcie_x1_rp {
-        status = "disabled";
+        status = "ok";
 
 	mhi_0: qcom,mhi@0 {
 		reg = <0 0 0 0 0 >;
+		qrtr_instance_id = <0x21>;
 	};
 };
 
@@ -428,6 +440,64 @@
 };
 
 &wifi3 {
+#ifdef __IPQ_MEM_PROFILE_256_MB__
+			/*
+			 * +=========+==============+=========+
+			 * |  Region | Start Offset |   Size  |
+			 * +---------+--------------+---------+
+			 * | HREMOTE |  0x4CA00000  |   16MB  |
+			 * +---------+--------------+---------+
+			 * |   ETR   |  0x4DA00000  |   1MB   |
+			 * +==================================+
+			 */
+			base-addr = <0x4CA00000>;
+			etr-addr = <0x4DA00000>;
+			caldb-addr = <0>;
+			caldb-size = <0>;
+			hremote-size = <0xF00000>;
+			tgt-mem-mode = <0x2>;
+#elif __IPQ_MEM_PROFILE_512_MB__
+			/*
+			 * +=========+==============+=========+
+			 * |  Region | Start Offset |   Size  |
+			 * +---------+--------------+---------+
+			 * | HREMOTE |  0x4CC00000  |   31MB  |
+			 * +---------+--------------+---------+
+			 * |   ETR   |  0x4EB00000  |   1MB   |
+			 * +---------+--------------+---------+
+			 * |  Caldb  |  0x4EC00000  |   8MB   |
+			 * +==================================+
+			 */
+			base-addr = <0x4CC00000>;
+			etr-addr = <0x4EB00000>;
+			caldb-addr = <0x4EC00000>;
+			caldb-size = <0x800000>;
+			hremote-size = <0x1F00000>;
+			tgt-mem-mode = <0x1>;
+#endif
+	status = "ok";
+};
+
+&wifi4 {
+#ifdef __IPQ_MEM_PROFILE_512_MB__
+			/*
+			 * +=========+==============+=========+
+			 * |  Region | Start Offset |   Size  |
+			 * +---------+--------------+---------+
+			 * | HREMOTE |  0x4F400000  |   31MB  |
+			 * +---------+--------------+---------+
+			 * |   ETR   |  0x51300000  |   1MB   |
+			 * +---------+--------------+---------+
+			 * |  Caldb  |  0x51400000  |   8MB   |
+			 * +==================================+
+			 */
+			base-addr = <0x4F400000>;
+			etr-addr = <0x51300000>;
+			caldb-addr = <0x51400000>;
+			caldb-size = <0x800000>;
+			hremote-size = <0x1F00000>;
+			tgt-mem-mode = <0x1>;
+#endif
 	status = "ok";
 };
 
