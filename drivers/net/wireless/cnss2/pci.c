@@ -3949,7 +3949,7 @@ static int cnss_pci_register_mhi(struct cnss_pci_data *pci_priv)
 
 	mhi_ctrl->rddm_size = pci_priv->plat_priv->ramdump_info_v2.ramdump_size;
 	mhi_ctrl->sbl_size = SZ_512K;
-	mhi_ctrl->seg_len = SZ_256K;
+	mhi_ctrl->seg_len = SZ_512K;
 	mhi_ctrl->fbc_download = true;
 
 	mhi_ctrl->log_buf = ipc_log_context_create(CNSS_IPC_LOG_PAGES,

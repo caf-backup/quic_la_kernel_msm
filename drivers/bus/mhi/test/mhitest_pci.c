@@ -469,7 +469,7 @@ int mhitest_pci_register_mhi(struct mhitest_platform *mplat)
 
 	mhi_ctrl->rddm_size = mplat->mhitest_rdinfo.ramdump_size;
 	mhi_ctrl->sbl_size = SZ_512K;
-	mhi_ctrl->seg_len = SZ_256K;
+	mhi_ctrl->seg_len = SZ_512K;
 	mhi_ctrl->fbc_download = true;
 
 	/*

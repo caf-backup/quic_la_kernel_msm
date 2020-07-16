@@ -104,6 +104,10 @@
 	 * |  Pine  |  0x4DA00000  |          40MB           |
 	 * |        |              |                         |
 	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * |  MHI0  |  0x50200000  |          11MB           |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
 	 * |                                                 |
 	 * |      Rest of the memory for Linux               |
 	 * |                                                 |
@@ -131,6 +135,12 @@
 			no-map;
 			reg = <0x0 0x4da00000 0x0 0x02800000>;
 		};
+
+		mhi_region0: dma_pool0@50200000 {
+			compatible = "shared-dma-pool";
+			no-map;
+			reg = <0x0 0x50200000 0x0 0x00b00000>;
+		};
 #else
 		qcn9000_pcie0@51100000 {
 			no-map;
@@ -138,6 +148,12 @@
 		};
 		/delete-node/ wifi_dump@51100000;
 		/delete-node/ wigig_dump@51300000;
+
+		mhi_region0: dma_pool0@54800000 {
+			compatible = "shared-dma-pool";
+			no-map;
+			reg = <0x0 0x54800000 0x0 0x01800000>;
+		};
 #endif
 #endif
 	};
@@ -849,6 +865,9 @@
 		qrtr_instance_id = <0x20>;
 		#address-cells = <0x2>;
 		#size-cells = <0x2>;
+#if !defined(__IPQ_MEM_PROFILE_256_MB__)
+		memory-region = <&mhi_region0>;
+#endif
 
 #if !defined(__CNSS2__)
 		base-addr = <0x51100000>;
