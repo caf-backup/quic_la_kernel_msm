@@ -91,6 +91,9 @@
 	 * |        |              |                         |
 	 * |QCN9000 |  0x4CA00000  |          17MB           |
 	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * |  MHI1  |  0x4DB00000  |          11MB           |
 	 * |        |              |                         |
 	 * +--------+--------------+-------------------------+
 	 * |                                                 |
@@ -101,6 +104,12 @@
 		qcn9000_pcie0@4ca00000 {
 			no-map;
 			reg = <0x0 0x4CA00000 0x0 0x01100000>;
+		};
+
+		mhi_region1: dma_pool1@4db00000 {
+			compatible = "shared-dma-pool";
+			no-map;
+			reg = <0x0 0x4db00000 0x0 0x00b00000>;
 		};
 	#elif __IPQ_MEM_PROFILE_512_MB__
 	/*                      512 MB Profile
@@ -153,6 +162,9 @@
 	 * |        |              |                         |
 	 * |QCN9000 |  0x4CC00000  |          40MB           |
 	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * |  MHI1  |  0x4F400000  |          11MB           |
 	 * |        |              |                         |
 	 * +--------+--------------+-------------------------+
 	 * |                                                 |
@@ -163,6 +175,12 @@
 		qcn9000_pcie0@4cc00000 {
 			no-map;
 			reg = <0x0 0x4CC00000 0x0 0x02800000>;
+		};
+
+		mhi_region1: dma_pool1@4f400000 {
+			compatible = "shared-dma-pool";
+			no-map;
+			reg = <0x0 0x4f400000 0x0 0x00b00000>;
 		};
 	#endif
 	};
@@ -713,6 +731,11 @@
 	mhi_1: qcom,mhi@1 {
 		reg = <0 0 0 0 0 >;
 		qrtr_instance_id = <0x20>;
+		#address-cells = <0x2>;
+		#size-cells = <0x2>;
+#if defined(__IPQ_MEM_PROFILE_256_MB__) || defined(__IPQ_MEM_PROFILE_512_MB__)
+		memory-region = <&mhi_region1>;
+#endif
 	};
 };
 
