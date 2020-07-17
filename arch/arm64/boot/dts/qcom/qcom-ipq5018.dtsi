@@ -1151,7 +1151,7 @@
 
 		qcom,test@0 {
 			compatible = "qcom,testmhi";
-			status = "disabled";
+			status = "ok";
 		};
 
 		tzlog: qca,tzlog {
