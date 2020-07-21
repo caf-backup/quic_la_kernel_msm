@@ -579,7 +579,7 @@ static int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 	char filename[30];
 	const struct firmware *fw;
 	char *bdf_addr, *folder;
-	unsigned int bdf_addr_pa, location[3], board_id;
+	unsigned int bdf_addr_pa, location[MAX_TGT_MEM_MODES], board_id;
 	int size;
 	struct device *dev;
 

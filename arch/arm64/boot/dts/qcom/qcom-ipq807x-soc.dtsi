@@ -1813,8 +1813,10 @@
 		#else
 			qcom,tgt-mem-mode = <0>;
 		#endif
-			qcom,bdf-addr = <0x4B0C0000 0x4B0C0000 0x4B0C0000>;
-			qcom,caldb-addr = <0x4BA00000 0x4BA00000 0x0>;
+			qcom,bdf-addr = <0x4B0C0000 0x4B0C0000 0x4B0C0000
+					 0x4B0C0000 0x4B0C0000>;
+			qcom,caldb-addr = <0x4BA00000 0x4BA00000 0x0 0x4BA00000
+					   0x4BA00000>;
 			qcom,caldb-size = <0x480000>;
 			interrupts = <0 320 1>, /* o_wcss_apps_intr[0] =  */
 				<0 319 1>,
@@ -1940,8 +1942,10 @@
 			qcom,tgt-mem-mode = <0>;
 		#endif
 			qcom,rproc = <&qcom_q6v5_wcss>;
-			qcom,bdf-addr = <0x4B0C0000 0x4B0C0000 0x4B0C0000>;
-			qcom,caldb-addr = <0x4BA00000 0x4BA00000 0x0>;
+			qcom,bdf-addr = <0x4B0C0000 0x4B0C0000 0x4B0C0000
+					 0x4B0C0000 0x4B0C0000>;
+			qcom,caldb-addr = <0x4BA00000 0x4BA00000 0x0 0x4BA00000
+					   0x4BA00000>;
 			qcom,caldb-size = <0x480000>;
 			interrupts = <0 320 1>, /* o_wcss_apps_intr[0] =  */
 				<0 319 1>,

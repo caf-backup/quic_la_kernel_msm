@@ -34,6 +34,88 @@
 #define CNSS_RAMDUMP_MAGIC		0x574C414E /* WLAN in ASCII */
 #define CNSS_RAMDUMP_VERSION		0
 
+/* Currently these target mem modes are supported for various targets
+ *
+ *				IPQ8074
+ *
+ * Start Address for all modes: 0x4B000000
+ * All offsets mentioned below are with reference to the above start address
+ *
+ * NOTE: Mode 3 and 4 are for external use cases, please do not use this for
+ * adding new modes
+ * +======+========+=========+===========+===========+===========+
+ * | MODE | Memory | BDF Off | Caldb Off | QDSS Off  |M3 Dump Off|
+ * |      |        |  256KB  |   4.5MB   |    1MB    |    1MB    |
+ * +======+========+=========+===========+===========+===========+
+ * |   0  |  97MB  | 0xC0000 |  0xA00000 | 0x5F00000 | 0x6000000 |
+ * +------+--------+---------+-----------+-----------+-----------+
+ * |   1  |  57MB  | 0xC0000 |  0xA00000 | 0x3700000 | 0x3800000 |
+ * +------+--------+---------+-----------+-----------+-----------+
+ * |   2  |  42MB  | 0xC0000 |  DISABLED | 0x2800000 | 0x2900000 |
+ * +------+--------+---------+-----------+-----------+-----------+
+ * |   3  | 127MB  | 0xC0000 |  0xA00000 | 0x7D00000 | 0x7E00000 |
+ * +------+--------+---------+-----------+-----------+-----------+
+ * |   4  |  52MB  | 0xC0000 |  0xA00000 | 0x3200000 | 0x3300000 |
+ * +======+========+=========+===========+===========+===========+
+ *
+ *				IPQ6018
+ *
+ * Start Address for all modes: 0x4AB00000
+ * All offsets mentioned below are with reference to the above start address
+ *
+ * +======+========+=========+===========+===========+===========+
+ * | MODE | Memory | BDF Off | Caldb Off | QDSS Off  |M3 Dump Off|
+ * |      |        |  256KB  |   4.5MB   |    1MB    |    1MB    |
+ * +======+========+=========+===========+===========+===========+
+ * |   0  |  87MB  | 0xC0000 |  0xA00000 | 0x5500000 | 0x5600000 |
+ * +------+--------+---------+-----------+-----------+-----------+
+ * |   1  |  57MB  | 0xC0000 |  0xA00000 | 0x3700000 | 0x3800000 |
+ * +------+--------+---------+-----------+-----------+-----------+
+ * |   2  |  42MB  | 0xC0000 |  DISABLED | 0x2800000 | 0x2900000 |
+ * +======+========+=========+===========+===========+===========+
+ *
+ *				IPQ5018
+ *
+ * Start Address for all Modes: 0x4B000000
+ * All offsets mentioned below are with reference to the above start address
+ *
+ * +======+========+=========+===========+===========+===========+
+ * | MODE | Memory | BDF Off | Caldb Off | QDSS Off  |M3 Dump Off|
+ * |      |        |  256KB  |    2MB    |    1MB    |    1MB    |
+ * +======+========+=========+===========+===========+===========+
+ * |   0  |  28MB  | 0xA00000| 0x1A00000 | 0x1900000 | 0x1800000 |
+ * +------+--------+---------+-----------+-----------+-----------+
+ * |   1  |  28MB  | 0xA00000| 0x1A00000 | 0x1900000 | 0x1800000 |
+ * +------+--------+---------+-----------+-----------+-----------+
+ * |   2  |  26MB  | 0xA00000|  DISABLED | 0x1900000 | 0x1800000 |
+ * +======+========+=========+===========+===========+===========+
+ *
+ *				QCN9000
+ *
+ * Start Address varies for each RDP, please refer RDP specific DTS file.
+ * All offsets mentioned below are with reference to the start address from DTS
+ * HREMOTE Offset is always same as Start Offset
+ *
+ * NOTE: Mode 3 and 4 are for external use cases, please do not use this for
+ * adding new modes
+ *
+ * +======+========+===========+===========+===========+===========+==========+
+ * | MODE | Memory |  HREMOTE  |M3 Dump Off| QDSS Off  | Caldb Off | MHI DMA  |
+ * |      |        |    SIZE   |    1MB    |    1MB    |    8MB    | RESERVED |
+ * +======+========+===========+===========+===========+===========+==========+
+ * |   0  |  55MB  |    45MB   | 0x2D00000 | 0x2E00000 | 0x2F00000 |   24MB   |
+ * +------+--------+-----------+-----------+-----------+-----------+----------+
+ * |   1  |  30MB  |    20MB   | 0x1400000 | 0x1500000 | 0x1600000 |   16MB   |
+ * +------+--------+-----------+-----------+-----------+-----------+----------+
+ * |   2  |  17MB  |    15MB   |  0xF00000 | 0x1000000 |  DISABLED |   16MB   |
+ * +------+--------+-----------+-----------+-----------+-----------+----------+
+ * |   3  |  65MB  |    55MB   | 0x3700000 | 0x3800000 | 0x3900000 |   24MB   |
+ * +------+--------+-----------+-----------+-----------+-----------+----------+
+ * |   4  |  33MB  |    23MB   | 0x1700000 | 0x1800000 | 0x1900000 |   24MB   |
+ * +======+========+===========+===========+===========+===========+==========+
+ */
+#define MAX_TGT_MEM_MODES		5
+
 #define CNSS_EVENT_SYNC   BIT(0)
 #define CNSS_EVENT_UNINTERRUPTIBLE BIT(1)
 #define CNSS_EVENT_SYNC_UNINTERRUPTIBLE (CNSS_EVENT_SYNC | \

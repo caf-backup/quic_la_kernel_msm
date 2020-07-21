@@ -2556,7 +2556,8 @@ EXPORT_SYMBOL(cnss_pci_force_wake_release);
 int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 {
 	struct cnss_fw_mem *fw_mem = plat_priv->fw_mem;
-	unsigned int bdf_location[3], caldb_location[3];
+	unsigned int bdf_location[MAX_TGT_MEM_MODES];
+	unsigned int caldb_location[MAX_TGT_MEM_MODES];
 	u32 addr = 0;
 	u32 caldb_size = 0;
 	u32 hremote_size = 0;
@@ -2684,7 +2685,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 		}
 		idx = 0;
 		mode = plat_priv->tgt_mem_cfg_mode;
-		if (mode >= 3)
+		if (mode >= MAX_TGT_MEM_MODES)
 			CNSS_ASSERT(0);
 
 		for (i = 0; i < plat_priv->fw_mem_seg_len; i++) {

@@ -641,8 +641,10 @@
 		#else
 			qcom,tgt-mem-mode = <0>;
 		#endif
-			qcom,bdf-addr = <0x4BA00000 0x4BA00000 0x4BA00000>;
-			qcom,caldb-addr = <0x4CA00000 0x4CA00000 0x4CA00000>;
+			qcom,bdf-addr = <0x4BA00000 0x4BA00000 0x4BA00000
+					 0x0 0x0>;
+			qcom,caldb-addr = <0x4CA00000 0x4CA00000 0x4CA00000
+					   0x0 0x0>;
 			qcom,caldb-size = <0x200000>;
 			qcom,rproc = <&qcom_q6v5_wcss>;
 			interrupts = <0 288 1>, /* o_wcss_apps_intr[0] =  */
