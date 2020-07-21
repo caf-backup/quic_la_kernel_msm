@@ -580,16 +580,16 @@ static int mhi_uci_probe(struct mhi_device *mhi_dev,
 	uci_dev->devt = MKDEV(mhi_uci_drv.major, minor);
 	uci_dev->dev = device_create(mhi_uci_drv.class, &mhi_dev->dev,
 				     uci_dev->devt, uci_dev,
-				     DEVICE_NAME "_%04x_%02u.%02u.%02u%s%d",
-				     mhi_dev->dev_id, mhi_dev->domain,
-				     mhi_dev->bus, mhi_dev->slot, "_pipe_",
-				     mhi_dev->ul_chan_id);
+				     DEVICE_NAME "_%s%s%d",
+				     dev_name(mhi_dev->mhi_cntrl->cntrl_dev),
+				     "_pipe_", mhi_dev->ul_chan_id);
 	set_bit(minor, uci_minors);
 
 	/* create debugging buffer */
-	snprintf(node_name, sizeof(node_name), "mhi_uci_%04x_%02u.%02u.%02u_%d",
-		 mhi_dev->dev_id, mhi_dev->domain, mhi_dev->bus, mhi_dev->slot,
+	snprintf(node_name, sizeof(node_name), "mhi_uci_%s_%d",
+		 dev_name(mhi_dev->mhi_cntrl->cntrl_dev),
 		 mhi_dev->ul_chan_id);
+
 	uci_dev->ipc_log = ipc_log_context_create(MHI_UCI_IPC_LOG_PAGES,
 						  node_name, 0);
 
@@ -659,8 +659,10 @@ static void mhi_dl_xfer_cb(struct mhi_device *mhi_dev,
 	buf->done = 0;
 	spin_unlock_irqrestore(&uci_chan->lock, flags);
 
+#ifdef CONFIG_PM
 	if (mhi_dev->dev.power.wakeup)
 		__pm_wakeup_event(mhi_dev->dev.power.wakeup, 0);
+#endif
 
 	wake_up(&uci_chan->wq);
 }

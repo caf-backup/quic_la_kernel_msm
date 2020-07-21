@@ -237,7 +237,7 @@ int mhitest_pci_get_mhi_msi(struct mhitest_platform *mplat)
 	return 0;
 }
 
-char *mhitest_get_reson_str(enum MHI_CB reason)
+char *mhitest_get_reson_str(enum mhi_callback reason)
 {
 
 	switch (reason) {
@@ -319,18 +319,18 @@ void mhitest_sch_do_recovery(struct mhitest_platform *mplat,
 	mhitest_post_event(mplat, data, MHITEST_RECOVERY_EVENT, 0);
 }
 
-int mhitest_mhi_link_status(struct mhi_controller *mhi_ctrl, void *priv)
+int mhitest_mhi_link_status(struct mhi_controller *mhi_ctrl)
 {
 
 	MHITEST_LOG("Link status..return with 1\n");
 	return 1;
 }
 
-void mhitest_mhi_notify_status(struct mhi_controller *mhi_cntrl, void *priv,
-							enum MHI_CB reason)
+void mhitest_mhi_notify_status(struct mhi_controller *mhi_cntrl,
+						enum mhi_callback reason)
 {
 
-	struct mhitest_platform *temp = (struct mhitest_platform *)priv;
+	struct mhitest_platform *temp = mhi_cntrl->priv_data;
 
 	MHITEST_VERB("Enter\n");
 	if (reason > MHI_CB_FATAL_ERROR) {
@@ -359,10 +359,10 @@ void mhitest_mhi_notify_status(struct mhi_controller *mhi_cntrl, void *priv,
 	MHITEST_VERB("Exit\n");
 }
 
-int mhitest_mhi_pm_runtime_get(struct mhi_controller *mhi_cntrl, void *priv)
+int mhitest_mhi_pm_runtime_get(struct mhi_controller *mhi_cntrl)
 {
 
-	struct mhitest_platform *temp2 = (struct mhitest_platform *)priv;
+	struct mhitest_platform *temp2 = mhi_cntrl->priv_data;
 
 	if (!temp2)
 		return -ENODEV;
@@ -375,10 +375,9 @@ int mhitest_mhi_pm_runtime_get(struct mhi_controller *mhi_cntrl, void *priv)
 	return pm_runtime_get(&temp2->pci_dev->dev);
 }
 
-void mhitest_mhi_pm_runtime_put_noidle(struct mhi_controller *mhi_cntrl,
-								void *priv)
+void mhitest_mhi_pm_runtime_put_noidle(struct mhi_controller *mhi_cntrl)
 {
-	struct mhitest_platform *temp2 = (struct mhitest_platform *)priv;
+	struct mhitest_platform *temp2 = mhi_cntrl->priv_data;
 
 	if (!temp2)
 		return;

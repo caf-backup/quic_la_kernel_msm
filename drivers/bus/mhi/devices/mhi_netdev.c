@@ -717,7 +717,7 @@ static void mhi_netdev_xfer_dl_cb(struct mhi_device *mhi_dev,
 	}
 }
 
-static void mhi_netdev_status_cb(struct mhi_device *mhi_dev, enum MHI_CB mhi_cb)
+static void mhi_netdev_status_cb(struct mhi_device *mhi_dev, enum mhi_callback mhi_cb)
 {
 	struct mhi_netdev *mhi_netdev = mhi_device_get_devdata(mhi_dev);
 

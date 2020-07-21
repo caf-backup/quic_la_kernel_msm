@@ -26,12 +26,12 @@
 #include <linux/smp.h>
 #include <linux/utsname.h>
 #include <linux/sizes.h>
+#include <linux/slab.h>
 #ifdef CONFIG_QCA_MINIDUMP
 #include <linux/minidump_tlv.h>
 #include <linux/spinlock.h>
 #include <linux/pfn.h>
 #include <linux/list.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #endif
 #include <linux/mhi.h>

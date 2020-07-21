@@ -123,7 +123,7 @@ static void rmnet_ctl_ul_callback(struct mhi_device *mhi_dev,
 }
 
 static void rmnet_ctl_status_callback(struct mhi_device *mhi_dev,
-				      enum MHI_CB mhi_cb)
+				      enum mhi_callback mhi_cb)
 {
 	struct rmnet_ctl_mhi_dev *ctl_dev = dev_get_drvdata(&mhi_dev->dev);
 

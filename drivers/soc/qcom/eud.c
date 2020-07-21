@@ -538,6 +538,7 @@ static irqreturn_t handle_eud_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_PM
 static int msm_eud_suspend(struct device *dev)
 {
 	struct eud_chip *chip = dev_get_drvdata(dev);
@@ -562,6 +563,7 @@ static int msm_eud_resume(struct device *dev)
 
 	return ret;
 }
+#endif
 
 static int msm_eud_probe(struct platform_device *pdev)
 {

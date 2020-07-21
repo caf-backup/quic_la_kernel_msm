@@ -384,8 +384,7 @@ void mhi_pm_m1_transition(struct mhi_controller *mhi_cntrl)
 			mhi_cntrl->wake_put(mhi_cntrl, false);
 			read_unlock_bh(&mhi_cntrl->pm_lock);
 		} else {
-			mhi_cntrl->status_cb(mhi_cntrl, mhi_cntrl->priv_data,
-					     MHI_CB_IDLE);
+			mhi_cntrl->status_cb(mhi_cntrl, MHI_CB_IDLE);
 		}
 	} else {
 		write_unlock_irq(&mhi_cntrl->pm_lock);
@@ -504,8 +503,7 @@ static void mhi_pm_disable_transition(struct mhi_controller *mhi_cntrl,
 
 	/* We must notify MHI control driver so it can clean up first */
 	if (transition_state == MHI_PM_SYS_ERR_PROCESS)
-		mhi_cntrl->status_cb(mhi_cntrl, mhi_cntrl->priv_data,
-				     MHI_CB_SYS_ERROR);
+		mhi_cntrl->status_cb(mhi_cntrl, MHI_CB_SYS_ERROR);
 
 	mutex_lock(&mhi_cntrl->pm_mutex);
 	write_lock_irq(&mhi_cntrl->pm_lock);
@@ -641,8 +639,8 @@ int mhi_debugfs_trigger_reset(void *data, u64 val)
 	MHI_LOG("Trigger MHI Reset\n");
 
 	/* exit lpm first */
-	mhi_cntrl->runtime_get(mhi_cntrl, mhi_cntrl->priv_data);
-	mhi_cntrl->runtime_put(mhi_cntrl, mhi_cntrl->priv_data);
+	mhi_cntrl->runtime_get(mhi_cntrl);
+	mhi_cntrl->runtime_put(mhi_cntrl);
 
 	ret = wait_event_timeout(mhi_cntrl->state_event,
 				 mhi_cntrl->dev_state == MHI_STATE_M0 ||
@@ -1068,8 +1066,8 @@ int __mhi_device_get_sync(struct mhi_controller *mhi_cntrl)
 	read_lock_bh(&mhi_cntrl->pm_lock);
 	mhi_cntrl->wake_get(mhi_cntrl, true);
 	if (MHI_PM_IN_SUSPEND_STATE(mhi_cntrl->pm_state)) {
-		mhi_cntrl->runtime_get(mhi_cntrl, mhi_cntrl->priv_data);
-		mhi_cntrl->runtime_put(mhi_cntrl, mhi_cntrl->priv_data);
+		mhi_cntrl->runtime_get(mhi_cntrl);
+		mhi_cntrl->runtime_put(mhi_cntrl);
 	}
 	read_unlock_bh(&mhi_cntrl->pm_lock);
 
