@@ -746,14 +746,81 @@ static bool cfg80211_edmg_usable(struct wiphy *wiphy, u8 edmg_channels,
 	return true;
 }
 
+static inline bool
+cfg80211_width40_valid(struct ieee80211_sta_ht_cap *ht_cap,
+		       struct ieee80211_sta_he_cap *he_cap)
+{
+	u8 he_phy_cap_info;
+
+	if (ht_cap->ht_supported) {
+		if ((ht_cap->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) &&
+		    !(ht_cap->cap & IEEE80211_HT_CAP_40MHZ_INTOLERANT))
+			return true;
+	} else if (he_cap->has_he) {
+		he_phy_cap_info = he_cap->he_cap_elem.phy_cap_info[0];
+		if ((he_phy_cap_info &
+		    IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G) ||
+		    (he_phy_cap_info &
+		    IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G))
+			return true;
+	}
+
+	return false;
+}
+
+static inline bool
+cfg80211_width80p80_valid(struct ieee80211_sta_vht_cap *vht_cap,
+			  struct ieee80211_sta_he_cap *he_cap)
+{
+	u8 he_phy_cap_info;
+	u32 cap;
+
+	if (vht_cap->vht_supported) {
+		cap = vht_cap->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK;
+		if (cap == IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ)
+			return true;
+	} else if (he_cap->has_he) {
+		he_phy_cap_info = he_cap->he_cap_elem.phy_cap_info[0];
+		if (he_phy_cap_info &
+		    IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_80PLUS80_MHZ_IN_5G)
+			return true;
+	}
+
+	return false;
+}
+
+static inline bool
+cfg80211_width160_valid(struct ieee80211_sta_vht_cap *vht_cap,
+			struct ieee80211_sta_he_cap *he_cap)
+{
+	u8 he_phy_cap_info;
+	u32 cap;
+
+	if (vht_cap->vht_supported) {
+		cap = vht_cap->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK;
+		if (cap == IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ ||
+		    cap == IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ)
+			return true;
+	} else if (he_cap->has_he) {
+		he_phy_cap_info = he_cap->he_cap_elem.phy_cap_info[0];
+		if (he_phy_cap_info &
+		    IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G)
+			return true;
+	}
+
+	return false;
+}
+
 bool cfg80211_chandef_usable(struct wiphy *wiphy,
 			     const struct cfg80211_chan_def *chandef,
 			     u32 prohibited_flags)
 {
 	struct ieee80211_sta_ht_cap *ht_cap;
 	struct ieee80211_sta_vht_cap *vht_cap;
+	struct ieee80211_sta_he_cap *he_cap;
 	struct ieee80211_edmg *edmg_cap;
-	u32 width, control_freq, cap;
+	u32 width, control_freq;
+	u8 he_phy_cap_info;
 
 	if (WARN_ON(!cfg80211_chandef_valid(chandef)))
 		return false;
@@ -761,6 +828,8 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 	ht_cap = &wiphy->bands[chandef->chan->band]->ht_cap;
 	vht_cap = &wiphy->bands[chandef->chan->band]->vht_cap;
 	edmg_cap = &wiphy->bands[chandef->chan->band]->edmg_cap;
+	he_cap = &wiphy->bands[chandef->chan->band]->iftype_data->he_cap;
+	he_phy_cap_info = he_cap->he_cap_elem.phy_cap_info[0];
 
 	if (edmg_cap->channels &&
 	    !cfg80211_edmg_usable(wiphy,
@@ -781,7 +850,7 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 		width = 10;
 		break;
 	case NL80211_CHAN_WIDTH_20:
-		if (!ht_cap->ht_supported)
+		if (!(ht_cap->ht_supported || he_cap->has_he))
 			return false;
 	case NL80211_CHAN_WIDTH_20_NOHT:
 		prohibited_flags |= IEEE80211_CHAN_NO_20MHZ;
@@ -789,10 +858,7 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 		break;
 	case NL80211_CHAN_WIDTH_40:
 		width = 40;
-		if (!ht_cap->ht_supported)
-			return false;
-		if (!(ht_cap->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) ||
-		    ht_cap->cap & IEEE80211_HT_CAP_40MHZ_INTOLERANT)
+		if (!cfg80211_width40_valid(ht_cap, he_cap))
 			return false;
 		if (chandef->center_freq1 < control_freq &&
 		    chandef->chan->flags & IEEE80211_CHAN_NO_HT40MINUS)
@@ -802,21 +868,19 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 			return false;
 		break;
 	case NL80211_CHAN_WIDTH_80P80:
-		cap = vht_cap->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK;
-		if (cap != IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ)
+		if (!cfg80211_width80p80_valid(vht_cap, he_cap))
 			return false;
 	case NL80211_CHAN_WIDTH_80:
-		if (!vht_cap->vht_supported)
+		if (!(vht_cap->vht_supported ||
+		      (he_cap->has_he &&
+		       (he_phy_cap_info &
+		   IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G))))
 			return false;
 		prohibited_flags |= IEEE80211_CHAN_NO_80MHZ;
 		width = 80;
 		break;
 	case NL80211_CHAN_WIDTH_160:
-		if (!vht_cap->vht_supported)
-			return false;
-		cap = vht_cap->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK;
-		if (cap != IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ &&
-		    cap != IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ)
+		if (!cfg80211_width160_valid(vht_cap, he_cap))
 			return false;
 		prohibited_flags |= IEEE80211_CHAN_NO_160MHZ;
 		width = 160;
