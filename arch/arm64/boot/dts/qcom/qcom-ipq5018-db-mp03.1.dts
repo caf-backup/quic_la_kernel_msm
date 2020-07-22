@@ -258,6 +258,7 @@
 				device_id = <1>;
 				switch_access_mode = "mdio";
 				mdio-bus = <&mdio1>;
+				reset_gpio = <0x27>;
 				switch_cpu_bmp = <0x40>;  /* cpu port bitmap */
 				switch_lan_bmp = <0x1e>; /* lan port bitmap */
 				switch_wan_bmp = <0x0>;  /* wan port bitmap */

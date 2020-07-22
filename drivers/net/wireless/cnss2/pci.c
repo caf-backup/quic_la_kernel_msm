@@ -3744,22 +3744,21 @@ void cnss_pci_clear_dump_info(struct cnss_pci_data *pci_priv)
 	plat_priv->ramdump_info_v2.dump_data_valid = false;
 }
 
-static int cnss_mhi_pm_runtime_get(struct mhi_controller *mhi_ctrl, void *priv)
+static int cnss_mhi_pm_runtime_get(struct mhi_controller *mhi_ctrl)
 {
-	struct cnss_pci_data *pci_priv = priv;
+	struct cnss_pci_data *pci_priv = mhi_ctrl->priv_data;
 
 	return cnss_pci_pm_runtime_get(pci_priv);
 }
 
-static void cnss_mhi_pm_runtime_put_noidle(struct mhi_controller *mhi_ctrl,
-					   void *priv)
+static void cnss_mhi_pm_runtime_put_noidle(struct mhi_controller *mhi_ctrl)
 {
-	struct cnss_pci_data *pci_priv = priv;
+	struct cnss_pci_data *pci_priv = mhi_ctrl->priv_data;
 
 	cnss_pci_pm_runtime_put_noidle(pci_priv);
 }
 
-static char *cnss_mhi_notify_status_to_str(enum MHI_CB status)
+static char *cnss_mhi_notify_status_to_str(enum mhi_callback status)
 {
 	switch (status) {
 	case MHI_CB_IDLE:
@@ -3789,9 +3788,9 @@ static void cnss_dev_rddm_timeout_hdlr(unsigned long data)
 	cnss_schedule_recovery(&pci_priv->pci_dev->dev, CNSS_REASON_TIMEOUT);
 }
 
-static int cnss_mhi_link_status(struct mhi_controller *mhi_ctrl, void *priv)
+static int cnss_mhi_link_status(struct mhi_controller *mhi_ctrl)
 {
-	struct cnss_pci_data *pci_priv = priv;
+	struct cnss_pci_data *pci_priv = mhi_ctrl->priv_data;
 
 	if (!pci_priv) {
 		pr_err("%s: pci_priv is NULL\n", __func__);
@@ -3801,10 +3800,10 @@ static int cnss_mhi_link_status(struct mhi_controller *mhi_ctrl, void *priv)
 	return cnss_pci_check_link_status(pci_priv);
 }
 
-static void cnss_mhi_notify_status(struct mhi_controller *mhi_ctrl, void *priv,
-				   enum MHI_CB reason)
+static void cnss_mhi_notify_status(struct mhi_controller *mhi_ctrl,
+				   enum mhi_callback reason)
 {
-	struct cnss_pci_data *pci_priv = priv;
+	struct cnss_pci_data *pci_priv = mhi_ctrl->priv_data;
 	struct cnss_plat_data *plat_priv = NULL;
 	enum cnss_recovery_reason cnss_reason;
 
@@ -3949,7 +3948,7 @@ static int cnss_pci_register_mhi(struct cnss_pci_data *pci_priv)
 
 	mhi_ctrl->rddm_size = pci_priv->plat_priv->ramdump_info_v2.ramdump_size;
 	mhi_ctrl->sbl_size = SZ_512K;
-	mhi_ctrl->seg_len = SZ_256K;
+	mhi_ctrl->seg_len = SZ_512K;
 	mhi_ctrl->fbc_download = true;
 
 	mhi_ctrl->log_buf = ipc_log_context_create(CNSS_IPC_LOG_PAGES,
