@@ -1616,22 +1616,10 @@ EXPORT_SYMBOL(ieee80211_chandef_to_operating_class);
 int cfg80211_validate_beacon_int(struct cfg80211_registered_device *rdev,
 				 u32 beacon_int)
 {
-	struct wireless_dev *wdev;
-	int res = 0;
-
-	if (!beacon_int)
+	if (beacon_int < 10 || beacon_int > 10000)
 		return -EINVAL;
 
-	list_for_each_entry(wdev, &rdev->wdev_list, list) {
-		if (!wdev->beacon_interval)
-			continue;
-		if (wdev->beacon_interval != beacon_int) {
-			res = -EINVAL;
-			break;
-		}
-	}
-
-	return res;
+	return 0;
 }
 
 int cfg80211_iter_combinations(struct wiphy *wiphy,
