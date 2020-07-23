@@ -361,6 +361,11 @@
 			qcom,crypto-enabled;
 		};
 
+		nss-dp-common {
+			compatible = "qcom,nss-dp-common";
+			qcom,tcsr-base = <0x01937000>;
+		};
+
 		nss_crypto: qcom,nss_crypto {
 			compatible = "qcom,nss-crypto";
 			#address-cells = <1>;
