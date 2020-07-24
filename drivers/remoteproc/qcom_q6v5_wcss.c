@@ -24,6 +24,8 @@
 #include <uapi/linux/major.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/of_platform.h>
+
 
 #define WCSS_CRASH_REASON		421
 
@@ -127,6 +129,7 @@ struct q6v5_wcss {
 	size_t mem_size;
 	const char *m3_fw_name;
 	unsigned wcss_aon_seq;
+	bool is_int_radio;
 };
 
 struct q6_platform_data {
@@ -196,6 +199,9 @@ static int wcss_clks_prepare_disable(struct device *dev, int clk_sta_id,
 	if (clk_cnt > NUM_WCSS_CLKS)
 		return -EINVAL;
 
+	if (clk_sta_id >= clk_cnt)
+		clk_cnt = clk_cnt + clk_sta_id;
+
 	for (temp = clk_sta_id; temp < clk_cnt; temp++) {
 		if (g_wcss_clks[temp] == NULL)
 			continue;
@@ -213,6 +219,9 @@ static int wcss_clks_prepare_enable(struct device *dev, int clk_sta_id,
 
 	if (clk_cnt > NUM_WCSS_CLKS)
 		return -EINVAL;
+
+	if (clk_sta_id >= clk_cnt)
+		clk_cnt = clk_cnt + clk_sta_id;
 
 	for (temp = clk_sta_id; temp < clk_cnt; temp++) {
 		g_wcss_clks[temp] = devm_clk_get(dev, wcss_clk_names[temp]);
@@ -612,6 +621,21 @@ static int crashdump_init_new(int check, const struct subsys_desc *subsys)
 	return 0;
 }
 
+static int start_q6_userpd(const struct subsys_desc *subsys)
+{
+	struct qcom_q6v5 *q6v5 = subsys_to_pdata(subsys);
+	struct rproc *rproc = q6v5->rproc;
+	int ret;
+
+	ret = rproc_boot(rproc);
+	if (ret)
+		pr_err("couldn't boot (%s)q6v5: %d\n", rproc->name, ret);
+	else
+		q6v5->running = true;
+
+	return ret;
+}
+
 static int start_q6(const struct subsys_desc *subsys)
 {
 	struct qcom_q6v5 *q6v5 = subsys_to_pdata(subsys);
@@ -634,6 +658,25 @@ static int start_q6(const struct subsys_desc *subsys)
 	else
 		q6v5->running = true;
 
+	return ret;
+}
+
+static int stop_q6_userpd(const struct subsys_desc *subsys, bool force_stop)
+{
+	struct qcom_q6v5 *q6v5 = subsys_to_pdata(subsys);
+	struct rproc *rproc = q6v5->rproc;
+	struct q6v5_wcss *wcss = rproc->priv;
+	int ret = 0;
+
+	if (!subsys_get_crash_status(q6v5->subsys) && force_stop) {
+		ret = qcom_q6v5_request_stop(&wcss->q6v5);
+		if (ret == -ETIMEDOUT) {
+			dev_err(wcss->dev, "timed out on wait\n");
+			return ret;
+		}
+	}
+	rproc_shutdown(rproc);
+	q6v5->running = false;
 	return ret;
 }
 
@@ -777,6 +820,36 @@ static int q6v5_wcss_reset(struct q6v5_wcss *wcss)
 	return 0;
 }
 
+static int q6v5_wcss_powerup(struct q6v5_wcss *wcss)
+{
+	int ret;
+	u32 val;
+
+	if (wcss->wcss_aon_seq) {
+		val = readl(wcss->rmb_base + SSCAON_CONFIG);
+		val &= ~SSCAON_MASK;
+		val |= SSCAON_BUS_EN;
+		writel(val, wcss->rmb_base + SSCAON_CONFIG);
+
+		val = readl(wcss->rmb_base + SSCAON_CONFIG);
+		val &= ~(1<<1);
+		writel(val, wcss->rmb_base + SSCAON_CONFIG);
+		mdelay(2);
+
+		/* 5 - wait for SSCAON_STATUS */
+		ret = readl_poll_timeout(wcss->rmb_base + SSCAON_STATUS,
+				val, (val & 0xffff) == 0x10, 1000,
+				Q6SS_TIMEOUT_US * 10);
+		if (ret) {
+			dev_err(wcss->dev,
+				"can't get SSCAON_STATUS rc:%d)\n", ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 {
 	u32 val;
@@ -853,26 +926,11 @@ static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 	if (wcss->tcsr_msip_base)
 		writel(0x1, wcss->tcsr_msip_base + 0x00);
 
-	if (wcss->wcss_aon_seq) {
-		/*set CFG[18:15]=1*/
-		val = readl(wcss->rmb_base + SSCAON_CONFIG);
-		val &= ~SSCAON_MASK;
-		val |= SSCAON_BUS_EN;
-		writel(val, wcss->rmb_base + SSCAON_CONFIG);
-
-		val = readl(wcss->rmb_base + SSCAON_CONFIG);
-		val &= ~(1<<1);
-		writel(val, wcss->rmb_base + SSCAON_CONFIG);
-
-		/* Wait for SSCAON_STATUS */
-		val = readl(wcss->rmb_base + SSCAON_STATUS);
-		ret = readl_poll_timeout(wcss->rmb_base + SSCAON_STATUS,
-				val, (val & 0xffff) == 0x10, 1000,
-				Q6SS_TIMEOUT_US * 1000);
-		if (ret) {
-			dev_err(wcss->dev, " Boot Error, SSCAON=0x%08X\n", val);
-			return;
-		}
+	/*WCSS powerup*/
+	ret = q6v5_wcss_powerup(wcss);
+	if (ret) {
+		dev_err(wcss->dev, "failed to power up wcss\n");
+		return;
 	}
 
 	/*Deassert ce reset*/
@@ -913,6 +971,72 @@ static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 	pr_err("%s: start %s\n", wcss->q6v5.rproc->name,
 					val == 1 ? "successful" : "failed");
 	wcss->q6v5.running = val == 1 ? true : false;
+}
+
+static int q6v5_wcss_userpd_powerup(struct rproc *rproc)
+{
+	int ret;
+	struct q6v5_wcss *wcss = rproc->priv;
+
+	if (wcss->is_int_radio) {
+		struct q6v5_wcss *wcss_p = rproc->parent->priv;
+
+		/* AON Reset */
+		ret = reset_control_deassert(wcss_p->wcss_aon_reset);
+		if (ret) {
+			dev_err(wcss_p->dev, "wcss_aon_reset failed\n");
+			return ret;
+		}
+
+		ret = wcss_clks_prepare_enable(wcss_p->dev, 1, 1);
+		if (ret) {
+			dev_err(wcss_p->dev, "failed to enable %s clock %d\n",
+					wcss_clk_names[1], ret);
+			return ret;
+		}
+
+		ret = wcss_clks_prepare_enable(wcss_p->dev, 3, 2);
+		if (ret) {
+			dev_err(wcss_p->dev, "failed to enable clock %d\n",
+									ret);
+			return ret;
+		}
+
+		ret = q6v5_wcss_powerup(wcss_p);
+		if (ret)
+			return ret;
+		pr_info("%s wcss powered up successfully\n", rproc->name);
+	}
+
+	return 0;
+}
+
+static int q6v5_wcss_userpd_start(struct rproc *rproc)
+{
+	int ret = 0;
+	struct q6v5_wcss *wcss = rproc->priv;
+
+	/*power up userpd wcss*/
+	ret = q6v5_wcss_userpd_powerup(rproc);
+	if (ret) {
+		dev_err(wcss->dev, "Failed to power up %s\n", rproc->name);
+		return ret;
+	}
+
+	ret = qcom_q6v5_request_spawn(&wcss->q6v5);
+	if (ret == -ETIMEDOUT) {
+		pr_err("%s: %s spawn timedout\n", __func__, rproc->name);
+		return ret;
+	}
+
+	ret = qcom_q6v5_wait_for_start(&wcss->q6v5, 5 * HZ);
+	if (ret == -ETIMEDOUT) {
+		pr_err("%s start timedout\n", rproc->name);
+		wcss->q6v5.running = false;
+		return ret;
+	}
+	wcss->q6v5.running = true;
+	return ret;
 }
 
 static int q6v5_wcss_start(struct rproc *rproc)
@@ -1248,11 +1372,78 @@ assert:
 	return 0;
 }
 
+static int q6v5_wcss_userpd_powerdown(struct rproc *rproc)
+{
+	int ret;
+	struct q6v5_wcss *wcss_p = rproc->parent->priv, *wcss = rproc->priv;
+
+	if (wcss->is_int_radio) {
+		/* WCSS powerdown */
+		ret = q6v5_wcss_powerdown(wcss_p);
+		if (ret) {
+			dev_err(wcss_p->dev, "failed to power down wcss %d\n",
+					ret);
+			return ret;
+		}
+
+		ret = wcss_clks_prepare_disable(wcss_p->dev, 1, 1);
+		if (ret) {
+			dev_err(wcss_p->dev, "Failed to disable %s clk %d\n",
+					wcss_clk_names[1], ret);
+			return ret;
+		}
+
+		ret = wcss_clks_prepare_disable(wcss_p->dev, 3, 2);
+		if (ret) {
+			dev_err(wcss_p->dev, "Failed to disable clk's %d\n",
+					ret);
+			return ret;
+		}
+
+		/* Deassert WCSS reset */
+		reset_control_deassert(wcss_p->wcss_reset);
+		dev_info(&rproc->dev, "%s wcss powered down successfully\n",
+								rproc->name);
+	}
+	return 0;
+}
+
+static int q6v5_wcss_userpd_stop(struct rproc *rproc)
+{
+	int ret = 0;
+	struct q6v5_wcss *wcss = rproc->priv;
+
+	/*send stop request, if it is not crashed*/
+#ifdef CONFIG_CNSS2
+	struct subsys_desc *desc = &wcss->q6v5.subsys_desc;
+	struct qcom_q6v5 *q6v5 = subsys_to_pdata(desc);
+
+	if (!subsys_get_crash_status(q6v5->subsys)) {
+#else
+	if (rproc->state != RPROC_CRASHED) {
+#endif
+		ret = qcom_q6v5_request_stop(&wcss->q6v5);
+		if (ret) {
+			dev_err(&rproc->dev, "%s not stopped\n", rproc->name);
+			return ret;
+		}
+	}
+
+	ret = q6v5_wcss_userpd_powerdown(rproc);
+	if (ret) {
+		dev_err(&rproc->dev, "failed to powerdown %s\n", rproc->name);
+		return ret;
+	}
+	return ret;
+}
+
 static int q6v5_wcss_stop(struct rproc *rproc)
 {
 	struct q6v5_wcss *wcss = rproc->priv;
 	struct q6_platform_data *pdata = dev_get_platdata(wcss->dev);
+	struct rproc_child *rp_child;
 	int ret;
+	bool is_int_radio_stop = false;
 
 	if (pdata->nosecure)
 		goto skip_secure;
@@ -1267,11 +1458,28 @@ static int q6v5_wcss_stop(struct rproc *rproc)
 	}
 
 skip_secure:
+	list_for_each_entry(rp_child, &rproc->child, node) {
+		struct rproc *c_rproc = (struct rproc *)rp_child->handle;
+		struct q6v5_wcss *c_wcss = c_rproc->priv;
+#ifdef CONFIG_CNSS2
+		struct qcom_q6v5 *c_q6v5 =
+			subsys_to_pdata(&c_wcss->q6v5.subsys_desc);
+		if (c_wcss->is_int_radio &&
+			subsys_get_state(c_q6v5->subsys) == SUBSYS_OFFLINE) {
+#else
+		if (c_wcss->is_int_radio &&
+			c_rproc->state == RPROC_OFFLINE) {
+#endif
+			is_int_radio_stop = true;
+			break;
+		}
+	}
 	/* WCSS powerdown */
-	ret = q6v5_wcss_powerdown(wcss);
-	if (ret)
-		return ret;
-
+	if (!is_int_radio_stop) {
+		ret = q6v5_wcss_powerdown(wcss);
+		if (ret)
+			return ret;
+	}
 	/* Q6 Power down */
 	ret = q6v5_q6_powerdown(wcss);
 	if (ret)
@@ -1335,6 +1543,41 @@ skip_m3:
 
 	return ret;
 }
+
+static int q6v5_wcss_userpd_load(struct rproc *rproc, const struct firmware *fw)
+{
+	struct rproc *p = rproc->parent;
+	const struct firmware *f;
+	struct q6v5_wcss *wcss_p = p->priv, *wcss = rproc->priv;
+	struct q6_platform_data *pdata = dev_get_platdata(wcss_p->dev);
+	int ret;
+
+	dev_dbg(&rproc->dev, "%s:p:%p-p->name:%s-c:%p-c->name:%s-\n", __func__,
+				p, p->name, rproc, rproc->name);
+
+	ret = request_firmware(&f, p->firmware, &p->dev);
+	if (ret < 0) {
+		dev_err(&p->dev, "%s: request_firmware failed: %d\n",
+				__func__, ret);
+		return ret;
+	}
+
+	if (pdata->nosecure)
+		ret = qcom_mdt_load_no_init(wcss->dev, f, p->firmware,
+			     WCNSS_PAS_ID, wcss_p->mem_region, wcss_p->mem_phys,
+			     wcss_p->mem_size, &wcss_p->mem_reloc);
+	else
+		ret = qcom_mdt_load(wcss->dev, f, p->firmware,
+			     WCNSS_PAS_ID, wcss_p->mem_region, wcss_p->mem_phys,
+			     wcss_p->mem_size, &wcss_p->mem_reloc);
+	return ret;
+}
+
+static const struct rproc_ops q6v5_wcss_userpd_ops = {
+	.start = q6v5_wcss_userpd_start,
+	.stop = q6v5_wcss_userpd_stop,
+	.load = q6v5_wcss_userpd_load,
+};
 
 static const struct rproc_ops q6v5_wcss_ops = {
 	.start = q6v5_wcss_start,
@@ -1467,6 +1710,149 @@ static int q6v5_alloc_memory_region(struct q6v5_wcss *wcss)
 	return 0;
 }
 
+static void q6v5_release_resources(struct platform_device *pdev)
+{
+	struct rproc *rproc;
+	struct q6v5_wcss *wcss;
+	struct qcom_q6v5 *q6v5;
+	struct rproc_child *rp_child, *tmp_child;
+
+	rproc = platform_get_drvdata(pdev);
+	wcss = rproc->priv;
+	q6v5 = &wcss->q6v5;
+	list_for_each_entry_safe(rp_child, tmp_child, &rproc->child, node) {
+		struct rproc *child = (struct rproc *)rp_child->handle;
+#ifdef CONFIG_CNSS2
+		struct q6v5_wcss *c_wcss = child->priv;
+		struct qcom_q6v5 *c_q6v5 =
+			subsys_to_pdata(&c_wcss->q6v5.subsys_desc);
+		subsys_unregister(c_q6v5->subsys);
+#endif
+		rproc_del(child);
+		rproc_free(child);
+	}
+
+#ifdef CONFIG_CNSS2
+	subsys_unregister(q6v5->subsys);
+#endif
+	rproc_del(rproc);
+	qcom_remove_glink_subdev(rproc, &wcss->glink_subdev);
+	qcom_remove_ssr_subdev(rproc, &wcss->ssr_subdev);
+	rproc_free(rproc);
+}
+
+static int q6v5_register_userpd(struct platform_device *pdev)
+{
+	struct q6v5_wcss *wcss;
+	struct rproc *rproc = NULL;
+	int ret;
+	struct qcom_q6v5 *q6v5;
+	struct device_node *userpd_np;
+	struct platform_device *userpd_pdev;
+	struct rproc_child *rp_child;
+#ifdef CONFIG_CNSS2
+	struct q6v5_wcss *wcss_p;
+	struct subsys_child *sub_child;
+#endif
+	for_each_available_child_of_node(pdev->dev.of_node, userpd_np) {
+		if (strstr(userpd_np->name, "userpd") == NULL)
+			continue;
+
+		pr_info("%s(%p) node found\n", userpd_np->name, userpd_np);
+
+		userpd_pdev = of_platform_device_create(userpd_np,
+				userpd_np->name, &pdev->dev);
+		if (!userpd_pdev) {
+			pr_err("failed to create %s platform device\n",
+							userpd_np->name);
+			ret = -ENODEV;
+			q6v5_release_resources(pdev);
+			return ret;
+		}
+
+		rproc = rproc_alloc(&userpd_pdev->dev, userpd_pdev->name,
+				&q6v5_wcss_userpd_ops, NULL, sizeof(*wcss));
+		if (!rproc) {
+			dev_err(&userpd_pdev->dev,
+				"failed to allocate rproc\n");
+			q6v5_release_resources(pdev);
+			platform_device_unregister(userpd_pdev);
+			return -ENOMEM;
+		}
+		kfree(rproc->firmware);
+		rproc->firmware = NULL;
+
+		wcss = rproc->priv;
+		wcss->dev = &userpd_pdev->dev;
+		q6v5 = &wcss->q6v5;
+		rproc->parent = platform_get_drvdata(pdev);
+		ret = qcom_q6v5_init(q6v5, userpd_pdev, rproc,
+				WCSS_CRASH_REASON, NULL);
+		if (ret)
+			goto clear_resources;
+
+#ifdef CONFIG_CNSS2
+		wcss_p = rproc->parent->priv;
+		q6v5->subsys_desc.parent = &wcss_p->q6v5.subsys_desc;
+		/*
+		 * subsys-register
+		 */
+		q6v5->subsys_desc.is_not_loadable = 0;
+		q6v5->subsys_desc.name = userpd_pdev->dev.of_node->name;
+		q6v5->subsys_desc.dev = &userpd_pdev->dev;
+		q6v5->subsys_desc.owner = THIS_MODULE;
+		q6v5->subsys_desc.shutdown = stop_q6_userpd;
+		q6v5->subsys_desc.powerup = start_q6_userpd;
+		q6v5->subsys_desc.ramdump = crashdump_init_new;
+		q6v5->subsys_desc.err_fatal_handler = q6v5_fatal_interrupt;
+		q6v5->subsys_desc.stop_ack_handler = q6v5_stop_interrupt;
+
+		q6v5->subsys = subsys_register(&q6v5->subsys_desc);
+		if (IS_ERR(q6v5->subsys)) {
+			dev_err(&userpd_pdev->dev,
+				"failed to register with ssr\n");
+			ret = PTR_ERR(q6v5->subsys);
+			goto clear_resources;
+		}
+		dev_info(wcss->dev, "ssr registeration success %s\n",
+				q6v5->subsys_desc.name);
+#endif
+		rproc->auto_boot = false;
+		ret = rproc_add(rproc);
+		if (ret)
+			goto clear_resources;
+
+#ifdef CONFIG_CNSS2
+
+		sub_child = devm_kzalloc(&userpd_pdev->dev,
+				sizeof(*sub_child), GFP_KERNEL);
+		if (IS_ERR_OR_NULL(sub_child)) {
+			ret = PTR_ERR(sub_child);
+			goto clear_resources;
+		}
+		sub_child->handle = &q6v5->subsys_desc;
+		subsys_add_child(q6v5->subsys_desc.parent, sub_child);
+#endif
+		rp_child = devm_kzalloc(&userpd_pdev->dev,
+				sizeof(*rp_child), GFP_KERNEL);
+		if (IS_ERR_OR_NULL(rp_child)) {
+			ret = PTR_ERR(rp_child);
+			goto clear_resources;
+		}
+		rp_child->handle = rproc;
+		rproc_add_child(rproc->parent, rp_child);
+		wcss->is_int_radio = of_property_read_bool(userpd_np,
+							"qca,int_radio");
+	}
+
+	return 0;
+clear_resources:
+	q6v5_release_resources(pdev);
+	rproc_free(rproc);
+	platform_device_unregister(userpd_pdev);
+	return ret;
+}
+
 static int q6v5_wcss_probe(struct platform_device *pdev)
 {
 	struct q6v5_wcss *wcss;
@@ -1533,6 +1919,7 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 		ret = PTR_ERR(q6v5->subsys);
 		goto free_rproc;
 	}
+	q6v5->subsys_desc.parent = NULL;
 	dev_info(wcss->dev, "ssr registeration success %s\n",
 					q6v5->subsys_desc.name);
 #endif
@@ -1581,7 +1968,13 @@ skip_pdata:
 	qcom_add_glink_subdev(rproc, &wcss->glink_subdev);
 	qcom_add_ssr_subdev(rproc, &wcss->ssr_subdev, "mpss");
 	platform_set_drvdata(pdev, rproc);
+	rproc->parent = NULL;
 
+	ret = q6v5_register_userpd(pdev);
+	if (ret) {
+		pr_err("Failed to register userpd\n");
+		return ret;
+	}
 	return 0;
 
 free_rproc:
@@ -1592,22 +1985,7 @@ free_rproc:
 
 static int q6v5_wcss_remove(struct platform_device *pdev)
 {
-	struct rproc *rproc = platform_get_drvdata(pdev);
-	struct q6v5_wcss *wcss;
-	struct qcom_q6v5 *q6v5;
-
-	wcss = rproc->priv;
-	wcss->dev = &pdev->dev;
-	q6v5 = &wcss->q6v5;
-
-#ifdef CONFIG_CNSS2
-	subsys_unregister(q6v5->subsys);
-#endif
-	rproc_del(rproc);
-	qcom_remove_glink_subdev(rproc, &wcss->glink_subdev);
-	qcom_remove_ssr_subdev(rproc, &wcss->ssr_subdev);
-	rproc_free(rproc);
-
+	q6v5_release_resources(pdev);
 	return 0;
 }
 

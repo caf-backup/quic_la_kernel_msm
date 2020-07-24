@@ -1303,7 +1303,9 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 	if (ret)
 		return ret;
 
-	dev_info(dev, "Booting fw image %s, size %zd\n", name, fw->size);
+	if (fw)
+		dev_info(dev, "Booting fw image %s, size %zd\n", name,
+								fw->size);
 
 	/*
 	 * if enabling an IOMMU isn't relevant for this rproc, this is
@@ -1581,7 +1583,7 @@ static void rproc_coredump(struct rproc *rproc)
  */
 int rproc_trigger_recovery(struct rproc *rproc)
 {
-	const struct firmware *firmware_p;
+	const struct firmware *firmware_p = NULL;
 	struct device *dev = &rproc->dev;
 	int ret;
 
@@ -1599,10 +1601,12 @@ int rproc_trigger_recovery(struct rproc *rproc)
 	rproc_coredump(rproc);
 
 	/* load firmware */
-	ret = request_firmware(&firmware_p, rproc->firmware, dev);
-	if (ret < 0) {
-		dev_err(dev, "request_firmware failed: %d\n", ret);
-		goto unlock_mutex;
+	if (rproc->firmware != NULL) {
+		ret = request_firmware(&firmware_p, rproc->firmware, dev);
+		if (ret < 0) {
+			dev_err(dev, "request_firmware failed: %d\n", ret);
+			goto unlock_mutex;
+		}
 	}
 
 	/* boot the remote processor up again */
@@ -1662,7 +1666,7 @@ static void rproc_crash_handler_work(struct work_struct *work)
  */
 int rproc_boot(struct rproc *rproc)
 {
-	const struct firmware *firmware_p;
+	const struct firmware *firmware_p = NULL;
 	struct device *dev;
 	int ret;
 
@@ -1694,10 +1698,12 @@ int rproc_boot(struct rproc *rproc)
 	dev_info(dev, "powering up %s\n", rproc->name);
 
 	/* load firmware */
-	ret = request_firmware(&firmware_p, rproc->firmware, dev);
-	if (ret < 0) {
-		dev_err(dev, "request_firmware failed: %d\n", ret);
-		goto downref_rproc;
+	if (rproc->firmware != NULL) {
+		ret = request_firmware(&firmware_p, rproc->firmware, dev);
+		if (ret < 0) {
+			dev_err(dev, "request_firmware failed: %d\n", ret);
+			goto downref_rproc;
+		}
 	}
 
 	ret = rproc_fw_boot(rproc, firmware_p);
@@ -1816,6 +1822,59 @@ struct rproc *rproc_get_by_phandle(phandle phandle)
 }
 #endif
 EXPORT_SYMBOL(rproc_get_by_phandle);
+
+#ifdef CONFIG_OF
+struct rproc *rproc_get_by_name(const char *rproc_name)
+{
+	struct rproc *temp, *rproc = NULL;
+
+	mutex_lock(&rproc_list_mutex);
+	list_for_each_entry(temp, &rproc_list, node) {
+		if (!strcmp(temp->name, rproc_name)) {
+			rproc = temp;
+			get_device(&rproc->dev);
+			break;
+		}
+	}
+	mutex_unlock(&rproc_list_mutex);
+	return rproc;
+}
+#else
+struct rproc *rproc_get_by_name(const char *rproc_name)
+{
+	return NULL;
+}
+#endif
+EXPORT_SYMBOL(rproc_get_by_name);
+
+#ifdef CONFIG_OF
+int rproc_get_child_cnt(const char *rproc_parent_name)
+{
+	struct rproc *rproc = NULL, *temp;
+	int cnt = 0;
+	struct rproc_child *rp_child;
+
+	mutex_lock(&rproc_list_mutex);
+	list_for_each_entry(temp, &rproc_list, node) {
+		if (!strcmp(temp->name, rproc_parent_name)) {
+			rproc = temp;
+			break;
+		}
+	}
+	mutex_unlock(&rproc_list_mutex);
+	if (!rproc)
+		return cnt;
+	list_for_each_entry(rp_child, &rproc->child, node)
+		cnt += 1;
+	return cnt;
+}
+#else
+int rproc_get_child_cnt(void)
+{
+	return NULL;
+}
+#endif
+EXPORT_SYMBOL(rproc_get_child_cnt);
 
 /**
  * rproc_add() - register a remote processor
@@ -2002,6 +2061,7 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 	INIT_LIST_HEAD(&rproc->rvdevs);
 	INIT_LIST_HEAD(&rproc->subdevs);
 	INIT_LIST_HEAD(&rproc->dump_segments);
+	INIT_LIST_HEAD(&rproc->child);
 
 	INIT_WORK(&rproc->crash_handler, rproc_crash_handler_work);
 
@@ -2083,6 +2143,19 @@ int rproc_del(struct rproc *rproc)
 	return 0;
 }
 EXPORT_SYMBOL(rproc_del);
+
+void rproc_add_child(struct rproc *rproc_p, struct rproc_child *child)
+{
+	list_add(&child->node, &rproc_p->child);
+}
+EXPORT_SYMBOL(rproc_add_child);
+
+void rproc_remove_child(struct rproc *rproc_p, struct rproc_child *child)
+{
+	list_del(&child->node);
+}
+EXPORT_SYMBOL(rproc_remove_child);
+
 
 /**
  * rproc_add_subdev() - add a subdevice to a remoteproc

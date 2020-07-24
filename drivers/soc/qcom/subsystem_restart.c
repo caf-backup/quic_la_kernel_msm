@@ -37,6 +37,8 @@
 
 #include <asm/current.h>
 
+#define BUF_SIZE 30
+
 #define DISABLE_SSR 0x9889deed
 /* If set to 0x9889deed, call to subsystem_restart_dev() returns immediately */
 static uint disable_restart_work;
@@ -44,6 +46,8 @@ module_param(disable_restart_work, uint, S_IRUGO | S_IWUSR);
 
 static int enable_debug;
 module_param(enable_debug, int, S_IRUGO | S_IWUSR);
+
+static struct subsys_device *desc_to_subsys(struct device *d);
 
 /* The maximum shutdown timeout is the product of MAX_LOOPS and DELAY_MS. */
 #define SHUTDOWN_ACK_MAX_LOOPS	100
@@ -64,17 +68,6 @@ enum p_subsys_state {
 	SUBSYS_RESTARTING,
 };
 
-/**
- * enum subsys_state - state of a subsystem (public)
- * @SUBSYS_OFFLINE: subsystem is offline
- * @SUBSYS_ONLINE: subsystem is online
- *
- * The 'public' side of the subsytem state, exposed to userspace.
- */
-enum subsys_state {
-	SUBSYS_OFFLINE,
-	SUBSYS_ONLINE,
-};
 
 static const char * const subsys_states[] = {
 	[SUBSYS_OFFLINE] = "OFFLINE",
@@ -294,6 +287,13 @@ int subsys_get_restart_level(struct subsys_device *dev)
 	return dev->restart_level;
 }
 EXPORT_SYMBOL(subsys_get_restart_level);
+
+enum subsys_state subsys_get_state(struct subsys_device *subsys)
+{
+	enum subsys_state state = subsys->track.state;
+	return state;
+}
+EXPORT_SYMBOL(subsys_get_state);
 
 static void subsys_set_state(struct subsys_device *subsys,
 			     enum subsys_state state)
@@ -631,6 +631,17 @@ void *__subsystem_get(const char *name, const char *fw_name)
 		goto err_module;
 	}
 
+	/*parent must start before child*/
+	if (subsys->desc->parent) {
+		void *tmp = subsystem_get(subsys->desc->parent->name);
+
+		if (IS_ERR_OR_NULL(tmp)) {
+			pr_err("can't get %s subsystem\n",
+					subsys->desc->parent->name);
+			return tmp;
+		}
+	}
+
 	subsys_d = subsystem_get(subsys->desc->depends_on);
 	if (IS_ERR(subsys_d)) {
 		retval = subsys_d;
@@ -728,6 +739,13 @@ void subsystem_put(void *subsystem)
 		subsystem_put(subsys_d);
 		put_device(&subsys_d->dev);
 	}
+
+	if (subsys->desc->parent) {
+		struct subsys_device *subsys_p =
+			desc_to_subsys(subsys->desc->parent->dev);
+		subsystem_put(subsys_p);
+	}
+
 	module_put(subsys->owner);
 	put_device(&subsys->dev);
 	return;
@@ -1233,7 +1251,9 @@ static int __get_irq(struct subsys_desc *desc, const char *prop,
 {
 	int ret, gpiol, irql;
 
-	if (of_property_read_bool(desc->dev->of_node, "qca,extended-intc")) {
+	if (of_property_read_bool(desc->dev->of_node, "qca,extended-intc") ||
+		of_property_read_bool(desc->dev->parent->of_node,
+					"qca,extended-intc")) {
 		struct platform_device *pdev = container_of(desc->dev,
 				struct platform_device, dev);
 
@@ -1300,13 +1320,17 @@ static int subsys_parse_devicetree(struct subsys_desc *desc)
 	if (ret && ret != -ENOENT)
 		return ret;
 
-	if (of_property_read_bool(desc->dev->of_node, "qca,extended-intc"))
-		ret = platform_get_irq_byname(pdev, "wdog");
-	else
-		ret = platform_get_irq(pdev, 0); /* There is only one irq */
+	if (!desc->parent) {
+		if (of_property_read_bool(desc->dev->of_node,
+						"qca,extended-intc"))
+			ret = platform_get_irq_byname(pdev, "wdog");
+		else
+			/* There is only one irq */
+			ret = platform_get_irq(pdev, 0);
 
-	if (ret > 0)
-		desc->wdog_bite_irq = ret;
+		if (ret > 0)
+			desc->wdog_bite_irq = ret;
+	}
 
 	order = ssr_parse_restart_orders(desc);
 	if (IS_ERR(order)) {
@@ -1322,12 +1346,24 @@ static int subsys_setup_irqs(struct subsys_device *subsys)
 {
 	struct subsys_desc *desc = subsys->desc;
 	int ret;
+	char *err_fatal_int;
+	char *stop_ack_int;
 
 	if (desc->err_fatal_irq && desc->err_fatal_handler) {
+		if (!desc->parent)
+			err_fatal_int = "err_fatal_interrupt";
+		else {
+			err_fatal_int = devm_kzalloc(desc->dev, BUF_SIZE,
+								GFP_KERNEL);
+			if (!err_fatal_int)
+				return -ENOMEM;
+			strlcpy(err_fatal_int, desc->name, BUF_SIZE);
+			strlcat(err_fatal_int, "_fatal", BUF_SIZE);
+		}
 		ret = devm_request_threaded_irq(desc->dev, desc->err_fatal_irq,
 				NULL, desc->err_fatal_handler,
 				IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-				"err_fatal_interrupt", desc);
+				err_fatal_int, desc);
 		if (ret < 0) {
 			dev_err(desc->dev, "[%s]: Unable to register error fatal IRQ handler!: %d\n",
 				desc->name, ret);
@@ -1336,10 +1372,20 @@ static int subsys_setup_irqs(struct subsys_device *subsys)
 	}
 
 	if (desc->stop_ack_irq && desc->stop_ack_handler) {
+		if (!desc->parent)
+			stop_ack_int = "stop_ack_interrupt";
+		else {
+			stop_ack_int = devm_kzalloc(desc->dev, BUF_SIZE,
+								GFP_KERNEL);
+			if (!stop_ack_int)
+				return -ENOMEM;
+			strlcpy(stop_ack_int, desc->name, BUF_SIZE);
+			strlcat(stop_ack_int, "_stop_ack", BUF_SIZE);
+		}
 		ret = devm_request_threaded_irq(desc->dev, desc->stop_ack_irq,
 				NULL, desc->stop_ack_handler,
 				IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-				"stop_ack_interrupt", desc);
+				stop_ack_int, desc);
 		if (ret < 0) {
 			dev_err(desc->dev, "[%s]: Unable to register stop ack handler!: %d\n",
 				desc->name, ret);
@@ -1347,7 +1393,7 @@ static int subsys_setup_irqs(struct subsys_device *subsys)
 		}
 	}
 
-	if (desc->wdog_bite_irq && desc->wdog_bite_handler) {
+	if (desc->wdog_bite_irq && desc->wdog_bite_handler && !desc->parent) {
 		ret = devm_request_threaded_irq(desc->dev, desc->wdog_bite_irq,
 				NULL, desc->wdog_bite_handler,
 				IRQF_TRIGGER_RISING | IRQF_ONESHOT,
@@ -1374,6 +1420,17 @@ static void subsys_free_irqs(struct subsys_device *subsys)
 		devm_free_irq(desc->dev, desc->wdog_bite_irq, desc);
 }
 
+void subsys_add_child(struct subsys_desc *desc, struct subsys_child *child)
+{
+	list_add(&child->node, &desc->child);
+}
+EXPORT_SYMBOL(subsys_add_child);
+
+void subsys_remove_child(struct subsys_desc *desc, struct subsys_child *child)
+{
+	list_del(&child->node);
+}
+EXPORT_SYMBOL(subsys_remove_child);
 struct subsys_device *subsys_register(struct subsys_desc *desc)
 {
 	struct subsys_device *subsys;
@@ -1455,6 +1512,7 @@ struct subsys_device *subsys_register(struct subsys_desc *desc)
 	INIT_LIST_HEAD(&subsys->list);
 	list_add_tail(&subsys->list, &subsys_list);
 	mutex_unlock(&subsys_list_lock);
+	INIT_LIST_HEAD(&subsys->desc->child);
 
 	return subsys;
 

@@ -17,7 +17,7 @@
 #include <linux/delay.h>
 
 #define STOP_ACK_TIMEOUT_MS 5000
-
+#define BUF_SIZE 35
 /**
  * qcom_q6v5_prepare() - reinitialize the qcom_q6v5 context before start
  * @q6v5:	reference to qcom_q6v5 context to be reinitialized
@@ -155,16 +155,26 @@ static irqreturn_t q6v5_handover_interrupt(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-#if !defined(CONFIG_CNSS2)
-static irqreturn_t q6v5_stop_interrupt(int irq, void *data)
+static irqreturn_t q6v5_spawn_interrupt(int irq, void *data)
 {
 	struct qcom_q6v5 *q6v5 = data;
 
+	complete(&q6v5->spawn_done);
+
+	return IRQ_HANDLED;
+}
+
+irqreturn_t q6v5_stop_interrupt(int irq, void *data)
+{
+#ifdef CONFIG_CNSS2
+	struct qcom_q6v5 *q6v5 = subsys_to_pdata(data);
+#else
+	struct qcom_q6v5 *q6v5 = data;
+#endif
 	complete(&q6v5->stop_done);
 
 	return IRQ_HANDLED;
 }
-#endif
 
 /**
  * qcom_q6v5_request_stop() - request the remote processor to stop
@@ -176,16 +186,121 @@ int qcom_q6v5_request_stop(struct qcom_q6v5 *q6v5)
 {
 	int ret;
 
-	qcom_smem_state_update_bits(q6v5->state,
+	qcom_smem_state_update_bits(q6v5->stop_state,
 				    BIT(q6v5->stop_bit), BIT(q6v5->stop_bit));
 
 	ret = wait_for_completion_timeout(&q6v5->stop_done, 5 * HZ);
 
-	qcom_smem_state_update_bits(q6v5->state, BIT(q6v5->stop_bit), 0);
+	qcom_smem_state_update_bits(q6v5->stop_state, BIT(q6v5->stop_bit), 0);
 
 	return ret == 0 ? -ETIMEDOUT : 0;
 }
 EXPORT_SYMBOL_GPL(qcom_q6v5_request_stop);
+
+/**
+ * qcom_q6v5_request_spawn() - request the remote processor to spawn
+ * @q6v5:      reference to qcom_q6v5 context
+ *
+ * Return: 0 on success, negative errno on failure
+ */
+int qcom_q6v5_request_spawn(struct qcom_q6v5 *q6v5)
+{
+	int ret;
+
+	ret = qcom_smem_state_update_bits(q6v5->spawn_state,
+				BIT(q6v5->spawn_bit), BIT(q6v5->spawn_bit));
+
+	ret = wait_for_completion_timeout(&q6v5->spawn_done, 5 * HZ);
+
+	qcom_smem_state_update_bits(q6v5->spawn_state, BIT(q6v5->spawn_bit), 0);
+
+	return ret == 0 ? -ETIMEDOUT : 0;
+}
+EXPORT_SYMBOL_GPL(qcom_q6v5_request_spawn);
+
+static int q6v5_get_inbound_irq(struct qcom_q6v5 *q6v5,
+			struct platform_device *pdev, const char *int_name,
+			irqreturn_t (*handler)(int irq, void *data))
+{
+	int ret, irq;
+	char *interrupt, *tmp = (char *)int_name;
+	const char *str = (q6v5->rproc->parent) ? q6v5->rproc->name : "q6v5 ";
+
+	irq = ret = platform_get_irq_byname(pdev, int_name);
+	if (ret < 0) {
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev,
+				"failed to retrieve %s IRQ: %d\n",
+					int_name, ret);
+		return ret;
+	}
+
+	if (!strcmp(int_name, "wdog"))
+		q6v5->wdog_irq = irq;
+	else if (!strcmp(int_name, "fatal"))
+		q6v5->fatal_irq = irq;
+	else if (!strcmp(int_name, "stop-ack")) {
+		q6v5->stop_irq = irq;
+		tmp = (q6v5->rproc->parent) ? "stop_ack" : "stop";
+	} else if (!strcmp(int_name, "ready"))
+		q6v5->ready_irq = irq;
+	else if (!strcmp(int_name, "handover"))
+		q6v5->handover_irq  = irq;
+	else if (!strcmp(int_name, "spawn_ack"))
+		q6v5->spawn_irq = irq;
+	else {
+		dev_err(&pdev->dev, "unknown interrupt\n");
+		return -EINVAL;
+	}
+
+	interrupt = devm_kzalloc(&pdev->dev, BUF_SIZE, GFP_KERNEL);
+	if (!interrupt)
+		return -ENOMEM;
+
+	strlcpy(interrupt, str, BUF_SIZE);
+	if (q6v5->rproc->parent)
+		strlcat(interrupt, "_", BUF_SIZE);
+	strlcat(interrupt, tmp, BUF_SIZE);
+
+	ret = devm_request_threaded_irq(&pdev->dev, irq,
+			NULL, handler,
+			IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+			interrupt, q6v5);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to acquire %s irq\n",
+				interrupt);
+		return ret;
+	}
+	return 0;
+}
+
+static int q6v5_get_outbound_irq(struct qcom_q6v5 *q6v5,
+			struct platform_device *pdev, const char *int_name)
+{
+	struct qcom_smem_state *tmp_state;
+	unsigned  bit;
+
+	tmp_state = qcom_smem_state_get(&pdev->dev, int_name, &bit);
+	if (IS_ERR(tmp_state)) {
+		dev_err(&pdev->dev, "failed to acquire %s state\n", int_name);
+		return PTR_ERR(tmp_state);
+	}
+
+	if (!strcmp(int_name, "stop")) {
+		q6v5->stop_state = tmp_state;
+		q6v5->stop_bit = bit;
+	} else if (!strcmp(int_name, "spawn")) {
+		q6v5->spawn_state = tmp_state;
+		q6v5->spawn_bit = bit;
+#ifdef CONFIG_CNSS2
+	} else if (!strcmp(int_name, "shutdown")) {
+		q6v5->shutdown_state = tmp_state;
+		q6v5->shutdown_bit = bit;
+#endif
+	}
+
+	return 0;
+}
 
 /**
  * qcom_q6v5_init() - initializer of the q6v5 common struct
@@ -210,120 +325,64 @@ int qcom_q6v5_init(struct qcom_q6v5 *q6v5, struct platform_device *pdev,
 
 	init_completion(&q6v5->start_done);
 	init_completion(&q6v5->stop_done);
+	if (rproc->parent)
+		init_completion(&q6v5->spawn_done);
 
 #if !defined(CONFIG_CNSS2)
-	q6v5->wdog_irq = platform_get_irq_byname(pdev, "wdog");
-	if (q6v5->wdog_irq < 0) {
-		if (q6v5->wdog_irq != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"failed to retrieve wdog IRQ: %d\n",
-				q6v5->wdog_irq);
-		return q6v5->wdog_irq;
+	if (!rproc->parent) {
+		ret = q6v5_get_inbound_irq(q6v5, pdev, "wdog",
+					q6v5_wdog_interrupt);
+		if (ret)
+			return ret;
 	}
 
-	ret = devm_request_threaded_irq(&pdev->dev, q6v5->wdog_irq,
-					NULL, q6v5_wdog_interrupt,
-					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-					"q6v5 wdog", q6v5);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to acquire wdog IRQ\n");
+	ret = q6v5_get_inbound_irq(q6v5, pdev, "fatal",
+					q6v5_fatal_interrupt);
+	if (ret)
 		return ret;
-	}
-
-	q6v5->fatal_irq = platform_get_irq_byname(pdev, "fatal");
-	if (q6v5->fatal_irq < 0) {
-		if (q6v5->fatal_irq != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"failed to retrieve fatal IRQ: %d\n",
-				q6v5->fatal_irq);
-		return q6v5->fatal_irq;
-	}
-
-	ret = devm_request_threaded_irq(&pdev->dev, q6v5->fatal_irq,
-					NULL, q6v5_fatal_interrupt,
-					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-					"q6v5 fatal", q6v5);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to acquire fatal IRQ\n");
-		return ret;
-	}
 #endif
-
-	q6v5->ready_irq = platform_get_irq_byname(pdev, "ready");
-	if (q6v5->ready_irq < 0) {
-		if (q6v5->ready_irq != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"failed to retrieve ready IRQ: %d\n",
-				q6v5->ready_irq);
-		return q6v5->ready_irq;
-	}
-
-	ret = devm_request_threaded_irq(&pdev->dev, q6v5->ready_irq,
-					NULL, q6v5_ready_interrupt,
-					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-					"q6v5 ready", q6v5);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to acquire ready IRQ\n");
+	ret = q6v5_get_inbound_irq(q6v5, pdev, "ready",
+					q6v5_ready_interrupt);
+	if (ret)
 		return ret;
-	}
 
-	q6v5->handover_irq = platform_get_irq_byname(pdev, "handover");
-	if (q6v5->handover_irq < 0) {
-		if (q6v5->handover_irq != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"failed to retrieve handover IRQ: %d\n",
-				q6v5->handover_irq);
-		return q6v5->handover_irq;
+	if (!rproc->parent) {
+		ret = q6v5_get_inbound_irq(q6v5, pdev, "handover",
+						q6v5_handover_interrupt);
+		if (ret)
+			return ret;
+		disable_irq(q6v5->handover_irq);
 	}
-
-	ret = devm_request_threaded_irq(&pdev->dev, q6v5->handover_irq,
-					NULL, q6v5_handover_interrupt,
-					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-					"q6v5 handover", q6v5);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to acquire handover IRQ\n");
-		return ret;
-	}
-	disable_irq(q6v5->handover_irq);
-
 #if !defined(CONFIG_CNSS2)
-	q6v5->stop_irq = platform_get_irq_byname(pdev, "stop-ack");
-	if (q6v5->stop_irq < 0) {
-		if (q6v5->stop_irq != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"failed to retrieve stop-ack IRQ: %d\n",
-				q6v5->stop_irq);
-		return q6v5->stop_irq;
-	}
-
-	ret = devm_request_threaded_irq(&pdev->dev, q6v5->stop_irq,
-					NULL, q6v5_stop_interrupt,
-					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-					"q6v5 stop", q6v5);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to acquire stop-ack IRQ\n");
+	ret = q6v5_get_inbound_irq(q6v5, pdev, "stop-ack",
+					q6v5_stop_interrupt);
+	if (ret)
 		return ret;
-	}
 #endif
+	if (rproc->parent) {
+		ret = q6v5_get_inbound_irq(q6v5, pdev, "spawn_ack",
+					q6v5_spawn_interrupt);
+		if (ret)
+			return ret;
+	}
 
-	q6v5->state = qcom_smem_state_get(&pdev->dev, "stop", &q6v5->stop_bit);
-	if (IS_ERR(q6v5->state)) {
-		dev_err(&pdev->dev, "failed to acquire stop state\n");
-		return PTR_ERR(q6v5->state);
+	ret = q6v5_get_outbound_irq(q6v5, pdev, "stop");
+	if (ret)
+		return ret;
+
+	if (rproc->parent) {
+		ret = q6v5_get_outbound_irq(q6v5, pdev, "spawn");
+		if (ret)
+			return ret;
 	}
 
 #ifdef CONFIG_CNSS2
 	if (of_property_read_bool(pdev->dev.of_node, "qcom,q6v6")) {
-		q6v5->shutdown_state = qcom_smem_state_get(&pdev->dev,
-					"shutdown", &q6v5->shutdown_bit);
-		if (IS_ERR(q6v5->shutdown_state)) {
-			dev_err(&pdev->dev,
-				"failed to acquire shutdown state\n");
-			return PTR_ERR(q6v5->shutdown_state);
-		}
+		ret = q6v5_get_outbound_irq(q6v5, pdev, "shutdown");
+		if (ret)
+			return ret;
 	}
 #endif
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qcom_q6v5_init);
