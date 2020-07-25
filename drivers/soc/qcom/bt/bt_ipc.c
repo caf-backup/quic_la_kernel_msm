@@ -153,7 +153,7 @@ static struct ring_buffer_info *bt_ipc_get_tx_rbuf(struct bt_descriptor *btDesc,
 	struct bt_mem *btmem = &btDesc->btmem;
 
 	for (rinfo = &(btmem->tx_ctxt->sring_buf_info);	rinfo != NULL;
-		rinfo = TO_APPS_ADDR(btmem->tx_ctxt->sring_buf_info.next)) {
+		rinfo = (struct ring_buffer_info *)(uintptr_t)(rinfo->next)) {
 		idx = (rinfo->widx + 1) % (btmem->tx_ctxt->smsg_buf_cnt);
 
 		if (idx != rinfo->tidx) {
@@ -187,7 +187,9 @@ int bt_ipc_send_msg(struct bt_descriptor *btDesc, uint16_t msg_hdr,
 		bt_ipc_process_pending_tx_queue(btDesc);
 
 	rinfo = bt_ipc_get_tx_rbuf(btDesc, &is_sbuf_full);
-	if (rinfo == NULL) {
+	if (IS_ERR(rinfo)) {
+		dev_err(dev, "short msg buf full, queuing msg[%d]\n",
+				atomic_read(&btDesc->ipc.tx_q_cnt));
 		ret = PTR_ERR(rinfo);
 		if (dequeue)
 			ret = bt_ipc_queue_tx(btDesc, pData, len);
@@ -461,8 +463,7 @@ static void bt_ipc_worker(struct work_struct *work)
 	bt_ipc_process_ack(btDesc);
 
 	for (rinfo = &(btmem->rx_ctxt->sring_buf_info); rinfo != NULL;
-		rinfo = (struct ring_buffer_info *)(uintptr_t)
-			(btmem->rx_ctxt->sring_buf_info.next)) {
+		rinfo = (struct ring_buffer_info *)(uintptr_t)(rinfo->next)) {
 		if (bt_ipc_process_peer_msgs(btDesc, rinfo,
 					&btmem->rx_ctxt->smsg_buf_cnt)) {
 			ackReqd = true;
