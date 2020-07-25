@@ -183,6 +183,18 @@ int qcom_scm_tz_register_log_buf(struct device *dev,
 }
 EXPORT_SYMBOL(qcom_scm_tz_register_log_buf);
 
+int qcom_scm_aes(struct scm_cmd_buf_t *scm_cmd_buf, size_t buf_size,
+		u32 cmd_id)
+{
+	int ret = 0;
+
+	ret = __qcom_scm_aes(__scm->dev, scm_cmd_buf,
+				buf_size, cmd_id);
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_scm_aes);
+
 int qcom_scm_tls_hardening(struct scm_cmd_buf_t *scm_cmd_buf, size_t buf_size,
 			  u32 cmd_id)
 {

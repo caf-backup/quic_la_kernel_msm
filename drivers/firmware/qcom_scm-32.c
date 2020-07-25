@@ -916,6 +916,32 @@ int __qcom_scm_tz_register_log_buf(struct device *dev,
 	return ret;
 }
 
+int __qcom_scm_aes(struct device *dev,
+			struct scm_cmd_buf_t *scm_cmd_buf,
+			size_t buf_size, u32 cmd_id)
+{
+	int ret = 0;
+
+	if (is_scm_armv8()) {
+		__le32 scm_ret;
+		struct scm_desc desc = {0};
+
+		desc.arginfo = SCM_ARGS(2, SCM_RW, SCM_VAL);
+
+		desc.args[0] = (u64)scm_cmd_buf->req_addr;
+		desc.args[1] = scm_cmd_buf->req_size;
+
+		ret = qcom_scm_call2(SCM_SIP_FNID(TZ_SVC_CRYPTO, cmd_id),
+		                    &desc);
+		scm_ret = desc.ret[0];
+		if (!ret)
+			return le32_to_cpu(scm_ret);
+	} else
+		return -ENOTSUPP;
+
+	return ret;
+}
+
 int __qcom_scm_tls_hardening(struct device *dev,
 			    struct scm_cmd_buf_t *scm_cmd_buf,
 			    size_t buf_size, u32 cmd_id)

@@ -509,6 +509,329 @@ store_key_blob(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t
+store_aes_mode(struct device *dev, struct device_attribute *attr,
+               const char *buf, size_t count)
+{
+	unsigned long long val;
+
+	if (kstrtoull(buf, 10, &val))
+		return -EINVAL;
+
+	mode = val;
+	if (mode >= TZ_CRYPTO_SERVICE_AES_MODE_MAX) {
+		pr_info("\nInvalid aes 256 mode: %llu\n", mode);
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+static ssize_t
+store_aes_type(struct device *dev, struct device_attribute *attr,
+               const char *buf, size_t count)
+{
+	unsigned long long val;
+
+	if (kstrtoull(buf, 10, &val))
+		return -EINVAL;
+
+	type = val;
+	if (!type || type >= TZ_CRYPTO_SERVICE_AES_TYPE_MAX) {
+		pr_info("\nInvalid aes 256 type: %llu\n", type);
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+static ssize_t
+store_decrypted_data(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	unsealed_buf = memset(unsealed_buf, 0, MAX_PLAIN_DATA_SIZE);
+	decrypted_len = count;
+
+	if ((decrypted_len % AES_BLOCK_SIZE) ||
+			decrypted_len > MAX_PLAIN_DATA_SIZE) {
+		pr_info("\nInvalid input\n");
+		pr_info("Plain data length is %lu bytes\n",
+		       (unsigned long)decrypted_len);
+		pr_info("Plain data length must be multiple of AES block size"
+			"of 16 bytes and <= %u bytes\n",
+			(unsigned int)MAX_PLAIN_DATA_SIZE);
+		return -EINVAL;
+	}
+
+	if (!ivdata) {
+		pr_info("could not allocate ivdata\n");
+		return -EINVAL;
+	}
+	get_random_bytes((void *)ivdata, AES_BLOCK_SIZE);
+
+	memcpy(unsealed_buf, buf, decrypted_len);
+	return count;
+}
+
+static ssize_t
+show_encrypted_data(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	int rc = 0;
+	struct scm_cmd_buf_t scm_cmd_buf;
+	struct tz_crypto_service_encrypt_data_cmd_t *req_ptr = NULL;
+	uint64_t req_size = 0;
+	size_t req_order = 0;
+	uint64_t output_len = 0;
+	dma_addr_t dma_req_addr = 0;
+	dma_addr_t dma_plain_data = 0;
+	dma_addr_t dma_output_data = 0;
+	dma_addr_t dma_iv_data = 0;
+	struct page *req_page = NULL;
+
+	sealed_buf = memset(sealed_buf, 0, MAX_ENCRYPTED_DATA_SIZE);
+	output_len = decrypted_len;
+
+	if (decrypted_len <= 0 || decrypted_len % AES_BLOCK_SIZE) {
+		pr_err("\nInvalid input %lld\n", decrypted_len);
+		pr_info("Input data length for encryption should be multiple"
+			"of AES block size(16)\n");
+		return -EINVAL;
+	}
+
+	dev = qdev;
+
+	req_size = sizeof(struct tz_crypto_service_encrypt_data_cmd_t);
+	req_order = get_order(req_size);
+	req_page = alloc_pages(GFP_KERNEL, req_order);
+
+	if (req_page)
+		req_ptr = page_address(req_page);
+	else
+		return -ENOMEM;
+
+	dma_plain_data = dma_map_single(dev, unsealed_buf, decrypted_len,
+				       DMA_TO_DEVICE);
+	rc = dma_mapping_error(dev, dma_plain_data);
+	if (rc) {
+		pr_err("DMA Mapping Error(plain data)\n");
+		goto err_end;
+	}
+
+	dma_output_data = dma_map_single(dev, sealed_buf, output_len,
+					DMA_FROM_DEVICE);
+	rc = dma_mapping_error(dev, dma_output_data);
+	if (rc) {
+		pr_err("DMA Mapping Error(output data)\n");
+		goto err_map_output_data;
+	}
+
+	dma_iv_data = dma_map_single(dev, ivdata, AES_BLOCK_SIZE,
+					DMA_TO_DEVICE);
+	rc = dma_mapping_error(dev, dma_iv_data);
+	if (rc) {
+		pr_err("DMA Mapping Error(output data)\n");
+		goto err_map_iv_data;
+	}
+
+	req_ptr->type = type;
+	req_ptr->mode = mode;
+	req_ptr->iv = (req_ptr->mode == 0 ? 0 : (u64)dma_iv_data);
+	req_ptr->iv_len = AES_BLOCK_SIZE;
+	req_ptr->plain_data = (u64)dma_plain_data;
+	req_ptr->output_buffer = (u64)dma_output_data;
+	req_ptr->plain_data_len = decrypted_len;
+	req_ptr->output_len = output_len;
+
+	dma_req_addr = dma_map_single(dev, req_ptr, req_size, DMA_TO_DEVICE);
+
+	rc = dma_mapping_error(dev, dma_req_addr);
+	if (rc) {
+		pr_err("DMA Mapping Error(request str)\n");
+		goto err_map_req;
+	}
+
+	scm_cmd_buf.req_size = req_size;
+	scm_cmd_buf.req_addr = dma_req_addr;
+
+	rc = qcom_scm_aes(&scm_cmd_buf, sizeof(scm_cmd_buf),
+			CLIENT_CMD_CRYPTO_AES_ENCRYPT);
+
+	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
+	dma_unmap_single(dev, dma_iv_data, AES_BLOCK_SIZE, DMA_TO_DEVICE);
+	dma_unmap_single(dev, dma_output_data, output_len, DMA_FROM_DEVICE);
+	dma_unmap_single(dev, dma_plain_data, decrypted_len, DMA_TO_DEVICE);
+
+	if (rc) {
+		pr_err("\nResponse status failure..return value = %d\n", rc);
+		goto err_end;
+	}
+
+	memcpy(buf, sealed_buf, req_ptr->output_len);
+	encrypted_len = req_ptr->output_len;
+
+goto end;
+
+err_map_req:
+	dma_unmap_single(dev, dma_iv_data, AES_BLOCK_SIZE, DMA_TO_DEVICE);
+
+err_map_iv_data:
+	dma_unmap_single(dev, dma_output_data, output_len, DMA_FROM_DEVICE);
+
+err_map_output_data:
+	dma_unmap_single(dev, dma_plain_data, decrypted_len, DMA_TO_DEVICE);
+
+err_end:
+	free_pages((unsigned long)page_address(req_page), req_order);
+	return rc;
+
+end:
+	free_pages((unsigned long)page_address(req_page), req_order);
+
+	return encrypted_len;
+}
+
+static ssize_t
+store_encrypted_data(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	sealed_buf = memset(sealed_buf, 0, MAX_ENCRYPTED_DATA_SIZE);
+	encrypted_len = 0;
+
+	if ((count % AES_BLOCK_SIZE) || count > MAX_PLAIN_DATA_SIZE) {
+		pr_info("\nInvalid input\n");
+		pr_info("Encrypted data length is %lu bytes\n",
+			(unsigned long)count);
+		pr_info("Encrypted data length must be multiple of AES block"
+			"size 16  and <= %ubytes\n",
+			(unsigned int)MAX_ENCRYPTED_DATA_SIZE);
+		return -EINVAL;
+	}
+
+	encrypted_len = count;
+	memcpy(sealed_buf, buf, count);
+
+	return count;
+}
+
+static ssize_t
+show_decrypted_data(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	int rc = 0;
+	struct scm_cmd_buf_t scm_cmd_buf;
+	struct tz_crypto_service_decrypt_data_cmd_t *req_ptr = NULL;
+	uint64_t req_size = 0;
+	size_t req_order = 0;
+	uint64_t output_len = 0;
+	dma_addr_t dma_req_addr = 0;
+	dma_addr_t dma_sealed_data = 0;
+	dma_addr_t dma_output_data = 0;
+	dma_addr_t dma_iv_data = 0;
+	struct page *req_page = NULL;
+
+	unsealed_buf = memset(unsealed_buf, 0, MAX_PLAIN_DATA_SIZE);
+	output_len = encrypted_len;
+
+	if (encrypted_len <= 0 || encrypted_len % AES_BLOCK_SIZE) {
+		pr_err("\nInvalid input %lld\n", encrypted_len);
+		pr_info("Encrypted data length for decryption should be multiple"
+			"of AES block size(16)\n");
+		return -EINVAL;
+	}
+
+	dev = qdev;
+
+	req_size = sizeof(struct tz_crypto_service_decrypt_data_cmd_t);
+	req_order = get_order(req_size);
+	req_page = alloc_pages(GFP_KERNEL, req_order);
+
+	if (req_page)
+		req_ptr = page_address(req_page);
+	else
+		return -ENOMEM;
+
+	dma_sealed_data = dma_map_single(dev, sealed_buf, encrypted_len,
+					DMA_TO_DEVICE);
+	rc = dma_mapping_error(dev, dma_sealed_data);
+	if (rc) {
+		pr_err("DMA Mapping Error(sealed data)\n");
+		goto err_end;
+	}
+
+	dma_output_data = dma_map_single(dev, unsealed_buf, output_len,
+					DMA_FROM_DEVICE);
+	rc = dma_mapping_error(dev, dma_output_data);
+	if (rc) {
+		pr_err("DMA Mapping Error(output data)\n");
+		goto err_map_output_data;
+	}
+
+	dma_iv_data = dma_map_single(dev, ivdata, AES_BLOCK_SIZE,
+					DMA_TO_DEVICE);
+	rc = dma_mapping_error(dev, dma_iv_data);
+	if (rc) {
+		pr_err("DMA Mapping Error(output data)\n");
+		goto err_map_iv_data;
+	}
+
+	req_ptr->type = type;
+	req_ptr->mode = mode;
+	req_ptr->encrypted_data = (u64)dma_sealed_data;
+	req_ptr->output_buffer = (u64)dma_output_data;
+	req_ptr->iv = (req_ptr->mode == 0 ? 0 : (u64)dma_iv_data);
+	req_ptr->iv_len = AES_BLOCK_SIZE;
+	req_ptr->encrypted_dlen = encrypted_len;
+	req_ptr->output_len = output_len;
+
+	dma_req_addr = dma_map_single(dev, req_ptr, req_size, DMA_TO_DEVICE);
+
+	rc = dma_mapping_error(dev, dma_req_addr);
+	if (rc) {
+		pr_err("DMA Mapping Error(request str)\n");
+		goto err_map_req;
+	}
+
+	scm_cmd_buf.req_size = req_size;
+	scm_cmd_buf.req_addr = dma_req_addr;
+
+	rc = qcom_scm_aes(&scm_cmd_buf, sizeof(scm_cmd_buf),
+			CLIENT_CMD_CRYPTO_AES_DECRYPT);
+
+	dma_unmap_single(dev, dma_output_data, output_len, DMA_FROM_DEVICE);
+	dma_unmap_single(dev, dma_sealed_data, encrypted_len, DMA_TO_DEVICE);
+	dma_unmap_single(dev, dma_iv_data, AES_BLOCK_SIZE, DMA_TO_DEVICE);
+	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
+
+	if (rc) {
+		pr_err("\nResponse status failure..return value = %d\n", rc);
+		goto err_end;
+	}
+
+	decrypted_len = req_ptr->output_len;
+	memcpy(buf, unsealed_buf, decrypted_len);
+
+goto end;
+
+err_map_req:
+	dma_unmap_single(dev, dma_iv_data, AES_BLOCK_SIZE, DMA_TO_DEVICE);
+
+err_map_iv_data:
+	dma_unmap_single(dev, dma_output_data, output_len, DMA_FROM_DEVICE);
+
+err_map_output_data:
+	dma_unmap_single(dev, dma_sealed_data, encrypted_len, DMA_TO_DEVICE);
+
+err_end:
+	free_pages((unsigned long)page_address(req_page), req_order);
+
+	return rc;
+
+end:
+	free_pages((unsigned long)page_address(req_page), req_order);
+
+	return decrypted_len;
+}
+
+static ssize_t
 store_unsealed_data(struct device *dev, struct device_attribute *attr,
 		   const char *buf, size_t count)
 {
@@ -1863,6 +2186,7 @@ static int __init sec_key_init(void)
 	struct page *key_blob_page = NULL;
 	struct page *sealed_buf_page = NULL;
 	struct page *unsealed_buf_page = NULL;
+	struct page *iv_page = NULL;
 
 	sec_kobj = kobject_create_and_add("sec_key", NULL);
 
@@ -1885,9 +2209,11 @@ static int __init sec_key_init(void)
 				     get_order(MAX_ENCRYPTED_DATA_SIZE));
 	unsealed_buf_page = alloc_pages(GFP_KERNEL,
 				       get_order(MAX_PLAIN_DATA_SIZE));
+	iv_page = alloc_pages(GFP_KERNEL,
+				get_order(AES_BLOCK_SIZE));
 
 	if (!key_page || !key_blob_page ||
-	   !sealed_buf_page || !unsealed_buf_page) {
+	   !sealed_buf_page || !unsealed_buf_page || !iv_page) {
 		pr_err("\nCannot allocate memory for secure-key ops\n");
 		if (key_page)
 			free_pages((unsigned long)page_address(key_page),
@@ -1906,6 +2232,10 @@ static int __init sec_key_init(void)
 				  page_address(unsealed_buf_page),
 				  get_order(MAX_PLAIN_DATA_SIZE));
 
+		if (iv_page)
+			free_pages((unsigned long)page_address(iv_page),
+				get_order(AES_BLOCK_SIZE));
+
 		sysfs_remove_group(sec_kobj, &sec_key_attr_grp);
 		kobject_put(sec_kobj);
 		sec_kobj = NULL;
@@ -1917,6 +2247,7 @@ static int __init sec_key_init(void)
 	key_blob = page_address(key_blob_page);
 	sealed_buf = page_address(sealed_buf_page);
 	unsealed_buf = page_address(unsealed_buf_page);
+	ivdata = page_address(iv_page);
 
 	return 0;
 }
@@ -2874,6 +3205,10 @@ static int __exit qseecom_remove(struct platform_device *pdev)
 		if (unsealed_buf)
 			free_pages((unsigned long)unsealed_buf,
 				  get_order(MAX_PLAIN_DATA_SIZE));
+
+		if (ivdata)
+			free_pages((unsigned long)ivdata,
+				get_order(AES_BLOCK_SIZE));
 
 		sysfs_remove_group(sec_kobj, &sec_key_attr_grp);
 		kobject_put(sec_kobj);
