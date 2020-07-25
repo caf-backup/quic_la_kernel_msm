@@ -45,25 +45,25 @@
 			hremote-size = <0xF00000>;
 			tgt-mem-mode = <0x2>;
 #elif __IPQ_MEM_PROFILE_512_MB__
-			/* QCN9000 tgt-mem-mode=1 layout - 40MB
+			/* QCN9000 tgt-mem-mode=1 layout - 30MB
 			 * +=========+==============+=========+
 			 * |  Region | Start Offset |   Size  |
 			 * +---------+--------------+---------+
-			 * | HREMOTE |  0x4CC00000  |   30MB  |
+			 * | HREMOTE |  0x4CC00000  |   20MB  |
 			 * +---------+--------------+---------+
-			 * | M3 Dump |  0x4EA00000  |   1MB   |
+			 * | M3 Dump |  0x4E000000  |   1MB   |
 			 * +---------+--------------+---------+
-			 * |   ETR   |  0x4EB00000  |   1MB   |
+			 * |   ETR   |  0x4E100000  |   1MB   |
 			 * +---------+--------------+---------+
-			 * |  Caldb  |  0x4EC00000  |   8MB   |
+			 * |  Caldb  |  0x4E200000  |   8MB   |
 			 * +==================================+
 			 */
 			base-addr = <0x4CC00000>;
-			m3-dump-addr = <0x4EA00000>;
-			etr-addr = <0x4EB00000>;
-			caldb-addr = <0x4EC00000>;
+			m3-dump-addr = <0x4E000000>;
+			etr-addr = <0x4E100000>;
+			caldb-addr = <0x4E200000>;
 			caldb-size = <0x800000>;
-			hremote-size = <0x1E00000>;
+			hremote-size = <0x1400000>;
 			tgt-mem-mode = <0x1>;
 #endif
 			status = "disabled";

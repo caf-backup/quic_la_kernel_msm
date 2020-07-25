@@ -93,29 +93,29 @@
 	 * |        |              |                         |
 	 * |        |              |                         |
 	 * |        |              |                         |
-	 * |   Q6   |  0x4B000000  |          40MB           |
+	 * |   Q6   |  0x4B000000  |          55MB           |
 	 * |        |              |                         |
 	 * |        |              |                         |
 	 * |        |              |                         |
 	 * +--------+--------------+-------------------------+
-	 * |  QDSS  |  0x4D800000  |           1MB           |
+	 * |  QDSS  |  0x4E700000  |           1MB           |
 	 * +--------+--------------+-------------------------+
-	 * | M3 Dump|  0x4D900000  |           1MB           |
-	 * +--------+--------------+-------------------------+
-	 * |        |              |                         |
-	 * |  Pine  |  0x4DA00000  |          40MB           |
-	 * |        |              |   (on HK10 RDPs only)   |
+	 * | M3 Dump|  0x4E800000  |           1MB           |
 	 * +--------+--------------+-------------------------+
 	 * |        |              |                         |
-	 * |  Pine  |  0x50200000  |          40MB           |
-	 * |        |              |   (on HK10 RDPs only)   |
-	 * +--------+--------------+-------------------------+
-	 * |        |              |                         |
-	 * |  MHI0  |  0x52A00000  |          11MB           |
+	 * |  Pine  |  0x4E900000  |          30MB           |
 	 * |        |              |                         |
 	 * +--------+--------------+-------------------------+
 	 * |        |              |                         |
-	 * |  MHI1  |  0x53500000  |          11MB           |
+	 * |  Pine  |  0x50700000  |          30MB           |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * |  MHI0  |  0x52500000  |          11MB           |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * |        |              |                         |
+	 * |  MHI1  |  0x53000000  |          11MB           |
 	 * |        |              |                         |
 	 * +--------+--------------+-------------------------+
 	 * |                                                 |
@@ -123,45 +123,27 @@
 	 * |                                                 |
 	 * +=================================================+
 	 */
-		/delete-node/ wcnss@4b000000;
-		/delete-node/ q6_etr_dump@4e700000;
-		/delete-node/ m3_dump@4e800000;
 		/delete-node/ wifi_dump@4e900000;
-		q6_region: wcnss@4b000000 {
+		qcn9000_pcie0@4e900000 {
 			no-map;
-			reg = <0x0 0x4b000000 0x0 0x02800000>;
+			reg = <0x0 0x4E900000 0x0 0x01E00000>;
 		};
 
-		q6_etr_region:q6_etr_dump@4d800000 {
+		qcn9000_pcie1@50700000 {
 			no-map;
-			reg = <0x0 0x4d800000 0x0 0x100000>;
+			reg = <0x0 0x50700000 0x0 0x01E00000>;
 		};
 
-		m3_dump@4d900000 {
-			no-map;
-			reg = <0x0 0x4d900000 0x0 0x100000>;
-		};
-
-		qcn9000_pcie0@4da00000 {
-			no-map;
-			reg = <0x0 0x4da00000 0x0 0x02800000>;
-		};
-
-		qcn9000_pcie1@50200000 {
-			no-map;
-			reg = <0x0 0x50200000 0x0 0x02800000>;
-		};
-
-		mhi_region0: dma_pool0@52a00000 {
+		mhi_region0: dma_pool0@52500000 {
 			compatible = "shared-dma-pool";
 			no-map;
-			reg = <0x0 0x52a00000 0x0 0x00b00000>;
+			reg = <0x0 0x52500000 0x0 0x00b00000>;
 		};
 
-		mhi_region1: dma_pool1@53500000 {
+		mhi_region1: dma_pool1@53000000 {
 			compatible = "shared-dma-pool";
 			no-map;
-			reg = <0x0 0x53500000 0x0 0x00b00000>;
+			reg = <0x0 0x53000000 0x0 0x00b00000>;
 		};
 #else
 		qcn9000_pcie0@51100000 {
@@ -1047,9 +1029,6 @@
 };
 
 &wifi1 {
-#ifdef __IPQ_MEM_PROFILE_512_MB__
-	qcom,tgt-mem-mode = <2>;
-#endif
 	/* hw-mode id 7 belongs to PHYB2G mode
 	 */
 	wlan-hw-mode =  <7>;
@@ -1059,24 +1038,24 @@
 
 &wifi2 {
 #ifdef __IPQ_MEM_PROFILE_512_MB__
-      /* QCN9000 tgt-mem-mode=1 layout - 40MB
+      /* QCN9000 tgt-mem-mode=1 layout - 30MB
        * +=========+==============+=========+
        * |  Region | Start Offset |   Size  |
        * +---------+--------------+---------+
-       * | HREMOTE |  0x4DA00000  |   30MB  |
+       * | HREMOTE |  0x4E900000  |   20MB  |
        * +---------+--------------+---------+
-       * | M3 Dump |  0x4F800000  |   1MB   |
+       * | M3 Dump |  0x4FD00000  |   1MB   |
        * +---------+--------------+---------+
-       * |   ETR   |  0x4F900000  |   1MB   |
+       * |   ETR   |  0x4FE00000  |   1MB   |
        * +---------+--------------+---------+
-       * |  Caldb  |  0x4FA00000  |   8MB   |
+       * |  Caldb  |  0x4FF00000  |   8MB   |
        * +==================================+
        */
-	base-addr = <0x4DA00000>;
-	m3-dump-addr = <0x4F800000>;
-	etr-addr = <0x4F900000>;
-	caldb-addr = <0x4FA00000>;
-	hremote-size = <0x1E00000>;
+	base-addr = <0x4E900000>;
+	m3-dump-addr = <0x4FD00000>;
+	etr-addr = <0x4FE00000>;
+	caldb-addr = <0x4FF00000>;
+	hremote-size = <0x1400000>;
 	tgt-mem-mode = <0x1>;
 #else
       /* QCN9000 tgt-mem-mode=0 layout - 55MB
@@ -1110,24 +1089,24 @@
 
 &wifi3 {
 #ifdef __IPQ_MEM_PROFILE_512_MB__
-      /* QCN9000 tgt-mem-mode=1 layout - 40MB
+      /* QCN9000 tgt-mem-mode=1 layout - 30MB
        * +=========+==============+=========+
        * |  Region | Start Offset |   Size  |
        * +---------+--------------+---------+
-       * | HREMOTE |  0x50200000  |   30MB  |
+       * | HREMOTE |  0x50700000  |   20MB  |
        * +---------+--------------+---------+
-       * | M3 Dump |  0x52000000  |   1MB   |
+       * | M3 Dump |  0x51B00000  |   1MB   |
        * +---------+--------------+---------+
-       * |   ETR   |  0x52100000  |   1MB   |
+       * |   ETR   |  0x51C00000  |   1MB   |
        * +---------+--------------+---------+
-       * |  Caldb  |  0x52200000  |   8MB   |
+       * |  Caldb  |  0x51D00000  |   8MB   |
        * +==================================+
        */
-	base-addr = <0x50200000>;
-	m3-dump-addr = <0x52000000>;
-	etr-addr = <0x52100000>;
-	caldb-addr = <0x52200000>;
-	hremote-size = <0x1E00000>;
+	base-addr = <0x50700000>;
+	m3-dump-addr = <0x51B00000>;
+	etr-addr = <0x51C00000>;
+	caldb-addr = <0x51D00000>;
+	hremote-size = <0x1400000>;
 	tgt-mem-mode = <0x1>;
 #else
       /* QCN9000 tgt-mem-mode=0 layout - 55MB
