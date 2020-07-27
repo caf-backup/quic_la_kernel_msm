@@ -26,27 +26,32 @@
 			qrtr_node_id = <0x20>;
 			qca,auto-restart;
 #ifdef __IPQ_MEM_PROFILE_256_MB__
-			/*
+			/* QCN9000 tgt-mem-mode=2 layout - 17MB
 			 * +=========+==============+=========+
 			 * |  Region | Start Offset |   Size  |
 			 * +---------+--------------+---------+
-			 * | HREMOTE |  0x4CA00000  |   16MB  |
+			 * | HREMOTE |  0x4CA00000  |   15MB  |
+			 * +---------+--------------+---------+
+			 * | M3 Dump |  0x4D900000  |   1MB   |
 			 * +---------+--------------+---------+
 			 * |   ETR   |  0x4DA00000  |   1MB   |
 			 * +==================================+
 			 */
 			base-addr = <0x4CA00000>;
+			m3-dump-addr = <0x4D900000>;
 			etr-addr = <0x4DA00000>;
 			caldb-addr = <0>;
 			caldb-size = <0>;
 			hremote-size = <0xF00000>;
 			tgt-mem-mode = <0x2>;
 #elif __IPQ_MEM_PROFILE_512_MB__
-			/*
+			/* QCN9000 tgt-mem-mode=1 layout - 40MB
 			 * +=========+==============+=========+
 			 * |  Region | Start Offset |   Size  |
 			 * +---------+--------------+---------+
-			 * | HREMOTE |  0x4CC00000  |   31MB  |
+			 * | HREMOTE |  0x4CC00000  |   30MB  |
+			 * +---------+--------------+---------+
+			 * | M3 Dump |  0x4EA00000  |   1MB   |
 			 * +---------+--------------+---------+
 			 * |   ETR   |  0x4EB00000  |   1MB   |
 			 * +---------+--------------+---------+
@@ -54,10 +59,11 @@
 			 * +==================================+
 			 */
 			base-addr = <0x4CC00000>;
+			m3-dump-addr = <0x4EA00000>;
 			etr-addr = <0x4EB00000>;
 			caldb-addr = <0x4EC00000>;
 			caldb-size = <0x800000>;
-			hremote-size = <0x1F00000>;
+			hremote-size = <0x1E00000>;
 			tgt-mem-mode = <0x1>;
 #endif
 			status = "disabled";

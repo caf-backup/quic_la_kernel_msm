@@ -334,6 +334,26 @@ enum cnss_ce_index {
 	CNSS_CE_COMMON,
 };
 
+/* M3 SSR Dump related constants and structure */
+#define M3_DUMP_OPEN_TIMEOUT 10000
+#define M3_DUMP_OPEN_COMPLETION_TIMEOUT (2 * M3_DUMP_OPEN_TIMEOUT)
+#define M3_DUMP_READ_TIMER_TIMEOUT 10000
+#define M3_DUMP_COMPLETION_TIMEOUT 300000
+struct m3_dump {
+	struct task_struct *task;
+	struct timer_list open_timer;
+	struct completion open_complete;
+	struct timer_list read_timer;
+	struct completion read_complete;
+	atomic_t open_timedout;
+	atomic_t read_timedout;
+	u32 pdev_id;
+	u32 size;
+	u64 timestamp;
+	bool file_open;
+	void *dump_addr;
+};
+
 struct cnss_plat_data {
 	void *wlan_priv;
 	struct platform_device *plat_dev;
@@ -415,6 +435,7 @@ struct cnss_plat_data {
 	u32 cold_boot_support;
 	u32 flashcal_support;
 	u32 eeprom_caldata_read_timeout;
+	struct m3_dump m3_dump_data;
 };
 
 #ifdef CONFIG_ARCH_QCOM

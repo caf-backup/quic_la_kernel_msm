@@ -23,6 +23,7 @@
 #define BDF_TYPE_EEPROM 3
 #define CALDATA_OFFSET(addr) (addr + (128 * 1024))
 #define Q6_QDSS_ETR_SIZE_QCN9000 0x100000
+#define Q6_M3_DUMP_SIZE_QCN9000 0x100000
 #define QMI_HISTORY_SIZE 128
 
 /*NODE_ID_BASE is derived by qrtr_node_id in DTS + FW base node id 7 */
