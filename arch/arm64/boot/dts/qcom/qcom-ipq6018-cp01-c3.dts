@@ -94,22 +94,22 @@
 	       * |        |              |                         |
 	       * |        |              |                         |
 	       * | WLAN   |              |                         |
-	       * |   Q6   |  0x4AB00000  |          40MB           |
+	       * |   Q6   |  0x4AB00000  |          55MB           |
 	       * |        |              |                         |
 	       * |        |              |                         |
 	       * +--------+--------------+-------------------------+
 	       * | WLAN   |              |                         |
-	       * | Q6 ETR |  0x4D300000  |          1MB            |
+	       * | Q6 ETR |  0x4E200000  |           1MB           |
 	       * | Region |              |                         |
 	       * +--------+--------------+-------------------------+
-	       * | M3 Dump|  0x4D400000  |           1MB           |
+	       * | M3 Dump|  0x4E300000  |           1MB           |
 	       * +--------+--------------+-------------------------+
 	       * |        |              |                         |
-	       * |  Pine  |  0x4D500000  |          40MB           |
+	       * |  Pine  |  0x4E400000  |          30MB           |
 	       * |        |              |  (on CP01-C3 RDP only)  |
 	       * +--------+--------------+-------------------------+
 	       * |        |              |                         |
-	       * |  MHI0  |  0x4FD00000  |          11MB           |
+	       * |  MHI0  |  0x50200000  |          11MB           |
 	       * |        |              |  (on CP01-C3 RDP only)  |
 	       * +=================================================+
 	       * |                                                 |
@@ -121,33 +121,15 @@
 	       * |                                                 |
 	       * +=================================================+
 	       */
-		/delete-node/ wcnss@4ab00000;
-		/delete-node/ q6_etr_dump@1;
-		/delete-node/ m3_dump@4e300000;
-		q6_region: wcnss@4ab00000 {
+		qcn9000_pcie0@4e400000 {
 			no-map;
-			reg = <0x0 0x4ab00000 0x0 0x02800000>;
+			reg = <0x0 0x4E400000 0x0 0x1E00000>;
 		};
 
-		q6_etr_region: q6_etr_dump@1 {
-			no-map;
-			reg = <0x0 0x4D300000 0x0 0x100000>;
-		};
-
-		m3_dump@4d400000 {
-			no-map;
-			reg = <0x0 0x4D400000 0x0 0x100000>;
-		};
-
-		qcn9000_pcie0@4d500000 {
-			no-map;
-			reg = <0x0 0x4D500000 0x0 0x02800000>;
-		};
-
-		mhi_region0: dma_pool0@4fd00000 {
+		mhi_region0: dma_pool0@50200000 {
 			compatible = "shared-dma-pool";
 			no-map;
-			reg = <0x0 0x4fd00000 0x0 0x00b00000>;
+			reg = <0x0 0x50200000 0x0 0x00b00000>;
 		};
 #else
 		qcn9000_pcie0@50200000 {
@@ -219,29 +201,26 @@
 
 &wifi0 {
 	qcom,board_id = <0x13>;
-#ifdef __IPQ_MEM_PROFILE_512_MB__
-	qcom,tgt-mem-mode = <2>;
-#endif
 	status = "ok";
 };
 
 &wifi1 {
 #ifdef __IPQ_MEM_PROFILE_512_MB__
-      /* QCN9000 tgt-mem-mode=1 layout - 40MB
+      /* QCN9000 tgt-mem-mode=1 layout - 30MB
        * +=========+==============+=========+
        * |  Region | Start Offset |   Size  |
        * +---------+--------------+---------+
-       * | HREMOTE |  0x4D500000  |   31MB  |
+       * | HREMOTE |  0x4E400000  |   21MB  |
        * +---------+--------------+---------+
-       * |   ETR   |  0x4F400000  |   1MB   |
+       * |   ETR   |  0x4F900000  |   1MB   |
        * +---------+--------------+---------+
-       * |  Caldb  |  0x4F500000  |   8MB   |
+       * |  Caldb  |  0x4FA00000  |   8MB   |
        * +==================================+
        */
-	base-addr = <0x4D500000>;
-	etr-addr = <0x4F400000>;
-	caldb-addr = <0x4F500000>;
-	hremote-size = <0x1F00000>;
+	base-addr = <0x4E400000>;
+	etr-addr = <0x4F900000>;
+	caldb-addr = <0x4FA00000>;
+	hremote-size = <0x1500000>;
 	tgt-mem-mode = <0x1>;
 #else
       /* QCN9000 tgt-mem-mode=0 layout - 55MB
