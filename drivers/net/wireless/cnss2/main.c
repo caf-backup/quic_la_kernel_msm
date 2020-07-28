@@ -410,6 +410,10 @@ int cnss_wlan_enable(struct device *dev,
 		return -EINVAL;
 	}
 
+	/* Set wmi diag logging */
+	if (plat_priv->device_id == QCN9000_DEVICE_ID)
+		cnss_set_fw_log_mode(dev, 1);
+
 	cnss_pr_dbg("Mode: %d, config: %pK, host_version: %s\n",
 		    mode, config, host_version);
 
