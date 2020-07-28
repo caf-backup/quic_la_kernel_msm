@@ -554,11 +554,6 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-ipq6018-db-cp02.dtb
 endif
 
-ifneq ($(CONFIG_IPQ_FLASH_16M_PROFILE),)
-dtb-$(CONFIG_ARCH_QCOM) += \
-	qcom-ipq5018-mp02.1.dtb \
-	qcom-ipq5018-mp03.1.dtb
-else
 dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-ipq6018-cp01-c1.dtb \
 	qcom-ipq6018-cp01-c2.dtb \
@@ -591,7 +586,6 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-ipq807x-oak03.dtb \
 	qcom-ipq807x-db.hk01.dtb \
 	qcom-ipq807x-db.hk02.dtb
-endif
 dtb-$(CONFIG_ARCH_REALVIEW) += \
 	arm-realview-pb1176.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += \

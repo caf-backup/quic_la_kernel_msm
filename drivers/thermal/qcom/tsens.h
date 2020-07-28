@@ -105,6 +105,5 @@ int get_temp_common(struct tsens_device *, int, int *);
 
 extern const struct tsens_data data_8960, data_ipq8064, data_ipq807x;
 
-extern const struct tsens_data data_ipq5018;
 
 #endif /* __QCOM_TSENS_H__ */
