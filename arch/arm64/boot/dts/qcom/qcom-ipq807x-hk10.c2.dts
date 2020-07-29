@@ -116,11 +116,11 @@
 	 * |        |              |                         |
 	 * +--------+--------------+-------------------------+
 	 * |        |              |                         |
-	 * |  MHI0  |  0x4EC00000  |          11MB           |
+	 * |  MHI0  |  0x4EC00000  |          16MB           |
 	 * |        |              |                         |
 	 * +--------+--------------+-------------------------+
 	 * |        |              |                         |
-	 * |  MHI1  |  0x4F700000  |          11MB           |
+	 * |  MHI1  |  0x4FC00000  |          16MB           |
 	 * |        |              |                         |
 	 * +--------+--------------+-------------------------+
 	 * |                                                 |
@@ -145,13 +145,13 @@
 		mhi_region0: dma_pool0@4ec00000 {
 			compatible = "shared-dma-pool";
 			no-map;
-			reg = <0x0 0x4EC00000 0x0 0x00b00000>;
+			reg = <0x0 0x4EC00000 0x0 0x01000000>;
 		};
 
-		mhi_region1: dma_pool1@4f700000 {
+		mhi_region1: dma_pool1@4fc00000 {
 			compatible = "shared-dma-pool";
 			no-map;
-			reg = <0x0 0x4F700000 0x0 0x00b00000>;
+			reg = <0x0 0x4Fc00000 0x0 0x01000000>;
 		};
 #else
 	/*                   Default Profile
