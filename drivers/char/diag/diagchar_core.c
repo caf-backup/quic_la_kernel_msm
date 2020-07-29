@@ -3400,8 +3400,9 @@ static int diagchar_setup_cdev(dev_t devno)
 
 	if (!driver->diag_dev)
 		return -EIO;
-
+#ifdef CONFIG_PM
 	driver->diag_dev->power.wakeup = wakeup_source_register("DIAG_WS");
+#endif
 	return 0;
 
 }
