@@ -1430,6 +1430,7 @@ int cnss_wlfw_ini_send_sync(struct cnss_plat_data *plat_priv,
 	struct wlfw_ini_resp_msg_v01 *resp;
 	struct qmi_txn txn;
 	int ret = 0;
+	int resp_error_msg = 0;
 
 	if (!plat_priv)
 		return -ENODEV;
@@ -1449,6 +1450,9 @@ int cnss_wlfw_ini_send_sync(struct cnss_plat_data *plat_priv,
 
 	req->enablefwlog_valid = 1;
 	req->enablefwlog = fw_log_mode;
+
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_INI_REQ_V01, ret, resp_error_msg);
 
 	ret = qmi_txn_init(&plat_priv->qmi_wlfw, &txn,
 			   wlfw_ini_resp_msg_v01_ei, resp);
@@ -1480,8 +1484,12 @@ int cnss_wlfw_ini_send_sync(struct cnss_plat_data *plat_priv,
 		cnss_pr_err("Ini request failed, fw_log_mode: %d, result: %d, err: %d\n",
 			    fw_log_mode, resp->resp.result, resp->resp.error);
 		ret = -resp->resp.result;
+		resp_error_msg = resp->resp.error;
 		goto out;
 	}
+
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_INI_REQ_V01, ret, resp_error_msg);
 
 	kfree(req);
 	kfree(resp);
