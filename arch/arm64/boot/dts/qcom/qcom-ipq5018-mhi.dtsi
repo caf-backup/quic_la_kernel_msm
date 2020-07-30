@@ -44,7 +44,7 @@
 			caldb-size = <0>;
 			hremote-size = <0xF00000>;
 			tgt-mem-mode = <0x2>;
-#elif __IPQ_MEM_PROFILE_512_MB__
+#else
 			/* QCN9000 tgt-mem-mode=1 layout - 30MB
 			 * +=========+==============+=========+
 			 * |  Region | Start Offset |   Size  |

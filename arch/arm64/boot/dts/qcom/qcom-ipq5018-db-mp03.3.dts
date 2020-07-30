@@ -111,7 +111,7 @@
 			no-map;
 			reg = <0x0 0x4db00000 0x0 0x01000000>;
 		};
-	#elif __IPQ_MEM_PROFILE_512_MB__
+	#else
 	/*                      512 MB Profile
 	 * +=========+==============+========================+
 	 * |        |              |                         |
@@ -438,9 +438,7 @@
 		qrtr_instance_id = <0x20>;
 		#address-cells = <0x2>;
 		#size-cells = <0x2>;
-#if defined(__IPQ_MEM_PROFILE_256_MB__) || defined(__IPQ_MEM_PROFILE_512_MB__)
 		memory-region = <&mhi_region1>;
-#endif
 	};
 };
 

@@ -636,10 +636,8 @@
 			reg = <0xc000000 0x1000000>;
 		#ifdef __IPQ_MEM_PROFILE_256_MB__
 			qcom,tgt-mem-mode = <2>;
-		#elif __IPQ_MEM_PROFILE_512_MB__
-			qcom,tgt-mem-mode = <1>;
 		#else
-			qcom,tgt-mem-mode = <0>;
+			qcom,tgt-mem-mode = <1>;
 		#endif
 			qcom,bdf-addr = <0x4BA00000 0x4BA00000 0x4BA00000
 					 0x0 0x0>;
