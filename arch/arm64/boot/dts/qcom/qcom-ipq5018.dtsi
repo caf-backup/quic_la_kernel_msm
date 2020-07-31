@@ -400,6 +400,7 @@
 			qcom,match-enabled;
 			qcom,mirror-enabled;
 			qcom,crypto-enabled;
+			qcom,ipsec-enabled;
 		};
 
 		nss-dp-common {
