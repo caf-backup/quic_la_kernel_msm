@@ -85,7 +85,6 @@ int qcom_scm_mem_prot_assign(struct sg_table *table, u32 *source_vm_copy,
 			    struct dest_vm_and_perm_info *dest_vm_copy,
 			    size_t dest_vm_copy_size,
 			    struct mem_prot_info *sg_table_copy,
-			    size_t sg_table_copy_size,
 			    u32 *resp, size_t resp_size)
 {
 	int ret = 0;
@@ -93,7 +92,7 @@ int qcom_scm_mem_prot_assign(struct sg_table *table, u32 *source_vm_copy,
 	ret = __qcom_scm_mem_prot_assign(__scm->dev, table, source_vm_copy,
 					source_vm_copy_size, dest_vm_copy,
 					dest_vm_copy_size, sg_table_copy,
-					sg_table_copy_size, resp, resp_size);
+					resp, resp_size);
 
 	return ret;
 }
