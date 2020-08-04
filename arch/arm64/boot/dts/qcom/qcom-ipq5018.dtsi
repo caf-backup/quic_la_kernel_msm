@@ -207,6 +207,29 @@
 			};
 		};
 
+		cryptobam: dma@704000 {
+			compatible = "qcom,bam-v1.7.0";
+			reg = <0x00704000 0x20000>;
+			interrupts = <GIC_SPI 207 0>;
+			clocks = <&gcc GCC_CRYPTO_AHB_CLK>;
+			clock-names = "bam_clk";
+			#dma-cells = <1>;
+			qcom,ee = <1>;
+			qcom,controlled-remotely = <1>;
+		};
+
+		crypto: crypto@73a000 {
+			compatible = "qcom,crypto-v5.1";
+			reg = <0x0073a000 0x6000>;
+			clocks = <&gcc GCC_CRYPTO_AHB_CLK>,
+				<&gcc GCC_CRYPTO_AXI_CLK>,
+				<&gcc GCC_CRYPTO_CLK>;
+			clock-names = "iface", "bus", "core";
+			dmas = <&cryptobam 2>, <&cryptobam 3>;
+			dma-names = "rx", "tx";
+			qce,cmd_desc_support;
+		};
+
 		qpic_bam: dma@7984000{
 			compatible = "qcom,bam-v1.7.0";
 			reg = <0x7984000 0x1c000>;
