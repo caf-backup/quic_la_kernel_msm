@@ -41,6 +41,9 @@ struct scm_cmd_buf_t {
 	uint32_t resp_size;
 };
 
+extern int qcom_scm_aes(struct scm_cmd_buf_t *scm_cmd_buf,
+				size_t buf_size, u32 cmd_id);
+
 extern int qcom_scm_tls_hardening(struct scm_cmd_buf_t *scm_cmd_buf,
 				 size_t buf_size, u32 cmd_id);
 

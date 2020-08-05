@@ -39,9 +39,13 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/random.h>
 
-#define CLIENT_CMD_CRYPTO_AES_64       6
-#define CLIENT_CMD_CRYPTO_RSA_64       5
+
+#define CLIENT_CMD_CRYPTO_AES_DECRYPT	8
+#define CLIENT_CMD_CRYPTO_AES_ENCRYPT	7
+#define CLIENT_CMD_CRYPTO_AES_64	6
+#define CLIENT_CMD_CRYPTO_RSA_64	5
 #define CLIENT_CMD_CRYPTO_RSA		3
 #define CLIENT_CMD_CRYPTO_AES		2
 #define CLIENT_CMD1_BASIC_DATA		1
@@ -52,6 +56,7 @@
 #define MAX_INPUT_SIZE			4096
 #define QSEE_64				64
 #define QSEE_32				32
+#define AES_BLOCK_SIZE			16
 
 #define MAX_ENCRYPTED_DATA_SIZE  (2072 * sizeof(uint8_t))
 #define MAX_PLAIN_DATA_SIZE	 (2048 * sizeof(uint8_t))
@@ -78,6 +83,23 @@
 static int app_state;
 static int app_libs_state;
 struct qseecom_props *props;
+
+enum tz_crypto_service_aes_cmd_t {
+	TZ_CRYPTO_SERVICE_AES_ENC_ID = 0x1,
+	TZ_CRYPTO_SERVICE_AES_DEC_ID = 0x2,
+};
+
+enum tz_crypto_service_aes_type_t {
+	TZ_CRYPTO_SERVICE_AES_TYPE_SHK = 1,
+	TZ_CRYPTO_SERVICE_AES_TYPE_PHK,
+	TZ_CRYPTO_SERVICE_AES_TYPE_MAX,
+};
+
+enum tz_crypto_service_aes_mode_t {
+	TZ_CRYPTO_SERVICE_AES_MODE_ECB = 0,
+	TZ_CRYPTO_SERVICE_AES_MODE_CBC,
+	TZ_CRYPTO_SERVICE_AES_MODE_MAX,
+};
 
 enum tz_storage_service_cmd_t {
 	TZ_STOR_SVC_GENERATE_KEY = 0x00000001,
@@ -186,6 +208,28 @@ struct tz_storage_service_unseal_data_resp_t {
 	enum tz_storage_service_cmd_t cmd_id;
 	int32_t status;
 	uint32_t unsealed_data_len;
+};
+
+struct tz_crypto_service_encrypt_data_cmd_t {
+	uint64_t  type;
+	uint64_t mode;
+	uint64_t plain_data;
+	uint64_t plain_data_len;
+	uint64_t iv;
+	uint64_t iv_len;
+	uint64_t output_buffer;
+	uint64_t output_len;
+};
+
+struct tz_crypto_service_decrypt_data_cmd_t {
+	uint64_t  type;
+	uint64_t mode;
+	uint64_t encrypted_data;
+	uint64_t encrypted_dlen;
+	uint64_t iv;
+	uint64_t iv_len;
+	uint64_t output_buffer;
+	uint64_t output_len;
 };
 
 struct tz_storage_service_rsa_key_t {
@@ -367,6 +411,11 @@ static uint8_t *sealed_buf;
 static size_t seal_len;
 static uint8_t *unsealed_buf;
 static size_t unseal_len;
+static uint64_t encrypted_len;
+static uint64_t decrypted_len;
+static uint8_t *ivdata;
+static uint64_t type;
+static uint64_t mode;
 
 static struct kobject *rsa_sec_kobj;
 static uint8_t *rsa_import_modulus;
@@ -433,6 +482,28 @@ static ssize_t store_sealed_data(struct device *dev,
 
 static ssize_t show_unsealed_data(struct device *dev,
 				 struct device_attribute *attr, char *buf);
+
+static ssize_t store_aes_type(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count);
+
+static ssize_t store_aes_mode(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count);
+
+static ssize_t store_encrypted_data(struct device *dev,
+                                struct device_attribute *attr,
+                                const char *buf, size_t count);
+
+static ssize_t show_encrypted_data(struct device *dev,
+				struct device_attribute *attr, char *buf);
+
+static ssize_t store_decrypted_data(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count);
+
+static ssize_t show_decrypted_data(struct device *dev,
+				struct device_attribute *attr, char *buf);
 
 static ssize_t generate_rsa_key_blob(struct device *dev,
 				    struct device_attribute *attr,
@@ -520,6 +591,10 @@ static DEVICE_ATTR(import, 0644, import_key_blob, store_key);
 static DEVICE_ATTR(key_blob, 0644, NULL, store_key_blob);
 static DEVICE_ATTR(seal, 0644, show_sealed_data, store_unsealed_data);
 static DEVICE_ATTR(unseal, 0644, show_unsealed_data, store_sealed_data);
+static DEVICE_ATTR(aes_encrypt, 0644, show_encrypted_data, store_decrypted_data);
+static DEVICE_ATTR(aes_decrypt, 0644, show_decrypted_data, store_encrypted_data);
+static DEVICE_ATTR(aes_type, 0644, NULL, store_aes_type);
+static DEVICE_ATTR(aes_mode, 0644, NULL, store_aes_mode);
 
 static DEVICE_ATTR(rsa_generate, 0644, generate_rsa_key_blob, NULL);
 static DEVICE_ATTR(rsa_key_blob, 0644, NULL, store_rsa_key_blob);
@@ -535,6 +610,10 @@ static struct attribute *sec_key_attrs[] = {
 	&dev_attr_key_blob.attr,
 	&dev_attr_seal.attr,
 	&dev_attr_unseal.attr,
+	&dev_attr_aes_encrypt.attr,
+	&dev_attr_aes_decrypt.attr,
+	&dev_attr_aes_type.attr,
+	&dev_attr_aes_mode.attr,
 	NULL,
 };
 
