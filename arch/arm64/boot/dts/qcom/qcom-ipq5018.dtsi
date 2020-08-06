@@ -757,6 +757,12 @@
 		status = "disabled";
 		};
 
+		wifi1: wifi1@c000000 {
+			compatible = "qcom,cnss-qcn9100";
+			qcom,rproc = <&qcom_q6v5_wcss>;
+			status = "disabled";
+		};
+
 		i2c_0: i2c@78b7000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			#address-cells = <1>;
