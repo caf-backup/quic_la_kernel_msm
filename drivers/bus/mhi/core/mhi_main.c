@@ -771,9 +771,14 @@ static void mhi_create_time_sync_dev(struct mhi_controller *mhi_cntrl)
 
 	mhi_dev->dev_type = MHI_TIMESYNC_TYPE;
 	mhi_dev->chan_name = "TIME_SYNC";
-	dev_set_name(&mhi_dev->dev, "%s_%s",
-		     dev_name(mhi_cntrl->cntrl_dev),
-		     mhi_dev->chan_name);
+	if (!mhi_cntrl->dev_id)
+		dev_set_name(&mhi_dev->dev, "%s_%s",
+			     dev_name(mhi_cntrl->cntrl_dev),
+			     mhi_dev->chan_name);
+	else
+		dev_set_name(&mhi_dev->dev, "%04x_%02u.%02u.%02u_%s",
+			     mhi_dev->dev_id, mhi_dev->domain, mhi_dev->bus,
+			     mhi_dev->slot, mhi_dev->chan_name);
 
 	/* add if there is a matching DT node */
 	mhi_assign_of_node(mhi_cntrl, mhi_dev);
@@ -858,9 +863,14 @@ void mhi_create_devices(struct mhi_controller *mhi_cntrl)
 		}
 
 		mhi_dev->chan_name = mhi_chan->name;
-		dev_set_name(&mhi_dev->dev, "%s_%s",
-			     dev_name(mhi_cntrl->cntrl_dev),
-			     mhi_dev->chan_name);
+		if (!mhi_cntrl->dev_id)
+			dev_set_name(&mhi_dev->dev, "%s_%s",
+				     dev_name(mhi_cntrl->cntrl_dev),
+				     mhi_dev->chan_name);
+		else
+			dev_set_name(&mhi_dev->dev, "%04x_%02u.%02u.%02u_%s",
+				     mhi_dev->dev_id, mhi_dev->domain, mhi_dev->bus,
+				     mhi_dev->slot, mhi_dev->chan_name);
 
 		/* add if there is a matching DT node */
 		mhi_assign_of_node(mhi_cntrl, mhi_dev);
