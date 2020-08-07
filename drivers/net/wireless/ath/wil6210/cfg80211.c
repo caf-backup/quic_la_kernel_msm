@@ -758,7 +758,7 @@ int wil_cid_fill_sinfo(struct wil6210_vif *vif, int cid,
 	} __packed reply;
 	struct wil_net_stats *stats = &wil->sta[cid].stats;
 	int rc;
-	u8 txflag = RATE_INFO_FLAGS_DMG;
+	u8 rate_flag = RATE_INFO_FLAGS_DMG;
 
 	memset(&reply, 0, sizeof(reply));
 
@@ -799,11 +799,12 @@ int wil_cid_fill_sinfo(struct wil6210_vif *vif, int cid,
 			BIT(NL80211_STA_INFO_TX_FAILED);
 
 	if (wil->use_enhanced_dma_hw && reply.evt.tx_mode != WMI_TX_MODE_DMG)
-		txflag = RATE_INFO_FLAGS_EDMG;
+		rate_flag = RATE_INFO_FLAGS_EDMG;
+	rate_flag |= RATE_INFO_FLAGS_MCS;
 
-	sinfo->txrate.flags = txflag;
+	sinfo->txrate.flags = rate_flag;
+	sinfo->rxrate.flags = rate_flag;
 	sinfo->txrate.mcs = le16_to_cpu(reply.evt.bf_mcs);
-	sinfo->rxrate.flags = RATE_INFO_FLAGS_MCS | RATE_INFO_FLAGS_DMG;
 	sinfo->rxrate.mcs = stats->last_mcs_rx;
 	sinfo->txrate.n_bonded_ch =
 				  wil_tx_cb_mode_to_n_bonded(reply.evt.tx_mode);
