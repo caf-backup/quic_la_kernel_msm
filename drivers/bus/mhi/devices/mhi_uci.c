@@ -559,6 +559,7 @@ static int mhi_uci_probe(struct mhi_device *mhi_dev,
 	struct uci_dev *uci_dev;
 	int minor;
 	char node_name[32];
+	char d_name[32];
 	int dir;
 
 	uci_dev = kzalloc(sizeof(*uci_dev), GFP_KERNEL);
@@ -578,17 +579,26 @@ static int mhi_uci_probe(struct mhi_device *mhi_dev,
 	mutex_lock(&mhi_uci_drv.lock);
 
 	uci_dev->devt = MKDEV(mhi_uci_drv.major, minor);
+	if (!mhi_dev->mhi_cntrl->dev_id)
+		snprintf(d_name, sizeof(d_name),
+			 dev_name(mhi_dev->mhi_cntrl->cntrl_dev));
+	else
+		snprintf(d_name, sizeof(d_name),
+			 "%04x_%02u.%02u.%02u",
+			 mhi_dev->dev_id, mhi_dev->domain,
+			 mhi_dev->bus, mhi_dev->slot);
+
 	uci_dev->dev = device_create(mhi_uci_drv.class, &mhi_dev->dev,
 				     uci_dev->devt, uci_dev,
 				     DEVICE_NAME "_%s%s%d",
-				     dev_name(mhi_dev->mhi_cntrl->cntrl_dev),
+				     (const char *)d_name,
 				     "_pipe_", mhi_dev->ul_chan_id);
+
 	set_bit(minor, uci_minors);
 
 	/* create debugging buffer */
 	snprintf(node_name, sizeof(node_name), "mhi_uci_%s_%d",
-		 dev_name(mhi_dev->mhi_cntrl->cntrl_dev),
-		 mhi_dev->ul_chan_id);
+		 d_name, mhi_dev->ul_chan_id);
 
 	uci_dev->ipc_log = ipc_log_context_create(MHI_UCI_IPC_LOG_PAGES,
 						  node_name, 0);
