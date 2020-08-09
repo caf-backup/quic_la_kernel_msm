@@ -136,6 +136,7 @@ struct q6_platform_data {
 	bool nosecure;
 	bool is_q6v6;
 	bool emulation;
+	bool is_mpd_arch;
 };
 
 static int debug_wcss;
@@ -917,7 +918,6 @@ static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 	if (wcss->mpm_base && !qcom_scm_is_available())
 		writel(0x1, wcss->mpm_base + 0x00);
 
-
 	/*Q6 AHB upper & lower address*/
 	writel(0x00cdc000, wcss->reg_base + Q6SS_AHB_UPPER);
 	writel(0x00ca0000, wcss->reg_base + Q6SS_AHB_LOWER);
@@ -991,7 +991,7 @@ static int q6v5_wcss_userpd_powerup(struct rproc *rproc)
 		ret = wcss_clks_prepare_enable(wcss_p->dev, 1, 1);
 		if (ret) {
 			dev_err(wcss_p->dev, "failed to enable %s clock %d\n",
-					wcss_clk_names[1], ret);
+						wcss_clk_names[1], ret);
 			return ret;
 		}
 
@@ -1005,9 +1005,9 @@ static int q6v5_wcss_userpd_powerup(struct rproc *rproc)
 		ret = q6v5_wcss_powerup(wcss_p);
 		if (ret)
 			return ret;
+
 		pr_info("%s wcss powered up successfully\n", rproc->name);
 	}
-
 	return 0;
 }
 
@@ -1960,9 +1960,10 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 							"qcom,nosecure");
 	pdata->emulation = of_property_read_bool(pdev->dev.of_node,
 							"qcom,emulation");
+	pdata->is_mpd_arch = of_property_read_bool(pdev->dev.of_node,
+							"qcom,multipd_arch");
 
 	platform_device_add_data(pdev, pdata, sizeof(*pdata));
-	kfree(pdata);
 
 skip_pdata:
 	qcom_add_glink_subdev(rproc, &wcss->glink_subdev);
@@ -1970,10 +1971,14 @@ skip_pdata:
 	platform_set_drvdata(pdev, rproc);
 	rproc->parent = NULL;
 
-	ret = q6v5_register_userpd(pdev);
-	if (ret) {
-		pr_err("Failed to register userpd\n");
-		return ret;
+	if (pdata && pdata->is_mpd_arch) {
+		ret = q6v5_register_userpd(pdev);
+		if (ret) {
+			pr_err("Failed to register userpd\n");
+			kfree(pdata);
+			return ret;
+		}
+		kfree(pdata);
 	}
 	return 0;
 
