@@ -416,6 +416,7 @@ static uint64_t decrypted_len;
 static uint8_t *ivdata;
 static uint64_t type;
 static uint64_t mode;
+static uint64_t ivdata_len;
 
 static struct kobject *rsa_sec_kobj;
 static uint8_t *rsa_import_modulus;
@@ -490,6 +491,10 @@ static ssize_t store_aes_type(struct device *dev,
 static ssize_t store_aes_mode(struct device *dev,
 					struct device_attribute *attr,
 					const char *buf, size_t count);
+
+static ssize_t store_iv_data(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count);
 
 static ssize_t store_encrypted_data(struct device *dev,
                                 struct device_attribute *attr,
@@ -593,6 +598,7 @@ static DEVICE_ATTR(seal, 0644, show_sealed_data, store_unsealed_data);
 static DEVICE_ATTR(unseal, 0644, show_unsealed_data, store_sealed_data);
 static DEVICE_ATTR(aes_encrypt, 0644, show_encrypted_data, store_decrypted_data);
 static DEVICE_ATTR(aes_decrypt, 0644, show_decrypted_data, store_encrypted_data);
+static DEVICE_ATTR(aes_ivdata, 0644, NULL, store_iv_data);
 static DEVICE_ATTR(aes_type, 0644, NULL, store_aes_type);
 static DEVICE_ATTR(aes_mode, 0644, NULL, store_aes_mode);
 
@@ -612,6 +618,7 @@ static struct attribute *sec_key_attrs[] = {
 	&dev_attr_unseal.attr,
 	&dev_attr_aes_encrypt.attr,
 	&dev_attr_aes_decrypt.attr,
+	&dev_attr_aes_ivdata.attr,
 	&dev_attr_aes_type.attr,
 	&dev_attr_aes_mode.attr,
 	NULL,

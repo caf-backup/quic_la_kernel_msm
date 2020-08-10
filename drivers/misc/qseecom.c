@@ -573,6 +573,31 @@ store_decrypted_data(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t
+store_iv_data(struct device *dev, struct device_attribute *attr,
+                        const char *buf, size_t count)
+{
+	if (!ivdata) {
+		pr_info("could not allocate ivdata\n");
+		return -EINVAL;
+	}
+
+	ivdata = memset(ivdata, 0, AES_BLOCK_SIZE);
+	ivdata_len = count;
+
+	if (ivdata_len != AES_BLOCK_SIZE) {
+		pr_info("\nInvalid input\n");
+		pr_info("IV data length is %lu bytes\n",
+		       (unsigned long)ivdata_len);
+		pr_info("IV data length must be equal to AES block size"
+		        "(16) bytes");
+		return -EINVAL;
+	}
+
+	memcpy(ivdata, buf, ivdata_len);
+	return count;
+}
+
+static ssize_t
 show_encrypted_data(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
@@ -665,6 +690,12 @@ show_encrypted_data(struct device *dev, struct device_attribute *attr,
 		pr_err("\nResponse status failure..return value = %d\n", rc);
 		goto err_end;
 	}
+
+	if (mode == TZ_CRYPTO_SERVICE_AES_MODE_CBC && ivdata)
+		print_hex_dump(KERN_INFO, "IV data(CBC): ", DUMP_PREFIX_NONE, 16, 1,
+				ivdata, AES_BLOCK_SIZE, false);
+	else
+		pr_info("IV data(ECB): NULL\n");
 
 	memcpy(buf, sealed_buf, req_ptr->output_len);
 	encrypted_len = req_ptr->output_len;
