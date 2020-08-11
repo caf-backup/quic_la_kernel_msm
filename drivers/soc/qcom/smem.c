@@ -498,12 +498,6 @@ static void *cached_entry_to_item(struct smem_private_entry *e)
 	return p - le32_to_cpu(e->size);
 }
 
-/* Pointer to the one and only smem handle */
-static struct qcom_smem *__smem;
-
-/* Timeout (ms) for the trylock of remote spinlocks */
-#define HWSPINLOCK_TIMEOUT	1000
-
 static int qcom_smem_alloc_private(struct qcom_smem *smem,
 				   struct smem_ptable_entry *entry,
 				   unsigned item,
