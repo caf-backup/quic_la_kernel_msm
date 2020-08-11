@@ -857,6 +857,7 @@ static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 	int ret;
 	int temp = 0;
 	unsigned int cookie;
+	struct q6_platform_data *pdata = dev_get_platdata(wcss->dev);
 
 	/*Assert Q6 BLK Reset*/
 	ret = reset_control_assert(wcss->wcss_q6_reset);
@@ -894,10 +895,24 @@ static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 	}
 
 	/*Prepare Q6 clocks*/
-	ret = wcss_clks_prepare_enable(wcss->dev, 1, NUM_WCSS_CLKS);
-	if (ret) {
-		dev_err(wcss->dev, "wcss clk(s) enable failed");
-		return;
+	if (!pdata->is_mpd_arch) {
+		ret = wcss_clks_prepare_enable(wcss->dev, 1, NUM_WCSS_CLKS);
+		if (ret) {
+			dev_err(wcss->dev, "wcss clk(s) enable failed");
+			return;
+		}
+	} else {
+		ret = wcss_clks_prepare_enable(wcss->dev, 2, 1);
+		if (ret) {
+			dev_err(wcss->dev, "wcss clk(s) enable failed");
+			return;
+		}
+
+		ret = wcss_clks_prepare_enable(wcss->dev, 5, NUM_WCSS_CLKS);
+		if (ret) {
+			dev_err(wcss->dev, "wcss clk(s) enable failed");
+			return;
+		}
 	}
 
 	/*Secure access to WIFI phy register*/
@@ -926,18 +941,20 @@ static void q6v6_wcss_reset(struct q6v5_wcss *wcss)
 	if (wcss->tcsr_msip_base)
 		writel(0x1, wcss->tcsr_msip_base + 0x00);
 
-	/*WCSS powerup*/
-	ret = q6v5_wcss_powerup(wcss);
-	if (ret) {
-		dev_err(wcss->dev, "failed to power up wcss\n");
-		return;
-	}
+	if (!pdata->is_mpd_arch) {
+		/*WCSS powerup*/
+		ret = q6v5_wcss_powerup(wcss);
+		if (ret) {
+			dev_err(wcss->dev, "failed to power up wcss\n");
+			return;
+		}
 
-	/*Deassert ce reset*/
-	ret = reset_control_deassert(wcss->ce_reset);
-	if (ret) {
-		dev_err(wcss->dev, "ce_reset failed\n");
-		return;
+		/*Deassert ce reset*/
+		ret = reset_control_deassert(wcss->ce_reset);
+		if (ret) {
+			dev_err(wcss->dev, "ce_reset failed\n");
+			return;
+		}
 	}
 
 	if (debug_wcss)
@@ -980,7 +997,6 @@ static int q6v5_wcss_userpd_powerup(struct rproc *rproc)
 
 	if (wcss->is_int_radio) {
 		struct q6v5_wcss *wcss_p = rproc->parent->priv;
-
 		/* AON Reset */
 		ret = reset_control_deassert(wcss_p->wcss_aon_reset);
 		if (ret) {
@@ -990,15 +1006,17 @@ static int q6v5_wcss_userpd_powerup(struct rproc *rproc)
 
 		ret = wcss_clks_prepare_enable(wcss_p->dev, 1, 1);
 		if (ret) {
-			dev_err(wcss_p->dev, "failed to enable %s clock %d\n",
-						wcss_clk_names[1], ret);
+			dev_err(wcss_p->dev,
+					"failed to enable %s clock %d\n",
+					wcss_clk_names[1], ret);
 			return ret;
 		}
 
 		ret = wcss_clks_prepare_enable(wcss_p->dev, 3, 2);
 		if (ret) {
-			dev_err(wcss_p->dev, "failed to enable clock %d\n",
-									ret);
+			dev_err(wcss_p->dev,
+					"failed to enable clock %d\n",
+					ret);
 			return ret;
 		}
 
@@ -1006,6 +1024,12 @@ static int q6v5_wcss_userpd_powerup(struct rproc *rproc)
 		if (ret)
 			return ret;
 
+		/*Deassert ce reset*/
+		ret = reset_control_deassert(wcss_p->ce_reset);
+		if (ret) {
+			dev_err(wcss->dev, "ce_reset failed\n");
+			return ret;
+		}
 		pr_info("%s wcss powered up successfully\n", rproc->name);
 	}
 	return 0;
@@ -1270,10 +1294,13 @@ static void q6v6_q6_powerdown(struct q6v5_wcss *wcss)
 {
 	int ret;
 	unsigned int cookie;
+	struct q6_platform_data *pdata = dev_get_platdata(wcss->dev);
 
-	/*Assert ce reset*/
-	reset_control_assert(wcss->ce_reset);
-	mdelay(2);
+	if (!pdata->is_mpd_arch) {
+		/*Assert ce reset*/
+		reset_control_assert(wcss->ce_reset);
+		mdelay(2);
+	}
 
 	/*Disable clocks*/
 	ret = wcss_clks_prepare_disable(wcss->dev, 1, NUM_WCSS_CLKS);
@@ -1386,6 +1413,10 @@ static int q6v5_wcss_userpd_powerdown(struct rproc *rproc)
 			return ret;
 		}
 
+		/*Assert ce reset*/
+		reset_control_assert(wcss_p->ce_reset);
+		mdelay(2);
+
 		ret = wcss_clks_prepare_disable(wcss_p->dev, 1, 1);
 		if (ret) {
 			dev_err(wcss_p->dev, "Failed to disable %s clk %d\n",
@@ -1441,9 +1472,7 @@ static int q6v5_wcss_stop(struct rproc *rproc)
 {
 	struct q6v5_wcss *wcss = rproc->priv;
 	struct q6_platform_data *pdata = dev_get_platdata(wcss->dev);
-	struct rproc_child *rp_child;
 	int ret;
-	bool is_int_radio_stop = false;
 
 	if (pdata->nosecure)
 		goto skip_secure;
@@ -1458,24 +1487,8 @@ static int q6v5_wcss_stop(struct rproc *rproc)
 	}
 
 skip_secure:
-	list_for_each_entry(rp_child, &rproc->child, node) {
-		struct rproc *c_rproc = (struct rproc *)rp_child->handle;
-		struct q6v5_wcss *c_wcss = c_rproc->priv;
-#ifdef CONFIG_CNSS2
-		struct qcom_q6v5 *c_q6v5 =
-			subsys_to_pdata(&c_wcss->q6v5.subsys_desc);
-		if (c_wcss->is_int_radio &&
-			subsys_get_state(c_q6v5->subsys) == SUBSYS_OFFLINE) {
-#else
-		if (c_wcss->is_int_radio &&
-			c_rproc->state == RPROC_OFFLINE) {
-#endif
-			is_int_radio_stop = true;
-			break;
-		}
-	}
 	/* WCSS powerdown */
-	if (!is_int_radio_stop) {
+	if (!pdata->is_mpd_arch) {
 		ret = q6v5_wcss_powerdown(wcss);
 		if (ret)
 			return ret;
