@@ -269,20 +269,14 @@ void bt_ipc_free_lmsg(struct bt_descriptor *btDesc, uint32_t lmsg, uint16_t len)
 static void bt_ipc_cust_msg(struct bt_descriptor *btDesc, uint8_t msgid)
 {
 	struct device *dev = &btDesc->pdev->dev;
+	struct bt_mem *btmem = &btDesc->btmem;
 	uint16_t msg_hdr = 0;
 	int ret;
-
-	if (unlikely(!atomic_read(&btDesc->state))) {
-		dev_err(dev, "BT IPC not initialized, no message sent\n");
-		return;
-	}
 
 	msg_hdr |= msgid;
 
 	switch (msgid) {
 	case IPC_CMD_IPC_STOP:
-		atomic_set(&btDesc->state, 0);
-		msg_hdr |= IPC_RACK_MASK;
 		dev_info(dev, "BT IPC Stopped, gracefully stopping APSS IPC\n");
 		break;
 	case IPC_CMD_SWITCH_TO_UART:
@@ -294,10 +288,28 @@ static void bt_ipc_cust_msg(struct bt_descriptor *btDesc, uint8_t msgid)
 	case IPC_CMD_COLLECT_DUMP:
 		dev_info(dev, "BT Crashed, gracefully stopping IPC\n");
 		return;
+	case IPC_CMD_IPC_START:
+		btmem->tx_ctxt = (struct context_info *)((void *)
+			btmem->rx_ctxt + btmem->rx_ctxt->TotalMemorySize);
+		btmem->lmsg_ctxt.widx = 0;
+		btmem->lmsg_ctxt.ridx = 0;
+		btmem->lmsg_ctxt.smsg_free_cnt = btmem->tx_ctxt->smsg_buf_cnt;
+		btmem->lmsg_ctxt.lmsg_free_cnt = btmem->tx_ctxt->lmsg_buf_cnt;
+		atomic_set(&btDesc->state, 1);
+
+		dev_info(dev, "BT IPC Started, starting APSS IPC\n");
+		return;
 	default:
 		dev_err(dev, "invalid custom message\n");
 		return;
 	}
+
+	if (unlikely(!atomic_read(&btDesc->state))) {
+		dev_err(dev, "BT IPC not initialized, no message sent\n");
+		return;
+	}
+
+	atomic_set(&btDesc->state, 0);
 
 	ret = bt_ipc_send_msg(btDesc, msg_hdr, NULL, 0, true);
 	if (ret)
@@ -451,20 +463,10 @@ static void bt_ipc_worker(struct work_struct *work)
 
 	spin_lock_irqsave(&btDesc->lock, flags);
 
-	if (unlikely(!atomic_read(&btDesc->state))) {
+	if (unlikely(!atomic_read(&btDesc->state)))
 		btmem->rx_ctxt = (struct context_info *)(btmem->virt + 0xe000);
-		btmem->tx_ctxt = (struct context_info *)((void *)
-			btmem->rx_ctxt + btmem->rx_ctxt->TotalMemorySize);
-
-		btmem->lmsg_ctxt.widx = 0;
-		btmem->lmsg_ctxt.ridx = 0;
-		btmem->lmsg_ctxt.smsg_free_cnt = btmem->tx_ctxt->smsg_buf_cnt;
-		btmem->lmsg_ctxt.lmsg_free_cnt = btmem->tx_ctxt->lmsg_buf_cnt;
-
-		atomic_set(&btDesc->state, 1);
-	}
-
-	bt_ipc_process_ack(btDesc);
+	else
+		bt_ipc_process_ack(btDesc);
 
 	for (rinfo = &(btmem->rx_ctxt->sring_buf_info); rinfo != NULL;
 		rinfo = (struct ring_buffer_info *)(uintptr_t)(rinfo->next)) {

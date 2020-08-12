@@ -115,6 +115,7 @@
 #define IPC_CMD_SWITCH_TO_UART	(0x02)
 #define IPC_CMD_PREPARE_DUMP	(0x03)
 #define IPC_CMD_COLLECT_DUMP	(0x04)
+#define IPC_CMD_IPC_START	(0x05)
 
 /*-------------------------------------------------------------------------
  * Type Declarations
