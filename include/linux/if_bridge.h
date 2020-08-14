@@ -119,6 +119,8 @@ extern void br_fdb_unregister_notify(struct notifier_block *nb);
 extern struct net_device *br_fdb_bridge_dev_get_and_hold(struct net_bridge *br);
 extern int br_fdb_delete_by_netdev(struct net_device *dev,
 			const unsigned char *addr, u16 vid);
+extern int br_fdb_add_or_refresh_by_netdev(struct net_device *dev,
+			    const unsigned char *addr, u16 vid, u16 state);
 
 typedef struct net_bridge_port *br_get_dst_hook_t(
 		const struct net_bridge_port *src,
