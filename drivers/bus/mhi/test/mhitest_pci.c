@@ -960,8 +960,12 @@ int mhitest_pci_probe2(struct pci_dev *pci_dev, const struct pci_device_id *id)
 		MHITEST_ERR("Couldn't find necessary node\n");
 		return -ENODEV;
 	}
+#ifdef CONFIG_CNSS2
 	/* let's reuse the same !!*/
 	plat_dev->dev.of_node = np;
+#else
+	plat_dev->dev.of_node = pci_dev->dev.of_node;
+#endif
 
 	mplat->mhitest_klog_lvl = debug_lvl;
 
