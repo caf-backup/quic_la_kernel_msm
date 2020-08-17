@@ -1058,6 +1058,7 @@
 		qrtr_node_id = <0x20>;
 		mhi,max-channels = <30>;
 		mhi,timeout = <10000>;
+		qcom,board_id= <0xa0>;
 
 		pcie0_mhi: pcie0_mhi {
 			status = "ok";
@@ -1086,6 +1087,7 @@
 		qrtr_node_id = <0x21>;
 		mhi,max-channels = <30>;
 		mhi,timeout = <10000>;
+		qcom,board_id= <0xa1>;
 
 		pcie1_mhi: pcie1_mhi {
 			status = "ok";
