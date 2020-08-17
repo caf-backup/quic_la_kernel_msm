@@ -37,10 +37,10 @@
 #define WIL_RX_EDMA_ERROR_L4_ERR	(BIT(0) | BIT(1))
 
 #define WIL_RX_EDMA_DLPF_LU_MISS_BIT		BIT(11)
-#define WIL_RX_EDMA_DLPF_LU_MISS_CID_TID_MASK	0x7
+#define WIL_RX_EDMA_DLPF_LU_MISS_CID_TID_MASK	0xf
 #define WIL_RX_EDMA_DLPF_LU_HIT_CID_TID_MASK	0xf
 
-#define WIL_RX_EDMA_DLPF_LU_MISS_CID_POS	2
+#define WIL_RX_EDMA_DLPF_LU_MISS_CID_POS	3
 #define WIL_RX_EDMA_DLPF_LU_HIT_CID_POS		4
 
 #define WIL_RX_EDMA_DLPF_LU_MISS_TID_POS	5
@@ -374,12 +374,12 @@ static inline u8 wil_rx_status_get_mcast(void *msg)
 
 /**
  * In case of DLPF miss the parsing of flow Id should be as follows:
- * dest_id:2
- * src_id :3 - cid
- * tid:3
- * Otherwise:
+ * dest_id:3
+ * src_id :4 - cid
  * tid:4
+ * Otherwise:
  * cid:4
+ * tid:4
  */
 
 static inline u8 wil_rx_status_get_cid(void *msg)
@@ -387,13 +387,12 @@ static inline u8 wil_rx_status_get_cid(void *msg)
 	u16 val = wil_rx_status_get_flow_id(msg);
 
 	if (val & WIL_RX_EDMA_DLPF_LU_MISS_BIT)
-		/* CID is in bits 2..4 */
+		/* CID is in bits 3..6 */
 		return (val >> WIL_RX_EDMA_DLPF_LU_MISS_CID_POS) &
 			WIL_RX_EDMA_DLPF_LU_MISS_CID_TID_MASK;
 	else
-		/* CID is in bits 4..7 */
-		return (val >> WIL_RX_EDMA_DLPF_LU_HIT_CID_POS) &
-			WIL_RX_EDMA_DLPF_LU_HIT_CID_TID_MASK;
+		/* CID is in bits 0..3 */
+		return (val & WIL_RX_EDMA_DLPF_LU_HIT_CID_TID_MASK);
 }
 
 static inline u8 wil_rx_status_get_tid(void *msg)
