@@ -112,13 +112,15 @@ static void *bt_ipc_alloc_lmsg(struct bt_descriptor *btDesc, uint32_t len,
 	uint8_t blks_consumed;
 	struct bt_mem *btmem = &btDesc->btmem;
 	struct device *dev = &btDesc->pdev->dev;
+	uint32_t lsz = IPC_LBUF_SZ(btmem->tx_ctxt, TotalMemorySize, lring_buf,
+				   lmsg_buf_cnt);
 
 	if (btmem->tx_ctxt->lring_buf == 0) {
 		dev_err(dev, "no long message buffer not initialized\n");
 		return ERR_PTR(-ENODEV);
 	}
 
-	blks = GET_NO_OF_BLOCKS(len, TX);
+	blks = GET_NO_OF_BLOCKS(len, lsz);
 
 	if (!btmem->lmsg_ctxt.lmsg_free_cnt ||
 			(blks > btmem->lmsg_ctxt.lmsg_free_cnt))
@@ -128,7 +130,7 @@ static void *bt_ipc_alloc_lmsg(struct bt_descriptor *btDesc, uint32_t len,
 
 	if ((btmem->lmsg_ctxt.widx + blks) > btmem->tx_ctxt->lmsg_buf_cnt) {
 		blks_consumed = btmem->tx_ctxt->lmsg_buf_cnt - idx;
-		aux_ptr->len = len - (blks_consumed * IPC_TX_LBUF_SZ);
+		aux_ptr->len = len - (blks_consumed * lsz);
 		aux_ptr->buf = btmem->tx_ctxt->lring_buf;
 	}
 
@@ -141,8 +143,7 @@ static void *bt_ipc_alloc_lmsg(struct bt_descriptor *btDesc, uint32_t len,
 			((btmem->tx_ctxt->lmsg_buf_cnt * 20) / 100))
 		*is_lbuf_full = 1;
 
-	return (TO_APPS_ADDR(btmem->tx_ctxt->lring_buf) +
-			(idx * IPC_TX_LBUF_SZ));
+	return (TO_APPS_ADDR(btmem->tx_ctxt->lring_buf) + (idx * lsz));
 }
 
 static struct ring_buffer_info *bt_ipc_get_tx_rbuf(struct bt_descriptor *btDesc,
@@ -244,18 +245,20 @@ int bt_ipc_send_msg(struct bt_descriptor *btDesc, uint16_t msg_hdr,
 }
 
 static
-void bt_ipc_free_lmsg(struct bt_descriptor *btDesc, void *lmsg, uint16_t len)
+void bt_ipc_free_lmsg(struct bt_descriptor *btDesc, uint32_t lmsg, uint16_t len)
 {
 	uint8_t idx;
 	uint8_t blks;
 	struct bt_mem *btmem = &btDesc->btmem;
+	uint32_t lsz = IPC_LBUF_SZ(btmem->tx_ctxt, TotalMemorySize, lring_buf,
+				   lmsg_buf_cnt);
 
-	idx = GET_TX_INDEX_FROM_BUF((uint8_t *)lmsg);
+	idx = GET_TX_INDEX_FROM_BUF(lmsg, lsz);
 
 	if (idx != btmem->lmsg_ctxt.ridx)
 		return;
 
-	blks = GET_NO_OF_BLOCKS(len, TX);
+	blks = GET_NO_OF_BLOCKS(len, lsz);
 
 	btmem->lmsg_ctxt.ridx  = (btmem->lmsg_ctxt.ridx  + blks) %
 		btmem->tx_ctxt->lmsg_buf_cnt;
@@ -266,20 +269,14 @@ void bt_ipc_free_lmsg(struct bt_descriptor *btDesc, void *lmsg, uint16_t len)
 static void bt_ipc_cust_msg(struct bt_descriptor *btDesc, uint8_t msgid)
 {
 	struct device *dev = &btDesc->pdev->dev;
+	struct bt_mem *btmem = &btDesc->btmem;
 	uint16_t msg_hdr = 0;
 	int ret;
-
-	if (unlikely(!atomic_read(&btDesc->state))) {
-		dev_err(dev, "BT IPC not initialized, no message sent\n");
-		return;
-	}
 
 	msg_hdr |= msgid;
 
 	switch (msgid) {
 	case IPC_CMD_IPC_STOP:
-		atomic_set(&btDesc->state, 0);
-		msg_hdr |= IPC_RACK_MASK;
 		dev_info(dev, "BT IPC Stopped, gracefully stopping APSS IPC\n");
 		break;
 	case IPC_CMD_SWITCH_TO_UART:
@@ -291,10 +288,28 @@ static void bt_ipc_cust_msg(struct bt_descriptor *btDesc, uint8_t msgid)
 	case IPC_CMD_COLLECT_DUMP:
 		dev_info(dev, "BT Crashed, gracefully stopping IPC\n");
 		return;
+	case IPC_CMD_IPC_START:
+		btmem->tx_ctxt = (struct context_info *)((void *)
+			btmem->rx_ctxt + btmem->rx_ctxt->TotalMemorySize);
+		btmem->lmsg_ctxt.widx = 0;
+		btmem->lmsg_ctxt.ridx = 0;
+		btmem->lmsg_ctxt.smsg_free_cnt = btmem->tx_ctxt->smsg_buf_cnt;
+		btmem->lmsg_ctxt.lmsg_free_cnt = btmem->tx_ctxt->lmsg_buf_cnt;
+		atomic_set(&btDesc->state, 1);
+
+		dev_info(dev, "BT IPC Started, starting APSS IPC\n");
+		return;
 	default:
 		dev_err(dev, "invalid custom message\n");
 		return;
 	}
+
+	if (unlikely(!atomic_read(&btDesc->state))) {
+		dev_err(dev, "BT IPC not initialized, no message sent\n");
+		return;
+	}
+
+	atomic_set(&btDesc->state, 0);
 
 	ret = bt_ipc_send_msg(btDesc, msg_hdr, NULL, 0, true);
 	if (ret)
@@ -313,6 +328,8 @@ static bool bt_ipc_process_peer_msgs(struct bt_descriptor *btDesc,
 	bool ackReqd = false;
 	uint8_t *rxbuf = NULL;
 	unsigned char *buf;
+	uint32_t lsz = IPC_LBUF_SZ(btmem->rx_ctxt, TotalMemorySize, lring_buf,
+				   lmsg_buf_cnt);
 
 	ridx = rinfo->ridx;
 
@@ -329,15 +346,14 @@ static bool bt_ipc_process_peer_msgs(struct bt_descriptor *btDesc,
 			rxbuf = TO_APPS_ADDR(rbuf->payload.lmsg_data);
 
 			if (IS_RX_MEM_NON_CONTIGIOUS(rbuf->payload.lmsg_data,
-								rbuf->len)) {
+							rbuf->len, lsz)) {
 
 				lbuf_idx = GET_RX_INDEX_FROM_BUF(
-						rbuf->payload.lmsg_data);
+						rbuf->payload.lmsg_data, lsz);
 
 				blks_consumed = btmem->rx_ctxt->lmsg_buf_cnt -
 					lbuf_idx;
-				aux_ptr.len = rbuf->len -
-					(blks_consumed * IPC_RX_LBUF_SZ);
+				aux_ptr.len = rbuf->len - (blks_consumed * lsz);
 				aux_ptr.buf = btmem->rx_ctxt->lring_buf;
 			}
 		} else {
@@ -397,8 +413,8 @@ static void bt_ipc_process_ack(struct bt_descriptor *btDesc)
 		while (tidx != rinfo->ridx) {
 			if (IS_LONG_MSG(rbuf[tidx].msg_hdr)) {
 				bt_ipc_free_lmsg(btDesc,
-				(struct ring_buffer_info *)(uintptr_t)
-				rbuf[tidx].payload.lmsg_data, rbuf[tidx].len);
+						 rbuf[tidx].payload.lmsg_data,
+						 rbuf[tidx].len);
 			}
 
 			tidx = (tidx + 1) % btmem->tx_ctxt->smsg_buf_cnt;
@@ -447,20 +463,10 @@ static void bt_ipc_worker(struct work_struct *work)
 
 	spin_lock_irqsave(&btDesc->lock, flags);
 
-	if (unlikely(!atomic_read(&btDesc->state))) {
+	if (unlikely(!atomic_read(&btDesc->state)))
 		btmem->rx_ctxt = (struct context_info *)(btmem->virt + 0xe000);
-		btmem->tx_ctxt = (struct context_info *)((void *)
-			btmem->rx_ctxt + btmem->rx_ctxt->TotalMemorySize);
-
-		btmem->lmsg_ctxt.widx = 0;
-		btmem->lmsg_ctxt.ridx = 0;
-		btmem->lmsg_ctxt.smsg_free_cnt = btmem->tx_ctxt->smsg_buf_cnt;
-		btmem->lmsg_ctxt.lmsg_free_cnt = btmem->tx_ctxt->lmsg_buf_cnt;
-
-		atomic_set(&btDesc->state, 1);
-	}
-
-	bt_ipc_process_ack(btDesc);
+	else
+		bt_ipc_process_ack(btDesc);
 
 	for (rinfo = &(btmem->rx_ctxt->sring_buf_info); rinfo != NULL;
 		rinfo = (struct ring_buffer_info *)(uintptr_t)(rinfo->next)) {

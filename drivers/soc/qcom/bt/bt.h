@@ -31,13 +31,11 @@
 #define BT_M0_WARM_RST		0x4
 
 #define IOCTL_IPC_BOOT		0xBE
-
-#define IPC_RX_LBUF_SZ		0x0108
-#define IPC_TX_LBUF_SZ		0x0108
 #define IPC_TX_QSIZE		0x20
 
 #define	TO_APPS_ADDR(a)		(btmem->virt + (int)(uintptr_t)a)
 #define	TO_BT_ADDR(a)		(a - btmem->virt)
+#define IPC_LBUF_SZ(w, x, y, z)	(((TO_BT_ADDR((void *)w) + w->x) - w->y) / w->z)
 
 #define IPC_MSG_HDR_SZ		(4u)
 #define IPC_MSG_PLD_SZ		(40u)
@@ -61,18 +59,16 @@
 #define IPC_RACK_SHIFT		(14u)
 #define IPC_PKT_TYPE_SHIFT	(8u)
 
-#define	GET_NO_OF_BLOCKS(a, b) ((a + IPC_##b##_LBUF_SZ - 1) / IPC_##b##_LBUF_SZ)
+#define	GET_NO_OF_BLOCKS(a, b) ((a + b - 1) / b)
 
-#define GET_RX_INDEX_FROM_BUF(x) \
-	(((uint32_t)(uintptr_t)x - btmem->rx_ctxt->lring_buf) / IPC_RX_LBUF_SZ)
+#define GET_RX_INDEX_FROM_BUF(x, y)	((x - btmem->rx_ctxt->lring_buf) / y)
 
-#define GET_TX_INDEX_FROM_BUF(x) \
-	(((uint32_t)(uintptr_t)x - btmem->tx_ctxt->lring_buf) / IPC_TX_LBUF_SZ)
+#define GET_TX_INDEX_FROM_BUF(x, y)	((x - btmem->tx_ctxt->lring_buf) / y)
 
-#define IS_RX_MEM_NON_CONTIGIOUS(pBuf, len)		\
+#define IS_RX_MEM_NON_CONTIGIOUS(pBuf, len, sz)		\
 	((pBuf + len) >			\
 	(btmem->rx_ctxt->lring_buf +	\
-	(IPC_RX_LBUF_SZ * btmem->rx_ctxt->lmsg_buf_cnt)))
+	(sz * btmem->rx_ctxt->lmsg_buf_cnt)))
 
 /** Message header format.
  *
@@ -119,6 +115,7 @@
 #define IPC_CMD_SWITCH_TO_UART	(0x02)
 #define IPC_CMD_PREPARE_DUMP	(0x03)
 #define IPC_CMD_COLLECT_DUMP	(0x04)
+#define IPC_CMD_IPC_START	(0x05)
 
 /*-------------------------------------------------------------------------
  * Type Declarations
