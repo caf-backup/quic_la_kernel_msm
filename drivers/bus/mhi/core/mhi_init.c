@@ -1258,9 +1258,9 @@ void mhi_unregister_mhi_controller(struct mhi_controller *mhi_cntrl)
 	kfree(mhi_cntrl->mhi_chan);
 	kfree(mhi_cntrl->mhi_tsync);
 
+	dma_release_declared_memory(&mhi_dev->dev);
 	device_del(&mhi_dev->dev);
 	put_device(&mhi_dev->dev);
-	dma_release_declared_memory(&mhi_dev->dev);
 
 	mutex_lock(&mhi_bus.lock);
 	list_del(&mhi_cntrl->node);
