@@ -34,8 +34,11 @@ static int rmnet_ctl_send_mhi(struct rmnet_ctl_dev *dev, struct sk_buff *skb)
 
 	rc = mhi_queue_transfer(ctl_dev->mhi_dev,
 				DMA_TO_DEVICE, skb, skb->len, MHI_EOT);
-	if (rc)
+	if (rc) {
+		pr_err("%s(): mhi_queue_transfer failed, rc = %d\n",
+		       __func__, rc);
 		dev->stats.tx_err++;
+	}
 	else
 		dev->stats.tx_pkts++;
 
