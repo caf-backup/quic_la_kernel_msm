@@ -859,6 +859,7 @@
 		qrtr_node_id = <0x20>;
 		mhi,max-channels = <30>;
 		mhi,timeout = <10000>;
+		qcom,board_id= <0xa4>;
 
 		pcie0_mhi: pcie0_mhi {
 			status = "ok";
