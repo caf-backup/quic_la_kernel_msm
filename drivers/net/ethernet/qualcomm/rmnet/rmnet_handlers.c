@@ -132,6 +132,11 @@ rmnet_deliver_skb(struct sk_buff *skb, struct rmnet_port *port)
 			port->chain_tail = skb;
 			return;
 		}
+	} else {
+		/* Packet is destined for the stack. Set this so we dont loop
+		 * around netif_receive_skb
+		 */
+		skb->cb[0] = 1;
 	}
 
 	skb_reset_transport_header(skb);
