@@ -804,6 +804,10 @@ struct survey_info {
  *	allowed through even on unauthorized ports
  * @control_port_no_encrypt: TRUE to prevent encryption of control port
  *	protocol frames.
+ * @sae_pwe: value indicates the SAE mechanism used for PWE derivation
+ *     0 = hunting-and-pecking loop only
+ *     1 = hash-to-element only
+ *     2 = both hunting-and-pecking loop and hash-to-element enabled
  */
 struct cfg80211_crypto_settings {
 	u32 wpa_versions;
@@ -815,6 +819,7 @@ struct cfg80211_crypto_settings {
 	bool control_port;
 	__be16 control_port_ethertype;
 	bool control_port_no_encrypt;
+	u16 sae_pwe;
 };
 
 /**

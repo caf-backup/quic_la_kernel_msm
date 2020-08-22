@@ -411,6 +411,7 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_VLAN_ID] = { .type = NLA_U16 },
 	[NL80211_ATTR_HE_CAPABILITY] = { .type = NLA_BINARY,
 					 .len = NL80211_HE_MAX_CAPABILITY_LEN },
+	[NL80211_ATTR_SAE_PWE] = { .type = NLA_U16 }
 };
 
 /* policy for the key attributes */
@@ -7397,6 +7398,10 @@ static int nl80211_crypto_settings(struct cfg80211_registered_device *rdev,
 		memcpy(settings->akm_suites, data, len);
 	}
 
+	if (info->attrs[NL80211_ATTR_SAE_PWE]) {
+		settings->sae_pwe = nla_get_u16(
+					info->attrs[NL80211_ATTR_SAE_PWE]);
+	}
 	return 0;
 }
 

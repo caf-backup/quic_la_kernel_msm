@@ -274,6 +274,17 @@
  */
 
 /**
+ * DOC: SAE mechanism for PWE derivation
+ *
+ * By setting @NL80211_ATTR_SAE_PWE flag userspace can indicate the SAE
+ * mechanism used for PWE derivation, in WPA3-Personal networks which are
+ * using SAE authentication.
+ *
+ * In %NL80211_CMD_CONNECT and %NL80211_CMD_START_AP the sae_pwe value
+ * for SAE authentication should be specified using the %NL80211_ATTR_SAE_PWE.
+ */
+
+/**
  * enum nl80211_commands - supported nl80211 commands
  *
  * @NL80211_CMD_UNSPEC: unspecified command to catch errors
@@ -335,7 +346,8 @@
  *	%NL80211_ATTR_CIPHER_GROUP, %NL80211_ATTR_WPA_VERSIONS,
  *	%NL80211_ATTR_AKM_SUITES, %NL80211_ATTR_PRIVACY,
  *	%NL80211_ATTR_AUTH_TYPE, %NL80211_ATTR_INACTIVITY_TIMEOUT,
- *	%NL80211_ATTR_ACL_POLICY and %NL80211_ATTR_MAC_ADDRS.
+ *	%NL80211_ATTR_ACL_POLICY, %NL80211_ATTR_MAC_ADDRS and
+ *	%NL80211_ATTR_SAE_PWE.
  *	The channel to use can be set on the interface or be given using the
  *	%NL80211_ATTR_WIPHY_FREQ and the attributes determining channel width.
  * @NL80211_CMD_NEW_BEACON: old alias for %NL80211_CMD_START_AP
@@ -586,7 +598,7 @@
  *	%NL80211_ATTR_CONTROL_PORT_ETHERTYPE,
  *	%NL80211_ATTR_CONTROL_PORT_NO_ENCRYPT,
  *	%NL80211_ATTR_CONTROL_PORT_OVER_NL80211, %NL80211_ATTR_MAC_HINT, and
- *	%NL80211_ATTR_WIPHY_FREQ_HINT.
+ *	%NL80211_ATTR_WIPHY_FREQ_HINT, %NL80211_ATTR_SAE_PWE.
  *	If included, %NL80211_ATTR_MAC and %NL80211_ATTR_WIPHY_FREQ are
  *	restrictions on BSS selection, i.e., they effectively prevent roaming
  *	within the ESS. %NL80211_ATTR_MAC_HINT and %NL80211_ATTR_WIPHY_FREQ_HINT
@@ -599,6 +611,9 @@
  *	%NL80211_ATTR_PREV_BSSID can be used to request a reassociation within
  *	the ESS in case the device is already associated and an association with
  *	a different BSS is desired.
+ *	%NL80211_ATTR_SAE_PWE can be used by userspace to indicate the SAE
+ *	mechanism used for PWE derivation in WPA3-Personal networks which are
+ *	using SAE authentication.
  *	Background scan period can optionally be
  *	specified in %NL80211_ATTR_BG_SCAN_PERIOD,
  *	if not specified default background scan configuration
@@ -2395,6 +2410,9 @@ enum nl80211_commands {
  *      Defined by IEEE P802.11ay/D4.0 section 9.4.2.251, Table 13.
  * @NL80211_ATTR_VLAN_ID: VLAN ID for the station and VLAN group key (u16).
  *
+ * @NL80211_ATTR_SAE_PWE: Indicates the SAE mechanism used for PWE derivation
+ *	in  WPA3-Personal networks which are using SAE authentication.
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -2857,6 +2875,7 @@ enum nl80211_attrs {
 	NL80211_ATTR_WIPHY_EDMG_BW_CONFIG,
 
 	NL80211_ATTR_VLAN_ID,
+	NL80211_ATTR_SAE_PWE = 294,
 
 	/* add attributes here, update the policy in nl80211.c */
 
