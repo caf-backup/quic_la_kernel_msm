@@ -3274,6 +3274,7 @@ static int cnss_probe(struct platform_device *plat_dev)
 #endif
 
 	if (device_id->driver_data == QCA6018_DEVICE_ID ||
+	    device_id->driver_data == QCN9100_DEVICE_ID ||
 	    device_id->driver_data == QCA5018_DEVICE_ID)
 		goto skip_soc_version_checks;
 

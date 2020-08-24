@@ -3219,13 +3219,7 @@ EXPORT_SYMBOL(cnss_smmu_map);
 
 int cnss_get_soc_info(struct device *dev, struct cnss_soc_info *info)
 {
-	struct cnss_pci_data *pci_priv = cnss_get_pci_priv(to_pci_dev(dev));
-	struct cnss_plat_data *plat_priv;
-
-	if (!pci_priv)
-		return -ENODEV;
-
-	plat_priv = pci_priv->plat_priv;
+	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
 	if (!plat_priv)
 		return -ENODEV;
 
@@ -3233,6 +3227,12 @@ int cnss_get_soc_info(struct device *dev, struct cnss_soc_info *info)
 		info->va = plat_priv->qcn9100.bar_addr_va;
 		info->pa = (phys_addr_t)plat_priv->qcn9100.bar_addr_pa;
 	} else {
+		struct cnss_pci_data *pci_priv =
+				cnss_get_pci_priv(to_pci_dev(dev));
+
+		if (!pci_priv)
+			return -ENODEV;
+
 		info->va = pci_priv->bar;
 		info->pa = pci_resource_start(pci_priv->pci_dev, PCI_BAR_NUM);
 	}
