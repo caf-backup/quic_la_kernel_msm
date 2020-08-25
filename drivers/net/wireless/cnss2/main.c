@@ -79,6 +79,10 @@ static int skip_cnss;
 module_param(skip_cnss, int, 0644);
 MODULE_PARM_DESC(skip_cnss, "skip_cnss");
 
+static int skip_radio_bmap;
+module_param(skip_radio_bmap, int, 0644);
+MODULE_PARM_DESC(skip_radio_bmap, "skip_radio_bmap");
+
 bool flashcal_support = true;
 module_param(flashcal_support, bool, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(flashcal_support, "flash caldata support");
@@ -98,6 +102,10 @@ enum skip_cnss_options {
 	CNSS_SKIP_AHB,
 	CNSS_SKIP_PCI
 };
+
+#define SKIP_INTEGRATED		0x1
+#define SKIP_PCI_0		0x2
+#define SKIP_PCI_1		0x4
 
 static struct cnss_fw_files FW_FILES_QCA6174_FW_3_0 = {
 	"qwlan30.bin", "bdwlan30.bin", "otp30.bin", "utf30.bin",
@@ -3244,10 +3252,10 @@ static int platform_get_qcn9100_userpd_id(struct platform_device *plat_dev,
 	}
 
 	if (strcmp(subsys_name, "q6v5_wcss_userpd2") == 0) {
-		*userpd_id = QCN9100_1;
+		*userpd_id = QCN9100_0;
 		return 0;
 	} else if (strcmp(subsys_name, "q6v5_wcss_userpd3") == 0) {
-		*userpd_id = QCN9100_2;
+		*userpd_id = QCN9100_1;
 		return 0;
 	}
 
@@ -3255,13 +3263,72 @@ static int platform_get_qcn9100_userpd_id(struct platform_device *plat_dev,
 	return -EINVAL;
 }
 
+static bool
+cnss_check_skip_target_probe(const struct platform_device_id *device_id,
+			     u32 userpd_id, u32 node_id)
+{
+	/* skip_cnss based skip target checks */
+	if (skip_cnss == CNSS_SKIP_ALL) {
+		pr_err("Skipping cnss_probe for device 0x%lx\n",
+		       device_id->driver_data);
+		return true;
+	} else if (skip_cnss == CNSS_SKIP_PCI &&
+		   device_id->driver_data == QCN9000_DEVICE_ID) {
+		pr_err("Skipping cnss_probe for device 0x%lx\n",
+		       device_id->driver_data);
+		return true;
+	} else if (skip_cnss == CNSS_SKIP_AHB &&
+		   (device_id->driver_data == QCA8074_DEVICE_ID ||
+		   device_id->driver_data == QCA8074V2_DEVICE_ID ||
+		   device_id->driver_data == QCA6018_DEVICE_ID ||
+		   device_id->driver_data == QCN9100_DEVICE_ID ||
+		   device_id->driver_data == QCA5018_DEVICE_ID)) {
+		pr_err("Skipping cnss_probe for device 0x%lx\n",
+		       device_id->driver_data);
+		return true;
+	}
+
+	/* skip_radio_bmap based skip target checks
+	 * SKIP_INTEGRATED - skip integrated radios ie. 5018,8074,8074v2,6018
+	 * SKIP_PCI_0 - skip PCI_0 radios ie. first qcn9000/qcn9100 radios
+	 * SKIP_PCI_1 - skip PCI_1 radios ie. second qcn9000/qcn9100 radios
+	 */
+	if ((skip_radio_bmap & SKIP_INTEGRATED) &&
+	    ((device_id->driver_data == QCA5018_DEVICE_ID) ||
+	    (device_id->driver_data == QCA8074_DEVICE_ID) ||
+	    (device_id->driver_data == QCA8074V2_DEVICE_ID) ||
+	    (device_id->driver_data == QCA6018_DEVICE_ID))) {
+		pr_err("Skipping cnss_probe for device 0x%lx\n",
+		       device_id->driver_data);
+		return true;
+	} else if ((skip_radio_bmap & SKIP_PCI_0) &&
+		   (((userpd_id == QCN9100_0) &&
+		   (device_id->driver_data == QCN9100_DEVICE_ID)) ||
+		   ((node_id == QCN9000_0) &&
+		   (device_id->driver_data == QCN9000_DEVICE_ID)))) {
+		pr_err("Skipping cnss_probe for PCI_0 device 0x%lx\n",
+		       device_id->driver_data);
+		return true;
+	} else if ((skip_radio_bmap & SKIP_PCI_1) &&
+		   (((userpd_id == QCN9100_1) &&
+		   (device_id->driver_data == QCN9100_DEVICE_ID)) ||
+		   ((node_id == QCN9000_1) &&
+		   (device_id->driver_data == QCN9000_DEVICE_ID)))) {
+		pr_err("Skipping cnss_probe for PCI_1 device 0x%lx\n",
+		       device_id->driver_data);
+		return true;
+	}
+
+	return false;
+}
+
 static int cnss_probe(struct platform_device *plat_dev)
 {
 	int ret = 0;
-	struct cnss_plat_data *plat_priv;
+	struct cnss_plat_data *plat_priv = NULL;
 	const struct of_device_id *of_id;
 	const struct platform_device_id *device_id;
-	u32 node_id, userpd_id;
+	u32 node_id = 0, userpd_id = 0;
 	const int *soc_version_major;
 
 	if (cnss_get_plat_priv(plat_dev)) {
@@ -3278,25 +3345,25 @@ static int cnss_probe(struct platform_device *plat_dev)
 
 	device_id = (const struct platform_device_id *)of_id->data;
 
-	if (skip_cnss == CNSS_SKIP_ALL) {
-		pr_err("Skipping cnss_probe for device 0x%lx\n",
-		       device_id->driver_data);
-		goto out;
-	} else if (skip_cnss == CNSS_SKIP_PCI &&
-		   device_id->driver_data == QCN9000_DEVICE_ID) {
-		pr_err("Skipping cnss_probe for device 0x%lx\n",
-		       device_id->driver_data);
-		goto out;
-	} else if (skip_cnss == CNSS_SKIP_AHB &&
-		   (device_id->driver_data == QCA8074_DEVICE_ID ||
-		   device_id->driver_data == QCA8074V2_DEVICE_ID ||
-		   device_id->driver_data == QCA6018_DEVICE_ID ||
-		   device_id->driver_data == QCN9100_DEVICE_ID ||
-		   device_id->driver_data == QCA5018_DEVICE_ID)) {
-		pr_err("Skipping cnss_probe for device 0x%lx\n",
-		       device_id->driver_data);
+	if ((device_id->driver_data == QCN9100_DEVICE_ID) &&
+	    (platform_get_qcn9100_userpd_id(plat_dev, &userpd_id))) {
+		pr_err("Error: No userpd_id in device_tree\n");
+		CNSS_ASSERT(0);
+		ret = -ENODEV;
 		goto out;
 	}
+
+	if ((device_id->driver_data == QCN9000_DEVICE_ID) &&
+	    (of_property_read_u32(plat_dev->dev.of_node,
+				  "qrtr_node_id", &node_id))) {
+		pr_err("Error: No qrtr_node_id in device_tree\n");
+		CNSS_ASSERT(0);
+		ret = -ENODEV;
+		goto out;
+	}
+
+	if (cnss_check_skip_target_probe(device_id, userpd_id, node_id))
+		goto out;
 
 #ifdef CONFIG_CNSS_QCN9000
 	if (device_id->driver_data == QCA6174_DEVICE_ID) {
@@ -3356,12 +3423,6 @@ skip_soc_version_checks:
 	case QCN9000_DEVICE_ID:
 		plat_priv->bus_type = CNSS_BUS_PCI;
 		plat_priv->service_id = WLFW_SERVICE_ID_V01_NPR;
-		if (of_property_read_u32(plat_dev->dev.of_node, "qrtr_node_id",
-					 &node_id)) {
-			pr_err("Error: No qrtr_node_id in device_tree\n");
-			CNSS_ASSERT(0);
-			return -ENODEV;
-		}
 		plat_priv->qrtr_node_id = node_id;
 		plat_priv->wlfw_service_instance_id = node_id + FW_ID_BASE;
 
@@ -3384,11 +3445,6 @@ skip_soc_version_checks:
 	case QCN9100_DEVICE_ID:
 		plat_priv->bus_type = CNSS_BUS_AHB;
 		plat_priv->service_id = WLFW_SERVICE_ID_V01_HK;
-		if (platform_get_qcn9100_userpd_id(plat_dev, &userpd_id)) {
-			pr_err("Error: No userpd_id in device_tree\n");
-			CNSS_ASSERT(0);
-			return -ENODEV;
-		}
 		plat_priv->wlfw_service_instance_id =
 			WLFW_SERVICE_INS_ID_V01_QCN9100 + userpd_id;
 		break;

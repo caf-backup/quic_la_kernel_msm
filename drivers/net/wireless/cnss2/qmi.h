@@ -27,8 +27,12 @@
 #define QMI_HISTORY_SIZE 128
 
 /* userpd_id for QCN9100 in multi pd arch */
-#define QCN9100_1	1
-#define QCN9100_2	2
+#define QCN9100_0	1
+#define QCN9100_1	2
+
+/* node_id for QCN9000 */
+#define QCN9000_0	0x20
+#define QCN9000_1	0x21
 
 /*NODE_ID_BASE is derived by qrtr_node_id in DTS + FW base node id 7 */
 #define NODE_ID_BASE 0x27

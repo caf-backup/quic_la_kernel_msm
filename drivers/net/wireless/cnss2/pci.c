@@ -4219,8 +4219,6 @@ int cnss_pci_get_bar_info(struct cnss_pci_data *pci_priv, void __iomem **va,
 	return 0;
 }
 
-static int use_radio;
-module_param(use_radio, int, 0644);
 int cnss_pci_probe_basic(struct pci_dev *pci_dev,
 			 const struct pci_device_id *id)
 {
@@ -4240,10 +4238,7 @@ int cnss_pci_probe_basic(struct pci_dev *pci_dev,
 		pr_err("cnss_pci_probe_basic plat_priv is NULL!\n");
 		return -EINVAL;
 	}
-	if (use_radio && use_radio != qrtr_instance) {
-		pr_info("Skipping pci_dev registration [%x]\n", use_radio);
-		return 0;
-	}
+
 	plat_priv->pci_dev = (struct platform_device *)pci_dev;
 	plat_priv->pci_dev_id = (struct platform_device_id *)id;
 
