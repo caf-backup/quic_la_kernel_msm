@@ -2574,6 +2574,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 	if ((plat_priv->device_id == QCA8074_DEVICE_ID ||
 	     plat_priv->device_id == QCA8074V2_DEVICE_ID ||
 	     plat_priv->device_id == QCA5018_DEVICE_ID ||
+	     plat_priv->device_id == QCN9100_DEVICE_ID ||
 	     plat_priv->device_id == QCA6018_DEVICE_ID) &&
 	    of_property_read_u32_array(dev->of_node, "qcom,caldb-addr",
 				       caldb_location,
@@ -2675,6 +2676,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 	if (plat_priv->device_id == QCA8074_DEVICE_ID ||
 	    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
 	    plat_priv->device_id == QCA5018_DEVICE_ID ||
+	    plat_priv->device_id == QCN9100_DEVICE_ID ||
 	    plat_priv->device_id == QCA6018_DEVICE_ID) {
 		if (of_property_read_u32_array(dev->of_node, "qcom,bdf-addr",
 					       bdf_location,
@@ -3217,18 +3219,23 @@ EXPORT_SYMBOL(cnss_smmu_map);
 
 int cnss_get_soc_info(struct device *dev, struct cnss_soc_info *info)
 {
-	struct cnss_pci_data *pci_priv = cnss_get_pci_priv(to_pci_dev(dev));
-	struct cnss_plat_data *plat_priv;
-
-	if (!pci_priv)
-		return -ENODEV;
-
-	plat_priv = pci_priv->plat_priv;
+	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
 	if (!plat_priv)
 		return -ENODEV;
 
-	info->va = pci_priv->bar;
-	info->pa = pci_resource_start(pci_priv->pci_dev, PCI_BAR_NUM);
+	if (plat_priv->device_id == QCN9100_DEVICE_ID) {
+		info->va = plat_priv->qcn9100.bar_addr_va;
+		info->pa = (phys_addr_t)plat_priv->qcn9100.bar_addr_pa;
+	} else {
+		struct cnss_pci_data *pci_priv =
+				cnss_get_pci_priv(to_pci_dev(dev));
+
+		if (!pci_priv)
+			return -ENODEV;
+
+		info->va = pci_priv->bar;
+		info->pa = pci_resource_start(pci_priv->pci_dev, PCI_BAR_NUM);
+	}
 
 	memcpy(&info->device_version, &plat_priv->device_version,
 	       sizeof(info->device_version));

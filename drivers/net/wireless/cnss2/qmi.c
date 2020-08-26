@@ -102,8 +102,8 @@ void qmi_record(u8 instance_id, u16 msg_id, s8 error_msg, s8 resp_err_msg)
 		qmi_log[qmi_history_index].error_msg = 0;
 
 	qmi_log[qmi_history_index].resp_err_msg = resp_err_msg;
-
 	qmi_log[qmi_history_index++].timestamp = ktime_to_ms(ktime_get());
+
 	qmi_history_index &= (QMI_HISTORY_SIZE - 1);
 	spin_unlock(&qmi_log_spinlock);
 }
@@ -592,6 +592,9 @@ static int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 	case QCA5018_DEVICE_ID:
 		folder = "IPQ5018/";
 		break;
+	case QCN9100_DEVICE_ID:
+		folder = "QCN9100/";
+		break;
 	default:
 		folder = "IPQ8074/";
 		break;
@@ -789,6 +792,7 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv,
 		if (plat_priv->device_id == QCA8074_DEVICE_ID ||
 		    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
 		    plat_priv->device_id == QCA5018_DEVICE_ID ||
+		    plat_priv->device_id == QCN9100_DEVICE_ID ||
 		    plat_priv->device_id == QCA6018_DEVICE_ID) {
 			temp = filename;
 			remaining = MAX_BDF_FILE_NAME;
@@ -812,6 +816,7 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv,
 		if (plat_priv->device_id == QCA8074_DEVICE_ID ||
 		    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
 		    plat_priv->device_id == QCA5018_DEVICE_ID ||
+		    plat_priv->device_id == QCN9100_DEVICE_ID ||
 		    plat_priv->device_id == QCA6018_DEVICE_ID) {
 			temp = filename;
 			remaining = MAX_BDF_FILE_NAME;
@@ -878,6 +883,7 @@ bypass_bdf:
 		if (plat_priv->device_id == QCA8074_DEVICE_ID ||
 		    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
 		    plat_priv->device_id == QCA5018_DEVICE_ID ||
+		    plat_priv->device_id == QCN9100_DEVICE_ID ||
 		    plat_priv->device_id == QCA6018_DEVICE_ID) {
 			cnss_wlfw_load_bdf(req, plat_priv,
 					   MAX_BDF_FILE_NAME,
@@ -1936,6 +1942,117 @@ out:
 	return ret;
 }
 
+int cnss_wlfw_device_info_send_sync(struct cnss_plat_data *plat_priv)
+{
+	struct wlfw_device_info_req_msg_v01 *req;
+	struct wlfw_device_info_resp_msg_v01 *resp;
+	struct qmi_txn txn;
+	int ret = 0;
+	int resp_error_msg = 0;
+
+	cnss_pr_dbg("Sending Device Info request message, state: 0x%lx\n",
+		    plat_priv->driver_state);
+
+	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	if (!req)
+		return -ENOMEM;
+
+	resp = kzalloc(sizeof(*resp), GFP_KERNEL);
+	if (!resp) {
+		kfree(req);
+		return -ENOMEM;
+	}
+
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_DEVICE_INFO_REQ_V01, ret, resp_error_msg);
+
+	ret = qmi_txn_init(&plat_priv->qmi_wlfw, &txn,
+			   wlfw_device_info_resp_msg_v01_ei, resp);
+	if (ret < 0) {
+		cnss_pr_err("Fail to init txn for Device Info req, err: %d\n",
+			    ret);
+		goto out;
+	}
+
+	ret = qmi_send_request(&plat_priv->qmi_wlfw, NULL, &txn,
+			       QMI_WLFW_DEVICE_INFO_REQ_V01,
+			       WLFW_DEVICE_INFO_REQ_MSG_V01_MAX_MSG_LEN,
+			       wlfw_device_info_req_msg_v01_ei, req);
+	if (ret < 0) {
+		qmi_txn_cancel(&txn);
+		cnss_pr_err("Fail to send device info req %d\n", ret);
+		goto out;
+	}
+
+	ret = qmi_txn_wait(&txn, QMI_WLFW_TIMEOUT_JF);
+	if (ret < 0) {
+		cnss_pr_err("Failed to wait for device info response err: %d\n",
+			    ret);
+		goto out;
+	}
+
+	if (resp->resp.result != QMI_RESULT_SUCCESS_V01) {
+		cnss_pr_err("Device info request failed, result: %d error: %d\n",
+			    resp->resp.result, resp->resp.error);
+		ret = -resp->resp.result;
+		resp_error_msg = resp->resp.error;
+		goto out;
+	}
+
+	if (!resp->bar_addr_valid || !resp->bar_size_valid) {
+		cnss_pr_err("bar addr(%d) or bar size(%d) not received\n",
+			    resp->bar_addr_valid, resp->bar_size_valid);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (!resp->bar_addr ||
+	    (resp->bar_size != QCN9100_DEVICE_BAR_SIZE)) {
+		cnss_pr_err("Invalid bar addr(0x%llx) or bar size (0x%x)\n",
+			    resp->bar_addr, resp->bar_size);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	plat_priv->qcn9100.bar_addr_pa = resp->bar_addr;
+	plat_priv->qcn9100.bar_size = resp->bar_size;
+
+	plat_priv->qcn9100.bar_addr_va =
+				ioremap_nocache(plat_priv->qcn9100.bar_addr_pa,
+						plat_priv->qcn9100.bar_size);
+
+	if (!plat_priv->qcn9100.bar_addr_va) {
+		cnss_pr_err("Ioremap failed for bar address\n");
+		plat_priv->qcn9100.bar_addr_pa = 0;
+		plat_priv->qcn9100.bar_size = 0;
+		ret = -EIO;
+		goto out;
+	}
+
+	cnss_pr_info("Device BAR Info pa: 0x%llx, va: 0x%p, size: 0x%x\n",
+		     plat_priv->qcn9100.bar_addr_pa,
+		     plat_priv->qcn9100.bar_addr_va,
+		     plat_priv->qcn9100.bar_size);
+
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_DEVICE_INFO_RESP_V01, ret, resp_error_msg);
+
+	kfree(resp);
+	kfree(req);
+	return 0;
+
+out:
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_DEVICE_INFO_RESP_V01, ret, resp_error_msg);
+
+	kfree(resp);
+	kfree(req);
+	if (ret < 0)
+		CNSS_ASSERT(0);
+
+	return ret;
+}
+
 unsigned int cnss_get_qmi_timeout(struct cnss_plat_data *plat_priv)
 {
 	cnss_pr_dbg("QMI timeout is %u ms\n", QMI_WLFW_TIMEOUT_MS);
@@ -2476,6 +2593,7 @@ int cnss_qmi_init(struct cnss_plat_data *plat_priv)
 	if (plat_priv->device_id == QCA8074_DEVICE_ID ||
 	    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
 	    plat_priv->device_id == QCA5018_DEVICE_ID ||
+	    plat_priv->device_id == QCN9100_DEVICE_ID ||
 	    plat_priv->device_id == QCA6018_DEVICE_ID) {
 		if (qca8074_fw_mem_mode != 0xFF) {
 			plat_priv->tgt_mem_cfg_mode = qca8074_fw_mem_mode;
