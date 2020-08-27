@@ -1206,9 +1206,7 @@ int of_register_mhi_controller(struct mhi_controller *mhi_cntrl)
 						  DMA_MEMORY_EXCLUSIVE);
 
 		if (!ret) {
-			ret = -EBUSY;
-			MHI_LOG("Failed to declare dma coherent memory");
-			goto error_alloc_dev;
+			MHI_LOG("Failed to declare dma coherent memory, falling back to common memory pool");
 		}
 	} else {
 		MHI_ERR("mhi coherent pool is not reserved");
