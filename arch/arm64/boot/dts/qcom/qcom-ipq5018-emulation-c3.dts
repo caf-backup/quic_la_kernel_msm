@@ -23,6 +23,26 @@
 	compatible = "qcom,ipq5018-emulation-c1", "qcom,ipq5018";
 	interrupt-parent = <&intc>;
 
+	reserved-memory {
+		/delete-node/ wcnss@4b000000;
+		/delete-node/ q6_etr_dump@4e700000;
+
+		q6_code_data: q6_code_data@4b000000 {
+			no-map;
+			reg = <0x0 0x4b000000 0x0 0x1000000>;
+		};
+
+		q6_ipq5018_data: q6_ipq5018_data@4c000000 {
+			no-map;
+			reg = <0x0 0x4c000000 0x0 0x1200000>;
+		};
+
+		q6_qcn9100_data1: q6_qcn9100_data1@4d200000 {
+			no-map;
+			reg = <0x0 0x4d200000 0x0 0x1400000>;
+		};
+	};
+
 	aliases {
 		sdhc1 = &sdhc_1; /* SDC1 eMMC slot */
 		serial0 = &blsp1_uart1;
@@ -90,10 +110,6 @@
 					};
 				};
 			};
-		};
-
-		wifi0: wifi@c000000 {
-			status = "ok";
 		};
 
 		qca,scm_restart_reason {
@@ -164,9 +180,75 @@
 	status = "disabled";
 };
 
+&q6v5_wcss {
+	memory-region = <&q6_code_data>, <&q6_ipq5018_data>,
+			<&q6_qcn9100_data1>;
+};
+
 &qcom_q6v5_wcss {
 	qcom,nosecure;
 	qcom,emulation;
+	memory-region = <&q6_code_data>, <&q6_ipq5018_data>,
+			<&q6_qcn9100_data1>;
+	/* ipq5018 radio */
+	q6v5_wcss_userpd1 {
+		interrupts-extended = <&wcss_smp2p_in 8 0>,
+			<&wcss_smp2p_in 9 0>,
+			<&wcss_smp2p_in 12 0>,
+			<&wcss_smp2p_in 11 0>;
+		interrupt-names ="fatal",
+			"ready",
+			"spawn-ack",
+			"stop-ack";
+		qcom,smem-states = <&wcss_smp2p_out 8>,
+			<&wcss_smp2p_out 9>,
+			<&wcss_smp2p_out 10>;
+		qcom,smem-state-names = "shutdown",
+			"stop",
+			"spawn";
+		qca,asid = <1>;
+		qca,auto-restart;
+	};
+
+	/*1st qcn9100 radio*/
+	q6v5_wcss_userpd2 {
+		interrupts-extended = <&wcss_smp2p_in 16 0>,
+			<&wcss_smp2p_in 17 0>,
+			<&wcss_smp2p_in 20 0>,
+			<&wcss_smp2p_in 19 0>;
+		interrupt-names ="fatal",
+			"ready",
+			"spawn-ack",
+			"stop-ack";
+		qcom,smem-states = <&wcss_smp2p_out 16>,
+			<&wcss_smp2p_out 17>,
+			<&wcss_smp2p_out 18>;
+		qcom,smem-state-names = "shutdown",
+			"stop",
+			"spawn";
+		qca,asid = <2>;
+		qca,auto-restart;
+	};
+
+	/*2nd qcn9100 radio*/
+	q6v5_wcss_userpd3 {
+		interrupts-extended = <&wcss_smp2p_in 24 0>,
+			<&wcss_smp2p_in 25 0>,
+			<&wcss_smp2p_in 28 0>,
+			<&wcss_smp2p_in 27 0>;
+		interrupt-names ="fatal",
+			"ready",
+			"spawn-ack",
+			"stop-ack";
+		qcom,smem-states = <&wcss_smp2p_out 24>,
+			<&wcss_smp2p_out 25>,
+			<&wcss_smp2p_out 26>;
+		qcom,smem-state-names = "shutdown",
+			"stop",
+			"spawn";
+		qca,asid = <3>;
+		qca,auto-restart;
+	};
 };
 
 &tlmm {
@@ -195,4 +277,22 @@
 			bias-pull-down;
 		};
 	};
+};
+
+&wifi0 {
+	/* IPQ5018 */
+	qcom,bdf-addr = <0x4C000000 0x4C000000 0x4C000000>;
+	qcom,caldb-addr = <0x4D000000 0x4D000000 0x4D000000>;
+	qcom,caldb-size = <0x200000>;
+	qcom,userpd-subsys-name = "q6v5_wcss_userpd1";
+	status = "ok";
+};
+
+&wifi1 {
+	/* QCN9100_1 */
+	qcom,bdf-addr = <0x4D200000 0x4D200000 0x4D200000>;
+	qcom,caldb-addr = <0x4E400000 0x4E400000 0x4E400000>;
+	qcom,caldb-size = <0x200000>;
+	qcom,userpd-subsys-name = "q6v5_wcss_userpd2";
+	status = "disabled";
 };
