@@ -90,6 +90,7 @@
 #define TCSR_WCSS_CLK_ENABLE	0x14
 
 #define WCNSS_PAS_ID		6
+#define MPD_WCNSS_PAS_ID	0xD
 #define DEFAULT_IMG_ADDR        0x4b000000
 
 #define Q6_BOOT_TRIG_SVC_ID	0x5
@@ -1015,6 +1016,18 @@ static int q6v5_wcss_userpd_powerup(struct rproc *rproc)
 
 	if (wcss->is_int_radio) {
 		struct q6v5_wcss *wcss_p = rproc->parent->priv;
+		struct q6_platform_data *pdata = dev_get_platdata(wcss_p->dev);
+
+		if (pdata->nosecure)
+			goto skip_secure;
+
+		ret = qcom_scm_int_radio_powerup(MPD_WCNSS_PAS_ID);
+		if (ret) {
+			dev_err(wcss->dev, "failed to power up int radio\n");
+			return ret;
+		}
+		goto success_msg;
+skip_secure:
 		/* AON Reset */
 		ret = reset_control_deassert(wcss_p->wcss_aon_reset);
 		if (ret) {
@@ -1048,6 +1061,7 @@ static int q6v5_wcss_userpd_powerup(struct rproc *rproc)
 			dev_err(wcss->dev, "ce_reset failed\n");
 			return ret;
 		}
+success_msg:
 		pr_info("%s wcss powered up successfully\n", rproc->name);
 	}
 	return 0;
@@ -1087,12 +1101,13 @@ static int q6v5_wcss_start(struct rproc *rproc)
 	struct qcom_q6v5 *q6v5 = &wcss->q6v5;
 	struct q6_platform_data *pdata = dev_get_platdata(wcss->dev);
 	int ret;
+	u32 peripheral = pdata->is_mpd_arch ? MPD_WCNSS_PAS_ID : WCNSS_PAS_ID;
 
 	if (pdata->nosecure)
 		goto skip_secure;
 
 	qcom_q6v5_prepare(&wcss->q6v5);
-	ret = qcom_scm_pas_auth_and_reset(WCNSS_PAS_ID, debug_wcss,
+	ret = qcom_scm_pas_auth_and_reset(peripheral, debug_wcss,
 						wcss->reset_cmd_id);
 	if (ret) {
 		dev_err(wcss->dev, "q6-wcss reset failed\n");
@@ -1154,7 +1169,7 @@ skip_reset:
 			goto skip_reset;
 
 		if (!pdata->nosecure)
-			qcom_scm_pas_shutdown(WCNSS_PAS_ID);
+			qcom_scm_pas_shutdown(peripheral);
 
 		if (q6v5->running) {
 			ret = 0;
@@ -1423,6 +1438,18 @@ static int q6v5_wcss_userpd_powerdown(struct rproc *rproc)
 	struct q6v5_wcss *wcss_p = rproc->parent->priv, *wcss = rproc->priv;
 
 	if (wcss->is_int_radio) {
+		struct q6_platform_data *pdata = dev_get_platdata(wcss_p->dev);
+
+		if (pdata->nosecure)
+			goto skip_secure;
+
+		ret = qcom_scm_int_radio_powerdown(MPD_WCNSS_PAS_ID);
+		if (ret) {
+			dev_err(wcss->dev, "failed to power down int radio\n");
+			return ret;
+		}
+		goto success_msg;
+skip_secure:
 		/* WCSS powerdown */
 		ret = q6v5_wcss_powerdown(wcss_p);
 		if (ret) {
@@ -1451,6 +1478,7 @@ static int q6v5_wcss_userpd_powerdown(struct rproc *rproc)
 
 		/* Deassert WCSS reset */
 		reset_control_deassert(wcss_p->wcss_reset);
+success_msg:
 		dev_info(&rproc->dev, "%s wcss powered down successfully\n",
 								rproc->name);
 	}
@@ -1491,11 +1519,12 @@ static int q6v5_wcss_stop(struct rproc *rproc)
 	struct q6v5_wcss *wcss = rproc->priv;
 	struct q6_platform_data *pdata = dev_get_platdata(wcss->dev);
 	int ret;
+	u32 peripheral = pdata->is_mpd_arch ? MPD_WCNSS_PAS_ID : WCNSS_PAS_ID;
 
 	if (pdata->nosecure)
 		goto skip_secure;
 
-	ret = qcom_scm_pas_shutdown(WCNSS_PAS_ID);
+	ret = qcom_scm_pas_shutdown(peripheral);
 	if (ret) {
 		dev_err(wcss->dev, "not able to shutdown\n");
 		return ret;
@@ -1539,6 +1568,7 @@ static int q6v5_wcss_load(struct rproc *rproc, const struct firmware *fw)
 	struct q6_platform_data *pdata = dev_get_platdata(wcss->dev);
 	const struct firmware *m3_fw;
 	int ret;
+	u32 peripheral = pdata->is_mpd_arch ? MPD_WCNSS_PAS_ID : WCNSS_PAS_ID;
 
 	if (!wcss->m3_fw_name) {
 		dev_info(wcss->dev, "skipping firmware %s\n", "m3_fw.mdt");
@@ -1565,11 +1595,11 @@ static int q6v5_wcss_load(struct rproc *rproc, const struct firmware *fw)
 skip_m3:
 	if (pdata->nosecure)
 		ret = qcom_mdt_load_no_init(wcss->dev, fw, rproc->firmware,
-			     WCNSS_PAS_ID, wcss->mem_region, wcss->mem_phys,
+			     peripheral, wcss->mem_region, wcss->mem_phys,
 			     wcss->mem_size, &wcss->mem_reloc);
 	else
 		ret = qcom_mdt_load(wcss->dev, fw, rproc->firmware,
-			     WCNSS_PAS_ID, wcss->mem_region, wcss->mem_phys,
+			     peripheral, wcss->mem_region, wcss->mem_phys,
 			     wcss->mem_size, &wcss->mem_reloc);
 
 	return ret;
@@ -1582,6 +1612,7 @@ static int q6v5_wcss_userpd_load(struct rproc *rproc, const struct firmware *fw)
 	struct q6v5_wcss *wcss_p = p->priv, *wcss = rproc->priv;
 	struct q6_platform_data *pdata = dev_get_platdata(wcss_p->dev);
 	int ret;
+	u32 peripheral = pdata->is_mpd_arch ? MPD_WCNSS_PAS_ID : WCNSS_PAS_ID;
 
 	dev_dbg(&rproc->dev, "%s:p:%p-p->name:%s-c:%p-c->name:%s-\n", __func__,
 				p, p->name, rproc, rproc->name);
@@ -1595,11 +1626,11 @@ static int q6v5_wcss_userpd_load(struct rproc *rproc, const struct firmware *fw)
 
 	if (pdata->nosecure)
 		ret = qcom_mdt_load_no_init(wcss->dev, f, p->firmware,
-			     WCNSS_PAS_ID, wcss_p->mem_region, wcss_p->mem_phys,
+			     peripheral, wcss_p->mem_region, wcss_p->mem_phys,
 			     wcss_p->mem_size, &wcss_p->mem_reloc);
 	else
 		ret = qcom_mdt_load(wcss->dev, f, p->firmware,
-			     WCNSS_PAS_ID, wcss_p->mem_region, wcss_p->mem_phys,
+			     peripheral, wcss_p->mem_region, wcss_p->mem_phys,
 			     wcss_p->mem_size, &wcss_p->mem_reloc);
 	return ret;
 }

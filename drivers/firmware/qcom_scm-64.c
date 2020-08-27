@@ -662,6 +662,52 @@ int __qcom_scm_wcss_boot(struct device *dev, u32 svc_id, u32 cmd_id,
 	return ret ? : res.a1;
 }
 
+int __qcom_scm_pdseg_memcpy(struct device *dev, u32 peripheral,
+				int phno, dma_addr_t dma, size_t size)
+{
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+	int ret;
+
+	desc.args[0] = peripheral;
+	desc.args[1] = phno;
+	desc.args[2] = dma;
+	desc.args[3] = size;
+
+	desc.arginfo = SCM_ARGS(4, SCM_VAL, SCM_VAL, SCM_RW, SCM_VAL);
+	ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, PD_LOAD_SVC_ID,
+			PD_LOAD_CMD_ID, &desc, &res);
+	return ret ? : res.a1;
+}
+
+int __qcom_scm_int_radio_powerup(struct device *dev, u32 peripheral)
+{
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+	int ret;
+
+	desc.args[0] = peripheral;
+
+	desc.arginfo = SCM_ARGS(1, SCM_VAL);
+	ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, PD_LOAD_SVC_ID,
+			INT_RAD_PWR_UP_CMD_ID, &desc, &res);
+	return ret ? : res.a1;
+}
+
+int __qcom_scm_int_radio_powerdown(struct device *dev, u32 peripheral)
+{
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+	int ret;
+
+	desc.args[0] = peripheral;
+
+	desc.arginfo = SCM_ARGS(1, SCM_VAL);
+	ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, PD_LOAD_SVC_ID,
+			INT_RAD_PWR_DN_CMD_ID, &desc, &res);
+	return ret ? : res.a1;
+}
+
 int __qcom_scm_sdi(struct device *dev, u32 svc_id, u32 cmd_id)
 {
 	struct qcom_scm_desc desc = {0};

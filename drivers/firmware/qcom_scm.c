@@ -750,6 +750,55 @@ int qcom_scm_wcss_boot(u32 svc_id, u32 cmd_id, void *cmd_buf)
 }
 EXPORT_SYMBOL(qcom_scm_wcss_boot);
 
+int qcom_scm_pdseg_memcpy(u32 peripheral, int phno, dma_addr_t dma,
+							size_t size)
+{
+	int ret;
+
+	ret = qcom_scm_clk_enable();
+	if (ret)
+		return ret;
+
+	ret = __qcom_scm_pdseg_memcpy(__scm->dev, peripheral, phno, dma, size);
+
+	qcom_scm_clk_disable();
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_scm_pdseg_memcpy);
+
+int qcom_scm_int_radio_powerup(u32 peripheral)
+{
+	int ret;
+
+	ret = qcom_scm_clk_enable();
+	if (ret)
+		return ret;
+
+	ret = __qcom_scm_int_radio_powerup(__scm->dev, peripheral);
+
+	qcom_scm_clk_disable();
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_scm_int_radio_powerup);
+
+int qcom_scm_int_radio_powerdown(u32 peripheral)
+{
+	int ret;
+
+	ret = qcom_scm_clk_enable();
+	if (ret)
+		return ret;
+
+	ret = __qcom_scm_int_radio_powerdown(__scm->dev, peripheral);
+
+	qcom_scm_clk_disable();
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_scm_int_radio_powerdown);
+
 int qcom_scm_pshold(void)
 {
 	int ret;

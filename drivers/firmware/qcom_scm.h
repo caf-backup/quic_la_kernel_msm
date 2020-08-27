@@ -14,6 +14,7 @@
 
 #include <linux/qcom_scm.h>
 #include <soc/qcom/secure_buffer.h>
+#include <linux/dma-mapping.h>
 #define QCOM_SCM_SVC_BOOT			0x1
 #define CLEAR_MAGIC				0x0
 #define SET_MAGIC				0x1
@@ -191,6 +192,16 @@ extern int qcom_scm_dload(u32 svc_id, u32 cmd_id, void *cmd_buf);
 extern int __qcom_scm_wcss_boot(struct device *, u32 svc_id, u32 cmd_id,
 				void *cmd_buf);
 extern int qcom_scm_wcss_boot(u32 svc_id, u32 cmd_id, void *cmd_buf);
+
+extern int __qcom_scm_pdseg_memcpy(struct device *, u32 peripheral,
+				int phno, dma_addr_t dma, size_t size);
+extern int qcom_scm_pdseg_memcpy(u32 peripheral, int phno, dma_addr_t dma,
+								size_t size);
+extern int __qcom_scm_int_radio_powerup(struct device *dev, u32 peripheral);
+extern int qcom_scm_int_radio_powerup(u32 peripheral);
+extern int __qcom_scm_int_radio_powerdown(struct device *dev, u32 peripheral);
+extern int qcom_scm_int_radio_powerdown(u32 peripheral);
+
 extern int __qcom_scm_tcsr(struct device *, u32 svc_id, u32 cmd_id,
 			struct qcom_scm_tcsr_req *tcsr_cmd);
 
@@ -208,6 +219,10 @@ extern int qcom_scm_pshold(void);
 #define SCM_SVC_TZSCHEDULER	0xFC
 #define SCM_CMD_TZSCHEDULER	0x1
 
+#define PD_LOAD_SVC_ID		0x2
+#define PD_LOAD_CMD_ID		0x16
+#define INT_RAD_PWR_UP_CMD_ID	0x17
+#define INT_RAD_PWR_DN_CMD_ID	0x18
 s32 __qcom_scm_pinmux_read(u32 svc_id, u32 cmd_id, u32 arg1);
 s32 __qcom_scm_pinmux_write(u32 svc_id, u32 cmd_id, u32 arg1, u32 arg2);
 s32 __qcom_scm_usb_mode_write(u32 svc_id, u32 cmd_id, u32 arg1, u32 arg2);
