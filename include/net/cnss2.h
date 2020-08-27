@@ -342,6 +342,10 @@ static inline u64 cnss_get_q6_time(struct device *dev)
 {
 	return 0;
 }
+
+static inline void cnss_dump_qmi_history(void)
+{
+}
 #else
 extern int cnss_wlan_register_driver(struct cnss_wlan_driver *driver);
 extern void cnss_wlan_unregister_driver(struct cnss_wlan_driver *driver);
@@ -418,6 +422,6 @@ extern int cnss_athdiag_write(struct device *dev, uint32_t offset,
 extern int cnss_set_fw_log_mode(struct device *dev, uint8_t fw_log_mode);
 bool cnss_is_dev_initialized(struct device *dev);
 u64 cnss_get_q6_time(struct device *dev);
-
+extern void cnss_dump_qmi_history(void);
 #endif
 #endif /* _NET_CNSS2_H */
