@@ -26,6 +26,7 @@
 #include <soc/qcom/subsystem_restart.h>
 #include <linux/platform_device.h>
 #include <linux/remoteproc.h>
+#include <linux/debugfs.h>
 
 /*
  * To call subsystem get & put for WCSS alone,
@@ -54,9 +55,35 @@ static struct notifier_block atomic_nb;
 
 #define TEST_SSR_WCSS "qcom_q6v5_wcss"
 #define TEST_SSR_LPASS "q6v6-adsp"
-
+#define WCSS_RPROC	"cd00000.qcom_q6v5_wcss"
 static int test_id = 1;
 module_param(test_id, int, S_IRUGO | S_IWUSR | S_IWGRP);
+static ulong  user_pd;
+module_param(user_pd, ulong, S_IRUGO | S_IWUSR | S_IWGRP);
+
+#define MAX_USERPD_CNT	3
+
+struct userpd_info {
+	char name[20];
+	struct rproc *rproc;
+	/*0-stop, 1-start*/
+	bool pd_curr_state;
+	int pd_id;
+	void *subsys_hdl;
+	void *notif_hdl;
+	struct notifier_block nb;
+	struct notifier_block atomic_nb;
+};
+
+struct userpd_dbgfs_info {
+	struct dentry *userpd;
+	/*0-stop, 1-start*/
+	struct dentry *start_stop;
+	struct userpd_info userpd_hdl;
+};
+
+static struct dentry *q6_userpd_debug;
+static struct userpd_dbgfs_info *userpd_dbgfs_hdl[MAX_USERPD_CNT];
 
 static const char *action_to_string(enum subsys_notif_type action)
 {
@@ -184,6 +211,232 @@ static struct rproc * get_rproc_from_phandle(void) {
 }
 #endif
 
+static ssize_t show_start_stop(struct file *file, char __user *user_buf,
+			size_t count, loff_t *ppos)
+{
+	struct userpd_dbgfs_info *hdl = file->private_data;
+	char _buf[16] = {0};
+	int ret;
+
+	snprintf(_buf, sizeof(_buf), "%d\n", hdl->userpd_hdl.pd_curr_state);
+	ret = simple_read_from_buffer(user_buf, count, ppos, _buf,
+						strnlen(_buf, 16));
+	return ret;
+}
+
+static ssize_t store_start_stop(struct file *file, const char __user *user_buf,
+			size_t count, loff_t *ppos)
+{
+	struct userpd_dbgfs_info *hdl = file->private_data;
+	bool state;
+	int ret;
+
+	hdl->userpd_hdl.nb.notifier_call = tssr_notifier;
+	hdl->userpd_hdl.atomic_nb.notifier_call = tssr_notifier;
+
+	ret = kstrtobool_from_user(user_buf, count, &state);
+	if (ret) {
+		pr_err("Failed to retrieve userbuf value\n");
+		return ret;
+	}
+
+	if (state == hdl->userpd_hdl.pd_curr_state)
+		return -EINVAL;
+
+	if (state) {
+		if (test_id == 1) { /*subsys framework*/
+			/*Register notifier*/
+			hdl->userpd_hdl.notif_hdl =
+				subsys_notif_register_notifier(
+						hdl->userpd_hdl.name,
+						&hdl->userpd_hdl.nb);
+			if (IS_ERR_OR_NULL(hdl->userpd_hdl.notif_hdl)) {
+				pr_emerg("Subsystem notif reg failed\n");
+				return PTR_ERR(hdl->userpd_hdl.notif_hdl);
+			}
+			/*Register atomic notifier*/
+			ret = subsys_notif_register_atomic_notifier(
+					hdl->userpd_hdl.notif_hdl,
+					&hdl->userpd_hdl.atomic_nb);
+			if (ret < 0) {
+				pr_emerg("Subsystem %s atomic notif reg failed\n",
+						hdl->userpd_hdl.name);
+				ret = subsys_notif_unregister_notifier(
+						hdl->userpd_hdl.notif_hdl,
+						&hdl->userpd_hdl.nb);
+				if (ret < 0)
+					pr_emerg("Can't unregister subsys notifier\n");
+
+				return ret;
+			}
+
+			hdl->userpd_hdl.subsys_hdl =
+				subsystem_get(hdl->userpd_hdl.name);
+			if (IS_ERR_OR_NULL(hdl->userpd_hdl.subsys_hdl)) {
+				pr_err("could not get %s subsys handle\n",
+						hdl->userpd_hdl.name);
+				return PTR_ERR(hdl->userpd_hdl.subsys_hdl);
+			}
+		} else if (test_id == 4) { /*rproc framework*/
+			hdl->userpd_hdl.rproc =
+				rproc_get_by_name(hdl->userpd_hdl.name);
+			if (IS_ERR_OR_NULL(hdl->userpd_hdl.rproc)) {
+				pr_err("could not get %s rproc..\n",
+						hdl->userpd_hdl.name);
+				return PTR_ERR(hdl->userpd_hdl.rproc);
+			}
+			ret = rproc_boot(hdl->userpd_hdl.rproc);
+			if (ret) {
+				pr_err("couldn't boot q6v5: %d\n", ret);
+				return ret;
+			}
+		}
+		/*userpd started*/
+		hdl->userpd_hdl.pd_curr_state = true;
+	} else {
+		if (test_id == 1) /*subsys framework*/ {
+			subsystem_put(hdl->userpd_hdl.subsys_hdl);
+			subsys_notif_unregister_notifier(
+					hdl->userpd_hdl.notif_hdl,
+					&hdl->userpd_hdl.nb);
+			subsys_notif_unregister_atomic_notifier(
+					hdl->userpd_hdl.notif_hdl,
+					&hdl->userpd_hdl.atomic_nb);
+		} else if (test_id == 4) /*rproc framework*/
+			rproc_shutdown(hdl->userpd_hdl.rproc);
+		/*userpd stopped*/
+		hdl->userpd_hdl.pd_curr_state = false;
+	}
+	return count;
+}
+
+static const struct file_operations userpd_ops = {
+	.open = simple_open,
+	.write = store_start_stop,
+	.read = show_start_stop,
+};
+
+static int create_userpd_debugfs(void)
+{
+	int ret, cnt, tmp;
+	char name[20];
+
+	/*Get userpd count*/
+	cnt = rproc_get_child_cnt(WCSS_RPROC);
+	if (cnt > MAX_USERPD_CNT) {
+		pr_err("Current implementation don't support %d userpd's\n",
+			cnt);
+		return -EINVAL;
+	}
+
+	if (!cnt) {
+		pr_err("No userpd is registered\n");
+		return -EINVAL;
+	}
+
+	/*create a sysfs entry to start/stop registered user pd's*/
+	q6_userpd_debug = debugfs_create_dir("q6v5_userpd_debug", NULL);
+	if (IS_ERR(q6_userpd_debug)) {
+		pr_err("Failed to create q6v5 userpd debug directory\n");
+		return PTR_ERR(q6_userpd_debug);
+	}
+
+	for (tmp = 0; tmp < cnt; tmp++) {
+		userpd_dbgfs_hdl[tmp] = kzalloc(sizeof(*userpd_dbgfs_hdl[tmp]),
+					GFP_KERNEL);
+		if (!userpd_dbgfs_hdl[tmp]) {
+			pr_err("Failed to allocate memory\n");
+			ret = PTR_ERR(userpd_dbgfs_hdl[tmp]);
+			goto err_free_mem;
+		}
+		snprintf(name, sizeof(name), "q6v5_wcss_userpd%d", (tmp + 1));
+
+		/*sysfs entry for each userpd*/
+		userpd_dbgfs_hdl[tmp]->userpd = debugfs_create_dir(name,
+							q6_userpd_debug);
+		if (IS_ERR(userpd_dbgfs_hdl[tmp]->userpd)) {
+			pr_err("Failed to create q6v5 userpd%d debug directory\n",
+					(tmp + 1));
+			ret = PTR_ERR(userpd_dbgfs_hdl[tmp]->userpd);
+			goto err_release_userpd;
+		}
+		userpd_dbgfs_hdl[tmp]->userpd_hdl.pd_id = (tmp + 1);
+		strlcpy(userpd_dbgfs_hdl[tmp]->userpd_hdl.name, name,
+			sizeof(userpd_dbgfs_hdl[tmp]->userpd_hdl.name));
+
+		/*sysfs entry for userpd start/stop*/
+		userpd_dbgfs_hdl[tmp]->start_stop =
+			debugfs_create_file("start_stop",
+					0600, userpd_dbgfs_hdl[tmp]->userpd,
+					userpd_dbgfs_hdl[tmp],
+					&userpd_ops);
+		if (IS_ERR(userpd_dbgfs_hdl[tmp]->start_stop)) {
+			pr_err("Failed to create q6v5\
+				userpd%d start/stop\n", (tmp + 1));
+			ret = PTR_ERR(userpd_dbgfs_hdl[tmp]->start_stop);
+			goto err_release_userpd_start_stop;
+		}
+	}
+	return 0;
+
+	for (; tmp >= 0; tmp--) {
+err_release_userpd_start_stop:
+		debugfs_remove(userpd_dbgfs_hdl[tmp]->start_stop);
+err_release_userpd:
+		debugfs_remove(userpd_dbgfs_hdl[tmp]->userpd);
+err_free_mem:
+		kfree(userpd_dbgfs_hdl[tmp]);
+	}
+	debugfs_remove(q6_userpd_debug);
+	return ret;
+}
+
+static int remove_userpd_debugfs(void)
+{
+	int tmp, cnt;
+
+	/*Get userpd count*/
+	cnt = rproc_get_child_cnt(WCSS_RPROC);
+	if (cnt > MAX_USERPD_CNT) {
+		pr_err("Current implementation don't support %d userpd's\n",
+			cnt);
+		return -EINVAL;
+	}
+
+	if (!cnt) {
+		pr_err("No userpd is registered\n");
+		return -EINVAL;
+	}
+
+	/*shutdown any userpd's subsequently rootpd
+	* also will be shutted down
+	*/
+	for (tmp = 0; tmp < cnt; tmp++) {
+		if (userpd_dbgfs_hdl[tmp]->userpd_hdl.pd_curr_state) {
+			if (test_id == 1) {
+				subsystem_put(userpd_dbgfs_hdl[tmp]->
+						userpd_hdl.subsys_hdl);
+				subsys_notif_unregister_notifier(
+					userpd_dbgfs_hdl[tmp]->userpd_hdl.notif_hdl,
+					&userpd_dbgfs_hdl[tmp]->userpd_hdl.nb);
+				subsys_notif_unregister_atomic_notifier(
+					userpd_dbgfs_hdl[tmp]->userpd_hdl.notif_hdl,
+					&userpd_dbgfs_hdl[tmp]->userpd_hdl.atomic_nb);
+			} else if (test_id == 4)
+				rproc_shutdown(userpd_dbgfs_hdl[tmp]->
+					userpd_hdl.rproc);
+		}
+	}
+
+	for (tmp = 0; tmp < cnt; tmp++) {
+		debugfs_remove(userpd_dbgfs_hdl[tmp]->start_stop);
+		debugfs_remove(userpd_dbgfs_hdl[tmp]->userpd);
+		kfree(userpd_dbgfs_hdl[tmp]);
+	}
+	debugfs_remove(q6_userpd_debug);
+	return 0;
+}
+
 static int __init testssr_init(void)
 {
 #if defined(CONFIG_QCOM_Q6V5_WCSS)
@@ -195,6 +448,15 @@ static int __init testssr_init(void)
 
 	switch (test_id) {
 	case 1:
+		if (user_pd) {
+			ret = create_userpd_debugfs();
+			if (ret) {
+				pr_err("Failed to create sysfs entry for\
+						userpd\n");
+				return ret;
+			}
+			return 0;
+		}
 		wcss_notif_handle = test_subsys_notif_register(TEST_SSR_WCSS);
 		if (!wcss_notif_handle)
 			goto err;
@@ -226,6 +488,17 @@ static int __init testssr_init(void)
 		break;
 #if defined(CONFIG_QCOM_Q6V5_WCSS)
 	case 4:
+		if (user_pd) {
+#ifndef CONFIG_CNSS2
+			ret = create_userpd_debugfs();
+			if (ret) {
+				pr_err("Failed to create sysfs entry for\
+						userpd\n");
+				return ret;
+			}
+#endif
+			return 0;
+		}
 		q6rproc = get_rproc_from_phandle();
 		if(!q6rproc) {
 			pr_err("could not get rproc..\n");
@@ -270,7 +543,10 @@ static void __exit testssr_exit(void)
 #endif
 	switch (test_id) {
 	case 1:
-		wcss_test_exit();
+		if (user_pd)
+			remove_userpd_debugfs();
+		else
+			wcss_test_exit();
 		break;
 	case 2:
 		adsp_test_exit();
@@ -281,10 +557,16 @@ static void __exit testssr_exit(void)
 		break;
 #if defined(CONFIG_QCOM_Q6V5_WCSS)
 	case 4:
-		q6rproc = get_rproc_from_phandle();
-		if(!q6rproc) {
-			pr_err("could not get rproc..\n");
+		if (user_pd) {
+#ifndef CONFIG_CNSS2
+			remove_userpd_debugfs();
+#endif
 			return;
+		}
+		q6rproc = get_rproc_from_phandle();
+		if (!q6rproc) {
+			pr_err("could not get rproc..\n");
+				return;
 		}
 		rproc_shutdown(q6rproc);
 		break;

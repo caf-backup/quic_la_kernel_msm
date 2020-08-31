@@ -24,6 +24,8 @@
 #include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/soc/qcom/mdt_loader.h>
+#include <linux/property.h>
+
 
 static bool mdt_phdr_valid(const struct elf32_phdr *phdr)
 {
@@ -92,10 +94,14 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 	bool relocate = false;
 	void *ptr;
 	int ret = 0;
-	int i;
+	int i, pd;
+	struct device *dev_p = dev;
 
 	if (!fw || !mem_region || !mem_phys || !mem_size)
 		return -EINVAL;
+
+	if (device_property_read_u32(dev, "qca,asid", &pd))
+		pd = 0;
 
 	ehdr = (struct elf32_hdr *)fw->data;
 	phdrs = (struct elf32_phdr *)(ehdr + 1);
@@ -108,7 +114,7 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 	if (!fw_name)
 		return -ENOMEM;
 
-	if (pas_init) {
+	if (pas_init && pd <= 0) {
 		ret = qcom_scm_pas_init_image(pas_id, fw->data, fw->size);
 		if (ret) {
 			dev_err(dev, "invalid firmware metadata\n");
@@ -120,6 +126,14 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 		phdr = &phdrs[i];
 
 		if (!mdt_phdr_valid(phdr))
+			continue;
+
+		/*
+		 * While doing PD specific reloading, load only that PD
+		 * specific writeable entries. Skip others
+		 */
+		if ((pd > 0) && ((QCOM_MDT_PF_ASID(phdr->p_flags) != pd) ||
+				 ((phdr->p_flags & PF_W) == 0)))
 			continue;
 
 		if (phdr->p_flags & QCOM_MDT_RELOCATABLE)
@@ -152,6 +166,18 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 		if (!mdt_phdr_valid(phdr))
 			continue;
 
+		/*
+		 * While doing PD specific reloading, load only that PD
+		 * specific writeable entries. Skip others
+		 */
+		if (pd > 0) {
+			if (QCOM_MDT_PF_ASID(phdr->p_flags) != pd)
+				continue;
+
+			if ((phdr->p_flags & PF_W) == 0)
+				continue;
+		}
+
 		offset = phdr->p_paddr - mem_reloc;
 		if (offset < 0 || offset + phdr->p_memsz > mem_size) {
 			dev_err(dev, "segment outside memory range\n");
@@ -163,7 +189,9 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 
 		if (phdr->p_filesz) {
 			snprintf(fw_name + fw_name_len - 3, (size_t)4, "b%02d", i);
-			ret = request_firmware(&seg_fw, fw_name, dev);
+			if (pd)
+				dev_p = dev->parent;
+			ret = request_firmware(&seg_fw, fw_name, dev_p);
 			if (ret) {
 				dev_err(dev, "failed to load %s\n", fw_name);
 				break;

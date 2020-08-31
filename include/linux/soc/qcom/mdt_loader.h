@@ -7,6 +7,11 @@
 #define QCOM_MDT_TYPE_MASK	(7 << 24)
 #define QCOM_MDT_TYPE_HASH	(2 << 24)
 #define QCOM_MDT_RELOCATABLE	BIT(27)
+#define QCOM_MDT_ASID_MASK	0xfu
+#define QCOM_MDT_PF_ASID_SHIFT	16
+#define QCOM_MDT_PF_ASID_MASK	(QCOM_MDT_ASID_MASK << QCOM_MDT_PF_ASID_SHIFT)
+#define QCOM_MDT_PF_ASID(x)	\
+			(((x) >> QCOM_MDT_PF_ASID_SHIFT) & QCOM_MDT_ASID_MASK)
 
 struct device;
 struct firmware;
