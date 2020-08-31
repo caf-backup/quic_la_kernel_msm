@@ -13,6 +13,7 @@
 #define __QCOM_SCM_INT_H
 
 #include <linux/qcom_scm.h>
+#include <soc/qcom/secure_buffer.h>
 #define QCOM_SCM_SVC_BOOT			0x1
 #define CLEAR_MAGIC				0x0
 #define SET_MAGIC				0x1
@@ -231,7 +232,7 @@ extern int __qcom_scm_mem_prot_assign(struct device *, struct sg_table *,
 				struct dest_vm_and_perm_info *,
 				size_t dest_size,
 				struct mem_prot_info *sg_table_copy,
-				size_t copy_size, u32 *resp, size_t resp_size);
+				u32 *resp, size_t resp_size);
 
 extern int __qcom_scm_mem_protect_lock(struct device *,
 				struct cp2_lock_req *req, size_t req_size,

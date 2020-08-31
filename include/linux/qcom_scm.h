@@ -251,6 +251,7 @@ struct cp2_lock_req {
 	u32 lock;
 } __attribute__ ((__packed__));
 
+
 struct mem_prot_info {
 	phys_addr_t addr;
 	u64 size;
@@ -262,7 +263,6 @@ struct mem_prot_info {
 #define V2_CHUNK_SIZE			SZ_1M
 #define FEATURE_ID_CP			12
 #define SCM_SVC_MP		0xC
-#define QCOM_SECURE_MEM_SIZE	(512*1024)
 #define BATCH_MAX_SIZE		SZ_2M
 #define BATCH_MAX_SECTIONS	32
 #define GET_FEAT_VERSION_CMD	3
@@ -282,7 +282,6 @@ extern int qcom_scm_mem_prot_assign(struct sg_table *table,
 				struct dest_vm_and_perm_info *dest_vm_copy,
 				size_t dest_vm_copy_size,
 				struct mem_prot_info *sg_table_copy,
-				size_t sg_table_copy_size,
 				u32 *resp, size_t resp_size);
 
 extern int qcom_scm_mem_protect_lock(struct cp2_lock_req *req, size_t req_size,

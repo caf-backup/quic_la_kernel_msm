@@ -683,17 +683,18 @@ int __qcom_scm_mem_prot_assign(struct device *dev, struct sg_table *table,
 			      struct dest_vm_and_perm_info *dest_vm_copy,
 			      size_t dest_vm_copy_size,
 			      struct mem_prot_info *sg_table_copy,
-			      size_t sg_table_copy_size,
 			      u32 *resp, size_t resp_size)
 {
 	int ret = 0;
-	int batch_start, batch_end;
-	u64 batch_size;
+	unsigned int entries_size;
+	unsigned int batch_start = 0;
+	unsigned int batches_processed;
+	struct scatterlist *curr_sgl = table->sgl;
+	struct scatterlist *next_sgl = NULL;
 	struct qcom_scm_desc desc = {0};
 	struct arm_smccc_res res;
 
 	desc.args[0] = virt_to_phys(sg_table_copy);
-	desc.args[1] = sg_table_copy_size;
 	desc.args[2] = virt_to_phys(source_vm_copy);
 	desc.args[3] = source_vm_copy_size;
 	desc.args[4] = virt_to_phys(dest_vm_copy);
@@ -705,37 +706,21 @@ int __qcom_scm_mem_prot_assign(struct device *dev, struct sg_table *table,
 
 	dmac_flush_range(source_vm_copy,
 			 (void *)source_vm_copy + source_vm_copy_size);
-	dmac_flush_range(sg_table_copy,
-			 (void *)sg_table_copy + sg_table_copy_size);
 	dmac_flush_range(dest_vm_copy,
 			 (void *)dest_vm_copy + dest_vm_copy_size);
 
 	batch_start = 0;
 	while (batch_start < table->nents) {
 		/* Ensure no size zero batches */
-		batch_size = sg_table_copy[batch_start].size;
-		batch_end = batch_start + 1;
-		while (1) {
-			u64 size;
+		batches_processed = get_batches_from_sgl(sg_table_copy,
+							 curr_sgl, &next_sgl);
+		curr_sgl = next_sgl;
+		entries_size = batches_processed * sizeof(*sg_table_copy);
+		dmac_flush_range(sg_table_copy,
+				 (void *)sg_table_copy + entries_size);
 
-			if (batch_end >= table->nents)
-				break;
-			if (batch_end - batch_start
-					>= BATCH_MAX_SECTIONS)
-				break;
-
-			size = sg_table_copy[batch_end].size;
-			if (size + batch_size >= BATCH_MAX_SIZE)
-				break;
-
-			batch_size += size;
-			batch_end++;
-		}
-
-		desc.args[0] =
-			virt_to_phys(&sg_table_copy[batch_start]);
-		desc.args[1] = (batch_end - batch_start) *
-				sizeof(sg_table_copy[0]);
+		desc.args[0] = virt_to_phys(sg_table_copy);
+		desc.args[1] = entries_size;
 
 		ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, SCM_SVC_MP,
 					MEM_PROT_ASSIGN_ID, &desc, &res);
@@ -746,7 +731,7 @@ int __qcom_scm_mem_prot_assign(struct device *dev, struct sg_table *table,
 				__func__, ret);
 			break;
 		}
-		batch_start = batch_end;
+		batch_start += batches_processed;
 	}
 	return ret;
 }
