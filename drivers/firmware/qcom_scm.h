@@ -93,10 +93,14 @@ extern void __qcom_scm_cpu_power_down(u32 flags);
 #define QCOM_IS_CALL_AVAIL_CMD		0x1
 extern int __qcom_scm_is_call_available(struct device *dev, u32 svc_id,
 		u32 cmd_id);
+extern int __qcom_remove_xpu_scm_call_available(struct device *dev, u32 svc_id,
+		u32 cmd_id);
 
 extern int __qti_is_smc_id_available(struct device *dev, u32 smc_id);
 
 #define SCM_SIP_FNID(s, c) (((((s) & 0xFF) << 8) | ((c) & 0xFF)) | 0x02000000)
+#define SCM_QSEEOS_FNID(s, c) (((((s) & 0xFF) << 8) | ((c) & 0xFF)) | \
+			      0x32000000)
 #define QCOM_SMC_ATOMIC_MASK		0x80000000
 #define SCM_ARGS_IMPL(num, a, b, c, d, e, f, g, h, i, j, ...) (\
 			(((a) & 0xff) << 4) | \
@@ -259,6 +263,8 @@ extern int __qcom_scm_mem_prot_assign(struct device *, struct sg_table *,
 extern int __qcom_scm_mem_protect_lock(struct device *,
 				struct cp2_lock_req *req, size_t req_size,
 				u32 *resp, size_t resp_size);
+
+extern int __qcom_scm_qseecom_remove_xpu(struct device *);
 
 extern int __qcom_scm_qseecom_notify(struct device *,
 				    struct qsee_notify_app *req,
