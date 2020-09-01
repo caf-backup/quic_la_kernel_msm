@@ -627,6 +627,15 @@ static int start_q6_userpd(const struct subsys_desc *subsys)
 	struct qcom_q6v5 *q6v5 = subsys_to_pdata(subsys);
 	struct rproc *rproc = q6v5->rproc;
 	int ret;
+	struct q6v5_wcss *wcss_p = rproc->parent->priv;
+	struct q6_platform_data *pdata = dev_get_platdata(wcss_p->dev);
+
+	if (pdata->emulation && !load_pil) {
+		pr_info("%s: Emulation start, PIL loading skipped\n",
+							rproc->name);
+		rproc->ops->start(rproc);
+		return 0;
+	}
 
 	ret = rproc_boot(rproc);
 	if (ret)
@@ -666,8 +675,9 @@ static int stop_q6_userpd(const struct subsys_desc *subsys, bool force_stop)
 {
 	struct qcom_q6v5 *q6v5 = subsys_to_pdata(subsys);
 	struct rproc *rproc = q6v5->rproc;
-	struct q6v5_wcss *wcss = rproc->priv;
+	struct q6v5_wcss *wcss = rproc->priv, *wcss_p = rproc->parent->priv;
 	int ret = 0;
+	struct q6_platform_data *pdata = dev_get_platdata(wcss_p->dev);
 
 	if (!subsys_get_crash_status(q6v5->subsys) && force_stop) {
 		ret = qcom_q6v5_request_stop(&wcss->q6v5);
@@ -676,7 +686,15 @@ static int stop_q6_userpd(const struct subsys_desc *subsys, bool force_stop)
 			return ret;
 		}
 	}
+
+	if (pdata->emulation && !load_pil) {
+		pr_info("%s: Emulation stop\n", rproc->name);
+		rproc->ops->stop(rproc);
+		goto stop_flag;
+	}
+
 	rproc_shutdown(rproc);
+stop_flag:
 	q6v5->running = false;
 	return ret;
 }
