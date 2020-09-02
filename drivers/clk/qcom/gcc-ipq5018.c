@@ -478,6 +478,25 @@ static struct clk_alpha_pll_postdiv ubi32_pll = {
 	},
 };
 
+static const struct freq_tbl ftbl_adss_pwm_clk_src[] = {
+	F(24000000, P_XO, 1, 0, 0),
+	F(100000000, P_GPLL0, 8, 0, 0),
+	{ }
+};
+
+static struct clk_rcg2 adss_pwm_clk_src = {
+	.cmd_rcgr = 0x1f008,
+	.freq_tbl = ftbl_adss_pwm_clk_src,
+	.hid_width = 5,
+	.parent_map = gcc_xo_gpll0_map,
+	.clkr.hw.init = &(struct clk_init_data){
+		.name = "adss_pwm_clk_src",
+		.parent_names = gcc_xo_gpll0,
+		.num_parents = 2,
+		.ops = &clk_rcg2_ops,
+	},
+};
+
 static const struct freq_tbl ftbl_apss_ahb_clk_src[] = {
 	F(100000000, P_GPLL0, 8, 0, 0),
 	{ }
@@ -1459,6 +1478,23 @@ static struct clk_branch gcc_xo_clk = {
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT | CLK_IS_CRITICAL,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
+static struct clk_branch gcc_adss_pwm_clk = {
+	.halt_reg = 0x1f020,
+	.clkr = {
+		.enable_reg = 0x1f020,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "gcc_adss_pwm_clk",
+			.parent_names = (const char *[]){
+				"adss_pwm_clk_src"
+			},
+			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -3552,6 +3588,7 @@ static struct clk_regmap *gcc_ipq5018_clks[] = {
 	[GPLL4] = &gpll4.clkr,
 	[UBI32_PLL_MAIN] = &ubi32_pll_main.clkr,
 	[UBI32_PLL] = &ubi32_pll.clkr,
+	[ADSS_PWM_CLK_SRC] = &adss_pwm_clk_src.clkr,
 	[APSS_AHB_CLK_SRC] = &apss_ahb_clk_src.clkr,
 	[APSS_AHB_POSTDIV_CLK_SRC] = &apss_ahb_postdiv_clk_src.clkr,
 	[APSS_AXI_CLK_SRC] = &apss_axi_clk_src.clkr,
@@ -3564,6 +3601,7 @@ static struct clk_regmap *gcc_ipq5018_clks[] = {
 	[BLSP1_UART1_APPS_CLK_SRC] = &blsp1_uart1_apps_clk_src.clkr,
 	[BLSP1_UART2_APPS_CLK_SRC] = &blsp1_uart2_apps_clk_src.clkr,
 	[CRYPTO_CLK_SRC] = &crypto_clk_src.clkr,
+	[GCC_ADSS_PWM_CLK] = &gcc_adss_pwm_clk.clkr,
 	[GCC_APSS_AHB_CLK] = &gcc_apss_ahb_clk.clkr,
 	[GCC_APSS_AXI_CLK] = &gcc_apss_axi_clk.clkr,
 	[GCC_BLSP1_AHB_CLK] = &gcc_blsp1_ahb_clk.clkr,
@@ -3731,6 +3769,7 @@ static struct clk_regmap *gcc_ipq5018_dummy_clks[] = {
 	[GPLL4] = DEFINE_DUMMY_CLK(gpll4),
 	[UBI32_PLL_MAIN] = DEFINE_DUMMY_CLK(ubi32_pll_main),
 	[UBI32_PLL] = DEFINE_DUMMY_CLK(ubi32_pll),
+	[ADSS_PWM_CLK_SRC] = DEFINE_DUMMY_CLK(adss_pwm_clk_src),
 	[APSS_AHB_CLK_SRC] = DEFINE_DUMMY_CLK(apss_ahb_clk_src),
 	[APSS_AHB_POSTDIV_CLK_SRC] = DEFINE_DUMMY_CLK(apss_ahb_postdiv_clk_src),
 	[APSS_AXI_CLK_SRC] = DEFINE_DUMMY_CLK(apss_axi_clk_src),
@@ -3743,6 +3782,7 @@ static struct clk_regmap *gcc_ipq5018_dummy_clks[] = {
 	[BLSP1_UART1_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_uart1_apps_clk_src),
 	[BLSP1_UART2_APPS_CLK_SRC] = DEFINE_DUMMY_CLK(blsp1_uart2_apps_clk_src),
 	[CRYPTO_CLK_SRC] = DEFINE_DUMMY_CLK(crypto_clk_src),
+	[GCC_ADSS_PWM_CLK] = DEFINE_DUMMY_CLK(gcc_adss_pwm_clk),
 	[GCC_APSS_AHB_CLK] = DEFINE_DUMMY_CLK(gcc_apss_ahb_clk),
 	[GCC_APSS_AXI_CLK] = DEFINE_DUMMY_CLK(gcc_apss_axi_clk),
 	[GCC_BLSP1_AHB_CLK] = DEFINE_DUMMY_CLK(gcc_blsp1_ahb_clk),
