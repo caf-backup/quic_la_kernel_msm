@@ -972,6 +972,7 @@ int diag_remote_init(void)
 void diag_remote_exit(void)
 {
 	kfree(driver->hdlc_encode_buf);
+	driver->hdlc_encode_buf = NULL;
 }
 
 static int diag_send_raw_data_remote(int proc, void *buf, int len,
@@ -3711,8 +3712,12 @@ static void diagchar_exit(void)
 	diag_masks_exit();
 	diag_md_session_exit();
 	diag_remote_exit();
+#ifdef CONFIG_DIAGFWD_BRIDGE_CODE
+	diag_unregister_mhi();
+#endif
 	diag_debugfs_cleanup();
 	diagchar_cleanup();
+	platform_driver_unregister(&diag_driver);
 	printk(KERN_INFO "done diagchar exit\n");
 }
 

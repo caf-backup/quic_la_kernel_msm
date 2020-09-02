@@ -959,6 +959,8 @@ static struct qmi_ops diag_qmi_cntl_ops = {
 	.del_server = diag_del_server,
 };
 
+static void *diag_subsys_handle =  NULL;
+
 int diag_socket_init(void)
 {
 	struct diag_socket_info *info = NULL;
@@ -991,6 +993,7 @@ int diag_socket_init(void)
 
 		nb = &restart_notifiers[i];
 		handle = subsys_notif_register_notifier(nb->name, &nb->nb);
+		diag_subsys_handle = handle;
 		DIAG_LOG(DIAG_DEBUG_PERIPHERALS,
 			 "%s: registering notifier for '%s', handle=%p\n",
 			 __func__, nb->name, handle);
@@ -1074,6 +1077,7 @@ static void __diag_socket_exit(struct diag_socket_info *info)
 	if (info->hdl)
 		sock_release(info->hdl);
 	info->hdl = NULL;
+	wake_up_interruptible(&info->read_wait_q);
 	if (info->wq)
 		destroy_workqueue(info->wq);
 }
@@ -1081,11 +1085,24 @@ static void __diag_socket_exit(struct diag_socket_info *info)
 void diag_socket_exit(void)
 {
 	int i;
+	struct restart_notifier_block *nb;
 
 	if (cntl_qmi) {
 		qmi_handle_release(cntl_qmi);
 		kfree(cntl_qmi);
 	}
+
+	for (i = 0; i < ARRAY_SIZE(restart_notifiers); i++) {
+		if (!test_bit(i, &peripheral_mask))
+			continue;
+
+		nb = &restart_notifiers[i];
+		if (diag_subsys_handle)
+			subsys_notif_unregister_notifier(diag_subsys_handle, &nb->nb);
+	}
+
+	diag_subsys_handle = NULL;
+
 	for (i = 0; i < NUM_PERIPHERALS; i++) {
 		if (!test_bit(i, &peripheral_mask))
 			continue;

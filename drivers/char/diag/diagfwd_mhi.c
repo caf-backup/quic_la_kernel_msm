@@ -769,3 +769,11 @@ void diag_register_with_mhi(void)
 
 	mhi_driver_register(&diag_mhi_driver);
 }
+
+void diag_unregister_mhi(void)
+{
+	mhi_driver_unregister(&diag_mhi_driver);
+	diagfwd_bridge_exit();
+	diag_mhi_exit();
+	diag_remote_exit();
+}

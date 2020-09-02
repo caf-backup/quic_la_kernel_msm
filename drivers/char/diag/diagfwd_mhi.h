@@ -87,4 +87,5 @@ extern struct diag_mhi_info diag_mhi[NUM_MHI_DEV];
 int diag_mhi_init(void);
 void diag_mhi_exit(void);
 void diag_register_with_mhi(void);
+void diag_unregister_mhi(void);
 #endif
