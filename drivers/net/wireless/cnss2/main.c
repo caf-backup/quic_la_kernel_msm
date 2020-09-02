@@ -2861,6 +2861,13 @@ static int cnss_register_ramdump_v2(struct cnss_plat_data *plat_priv)
 
 	cnss_pr_dbg("Ramdump size 0x%lx\n", info_v2->ramdump_size);
 
+	/* Dump data allocated during previous register needs to be freed
+	 * before allocating again
+	 */
+	kfree(info_v2->dump_data_vaddr);
+	info_v2->dump_data_vaddr = NULL;
+	info_v2->dump_data_valid = false;
+
 	info_v2->dump_data_vaddr = kzalloc(CNSS_DUMP_DESC_SIZE, GFP_KERNEL);
 	if (!info_v2->dump_data_vaddr)
 		return -ENOMEM;
@@ -2911,9 +2918,22 @@ static void cnss_unregister_ramdump_v2(struct cnss_plat_data *plat_priv)
 	if (info_v2->ramdump_dev)
 		destroy_ramdump_device(info_v2->ramdump_dev);
 
-	kfree(info_v2->dump_data_vaddr);
-	info_v2->dump_data_vaddr = NULL;
-	info_v2->dump_data_valid = false;
+	/* Freeing the dump data here causes loss of valid dump data in the
+	 * below scenario
+	 *  1. wifi down is in progress and target asserts after sending
+	 *     mode OFF message
+	 *  2. MHI notifies target assert, RDDM dump collection happens and
+	 *     dump_data_vaddr has valid dump data
+	 *  3. cnss_pci_remove is called as part of wifi down and dump data
+	 *     with valid contents is now freed.
+	 *
+	 * To Avoid this scenario, skip freeing dump_data_vaddr here and free
+	 * as part of cnss_register_ramdump_v2
+	 *
+	 * kfree(info_v2->dump_data_vaddr);
+	 * info_v2->dump_data_vaddr = NULL;
+	 * info_v2->dump_data_valid = false;
+	 */
 }
 
 int cnss_register_ramdump(struct cnss_plat_data *plat_priv)
