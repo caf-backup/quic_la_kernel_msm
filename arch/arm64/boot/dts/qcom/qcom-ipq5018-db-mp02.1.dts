@@ -325,3 +325,11 @@
 &tsens {
 	status = "ok";
 };
+
+&qgic_msi_0 {
+	status = "ok";
+};
+
+&qgic_msi_1 {
+	status = "ok";
+};
