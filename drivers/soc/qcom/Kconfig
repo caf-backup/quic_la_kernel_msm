@@ -99,6 +99,16 @@ config EUD_EXTCON_SUPPORT
 	  device's battery through USB.
 	  Say y here, if battery power is supported.
 
+config QGIC2_MSI
+	tristate "QTI QGIC2 MSI controller (QGIC2m)"
+	depends on ARCH_QCOM
+	help
+	  QGIC2m driver is a driver to handle the MSI interrupts of QGIC
+	  controller from any bus devices, not limiting to PCIe devices.
+	  It acts as an Interface between the QGIC controller and client
+	  drivers to enable/disable MSI interrupts.
+	  If unsure, say N.
+
 config MSM_GLINK
 	bool "Generic Link (G-Link)"
 	help
