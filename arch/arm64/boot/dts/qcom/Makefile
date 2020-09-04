@@ -8,6 +8,11 @@ ifneq ($(CONFIG_IPQ_FLASH_16M_PROFILE),)
 dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-ipq5018-mp02.1.dtb \
 	qcom-ipq5018-mp03.1.dtb
+ifeq ($(CONFIG_IPQ_FLASH_16M_PROFILE_DEBUG),y)
+dtb-$(CONFIG_ARCH_QCOM) += \
+	qcom-ipq5018-db-mp02.1.dtb \
+	qcom-ipq5018-db-mp03.1.dtb
+endif
 else
 dtb-$(CONFIG_ARCH_QCOM) += \
 				qcom-ipq5018-sod.dtb \

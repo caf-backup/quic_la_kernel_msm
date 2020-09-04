@@ -101,4 +101,13 @@ config IPQ_FLASH_16M_PROFILE
 
 	If unsure, say n
 
+config IPQ_FLASH_16M_PROFILE_DEBUG
+	bool "Enable 16M Flash Profile"
+	depends on IPQ_FLASH_16M_PROFILE
+	default n
+	---help---
+	This option selects 16M flash debug profile.
+
+	If unsure, say n
+
 endif
