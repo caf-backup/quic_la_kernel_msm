@@ -313,6 +313,9 @@
 	};
 
 	btss_pins: btss_pins {
+
+		phandle = <0x1>;
+
 		mux_0 {
 			pins = "gpio4";
 			function = "btss0";
