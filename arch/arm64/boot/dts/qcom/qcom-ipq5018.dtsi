@@ -1183,7 +1183,7 @@
 			};
 		};
 
-		qti,qgic2m-msi_0 {
+		qgic_msi_0: qti,qgic2m-msi_0 {
 			compatible = "qti,qgic2m-msi";
 
 			interrupts = <0 416 IRQ_TYPE_NONE>, <0 417 IRQ_TYPE_NONE>,
@@ -1220,7 +1220,7 @@
 			status = "disabled";
 		};
 
-		qti,qgic2m-msi_1  {
+		qgic_msi_1: qti,qgic2m-msi_1  {
 			compatible = "qti,qgic2m-msi";
 
 			interrupts = <0 448 IRQ_TYPE_NONE>, <0 449 IRQ_TYPE_NONE>,

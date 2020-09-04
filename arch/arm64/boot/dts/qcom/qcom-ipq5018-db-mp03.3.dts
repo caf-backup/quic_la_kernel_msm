@@ -458,3 +458,7 @@
 &tsens {
 	status = "ok";
 };
+
+&qgic_msi_0 {
+	status = "ok";
+};
