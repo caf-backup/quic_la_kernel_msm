@@ -162,6 +162,7 @@ config MHI_BUS_TEST
 	tristate "MHI bus Test driver"
 	default n
 	depends on MHI_BUS
+	select IPQ_SUBSYSTEM_RESTART
 	help
 	 Test driver for testing the MHI bus
 
