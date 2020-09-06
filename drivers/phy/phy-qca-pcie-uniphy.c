@@ -58,8 +58,9 @@ struct qca_uni_pcie_phy {
 	struct reset_control *res_phy_phy;
 	u32 is_phy_gen3;
 	u32 mode;
-	bool is_x2;
+	u32 is_x2;
 	void __iomem *reg_base;
+	void __iomem *reg_base1;
 };
 
 #define	phy_to_dw_phy(x)	container_of((x), struct qca_uni_pcie_phy, phy)
@@ -89,36 +90,50 @@ static int qca_uni_pcie_phy_reset(struct qca_uni_pcie_phy *phy)
 
 static void qca_uni_pcie_phy_init(struct qca_uni_pcie_phy *phy)
 {
-	int loop = 0;
+	/*set frequency initial value*/
+	writel(0x1cb9, phy->reg_base + SSCG_CTRL_REG_4);
+	writel(0x023a, phy->reg_base + SSCG_CTRL_REG_5);
+	/*set spectrum spread count*/
+	writel(0xd360, phy->reg_base + SSCG_CTRL_REG_3);
+	if (phy->mode == PHY_MODE_FIXED) {
+		/*set fstep*/
+		writel(0x0, phy->reg_base + SSCG_CTRL_REG_1);
+		writel(0x0, phy->reg_base + SSCG_CTRL_REG_2);
+	} else {
+		/*set fstep*/
+		writel(0x1, phy->reg_base + SSCG_CTRL_REG_1);
+		writel(0xeb, phy->reg_base + SSCG_CTRL_REG_2);
+		/*set FLOOP initial value*/
+		writel(0x3f9, phy->reg_base + CDR_CTRL_REG_4);
+		writel(0x1c9, phy->reg_base + CDR_CTRL_REG_5);
+		/*set upper boundary level*/
+		writel(0x419, phy->reg_base + CDR_CTRL_REG_2);
+		/*set fixed offset*/
+		writel(0x200, phy->reg_base + CDR_CTRL_REG_1);
+	}
 
-	while (loop < 2) {
-		phy->reg_base += (loop * 0x800);
+	if (phy->is_x2) {
 		/*set frequency initial value*/
-		writel(0x1cb9, phy->reg_base + SSCG_CTRL_REG_4);
-		writel(0x023a, phy->reg_base + SSCG_CTRL_REG_5);
+		writel(0x1cb9, phy->reg_base1 + SSCG_CTRL_REG_4);
+		writel(0x023a, phy->reg_base1 + SSCG_CTRL_REG_5);
 		/*set spectrum spread count*/
-		writel(0xd360, phy->reg_base + SSCG_CTRL_REG_3);
+		writel(0xd360, phy->reg_base1 + SSCG_CTRL_REG_3);
 		if (phy->mode == PHY_MODE_FIXED) {
 			/*set fstep*/
-			writel(0x0, phy->reg_base + SSCG_CTRL_REG_1);
-			writel(0x0, phy->reg_base + SSCG_CTRL_REG_2);
+			writel(0x0, phy->reg_base1 + SSCG_CTRL_REG_1);
+			writel(0x0, phy->reg_base1 + SSCG_CTRL_REG_2);
 		} else {
 			/*set fstep*/
-			writel(0x1, phy->reg_base + SSCG_CTRL_REG_1);
-			writel(0xeb, phy->reg_base + SSCG_CTRL_REG_2);
+			writel(0x1, phy->reg_base1 + SSCG_CTRL_REG_1);
+			writel(0xeb, phy->reg_base1 + SSCG_CTRL_REG_2);
 			/*set FLOOP initial value*/
-			writel(0x3f9, phy->reg_base + CDR_CTRL_REG_4);
-			writel(0x1c9, phy->reg_base + CDR_CTRL_REG_5);
+			writel(0x3f9, phy->reg_base1 + CDR_CTRL_REG_4);
+			writel(0x1c9, phy->reg_base1 + CDR_CTRL_REG_5);
 			/*set upper boundary level*/
-			writel(0x419, phy->reg_base + CDR_CTRL_REG_2);
+			writel(0x419, phy->reg_base1 + CDR_CTRL_REG_2);
 			/*set fixed offset*/
-			writel(0x200, phy->reg_base + CDR_CTRL_REG_1);
+			writel(0x200, phy->reg_base1 + CDR_CTRL_REG_1);
 		}
-
-		if (phy->is_x2)
-			loop += 1;
-		else
-			break;
 	}
 }
 
@@ -143,14 +158,30 @@ static int qca_uni_pcie_get_resources(struct platform_device *pdev,
 		struct qca_uni_pcie_phy *phy)
 {
 	int ret;
+	u32 is_x2 = 0;
 	const char *name;
 	struct resource *res;
+
+	ret = of_property_read_u32(phy->dev->of_node, "x2", &is_x2);
+	if (ret)
+		phy->is_x2 = 0;
+	else
+		phy->is_x2 = is_x2;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	phy->reg_base = devm_ioremap_resource(phy->dev, res);
 	if (IS_ERR(phy->reg_base)) {
 		dev_err(phy->dev, "cannot get phy registers\n");
 		return PTR_ERR(phy->reg_base);
+	}
+
+	if (phy->is_x2) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+		phy->reg_base1 = devm_ioremap_resource(phy->dev, res);
+		if (IS_ERR(phy->reg_base1)) {
+			dev_err(phy->dev, "cannot get phy registers\n");
+			return PTR_ERR(phy->reg_base1);
+		}
 	}
 
 	phy->pipe_clk = devm_clk_get(phy->dev, "pipe_clk");
@@ -191,7 +222,6 @@ static int qca_uni_pcie_get_resources(struct platform_device *pdev,
 		return ret;
 	}
 
-	phy->is_x2 = strstr(pdev->dev.of_node->name, "x2") ? 1 : 0;
 	return 0;
 }
 
