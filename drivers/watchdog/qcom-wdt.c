@@ -102,12 +102,35 @@ static const struct file_operations mini_dump_ops;
 static struct class *dump_class;
 int dump_major = 0;
 
+/* struct to store physical address and
+*  size of crashdump segments for live minidump
+*  capture
+*
+* @param:
+*   node - struct obj for kernel list
+*   addr - virtual address of dump segment
+*   size - size of dump segemnt
+*/
 struct dump_segment {
 	struct list_head node;
 	unsigned long addr;
 	size_t size;
 };
 
+/* struct to store metadata info for
+*  preparing crashdump segemnts for
+*  live minidump capture.
+*
+* @param:
+*   total_size - total size of dumps
+*   num_seg - total number of dump segments
+*   flag - size of dump segment
+*   type - array to store 'type' of dump segments
+*   seg_size - array to store segment size of
+*   dump segments
+*   phy_addr - array to store physical address of
+*   dump segments
+*/
 struct mini_hdr {
 	int total_size;
 	int num_seg;
@@ -117,6 +140,15 @@ struct mini_hdr {
 	unsigned long *phy_addr;
 };
 
+/* struct to store device file info for /dev/minidump
+*
+*  @param:
+*   name - name of device node
+*   fops - struct obj for file operations
+*   fmode - file modes
+*   hdr - struct obj for metadata info
+*   dump_segments - struct obj for dump segment list
+*/
 struct dumpdev {
 	const char *name;
 	const struct file_operations *fops;
@@ -139,7 +171,7 @@ static int qcom_wdt_scm_replace_tlv(struct qcom_wdt_scm_tlv_msg *scm_tlv_msg,
 static int qcom_wdt_scm_add_tlv(struct qcom_wdt_scm_tlv_msg *scm_tlv_msg,
 		unsigned char type, unsigned int size, const char *data);
 static int minidump_traverse_metadata_list(const char *name, const unsigned long virt_addr, const unsigned long phy_addr,
-		unsigned char **tlv_offset, unsigned long size, unsigned char type);
+	unsigned char **tlv_offset, unsigned long size, unsigned char type);
 extern void minidump_get_pgd_info(uint64_t *pt_start, uint64_t *pt_len);
 extern void minidump_get_linux_buf_info(uint64_t *plinux_buf, uint64_t *plinux_buf_len);
 extern void minidump_get_log_buf_info(uint64_t *plog_buf, uint64_t *plog_buf_len);
@@ -147,7 +179,6 @@ extern struct list_head *minidump_modules;
 extern int log_buf_len;
 char *minidump_module_list[MINIDUMP_MODULE_COUNT] = {"qca_ol", "wifi_3_0", "umac", "qdf"};
 int minidump_dump_wlan_modules(void);
-extern int qcom_register_ssr_notifier(struct notifier_block *nb);
 #endif
 static void __iomem *wdt_addr(struct qcom_wdt *wdt, enum wdt_reg reg)
 {
@@ -166,7 +197,8 @@ static void __iomem *wdt_addr(struct qcom_wdt *wdt, enum wdt_reg reg)
 *
 * Return: 0
 */
-static int mini_dump_open(struct inode *inode, struct file *file) {
+static int mini_dump_open(struct inode *inode, struct file *file)
+{
 	struct minidump_metadata_list *cur_node;
 	struct list_head *pos;
 	unsigned long flags;
@@ -174,21 +206,20 @@ static int mini_dump_open(struct inode *inode, struct file *file) {
 	struct dump_segment *segment = NULL;
 	int index = 0;
 
-	if (!tlv_msg.msg_buffer) {
+	if (!tlv_msg.msg_buffer)
 		return -ENOMEM;
-	}
 	scm_tlv_msg = &tlv_msg;
 
 	minidump.hdr.seg_size = (unsigned int *)
-			kmalloc((sizeof(int) * minidump.hdr.num_seg), GFP_KERNEL);
-	minidump.hdr.phy_addr =(unsigned long *)
-			kmalloc((sizeof(unsigned long) *  minidump.hdr.num_seg), GFP_KERNEL);
+		kmalloc((sizeof(int) * minidump.hdr.num_seg), GFP_KERNEL);
+	minidump.hdr.phy_addr = (unsigned long *)
+		kmalloc((sizeof(unsigned long) *  minidump.hdr.num_seg), GFP_KERNEL);
 	minidump.hdr.type = (unsigned char *)
-			kmalloc((sizeof(unsigned char) * minidump.hdr.num_seg), GFP_KERNEL);
+		kmalloc((sizeof(unsigned char) * minidump.hdr.num_seg), GFP_KERNEL);
 
-	if (!minidump.hdr.seg_size || !minidump.hdr.phy_addr || !minidump.hdr.type) {
+	if (!minidump.hdr.seg_size || !minidump.hdr.phy_addr ||
+		!minidump.hdr.type)
 		return -ENOMEM;
-	}
 
 	INIT_LIST_HEAD(&minidump.dump_segments);
 	spin_lock_irqsave(&scm_tlv_msg->minidump_tlv_spinlock, flags);
@@ -200,15 +231,15 @@ static int mini_dump_open(struct inode *inode, struct file *file) {
 		cur_node = list_entry(pos, struct minidump_metadata_list, list);
 
 		if (cur_node->va != INVALID) {
-			segment = (struct dump_segment *) kmalloc(sizeof(struct dump_segment),
-							GFP_KERNEL);
+			segment = (struct dump_segment *)
+				kmalloc(sizeof(struct dump_segment), GFP_KERNEL);
 			if (!segment) {
 				pr_err("\nMinidump: Unable to allocate memory for dump segment");
 				return -ENOMEM;
 			}
-			if ( (cur_node->type == QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD_INFO) ||
+			if ((cur_node->type == QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD_INFO) ||
 				(cur_node->type == QCA_WDT_LOG_DUMP_TYPE_WLAN_MMU_INFO ) ||
-				(cur_node->type == QCA_WDT_LOG_DUMP_TYPE_DMESG) ) {
+				(cur_node->type == QCA_WDT_LOG_DUMP_TYPE_DMESG)) {
 				segment->size = *(unsigned long *)(uintptr_t)
 						((unsigned long)__va(cur_node->size));
 			} else {
@@ -221,7 +252,7 @@ static int mini_dump_open(struct inode *inode, struct file *file) {
 			minidump.hdr.seg_size[index] = segment->size;
 			minidump.hdr.phy_addr[index] = cur_node->pa;
 			minidump.hdr.type[index] = cur_node->type;
-			index ++;
+			index++;
 		}
 	}
 	spin_unlock_irqrestore(&scm_tlv_msg->minidump_tlv_spinlock, flags);
@@ -239,7 +270,8 @@ static int mini_dump_open(struct inode *inode, struct file *file) {
 *
 * Return: 0
 */
-static int mini_dump_release(struct inode *inode, struct file *file) {
+static int mini_dump_release(struct inode *inode, struct file *file)
+{
 	int dump_minor_dev =  iminor(inode);
 	int dump_major_dev = imajor(inode);
 
@@ -274,8 +306,8 @@ static int mini_dump_release(struct inode *inode, struct file *file) {
 * Return: 0
 */
 static ssize_t mini_dump_read(struct file *file, char __user *buf,
-	size_t count, loff_t *ppos) {
-
+	size_t count, loff_t *ppos)
+{
 	int ret = 0;
 	int seg_num = 0;
 	struct dumpdev *dfp = (struct dumpdev *) file->private_data;
@@ -317,33 +349,34 @@ static long mini_dump_ioctl(struct file *file, unsigned int ioctl_num,
 	int ret = 0;
 	struct dumpdev *dfp = (struct dumpdev *) file->private_data;
 
-	switch(ioctl_num) {
-		case MINIDUMP_IOCTL_PREPARE_HDR:
-			ret = copy_to_user((void __user *)arg,
-				(const void *)(uintptr_t)(&(dfp->hdr)), sizeof(dfp->hdr));
-			break;
-		case MINIDUMP_IOCTL_PREPARE_SEG:
-			ret = copy_to_user((void __user *)arg,
-				(const void *)(uintptr_t)((dfp->hdr.seg_size)),
-					(sizeof(int) * minidump.hdr.num_seg));
-			break;
-		case MINIDUMP_IOCTL_PREPARE_TYP:
-			ret = copy_to_user((void __user *)arg,
-				(const void *)(uintptr_t)((dfp->hdr.type)),
-					(sizeof(unsigned char) * minidump.hdr.num_seg));
-			break;
-		case MINIDUMP_IOCTL_PREPARE_PHY:
-			ret = copy_to_user((void __user *)arg,
-				(const void *)(uintptr_t)((dfp->hdr.phy_addr)),
-					(sizeof(unsigned long) * minidump.hdr.num_seg));
-			break;
-		default:
-			ret = -EINVAL;
-			break;
+	switch (ioctl_num) {
+	case MINIDUMP_IOCTL_PREPARE_HDR:
+		ret = copy_to_user((void __user *)arg,
+			(const void *)(uintptr_t)(&(dfp->hdr)), sizeof(dfp->hdr));
+		break;
+	case MINIDUMP_IOCTL_PREPARE_SEG:
+		ret = copy_to_user((void __user *)arg,
+			(const void *)(uintptr_t)((dfp->hdr.seg_size)),
+				(sizeof(int) * minidump.hdr.num_seg));
+		break;
+	case MINIDUMP_IOCTL_PREPARE_TYP:
+		ret = copy_to_user((void __user *)arg,
+			(const void *)(uintptr_t)((dfp->hdr.type)),
+				(sizeof(unsigned char) * minidump.hdr.num_seg));
+		break;
+	case MINIDUMP_IOCTL_PREPARE_PHY:
+		ret = copy_to_user((void __user *)arg,
+			(const void *)(uintptr_t)((dfp->hdr.phy_addr)),
+				(sizeof(unsigned long) * minidump.hdr.num_seg));
+		break;
+	default:
+		ret = -EINVAL;
+		break;
 	}
 	return ret;
 }
 
+/* file ops for /dev/minidump */
 static const struct file_operations mini_dump_ops = {
 	.open       =   mini_dump_open,
 	.read       =   mini_dump_read,
@@ -360,13 +393,14 @@ static const struct file_operations mini_dump_ops = {
 *
 * Return: 0
 */
-int do_minidump(void) {
+int do_minidump(void)
+{
 
 	int ret = 0;
 	struct device *dump_dev = NULL;
 
 #ifdef CONFIG_QCA_MINIDUMP_DEBUG
-	int count =0;
+	int count = 0;
 	struct minidump_metadata_list *cur_node;
 	struct list_head *pos;
 	unsigned long flags;
@@ -386,27 +420,27 @@ int do_minidump(void) {
 
 #ifdef CONFIG_QCA_MINIDUMP_DEBUG
 	scm_tlv_msg = &tlv_msg;
-	pr_err("\n Minidump: Size of Metadata file = %ld",mod_log_len);
+	pr_err("\n Minidump: Size of Metadata file = %ld", mod_log_len);
 	pr_err("\n Minidump: Printing out contents of Metadata list");
 
 	spin_lock_irqsave(&scm_tlv_msg->minidump_tlv_spinlock, flags);
 	list_for_each(pos, &metadata_list.list) {
-		count ++;
+		count++;
 		cur_node = list_entry(pos, struct minidump_metadata_list, list);
 		if (cur_node->va != 0) {
 			if (cur_node->name != NULL)
-				pr_info(" %s [%lx] ---> ",cur_node->name,cur_node->va);
+				pr_info(" %s [%lx] ---> ", cur_node->name, cur_node->va);
 			else
-				pr_info(" un-named [%lx] ---> ",cur_node->va);
+				pr_info(" un-named [%lx] ---> ", cur_node->va);
 		}
 	}
 	spin_unlock_irqrestore(&scm_tlv_msg->minidump_tlv_spinlock, flags);
-	pr_err("\n Minidump: # nodes in the Metadata list = %d",count);
+	pr_err("\n Minidump: # nodes in the Metadata list = %d", count);
 	pr_err("\n Minidump: Size of node in Metadata list = %ld\n",
 	(unsigned long)sizeof(struct minidump_metadata_list));
 #endif
 
-	if(dump_class || dump_major) {
+	if (dump_class || dump_major) {
 		device_destroy(dump_class, MKDEV(dump_major, 0));
 		class_destroy(dump_class);
 	}
@@ -414,7 +448,7 @@ int do_minidump(void) {
 	dump_major = register_chrdev(UNNAMED_MAJOR, "minidump", &mini_dump_ops);
 	if (dump_major < 0) {
 		ret = dump_major;
-		pr_err("Unable to allocate a major number err = %d \n", ret);
+		pr_err("Unable to allocate a major number err = %d\n", ret);
 		goto reg_failed;
 	}
 
@@ -425,7 +459,7 @@ int do_minidump(void) {
 		goto class_failed;
 	}
 
-	dump_dev = device_create(dump_class, NULL, MKDEV(dump_major, 0), NULL,minidump.name);
+	dump_dev = device_create(dump_class, NULL, MKDEV(dump_major, 0), NULL, minidump.name);
 	if (IS_ERR(dump_dev)) {
 		ret = PTR_ERR(dump_dev);
 		pr_err("Unable to create a device err = %d\n", ret);
@@ -454,14 +488,24 @@ EXPORT_SYMBOL(do_minidump);
 *
 * Return: 0
 */
-static void sysrq_minidump_handler(int key)  {
-	int ret =0;
+static void sysrq_minidump_handler(int key)
+{
+
+	int ret = 0;
 	ret = do_minidump();
 	if (ret)
 		pr_info("\n Minidump: unable to init minidump dev node");
 
 }
 
+/* sysrq_key_op struct for registering operation
+* for a particular key.
+*
+* @param:
+* .hander - the key handler function
+* .help_msg - help_msg string
+* .action_msg - action_msg string
+*/
 static struct sysrq_key_op sysrq_minidump_op = {
 	.handler    = sysrq_minidump_handler,
 	.help_msg   = "minidump(y)",
@@ -600,7 +644,7 @@ int minidump_remove_segments(const uint64_t virt_addr)
 			*(cur_node->tlv_offset) = QCA_WDT_LOG_DUMP_TYPE_EMPTY;
 
 #ifdef CONFIG_QCA_MINIDUMP_DEBUG
-			if(cur_node->name!=NULL) {
+			if (cur_node->name != NULL) {
 				kfree(cur_node->name);
 				cur_node->name = NULL;
 			}
@@ -722,7 +766,7 @@ int minidump_traverse_metadata_list(const char *name, const unsigned long virt_a
 					flags);
 #ifdef CONFIG_QCA_MINIDUMP_DEBUG
 			pr_err("Minidump: TLV entry with this VA is already present %s %lx\n",
-					name,virt_addr);
+					name, virt_addr);
 #endif
 			return -EINVAL;
 		}
@@ -776,8 +820,8 @@ int minidump_traverse_metadata_list(const char *name, const unsigned long virt_a
 		*/
 			cur_mmuinfo_offset = cur_node->mmuinfo_offset;
 		} else {
-			if ( IS_ENABLED(CONFIG_ARM64) || ( (unsigned long)virt_addr < PAGE_OFFSET
-					|| (unsigned long)virt_addr >= (unsigned long)high_memory) )
+			if (IS_ENABLED(CONFIG_ARM64) || ((unsigned long)virt_addr < PAGE_OFFSET
+					|| (unsigned long)virt_addr >= (unsigned long)high_memory))
 				cur_node->mmuinfo_offset = cur_mmuinfo_offset;
 		}
 
@@ -1346,11 +1390,11 @@ static int wlan_modinfo_panic_handler(struct notifier_block *this,
 	list_for_each(pos, &metadata_list.list) {
 		count ++;
 		cur_node = list_entry(pos, struct minidump_metadata_list, list);
-		if( cur_node->va!=0 ) {
+		if (cur_node->va != 0) {
 			if (cur_node->name != NULL)
-				pr_info(" %s [%lx] ---> ",cur_node->name,cur_node->va);
+				pr_info(" %s [%lx] ---> ", cur_node->name, cur_node->va);
 			else
-				pr_info(" un-named [%lx] ---> ",cur_node->va);
+				pr_info(" un-named [%lx] ---> ", cur_node->va);
 		}
 	}
 	pr_err("\n Minidump: # nodes in the Metadata list = %d",count);
