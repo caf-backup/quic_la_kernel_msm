@@ -349,12 +349,12 @@
 
 &pcie_x1 {
 	status = "disabled";
-	perst-gpio = <&tlmm 15 1>;
+	perst-gpio = <&tlmm 27 1>;
 };
 
 &pcie_x2 {
 	status = "disabled";
-	perst-gpio = <&tlmm 27 1>;
+	perst-gpio = <&tlmm 15 1>;
 };
 
 &dwc_0 {
