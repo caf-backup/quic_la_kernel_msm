@@ -1843,11 +1843,11 @@ int __qcom_fuseipq_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
 			    void *cmd_buf, size_t size)
 {
 	int ret;
-	struct scm_desc desc = {0};
 	uint32_t *status;
 
 	if (is_scm_armv8()) {
 
+		struct scm_desc desc = {0};
 		desc.arginfo = SCM_ARGS(1, SCM_RO);
 		desc.args[0] = *((uint32_t *)cmd_buf);
 
@@ -1855,12 +1855,32 @@ int __qcom_fuseipq_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
 		status = (uint32_t *)(((uint32_t *)cmd_buf) + 1);
 		*status = desc.ret[0];
 
+		if (!ret)
+			return le32_to_cpu(desc.ret[0]);
+
 	} else {
 
-		return -ENOTSUPP;
+		dma_addr_t statusphys;
+
+		status = (uint32_t *)(((uint32_t *)cmd_buf) + 1);
+		statusphys = dma_map_single(dev, status, sizeof(unsigned long),
+						DMA_FROM_DEVICE);
+		ret = dma_mapping_error(dev, statusphys);
+		if (ret != 0) {
+			pr_err("DMA Mapping Error : %d\n", ret);
+			return -EINVAL;
+		}
+
+		*status = statusphys;
+
+		ret = qcom_scm_call(dev, svc_id, cmd_id, cmd_buf,
+					size, NULL, 0);
+		dma_unmap_single(dev, statusphys,  sizeof(unsigned long),
+						DMA_FROM_DEVICE);
+
 	}
 
-	return ret ? : le32_to_cpu(desc.ret[0]);
+	return ret;
 }
 
 int __qcom_scm_lock_subsys_mem(struct device *dev, u32 subsys_id,
