@@ -254,6 +254,13 @@
 						port_mac_sel = "QGMAC_PORT";
 					};
 				};
+				led_source@0 {
+					source = <0>;
+					mode = "normal";
+					speed = "all";
+					blink_en = "enable";
+					active = "high";
+				};
 			};
 		};
 
