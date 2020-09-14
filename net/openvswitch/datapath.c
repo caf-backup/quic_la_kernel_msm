@@ -2469,6 +2469,81 @@ struct sw_flow *ovs_accel_flow_find(void *dp_inst, struct sw_flow_key *key)
 }
 EXPORT_SYMBOL(ovs_accel_flow_find);
 
+/* Find datapath flow rule using MAC addresses*/
+struct sw_flow *ovs_accel_flow_find_by_mac(void *dp_inst,
+						struct net_device *br_dev,
+						uint8_t *smac, uint8_t *dmac, uint16_t type)
+{
+	struct datapath *dp = dp_inst;
+	struct table_instance *ti;
+	struct sw_flow *flow = NULL;
+	struct sw_flow_actions *sf_acts;
+	const struct nlattr *a;
+	bool flow_found = false;
+	int egress_ports = 0;
+	int rem;
+	int i;
+
+	rcu_read_lock();
+	ti = rcu_dereference(dp->table.ti);
+
+	for (i = 0; i < ti->n_buckets; i++) {
+		struct hlist_head *head = flex_array_get(ti->buckets, i);
+		struct hlist_node *n;
+
+		if (unlikely(!head))
+			continue;
+
+		hlist_for_each_entry_safe(flow, n, head,
+				flow_table.node[ti->node_ver]) {
+			if ((flow->key.eth.type == type) &&
+			     ether_addr_equal(flow->key.eth.src, smac) &&
+			     ether_addr_equal(flow->key.eth.dst, dmac)) {
+				flow_found = true;
+				goto found;
+			}
+		}
+	}
+found:
+	if (!flow_found) {
+		rcu_read_unlock();
+		return NULL;
+	}
+
+	/*
+	 * Flow is found, check if output action is br_dev
+	 */
+	flow_found = false;
+	sf_acts = rcu_dereference(flow->sf_acts);
+	for (a = sf_acts->actions, rem = sf_acts->actions_len; rem > 0;
+			a = nla_next(a, &rem)) {
+		struct vport *vport;
+		int port_no;
+
+		if (nla_type(a) != OVS_ACTION_ATTR_OUTPUT)
+			continue;
+
+		port_no = nla_get_u32(a);
+		vport = ovs_vport_ovsl_rcu(dp, port_no);
+
+		if (vport && (br_dev == vport->dev)) {
+			flow_found = true;
+		}
+		egress_ports++;
+	}
+
+	/*
+	 * flow should be unicast and egress port should be
+	 * bridge interface.
+	 */
+	if (!flow_found || (egress_ports != 1))
+		flow = NULL;
+
+	rcu_read_unlock();
+	return flow;
+}
+EXPORT_SYMBOL(ovs_accel_flow_find_by_mac);
+
 /* Update flow rule statistics */
 int ovs_accel_flow_stats_update(void *dp_inst, void *out_vport,
 				 struct sw_flow_key *key, int pkts, int bytes)
