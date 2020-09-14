@@ -25,7 +25,7 @@
 			mhi,timeout = <10000>;
 			qrtr_node_id = <0x20>;
 			qca,auto-restart;
-#ifdef __IPQ_MEM_PROFILE_256_MB__ || __IPQ_FLASH_16M_PROFILE__
+#ifdef __IPQ_MEM_PROFILE_256_MB__
 			/* QCN9000 tgt-mem-mode=2 layout - 17MB
 			 * +=========+==============+=========+
 			 * |  Region | Start Offset |   Size  |

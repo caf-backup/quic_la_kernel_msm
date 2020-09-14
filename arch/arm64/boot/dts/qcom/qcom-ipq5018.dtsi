@@ -634,7 +634,7 @@
 			qcom,smem-state-names = "shutdown",
 						"stop";
 
-		#ifdef __IPQ_MEM_PROFILE_256_MB__ || __IPQ_FLASH_16M_PROFILE__
+		#ifdef __IPQ_MEM_PROFILE_256_MB__
 			memory-region = <&q6_region>, <&q6_etr_region>;
 		#else
 			memory-region = <&q6_region>, <&q6_etr_region>,
@@ -657,7 +657,7 @@
 		wifi0: wifi@c000000 {
 			compatible = "qcom,cnss-qca5018", "qcom,ipq5018-wifi";
 			reg = <0xc000000 0x1000000>;
-		#ifdef __IPQ_MEM_PROFILE_256_MB__ || __IPQ_FLASH_16M_PROFILE__
+		#ifdef __IPQ_MEM_PROFILE_256_MB__
 			qcom,tgt-mem-mode = <2>;
 		#else
 			qcom,tgt-mem-mode = <1>;

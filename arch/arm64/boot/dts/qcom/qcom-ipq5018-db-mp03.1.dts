@@ -33,7 +33,7 @@
 
 	chosen {
 		bootargs = "console=ttyMSM0,115200,n8 rw init=/init";
-	#ifdef __IPQ_MEM_PROFILE_256_MB__ || __IPQ_FLASH_16M_PROFILE__
+	#ifdef __IPQ_MEM_PROFILE_256_MB__
 		bootargs-append = " swiotlb=1";
 	#else
 		bootargs-append = " swiotlb=1 coherent_pool=2M";
@@ -41,7 +41,7 @@
 		stdout-path = "serial0";
 	};
 	reserved-memory {
-	#ifdef __IPQ_MEM_PROFILE_256_MB__ || __IPQ_FLASH_16M_PROFILE__
+	#ifdef __IPQ_MEM_PROFILE_256_MB__
 	/*            256 MB Profile
 	 * +=========+==============+========================+
 	 * |        |              |                         |
