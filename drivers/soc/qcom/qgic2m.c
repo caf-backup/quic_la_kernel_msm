@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
+#include <linux/err.h>
 #include <soc/qcom/qgic2m.h>
 
 #define MAX_QGICM 2
@@ -22,13 +23,13 @@ struct qgic2_msi *qgic2_msi_drv[MAX_QGICM];
 
 /* get_qgic2_struct() - to pass the qgic2_msi struct that
  * contains the msi_desc.
- * gicm_id - 1, set 1 MSI vectors(APCS_ALIAS0_1_QGIC2M_NS)
- * 	   - 2, set 2 MSI vecotrs(APCS_ALIAS0_2_QGIC2M_NS)
+ * gicm_id - 0, set 1 MSI vectors(APCS_ALIAS0_0_QGIC2M_NS)
+ * 	   - 1, set 2 MSI vecotrs(APCS_ALIAS0_1_QGIC2M_NS)
  * each set will have 0 to 31 irq vectors.
  */
-struct qgic2_msi *get_qgic2_struct(int gicm_id)
+struct qgic2_msi *get_qgic2_struct(int qgicm_id)
 {
-	return qgic2_msi_drv[gicm_id-1];
+	return qgic2_msi_drv[qgicm_id];
 }
 EXPORT_SYMBOL(get_qgic2_struct);
 
@@ -84,7 +85,7 @@ static int qgic2_setup_msi_irq(struct qgic2_msi *qgic,
 	msg.data = qgic->msi_gicm_base + (firstirq - qgic->msi[0]);
 	desc->msg = msg;
 
-	return 0;
+	return index;
 }
 
 static int msi_setup_irq(struct qgic2_msi_controller *chip, struct qgic2_msi *qgic)
@@ -138,7 +139,7 @@ static void msi_teardown_irqs(struct qgic2_msi *qgic)
 		if (entry->irq == 0)
 			continue;
 
-		nvec = 1 << entry->msi_attrib.multiple;
+		nvec = entry->nvec_used;
 		for (i = 0; i < nvec; i++)
 			destroy_qgic2_msi_irq(entry->irq + i, qgic);
 	}
@@ -150,6 +151,102 @@ static struct qgic2_msi_controller qgic2_msi_chip = {
 	.teardown_irq = msi_teardown_irq,
 	.teardown_irqs = msi_teardown_irqs,
 };
+
+static int qgic2_msi_verify_entries(struct qgic2_msi *qgic)
+{
+	struct msi_desc *entry;
+
+	for_each_msi_entry(entry, qgic->dev) {
+		if (!qgic->no_64bit_msi || !entry->msg.address_hi)
+			continue;
+		pr_err("QGIC2-MSI: Device has broken 64-bit MSI but arch"
+				"tried to assign one above 4G\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static void qgic2_msi_free_irqs(struct qgic2_msi *qgic)
+{
+	struct msi_desc *entry;
+	int i;
+
+	for_each_msi_entry(entry, qgic->dev) {
+		if (entry->irq)
+			for (i = 0; i < entry->nvec_used; i++)
+				BUG_ON(irq_has_action(entry->irq + i));
+	}
+	qgic->chip->teardown_irqs(qgic);
+}
+
+struct qgic2_msi *qgic2_enable_msi(int qgicm_id, int nvec)
+{
+	struct qgic2_msi *qgic = NULL;
+	struct qgic2_msi_controller *chip;
+	struct msi_desc *entry;
+	int irqs_enabled = 0;
+	int ret;
+
+	qgic = get_qgic2_struct(qgicm_id);
+	chip = qgic->chip;
+
+	if (qgic->msi_enabled) {
+		pr_err("QGIC2_%d %d MSI irqs already enabled\n", qgicm_id, qgic->nvec_used);
+		if (nvec > (qgic->num_irqs - qgic->nvec_used)) {
+			pr_err("QGIC2-MSI:Some of requested vectors are already enabled\n");
+			return ERR_PTR(-EINVAL);
+		}
+	}
+
+	if (nvec > qgic->num_irqs) {
+		pr_err("QGIC2-MSI: Requested no.of vectors are greater than MAX"
+				" supported irqs in QGIC_%d\n", qgicm_id);
+		return ERR_PTR(-EINVAL);
+	}
+
+	entry = alloc_msi_entry(qgic->dev);
+	if (!entry)
+		return ERR_PTR(-ENOSPC);
+
+	entry->nvec_used = nvec;
+	list_add_tail(&entry->list, dev_to_msi_list(qgic->dev));
+
+	irqs_enabled = chip->setup_irqs(chip, qgic, nvec);
+	if (irqs_enabled < 0)
+		return NULL;
+
+	if (irqs_enabled != nvec) {
+		pr_warn("QGIC2-MSI: Only %d irq vectors enabled\n", irqs_enabled);
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (!qgic->msi_enabled) {
+		qgic->msi_enabled = 1;
+		qgic->base_irq = entry->irq;
+	}
+	qgic->nvec_used += irqs_enabled;
+
+	ret = qgic2_msi_verify_entries(qgic);
+	if (ret) {
+		qgic2_msi_free_irqs(qgic);
+		return ERR_PTR(-EINVAL);
+	}
+
+	return qgic;
+};
+EXPORT_SYMBOL(qgic2_enable_msi);
+
+void qgic2_disable_msi(int qgicm_id)
+{
+	struct qgic2_msi *qgic;
+
+	qgic = get_qgic2_struct(qgicm_id);
+	qgic->chip->teardown_irqs(qgic);
+	qgic->msi_enabled = 0;
+	qgic->nvec_used = 0;
+}
+EXPORT_SYMBOL(qgic2_disable_msi);
 
 static int qti_qgic2_probe(struct platform_device *pdev)
 {
@@ -174,9 +271,16 @@ static int qti_qgic2_probe(struct platform_device *pdev)
 	for (i = 0; i < MAX_MSI_IRQS; i++) {
 		snprintf(irq_name, sizeof(irq_name), "msi_%d", i);
 		qgic->msi[i] = platform_get_irq_byname(pdev, irq_name);
-		if (qgic->msi[i] < 0)
+		if (qgic->msi[i] < 0) {
+			dev_err(dev, "cannot request msi_%d irq\n", i);
 			break;
+		}
 	}
+
+	qgic->num_irqs = i;
+	qgic->nvec_used = 0;
+	qgic->msi_enabled = 0;
+	qgic->no_64bit_msi = 1;
 
 	qgic2_msi_chip.dev = qgic->dev;
 	qgic->chip = &qgic2_msi_chip;
