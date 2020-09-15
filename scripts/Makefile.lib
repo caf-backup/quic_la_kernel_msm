@@ -174,12 +174,10 @@ dtc_cpp_flags  = -Wp,-MD,$(depfile).pre.tmp -nostdinc                    \
 #Add DDR profiling for different DDR size in dtsi
 ifeq ($(CONFIG_IPQ_MEM_PROFILE),256)
 dtc_cpp_flags += -D __IPQ_MEM_PROFILE_256_MB__
+else ifeq ($(CONFIG_IPQ_FLASH_16M_PROFILE),y)
+dtc_cpp_flags += -D __IPQ_MEM_PROFILE_256_MB__
 else ifeq ($(CONFIG_IPQ_MEM_PROFILE),512)
 dtc_cpp_flags += -D __IPQ_MEM_PROFILE_512_MB__
-endif
-
-ifeq ($(CONFIG_IPQ_FLASH_16M_PROFILE),y)
-dtc_cpp_flags += -D __IPQ_FLASH_16M_PROFILE__
 endif
 
 #MHI PCI dtsi changes
