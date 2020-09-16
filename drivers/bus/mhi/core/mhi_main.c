@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
+#include <linux/gpio/consumer.h>
 #include <linux/mhi.h>
 #include "mhi_internal.h"
 
@@ -1848,8 +1849,12 @@ static void __mhi_unprepare_channel(struct mhi_controller *mhi_cntrl,
 				    struct mhi_chan *mhi_chan)
 {
 	int ret;
+	enum mhi_ee current_ee;
 
 	MHI_LOG("Entered: unprepare channel:%d\n", mhi_chan->chan);
+
+	/* get current execution environment */
+	current_ee = mhi_get_exec_env(mhi_cntrl);
 
 	/* no more processing events for this channel */
 	mutex_lock(&mhi_chan->mutex);
@@ -1882,11 +1887,13 @@ static void __mhi_unprepare_channel(struct mhi_controller *mhi_cntrl,
 		goto error_completion;
 	}
 
-	/* even if it fails we will still reset */
-	ret = wait_for_completion_timeout(&mhi_chan->completion,
+	if (!MHI_IN_SBL(current_ee)) {
+		/* even if it fails we will still reset */
+		ret = wait_for_completion_timeout(&mhi_chan->completion,
 				msecs_to_jiffies(mhi_cntrl->timeout_ms));
-	if (!ret || mhi_chan->ccs != MHI_EV_CC_SUCCESS)
+		if (!ret || mhi_chan->ccs != MHI_EV_CC_SUCCESS)
 		MHI_ERR("Failed to receive cmd completion, still resetting\n");
+	}
 
 error_completion:
 	read_lock_bh(&mhi_cntrl->pm_lock);

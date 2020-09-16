@@ -750,6 +750,7 @@ int mhi_async_power_up(struct mhi_controller *mhi_cntrl)
 	u32 val;
 	enum mhi_ee current_ee;
 	enum MHI_ST_TRANSITION next_state;
+	bool mhi_ssr_ramdump_negotiate;
 
 	MHI_LOG("Requested to power on\n");
 
@@ -809,16 +810,24 @@ int mhi_async_power_up(struct mhi_controller *mhi_cntrl)
 	current_ee = mhi_get_exec_env(mhi_cntrl);
 	write_unlock_irq(&mhi_cntrl->pm_lock);
 
-	/* confirm device is in valid exec env */
-	if (!MHI_IN_PBL(current_ee) && current_ee != MHI_EE_AMSS) {
-		MHI_ERR("Not a valid ee for power on %d\n", current_ee);
-		ret = -EIO;
-		goto error_bhi_offset;
-	}
+	mhi_ssr_ramdump_negotiate = of_property_read_bool(mhi_cntrl->of_node,
+		"mhi,ssr-negotiate");
 
-	/* transition to next state */
-	next_state = MHI_IN_PBL(current_ee) ?
-		MHI_ST_TRANSITION_PBL : MHI_ST_TRANSITION_READY;
+	if (mhi_ssr_ramdump_negotiate) {
+		next_state = MHI_ST_TRANSITION_READY;
+	} else {
+
+		/* confirm device is in valid exec env */
+		if (!MHI_IN_PBL(current_ee) && current_ee != MHI_EE_AMSS) {
+			MHI_ERR("Not a valid ee for power on %d\n", current_ee);
+			ret = -EIO;
+			goto error_bhi_offset;
+		} else {
+			/* transition to next state */
+			next_state = MHI_IN_PBL(current_ee) ?
+				MHI_ST_TRANSITION_PBL : MHI_ST_TRANSITION_READY;
+		}
+	}
 
 	if (next_state == MHI_ST_TRANSITION_PBL)
 		schedule_work(&mhi_cntrl->fw_worker);
