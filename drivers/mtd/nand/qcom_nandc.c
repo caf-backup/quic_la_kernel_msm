@@ -174,7 +174,9 @@
 #define SPI_FLASH_ECC_DISABLE          	0x00
 #define SPI_CFG_ENABLED			0xff
 #define SPI_FLASH_QUAD_MODE		0x1
+#define	SPI_NAND_FR_BUFF_ENABLE		(1 << 3)
 #define SPI_FLASH_MICRON_ID		0x2c
+#define SPI_FLASH_WINBOND_ID		0xef
 #define SPI_FLASH_GIGA_ID		0xc8
 #define QPIC_VERSION_V2_0		0x2
 #if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
@@ -384,6 +386,9 @@ struct nand_flash_dev qspinand_flash_ids[] = {
 	{"MT29F1G01ABBFDWB-IT SPI NAND 1G 1.8V",
 		{ .id = {0x2c, 0x15} },
 		SZ_2K, SZ_128, SZ_128K, 0, 2, 128, NAND_ECC_INFO(8, SZ_512), 0},
+	{"W25N01JW SPI NAND 1.8V 1G-BIT",
+		{ .id = {0xef, 0xbc} },
+		SZ_2K, SZ_128, SZ_128K, 0, 2, 64, NAND_ECC_INFO(4, SZ_512), 0},
 	{NULL}
 };
 
@@ -3828,7 +3833,7 @@ static void qcom_check_quad_mode(struct mtd_info *mtd, struct qcom_nand_host *ho
 		cmd3_val = NAND_FLASH_DEV_CMD3_VAL & NAND_FLASH_DEV_CMD3_MASK;
 		host->check_qe_bit = false;
 		nandc_write(nandc, NAND_DEV_CMD3, cmd3_val);
-	} else if (id_data[0] == SPI_FLASH_GIGA_ID)
+	} else
 		host->check_qe_bit = true;
 }
 
@@ -3937,6 +3942,38 @@ out:
 	nandc->io_macro_max_clk = pdata->io_macro_clk_table[2];
 
 	return NULL;
+}
+
+static bool Is_Device_Winbond(struct mtd_info *mtd, struct qcom_nand_host *host)
+{
+	int i, ret;
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
+	unsigned int command = NAND_CMD_READID_SERIAL;
+	u8 id_data[3];
+
+	pre_command(host, command);
+
+	/* get the device id from device */
+	nandc->buf_count = 4;
+	read_id(host, 0x00);
+
+	ret = submit_descs(nandc);
+	if (ret)
+		dev_err(nandc->dev, "failure submitting descs for command %d\n",
+				command);
+	free_descs(nandc);
+
+	post_command(host, command);
+
+	/* Read Id bytes */
+	for (i = 0; i < 2; i++)
+		id_data[i] = chip->read_byte(mtd);
+
+	if (id_data[0] == SPI_FLASH_WINBOND_ID)
+		return true;
+
+	return false;
 }
 
 int qcom_serial_device_config(struct mtd_info *mtd, struct qcom_nand_host *host)
@@ -4058,6 +4095,31 @@ int qcom_serial_device_config(struct mtd_info *mtd, struct qcom_nand_host *host)
 			dev_err(nandc->dev,"Quad mode not enabled using X1 mode.\n");
 		}
 	}
+
+	/* Enable continous BUFF bit only for Winbond device
+	 * Read the id and compare for winbond device id
+	 */
+	if (Is_Device_Winbond(mtd, host)) {
+		status = qcom_serial_get_feature(nandc, host, SPI_FLASH_FEATURE_REG);
+		if (status < 0) {
+			dev_err(nandc->dev,"Error in getting feature Continous buff");
+			return status;
+		}
+
+		if (!((status >> 8) & SPI_NAND_FR_BUFF_ENABLE)) {
+			dev_dbg(nandc->dev, "Continous buffer mode not enabled on power on\n");
+			dev_dbg(nandc->dev, "Issuing set feature command enbale it\n");
+			status = qcom_serial_set_feature(nandc, host, SPI_FLASH_FEATURE_REG,
+					SPI_NAND_FR_BUFF_ENABLE | (status >> 8));
+			if (status < 0) {
+				dev_err(nandc->dev,"Error in setting feature Quad mode.");
+				return status;
+			}
+		} else {
+			dev_dbg(nandc->dev, "Continous buffer mode enabled on power on\n");
+		}
+	}
+
 	return 0;
 }
 
