@@ -232,30 +232,43 @@ extern struct bus_type mhi_bus_type;
 #define TIME_TICKS_TO_US(x) (div_u64((x) * 10, 192))
 
 struct mhi_event_ctxt {
+#if IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)
+	u32 intmodt : 16;
+	u32 intmodc : 8;
+	u32 reserved : 8;
+#else
 	u32 reserved : 8;
 	u32 intmodc : 8;
 	u32 intmodt : 16;
-	u32 ertype;
-	u32 msivec;
+#endif
+	__le32 ertype;
+	__le32 msivec;
 
-	u64 rbase __packed __aligned(4);
-	u64 rlen __packed __aligned(4);
-	u64 rp __packed __aligned(4);
-	u64 wp __packed __aligned(4);
+	__le64 rbase __packed __aligned(4);
+	__le64 rlen __packed __aligned(4);
+	__le64 rp __packed __aligned(4);
+	__le64 wp __packed __aligned(4);
 };
 
 struct mhi_chan_ctxt {
+#if IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)
+	u32 reserved : 16;
+	u32 pollcfg : 6;
+	u32 brstmode : 2;
+	u32 chstate : 8;
+#else
 	u32 chstate : 8;
 	u32 brstmode : 2;
 	u32 pollcfg : 6;
 	u32 reserved : 16;
-	u32 chtype;
-	u32 erindex;
+#endif
+	__le32 chtype;
+	__le32 erindex;
 
-	u64 rbase __packed __aligned(4);
-	u64 rlen __packed __aligned(4);
-	u64 rp __packed __aligned(4);
-	u64 wp __packed __aligned(4);
+	__le64 rbase __packed __aligned(4);
+	__le64 rlen __packed __aligned(4);
+	__le64 rp __packed __aligned(4);
+	__le64 wp __packed __aligned(4);
 };
 
 struct mhi_cmd_ctxt {
@@ -263,20 +276,20 @@ struct mhi_cmd_ctxt {
 	u32 reserved1;
 	u32 reserved2;
 
-	u64 rbase __packed __aligned(4);
-	u64 rlen __packed __aligned(4);
-	u64 rp __packed __aligned(4);
-	u64 wp __packed __aligned(4);
+	__le64 rbase __packed __aligned(4);
+	__le64 rlen __packed __aligned(4);
+	__le64 rp __packed __aligned(4);
+	__le64 wp __packed __aligned(4);
 };
 
 struct mhi_tre {
-	u64 ptr;
-	u32 dword[2];
+	__le64 ptr;
+	__le32 dword[2];
 };
 
 struct bhi_vec_entry {
-	u64 dma_addr;
-	u64 size;
+	__le64 dma_addr;
+	__le64 size;
 };
 
 enum mhi_cmd_type {
@@ -314,26 +327,6 @@ enum mhi_cmd_type {
 #define MHI_TRE_CMD_TSYNC_CFG_DWORD0 (0)
 #define MHI_TRE_CMD_TSYNC_CFG_DWORD1(er) ((MHI_CMD_TYPE_TSYNC << 16) | \
 					  (er << 24))
-
-#define MHI_TRE_GET_CMD_CHID(tre) (((tre)->dword[1] >> 24) & 0xFF)
-#define MHI_TRE_GET_CMD_TYPE(tre) (((tre)->dword[1] >> 16) & 0xFF)
-
-/* event descriptor macros */
-#define MHI_TRE_EV_PTR(ptr) (ptr)
-#define MHI_TRE_EV_DWORD0(code, len) ((code << 24) | len)
-#define MHI_TRE_EV_DWORD1(chid, type) ((chid << 24) | (type << 16))
-#define MHI_TRE_GET_EV_PTR(tre) ((tre)->ptr)
-#define MHI_TRE_GET_EV_CODE(tre) (((tre)->dword[0] >> 24) & 0xFF)
-#define MHI_TRE_GET_EV_LEN(tre) ((tre)->dword[0] & 0xFFFF)
-#define MHI_TRE_GET_EV_CHID(tre) (((tre)->dword[1] >> 24) & 0xFF)
-#define MHI_TRE_GET_EV_TYPE(tre) (((tre)->dword[1] >> 16) & 0xFF)
-#define MHI_TRE_GET_EV_STATE(tre) (((tre)->dword[0] >> 24) & 0xFF)
-#define MHI_TRE_GET_EV_EXECENV(tre) (((tre)->dword[0] >> 24) & 0xFF)
-#define MHI_TRE_GET_EV_SEQ(tre) ((tre)->dword[0])
-#define MHI_TRE_GET_EV_TIME(tre) ((tre)->ptr)
-#define MHI_TRE_GET_EV_COOKIE(tre) lower_32_bits((tre)->ptr)
-#define MHI_TRE_GET_EV_VEID(tre) (((tre)->dword[0] >> 16) & 0xFF)
-
 /* transfer descriptor macros */
 #define MHI_TRE_DATA_PTR(ptr) (ptr)
 #define MHI_TRE_DATA_DWORD0(len) (len & MHI_MAX_MTU)
@@ -531,7 +524,7 @@ struct mhi_ctxt {
 struct mhi_ring {
 	dma_addr_t dma_handle;
 	dma_addr_t iommu_base;
-	u64 *ctxt_wp; /* point to ctxt wp */
+	__le64 *ctxt_wp; /* point to ctxt wp */
 	void *pre_aligned;
 	void *base;
 	void *rp;

@@ -25,17 +25,17 @@
 
 typedef struct
 {
-	uint64_t base_address;
-	uint64_t actual_phys_address;
-	uint64_t size;
+	__le64 base_address;
+	__le64 actual_phys_address;
+	__le64 size;
 	char description[20];
 	char file_name[20];
 }ramdump_entry;
 
 typedef struct
 {
-	uint32_t version;
-	uint32_t header_size;
+	__le32 version;
+	__le32 header_size;
 	ramdump_entry ramdump_table[MAX_RAMDUMP_TABLE_SIZE];
 }ramdump_header_t;
 
@@ -59,7 +59,7 @@ void get_crash_reason(struct mhi_controller *mhi_cntrl)
 	/* Get RDDM header size */
 	ramdump_header = (ramdump_header_t *)mhi_buf[0].buf;
 	ramdump_table = ramdump_header->ramdump_table;
-	coredump_offset += ramdump_header->header_size;
+	coredump_offset += le32_to_cpu(ramdump_header->header_size);
 
 	/* Traverse ramdump table to get coredump offset */
 	i = 0;
@@ -68,7 +68,7 @@ void get_crash_reason(struct mhi_controller *mhi_cntrl)
 			sizeof(COREDUMP_DESC))) {
 			break;
 		}
-		coredump_offset += ramdump_table->size;
+		coredump_offset += le64_to_cpu(ramdump_table->size);
 		ramdump_table++;
 		i++;
 	}
@@ -105,8 +105,8 @@ static void mhi_rddm_prepare(struct mhi_controller *mhi_cntrl,
 	for (i = 0; i < img_info->entries - 1; i++, mhi_buf++, bhi_vec++) {
 		MHI_VERB("Setting vector:%pad size:%zu\n",
 			 &mhi_buf->dma_addr, mhi_buf->len);
-		bhi_vec->dma_addr = mhi_buf->dma_addr;
-		bhi_vec->size = mhi_buf->len;
+		bhi_vec->dma_addr = cpu_to_le64(mhi_buf->dma_addr);
+		bhi_vec->size = cpu_to_le64(mhi_buf->len);
 	}
 }
 
@@ -591,8 +591,8 @@ static void mhi_firmware_copy(struct mhi_controller *mhi_cntrl,
 
 		to_cpy = min(remainder, mhi_buf->len);
 		memcpy(mhi_buf->buf, buf, to_cpy);
-		bhi_vec->dma_addr = mhi_buf->dma_addr;
-		bhi_vec->size = to_cpy;
+		bhi_vec->dma_addr = cpu_to_le64(mhi_buf->dma_addr);
+		bhi_vec->size = cpu_to_le64(to_cpy);
 
 		MHI_VERB("Setting Vector:0x%llx size: %llu\n",
 			 bhi_vec->dma_addr, bhi_vec->size);

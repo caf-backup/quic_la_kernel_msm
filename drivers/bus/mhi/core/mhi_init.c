@@ -304,8 +304,8 @@ int mhi_init_dev_ctxt(struct mhi_controller *mhi_cntrl)
 		chan_ctxt->chstate = MHI_CH_STATE_DISABLED;
 		chan_ctxt->brstmode = mhi_chan->db_cfg.brstmode;
 		chan_ctxt->pollcfg = mhi_chan->db_cfg.pollcfg;
-		chan_ctxt->chtype = mhi_chan->type;
-		chan_ctxt->erindex = mhi_chan->er_index;
+		chan_ctxt->chtype = cpu_to_le32(mhi_chan->type);
+		chan_ctxt->erindex = cpu_to_le32(mhi_chan->er_index);
 
 		mhi_chan->ch_state = MHI_CH_STATE_DISABLED;
 		mhi_chan->tre_ring.db_addr = &chan_ctxt->wp;
@@ -330,8 +330,8 @@ int mhi_init_dev_ctxt(struct mhi_controller *mhi_cntrl)
 
 		er_ctxt->intmodc = 0;
 		er_ctxt->intmodt = mhi_event->intmod;
-		er_ctxt->ertype = MHI_ER_TYPE_VALID;
-		er_ctxt->msivec = mhi_event->msi;
+		er_ctxt->ertype = cpu_to_le32(MHI_ER_TYPE_VALID);
+		er_ctxt->msivec = cpu_to_le32(mhi_event->msi);
 		mhi_event->db_cfg.db_mode = true;
 
 		ring->el_size = sizeof(struct mhi_tre);
@@ -341,9 +341,9 @@ int mhi_init_dev_ctxt(struct mhi_controller *mhi_cntrl)
 			goto error_alloc_er;
 
 		ring->rp = ring->wp = ring->base;
-		er_ctxt->rbase = ring->iommu_base;
+		er_ctxt->rbase = cpu_to_le64(ring->iommu_base);
 		er_ctxt->rp = er_ctxt->wp = er_ctxt->rbase;
-		er_ctxt->rlen = ring->len;
+		er_ctxt->rlen = cpu_to_le64(ring->len);
 		ring->ctxt_wp = &er_ctxt->wp;
 	}
 
@@ -367,9 +367,9 @@ int mhi_init_dev_ctxt(struct mhi_controller *mhi_cntrl)
 			goto error_alloc_cmd;
 
 		ring->rp = ring->wp = ring->base;
-		cmd_ctxt->rbase = ring->iommu_base;
+		cmd_ctxt->rbase = cpu_to_le64(ring->iommu_base);
 		cmd_ctxt->rp = cmd_ctxt->wp = cmd_ctxt->rbase;
-		cmd_ctxt->rlen = ring->len;
+		cmd_ctxt->rlen = cpu_to_le64(ring->len);
 		ring->ctxt_wp = &cmd_ctxt->wp;
 	}
 
@@ -682,6 +682,7 @@ int mhi_init_chan_ctxt(struct mhi_controller *mhi_cntrl,
 	struct mhi_ring *tre_ring;
 	struct mhi_chan_ctxt *chan_ctxt;
 	int ret;
+	u32 state_enabled = MHI_CH_STATE_ENABLED;
 
 	buf_ring = &mhi_chan->buf_ring;
 	tre_ring = &mhi_chan->tre_ring;
@@ -702,10 +703,10 @@ int mhi_init_chan_ctxt(struct mhi_controller *mhi_cntrl,
 		return -ENOMEM;
 	}
 
-	chan_ctxt->chstate = MHI_CH_STATE_ENABLED;
-	chan_ctxt->rbase = tre_ring->iommu_base;
+	chan_ctxt->chstate = cpu_to_le32(state_enabled);
+	chan_ctxt->rbase = cpu_to_le64(tre_ring->iommu_base);
 	chan_ctxt->rp = chan_ctxt->wp = chan_ctxt->rbase;
-	chan_ctxt->rlen = tre_ring->len;
+	chan_ctxt->rlen = cpu_to_le64(tre_ring->len);
 	tre_ring->ctxt_wp = &chan_ctxt->wp;
 
 	tre_ring->rp = tre_ring->wp = tre_ring->base;
@@ -784,6 +785,7 @@ static int of_parse_ev_cfg(struct mhi_controller *mhi_cntrl,
 	int i, ret, num = 0;
 	struct mhi_event *mhi_event;
 	struct device_node *child;
+	u32 temp = 0;
 
 	of_node = of_find_node_by_name(of_node, "mhi_events");
 	if (!of_node)
@@ -812,7 +814,8 @@ static int of_parse_ev_cfg(struct mhi_controller *mhi_cntrl,
 
 		mhi_event->er_index = i++;
 		ret = of_property_read_u32(child, "mhi,num-elements",
-					   (u32 *)&mhi_event->ring.elements);
+					   &temp);
+		mhi_event->ring.elements = temp;
 		if (ret)
 			goto error_ev_cfg;
 
@@ -898,6 +901,7 @@ static int of_parse_ch_cfg(struct mhi_controller *mhi_cntrl,
 	int ret;
 	struct device_node *child;
 	u32 chan;
+	u32 temp = 0;
 
 	ret = of_property_read_u32(of_node, "mhi,max-channels",
 				   &mhi_cntrl->max_chan);
@@ -935,8 +939,9 @@ static int of_parse_ch_cfg(struct mhi_controller *mhi_cntrl,
 
 		mhi_chan->chan = chan;
 
-		ret = of_property_read_u32(child, "mhi,num-elements",
-					   (u32 *)&mhi_chan->tre_ring.elements);
+		ret = of_property_read_u32(child, "mhi,num-elements", &temp);
+		mhi_chan->tre_ring.elements = temp;
+
 		if (!ret && !mhi_chan->tre_ring.elements)
 			goto error_chan_cfg;
 
@@ -947,8 +952,10 @@ static int of_parse_ch_cfg(struct mhi_controller *mhi_cntrl,
 		 * Example, RSC channels should have a larger local channel
 		 * than transfer ring length.
 		 */
-		ret = of_property_read_u32(child, "mhi,local-elements",
-					   (u32 *)&mhi_chan->buf_ring.elements);
+		temp = 0;
+		ret = of_property_read_u32(child, "mhi,local-elements", &temp);
+		mhi_chan->buf_ring.elements = temp;
+
 		if (ret)
 			mhi_chan->buf_ring.elements =
 				mhi_chan->tre_ring.elements;
