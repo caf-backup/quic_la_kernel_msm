@@ -119,7 +119,7 @@ enum {
 struct pppoe_channel_ops {
 	/* Must be first - general to all PPP channels */
 	struct ppp_channel_ops ops;
-	void (*get_addressing)(struct ppp_channel *, struct pppoe_opt *);
+	int (*get_addressing)(struct ppp_channel *, struct pppoe_opt *);
 };
 
 /* PPTP client callback */
@@ -127,7 +127,7 @@ typedef int (*pptp_gre_seq_offload_callback_t)(struct sk_buff *skb,
 					       struct net_device *pptp_dev);
 
 /* Return PPPoE channel specific addressing information */
-extern void pppoe_channel_addressing_get(struct ppp_channel *chan,
+extern int pppoe_channel_addressing_get(struct ppp_channel *chan,
 					 struct pppoe_opt *addressing);
 
 /* Lookup PPTP session info and return PPTP session */
