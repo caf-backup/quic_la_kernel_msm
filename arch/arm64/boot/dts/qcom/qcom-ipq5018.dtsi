@@ -34,6 +34,14 @@
 		status = "ok";
 	};
 
+#ifdef ENABLE_QSEECOM
+	qseecom {
+		compatible = "ipq5018-qseecom";
+		mem-start = <0x4a400000>;
+		mem-size = <0x200000>;
+	};
+#endif
+
 	soc: soc {
 		#address-cells = <0x1>;
 		#size-cells = <0x1>;

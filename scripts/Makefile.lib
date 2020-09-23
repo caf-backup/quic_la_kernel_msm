@@ -180,6 +180,14 @@ else ifeq ($(CONFIG_IPQ_MEM_PROFILE),512)
 dtc_cpp_flags += -D __IPQ_MEM_PROFILE_512_MB__
 endif
 
+# Enable qseecom and tzapp node only when CONFIG_QSEECOM is deinfed
+# and when 16M profile is not selected
+ifneq ($(CONFIG_IPQ_FLASH_16M_PROFILE),y)
+ifneq ($(CONFIG_QSEECOM),n)
+dtc_cpp_flags += -D ENABLE_QSEECOM
+endif
+endif
+
 #MHI PCI dtsi changes
 ifeq ($(CONFIG_CNSS2),y)
 dtc_cpp_flags += -D __CNSS2__

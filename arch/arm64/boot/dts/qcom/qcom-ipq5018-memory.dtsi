@@ -117,6 +117,13 @@
 			no-map;
 			reg = <0x0 0x4C700000 0x0 0x100000>;
 		};
+
+#ifdef ENABLE_QSEECOM
+		tzapp:tzapp@4a400000 {	/* TZAPPS */
+			no-map;
+		};
+#endif
+
 		q6_etr_region:q6_etr_dump@4c800000 {
 			no-map;
 			reg = <0x0 0x4c800000 0x0 0x100000>;
@@ -218,6 +225,12 @@
 			no-map;
 			reg = <0x0 0x4c800000 0x0 0x100000>;
 		};
+
+#ifdef ENABLE_QSEECOM
+		tzapp:tzapp@4a400000 {	/* TZAPPS */
+			no-map;
+		};
+#endif
 
 		q6_etr_region:q6_etr_dump@4c900000 {
 			no-map;
