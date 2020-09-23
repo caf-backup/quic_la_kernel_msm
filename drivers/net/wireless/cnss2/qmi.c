@@ -593,7 +593,7 @@ static int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 		folder = "IPQ5018/";
 		break;
 	case QCN9100_DEVICE_ID:
-		folder = "QCN9100/";
+		folder = "qcn9100/";
 		break;
 	default:
 		folder = "IPQ8074/";
