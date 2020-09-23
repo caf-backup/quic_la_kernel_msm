@@ -336,7 +336,8 @@ static int calibrate_ipq5018(struct tsens_device *tmdev)
 	if (IS_ERR(qfprom_cdata))
 		return PTR_ERR(qfprom_cdata);
 
-	mode = (qfprom_cdata[0] & CAL_SEL_MASK) >> CAL_SEL_SHIFT;
+	/* Choose default mode till all boards are calibrated */
+	/* mode = (qfprom_cdata[0] & CAL_SEL_MASK) >> CAL_SEL_SHIFT; */
 
 	dev_dbg(tmdev->dev, "calibration mode is %d\n", mode);
 
