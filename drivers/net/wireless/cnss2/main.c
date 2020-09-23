@@ -1444,7 +1444,6 @@ void cnss_wlan_unregister_driver(struct cnss_wlan_driver *driver_ops)
 			plat_priv->driver_ops = NULL;
 			plat_priv->driver_status = CNSS_UNINITIALIZED;
 			plat_priv->driver_state = 0;
-			break;
 		}
 
 		if (plat_priv->device_id == QCN9000_DEVICE_ID && ops &&
