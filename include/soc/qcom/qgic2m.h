@@ -55,6 +55,7 @@ struct qgic2_msi_controller {
 
 struct qgic2_msi *get_qgic2_struct(int qgicm_id);
 
+#ifdef CONFIG_QGIC2_MSI
 /* qgic2_enable_msi() function to enable QGIC MSI irqs
  * qgicm_id	- INDEX of the QGIC2M MSI address space
  * num_vectors	- Number of IRQ vectors to enable
@@ -64,3 +65,13 @@ struct qgic2_msi *get_qgic2_struct(int qgicm_id);
  */
 struct qgic2_msi *qgic2_enable_msi(int qgicm_id, int num_vectors);
 void qgic2_disable_msi(int qgicm_id);
+#else
+static inline struct qgic2_msi *qgic2_enable_msi(int qgicm_id, int num_vectors)
+{
+	return NULL;
+}
+
+static inline void qgic2_disable_msi(int qgicm_id)
+{
+}
+#endif
