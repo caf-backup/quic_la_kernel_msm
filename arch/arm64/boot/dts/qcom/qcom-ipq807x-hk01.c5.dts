@@ -871,6 +871,28 @@
 				mhi,ee = <0x4>;
 			};
 
+			mhi_chan@2 {
+				reg = <2>;
+				label = "SAHARA";
+				mhi,num-elements = <128>;
+				mhi,event-ring = <1>;
+				mhi,chan-dir = <1>;
+				mhi,data-type = <0>;
+				mhi,doorbell-mode = <2>;
+				mhi,ee = <0x2>;
+			};
+
+			mhi_chan@3 {
+				reg = <3>;
+				label = "SAHARA";
+				mhi,num-elements = <128>;
+				mhi,event-ring = <1>;
+				mhi,chan-dir = <2>;
+				mhi,data-type = <0>;
+				mhi,doorbell-mode = <2>;
+				mhi,ee = <0x2>;
+			};
+
 			mhi_chan@4 {
 				reg = <4>;
 				label = "DIAG";

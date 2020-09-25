@@ -393,6 +393,8 @@ enum MHI_CH_STATE {
 #define MHI_INVALID_BRSTMODE(mode) (mode != MHI_DB_BRST_DISABLE && \
 				    mode != MHI_DB_BRST_ENABLE)
 
+#define MHI_IN_SBL(ee) (ee == MHI_EE_SBL)
+
 #define MHI_IN_PBL(ee) (ee == MHI_EE_PBL || ee == MHI_EE_PTHRU || \
 			ee == MHI_EE_EDL)
 
