@@ -1550,6 +1550,15 @@ skip_secure:
 	return 0;
 }
 
+static int q6v5_register_dump_segments(struct rproc *rproc, const struct firmware *fw)
+{
+	/*
+	 * Registering custom coredump function with a dummy dump segment as the
+	 * dump regions are taken care by the dump function itself
+	 */
+	return rproc_coredump_add_custom_segment(rproc, 0, 0, crashdump_init, NULL);
+}
+
 static void *q6v5_wcss_da_to_va(struct rproc *rproc, u64 da, int len)
 {
 	struct q6v5_wcss *wcss = rproc->priv;
@@ -1644,6 +1653,7 @@ static const struct rproc_ops q6v5_wcss_userpd_ops = {
 static const struct rproc_ops q6v5_wcss_ops = {
 	.start = q6v5_wcss_start,
 	.stop = q6v5_wcss_stop,
+	.parse_fw = q6v5_register_dump_segments,
 	.da_to_va = q6v5_wcss_da_to_va,
 	.load = q6v5_wcss_load,
 	.get_boot_addr = rproc_elf_get_boot_addr,
@@ -1987,14 +1997,6 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 #endif
 	rproc->auto_boot = false;
 	ret = rproc_add(rproc);
-	if (ret)
-		goto free_rproc;
-
-	/*
-	 * Registering custom coredump function with a dummy dump segment as the
-	 * dump regions are taken care by the dump function itself
-	 */
-	ret = rproc_coredump_add_custom_segment(rproc, 0, 0, crashdump_init, NULL);
 	if (ret)
 		goto free_rproc;
 
