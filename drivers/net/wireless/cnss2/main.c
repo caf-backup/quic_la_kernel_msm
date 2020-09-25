@@ -1236,6 +1236,7 @@ static int cnss_qca8074_notifier_nb(struct notifier_block *nb,
 				  (const struct pci_device_id *)
 				  plat_priv->plat_dev_id);
 	} else if (code == SUBSYS_BEFORE_SHUTDOWN) {
+		cnss_bus_free_fw_mem(plat_priv);
 		cnss_bus_free_qdss_mem(plat_priv);
 		driver_ops->remove((struct pci_dev *)plat_priv->plat_dev);
 	} else if (code == SUBSYS_RAMDUMP_NOTIFICATION) {

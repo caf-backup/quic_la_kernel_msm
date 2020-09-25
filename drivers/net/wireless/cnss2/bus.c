@@ -176,6 +176,22 @@ int cnss_bus_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 	}
 }
 
+void cnss_bus_free_fw_mem(struct cnss_plat_data *plat_priv)
+{
+	if (!plat_priv)
+		return;
+
+	switch (plat_priv->bus_type) {
+	case CNSS_BUS_PCI:
+	case CNSS_BUS_AHB:
+		cnss_pci_free_fw_mem(plat_priv);
+		break;
+	default:
+		cnss_pr_err("Unsupported bus type %d\n",
+			    plat_priv->bus_type);
+	}
+}
+
 int cnss_bus_alloc_qdss_mem(struct cnss_plat_data *plat_priv)
 {
 	int i;
