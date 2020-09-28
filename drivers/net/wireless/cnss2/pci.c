@@ -2694,8 +2694,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 			switch (fw_mem[i].type) {
 			case BDF_MEM_REGION_TYPE:
 				fw_mem[idx].pa = bdf_location[mode];
-				fw_mem[idx].va = (void *)(unsigned long)
-						 bdf_location[mode];
+				fw_mem[idx].va = NULL;
 				fw_mem[idx].size = fw_mem[i].size;
 				fw_mem[idx].type = fw_mem[i].type;
 				idx++;
@@ -2715,14 +2714,11 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 					CNSS_ASSERT(0);
 					return -ENOMEM;
 				}
-				if (!plat_priv->cold_boot_support) {
+				if (!plat_priv->cold_boot_support)
 					fw_mem[idx].pa = 0;
-					fw_mem[idx].va = 0;
-				} else {
+				else
 					fw_mem[idx].pa = caldb_location[mode];
-					fw_mem[idx].va = (void *)(unsigned long)
-							 caldb_location[mode];
-				}
+				fw_mem[idx].va = NULL;
 				fw_mem[idx].size = fw_mem[i].size;
 				fw_mem[idx].type = fw_mem[i].type;
 				idx++;
@@ -2875,6 +2871,7 @@ void cnss_pci_free_qdss_mem(struct cnss_plat_data *plat_priv)
 #endif
 	for (i = 0; i < plat_priv->qdss_mem_seg_len; i++) {
 		if (qdss_mem[i].va) {
+			cnss_pr_dbg("Freeing QDSS Memory\n");
 			iounmap(qdss_mem[i].va);
 			qdss_mem[i].va = NULL;
 			qdss_mem[i].size = 0;
@@ -2884,7 +2881,7 @@ void cnss_pci_free_qdss_mem(struct cnss_plat_data *plat_priv)
 	plat_priv->qdss_mem_seg_len = 0;
 }
 
-static void cnss_pci_free_fw_mem(struct cnss_plat_data *plat_priv)
+void cnss_pci_free_fw_mem(struct cnss_plat_data *plat_priv)
 {
 	struct cnss_fw_mem *fw_mem = plat_priv->fw_mem;
 	int i;
@@ -2911,6 +2908,8 @@ static void cnss_pci_free_fw_mem(struct cnss_plat_data *plat_priv)
 
 	for (i = 0; i < plat_priv->fw_mem_seg_len; i++) {
 		if (fw_mem[i].va) {
+			cnss_pr_dbg("Freeing FW mem of type %d\n",
+				    fw_mem[i].type);
 			iounmap(fw_mem[i].va);
 			fw_mem[i].va = NULL;
 			fw_mem[i].size = 0;
@@ -4158,8 +4157,8 @@ void cnss_pci_remove(struct pci_dev *pci_dev)
 		return;
 	}
 
-	cnss_pci_free_fw_mem(plat_priv);
-	cnss_pci_free_qdss_mem(plat_priv);
+	cnss_bus_free_fw_mem(plat_priv);
+	cnss_bus_free_qdss_mem(plat_priv);
 
 	switch (pci_dev->device) {
 	case QCN9000_EMULATION_DEVICE_ID:
