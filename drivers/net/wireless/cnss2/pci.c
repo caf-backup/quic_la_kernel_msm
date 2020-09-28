@@ -3996,6 +3996,7 @@ static int cnss_pci_register_mhi(struct cnss_pci_data *pci_priv)
 	ret = of_register_mhi_controller(mhi_ctrl);
 	if (ret) {
 		cnss_pr_err("Failed to register to MHI bus, err = %d\n", ret);
+		CNSS_ASSERT(0);
 		return ret;
 	}
 
