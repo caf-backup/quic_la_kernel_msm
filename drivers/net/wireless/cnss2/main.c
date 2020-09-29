@@ -63,6 +63,10 @@ bool ramdump_enabled;
 module_param(ramdump_enabled, bool, 0600);
 MODULE_PARM_DESC(ramdump_enabled, "ramdump_enabled");
 
+static int bdf_integrated;
+module_param(bdf_integrated, int, 0644);
+MODULE_PARM_DESC(bdf_integrated, "bdf_integrated");
+
 static int bdf_pci0;
 module_param(bdf_pci0, int, 0644);
 MODULE_PARM_DESC(bdf_pci0, "bdf_pci0");
@@ -3461,12 +3465,19 @@ skip_soc_version_checks:
 		plat_priv->wlfw_service_instance_id =
 			WLFW_SERVICE_INS_ID_V01_QCA8074;
 		plat_priv->service_id =  WLFW_SERVICE_ID_V01_HK;
+		plat_priv->board_info.board_id_override = bdf_integrated;
 		break;
 	case QCN9100_DEVICE_ID:
 		plat_priv->bus_type = CNSS_BUS_AHB;
 		plat_priv->service_id = WLFW_SERVICE_ID_V01_HK;
 		plat_priv->wlfw_service_instance_id =
 			WLFW_SERVICE_INS_ID_V01_QCN9100 + userpd_id;
+		if (plat_priv->wlfw_service_instance_id ==
+			WLFW_SERVICE_INS_ID_V01_QCN9100 + QCN9100_0)
+			plat_priv->board_info.board_id_override = bdf_pci0;
+		else if (plat_priv->wlfw_service_instance_id ==
+			WLFW_SERVICE_INS_ID_V01_QCN9100 + QCN9100_1)
+			plat_priv->board_info.board_id_override = bdf_pci1;
 		break;
 	default:
 		cnss_pr_err("No such device id %p\n", device_id);

@@ -602,7 +602,13 @@ static int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 
 	switch (bdf_type) {
 	case BDF_TYPE_GOLDEN:
-		if (!of_property_read_u32(dev->of_node, "qcom,board_id",
+		if (plat_priv->board_info.board_id_override) {
+			cnss_pr_info("Using Boardid from bootargs:0x%02x\n",
+				     plat_priv->board_info.board_id_override);
+			snprintf(filename, sizeof(filename),
+				 "%s" BDF_WIN_FILE_NAME_PREFIX "%02x", folder,
+				 plat_priv->board_info.board_id_override);
+		} else if (!of_property_read_u32(dev->of_node, "qcom,board_id",
 					  &board_id)) {
 			if ((board_id == 0xFF) &&
 			    (plat_priv->board_info.board_id == 0xFF)) {
