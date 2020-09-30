@@ -643,9 +643,15 @@ static int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 		}
 		break;
 	case BDF_TYPE_CALDATA:
-		if (bdf_type == BDF_TYPE_CALDATA)
+		if (plat_priv->device_id == QCN9100_DEVICE_ID) {
 			snprintf(filename, sizeof(filename),
-					"%s" DEFAULT_CAL_FILE_NAME, folder);
+				 "%s" DEFAULT_CAL_FILE_PREFIX
+				 "%d" DEFAULT_CAL_FILE_SUFFIX,
+				 folder, plat_priv->userpd_id);
+		} else {
+			snprintf(filename, sizeof(filename),
+				 "%s" DEFAULT_CAL_FILE_NAME, folder);
+		}
 		break;
 	default:
 		return -EINVAL;
