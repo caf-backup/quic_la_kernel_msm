@@ -450,6 +450,7 @@ struct cnss_plat_data {
 	void *pci_dev_id;
 	void *bus_priv;
 	int qrtr_node_id;
+	int userpd_id;
 	char device_name[16];
 	struct cnss_vreg_info *vreg_info;
 	enum cnss_dev_bus_type bus_type;
