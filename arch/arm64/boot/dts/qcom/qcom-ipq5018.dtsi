@@ -122,6 +122,16 @@
 			dma-names = "tx", "rx";
 			status = "disabled";
 		};
+		pwm {
+			compatible = "qca,ipq6018-pwm";
+			reg = <0x1941010 0x20>;
+			clocks = <&gcc GCC_ADSS_PWM_CLK>;
+			clock-names = "core";
+			src-freq = <100000000>;
+			pwm-base-index = <0>;
+			used-pwm-indices = <1>, <1>, <1>, <1>;
+			status = "disabled";
+		};
 
 		mdio0: mdio@88000 {
 			#address-cells = <1>;
