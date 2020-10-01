@@ -64,14 +64,8 @@
 	 * |        |              |                         |
 	 * |        |              |                         |
 	 * |        |              |                         |
-	 * |   Q6   |  0x4B000000  |          23MB           |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * |        |              |                         |
-	 * +--------+--------------+-------------------------+
-	 * | M3 Dump| 0x4C700000   |          1MB            |
-	 * +--------+--------------+-------------------------+
-	 * | QDSS   | 0x4C800000   |          1MB            |
++	 * |   Q6   |  0x4B000000  | Refer target specific   |
++	 * | regions|              |  dts files              |
 	 * +--------+--------------+-------------------------+
 	 * |                                                 |
 	 * |      Rest of the memory for Linux               |
@@ -109,25 +103,11 @@
 			reg = <0x0 0x4ac00000 0x0 0x00400000>;
 		};
 
-		q6_region: wcnss@4b000000 {
-			no-map;
-			reg = <0x0 0x4b000000 0x0 0x01700000>;
-		};
-		m3_dump@4c700000 {
-			no-map;
-			reg = <0x0 0x4C700000 0x0 0x100000>;
-		};
-
 #ifdef ENABLE_QSEECOM
 		tzapp:tzapp@4a400000 {	/* TZAPPS */
 			no-map;
 		};
 #endif
-
-		q6_etr_region:q6_etr_dump@4c800000 {
-			no-map;
-			reg = <0x0 0x4c800000 0x0 0x100000>;
-		};
 
 		bt_region: bt@7000000 {
 			no-map;
@@ -171,15 +151,9 @@
 	 * |        |              |                         |
 	 * |        |              |                         |
 	 * |        |              |                         |
-	 * |   Q6   |  0x4B000000  |          24MB           |
+	 * |   Q6   |  0x4B000000  | Refer target specific   |
+	 * | regions|              |  dts files              |
 	 * |        |              |                         |
-	 * |        |              |                         |
-	 * +--------+--------------+-------------------------+
-	 * | M3 Dump|  0x4C800000  |           1MB           |
-	 * +--------+--------------+-------------------------+
-	 * |  QDSS  |  0x4C900000  |           1MB           |
-	 * +--------+--------------+-------------------------+
-	 * | caldb  |  0x4CA00000  |           2MB           |
 	 * +--------+--------------+-------------------------+
 	 * |                                                 |
 	 * |      Rest of the memory for Linux               |
@@ -217,30 +191,11 @@
 			reg = <0x0 0x4ac00000 0x0 0x00400000>;
 		};
 
-		q6_region: wcnss@4b000000 {
-			no-map;
-			reg = <0x0 0x4b000000 0x0 0x01800000>;
-		};
-		m3_dump@4c800000 {
-			no-map;
-			reg = <0x0 0x4c800000 0x0 0x100000>;
-		};
-
 #ifdef ENABLE_QSEECOM
 		tzapp:tzapp@4a400000 {	/* TZAPPS */
 			no-map;
 		};
 #endif
-
-		q6_etr_region:q6_etr_dump@4c900000 {
-			no-map;
-			reg = <0x0 0x4c900000 0x0 0x100000>;
-		};
-
-		q6_caldb_region:q6_caldb_region@4cd00000 {
-			no-map;
-			reg = <0x0 0x4ca00000 0x0 0x200000>;
-		};
 
 		bt_region: bt@7000000 {
 			no-map;
