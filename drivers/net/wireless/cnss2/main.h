@@ -440,6 +440,7 @@ struct target_qcn9100 {
 	void *bar_addr_va;
 	u64 bar_addr_pa;
 	u32 bar_size;
+	struct qgic2_msi *qgic2_msi;
 };
 
 struct cnss_plat_data {

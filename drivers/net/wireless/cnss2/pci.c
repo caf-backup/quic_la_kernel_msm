@@ -21,6 +21,7 @@
 #include <linux/completion.h>
 #include <soc/qcom/ramdump.h>
 #include <linux/of_address.h>
+#include <soc/qcom/qgic2m.h>
 
 #include "main.h"
 #include "debug.h"
@@ -3253,6 +3254,15 @@ static struct cnss_msi_config msi_config = {
 	},
 };
 
+static struct cnss_msi_config msi_config_qcn9100 = {
+	.total_vectors = 13,
+	.total_users = 2,
+	.users = (struct cnss_msi_user[]) {
+		{ .name = "CE", .num_vectors = 5, .base_vector = 0 },
+		{ .name = "DP", .num_vectors = 8, .base_vector = 5 },
+	},
+};
+
 static int cnss_pci_get_msi_assignment(struct cnss_pci_data *pci_priv)
 {
 	pci_priv->msi_config = &msi_config;
@@ -3323,61 +3333,112 @@ static void cnss_pci_disable_msi(struct cnss_pci_data *pci_priv)
 	pci_free_irq_vectors(pci_priv->pci_dev);
 }
 
+struct qgic2_msi *cnss_qgic2_enable_msi(int qgicm_id)
+{
+	struct qgic2_msi *qgic2_msi;
+
+	qgic2_msi = qgic2_enable_msi(qgicm_id,
+				     msi_config_qcn9100.total_vectors);
+	if (IS_ERR(qgic2_msi)) {
+		pr_err("qgic2_enable_msi fails %d\n", PTR_ERR(qgic2_msi));
+		return NULL;
+	}
+
+	return qgic2_msi;
+}
+EXPORT_SYMBOL(cnss_qgic2_enable_msi);
+
 int cnss_get_user_msi_assignment(struct device *dev, char *user_name,
 				 int *num_vectors, u32 *user_base_data,
 				 u32 *base_vector)
 {
-	struct pci_dev *pci_dev = to_pci_dev(dev);
-	struct cnss_pci_data *pci_priv = NULL;
-	struct cnss_plat_data *plat_priv = NULL;
-	struct cnss_msi_config *msi_config;
 	int idx;
+	u32 msi_ep_base_data = 0;
+	struct pci_dev *pci_dev = NULL;
+	struct qgic2_msi *qgic2_msi = NULL;
+	struct cnss_pci_data *pci_priv = NULL;
+	struct cnss_msi_config *msi_config;
+	struct cnss_plat_data *plat_priv =
+		cnss_bus_dev_to_plat_priv(dev);
 
-	if (pci_dev->device != QCN9000_DEVICE_ID) {
-		cnss_pr_err("MSI not supported on device 0x%x",
-			    pci_dev->device);
-		return -EINVAL;
-	}
-
-	pci_priv = cnss_get_pci_priv(pci_dev);
-	if (!pci_priv)
+	if (!plat_priv)
 		return -ENODEV;
 
-	plat_priv = pci_priv->plat_priv;
-	msi_config = pci_priv->msi_config;
-	if (!msi_config) {
-		cnss_pr_err("MSI is not supported.\n");
+	if (plat_priv->device_id == QCN9100_DEVICE_ID) {
+		qgic2_msi = plat_priv->qcn9100.qgic2_msi;
+		if (!qgic2_msi) {
+			cnss_pr_err("qgic2_msi NULL");
+			return -EINVAL;
+		}
+		msi_config = &msi_config_qcn9100;
+		msi_ep_base_data = qgic2_msi->msi_gicm_base;
+	} else if (plat_priv->device_id == QCN9000_DEVICE_ID) {
+		pci_dev = to_pci_dev(dev);
+		pci_priv = cnss_get_pci_priv(pci_dev);
+		if (!pci_priv) {
+			cnss_pr_err("pci_priv NULL");
+			return -ENODEV;
+		}
+
+		msi_config = pci_priv->msi_config;
+		if (!msi_config) {
+			cnss_pr_err("MSI is not supported.\n");
+			return -EINVAL;
+		}
+		msi_ep_base_data = pci_priv->msi_ep_base_data;
+	} else {
+		if (pci_dev)
+			cnss_pr_err("MSI not supported on device 0x%x",
+				    pci_dev->device);
 		return -EINVAL;
 	}
 
 	for (idx = 0; idx < msi_config->total_users; idx++) {
 		if (strcmp(user_name, msi_config->users[idx].name) == 0) {
 			*num_vectors = msi_config->users[idx].num_vectors;
-			*user_base_data = msi_config->users[idx].base_vector
-				+ pci_priv->msi_ep_base_data;
+			*user_base_data = msi_config->users[idx].base_vector +
+					  msi_ep_base_data;
 			*base_vector = msi_config->users[idx].base_vector;
-
 			cnss_pr_dbg("Assign MSI to user: %s, num_vectors: %d, user_base_data: %u, base_vector: %u\n",
 				    user_name, *num_vectors, *user_base_data,
 				    *base_vector);
-
 			return 0;
 		}
 	}
 
 	cnss_pr_err("Failed to find MSI assignment for %s!\n", user_name);
-
 	return -EINVAL;
 }
 EXPORT_SYMBOL(cnss_get_user_msi_assignment);
 
 int cnss_get_msi_irq(struct device *dev, unsigned int vector)
 {
-	struct pci_dev *pci_dev = to_pci_dev(dev);
 	int irq_num;
+	struct pci_dev *pci_dev = NULL;
+	struct qgic2_msi *qgic2_msi = NULL;
+	struct cnss_plat_data *plat_priv =
+		cnss_bus_dev_to_plat_priv(dev);
 
+	if (!plat_priv)
+		return -ENODEV;
+
+	if (plat_priv->device_id == QCN9100_DEVICE_ID) {
+		qgic2_msi = plat_priv->qcn9100.qgic2_msi;
+		if (!qgic2_msi) {
+			cnss_pr_err("%s: qgic2_msi NULL", __func__);
+			return -EINVAL;
+		}
+
+		if (vector >= MAX_MSI_IRQS) {
+			cnss_pr_err("%s: vector greater than MAX MSI IRQ",
+				    __func__);
+			return -EINVAL;
+		}
+		return qgic2_msi->msi[vector];
+	}
+
+	pci_dev = to_pci_dev(dev);
 	irq_num = pci_irq_vector(pci_dev, vector);
-
 	return irq_num;
 }
 EXPORT_SYMBOL(cnss_get_msi_irq);
@@ -3385,13 +3446,28 @@ EXPORT_SYMBOL(cnss_get_msi_irq);
 void cnss_get_msi_address(struct device *dev, u32 *msi_addr_low,
 			  u32 *msi_addr_high)
 {
-	struct pci_dev *pci_dev = to_pci_dev(dev);
+	struct pci_dev *pci_dev = NULL;
+	struct qgic2_msi *qgic2_msi = NULL;
+	struct cnss_plat_data *plat_priv =
+		cnss_bus_dev_to_plat_priv(dev);
 
-	pci_read_config_dword(pci_dev, pci_dev->msi_cap + PCI_MSI_ADDRESS_LO,
-			      msi_addr_low);
+	if (!plat_priv)
+		return -ENODEV;
 
-	pci_read_config_dword(pci_dev, pci_dev->msi_cap + PCI_MSI_ADDRESS_HI,
-			      msi_addr_high);
+	if (plat_priv->device_id == QCN9100_DEVICE_ID) {
+		qgic2_msi = plat_priv->qcn9100.qgic2_msi;
+		if (!qgic2_msi) {
+			cnss_pr_err("%s: qgic2_msi NULL", __func__);
+			return;
+		}
+		*msi_addr_low = qgic2_msi->msi_gicm_addr;
+	} else if (plat_priv->device_id == QCN9000_DEVICE_ID) {
+		pci_dev = to_pci_dev(dev);
+		pci_read_config_dword(pci_dev, pci_dev->msi_cap +
+				      PCI_MSI_ADDRESS_LO, msi_addr_low);
+		pci_read_config_dword(pci_dev, pci_dev->msi_cap +
+				      PCI_MSI_ADDRESS_HI, msi_addr_high);
+	}
 
 	/* Since q6 supports only 32 bit addresses, mask the msi_addr_high
 	 * value. If this is programmed into the register, q6 interprets it
