@@ -78,6 +78,98 @@ ssize_t qcom_mdt_get_size(const struct firmware *fw)
 }
 EXPORT_SYMBOL_GPL(qcom_mdt_get_size);
 
+int qcom_get_pd_segment_info(struct device *dev, const struct firmware *fw,
+				phys_addr_t mem_phys, size_t mem_size, int pd)
+{
+	const struct elf32_phdr *phdrs;
+	const struct elf32_phdr *phdr;
+	const struct elf32_hdr *ehdr;
+	phys_addr_t mem_reloc;
+	phys_addr_t min_addr = PHYS_ADDR_MAX;
+	phys_addr_t max_addr = 0, start_addr = 0;
+	size_t size = 0;
+	ssize_t offset;
+	bool relocate = false;
+	int ret = 0;
+	int i;
+
+	if (!fw || !mem_phys || !mem_size || !pd)
+		return -EINVAL;
+
+	ehdr = (struct elf32_hdr *)fw->data;
+	phdrs = (struct elf32_phdr *)(ehdr + 1);
+
+	for (i = 0; i < ehdr->e_phnum; i++) {
+		phdr = &phdrs[i];
+
+		if (!mdt_phdr_valid(phdr))
+			continue;
+
+		/*
+		 * While doing PD specific reloading, load only that PD
+		 * specific writeable entries. Skip others
+		 */
+		if ((QCOM_MDT_PF_ASID(phdr->p_flags) != pd) ||
+				((phdr->p_flags & PF_W) == 0))
+			continue;
+
+		if (phdr->p_flags & QCOM_MDT_RELOCATABLE)
+			relocate = true;
+
+		if (phdr->p_paddr < min_addr)
+			min_addr = phdr->p_paddr;
+
+		if (phdr->p_paddr + phdr->p_memsz > max_addr)
+			max_addr = ALIGN(phdr->p_paddr + phdr->p_memsz, SZ_4K);
+	}
+
+	if (relocate) {
+		/*
+		 * The image is relocatable, so offset each segment based on
+		 * the lowest segment address.
+		 */
+		mem_reloc = min_addr;
+	} else {
+		/*
+		 * Image is not relocatable, so offset each segment based on
+		 * the allocated physical chunk of memory.
+		 */
+		mem_reloc = mem_phys;
+	}
+
+	for (i = 0; i < ehdr->e_phnum; i++) {
+		phdr = &phdrs[i];
+
+		if (!mdt_phdr_valid(phdr))
+			continue;
+
+		/*
+		 * While doing PD specific reloading, load only that PD
+		 * specific writeable entries. Skip others
+		 */
+		if (QCOM_MDT_PF_ASID(phdr->p_flags) != pd)
+			continue;
+
+		if ((phdr->p_flags & PF_W) == 0)
+			continue;
+
+		offset = phdr->p_paddr - mem_reloc;
+		if (offset < 0 || offset + phdr->p_memsz > mem_size) {
+			dev_err(dev, "segment outside memory range\n");
+			ret = -EINVAL;
+			break;
+		}
+
+		if (!start_addr)
+			start_addr = mem_phys + offset;
+		size += phdr->p_memsz;
+	}
+
+	q6v5_wcss_store_pd_fw_info(dev, start_addr, size);
+	return ret;
+}
+EXPORT_SYMBOL(qcom_get_pd_segment_info);
+
 static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 			   const char *firmware, int pas_id, void *mem_region,
 			   phys_addr_t mem_phys, size_t mem_size,

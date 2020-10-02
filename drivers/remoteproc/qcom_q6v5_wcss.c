@@ -96,6 +96,21 @@
 #define Q6_BOOT_TRIG_SVC_ID	0x5
 #define Q6_BOOT_TRIG_CMD_ID	0x2
 
+struct q6v5_wcss_pd_fw_info {
+	struct list_head node;
+	phys_addr_t paddr;
+	size_t size;
+};
+
+struct dump_file_private;
+
+struct dumpdev {
+	const struct file_operations *fops;
+	char name[BUF_SIZE];
+	fmode_t fmode;
+	struct list_head dump_segments;
+};
+
 struct q6v5_wcss {
 	struct device *dev;
 
@@ -131,6 +146,10 @@ struct q6v5_wcss {
 	const char *m3_fw_name;
 	unsigned wcss_aon_seq;
 	bool is_int_radio;
+	struct dump_file_private *dfp;
+	int pd_asid;
+	struct dumpdev q6dump;
+	struct q6v5_wcss_pd_fw_info *fw_info;
 };
 
 struct q6_platform_data {
@@ -142,6 +161,7 @@ struct q6_platform_data {
 
 static int debug_wcss;
 static int load_pil = 1;
+struct rproc *q6_rproc;
 
 #if defined(CONFIG_IPQ_SS_DUMP)
 
@@ -149,21 +169,23 @@ static int load_pil = 1;
 #define	DUMP_TIMEOUT	10000
 #define NUM_WCSS_CLKS   ARRAY_SIZE(wcss_clk_names)
 
-static struct timer_list dump_timeout;
-static struct completion dump_complete;
-
-static struct timer_list open_timeout;
-static struct completion open_complete;
-static atomic_t open_timedout;
-
 static const struct file_operations q6_dump_ops;
 static struct class *dump_class;
+static int dump_major;
+DEFINE_SPINLOCK(dump_class_lock);
+static atomic_t g_class_refcnt;
 
 struct dump_file_private {
 	int ehdr_remaining_bytes;
 	struct list_head dump_segments;
 	Elf32_Ehdr *ehdr;
 	struct task_struct *pdesc;
+	struct timer_list dump_timeout;
+	struct completion dump_complete;
+
+	struct timer_list open_timeout;
+	struct completion open_complete;
+	atomic_t open_timedout;
 };
 
 struct dump_segment {
@@ -172,13 +194,6 @@ struct dump_segment {
 	size_t size;
 	loff_t offset;
 };
-
-struct dumpdev {
-	const char *name;
-	const struct file_operations *fops;
-	fmode_t fmode;
-	struct list_head dump_segments;
-} q6dump = {"q6mem", &q6_dump_ops, FMODE_UNSIGNED_OFFSET | FMODE_EXCL};
 
 static const char *wcss_clk_names[] = {"gcc_q6_axis_clk",
 					"gcc_wcss_ahb_s_clk",
@@ -251,19 +266,21 @@ disable_clk:
 
 static void open_timeout_func(unsigned long data)
 {
-	atomic_set(&open_timedout, 1);
-	complete(&open_complete);
+	struct q6v5_wcss *wcss = (struct q6v5_wcss *)data;
+
+	atomic_set(&wcss->dfp->open_timedout, 1);
+	complete(&wcss->dfp->open_complete);
 	pr_err("open time Out: Q6 crash dump collection failed\n");
 }
 
 static void dump_timeout_func(unsigned long data)
 {
-	struct dump_file_private *dfp = (struct dump_file_private *)data;
+	struct q6v5_wcss *wcss = (struct q6v5_wcss *)data;
 
 	pr_err("Time Out: Q6 crash dump collection failed\n");
 
-	dump_timeout.data = -ETIMEDOUT;
-	send_sig(SIGKILL, dfp->pdesc, 0);
+	wcss->dfp->dump_timeout.data = -ETIMEDOUT;
+	send_sig(SIGKILL, wcss->dfp->pdesc, 0);
 }
 
 static int q6_dump_open(struct inode *inode, struct file *file)
@@ -274,26 +291,41 @@ static int q6_dump_open(struct inode *inode, struct file *file)
 	size_t elfcore_hdrsize, p_off;
 	Elf32_Ehdr *ehdr;
 	Elf32_Phdr *phdr;
+	struct q6v5_wcss *wcss = q6_rproc->priv;
+	int dump_minor =  iminor(inode);
 
-	del_timer_sync(&open_timeout);
+	if (dump_minor) {
+		struct rproc_child *rp_child;
 
-	if (atomic_read(&open_timedout) == 1)
-		return -ENODEV;
+		list_for_each_entry(rp_child, &q6_rproc->child, node) {
+			struct rproc *c_rproc =
+				(struct rproc *)rp_child->handle;
 
-	if (list_empty(&q6dump.dump_segments))
-		return -ENODEV;
-
-	file->f_mode |= q6dump.fmode;
-
-	dfp = kzalloc(sizeof(struct dump_file_private), GFP_KERNEL);
-	if (dfp == NULL) {
-		pr_err("%s:\tCan not allocate memory for private structure\n",
-				__func__);
-		return -ENOMEM;
+			wcss = c_rproc->priv;
+			if (wcss->pd_asid == dump_minor)
+				break;
+		}
 	}
 
+	file->private_data = wcss;
+	dfp = wcss->dfp;
+
+	del_timer_sync(&dfp->open_timeout);
+
+	if (atomic_read(&dfp->open_timedout) == 1) {
+		pr_err("open timedout\n");
+		return -ENODEV;
+	}
+
+	if (list_empty(&wcss->q6dump.dump_segments)) {
+		pr_err("q6dump segments list is null\n");
+		return -ENODEV;
+	}
+
+	file->f_mode |= wcss->q6dump.fmode;
+
 	INIT_LIST_HEAD(&dfp->dump_segments);
-	list_for_each_entry(segment, &q6dump.dump_segments, node) {
+	list_for_each_entry(segment, &wcss->q6dump.dump_segments, node) {
 		struct dump_segment *s;
 
 		s = kzalloc(sizeof(*s), GFP_KERNEL);
@@ -330,7 +362,7 @@ static int q6_dump_open(struct inode *inode, struct file *file)
 	memset(phdr, 0, sizeof(*phdr) * nsegments);
 
 	p_off = elfcore_hdrsize;
-	list_for_each_entry(segment, &q6dump.dump_segments, node) {
+	list_for_each_entry(segment, &wcss->q6dump.dump_segments, node) {
 		phdr->p_type = PT_LOAD;
 		phdr->p_offset = p_off;
 		phdr->p_vaddr = phdr->p_paddr = segment->addr;
@@ -346,18 +378,15 @@ static int q6_dump_open(struct inode *inode, struct file *file)
 	dfp->ehdr_remaining_bytes = elfcore_hdrsize;
 	dfp->pdesc = current;
 
-	file->private_data = dfp;
-
-	dump_timeout.data = (unsigned long)dfp;
-
 	/* This takes care of the user space app stalls during delayed read. */
-	init_completion(&dump_complete);
+	init_completion(&wcss->dfp->dump_complete);
 
-	setup_timer(&dump_timeout, dump_timeout_func, (unsigned long)dfp);
-	mod_timer(&dump_timeout, jiffies + msecs_to_jiffies(DUMP_TIMEOUT));
+	setup_timer(&wcss->dfp->dump_timeout, dump_timeout_func,
+						(unsigned long)wcss);
+	mod_timer(&wcss->dfp->dump_timeout,
+			jiffies + msecs_to_jiffies(DUMP_TIMEOUT));
 
-	complete(&open_complete);
-
+	complete(&wcss->dfp->open_complete);
 	return 0;
 
 err:
@@ -365,37 +394,33 @@ err:
 		list_del(&segment->node);
 		kfree(segment);
 	}
-
-	kfree(dfp);
-
 	return -ENOMEM;
 }
 
 static int q6_dump_release(struct inode *inode, struct file *file)
 {
-	int dump_minor =  iminor(inode);
-	int dump_major = imajor(inode);
-
 	struct dump_segment *segment, *tmp;
-
-	struct dump_file_private *dfp = (struct dump_file_private *)
-		file->private_data;
+	struct q6v5_wcss *wcss = file->private_data;
+	struct dump_file_private *dfp = wcss->dfp;
 
 	list_for_each_entry_safe(segment, tmp, &dfp->dump_segments, node) {
 		list_del(&segment->node);
 		kfree(segment);
 	}
 
-	kfree(dfp->ehdr);
+	device_destroy(dump_class, MKDEV(dump_major, wcss->pd_asid));
+	atomic_dec(&g_class_refcnt);
 
-	kfree(dfp);
+	if (atomic_read(&g_class_refcnt) == 0) {
+		spin_lock(&dump_class_lock);
+		class_destroy(dump_class);
+		dump_class = NULL;
+		unregister_chrdev(dump_major, "dump");
+		dump_major = 0;
+		spin_unlock(&dump_class_lock);
+	}
 
-	device_destroy(dump_class, MKDEV(dump_major, dump_minor));
-
-	class_destroy(dump_class);
-
-	complete(&dump_complete);
-
+	complete(&dfp->dump_complete);
 	return 0;
 }
 
@@ -403,16 +428,19 @@ static ssize_t q6_dump_read(struct file *file, char __user *buf, size_t count,
 		loff_t *ppos)
 {
 	void *buffer = NULL;
-	struct dump_file_private *dfp = (struct dump_file_private *)
-		file->private_data;
+	struct q6v5_wcss *wcss = file->private_data;
+	struct dump_file_private *dfp = wcss->dfp;
+
 	struct dump_segment *segment, *tmp;
 	size_t copied = 0, to_copy = count;
 	int segment_num = 0;
 
-	if (dump_timeout.data == -ETIMEDOUT)
+	if (dfp->dump_timeout.data == -ETIMEDOUT) {
+		pr_err("dump timedout\n");
 		return 0;
+	}
 
-	mod_timer(&dump_timeout, jiffies + msecs_to_jiffies(DUMP_TIMEOUT));
+	mod_timer(&dfp->dump_timeout, jiffies + msecs_to_jiffies(DUMP_TIMEOUT));
 
 	if (list_empty(&dfp->dump_segments))
 		return 0;
@@ -480,7 +508,9 @@ static const struct file_operations q6_dump_ops = {
 	.release	=       q6_dump_release,
 };
 
-int crashdump_add_segment(phys_addr_t dump_addr, size_t dump_size)
+int crashdump_add_segment(phys_addr_t dump_addr, size_t dump_size,
+					struct dumpdev *dumpdev)
+
 {
 	struct dump_segment *segment;
 
@@ -492,7 +522,7 @@ int crashdump_add_segment(phys_addr_t dump_addr, size_t dump_size)
 	segment->size = dump_size;
 	segment->offset = 0;
 
-	list_add_tail(&segment->node, &q6dump.dump_segments);
+	list_add_tail(&segment->node, &dumpdev->dump_segments);
 
 	return 0;
 }
@@ -515,7 +545,7 @@ static int add_segment(struct dumpdev *dumpdev, struct device_node *node)
 		goto fail;
 	}
 
-	ret = crashdump_add_segment(segment.addr, segment.size);
+	ret = crashdump_add_segment(segment.addr, segment.size, dumpdev);
 
 fail:
 	return ret;
@@ -525,43 +555,73 @@ static void crashdump_init(struct rproc *rproc, struct rproc_dump_segment *segme
 {
 	int ret = 0;
 	int index = 0;
-	int dump_major = 0;
 	struct device *dump_dev = NULL;
 	struct device_node *node = NULL, *np = NULL;
+	struct q6v5_wcss *wcss = rproc->priv;
 
-	init_completion(&open_complete);
-	atomic_set(&open_timedout, 0);
-
-	dump_major = register_chrdev(UNNAMED_MAJOR, "dump", &q6_dump_ops);
-	if (dump_major < 0) {
-		ret = dump_major;
-		pr_err("Unable to allocate a major number err = %d", ret);
-		goto reg_failed;
+	wcss->dfp = kzalloc(sizeof(struct dump_file_private), GFP_KERNEL);
+	if (wcss->dfp == NULL) {
+		pr_err("%s:\tCan not allocate memory for private structure\n",
+				__func__);
+		return;
 	}
 
-	dump_class = class_create(THIS_MODULE, "dump");
-	if (IS_ERR(dump_class)) {
-		ret = PTR_ERR(dump_class);
-		goto class_failed;
-	}
+	init_completion(&wcss->dfp->open_complete);
+	atomic_set(&wcss->dfp->open_timedout, 0);
 
-	dump_dev = device_create(dump_class, NULL, MKDEV(dump_major, 0), NULL,
-			q6dump.name);
+	spin_lock(&dump_class_lock);
+	if (!dump_class) {
+		dump_major = register_chrdev(UNNAMED_MAJOR, "dump",
+								&q6_dump_ops);
+		if (dump_major < 0) {
+			ret = dump_major;
+			pr_err("Unable to allocate a major number err = %d",
+									ret);
+			spin_unlock(&dump_class_lock);
+			goto reg_failed;
+		}
+
+		dump_class = class_create(THIS_MODULE, "dump");
+		if (IS_ERR(dump_class)) {
+			ret = PTR_ERR(dump_class);
+			spin_unlock(&dump_class_lock);
+			goto class_failed;
+		}
+	}
+	spin_unlock(&dump_class_lock);
+
+	if (rproc->parent) {
+		strlcpy(wcss->q6dump.name, rproc->name, BUF_SIZE);
+		strlcat(wcss->q6dump.name, "_mem", BUF_SIZE);
+	} else
+		strlcpy(wcss->q6dump.name, "q6mem", BUF_SIZE);
+
+	wcss->q6dump.fops = &q6_dump_ops;
+	wcss->q6dump.fmode = FMODE_UNSIGNED_OFFSET | FMODE_EXCL;
+
+	dump_dev = device_create(dump_class, NULL,
+					MKDEV(dump_major, wcss->pd_asid),
+					NULL, wcss->q6dump.name);
 	if (IS_ERR(dump_dev)) {
 		ret = PTR_ERR(dump_dev);
 		pr_err("Unable to create a device err = %d", ret);
 		goto device_failed;
 	}
+	atomic_inc(&g_class_refcnt);
 
-	INIT_LIST_HEAD(&q6dump.dump_segments);
+	INIT_LIST_HEAD(&wcss->q6dump.dump_segments);
 
-	np = of_find_node_by_name(NULL, "qcom_q6v5_wcss");
+	if (rproc->parent == NULL)
+		np = of_find_node_by_name(NULL, "qcom_q6v5_wcss");
+	else
+		np = of_find_node_by_name(NULL, rproc->name);
+
 	while (1) {
 		node = of_parse_phandle(np, "memory-region", index);
 		if (node == NULL)
 			break;
 
-		ret = add_segment(&q6dump, node);
+		ret = add_segment(&wcss->q6dump, node);
 		of_node_put(node);
 		if (ret != 0)
 			break;
@@ -570,37 +630,52 @@ static void crashdump_init(struct rproc *rproc, struct rproc_dump_segment *segme
 	}
 	of_node_put(np);
 
+	if (wcss->fw_info) {
+		ret = crashdump_add_segment(wcss->fw_info->paddr,
+				wcss->fw_info->size, &wcss->q6dump);
+		if (ret)
+			pr_err("unable to add segments\n");
+	}
+
 	/* This avoids race condition between the scheduled timer and the opened
 	 * file discriptor during delay in user space app execution.
 	 */
-	setup_timer(&open_timeout, open_timeout_func, 0);
+	setup_timer(&wcss->dfp->open_timeout, open_timeout_func,
+						(unsigned long)wcss);
 
-	mod_timer(&open_timeout, jiffies + msecs_to_jiffies(OPEN_TIMEOUT));
+	mod_timer(&wcss->dfp->open_timeout,
+				jiffies + msecs_to_jiffies(OPEN_TIMEOUT));
 
-	wait_for_completion(&open_complete);
-
-	if (atomic_read(&open_timedout) == 1) {
+	wait_for_completion(&wcss->dfp->open_complete);
+	if (atomic_read(&wcss->dfp->open_timedout) == 1) {
 		ret = -ETIMEDOUT;
 		goto dump_dev_failed;
 	}
-
-	wait_for_completion(&dump_complete);
-
-	if (dump_timeout.data == -ETIMEDOUT) {
-		ret = dump_timeout.data;
-		dump_timeout.data = 0;
+	wait_for_completion(&wcss->dfp->dump_complete);
+	if (wcss->dfp->dump_timeout.data == -ETIMEDOUT) {
+		ret = wcss->dfp->dump_timeout.data;
+		wcss->dfp->dump_timeout.data = 0;
 	}
 
-	del_timer_sync(&dump_timeout);
+	del_timer_sync(&wcss->dfp->dump_timeout);
+
+	kfree(wcss->dfp->ehdr);
+	wcss->dfp->ehdr = NULL;
+	kfree(wcss->dfp);
+	wcss->dfp = NULL;
 	return;
 
 dump_dev_failed:
-	device_destroy(dump_class, MKDEV(dump_major, 0));
+	device_destroy(dump_class, MKDEV(dump_major, wcss->pd_asid));
+	if (atomic_read(&g_class_refcnt) == 0) {
 device_failed:
-	class_destroy(dump_class);
+		class_destroy(dump_class);
 class_failed:
-	unregister_chrdev(dump_major, "dump");
+		unregister_chrdev(dump_major, "dump");
+		dump_major = 0;
+	}
 reg_failed:
+	kfree(wcss->dfp);
 	return;
 }
 #else
@@ -610,6 +685,32 @@ static void crashdump_init(struct rproc *rproc, struct rproc_dump_segment *segme
 }
 
 #endif /* CONFIG_IPQ_SS_DUMP */
+
+int q6v5_wcss_store_pd_fw_info(struct device *dev, phys_addr_t paddr,
+							size_t size)
+{
+	struct rproc *rproc = dev_get_drvdata(dev);
+	struct q6v5_wcss *wcss;
+
+	if (rproc == NULL) {
+		pr_err("Invalid rproc\n");
+		return -EINVAL;
+	}
+
+	wcss = rproc->priv;
+	wcss->fw_info = devm_kzalloc(wcss->dev,
+					sizeof(struct q6v5_wcss_pd_fw_info),
+					GFP_KERNEL);
+	if (IS_ERR_OR_NULL(wcss->fw_info)) {
+		dev_err(wcss->dev,
+				"failed to allocate memory to store fw info\n");
+		return PTR_ERR(wcss->fw_info);
+	}
+	wcss->fw_info->paddr = paddr;
+	wcss->fw_info->size = size;
+	return 0;
+}
+EXPORT_SYMBOL(q6v5_wcss_store_pd_fw_info);
 
 #ifdef CONFIG_CNSS2
 static int crashdump_init_new(int check, const struct subsys_desc *subsys)
@@ -1578,6 +1679,7 @@ static int q6v5_wcss_load(struct rproc *rproc, const struct firmware *fw)
 	const struct firmware *m3_fw;
 	int ret;
 	u32 peripheral = pdata->is_mpd_arch ? MPD_WCNSS_PAS_ID : WCNSS_PAS_ID;
+	struct rproc_child *rp_child;
 
 	if (!wcss->m3_fw_name) {
 		dev_info(wcss->dev, "skipping firmware %s\n", "m3_fw.mdt");
@@ -1610,6 +1712,14 @@ skip_m3:
 		ret = qcom_mdt_load(wcss->dev, fw, rproc->firmware,
 			     peripheral, wcss->mem_region, wcss->mem_phys,
 			     wcss->mem_size, &wcss->mem_reloc);
+
+	list_for_each_entry(rp_child, &rproc->child, node) {
+		struct rproc *child = (struct rproc *)rp_child->handle;
+		struct q6v5_wcss *c_wcss = child->priv;
+
+		ret = qcom_get_pd_segment_info(c_wcss->dev, fw,
+			wcss->mem_phys, wcss->mem_size, c_wcss->pd_asid);
+	}
 
 	return ret;
 }
@@ -1915,6 +2025,16 @@ static int q6v5_register_userpd(struct platform_device *pdev)
 		rproc_add_child(rproc->parent, rp_child);
 		wcss->is_int_radio = of_property_read_bool(userpd_np,
 							"qca,int_radio");
+
+		ret = of_property_read_u32(userpd_np, "qca,asid",
+						&wcss->pd_asid);
+		if (ret) {
+			dev_err(wcss->dev, "failed to get asid\n");
+			q6v5_release_resources(pdev);
+			platform_device_unregister(userpd_pdev);
+			return ret;
+		}
+		platform_set_drvdata(userpd_pdev, rproc);
 	}
 
 	return 0;
@@ -2044,6 +2164,7 @@ skip_pdata:
 		}
 		kfree(pdata);
 	}
+	q6_rproc = rproc;
 	return 0;
 
 free_rproc:
