@@ -1672,6 +1672,44 @@ static void *q6v5_wcss_da_to_va(struct rproc *rproc, u64 da, int len)
 	return wcss->mem_region + offset;
 }
 
+static int q6v5_wcss_userpd_m3_load(struct rproc *p_rproc)
+{
+	struct q6v5_wcss *p_wcss = p_rproc->priv;
+	struct rproc_child *rp_child;
+	const struct firmware *m3_fw;
+	int ret;
+
+	list_for_each_entry(rp_child, &p_rproc->child, node) {
+		struct rproc *child = (struct rproc *)rp_child->handle;
+		struct q6v5_wcss *c_wcss = child->priv;
+
+		if (!c_wcss->m3_fw_name)
+			continue;
+
+		ret = request_firmware(&m3_fw, c_wcss->m3_fw_name, p_wcss->dev);
+		if (ret) {
+			dev_info(c_wcss->dev, "skipping firmware %s\n",
+							c_wcss->m3_fw_name);
+			continue;
+		}
+
+		ret = qcom_mdt_load_no_init(p_wcss->dev, m3_fw,
+				c_wcss->m3_fw_name, 0,
+				p_wcss->mem_region, p_wcss->mem_phys,
+				p_wcss->mem_size, &p_wcss->mem_reloc);
+
+		release_firmware(m3_fw);
+
+		if (ret) {
+			dev_err(c_wcss->dev, "can't load %s\n",
+						c_wcss->m3_fw_name);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static int q6v5_wcss_load(struct rproc *rproc, const struct firmware *fw)
 {
 	struct q6v5_wcss *wcss = rproc->priv;
@@ -1680,6 +1718,15 @@ static int q6v5_wcss_load(struct rproc *rproc, const struct firmware *fw)
 	int ret;
 	u32 peripheral = pdata->is_mpd_arch ? MPD_WCNSS_PAS_ID : WCNSS_PAS_ID;
 	struct rproc_child *rp_child;
+
+	if (pdata->is_mpd_arch) {
+		ret = q6v5_wcss_userpd_m3_load(rproc);
+		if (ret) {
+			dev_err(wcss->dev, "can't load userpd m3 firmware\n");
+			return ret;
+		}
+		goto skip_m3;
+	}
 
 	if (!wcss->m3_fw_name) {
 		dev_info(wcss->dev, "skipping firmware %s\n", "m3_fw.mdt");
@@ -2035,6 +2082,10 @@ static int q6v5_register_userpd(struct platform_device *pdev)
 			return ret;
 		}
 		platform_set_drvdata(userpd_pdev, rproc);
+		ret = of_property_read_string(userpd_np, "m3_firmware",
+							&wcss->m3_fw_name);
+		if (ret)
+			wcss->m3_fw_name = NULL;
 	}
 
 	return 0;

@@ -599,6 +599,7 @@
 	#endif
 	/* IPQ5018 */
 	q6v5_wcss_userpd1 {
+		m3_firmware = "IPQ5018/m3_fw.mdt";
 		interrupts-extended = <&wcss_smp2p_in 8 0>,
 			<&wcss_smp2p_in 9 0>,
 			<&wcss_smp2p_in 12 0>,
