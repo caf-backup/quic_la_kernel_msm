@@ -19,8 +19,8 @@
 / {
 	#address-cells = <0x2>;
 	#size-cells = <0x2>;
-	model = "Qualcomm Technologies, Inc. IPQ5018/AP-MP03.3";
-	compatible = "qcom,ipq5018-mp03.3", "qcom,ipq5018";
+	model = "Qualcomm Technologies, Inc. IPQ5018/AP-MP03.6";
+	compatible = "qcom,ipq5018-mp03.6", "qcom,ipq5018";
 	interrupt-parent = <&intc>;
 
 	aliases {
@@ -456,41 +456,41 @@
 
 	qspi_nand_pins: qspi_nand_pins {
 		qspi_clock {
-				pins = "gpio9";
-				function = "qspi_clk";
-				drive-strength = <8>;
-				bias-disable;
-			};
+			pins = "gpio9";
+			function = "qspi_clk";
+			drive-strength = <8>;
+			bias-disable;
+		};
 		qspi_cs {
-				pins = "gpio8";
-				function = "qspi_cs";
-				drive-strength = <8>;
-				bias-disable;
-			};
+			pins = "gpio8";
+			function = "qspi_cs";
+			drive-strength = <8>;
+			bias-disable;
+		};
 		qspi_data_0 {
-				pins = "gpio7";
-				function = "qspi0";
-				drive-strength = <8>;
-				bias-disable;
-			};
+			pins = "gpio7";
+			function = "qspi0";
+			drive-strength = <8>;
+			bias-disable;
+		};
 		qspi_data_1 {
-				pins = "gpio6";
-				function = "qspi1";
-				drive-strength = <8>;
-				bias-disable;
-			};
+			pins = "gpio6";
+			function = "qspi1";
+			drive-strength = <8>;
+			bias-disable;
+		};
 		qspi_data_2 {
-				pins = "gpio5";
-				function = "qspi2";
-				drive-strength = <8>;
-				bias-disable;
-			};
+			pins = "gpio5";
+			function = "qspi2";
+			drive-strength = <8>;
+			bias-disable;
+		};
 		qspi_data_3 {
-				pins = "gpio4";
-				function = "qspi3";
-				drive-strength = <8>;
-				bias-disable;
-			};
+			pins = "gpio4";
+			function = "qspi3";
+			drive-strength = <8>;
+			bias-disable;
+		};
 	};
 
 	mdio1_pins: mdio_pinmux {
@@ -518,17 +518,10 @@
 		};
 	};
 };
-
-&usb3 {
-	status = "ok";
-};
-
-&eud {
-	status = "ok";
 };
 
 &pcie_x1 {
-	status = "disabled";
+	status = "ok";
 	perst-gpio = <&tlmm 18 1>;
 };
 
@@ -548,7 +541,7 @@
 };
 
 &pcie_x1phy {
-	status = "disabled";
+	status = "ok";
 };
 
 &pcie_x2phy {

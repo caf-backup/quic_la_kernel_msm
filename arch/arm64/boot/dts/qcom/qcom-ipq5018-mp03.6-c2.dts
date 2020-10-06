@@ -13,13 +13,13 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "qcom-ipq5018-mp03.3.dts"
+#include "qcom-ipq5018-mp03.6.dts"
 
 / {
 	#address-cells = <0x2>;
 	#size-cells = <0x2>;
-	model = "Qualcomm Technologies, Inc. IPQ5018/AP-MP03.3-C2";
-	compatible = "qcom,ipq5018-mp03.3-c2", "qcom,ipq5018";
+	model = "Qualcomm Technologies, Inc. IPQ5018/AP-MP03.6-C2";
+	compatible = "qcom,ipq5018-mp03.6-c2", "qcom,ipq5018";
 	interrupt-parent = <&intc>;
 
 	soc {
@@ -46,40 +46,40 @@
 &tlmm {
 	emmc_pins: emmc_pins {
 		emmc_clk {
-				pins = "gpio9";
-				function = "sdc1_clk";
-				drive-strength = <8>;
-				bias-disable;
-			};
+			pins = "gpio9";
+			function = "sdc1_clk";
+			drive-strength = <8>;
+			bias-disable;
+		};
 		emmc_cmd {
-				pins = "gpio8";
-				function = "sdc1_cmd";
-				drive-strength = <8>;
-				bias-pull-up;
-			};
+			pins = "gpio8";
+			function = "sdc1_cmd";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
 		emmc_data_0 {
-				pins = "gpio7";
-				function = "sdc10";
-				drive-strength = <8>;
-				bias-disable;
-			};
+			pins = "gpio7";
+			function = "sdc10";
+			drive-strength = <8>;
+			bias-disable;
+		};
 		emmc_data_1 {
-				pins = "gpio6";
-				function = "sdc11";
-				drive-strength = <8>;
-				bias-disable;
-			};
+			pins = "gpio6";
+			function = "sdc11";
+			drive-strength = <8>;
+			bias-disable;
+		};
 		emmc_data_2 {
-				pins = "gpio5";
-				function = "sdc12";
-				drive-strength = <8>;
-				bias-disable;
-			};
+			pins = "gpio5";
+			function = "sdc12";
+			drive-strength = <8>;
+			bias-disable;
+		};
 		emmc_data_3 {
-				pins = "gpio4";
-				function = "sdc13";
-				drive-strength = <8>;
-				bias-disable;
-			};
+			pins = "gpio4";
+			function = "sdc13";
+			drive-strength = <8>;
+			bias-disable;
+		};
 	};
 };
