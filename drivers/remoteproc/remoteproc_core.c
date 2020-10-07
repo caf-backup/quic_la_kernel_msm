@@ -1619,6 +1619,61 @@ unlock_mutex:
 	return ret;
 }
 
+static void update_child_crash_status(struct rproc *rproc)
+{
+	struct rproc_child *rp_child;
+
+	/*Update crash status of active child's, if recovery is enabled*/
+	list_for_each_entry(rp_child, &rproc->child, node) {
+		struct rproc *c_rproc = (struct rproc *)rp_child->handle;
+
+		if (c_rproc->state == RPROC_RUNNING) {
+			if (c_rproc->recovery_disabled) {
+				mutex_unlock(&rproc->lock);
+				panic("remoteproc %s: Resetting the SoC - %s crashed",
+					dev_name(&c_rproc->dev), c_rproc->name);
+			}
+			c_rproc->state = RPROC_CRASHED;
+		}
+	}
+}
+
+static void suspend_active_child(struct rproc *rproc)
+{
+	struct rproc_child *rp_child;
+
+	list_for_each_entry(rp_child, &rproc->child, node) {
+		struct rproc *c_rproc = (struct rproc *)rp_child->handle;
+		int ret;
+
+		if (c_rproc->state != RPROC_CRASHED)
+			continue;
+		ret = rproc_stop(c_rproc, true);
+		if (ret)
+			dev_err(&c_rproc->dev, "fail to suspend %s\n",
+					c_rproc->name);
+		c_rproc->state = RPROC_SUSPENDED;
+	}
+}
+
+static void resume_child(struct rproc *rproc)
+{
+	struct rproc_child *rp_child;
+
+	list_for_each_entry(rp_child, &rproc->child, node) {
+		struct rproc *c_rproc = (struct rproc *)rp_child->handle;
+		int ret;
+
+		if (c_rproc->state != RPROC_SUSPENDED)
+			continue;
+		/* boot the remote processor up again */
+		ret = rproc_start(c_rproc, NULL);
+		if (ret)
+			dev_err(&c_rproc->dev, "fail to resume %s\n",
+					c_rproc->name);
+	}
+}
+
 /**
  * rproc_crash_handler_work() - handle a crash
  *
@@ -1629,6 +1684,7 @@ static void rproc_crash_handler_work(struct work_struct *work)
 {
 	struct rproc *rproc = container_of(work, struct rproc, crash_handler);
 	struct device *dev = &rproc->dev;
+	struct rproc_child *rp_child;
 
 	dev_dbg(dev, "enter %s\n", __func__);
 
@@ -1644,13 +1700,23 @@ static void rproc_crash_handler_work(struct work_struct *work)
 	dev_err(dev, "handling crash #%u in %s\n", ++rproc->crash_cnt,
 		rproc->name);
 
+	list_for_each_entry(rp_child, &rproc->child, node) {
+		update_child_crash_status(rproc);
+		suspend_active_child(rproc);
+	}
+
 	mutex_unlock(&rproc->lock);
 
 	if (!rproc->recovery_disabled)
 		rproc_trigger_recovery(rproc);
 	else
 		panic("remoteproc %s: Resetting the SoC - %s crashed",
-		      dev_name(&rproc->dev), rproc->name);
+				dev_name(&rproc->dev), rproc->name);
+
+	mutex_lock(&rproc->lock);
+	list_for_each_entry(rp_child, &rproc->child, node)
+		resume_child(rproc);
+	mutex_unlock(&rproc->lock);
 }
 
 /**
@@ -1673,6 +1739,14 @@ int rproc_boot(struct rproc *rproc)
 	if (!rproc) {
 		pr_err("invalid rproc handle\n");
 		return -EINVAL;
+	}
+
+	if (rproc->parent && rproc->is_parent_dependent) {
+		ret = rproc_boot(rproc->parent);
+		if (ret) {
+			pr_err("Couldn't boot %s rproc\n", rproc->parent->name);
+			return ret;
+		}
 	}
 
 	dev = &rproc->dev;
@@ -1768,6 +1842,9 @@ void rproc_shutdown(struct rproc *rproc)
 	kfree(rproc->cached_table);
 	rproc->cached_table = NULL;
 	rproc->table_ptr = NULL;
+
+	if (rproc->parent && rproc->is_parent_dependent)
+		rproc_shutdown(rproc->parent);
 out:
 	mutex_unlock(&rproc->lock);
 }

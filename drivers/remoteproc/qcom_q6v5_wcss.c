@@ -1804,6 +1804,7 @@ static int q6v5_wcss_userpd_load(struct rproc *rproc, const struct firmware *fw)
 static const struct rproc_ops q6v5_wcss_userpd_ops = {
 	.start = q6v5_wcss_userpd_start,
 	.stop = q6v5_wcss_userpd_stop,
+	.parse_fw = q6v5_register_dump_segments,
 	.load = q6v5_wcss_userpd_load,
 };
 
@@ -2061,6 +2062,8 @@ static int q6v5_register_userpd(struct platform_device *pdev)
 		}
 		sub_child->handle = &q6v5->subsys_desc;
 		subsys_add_child(q6v5->subsys_desc.parent, sub_child);
+#else
+		rproc->is_parent_dependent = true;
 #endif
 		rp_child = devm_kzalloc(&userpd_pdev->dev,
 				sizeof(*rp_child), GFP_KERNEL);
