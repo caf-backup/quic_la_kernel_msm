@@ -231,10 +231,7 @@ static void qmi_rmnet_reset_txq(struct net_device *dev, unsigned int txq)
  */
 static void qmi_rmnet_watchdog_fn(unsigned long p)
 {
-	struct rmnet_bearer_map *bearer;
-	struct timer_list *t = (struct timer_list *)p;
-
-	bearer = container_of(t, struct rmnet_bearer_map, watchdog);
+	struct rmnet_bearer_map *bearer = (struct rmnet_bearer_map *)p;
 
 	trace_dfc_watchdog(bearer->qos->mux_id, bearer->bearer_id, 2);
 
@@ -330,7 +327,9 @@ static struct rmnet_bearer_map *__qmi_rmnet_bearer_get(
 		bearer->mq_idx = INVALID_MQ;
 		bearer->ack_mq_idx = INVALID_MQ;
 		bearer->qos = qos_info;
-		setup_timer(&bearer->watchdog, qmi_rmnet_watchdog_fn, 0UL);
+		setup_timer(&bearer->watchdog,
+			    qmi_rmnet_watchdog_fn,
+			    (unsigned long)bearer);
 		list_add(&bearer->list, &qos_info->bearer_head);
 	}
 
