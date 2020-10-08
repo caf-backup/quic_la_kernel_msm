@@ -19,8 +19,8 @@
 / {
 	#address-cells = <0x2>;
 	#size-cells = <0x2>;
-	model = "Qualcomm Technologies, Inc. IPQ5018/AP-MP03.6";
-	compatible = "qcom,ipq5018-mp03.6", "qcom,ipq5018";
+	model = "Qualcomm Technologies, Inc. IPQ5018/AP-MP03.6-C1";
+	compatible = "qcom,ipq5018-mp03.6-c1", "qcom,ipq5018";
 	interrupt-parent = <&intc>;
 
 	aliases {

@@ -13,7 +13,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "qcom-ipq5018-mp03.6.dts"
+#include "qcom-ipq5018-mp03.6-c1.dts"
 
 / {
 	#address-cells = <0x2>;
