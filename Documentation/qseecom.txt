@@ -230,38 +230,3 @@ value in non-secure target systems.
 
 Without doing this, we will be able to encrypt in one board and decrypt in
 another board using the same keyblob.
-
-AES 256 Block cipher API:
-
-Configure AES type:
-(1) echo 2 > /sys/sec_key/aes_type
-    <1 - SHK, 2 - PHK>
-
-Configure AES mode:
-(2) echo 1 > /sys/sec_key/aes_mode
-    <0 - ECB, 1 - CBC>
-
-Store plain input text data:
-(3) echo -n -e \\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08 > /sys/sec_key/aes_encrypt
-Note:
-AES 256 APIs expects data in the form of hex bytes. The input data size has to
-multiple of AES block size(16 Bytes) and not more than 2048 Bytes
-
-Import AES IV data:
-(4) echo -n -e \\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08 > /sys/sec_key/aes_ivdata
-Note:
-AES 256 APIs expects IV data in the form of hex bytes. The IV data size should be
-equal to the AES block size(16 Bytes). If IV data is not provided, qseecom
-generates one, so this step is optional.
-
-AES 256 encrypt data:
-(5) cat /sys/sec_key/aes_encrypt > enc.txt
-
-store encrypted data:
-(6) cat enc.txt > /sys/sec_key/aes_decrypt
-
-AES 256 decrypt data:
-(7) cat /sys/sec_key/aes_decrypt > dec.txt
-
-Display decrypted data:
-(8) hexdump -C dec.txt
