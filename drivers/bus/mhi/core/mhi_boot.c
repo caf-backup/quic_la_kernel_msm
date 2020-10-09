@@ -226,8 +226,9 @@ int mhi_download_rddm_img(struct mhi_controller *mhi_cntrl, bool in_panic)
 	struct image_info *rddm_image = mhi_cntrl->rddm_image;
 	struct mhi_buf *mhi_buf;
 	int ret;
-	u32 rx_status;
+	u32 rx_status = 0;
 	u32 sequence_id;
+	enum mhi_ee ee;
 
 	if (!rddm_image)
 		return -ENOMEM;
@@ -293,11 +294,20 @@ int mhi_download_rddm_img(struct mhi_controller *mhi_cntrl, bool in_panic)
 					      &rx_status) || rx_status,
 			   msecs_to_jiffies(mhi_cntrl->timeout_ms));
 
-	if (MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state))
+	ee = mhi_get_exec_env(mhi_cntrl);
+	if (MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state)) {
+		MHI_ERR("MHI is not in valid state, pm_state: %s ee: %s\n",
+			to_mhi_pm_state_str(mhi_cntrl->pm_state),
+			TO_MHI_EXEC_STR(ee));
 		return -EIO;
+	}
 
-	if (rx_status == BHIE_RXVECSTATUS_STATUS_XFER_COMPL)
+	if (rx_status == BHIE_RXVECSTATUS_STATUS_XFER_COMPL) {
 		get_crash_reason(mhi_cntrl);
+	} else {
+		MHI_ERR("Image download completion timed out, rx_status = %d ee: %s\n",
+			rx_status, TO_MHI_EXEC_STR(ee));
+	}
 
 	return (rx_status == BHIE_RXVECSTATUS_STATUS_XFER_COMPL) ? 0 : -EIO;
 }
@@ -308,7 +318,8 @@ static int mhi_fw_load_amss(struct mhi_controller *mhi_cntrl,
 {
 	void __iomem *base = mhi_cntrl->bhie;
 	rwlock_t *pm_lock = &mhi_cntrl->pm_lock;
-	u32 tx_status;
+	u32 tx_status = 0;
+	enum mhi_ee ee;
 
 	read_lock_bh(pm_lock);
 	if (!MHI_REG_ACCESS_VALID(mhi_cntrl->pm_state)) {
@@ -348,8 +359,18 @@ static int mhi_fw_load_amss(struct mhi_controller *mhi_cntrl,
 					      &tx_status) || tx_status,
 			   msecs_to_jiffies(mhi_cntrl->timeout_ms));
 
-	if (MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state))
+	ee = mhi_get_exec_env(mhi_cntrl);
+	if (MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state)) {
+		MHI_ERR("MHI is not in valid state, pm_state: %s ee: %s\n",
+			to_mhi_pm_state_str(mhi_cntrl->pm_state),
+			TO_MHI_EXEC_STR(ee));
 		return -EIO;
+	}
+
+	if (tx_status != BHIE_TXVECSTATUS_STATUS_XFER_COMPL) {
+		MHI_ERR("Image transfer completion timed out, rx_status = %d ee:%s\n",
+			tx_status, TO_MHI_EXEC_STR(ee));
+	}
 
 	return (tx_status == BHIE_TXVECSTATUS_STATUS_XFER_COMPL) ? 0 : -EIO;
 }
@@ -362,6 +383,7 @@ static int mhi_fw_load_sbl(struct mhi_controller *mhi_cntrl,
 	int i, ret;
 	void __iomem *base = mhi_cntrl->bhi;
 	rwlock_t *pm_lock = &mhi_cntrl->pm_lock;
+	enum mhi_ee ee;
 	struct {
 		char *name;
 		u32 offset;
@@ -401,8 +423,14 @@ static int mhi_fw_load_sbl(struct mhi_controller *mhi_cntrl,
 					      BHI_STATUS_MASK, BHI_STATUS_SHIFT,
 					      &tx_status) || tx_status,
 			   msecs_to_jiffies(mhi_cntrl->timeout_ms));
-	if (MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state))
+
+	if (MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state)) {
+		ee = mhi_get_exec_env(mhi_cntrl);
+		MHI_ERR("MHI is not in valid state, pm_state: %s ee:%s\n",
+			to_mhi_pm_state_str(mhi_cntrl->pm_state),
+			TO_MHI_EXEC_STR(ee));
 		goto invalid_pm_state;
+	}
 
 	if (tx_status == BHI_STATUS_ERROR) {
 		MHI_ERR("Image transfer failed\n");
