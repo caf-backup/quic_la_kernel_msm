@@ -22,6 +22,7 @@
 #include <linux/coresight.h>
 #include <soc/qcom/ramdump.h>
 #include <soc/qcom/subsystem_notif.h>
+#include <soc/qcom/qgic2m.h>
 
 #include "main.h"
 #include "debug.h"
@@ -2128,19 +2129,35 @@ static int cnss_qdss_trace_save_hdlr(struct cnss_plat_data *plat_priv,
 
 	file_suffix = strnstr(event_data->file_name, ".bin",
 			      QDSS_TRACE_FILE_NAME_MAX);
+
 	if (file_suffix) {
 		strlcpy(file_prefix, event_data->file_name,
 			(file_suffix - &event_data->file_name[0]) + 1);
-		snprintf(file_name, sizeof(file_name),
-			 "%s_qcn9000_pci%d%s",
-			 file_prefix,
-			 (plat_priv->wlfw_service_instance_id - NODE_ID_BASE),
-			 file_suffix);
+
+		if (plat_priv->device_id == QCN9100_DEVICE_ID)
+			snprintf(file_name, sizeof(file_name),
+				 "%s_qcn9100_%d%s", file_prefix,
+				 (plat_priv->userpd_id - QCN9100_0),
+				 file_suffix);
+
+		if (plat_priv->device_id == QCN9000_DEVICE_ID)
+			snprintf(file_name, sizeof(file_name),
+				 "%s_qcn9000_pci%d%s", file_prefix,
+				 (plat_priv->wlfw_service_instance_id -
+				 NODE_ID_BASE), file_suffix);
 	} else {
-		snprintf(file_name, sizeof(file_name),
-			 "%s_qcn9000_pci%d",
-			 event_data->file_name,
-			 (plat_priv->wlfw_service_instance_id - NODE_ID_BASE));
+		if (plat_priv->device_id == QCN9100_DEVICE_ID)
+			snprintf(file_name, sizeof(file_name),
+				 "%s_qcn9100_%d",
+				 event_data->file_name,
+				 (plat_priv->userpd_id - QCN9100_0));
+
+		if (plat_priv->device_id == QCN9000_DEVICE_ID)
+			snprintf(file_name, sizeof(file_name),
+				 "%s_qcn9000_pci%d",
+				 event_data->file_name,
+				 (plat_priv->wlfw_service_instance_id -
+				 NODE_ID_BASE));
 	}
 
 	if (event_data->mem_seg_len == 0) {
@@ -3348,7 +3365,7 @@ cnss_check_skip_target_probe(const struct platform_device_id *device_id,
 
 static int cnss_probe(struct platform_device *plat_dev)
 {
-	int ret = 0;
+	int ret = 0, qgicm_id;
 	struct cnss_plat_data *plat_priv = NULL;
 	const struct of_device_id *of_id;
 	const struct platform_device_id *device_id;
@@ -3470,6 +3487,7 @@ skip_soc_version_checks:
 	case QCN9100_DEVICE_ID:
 		plat_priv->bus_type = CNSS_BUS_AHB;
 		plat_priv->service_id = WLFW_SERVICE_ID_V01_HK;
+		plat_priv->userpd_id = userpd_id;
 		plat_priv->wlfw_service_instance_id =
 			WLFW_SERVICE_INS_ID_V01_QCN9100 + userpd_id;
 		if (plat_priv->wlfw_service_instance_id ==
@@ -3478,6 +3496,26 @@ skip_soc_version_checks:
 		else if (plat_priv->wlfw_service_instance_id ==
 			WLFW_SERVICE_INS_ID_V01_QCN9100 + QCN9100_1)
 			plat_priv->board_info.board_id_override = bdf_pci1;
+
+		/* init qgic msi */
+		if (userpd_id == QCN9100_0) {
+			qgicm_id = APCS_QGIC2M_0;
+		} else if (userpd_id == QCN9100_1) {
+			qgicm_id = APCS_QGIC2M_1;
+		} else {
+			cnss_pr_err("userpd_id %d invalid\n", userpd_id);
+			ret = -ENODEV;
+			goto out;
+		}
+
+		plat_priv->qcn9100.qgic2_msi =
+					cnss_qgic2_enable_msi(qgicm_id);
+		if (!plat_priv->qcn9100.qgic2_msi) {
+			cnss_pr_err("qgic2_msi fails: dev 0x%x userpd id %d\n",
+				    plat_priv->device_id, userpd_id);
+			ret = -ENODEV;
+			goto out;
+		}
 		break;
 	default:
 		cnss_pr_err("No such device id %p\n", device_id);

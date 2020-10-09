@@ -251,6 +251,11 @@
 	};
 };
 
+&tmc_etr {
+	memory_region = <>;
+	status = "disabled";
+};
+
 &tlmm {
 	pinctrl-0 = <&uart_pins>;
 	pinctrl-names = "default";

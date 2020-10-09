@@ -10,6 +10,7 @@
 #include "qcom_common.h"
 
 #define EM_QDSP6 164
+#define BUF_SIZE 35
 
 struct rproc;
 struct qcom_smem_state;

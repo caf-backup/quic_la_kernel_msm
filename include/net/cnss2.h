@@ -240,6 +240,11 @@ static inline int cnss_wlan_pm_control(struct device *dev, bool vote)
 	return -EINVAL;
 }
 
+static inline struct qgic2_msi *cnss_qgic2_enable_msi(int qgicm_id)
+{
+	return ERR_PTR(-EINVAL);
+}
+
 static inline int cnss_get_user_msi_assignment(struct device *dev,
 					       char *user_name,
 					       int *num_vectors,
@@ -389,6 +394,7 @@ extern int cnss_pci_is_drv_connected(struct device *dev);
 extern int cnss_pci_force_wake_request(struct device *dev);
 extern int cnss_pci_is_device_awake(struct device *dev);
 extern int cnss_pci_force_wake_release(struct device *dev);
+extern struct qgic2_msi *cnss_qgic2_enable_msi(int qgicm_id);
 extern int cnss_get_user_msi_assignment(struct device *dev, char *user_name,
 					int *num_vectors,
 					uint32_t *user_base_data,

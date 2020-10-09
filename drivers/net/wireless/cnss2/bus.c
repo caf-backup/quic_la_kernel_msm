@@ -192,6 +192,25 @@ void cnss_bus_free_fw_mem(struct cnss_plat_data *plat_priv)
 	}
 }
 
+static
+struct device_node *cnss_get_etr_dev_node(struct cnss_plat_data *plat_priv)
+{
+	struct device_node *dev_node = NULL;
+
+	if (plat_priv->device_id == QCN9100_DEVICE_ID) {
+		if (plat_priv->userpd_id == QCN9100_0)
+			dev_node = of_find_node_by_name(NULL,
+							"q6_qcn9100_etr_1");
+		else if (plat_priv->userpd_id == QCN9100_1)
+			dev_node = of_find_node_by_name(NULL,
+							"q6_qcn9100_etr_2");
+	} else {
+		dev_node = of_find_node_by_name(NULL, "q6_etr_dump");
+	}
+
+	return dev_node;
+}
+
 int cnss_bus_alloc_qdss_mem(struct cnss_plat_data *plat_priv)
 {
 	int i;
@@ -209,7 +228,7 @@ int cnss_bus_alloc_qdss_mem(struct cnss_plat_data *plat_priv)
 	case CNSS_BUS_PCI:
 		return cnss_pci_alloc_qdss_mem(plat_priv->bus_priv);
 	case CNSS_BUS_AHB:
-		dev_node = of_find_node_by_name(NULL, "q6_etr_dump");
+		dev_node = cnss_get_etr_dev_node(plat_priv);
 		if (!dev_node) {
 			cnss_pr_err("No q6_etr_dump available in dts");
 			return -ENOMEM;
@@ -226,8 +245,20 @@ int cnss_bus_alloc_qdss_mem(struct cnss_plat_data *plat_priv)
 			plat_priv->qdss_mem[i].pa = q6_etr.start;
 			plat_priv->qdss_mem[i].size = resource_size(&q6_etr);
 			plat_priv->qdss_mem[i].type = QMI_WLFW_MEM_QDSS_V01;
-			cnss_pr_dbg("QDSS mem addr 0x%x, size 0x%x",
+
+			if (plat_priv->device_id == QCN9100_DEVICE_ID) {
+				plat_priv->qdss_mem[i].va =
+					ioremap(plat_priv->qdss_mem[i].pa,
+						plat_priv->qdss_mem[i].size);
+				if (!plat_priv->qdss_mem[i].va) {
+					cnss_pr_err("WARNING etr-addr remap failed\n");
+					return -ENOMEM;
+				}
+			}
+
+			cnss_pr_dbg("QDSS mem addr pa 0x%x va 0x%p, size 0x%x",
 				    (unsigned int)plat_priv->qdss_mem[i].pa,
+				    plat_priv->qdss_mem[i].va,
 				    (unsigned int)plat_priv->qdss_mem[i].size);
 		}
 

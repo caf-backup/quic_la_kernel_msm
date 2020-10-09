@@ -102,6 +102,21 @@
 	 * |                                                 |
 	 * +=================================================+
 	 */
+		q6_region: wcnss@4b000000 {
+			no-map;
+			reg = <0x0 0x4b000000 0x0 0x01700000>;
+		};
+
+		m3_dump@4c800000 {
+			no-map;
+			reg = <0x0 0x4C700000 0x0 0x100000>;
+		};
+
+		q6_etr_region:q6_etr_dump@4c800000 {
+			no-map;
+			reg = <0x0 0x4c800000 0x0 0x100000>;
+		};
+
 		qcn9000_pcie0@4c900000 {
 			no-map;
 			reg = <0x0 0x4C900000 0x0 0x01100000>;
@@ -173,6 +188,26 @@
 	 * |                                                 |
 	 * +=================================================+
 	 */
+		q6_region: wcnss@4b000000 {
+			no-map;
+			reg = <0x0 0x4b000000 0x0 0x01800000>;
+		};
+
+		m3_dump@4c800000 {
+			no-map;
+			reg = <0x0 0x4c800000 0x0 0x100000>;
+		};
+
+		q6_etr_region:q6_etr_dump@4c900000 {
+			no-map;
+			reg = <0x0 0x4c900000 0x0 0x100000>;
+		};
+
+		q6_caldb_region:q6_caldb_region@4cd00000 {
+			no-map;
+			reg = <0x0 0x4ca00000 0x0 0x200000>;
+		};
+
 		qcn9000_pcie0@4cc00000 {
 			no-map;
 			reg = <0x0 0x4CC00000 0x0 0x01E00000>;
@@ -320,6 +355,11 @@
 		};
 
 		wifi0: wifi@c000000 {
+			qcom,bdf-addr = <0x4BA00000 0x4BA00000 0x4BA00000
+						0x0 0x0>;
+			qcom,caldb-addr = <0x4CA00000 0x4CA00000 0x4CA00000
+						0x0 0x0>;
+			qcom,caldb-size = <0x200000>;
 			status = "ok";
 		};
 
@@ -570,8 +610,15 @@
 };
 
 &qcom_q6v5_wcss {
-	/*Maple internal radio*/
+	#ifdef __IPQ_MEM_PROFILE_256_MB__
+		memory-region = <&q6_region>, <&q6_etr_region>;
+	#else
+		memory-region = <&q6_region>, <&q6_etr_region>,
+				<&q6_caldb_region>;
+	#endif
+	/* IPQ5018 */
 	q6v5_wcss_userpd1 {
+		m3_firmware = "IPQ5018/m3_fw.mdt";
 		interrupts-extended = <&wcss_smp2p_in 8 0>,
 			<&wcss_smp2p_in 9 0>,
 			<&wcss_smp2p_in 12 0>,

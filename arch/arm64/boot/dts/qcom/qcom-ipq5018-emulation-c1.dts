@@ -301,6 +301,11 @@
 	};
 };
 
+&tmc_etr {
+	memory_region = <>;
+	status = "disabled";
+};
+
 &dwc_0 {
 	/delete-property/ snps,quirk-ref-clock-adjustment;
 	snps,quirk-ref-clock-period = <0x32>;

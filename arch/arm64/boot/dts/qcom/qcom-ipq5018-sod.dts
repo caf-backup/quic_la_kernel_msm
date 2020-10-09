@@ -462,6 +462,7 @@
 };
 
 &tmc_etr {
+	memory_region = <>;
 	status = "disabled";
 };
 

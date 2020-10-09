@@ -754,6 +754,101 @@ err_out:
 }
 EXPORT_SYMBOL(subsystem_put);
 
+static void update_crash_status_of_child(struct subsys_desc *desc)
+{
+	struct subsys_child *sub_child;
+
+	list_for_each_entry(sub_child, &desc->child, node) {
+		struct subsys_desc *tmp_desc =
+			(struct subsys_desc *)sub_child->handle;
+		struct subsys_device *tmp_dev =
+			desc_to_subsys(tmp_desc->dev);
+
+		if (tmp_dev &&
+				tmp_dev->track.state == SUBSYS_ONLINE) {
+			subsys_set_crash_status(tmp_dev,
+					CRASH_STATUS_ERR_FATAL);
+			tmp_dev->track.p_state = SUBSYS_CRASHED;
+		}
+	}
+}
+
+static void restart_multipd_subsystem(struct subsys_device *dev)
+{
+	struct subsys_child *sub_child;
+	struct subsys_desc *desc = dev->desc;
+	unsigned long flags;
+	struct subsys_tracking *track = &dev->track;
+
+	update_crash_status_of_child(desc);
+	/*shut down child's*/
+	list_for_each_entry(sub_child, &desc->child, node) {
+		struct subsys_desc *tmp_desc =
+			(struct subsys_desc *)sub_child->handle;
+		struct subsys_device *tmp_dev =
+			desc_to_subsys(tmp_desc->dev);
+
+		if (tmp_dev &&
+				tmp_dev->track.state == SUBSYS_ONLINE) {
+			notify_each_subsys_device(&tmp_dev, 1,
+						SUBSYS_BEFORE_SHUTDOWN, NULL);
+			for_each_subsys_device(&tmp_dev, 1, NULL,
+						subsystem_shutdown);
+			notify_each_subsys_device(&tmp_dev, 1,
+						SUBSYS_AFTER_SHUTDOWN, NULL);
+		}
+	}
+
+	/*shut down parent*/
+	for_each_subsys_device(&dev, 1, NULL, subsystem_shutdown);
+
+	/*Take crash dump of parent only, it consist's child dump also*/
+	notify_each_subsys_device(&dev, 1, SUBSYS_RAMDUMP_NOTIFICATION, NULL);
+
+	spin_lock_irqsave(&track->s_lock, flags);
+	track->p_state = SUBSYS_RESTARTING;
+	spin_unlock_irqrestore(&track->s_lock, flags);
+
+	for_each_subsys_device(&dev, 1, NULL, subsystem_ramdump);
+
+	/*power on parent*/
+	notify_each_subsys_device(&dev, 1, SUBSYS_BEFORE_POWERUP, NULL);
+	for_each_subsys_device(&dev, 1, NULL, subsystem_powerup);
+
+	if (dev->track.state != SUBSYS_ONLINE) {
+		pr_info("[%s:%s:%d]: Restart sequence for %s failed.\n",
+			__func__, current->comm, current->pid, desc->name);
+		return;
+	}
+	notify_each_subsys_device(&dev, 1, SUBSYS_AFTER_POWERUP, NULL);
+
+	/*Power on child*/
+	list_for_each_entry(sub_child, &desc->child, node) {
+		struct subsys_desc *tmp_desc =
+			(struct subsys_desc *)sub_child->handle;
+		struct subsys_device *tmp_dev =
+			desc_to_subsys(tmp_desc->dev);
+
+		if (tmp_dev &&
+				tmp_dev->track.p_state == SUBSYS_CRASHED) {
+			notify_each_subsys_device(&tmp_dev, 1,
+						SUBSYS_BEFORE_POWERUP, NULL);
+			for_each_subsys_device(&tmp_dev, 1, NULL,
+						subsystem_powerup);
+			if (tmp_dev->track.state != SUBSYS_ONLINE) {
+				pr_info("Restart sequence for %s failed.\n",
+							tmp_desc->name);
+				continue;
+			}
+			notify_each_subsys_device(&tmp_dev, 1,
+						SUBSYS_AFTER_POWERUP, NULL);
+			tmp_dev->track.p_state = SUBSYS_NORMAL;
+		}
+	}
+	pr_info("[%s:%s:%d]: Restart sequence for %s completed.\n",
+			__func__, current->comm, current->pid, desc->name);
+}
+
 static void subsystem_restart_wq_func(struct work_struct *work)
 {
 	struct subsys_device *dev = container_of(work,
@@ -764,6 +859,8 @@ static void subsystem_restart_wq_func(struct work_struct *work)
 	struct subsys_tracking *track;
 	unsigned count;
 	unsigned long flags;
+	bool is_parent = false;
+	struct subsys_child *sub_child;
 
 	/*
 	 * It's OK to not take the registration lock at this point.
@@ -798,6 +895,18 @@ static void subsystem_restart_wq_func(struct work_struct *work)
 
 	pr_debug("[%s:%d]: Starting restart sequence for %s\n",
 			current->comm, current->pid, desc->name);
+
+	/*check whether it's a parent*/
+	list_for_each_entry(sub_child, &desc->child, node) {
+		is_parent = true;
+		break;
+	}
+
+	if (is_parent) {
+		restart_multipd_subsystem(dev);
+		goto unlock;
+	}
+
 	notify_each_subsys_device(list, count, SUBSYS_BEFORE_SHUTDOWN, NULL);
 	for_each_subsys_device(list, count, NULL, subsystem_shutdown);
 	notify_each_subsys_device(list, count, SUBSYS_AFTER_SHUTDOWN, NULL);
@@ -826,7 +935,7 @@ static void subsystem_restart_wq_func(struct work_struct *work)
 		pr_info("[%s:%d]: Restart sequence for %s completed.\n",
 			current->comm, current->pid, desc->name);
 	}
-
+unlock:
 	mutex_unlock(&soc_order_reg_lock);
 	mutex_unlock(&track->lock);
 
@@ -835,6 +944,23 @@ static void subsystem_restart_wq_func(struct work_struct *work)
 		track->p_state = SUBSYS_NORMAL;
 		__pm_relax(&dev->ssr_wlock);
 		spin_unlock_irqrestore(&track->s_lock, flags);
+	}
+}
+
+static void send_fatal_notif_to_child(struct subsys_desc *desc)
+{
+	struct subsys_child *sub_child;
+
+	list_for_each_entry(sub_child, &desc->child, node) {
+		struct subsys_desc *tmp_desc =
+			(struct subsys_desc *)sub_child->handle;
+		struct subsys_device *tmp_dev =
+			desc_to_subsys(tmp_desc->dev);
+
+		if (tmp_dev &&
+				tmp_dev->track.state == SUBSYS_ONLINE)
+			notify_each_subsys_device(&tmp_dev, 1,
+				SUBSYS_PREPARE_FOR_FATAL_SHUTDOWN, NULL);
 	}
 }
 
@@ -869,7 +995,7 @@ static void __subsystem_restart_dev(struct subsys_device *dev)
 					dev->track.state == SUBSYS_ONLINE) {
 		if (track->p_state != SUBSYS_RESTARTING) {
 			track->p_state = SUBSYS_CRASHED;
-
+			send_fatal_notif_to_child(desc);
 			notify_each_subsys_device(list, count,
 				SUBSYS_PREPARE_FOR_FATAL_SHUTDOWN, NULL);
 			__pm_stay_awake(&dev->ssr_wlock);

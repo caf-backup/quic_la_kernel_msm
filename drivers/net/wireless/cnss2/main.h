@@ -440,6 +440,7 @@ struct target_qcn9100 {
 	void *bar_addr_va;
 	u64 bar_addr_pa;
 	u32 bar_size;
+	struct qgic2_msi *qgic2_msi;
 };
 
 struct cnss_plat_data {
@@ -450,6 +451,7 @@ struct cnss_plat_data {
 	void *pci_dev_id;
 	void *bus_priv;
 	int qrtr_node_id;
+	int userpd_id;
 	char device_name[16];
 	struct cnss_vreg_info *vreg_info;
 	enum cnss_dev_bus_type bus_type;

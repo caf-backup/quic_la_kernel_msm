@@ -17,7 +17,6 @@
 #include <linux/delay.h>
 
 #define STOP_ACK_TIMEOUT_MS 5000
-#define BUF_SIZE 35
 /**
  * qcom_q6v5_prepare() - reinitialize the qcom_q6v5 context before start
  * @q6v5:	reference to qcom_q6v5 context to be reinitialized
