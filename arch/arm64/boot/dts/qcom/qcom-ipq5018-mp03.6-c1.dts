@@ -426,21 +426,13 @@
 };
 
 &tlmm {
-	pinctrl-0 = <&blsp0_uart_pins &blsp1_uart_pins &pcie_sdx_gpio>;
+	pinctrl-0 = <&blsp0_uart_pins &pcie_sdx_gpio>;
 	pinctrl-names = "default";
 
 	blsp0_uart_pins: uart_pins {
 		blsp0_uart_rx_tx {
 			pins = "gpio20", "gpio21";
 			function = "blsp0_uart0";
-			bias-disable;
-		};
-	};
-
-	blsp1_uart_pins: blsp1_uart_pins {
-		blsp1_uart_rx_tx {
-			pins = "gpio23", "gpio25", "gpio24", "gpio26";
-			function = "blsp1_uart2";
 			bias-disable;
 		};
 	};
@@ -517,10 +509,16 @@
 			bias-pull-down;
 		};
 		sdx_pon_gpio {
-			pins = "gpio27";
+			pins = "gpio26";
 			function = "gpio";
 			drive-strength = <8>;
 			bias-pull-up;
+			output-high;
+		};
+		ap2mdm_gp_rst_n {
+			pins = "gpio28";
+			function = "gpio";
+			drive-strength = <8>;
 			output-high;
 		};
 	};
@@ -543,6 +541,7 @@
 &pcie_x1 {
 	status = "ok";
 	perst-gpio = <&tlmm 18 1>;
+	use_delay = <1>;
 };
 
 &pcie_x2 {
