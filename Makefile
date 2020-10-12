@@ -11,7 +11,7 @@ NAME = Blurry Fish Butt
 # expect to learn how to build the kernel reading this file.
 
 # o Do not use make's built-in rules and variables
-#   (this increases performance and avoids hard-to-debug behaviour);
+#    (this increases performance and avoids hard-to-debug behaviour);
 # o Look for make include files relative to root of kernel src
 MAKEFLAGS += -rR --include-dir=$(CURDIR)
 
