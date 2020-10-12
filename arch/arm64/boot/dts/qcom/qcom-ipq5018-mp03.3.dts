@@ -568,7 +568,7 @@
 
 	mhi_1: qcom,mhi@1 {
 		reg = <0 0 0 0 0 >;
-		qrtr_instance_id = <0x20>;
+		qrtr_instance_id = <0x21>;
 		#address-cells = <0x2>;
 		#size-cells = <0x2>;
 		memory-region = <&mhi_region1>;
@@ -656,28 +656,6 @@
 				<&q6_qcn9100_etr_1>, <&q6_qcn9100_caldb_1>;
 		#endif
 	};
-
-	/*Pine radio*/
-	q6v5_wcss_userpd3 {
-		m3_firmware = "qcn9000/m3_fw.mdt";
-		interrupts-extended = <&wcss_smp2p_in 24 0>,
-			<&wcss_smp2p_in 25 0>,
-			<&wcss_smp2p_in 28 0>,
-			<&wcss_smp2p_in 27 0>;
-		interrupt-names ="fatal",
-			"ready",
-			"spawn_ack",
-			"stop-ack";
-		qcom,smem-states = <&wcss_smp2p_out 24>,
-			<&wcss_smp2p_out 25>,
-			<&wcss_smp2p_out 26>;
-		qcom,smem-state-names = "shutdown",
-			"stop",
-			"spawn";
-		qca,asid = <3>;
-		qca,auto-restart;
-		memory-region = <&q6_qcn9000_region>;
-	};
 };
 
 &qgic_msi_0 {
@@ -720,6 +698,7 @@
 	/* QCN9000 6G */
 	compatible = "qcom,cnss-qcn9000";
 	status = "ok";
+	qrtr_node_id = <0x21>;
 #ifdef __IPQ_MEM_PROFILE_256_MB__ || __IPQ_FLASH_16M_PROFILE__
 			/* QCN9000 tgt-mem-mode=2 layout - 17MB
 			 * +=========+==============+=========+
