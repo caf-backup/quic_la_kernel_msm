@@ -73,17 +73,15 @@ struct cnss_plat_data *cnss_bus_dev_to_plat_priv(struct device *dev)
 	struct pci_dev *pdev;
 
 	if (!dev)
-		return cnss_get_plat_priv(NULL);
-
-	bus_priv = cnss_bus_dev_to_bus_priv(dev);
-	if (cnss_get_dev_bus_type(dev) == CNSS_BUS_PCI) {
-		pdev = to_pci_dev(dev);
-		if (pdev->device != QCN9000_DEVICE_ID)
-			return NULL;
-	}
+		return NULL;
 
 	switch (cnss_get_dev_bus_type(dev)) {
 	case CNSS_BUS_PCI:
+		pdev = to_pci_dev(dev);
+		if (pdev->device != QCN9000_DEVICE_ID)
+			return NULL;
+
+		bus_priv = cnss_bus_dev_to_bus_priv(dev);
 		if (bus_priv)
 			return cnss_pci_priv_to_plat_priv(bus_priv);
 		else

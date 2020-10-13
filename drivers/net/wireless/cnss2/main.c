@@ -1483,7 +1483,7 @@ void  *cnss_subsystem_get(struct device *dev, int device_id)
 	struct pci_dev *pcidev;
 
 	if (cnss_get_bus_type(device_id) == CNSS_BUS_AHB) {
-		plat_priv = cnss_get_plat_priv_by_device_id(device_id);
+		plat_priv = cnss_bus_dev_to_plat_priv(dev);
 	} else {
 		pcidev = container_of(dev, struct pci_dev, dev);
 		plat_priv = cnss_get_plat_priv_dev_by_pci_dev(pcidev);
@@ -3511,7 +3511,7 @@ skip_soc_version_checks:
 		plat_priv->qcn9100.qgic2_msi =
 					cnss_qgic2_enable_msi(qgicm_id);
 		if (!plat_priv->qcn9100.qgic2_msi) {
-			cnss_pr_err("qgic2_msi fails: dev 0x%x userpd id %d\n",
+			cnss_pr_err("qgic2_msi fails: dev 0x%lx userpd id %d\n",
 				    plat_priv->device_id, userpd_id);
 			ret = -ENODEV;
 			goto out;
