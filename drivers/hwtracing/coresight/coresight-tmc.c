@@ -128,6 +128,8 @@ struct tmc_etr_bam_data {
        bool                    enable;
 };
 
+static void __iomem *disable_funnel_ptr;
+
 static void __tmc_reg_dump(struct tmc_drvdata *drvdata);
 
 static void tmc_wait_for_ready(struct tmc_drvdata *drvdata)
@@ -1100,7 +1102,13 @@ static void tmc_abort(struct coresight_device *csdev)
 			dma_addr_t rrp_phy;
 			uint32_t q6mem_magic = 0xdeadbeef;
 			void __iomem *q6_etr_waddr;
+			uint32_t funnel_unlock = 0xc5acce55;
 
+			if (disable_funnel_ptr) {
+				writel_relaxed(funnel_unlock,
+						disable_funnel_ptr + 0xFB0);
+				writel_relaxed(0, disable_funnel_ptr);
+			}
 			tmc_etr_disable_hw(drvdata);
 
 			rrp = readl_relaxed(drvdata->base + TMC_RRP);
@@ -1121,6 +1129,8 @@ static void tmc_abort(struct coresight_device *csdev)
 			q6_etr_waddr += sizeof(rrp);
 			memcpy_toio(q6_etr_waddr, &rwp, sizeof(rwp));
 			q6_etr_waddr += sizeof(rwp);
+			dev_info(drvdata->dev, "rrp:0x%x rwp:0x%x sts:0x%x\n",
+								rrp, rwp,sts);
 		}
 		else if (drvdata->out_mode == TMC_ETR_OUT_MODE_USB)
 			__tmc_etr_disable_to_bam(drvdata);
@@ -2027,6 +2037,7 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 	struct coresight_cti_data *ctidata;
 	struct resource q6r;
 	int byte_cntr_irq;
+	uint32_t funnel_address[2];
 
 	if (!np)
 		return -ENODEV;
@@ -2060,6 +2071,12 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 							"is_emulation");
 	devid = readl_relaxed(drvdata->base + CORESIGHT_DEVID);
 	drvdata->config_type = BMVAL(devid, 6, 7);
+
+	if (of_property_read_u32_array(np, "funnel-address",
+			funnel_address, ARRAY_SIZE(funnel_address)) == 0) {
+		disable_funnel_ptr = ioremap(funnel_address[0],
+							funnel_address[1]);
+	}
 
 	if (drvdata->config_type == TMC_CONFIG_TYPE_ETR) {
 		drvdata->out_mode = TMC_ETR_OUT_MODE_MEM;
