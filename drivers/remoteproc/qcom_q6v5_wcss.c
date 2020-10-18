@@ -150,6 +150,7 @@ struct q6v5_wcss {
 	int pd_asid;
 	struct dumpdev q6dump;
 	struct q6v5_wcss_pd_fw_info *fw_info;
+	bool is_radio_stopped;
 };
 
 struct q6_platform_data {
@@ -1612,6 +1613,7 @@ static int q6v5_wcss_userpd_stop(struct rproc *rproc)
 		dev_err(&rproc->dev, "failed to powerdown %s\n", rproc->name);
 		return ret;
 	}
+	wcss->is_radio_stopped = true;
 	return ret;
 }
 
@@ -1766,6 +1768,7 @@ skip_m3:
 
 		ret = qcom_get_pd_segment_info(c_wcss->dev, fw,
 			wcss->mem_phys, wcss->mem_size, c_wcss->pd_asid);
+		c_wcss->is_radio_stopped = false;
 	}
 
 	return ret;
@@ -1783,6 +1786,8 @@ static int q6v5_wcss_userpd_load(struct rproc *rproc, const struct firmware *fw)
 	dev_dbg(&rproc->dev, "%s:p:%p-p->name:%s-c:%p-c->name:%s-\n", __func__,
 				p, p->name, rproc, rproc->name);
 
+	if (wcss->is_radio_stopped == false)
+		return 0;
 	ret = request_firmware(&f, p->firmware, &p->dev);
 	if (ret < 0) {
 		dev_err(&p->dev, "%s: request_firmware failed: %d\n",
