@@ -1373,8 +1373,8 @@
 		};
 		qfprom_sec {
 			compatible = "qcom,qfprom-sec";
-			img-addr = <0x4A600000>;
-			img-size = <0x00600000>;
+			img-addr = <0x4A800000>;
+			img-size = <0x00400000>;
 		};
 	};
 
