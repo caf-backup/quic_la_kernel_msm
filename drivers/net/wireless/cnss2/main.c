@@ -86,11 +86,11 @@ MODULE_PARM_DESC(skip_cnss, "skip_cnss");
 
 static int skip_radio_bmap;
 module_param(skip_radio_bmap, int, 0644);
-MODULE_PARM_DESC(skip_radio_bmap, "skip_radio_bmap");
+MODULE_PARM_DESC(skip_radio_bmap, "Bitmap to skip device probe");
 
-bool flashcal_support = true;
-module_param(flashcal_support, bool, S_IRUSR | S_IWUSR);
-MODULE_PARM_DESC(flashcal_support, "flash caldata support");
+static int disable_caldata_bmap;
+module_param(disable_caldata_bmap, int, 0644);
+MODULE_PARM_DESC(disable_caldata_bmap, "Bitmap to Disable Caldata download");
 
 #define FW_READY_DELAY	100  /* in msecs */
 static int fw_ready_timeout = 15;
@@ -581,7 +581,7 @@ static int cnss_fw_mem_ready_hdlr(struct cnss_plat_data *plat_priv)
 		goto out;
 	}
 
-	if (plat_priv->flashcal_support) {
+	if (plat_priv->caldata_support) {
 		ret = cnss_wlfw_bdf_dnld_send_sync(plat_priv, CNSS_CALDATA_WIN);
 		if (ret) {
 			cnss_pr_err("caldata load failed. ret %d\n", ret);
@@ -3205,6 +3205,48 @@ static const struct of_device_id cnss_of_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, cnss_of_match_table);
 
+static void cnss_set_caldata_support(struct cnss_plat_data *plat_priv)
+{
+	switch (plat_priv->device_id) {
+	case QCA8074_DEVICE_ID:
+	case QCA8074V2_DEVICE_ID:
+	case QCA6018_DEVICE_ID:
+	case QCA5018_DEVICE_ID:
+		if (disable_caldata_bmap & SKIP_INTEGRATED) {
+			cnss_pr_info("Disabling caldata support for %s",
+				     plat_priv->device_name);
+			plat_priv->caldata_support = 0;
+			return;
+		}
+		break;
+	case QCN9000_DEVICE_ID:
+		if (((plat_priv->qrtr_node_id == QCN9000_0) &&
+		     (disable_caldata_bmap & SKIP_PCI_0)) ||
+		    ((plat_priv->qrtr_node_id == QCN9000_1) &&
+		     (disable_caldata_bmap & SKIP_PCI_1))) {
+			plat_priv->caldata_support = 0;
+			cnss_pr_info("Disabling caldata support for %s",
+				     plat_priv->device_name);
+			return;
+		}
+		break;
+	case QCN9100_DEVICE_ID:
+		if (((plat_priv->userpd_id == QCN9100_0) &&
+		     (disable_caldata_bmap & SKIP_PCI_0)) ||
+		    ((plat_priv->userpd_id == QCN9100_1) &&
+		     (disable_caldata_bmap & SKIP_PCI_1))) {
+			plat_priv->caldata_support = 0;
+			cnss_pr_info("Disabling caldata support for %s",
+				     plat_priv->device_name);
+			return;
+		}
+		break;
+	}
+
+	/* By default caldata support is enabled */
+	plat_priv->caldata_support = 1;
+}
+
 static int cnss_set_device_name(struct cnss_plat_data *plat_priv)
 {
 	u8 index = 0;
@@ -3267,8 +3309,8 @@ void cnss_update_platform_feature_support(u8 type, u32 instance_id, u32 value)
 		cnss_pr_info("Setting cold_boot_support=%d for instance_id 0x%x\n",
 			     value, instance_id);
 		break;
-	case CNSS_GENL_MSG_TYPE_FLASHCAL_SUPPORT:
-		plat_priv->flashcal_support = value;
+	case CNSS_GENL_MSG_TYPE_CALDATA_SUPPORT:
+		plat_priv->caldata_support = value;
 		cnss_pr_info("Setting caldata_support=%d for instance_id 0x%x\n",
 			     value, instance_id);
 		break;
@@ -3458,7 +3500,6 @@ skip_soc_version_checks:
 	plat_priv->device_id = device_id->driver_data;
 	plat_priv->plat_dev_id = (struct platform_device_id *)device_id;
 	plat_priv->ramdump_enabled = ramdump_enabled;
-	plat_priv->flashcal_support = flashcal_support;
 
 	switch (plat_priv->device_id) {
 	case QCN9000_DEVICE_ID:
@@ -3525,6 +3566,7 @@ skip_soc_version_checks:
 	if (ret)
 		return -ENODEV;
 
+	cnss_set_caldata_support(plat_priv);
 	cnss_set_plat_priv(plat_dev, plat_priv);
 	platform_set_drvdata(plat_dev, plat_priv);
 	memset(&qmi_log, 0, sizeof(struct qmi_history) * QMI_HISTORY_SIZE);
