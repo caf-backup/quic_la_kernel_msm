@@ -19,8 +19,8 @@
 / {
 	#address-cells = <0x2>;
 	#size-cells = <0x2>;
-	model = "Qualcomm Technologies, Inc. IPQ5018/AP-MP03.3";
-	compatible = "qcom,ipq5018-mp03.3", "qcom,ipq5018";
+	model = "Qualcomm Technologies, Inc. IPQ5018/AP-MP03.5-C1";
+	compatible = "qcom,ipq5018-mp03.5-c1", "qcom,ipq5018";
 	interrupt-parent = <&intc>;
 
 	aliases {
@@ -440,48 +440,48 @@
 		mux {
 			pins = "gpio10", "gpio11", "gpio12", "gpio13";
 			function = "blsp0_spi";
-			drive-strength = <8>;
+			drive-strength = <2>;
 			bias-disable;
 		};
 	};
 
 	qspi_nand_pins: qspi_nand_pins {
 		qspi_clock {
-				pins = "gpio9";
-				function = "qspi_clk";
-				drive-strength = <8>;
-				bias-disable;
-			};
+			pins = "gpio9";
+			function = "qspi_clk";
+			drive-strength = <8>;
+			bias-disable;
+		};
 		qspi_cs {
-				pins = "gpio8";
-				function = "qspi_cs";
-				drive-strength = <8>;
-				bias-disable;
-			};
+			pins = "gpio8";
+			function = "qspi_cs";
+			drive-strength = <8>;
+			bias-disable;
+		};
 		qspi_data_0 {
-				pins = "gpio7";
-				function = "qspi0";
-				drive-strength = <8>;
-				bias-disable;
-			};
+			pins = "gpio7";
+			function = "qspi0";
+			drive-strength = <8>;
+			bias-disable;
+		};
 		qspi_data_1 {
-				pins = "gpio6";
-				function = "qspi1";
-				drive-strength = <8>;
-				bias-disable;
-			};
+			pins = "gpio6";
+			function = "qspi1";
+			drive-strength = <8>;
+			bias-disable;
+		};
 		qspi_data_2 {
-				pins = "gpio5";
-				function = "qspi2";
-				drive-strength = <8>;
-				bias-disable;
-			};
+			pins = "gpio5";
+			function = "qspi2";
+			drive-strength = <8>;
+			bias-disable;
+		};
 		qspi_data_3 {
-				pins = "gpio4";
-				function = "qspi3";
-				drive-strength = <8>;
-				bias-disable;
-			};
+			pins = "gpio4";
+			function = "qspi3";
+			drive-strength = <8>;
+			bias-disable;
+		};
 	};
 
 	mdio1_pins: mdio_pinmux {
@@ -525,7 +525,7 @@
 };
 
 &pcie_x2 {
-	status = "ok";
+	status = "disabled";
 	perst-gpio = <&tlmm 15 1>;
 };
 
@@ -544,7 +544,7 @@
 };
 
 &pcie_x2phy {
-	status = "ok";
+	status = "disabled";
 };
 
 &pcie_x1_rp {
@@ -556,7 +556,7 @@
 };
 
 &pcie_x2_rp {
-        status = "ok";
+        status = "disabled";
 
 	mhi_1: qcom,mhi@1 {
 		reg = <0 0 0 0 0 >;
