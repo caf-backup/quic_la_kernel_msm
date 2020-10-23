@@ -291,6 +291,10 @@ static inline void cnss_set_ramdump_enabled(struct device *dev, bool enabled)
 {
 }
 
+static inline void cnss_set_recovery_enabled(struct device *dev, bool enabled)
+{
+}
+
 static inline void *cnss_subsystem_get(struct device *dev, int device_id)
 {
 	return NULL;
@@ -349,6 +353,12 @@ static inline u64 cnss_get_q6_time(struct device *dev)
 }
 
 static inline void cnss_dump_qmi_history(void)
+{
+}
+
+static inline void cnss_get_ramdump_device_name(struct device *dev,
+						char *ramdump_dev_name,
+						size_t ramdump_dev_name_len)
 {
 }
 #else
@@ -411,6 +421,7 @@ extern unsigned int cnss_get_boot_timeout(struct device *dev);
 void cnss_wait_for_fw_ready(struct device *dev);
 void cnss_wait_for_cold_boot_cal_done(struct device *dev);
 void cnss_set_ramdump_enabled(struct device *dev, bool enabled);
+void cnss_set_recovery_enabled(struct device *dev, bool enabled);
 void *cnss_subsystem_get(struct device *dev, int device_id);
 void cnss_subsystem_put(struct device *dev);
 int cnss_pcie_rescan(void);
@@ -429,5 +440,8 @@ extern int cnss_set_fw_log_mode(struct device *dev, uint8_t fw_log_mode);
 bool cnss_is_dev_initialized(struct device *dev);
 u64 cnss_get_q6_time(struct device *dev);
 extern void cnss_dump_qmi_history(void);
+void cnss_get_ramdump_device_name(struct device *dev,
+				  char *ramdump_dev_name,
+				  size_t ramdump_dev_name_len);
 #endif
 #endif /* _NET_CNSS2_H */
