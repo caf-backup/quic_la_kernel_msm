@@ -448,7 +448,7 @@
 		mux {
 			pins = "gpio10", "gpio11", "gpio12", "gpio13";
 			function = "blsp0_spi";
-			drive-strength = <8>;
+			drive-strength = <2>;
 			bias-disable;
 		};
 	};
