@@ -3340,7 +3340,7 @@ struct qgic2_msi *cnss_qgic2_enable_msi(int qgicm_id)
 	qgic2_msi = qgic2_enable_msi(qgicm_id,
 				     msi_config_qcn9100.total_vectors);
 	if (IS_ERR(qgic2_msi)) {
-		pr_err("qgic2_enable_msi fails %d\n", PTR_ERR(qgic2_msi));
+		pr_err("qgic2_enable_msi fails %ld\n", PTR_ERR(qgic2_msi));
 		return NULL;
 	}
 
@@ -3452,7 +3452,7 @@ void cnss_get_msi_address(struct device *dev, u32 *msi_addr_low,
 		cnss_bus_dev_to_plat_priv(dev);
 
 	if (!plat_priv)
-		return -ENODEV;
+		return;
 
 	if (plat_priv->device_id == QCN9100_DEVICE_ID) {
 		qgic2_msi = plat_priv->qcn9100.qgic2_msi;

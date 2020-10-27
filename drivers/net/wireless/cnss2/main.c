@@ -1155,6 +1155,13 @@ static int cnss_qca8074_notifier_atomic_nb(struct notifier_block *nb,
 	driver_ops = plat_priv->driver_ops;
 
 	if (code == SUBSYS_PREPARE_FOR_FATAL_SHUTDOWN)
+		cnss_pr_err("XXX TARGET ASSERTED XXX\n");
+		cnss_pr_err("XXX TARGET %s instance_id 0x%x plat_env idx %d XXX\n",
+			    plat_priv->device_name,
+			    plat_priv->wlfw_service_instance_id,
+			    cnss_get_plat_env_index_from_plat_priv(plat_priv));
+		plat_priv->target_asserted = 1;
+		plat_priv->target_assert_timestamp = ktime_to_ms(ktime_get());
 		driver_ops->fatal((struct pci_dev *)plat_priv->plat_dev,
 				  (const struct pci_device_id *)
 				  plat_priv->plat_dev_id);
@@ -1309,7 +1316,9 @@ int cnss_wlan_register_driver(struct cnss_wlan_driver *driver_ops)
 		     plat_priv->device_id == QCA5018_DEVICE_ID ||
 		     plat_priv->device_id == QCN9100_DEVICE_ID ||
 		     plat_priv->device_id == QCA6018_DEVICE_ID) &&
-			(strcmp(driver_ops->name, "pld_ahb") == 0)) {
+		    (strcmp(driver_ops->name, "pld_ahb") == 0)) {
+			plat_priv->target_asserted = 0;
+			plat_priv->target_assert_timestamp = 0;
 			plat_priv->driver_status = CNSS_LOAD_UNLOAD;
 			plat_priv->driver_ops = driver_ops;
 			cnss_register_subsys(plat_priv);
@@ -1493,6 +1502,8 @@ void  *cnss_subsystem_get(struct device *dev, int device_id)
 		return NULL;
 	}
 
+	plat_priv->target_asserted = 0;
+	plat_priv->target_assert_timestamp = 0;
 	subsys_info = &plat_priv->subsys_info;
 
 	if (subsys_info->subsys_handle) {
