@@ -523,7 +523,7 @@ struct cnss_plat_data {
 	u8 target_asserted;
 	u32 daemon_support;
 	u32 cold_boot_support;
-	u32 flashcal_support;
+	u32 caldata_support;
 	u32 eeprom_caldata_read_timeout;
 	struct m3_dump m3_dump_data;
 	union {
