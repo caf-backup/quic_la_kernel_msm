@@ -855,6 +855,7 @@
 #if !defined(__CNSS2__)
 		base-addr = <0x51100000>;
 		m3-dump-addr = <0x53E00000>;
+		etr-addr = <0x53F00000>;
 		qcom,caldb-addr = <0x54000000>;
 		qrtr_node_id = <0x20>;
 		mhi,max-channels = <30>;
