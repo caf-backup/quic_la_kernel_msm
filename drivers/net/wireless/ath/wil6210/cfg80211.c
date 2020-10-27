@@ -145,6 +145,7 @@ static int wil_tx_cb_mode_to_n_bonded(u8 cb_mode)
 	}
 }
 
+/* Note: The destination and source pointers should not overlap */
 static void
 wil_memdup_ie(u8 **pdst, size_t *pdst_len, const u8 *src, size_t src_len)
 {
@@ -2477,6 +2478,13 @@ void wil_cfg80211_ap_recovery(struct wil6210_priv *wil)
 		bcon.assocresp_ies_len = vif->assocresp_ies_len;
 		bcon.probe_resp_len = vif->proberesp_len;
 
+		vif->proberesp = NULL;
+		vif->proberesp_len = 0;
+		vif->proberesp_ies = NULL;
+		vif->proberesp_ies_len = 0;
+		vif->assocresp_ies = NULL;
+		vif->assocresp_ies_len = 0;
+
 		wil_info(wil,
 			 "AP (vif %d) recovery: privacy %d, bi %d, channel %d, hidden %d, pbss %d\n",
 			 i, vif->privacy, vif->bi, vif->channel,
@@ -2489,6 +2497,11 @@ void wil_cfg80211_ap_recovery(struct wil6210_priv *wil)
 					    vif->channel,
 					    vif->wmi_edmg_channel, &bcon,
 					    vif->hidden_ssid, vif->pbss);
+
+		kfree(bcon.probe_resp);
+		kfree(bcon.proberesp_ies);
+		kfree(bcon.assocresp_ies);
+
 		if (rc) {
 			wil_err(wil, "vif %d recovery failed (%d)\n", i, rc);
 			continue;
