@@ -305,6 +305,11 @@
 			status = "ok";
 		};
 
+		blsp1_uart2: serial@78b0000 {
+			pinctrl-0 = <&blsp1_uart_pins>;
+			pinctrl-names = "default";
+		};
+
 		qpic_bam: dma@7984000{
 			status = "ok";
 		};
@@ -426,7 +431,7 @@
 };
 
 &tlmm {
-	pinctrl-0 = <&blsp0_uart_pins &blsp1_uart_pins &phy_led_pins>;
+	pinctrl-0 = <&blsp0_uart_pins &phy_led_pins>;
 	pinctrl-names = "default";
 
 	blsp0_uart_pins: uart_pins {
@@ -521,6 +526,7 @@
 
 &usb3 {
 	status = "ok";
+	device-power-gpio = <&tlmm 24 1>;
 };
 
 &eud {

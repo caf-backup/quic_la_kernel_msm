@@ -556,6 +556,7 @@
 &usb3 {
 	qcom,multiplexed-phy;
 	qcom,phy-mux-regs = <&tcsr_q6_block 0x2540>;
+	device-power-gpio = <&tlmm 24 1>;
 	status = "ok";
 };
 
