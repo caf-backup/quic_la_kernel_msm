@@ -815,7 +815,8 @@
 };
 
 &wifi3 {
-        status = "ok";
+	board_id = <0xa0>;
+	status = "ok";
 };
 
 &qfprom {

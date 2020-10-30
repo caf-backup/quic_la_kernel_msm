@@ -705,6 +705,7 @@
 };
 
 &wifi3 {
+	board_id = <0xa0>;
 	status = "ok";
 };
 
