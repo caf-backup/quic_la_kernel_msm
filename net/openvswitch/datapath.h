@@ -245,7 +245,8 @@ struct net_device *ovs_accel_egress_dev_find(void *dp_inst,
 					     struct sw_flow_key *key,
 					     struct sk_buff *skb);
 struct sw_flow *ovs_accel_flow_find_by_mac(void *dp_inst,
-						struct net_device *br_dev,
+						struct net_device *indev,
+						struct net_device *outdev,
 						uint8_t *smac, uint8_t *dmac, uint16_t type);
 
 /* 'KEY' must not have any bits set outside of the 'MASK' */
