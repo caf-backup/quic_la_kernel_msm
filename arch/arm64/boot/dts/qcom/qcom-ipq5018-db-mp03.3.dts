@@ -655,6 +655,7 @@
 #else
 	qcom,tgt-mem-mode = <1>;
 #endif
+	qcom,board_id = <0x23>;
 	qcom,caldb-addr = <0x0 0x4D000000 0 0 0>;
 	qcom,caldb-size = <0x200000>;
 	qcom,userpd-subsys-name = "q6v5_wcss_userpd1";

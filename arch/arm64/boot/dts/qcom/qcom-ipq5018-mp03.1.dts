@@ -704,7 +704,14 @@
 	};
 };
 
+&wifi0 {
+	/* IPQ5018 */
+	qcom,board_id = <0x24>;
+	status = "ok";
+};
+
 &wifi3 {
+	/* QCN9000 5G */
 	board_id = <0xa0>;
 	status = "ok";
 };
