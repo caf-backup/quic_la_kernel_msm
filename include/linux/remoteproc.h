@@ -470,6 +470,7 @@ struct rproc {
 	char *firmware;
 	void *priv;
 	struct rproc *parent;
+	bool is_parent_dependent;
 	struct rproc_ops *ops;
 	struct device dev;
 	atomic_t power;
