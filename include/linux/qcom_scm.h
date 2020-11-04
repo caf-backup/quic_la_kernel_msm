@@ -14,6 +14,7 @@
 #define __QCOM_SCM_H
 
 #include <linux/scatterlist.h>
+#include <linux/device.h>
 
 #define QCOM_KERNEL_AUTH_CMD		0x15
 #define QCOM_SCM_PAS_AUTH_DEBUG_RESET_CMD	0x14
