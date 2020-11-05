@@ -208,16 +208,6 @@ static const struct rpmsg_endpoint_ops glink_endpoint_ops;
 
 #define GLINK_FEATURE_INTENTLESS	BIT(1)
 
-struct glink_smem_pipe {
-	struct qcom_glink_pipe native;
-	int remote_pid;
-	__le32 *tail;
-	__le32 *head;
-	void *fifo;
-};
-
-#define to_smem_pipe(p) container_of(p, struct glink_smem_pipe, native)
-
 static void qcom_glink_rx_done_work(struct work_struct *work);
 
 void __iomem *global_timer_base = NULL;
