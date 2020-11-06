@@ -128,7 +128,7 @@
 			reg = <0x0 0x4c000000 0x0 0xD00000>;
 		};
 
-		q6_m3_region: m3_dump@4CD00000 {
+		m3_dump: m3_dump@4CD00000 {
 			no-map;
 			reg = <0x0 0x4CD00000 0x0 0x100000>;
 		};
@@ -143,7 +143,7 @@
 			reg = <0x0 0x4CF00000 0x0 0xF00000>;
 		};
 
-		q6_qcn9100_m3_1: q6_qcn9100_m3_1@4DE00000 {
+		m3_dump_qcn9100_1: m3_dump_qcn9100_1@4DE00000 {
 			no-map;
 			reg = <0x0 0x4DE00000 0x0 0x100000>;
 		};
@@ -252,7 +252,7 @@
 			reg = <0x0 0x4C000000 0x0 0xE00000>;
 		};
 
-		q6_m3_region: m3_dump@4CE00000 {
+		m3_dump: m3_dump@4CE00000 {
 			no-map;
 			reg = <0x0 0x4CE00000 0x0 0x100000>;
 		};
@@ -272,7 +272,7 @@
 			reg = <0x0 0x4D200000 0x0 0x1000000>;
 		};
 
-		q6_qcn9100_m3_1: q6_qcn9100_m3_1@4E200000 {
+		m3_dump_qcn9100_1: m3_dump_qcn9100_1@4E200000 {
 			no-map;
 			reg = <0x0 0x4E200000 0x0 0x100000>;
 		};
@@ -627,10 +627,10 @@
 		qca,auto-restart;
 		qca,int_radio;
 		#ifdef __IPQ_MEM_PROFILE_256_MB__
-		memory-region = <&q6_ipq5018_data>, <&q6_m3_region>,
+		memory-region = <&q6_ipq5018_data>, <&m3_dump>,
 				<&q6_etr_region>;
 		#else
-		memory-region = <&q6_ipq5018_data>, <&q6_m3_region>,
+		memory-region = <&q6_ipq5018_data>, <&m3_dump>,
 				<&q6_etr_region>, <&q6_caldb_region>;
 		#endif
 	};
@@ -655,10 +655,10 @@
 		qca,asid = <2>;
 		qca,auto-restart;
 		#ifdef __IPQ_MEM_PROFILE_256_MB__
-		memory-region = <&q6_qcn9100_data1>, <&q6_qcn9100_m3_1>,
+		memory-region = <&q6_qcn9100_data1>, <&m3_dump_qcn9100_1>,
 				<&q6_qcn9100_etr_1>;
 		#else
-		memory-region = <&q6_qcn9100_data1>, <&q6_qcn9100_m3_1>,
+		memory-region = <&q6_qcn9100_data1>, <&m3_dump_qcn9100_1>,
 				<&q6_qcn9100_etr_1>, <&q6_qcn9100_caldb_1>;
 		#endif
 	};
