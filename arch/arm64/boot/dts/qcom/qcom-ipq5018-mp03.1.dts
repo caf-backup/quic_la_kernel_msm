@@ -22,6 +22,9 @@
 	model = "Qualcomm Technologies, Inc. IPQ5018/AP-MP03.1";
 	compatible = "qcom,ipq5018-mp03.1", "qcom,ipq5018";
 	interrupt-parent = <&intc>;
+	#ifdef __IPQ_MEM_PROFILE_256_MB__
+	AUTO_MOUNT;
+	#endif
 
 	aliases {
 		sdhc1 = &sdhc_1; /* SDC1 eMMC slot */
