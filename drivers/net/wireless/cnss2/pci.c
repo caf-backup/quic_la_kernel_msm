@@ -2554,6 +2554,25 @@ int cnss_pci_force_wake_release(struct device *dev)
 }
 EXPORT_SYMBOL(cnss_pci_force_wake_release);
 
+static
+struct device_node *cnss_get_m3dump_dev_node(struct cnss_plat_data *plat_priv)
+{
+	struct device_node *dev_node = NULL;
+
+	if (plat_priv->device_id == QCN9100_DEVICE_ID) {
+		if (plat_priv->userpd_id == QCN9100_0)
+			dev_node = of_find_node_by_name(NULL,
+							"m3_dump_qcn9100_1");
+		else if (plat_priv->userpd_id == QCN9100_1)
+			dev_node = of_find_node_by_name(NULL,
+							"m3_dump_qcn9100_2");
+	} else {
+		dev_node = of_find_node_by_name(NULL, "m3_dump");
+	}
+
+	return dev_node;
+}
+
 int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 {
 	struct cnss_fw_mem *fw_mem = plat_priv->fw_mem;
@@ -2725,8 +2744,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 				idx++;
 				break;
 			case M3_DUMP_REGION_TYPE:
-				dev_node = of_find_node_by_name(NULL,
-								"m3_dump");
+				dev_node = cnss_get_m3dump_dev_node(plat_priv);
 				if (!dev_node) {
 					pr_err("%s: Unable to find m3_dump_region",
 					       __func__);
