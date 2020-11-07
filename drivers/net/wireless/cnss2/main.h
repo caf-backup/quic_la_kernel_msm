@@ -459,7 +459,7 @@ struct cnss_plat_data {
 	struct list_head clk_list;
 	struct cnss_pinctrl_info pinctrl_info;
 	struct cnss_subsys_info subsys_info;
-	bool ramdump_enabled;
+	bool recovery_enabled;
 	struct cnss_ramdump_info ramdump_info;
 	struct cnss_ramdump_info_v2 ramdump_info_v2;
 	struct cnss_esoc_info esoc_info;

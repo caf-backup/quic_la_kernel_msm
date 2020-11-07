@@ -645,6 +645,51 @@ static void cnss_release_antenna_sharing(struct cnss_plat_data *plat_priv)
 #endif
 }
 
+void cnss_get_ramdump_device_name(struct device *dev,
+				  char *ramdump_dev_name,
+				  size_t ramdump_dev_name_len)
+{
+	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
+	bool multi_pd_arch = false;
+	const char *subsys_name;
+
+	if (!plat_priv || !ramdump_dev_name)
+		return;
+
+	switch (plat_priv->device_id) {
+	case QCA8074_DEVICE_ID:
+	case QCA8074V2_DEVICE_ID:
+	case QCA6018_DEVICE_ID:
+		snprintf(ramdump_dev_name, ramdump_dev_name_len, "q6mem");
+		break;
+	case QCN9000_DEVICE_ID:
+		snprintf(ramdump_dev_name, ramdump_dev_name_len, "ramdump_%s",
+			 plat_priv->device_name);
+		break;
+	case QCA5018_DEVICE_ID:
+	case QCN9100_DEVICE_ID:
+		multi_pd_arch = of_property_read_bool(dev->of_node,
+						      "qcom,multipd_arch");
+		if (multi_pd_arch) {
+			of_property_read_string(dev->of_node,
+						"qcom,userpd-subsys-name",
+						&subsys_name);
+			snprintf(ramdump_dev_name, ramdump_dev_name_len,
+				 "%s_mem", subsys_name);
+		} else {
+			snprintf(ramdump_dev_name, ramdump_dev_name_len,
+				 "q6mem");
+		}
+		break;
+	default:
+		cnss_pr_info("%s: Unknown device_id 0x%lx",
+			     __func__, plat_priv->device_id);
+	}
+	cnss_pr_dbg("Ramdump device name %s for device 0x%lx\n",
+		    ramdump_dev_name, plat_priv->device_id);
+}
+EXPORT_SYMBOL(cnss_get_ramdump_device_name);
+
 void cnss_wait_for_fw_ready(struct device *dev)
 {
 	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
@@ -721,12 +766,31 @@ void cnss_set_ramdump_enabled(struct device *dev, bool enabled)
 		return;
 	}
 
-	plat_priv->ramdump_enabled = enabled;
-	cnss_pr_dbg("Setting ramdump_enabled to %d for %s",
-		    plat_priv->ramdump_enabled,
+	/* This is temporarily same as cnss_set_recovery_enabled until the
+	 * wifi driver switches to use cnss_set_recovery_enabled.
+	 */
+	plat_priv->recovery_enabled = enabled;
+	cnss_pr_dbg("Setting recovery_enabled to %d for %s\n",
+		    plat_priv->recovery_enabled,
 		    plat_priv->device_name);
 }
 EXPORT_SYMBOL(cnss_set_ramdump_enabled);
+
+void cnss_set_recovery_enabled(struct device *dev, bool enabled)
+{
+	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
+
+	if (!plat_priv) {
+		pr_err("%s: Failed to get plat_priv", __func__);
+		return;
+	}
+
+	plat_priv->recovery_enabled = enabled;
+	cnss_pr_dbg("Setting recovery_enabled to %d for %s\n",
+		    plat_priv->recovery_enabled,
+		    plat_priv->device_name);
+}
+EXPORT_SYMBOL(cnss_set_recovery_enabled);
 
 static int cnss_fw_ready_hdlr(struct cnss_plat_data *plat_priv)
 {
@@ -1129,18 +1193,9 @@ static int cnss_qcn9000_notifier_atomic_nb(struct notifier_block *nb,
 					   unsigned long code,
 					   void *ss_handle)
 {
-	struct cnss_plat_data *plat_priv =
-		container_of(nb, struct cnss_plat_data, modem_atomic_nb);
-	struct cnss_wlan_driver *driver_ops;
-
-	driver_ops = plat_priv->driver_ops;
-
-	if (code == SUBSYS_PREPARE_FOR_FATAL_SHUTDOWN) {
-		driver_ops->fatal((struct pci_dev *)plat_priv->plat_dev,
-				  (const struct pci_device_id *)
-				  plat_priv->plat_dev_id);
-	}
-
+	/* Fatal Notification to driver already sent as soon as
+	 * MHI FATAL_ERR or SYS_ERR is received in cnss_mhi_notify_status
+	 */
 	return NOTIFY_OK;
 }
 
@@ -1743,9 +1798,6 @@ static int cnss_subsys_ramdump(int enable,
 		return -ENODEV;
 	}
 
-	if (!enable)
-		return 0;
-
 	return cnss_bus_dev_ramdump(plat_priv);
 }
 
@@ -1814,8 +1866,21 @@ static int cnss_do_recovery(struct cnss_plat_data *plat_priv,
 		break;
 	}
 
-	if (plat_priv->ramdump_enabled)
-		cnss_bus_dev_ramdump(plat_priv);
+	/* If recovery is enabled, fatal notification is sent to wifi driver
+	 * as soon as MHI notifies error.
+	 * If recovery is disabled, send fatal notification here after RDDM
+	 * is done so that we have the RDDM information before the assert
+	 * is triggered from the wifi driver.
+	 */
+	if (!plat_priv->recovery_enabled) {
+		/* This is a special case where ramdump file is uploaded to
+		 * TFTP and then host assert happens. It is disabled by default.
+		 */
+		if (ramdump_enabled)
+			cnss_bus_dev_ramdump(plat_priv);
+
+		cnss_pci_update_status(plat_priv->bus_priv, CNSS_FW_DOWN);
+	}
 
 	if (!subsys_info->subsys_device)
 		return 0;
@@ -1902,8 +1967,6 @@ void cnss_schedule_recovery(struct device *dev,
 	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
 	struct cnss_recovery_data *data;
 	int gfp = GFP_KERNEL;
-
-	cnss_bus_update_status(plat_priv, CNSS_FW_DOWN);
 
 	if (test_bit(CNSS_DRIVER_UNLOADING, &plat_priv->driver_state) ||
 	    test_bit(CNSS_DRIVER_IDLE_SHUTDOWN, &plat_priv->driver_state)) {
@@ -3510,7 +3573,6 @@ skip_soc_version_checks:
 	plat_priv->plat_dev = plat_dev;
 	plat_priv->device_id = device_id->driver_data;
 	plat_priv->plat_dev_id = (struct platform_device_id *)device_id;
-	plat_priv->ramdump_enabled = ramdump_enabled;
 
 	switch (plat_priv->device_id) {
 	case QCN9000_DEVICE_ID:

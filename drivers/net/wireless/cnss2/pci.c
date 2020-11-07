@@ -1255,6 +1255,11 @@ int cnss_pci_update_status(struct cnss_pci_data *pci_priv,
 
 	cnss_pr_dbg("Update driver status: %d\n", status);
 
+	if (status == CNSS_FW_DOWN)
+		driver_ops->fatal((struct pci_dev *)plat_priv->plat_dev,
+				  (const struct pci_device_id *)
+				  plat_priv->plat_dev_id);
+
 	return 0;
 }
 
@@ -1467,6 +1472,18 @@ static int cnss_qcn9000_shutdown(struct cnss_pci_data *pci_priv)
 		return -ENODEV;
 
 	plat_priv = pci_priv->plat_priv;
+
+	/* If dump_data_valid is set, then shutdown would be triggered after
+	 * ramdump upload in cnss_pci_dev_ramdump.
+	 * This is done to prevent the fbc_image and rddm_image segments,
+	 * uploaded to host DDR from the target, from getting freed.
+	 */
+	if (plat_priv->ramdump_info_v2.dump_data_valid) {
+		cnss_pr_info("Skipping shutdown to wait for dump collection\n");
+		return ret;
+	}
+
+	cnss_pr_info("Shutting down QCN9000\n");
 	cnss_pci_pm_runtime_resume(pci_priv);
 
 	cnss_request_bus_bandwidth(&plat_priv->plat_dev->dev,
@@ -1589,7 +1606,6 @@ static int cnss_qcn9000_ramdump(struct cnss_pci_data *pci_priv)
 	kfree(ramdump_segs);
 
 	cnss_pci_clear_dump_info(pci_priv);
-	cnss_pci_deinit_mhi(pci_priv);
 
 	return ret;
 }
@@ -1700,6 +1716,19 @@ int cnss_pci_dev_ramdump(struct cnss_pci_data *pci_priv)
 	case QCA6390_DEVICE_ID:
 	case QCA6490_DEVICE_ID:
 		ret = cnss_qcn9000_ramdump(pci_priv);
+		if (ret)
+			cnss_pr_err("Failed to collect ramdump for %s\n",
+				    plat_priv->device_name);
+
+		/* Shutdown was skipped in cnss_qcn9000_shutdown path
+		 * earlier in target assert case to finish the ramdump
+		 * collection.
+		 * Now after ramdump is complete, shutdown the target
+		 */
+		ret = cnss_qcn9000_shutdown(pci_priv);
+		if (ret)
+			cnss_pr_err("Failed to shutdown %s\n",
+				    plat_priv->device_name);
 		break;
 	default:
 		cnss_pr_err("Unknown device_id found: 0x%x\n",
@@ -3939,6 +3968,17 @@ static void cnss_mhi_notify_status(struct mhi_controller *mhi_ctrl,
 			    cnss_get_plat_env_index_from_plat_priv(plat_priv));
 		plat_priv->target_asserted = 1;
 		plat_priv->target_assert_timestamp = ktime_to_ms(ktime_get());
+
+		/* If target recovery is enabled in the wifi driver, deliver
+		 * the fatal notification immediately here.
+		 * For recovery disabled case, fatal notification will be sent
+		 * to the wifi driver after RDDM content is uploaded to host
+		 * DDR from the target. This is done to make sure that FW SRAM
+		 * contents are copied into the host DDR at the time of host
+		 * crash and reboot.
+		 */
+		if (plat_priv->recovery_enabled)
+			cnss_pci_update_status(pci_priv, CNSS_FW_DOWN);
 	}
 
 	switch (reason) {
@@ -3947,7 +3987,6 @@ static void cnss_mhi_notify_status(struct mhi_controller *mhi_ctrl,
 	case MHI_CB_FATAL_ERROR:
 		set_bit(CNSS_DEV_ERR_NOTIFY, &plat_priv->driver_state);
 		del_timer(&plat_priv->fw_boot_timer);
-		cnss_pci_update_status(pci_priv, CNSS_FW_DOWN);
 		cnss_reason = CNSS_REASON_DEFAULT;
 		break;
 	case MHI_CB_SYS_ERROR:
@@ -3955,13 +3994,11 @@ static void cnss_mhi_notify_status(struct mhi_controller *mhi_ctrl,
 		del_timer(&plat_priv->fw_boot_timer);
 		mod_timer(&pci_priv->dev_rddm_timer,
 			  jiffies + msecs_to_jiffies(DEV_RDDM_TIMEOUT));
-		cnss_pci_update_status(pci_priv, CNSS_FW_DOWN);
 		return;
 	case MHI_CB_EE_RDDM:
 		set_bit(CNSS_DEV_ERR_NOTIFY, &plat_priv->driver_state);
 		del_timer(&plat_priv->fw_boot_timer);
 		del_timer(&pci_priv->dev_rddm_timer);
-		cnss_pci_update_status(pci_priv, CNSS_FW_DOWN);
 		cnss_reason = CNSS_REASON_RDDM;
 		break;
 	default:
