@@ -2948,7 +2948,7 @@ void cnss_pci_free_fw_mem(struct cnss_plat_data *plat_priv)
 	plat_priv->fw_mem_seg_len = 0;
 }
 
-static int cnss_pci_alloc_m3_mem(struct cnss_plat_data *plat_priv)
+int cnss_pci_alloc_m3_mem(struct cnss_plat_data *plat_priv)
 {
 	struct pci_dev *pci_dev;
 	struct cnss_fw_mem *m3_mem;
@@ -2994,16 +2994,20 @@ int cnss_pci_load_m3(struct cnss_pci_data *pci_priv)
 {
 	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
 	struct cnss_fw_mem *m3_mem = &plat_priv->m3_mem;
+	struct mhi_controller *mhi_ctrl = pci_priv->mhi_ctrl;
 	char filename[MAX_M3_FILE_NAME_LENGTH];
 	const struct firmware *fw_entry;
 	int ret = 0;
 
-	/* M3 Mem should have been allocated during cnss_pci_probe_basic */
-	if (!m3_mem->va) {
-		cnss_pr_err("M3 Memory not allocated");
-		return -ENOMEM;
+	/* Use the first RDDM memory segment as the M3 memory region to */
+	/* download the binary. The size of this segment should be 512K */
+	if (mhi_ctrl->rddm_image->mhi_buf->len == SZ_512K) {
+		m3_mem->pa = (phys_addr_t)mhi_ctrl->rddm_image->mhi_buf->dma_addr;
+		m3_mem->va = mhi_ctrl->rddm_image->mhi_buf->buf;
+		cnss_pr_dbg("Assigning memory for M3, va: 0x%pK, pa: %pa, size: 0x%x\n",
+			    m3_mem->va, &m3_mem->pa, SZ_512K);
 	}
-
+	CNSS_ASSERT(m3_mem->va);
 	snprintf(filename, sizeof(filename),
 		 DEFAULT_M3_FILE_NAME);
 
@@ -3028,7 +3032,7 @@ int cnss_pci_load_m3(struct cnss_pci_data *pci_priv)
 	return 0;
 }
 
-static void cnss_pci_free_m3_mem(struct cnss_plat_data *plat_priv)
+void cnss_pci_free_m3_mem(struct cnss_plat_data *plat_priv)
 {
 	struct cnss_fw_mem *m3_mem;
 	struct pci_dev *pci_dev;
@@ -3046,10 +3050,8 @@ static void cnss_pci_free_m3_mem(struct cnss_plat_data *plat_priv)
 
 	m3_mem = &plat_priv->m3_mem;
 	if (m3_mem->va) {
-		cnss_pr_dbg("Freeing memory for M3, va: 0x%pK, pa: %pa, size: 0x%x\n",
+		cnss_pr_dbg("Resetting memory for M3, va: 0x%pK, pa: %pa, size: 0x%x\n",
 			    m3_mem->va, &m3_mem->pa, SZ_512K);
-		dma_free_coherent(&pci_dev->dev, SZ_512K,
-				  m3_mem->va, m3_mem->pa);
 	}
 
 	m3_mem->va = NULL;
@@ -4355,11 +4357,6 @@ int cnss_pci_probe_basic(struct pci_dev *pci_dev,
 	plat_priv->pci_dev = (struct platform_device *)pci_dev;
 	plat_priv->pci_dev_id = (struct platform_device_id *)id;
 
-	ret = cnss_pci_alloc_m3_mem(plat_priv);
-	if (ret) {
-		cnss_pr_err("%s: Failed to allocate M3 mem\n", __func__);
-		return ret;
-	}
 
 	return 0;
 }
