@@ -273,13 +273,9 @@ struct qcom_smem {
 
 	struct hwspinlock *hwlock;
 
-	struct smem_partition_header *global_partition;
-	size_t global_cacheline;
-	struct smem_partition_header *partitions[SMEM_HOST_COUNT];
-	size_t cacheline[SMEM_HOST_COUNT];
-	u32 item_count;
+	struct smem_ptable_entry *global_partition_entry;
 	struct smem_ptable_entry *ptable_entries[SMEM_HOST_COUNT];
-	struct smem_ptable_entry *global_entry;
+	u32 item_count;
 
 	unsigned num_regions;
 	struct smem_region regions[0];
@@ -622,8 +618,8 @@ int qcom_smem_alloc(unsigned host, unsigned item, size_t size)
 	if (host < SMEM_HOST_COUNT && __smem->ptable_entries[host]) {
 		entry = __smem->ptable_entries[host];
 		ret = qcom_smem_alloc_private(__smem, entry, item, size);
-	} else if (__smem->global_partition && __smem->global_entry) {
-		entry = __smem->global_entry;
+	} else if (__smem->global_partition_entry) {
+		entry = __smem->global_partition_entry;
 		ret = qcom_smem_alloc_private(__smem, entry, item, size);
 	} else {
 		ret = qcom_smem_alloc_global(__smem, item, size);
@@ -676,7 +672,6 @@ static void *qcom_smem_get_global(struct qcom_smem *smem,
 
 static void *qcom_smem_get_private(struct qcom_smem *smem,
 				   struct smem_ptable_entry *entry,
-				   size_t cacheline,
 				   unsigned item,
 				   size_t *size)
 {
@@ -684,12 +679,14 @@ static void *qcom_smem_get_private(struct qcom_smem *smem,
 	struct smem_private_entry *e, *end;
 	void *item_ptr, *p_end;
 	u32 partition_size;
+	size_t cacheline;
 	u32 padding_data;
 	u32 e_size;
 
 	phdr = ptable_entry_to_phdr(entry);
 	partition_size = le32_to_cpu(entry->size);
 	p_end = (void *)phdr + partition_size;
+	cacheline = le32_to_cpu(entry->cacheline);
 
 	e = phdr_to_first_uncached_entry(phdr);
 	end = phdr_to_last_uncached_entry(phdr);
@@ -776,7 +773,6 @@ void *qcom_smem_get(unsigned host, unsigned item, size_t *size)
 {
 	struct smem_ptable_entry *entry;
 	unsigned long flags;
-	size_t cacheln;
 	int ret;
 	void *ptr = ERR_PTR(-EPROBE_DEFER);
 
@@ -794,12 +790,10 @@ void *qcom_smem_get(unsigned host, unsigned item, size_t *size)
 
 	if (host < SMEM_HOST_COUNT && __smem->ptable_entries[host]) {
 		entry = __smem->ptable_entries[host];
-		cacheln = __smem->cacheline[host];
-		ptr = qcom_smem_get_private(__smem, entry, cacheln, item, size);
-	} else if (__smem->global_partition && __smem->global_entry) {
-		entry = __smem->global_entry;
-		cacheln = __smem->global_cacheline;
-		ptr = qcom_smem_get_private(__smem, entry, cacheln, item, size);
+		ptr = qcom_smem_get_private(__smem, entry, item, size);
+	} else if (__smem->global_partition_entry) {
+		entry = __smem->global_partition_entry;
+		ptr = qcom_smem_get_private(__smem, entry, item, size);
 	} else {
 		ptr = qcom_smem_get_global(__smem, item, size);
 	}
@@ -836,10 +830,14 @@ int qcom_smem_get_free_space(unsigned host)
 
 		if (ret > le32_to_cpu(entry->size))
 			return -EINVAL;
-	} else if (__smem->global_partition) {
-		phdr = __smem->global_partition;
+	} else if (__smem->global_partition_entry) {
+		entry = __smem->global_partition_entry;
+		phdr = ptable_entry_to_phdr(entry);
+
 		ret = le32_to_cpu(phdr->offset_free_cached) -
 			le32_to_cpu(phdr->offset_free_uncached);
+		if (ret > le32_to_cpu(entry->size))
+			return -EINVAL;
 	} else {
 		header = __smem->regions[0].virt_base;
 		ret = le32_to_cpu(header->available);
@@ -955,7 +953,7 @@ static int qcom_smem_set_global_partition(struct qcom_smem *smem)
 		return -EINVAL;
 	}
 
-	if (smem->global_partition) {
+	if (smem->global_partition_entry) {
 		dev_err(smem->dev, "Already found the global partition\n");
 		return -EINVAL;
 	}
@@ -986,9 +984,7 @@ static int qcom_smem_set_global_partition(struct qcom_smem *smem)
 		return -EINVAL;
 	}
 
-	smem->global_entry = entry;
-	smem->global_partition = header;
-	smem->global_cacheline = le32_to_cpu(entry->cacheline);
+	smem->global_partition_entry = entry;
 
 	return 0;
 }
@@ -1075,7 +1071,6 @@ static int qcom_smem_enumerate_partitions(struct qcom_smem *smem,
 			return -EINVAL;
 		}
 
-		smem->cacheline[remote_host] = le32_to_cpu(entry->cacheline);
 		smem->ptable_entries[remote_host] = entry;
 	}
 
