@@ -3275,7 +3275,7 @@ int cnss_get_soc_info(struct device *dev, struct cnss_soc_info *info)
 }
 EXPORT_SYMBOL(cnss_get_soc_info);
 
-static struct cnss_msi_config msi_config = {
+static struct cnss_msi_config msi_config_qcn9000 = {
 	.total_vectors = 16,
 	.total_users = 3,
 	.users = (struct cnss_msi_user[]) {
@@ -3296,7 +3296,7 @@ static struct cnss_msi_config msi_config_qcn9100 = {
 
 static int cnss_pci_get_msi_assignment(struct cnss_pci_data *pci_priv)
 {
-	pci_priv->msi_config = &msi_config;
+	pci_priv->msi_config = &msi_config_qcn9000;
 
 	return 0;
 }
