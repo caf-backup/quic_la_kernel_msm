@@ -112,6 +112,7 @@ struct qcom_glink {
 
 	struct work_struct rx_work;
 	spinlock_t rx_lock;
+	spinlock_t irq_lock;
 	struct list_head rx_queue;
 
 	spinlock_t tx_lock;
@@ -1088,8 +1089,10 @@ static irqreturn_t qcom_glink_native_intr(int irq, void *data)
 	unsigned int param2;
 	unsigned int avail;
 	unsigned int cmd;
+	unsigned long flags;
 	int ret = 0;
 
+	spin_lock_irqsave(&glink->irq_lock, flags);
 	atomic_inc(&glink_intr_cnt);
 
 	for (;;) {
@@ -1171,6 +1174,7 @@ static irqreturn_t qcom_glink_native_intr(int irq, void *data)
 		if (ret)
 			break;
 	}
+	spin_unlock_irqrestore(&glink->irq_lock, flags);
 
 	return IRQ_HANDLED;
 }
