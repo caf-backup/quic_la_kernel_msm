@@ -21,5 +21,38 @@
 	model = "Qualcomm Technologies, Inc. IPQ5018/AP-MP03.1-C3";
 	compatible = "qcom,ipq5018-mp03.1-c3", "qcom,ipq5018";
 	interrupt-parent = <&intc>;
+
+	soc {
+		mdio1: mdio@90000 {
+			ethernet-phy@0 {
+				reg = <28>;
+			};
+			/delete-node/ethernet-phy@1;
+			/delete-node/ethernet-phy@2;
+			/delete-node/ethernet-phy@3;
+		};
+
+		ess-instance {
+			num_devices = <0x1>;
+			ess-switch@0x39c00000 {
+				qcom,port_phyinfo {
+					port@1 {
+						port_id = <2>;
+						phy_address = <0x1c>;
+						mdiobus = <&mdio1>;
+						port_mac_sel = "QGMAC_PORT";
+						/delete-property/forced-speed;
+						/delete-property/forced-duplex;
+					};
+				};
+			};
+		};
+
+		dp2 {
+			qcom,link-poll = <1>;
+			qcom,phy-mdio-addr = <28>;
+			mdio-bus = <&mdio1>;
+		};
+	};
 };
 
