@@ -112,6 +112,7 @@ struct qcom_glink {
 
 	struct work_struct rx_work;
 	spinlock_t rx_lock;
+	spinlock_t irq_lock;
 	struct list_head rx_queue;
 
 	spinlock_t tx_lock;
@@ -122,6 +123,8 @@ struct qcom_glink {
 	unsigned long features;
 
 	bool intentless;
+
+	atomic_t id_advance;
 };
 
 enum {
@@ -223,6 +226,7 @@ struct rpm_cmd_log {
 	__le32 rxhead;
 	unsigned int global_timer_lo;
 	unsigned int global_timer_hi;
+	unsigned long glink_intr_cnt;
 	unsigned char hdr[60];
 
 } glinkintr[RPMLOG_SIZE], glinksend[RPMLOG_SIZE];
@@ -818,7 +822,6 @@ struct rx_defer {
 	uint32_t global_timer_lo;
 	uint32_t global_timer_hi;
 	int64_t ktime;
-	int count;
 } rx_defer;
 
 static int qcom_glink_rx_defer(struct qcom_glink *glink, size_t extra)
@@ -851,9 +854,9 @@ static int qcom_glink_rx_defer(struct qcom_glink *glink, size_t extra)
 	    && rx_defer.cmd != RPM_CMD_VERSION_ACK
 	    && rx_defer.cmd != RPM_CMD_OPEN && rx_defer.cmd != RPM_CMD_CLOSE
 	    && rx_defer.cmd != RPM_CMD_CLOSE_ACK && rx_defer.cmd != RPM_CMD_RX_INTENT_REQ) {
-		dev_err(glink->dev, "timestamp = %llu cmd: %d param1: %d param2: %d global_timer_lo: %u global_timer_hi: %u count = %d\n",
+		dev_err(glink->dev, "timestamp = %llu cmd: %d param1: %d param2: %d global_timer_lo: %u global_timer_hi: %u\n",
 			rx_defer.ktime, rx_defer.cmd, rx_defer.param1, rx_defer.param2,
-			rx_defer.global_timer_lo, rx_defer.global_timer_hi, ++rx_defer.count);
+			rx_defer.global_timer_lo, rx_defer.global_timer_hi);
 			BUG_ON(1);
 	}
 
@@ -862,6 +865,7 @@ static int qcom_glink_rx_defer(struct qcom_glink *glink, size_t extra)
 	spin_unlock(&glink->rx_lock);
 
 	schedule_work(&glink->rx_work);
+	atomic_set(&glink->id_advance, 1);
 	qcom_glink_rx_advance(glink, sizeof(dcmd->msg) + extra);
 
 	return 0;
@@ -982,6 +986,7 @@ static int qcom_glink_rx_data(struct qcom_glink *glink, size_t avail)
 	}
 
 advance_rx:
+	atomic_set(&glink->id_advance, 2);
 	qcom_glink_rx_advance(glink, ALIGN(sizeof(hdr) + chunk_size, 8));
 
 	return ret;
@@ -1046,6 +1051,7 @@ static void qcom_glink_handle_intent(struct qcom_glink *glink,
 	}
 
 	kfree(msg);
+	atomic_set(&glink->id_advance, 3);
 	qcom_glink_rx_advance(glink, ALIGN(msglen, 8));
 }
 
@@ -1068,6 +1074,7 @@ static int qcom_glink_rx_open_ack(struct qcom_glink *glink, unsigned int lcid)
 
 atomic_t glink_intr_cnt;
 EXPORT_SYMBOL(glink_intr_cnt);
+atomic_t intr_state;
 
 static irqreturn_t qcom_glink_native_intr(int irq, void *data)
 {
@@ -1078,11 +1085,19 @@ static irqreturn_t qcom_glink_native_intr(int irq, void *data)
 	unsigned int param2;
 	unsigned int avail;
 	unsigned int cmd;
+	unsigned long flags;
 	int ret = 0;
 
+	atomic_inc(&intr_state);
+	if (atomic_read(&intr_state) > 1) {
+		dev_err(glink->dev, "%s: Simultaneous IRQ received, state: %u\n",
+			__func__, atomic_read(&intr_state));
+	}
+	spin_lock_irqsave(&glink->irq_lock, flags);
 	atomic_inc(&glink_intr_cnt);
 
 	for (;;) {
+		glinkintr[glinkintrindex].glink_intr_cnt = glink_intr_cnt.counter;
 		avail = qcom_glink_rx_avail(glink);
 		if (avail < sizeof(msg)) {
 			glinkintr[glinkintrindex].rxtail = *(pipe->tail);
@@ -1118,6 +1133,7 @@ static irqreturn_t qcom_glink_native_intr(int irq, void *data)
 			break;
 		case RPM_CMD_OPEN_ACK:
 			ret = qcom_glink_rx_open_ack(glink, param1);
+			atomic_set(&glink->id_advance, 4);
 			qcom_glink_rx_advance(glink, ALIGN(sizeof(msg), 8));
 			break;
 		case RPM_CMD_OPEN:
@@ -1128,6 +1144,7 @@ static irqreturn_t qcom_glink_native_intr(int irq, void *data)
 			ret = qcom_glink_rx_data(glink, avail);
 			break;
 		case RPM_CMD_READ_NOTIF:
+			atomic_set(&glink->id_advance, 5);
 			qcom_glink_rx_advance(glink, ALIGN(sizeof(msg), 8));
 
 			mbox_send_message(glink->mbox_chan, NULL);
@@ -1138,14 +1155,17 @@ static irqreturn_t qcom_glink_native_intr(int irq, void *data)
 			break;
 		case RPM_CMD_RX_DONE:
 			qcom_glink_handle_rx_done(glink, param1, param2, false);
+			atomic_set(&glink->id_advance, 6);
 			qcom_glink_rx_advance(glink, ALIGN(sizeof(msg), 8));
 			break;
 		case RPM_CMD_RX_DONE_W_REUSE:
 			qcom_glink_handle_rx_done(glink, param1, param2, true);
+			atomic_set(&glink->id_advance, 7);
 			qcom_glink_rx_advance(glink, ALIGN(sizeof(msg), 8));
 			break;
 		case RPM_CMD_RX_INTENT_REQ_ACK:
 			qcom_glink_handle_intent_req_ack(glink, param1, param2);
+			atomic_set(&glink->id_advance, 8);
 			qcom_glink_rx_advance(glink, ALIGN(sizeof(msg), 8));
 			break;
 		default:
@@ -1161,6 +1181,8 @@ static irqreturn_t qcom_glink_native_intr(int irq, void *data)
 		if (ret)
 			break;
 	}
+	spin_unlock_irqrestore(&glink->irq_lock, flags);
+	atomic_dec(&intr_state);
 
 	return IRQ_HANDLED;
 }
