@@ -401,6 +401,7 @@
 			qcom,mirror-enabled;
 			qcom,crypto-enabled;
 			qcom,ipsec-enabled;
+			qcom,rmnet_rx-enabled;
 		};
 
 		nss-dp-common {
