@@ -37,6 +37,7 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 				qcom-ipq5018-db-mp03.3.dtb \
 				qcom-ipq5018-db-mp03.3-c2.dtb \
 				qcom-ipq5018-db-mp03.3-c3.dtb \
+				qcom-ipq5018-tb-mp04.dtb \
 				qcom-ipq6018-cp01-c1.dtb \
 				qcom-ipq6018-cp01-c2.dtb \
 				qcom-ipq6018-cp01-c3.dtb \
