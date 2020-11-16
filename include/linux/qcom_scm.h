@@ -68,6 +68,7 @@ extern int qcom_scm_tcsr(u32 svc_id, u32 cmd_id,
 extern bool qcom_scm_is_available(void);
 
 extern bool qcom_scm_hdcp_available(void);
+extern bool qcom_scm_pdseg_memcpy_v2_available(void);
 
 extern bool qcom_scm_pas_supported(u32 peripheral);
 extern int qcom_scm_pas_init_image(u32 peripheral, const void *metadata,
@@ -331,6 +332,8 @@ extern int qcom_scm_load_otp(u32 peripheral);
 #endif
 extern int qcom_scm_wcss_boot(u32 svc_id, u32 cmd_id, void *cmd_buf);
 extern int qcom_scm_tcsr_reg_write(u32 arg1, u32 arg2);
+extern int qcom_scm_pdseg_memcpy_v2(u32 peripheral, int phno, dma_addr_t dma,
+								int seg_cnt);
 extern int qcom_scm_pdseg_memcpy(u32 peripheral, int phno, dma_addr_t dma,
 								size_t size);
 extern int qcom_scm_int_radio_powerup(u32 peripheral);

@@ -193,6 +193,10 @@ extern int __qcom_scm_wcss_boot(struct device *, u32 svc_id, u32 cmd_id,
 				void *cmd_buf);
 extern int qcom_scm_wcss_boot(u32 svc_id, u32 cmd_id, void *cmd_buf);
 
+extern int __qcom_scm_pdseg_memcpy_v2(struct device *, u32 peripheral,
+				int phno, dma_addr_t dma, int seg_cnt);
+extern int qcom_scm_pdseg_memcpy_v2(u32 peripheral, int phno, dma_addr_t dma,
+								int seg_cnt);
 extern int __qcom_scm_pdseg_memcpy(struct device *, u32 peripheral,
 				int phno, dma_addr_t dma, size_t size);
 extern int qcom_scm_pdseg_memcpy(u32 peripheral, int phno, dma_addr_t dma,
@@ -221,6 +225,7 @@ extern int qcom_scm_pshold(void);
 
 #define PD_LOAD_SVC_ID		0x2
 #define PD_LOAD_CMD_ID		0x16
+#define PD_LOAD_V2_CMD_ID	0x19
 #define INT_RAD_PWR_UP_CMD_ID	0x17
 #define INT_RAD_PWR_DN_CMD_ID	0x18
 s32 __qcom_scm_pinmux_read(u32 svc_id, u32 cmd_id, u32 arg1);
