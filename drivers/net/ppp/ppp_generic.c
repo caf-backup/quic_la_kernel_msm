@@ -3178,7 +3178,7 @@ bool ppp_is_cp_enabled(struct net_device *dev)
 
 	ppp = netdev_priv(dev);
 	ppp_lock(ppp);
-	flag = !!ppp->xcomp || !!ppp->rcomp;
+	flag = !!(ppp->xstate & SC_COMP_RUN) || !!(ppp->rstate & SC_DECOMP_RUN);
 	ppp_unlock(ppp);
 
 	return flag;
