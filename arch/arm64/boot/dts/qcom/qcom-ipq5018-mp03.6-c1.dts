@@ -80,31 +80,21 @@
 	 * |        |              |                         |
 	 * |        |              |                         |
 	 * |        |              |                         |
-	 * |   Q6   |  0x4B000000  |          16MB           |
-	 * |  code/ |              |                         |
-	 * |  data  |              |                         |
+	 * |   Q6   |  0x4B000000  |          23MB           |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * | M3 Dump| 0x4C700000   |          1MB            |
+	 * +--------+--------------+-------------------------+
+	 * | QDSS   | 0x4C800000   |          1MB            |
 	 * +--------+--------------+-------------------------+
 	 * |        |              |                         |
-	 * |IPQ5018 |  0x4C000000  |          13MB           |
-	 * |  data  |              |                         |
-	 * +--------+--------------+-------------------------+
-	 * | M3 Dump|  0x4CD00000  |           1MB           |
-	 * +--------+--------------+-------------------------+
-	 * |  QDSS  |  0x4CE00000  |           1MB           |
-	 * +--------+--------------+-------------------------+
-	 * |QCN9100 |  0x4CF00000  |          15MB           |
-	 * |  data  |              |                         |
-	 * +--------+--------------+-------------------------+
-	 * | M3 Dump|  0x4DE00000  |           1MB           |
-	 * +--------+--------------+-------------------------+
-	 * |  QDSS  |  0x4DF00000  |           1MB           |
-	 * +--------+--------------+-------------------------+
-	 * |        |              |                         |
-	 * |QCN9000 |  0x4E000000  |          17MB           |
+	 * |QCN9000 |  0x4C900000  |          17MB           |
 	 * |        |              |                         |
 	 * +--------+--------------+-------------------------+
 	 * |        |              |                         |
-	 * |  MHI1  |  0x4F100000  |          16MB           |
+	 * |  MHI1  |  0x4DA00000  |          16MB           |
 	 * |        |              |                         |
 	 * +--------+--------------+-------------------------+
 	 * |                                                 |
@@ -112,56 +102,30 @@
 	 * |                                                 |
 	 * +=================================================+
 	 */
-
-		q6_mem_regions: q6_mem_regions@4B000000 {
+		q6_region: wcnss@4b000000 {
 			no-map;
-			reg = <0x0 0x4B000000 0x0 0x3000000>;
+			reg = <0x0 0x4b000000 0x0 0x01700000>;
 		};
 
-		q6_code_data: q6_code_data@4B000000 {
+		m3_dump@4c700000 {
 			no-map;
-			reg = <0x0 0x4B000000 0x0 01000000>;
+			reg = <0x0 0x4C700000 0x0 0x100000>;
 		};
 
-		q6_ipq5018_data: q6_ipq5018_data@4c000000 {
+		q6_etr_region:q6_etr_dump@4c800000 {
 			no-map;
-			reg = <0x0 0x4c000000 0x0 0xD00000>;
+			reg = <0x0 0x4c800000 0x0 0x100000>;
 		};
 
-		q6_m3_region: m3_dump@4CD00000 {
+		qcn9000_pcie0@4c900000 {
 			no-map;
-			reg = <0x0 0x4CD00000 0x0 0x100000>;
+			reg = <0x0 0x4C900000 0x0 0x01100000>;
 		};
 
-		q6_etr_region:q6_etr_dump@4CE00000 {
-			no-map;
-			reg = <0x0 0x4CE00000 0x0 0x100000>;
-		};
-
-		q6_qcn9100_data1: q6_qcn9100_data1@4CF00000 {
-			no-map;
-			reg = <0x0 0x4CF00000 0x0 0xF00000>;
-		};
-
-		q6_qcn9100_m3_1: q6_qcn9100_m3_1@4DE00000 {
-			no-map;
-			reg = <0x0 0x4DE00000 0x0 0x100000>;
-		};
-
-		q6_qcn9100_etr_1: q6_qcn9100_etr_1@4DF00000 {
-			no-map;
-			reg = <0x0 0x4DF00000 0x0 0x100000>;
-		};
-
-		q6_qcn9000_region: qcn9000_pcie0@4E000000 {
-			no-map;
-			reg = <0x0 0x4E000000 0x0 0x01100000>;
-		};
-
-		mhi_region1: dma_pool1@4F100000 {
+		mhi_region1: dma_pool1@4da00000 {
 			compatible = "shared-dma-pool";
 			no-map;
-			reg = <0x0 0x4F100000 0x0 0x01000000>;
+			reg = <0x0 0x4da00000 0x0 0x01000000>;
 		};
 	#else
 	/*                      512 MB Profile
@@ -200,35 +164,23 @@
 	 * +--------+--------------+-------------------------+
 	 * |        |              |                         |
 	 * |        |              |                         |
-	 * |   Q6   |  0x4B000000  |          16MB           |
-	 * |  code/ |              |                         |
-	 * |  data  |              |                         |
+	 * |        |              |                         |
+	 * |   Q6   |  0x4B000000  |          24MB           |
+	 * |        |              |                         |
+	 * |        |              |                         |
+	 * +--------+--------------+-------------------------+
+	 * | M3 Dump|  0x4C800000  |           1MB           |
+	 * +--------+--------------+-------------------------+
+	 * |  QDSS  |  0x4C900000  |           1MB           |
+	 * +--------+--------------+-------------------------+
+	 * | caldb  |  0x4CA00000  |           2MB           |
 	 * +--------+--------------+-------------------------+
 	 * |        |              |                         |
-	 * |IPQ5018 |  0x4C000000  |          14MB           |
-	 * |  data  |              |                         |
-	 * +--------+--------------+-------------------------+
-	 * | M3 Dump|  0x4CE00000  |           1MB           |
-	 * +--------+--------------+-------------------------+
-	 * |  QDSS  |  0x4CF00000  |           1MB           |
-	 * +--------+--------------+-------------------------+
-	 * | caldb  |  0x4D000000  |           2MB           |
-	 * +--------+--------------+-------------------------+
-	 * |QCN9100 |  0x4D200000  |          16MB           |
-	 * |  data  |              |                         |
-	 * +--------+--------------+-------------------------+
-	 * | M3 Dump|  0x4E200000  |           1MB           |
-	 * +--------+--------------+-------------------------+
-	 * |  QDSS  |  0x4E300000  |           1MB           |
-	 * +--------+--------------+-------------------------+
-	 * | caldb  |  0x4E400000  |           5MB           |
-	 * +--------+--------------+-------------------------+
-	 * |        |              |                         |
-	 * |QCN9000 |  0x4E900000  |          30MB           |
+	 * |QCN9000 |  0x4CC00000  |          30MB           |
 	 * |        |              |                         |
 	 * +--------+--------------+-------------------------+
 	 * |        |              |                         |
-	 * |  MHI1  |  0x50700000  |          16MB           |
+	 * |  MHI1  |  0x4EA00000  |          16MB           |
 	 * |        |              |                         |
 	 * +--------+--------------+-------------------------+
 	 * |                                                 |
@@ -236,66 +188,35 @@
 	 * |                                                 |
 	 * +=================================================+
 	 */
-
-		q6_mem_regions: q6_mem_regions@4B000000 {
+		q6_region: wcnss@4b000000 {
 			no-map;
-			reg = <0x0 0x4B000000 0x0 0x3900000>;
+			reg = <0x0 0x4b000000 0x0 0x01800000>;
 		};
 
-		q6_code_data: q6_code_data@4B000000 {
+		m3_dump@4c800000 {
 			no-map;
-			reg = <0x0 0x4B000000 0x0 01000000>;
+			reg = <0x0 0x4c800000 0x0 0x100000>;
 		};
 
-		q6_ipq5018_data: q6_ipq5018_data@4C000000 {
+		q6_etr_region:q6_etr_dump@4c900000 {
 			no-map;
-			reg = <0x0 0x4C000000 0x0 0xE00000>;
+			reg = <0x0 0x4c900000 0x0 0x100000>;
 		};
 
-		q6_m3_region: m3_dump@4CE00000 {
+		q6_caldb_region:q6_caldb_region@4ca00000 {
 			no-map;
-			reg = <0x0 0x4CE00000 0x0 0x100000>;
+			reg = <0x0 0x4ca00000 0x0 0x200000>;
 		};
 
-		q6_etr_region: q6_etr_dump@4CF00000 {
+		qcn9000_pcie0@4cc00000 {
 			no-map;
-			reg = <0x0 0x4CF00000 0x0 0x100000>;
+			reg = <0x0 0x4CC00000 0x0 0x01E00000>;
 		};
 
-		q6_caldb_region: q6_caldb_region@4D000000 {
-			no-map;
-			reg = <0x0 0x4D000000 0x0 0x200000>;
-		};
-
-		q6_qcn9100_data1: q6_qcn9100_data1@4D200000 {
-			no-map;
-			reg = <0x0 0x4D200000 0x0 0x1000000>;
-		};
-
-		q6_qcn9100_m3_1: q6_qcn9100_m3_1@4E200000 {
-			no-map;
-			reg = <0x0 0x4E200000 0x0 0x100000>;
-		};
-
-		q6_qcn9100_etr_1: q6_qcn9100_etr_1@4E300000 {
-			no-map;
-			reg = <0x0 0x4E300000 0x0 0x100000>;
-		};
-
-		q6_qcn9100_caldb_1: q6_qcn9100_caldb_1@4E400000 {
-			no-map;
-			reg = <0x0 0x4E400000 0x0 0x500000>;
-		};
-
-		q6_qcn9000_region: qcn9000_pcie0@4E900000 {
-			no-map;
-			reg = <0x0 0x4E900000 0x0 0x01E00000>;
-		};
-
-		mhi_region1: dma_pool1@50700000 {
+		mhi_region1: dma_pool1@4ea00000 {
 			compatible = "shared-dma-pool";
 			no-map;
-			reg = <0x0 0x50700000 0x0 0x01000000>;
+			reg = <0x0 0x4ea00000 0x0 0x01000000>;
 		};
 	#endif
 	};
@@ -1025,9 +946,6 @@
 	};
 };
 
-&wifi3 {
-	status = "ok";
-};
 
 &qfprom {
 	status = "ok";
@@ -1038,86 +956,12 @@
 };
 
 &qcom_q6v5_wcss {
-	qcom,multipd_arch;
-	memory-region = <&q6_mem_regions>;
-	/* IPQ5018 */
-	q6v5_wcss_userpd1 {
-		m3_firmware = "IPQ5018/m3_fw.mdt";
-		interrupts-extended = <&wcss_smp2p_in 8 0>,
-			<&wcss_smp2p_in 9 0>,
-			<&wcss_smp2p_in 12 0>,
-			<&wcss_smp2p_in 11 0>;
-		interrupt-names ="fatal",
-			"ready",
-			"spawn_ack",
-			"stop-ack";
-		qcom,smem-states = <&wcss_smp2p_out 8>,
-			<&wcss_smp2p_out 9>,
-			<&wcss_smp2p_out 10>;
-		qcom,smem-state-names = "shutdown",
-			"stop",
-			"spawn";
-		qca,asid = <1>;
-		qca,auto-restart;
-		qca,int_radio;
-		#ifdef __IPQ_MEM_PROFILE_256_MB__
-		memory-region = <&q6_ipq5018_data>, <&q6_m3_region>,
-				<&q6_etr_region>;
-		#else
-		memory-region = <&q6_ipq5018_data>, <&q6_m3_region>,
-				<&q6_etr_region>, <&q6_caldb_region>;
-		#endif
-	};
-
-	/* QCN9100 5G */
-	q6v5_wcss_userpd2 {
-		m3_firmware = "qcn9100/m3_fw.mdt";
-		interrupts-extended = <&wcss_smp2p_in 16 0>,
-			<&wcss_smp2p_in 17 0>,
-			<&wcss_smp2p_in 20 0>,
-			<&wcss_smp2p_in 19 0>;
-		interrupt-names ="fatal",
-			"ready",
-			"spawn_ack",
-			"stop-ack";
-		qcom,smem-states = <&wcss_smp2p_out 16>,
-			<&wcss_smp2p_out 17>,
-			<&wcss_smp2p_out 18>;
-		qcom,smem-state-names = "shutdown",
-			"stop",
-			"spawn";
-		qca,asid = <2>;
-		qca,auto-restart;
-		#ifdef __IPQ_MEM_PROFILE_256_MB__
-		memory-region = <&q6_qcn9100_data1>, <&q6_qcn9100_m3_1>,
-				<&q6_qcn9100_etr_1>;
-		#else
-		memory-region = <&q6_qcn9100_data1>, <&q6_qcn9100_m3_1>,
-				<&q6_qcn9100_etr_1>, <&q6_qcn9100_caldb_1>;
-		#endif
-	};
-
-	/*Pine radio*/
-	q6v5_wcss_userpd3 {
-		m3_firmware = "qcn9000/m3_fw.mdt";
-		interrupts-extended = <&wcss_smp2p_in 24 0>,
-			<&wcss_smp2p_in 25 0>,
-			<&wcss_smp2p_in 28 0>,
-			<&wcss_smp2p_in 27 0>;
-		interrupt-names ="fatal",
-			"ready",
-			"spawn_ack",
-			"stop-ack";
-		qcom,smem-states = <&wcss_smp2p_out 24>,
-			<&wcss_smp2p_out 25>,
-			<&wcss_smp2p_out 26>;
-		qcom,smem-state-names = "shutdown",
-			"stop",
-			"spawn";
-		qca,asid = <3>;
-		qca,auto-restart;
-		memory-region = <&q6_qcn9000_region>;
-	};
+	#ifdef __IPQ_MEM_PROFILE_256_MB__
+		memory-region = <&q6_region>, <&q6_etr_region>;
+	#else
+		memory-region = <&q6_region>, <&q6_etr_region>,
+				<&q6_caldb_region>;
+	#endif
 };
 
 &qgic_msi_0 {
@@ -1126,79 +970,17 @@
 
 &wifi0 {
 	/* IPQ5018 */
-	qcom,multipd_arch;
-#ifdef __IPQ_MEM_PROFILE_256_MB__
-	qcom,tgt-mem-mode = <2>;
-#else
-	qcom,tgt-mem-mode = <1>;
-#endif
-	qcom,bdf-addr = <0x0 0x4C000000 0x4C000000 0x0 0x0>;
-	qcom,caldb-addr = <0x0 0x4D000000 0 0 0>;
+	qcom,bdf-addr = <0x4BA00000 0x4BA00000 0x4BA00000
+		0x0 0x0>;
+	qcom,caldb-addr = <0x4CA00000 0x4CA00000 0x0 0x0 0x0>;
 	qcom,caldb-size = <0x200000>;
-	qcom,userpd-subsys-name = "q6v5_wcss_userpd1";
-	status = "ok";
-};
-
-&wifi1 {
-	/* QCN9100 5G */
-	qcom,multipd_arch;
-#ifdef __IPQ_MEM_PROFILE_256_MB__
-	qcom,tgt-mem-mode = <2>;
-#else
-	qcom,tgt-mem-mode = <1>;
-#endif
-	qcom,board_id = <0x60>;
-	compatible = "qcom,cnss-qcn9100";
-	qcom,bdf-addr = <0x0 0x4D200000 0x4CF00000 0x0 0x0>;
-	qcom,caldb-addr = <0x0 0x4E400000 0 0 0>;
-	qcom,caldb-size = <0x500000>;
-	qcom,userpd-subsys-name = "q6v5_wcss_userpd2";
+	qcom,board_id = <0x23>;
 	status = "ok";
 };
 
 &wifi3 {
 	/* QCN9000 6G */
 	compatible = "qcom,cnss-qcn9000";
+	board_id = <0xa0>;
 	status = "ok";
-#ifdef __IPQ_MEM_PROFILE_256_MB__ || __IPQ_FLASH_16M_PROFILE__
-			/* QCN9000 tgt-mem-mode=2 layout - 17MB
-			 * +=========+==============+=========+
-			 * |  Region | Start Offset |   Size  |
-			 * +---------+--------------+---------+
-			 * | HREMOTE |  0x4E000000  |   15MB  |
-			 * +---------+--------------+---------+
-			 * | M3 Dump |  0x4EF00000  |   1MB   |
-			 * +---------+--------------+---------+
-			 * |   ETR   |  0x4F000000  |   1MB   |
-			 * +==================================+
-			 */
-			base-addr = <0x4E000000>;
-			m3-dump-addr = <0x4EF00000>;
-			etr-addr = <0x4F000000>;
-			caldb-addr = <0>;
-			caldb-size = <0>;
-			hremote-size = <0xF00000>;
-			tgt-mem-mode = <0x2>;
-#else
-			/* QCN9000 tgt-mem-mode=1 layout - 30MB
-			 * +=========+==============+=========+
-			 * |  Region | Start Offset |   Size  |
-			 * +---------+--------------+---------+
-			 * | HREMOTE |  0x4E900000  |   20MB  |
-			 * +---------+--------------+---------+
-			 * | M3 Dump |  0x4FD00000  |   1MB   |
-			 * +---------+--------------+---------+
-			 * |   ETR   |  0x4FE00000  |   1MB   |
-			 * +---------+--------------+---------+
-			 * |  Caldb  |  0x4FF00000  |   8MB   |
-			 * +==================================+
-			 */
-			base-addr = <0x4E900000>;
-			m3-dump-addr = <0x4FD00000>;
-			etr-addr = <0x4FE00000>;
-			caldb-addr = <0x4FF00000>;
-			caldb-size = <0x800000>;
-			hremote-size = <0x1400000>;
-			tgt-mem-mode = <0x1>;
-#endif
 };
