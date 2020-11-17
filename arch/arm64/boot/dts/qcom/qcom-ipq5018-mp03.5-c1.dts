@@ -137,24 +137,44 @@
 			reg = <0x0 0x4CE00000 0x0 0x100000>;
 		};
 
-		q6_qcn9100_data1: q6_qcn9100_data1@4CF00000 {
+		q6_qcn9100_data1: q6_qcn9100_data1@4D200000 {
 			no-map;
-			reg = <0x0 0x4CF00000 0x0 0xF00000>;
+			reg = <0x0 0x4D200000 0x0 0x1000000>;
 		};
 
-		q6_qcn9100_m3_1: q6_qcn9100_m3_1@4DE00000 {
+		q6_qcn9100_m3_1: q6_qcn9100_m3_1@4E200000 {
 			no-map;
-			reg = <0x0 0x4DE00000 0x0 0x100000>;
+			reg = <0x0 0x4E200000 0x0 0x100000>;
 		};
 
-		q6_qcn9100_etr_1: q6_qcn9100_etr_1@4DF00000 {
+		q6_qcn9100_etr_1: q6_qcn9100_etr_1@4E300000 {
 			no-map;
-			reg = <0x0 0x4DF00000 0x0 0x100000>;
+			reg = <0x0 0x4E300000 0x0 0x100000>;
 		};
 
-		q6_qcn9000_region: qcn9000_pcie0@4E000000 {
+		q6_qcn9100_caldb_1: q6_qcn9100_caldb_1@4E400000 {
 			no-map;
-			reg = <0x0 0x4E000000 0x0 0x01100000>;
+			reg = <0x0 0x4E400000 0x0 0x500000>;
+		};
+
+		q6_qcn9100_data2: q6_qcn9100_data2@4E900000 {
+			no-map;
+			reg = <0x0 0x4E900000 0x0 0x1000000>;
+		};
+
+		q6_qcn9100_m3_2: q6_qcn9100_m3_2@4F900000 {
+			no-map;
+			reg = <0x0 0x4F900000 0x0 0x100000>;
+		};
+
+		q6_qcn9100_etr_2: q6_qcn9100_etr_2@4FA00000 {
+			no-map;
+			reg = <0x0 0x4FA00000 0x0 0x100000>;
+		};
+
+		q6_qcn9100_caldb_2: q6_qcn9100_caldb_2@4FB00000 {
+			no-map;
+			reg = <0x0 0x4FB00000 0x0 0x500000>;
 		};
 
 		mhi_region1: dma_pool1@4F100000 {
@@ -286,9 +306,24 @@
 			reg = <0x0 0x4E400000 0x0 0x500000>;
 		};
 
-		q6_qcn9000_region: qcn9000_pcie0@4E900000 {
+		q6_qcn9100_data2: q6_qcn9100_data2@4E900000 {
 			no-map;
-			reg = <0x0 0x4E900000 0x0 0x01E00000>;
+			reg = <0x0 0x4E900000 0x0 0x1000000>;
+		};
+
+		q6_qcn9100_m3_2: q6_qcn9100_m3_2@4F900000 {
+			no-map;
+			reg = <0x0 0x4F900000 0x0 0x100000>;
+		};
+
+		q6_qcn9100_etr_2: q6_qcn9100_etr_2@4FA00000 {
+			no-map;
+			reg = <0x0 0x4FA00000 0x0 0x100000>;
+		};
+
+		q6_qcn9100_caldb_2: q6_qcn9100_caldb_2@4FB00000 {
+			no-map;
+			reg = <0x0 0x4FB00000 0x0 0x500000>;
 		};
 
 		mhi_region1: dma_pool1@50700000 {
@@ -380,6 +415,12 @@
 
 		wifi0: wifi@c000000 {
 			status = "ok";
+		};
+
+		wifi2: wifi2@c000000 {
+			compatible = "qcom,cnss-qcn9100";
+			qcom,rproc = <&qcom_q6v5_wcss>;
+			status = "disabled";
 		};
 
 		dp1 {
@@ -577,10 +618,6 @@
 	};
 };
 
-&wifi3 {
-	status = "ok";
-};
-
 &qfprom {
 	status = "ok";
 };
@@ -621,7 +658,7 @@
 		#endif
 	};
 
-	/* QCN9100 5G */
+	/* QCN9100 6G */
 	q6v5_wcss_userpd2 {
 		m3_firmware = "qcn9100/m3_fw.mdt";
 		interrupts-extended = <&wcss_smp2p_in 16 0>,
@@ -649,9 +686,9 @@
 		#endif
 	};
 
-	/*Pine radio*/
+	/* QCN9100 5G */
 	q6v5_wcss_userpd3 {
-		m3_firmware = "qcn9000/m3_fw.mdt";
+		m3_firmware = "qcn9100/m3_fw.mdt";
 		interrupts-extended = <&wcss_smp2p_in 24 0>,
 			<&wcss_smp2p_in 25 0>,
 			<&wcss_smp2p_in 28 0>,
@@ -668,7 +705,13 @@
 			"spawn";
 		qca,asid = <3>;
 		qca,auto-restart;
-		memory-region = <&q6_qcn9000_region>;
+		#ifdef __IPQ_MEM_PROFILE_256_MB__
+		memory-region = <&q6_qcn9100_data2>, <&q6_qcn9100_m3_2>,
+				<&q6_qcn9100_etr_2>;
+		#else
+		memory-region = <&q6_qcn9100_data2>, <&q6_qcn9100_m3_2>,
+				<&q6_qcn9100_etr_2>, <&q6_qcn9100_caldb_2>;
+		#endif
 	};
 };
 
