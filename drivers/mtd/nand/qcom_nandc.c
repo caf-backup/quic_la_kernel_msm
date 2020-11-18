@@ -984,8 +984,13 @@ static void nandc_set_reg(struct qcom_nand_controller *nandc, int offset,
 
 	reg = offset_to_nandc_reg(regs, offset);
 
-	if (reg)
+	if (reg) {
+#if IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)
+		*reg = val;
+#else
 		*reg = cpu_to_le32(val);
+#endif
+	}
 }
 
 /* helper to configure address register values */
