@@ -3163,6 +3163,28 @@ void ppp_update_stats(struct net_device *dev, unsigned long rx_packets,
 	ppp_recv_unlock(ppp);
 }
 
+/* Returns true if Compression is enabled on PPP device
+ */
+bool ppp_is_cp_enabled(struct net_device *dev)
+{
+	struct ppp *ppp;
+	bool flag = false;
+
+	if (!dev)
+		return false;
+
+	if (dev->type != ARPHRD_PPP)
+		return false;
+
+	ppp = netdev_priv(dev);
+	ppp_lock(ppp);
+	flag = !!ppp->xcomp || !!ppp->rcomp;
+	ppp_unlock(ppp);
+
+	return flag;
+}
+EXPORT_SYMBOL(ppp_is_cp_enabled);
+
 /* Returns >0 if the device is a multilink PPP netdevice, 0 if not or < 0 if
  * the device is not PPP.
  */
