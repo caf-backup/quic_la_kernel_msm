@@ -3550,6 +3550,7 @@ static int cnss_probe(struct platform_device *plat_dev)
 	}
 
 	soc_version_major = *soc_version;
+	soc_version_major = le32_to_cpu(soc_version_major);
 
 	if (device_id->driver_data == QCA8074_DEVICE_ID) {
 		if (soc_version_major == 2) {
