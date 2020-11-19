@@ -756,7 +756,7 @@ int __qcom_scm_mem_prot_assign(struct device *dev, struct sg_table *table,
 			 (void *)dest_vm_copy + dest_vm_copy_size);
 
 	batch_start = 0;
-	while (batch_start < table->nents) {
+	while ((batch_start < table->nents) && curr_sgl) {
 		/* Ensure no size zero batches */
 		batches_processed = get_batches_from_sgl(sg_table_copy,
 							 curr_sgl, &next_sgl);
