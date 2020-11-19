@@ -191,6 +191,15 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 	int i, pd, max_size = 0;
 	struct device *dev_p = dev;
 	dma_addr_t dma;
+	int tmp = 0, blocks;
+	dma_addr_t tz_dma = 0, dma_blk_arr_addr_phys = 0, dma_tmp = 0;
+	u64 *dma_blk_arr_addr = NULL;
+	struct region {
+		u64 addr;
+		unsigned blk_size;
+	} *tz_addr;
+	bool is_v2 = false;
+	void **pt = NULL;
 
 	if (!fw || !mem_region || !mem_phys || !mem_size)
 		return -EINVAL;
@@ -240,15 +249,58 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 		if (phdr->p_paddr + phdr->p_memsz > max_addr)
 			max_addr = ALIGN(phdr->p_paddr + phdr->p_memsz, SZ_4K);
 
-		if (max_size < phdr->p_memsz)
+		if ((pd > 0) && (max_size < phdr->p_memsz))
 			max_size = phdr->p_memsz;
 	}
 
 	if (pas_init && (pd > 0)) {
-		ptr = dma_alloc_coherent(dev, max_size, &dma, GFP_KERNEL);
-		if (!ptr) {
-			pr_err("Error in dma alloc\n");
-			return -ENOMEM;
+		is_v2 = qcom_scm_pdseg_memcpy_v2_available();
+
+		if (is_v2) {
+			blocks = max_size%PAGE_SIZE ? (max_size/PAGE_SIZE + 1) :
+				(max_size/PAGE_SIZE);
+
+			tz_addr = dma_alloc_coherent(dev, sizeof(struct region),
+							&tz_dma, GFP_DMA);
+			if (!tz_addr) {
+				pr_err("Error in dma alloc\n");
+				return -ENOMEM;
+			}
+
+			dma_blk_arr_addr = dma_alloc_coherent(dev,
+					(blocks * sizeof(u64)),
+					&dma_blk_arr_addr_phys, GFP_DMA);
+			if (!dma_blk_arr_addr) {
+				pr_err("Error in dma alloc\n");
+				goto free_tz_dma_alloc;
+			}
+			memcpy(&tz_addr->addr, &dma_blk_arr_addr_phys,
+						sizeof(dma_addr_t));
+
+			pt = kzalloc(blocks * sizeof(void *), GFP_KERNEL);
+			if (!pt) {
+				pr_err("Error in memory alloc\n");
+				goto free_dma_blk_arr_alloc;
+			}
+
+			for (i = 0; i < blocks; i++) {
+				pt[i] = dma_alloc_coherent(dev, PAGE_SIZE,
+							&dma_tmp, GFP_DMA);
+				if (!pt[i]) {
+					pr_err("Error in dma alloc\n");
+					goto free_mem_alloc;
+				}
+				memcpy(&dma_blk_arr_addr[i], &dma_tmp,
+							sizeof(dma_addr_t));
+			}
+			tz_addr->blk_size = PAGE_SIZE;
+		} else {
+			ptr = dma_alloc_coherent(dev, max_size, &dma,
+								GFP_KERNEL);
+			if (!ptr) {
+				pr_err("Error in dma alloc\n");
+				return -ENOMEM;
+			}
 		}
 	}
 
@@ -304,14 +356,39 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 				break;
 			}
 
+			if (is_v2) {
+				int offset_tmp = 0;
+
+				size = seg_fw->size < PAGE_SIZE ?
+					seg_fw->size : PAGE_SIZE;
+				tmp = 0;
+				while (tmp < blocks && size) {
+					memset_io(pt[tmp], 0,
+							PAGE_SIZE);
+					memcpy_toio(pt[tmp],
+						seg_fw->data + offset_tmp,
+						size);
+					tmp++;
+					offset_tmp += size;
+					if ((seg_fw->size - offset_tmp) < PAGE_SIZE)
+						size = seg_fw->size - offset_tmp;
+				}
+			} else
+				memcpy_toio(ptr, seg_fw->data, seg_fw->size);
+
 			if (pas_init && (pd > 0))
 				size = seg_fw->size;
-			memcpy_toio(ptr, seg_fw->data, seg_fw->size);
+
 			release_firmware(seg_fw);
 		}
 
 		if (pas_init && (pd > 0)) {
-			ret = qcom_scm_pdseg_memcpy(PDSEG_PAS_ID, i, dma, size);
+			if (is_v2)
+				ret = qcom_scm_pdseg_memcpy_v2(PDSEG_PAS_ID, i,
+								tz_dma, tmp);
+			else
+				ret = qcom_scm_pdseg_memcpy(PDSEG_PAS_ID, i,
+								dma, size);
 			if (ret) {
 				dev_err(dev, "pd seg memcpy scm failed\n");
 				break;
@@ -324,8 +401,24 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 			memset(ptr + phdr->p_filesz, 0, phdr->p_memsz - phdr->p_filesz);
 	}
 
-	if (pas_init && (pd > 0))
-		dma_free_coherent(dev, max_size, ptr, dma);
+	if (pas_init && (pd > 0)) {
+		if (is_v2) {
+			for (i = 0; i < blocks; i++) {
+				memcpy(&dma_tmp, &dma_blk_arr_addr[i],
+						sizeof(dma_addr_t));
+				dma_free_coherent(dev, PAGE_SIZE, pt[i],
+								dma_tmp);
+			}
+
+			dma_free_coherent(dev, (blocks * sizeof(u64)),
+				dma_blk_arr_addr, dma_blk_arr_addr_phys);
+
+			dma_free_coherent(dev, sizeof(struct region), tz_addr,
+								tz_dma);
+			kfree(pt);
+		} else
+			dma_free_coherent(dev, max_size, ptr, dma);
+	}
 
 	if (reloc_base)
 		*reloc_base = mem_reloc;
@@ -334,6 +427,22 @@ out:
 	kfree(fw_name);
 
 	return ret;
+
+free_mem_alloc:
+	i = 0;
+	while (i < blocks && pt[i]) {
+		memcpy(&dma_tmp, &dma_blk_arr_addr[i], sizeof(dma_addr_t));
+		dma_free_coherent(dev, PAGE_SIZE, pt[i], dma_tmp);
+		i++;
+	}
+	kfree(pt);
+free_dma_blk_arr_alloc:
+	dma_free_coherent(dev, (blocks * sizeof(u64)), dma_blk_arr_addr,
+						dma_blk_arr_addr_phys);
+free_tz_dma_alloc:
+	dma_free_coherent(dev, sizeof(struct region), tz_addr, tz_dma);
+
+	return -ENOMEM;
 }
 
 /**

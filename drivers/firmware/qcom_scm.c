@@ -317,6 +317,28 @@ void qcom_scm_cpu_power_down(u32 flags)
 EXPORT_SYMBOL(qcom_scm_cpu_power_down);
 
 /**
+ * qcom_scm_pdseg_memcpy_v2_available() - Check if secure environment supports
+ *					v2 pdseg memcpy.
+ *
+ * Return true if it is supported, false if not.
+ */
+bool qcom_scm_pdseg_memcpy_v2_available(void)
+{
+	int ret = qcom_scm_clk_enable();
+
+	if (ret)
+		return ret;
+
+	ret = __qcom_scm_is_call_available(__scm->dev, PD_LOAD_SVC_ID,
+						PD_LOAD_V2_CMD_ID);
+
+	qcom_scm_clk_disable();
+
+	return ret > 0 ? true : false;
+}
+EXPORT_SYMBOL(qcom_scm_pdseg_memcpy_v2_available);
+
+/**
  * qcom_scm_hdcp_available() - Check if secure environment supports HDCP.
  *
  * Return true if HDCP is supported, false if not.
@@ -749,6 +771,24 @@ int qcom_scm_wcss_boot(u32 svc_id, u32 cmd_id, void *cmd_buf)
 
 }
 EXPORT_SYMBOL(qcom_scm_wcss_boot);
+
+int qcom_scm_pdseg_memcpy_v2(u32 peripheral, int phno, dma_addr_t dma,
+							int seg_cnt)
+{
+	int ret;
+
+	ret = qcom_scm_clk_enable();
+	if (ret)
+		return ret;
+
+	ret = __qcom_scm_pdseg_memcpy_v2(__scm->dev, peripheral, phno, dma,
+								seg_cnt);
+
+	qcom_scm_clk_disable();
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_scm_pdseg_memcpy_v2);
 
 int qcom_scm_pdseg_memcpy(u32 peripheral, int phno, dma_addr_t dma,
 							size_t size)

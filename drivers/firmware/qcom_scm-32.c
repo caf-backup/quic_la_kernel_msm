@@ -1507,6 +1507,27 @@ static int __qcom_scm_wcss_boot_v8(struct device *dev, void *cmd_buf)
 	return le32_to_cpu(desc.ret[0]);
 }
 
+static int __qcom_scm_pdseg_memcpy_v2_v8(struct device *dev, u32 peripheral,
+					int phno, dma_addr_t dma, int seg_cnt)
+{
+	struct scm_desc desc = {0};
+	int ret;
+
+	desc.args[0] = peripheral;
+	desc.args[1] = phno;
+	desc.args[2] = dma;
+	desc.args[3] = seg_cnt;
+
+	desc.arginfo = SCM_ARGS(4, SCM_VAL, SCM_VAL, SCM_RW, SCM_VAL);
+
+	ret = qcom_scm_call2(SCM_SIP_FNID(PD_LOAD_SVC_ID,
+				PD_LOAD_V2_CMD_ID), &desc);
+	if (ret)
+		return ret;
+
+	return le32_to_cpu(desc.ret[0]);
+}
+
 static int __qcom_scm_pdseg_memcpy_v8(struct device *dev, u32 peripheral,
 					int phno, dma_addr_t dma, size_t size)
 {
@@ -1603,6 +1624,16 @@ int __qcom_scm_wcss_boot(struct device *dev, u32 svc_id, u32 cmd_id,
 		ret = qcom_scm_call(dev, svc_id, cmd_id, NULL, 0, NULL, 0);
 
 	return ret;
+}
+
+int __qcom_scm_pdseg_memcpy_v2(struct device *dev, u32 peripheral,
+				int phno, dma_addr_t dma, int seg_cnt)
+{
+	if (is_scm_armv8())
+		return __qcom_scm_pdseg_memcpy_v2_v8(dev, peripheral,
+						phno, dma, seg_cnt);
+	else
+		return -ENOTSUPP;
 }
 
 int __qcom_scm_pdseg_memcpy(struct device *dev, u32 peripheral,

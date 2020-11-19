@@ -662,6 +662,24 @@ int __qcom_scm_wcss_boot(struct device *dev, u32 svc_id, u32 cmd_id,
 	return ret ? : res.a1;
 }
 
+int __qcom_scm_pdseg_memcpy_v2(struct device *dev, u32 peripheral,
+				int phno, dma_addr_t dma, int seg_cnt)
+{
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+	int ret;
+
+	desc.args[0] = peripheral;
+	desc.args[1] = phno;
+	desc.args[2] = dma;
+	desc.args[3] = seg_cnt;
+
+	desc.arginfo = SCM_ARGS(4, SCM_VAL, SCM_VAL, SCM_RW, SCM_VAL);
+	ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, PD_LOAD_SVC_ID,
+			PD_LOAD_V2_CMD_ID, &desc, &res);
+	return ret ? : res.a1;
+}
+
 int __qcom_scm_pdseg_memcpy(struct device *dev, u32 peripheral,
 				int phno, dma_addr_t dma, size_t size)
 {
