@@ -101,6 +101,10 @@ static int cold_boot_cal_timeout = 60;
 module_param(cold_boot_cal_timeout, int, 0644);
 MODULE_PARM_DESC(cold_boot_cal_timeout, "Cold boot cal timeout in seconds");
 
+static int soc_version_major;
+module_param(soc_version_major, int, 0444);
+MODULE_PARM_DESC(soc_version_major, "SOC Major Version");
+
 enum skip_cnss_options {
 	CNSS_SKIP_NONE,
 	CNSS_SKIP_ALL,
@@ -3486,7 +3490,7 @@ static int cnss_probe(struct platform_device *plat_dev)
 	const struct of_device_id *of_id;
 	const struct platform_device_id *device_id;
 	u32 node_id = 0, userpd_id = 0;
-	const int *soc_version_major;
+	const int *soc_version;
 
 	if (cnss_get_plat_priv(plat_dev)) {
 		pr_err("Driver is already initialized!\n");
@@ -3536,17 +3540,19 @@ static int cnss_probe(struct platform_device *plat_dev)
 	}
 #endif
 
-	if (device_id->driver_data == QCA6018_DEVICE_ID ||
-	    device_id->driver_data == QCN9100_DEVICE_ID ||
-	    device_id->driver_data == QCA5018_DEVICE_ID)
-		goto skip_soc_version_checks;
+	soc_version = of_get_property(of_find_node_by_path("/"),
+				      "soc_version_major", NULL);
+	if (!soc_version) {
+		pr_err("Failed to get soc_version_major from device tree");
+		CNSS_ASSERT(0);
+		ret = -EINVAL;
+		goto out;
+	}
 
-	soc_version_major = of_get_property(of_find_node_by_path("/"),
-					    "soc_version_major", NULL);
-	BUG_ON(!soc_version_major);
+	soc_version_major = *soc_version;
 
 	if (device_id->driver_data == QCA8074_DEVICE_ID) {
-		if (*soc_version_major == 2) {
+		if (soc_version_major == 2) {
 			pr_err("Skip QCA8074V1 in V2 platform\n");
 			ret = -ENODEV;
 			goto out;
@@ -3554,14 +3560,12 @@ static int cnss_probe(struct platform_device *plat_dev)
 	}
 
 	if (device_id->driver_data == QCA8074V2_DEVICE_ID) {
-		if (*soc_version_major == 1) {
+		if (soc_version_major == 1) {
 			pr_err("Skip QCA8074V2 in V1 platform\n");
 			ret = -ENODEV;
 			goto out;
 		}
 	}
-
-skip_soc_version_checks:
 
 	plat_priv = devm_kzalloc(&plat_dev->dev, sizeof(*plat_priv),
 				 GFP_KERNEL);
