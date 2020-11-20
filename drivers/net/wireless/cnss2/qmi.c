@@ -246,6 +246,7 @@ static int cnss_wlfw_host_cap_send_sync(struct cnss_plat_data *plat_priv)
 	int resp_error_msg = 0;
 	const char *model = NULL;
 	struct device_node *root;
+	struct device *dev = &plat_priv->plat_dev->dev;
 
 	cnss_pr_dbg("Sending host capability message, state: 0x%lx\n",
 		    plat_priv->driver_state);
@@ -300,6 +301,26 @@ static int cnss_wlfw_host_cap_send_sync(struct cnss_plat_data *plat_priv)
 				QMI_WLFW_MAX_PLATFORM_NAME_LEN_V01);
 			cnss_pr_info("platform name: %s", req->platform_name);
 		}
+	}
+
+	if (!of_property_read_u32(dev->of_node, "gpios-len", &req->gpios_len)) {
+		if (req->gpios_len > QMI_WLFW_MAX_NUM_GPIO_V01) {
+			cnss_pr_err("Invalid GPIOs array length %d\n",
+				    req->gpios_len);
+			ret = -EINVAL;
+			goto out;
+		}
+
+		if (of_property_read_u32_array(dev->of_node, "gpios",
+					       req->gpios, req->gpios_len)) {
+			cnss_pr_err("Failed to get gpios from device tree\n");
+			ret = -EINVAL;
+			goto out;
+		}
+
+		req->gpios_valid = 1;
+		cnss_pr_info("Sending %d GPIO entries in Host Capabilities\n",
+			     req->gpios_len);
 	}
 
 	qmi_record(plat_priv->wlfw_service_instance_id,
