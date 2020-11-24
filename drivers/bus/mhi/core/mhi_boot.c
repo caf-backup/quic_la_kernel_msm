@@ -124,6 +124,17 @@ static int __mhi_download_rddm_in_panic(struct mhi_controller *mhi_cntrl)
 	const u32 rddm_timeout_us = 200000;
 	int rddm_retry = rddm_timeout_us / delayus; /* time to enter rddm */
 	void __iomem *base = mhi_cntrl->bhie;
+	u32 val, i;
+	struct {
+		char *name;
+		u32 offset;
+	} error_reg[] = {
+		{ "ERROR_CODE", BHI_ERRCODE },
+		{ "ERROR_DBG1", BHI_ERRDBG1 },
+		{ "ERROR_DBG2", BHI_ERRDBG2 },
+		{ "ERROR_DBG3", BHI_ERRDBG3 },
+		{ NULL },
+	};
 
 	MHI_LOG("Entered with pm_state:%s dev_state:%s ee:%s\n",
 		to_mhi_pm_state_str(mhi_cntrl->pm_state),
@@ -214,6 +225,14 @@ static int __mhi_download_rddm_in_panic(struct mhi_controller *mhi_cntrl)
 	MHI_ERR("Did not complete RDDM transfer\n");
 	MHI_ERR("Current EE:%s\n", TO_MHI_EXEC_STR(ee));
 	MHI_ERR("RXVEC_STATUS:0x%x, ret:%d\n", rx_status, ret);
+	for (i = 0; error_reg[i].name; i++) {
+		ret = mhi_read_reg(mhi_cntrl, mhi_cntrl->bhi,
+				   error_reg[i].offset, &val);
+		if (ret)
+			break;
+		MHI_ERR("reg:%s value:0x%x\n",
+			error_reg[i].name, val);
+	}
 
 	return -EIO;
 }
@@ -229,6 +248,17 @@ int mhi_download_rddm_img(struct mhi_controller *mhi_cntrl, bool in_panic)
 	u32 rx_status = 0;
 	u32 sequence_id;
 	enum mhi_ee ee;
+	u32 val, i;
+	struct {
+		char *name;
+		u32 offset;
+	} error_reg[] = {
+		{ "ERROR_CODE", BHI_ERRCODE },
+		{ "ERROR_DBG1", BHI_ERRDBG1 },
+		{ "ERROR_DBG2", BHI_ERRDBG2 },
+		{ "ERROR_DBG3", BHI_ERRDBG3 },
+		{ NULL },
+	};
 
 	if (!rddm_image)
 		return -ENOMEM;
@@ -307,6 +337,18 @@ int mhi_download_rddm_img(struct mhi_controller *mhi_cntrl, bool in_panic)
 	} else {
 		MHI_ERR("Image download completion timed out, rx_status = %d ee: %s\n",
 			rx_status, TO_MHI_EXEC_STR(ee));
+		read_lock_bh(pm_lock);
+		if (MHI_REG_ACCESS_VALID(mhi_cntrl->pm_state)) {
+			for (i = 0; error_reg[i].name; i++) {
+				ret = mhi_read_reg(mhi_cntrl, mhi_cntrl->bhi,
+						   error_reg[i].offset, &val);
+				if (ret)
+					break;
+				MHI_ERR("reg:%s value:0x%x\n",
+					error_reg[i].name, val);
+			}
+		}
+		read_unlock_bh(pm_lock);
 	}
 
 	return (rx_status == BHIE_RXVECSTATUS_STATUS_XFER_COMPL) ? 0 : -EIO;
