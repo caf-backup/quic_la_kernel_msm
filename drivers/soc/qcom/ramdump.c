@@ -453,7 +453,11 @@ static int _do_ramdump(void *handle, struct ramdump_segment *segments,
 
 		memcpy(ehdr->e_ident, ELFMAG, SELFMAG);
 		ehdr->e_ident[EI_CLASS] = ELFCLASS32;
+#ifdef CONFIG_CPU_BIG_ENDIAN
+		ehdr->e_ident[EI_DATA] = ELFDATA2MSB;
+#else
 		ehdr->e_ident[EI_DATA] = ELFDATA2LSB;
+#endif
 		ehdr->e_ident[EI_VERSION] = EV_CURRENT;
 		ehdr->e_ident[EI_OSABI] = ELFOSABI_NONE;
 		ehdr->e_type = ET_CORE;
