@@ -1432,8 +1432,8 @@ static int ovs_flow_cmd_del(struct sk_buff *skb, struct genl_info *info)
 		goto unlock;
 	}
 
-	ovs_dp_flow_del_notify(dp, flow);
 	ovs_flow_tbl_remove(&dp->table, flow);
+	ovs_dp_flow_del_notify(dp, flow);
 	ovs_unlock();
 
 	reply = ovs_flow_cmd_alloc_info((const struct sw_flow_actions __force *) flow->sf_acts,
@@ -2149,7 +2149,6 @@ static int ovs_vport_cmd_set(struct sk_buff *skb, struct genl_info *info)
 		if (err)
 			goto exit_unlock_free;
 	}
-
 
 	if (a[OVS_VPORT_ATTR_UPCALL_PID]) {
 		struct nlattr *ids = a[OVS_VPORT_ATTR_UPCALL_PID];
