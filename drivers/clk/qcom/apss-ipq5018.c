@@ -115,6 +115,7 @@ static const struct parent_map parents_apcs_alias0_clk_src_map[] = {
 
 static const struct freq_tbl ftbl_apcs_alias0_clk_src[] = {
 	F(24000000, P_XO, 1, 0, 0),
+	F(800000000, P_APSS_PLL_EARLY, 1, 0, 0),
 	F(1008000000, P_APSS_PLL_EARLY, 1, 0, 0),
 	{ }
 };
