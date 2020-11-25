@@ -351,14 +351,12 @@ static int fw_get_filesystem_firmware(struct device *device,
 		if (IS_ERR(file))
 			continue;
 		rc = fw_read_file_contents(file, buf);
-		if (rc) {
+		fput(file);
+		if (rc)
 			dev_warn(device, "firmware, attempted to load %s, but failed with error %d\n",
 				path, rc);
-			BUG_ON(rc);
-		} else {
-			fput(file);
+		else
 			break;
-		}
 	}
 	__putname(path);
 
