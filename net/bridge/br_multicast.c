@@ -1917,6 +1917,11 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 
 	err = ipv6_mc_check_mld(skb, &skb_trimmed);
 
+	if (err == -ENOMSG &&
+	    icmp6_hdr(skb)->icmp6_type == NDISC_NEIGHBOUR_SOLICITATION) {
+		br_do_proxy_ndisc(skb, br, vid, port);
+	}
+
 	if (err == -ENOMSG) {
 		if (!ipv6_addr_is_ll_all_nodes(&ipv6_hdr(skb)->daddr))
 			BR_INPUT_SKB_CB(skb)->mrouters_only = 1;
@@ -1943,9 +1948,6 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 	case ICMPV6_MGM_REDUCTION:
 		src = eth_hdr(skb)->h_source;
 		br_ip6_multicast_leave_group(br, port, &mld->mld_mca, vid, src);
-		break;
-	case NDISC_NEIGHBOUR_SOLICITATION:
-		br_do_proxy_ndisc(skb, br, vid, port);
 		break;
 	}
 
