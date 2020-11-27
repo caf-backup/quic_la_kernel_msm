@@ -559,6 +559,7 @@ static void crashdump_init(struct rproc *rproc, struct rproc_dump_segment *segme
 	struct device *dump_dev = NULL;
 	struct device_node *node = NULL, *np = NULL;
 	struct q6v5_wcss *wcss = rproc->priv;
+	struct dump_segment *seg, *tmp;
 
 	wcss->dfp = kzalloc(sizeof(struct dump_file_private), GFP_KERNEL);
 	if (wcss->dfp == NULL) {
@@ -659,6 +660,11 @@ static void crashdump_init(struct rproc *rproc, struct rproc_dump_segment *segme
 	}
 
 	del_timer_sync(&wcss->dfp->dump_timeout);
+
+	list_for_each_entry_safe(seg, tmp, &wcss->q6dump.dump_segments, node) {
+		list_del(&seg->node);
+		kfree(seg);
+	}
 
 	kfree(wcss->dfp->ehdr);
 	wcss->dfp->ehdr = NULL;
