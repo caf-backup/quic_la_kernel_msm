@@ -240,6 +240,7 @@ static inline struct net *xs_net(struct xfrm_state *x)
 /* xflags - make enum if more show up */
 #define XFRM_TIME_DEFER	1
 #define XFRM_SOFT_EXPIRE 2
+#define XFRM_STATE_OFFLOAD_NSS 4
 
 enum {
 	XFRM_STATE_VOID,
