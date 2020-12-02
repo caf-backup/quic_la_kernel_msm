@@ -313,25 +313,54 @@ int __init socinfo_init(void) __must_check;
 #define CPU_IPQ5018 447
 #define CPU_IPQ5028 448
 
-static inline const int* read_ipq_soc_version_major(void)
+static inline int read_ipq_soc_version_major(void)
 {
 	const int *prop;
+	u32 soc_version_major;
+
 	prop = of_get_property(of_find_node_by_path("/"), "soc_version_major",
 				NULL);
+	if(!prop)
+		return -EINVAL;
 
-	return prop;
+	soc_version_major = *prop;
+	soc_version_major = le32_to_cpu(soc_version_major);
+
+	return soc_version_major;
+}
+
+static inline int read_ipq_soc_version_minor(void)
+{
+	const int *prop;
+	u32 soc_version_minor;
+
+	prop = of_get_property(of_find_node_by_path("/"), "soc_version_minor",
+				NULL);
+	if(!prop)
+		return -EINVAL;
+
+	soc_version_minor = *prop;
+	soc_version_minor = le32_to_cpu(soc_version_minor);
+
+	return soc_version_minor;
 }
 
 static inline int read_ipq_cpu_type(void)
 {
 	const int *prop;
+	u32 cpu_type;
+
 	prop = of_get_property(of_find_node_by_path("/"), "cpu_type", NULL);
 	/*
 	 * Return Default CPU type if "cpu_type" property is not found in DTSI
 	 */
 	if (!prop)
 		return CPU_IPQ8064;
-	return *prop;
+
+	cpu_type = *prop;
+	cpu_type = le32_to_cpu(cpu_type);
+
+	return cpu_type;
 }
 
 static inline int cpu_is_ipq4018(void)

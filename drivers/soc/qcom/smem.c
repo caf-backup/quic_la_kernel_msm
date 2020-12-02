@@ -22,6 +22,8 @@
 #include <linux/soc/qcom/smem.h>
 #include <linux/kernel.h>
 
+#include <soc/qcom/socinfo.h>
+
 /*
  * The Qualcomm shared memory system is a allocate only heap structure that
  * consists of one of more memory areas that can be accessed by the processors
@@ -285,29 +287,22 @@ struct qcom_smem {
 
 static int __init print_soc_version_info(void)
 {
-	int ret;
 	uint32_t minor_number = UINT_MAX;
 	uint32_t major_number = UINT_MAX;
 	uint32_t cpu_type = UINT_MAX;
 	char cpu_type_name[CPU_NAME_MAX_SIZE];
 
-	ret = of_property_read_u32(of_root, "soc_version_minor", &minor_number);
-	if (ret)
-		pr_err("Read of property:soc_version_minor from node failed\n");
-	else
-		minor_number = cpu_to_be32(minor_number);
-
-	ret = of_property_read_u32(of_root, "soc_version_major", &major_number);
-	if (ret)
+	major_number = read_ipq_soc_version_major();
+	if (major_number <= 0)
 		pr_err("Read of property:soc_version_major from node failed\n");
-	else
-		major_number = cpu_to_be32(major_number);
 
-	ret = of_property_read_u32(of_root, "cpu_type", &cpu_type);
-	if (ret)
+	minor_number = read_ipq_soc_version_minor();
+	if (minor_number <= 0)
+		pr_err("Read of property:soc_version_minor from node failed\n");
+
+	cpu_type = read_ipq_cpu_type();
+	if (cpu_type <= 0)
 		pr_err("Read of property:cpu_type from node failed\n");
-	else
-		cpu_type = cpu_to_be32(cpu_type);
 
 	switch (cpu_type) {
 	case 272:

@@ -1815,7 +1815,7 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	static int rc_idx;
 	int i;
 	char irq_name[20];
-	const int *soc_version_major;
+	u32 soc_version_major;
 	int index = 0;
 
 	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
@@ -1863,16 +1863,16 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	pcie->is_gen3 = 0;
 	if (of_device_is_compatible(pdev->dev.of_node, "qcom,pcie-ipq807x")) {
 		soc_version_major = read_ipq_soc_version_major();
-		BUG_ON(!soc_version_major);
+		BUG_ON(soc_version_major <= 0);
 		index = of_property_match_string(dev->of_node,  "phy-names",
 				"pciephy");
 		if (index < 0) {
-			if (*soc_version_major == 1) {
+			if (soc_version_major == 1) {
 				pcie->phy = devm_phy_optional_get(dev, "pciephy-gen2");
 				if (IS_ERR(pcie->phy))
 					return PTR_ERR(pcie->phy);
 				pcie->is_gen3 = 0;
-			} else if (*soc_version_major == 2){
+			} else if (soc_version_major == 2) {
 				pcie->phy = devm_phy_optional_get(dev, "pciephy-gen3");
 				if (IS_ERR(pcie->phy))
 					return PTR_ERR(pcie->phy);
