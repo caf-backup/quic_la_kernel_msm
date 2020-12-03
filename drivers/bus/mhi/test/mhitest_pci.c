@@ -940,12 +940,20 @@ int mhitest_pci_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	return 0;
 }
 extern int debug_lvl;
+extern int domain;
 int mhitest_pci_probe2(struct pci_dev *pci_dev, const struct pci_device_id *id)
 {
 	struct mhitest_platform *mplat;
 	struct platform_device *plat_dev = get_plat_device();
 	int ret;
 	struct device_node *np;
+
+	if ((domain != -1) && pci_domain_nr(pci_dev->bus) != domain) {
+		MHITEST_LOG("Skipping MHI Device on: %04x:%02x:%02x\n",
+			    pci_domain_nr(pci_dev->bus),
+			    pci_dev->bus->number, PCI_SLOT(pci_dev->devfn));
+		return 0;
+	}
 
 	MHITEST_EMERG("--->\n");
 	mplat = devm_kzalloc(&plat_dev->dev, sizeof(*mplat), GFP_KERNEL);
@@ -1004,6 +1012,13 @@ void mhitest_pci_remove(struct pci_dev *pci_dev)
 	struct platform_device *plat_dev = get_plat_device();
 	struct device_node *np;
 	static int index = 0;
+
+	if ((domain != -1) && pci_domain_nr(pci_dev->bus) != domain) {
+		MHITEST_LOG("Skipping MHI Device on: %04x:%02x:%02x\n",
+			    pci_domain_nr(pci_dev->bus),
+			    pci_dev->bus->number, PCI_SLOT(pci_dev->devfn));
+		return;
+	}
 	MHITEST_LOG("mhitest PCI removing\n");
 
 	np = of_find_compatible_node(NULL, NULL, "qcom,testmhi");

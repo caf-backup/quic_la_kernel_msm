@@ -24,6 +24,9 @@ static bool rddm_r;
 module_param(rddm_r, bool, 0);
 MODULE_PARM_DESC(rddm_r, "Do need to go for recovery after rddm?");
 
+int domain = -1;
+module_param(domain, int, 0);
+MODULE_PARM_DESC(domain, "Domain number of specific device to be probed");
 
 /*
  * 0 - MHITEST_LOG_LVL_VERBOSE
