@@ -35,9 +35,14 @@
 #include <linux/sizes.h>
 
 #define DEFAULT_TZBSP_DIAG_BUF_LEN	SZ_4K
+#define TZBSP_AES_256_ENCRYPTED_KEY_SIZE 256
+#define TZBSP_NONCE_LEN 12
+#define TZBSP_TAG_LEN 16
+#define TZBSP_ENCRYPTION_HEADERS_SIZE 0x400
 
 static unsigned int paniconaccessviolation = 0;
 static char *smmu_state;
+static uint32_t tz_diag_buf_start = 0;
 
 /* Maximum size for buffers to support AARCH64 TZ */
 #define TZ_64 BIT(0)
@@ -138,9 +143,138 @@ struct tz_hvc_log_struct {
 	int copy_len;
 	int flags;
 	int buf_len;
+	int hvc_buf_len;
 	u32 hyp_scm_cmd_id;
 	struct mutex lock;
 };
+
+struct tzbsp_encr_log_t {
+	/* Magic Number */
+	uint32_t magic_num;
+	/* version NUMBER */
+	uint32_t version;
+	/* encrypted log size */
+	uint32_t encr_log_buff_size;
+	/* Wrap value*/
+	uint16_t wrap_count;
+	/* AES encryption key wrapped up with oem public key*/
+	uint8_t key[TZBSP_AES_256_ENCRYPTED_KEY_SIZE];
+	/* Nonce used for encryption*/
+	uint8_t nonce[TZBSP_NONCE_LEN];
+	/* Tag to be used for Validation */
+	uint8_t tag[TZBSP_TAG_LEN];
+	/* Encrypted log buffer */
+	uint8_t log_buf[1];
+};
+
+static int get_non_encrypted_tz_log(char *buf, uint32_t diag_start,
+						uint32_t diag_size)
+{
+	void __iomem *virt_iobase;
+
+	if (diag_start) {
+		virt_iobase = ioremap(diag_start, diag_size);
+		memcpy_fromio((void *)buf, virt_iobase, diag_size - 1);
+	} else {
+		pr_err("Unable to fetch TZ diag memory\n");
+		return -1;
+	}
+
+	return 0;
+
+}
+
+int print_text(char *intro_message,
+			unsigned char *text_addr,
+			unsigned int size,
+			char *buf, uint32_t buf_len)
+{
+	unsigned int i;
+	int len = 0;
+
+	pr_debug("begin address %p, size %d\n", text_addr, size);
+	len += scnprintf(buf + len, buf_len - len, "%s\n", intro_message);
+	for (i = 0;  i < size;  i++) {
+		if (buf_len <= len + 6) {
+			pr_err("buffer not enough, buf_len %d, len %d\n",
+				buf_len, len);
+			return buf_len;
+		}
+		len += scnprintf(buf + len, buf_len - len, "%02hhx",
+					text_addr[i]);
+		if ((i & 0x1f) == 0x1f)
+			len += scnprintf(buf + len, buf_len - len, "%c", '\n');
+	}
+	len += scnprintf(buf + len, buf_len - len, "%c", '\n');
+	return len;
+}
+
+int parse_encrypted_log(char *ker_buf, uint32_t buf_len, char *copy_buf,
+							uint32_t log_id)
+{
+	int len = 0;
+	struct tzbsp_encr_log_t *encr_log_head;
+	uint32_t size = 0;
+	uint32_t display_buf_size = buf_len;
+
+	encr_log_head = (struct tzbsp_encr_log_t *)ker_buf;
+	pr_debug("display_buf_size = %d, encr_log_buff_size = %d\n",
+		buf_len, encr_log_head->encr_log_buff_size);
+	size = encr_log_head->encr_log_buff_size;
+
+	len += scnprintf(copy_buf + len,
+		(display_buf_size - 1) - len,
+		"\n-------- New Encrypted %s --------\n",
+		((log_id == QCOM_TZ_QSEE_LOG_ENCR_ID) ?
+		"QSEE Log" : "TZ Dialog"));
+
+	len += scnprintf(copy_buf + len,
+		(display_buf_size - 1) - len,
+		"\nMagic_Num :\n0x%x\n"
+		"\nVerion :\n%d\n"
+		"\nEncr_Log_Buff_Size :\n%d\n"
+		"\nWrap_Count :\n%d\n",
+		encr_log_head->magic_num,
+		encr_log_head->version,
+		encr_log_head->encr_log_buff_size,
+		encr_log_head->wrap_count);
+
+	len += print_text("\nKey : ", encr_log_head->key,
+		TZBSP_AES_256_ENCRYPTED_KEY_SIZE,
+		copy_buf + len, display_buf_size);
+	len += print_text("\nNonce : ", encr_log_head->nonce,
+		TZBSP_NONCE_LEN,
+		copy_buf + len, display_buf_size - len);
+	len += print_text("\nTag : ", encr_log_head->tag,
+		TZBSP_TAG_LEN,
+		copy_buf + len, display_buf_size - len);
+
+	if (len > display_buf_size - size)
+		pr_warn("Cannot fit all info into the buffer\n");
+	pr_debug("encrypted log size %d, disply buffer size %d, used len %d\n",
+		size, display_buf_size, len);
+	len += print_text("\nLog : ", encr_log_head->log_buf, size,
+				copy_buf + len, display_buf_size - len);
+	return len;
+
+}
+
+static int get_encrypted_tz_log(char *ker_buf, uint32_t buf_len, char *copy_buf)
+{
+	int ret;
+
+	/* SCM call to TZ to get encrypted tz log */
+	ret = qcom_scm_tz_log_encrypted(ker_buf, buf_len,
+					QCOM_TZ_DIAG_LOG_ENCR_ID);
+	if (ret == TZ_LOG_NO_UPDATE) {
+		pr_err("No TZ log updation from last read\n");
+		return TZ_LOG_NO_UPDATE;
+	} else if (ret != 0) {
+		pr_err("Error in getting encrypted tz log %d\n", ret);
+		return -1;
+	}
+	return parse_encrypted_log(ker_buf, buf_len, copy_buf, QCOM_TZ_DIAG_LOG_ENCR_ID);
+}
 
 static int tz_log_open(struct inode *inode, struct file *file)
 {
@@ -158,7 +292,6 @@ static int tz_log_open(struct inode *inode, struct file *file)
 	uint16_t offset;
 	uint16_t ring;
 	int ret;
-
 	file->private_data = inode->i_private;
 
 	tz_hvc_log = file->private_data;
@@ -169,15 +302,50 @@ static int tz_log_open(struct inode *inode, struct file *file)
 	buf_len = tz_hvc_log->buf_len;
 	tz_hvc_log->copy_len = 0;
 
-	/* SCM call to TZ to get the tz log */
-	ret = qcom_scm_tz_log(SCM_SVC_INFO, TZ_INFO_GET_DIAG_ID, ker_buf,
-				buf_len);
-	if (ret != 0) {
-		pr_err("Error in getting tz log\n");
-		mutex_unlock(&tz_hvc_log->lock);
-		return -EIO;
-	}
+	if (tz_hvc_log->flags & TZ_CP) {
+		/* SCM call to TZ to get boot fuse state*/
+		ret = qcom_qfprom_show_authenticate();
+		if (ret == -1) {
+			goto out_err;
+		} else if (ret == 0) {
+			/* Getting Non-secure board log*/
+			ret = get_non_encrypted_tz_log(ker_buf,
+						tz_diag_buf_start, buf_len);
+			if (ret == -1)
+				goto out_err;
+		} else {
+			/* Getting Secure board log*/
+			ret = qcom_scm_tz_log_is_encrypted();
+			if (ret == -1) {
+				goto out_err;
+			} else if (ret == 0) {
+				/* Getting Non-encrypted Secure board log*/
+				ret = get_non_encrypted_tz_log(ker_buf,
+						tz_diag_buf_start, buf_len);
+				if (ret == -1)
+					goto out_err;
+			} else {
+				/* Getting Encrypted Secure board log*/
+				ret = get_encrypted_tz_log(ker_buf, buf_len,
+						tmp_buf);
+				if (ret == -1)
+					goto out_err;
+				else if (ret == TZ_LOG_NO_UPDATE)
+					return 0;
+				tz_hvc_log->copy_len = ret;
+				return 0;
+			}
+		}
 
+	} else {
+		/* SCM call to TZ to get the tz log */
+		ret = qcom_scm_tz_log(SCM_SVC_INFO, TZ_INFO_GET_DIAG_ID,
+							ker_buf, buf_len);
+		if (ret != 0) {
+			pr_err("Error in getting tz log\n");
+			goto out_err;
+		}
+	}
 	if (tz_hvc_log->flags & TZ_KPSS) {
 		tz_diag_kpss = (struct tzbsp_diag_t_kpss *)ker_buf;
 		ring = tz_diag_kpss->ring_off;
@@ -222,6 +390,10 @@ static int tz_log_open(struct inode *inode, struct file *file)
 	}
 
 	return 0;
+
+out_err:
+	mutex_unlock(&tz_hvc_log->lock);
+	return -EIO;
 }
 
 static int tz_log_release(struct inode *inode, struct file *file)
@@ -288,7 +460,7 @@ static int hvc_log_open(struct inode *inode, struct file *file)
 
 	ker_buf = tz_hvc_log->ker_buf;
 	tmp_buf = tz_hvc_log->copy_buf;
-	buf_len = tz_hvc_log->buf_len;
+	buf_len = tz_hvc_log->hvc_buf_len;
 
 	/* SCM call to TZ to get the hvc log */
 	ret = qcom_scm_hvc_log(SCM_SVC_INFO, tz_hvc_log->hyp_scm_cmd_id,
@@ -409,9 +581,20 @@ static int qca_tzlog_probe(struct platform_device *pdev)
 				&(tz_hvc_log->buf_len));
 		if (ret)
 			tz_hvc_log->buf_len = DEFAULT_TZBSP_DIAG_BUF_LEN;
+
 	} else {
 		tz_hvc_log->flags = 0;
 		tz_hvc_log->buf_len = 0x1000;
+	}
+
+	tz_hvc_log->hvc_buf_len = tz_hvc_log->buf_len;
+
+	if((tz_hvc_log->flags & TZ_CP) && qcom_qfprom_show_authenticate()) {
+
+		ret = qcom_scm_tz_log_is_encrypted();
+		if (ret == 1)
+			tz_hvc_log->buf_len = tz_hvc_log->buf_len * 2 +
+						TZBSP_ENCRYPTION_HEADERS_SIZE;
 	}
 
 	page_buf = alloc_pages(GFP_KERNEL,
@@ -491,6 +674,13 @@ static int qca_tzlog_probe(struct platform_device *pdev)
 			ret = -EIO;
 			goto remove_debugfs;
 		}
+	}
+
+	if(tz_hvc_log->flags & TZ_CP) {
+		ret = of_property_read_u32(np, "qca,tzbsp-diag-buf-start",
+				&(tz_diag_buf_start));
+		if(ret)
+			dev_err(&pdev->dev, "unable to fetch TZ diag memory\n");
 	}
 
 	irq = platform_get_irq(pdev, 0);

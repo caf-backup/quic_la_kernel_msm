@@ -476,6 +476,19 @@ int __qcom_qfprom_show_authenticate(struct device *dev, char *buf)
 	return ret ? : res.a1;
 }
 
+int __qcom_scm_tz_log_is_encrypted(struct device *dev)
+{
+	int ret;
+	struct arm_smccc_res res;
+	struct qcom_scm_desc desc = {0};
+
+	desc.arginfo = SCM_ARGS(0);
+	ret = qcom_scm_call(dev, TZ_OWNER_QSEE_OS,
+				TZ_SVC_APP_MGR,
+				0x0B, &desc, &res);
+	return ret ? : res.a1;
+}
+
 int __qcom_config_ice_sec(struct device *dev, void *confBuf, int size)
 {
 	int ret;
@@ -1074,6 +1087,44 @@ int __qcom_scm_tz_log(struct device *dev, u32 svc_id, u32 cmd_id,
 	}
 
 	ret = __qcom_scm_tz_hvc_log_v8(dev, svc_id, cmd_id, log_buf, buf_len);
+	dma_unmap_single(dev, log_buf, buf_len, DMA_FROM_DEVICE);
+
+	return ret;
+}
+
+static int __qcom_scm_tz_encrypted_log_v8(struct device *dev, u32 log_buf,
+						u32 buf_size, u32 log_id)
+{
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+	int ret;
+
+	desc.args[0] = log_buf;
+	desc.args[1] = buf_size;
+	desc.args[2] = log_id;
+	desc.arginfo = SCM_ARGS(3, SCM_RW, SCM_VAL, SCM_VAL);
+
+	ret = qcom_scm_call(dev, TZ_OWNER_QSEE_OS, TZ_SVC_APP_MGR,
+			    0x0C, &desc, &res);
+
+	return ret ? : res.a1;
+}
+
+int __qcom_scm_tz_log_encrypted(struct device *dev, void *ker_buf, u32 buf_len,
+								u32 log_id)
+{
+	int ret;
+	dma_addr_t log_buf;
+
+	log_buf = dma_map_single(dev, ker_buf, buf_len, DMA_FROM_DEVICE);
+	ret = dma_mapping_error(dev, log_buf);
+
+	if (ret != 0) {
+		pr_err("DMA Mapping Error : %d\n", ret);
+		return -EINVAL;
+	}
+
+	ret = __qcom_scm_tz_encrypted_log_v8(dev, log_buf, buf_len, log_id);
 	dma_unmap_single(dev, log_buf, buf_len, DMA_FROM_DEVICE);
 
 	return ret;

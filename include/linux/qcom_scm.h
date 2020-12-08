@@ -99,6 +99,22 @@ extern int qcom_scm_extwdt(u32 svc_id, u32 cmd_id, unsigned int regaddr,
 extern int qcom_scm_tz_log(u32 svc_id, u32 cmd_id, void *ker_buf, u32 buf_len);
 extern int qcom_scm_hvc_log(u32 svc_id, u32 cmd_id, void *ker_buf,
 								u32 buf_len);
+#define QCOM_TZ_LOG_ENCR_ALLOWED_ID	\
+		TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_QSEE_OS, TZ_SVC_APP_MGR, 0x0B)
+#define QCOM_TZ_REQ_ENCR_LOG_BUFFER_ID 	\
+		TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_QSEE_OS, TZ_SVC_APP_MGR, 0x0C)
+#define QCOM_TZ_DIAG_LOG_ENCR_ID	0x0
+#define QCOM_TZ_QSEE_LOG_ENCR_ID	0x1
+#define TZ_LOG_NO_UPDATE		-6
+
+extern int qcom_scm_tz_log_is_encrypted(void);
+extern int qcom_scm_tz_log_encrypted(void *ker_buf, u32 buf_len, u32 log_id);
+extern int parse_encrypted_log( char *ker_buf, uint32_t buf_len,
+						char *copy_buf, uint32_t log_id);
+extern int print_text(char *intro_message, unsigned char *text_addr,
+			unsigned int size, char *buf, uint32_t buf_len);
+
+
 extern int qcom_scm_pshold(void);
 
 extern int qcom_config_sec_ice(void *buf, int size);
