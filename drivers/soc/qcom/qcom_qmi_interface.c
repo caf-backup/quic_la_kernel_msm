@@ -486,6 +486,7 @@ static void qmi_handle_message(struct qmi_handle *qmi,
 	struct qmi_txn tmp_txn;
 	struct qmi_txn *txn = NULL;
 	int ret;
+	bool complete_req = false;
 
 	ldebug.qhandle = qmi;
 	ldebug.s_timestamp = ktime_to_us(ktime_get());
@@ -524,7 +525,9 @@ static void qmi_handle_message(struct qmi_handle *qmi,
 		mutex_unlock(&qmi->txn_lock);
 		ldebug.trace = 5;
 
-		if (txn->dest && txn->ei) {
+		complete_req  = txn->dest && txn->ei;
+
+		if (complete_req) {
 			ldebug.trace = 6;
 			ret = qmi_decode_message(buf, len, txn->ei, txn->dest);
 			if (ret < 0)
@@ -539,7 +542,7 @@ static void qmi_handle_message(struct qmi_handle *qmi,
 		ldebug.trace = 8;
 		ldebug.txn_lock = txn->lock;
 		mutex_unlock(&txn->lock);
-		if (txn->dest && txn->ei)
+		if (complete_req)
 			complete(&txn->completion);
 
 	} else {
