@@ -18,8 +18,9 @@
 / {
 	#ifdef __IPQ_MEM_PROFILE_256_MB__
 	MP_256;
-	#else
+	#elif __IPQ_MEM_PROFILE_512_MB__
 	MP_512;
+	#else
 	#endif
 
 	memory {
@@ -64,8 +65,8 @@
 	 * |        |              |                         |
 	 * |        |              |                         |
 	 * |        |              |                         |
-+	 * |   Q6   |  0x4B000000  | Refer target specific   |
-+	 * | regions|              |  dts files              |
+	 * |   Q6   |  0x4B000000  | Refer target specific   |
+	 * | regions|              |  dts files              |
 	 * +--------+--------------+-------------------------+
 	 * |                                                 |
 	 * |      Rest of the memory for Linux               |
