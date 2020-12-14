@@ -176,6 +176,7 @@
 #define SPI_FLASH_QUAD_MODE		0x1
 #define	SPI_NAND_FR_BUFF_ENABLE		(1 << 3)
 #define SPI_FLASH_MICRON_ID		0x2c
+#define SPI_FLASH_ESMT_DEVICE_ID	0x11
 #define SPI_FLASH_WINBOND_ID		0xef
 #define SPI_FLASH_GIGA_ID		0xc8
 #define QPIC_VERSION_V2_0		0x2
@@ -392,6 +393,9 @@ struct nand_flash_dev qspinand_flash_ids[] = {
 	{"GD5F1GQ5REYIG SPI NAND 1G",
 		{ .id = {0xc8, 0x41} },
 		SZ_2K, SZ_128, SZ_128K, 0, 2, 128, NAND_ECC_INFO(8, SZ_512), 0},
+	{"F50D1G41LB(2M) SPI NAND 1G 1.8V",
+		{ .id = {0xc8, 0x11} },
+		SZ_2K, SZ_128, SZ_128K, 0, 2, 64, NAND_ECC_INFO(4, SZ_512), 0},
 	{NULL}
 };
 
@@ -3831,11 +3835,13 @@ static void qcom_check_quad_mode(struct mtd_info *mtd, struct qcom_nand_host *ho
 	/* Read Id bytes */
 	for (i = 0; i < 2; i++)
 		id_data[i] = chip->read_byte(mtd);
-
 	if (id_data[0] == SPI_FLASH_MICRON_ID) {
 		cmd3_val = NAND_FLASH_DEV_CMD3_VAL & NAND_FLASH_DEV_CMD3_MASK;
 		host->check_qe_bit = false;
 		nandc_write(nandc, NAND_DEV_CMD3, cmd3_val);
+	} else if (id_data[0] == SPI_FLASH_GIGA_ID &&
+			id_data[1] == SPI_FLASH_ESMT_DEVICE_ID) {
+	       host->check_qe_bit = false;
 	} else
 		host->check_qe_bit = true;
 }
