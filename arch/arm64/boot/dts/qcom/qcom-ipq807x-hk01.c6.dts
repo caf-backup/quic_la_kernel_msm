@@ -964,6 +964,8 @@ pcie0_mhi: pcie0_mhi {
         status = "ok";
 };
 
+/* No support for QCN9000 in 256M profile */
+#if !defined(__IPQ_MEM_PROFILE_256_MB__)
 &wifi2 {
 #ifdef __IPQ_MEM_PROFILE_512_MB__
       /* QCN9000 tgt-mem-mode=1 layout - 30MB
@@ -1021,6 +1023,7 @@ pcie0_mhi: pcie0_mhi {
 };
 
 #include "qcom-ipq807x-mhi.dtsi"
+#endif
 
 &ledc {
 	pinctrl-0 = <&ledc_pins>;
