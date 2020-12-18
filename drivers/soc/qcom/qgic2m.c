@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 #include <soc/qcom/qgic2m.h>
 
 #define MAX_QGICM 2
@@ -131,7 +132,7 @@ static void msi_teardown_irq(struct qgic2_msi *qgic, unsigned int irq)
 static void msi_teardown_irqs(struct qgic2_msi *qgic)
 {
 	struct device *dev = qgic->dev;
-	struct msi_desc *entry;
+	struct msi_desc *entry, *tmp;
 
 	list_for_each_entry(entry, &dev->msi_list, list) {
 
@@ -143,6 +144,12 @@ static void msi_teardown_irqs(struct qgic2_msi *qgic)
 		for (i = 0; i < nvec; i++)
 			destroy_qgic2_msi_irq(entry->irq + i, qgic);
 	}
+
+	list_for_each_entry_safe(entry, tmp, &dev->msi_list, list) {
+		list_del(&entry->list);
+		kfree(entry);
+	}
+
 }
 
 static struct qgic2_msi_controller qgic2_msi_chip = {
@@ -242,7 +249,8 @@ void qgic2_disable_msi(int qgicm_id)
 	struct qgic2_msi *qgic;
 
 	qgic = get_qgic2_struct(qgicm_id);
-	qgic->chip->teardown_irqs(qgic);
+
+	qgic2_msi_free_irqs(qgic);
 	qgic->msi_enabled = 0;
 	qgic->nvec_used = 0;
 }
@@ -295,9 +303,8 @@ static int qti_qgic2_probe(struct platform_device *pdev)
 static int qti_qgic2_remove(struct platform_device *pdev)
 {
 	struct qgic2_msi *qgic = platform_get_drvdata(pdev);
-	struct qgic2_msi_controller *chip = qgic->chip;
 
-	chip->teardown_irqs(qgic);
+	qgic2_msi_free_irqs(qgic);
 	qgic = NULL;
 
 	return 0;
