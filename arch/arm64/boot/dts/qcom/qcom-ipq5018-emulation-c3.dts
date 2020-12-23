@@ -37,7 +37,7 @@
 			reg = <0x0 0x4c000000 0x0 0x1200000>;
 		};
 
-		q6_qcn9100_data1: q6_qcn9100_data1@4d200000 {
+		q6_qcn6122_data1: q6_qcn6122_data1@4d200000 {
 			no-map;
 			reg = <0x0 0x4d200000 0x0 0x1400000>;
 		};
@@ -182,14 +182,14 @@
 
 &q6v5_wcss {
 	memory-region = <&q6_code_data>, <&q6_ipq5018_data>,
-			<&q6_qcn9100_data1>;
+			<&q6_qcn6122_data1>;
 };
 
 &qcom_q6v5_wcss {
 	qcom,nosecure;
 	qcom,emulation;
 	memory-region = <&q6_code_data>, <&q6_ipq5018_data>,
-			<&q6_qcn9100_data1>;
+			<&q6_qcn6122_data1>;
 	/* ipq5018 radio */
 	q6v5_wcss_userpd1 {
 		interrupts-extended = <&wcss_smp2p_in 8 0>,
@@ -210,7 +210,7 @@
 		qca,auto-restart;
 	};
 
-	/*1st qcn9100 radio*/
+	/*1st qcn6122 radio*/
 	q6v5_wcss_userpd2 {
 		interrupts-extended = <&wcss_smp2p_in 16 0>,
 			<&wcss_smp2p_in 17 0>,
@@ -230,7 +230,7 @@
 		qca,auto-restart;
 	};
 
-	/*2nd qcn9100 radio*/
+	/*2nd qcn6122 radio*/
 	q6v5_wcss_userpd3 {
 		interrupts-extended = <&wcss_smp2p_in 24 0>,
 			<&wcss_smp2p_in 25 0>,
@@ -294,7 +294,7 @@
 };
 
 &wifi1 {
-	/* QCN9100_1 */
+	/* qcn6122_1 */
 	qcom,bdf-addr = <0x4D200000 0x4D200000 0x4D200000>;
 	qcom,caldb-addr = <0x4E400000 0x4E400000 0x4E400000>;
 	qcom,caldb-size = <0x200000>;

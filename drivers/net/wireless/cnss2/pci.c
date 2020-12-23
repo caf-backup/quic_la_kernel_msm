@@ -2588,13 +2588,13 @@ struct device_node *cnss_get_m3dump_dev_node(struct cnss_plat_data *plat_priv)
 {
 	struct device_node *dev_node = NULL;
 
-	if (plat_priv->device_id == QCN9100_DEVICE_ID) {
-		if (plat_priv->userpd_id == QCN9100_0)
+	if (plat_priv->device_id == QCN6122_DEVICE_ID) {
+		if (plat_priv->userpd_id == QCN6122_0)
 			dev_node = of_find_node_by_name(NULL,
-							"m3_dump_qcn9100_1");
-		else if (plat_priv->userpd_id == QCN9100_1)
+							"m3_dump_qcn6122_1");
+		else if (plat_priv->userpd_id == QCN6122_1)
 			dev_node = of_find_node_by_name(NULL,
-							"m3_dump_qcn9100_2");
+							"m3_dump_qcn6122_2");
 	} else {
 		dev_node = of_find_node_by_name(NULL, "m3_dump");
 	}
@@ -2623,7 +2623,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 	if ((plat_priv->device_id == QCA8074_DEVICE_ID ||
 	     plat_priv->device_id == QCA8074V2_DEVICE_ID ||
 	     plat_priv->device_id == QCA5018_DEVICE_ID ||
-	     plat_priv->device_id == QCN9100_DEVICE_ID ||
+	     plat_priv->device_id == QCN6122_DEVICE_ID ||
 	     plat_priv->device_id == QCA6018_DEVICE_ID) &&
 	    of_property_read_u32_array(dev->of_node, "qcom,caldb-addr",
 				       caldb_location,
@@ -2725,7 +2725,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 	if (plat_priv->device_id == QCA8074_DEVICE_ID ||
 	    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
 	    plat_priv->device_id == QCA5018_DEVICE_ID ||
-	    plat_priv->device_id == QCN9100_DEVICE_ID ||
+	    plat_priv->device_id == QCN6122_DEVICE_ID ||
 	    plat_priv->device_id == QCA6018_DEVICE_ID) {
 		if (of_property_read_u32_array(dev->of_node, "qcom,bdf-addr",
 					       bdf_location,
@@ -3272,9 +3272,9 @@ int cnss_get_soc_info(struct device *dev, struct cnss_soc_info *info)
 	if (!plat_priv)
 		return -ENODEV;
 
-	if (plat_priv->device_id == QCN9100_DEVICE_ID) {
-		info->va = plat_priv->qcn9100.bar_addr_va;
-		info->pa = (phys_addr_t)plat_priv->qcn9100.bar_addr_pa;
+	if (plat_priv->device_id == QCN6122_DEVICE_ID) {
+		info->va = plat_priv->qcn6122.bar_addr_va;
+		info->pa = (phys_addr_t)plat_priv->qcn6122.bar_addr_pa;
 	} else {
 		struct cnss_pci_data *pci_priv =
 				cnss_get_pci_priv(to_pci_dev(dev));
@@ -3303,7 +3303,7 @@ static struct cnss_msi_config msi_config_qcn9000 = {
 	},
 };
 
-static struct cnss_msi_config msi_config_qcn9100 = {
+static struct cnss_msi_config msi_config_qcn6122 = {
 	.total_vectors = 13,
 	.total_users = 2,
 	.users = (struct cnss_msi_user[]) {
@@ -3387,7 +3387,7 @@ struct qgic2_msi *cnss_qgic2_enable_msi(int qgicm_id)
 	struct qgic2_msi *qgic2_msi;
 
 	qgic2_msi = qgic2_enable_msi(qgicm_id,
-				     msi_config_qcn9100.total_vectors);
+				     msi_config_qcn6122.total_vectors);
 	if (IS_ERR(qgic2_msi)) {
 		pr_err("qgic2_enable_msi fails %ld\n", PTR_ERR(qgic2_msi));
 		return NULL;
@@ -3413,13 +3413,13 @@ int cnss_get_user_msi_assignment(struct device *dev, char *user_name,
 	if (!plat_priv)
 		return -ENODEV;
 
-	if (plat_priv->device_id == QCN9100_DEVICE_ID) {
-		qgic2_msi = plat_priv->qcn9100.qgic2_msi;
+	if (plat_priv->device_id == QCN6122_DEVICE_ID) {
+		qgic2_msi = plat_priv->qcn6122.qgic2_msi;
 		if (!qgic2_msi) {
 			cnss_pr_err("qgic2_msi NULL");
 			return -EINVAL;
 		}
-		msi_config = &msi_config_qcn9100;
+		msi_config = &msi_config_qcn6122;
 		msi_ep_base_data = qgic2_msi->msi_gicm_base;
 	} else if (plat_priv->device_id == QCN9000_DEVICE_ID) {
 		pci_dev = to_pci_dev(dev);
@@ -3471,8 +3471,8 @@ int cnss_get_msi_irq(struct device *dev, unsigned int vector)
 	if (!plat_priv)
 		return -ENODEV;
 
-	if (plat_priv->device_id == QCN9100_DEVICE_ID) {
-		qgic2_msi = plat_priv->qcn9100.qgic2_msi;
+	if (plat_priv->device_id == QCN6122_DEVICE_ID) {
+		qgic2_msi = plat_priv->qcn6122.qgic2_msi;
 		if (!qgic2_msi) {
 			cnss_pr_err("%s: qgic2_msi NULL", __func__);
 			return -EINVAL;
@@ -3503,8 +3503,8 @@ void cnss_get_msi_address(struct device *dev, u32 *msi_addr_low,
 	if (!plat_priv)
 		return;
 
-	if (plat_priv->device_id == QCN9100_DEVICE_ID) {
-		qgic2_msi = plat_priv->qcn9100.qgic2_msi;
+	if (plat_priv->device_id == QCN6122_DEVICE_ID) {
+		qgic2_msi = plat_priv->qcn6122.qgic2_msi;
 		if (!qgic2_msi) {
 			cnss_pr_err("%s: qgic2_msi NULL", __func__);
 			return;

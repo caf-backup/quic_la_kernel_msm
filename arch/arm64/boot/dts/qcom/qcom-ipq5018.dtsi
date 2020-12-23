@@ -792,13 +792,13 @@
 		};
 
 		wifi1: wifi1@c000000 {
-			compatible = "qcom,cnss-qcn9100", "qcom,qcn9100-wifi";
+			compatible = "qcom,cnss-qcn6122", "qcom,qcn6122-wifi";
 			qcom,rproc = <&qcom_q6v5_wcss>;
 			status = "disabled";
 		};
 
 		wifi2: wifi2@c000000 {
-			compatible = "qcom,cnss-qcn9100", "qcom,qcn9100-wifi";
+			compatible = "qcom,cnss-qcn6122", "qcom,qcn6122-wifi";
 			qcom,rproc = <&qcom_q6v5_wcss>;
 			status = "disabled";
 		};

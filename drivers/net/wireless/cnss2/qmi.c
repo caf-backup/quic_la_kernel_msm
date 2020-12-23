@@ -613,8 +613,8 @@ static int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 	case QCA5018_DEVICE_ID:
 		folder = "IPQ5018/";
 		break;
-	case QCN9100_DEVICE_ID:
-		folder = "qcn9100/";
+	case QCN6122_DEVICE_ID:
+		folder = "qcn6122/";
 		break;
 	default:
 		folder = "IPQ8074/";
@@ -664,7 +664,7 @@ static int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 		}
 		break;
 	case BDF_TYPE_CALDATA:
-		if (plat_priv->device_id == QCN9100_DEVICE_ID) {
+		if (plat_priv->device_id == QCN6122_DEVICE_ID) {
 			snprintf(filename, sizeof(filename),
 				 "%s" DEFAULT_CAL_FILE_PREFIX
 				 "%d" DEFAULT_CAL_FILE_SUFFIX,
@@ -825,7 +825,7 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv,
 		if (plat_priv->device_id == QCA8074_DEVICE_ID ||
 		    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
 		    plat_priv->device_id == QCA5018_DEVICE_ID ||
-		    plat_priv->device_id == QCN9100_DEVICE_ID ||
+		    plat_priv->device_id == QCN6122_DEVICE_ID ||
 		    plat_priv->device_id == QCA6018_DEVICE_ID) {
 			temp = filename;
 			remaining = MAX_BDF_FILE_NAME;
@@ -849,7 +849,7 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv,
 		if (plat_priv->device_id == QCA8074_DEVICE_ID ||
 		    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
 		    plat_priv->device_id == QCA5018_DEVICE_ID ||
-		    plat_priv->device_id == QCN9100_DEVICE_ID ||
+		    plat_priv->device_id == QCN6122_DEVICE_ID ||
 		    plat_priv->device_id == QCA6018_DEVICE_ID) {
 			temp = filename;
 			remaining = MAX_BDF_FILE_NAME;
@@ -916,7 +916,7 @@ bypass_bdf:
 		if (plat_priv->device_id == QCA8074_DEVICE_ID ||
 		    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
 		    plat_priv->device_id == QCA5018_DEVICE_ID ||
-		    plat_priv->device_id == QCN9100_DEVICE_ID ||
+		    plat_priv->device_id == QCN6122_DEVICE_ID ||
 		    plat_priv->device_id == QCA6018_DEVICE_ID) {
 			cnss_wlfw_load_bdf(req, plat_priv,
 					   MAX_BDF_FILE_NAME,
@@ -2040,32 +2040,32 @@ int cnss_wlfw_device_info_send_sync(struct cnss_plat_data *plat_priv)
 	}
 
 	if (!resp->bar_addr ||
-	    (resp->bar_size != QCN9100_DEVICE_BAR_SIZE)) {
+	    (resp->bar_size != QCN6122_DEVICE_BAR_SIZE)) {
 		cnss_pr_err("Invalid bar addr(0x%llx) or bar size (0x%x)\n",
 			    resp->bar_addr, resp->bar_size);
 		ret = -EINVAL;
 		goto out;
 	}
 
-	plat_priv->qcn9100.bar_addr_pa = resp->bar_addr;
-	plat_priv->qcn9100.bar_size = resp->bar_size;
+	plat_priv->qcn6122.bar_addr_pa = resp->bar_addr;
+	plat_priv->qcn6122.bar_size = resp->bar_size;
 
-	plat_priv->qcn9100.bar_addr_va =
-				ioremap_nocache(plat_priv->qcn9100.bar_addr_pa,
-						plat_priv->qcn9100.bar_size);
+	plat_priv->qcn6122.bar_addr_va =
+				ioremap_nocache(plat_priv->qcn6122.bar_addr_pa,
+						plat_priv->qcn6122.bar_size);
 
-	if (!plat_priv->qcn9100.bar_addr_va) {
+	if (!plat_priv->qcn6122.bar_addr_va) {
 		cnss_pr_err("Ioremap failed for bar address\n");
-		plat_priv->qcn9100.bar_addr_pa = 0;
-		plat_priv->qcn9100.bar_size = 0;
+		plat_priv->qcn6122.bar_addr_pa = 0;
+		plat_priv->qcn6122.bar_size = 0;
 		ret = -EIO;
 		goto out;
 	}
 
 	cnss_pr_info("Device BAR Info pa: 0x%llx, va: 0x%p, size: 0x%x\n",
-		     plat_priv->qcn9100.bar_addr_pa,
-		     plat_priv->qcn9100.bar_addr_va,
-		     plat_priv->qcn9100.bar_size);
+		     plat_priv->qcn6122.bar_addr_pa,
+		     plat_priv->qcn6122.bar_addr_va,
+		     plat_priv->qcn6122.bar_size);
 
 	qmi_record(plat_priv->wlfw_service_instance_id,
 		   QMI_WLFW_DEVICE_INFO_RESP_V01, ret, resp_error_msg);
@@ -2626,7 +2626,7 @@ int cnss_qmi_init(struct cnss_plat_data *plat_priv)
 	if (plat_priv->device_id == QCA8074_DEVICE_ID ||
 	    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
 	    plat_priv->device_id == QCA5018_DEVICE_ID ||
-	    plat_priv->device_id == QCN9100_DEVICE_ID ||
+	    plat_priv->device_id == QCN6122_DEVICE_ID ||
 	    plat_priv->device_id == QCA6018_DEVICE_ID) {
 		if (qca8074_fw_mem_mode != 0xFF) {
 			plat_priv->tgt_mem_cfg_mode = qca8074_fw_mem_mode;

@@ -91,7 +91,7 @@
 	 * +--------+--------------+-------------------------+
 	 * |  QDSS  |  0x4CE00000  |           1MB           |
 	 * +--------+--------------+-------------------------+
-	 * |QCN9100 |  0x4CF00000  |          15MB           |
+	 * |QCN6122 |  0x4CF00000  |          15MB           |
 	 * |  data  |              |                         |
 	 * +--------+--------------+-------------------------+
 	 * | M3 Dump|  0x4DE00000  |           1MB           |
@@ -137,17 +137,17 @@
 			reg = <0x0 0x4CE00000 0x0 0x100000>;
 		};
 
-		q6_qcn9100_data1: q6_qcn9100_data1@4CF00000 {
+		q6_qcn6122_data1: q6_qcn6122_data1@4CF00000 {
 			no-map;
 			reg = <0x0 0x4CF00000 0x0 0xF00000>;
 		};
 
-		m3_dump_qcn9100_1: m3_dump_qcn9100_1@4DE00000 {
+		m3_dump_qcn6122_1: m3_dump_qcn6122_1@4DE00000 {
 			no-map;
 			reg = <0x0 0x4DE00000 0x0 0x100000>;
 		};
 
-		q6_qcn9100_etr_1: q6_qcn9100_etr_1@4DF00000 {
+		q6_qcn6122_etr_1: q6_qcn6122_etr_1@4DF00000 {
 			no-map;
 			reg = <0x0 0x4DF00000 0x0 0x100000>;
 		};
@@ -213,7 +213,7 @@
 	 * +--------+--------------+-------------------------+
 	 * | caldb  |  0x4D000000  |           2MB           |
 	 * +--------+--------------+-------------------------+
-	 * |QCN9100 |  0x4D200000  |          16MB           |
+	 * |QCN6122 |  0x4D200000  |          16MB           |
 	 * |  data  |              |                         |
 	 * +--------+--------------+-------------------------+
 	 * | M3 Dump|  0x4E200000  |           1MB           |
@@ -266,22 +266,22 @@
 			reg = <0x0 0x4d000000 0x0 0x200000>;
 		};
 
-		q6_qcn9100_data1: q6_qcn9100_data1@4d200000 {
+		q6_qcn6122_data1: q6_qcn6122_data1@4d200000 {
 			no-map;
 			reg = <0x0 0x4d200000 0x0 0x1000000>;
 		};
 
-		m3_dump_qcn9100_1: m3_dump_qcn9100_1@4e200000 {
+		m3_dump_qcn6122_1: m3_dump_qcn6122_1@4e200000 {
 			no-map;
 			reg = <0x0 0x4e200000 0x0 0x100000>;
 		};
 
-		q6_qcn9100_etr_1: q6_qcn9100_etr_1@4e300000 {
+		q6_qcn6122_etr_1: q6_qcn6122_etr_1@4e300000 {
 			no-map;
 			reg = <0x0 0x4e300000 0x0 0x100000>;
 		};
 
-		q6_qcn9100_caldb_1: q6_qcn9100_caldb_1@4e400000 {
+		q6_qcn6122_caldb_1: q6_qcn6122_caldb_1@4e400000 {
 			no-map;
 			reg = <0x0 0x4e400000 0x0 0x500000>;
 		};
@@ -622,9 +622,9 @@
 		#endif
 	};
 
-	/* QCN9100 5G*/
+	/* QCN6122 5G*/
 	q6v5_wcss_userpd2 {
-		m3_firmware = "qcn9100/m3_fw.mdt";
+		m3_firmware = "qcn6122/m3_fw.mdt";
 		interrupts-extended = <&wcss_smp2p_in 16 0>,
 			<&wcss_smp2p_in 17 0>,
 			<&wcss_smp2p_in 20 0>,
@@ -642,11 +642,11 @@
 		qca,asid = <2>;
 		qca,auto-restart;
 		#ifdef __IPQ_MEM_PROFILE_256_MB__
-		memory-region = <&q6_qcn9100_data1>, <&m3_dump_qcn9100_1>,
-				<&q6_qcn9100_etr_1>;
+		memory-region = <&q6_qcn6122_data1>, <&m3_dump_qcn6122_1>,
+				<&q6_qcn6122_etr_1>;
 		#else
-		memory-region = <&q6_qcn9100_data1>, <&m3_dump_qcn9100_1>,
-				<&q6_qcn9100_etr_1>, <&q6_qcn9100_caldb_1>;
+		memory-region = <&q6_qcn6122_data1>, <&m3_dump_qcn6122_1>,
+				<&q6_qcn6122_etr_1>, <&q6_qcn6122_caldb_1>;
 		#endif
 	};
 };
@@ -669,7 +669,7 @@
 };
 
 &wifi1 {
-	/* QCN9100 5G*/
+	/* QCN6122 5G*/
 	qcom,multipd_arch;
 	qcom,board_id = <0x60>;
 #ifdef __IPQ_MEM_PROFILE_256_MB__
@@ -677,7 +677,11 @@
 #else
 	qcom,tgt-mem-mode = <1>;
 #endif
-	compatible = "qcom,cnss-qcn9100";
+	/*
+	 * once wifi driver changes are in place to
+	 * qcn6122 compatible string, remove qcn9100 here
+	 */
+	compatible = "qcom,cnss-qcn6122", "qcom,cnss-qcn9100";
 	qcom,bdf-addr = <0x0 0x4D200000 0x4CF00000 0x0 0x0>;
 	qcom,caldb-addr = <0x0 0x4E400000 0 0 0>;
 	qcom,caldb-size = <0x500000>;
