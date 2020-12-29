@@ -76,9 +76,9 @@ static int bdf_pci1;
 module_param(bdf_pci1, int, 0644);
 MODULE_PARM_DESC(bdf_pci1, "bdf_pci1");
 
-static int driver_mode;
-module_param(driver_mode, int, 0644);
-MODULE_PARM_DESC(driver_mode, "driver_mode");
+static unsigned int driver_mode;
+module_param(driver_mode, uint, 0644);
+MODULE_PARM_DESC(driver_mode, "Global driver mode");
 
 static int skip_cnss;
 module_param(skip_cnss, int, 0644);
@@ -972,6 +972,36 @@ out:
 #endif
 	return ret;
 }
+
+unsigned int cnss_get_driver_mode(void)
+{
+	return driver_mode;
+}
+EXPORT_SYMBOL(cnss_get_driver_mode);
+
+int cnss_set_driver_mode(unsigned int mode)
+{
+	switch (mode) {
+	/* Fall through for all valid modes */
+	case CNSS_MISSION:
+	case CNSS_FTM:
+	case CNSS_EPPING:
+	case CNSS_WALTEST:
+	case CNSS_OFF:
+	case CNSS_CCPM:
+	case CNSS_QVIT:
+	case CNSS_CALIBRATION:
+	case CNSS_FTM_CALIBRATION:
+		driver_mode = mode;
+		break;
+	default:
+		pr_err("%s: Invalid driver mode %d", __func__, mode);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(cnss_set_driver_mode);
 
 unsigned int cnss_get_boot_timeout(struct device *dev)
 {
