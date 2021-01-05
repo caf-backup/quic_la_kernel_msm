@@ -783,6 +783,12 @@
 			"wbm2host-tx-completions-ring1",
 			"tcl2host-status-ring";
 		status = "disabled";
+		qcom,pta-num = <0>;
+		qcom,coex-mode = <0x3>;
+		qcom,bt-active-time = <0>;
+		qcom,bt-priority-time = <0>;
+		qcom,coex-algo = <0x2>;
+		qcom,pta-priority = <0>;
 		};
 
 		wifi1: wifi1@c000000 {
