@@ -54,7 +54,7 @@ const struct qseecom_props qseecom_props_ipq6018 = {
 };
 
 const struct qseecom_props qseecom_props_ipq5018 = {
-	.function = (MUL | CRYPTO),
+	.function = (MUL | CRYPTO | AES_SEC_KEY | RSA_SEC_KEY),
 	.tz_arch = QSEE_64,
 	.libraries_inbuilt = false,
 	.logging_support_enabled = true,
