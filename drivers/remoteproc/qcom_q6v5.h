@@ -18,8 +18,10 @@ struct qcom_q6v5 {
 	struct device *dev;
 	struct rproc *rproc;
 
-	struct qcom_smem_state *state;
+	struct qcom_smem_state *stop_state;
 	unsigned stop_bit;
+	struct qcom_smem_state *shutdown_state;
+	unsigned shutdown_bit;
 
 	int wdog_irq;
 	int fatal_irq;
@@ -58,4 +60,9 @@ int qcom_q6v5_wait_for_start(struct qcom_q6v5 *q6v5, int timeout);
 irqreturn_t q6v5_wdog_interrupt(int irq, void *data);
 irqreturn_t q6v5_fatal_interrupt(int irq, void *data);
 irqreturn_t q6v5_ready_interrupt(int irq, void *data);
+
+#ifdef CONFIG_CNSS2
+void q6v5_panic_handler(const struct subsys_desc *subsys);
+#endif
+
 #endif

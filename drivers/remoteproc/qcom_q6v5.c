@@ -14,7 +14,9 @@
 #include <linux/soc/qcom/smem_state.h>
 #include <linux/remoteproc.h>
 #include "qcom_q6v5.h"
+#include <linux/delay.h>
 
+#define STOP_ACK_TIMEOUT_MS 5000
 /**
  * qcom_q6v5_prepare() - reinitialize the qcom_q6v5 context before start
  * @q6v5:	reference to qcom_q6v5 context to be reinitialized
@@ -171,12 +173,12 @@ int qcom_q6v5_request_stop(struct qcom_q6v5 *q6v5)
 {
 	int ret;
 
-	qcom_smem_state_update_bits(q6v5->state,
+	qcom_smem_state_update_bits(q6v5->stop_state,
 				    BIT(q6v5->stop_bit), BIT(q6v5->stop_bit));
 
 	ret = wait_for_completion_timeout(&q6v5->stop_done, 5 * HZ);
 
-	qcom_smem_state_update_bits(q6v5->state, BIT(q6v5->stop_bit), 0);
+	qcom_smem_state_update_bits(q6v5->stop_state, BIT(q6v5->stop_bit), 0);
 
 	return ret == 0 ? -ETIMEDOUT : 0;
 }
@@ -301,15 +303,36 @@ int qcom_q6v5_init(struct qcom_q6v5 *q6v5, struct platform_device *pdev,
 	}
 #endif
 
-	q6v5->state = qcom_smem_state_get(&pdev->dev, "stop", &q6v5->stop_bit);
-	if (IS_ERR(q6v5->state)) {
+	q6v5->stop_state = qcom_smem_state_get(&pdev->dev, "stop", &q6v5->stop_bit);
+	if (IS_ERR(q6v5->stop_state)) {
 		dev_err(&pdev->dev, "failed to acquire stop state\n");
-		return PTR_ERR(q6v5->state);
+		return PTR_ERR(q6v5->stop_state);
 	}
+
+#ifdef CONFIG_CNSS2
+	q6v5->shutdown_state = qcom_smem_state_get(&pdev->dev, "shutdown", &q6v5->shutdown_bit);
+	if (IS_ERR(q6v5->shutdown_state)) {
+		dev_err(&pdev->dev, "failed to acquire shutdown state\n");
+		return PTR_ERR(q6v5->shutdown_state);
+	}
+#endif
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qcom_q6v5_init);
+
+#ifdef CONFIG_CNSS2
+void q6v5_panic_handler(const struct subsys_desc *subsys)
+{
+	struct qcom_q6v5 *q6v5 = subsys_to_pdata(subsys);
+
+	if (!subsys_get_crash_status(q6v5->subsys)) {
+		qcom_smem_state_update_bits(q6v5->shutdown_state,
+			BIT(q6v5->shutdown_bit), BIT(q6v5->shutdown_bit));
+		mdelay(STOP_ACK_TIMEOUT_MS);
+	}
+}
+#endif
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Qualcomm Peripheral Image Loader for Q6V5");

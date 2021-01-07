@@ -1299,6 +1299,7 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 	q6v5->subsys_desc.shutdown = stop_q6;
 	q6v5->subsys_desc.powerup = start_q6;
 	q6v5->subsys_desc.ramdump = crashdump_init_new;
+	q6v5->subsys_desc.crash_shutdown = q6v5_panic_handler;
 	q6v5->subsys_desc.err_fatal_handler = q6v5_fatal_interrupt;
 	q6v5->subsys_desc.stop_ack_handler = q6v5_ready_interrupt;
 	q6v5->subsys_desc.wdog_bite_handler = q6v5_wdog_interrupt;
