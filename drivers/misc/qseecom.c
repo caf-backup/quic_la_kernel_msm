@@ -39,7 +39,8 @@ const struct qseecom_props qseecom_props_ipq8064 = {
 };
 
 const struct qseecom_props qseecom_props_ipq807x = {
-	.function = (MUL | CRYPTO | AES_SEC_KEY | RSA_SEC_KEY),
+	.function = (MUL | CRYPTO | AES_SEC_KEY | RSA_SEC_KEY | LOG_BITMASK |
+							FUSE | MISC),
 	.tz_arch = QSEE_64,
 	.libraries_inbuilt = false,
 	.logging_support_enabled = true,
@@ -2455,20 +2456,20 @@ static int tzapp_test(struct device *dev, void *input,
 		 */
 
 		switch (option) {
-		case 1:
+		case TZ_APP_BASIC_DATA_TEST_ID:
 			msgreq->cmd_id = CLIENT_CMD1_BASIC_DATA;
 			msgreq->data = *((dma_addr_t *)input);
 			break;
-		case 2:
+		case TZ_APP_ENC_TEST_ID:
 			msgreq->cmd_id = CLIENT_CMD8_RUN_CRYPTO_ENCRYPT;
 			break;
-		case 3:
+		case TZ_APP_DEC_TEST_ID:
 			msgreq->cmd_id = CLIENT_CMD9_RUN_CRYPTO_DECRYPT;
 			break;
-		case 4:
+		case TZ_APP_CRYPTO_TEST_ID:
 			msgreq->cmd_id = CLIENT_CMD8_RUN_CRYPTO_TEST;
 			break;
-		case 5:
+		case TZ_APP_AUTH_OTP_TEST_ID:
 			if (!auth_file) {
 				pr_err("No OTP file provided\n");
 				return -ENOMEM;
@@ -2489,7 +2490,7 @@ static int tzapp_test(struct device *dev, void *input,
 			pr_err("\n Invalid Option");
 			goto fn_exit_1;
 		}
-		if (option == 2 || option == 3) {
+		if (option == TZ_APP_ENC_TEST_ID || option == TZ_APP_DEC_TEST_ID) {
 			msgreq->data = dma_map_single(dev, input,
 					input_len, DMA_TO_DEVICE);
 			msgreq->data2 = dma_map_single(dev, output,
@@ -2537,7 +2538,7 @@ static int tzapp_test(struct device *dev, void *input,
 							, &resp, sizeof(resp));
 		}
 
-		if (option == 2 || option == 3) {
+		if (option == TZ_APP_ENC_TEST_ID || option == TZ_APP_DEC_TEST_ID) {
 			dma_unmap_single(dev, msgreq->data,
 						input_len, DMA_TO_DEVICE);
 			dma_unmap_single(dev, msgreq->data2,
@@ -2577,7 +2578,7 @@ static int tzapp_test(struct device *dev, void *input,
 				ret = -EINVAL;
 				goto fn_exit_1;
 			} else {
-				if (option == 4) {
+				if (option == TZ_APP_CRYPTO_TEST_ID) {
 					if (!msgrsp->status) {
 						pr_info("Crypto operation success\n");
 					} else {
@@ -2588,13 +2589,13 @@ static int tzapp_test(struct device *dev, void *input,
 			}
 		}
 
-		if (option == 1) {
+		if (option == TZ_APP_BASIC_DATA_TEST_ID) {
 			if (msgrsp->status) {
 				pr_err("Input size exceeded supported range\n");
 				ret = -EINVAL;
 			}
 			basic_output = msgrsp->data;
-		} else if (option == 5) {
+		} else if (option == TZ_APP_AUTH_OTP_TEST_ID) {
 			if (msgrsp->status) {
 				pr_err("Auth OTP failed with response %d\n",
 								msgrsp->status);
@@ -2604,7 +2605,7 @@ static int tzapp_test(struct device *dev, void *input,
 		}
 fn_exit_1:
 		free_page(pg_addr);
-		if (option == 5) {
+		if (option == TZ_APP_AUTH_OTP_TEST_ID) {
 			dma_unmap_single(dev, msgreq->data, auth_size,
 								DMA_TO_DEVICE);
 		}
@@ -2633,23 +2634,25 @@ fn_exit_1:
 		 * option = 1 -> Basic Multiplication, option = 2 -> Encryption,
 		 * option = 3 -> Decryption, option = 4 -> Crypto Function
 		 * option = 5 -> Authorized OTP fusing
+		 * option = 6 -> Log Bitmask function, option = 7 -> Fuse test
+		 * option = 8 -> Miscellaneous function
 		 */
 
 		switch (option) {
-		case 1:
+		case TZ_APP_BASIC_DATA_TEST_ID:
 			msgreq->cmd_id = CLIENT_CMD1_BASIC_DATA;
 			msgreq->data = *((dma_addr_t *)input);
 			break;
-		case 2:
+		case TZ_APP_ENC_TEST_ID:
 			msgreq->cmd_id = CLIENT_CMD8_RUN_CRYPTO_ENCRYPT;
 			break;
-		case 3:
+		case TZ_APP_DEC_TEST_ID:
 			msgreq->cmd_id = CLIENT_CMD9_RUN_CRYPTO_DECRYPT;
 			break;
-		case 4:
+		case TZ_APP_CRYPTO_TEST_ID:
 			msgreq->cmd_id = CLIENT_CMD8_RUN_CRYPTO_TEST;
 			break;
-		case 5:
+		case TZ_APP_AUTH_OTP_TEST_ID:
 			if (!auth_file) {
 				pr_err("No OTP file provided\n");
 				return -ENOMEM;
@@ -2666,11 +2669,20 @@ fn_exit_1:
 			}
 
 			break;
+		case TZ_APP_LOG_BITMASK_TEST_ID:
+			msgreq->cmd_id = CLIENT_CMD53_RUN_LOG_BITMASK_TEST;
+			break;
+		case TZ_APP_FUSE_TEST_ID:
+			msgreq->cmd_id = CLIENT_CMD18_RUN_FUSE_TEST;
+			break;
+		case TZ_APP_MISC_TEST_ID:
+			msgreq->cmd_id = CLIENT_CMD13_RUN_MISC_TEST;
+			break;
 		default:
 			pr_err("\n Invalid Option");
 			goto fn_exit;
 		}
-		if (option == 2 || option == 3) {
+		if (option == TZ_APP_ENC_TEST_ID || option == TZ_APP_DEC_TEST_ID) {
 			msgreq->data = dma_map_single(dev, input,
 					input_len, DMA_TO_DEVICE);
 			msgreq->data2 = dma_map_single(dev, output,
@@ -2717,7 +2729,7 @@ fn_exit_1:
 							, &resp, sizeof(resp));
 		}
 
-		if (option == 2 || option == 3) {
+		if (option == TZ_APP_ENC_TEST_ID || option == TZ_APP_DEC_TEST_ID) {
 			dma_unmap_single(dev, msgreq->data,
 						input_len, DMA_TO_DEVICE);
 			dma_unmap_single(dev, msgreq->data2,
@@ -2757,7 +2769,7 @@ fn_exit_1:
 				ret = -EINVAL;
 				goto fn_exit;
 			} else {
-				if (option == 4) {
+				if (option == TZ_APP_CRYPTO_TEST_ID) {
 					if (!msgrsp->status) {
 						pr_info("Crypto operation success\n");
 					} else {
@@ -2768,23 +2780,45 @@ fn_exit_1:
 			}
 		}
 
-		if (option == 1) {
+		if (option == TZ_APP_BASIC_DATA_TEST_ID) {
 			if (msgrsp->status) {
 				pr_err("Input size exceeded supported range\n");
 				ret = -EINVAL;
 			}
 			basic_output = msgrsp->data;
-		} else if (option == 5) {
+		} else if (option == TZ_APP_AUTH_OTP_TEST_ID) {
 			if (msgrsp->status) {
 				pr_err("Auth OTP failed with response %d\n",
 								msgrsp->status);
 				ret = -EIO;
 			} else
 				pr_info("Auth and Blow Success");
+		} else if (option == TZ_APP_LOG_BITMASK_TEST_ID) {
+			if (!msgrsp->status) {
+				pr_info("Log Bitmask test Success\n");
+			} else {
+				pr_info("Log Bitmask test failed\n");
+				goto fn_exit;
+			}
+		} else if (option == TZ_APP_FUSE_TEST_ID) {
+			if (!msgrsp->status) {
+				pr_info("Fuse test success\n");
+			} else {
+				pr_info("Fuse test failed\n");
+				goto fn_exit;
+			}
+		} else if (option == TZ_APP_MISC_TEST_ID) {
+			if (!msgrsp->status) {
+				pr_info("Misc test success\n");
+			} else {
+				pr_info("Misc test failed\n");
+				goto fn_exit;
+			}
 		}
+
 fn_exit:
 		free_page(pg_addr);
-		if (option == 5) {
+		if (option == TZ_APP_AUTH_OTP_TEST_ID) {
 			dma_unmap_single(dev, msgreq->data, auth_size,
 								DMA_TO_DEVICE);
 		}
@@ -2898,7 +2932,7 @@ store_basic_input(struct device *dev, struct device_attribute *attr,
 		pr_err("\n Please enter a valid unsigned integer less than %u",
 			(U32_MAX / 10));
 	else
-		ret = tzapp_test(dev, &basic_input, NULL, 0, 1);
+		ret = tzapp_test(dev, &basic_input, NULL, 0, TZ_APP_BASIC_DATA_TEST_ID);
 
 	return ret ? ret : count;
 }
@@ -2943,7 +2977,7 @@ store_encrypt_input(struct device *dev, struct device_attribute *attr,
 	}
 
 	ret = tzapp_test(dev, (uint8_t *)input_pt,
-			 (uint8_t *)output_pt, enc_len, 2);
+			 (uint8_t *)output_pt, enc_len, TZ_APP_ENC_TEST_ID);
 
 	if (!ret)
 		memcpy(encrypt_text, output_pt, enc_len);
@@ -2994,7 +3028,7 @@ store_decrypt_input(struct device *dev, struct device_attribute *attr,
 	}
 
 	ret = tzapp_test(dev, (uint8_t *)input_pt,
-			 (uint8_t *)output_pt, dec_len, 3);
+			 (uint8_t *)output_pt, dec_len, TZ_APP_DEC_TEST_ID);
 	if (!ret)
 		memcpy(decrypt_text, output_pt, dec_len);
 
@@ -3081,7 +3115,7 @@ static ssize_t
 store_crypto_input(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
-	tzapp_test(dev, NULL, NULL, 0, 4);
+	tzapp_test(dev, NULL, NULL, 0, TZ_APP_CRYPTO_TEST_ID);
 	return count;
 }
 
@@ -3089,7 +3123,31 @@ static ssize_t
 store_fuse_otp_input(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
-	tzapp_test(dev, (void *)buf, NULL, 0, 5);
+	tzapp_test(dev, (void *)buf, NULL, 0, TZ_APP_AUTH_OTP_TEST_ID);
+	return count;
+}
+
+static ssize_t
+store_log_bitmask_input(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	tzapp_test(dev, NULL, NULL, 0, TZ_APP_LOG_BITMASK_TEST_ID);
+	return count;
+}
+
+static ssize_t
+store_fuse_input(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	tzapp_test(dev, NULL, NULL, 0, TZ_APP_FUSE_TEST_ID);
+	return count;
+}
+
+static ssize_t
+store_misc_input(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	tzapp_test(dev, NULL, NULL, 0, TZ_APP_MISC_TEST_ID);
 	return count;
 }
 
@@ -3121,6 +3179,15 @@ static int __init tzapp_init(void)
 
 	if (props->function & AUTH_OTP)
 		tzapp_attrs[i++] = &dev_attr_fuse_otp.attr;
+
+	if (props->function & LOG_BITMASK)
+		tzapp_attrs[i++] = &dev_attr_log_bitmask.attr;
+
+	if (props->function & FUSE)
+		tzapp_attrs[i++] = &dev_attr_fuse.attr;
+
+	if (props->function & MISC)
+		tzapp_attrs[i++] = &dev_attr_misc.attr;
 
 	if (props->logging_support_enabled)
 		tzapp_attrs[i++] = &dev_attr_log_buf.attr;

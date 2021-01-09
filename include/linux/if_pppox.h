@@ -130,9 +130,13 @@ typedef int (*pptp_gre_seq_offload_callback_t)(struct sk_buff *skb,
 extern int pppoe_channel_addressing_get(struct ppp_channel *chan,
 					 struct pppoe_opt *addressing);
 
-/* Lookup PPTP session info and return PPTP session */
+/* Lookup PPTP session info and return PPTP session using dip and peer call id */
 extern int pptp_session_find(struct pptp_opt *opt, __be16 peer_call_id,
 			     __be32 peer_ip_addr);
+
+/* Lookup PPTP session info and return PPTP session using sip, dip and local call id */
+extern int pptp_session_find_by_src_callid(struct pptp_opt *opt, __be16 src_call_id,
+			 __be32 daddr, __be32 saddr);
 
 /* Return PPTP session information given the channel */
 extern void pptp_channel_addressing_get(struct pptp_opt *opt,

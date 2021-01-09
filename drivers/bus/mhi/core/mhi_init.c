@@ -329,7 +329,7 @@ int mhi_init_dev_ctxt(struct mhi_controller *mhi_cntrl)
 			continue;
 
 		er_ctxt->intmodc = 0;
-		er_ctxt->intmodt = mhi_event->intmod;
+		er_ctxt->intmodt = cpu_to_le16(mhi_event->intmod);
 		er_ctxt->ertype = cpu_to_le32(MHI_ER_TYPE_VALID);
 		er_ctxt->msivec = cpu_to_le32(mhi_event->msi);
 		mhi_event->db_cfg.db_mode = true;

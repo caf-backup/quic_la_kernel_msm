@@ -401,6 +401,7 @@
 			qcom,mirror-enabled;
 			qcom,crypto-enabled;
 			qcom,ipsec-enabled;
+			qcom,rmnet_rx-enabled;
 		};
 
 		nss-dp-common {
@@ -782,10 +783,22 @@
 			"wbm2host-tx-completions-ring1",
 			"tcl2host-status-ring";
 		status = "disabled";
+		qcom,pta-num = <0>;
+		qcom,coex-mode = <0x3>;
+		qcom,bt-active-time = <0>;
+		qcom,bt-priority-time = <0>;
+		qcom,coex-algo = <0x2>;
+		qcom,pta-priority = <0>;
 		};
 
 		wifi1: wifi1@c000000 {
-			compatible = "qcom,cnss-qcn9100";
+			compatible = "qcom,cnss-qcn6122", "qcom,qcn6122-wifi";
+			qcom,rproc = <&qcom_q6v5_wcss>;
+			status = "disabled";
+		};
+
+		wifi2: wifi2@c000000 {
+			compatible = "qcom,cnss-qcn6122", "qcom,qcn6122-wifi";
 			qcom,rproc = <&qcom_q6v5_wcss>;
 			status = "disabled";
 		};

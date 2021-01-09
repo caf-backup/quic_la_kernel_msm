@@ -203,6 +203,8 @@
 	status = "ok";
 };
 
+/* No support for QCN9000 in 256M profile */
+#if !defined(__IPQ_MEM_PROFILE_256_MB__)
 &wifi1 {
 #ifdef __IPQ_MEM_PROFILE_512_MB__
       /* QCN9000 tgt-mem-mode=1 layout - 30MB
@@ -249,6 +251,7 @@
 	caldb-size = <0x800000>;
 	status = "ok";
 };
+#endif
 
 &sdhc_2 {
 	pinctrl-0 = <&sd_pins>;

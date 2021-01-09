@@ -232,15 +232,9 @@ extern struct bus_type mhi_bus_type;
 #define TIME_TICKS_TO_US(x) (div_u64((x) * 10, 192))
 
 struct mhi_event_ctxt {
-#if IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)
-	u32 intmodt : 16;
-	u32 intmodc : 8;
-	u32 reserved : 8;
-#else
 	u32 reserved : 8;
 	u32 intmodc : 8;
 	u32 intmodt : 16;
-#endif
 	__le32 ertype;
 	__le32 msivec;
 

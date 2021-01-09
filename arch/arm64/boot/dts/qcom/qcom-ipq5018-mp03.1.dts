@@ -110,7 +110,7 @@
 			reg = <0x0 0x4b000000 0x0 0x01700000>;
 		};
 
-		m3_dump@4c800000 {
+		m3_dump@4c700000 {
 			no-map;
 			reg = <0x0 0x4C700000 0x0 0x100000>;
 		};
@@ -206,7 +206,7 @@
 			reg = <0x0 0x4c900000 0x0 0x100000>;
 		};
 
-		q6_caldb_region:q6_caldb_region@4cd00000 {
+		q6_caldb_region:q6_caldb_region@4ca00000 {
 			no-map;
 			reg = <0x0 0x4ca00000 0x0 0x200000>;
 		};
@@ -297,7 +297,7 @@
 			reg = <0x0 0x4c900000 0x0 0x100000>;
 		};
 
-		q6_caldb_region:q6_caldb_region@4cd00000 {
+		q6_caldb_region:q6_caldb_region@4ca00000 {
 			no-map;
 			reg = <0x0 0x4ca00000 0x0 0x200000>;
 		};

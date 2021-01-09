@@ -44,7 +44,7 @@ enum cnss_dev_bus_type cnss_get_bus_type(unsigned long device_id)
 	case QCA8074V2_DEVICE_ID:
 	case QCA6018_DEVICE_ID:
 	case QCA5018_DEVICE_ID:
-	case QCN9100_DEVICE_ID:
+	case QCN6122_DEVICE_ID:
 		return CNSS_BUS_AHB;
 	default:
 		pr_err("Unknown device_id: 0x%lx\n", device_id);
@@ -195,13 +195,13 @@ struct device_node *cnss_get_etr_dev_node(struct cnss_plat_data *plat_priv)
 {
 	struct device_node *dev_node = NULL;
 
-	if (plat_priv->device_id == QCN9100_DEVICE_ID) {
-		if (plat_priv->userpd_id == QCN9100_0)
+	if (plat_priv->device_id == QCN6122_DEVICE_ID) {
+		if (plat_priv->userpd_id == QCN6122_0)
 			dev_node = of_find_node_by_name(NULL,
-							"q6_qcn9100_etr_1");
-		else if (plat_priv->userpd_id == QCN9100_1)
+							"q6_qcn6122_etr_1");
+		else if (plat_priv->userpd_id == QCN6122_1)
 			dev_node = of_find_node_by_name(NULL,
-							"q6_qcn9100_etr_2");
+							"q6_qcn6122_etr_2");
 	} else {
 		dev_node = of_find_node_by_name(NULL, "q6_etr_dump");
 	}
@@ -244,7 +244,7 @@ int cnss_bus_alloc_qdss_mem(struct cnss_plat_data *plat_priv)
 			plat_priv->qdss_mem[i].size = resource_size(&q6_etr);
 			plat_priv->qdss_mem[i].type = QMI_WLFW_MEM_QDSS_V01;
 
-			if (plat_priv->device_id == QCN9100_DEVICE_ID) {
+			if (plat_priv->device_id == QCN6122_DEVICE_ID) {
 				plat_priv->qdss_mem[i].va =
 					ioremap(plat_priv->qdss_mem[i].pa,
 						plat_priv->qdss_mem[i].size);
