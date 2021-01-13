@@ -662,6 +662,22 @@
 			bias-pull-down;
 		};
 	};
+
+	i2c_pins: i2c_pins {
+		i2c_scl {
+			pins = "gpio25";
+			function = "blsp2_i2c1";
+			drive-strength = <8>;
+			bias-disable;
+		};
+
+		i2c_sda {
+			pins = "gpio26";
+			function = "blsp2_i2c1";
+			drive-strength = <8>;
+			bias-disable;
+		};
+	};
 };
 
 &usb3 {
@@ -802,6 +818,12 @@
 				<&q6_qcn6122_etr_1>, <&q6_qcn6122_caldb_1>;
 		#endif
 	};
+};
+
+&i2c_0 {
+	pinctrl-0 = <&i2c_pins>;
+	pinctrl-names = "default";
+	status = "disabled";
 };
 
 &qgic_msi_0 {
