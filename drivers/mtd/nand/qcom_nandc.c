@@ -389,6 +389,9 @@ struct nand_flash_dev qspinand_flash_ids[] = {
 	{"W25N01JW SPI NAND 1.8V 1G-BIT",
 		{ .id = {0xef, 0xbc} },
 		SZ_2K, SZ_128, SZ_128K, 0, 2, 64, NAND_ECC_INFO(4, SZ_512), 0},
+	{"GD5F1GQ5REYIG SPI NAND 1G",
+		{ .id = {0xc8, 0x41} },
+		SZ_2K, SZ_128, SZ_128K, 0, 2, 128, NAND_ECC_INFO(8, SZ_512), 0},
 	{NULL}
 };
 
