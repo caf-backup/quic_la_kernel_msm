@@ -376,11 +376,9 @@ int qcom_q6v5_init(struct qcom_q6v5 *q6v5, struct platform_device *pdev,
 	}
 
 #ifdef CONFIG_CNSS2
-	if (of_property_read_bool(pdev->dev.of_node, "qcom,q6v6")) {
-		ret = q6v5_get_outbound_irq(q6v5, pdev, "shutdown");
-		if (ret)
-			return ret;
-	}
+	ret = q6v5_get_outbound_irq(q6v5, pdev, "shutdown");
+	if (ret)
+		return ret;
 #endif
 	return 0;
 }
