@@ -54,6 +54,7 @@
 #define CLIENT_CMD40_RUN_AES_ENCRYPT	40
 #define CLIENT_CMD41_RUN_AES_DECRYPT	41
 #define CLIENT_CMD42_RUN_RSA_CRYPT	42
+#define CLIENT_CMD43_RUN_FUSE_BLOW	43
 #define CLIENT_CMD9_RUN_CRYPTO_DECRYPT	9
 #define CLIENT_CMD_AUTH			26
 #define CLIENT_CMD53_RUN_LOG_BITMASK_TEST	53
@@ -73,6 +74,8 @@
 
 #define KEY_BLOB_SIZE		(56 * sizeof(uint8_t))
 #define KEY_SIZE		(32 * sizeof(uint8_t))
+#define MAX_FUSE_WRITE_VALUE	0xffffffffffffff
+#define MAX_FUSE_FEC_VALUE	0x7f
 
 #define RSA_KEY_SIZE_MAX	((528) * sizeof(uint8_t))
 #define RSA_IV_LENGTH		(16 * sizeof(uint8_t))
@@ -419,6 +422,13 @@ struct tz_storage_service_rsa_message_req {
 	uint64_t operation;
 };
 
+struct tz_storage_service_fuse_blow_req {
+	uint64_t addr;
+	uint64_t value;
+	uint64_t is_fec_enable;
+	uint64_t fec_value;
+};
+
 enum tz_storage_service_rsa_operation_id {
 	TZ_APP_RSA_ENCRYPTION_ID = 0,
 	TZ_APP_RSA_DECRYPTION_ID
@@ -478,6 +488,10 @@ static uint64_t rsa_d_key_len;
 static uint64_t rsa_nbits_key;
 static uint64_t rsa_hashidx;
 static uint64_t rsa_padding_type;
+static uint64_t fuse_addr;
+static uint64_t fuse_value;
+static uint64_t fuse_fec_value;
+static uint64_t is_fec_enable;
 
 
 static struct kobject *sec_kobj;
@@ -513,6 +527,8 @@ static size_t rsa_plain_data_len;
 struct kobject *tzapp_kobj;
 struct kobject *tzapp_aes_kobj;
 struct kobject *tzapp_rsa_kobj;
+struct kobject *tzapp_fuse_write_kobj;
+
 struct attribute_group tzapp_attr_grp;
 
 static struct tzdbg_log_t *g_qsee_log;
@@ -538,6 +554,7 @@ static struct device *qdev;
 #define MISC		0x200
 #define AES_TZAPP	0x400
 #define RSA_TZAPP	0x800
+#define FUSE_WRITE	0x1000
 
 #define RSA_KEY_ALIGN	8
 enum tz_app_cmd_ids {
@@ -551,7 +568,8 @@ enum tz_app_cmd_ids {
 	TZ_APP_MISC_TEST_ID,
 	TZ_APP_AES_ENCRYPT_ID,
 	TZ_APP_AES_DECRYPT_ID,
-	TZ_APP_RSA_ENC_DEC_ID
+	TZ_APP_RSA_ENC_DEC_ID,
+	TZ_APP_FUSE_BLOW_ID
 };
 
 static ssize_t show_qsee_app_log_buf(struct device *dev,
@@ -757,6 +775,21 @@ static ssize_t store_hashidx_rsa_data_tzapp(struct device *dev,
 static ssize_t store_padding_type_rsa_data_tzapp(struct device *dev,
 					struct device_attribute *attr,
 					const char *buf, size_t count);
+static ssize_t store_addr_fuse_write_tzapp(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count);
+static ssize_t store_value_fuse_write_tzapp(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count);
+static ssize_t store_fec_value_fuse_write_tzapp(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count);
+static ssize_t store_fec_enable_fuse_write_tzapp(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count);
+static ssize_t store_blow_fuse_write_tzapp(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count);
 
 /* Tz app device attrs starts here....*/
 
@@ -787,6 +820,12 @@ static DEVICE_ATTR(private_exponent_key, 0644, NULL, store_d_key_rsa_data_tzapp)
 static DEVICE_ATTR(nbits_key, 0644, NULL, store_nbits_key_rsa_data_tzapp);
 static DEVICE_ATTR(hashidx, 0644, NULL, store_hashidx_rsa_data_tzapp);
 static DEVICE_ATTR(padding_type, 0644, NULL, store_padding_type_rsa_data_tzapp);
+
+static DEVICE_ATTR(addr, 0644, NULL, store_addr_fuse_write_tzapp);
+static DEVICE_ATTR(value, 0644, NULL, store_value_fuse_write_tzapp);
+static DEVICE_ATTR(fec_value, 0644, NULL, store_fec_value_fuse_write_tzapp);
+static DEVICE_ATTR(fec_enable, 0644, NULL, store_fec_enable_fuse_write_tzapp);
+static DEVICE_ATTR(blow, 0644, NULL, store_blow_fuse_write_tzapp);
 
 /* Tz app device attrs ends here....*/
 
@@ -841,6 +880,15 @@ static struct attribute *tzapp_aes_attrs[] = {
 	NULL,
 };
 
+static struct attribute *tzapp_fuse_write_attrs[] = {
+	&dev_attr_addr.attr,
+	&dev_attr_value.attr,
+	&dev_attr_fec_value.attr,
+	&dev_attr_fec_enable.attr,
+	&dev_attr_blow.attr,
+	NULL,
+};
+
 static struct attribute *tzapp_rsa_attrs[] = {
 	&dev_attr_encrypt_rsa.attr,
 	&dev_attr_decrypt_rsa.attr,
@@ -869,6 +917,10 @@ static struct attribute_group tzapp_aes_attr_grp = {
 static struct attribute_group tzapp_rsa_attr_grp = {
 	.attrs = tzapp_rsa_attrs,
 };
+static struct attribute_group tzapp_fuse_write_attr_grp = {
+	.attrs = tzapp_fuse_write_attrs,
+};
+
 
 struct bin_attribute mdt_attr = {
 	.attr = {.name = "mdt_file", .mode = 0666},
