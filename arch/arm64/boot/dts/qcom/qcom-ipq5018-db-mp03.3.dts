@@ -593,6 +593,10 @@
 &qcom_q6v5_wcss {
 	qcom,multipd_arch;
 	memory-region = <&q6_mem_regions>;
+	qcom,share_bootargs;
+	qcom,bootargs_smem = <507>;
+	boot-args = <0x2 0x4 0x2 0x12 0x0 0x0>;
+
 	/* IPQ5018 */
 	q6v5_wcss_userpd1 {
 		m3_firmware = "IPQ5018/m3_fw.mdt";

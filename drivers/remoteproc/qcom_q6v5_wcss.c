@@ -26,7 +26,6 @@
 #include <linux/clk-provider.h>
 #include <linux/of_platform.h>
 
-
 #define WCSS_CRASH_REASON		421
 
 /* Q6SS Register Offsets */
@@ -95,6 +94,10 @@
 
 #define Q6_BOOT_TRIG_SVC_ID	0x5
 #define Q6_BOOT_TRIG_CMD_ID	0x2
+
+#define REMOTE_PID	1
+#define VERSION 1
+#define Q6_BOOT_ARGS_SMEM_SIZE 4096
 
 struct q6v5_wcss_pd_fw_info {
 	struct list_head node;
@@ -1680,6 +1683,80 @@ static void *q6v5_wcss_da_to_va(struct rproc *rproc, u64 da, int len)
 	return wcss->mem_region + offset;
 }
 
+static int share_bootargs_to_q6(struct device *dev)
+{
+	int ret;
+	u32 smem_id, rd_val;
+	const char *key = "qcom,bootargs_smem";
+	size_t size;
+	u16 cnt, tmp, version;
+	void *ptr;
+	u8 *bootargs_arr;
+	struct device_node *np = dev->of_node;
+
+	if (!device_property_read_bool(dev, "qcom,share_bootargs"))
+		return 0;
+
+	ret = of_property_read_u32(np, key, &smem_id);
+	if (ret) {
+		pr_err("failed to get smem id\n");
+		return ret;
+	}
+
+	ret = qcom_smem_alloc(REMOTE_PID, smem_id,
+					Q6_BOOT_ARGS_SMEM_SIZE);
+	if (ret && ret != -EEXIST) {
+		pr_err("failed to allocate q6 bootargs smem segment\n");
+		return ret;
+	}
+
+	ptr = qcom_smem_get(1, smem_id, &size);
+	if (IS_ERR(ptr)) {
+		pr_err("Unable to acquire smp2p item(%d) ret:%ld\n",
+					smem_id, PTR_ERR(ptr));
+		return PTR_ERR(ptr);
+	}
+
+	/*Version*/
+	version = VERSION;
+	memcpy_toio(ptr, &version, sizeof(version));
+	ptr += sizeof(version);
+
+	cnt = ret = of_property_count_u32_elems(np, "boot-args");
+	if (ret < 0) {
+		pr_err("failed to read boot args ret:%d\n", ret);
+		return ret;
+	}
+
+	/* No of elements */
+	memcpy_toio(ptr, &cnt, sizeof(u16));
+	ptr += sizeof(u16);
+
+	bootargs_arr = kzalloc(cnt, GFP_KERNEL);
+	if (!bootargs_arr) {
+		pr_err("failed to allocate memory\n");
+		return PTR_ERR(bootargs_arr);
+	}
+
+	for (tmp = 0; tmp < cnt; tmp++) {
+		ret = of_property_read_u32_index(np, "boot-args", tmp, &rd_val);
+		if (ret) {
+			pr_err("failed to read boot args\n");
+			kfree(bootargs_arr);
+			return ret;
+		}
+		bootargs_arr[tmp] = (u8)rd_val;
+	}
+
+	/* Copy bootargs */
+	memcpy_toio(ptr, bootargs_arr, cnt);
+	ptr += (cnt);
+
+	of_node_put(np);
+	kfree(bootargs_arr);
+	return ret;
+}
+
 static int q6v5_wcss_userpd_m3_load(struct rproc *p_rproc)
 {
 	struct q6v5_wcss *p_wcss = p_rproc->priv;
@@ -1726,6 +1803,14 @@ static int q6v5_wcss_load(struct rproc *rproc, const struct firmware *fw)
 	int ret;
 	u32 peripheral = pdata->is_mpd_arch ? MPD_WCNSS_PAS_ID : WCNSS_PAS_ID;
 	struct rproc_child *rp_child;
+
+	ret = share_bootargs_to_q6(wcss->dev);
+	if (ret) {
+		dev_err(wcss->dev,
+			"boot args sharing with q6 failed %d\n",
+			ret);
+		return ret;
+	}
 
 	if (pdata->is_mpd_arch) {
 		ret = q6v5_wcss_userpd_m3_load(rproc);
