@@ -957,8 +957,11 @@ static void send_fatal_notif_to_child(struct subsys_desc *desc)
 		struct subsys_device *tmp_dev =
 			desc_to_subsys(tmp_desc->dev);
 
-		if (tmp_dev &&
-				tmp_dev->track.state == SUBSYS_ONLINE)
+		/*
+		 * Send fatal notification to userpd(s) if rootpd
+		 * crashed, irrespective of userpd status.
+		 */
+		if (tmp_dev)
 			notify_each_subsys_device(&tmp_dev, 1,
 				SUBSYS_PREPARE_FOR_FATAL_SHUTDOWN, NULL);
 	}
