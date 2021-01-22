@@ -735,14 +735,11 @@
 		#size-cells = <0x2>;
 		memory-region = <&mhi_region1>;
 #if !defined(__CNSS2__)
-		qrtr_node_id = <0x20>;
 		base-addr = <0x4CC00000>;
 		m3-dump-addr = <0x4E000000>;
 		etr-addr = <0x4E100000>;
 		qcom,caldb-addr = <0x4E200000>;
 		qcom,tgt-mem-mode = <0x1>;
-		mhi,max-channels = <30>;
-		mhi,timeout = <10000>;
 #endif
 	};
 };
