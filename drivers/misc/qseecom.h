@@ -51,6 +51,9 @@
 #define CLIENT_CMD1_BASIC_DATA		1
 #define CLIENT_CMD8_RUN_CRYPTO_TEST	3
 #define CLIENT_CMD8_RUN_CRYPTO_ENCRYPT	8
+#define CLIENT_CMD40_RUN_AES_ENCRYPT	40
+#define CLIENT_CMD41_RUN_AES_DECRYPT	41
+#define CLIENT_CMD42_RUN_RSA_CRYPT	42
 #define CLIENT_CMD9_RUN_CRYPTO_DECRYPT	9
 #define CLIENT_CMD_AUTH			26
 #define CLIENT_CMD53_RUN_LOG_BITMASK_TEST	53
@@ -392,6 +395,54 @@ enum qseecom_qceos_cmd_status {
 	QSEOS_RESULT_FAILURE	= 0xFFFFFFFF
 };
 
+struct tz_storage_service_rsa_message_type {
+	uint64_t input;
+	uint64_t input_len;
+	uint64_t label;
+	uint64_t label_len;
+	uint64_t output;
+	uint64_t output_len;
+	uint64_t padding_type;
+	uint64_t hashidx;
+};
+
+struct tz_storage_service_rsa_key_type {
+	uint64_t nbits;   //Number of bits in modulus
+	uint64_t n;  // Modulus
+	uint64_t e;  // Public Exponent
+	uint64_t d;  // Private Exponent
+};
+
+struct tz_storage_service_rsa_message_req {
+	uint64_t key_req;
+	uint64_t msg_req;
+	uint64_t operation;
+};
+
+enum tz_storage_service_rsa_operation_id {
+	TZ_APP_RSA_ENCRYPTION_ID = 0,
+	TZ_APP_RSA_DECRYPTION_ID
+};
+
+enum tz_storage_service_rsa_padding_type {
+	QSEE_RSA_PADDING_TYPE_OAEP = 0,
+	QSEE_RSA_PADDING_TYPE_PKCS,
+	QSEE_RSA_NO_PADDING,
+	QSEE_RSA_PADDING_TYPE_MAX
+};
+
+enum tz_storage_service_qsee_hash_id {
+	QSEE_HASH_IDX_NULL = 1,
+	QSEE_HASH_IDX_SHA1,
+	QSEE_HASH_IDX_SHA256,
+	QSEE_HASH_IDX_SHA224,
+	QSEE_HASH_IDX_SHA384,
+	QSEE_HASH_IDX_SHA512,
+	QSEE_HASH_IDX_SHA256_SHA1,
+	QSEE_HASH_IDX_MAX,
+	QSEE_HASH_IDX_INVALID = 0x7FFFFFFF,
+};
+
 static uint32_t qsee_app_id;
 static void *qsee_sbuffer;
 static unsigned long basic_output;
@@ -404,6 +455,30 @@ static int auth_size;
 static uint8_t *mdt_file;
 static uint8_t *seg_file;
 static uint8_t *auth_file;
+static uint8_t *aes_sealed_buf;
+static uint64_t aes_encrypted_len;
+static uint8_t *aes_unsealed_buf;
+static uint64_t aes_decrypted_len;
+static uint8_t *aes_ivdata;
+static uint64_t aes_ivdata_len;
+static uint64_t aes_type;
+static uint64_t aes_mode;
+static uint8_t *rsa_unsealed_buf;
+static uint8_t *rsa_sealed_buf;
+static uint64_t rsa_decrypted_len;
+static uint64_t rsa_encrypted_len;
+static uint8_t *rsa_label;
+static uint64_t rsa_label_len;
+static uint8_t *rsa_n_key;
+static uint64_t rsa_n_key_len;
+static uint8_t *rsa_e_key;
+static uint64_t rsa_e_key_len;
+static uint8_t *rsa_d_key;
+static uint64_t rsa_d_key_len;
+static uint64_t rsa_nbits_key;
+static uint64_t rsa_hashidx;
+static uint64_t rsa_padding_type;
+
 
 static struct kobject *sec_kobj;
 static uint8_t *key;
@@ -436,6 +511,8 @@ static uint8_t *rsa_plain_data_buf;
 static size_t rsa_plain_data_len;
 
 struct kobject *tzapp_kobj;
+struct kobject *tzapp_aes_kobj;
+struct kobject *tzapp_rsa_kobj;
 struct attribute_group tzapp_attr_grp;
 
 static struct tzdbg_log_t *g_qsee_log;
@@ -459,7 +536,10 @@ static struct device *qdev;
 #define LOG_BITMASK	0x80
 #define FUSE		0x100
 #define MISC		0x200
+#define AES_TZAPP	0x400
+#define RSA_TZAPP	0x800
 
+#define RSA_KEY_ALIGN	8
 enum tz_app_cmd_ids {
 	TZ_APP_BASIC_DATA_TEST_ID = 1,
 	TZ_APP_ENC_TEST_ID,
@@ -468,8 +548,12 @@ enum tz_app_cmd_ids {
 	TZ_APP_AUTH_OTP_TEST_ID,
 	TZ_APP_LOG_BITMASK_TEST_ID,
 	TZ_APP_FUSE_TEST_ID,
-	TZ_APP_MISC_TEST_ID
+	TZ_APP_MISC_TEST_ID,
+	TZ_APP_AES_ENCRYPT_ID,
+	TZ_APP_AES_DECRYPT_ID,
+	TZ_APP_RSA_ENC_DEC_ID
 };
+
 static ssize_t show_qsee_app_log_buf(struct device *dev,
 				    struct device_attribute *attr, char *buf);
 
@@ -611,6 +695,71 @@ static ssize_t store_misc_input(struct device *dev,
 				   struct device_attribute *attr,
 				   const char *buf, size_t count);
 
+static ssize_t show_qsee_app_id(struct device *dev,
+				   struct device_attribute *attr, char *buf);
+
+static ssize_t store_aes_type_tzapp(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count);
+
+static ssize_t store_aes_mode_tzapp(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count);
+
+static ssize_t store_iv_data_tzapp(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count);
+
+static ssize_t show_aes_encrypted_data_tzapp(struct device *dev,
+				struct device_attribute *attr, char *buf);
+
+static ssize_t store_aes_decrypted_data_tzapp(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count);
+
+static ssize_t show_aes_decrypted_data_tzapp(struct device *dev,
+				struct device_attribute *attr, char *buf);
+
+static ssize_t store_aes_encrypted_data_tzapp(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count);
+
+
+static ssize_t store_decrypted_rsa_data_tzapp(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count);
+static ssize_t show_encrypted_rsa_data_tzapp(struct device *dev,
+				struct device_attribute *attr, char *buf);
+static ssize_t store_encrypted_rsa_data_tzapp(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count);
+static ssize_t show_decrypted_rsa_data_tzapp(struct device *dev,
+				struct device_attribute *attr, char *buf);
+
+static ssize_t store_label_rsa_data_tzapp(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count);
+static ssize_t store_n_key_rsa_data_tzapp(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count);
+static ssize_t store_e_key_rsa_data_tzapp(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count);
+static ssize_t store_d_key_rsa_data_tzapp(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count);
+static ssize_t store_nbits_key_rsa_data_tzapp(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count);
+static ssize_t store_hashidx_rsa_data_tzapp(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count);
+static ssize_t store_padding_type_rsa_data_tzapp(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count);
+
+/* Tz app device attrs starts here....*/
+
 static DEVICE_ATTR(log_buf, 0644, show_qsee_app_log_buf, NULL);
 static DEVICE_ATTR(load_start, S_IWUSR, NULL, store_load_start);
 static DEVICE_ATTR(basic_data, 0644, show_basic_output, store_basic_input);
@@ -621,6 +770,25 @@ static DEVICE_ATTR(fuse_otp, 0644, NULL, store_fuse_otp_input);
 static DEVICE_ATTR(log_bitmask, 0644, NULL, store_log_bitmask_input);
 static DEVICE_ATTR(fuse, 0644, NULL, store_fuse_input);
 static DEVICE_ATTR(misc, 0644, NULL, store_misc_input);
+static DEVICE_ATTR(qsee_app_id, 0644, show_qsee_app_id, NULL);
+
+static DEVICE_ATTR(encrypt_aes, 0644, show_aes_encrypted_data_tzapp, store_aes_decrypted_data_tzapp);
+static DEVICE_ATTR(decrypt_aes, 0644, show_aes_decrypted_data_tzapp, store_aes_encrypted_data_tzapp);
+static DEVICE_ATTR(ivdata_aes, 0644, NULL, store_iv_data_tzapp);
+static DEVICE_ATTR(type_aes, 0644, NULL, store_aes_type_tzapp);
+static DEVICE_ATTR(mode_aes, 0644, NULL, store_aes_mode_tzapp);
+
+static DEVICE_ATTR(encrypt_rsa, 0644, show_encrypted_rsa_data_tzapp, store_decrypted_rsa_data_tzapp);
+static DEVICE_ATTR(decrypt_rsa, 0644, show_decrypted_rsa_data_tzapp, store_encrypted_rsa_data_tzapp);
+static DEVICE_ATTR(label_rsa, 0644, NULL, store_label_rsa_data_tzapp);
+static DEVICE_ATTR(modulus_key, 0644, NULL, store_n_key_rsa_data_tzapp);
+static DEVICE_ATTR(public_exponent_key, 0644, NULL, store_e_key_rsa_data_tzapp);
+static DEVICE_ATTR(private_exponent_key, 0644, NULL, store_d_key_rsa_data_tzapp);
+static DEVICE_ATTR(nbits_key, 0644, NULL, store_nbits_key_rsa_data_tzapp);
+static DEVICE_ATTR(hashidx, 0644, NULL, store_hashidx_rsa_data_tzapp);
+static DEVICE_ATTR(padding_type, 0644, NULL, store_padding_type_rsa_data_tzapp);
+
+/* Tz app device attrs ends here....*/
 
 static DEVICE_ATTR(generate, 0644, generate_key_blob, NULL);
 static DEVICE_ATTR(import, 0644, import_key_blob, store_key);
@@ -664,12 +832,42 @@ static struct attribute *rsa_sec_key_attrs[] = {
 	NULL,
 };
 
+static struct attribute *tzapp_aes_attrs[] = {
+	&dev_attr_encrypt_aes.attr,
+	&dev_attr_decrypt_aes.attr,
+	&dev_attr_ivdata_aes.attr,
+	&dev_attr_type_aes.attr,
+	&dev_attr_mode_aes.attr,
+	NULL,
+};
+
+static struct attribute *tzapp_rsa_attrs[] = {
+	&dev_attr_encrypt_rsa.attr,
+	&dev_attr_decrypt_rsa.attr,
+	&dev_attr_label_rsa.attr,
+	&dev_attr_modulus_key.attr,
+	&dev_attr_public_exponent_key.attr,
+	&dev_attr_private_exponent_key.attr,
+	&dev_attr_nbits_key.attr,
+	&dev_attr_hashidx.attr,
+	&dev_attr_padding_type.attr,
+	NULL,
+};
+
 static struct attribute_group sec_key_attr_grp = {
 	.attrs = sec_key_attrs,
 };
 
 static struct attribute_group rsa_sec_key_attr_grp = {
 	.attrs = rsa_sec_key_attrs,
+};
+
+static struct attribute_group tzapp_aes_attr_grp = {
+	.attrs = tzapp_aes_attrs,
+};
+
+static struct attribute_group tzapp_rsa_attr_grp = {
+	.attrs = tzapp_rsa_attrs,
 };
 
 struct bin_attribute mdt_attr = {
