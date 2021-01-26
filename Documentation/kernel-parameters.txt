@@ -1883,6 +1883,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	memblock=debug	[KNL] Enable memblock debug messages.
 
+	mhi_netdev_overide [MHI] Configure MRU value
+			Set MRU value to align with aggregation value
+			for optimized memory usage.
+			This change applicable to FWA targets only.
+
 	load_ramdisk=	[RAM] List of ramdisks to load from floppy
 			See Documentation/blockdev/ramdisk.txt.
 
