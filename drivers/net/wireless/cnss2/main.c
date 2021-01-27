@@ -1629,9 +1629,8 @@ void cnss_subsystem_put(struct device *dev)
 		subsystem_put(subsys_info->subsys_handle);
 		subsys_info->subsystem_put_in_progress = false;
 		subsys_info->subsys_handle = NULL;
+		plat_priv->driver_state = 0;
 	}
-
-	plat_priv->driver_state = 0;
 }
 EXPORT_SYMBOL(cnss_subsystem_put);
 
