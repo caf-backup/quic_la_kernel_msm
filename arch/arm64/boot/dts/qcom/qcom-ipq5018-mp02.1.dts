@@ -426,6 +426,22 @@
 		};
 	};
 
+	i2c_pins: i2c_pins {
+		i2c_scl {
+			pins = "gpio33";
+			function = "blsp2_i2c1";
+			drive-strength = <8>;
+			bias-disable;
+		};
+
+		i2c_sda {
+			pins = "gpio34";
+			function = "blsp2_i2c1";
+			drive-strength = <8>;
+			bias-disable;
+		};
+	};
+
 	btss_pins: btss_pins {
 
 		phandle = <0x1>;
@@ -587,6 +603,12 @@
 		memory-region = <&q6_qcn6122_data2>, <&m3_dump_qcn6122_2>,
 				<&q6_qcn6122_etr_2>;
 	};
+};
+
+&i2c_0 {
+	pinctrl-0 = <&i2c_pins>;
+	pinctrl-names = "default";
+	status = "disabled";
 };
 
 &qgic_msi_0 {
