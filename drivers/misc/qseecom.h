@@ -53,6 +53,9 @@
 #define CLIENT_CMD8_RUN_CRYPTO_ENCRYPT	8
 #define CLIENT_CMD9_RUN_CRYPTO_DECRYPT	9
 #define CLIENT_CMD_AUTH			26
+#define CLIENT_CMD53_RUN_LOG_BITMASK_TEST	53
+#define CLIENT_CMD18_RUN_FUSE_TEST	18
+#define CLIENT_CMD13_RUN_MISC_TEST	13
 #define MAX_INPUT_SIZE			4096
 #define QSEE_64				64
 #define QSEE_32				32
@@ -453,7 +456,20 @@ static struct device *qdev;
 #define AUTH_OTP	0x10
 #define AES_SEC_KEY	0x20
 #define RSA_SEC_KEY	0x40
+#define LOG_BITMASK	0x80
+#define FUSE		0x100
+#define MISC		0x200
 
+enum tz_app_cmd_ids {
+	TZ_APP_BASIC_DATA_TEST_ID = 1,
+	TZ_APP_ENC_TEST_ID,
+	TZ_APP_DEC_TEST_ID,
+	TZ_APP_CRYPTO_TEST_ID,
+	TZ_APP_AUTH_OTP_TEST_ID,
+	TZ_APP_LOG_BITMASK_TEST_ID,
+	TZ_APP_FUSE_TEST_ID,
+	TZ_APP_MISC_TEST_ID
+};
 static ssize_t show_qsee_app_log_buf(struct device *dev,
 				    struct device_attribute *attr, char *buf);
 
@@ -583,6 +599,18 @@ static ssize_t store_fuse_otp_input(struct device *dev,
 				   struct device_attribute *attr,
 				   const char *buf, size_t count);
 
+static ssize_t store_log_bitmask_input(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count);
+
+static ssize_t store_fuse_input(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count);
+
+static ssize_t store_misc_input(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count);
+
 static DEVICE_ATTR(log_buf, 0644, show_qsee_app_log_buf, NULL);
 static DEVICE_ATTR(load_start, S_IWUSR, NULL, store_load_start);
 static DEVICE_ATTR(basic_data, 0644, show_basic_output, store_basic_input);
@@ -590,6 +618,9 @@ static DEVICE_ATTR(encrypt, 0644, show_encrypt_output, store_encrypt_input);
 static DEVICE_ATTR(decrypt, 0644, show_decrypt_output, store_decrypt_input);
 static DEVICE_ATTR(crypto, 0644, NULL, store_crypto_input);
 static DEVICE_ATTR(fuse_otp, 0644, NULL, store_fuse_otp_input);
+static DEVICE_ATTR(log_bitmask, 0644, NULL, store_log_bitmask_input);
+static DEVICE_ATTR(fuse, 0644, NULL, store_fuse_input);
+static DEVICE_ATTR(misc, 0644, NULL, store_misc_input);
 
 static DEVICE_ATTR(generate, 0644, generate_key_blob, NULL);
 static DEVICE_ATTR(import, 0644, import_key_blob, store_key);

@@ -540,7 +540,9 @@
 };
 
 &pcie0 {
+#if defined(__CNSS2__)
 	status = "ok";
+#endif
 };
 
 &qpic_lcd {

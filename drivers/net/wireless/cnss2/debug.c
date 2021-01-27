@@ -804,17 +804,19 @@ void cnss_debugfs_destroy(struct cnss_plat_data *plat_priv)
 
 int cnss_debug_init(void)
 {
+	struct cnss_plat_data *plat_priv = NULL;
+
 	cnss_ipc_log_context = ipc_log_context_create(CNSS_IPC_LOG_PAGES,
 						      "cnss", 0);
 	if (!cnss_ipc_log_context) {
-		printk(KERN_ERR "Unable to create IPC log context!\n");
+		cnss_pr_info("IPC Logging is disabled!\n");
 		return -EINVAL;
 	}
 
 	cnss_ipc_log_long_context = ipc_log_context_create(CNSS_IPC_LOG_PAGES,
 							   "cnss-long", 0);
 	if (!cnss_ipc_log_long_context) {
-		pr_err("Unable to create IPC long log context\n");
+		cnss_pr_info("IPC long logging is disabled!\n");
 		ipc_log_context_destroy(cnss_ipc_log_context);
 		return -EINVAL;
 	}

@@ -2267,6 +2267,7 @@
 		tzlog: qca,tzlog {
 			compatible = "qca,tzlog_ipq6018";
 			interrupts = <GIC_SPI 244 IRQ_TYPE_EDGE_RISING>;
+			qca,tzbsp-diag-buf-start = <0x4a7df000>;
 			qca,tzbsp-diag-buf-size = <0x3000>;
 			qca,hyp-enabled;
 			hyp-scm-cmd-id = <0xA>;

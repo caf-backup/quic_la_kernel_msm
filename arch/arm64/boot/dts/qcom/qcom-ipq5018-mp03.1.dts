@@ -110,7 +110,7 @@
 			reg = <0x0 0x4b000000 0x0 0x01700000>;
 		};
 
-		m3_dump@4c800000 {
+		m3_dump@4c700000 {
 			no-map;
 			reg = <0x0 0x4C700000 0x0 0x100000>;
 		};
@@ -206,7 +206,7 @@
 			reg = <0x0 0x4c900000 0x0 0x100000>;
 		};
 
-		q6_caldb_region:q6_caldb_region@4cd00000 {
+		q6_caldb_region:q6_caldb_region@4ca00000 {
 			no-map;
 			reg = <0x0 0x4ca00000 0x0 0x200000>;
 		};
@@ -297,7 +297,7 @@
 			reg = <0x0 0x4c900000 0x0 0x100000>;
 		};
 
-		q6_caldb_region:q6_caldb_region@4cd00000 {
+		q6_caldb_region:q6_caldb_region@4ca00000 {
 			no-map;
 			reg = <0x0 0x4ca00000 0x0 0x200000>;
 		};
@@ -786,14 +786,11 @@
 		#size-cells = <0x2>;
 		memory-region = <&mhi_region1>;
 #if !defined(__CNSS2__)
-		qrtr_node_id = <0x20>;
 		base-addr = <0x4CC00000>;
 		m3-dump-addr = <0x4E000000>;
 		etr-addr = <0x4E100000>;
 		qcom,caldb-addr = <0x4E200000>;
 		qcom,tgt-mem-mode = <0x1>;
-		mhi,max-channels = <30>;
-		mhi,timeout = <10000>;
 #endif
 	};
 };

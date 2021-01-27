@@ -1004,9 +1004,6 @@
 		m3-dump-addr = <0x4D300000>;
 		etr-addr = <0x4D400000>;
 		qcom,caldb-addr = <0x4D500000>;
-		qrtr_node_id = <0x20>;
-		mhi,max-channels = <30>;
-		mhi,timeout = <10000>;
 		qcom,board_id= <0xa0>;
 
 		pcie0_mhi: pcie0_mhi {
@@ -1033,9 +1030,6 @@
 		m3-dump-addr = <0x50000000>;
 		etr-addr = <0x50100000>;
 		qcom,caldb-addr = <0x50200000>;
-		qrtr_node_id = <0x21>;
-		mhi,max-channels = <30>;
-		mhi,timeout = <10000>;
 		qcom,board_id= <0xa1>;
 
 		pcie1_mhi: pcie1_mhi {

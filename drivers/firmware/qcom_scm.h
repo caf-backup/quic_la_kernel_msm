@@ -300,6 +300,8 @@ extern int __qcom_scm_tz_log(struct device *dev, u32 svc_id, u32 cmd_id,
 extern int __qcom_scm_hvc_log(struct device *dev, u32 svc_id, u32 cmd_id,
 				void *ker_buf, u32 buf_len);
 
+extern int __qcom_scm_tz_log_is_encrypted(struct device *dev);
+extern int __qcom_scm_tz_log_encrypted(struct device *dev, void *ker_buf, u32 buf_len, u32 log_id);
 extern int __qcom_los_scm_call(struct device *, u32 svc_id, u32 cmd_id,
 			void *cmd_buf, size_t size);
 

@@ -312,6 +312,9 @@ int __init socinfo_init(void) __must_check;
 #define CPU_IPQ5010 446
 #define CPU_IPQ5018 447
 #define CPU_IPQ5028 448
+#define CPU_IPQ5000 503
+#define CPU_IPQ0509 504
+#define CPU_IPQ0518 505
 
 static inline int read_ipq_soc_version_major(void)
 {
@@ -680,6 +683,33 @@ static inline int cpu_is_ipq5028(void)
 #endif
 }
 
+static inline int cpu_is_ipq5000(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ5000;
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq0509(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ0509;
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq0518(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ0518;
+#else
+	return 0;
+#endif
+}
+
 static inline int cpu_is_ipq807x(void)
 {
 #ifdef CONFIG_ARCH_QCOM
@@ -711,7 +741,8 @@ static inline int cpu_is_ipq50xx(void)
 {
 #ifdef CONFIG_ARCH_QCOM
 	return  cpu_is_ipq5010() || cpu_is_ipq5018() ||
-		cpu_is_ipq5028();
+		cpu_is_ipq5028() || cpu_is_ipq5000() ||
+		cpu_is_ipq0509() || cpu_is_ipq0518();
 #else
 	return 0;
 #endif

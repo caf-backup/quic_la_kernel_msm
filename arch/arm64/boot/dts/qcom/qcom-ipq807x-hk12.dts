@@ -981,9 +981,6 @@
 		m3-dump-addr = <0x4D300000>;
 		etr-addr = <0x4D400000>;
 		qcom,caldb-addr = <0x4D500000>;
-		qrtr_node_id = <0x20>;
-		mhi,max-channels = <30>;
-		mhi,timeout = <10000>;
 
 		pcie0_mhi: pcie0_mhi {
 			status = "ok";
