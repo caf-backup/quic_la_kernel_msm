@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
  */
 
 #ifndef _QMI_RMNET_H
@@ -18,7 +18,8 @@ struct qmi_rmnet_ps_ind {
 
 #ifdef CONFIG_QCOM_QMI_RMNET
 void qmi_rmnet_qmi_exit(void *qmi_pt, void *port);
-void qmi_rmnet_change_link(struct net_device *dev, void *port, void *tcm_pt);
+void qmi_rmnet_change_link(struct net_device *dev, void *port, void *tcm_pt,
+			   int attr_len);
 void qmi_rmnet_enable_all_flows(struct net_device *dev);
 bool qmi_rmnet_all_flows_enabled(struct net_device *dev);
 #else
@@ -27,7 +28,8 @@ static inline void qmi_rmnet_qmi_exit(void *qmi_pt, void *port)
 }
 
 static inline void
-qmi_rmnet_change_link(struct net_device *dev, void *port, void *tcm_pt)
+qmi_rmnet_change_link(struct net_device *dev, void *port, void *tcm_pt,
+		      int attr_len)
 {
 }
 
@@ -51,6 +53,7 @@ void qmi_rmnet_qos_exit_post(void);
 void qmi_rmnet_burst_fc_check(struct net_device *dev,
 			      int ip_type, u32 mark, unsigned int len);
 int qmi_rmnet_get_queue(struct net_device *dev, struct sk_buff *skb);
+void qmi_rmnet_mark_skb(struct net_device *dev, struct sk_buff *skb);
 #else
 static inline void *
 qmi_rmnet_qos_init(struct net_device *real_dev,
@@ -77,6 +80,11 @@ static inline int qmi_rmnet_get_queue(struct net_device *dev,
 				       struct sk_buff *skb)
 {
 	return 0;
+}
+
+static inline void qmi_rmnet_mark_skb(struct net_device *dev,
+				      struct sk_buff *skb)
+{
 }
 #endif
 
