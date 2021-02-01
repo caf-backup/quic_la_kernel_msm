@@ -16,7 +16,7 @@
 #include "wlan_firmware_service_v01.h"
 
 #define WLFW_SERVICE_INS_ID_V01_QCA8074		2
-#define WLFW_SERVICE_INS_ID_V01_QCN9100		0x40
+#define WLFW_SERVICE_INS_ID_V01_QCN6122		0x40
 #define BDF_MAX_SIZE (256 * 1024)
 #define BDF_TYPE_GOLDEN 0
 #define BDF_TYPE_CALDATA 2
@@ -26,9 +26,9 @@
 #define Q6_M3_DUMP_SIZE_QCN9000 0x100000
 #define QMI_HISTORY_SIZE 128
 
-/* userpd_id for QCN9100 in multi pd arch */
-#define QCN9100_0	1
-#define QCN9100_1	2
+/* userpd_id for QCN6122 in multi pd arch */
+#define QCN6122_0	1
+#define QCN6122_1	2
 
 /* node_id for QCN9000 */
 #define QCN9000_0	0x20

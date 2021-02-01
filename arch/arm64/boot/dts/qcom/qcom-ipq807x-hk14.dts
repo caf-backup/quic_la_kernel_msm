@@ -862,15 +862,22 @@
 		m3-dump-addr = <0x53400000>;
 		etr-addr = <0x53500000>;
 		qcom,caldb-addr = <0x53600000>;
-		qrtr_node_id = <0x20>;
-		mhi,max-channels = <30>;
-		mhi,timeout = <10000>;
 		qcom,board_id= <0xa4>;
 
 		pcie0_mhi: pcie0_mhi {
 			status = "ok";
 		};
 #endif
+	};
+};
+
+&pcie1_rp {
+	status = "disabled";
+
+	mhi_1: qcom,mhi@1 {
+		pcie1_mhi: pcie1_mhi {
+			status = "disabled";
+		};
 	};
 };
 
@@ -895,6 +902,8 @@
 	status = "ok";
 };
 
+/* No support for QCN9000 in 256M profile */
+#if !defined(__IPQ_MEM_PROFILE_256_MB__)
 &wifi2 {
 #ifdef __IPQ_MEM_PROFILE_512_MB__
       /* QCN9000 tgt-mem-mode=1 layout - 30MB
@@ -950,14 +959,5 @@
 	status = "disabled";
 };
 
-&pcie1_rp {
-	status = "disabled";
-
-	mhi_1: qcom,mhi@1 {
-		pcie1_mhi: pcie1_mhi {
-			status = "disabled";
-		};
-	};
-};
-
 #include "qcom-ipq807x-mhi.dtsi"
+#endif

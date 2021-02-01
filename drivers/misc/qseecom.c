@@ -39,7 +39,9 @@ const struct qseecom_props qseecom_props_ipq8064 = {
 };
 
 const struct qseecom_props qseecom_props_ipq807x = {
-	.function = (MUL | CRYPTO | AES_SEC_KEY | RSA_SEC_KEY),
+	.function = (MUL | CRYPTO | AES_SEC_KEY | RSA_SEC_KEY | LOG_BITMASK |
+					FUSE | MISC | AES_TZAPP | RSA_TZAPP |
+					FUSE_WRITE),
 	.tz_arch = QSEE_64,
 	.libraries_inbuilt = false,
 	.logging_support_enabled = true,
@@ -53,7 +55,7 @@ const struct qseecom_props qseecom_props_ipq6018 = {
 };
 
 const struct qseecom_props qseecom_props_ipq5018 = {
-	.function = (MUL | CRYPTO),
+	.function = (MUL | CRYPTO | AES_SEC_KEY | RSA_SEC_KEY),
 	.tz_arch = QSEE_64,
 	.libraries_inbuilt = false,
 	.logging_support_enabled = true,
@@ -606,6 +608,116 @@ store_iv_data(struct device *dev, struct device_attribute *attr,
 	memcpy(ivdata, buf, ivdata_len);
 	return count;
 }
+
+static ssize_t
+store_aes_mode_tzapp(struct device *dev, struct device_attribute *attr,
+               const char *buf, size_t count)
+{
+	unsigned long long val;
+
+	if (kstrtoull(buf, 10, &val))
+		return -EINVAL;
+
+	if (val >= TZ_CRYPTO_SERVICE_AES_MODE_MAX) {
+		pr_info("\nInvalid aes 256 mode: %llu\n", val);
+		return -EINVAL;
+	}
+	aes_mode = val;
+
+	return count;
+}
+
+static ssize_t
+store_aes_type_tzapp(struct device *dev, struct device_attribute *attr,
+               const char *buf, size_t count)
+{
+	unsigned long long val;
+
+	if (kstrtoull(buf, 10, &val))
+		return -EINVAL;
+
+	if (!val || val >= TZ_CRYPTO_SERVICE_AES_TYPE_MAX) {
+		pr_info("\nInvalid aes 256 type: %llu\n", val);
+		return -EINVAL;
+	}
+	aes_type = val;
+
+	return count;
+}
+
+static ssize_t
+store_iv_data_tzapp(struct device *dev, struct device_attribute *attr,
+                        const char *buf, size_t count)
+{
+	if (!aes_ivdata) {
+		pr_info("could not allocate ivdata\n");
+		return -EINVAL;
+	}
+
+	if (count != AES_BLOCK_SIZE) {
+		pr_info("\nInvalid input\n");
+		pr_info("IV data length is %lu bytes\n",
+		       (unsigned long)count);
+		pr_info("IV data length must be equal to AES block size"
+		        "(16) bytes");
+		return -EINVAL;
+	}
+
+	aes_ivdata = memset(aes_ivdata, 0, AES_BLOCK_SIZE);
+	aes_ivdata_len = count;
+	memcpy(aes_ivdata, buf, aes_ivdata_len);
+	return count;
+}
+static ssize_t
+store_aes_decrypted_data_tzapp(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+
+	if ((count % AES_BLOCK_SIZE) ||
+			count > MAX_PLAIN_DATA_SIZE) {
+		pr_info("\nInvalid input\n");
+		pr_info("Plain data length is %lu bytes\n",
+		       (unsigned long)count);
+		pr_info("Plain data length must be multiple of AES block size"
+			"of 16 bytes and <= %u bytes\n",
+			(unsigned int)MAX_PLAIN_DATA_SIZE);
+		return -EINVAL;
+	}
+
+	if (!aes_ivdata) {
+		pr_info("could not allocate ivdata\n");
+		return -EINVAL;
+	}
+	get_random_bytes((void *)aes_ivdata, AES_BLOCK_SIZE);
+
+	aes_unsealed_buf = memset(aes_unsealed_buf, 0, MAX_PLAIN_DATA_SIZE);
+	aes_decrypted_len = count;
+	memcpy(aes_unsealed_buf, buf, aes_decrypted_len);
+	return count;
+}
+
+static ssize_t
+store_aes_encrypted_data_tzapp(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	if ((count % AES_BLOCK_SIZE) || count > MAX_PLAIN_DATA_SIZE) {
+		pr_info("\nInvalid input\n");
+		pr_info("Encrypted data length is %lu bytes\n",
+			(unsigned long)count);
+		pr_info("Encrypted data length must be multiple of AES block"
+			"size 16  and <= %ubytes\n",
+			(unsigned int)MAX_ENCRYPTED_DATA_SIZE);
+		return -EINVAL;
+	}
+
+	aes_sealed_buf = memset(aes_sealed_buf, 0, MAX_ENCRYPTED_DATA_SIZE);
+	aes_encrypted_len = count;
+	memcpy(aes_sealed_buf, buf, count);
+
+	return count;
+}
+
+
 
 static ssize_t
 show_encrypted_data(struct device *dev, struct device_attribute *attr,
@@ -2455,20 +2567,20 @@ static int tzapp_test(struct device *dev, void *input,
 		 */
 
 		switch (option) {
-		case 1:
+		case TZ_APP_BASIC_DATA_TEST_ID:
 			msgreq->cmd_id = CLIENT_CMD1_BASIC_DATA;
 			msgreq->data = *((dma_addr_t *)input);
 			break;
-		case 2:
+		case TZ_APP_ENC_TEST_ID:
 			msgreq->cmd_id = CLIENT_CMD8_RUN_CRYPTO_ENCRYPT;
 			break;
-		case 3:
+		case TZ_APP_DEC_TEST_ID:
 			msgreq->cmd_id = CLIENT_CMD9_RUN_CRYPTO_DECRYPT;
 			break;
-		case 4:
+		case TZ_APP_CRYPTO_TEST_ID:
 			msgreq->cmd_id = CLIENT_CMD8_RUN_CRYPTO_TEST;
 			break;
-		case 5:
+		case TZ_APP_AUTH_OTP_TEST_ID:
 			if (!auth_file) {
 				pr_err("No OTP file provided\n");
 				return -ENOMEM;
@@ -2489,7 +2601,7 @@ static int tzapp_test(struct device *dev, void *input,
 			pr_err("\n Invalid Option");
 			goto fn_exit_1;
 		}
-		if (option == 2 || option == 3) {
+		if (option == TZ_APP_ENC_TEST_ID || option == TZ_APP_DEC_TEST_ID) {
 			msgreq->data = dma_map_single(dev, input,
 					input_len, DMA_TO_DEVICE);
 			msgreq->data2 = dma_map_single(dev, output,
@@ -2537,7 +2649,7 @@ static int tzapp_test(struct device *dev, void *input,
 							, &resp, sizeof(resp));
 		}
 
-		if (option == 2 || option == 3) {
+		if (option == TZ_APP_ENC_TEST_ID || option == TZ_APP_DEC_TEST_ID) {
 			dma_unmap_single(dev, msgreq->data,
 						input_len, DMA_TO_DEVICE);
 			dma_unmap_single(dev, msgreq->data2,
@@ -2577,7 +2689,7 @@ static int tzapp_test(struct device *dev, void *input,
 				ret = -EINVAL;
 				goto fn_exit_1;
 			} else {
-				if (option == 4) {
+				if (option == TZ_APP_CRYPTO_TEST_ID) {
 					if (!msgrsp->status) {
 						pr_info("Crypto operation success\n");
 					} else {
@@ -2588,13 +2700,13 @@ static int tzapp_test(struct device *dev, void *input,
 			}
 		}
 
-		if (option == 1) {
+		if (option == TZ_APP_BASIC_DATA_TEST_ID) {
 			if (msgrsp->status) {
 				pr_err("Input size exceeded supported range\n");
 				ret = -EINVAL;
 			}
 			basic_output = msgrsp->data;
-		} else if (option == 5) {
+		} else if (option == TZ_APP_AUTH_OTP_TEST_ID) {
 			if (msgrsp->status) {
 				pr_err("Auth OTP failed with response %d\n",
 								msgrsp->status);
@@ -2604,7 +2716,7 @@ static int tzapp_test(struct device *dev, void *input,
 		}
 fn_exit_1:
 		free_page(pg_addr);
-		if (option == 5) {
+		if (option == TZ_APP_AUTH_OTP_TEST_ID) {
 			dma_unmap_single(dev, msgreq->data, auth_size,
 								DMA_TO_DEVICE);
 		}
@@ -2633,23 +2745,27 @@ fn_exit_1:
 		 * option = 1 -> Basic Multiplication, option = 2 -> Encryption,
 		 * option = 3 -> Decryption, option = 4 -> Crypto Function
 		 * option = 5 -> Authorized OTP fusing
+		 * option = 6 -> Log Bitmask function, option = 7 -> Fuse test
+		 * option = 8 -> Miscellaneous function
+		 * option = 9 -> AES Encryption, option = 10 -> AES Decryption
+		 * option = 11 -> RSA Crypto
 		 */
 
 		switch (option) {
-		case 1:
+		case TZ_APP_BASIC_DATA_TEST_ID:
 			msgreq->cmd_id = CLIENT_CMD1_BASIC_DATA;
 			msgreq->data = *((dma_addr_t *)input);
 			break;
-		case 2:
+		case TZ_APP_ENC_TEST_ID:
 			msgreq->cmd_id = CLIENT_CMD8_RUN_CRYPTO_ENCRYPT;
 			break;
-		case 3:
+		case TZ_APP_DEC_TEST_ID:
 			msgreq->cmd_id = CLIENT_CMD9_RUN_CRYPTO_DECRYPT;
 			break;
-		case 4:
+		case TZ_APP_CRYPTO_TEST_ID:
 			msgreq->cmd_id = CLIENT_CMD8_RUN_CRYPTO_TEST;
 			break;
-		case 5:
+		case TZ_APP_AUTH_OTP_TEST_ID:
 			if (!auth_file) {
 				pr_err("No OTP file provided\n");
 				return -ENOMEM;
@@ -2666,11 +2782,40 @@ fn_exit_1:
 			}
 
 			break;
+		case TZ_APP_LOG_BITMASK_TEST_ID:
+			msgreq->cmd_id = CLIENT_CMD53_RUN_LOG_BITMASK_TEST;
+			break;
+		case TZ_APP_FUSE_TEST_ID:
+			msgreq->cmd_id = CLIENT_CMD18_RUN_FUSE_TEST;
+			break;
+		case TZ_APP_MISC_TEST_ID:
+			msgreq->cmd_id = CLIENT_CMD13_RUN_MISC_TEST;
+			break;
+		case TZ_APP_FUSE_BLOW_ID:
+			msgreq->cmd_id = CLIENT_CMD43_RUN_FUSE_BLOW;
+			msgreq->data = (dma_addr_t)input;
+			msgreq->len = input_len;
+			break;
+		case TZ_APP_AES_ENCRYPT_ID:
+			msgreq->cmd_id = CLIENT_CMD40_RUN_AES_ENCRYPT;
+			msgreq->data = (dma_addr_t)input;
+			msgreq->len = input_len;
+			break;
+		case TZ_APP_AES_DECRYPT_ID:
+			msgreq->cmd_id = CLIENT_CMD41_RUN_AES_DECRYPT;
+			msgreq->data = (dma_addr_t)input;
+			msgreq->len = input_len;
+			break;
+		case TZ_APP_RSA_ENC_DEC_ID:
+			msgreq->cmd_id = CLIENT_CMD42_RUN_RSA_CRYPT;
+			msgreq->data = (dma_addr_t)input;
+			msgreq->len = input_len;
+			break;
 		default:
 			pr_err("\n Invalid Option");
 			goto fn_exit;
 		}
-		if (option == 2 || option == 3) {
+		if (option == TZ_APP_ENC_TEST_ID || option == TZ_APP_DEC_TEST_ID) {
 			msgreq->data = dma_map_single(dev, input,
 					input_len, DMA_TO_DEVICE);
 			msgreq->data2 = dma_map_single(dev, output,
@@ -2717,7 +2862,7 @@ fn_exit_1:
 							, &resp, sizeof(resp));
 		}
 
-		if (option == 2 || option == 3) {
+		if (option == TZ_APP_ENC_TEST_ID || option == TZ_APP_DEC_TEST_ID) {
 			dma_unmap_single(dev, msgreq->data,
 						input_len, DMA_TO_DEVICE);
 			dma_unmap_single(dev, msgreq->data2,
@@ -2757,7 +2902,7 @@ fn_exit_1:
 				ret = -EINVAL;
 				goto fn_exit;
 			} else {
-				if (option == 4) {
+				if (option == TZ_APP_CRYPTO_TEST_ID) {
 					if (!msgrsp->status) {
 						pr_info("Crypto operation success\n");
 					} else {
@@ -2768,28 +2913,299 @@ fn_exit_1:
 			}
 		}
 
-		if (option == 1) {
+		if (option == TZ_APP_BASIC_DATA_TEST_ID) {
 			if (msgrsp->status) {
 				pr_err("Input size exceeded supported range\n");
 				ret = -EINVAL;
 			}
 			basic_output = msgrsp->data;
-		} else if (option == 5) {
+		} else if (option == TZ_APP_AUTH_OTP_TEST_ID) {
 			if (msgrsp->status) {
 				pr_err("Auth OTP failed with response %d\n",
 								msgrsp->status);
 				ret = -EIO;
 			} else
 				pr_info("Auth and Blow Success");
+		} else if (option == TZ_APP_LOG_BITMASK_TEST_ID) {
+			if (!msgrsp->status) {
+				pr_info("Log Bitmask test Success\n");
+			} else {
+				pr_info("Log Bitmask test failed\n");
+				goto fn_exit;
+			}
+		} else if (option == TZ_APP_FUSE_TEST_ID) {
+			if (!msgrsp->status) {
+				pr_info("Fuse test success\n");
+			} else {
+				pr_info("Fuse test failed\n");
+				goto fn_exit;
+			}
+		} else if (option == TZ_APP_MISC_TEST_ID) {
+			if (!msgrsp->status) {
+				pr_info("Misc test success\n");
+			} else {
+				pr_info("Misc test failed\n");
+				goto fn_exit;
+			}
+		} else if (option == TZ_APP_RSA_ENC_DEC_ID ||
+				option == TZ_APP_FUSE_BLOW_ID) {
+			if (msgrsp->status) {
+				ret = -EINVAL;
+			}
+		} else if (option == TZ_APP_AES_ENCRYPT_ID ||
+				option == TZ_APP_AES_DECRYPT_ID) {
+			if (msgrsp->status) {
+				ret = -EOPNOTSUPP;
+			}
 		}
+
 fn_exit:
 		free_page(pg_addr);
-		if (option == 5) {
+		if (option == TZ_APP_AUTH_OTP_TEST_ID) {
 			dma_unmap_single(dev, msgreq->data, auth_size,
 								DMA_TO_DEVICE);
 		}
 	}
 	return ret;
+}
+static ssize_t
+show_aes_decrypted_data_tzapp(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	int rc = 0;
+	struct tz_crypto_service_decrypt_data_cmd_t *req_ptr = NULL;
+	uint64_t req_size = 0;
+	size_t req_order = 0;
+	uint64_t output_len = 0;
+	dma_addr_t dma_req_addr = 0;
+	dma_addr_t dma_sealed_data = 0;
+	dma_addr_t dma_output_data = 0;
+	dma_addr_t dma_iv_data = 0;
+	struct page *req_page = NULL;
+
+	aes_unsealed_buf = memset(aes_unsealed_buf, 0, MAX_PLAIN_DATA_SIZE);
+	output_len = aes_encrypted_len;
+
+	if (aes_encrypted_len <= 0 || aes_encrypted_len % AES_BLOCK_SIZE) {
+		pr_err("\nInvalid input %lld\n", aes_encrypted_len);
+		pr_info("Encrypted data length for decryption should be multiple "
+			"of AES block size(16)\n");
+		return -EINVAL;
+	}
+	if (!aes_type || aes_type >= TZ_CRYPTO_SERVICE_AES_TYPE_MAX) {
+		pr_info("\n aes type needed for decryption\n");
+		return -EINVAL;
+	}
+
+	dev = qdev;
+
+	req_size = sizeof(struct tz_crypto_service_decrypt_data_cmd_t);
+	req_order = get_order(req_size);
+	req_page = alloc_pages(GFP_KERNEL, req_order);
+
+	if (req_page)
+		req_ptr = page_address(req_page);
+	else
+		return -ENOMEM;
+
+	dma_sealed_data = dma_map_single(dev, aes_sealed_buf, encrypted_len,
+					DMA_TO_DEVICE);
+	rc = dma_mapping_error(dev, dma_sealed_data);
+	if (rc) {
+		pr_err("DMA Mapping Error(sealed data)\n");
+		goto err_end;
+	}
+
+	dma_output_data = dma_map_single(dev, aes_unsealed_buf, output_len,
+					DMA_FROM_DEVICE);
+	rc = dma_mapping_error(dev, dma_output_data);
+	if (rc) {
+		pr_err("DMA Mapping Error(output data)\n");
+		goto err_map_output_data;
+	}
+
+	dma_iv_data = dma_map_single(dev, aes_ivdata, AES_BLOCK_SIZE,
+					DMA_TO_DEVICE);
+	rc = dma_mapping_error(dev, dma_iv_data);
+	if (rc) {
+		pr_err("DMA Mapping Error(output data)\n");
+		goto err_map_iv_data;
+	}
+
+	req_ptr->type = aes_type;
+	req_ptr->mode = aes_mode;
+	req_ptr->encrypted_data = (u64)dma_sealed_data;
+	req_ptr->output_buffer = (u64)dma_output_data;
+	req_ptr->iv = (req_ptr->mode == 0 ? 0 : (u64)dma_iv_data);
+	req_ptr->iv_len = AES_BLOCK_SIZE;
+	req_ptr->encrypted_dlen = aes_encrypted_len;
+	req_ptr->output_len = output_len;
+
+	dma_req_addr = dma_map_single(dev, req_ptr, req_size, DMA_TO_DEVICE);
+
+	rc = dma_mapping_error(dev, dma_req_addr);
+	if (rc) {
+		pr_err("DMA Mapping Error(request str)\n");
+		goto err_map_req;
+	}
+
+	rc = tzapp_test(dev, (uint8_t *)dma_req_addr, NULL, req_size,
+						TZ_APP_AES_DECRYPT_ID);
+	dma_unmap_single(dev, dma_output_data, output_len, DMA_FROM_DEVICE);
+	dma_unmap_single(dev, dma_sealed_data, encrypted_len, DMA_TO_DEVICE);
+	dma_unmap_single(dev, dma_iv_data, AES_BLOCK_SIZE, DMA_TO_DEVICE);
+	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
+
+	if (rc) {
+		pr_err("\nResponse status failure..return value = %d\n", rc);
+		goto err_end;
+	}
+
+	aes_decrypted_len = req_ptr->output_len;
+	memcpy(buf, aes_unsealed_buf, aes_decrypted_len);
+
+goto end;
+
+err_map_req:
+	dma_unmap_single(dev, dma_iv_data, AES_BLOCK_SIZE, DMA_TO_DEVICE);
+
+err_map_iv_data:
+	dma_unmap_single(dev, dma_output_data, output_len, DMA_FROM_DEVICE);
+
+err_map_output_data:
+	dma_unmap_single(dev, dma_sealed_data, encrypted_len, DMA_TO_DEVICE);
+
+err_end:
+	free_pages((unsigned long)page_address(req_page), req_order);
+
+	return rc;
+
+end:
+	free_pages((unsigned long)page_address(req_page), req_order);
+
+	return aes_decrypted_len;
+}
+static ssize_t
+show_aes_encrypted_data_tzapp(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	int rc = 0;
+	struct tz_crypto_service_encrypt_data_cmd_t *req_ptr = NULL;
+	uint64_t req_size = 0;
+	size_t req_order = 0;
+	uint64_t output_len = 0;
+	dma_addr_t dma_req_addr = 0;
+	dma_addr_t dma_plain_data = 0;
+	dma_addr_t dma_output_data = 0;
+	dma_addr_t dma_iv_data = 0;
+	struct page *req_page = NULL;
+
+	aes_sealed_buf = memset(aes_sealed_buf, 0, MAX_ENCRYPTED_DATA_SIZE);
+	output_len = aes_decrypted_len;
+
+	if (aes_decrypted_len <= 0 || aes_decrypted_len % AES_BLOCK_SIZE) {
+		pr_err("\nInvalid input %lld\n", aes_decrypted_len);
+		pr_info("Input data length for encryption should be multiple"
+			"of AES block size(16)\n");
+		return -EINVAL;
+	}
+	if (!aes_type || aes_type >= TZ_CRYPTO_SERVICE_AES_TYPE_MAX) {
+		pr_info("\n aes type needed for encryption\n");
+		return -EINVAL;
+	}
+
+	dev = qdev;
+
+	req_size = sizeof(struct tz_crypto_service_encrypt_data_cmd_t);
+	req_order = get_order(req_size);
+	req_page = alloc_pages(GFP_KERNEL, req_order);
+
+	if (req_page)
+		req_ptr = page_address(req_page);
+	else
+		return -ENOMEM;
+
+	dma_plain_data = dma_map_single(dev, aes_unsealed_buf, aes_decrypted_len,
+				       DMA_TO_DEVICE);
+	rc = dma_mapping_error(dev, dma_plain_data);
+	if (rc) {
+		pr_err("DMA Mapping Error(plain data)\n");
+		goto err_end;
+	}
+
+	dma_output_data = dma_map_single(dev, aes_sealed_buf, output_len,
+					DMA_FROM_DEVICE);
+	rc = dma_mapping_error(dev, dma_output_data);
+	if (rc) {
+		pr_err("DMA Mapping Error(output data)\n");
+		goto err_map_output_data;
+	}
+
+	dma_iv_data = dma_map_single(dev, aes_ivdata, AES_BLOCK_SIZE,
+					DMA_TO_DEVICE);
+	rc = dma_mapping_error(dev, dma_iv_data);
+	if (rc) {
+		pr_err("DMA Mapping Error(output data)\n");
+		goto err_map_iv_data;
+	}
+
+	req_ptr->type = aes_type;
+	req_ptr->mode = aes_mode;
+	req_ptr->iv = (req_ptr->mode == 0 ? 0 : (u64)dma_iv_data);
+	req_ptr->iv_len = AES_BLOCK_SIZE;
+	req_ptr->plain_data = (u64)dma_plain_data;
+	req_ptr->output_buffer = (u64)dma_output_data;
+	req_ptr->plain_data_len = aes_decrypted_len;
+	req_ptr->output_len = output_len;
+
+	dma_req_addr = dma_map_single(dev, req_ptr, req_size, DMA_TO_DEVICE);
+
+	rc = dma_mapping_error(dev, dma_req_addr);
+	if (rc) {
+		pr_err("DMA Mapping Error(request str)\n");
+		goto err_map_req;
+	}
+
+	rc = tzapp_test(dev, (uint8_t *)dma_req_addr, NULL, req_size,
+						TZ_APP_AES_ENCRYPT_ID);
+
+	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
+	dma_unmap_single(dev, dma_iv_data, AES_BLOCK_SIZE, DMA_TO_DEVICE);
+	dma_unmap_single(dev, dma_output_data, output_len, DMA_FROM_DEVICE);
+	dma_unmap_single(dev, dma_plain_data, aes_decrypted_len, DMA_TO_DEVICE);
+
+	if (rc) {
+		pr_err("\nResponse status failure..return value = %d\n", rc);
+		goto err_end;
+	}
+
+	if (aes_mode == TZ_CRYPTO_SERVICE_AES_MODE_CBC && aes_ivdata)
+		print_hex_dump(KERN_INFO, "IV data(CBC): ", DUMP_PREFIX_NONE, 16, 1,
+				aes_ivdata, AES_BLOCK_SIZE, false);
+	else
+		pr_info("IV data(ECB): NULL\n");
+
+	memcpy(buf, aes_sealed_buf, req_ptr->output_len);
+	aes_encrypted_len = req_ptr->output_len;
+
+goto end;
+
+err_map_req:
+	dma_unmap_single(dev, dma_iv_data, AES_BLOCK_SIZE, DMA_TO_DEVICE);
+
+err_map_iv_data:
+	dma_unmap_single(dev, dma_output_data, output_len, DMA_FROM_DEVICE);
+
+err_map_output_data:
+	dma_unmap_single(dev, dma_plain_data, decrypted_len, DMA_TO_DEVICE);
+
+err_end:
+	free_pages((unsigned long)page_address(req_page), req_order);
+	return rc;
+
+end:
+	free_pages((unsigned long)page_address(req_page), req_order);
+
+	return aes_encrypted_len;
 }
 
 static int32_t copy_files(int *img_size)
@@ -2898,7 +3314,7 @@ store_basic_input(struct device *dev, struct device_attribute *attr,
 		pr_err("\n Please enter a valid unsigned integer less than %u",
 			(U32_MAX / 10));
 	else
-		ret = tzapp_test(dev, &basic_input, NULL, 0, 1);
+		ret = tzapp_test(dev, &basic_input, NULL, 0, TZ_APP_BASIC_DATA_TEST_ID);
 
 	return ret ? ret : count;
 }
@@ -2943,7 +3359,7 @@ store_encrypt_input(struct device *dev, struct device_attribute *attr,
 	}
 
 	ret = tzapp_test(dev, (uint8_t *)input_pt,
-			 (uint8_t *)output_pt, enc_len, 2);
+			 (uint8_t *)output_pt, enc_len, TZ_APP_ENC_TEST_ID);
 
 	if (!ret)
 		memcpy(encrypt_text, output_pt, enc_len);
@@ -2994,7 +3410,7 @@ store_decrypt_input(struct device *dev, struct device_attribute *attr,
 	}
 
 	ret = tzapp_test(dev, (uint8_t *)input_pt,
-			 (uint8_t *)output_pt, dec_len, 3);
+			 (uint8_t *)output_pt, dec_len, TZ_APP_DEC_TEST_ID);
 	if (!ret)
 		memcpy(decrypt_text, output_pt, dec_len);
 
@@ -3081,7 +3497,7 @@ static ssize_t
 store_crypto_input(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
-	tzapp_test(dev, NULL, NULL, 0, 4);
+	tzapp_test(dev, NULL, NULL, 0, TZ_APP_CRYPTO_TEST_ID);
 	return count;
 }
 
@@ -3089,14 +3505,772 @@ static ssize_t
 store_fuse_otp_input(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
-	tzapp_test(dev, (void *)buf, NULL, 0, 5);
+	tzapp_test(dev, (void *)buf, NULL, 0, TZ_APP_AUTH_OTP_TEST_ID);
 	return count;
+}
+
+static ssize_t
+store_log_bitmask_input(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	tzapp_test(dev, NULL, NULL, 0, TZ_APP_LOG_BITMASK_TEST_ID);
+	return count;
+}
+
+static ssize_t
+store_fuse_input(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	tzapp_test(dev, NULL, NULL, 0, TZ_APP_FUSE_TEST_ID);
+	return count;
+}
+
+static ssize_t
+store_misc_input(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	tzapp_test(dev, NULL, NULL, 0, TZ_APP_MISC_TEST_ID);
+	return count;
+}
+
+static ssize_t show_qsee_app_id(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	return snprintf(buf, sizeof(uint32_t) + 1, "%u\n", qsee_app_id);
+}
+
+static ssize_t
+store_addr_fuse_write_tzapp(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	unsigned long long val;
+
+	if (kstrtoull(buf, 0, &val))
+		return -EINVAL;
+
+	fuse_addr = val;
+
+	return count;
+}
+static ssize_t
+store_value_fuse_write_tzapp(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	unsigned long long val;
+
+	if (kstrtoull(buf, 0, &val))
+		return -EINVAL;
+
+	if(val > MAX_FUSE_WRITE_VALUE) {
+		pr_err("\nInvalid input: %llu\n", val);
+		return -EINVAL;
+	}
+	fuse_value = val;
+
+	return count;
+}
+static ssize_t
+store_fec_value_fuse_write_tzapp(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	unsigned long long val;
+
+	if (kstrtoull(buf, 0, &val))
+		return -EINVAL;
+
+	if(val > MAX_FUSE_FEC_VALUE) {
+		pr_err("\nInvalid input: %llu\n", val);
+		return -EINVAL;
+	}
+	fuse_fec_value = val;
+
+	return count;
+}
+static ssize_t
+store_fec_enable_fuse_write_tzapp(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	unsigned long long val;
+
+	if (kstrtoull(buf, 10, &val))
+		return -EINVAL;
+
+	if(val != 0 && val !=1) {
+		pr_err("\nInvalid input: %llu\n", val);
+		pr_err("fec enable should be either 0 or 1\n");
+		return -EINVAL;
+	}
+	is_fec_enable = val;
+
+	return count;
+}
+
+static ssize_t
+store_blow_fuse_write_tzapp(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	uint32_t ret = 0;
+	struct tz_storage_service_fuse_blow_req *req_ptr = NULL;
+	uint64_t req_size = 0;
+	size_t req_order = 0;
+	struct page *req_page = NULL;
+	dma_addr_t dma_req_addr = 0;
+
+	unsigned long long val;
+
+	if (kstrtoull(buf, 10, &val))
+		return -EINVAL;
+
+	if(val !=1) {
+		pr_err("\nInvalid input: %llu\n", val);
+		pr_err("echo 1 to blow the fuse\n");
+		return -EINVAL;
+	} else if (is_fec_enable && !fuse_fec_value) {
+		pr_err("\nfec value should be given, if fec is enabled\n");
+		return -EINVAL;
+	}
+
+	dev = qdev;
+
+	req_size = sizeof(struct tz_storage_service_fuse_blow_req);
+	req_order = get_order(req_size);
+	req_page = alloc_pages(GFP_KERNEL|GFP_DMA, req_order);
+	if (req_page)
+		req_ptr = page_address(req_page);
+	else
+		return -ENOMEM;
+
+	req_ptr->addr = fuse_addr;
+	req_ptr->value = fuse_value;
+	req_ptr->is_fec_enable = is_fec_enable;
+	req_ptr->fec_value = fuse_fec_value;
+
+	dma_req_addr = dma_map_single(dev, req_ptr, req_size, DMA_TO_DEVICE);
+	ret = dma_mapping_error(dev, dma_req_addr);
+	if (ret) {
+		pr_err("DMA Mapping Error\n");
+		goto free_dma_req;
+	}
+
+	ret = tzapp_test(dev, (void *)dma_req_addr, NULL, req_size,
+					TZ_APP_FUSE_BLOW_ID);
+	if (ret) {
+		pr_err("Fuse Blow failed from TZ app with error code %d\n",ret);
+	}
+	else
+		ret = count;
+
+	dma_unmap_single(dev, dma_req_addr, req_size, DMA_TO_DEVICE);
+
+free_dma_req:
+	free_pages((unsigned long)req_ptr, req_order);
+
+	return ret;
+
+}
+
+static ssize_t
+store_decrypted_rsa_data_tzapp(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	if (!count || (count > MAX_RSA_PLAIN_DATA_SIZE)) {
+		pr_err("\nInvalid length\n");
+		pr_err("Given length: %lu, Max Plain msg length: %u\n",
+			(unsigned long)count, (unsigned int)MAX_RSA_PLAIN_DATA_SIZE);
+		return -EINVAL;
+	}
+
+	memset(rsa_unsealed_buf, 0, MAX_RSA_PLAIN_DATA_SIZE);
+	rsa_decrypted_len = count;
+	memcpy(rsa_unsealed_buf, buf, rsa_decrypted_len);
+	return count;
+}
+static ssize_t
+store_encrypted_rsa_data_tzapp(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	if (!count || (count > MAX_RSA_SIGN_DATA_SIZE)) {
+		pr_err("\nInvalid length\n");
+		pr_err("Given length: %lu, Max Encrypted Msg length: %u\n",
+			(unsigned long)count, (unsigned int)MAX_RSA_SIGN_DATA_SIZE);
+		return -EINVAL;
+	}
+
+	memset(rsa_sealed_buf, 0, MAX_RSA_SIGN_DATA_SIZE);
+	rsa_encrypted_len = count;
+	memcpy(rsa_sealed_buf, buf, rsa_encrypted_len);
+	return count;
+}
+static ssize_t
+store_label_rsa_data_tzapp(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	if (!count || (count > MAX_RSA_PLAIN_DATA_SIZE)) {
+		pr_err("\nInvalid length\n");
+		pr_err("Given length: %lu, Max Lebel length: %u\n",
+			(unsigned long)count, (unsigned int)MAX_RSA_PLAIN_DATA_SIZE);
+		return -EINVAL;
+	}
+
+	memset(rsa_label, 0, MAX_RSA_PLAIN_DATA_SIZE);
+	rsa_label_len = count;
+	memcpy(rsa_label, buf, rsa_label_len);
+	return count;
+}
+static ssize_t
+store_n_key_rsa_data_tzapp(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	if (!count || (count > RSA_KEY_SIZE_MAX)) {
+		pr_err("\nInvalid length\n");
+		pr_err("Given length: %lu, Max Key Modulus length: %u\n",
+			(unsigned long)count, (unsigned int)RSA_KEY_SIZE_MAX);
+		return -EINVAL;
+	}
+
+	memset(rsa_n_key, 0, RSA_KEY_SIZE_MAX);
+	rsa_n_key_len = count;
+	memcpy(rsa_n_key, buf, rsa_n_key_len);
+	if (rsa_n_key[count-1] == 0x0a)
+		rsa_n_key[count-1] = 0x00;
+	return count;
+}
+static ssize_t
+store_e_key_rsa_data_tzapp(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	if (!count || (count > RSA_KEY_SIZE_MAX)) {
+		pr_err("\nInvalid length\n");
+		pr_err("Given length: %lu, Max Public exponent length: %u\n",
+			(unsigned long)count, (unsigned int)RSA_KEY_SIZE_MAX);
+		return -EINVAL;
+	}
+
+	memset(rsa_e_key, 0, RSA_KEY_SIZE_MAX);
+	rsa_e_key_len = count;
+	memcpy(rsa_e_key, buf, rsa_e_key_len);
+	if (rsa_e_key[count-1] == 0x0a)
+		rsa_e_key[count-1] = 0x00;
+	return count;
+}
+static ssize_t
+store_d_key_rsa_data_tzapp(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	if (!count || (count > RSA_KEY_SIZE_MAX)) {
+		pr_err("\nInvalid length\n");
+		pr_err("Given length: %lu, Max Private exponent length: %u\n",
+			(unsigned long)count, (unsigned int)RSA_KEY_SIZE_MAX);
+		return -EINVAL;
+	}
+
+	memset(rsa_d_key, 0, RSA_KEY_SIZE_MAX);
+	rsa_d_key_len = count;
+	memcpy(rsa_d_key, buf, rsa_d_key_len);
+	if (rsa_d_key[count-1] == 0x0a)
+		rsa_d_key[count-1] = 0x00;
+	return count;
+}
+static ssize_t
+store_nbits_key_rsa_data_tzapp(struct device *dev, struct device_attribute *attr,
+               const char *buf, size_t count)
+{
+	unsigned long long val;
+
+	if (kstrtoull(buf, 10, &val))
+		return -EINVAL;
+
+	if(val <=0 || val % RSA_KEY_ALIGN) {
+		pr_err("\nInvalid key nbits: %llu\n", val);
+		pr_err("Number of bits in key should be RSA_KEY_ALIGN %d aligned\n",RSA_KEY_ALIGN);
+		return -EINVAL;
+	}
+	rsa_nbits_key = val;
+
+	return count;
+}
+static ssize_t
+store_hashidx_rsa_data_tzapp(struct device *dev, struct device_attribute *attr,
+               const char *buf, size_t count)
+{
+	unsigned long long val;
+
+	if (kstrtoull(buf, 10, &val))
+		return -EINVAL;
+
+	if (val <=0 || val >= QSEE_HASH_IDX_MAX) {
+		pr_err("\nInvalid rsa hashidx: %llu\n", val);
+		return -EINVAL;
+	}
+	rsa_hashidx = val;
+
+	return count;
+}
+
+static ssize_t
+store_padding_type_rsa_data_tzapp(struct device *dev, struct device_attribute *attr,
+               const char *buf, size_t count)
+{
+	unsigned long long val;
+
+	if (kstrtoull(buf, 10, &val))
+		return -EINVAL;
+
+	if (val < 0 || val >= QSEE_RSA_PADDING_TYPE_MAX) {
+		pr_err("\nInvalid padding type: %llu\n", val);
+		return -EINVAL;
+	}
+	rsa_padding_type = val;
+
+	return count;
+}
+
+static ssize_t
+show_encrypted_rsa_data_tzapp(struct device *dev, struct device_attribute *attr,
+						 char *buf)
+{
+	uint32_t ret = 0;
+	struct tz_storage_service_rsa_message_type *msg_vector_ptr = NULL;
+	struct tz_storage_service_rsa_key_type *key = NULL;
+	struct tz_storage_service_rsa_message_req *req_ptr = NULL;
+	uint64_t msg_vector_size = 0, key_size = 0, req_size = 0;
+	size_t req_order = 0;
+	struct page *req_page = NULL;
+	dma_addr_t dma_plain_msg = 0;
+	dma_addr_t dma_encrypted_msg = 0;
+	dma_addr_t dma_encrypted_msg_len = 0;
+	dma_addr_t dma_label = 0;
+	dma_addr_t dma_msg_vector = 0;
+	dma_addr_t dma_key_n = 0;
+	dma_addr_t dma_key_e = 0;
+	dma_addr_t dma_key_d = 0;
+	dma_addr_t dma_key = 0;
+	dma_addr_t dma_req = 0;
+	uint64_t *output_len = NULL;
+
+	dev = qdev;
+
+	if (rsa_decrypted_len <= 0) {
+		pr_err("\nInvalid msg size %lld\n", rsa_decrypted_len);
+		return ret;
+	} else if (rsa_d_key_len <=0) {
+		pr_err("\nInvalid private exponent, size %lld\n", rsa_d_key_len);
+		return ret;
+	} else if (rsa_e_key_len <=0) {
+		pr_err("\nInvalid public exponent, size %lld\n", rsa_e_key_len);
+		return ret;
+	} else if (rsa_n_key_len <=0) {
+		pr_err("\nInvalid modulus key, size %lld\n", rsa_n_key_len);
+		return ret;
+	} else if (rsa_hashidx <=0) {
+		pr_err("\nInvalid rsa hashidx, size %lld\n", rsa_hashidx);
+		return ret;
+	} else if (rsa_nbits_key <=0) {
+		pr_err("\nInvalid key nbits, size %lld\n", rsa_nbits_key);
+		return ret;
+	}
+
+	memset(rsa_sealed_buf, 0, MAX_RSA_SIGN_DATA_SIZE);
+	rsa_encrypted_len = 0;
+	output_len = (uint64_t*)kzalloc(sizeof(uint64_t), GFP_KERNEL);
+
+	msg_vector_size = sizeof(struct tz_storage_service_rsa_message_type);
+	req_order = get_order(msg_vector_size);
+	req_page = alloc_pages(GFP_KERNEL|GFP_DMA, req_order);
+	if (req_page)
+		msg_vector_ptr = page_address(req_page);
+	else {
+		pr_err("Mem allocation failed for msg vector\n");
+		goto err_mem_msg_vector;
+	}
+
+	dma_plain_msg = dma_map_single(dev, rsa_unsealed_buf, rsa_decrypted_len,
+				       DMA_TO_DEVICE);
+	ret = dma_mapping_error(dev, dma_plain_msg);
+	if (ret) {
+		pr_err("DMA Mapping Error msg data\n");
+		goto err_dma_plain_msg;
+	}
+
+	dma_encrypted_msg = dma_map_single(dev, rsa_sealed_buf, MAX_RSA_SIGN_DATA_SIZE,
+				       DMA_FROM_DEVICE);
+	ret = dma_mapping_error(dev, dma_encrypted_msg);
+	if (ret) {
+		pr_err("DMA Mapping Error(dma_encrypted_msg)\n");
+		goto err_dma_encrypted_msg;
+	}
+
+	dma_encrypted_msg_len = dma_map_single(dev, output_len, sizeof(uint64_t*),
+				       DMA_FROM_DEVICE);
+	ret = dma_mapping_error(dev, dma_encrypted_msg_len);
+	if (ret) {
+		pr_err("DMA Mapping Error(dma_encrypted_msg_len)\n");
+		goto err_dma_encrypted_msg_len;
+	}
+
+	dma_label = dma_map_single(dev, rsa_label, rsa_label_len,
+							DMA_TO_DEVICE);
+	ret = dma_mapping_error(dev, dma_label);
+	if (ret) {
+		pr_err("DMA Mapping Error(dma_label)\n");
+		goto err_dma_label;
+	}
+
+	msg_vector_ptr->input = (u64)dma_plain_msg;
+	msg_vector_ptr->input_len = rsa_decrypted_len;
+	msg_vector_ptr->label = (u64)dma_label;
+	msg_vector_ptr->label_len = rsa_label_len;
+	msg_vector_ptr->output = (u64)dma_encrypted_msg;
+	msg_vector_ptr->output_len = (u64)dma_encrypted_msg_len;
+	msg_vector_ptr->padding_type = rsa_padding_type;
+	msg_vector_ptr->hashidx = rsa_hashidx;
+
+	dma_msg_vector = dma_map_single(dev, msg_vector_ptr, msg_vector_size, DMA_TO_DEVICE);
+	ret = dma_mapping_error(dev, dma_msg_vector);
+	if (ret) {
+		pr_err("DMA Mapping Error(dma_msg_vector)\n");
+		goto err_dma_msg_vector;
+	}
+
+	key_size = sizeof(struct tz_storage_service_rsa_key_type);
+	req_order = get_order(key_size);
+	req_page = alloc_pages(GFP_KERNEL|GFP_DMA, req_order);
+	if (req_page)
+		key = page_address(req_page);
+	else {
+		pr_err("Mem allocation failed for key vector\n");
+		goto err_mem_key;
+	}
+
+	dma_key_n = dma_map_single(dev, rsa_n_key, rsa_n_key_len,
+				       DMA_TO_DEVICE);
+	ret = dma_mapping_error(dev, dma_key_n);
+	if (ret) {
+		pr_err("DMA Mapping Error(dma_key_n)\n");
+		goto err_dma_key_n;
+	}
+
+	dma_key_e = dma_map_single(dev, rsa_e_key, rsa_e_key_len,
+				       DMA_TO_DEVICE);
+
+	ret = dma_mapping_error(dev, dma_key_e);
+	if (ret) {
+		pr_err("DMA Mapping Error(dma_key_e)\n");
+		goto err_dma_key_e;
+	}
+	dma_key_d = dma_map_single(dev, rsa_d_key, rsa_d_key_len,
+				       DMA_TO_DEVICE);
+
+	ret = dma_mapping_error(dev, dma_key_d);
+	if (ret) {
+		pr_err("DMA Mapping Error(dma_key_d)\n");
+		goto err_dma_key_d;
+	}
+	key->n = (u64)dma_key_n;
+	key->e = (u64)dma_key_e;
+	key->d = (u64)dma_key_d;
+	key->nbits = rsa_nbits_key;
+
+	dma_key = dma_map_single(dev, key, key_size, DMA_TO_DEVICE);
+	ret = dma_mapping_error(dev, dma_key);
+	if (ret) {
+		pr_err("DMA Mapping Error(key)\n");
+		goto err_dma_key;
+	}
+
+	req_size = sizeof(struct tz_storage_service_rsa_message_req);
+	req_order = get_order(req_size);
+	req_page = alloc_pages(GFP_KERNEL|GFP_DMA, req_order);
+	if (req_page)
+		req_ptr = page_address(req_page);
+	else {
+		pr_err("Mem allocation failed for request buffer\n");
+		goto err_mem_req;
+	}
+
+	req_ptr->msg_req = (u64)dma_msg_vector;
+	req_ptr->key_req = (u64)dma_key;
+	req_ptr->operation = TZ_APP_RSA_ENCRYPTION_ID;
+
+	dma_req = dma_map_single(dev, req_ptr, req_size,
+				       DMA_TO_DEVICE);
+
+	ret = dma_mapping_error(dev, dma_req);
+	if (ret) {
+		pr_err("DMA Mapping Error(dma_req)\n");
+		goto err_dma_req;
+	}
+
+	ret = tzapp_test(dev, (void *)dma_req, NULL, req_size,
+						TZ_APP_RSA_ENC_DEC_ID);
+
+	if (ret) {
+		pr_err("RSA encryption failed from TZ app with error code %d\n",ret);
+		rsa_encrypted_len = 0;
+	} else {
+		rsa_encrypted_len = *output_len;
+		memcpy(buf, rsa_sealed_buf, rsa_encrypted_len);
+	}
+
+	dma_unmap_single(dev, dma_req, req_size, DMA_TO_DEVICE);
+err_dma_req:
+	free_pages((unsigned long)req_ptr, get_order(req_size));
+err_mem_req:
+	dma_unmap_single(dev, dma_key, key_size, DMA_TO_DEVICE);
+err_dma_key:
+	dma_unmap_single(dev, dma_key_d, rsa_d_key_len, DMA_TO_DEVICE);
+err_dma_key_d:
+	dma_unmap_single(dev, dma_key_e, rsa_e_key_len, DMA_TO_DEVICE);
+err_dma_key_e:
+	dma_unmap_single(dev, dma_key_n, rsa_n_key_len, DMA_TO_DEVICE);
+err_dma_key_n:
+	free_pages((unsigned long)key, get_order(key_size));
+err_mem_key:
+	dma_unmap_single(dev, dma_msg_vector, msg_vector_size, DMA_TO_DEVICE);
+err_dma_msg_vector:
+	dma_unmap_single(dev, dma_label, rsa_label_len, DMA_TO_DEVICE);
+err_dma_label:
+	dma_unmap_single(dev, dma_encrypted_msg_len, sizeof(uint64_t*), DMA_FROM_DEVICE);
+err_dma_encrypted_msg_len:
+	dma_unmap_single(dev, dma_encrypted_msg, MAX_RSA_SIGN_DATA_SIZE, DMA_FROM_DEVICE);
+err_dma_encrypted_msg:
+	dma_unmap_single(dev, dma_plain_msg, rsa_decrypted_len, DMA_TO_DEVICE);
+err_dma_plain_msg:
+	free_pages((unsigned long)msg_vector_ptr, get_order(msg_vector_size));
+err_mem_msg_vector:
+	kfree(output_len);
+
+	return rsa_encrypted_len;
+}
+
+static ssize_t
+show_decrypted_rsa_data_tzapp(struct device *dev, struct device_attribute *attr,
+						 char *buf)
+{
+	uint32_t ret = 0;
+	struct tz_storage_service_rsa_message_type *msg_vector_ptr = NULL;
+	struct tz_storage_service_rsa_key_type *key = NULL;
+	struct tz_storage_service_rsa_message_req *req_ptr = NULL;
+	uint64_t msg_vector_size = 0, key_size = 0, req_size = 0;
+	size_t req_order = 0;
+	struct page *req_page = NULL;
+	dma_addr_t dma_plain_msg = 0;
+	dma_addr_t dma_decrypted_msg_len = 0;
+	dma_addr_t dma_encrypted_msg = 0;
+	dma_addr_t dma_label = 0;
+	dma_addr_t dma_msg_vector = 0;
+	dma_addr_t dma_key_n = 0;
+	dma_addr_t dma_key_e = 0;
+	dma_addr_t dma_key_d = 0;
+	dma_addr_t dma_key = 0;
+	dma_addr_t dma_req = 0;
+	uint64_t *output_len = NULL;
+
+	dev = qdev;
+	if (rsa_encrypted_len <= 0) {
+		pr_err("\nInvalid encrypted msg size %lld\n", rsa_encrypted_len);
+		return ret;
+	} else if (rsa_d_key_len <=0) {
+		pr_err("\nInvalid private exponent, size %lld\n", rsa_d_key_len);
+		return ret;
+	} else if (rsa_e_key_len <=0) {
+		pr_err("\nInvalid public exponent, size %lld\n", rsa_e_key_len);
+		return ret;
+	} else if (rsa_n_key_len <=0) {
+		pr_err("\nInvalid modulus key, size %lld\n", rsa_n_key_len);
+		return ret;
+	} else if (rsa_hashidx <=0) {
+		pr_err("\nInvalid rsa hashidx, size %lld\n", rsa_hashidx);
+		return ret;
+	} else if (rsa_nbits_key <=0) {
+		pr_err("\nInvalid key nbits, size %lld\n", rsa_nbits_key);
+		return ret;
+	}
+	output_len = (uint64_t*)kzalloc(sizeof(uint64_t), GFP_KERNEL);
+	memset(rsa_unsealed_buf, 0, MAX_RSA_PLAIN_DATA_SIZE);
+	rsa_decrypted_len = 0;
+
+	msg_vector_size = sizeof(struct tz_storage_service_rsa_message_type);
+	req_order = get_order(msg_vector_size);
+	req_page = alloc_pages(GFP_KERNEL, req_order);
+	if (req_page)
+		msg_vector_ptr = page_address(req_page);
+	else {
+		pr_err("Mem allocation failed for msg vector\n");
+		goto err_mem_msg_vector;
+	}
+
+	dma_plain_msg = dma_map_single(dev, rsa_unsealed_buf, MAX_RSA_PLAIN_DATA_SIZE,
+				       DMA_FROM_DEVICE);
+	ret = dma_mapping_error(dev, dma_plain_msg);
+	if (ret) {
+		pr_err("DMA Mapping Error msg data\n");
+		goto err_dma_plain_msg;
+	}
+
+	dma_decrypted_msg_len = dma_map_single(dev, output_len, sizeof(uint64_t*),
+				       DMA_FROM_DEVICE);
+	ret = dma_mapping_error(dev, dma_decrypted_msg_len);
+	if (ret) {
+		pr_err("DMA Mapping Error(dma_decrypted_msg_len)\n");
+		goto err_dma_decrypted_msg_len;
+	}
+
+	dma_encrypted_msg = dma_map_single(dev, rsa_sealed_buf, rsa_encrypted_len,
+				       DMA_TO_DEVICE);
+	ret = dma_mapping_error(dev, dma_encrypted_msg);
+	if (ret) {
+		pr_err("DMA Mapping Error(dma_encrypted_msg)\n");
+		goto err_dma_encrypted_msg;
+	}
+
+	dma_label = dma_map_single(dev, rsa_label, rsa_label_len,
+							DMA_TO_DEVICE);
+	ret = dma_mapping_error(dev, dma_label);
+	if (ret) {
+		pr_err("DMA Mapping Error(dma_label)\n");
+		goto err_dma_label;
+	}
+
+	msg_vector_ptr->input = (u64)dma_encrypted_msg;
+	msg_vector_ptr->input_len = rsa_encrypted_len;
+	msg_vector_ptr->label = (u64)dma_label;
+	msg_vector_ptr->label_len = rsa_label_len;
+	msg_vector_ptr->output = (u64)dma_plain_msg;
+	msg_vector_ptr->output_len = (u64)dma_decrypted_msg_len;
+	msg_vector_ptr->padding_type = rsa_padding_type;
+	msg_vector_ptr->hashidx = rsa_hashidx;
+
+	dma_msg_vector = dma_map_single(dev, msg_vector_ptr, msg_vector_size, DMA_TO_DEVICE);
+	ret = dma_mapping_error(dev, dma_msg_vector);
+	if (ret) {
+		pr_err("DMA Mapping Error(dma_msg_vector)\n");
+		goto err_dma_msg_vector;
+	}
+
+	key_size = sizeof(struct tz_storage_service_rsa_key_type);
+	req_order = get_order(key_size);
+	req_page = alloc_pages(GFP_KERNEL, req_order);
+	if (req_page)
+		key = page_address(req_page);
+	else {
+		pr_err("Mem allocation failed for Key vector\n");
+		goto err_mem_key;
+	}
+
+	dma_key_n = dma_map_single(dev, rsa_n_key, rsa_n_key_len,
+				       DMA_TO_DEVICE);
+	ret = dma_mapping_error(dev, dma_key_n);
+	if (ret) {
+		pr_err("DMA Mapping Error(dma_key_n)\n");
+		goto err_dma_key_n;
+	}
+
+	dma_key_e = dma_map_single(dev, rsa_e_key, rsa_e_key_len,
+				       DMA_TO_DEVICE);
+
+	ret = dma_mapping_error(dev, dma_key_e);
+	if (ret) {
+		pr_err("DMA Mapping Error(dma_key_e)\n");
+		goto err_dma_key_e;
+	}
+	dma_key_d = dma_map_single(dev, rsa_d_key, rsa_d_key_len,
+				       DMA_TO_DEVICE);
+
+	ret = dma_mapping_error(dev, dma_key_d);
+	if (ret) {
+		pr_err("DMA Mapping Error(dma_key_d)\n");
+		goto err_dma_key_d;
+	}
+	key->n = (u64)dma_key_n;
+	key->e = (u64)dma_key_e;
+	key->d = (u64)dma_key_d;
+	key->nbits = rsa_nbits_key;
+
+	dma_key = dma_map_single(dev, key, key_size, DMA_TO_DEVICE);
+	ret = dma_mapping_error(dev, dma_key);
+	if (ret) {
+		pr_err("DMA Mapping Error(key)\n");
+		goto err_dma_key;
+	}
+
+	req_size = sizeof(struct tz_storage_service_rsa_message_req);
+	req_order = get_order(req_size);
+	req_page = alloc_pages(GFP_KERNEL, req_order);
+	if (req_page)
+		req_ptr = page_address(req_page);
+	else {
+		pr_err("Mem allocation failed for request buffer\n");
+		goto err_mem_req;
+	}
+
+	req_ptr->msg_req = (u64)dma_msg_vector;
+	req_ptr->key_req = (u64)dma_key;
+	req_ptr->operation = TZ_APP_RSA_DECRYPTION_ID;
+
+	dma_req = dma_map_single(dev, req_ptr, req_size,
+				       DMA_TO_DEVICE);
+
+	ret = dma_mapping_error(dev, dma_req);
+	if (ret) {
+		pr_err("DMA Mapping Error(dma_req)\n");
+		goto err_dma_req;
+	}
+
+	ret = tzapp_test(dev, (void *)dma_req, NULL, req_size,
+						TZ_APP_RSA_ENC_DEC_ID);
+
+	if (ret) {
+		pr_err("RSA decryption failed with %d from TZ app\n",ret);
+		rsa_decrypted_len = 0;
+	} else {
+		rsa_decrypted_len = *output_len;
+		memcpy(buf, rsa_unsealed_buf, rsa_decrypted_len);
+	}
+	dma_unmap_single(dev, dma_req, req_size, DMA_TO_DEVICE);
+err_dma_req:
+	free_pages((unsigned long)req_ptr, get_order(req_size));
+err_mem_req:
+	dma_unmap_single(dev, dma_key, key_size, DMA_TO_DEVICE);
+err_dma_key:
+	dma_unmap_single(dev, dma_key_d, rsa_d_key_len, DMA_TO_DEVICE);
+err_dma_key_d:
+	dma_unmap_single(dev, dma_key_e, rsa_e_key_len, DMA_TO_DEVICE);
+err_dma_key_e:
+	dma_unmap_single(dev, dma_key_n, rsa_n_key_len, DMA_TO_DEVICE);
+err_dma_key_n:
+	free_pages((unsigned long)key, get_order(key_size));
+err_mem_key:
+	dma_unmap_single(dev, dma_msg_vector, msg_vector_size, DMA_TO_DEVICE);
+err_dma_msg_vector:
+	dma_unmap_single(dev, dma_label, rsa_label_len, DMA_TO_DEVICE);
+err_dma_label:
+	dma_unmap_single(dev, dma_encrypted_msg, rsa_encrypted_len, DMA_TO_DEVICE);
+err_dma_encrypted_msg:
+	dma_unmap_single(dev, dma_decrypted_msg_len, sizeof(uint64_t*), DMA_FROM_DEVICE);
+err_dma_decrypted_msg_len:
+	dma_unmap_single(dev, dma_plain_msg, MAX_RSA_PLAIN_DATA_SIZE, DMA_FROM_DEVICE);
+err_dma_plain_msg:
+	free_pages((unsigned long)msg_vector_ptr, get_order(msg_vector_size));
+err_mem_msg_vector:
+	kfree(output_len);
+
+	return rsa_decrypted_len;
 }
 
 static int __init tzapp_init(void)
 {
 	int err;
 	int i = 0;
+	struct page *sealed_buf_page = NULL;
+	struct page *unsealed_buf_page = NULL;
+	struct page *iv_page = NULL;
+	struct page *rsa_unsealed_buf_page = NULL;
+	struct page *rsa_sealed_buf_page = NULL;
+	struct page *rsa_label_page = NULL;
+	struct page *rsa_n_key_page = NULL;
+	struct page *rsa_e_key_page = NULL;
+	struct page *rsa_d_key_page = NULL;
 	struct attribute **tzapp_attrs = kzalloc((hweight_long(props->function)
 				+ 1) * sizeof(*tzapp_attrs), GFP_KERNEL);
 
@@ -3106,6 +4280,7 @@ static int __init tzapp_init(void)
 	}
 
 	tzapp_attrs[i++] = &dev_attr_load_start.attr;
+	tzapp_attrs[i++] = &dev_attr_qsee_app_id.attr;
 
 	if (props->function & MUL)
 		tzapp_attrs[i++] = &dev_attr_basic_data.attr;
@@ -3122,10 +4297,20 @@ static int __init tzapp_init(void)
 	if (props->function & AUTH_OTP)
 		tzapp_attrs[i++] = &dev_attr_fuse_otp.attr;
 
+	if (props->function & LOG_BITMASK)
+		tzapp_attrs[i++] = &dev_attr_log_bitmask.attr;
+
+	if (props->function & FUSE)
+		tzapp_attrs[i++] = &dev_attr_fuse.attr;
+
+	if (props->function & MISC)
+		tzapp_attrs[i++] = &dev_attr_misc.attr;
+
 	if (props->logging_support_enabled)
 		tzapp_attrs[i++] = &dev_attr_log_buf.attr;
 
 	tzapp_attrs[i] = NULL;
+
 
 	tzapp_attr_grp.attrs = tzapp_attrs;
 
@@ -3137,6 +4322,115 @@ static int __init tzapp_init(void)
 		kobject_put(tzapp_kobj);
 		return err;
 	}
+
+	if (props->function & AES_TZAPP) {
+
+		sealed_buf_page = alloc_pages(GFP_KERNEL,
+				     get_order(MAX_ENCRYPTED_DATA_SIZE));
+		unsealed_buf_page = alloc_pages(GFP_KERNEL,
+				       get_order(MAX_PLAIN_DATA_SIZE));
+		iv_page = alloc_pages(GFP_KERNEL,
+				get_order(AES_BLOCK_SIZE));
+
+		if (!sealed_buf_page || !unsealed_buf_page || !iv_page) {
+			pr_err("\nCannot allocate memory for aes crypt ops\n");
+
+			if (sealed_buf_page)
+				free_pages((unsigned long)page_address(sealed_buf_page),
+				  get_order(MAX_ENCRYPTED_DATA_SIZE));
+
+			if (unsealed_buf_page)
+				free_pages((unsigned long)
+				  page_address(unsealed_buf_page),
+				  get_order(MAX_PLAIN_DATA_SIZE));
+
+			if (iv_page)
+				free_pages((unsigned long)page_address(iv_page),
+				get_order(AES_BLOCK_SIZE));
+
+		} else {
+
+			aes_sealed_buf = page_address(sealed_buf_page);
+			aes_unsealed_buf = page_address(unsealed_buf_page);
+			aes_ivdata = page_address(iv_page);
+
+			tzapp_aes_kobj = kobject_create_and_add("aes", tzapp_kobj);
+
+			err = sysfs_create_group(tzapp_aes_kobj, &tzapp_aes_attr_grp);
+
+			if (err) {
+				kobject_put(tzapp_aes_kobj);
+			}
+		}
+
+	}
+
+	if (props->function & RSA_TZAPP) {
+
+		rsa_unsealed_buf_page = alloc_pages(GFP_KERNEL,get_order(MAX_RSA_PLAIN_DATA_SIZE));
+		rsa_sealed_buf_page = alloc_pages(GFP_KERNEL,get_order(MAX_RSA_PLAIN_DATA_SIZE));
+		rsa_label_page = alloc_pages(GFP_KERNEL,get_order(MAX_RSA_PLAIN_DATA_SIZE));
+		rsa_n_key_page = alloc_pages(GFP_KERNEL,get_order(MAX_RSA_PLAIN_DATA_SIZE));
+		rsa_e_key_page = alloc_pages(GFP_KERNEL,get_order(MAX_RSA_PLAIN_DATA_SIZE));
+		rsa_d_key_page = alloc_pages(GFP_KERNEL,get_order(MAX_RSA_PLAIN_DATA_SIZE));
+
+		if (!rsa_unsealed_buf_page || !rsa_sealed_buf_page || !rsa_label_page || !rsa_n_key_page
+			|| !rsa_e_key_page || !rsa_d_key_page) {
+
+			pr_err("\nCannot allocate memory for rsa crypt ops\n");
+			if(rsa_unsealed_buf_page)
+				free_pages((unsigned long)page_address(rsa_unsealed_buf_page),
+					get_order(MAX_RSA_PLAIN_DATA_SIZE));
+
+			if(rsa_sealed_buf_page)
+				free_pages((unsigned long)page_address(rsa_sealed_buf_page),
+					get_order(MAX_RSA_SIGN_DATA_SIZE));
+
+			if(rsa_label_page)
+				free_pages((unsigned long)page_address(rsa_label_page),
+					get_order(MAX_RSA_PLAIN_DATA_SIZE));
+
+			if(rsa_n_key_page)
+				free_pages((unsigned long)page_address(rsa_n_key_page),
+					get_order(RSA_KEY_SIZE_MAX));
+
+			if(rsa_e_key_page)
+				free_pages((unsigned long)page_address(rsa_e_key_page),
+					get_order(RSA_KEY_SIZE_MAX));
+
+			if(rsa_d_key_page)
+				free_pages((unsigned long)page_address(rsa_d_key_page),
+					get_order(RSA_KEY_SIZE_MAX));
+		} else {
+
+			rsa_unsealed_buf = page_address(rsa_unsealed_buf_page);
+			rsa_sealed_buf = page_address(rsa_sealed_buf_page);
+			rsa_label = page_address(rsa_label_page);
+			rsa_n_key = page_address(rsa_n_key_page);
+			rsa_e_key = page_address(rsa_e_key_page);
+			rsa_d_key = page_address(rsa_d_key_page);
+
+			tzapp_rsa_kobj = kobject_create_and_add("rsa", tzapp_kobj);
+
+			err = sysfs_create_group(tzapp_rsa_kobj, &tzapp_rsa_attr_grp);
+
+			if (err) {
+				kobject_put(tzapp_rsa_kobj);
+			}
+		}
+	}
+
+	if(props->function & FUSE_WRITE) {
+
+		tzapp_fuse_write_kobj = kobject_create_and_add("fuse_write", tzapp_kobj);
+
+		err = sysfs_create_group(tzapp_fuse_write_kobj, &tzapp_fuse_write_attr_grp);
+
+		if (err) {
+			kobject_put(tzapp_fuse_write_kobj);
+		}
+	}
+
 	return 0;
 }
 
@@ -3282,6 +4576,64 @@ static int __exit qseecom_remove(struct platform_device *pdev)
 
 		sysfs_remove_group(rsa_sec_kobj, &rsa_sec_key_attr_grp);
 		kobject_put(rsa_sec_kobj);
+	}
+
+	if (props->function & AES_TZAPP) {
+
+		if(aes_sealed_buf)
+			free_pages((unsigned long)aes_sealed_buf,
+				get_order(MAX_ENCRYPTED_DATA_SIZE));
+
+		if(aes_unsealed_buf)
+			free_pages((unsigned long)aes_unsealed_buf,
+				get_order(MAX_PLAIN_DATA_SIZE));
+
+		if(aes_ivdata)
+			free_pages((unsigned long)aes_ivdata,
+				get_order(AES_BLOCK_SIZE));
+
+		sysfs_remove_group(tzapp_aes_kobj, &tzapp_aes_attr_grp);
+		kobject_put(tzapp_aes_kobj);
+
+	}
+
+	if (props->function & RSA_TZAPP) {
+
+		if(rsa_unsealed_buf)
+			free_pages((unsigned long)rsa_unsealed_buf,
+				get_order(MAX_RSA_PLAIN_DATA_SIZE));
+
+		if(rsa_sealed_buf)
+			free_pages((unsigned long)rsa_sealed_buf,
+				get_order(MAX_RSA_SIGN_DATA_SIZE));
+
+		if(rsa_label)
+			free_pages((unsigned long)rsa_label,
+				get_order(MAX_RSA_PLAIN_DATA_SIZE));
+
+		if(rsa_n_key)
+			free_pages((unsigned long)rsa_n_key,
+				get_order(RSA_KEY_SIZE_MAX));
+
+		if(rsa_e_key)
+			free_pages((unsigned long)rsa_e_key,
+				get_order(RSA_KEY_SIZE_MAX));
+
+		if(rsa_d_key)
+			free_pages((unsigned long)rsa_d_key,
+				get_order(RSA_KEY_SIZE_MAX));
+
+		sysfs_remove_group(tzapp_rsa_kobj, &tzapp_rsa_attr_grp);
+		kobject_put(tzapp_rsa_kobj);
+	}
+
+
+	if (props->function & FUSE_WRITE) {
+
+		sysfs_remove_group(tzapp_fuse_write_kobj,
+						&tzapp_fuse_write_attr_grp);
+		kobject_put(tzapp_fuse_write_kobj);
+
 	}
 
 	kfree(mdt_file);
