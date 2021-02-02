@@ -466,6 +466,11 @@
 	};
 };
 
+&usb3 {
+	status = "ok";
+	device-power-gpio = <&tlmm 24 1>;
+};
+
 &pcie_x1 {
 	interrupts-extended = <&intc GIC_SPI 111 IRQ_TYPE_NONE>,
 			<&intc 0 416 IRQ_TYPE_NONE>, <&intc 0 417 IRQ_TYPE_NONE>,
