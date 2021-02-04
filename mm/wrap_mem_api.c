@@ -12,6 +12,7 @@
  *
  */
 #include <linux/dmapool.h>
+#include <linux/mempool.h>
 #include <linux/mm.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
