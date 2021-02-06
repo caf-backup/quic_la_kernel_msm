@@ -1625,17 +1625,19 @@ static int erase_block(struct qcom_nand_host *host, int page_addr)
 	struct nand_chip *chip = &host->chip;
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 	u32 erase_val = (BLOCK_ERASE | PAGE_ACC | LAST_PAGE);
+	u32 addr1 = 0x0;
 
 	clear_bam_transaction(nandc);
 
 #if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 	erase_val = (BLOCK_ERASE | QPIC_SPI_TRANSFER_MODE_x1 |
 			QPIC_SPI_WP | QPIC_SPI_HOLD);
+	addr1 = (page_addr >> 16) & 0xffff;
 	page_addr <<= 16;
 #endif
 	nandc_set_reg(nandc, NAND_FLASH_CMD, erase_val);
 	nandc_set_reg(nandc, NAND_ADDR0, page_addr);
-	nandc_set_reg(nandc, NAND_ADDR1, 0);
+	nandc_set_reg(nandc, NAND_ADDR1, addr1);
 
 	nandc_set_reg(nandc, NAND_DEV0_CFG0,
 		      host->cfg0_raw & ~(7 << CW_PER_PAGE));
