@@ -48,6 +48,8 @@ static int enable_debug;
 module_param(enable_debug, int, S_IRUGO | S_IWUSR);
 
 static struct subsys_device *desc_to_subsys(struct device *d);
+static void send_notif_to_child(struct subsys_desc *desc,
+					enum subsys_notif_type notif);
 
 /* The maximum shutdown timeout is the product of MAX_LOOPS and DELAY_MS. */
 #define SHUTDOWN_ACK_MAX_LOOPS	100
@@ -802,6 +804,8 @@ static void restart_multipd_subsystem(struct subsys_device *dev)
 	/*shut down parent*/
 	for_each_subsys_device(&dev, 1, NULL, subsystem_shutdown);
 
+	/*send ramdump notif to childs as well*/
+	send_notif_to_child(desc, SUBSYS_RAMDUMP_NOTIFICATION);
 	/*Take crash dump of parent only, it consist's child dump also*/
 	notify_each_subsys_device(&dev, 1, SUBSYS_RAMDUMP_NOTIFICATION, NULL);
 
@@ -947,7 +951,8 @@ unlock:
 	}
 }
 
-static void send_fatal_notif_to_child(struct subsys_desc *desc)
+static void send_notif_to_child(struct subsys_desc *desc,
+					enum subsys_notif_type notif)
 {
 	struct subsys_child *sub_child;
 
@@ -957,13 +962,8 @@ static void send_fatal_notif_to_child(struct subsys_desc *desc)
 		struct subsys_device *tmp_dev =
 			desc_to_subsys(tmp_desc->dev);
 
-		/*
-		 * Send fatal notification to userpd(s) if rootpd
-		 * crashed, irrespective of userpd status.
-		 */
 		if (tmp_dev)
-			notify_each_subsys_device(&tmp_dev, 1,
-				SUBSYS_PREPARE_FOR_FATAL_SHUTDOWN, NULL);
+			notify_each_subsys_device(&tmp_dev, 1, notif, NULL);
 	}
 }
 
@@ -998,7 +998,12 @@ static void __subsystem_restart_dev(struct subsys_device *dev)
 					dev->track.state == SUBSYS_ONLINE) {
 		if (track->p_state != SUBSYS_RESTARTING) {
 			track->p_state = SUBSYS_CRASHED;
-			send_fatal_notif_to_child(desc);
+			/*
+			 * Send fatal notification to userpd(s) if rootpd
+			 * crashed, irrespective of userpd status.
+			 */
+			send_notif_to_child(desc,
+					SUBSYS_PREPARE_FOR_FATAL_SHUTDOWN);
 			notify_each_subsys_device(list, count,
 				SUBSYS_PREPARE_FOR_FATAL_SHUTDOWN, NULL);
 			__pm_stay_awake(&dev->ssr_wlock);

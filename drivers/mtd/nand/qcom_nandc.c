@@ -402,6 +402,9 @@ struct nand_flash_dev qspinand_flash_ids[] = {
 	{"W25N02JWZEIF SPI NAND 2G 1.8V",
 		{ .id = {0xef, 0xbf} },
 		SZ_2K, SZ_256, SZ_128K, 0, 2, 64, NAND_ECC_INFO(4, SZ_512), 0},
+	{"MX35UF1GE4AC SPI NAND 1G 1.8V",
+		{ .id = {0xc2, 0x92} },
+		SZ_2K, SZ_128, SZ_128K, 0, 2, 64, NAND_ECC_INFO(4, SZ_512), 0},
 	{NULL}
 };
 
@@ -1622,17 +1625,19 @@ static int erase_block(struct qcom_nand_host *host, int page_addr)
 	struct nand_chip *chip = &host->chip;
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 	u32 erase_val = (BLOCK_ERASE | PAGE_ACC | LAST_PAGE);
+	u32 addr1 = 0x0;
 
 	clear_bam_transaction(nandc);
 
 #if IS_ENABLED(CONFIG_MTD_NAND_SERIAL)
 	erase_val = (BLOCK_ERASE | QPIC_SPI_TRANSFER_MODE_x1 |
 			QPIC_SPI_WP | QPIC_SPI_HOLD);
+	addr1 = (page_addr >> 16) & 0xffff;
 	page_addr <<= 16;
 #endif
 	nandc_set_reg(nandc, NAND_FLASH_CMD, erase_val);
 	nandc_set_reg(nandc, NAND_ADDR0, page_addr);
-	nandc_set_reg(nandc, NAND_ADDR1, 0);
+	nandc_set_reg(nandc, NAND_ADDR1, addr1);
 
 	nandc_set_reg(nandc, NAND_DEV0_CFG0,
 		      host->cfg0_raw & ~(7 << CW_PER_PAGE));

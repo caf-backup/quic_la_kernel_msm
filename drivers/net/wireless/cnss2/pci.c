@@ -3266,6 +3266,38 @@ int cnss_smmu_map(struct device *dev,
 }
 EXPORT_SYMBOL(cnss_smmu_map);
 
+void cnss_free_soc_info(struct cnss_plat_data *plat_priv)
+{
+	/* Free SOC specific resources like memory remapped for PCI BAR */
+	switch (plat_priv->device_id) {
+	case QCN9000_DEVICE_ID:
+		/* For PCI targets, BAR is freed from cnss_pci_disable_bus */
+		break;
+	case QCN6122_DEVICE_ID:
+		/* QCN6122 is considered AHB target from host but is actually
+		 * a PCI target where enumeration is handled by the firmware
+		 * PCI BAR is remmaped as part of QMI Device Info message.
+		 * iounmap the PCI BAR memory here */
+		if (plat_priv->qcn6122.bar_addr_va) {
+			cnss_pr_info("Freeing BAR Info for %s",
+				     plat_priv->device_name);
+			iounmap(plat_priv->qcn6122.bar_addr_va);
+			plat_priv->qcn6122.bar_addr_va = NULL;
+			plat_priv->qcn6122.bar_addr_pa = 0;
+			plat_priv->qcn6122.bar_size = 0;
+		}
+		break;
+	case QCA8074_DEVICE_ID:
+	case QCA8074V2_DEVICE_ID:
+	case QCA6018_DEVICE_ID:
+	case QCA5018_DEVICE_ID:
+		/* PCI BAR not applicable for other AHB targets */
+		break;
+	default:
+		break;
+	}
+}
+
 int cnss_get_soc_info(struct device *dev, struct cnss_soc_info *info)
 {
 	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);

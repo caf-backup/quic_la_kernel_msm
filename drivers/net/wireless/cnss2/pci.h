@@ -241,4 +241,5 @@ void cnss_pci_pm_runtime_mark_last_busy(struct cnss_pci_data *pci_priv);
 int cnss_pci_update_status(struct cnss_pci_data *pci_priv,
 			   enum cnss_driver_status status);
 void cnss_pci_global_reset(struct cnss_pci_data *pci_priv);
+void cnss_free_soc_info(struct cnss_plat_data *plat_priv);
 #endif /* _CNSS_PCI_H */

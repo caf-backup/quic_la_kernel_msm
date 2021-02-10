@@ -453,16 +453,62 @@
 	};
 
 	mdm2ap_e911_status: mdm2ap_e911_status {
-		pins = "gpio23";
+		pins = "gpio0";
 		drive-strength = <8>;
 		bias-pull-down;
 	};
+
+	pcie_wake_pins: pcie1_wake_gpio {
+		pins = "gpio19";
+		function = "pcie1_wake";
+		drive-strength = <8>;
+		bias-pull-up;
+	};
+};
+
+&usb3 {
+	status = "ok";
+	device-power-gpio = <&tlmm 24 1>;
 };
 
 &pcie_x1 {
+	interrupts-extended = <&intc GIC_SPI 111 IRQ_TYPE_NONE>,
+			<&intc 0 416 IRQ_TYPE_NONE>, <&intc 0 417 IRQ_TYPE_NONE>,
+			<&intc 0 418 IRQ_TYPE_NONE>, <&intc 0 419 IRQ_TYPE_NONE>,
+			<&intc 0 420 IRQ_TYPE_NONE>, <&intc 0 421 IRQ_TYPE_NONE>,
+			<&intc 0 422 IRQ_TYPE_NONE>, <&intc 0 423 IRQ_TYPE_NONE>,
+			<&intc 0 424 IRQ_TYPE_NONE>, <&intc 0 425 IRQ_TYPE_NONE>,
+			<&intc 0 426 IRQ_TYPE_NONE>, <&intc 0 427 IRQ_TYPE_NONE>,
+			<&intc 0 428 IRQ_TYPE_NONE>, <&intc 0 429 IRQ_TYPE_NONE>,
+			<&intc 0 430 IRQ_TYPE_NONE>, <&intc 0 431 IRQ_TYPE_NONE>,
+			<&intc 0 432 IRQ_TYPE_NONE>, <&intc 0 433 IRQ_TYPE_NONE>,
+			<&intc 0 434 IRQ_TYPE_NONE>, <&intc 0 435 IRQ_TYPE_NONE>,
+			<&intc 0 436 IRQ_TYPE_NONE>, <&intc 0 437 IRQ_TYPE_NONE>,
+			<&intc 0 438 IRQ_TYPE_NONE>, <&intc 0 439 IRQ_TYPE_NONE>,
+			<&intc 0 440 IRQ_TYPE_NONE>, <&intc 0 441 IRQ_TYPE_NONE>,
+			<&intc 0 442 IRQ_TYPE_NONE>, <&intc 0 443 IRQ_TYPE_NONE>,
+			<&intc 0 444 IRQ_TYPE_NONE>, <&intc 0 445 IRQ_TYPE_NONE>,
+			<&intc 0 446 IRQ_TYPE_NONE>, <&intc 0 447 IRQ_TYPE_NONE>,
+			<&tlmm 19 0>, <&tlmm 0 0>;
+
+	interrupt-names = "msi", "msi_0", "msi_1",
+			"msi_2", "msi_3", "msi_4",
+			"msi_5", "msi_6", "msi_7",
+			 "msi_8", "msi_9", "msi_10",
+			"msi_11", "msi_12", "msi_13",
+			"msi_14", "msi_15", "msi_16",
+			"msi_17", "msi_18", "msi_19",
+			"msi_20", "msi_21", "msi_22",
+			"msi_23", "msi_24", "msi_25",
+			"msi_26", "msi_27", "msi_28",
+			"msi_29", "msi_30", "msi_31",
+			"wake_gpio", "mdm2ap_e911";
+
+	pinctrl-0 = <&pcie_wake_pins &mdm2ap_e911_status>;
+	e911-gpio =  <&tlmm 0 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
 	status = "ok";
 	perst-gpio = <&tlmm 18 1>;
-	use_delay = <1>;
 };
 
 &pcie_x2 {

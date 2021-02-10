@@ -225,7 +225,7 @@ int parse_encrypted_log(char *ker_buf, uint32_t buf_len, char *copy_buf,
 	len += scnprintf(copy_buf + len,
 		(display_buf_size - 1) - len,
 		"\n-------- New Encrypted %s --------\n",
-		((log_id == QCOM_TZ_QSEE_LOG_ENCR_ID) ?
+		((log_id == QTI_TZ_QSEE_LOG_ENCR_ID) ?
 		"QSEE Log" : "TZ Dialog"));
 
 	len += scnprintf(copy_buf + len,
@@ -264,8 +264,8 @@ static int get_encrypted_tz_log(char *ker_buf, uint32_t buf_len, char *copy_buf)
 	int ret;
 
 	/* SCM call to TZ to get encrypted tz log */
-	ret = qcom_scm_tz_log_encrypted(ker_buf, buf_len,
-					QCOM_TZ_DIAG_LOG_ENCR_ID);
+	ret = qti_scm_tz_log_encrypted(ker_buf, buf_len,
+					QTI_TZ_DIAG_LOG_ENCR_ID);
 	if (ret == TZ_LOG_NO_UPDATE) {
 		pr_err("No TZ log updation from last read\n");
 		return TZ_LOG_NO_UPDATE;
@@ -273,7 +273,7 @@ static int get_encrypted_tz_log(char *ker_buf, uint32_t buf_len, char *copy_buf)
 		pr_err("Error in getting encrypted tz log %d\n", ret);
 		return -1;
 	}
-	return parse_encrypted_log(ker_buf, buf_len, copy_buf, QCOM_TZ_DIAG_LOG_ENCR_ID);
+	return parse_encrypted_log(ker_buf, buf_len, copy_buf, QTI_TZ_DIAG_LOG_ENCR_ID);
 }
 
 static int tz_log_open(struct inode *inode, struct file *file)
@@ -315,7 +315,7 @@ static int tz_log_open(struct inode *inode, struct file *file)
 				goto out_err;
 		} else {
 			/* Getting Secure board log*/
-			ret = qcom_scm_tz_log_is_encrypted();
+			ret = qti_scm_tz_log_is_encrypted();
 			if (ret == -1) {
 				goto out_err;
 			} else if (ret == 0) {
@@ -591,7 +591,7 @@ static int qca_tzlog_probe(struct platform_device *pdev)
 
 	if((tz_hvc_log->flags & TZ_CP) && qcom_qfprom_show_authenticate()) {
 
-		ret = qcom_scm_tz_log_is_encrypted();
+		ret = qti_scm_tz_log_is_encrypted();
 		if (ret == 1)
 			tz_hvc_log->buf_len = tz_hvc_log->buf_len * 2 +
 						TZBSP_ENCRYPTION_HEADERS_SIZE;

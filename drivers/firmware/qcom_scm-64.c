@@ -476,7 +476,7 @@ int __qcom_qfprom_show_authenticate(struct device *dev, char *buf)
 	return ret ? : res.a1;
 }
 
-int __qcom_scm_tz_log_is_encrypted(struct device *dev)
+int __qti_scm_tz_log_is_encrypted(struct device *dev)
 {
 	int ret;
 	struct arm_smccc_res res;
@@ -1092,7 +1092,7 @@ int __qcom_scm_tz_log(struct device *dev, u32 svc_id, u32 cmd_id,
 	return ret;
 }
 
-static int __qcom_scm_tz_encrypted_log_v8(struct device *dev, u32 log_buf,
+static int __qti_scm_tz_encrypted_log_v8(struct device *dev, u32 log_buf,
 						u32 buf_size, u32 log_id)
 {
 	struct qcom_scm_desc desc = {0};
@@ -1110,7 +1110,7 @@ static int __qcom_scm_tz_encrypted_log_v8(struct device *dev, u32 log_buf,
 	return ret ? : res.a1;
 }
 
-int __qcom_scm_tz_log_encrypted(struct device *dev, void *ker_buf, u32 buf_len,
+int __qti_scm_tz_log_encrypted(struct device *dev, void *ker_buf, u32 buf_len,
 								u32 log_id)
 {
 	int ret;
@@ -1124,7 +1124,7 @@ int __qcom_scm_tz_log_encrypted(struct device *dev, void *ker_buf, u32 buf_len,
 		return -EINVAL;
 	}
 
-	ret = __qcom_scm_tz_encrypted_log_v8(dev, log_buf, buf_len, log_id);
+	ret = __qti_scm_tz_encrypted_log_v8(dev, log_buf, buf_len, log_id);
 	dma_unmap_single(dev, log_buf, buf_len, DMA_FROM_DEVICE);
 
 	return ret;

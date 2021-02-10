@@ -809,7 +809,7 @@ static int diag_cmd_disable_hdlc(unsigned char *src_buf, int src_len,
 	header = (struct diag_pkt_header_t *)src_buf;
 	if (header->cmd_code != DIAG_CMD_DIAG_SUBSYS ||
 	    header->subsys_id != DIAG_SS_DIAG ||
-	    header->subsys_cmd_code != DIAG_CMD_OP_HDLC_DISABLE) {
+	    header->subsys_cmd_code != le16_to_cpu(DIAG_CMD_OP_HDLC_DISABLE)) {
 		return -EINVAL;
 	}
 
@@ -864,6 +864,9 @@ int diag_process_apps_pkt(unsigned char *buf, int len, int pid)
 	entry.cmd_code_hi = (uint16_t)(*(uint16_t *)temp);
 	entry.cmd_code_lo = (uint16_t)(*(uint16_t *)temp);
 	temp += sizeof(uint16_t);
+
+	entry.cmd_code_hi = cpu_to_le16(entry.cmd_code_hi);
+	entry.cmd_code_lo = cpu_to_le16(entry.cmd_code_lo);
 
 	pr_debug("diag: In %s, received cmd %02x %02x %02x\n",
 		 __func__, entry.cmd_code, entry.subsys_id, entry.cmd_code_hi);
