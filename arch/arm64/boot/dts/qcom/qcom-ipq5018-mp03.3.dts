@@ -678,6 +678,31 @@
 			bias-disable;
 		};
 	};
+
+	button_pins: button_pins {
+		wps_button {
+			pins = "gpio38";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+	};
+};
+
+&soc {
+	gpio_keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&button_pins>;
+		pinctrl-names = "default";
+
+		button@1 {
+			label = "wps";
+			linux,code = <KEY_WPS_BUTTON>;
+			gpios = <&tlmm 38 GPIO_ACTIVE_LOW>;
+			linux,input-type = <1>;
+			debounce-interval = <60>;
+		};
+	};
 };
 
 &usb3 {
@@ -759,6 +784,10 @@
 &qcom_q6v5_wcss {
 	qcom,multipd_arch;
 	memory-region = <&q6_mem_regions>;
+	qcom,share_bootargs;
+	qcom,bootargs_smem = <507>;
+	boot-args = <0x2 0x4 0x2 0x12 0x0 0x0>;
+
 	/* IPQ5018 */
 	q6v5_wcss_userpd1 {
 		m3_firmware = "IPQ5018/m3_fw.mdt";

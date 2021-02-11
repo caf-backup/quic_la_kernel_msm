@@ -203,6 +203,13 @@ static int bt_rproc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	if (of_property_read_bool(btDesc->pdev->dev.of_node,
+						"qcom,bt-running")) {
+		rproc->state = RPROC_RUNNING;
+		atomic_inc(&rproc->power);
+		dev_info(&btDesc->pdev->dev, "Started at bootloader\n");
+	}
+
 	platform_set_drvdata(pdev, rproc);
 
 	dev_info(&pdev->dev, "Probed\n");

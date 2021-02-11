@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
  */
 
 #include <soc/qcom/qmi_rmnet.h>
@@ -1117,7 +1117,7 @@ EXPORT_SYMBOL(qmi_rmnet_set_powersave_mode);
 static void qmi_rmnet_work_restart(void *port)
 {
 	rcu_read_lock();
-	if (!rmnet_work_quit)
+	if (!READ_ONCE(rmnet_work_quit))
 		queue_delayed_work(rmnet_ps_wq, &rmnet_work->work, NO_DELAY);
 	rcu_read_unlock();
 }
@@ -1212,7 +1212,7 @@ static void qmi_rmnet_check_stats(struct work_struct *work)
 	}
 end:
 	rcu_read_lock();
-	if (!rmnet_work_quit) {
+	if (!READ_ONCE(rmnet_work_quit)) {
 		if (use_alarm_timer)
 			alarm_start_relative(&real_work->atimer,
 					     PS_INTERVAL_KT);
@@ -1243,7 +1243,7 @@ void qmi_rmnet_work_init(void *port)
 		return;
 
 	rmnet_ps_wq = alloc_workqueue("rmnet_powersave_work",
-					WQ_MEM_RECLAIM | WQ_CPU_INTENSIVE, 1);
+					WQ_CPU_INTENSIVE, 1);
 
 	if (!rmnet_ps_wq)
 		return;
@@ -1260,7 +1260,7 @@ void qmi_rmnet_work_init(void *port)
 	rmnet_get_packets(rmnet_work->port, &rmnet_work->old_rx_pkts,
 			  &rmnet_work->old_tx_pkts);
 
-	rmnet_work_quit = false;
+	WRITE_ONCE(rmnet_work_quit, false);
 	qmi_rmnet_work_set_active(rmnet_work->port, 1);
 	queue_delayed_work(rmnet_ps_wq, &rmnet_work->work, PS_INTERVAL);
 }
@@ -1284,13 +1284,14 @@ void qmi_rmnet_work_exit(void *port)
 	if (!rmnet_ps_wq || !rmnet_work)
 		return;
 
-	rmnet_work_quit = true;
+	WRITE_ONCE(rmnet_work_quit, true);
+	/* Make sure others see the new value after barrier */
+	smp_mb();
 	synchronize_rcu();
 
 	alarm_cancel(&rmnet_work->atimer);
 	cancel_delayed_work_sync(&rmnet_work->work);
 	destroy_workqueue(rmnet_ps_wq);
-	qmi_rmnet_work_set_active(port, 0);
 	rmnet_ps_wq = NULL;
 	kfree(rmnet_work);
 	rmnet_work = NULL;

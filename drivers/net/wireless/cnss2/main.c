@@ -46,7 +46,7 @@
 #ifdef CONFIG_CNSS_EMULATION
 #define CNSS_MHI_TIMEOUT_DEFAULT	3600
 #else
-#define CNSS_MHI_TIMEOUT_DEFAULT	10
+#define CNSS_MHI_TIMEOUT_DEFAULT	60
 #endif
 #define CNSS_QMI_TIMEOUT_DEFAULT	10000
 #define CNSS_BDF_TYPE_DEFAULT		CNSS_BDF_ELF
@@ -1354,6 +1354,7 @@ static int cnss_qca8074_notifier_nb(struct notifier_block *nb,
 		driver_ops->update_status((struct pci_dev *)plat_priv->plat_dev,
 					  (const struct pci_device_id *)
 					  plat_priv->plat_dev_id, code);
+		cnss_free_soc_info(plat_priv);
 	}
 
 	return NOTIFY_OK;
@@ -1449,6 +1450,7 @@ int cnss_wlan_register_driver(struct cnss_wlan_driver *driver_ops)
 	return 0;
 reset_ctx:
 	cnss_pr_err("Failed to get subsystem, err = %d\n", ret);
+	cnss_unregister_qca8074_cb(plat_priv);
 	plat_priv->driver_status = CNSS_UNINITIALIZED;
 	plat_priv->driver_ops = NULL;
 	return ret;
@@ -1629,9 +1631,8 @@ void cnss_subsystem_put(struct device *dev)
 		subsystem_put(subsys_info->subsys_handle);
 		subsys_info->subsystem_put_in_progress = false;
 		subsys_info->subsys_handle = NULL;
+		plat_priv->driver_state = 0;
 	}
-
-	plat_priv->driver_state = 0;
 }
 EXPORT_SYMBOL(cnss_subsystem_put);
 

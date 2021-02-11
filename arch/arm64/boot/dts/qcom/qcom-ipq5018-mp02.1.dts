@@ -426,6 +426,22 @@
 		};
 	};
 
+	i2c_pins: i2c_pins {
+		i2c_scl {
+			pins = "gpio33";
+			function = "blsp2_i2c0";
+			drive-strength = <8>;
+			bias-disable;
+		};
+
+		i2c_sda {
+			pins = "gpio34";
+			function = "blsp2_i2c0";
+			drive-strength = <8>;
+			bias-disable;
+		};
+	};
+
 	btss_pins: btss_pins {
 
 		phandle = <0x1>;
@@ -452,6 +468,31 @@
 			pins = "gpio7";
 			function = "btss3";
 			bias-pull-down;
+		};
+	};
+
+	button_pins: button_pins {
+		wps_button {
+			pins = "gpio34";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+	};
+};
+
+&soc {
+	gpio_keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&button_pins>;
+		pinctrl-names = "default";
+
+		button@1 {
+			label = "wps";
+			linux,code = <KEY_WPS_BUTTON>;
+			gpios = <&tlmm 34 GPIO_ACTIVE_LOW>;
+			linux,input-type = <1>;
+			debounce-interval = <60>;
 		};
 	};
 };
@@ -518,6 +559,11 @@
 
 &qcom_q6v5_wcss {
 	qcom,multipd_arch;
+	qcom,share_bootargs;
+	qcom,bootargs_smem = <507>;
+	boot-args = <0x1 0x4 0x3 0x0F 0x0 0x0>,
+			<0x2 0x4 0x2 0x1B 0x0 0x0>;
+
 	/* IPQ5018 */
 	q6v5_wcss_userpd1 {
 		m3_firmware = "IPQ5018/m3_fw.mdt";
@@ -587,6 +633,12 @@
 		memory-region = <&q6_qcn6122_data2>, <&m3_dump_qcn6122_2>,
 				<&q6_qcn6122_etr_2>;
 	};
+};
+
+&i2c_0 {
+	pinctrl-0 = <&i2c_pins>;
+	pinctrl-names = "default";
+	status = "disabled";
 };
 
 &qgic_msi_0 {

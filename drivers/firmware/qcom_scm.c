@@ -226,13 +226,13 @@ int qcom_qfprom_show_authenticate(void)
 EXPORT_SYMBOL(qcom_qfprom_show_authenticate);
 
 /**
- * qcom_scm_tz_log_is_encrypted() - Check Tz log encryption is enabled
+ * qti_scm_tz_log_is_encrypted() - Check Tz log encryption is enabled
  */
-int qcom_scm_tz_log_is_encrypted(void)
+int qti_scm_tz_log_is_encrypted(void)
 {
 	int ret;
 
-	ret = __qcom_scm_tz_log_is_encrypted(__scm->dev);
+	ret = __qti_scm_tz_log_is_encrypted(__scm->dev);
 
 	if (ret < 0) {
 		pr_err("%s: Error in TZ encryption state read: %d\n", __func__, ret);
@@ -241,7 +241,7 @@ int qcom_scm_tz_log_is_encrypted(void)
 
 	return ret == 1 ? 1 : 0;
 }
-EXPORT_SYMBOL(qcom_scm_tz_log_is_encrypted);
+EXPORT_SYMBOL(qti_scm_tz_log_is_encrypted);
 
 /*
  * qcom_config_sec_ice() - Configure ICE block securely
@@ -957,11 +957,11 @@ int qcom_scm_tz_log(u32 svc_id, u32 cmd_id, void *ker_buf, u32 buf_len)
 }
 EXPORT_SYMBOL(qcom_scm_tz_log);
 
-int qcom_scm_tz_log_encrypted(void *ker_buf, u32 buf_len, u32 log_id)
+int qti_scm_tz_log_encrypted(void *ker_buf, u32 buf_len, u32 log_id)
 {
-	return __qcom_scm_tz_log_encrypted(__scm->dev, ker_buf, buf_len, log_id);
+	return __qti_scm_tz_log_encrypted(__scm->dev, ker_buf, buf_len, log_id);
 }
-EXPORT_SYMBOL(qcom_scm_tz_log_encrypted);
+EXPORT_SYMBOL(qti_scm_tz_log_encrypted);
 
 int qcom_scm_hvc_log(u32 svc_id, u32 cmd_id, void *ker_buf, u32 buf_len)
 {
