@@ -970,6 +970,13 @@ static void qrtr_node_rx_work(struct kthread_work *work)
 					      read_data);
 	struct qrtr_ctrl_pkt *pkt;
 	struct sk_buff *skb;
+	void __rcu **slot;
+	struct radix_tree_iter iter;
+	struct qrtr_tx_flow_waiter *waiter;
+	struct qrtr_tx_flow_waiter *temp;
+	unsigned long node_id;
+	struct qrtr_tx_flow *flow;
+
 
 	while ((skb = skb_dequeue(&node->rx_queue)) != NULL) {
 		struct qrtr_sock *ipc;
@@ -990,7 +997,7 @@ static void qrtr_node_rx_work(struct kthread_work *work)
 			qrtr_fwd_ctrl_pkt(skb);
 
 		if (cb->type == QRTR_TYPE_NEW_SERVER &&
-		    skb->len == sizeof(*pkt)) {
+			skb->len == sizeof(*pkt)) {
 			pkt = (void *)skb->data;
 			qrtr_node_assign(node, le32_to_cpu(pkt->server.node));
 		}
@@ -1012,8 +1019,28 @@ static void qrtr_node_rx_work(struct kthread_work *work)
 			if (!ipc) {
 				kfree_skb(skb);
 			} else {
-				/* Translate DEL_PROC to BYE for local enqueue */
 				if (cb->type == QRTR_TYPE_DEL_PROC) {
+					if (skb->len == sizeof(*pkt))
+						pkt = (void *)skb->data;
+					/* Free tx flow counters */
+					mutex_lock(&node->qrtr_tx_lock);
+					radix_tree_for_each_slot(slot, &node->qrtr_tx_flow, &iter, 0) {
+						flow = *slot;
+						/* extract node id from the index key */
+						node_id = (iter.index & 0xFFFFFFFF00000000) >> 32;
+						if (node_id != le32_to_cpu(pkt->proc.node))
+							continue;
+						list_for_each_entry_safe(waiter, temp, &flow->waiters, node) {
+							list_del(&waiter->node);
+							sock_put(waiter->sk);
+							kfree(waiter);
+						}
+						kfree(flow);
+						radix_tree_delete(&node->qrtr_tx_flow, iter.index);
+					}
+					mutex_unlock(&node->qrtr_tx_lock);
+					wake_up_interruptible_all(&node->resume_tx);
+					/* Translate DEL_PROC to BYE for local enqueue */
 					cb->type = QRTR_TYPE_BYE;
 					pkt = (struct qrtr_ctrl_pkt *)skb->data;
 					memset(pkt, 0, sizeof(struct qrtr_ctrl_pkt));
