@@ -742,6 +742,7 @@
 	pinctrl-names = "default";
 	link_retries_count = <100>;
 	use_delay = <0>;
+	slot_id = <0>;
 };
 
 &pcie1 {
