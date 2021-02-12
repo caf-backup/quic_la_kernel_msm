@@ -226,6 +226,21 @@ int qcom_qfprom_show_authenticate(void)
 EXPORT_SYMBOL(qcom_qfprom_show_authenticate);
 
 /**
+ * qti_scm_is_log_encrypt_supported() - Check log encryption supported or not
+ */
+int qti_scm_is_log_encrypt_supported(void)
+{
+	int ret;
+
+	ret = __qti_is_smc_id_available(__scm->dev,
+						QTI_TZ_LOG_ENCR_ALLOWED_ID);
+
+	return ret > 0 ? 1 : 0;
+
+}
+EXPORT_SYMBOL(qti_scm_is_log_encrypt_supported);
+
+/**
  * qti_scm_tz_log_is_encrypted() - Check Tz log encryption is enabled
  */
 int qti_scm_tz_log_is_encrypted(void)

@@ -94,6 +94,8 @@ extern void __qcom_scm_cpu_power_down(u32 flags);
 extern int __qcom_scm_is_call_available(struct device *dev, u32 svc_id,
 		u32 cmd_id);
 
+extern int __qti_is_smc_id_available(struct device *dev, u32 smc_id);
+
 #define SCM_SIP_FNID(s, c) (((((s) & 0xFF) << 8) | ((c) & 0xFF)) | 0x02000000)
 #define QCOM_SMC_ATOMIC_MASK		0x80000000
 #define SCM_ARGS_IMPL(num, a, b, c, d, e, f, g, h, i, j, ...) (\

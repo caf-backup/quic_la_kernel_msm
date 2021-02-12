@@ -107,6 +107,7 @@ extern int qcom_scm_hvc_log(u32 svc_id, u32 cmd_id, void *ker_buf,
 #define QTI_TZ_QSEE_LOG_ENCR_ID	0x1
 #define TZ_LOG_NO_UPDATE		-6
 
+extern int qti_scm_is_log_encrypt_supported(void);
 extern int qti_scm_tz_log_is_encrypted(void);
 extern int qti_scm_tz_log_encrypted(void *ker_buf, u32 buf_len, u32 log_id);
 extern int parse_encrypted_log( char *ker_buf, uint32_t buf_len,
