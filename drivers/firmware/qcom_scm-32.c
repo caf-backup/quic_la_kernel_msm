@@ -991,6 +991,25 @@ int __qcom_scm_is_call_available(struct device *dev, u32 svc_id, u32 cmd_id)
 	return ret;
 }
 
+
+int __qti_is_smc_id_available(struct device *dev, u32 smc_id)
+{
+	int ret;
+	__le32 scm_ret;
+	struct scm_desc desc = {0};
+
+	desc.args[0] = smc_id;
+	desc.arginfo = SCM_ARGS(1);
+	ret = qcom_scm_call2(SCM_SIP_FNID(QCOM_SCM_SVC_INFO,
+				QCOM_IS_CALL_AVAIL_CMD), &desc);
+	scm_ret = desc.ret[0];
+
+	if (!ret)
+		return le32_to_cpu(scm_ret);
+
+	return ret;
+}
+
 int __qcom_qfprom_show_authenticate(struct device *dev, char *buf)
 {
 	int ret;

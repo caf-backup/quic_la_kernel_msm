@@ -43,6 +43,7 @@
 static unsigned int paniconaccessviolation = 0;
 static char *smmu_state;
 static uint32_t tz_diag_buf_start = 0;
+static uint32_t log_encrypt_supported = 0;
 
 /* Maximum size for buffers to support AARCH64 TZ */
 #define TZ_64 BIT(0)
@@ -302,7 +303,7 @@ static int tz_log_open(struct inode *inode, struct file *file)
 	buf_len = tz_hvc_log->buf_len;
 	tz_hvc_log->copy_len = 0;
 
-	if (tz_hvc_log->flags & TZ_CP) {
+	if ((tz_hvc_log->flags & TZ_CP) && log_encrypt_supported) {
 		/* SCM call to TZ to get boot fuse state*/
 		ret = qcom_qfprom_show_authenticate();
 		if (ret == -1) {
@@ -589,7 +590,10 @@ static int qca_tzlog_probe(struct platform_device *pdev)
 
 	tz_hvc_log->hvc_buf_len = tz_hvc_log->buf_len;
 
-	if((tz_hvc_log->flags & TZ_CP) && qcom_qfprom_show_authenticate()) {
+	log_encrypt_supported = qti_scm_is_log_encrypt_supported();
+
+	if((tz_hvc_log->flags & TZ_CP) && log_encrypt_supported
+				&& qcom_qfprom_show_authenticate()) {
 
 		ret = qti_scm_tz_log_is_encrypted();
 		if (ret == 1)
@@ -676,7 +680,7 @@ static int qca_tzlog_probe(struct platform_device *pdev)
 		}
 	}
 
-	if(tz_hvc_log->flags & TZ_CP) {
+	if((tz_hvc_log->flags & TZ_CP) && log_encrypt_supported) {
 		ret = of_property_read_u32(np, "qca,tzbsp-diag-buf-start",
 				&(tz_diag_buf_start));
 		if(ret)
