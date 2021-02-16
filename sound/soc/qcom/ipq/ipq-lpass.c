@@ -26,33 +26,20 @@
 #include <linux/reset.h>
 #include <linux/spinlock.h>
 #include <linux/of_device.h>
+#include <linux/clk.h>
+#include <linux/reset.h>
 
 #include "ipq-lpass.h"
-
-static struct lpass_lpm_info lpm_info;
+#include "ipq-lpass-cc.h"
 
 static void __iomem *sg_ipq_lpass_base;
 
-static lpass_info_t *ipq_lpass_cfgs;
-
-static lpass_info_t ipq50xx_devconfig =
-{
-	LPAIF,
-	LPASS_HW_DMA_TYPE_DEFAULT,
-	{
-		TDM,
-		2,
-	},
-	2,
-	2
-};
-
-static void ipq-lpass-reg-update(void __iomem *register_addr, uint32_t mask,
-					uint32_t value, bool fIsWriteonly)
+static void ipq_lpass_reg_update(void __iomem *register_addr, uint32_t mask,
+					uint32_t value, bool f_writeonly)
 {
 	uint32_t temp = 0;
 
-	if (fIsWriteonly == false){
+	if (f_writeonly == false){
 		temp = readl(register_addr);
 	}
 	mask = ~mask;
@@ -70,56 +57,67 @@ static void ipq-lpass-reg-update(void __iomem *register_addr, uint32_t mask,
 	writel(temp, register_addr);
 }
 
+static void ipq_lpass_cc_update(void __iomem *register_addr, uint32_t value,
+					bool  f_update)
+{
+	uint32_t temp = readl(register_addr);
+
+	temp = temp | value;
+	writel(temp, register_addr);
+
+	if(f_update){
+		temp = readl(register_addr);
+		temp &= ~0x1;
+		temp |= 0x1;
+		writel(temp, register_addr);
+	}
+}
+
 void ipq_lpass_pcm_reset(void __iomem *lpaif_base,
 				uint32_t pcm_index, uint32_t dir)
 {
-	uint32_t mask,field_value;
+	uint32_t mask,value;
+
+	mask = HWIO_LPASS_LPAIF_PCM_CTLa_RESET_BMSK;
+	value = HWIO_LPASS_LPAIF_PCM_CTLa_RESET_ENABLE_FVAL <<
+			HWIO_LPASS_LPAIF_PCM_CTLa_RESET_SHFT;
 
 	if(TDM_SINK == dir){
-/*
- * Reset transmit path
- */
-	field_value = HWIO_LPASS_LPAIF_PCM_CTLa_RESET_TX_ENABLE_FVAL <<
+		value |= HWIO_LPASS_LPAIF_PCM_CTLa_RESET_TX_ENABLE_FVAL <<
 				HWIO_LPASS_LPAIF_PCM_CTLa_RESET_TX_SHFT;
-	mask = HWIO_LPASS_LPAIF_PCM_CTLa_RESET_TX_BMSK;
+		mask |= HWIO_LPASS_LPAIF_PCM_CTLa_RESET_TX_BMSK;
 	} else {
-/*
- * field_value receive path
- */
-	field_value = HWIO_LPASS_LPAIF_PCM_CTLa_ENABLE_RX_ENABLE_FVAL <<
+		value |= HWIO_LPASS_LPAIF_PCM_CTLa_ENABLE_RX_ENABLE_FVAL <<
 				HWIO_LPASS_LPAIF_PCM_CTLa_RESET_RX_SHFT;
-	mask = HWIO_LPASS_LPAIF_PCM_CTLa_RESET_RX_BMSK;
+		mask |= HWIO_LPASS_LPAIF_PCM_CTLa_RESET_RX_BMSK;
 	}
-	ipq-lpass-reg-update(
+	ipq_lpass_reg_update(
 		HWIO_LPASS_LPAIF_PCM_CTLa_ADDR(lpaif_base, pcm_index),
-		mask, field_value, 0);
+		mask, value, 0);
 }
 EXPORT_SYMBOL(ipq_lpass_pcm_reset);
 
 void ipq_lpass_pcm_reset_release(void __iomem *lpaif_base, uint32_t pcm_index,
 						uint32_t dir)
 {
-	uint32_t mask,field_value;
+	uint32_t mask,value;
+
+	mask = HWIO_LPASS_LPAIF_PCM_CTLa_RESET_BMSK;
+	value = HWIO_LPASS_LPAIF_PCM_CTLa_RESET_DISABLE_FVAL <<
+			HWIO_LPASS_LPAIF_PCM_CTLa_RESET_SHFT;
 
 	if(TDM_SINK == dir){
-/*
- * reset release trasmit path
- */
-	field_value = HWIO_LPASS_LPAIF_PCM_CTLa_RESET_TX_DISABLE_FVAL <<
+		value |= HWIO_LPASS_LPAIF_PCM_CTLa_RESET_TX_DISABLE_FVAL <<
 			HWIO_LPASS_LPAIF_PCM_CTLa_RESET_TX_SHFT;
-	mask = HWIO_LPASS_LPAIF_PCM_CTLa_RESET_TX_BMSK;
+		mask |= HWIO_LPASS_LPAIF_PCM_CTLa_RESET_TX_BMSK;
 	} else {
-/*
- * reset release receive path
- */
-	field_value = HWIO_LPASS_LPAIF_PCM_CTLa_RESET_RX_DISABLE_FVAL <<
+		value |= HWIO_LPASS_LPAIF_PCM_CTLa_RESET_RX_DISABLE_FVAL <<
 			HWIO_LPASS_LPAIF_PCM_CTLa_RESET_RX_SHFT;
-	mask = HWIO_LPASS_LPAIF_PCM_CTLa_RESET_RX_BMSK;
+		mask |= HWIO_LPASS_LPAIF_PCM_CTLa_RESET_RX_BMSK;
 	}
 
-	ipq-lpass-reg-update(
-		HWIO_LPASS_LPAIF_PCM_CTLa_ADDR(lpaif_base, pcm_index),
-		mask, field_value, 0);
+	ipq_lpass_reg_update(HWIO_LPASS_LPAIF_PCM_CTLa_ADDR(lpaif_base,
+				pcm_index), mask, value, 0);
 }
 EXPORT_SYMBOL(ipq_lpass_pcm_reset_release);
 
@@ -127,179 +125,149 @@ void ipq_lpass_pcm_config(struct ipq_lpass_pcm_config *configPtr,
 				void __iomem *lpaif_base, uint32_t pcm_index,
 				uint32_t dir)
 {
-	uint32_t mask, fieldValue;
+	uint32_t mask, value;
 	uint32_t regOffset;
-	uint32_t nbitsPerFrame;
+	uint32_t bits_per_frame;
 
-/*
- * First step: Collect info for LPASS_LPAIF_LPAIF_PCM_CTLa
- */
-	fieldValue = 0;
+	writel(0x1,HWIO_LPASS_LPAIF_PCM_I2S_SELa_ADDR(lpaif_base, pcm_index));
 
-/*
- * Setup the mask for sync src, (short,long) sync type, oe mode
-*/
+	value = 0;
+
 	mask =  HWIO_LPASS_LPAIF_PCM_CTLa_SYNC_SRC_BMSK |
 			HWIO_LPASS_LPAIF_PCM_CTLa_AUX_MODE_BMSK |
 			HWIO_LPASS_LPAIF_PCM_CTLa_CTRL_DATA_OE_BMSK;
-/*
- * Setup the sync src: internal or external
-*/
+
+	if (TDM_SINK == dir) {
+		mask |= HWIO_LPASS_LPAIF_PCM_CTLa_TPCM_WIDTH_BMSK;
+		if (configPtr->bit_width == 16)
+			value |= (0x1
+				<< HWIO_LPASS_LPAIF_PCM_CTLa_TPCM_WIDTH_SHFT);
+	} else {
+		mask |= HWIO_LPASS_LPAIF_PCM_CTLa_RPCM_WIDTH_BMSK;
+		if (configPtr->bit_width == 16)
+			value |= (0x1
+				<< HWIO_LPASS_LPAIF_PCM_CTLa_RPCM_WIDTH_SHFT);
+	}
+
 	switch (configPtr->sync_src){
 	case TDM_MODE_MASTER:
-		fieldValue |=
-			(HWIO_LPASS_LPAIF_PCM_CTLa_SYNC_SRC_INTERNAL_FVAL <<
-			HWIO_LPASS_LPAIF_PCM_CTLa_SYNC_SRC_SHFT);
+		value |= (HWIO_LPASS_LPAIF_PCM_CTLa_SYNC_SRC_INTERNAL_FVAL
+				<< HWIO_LPASS_LPAIF_PCM_CTLa_SYNC_SRC_SHFT);
 	break;
 	case TDM_MODE_SLAVE:
-		fieldValue |=
-			(HWIO_LPASS_LPAIF_PCM_CTLa_SYNC_SRC_EXTERNAL_FVAL <<
-			HWIO_LPASS_LPAIF_PCM_CTLa_SYNC_SRC_SHFT);
+		value |= (HWIO_LPASS_LPAIF_PCM_CTLa_SYNC_SRC_EXTERNAL_FVAL
+				<< HWIO_LPASS_LPAIF_PCM_CTLa_SYNC_SRC_SHFT);
 	break;
 	default:
 	break;
 	}
 
-/*
- * Setup the sync type, short / long
-*/
 	switch(configPtr->sync_type){
 	case TDM_SHORT_SYNC_TYPE:
-		fieldValue |= (HWIO_LPASS_LPAIF_PCM_CTLa_AUX_MODE_PCM_FVAL <<
-			HWIO_LPASS_LPAIF_PCM_CTLa_AUX_MODE_SHFT);
+		value |= (HWIO_LPASS_LPAIF_PCM_CTLa_AUX_MODE_PCM_FVAL
+				<< HWIO_LPASS_LPAIF_PCM_CTLa_AUX_MODE_SHFT);
 	break;
 	case TDM_LONG_SYNC_TYPE:
-		fieldValue |= (HWIO_LPASS_LPAIF_PCM_CTLa_AUX_MODE_AUX_FVAL <<
-			HWIO_LPASS_LPAIF_PCM_CTLa_AUX_MODE_SHFT);
+		value |= (HWIO_LPASS_LPAIF_PCM_CTLa_AUX_MODE_AUX_FVAL
+				<< HWIO_LPASS_LPAIF_PCM_CTLa_AUX_MODE_SHFT);
 	break;
 	case TDM_SLOT_SYNC_TYPE:
-		fieldValue |= (HWIO_LPASS_LPAIF_PCM_CTLa_AUX_MODE_PCM_FVAL <<
-			HWIO_LPASS_LPAIF_PCM_CTLa_AUX_MODE_SHFT);
-		fieldValue |=
-			(HWIO_LPASS_LPAIF_PCM_CTLa_ONE_SLOT_SYNC_EN_ENABLE_FVAL <<
-			HWIO_LPASS_LPAIF_PCM_CTLa_ONE_SLOT_SYNC_EN_SHFT);
+		value |= (HWIO_LPASS_LPAIF_PCM_CTLa_AUX_MODE_PCM_FVAL
+				<< HWIO_LPASS_LPAIF_PCM_CTLa_AUX_MODE_SHFT);
+		value |= (HWIO_LPASS_LPAIF_PCM_CTLa_ONE_SLOT_SYNC_EN_ENABLE_FVAL
+				<< HWIO_LPASS_LPAIF_PCM_CTLa_ONE_SLOT_SYNC_EN_SHFT);
 	break;
 	default:
 	break;
 	}
 
-/*
- * Setup the OE
- */
 	switch (configPtr->ctrl_data_oe){
 	case TDM_CTRL_DATA_OE_DISABLE:
-		fieldValue |= (TDM_CTRL_DATA_OE_DISABLE <<
-				HWIO_LPASS_LPAIF_PCM_CTLa_CTRL_DATA_OE_SHFT);
+		value |= (TDM_CTRL_DATA_OE_DISABLE
+				<< HWIO_LPASS_LPAIF_PCM_CTLa_CTRL_DATA_OE_SHFT);
 	break;
 	case TDM_CTRL_DATA_OE_ENABLE:
-		fieldValue |= (TDM_CTRL_DATA_OE_ENABLE <<
-				HWIO_LPASS_LPAIF_PCM_CTLa_CTRL_DATA_OE_SHFT);
+		value |= (TDM_CTRL_DATA_OE_ENABLE
+			<< HWIO_LPASS_LPAIF_PCM_CTLa_CTRL_DATA_OE_SHFT);
 	break;
 	default:
 	break;
 	}
 
 	regOffset = HWIO_LPASS_LPAIF_PCM_CTLa_OFFS(pcm_index);
-	ipq-lpass-reg-update(lpaif_base + regOffset, mask, fieldValue, 0);
-/*
- * End First step: Update LPASS_LPAIF_LPAIF_PCM_CTLa
- * Seoncd phase: LPASS_LPAIF_LPAIF_PCM_TDM_CTL_a
- * Setup enable-tdm, sync-delay, rate, enable diff
- */
+	ipq_lpass_reg_update(lpaif_base + regOffset, mask, value, 0);
+
 	mask = HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_ENABLE_TDM_BMSK |
 		HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_TDM_SYNC_DELAY_BMSK |
 		HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_TDM_RATE_BMSK |
 		HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_ENABLE_DIFF_SAMPLE_WIDTH_BMSK;
-/*
- * Enable TDM mode
- */
-	fieldValue  = HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_ENABLE_TDM_ENABLE_FVAL
-		<< HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_ENABLE_TDM_SHFT;
-/*
- * Figure out sync delay, delay 1 is the typical use case
- */
-	switch(configPtr->sync_data_delay){
+
+	value  = HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_ENABLE_TDM_ENABLE_FVAL
+			<< HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_ENABLE_TDM_SHFT;
+
+	switch(configPtr->sync_delay){
 	case TDM_DATA_DELAY_0_CYCLE:
-		fieldValue |=
-		HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_TDM_SYNC_DELAY_DELAY_0_CYCLE_FVAL <<
-		HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_TDM_SYNC_DELAY_SHFT;
+		value |= HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_TDM_SYNC_DELAY_DELAY_0_CYCLE_FVAL
+				<< HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_TDM_SYNC_DELAY_SHFT;
 	break;
 	case TDM_DATA_DELAY_1_CYCLE:
 	default:
-		fieldValue |=
-		HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_TDM_SYNC_DELAY_DELAY_1_CYCLE_FVAL <<
-		HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_TDM_SYNC_DELAY_SHFT;
+		value |= HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_TDM_SYNC_DELAY_DELAY_1_CYCLE_FVAL
+				<< HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_TDM_SYNC_DELAY_SHFT;
 	break;
 	case TDM_DATA_DELAY_2_CYCLE:
-		fieldValue |=
-		HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_TDM_SYNC_DELAY_DELAY_2_CYCLE_FVAL <<
-		HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_TDM_SYNC_DELAY_SHFT;
+		value |= HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_TDM_SYNC_DELAY_DELAY_2_CYCLE_FVAL
+				<< HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_TDM_SYNC_DELAY_SHFT;
 	break;
 	}
-/*
- * Figure out the rate = slot x slot-width..  rate should be limited
- */
-	nbitsPerFrame = configPtr->nslots_per_frame * configPtr->slot_width;
 
-	fieldValue |= (nbitsPerFrame - 1) <<
-		HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_TDM_RATE_SHFT;
-/*
- * Based on slot-width, enable or disable DIFF support
- */
+	bits_per_frame = configPtr->slot_count * configPtr->slot_width;
+
+	value |= (bits_per_frame - 1) <<
+			HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_TDM_RATE_SHFT;
+
 	if(configPtr->bit_width != configPtr->slot_width){
-		fieldValue |=
-		HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_ENABLE_DIFF_SAMPLE_WIDTH_ENABLE_FVAL
-		<< HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_ENABLE_DIFF_SAMPLE_WIDTH_SHFT;
+		value |= HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_ENABLE_DIFF_SAMPLE_WIDTH_ENABLE_FVAL
+				<< HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_ENABLE_DIFF_SAMPLE_WIDTH_SHFT;
 	} else {
-		fieldValue |=
-		HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_ENABLE_DIFF_SAMPLE_WIDTH_DISABLE_FVAL
-		<< HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_ENABLE_DIFF_SAMPLE_WIDTH_SHFT;
+		value |= HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_ENABLE_DIFF_SAMPLE_WIDTH_DISABLE_FVAL
+				<< HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_ENABLE_DIFF_SAMPLE_WIDTH_SHFT;
 	}
-/*
- * Invert sync or not only for LONG SYNC mode ??
- * Setup the width regardless of DIFF mode.
- */
+
 	if (TDM_SINK == dir){
 		mask |= HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_TDM_INV_TPCM_SYNC_BMSK;
-		fieldValue |= configPtr->sync_invert
+		value |= configPtr->invert_sync
 			<< HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_TDM_INV_TPCM_SYNC_SHFT;
 
 		mask |= HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_TDM_TPCM_WIDTH_BMSK;
-		fieldValue |= (configPtr->bit_width - 1)
+		value |= (configPtr->bit_width - 1)
 			<< HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_TDM_TPCM_WIDTH_SHFT;
 	} else {
 		mask |= HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_TDM_INV_RPCM_SYNC_BMSK;
-		fieldValue |= configPtr->sync_invert
+		value |= configPtr->invert_sync
 			<< HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_TDM_INV_RPCM_SYNC_SHFT;
 
 		mask |= HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_TDM_RPCM_WIDTH_BMSK;
-		fieldValue |= (configPtr->bit_width - 1)
+		value |= (configPtr->bit_width - 1)
 			<< HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_TDM_RPCM_WIDTH_SHFT;
 	}
 	regOffset = HWIO_LPASS_LPAIF_PCM_TDM_CTL_a_OFFS(pcm_index);
-	ipq-lpass-reg-update(lpaif_base + regOffset, mask, fieldValue, 0);
-/*
- * End seoncd phase: LPASS_LPAIF_LPAIF_PCM_TDM_CTL_a
- * Phase 3: Setup LPASS_LPAIF_LPAIF_PCM_TDM_SAMPLE_WIDTH_a if DIFF mode
- */
+	ipq_lpass_reg_update(lpaif_base + regOffset, mask, value, 0);
+
 	if(configPtr->bit_width != configPtr->slot_width){
 		if(TDM_SINK == dir){
 			mask = HWIO_LPASS_LPAIF_PCM_TDM_SAMPLE_WIDTH_a_TDM_TPCM_SAMPLE_WIDTH_BMSK;
-			fieldValue = (configPtr->slot_width - 1)
+			value = (configPtr->slot_width - 1)
 				<< HWIO_LPASS_LPAIF_PCM_TDM_SAMPLE_WIDTH_a_TDM_TPCM_SAMPLE_WIDTH_SHFT;
 		} else {
 			mask = HWIO_LPASS_LPAIF_PCM_TDM_SAMPLE_WIDTH_a_TDM_RPCM_SAMPLE_WIDTH_BMSK;
-			fieldValue = (configPtr->slot_width - 1)
+			value = (configPtr->slot_width - 1)
 				<< HWIO_LPASS_LPAIF_PCM_TDM_SAMPLE_WIDTH_a_TDM_RPCM_SAMPLE_WIDTH_SHFT;
 		}
 	regOffset = HWIO_LPASS_LPAIF_PCM_TDM_SAMPLE_WIDTH_a_OFFS(pcm_index);
-	ipq-lpass-reg-update(lpaif_base + regOffset, mask, fieldValue, 0);
+	ipq_lpass_reg_update(lpaif_base + regOffset, mask, value, 0);
 	}
-/*
- * End Phase 3: LPASS_LPAIF_LPAIF_PCM_TDM_SAMPLE_WIDTH_a if DIFF mode
- * Phase 4: slot mask, LPASS_LPAIF_LPAIF_PCM_TPCM_SLOT_NUM_a or
- * LPASS_LPAIF_LPAIF_PCM_RPCM_SLOT_NUM_a
- */
+
 	if(TDM_SINK == dir){
 		regOffset = HWIO_LPASS_LPAIF_PCM_TPCM_SLOT_NUM_a_OFFS(pcm_index);
 		mask = HWIO_LPASS_LPAIF_PCM_TPCM_SLOT_NUM_a_RMSK;
@@ -307,38 +275,56 @@ void ipq_lpass_pcm_config(struct ipq_lpass_pcm_config *configPtr,
 		regOffset = HWIO_LPASS_LPAIF_PCM_RPCM_SLOT_NUM_a_OFFS(pcm_index);
 		mask = HWIO_LPASS_LPAIF_PCM_RPCM_SLOT_NUM_a_RMSK;
 	}
-	fieldValue = configPtr->slot_mask;
-	ipq-lpass-reg-update(lpaif_base + regOffset, mask, fieldValue, 0);
-/*
- * End Phase 4: slot mask
- */
+	value = configPtr->slot_mask;
+	ipq_lpass_reg_update(lpaif_base + regOffset, mask, value, 0);
+
+	mask = HWIO_LPASS_LPAIF_PCM_LANE_CONFIG_a_LANE0_EN_BMSK |
+		HWIO_LPASS_LPAIF_PCM_LANE_CONFIG_a_LANE0_DIR_BMSK;
+	value = (HWIO_LPASS_LPAIF_PCM_LANE_CONFIG_a_LANE0_EN_ENABLE_FVAL <<
+			HWIO_LPASS_LPAIF_PCM_LANE_CONFIG_a_LANE0_EN_SHFT);
+	regOffset = HWIO_LPASS_LPAIF_PCM_LANE_CONFIG_a_OFFS(pcm_index);
+
+	if(TDM_SINK == dir){
+		value |= (HWIO_LPASS_LPAIF_PCM_LANE_CONFIG_a_LANE0_DIR_MIC_FVAL
+			<< HWIO_LPASS_LPAIF_PCM_LANE_CONFIG_a_LANE0_DIR_SHFT);
+	} else {
+		value |= (HWIO_LPASS_LPAIF_PCM_LANE_CONFIG_a_LANE0_DIR_SPKR_FVAL
+			<< HWIO_LPASS_LPAIF_PCM_LANE_CONFIG_a_LANE0_DIR_SHFT);
+	}
+
+	ipq_lpass_reg_update(lpaif_base + regOffset, mask, value, 0);
 }
 EXPORT_SYMBOL(ipq_lpass_pcm_config);
 
 void ipq_lpass_pcm_enable(void __iomem *lpaif_base,
 				uint32_t pcm_index, uint32_t dir)
 {
-	uint32_t mask,field_value;
+	uint32_t mask,value;
 
 	if(TDM_SINK == dir){
-/*
- * enable transmit path
- */
-		field_value = HWIO_LPASS_LPAIF_PCM_CTLa_ENABLE_TX_ENABLE_FVAL <<
+		writel(0x00010000,
+			HWIO_LPASS_LPAIF_PCM_LANE_CONFIG_a_ADDR(
+				lpaif_base, pcm_index));
+		value = HWIO_LPASS_LPAIF_PCM_CTLa_ENABLE_TX_ENABLE_FVAL <<
 				HWIO_LPASS_LPAIF_PCM_CTLa_ENABLE_TX_SHFT;
 		mask = HWIO_LPASS_LPAIF_PCM_CTLa_ENABLE_TX_BMSK;
 	} else {
-/*
- * enable receive path
- */
-		field_value = HWIO_LPASS_LPAIF_PCM_CTLa_ENABLE_RX_ENABLE_FVAL <<
+		writel(0x00010001,
+			HWIO_LPASS_LPAIF_PCM_LANE_CONFIG_a_ADDR(
+				lpaif_base, pcm_index));
+		value = HWIO_LPASS_LPAIF_PCM_CTLa_ENABLE_RX_ENABLE_FVAL <<
 				HWIO_LPASS_LPAIF_PCM_CTLa_ENABLE_RX_SHFT;
 		mask = HWIO_LPASS_LPAIF_PCM_CTLa_ENABLE_RX_BMSK;
 	}
 
-	ipq-lpass-reg-update(
+	value |=  HWIO_LPASS_LPAIF_PCM_CTLa_ENABLE_ENABLE_FVAL <<
+			HWIO_LPASS_LPAIF_PCM_CTLa_ENABLE_SHFT;
+
+	mask |= HWIO_LPASS_LPAIF_PCM_CTLa_ENABLE_BMSK;
+
+	ipq_lpass_reg_update(
 		HWIO_LPASS_LPAIF_PCM_CTLa_ADDR(lpaif_base, pcm_index),
-		mask, field_value, 0); ///< update register
+		mask, value, 0);
 }
 
 EXPORT_SYMBOL(ipq_lpass_pcm_enable);
@@ -346,62 +332,67 @@ EXPORT_SYMBOL(ipq_lpass_pcm_enable);
 void ipq_lpass_pcm_disable(void __iomem *lpaif_base,
 					uint32_t pcm_index, uint32_t dir)
 {
-	uint32_t mask,field_value;
+	uint32_t mask,value;
 
 	if(TDM_SINK == dir){
-/*
- * disable transmit path
- */
-		field_value = HWIO_LPASS_LPAIF_PCM_CTLa_ENABLE_TX_DISABLE_FVAL <<
+		value = HWIO_LPASS_LPAIF_PCM_CTLa_ENABLE_TX_DISABLE_FVAL <<
 				HWIO_LPASS_LPAIF_PCM_CTLa_ENABLE_TX_SHFT;
 		mask = HWIO_LPASS_LPAIF_PCM_CTLa_ENABLE_TX_BMSK;
 	} else {
-/*
- * disable receive path
- */
-		field_value = HWIO_LPASS_LPAIF_PCM_CTLa_ENABLE_RX_DISABLE_FVAL <<
+		value = HWIO_LPASS_LPAIF_PCM_CTLa_ENABLE_RX_DISABLE_FVAL <<
 				HWIO_LPASS_LPAIF_PCM_CTLa_ENABLE_RX_SHFT;
 		mask = HWIO_LPASS_LPAIF_PCM_CTLa_ENABLE_RX_BMSK;
 	}
 
-	ipq-lpass-reg-update(HWIO_LPASS_LPAIF_PCM_CTLa_ADDR(lpaif_base, pcm_index),
-		mask, field_value, 0); ///< update register
+	ipq_lpass_reg_update(HWIO_LPASS_LPAIF_PCM_CTLa_ADDR(lpaif_base,
+			pcm_index), mask, value, 0);
 }
 EXPORT_SYMBOL(ipq_lpass_pcm_disable);
 
-void ipq_lpass_enable_dma_channel(void __iomem *lpaif_base,
-						uint32_t dma_idx,
-						uint32_t dma_dir)
-	{
-	uint32_t mask, field_value, offset;
+void ipq_lpass_pcm_enable_loopback(void __iomem *lpaif_base,
+						uint32_t pcm_index)
+{
+	uint32_t mask,value;
+
+	mask = HWIO_LPASS_LPAIF_PCM_CTLa_LOOPBACK_BMSK;
+	value = (1 << HWIO_LPASS_LPAIF_PCM_CTLa_LOOPBACK_SHFT);
+
+	ipq_lpass_reg_update(HWIO_LPASS_LPAIF_PCM_CTLa_ADDR(lpaif_base,
+		pcm_index), mask, value, 0);
+}
+EXPORT_SYMBOL(ipq_lpass_pcm_enable_loopback);
+
+void ipq_lpass_enable_dma_channel(void __iomem *lpaif_base, uint32_t dma_idx,
+							uint32_t dma_dir)
+{
+	uint32_t mask, value, offset;
 
 	if(LPASS_HW_DMA_SINK == dma_dir){
 		mask = HWIO_LPASS_LPAIF_RDDMA_CTLa_ENABLE_ON_FVAL;
-		field_value =
+		value =
 			HWIO_LPASS_LPAIF_RDDMA_CTLa_ENABLE_BMSK <<
 			HWIO_LPASS_LPAIF_RDDMA_CTLa_ENABLE_SHFT;
 		offset = HWIO_LPASS_LPAIF_RDDMA_CTLa_OFFS(dma_idx);
 	} else {
 		mask = HWIO_LPASS_LPAIF_WRDMA_CTLa_ENABLE_ON_FVAL;
-		field_value =
+		value =
 			HWIO_LPASS_LPAIF_WRDMA_CTLa_ENABLE_BMSK <<
 			HWIO_LPASS_LPAIF_WRDMA_CTLa_ENABLE_SHFT;
 		offset = HWIO_LPASS_LPAIF_WRDMA_CTLa_OFFS(dma_idx);
 	}
-	ipq-lpass-reg-update(lpaif_base + offset, mask, field_value, 0);
+	ipq_lpass_reg_update(lpaif_base + offset, mask, value, 0);
 }
 EXPORT_SYMBOL(ipq_lpass_enable_dma_channel);
 
-void ipq_lpass_dma_disable_dma_channel(void __iomem *lpaif_base,
-						uint32_t dma_idx,
+void ipq_lpass_disable_dma_channel(void __iomem *lpaif_base, uint32_t dma_idx,
 						uint32_t dma_dir)
 {
-	uint32_t mask, field_value, offset;
+	uint32_t mask, value, offset;
 
 	if(LPASS_HW_DMA_SINK == dma_dir){
 		mask = HWIO_LPASS_LPAIF_RDDMA_CTLa_ENABLE_ON_FVAL |
 			HWIO_LPASS_LPAIF_RDDMA_CTLa_AUDIO_INTF_BMSK;
-		field_value = (HWIO_LPASS_LPAIF_RDDMA_CTLa_ENABLE_OFF_FVAL <<
+		value = (HWIO_LPASS_LPAIF_RDDMA_CTLa_ENABLE_OFF_FVAL <<
 					HWIO_LPASS_LPAIF_RDDMA_CTLa_ENABLE_SHFT)|
 			(HWIO_LPASS_LPAIF_RDDMA_CTLa_AUDIO_INTF_NONE_FVAL <<
 				HWIO_LPASS_LPAIF_RDDMA_CTLa_AUDIO_INTF_SHFT);
@@ -409,40 +400,26 @@ void ipq_lpass_dma_disable_dma_channel(void __iomem *lpaif_base,
 	} else {
 		mask = HWIO_LPASS_LPAIF_WRDMA_CTLa_ENABLE_ON_FVAL |
 				HWIO_LPASS_LPAIF_WRDMA_CTLa_AUDIO_INTF_BMSK;
-		field_value = (HWIO_LPASS_LPAIF_WRDMA_CTLa_ENABLE_OFF_FVAL <<
+		value = (HWIO_LPASS_LPAIF_WRDMA_CTLa_ENABLE_OFF_FVAL <<
 					HWIO_LPASS_LPAIF_WRDMA_CTLa_ENABLE_SHFT)|
 		(HWIO_LPASS_LPAIF_WRDMA_CTLa_AUDIO_INTF_NONE_FVAL <<
 			HWIO_LPASS_LPAIF_WRDMA_CTLa_AUDIO_INTF_SHFT);
 		offset = HWIO_LPASS_LPAIF_WRDMA_CTLa_OFFS(dma_idx);
 	}
-	ipq-lpass-reg-update(lpaif_base + offset, mask,field_value,0);
+	ipq_lpass_reg_update(lpaif_base + offset, mask,value,0);
 }
-EXPORT_SYMBOL(ipq_lpass_dma_disable_dma_channel);
+EXPORT_SYMBOL(ipq_lpass_disable_dma_channel);
 
-void ipq_lpass_config_dma_channel(struct lpass_dma *config,
-					uint32_t dma_dir, uint32_t dma_idx)
-{
-	if(LPASS_HW_DMA_SINK == dma_dir){
-		ipq_lpass_dma_config_dma_channel_sink(config, dma_idx);
-	} else {
-		ipq_lpass_dma_config_dma_channel_source(config, dma_idx);
-	}
-}
-EXPORT_SYMBOL(ipq_lpass_config_dma_channel);
-
-static void ipq_lpass_dma_clear_interrupt(void __iomem *lpaif_base,
+void ipq_lpass_dma_clear_interrupt_config(void __iomem *lpaif_base,
 						uint32_t dma_dir,
-						uint32_t dma_idx,
-						uint32_t dma_intr_idx)
+							uint32_t dma_idx,
+							uint32_t dma_intr_idx)
 {
-	uint32 mask;
-	uint32 clear_mask = 0;
+	uint32_t mask;
+	uint32_t clear_mask = 0;
 
 	if(LPASS_HW_DMA_SINK == dma_dir){
 		switch (dma_idx){
-	/*
-	 * For RDDMA <=4, use IRQ_CLEAR macros
-	*/
 		case 0:
 			clear_mask = (HWIO_LPASS_LPAIF_IRQ_CLEARa_PER_RDDMA_CH0_BMSK
 				| HWIO_LPASS_LPAIF_IRQ_CLEARa_UNDR_RDDMA_CH0_BMSK
@@ -458,9 +435,6 @@ static void ipq_lpass_dma_clear_interrupt(void __iomem *lpaif_base,
 		}
 	} else {
 		switch (dma_idx){
-	/*
-	 * For WRDMA <= 3, use IRQ_CLEAR macros
-	 */
 		case 0:
 			clear_mask = (HWIO_LPASS_LPAIF_IRQ_CLEARa_PER_WRDMA_CH0_BMSK
 				| HWIO_LPASS_LPAIF_IRQ_CLEARa_OVR_WRDMA_CH0_BMSK
@@ -475,35 +449,28 @@ static void ipq_lpass_dma_clear_interrupt(void __iomem *lpaif_base,
 		break;
 		}
 	}
-
 	mask = 0x0;
 
-	ipq-lpass-reg-update(HWIO_LPASS_LPAIF_IRQ_CLEARa_ADDR(
-				lpaif_base, dma_intr_idx),
-				mask, clear_mask, 1);
+	ipq_lpass_reg_update(HWIO_LPASS_LPAIF_IRQ_CLEARa_ADDR(
+				lpaif_base, dma_intr_idx), mask, clear_mask, 1);
 }
-EXPORT_SYMBOL(ipq_lpass_dma_clear_interrupt);
+EXPORT_SYMBOL(ipq_lpass_dma_clear_interrupt_config);
 
-void ipq_lpass_dma_disable_interrupt(void __iomem *lpaif_base,
-						uint32_t dma_dir,
+void ipq_lpass_dma_disable_interrupt(void __iomem *lpaif_base, uint32_t dma_dir,
 						uint32_t dma_idx,
-						uint32_t dma_intr_idx)
+							uint32_t dma_intr_idx)
 {
-	uint32_t disable_mask=0;
-
+	uint32_t mask=0;
 
 	if(LPASS_HW_DMA_SINK == dma_dir){
 		switch (dma_idx){
-	/*
-	 * For RDDMA <=4, use IRQ_EN macros
-	 */
 		case 0:
-			disable_mask = (HWIO_LPASS_LPAIF_IRQ_ENa_PER_RDDMA_CH0_BMSK
+			mask = (HWIO_LPASS_LPAIF_IRQ_ENa_PER_RDDMA_CH0_BMSK
 				| HWIO_LPASS_LPAIF_IRQ_ENa_UNDR_RDDMA_CH0_BMSK
 				| HWIO_LPASS_LPAIF_IRQ_ENa_ERR_RDDMA_CH0_BMSK);
 		break;
 		case 1:
-			disable_mask = (HWIO_LPASS_LPAIF_IRQ_ENa_PER_RDDMA_CH1_BMSK
+			mask = (HWIO_LPASS_LPAIF_IRQ_ENa_PER_RDDMA_CH1_BMSK
 				| HWIO_LPASS_LPAIF_IRQ_ENa_UNDR_RDDMA_CH1_BMSK
 				| HWIO_LPASS_LPAIF_IRQ_ENa_ERR_RDDMA_CH1_BMSK);
 		break;
@@ -513,12 +480,12 @@ void ipq_lpass_dma_disable_interrupt(void __iomem *lpaif_base,
 	} else {
 		switch (dma_idx){
 		case 0:
-			disable_mask = (HWIO_LPASS_LPAIF_IRQ_ENa_PER_WRDMA_CH0_BMSK
+			mask = (HWIO_LPASS_LPAIF_IRQ_ENa_PER_WRDMA_CH0_BMSK
 				| HWIO_LPASS_LPAIF_IRQ_ENa_OVR_WRDMA_CH0_BMSK
 				| HWIO_LPASS_LPAIF_IRQ_ENa_ERR_WRDMA_CH0_BMSK);
 		break;
 		case 1:
-			disable_mask = (HWIO_LPASS_LPAIF_IRQ_ENa_PER_WRDMA_CH1_BMSK
+			mask = (HWIO_LPASS_LPAIF_IRQ_ENa_PER_WRDMA_CH1_BMSK
 				| HWIO_LPASS_LPAIF_IRQ_ENa_OVR_WRDMA_CH1_BMSK
 				| HWIO_LPASS_LPAIF_IRQ_ENa_ERR_WRDMA_CH1_BMSK);
 		break;
@@ -527,9 +494,9 @@ void ipq_lpass_dma_disable_interrupt(void __iomem *lpaif_base,
 		}
 	}
 
-	ipq-lpass-reg-update(HWIO_LPASS_LPAIF_IRQ_ENa_ADDR(
+	ipq_lpass_reg_update(HWIO_LPASS_LPAIF_IRQ_ENa_ADDR(
 				lpaif_base, dma_intr_idx),
-				disable_mask, 0x0, 0);
+				mask, 0x0, 0);
 }
 EXPORT_SYMBOL(ipq_lpass_dma_disable_interrupt);
 
@@ -538,20 +505,17 @@ void ipq_lpass_dma_enable_interrupt(void __iomem *lpaif_base,
 						uint32_t dma_idx,
 						uint32_t dma_intr_idx)
 {
-	uint32_t enable_mask = 0;
+	uint32_t mask = 0;
 
 	if(LPASS_HW_DMA_SINK == dma_dir){
 		switch (dma_idx){
-	/*
-	 * For RDDMA <=4, use IRQ_EN macros
-	 */
 		case 0:
-			enable_mask = (HWIO_LPASS_LPAIF_IRQ_ENa_PER_RDDMA_CH0_BMSK
+			mask = (HWIO_LPASS_LPAIF_IRQ_ENa_PER_RDDMA_CH0_BMSK
 				| HWIO_LPASS_LPAIF_IRQ_ENa_UNDR_RDDMA_CH0_BMSK
 				| HWIO_LPASS_LPAIF_IRQ_ENa_ERR_RDDMA_CH0_BMSK);
 		break;
 		case 1:
-			enable_mask = (HWIO_LPASS_LPAIF_IRQ_ENa_PER_RDDMA_CH1_BMSK
+			mask = (HWIO_LPASS_LPAIF_IRQ_ENa_PER_RDDMA_CH1_BMSK
 				| HWIO_LPASS_LPAIF_IRQ_ENa_UNDR_RDDMA_CH1_BMSK
 				| HWIO_LPASS_LPAIF_IRQ_ENa_ERR_RDDMA_CH1_BMSK);
 		break;
@@ -561,12 +525,12 @@ void ipq_lpass_dma_enable_interrupt(void __iomem *lpaif_base,
 	} else {
 		switch (dma_idx){
 		case 0:
-			enable_mask = (HWIO_LPASS_LPAIF_IRQ_ENa_PER_WRDMA_CH0_BMSK
+			mask = (HWIO_LPASS_LPAIF_IRQ_ENa_PER_WRDMA_CH0_BMSK
 				| HWIO_LPASS_LPAIF_IRQ_ENa_OVR_WRDMA_CH0_BMSK
 				| HWIO_LPASS_LPAIF_IRQ_ENa_ERR_WRDMA_CH0_BMSK);
 		break;
 		case 1:
-			enable_mask = (HWIO_LPASS_LPAIF_IRQ_ENa_PER_WRDMA_CH1_BMSK
+			mask = (HWIO_LPASS_LPAIF_IRQ_ENa_PER_WRDMA_CH1_BMSK
 				| HWIO_LPASS_LPAIF_IRQ_ENa_OVR_WRDMA_CH1_BMSK
 				| HWIO_LPASS_LPAIF_IRQ_ENa_ERR_WRDMA_CH1_BMSK);
 		break;
@@ -575,54 +539,13 @@ void ipq_lpass_dma_enable_interrupt(void __iomem *lpaif_base,
 		}
 	}
 
-	ipq-lpass-reg-update(HWIO_LPASS_LPAIF_IRQ_ENa_ADDR(
-				lpaif_base, dma_intr_idx),
-				enable_mask,enable_mask,0);
+	ipq_lpass_reg_update(HWIO_LPASS_LPAIF_IRQ_ENa_ADDR(
+				lpaif_base, dma_intr_idx), mask, mask, 0);
 }
 EXPORT_SYMBOL(ipq_lpass_dma_enable_interrupt);
 
-void ipq_lpass_dma_get_dma_int_stc(void __iomem *lpaif_base,
-					uint32_t dma_dir, uint32_t dma_idx)
-{
-	uint32  lsb, msb1, msb2;
-
-/*
- * Whenever DMA interrupt happens,
- * the DMA STC registers latch on to the STC value (from AV-timer)
- * at that instant.
- */
-
-	if(LPASS_HW_DMA_SINK == dma_dir){
-		msb1 = readl(lpaif_base + HWIO_LPASS_LPAIF_RDDMA_STC_MSBa_OFFS(dma_idx));
-		lsb = readl(lpaif_base + HWIO_LPASS_LPAIF_RDDMA_STC_LSBa_OFFS(dma_idx));
-		msb2 = readl(lpaif_base + HWIO_LPASS_LPAIF_RDDMA_STC_MSBa_OFFS(dma_idx));
-		if(msb1 != msb2){
-			lsb = readl(lpaif_base +
-				HWIO_LPASS_LPAIF_RDDMA_STC_LSBa_OFFS(dma_idx));
-		}
-		lsb = (lsb & HWIO_LPASS_LPAIF_RDDMA_STC_LSBa_STC_LSB_BMSK) >>
-				HWIO_LPASS_LPAIF_RDDMA_STC_LSBa_STC_LSB_SHFT;
-		msb2 = (msb2 & HWIO_LPASS_LPAIF_RDDMA_STC_MSBa_STC_MSB_BMSK) >>
-				HWIO_LPASS_LPAIF_RDDMA_STC_MSBa_STC_MSB_SHFT;
-		*p_stc = ((uint64)msb2 << 32) | lsb;
-	} else {
-		msb1 = readl(lpaif_base + HWIO_LPASS_LPAIF_WRDMA_STC_MSBa_OFFS(dma_idx));
-		lsb = readl(lpaif_base + HWIO_LPASS_LPAIF_WRDMA_STC_LSBa_OFFS(dma_idx));
-		msb2 = readl(lpaif_base + HWIO_LPASS_LPAIF_WRDMA_STC_MSBa_OFFS(dma_idx));
-		if(msb1 != msb2) {
-			lsb = readl(lpaif_base +
-				HWIO_LPASS_LPAIF_WRDMA_STC_LSBa_OFFS(dma_idx));
-		}
-		lsb = (lsb & HWIO_LPASS_LPAIF_WRDMA_STC_LSBa_STC_LSB_BMSK) >>
-				HWIO_LPASS_LPAIF_WRDMA_STC_LSBa_STC_LSB_SHFT;
-		msb2 = (msb2 & HWIO_LPASS_LPAIF_RDDMA_STC_MSBa_STC_MSB_BMSK) >>
-				HWIO_LPASS_LPAIF_RDDMA_STC_MSBa_STC_MSB_SHFT;
-		*p_stc = ((uint64)msb2 << 32) | lsb;
-	}
-}
-EXPORT_SYMBOL(ipq_lpass_dma_get_dma_int_stc);
-
-void ipq_lpass_dma_get_dma_fifo_count(void __iomem *lpaif_base,
+void ipq_lpass_get_dma_fifo_count(void __iomem *lpaif_base,
+					uint32_t *fifo_cnt_ptr,
 					uint32_t dma_dir, uint32_t dma_idx)
 {
 	uint32_t fifo_count = 0;
@@ -640,63 +563,49 @@ void ipq_lpass_dma_get_dma_fifo_count(void __iomem *lpaif_base,
 				HWIO_LPASS_LPAIF_WRDMA_PERa_PERIOD_FIFO_SHFT;
 	}
 }
-EXPORT_SYMBOL(ipq_lpass_dma_get_dma_fifo_count);
+EXPORT_SYMBOL(ipq_lpass_get_dma_fifo_count);
 
-static void ipq_lpass_dma_config_channel_sink(struct lpass_dma *config,
-							uint32_t dma_idx)
+static void ipq_lpass_dma_config_channel_sink(struct lpass_dma_config *config)
 {
-	uint32_t mask,field_value;
+	uint32_t mask, value;
 
-/*
- * Update the base address of the DMA buffer
- */
 	mask = HWIO_LPASS_LPAIF_RDDMA_BASEa_BASE_ADDR_BMSK;
-	field_value = ((uint32)config->buffer_start_addr >>
+	value = (config->buffer_start_addr >>
 			HWIO_LPASS_LPAIF_RDDMA_BASEa_BASE_ADDR_SHFT)
 				<< HWIO_LPASS_LPAIF_RDDMA_BASEa_BASE_ADDR_SHFT;
-/*
- * READ DMA
- */
-	ipq-lpass-reg-update(HWIO_LPASS_LPAIF_RDDMA_BASEa_ADDR(
-			config->lpaif_base,config->idx), mask, field_value, 0);
 
+	ipq_lpass_reg_update(HWIO_LPASS_LPAIF_RDDMA_BASEa_ADDR(
+			config->lpaif_base,config->idx), mask, value, 0);
 
-/*
- * Update the buffer length of the DMA buffer.
- */
 	mask = HWIO_LPASS_LPAIF_RDDMA_BUFF_LENa_LENGTH_BMSK;
-	field_value = (config->buffer_len-1) ;
+	value = (config->buffer_len-1) ;
 
+	ipq_lpass_reg_update(HWIO_LPASS_LPAIF_RDDMA_BUFF_LENa_ADDR(
+			config->lpaif_base,config->idx), mask, value, 0);
 
-	ipq-lpass-reg-update(HWIO_LPASS_LPAIF_RDDMA_BUFF_LENa_ADDR(
-			config->lpaif_base,config->idx), mask, field_value, 0);
-
-/*
- * Update the interrupt sampler period
- */
 	mask = HWIO_LPASS_LPAIF_RDDMA_PER_LENa_LENGTH_BMSK;
-	field_value = (config->dma_int_per_cnt-1) <<
+	value = (config->dma_int_per_cnt-1) <<
 				HWIO_LPASS_LPAIF_RDDMA_PER_LENa_LENGTH_SHFT;
 
+	ipq_lpass_reg_update(HWIO_LPASS_LPAIF_RDDMA_PER_LENa_ADDR(
+			config->lpaif_base,config->idx), mask, value, 0);
 
-	ipq-lpass-reg-update(HWIO_LPASS_LPAIF_RDDMA_PER_LENa_ADDR(
-			config->lpaif_base,config->idx), mask, field_value, 0);
-
-/*
- * Update the audio interface and fifo Watermark in AUDIO_DMA_CTLa(channel)
- * register. Obtain these values from the input configuration structure
- */
 	mask = HWIO_LPASS_LPAIF_RDDMA_CTLa_BURST_EN_BMSK |
-	HWIO_LPASS_LPAIF_RDDMA_CTLa_AUDIO_INTF_BMSK |
-	HWIO_LPASS_LPAIF_RDDMA_CTLa_FIFO_WATERMRK_BMSK |
-	HWIO_LPASS_LPAIF_RDDMA_CTLa_WPSCNT_BMSK;
+		HWIO_LPASS_LPAIF_RDDMA_CTLa_AUDIO_INTF_BMSK |
+		HWIO_LPASS_LPAIF_RDDMA_CTLa_FIFO_WATERMRK_BMSK |
+		HWIO_LPASS_LPAIF_RDDMA_CTLa_WPSCNT_BMSK |
+		HWIO_LPASS_LPAIF_RDDMA_CTLa_DYNAMIC_CLOCK_BMSK |
+		HWIO_LPASS_LPAIF_RDDMA_CTLa_BURST8_EN_BMSK |
+		HWIO_LPASS_LPAIF_RDDMA_CTLa_BURST16_EN_BMSK;
 
+	value = (config->ifconfig) <<
+			HWIO_LPASS_LPAIF_RDDMA_CTLa_AUDIO_INTF_SHFT;
 
-	field_value = (config->ifconfig) <<
-				HWIO_LPASS_LPAIF_RDDMA_CTLa_AUDIO_INTF_SHFT;
-
-	field_value |=((config->watermark-1) <<
+	if (config->watermark)
+		value |=((config->watermark-1) <<
 				HWIO_LPASS_LPAIF_RDDMA_CTLa_FIFO_WATERMRK_SHFT);
+
+	value |= (0x1 << HWIO_LPASS_LPAIF_RDDMA_CTLa_DYNAMIC_CLOCK_SHFT);
 
 	if((HWIO_LPASS_LPAIF_RDDMA_CTLa_FIFO_WATERMRK_ENUM_8_FVAL + 1) <
 		config->dma_int_per_cnt){
@@ -707,82 +616,75 @@ static void ipq_lpass_dma_config_channel_sink(struct lpass_dma *config,
 		case 4:
 		case 8:
 		case 16:
-			field_value |= (HWIO_LPASS_LPAIF_RDDMA_CTLa_BURST_EN_INCR4_FVAL <<
+			value |= (HWIO_LPASS_LPAIF_RDDMA_CTLa_BURST_EN_INCR4_FVAL <<
 					HWIO_LPASS_LPAIF_RDDMA_CTLa_BURST_EN_SHFT);
 		break;
 		case 1:
-			field_value |= (HWIO_LPASS_LPAIF_RDDMA_CTLa_BURST_EN_SINGLE_FVAL <<
+			value |= (HWIO_LPASS_LPAIF_RDDMA_CTLa_BURST_EN_SINGLE_FVAL <<
 					HWIO_LPASS_LPAIF_RDDMA_CTLa_BURST_EN_SHFT);
 		break;
 		default:
 		break;
 		}
 	} else {
-		field_value |= (HWIO_LPASS_LPAIF_RDDMA_CTLa_BURST_EN_SINGLE_FVAL <<
+		value |= (HWIO_LPASS_LPAIF_RDDMA_CTLa_BURST_EN_SINGLE_FVAL <<
 					HWIO_LPASS_LPAIF_RDDMA_CTLa_BURST_EN_SHFT);
 	}
 
-	field_value |=  ((dma_config_ptr->wps_count - 1) <<
+	value |=  ((config->wps_count - 1) <<
 				HWIO_LPASS_LPAIF_RDDMA_CTLa_WPSCNT_SHFT);
 
-	ipq-lpass-reg-update(HWIO_LPASS_LPAIF_RDDMA_CTLa_ADDR(
-			config->lpaif_base,config->idx), mask, field_value, 0);
+	value |= (config->burst8_en) <<
+			HWIO_LPASS_LPAIF_RDDMA_CTLa_BURST8_EN_SHFT;
 
+	value |= (config->burst16_en) <<
+			HWIO_LPASS_LPAIF_RDDMA_CTLa_BURST16_EN_SHFT;
+
+	ipq_lpass_reg_update(HWIO_LPASS_LPAIF_RDDMA_CTLa_ADDR(
+			config->lpaif_base,config->idx), mask, value, 0);
 }
 
-void ipq_lpass_dma_config_channel_source(struct lpass_dma *config,
-                                                        uint32_t dma_idx)
+static void ipq_lpass_dma_config_channel_source(struct lpass_dma_config *config)
 {
-	uint32_t mask,field_value;
-/*
- * Update the base address of the DMA buffer
- */
+	uint32_t mask, value;
+
 	mask = HWIO_LPASS_LPAIF_WRDMA_BASEa_BASE_ADDR_BMSK;
-	field_value = ((uint32)config->buffer_start_addr >>
+	value = (config->buffer_start_addr >>
 			HWIO_LPASS_LPAIF_WRDMA_BASEa_BASE_ADDR_SHFT)
 				<< HWIO_LPASS_LPAIF_WRDMA_BASEa_BASE_ADDR_SHFT;
 
-/*
- * WRITE DMA
- */
-	ipq-lpass-reg-update(HWIO_LPASS_LPAIF_WRDMA_BASEa_ADDR(
-			config->lpaif_base,config->idx), mask, field_value, 0);
+	ipq_lpass_reg_update(HWIO_LPASS_LPAIF_WRDMA_BASEa_ADDR(
+			config->lpaif_base,config->idx), mask, value, 0);
 
-/*
- * Update the buffer length of the DMA buffer.
- */
 	mask = HWIO_LPASS_LPAIF_WRDMA_BUFF_LENa_LENGTH_BMSK;
-	field_value = (config->buffer_len-1);
+	value = (config->buffer_len-1);
 
-/*
- * WRDMA
- */
-	ipq-lpass-reg-update(HWIO_LPASS_LPAIF_WRDMA_BUFF_LENa_ADDR(
-			config->lpaif_base,config->idx), mask, field_value, 0);
-/*
- * Update the interrupt sampler period
- */
+	ipq_lpass_reg_update(HWIO_LPASS_LPAIF_WRDMA_BUFF_LENa_ADDR(
+			config->lpaif_base,config->idx), mask, value, 0);
+
 	mask = HWIO_LPASS_LPAIF_WRDMA_PER_LENa_LENGTH_BMSK;
-	field_value=(config->dma_int_per_cnt-1) <<
+	value=(config->dma_int_per_cnt-1) <<
 			HWIO_LPASS_LPAIF_WRDMA_PER_LENa_LENGTH_SHFT;
 
-	ipq-lpass-reg-update(HWIO_LPASS_LPAIF_WRDMA_PER_LENa_ADDR(
-			config->lpaif_base,config->idx), mask, field_value, 0);
+	ipq_lpass_reg_update(HWIO_LPASS_LPAIF_WRDMA_PER_LENa_ADDR(
+			config->lpaif_base,config->idx), mask, value, 0);
 
-/*
- * Update the audio interface and fifo Watermark in AUDIO_DMA_CTLa(channel)
- * register. Obtain these values from the input configuration structure
- */
 	mask = HWIO_LPASS_LPAIF_WRDMA_CTLa_BURST_EN_BMSK |
-	HWIO_LPASS_LPAIF_WRDMA_CTLa_AUDIO_INTF_BMSK |
-	HWIO_LPASS_LPAIF_WRDMA_CTLa_FIFO_WATERMRK_BMSK |
-	HWIO_LPASS_LPAIF_WRDMA_CTLa_WPSCNT_BMSK;
+		HWIO_LPASS_LPAIF_WRDMA_CTLa_AUDIO_INTF_BMSK |
+		HWIO_LPASS_LPAIF_WRDMA_CTLa_FIFO_WATERMRK_BMSK |
+		HWIO_LPASS_LPAIF_WRDMA_CTLa_WPSCNT_BMSK |
+		HWIO_LPASS_LPAIF_WRDMA_CTLa_DYNAMIC_CLOCK_BMSK |
+		HWIO_LPASS_LPAIF_WRDMA_CTLa_BURST8_EN_BMSK |
+		HWIO_LPASS_LPAIF_WRDMA_CTLa_BURST16_EN_BMSK;
 
-	field_value = (config->ifconfig) <<
+	value = (config->ifconfig) <<
 			HWIO_LPASS_LPAIF_WRDMA_CTLa_AUDIO_INTF_SHFT;
 
-	field_value |=((config->watermark-1) <<
-			HWIO_LPASS_LPAIF_WRDMA_CTLa_FIFO_WATERMRK_SHFT );
+	if (config->watermark)
+		value |=((config->watermark-1) <<
+				HWIO_LPASS_LPAIF_WRDMA_CTLa_FIFO_WATERMRK_SHFT);
+
+	value |= (0x1 << HWIO_LPASS_LPAIF_WRDMA_CTLa_DYNAMIC_CLOCK_SHFT);
 
 	if((HWIO_LPASS_LPAIF_WRDMA_CTLa_FIFO_WATERMRK_ENUM_8_FVAL + 1) <
 		config->dma_int_per_cnt){
@@ -793,113 +695,1204 @@ void ipq_lpass_dma_config_channel_source(struct lpass_dma *config,
 		case 4:
 		case 8:
 		case 16:
-			field_value |= (HWIO_LPASS_LPAIF_WRDMA_CTLa_BURST_EN_INCR4_FVAL <<
+			value |= (HWIO_LPASS_LPAIF_WRDMA_CTLa_BURST_EN_INCR4_FVAL <<
 					HWIO_LPASS_LPAIF_WRDMA_CTLa_BURST_EN_SHFT);
 		break;
 		case 1:
-			field_value |= (HWIO_LPASS_LPAIF_WRDMA_CTLa_BURST_EN_SINGLE_FVAL <<
+			value |= (HWIO_LPASS_LPAIF_WRDMA_CTLa_BURST_EN_SINGLE_FVAL <<
 					HWIO_LPASS_LPAIF_WRDMA_CTLa_BURST_EN_SHFT);
 		break;
 		default:
 		break;
 		}
 	} else {
-		field_value |= (HWIO_LPASS_LPAIF_WRDMA_CTLa_BURST_EN_SINGLE_FVAL <<
+		value |= (HWIO_LPASS_LPAIF_WRDMA_CTLa_BURST_EN_SINGLE_FVAL <<
 					HWIO_LPASS_LPAIF_WRDMA_CTLa_BURST_EN_SHFT);
 	}
 
-	field_value |=  ((config->wps_count - 1) <<
-					HWIO_LPASS_LPAIF_WRDMA_CTLa_WPSCNT_SHFT);
+	value |=  ((config->wps_count - 1) <<
+			HWIO_LPASS_LPAIF_WRDMA_CTLa_WPSCNT_SHFT);
 
-	ipq-lpass-reg-update(HWIO_LPASS_LPAIF_WRDMA_CTLa_ADDR(
-			config->lpaif_base,config->idx), mask, field_value, 0);
+	value |= (config->burst8_en) <<
+			HWIO_LPASS_LPAIF_WRDMA_CTLa_BURST8_EN_SHFT;
+
+	value |= (config->burst16_en) <<
+			HWIO_LPASS_LPAIF_WRDMA_CTLa_BURST16_EN_SHFT;
+
+	ipq_lpass_reg_update(HWIO_LPASS_LPAIF_WRDMA_CTLa_ADDR(
+			config->lpaif_base,config->idx), mask, value, 0);
 }
 
-void ipq_lpass_dma_read_interrupt_status(void __iomem *lpaif_base,
-						uint32_t dma_intr_idx,
-						uint32_t *status)
+void ipq_lpass_config_dma_channel(struct lpass_dma_config *config)
+{
+	if(LPASS_HW_DMA_SINK == config->dir){
+		ipq_lpass_dma_config_channel_sink(config);
+	} else {
+		ipq_lpass_dma_config_channel_source(config);
+	}
+}
+EXPORT_SYMBOL(ipq_lpass_config_dma_channel);
+
+void ipq_lpass_dma_read_interrupt_status(void __iomem *lpaif_base,uint32_t dma_intr_idx,uint32_t *status)
 {
 	uint32_t read_status;
-	read_status = readl(HWIO_LPASS_LPAIF_IRQ_STATa_ADDR(
-					lpaif_base + dma_intr_idx));
-	*status = read_status
+	read_status = readl(HWIO_LPASS_LPAIF_IRQ_STATa_ADDR(lpaif_base,
+					dma_intr_idx));
+	*status = read_status;
 }
 EXPORT_SYMBOL(ipq_lpass_dma_read_interrupt_status);
 
 void ipq_lpass_dma_clear_interrupt(void __iomem *lpaif_base,
-						uint32_t dma_intr_idx,
-						uint32_t value)
+					uint32_t dma_intr_idx, uint32_t value)
 {
 	uint32_t mask;
 
 	mask = value;
 
-	ipq-lpass-reg-update(HWIO_LPASS_LPAIF_IRQ_CLEARa_ADDR(
-			lpaif_base, dma_intr_idx), mask, value, 1);
+	ipq_lpass_reg_update(HWIO_LPASS_LPAIF_IRQ_CLEARa_ADDR(lpaif_base,
+				dma_intr_idx), mask, value, 1);
 }
 EXPORT_SYMBOL(ipq_lpass_dma_clear_interrupt);
 
-void ipq_lpass_dma_reset(void __iomem *lpaif_base,
-                                                uint32_t dma_idx,
-                                                uint32_t dma_dir)
+void ipq_lpass_dma_get_curr_addr(void __iomem *lpaif_base,
+			uint32_t dma_idx, uint32_t dma_dir, uint32_t *curr_addr)
 {
-	uint32_t mask,field_value;
+	if(LPASS_HW_DMA_SINK == dma_dir){
+		*curr_addr = readl(HWIO_LPASS_LPAIF_RDDMA_CURR_ADDRa_ADDR(
+					lpaif_base, dma_idx));
+	} else {
+		*curr_addr = readl(HWIO_LPASS_LPAIF_WRDMA_CURR_ADDRa_ADDR(
+					lpaif_base, dma_idx));
+	}
+}
+EXPORT_SYMBOL(ipq_lpass_dma_get_curr_addr);
+
+void ipq_lpass_dma_reset(void __iomem *lpaif_base,uint32_t dma_idx,uint32_t dma_dir)
+{
+	uint32_t mask,value;
 
 	if(LPASS_HW_DMA_SINK == dma_dir){
 		mask = HWIO_LPASS_LPAIF_RDDMA_CTLa_RMSK;
-		field_value =  HWIO_LPASS_LPAIF_RDDMA_CTLa_POR;
-		ipq-lpass-reg-update(HWIO_LPASS_LPAIF_RDDMA_CTLa_ADDR(
-			lpaif_base, dma_idx, mask, field_value, 0);
+		value =  HWIO_LPASS_LPAIF_RDDMA_CTLa_POR;
+		ipq_lpass_reg_update(HWIO_LPASS_LPAIF_RDDMA_CTLa_ADDR(
+			lpaif_base, dma_idx), mask, value, 0);
 
 	} else {
 		mask = HWIO_LPASS_LPAIF_WRDMA_CTLa_RMSK;
-		field_value = HWIO_LPASS_LPAIF_WRDMA_CTLa_POR;
-		ipq-lpass-reg-update(HWIO_LPASS_LPAIF_WRDMA_CTLa_ADDR(
-			lpaif_base, dma_idx, mask, field_value, 0);
+		value = HWIO_LPASS_LPAIF_WRDMA_CTLa_POR;
+		ipq_lpass_reg_update(HWIO_LPASS_LPAIF_WRDMA_CTLa_ADDR(
+			lpaif_base, dma_idx), mask, value, 0);
 	}
 }
 EXPORT_SYMBOL(ipq_lpass_dma_reset);
 
-static const struct of_device_id ipq_audio_lpass_id_table[] = {
-	{ .compatible = "qca,ipq50xx-audio-lpass", .data = &ipq50xx_devconfig},
+static void ipq_lpass_setclk_lpaif_pri(uint32_t m, uint32_t n, uint32_t d,
+					uint32_t clkdiv, uint32_t srcdiv,
+					uint32_t src, uint32_t mode)
+{
+	writel(m, HWIO_LPASS_LPAIF_PRI_M_ADDR(sg_ipq_lpass_base));
+	writel(n, HWIO_LPASS_LPAIF_PRI_N_ADDR(sg_ipq_lpass_base));
+	writel(d, HWIO_LPASS_LPAIF_PRI_D_ADDR(sg_ipq_lpass_base));
+	ipq_lpass_cc_update(HWIO_LPASS_LPAIF_PRI_CFG_RCGR_ADDR(
+			sg_ipq_lpass_base),
+			(mode << HWIO_LPASS_LPAIF_PRI_CFG_RCGR_MODE_SHFT) |
+			(src << HWIO_LPASS_LPAIF_PRI_CFG_RCGR_SRC_SEL_SHFT) |
+			(srcdiv << HWIO_LPASS_LPAIF_PRI_CFG_RCGR_SRC_DIV_SHFT),
+			0);
+	ipq_lpass_cc_update(HWIO_LPASS_AUDIO_CORE_LPAIF_PRI_IBIT_CBCR_ADDR(
+			sg_ipq_lpass_base),
+			clkdiv << HWIO_LPASS_AUDIO_CORE_LPAIF_PRI_IBIT_CBCR_CLK_DIV_SHFT,
+			0);
+	ipq_lpass_cc_update(HWIO_LPASS_LPAIF_PRI_CMD_RCGR_ADDR(
+			sg_ipq_lpass_base), 0x0, 1);
+
+}
+
+static void ipq_lpass_setclk_lpaif_sec(uint32_t m, uint32_t n, uint32_t d,
+					uint32_t clkdiv, uint32_t srcdiv,
+						uint32_t src, uint32_t mode)
+{
+	writel(m, HWIO_LPASS_LPAIF_SEC_M_ADDR(sg_ipq_lpass_base));
+	writel(n, HWIO_LPASS_LPAIF_SEC_N_ADDR(sg_ipq_lpass_base));
+	writel(d, HWIO_LPASS_LPAIF_SEC_D_ADDR(sg_ipq_lpass_base));
+	ipq_lpass_cc_update(HWIO_LPASS_LPAIF_SEC_CFG_RCGR_ADDR(
+			sg_ipq_lpass_base),
+			(mode << HWIO_LPASS_LPAIF_SEC_CFG_RCGR_MODE_SHFT) |
+			(src << HWIO_LPASS_LPAIF_SEC_CFG_RCGR_SRC_SEL_SHFT) |
+			(srcdiv << HWIO_LPASS_LPAIF_SEC_CFG_RCGR_SRC_DIV_SHFT),
+			0);
+	ipq_lpass_cc_update(HWIO_LPASS_AUDIO_CORE_LPAIF_SEC_IBIT_CBCR_ADDR(
+			sg_ipq_lpass_base),
+			clkdiv << HWIO_LPASS_AUDIO_CORE_LPAIF_SEC_IBIT_CBCR_CLK_DIV_SHFT,
+			0);
+	ipq_lpass_cc_update(HWIO_LPASS_LPAIF_SEC_CMD_RCGR_ADDR(
+			sg_ipq_lpass_base), 0x0, 1);
+}
+
+uint32_t ipq_lpass_set_clk_rate(uint32_t intf, uint32_t clk)
+{
+	uint32_t M, N, SRC;
+	uint32_t D, preDiv=0;
+
+	SRC = SRC_HB_INT_AUDPLL_AUX1;
+
+	switch(clk){
+	case 64000:	//0.064 MHz
+		M = 1;
+		N = 0xf880;
+		D = 0xf87f;
+	break;
+	case 88200:	//0.0882 MHz
+		M = 1;
+		N = 0xfb00;
+		D = 0xfaff;
+	break;
+	case 96000:	//0.096 MHz
+		M = 1;
+		N = 0xfb00;
+		D = 0xfaff;
+	break;
+	case 128000:	//0.128 MHz
+		M = 1;
+		N = 0xfc40;
+		D = 0xfc3f;
+	break;
+	case 160000:   //0.160 MHz
+		M = 1;      //0x01;
+	break;
+	case 176400:   //0.1764 MHz
+		M = 1;      //0x1;
+		N = 0xfd80;
+		D = 0xfd7f;
+	break;
+	case 192000:   //0.192 MHz
+		M = 1;      //0x01;
+		N = 0xfd80;
+		D = 0xfd7f;
+	break;
+	case 200000:   //0.200 MHz
+		M = 5;      //0x5;
+		N = 0xf404;
+		D = 0xf3ff;
+	break;
+	case 256000:   //0.256 MHz
+		M = 1;      //0x01;
+		N = 0xfe20;
+		D = 0xfe1f;
+	break;
+	case 320000:   //0.320 MHz
+		M = 1;      //0x01;
+		N = 0xfe80;
+		D = 0xfe7f;
+	break;
+	case 352800:   //0.3528 MHz
+		M = 1;   //0x1;
+		N = 0xfec0;
+		D = 0xfebf;
+	break;
+	case 384000:   //0.384 MHz
+		M = 1;      //0x01;
+		N = 0xfec0;
+		D = 0xfebf;
+	break;
+	case 400000:   //0.400 MHz
+		M = 5;      //0x5;
+		N = 0xfa04;
+		D = 0xf9ff;
+	break;
+	case 512000:   //0.512 MHz
+		M = 1;      //0x01;
+		N = 0xff10;
+		D = 0xff0f;
+	break;
+	case 529200:   //0.5292 MHz
+		M = 3;      //0x3;
+		N = 0xfd82;
+		D = 0xfd7f;
+	break;
+	case 576000:   //0.576 MHz
+		M = 1;     //0x1
+		N = 0xff3c;
+		D = 0xff3b;
+	break;
+	case 640000:   //0.640 MHz
+		M = 1;      //0x01;
+		N = 0xff40;
+		D = 0xff3f;
+	break;
+	case 705600:   //0.7056 MHz
+		M = 1;      //0x1;
+		N = 0xff60;
+		D = 0xff5f;
+	break;
+	case 768000:   //0.768 MHz
+		M = 1;      //0x1;
+		N = 0xff60;
+		D = 0xff5f;
+	break;
+	case 800000:   //0.800 MHz
+		M = 5;      //0x5;
+		N = 0xfd04;
+		D = 0xfcff;
+	break;
+	case 1024000:  //1.024 MHz
+		M = 1;      //0x1;
+		N = 0xff88;
+		D = 0xff87;
+	break;
+	case 1058400://1.0584 MHz
+		M = 3;      //0x3;
+		N = 0xfec2;
+		D = 0xfebf;
+	break;
+	case 1152000://1.152 MHz
+		M = 1;      //0x1;
+		N = 0xff9e;
+		D = 0xff9d;
+	break;
+	case 1280000:  //1.280 MHz
+		M = 1;      //0x01;
+		N = 0xffa0;
+		D = 0xff9f;
+	break;
+	case 1411200:  //1.4112 MHz
+		M = 1;      //0x1;
+		N = 0xffb0;
+		D = 0xffaf;
+	break;
+	case 1536000:  //1.536 MHz
+		M = 1;      //0x1;
+		N = 0xffb0;
+		D = 0xffaf;
+	break;
+	case 1600000:  //1.600 MH
+		M = 5;      //0x5;
+		N = 0xfe84;
+		D = 0xfe7f;
+	break;
+	case 2048000:  //2.048 MHz
+		M = 1;      //0x1;
+		N = 0xffc4;
+		D = 0xffc3;
+	break;
+	case 2116800:  //2.1168 MHz
+		M = 3;      //0x3;
+		N = 0xff62;
+		D = 0xff5f;
+	break;
+	case 2304000:  //2.304 MHz
+		M = 1;      //0x1;
+		N = 0xffcf;
+		D = 0xffce;
+	break;
+	case 2560000:  //2.560 MHz
+		M = 1;      //0x01;
+		N = 0xffd0;
+		D = 0xffcf;
+	break;
+	case 2822400:  //2.8224 MHz
+		M = 1;      //0x1;
+		N = 0xffd8;
+		D = 0xffd7;
+	break;
+	case 3072000:  //3.072 MHz
+		M = 1;      //0x1;
+		N = 0xffd8;
+		D = 0xffd7;
+	break;
+	case 3200000:  //3.200 MHz
+		M = 5;      //0x5;
+		N = 0xff44;
+		D = 0xff3f;
+	break;
+	case 4096000:  //4.096 MHz
+		M = 1;      //0x1;
+		N = 0xffe2;
+		D = 0xffe1;
+	break;
+	case 4233600:  //4.2336 MHz
+		M = 3;      //0x3;
+		N = 0xffb2;
+		D = 0xffaf;
+	break;
+	case 4608000:  //4.608 MHz
+		M = 2;      //0x2;
+		N = 0xffd0;
+		D = 0xffce;
+	break;
+	case 5120000:  //5.120 MHz
+		M = 1;      //0x01;
+		N = 0xffe8;
+		D = 0xffe7;
+	break;
+	case 5644800:  //5.6448 MHz
+		M = 1;      //0x1;
+		N = 0xffec;
+		D = 0xffeb;
+	break;
+	case 6144000:  //6.144 MHz
+		M = 1;      //0x1;
+		N = 0xffec;
+		D = 0xffeb;
+	break;
+	case 6400000:  //6.400 MHz
+		M = 5;      //0x5;
+		N = 0xffa4;
+		D = 0xff9f;
+	break;
+	case 8192000:  //8.192 MHz
+		M = 1;      //0x1;
+		N = 0xfff1;
+		D = 0xfff0;
+	break;
+	case 8467200:  //8.4672 MHz
+		M = 3;      //0x3;
+		N = 0xffda;
+		D = 0xffd7;
+	break;
+	case 9216000:  //9.216 MHz
+		SRC = SRC_HB_INT_DIGPLL_AUX1; /* Digital PLL divided by 5 -> 122.88MHz */
+		M = 3;      //0x3;
+		N = 0xffda;
+		D = 0xffd7;
+	break;
+	case 11289600: //11.2896 MHz
+		M = 1;      //0x1;
+		N = 0xfff6;
+		D = 0xfff5;
+	break;
+	case 12288000: //12.288 MHz
+		M = 1;      //0x1;
+		N = 0xfff6;
+		D = 0xfff5;
+	break;
+	case 16384000: //16.384 MHz
+		SRC = SRC_HB_INT_DIGPLL_AUX1; /* Digital PLL divided by 5 -> 122.88MHz */
+		M = 2;      //0x2;
+		N = 0xfff2;
+		D = 0xfff0;
+	break;
+	case 18432000: //18.432 MHz
+	SRC = SRC_HB_INT_DIGPLL_AUX1; /* Digital PLL divided by 5 -> 122.88MHz */
+		M = 3;      //0x3;
+		N = 0xffee;
+		D = 0xffeb;
+	break;
+	case 22579200: //22.5792 MHz
+		M = 1;      //0x1;
+		N = 0xfffb;
+		D = 0xfffa;
+	break;
+	case 24576000: //24.576 MHz
+		M = 1;      //0x1;
+		N = 0xfffb;
+		D = 0xfffa;
+	break;
+	case 36864000: //36.864 MHz
+		SRC = SRC_HB_INT_DIGPLL_AUX1;
+		M = 2;      //0x2;
+		N = 0xfffa;
+		D = 0xfff8;
+	break;
+	case 49152000: //49.152 MHz
+		M = 2;      //0x2;
+		N = 0xfffc;
+		D = 0xfffa;
+	break;
+	case 73728000: //73.728 MHz
+		SRC = SRC_HB_INT_DIGPLL_AUX1;
+		M = 3;      //0x3;
+		N = 0xfffd;
+		D = 0xfffb;
+	break;
+	default:
+		pr_err("unsupported clock frequency = %dHz\n",clk);
+		return -EINVAL;
+	break;
+	}
+
+	switch (intf){
+	case INTERFACE_PRIMARY:
+		ipq_lpass_setclk_lpaif_pri(M, N, D, 0, preDiv, SRC, 2);
+	break;
+	case INTERFACE_SECONDARY:
+		ipq_lpass_setclk_lpaif_sec(M, N, D, 0, preDiv, SRC, 2);
+	break;
+	default:
+		pr_err("unsupported device ID \n");
+		return -EINVAL;
+	break;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(ipq_lpass_set_clk_rate);
+
+void ipq_lpass_lpaif_muxsetup(uint32_t intf, uint32_t mode)
+{
+	uint32_t val, src;
+
+	if (mode == TDM_MODE_MASTER) {
+		val = 3;
+		src = 0;
+	} else {
+		val = 1;
+		src = 1;
+	}
+
+	switch(intf) {
+	case INTERFACE_PRIMARY:
+		writel(val, HWIO_LPASS_AUDIO_CORE_LPAIF_PRI_CLK_INV_ADDR(
+				sg_ipq_lpass_base));
+		writel(src, HWIO_LPASS_AUDIO_CORE_LPAIF_PRI_MODE_MUXSEL_ADDR(
+				sg_ipq_lpass_base));
+	break;
+	case INTERFACE_SECONDARY:
+		writel(val, HWIO_LPASS_AUDIO_CORE_LPAIF_SEC_CLK_INV_ADDR(
+				sg_ipq_lpass_base));
+		writel(src, HWIO_LPASS_AUDIO_CORE_LPAIF_SEC_MODE_MUXSEL_ADDR(
+				sg_ipq_lpass_base));
+	default:
+	break;
+	}
+}
+EXPORT_SYMBOL(ipq_lpass_lpaif_muxsetup);
+
+static uint32_t ipq_lpass_calculatespark_pll_vco(struct ipq_lpass_pll p)
+{
+	uint32_t vco_sel = 0;
+	uint32_t temp_l;
+
+	if (p.pre_div != 0) {
+		temp_l = p.l / p.pre_div;
+	} else {
+		temp_l = p.l;
+	}
+
+	if (temp_l > 29 && temp_l < 59) {
+		vco_sel = 0;
+	} else if (temp_l > 21 && temp_l < 44) {
+		vco_sel = 1;
+	} else if (temp_l > 14 && temp_l < 29) {
+		vco_sel = 2;
+	} else if (temp_l > 6 && temp_l < 14) {
+		vco_sel = 3;
+	} else {
+		temp_l = 0;
+	}
+
+	return vco_sel;
+}
+
+static void ipq_lpass_setup_audio_pll(struct ipq_lpass_pll pll)
+{
+	uint32_t i		= 0;
+	uint32_t value		= 0;
+	uint32_t alpha_en 	= 0;
+	uint32_t vco_sel 	= 0;
+	uint32_t reg_val 	= 0;
+
+	if(pll.alpha!=0) {
+		alpha_en = 1;
+	}
+
+	vco_sel = ipq_lpass_calculatespark_pll_vco(pll);
+
+	value = readl(HWIO_LPASS_LPAAUDIO_PLL_MODE_ADDR(sg_ipq_lpass_base));
+
+	if(value == 0x0) {
+		writel(0x0,
+			HWIO_LPASS_LPAAUDIO_PLL_REF_CLK_SRC_SEL_ADDR(
+				sg_ipq_lpass_base));
+		ipq_lpass_cc_update(HWIO_LPASS_LPAAUDIO_PLL_USER_CTL_U_ADDR(
+			sg_ipq_lpass_base),
+			(1 << HWIO_LPASS_LPAAUDIO_PLL_USER_CTL_U_LOCK_DET_SHFT),
+			0);
+		ipq_lpass_cc_update(HWIO_LPASS_LPAAUDIO_PLL_L_VAL_ADDR(
+					sg_ipq_lpass_base), pll.l, 0);
+
+		writel(pll.alpha, HWIO_LPASS_LPAAUDIO_PLL_ALPHA_VAL_ADDR(
+					sg_ipq_lpass_base));
+
+		writel(pll.alpha_u, HWIO_LPASS_LPAAUDIO_PLL_ALPHA_VAL_U_ADDR(
+					sg_ipq_lpass_base));
+
+		reg_val = ((vco_sel << HWIO_LPASS_LPAAUDIO_PLL_USER_CTL_VCO_SEL_SHFT) |
+				(pll.post_div << HWIO_LPASS_LPAAUDIO_PLL_USER_CTL_POST_DIV_RATIO_SHFT) |
+				(alpha_en << HWIO_LPASS_LPAAUDIO_PLL_USER_CTL_ALPHA_EN_SHFT));
+
+		ipq_lpass_cc_update(HWIO_LPASS_LPAAUDIO_PLL_USER_CTL_ADDR(
+					sg_ipq_lpass_base), reg_val, 0);
+
+		ipq_lpass_cc_update(HWIO_LPASS_LPAAUDIO_PLL_MODE_ADDR(
+					sg_ipq_lpass_base),
+					(1 << HWIO_LPASS_LPAAUDIO_PLL_MODE_PLL_BYPASSNL_SHFT),
+					0);
+
+		for(i=0; i < pll.pll_reset_wait; i++) {
+			mdelay(1);
+			value = readl(HWIO_LPASS_LPAAUDIO_PLL_STATUS_ADDR(
+					sg_ipq_lpass_base));
+		}
+
+		ipq_lpass_cc_update(HWIO_LPASS_LPAAUDIO_PLL_MODE_ADDR(
+			sg_ipq_lpass_base),
+			(1 << HWIO_LPASS_LPAAUDIO_PLL_MODE_PLL_RESET_N_SHFT),
+			0);
+
+		for(i=0; i < pll.pll_lock_wait; i++) {
+			mdelay(1);
+			value = readl(HWIO_LPASS_LPAAUDIO_PLL_STATUS_ADDR(
+						sg_ipq_lpass_base));
+		}
+	}
+}
+
+static void ipq_lpass_Setup_dig_pll(struct ipq_lpass_pll pll)
+{
+	int i		= 0;
+	uint32_t value	= 0;
+	uint32_t alpha_en = 0;
+	uint32_t vco_sel = 0;
+	uint32_t reg_val = 0;
+	if (pll.alpha != 0) {
+		alpha_en = 1;
+	}
+
+	vco_sel = ipq_lpass_calculatespark_pll_vco(pll);
+
+	value = readl(HWIO_LPASS_LPAAUDIO_DIG_PLL_MODE_ADDR(sg_ipq_lpass_base));
+
+	if(value == 0x0) {
+		writel(pll.src,
+			HWIO_LPASS_LPAAUDIO_DIG_PLL_REF_CLK_SRC_SEL_ADDR(
+			sg_ipq_lpass_base));
+
+		writel(pll.l,
+			HWIO_LPASS_LPAAUDIO_DIG_PLL_L_VAL_ADDR(
+			sg_ipq_lpass_base));
+
+		writel(pll.alpha,
+			HWIO_LPASS_LPAAUDIO_DIG_PLL_ALPHA_VAL_ADDR(
+			sg_ipq_lpass_base));
+
+		writel(pll.alpha_u,
+			HWIO_LPASS_LPAAUDIO_DIG_PLL_ALPHA_VAL_U_ADDR(
+			sg_ipq_lpass_base));
+
+		reg_val = ((vco_sel << HWIO_LPASS_LPAAUDIO_DIG_PLL_USER_CTL_VCO_SEL_SHFT) |
+				(pll.post_div << HWIO_LPASS_LPAAUDIO_DIG_PLL_USER_CTL_POST_DIV_RATIO_SHFT) |
+				(alpha_en << HWIO_LPASS_LPAAUDIO_DIG_PLL_USER_CTL_ALPHA_EN_SHFT));
+
+		ipq_lpass_cc_update(HWIO_LPASS_LPAAUDIO_DIG_PLL_USER_CTL_ADDR(
+					sg_ipq_lpass_base), reg_val, 0);
+
+		if(pll.pll_vote_fsm_ena == 0) {
+			ipq_lpass_cc_update(HWIO_LPASS_LPAAUDIO_DIG_PLL_MODE_ADDR(
+				sg_ipq_lpass_base),
+				(1 << HWIO_LPASS_LPAAUDIO_DIG_PLL_MODE_PLL_BYPASSNL_SHFT),
+				0);
+
+			for(i=0; i<pll.pll_reset_wait; i++) {
+				value = readl(HWIO_LPASS_LPAAUDIO_DIG_PLL_STATUS_ADDR(sg_ipq_lpass_base));
+				mdelay(1);
+			}
+
+			ipq_lpass_cc_update(HWIO_LPASS_LPAAUDIO_DIG_PLL_MODE_ADDR(
+				sg_ipq_lpass_base),
+				(1 << HWIO_LPASS_LPAAUDIO_DIG_PLL_MODE_PLL_UPDATE_SHFT),
+				0);
+
+			for(i=0; i<pll.pll_reset_wait; i++) {
+				value = readl(HWIO_LPASS_LPAAUDIO_DIG_PLL_STATUS_ADDR(sg_ipq_lpass_base));
+				mdelay(1);
+			}
+
+			ipq_lpass_cc_update(HWIO_LPASS_LPAAUDIO_DIG_PLL_MODE_ADDR(
+				sg_ipq_lpass_base),
+				(1 << HWIO_LPASS_LPAAUDIO_DIG_PLL_MODE_PLL_RESET_N_SHFT),
+				0);
+
+			for(i=0; i<pll.pll_reset_wait; i++) {
+				value = readl(HWIO_LPASS_LPAAUDIO_DIG_PLL_STATUS_ADDR(sg_ipq_lpass_base));
+				mdelay(1);
+			}
+		}
+	}
+}
+
+static void ipq_lpass_pll_lock_wait(void)
+{
+	uint32_t count;
+	struct ipq_lpass_plllock lock;
+	lock.lock_time    = 200;
+	lock.value      = 0;
+	lock.timer_type   = 1;
+
+	lock.value = readl(HWIO_LPASS_LPAAUDIO_DIG_PLL_MODE_ADDR(sg_ipq_lpass_base))
+			& HWIO_LPASS_LPAAUDIO_DIG_PLL_MODE_PLL_LOCK_DET_BMSK;
+
+	count = 0;
+	while(lock.value != HWIO_LPASS_LPAAUDIO_DIG_PLL_MODE_PLL_LOCK_DET_BMSK) {
+		mdelay(1);
+		lock.value = readl(
+				HWIO_LPASS_LPAAUDIO_DIG_PLL_MODE_ADDR(
+				sg_ipq_lpass_base)) &
+			HWIO_LPASS_LPAAUDIO_DIG_PLL_MODE_PLL_LOCK_DET_BMSK;
+		if (count == 20)
+			break;
+		else
+			++count;
+	}
+	if (lock.value != HWIO_LPASS_LPAAUDIO_DIG_PLL_MODE_PLL_LOCK_DET_BMSK)
+		pr_info("%s Audio PLL not locked \n", __func__);
+
+	ipq_lpass_cc_update(HWIO_LPASS_LPAAUDIO_DIG_PLL_MODE_ADDR(
+			sg_ipq_lpass_base),
+			(1 << HWIO_LPASS_LPAAUDIO_DIG_PLL_MODE_PLL_OUTCTRL_SHFT)
+			, 0);
+	ipq_lpass_cc_update(HWIO_LPASS_LPAAUDIO_DIG_PLL_USER_CTL_ADDR(
+		sg_ipq_lpass_base),
+		((1 << HWIO_LPASS_LPAAUDIO_DIG_PLL_USER_CTL_PLLOUT_LV_AUX_SHFT) |
+		(1 << HWIO_LPASS_LPAAUDIO_DIG_PLL_USER_CTL_PLLOUT_LV_AUX2_SHFT) |
+		(1 << HWIO_LPASS_LPAAUDIO_DIG_PLL_USER_CTL_PLLOUT_LV_MAIN_SHFT) |
+		(1 << HWIO_LPASS_LPAAUDIO_DIG_PLL_USER_CTL_PLLOUT_LV_EARLY_SHFT)),
+		0);
+
+	lock.value = readl(HWIO_LPASS_LPAAUDIO_PLL_MODE_ADDR(sg_ipq_lpass_base)) &
+			HWIO_LPASS_LPAAUDIO_PLL_MODE_PLL_LOCK_DET_BMSK;
+
+	count = 0;
+	while(lock.value != HWIO_LPASS_LPAAUDIO_PLL_MODE_PLL_LOCK_DET_BMSK) {
+		mdelay(1);
+		lock.value = readl(HWIO_LPASS_LPAAUDIO_PLL_MODE_ADDR(sg_ipq_lpass_base)) &
+			HWIO_LPASS_LPAAUDIO_PLL_MODE_PLL_LOCK_DET_BMSK;
+		if (count == 20)
+			break;
+		else
+			++count;
+	}
+	if (lock.value != HWIO_LPASS_LPAAUDIO_PLL_MODE_PLL_LOCK_DET_BMSK)
+		pr_info("%s Digital PLL not locked \n", __func__);
+
+	ipq_lpass_cc_update(HWIO_LPASS_LPAAUDIO_PLL_MODE_ADDR(
+			sg_ipq_lpass_base),
+			(1 << HWIO_LPASS_LPAAUDIO_PLL_MODE_PLL_OUTCTRL_SHFT)
+			, 0);
+
+	ipq_lpass_cc_update(HWIO_LPASS_LPAAUDIO_PLL_USER_CTL_ADDR(
+		sg_ipq_lpass_base),
+		((1 << HWIO_LPASS_LPAAUDIO_PLL_USER_CTL_PLLOUT_LV_AUX_SHFT) |
+		(1 << HWIO_LPASS_LPAAUDIO_PLL_USER_CTL_PLLOUT_LV_AUX2_SHFT) |
+		(1 << HWIO_LPASS_LPAAUDIO_PLL_USER_CTL_PLLOUT_LV_MAIN_SHFT) |
+		(1 << HWIO_LPASS_LPAAUDIO_PLL_USER_CTL_PLLOUT_LV_EARLY_SHFT)),
+		0);
+}
+
+static void ipq_lpass_core_pwrctl(void)
+{
+	uint32_t val, i;
+
+	ipq_lpass_cc_update(HWIO_LPASS_AUDIO_CORE_GDSCR_ADDR(
+		sg_ipq_lpass_base),
+		(0x5 << HWIO_LPASS_AUDIO_CORE_GDSCR_CLK_DIS_WAIT_SHFT),
+		0);
+
+	ipq_lpass_cc_update(HWIO_LPASS_AUDIO_CORE_RESAMPLER_CBCR_ADDR(
+		sg_ipq_lpass_base),
+		1 << HWIO_LPASS_AUDIO_CORE_RESAMPLER_CBCR_SLEEP_SHFT,
+		0);
+
+	ipq_lpass_cc_update(HWIO_LPASS_AUDIO_CORE_LPM_CORE_CBCR_ADDR(
+		sg_ipq_lpass_base),
+		0x1 << HWIO_LPASS_AUDIO_CORE_LPM_CORE_CBCR_SLEEP_SHFT |
+		0x2 << HWIO_LPASS_AUDIO_CORE_LPM_CORE_CBCR_WAKEUP_SHFT,
+		0);
+
+	val = readl(HWIO_LPASS_AUDIO_CORE_GDSCR_ADDR(sg_ipq_lpass_base));
+	val &= ~(1 << 0);
+	writel(val, HWIO_LPASS_AUDIO_CORE_GDSCR_ADDR(sg_ipq_lpass_base));
+
+	for (i = 0; i < 30; ++i) {
+		val = readl(HWIO_LPASS_AUDIO_CORE_GDSCR_ADDR(
+				sg_ipq_lpass_base));
+		if (val & 0x80000000)
+			break;
+		mdelay(20);
+	}
+}
+
+static void ipq_lpass_clk_init(void)
+{
+	struct ipq_lpass_pll lpasspll, lpassdpll;
+	uint32_t bus_srcdiv	= 0;
+	uint32_t aon_srcdiv	= 0;
+	uint32_t res_srcdiv	= 0;
+	uint32_t mi2_srcdiv	= 0;
+	uint32_t fix_srcdiv	= 0;
+
+/*
+ * LPA AUDIO PLL
+ * 614.4MHz
+*/
+	lpasspll.l		= 25;
+	lpasspll.post_div	= 0;
+	lpasspll.alpha		= 0x99999999;
+	lpasspll.alpha_u	= 0x99;
+	lpasspll.pre_div	= 0;
+	lpasspll.src		= 0; /* LPASS_SRC_CXO */
+	lpasspll.app_vote	= 0;
+	lpasspll.q6_vote	= 0;
+	lpasspll.rpm_vote	= 0;
+	lpasspll.pll_reset_wait	= 15;
+	lpasspll.pll_lock_wait	= 5;
+	lpasspll.pll_vote_fsm_ena = 0;
+	lpasspll.pll_type	= 2; /* LPASSPLL2 */
+
+/*
+ * DIG PLL
+ * 614.4MHz
+*/
+	lpassdpll.l		= 25;
+	lpassdpll.post_div	= 1;
+	lpassdpll.alpha		= 0x99999999;
+	lpassdpll.alpha_u	= 0x99;
+	lpassdpll.pre_div	= 0;
+	lpassdpll.src		= 0; /*LPASS_SRC_CXO*/
+	lpassdpll.app_vote	= 0;
+	lpassdpll.q6_vote	= 0;
+	lpassdpll.rpm_vote	= 0;
+	lpassdpll.pll_reset_wait = 15;
+	lpassdpll.pll_lock_wait	= 5;
+	lpassdpll.pll_vote_fsm_ena = 0;
+	lpassdpll.pll_type	= 0; /*LPASSPLL0 */
+
+	ipq_lpass_cc_update(HWIO_LPASS_LPAIF_SPKR_CMD_RCGR_ADDR(
+			sg_ipq_lpass_base), 0x2, 1);
+
+	ipq_lpass_cc_update(HWIO_LPASS_LPAIF_PRI_CMD_RCGR_ADDR(
+			sg_ipq_lpass_base), 0x2, 1);
+
+	ipq_lpass_cc_update(HWIO_LPASS_LPAIF_SEC_CMD_RCGR_ADDR(
+			sg_ipq_lpass_base), 0x2, 1);
+
+	ipq_lpass_cc_update(HWIO_LPASS_LPAIF_TER_CMD_RCGR_ADDR(
+			sg_ipq_lpass_base), 0x2, 1);
+
+	ipq_lpass_cc_update(HWIO_LPASS_LPAIF_QUAD_CMD_RCGR_ADDR(
+			sg_ipq_lpass_base), 0x2, 1);
+
+	ipq_lpass_cc_update(HWIO_LPASS_AON_CMD_RCGR_ADDR(
+			sg_ipq_lpass_base), 0x2, 1);
+
+	ipq_lpass_cc_update(HWIO_LPASS_ATIME_CMD_RCGR_ADDR(
+			sg_ipq_lpass_base), 0x2, 1);
+
+	ipq_lpass_cc_update(HWIO_LPASS_RESAMPLER_CMD_RCGR_ADDR(
+			sg_ipq_lpass_base), 0x2, 1);
+
+	ipq_lpass_cc_update(HWIO_LPASS_LPAIF_PCMOE_CMD_RCGR_ADDR(
+			sg_ipq_lpass_base), 0x2, 1);
+
+	ipq_lpass_cc_update(HWIO_LPASS_XO_CMD_RCGR_ADDR(
+			sg_ipq_lpass_base), 0x2, 1);
+
+	ipq_lpass_cc_update(HWIO_LPASS_CORE_CMD_RCGR_ADDR(
+			sg_ipq_lpass_base), 0x2, 1);
+
+	ipq_lpass_cc_update(HWIO_LPASS_EXT_MCLK0_CMD_RCGR_ADDR(
+			sg_ipq_lpass_base), 0x2, 1);
+
+	ipq_lpass_cc_update(HWIO_LPASS_EXT_MCLK1_CMD_RCGR_ADDR(
+			sg_ipq_lpass_base), 0x2, 1);
+
+	ipq_lpass_cc_update(HWIO_LPASS_EXT_MCLK2_CMD_RCGR_ADDR(
+			sg_ipq_lpass_base), 0x2, 1);
+
+	ipq_lpass_cc_update(HWIO_LPASS_QOS_FIXED_LAT_COUNTER_CMD_RCGR_ADDR(
+			sg_ipq_lpass_base), 0x2, 1);
+
+	ipq_lpass_cc_update(HWIO_LPASS_Q6SS_AHBS_AON_CBCR_ADDR(
+			sg_ipq_lpass_base), 0x1, 0);
+
+	ipq_lpass_setup_audio_pll(lpasspll);
+
+	ipq_lpass_Setup_dig_pll(lpassdpll);
+
+	ipq_lpass_setclk_lpaif_pri(0x0001,0xFFFB, 0xFFFA, 0, mi2_srcdiv, 6, 2);
+
+	ipq_lpass_setclk_lpaif_sec(0x0001,0xFFFB, 0xFFFA, 0, mi2_srcdiv, 6, 2);
+
+	writel(0x01, HWIO_LPASS_LPAIF_SPKR_M_ADDR(sg_ipq_lpass_base));
+	writel(0xFB, HWIO_LPASS_LPAIF_SPKR_N_ADDR(sg_ipq_lpass_base));
+	writel(0xFA, HWIO_LPASS_LPAIF_SPKR_D_ADDR(sg_ipq_lpass_base));
+	ipq_lpass_cc_update(HWIO_LPASS_LPAIF_SPKR_CFG_RCGR_ADDR(
+			sg_ipq_lpass_base),
+			(2 << HWIO_LPASS_LPAIF_SPKR_CFG_RCGR_MODE_SHFT) |
+			(6 << HWIO_LPASS_LPAIF_SPKR_CFG_RCGR_SRC_SEL_SHFT) |
+			(mi2_srcdiv << HWIO_LPASS_LPAIF_SPKR_CFG_RCGR_SRC_DIV_SHFT),
+			0);
+
+	ipq_lpass_cc_update(HWIO_LPASS_AUDIO_CORE_LPAIF_CODEC_SPKR_IBIT_CBCR_ADDR(
+			sg_ipq_lpass_base),
+			0 << HWIO_LPASS_AUDIO_CORE_LPAIF_CODEC_SPKR_IBIT_CBCR_CLK_DIV_SHFT,
+			0);
+
+	ipq_lpass_cc_update(HWIO_LPASS_LPAIF_SPKR_CMD_RCGR_ADDR(
+			sg_ipq_lpass_base), 0x0, 1);
+
+	writel(0x01, HWIO_LPASS_LPAIF_PCMOE_M_ADDR(sg_ipq_lpass_base));
+	writel(0xFB, HWIO_LPASS_LPAIF_PCMOE_N_ADDR(sg_ipq_lpass_base));
+	writel(0xFA, HWIO_LPASS_LPAIF_PCMOE_D_ADDR(sg_ipq_lpass_base));
+	ipq_lpass_cc_update(HWIO_LPASS_LPAIF_PCMOE_CFG_RCGR_ADDR(
+			sg_ipq_lpass_base),
+			(0 << HWIO_LPASS_LPAIF_PCMOE_CFG_RCGR_MODE_SHFT) |
+			(6 << HWIO_LPASS_LPAIF_PCMOE_CFG_RCGR_SRC_SEL_SHFT) |
+			(mi2_srcdiv << HWIO_LPASS_LPAIF_PCMOE_CFG_RCGR_SRC_DIV_SHFT),
+			0);
+	ipq_lpass_cc_update(HWIO_LPASS_LPAIF_PCMOE_CMD_RCGR_ADDR(
+			sg_ipq_lpass_base), 0x0, 1);
+
+	writel(0x01, HWIO_LPASS_QOS_FIXED_LAT_COUNTER_M_ADDR(sg_ipq_lpass_base));
+	writel(0xFC, HWIO_LPASS_QOS_FIXED_LAT_COUNTER_N_ADDR(sg_ipq_lpass_base));
+	writel(0xFB, HWIO_LPASS_QOS_FIXED_LAT_COUNTER_D_ADDR(sg_ipq_lpass_base));
+	ipq_lpass_cc_update(HWIO_LPASS_QOS_FIXED_LAT_COUNTER_CFG_RCGR_ADDR(
+			sg_ipq_lpass_base),
+			(0 << HWIO_LPASS_QOS_FIXED_LAT_COUNTER_CFG_RCGR_MODE_SHFT) |
+			(5 << HWIO_LPASS_QOS_FIXED_LAT_COUNTER_CFG_RCGR_SRC_SEL_SHFT) |
+			(fix_srcdiv << HWIO_LPASS_QOS_FIXED_LAT_COUNTER_CFG_RCGR_SRC_DIV_SHFT),
+			0);
+	ipq_lpass_cc_update(HWIO_LPASS_QOS_FIXED_LAT_COUNTER_CMD_RCGR_ADDR(
+			sg_ipq_lpass_base), 0x0, 1);
+
+	writel(0x01, HWIO_LPASS_ATIME_M_ADDR(sg_ipq_lpass_base));
+	writel(0xFD, HWIO_LPASS_ATIME_N_ADDR(sg_ipq_lpass_base));
+	writel(0xFC, HWIO_LPASS_ATIME_D_ADDR(sg_ipq_lpass_base));
+	ipq_lpass_cc_update(HWIO_LPASS_ATIME_CFG_RCGR_ADDR(
+			sg_ipq_lpass_base),
+			(0 << HWIO_LPASS_ATIME_CFG_RCGR_MODE_SHFT) |
+			(5 << HWIO_LPASS_ATIME_CFG_RCGR_SRC_SEL_SHFT) |
+			(aon_srcdiv << HWIO_LPASS_ATIME_CFG_RCGR_SRC_DIV_SHFT),
+			0);
+	ipq_lpass_cc_update(HWIO_LPASS_ATIME_CMD_RCGR_ADDR(
+			sg_ipq_lpass_base), 0x0, 1);
+
+	ipq_lpass_pll_lock_wait();
+
+	writel(0x01, HWIO_LPASS_CORE_M_ADDR(sg_ipq_lpass_base));
+	writel(0xFC, HWIO_LPASS_CORE_N_ADDR(sg_ipq_lpass_base));
+	writel(0xFB, HWIO_LPASS_CORE_D_ADDR(sg_ipq_lpass_base));
+	ipq_lpass_cc_update(HWIO_LPASS_CORE_CFG_RCGR_ADDR(
+			sg_ipq_lpass_base),
+			(2 << HWIO_LPASS_ATIME_CFG_RCGR_MODE_SHFT) |
+			(1 << HWIO_LPASS_ATIME_CFG_RCGR_SRC_SEL_SHFT) |
+			(bus_srcdiv << HWIO_LPASS_ATIME_CFG_RCGR_SRC_DIV_SHFT),
+			0);
+	ipq_lpass_cc_update(HWIO_LPASS_CORE_CMD_RCGR_ADDR(
+			sg_ipq_lpass_base), 0x0, 1);
+
+	ipq_lpass_cc_update(HWIO_LPASS_SLEEP_CFG_RCGR_ADDR(
+			sg_ipq_lpass_base),
+			(0 << HWIO_LPASS_SLEEP_CFG_RCGR_MODE_SHFT) |
+			(1 << HWIO_LPASS_SLEEP_CFG_RCGR_SRC_SEL_SHFT) |
+			(1 << HWIO_LPASS_SLEEP_CFG_RCGR_SRC_DIV_SHFT),
+			0);
+	ipq_lpass_cc_update(HWIO_LPASS_SLEEP_CMD_RCGR_ADDR(
+			sg_ipq_lpass_base), 0x0, 1);
+
+	writel(0x01, HWIO_LPASS_AON_M_ADDR(sg_ipq_lpass_base));
+	writel(0xFD, HWIO_LPASS_AON_N_ADDR(sg_ipq_lpass_base));
+	writel(0xFC, HWIO_LPASS_AON_D_ADDR(sg_ipq_lpass_base));
+	ipq_lpass_cc_update(HWIO_LPASS_AON_CFG_RCGR_ADDR(
+			sg_ipq_lpass_base),
+			(2 << HWIO_LPASS_AON_CFG_RCGR_MODE_SHFT) |
+			(1 << HWIO_LPASS_AON_CFG_RCGR_SRC_SEL_SHFT) |
+			(aon_srcdiv << HWIO_LPASS_AON_CFG_RCGR_SRC_DIV_SHFT),
+			0);
+	ipq_lpass_cc_update(HWIO_LPASS_AON_CMD_RCGR_ADDR(
+			sg_ipq_lpass_base), 0x0, 1);
+
+	writel(0x01, HWIO_LPASS_RESAMPLER_M_ADDR(sg_ipq_lpass_base));
+	writel(0xFE, HWIO_LPASS_RESAMPLER_N_ADDR(sg_ipq_lpass_base));
+	writel(0xFD, HWIO_LPASS_RESAMPLER_D_ADDR(sg_ipq_lpass_base));
+	ipq_lpass_cc_update(HWIO_LPASS_RESAMPLER_CFG_RCGR_ADDR(
+			sg_ipq_lpass_base),
+			(2 << HWIO_LPASS_RESAMPLER_CFG_RCGR_MODE_SHFT) |
+			(1 << HWIO_LPASS_RESAMPLER_CFG_RCGR_SRC_SEL_SHFT) |
+			(res_srcdiv << HWIO_LPASS_RESAMPLER_CFG_RCGR_SRC_DIV_SHFT),
+			0);
+	ipq_lpass_cc_update(HWIO_LPASS_RESAMPLER_CMD_RCGR_ADDR(
+			sg_ipq_lpass_base), 0x0, 1);
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_CORE_BCR_SLP_CBCR_ADDR(sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_CORE_CORE_CBCR_ADDR(sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_CORE_LPM_CORE_CBCR_ADDR(sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_CORE_RESAMPLER_CBCR_ADDR(sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_CORE_BCR_SLP_CBCR_ADDR(sg_ipq_lpass_base));
+
+	writel(0x1, HWIO_LPASS_AUDIO_CORE_AXIM_CBCR_ADDR(sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_CORE_QDSP_SWAY_AON_CBCR_ADDR(sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_CORE_AVSYNC_ATIME_CBCR_ADDR(sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_CORE_AVSYNC_STC_CBCR_ADDR(sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_CORE_SYSNOC_MPORT_CORE_CBCR_ADDR(sg_ipq_lpass_base));
+
+	ipq_lpass_core_pwrctl();
+
+	writel(0x1, HWIO_LPASS_TCSR_QOS_CTL_ADDR(sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_WRAPPER_QOS_AHBS_AON_CBCR_ADDR(sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_CORE_QOS_CTL_ADDR(sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_CORE_QOS_CORE_CGCR_ADDR(sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_WRAPPER_EXT_MCLK0_CBCR_ADDR(sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_WRAPPER_EXT_MCLK1_CBCR_ADDR(sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_WRAPPER_EXT_MCLK2_CBCR_ADDR(sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_CORE_LPAIF_CODEC_SPKR_EBIT_CBCR_ADDR(
+			sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_CORE_LPAIF_CODEC_SPKR_IBIT_CBCR_ADDR(
+			sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_CORE_LPAIF_CODEC_SPKR_OSR_CBCR_ADDR(
+			sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_CORE_LPAIF_PRI_EBIT_CBCR_ADDR(
+			sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_CORE_LPAIF_PRI_IBIT_CBCR_ADDR(
+			sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_CORE_LPAIF_SEC_EBIT_CBCR_ADDR(
+			sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_CORE_LPAIF_SEC_IBIT_CBCR_ADDR(
+			sg_ipq_lpass_base));
+
+	writel(0x1, HWIO_LPASS_AUDIO_CORE_LPAIF_PCM_DATA_OE_CBCR_ADDR(
+			sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_WRAPPER_QOS_XO_LAT_COUNTER_CBCR_ADDR(
+			sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_WRAPPER_QOS_DMONITOR_FIXED_LAT_COUNTER_CBCR_ADDR(sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_WRAPPER_QOS_DANGER_FIXED_LAT_COUNTER_CBCR_ADDR(sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_CORE_QOS_DMONITOR_FIXED_LAT_COUNTER_CBCR_ADDR(sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_CORE_LPAIF_RXTX_WR_MEM_CBCR_ADDR(
+			sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_CORE_LPAIF_RXTX_RD_MEM_CBCR_ADDR(
+			sg_ipq_lpass_base));
+
+/*
+ * debug
+ */
+	writel(0x1,
+		HWIO_LPASS_AUDIO_WRAPPER_BUS_TIMEOUT_AON_CBCR_ADDR(
+			sg_ipq_lpass_base));
+
+	writel(0x1,
+		HWIO_LPASS_AUDIO_CORE_BUS_TIMEOUT_CORE_CBCR_ADDR(
+			sg_ipq_lpass_base));
+}
+
+void __iomem *ipq_lpass_phy_to_virt(uint32_t phy_addr)
+{
+	return (sg_ipq_lpass_base + (phy_addr - LPASS_BASE));
+}
+EXPORT_SYMBOL(ipq_lpass_phy_to_virt);
+
+static void ipq_lpass_lpm_lpaif_reset(void)
+{
+	writel((1 << 31), HWIO_LPASS_LPM_CTL_ADDR(sg_ipq_lpass_base));
+
+	writel(0x0, HWIO_LPASS_LPM_CTL_ADDR(sg_ipq_lpass_base));
+
+	writel((1 << 31), HWIO_LPASS_LPAIF_CTL_ADDR(sg_ipq_lpass_base));
+
+	writel(0x0, HWIO_LPASS_LPAIF_CTL_ADDR(sg_ipq_lpass_base));
+
+}
+
+static const struct of_device_id ipq_lpass_id_table[] = {
+	{ .compatible = "qca,lpass-ipq5018" },
 	{},
 };
-MODULE_DEVICE_TABLE(of, ipq_audio_lpass_id_table);
+MODULE_DEVICE_TABLE(of, ipq_lpass_id_table);
 
-static int ipq_audio_lpass_probe(struct platform_device *pdev)
+static int ipq_lpass_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct resource *res;
+	struct lpass_res *resource;
 	const struct of_device_id *match;
+	int ret;
 
-	match = of_match_device(ipq_audio_lpass_id_table, &pdev->dev);
+	match = of_match_device(ipq_lpass_id_table, &pdev->dev);
 	if (!match)
 		return -ENODEV;
 
-	ipq_lpass_cfgs = (lpass_info_t *)match->data;
+	resource = devm_kzalloc(dev, sizeof(*resource), GFP_KERNEL);
+	if (!resource)
+		return -ENOMEM;
+
+	pr_info("%s init \n", __func__);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+
 	sg_ipq_lpass_base = devm_ioremap_resource(&pdev->dev, res);
+
 	if (IS_ERR(sg_ipq_lpass_base))
-		return PTR_ERR(lpass_audio_local_base);
+		return PTR_ERR(sg_ipq_lpass_base);
+
+/*
+ * clock init
+ */
+	resource->axi_snoc_clk = devm_clk_get(dev, "snoc_axim");
+	if (IS_ERR(resource->axi_snoc_clk))
+		return PTR_ERR(resource->axi_snoc_clk);
+
+	resource->sway_snoc_clk = devm_clk_get(dev, "snoc_sway");
+	if (IS_ERR(resource->sway_snoc_clk))
+		return PTR_ERR(resource->sway_snoc_clk);
+
+	resource->axi_core_clk = devm_clk_get(dev, "axim");
+	if (IS_ERR(resource->axi_core_clk))
+		return PTR_ERR(resource->axi_core_clk);
+
+	resource->sway_clk = devm_clk_get(dev, "sway");
+	if (IS_ERR(resource->sway_clk))
+		return PTR_ERR(resource->sway_clk);
+
+	resource->reset = devm_reset_control_get(dev, "lpass");
+	if (IS_ERR(resource->reset))
+		return PTR_ERR(resource->reset);
+
+	ret = reset_control_deassert(resource->reset);
+	if (ret) {
+		dev_err(dev, "cannot deassert  reset\n");
+		return ret;
+	}
+
+	ret = clk_prepare_enable(resource->axi_snoc_clk);
+	if (ret) {
+		dev_err(dev, "cannot prepare/enable axi_snoc_clk clock\n");
+		goto err_clk_axi_snoc;
+	}
+
+	ret = clk_prepare_enable(resource->sway_snoc_clk);
+	if (ret) {
+		dev_err(dev, "cannot prepare/enable sway_snoc_clk clock\n");
+		goto err_clk_sway_snoc;
+	}
+
+	ret = clk_prepare_enable(resource->axi_core_clk);
+	if (ret) {
+		dev_err(dev, "cannot prepare/enable axi_core_clk clock\n");
+		goto err_clk_axi;
+	}
+
+	ret = clk_set_rate(resource->axi_core_clk, 133333334);
+	if (ret) {
+		dev_err(dev, "AXI rate set failed (%d)\n", ret);
+		goto err_clk_axi;
+	}
+
+	ret = clk_prepare_enable(resource->sway_clk);
+	if (ret) {
+		dev_err(dev, "cannot prepare/enable sway_clk clock\n");
+		goto err_clk_sway;
+	}
+
+	ret = clk_set_rate(resource->sway_clk, 66666667);
+	if (ret) {
+		dev_err(dev, "AXI rate set failed (%d)\n", ret);
+		goto err_clk_sway;
+	}
+
+	platform_set_drvdata(pdev, resource);
+
+	ipq_lpass_clk_init();
+
+	ipq_lpass_lpm_lpaif_reset();
 
 	return 0;
+
+err_clk_sway:
+	clk_disable_unprepare(resource->sway_clk);
+err_clk_axi:
+	clk_disable_unprepare(resource->axi_core_clk);
+err_clk_sway_snoc:
+	clk_disable_unprepare(resource->sway_snoc_clk);
+err_clk_axi_snoc:
+	clk_disable_unprepare(resource->axi_snoc_clk);
+	return ret;
 }
 
-static int ipq_audio_lpass_remove(struct platform_device *pdev)
+static int ipq_lpass_remove(struct platform_device *pdev)
 {
+	struct lpass_res *resource = platform_get_drvdata(pdev);
+
+	clk_disable_unprepare(resource->sway_clk);
+	clk_disable_unprepare(resource->axi_core_clk);
+	clk_disable_unprepare(resource->axi_snoc_clk);
+	clk_disable_unprepare(resource->sway_snoc_clk);
+	reset_control_assert(resource->reset);
 	return 0;
 }
 
-static struct platform_driver ipq_audio_lpass_driver = {
-	.probe = ipq_audio_lpass_probe,
-	.remove = ipq_audio_lpass_remove,
+static struct platform_driver ipq_lpass_driver = {
+	.probe = ipq_lpass_probe,
+	.remove = ipq_lpass_remove,
 	.driver = {
 		.name = "ipq-lpass",
-		.of_match_table = ipq_audio_lpass_id_table,
+		.of_match_table = ipq_lpass_id_table,
 	},
 };
 
-module_platform_driver(ipq_audio_lpass_driver);
+module_platform_driver(ipq_lpass_driver);
 
 MODULE_ALIAS("platform:ipq-lpass");
 MODULE_LICENSE("Dual BSD/GPL");

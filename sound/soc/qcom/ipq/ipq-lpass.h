@@ -15,12 +15,12 @@
  *
  */
 
-#ifndef __IPQ-LPASS_H__
-#define __IPQ-LPASS_H__
 
 /*----------------------------------------------------------------------------
  * MODULE: LPASS_LPA_IF
  *--------------------------------------------------------------------------*/
+
+#define LPASS_BASE								0x0A000000
 
 #define LPASS_LPA_IF_REG_BASE                                                       (LPASS_BASE            + 0x003c0000)
 #define LPASS_LPA_IF_REG_BASE_SIZE                                                  0x29000
@@ -176,6 +176,23 @@
                 out_dword_masked_ns(HWIO_LPASS_LPAIF_SPARE_ADDR(x),m,v,HWIO_LPASS_LPAIF_SPARE_IN(x))
 #define HWIO_LPASS_LPAIF_SPARE_SPARE_BMSK                                           0xffffffff
 #define HWIO_LPASS_LPAIF_SPARE_SPARE_SHFT                                                    0
+
+#define HWIO_LPASS_LPAIF_PCM_I2S_SELa_ADDR(base,a)                                  ((base) + 0X1200 + (0x1000*(a)))
+#define HWIO_LPASS_LPAIF_PCM_I2S_SELa_OFFS(a)                                       (0X1200 + (0x1000*(a)))
+#define HWIO_LPASS_LPAIF_PCM_I2S_SELa_RMSK                                                 0x1
+#define HWIO_LPASS_LPAIF_PCM_I2S_SELa_MAXa                                                   2
+#define HWIO_LPASS_LPAIF_PCM_I2S_SELa_INI(base,a)                \
+                in_dword_masked(HWIO_LPASS_LPAIF_PCM_I2S_SELa_ADDR(base,a), HWIO_LPASS_LPAIF_PCM_I2S_SELa_RMSK)
+#define HWIO_LPASS_LPAIF_PCM_I2S_SELa_INMI(base,a,mask)        \
+                in_dword_masked(HWIO_LPASS_LPAIF_PCM_I2S_SELa_ADDR(base,a), mask)
+#define HWIO_LPASS_LPAIF_PCM_I2S_SELa_OUTI(base,a,val)        \
+                out_dword(HWIO_LPASS_LPAIF_PCM_I2S_SELa_ADDR(base,a),val)
+#define HWIO_LPASS_LPAIF_PCM_I2S_SELa_OUTMI(base,a,mask,val) \
+                out_dword_masked_ns(HWIO_LPASS_LPAIF_PCM_I2S_SELa_ADDR(base,a),mask,val,HWIO_LPASS_LPAIF_PCM_I2S_SELa_INI(base,a))
+#define HWIO_LPASS_LPAIF_PCM_I2S_SELa_SEL_BMSK                                             0x1
+#define HWIO_LPASS_LPAIF_PCM_I2S_SELa_SEL_SHFT                                               0
+#define HWIO_LPASS_LPAIF_PCM_I2S_SELa_SEL_I2S_SRC_FVAL                                     0x0
+#define HWIO_LPASS_LPAIF_PCM_I2S_SELa_SEL_PCM_SRC_FVAL                                     0x1
 
 #define HWIO_LPASS_LPAIF_PCM_CTLa_ADDR(base,a)                                      ((base) + 0X1500 + (0x1000*(a)))
 #define HWIO_LPASS_LPAIF_PCM_CTLa_OFFS(a)                                           (0X1500 + (0x1000*(a)))
@@ -3264,7 +3281,145 @@
 #define HWIO_LPASS_LPAIF_IO_MUXCTL_RX0_SEL_BMSK                                            0x1
 #define HWIO_LPASS_LPAIF_IO_MUXCTL_RX0_SEL_SHFT                                              0
 
+/*----------------------------------------------------------------------------
+ * MODULE: LPASS_LPASS_LPM
+ *--------------------------------------------------------------------------*/
+
+#define LPASS_LPASS_LPM_REG_BASE(x)		((x) + 0x00250000)
+#define LPASS_LPASS_LPM_REG_BASE_SIZE		0x4000
+#define LPASS_LPASS_LPM_REG_BASE_USED		0x0
+#define LPASS_LPASS_LPM_REG_BASE_OFFS		0x00250000
+
+#define GCC_LPASS_RESTART		0x180F000
+#define GCC_SNOC_LPASS_AXIM_CBCR	0x1826074
+#define GCC_SNOC_LPASS_SWAY_CBCR	0x1826078
+#define GCC_LPASS_BCR			0x182E000
+#define GCC_LPASS_AXIM_CMD_RCGR		0x182E028
+#define GCC_LPASS_AXIM_CFG_RCGR		0x182E02C
+#define GCC_LPASS_SWAY_CMD_RCGR		0x182E040
+#define GCC_LPASS_SWAY_CFG_RCGR		0x182E044
+#define GCC_LPASS_CORE_AXIM_CBCR	0x182E048
+#define GCC_LPASS_SWAY_CBCR		0x182E04C
+
+typedef enum {
+	LPASSPLL0,
+	LPASSPLL1,
+	LPASSPLL2,
+	LPASS_ALLPLL
+} ipq_lpass_pll_type;
+
+typedef enum {
+	USE_TIMER= 0,
+	REG_POOL
+} ipq_lpass_time;
+
+#define INTERFACE_PRIMARY		1
+#define INTERFACE_SECONDARY		2
+
+#define TDM_MODE_SLAVE			0
+#define TDM_MODE_MASTER			1
+
+enum
+{
+	TDM_DIR_INVALID = -1,
+	TDM_SINK = 0 ,
+	TDM_SOURCE,
+	LPASS_HW_DMA_SINK = 0,
+	LPASS_HW_DMA_SOURCE
+};
+
+
+enum
+{
+	TDM_SHORT_SYNC_TYPE = 0,
+	TDM_LONG_SYNC_TYPE,
+	TDM_SLOT_SYNC_TYPE,
+};
+
+enum
+{
+	TDM_LONG_SYNC_NORMAL = 0,
+	TDM_LONG_SYNC_INVERT
+};
+enum
+{
+	TDM_DATA_DELAY_0_CYCLE = 2,
+	TDM_DATA_DELAY_1_CYCLE = 1,
+	TDM_DATA_DELAY_2_CYCLE = 0
+};
+
+enum
+{
+	TDM_NO_CTRL_DATA_OE = -1,
+	TDM_CTRL_DATA_OE_DISABLE = 0,
+	TDM_CTRL_DATA_OE_ENABLE = 1,
+};
+
+typedef enum {
+	SRC_HB_INT_CXO = 0,
+	SRC_HB_INT_EMPTY_1,
+	SRC_HB_INT_EMPTY_2,
+	SRC_HB_INT_EMPTY_3,
+	SRC_HB_INT_EMPTY_4,
+	SRC_HB_INT_DIGPLL_AUX1,
+	SRC_HB_INT_AUDPLL_AUX1,
+} ipq_lpass_clk_src;
+
+struct lpass_res{
+	struct reset_control *reset;
+	struct clk *axi_core_clk;
+	struct clk *sway_clk;
+	struct clk *axi_snoc_clk;
+	struct clk *sway_snoc_clk;
+};
+
+struct ipq_lpass_pll{
+	ipq_lpass_pll_type  pll_type;
+
+	uint32_t l;
+	uint32_t alpha;
+	uint32_t alpha_u;
+	uint32_t pre_div;
+	uint32_t post_div;
+	uint32_t src;
+
+	uint32_t pll_reset_wait;
+	uint32_t pll_lock_wait;
+
+	uint32_t app_vote;
+	uint32_t q6_vote;
+	uint32_t rpm_vote;
+	uint32_t pll_lock_count;
+	uint32_t pll_bias_count;
+	uint32_t pll_vote_fsm_ena;
+
+	uint32_t adelay;
+	uint32_t anupdate;
+
+	uint32_t cal_l_value;
+	uint32_t user_ctl;
+	uint32_t user_ctl_u;
+	uint32_t config_ctl;
+	uint32_t config_ctl_u;
+	uint32_t test_ctl;
+	uint32_t test_ctl_u;
+	uint32_t mode;
+	uint32_t freq_ctl;
+	uint32_t opmode;
+	uint32_t droop;
+	uint32_t frac_val;
+
+	uint32_t bist_ctl;
+};
+
+struct ipq_lpass_plllock{
+	uint32_t lock_time;
+	uint32_t value;
+	ipq_lpass_time timer_type;
+};
+
 struct lpass_dma_config {
+	void __iomem *lpaif_base;
 	uint32_t buffer_start_addr;
 	uint32_t dma_int_per_cnt;
 	uint32_t buffer_len;
@@ -3272,26 +3427,70 @@ struct lpass_dma_config {
 	uint8_t wps_count;
 	uint8_t watermark;
 	uint8_t ifconfig;
+	uint8_t idx;
+	uint8_t dir;
+	uint8_t burst8_en;
+	uint8_t burst16_en;
 };
 
-struct ipq_lpass_pcm_config$
-{$
-	uint32_t intf_id;$
-	uint32_t direction;$
-	uint32_t sample_rate;$
-	uint32_t bit_width;$
-	uint32_t bytes_per_channel;$
-	uint32_t num_channels;$
-	uint32_t nslots_per_frame;$
-	uint32_t sync_type;$
-	uint32_t ctrl_invert_sync_pulse;$
-	uint32_t ctrl_sync_data_delay;$
-	uint32_t slot_width;$
-	uint32_t slot_mask;$
-	uint32_t ctrl_data_oe;$
-	uint16_t data_format;$
-	uint32_t int_samples_per_period;
-	uint16_t shift_factor;$
-	uint32_t tdm_intr_cnt;$
-}$
-#endif /* __IPQ-LPASS_H__ */
+struct ipq_lpass_pcm_config
+{
+	uint32_t invert_sync;
+	uint32_t sync_src;
+	uint32_t bit_width;
+	uint32_t slot_count;
+	uint32_t sync_type;
+	uint32_t sync_delay;
+	uint32_t slot_width;
+	uint32_t slot_mask;
+	uint32_t ctrl_data_oe;
+};
+
+void ipq_lpass_pcm_reset(void __iomem *lpaif_base,
+					uint32_t pcm_index, uint32_t dir);
+void ipq_lpass_pcm_reset_release(void __iomem *lpaif_base, uint32_t pcm_index,
+						uint32_t dir);
+void ipq_lpass_pcm_config(struct ipq_lpass_pcm_config *configPtr,
+				void __iomem *lpaif_base,
+				uint32_t pcm_index, uint32_t dir);
+void ipq_lpass_pcm_enable(void __iomem *lpaif_base,
+				uint32_t pcm_index, uint32_t dir);
+void ipq_lpass_pcm_disable(void __iomem *lpaif_base,
+					uint32_t pcm_index, uint32_t dir);
+void ipq_lpass_enable_dma_channel(void __iomem *lpaif_base,
+						uint32_t dma_idx,
+						uint32_t dma_dir);
+void ipq_lpass_disable_dma_channel(void __iomem *lpaif_base,
+						uint32_t dma_idx,
+						uint32_t dma_dir);
+void ipq_lpass_dma_clear_interrupt(void __iomem *lpaif_base,
+						uint32_t dma_intr_idx,
+						uint32_t value);
+void ipq_lpass_dma_clear_interrupt_config(void __iomem *lpaif_base,
+						uint32_t dma_dir,
+						uint32_t dma_idx,
+						uint32_t dma_intr_idx);
+void ipq_lpass_dma_disable_interrupt(void __iomem *lpaif_base,
+						uint32_t dma_dir,
+						uint32_t dma_idx,
+						uint32_t dma_intr_idx);
+void ipq_lpass_dma_enable_interrupt(void __iomem *lpaif_base,
+						uint32_t dma_dir,
+						uint32_t dma_idx,
+						uint32_t dma_intr_idx);
+void ipq_lpass_dma_get_dma_fifo_count(void __iomem *lpaif_base,
+					uint32_t *fifo_cnt_ptr,
+					uint32_t dma_dir, uint32_t dma_idx);
+void ipq_lpass_config_dma_channel(struct lpass_dma_config *config);
+void ipq_lpass_dma_read_interrupt_status(void __iomem *lpaif_base,
+						uint32_t dma_intr_idx,
+							uint32_t *status);
+void ipq_lpass_dma_reset(void __iomem *lpaif_base,
+				uint32_t dma_idx, uint32_t dma_dir);
+uint32_t ipq_lpass_set_clk_rate(uint32_t intf, uint32_t clk);
+void ipq_lpass_lpaif_muxsetup(uint32_t intf, uint32_t mode);
+void ipq_lpass_dma_get_curr_addr(void __iomem *lpaif_base,
+					uint32_t dma_idx,uint32_t dma_dir,
+					uint32_t *curr_addr);
+void __iomem *ipq_lpass_phy_to_virt(uint32_t phy_addr);
+void ipq_lpass_pcm_enable_loopback(void __iomem *lpaif_base, uint32_t pcm_index);
