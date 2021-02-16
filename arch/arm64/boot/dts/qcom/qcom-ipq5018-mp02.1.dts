@@ -429,14 +429,14 @@
 	i2c_pins: i2c_pins {
 		i2c_scl {
 			pins = "gpio33";
-			function = "blsp2_i2c1";
+			function = "blsp2_i2c0";
 			drive-strength = <8>;
 			bias-disable;
 		};
 
 		i2c_sda {
 			pins = "gpio34";
-			function = "blsp2_i2c1";
+			function = "blsp2_i2c0";
 			drive-strength = <8>;
 			bias-disable;
 		};
@@ -559,6 +559,11 @@
 
 &qcom_q6v5_wcss {
 	qcom,multipd_arch;
+	qcom,share_bootargs;
+	qcom,bootargs_smem = <507>;
+	boot-args = <0x1 0x4 0x3 0x0F 0x0 0x0>,
+			<0x2 0x4 0x2 0x1B 0x0 0x0>;
+
 	/* IPQ5018 */
 	q6v5_wcss_userpd1 {
 		m3_firmware = "IPQ5018/m3_fw.mdt";
