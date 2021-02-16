@@ -542,12 +542,19 @@ int mhi_alloc_bhie_table(struct mhi_controller *mhi_cntrl,
 		size_t vec_size = seg_size;
 
 		/* last entry is for vector table */
-		if (i == segments - 1)
+		if (i == segments - 1) {
 			vec_size = sizeof(struct bhi_vec_entry) * i;
+			mhi_buf->buf = mhi_alloc_coherent(mhi_cntrl,
+					vec_size, &mhi_buf->dma_addr,
+					GFP_KERNEL);
+		} else {
+			mhi_buf->buf = mhi_fw_alloc_coherent(mhi_cntrl,
+					vec_size, &mhi_buf->dma_addr,
+					GFP_KERNEL);
+		}
 
 		mhi_buf->len = vec_size;
-		mhi_buf->buf = mhi_fw_alloc_coherent(mhi_cntrl, vec_size,
-					&mhi_buf->dma_addr, GFP_KERNEL);
+
 		if (!mhi_buf->buf)
 			goto error_alloc_segment;
 
