@@ -1316,6 +1316,32 @@
 			clocks = <&gcc GCC_BTSS_LPO_CLK>;
 			clock-names = "lpo_clk";
 		};
+		lpass: lpass@0xA000000{
+			compatible = "qca,lpass-ipq5018";
+			reg =  <0xA000000 0x3BFFFF>;
+			clocks = <&gcc GCC_SNOC_LPASS_AXIM_CLK>,
+			<&gcc GCC_SNOC_LPASS_SWAY_CLK>,
+			<&gcc GCC_LPASS_CORE_AXIM_CLK>,
+			<&gcc GCC_LPASS_SWAY_CLK>;
+			clock-names = "snoc_axim", "snoc_sway", "axim", "sway";
+			resets = <&gcc GCC_LPASS_BCR>;
+			reset-names = "lpass";
+			status = "disabled";
+		};
+
+		pcm: pcm@0xA3C0000{
+			compatible = "qca,ipq5018-lpass-pcm";
+			reg =  <0xA3C0000 0x23014>;
+			interrupts = <0 27 IRQ_TYPE_LEVEL_HIGH>,
+					<0 28 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "rx", "tx";
+			status = "disabled";
+		};
+
+		pcm_lb: pcm_lb@0 {
+			compatible = "qca,ipq5018-pcm-lb";
+			status = "disabled";
+		};
 	};
 
 	cpus {

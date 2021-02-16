@@ -21,4 +21,25 @@
 	model = "Qualcomm Technologies, Inc. IPQ5018/TB-MP04";
 	compatible = "qcom,ipq5018-tb-mp04", "qcom,ipq5018";
 	interrupt-parent = <&intc>;
+
+	soc {
+		lpass: lpass@0xA000000{
+			status = "ok";
+		};
+
+		pcm: pcm@0xA3C0000{
+			status = "ok";
+		};
+
+		pcm_lb: pcm_lb@0 {
+			status = "ok";
+		};
+	};
+
 };
+
+&tlmm {
+	pinctrl-0 = <&audio_pins>;
+	pinctrl-names = "default";
+};
+
