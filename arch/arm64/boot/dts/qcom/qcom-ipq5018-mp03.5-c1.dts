@@ -293,6 +293,11 @@
 			status = "ok";
 		};
 
+		blsp1_uart2: serial@78b0000 {
+			pinctrl-0 = <&blsp1_uart_pins>;
+			pinctrl-names = "default";
+		};
+
 		qpic_bam: dma@7984000{
 			status = "ok";
 		};
@@ -429,6 +434,14 @@
 		blsp0_uart_rx_tx {
 			pins = "gpio20", "gpio21";
 			function = "blsp0_uart0";
+			bias-disable;
+		};
+	};
+
+	blsp1_uart_pins: blsp1_uart_pins {
+		blsp1_uart_rx_tx {
+			pins = "gpio23", "gpio25", "gpio24", "gpio26";
+			function = "blsp1_uart2";
 			bias-disable;
 		};
 	};
