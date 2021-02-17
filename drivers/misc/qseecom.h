@@ -435,8 +435,8 @@ enum tz_storage_service_rsa_operation_id {
 };
 
 enum tz_storage_service_rsa_padding_type {
-	QSEE_RSA_PADDING_TYPE_OAEP = 0,
-	QSEE_RSA_PADDING_TYPE_PKCS,
+	QSEE_RSA_PADDING_TYPE_PKCS = 0,
+	QSEE_RSA_PADDING_TYPE_OAEP,
 	QSEE_RSA_NO_PADDING,
 	QSEE_RSA_PADDING_TYPE_MAX
 };
