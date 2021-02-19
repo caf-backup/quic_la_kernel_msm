@@ -237,13 +237,22 @@ static int mini_dump_open(struct inode *inode, struct file *file)
 				pr_err("\nMinidump: Unable to allocate memory for dump segment");
 				return -ENOMEM;
 			}
-			if ((cur_node->type == QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD_INFO) ||
-				(cur_node->type == QCA_WDT_LOG_DUMP_TYPE_WLAN_MMU_INFO ) ||
-				(cur_node->type == QCA_WDT_LOG_DUMP_TYPE_DMESG)) {
-				segment->size = *(unsigned long *)(uintptr_t)
+
+			switch(cur_node->type) {
+
+				case QCA_WDT_LOG_DUMP_TYPE_DMESG:
+					segment->size = log_buf_len;
+					break;
+
+				case QCA_WDT_LOG_DUMP_TYPE_WLAN_MMU_INFO:
+
+				case QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD_INFO:
+					segment->size = *(unsigned long *)(uintptr_t)
 						((unsigned long)__va(cur_node->size));
-			} else {
-				segment->size = cur_node->size;
+					break;
+
+				default:
+					segment->size = cur_node->size;
 			}
 
 			segment->addr = cur_node->va;
