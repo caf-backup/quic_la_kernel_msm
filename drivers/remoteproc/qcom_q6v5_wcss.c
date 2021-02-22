@@ -2054,6 +2054,7 @@ static void q6v5_release_resources(struct platform_device *pdev)
 			subsys_to_pdata(&c_wcss->q6v5.subsys_desc);
 		subsys_unregister(c_q6v5->subsys);
 #endif
+		qcom_remove_ssr_subdev(child, &wcss->ssr_subdev);
 		rproc_del(child);
 		rproc_free(child);
 	}
@@ -2185,6 +2186,7 @@ static int q6v5_register_userpd(struct platform_device *pdev)
 							&wcss->m3_fw_name);
 		if (ret)
 			wcss->m3_fw_name = NULL;
+		qcom_add_ssr_subdev(rproc, &wcss->ssr_subdev, rproc->name);
 	}
 
 	return 0;

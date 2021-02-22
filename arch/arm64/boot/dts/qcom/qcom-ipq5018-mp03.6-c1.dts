@@ -509,6 +509,7 @@
 	pinctrl-names = "default";
 	status = "ok";
 	perst-gpio = <&tlmm 18 1>;
+	slot_id = <0>;
 };
 
 &pcie_x2 {
