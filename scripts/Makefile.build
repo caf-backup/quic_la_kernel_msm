@@ -180,6 +180,85 @@ $(obj)/%.symtypes : $(src)/%.c FORCE
 
 quiet_cmd_cc_o_c = CC $(quiet_modtag)  $@
 
+ifdef CONFIG_DEBUG_MEM_USAGE
+MLDFLAGS_WRAP := --wrap=__kmalloc	\
+		--wrap=kmalloc 		\
+		--wrap=__kmalloc_node	\
+		--wrap=kmalloc_node	\
+		--wrap=kzalloc 		\
+		--wrap=kzalloc_node 	\
+		--wrap=kmalloc_array	\
+		--wrap=kmalloc_order	\
+		--wrap=kmalloc_order_trace	\
+		--wrap=kcalloc		\
+		--wrap=krealloc		\
+		--wrap=kmemdup		\
+		--wrap=memdup_user	\
+		--wrap=kfree		\
+		--wrap=kzfree		\
+		--wrap=__vmalloc	\
+		--wrap=vmalloc		\
+		--wrap=vzalloc		\
+		--wrap=vmalloc_user	\
+		--wrap=vmalloc_32	\
+		--wrap=vmalloc_node	\
+		--wrap=vzalloc_node	\
+		--wrap=vfree		\
+		--wrap=kvfree		\
+		--wrap=alloc_pages	\
+		--wrap=alloc_pages_node \
+		--wrap=__alloc_pages_nodemask \
+		--wrap=__get_free_pages	\
+		--wrap=get_zeroed_page	\
+		--wrap=free_pages	\
+		--wrap=__free_pages	\
+		--wrap=dma_alloc_coherent	\
+		--wrap=dma_free_coherent	\
+		--wrap=dma_pool_alloc	\
+		--wrap=dma_pool_free	\
+		--wrap=kmem_cache_alloc	\
+		--wrap=kmem_cache_alloc_node  	\
+		--wrap=kmem_cache_alloc_trace	\
+		--wrap=kmem_cache_alloc_node_trace	\
+		--wrap=kmem_cache_free	\
+		--wrap=mempool_alloc	\
+		--wrap=mempool_free	\
+		--wrap=devm_kmalloc	\
+		--wrap=devm_kmalloc_array	\
+		--wrap=devm_kzalloc	\
+		--wrap=devm_kcalloc	\
+		--wrap=devm_kmemdup	\
+		--wrap=devm_kfree	\
+		--wrap=devm_get_free_pages	\
+		--wrap=devm_free_pages
+
+MNEW_LD_FLAGS := $(MLDFLAGS_WRAP)
+
+cmd_export_mnew_ldflags = \
+	$(if $(findstring kernel/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
+	$(if $(findstring arch/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
+	$(if $(findstring init/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
+	$(if $(findstring mm/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
+	$(if $(findstring block/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
+	$(if $(findstring kernel/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
+	$(if $(findstring block/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
+	$(if $(findstring usr/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
+	$(if $(findstring security/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
+	$(if $(findstring sound/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
+	$(if $(findstring crypto/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
+	$(if $(findstring firmware/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
+	$(if $(findstring samples/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
+	$(if $(findstring tools/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
+	$(if $(findstring lib/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
+	$(if $(findstring fs/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
+	$(if $(findstring ipc/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
+	$(if $(findstring drivers/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
+	$(if $(findstring drivers/net/, $@), $(MLDFLAGS_WRAP)) \
+	$(if $(findstring net/, $@), $(MLDFLAGS_WRAP)) \
+	$(if $(findstring /linux-ipq_, $@), $(MLDFLAGS_WRAP))
+endif
+
+
 ifndef CONFIG_MODVERSIONS
 cmd_cc_o_c = $(CC) $(c_flags) -c -o $@ $<
 
@@ -332,7 +411,10 @@ LDFLAGS_WRAP := --wrap=__kmalloc	\
 		--wrap=kzalloc 		\
 		--wrap=kzalloc_node 	\
 		--wrap=kmalloc_array	\
+		--wrap=__kmalloc_node	\
+		--wrap=kmalloc_node	\
 		--wrap=kmalloc_order	\
+		--wrap=kmalloc_order_trace	\
 		--wrap=kcalloc		\
 		--wrap=krealloc		\
 		--wrap=kmemdup		\
@@ -350,14 +432,19 @@ LDFLAGS_WRAP := --wrap=__kmalloc	\
 		--wrap=kvfree		\
 		--wrap=alloc_pages	\
 		--wrap=alloc_pages_node \
+		--wrap=__alloc_pages_nodemask \
 		--wrap=__get_free_pages	\
 		--wrap=get_zeroed_page	\
+		--wrap=free_pages	\
 		--wrap=__free_pages	\
 		--wrap=dma_alloc_coherent	\
 		--wrap=dma_free_coherent	\
 		--wrap=dma_pool_alloc	\
 		--wrap=dma_pool_free	\
 		--wrap=kmem_cache_alloc	\
+		--wrap=kmem_cache_alloc_node	\
+		--wrap=kmem_cache_alloc_trace	\
+		--wrap=kmem_cache_alloc_node_trace	\
 		--wrap=kmem_cache_free	\
 		--wrap=mempool_alloc	\
 		--wrap=mempool_free	\
@@ -368,7 +455,7 @@ LDFLAGS_WRAP := --wrap=__kmalloc	\
 		--wrap=devm_kmemdup	\
 		--wrap=devm_kfree	\
 		--wrap=devm_get_free_pages	\
-		--wrap=devm_free_pages	\
+		--wrap=devm_free_pages
 
 NEW_LD_FLAGS := $(LDFLAGS_WRAP)
 
@@ -455,76 +542,6 @@ link_multi_deps =                     \
 $(filter $(addprefix $(obj)/,         \
 $($(subst $(obj)/,,$(@:.o=-objs)))    \
 $($(subst $(obj)/,,$(@:.o=-y)))), $^)
-
-ifdef CONFIG_DEBUG_MEM_USAGE
-MLDFLAGS_WRAP := --wrap=__kmalloc	\
-		--wrap=kmalloc 		\
-		--wrap=kzalloc 		\
-		--wrap=kzalloc_node 	\
-		--wrap=kmalloc_array	\
-		--wrap=kmalloc_order	\
-		--wrap=kcalloc		\
-		--wrap=krealloc		\
-		--wrap=kmemdup		\
-		--wrap=memdup_user	\
-		--wrap=kfree		\
-		--wrap=kzfree		\
-		--wrap=__vmalloc	\
-		--wrap=vmalloc		\
-		--wrap=vzalloc		\
-		--wrap=vmalloc_user	\
-		--wrap=vmalloc_32	\
-		--wrap=vmalloc_node	\
-		--wrap=vzalloc_node	\
-		--wrap=vfree		\
-		--wrap=kvfree		\
-		--wrap=alloc_pages	\
-		--wrap=alloc_pages_node \
-		--wrap=__get_free_pages	\
-		--wrap=get_zeroed_page	\
-		--wrap=__free_pages	\
-		--wrap=dma_alloc_coherent	\
-		--wrap=dma_free_coherent	\
-		--wrap=dma_pool_alloc	\
-		--wrap=dma_pool_free	\
-		--wrap=kmem_cache_alloc	\
-		--wrap=kmem_cache_free	\
-		--wrap=mempool_alloc	\
-		--wrap=mempool_free	\
-		--wrap=devm_kmalloc	\
-		--wrap=devm_kmalloc_array	\
-		--wrap=devm_kzalloc	\
-		--wrap=devm_kcalloc	\
-		--wrap=devm_kmemdup	\
-		--wrap=devm_kfree	\
-		--wrap=devm_get_free_pages	\
-		--wrap=devm_free_pages	\
-
-MNEW_LD_FLAGS := $(MLDFLAGS_WRAP)
-
-cmd_export_mnew_ldflags = \
-	$(if $(findstring kernel/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
-	$(if $(findstring arch/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
-	$(if $(findstring init/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
-	$(if $(findstring mm/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
-	$(if $(findstring block/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
-	$(if $(findstring kernel/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
-	$(if $(findstring block/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
-	$(if $(findstring usr/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
-	$(if $(findstring security/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
-	$(if $(findstring sound/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
-	$(if $(findstring crypto/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
-	$(if $(findstring firmware/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
-	$(if $(findstring samples/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
-	$(if $(findstring tools/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
-	$(if $(findstring lib/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
-	$(if $(findstring fs/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
-	$(if $(findstring ipc/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
-	$(if $(findstring drivers/, $@), $(filter-out $(MNEW_LD_FLAGS), $(MLDFLAGS_WRAP))) \
-	$(if $(findstring drivers/net/, $@), $(MLDFLAGS_WRAP)) \
-	$(if $(findstring net/, $@), $(MLDFLAGS_WRAP)) \
-	$(if $(findstring /linux-ipq_, $@), $(MLDFLAGS_WRAP))
-endif
 
 quiet_cmd_link_multi-y = LD      $@
 ifdef CONFIG_DEBUG_MEM_USAGE
