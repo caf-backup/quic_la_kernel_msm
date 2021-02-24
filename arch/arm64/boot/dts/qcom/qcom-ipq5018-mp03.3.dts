@@ -760,11 +760,12 @@
 		#size-cells = <0x2>;
 		memory-region = <&mhi_region1>;
 #if !defined(__CNSS2__)
-		base-addr = <0x4CC00000>;
-		m3-dump-addr = <0x4E000000>;
-		etr-addr = <0x4E100000>;
-		qcom,caldb-addr = <0x4E200000>;
+		base-addr = <0x4E900000>;
+		m3-dump-addr = <0x4FD00000>;
+		etr-addr = <0x4FE00000>;
+		qcom,caldb-addr = <0x4FF00000>;
 		qcom,tgt-mem-mode = <0x1>;
+		qcom,board_id = <0xa4>;
 #endif
 	};
 };
@@ -866,7 +867,12 @@
 #endif
 	qcom,board_id = <0x23>;
 	qcom,bdf-addr = <0x0 0x4C000000 0x4C000000 0x0 0x0>;
+#ifdef __CNSS2__
 	qcom,caldb-addr = <0x0 0x4D000000 0 0 0>;
+#else
+	qcom,caldb-addr = <0x4D000000>;
+	m3-dump-addr = <0x4CE00000>;
+#endif
 	qcom,caldb-size = <0x200000>;
 	qcom,userpd-subsys-name = "q6v5_wcss_userpd1";
 	status = "ok";
@@ -881,13 +887,13 @@
 	qcom,tgt-mem-mode = <1>;
 #endif
 	qcom,board_id = <0x60>;
-	/*
-	 * once wifi driver changes are in place to
-	 * qcn6122 compatible string, remove qcn9100 here
-	 */
-	compatible = "qcom,cnss-qcn9100", "qcom,cnss-qcn6122";
 	qcom,bdf-addr = <0x0 0x4D200000 0x4CF00000 0x0 0x0>;
+#ifdef __CNSS2__
 	qcom,caldb-addr = <0x0 0x4E400000 0 0 0>;
+#else
+	qcom,caldb-addr = <0x4E400000>;
+	m3-dump-addr = <0x4E200000>;
+#endif
 	qcom,caldb-size = <0x500000>;
 	qcom,userpd-subsys-name = "q6v5_wcss_userpd2";
 	status = "ok";
