@@ -212,6 +212,22 @@ static int bt_rproc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rproc);
 
+
+	if (of_machine_is_compatible("qcom,ipq5018-mp02.1")) {
+		ret = qcom_scm_pil_cfg_available();
+		if (ret) {
+			ret = qcom_scm_pil_cfg(PAS_ID, 0x1);
+			if (ret) {
+				dev_err(rproc->dev.parent,
+						"Failed to update XO/TCXO");
+				return ret;
+			}
+			dev_info(rproc->dev.parent, "Updated XO/TCXO config\n");
+		} else {
+			dev_info(&pdev->dev, "SCM call not available\n");
+		}
+	}
+
 	dev_info(&pdev->dev, "Probed\n");
 
 	return 0;
