@@ -1948,6 +1948,20 @@ struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned int family)
 	return afinfo;
 }
 
+struct xfrm_state_afinfo *xfrm_state_update_afinfo(unsigned int family, struct xfrm_state_afinfo *new)
+{
+	struct xfrm_state_afinfo *afinfo;
+
+	spin_lock_bh(&xfrm_state_afinfo_lock);
+	afinfo = rcu_dereference_protected(xfrm_state_afinfo[family], lockdep_is_held(&xfrm_state_afinfo_lock));
+	rcu_assign_pointer(xfrm_state_afinfo[afinfo->family], new);
+	spin_unlock_bh(&xfrm_state_afinfo_lock);
+
+	synchronize_rcu();
+	return afinfo;
+}
+EXPORT_SYMBOL(xfrm_state_update_afinfo);
+
 void xfrm_state_put_afinfo(struct xfrm_state_afinfo *afinfo)
 {
 	rcu_read_unlock();
