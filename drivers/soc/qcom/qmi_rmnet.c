@@ -1290,7 +1290,7 @@ void qmi_rmnet_work_exit(void *port)
 	synchronize_rcu();
 
 	alarm_cancel(&rmnet_work->atimer);
-	cancel_delayed_work_sync(&rmnet_work->work);
+	cancel_delayed_work(&rmnet_work->work);
 	destroy_workqueue(rmnet_ps_wq);
 	rmnet_ps_wq = NULL;
 	kfree(rmnet_work);
