@@ -2097,3 +2097,16 @@ int __qcom_scm_load_otp(struct device *dev, u32 peripheral)
 	return ret ? : le32_to_cpu(out);
 }
 
+int __qcom_scm_pil_cfg(struct device *dev, u32 peripheral, u32 arg)
+{
+	int ret;
+	struct scm_desc desc = {0};
+
+	desc.args[0] = peripheral;
+	desc.args[1] = arg;
+	desc.arginfo = SCM_ARGS(2);
+	ret = qcom_scm_call2(SCM_SIP_FNID(QCOM_SCM_SVC_XO_TCXO,
+					  QCOM_SCM_CMD_XO_TCXO), &desc);
+
+	return ret ? : le32_to_cpu(desc.ret[0]);
+}

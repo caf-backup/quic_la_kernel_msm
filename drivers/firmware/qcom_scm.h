@@ -352,4 +352,9 @@ struct qcom_scm_cmd_ids {
 #define QCOM_SCM_CMD_OTP	0x15
 
 extern int  __qcom_scm_load_otp(struct device *dev, u32 peripheral);
+
+#define QCOM_SCM_SVC_XO_TCXO 0x2
+#define QCOM_SCM_CMD_XO_TCXO 0x20
+
+extern int __qcom_scm_pil_cfg(struct device *dev, u32 peripheral, u32 arg);
 #endif

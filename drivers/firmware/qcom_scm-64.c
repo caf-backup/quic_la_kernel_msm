@@ -1250,3 +1250,19 @@ int __qcom_scm_load_otp(struct device *dev, u32 peripheral)
 
 	return ret ? false : !!res.a1;
 }
+
+int __qcom_scm_pil_cfg(struct device *dev, u32 peripheral, u32 arg)
+{
+	int ret;
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+
+	desc.args[0] = peripheral;
+	desc.args[1] = arg;
+	desc.arginfo = QCOM_SCM_ARGS(2);
+
+	ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, QCOM_SCM_SVC_XO_TCXO,
+			    QCOM_SCM_CMD_XO_TCXO, &desc, &res);
+
+	return ret ? false : !!res.a1;
+}
