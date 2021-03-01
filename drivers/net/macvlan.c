@@ -848,11 +848,9 @@ static void macvlan_dev_update_stats(struct net_device *dev,
 	stats->tx_bytes += offl_stats->tx_bytes;
 	/* Update multicast statistics */
 	if (unlikely(update_mcast_rx_stats)) {
-		stats->rx_multicast = offl_stats->rx_packets;
+		stats->rx_multicast += offl_stats->rx_packets;
 	}
 	u64_stats_update_end(&stats->syncp);
-	stats->rx_errors = offl_stats->rx_errors;
-	stats->tx_dropped = offl_stats->tx_dropped;
 }
 
 static struct rtnl_link_stats64 *macvlan_dev_get_stats64(struct net_device *dev,
