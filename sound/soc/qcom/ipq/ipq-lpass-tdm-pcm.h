@@ -24,13 +24,13 @@
 							IPQ_LPASS_LPM_SIZE)
 
 #define LPASS_DMA_BUFFER_SIZE			0x2000
-#define LPASS_BUFFER_SIZE			/*0x1000 */0x400
+#define LPASS_BUFFER_SIZE			0x800
 
 #define LOOPBACK_SKIP_COUNT(hw)			((LPASS_DMA_BUFFER_SIZE / \
 							LPASS_BUFFER_SIZE) + 1)
 
-#define DEFAULT_PCM_DMA_BUFFERS			10
-#define MAX_PCM_DMA_BUFFERS			16
+#define DEFAULT_PCM_DMA_BUFFERS			2
+#define MAX_PCM_SAMPLES				16
 #define PCM_DMA_BUFFER_16BYTE_ALIGNMENT		0xF
 #define PCM_DMA_BUFFER_8BYTE_ALIGNMENT		7
 #define PCM_DMA_BUFFER_4BYTE_ALIGNMENT		3
@@ -38,9 +38,11 @@
 #define IPQ_PCM_MAX_SLOTS			32
 #define DEAFULT_PCM_WATERMARK			8
 #define IPQ_LPASS_MAX_LPM_BLK			4
-#define IPQ_PCM_SAMPLES_PER_10MS(rate) ((rate / 1000) * 10)
 #define BYTES_PER_CHANNEL(a_bit_width)	(a_bit_width > 16) ? 4 : 2
-#define DMA_CHANNEL_ID(a_port_id)	(a_port_id - 1)
+#define IPQ_LPASS_PCM_SAMPLES(_rate, _channel, _bytes_per_channel)	\
+						(_rate * _channel *	\
+						_bytes_per_channel *	\
+						MAX_PCM_SAMPLES)
 
 #define IPQ_PCM_BYTES_PER_SAMPLE_MAX		4
 #define IPQ_PCM_MAX_CHANNEL_CNT			32
@@ -133,7 +135,8 @@ struct lpass_dma_buffer {
 	uint16_t ifconfig;
 	uint16_t frame;
 	uint16_t intr_id;
-	uint16_t num_channels;
+	uint8_t  num_channels;
+	uint8_t  bit_width;
 	uint32_t bytes_per_channel;
 	uint32_t period_count_in_word32;
 	uint32_t bytes_per_sample;
@@ -148,6 +151,11 @@ struct lpass_dma_buffer {
 	uint32_t size_max;
 	uint32_t single_buf_size;
 	uint32_t int_samples_per_period;
+};
+
+struct lpass_irq_buffer {
+	struct lpass_dma_buffer *rx_buffer;
+	struct lpass_dma_buffer *tx_buffer;
 };
 
 struct lpass_lpm_block {

@@ -34,6 +34,9 @@
 #include <linux/wait.h>
 #include <linux/io.h>
 #include <linux/of_device.h>
+#ifdef IPQ_PCM_SLIC_ENABLE
+#include <linux/of_gpio.h>
+#endif
 
 #include "ipq-lpass.h"
 #include "ipq-lpass-tdm-pcm.h"
@@ -83,69 +86,55 @@ static uint32_t ipq_lpass_pcm_get_dataptr(struct lpass_dma_buffer *buffer,
 
 	return dataptr;
 }
-
 /*
- * FUNCTION: ipq_lpass_pcm_playback_handler
- *
- * DESCRIPTION: pcm rx dma irq handler
- *
- * RETURN VALUE: none
- */
-static irqreturn_t ipq_lpass_pcm_playback_handler(int intrsrc, void *data)
-{
-	uint32_t status;
-	uint32_t txcurr_addr;
-	struct lpass_dma_buffer *buffer = (struct lpass_dma_buffer *)data;
-
-	ipq_lpass_dma_read_interrupt_status(ipq_lpass_lpaif_base,
-						buffer->intr_id, &status);
-
-	ipq_lpass_dma_get_curr_addr(ipq_lpass_lpaif_base, buffer->idx,
-					buffer->dir, &txcurr_addr);
-
-	ipq_lpass_dma_clear_interrupt(ipq_lpass_lpaif_base,
-					buffer->intr_id, status);
-
-	txcurr_addr = ipq_lpass_pcm_get_dataptr(buffer, txcurr_addr);
-
-	atomic_set(&tx_add, txcurr_addr);
-
-	return IRQ_HANDLED;
-}
-
-/*
- * FUNCTION: ipq_lpass_pcm_capture_handler
+ * FUNCTION: ipq_lpass_pcm_irq_handler
  *
  * DESCRIPTION: pcm dma tx irq handler
  *
  * RETURN VALUE: none
  */
-static irqreturn_t ipq_lpass_pcm_capture_handler(int intrsrc, void *data)
+static irqreturn_t ipq_lpass_pcm_irq_handler(int intrsrc, void *data)
 {
-	uint32_t status;
-	uint32_t rxcurr_addr;
-	struct lpass_dma_buffer *buffer = (struct lpass_dma_buffer *)data;
+	uint32_t status = 0;
+	uint32_t curr_addr;
+	struct lpass_irq_buffer *buffer = (struct lpass_irq_buffer *)data;
+	struct lpass_dma_buffer *rx_buffer = buffer->rx_buffer;
+	struct lpass_dma_buffer *tx_buffer = buffer->tx_buffer;
 
 	ipq_lpass_dma_read_interrupt_status(ipq_lpass_lpaif_base,
-						buffer->intr_id, &status);
-	status &= (0x38000);
+						INTERRUPT_CHANNEL0, &status);
+	while (status) {
+		if (status & (0x8000)) {
+			ipq_lpass_dma_get_curr_addr(ipq_lpass_lpaif_base,
+						rx_buffer->idx,
+						rx_buffer->dir,
+						&curr_addr);
 
-	if (status & (0x8000)) {
-		ipq_lpass_dma_get_curr_addr(ipq_lpass_lpaif_base,
-						buffer->idx,
-						buffer->dir,
-						&rxcurr_addr);
+			curr_addr = ipq_lpass_pcm_get_dataptr(rx_buffer,
+								curr_addr);
 
-		rxcurr_addr = ipq_lpass_pcm_get_dataptr(buffer, rxcurr_addr);
+			atomic_set(&rx_add, curr_addr);
+			atomic_set(&data_avail, 1);
+		} else if (status & (0x8)) {
+			ipq_lpass_dma_get_curr_addr(ipq_lpass_lpaif_base,
+						tx_buffer->idx,
+						tx_buffer->dir,
+						&curr_addr);
 
-		atomic_set(&rx_add, rxcurr_addr);
+			curr_addr = ipq_lpass_pcm_get_dataptr(tx_buffer,
+								curr_addr);
 
-		atomic_set(&data_avail, 1);
+			atomic_set(&tx_add, curr_addr);
+		}
+		wake_up_interruptible(&pcm_q);
+
+		ipq_lpass_dma_clear_interrupt(ipq_lpass_lpaif_base,
+					INTERRUPT_CHANNEL0, status);
+		status = 0;
+
+		ipq_lpass_dma_read_interrupt_status(ipq_lpass_lpaif_base,
+						INTERRUPT_CHANNEL0, &status);
 	}
-	wake_up_interruptible(&pcm_q);
-
-	ipq_lpass_dma_clear_interrupt(ipq_lpass_lpaif_base,
-					buffer->intr_id, status);
 	return IRQ_HANDLED;
 }
 
@@ -168,28 +157,15 @@ uint32_t ipq_lpass_pcm_validate_params(struct ipq_lpass_pcm_params *params,
 		return -EINVAL;
 	}
 
-	/* Bit width supported is 16 , 24 & 32 */
-	if (!((params->bit_width == 16) ||
-			(params->bit_width == 24) ||
-			(params->bit_width == 32))) {
+	if (!((params->bit_width == 8) ||
+		(params->bit_width == 16))) {
 		pr_err("%s: Invalid Bitwidth %d.\n",
 				__func__, params->bit_width);
 		return -EINVAL;
 	}
 
 	if ((PCM_SAMPLE_RATE_8K != params->rate)&&
-		(PCM_SAMPLE_RATE_16K != params->rate)&&
-		(PCM_SAMPLE_RATE_24K != params->rate)&&
-		(PCM_SAMPLE_RATE_32K != params->rate)&&
-		(PCM_SAMPLE_RATE_48K != params->rate)&&
-		(PCM_SAMPLE_RATE_96K != params->rate)&&
-		(PCM_SAMPLE_RATE_192K != params->rate)&&
-		(PCM_SAMPLE_RATE_384K != params->rate)&&
-		(PCM_SAMPLE_RATE_22_05K != params->rate)&&
-		(PCM_SAMPLE_RATE_44_1K != params->rate)&&
-		(PCM_SAMPLE_RATE_88_2K != params->rate)&&
-		(PCM_SAMPLE_RATE_176_4K != params->rate)&&
-		(PCM_SAMPLE_RATE_352_8K != params->rate)){
+		(PCM_SAMPLE_RATE_16K != params->rate)){
 		 pr_err("%s: Invalid PCM sampling rate %d.\n",
 			__func__, params->rate);
 		return -EINVAL;
@@ -231,52 +207,34 @@ uint32_t ipq_lpass_pcm_validate_params(struct ipq_lpass_pcm_params *params,
 	config->invert_sync = TDM_LONG_SYNC_NORMAL;
 	config->sync_delay = TDM_DATA_DELAY_0_CYCLE;
 
-	pr_info("PCM init bitwidth(%d) slot count (%d) slot mask (0x%x)\n",
-			params->bit_width, params->slot_count, slot_mask);
-
 	return 0;
-}
-
-static uint32_t ipq_lpass_get_watermark(struct lpass_dma_buffer *buffer)
-{
-	uint32_t water_mark = DEAFULT_PCM_WATERMARK;
-	uint32_t bytes_per_intr;
-	uint32_t dword_per_intr;
-
-	bytes_per_intr = buffer->bytes_per_channel *
-				buffer->int_samples_per_period *
-				buffer->num_channels;
-
-	dword_per_intr = bytes_per_intr >> 2;
-
-	if((DEAFULT_PCM_WATERMARK >= dword_per_intr) ||
-		(dword_per_intr & 0x3)  ){
-		water_mark = 1;
-	}
-
-	return water_mark;
 }
 
 static void ipq_lpass_dma_config_init(struct lpass_dma_buffer *buffer)
 {
-	uint32_t wps_count;
+	uint32_t wps_count = 0;
 	struct lpass_dma_config dma_config;
 
-	wps_count =
-		(buffer->num_channels * buffer->bytes_per_sample) >> 2;
-	if(0 == wps_count){
+	if (buffer->bit_width != 8)
+		wps_count = (buffer->num_channels *
+				buffer->bytes_per_sample) >> 2;
+	if (0 == wps_count){
 		wps_count = 1;
 	}
 
-	if(0 == (buffer->period_count_in_word32 &
-			PCM_DMA_BUFFER_16BYTE_ALIGNMENT)){
-		dma_config.burst_size = 16;
-	} else if(0 == (buffer->period_count_in_word32 &
-			PCM_DMA_BUFFER_8BYTE_ALIGNMENT)){
-		dma_config.burst_size = 8;
-	} else if(0 == (buffer->period_count_in_word32 &
-			PCM_DMA_BUFFER_4BYTE_ALIGNMENT)){
-		dma_config.burst_size = 4;
+	if (buffer->watermark != 1) {
+		if (0 == (buffer->period_count_in_word32 &
+				PCM_DMA_BUFFER_16BYTE_ALIGNMENT)){
+			dma_config.burst_size = 16;
+		} else if (0 == (buffer->period_count_in_word32 &
+				PCM_DMA_BUFFER_8BYTE_ALIGNMENT)){
+			dma_config.burst_size = 8;
+		} else if (0 == (buffer->period_count_in_word32 &
+				PCM_DMA_BUFFER_4BYTE_ALIGNMENT)){
+			dma_config.burst_size = 4;
+		} else {
+			dma_config.burst_size = 1;
+		}
 	} else {
 		dma_config.burst_size = 1;
 	}
@@ -285,10 +243,13 @@ static void ipq_lpass_dma_config_init(struct lpass_dma_buffer *buffer)
 	dma_config.buffer_start_addr = buffer->dma_base_address;
 	dma_config.dma_int_per_cnt = buffer->period_count_in_word32;
 	dma_config.wps_count = wps_count;
-	dma_config.watermark = DEAFULT_PCM_WATERMARK;
+	dma_config.watermark = buffer->watermark;
 	dma_config.ifconfig = buffer->ifconfig;
 	dma_config.idx = buffer->idx;
-	dma_config.burst8_en = 1;
+	if (dma_config.burst_size >= 8){
+		dma_config.burst8_en = 1;
+		dma_config.burst_size = 1;
+	}
 	dma_config.burst16_en = 0;
 	dma_config.dir =  buffer->dir;
 	dma_config.lpaif_base =  ipq_lpass_lpaif_base;
@@ -311,39 +272,44 @@ static void ipq_lpass_dma_enable(struct lpass_dma_buffer *buffer)
 						buffer->idx, buffer->intr_id);
 }
 
-static void ipq_lpass_prepare_dma_buffer(struct lpass_dma_buffer *dma_buffer)
+static uint32_t ipq_lpass_prepare_dma_buffer(uint32_t actual_buffer_size)
 {
-	uint32_t actual_buffer_size;
-	uint32_t frame;
+	uint32_t circular_buff_size;
+	uint32_t no_of_buff;
 
-	actual_buffer_size =  dma_buffer->int_samples_per_period *
-				dma_buffer->num_channels *
-				dma_buffer->bytes_per_sample;
+	no_of_buff = DEFAULT_PCM_DMA_BUFFERS;
+	circular_buff_size = no_of_buff * actual_buffer_size;
 
-/*
- * set buffer_per interrupt
- */
-	frame = LPASS_BUFFER_SIZE / actual_buffer_size;
-	dma_buffer->single_buf_size = LPASS_BUFFER_SIZE;
-	dma_buffer->frame = frame;
+	while ((circular_buff_size & PCM_DMA_BUFFER_16BYTE_ALIGNMENT) &&
+			(circular_buff_size < LPASS_DMA_BUFFER_SIZE)) {
+		no_of_buff <<= 1;
+		circular_buff_size = no_of_buff * actual_buffer_size;
+	}
 
-/*
- * set the period count in double words
- */
-	dma_buffer->period_count_in_word32 =
-				dma_buffer->single_buf_size / sizeof(uint32_t);
-/*
- * total buffer size for all DMA buffers
- */
-	dma_buffer->dma_buffer_size = LPASS_DMA_BUFFER_SIZE;
+	if ((circular_buff_size & PCM_DMA_BUFFER_16BYTE_ALIGNMENT) ||
+		circular_buff_size > LPASS_DMA_BUFFER_SIZE) {
+		circular_buff_size = 0;
+	}
+
+	return circular_buff_size;
 }
 
-static void ipq_lpass_fill_tx_data(uint32_t *p)
+static void ipq_lpass_fill_tx_data(uint32_t *tx_buff,
+					struct ipq_lpass_pcm_params *params)
 {
-	uint i,j = 0;
+	uint i,slot = 0;
 
-	for (i = 0; i < LPASS_DMA_BUFFER_SIZE / 4; ++i)
-		p[j++] = i;
+	slot = params->active_slot_count;
+	for (i = 0; i < LPASS_DMA_BUFFER_SIZE / 4; ) {
+		for (slot = 0; slot < params->active_slot_count; slot++) {
+			if (params->bit_width == 16) {
+				tx_buff[i] = params->tx_slots[slot] << 16;
+			} else {
+				tx_buff[i] = params->tx_slots[slot] << 8;
+			}
+			i++;
+		}
+	}
 }
 
 static void __iomem *ipq_lpass_phy_virt_lpm(uint32_t phy_addr)
@@ -387,6 +353,11 @@ int ipq_pcm_init(struct ipq_lpass_pcm_params *params)
 	uint32_t temp_lpm_base;
 	uint32_t int_samples_per_period;
 	uint32_t bytes_per_sample;
+	uint32_t samples_per_interrupt;
+	uint32_t circular_buffer;
+	uint32_t bytes_per_sample_intr;
+	uint32_t dword_per_sample_intr;
+	uint32_t watermark = DEAFULT_PCM_WATERMARK;
 
 	if ((rx_dma_buffer == NULL ) || (tx_dma_buffer == NULL))
 		return -EPERM;
@@ -398,51 +369,94 @@ int ipq_pcm_init(struct ipq_lpass_pcm_params *params)
 	memset(rx_dma_buffer, 0, sizeof(*rx_dma_buffer));
 	memset(tx_dma_buffer, 0, sizeof(*tx_dma_buffer));
 	atomic_set(&data_avail, 0);
-	atomic_set(&tx_add, 0);
-	atomic_set(&rx_add, 0);
 
 	pcm_params = params;
 	temp_lpm_base = IPQ_LPASS_LPM_BASE;
+
 	int_samples_per_period = params->rate / 1000;
 	bytes_per_sample = BYTES_PER_CHANNEL(params->bit_width);
+	samples_per_interrupt = IPQ_LPASS_PCM_SAMPLES(int_samples_per_period,
+					params->active_slot_count,
+					bytes_per_sample);
+	circular_buffer = ipq_lpass_prepare_dma_buffer(samples_per_interrupt);
+	if (circular_buffer == 0) {
+		pr_err("%s: Error at circular buffer init %d.\n",
+				__func__, params->bit_width);
+		return -ENOMEM;
+	}
+
 	clk_rate = params->bit_width * params->rate * params->slot_count;
 	ret = ipq_lpass_setup_bit_clock(clk_rate);
 	if (ret)
 		return ret;
+
+	bytes_per_sample_intr = int_samples_per_period * bytes_per_sample *
+					params->active_slot_count;
+
+	dword_per_sample_intr = bytes_per_sample_intr >> 2;
+
+	if((DEAFULT_PCM_WATERMARK >= dword_per_sample_intr) ||
+		(dword_per_sample_intr & 0x3)  ){
+		watermark = 1;
+	}
+
 /*
  * DMA Rx buffer
  */
 	rx_dma_buffer->idx = DMA_CHANNEL0;
 	rx_dma_buffer->dir = LPASS_HW_DMA_SOURCE;
 	rx_dma_buffer->bytes_per_sample = bytes_per_sample;
+	rx_dma_buffer->bit_width = params->bit_width;
 	rx_dma_buffer->int_samples_per_period = int_samples_per_period;
 	rx_dma_buffer->num_channels = params->active_slot_count;
-	ipq_lpass_prepare_dma_buffer(rx_dma_buffer);
+	rx_dma_buffer->single_buf_size = samples_per_interrupt;
+/*
+ * set the period count in double words
+ */
+	rx_dma_buffer->period_count_in_word32 =
+			rx_dma_buffer->single_buf_size / sizeof(uint32_t);
+/*
+ * total buffer size for all DMA buffers
+ */
+	rx_dma_buffer->dma_buffer_size = circular_buffer;
 	rx_dma_buffer->dma_base_address = temp_lpm_base;
 	rx_dma_buffer->dma_last_curr_addr = temp_lpm_base;
 	rx_dma_buffer->size_done = 0;
-	rx_dma_buffer->watermark = ipq_lpass_get_watermark(rx_dma_buffer);
+	rx_dma_buffer->watermark = watermark;
 	rx_dma_buffer->ifconfig = INTERFACE_PRIMARY;
 	rx_dma_buffer->intr_id = INTERRUPT_CHANNEL0;
 	temp_lpm_base += LPASS_DMA_BUFFER_SIZE;
+	atomic_set(&rx_add, rx_dma_buffer->dma_base_address);
 /*
  * DMA Tx buffer
  */
 	tx_dma_buffer->idx = DMA_CHANNEL1;
 	tx_dma_buffer->dir = LPASS_HW_DMA_SINK;
 	tx_dma_buffer->bytes_per_sample = bytes_per_sample;
+	tx_dma_buffer->bit_width = params->bit_width;
 	tx_dma_buffer->int_samples_per_period = int_samples_per_period;
 	tx_dma_buffer->num_channels = params->active_slot_count;
-	ipq_lpass_prepare_dma_buffer(tx_dma_buffer);
+	tx_dma_buffer->single_buf_size = samples_per_interrupt;
+/*
+ * set the period count in double words
+ */
+	tx_dma_buffer->period_count_in_word32 =
+			tx_dma_buffer->single_buf_size / sizeof(uint32_t);
+/*
+ * total buffer size for all DMA buffers
+ */
+	tx_dma_buffer->dma_buffer_size = circular_buffer;
 	tx_dma_buffer->dma_base_address = temp_lpm_base;
 	tx_dma_buffer->dma_last_curr_addr = temp_lpm_base;
 	tx_dma_buffer->size_done = 0;
-	tx_dma_buffer->watermark = ipq_lpass_get_watermark(tx_dma_buffer);
+	tx_dma_buffer->watermark = watermark;
 	tx_dma_buffer->ifconfig = INTERFACE_SECONDARY;
-	tx_dma_buffer->intr_id = INTERRUPT_CHANNEL1;
+	tx_dma_buffer->intr_id = INTERRUPT_CHANNEL0;
+	atomic_set(&tx_add, temp_lpm_base);
 
 	ipq_lpass_fill_tx_data((uint32_t *)ipq_lpass_phy_virt_lpm(
-					tx_dma_buffer->dma_base_address));
+					tx_dma_buffer->dma_base_address),
+					params);
 /*
  * TDM/PCM , Primary PCM support only RX mode
  * Secondary PCM support only TX mode
@@ -511,8 +525,8 @@ uint32_t ipq_pcm_data(uint8_t **rx_buf, uint8_t **tx_buf)
 	spin_lock_irqsave(&pcm_lock, flag);
 	*rx_buf = (uint8_t *)ipq_lpass_phy_virt_lpm(rxcurr_addr);
 	*tx_buf = (uint8_t *)ipq_lpass_phy_virt_lpm(txcurr_addr);
+	size = rx_dma_buffer->single_buf_size;
 	spin_unlock_irqrestore(&pcm_lock, flag);
-	size = rx_dma_buffer->size_done;
 
 	return size;
 }
@@ -581,10 +595,13 @@ static const struct of_device_id qca_raw_match_table[] = {
  */
 static int ipq_lpass_pcm_driver_probe(struct platform_device *pdev)
 {
-	uint32_t tx_irq;
-	uint32_t rx_irq;
+	uint32_t irq;
 	struct resource *res;
 	const struct of_device_id *match;
+#ifdef IPQ_PCM_SLIC_ENABLE
+	uint32_t slic_reset;
+#endif
+	struct lpass_irq_buffer *irq_buffer;
 	int ret;
 
 	match = of_match_device(qca_raw_match_table, &pdev->dev);
@@ -625,49 +642,66 @@ static int ipq_lpass_pcm_driver_probe(struct platform_device *pdev)
 		kfree(rx_dma_buffer);
 		return -ENOMEM;
 	}
+
+	irq_buffer = kzalloc(sizeof(struct lpass_irq_buffer), GFP_KERNEL);
+	if (irq_buffer == NULL) {
+		pr_err("%s: Error in allocating mem for irq_buffer\n",
+				__func__);
+		kfree(rx_dma_buffer);
+		kfree(tx_dma_buffer);
+		return -ENOMEM;
+	}
+
+	irq_buffer->rx_buffer = rx_dma_buffer;
+	irq_buffer->tx_buffer = tx_dma_buffer;
+	platform_set_drvdata(pdev, irq_buffer);
+
 /*
  * Set interrupt
  */
-	tx_irq = platform_get_irq_byname(pdev, "tx");
-	if (tx_irq < 0) {
-		dev_err(&pdev->dev, "Failed to get tx_irq by name (%d)\n",
-				tx_irq);
+	irq = platform_get_irq_byname(pdev, "out0");
+	if (irq < 0) {
+		dev_err(&pdev->dev, "Failed to get irq by name (%d)\n",
+				irq);
 	} else {
 		ret = devm_request_irq(&pdev->dev,
-					tx_irq,
-					ipq_lpass_pcm_playback_handler,
+					irq,
+					ipq_lpass_pcm_irq_handler,
 					0,
-					"ipq-lpass_tx",
-					tx_dma_buffer);
+					"ipq-lpass",
+					irq_buffer);
 		if (ret) {
 			dev_err(&pdev->dev,
-				"request_irq(tx) failed with ret: %d\n", ret);
+				"request_irq failed with ret: %d\n", ret);
 		return ret;
 		}
 	}
-
-	rx_irq = platform_get_irq_byname(pdev, "rx");
-	if (rx_irq < 0) {
-		dev_err(&pdev->dev, "Failed to get rx_irq by name (%d)\n",
-				rx_irq);
-	} else {
-		ret = devm_request_irq(&pdev->dev,
-					rx_irq,
-					ipq_lpass_pcm_capture_handler,
-					0,
-					"ipq-lpass_rx",
-					rx_dma_buffer);
-		if (ret) {
-			dev_err(&pdev->dev,
-				"request_irq(rx) failed with ret: %d\n", ret);
-		return ret;
-		}
-	}
+#ifdef IPQ_PCM_SLIC_ENABLE
 /*
  * setup default bit clock to 2.048MHZ
  */
 	ipq_lpass_setup_bit_clock(DEFAULT_CLK_RATE);
 
+	slic_reset = of_get_named_gpio(pdev->dev.of_node,
+						"slic-reset-gpio", 0);
+	if (slic_reset > 0) {
+		ret = gpio_request(slic_reset, "slic-reset-gpio");
+		if (ret) {
+			dev_err(&pdev->dev,
+				"Can't get slic-reset-gpio %d\n", ret);
+		} else {
+			ret = gpio_direction_output(slic_reset, 0x0);
+			if (ret) {
+				dev_err(&pdev->dev,
+					"Can't set direction for "
+					"slic-reset-gpio %d\n", ret);
+				gpio_free(slic_reset);
+			} else {
+				gpio_set_value(slic_reset, 0x02);
+			}
+		}
+	}
+#endif
 	spin_lock_init(&pcm_lock);
 
 	return 0;
@@ -682,6 +716,7 @@ static int ipq_lpass_pcm_driver_probe(struct platform_device *pdev)
  */
 static int ipq_lpass_pcm_driver_remove(struct platform_device *pdev)
 {
+	struct lpass_irq_buffer *resource = platform_get_drvdata(pdev);
 
 	ipq_pcm_deinit(pcm_params);
 
@@ -690,6 +725,9 @@ static int ipq_lpass_pcm_driver_remove(struct platform_device *pdev)
 
 	if (tx_dma_buffer)
 		kfree(tx_dma_buffer);
+
+	if (resource)
+		kfree(resource);
 
 	return 0;
 }
