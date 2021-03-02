@@ -21,6 +21,8 @@
 
 #define ODEBUG_CHUNK_SHIFT	PAGE_SHIFT
 
+int debug_mem_usage_enabled = 1;
+
 struct debug_bucket {
 	struct hlist_head	list;
 	raw_spinlock_t		lock;
@@ -29,6 +31,14 @@ struct debug_bucket {
 static struct debug_bucket	mem_trace_hash[ODEBUG_HASH_SIZE];
 
 static struct kmem_cache	*obj_trace_cache;
+
+static int __init disable_mem_usage_debug(char *str)
+{
+	debug_mem_usage_enabled = 0;
+	return 0;
+}
+
+early_param("skip_mem_usage_tracking", disable_mem_usage_debug);
 
 static struct debug_obj_trace *lookup_object_with_trace(void *addr,
 					struct debug_bucket *b)
@@ -120,6 +130,9 @@ out_unlock:
 void __init debug_mem_usage_init(void)
 {
 	int i;
+
+	if (!debug_mem_usage_enabled)
+		return;
 
 	obj_trace_cache = kmem_cache_create("obj_trace_cache",
 		sizeof(struct debug_obj_trace), 0, 0, NULL);
