@@ -1579,6 +1579,7 @@ static void qcom_slot_remove(int val)
 static void qcom_slot_rescan(int val)
 {
 
+	int ret;
 	struct pcie_port *pp;
 	pci_lock_rescan_remove();
 
@@ -1587,9 +1588,10 @@ static void qcom_slot_rescan(int val)
 			if (qcom_pcie_dev[val]->enumerated) {
 				pr_notice("PCIe: RC%d already enumerated", val);
 			} else {
-				pp = &qcom_pcie_dev[val]->pp;
-				dw_pcie_host_init_pm(pp);
-				qcom_pcie_dev[val]->enumerated = true;
+					pp = &qcom_pcie_dev[val]->pp;
+					ret = dw_pcie_host_init_pm(pp);
+					if (!ret)
+						qcom_pcie_dev[val]->enumerated = true;
 			}
 		}
 	}
