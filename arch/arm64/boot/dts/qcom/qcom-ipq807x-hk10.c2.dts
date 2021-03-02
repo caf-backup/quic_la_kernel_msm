@@ -1052,9 +1052,9 @@
 
 #if !defined(__CNSS2__)
 		base-addr = <0x4B000000>;
-		m3-dump-addr = <0x4DD00000>;
-		etr-addr = <0x4DE00000>;
-		qcom,caldb-addr = <0x4DF00000>;
+		m3-dump-addr = <0x4BF00000>;
+		etr-addr = <0x4C000000>;
+		qcom,caldb-addr = <0x4C100000>;
 		qrtr_node_id = <0x20>;
 		mhi,max-channels = <30>;
 		mhi,timeout = <10000>;
@@ -1081,9 +1081,9 @@
 
 #if !defined(__CNSS2__)
 		base-addr = <0x4E700000>;
-		m3-dump-addr = <0x51400000>;
-		etr-addr = <0x51500000>;
-		qcom,caldb-addr = <0x51600000>;
+		m3-dump-addr = <0x4F600000>;
+		etr-addr = <0x4F700000>;
+		qcom,caldb-addr = <0x4F800000>;
 		qrtr_node_id = <0x21>;
 		mhi,max-channels = <30>;
 		mhi,timeout = <10000>;
