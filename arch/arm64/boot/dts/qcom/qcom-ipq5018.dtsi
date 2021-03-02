@@ -1332,9 +1332,8 @@
 		pcm: pcm@0xA3C0000{
 			compatible = "qca,ipq5018-lpass-pcm";
 			reg =  <0xA3C0000 0x23014>;
-			interrupts = <0 27 IRQ_TYPE_LEVEL_HIGH>,
-					<0 28 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "rx", "tx";
+			interrupts = <0 27 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "out0";
 			status = "disabled";
 		};
 

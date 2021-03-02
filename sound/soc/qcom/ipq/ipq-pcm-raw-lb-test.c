@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2013,2015-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2013,2015-2016,2021 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -79,7 +79,6 @@ static void ipq5018_pcm_fill_data(uint32_t *tx_buff, uint32_t size);
 struct pcm_lb_test_ctx {
 	uint32_t failed;
 	uint32_t passed;
-	uint32_t *rx_buf;
 	uint8_t *last_rx_buff;
 	int running;
 	uint16_t tx_data;
@@ -138,7 +137,6 @@ uint32_t pcm_read_write(void)
 	size = ipq_pcm_data(&rx_buff, &tx_buff);
 	prev_buf = ctx.last_rx_buff;
 	ctx.last_rx_buff = rx_buff;
-	ctx.rx_buf = (uint32_t *)rx_buff;
 
 	if (IS_PCM_LBTEST_RX_TO_TX(start)) {
 		/* Redirect Rx data to Tx */
@@ -301,25 +299,17 @@ void process_read(uint32_t size)
 		 * our loopback should have settled, so start looking for the
 		 * sequence from here. we check only for the data, not for slot
 		 */
-		if (ipq_hw == IPQ5018) {
-			ctx.expected_rx_seq = ((uint32_t *)ctx.rx_buf)[0]
-								& 0xFFFF;
-		} else {
-			if (cfg_params.bit_width == 16 || ipq_hw == IPQ4019)
+			if (cfg_params.bit_width == 16 ||
+				ipq_hw == IPQ4019 || ipq_hw == IPQ5018)
 				ctx.expected_rx_seq = ((uint32_t *)ctx.last_rx_buff)[0]
 								& 0xFFFF;
 			else
 				ctx.expected_rx_seq = ((uint16_t *)ctx.last_rx_buff)[0]
 								& 0xFF;
 		}
-	}
 
-	if (ipq_hw == IPQ5018) {
-		data_u32 = ctx.rx_buf;
-	} else {
-		data_u32 = (uint32_t *)ctx.last_rx_buff;
-		data_u16 = (uint16_t *)ctx.last_rx_buff;
-	}
+	data_u32 = (uint32_t *)ctx.last_rx_buff;
+	data_u16 = (uint16_t *)ctx.last_rx_buff;
 	val = ctx.expected_rx_seq;
 
 	if (cfg_params.bit_width == 16 || ipq_hw == IPQ4019 || ipq_hw == IPQ5018)
@@ -328,12 +318,12 @@ void process_read(uint32_t size)
 		size = size / 2;
 
 	for (index = 0; index < size; index++) {
-		if (cfg_params.bit_width == 16 || ipq_hw == IPQ5018) {
+		if (cfg_params.bit_width == 16) {
 			expected_val = val;
 			rec_val = data_u32[index] & (0xFFFF);
 		} else {
 			expected_val = val % 256;
-			if (ipq_hw == IPQ4019)
+			if (ipq_hw == IPQ4019 || ipq_hw == IPQ5018)
 				rec_val = data_u32[index] & (0xFF);
 			else
 				rec_val = data_u16[index] & (0xFF);
@@ -446,10 +436,20 @@ static void ipq5018_pcm_fill_data(uint32_t *tx_buff, uint32_t size)
 	if (ctx.running == 0)
 		return;
 
-	for (i = 0; i < size;) {
-		tx_buff[i] = ctx.tx_data++;
-		++i;
-		slot = slot;
+	slot = cfg_params.active_slot_count;
+	for (i = 0; i < size; ) {
+		for (slot = 0; slot < cfg_params.active_slot_count; slot++) {
+			if (cfg_params.bit_width == 16) {
+				tx_buff[i] = ctx.tx_data;
+				tx_buff[i] |= cfg_params.tx_slots[slot] << 16;
+			} else {
+				tx_buff[i] = ctx.tx_data % 256;
+				tx_buff[i] |= cfg_params.tx_slots[slot] << 8;
+				tx_buff[i] |= 1 << 15; /* valid bit */
+			}
+			ctx.tx_data++;
+			i++;
+		}
 	}
 }
 
