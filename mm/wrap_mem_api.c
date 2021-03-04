@@ -122,6 +122,34 @@ void *__wrap_devm_kmalloc_array(struct device *dev, size_t n,
 }
 EXPORT_SYMBOL(__wrap_devm_kmalloc_array);
 
+void *__wrap___kmalloc_node(size_t size, gfp_t flags, int node)
+{
+	void *stack[9] = {0};
+	void *addr = (void *)__kmalloc_node(size, flags, node);
+
+	if (addr) {
+		get_stacktrace(stack);
+		debug_object_trace_init(addr, stack, size);
+	}
+
+	return addr;
+}
+EXPORT_SYMBOL(__wrap___kmalloc_node);
+
+void *__wrap_kmalloc_node(size_t size, gfp_t flags, int node)
+{
+	void *stack[9] = {0};
+	void *addr = (void *)kmalloc_node(size, flags, node);
+
+	if (addr) {
+		get_stacktrace(stack);
+		debug_object_trace_init(addr, stack, size);
+	}
+
+	return addr;
+}
+EXPORT_SYMBOL(__wrap_kmalloc_node);
+
 void *__wrap_devm_kcalloc(struct device *dev, size_t n,
 				size_t size, gfp_t gfp)
 {
@@ -189,6 +217,22 @@ void __wrap_devm_free_pages(struct device *dev, unsigned long addr)
 }
 EXPORT_SYMBOL_GPL(__wrap_devm_free_pages);
 
+struct page *__wrap___alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+			struct zonelist *zonelist, nodemask_t *nodemask)
+{
+	void *stack[9] = {0};
+	struct page *page = __alloc_pages_nodemask(gfp_mask, order, zonelist, nodemask);
+
+	if (page) {
+		get_stacktrace(stack);
+		debug_object_trace_init(page_address(page), stack,
+					(1 << order) * PAGE_SIZE);
+	}
+
+	return page;
+}
+EXPORT_SYMBOL(__wrap___alloc_pages_nodemask);
+
 struct page *__wrap_alloc_pages(gfp_t gfp_mask,
 			unsigned int order)
 {
@@ -249,6 +293,7 @@ unsigned long __wrap_get_zeroed_page(gfp_t gfp_mask)
 }
 EXPORT_SYMBOL(__wrap_get_zeroed_page);
 
+/*dma_alloc_from_coherent*/
 void *__wrap_dma_alloc_coherent(struct device *dev, size_t size,
 			dma_addr_t *handle, gfp_t gfp)
 {
@@ -290,6 +335,46 @@ void *__wrap_kmem_cache_alloc(struct kmem_cache *s, gfp_t gfpflags)
 	return addr;
 }
 EXPORT_SYMBOL(__wrap_kmem_cache_alloc);
+
+void *__wrap_kmem_cache_alloc_node(struct kmem_cache *s, gfp_t gfpflags, int node)
+{
+	void *stack[9] = {0};
+	void *addr = (void *)kmem_cache_alloc_node(s, gfpflags, node);
+
+	if (addr) {
+		get_stacktrace(stack);
+		debug_object_trace_init(addr, stack, s->size);
+	}
+
+	return addr;
+}
+EXPORT_SYMBOL(__wrap_kmem_cache_alloc_node);
+
+void *__wrap_kmem_cache_alloc_node_trace(struct kmem_cache *s, gfp_t gfpflags, int node, size_t size)
+{
+	void *stack[9] = {0};
+	void *addr = (void *)kmem_cache_alloc_node_trace(s, gfpflags, node, size);
+	if (addr) {
+		get_stacktrace(stack);
+		debug_object_trace_init(addr, stack, s->size);
+	}
+
+	return addr;
+}
+EXPORT_SYMBOL(__wrap_kmem_cache_alloc_node_trace);
+
+void *__wrap_kmem_cache_alloc_trace(struct kmem_cache *s, gfp_t gfpflags, size_t size)
+{
+	void *stack[9] = {0};
+	void *addr = (void *)kmem_cache_alloc_trace(s, gfpflags, size);
+	if (addr) {
+		get_stacktrace(stack);
+		debug_object_trace_init(addr, stack, s->size);
+	}
+
+	return addr;
+}
+EXPORT_SYMBOL(__wrap_kmem_cache_alloc_trace);
 
 void __wrap_kmem_cache_free(struct kmem_cache *s, void *x)
 {
@@ -386,6 +471,20 @@ void *__wrap_kmalloc_order(size_t size, gfp_t flags, unsigned int order)
 }
 EXPORT_SYMBOL(__wrap_kmalloc_order);
 
+void *__wrap_kmalloc_order_trace(size_t size, gfp_t flags, unsigned int order)
+{
+	void *stack[9] = {0};
+	void *addr = kmalloc_order_trace(size, flags, order);
+
+	if (addr) {
+		get_stacktrace(stack);
+		debug_object_trace_init(addr, stack, (1 << order) * PAGE_SIZE);
+	}
+
+	return addr;
+}
+EXPORT_SYMBOL(__wrap_kmalloc_order_trace);
+
 void *__wrap_dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
 			dma_addr_t *handle)
 {
@@ -436,6 +535,15 @@ void __wrap_mempool_free(void *element, mempool_t *pool)
 	return;
 }
 EXPORT_SYMBOL(__wrap_mempool_free);
+
+void __wrap_free_pages(unsigned long addr, unsigned int order)
+{
+	debug_object_trace_free((void *)addr);
+	free_pages(addr, order);
+
+	return;
+}
+EXPORT_SYMBOL(__wrap_free_pages);
 
 void __wrap___free_pages(struct page *page, unsigned int order)
 {
