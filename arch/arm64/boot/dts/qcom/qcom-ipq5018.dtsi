@@ -53,6 +53,19 @@
 			interrupt-controller;
 			#interrupt-cells = <0x3>;
 			reg = <0xb000000 0x1000>, <0xb002000 0x1000>;
+			ranges = <0x0 0xb00a000 0x1ffa>;
+
+			v2m0: v2m@0 {
+				compatible = "arm,gic-v2m-frame";
+				msi-controller;
+				reg = <0x0 0xffd>;
+			};
+
+			v2m1: v2m@1000 {
+				compatible = "arm,gic-v2m-frame";
+				msi-controller;
+				reg = <0x1000 0xffd>;
+			};
 		};
 
 		timer {
