@@ -522,7 +522,6 @@ struct cnss_plat_data {
 	u64 target_assert_timestamp;
 	u8 target_asserted;
 	u32 daemon_support;
-	u32 daemon_ready;
 	u32 cold_boot_support;
 	u32 caldata_support;
 	u32 eeprom_caldata_read_timeout;

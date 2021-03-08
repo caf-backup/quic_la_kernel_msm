@@ -101,12 +101,6 @@ static int cold_boot_cal_timeout = 60;
 module_param(cold_boot_cal_timeout, int, 0644);
 MODULE_PARM_DESC(cold_boot_cal_timeout, "Cold boot cal timeout in seconds");
 
-#define DAEMON_READY_DELAY 100  /* in msecs */
-#define DAEMON_READY_DELAY_PRINT 2  /* in secs */
-static int daemon_ready_timeout = 10;
-module_param(daemon_ready_timeout, int, 0644);
-MODULE_PARM_DESC(daemon_ready_timeout, "cnss-daemon ready timeout in seconds");
-
 static int soc_version_major;
 module_param(soc_version_major, int, 0444);
 MODULE_PARM_DESC(soc_version_major, "SOC Major Version");
@@ -1386,39 +1380,6 @@ void *cnss_register_qca8074_cb(struct cnss_plat_data *plat_priv)
 	return ss_handle;
 }
 
-int cnss_wait_for_daemon_ready(struct cnss_plat_data *plat_priv)
-{
-	int count = 0;
-
-	if (!plat_priv)
-		return -ENODEV;
-
-	if (!plat_priv->daemon_support) {
-		cnss_pr_info("No daemon_support for %s\n",
-			     plat_priv->device_name);
-		return 0;
-	}
-
-	while (!plat_priv->daemon_ready) {
-		msleep(DAEMON_READY_DELAY);
-		if (count++ > daemon_ready_timeout * 10) {
-			cnss_pr_err("Timed out waiting for cnss-daemon %d seconds\n",
-				    daemon_ready_timeout);
-			CNSS_ASSERT(0);
-			return -ETIMEDOUT;
-		}
-
-		/* Print an info log that we are waiting for every 2 seconds */
-		if (!(count % (DAEMON_READY_DELAY_PRINT * 10)))
-			cnss_pr_info("Waiting for cnss-daemon for %s\n",
-				     plat_priv->device_name);
-	}
-
-	cnss_pr_info("cnss-daemon is ready for %s\n",
-		     plat_priv->device_name);
-	return 0;
-}
-
 int cnss_wlan_register_driver(struct cnss_wlan_driver *driver_ops)
 {
 	int ret, i;
@@ -1439,9 +1400,6 @@ int cnss_wlan_register_driver(struct cnss_wlan_driver *driver_ops)
 				     plat_priv->device_id, driver_mode);
 			continue;
 		}
-
-		if (cnss_wait_for_daemon_ready(plat_priv))
-			continue;
 
 		if ((plat_priv->device_id == QCA8074_DEVICE_ID ||
 		     plat_priv->device_id == QCA8074V2_DEVICE_ID ||
@@ -1644,10 +1602,6 @@ void  *cnss_subsystem_get(struct device *dev, int device_id)
 		       __func__, subsys_info->subsys_handle);
 		return NULL;
 	}
-
-	if (cnss_wait_for_daemon_ready(plat_priv))
-		return NULL;
-
 	subsys_info->subsys_handle =
 				subsystem_get(subsys_info->subsys_desc.name);
 	return subsys_info->subsys_handle;
@@ -3464,9 +3418,9 @@ void cnss_update_platform_feature_support(u8 type, u32 instance_id, u32 value)
 		cnss_pr_info("Setting cold_boot_support=%d for instance_id 0x%x\n",
 			     value, instance_id);
 		break;
-	case CNSS_GENL_MSG_TYPE_DAEMON_READY:
-		plat_priv->daemon_ready = value;
-		cnss_pr_info("Setting daemon_ready=%d for instance_id 0x%x\n",
+	case CNSS_GENL_MSG_TYPE_CALDATA_SUPPORT:
+		plat_priv->caldata_support = value;
+		cnss_pr_info("Setting caldata_support=%d for instance_id 0x%x\n",
 			     value, instance_id);
 		break;
 	default:
