@@ -21,6 +21,7 @@
 #include <linux/delay.h>
 #include <sound/soc.h>
 #include <linux/of_device.h>
+#include <linux/irq.h>
 
 #include "ipq-mbox.h"
 
@@ -845,6 +846,7 @@ static int ipq_mbox_probe(struct platform_device *pdev)
 	if (!mbox_rtime[id])
 		return -ENOMEM;
 
+	irq_set_status_flags(irq, IRQ_DISABLE_UNLAZY);
 	rc = devm_request_irq(&pdev->dev, irq, ipq_mbox_dma_irq, 0,
 				"ipq-mbox", mbox_rtime[id]);
 	if (rc) {
