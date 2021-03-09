@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
  */
 
 #ifndef _RMNET_QMI_I_H
@@ -61,6 +61,7 @@ struct rmnet_flow_map {
 	int ip_type;
 	u32 mq_idx;
 	struct rmnet_bearer_map *bearer;
+	struct list_head filter_head;
 };
 
 struct svc_info {
@@ -84,6 +85,8 @@ struct qos_info {
 	u32 tran_num;
 	spinlock_t qos_lock;
 	struct rmnet_bearer_map *removed_bearer;
+	struct list_head filter_head;
+	u32 num_filters;
 };
 
 struct qmi_info {
@@ -97,6 +100,49 @@ struct qmi_info {
 	bool ps_enabled;
 	bool dl_msg_active;
 	bool ps_ignore_grant;
+};
+
+#define QOS_FILTER_MASK_SADDR 0x1
+#define QOS_FILTER_MASK_DADDR 0x2
+#define QOS_FILTER_MASK_SPORT 0x4
+#define QOS_FILTER_MASK_DPORT 0x8
+#define QOS_FILTER_MASK_PROTO 0x10
+#define QOS_FILTER_MASK_TOS   0x20
+
+struct dissect_info {
+	__be32 *saddr;
+	__be32 *daddr;
+	u16 sport;
+	u16 dport;
+	u8 ver;
+	u8 proto;
+	u8 tos;
+	u8 is_frag;
+};
+
+struct qos_filter {
+	__be32 saddr[4];
+	__be32 smask[4];
+	__be32 daddr[4];
+	__be32 dmask[4];
+	u16 sport;
+	u16 sport_range;
+	u16 dport;
+	u16 dport_range;
+	u16 precedence;
+	u8 tos;
+	u8 tos_mask;
+	u8 proto;
+	u8 filter_mask;
+	u8 pad1;
+	u8 pad2;
+};
+
+struct dfc_filter {
+	struct list_head sorted_list;
+	struct list_head flow_list;
+	struct rmnet_flow_map *flow;
+	struct qos_filter filter;
 };
 
 enum data_ep_type_enum_v01 {

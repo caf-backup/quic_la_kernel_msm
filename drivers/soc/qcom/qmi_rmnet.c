@@ -9,10 +9,12 @@
 #include <linux/rtnetlink.h>
 #include <uapi/linux/rtnetlink.h>
 #include <net/pkt_sched.h>
+#include <net/tcp.h>
 #include "qmi_rmnet_i.h"
 #include <trace/events/dfc.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <net/ipv6.h>
 #include <linux/alarmtimer.h>
 
 #define NLMSG_FLOW_ACTIVATE 1
@@ -21,6 +23,8 @@
 #define NLMSG_CLIENT_DELETE 5
 #define NLMSG_SCALE_FACTOR 6
 #define NLMSG_WQ_FREQUENCY 7
+#define NLMSG_FILTER_ADD 10
+#define NLMSG_FILTER_REMOVE 11
 
 #define FLAG_DFC_MASK 0x000F
 #define FLAG_POWERSAVE_MASK 0x0010
@@ -135,6 +139,7 @@ qmi_rmnet_clean_flow_list(struct qos_info *qos)
 {
 	struct rmnet_bearer_map *bearer, *br_tmp;
 	struct rmnet_flow_map *itm, *fl_tmp;
+	struct dfc_filter *dfilter, *f_tmp;
 
 	ASSERT_RTNL();
 
@@ -148,6 +153,13 @@ qmi_rmnet_clean_flow_list(struct qos_info *qos)
 		kfree(bearer);
 	}
 
+	list_for_each_entry_safe(dfilter, f_tmp, &qos->filter_head,
+				 sorted_list) {
+		list_del(&dfilter->sorted_list);
+		kfree(dfilter);
+	}
+
+	qos->num_filters = 0;
 	memset(qos->mq, 0, sizeof(qos->mq));
 }
 
@@ -424,6 +436,20 @@ static int __qmi_rmnet_rebind_flow(struct net_device *dev,
 	return 0;
 }
 
+static void __qmi_rmnet_remove_filters(struct qos_info *qos,
+				       struct rmnet_flow_map *flow)
+{
+	struct dfc_filter *dfilter, *tmp;
+
+	list_for_each_entry_safe(dfilter, tmp, &flow->filter_head, flow_list) {
+		list_del(&dfilter->flow_list);
+		list_del(&dfilter->sorted_list);
+		kfree(dfilter);
+		if (likely(qos->num_filters))
+			qos->num_filters--;
+	}
+}
+
 static int qmi_rmnet_add_flow(struct net_device *dev, struct tcmsg *tcm,
 			      struct qmi_info *qmi)
 {
@@ -479,6 +505,7 @@ again:
 		spin_unlock_bh(&qos_info->qos_lock);
 		return -ENOMEM;
 	}
+	INIT_LIST_HEAD(&itm->filter_head);
 
 	qmi_rmnet_update_flow_map(itm, &new_map);
 	list_add(&itm->list, &qos_info->flow_head);
@@ -533,6 +560,9 @@ qmi_rmnet_del_flow(struct net_device *dev, struct tcmsg *tcm,
 
 		__qmi_rmnet_bearer_put(dev, qos_info, itm->bearer, true);
 
+		/* Remove filters associated with the flow */
+		__qmi_rmnet_remove_filters(qos_info, itm);
+
 		/* Remove from flow map */
 		list_del(&itm->list);
 		kfree(itm);
@@ -571,6 +601,96 @@ struct rmnet_bearer_map *qmi_rmnet_get_bearer_noref(struct qos_info *qos_info,
 	return bearer;
 }
 
+static void qmi_rmnet_add_filter(struct net_device *dev,
+				 struct tcmsg *tcm, int attrlen)
+{
+	struct qos_info *qos = (struct qos_info *)rmnet_get_qos_pt(dev);
+	struct rmnet_flow_map *flow;
+	struct qos_filter *filter;
+	struct dfc_filter *dfilter, *entry;
+	bool added = false;
+	int i;
+
+	if (!qos || !tcm ||
+	    attrlen - sizeof(*tcm) != sizeof(struct qos_filter))
+		return;
+
+	dfilter = kzalloc(sizeof(struct dfc_filter), GFP_KERNEL);
+	if (!dfilter)
+		return;
+
+	filter = (struct qos_filter *)((u8 *)tcm + sizeof(*tcm));
+	memcpy(&dfilter->filter, filter, sizeof(struct qos_filter));
+
+	for (i = 0; i < 4; i++)
+		dfilter->filter.saddr[i] &= dfilter->filter.smask[i];
+	for (i = 0; i < 4; i++)
+		dfilter->filter.daddr[i] &= dfilter->filter.dmask[i];
+
+	dfilter->filter.tos &= dfilter->filter.tos_mask;
+
+	dfilter->filter.sport_range =
+		dfilter->filter.sport + dfilter->filter.sport_range;
+	dfilter->filter.dport_range =
+		dfilter->filter.dport + dfilter->filter.dport_range;
+
+	spin_lock_bh(&qos->qos_lock);
+
+	/* tcm->tcm_parent - flow_id,
+	 * tcm->tcm_ifindex - ip_type
+	 */
+
+	flow = qmi_rmnet_get_flow_map(qos, tcm->tcm_parent, tcm->tcm_ifindex);
+	if (!flow) {
+		kfree(dfilter);
+		goto out;
+	}
+
+	/* Add to flow's filter list */
+	dfilter->flow = flow;
+	list_add(&dfilter->flow_list, &flow->filter_head);
+
+	/* Add to device's filter list sorted by precedence */
+	i = 0;
+	list_for_each_entry(entry, &qos->filter_head, sorted_list) {
+		if (entry->filter.precedence >= dfilter->filter.precedence) {
+			__list_add(&dfilter->sorted_list,
+				   (&entry->sorted_list)->prev,
+				   &entry->sorted_list);
+			added = true;
+			break;
+		}
+		i++;
+	}
+	if (!added)
+		list_add_tail(&dfilter->sorted_list, &qos->filter_head);
+	qos->num_filters++;
+
+out:
+	spin_unlock_bh(&qos->qos_lock);
+}
+
+static void qmi_rmnet_remove_filters(struct net_device *dev, struct tcmsg *tcm)
+{
+	struct qos_info *qos = (struct qos_info *)rmnet_get_qos_pt(dev);
+	struct rmnet_flow_map *flow;
+
+	if (!qos || !tcm)
+		return;
+
+	spin_lock_bh(&qos->qos_lock);
+
+	/* tcm->tcm_parent - flow_id,
+	 * tcm->tcm_ifindex - ip_type
+	 */
+
+	flow = qmi_rmnet_get_flow_map(qos, tcm->tcm_parent, tcm->tcm_ifindex);
+	if (flow)
+		__qmi_rmnet_remove_filters(qos, flow);
+
+	spin_unlock_bh(&qos->qos_lock);
+}
+
 #else
 static inline void
 qmi_rmnet_update_flow_map(struct rmnet_flow_map *itm,
@@ -593,6 +713,16 @@ qmi_rmnet_del_flow(struct net_device *dev, struct tcmsg *tcm,
 }
 
 static inline void qmi_rmnet_query_flows(struct qmi_info *qmi)
+{
+}
+
+static inline void qmi_rmnet_add_filter(struct net_device *dev,
+					struct tcmsg *tcm, int attrlen)
+{
+}
+
+static inline void qmi_rmnet_remove_filters(struct net_device *dev,
+					    struct tcmsg *tcm)
 {
 }
 #endif
@@ -698,7 +828,8 @@ qmi_rmnet_delete_client(void *port, struct qmi_info *qmi, struct tcmsg *tcm)
 	__qmi_rmnet_delete_client(port, qmi, idx);
 }
 
-void qmi_rmnet_change_link(struct net_device *dev, void *port, void *tcm_pt)
+void qmi_rmnet_change_link(struct net_device *dev, void *port, void *tcm_pt,
+			   int attr_len)
 {
 	struct qmi_info *qmi = (struct qmi_info *)rmnet_get_qmi_pt(port);
 	struct tcmsg *tcm = (struct tcmsg *)tcm_pt;
@@ -755,6 +886,12 @@ void qmi_rmnet_change_link(struct net_device *dev, void *port, void *tcm_pt)
 		break;
 	case NLMSG_WQ_FREQUENCY:
 		rmnet_wq_frequency = tcm->tcm_ifindex;
+		break;
+	case NLMSG_FILTER_ADD:
+		qmi_rmnet_add_filter(dev, tcm, attr_len);
+		break;
+	case NLMSG_FILTER_REMOVE:
+		qmi_rmnet_remove_filters(dev, tcm);
 		break;
 	default:
 		pr_debug("%s(): No handler\n", __func__);
@@ -868,30 +1005,41 @@ void qmi_rmnet_burst_fc_check(struct net_device *dev,
 }
 EXPORT_SYMBOL(qmi_rmnet_burst_fc_check);
 
-static bool qmi_rmnet_is_tcp_ack(struct sk_buff *skb)
+static bool _qmi_rmnet_is_tcp_ack(struct sk_buff *skb)
 {
-	unsigned int len = skb->len;
+	struct tcphdr *th;
+	int ip_hdr_len;
+	int ip_payload_len;
 
-	switch (skb->protocol) {
-	/* TCPv4 ACKs */
-	case htons(ETH_P_IP):
-		if ((ip_hdr(skb)->protocol == IPPROTO_TCP) &&
-		    (ip_hdr(skb)->ihl == 5) &&
-		    (len == 40 || len == 52) &&
-		    ((tcp_flag_word(tcp_hdr(skb)) &
-		      cpu_to_be32(0x00FF0000)) == TCP_FLAG_ACK))
-			return true;
-		break;
-
-	/* TCPv6 ACKs */
-	case htons(ETH_P_IPV6):
-		if ((ipv6_hdr(skb)->nexthdr == IPPROTO_TCP) &&
-		    (len == 60 || len == 72) &&
-		    ((tcp_flag_word(tcp_hdr(skb)) &
-		      cpu_to_be32(0x00FF0000)) == TCP_FLAG_ACK))
-			return true;
-		break;
+	if (skb->protocol == htons(ETH_P_IP) &&
+	    ip_hdr(skb)->protocol == IPPROTO_TCP) {
+		ip_hdr_len = ip_hdr(skb)->ihl << 2;
+		ip_payload_len = ntohs(ip_hdr(skb)->tot_len) - ip_hdr_len;
+	} else if (skb->protocol == htons(ETH_P_IPV6) &&
+		   ipv6_hdr(skb)->nexthdr == IPPROTO_TCP) {
+		ip_hdr_len = sizeof(struct ipv6hdr);
+		ip_payload_len = ntohs(ipv6_hdr(skb)->payload_len);
+	} else {
+		return false;
 	}
+
+	th = (struct tcphdr *)(skb->data + ip_hdr_len);
+	if ((ip_payload_len == th->doff << 2) &&
+	    ((tcp_flag_word(th) & cpu_to_be32(0x00FF0000)) == TCP_FLAG_ACK))
+		return true;
+
+	return false;
+}
+
+static inline bool qmi_rmnet_is_tcp_ack(struct sk_buff *skb)
+{
+	/* Locally generated TCP acks */
+	if (skb_is_tcp_pure_ack(skb))
+		return true;
+
+	/* Forwarded */
+	if (_qmi_rmnet_is_tcp_ack(skb))
+		return true;
 
 	return false;
 }
@@ -904,10 +1052,11 @@ static int qmi_rmnet_get_queue_sa(struct qos_info *qos, struct sk_buff *skb)
 
 	/* Put NDP in default mq */
 	if (skb->protocol == htons(ETH_P_IPV6) &&
-	    ipv6_hdr(skb)->nexthdr == IPPROTO_ICMPV6 &&
-	    icmp6_hdr(skb)->icmp6_type >= 133 &&
-	    icmp6_hdr(skb)->icmp6_type <= 137) {
-		return DEFAULT_MQ_NUM;
+	    ipv6_hdr(skb)->nexthdr == IPPROTO_ICMPV6) {
+		struct icmp6hdr *h = (struct icmp6hdr *)
+				(skb->data + sizeof(struct ipv6hdr));
+		if (h->icmp6_type >= 133 && h->icmp6_type <= 137)
+			return DEFAULT_MQ_NUM;
 	}
 
 	ip_type = (skb->protocol == htons(ETH_P_IPV6)) ? AF_INET6 : AF_INET;
@@ -993,6 +1142,7 @@ void *qmi_rmnet_qos_init(struct net_device *real_dev,
 	INIT_LIST_HEAD(&qos->flow_head);
 	INIT_LIST_HEAD(&qos->bearer_head);
 	spin_lock_init(&qos->qos_lock);
+	INIT_LIST_HEAD(&qos->filter_head);
 
 	return qos;
 }
@@ -1027,6 +1177,161 @@ void qmi_rmnet_qos_exit_post(void)
 	}
 }
 EXPORT_SYMBOL(qmi_rmnet_qos_exit_post);
+
+static int qmi_rmnet_dissect_skb(struct sk_buff *skb, struct dissect_info *di)
+{
+	struct iphdr *ip;
+	struct ipv6hdr *ip6;
+	struct tcphdr *thdr;
+	struct udphdr *uhdr;
+
+	if (unlikely(skb_is_nonlinear(skb)))
+		return -EINVAL;
+
+	di->ver = skb->data[0] & 0xF0;
+	di->is_frag = 0;
+	di->sport = 0;
+	di->dport = 0;
+
+	if (di->ver == 0x40) {
+		ip = (struct iphdr *)skb->data;
+		di->proto = ip->protocol;
+		di->saddr = &ip->saddr;
+		di->daddr = &ip->daddr;
+		di->tos = ip->tos >> 2;
+		if (ip->frag_off & htons(0x3FF)) {
+			di->is_frag = 1;
+			return 0;
+		}
+		if (di->proto == IPPROTO_TCP) {
+			thdr = (struct tcphdr *)(skb->data + (ip->ihl << 2));
+			di->sport = ntohs(thdr->source);
+			di->dport = ntohs(thdr->dest);
+		} else if (di->proto == IPPROTO_UDP) {
+			uhdr = (struct udphdr *)(skb->data + (ip->ihl << 2));
+			di->sport = ntohs(uhdr->source);
+			di->dport = ntohs(uhdr->dest);
+		}
+	} else if (di->ver == 0x60) {
+		ip6 = (struct ipv6hdr *)skb->data;
+		di->proto = ip6->nexthdr;
+		if (di->proto == IPPROTO_FRAGMENT) {
+			struct frag_hdr *fhdr = (struct frag_hdr *)
+					(skb->data + sizeof(struct ipv6hdr));
+			di->proto = fhdr->nexthdr;
+			di->is_frag = 1;
+		}
+		di->saddr = ip6->saddr.in6_u.u6_addr32;
+		di->daddr = ip6->daddr.in6_u.u6_addr32;
+		if (di->is_frag)
+			return 0;
+		if (di->proto == IPPROTO_TCP) {
+			thdr = (struct tcphdr *)(skb->data +
+						 sizeof(struct ipv6hdr));
+			di->sport = ntohs(thdr->source);
+			di->dport = ntohs(thdr->dest);
+		} else if (di->proto == IPPROTO_UDP) {
+			uhdr = (struct udphdr *)(skb->data +
+						 sizeof(struct ipv6hdr));
+			di->sport = ntohs(uhdr->source);
+			di->dport = ntohs(uhdr->dest);
+		}
+	} else {
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static bool qmi_rmnet_match_filter(struct dissect_info *di,
+				   struct qos_filter *filter, int ip_type)
+{
+	int i;
+	int addr_len;
+
+	if (di->ver == 0x40) {
+		if (ip_type != AF_INET)
+			return false;
+		addr_len = 1;
+
+		if ((filter->filter_mask & QOS_FILTER_MASK_TOS) &&
+		    (di->tos & filter->tos_mask) != filter->tos)
+			return false;
+	} else if (di->ver == 0x60) {
+		if (ip_type != AF_INET6)
+			return false;
+		addr_len = 4;
+	} else {
+		return false;
+	}
+
+	if ((filter->filter_mask & QOS_FILTER_MASK_PROTO) &&
+	    (di->proto != filter->proto))
+		return false;
+
+	if (filter->filter_mask & QOS_FILTER_MASK_SADDR)
+		for (i = 0; i < addr_len; i++)
+			if ((di->saddr[i] & filter->smask[i])
+					!= filter->saddr[i])
+				return false;
+
+	if (filter->filter_mask & QOS_FILTER_MASK_DADDR)
+		for (i = 0; i < addr_len; i++)
+			if ((di->daddr[i] & filter->dmask[i])
+					!= filter->daddr[i])
+				return false;
+
+	if (!(filter->filter_mask & QOS_FILTER_MASK_SPORT) &&
+	    !(filter->filter_mask & QOS_FILTER_MASK_DPORT))
+		return true;
+
+	if (di->is_frag)
+		return false;
+
+	if (di->proto != IPPROTO_TCP && di->proto != IPPROTO_UDP)
+		return false;
+
+	if ((filter->filter_mask & QOS_FILTER_MASK_SPORT) &&
+	    (di->sport < filter->sport || di->sport > filter->sport_range))
+		return false;
+
+	if ((filter->filter_mask & QOS_FILTER_MASK_DPORT) &&
+	    (di->dport < filter->dport || di->dport > filter->dport_range))
+		return false;
+
+	return true;
+}
+
+/* Mark skb with matching UL filter's flow id */
+void qmi_rmnet_mark_skb(struct net_device *dev, struct sk_buff *skb)
+{
+	struct qos_info *qos;
+	struct dfc_filter *dfilter;
+	struct dissect_info di;
+
+	skb->mark = 0;
+
+	qos = (struct qos_info *)rmnet_get_qos_pt(dev);
+	if (!qos || !qos->num_filters)
+		return;
+
+	if (qmi_rmnet_dissect_skb(skb, &di) < 0)
+		return;
+
+	spin_lock_bh(&qos->qos_lock);
+
+	list_for_each_entry(dfilter, &qos->filter_head, sorted_list) {
+		if (qmi_rmnet_match_filter(&di, &dfilter->filter,
+					   dfilter->flow->ip_type)) {
+			skb->mark = dfilter->flow->flow_id;
+			break;
+		}
+	}
+
+	spin_unlock_bh(&qos->qos_lock);
+}
+EXPORT_SYMBOL(qmi_rmnet_mark_skb);
+
 #endif
 
 #ifdef CONFIG_QCOM_QMI_POWER_COLLAPSE
