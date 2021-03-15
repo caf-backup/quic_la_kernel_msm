@@ -42,6 +42,8 @@
 #include "ipq-lpass-tdm-pcm.h"
 
 #define DEFAULT_CLK_RATE		2048000
+#define PCM_VOICE_LOOPBACK_BUFFER_SIZE	0x1000
+#define PCM_VOICE_LOOPBACK_INTR_SIZE	0x800
 
 /*
  * Global Constant Definitions
@@ -60,6 +62,7 @@ static struct lpass_dma_buffer *tx_dma_buffer;
 static struct platform_device *pcm_pdev;
 static spinlock_t pcm_lock;
 static struct ipq_lpass_pcm_params *pcm_params;
+static uint32_t voice_loopback;
 
 static DECLARE_WAIT_QUEUE_HEAD(pcm_q);
 
@@ -409,7 +412,9 @@ int ipq_pcm_init(struct ipq_lpass_pcm_params *params)
 	rx_dma_buffer->bit_width = params->bit_width;
 	rx_dma_buffer->int_samples_per_period = int_samples_per_period;
 	rx_dma_buffer->num_channels = params->active_slot_count;
-	rx_dma_buffer->single_buf_size = samples_per_interrupt;
+	rx_dma_buffer->single_buf_size =
+		(voice_loopback == 1)? PCM_VOICE_LOOPBACK_INTR_SIZE :
+						samples_per_interrupt;
 /*
  * set the period count in double words
  */
@@ -418,14 +423,17 @@ int ipq_pcm_init(struct ipq_lpass_pcm_params *params)
 /*
  * total buffer size for all DMA buffers
  */
-	rx_dma_buffer->dma_buffer_size = circular_buffer;
+	rx_dma_buffer->dma_buffer_size =
+		(voice_loopback == 1) ? PCM_VOICE_LOOPBACK_BUFFER_SIZE :
+						circular_buffer;
 	rx_dma_buffer->dma_base_address = temp_lpm_base;
 	rx_dma_buffer->dma_last_curr_addr = temp_lpm_base;
 	rx_dma_buffer->size_done = 0;
 	rx_dma_buffer->watermark = watermark;
 	rx_dma_buffer->ifconfig = INTERFACE_PRIMARY;
 	rx_dma_buffer->intr_id = INTERRUPT_CHANNEL0;
-	temp_lpm_base += LPASS_DMA_BUFFER_SIZE;
+	if (voice_loopback == 0)
+		temp_lpm_base += LPASS_DMA_BUFFER_SIZE;
 	atomic_set(&rx_add, rx_dma_buffer->dma_base_address);
 /*
  * DMA Tx buffer
@@ -436,7 +444,9 @@ int ipq_pcm_init(struct ipq_lpass_pcm_params *params)
 	tx_dma_buffer->bit_width = params->bit_width;
 	tx_dma_buffer->int_samples_per_period = int_samples_per_period;
 	tx_dma_buffer->num_channels = params->active_slot_count;
-	tx_dma_buffer->single_buf_size = samples_per_interrupt;
+	tx_dma_buffer->single_buf_size =
+		(voice_loopback == 1)? PCM_VOICE_LOOPBACK_INTR_SIZE :
+						samples_per_interrupt;
 /*
  * set the period count in double words
  */
@@ -445,7 +455,9 @@ int ipq_pcm_init(struct ipq_lpass_pcm_params *params)
 /*
  * total buffer size for all DMA buffers
  */
-	tx_dma_buffer->dma_buffer_size = circular_buffer;
+	tx_dma_buffer->dma_buffer_size =
+		(voice_loopback == 1) ? PCM_VOICE_LOOPBACK_BUFFER_SIZE :
+						circular_buffer;
 	tx_dma_buffer->dma_base_address = temp_lpm_base;
 	tx_dma_buffer->dma_last_curr_addr = temp_lpm_base;
 	tx_dma_buffer->size_done = 0;
@@ -596,6 +608,7 @@ static const struct of_device_id qca_raw_match_table[] = {
 static int ipq_lpass_pcm_driver_probe(struct platform_device *pdev)
 {
 	uint32_t irq;
+	uint32_t voice_lb = 0;
 	struct resource *res;
 	const struct of_device_id *match;
 #ifdef IPQ_PCM_SLIC_ENABLE
@@ -676,6 +689,10 @@ static int ipq_lpass_pcm_driver_probe(struct platform_device *pdev)
 		return ret;
 		}
 	}
+
+	of_property_read_u32(pdev->dev.of_node, "voice_loopback", &voice_lb);
+	voice_loopback = voice_lb;
+
 #ifdef IPQ_PCM_SLIC_ENABLE
 /*
  * setup default bit clock to 2.048MHZ
