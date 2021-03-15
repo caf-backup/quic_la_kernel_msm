@@ -1347,6 +1347,7 @@
 			reg =  <0xA3C0000 0x23014>;
 			interrupts = <0 27 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "out0";
+			voice_loopback = <0>;
 			status = "disabled";
 		};
 
