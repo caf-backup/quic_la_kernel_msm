@@ -140,7 +140,8 @@ uint32_t pcm_read_write(void)
 
 	if (IS_PCM_LBTEST_RX_TO_TX(start)) {
 		/* Redirect Rx data to Tx */
-		memcpy(tx_buff, rx_buff, size);
+		if (ipq_hw != IPQ5018)
+			memcpy(tx_buff, rx_buff, size);
 	} else {
 		/* get current Tx buffer and write the pattern
 		* We will write 1, 2, 3, ..., 255, 1, 2, 3...
@@ -154,6 +155,7 @@ uint32_t pcm_read_write(void)
 		else
 			ipq8074_pcm_fill_data(tx_buff, size);
 	}
+
 	ipq_pcm_done();
 	return size;
 }
@@ -187,9 +189,9 @@ uint32_t pcm_init(void)
 		cfg_params.slot_count = 16;
 		cfg_params.active_slot_count = 2;
 		cfg_params.tx_slots[0] = 0;
-		cfg_params.tx_slots[1] = 3;
+		cfg_params.tx_slots[1] = (ipq_hw == IPQ5018)? 1 : 3;
 		cfg_params.rx_slots[0] = 0;
-		cfg_params.rx_slots[1] = 3;
+		cfg_params.rx_slots[1] = (ipq_hw == IPQ5018)? 1 : 3;
 		ret = ipq_pcm_init(&cfg_params);
 		break;
 
