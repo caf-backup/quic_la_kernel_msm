@@ -181,7 +181,7 @@ uint32_t ipq_lpass_pcm_validate_params(struct ipq_lpass_pcm_params *params,
 		return -EINVAL;
 	}
 
-	if (512 < (params->slot_count * params->bit_width)){
+	if (256 < (params->slot_count * params->bit_width)){
 		pr_err("%s: Invalid nbits per frame %d.\n",
 				 __func__,
 				params->slot_count * params->bit_width );
