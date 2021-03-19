@@ -320,6 +320,18 @@ static int mhi_fw_load_bhie(struct mhi_controller *mhi_cntrl,
 	rwlock_t *pm_lock = &mhi_cntrl->pm_lock;
 	u32 tx_status, sequence_id;
 	int ret;
+	u32 val, i;
+	struct {
+		char *name;
+		u32 offset;
+	} error_reg[] = {
+		{ "ERROR_CODE", BHI_ERRCODE },
+		{ "ERROR_DBG1", BHI_ERRDBG1 },
+		{ "ERROR_DBG2", BHI_ERRDBG2 },
+		{ "ERROR_DBG3", BHI_ERRDBG3 },
+		{ NULL },
+	};
+
 
 	read_lock_bh(pm_lock);
 	if (!MHI_REG_ACCESS_VALID(mhi_cntrl->pm_state)) {
@@ -353,8 +365,30 @@ static int mhi_fw_load_bhie(struct mhi_controller *mhi_cntrl,
 						   &tx_status) || tx_status,
 				 msecs_to_jiffies(mhi_cntrl->timeout_ms));
 	if (MHI_PM_IN_ERROR_STATE(mhi_cntrl->pm_state) ||
-	    tx_status != BHIE_TXVECSTATUS_STATUS_XFER_COMPL)
+	    tx_status != BHIE_TXVECSTATUS_STATUS_XFER_COMPL) {
+		pr_err("Upper:0x%x Lower:0x%x len:0x%zx sequence:%u\n",
+			upper_32_bits(mhi_buf->dma_addr),
+			lower_32_bits(mhi_buf->dma_addr),
+			mhi_buf->len, sequence_id);
+
+		pr_err("MHI pm_state: %s tx_status: %d ee: %s\n",
+			to_mhi_pm_state_str(mhi_cntrl->pm_state), tx_status,
+			TO_MHI_EXEC_STR(mhi_get_exec_env(mhi_cntrl)));
+
+		read_lock_bh(pm_lock);
+		if (MHI_REG_ACCESS_VALID(mhi_cntrl->pm_state)) {
+			for (i = 0; error_reg[i].name; i++) {
+				ret = mhi_read_reg(mhi_cntrl, base,
+						   error_reg[i].offset, &val);
+				if (ret)
+					break;
+				dev_err(dev, "Reg: %s value: 0x%x\n",
+					error_reg[i].name, val);
+			}
+		}
+		read_unlock_bh(pm_lock);
 		return -EIO;
+	}
 
 	return (!ret) ? -ETIMEDOUT : 0;
 }
