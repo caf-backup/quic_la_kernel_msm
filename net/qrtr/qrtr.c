@@ -591,6 +591,8 @@ static int qrtr_node_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 		confirm_rx = qrtr_tx_wait(node, to, skb->sk, type, flags);
 		if (confirm_rx < 0) {
 			kfree_skb(skb);
+			pr_err("%s: tx wait for confirm_rx failed, %d\n",
+			       __func__, confirm_rx);
 			return confirm_rx;
 		}
 	}
@@ -1630,6 +1632,8 @@ static int qrtr_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	rc = enqueue_fn(node, skb, type, &ipc->us, addr, msg->msg_flags);
 	if (rc >= 0)
 		rc = len;
+	else
+		pr_err("%s: enqueue_fn failed with error, %d\n", __func__, rc);
 
 out_node:
 	qrtr_node_release(node);
