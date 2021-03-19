@@ -519,6 +519,22 @@
 		};
 	};
 
+	i2c_pins: i2c_pins {
+		i2c_scl {
+			pins = "gpio25";
+			function = "blsp2_i2c1";
+			drive-strength = <8>;
+			bias-disable;
+		};
+
+		i2c_sda {
+			pins = "gpio26";
+			function = "blsp2_i2c1";
+			drive-strength = <8>;
+			bias-disable;
+		};
+	};
+
 	button_pins: button_pins {
 		wps_button {
 			pins = "gpio38";
@@ -750,6 +766,12 @@
 				<&q6_qcn6122_etr_2>, <&q6_qcn6122_caldb_2>;
 		#endif
 	};
+};
+
+&i2c_0 {
+	pinctrl-0 = <&i2c_pins>;
+	pinctrl-names = "default";
+	status = "disabled";
 };
 
 &qgic_msi_0 {
