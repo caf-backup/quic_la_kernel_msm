@@ -519,6 +519,15 @@
 		};
 	};
 
+	button_pins: button_pins {
+		wps_button {
+			pins = "gpio38";
+			function = "gpio";
+			drive-strength = <8>;
+			bias-pull-up;
+		};
+	};
+
 	audio_pins: audio_pinmux {
 		mux_1 {
 			pins = "gpio24";
@@ -570,6 +579,22 @@
 		};
 	};
 
+};
+
+&soc {
+	gpio_keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&button_pins>;
+		pinctrl-names = "default";
+
+		button@1 {
+			label = "wps";
+			linux,code = <KEY_WPS_BUTTON>;
+			gpios = <&tlmm 38 GPIO_ACTIVE_LOW>;
+			linux,input-type = <1>;
+			debounce-interval = <60>;
+		};
+	};
 };
 
 &usb3 {
