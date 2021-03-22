@@ -178,9 +178,9 @@ struct lpm_mem_info{
 };
 
 struct ipq_lpass_pcm_params {
-	uint32_t rate;
 	uint32_t bit_width;
-	uint16_t slot_count;
+	uint32_t rate;
+	uint32_t slot_count;
 	uint32_t active_slot_count;
 	uint32_t tx_slots[IPQ_PCM_MAX_SLOTS];
 	uint32_t rx_slots[IPQ_PCM_MAX_SLOTS];
