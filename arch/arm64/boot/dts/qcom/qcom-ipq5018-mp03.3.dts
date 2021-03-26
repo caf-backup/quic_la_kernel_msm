@@ -828,6 +828,8 @@
 		etr-addr = <0x4FE00000>;
 		qcom,caldb-addr = <0x4FF00000>;
 		qcom,tgt-mem-mode = <0x1>;
+		mhi,max-channels = <30>;
+		mhi,timeout = <10000>;
 		qcom,board_id = <0xa4>;
 #endif
 	};
