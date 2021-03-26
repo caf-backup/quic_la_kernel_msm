@@ -429,6 +429,8 @@
 		};
 
 		pcm: pcm@0xA3C0000{
+			pinctrl-0 = <&audio_pins>;
+			pinctrl-names = "default";
 			status = "disabled";
 		};
 
