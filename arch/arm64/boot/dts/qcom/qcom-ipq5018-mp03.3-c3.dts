@@ -38,3 +38,15 @@
 &bt {
 	status = "disabled";
 };
+
+&crypto {
+	status = "disabled";
+};
+
+&nss_crypto {
+	status = "disabled";
+};
+
+&usb3 {
+	status = "disabled";
+};
