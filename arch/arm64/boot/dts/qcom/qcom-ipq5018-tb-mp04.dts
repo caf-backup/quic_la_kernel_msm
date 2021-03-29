@@ -38,8 +38,3 @@
 
 };
 
-&tlmm {
-	pinctrl-0 = <&audio_pins>;
-	pinctrl-names = "default";
-};
-
