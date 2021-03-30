@@ -75,6 +75,8 @@ struct netns_xfrm {
 	spinlock_t xfrm_state_lock;
 	spinlock_t xfrm_policy_lock;
 	struct mutex xfrm_cfg_mutex;
+	spinlock_t xfrm_event_lock;
+	struct list_head event_notifier_list;
 };
 
 #endif

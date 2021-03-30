@@ -259,6 +259,21 @@ struct xfrm_state {
 	void			*data;
 };
 
+enum xfrm_event_type {
+	XFRM_EVENT_NONE = 0,
+	XFRM_EVENT_STATE_ADD,
+	XFRM_EVENT_STATE_DEL,
+	XFRM_EVENT_MAX
+};
+
+struct xfrm_event_notifier {
+	struct list_head list;
+	void (*state_notify)(struct xfrm_state *x, enum xfrm_event_type event);
+};
+
+int xfrm_event_register_notifier(struct net *net, struct xfrm_event_notifier *event);
+void xfrm_event_unregister_notifier(struct net *net, struct xfrm_event_notifier *event);
+
 static inline struct net *xs_net(struct xfrm_state *x)
 {
 	return read_pnet(&x->xs_net);
@@ -1505,6 +1520,7 @@ struct xfrm_state *xfrm_state_lookup_byaddr(struct net *net, u32 mark,
 					    const xfrm_address_t *saddr,
 					    u8 proto,
 					    unsigned short family);
+void xfrm_state_change_notify(struct xfrm_state *x, enum xfrm_event_type);
 #ifdef CONFIG_XFRM_SUB_POLICY
 void xfrm_tmpl_sort(struct xfrm_tmpl **dst, struct xfrm_tmpl **src, int n,
 		    unsigned short family);
