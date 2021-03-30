@@ -857,6 +857,8 @@
 		etr-addr = <0x4E100000>;
 		qcom,caldb-addr = <0x4E200000>;
 		qcom,tgt-mem-mode = <0x1>;
+		mhi,max-channels = <30>;
+		mhi,timeout = <10000>;
 #endif
 	};
 };
