@@ -280,19 +280,21 @@ void ipq_lpass_pcm_config(struct ipq_lpass_pcm_config *configPtr,
 
 	mask = HWIO_LPASS_LPAIF_PCM_LANE_CONFIG_a_LANE0_EN_BMSK |
 		HWIO_LPASS_LPAIF_PCM_LANE_CONFIG_a_LANE0_DIR_BMSK;
+
 	value = (HWIO_LPASS_LPAIF_PCM_LANE_CONFIG_a_LANE0_EN_ENABLE_FVAL <<
 			HWIO_LPASS_LPAIF_PCM_LANE_CONFIG_a_LANE0_EN_SHFT);
+
 	regOffset = HWIO_LPASS_LPAIF_PCM_LANE_CONFIG_a_OFFS(pcm_index);
 
 	if(TDM_SINK == dir){
-		value |= (HWIO_LPASS_LPAIF_PCM_LANE_CONFIG_a_LANE0_DIR_MIC_FVAL
+		value |= (HWIO_LPASS_LPAIF_PCM_LANE_CONFIG_a_LANE0_DIR_SPKR_FVAL
 			<< HWIO_LPASS_LPAIF_PCM_LANE_CONFIG_a_LANE0_DIR_SHFT);
 	} else {
-		value |= (HWIO_LPASS_LPAIF_PCM_LANE_CONFIG_a_LANE0_DIR_SPKR_FVAL
+		value |= (HWIO_LPASS_LPAIF_PCM_LANE_CONFIG_a_LANE0_DIR_MIC_FVAL
 			<< HWIO_LPASS_LPAIF_PCM_LANE_CONFIG_a_LANE0_DIR_SHFT);
 	}
 
-	ipq_lpass_reg_update(lpaif_base + regOffset, mask, value, 0);
+	ipq_lpass_reg_update(lpaif_base + regOffset, mask, value, 1);
 }
 EXPORT_SYMBOL(ipq_lpass_pcm_config);
 
@@ -302,16 +304,10 @@ void ipq_lpass_pcm_enable(void __iomem *lpaif_base,
 	uint32_t mask,value;
 
 	if(TDM_SINK == dir){
-		writel(0x00010000,
-			HWIO_LPASS_LPAIF_PCM_LANE_CONFIG_a_ADDR(
-				lpaif_base, pcm_index));
 		value = HWIO_LPASS_LPAIF_PCM_CTLa_ENABLE_TX_ENABLE_FVAL <<
 				HWIO_LPASS_LPAIF_PCM_CTLa_ENABLE_TX_SHFT;
 		mask = HWIO_LPASS_LPAIF_PCM_CTLa_ENABLE_TX_BMSK;
 	} else {
-		writel(0x00010001,
-			HWIO_LPASS_LPAIF_PCM_LANE_CONFIG_a_ADDR(
-				lpaif_base, pcm_index));
 		value = HWIO_LPASS_LPAIF_PCM_CTLa_ENABLE_RX_ENABLE_FVAL <<
 				HWIO_LPASS_LPAIF_PCM_CTLa_ENABLE_RX_SHFT;
 		mask = HWIO_LPASS_LPAIF_PCM_CTLa_ENABLE_RX_BMSK;
@@ -631,8 +627,9 @@ static void ipq_lpass_dma_config_channel_sink(struct lpass_dma_config *config)
 					HWIO_LPASS_LPAIF_RDDMA_CTLa_BURST_EN_SHFT);
 	}
 
-	value |=  ((config->wps_count - 1) <<
-				HWIO_LPASS_LPAIF_RDDMA_CTLa_WPSCNT_SHFT);
+	if (config->wps_count)
+		value |=  ((config->wps_count - 1) <<
+			HWIO_LPASS_LPAIF_RDDMA_CTLa_WPSCNT_SHFT);
 
 	value |= (config->burst8_en) <<
 			HWIO_LPASS_LPAIF_RDDMA_CTLa_BURST8_EN_SHFT;
@@ -710,8 +707,9 @@ static void ipq_lpass_dma_config_channel_source(struct lpass_dma_config *config)
 					HWIO_LPASS_LPAIF_WRDMA_CTLa_BURST_EN_SHFT);
 	}
 
-	value |=  ((config->wps_count - 1) <<
-			HWIO_LPASS_LPAIF_WRDMA_CTLa_WPSCNT_SHFT);
+	if (config->wps_count)
+		value |=  ((config->wps_count - 1) <<
+				HWIO_LPASS_LPAIF_WRDMA_CTLa_WPSCNT_SHFT);
 
 	value |= (config->burst8_en) <<
 			HWIO_LPASS_LPAIF_WRDMA_CTLa_BURST8_EN_SHFT;
