@@ -55,7 +55,8 @@ const struct qseecom_props qseecom_props_ipq6018 = {
 };
 
 const struct qseecom_props qseecom_props_ipq5018 = {
-	.function = (MUL | CRYPTO | AES_SEC_KEY | RSA_SEC_KEY),
+	.function = (MUL | CRYPTO | AES_SEC_KEY | RSA_SEC_KEY | LOG_BITMASK |
+					FUSE | MISC | RSA_TZAPP | FUSE_WRITE),
 	.tz_arch = QSEE_64,
 	.libraries_inbuilt = false,
 	.logging_support_enabled = true,
@@ -3570,23 +3571,6 @@ store_value_fuse_write_tzapp(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 static ssize_t
-store_fec_value_fuse_write_tzapp(struct device *dev, struct device_attribute *attr,
-			const char *buf, size_t count)
-{
-	unsigned long long val;
-
-	if (kstrtoull(buf, 0, &val))
-		return -EINVAL;
-
-	if(val > MAX_FUSE_FEC_VALUE) {
-		pr_err("\nInvalid input: %llu\n", val);
-		return -EINVAL;
-	}
-	fuse_fec_value = val;
-
-	return count;
-}
-static ssize_t
 store_fec_enable_fuse_write_tzapp(struct device *dev, struct device_attribute *attr,
 			const char *buf, size_t count)
 {
@@ -3604,7 +3588,6 @@ store_fec_enable_fuse_write_tzapp(struct device *dev, struct device_attribute *a
 
 	return count;
 }
-
 static ssize_t
 store_blow_fuse_write_tzapp(struct device *dev, struct device_attribute *attr,
 			const char *buf, size_t count)
@@ -3625,9 +3608,6 @@ store_blow_fuse_write_tzapp(struct device *dev, struct device_attribute *attr,
 		pr_err("\nInvalid input: %llu\n", val);
 		pr_err("echo 1 to blow the fuse\n");
 		return -EINVAL;
-	} else if (is_fec_enable && !fuse_fec_value) {
-		pr_err("\nfec value should be given, if fec is enabled\n");
-		return -EINVAL;
 	}
 
 	dev = qdev;
@@ -3643,8 +3623,6 @@ store_blow_fuse_write_tzapp(struct device *dev, struct device_attribute *attr,
 	req_ptr->addr = fuse_addr;
 	req_ptr->value = fuse_value;
 	req_ptr->is_fec_enable = is_fec_enable;
-	req_ptr->fec_value = fuse_fec_value;
-
 	dma_req_addr = dma_map_single(dev, req_ptr, req_size, DMA_TO_DEVICE);
 	ret = dma_mapping_error(dev, dma_req_addr);
 	if (ret) {
