@@ -1324,7 +1324,7 @@ int minidump_dump_wlan_modules(void) {
 			}
 
 			module_tlv_info.start = (unsigned long)mod->sect_attrs;
-			module_tlv_info.size = SZ_2K;
+			module_tlv_info.size = (unsigned long)(sizeof(struct module_sect_attrs) + ((sizeof(struct module_sect_attr))*(mod->sect_attrs->nsections)));
 			ret_val = minidump_fill_segments(module_tlv_info.start,
 				module_tlv_info.size, QCA_WDT_LOG_DUMP_TYPE_WLAN_MOD, NULL);
 			if (ret_val) {
@@ -1332,7 +1332,7 @@ int minidump_dump_wlan_modules(void) {
 				return ret_val;
 			}
 
-			for (i = 0; i <= mod->sect_attrs->nsections; i++) {
+			for (i = 0; i < mod->sect_attrs->nsections; i++) {
 				if ((!strcmp(".bss", mod->sect_attrs->attrs[i].name))) {
 					module_tlv_info.start = (unsigned long)
 					mod->sect_attrs->attrs[i].address;
@@ -1438,7 +1438,7 @@ static int wlan_module_notify_exit(struct notifier_block *self, unsigned long va
 			if (!strcmp(minidump_module_list[minidump_module_list_index], mod->name)) {
 				/* For specific modules, additionally remove bss and sect attribute TLVs*/
 				minidump_remove_segments((const uint64_t)(uintptr_t)mod->sect_attrs);
-				for (i = 0; i <= mod->sect_attrs->nsections; i++) {
+				for (i = 0; i < mod->sect_attrs->nsections; i++) {
 					if ((!strcmp(".bss", mod->sect_attrs->attrs[i].name))) {
 						minidump_remove_segments((const uint64_t)
 							(uintptr_t)mod->sect_attrs->attrs[i].address);
