@@ -728,6 +728,30 @@ void __qcom_scm_cpu_power_down(u32 flags)
 			flags & QCOM_SCM_FLUSH_FLAG_MASK);
 }
 
+int __qcom_scm_qseecom_remove_xpu(struct device *dev)
+{
+	int ret = 0;
+
+	if (is_scm_armv8()) {
+		uint32_t smc_id = 0;
+		struct scm_desc desc = {0};
+		ret = __qcom_remove_xpu_scm_call_available(dev, TZ_SVC_APP_MGR,
+						TZ_ARMv8_CMD_REMOVE_XPU);
+		if (ret <= 0)
+			return -ENOTSUPP;
+
+		smc_id = TZ_SYSCALL_CREATE_SMC_ID(TZ_OWNER_QSEE_OS,
+						 TZ_SVC_APP_MGR,
+						 TZ_ARMv8_CMD_REMOVE_XPU);
+
+		ret = qcom_scm_call2(smc_id, &desc);
+
+	} else
+		 return -ENOTSUPP;
+
+	return ret;
+}
+
 int __qcom_scm_qseecom_notify(struct device *dev,
 			     struct qsee_notify_app *request, size_t req_size,
 			     struct qseecom_command_scm_resp *response,
@@ -955,6 +979,28 @@ int __qcom_scm_tls_hardening(struct device *dev,
 		ret = qcom_scm_call(dev, TZ_SVC_CRYPTO, cmd_id,
 				    (void *)scm_cmd_buf, buf_size, NULL, 0);
 	}
+
+	return ret;
+}
+
+int __qcom_remove_xpu_scm_call_available(struct device *dev, u32 svc_id, u32 cmd_id)
+{
+	int ret;
+
+	if (is_scm_armv8()) {
+		__le32 scm_ret;
+		struct scm_desc desc = {0};
+
+		desc.args[0] = SCM_QSEEOS_FNID(svc_id, cmd_id);
+		desc.arginfo = SCM_ARGS(1);
+		ret = qcom_scm_call2(SCM_SIP_FNID(QCOM_SCM_SVC_INFO,
+					QCOM_IS_CALL_AVAIL_CMD), &desc);
+		scm_ret = desc.ret[0];
+
+		if (!ret)
+			return le32_to_cpu(scm_ret);
+	} else
+		return -ENOTSUPP;
 
 	return ret;
 }

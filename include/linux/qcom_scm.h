@@ -147,6 +147,7 @@ extern int qcom_scm_tzsched(const void *req, size_t req_size,
 #define TZ_SVC_APP_MGR			1     /* Application management */
 #define TZ_SVC_APP_ID_PLACEHOLDER	0     /* SVC bits will contain App ID */
 
+#define TZ_ARMv8_CMD_REMOVE_XPU			0x09
 #define TZ_ARMv8_CMD_NOTIFY_REGION_ID		0x05
 #define TZ_ARMv8_CMD_REGISTER_LOG_BUF		0x06
 #define TZ_ARMv8_CMD_LOAD_LIB			0x07
@@ -306,6 +307,7 @@ extern int qcom_scm_mem_prot_assign(struct sg_table *table,
 extern int qcom_scm_mem_protect_lock(struct cp2_lock_req *req, size_t req_size,
 				     u32 *resp, size_t resp_size);
 
+extern int qcom_scm_qseecom_remove_xpu(void);
 extern int qcom_scm_qseecom_notify(struct qsee_notify_app *req,
 				  size_t req_size,
 				  struct qseecom_command_scm_resp *resp,

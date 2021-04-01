@@ -110,6 +110,16 @@ int qcom_scm_mem_protect_lock(struct cp2_lock_req *request, size_t req_size,
 }
 EXPORT_SYMBOL(qcom_scm_mem_protect_lock);
 
+int qcom_scm_qseecom_remove_xpu()
+{
+	int ret = 0;
+
+	ret = __qcom_scm_qseecom_remove_xpu(__scm->dev);
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_scm_qseecom_remove_xpu);
+
 int qcom_scm_qseecom_notify(struct qsee_notify_app *req, size_t req_size,
 			   struct qseecom_command_scm_resp *resp,
 			   size_t resp_size)
