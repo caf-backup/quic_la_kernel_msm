@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2008-2018,2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -501,6 +501,7 @@ struct diagchar_dev {
 	struct workqueue_struct *diag_dci_wq;
 	struct list_head cmd_reg_list;
 	struct mutex cmd_reg_mutex;
+	spinlock_t dci_mempool_lock;
 	uint32_t cmd_reg_count;
 	/* Sizes that reflect memory pool sizes */
 	unsigned int poolsize;
