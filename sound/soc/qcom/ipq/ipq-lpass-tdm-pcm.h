@@ -26,11 +26,10 @@
 #define LPASS_DMA_BUFFER_SIZE			0x2000
 #define LPASS_BUFFER_SIZE			0x800
 
-#define LOOPBACK_SKIP_COUNT(hw)			((LPASS_DMA_BUFFER_SIZE / \
-							LPASS_BUFFER_SIZE) + 1)
+#define LOOPBACK_SKIP_COUNT(hw)			17
 
-#define DEFAULT_PCM_DMA_BUFFERS			2
-#define MAX_PCM_SAMPLES				16
+#define MAX_PCM_DMA_BUFFERS			16
+#define MAX_PCM_SAMPLES				10
 #define PCM_DMA_BUFFER_16BYTE_ALIGNMENT		0xF
 #define PCM_DMA_BUFFER_8BYTE_ALIGNMENT		7
 #define PCM_DMA_BUFFER_4BYTE_ALIGNMENT		3
@@ -143,12 +142,8 @@ struct lpass_dma_buffer {
 	uint32_t dma_buffer_size;
 	uint32_t dma_base_address;
 	uint32_t dma_last_curr_addr;
-	uint32_t size_done;;
-	uint32_t num_buffers;
 	uint32_t watermark;
-	uint32_t no_of_buff;
-	uint32_t lpm_mem_location;
-	uint32_t size_max;
+	uint32_t no_of_buffers;
 	uint32_t single_buf_size;
 	uint32_t int_samples_per_period;
 };
