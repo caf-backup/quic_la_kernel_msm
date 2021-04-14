@@ -4406,7 +4406,7 @@ int cnss_pci_probe_basic(struct pci_dev *pci_dev,
 
 	plat_priv->pci_dev = (struct platform_device *)pci_dev;
 	plat_priv->pci_dev_id = (struct platform_device_id *)id;
-
+	cnss_pr_info("PCI device %p probed successfully\n", plat_priv->pci_dev);
 
 	return 0;
 }
@@ -4430,7 +4430,10 @@ void cnss_pci_remove_basic(struct pci_dev *pci_dev)
 		return;
 	}
 
+	cnss_pr_info("Removing PCI device %p\n", plat_priv->pci_dev);
 	cnss_pci_free_m3_mem(plat_priv);
+	plat_priv->pci_dev_id = NULL;
+	plat_priv->pci_dev = NULL;
 }
 
 struct pci_driver cnss_pci_driver = {
