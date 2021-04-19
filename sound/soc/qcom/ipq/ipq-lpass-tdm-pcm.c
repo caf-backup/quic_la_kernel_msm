@@ -55,7 +55,6 @@ void __iomem *ipq_lpass_lpm_base;
  * Static Variable Definitions
  */
 static atomic_t data_avail;
-static atomic_t tx_add;
 static atomic_t rx_add;
 static struct lpass_dma_buffer *rx_dma_buffer;
 static struct lpass_dma_buffer *tx_dma_buffer;
@@ -69,26 +68,19 @@ static DECLARE_WAIT_QUEUE_HEAD(pcm_q);
 static uint32_t ipq_lpass_pcm_get_dataptr(struct lpass_dma_buffer *buffer,
 							uint32_t addr)
 {
-	uint32_t dataptr;
-	uint32_t last_addr;
-	uint32_t size;
+	uint32_t dataptr, offset, dma_at;
+	uint32_t no_of_buffers = buffer->no_of_buffers;
 
-	last_addr = buffer->dma_last_curr_addr;
-	dataptr= buffer->dma_last_curr_addr;
+	/* debug purpose */
 	buffer->dma_last_curr_addr = addr;
 
-	if(addr < last_addr){
-		size = ((buffer->dma_base_address + buffer->dma_buffer_size) -
-				last_addr);
-	buffer->dma_last_curr_addr = buffer->dma_base_address;
-	} else {
-		size = addr - last_addr;
-	}
-
-	buffer->size_done = size;
+	offset = addr - buffer->dma_base_address;
+	dma_at = (offset / (buffer->dma_buffer_size / no_of_buffers));
+	dataptr = (((dma_at + (no_of_buffers - 1)) % no_of_buffers));
 
 	return dataptr;
 }
+
 /*
  * FUNCTION: ipq_lpass_pcm_irq_handler
  *
@@ -100,36 +92,32 @@ static irqreturn_t ipq_lpass_pcm_irq_handler(int intrsrc, void *data)
 {
 	uint32_t status = 0;
 	uint32_t curr_addr;
+	uint32_t buffer_idx;
 	struct lpass_irq_buffer *buffer = (struct lpass_irq_buffer *)data;
 	struct lpass_dma_buffer *rx_buffer = buffer->rx_buffer;
-	struct lpass_dma_buffer *tx_buffer = buffer->tx_buffer;
 
 	ipq_lpass_dma_read_interrupt_status(ipq_lpass_lpaif_base,
 						INTERRUPT_CHANNEL0, &status);
 	while (status) {
+/*
+ * Both Tx and Rx interrupt use same IRQ number
+ * so Calculating RX buffer pointer is sufficient
+ * since RX and Tx configure same buffer size
+ * and interrupt size
+ */
 		if (status & (0x8000)) {
 			ipq_lpass_dma_get_curr_addr(ipq_lpass_lpaif_base,
 						rx_buffer->idx,
 						rx_buffer->dir,
 						&curr_addr);
 
-			curr_addr = ipq_lpass_pcm_get_dataptr(rx_buffer,
+			buffer_idx = ipq_lpass_pcm_get_dataptr(rx_buffer,
 								curr_addr);
 
-			atomic_set(&rx_add, curr_addr);
+			atomic_set(&rx_add, buffer_idx);
 			atomic_set(&data_avail, 1);
-		} else if (status & (0x8)) {
-			ipq_lpass_dma_get_curr_addr(ipq_lpass_lpaif_base,
-						tx_buffer->idx,
-						tx_buffer->dir,
-						&curr_addr);
-
-			curr_addr = ipq_lpass_pcm_get_dataptr(tx_buffer,
-								curr_addr);
-
-			atomic_set(&tx_add, curr_addr);
+			wake_up_interruptible(&pcm_q);
 		}
-		wake_up_interruptible(&pcm_q);
 
 		ipq_lpass_dma_clear_interrupt(ipq_lpass_lpaif_base,
 					INTERRUPT_CHANNEL0, status);
@@ -280,30 +268,26 @@ static uint32_t ipq_lpass_prepare_dma_buffer(uint32_t actual_buffer_size)
 	uint32_t circular_buff_size;
 	uint32_t no_of_buff;
 
-	no_of_buff = DEFAULT_PCM_DMA_BUFFERS;
+	no_of_buff = MAX_PCM_DMA_BUFFERS;
+/* Bufer size is updated based on configuration*/
 	circular_buff_size = no_of_buff * actual_buffer_size;
 
-	while ((circular_buff_size & PCM_DMA_BUFFER_16BYTE_ALIGNMENT) &&
-			(circular_buff_size < LPASS_DMA_BUFFER_SIZE)) {
-		no_of_buff <<= 1;
+	while(circular_buff_size > LPASS_DMA_BUFFER_SIZE ||
+		circular_buff_size & PCM_DMA_BUFFER_16BYTE_ALIGNMENT){
+		no_of_buff >>= 1;
 		circular_buff_size = no_of_buff * actual_buffer_size;
-	}
-
-	if ((circular_buff_size & PCM_DMA_BUFFER_16BYTE_ALIGNMENT) ||
-		circular_buff_size > LPASS_DMA_BUFFER_SIZE) {
-		circular_buff_size = 0;
 	}
 
 	return circular_buff_size;
 }
 
-static void ipq_lpass_fill_tx_data(uint32_t *tx_buff,
+static void ipq_lpass_fill_tx_data(uint32_t *tx_buff, uint32_t size,
 					struct ipq_lpass_pcm_params *params)
 {
 	uint i,slot = 0;
 
 	slot = params->active_slot_count;
-	for (i = 0; i < LPASS_DMA_BUFFER_SIZE / 4; ) {
+	for (i = 0; i < size / 4; ) {
 		for (slot = 0; slot < params->active_slot_count; slot++) {
 			if (params->bit_width == 16) {
 				tx_buff[i] = params->tx_slots[slot] << 16;
@@ -360,6 +344,7 @@ int ipq_pcm_init(struct ipq_lpass_pcm_params *params)
 	uint32_t circular_buffer;
 	uint32_t bytes_per_sample_intr;
 	uint32_t dword_per_sample_intr;
+	uint32_t no_of_buffers;
 	uint32_t watermark = DEAFULT_PCM_WATERMARK;
 
 	if ((rx_dma_buffer == NULL ) || (tx_dma_buffer == NULL))
@@ -383,10 +368,16 @@ int ipq_pcm_init(struct ipq_lpass_pcm_params *params)
 					bytes_per_sample);
 	circular_buffer = ipq_lpass_prepare_dma_buffer(samples_per_interrupt);
 	if (circular_buffer == 0) {
-		pr_err("%s: Error at circular buffer init %d.\n",
-				__func__, params->bit_width);
+		pr_err("%s: Error at circular buffer calculation\n",
+				__func__);
 		return -ENOMEM;
 	}
+
+	no_of_buffers = circular_buffer / samples_per_interrupt;
+
+	if (voice_loopback == 1)
+		no_of_buffers = PCM_VOICE_LOOPBACK_BUFFER_SIZE /
+					PCM_VOICE_LOOPBACK_INTR_SIZE;
 
 	clk_rate = params->bit_width * params->rate * params->slot_count;
 	ret = ipq_lpass_setup_bit_clock(clk_rate);
@@ -426,9 +417,9 @@ int ipq_pcm_init(struct ipq_lpass_pcm_params *params)
 	rx_dma_buffer->dma_buffer_size =
 		(voice_loopback == 1) ? PCM_VOICE_LOOPBACK_BUFFER_SIZE :
 						circular_buffer;
+	rx_dma_buffer->no_of_buffers = no_of_buffers;
 	rx_dma_buffer->dma_base_address = temp_lpm_base;
 	rx_dma_buffer->dma_last_curr_addr = temp_lpm_base;
-	rx_dma_buffer->size_done = 0;
 	rx_dma_buffer->watermark = watermark;
 	rx_dma_buffer->ifconfig = INTERFACE_PRIMARY;
 	rx_dma_buffer->intr_id = INTERRUPT_CHANNEL0;
@@ -458,16 +449,16 @@ int ipq_pcm_init(struct ipq_lpass_pcm_params *params)
 	tx_dma_buffer->dma_buffer_size =
 		(voice_loopback == 1) ? PCM_VOICE_LOOPBACK_BUFFER_SIZE :
 						circular_buffer;
+	tx_dma_buffer->no_of_buffers = no_of_buffers;
 	tx_dma_buffer->dma_base_address = temp_lpm_base;
 	tx_dma_buffer->dma_last_curr_addr = temp_lpm_base;
-	tx_dma_buffer->size_done = 0;
 	tx_dma_buffer->watermark = watermark;
 	tx_dma_buffer->ifconfig = INTERFACE_SECONDARY;
 	tx_dma_buffer->intr_id = INTERRUPT_CHANNEL0;
-	atomic_set(&tx_add, temp_lpm_base);
 
 	ipq_lpass_fill_tx_data((uint32_t *)ipq_lpass_phy_virt_lpm(
 					tx_dma_buffer->dma_base_address),
+					tx_dma_buffer->dma_buffer_size,
 					params);
 /*
  * TDM/PCM , Primary PCM support only RX mode
@@ -525,16 +516,21 @@ uint32_t ipq_pcm_data(uint8_t **rx_buf, uint8_t **tx_buf)
 {
 	unsigned long flag;
 	uint32_t size;
-	uint32_t txcurr_addr = 0;
-	uint32_t rxcurr_addr = 0;
+	uint32_t buffer_index;
+	uint32_t offset;
+	uint32_t txcurr_addr;
+	uint32_t rxcurr_addr;
 
 	wait_event_interruptible(pcm_q, atomic_read(&data_avail) != 0);
-
 	atomic_set(&data_avail, 0);
-	txcurr_addr = atomic_read(&tx_add);
-	rxcurr_addr = atomic_read(&rx_add);
+	buffer_index = atomic_read(&rx_add);
+
+	offset = (rx_dma_buffer->dma_buffer_size /
+			rx_dma_buffer->no_of_buffers) * buffer_index;
 
 	spin_lock_irqsave(&pcm_lock, flag);
+	rxcurr_addr = rx_dma_buffer->dma_base_address + offset;
+	txcurr_addr = tx_dma_buffer->dma_base_address + offset;
 	*rx_buf = (uint8_t *)ipq_lpass_phy_virt_lpm(rxcurr_addr);
 	*tx_buf = (uint8_t *)ipq_lpass_phy_virt_lpm(txcurr_addr);
 	size = rx_dma_buffer->single_buf_size;
