@@ -23,6 +23,9 @@
 
 	chosen {
 		stdout-path = "serial0";
+#ifndef __IPQ_MEM_PROFILE_256_MB__
+		bootargs-append = " vmalloc=600M";
+#endif
 	};
 
 	soc {
