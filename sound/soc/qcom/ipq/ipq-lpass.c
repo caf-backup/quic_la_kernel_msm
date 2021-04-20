@@ -561,6 +561,52 @@ void ipq_lpass_get_dma_fifo_count(void __iomem *lpaif_base,
 }
 EXPORT_SYMBOL(ipq_lpass_get_dma_fifo_count);
 
+static void ipq_lpass_dma_reset_enable(void __iomem *lpaif_base,
+					uint32_t dma_dir, uint32_t dma_idx)
+{
+	uint32_t mask, value, offset;
+
+	if(LPASS_HW_DMA_SINK == dma_dir){
+		mask = HWIO_LPASS_LPAIF_RDDMA_CTLa_RESET_BMSK;
+		value = HWIO_LPASS_LPAIF_RDDMA_CTLa_RESET_ENABLE_FVAL <<
+				HWIO_LPASS_LPAIF_RDDMA_CTLa_RESET_SHFT;
+		offset = HWIO_LPASS_LPAIF_RDDMA_CTLa_OFFS(dma_idx);
+	} else {
+		mask = HWIO_LPASS_LPAIF_WRDMA_CTLa_RESET_BMSK;
+		value = HWIO_LPASS_LPAIF_WRDMA_CTLa_RESET_ENABLE_FVAL <<
+				HWIO_LPASS_LPAIF_WRDMA_CTLa_RESET_SHFT;
+		offset = HWIO_LPASS_LPAIF_WRDMA_CTLa_OFFS(dma_idx);
+	}
+	ipq_lpass_reg_update(lpaif_base + offset, mask, value, true);
+}
+
+static void ipq_lpass_dma_reset_release(void __iomem *lpaif_base,
+					uint32_t dma_dir, uint32_t dma_idx)
+{
+	uint32_t mask, value, offset, reg_val, count = 20;
+
+	if(LPASS_HW_DMA_SINK == dma_dir){
+		mask = HWIO_LPASS_LPAIF_RDDMA_CTLa_RESET_BMSK;
+		value = HWIO_LPASS_LPAIF_RDDMA_CTLa_RESET_DISABLE_FVAL <<
+				HWIO_LPASS_LPAIF_RDDMA_CTLa_RESET_SHFT;
+		offset = HWIO_LPASS_LPAIF_RDDMA_CTLa_OFFS(dma_idx);
+	} else {
+		mask = HWIO_LPASS_LPAIF_WRDMA_CTLa_RESET_BMSK;
+		value = HWIO_LPASS_LPAIF_WRDMA_CTLa_RESET_DISABLE_FVAL <<
+				HWIO_LPASS_LPAIF_WRDMA_CTLa_RESET_SHFT;
+		offset = HWIO_LPASS_LPAIF_WRDMA_CTLa_OFFS(dma_idx);
+	}
+	ipq_lpass_reg_update(lpaif_base + offset, mask, value, true);
+	reg_val = readl(lpaif_base + offset);
+
+	while((reg_val & BIT(31)) && count != 0) {
+		ipq_lpass_reg_update(lpaif_base + offset, mask, value, true);
+		reg_val = readl(lpaif_base + offset);
+		count--;
+		mdelay(1);
+	}
+}
+
 static void ipq_lpass_dma_config_channel_sink(struct lpass_dma_config *config)
 {
 	uint32_t mask, value;
@@ -638,7 +684,7 @@ static void ipq_lpass_dma_config_channel_sink(struct lpass_dma_config *config)
 			HWIO_LPASS_LPAIF_RDDMA_CTLa_BURST16_EN_SHFT;
 
 	ipq_lpass_reg_update(HWIO_LPASS_LPAIF_RDDMA_CTLa_ADDR(
-			config->lpaif_base,config->idx), mask, value, 0);
+			config->lpaif_base,config->idx), mask, value, true);
 }
 
 static void ipq_lpass_dma_config_channel_source(struct lpass_dma_config *config)
@@ -718,16 +764,23 @@ static void ipq_lpass_dma_config_channel_source(struct lpass_dma_config *config)
 			HWIO_LPASS_LPAIF_WRDMA_CTLa_BURST16_EN_SHFT;
 
 	ipq_lpass_reg_update(HWIO_LPASS_LPAIF_WRDMA_CTLa_ADDR(
-			config->lpaif_base,config->idx), mask, value, 0);
+			config->lpaif_base,config->idx), mask, value, true);
 }
 
 void ipq_lpass_config_dma_channel(struct lpass_dma_config *config)
 {
+	ipq_lpass_dma_reset_enable(config->lpaif_base,
+					config->dir, config->idx);
+
+	ipq_lpass_dma_reset_release(config->lpaif_base,
+					config->dir, config->idx);
+
 	if(LPASS_HW_DMA_SINK == config->dir){
 		ipq_lpass_dma_config_channel_sink(config);
 	} else {
 		ipq_lpass_dma_config_channel_source(config);
 	}
+
 }
 EXPORT_SYMBOL(ipq_lpass_config_dma_channel);
 
