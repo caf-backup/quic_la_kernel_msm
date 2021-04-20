@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "../../../arm64/boot/dts/qcom/ipq5018-mp03.1.dts"
+#include "../../../arm64/boot/dts/qcom/ipq5018-mp03.5-c1.dts"
 
 / {
 	pmuv8: pmu {

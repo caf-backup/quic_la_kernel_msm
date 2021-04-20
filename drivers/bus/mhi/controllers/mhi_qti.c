@@ -443,12 +443,14 @@ module_param_named(debug_mode, debug_mode, int, 0644);
 
 int mhi_debugfs_trigger_m0(void *data, u64 val)
 {
+#ifdef CONFIG_PM
 	struct mhi_controller *mhi_cntrl = data;
 	struct mhi_dev *mhi_dev = mhi_controller_get_devdata(mhi_cntrl);
 
 	MHI_LOG("Trigger M3 Exit\n");
 	pm_runtime_get(&mhi_dev->pci_dev->dev);
 	pm_runtime_put(&mhi_dev->pci_dev->dev);
+#endif
 
 	return 0;
 }
@@ -457,12 +459,14 @@ DEFINE_SIMPLE_ATTRIBUTE(debugfs_trigger_m0_fops, NULL,
 
 int mhi_debugfs_trigger_m3(void *data, u64 val)
 {
+#ifdef CONFIG_PM
 	struct mhi_controller *mhi_cntrl = data;
 	struct mhi_dev *mhi_dev = mhi_controller_get_devdata(mhi_cntrl);
 
 	MHI_LOG("Trigger M3 Entry\n");
 	pm_runtime_mark_last_busy(&mhi_dev->pci_dev->dev);
 	pm_request_autosuspend(&mhi_dev->pci_dev->dev);
+#endif
 
 	return 0;
 }
@@ -474,9 +478,11 @@ void mhi_deinit_pci_dev(struct mhi_controller *mhi_cntrl)
 	struct mhi_dev *mhi_dev = mhi_controller_get_devdata(mhi_cntrl);
 	struct pci_dev *pci_dev = mhi_dev->pci_dev;
 
+#ifdef CONFIG_PM
 	pm_runtime_mark_last_busy(&pci_dev->dev);
 	pm_runtime_dont_use_autosuspend(&pci_dev->dev);
 	pm_runtime_disable(&pci_dev->dev);
+#endif
 	pci_free_irq_vectors(pci_dev);
 	kfree(mhi_cntrl->irq);
 	mhi_cntrl->irq = NULL;
@@ -561,6 +567,7 @@ static int mhi_init_pci_dev(struct mhi_controller *mhi_cntrl)
 
 	dev_set_drvdata(&pci_dev->dev, mhi_cntrl);
 
+#ifdef CONFIG_PM
 	/* configure runtime pm */
 	pm_runtime_set_autosuspend_delay(&pci_dev->dev, MHI_RPM_SUSPEND_TMR_MS);
 	pm_runtime_use_autosuspend(&pci_dev->dev);
@@ -578,6 +585,7 @@ static int mhi_init_pci_dev(struct mhi_controller *mhi_cntrl)
 	 */
 	pm_runtime_mark_last_busy(&pci_dev->dev);
 	pm_runtime_put_noidle(&pci_dev->dev);
+#endif
 
 	return 0;
 
@@ -603,6 +611,7 @@ error_enable_device:
 	return ret;
 }
 
+#ifdef CONFIG_PM
 static int mhi_runtime_suspend(struct device *dev)
 {
 	int ret = 0;
@@ -722,6 +731,7 @@ int mhi_system_suspend(struct device *dev)
 	MHI_LOG("Exit\n");
 	return 0;
 }
+#endif
 
 static int mhi_power_up(struct mhi_controller *mhi_cntrl)
 {
@@ -774,6 +784,7 @@ void mhi_sdx_write_reg(struct mhi_controller *mhi_cntrl, void __iomem *addr,
         writel(val, addr);
 }
 
+#ifdef CONFIG_PM
 static int mhi_runtime_get(struct mhi_controller *mhi_cntrl)
 {
 	struct mhi_dev *mhi_dev = mhi_cntrl->priv_data;
@@ -802,6 +813,7 @@ static void mhi_status_cb(struct mhi_controller *mhi_cntrl,
 		pm_request_autosuspend(dev);
 	}
 }
+#endif
 
 static ssize_t timeout_ms_show(struct device *dev,
 			       struct device_attribute *attr,
@@ -930,10 +942,12 @@ static struct mhi_controller *dt_register_mhi_controller(struct pci_dev *pci_dev
 
 	mhi_dev->pci_dev = pci_dev;
 
+#ifdef CONFIG_PM
 	/* setup power management apis */
 	mhi_cntrl->status_cb = mhi_status_cb;
 	mhi_cntrl->runtime_get = mhi_runtime_get;
 	mhi_cntrl->runtime_put = mhi_runtime_put;
+#endif
 	mhi_cntrl->read_reg = mhi_sdx_read_reg;
 	mhi_cntrl->write_reg = mhi_sdx_write_reg;
 
@@ -1054,8 +1068,10 @@ int mhi_pci_probe(struct pci_dev *pci_dev,
 			goto error_power_up;
 	}
 
+#ifdef CONFIG_PM
 	pm_runtime_mark_last_busy(&pci_dev->dev);
 	pm_runtime_allow(&pci_dev->dev);
+#endif
 
 	mhi_ssr_negotiate = of_property_read_bool(mhi_cntrl->of_node, "mhi,ssr-negotiate");
 
@@ -1119,22 +1135,28 @@ void mhi_pci_device_removed(struct pci_dev *pci_dev)
 
 		struct mhi_dev *mhi_dev = mhi_controller_get_devdata(mhi_cntrl);
 
+#ifdef CONFIG_PM
 		pm_stay_awake(&mhi_cntrl->mhi_dev->dev);
 
 		/* if link is in drv suspend, wake it up */
 		pm_runtime_get_sync(&pci_dev->dev);
+#endif
 
 		mutex_lock(&mhi_cntrl->pm_mutex);
 		if (!mhi_dev->powered_on) {
 			MHI_LOG("Not in active state\n");
 			mutex_unlock(&mhi_cntrl->pm_mutex);
+#ifdef CONFIG_PM
 			pm_runtime_put_noidle(&pci_dev->dev);
+#endif
 			return;
 		}
 		mhi_dev->powered_on = false;
 		mutex_unlock(&mhi_cntrl->pm_mutex);
 
+#ifdef CONFIG_PM
 		pm_runtime_put_noidle(&pci_dev->dev);
+#endif
 
 		if (mhi_ssr_negotiate) {
 			mdm2ap = gpio_to_desc(mdm2ap_gpio);
@@ -1153,7 +1175,9 @@ void mhi_pci_device_removed(struct pci_dev *pci_dev)
 
 		mhi_arch_pcie_deinit(mhi_cntrl);
 
+#ifdef CONFIG_PM
 		pm_relax(&mhi_cntrl->mhi_dev->dev);
+#endif
 
 		kobject_put(mhi_kobj);
 
@@ -1161,12 +1185,14 @@ void mhi_pci_device_removed(struct pci_dev *pci_dev)
 	}
 }
 
+#ifdef CONFIG_PM
 static const struct dev_pm_ops pm_ops = {
 	SET_RUNTIME_PM_OPS(mhi_runtime_suspend,
 			   mhi_runtime_resume,
 			   mhi_runtime_idle)
 	SET_SYSTEM_SLEEP_PM_OPS(mhi_system_suspend, mhi_system_resume)
 };
+#endif
 
 static struct pci_device_id mhi_pcie_device_id[] = {
 	{PCI_DEVICE(MHI_PCIE_VENDOR_ID, 0x0300)},
@@ -1184,9 +1210,11 @@ static struct pci_driver mhi_pcie_driver = {
 	.id_table = mhi_pcie_device_id,
 	.probe = mhi_pci_probe,
 	.remove = mhi_pci_device_removed,
+#ifdef CONFIG_PM
 	.driver = {
 		.pm = &pm_ops
 	}
+#endif
 };
 
 module_pci_driver(mhi_pcie_driver);

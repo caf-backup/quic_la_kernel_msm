@@ -954,6 +954,7 @@
 			qcom,portid-enabled;
 			qcom,wlan-dataplane-offload-enabled;
 			qcom,pvxlan-enabled;
+			qcom,udp-st-enabled;
 		};
 
 		scm_restart_reason: scm_restart_reason {

@@ -605,10 +605,6 @@ nf_nat_setup_info(struct nf_conn *ct,
 	struct net *net = nf_ct_net(ct);
 	struct nf_conntrack_tuple curr_tuple, new_tuple;
 
-	/* Can't setup nat info for confirmed ct. */
-	if (nf_ct_is_confirmed(ct))
-		return NF_ACCEPT;
-
 	WARN_ON(maniptype != NF_NAT_MANIP_SRC &&
 		maniptype != NF_NAT_MANIP_DST);
 
