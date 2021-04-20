@@ -3495,6 +3495,25 @@ int cnss_get_user_msi_assignment(struct device *dev, char *user_name,
 }
 EXPORT_SYMBOL(cnss_get_user_msi_assignment);
 
+int cnss_get_pci_slot(struct device *dev)
+{
+	struct cnss_plat_data *plat_priv =
+		cnss_bus_dev_to_plat_priv(dev);
+
+	if (!plat_priv)
+		return -ENODEV;
+
+	switch (plat_priv->device_id) {
+	case QCN9000_DEVICE_ID:
+		return plat_priv->qrtr_node_id - QCN9000_0;
+	default:
+		cnss_pr_info("PCI slot is 0 for target 0x%lx",
+			     plat_priv->device_id);
+		return 0;
+	}
+}
+EXPORT_SYMBOL(cnss_get_pci_slot);
+
 int cnss_get_msi_irq(struct device *dev, unsigned int vector)
 {
 	int irq_num;
