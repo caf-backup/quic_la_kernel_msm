@@ -1450,6 +1450,7 @@ int cnss_wlan_register_driver(struct cnss_wlan_driver *driver_ops)
 	return 0;
 reset_ctx:
 	cnss_pr_err("Failed to get subsystem, err = %d\n", ret);
+	CNSS_ASSERT(0);
 	cnss_unregister_qca8074_cb(plat_priv);
 	plat_priv->driver_status = CNSS_UNINITIALIZED;
 	plat_priv->driver_ops = NULL;
@@ -1598,13 +1599,25 @@ void  *cnss_subsystem_get(struct device *dev, int device_id)
 	subsys_info = &plat_priv->subsys_info;
 
 	if (subsys_info->subsys_handle) {
-		pr_err("%s: error: subsys handle %p is not NULL ",
-		       __func__, subsys_info->subsys_handle);
+		cnss_pr_err("%s: error: subsys handle %pK is not NULL\n",
+			    __func__, subsys_info->subsys_handle);
 		return NULL;
 	}
 	subsys_info->subsys_handle =
 				subsystem_get(subsys_info->subsys_desc.name);
+	if (!subsys_info->subsys_handle) {
+		cnss_pr_err("Failed to get subsys_handle!\n");
+		goto fail;
+	} else if (IS_ERR(subsys_info->subsys_handle)) {
+		cnss_pr_err("Failed to do subsystem_get, err = %ld\n",
+			    PTR_ERR(subsys_info->subsys_handle));
+		goto fail;
+	}
+
 	return subsys_info->subsys_handle;
+fail:
+	CNSS_ASSERT(0);
+	return NULL;
 }
 EXPORT_SYMBOL(cnss_subsystem_get);
 
@@ -2849,6 +2862,7 @@ int cnss_register_subsys(struct cnss_plat_data *plat_priv)
 	return 0;
 
 unregister_subsys:
+	CNSS_ASSERT(0);
 	subsys_unregister(subsys_info->subsys_device);
 out:
 	return ret;
