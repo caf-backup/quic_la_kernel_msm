@@ -43,6 +43,7 @@
 						_bytes_per_channel *	\
 						MAX_PCM_SAMPLES)
 
+#define IPQ_PCM_SAMPLES_PER_PERIOD(_rate)	(_rate / 1000)
 #define IPQ_PCM_BYTES_PER_SAMPLE_MAX		4
 #define IPQ_PCM_MAX_CHANNEL_CNT			32
 #define IPQ_PCM_MAX_SLOTS_PER_FRAME		32
@@ -113,6 +114,18 @@ enum ipq_hw_type{
 	IPQ8074
 };
 
+enum ipq_pcm_sampling_rate {
+	IPQ_PCM_SAMPLING_RATE_8KHZ = 8000,
+	IPQ_PCM_SAMPLING_RATE_16KHZ = 16000,
+	IPQ_PCM_SAMPLING_RATE_MIN = IPQ_PCM_SAMPLING_RATE_8KHZ,
+	IPQ_PCM_SAMPLING_RATE_MAX = IPQ_PCM_SAMPLING_RATE_16KHZ,
+};
+
+enum ipq_pcm_memory_type{
+	DMA_MEMORY_LPM = 1,
+	DMA_MEMORY_DDR
+};
+
 enum {
 	DMA_CHANNEL0 = 0,
 	DMA_CHANNEL1
@@ -139,6 +152,8 @@ struct lpass_dma_buffer {
 	uint32_t bytes_per_channel;
 	uint32_t period_count_in_word32;
 	uint32_t bytes_per_sample;
+	uint8_t	 *dma_buffer;
+	uint32_t dma_memory_type;
 	uint32_t dma_buffer_size;
 	uint32_t dma_base_address;
 	uint32_t dma_last_curr_addr;
@@ -146,30 +161,13 @@ struct lpass_dma_buffer {
 	uint32_t no_of_buffers;
 	uint32_t single_buf_size;
 	uint32_t int_samples_per_period;
+	uint32_t max_size;
+	dma_addr_t dma_addr;
 };
 
 struct lpass_irq_buffer {
 	struct lpass_dma_buffer *rx_buffer;
 	struct lpass_dma_buffer *tx_buffer;
-};
-
-struct lpass_lpm_block {
-	uint16_t block_id;
-	uint16_t allocated;
-	uint16_t size;
-	uint32_t base;
-};
-
-struct lpass_lpm_info {
-	struct lpass_lpm_block blk [IPQ_LPASS_MAX_LPM_BLK];
-	uint32_t base;
-	uint32_t size;
-};
-
-struct lpm_mem_info{
-	uint16_t block_mask;
-	uint16_t size;
-	uint32_t address;
 };
 
 struct ipq_lpass_pcm_params {
