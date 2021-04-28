@@ -1749,9 +1749,6 @@ void nf_conntrack_alter_reply(struct nf_conn *ct,
 {
 	struct nf_conn_help *help = nfct_help(ct);
 
-	/* Should be unconfirmed, so not in hash table yet */
-	WARN_ON(nf_ct_is_confirmed(ct));
-
 	pr_debug("Altering reply tuple of %pK to ", ct);
 	nf_ct_dump_tuple(newreply);
 
