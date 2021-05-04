@@ -497,6 +497,7 @@ static void mhi_pm_disable_transition(struct mhi_controller *mhi_cntrl,
 	struct mhi_cmd *mhi_cmd;
 	struct mhi_event_ctxt *er_ctxt;
 	int ret, i;
+	u32 interval_us = 25000; /* poll register field every 25 milliseconds */
 
 	MHI_LOG("Enter with from pm_state:%s MHI_STATE:%s to pm_state:%s\n",
 		to_mhi_pm_state_str(mhi_cntrl->pm_state),
@@ -530,21 +531,20 @@ static void mhi_pm_disable_transition(struct mhi_controller *mhi_cntrl,
 
 	/* trigger MHI RESET so device will not access host ddr */
 	if (MHI_REG_ACCESS_VALID(prev_state)) {
-		u32 in_reset = -1;
-		unsigned long timeout = msecs_to_jiffies(mhi_cntrl->timeout_ms);
 
 		MHI_LOG("Trigger device into MHI_RESET\n");
+
 		mhi_set_mhi_state(mhi_cntrl, MHI_STATE_RESET);
 
 		/* wait for reset to be cleared */
-		ret = wait_event_timeout(mhi_cntrl->state_event,
-					 mhi_read_reg_field(mhi_cntrl,
-						mhi_cntrl->regs, MHICTRL,
-						MHICTRL_RESET_MASK,
-						MHICTRL_RESET_SHIFT, &in_reset)
-					 || !in_reset, timeout);
-		if ((!ret || in_reset) && cur_state == MHI_PM_SYS_ERR_PROCESS) {
-			MHI_CRITICAL("Device failed to exit RESET state\n");
+		ret = mhi_poll_reg_field(mhi_cntrl, mhi_cntrl->regs, MHICTRL,
+					 MHICTRL_RESET_MASK,
+					 MHICTRL_RESET_SHIFT, 0,
+					 interval_us);
+
+		if (ret && cur_state == MHI_PM_SYS_ERR_PROCESS) {
+			MHI_CRITICAL("Device failed to exit RESET ret:%d\n",
+					ret);
 			mutex_unlock(&mhi_cntrl->pm_mutex);
 			return;
 		}
