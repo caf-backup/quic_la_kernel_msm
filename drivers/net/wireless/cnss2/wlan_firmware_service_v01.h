@@ -129,6 +129,8 @@
 #define QMI_WLFW_MAX_DEV_MEM_NUM_V01 4
 #define QMI_WLFW_MAX_PLATFORM_NAME_LEN_V01 64
 #define QMI_WLFW_MAX_NUM_SVC_V01 24
+#define QMI_WLFW_MAX_NUM_MLO_LINKS_PER_CHIP_V01 2
+#define QMI_WLFW_MAX_NUM_MLO_CHIPS_V01 3
 
 enum wlfw_driver_mode_enum_v01 {
 	WLFW_DRIVER_MODE_ENUM_MIN_VAL_V01 = INT_MIN,
@@ -173,6 +175,7 @@ enum wlfw_mem_type_enum_v01 {
 	QMI_WLFW_MEM_DPD_V01 = 5,
 	QMI_WLFW_MEM_QDSS_V01 = 6,
 	QMI_WLFW_MEM_HANG_DATA_V01 = 7,
+	QMI_WLFW_MLO_GLOBAL_MEM_V01 = 8,
 	WLFW_MEM_TYPE_ENUM_MAX_VAL_V01 = INT_MAX,
 };
 
@@ -363,6 +366,13 @@ struct wlfw_m3_segment_info_s_v01 {
 struct wlfw_dev_mem_info_s_v01 {
 	u64 start;
 	u64 size;
+};
+
+struct wlfw_host_mlo_chip_info_s_v01 {
+	u8 chip_id;
+	u8 num_local_links;
+	u8 hw_link_id[QMI_WLFW_MAX_NUM_MLO_LINKS_PER_CHIP_V01];
+	u8 valid_mlo_link_id[QMI_WLFW_MAX_NUM_MLO_LINKS_PER_CHIP_V01];
 };
 
 struct wlfw_ind_register_req_msg_v01 {
@@ -815,9 +825,22 @@ struct wlfw_host_cap_req_msg_v01 {
 			ddr_range[QMI_WLFW_MAX_HOST_DDR_RANGE_SIZE_V01];
 	u8 host_build_type_valid;
 	enum wlfw_host_build_type_v01 host_build_type;
+	u8 mlo_capable_valid;
+	u8 mlo_capable;
+	u8 mlo_chip_id_valid;
+	u16 mlo_chip_id;
+	u8 mlo_group_id_valid;
+	u8 mlo_group_id;
+	u8 max_mlo_peer_valid;
+	u16 max_mlo_peer;
+	u8 mlo_num_chips_valid;
+	u8 mlo_num_chips;
+	u8 mlo_chip_info_valid;
+	struct wlfw_host_mlo_chip_info_s_v01
+			mlo_chip_info[QMI_WLFW_MAX_NUM_MLO_CHIPS_V01];
 };
 
-#define WLFW_HOST_CAP_REQ_MSG_V01_MAX_MSG_LEN 319
+#define WLFW_HOST_CAP_REQ_MSG_V01_MAX_MSG_LEN 362
 extern struct qmi_elem_info wlfw_host_cap_req_msg_v01_ei[];
 
 struct wlfw_host_cap_resp_msg_v01 {
