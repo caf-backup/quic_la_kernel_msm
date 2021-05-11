@@ -475,7 +475,7 @@ int cnss_wlfw_tgt_cap_send_sync(struct cnss_plat_data *plat_priv)
 	struct wlfw_cap_resp_msg_v01 *resp;
 	struct qmi_txn txn;
 	char *fw_build_timestamp;
-	int ret = 0;
+	int i, ret = 0;
 	int resp_error_msg = 0;
 
 	cnss_pr_dbg("Sending target capability message, state: 0x%lx\n",
@@ -568,6 +568,18 @@ int cnss_wlfw_tgt_cap_send_sync(struct cnss_plat_data *plat_priv)
 	if (resp->eeprom_caldata_read_timeout_valid)
 		plat_priv->eeprom_caldata_read_timeout =
 			resp->eeprom_caldata_read_timeout;
+
+	if (resp->dev_mem_info_valid) {
+		for (i = 0; i < QMI_WLFW_MAX_DEV_MEM_NUM_V01; i++) {
+			plat_priv->dev_mem_info[i].start =
+				resp->dev_mem_info[i].start;
+			plat_priv->dev_mem_info[i].size =
+				resp->dev_mem_info[i].size;
+			cnss_pr_info("Device memory info[%d]: start = 0x%llx, size = 0x%llx\n",
+				     i, plat_priv->dev_mem_info[i].start,
+				     plat_priv->dev_mem_info[i].size);
+		}
+	}
 
 	cnss_pr_info("Target capability: chip_id: 0x%x, chip_family: 0x%x, board_id: 0x%x, soc_id: 0x%x, fw_version: 0x%x, fw_build_timestamp: %s, otp_version: 0x%x eeprom_caldata_read_timeout %ds\n",
 		     plat_priv->chip_info.chip_id,

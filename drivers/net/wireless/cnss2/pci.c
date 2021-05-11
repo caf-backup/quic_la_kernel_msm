@@ -3321,6 +3321,9 @@ int cnss_get_soc_info(struct device *dev, struct cnss_soc_info *info)
 	memcpy(&info->device_version, &plat_priv->device_version,
 	       sizeof(info->device_version));
 
+	memcpy(&info->dev_mem_info, &plat_priv->dev_mem_info,
+	       sizeof(info->dev_mem_info));
+
 	return 0;
 }
 EXPORT_SYMBOL(cnss_get_soc_info);
