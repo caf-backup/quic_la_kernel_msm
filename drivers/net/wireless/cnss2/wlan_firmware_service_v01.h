@@ -176,6 +176,7 @@ enum wlfw_mem_type_enum_v01 {
 	QMI_WLFW_MEM_QDSS_V01 = 6,
 	QMI_WLFW_MEM_HANG_DATA_V01 = 7,
 	QMI_WLFW_MLO_GLOBAL_MEM_V01 = 8,
+	QMI_WLFW_PAGEABLE_MEM_V01 = 9,
 	WLFW_MEM_TYPE_ENUM_MAX_VAL_V01 = INT_MAX,
 };
 
@@ -838,9 +839,13 @@ struct wlfw_host_cap_req_msg_v01 {
 	u8 mlo_chip_info_valid;
 	struct wlfw_host_mlo_chip_info_s_v01
 			mlo_chip_info[QMI_WLFW_MAX_NUM_MLO_CHIPS_V01];
+	u8 num_wlan_clients_valid;
+	u16 num_wlan_clients;
+	u8 num_wlan_vaps_valid;
+	u8 num_wlan_vaps;
 };
 
-#define WLFW_HOST_CAP_REQ_MSG_V01_MAX_MSG_LEN 362
+#define WLFW_HOST_CAP_REQ_MSG_V01_MAX_MSG_LEN 371
 extern struct qmi_elem_info wlfw_host_cap_req_msg_v01_ei[];
 
 struct wlfw_host_cap_resp_msg_v01 {
@@ -1192,9 +1197,13 @@ struct wlfw_device_info_resp_msg_v01 {
 	u64 bar_addr;
 	u8 bar_size_valid;
 	u32 bar_size;
+	u8 mhi_state_info_addr_valid;
+	u64 mhi_state_info_addr;
+	u8 mhi_state_info_size_valid;
+	u32 mhi_state_info_size;
 };
 
-#define WLFW_DEVICE_INFO_RESP_MSG_V01_MAX_MSG_LEN 25
+#define WLFW_DEVICE_INFO_RESP_MSG_V01_MAX_MSG_LEN 43
 extern struct qmi_elem_info wlfw_device_info_resp_msg_v01_ei[];
 
 struct wlfw_m3_dump_upload_req_ind_msg_v01 {
