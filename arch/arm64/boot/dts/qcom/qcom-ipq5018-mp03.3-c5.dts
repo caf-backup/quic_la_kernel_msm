@@ -18,35 +18,7 @@
 / {
 	#address-cells = <0x2>;
 	#size-cells = <0x2>;
-	model = "Qualcomm Technologies, Inc. IPQ5018/AP-MP03.3-C3";
-	compatible = "qcom,ipq5018-mp03.3-c3", "qcom,ipq5018";
+	model = "Qualcomm Technologies, Inc. IPQ5018/AP-MP03.3-C5";
+	compatible = "qcom,ipq5018-mp03.3-c5", "qcom,ipq5018";
 	interrupt-parent = <&intc>;
-};
-
-&pcie_x2 {
-	status = "disabled";
-};
-
-&pcie_x2phy {
-	status = "disabled";
-};
-
-&pcie_x2_rp {
-	status = "disabled";
-};
-
-&bt {
-	status = "disabled";
-};
-
-&crypto {
-	status = "disabled";
-};
-
-&nss_crypto {
-	status = "disabled";
-};
-
-&usb3 {
-	status = "disabled";
 };
