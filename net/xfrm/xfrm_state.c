@@ -669,6 +669,7 @@ int __xfrm_state_delete(struct xfrm_state *x)
 		spin_unlock(&net->xfrm.xfrm_state_lock);
 
 		xfrm_dev_state_delete(x);
+		xfrm_state_change_notify(x, XFRM_EVENT_STATE_DEL);
 
 		/* All xfrm_state objects are created by xfrm_state_alloc.
 		 * The xfrm_state_alloc call gives a reference, and that
@@ -2768,3 +2769,39 @@ void xfrm_audit_state_icvfail(struct xfrm_state *x,
 }
 EXPORT_SYMBOL_GPL(xfrm_audit_state_icvfail);
 #endif /* CONFIG_AUDITSYSCALL */
+
+void xfrm_state_change_notify(struct xfrm_state *x, enum xfrm_event_type type)
+{
+	struct xfrm_event_notifier *event;
+	struct net *net = xs_net(x);
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(event, &net->xfrm.event_notifier_list, list) {
+		if (event->state_notify) {
+			event->state_notify(x, type);
+		}
+
+		BUG_ON(refcount_read(&x->refcnt) <= 0);
+	}
+
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL(xfrm_state_change_notify);
+
+int xfrm_event_register_notifier(struct net *net, struct xfrm_event_notifier *event)
+{
+	spin_lock_bh(&net->xfrm.xfrm_event_lock);
+	list_add_tail_rcu(&event->list, &net->xfrm.event_notifier_list);
+	spin_unlock_bh(&net->xfrm.xfrm_event_lock);
+	return 0;
+}
+EXPORT_SYMBOL(xfrm_event_register_notifier);
+
+void xfrm_event_unregister_notifier(struct net *net, struct xfrm_event_notifier *event)
+{
+	spin_lock_bh(&net->xfrm.xfrm_event_lock);
+	list_del_rcu(&event->list);
+	spin_unlock_bh(&net->xfrm.xfrm_event_lock);
+	synchronize_rcu();
+}
+EXPORT_SYMBOL(xfrm_event_unregister_notifier);
