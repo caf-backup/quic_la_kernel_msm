@@ -1432,6 +1432,7 @@
 			compatible = "qcom,qfprom-sec";
 			img-addr = <0x4A800000>;
 			img-size = <0x00400000>;
+			fuse-blow-size-required = <1>;
 		};
 	};
 
