@@ -3673,7 +3673,7 @@ static int cnss_probe(struct platform_device *plat_dev)
 		}
 
 		plat_priv->qcn6122.qgic2_msi =
-					cnss_qgic2_enable_msi(qgicm_id);
+				cnss_qgic2_enable_msi(plat_priv, qgicm_id);
 		if (!plat_priv->qcn6122.qgic2_msi) {
 			cnss_pr_err("qgic2_msi fails: dev 0x%lx userpd id %d\n",
 				    plat_priv->device_id, userpd_id);

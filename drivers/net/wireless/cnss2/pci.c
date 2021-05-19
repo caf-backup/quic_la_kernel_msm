@@ -28,6 +28,43 @@
 #include "pci.h"
 #include "bus.h"
 
+/* pci0_num_msi_bmap and pci1_num_msi_bmap needs to be defined in format of
+ * 0xDPCEMH where 0xDP denotes the number of MSIs available for DP, 0xCE
+ * denotes the number of MSIs available for CE and 0xMH denotes the number of
+ * MSIs available for MHI. Total number of MSIs will be DP + CE + MH
+ */
+static int pci0_num_msi_bmap;
+module_param(pci0_num_msi_bmap, int, 0644);
+MODULE_PARM_DESC(pci0_num_msi_bmap,
+		 "Bitmap to indicate number of available MSIs for PCI 0");
+
+static int pci1_num_msi_bmap;
+module_param(pci1_num_msi_bmap, int, 0644);
+MODULE_PARM_DESC(pci1_num_msi_bmap,
+		 "Bitmap to indicate number of available MSIs for PCI 1");
+
+#define MSI_MHI_VECTOR_MASK 0xFF
+#define MSI_MHI_VECTOR_SHIFT 0
+
+#define MSI_CE_VECTOR_MASK 0xFF00
+#define MSI_CE_VECTOR_SHIFT 8
+
+#define MSI_DP_VECTOR_MASK 0xFF0000
+#define MSI_DP_VECTOR_SHIFT 16
+
+/* Currently there is only support for MHI to operate with 3 MSIs. */
+#define MAX_MHI_VECTORS 3
+#define MIN_MHI_VECTORS 3
+#define DEFAULT_MHI_VECTORS 3
+
+#define MAX_CE_VECTORS 5
+#define MIN_CE_VECTORS 1
+#define DEFAULT_CE_VECTORS MIN_CE_VECTORS
+
+#define MAX_DP_VECTORS 8
+#define MIN_DP_VECTORS 1
+#define DEFAULT_DP_VECTORS MIN_DP_VECTORS
+
 #define PCI_LINK_UP			1
 #define PCI_LINK_DOWN			0
 
@@ -3328,7 +3365,7 @@ int cnss_get_soc_info(struct device *dev, struct cnss_soc_info *info)
 }
 EXPORT_SYMBOL(cnss_get_soc_info);
 
-static struct cnss_msi_config msi_config_qcn9000 = {
+static struct cnss_msi_config msi_config_qcn9000_pci0 = {
 	.total_vectors = 16,
 	.total_users = 3,
 	.users = (struct cnss_msi_user[]) {
@@ -3338,7 +3375,17 @@ static struct cnss_msi_config msi_config_qcn9000 = {
 	},
 };
 
-static struct cnss_msi_config msi_config_qcn6122 = {
+static struct cnss_msi_config msi_config_qcn9000_pci1 = {
+	.total_vectors = 16,
+	.total_users = 3,
+	.users = (struct cnss_msi_user[]) {
+		{ .name = "MHI", .num_vectors = 3, .base_vector = 0 },
+		{ .name = "CE", .num_vectors = 5, .base_vector = 3 },
+		{ .name = "DP", .num_vectors = 8, .base_vector = 8 },
+	},
+};
+
+static struct cnss_msi_config msi_config_qcn6122_pci0 = {
 	.total_vectors = 13,
 	.total_users = 2,
 	.users = (struct cnss_msi_user[]) {
@@ -3347,10 +3394,93 @@ static struct cnss_msi_config msi_config_qcn6122 = {
 	},
 };
 
+static struct cnss_msi_config msi_config_qcn6122_pci1 = {
+	.total_vectors = 13,
+	.total_users = 2,
+	.users = (struct cnss_msi_user[]) {
+		{ .name = "CE", .num_vectors = 5, .base_vector = 0 },
+		{ .name = "DP", .num_vectors = 8, .base_vector = 5 },
+	},
+};
+
+static void pci_update_msi_vectors(struct cnss_msi_config *msi_config,
+				   char *user_name, int num_vectors,
+				   int *vector_idx)
+{
+	int idx;
+
+	for (idx = 0; idx < msi_config->total_users; idx++) {
+		if (strcmp(user_name, msi_config->users[idx].name) == 0) {
+			msi_config->users[idx].num_vectors = num_vectors;
+			msi_config->users[idx].base_vector = *vector_idx;
+			*vector_idx += num_vectors;
+			return;
+		}
+	}
+}
+
+static void pci_override_msi_assignment(struct cnss_plat_data *plat_priv,
+					struct cnss_msi_config *msi_config)
+{
+	int num_mhi_vectors;
+	int num_ce_vectors;
+	int num_dp_vectors;
+	int interrupt_bmap = 0;
+	int vector_idx = 0;
+
+	if (plat_priv->qrtr_node_id == QCN9000_0 ||
+	    plat_priv->userpd_id == QCN6122_0)
+		interrupt_bmap = pci0_num_msi_bmap;
+
+	if (plat_priv->qrtr_node_id == QCN9000_1 ||
+	    plat_priv->userpd_id == QCN6122_1)
+		interrupt_bmap = pci1_num_msi_bmap;
+
+	if (!interrupt_bmap)
+		return;
+
+	num_mhi_vectors = (interrupt_bmap & MSI_MHI_VECTOR_MASK) >>
+			   MSI_MHI_VECTOR_SHIFT;
+	num_ce_vectors = (interrupt_bmap & MSI_CE_VECTOR_MASK) >>
+			  MSI_CE_VECTOR_SHIFT;
+	num_dp_vectors = (interrupt_bmap & MSI_DP_VECTOR_MASK) >>
+			  MSI_DP_VECTOR_SHIFT;
+
+	if (num_mhi_vectors < MIN_MHI_VECTORS ||
+	    num_mhi_vectors > MAX_MHI_VECTORS)
+		num_mhi_vectors = DEFAULT_MHI_VECTORS;
+
+	if (num_ce_vectors < MIN_CE_VECTORS ||
+	    num_ce_vectors > MAX_CE_VECTORS)
+		num_ce_vectors = DEFAULT_CE_VECTORS;
+
+	if (num_dp_vectors < MIN_DP_VECTORS ||
+	    num_dp_vectors > MAX_DP_VECTORS)
+		num_dp_vectors = DEFAULT_DP_VECTORS;
+
+	pci_update_msi_vectors(msi_config, "MHI", num_mhi_vectors, &vector_idx);
+	pci_update_msi_vectors(msi_config, "CE", num_ce_vectors, &vector_idx);
+	pci_update_msi_vectors(msi_config, "DP", num_dp_vectors, &vector_idx);
+	msi_config->total_vectors = num_mhi_vectors + num_ce_vectors +
+				    num_dp_vectors;
+}
+
 static int cnss_pci_get_msi_assignment(struct cnss_pci_data *pci_priv)
 {
-	pci_priv->msi_config = &msi_config_qcn9000;
+	int qrtr_node_id = pci_priv->plat_priv->qrtr_node_id;
 
+	if (qrtr_node_id == QCN9000_0) {
+		pci_override_msi_assignment(pci_priv->plat_priv,
+					    &msi_config_qcn9000_pci0);
+		pci_priv->msi_config = &msi_config_qcn9000_pci0;
+	} else if (qrtr_node_id == QCN9000_1) {
+		pci_override_msi_assignment(pci_priv->plat_priv,
+					    &msi_config_qcn9000_pci1);
+		pci_priv->msi_config = &msi_config_qcn9000_pci1;
+	} else {
+		pr_err("Unknown qrtr_node_id 0x%X", qrtr_node_id);
+		return -EINVAL;
+	}
 	return 0;
 }
 static int cnss_pci_enable_msi(struct cnss_pci_data *pci_priv)
@@ -3417,12 +3547,27 @@ static void cnss_pci_disable_msi(struct cnss_pci_data *pci_priv)
 	pci_free_irq_vectors(pci_priv->pci_dev);
 }
 
-struct qgic2_msi *cnss_qgic2_enable_msi(int qgicm_id)
+struct qgic2_msi *cnss_qgic2_enable_msi(struct cnss_plat_data *plat_priv,
+					int qgicm_id)
 {
 	struct qgic2_msi *qgic2_msi;
 
-	qgic2_msi = qgic2_enable_msi(qgicm_id,
-				     msi_config_qcn6122.total_vectors);
+	if (plat_priv->userpd_id == QCN6122_0) {
+		pci_override_msi_assignment(plat_priv,
+					    &msi_config_qcn6122_pci0);
+		qgic2_msi =
+			qgic2_enable_msi(qgicm_id,
+					 msi_config_qcn6122_pci0.total_vectors);
+	} else if (plat_priv->userpd_id == QCN6122_1) {
+		pci_override_msi_assignment(plat_priv,
+					    &msi_config_qcn6122_pci1);
+		qgic2_msi =
+			qgic2_enable_msi(qgicm_id,
+					 msi_config_qcn6122_pci1.total_vectors);
+	} else {
+		pr_err("Unknown userpd_id 0x%X", plat_priv->userpd_id);
+		return NULL;
+	}
 	if (IS_ERR(qgic2_msi)) {
 		pr_err("qgic2_enable_msi fails %ld\n", PTR_ERR(qgic2_msi));
 		return NULL;
@@ -3454,7 +3599,16 @@ int cnss_get_user_msi_assignment(struct device *dev, char *user_name,
 			cnss_pr_err("qgic2_msi NULL");
 			return -EINVAL;
 		}
-		msi_config = &msi_config_qcn6122;
+		if (plat_priv->userpd_id == QCN6122_0) {
+			msi_config = &msi_config_qcn6122_pci0;
+		} else if (plat_priv->userpd_id == QCN6122_1) {
+			msi_config = &msi_config_qcn6122_pci1;
+		} else {
+			cnss_pr_err("Unknown userpd_id 0x%X",
+				    plat_priv->userpd_id);
+			return -EINVAL;
+		}
+
 		msi_ep_base_data = qgic2_msi->msi_gicm_base;
 	} else if (plat_priv->device_id == QCN9000_DEVICE_ID) {
 		pci_dev = to_pci_dev(dev);
