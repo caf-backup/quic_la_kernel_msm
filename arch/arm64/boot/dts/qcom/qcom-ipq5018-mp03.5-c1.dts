@@ -800,6 +800,7 @@
 #else
 	qcom,caldb-addr = <0x4D400000>;
 	m3-dump-addr = <0x4D200000>;
+	nss-radio-priority = <0>;
 #endif
 	qcom,caldb-size = <0x200000>;
 	status = "ok";
@@ -821,6 +822,7 @@
 #else
 	qcom,caldb-addr = <0x4E800000>;
 	m3-dump-addr = <0x4E600000>;
+	nss-radio-priority = <1>;
 #endif
 	qcom,caldb-size = <0x500000>;
 	status = "ok";
@@ -842,6 +844,7 @@
 #else
 	qcom,caldb-addr = <0x4FF00000>;
 	m3-dump-addr = <0x4FD00000>;
+	nss-radio-priority = <1>;
 #endif
 	qcom,caldb-size = <0x500000>;
 	status = "ok";
