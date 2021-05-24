@@ -278,4 +278,10 @@ config QTI_APSS_ACC
 	  to the ACC associated with the CPU accessing the region.
 
 	  If unsure, say N.
+
+config QTI_BT_INTERFACE
+	tristate "TTY interface support for BT over IMEM"
+	default n
+	help
+	  Enable TTY support for BT host over IMEM.
 endmenu
