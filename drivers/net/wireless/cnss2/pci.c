@@ -88,6 +88,9 @@ MODULE_PARM_DESC(pci1_num_msi_bmap,
 #define DEFAULT_FW_FILE_NAME		"qcn9000/amss.bin"
 #define FW_V2_FILE_NAME			"amss20.bin"
 #define FW_V2_NUMBER			2
+#define AFC_SLOT_SIZE			0x1000
+#define AFC_MAX_SLOT			2
+#define AFC_MEM_SIZE			(AFC_SLOT_SIZE * AFC_MAX_SLOT)
 
 #define WAKE_MSI_NAME			"WAKE"
 
@@ -2643,6 +2646,91 @@ struct device_node *cnss_get_m3dump_dev_node(struct cnss_plat_data *plat_priv)
 	return dev_node;
 }
 
+int cnss_send_buffer_to_afcmem(struct device *dev, char *afcdb, uint32_t len,
+			       uint8_t slotid)
+{
+	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
+	struct cnss_fw_mem *fw_mem;
+	void *mem = NULL;
+	int i, ret;
+
+	if (!plat_priv)
+		return -EINVAL;
+
+	fw_mem = plat_priv->fw_mem;
+	if (slotid >= AFC_MAX_SLOT) {
+		cnss_pr_err("Invalid slot id %d\n", slotid);
+		ret = -EINVAL;
+		goto err;
+	}
+	if (len > AFC_SLOT_SIZE) {
+		cnss_pr_err("len %d greater than slot size", len);
+		ret = -EINVAL;
+		goto err;
+	}
+
+	for (i = 0; i < plat_priv->fw_mem_seg_len; i++) {
+		if (fw_mem[i].type == AFC_REGION_TYPE) {
+			mem = fw_mem[i].va;
+			break;
+		}
+	}
+
+	if (!mem) {
+		cnss_pr_err("AFC mem is not available\n");
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	memset(mem + (slotid * AFC_SLOT_SIZE), 0, AFC_SLOT_SIZE);
+	memcpy(mem + (slotid * AFC_SLOT_SIZE), afcdb, len);
+
+	return 0;
+err:
+	CNSS_ASSERT(0);
+	return -ret;
+}
+EXPORT_SYMBOL(cnss_send_buffer_to_afcmem);
+
+int cnss_reset_afcmem(struct device *dev, uint8_t slotid)
+{
+	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
+	struct cnss_fw_mem *fw_mem;
+	void *mem = NULL;
+	int i, ret;
+
+	if (!plat_priv)
+		return -EINVAL;
+
+	fw_mem = plat_priv->fw_mem;
+	if (slotid >= AFC_MAX_SLOT) {
+		cnss_pr_err("Invalid slot id %d\n", slotid);
+		ret = -EINVAL;
+		goto err;
+	}
+
+	for (i = 0; i < plat_priv->fw_mem_seg_len; i++) {
+		if (fw_mem[i].type == AFC_REGION_TYPE) {
+			mem = fw_mem[i].va;
+			break;
+		}
+	}
+
+	if (!mem) {
+		cnss_pr_err("AFC mem is not available\n");
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	memset(mem + (slotid * AFC_SLOT_SIZE), 0, AFC_SLOT_SIZE);
+	return 0;
+
+err:
+	CNSS_ASSERT(0);
+	return ret;
+}
+EXPORT_SYMBOL(cnss_reset_afcmem);
+
 int cnss_ahb_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 {
 	struct cnss_fw_mem *fw_mem = plat_priv->fw_mem;
@@ -2934,6 +3022,27 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 			fw_mem[i].pa = 0;
 			fw_mem[i].va = NULL;
 			break;
+		case AFC_REGION_TYPE:
+			if (fw_mem[i].size != AFC_MEM_SIZE) {
+				cnss_pr_err("Error: less AFC mem req: 0x%x\n",
+					    (unsigned int)fw_mem[i].size);
+				CNSS_ASSERT(0);
+			}
+			if (fw_mem[i].va) {
+				memset(fw_mem[i].va, 0, fw_mem[i].size);
+				break;
+			}
+			fw_mem[i].va = kzalloc(fw_mem[i].size,
+					GFP_KERNEL);
+			if (!fw_mem[i].va) {
+				cnss_pr_err("AFC mem allocation failed\n");
+				fw_mem[i].pa = 0;
+				CNSS_ASSERT(0);
+				return -ENOMEM;
+			} else {
+				fw_mem[i].pa =  virt_to_phys(fw_mem[i].va);
+			}
+			break;
 		default:
 			cnss_pr_err("Ignore mem req type %d\n", fw_mem[i].type);
 			CNSS_ASSERT(0);
@@ -3085,9 +3194,11 @@ void cnss_pci_free_fw_mem(struct cnss_plat_data *plat_priv)
 		if (fw_mem[i].va) {
 			cnss_pr_dbg("Freeing FW mem of type %d\n",
 				    fw_mem[i].type);
-			iounmap(fw_mem[i].va);
-			fw_mem[i].va = NULL;
-			fw_mem[i].size = 0;
+			if (fw_mem[i].type != AFC_REGION_TYPE) {
+				iounmap(fw_mem[i].va);
+				fw_mem[i].va = NULL;
+				fw_mem[i].size = 0;
+			}
 		}
 	}
 	plat_priv->fw_mem_seg_len = 0;
