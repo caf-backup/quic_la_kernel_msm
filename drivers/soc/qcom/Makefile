@@ -33,3 +33,5 @@ obj-$(CONFIG_QTI_TZ_LOG) += tz_log.o
 obj-$(CONFIG_QTI_CTXT_SAVE) += ctx-save.o
 obj-$(CONFIG_QTI_APSS_ACC) += cpu_ops.o cpu_pwr_ctl.o
 obj-$(CONFIG_IPQ_SUBSYSTEM_RESTART_TEST) += testssr.o
+bt_interface-y			:= bt_tty.o bt_ipc.o
+obj-$(CONFIG_QTI_BT_INTERFACE)	+= bt_interface.o
