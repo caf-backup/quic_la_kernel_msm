@@ -28,3 +28,4 @@ obj-$(CONFIG_ST_REMOTEPROC)		+= st_remoteproc.o
 obj-$(CONFIG_ST_SLIM_REMOTEPROC)	+= st_slim_rproc.o
 obj-$(CONFIG_STM32_RPROC)		+= stm32_rproc.o
 obj-$(CONFIG_QCOM_Q6V5_MPD)		+= qcom_q6v5_mpd.o
+obj-$(CONFIG_QTI_BT_PIL)		+= bt_rproc.o
