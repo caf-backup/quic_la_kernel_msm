@@ -250,6 +250,8 @@ extern int qti_scm_is_tz_log_encrypted(void);
 extern int qti_scm_get_encrypted_tz_log(void *ker_buf, u32 buf_len, u32 log_id);
 extern int qti_scm_is_tz_log_encryption_supported(void);
 extern int qcom_scm_load_otp(u32 peripheral);
+extern bool qcom_scm_pil_cfg_available(void);
+extern int qcom_scm_pil_cfg(u32 peripheral, u32 args);
 #else
 
 #include <linux/errno.h>
@@ -350,6 +352,16 @@ static inline int qti_scm_is_tz_log_encryption_supported(void)
 }
 
 static inline int qcom_scm_load_otp(u32 peripheral)
+{
+	return 0;
+}
+
+static inline bool qcom_scm_pil_cfg_available(void)
+{
+	return 0;
+}
+
+static inline int qcom_scm_pil_cfg(u32 peripheral, u32 args)
 {
 	return 0;
 }
