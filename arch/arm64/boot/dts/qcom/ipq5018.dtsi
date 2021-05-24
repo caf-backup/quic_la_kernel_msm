@@ -981,6 +981,11 @@
 			dload_status = <0>;
 			dload_warm_status = <0>;
 		};
+
+		apcs: syscon@b111000 {
+			compatible = "syscon";
+			reg = <0x0B111000 0x1000>;
+		};
 	};
 
 	qcom,test@0 {
