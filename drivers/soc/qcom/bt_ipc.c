@@ -32,7 +32,7 @@
 #include <linux/completion.h>
 #include <linux/ipc_logging.h>
 #include <linux/workqueue.h>
-#include "bt.h"
+#include <linux/bt.h>
 
 void bt_ipc_purge_tx_queue(struct bt_descriptor *btDesc)
 {

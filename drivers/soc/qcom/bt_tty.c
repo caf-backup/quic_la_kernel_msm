@@ -30,7 +30,7 @@
 #include <linux/ipc_logging.h>
 #include <linux/remoteproc.h>
 #include <linux/clk.h>
-#include "bt.h"
+#include <linux/bt.h>
 
 static bool btss_debug;
 module_param(btss_debug, bool, 0644);

@@ -20,7 +20,7 @@
 #include <linux/delay.h>
 #include <linux/qcom_scm.h>
 #include <linux/clk.h>
-#include "bt.h"
+#include <linux/bt.h>
 
 static bool auto_load;
 module_param(auto_load, bool, 0644);
