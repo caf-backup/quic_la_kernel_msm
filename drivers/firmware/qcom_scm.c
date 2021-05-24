@@ -956,6 +956,27 @@ int qti_scm_get_encrypted_tz_log(void *ker_buf, u32 buf_len, u32 log_id)
 }
 EXPORT_SYMBOL(qti_scm_get_encrypted_tz_log);
 
+/**
+ * qcom_scm_load_otp () - Load OTP to device memory
+ * @peripheral:	peripheral id
+ *
+ * Return 0 on success.
+ */
+int qcom_scm_load_otp(u32 peripheral)
+{
+	int ret;
+
+	ret = qcom_scm_clk_enable();
+	if (ret)
+		return ret;
+
+	ret = __qcom_scm_load_otp(__scm->dev, peripheral);
+	qcom_scm_clk_disable();
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_scm_load_otp);
+
 static int qcom_scm_probe(struct platform_device *pdev)
 {
 	struct device_node *np = (&pdev->dev)->of_node;

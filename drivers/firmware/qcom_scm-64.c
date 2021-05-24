@@ -1142,3 +1142,18 @@ int __qti_scm_get_encrypted_tz_log(struct device *dev, void *ker_buf,
 	dma_unmap_single(dev, log_buf, buf_len, DMA_FROM_DEVICE);
 	return ret ? : res.a1;
 }
+
+int __qcom_scm_load_otp(struct device *dev, u32 peripheral)
+{
+	int ret;
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+
+	desc.args[0] = peripheral;
+	desc.arginfo = QCOM_SCM_ARGS(1);
+
+	ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, QCOM_SCM_SVC_OTP,
+			    QCOM_SCM_CMD_OTP, &desc, &res);
+
+	return ret ? false : !!res.a1;
+}

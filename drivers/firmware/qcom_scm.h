@@ -304,3 +304,7 @@ extern int __qti_scm_tcsr_reg_write(struct device *dev, u32 reg_addr, u32 value)
 extern int __qti_scm_is_tz_log_encrypted(struct device *dev);
 extern int __qti_scm_get_encrypted_tz_log(struct device *dev, void *ker_buf,
 					  u32 buf_len, u32 log_id);
+
+#define QCOM_SCM_SVC_OTP	0x2
+#define QCOM_SCM_CMD_OTP	0x15
+extern int  __qcom_scm_load_otp(struct device *dev, u32 peripheral);
