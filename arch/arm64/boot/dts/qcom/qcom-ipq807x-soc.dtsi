@@ -1814,6 +1814,7 @@
 		#else
 			qcom,tgt-mem-mode = <0>;
 		#endif
+			mem-region = <&q6_region>;
 			qcom,bdf-addr = <0x4B0C0000 0x4B0C0000 0x4B0C0000
 					 0x4B0C0000 0x4B0C0000>;
 			qcom,caldb-addr = <0x4BA00000 0x4BA00000 0x0 0x4BA00000
@@ -1940,6 +1941,7 @@
 		#else
 			qcom,tgt-mem-mode = <0>;
 		#endif
+			mem-region = <&q6_region>;
 			qcom,rproc = <&qcom_q6v5_wcss>;
 			qcom,bdf-addr = <0x4B0C0000 0x4B0C0000 0x4B0C0000
 					 0x4B0C0000 0x4B0C0000>;

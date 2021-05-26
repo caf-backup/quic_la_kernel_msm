@@ -2643,218 +2643,302 @@ struct device_node *cnss_get_m3dump_dev_node(struct cnss_plat_data *plat_priv)
 	return dev_node;
 }
 
-int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
+int cnss_ahb_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 {
 	struct cnss_fw_mem *fw_mem = plat_priv->fw_mem;
 	unsigned int bdf_location[MAX_TGT_MEM_MODES];
 	unsigned int caldb_location[MAX_TGT_MEM_MODES];
-	u32 addr = 0;
+	unsigned int reg[4], mem_region_reserved_size;
 	u32 caldb_size = 0;
-	u32 hremote_size = 0;
 	struct device *dev;
 	int i, idx, mode;
 	struct device_node *dev_node = NULL;
+	struct device_node *mem_region_node = NULL;
+	phandle mem_region_phandle;
 	struct resource m3_dump;
+
+	dev = &plat_priv->plat_dev->dev;
+
+	idx = 0;
+	mode = plat_priv->tgt_mem_cfg_mode;
+	if (mode >= MAX_TGT_MEM_MODES)
+		CNSS_ASSERT(0);
+
+	for (i = 0; i < plat_priv->fw_mem_seg_len; i++) {
+		memset(reg, 0, sizeof(reg));
+		switch (fw_mem[i].type) {
+		case BDF_MEM_REGION_TYPE:
+			if (of_property_read_u32_array(dev->of_node,
+						"qcom,bdf-addr", bdf_location,
+						ARRAY_SIZE(bdf_location))) {
+				cnss_pr_err("Error: No bdf_addr in device_tree\n");
+				CNSS_ASSERT(0);
+				return -ENOMEM;
+			}
+			fw_mem[idx].pa = bdf_location[mode];
+			fw_mem[idx].va = NULL;
+			fw_mem[idx].size = fw_mem[i].size;
+			fw_mem[idx].type = fw_mem[i].type;
+			idx++;
+			break;
+		case CALDB_MEM_REGION_TYPE:
+			if (of_property_read_u32_array(dev->of_node,
+						"qcom,caldb-addr",
+						caldb_location,
+						ARRAY_SIZE(caldb_location))) {
+				cnss_pr_err("Error: Couldn't read caldb_addr from device_tree\n");
+				CNSS_ASSERT(0);
+				return -EINVAL;
+			}
+			if (of_property_read_u32(dev->of_node,
+						 "qcom,caldb-size",
+						 &caldb_size)) {
+				cnss_pr_err("Error: No caldb-size in dts\n");
+				CNSS_ASSERT(0);
+				return -ENOMEM;
+			}
+			if (fw_mem[i].size > caldb_size) {
+				cnss_pr_err("Error: Need more memory for caldb, fw req:0x%x max:0x%x\n",
+					    (unsigned int)fw_mem[i].size,
+					    caldb_size);
+				CNSS_ASSERT(0);
+				return -ENOMEM;
+			}
+			if (!plat_priv->cold_boot_support)
+				fw_mem[idx].pa = 0;
+			else
+				fw_mem[idx].pa = caldb_location[mode];
+			fw_mem[idx].va = NULL;
+			fw_mem[idx].size = fw_mem[i].size;
+			fw_mem[idx].type = fw_mem[i].type;
+			idx++;
+			break;
+		case HOST_DDR_REGION_TYPE:
+			if (of_property_read_u32(dev->of_node, "mem-region",
+						 &mem_region_phandle)) {
+				cnss_pr_err("could not get mem_region_phandle\n");
+				CNSS_ASSERT(0);
+				return -EINVAL;
+			}
+
+			mem_region_node =
+				of_find_node_by_phandle(mem_region_phandle);
+			if (!mem_region_node) {
+				cnss_pr_err("could not get mem_region_np\n");
+				CNSS_ASSERT(0);
+				return -EINVAL;
+			}
+
+			if (of_property_read_u32_array(mem_region_node, "reg",
+						       reg, ARRAY_SIZE(reg))) {
+				cnss_pr_err("Error: mem-region node is not assigned\n");
+				CNSS_ASSERT(0);
+				return -ENOMEM;
+			}
+			of_node_put(mem_region_node);
+			mem_region_reserved_size  = reg[3];
+			if (fw_mem[i].size > mem_region_reserved_size) {
+				cnss_pr_err("Error: Need more memory %x\n",
+					    (unsigned int)fw_mem[i].size);
+				CNSS_ASSERT(0);
+			}
+			if (fw_mem[i].size < mem_region_reserved_size) {
+				cnss_pr_err("WARNING: More memory is reserved. Reserved size 0x%x, Requested size 0x%x.\n",
+					    mem_region_reserved_size,
+					    (unsigned int)fw_mem[i].size);
+			}
+			fw_mem[idx].pa = reg[1];
+			fw_mem[idx].va = NULL;
+			fw_mem[idx].size = fw_mem[i].size;
+			fw_mem[idx].type = fw_mem[i].type;
+			idx++;
+			break;
+		case M3_DUMP_REGION_TYPE:
+			dev_node = cnss_get_m3dump_dev_node(plat_priv);
+			if (!dev_node) {
+				cnss_pr_err("%s: Unable to find m3_dump_region",
+					    __func__);
+				break;
+			}
+			if (of_address_to_resource(dev_node, 0, &m3_dump)) {
+				cnss_pr_err("%s: Unable to get m3_dump_region",
+					    __func__);
+				break;
+			}
+
+			if (!fw_mem[i].size) {
+				cnss_pr_err("FW requests size 0");
+				break;
+			}
+			if (fw_mem[i].size > resource_size(&m3_dump)) {
+				cnss_pr_err("Error: Need more memory %x\n",
+					    (unsigned int)fw_mem[idx].size);
+				CNSS_ASSERT(0);
+			}
+			fw_mem[idx].size = fw_mem[i].size;
+			fw_mem[idx].type = fw_mem[i].type;
+			fw_mem[idx].pa = m3_dump.start;
+			fw_mem[idx].va = ioremap(fw_mem[idx].pa,
+					 fw_mem[idx].size);
+			if (!fw_mem[idx].va)
+				cnss_pr_err("WARNING: M3 Dump addr remap failed\n");
+
+			idx++;
+			break;
+		default:
+			cnss_pr_err("Ignore mem req type %d\n", fw_mem[i].type);
+			break;
+		}
+	}
+	plat_priv->fw_mem_seg_len = idx;
+	return 0;
+}
+
+int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
+{
+	struct cnss_fw_mem *fw_mem = plat_priv->fw_mem;
+	unsigned int reg[4], mhi_reserved_size;
+	u32 addr = 0;
+	u32 hremote_size = 0;
+	u32 caldb_size = 0;
+	struct device *dev;
+	int i;
+	phandle mhi_phandle;
+	struct device_node *mhi_node = NULL;
 #ifdef CONFIG_CNSS2_SMMU
 	struct cnss_pci_data *pci_priv = plat_priv->bus_priv;
 #endif
 
 	dev = &plat_priv->plat_dev->dev;
 
-	if ((plat_priv->device_id == QCA8074_DEVICE_ID ||
-	     plat_priv->device_id == QCA8074V2_DEVICE_ID ||
-	     plat_priv->device_id == QCA5018_DEVICE_ID ||
-	     plat_priv->device_id == QCN6122_DEVICE_ID ||
-	     plat_priv->device_id == QCA6018_DEVICE_ID ||
-	     plat_priv->device_id == QCA9574_DEVICE_ID) &&
-	    of_property_read_u32_array(dev->of_node, "qcom,caldb-addr",
-				       caldb_location,
-				       ARRAY_SIZE(caldb_location))) {
-		pr_err("Error: Couldn't read caldb_addr from device_tree\n");
-		CNSS_ASSERT(0);
-		return -EINVAL;
-	}
-
-	if (plat_priv->device_id == QCN9000_DEVICE_ID) {
-		for (i = 0; i < plat_priv->fw_mem_seg_len; i++) {
-			switch (fw_mem[i].type) {
-			case CALDB_MEM_REGION_TYPE:
-				if (!plat_priv->cold_boot_support) {
-					break;
-				}
-				if (of_property_read_u32(dev->of_node,
-							 "caldb-size",
-							 &caldb_size)) {
-					pr_err("Error: No caldb-size in dts\n");
-					CNSS_ASSERT(0);
-					return -ENOMEM;
-				}
-				if (fw_mem[i].size > caldb_size) {
-					pr_err("Error: Need more memory for caldb, fw req:0x%x max:0x%x\n",
-					       (unsigned int)fw_mem[i].size,
-					       caldb_size);
-					CNSS_ASSERT(0);
-				}
-				if (of_property_read_u32(dev->of_node,
-							 "caldb-addr",
-							 &addr)) {
-					pr_err("Error: No caldb-addr in dts\n");
-					CNSS_ASSERT(0);
-					return -ENOMEM;
-				}
-				fw_mem[i].pa = (phys_addr_t)addr;
-				fw_mem[i].va = ioremap(fw_mem[i].pa,
-						       fw_mem[i].size);
-				if (!fw_mem[i].va)
-					pr_err("WARNING caldb remap failed\n");
-				break;
-			case HOST_DDR_REGION_TYPE:
-				if (of_property_read_u32(dev->of_node,
-							 "hremote-size",
-							 &hremote_size)) {
-					pr_err("Error: No hremote-size in dts\n");
-					CNSS_ASSERT(0);
-					return -ENOMEM;
-				}
-				if (fw_mem[i].size > hremote_size) {
-					pr_err("Error: Need more memory %x\n",
-					       (unsigned int)fw_mem[i].size);
-					CNSS_ASSERT(0);
-				}
-				if (of_property_read_u32(dev->of_node,
-							 "base-addr",
-							 &addr)) {
-					pr_err("Error: No base-addr in dts\n");
-					CNSS_ASSERT(0);
-					return -ENOMEM;
-				}
-				fw_mem[i].pa = (phys_addr_t)addr;
-				fw_mem[i].va = ioremap(fw_mem[i].pa,
-						       fw_mem[i].size);
-				if (!fw_mem[i].va)
-					pr_err("WARNING: Host DDR remap failed\n");
-				break;
-			case M3_DUMP_REGION_TYPE:
-				if (fw_mem[i].size > Q6_M3_DUMP_SIZE_QCN9000) {
-					pr_err("Error: Need more memory %x\n",
-					       (unsigned int)fw_mem[i].size);
-					CNSS_ASSERT(0);
-				}
-				if (of_property_read_u32(dev->of_node,
-							 "m3-dump-addr",
-							 &addr)) {
-					pr_err("Error: No m3-dump-addr in dts\n");
-					CNSS_ASSERT(0);
-					return -ENOMEM;
-				}
-				fw_mem[i].pa = (phys_addr_t)addr;
-				fw_mem[i].va = ioremap(fw_mem[i].pa,
-						       fw_mem[i].size);
-				if (!fw_mem[i].va)
-					pr_err("WARNING: M3 Dump addr remap failed\n");
+	for (i = 0; i < plat_priv->fw_mem_seg_len; i++) {
+		memset(reg, 0, sizeof(reg));
+		switch (fw_mem[i].type) {
+		case CALDB_MEM_REGION_TYPE:
+			if (!plat_priv->cold_boot_support)
 				break;
 
-			default:
-				pr_err("Ignore mem req type %d\n",
-				       fw_mem[i].type);
+			if (of_property_read_u32(dev->of_node,
+						 "caldb-size",
+						 &caldb_size)) {
+				cnss_pr_err("Error: No caldb-size in dts\n");
 				CNSS_ASSERT(0);
-				break;
+				return -ENOMEM;
 			}
-		}
-		return 0;
-	}
-
-	if (plat_priv->device_id == QCA8074_DEVICE_ID ||
-	    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
-	    plat_priv->device_id == QCA5018_DEVICE_ID ||
-	    plat_priv->device_id == QCN6122_DEVICE_ID ||
-	    plat_priv->device_id == QCA6018_DEVICE_ID ||
-	    plat_priv->device_id == QCA9574_DEVICE_ID) {
-		if (of_property_read_u32_array(dev->of_node, "qcom,bdf-addr",
-					       bdf_location,
-					       ARRAY_SIZE(bdf_location))) {
-			pr_err("Error: No bdf_addr in device_tree\n");
-			CNSS_ASSERT(0);
-			return -ENOMEM;
-		}
-		idx = 0;
-		mode = plat_priv->tgt_mem_cfg_mode;
-		if (mode >= MAX_TGT_MEM_MODES)
-			CNSS_ASSERT(0);
-
-		for (i = 0; i < plat_priv->fw_mem_seg_len; i++) {
-			switch (fw_mem[i].type) {
-			case BDF_MEM_REGION_TYPE:
-				fw_mem[idx].pa = bdf_location[mode];
-				fw_mem[idx].va = NULL;
-				fw_mem[idx].size = fw_mem[i].size;
-				fw_mem[idx].type = fw_mem[i].type;
-				idx++;
-				break;
-			case CALDB_MEM_REGION_TYPE:
-				if (of_property_read_u32(dev->of_node,
-							 "qcom,caldb-size",
-							 &caldb_size)) {
-					pr_err("Error: No caldb-size in dts\n");
-					CNSS_ASSERT(0);
-					return -ENOMEM;
-				}
-				if (fw_mem[i].size > caldb_size) {
-					pr_err("Error: Need more memory for caldb, fw req:0x%x max:0x%x\n",
-					       (unsigned int)fw_mem[i].size,
-					       caldb_size);
-					CNSS_ASSERT(0);
-					return -ENOMEM;
-				}
-				if (!plat_priv->cold_boot_support)
-					fw_mem[idx].pa = 0;
-				else
-					fw_mem[idx].pa = caldb_location[mode];
-				fw_mem[idx].va = NULL;
-				fw_mem[idx].size = fw_mem[i].size;
-				fw_mem[idx].type = fw_mem[i].type;
-				idx++;
-				break;
-			case M3_DUMP_REGION_TYPE:
-				dev_node = cnss_get_m3dump_dev_node(plat_priv);
-				if (!dev_node) {
-					pr_err("%s: Unable to find m3_dump_region",
-					       __func__);
-					break;
-				}
-				if (of_address_to_resource(dev_node, 0,
-							   &m3_dump)) {
-					pr_err("%s: Unable to get m3_dump_region",
-					       __func__);
-					break;
-				}
-
-				if (!fw_mem[i].size) {
-					pr_err("FW requests size 0");
-					break;
-				}
-				if (fw_mem[i].size > resource_size(&m3_dump)) {
-					pr_err("Error: Need more memory %x\n",
-					       (unsigned int)fw_mem[idx].size);
-					CNSS_ASSERT(0);
-				}
-				fw_mem[idx].size = fw_mem[i].size;
-				fw_mem[idx].type = fw_mem[i].type;
-				fw_mem[idx].pa = m3_dump.start;
-				fw_mem[idx].va = ioremap(fw_mem[idx].pa,
-							 fw_mem[idx].size);
-				if (!fw_mem[idx].va)
-					pr_err("WARNING: M3 Dump addr remap failed\n");
-
-				idx++;
-				break;
-			default:
-				pr_err("Ignore mem req type %d\n",
-				       fw_mem[i].type);
-				break;
+			if (fw_mem[i].size > caldb_size) {
+				cnss_pr_err("Error: Need more memory for caldb, fw req:0x%x max:0x%x\n",
+					    (unsigned int)fw_mem[i].size,
+					    caldb_size);
+				CNSS_ASSERT(0);
 			}
+			if (of_property_read_u32(dev->of_node,
+						 "caldb-addr",
+						 &addr)) {
+				cnss_pr_err("Error: No caldb-addr in dts\n");
+				CNSS_ASSERT(0);
+				return -ENOMEM;
+			}
+			fw_mem[i].pa = (phys_addr_t)addr;
+			fw_mem[i].va = ioremap(fw_mem[i].pa, fw_mem[i].size);
+			if (!fw_mem[i].va)
+				cnss_pr_err("WARNING caldb remap failed\n");
+			break;
+		case HOST_DDR_REGION_TYPE:
+			if (of_property_read_u32(dev->of_node,
+						 "hremote-size",
+						 &hremote_size)) {
+				cnss_pr_err("Error: No hremote-size in dts\n\n");
+				CNSS_ASSERT(0);
+				return -ENOMEM;
+			}
+
+			if (fw_mem[i].size > hremote_size) {
+				cnss_pr_err("Error: Need more memory %x\n",
+					    (unsigned int)fw_mem[i].size);
+				CNSS_ASSERT(0);
+			}
+			if (fw_mem[i].size < hremote_size) {
+				cnss_pr_err("WARNING: More memory is reserved. Reserved size 0x%x, Requested size 0x%x.\n",
+					    hremote_size,
+					    (unsigned int)fw_mem[i].size);
+			}
+			if (of_property_read_u32(dev->of_node,
+						 "base-addr",
+						 &addr)) {
+				cnss_pr_err("Error: No base-addr in dts\n");
+				CNSS_ASSERT(0);
+				return -ENOMEM;
+			}
+			fw_mem[i].pa = (phys_addr_t)addr;
+			fw_mem[i].va = ioremap(fw_mem[i].pa, fw_mem[i].size);
+			if (!fw_mem[i].va)
+				cnss_pr_err("WARNING: Host DDR remap failed\n");
+			break;
+		case M3_DUMP_REGION_TYPE:
+			if (fw_mem[i].size > Q6_M3_DUMP_SIZE_QCN9000) {
+				cnss_pr_err("Error: Need more memory %x\n",
+					    (unsigned int)fw_mem[i].size);
+				CNSS_ASSERT(0);
+			}
+			if (of_property_read_u32(dev->of_node,
+						 "m3-dump-addr",
+						 &addr)) {
+				cnss_pr_err("Error: No m3-dump-addr in dts\n");
+				CNSS_ASSERT(0);
+				return -ENOMEM;
+			}
+			fw_mem[i].pa = (phys_addr_t)addr;
+			fw_mem[i].va = ioremap(fw_mem[i].pa, fw_mem[i].size);
+			if (!fw_mem[i].va)
+				cnss_pr_err("WARNING: M3 Dump addr remap failed\n");
+			break;
+		case QMI_WLFW_PAGEABLE_MEM_V01:
+			if (of_property_read_u32(dev->of_node, "mhi_node",
+						 &mhi_phandle)) {
+				cnss_pr_err("could not get mhi_phandle\n");
+				CNSS_ASSERT(0);
+				return -EINVAL;
+			}
+
+			mhi_node = of_find_node_by_phandle(mhi_phandle);
+			if (!mhi_node) {
+				cnss_pr_err("could not get mhi_np\n");
+				CNSS_ASSERT(0);
+				return -EINVAL;
+			}
+
+			if (of_property_read_u32_array(mhi_node, "reg", reg,
+						       ARRAY_SIZE(reg))) {
+				cnss_pr_err("Error: MHI node is not assigned\n");
+				CNSS_ASSERT(0);
+				return -ENOMEM;
+			}
+			of_node_put(mhi_node);
+			mhi_reserved_size  = reg[3];
+			if (fw_mem[i].size > mhi_reserved_size) {
+				cnss_pr_err("Error: Need more memory %x\n",
+					    (unsigned int)fw_mem[i].size);
+				CNSS_ASSERT(0);
+			}
+			if (fw_mem[i].size < mhi_reserved_size) {
+				cnss_pr_err("WARNING: More memory is reserved. Reserved size 0x%x, Requested size 0x%x.\n",
+					    mhi_reserved_size,
+					    (unsigned int)fw_mem[i].size);
+			}
+
+			/* FW requests for Pageable arena only for checking
+			 * if the size reserved matches the FW request.
+			 * Send both PA and VA as 0 for this type as
+			 * dummy response.
+			 */
+			fw_mem[i].pa = 0;
+			fw_mem[i].va = NULL;
+			break;
+		default:
+			cnss_pr_err("Ignore mem req type %d\n", fw_mem[i].type);
+			CNSS_ASSERT(0);
+			break;
 		}
-		plat_priv->fw_mem_seg_len = idx;
 	}
 
 #ifdef CONFIG_CNSS2_SMMU

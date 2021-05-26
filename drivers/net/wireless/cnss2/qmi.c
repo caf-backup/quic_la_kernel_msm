@@ -66,6 +66,14 @@ module_param(bdf_bypass, bool, 0600);
 MODULE_PARM_DESC(bdf_bypass, "If BDF is not found, send dummy BDF to FW");
 #endif
 
+unsigned int num_wlan_clients;
+module_param(num_wlan_clients, uint, 0600);
+MODULE_PARM_DESC(num_wlan_clients, "num_wlan_clients");
+
+unsigned int num_wlan_vaps;
+module_param(num_wlan_vaps, uint, 0600);
+MODULE_PARM_DESC(num_wlan_vaps, "num_wlan_vaps");
+
 struct qmi_history qmi_log[QMI_HISTORY_SIZE];
 int qmi_history_index;
 DEFINE_SPINLOCK(qmi_log_spinlock);
@@ -321,6 +329,30 @@ static int cnss_wlfw_host_cap_send_sync(struct cnss_plat_data *plat_priv)
 		req->gpios_valid = 1;
 		cnss_pr_info("Sending %d GPIO entries in Host Capabilities\n",
 			     req->gpios_len);
+	}
+
+	if (num_wlan_clients) {
+		req->num_wlan_clients_valid = 1;
+		req->num_wlan_clients = num_wlan_clients;
+		cnss_pr_info("Sending %d Number of WLAN clients in Host Capabilities\n",
+			     req->num_wlan_clients);
+	} else if (!of_property_read_u16(dev->of_node, "num_wlan_clients",
+					 &req->num_wlan_clients)) {
+		req->num_wlan_clients_valid = 1;
+		cnss_pr_info("Sending %d Number of WLAN clients in Host Capabilities\n",
+			     req->num_wlan_clients);
+	}
+
+	if (num_wlan_vaps) {
+		req->num_wlan_vaps_valid = 1;
+		req->num_wlan_vaps = num_wlan_vaps;
+		cnss_pr_info("Sending %d Number of WLAN Vaps in Host Capabilities\n",
+			     req->num_wlan_vaps);
+	} else if (!of_property_read_u8(dev->of_node, "num_wlan_vaps",
+					&req->num_wlan_vaps)) {
+		req->num_wlan_vaps_valid = 1;
+		cnss_pr_info("Sending %d Number of WLAN vaps in Host Capabilities\n",
+			     req->num_wlan_vaps);
 	}
 
 	qmi_record(plat_priv->wlfw_service_instance_id,

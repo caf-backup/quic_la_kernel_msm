@@ -153,12 +153,12 @@
 			reg = <0x0 0x4DF00000 0x0 0x100000>;
 		};
 
-		q6_qcn9000_region: qcn9000_pcie0@4E000000 {
+		qcn9000_pcie0: qcn9000_pcie0@4E000000 {
 			no-map;
 			reg = <0x0 0x4E000000 0x0 0x01100000>;
 		};
 
-		mhi_region1: dma_pool1@4F100000 {
+		mhi_region0: dma_pool1@4F100000 {
 			compatible = "shared-dma-pool";
 			no-map;
 			reg = <0x0 0x4F100000 0x0 0x01000000>;
@@ -287,12 +287,12 @@
 			reg = <0x0 0x4E400000 0x0 0x500000>;
 		};
 
-		q6_qcn9000_region: qcn9000_pcie0@4E900000 {
+		qcn9000_pcie0: qcn9000_pcie0@4E900000 {
 			no-map;
 			reg = <0x0 0x4E900000 0x0 0x01E00000>;
 		};
 
-		mhi_region1: dma_pool1@50700000 {
+		mhi_region0: dma_pool1@50700000 {
 			compatible = "shared-dma-pool";
 			no-map;
 			reg = <0x0 0x50700000 0x0 0x01000000>;
@@ -421,12 +421,12 @@
 			reg = <0x0 0x4E400000 0x0 0x500000>;
 		};
 
-		q6_qcn9000_region: qcn9000_pcie0@4E900000 {
+		qcn9000_pcie0: qcn9000_pcie0@4E900000 {
 			no-map;
 			reg = <0x0 0x4E900000 0x0 0x02D00000>;
 		};
 
-		mhi_region1: dma_pool1@51600000 {
+		mhi_region0: dma_pool1@51600000 {
 			compatible = "shared-dma-pool";
 			no-map;
 			reg = <0x0 0x51600000 0x0 0x01800000>;
@@ -823,7 +823,7 @@
 		qrtr_instance_id = <0x21>;
 		#address-cells = <0x2>;
 		#size-cells = <0x2>;
-		memory-region = <&mhi_region1>;
+		memory-region = <&mhi_region0>;
 #if !defined(__CNSS2__)
 		base-addr = <0x4E900000>;
 		m3-dump-addr = <0x4FD00000>;
@@ -940,6 +940,7 @@
 	qcom,caldb-addr = <0x4D000000>;
 	m3-dump-addr = <0x4CE00000>;
 #endif
+	mem-region = <&q6_ipq5018_data>;
 	qcom,caldb-size = <0x200000>;
 	qcom,userpd-subsys-name = "q6v5_wcss_userpd1";
 	status = "ok";
@@ -961,6 +962,7 @@
 	qcom,caldb-addr = <0x4E400000>;
 	m3-dump-addr = <0x4E200000>;
 #endif
+	mem-region = <&q6_qcn6122_data1>;
 	qcom,caldb-size = <0x500000>;
 	qcom,userpd-subsys-name = "q6v5_wcss_userpd2";
 	status = "ok";
@@ -1034,4 +1036,6 @@
 			caldb-size = <0x800000>;
 			tgt-mem-mode = <0x0>;
 #endif
+			hremote_node = <&qcn9000_pcie0>;
+			mhi_node = <&mhi_region0>;
 };

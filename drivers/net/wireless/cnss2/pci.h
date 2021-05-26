@@ -52,6 +52,7 @@
 #define M3_DUMP_REGION_TYPE		0x3
 #define CALDB_MEM_REGION_TYPE		0x4
 #define QDSS_ETR_MEM_REGION_TYPE	0x6
+#define QMI_WLFW_PAGEABLE_MEM_V01	0x9
 
 enum cnss_mhi_state {
 	CNSS_MHI_INIT,
@@ -201,6 +202,7 @@ int cnss_suspend_pci_link(struct cnss_pci_data *pci_priv);
 int cnss_resume_pci_link(struct cnss_pci_data *pci_priv);
 int cnss_pci_init(struct cnss_plat_data *plat_priv);
 void cnss_pci_deinit(struct cnss_plat_data *plat_priv);
+int cnss_ahb_alloc_fw_mem(struct cnss_plat_data *plat_priv);
 int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv);
 void cnss_pci_free_fw_mem(struct cnss_plat_data *plat_priv);
 int cnss_pci_alloc_qdss_mem(struct cnss_pci_data *pci_priv);
