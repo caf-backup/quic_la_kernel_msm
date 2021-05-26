@@ -184,6 +184,27 @@
 
 &pcie0_rp {
 	status = "ok";
+	device_type = "pci";
+	pcie_port_1: pcie_port_1 {
+		reg = <0 0 0 0 0>;
+		device_type = "pci";
+		pcie_slot1: pcie_slot1 {
+			reg = <0x0800 0 0 0 0>;
+			device_type = "pci";
+		};
+		pcie_slot2: pcie_slot2 {
+			reg = <0x1000 0 0 0 0>;
+			device_type = "pci";
+		};
+	};
+};
+
+&pcie_port_1 {
+	status = "ok";
+};
+
+&pcie_slot1 {
+	status = "ok";
 
 	mhi_0: qcom,mhi@0 {
 		reg = <0 0 0 0 0 >;
@@ -191,6 +212,15 @@
 #if !defined(__IPQ_MEM_PROFILE_256_MB__)
 		memory-region = <&mhi_region0>;
 #endif
+	};
+};
+
+&pcie_slot2 {
+	status = "ok";
+
+	mhi_1: qcom,mhi@1 {
+		reg = <0 0 0 0 0 >;
+		qrtr_instance_id = <0x21>;
 	};
 };
 
