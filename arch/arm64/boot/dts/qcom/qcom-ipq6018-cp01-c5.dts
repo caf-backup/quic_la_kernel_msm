@@ -320,6 +320,7 @@
 	hremote-size = <0x2300000>;
 	tgt-mem-mode = <0x0>;
 #endif
+	/* QCN9000 6Ghz Radio */
 	board_id = <0xa4>;
 	caldb-size = <0x800000>;
 	status = "ok";
@@ -367,7 +368,8 @@
 	hremote-size = <0x2300000>;
 	tgt-mem-mode = <0x0>;
 #endif
-	board_id = <0xa4>;
+	/* QCN9000 6G Scan Radio */
+	board_id = <0xaa>;
 	caldb-size = <0x800000>;
 	status = "ok";
 };
