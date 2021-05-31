@@ -41,6 +41,7 @@
 #include <linux/nmi.h>
 #include <linux/fs.h>
 #include <linux/sched/rt.h>
+#include <linux/platform_device.h>
 
 #include "trace.h"
 #include "trace_output.h"
@@ -1850,7 +1851,8 @@ void srd_info_record(unsigned long ip, unsigned long parent_ip)
 {
 	unsigned long flags;
 	struct srd_record *r;
-	int index, cpu = smp_processor_id();
+	int cpu = smp_processor_id();
+	uint32_t index;
 
 	if (!srd || !srd->r)
 		return;
@@ -1898,9 +1900,9 @@ static const struct file_operations tracing_srd_fops = {
 };
 
 
-void srd_buf_init(struct dentry *d_tracer)
+void srd_buf_init(struct device *dev)
 {
-	int n = 0, cpu;
+	int cpu;
 
 	/*
 	 * Would have been ideal to do this in tracer_alloc_buffers.
@@ -1920,18 +1922,15 @@ void srd_buf_init(struct dentry *d_tracer)
 	 * [<c07009d0>] (kernel_init+0x0/0x1cc) from [<c0066f28>] (do_exit+0x0/0x864)
 	 */
 
-	srd = dma_alloc_coherent(NULL, sizeof(*srd), &srd_pa, GFP_KERNEL);
+	srd = dma_alloc_coherent(dev, sizeof(*srd), &srd_pa, GFP_KERNEL);
 	if (!srd)
 		return;
 
-	for_each_possible_cpu(cpu)
-		n++;
-
-	srd->ncpu = n;
-	srd->r = dma_alloc_coherent(NULL, SRD_REC_SIZE_PER_CPU * n,
+	srd->ncpu = CONFIG_NR_CPUS;
+	srd->r = dma_alloc_coherent(dev, SRD_REC_SIZE_PER_CPU * CONFIG_NR_CPUS,
 				&srd->r_pa, GFP_KERNEL);
 	if (!srd->r) {
-		dma_free_coherent(NULL, sizeof(*srd), srd, srd_pa);
+		dma_free_coherent(dev, sizeof(*srd), srd, srd_pa);
 		return;
 	}
 
@@ -1940,8 +1939,6 @@ void srd_buf_init(struct dentry *d_tracer)
 
 	printk(SRD_PRINT_STR);
 
-	trace_create_file("srd", 0444, d_tracer,
-		srd, &tracing_srd_fops);
 }
 #endif /* CONFIG_SRD_TRACE */
 
@@ -7260,7 +7257,8 @@ static __init int tracer_init_tracefs(void)
 #endif
 
 #ifdef CONFIG_SRD_TRACE
-	srd_buf_init(d_tracer);
+	trace_create_file("srd", 0444, d_tracer,
+		srd, &tracing_srd_fops);
 #endif /* CONFIG_SRD_TRACE */
 
 	create_trace_instances(d_tracer);
@@ -7606,5 +7604,36 @@ __init static int clear_boot_tracer(void)
 	return 0;
 }
 
+#ifdef CONFIG_SRD_TRACE
+static int __init srd_probe(struct platform_device *pdev)
+{
+	srd_buf_init(&pdev->dev);
+	return 0;
+}
+
+static const struct of_device_id srd_of_table[] = {
+	{ .compatible = "srd", },
+	{}
+};
+MODULE_DEVICE_TABLE(of, srd_of_table);
+
+static struct platform_driver srd_driver = {
+	.probe = srd_probe,
+	.driver = {
+		.name	= "srd",
+		.of_match_table = srd_of_table,
+	},
+};
+
+static int __init srd_init(void)
+{
+	return platform_driver_register(&srd_driver);
+}
+#endif
+
 fs_initcall(tracer_init_tracefs);
 late_initcall(clear_boot_tracer);
+
+#ifdef CONFIG_SRD_TRACE
+device_initcall(srd_init);
+#endif
