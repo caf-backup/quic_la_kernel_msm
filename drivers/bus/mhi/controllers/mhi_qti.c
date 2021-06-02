@@ -739,6 +739,8 @@ void mhi_wdt_panic_handler(void)
 }
 EXPORT_SYMBOL(mhi_wdt_panic_handler);
 
+static int force_graceful = 0;
+
 int mhi_pci_probe(struct pci_dev *pci_dev,
 		  const struct pci_device_id *device_id)
 {
@@ -749,6 +751,11 @@ int mhi_pci_probe(struct pci_dev *pci_dev,
 	u32 slot = PCI_SLOT(pci_dev->devfn);
 	struct mhi_dev *mhi_dev;
 	int ret;
+
+	if (device_id->device == 0x0308) {
+		pr_emerg("MHI: SDX65 setting graceful woraround for mdm2gpio\n");
+		force_graceful = 1;
+	}
 
 	/* see if we already registered */
 	mhi_cntrl = mhi_bdf_to_controller(domain, bus, slot, dev_id);
@@ -874,6 +881,8 @@ void mhi_pci_device_removed(struct pci_dev *pci_dev)
 				MHI_ERR("Unable to acquire mdm2ap_gpio");
 
 			graceful = gpiod_get_value(mdm2ap);
+			if (force_graceful)
+				graceful = 1;
 		}
 
 		MHI_LOG("Triggering shutdown process\n");
