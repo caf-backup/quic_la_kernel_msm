@@ -128,7 +128,7 @@ static struct {
 			      PERF_OUTPUT_SYM | PERF_OUTPUT_SYMOFFSET |
 			      PERF_OUTPUT_DSO | PERF_OUTPUT_PERIOD,
 
-		.invalid_fields = PERF_OUTPUT_TRACE | PERF_OUTPUT_BPF_OUTPUT,
+		.invalid_fields = PERF_OUTPUT_TRACE,
 	},
 
 	[PERF_TYPE_RAW] = {
