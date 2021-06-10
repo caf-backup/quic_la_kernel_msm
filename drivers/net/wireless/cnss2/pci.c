@@ -1511,9 +1511,9 @@ static int cnss_qcn9000_shutdown(struct cnss_pci_data *pci_priv)
 	plat_priv = pci_priv->plat_priv;
 
 	/* If dump_data_valid is set, then shutdown would be triggered after
-	 * ramdump upload in cnss_pci_dev_ramdump.
-	 * This is done to prevent the fbc_image and rddm_image segments,
-	 * uploaded to host DDR from the target, from getting freed.
+	 * ramdump upload is complete in cnss_pci_dev_ramdump.
+	 * This is done to prevent the fbc_image and rddm_image segments
+	 * from getting freed before getting uploaded to external server.
 	 */
 	if (plat_priv->ramdump_info_v2.dump_data_valid) {
 		cnss_pr_info("Skipping shutdown to wait for dump collection\n");
@@ -1761,11 +1761,15 @@ int cnss_pci_dev_ramdump(struct cnss_pci_data *pci_priv)
 		 * earlier in target assert case to finish the ramdump
 		 * collection.
 		 * Now after ramdump is complete, shutdown the target
+		 * if recovery is enabled, else wifi driver will take
+		 * care of assert.
 		 */
-		ret = cnss_qcn9000_shutdown(pci_priv);
-		if (ret)
-			cnss_pr_err("Failed to shutdown %s\n",
-				    plat_priv->device_name);
+		if (plat_priv->recovery_enabled) {
+			ret = cnss_qcn9000_shutdown(pci_priv);
+			if (ret)
+				cnss_pr_err("Failed to shutdown %s\n",
+					    plat_priv->device_name);
+		}
 		break;
 	default:
 		cnss_pr_err("Unknown device_id found: 0x%x\n",
