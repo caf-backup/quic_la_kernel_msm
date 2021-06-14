@@ -8,6 +8,7 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/clk.h>
+#include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/clk-provider.h>
 #include <linux/module.h>
@@ -16,6 +17,7 @@
 #include <linux/extcon.h>
 #endif
 #include <linux/of_platform.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/phy/phy.h>
 #include <linux/usb/of.h>
@@ -91,6 +93,8 @@ struct dwc3_qcom {
 	bool			phy_mux;
 	struct regmap		*phy_mux_map;
 	u32			phy_mux_reg;
+
+	struct gpio_desc *device_power_gpio;
 };
 
 static inline void dwc3_qcom_setbits(void __iomem *base, u32 offset, u32 val)
@@ -120,11 +124,15 @@ static inline void dwc3_qcom_clrbits(void __iomem *base, u32 offset, u32 val)
 static void dwc3_qcom_vbus_overrride_enable(struct dwc3_qcom *qcom, bool enable)
 {
 	if (enable) {
+		gpiod_set_value(qcom->device_power_gpio, 1);
+
 		dwc3_qcom_setbits(qcom->qscratch_base, QSCRATCH_SS_PHY_CTRL,
 				  LANE0_PWR_PRESENT);
 		dwc3_qcom_setbits(qcom->qscratch_base, QSCRATCH_HS_PHY_CTRL,
 				  UTMI_OTG_VBUS_VALID | SW_SESSVLD_SEL);
 	} else {
+		gpiod_set_value(qcom->device_power_gpio, 0);
+
 		dwc3_qcom_clrbits(qcom->qscratch_base, QSCRATCH_SS_PHY_CTRL,
 				  LANE0_PWR_PRESENT);
 		dwc3_qcom_clrbits(qcom->qscratch_base, QSCRATCH_HS_PHY_CTRL,
@@ -679,6 +687,9 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
 		}
 	}
 
+	qcom->device_power_gpio = devm_gpiod_get_optional(dev, "device-power",
+							  GPIOD_OUT_HIGH);
+
 	qcom->phy_mux = device_property_read_bool(dev,
 				"qcom,multiplexed-phy");
 	if (qcom->phy_mux)
@@ -788,6 +799,8 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
 	/* enable vbus override for device mode */
 	if (qcom->mode == USB_DR_MODE_PERIPHERAL)
 		dwc3_qcom_vbus_overrride_enable(qcom, true);
+
+	gpiod_set_value(qcom->device_power_gpio, 0);
 
 #if defined(CONFIG_IPQ_DWC3_QTI_EXTCON)
 	/* register extcon to override sw_vbus on Vbus change later */
