@@ -1872,12 +1872,14 @@ void srd_info_record(unsigned long ip, unsigned long parent_ip)
 	local_irq_restore(flags);
 }
 
-#define SRD_PRINT_STR	"srd: 0x%p -> 0x%p 0x%x\n"		\
-			"ip: 0x%p -> 0x%p 0x%x\n",		\
-			srd, (void *)srd_pa, 			\
-			sizeof(*srd) / sizeof(uint32_t),	\
-			srd->r, (void *)srd->r_pa,		\
-			(SRD_REC_SIZE_PER_CPU * srd->ncpu) / sizeof(uint32_t)
+#define SRD_PRINT_STR	"srd: 0x%p -> 0x%p 0x%lx\n"				\
+			"ip: 0x%p -> 0x%p 0x%lx\n",				\
+			srd, (void *)srd_pa,		 			\
+			(unsigned long) (sizeof(*srd) / sizeof(uint32_t)),	\
+			srd->r, (void *)srd->r_pa,				\
+			(unsigned long) ((SRD_REC_SIZE_PER_CPU * srd->ncpu)	\
+					 / sizeof(uint32_t))
+
 static ssize_t
 tracing_srd_read(struct file *filp, char __user *ubuf,
 	       size_t cnt, loff_t *ppos)
