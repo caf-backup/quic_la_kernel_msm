@@ -813,12 +813,16 @@
 		wifi1: wifi1@c000000 {
 			compatible = "qcom,cnss-qcn6122", "qcom,qcn6122-wifi";
 			qcom,rproc = <&qcom_q6v5_wcss>;
+			msi-parent = <&v2m0>;
+			interrupts = <0 416 1>;
 			status = "disabled";
 		};
 
 		wifi2: wifi2@c000000 {
 			compatible = "qcom,cnss-qcn6122", "qcom,qcn6122-wifi";
 			qcom,rproc = <&qcom_q6v5_wcss>;
+			msi-parent = <&v2m0>;
+			interrupts = <0 432 1>;
 			status = "disabled";
 		};
 
