@@ -2665,7 +2665,8 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 	     plat_priv->device_id == QCA8074V2_DEVICE_ID ||
 	     plat_priv->device_id == QCA5018_DEVICE_ID ||
 	     plat_priv->device_id == QCN6122_DEVICE_ID ||
-	     plat_priv->device_id == QCA6018_DEVICE_ID) &&
+	     plat_priv->device_id == QCA6018_DEVICE_ID ||
+	     plat_priv->device_id == QCA9574_DEVICE_ID) &&
 	    of_property_read_u32_array(dev->of_node, "qcom,caldb-addr",
 				       caldb_location,
 				       ARRAY_SIZE(caldb_location))) {
@@ -2767,7 +2768,8 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 	    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
 	    plat_priv->device_id == QCA5018_DEVICE_ID ||
 	    plat_priv->device_id == QCN6122_DEVICE_ID ||
-	    plat_priv->device_id == QCA6018_DEVICE_ID) {
+	    plat_priv->device_id == QCA6018_DEVICE_ID ||
+	    plat_priv->device_id == QCA9574_DEVICE_ID) {
 		if (of_property_read_u32_array(dev->of_node, "qcom,bdf-addr",
 					       bdf_location,
 					       ARRAY_SIZE(bdf_location))) {
@@ -3332,6 +3334,7 @@ void cnss_free_soc_info(struct cnss_plat_data *plat_priv)
 	case QCA8074V2_DEVICE_ID:
 	case QCA6018_DEVICE_ID:
 	case QCA5018_DEVICE_ID:
+	case QCA9574_DEVICE_ID:
 		/* PCI BAR not applicable for other AHB targets */
 		break;
 	default:
