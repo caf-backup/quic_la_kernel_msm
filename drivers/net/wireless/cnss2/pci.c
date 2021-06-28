@@ -4289,6 +4289,23 @@ static void cnss_pci_update_fw_name(struct cnss_pci_data *pci_priv)
 	cnss_pr_dbg("Firmware name is %s\n", mhi_ctrl->fw_image);
 }
 
+static void cnss_update_soc_version(struct cnss_pci_data *pci_priv)
+{
+	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
+	struct mhi_controller *mhi_ctrl = pci_priv->mhi_ctrl;
+
+	plat_priv->device_version.family_number = mhi_ctrl->family_number;
+	plat_priv->device_version.device_number = mhi_ctrl->device_number;
+	plat_priv->device_version.major_version = mhi_ctrl->major_version;
+	plat_priv->device_version.minor_version = mhi_ctrl->minor_version;
+
+	cnss_pr_info("SOC VERSION INFO: Family num: 0x%x, Device num: 0x%x, Major Ver: 0x%x, Minor Ver: 0x%x\n",
+		     plat_priv->device_version.family_number,
+		     plat_priv->device_version.device_number,
+		     plat_priv->device_version.major_version,
+		     plat_priv->device_version.minor_version);
+}
+
 static int cnss_pci_register_mhi(struct cnss_pci_data *pci_priv)
 {
 	int ret = 0;
@@ -4349,6 +4366,7 @@ static int cnss_pci_register_mhi(struct cnss_pci_data *pci_priv)
 	}
 
 	cnss_pci_update_fw_name(pci_priv);
+	cnss_update_soc_version(pci_priv);
 
 	return 0;
 }
