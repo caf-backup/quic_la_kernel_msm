@@ -134,7 +134,7 @@ int m0_btss_load(struct rproc *rproc, const struct firmware *fw)
 				&btDesc->btmem.reloc);
 
 	} else {
-		ret = qcom_scm_load_otp(PAS_ID);
+		ret = qti_scm_load_otp(PAS_ID);
 		if (ret)
 			dev_info(rproc->dev.parent, "secure OTP copy failed\n");
 
@@ -214,9 +214,9 @@ static int bt_rproc_probe(struct platform_device *pdev)
 
 
 	if (of_machine_is_compatible("qcom,ipq5018-mp02.1")) {
-		ret = qcom_scm_pil_cfg_available();
+		ret = qti_scm_pil_cfg_available();
 		if (ret) {
-			ret = qcom_scm_pil_cfg(PAS_ID, 0x1);
+			ret = qti_scm_pil_cfg(PAS_ID, 0x1);
 			if (ret) {
 				dev_err(rproc->dev.parent,
 						"Failed to update XO/TCXO");
