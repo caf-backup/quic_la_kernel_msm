@@ -1196,7 +1196,7 @@ static int q6v5_wcss_userpd_start(struct rproc *rproc)
 		return ret;
 	}
 
-	ret = qcom_q6v5_wait_for_start(&wcss->q6v5, 5 * HZ);
+	ret = qcom_q6v5_wait_for_start(&wcss->q6v5, 10 * HZ);
 	if (ret == -ETIMEDOUT) {
 		pr_err("%s start timedout\n", rproc->name);
 		wcss->q6v5.running = false;
@@ -1274,7 +1274,7 @@ skip_secure:
 	if (debug_wcss && !pdata->is_q6v6)
 		writel(0x0, wcss->reg_base + Q6SS_DBG_CFG);
 skip_reset:
-	ret = qcom_q6v5_wait_for_start(&wcss->q6v5, 5 * HZ);
+	ret = qcom_q6v5_wait_for_start(&wcss->q6v5, 10 * HZ);
 	if (ret == -ETIMEDOUT) {
 		if (debug_wcss)
 			goto skip_reset;
