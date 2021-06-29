@@ -389,10 +389,13 @@ int bt_parse_dt(struct bt_descriptor *btDesc)
 		return ret;
 	}
 
-	ret = bt_parse_pinctrl(btDesc);
-	if (ret < 0) {
-		dev_err(dev, "could not get pinctrl info, ret = %d\n", ret);
-		return ret;
+	if (btss_debug) {
+		ret = bt_parse_pinctrl(btDesc);
+		if (ret < 0) {
+			dev_err(dev, "could not get pinctrl info, ret = %d\n",
+									ret);
+			return ret;
+		}
 	}
 
 	btDesc->nosecure = of_property_read_bool(dev->of_node, "qcom,nosecure");
