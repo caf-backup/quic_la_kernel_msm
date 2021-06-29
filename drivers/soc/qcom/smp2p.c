@@ -158,6 +158,16 @@ struct qcom_smp2p {
 	struct list_head outbound;
 };
 
+#define SMP2PLOG_SIZE 256
+
+struct smp2p_log {
+	u64 timestamp;
+	u32 value;
+	u32 last_value;
+	u32 status;
+} smp2pintr[SMP2PLOG_SIZE];
+unsigned int smp2pintrindex;
+
 static void qcom_smp2p_kick(struct qcom_smp2p *smp2p)
 {
 	/* Make sure any updated data is written before the kick */
@@ -228,6 +238,13 @@ static irqreturn_t qcom_smp2p_intr(int irq, void *data)
 		val = readl(entry->value);
 
 		status = val ^ entry->last_value;
+		smp2pintr[smp2pintrindex].timestamp =
+				ktime_to_ms(ktime_get());
+		smp2pintr[smp2pintrindex].value = val;
+		smp2pintr[smp2pintrindex].last_value = entry->last_value;
+		smp2pintr[smp2pintrindex++].status = status;
+		smp2pintrindex &= (SMP2PLOG_SIZE - 1);
+
 		entry->last_value = val;
 
 		/* No changes of this entry? */
@@ -593,7 +610,8 @@ static int qcom_smp2p_remove(struct platform_device *pdev)
 	mbox_free_channel(smp2p->mbox_chan);
 
 	smp2p->out->valid_entries = 0;
-
+	memset(smp2pintr, 0, sizeof(struct smp2p_log) * SMP2PLOG_SIZE);
+	smp2pintrindex = 0;
 	return 0;
 }
 
