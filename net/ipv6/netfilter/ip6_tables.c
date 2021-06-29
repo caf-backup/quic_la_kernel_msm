@@ -349,7 +349,6 @@ ip6t_do_table(struct sk_buff *skb,
 	IP_NF_ASSERT(table->valid_hooks & (1 << hook));
 
 	local_bh_disable();
-	rcu_read_lock();
 
 	addend = xt_write_recseq_begin();
 	private = table->private;
@@ -450,7 +449,6 @@ ip6t_do_table(struct sk_buff *skb,
 	} while (!acpar.hotdrop);
 
 	xt_write_recseq_end(addend);
-	rcu_read_unlock();
 	local_bh_enable();
 
 #ifdef DEBUG_ALLOW_ALL
@@ -1255,7 +1253,6 @@ __do_replace(struct net *net, const char *name, unsigned int valid_hooks,
 	xt_entry_foreach(iter, oldinfo->entries, oldinfo->size)
 		cleanup_entry(iter, net);
 
-	synchronize_rcu();
 	xt_free_table_info(oldinfo);
 	if (copy_to_user(counters_ptr, counters,
 			 sizeof(struct xt_counters) * num_counters) != 0) {
