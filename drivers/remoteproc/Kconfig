@@ -230,6 +230,12 @@ config STM32_RPROC
 
 	  This can be either built-in or a loadable module.
 
+config QTI_BT_PIL
+	tristate "Qualcomm BT Peripheral Image Loader"
+	default n
+	help
+	  Say y here to support the Peripheral Image Loader for the Qualcomm
+	  Bluetooth Subsystem.
 endif # REMOTEPROC
 
 endmenu
