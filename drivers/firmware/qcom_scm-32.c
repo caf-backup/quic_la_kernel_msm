@@ -1773,7 +1773,7 @@ int __qti_scm_get_encrypted_tz_log(struct device *dev, void *ker_buf, u32 buf_le
 	return le32_to_cpu(desc.ret[0]);
 }
 
-int __qcom_scm_load_otp(struct device *dev, u32 peripheral)
+int __qti_scm_load_otp(struct device *dev, u32 peripheral)
 {
 	__le32 out;
 	__le32 in;
@@ -1782,21 +1782,21 @@ int __qcom_scm_load_otp(struct device *dev, u32 peripheral)
 
 	if (!is_scm_armv8()) {
 		in = cpu_to_le32(peripheral);
-		ret = qcom_scm_call(dev, QCOM_SCM_SVC_OTP, QCOM_SCM_CMD_OTP,
+		ret = qcom_scm_call(dev, QTI_SCM_SVC_OTP, QTI_SCM_CMD_OTP,
 			    &in, sizeof(in),
 			    &out, sizeof(out));
 	} else {
 		desc.args[0] = peripheral;
 		desc.arginfo = SCM_ARGS(1);
-		ret = qti_scm_call2(dev, SCM_SIP_FNID(QCOM_SCM_SVC_OTP,
-						  QCOM_SCM_CMD_OTP), &desc);
+		ret = qti_scm_call2(dev, SCM_SIP_FNID(QTI_SCM_SVC_OTP,
+						  QTI_SCM_CMD_OTP), &desc);
 
 		out = desc.ret[0];
 	}
 	return ret ? : le32_to_cpu(out);
 }
 
-int __qcom_scm_pil_cfg(struct device *dev, u32 peripheral, u32 arg)
+int __qti_scm_pil_cfg(struct device *dev, u32 peripheral, u32 arg)
 {
 	int ret;
 	struct scm_desc desc = {0};
@@ -1804,8 +1804,8 @@ int __qcom_scm_pil_cfg(struct device *dev, u32 peripheral, u32 arg)
 	desc.args[0] = peripheral;
 	desc.args[1] = arg;
 	desc.arginfo = SCM_ARGS(2);
-	ret = qti_scm_call2(dev, SCM_SIP_FNID(QCOM_SCM_SVC_XO_TCXO,
-					  QCOM_SCM_CMD_XO_TCXO), &desc);
+	ret = qti_scm_call2(dev, SCM_SIP_FNID(QTI_SCM_SVC_XO_TCXO,
+					  QTI_SCM_CMD_XO_TCXO), &desc);
 
 	return ret ? : le32_to_cpu(desc.ret[0]);
 }
