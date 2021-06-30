@@ -561,6 +561,7 @@
 	qcom,caldb-addr = <0 0 0 0 0>;
 	qcom,caldb-size = <0>;
 	qcom,userpd-subsys-name = "q6v5_wcss_userpd1";
+	mem-region = <&q6_ipq5018_data>;
 	status = "ok";
 };
 
@@ -578,6 +579,7 @@
 	qcom,caldb-addr = <0 0 0 0 0>;
 	qcom,caldb-size = <0>;
 	qcom,userpd-subsys-name = "q6v5_wcss_userpd2";
+	mem-region = <&q6_qcn6122_data1>;
 	status = "ok";
 };
 
@@ -595,5 +597,6 @@
 	qcom,caldb-addr = <0 0 0 0 0>;
 	qcom,caldb-size = <0>;
 	qcom,userpd-subsys-name = "q6v5_wcss_userpd3";
+	mem-region = <&q6_qcn6122_data2>;
 	status = "ok";
 };

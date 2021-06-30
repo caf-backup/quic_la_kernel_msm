@@ -91,7 +91,7 @@
 	 * +=================================================+
 	 */
 		/delete-node/ wifi_dump@4e900000;
-		qcn9000_pcie0@4e900000 {
+		qcn9000_pcie0: qcn9000_pcie0@4e900000 {
 			no-map;
 			reg = <0x0 0x4e900000 0x0 0x01e00000>;
 		};
@@ -137,7 +137,7 @@
 	 */
 		/delete-node/ wifi_dump@51100000;
 		/delete-node/ wigig_dump@51300000;
-		qcn9000_pcie0@51100000 {
+		qcn9000_pcie0: qcn9000_pcie0@51100000 {
 			no-map;
 			reg = <0x0 0x51100000 0x0 0x02D00000>;
 		};
@@ -1007,6 +1007,8 @@ pcie0_mhi: pcie0_mhi {
 	hremote-size = <0x2300000>;
 	tgt-mem-mode = <0x0>;
 #endif
+	hremote_node = <&qcn9000_pcie0>;
+	mhi_node = <&mhi_region0>;
 	caldb-size = <0x800000>;
 	board_id = <0xa4>;
 	status = "ok";

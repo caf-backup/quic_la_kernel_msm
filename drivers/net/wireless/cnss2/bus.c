@@ -166,8 +166,9 @@ int cnss_bus_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 
 	switch (plat_priv->bus_type) {
 	case CNSS_BUS_PCI:
-	case CNSS_BUS_AHB:
 		return cnss_pci_alloc_fw_mem(plat_priv);
+	case CNSS_BUS_AHB:
+		return cnss_ahb_alloc_fw_mem(plat_priv);
 	default:
 		cnss_pr_err("Unsupported bus type: %d\n",
 			    plat_priv->bus_type);

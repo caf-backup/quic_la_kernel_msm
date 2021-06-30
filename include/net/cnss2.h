@@ -382,6 +382,16 @@ static inline int cnss_set_driver_mode(unsigned int mode)
 {
 	return -EINVAL;
 }
+static inline
+int cnss_send_buffer_to_afcmem(struct device *dev, char *afcdb, uint32_t len,
+			    uint8_t slotid)
+{
+	return -EINVAL;
+}
+static inline int cnss_reset_afcmem(struct device *dev, uint8_t slotid)
+{
+	return -EINVAL;
+}
 #else
 extern int cnss_wlan_register_driver(struct cnss_wlan_driver *driver);
 extern void cnss_wlan_unregister_driver(struct cnss_wlan_driver *driver);
@@ -468,5 +478,8 @@ void cnss_get_ramdump_device_name(struct device *dev,
 				  size_t ramdump_dev_name_len);
 unsigned int cnss_get_driver_mode(void);
 int cnss_set_driver_mode(unsigned int mode);
+int cnss_send_buffer_to_afcmem(struct device *dev, char *afcdb, uint32_t len,
+			    uint8_t slotid);
+int cnss_reset_afcmem(struct device *dev, uint8_t slotid);
 #endif
 #endif /* _NET_CNSS2_H */

@@ -95,12 +95,12 @@
 		 * |           Remaining memory for Linux            |
 		 * +=================================================+
 		 */
-		qcn9000_pcie0@4e400000 {
+		qcn9000_pcie0: qcn9000_pcie0@4e400000 {
 			no-map;
 			reg = <0x0 0x4E400000 0x0 0x1E00000>;
 		};
 
-		qcn9000_pcie1@50200000 {
+		qcn9000_pcie1: qcn9000_pcie1@50200000 {
 			no-map;
 			reg = <0x0 0x50200000 0x0 0x1E00000>;
 		};
@@ -150,12 +150,12 @@
 		 * |           Remaining memory for Linux            |
 		 * +=================================================+
 		 */
-		qcn9000_pcie0@50200000 {
+		qcn9000_pcie0: qcn9000_pcie0@50200000 {
 			no-map;
 			reg = <0x0 0x50200000 0x0 0x02D00000>;
 		};
 
-		qcn9000_pcie1@52f00000 {
+		qcn9000_pcie1: qcn9000_pcie1@52f00000 {
 			no-map;
 			reg = <0x0 0x52F00000 0x0 0x02D00000>;
 		};
@@ -321,6 +321,8 @@
 	tgt-mem-mode = <0x0>;
 #endif
 	/* QCN9000 6Ghz Radio */
+	hremote_node = <&qcn9000_pcie0>;
+	mhi_node = <&mhi_region0>;
 	board_id = <0xa4>;
 	caldb-size = <0x800000>;
 	status = "ok";
@@ -369,6 +371,8 @@
 	tgt-mem-mode = <0x0>;
 #endif
 	/* QCN9000 6G Scan Radio */
+	hremote_node = <&qcn9000_pcie1>;
+	mhi_node = <&mhi_region1>;
 	board_id = <0xaa>;
 	caldb-size = <0x800000>;
 	status = "ok";

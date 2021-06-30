@@ -808,6 +808,7 @@
 	m3-dump-addr = <0x4D200000>;
 	nss-radio-priority = <0>;
 #endif
+	mem-region = <&q6_ipq5018_data>;
 	qcom,caldb-size = <0x200000>;
 	status = "ok";
 };
@@ -830,6 +831,7 @@
 	m3-dump-addr = <0x4E600000>;
 	nss-radio-priority = <1>;
 #endif
+	mem-region = <&q6_qcn6122_data1>;
 	qcom,caldb-size = <0x500000>;
 	status = "ok";
 };
@@ -852,6 +854,7 @@
 	m3-dump-addr = <0x4FD00000>;
 	nss-radio-priority = <1>;
 #endif
+	mem-region = <&q6_qcn6122_data2>;
 	qcom,caldb-size = <0x500000>;
 	status = "ok";
 };

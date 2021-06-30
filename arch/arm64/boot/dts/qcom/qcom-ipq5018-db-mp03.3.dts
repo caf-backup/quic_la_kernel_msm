@@ -742,6 +742,7 @@
 #else
 	qcom,tgt-mem-mode = <1>;
 #endif
+	mem-region = <&q6_ipq5018_data>;
 	qcom,board_id = <0x23>;
 	qcom,caldb-addr = <0x0 0x4D000000 0 0 0>;
 	qcom,caldb-size = <0x200000>;
@@ -762,6 +763,7 @@
 	 * once wifi driver changes are in place to
 	 * qcn6122 compatible string, remove qcn9100 here
 	 */
+	mem-region = <&q6_qcn6122_data1>;
 	compatible = "qcom,cnss-qcn6122", "qcom,cnss-qcn9100";
 	qcom,bdf-addr = <0x0 0x4D200000 0x4CF00000 0x0 0x0>;
 	qcom,caldb-addr = <0x0 0x4E400000 0 0 0>;
@@ -816,4 +818,6 @@
 			hremote-size = <0x1400000>;
 			tgt-mem-mode = <0x1>;
 #endif
+			hremote_node = <&q6_qcn9000_region>;
+			mhi_node = <&mhi_region1>;
 };
