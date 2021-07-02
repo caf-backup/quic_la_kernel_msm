@@ -165,7 +165,6 @@ struct q6_platform_data {
 
 static int debug_wcss;
 static int load_pil = 1;
-static int force_stop = 1;
 struct rproc *q6_rproc;
 
 #if defined(CONFIG_IPQ_SS_DUMP)
@@ -1613,14 +1612,8 @@ static int q6v5_wcss_userpd_stop(struct rproc *rproc)
 #endif
 		ret = qcom_q6v5_request_stop(&wcss->q6v5);
 		if (ret) {
-			if (!force_stop) {
-				dev_err(&rproc->dev,
-					"%s not stopped\n", rproc->name);
-				return ret;
-			}
-			dev_info(&rproc->dev,
-				"failed to stop, ret:%d, but rproc will be stopped forcefully\n",
-				ret);
+			dev_err(&rproc->dev, "%s not stopped\n", rproc->name);
+			return ret;
 		}
 	}
 
@@ -2356,7 +2349,6 @@ static struct platform_driver q6v5_wcss_driver = {
 module_platform_driver(q6v5_wcss_driver);
 module_param(debug_wcss, int, 0644);
 module_param(load_pil, int, 0644);
-module_param(force_stop, int, 0644);
 
 MODULE_DESCRIPTION("Hexagon WCSS Peripheral Image Loader");
 MODULE_LICENSE("GPL v2");
