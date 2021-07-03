@@ -42,6 +42,10 @@
 	};
 #endif
 
+	srd_trace: srd_trace {
+		compatible = "srd";
+	};
+
 	soc: soc {
 		#address-cells = <0x1>;
 		#size-cells = <0x1>;
@@ -75,6 +79,7 @@
 					<GIC_PPI 4 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
 					<GIC_PPI 1 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
 			clock-frequency = <24000000>;
+			always-on;
 		};
 
 		gcc: gcc@1800000 {

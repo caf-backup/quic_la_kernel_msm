@@ -84,6 +84,8 @@ int mhi_get_capability_offset(struct mhi_controller *mhi_cntrl,
 	u32 cur_cap, next_offset;
 	int ret;
 
+	return -ENXIO;
+
 	/* get the 1st supported capability offset */
 	ret = mhi_read_reg_field(mhi_cntrl, mhi_cntrl->regs, MISC_OFFSET,
 				 MISC_CAP_MASK, MISC_CAP_SHIFT, offset);

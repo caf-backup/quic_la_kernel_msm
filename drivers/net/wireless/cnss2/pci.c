@@ -1511,9 +1511,9 @@ static int cnss_qcn9000_shutdown(struct cnss_pci_data *pci_priv)
 	plat_priv = pci_priv->plat_priv;
 
 	/* If dump_data_valid is set, then shutdown would be triggered after
-	 * ramdump upload in cnss_pci_dev_ramdump.
-	 * This is done to prevent the fbc_image and rddm_image segments,
-	 * uploaded to host DDR from the target, from getting freed.
+	 * ramdump upload is complete in cnss_pci_dev_ramdump.
+	 * This is done to prevent the fbc_image and rddm_image segments
+	 * from getting freed before getting uploaded to external server.
 	 */
 	if (plat_priv->ramdump_info_v2.dump_data_valid) {
 		cnss_pr_info("Skipping shutdown to wait for dump collection\n");
@@ -1761,11 +1761,15 @@ int cnss_pci_dev_ramdump(struct cnss_pci_data *pci_priv)
 		 * earlier in target assert case to finish the ramdump
 		 * collection.
 		 * Now after ramdump is complete, shutdown the target
+		 * if recovery is enabled, else wifi driver will take
+		 * care of assert.
 		 */
-		ret = cnss_qcn9000_shutdown(pci_priv);
-		if (ret)
-			cnss_pr_err("Failed to shutdown %s\n",
-				    plat_priv->device_name);
+		if (plat_priv->recovery_enabled) {
+			ret = cnss_qcn9000_shutdown(pci_priv);
+			if (ret)
+				cnss_pr_err("Failed to shutdown %s\n",
+					    plat_priv->device_name);
+		}
 		break;
 	default:
 		cnss_pr_err("Unknown device_id found: 0x%x\n",
@@ -2661,7 +2665,8 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 	     plat_priv->device_id == QCA8074V2_DEVICE_ID ||
 	     plat_priv->device_id == QCA5018_DEVICE_ID ||
 	     plat_priv->device_id == QCN6122_DEVICE_ID ||
-	     plat_priv->device_id == QCA6018_DEVICE_ID) &&
+	     plat_priv->device_id == QCA6018_DEVICE_ID ||
+	     plat_priv->device_id == QCA9574_DEVICE_ID) &&
 	    of_property_read_u32_array(dev->of_node, "qcom,caldb-addr",
 				       caldb_location,
 				       ARRAY_SIZE(caldb_location))) {
@@ -2763,7 +2768,8 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 	    plat_priv->device_id == QCA8074V2_DEVICE_ID ||
 	    plat_priv->device_id == QCA5018_DEVICE_ID ||
 	    plat_priv->device_id == QCN6122_DEVICE_ID ||
-	    plat_priv->device_id == QCA6018_DEVICE_ID) {
+	    plat_priv->device_id == QCA6018_DEVICE_ID ||
+	    plat_priv->device_id == QCA9574_DEVICE_ID) {
 		if (of_property_read_u32_array(dev->of_node, "qcom,bdf-addr",
 					       bdf_location,
 					       ARRAY_SIZE(bdf_location))) {
@@ -3328,6 +3334,7 @@ void cnss_free_soc_info(struct cnss_plat_data *plat_priv)
 	case QCA8074V2_DEVICE_ID:
 	case QCA6018_DEVICE_ID:
 	case QCA5018_DEVICE_ID:
+	case QCA9574_DEVICE_ID:
 		/* PCI BAR not applicable for other AHB targets */
 		break;
 	default:
@@ -4282,6 +4289,23 @@ static void cnss_pci_update_fw_name(struct cnss_pci_data *pci_priv)
 	cnss_pr_dbg("Firmware name is %s\n", mhi_ctrl->fw_image);
 }
 
+static void cnss_update_soc_version(struct cnss_pci_data *pci_priv)
+{
+	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
+	struct mhi_controller *mhi_ctrl = pci_priv->mhi_ctrl;
+
+	plat_priv->device_version.family_number = mhi_ctrl->family_number;
+	plat_priv->device_version.device_number = mhi_ctrl->device_number;
+	plat_priv->device_version.major_version = mhi_ctrl->major_version;
+	plat_priv->device_version.minor_version = mhi_ctrl->minor_version;
+
+	cnss_pr_info("SOC VERSION INFO: Family num: 0x%x, Device num: 0x%x, Major Ver: 0x%x, Minor Ver: 0x%x\n",
+		     plat_priv->device_version.family_number,
+		     plat_priv->device_version.device_number,
+		     plat_priv->device_version.major_version,
+		     plat_priv->device_version.minor_version);
+}
+
 static int cnss_pci_register_mhi(struct cnss_pci_data *pci_priv)
 {
 	int ret = 0;
@@ -4342,6 +4366,7 @@ static int cnss_pci_register_mhi(struct cnss_pci_data *pci_priv)
 	}
 
 	cnss_pci_update_fw_name(pci_priv);
+	cnss_update_soc_version(pci_priv);
 
 	return 0;
 }
