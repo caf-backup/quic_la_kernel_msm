@@ -1002,7 +1002,7 @@
 
 			clocks = <&gcc GCC_BTSS_LPO_CLK>;
 			clock-names = "lpo_clk";
-			status = "disabled";
+			status = "ok";
 		};
 	};
 
