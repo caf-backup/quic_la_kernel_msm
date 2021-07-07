@@ -136,7 +136,6 @@
 
 	srd_trace: srd_trace {
 		compatible = "srd";
-		status = "disabled";
 	};
 
 	soc: soc {
