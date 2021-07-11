@@ -1002,6 +1002,8 @@
 
 			clocks = <&gcc GCC_BTSS_LPO_CLK>;
 			clock-names = "lpo_clk";
+
+			memory-region = <&bt_region>;
 			status = "ok";
 		};
 	};
