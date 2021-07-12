@@ -111,6 +111,7 @@ struct qcom_glink {
 	int irq;
 
 	struct work_struct rx_work;
+	struct workqueue_struct *rx_wq;
 	spinlock_t rx_lock;
 	spinlock_t irq_lock;
 	struct list_head rx_queue;
@@ -837,6 +838,7 @@ struct rx_defer {
 static int qcom_glink_rx_defer(struct qcom_glink *glink, size_t extra)
 {
 	struct glink_defer_cmd *dcmd;
+	bool is_queued;
 
 	extra = ALIGN(extra, 8);
 
@@ -874,7 +876,10 @@ static int qcom_glink_rx_defer(struct qcom_glink *glink, size_t extra)
 	list_add_tail(&dcmd->node, &glink->rx_queue);
 	spin_unlock(&glink->rx_lock);
 
-	schedule_work(&glink->rx_work);
+	is_queued = queue_work(glink->rx_wq, &glink->rx_work);
+	if (is_queued == false)
+		pr_debug("Work is already on queue\n");
+
 	/* It log's the work queue schedule timestamp */
 	glinkwork_schedule[glinkwork_sche_index++].timestamp =
 				ktime_to_ms(ktime_get());
@@ -1740,6 +1745,8 @@ static void qcom_glink_cancel_rx_work(struct qcom_glink *glink)
 					ktime_to_ms(ktime_get());
 	glinkwork_cancel_index &= (RPMLOG_SIZE - 1);
 
+	destroy_workqueue(glink->rx_wq);
+
 	list_for_each_entry_safe(dcmd, tmp, &glink->rx_queue, node)
 		kfree(dcmd);
 }
@@ -1770,6 +1777,10 @@ struct qcom_glink *qcom_glink_native_probe(struct device *dev,
 	spin_lock_init(&glink->rx_lock);
 	INIT_LIST_HEAD(&glink->rx_queue);
 	INIT_WORK(&glink->rx_work, qcom_glink_work);
+
+	glink->rx_wq = alloc_workqueue("glink_rx_wq", WQ_UNBOUND, 1);
+	if (!glink->rx_wq)
+		return ERR_PTR(-ENOMEM);
 
 	spin_lock_init(&glink->idr_lock);
 	idr_init(&glink->lcids);
