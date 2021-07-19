@@ -1427,6 +1427,7 @@ ip4ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	__u32 mtu;
 	u8 tproto;
 	int err;
+	struct __ip6_tnl_fmr *fmr;
 
 	iph = ip_hdr(skb);
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
@@ -1470,6 +1471,19 @@ ip4ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	fl6.flowi6_uid = sock_net_uid(dev_net(dev), NULL);
 	dsfield = INET_ECN_encapsulate(dsfield, ipv4_get_dsfield(iph));
 
+	/* try to find matching FMR */
+	for (fmr = t->parms.fmrs; fmr; fmr = fmr->next) {
+		unsigned mshift = 32 - fmr->ip4_prefix_len;
+		if (ntohl(fmr->ip4_prefix.s_addr) >> mshift ==
+				ntohl(ip_hdr(skb)->daddr) >> mshift)
+			break;
+	}
+
+	/* change dstaddr according to FMR */
+	if (fmr)
+		ip4ip6_fmr_calc(&fl6.daddr, ip_hdr(skb), skb_tail_pointer(skb), fmr,
+				true, t->parms.draft03);
+
 	if (iptunnel_handle_offloads(skb, SKB_GSO_IPXIP6))
 		return -1;
 
@@ -1493,7 +1507,6 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip6_tnl *t = netdev_priv(dev);
 	struct ipv6hdr *ipv6h;
-	struct __ip6_tnl_fmr *fmr;
 	int encap_limit = -1;
 	__u16 offset;
 	struct flowi6 fl6;
@@ -1559,18 +1572,6 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	fl6.flowi6_uid = sock_net_uid(dev_net(dev), NULL);
 	dsfield = INET_ECN_encapsulate(dsfield, ipv6_get_dsfield(ipv6h));
 
-	/* try to find matching FMR */
-	for (fmr = t->parms.fmrs; fmr; fmr = fmr->next) {
-		unsigned mshift = 32 - fmr->ip4_prefix_len;
-		if (ntohl(fmr->ip4_prefix.s_addr) >> mshift ==
-				ntohl(ip_hdr(skb)->daddr) >> mshift)
-			break;
-	}
-
-	/* change dstaddr according to FMR */
-	if (fmr)
-		ip4ip6_fmr_calc(&fl6.daddr, ip_hdr(skb), skb_tail_pointer(skb), fmr,
-				true, t->parms.draft03);
 
 	if (iptunnel_handle_offloads(skb, SKB_GSO_IPXIP6))
 		return -1;
