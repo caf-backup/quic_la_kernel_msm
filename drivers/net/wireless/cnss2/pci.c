@@ -280,9 +280,9 @@ static int cnss_pci_check_link_status(struct cnss_pci_data *pci_priv)
 	return 0;
 }
 
-static void cnss_pci_select_window(struct cnss_pci_data *pci_priv, u32 offset)
+static void cnss_pci_select_window(struct cnss_pci_data *pci_priv, u32 addr)
 {
-	u32 window = (offset >> WINDOW_SHIFT) & WINDOW_VALUE_MASK;
+	u32 window = (addr >> WINDOW_SHIFT) & WINDOW_VALUE_MASK;
 	u32 prev_window = 0, curr_window = 0, prev_cleared_window = 0;
 
 	prev_window = readl_relaxed(pci_priv->bar +
@@ -308,7 +308,7 @@ static void cnss_pci_select_window(struct cnss_pci_data *pci_priv, u32 offset)
 }
 
 static int cnss_pci_reg_read(struct cnss_pci_data *pci_priv,
-			     u32 offset, u32 *val)
+			     u32 addr, u32 *val)
 {
 	int ret;
 	unsigned long flags;
@@ -324,22 +324,22 @@ static int cnss_pci_reg_read(struct cnss_pci_data *pci_priv,
 	}
 
 	if (pci_priv->pci_dev->device == QCA6174_DEVICE_ID ||
-	    offset < MAX_UNWINDOWED_ADDRESS) {
-		*val = readl_relaxed(pci_priv->bar + offset);
+	    addr < MAX_UNWINDOWED_ADDRESS) {
+		*val = readl_relaxed(pci_priv->bar + addr);
 		return 0;
 	}
 
 	spin_lock_irqsave(&pci_reg_window_lock, flags);
-	cnss_pci_select_window(pci_priv, offset);
+	cnss_pci_select_window(pci_priv, addr);
 
 	*val = readl_relaxed(pci_priv->bar + WINDOW_START +
-			     (offset & WINDOW_RANGE_MASK));
+			     (addr & WINDOW_RANGE_MASK));
 	spin_unlock_irqrestore(&pci_reg_window_lock, flags);
 
 	return 0;
 }
 
-static int cnss_pci_reg_write(struct cnss_pci_data *pci_priv, u32 offset,
+static int cnss_pci_reg_write(struct cnss_pci_data *pci_priv, u32 addr,
 			      u32 val)
 {
 	int ret;
@@ -356,20 +356,76 @@ static int cnss_pci_reg_write(struct cnss_pci_data *pci_priv, u32 offset,
 	}
 
 	if (pci_priv->pci_dev->device == QCA6174_DEVICE_ID ||
-	    offset < MAX_UNWINDOWED_ADDRESS) {
-		writel_relaxed(val, pci_priv->bar + offset);
+	    addr < MAX_UNWINDOWED_ADDRESS) {
+		writel_relaxed(val, pci_priv->bar + addr);
 		return 0;
 	}
 
 	spin_lock_irqsave(&pci_reg_window_lock, flags);
-	cnss_pci_select_window(pci_priv, offset);
+	cnss_pci_select_window(pci_priv, addr);
 
 	writel_relaxed(val, pci_priv->bar + WINDOW_START +
-		       (offset & WINDOW_RANGE_MASK));
+		       (addr & WINDOW_RANGE_MASK));
 	spin_unlock_irqrestore(&pci_reg_window_lock, flags);
 
 	return 0;
 }
+
+int cnss_reg_read(struct device *dev, u32 addr, u32 *val)
+{
+	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
+	struct cnss_pci_data *pci_priv;
+
+	if (!plat_priv) {
+		pr_err("Plat Priv is null\n");
+		return -ENODEV;
+	}
+
+	switch (plat_priv->bus_type) {
+	case CNSS_BUS_PCI:
+		pci_priv = plat_priv->bus_priv;
+
+		if (!pci_priv) {
+			cnss_pr_err("Pci Priv is null\n");
+			return -ENODEV;
+		}
+		return cnss_pci_reg_read(pci_priv, addr, val);
+	case CNSS_BUS_AHB:
+	default:
+		cnss_pr_err("Unsupported bus type %d, only PCI bus type is supported\n",
+			    plat_priv->bus_type);
+		return -ENODEV;
+	}
+}
+EXPORT_SYMBOL(cnss_reg_read);
+
+int cnss_reg_write(struct device *dev, u32 addr, u32 val)
+{
+	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
+	struct cnss_pci_data *pci_priv;
+
+	if (!plat_priv) {
+		pr_err("Plat Priv is null\n");
+		return -ENODEV;
+	}
+
+	switch (plat_priv->bus_type) {
+	case CNSS_BUS_PCI:
+		pci_priv = plat_priv->bus_priv;
+
+		if (!pci_priv) {
+			cnss_pr_err("Pci Priv is null\n");
+			return -ENODEV;
+		}
+		return cnss_pci_reg_write(pci_priv, addr, val);
+	case CNSS_BUS_AHB:
+	default:
+		cnss_pr_err("Unsupported bus type %d, only PCI bus type is supported\n",
+			    plat_priv->bus_type);
+		return -ENODEV;
+	}
+}
+EXPORT_SYMBOL(cnss_reg_write);
 
 static int cnss_pci_force_wake_get(struct cnss_pci_data *pci_priv)
 {
