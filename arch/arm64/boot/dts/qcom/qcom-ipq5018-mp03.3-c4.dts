@@ -260,6 +260,24 @@
 	};
 };
 
+/* QCN9000 5G is connected to PCIe X1 */
+&pcie_x1 {
+	status = "ok";
+};
+
+/* No PCIe radio is connected to PCIe X2 */
+&pcie_x2 {
+	status = "disabled";
+};
+
+&pcie_x1phy {
+	status = "ok";
+};
+
+&pcie_x2phy {
+	status = "disabled";
+};
+
 &pcie_x1_rp {
 	status = "ok";
 
@@ -278,6 +296,7 @@
 	mhi_1: qcom,mhi@1 {
 		reg = <0 0 0 0 0 >;
 		/delete-property/ memory-region;
+		/delete-property/ qrtr_instance_id;
 	};
 };
 
