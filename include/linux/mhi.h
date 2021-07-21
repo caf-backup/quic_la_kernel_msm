@@ -819,6 +819,15 @@ void mhi_unregister_controller(struct mhi_controller *mhi_cntrl);
 int mhi_download_rddm_img(struct mhi_controller *mhi_cntrl, bool in_panic);
 
 /**
+ * mhi_scan_rddm_cookie - Look for supplied cookie value in the BHI debug
+ * registers set by device to indicate rddm readiness for debugging purposes.
+ * @mhi_cntrl: MHI controller
+ * @off: BHI debug reg offset
+ * @cookie: cookie/pattern value to match
+ */
+bool mhi_scan_rddm_cookie(struct mhi_controller *mhi_cntrl, u32 off, u32 cookie);
+
+/**
  * mhi_debug_reg_dump - dump MHI registers for debug purpose
  * @mhi_cntrl: MHI controller
  */
