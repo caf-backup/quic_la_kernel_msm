@@ -93,11 +93,16 @@ module_param(disable_caldata_bmap, int, 0644);
 MODULE_PARM_DESC(disable_caldata_bmap, "Bitmap to Disable Caldata download");
 
 #define FW_READY_DELAY	100  /* in msecs */
+#ifdef CONFIG_KASAN
+static int fw_ready_timeout = 60;
+static int cold_boot_cal_timeout = 180;
+#else
 static int fw_ready_timeout = 15;
+static int cold_boot_cal_timeout = 60;
+#endif
 module_param(fw_ready_timeout, int, 0644);
 MODULE_PARM_DESC(fw_ready_timeout, "fw ready timeout in seconds");
 
-static int cold_boot_cal_timeout = 60;
 module_param(cold_boot_cal_timeout, int, 0644);
 MODULE_PARM_DESC(cold_boot_cal_timeout, "Cold boot cal timeout in seconds");
 
