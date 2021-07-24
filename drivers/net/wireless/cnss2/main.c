@@ -3646,11 +3646,11 @@ static int cnss_probe(struct platform_device *plat_dev)
 	plat_priv->plat_dev = plat_dev;
 	plat_priv->device_id = device_id->driver_data;
 	plat_priv->plat_dev_id = (struct platform_device_id *)device_id;
+	plat_priv->service_id = WLFW_SERVICE_ID_V01;
 
 	switch (plat_priv->device_id) {
 	case QCN9000_DEVICE_ID:
 		plat_priv->bus_type = CNSS_BUS_PCI;
-		plat_priv->service_id = WLFW_SERVICE_ID_V01_NPR;
 		plat_priv->qrtr_node_id = node_id;
 		plat_priv->wlfw_service_instance_id = node_id + FW_ID_BASE;
 
@@ -3669,12 +3669,10 @@ static int cnss_probe(struct platform_device *plat_dev)
 		plat_priv->bus_type = CNSS_BUS_AHB;
 		plat_priv->wlfw_service_instance_id =
 			WLFW_SERVICE_INS_ID_V01_QCA8074;
-		plat_priv->service_id =  WLFW_SERVICE_ID_V01_HK;
 		plat_priv->board_info.board_id_override = bdf_integrated;
 		break;
 	case QCN6122_DEVICE_ID:
 		plat_priv->bus_type = CNSS_BUS_AHB;
-		plat_priv->service_id = WLFW_SERVICE_ID_V01_HK;
 		plat_priv->userpd_id = userpd_id;
 		plat_priv->wlfw_service_instance_id =
 			WLFW_SERVICE_INS_ID_V01_QCN6122 + userpd_id;
