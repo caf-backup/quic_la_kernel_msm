@@ -15,6 +15,7 @@
 #include <linux/remoteproc.h>
 #include "qcom_q6v5.h"
 #include <linux/delay.h>
+#include <linux/irq.h>
 
 #define STOP_ACK_TIMEOUT_MS 5000
 /**
@@ -224,6 +225,7 @@ static int q6v5_get_inbound_irq(struct qcom_q6v5 *q6v5,
 	int ret, irq;
 	char *interrupt, *tmp = (char *)int_name;
 	const char *str = (q6v5->rproc->parent) ? q6v5->rproc->name : "q6v5 ";
+	irq_handler_t th_hdlr = handler, threaded_hdlr = NULL;
 
 	irq = ret = platform_get_irq_byname(pdev, int_name);
 	if (ret < 0) {
@@ -234,11 +236,13 @@ static int q6v5_get_inbound_irq(struct qcom_q6v5 *q6v5,
 		return ret;
 	}
 
-	if (!strcmp(int_name, "wdog"))
+	if (!strcmp(int_name, "wdog")) {
 		q6v5->wdog_irq = irq;
-	else if (!strcmp(int_name, "fatal"))
+		th_hdlr = NULL; threaded_hdlr = handler;
+	} else if (!strcmp(int_name, "fatal")) {
 		q6v5->fatal_irq = irq;
-	else if (!strcmp(int_name, "stop-ack")) {
+		th_hdlr = NULL; threaded_hdlr = handler;
+	} else if (!strcmp(int_name, "stop-ack")) {
 		q6v5->stop_irq = irq;
 		tmp = (q6v5->rproc->parent) ? "stop_ack" : "stop";
 	} else if (!strcmp(int_name, "ready"))
@@ -252,6 +256,9 @@ static int q6v5_get_inbound_irq(struct qcom_q6v5 *q6v5,
 		return -EINVAL;
 	}
 
+	if (!threaded_hdlr)
+		irq_set_nested_thread(irq, 0);
+
 	interrupt = devm_kzalloc(&pdev->dev, BUF_SIZE, GFP_KERNEL);
 	if (!interrupt)
 		return -ENOMEM;
@@ -262,7 +269,7 @@ static int q6v5_get_inbound_irq(struct qcom_q6v5 *q6v5,
 	strlcat(interrupt, tmp, BUF_SIZE);
 
 	ret = devm_request_threaded_irq(&pdev->dev, irq,
-			NULL, handler,
+			th_hdlr, threaded_hdlr,
 			IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 			interrupt, q6v5);
 	if (ret) {

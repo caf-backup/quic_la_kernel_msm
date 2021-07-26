@@ -520,6 +520,7 @@
 
 			qcom,local-pid = <0>;
 			qcom,remote-pid = <1>;
+			global_timer = <0x4A5000>;
 
 			wcss_smp2p_out: master-kernel {
 				qcom,entry-name = "master-kernel";

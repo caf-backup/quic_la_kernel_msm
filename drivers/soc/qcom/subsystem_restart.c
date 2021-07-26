@@ -1506,6 +1506,7 @@ static int subsys_setup_irqs(struct subsys_device *subsys)
 	}
 
 	if (desc->stop_ack_irq && desc->stop_ack_handler) {
+		irq_set_nested_thread(desc->stop_ack_irq, 0);
 		if (!desc->parent)
 			stop_ack_int = "stop_ack_interrupt";
 		else {
@@ -1517,7 +1518,7 @@ static int subsys_setup_irqs(struct subsys_device *subsys)
 			strlcat(stop_ack_int, "_stop_ack", BUF_SIZE);
 		}
 		ret = devm_request_threaded_irq(desc->dev, desc->stop_ack_irq,
-				NULL, desc->stop_ack_handler,
+				desc->stop_ack_handler, NULL,
 				IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 				stop_ack_int, desc);
 		if (ret < 0) {
