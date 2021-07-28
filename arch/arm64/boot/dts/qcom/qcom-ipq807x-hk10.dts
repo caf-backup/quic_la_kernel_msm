@@ -78,13 +78,13 @@
 	 * +--------+--------------+-------------------------+
 	 * | M3 Dump|  0x4E800000  |           1MB           |
 	 * +--------+--------------+-------------------------+
-	 * |  Pine0 |  0x4E900000  |          30MB           |
+	 * |  Pine0 |  0x4E900000  |          38MB           |
 	 * +--------+--------------+-------------------------+
-	 * |  Pine1 |  0x50700000  |          30MB           |
+	 * |  Pine1 |  0x50F00000  |          38MB           |
 	 * +--------+--------------+-------------------------+
-	 * |  MHI0  |  0x52500000  |          16MB           |
+	 * |  MHI0  |  0x53500000  |          16MB           |
 	 * +--------+--------------+-------------------------+
-	 * |  MHI1  |  0x53500000  |          16MB           |
+	 * |  MHI1  |  0x54500000  |          16MB           |
 	 * +--------+--------------+-------------------------+
 	 * |                                                 |
 	 * |          Rest of the memory for Linux           |
@@ -94,24 +94,24 @@
 		/delete-node/ wifi_dump@4e900000;
 		qcn9000_pcie0: qcn9000_pcie0@4e900000 {
 			no-map;
-			reg = <0x0 0x4E900000 0x0 0x01E00000>;
+			reg = <0x0 0x4E900000 0x0 0x02600000>;
 		};
 
-		qcn9000_pcie1: qcn9000_pcie1@50700000 {
+		qcn9000_pcie1: qcn9000_pcie1@50F00000 {
 			no-map;
-			reg = <0x0 0x50700000 0x0 0x01E00000>;
+			reg = <0x0 0x50F00000 0x0 0x02600000>;
 		};
 
-		mhi_region0: dma_pool0@52500000 {
-			compatible = "shared-dma-pool";
-			no-map;
-			reg = <0x0 0x52500000 0x0 0x01000000>;
-		};
-
-		mhi_region1: dma_pool1@53500000 {
+		mhi_region0: dma_pool0@53500000 {
 			compatible = "shared-dma-pool";
 			no-map;
 			reg = <0x0 0x53500000 0x0 0x01000000>;
+		};
+
+		mhi_region1: dma_pool1@54500000 {
+			compatible = "shared-dma-pool";
+			no-map;
+			reg = <0x0 0x54500000 0x0 0x01000000>;
 		};
 #else
 	/*                   Default Profile
@@ -138,41 +138,42 @@
 	 * +--------+--------------+-------------------------+
 	 * | M3 Dump|  0x51000000  |           1MB           |
 	 * +--------+--------------+-------------------------+
-	 * |  Pine0 |  0x51100000  |          45MB           |
+	 * |  Pine0 |  0x51100000  |          53MB           |
 	 * +--------+--------------+-------------------------+
-	 * |  Pine1 |  0x53E00000  |          45MB           |
+	 * |  Pine1 |  0x54600000  |          53MB           |
 	 * +--------+--------------+-------------------------+
-	 * |  MHI0  |  0x56B00000  |          24MB           |
+	 * |  MHI0  |  0x57B00000  |          16MB           |
 	 * +--------+--------------+-------------------------+
-	 * |  MHI1  |  0x58300000  |          24MB           |
+	 * |  MHI1  |  0x58B00000  |          16MB           |
 	 * +--------+--------------+-------------------------+
 	 * |                                                 |
 	 * |          Rest of the memory for Linux           |
 	 * |                                                 |
 	 * +=================================================+
 	 */
-		qcn9000_pcie0: qcn9000_pcie0@51100000 {
-			no-map;
-			reg = <0x0 0x51100000 0x0 0x02D00000>;
-		};
-
-		qcn9000_pcie1: qcn9000_pcie1@53e00000 {
-			no-map;
-			reg = <0x0 0x53E00000 0x0 0x02D00000>;
-		};
 		/delete-node/ wifi_dump@51100000;
 		/delete-node/ wigig_dump@51300000;
 
-		mhi_region0: dma_pool0@56b00000 {
-			compatible = "shared-dma-pool";
+		qcn9000_pcie0: qcn9000_pcie0@51100000 {
 			no-map;
-			reg = <0x0 0x56B00000 0x0 0x01800000>;
+			reg = <0x0 0x51100000 0x0 0x03500000>;
 		};
 
-		mhi_region1: dma_pool1@58300000 {
+		qcn9000_pcie1: qcn9000_pcie1@54600000 {
+			no-map;
+			reg = <0x0 0x54600000 0x0 0x03500000>;
+		};
+
+		mhi_region0: dma_pool0@57b00000 {
 			compatible = "shared-dma-pool";
 			no-map;
-			reg = <0x0 0x58300000 0x0 0x01800000>;
+			reg = <0x0 0x57B00000 0x0 0x01000000>;
+		};
+
+		mhi_region1: dma_pool1@58B00000 {
+			compatible = "shared-dma-pool";
+			no-map;
+			reg = <0x0 0x58B00000 0x0 0x01000000>;
 		};
 #endif
 #endif
@@ -993,6 +994,7 @@
 		m3-dump-addr = <0x53400000>;
 		etr-addr = <0x53500000>;
 		qcom,caldb-addr = <0x53600000>;
+		pageable-addr = <0x53E00000>;
 		mhi,max-channels = <30>;
 		mhi,timeout = <10000>;
 		qcom,board_id= <0xa4>;
@@ -1017,10 +1019,11 @@
 #endif
 
 #if !defined(__CNSS2__)
-		base-addr = <0x53E00000>;
-		m3-dump-addr = <0x56100000>;
-		etr-addr = <0x56200000>;
-		qcom,caldb-addr = <0x56300000>;
+		base-addr = <0x54600000>;
+		m3-dump-addr = <0x56900000>;
+		etr-addr = <0x56A00000>;
+		qcom,caldb-addr = <0x56B00000>;
+		pageable-addr = <0x57300000>;
 		mhi,max-channels = <30>;
 		mhi,timeout = <10000>;
 		qcom,board_id= <0xa3>;
@@ -1059,12 +1062,15 @@
        * |   ETR   |  0x4FE00000  |   1MB   |
        * +---------+--------------+---------+
        * |  Caldb  |  0x4FF00000  |   8MB   |
+       * +---------+--------------+---------+
+       * | Pageable|  0x50700000  |   8MB   |
        * +==================================+
        */
 	base-addr = <0x4E900000>;
 	m3-dump-addr = <0x4FD00000>;
 	etr-addr = <0x4FE00000>;
 	caldb-addr = <0x4FF00000>;
+	pageable-addr = <0x50700000>;
 	hremote-size = <0x1400000>;
 	tgt-mem-mode = <0x1>;
 #else
@@ -1079,17 +1085,20 @@
        * |   ETR   |  0x53500000  |   1MB   |
        * +---------+--------------+---------+
        * |  Caldb  |  0x53600000  |   8MB   |
+       * +---------+--------------+---------+
+       * | Pageable|  0x53E00000  |   8MB   |
        * +==================================+
        */
 	base-addr = <0x51100000>;
 	m3-dump-addr = <0x53400000>;
 	etr-addr = <0x53500000>;
 	caldb-addr = <0x53600000>;
+	pageable-addr = <0x53E00000>;
 	hremote-size = <0x2300000>;
 	tgt-mem-mode = <0x0>;
 #endif
 	hremote_node = <&qcn9000_pcie0>;
-	mhi_node = <&mhi_region0>;
+	pageable-size = <0x800000>;
 	caldb-size = <0x800000>;
 	board_id = <0xa4>;
 	status = "ok";
@@ -1106,19 +1115,22 @@
        * +=========+==============+=========+
        * |  Region | Start Offset |   Size  |
        * +---------+--------------+---------+
-       * | HREMOTE |  0x50700000  |   20MB  |
+       * | HREMOTE |  0x50F00000  |   20MB  |
        * +---------+--------------+---------+
-       * | M3 Dump |  0x51B00000  |   1MB   |
+       * | M3 Dump |  0x52300000  |   1MB   |
        * +---------+--------------+---------+
-       * |   ETR   |  0x51C00000  |   1MB   |
+       * |   ETR   |  0x52400000  |   1MB   |
        * +---------+--------------+---------+
-       * |  Caldb  |  0x51D00000  |   8MB   |
+       * |  Caldb  |  0x52500000  |   8MB   |
+       * +---------+--------------+---------+
+       * | Pageable|  0x52D00000  |   8MB   |
        * +==================================+
        */
-	base-addr = <0x50700000>;
-	m3-dump-addr = <0x51B00000>;
-	etr-addr = <0x51C00000>;
-	caldb-addr = <0x51D00000>;
+	base-addr = <0x50F00000>;
+	m3-dump-addr = <0x52300000>;
+	etr-addr = <0x52400000>;
+	caldb-addr = <0x52500000>;
+	pageable-addr = <0x52D00000>;
 	hremote-size = <0x1400000>;
 	tgt-mem-mode = <0x1>;
 #else
@@ -1126,25 +1138,28 @@
        * +=========+==============+=========+
        * |  Region | Start Offset |   Size  |
        * +---------+--------------+---------+
-       * | HREMOTE |  0x53E00000  |   35MB  |
+       * | HREMOTE |  0x54600000  |   35MB  |
        * +---------+--------------+---------+
-       * | M3 Dump |  0x56100000  |   1MB   |
+       * | M3 Dump |  0x56900000  |   1MB   |
        * +---------+--------------+---------+
-       * |   ETR   |  0x56200000  |   1MB   |
+       * |   ETR   |  0x56A00000  |   1MB   |
        * +---------+--------------+---------+
-       * |  Caldb  |  0x56300000  |   8MB   |
+       * |  Caldb  |  0x56B00000  |   8MB   |
+       * +---------+--------------+---------+
+       * | Pageable|  0x57300000  |   8MB   |
        * +==================================+
        */
-	base-addr = <0x53E00000>;
-	m3-dump-addr = <0x56100000>;
-	etr-addr = <0x56200000>;
-	caldb-addr = <0x56300000>;
+	base-addr = <0x54600000>;
+	m3-dump-addr = <0x56900000>;
+	etr-addr = <0x56A00000>;
+	caldb-addr = <0x56B00000>;
+	pageable-addr = <0x57300000>;
 	hremote-size = <0x2300000>;
 	tgt-mem-mode = <0x0>;
 #endif
 	hremote_node = <&qcn9000_pcie1>;
-	mhi_node = <&mhi_region1>;
 	caldb-size = <0x800000>;
+	pageable-size = <0x800000>;
 	board_id = <0xa3>;
 	status = "ok";
 #if defined(__CNSS2__)

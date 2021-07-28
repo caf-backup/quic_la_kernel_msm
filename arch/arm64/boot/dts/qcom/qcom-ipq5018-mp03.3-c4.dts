@@ -60,9 +60,9 @@
 	 * +--------+--------------+-------------------------+
 	 * | caldb  |  0x4CA00000  |           2MB           |
 	 * +--------+--------------+-------------------------+
-	 * |QCN9000 |  0x4CC00000  |          30MB           |
+	 * |QCN9000 |  0x4CC00000  |          38MB           |
 	 * +--------+--------------+-------------------------+
-	 * |  MHI0  |  0x4EA00000  |          16MB           |
+	 * |  MHI0  |  0x4F200000  |          16MB           |
 	 * +--------+--------------+-------------------------+
 	 * |                                                 |
 	 * |      Rest of the memory for Linux               |
@@ -131,13 +131,13 @@
 
 		qcn9000_pcie0: qcn9000_pcie0@4cc00000 {
 			no-map;
-			reg = <0x0 0x4CC00000 0x0 0x01E00000>;
+			reg = <0x0 0x4CC00000 0x0 0x02600000>;
 		};
 
-		mhi_region0: dma_pool0@4ea00000 {
+		mhi_region0: dma_pool0@4f200000 {
 			compatible = "shared-dma-pool";
 			no-map;
-			reg = <0x0 0x4EA00000 0x0 0x01000000>;
+			reg = <0x0 0x4F200000 0x0 0x01000000>;
 		};
 
 #else
@@ -175,9 +175,9 @@
 	 * +--------+--------------+-------------------------+
 	 * | caldb  |  0x4CA00000  |           2MB           |
 	 * +--------+--------------+-------------------------+
-	 * |QCN9000 |  0x4CC00000  |          45MB           |
+	 * |QCN9000 |  0x4CC00000  |          53MB           |
 	 * +--------+--------------+-------------------------+
-	 * |  MHI0  |  0x4F900000  |          24MB           |
+	 * |  MHI0  |  0x50100000  |          16MB           |
 	 * +--------+--------------+-------------------------+
 	 * |                                                 |
 	 * |      Rest of the memory for Linux               |
@@ -247,13 +247,13 @@
 
 		qcn9000_pcie0: qcn9000_pcie0@4cc00000 {
 			no-map;
-			reg = <0x0 0x4CC00000 0x0 0x02D00000>;
+			reg = <0x0 0x4CC00000 0x0 0x03500000>;
 		};
 
-		mhi_region0: dma_pool0@4f900000 {
+		mhi_region0: dma_pool0@50100000 {
 			compatible = "shared-dma-pool";
 			no-map;
-			reg = <0x0 0x4F900000 0x0 0x01800000>;
+			reg = <0x0 0x50100000 0x0 0x01000000>;
 		};
 
 #endif
@@ -354,12 +354,15 @@
 	 * |   ETR   |  0x4E100000  |   1MB   |
 	 * +---------+--------------+---------+
 	 * |  Caldb  |  0x4E200000  |   8MB   |
+	 * +---------+--------------+---------+
+	 * | Pageable|  0x4EA00000  |   8MB   |
 	 * +==================================+
 	 */
 	base-addr = <0x4CC00000>;
 	m3-dump-addr = <0x4E000000>;
 	etr-addr = <0x4E100000>;
 	caldb-addr = <0x4E200000>;
+	pageable-addr = <0x4EA00000>;
 	caldb-size = <0x800000>;
 	hremote-size = <0x1400000>;
 	tgt-mem-mode = <0x1>;
@@ -375,22 +378,36 @@
 	 * |   ETR   |  0x4F000000  |   1MB   |
 	 * +---------+--------------+---------+
 	 * |  Caldb  |  0x4F100000  |   8MB   |
+	 * +---------+--------------+---------+
+	 * | Pageable|  0x4F900000  |   8MB   |
 	 * +==================================+
 	 */
 	base-addr = <0x4CC00000>;
 	m3-dump-addr = <0x4EF00000>;
 	etr-addr = <0x4F000000>;
 	caldb-addr = <0x4F100000>;
+	pageable-addr = <0x4F900000>;
 	hremote-size = <0x2300000>;
 	caldb-size = <0x800000>;
 	tgt-mem-mode = <0x0>;
 #endif
+	pageable-size = <0x800000>;
 	hremote_node = <&qcn9000_pcie0>;
-	mhi_node = <&mhi_region0>;
 };
 
 &wifi4 {
 	/* QCN9000 6G */
+	status = "disabled";
+};
+#else
+/* 256MB Profile not supported for mp03.3-c4 */
+&wifi3 {
+	/delete-property/ hremote_node;
+	status = "disabled";
+};
+
+&wifi4 {
+	/delete-property/ hremote_node;
 	status = "disabled";
 };
 #endif //__IPQ_MEM_PROFILE_256_MB__
