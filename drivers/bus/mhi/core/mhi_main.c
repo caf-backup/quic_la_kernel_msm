@@ -2301,6 +2301,32 @@ error_no_mem:
 }
 EXPORT_SYMBOL(mhi_get_remote_time);
 
+bool mhi_scan_rddm_cookie(struct mhi_controller *mhi_cntrl, u32 off, u32 cookie)
+{
+	struct device *dev = &mhi_cntrl->mhi_dev->dev;
+	int ret;
+	u32 val;
+
+	if (!mhi_cntrl->rddm_image || !cookie)
+		return false;
+
+	dev_dbg(dev, "Checking BHI debug register for 0x%x\n", cookie);
+
+	if (!MHI_REG_ACCESS_VALID(mhi_cntrl->pm_state))
+		return false;
+
+	ret = mhi_read_reg(mhi_cntrl, mhi_cntrl->bhi, off, &val);
+	if (ret)
+		return false;
+
+	dev_dbg(dev, "BHI_ERRDBG value:0x%x\n", val);
+	if (val == cookie)
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL(mhi_scan_rddm_cookie);
+
 void mhi_debug_reg_dump(struct mhi_controller *mhi_cntrl)
 {
 	enum mhi_dev_state state;
