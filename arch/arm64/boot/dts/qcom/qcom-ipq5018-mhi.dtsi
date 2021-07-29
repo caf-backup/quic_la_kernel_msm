@@ -35,12 +35,15 @@
 			 * | M3 Dump |  0x4D800000  |   1MB   |
 			 * +---------+--------------+---------+
 			 * |   ETR   |  0x4D900000  |   1MB   |
+			 * +---------+--------------+---------+
+			 * | Pageable|  0x4DA00000  |   8MB   |
 			 * +==================================+
 			 */
 			base-addr = <0x4C900000>;
 			m3-dump-addr = <0x4D800000>;
 			etr-addr = <0x4D900000>;
 			caldb-addr = <0>;
+			pageable-addr = <0x4DA00000>;
 			caldb-size = <0>;
 			hremote-size = <0xF00000>;
 			tgt-mem-mode = <0x2>;
@@ -56,12 +59,15 @@
 			 * |   ETR   |  0x4E100000  |   1MB   |
 			 * +---------+--------------+---------+
 			 * |  Caldb  |  0x4E200000  |   8MB   |
+			 * +---------+--------------+---------+
+			 * | Pageable|  0x4EA00000  |   8MB   |
 			 * +==================================+
 			 */
 			base-addr = <0x4CC00000>;
 			m3-dump-addr = <0x4E000000>;
 			etr-addr = <0x4E100000>;
 			caldb-addr = <0x4E200000>;
+			pageable-addr = <0x4EA00000>;
 			caldb-size = <0x800000>;
 			hremote-size = <0x1400000>;
 			tgt-mem-mode = <0x1>;
@@ -77,16 +83,20 @@
 		       * |   ETR   |  0x4F000000  |   1MB   |
 		       * +---------+--------------+---------+
 		       * |  Caldb  |  0x4F100000  |   8MB   |
+		       * +---------+--------------+---------+
+		       * | Pageable|  0x4F900000  |   8MB   |
 		       * +==================================+
 		       */
 			base-addr = <0x4CC00000>;
 			m3-dump-addr = <0x4EF00000>;
 			etr-addr = <0x4F000000>;
 			caldb-addr = <0x4F100000>;
+			pageable-addr = <0x4F900000>;
 			hremote-size = <0x2300000>;
 			caldb-size = <0x800000>;
 			tgt-mem-mode = <0x0>;
 #endif
+			pageable-size = <0x800000>;
 			status = "disabled";
 
 			#address-cells = <1>;

@@ -2892,20 +2892,17 @@ int cnss_ahb_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 {
 	struct cnss_fw_mem *fw_mem = plat_priv->fw_mem;
-	unsigned int reg[4], mhi_reserved_size;
 	u32 addr = 0;
 	u32 hremote_size = 0;
 	u32 caldb_size = 0;
+	u32 pageable_size = 0;
 	struct device *dev;
 	int i;
-	phandle mhi_phandle;
-	struct device_node *mhi_node = NULL;
 	struct cnss_pci_data *pci_priv = plat_priv->bus_priv;
 
 	dev = &plat_priv->plat_dev->dev;
 
 	for (i = 0; i < plat_priv->fw_mem_seg_len; i++) {
-		memset(reg, 0, sizeof(reg));
 		switch (fw_mem[i].type) {
 		case CALDB_MEM_REGION_TYPE:
 			if (!plat_priv->cold_boot_support)
@@ -2986,46 +2983,37 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 				cnss_pr_err("WARNING: M3 Dump addr remap failed\n");
 			break;
 		case QMI_WLFW_PAGEABLE_MEM_V01:
-			if (of_property_read_u32(dev->of_node, "mhi_node",
-						 &mhi_phandle)) {
-				cnss_pr_err("could not get mhi_phandle\n");
-				CNSS_ASSERT(0);
-				return -EINVAL;
-			}
-
-			mhi_node = of_find_node_by_phandle(mhi_phandle);
-			if (!mhi_node) {
-				cnss_pr_err("could not get mhi_np\n");
-				CNSS_ASSERT(0);
-				return -EINVAL;
-			}
-
-			if (of_property_read_u32_array(mhi_node, "reg", reg,
-						       ARRAY_SIZE(reg))) {
-				cnss_pr_err("Error: MHI node is not assigned\n");
+			if (of_property_read_u32(dev->of_node,
+						 "pageable-size",
+						 &pageable_size)) {
+				cnss_pr_err("Error: No pageable-size in dts\n\n");
 				CNSS_ASSERT(0);
 				return -ENOMEM;
 			}
-			of_node_put(mhi_node);
-			mhi_reserved_size  = reg[3];
-			if (fw_mem[i].size > mhi_reserved_size) {
-				cnss_pr_err("Error: Need more memory %x\n",
+
+			if (fw_mem[i].size > pageable_size) {
+				cnss_pr_err("Error: Need more memory. Reserved size 0x%x, Requested size 0x%x.\n",
+					    pageable_size,
 					    (unsigned int)fw_mem[i].size);
 				CNSS_ASSERT(0);
+				return -ENOMEM;
 			}
-			if (fw_mem[i].size < mhi_reserved_size) {
-				cnss_pr_err("WARNING: More memory is reserved. Reserved size 0x%x, Requested size 0x%x.\n",
-					    mhi_reserved_size,
+			if (fw_mem[i].size < pageable_size) {
+				cnss_pr_warn("More memory is reserved. Reserved size 0x%x, Requested size 0x%x.\n",
+					    pageable_size,
 					    (unsigned int)fw_mem[i].size);
 			}
-
-			/* FW requests for Pageable arena only for checking
-			 * if the size reserved matches the FW request.
-			 * Send both PA and VA as 0 for this type as
-			 * dummy response.
-			 */
-			fw_mem[i].pa = 0;
-			fw_mem[i].va = NULL;
+			if (of_property_read_u32(dev->of_node,
+						 "pageable-addr",
+						 &addr)) {
+				cnss_pr_err("Error: No pageable-addr in dts\n");
+				CNSS_ASSERT(0);
+				return -ENOMEM;
+			}
+			fw_mem[i].pa = (phys_addr_t)addr;
+			fw_mem[i].va = ioremap(fw_mem[i].pa, fw_mem[i].size);
+			if (!fw_mem[i].va)
+				cnss_pr_err("WARNING: Host DDR remap failed\n");
 			break;
 		case AFC_REGION_TYPE:
 			if (fw_mem[i].size != AFC_MEM_SIZE) {
@@ -3051,7 +3039,6 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 			break;
 		default:
 			cnss_pr_err("Ignore mem req type %d\n", fw_mem[i].type);
-			CNSS_ASSERT(0);
 			break;
 		}
 	}
@@ -4301,6 +4288,23 @@ void cnss_pci_collect_dump_info(struct cnss_pci_data *pci_priv, bool in_panic)
 			dump_seg->v_address = fw_mem[i].va;
 			dump_seg->size = fw_mem[i].size;
 			dump_seg->type = CNSS_FW_REMOTE_HEAP;
+			cnss_pr_dbg("seg-%d: address 0x%lx, v_address %pK, size 0x%lx\n",
+				    i, dump_seg->address, dump_seg->v_address,
+				    dump_seg->size);
+			dump_seg++;
+			dump_data->nentries++;
+		}
+	}
+
+	cnss_pr_dbg("Collect pageable memory dump segment\n");
+	for (i = 0; i < plat_priv->fw_mem_seg_len; i++) {
+		if (fw_mem[i].type == CNSS_MEM_PAGEABLE) {
+			if (!fw_mem[i].pa)
+				continue;
+			dump_seg->address = fw_mem[i].pa;
+			dump_seg->v_address = fw_mem[i].va;
+			dump_seg->size = fw_mem[i].size;
+			dump_seg->type = CNSS_FW_PAGEABLE;
 			cnss_pr_dbg("seg-%d: address 0x%lx, v_address %pK, size 0x%lx\n",
 				    i, dump_seg->address, dump_seg->v_address,
 				    dump_seg->size);
