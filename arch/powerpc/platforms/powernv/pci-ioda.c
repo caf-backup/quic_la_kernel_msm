@@ -47,6 +47,7 @@
 
 #include "powernv.h"
 #include "pci.h"
+#include "../../../../drivers/pci/pci.h"
 
 /* 256M DMA window, 4K TCE pages, 8 bytes TCE */
 #define TCE32_TABLE_SIZE	((0x10000000 / 0x1000) * 8)
@@ -2742,7 +2743,7 @@ static void pnv_pci_ioda_fixup_iov_resources(struct pci_dev *pdev)
 	struct pci_dn *pdn;
 	int mul, total_vfs;
 
-	if (!pdev->is_physfn || pdev->is_added)
+	if (!pdev->is_physfn || pci_dev_is_added(pdev))
 		return;
 
 	hose = pci_bus_to_host(pdev->bus);

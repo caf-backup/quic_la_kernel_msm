@@ -264,6 +264,22 @@ struct pci_sriov {
 	resource_size_t barsz[PCI_SRIOV_NUM_BARS];	/* VF BAR size */
 };
 
+/* pci_dev priv_flags */
+#define PCI_DEV_ADDED 1
+
+static inline void pci_dev_assign_added(struct pci_dev *dev, bool added)
+{
+	if (added)
+		set_bit(PCI_DEV_ADDED, &dev->priv_flags);
+	else
+		clear_bit(PCI_DEV_ADDED, &dev->priv_flags);
+}
+
+static inline bool pci_dev_is_added(const struct pci_dev *dev)
+{
+	return test_bit(PCI_DEV_ADDED, &dev->priv_flags);
+}
+
 #ifdef CONFIG_PCI_ATS
 void pci_restore_ats_state(struct pci_dev *dev);
 #else
