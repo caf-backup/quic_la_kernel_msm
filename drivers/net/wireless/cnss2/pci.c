@@ -204,6 +204,22 @@ static DEFINE_SPINLOCK(pci_reg_window_lock);
 #define MAX_RAMDUMP_TRANSFER_WAIT_CNT		50 /* x 20msec */
 #define MAX_SOC_GLOBAL_RESET_WAIT_CNT		50 /* x 20msec */
 #define BHI_ERRDBG1 (0x34)
+#define BHI_ERRDBG3 (0x3C)
+
+#define DEVICE_RDDM_COOKIE			0xCAFECACE
+#define QCN9000_SBL_DATA_START			0x01737000
+#define QCN9000_SBL_DATA_SIZE			0x00012000
+#define QCN9000_SBL_DATA_END \
+			(QCN9000_SBL_DATA_START + QCN9000_SBL_DATA_SIZE - 1)
+#define QCN9000_PCIE_BHI_ERRDBG3_REG		0x1E0B23C
+
+#define QCN9000_SBL_LOG_SIZE			44
+
+/* Timeout, to print boot debug logs, in seconds */
+static int boot_debug_timeout = 7;
+module_param(boot_debug_timeout, int, 0644);
+MODULE_PARM_DESC(boot_debug_timeout, "boot debug logs timeout in seconds");
+#define BOOT_DEBUG_TIMEOUT_MS			(boot_debug_timeout * 1000)
 
 static struct cnss_pci_reg ce_src[] = {
 	{ "SRC_RING_BASE_LSB", QCA6390_CE_SRC_RING_BASE_LSB_OFFSET },
@@ -717,6 +733,51 @@ int cnss_pci_is_device_down(struct device *dev)
 }
 EXPORT_SYMBOL(cnss_pci_is_device_down);
 
+/**
+ * cnss_pci_dump_bl_sram_mem - Dump WLAN FW bootloader debug log
+ * @pci_priv: PCI device private data structure of cnss platform driver
+ *
+ * Dump secondary bootloader debug log data. For SBL check the
+ * log struct address and size for validity.
+ *
+ * Supported only on QCN9000
+ *
+ * Return: None
+ */
+static void cnss_pci_dump_bl_sram_mem(struct cnss_pci_data *pci_priv)
+{
+	int i;
+	u32 mem_addr, val, sbl_log_start, sbl_log_size;
+	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
+
+	if (plat_priv->device_id != QCN9000_DEVICE_ID)
+		return;
+
+	sbl_log_size = QCN9000_SBL_LOG_SIZE;
+	if (cnss_pci_reg_read(pci_priv, QCN9000_PCIE_BHI_ERRDBG3_REG,
+			      &sbl_log_start))
+		goto out;
+
+	if (sbl_log_start < QCN9000_SBL_DATA_START ||
+	    sbl_log_start > QCN9000_SBL_DATA_END ||
+	    (sbl_log_start + sbl_log_size) > QCN9000_SBL_DATA_END) {
+		goto out;
+	}
+
+	cnss_pr_err("Dumping SBL log data\n");
+	for (i = 0; i < sbl_log_size; i += sizeof(val)) {
+		mem_addr = sbl_log_start + i;
+		if (cnss_pci_reg_read(pci_priv, mem_addr, &val))
+			goto out;
+		cnss_pr_err("SRAM[0x%x] = 0x%x\n", mem_addr, val);
+	}
+
+	return;
+
+out:
+	cnss_pr_err("Invalid SBL log data\n");
+}
+
 static char *cnss_mhi_state_to_str(enum cnss_mhi_state mhi_state)
 {
 	switch (mhi_state) {
@@ -936,13 +997,29 @@ int cnss_pci_start_mhi(struct cnss_pci_data *pci_priv)
 	if (ret)
 		goto out;
 
+	/* Start the timer to dump MHI/PBL/SBL debug data periodically */
+	mod_timer(&pci_priv->boot_debug_timer,
+		  jiffies + msecs_to_jiffies(BOOT_DEBUG_TIMEOUT_MS));
+
 	ret = cnss_pci_set_mhi_state(pci_priv, CNSS_MHI_POWER_ON);
+	del_timer(&pci_priv->boot_debug_timer);
+
 	if (ret)
 		goto out;
 
 	return 0;
 
 out:
+	if (ret == -ETIMEDOUT) {
+		/* If MHI Start timedout but the target is already in mission
+		 * mode and is able to do RDDM, RDDM cookie would be set.
+		 * Dump SBL SRAM memory only if RDDM cookie is not set.
+		 */
+		if (!mhi_scan_rddm_cookie(pci_priv->mhi_ctrl, BHI_ERRDBG3,
+					  DEVICE_RDDM_COOKIE))
+			cnss_pci_dump_bl_sram_mem(pci_priv);
+	}
+
 	return ret;
 }
 
@@ -1483,6 +1560,7 @@ static int cnss_qcn9000_powerup(struct cnss_pci_data *pci_priv)
 	ret = cnss_pci_start_mhi(pci_priv);
 	if (ret) {
 		cnss_fatal_err("Failed to start MHI, err = %d\n", ret);
+		CNSS_ASSERT(0);
 		if (!test_bit(CNSS_DEV_ERR_NOTIFY, &plat_priv->driver_state) &&
 		    !pci_priv->pci_link_down_ind && timeout)
 			mod_timer(&plat_priv->fw_boot_timer,
@@ -4587,6 +4665,38 @@ static void cnss_pci_unregister_mhi(struct cnss_pci_data *pci_priv)
 	kfree(mhi_ctrl->irq);
 }
 
+static void cnss_boot_debug_timeout_hdlr(unsigned long data)
+{
+	struct cnss_plat_data *plat_priv = NULL;
+	struct cnss_pci_data *pci_priv = (struct cnss_pci_data *)data;
+
+	if (!pci_priv)
+		return;
+
+	plat_priv = pci_priv->plat_priv;
+	if (cnss_pci_check_link_status(pci_priv))
+		return;
+
+	if (cnss_pci_is_device_down(&pci_priv->pci_dev->dev))
+		return;
+
+	if (test_bit(CNSS_MHI_POWER_ON, &pci_priv->mhi_state))
+		return;
+
+	if (mhi_scan_rddm_cookie(pci_priv->mhi_ctrl, BHI_ERRDBG3,
+				 DEVICE_RDDM_COOKIE))
+		return;
+
+	cnss_pr_dbg("Dump MHI/PBL/SBL debug data every %ds during MHI power on\n",
+		    BOOT_DEBUG_TIMEOUT_MS / 1000);
+
+	mhi_debug_reg_dump(pci_priv->mhi_ctrl);
+	cnss_pci_dump_bl_sram_mem(pci_priv);
+
+	mod_timer(&pci_priv->boot_debug_timer,
+		  jiffies + msecs_to_jiffies(BOOT_DEBUG_TIMEOUT_MS));
+}
+
 int cnss_pci_probe(struct pci_dev *pci_dev,
 		   const struct pci_device_id *id,
 		   struct cnss_plat_data *plat_priv)
@@ -4670,6 +4780,9 @@ int cnss_pci_probe(struct pci_dev *pci_dev,
 		setup_timer(&pci_priv->dev_rddm_timer,
 			    cnss_dev_rddm_timeout_hdlr,
 			    (unsigned long)pci_priv);
+		setup_timer(&pci_priv->boot_debug_timer,
+			    cnss_boot_debug_timeout_hdlr,
+			    (unsigned long)pci_priv);
 		INIT_DELAYED_WORK(&pci_priv->time_sync_work,
 				  cnss_pci_time_sync_work_hdlr);
 
@@ -4741,6 +4854,7 @@ void cnss_pci_remove(struct pci_dev *pci_dev)
 	case QCA6490_DEVICE_ID:
 		cnss_pci_unregister_mhi(pci_priv);
 		cnss_pci_disable_msi(pci_priv);
+		del_timer(&pci_priv->boot_debug_timer);
 		del_timer(&pci_priv->dev_rddm_timer);
 		break;
 	default:
