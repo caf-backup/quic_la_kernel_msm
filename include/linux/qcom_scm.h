@@ -356,6 +356,7 @@ extern int qcom_scm_unlock_subsys_mem(u32 subsys_id, void *paddr, size_t size,
 extern int qcom_scm_load_otp(u32 peripheral);
 extern bool qcom_scm_pil_cfg_available(void);
 extern int qcom_scm_pil_cfg(u32 peripheral, u32 args);
+extern int qcom_scm_toggle_bt_eco(u32 peripheral, u32 args);
 #endif
 extern int qcom_scm_wcss_boot(u32 svc_id, u32 cmd_id, void *cmd_buf);
 extern int qcom_scm_tcsr_reg_write(u32 arg1, u32 arg2);
