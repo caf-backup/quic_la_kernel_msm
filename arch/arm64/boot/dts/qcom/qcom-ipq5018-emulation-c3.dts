@@ -180,11 +180,6 @@
 	status = "disabled";
 };
 
-&q6v5_wcss {
-	memory-region = <&q6_code_data>, <&q6_ipq5018_data>,
-			<&q6_qcn6122_data1>;
-};
-
 &qcom_q6v5_wcss {
 	qcom,nosecure;
 	qcom,emulation;

@@ -534,50 +534,6 @@
 			};
 		};
 
-		q6v5_wcss: q6v5_wcss@CD00000 {
-			compatible = "qca,q6v5-wcss-rproc-ipq50xx";
-			firmware = "IPQ5018/q6_fw.mdt";
-			reg = <0xCD00000 0x10000>,
-				<0x194f000 0x10>,
-				<0x1952000 0x10>,
-				<0x4ab000 0x20>,
-				<0x1818000 0x10>,
-				<0x1859000 0x10>,
-				<0x1945000 0x10>,
-				<0x193D204 0x4>;
-			reg-names = "wcss-base",
-					"tcsr-q6-base",
-					"tcsr-base",
-					"mpm-base",
-					"gcc-wcss-bcr-base",
-					"gcc-wcss-misc-base",
-					"tcsr-global",
-					"tcsr-q6-boot-trig";
-			qca,auto-restart;
-			qca,extended-intc;
-			qca,dump-q6-reg;
-			qca,emulation;
-			interrupts-extended = <&intc 0 291 1>,
-					<&wcss_smp2p_in 0 0>,
-					<&wcss_smp2p_in 1 0>,
-					<&wcss_smp2p_in 3 0>;
-			interrupt-names = "wdog",
-					"qcom,gpio-err-fatal",
-					"qcom,gpio-err-ready",
-					"qcom,gpio-stop-ack";
-			qcom,smem-states = <&wcss_smp2p_out 0>,
-					<&wcss_smp2p_out 1>;
-			qcom,smem-state-names = "shutdown",
-						"stop";
-		};
-
-		q6v5_m3: q6v5_m3 {
-			compatible = "qca,q6v5-m3-rproc";
-			firmware = "IPQ5018/m3_fw.mdt";
-			qca,auto-restart;
-			qcom,restart-group = <&q6v5_m3 &q6v5_wcss>;
-		};
-
 		tcsr_mutex_block: syscon@1905000 {
 			compatible = "syscon";
 			reg = <0x1905000 0x8000>;

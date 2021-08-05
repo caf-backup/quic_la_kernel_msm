@@ -742,14 +742,6 @@
 	status = "ok";
 };
 
-&q6v5_wcss {
-	status = "disabled";
-};
-
-&q6v5_m3 {
-	status = "disabled";
-};
-
 &tcsr_mutex_block {
 	status = "ok";
 };
