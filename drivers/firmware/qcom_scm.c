@@ -1116,3 +1116,25 @@ int qcom_scm_pil_cfg(u32 peripheral, u32 arg)
 	return ret;
 }
 EXPORT_SYMBOL(qcom_scm_pil_cfg);
+
+/**
+ * qcom_scm_toggle_bt_eco () - Load OTP to device memory
+ * @peripheral:	peripheral id
+ *
+ * Return 0 on success.
+ */
+int qcom_scm_toggle_bt_eco(u32 peripheral, u32 arg)
+{
+	int ret;
+
+	ret = qcom_scm_clk_enable();
+	if (ret)
+		return ret;
+
+	ret = __qcom_scm_toggle_bt_eco(__scm->dev, peripheral, arg);
+	qcom_scm_clk_disable();
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_scm_toggle_bt_eco);
+
