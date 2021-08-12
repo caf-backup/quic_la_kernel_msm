@@ -235,7 +235,7 @@
 #define UPD_SENSORS		10
 #define NUM_UPD			3
 
-#define MAX_PERIPHERAL_UPD			2
+#define MAX_PERIPHERAL_UPD			3
 /* Number of sessions possible in Memory Device Mode. +1 for Apps data */
 #define NUM_MD_SESSIONS		(NUM_PERIPHERALS \
 					+ NUM_UPD + 1)
