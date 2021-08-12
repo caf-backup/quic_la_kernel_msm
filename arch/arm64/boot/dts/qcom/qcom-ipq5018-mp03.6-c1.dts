@@ -633,6 +633,7 @@
 		mhi,max-channels = <110>;
 		mhi,timeout = <60000>;
 		mhi,ssr-negotiate;
+		mhi,rate-control;
 
 		mhi_channels: mhi_channels {
 			#address-cells = <1>;

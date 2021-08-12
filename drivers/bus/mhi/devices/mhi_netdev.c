@@ -15,6 +15,8 @@
 #include <linux/of_device.h>
 #include <linux/rtnetlink.h>
 #include <linux/mhi.h>
+#include <linux/jiffies.h>
+#include <asm/arch_timer.h>
 
 #define MHI_NETDEV_DRIVER_NAME "mhi_netdev"
 #define WATCHDOG_TIMEOUT (30 * HZ)
@@ -72,6 +74,8 @@
 			       __func__, ##__VA_ARGS__); \
 } while (0)
 
+static u32 cntfrq_per_msec;
+
 struct mhi_net_chain {
 	struct sk_buff *head, *tail; /* chained skb */
 };
@@ -100,6 +104,8 @@ struct mhi_netdev {
 	enum MHI_DEBUG_LEVEL msg_lvl;
 	enum MHI_DEBUG_LEVEL ipc_log_lvl;
 	void *ipc_log;
+	u64 first_jiffy;
+	u64 bytes_received_1;
 };
 
 struct mhi_netdev_priv {
@@ -115,6 +121,8 @@ struct mhi_netbuf {
 	void (*unmap)(struct device *dev, dma_addr_t addr, size_t size,
 		      enum dma_data_direction dir);
 };
+
+extern bool mhi_rate_control;
 
 static struct mhi_driver mhi_netdev_driver;
 static void mhi_netdev_create_debugfs(struct mhi_netdev *mhi_netdev);
@@ -668,6 +676,11 @@ static void mhi_netdev_xfer_dl_cb(struct mhi_device *mhi_dev,
 	struct net_device *ndev = mhi_netdev->ndev;
 	struct device *dev = mhi_dev->dev.parent;
 	struct mhi_net_chain *chain = mhi_netdev->chain;
+	u32 time_interval = 0;
+	u32 time_difference = 0;
+	u32 cntfrq;
+	u64 second_jiffy;
+	u64 bytes_received_2;
 
 	netbuf->unmap(dev, mhi_buf->dma_addr, mhi_buf->len, DMA_FROM_DEVICE);
 
@@ -679,6 +692,55 @@ static void mhi_netdev_xfer_dl_cb(struct mhi_device *mhi_dev,
 
 	ndev->stats.rx_packets++;
 	ndev->stats.rx_bytes += mhi_result->bytes_xferd;
+
+	if (mhi_rate_control) {
+		if (mhi_netdev->first_jiffy) {
+			second_jiffy = arch_counter_get_cntvct();
+			bytes_received_2 = ndev->stats.rx_bytes;
+			if ((second_jiffy > mhi_netdev->first_jiffy) &&
+					(bytes_received_2 > mhi_netdev->bytes_received_1)) {
+
+				time_difference = (second_jiffy - mhi_netdev->first_jiffy);
+				time_interval = (time_difference / cntfrq_per_msec);
+
+				/* 1.8Gbps is 225,000,000bytes per second */
+				/* We wills sample at 100ms interval */
+				/* For 1ms 225000 bytes */
+				/* For 100ms 22,500,000 bytes */
+				/* For 10ms 2,250,000 bytes */
+
+				/* 1.7Gbps is 212,500,000bytes per second */
+				/* We wills sample at 100ms interval */
+				/* For 1ms 212500 bytes */
+				/* For 100ms 21,250,000 bytes */
+				/* For 10ms 2,125,000 bytes */
+
+				/* 1.6Gbps is 200,000,000bytes per second */
+				/* We wills sample at 100ms interval */
+				/* For 1ms 200,000 bytes */
+				/* For 100ms 20,000,000 bytes */
+				/* For 10ms 2,000,000 bytes */
+
+				if (time_interval < 100) {
+					if ((bytes_received_2 - mhi_netdev->bytes_received_1) > 20000000) {
+						ndev->stats.rx_dropped ++;
+						__free_pages(mhi_buf->page, mhi_netdev->order);
+						return;
+					}
+				} else {
+					mhi_netdev->first_jiffy = second_jiffy;
+					mhi_netdev->bytes_received_1 = bytes_received_2;
+				}
+			} else {
+				mhi_netdev->first_jiffy = second_jiffy;
+				mhi_netdev->bytes_received_1 = bytes_received_2;
+			}
+		} else {
+			mhi_netdev->first_jiffy = arch_counter_get_cntvct();
+			cntfrq = arch_timer_get_cntfrq();
+			cntfrq_per_msec = cntfrq / 1000;
+		}
+	}
 
 	if (unlikely(!chain)) {
 		mhi_netdev_push_skb(mhi_netdev, mhi_buf, mhi_result);
