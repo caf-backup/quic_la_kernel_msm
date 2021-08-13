@@ -735,7 +735,7 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	if (pp->ops->scan_bus)
 		pp->ops->scan_bus(pp);
 
-#ifdef CONFIG_ARM
+#if defined(CONFIG_ARM) && !defined(CONFIG_ARCH_IPQ5018)
 	/* support old dtbs that incorrectly describe IRQs */
 	pci_fixup_irqs(pci_common_swizzle, of_irq_parse_and_map_pci);
 #endif
@@ -802,7 +802,7 @@ int dw_pcie_host_init_pm(struct pcie_port *pp)
 	if (pp->ops->scan_bus)
 		pp->ops->scan_bus(pp);
 
-#ifdef CONFIG_ARM
+#if defined(CONFIG_ARM) && !defined(CONFIG_ARCH_IPQ5018)
 	/* support old dtbs that incorrectly describe IRQs */
 	pci_fixup_irqs(pci_common_swizzle, of_irq_parse_and_map_pci);
 #endif
