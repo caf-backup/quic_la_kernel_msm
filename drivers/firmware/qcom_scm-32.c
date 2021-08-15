@@ -887,20 +887,32 @@ int __qcom_scm_pas_mem_setup(struct device *dev, u32 peripheral,
 {
 	__le32 scm_ret;
 	int ret;
+	struct scm_desc desc = {0};
 	struct {
 		__le32 proc;
 		__le32 addr;
 		__le32 len;
 	} request;
 
-	request.proc = cpu_to_le32(peripheral);
-	request.addr = cpu_to_le32(addr);
-	request.len = cpu_to_le32(size);
+	if (!is_scm_armv8()) {
+		request.proc = cpu_to_le32(peripheral);
+		request.addr = cpu_to_le32(addr);
+		request.len = cpu_to_le32(size);
 
-	ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL,
-			    QCOM_SCM_PAS_MEM_SETUP_CMD,
-			    &request, sizeof(request),
-			    &scm_ret, sizeof(scm_ret));
+		ret = qcom_scm_call(dev, QCOM_SCM_SVC_PIL,
+				QCOM_SCM_PAS_MEM_SETUP_CMD,
+				&request, sizeof(request),
+				&scm_ret, sizeof(scm_ret));
+	} else {
+		desc.args[0] = peripheral;
+		desc.args[1] = addr;
+		desc.args[2] = size;
+		desc.arginfo = SCM_ARGS(3, QCOM_SCM_VAL, QCOM_SCM_VAL,
+					QCOM_SCM_VAL);
+		ret = qti_scm_call2(dev, SCM_SIP_FNID(QCOM_SCM_SVC_PIL,
+					QCOM_SCM_PAS_MEM_SETUP_CMD), &desc);
+		scm_ret = desc.ret[0];
+	}
 
 	return ret ? : le32_to_cpu(scm_ret);
 }
