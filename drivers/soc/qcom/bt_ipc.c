@@ -32,6 +32,7 @@
 #include <linux/completion.h>
 #include <linux/ipc_logging.h>
 #include <linux/workqueue.h>
+#include <linux/qcom_scm.h>
 #include <linux/bt.h>
 
 void bt_ipc_purge_tx_queue(struct bt_descriptor *btDesc)
@@ -277,6 +278,12 @@ static void bt_ipc_cust_msg(struct bt_descriptor *btDesc, uint8_t msgid)
 
 	switch (msgid) {
 	case IPC_CMD_IPC_STOP:
+		ret = qti_scm_toggle_bt_eco(PAS_ID, 0x4);
+		if (ret) {
+			dev_err(dev, "Failed to set BT ECO\n");
+			return;
+		}
+
 		dev_info(dev, "BT IPC Stopped, gracefully stopping APSS IPC\n");
 		break;
 	case IPC_CMD_SWITCH_TO_UART:
@@ -289,6 +296,12 @@ static void bt_ipc_cust_msg(struct bt_descriptor *btDesc, uint8_t msgid)
 		dev_info(dev, "BT Crashed, gracefully stopping IPC\n");
 		return;
 	case IPC_CMD_IPC_START:
+		ret = qti_scm_toggle_bt_eco(PAS_ID, 0x0);
+		if (ret) {
+			dev_err(dev, "Failed to reset BT ECO\n");
+			return;
+		}
+
 		btmem->tx_ctxt = (struct context_info *)((void *)
 			btmem->rx_ctxt + btmem->rx_ctxt->TotalMemorySize);
 		btmem->lmsg_ctxt.widx = 0;
