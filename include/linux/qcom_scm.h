@@ -252,6 +252,7 @@ extern int qti_scm_is_tz_log_encryption_supported(void);
 extern int qti_scm_load_otp(u32 peripheral);
 extern bool qti_scm_pil_cfg_available(void);
 extern int qti_scm_pil_cfg(u32 peripheral, u32 args);
+extern int qti_scm_toggle_bt_eco(u32 peripheral, u32 args);
 #else
 
 #include <linux/errno.h>

@@ -1003,6 +1003,27 @@ int qti_scm_pil_cfg(u32 peripheral, u32 arg)
 }
 EXPORT_SYMBOL(qti_scm_pil_cfg);
 
+/**
+ * qti_scm_toggle_bt_eco () - Toggle ECO bit
+ * @peripheral:	peripheral id
+ *
+ * Return 0 on success.
+ */
+int qti_scm_toggle_bt_eco(u32 peripheral, u32 arg)
+{
+	int ret;
+
+	ret = qcom_scm_clk_enable();
+	if (ret)
+		return ret;
+
+	ret = __qti_scm_toggle_bt_eco(__scm->dev, peripheral, arg);
+	qcom_scm_clk_disable();
+
+	return ret;
+}
+EXPORT_SYMBOL(qti_scm_toggle_bt_eco);
+
 static int qcom_scm_probe(struct platform_device *pdev)
 {
 	struct device_node *np = (&pdev->dev)->of_node;

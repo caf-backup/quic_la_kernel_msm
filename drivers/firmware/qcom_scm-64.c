@@ -1173,3 +1173,19 @@ int __qti_scm_pil_cfg(struct device *dev, u32 peripheral, u32 arg)
 
 	return ret ? false : !!res.a1;
 }
+
+int __qti_scm_toggle_bt_eco(struct device *dev, u32 peripheral, u32 arg)
+{
+	int ret;
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+
+	desc.args[0] = peripheral;
+	desc.args[1] = arg;
+	desc.arginfo = QCOM_SCM_ARGS(2);
+
+	ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, QTI_SCM_SVC_BT_ECO,
+			    QTI_SCM_CMD_BT_ECO, &desc, &res);
+
+	return ret ? false : !!res.a1;
+}

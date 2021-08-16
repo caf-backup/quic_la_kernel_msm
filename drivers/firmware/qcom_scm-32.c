@@ -1821,3 +1821,17 @@ int __qti_scm_pil_cfg(struct device *dev, u32 peripheral, u32 arg)
 
 	return ret ? : le32_to_cpu(desc.ret[0]);
 }
+
+int __qti_scm_toggle_bt_eco(struct device *dev, u32 peripheral, u32 arg)
+{
+	int ret;
+	struct scm_desc desc = {0};
+
+	desc.args[0] = peripheral;
+	desc.args[1] = arg;
+	desc.arginfo = SCM_ARGS(2);
+	ret = qti_scm_call2(dev, SCM_SIP_FNID(QTI_SCM_SVC_BT_ECO,
+					QTI_SCM_CMD_BT_ECO), &desc);
+
+	return ret ? : le32_to_cpu(desc.ret[0]);
+}
