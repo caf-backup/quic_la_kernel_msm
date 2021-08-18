@@ -92,6 +92,10 @@ static int disable_caldata_bmap;
 module_param(disable_caldata_bmap, int, 0644);
 MODULE_PARM_DESC(disable_caldata_bmap, "Bitmap to Disable Caldata download");
 
+static int disable_regdb_bmap = 0xF;
+module_param(disable_regdb_bmap, int, 0644);
+MODULE_PARM_DESC(disable_regdb_bmap, "Bitmap to Disable RegDB download");
+
 #define FW_READY_DELAY	100  /* in msecs */
 #ifdef CONFIG_KASAN
 static int fw_ready_timeout = 60;
@@ -582,6 +586,23 @@ static int cnss_fw_mem_ready_hdlr(struct cnss_plat_data *plat_priv)
 		ret = cnss_wlfw_device_info_send_sync(plat_priv);
 		if (ret) {
 			cnss_pr_err("Device info msg failed. ret %d\n", ret);
+			goto out;
+		}
+	}
+
+	if (plat_priv->hds_support) {
+		ret = cnss_wlfw_bdf_dnld_send_sync(plat_priv, CNSS_BDF_HDS);
+		if (ret) {
+			cnss_pr_err("hds load failed. ret %d\n", ret);
+			goto out;
+		}
+	}
+
+	if (plat_priv->regdb_support) {
+		ret = cnss_wlfw_bdf_dnld_send_sync(plat_priv,
+						   CNSS_BDF_REGDB);
+		if (ret) {
+			cnss_pr_err("regdb load failed. ret %d\n", ret);
 			goto out;
 		}
 	}
@@ -3346,47 +3367,84 @@ static const struct of_device_id cnss_of_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, cnss_of_match_table);
 
-static void cnss_set_caldata_support(struct cnss_plat_data *plat_priv)
+static const char *
+cnss_module_param_feature_to_str(enum cnss_module_param_feature feature)
 {
+	switch (feature) {
+	case CALDATA:
+		return "caldata";
+	case REGDB:
+		return "regdb";
+	default:
+		return "unknown";
+	}
+}
+
+static void
+cnss_set_mod_param_feature_support(struct cnss_plat_data *plat_priv,
+				   enum cnss_module_param_feature feature)
+{
+	int bmap = 0x0;
+	bool *ptr;
+	const char *fname = cnss_module_param_feature_to_str(feature);
+
+	switch (feature) {
+	case CALDATA:
+		bmap = disable_caldata_bmap;
+		/* By default caldata support is enabled */
+		plat_priv->caldata_support = 1;
+		ptr = &plat_priv->caldata_support;
+		break;
+	case REGDB:
+		bmap = disable_regdb_bmap;
+		/* By default regdb support should be enabled.
+		 * But for now, it is disabled through module param.
+		 */
+		plat_priv->regdb_support = 1;
+		ptr = &plat_priv->regdb_support;
+		break;
+	default:
+		cnss_pr_err("%s: Unknown feature %u %s", __func__, feature,
+			    fname);
+		return;
+	}
+
 	switch (plat_priv->device_id) {
 	case QCA8074_DEVICE_ID:
 	case QCA8074V2_DEVICE_ID:
 	case QCA6018_DEVICE_ID:
 	case QCA5018_DEVICE_ID:
-	case QCA9574_DEVICE_ID:
-		if (disable_caldata_bmap & SKIP_INTEGRATED) {
-			cnss_pr_info("Disabling caldata support for %s",
+		if (bmap & SKIP_INTEGRATED) {
+			cnss_pr_info("Disabling %s support for %s", fname,
 				     plat_priv->device_name);
-			plat_priv->caldata_support = 0;
-			return;
+			*ptr = 0;
 		}
 		break;
 	case QCN9000_DEVICE_ID:
-		if (((plat_priv->qrtr_node_id == QCN9000_0) &&
-		     (disable_caldata_bmap & SKIP_PCI_0)) ||
-		    ((plat_priv->qrtr_node_id == QCN9000_1) &&
-		     (disable_caldata_bmap & SKIP_PCI_1))) {
-			plat_priv->caldata_support = 0;
-			cnss_pr_info("Disabling caldata support for %s",
+		if ((plat_priv->qrtr_node_id == QCN9000_0 &&
+		     (bmap & SKIP_PCI_0)) ||
+		    (plat_priv->qrtr_node_id == QCN9000_1 &&
+		     (bmap & SKIP_PCI_1))) {
+			*ptr = 0;
+			cnss_pr_info("Disabling %s support for %s", fname,
 				     plat_priv->device_name);
-			return;
 		}
 		break;
 	case QCN6122_DEVICE_ID:
-		if (((plat_priv->userpd_id == QCN6122_0) &&
-		     (disable_caldata_bmap & SKIP_PCI_0)) ||
-		    ((plat_priv->userpd_id == QCN6122_1) &&
-		     (disable_caldata_bmap & SKIP_PCI_1))) {
-			plat_priv->caldata_support = 0;
-			cnss_pr_info("Disabling caldata support for %s",
+		if ((plat_priv->userpd_id == QCN6122_0 &&
+		     (bmap & SKIP_PCI_0)) ||
+		    (plat_priv->userpd_id == QCN6122_1 &&
+		     (bmap & SKIP_PCI_1))) {
+			*ptr = 0;
+			cnss_pr_info("Disabling %s support for %s", fname,
 				     plat_priv->device_name);
-			return;
 		}
 		break;
+	default:
+		cnss_pr_err("%s: UNKNOWN DEVICE ID", __func__);
+		break;
 	}
-
-	/* By default caldata support is enabled */
-	plat_priv->caldata_support = 1;
+	return;
 }
 
 static int cnss_set_device_name(struct cnss_plat_data *plat_priv)
@@ -3455,9 +3513,14 @@ void cnss_update_platform_feature_support(u8 type, u32 instance_id, u32 value)
 		cnss_pr_info("Setting cold_boot_support=%d for instance_id 0x%x\n",
 			     value, instance_id);
 		break;
-	case CNSS_GENL_MSG_TYPE_CALDATA_SUPPORT:
-		plat_priv->caldata_support = value;
-		cnss_pr_info("Setting caldata_support=%d for instance_id 0x%x\n",
+	case CNSS_GENL_MSG_TYPE_HDS_SUPPORT:
+		plat_priv->hds_support = value;
+		cnss_pr_info("Setting hds_support=%d for instance_id 0x%x\n",
+			     value, instance_id);
+		break;
+	case CNSS_GENL_MSG_TYPE_REGDB_SUPPORT:
+		plat_priv->regdb_support = value;
+		cnss_pr_info("Setting regdb_support=%d for instance_id 0x%x\n",
 			     value, instance_id);
 		break;
 	default:
@@ -3713,7 +3776,8 @@ static int cnss_probe(struct platform_device *plat_dev)
 	if (ret)
 		return -ENODEV;
 
-	cnss_set_caldata_support(plat_priv);
+	cnss_set_mod_param_feature_support(plat_priv, CALDATA);
+	cnss_set_mod_param_feature_support(plat_priv, REGDB);
 	cnss_set_plat_priv(plat_dev, plat_priv);
 	platform_set_drvdata(plat_dev, plat_priv);
 	memset(&qmi_log, 0, sizeof(struct qmi_history) * QMI_HISTORY_SIZE);

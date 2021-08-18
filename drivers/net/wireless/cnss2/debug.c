@@ -720,6 +720,49 @@ static const struct file_operations cnss_dynamic_feature_fops = {
 	.llseek = seq_lseek,
 };
 
+static ssize_t cnss_hds_support_write(struct file *fp,
+				      const char __user *user_buf,
+				      size_t count, loff_t *off)
+{
+	struct cnss_plat_data *plat_priv =
+		((struct seq_file *)fp->private_data)->private;
+	int ret = 0;
+	u32 val;
+
+	ret = kstrtou32_from_user(user_buf, count, 0, &val);
+	if (ret)
+		return ret;
+
+	plat_priv->hds_support = !!val;
+
+	return count;
+}
+
+static int cnss_hds_support_show(struct seq_file *s, void *data)
+{
+	struct cnss_plat_data *plat_priv = s->private;
+
+	seq_printf(s, "hds_support: %s\n",
+		   plat_priv->hds_support ? "true" : "false");
+
+	return 0;
+}
+
+static int cnss_hds_support_open(struct inode *inode,
+				 struct file *file)
+{
+	return single_open(file, cnss_hds_support_show,
+			   inode->i_private);
+}
+
+static const struct file_operations cnss_hds_support_fops = {
+	.read = seq_read,
+	.write = cnss_hds_support_write,
+	.open = cnss_hds_support_open,
+	.owner = THIS_MODULE,
+	.llseek = seq_lseek,
+};
+
 static ssize_t cnss_qmi_record_debug_write(struct file *fp,
 					   const char __user *user_buf,
 					   size_t count, loff_t *off)
@@ -768,6 +811,8 @@ static int cnss_create_debug_only_node(struct cnss_plat_data *plat_priv)
 			    &cnss_control_params_debug_fops);
 	debugfs_create_file("dynamic_feature", 0600, root_dentry, plat_priv,
 			    &cnss_dynamic_feature_fops);
+	debugfs_create_file("hds_support", 0600, root_dentry, plat_priv,
+			    &cnss_hds_support_fops);
 
 	return 0;
 }
