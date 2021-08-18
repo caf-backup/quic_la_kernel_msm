@@ -278,7 +278,9 @@ static void bt_ipc_cust_msg(struct bt_descriptor *btDesc, uint8_t msgid)
 
 	switch (msgid) {
 	case IPC_CMD_IPC_STOP:
+		spin_unlock(&btDesc->lock);
 		ret = qti_scm_toggle_bt_eco(PAS_ID, 0x4);
+		spin_lock(&btDesc->lock);
 		if (ret) {
 			dev_err(dev, "Failed to set BT ECO\n");
 			return;
@@ -296,7 +298,9 @@ static void bt_ipc_cust_msg(struct bt_descriptor *btDesc, uint8_t msgid)
 		dev_info(dev, "BT Crashed, gracefully stopping IPC\n");
 		return;
 	case IPC_CMD_IPC_START:
+		spin_unlock(&btDesc->lock);
 		ret = qti_scm_toggle_bt_eco(PAS_ID, 0x0);
+		spin_lock(&btDesc->lock);
 		if (ret) {
 			dev_err(dev, "Failed to reset BT ECO\n");
 			return;
@@ -405,8 +409,10 @@ static bool bt_ipc_process_peer_msgs(struct bt_descriptor *btDesc,
 		ridx = (ridx + 1) % rinfo->ring_buf_cnt;
 	}
 
+	spin_unlock(&btDesc->lock);
 	wait_event(btDesc->ipc.wait_q,
 			((2 * rbuf->len) < bt_ipc_avail_size(btDesc)));
+	spin_lock(&btDesc->lock);
 	rinfo->ridx = ridx;
 
 	return ackReqd;
@@ -444,28 +450,26 @@ int bt_ipc_sendmsg(struct bt_descriptor *btDesc, unsigned char *buf, int len)
 	int ret;
 	uint16_t msg_hdr = 0x100;
 	struct device *dev = &btDesc->pdev->dev;
-	unsigned long flags;
 
 	if (unlikely(!atomic_read(&btDesc->state))) {
 		dev_err(dev, "BT IPC not initialized, no message sent\n");
 		return -ENODEV;
 	}
 
-	spin_lock_irqsave(&btDesc->lock, flags);
+	spin_lock(&btDesc->lock);
 
 	ret = bt_ipc_send_msg(btDesc, msg_hdr, (uint8_t *)buf, (uint16_t)len,
 				true);
 	if (ret)
 		dev_err(dev, "err: sending message\n");
 
-	spin_unlock_irqrestore(&btDesc->lock, flags);
+	spin_unlock(&btDesc->lock);
 
 	return ret;
 }
 
 static void bt_ipc_worker(struct work_struct *work)
 {
-	unsigned long flags;
 	struct ring_buffer_info *rinfo;
 
 	struct bt_ipc *ipc = container_of(work, struct bt_ipc, work);
@@ -474,7 +478,7 @@ static void bt_ipc_worker(struct work_struct *work)
 	struct bt_mem *btmem = &btDesc->btmem;
 	bool ackReqd = false;
 
-	spin_lock_irqsave(&btDesc->lock, flags);
+	spin_lock(&btDesc->lock);
 
 	if (unlikely(!atomic_read(&btDesc->state)))
 		btmem->rx_ctxt = (struct context_info *)(btmem->virt + 0xe000);
@@ -496,7 +500,7 @@ static void bt_ipc_worker(struct work_struct *work)
 	if (btDesc->debug_en)
 		bt_ipc_cust_msg(btDesc, IPC_CMD_SWITCH_TO_UART);
 
-	spin_unlock_irqrestore(&btDesc->lock, flags);
+	spin_unlock(&btDesc->lock);
 	enable_irq(ipc->irq);
 }
 
