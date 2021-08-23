@@ -499,22 +499,71 @@ invalid_pm_state:
 }
 
 void mhi_free_bhie_table(struct mhi_controller *mhi_cntrl,
-			 struct image_info *image_info)
+			 struct image_info *image_info, bool is_fbc)
 {
 	int i;
 	struct mhi_buf *mhi_buf = image_info->mhi_buf;
 
-	for (i = 0; i < image_info->entries; i++, mhi_buf++)
+	for (i = 0; i < image_info->entries; i++, mhi_buf++) {
+		/* For FBC image, element mhi_buf[img_info->entries - 2] points
+		 * to Dynamic paging region and it should not be freed.
+		 */
+		if (is_fbc && i == (image_info->entries - 2))
+			continue;
+
 		mhi_fw_free_coherent(mhi_cntrl, mhi_buf->len, mhi_buf->buf,
 				  mhi_buf->dma_addr);
+	}
 
 	kfree(image_info->mhi_buf);
 	kfree(image_info);
 }
 
+int mhi_update_bhie_table_for_dyn_paging(struct mhi_controller *mhi_cntrl,
+					 void *va, phys_addr_t pa,
+					 size_t size)
+{
+	struct image_info *image_info = mhi_cntrl->fbc_image;
+	int i, segments;
+	struct mhi_buf *mhi_buf;
+	struct bhi_vec_entry *bhi_vec;
+
+	if (!image_info) {
+		MHI_ERR("FBC Image is NULL\n");
+		return -EINVAL;
+	}
+
+	segments = image_info->entries;
+
+	/* Find the free entry in bhi_vec table for dynamic paging region */
+	bhi_vec = &image_info->bhi_vec[0];
+	for (i = 0; (i < segments - 1); i++) {
+		if (!bhi_vec->dma_addr)
+			break;
+
+		bhi_vec++;
+	}
+	if (i == (segments - 1)) {
+		MHI_ERR("No space in Vector Table\n");
+		return -ENOMEM;
+	}
+
+	bhi_vec->dma_addr = pa;
+	bhi_vec->size = size;
+
+	/* mhi_buf[segments - 2] is reserved Dynamic Paging region */
+	mhi_buf = &image_info->mhi_buf[segments - 2];
+	mhi_buf->buf = va;
+	mhi_buf->dma_addr = pa;
+	mhi_buf->len = size;
+
+	return 0;
+}
+EXPORT_SYMBOL(mhi_update_bhie_table_for_dyn_paging);
+
 int mhi_alloc_bhie_table(struct mhi_controller *mhi_cntrl,
 			 struct image_info **image_info,
-			 size_t alloc_size)
+			 size_t alloc_size, bool is_fbc)
 {
 	size_t seg_size = mhi_cntrl->seg_len;
 	/* requier additional entry for vec table */
@@ -522,6 +571,10 @@ int mhi_alloc_bhie_table(struct mhi_controller *mhi_cntrl,
 	int i;
 	struct image_info *img_info;
 	struct mhi_buf *mhi_buf;
+
+	/* Allocate one extra entry for Dynamic Pageable in FBC */
+	if (is_fbc)
+		segments++;
 
 	MHI_LOG("Allocating bytes:%zu seg_size:%zu total_seg:%u\n",
 		alloc_size, seg_size, segments);
@@ -541,22 +594,33 @@ int mhi_alloc_bhie_table(struct mhi_controller *mhi_cntrl,
 	for (i = 0; i < segments; i++, mhi_buf++) {
 		size_t vec_size = seg_size;
 
-		/* last entry is for vector table */
-		if (i == segments - 1) {
+		if (is_fbc && (i == segments - 2)) {
+			/* Initialize an entry for Dynamic paging region which
+			 * would be updated later in
+			 * mhi_update_bhie_table_for_dyn_paging
+			 */
+			vec_size = 0;
+			mhi_buf->buf = NULL;
+			mhi_buf->dma_addr = 0;
+		} else if (i == segments - 1) {
+			/* last entry is for vector table */
 			vec_size = sizeof(struct bhi_vec_entry) * i;
 			mhi_buf->buf = mhi_alloc_coherent(mhi_cntrl,
 					vec_size, &mhi_buf->dma_addr,
 					GFP_KERNEL);
+			if (!mhi_buf->buf)
+				goto error_alloc_segment;
+
 		} else {
 			mhi_buf->buf = mhi_fw_alloc_coherent(mhi_cntrl,
 					vec_size, &mhi_buf->dma_addr,
 					GFP_KERNEL);
+			if (!mhi_buf->buf)
+				goto error_alloc_segment;
+
 		}
 
 		mhi_buf->len = vec_size;
-
-		if (!mhi_buf->buf)
-			goto error_alloc_segment;
 
 		MHI_LOG("Entry:%d Address:0x%llx size:%zu\n", i,
 			(unsigned long long)mhi_buf->dma_addr,
@@ -599,7 +663,7 @@ static void mhi_firmware_copy(struct mhi_controller *mhi_cntrl,
 		to_cpy = min(remainder, mhi_buf->len);
 		memcpy(mhi_buf->buf, buf, to_cpy);
 		bhi_vec->dma_addr = cpu_to_le64(mhi_buf->dma_addr);
-		bhi_vec->size = cpu_to_le64(to_cpy);
+		bhi_vec->size = cpu_to_le64(mhi_buf->len);
 
 		MHI_VERB("Setting Vector:0x%llx size: %llu\n",
 			 bhi_vec->dma_addr, bhi_vec->size);
@@ -704,7 +768,7 @@ void mhi_fw_load_worker(struct work_struct *work)
 	 */
 	if (mhi_cntrl->fbc_download) {
 		ret = mhi_alloc_bhie_table(mhi_cntrl, &mhi_cntrl->fbc_image,
-					   firmware->size);
+					   firmware->size, true);
 		if (ret) {
 			MHI_ERR("Error alloc size of %zu\n", firmware->size);
 			goto error_alloc_fw_table;
@@ -759,7 +823,7 @@ void mhi_fw_load_worker(struct work_struct *work)
 
 error_read:
 	mhi_debug_reg_dump(mhi_cntrl);
-	mhi_free_bhie_table(mhi_cntrl, mhi_cntrl->fbc_image);
+	mhi_free_bhie_table(mhi_cntrl, mhi_cntrl->fbc_image, true);
 	mhi_cntrl->fbc_image = NULL;
 
 error_alloc_fw_table:

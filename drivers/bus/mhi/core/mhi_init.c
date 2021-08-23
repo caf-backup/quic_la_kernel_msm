@@ -1678,7 +1678,7 @@ int mhi_prepare_for_power_up(struct mhi_controller *mhi_cntrl)
 	 */
 	if (mhi_cntrl->rddm_size) {
 		mhi_alloc_bhie_table(mhi_cntrl, &mhi_cntrl->rddm_image,
-				     mhi_cntrl->rddm_size);
+				     mhi_cntrl->rddm_size, false);
 
 		/*
 		 * This controller supports rddm, we need to manually clear
@@ -1704,7 +1704,7 @@ int mhi_prepare_for_power_up(struct mhi_controller *mhi_cntrl)
 
 bhie_error:
 	if (mhi_cntrl->rddm_image) {
-		mhi_free_bhie_table(mhi_cntrl, mhi_cntrl->rddm_image);
+		mhi_free_bhie_table(mhi_cntrl, mhi_cntrl->rddm_image, false);
 		mhi_cntrl->rddm_image = NULL;
 	}
 	mhi_deinit_free_irq(mhi_cntrl);
@@ -1722,12 +1722,12 @@ EXPORT_SYMBOL(mhi_prepare_for_power_up);
 void mhi_unprepare_after_power_down(struct mhi_controller *mhi_cntrl)
 {
 	if (mhi_cntrl->fbc_image) {
-		mhi_free_bhie_table(mhi_cntrl, mhi_cntrl->fbc_image);
+		mhi_free_bhie_table(mhi_cntrl, mhi_cntrl->fbc_image, true);
 		mhi_cntrl->fbc_image = NULL;
 	}
 
 	if (mhi_cntrl->rddm_image) {
-		mhi_free_bhie_table(mhi_cntrl, mhi_cntrl->rddm_image);
+		mhi_free_bhie_table(mhi_cntrl, mhi_cntrl->rddm_image, false);
 		mhi_cntrl->rddm_image = NULL;
 	}
 

@@ -819,6 +819,17 @@ void mhi_unregister_controller(struct mhi_controller *mhi_cntrl);
 int mhi_download_rddm_img(struct mhi_controller *mhi_cntrl, bool in_panic);
 
 /**
+ * mhi_update_bhie_table_for_dyn_paging - Add the dynamic paging memory region
+ * into the mhi_buf table.
+ * @mhi_cntrl: MHI controller
+ * @va: Virtual Address of the memory region
+ * @pa: Physical Address of the memory region
+ * @size: Size of the memory region
+ */
+int mhi_update_bhie_table_for_dyn_paging(struct mhi_controller *mhi_cntrl,
+					 void *va, phys_addr_t pa,
+					 size_t size);
+/**
  * mhi_scan_rddm_cookie - Look for supplied cookie value in the BHI debug
  * registers set by device to indicate rddm readiness for debugging purposes.
  * @mhi_cntrl: MHI controller
