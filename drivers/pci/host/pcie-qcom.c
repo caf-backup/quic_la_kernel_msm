@@ -1838,6 +1838,7 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	char irq_name[20];
 	u32 soc_version_major;
 	int index = 0;
+	int x65_attached = 0;
 
 	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
@@ -1961,11 +1962,18 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	pp->root_bus_nr = -1;
 	pp->ops = &qcom_pcie_dw_ops;
 
-	pcie->mdm2ap_e911_irq = platform_get_irq_byname(pdev,
+	of_property_read_u32(np, "x65_attached", &x65_attached);
+	if (x65_attached) {
+		pcie->mdm2ap_e911_irq = platform_get_irq_byname(pdev,
+					"mdm2ap_e911_x65");
+	} else {
+		pcie->mdm2ap_e911_irq = platform_get_irq_byname(pdev,
 					"mdm2ap_e911");
+	}
+
 	if (pcie->mdm2ap_e911_irq >= 0) {
-		mdm2ap_e911 = devm_gpiod_get_optional(&pdev->dev, "e911",
-						      GPIOD_IN);
+		mdm2ap_e911 = devm_gpiod_get_optional(&pdev->dev,
+				(x65_attached ? "e911_x65" : "e911"), GPIOD_IN);
 
 		if (IS_ERR(mdm2ap_e911)) {
 			pr_err("requesting for e911 gpio failed %ld\n",
