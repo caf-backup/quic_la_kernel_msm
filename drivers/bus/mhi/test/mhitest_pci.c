@@ -123,6 +123,7 @@ static int mhitest_get_msi_user(struct mhitest_platform *mplat, char *u_name,
 	for (idx = 0; idx < m_config->total_users; idx++) {
 		if (strcmp(u_name, m_config->users[idx].name) == 0) {
 			*num_vectors = m_config->users[idx].num_vectors;
+			*num_vectors = 1U << get_count_order(*num_vectors);
 			*user_base_data = m_config->users[idx].base_vector
 				+ mplat->msi_ep_base_data;
 			*base_vector = m_config->users[idx].base_vector;
@@ -503,6 +504,8 @@ int mhitest_pci_en_msi(struct mhitest_platform *temp)
 		return -EINVAL;
 	}
 
+	temp->msi_config->total_vectors =
+			1U << get_count_order(temp->msi_config->total_vectors);
 	num_vectors = pci_alloc_irq_vectors(pci_dev,
 		temp->msi_config->total_vectors,
 			temp->msi_config->total_vectors, PCI_IRQ_NOMSIX);
