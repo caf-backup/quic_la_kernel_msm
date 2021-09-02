@@ -99,6 +99,7 @@ MODULE_PARM_DESC(pci1_num_msi_bmap,
 #define AFC_AUTH_STATUS_OFFSET		1
 #define AFC_AUTH_SUCCESS		1
 #define AFC_AUTH_ERROR			0
+#define AFC_QCN6122_MEM_OFFSET		0xD8000
 
 #define WAKE_MSI_NAME			"WAKE"
 
@@ -2987,6 +2988,7 @@ int cnss_ahb_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 			fw_mem[idx].type = fw_mem[i].type;
 			idx++;
 			break;
+		case AFC_REGION_TYPE:
 		case M3_DUMP_REGION_TYPE:
 			dev_node = cnss_get_m3dump_dev_node(plat_priv);
 			if (!dev_node) {
@@ -3011,12 +3013,40 @@ int cnss_ahb_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 			}
 			fw_mem[idx].size = fw_mem[i].size;
 			fw_mem[idx].type = fw_mem[i].type;
-			fw_mem[idx].pa = m3_dump.start;
-			fw_mem[idx].va = ioremap(fw_mem[idx].pa,
-					 fw_mem[idx].size);
-			if (!fw_mem[idx].va)
-				cnss_pr_err("WARNING: M3 Dump addr remap failed\n");
+			if (fw_mem[i].type == M3_DUMP_REGION_TYPE) {
+				fw_mem[idx].pa = m3_dump.start;
+				fw_mem[idx].va = ioremap(fw_mem[idx].pa,
+						fw_mem[idx].size);
+				if (!fw_mem[idx].va)
+					cnss_pr_err("WARNING: M3 Dump addr remap failed\n");
+			} else {
+				if (plat_priv->device_id != QCN6122_DEVICE_ID) {
+					cnss_pr_err("Invalid AFC mem request from target");
+					CNSS_ASSERT(0);
+					return -EINVAL;
+				}
 
+				if (fw_mem[i].size != AFC_MEM_SIZE) {
+					cnss_pr_err("Error: less AFC mem req: 0x%x\n",
+						    (unsigned int)fw_mem[i].size);
+					CNSS_ASSERT(0);
+				}
+				if (fw_mem[i].va) {
+					memset(fw_mem[i].va, 0, fw_mem[i].size);
+					idx++;
+					break;
+				}
+				fw_mem[idx].pa = m3_dump.start +
+						 AFC_QCN6122_MEM_OFFSET;
+				fw_mem[idx].va = ioremap(fw_mem[idx].pa,
+						fw_mem[idx].size);
+				if (!fw_mem[i].va) {
+					cnss_pr_err("AFC mem allocation failed\n");
+					fw_mem[i].pa = 0;
+					CNSS_ASSERT(0);
+					return -ENOMEM;
+				}
+			}
 			idx++;
 			break;
 		default:
