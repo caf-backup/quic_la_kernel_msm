@@ -4047,6 +4047,8 @@ int cnss_get_pci_slot(struct device *dev)
 	switch (plat_priv->device_id) {
 	case QCN9000_DEVICE_ID:
 		return plat_priv->qrtr_node_id - QCN9000_0;
+	case QCN6122_DEVICE_ID:
+		return plat_priv->userpd_id - QCN6122_0;
 	default:
 		cnss_pr_info("PCI slot is 0 for target 0x%lx",
 			     plat_priv->device_id);
