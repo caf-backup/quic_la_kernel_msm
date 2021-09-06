@@ -3851,6 +3851,10 @@ show_encrypted_rsa_data_tzapp(struct device *dev, struct device_attribute *attr,
 	memset(rsa_sealed_buf, 0, MAX_RSA_SIGN_DATA_SIZE);
 	rsa_encrypted_len = 0;
 	output_len = (uint64_t*)kzalloc(sizeof(uint64_t), GFP_KERNEL);
+	if (!output_len) {
+		pr_err("Error: alloc failed\n");
+		return -ENOMEM;
+	}
 
 	msg_vector_size = sizeof(struct tz_storage_service_rsa_message_type);
 	req_order = get_order(msg_vector_size);
@@ -4065,6 +4069,10 @@ show_decrypted_rsa_data_tzapp(struct device *dev, struct device_attribute *attr,
 		return ret;
 	}
 	output_len = (uint64_t*)kzalloc(sizeof(uint64_t), GFP_KERNEL);
+	if (!output_len) {
+		pr_err("Error: alloc failed\n");
+		return -ENOMEM;
+	}
 	memset(rsa_unsealed_buf, 0, MAX_RSA_PLAIN_DATA_SIZE);
 	rsa_decrypted_len = 0;
 
