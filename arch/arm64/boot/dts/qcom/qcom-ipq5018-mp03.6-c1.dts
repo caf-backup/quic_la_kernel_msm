@@ -1133,7 +1133,7 @@
 
 			mhi_qrtr {
 				mhi,chan = "IPCR";
-				qcom,net-id = <3>;
+				qcom,net-id = <1>;
 			};
 		};
 	};
