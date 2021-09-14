@@ -616,7 +616,7 @@ uint32_t socinfo_get_version(void)
 
 char *socinfo_get_build_id(void)
 {
-	return (socinfo) ? socinfo->v0_1.build_id : NULL;
+	return (socinfo) ? socinfo->v0_1.build_id : "Unknown build id";
 }
 
 static char *msm_read_hardware_id(void)
