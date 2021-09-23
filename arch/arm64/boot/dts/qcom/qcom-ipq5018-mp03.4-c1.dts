@@ -64,9 +64,9 @@
 	 * +--------+--------------+-------------------------+
 	 * |QCN9000 |  0x4F200000  |          38MB           |
 	 * +--------+--------------+-------------------------+
-	 * |  MHI0  |  0x51800000  |          16MB           |
+	 * |  MHI0  |  0x51800000  |           9MB           |
 	 * +--------+--------------+-------------------------+
-	 * |  MHI1  |  0x52800000  |          16MB           |
+	 * |  MHI1  |  0x52100000  |           9MB           |
 	 * +--------+--------------+-------------------------+
 	 * |                                                 |
 	 * |      Rest of the memory for Linux               |
@@ -143,17 +143,19 @@
 			reg = <0x0 0x4F200000 0x0 0x02600000>;
 		};
 
+#if defined(__CNSS2__)
 		mhi_region0: dma_pool0@51800000 {
 			compatible = "shared-dma-pool";
 			no-map;
-			reg = <0x0 0x51800000 0x0 0x01000000>;
+			reg = <0x0 0x51800000 0x0 0x00900000>;
 		};
 
-		mhi_region1: dma_pool1@52800000 {
+		mhi_region1: dma_pool1@52100000 {
 			compatible = "shared-dma-pool";
 			no-map;
-			reg = <0x0 0x52800000 0x0 0x01000000>;
+			reg = <0x0 0x52100000 0x0 0x00900000>;
 		};
+#endif
 #else
 	/*                      1G Profile
 	 * +=========+==============+========================+
@@ -193,9 +195,9 @@
 	 * +--------+--------------+-------------------------+
 	 * |QCN9000 |  0x50100000  |          53MB           |
 	 * +--------+--------------+-------------------------+
-	 * |  MHI0  |  0x53600000  |          16MB           |
+	 * |  MHI0  |  0x53600000  |           9MB           |
 	 * +--------+--------------+-------------------------+
-	 * |  MHI1  |  0x54600000  |          16MB           |
+	 * |  MHI1  |  0x53F00000  |           9MB           |
 	 * +--------+--------------+-------------------------+
 	 * |                                                 |
 	 * |      Rest of the memory for Linux               |
@@ -273,17 +275,19 @@
 			reg = <0x0 0x50100000 0x0 0x03500000>;
 		};
 
+#if defined(__CNSS2__)
 		mhi_region0: dma_pool0@53600000 {
 			compatible = "shared-dma-pool";
 			no-map;
-			reg = <0x0 0x53600000 0x0 0x01000000>;
+			reg = <0x0 0x53600000 0x0 0x00900000>;
 		};
 
-		mhi_region1: dma_pool1@54600000 {
+		mhi_region1: dma_pool1@53F00000 {
 			compatible = "shared-dma-pool";
 			no-map;
-			reg = <0x0 0x54600000 0x0 0x01000000>;
+			reg = <0x0 0x53F00000 0x0 0x00900000>;
 		};
+#endif
 #endif
 	};
 };
@@ -305,7 +309,9 @@
 		qrtr_instance_id = <0x21>;
 		#address-cells = <0x2>;
 		#size-cells = <0x2>;
+#if defined(__CNSS2__)
 		memory-region = <&mhi_region1>;
+#endif
 	};
 };
 
@@ -318,7 +324,9 @@
 		qrtr_instance_id = <0x20>;
 		#address-cells = <0x2>;
 		#size-cells = <0x2>;
+#if defined(__CNSS2__)
 		memory-region = <&mhi_region0>;
+#endif
 	};
 };
 
