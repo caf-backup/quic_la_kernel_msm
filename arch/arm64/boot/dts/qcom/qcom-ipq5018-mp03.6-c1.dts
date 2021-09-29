@@ -94,7 +94,7 @@
 	 * |        |              |                         |
 	 * +--------+--------------+-------------------------+
 	 * |        |              |                         |
-	 * |  MHI1  |  0x4E200000  |          16MB           |
+	 * |  MHI1  |  0x4E200000  |           9MB           |
 	 * |        |              |                         |
 	 * +--------+--------------+-------------------------+
 	 * |                                                 |
@@ -122,11 +122,13 @@
 			reg = <0x0 0x4C900000 0x0 0x01900000>;
 		};
 
+	#if defined(__CNSS2__)
 		mhi_region1: dma_pool1@4e200000 {
 			compatible = "shared-dma-pool";
 			no-map;
-			reg = <0x0 0x4e200000 0x0 0x01000000>;
+			reg = <0x0 0x4e200000 0x0 0x00900000>;
 		};
+	#endif
 	#elif __IPQ_MEM_PROFILE_512_MB__
 	/*                      512 MB Profile
 	 * +=========+==============+========================+
@@ -180,7 +182,7 @@
 	 * |        |              |                         |
 	 * +--------+--------------+-------------------------+
 	 * |        |              |                         |
-	 * |  MHI1  |  0x4F200000  |          16MB           |
+	 * |  MHI1  |  0x4F200000  |           9MB           |
 	 * |        |              |                         |
 	 * +--------+--------------+-------------------------+
 	 * |                                                 |
@@ -213,11 +215,13 @@
 			reg = <0x0 0x4CC00000 0x0 0x02600000>;
 		};
 
+	#if defined(__CNSS2__)
 		mhi_region1: dma_pool1@4f200000 {
 			compatible = "shared-dma-pool";
 			no-map;
-			reg = <0x0 0x4f200000 0x0 0x01000000>;
+			reg = <0x0 0x4f200000 0x0 0x00900000>;
 		};
+	#endif
 	#else
 	/*                      1G Profile
 	 * +=========+==============+========================+
@@ -304,11 +308,13 @@
 			reg = <0x0 0x4CC00000 0x0 0x03500000>;
 		};
 
+	#if defined(__CNSS2__)
 		mhi_region1: dma_pool1@50100000 {
 			compatible = "shared-dma-pool";
 			no-map;
-			reg = <0x0 0x50100000 0x0 0x01000000>;
+			reg = <0x0 0x50100000 0x0 0x00900000>;
 		};
+	#endif
 	#endif
 	};
 
@@ -1147,7 +1153,9 @@
 		qrtr_instance_id = <0x20>;
 		#address-cells = <0x2>;
 		#size-cells = <0x2>;
+#if defined(__CNSS2__)
 		memory-region = <&mhi_region1>;
+#endif
 	};
 };
 

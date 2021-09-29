@@ -62,7 +62,7 @@
 	 * +--------+--------------+-------------------------+
 	 * |QCN9000 |  0x4CC00000  |          38MB           |
 	 * +--------+--------------+-------------------------+
-	 * |  MHI0  |  0x4F200000  |          16MB           |
+	 * |  MHI0  |  0x4F200000  |           9MB           |
 	 * +--------+--------------+-------------------------+
 	 * |                                                 |
 	 * |      Rest of the memory for Linux               |
@@ -134,11 +134,13 @@
 			reg = <0x0 0x4CC00000 0x0 0x02600000>;
 		};
 
+#if defined(__CNSS2__)
 		mhi_region0: dma_pool0@4f200000 {
 			compatible = "shared-dma-pool";
 			no-map;
-			reg = <0x0 0x4F200000 0x0 0x01000000>;
+			reg = <0x0 0x4F200000 0x0 0x00900000>;
 		};
+#endif
 
 #else
 	/*                      1G Profile
@@ -177,7 +179,7 @@
 	 * +--------+--------------+-------------------------+
 	 * |QCN9000 |  0x4CC00000  |          53MB           |
 	 * +--------+--------------+-------------------------+
-	 * |  MHI0  |  0x50100000  |          16MB           |
+	 * |  MHI0  |  0x50100000  |           9MB           |
 	 * +--------+--------------+-------------------------+
 	 * |                                                 |
 	 * |      Rest of the memory for Linux               |
@@ -250,11 +252,13 @@
 			reg = <0x0 0x4CC00000 0x0 0x03500000>;
 		};
 
+#if defined(__CNSS2__)
 		mhi_region0: dma_pool0@50100000 {
 			compatible = "shared-dma-pool";
 			no-map;
-			reg = <0x0 0x50100000 0x0 0x01000000>;
+			reg = <0x0 0x50100000 0x0 0x00900000>;
 		};
+#endif
 
 #endif
 	};
@@ -286,7 +290,9 @@
 		qrtr_instance_id = <0x20>;
 		#address-cells = <0x2>;
 		#size-cells = <0x2>;
+#if defined(__CNSS2__)
 		memory-region = <&mhi_region0>;
+#endif
 	};
 };
 
