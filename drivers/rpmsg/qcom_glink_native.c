@@ -177,6 +177,7 @@ struct glink_channel {
 	struct idr liids;
 	struct idr riids;
 	struct work_struct intent_work;
+	struct workqueue_struct *intent_wq;
 	struct list_head done_intents;
 
 	struct glink_core_rx_intent *buf;
@@ -267,6 +268,13 @@ static struct glink_channel *qcom_glink_alloc_channel(struct qcom_glink *glink,
 	INIT_LIST_HEAD(&channel->done_intents);
 	INIT_WORK(&channel->intent_work, qcom_glink_rx_done_work);
 
+	channel->intent_wq = alloc_workqueue("intent_wq", WQ_UNBOUND, 1);
+	if (!channel->intent_wq) {
+		pr_err("failed to create %s channel intent work queue\n",
+							channel->name);
+		return ERR_PTR(-ENOMEM);
+	}
+
 	idr_init(&channel->liids);
 	idr_init(&channel->riids);
 	kref_init(&channel->refcount);
@@ -305,6 +313,8 @@ static void qcom_glink_channel_release(struct kref *ref)
 		kfree(tmp);
 	idr_destroy(&channel->riids);
 	spin_unlock_irqrestore(&channel->intent_lock, flags);
+
+	destroy_workqueue(channel->intent_wq);
 
 	kfree(channel->name);
 	kfree(channel);
@@ -603,7 +613,7 @@ static void qcom_glink_rx_done(struct qcom_glink *glink,
 	list_add_tail(&intent->node, &channel->done_intents);
 	spin_unlock(&channel->intent_lock);
 
-	schedule_work(&channel->intent_work);
+	queue_work(channel->intent_wq, &channel->intent_work);
 }
 
 /**
