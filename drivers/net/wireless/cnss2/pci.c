@@ -2789,6 +2789,27 @@ struct device_node *cnss_get_m3dump_dev_node(struct cnss_plat_data *plat_priv)
 	return dev_node;
 }
 
+static void afc_memset(struct cnss_plat_data *plat_priv, void *s,
+		       int c, size_t n)
+{
+	switch (plat_priv->device_id) {
+	case QCN6122_DEVICE_ID:
+		/* For QCN6122, AFC memory is ioremapped from M3_DUMP_REGION.
+		 * Use memset_io for this.
+		 */
+		memset_io(s, c, n);
+		break;
+	case QCN9000_DEVICE_ID:
+		memset(s, c, n);
+		break;
+	default:
+		cnss_pr_err("Wrong target type for AFCMEM 0x%lX",
+			    plat_priv->device_id);
+		break;
+	}
+
+}
+
 int cnss_send_buffer_to_afcmem(struct device *dev, char *afcdb, uint32_t len,
 			       uint8_t slotid)
 {
@@ -2828,7 +2849,7 @@ int cnss_send_buffer_to_afcmem(struct device *dev, char *afcdb, uint32_t len,
 	}
 
 	status[AFC_AUTH_STATUS_OFFSET] = cpu_to_le32(AFC_AUTH_ERROR);
-	memset(mem + (slotid * AFC_SLOT_SIZE), 0, AFC_SLOT_SIZE);
+	afc_memset(plat_priv, mem + (slotid * AFC_SLOT_SIZE), 0, AFC_SLOT_SIZE);
 	memcpy(mem + (slotid * AFC_SLOT_SIZE), afcdb, len);
 	status[AFC_AUTH_STATUS_OFFSET] = cpu_to_le32(AFC_AUTH_SUCCESS);
 
@@ -2868,7 +2889,7 @@ int cnss_reset_afcmem(struct device *dev, uint8_t slotid)
 		goto err;
 	}
 
-	memset(mem + (slotid * AFC_SLOT_SIZE), 0, AFC_SLOT_SIZE);
+	afc_memset(plat_priv, mem + (slotid * AFC_SLOT_SIZE), 0, AFC_SLOT_SIZE);
 	return 0;
 
 err:
@@ -3035,8 +3056,8 @@ int cnss_ahb_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 					CNSS_ASSERT(0);
 				}
 				if (fw_mem[i].va) {
-					memset_io(fw_mem[i].va, 0,
-						  fw_mem[i].size);
+					afc_memset(plat_priv, fw_mem[i].va, 0,
+						   fw_mem[i].size);
 					idx++;
 					break;
 				}
@@ -3216,7 +3237,8 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 				CNSS_ASSERT(0);
 			}
 			if (fw_mem[i].va) {
-				memset(fw_mem[i].va, 0, fw_mem[i].size);
+				afc_memset(plat_priv, fw_mem[i].va, 0,
+					   fw_mem[i].size);
 				break;
 			}
 
@@ -3386,14 +3408,8 @@ void cnss_pci_free_fw_mem(struct cnss_plat_data *plat_priv)
 				fw_mem[i].va = NULL;
 				fw_mem[i].size = 0;
 			} else {
-				/* For QCN6122, AFC memory is ioremapped from
-				 * M3_DUMP_REGION. Use memset_io for this
-				 */
-				if (plat_priv->device_id == QCN6122_DEVICE_ID)
-					memset_io(fw_mem[i].va, 0,
-						  AFC_MEM_SIZE);
-				else
-					memset(fw_mem[i].va, 0, AFC_MEM_SIZE);
+				afc_memset(plat_priv, fw_mem[i].va, 0,
+					   AFC_MEM_SIZE);
 			}
 		}
 	}
