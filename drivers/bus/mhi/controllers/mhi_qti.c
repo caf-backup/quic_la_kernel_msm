@@ -31,6 +31,7 @@ volatile int force_graceful = 0;
 
 int ap2mdm_gpio, mdm2ap_gpio;
 bool mhi_ssr_negotiate;
+bool mhi_rate_control;
 
 void __iomem *wdt;
 
@@ -801,6 +802,7 @@ int mhi_pci_probe(struct pci_dev *pci_dev,
 	pm_runtime_allow(&pci_dev->dev);
 #endif
 
+	mhi_rate_control = of_property_read_bool(mhi_cntrl->of_node, "mhi,rate-control");
 	mhi_ssr_negotiate = of_property_read_bool(mhi_cntrl->of_node, "mhi,ssr-negotiate");
 
 	if (mhi_ssr_negotiate) {
