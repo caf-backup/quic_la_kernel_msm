@@ -33,7 +33,6 @@
 #include <linux/types.h>
 #include <linux/qcom-pcie.h>
 #include <soc/qcom/socinfo.h>
-
 #include "pcie-designware.h"
 
 #define PCIE20_PARF_SYS_CTRL			0x00
@@ -1625,7 +1624,11 @@ void qcom_pcie_remove_bus(void)
 {
     int i;
 
+#ifdef CONFIG_ARCH_IPQ5018
+    for (i = 0; i < 1; i++) {
+#else
     for (i = 0; i < MAX_RC_NUM; i++) {
+#endif
         if (qcom_pcie_dev[i]) {
             struct pcie_port *pp;
             struct qcom_pcie *pcie;
