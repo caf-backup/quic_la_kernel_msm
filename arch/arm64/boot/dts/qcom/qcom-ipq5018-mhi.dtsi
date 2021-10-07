@@ -26,7 +26,7 @@
 			qrtr_node_id = <0x20>;
 			qca,auto-restart;
 #ifdef __IPQ_MEM_PROFILE_256_MB__
-			/* QCN9000 tgt-mem-mode=2 layout - 17MB
+			/* QCN9000 tgt-mem-mode=2 layout - 21MB
 			 * +=========+==============+=========+
 			 * |  Region | Start Offset |   Size  |
 			 * +---------+--------------+---------+
@@ -36,7 +36,7 @@
 			 * +---------+--------------+---------+
 			 * |   ETR   |  0x4D900000  |   1MB   |
 			 * +---------+--------------+---------+
-			 * | Pageable|  0x4DA00000  |   8MB   |
+			 * | Pageable|  0x4DA00000  |   4MB   |
 			 * +==================================+
 			 */
 			base-addr = <0x4C900000>;
@@ -47,8 +47,9 @@
 			caldb-size = <0>;
 			hremote-size = <0xF00000>;
 			tgt-mem-mode = <0x2>;
+			pageable-size = <0x400000>;
 #elif __IPQ_MEM_PROFILE_512_MB__
-			/* QCN9000 tgt-mem-mode=1 layout - 30MB
+			/* QCN9000 tgt-mem-mode=1 layout - 38MB
 			 * +=========+==============+=========+
 			 * |  Region | Start Offset |   Size  |
 			 * +---------+--------------+---------+
@@ -71,8 +72,9 @@
 			caldb-size = <0x800000>;
 			hremote-size = <0x1400000>;
 			tgt-mem-mode = <0x1>;
+			pageable-size = <0x800000>;
 #else
-			/* QCN9000 tgt-mem-mode=0 layout - 45MB
+			/* QCN9000 tgt-mem-mode=0 layout - 53MB
 		       * +=========+==============+=========+
 		       * |  Region | Start Offset |   Size  |
 		       * +---------+--------------+---------+
@@ -95,8 +97,8 @@
 			hremote-size = <0x2300000>;
 			caldb-size = <0x800000>;
 			tgt-mem-mode = <0x0>;
-#endif
 			pageable-size = <0x800000>;
+#endif
 			status = "disabled";
 
 			#address-cells = <1>;
