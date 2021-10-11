@@ -26,26 +26,26 @@
 			qrtr_node_id = <0x20>;
 			qca,auto-restart;
 #ifdef __IPQ_MEM_PROFILE_256_MB__
-			/* QCN9000 tgt-mem-mode=2 layout - 21MB
+			/* QCN9000 tgt-mem-mode=2 layout - 17MB
 			 * +=========+==============+=========+
 			 * |  Region | Start Offset |   Size  |
 			 * +---------+--------------+---------+
-			 * | HREMOTE |  0x4C900000  |   15MB  |
+			 * | HREMOTE |  0x4C900000  |   11MB  |
 			 * +---------+--------------+---------+
-			 * | M3 Dump |  0x4D800000  |   1MB   |
+			 * | M3 Dump |  0x4D400000  |   1MB   |
 			 * +---------+--------------+---------+
-			 * |   ETR   |  0x4D900000  |   1MB   |
+			 * |   ETR   |  0x4D500000  |   1MB   |
 			 * +---------+--------------+---------+
-			 * | Pageable|  0x4DA00000  |   4MB   |
+			 * | Pageable|  0x4D600000  |   4MB   |
 			 * +==================================+
 			 */
 			base-addr = <0x4C900000>;
-			m3-dump-addr = <0x4D800000>;
-			etr-addr = <0x4D900000>;
+			m3-dump-addr = <0x4D400000>;
+			etr-addr = <0x4D500000>;
 			caldb-addr = <0>;
-			pageable-addr = <0x4DA00000>;
+			pageable-addr = <0x4D600000>;
 			caldb-size = <0>;
-			hremote-size = <0xF00000>;
+			hremote-size = <0xB00000>;
 			tgt-mem-mode = <0x2>;
 			pageable-size = <0x400000>;
 #elif __IPQ_MEM_PROFILE_512_MB__
