@@ -2002,6 +2002,7 @@ static int cnss_driver_recovery_hdlr(struct cnss_plat_data *plat_priv,
 	if (test_bit(CNSS_DRIVER_UNLOADING, &plat_priv->driver_state) ||
 	    test_bit(CNSS_DRIVER_IDLE_SHUTDOWN, &plat_priv->driver_state)) {
 		cnss_pr_err("Driver unload or idle shutdown is in progress, ignore recovery\n");
+		CNSS_ASSERT(0);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -2050,6 +2051,7 @@ void cnss_schedule_recovery(struct device *dev,
 	if (test_bit(CNSS_DRIVER_UNLOADING, &plat_priv->driver_state) ||
 	    test_bit(CNSS_DRIVER_IDLE_SHUTDOWN, &plat_priv->driver_state)) {
 		cnss_pr_dbg("Driver unload or idle shutdown is in progress, ignore schedule recovery\n");
+		CNSS_ASSERT(0);
 		return;
 	}
 
