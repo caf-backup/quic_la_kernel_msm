@@ -118,6 +118,9 @@ int mhi_init_irq_setup(struct mhi_controller *mhi_cntrl)
 	int i;
 	int ret;
 	struct mhi_event *mhi_event = mhi_cntrl->mhi_event;
+#ifdef CONFIG_ARCH_IPQ5018
+	cpumask_t mhi_cpumask = {CPU_BITS_NONE};
+#endif
 
 	/* for BHI INTVEC msi */
 	ret = request_threaded_irq(mhi_cntrl->irq[0], mhi_intvec_handlr,
@@ -138,6 +141,15 @@ int mhi_init_irq_setup(struct mhi_controller *mhi_cntrl)
 				mhi_cntrl->irq[mhi_event->msi], i);
 			goto error_request;
 		}
+
+#ifdef CONFIG_ARCH_IPQ5018
+		if (mhi_event->chan == 101) {
+			cpumask_clear(&mhi_cpumask);
+			cpumask_set_cpu(1, &mhi_cpumask);
+			irq_set_affinity(mhi_cntrl->irq[mhi_event->msi], &mhi_cpumask);
+			pr_emerg("Set IRQ affinity for %d to core 1\n", mhi_cntrl->irq[mhi_event->msi]);
+		}
+#endif
 	}
 
 	return 0;
