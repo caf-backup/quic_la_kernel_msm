@@ -368,7 +368,7 @@
 			clock-names = "iface", "core";
 			qcom,large-address-bus;
 			qcom,disable-aggressive-pm;
-			status = "ok";
+			status = "disabled";
 		};
 
 		blsp_dma: dma@7884000 {
