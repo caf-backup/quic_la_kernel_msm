@@ -3119,11 +3119,10 @@ static void qspi_nand_init(struct qcom_nand_controller *nandc)
 	spi_cfg_val |= (LOAD_CLK_CNTR_INIT_EN | (CLK_CNTR_INIT_VAL_VEC << 16)
 			| (FEA_STATUS_DEV_ADDR << 8) | SPI_CFG);
 
-	reg = dev_cmd_reg_addr(nandc, NAND_FLASH_SPI_CFG);
-	nandc_write(nandc, reg, 0);
-	nandc_write(nandc, reg, spi_cfg_val);
+	qspi_write_reg_bam(nandc, 0x0, NAND_FLASH_SPI_CFG);
+	qspi_write_reg_bam(nandc, spi_cfg_val, NAND_FLASH_SPI_CFG);
 	spi_cfg_val &= ~LOAD_CLK_CNTR_INIT_EN;
-	nandc_write(nandc, reg, spi_cfg_val);
+	qspi_write_reg_bam(nandc, spi_cfg_val, NAND_FLASH_SPI_CFG);
 
 	reg = dev_cmd_reg_addr(nandc, NAND_DEV_CMD0);
 	nandc_write(nandc, reg, CMD0_VAL);
@@ -3134,9 +3133,8 @@ static void qspi_nand_init(struct qcom_nand_controller *nandc)
 	reg = dev_cmd_reg_addr(nandc, NAND_DEV_CMD3);
 	nandc_write(nandc, reg, CMD3_VAL);
 
-	reg = dev_cmd_reg_addr(nandc, NAND_SPI_NUM_ADDR_CYCLES);
-	nandc_write(nandc, reg, SPI_NUM_ADDR);
-	nandc_write(nandc, reg + 4, WAIT_CNT);
+	qspi_write_reg_bam(nandc, SPI_NUM_ADDR, NAND_SPI_NUM_ADDR_CYCLES);
+	qspi_write_reg_bam(nandc, WAIT_CNT, NAND_SPI_BUSY_CHECK_WAIT_CNT);
 }
 
 static void qspi_set_phase(struct qcom_nand_controller *nandc, int phase)
