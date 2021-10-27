@@ -897,6 +897,19 @@ static inline void mhi_debug_reg_dump(struct mhi_controller *mhi_cntrl)
 {
 	return;
 }
+
+static inline int mhi_update_bhie_table_for_dyn_paging(struct mhi_controller *mhi_cntrl,
+					 void *va, phys_addr_t pa,
+					 size_t size)
+{
+	return -1;
+}
+
+static inline bool mhi_scan_rddm_cookie(struct mhi_controller *mhi_cntrl,
+				u32 off, u32 cookie)
+{
+	return false;
+}
 #endif
 
 #ifndef CONFIG_ARCH_QCOM
