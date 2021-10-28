@@ -28,7 +28,7 @@ int qcom_mdt_load_no_init(struct device *dev, const struct firmware *fw,
 			  phys_addr_t *reloc_base);
 
 int q6v5_wcss_store_pd_fw_info(struct device *dev, phys_addr_t paddr,
-							size_t size);
+					void* vaddr, size_t size);
 
 int qcom_get_pd_segment_info(struct device *dev, const struct firmware *fw,
 				phys_addr_t mem_phys, size_t mem_size, int pd);

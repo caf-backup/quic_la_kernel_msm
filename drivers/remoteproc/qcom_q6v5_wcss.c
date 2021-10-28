@@ -102,6 +102,7 @@
 struct q6v5_wcss_pd_fw_info {
 	struct list_head node;
 	phys_addr_t paddr;
+	void* vaddr;
 	size_t size;
 };
 
@@ -195,6 +196,7 @@ struct dump_file_private {
 struct dump_segment {
 	struct list_head node;
 	phys_addr_t addr;
+	void *vaddr;
 	size_t size;
 	loff_t offset;
 };
@@ -336,6 +338,7 @@ static int q6_dump_open(struct inode *inode, struct file *file)
 		if (!s)
 			goto err;
 		s->addr = segment->addr;
+		s->vaddr = segment->vaddr;
 		s->size = segment->size;
 		s->offset = segment->offset;
 		list_add_tail(&s->node, &dfp->dump_segments);
@@ -369,7 +372,8 @@ static int q6_dump_open(struct inode *inode, struct file *file)
 	list_for_each_entry(segment, &wcss->q6dump.dump_segments, node) {
 		phdr->p_type = PT_LOAD;
 		phdr->p_offset = p_off;
-		phdr->p_vaddr = phdr->p_paddr = segment->addr;
+		phdr->p_paddr = segment->addr;
+		phdr->p_vaddr = (uintptr_t)segment->vaddr;
 		phdr->p_filesz = phdr->p_memsz = segment->size;
 		phdr->p_flags = PF_R | PF_W | PF_X;
 
@@ -512,8 +516,8 @@ static const struct file_operations q6_dump_ops = {
 	.release	=       q6_dump_release,
 };
 
-int crashdump_add_segment(phys_addr_t dump_addr, size_t dump_size,
-					struct dumpdev *dumpdev)
+int crashdump_add_segment(phys_addr_t dump_addr, void *vaddr,
+			size_t dump_size, struct dumpdev *dumpdev)
 
 {
 	struct dump_segment *segment;
@@ -523,6 +527,7 @@ int crashdump_add_segment(phys_addr_t dump_addr, size_t dump_size,
 		return -ENOMEM;
 
 	segment->addr = dump_addr;
+	segment->vaddr = vaddr;
 	segment->size = dump_size;
 	segment->offset = 0;
 
@@ -549,7 +554,8 @@ static int add_segment(struct dumpdev *dumpdev, struct device_node *node)
 		goto fail;
 	}
 
-	ret = crashdump_add_segment(segment.addr, segment.size, dumpdev);
+	ret = crashdump_add_segment(segment.addr, (void*)segment.addr,
+						segment.size, dumpdev);
 
 fail:
 	return ret;
@@ -637,7 +643,8 @@ static void crashdump_init(struct rproc *rproc, struct rproc_dump_segment *segme
 
 	if (wcss->fw_info) {
 		ret = crashdump_add_segment(wcss->fw_info->paddr,
-				wcss->fw_info->size, &wcss->q6dump);
+				wcss->fw_info->vaddr, wcss->fw_info->size,
+						&wcss->q6dump);
 		if (ret)
 			pr_err("unable to add segments\n");
 	}
@@ -697,7 +704,7 @@ static void crashdump_init(struct rproc *rproc, struct rproc_dump_segment *segme
 #endif /* CONFIG_IPQ_SS_DUMP */
 
 int q6v5_wcss_store_pd_fw_info(struct device *dev, phys_addr_t paddr,
-							size_t size)
+					void* vaddr, size_t size)
 {
 	struct rproc *rproc = dev_get_drvdata(dev);
 	struct q6v5_wcss *wcss;
@@ -717,6 +724,7 @@ int q6v5_wcss_store_pd_fw_info(struct device *dev, phys_addr_t paddr,
 		return PTR_ERR(wcss->fw_info);
 	}
 	wcss->fw_info->paddr = paddr;
+	wcss->fw_info->vaddr = vaddr;
 	wcss->fw_info->size = size;
 	return 0;
 }
