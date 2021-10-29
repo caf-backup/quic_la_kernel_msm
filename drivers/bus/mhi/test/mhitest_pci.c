@@ -1218,8 +1218,7 @@ void mhitest_pci_remove(struct pci_dev *pci_dev)
 }
 
 static const struct pci_device_id mhitest_pci_id_table[] = {
-	{QTI_PCI_VENDOR_ID, QCN90xx_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID},
-	{QTI_PCI_VENDOR_ID, QCN92XX_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID},
+	{QCN90xx_VENDOR_ID, QCN90xx_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID},
 };
 
 struct pci_driver mhitest_pci_driver = {
