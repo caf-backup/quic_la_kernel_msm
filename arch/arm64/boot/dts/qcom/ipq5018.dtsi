@@ -1153,6 +1153,11 @@
 
 			memory-region = <&bt_region>;
 			status = "ok";
+
+			bluetooth: bt_maple {
+				compatible = "qcom,maple-bt";
+				status = "disabled";
+			};
 		};
 
 		apss_clk: qcom,apss_clk@b111000 {
