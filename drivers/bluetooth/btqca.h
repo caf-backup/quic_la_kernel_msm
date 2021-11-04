@@ -34,6 +34,9 @@
 #define QCA_HCI_CC_OPCODE		0xFC00
 #define QCA_HCI_CC_SUCCESS		0x00
 
+#define MAPLE_NVM_READY_DELAY_MS        1500
+#define MAPLE_POWER_CONTROL_DELAY_MS    50
+
 enum qca_baudrate {
 	QCA_BAUDRATE_115200 	= 0,
 	QCA_BAUDRATE_57600,
@@ -127,8 +130,9 @@ enum qca_btsoc_type {
 	QCA_AR3002,
 	QCA_ROME,
 	QCA_WCN3990,
-	QCA_WCN3991,
 	QCA_WCN3998,
+	QCA_WCN3991,
+	QCA_MAPLE,
 };
 
 #if IS_ENABLED(CONFIG_BT_QCA)
@@ -146,6 +150,11 @@ static inline bool qca_is_wcn399x(enum qca_btsoc_type soc_type)
 	return soc_type == QCA_WCN3990 || soc_type == QCA_WCN3991 ||
 	       soc_type == QCA_WCN3998;
 }
+static inline bool qca_is_maple(enum qca_btsoc_type soc_type)
+{
+	return soc_type == QCA_MAPLE;
+}
+
 #else
 
 static inline int qca_set_bdaddr_rome(struct hci_dev *hdev, const bdaddr_t *bdaddr)
@@ -172,6 +181,11 @@ static inline int qca_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr)
 }
 
 static inline bool qca_is_wcn399x(enum qca_btsoc_type soc_type)
+{
+	return false;
+}
+
+static inline bool qca_is_maple(enum qca_btsoc_type soc_type)
 {
 	return false;
 }

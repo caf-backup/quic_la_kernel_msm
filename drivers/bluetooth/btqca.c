@@ -32,7 +32,7 @@ int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version,
 	 * VSE event. WCN3991 sends version command response as a payload to
 	 * command complete event.
 	 */
-	if (soc_type == QCA_WCN3991) {
+	if (soc_type >= QCA_WCN3991) {
 		event_type = 0;
 		rlen += 1;
 		rtype = EDL_PATCH_VER_REQ_CMD;
@@ -69,7 +69,7 @@ int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version,
 		goto out;
 	}
 
-	if (soc_type == QCA_WCN3991)
+	if (soc_type >= QCA_WCN3991)
 		memmove(&edl->data, &edl->data[1], sizeof(*ver));
 
 	ver = (struct qca_btsoc_version *)(edl->data);
@@ -143,7 +143,7 @@ int qca_send_pre_shutdown_cmd(struct hci_dev *hdev)
 EXPORT_SYMBOL_GPL(qca_send_pre_shutdown_cmd);
 
 static void qca_tlv_check_data(struct qca_fw_config *config,
-				const struct firmware *fw)
+			       const struct firmware *fw, enum qca_btsoc_type soc_type)
 {
 	const u8 *data;
 	u32 type_len;
@@ -202,6 +202,9 @@ static void qca_tlv_check_data(struct qca_fw_config *config,
 		break;
 
 	case TLV_TYPE_NVM:
+
+		if (qca_is_maple(soc_type))
+			break;
 		idx = 0;
 		data = tlv->data;
 		while (idx < length) {
@@ -268,7 +271,7 @@ static int qca_tlv_send_segment(struct hci_dev *hdev, int seg_size,
 	 * VSE event. WCN3991 sends version command response as a payload to
 	 * command complete event.
 	 */
-	if (soc_type == QCA_WCN3991) {
+	if (soc_type >= QCA_WCN3991) {
 		event_type = 0;
 		rlen = sizeof(*edl);
 		rtype = EDL_PATCH_TLV_REQ_CMD;
@@ -301,7 +304,7 @@ static int qca_tlv_send_segment(struct hci_dev *hdev, int seg_size,
 		err = -EIO;
 	}
 
-	if (soc_type == QCA_WCN3991)
+	if (soc_type >= QCA_WCN3991)
 		goto out;
 
 	tlv_resp = (struct tlv_seg_resp *)(edl->data);
@@ -358,7 +361,7 @@ static int qca_download_firmware(struct hci_dev *hdev,
 		return ret;
 	}
 
-	qca_tlv_check_data(config, fw);
+	qca_tlv_check_data(config, fw, soc_type);
 
 	segment = fw->data;
 	remain = fw->size;
@@ -450,17 +453,20 @@ int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 	u8 rom_ver = 0;
 
 	bt_dev_dbg(hdev, "QCA setup on UART");
+	/* Firmware files to download are based on ROM version.
+	 * ROM version is derived from last two bytes of soc_ver.
+	 */
+	rom_ver = ((soc_ver & 0x00000f00) >> 0x04) |
+		(soc_ver & 0x0000000f);
 
 	config.user_baud_rate = baudrate;
 
 	/* Download rampatch file */
+	if (qca_is_maple(soc_type))
+		goto download_nvm;
+
 	config.type = TLV_TYPE_PATCH;
 	if (qca_is_wcn399x(soc_type)) {
-		/* Firmware files to download are based on ROM version.
-		 * ROM version is derived from last two bytes of soc_ver.
-		 */
-		rom_ver = ((soc_ver & 0x00000f00) >> 0x04) |
-			    (soc_ver & 0x0000000f);
 		snprintf(config.fwname, sizeof(config.fwname),
 			 "qca/crbtfw%02x.tlv", rom_ver);
 	} else {
@@ -477,6 +483,7 @@ int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 	/* Give the controller some time to get ready to receive the NVM */
 	msleep(10);
 
+download_nvm:
 	/* Download NVM configuration */
 	config.type = TLV_TYPE_NVM;
 	if (firmware_name)
@@ -485,6 +492,9 @@ int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 	else if (qca_is_wcn399x(soc_type))
 		snprintf(config.fwname, sizeof(config.fwname),
 			 "qca/crnv%02x.bin", rom_ver);
+	else if (qca_is_maple(soc_type))
+		snprintf(config.fwname, sizeof(config.fwname),
+			 "IPQ5018/mpnv%02x.bin", rom_ver);
 	else
 		snprintf(config.fwname, sizeof(config.fwname),
 			 "qca/nvm_%08x.bin", soc_ver);
@@ -494,6 +504,8 @@ int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 		bt_dev_err(hdev, "QCA Failed to download NVM (%d)", err);
 		return err;
 	}
+	if (qca_is_maple(soc_type))
+		msleep(MAPLE_NVM_READY_DELAY_MS);
 
 	if (soc_type >= QCA_WCN3991) {
 		err = qca_disable_soc_logging(hdev);
