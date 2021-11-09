@@ -1206,6 +1206,10 @@ static int write_reg_dma(struct qcom_nand_controller *nandc, int first,
 	if (first == NAND_EXEC_CMD)
 		flags |= NAND_BAM_NWD;
 
+	if (first == NAND_FLASH_SPI_CFG || first == NAND_SPI_NUM_ADDR_CYCLES
+		|| first == NAND_SPI_BUSY_CHECK_WAIT_CNT)
+		first = dev_cmd_reg_addr(nandc, first);
+
 	if (first == NAND_DEV_CMD1_RESTORE || first == NAND_DEV_CMD1)
 		first = dev_cmd_reg_addr(nandc, NAND_DEV_CMD1);
 
