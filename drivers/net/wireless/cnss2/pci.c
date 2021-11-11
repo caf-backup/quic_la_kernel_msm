@@ -1777,14 +1777,12 @@ static int cnss_qcn9000_ramdump(struct cnss_pci_data *pci_priv)
 	}
 
 	ret = create_ramdump_device_file(info_v2->ramdump_dev);
-	if (ret) {
-		kfree(meta_info);
-		kfree(ramdump_segs);
-		return ret;
-	}
-
+	if (ret)
+		goto clear_dump_info;
 	ret = do_elf_ramdump(info_v2->ramdump_dev, ramdump_segs,
 			     dump_data->nentries + CNSS_NUM_META_INFO_SEGMENTS);
+
+clear_dump_info:
 	kfree(meta_info);
 	kfree(ramdump_segs);
 
