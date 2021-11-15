@@ -147,6 +147,8 @@ struct cnss_driver_event {
 /* M3 Dump related global structures/variables */
 static int m3_dump_major;
 static struct class *m3_dump_class;
+static atomic_t m3_dump_class_refcnt = ATOMIC_INIT(0);
+static DEFINE_SPINLOCK(m3_dump_class_lock);
 
 static void cnss_set_plat_priv(struct platform_device *plat_dev,
 			       struct cnss_plat_data *plat_priv)
@@ -2506,6 +2508,16 @@ static int m3_dump_release(struct inode *inode, struct file *file)
 
 	file->private_data = NULL;
 	device_destroy(m3_dump_class, MKDEV(dump_major, dump_minor));
+	atomic_dec(&m3_dump_class_refcnt);
+
+	if (atomic_read(&m3_dump_class_refcnt) == 0) {
+		spin_lock(&m3_dump_class_lock);
+		class_destroy(m3_dump_class);
+		m3_dump_class = NULL;
+		unregister_chrdev(dump_major, "dump");
+		m3_dump_major = 0;
+		spin_unlock(&m3_dump_class_lock);
+	}
 
 	complete(&m3_dump_data->read_complete);
 	m3_dump_data->file_open = false;
@@ -2520,50 +2532,6 @@ static const struct file_operations m3_dump_fops = {
 	.release	= m3_dump_release,
 };
 
-static int cnss_init_m3_dump_class(struct cnss_plat_data *plat_priv)
-{
-	int ret = 0;
-
-	if (m3_dump_class) {
-		cnss_pr_dbg("m3_dump_class already initialized");
-		goto out;
-	}
-
-	m3_dump_major = register_chrdev(UNNAMED_MAJOR, "dump",
-					&m3_dump_fops);
-	if (m3_dump_major < 0) {
-		cnss_pr_err("%s: Unable to allocate a major number err = %d",
-			    __func__, m3_dump_major);
-		ret = m3_dump_major;
-		goto out;
-	}
-
-	m3_dump_class = class_create(THIS_MODULE, "dump");
-	if (IS_ERR(m3_dump_class)) {
-		cnss_pr_err("%s: Unable to create class = %ld",
-			    __func__, PTR_ERR(m3_dump_class));
-		unregister_chrdev(m3_dump_major, "dump");
-		m3_dump_major = 0;
-		m3_dump_class = NULL;
-		ret = -ENODEV;
-	}
-
-out:
-	return ret;
-}
-
-static void cnss_deinit_m3_dump_class(void)
-{
-	if (m3_dump_class)
-		class_destroy(m3_dump_class);
-
-	if (m3_dump_major)
-		unregister_chrdev(m3_dump_major, "dump");
-
-	m3_dump_class = NULL;
-	m3_dump_major = 0;
-}
-
 static int cnss_do_m3_dump_upload(struct cnss_plat_data *plat_priv,
 				  const char *dump_file_name)
 {
@@ -2575,10 +2543,30 @@ static int cnss_do_m3_dump_upload(struct cnss_plat_data *plat_priv,
 	atomic_set(&m3_dump_data->open_timedout, 0);
 	atomic_set(&m3_dump_data->read_timedout, 0);
 
+	spin_lock(&m3_dump_class_lock);
 	if (!m3_dump_class) {
-		cnss_pr_err("M3 dump class not initialized.");
-		return -ENODEV;
+		m3_dump_major = register_chrdev(UNNAMED_MAJOR, "dump",
+						&m3_dump_fops);
+		if (m3_dump_major < 0) {
+			cnss_pr_err("%s: Unable to allocate a major number err = %d",
+				    __func__, m3_dump_major);
+			spin_unlock(&m3_dump_class_lock);
+			return m3_dump_major;
+		}
+
+		m3_dump_class = class_create(THIS_MODULE, "dump");
+		if (IS_ERR(m3_dump_class)) {
+			ret = PTR_ERR(m3_dump_class);
+			cnss_pr_err("%s: Unable to create class = %d",
+				    __func__, ret);
+			unregister_chrdev(m3_dump_major, "dump");
+			m3_dump_major = 0;
+			spin_unlock(&m3_dump_class_lock);
+			return ret;
+		}
 	}
+	atomic_inc(&m3_dump_class_refcnt);
+	spin_unlock(&m3_dump_class_lock);
 
 	dump_dev = device_create(m3_dump_class, NULL,
 				 MKDEV(m3_dump_major,
@@ -2588,7 +2576,7 @@ static int cnss_do_m3_dump_upload(struct cnss_plat_data *plat_priv,
 		ret = PTR_ERR(dump_dev);
 		cnss_pr_err("%s: Unable to create device = %d",
 			    __func__, ret);
-		return ret;
+		goto device_failed;
 	}
 
 	/* This avoids race condition between the scheduled timer and the opened
@@ -2627,6 +2615,17 @@ dump_dev_failed:
 	device_destroy(m3_dump_class,
 		       MKDEV(m3_dump_major,
 			     plat_priv->wlfw_service_instance_id));
+
+device_failed:
+	atomic_dec(&m3_dump_class_refcnt);
+	if (atomic_read(&m3_dump_class_refcnt) == 0) {
+		spin_lock(&m3_dump_class_lock);
+		class_destroy(m3_dump_class);
+		m3_dump_class = NULL;
+		unregister_chrdev(m3_dump_major, "dump");
+		m3_dump_major = 0;
+		spin_unlock(&m3_dump_class_lock);
+	}
 
 	return ret;
 }
@@ -3837,17 +3836,11 @@ static int cnss_probe(struct platform_device *plat_dev)
 	if (ret < 0)
 		cnss_pr_err("CNSS genl init failed %d\n", ret);
 
-	ret = cnss_init_m3_dump_class(plat_priv);
-	if (ret)
-		goto deinit_genl;
-
 	cnss_pr_info("Platform driver probed successfully. plat %p tgt 0x%lx\n",
 		     plat_priv, plat_priv->device_id);
 
 	return 0;
 
-deinit_genl:
-	cnss_genl_exit();
 destroy_debugfs:
 	cnss_debugfs_destroy(plat_priv);
 deinit_qmi:
@@ -3880,7 +3873,6 @@ static int cnss_remove(struct platform_device *plat_dev)
 {
 	struct cnss_plat_data *plat_priv = platform_get_drvdata(plat_dev);
 
-	cnss_deinit_m3_dump_class();
 	cnss_genl_exit();
 #if defined(CNSS2_COEX) || defined(CNSS2_IMS)
 	cnss_unregister_ims_service(plat_priv);
