@@ -2519,28 +2519,24 @@ static int tzapp_test(struct device *dev, void *input,
 	union qseecom_client_send_data_ireq send_data_req;
 	struct qseecom_command_scm_resp resp;
 	struct qsee_send_cmd_rsp *msgrsp; /* response data sent from QSEE */
-
-	void *buf = NULL;
-	dma_addr_t dma_buf = 0;
-	dma_addr_t dma_msgreq;
-	dma_addr_t dma_msgresp;
+	struct page *pg_tmp;
+	unsigned long pg_addr;
 
 	dev = qdev;
 
 	/*
-	 * Using dma_alloc_coherent to avoid colliding with input pointer's
+	 * Using alloc_pages to avoid colliding with input pointer's
 	 * allocated page, since qsee_register_shared_buffer() in sampleapp
 	 * checks if input ptr is in secure area. Page where msgreq/msgrsp
 	 * is allocated is added to blacklisted area by sampleapp and added
 	 * as secure memory region, hence input data (shared buffer)
 	 * cannot be in that secure memory region
 	 */
-	buf = dma_alloc_coherent(dev, PAGE_SIZE, &dma_buf, GFP_KERNEL);
-	if (!buf) {
+	pg_tmp = alloc_page(GFP_KERNEL);
+	if (!pg_tmp) {
 		pr_err("\nFailed to allocate page");
 		return -ENOMEM;
 	}
-
 	/*
 	 * Getting virtual page address. pg_tmp will be pointing to
 	 * first page structure
@@ -2548,12 +2544,22 @@ static int tzapp_test(struct device *dev, void *input,
 	if (props->tz_arch != QSEE_64) {
 		struct qsee_32_send_cmd *msgreq;
 
-		msgreq = (struct qsee_32_send_cmd *)buf;
+		msgreq = (struct qsee_32_send_cmd *) page_address(pg_tmp);
+
+		if (!msgreq) {
+			pr_err("Unable to allocate memory\n");
+			return -ENOMEM;
+		}
+		/* pg_addr for passing to free_page */
+		pg_addr = (unsigned long) msgreq;
+
 		msgrsp = (struct qsee_send_cmd_rsp *)((uint8_t *) msgreq +
 					sizeof(struct qsee_32_send_cmd));
-		dma_msgreq = dma_buf;
-		dma_msgresp = (dma_addr_t)((uint8_t *)dma_msgreq +
-					sizeof(struct qsee_32_send_cmd));
+		if (!msgrsp) {
+			kfree(msgreq);
+			pr_err("Unable to allocate memory\n");
+			return -ENOMEM;
+		}
 
 		/*
 		 * option = 1 -> Basic Multiplication, option = 2 -> Encryption,
@@ -2626,13 +2632,23 @@ static int tzapp_test(struct device *dev, void *input,
 		}
 		send_data_req.v1.app_id = qsee_app_id;
 
-		send_data_req.v1.req_ptr = dma_msgreq;
-		send_data_req.v1.rsp_ptr = dma_msgresp;
+		send_data_req.v1.req_ptr = dma_map_single(dev, msgreq,
+					sizeof(*msgreq), DMA_TO_DEVICE);
+		send_data_req.v1.rsp_ptr = dma_map_single(dev, msgrsp,
+					sizeof(*msgrsp), DMA_FROM_DEVICE);
 
-		send_data_req.v1.req_len = sizeof(struct qsee_32_send_cmd);
-		send_data_req.v1.rsp_len = sizeof(struct qsee_send_cmd_rsp);
-		ret = qcom_scm_qseecom_send_data(&send_data_req,
-				sizeof(send_data_req.v1), &resp, sizeof(resp));
+		ret1 = dma_mapping_error(dev, send_data_req.v1.req_ptr);
+		ret2 = dma_mapping_error(dev, send_data_req.v1.rsp_ptr);
+
+		if (!ret1 && !ret2) {
+			send_data_req.v1.req_len =
+					sizeof(struct qsee_32_send_cmd);
+			send_data_req.v1.rsp_len =
+					sizeof(struct qsee_send_cmd_rsp);
+			ret = qcom_scm_qseecom_send_data(&send_data_req,
+							sizeof(send_data_req.v1)
+							, &resp, sizeof(resp));
+		}
 
 		if (option == TZ_APP_ENC_TEST_ID || option == TZ_APP_DEC_TEST_ID) {
 			dma_unmap_single(dev, msgreq->data,
@@ -2640,6 +2656,22 @@ static int tzapp_test(struct device *dev, void *input,
 			dma_unmap_single(dev, msgreq->data2,
 						input_len, DMA_FROM_DEVICE);
 
+		}
+
+		if (!ret1) {
+			dma_unmap_single(dev, send_data_req.v1.req_ptr,
+				sizeof(*msgreq), DMA_TO_DEVICE);
+		}
+
+		if (!ret2) {
+			dma_unmap_single(dev, send_data_req.v1.rsp_ptr,
+				sizeof(*msgrsp), DMA_FROM_DEVICE);
+		}
+
+		if (ret1 || ret2) {
+			pr_err("\nDMA Mapping Error:req_ptr:%d rsp_ptr:%d",
+			      ret1, ret2);
+			return ret1 ? ret1 : ret2;
 		}
 
 		if (ret) {
@@ -2684,8 +2716,7 @@ static int tzapp_test(struct device *dev, void *input,
 				pr_info("Auth and Blow Success");
 		}
 fn_exit_1:
-		dma_free_coherent(dev, PAGE_SIZE, buf, dma_buf);
-
+		free_page(pg_addr);
 		if (option == TZ_APP_AUTH_OTP_TEST_ID) {
 			dma_unmap_single(dev, msgreq->data, auth_size,
 								DMA_TO_DEVICE);
@@ -2694,12 +2725,22 @@ fn_exit_1:
 	} else {
 		struct qsee_64_send_cmd *msgreq;
 
-		msgreq = (struct qsee_64_send_cmd *)buf;
+		msgreq = (struct qsee_64_send_cmd *) page_address(pg_tmp);
+
+		if (!msgreq) {
+			pr_err("Unable to allocate memory\n");
+			return -ENOMEM;
+		}
+		/* pg_addr for passing to free_page */
+		pg_addr = (unsigned long) msgreq;
+
 		msgrsp = (struct qsee_send_cmd_rsp *)((uint8_t *) msgreq +
 					sizeof(struct qsee_64_send_cmd));
-		dma_msgreq = dma_buf;
-		dma_msgresp = (dma_addr_t)((uint8_t *)dma_msgreq +
-					sizeof(struct qsee_64_send_cmd));
+		if (!msgrsp) {
+			kfree(msgreq);
+			pr_err("Unable to allocate memory\n");
+			return -ENOMEM;
+		}
 
 		/*
 		 * option = 1 -> Basic Multiplication, option = 2 -> Encryption,
@@ -2803,13 +2844,24 @@ fn_exit_1:
 		}
 		send_data_req.v1.app_id = qsee_app_id;
 
-		send_data_req.v1.req_ptr = dma_msgreq;
-		send_data_req.v1.rsp_ptr = dma_msgresp;
+		send_data_req.v1.req_ptr = dma_map_single(dev, msgreq,
+					sizeof(*msgreq), DMA_TO_DEVICE);
+		send_data_req.v1.rsp_ptr = dma_map_single(dev, msgrsp,
+					sizeof(*msgrsp), DMA_FROM_DEVICE);
 
-		send_data_req.v1.req_len = sizeof(struct qsee_64_send_cmd);
-		send_data_req.v1.rsp_len = sizeof(struct qsee_send_cmd_rsp);
-		ret = qcom_scm_qseecom_send_data(&send_data_req,
-				sizeof(send_data_req.v2), &resp, sizeof(resp));
+		ret1 = dma_mapping_error(dev, send_data_req.v1.req_ptr);
+		ret2 = dma_mapping_error(dev, send_data_req.v1.rsp_ptr);
+
+
+		if (!ret1 && !ret2) {
+			send_data_req.v1.req_len =
+					sizeof(struct qsee_64_send_cmd);
+			send_data_req.v1.rsp_len =
+					sizeof(struct qsee_send_cmd_rsp);
+			ret = qcom_scm_qseecom_send_data(&send_data_req,
+							sizeof(send_data_req.v2)
+							, &resp, sizeof(resp));
+		}
 
 		if (option == TZ_APP_ENC_TEST_ID || option == TZ_APP_DEC_TEST_ID) {
 			dma_unmap_single(dev, msgreq->data,
@@ -2817,6 +2869,22 @@ fn_exit_1:
 			dma_unmap_single(dev, msgreq->data2,
 						input_len, DMA_FROM_DEVICE);
 
+		}
+
+		if (!ret1) {
+			dma_unmap_single(dev, send_data_req.v1.req_ptr,
+				sizeof(*msgreq), DMA_TO_DEVICE);
+		}
+
+		if (!ret2) {
+			dma_unmap_single(dev, send_data_req.v1.rsp_ptr,
+				sizeof(*msgrsp), DMA_FROM_DEVICE);
+		}
+
+		if (ret1 || ret2) {
+			pr_err("\nDMA Mapping Error:req_ptr:%d rsp_ptr:%d",
+			      ret1, ret2);
+			return ret1 ? ret1 : ret2;
 		}
 
 		if (ret) {
@@ -2893,8 +2961,7 @@ fn_exit_1:
 		}
 
 fn_exit:
-		dma_free_coherent(dev, PAGE_SIZE, buf, dma_buf);
-
+		free_page(pg_addr);
 		if (option == TZ_APP_AUTH_OTP_TEST_ID) {
 			dma_unmap_single(dev, msgreq->data, auth_size,
 								DMA_TO_DEVICE);
