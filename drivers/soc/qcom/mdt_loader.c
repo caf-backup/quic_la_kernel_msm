@@ -92,6 +92,7 @@ int qcom_get_pd_segment_info(struct device *dev, const struct firmware *fw,
 	bool relocate = false;
 	int ret = 0;
 	int i;
+	void *vaddr = NULL;
 
 	if (!fw || !mem_phys || !mem_size || !pd)
 		return -EINVAL;
@@ -160,12 +161,14 @@ int qcom_get_pd_segment_info(struct device *dev, const struct firmware *fw,
 			break;
 		}
 
-		if (!start_addr)
+		if (!start_addr) {
 			start_addr = mem_phys + offset;
+			vaddr = (void *)(uintptr_t)phdr->p_vaddr;
+		}
 		size += phdr->p_memsz;
 	}
 
-	q6v5_wcss_store_pd_fw_info(dev, start_addr, size);
+	q6v5_wcss_store_pd_fw_info(dev, start_addr, vaddr, size);
 	return ret;
 }
 EXPORT_SYMBOL(qcom_get_pd_segment_info);
