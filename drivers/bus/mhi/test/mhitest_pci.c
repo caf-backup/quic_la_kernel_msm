@@ -23,7 +23,6 @@
 #define PCIE_REG_FOR_QRTR_NODE_INSTANCE_ID	\
 	PCIE_PCIE_LOCAL_REG_PCIE_LOCAL_RSV0
 #define QCN90XX_QRTR_INSTANCE_ID_BASE		0x20
-#define QCN92XX_QRTR_INSTANCE_ID_BASE		0x30
 
 static struct mhi_channel_config mhitest_mhi_channels[] = {
 	{
@@ -1045,11 +1044,11 @@ int mhitest_pci_start_mhi(struct mhitest_platform *mplat)
 	 * exchange. According to qrtr spec, every node should
 	 * have unique qrtr node id
 	 */
-	if (mplat->device_id == QCN90xx_DEVICE_ID || mplat->device_id == QCN92XX_DEVICE_ID) {
+	if (mplat->device_id == QCN90xx_DEVICE_ID) {
 		u32 val;
 		u32 qrtr_id;
 
-		qrtr_id = (mplat->device_id == QCN90xx_DEVICE_ID)? QCN90XX_QRTR_INSTANCE_ID_BASE:QCN92XX_QRTR_INSTANCE_ID_BASE;
+		qrtr_id = QCN90XX_QRTR_INSTANCE_ID_BASE;
 		qrtr_id += mplat->d_instance;
 
 		MHITEST_VERB("write 0x%x to PCIE_REG_FOR_QRTR_NODE_INSTANCE_ID\n", qrtr_id);
