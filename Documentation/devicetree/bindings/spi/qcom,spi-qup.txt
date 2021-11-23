@@ -44,6 +44,9 @@ Optional properties:
 - qcom,rx-crci: Identificator for Client Rate Control Interface (CRCI) to be
 		used with RX DMA channel. Required when using DMA for
 		receiving with QUP Version 1 i.e qcom,spi-qup-v1.1.1.
+- qcom,disable-force-cs: Use this property to disable the forced chip select
+			 assertion feature. By default, forced chip select
+			 assertion will be enabled.
 
 SPI slave nodes must be children of the SPI master node and can contain
 properties described in Documentation/devicetree/bindings/spi/spi-bus.txt
