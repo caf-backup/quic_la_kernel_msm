@@ -174,6 +174,79 @@ ENTRY(__dma_flush_range)
 ENDPIPROC(__dma_flush_range)
 
 /*
+ *	__dma_inv_range_no_dsb(start, end)
+ *
+ *	This API does not do "data synchronization barrier".
+ *	Caller is responsible to do dsb after the transaction.
+ *
+ *	- start   - virtual start address of region
+ *	- end     - virtual end address of region
+ */
+ENTRY(__dma_inv_range_no_dsb)
+	dcache_line_size x2, x3
+	sub	x3, x2, #1
+	tst	x1, x3				// end cache line aligned?
+	bic	x1, x1, x3
+	b.eq	1f
+	dc	civac, x1			// clean & invalidate D / U line
+1:	tst	x0, x3				// start cache line aligned?
+	bic	x0, x0, x3
+	b.eq	2f
+	dc	civac, x0			// clean & invalidate D / U line
+	b	3f
+2:	dc	ivac, x0			// invalidate D / U line
+3:	add	x0, x0, x2
+	cmp	x0, x1
+	b.lo	2b
+	ret
+ENDPROC(__dma_inv_range_no_dsb)
+
+/*
+ *	__dma_clean_range_no_dsb(start, end)
+ *
+ *	This API does not do "data synchronization barrier".
+ *	Caller is responsible to do dsb after the transaction.
+ *
+ *	- start   - virtual start address of region
+ *	- end     - virtual end address of region
+ */
+ENTRY(__dma_clean_range_no_dsb)
+	dcache_line_size x2, x3
+	sub	x3, x2, #1
+	bic	x0, x0, x3
+1:
+alternative_if_not ARM64_WORKAROUND_CLEAN_CACHE
+	dc	cvac, x0
+alternative_else
+	dc	civac, x0
+alternative_endif
+	add	x0, x0, x2
+	cmp	x0, x1
+	b.lo	1b
+	ret
+ENDPROC(__dma_clean_range_no_dsb)
+
+/*
+ *	__dma_flush_range_no_dsb(start, end)
+ *
+ *	This API does not do "data synchronization barrier".
+ *	Caller is responsible to do dsb after the transaction.
+ *
+ *	- start   - virtual start address of region
+ *	- end     - virtual end address of region
+ */
+ENTRY(__dma_flush_range_no_dsb)
+	dcache_line_size x2, x3
+	sub	x3, x2, #1
+	bic	x0, x0, x3
+1:	dc	civac, x0			// clean & invalidate D / U line
+	add	x0, x0, x2
+	cmp	x0, x1
+	b.lo	1b
+	ret
+ENDPIPROC(__dma_flush_range_no_dsb)
+
+/*
  *	__dma_map_area(start, size, dir)
  *	- start	- kernel virtual start address
  *	- size	- size of region

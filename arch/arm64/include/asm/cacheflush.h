@@ -87,10 +87,16 @@ extern void __dma_unmap_area(const void *, size_t, int);
 extern void __dma_flush_range(const void *, const void *);
 extern void __dma_inv_range(const void *, const void *);
 extern void __dma_clean_range(const void *, const void *);
+extern void __dma_flush_range_no_dsb(const void *, const void *);
+extern void __dma_inv_range_no_dsb(const void *, const void *);
+extern void __dma_clean_range_no_dsb(const void *, const void *);
 
 extern void dmac_flush_range(const void *, const void *);
 extern void dmac_inv_range(const void *, const void *);
 extern void dmac_clean_range(const void *, const void *);
+extern void dmac_flush_range_no_dsb(const void *, const void *);
+extern void dmac_inv_range_no_dsb(const void *, const void *);
+extern void dmac_clean_range_no_dsb(const void *, const void *);
 
 /*
  * Copy user data from/to a page which is mapped into a different
