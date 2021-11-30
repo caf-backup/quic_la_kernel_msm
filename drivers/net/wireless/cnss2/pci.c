@@ -5301,7 +5301,7 @@ static int cnss_pci_register_mhi(struct cnss_pci_data *pci_priv)
 			goto out;
 		}
 
-		mhi_ctrl->iova_start = (dma_addr_t)(memory.start + 0x1000000);
+		mhi_ctrl->iova_start = (dma_addr_t)memory.start;
 		mhi_ctrl->iova_stop = (dma_addr_t)(memory.start +
 						   resource_size(&memory));
 	} else {
