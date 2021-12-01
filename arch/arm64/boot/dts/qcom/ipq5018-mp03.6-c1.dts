@@ -1,6 +1,8 @@
 /dts-v1/;
 /* Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
  *
+ * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
+ *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
@@ -313,6 +315,7 @@
 			mdio-bus = <&mdio0>;
 			local-mac-address = [000000000000];
 			phy-mode = "sgmii";
+			qcom,rx-page-mode = <0>;
 		};
 
 		dp2 {
@@ -329,6 +332,7 @@
 			mdio-bus = <&mdio1>;
 			local-mac-address = [000000000000];
 			phy-mode = "sgmii";
+			qcom,rx-page-mode = <0>;
 		};
 
 		nss-macsec1 {
@@ -543,9 +547,21 @@
 	device-power-gpio = <&tlmm 24 1>;
 };
 
+&pcie_x1 {
+	interrupts-extended = <&tlmm 19 0>, <&tlmm 0 0>;
+	interrupt-names = "wake_gpio", "mdm2ap_e911";
+
+	pinctrl-0 = <&pcie_wake_pins &mdm2ap_e911_status>;
+	e911-gpio =  <&tlmm 0 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	status = "ok";
+	perst-gpio = <&tlmm 18 GPIO_ACTIVE_LOW>;
+	slot_id = <0>;
+};
+
 &pcie_x2 {
 	status = "ok";
-	perst-gpio = <&tlmm 15 1>;
+	perst-gpio = <&tlmm 15 GPIO_ACTIVE_LOW>;
 };
 
 &dwc_0 {
@@ -555,6 +571,10 @@
 };
 
 &hs_m31phy_0 {
+	status = "ok";
+};
+
+&pcie_x1phy {
 	status = "ok";
 };
 
@@ -571,6 +591,61 @@
 		#address-cells = <0x2>;
 		#size-cells = <0x2>;
 		memory-region = <&mhi_region1>;
+	};
+};
+
+&pcie_x1_rp {
+	status = "ok";
+	aliases {
+		mhi-netdev0 = &mhi_netdev_0;
+		mhi_netdev2 = &mhi_netdev_2;
+	};
+
+	mhi_0: qcom,mhi@0 {
+		reg = <0 0 0 0 0 >;
+		ap2mdm = <25>;
+		mdm2ap = <23>;
+
+		pinctrl-0 = <&ap2mdm_status>;
+		pinctrl-names = "default";
+		/* controller specific configuration */
+		qcom,iommu-dma = "disabled";
+
+		/* mhi bus specific settings */
+		mhi,ssr-negotiate;
+
+		mhi_devices: mhi_devices {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mhi_netdev_0: mhi_rmnet@0 {
+				reg = <0x0>;
+				mhi,chan = "IP_HW0";
+				mhi,interface-name = "rmnet_mhi";
+				mhi,mru = <0x4000>;
+				mhi,chain-skb;
+			};
+
+			mhi_rmnet@1 {
+				reg = <0x1>;
+				mhi,chan = "IP_HW0_RSC";
+				mhi,mru = <0x8000>;
+				mhi,rsc-parent = <&mhi_netdev_0>;
+			};
+
+			mhi_netdev_2: mhi_rmnet@2 {
+				reg = <0x2>;
+				mhi,chan = "IP_SW0";
+				mhi,interface-name = "rmnet_mhi_sw";
+				mhi,mru = <0x4000>;
+				mhi,disable-chain-skb;
+			};
+
+			mhi_qrtr {
+				mhi,chan = "IPCR";
+				qcom,net-id = <1>;
+			};
+		};
 	};
 };
 

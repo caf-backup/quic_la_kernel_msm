@@ -40,6 +40,7 @@
 #define SSCG_CTRL_REG_4		0xa8
 #define SSCG_CTRL_REG_5		0xac
 #define SSCG_CTRL_REG_6		0xb0
+#define PCS_INTERNAL_CONTROL_2	0x2d8
 
 #define PHY_MODE_FIXED		0x1
 
@@ -58,7 +59,7 @@ struct qca_uni_pcie_phy {
 	struct reset_control *res_phy_phy;
 	u32 is_phy_gen3;
 	u32 mode;
-	bool is_x2;
+	u32 is_x2;
 	void __iomem *reg_base;
 };
 
@@ -90,29 +91,32 @@ static int qca_uni_pcie_phy_reset(struct qca_uni_pcie_phy *phy)
 static void qca_uni_pcie_phy_init(struct qca_uni_pcie_phy *phy)
 {
 	int loop = 0;
+	void __iomem *reg = phy->reg_base;
 
 	while (loop < 2) {
-		phy->reg_base += (loop * 0x800);
+		reg += (loop * 0x800);
+
 		/*set frequency initial value*/
-		writel(0x1cb9, phy->reg_base + SSCG_CTRL_REG_4);
-		writel(0x023a, phy->reg_base + SSCG_CTRL_REG_5);
+		writel(0x1cb9, reg + SSCG_CTRL_REG_4);
+		writel(0x023a, reg + SSCG_CTRL_REG_5);
 		/*set spectrum spread count*/
-		writel(0xd360, phy->reg_base + SSCG_CTRL_REG_3);
+		writel(0xd360, reg + SSCG_CTRL_REG_3);
 		if (phy->mode == PHY_MODE_FIXED) {
 			/*set fstep*/
-			writel(0x0, phy->reg_base + SSCG_CTRL_REG_1);
-			writel(0x0, phy->reg_base + SSCG_CTRL_REG_2);
+			writel(0x0, reg + SSCG_CTRL_REG_1);
+			writel(0x0, reg + SSCG_CTRL_REG_2);
 		} else {
 			/*set fstep*/
-			writel(0x1, phy->reg_base + SSCG_CTRL_REG_1);
-			writel(0xeb, phy->reg_base + SSCG_CTRL_REG_2);
+			writel(0x1, reg + SSCG_CTRL_REG_1);
+			writel(0xeb, reg + SSCG_CTRL_REG_2);
 			/*set FLOOP initial value*/
-			writel(0x3f9, phy->reg_base + CDR_CTRL_REG_4);
-			writel(0x1c9, phy->reg_base + CDR_CTRL_REG_5);
+			writel(0x3f9, reg + CDR_CTRL_REG_4);
+			writel(0x1c9, reg + CDR_CTRL_REG_5);
 			/*set upper boundary level*/
-			writel(0x419, phy->reg_base + CDR_CTRL_REG_2);
+			writel(0x419, reg + CDR_CTRL_REG_2);
 			/*set fixed offset*/
-			writel(0x200, phy->reg_base + CDR_CTRL_REG_1);
+			writel(0x200, reg + CDR_CTRL_REG_1);
+			writel(0xf101, reg + PCS_INTERNAL_CONTROL_2);
 		}
 
 		if (phy->is_x2)
@@ -145,6 +149,10 @@ static int qca_uni_pcie_get_resources(struct platform_device *pdev,
 	int ret;
 	const char *name;
 	struct resource *res;
+
+	ret = of_property_read_u32(phy->dev->of_node, "x2", &phy->is_x2);
+	if (ret)
+		phy->is_x2 = 0;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	phy->reg_base = devm_ioremap_resource(phy->dev, res);
@@ -185,13 +193,12 @@ static int qca_uni_pcie_get_resources(struct platform_device *pdev,
 		return ret;
 	}
 
-	ret = of_property_read_u32(phy->dev->of_node, "mode_fixed", &phy->mode);
+	ret = of_property_read_u32(phy->dev->of_node, "mode-fixed", &phy->mode);
 	if (ret) {
 		dev_err(phy->dev, "%s, cannot get mode\n", __func__);
 		return ret;
 	}
 
-	phy->is_x2 = strstr(pdev->dev.of_node->name, "x2") ? 1 : 0;
 	return 0;
 }
 

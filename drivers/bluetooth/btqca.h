@@ -14,6 +14,7 @@
 #define EDL_NVM_ACCESS_SET_REQ_CMD	(0x01)
 #define MAX_SIZE_PER_TLV_SEGMENT	(243)
 #define QCA_PRE_SHUTDOWN_CMD		(0xFC08)
+#define QCA_DISABLE_LOGGING		(0xFC17)
 
 #define EDL_CMD_REQ_RES_EVT		(0x00)
 #define EDL_PATCH_VER_RES_EVT		(0x19)
@@ -22,6 +23,7 @@
 #define EDL_CMD_EXE_STATUS_EVT		(0x00)
 #define EDL_SET_BAUDRATE_RSP_EVT	(0x92)
 #define EDL_NVM_ACCESS_CODE_EVT		(0x0B)
+#define QCA_DISABLE_LOGGING_SUB_OP	(0x14)
 
 #define EDL_TAG_ID_HCI			(17)
 #define EDL_TAG_ID_DEEP_SLEEP		(27)
@@ -31,6 +33,9 @@
 
 #define QCA_HCI_CC_OPCODE		0xFC00
 #define QCA_HCI_CC_SUCCESS		0x00
+
+#define MAPLE_NVM_READY_DELAY_MS        1500
+#define MAPLE_POWER_CONTROL_DELAY_MS    50
 
 enum qca_baudrate {
 	QCA_BAUDRATE_115200 	= 0,
@@ -56,24 +61,24 @@ enum qca_baudrate {
 	QCA_BAUDRATE_RESERVED
 };
 
-enum rome_tlv_dnld_mode {
-	ROME_SKIP_EVT_NONE,
-	ROME_SKIP_EVT_VSE,
-	ROME_SKIP_EVT_CC,
-	ROME_SKIP_EVT_VSE_CC
+enum qca_tlv_dnld_mode {
+	QCA_SKIP_EVT_NONE,
+	QCA_SKIP_EVT_VSE,
+	QCA_SKIP_EVT_CC,
+	QCA_SKIP_EVT_VSE_CC
 };
 
-enum rome_tlv_type {
+enum qca_tlv_type {
 	TLV_TYPE_PATCH = 1,
 	TLV_TYPE_NVM
 };
 
-struct rome_config {
+struct qca_fw_config {
 	u8 type;
 	char fwname[64];
 	uint8_t user_baud_rate;
-	enum rome_tlv_dnld_mode dnld_mode;
-	enum rome_tlv_dnld_mode dnld_type;
+	enum qca_tlv_dnld_mode dnld_mode;
+	enum qca_tlv_dnld_mode dnld_type;
 };
 
 struct edl_event_hdr {
@@ -82,10 +87,10 @@ struct edl_event_hdr {
 	__u8 data[0];
 } __packed;
 
-struct rome_version {
+struct qca_btsoc_version {
 	__le32 product_id;
 	__le16 patch_ver;
-	__le16 rome_ver;
+	__le16 rom_ver;
 	__le32 soc_id;
 } __packed;
 
@@ -126,6 +131,8 @@ enum qca_btsoc_type {
 	QCA_ROME,
 	QCA_WCN3990,
 	QCA_WCN3998,
+	QCA_WCN3991,
+	QCA_MAPLE,
 };
 
 #if IS_ENABLED(CONFIG_BT_QCA)
@@ -134,13 +141,20 @@ int qca_set_bdaddr_rome(struct hci_dev *hdev, const bdaddr_t *bdaddr);
 int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 		   enum qca_btsoc_type soc_type, u32 soc_ver,
 		   const char *firmware_name);
-int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version);
+int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version,
+			 enum qca_btsoc_type);
 int qca_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr);
 int qca_send_pre_shutdown_cmd(struct hci_dev *hdev);
 static inline bool qca_is_wcn399x(enum qca_btsoc_type soc_type)
 {
-	return soc_type == QCA_WCN3990 || soc_type == QCA_WCN3998;
+	return soc_type == QCA_WCN3990 || soc_type == QCA_WCN3991 ||
+	       soc_type == QCA_WCN3998;
 }
+static inline bool qca_is_maple(enum qca_btsoc_type soc_type)
+{
+	return soc_type == QCA_MAPLE;
+}
+
 #else
 
 static inline int qca_set_bdaddr_rome(struct hci_dev *hdev, const bdaddr_t *bdaddr)
@@ -155,7 +169,8 @@ static inline int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
 	return -EOPNOTSUPP;
 }
 
-static inline int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version)
+static inline int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version,
+				       enum qca_btsoc_type)
 {
 	return -EOPNOTSUPP;
 }
@@ -166,6 +181,11 @@ static inline int qca_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr)
 }
 
 static inline bool qca_is_wcn399x(enum qca_btsoc_type soc_type)
+{
+	return false;
+}
+
+static inline bool qca_is_maple(enum qca_btsoc_type soc_type)
 {
 	return false;
 }

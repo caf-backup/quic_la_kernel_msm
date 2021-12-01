@@ -32,6 +32,7 @@
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
+#include <linux/bt.h>
 
 #include "hci_uart.h"
 #include "btqca.h"
@@ -511,7 +512,10 @@ static int qca_open(struct hci_uart *hu)
 	if (hu->serdev) {
 
 		qcadev = serdev_device_get_drvdata(hu->serdev);
-		if (!qca_is_wcn399x(qcadev->btsoc_type)) {
+		if (qca_is_maple(qcadev->btsoc_type)) {
+			/* Nothing to do */
+			;
+		} else if (!qca_is_wcn399x(qcadev->btsoc_type)) {
 			gpiod_set_value_cansleep(qcadev->bt_en, 1);
 			/* Controller needs time to bootup. */
 			msleep(150);
@@ -621,7 +625,7 @@ static int qca_close(struct hci_uart *hu)
 		qcadev = serdev_device_get_drvdata(hu->serdev);
 		if (qca_is_wcn399x(qcadev->btsoc_type))
 			qca_power_shutdown(hu);
-		else
+		else if (!qca_is_maple(qcadev->btsoc_type))
 			gpiod_set_value_cansleep(qcadev->bt_en, 0);
 
 	}
@@ -1089,6 +1093,9 @@ static unsigned int qca_get_speed(struct hci_uart *hu,
 {
 	unsigned int speed = 0;
 
+	if (qca_is_maple(qca_soc_type(hu)))
+		return 0;
+
 	if (speed_type == QCA_INIT_SPEED) {
 		if (hu->init_speed)
 			speed = hu->init_speed;
@@ -1106,6 +1113,9 @@ static unsigned int qca_get_speed(struct hci_uart *hu,
 
 static int qca_check_speeds(struct hci_uart *hu)
 {
+	if (qca_is_maple(qca_soc_type(hu)))
+		return 0;
+
 	if (qca_is_wcn399x(qca_soc_type(hu))) {
 		if (!qca_get_speed(hu, QCA_INIT_SPEED) &&
 		    !qca_get_speed(hu, QCA_OPER_SPEED))
@@ -1227,6 +1237,21 @@ static int qca_wcn3990_init(struct hci_uart *hu)
 	return 0;
 }
 
+static int qca_maple_power_control(struct hci_uart *hu, bool on)
+{
+	int ret;
+	int power_arg = on ? 1 : 0;
+
+	ret = serdev_device_ioctl(hu->serdev, IOCTL_IPC_BOOT, power_arg);
+	if (ret)
+		bt_dev_err(hu->hdev, "%s: power %s failure: %d\n", __func__,
+			   on ? "ON" : "OFF", ret);
+	else
+		msleep(MAPLE_POWER_CONTROL_DELAY_MS);
+
+	return ret;
+}
+
 static int qca_setup(struct hci_uart *hu)
 {
 	struct hci_dev *hdev = hu->hdev;
@@ -1249,8 +1274,11 @@ static int qca_setup(struct hci_uart *hu)
 	 */
 	set_bit(HCI_QUIRK_SIMULTANEOUS_DISCOVERY, &hdev->quirks);
 
-	if (qca_is_wcn399x(soc_type)) {
-		bt_dev_info(hdev, "setting up wcn3990");
+	if (qca_is_wcn399x(soc_type) || qca_is_maple(soc_type)) {
+		if (qca_is_maple(soc_type))
+			bt_dev_info(hdev, "setting up maple");
+		else
+			bt_dev_info(hdev, "setting up wcn3990");
 
 		/* Enable NON_PERSISTENT_SETUP QUIRK to ensure to execute
 		 * setup for every hci up.
@@ -1258,11 +1286,14 @@ static int qca_setup(struct hci_uart *hu)
 		set_bit(HCI_QUIRK_NON_PERSISTENT_SETUP, &hdev->quirks);
 		set_bit(HCI_QUIRK_USE_BDADDR_PROPERTY, &hdev->quirks);
 		hu->hdev->shutdown = qca_power_off;
-		ret = qca_wcn3990_init(hu);
+		if (qca_is_maple(soc_type))
+			ret = qca_maple_power_control(hu, true);
+		else
+			ret = qca_wcn3990_init(hu);
 		if (ret)
 			return ret;
 
-		ret = qca_read_soc_version(hdev, &soc_ver);
+		ret = qca_read_soc_version(hdev, &soc_ver, soc_type);
 		if (ret)
 			return ret;
 	} else {
@@ -1280,9 +1311,9 @@ static int qca_setup(struct hci_uart *hu)
 		qca_baudrate = qca_get_baudrate_value(speed);
 	}
 
-	if (!qca_is_wcn399x(soc_type)) {
+	if (!qca_is_wcn399x(soc_type) && !qca_is_maple(soc_type)) {
 		/* Get QCA version information */
-		ret = qca_read_soc_version(hdev, &soc_ver);
+		ret = qca_read_soc_version(hdev, &soc_ver, soc_type);
 		if (ret)
 			return ret;
 	}
@@ -1292,7 +1323,8 @@ static int qca_setup(struct hci_uart *hu)
 	ret = qca_uart_setup(hdev, qca_baudrate, soc_type, soc_ver,
 			firmware_name);
 	if (!ret) {
-		set_bit(QCA_IBS_ENABLED, &qca->flags);
+		if (!qca_is_maple(soc_type))
+			set_bit(QCA_IBS_ENABLED, &qca->flags);
 		qca_debugfs_init(hdev);
 	} else if (ret == -ENOENT) {
 		/* No patch/nvm-config found, run with original fw/config */
@@ -1306,7 +1338,7 @@ static int qca_setup(struct hci_uart *hu)
 	}
 
 	/* Setup bdaddr */
-	if (qca_is_wcn399x(soc_type))
+	if (qca_is_wcn399x(soc_type) || qca_is_maple(soc_type))
 		hu->hdev->set_bdaddr = qca_set_bdaddr;
 	else
 		hu->hdev->set_bdaddr = qca_set_bdaddr_rome;
@@ -1340,6 +1372,17 @@ static const struct qca_vreg_data qca_soc_data_wcn3990 = {
 	.num_vregs = 4,
 };
 
+static const struct qca_vreg_data qca_soc_data_wcn3991 = {
+	.soc_type = QCA_WCN3991,
+	.vregs = (struct qca_vreg []) {
+		{ "vddio", 15000  },
+		{ "vddxo", 80000  },
+		{ "vddrf", 300000 },
+		{ "vddch0", 450000 },
+	},
+	.num_vregs = 4,
+};
+
 static const struct qca_vreg_data qca_soc_data_wcn3998 = {
 	.soc_type = QCA_WCN3998,
 	.vregs = (struct qca_vreg []) {
@@ -1349,6 +1392,11 @@ static const struct qca_vreg_data qca_soc_data_wcn3998 = {
 		{ "vddch0",  3300000, 3300000,  450000 },
 	},
 	.num_vregs = 4,
+};
+
+static const struct qca_vreg_data qca_soc_data_maple = {
+	.soc_type = QCA_MAPLE,
+	.num_vregs = 0,
 };
 
 static void qca_power_shutdown(struct hci_uart *hu)
@@ -1364,6 +1412,11 @@ static void qca_power_shutdown(struct hci_uart *hu)
 	clear_bit(QCA_IBS_ENABLED, &qca->flags);
 	qca_flush(hu);
 	spin_unlock_irqrestore(&qca->hci_ibs_lock, flags);
+
+	if (qca_is_maple(qca_soc_type(hu))) {
+		qca_maple_power_control(hu, false);
+		return;
+	}
 
 	host_set_baudrate(hu, 2400);
 	qca_send_power_pulse(hu, false);
@@ -1487,7 +1540,7 @@ static int qca_serdev_probe(struct serdev_device *serdev)
 		return -ENOMEM;
 
 	qcadev->serdev_hu.serdev = serdev;
-	data = of_device_get_match_data(&serdev->dev);
+	data = device_get_match_data(&serdev->dev);
 	serdev_device_set_drvdata(serdev, qcadev);
 	device_property_read_string(&serdev->dev, "firmware-name",
 					 &qcadev->firmware_name);
@@ -1520,6 +1573,9 @@ static int qca_serdev_probe(struct serdev_device *serdev)
 			BT_ERR("wcn3990 serdev registration failed");
 			goto out;
 		}
+	} else if (data && qca_is_maple(data->soc_type)) {
+		qcadev->btsoc_type = QCA_MAPLE;
+		err = hci_uart_register_device(&qcadev->serdev_hu, &qca_proto);
 	} else {
 		qcadev->btsoc_type = QCA_ROME;
 		qcadev->bt_en = devm_gpiod_get(&serdev->dev, "enable",
@@ -1556,7 +1612,8 @@ static void qca_serdev_remove(struct serdev_device *serdev)
 {
 	struct qca_serdev *qcadev = serdev_device_get_drvdata(serdev);
 
-	if (qca_is_wcn399x(qcadev->btsoc_type))
+	if (qca_is_wcn399x(qcadev->btsoc_type) ||
+	    qca_is_maple(qcadev->btsoc_type))
 		qca_power_shutdown(&qcadev->serdev_hu);
 	else
 		clk_disable_unprepare(qcadev->susclk);
@@ -1567,7 +1624,9 @@ static void qca_serdev_remove(struct serdev_device *serdev)
 static const struct of_device_id qca_bluetooth_of_match[] = {
 	{ .compatible = "qcom,qca6174-bt" },
 	{ .compatible = "qcom,wcn3990-bt", .data = &qca_soc_data_wcn3990},
+	{ .compatible = "qcom,wcn3991-bt", .data = &qca_soc_data_wcn3991},
 	{ .compatible = "qcom,wcn3998-bt", .data = &qca_soc_data_wcn3998},
+	{ .compatible = "qcom,maple-bt", .data = &qca_soc_data_maple},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, qca_bluetooth_of_match);

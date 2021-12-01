@@ -1,6 +1,8 @@
 /dts-v1/;
 /* Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
  *
+ * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
+ *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
@@ -532,6 +534,7 @@
 			mdio-bus = <&mdio0>;
 			local-mac-address = [000000000000];
 			phy-mode = "sgmii";
+			qcom,rx-page-mode = <0>;
 		};
 
 		dp2 {
@@ -548,6 +551,7 @@
 			mdio-bus = <&mdio1>;
 			local-mac-address = [000000000000];
 			phy-mode = "sgmii";
+			qcom,rx-page-mode = <0>;
 		};
 
 		nss-macsec1 {
@@ -667,12 +671,12 @@
 
 &pcie_x1 {
 	status = "disabled";
-	perst-gpio = <&tlmm 18 1>;
+	perst-gpio = <&tlmm 18 GPIO_ACTIVE_LOW>;
 };
 
 &pcie_x2 {
 	status = "ok";
-	perst-gpio = <&tlmm 15 1>;
+	perst-gpio = <&tlmm 15 GPIO_ACTIVE_LOW>;
 };
 
 &dwc_0 {
@@ -828,6 +832,13 @@
 					"spawn";
 	};
 };
+
+&i2c_0 {
+	pinctrl-0 = <&i2c_pins>;
+	pinctrl-names = "default";
+	status = "disabled";
+};
+
 &wifi0 {
 	/* IPQ5018 */
 	qcom,multipd_arch;

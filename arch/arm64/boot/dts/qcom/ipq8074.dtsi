@@ -1058,7 +1058,7 @@
 				interrupts = <GIC_SPI 321 IRQ_TYPE_EDGE_RISING>;
 				qcom,remote-pid = <1>;
 				mboxes = <&apcs_glb 8>;
-
+				global_timer = <0x4A5000>;
 				rpm_requests {
 					qcom,glink-channels = "IPCRTR";
 				};

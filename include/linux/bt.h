@@ -214,6 +214,7 @@ struct bt_descriptor {
 	struct pinctrl *pinctrl;
 	bool debug_en;
 	bool nosecure;
+	bool is_serdev;
 };
 
 struct ipc_intent {

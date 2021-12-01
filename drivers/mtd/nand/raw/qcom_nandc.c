@@ -594,7 +594,7 @@ alloc_bam_transaction(struct qcom_nand_controller *nandc)
 		(sizeof(*bam_txn->cmd_sgl) * QPIC_PER_CW_CMD_SGL) +
 		(sizeof(*bam_txn->data_sgl) * QPIC_PER_CW_DATA_SGL));
 	if (nandc->props->qpic_v2)
-		bam_txn_size += (sizeof(*bam_txn->sts_sgl) * QPIC_PER_CW_STS_SGL);
+		bam_txn_size += sizeof(*bam_txn->sts_sgl) * QPIC_PER_CW_STS_SGL * num_cw;
 
 	bam_txn_buf = devm_kzalloc(nandc->dev, bam_txn_size, GFP_KERNEL);
 	if (!bam_txn_buf)
@@ -1207,7 +1207,8 @@ static int write_reg_dma(struct qcom_nand_controller *nandc, int first,
 		flags |= NAND_BAM_NWD;
 
 	if (first == NAND_FLASH_SPI_CFG || first == NAND_SPI_NUM_ADDR_CYCLES
-		|| first == NAND_SPI_BUSY_CHECK_WAIT_CNT)
+		|| first == NAND_SPI_BUSY_CHECK_WAIT_CNT
+		|| first == NAND_QSPI_MSTR_CONFIG)
 		first = dev_cmd_reg_addr(nandc, first);
 
 	if (first == NAND_DEV_CMD1_RESTORE || first == NAND_DEV_CMD1)
@@ -3358,12 +3359,14 @@ static int qspi_execute_training(struct qcom_nand_controller *nandc,
 	u32 training_offset = 0;
 	u8 *training_data = NULL, trained_phase[TOTAL_NUM_PHASE] = {'\0'};
 	struct nand_chip *chip = &host->chip;
+	int reg;
 
 	/* Set feedback clk enable bit to do auto adjustment of phase
 	 * at lower frequency
 	 */
+	reg = dev_cmd_reg_addr(nandc, NAND_QSPI_MSTR_CONFIG);
 	qspi_write_reg_bam(nandc, (nandc_read(nandc,
-			NAND_QSPI_MSTR_CONFIG) | FEEDBACK_CLK_EN),
+			reg) | FEEDBACK_CLK_EN),
 			NAND_QSPI_MSTR_CONFIG);
 
 	/* Read the training offset patched from u-boot */
@@ -3439,7 +3442,7 @@ static int qspi_execute_training(struct qcom_nand_controller *nandc,
 
 	/* clear feedback clock bit and start training here */
 	qspi_write_reg_bam(nandc, (nandc_read(nandc,
-			NAND_QSPI_MSTR_CONFIG) & ~FEEDBACK_CLK_EN),
+			reg) & ~FEEDBACK_CLK_EN),
 			NAND_QSPI_MSTR_CONFIG);
 	phase = 1;
 	phase_cnt = 0;
@@ -3487,7 +3490,7 @@ static int qspi_execute_training(struct qcom_nand_controller *nandc,
 		dev_err(nandc->dev, "Running @ low freq 50MHz");
 		/* Run @ lower frequency 50Mhz with feedback clk bit enabled  */
 		qspi_write_reg_bam(nandc, (nandc_read(nandc,
-			NAND_QSPI_MSTR_CONFIG) | FEEDBACK_CLK_EN),
+			reg) | FEEDBACK_CLK_EN),
 			NAND_QSPI_MSTR_CONFIG);
 		ret =  clk_set_rate(nandc->iomacro_clk, 200000000);
 		if (ret) {

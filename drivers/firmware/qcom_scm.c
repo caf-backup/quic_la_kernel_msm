@@ -18,6 +18,7 @@
 #include <linux/of_platform.h>
 #include <linux/clk.h>
 #include <linux/reset-controller.h>
+#include <linux/reboot.h>
 
 #include "qcom_scm.h"
 
@@ -1113,6 +1114,19 @@ static int qcom_scm_probe(struct platform_device *pdev)
 	 */
 	if (download_mode)
 		qcom_scm_set_download_mode(true);
+
+	if (atomic_read(&__num_online_cpus) < NR_CPUS) {
+		ret = qti_scm_sdi(QCOM_SCM_SVC_BOOT,
+				SCM_CMD_TZ_CONFIG_HW_FOR_RAM_DUMP_ID);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "reboot scm call failed\n");
+			return ret;
+		}
+
+		pr_err("Rebooting because only %d cores came up out of %d\n",
+				atomic_read(&__num_online_cpus), NR_CPUS);
+		emergency_restart();
+	}
 
 	return 0;
 }

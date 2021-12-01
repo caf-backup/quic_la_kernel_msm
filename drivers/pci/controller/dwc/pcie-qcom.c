@@ -1606,8 +1606,7 @@ static int qcom_pcie_post_init_2_9_0_5018(struct qcom_pcie *pcie)
 	writel(PCIE_CAP_CPL_TIMEOUT_DISABLE, pci->dbi_base +
 		PCIE20_DEVICE_CONTROL2_STATUS2);
 
-	writel(PCIE_CAP_CURR_DEEMPHASIS | SPEED_GEN2,
-		pci->dbi_base + PCIE20_LNK_CONTROL2_LINK_STATUS2);
+	qcom_pcie_set_link_speed(pci->dbi_base, pcie->max_speed, SPEED_GEN2);
 
 	for (i = 0; i < 255; i++)
 		writel(0x0, pcie->parf + PARF_BDF_TO_SID_TABLE + (4 * i));
