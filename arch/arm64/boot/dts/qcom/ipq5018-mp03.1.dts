@@ -1,6 +1,8 @@
 /dts-v1/;
 /* Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
  *
+ * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
+ *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
@@ -467,6 +469,7 @@
 			mdio-bus = <&mdio0>;
 			local-mac-address = [000000000000];
 			phy-mode = "sgmii";
+			qcom,rx-page-mode = <0>;
 		};
 
 		dp2 {
@@ -480,6 +483,7 @@
 			qcom,mactype = <2>;
 			local-mac-address = [000000000000];
 			phy-mode = "sgmii";
+			qcom,rx-page-mode = <0>;
 		};
 
 		rpm_etm0 {
@@ -572,6 +576,22 @@
 			bias-pull-down;
 		};
 	};
+
+	i2c_pins: i2c_pins {
+		i2c_scl {
+			pins = "gpio25";
+			function = "blsp2_i2c1";
+			drive-strength = <8>;
+			bias-disable;
+		};
+
+		i2c_sda {
+			pins = "gpio26";
+			function = "blsp2_i2c1";
+			drive-strength = <8>;
+			bias-disable;
+		};
+	};
 };
 
 &usb3 {
@@ -614,6 +634,12 @@
 		memory-region = <&q6_region>, <&q6_etr_region>,
 				<&q6_caldb_region>;
 	#endif
+};
+
+&i2c_0 {
+	pinctrl-0 = <&i2c_pins>;
+	pinctrl-names = "default";
+	status = "disabled";
 };
 
 &blsp1_uart1 {

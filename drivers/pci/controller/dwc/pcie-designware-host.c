@@ -334,10 +334,8 @@ int dw_pcie_host_init(struct pcie_port *pp)
 
 	cfg_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "config");
 	if (cfg_res) {
-		pp->cfg0_size = resource_size(cfg_res) >> 1;
-		pp->cfg1_size = resource_size(cfg_res) >> 1;
+		pp->cfg0_size = resource_size(cfg_res);
 		pp->cfg0_base = cfg_res->start;
-		pp->cfg1_base = cfg_res->start + pp->cfg0_size;
 	} else if (!pp->va_cfg0_base) {
 		dev_err(dev, "Missing *config* reg space\n");
 	}
@@ -379,25 +377,22 @@ int dw_pcie_host_init(struct pcie_port *pp)
 			pp->mem_bus_addr = pp->mem->start - win->offset;
 			break;
 		case 0:
-			pp->cfg = win->res;
-			pp->cfg0_size = resource_size(pp->cfg) >> 1;
-			pp->cfg1_size = resource_size(pp->cfg) >> 1;
-			pp->cfg0_base = pp->cfg->start;
-			pp->cfg1_base = pp->cfg->start + pp->cfg0_size;
+			dev_err(dev, "Missing *config* reg space\n");
+			pp->cfg0_size = resource_size(win->res);
+			pp->cfg0_base = win->res->start;
+			if (!pci->dbi_base) {
+				pci->dbi_base = devm_pci_remap_cfgspace(dev,
+								pp->cfg0_base,
+								pp->cfg0_size);
+				if (!pci->dbi_base) {
+					dev_err(dev, "Error with ioremap\n");
+					return -ENOMEM;
+				}
+			}
 			break;
 		case IORESOURCE_BUS:
 			pp->busn = win->res;
 			break;
-		}
-	}
-
-	if (!pci->dbi_base) {
-		pci->dbi_base = devm_pci_remap_cfgspace(dev,
-						pp->cfg->start,
-						resource_size(pp->cfg));
-		if (!pci->dbi_base) {
-			dev_err(dev, "Error with ioremap\n");
-			return -ENOMEM;
 		}
 	}
 
@@ -408,16 +403,6 @@ int dw_pcie_host_init(struct pcie_port *pp)
 					pp->cfg0_base, pp->cfg0_size);
 		if (!pp->va_cfg0_base) {
 			dev_err(dev, "Error with ioremap in function\n");
-			return -ENOMEM;
-		}
-	}
-
-	if (!pp->va_cfg1_base) {
-		pp->va_cfg1_base = devm_pci_remap_cfgspace(dev,
-						pp->cfg1_base,
-						pp->cfg1_size);
-		if (!pp->va_cfg1_base) {
-			dev_err(dev, "Error with ioremap\n");
 			return -ENOMEM;
 		}
 	}
@@ -546,33 +531,24 @@ static int dw_pcie_access_other_conf(struct pcie_port *pp, struct pci_bus *bus,
 				     bool write)
 {
 	int ret, type;
-	u32 busdev, cfg_size;
-	u64 cpu_addr;
-	void __iomem *va_cfg_base;
+	u32 busdev;
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 
 	busdev = PCIE_ATU_BUS(bus->number) | PCIE_ATU_DEV(PCI_SLOT(devfn)) |
 		 PCIE_ATU_FUNC(PCI_FUNC(devfn));
 
-	if (bus->parent->number == pp->root_bus_nr) {
+	if (bus->parent->number == pp->root_bus_nr)
 		type = PCIE_ATU_TYPE_CFG0;
-		cpu_addr = pp->cfg0_base;
-		cfg_size = pp->cfg0_size;
-		va_cfg_base = pp->va_cfg0_base;
-	} else {
+	else
 		type = PCIE_ATU_TYPE_CFG1;
-		cpu_addr = pp->cfg1_base;
-		cfg_size = pp->cfg1_size;
-		va_cfg_base = pp->va_cfg1_base;
-	}
 
 	dw_pcie_prog_outbound_atu(pci, PCIE_ATU_REGION_INDEX1,
-				  type, cpu_addr,
-				  busdev, cfg_size);
+				  type, pp->cfg0_base,
+				  busdev, pp->cfg0_size);
 	if (write)
-		ret = dw_pcie_write(va_cfg_base + where, size, *val);
+		ret = dw_pcie_write(pp->va_cfg0_base + where, size, *val);
 	else
-		ret = dw_pcie_read(va_cfg_base + where, size, val);
+		ret = dw_pcie_read(pp->va_cfg0_base + where, size, val);
 
 	if (pci->num_viewport <= 2)
 		dw_pcie_prog_outbound_atu(pci, PCIE_ATU_REGION_INDEX1,

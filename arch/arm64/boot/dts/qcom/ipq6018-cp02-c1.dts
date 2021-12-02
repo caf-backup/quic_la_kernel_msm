@@ -70,6 +70,33 @@
 		};
 	};
 
+	spi_1_pins: spi_1_pins {
+		mux {
+			pins = "gpio69", "gpio71", "gpio72";
+			function = "blsp1_spi";
+			drive-strength = <8>;
+			bias-disable;
+		};
+		spi_cs {
+			pins = "gpio70";
+			function = "blsp1_spi";
+			drive-strength = <8>;
+			bias-disable;
+		};
+		quartz_interrupt {
+			pins = "gpio73";
+			function = "gpio";
+			input;
+			bias-disable;
+		};
+		quartz_reset {
+			pins = "gpio74";
+			function = "gpio";
+			output-low;
+			bias-disable;
+		};
+	};
+
 };
 
 &soc {
@@ -167,6 +194,19 @@
 		linux,modalias = "m25p80", "n25q128a11";
 		spi-max-frequency = <50000000>;
 		use-default-sizes;
+	};
+};
+
+&spi_1 { /* BLSP1 QUP1 */
+	pinctrl-0 = <&spi_1_pins>;
+	pinctrl-names = "default";
+	cs-select = <0>;
+	quartz-reset-gpio = <&tlmm 74 1>;
+	status = "ok";
+	spidev1: spi@1 {
+		compatible = "qca,spidev";
+		reg = <0>;
+		spi-max-frequency = <24000000>;
 	};
 };
 

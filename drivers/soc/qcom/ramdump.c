@@ -341,6 +341,7 @@ void *create_ramdump_device(const char *dev_name, struct device *parent)
 
 	return (void *)rd_dev;
 }
+EXPORT_SYMBOL(create_ramdump_device);
 
 int create_ramdump_device_file(void *handle)
 {
@@ -405,7 +406,7 @@ device_failed:
 class_failed:
 	return ret;
 }
-EXPORT_SYMBOL(create_ramdump_device);
+EXPORT_SYMBOL(create_ramdump_device_file);
 
 void destroy_ramdump_device(void *dev)
 {

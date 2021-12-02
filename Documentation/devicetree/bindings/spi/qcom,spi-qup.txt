@@ -38,6 +38,9 @@ Optional properties:
 - dma-names:    Names for the dma channels, if present. There must be at
                 least one channel named "tx" for transmit and named "rx" for
                 receive.
+- qcom,disable-force-cs: Use this property to disable the forced chip select
+			 assertion feature. By default, forced chip select
+			 assertion will be enabled.
 
 SPI slave nodes must be children of the SPI master node and can contain
 properties described in Documentation/devicetree/bindings/spi/spi-bus.txt

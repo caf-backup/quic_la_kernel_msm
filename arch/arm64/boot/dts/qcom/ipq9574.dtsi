@@ -1111,6 +1111,35 @@
 			resets = <&nsscc PPE_EDMA_ARES>,
 				 <&nsscc PPE_EDMA_CFG_ARES>;
 			reset-names = "edma_rst", "edma_cfg_reset";
+			clocks = <&nsscc NSS_CC_NSS_CSR_CLK>,
+				 <&nsscc NSS_CC_NSSNOC_NSS_CSR_CLK>,
+				 <&nsscc NSS_CC_IMEM_QSB_CLK>,
+				 <&nsscc NSS_CC_NSSNOC_IMEM_QSB_CLK>,
+				 <&nsscc NSS_CC_IMEM_AHB_CLK>,
+				 <&nsscc NSS_CC_NSSNOC_IMEM_AHB_CLK>,
+				 <&gcc GCC_MEM_NOC_NSSNOC_CLK>,
+				 <&gcc GCC_NSS_TBU_CLK>,
+				 <&gcc GCC_NSS_TS_CLK>,
+				 <&gcc GCC_NSSCC_CLK>,
+				 <&gcc GCC_NSSCFG_CLK>,
+				 <&gcc GCC_NSSNOC_ATB_CLK>,
+				 <&gcc GCC_NSSNOC_MEM_NOC_1_CLK>,
+				 <&gcc GCC_NSSNOC_MEMNOC_CLK>,
+				 <&gcc GCC_NSSNOC_NSSCC_CLK>,
+				 <&gcc GCC_NSSNOC_PCNOC_1_CLK>,
+				 <&gcc GCC_NSSNOC_QOSGEN_REF_CLK>,
+				 <&gcc GCC_NSSNOC_SNOC_1_CLK>,
+				 <&gcc GCC_NSSNOC_SNOC_CLK>,
+				 <&gcc GCC_NSSNOC_TIMEOUT_REF_CLK>,
+				 <&gcc GCC_NSSNOC_XO_DCD_CLK>;
+			clock-names = "nss-csr-clk", "nss-nssnoc-csr-clk",
+				      "nss-imem-qsb-clk", "nss-nssnoc-imem-qsb-clk",
+				      "nss-imem-ahb-clk", "nss-nssnoc-imem-ahb-clk",
+				      "nss-mem-noc-nssnoc-clk", "nss-tbu-clk", "nss-ts-clk",
+				      "nss-nsscc-clk", "nss-nsscfg-clk", "nss-nsscnoc-atb-clk",
+				      "nss-nssnoc-mem-noc-1-clk", "nss-nssnoc-memnoc-clk", "nss-nssnoc-nsscc-clk",
+				      "nss-nssnoc-pcnoc-1-clk", "nss-nssnoc-qosgen-ref-clk", "nss-nssnoc-snoc-1-clk",
+				      "nss-nssnoc-snoc-clk", "nss-nssnoc-timeout-ref-clk", "nss-nssnoc-xo-dcd-clk";
 		};
 
 		qcom,test@0 {
