@@ -341,6 +341,7 @@ void *create_ramdump_device(const char *dev_name, struct device *parent)
 
 	return (void *)rd_dev;
 }
+EXPORT_SYMBOL(create_ramdump_device);
 
 int create_ramdump_device_file(void *handle)
 {
@@ -405,7 +406,7 @@ device_failed:
 class_failed:
 	return ret;
 }
-EXPORT_SYMBOL(create_ramdump_device);
+EXPORT_SYMBOL(create_ramdump_device_file);
 
 void destroy_ramdump_device(void *dev)
 {
@@ -459,7 +460,12 @@ static int _do_ramdump(void *handle, struct ramdump_segment *segments,
 		for (i = 0; i < nsegments; i++, phdr++) {
 			phdr->p_type = PT_LOAD;
 			phdr->p_offset = offset;
-			phdr->p_vaddr = phdr->p_paddr = segments[i].address;
+			phdr->p_paddr = segments[i].address;
+			if (segments[i].vaddr)
+				phdr->p_vaddr = (uintptr_t)segments[i].vaddr;
+			else
+				phdr->p_vaddr = segments[i].address;
+
 			phdr->p_filesz = phdr->p_memsz = segments[i].size;
 			phdr->p_flags = PF_R | PF_W | PF_X;
 			offset += phdr->p_filesz;

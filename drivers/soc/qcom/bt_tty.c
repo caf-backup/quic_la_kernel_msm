@@ -216,8 +216,12 @@ int bt_tty_init(struct bt_descriptor *btDesc)
 	tty_port_init(&btDesc->tty_port);
 	btDesc->tty_port.ops = &bt_port_ops;
 
-	dev = tty_port_register_device(&btDesc->tty_port,
-					btDesc->tty_drv, 0, NULL);
+	if (btDesc->is_serdev)
+		dev = tty_port_register_device_serdev(&btDesc->tty_port,
+						      btDesc->tty_drv, 0, btdev);
+	else
+		dev = tty_port_register_device(&btDesc->tty_port,
+					       btDesc->tty_drv, 0, NULL);
 	if (IS_ERR(dev)) {
 		ret = PTR_ERR(dev);
 		dev_err(btdev, "failed to register port, ret %d\n", ret);
@@ -362,6 +366,7 @@ int bt_parse_pinctrl(struct bt_descriptor *btDesc)
 int bt_parse_dt(struct bt_descriptor *btDesc)
 {
 	int ret;
+	struct device_node *child;
 	struct device *dev = &btDesc->pdev->dev;
 
 	ret = of_property_read_string(dev->of_node, "firmware",
@@ -395,6 +400,15 @@ int bt_parse_dt(struct bt_descriptor *btDesc)
 			dev_err(dev, "could not get pinctrl info, ret = %d\n",
 									ret);
 			return ret;
+		}
+	}
+
+	btDesc->is_serdev = false;
+	for_each_available_child_of_node(dev->of_node, child){
+		if (of_device_is_compatible(child, "qcom,maple-bt")){
+			dev_info(dev, "%s : serdev node enabled for bluez\n", __func__);
+			btDesc->is_serdev = true;
+			break;
 		}
 	}
 

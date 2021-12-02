@@ -1,6 +1,8 @@
 /dts-v1/;
 /* Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
  *
+ * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
+ *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
@@ -467,6 +469,7 @@
 			mdio-bus = <&mdio0>;
 			local-mac-address = [000000000000];
 			phy-mode = "sgmii";
+			qcom,rx-page-mode = <0>;
 		};
 
 		dp2 {
@@ -480,6 +483,7 @@
 			qcom,mactype = <2>;
 			local-mac-address = [000000000000];
 			phy-mode = "sgmii";
+			qcom,rx-page-mode = <0>;
 		};
 
 		rpm_etm0 {
@@ -572,6 +576,22 @@
 			bias-pull-down;
 		};
 	};
+
+	i2c_pins: i2c_pins {
+		i2c_scl {
+			pins = "gpio25";
+			function = "blsp2_i2c1";
+			drive-strength = <8>;
+			bias-disable;
+		};
+
+		i2c_sda {
+			pins = "gpio26";
+			function = "blsp2_i2c1";
+			drive-strength = <8>;
+			bias-disable;
+		};
+	};
 };
 
 &usb3 {
@@ -581,9 +601,14 @@
 	status = "ok";
 };
 
+&pcie_x1 {
+	status = "disabled";
+	perst-gpio = <&tlmm 18 GPIO_ACTIVE_LOW>;
+};
+
 &pcie_x2 {
 	status = "ok";
-	perst-gpio = <&tlmm 15 1>;
+	perst-gpio = <&tlmm 15 GPIO_ACTIVE_LOW>;
 };
 
 &wcss {
@@ -611,6 +636,12 @@
 	#endif
 };
 
+&i2c_0 {
+	pinctrl-0 = <&i2c_pins>;
+	pinctrl-names = "default";
+	status = "disabled";
+};
+
 &blsp1_uart1 {
 	status = "ok";
 };
@@ -623,8 +654,20 @@
 	status = "ok";
 };
 
+&pcie_x1phy {
+	status = "disabled";
+};
+
 &pcie_x2phy {
 	status = "ok";
+};
+
+&pcie_x1_rp {
+	status = "disabled";
+
+	mhi_0: qcom,mhi@0 {
+		reg = <0 0 0 0 0 >;
+	};
 };
 
 &pcie_x2_rp {

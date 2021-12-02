@@ -168,16 +168,12 @@ struct pcie_port {
 	u64			cfg0_base;
 	void __iomem		*va_cfg0_base;
 	u32			cfg0_size;
-	u64			cfg1_base;
-	void __iomem		*va_cfg1_base;
-	u32			cfg1_size;
 	resource_size_t		io_base;
 	phys_addr_t		io_bus_addr;
 	u32			io_size;
 	u64			mem_base;
 	phys_addr_t		mem_bus_addr;
 	u32			mem_size;
-	struct resource		*cfg;
 	struct resource		*io;
 	struct resource		*mem;
 	struct resource		*busn;

@@ -18,6 +18,7 @@ struct firmware;
 
 struct qcom_pd_fw_info {
 	phys_addr_t paddr;
+	void *vaddr;
 	size_t size;
 };
 

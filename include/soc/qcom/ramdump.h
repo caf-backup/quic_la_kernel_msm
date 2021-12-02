@@ -19,6 +19,8 @@ struct ramdump_segment {
 	unsigned long address;
 	void *v_address;
 	unsigned long size;
+	/*to hold the virt addr read from the mdt file*/
+	void *vaddr;
 };
 
 #ifdef CONFIG_IPQ_SUBSYSTEM_RAMDUMP

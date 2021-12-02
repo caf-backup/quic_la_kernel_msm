@@ -17,7 +17,6 @@
 #include <linux/msi.h>
 #include <linux/of.h>
 #include <linux/pm_runtime.h>
-#include <linux/memblock.h>
 #include <linux/completion.h>
 #include <soc/qcom/ramdump.h>
 #include <linux/of_address.h>
@@ -1958,14 +1957,12 @@ static int cnss_qcn9000_ramdump(struct cnss_pci_data *pci_priv)
 	}
 
 	ret = create_ramdump_device_file(info_v2->ramdump_dev);
-	if (ret) {
-		kfree(meta_info);
-		kfree(ramdump_segs);
-		return ret;
-	}
-
+	if (ret)
+		goto clear_dump_info;
 	ret = do_elf_ramdump(info_v2->ramdump_dev, ramdump_segs,
 			     dump_data->nentries + CNSS_NUM_META_INFO_SEGMENTS);
+
+clear_dump_info:
 	kfree(meta_info);
 	kfree(ramdump_segs);
 
@@ -5271,6 +5268,8 @@ static int cnss_pci_register_mhi(struct cnss_pci_data *pci_priv)
 	struct cnss_plat_data *plat_priv = pci_priv->plat_priv;
 	struct pci_dev *pci_dev = pci_priv->pci_dev;
 	struct mhi_controller *mhi_ctrl;
+	struct device_node *dev_node;
+	struct resource memory;
 
 	mhi_ctrl = kzalloc(sizeof(*mhi_ctrl), GFP_KERNEL);
 	if (!mhi_ctrl) {
@@ -5293,8 +5292,24 @@ static int cnss_pci_register_mhi(struct cnss_pci_data *pci_priv)
 		cnss_pr_err("Failed to get MSI for MHI\n");
 		goto out;
 	}
-	mhi_ctrl->iova_start = memblock_start_of_DRAM();
-	mhi_ctrl->iova_stop = memblock_end_of_DRAM();
+
+	dev_node = of_find_node_by_type(NULL, "memory");
+	if (dev_node) {
+		if (of_address_to_resource(dev_node, 0, &memory)) {
+			cnss_pr_err("%s: Unable to get resource: memory",
+				    __func__);
+			goto out;
+		}
+
+		mhi_ctrl->iova_start = (dma_addr_t)(memory.start + 0x1000000);
+		mhi_ctrl->iova_stop = (dma_addr_t)(memory.start +
+						   resource_size(&memory));
+	} else {
+		/* No Memory DT node, assign full 32-bit region as iova */
+		mhi_ctrl->iova_start = 0;
+		mhi_ctrl->iova_stop = 0xFFFFFFFF;
+	}
+
 
 	mhi_ctrl->status_cb = cnss_mhi_notify_status;
 	mhi_ctrl->runtime_get = cnss_mhi_pm_runtime_get;

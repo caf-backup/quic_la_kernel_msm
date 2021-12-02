@@ -346,8 +346,11 @@ int get_pd_fw_info(struct device *dev, const struct firmware *fw,
 			break;
 		}
 
-		if (!fw_info->paddr)
+		if (!fw_info->paddr) {
 			fw_info->paddr = mem_phys + offset;
+			fw_info->vaddr = (void *)(uintptr_t)phdr->p_vaddr;
+		}
+
 		fw_info->size += phdr->p_memsz;
 	}
 	return ret;

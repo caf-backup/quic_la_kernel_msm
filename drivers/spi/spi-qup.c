@@ -1001,7 +1001,7 @@ static int spi_qup_probe(struct platform_device *pdev)
 	struct device *dev;
 	void __iomem *base;
 	u32 max_freq, iomode, num_cs, cs_select;
-	int ret, irq, size;
+	int ret, irq, size, disable_force_cs = 0;
 
 	dev = &pdev->dev;
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1094,8 +1094,12 @@ static int spi_qup_probe(struct platform_device *pdev)
 
 	controller->qup_v1 = (uintptr_t)of_device_get_match_data(dev);
 
+	if (of_find_property(dev->of_node, "qcom,disable-force-cs", NULL))
+		disable_force_cs = 1;
+
 	if (!controller->qup_v1)
-		master->set_cs = spi_qup_set_cs;
+		if (!disable_force_cs)
+			master->set_cs = spi_qup_set_cs;
 
 	spin_lock_init(&controller->lock);
 	init_completion(&controller->done);
