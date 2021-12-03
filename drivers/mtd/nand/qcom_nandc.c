@@ -2244,30 +2244,31 @@ static int nandc_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 					(read_location << READ_LOCATION_OFFSET) |
 					(oob_size2 << READ_LOCATION_SIZE) |
 					(1 << READ_LOCATION_LAST));
+			} else {
+
+				nandc_set_reg(nandc, NAND_READ_LOCATION_0,
+					(read_location << READ_LOCATION_OFFSET) |
+					(data_size1 << READ_LOCATION_SIZE) |
+					(0 << READ_LOCATION_LAST));
+					read_location += data_size1;
+
+				nandc_set_reg(nandc, NAND_READ_LOCATION_1,
+					(read_location << READ_LOCATION_OFFSET) |
+					(oob_size1 << READ_LOCATION_SIZE) |
+					(0 << READ_LOCATION_LAST));
+					read_location += oob_size1;
+
+				nandc_set_reg(nandc, NAND_READ_LOCATION_2,
+					(read_location << READ_LOCATION_OFFSET) |
+					(data_size2 << READ_LOCATION_SIZE) |
+					(0 << READ_LOCATION_LAST));
+					read_location += data_size2;
+
+				nandc_set_reg(nandc, NAND_READ_LOCATION_3,
+					(read_location << READ_LOCATION_OFFSET) |
+					(oob_size2 << READ_LOCATION_SIZE) |
+					(1 << READ_LOCATION_LAST));
 			}
-
-			nandc_set_reg(nandc, NAND_READ_LOCATION_0,
-				(read_location << READ_LOCATION_OFFSET) |
-				(data_size1 << READ_LOCATION_SIZE) |
-				(0 << READ_LOCATION_LAST));
-				read_location += data_size1;
-
-			nandc_set_reg(nandc, NAND_READ_LOCATION_1,
-				(read_location << READ_LOCATION_OFFSET) |
-				(oob_size1 << READ_LOCATION_SIZE) |
-				(0 << READ_LOCATION_LAST));
-				read_location += oob_size1;
-
-			nandc_set_reg(nandc, NAND_READ_LOCATION_2,
-				(read_location << READ_LOCATION_OFFSET) |
-				(data_size2 << READ_LOCATION_SIZE) |
-				(0 << READ_LOCATION_LAST));
-				read_location += data_size2;
-
-			nandc_set_reg(nandc, NAND_READ_LOCATION_3,
-				(read_location << READ_LOCATION_OFFSET) |
-				(oob_size2 << READ_LOCATION_SIZE) |
-				(1 << READ_LOCATION_LAST));
 #if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
 			if (i == (last_step - 1))
 				nandc->ps_mp_flag |= PAGE_SCOPE_MULTI_PAGE_CMD_EXE;
@@ -2354,13 +2355,24 @@ check_for_erased_page(struct qcom_nand_host *host, u8 *data_buf,
 			data_buf = chip->buffers->databuf;
 		if (!oob_buf)
 			oob_buf = chip->oob_poi;
-		data_buf += start_step * host->cw_data;
-		oob_buf += start_step * ecc->bytes;
 	}
 
 	clear_read_regs(nandc);
+#if IS_ENABLED(CONFIG_PAGE_SCOPE_MULTI_PAGE_READ)
+	nandc_read_page_raw(mtd, chip, data_buf, oob_buf, page,
+			    BIT(chip->ecc.steps) - 1);
+	if (!last_cw) {
+		data_buf += start_step * host->cw_data;
+		oob_buf += start_step * ecc->bytes;
+	}
+#else
+	if (!last_cw) {
+		data_buf += start_step * host->cw_data;
+		oob_buf += start_step * ecc->bytes;
+	}
 	nandc_read_page_raw(mtd, chip, data_buf, oob_buf, page,
 			    uncorrectable_err_cws);
+#endif
 
 	for (i = start_step; i < last_step; i++) {
 		int data_size, oob_size;
