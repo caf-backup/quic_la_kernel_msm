@@ -51,6 +51,7 @@
 #define CNSS_QMI_TIMEOUT_DEFAULT	10000
 #define CNSS_BDF_TYPE_DEFAULT		CNSS_BDF_ELF
 #define CNSS_TIME_SYNC_PERIOD_DEFAULT	900000
+#define DEFAULT_FW_FILE_NAME		"amss.bin"
 
 #define MAX_NUMBER_OF_SOCS 4
 struct cnss_plat_data *plat_env[MAX_NUMBER_OF_SOCS];
@@ -249,6 +250,29 @@ int cnss_get_plat_env_index_from_plat_priv(struct cnss_plat_data *plat_priv)
 	}
 
 	return -EINVAL;
+}
+
+const char *cnss_get_fw_path(struct cnss_plat_data *plat_priv)
+{
+	switch (plat_priv->device_id) {
+	case QCA8074_DEVICE_ID:
+	case QCA8074V2_DEVICE_ID:
+		return "IPQ8074/";
+	case QCA6018_DEVICE_ID:
+		return "IPQ6018/";
+	case QCA5018_DEVICE_ID:
+		return "IPQ5018/";
+	case QCA9574_DEVICE_ID:
+		return "IPQ9574/";
+	case QCN9000_DEVICE_ID:
+		return "qcn9000/";
+	case QCN6122_DEVICE_ID:
+		return "qcn6122/";
+	default:
+		cnss_pr_err("No such device id 0x%lx\n", plat_priv->device_id);
+	}
+
+	return "UNKNOWN";
 }
 
 #ifdef CONFIG_CNSS2_PM
@@ -465,6 +489,12 @@ skip_cfg:
 		set_bit(CNSS_COLD_BOOT_CAL, &plat_priv->driver_state);
 
 	ret = cnss_wlfw_wlan_mode_send_sync(plat_priv, mode);
+
+	if (mode == CNSS_MISSION && plat_priv->qdss_support) {
+		cnss_pr_info("Starting QDSS for %s\n", plat_priv->device_name);
+		cnss_wlfw_qdss_dnld_send_sync(plat_priv);
+	}
+
 out:
 	return ret;
 }
@@ -921,6 +951,8 @@ static char *cnss_driver_event_to_str(enum cnss_driver_event_type type)
 		return "QDSS_TRACE_SAVE";
 	case CNSS_DRIVER_EVENT_QDSS_TRACE_FREE:
 		return "QDSS_TRACE_FREE";
+	case CNSS_DRIVER_EVENT_QDSS_MEM_READY:
+		return "QDSS_MEM_READY";
 	case CNSS_DRIVER_EVENT_M3_DUMP_UPLOAD_REQ:
 		return "M3_DUMP_UPLOAD_REQ";
 	case CNSS_DRIVER_EVENT_MAX:
@@ -2412,6 +2444,16 @@ static int cnss_qdss_trace_free_hdlr(struct cnss_plat_data *plat_priv)
 	return 0;
 }
 
+static int cnss_qdss_mem_ready_hdlr(struct cnss_plat_data *plat_priv)
+{
+	if (!plat_priv->qdss_support)
+		return 0;
+
+	return cnss_wlfw_send_qdss_trace_mode_req(plat_priv,
+						  QMI_WLFW_QDSS_TRACE_ON_V01,
+						  0);
+}
+
 static void m3_dump_open_timeout_func(unsigned long data)
 {
 	struct cnss_plat_data *plat_priv = (struct cnss_plat_data *)data;
@@ -2799,6 +2841,9 @@ static void cnss_driver_event_work(struct work_struct *work)
 			break;
 		case CNSS_DRIVER_EVENT_QDSS_TRACE_FREE:
 			ret = cnss_qdss_trace_free_hdlr(plat_priv);
+			break;
+		case CNSS_DRIVER_EVENT_QDSS_MEM_READY:
+			ret = cnss_qdss_mem_ready_hdlr(plat_priv);
 			break;
 		case CNSS_DRIVER_EVENT_M3_DUMP_UPLOAD_REQ:
 			ret = cnss_m3_dump_upload_req_hdlr(plat_priv,
@@ -3530,6 +3575,21 @@ void cnss_update_platform_feature_support(u8 type, u32 instance_id, u32 value)
 		cnss_pr_info("Setting regdb_support=%d for instance_id 0x%x\n",
 			     value, instance_id);
 		break;
+	case CNSS_GENL_MSG_TYPE_QDSS_SUPPORT:
+		plat_priv->qdss_support = value;
+		cnss_pr_info("Setting qdss_support=%d for instance_id 0x%x\n",
+			     value, instance_id);
+		break;
+	case CNSS_GENL_MSG_TYPE_QDSS_START:
+		cnss_pr_info("Starting QDSS for %s", plat_priv->device_name);
+		cnss_wlfw_qdss_dnld_send_sync(plat_priv);
+		break;
+	case CNSS_GENL_MSG_TYPE_QDSS_STOP:
+		cnss_pr_info("Stopping QDSS for %s", plat_priv->device_name);
+		cnss_wlfw_send_qdss_trace_mode_req(plat_priv,
+						   QMI_WLFW_QDSS_TRACE_OFF_V01,
+						   value);
+		break;
 	default:
 		cnss_pr_err("Unknown type %d\n", type);
 		break;
@@ -3732,6 +3792,10 @@ static int cnss_probe(struct platform_device *plat_dev)
 			 NODE_ID_BASE + 1)
 			plat_priv->board_info.board_id_override = bdf_pci1;
 
+		snprintf(plat_priv->firmware_name,
+			 sizeof(plat_priv->firmware_name),
+			 "%s%s", cnss_get_fw_path(plat_priv),
+			 DEFAULT_FW_FILE_NAME);
 		break;
 	case QCA8074_DEVICE_ID:
 	case QCA8074V2_DEVICE_ID:
