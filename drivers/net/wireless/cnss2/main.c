@@ -165,6 +165,40 @@ static void cnss_set_plat_priv(struct platform_device *plat_dev,
 	plat_env[plat_env_index++] = plat_priv;
 }
 
+static int cnss_get_event(unsigned long subsys_event,
+			  struct cnss_plat_data *plat_priv)
+{
+	int event = -EINVAL;
+
+	switch (subsys_event) {
+	case SUBSYS_BEFORE_SHUTDOWN:
+		event = CNSS_BEFORE_SHUTDOWN;
+		break;
+	case SUBSYS_AFTER_SHUTDOWN:
+		event = CNSS_AFTER_SHUTDOWN;
+		break;
+	case SUBSYS_BEFORE_POWERUP:
+		event = CNSS_BEFORE_POWERUP;
+		break;
+	case SUBSYS_AFTER_POWERUP:
+		event = CNSS_AFTER_POWERUP;
+		break;
+	case SUBSYS_RAMDUMP_NOTIFICATION:
+		event = CNSS_RAMDUMP_NOTIFICATION;
+		break;
+	case SUBSYS_POWERUP_FAILURE:
+		event = CNSS_POWERUP_FAILURE;
+		break;
+	case SUBSYS_PREPARE_FOR_FATAL_SHUTDOWN:
+		event = CNSS_PREPARE_FOR_FATAL_SHUTDOWN;
+		break;
+	default:
+		cnss_pr_err("Invalid event, event: %ld", subsys_event);
+		break;
+	}
+	return event;
+}
+
 void *cnss_get_pci_dev_by_device_id(int device_id)
 {
 	int i;
@@ -1307,10 +1341,13 @@ static int cnss_qca8074_notifier_atomic_nb(struct notifier_block *nb,
 	struct cnss_plat_data *plat_priv =
 		container_of(nb, struct cnss_plat_data, modem_atomic_nb);
 	struct cnss_wlan_driver *driver_ops;
-
+	int event_code = cnss_get_event(code, plat_priv);
 	driver_ops = plat_priv->driver_ops;
 
-	if (code == SUBSYS_PREPARE_FOR_FATAL_SHUTDOWN)
+	if (event_code < 0)
+		return NOTIFY_OK;
+
+	if (event_code == CNSS_PREPARE_FOR_FATAL_SHUTDOWN) {
 		cnss_pr_err("XXX TARGET ASSERTED XXX\n");
 		cnss_pr_err("XXX TARGET %s instance_id 0x%x plat_env idx %d XXX\n",
 			    plat_priv->device_name,
@@ -1321,6 +1358,7 @@ static int cnss_qca8074_notifier_atomic_nb(struct notifier_block *nb,
 		driver_ops->fatal((struct pci_dev *)plat_priv->plat_dev,
 				  (const struct pci_device_id *)
 				  plat_priv->plat_dev_id);
+	}
 
 	return NOTIFY_OK;
 }
@@ -1332,21 +1370,25 @@ static int cnss_qcn9000_notifier_nb(struct notifier_block *nb,
 	struct cnss_plat_data *plat_priv =
 		container_of(nb, struct cnss_plat_data, modem_nb);
 	struct cnss_wlan_driver *driver_ops;
+	int event_code = cnss_get_event(code, plat_priv);
 
 	driver_ops = plat_priv->driver_ops;
 
-	if (code == SUBSYS_AFTER_POWERUP) {
+	if (event_code < 0)
+		return NOTIFY_OK;
+
+	if (event_code == CNSS_AFTER_POWERUP) {
 		driver_ops->probe((struct pci_dev *)plat_priv->plat_dev,
 				  (const struct pci_device_id *)
 				  plat_priv->plat_dev_id);
 		clear_bit(CNSS_DRIVER_RECOVERY, &plat_priv->driver_state);
 		clear_bit(CNSS_DRIVER_LOADING, &plat_priv->driver_state);
 		set_bit(CNSS_DRIVER_PROBED, &plat_priv->driver_state);
-	} else if (code == SUBSYS_BEFORE_SHUTDOWN) {
+	} else if (event_code == CNSS_BEFORE_SHUTDOWN) {
 		driver_ops->remove((struct pci_dev *)plat_priv->plat_dev);
 		clear_bit(CNSS_DRIVER_PROBED, &plat_priv->driver_state);
 		clear_bit(CNSS_DEV_ERR_NOTIFY, &plat_priv->driver_state);
-	} else if (code == SUBSYS_RAMDUMP_NOTIFICATION) {
+	} else if (event_code == CNSS_RAMDUMP_NOTIFICATION) {
 		coresight_abort();
 		driver_ops->reinit((struct pci_dev *)plat_priv->plat_dev,
 				   (const struct pci_device_id *)
@@ -1356,7 +1398,7 @@ static int cnss_qcn9000_notifier_nb(struct notifier_block *nb,
 	} else {
 		driver_ops->update_status((struct pci_dev *)plat_priv->plat_dev,
 					  (const struct pci_device_id *)
-					  plat_priv->plat_dev_id, code);
+					  plat_priv->plat_dev_id, event_code);
 	}
 
 	return NOTIFY_OK;
@@ -1396,31 +1438,35 @@ static int cnss_qca8074_notifier_nb(struct notifier_block *nb,
 	struct cnss_plat_data *plat_priv =
 		container_of(nb, struct cnss_plat_data, modem_nb);
 	struct cnss_wlan_driver *driver_ops;
+	int event_code = cnss_get_event(code, plat_priv);
 
 	driver_ops = plat_priv->driver_ops;
 
-	if (code == SUBSYS_AFTER_POWERUP) {
+	if (event_code < 0)
+		return NOTIFY_OK;
+
+	if (event_code == CNSS_AFTER_POWERUP) {
 		driver_ops->probe((struct pci_dev *)plat_priv->plat_dev,
 				  (const struct pci_device_id *)
 				  plat_priv->plat_dev_id);
-	} else if (code == SUBSYS_BEFORE_SHUTDOWN) {
+	} else if (event_code == CNSS_BEFORE_SHUTDOWN) {
 		cnss_bus_free_fw_mem(plat_priv);
 		cnss_bus_free_qdss_mem(plat_priv);
 		driver_ops->remove((struct pci_dev *)plat_priv->plat_dev);
-	} else if (code == SUBSYS_RAMDUMP_NOTIFICATION) {
+	} else if (event_code == CNSS_RAMDUMP_NOTIFICATION) {
 		coresight_abort();
 		driver_ops->reinit((struct pci_dev *)plat_priv->plat_dev,
 				   (const struct pci_device_id *)
 				   plat_priv->plat_dev_id);
 		return NOTIFY_DONE;
 	} else {
-		if (code == SUBSYS_AFTER_SHUTDOWN) {
+		if (event_code == CNSS_AFTER_SHUTDOWN) {
 			clear_bit(CNSS_FW_READY, &plat_priv->driver_state);
 			clear_bit(CNSS_FW_MEM_READY, &plat_priv->driver_state);
 		}
 		driver_ops->update_status((struct pci_dev *)plat_priv->plat_dev,
 					  (const struct pci_device_id *)
-					  plat_priv->plat_dev_id, code);
+					  plat_priv->plat_dev_id, event_code);
 		cnss_free_soc_info(plat_priv);
 	}
 
@@ -1726,17 +1772,21 @@ static int cnss_modem_notifier_nb(struct notifier_block *nb,
 	struct cnss_plat_data *plat_priv =
 		container_of(nb, struct cnss_plat_data, modem_nb);
 	struct cnss_esoc_info *esoc_info;
+	int event_code = cnss_get_event(code, plat_priv);
 
-	cnss_pr_dbg("Modem notifier: event %lu\n", code);
+	cnss_pr_dbg("Modem notifier: event %lu\n", event_code);
 
 	if (!plat_priv)
 		return NOTIFY_DONE;
 
+	if (event_code < 0)
+		return NOTIFY_OK;
+
 	esoc_info = &plat_priv->esoc_info;
 
-	if (code == SUBSYS_AFTER_POWERUP)
+	if (event_code == CNSS_AFTER_POWERUP)
 		esoc_info->modem_current_status = 1;
-	else if (code == SUBSYS_BEFORE_SHUTDOWN)
+	else if (event_code == CNSS_BEFORE_SHUTDOWN)
 		esoc_info->modem_current_status = 0;
 	else
 		return NOTIFY_DONE;
