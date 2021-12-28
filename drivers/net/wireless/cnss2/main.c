@@ -97,7 +97,11 @@ module_param(disable_regdb_bmap, int, 0644);
 MODULE_PARM_DESC(disable_regdb_bmap, "Bitmap to Disable RegDB download");
 
 #define FW_READY_DELAY	100  /* in msecs */
-#ifdef CONFIG_KASAN
+
+/* In IPQ5018, if CPU load is high FW_READY might take longer than
+ * default value of 15s. Increasing FW_READY timeout to 60s for IPQ5018
+ */
+#if defined(CONFIG_KASAN) || defined(CONFIG_ARCH_IPQ5018)
 static int fw_ready_timeout = 60;
 static int cold_boot_cal_timeout = 180;
 #else
