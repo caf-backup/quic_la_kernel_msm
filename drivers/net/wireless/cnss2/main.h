@@ -545,6 +545,7 @@ struct cnss_plat_data {
 	bool hds_support;
 	bool regdb_support;
 	bool qdss_support;
+	u32 probe_order;
 };
 
 #ifdef CONFIG_ARCH_QCOM
