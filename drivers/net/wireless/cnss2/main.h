@@ -85,10 +85,40 @@
  * +======+========+=========+===========+===========+===========+
  * |   0  |  28MB  | 0xA00000| 0x1A00000 | 0x1900000 | 0x1800000 |
  * +------+--------+---------+-----------+-----------+-----------+
- * |   1  |  28MB  | 0xA00000| 0x1A00000 | 0x1900000 | 0x1800000 |
+ * |   1  |  27MB  | 0xA00000| 0x1900000 | 0x1800000 | 0x1700000 |
  * +------+--------+---------+-----------+-----------+-----------+
  * |   2  |  26MB  | 0xA00000|  DISABLED | 0x1900000 | 0x1800000 |
  * +======+========+=========+===========+===========+===========+
+  *
+ *                              IPQ5018 (user-pd model)
+ *
+ * Start Address varies for each RDP, please refer RDP specific DTS file.
+ * All offsets mentioned below are with reference to the start address from DTS
+ * BDF Offset is always same as Start Offset
+ *
+ * +======+========+===========+============+===========+
+ * | MODE | Memory | M3 Dump Off| QDSS Off  | Caldb Off |
+ * |      |        |     1MB    |    1MB    |    2MB    |
+ * +======+========+============+===========+===========+
+ * |   1  |  17MB  |  0xD00000  | 0xE00000  | 0xF00000  |
+ * +------+--------+------------+-----------+-----------+
+ * |   2  |  15MB  |  0xD00000  | 0xE00000  |    NA     |
+ * +======+========+============+===========+===========+
+ *
+ *                              QCN6122
+ *
+ * Start Address varies for each RDP, please refer RDP specific DTS file.
+ * All offsets mentioned below are with reference to the start address from DTS
+ * BDF Offset is always same as Start Offset
+ *
+ * +======+========+===========+============+===========+
+ * | MODE | Memory | M3 Dump Off| QDSS Off  | Caldb Off |
+ * |      |        |     1MB    |    1MB    |    5MB    |
+ * +======+========+============+===========+===========+
+ * |   1  |  20MB  |  0xD00000  | 0xE00000  | 0xF00000  |
+ * +------+--------+------------+-----------+-----------+
+ * |   2  |  15MB  |  0xD00000  | 0xE00000  |    NA     |
+ * +======+========+============+===========+===========+
  *
  *				QCN9000
  *

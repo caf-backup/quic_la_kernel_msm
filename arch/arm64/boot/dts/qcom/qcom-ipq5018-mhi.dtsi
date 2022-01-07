@@ -53,22 +53,22 @@
 			 * +=========+==============+=========+
 			 * |  Region | Start Offset |   Size  |
 			 * +---------+--------------+---------+
-			 * | HREMOTE |  0x4CC00000  |   20MB  |
+			 * | HREMOTE |  0x4CB00000  |   20MB  |
 			 * +---------+--------------+---------+
-			 * | M3 Dump |  0x4E000000  |   1MB   |
+			 * | M3 Dump |  0x4DF00000  |   1MB   |
 			 * +---------+--------------+---------+
-			 * |   ETR   |  0x4E100000  |   1MB   |
+			 * |   ETR   |  0x4E000000  |   1MB   |
 			 * +---------+--------------+---------+
-			 * |  Caldb  |  0x4E200000  |   8MB   |
+			 * |  Caldb  |  0x4E100000  |   8MB   |
 			 * +---------+--------------+---------+
-			 * | Pageable|  0x4EA00000  |   8MB   |
+			 * | Pageable|  0x4E900000  |   8MB   |
 			 * +==================================+
 			 */
-			base-addr = <0x4CC00000>;
-			m3-dump-addr = <0x4E000000>;
-			etr-addr = <0x4E100000>;
-			caldb-addr = <0x4E200000>;
-			pageable-addr = <0x4EA00000>;
+			base-addr = <0x4CB00000>;
+			m3-dump-addr = <0x4DF00000>;
+			etr-addr = <0x4E000000>;
+			caldb-addr = <0x4E100000>;
+			pageable-addr = <0x4E900000>;
 			caldb-size = <0x800000>;
 			hremote-size = <0x1400000>;
 			tgt-mem-mode = <0x1>;
@@ -78,22 +78,22 @@
 		       * +=========+==============+=========+
 		       * |  Region | Start Offset |   Size  |
 		       * +---------+--------------+---------+
-		       * | HREMOTE |  0x4CC00000  |   35MB  |
+		       * | HREMOTE |  0x4CB00000  |   35MB  |
 		       * +---------+--------------+---------+
-		       * | M3 Dump |  0x4EF00000  |   1MB   |
+		       * | M3 Dump |  0x4EE00000  |   1MB   |
 		       * +---------+--------------+---------+
-		       * |   ETR   |  0x4F000000  |   1MB   |
+		       * |   ETR   |  0x4EF00000  |   1MB   |
 		       * +---------+--------------+---------+
-		       * |  Caldb  |  0x4F100000  |   8MB   |
+		       * |  Caldb  |  0x4F000000  |   8MB   |
 		       * +---------+--------------+---------+
-		       * | Pageable|  0x4F900000  |   8MB   |
+		       * | Pageable|  0x4F800000  |   8MB   |
 		       * +==================================+
 		       */
-			base-addr = <0x4CC00000>;
-			m3-dump-addr = <0x4EF00000>;
-			etr-addr = <0x4F000000>;
-			caldb-addr = <0x4F100000>;
-			pageable-addr = <0x4F900000>;
+			base-addr = <0x4CB00000>;
+			m3-dump-addr = <0x4EE00000>;
+			etr-addr = <0x4EF00000>;
+			caldb-addr = <0x4F000000>;
+			pageable-addr = <0x4F800000>;
 			hremote-size = <0x2300000>;
 			caldb-size = <0x800000>;
 			tgt-mem-mode = <0x0>;
