@@ -460,7 +460,7 @@ irqreturn_t mhi_intvec_threaded_handler(int irq_number, void *priv)
 	write_unlock_irq(&mhi_cntrl->pm_lock);
 
 	 /* If device supports RDDM don't bother processing SYS error */
-	if (mhi_cntrl->rddm_image) {
+	if (mhi_cntrl->rddm_size) {
 		/* host may be performing a device power down already */
 		if (!mhi_is_active(mhi_cntrl))
 			goto exit_intvec;
@@ -1620,7 +1620,7 @@ bool mhi_scan_rddm_cookie(struct mhi_controller *mhi_cntrl, u32 off, u32 cookie)
 	int ret;
 	u32 val;
 
-	if (!mhi_cntrl->rddm_image || !cookie)
+	if (!mhi_cntrl->rddm_size || !cookie)
 		return false;
 
 	dev_dbg(dev, "Checking BHI debug register for 0x%x\n", cookie);

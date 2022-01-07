@@ -54,11 +54,14 @@
 #define CNSS_QMI_TIMEOUT_DEFAULT	10000
 #define CNSS_BDF_TYPE_DEFAULT		CNSS_BDF_ELF
 #define CNSS_TIME_SYNC_PERIOD_DEFAULT	900000
-#define QCN9000_DEFAULT_FW_FILE_NAME	"qcn9000/amss.bin"
-#define QCN9224_DEFAULT_FW_FILE_NAME	"qcn9224/amss.bin"
+#define DEFAULT_FW_FILE_NAME		"amss.bin"
 #define QCN9224_MLO_MIN_LINKS 2
 
 #define MAX_NUMBER_OF_SOCS 4
+#define CNSS_PROBE_ORDER_MASK 0xF
+#define CNSS_PROBE_ORDER_DEFAULT 0xFF
+#define CNSS_PROBE_ORDER_SHIFT 4
+
 struct cnss_plat_data *plat_env[MAX_NUMBER_OF_SOCS];
 int plat_env_index;
 
@@ -82,6 +85,14 @@ static int bdf_pci1;
 module_param(bdf_pci1, int, 0644);
 MODULE_PARM_DESC(bdf_pci1, "bdf_pci1");
 
+static int bdf_pci2;
+module_param(bdf_pci2, int, 0644);
+MODULE_PARM_DESC(bdf_pci1, "bdf_pci2");
+
+static int bdf_pci3;
+module_param(bdf_pci3, int, 0644);
+MODULE_PARM_DESC(bdf_pci1, "bdf_pci3");
+
 int timeout_factor = 1;
 module_param(timeout_factor, int, 0644);
 MODULE_PARM_DESC(timeout_factor, "timeout_factor");
@@ -102,9 +113,19 @@ static int disable_caldata_bmap;
 module_param(disable_caldata_bmap, int, 0644);
 MODULE_PARM_DESC(disable_caldata_bmap, "Bitmap to Disable Caldata download");
 
-static int disable_regdb_bmap = 0xF;
+static int disable_regdb_bmap;
 module_param(disable_regdb_bmap, int, 0644);
 MODULE_PARM_DESC(disable_regdb_bmap, "Bitmap to Disable RegDB download");
+
+/* probe_order needs to be defined in the format of hex.
+ * The order of socX can be rearranged based on the given value.
+ * For example, if default order is Soc0->Soc1->Soc2, then 0x213 will make
+ * the order as Soc1->Soc0->Soc2.
+ * If probe_order is 0 or not specified, then default order will be takes place.
+ */
+static unsigned int probe_order;
+module_param(probe_order, uint, 0644);
+MODULE_PARM_DESC(probe_order, "Probe order");
 
 #define FW_READY_DELAY	100  /* in msecs */
 
@@ -263,6 +284,31 @@ int cnss_get_plat_env_index_from_plat_priv(struct cnss_plat_data *plat_priv)
 	}
 
 	return -EINVAL;
+}
+
+const char *cnss_get_fw_path(struct cnss_plat_data *plat_priv)
+{
+	switch (plat_priv->device_id) {
+	case QCA8074_DEVICE_ID:
+	case QCA8074V2_DEVICE_ID:
+		return "IPQ8074/";
+	case QCA6018_DEVICE_ID:
+		return "IPQ6018/";
+	case QCA5018_DEVICE_ID:
+		return "IPQ5018/";
+	case QCA9574_DEVICE_ID:
+		return "IPQ9574/";
+	case QCN9000_DEVICE_ID:
+		return "qcn9000/";
+	case QCN6122_DEVICE_ID:
+		return "qcn6122/";
+	case QCN9224_DEVICE_ID:
+		return "qcn9224/";
+	default:
+		cnss_pr_err("No such device id 0x%lx\n", plat_priv->device_id);
+	}
+
+	return "UNKNOWN";
 }
 
 #ifdef CONFIG_CNSS2_PM
@@ -479,6 +525,12 @@ skip_cfg:
 		set_bit(CNSS_COLD_BOOT_CAL, &plat_priv->driver_state);
 
 	ret = cnss_wlfw_wlan_mode_send_sync(plat_priv, mode);
+
+	if (mode == CNSS_MISSION && plat_priv->qdss_support) {
+		cnss_pr_info("Starting QDSS for %s\n", plat_priv->device_name);
+		cnss_wlfw_qdss_dnld_send_sync(plat_priv);
+	}
+
 out:
 	return ret;
 }
@@ -1175,6 +1227,8 @@ static char *cnss_driver_event_to_str(enum cnss_driver_event_type type)
 		return "QDSS_TRACE_SAVE";
 	case CNSS_DRIVER_EVENT_QDSS_TRACE_FREE:
 		return "QDSS_TRACE_FREE";
+	case CNSS_DRIVER_EVENT_QDSS_MEM_READY:
+		return "QDSS_MEM_READY";
 	case CNSS_DRIVER_EVENT_M3_DUMP_UPLOAD_REQ:
 		return "M3_DUMP_UPLOAD_REQ";
 	case CNSS_DRIVER_EVENT_MAX:
@@ -1712,6 +1766,96 @@ int cnss_unregister_notifier_cb(struct cnss_plat_data *plat_priv)
 	}
 	return 0;
 }
+
+static void cnss_sort_probe_order(void)
+{
+	int i = 0;
+	int j = 0;
+
+	for (i = 0; i < plat_env_index; i++)
+		for (j = i + 1; j < plat_env_index; j++)
+			if (plat_env[i]->probe_order > plat_env[j]->probe_order)
+				swap(plat_env[i], plat_env[j]);
+}
+
+int cnss_wlan_probe_driver(void)
+{
+	int ret;
+	int i;
+	struct cnss_plat_data *plat_priv;
+
+	cnss_sort_probe_order();
+	for (i = 0; i < plat_env_index; i++) {
+		plat_priv = plat_env[i];
+
+		if (!plat_priv)
+			continue;
+
+		if (!plat_priv->cold_boot_support &&
+		    (driver_mode == CNSS_CALIBRATION ||
+		     driver_mode == CNSS_FTM_CALIBRATION)) {
+			cnss_pr_info("Skipping driver register for device 0x%lx for mode %d\n",
+				     plat_priv->device_id, driver_mode);
+			continue;
+		}
+
+		plat_priv->target_asserted = 0;
+		plat_priv->target_assert_timestamp = 0;
+		plat_priv->driver_status = CNSS_LOAD_UNLOAD;
+
+		if (plat_priv->bus_type == CNSS_BUS_PCI) {
+			cnss_pci_init(plat_priv);
+			set_bit(CNSS_DRIVER_LOADING, &plat_priv->driver_state);
+		}
+		ret = cnss_register_subsys(plat_priv);
+		if (ret)
+			goto reset_ctx;
+
+		plat_priv->driver_status = CNSS_INITIALIZED;
+	}
+
+	return 0;
+
+reset_ctx:
+	cnss_pr_err("Failed to get subsystem, err = %d\n", ret);
+	plat_priv->driver_status = CNSS_UNINITIALIZED;
+	plat_priv->driver_ops = NULL;
+	return ret;
+}
+EXPORT_SYMBOL(cnss_wlan_probe_driver);
+
+int cnss_wlan_register_driver_ops(struct cnss_wlan_driver *driver_ops)
+{
+	int i;
+	struct cnss_plat_data *plat_priv;
+
+	for (i = 0; i < plat_env_index; i++) {
+		plat_priv = plat_env[i];
+
+		if (!plat_priv)
+			continue;
+
+		switch (plat_priv->bus_type) {
+		case CNSS_BUS_AHB:
+			if (strcmp(driver_ops->name, "pld_ahb") == 0)
+				plat_priv->driver_ops = driver_ops;
+
+			break;
+		case CNSS_BUS_PCI:
+			if (strcmp(driver_ops->name, "pld_pcie") == 0)
+				plat_priv->driver_ops = driver_ops;
+
+			break;
+		default:
+			cnss_pr_err("%s: Invalid bus type for device 0x%lx\n",
+				    __func__, plat_priv->device_id);
+			break;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(cnss_wlan_register_driver_ops);
 
 int cnss_wlan_register_driver(struct cnss_wlan_driver *driver_ops)
 {
@@ -2710,6 +2854,16 @@ static int cnss_qdss_trace_free_hdlr(struct cnss_plat_data *plat_priv)
 	return 0;
 }
 
+static int cnss_qdss_mem_ready_hdlr(struct cnss_plat_data *plat_priv)
+{
+	if (!plat_priv->qdss_support)
+		return 0;
+
+	return cnss_wlfw_send_qdss_trace_mode_req(plat_priv,
+						  QMI_WLFW_QDSS_TRACE_ON_V01,
+						  0);
+}
+
 static void m3_dump_open_timeout_func(struct timer_list *timer)
 {
 	struct m3_dump *m3_dump_data =
@@ -3114,6 +3268,9 @@ static void cnss_driver_event_work(struct work_struct *work)
 			break;
 		case CNSS_DRIVER_EVENT_QDSS_TRACE_FREE:
 			ret = cnss_qdss_trace_free_hdlr(plat_priv);
+			break;
+		case CNSS_DRIVER_EVENT_QDSS_MEM_READY:
+			ret = cnss_qdss_mem_ready_hdlr(plat_priv);
 			break;
 		case CNSS_DRIVER_EVENT_M3_DUMP_UPLOAD_REQ:
 			ret = cnss_m3_dump_upload_req_hdlr(plat_priv,
@@ -3884,6 +4041,21 @@ void cnss_update_platform_feature_support(u8 type, u32 instance_id, u32 value)
 		cnss_pr_info("Setting regdb_support=%d for instance_id 0x%x\n",
 			     value, instance_id);
 		break;
+	case CNSS_GENL_MSG_TYPE_QDSS_SUPPORT:
+		plat_priv->qdss_support = value;
+		cnss_pr_info("Setting qdss_support=%d for instance_id 0x%x\n",
+			     value, instance_id);
+		break;
+	case CNSS_GENL_MSG_TYPE_QDSS_START:
+		cnss_pr_info("Starting QDSS for %s", plat_priv->device_name);
+		cnss_wlfw_qdss_dnld_send_sync(plat_priv);
+		break;
+	case CNSS_GENL_MSG_TYPE_QDSS_STOP:
+		cnss_pr_info("Stopping QDSS for %s", plat_priv->device_name);
+		cnss_wlfw_send_qdss_trace_mode_req(plat_priv,
+						   QMI_WLFW_QDSS_TRACE_OFF_V01,
+						   value);
+		break;
 	default:
 		cnss_pr_err("Unknown type %d\n", type);
 		break;
@@ -4054,6 +4226,21 @@ static void cnss_rproc_unregister(struct cnss_plat_data *plat_priv)
 	}
 }
 
+static void cnss_fill_probe_order(struct cnss_plat_data *plat_priv)
+{
+	u32 prb_order = 0;
+
+	if (probe_order) {
+		plat_priv->probe_order = (probe_order & CNSS_PROBE_ORDER_MASK);
+		probe_order >>= CNSS_PROBE_ORDER_SHIFT;
+	} else if (!of_property_read_u32(plat_priv->plat_dev->dev.of_node,
+					 "probe-order", &prb_order)) {
+		plat_priv->probe_order = prb_order;
+	} else {
+		plat_priv->probe_order = CNSS_PROBE_ORDER_DEFAULT;
+	}
+}
+
 static int cnss_probe(struct platform_device *plat_dev)
 {
 	int ret = 0;
@@ -4161,6 +4348,7 @@ static int cnss_probe(struct platform_device *plat_dev)
 	case QCN9000_DEVICE_ID:
 	case QCN9224_DEVICE_ID:
 		plat_priv->bus_type = CNSS_BUS_PCI;
+		plat_priv->bdf_dnld_method = WLFW_SEND_BDF_OVER_QMI_V01;
 		plat_priv->qrtr_node_id = node_id;
 		plat_priv->wlfw_service_instance_id = node_id + FW_ID_BASE;
 
@@ -4169,20 +4357,27 @@ static int cnss_probe(struct platform_device *plat_dev)
 		else
 			node_id_base = QCN9000_NODE_ID_BASE;
 
-		if (plat_priv->wlfw_service_instance_id == node_id_base)
+		switch (plat_priv->wlfw_service_instance_id - node_id_base) {
+		case 0:
 			plat_priv->board_info.board_id_override = bdf_pci0;
-		else if (plat_priv->wlfw_service_instance_id ==
-			 node_id_base + 1)
+			break;
+		case 1:
 			plat_priv->board_info.board_id_override = bdf_pci1;
+			break;
+		case 2:
+			plat_priv->board_info.board_id_override = bdf_pci2;
+			break;
+		case 3:
+			plat_priv->board_info.board_id_override = bdf_pci3;
+			break;
+		default:
+			break;
+		}
 
-		if (plat_priv->device_id == QCN9224_DEVICE_ID)
-			snprintf(plat_priv->firmware_name,
-				 sizeof(plat_priv->firmware_name),
-				 QCN9224_DEFAULT_FW_FILE_NAME);
-		else
-			snprintf(plat_priv->firmware_name,
-				 sizeof(plat_priv->firmware_name),
-				 QCN9000_DEFAULT_FW_FILE_NAME);
+		snprintf(plat_priv->firmware_name,
+			 sizeof(plat_priv->firmware_name),
+			 "%s%s", cnss_get_fw_path(plat_priv),
+			 DEFAULT_FW_FILE_NAME);
 		break;
 	case QCA8074_DEVICE_ID:
 	case QCA8074V2_DEVICE_ID:
@@ -4190,12 +4385,14 @@ static int cnss_probe(struct platform_device *plat_dev)
 	case QCA6018_DEVICE_ID:
 	case QCA9574_DEVICE_ID:
 		plat_priv->bus_type = CNSS_BUS_AHB;
+		plat_priv->bdf_dnld_method = WLFW_DIRECT_BDF_COPY_V01;
 		plat_priv->wlfw_service_instance_id =
 			WLFW_SERVICE_INS_ID_V01_QCA8074;
 		plat_priv->board_info.board_id_override = bdf_integrated;
 		break;
 	case QCN6122_DEVICE_ID:
 		plat_priv->bus_type = CNSS_BUS_AHB;
+		plat_priv->bdf_dnld_method = WLFW_DIRECT_BDF_COPY_V01;
 		plat_priv->userpd_id = userpd_id;
 		plat_priv->wlfw_service_instance_id =
 			WLFW_SERVICE_INS_ID_V01_QCN6122 + userpd_id;
@@ -4228,6 +4425,7 @@ static int cnss_probe(struct platform_device *plat_dev)
 	if (ret)
 		goto out;
 
+	cnss_fill_probe_order(plat_priv);
 	cnss_set_mod_param_feature_support(plat_priv, CALDATA);
 	cnss_set_mod_param_feature_support(plat_priv, REGDB);
 	cnss_set_plat_priv(plat_dev, plat_priv);

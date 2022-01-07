@@ -230,7 +230,7 @@ extern int qti_scm_tls_hardening(uint32_t req_addr, uint32_t req_size,
 				 u32 cmd_id);
 extern int qti_scm_aes(uint32_t req_addr, uint32_t req_size,
 		       uint32_t resp_addr, uint32_t resp_size, u32 cmd_id);
-extern int qti_scm_dload(u32 svc_id, u32 cmd_id, void *cmd_buf);
+extern int qti_scm_dload(u32 svc_id, u32 cmd_id, void *cmd_buf, void *dload_reg);
 extern int qti_scm_sdi(u32 svc_id, u32 cmd_id);
 extern int qti_scm_tz_log(void *ker_buf, u32 buf_len);
 extern int qti_scm_hvc_log(void *ker_buf, u32 buf_len);

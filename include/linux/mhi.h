@@ -456,6 +456,8 @@ struct mhi_controller {
 	bool pre_init;
 	bool wake_set;
 	void *priv_data;
+	int disable_rddm_prealloc;
+	u32 rddm_seg_len;
 };
 
 /**

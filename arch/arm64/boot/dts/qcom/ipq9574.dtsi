@@ -153,7 +153,6 @@
 	tzlog: qti,tzlog {
 		compatible = "qti,tzlog-ipq9574";
 		interrupts = <GIC_SPI 244 IRQ_TYPE_EDGE_RISING>;
-		qti,tzbsp-diag-buf-start = <0x4a7df000>;
 		qti,tz-diag-buf-size = <0x3000>;
 		qti,tz-ring-off = <7>;
 		qti,tz-log-pos-info-off = <810>;
@@ -776,7 +775,6 @@
 			reg = <0xb017000 0x1000>;
 			interrupts = <GIC_SPI 3 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&sleep_clk>;
-			max-timeout-sec = <32>;
 		};
 
 		timer@b120000 {
@@ -857,6 +855,11 @@
 			mem_dump_table@10 {
 				compatible = "qcom,msm-imem-mem_dump_table";
 				reg = <0x10 8>;
+			};
+
+			tz-log-buf-addr@720 {
+				compatible = "qcom,msm-imem-tz-log-buf-addr";
+				reg = <0x720 4>;
 			};
 		};
 
@@ -2057,8 +2060,9 @@
 			       <0x28000F20 0xa8>,
 			       <0x28001000 0x1000>,
 			       <0x00080000 0x2000>,
-			       <0x28100000 0x1000>;
-			reg-names = "dbi", "elbi", "atu", "parf", "config";
+			       <0x28100000 0x1000>,
+			       <0x00618088 0x4>;
+			reg-names = "dbi", "elbi", "atu", "parf", "config", "aggr_noc";
 			device_type = "pci";
 			linux,pci-domain = <1>;
 			bus-range = <0x00 0xff>;
@@ -2066,6 +2070,7 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 			slv-addr-space-sz = <0x8000000>;
+			axi-halt-val = <0x1e>; /* increase halt window size to 1GB */
 
 			ranges = <0x81000000 0 0x28200000 0x28200000
 				  0 0x00100000   /* downstream I/O */
@@ -2130,8 +2135,9 @@
 			       <0x10000F20 0xa8>,
 			       <0x10001000 0x1000>,
 			       <0x000F8000 0x2000>,
-			       <0x10100000 0x1000>;
-			reg-names = "dbi", "elbi", "atu", "parf", "config";
+			       <0x10100000 0x1000>,
+			       <0x00618108 0x4>;
+			reg-names = "dbi", "elbi", "atu", "parf", "config", "aggr_noc";
 			device_type = "pci";
 			linux,pci-domain = <2>;
 			bus-range = <0x00 0xff>;
@@ -2139,6 +2145,7 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 			slv-addr-space-sz = <0x8000000>;
+			axi-halt-val = <0x1e>; /* increase halt window size to 1GB */
 
 			ranges = <0x81000000 0 0x10200000 0x10200000
 				  0 0x00100000   /* downstream I/O */
@@ -2212,6 +2219,7 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 			slv-addr-space-sz = <0x8000000>;
+			axi-halt-val = <0x1e>; /* increase halt window size to 1GB */
 
 			ranges = <0x81000000 0 0x20200000 0x20200000
 				  0 0x00100000   /* downstream I/O */
@@ -2285,6 +2293,7 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 			slv-addr-space-sz = <0x8000000>;
+			axi-halt-val = <0x1e>; /* increase halt window size to 1GB */
 
 			ranges = <0x81000000 0 0x18200000 0x18200000
 				  0 0x00100000   /* downstream I/O */
@@ -2354,6 +2363,12 @@
 			qti,offset-page-indices = <56>;
 		};
 
+		qti,scm_restart_reason {
+			compatible = "qti,scm_restart_reason";
+			reg = <0x0193d100 0x4>;
+			qti,runtime-failsafe = <0>;
+		};
+
 		wifi0: wifi@c0000000 {
 			compatible = "qcom,cnss-qca9574", "qcom,ipq9574-wifi";
 			reg = <0xc000000 0x1000000>;
@@ -2368,7 +2383,7 @@
 			qcom,rproc = <&q6v5_wcss>;
 			qcom,bdf-addr = <0x4B700000 0x4B700000 0x4B700000
 					 0x0 0x0>;
-			qcom,caldb-addr = <0x4D800000 0x4D800000 0x0
+			qcom,caldb-addr = <0x4D800000 0x4CA00000 0x0
 					   0x0 0x0>;
 			qcom,caldb-size = <0x500000>;
 			m3-dump-addr = <0x4D600000>;
@@ -2498,6 +2513,30 @@
 			status = "disabled";
 		};
 
+		wifi3: wifi3@f00000 {
+			compatible  = "qcom,cnss-qcn9224";
+			qcom,wlan-ramdump-dynamic = <0x600000>;
+			qrtr_node_id = <0x31>;
+			qca,auto-restart;
+			status = "disabled";
+		};
+
+		wifi4: wifi4@f00000 {
+			compatible  = "qcom,cnss-qcn9224";
+			qcom,wlan-ramdump-dynamic = <0x600000>;
+			qrtr_node_id = <0x32>;
+			qca,auto-restart;
+			status = "disabled";
+		};
+
+		wifi5: wifi5@f00000 {
+                        compatible  = "qcom,cnss-qcn9224";
+                        qcom,wlan-ramdump-dynamic = <0x600000>;
+                        qrtr_node_id = <0x33>;
+                        qca,auto-restart;
+                        status = "disabled";
+                };
+
 		qfprom@a4000 {
 			compatible = "qcom,qfprom";
 			reg = <0xA4000 0x5a1>;
@@ -2612,10 +2651,6 @@
 				};
 			};
 		};
-	};
-
-	qti,scm_restart_reason {
-		compatible = "qti,scm_restart_reason";
 	};
 
 	qti,gadget_diag@0 {

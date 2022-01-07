@@ -1230,7 +1230,7 @@ int __qti_fuseipq_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
 	return ret ? : le32_to_cpu(desc.ret[0]);
 }
 
-static int __qti_scm_dload_v8(struct device *dev, void *cmd_buf)
+static int __qti_scm_dload_v8(struct device *dev, void *cmd_buf, void *dload_reg)
 {
 	struct scm_desc desc = {0};
 	int ret;
@@ -1242,6 +1242,14 @@ static int __qti_scm_dload_v8(struct device *dev, void *cmd_buf)
 		desc.args[1] = DLOAD_MODE_ENABLE_WARMRESET;
 	else
 		desc.args[1] = enable ? DLOAD_MODE_ENABLE : DLOAD_MODE_DISABLE;
+
+	if (dload_reg) {
+		if (desc.args[1] == DLOAD_MODE_DISABLE)
+	                desc.args[1] = readl(dload_reg) & ~DLOAD_MODE_ENABLE;
+		else
+			desc.args[1] |= readl(dload_reg);
+	}
+
 	desc.arginfo = SCM_ARGS(2, QCOM_SCM_VAL, QCOM_SCM_VAL);
 	ret = qti_scm_call2(dev, SCM_SIP_FNID(QCOM_SCM_SVC_IO,
 					QCOM_SCM_IO_WRITE), &desc);
@@ -1399,12 +1407,12 @@ int __qti_scm_int_radio_powerdown(struct device *dev, u32 peripheral)
 		return -ENOTSUPP;
 }
 
-int __qti_scm_dload(struct device *dev, u32 svc_id, u32 cmd_id, void *cmd_buf)
+int __qti_scm_dload(struct device *dev, u32 svc_id, u32 cmd_id, void *cmd_buf, void *dload_reg)
 {
 	long ret;
 
 	if (is_scm_armv8())
-		return __qti_scm_dload_v8(dev, cmd_buf);
+		return __qti_scm_dload_v8(dev, cmd_buf, dload_reg);
 
 	if (cmd_buf)
 		ret = qcom_scm_call(dev, svc_id, cmd_id, cmd_buf,
@@ -1834,4 +1842,30 @@ int __qti_scm_toggle_bt_eco(struct device *dev, u32 peripheral, u32 arg)
 					QTI_SCM_CMD_BT_ECO), &desc);
 
 	return ret ? : le32_to_cpu(desc.ret[0]);
+}
+
+static int __qti_scm_set_kernel_boot_complete_v8(struct device *dev, u32 val)
+{
+	struct scm_desc desc = {0};
+	int ret;
+
+	desc.args[0] = TCSR_BOOT_MISC_REG;
+	desc.args[1] = val;
+
+	desc.arginfo = SCM_ARGS(2, QCOM_SCM_VAL, QCOM_SCM_VAL);
+	ret = qti_scm_call2(dev, SCM_SIP_FNID(QCOM_SCM_SVC_IO,
+					QCOM_SCM_IO_WRITE), &desc);
+	if (ret)
+		return ret;
+
+	return le32_to_cpu(desc.ret[0]);
+}
+
+int __qti_scm_set_kernel_boot_complete(struct device *dev, u32 svc_id, u32 val)
+{
+	if (!is_scm_armv8())
+		return -ENOTSUPP;
+
+	return __qti_scm_set_kernel_boot_complete_v8(dev, val);
+
 }

@@ -212,6 +212,7 @@ extern int __qti_fuseipq_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
 #define SET_MAGIC_WARMRESET			0x2
 #define DLOAD_MODE_ENABLE_WARMRESET		0x20ull
 #define TCSR_Q6SS_BOOT_TRIG_REG			0x193d204ull
+#define SET_KERNEL_COMPLETE			(~BIT(10))
 
 #define PD_LOAD_SVC_ID          0x2
 #define PD_LOAD_CMD_ID          0x16
@@ -222,7 +223,10 @@ extern int __qti_scm_wcss_boot(struct device *, u32 svc_id, u32 cmd_id,
 				void *cmd_buf);
 extern int qti_scm_wcss_boot(u32 svc_id, u32 cmd_id, void *cmd_buf);
 extern int __qti_scm_dload(struct device *dev, u32 svc_id, u32 cmd_id,
-				void *cmd_buf);
+				void *cmd_buf, void *dload_reg);
+extern int __qti_scm_set_kernel_boot_complete(struct device *dev, u32 svc_id,
+				u32 val);
+extern int qti_scm_set_kernel_boot_complete(u32 svc_id, u32 val);
 extern int __qti_scm_pdseg_memcpy_v2(struct device *dev, u32 peripheral,
 				int phno, dma_addr_t dma, int seg_cnt);
 extern int qti_scm_pdseg_memcpy_v2(u32 peripheral, int phno, dma_addr_t dma,

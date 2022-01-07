@@ -636,6 +636,9 @@ const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_CONTROL_PORT_NO_PREAUTH] = { .type = NLA_FLAG },
 	[NL80211_ATTR_MLD_MAC] = { .type = NLA_EXACT_LEN_WARN, .len = ETH_ALEN },
 	[NL80211_ATTR_MLD_REFERENCE] = { .type = NLA_U32 },
+	[NL80211_ATTR_MLD_LINK_MACS] = { .type = NLA_NESTED },
+	[NL80211_ATTR_MLD_LINK_IDS] = { .type = NLA_NESTED },
+
 };
 
 /* policy for the key attributes */
@@ -4733,7 +4736,9 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 	struct net_device *dev = info->user_ptr[1];
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_ap_settings params;
-	int err;
+	struct cfg80211_mlo_info *ml_info = NULL;
+	int err, tmp, i;
+	struct nlattr *attr;
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
 	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_GO)
@@ -4898,6 +4903,30 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 					&params.he_obss_pd);
 		if (err)
 			goto out;
+	}
+
+	i = 0;
+	ml_info = &params.mlo_info;
+	if (info->attrs[NL80211_ATTR_MLD_LINK_IDS]) {
+		nla_for_each_nested(attr,
+				info->attrs[NL80211_ATTR_MLD_LINK_IDS],
+				tmp) {
+			ml_info->mlo_link_ids[i] = nla_get_u32(attr);
+			i++;
+		}
+		ml_info->num_mlo_links = i;
+	}
+
+	i = 0;
+	if (info->attrs[NL80211_ATTR_MLD_LINK_MACS]) {
+		err = validate_acl_mac_addrs(info->attrs[NL80211_ATTR_MLD_LINK_MACS]);
+		if (err <= 0) {
+			goto out;
+		}
+		nla_for_each_nested(attr, info->attrs[NL80211_ATTR_MLD_LINK_MACS], tmp) {
+			memcpy(ml_info->mlo_mac_addrs[i].addr, nla_data(attr), ETH_ALEN);
+			i++;
+		}
 	}
 
 	nl80211_calculate_ap_params(&params);

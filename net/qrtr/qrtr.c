@@ -559,11 +559,12 @@ static int qrtr_node_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 static struct qrtr_node *qrtr_node_lookup(unsigned int nid)
 {
 	struct qrtr_node *node;
+	unsigned long flags;
 
-	down_read(&qrtr_node_lock);
+	spin_lock_irqsave(&qrtr_nodes_lock, flags);
 	node = radix_tree_lookup(&qrtr_nodes, nid);
 	node = qrtr_node_acquire(node);
-	up_read(&qrtr_node_lock);
+	spin_unlock_irqrestore(&qrtr_nodes_lock, flags);
 
 	return node;
 }
@@ -575,25 +576,19 @@ static struct qrtr_node *qrtr_node_lookup(unsigned int nid)
  */
 static void qrtr_node_assign(struct qrtr_node *node, unsigned int nid)
 {
-	struct qrtr_node *tnode = NULL;
 	char name[32] = {0,};
+	unsigned long flags;
 
-	if (nid == QRTR_EP_NID_AUTO)
-		return;
-	if (nid == node->nid)
-		return;
-
-	down_read(&qrtr_node_lock);
-	tnode = radix_tree_lookup(&qrtr_nodes, nid);
-	up_read(&qrtr_node_lock);
-	if (tnode)
+	if (nid == node->nid || nid == QRTR_EP_NID_AUTO)
 		return;
 
-	down_write(&qrtr_node_lock);
-	radix_tree_insert(&qrtr_nodes, nid, node);
+	spin_lock_irqsave(&qrtr_nodes_lock, flags);
+	if (!radix_tree_lookup(&qrtr_nodes, nid))
+		radix_tree_insert(&qrtr_nodes, nid, node);
+
 	if (node->nid == QRTR_EP_NID_AUTO)
 		node->nid = nid;
-	up_write(&qrtr_node_lock);
+	spin_unlock_irqrestore(&qrtr_nodes_lock, flags);
 
 	if (!node->ilc) {
 		snprintf(name, sizeof(name), "qrtr_%d", nid);

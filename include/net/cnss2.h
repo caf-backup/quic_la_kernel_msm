@@ -428,8 +428,18 @@ static inline int cnss_get_dev_link_ids(struct device *dev, u8 *link_ids,
 {
 	return -EINVAL;
 }
+static inline int cnss_wlan_register_driver_ops(struct cnss_wlan_driver *driver)
+{
+	return 0;
+}
+static inline int cnss_wlan_probe_driver(void)
+{
+	return 0;
+}
 #else
 extern int cnss_wlan_register_driver(struct cnss_wlan_driver *driver);
+extern int cnss_wlan_register_driver_ops(struct cnss_wlan_driver *driver);
+extern int cnss_wlan_probe_driver(void);
 extern void cnss_wlan_unregister_driver(struct cnss_wlan_driver *driver);
 extern void cnss_device_crashed(struct device *dev);
 extern int cnss_pci_link_down(struct device *dev);

@@ -2910,5 +2910,9 @@ static inline int pages_identical(struct page *page1, struct page *page2)
 	return !memcmp_pages(page1, page2);
 }
 
+#ifdef CONFIG_DEBUG_MEM_USAGE
+extern int debug_mem_usage_enabled;
+#endif
+
 #endif /* __KERNEL__ */
 #endif /* _LINUX_MM_H */

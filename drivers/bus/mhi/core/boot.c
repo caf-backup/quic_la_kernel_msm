@@ -278,6 +278,23 @@ int mhi_download_rddm_image(struct mhi_controller *mhi_cntrl, bool in_panic)
 		{ NULL },
 	};
 
+	/*
+	 * Allocate RDDM table if specified, this table is for debugging purpose
+	 */
+	if (mhi_cntrl->disable_rddm_prealloc && mhi_cntrl->rddm_size) {
+		mhi_cntrl->seg_len = mhi_cntrl->rddm_seg_len;
+
+		ret = mhi_alloc_bhie_table(mhi_cntrl, &mhi_cntrl->rddm_image,
+				     mhi_cntrl->rddm_size, false);
+		if (ret) {
+			dev_err(dev, "Failed to allocale RDDM table memory\n");
+			return ret;
+		}
+
+		/* setup the RX vector table */
+		mhi_rddm_prepare(mhi_cntrl, mhi_cntrl->rddm_image);
+	}
+
 	if (in_panic)
 		return __mhi_download_rddm_in_panic(mhi_cntrl);
 

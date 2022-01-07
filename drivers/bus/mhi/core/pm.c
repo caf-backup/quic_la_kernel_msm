@@ -720,7 +720,7 @@ void mhi_pm_sys_err_handler(struct mhi_controller *mhi_cntrl)
 	struct device *dev = &mhi_cntrl->mhi_dev->dev;
 
 	/* skip if controller supports RDDM */
-	if (mhi_cntrl->rddm_image) {
+	if (mhi_cntrl->rddm_size) {
 		dev_dbg(dev, "Controller supports RDDM, skip SYS_ERROR\n");
 		return;
 	}

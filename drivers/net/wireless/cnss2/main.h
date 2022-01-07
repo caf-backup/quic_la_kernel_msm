@@ -113,6 +113,22 @@
  * +------+--------+-----------+-----------+-----------+-----------+----------+
  * |   4  |  33MB  |    23MB   | 0x1700000 | 0x1800000 | 0x1900000 |   24MB   |
  * +======+========+===========+===========+===========+===========+==========+
+ *
+ *				QCN9224
+ *
+ * Start Address varies for each RDP, please refer RDP specific DTS file.
+ * All offsets mentioned below are with reference to the start address from DTS
+ * HREMOTE Offset is always same as Start Offset
+ *
+ * MLO uses 16MB and comes at the end of all QCN9224 memory and MHI mem nodes
+ * RDDM size of QCN9224 is 6M and part of MHI regions.
+ *
+ * +======+========+===========+===========+===========+===========+==========+
+ * | MODE | Memory |  HREMOTE  |M3 Dump Off| QDSS Off  | Caldb Off | MHI DMA  |
+ * |      |        |    SIZE   |    1MB    |    1MB    |    8MB    | RESERVED |
+ * +======+========+===========+===========+===========+===========+==========+
+ * |   0  |  45MB  |    35MB   | 0x2300000 | 0x2400000 | 0x2500000 |   26MB   |
+ * +======+========+===========+===========+===========+===========+==========+
  */
 #define MAX_TGT_MEM_MODES		5
 
@@ -316,6 +332,7 @@ enum cnss_driver_event_type {
 	CNSS_DRIVER_EVENT_QDSS_TRACE_SAVE,
 	CNSS_DRIVER_EVENT_QDSS_TRACE_FREE,
 	CNSS_DRIVER_EVENT_M3_DUMP_UPLOAD_REQ,
+	CNSS_DRIVER_EVENT_QDSS_MEM_READY,
 	CNSS_DRIVER_EVENT_MAX,
 };
 
@@ -555,6 +572,9 @@ struct cnss_plat_data {
 	};
 	bool hds_support;
 	bool regdb_support;
+	bool qdss_support;
+	enum wlfw_bdf_dnld_method_v01 bdf_dnld_method;
+	u32 probe_order;
 };
 
 #ifdef CONFIG_ARCH_QCOM
@@ -615,5 +635,6 @@ int cnss_get_cpr_info(struct cnss_plat_data *plat_priv);
 int cnss_update_cpr_info(struct cnss_plat_data *plat_priv);
 void cnss_update_platform_feature_support(u8 type, u32 instance_id, u32 value);
 void coresight_abort(void);
+const char *cnss_get_fw_path(struct cnss_plat_data *plat_priv);
 
 #endif /* _CNSS_MAIN_H */
