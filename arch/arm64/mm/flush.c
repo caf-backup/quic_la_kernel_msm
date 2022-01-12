@@ -133,3 +133,21 @@ void dmac_clean_range(const void *start, const void *end)
 	__dma_clean_range(start, end);
 }
 EXPORT_SYMBOL(dmac_clean_range);
+
+void dmac_flush_range_no_dsb(const void *start, const void *end)
+{
+	__dma_flush_range_no_dsb(start, end);
+}
+EXPORT_SYMBOL(dmac_flush_range_no_dsb);
+
+void dmac_inv_range_no_dsb(const void *start, const void *end)
+{
+	__dma_inv_range_no_dsb(start, end);
+}
+EXPORT_SYMBOL(dmac_inv_range_no_dsb);
+
+void dmac_clean_range_no_dsb(const void *start, const void *end)
+{
+	__dma_clean_range_no_dsb(start, end);
+}
+EXPORT_SYMBOL(dmac_clean_range_no_dsb);
