@@ -28,7 +28,6 @@ enum wdt_reg {
 };
 
 #define QCOM_WDT_ENABLE		BIT(0)
-#define QCOM_WDT_ENABLE_IRQ	BIT(1)
 
 static const u32 reg_offset_data_apcs_tmr[] = {
 	[WDT_RST] = 0x38,
@@ -116,7 +115,6 @@ static void qcom_wdt_bite(struct qcom_wdt *wdt, unsigned int ticks)
 
 	mdelay(150);
 }
-
 
 static irqreturn_t qcom_wdt_isr(int irq, void *arg)
 {

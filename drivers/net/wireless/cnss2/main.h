@@ -1,4 +1,5 @@
 /* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -575,6 +576,8 @@ struct cnss_plat_data {
 	bool qdss_support;
 	enum wlfw_bdf_dnld_method_v01 bdf_dnld_method;
 	u32 probe_order;
+	bool mlo_support;
+	bool mlo_capable;
 };
 
 #ifdef CONFIG_ARCH_QCOM

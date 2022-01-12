@@ -633,7 +633,7 @@ struct key_params {
 	enum nl80211_key_mode mode;
 };
 
-#define IEEE80211_EHT_PUNCTURE_BITMAP_DEFAULT 0xffff
+#define IEEE80211_EHT_PUNCTURE_BITMAP_DEFAULT 0x0
 /**
  * struct cfg80211_chan_def - channel definition
  * @chan: the (control) channel
@@ -5311,7 +5311,7 @@ unsigned int ieee80211_get_mesh_hdrlen(struct ieee80211s_hdr *meshhdr);
  */
 int ieee80211_data_to_8023_exthdr(struct sk_buff *skb, struct ethhdr *ehdr,
 				  const u8 *addr, enum nl80211_iftype iftype,
-				  u8 data_offset);
+				  u8 data_offset, bool is_amsdu);
 
 /**
  * ieee80211_data_to_8023 - convert an 802.11 data frame to 802.3
@@ -5323,7 +5323,7 @@ int ieee80211_data_to_8023_exthdr(struct sk_buff *skb, struct ethhdr *ehdr,
 static inline int ieee80211_data_to_8023(struct sk_buff *skb, const u8 *addr,
 					 enum nl80211_iftype iftype)
 {
-	return ieee80211_data_to_8023_exthdr(skb, NULL, addr, iftype, 0);
+	return ieee80211_data_to_8023_exthdr(skb, NULL, addr, iftype, 0, false);
 }
 
 /**

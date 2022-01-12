@@ -40,6 +40,8 @@ extern int __qcom_scm_io_writel(struct device *dev, phys_addr_t addr, unsigned i
 
 extern int __qcom_scm_is_call_available(struct device *dev, u32 svc_id,
 		u32 cmd_id);
+extern int __qcom_remove_xpu_scm_call_available(struct device *dev, u32 svc_id,
+		u32 cmd_id);
 
 #define QCOM_SCM_SVC_HDCP		0x11
 #define QCOM_SCM_CMD_HDCP		0x01
@@ -116,6 +118,8 @@ extern int  __qcom_scm_assign_mem(struct device *dev,
 
 #define SCM_SIP_FNID(s, c) (((((s) & 0xFF) << 8) | ((c) & 0xFF)) | 0x02000000)
 #define QTI_SMC_ATOMIC_MASK		0x80000000
+#define SCM_QSEEOS_FNID(s, c) (((((s) & 0xFF) << 8) | ((c) & 0xFF)) | \
+			      0x32000000)
 #define SCM_ARGS_IMPL(num, a, b, c, d, e, f, g, h, i, j, ...) (\
 			(((a) & 0xff) << 4) | \
 			(((b) & 0xff) << 6) | \
@@ -258,7 +262,7 @@ int __qti_scm_regsave(struct device *dev, u32 svc_id, u32 cmd_id,
 #define QCOM_SCM_QCE_UNLOCK_CMD		0x4
 extern int __qti_set_qcekey_sec(struct device *dev, void *confBuf, int size);
 extern int __qti_qcekey_release_xpu_prot(struct device *dev);
-
+extern int __qti_scm_qseecom_remove_xpu(struct device *);
 extern int __qti_scm_qseecom_notify(struct device *dev,
 				    struct qsee_notify_app *req,
 				    size_t req_size,

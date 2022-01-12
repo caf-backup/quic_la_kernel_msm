@@ -2386,7 +2386,11 @@
 			qcom,caldb-addr = <0x4D800000 0x4CA00000 0x0
 					   0x0 0x0>;
 			qcom,caldb-size = <0x500000>;
+		#ifdef __IPQ_MEM_PROFILE_512_MB__
+			m3-dump-addr = <0x4C800000>;
+		#else
 			m3-dump-addr = <0x4D600000>;
+		#endif
 			interrupts = <0 320 1>, /* o_wcss_apps_intr[0] =  */
 				<0 319 1>,
 				<0 318 1>,

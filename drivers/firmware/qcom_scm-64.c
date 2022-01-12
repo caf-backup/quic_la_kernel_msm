@@ -193,6 +193,22 @@ void __qcom_scm_cpu_power_down(u32 flags)
 {
 }
 
+int __qcom_remove_xpu_scm_call_available(struct device *dev, u32 svc_id, u32 cmd_id)
+{
+	int ret;
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+
+	desc.arginfo = QCOM_SCM_ARGS(1);
+	desc.args[0] = SCM_QSEEOS_FNID(svc_id, cmd_id) |
+			(ARM_SMCCC_OWNER_TRUSTED_OS << ARM_SMCCC_OWNER_SHIFT);
+
+	ret = qcom_scm_call(dev, ARM_SMCCC_OWNER_SIP, QCOM_SCM_SVC_INFO,
+			    QCOM_IS_CALL_AVAIL_CMD, &desc, &res);
+
+	return ret ? : res.a1;
+}
+
 int __qcom_scm_is_call_available(struct device *dev, u32 svc_id, u32 cmd_id)
 {
 	int ret;
@@ -759,6 +775,24 @@ int __qti_scm_sdi(struct device *dev, u32 svc_id, u32 cmd_id)
 				&res);
 
 	return ret ? : res.a1;
+}
+
+int __qti_scm_qseecom_remove_xpu(struct device *dev)
+{
+	int ret = 0;
+	struct qcom_scm_desc desc = {0};
+	struct arm_smccc_res res;
+
+	ret = __qcom_remove_xpu_scm_call_available(dev, QTI_SVC_APP_MGR,
+					QTI_ARMv8_CMD_REMOVE_XPU);
+
+	if (ret <= 0)
+		return -ENOTSUPP;
+
+	ret = qcom_scm_call(dev, QTI_OWNER_QSEE_OS, QTI_SVC_APP_MGR,
+			    QTI_ARMv8_CMD_REMOVE_XPU, &desc, &res);
+
+	return ret;
 }
 
 int __qti_scm_qseecom_notify(struct device *dev,

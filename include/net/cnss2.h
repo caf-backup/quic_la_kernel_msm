@@ -35,6 +35,21 @@ enum cnss_bus_width_type {
 	CNSS_BUS_WIDTH_VERY_HIGH
 };
 
+enum cnss_notif_type {
+	CNSS_BEFORE_SHUTDOWN,
+	CNSS_AFTER_SHUTDOWN,
+	CNSS_BEFORE_POWERUP,
+	CNSS_AFTER_POWERUP,
+	CNSS_RAMDUMP_NOTIFICATION,
+	CNSS_POWERUP_FAILURE,
+	CNSS_PROXY_VOTE,
+	CNSS_PROXY_UNVOTE,
+	CNSS_SOC_RESET,
+	CNSS_PREPARE_FOR_FATAL_SHUTDOWN,
+	/* The below event should be the last event for all devices */
+	CNSS_NOTIF_TYPE_MAX
+};
+
 enum cnss_platform_cap_flag {
 	CNSS_HAS_EXTERNAL_SWREG = 0x01,
 	CNSS_HAS_UART_ACCESS = 0x02,

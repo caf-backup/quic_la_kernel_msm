@@ -88,6 +88,16 @@ static void qcom_scm_clk_disable(void)
 	clk_disable_unprepare(__scm->bus_clk);
 }
 
+int qti_scm_qseecom_remove_xpu()
+{
+	int ret = 0;
+
+	ret = __qti_scm_qseecom_remove_xpu(__scm->dev);
+
+	return ret;
+}
+EXPORT_SYMBOL(qti_scm_qseecom_remove_xpu);
+
 int qti_scm_qseecom_notify(struct qsee_notify_app *req, size_t req_size,
 			   struct qseecom_command_scm_resp *resp,
 			   size_t resp_size)

@@ -1,4 +1,5 @@
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -81,9 +82,9 @@ unsigned int num_wlan_vaps;
 module_param(num_wlan_vaps, uint, 0600);
 MODULE_PARM_DESC(num_wlan_vaps, "num_wlan_vaps");
 
-unsigned int enable_mlo_support;
-module_param(enable_mlo_support, uint, 0600);
-MODULE_PARM_DESC(enable_mlo_support, "enable_mlo_support");
+unsigned int mlo_num_chips;
+module_param(mlo_num_chips, uint, 0600);
+MODULE_PARM_DESC(mlo_num_chips, "mlo_num_chips");
 
 struct qmi_history qmi_log[QMI_HISTORY_SIZE];
 int qmi_history_index;
@@ -269,7 +270,6 @@ static int cnss_wlfw_host_cap_send_sync(struct cnss_plat_data *plat_priv)
 	const char *model = NULL;
 	struct device_node *root, *mlo_config = NULL, *chipnp;
 	struct device *dev = &plat_priv->plat_dev->dev;
-	struct device *bus_dev;
 	struct pci_dev *pcidev;
 	int chip_id;
 
@@ -349,22 +349,21 @@ static int cnss_wlfw_host_cap_send_sync(struct cnss_plat_data *plat_priv)
 	}
 
 	/* update MLO configuration */
-	if (plat_priv->device_id == QCN9224_DEVICE_ID)
+	if (plat_priv->device_id == QCN9224_DEVICE_ID) {
+		pcidev = (struct pci_dev *)plat_priv->pci_dev;
+
 		mlo_config = of_find_node_by_name(NULL, "mlo_group0");
 
-	if (enable_mlo_support && mlo_config) {
-		pcidev = (struct pci_dev *)plat_priv->pci_dev;
-		bus_dev = &pcidev->dev;
+		chip_id = cnss_get_mlo_chip_id(&pcidev->dev);
+		if (chip_id == -ENOENT)
+			cnss_pr_info("MLO not enabled for %s",
+				     plat_priv->device_name);
+	}
 
+	if (plat_priv->mlo_support && mlo_config && chip_id >= 0) {
 		req->mlo_capable_valid = 1;
 		req->mlo_capable = 1;
 
-		chip_id = cnss_get_mlo_chip_id(bus_dev);
-		if (ret < 0) {
-			cnss_pr_err("Unable to get chip id\n");
-			ret = -EINVAL;
-			goto err;
-		}
 		req->mlo_chip_id = (u16)chip_id;
 		req->mlo_chip_id_valid = 1;
 
@@ -387,6 +386,9 @@ static int cnss_wlfw_host_cap_send_sync(struct cnss_plat_data *plat_priv)
 			ret = -EINVAL;
 			goto err;
 		}
+		if (mlo_num_chips)
+			req->mlo_num_chips = mlo_num_chips;
+
 		req->mlo_num_chips_valid = 1;
 
 		req->mlo_chip_info_valid = 1;

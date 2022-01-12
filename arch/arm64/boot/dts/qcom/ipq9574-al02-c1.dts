@@ -25,6 +25,7 @@
 	aliases {
 		serial0 = &blsp1_uart2;
 		serial1 = &blsp1_uart4;
+		serial2 = &blsp1_uart3;
 		ethernet0 = "/soc/dp1";
 		ethernet1 = "/soc/dp2";
 		ethernet2 = "/soc/dp3";
@@ -76,6 +77,29 @@
 				function = "blsp2_uart";
 				drive-strength = <8>;
 				bias-disable;
+			};
+
+			gps_pins: gps_pins {
+				blsp3_uart_pinmux {
+					pins = "gpio17", "gpio18";
+					function = "blsp3_uart";
+					drive-strength = <8>;
+					bias-disable;
+				};
+
+				gps_reset {
+					pins = "gpio21";
+					function = "gpio";
+					drive-strength = <8>;
+					bias-pull-down;
+				};
+
+				gps_on_off {
+					pins = "gpio7";
+					function = "gpio";
+					drive-strength = <8>;
+					bias-pull-down;
+				};
 			};
 
 			leds_pins: leds_pinmux {
@@ -187,6 +211,12 @@
 
 		blsp1_uart2: serial@78b1000 {
 			pinctrl-0 = <&blsp1_uart2_pins>;
+			pinctrl-names = "default";
+			status = "ok";
+		};
+
+		blsp1_uart3: serial@78b2000 {
+			pinctrl-0 = <&gps_pins>;
 			pinctrl-names = "default";
 			status = "ok";
 		};
@@ -389,12 +419,22 @@
 #if defined(__CNSS2__)
 					memory-region = <&mhi_region0>;
 #endif
+#ifdef __IPQ_MEM_PROFILE_512_MB__
+					base-addr = <0x4CF00000>;
+					m3-dump-addr = <0x4DB00000>;
+					etr-addr = <0x4DC00000>;
+					qcom,caldb-addr = <0x4DD00000>;
+					pageable-addr = <0x4E500000>;
+					pageable-size = <0x400000>;
+
+#else
 					base-addr = <0x4DD00000>;
 					m3-dump-addr = <0x50000000>;
 					etr-addr = <0x50100000>;
 					qcom,caldb-addr = <0x50200000>;
 					pageable-addr = <0x50A00000>;
 					pageable-size = <0x800000>;
+#endif
 					caldb-size = <0x800000>;
 					qcom,board_id = <0xa4>;
 					status = "ok";
@@ -418,12 +458,21 @@
 #if defined(__CNSS2__)
 					memory-region = <&mhi_region1>;
 #endif
+#ifdef __IPQ_MEM_PROFILE_512_MB__
+					base-addr = <0x4E900000>;
+					m3-dump-addr = <0x4F500000>;
+					etr-addr = <0x4F600000>;
+					qcom,caldb-addr = <0x4F700000>;
+					pageable-addr = <0x4FF00000>;
+					pageable-size = <0x400000>;
+#else
 					base-addr = <0x51200000>;
 					m3-dump-addr = <0x53500000>;
 					etr-addr = <0x53600000>;
 					qcom,caldb-addr = <0x53700000>;
 					pageable-addr = <0x53F00000>;
 					pageable-size = <0x800000>;
+#endif
 					caldb-size = <0x800000>;
 					qcom,board_id = <0xa3>;
 					status = "ok";

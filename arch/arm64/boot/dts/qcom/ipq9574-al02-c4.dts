@@ -339,7 +339,7 @@
 
 				qcom,mhi@1 {
 					reg = <0 0 0 0 0>;
-					qrtr_instance_id = <0x31>;
+					qrtr_node_id = <0x31>;
 					memory-region = <&mhi_region0>;
 				};
 
@@ -358,7 +358,7 @@
 
 				qcom,mhi@2 {
 					reg = <0 0 0 0 0>;
-					qrtr_instance_id = <0x32>;
+					qrtr_node_id = <0x32>;
 					memory-region = <&mhi_region1>;
 				};
 			};
@@ -376,7 +376,7 @@
 
 				qcom,mhi@3 {
 					reg = <0 0 0 0 0>;
-					qrtr_instance_id = <0x33>;
+					qrtr_node_id = <0x33>;
 					memory-region = <&mhi_region2>;
 				};
 			};
