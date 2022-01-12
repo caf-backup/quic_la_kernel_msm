@@ -8,3 +8,4 @@ cnss2-y += qmi.o
 cnss2-y += wlan_firmware_service_v01.o
 cnss2-y += bus.o
 cnss2-y += genl.o
+cnss2-y += cnss_plat_ipc_service_v01.o

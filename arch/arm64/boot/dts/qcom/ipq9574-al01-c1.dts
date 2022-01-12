@@ -325,7 +325,9 @@
 				qcom,mhi@0 {
 					reg = <0 0 0 0 0>;
 					qrtr_instance_id = <0x20>;
+#if defined(__CNSS2__)
 					memory-region = <&mhi_region0>;
+#endif
 				};
 			};
 		};
@@ -343,7 +345,9 @@
 				qcom,mhi@1 {
 					reg = <0 0 0 0 0>;
 					qrtr_instance_id = <0x21>;
+#if defined(__CNSS2__)
 					memory-region = <&mhi_region1>;
+#endif
 				};
 			};
 		};
@@ -553,27 +557,28 @@
 &wifi1 {
 #if !defined(__IPQ_MEM_PROFILE_256_MB__)
 #ifdef __IPQ_MEM_PROFILE_512_MB__
-	/* QCN9000 tgt-mem-mode=1 layout - 38MB
+	/* QCN9000 tgt-mem-mode=1 layout - 26MB
 	 * +=========+==============+=========+
 	 * |  Region | Start Offset |   Size  |
 	 * +---------+--------------+---------+
-	 * | HREMOTE |  0x4DD00000  |   20MB  |
+	 * | HREMOTE |  0x4CF00000  |   12MB  |
 	 * +---------+--------------+---------+
-	 * | M3 Dump |  0x4F100000  |   1MB   |
+	 * | M3 Dump |  0x4DB00000  |   1MB   |
 	 * +---------+--------------+---------+
-	 * |   ETR   |  0x4F200000  |   1MB   |
+	 * |   ETR   |  0x4DC00000  |   1MB   |
 	 * +---------+--------------+---------+
-	 * |  Caldb  |  0x4F300000  |   8MB   |
+	 * |  Caldb  |  0x4DD00000  |   8MB   |
 	 * +---------+--------------+---------+
-	 * | Pageable|  0x4FB00000  |   8MB   |
+	 * | Pageable|  0x4E500000  |   4MB   |
 	 * +==================================+
 	 */
-	base-addr = <0x4DD00000>;
-	m3-dump-addr = <0x4F100000>;
-	etr-addr = <0x4F200000>;
-	caldb-addr = <0x4F300000>;
-	pageable-addr = <0x4FB00000>;
-	hremote-size = <0x1400000>;
+	base-addr = <0x4CF00000>;
+	m3-dump-addr = <0x4DB00000>;
+	etr-addr = <0x4DC00000>;
+	caldb-addr = <0x4DD00000>;
+	pageable-addr = <0x4E500000>;
+	hremote-size = <0xC00000>;
+	pageable-size = <0x400000>;
 	tgt-mem-mode = <0x1>;
 #else
 	/* QCN9000 tgt-mem-mode=0 layout - 53MB
@@ -597,10 +602,10 @@
 	caldb-addr = <0x50200000>;
 	pageable-addr = <0x50A00000>;
 	hremote-size = <0x2300000>;
+	pageable-size = <0x800000>;
 	tgt-mem-mode = <0x0>;
 #endif
 	hremote_node = <&qcn9000_pcie0>;
-	pageable-size = <0x800000>;
 	caldb-size = <0x800000>;
 	board_id = <0xa4>;
 	status = "ok";
@@ -610,27 +615,28 @@
 &wifi2 {
 #if !defined(__IPQ_MEM_PROFILE_256_MB__)
 #ifdef __IPQ_MEM_PROFILE_512_MB__
-	/* QCN9000 tgt-mem-mode=1 layout - 38MB
+	/* QCN9000 tgt-mem-mode=1 layout - 26MB
 	 * +=========+==============+=========+
 	 * |  Region | Start Offset |   Size  |
 	 * +---------+--------------+---------+
-	 * | HREMOTE |  0x50300000  |   20MB  |
+	 * | HREMOTE |  0x4E900000  |   12MB  |
 	 * +---------+--------------+---------+
-	 * | M3 Dump |  0x51700000  |   1MB   |
+	 * | M3 Dump |  0x4F500000  |   1MB   |
 	 * +---------+--------------+---------+
-	 * |   ETR   |  0x51800000  |   1MB   |
+	 * |   ETR   |  0x4F600000  |   1MB   |
 	 * +---------+--------------+---------+
-	 * |  Caldb  |  0x51900000  |   8MB   |
+	 * |  Caldb  |  0x4F700000  |   8MB   |
 	 * +---------+--------------+---------+
-	 * | Pageable|  0x52100000  |   8MB   |
+	 * | Pageable|  0x4FF00000  |   4MB   |
 	 * +==================================+
 	 */
-	base-addr = <0x50300000>;
-	m3-dump-addr = <0x51700000>;
-	etr-addr = <0x51800000>;
-	caldb-addr = <0x51900000>;
-	pageable-addr = <0x52100000>;
-	hremote-size = <0x1400000>;
+	base-addr = <0x4E900000>;
+	m3-dump-addr = <0x4F500000>;
+	etr-addr = <0x4F600000>;
+	caldb-addr = <0x4F700000>;
+	pageable-addr = <0x4FF00000>;
+	hremote-size = <0xC00000>;
+	pageable-size = <0x400000>;
 	tgt-mem-mode = <0x1>;
 #else
 	/* QCN9000 tgt-mem-mode=0 layout - 53MB
@@ -654,10 +660,10 @@
 	caldb-addr = <0x53700000>;
 	pageable-addr = <0x53F00000>;
 	hremote-size = <0x2300000>;
+	pageable-size = <0x800000>;
 	tgt-mem-mode = <0x0>;
 #endif
 	hremote_node = <&qcn9000_pcie1>;
-	pageable-size = <0x800000>;
 	caldb-size = <0x800000>;
 	board_id = <0xa3>;
 	status = "ok";

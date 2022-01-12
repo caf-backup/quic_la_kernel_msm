@@ -35,6 +35,21 @@ enum cnss_bus_width_type {
 	CNSS_BUS_WIDTH_VERY_HIGH
 };
 
+enum cnss_notif_type {
+	CNSS_BEFORE_SHUTDOWN,
+	CNSS_AFTER_SHUTDOWN,
+	CNSS_BEFORE_POWERUP,
+	CNSS_AFTER_POWERUP,
+	CNSS_RAMDUMP_NOTIFICATION,
+	CNSS_POWERUP_FAILURE,
+	CNSS_PROXY_VOTE,
+	CNSS_PROXY_UNVOTE,
+	CNSS_SOC_RESET,
+	CNSS_PREPARE_FOR_FATAL_SHUTDOWN,
+	/* The below event should be the last event for all devices */
+	CNSS_NOTIF_TYPE_MAX
+};
+
 enum cnss_platform_cap_flag {
 	CNSS_HAS_EXTERNAL_SWREG = 0x01,
 	CNSS_HAS_UART_ACCESS = 0x02,
@@ -428,8 +443,18 @@ static inline int cnss_get_dev_link_ids(struct device *dev, u8 *link_ids,
 {
 	return -EINVAL;
 }
+static inline int cnss_wlan_register_driver_ops(struct cnss_wlan_driver *driver)
+{
+	return 0;
+}
+static inline int cnss_wlan_probe_driver(void)
+{
+	return 0;
+}
 #else
 extern int cnss_wlan_register_driver(struct cnss_wlan_driver *driver);
+extern int cnss_wlan_register_driver_ops(struct cnss_wlan_driver *driver);
+extern int cnss_wlan_probe_driver(void);
 extern void cnss_wlan_unregister_driver(struct cnss_wlan_driver *driver);
 extern void cnss_device_crashed(struct device *dev);
 extern int cnss_pci_link_down(struct device *dev);
