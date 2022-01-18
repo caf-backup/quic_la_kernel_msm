@@ -1071,12 +1071,14 @@ void __init create_boot_cache(struct kmem_cache *s, const char *name,
 	s->name = name;
 	s->size = s->object_size = size;
 
+#ifndef CONFIG_KASAN
 	/*
 	 * For power of two sizes, guarantee natural alignment for kmalloc
 	 * caches, regardless of SL*B debugging options.
 	 */
 	if (is_power_of_2(size))
 		align = max(align, size);
+#endif
 	s->align = calculate_alignment(flags, align, size);
 
 	s->useroffset = useroffset;

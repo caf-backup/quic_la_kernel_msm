@@ -912,6 +912,7 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-ranges = <&tlmm 0 0 65>;
+			gpio-reserved-ranges = <59 1>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 		};

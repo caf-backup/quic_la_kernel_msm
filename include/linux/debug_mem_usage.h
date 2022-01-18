@@ -54,6 +54,10 @@
 #define free_pages			__wrap_free_pages
 #define __free_pages			__wrap___free_pages
 
+#define alloc_pages_exact		__wrap_alloc_pages_exact
+#define alloc_pages_exact_nid		__wrap_alloc_pages_exact_nid
+#define free_pages_exact		__wrap_free_pages_exact
+
 #define mempool_alloc			__wrap_mempool_alloc
 #define memdup_user			__wrap_memdup_user
 #define mempool_free			__wrap_mempool_free
@@ -78,6 +82,11 @@
 #define devm_kmemdup			__wrap_devm_kmemdup
 #define devm_get_free_pages		__wrap_devm_get_free_pages
 #define devm_free_pages			__wrap_devm_free_pages
+
+#define page_frag_alloc			__wrap_page_frag_alloc
+#define page_frag_free			__wrap_page_frag_free
+
+#define alloc_large_system_hash		__wrap_alloc_large_system_hash
 
 #endif
 

@@ -1258,18 +1258,23 @@ int __qti_fuseipq_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
 	int ret;
 	struct scm_desc desc = {0};
 	uint32_t *status;
+	struct fuse_blow *fuse_blow = cmd_buf;
 
 	if (is_scm_armv8()) {
 
-		desc.arginfo = SCM_ARGS(1, QCOM_SCM_RO);
-		desc.args[0] = *((uint32_t *)cmd_buf);
+		desc.args[0] = fuse_blow->address;
+		if (fuse_blow->size) {
+			desc.args[1] = fuse_blow->size;
+			desc.arginfo = SCM_ARGS(2, QCOM_SCM_RO, QCOM_SCM_VAL);
+		} else {
+			desc.arginfo = SCM_ARGS(1, QCOM_SCM_RO);
+		}
 
 		ret = qti_scm_call2(dev, SCM_SIP_FNID(svc_id, cmd_id), &desc);
-		status = (uint32_t *)(((uint32_t *)cmd_buf) + 1);
+		status = (uint32_t *)fuse_blow->status;
 		*status = desc.ret[0];
 
 	} else {
-
 		return -ENOTSUPP;
 	}
 

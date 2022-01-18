@@ -125,6 +125,12 @@ struct qcom_scm_vmperm {
 	int perm;
 };
 
+struct fuse_blow {
+	dma_addr_t address;
+	size_t size;
+	unsigned long *status;
+};
+
 #define QTI_OWNER_QSEE_OS		50
 #define QTI_OWNER_TZ_APPS		48
 #define QTI_SVC_CRYPTO			10

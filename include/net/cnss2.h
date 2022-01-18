@@ -1,4 +1,5 @@
 /* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -451,6 +452,10 @@ static inline int cnss_wlan_probe_driver(void)
 {
 	return 0;
 }
+static inline int cnss_set_bar_addr(struct device *dev, void __iomem *mem)
+{
+	return -EINVAL;
+}
 #else
 extern int cnss_wlan_register_driver(struct cnss_wlan_driver *driver);
 extern int cnss_wlan_register_driver_ops(struct cnss_wlan_driver *driver);
@@ -524,6 +529,7 @@ void cnss_pcie_remove_bus(void);
 void *cnss_get_pci_dev_by_device_id(int device_id);
 void *cnss_get_pci_dev_from_plat_dev(void *pdev);
 void *cnss_get_pci_dev_id_from_plat_dev(void *pdev);
+int cnss_dump_all_ce_reg(struct cnss_plat_data *plat_priv);
 extern unsigned int cnss_get_qmi_timeout(struct cnss_plat_data *plat_priv);
 extern int cnss_athdiag_read(struct device *dev, uint32_t offset,
 			     uint32_t mem_type, uint32_t data_len,
@@ -552,5 +558,6 @@ int cnss_get_num_mlo_capable_devices(unsigned int *device_id,
 int cnss_reg_read(struct device *dev, u32 addr, u32 *val);
 int cnss_reg_write(struct device *dev, u32 addr, u32 val);
 int cnss_get_dev_link_ids(struct device *dev, u8 *link_ids, int max_elements);
+int cnss_set_bar_addr(struct device *dev, void __iomem *mem);
 #endif
 #endif /* _NET_CNSS2_H */

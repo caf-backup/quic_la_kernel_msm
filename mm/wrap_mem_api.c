@@ -13,6 +13,7 @@
  *
  */
 #include <linux/dmapool.h>
+#include <linux/memblock.h>
 #include <linux/mempool.h>
 #include <linux/mm.h>
 #include <linux/skbuff.h>
@@ -742,3 +743,92 @@ void __wrap_kzfree(const void *p)
 	return;
 }
 EXPORT_SYMBOL(__wrap_kzfree);
+
+void *__wrap_page_frag_alloc(struct page_frag_cache *nc,
+		      unsigned int fragsz, gfp_t gfp_mask)
+{
+	void *addr = (void *)page_frag_alloc(nc, fragsz, gfp_mask);
+
+	if (addr && debug_mem_usage_enabled) {
+		void *stack[9] = {0};
+		get_stacktrace(stack);
+		debug_object_trace_init(addr, stack, fragsz);
+	}
+
+	return addr;
+}
+EXPORT_SYMBOL(__wrap_page_frag_alloc);
+
+void __wrap_page_frag_free(void *addr)
+{
+	if (debug_mem_usage_enabled)
+		debug_object_trace_free(addr);
+
+	page_frag_free(addr);
+
+	return;
+}
+EXPORT_SYMBOL(__wrap_page_frag_free);
+
+void *__wrap_alloc_pages_exact(size_t size, gfp_t gfp_mask)
+{
+	void *addr = (void *)alloc_pages_exact(size, gfp_mask);
+
+	if (addr && debug_mem_usage_enabled) {
+		void *stack[9] = {0};
+		get_stacktrace(stack);
+		debug_object_trace_init(addr, stack, size);
+	}
+
+	return addr;
+}
+EXPORT_SYMBOL(__wrap_alloc_pages_exact);
+
+void * __meminit __wrap_alloc_pages_exact_nid(int nid, size_t size, gfp_t gfp_mask)
+{
+	void *addr = alloc_pages_exact_nid(nid, size, gfp_mask);
+
+	if (addr && debug_mem_usage_enabled) {
+		void *stack[9] = {0};
+		get_stacktrace(stack);
+		debug_object_trace_init(addr, stack, size);
+	}
+
+	return addr;
+}
+EXPORT_SYMBOL(__wrap_alloc_pages_exact_nid);
+
+void __wrap_free_pages_exact(void *virt, size_t size)
+{
+	if (debug_mem_usage_enabled)
+		debug_object_trace_free(virt);
+
+	free_pages_exact(virt, size);
+
+	return;
+}
+EXPORT_SYMBOL(__wrap_free_pages_exact);
+
+void *__init __wrap_alloc_large_system_hash(const char *tablename,
+				     unsigned long bucketsize,
+				     unsigned long numentries,
+				     int scale,
+				     int flags,
+				     unsigned int *_hash_shift,
+				     unsigned int *_hash_mask,
+				     unsigned long low_limit,
+				     unsigned long high_limit)
+{
+	void *addr = alloc_large_system_hash(tablename, bucketsize, numentries,
+					     scale, flags, _hash_shift,
+					     _hash_mask, low_limit, high_limit);
+
+	if (addr && debug_mem_usage_enabled) {
+		void *stack[9] = {0};
+		get_stacktrace(stack);
+		debug_object_trace_init(addr, stack, bucketsize * numentries);
+	}
+
+	return addr;
+}
+EXPORT_SYMBOL(__wrap_alloc_large_system_hash);

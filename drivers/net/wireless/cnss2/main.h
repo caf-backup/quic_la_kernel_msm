@@ -441,6 +441,10 @@ enum cnss_ce_index {
 	CNSS_CE_09,
 	CNSS_CE_10,
 	CNSS_CE_11,
+	CNSS_CE_12,
+	CNSS_CE_13,
+	CNSS_CE_14,
+	CNSS_CE_15,
 	CNSS_CE_COMMON,
 };
 
@@ -578,6 +582,8 @@ struct cnss_plat_data {
 	u32 probe_order;
 	bool mlo_support;
 	bool mlo_capable;
+	/* This bar variable will be valid only for AHB devices. */
+	void __iomem *bar;
 };
 
 #ifdef CONFIG_ARCH_QCOM
