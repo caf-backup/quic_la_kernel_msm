@@ -456,6 +456,8 @@ struct mhi_controller {
 	bool pre_init;
 	bool wake_set;
 	void *priv_data;
+	int disable_rddm_prealloc;
+	u32 rddm_seg_len;
 };
 
 /**
@@ -789,10 +791,9 @@ int mhi_update_bhie_table_for_dyn_paging(struct mhi_controller *mhi_cntrl,
  * mhi_scan_rddm_cookie - Look for supplied cookie value in the BHI debug
  * registers set by device to indicate rddm readiness for debugging purposes.
  * @mhi_cntrl: MHI controller
- * @off: BHI debug reg offset
  * @cookie: cookie/pattern value to match
  */
-bool mhi_scan_rddm_cookie(struct mhi_controller *mhi_cntrl, u32 off, u32 cookie);
+bool mhi_scan_rddm_cookie(struct mhi_controller *mhi_cntrl, u32 cookie);
 
 /**
  * mhi_debug_reg_dump - dump MHI registers for debug purpose

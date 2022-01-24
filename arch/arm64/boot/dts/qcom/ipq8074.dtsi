@@ -177,7 +177,6 @@
 			reg = <0xb017000 0x1000>;
 			interrupts = <GIC_SPI 3 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&sleep_clk>;
-			max-timeout-sec = <32>;
 		};
 
 		timer@b120000 {
@@ -1650,6 +1649,7 @@
 				<0 163 1>,
 				<0 162 1>,
 				<0 160 1>,
+				<0 414 1>,
 				<0 159 1>,
 				<0 158 1>,
 				<0 157 1>,
@@ -1702,6 +1702,7 @@
 				"host2tcl-input-ring3",
 				"host2tcl-input-ring2",
 				"host2tcl-input-ring1",
+				"wbm2host-tx-completions-ring4",
 				"wbm2host-tx-completions-ring3",
 				"wbm2host-tx-completions-ring2",
 				"wbm2host-tx-completions-ring1",
@@ -1815,10 +1816,10 @@
 		interrupts = <GIC_PPI 7 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 	};
 
-	clocks {
+	clocks: clocks {
 		sleep_clk: sleep_clk {
 			compatible = "fixed-clock";
-			clock-frequency = <32000>;
+			clock-frequency = <32764>;
 			#clock-cells = <0>;
 		};
 

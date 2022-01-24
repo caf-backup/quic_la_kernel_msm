@@ -982,6 +982,16 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
 		dev_err(mhi_cntrl->cntrl_dev, "mhi coherent pool is not reserved");
 	}
 
+	if (of_find_property(mhi_cntrl->cntrl_dev->of_node,
+			"qti,disable-rddm-prealloc", NULL)) {
+		mhi_cntrl->disable_rddm_prealloc = 1;
+
+		ret = of_property_read_u32(mhi_cntrl->cntrl_dev->of_node,
+			   "qti,rddm-seg-len", &mhi_cntrl->rddm_seg_len);
+		if (ret)
+			dev_err(mhi_cntrl->cntrl_dev, "Failed to read rddm segment len \n");
+	}
+
 	mhi_dev->dev_type = MHI_DEVICE_CONTROLLER;
 	mhi_dev->mhi_cntrl = mhi_cntrl;
 	dev_set_name(&mhi_dev->dev, "mhi%d", mhi_cntrl->index);
@@ -1078,8 +1088,10 @@ int mhi_prepare_for_power_up(struct mhi_controller *mhi_cntrl)
 	 * Allocate RDDM table if specified, this table is for debugging purpose
 	 */
 	if (mhi_cntrl->rddm_size) {
-		mhi_alloc_bhie_table(mhi_cntrl, &mhi_cntrl->rddm_image,
-				     mhi_cntrl->rddm_size, false);
+		if (!mhi_cntrl->disable_rddm_prealloc) {
+			mhi_alloc_bhie_table(mhi_cntrl, &mhi_cntrl->rddm_image,
+					     mhi_cntrl->rddm_size, false);
+		}
 
 		/*
 		 * This controller supports RDDM, so we need to manually clear
