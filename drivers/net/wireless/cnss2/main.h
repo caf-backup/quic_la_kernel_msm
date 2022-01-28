@@ -35,6 +35,19 @@
 #define CNSS_RAMDUMP_VERSION		0
 #define CNSS_RAMDUMP_FILE_NAME_MAX_LEN	(2 * CNSS_DEVICE_NAME_MAX_LEN)
 
+#define CNSS_DMS_QMI_CONNECTION_WAIT_MS 50
+#define CNSS_DMS_QMI_CONNECTION_WAIT_RETRY 200
+#define CNSS_DAEMON_CONNECT_TIMEOUT_MS  30000
+#define CNSS_CAL_DB_FILE_PREFIX "wlfw_cal_01"
+#define CNSS_CAL_DB_FILE_SUFFIX ".bin"
+
+
+enum cnss_cal_db_op {
+	CNSS_CAL_DB_UPLOAD,
+	CNSS_CAL_DB_DOWNLOAD,
+	CNSS_CAL_DB_INVALID_OP,
+};
+
 /* Currently these target mem modes are supported for various targets
  *
  *				IPQ8074
@@ -354,6 +367,7 @@ enum cnss_driver_state {
 	CNSS_COEX_CONNECTED,
 	CNSS_IMS_CONNECTED,
 	CNSS_IN_SUSPEND_RESUME,
+	CNSS_DAEMON_CONNECTED,
 };
 
 struct cnss_recovery_data {
@@ -533,6 +547,10 @@ struct cnss_plat_data {
 	u32 fw_mem_seg_len;
 	struct cnss_fw_mem fw_mem[QMI_WLFW_MAX_NUM_MEM_SEG];
 	struct cnss_fw_mem m3_mem;
+	struct cnss_fw_mem *cal_mem;
+	u64 cal_time;
+	bool cbc_file_download;
+	u32 cal_file_size;
 	u32 qdss_mem_seg_len;
 	struct cnss_fw_mem qdss_mem[QMI_WLFW_MAX_NUM_MEM_SEG];
 	int tgt_mem_cfg_mode;
@@ -645,5 +663,8 @@ int cnss_update_cpr_info(struct cnss_plat_data *plat_priv);
 void cnss_update_platform_feature_support(u8 type, u32 instance_id, u32 value);
 void coresight_abort(void);
 const char *cnss_get_fw_path(struct cnss_plat_data *plat_priv);
+unsigned int cnss_get_global_driver_mode(void);
+int cnss_cal_file_download_to_mem(struct cnss_plat_data *plat_priv,
+				  u32 *cal_file_size);
 
 #endif /* _CNSS_MAIN_H */

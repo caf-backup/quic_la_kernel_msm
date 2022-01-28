@@ -214,7 +214,7 @@ int cnss_plat_ipc_qmi_file_upload(char *file_name, u8 *file_buf,
 
 end:
 	ret = cnss_plat_ipc_deinit_file_data(fd);
-	cnss_pr_debug("%s: Status: %d\n", __func__, ret);
+	cnss_pr_dbg("%s: Status: %d\n", __func__, ret);
 
 	return ret;
 }
@@ -248,14 +248,15 @@ cnss_plat_ipc_qmi_file_upload_req_handler(struct qmi_handle *handle,
 		   decoded_msg;
 	if (!req_msg)
 		return;
-	cnss_pr_debug("%s: File ID: %d Seg Index: %d\n", __func__, req_msg->file_id,
-		 req_msg->seg_index);
+	cnss_pr_dbg("%s: File ID: %d Seg Index: %d\n", __func__,
+		    req_msg->file_id, req_msg->seg_index);
 
 	mutex_lock(&svc->file_idr_lock);
 	fd = idr_find(&svc->file_idr, req_msg->file_id);
 	mutex_unlock(&svc->file_idr_lock);
 	if (!fd) {
-		cnss_pr_err("%s: Invalid File ID %d\n", __func__, req_msg->file_id);
+		cnss_pr_err("%s: Invalid File ID %d\n", __func__,
+			    req_msg->file_id);
 		return;
 	}
 
@@ -277,8 +278,9 @@ cnss_plat_ipc_qmi_file_upload_req_handler(struct qmi_handle *handle,
 	resp->end = (fd->seg_index == fd->seg_len);
 	memcpy(resp->seg_buf, fd->buf, resp->seg_buf_len);
 
-	cnss_pr_debug("%s: ID: %d Seg ID: %d Len: %d End: %d\n", __func__,
-		 resp->file_id, resp->seg_index, resp->seg_buf_len, resp->end);
+	cnss_pr_dbg("%s: ID: %d Seg ID: %d Len: %d End: %d\n", __func__,
+		    resp->file_id, resp->seg_index, resp->seg_buf_len,
+		    resp->end);
 
 	ret = qmi_send_response
 		(svc->svc_hdl, sq, txn,
@@ -317,7 +319,7 @@ int cnss_plat_ipc_qmi_file_download(char *file_name, char *buf, u32 *size)
 	struct cnss_plat_ipc_file_data *fd;
 	struct cnss_plat_data *plat_priv = NULL;
 
-	cnss_pr_dbg("%s: File name %s size %lu\n", __func__, buf, *size);
+	cnss_pr_dbg("%s: File name %s size %u\n", __func__, buf, *size);
 
 	if (!svc->client_connected || !file_name || !buf)
 		return -EINVAL;
@@ -352,7 +354,7 @@ int cnss_plat_ipc_qmi_file_download(char *file_name, char *buf, u32 *size)
 end:
 	*size = fd->file_size;
 	ret = cnss_plat_ipc_deinit_file_data(fd);
-	cnss_pr_debug("%s: Status: %d Size: %d\n", __func__, ret, *size);
+	cnss_pr_dbg("%s: Status: %d Size: %d\n", __func__, ret, *size);
 
 	return ret;
 }
@@ -669,6 +671,10 @@ bool is_cnss_daemon_connected(unsigned int timeout)
 	struct cnss_plat_data *plat_priv = NULL;
 
 	if (!(svc->client_connected)) {
+		if (!timeout) {
+			cnss_pr_dbg("CNSS Daemon not connected!\n");
+			return false;
+		}
                 cnss_pr_info("Waiting for CNSS Daemon connection\n");
                 ret = wait_for_completion_timeout(&svc->daemon_connected,
                                                   msecs_to_jiffies(timeout));

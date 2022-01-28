@@ -23,6 +23,7 @@
 #include "main.h"
 #include "qmi.h"
 #include "pci.h"
+#include "cnss_plat_ipc_qmi.h"
 
 #define WLFW_SERVICE_INS_ID_V01		1
 #define WLFW_CLIENT_ID			0x4b4e454c
@@ -286,15 +287,18 @@ static int cnss_wlfw_host_cap_send_sync(struct cnss_plat_data *plat_priv)
 		return -ENOMEM;
 	}
 	req->num_clients_valid = 1;
-	if (test_bit(ENABLE_DAEMON_SUPPORT,
-		     &plat_priv->ctrl_params.quirks))
-		req->num_clients = 2;
-	else
-		req->num_clients = 1;
-
 	req->num_clients = 1;
-	if (plat_priv->daemon_support)
-		req->num_clients = 2;
+
+	/* Check if cnss-daemon is connected to cnss2 QMI service.
+	 * If so, send number of clients to FW as 1. Else, check
+	 * whether cnss-daemon support is available in plat_priv
+	 * and then send the number of clients as 2.
+	 */
+
+	if (!is_cnss_daemon_connected(0)) {
+		if (plat_priv->daemon_support)
+			req->num_clients = 2;
+	}
 
 	cnss_pr_dbg("Number of clients is %d\n", req->num_clients);
 
@@ -2565,6 +2569,9 @@ static void cnss_wlfw_request_mem_ind_cb(struct qmi_handle *qmi_wlfw,
 			    ind_msg->mem_seg[i].size, ind_msg->mem_seg[i].type);
 		plat_priv->fw_mem[i].type = ind_msg->mem_seg[i].type;
 		plat_priv->fw_mem[i].size = ind_msg->mem_seg[i].size;
+		if (plat_priv->fw_mem[i].type == CNSS_MEM_CAL_V01) {
+			plat_priv->cal_mem = &plat_priv->fw_mem[i];
+		}
 	}
 
 	cnss_driver_event_post(plat_priv, CNSS_DRIVER_EVENT_REQUEST_MEM,
@@ -2577,6 +2584,8 @@ static void cnss_wlfw_fw_mem_ready_ind_cb(struct qmi_handle *qmi_wlfw,
 {
 	struct cnss_plat_data *plat_priv =
 		container_of(qmi_wlfw, struct cnss_plat_data, qmi_wlfw);
+	u32 cal_file_size = 0;
+	unsigned int driver_mode;
 
 	cnss_pr_dbg("Received QMI WLFW FW memory ready indication\n");
 
@@ -2584,6 +2593,22 @@ static void cnss_wlfw_fw_mem_ready_ind_cb(struct qmi_handle *qmi_wlfw,
 		cnss_pr_err("Spurious indication\n");
 		return;
 	}
+
+	if (is_cnss_daemon_connected(0)) {
+		driver_mode = cnss_get_global_driver_mode();
+
+		if (plat_priv->cold_boot_support &&
+		    (driver_mode == CNSS_CALIBRATION ||
+		    driver_mode == CNSS_FTM_CALIBRATION)) {
+			cnss_cal_file_download_to_mem(plat_priv,
+						      &cal_file_size);
+			plat_priv->cal_file_size = cal_file_size;
+			cnss_pr_dbg("%s: Cold boot support enabled. Driver mode %u. CALDB downloaded, file size %lu\n",
+				    __func__, driver_mode,
+				    plat_priv->cal_file_size);
+		}
+	}
+
 	qmi_record(plat_priv->wlfw_service_instance_id,
 		   QMI_WLFW_FW_MEM_READY_IND_V01, 0, 0);
 	/* WAR Conditional check of driver state to hinder processing */
@@ -2610,6 +2635,12 @@ static void cnss_wlfw_fw_ready_ind_cb(struct qmi_handle *qmi_wlfw,
 		cnss_pr_err("Spurious indication\n");
 		return;
 	}
+
+	/* Return here as FW sends a different cold boot cal done indication
+	 * in case of single QMI client.
+	 */
+	if (is_cnss_daemon_connected(0))
+		return;
 
 	cal_info = kzalloc(sizeof(*cal_info), GFP_KERNEL);
 	if (!cal_info)
@@ -2673,6 +2704,72 @@ static void cnss_wlfw_pin_result_ind_cb(struct qmi_handle *qmi_wlfw,
 		    ind_msg->rf_pin_result);
 }
 
+int cnss_wlfw_cal_report_req_send_sync(struct cnss_plat_data *plat_priv,
+				       u32 cal_file_download_size)
+{
+	struct wlfw_cal_report_req_msg_v01 *req;
+	struct wlfw_cal_report_resp_msg_v01 *resp;
+	struct qmi_txn txn;
+	int ret = 0;
+	int resp_error_msg = 0;
+
+	cnss_pr_dbg("Sending cal file report request. File size: %d, state: 0x%x\n",
+		    cal_file_download_size, plat_priv->driver_state);
+
+	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	if (!req)
+		return -ENOMEM;
+
+	resp = kzalloc(sizeof(*resp), GFP_KERNEL);
+	if (!resp) {
+		kfree(req);
+		return -ENOMEM;
+	}
+
+	req->cal_file_download_size_valid = 1;
+	req->cal_file_download_size = cal_file_download_size;
+
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_CAL_REPORT_REQ_V01, ret, resp_error_msg);
+
+	ret = qmi_txn_init(&plat_priv->qmi_wlfw, &txn,
+			   wlfw_cal_report_resp_msg_v01_ei, resp);
+	if (ret < 0) {
+		cnss_pr_err("Failed to initialize txn for Cal Report request, err: %d\n",
+			    ret);
+		goto out;
+	}
+	ret = qmi_send_request(&plat_priv->qmi_wlfw, NULL, &txn,
+			       QMI_WLFW_CAL_REPORT_REQ_V01,
+			       WLFW_CAL_REPORT_REQ_MSG_V01_MAX_MSG_LEN,
+			       wlfw_cal_report_req_msg_v01_ei, req);
+	if (ret < 0) {
+		qmi_txn_cancel(&txn);
+		cnss_pr_err("Failed to send Cal Report request, err: %d\n",
+			    ret);
+		goto out;
+	}
+	ret = qmi_txn_wait(&txn, QMI_WLFW_TIMEOUT_JF);
+	if (ret < 0) {
+		cnss_pr_err("Failed to wait for response of Cal Report request, err: %d\n",
+			    ret);
+		goto out;
+	}
+	if (resp->resp.result != QMI_RESULT_SUCCESS_V01) {
+		cnss_pr_err("Cal Report request failed, result: %d, err: %d\n",
+			    resp->resp.result, resp->resp.error);
+		resp_error_msg = resp->resp.error;
+		ret = -resp->resp.result;
+		goto out;
+	}
+out:
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_CAL_REPORT_REQ_V01, ret, resp_error_msg);
+	kfree(req);
+	kfree(resp);
+	return ret;
+}
+
 static void cnss_wlfw_cal_done_ind_cb(struct qmi_handle *qmi_wlfw,
 				      struct sockaddr_qrtr *sq,
 				      struct qmi_txn *txn, const void *data)
@@ -2680,17 +2777,27 @@ static void cnss_wlfw_cal_done_ind_cb(struct qmi_handle *qmi_wlfw,
 	struct cnss_plat_data *plat_priv =
 		container_of(qmi_wlfw, struct cnss_plat_data, qmi_wlfw);
 	struct cnss_cal_info *cal_info;
+	const struct wlfw_cal_done_ind_msg_v01 *ind = data;
 
-	cnss_pr_dbg("Received QMI WLFW calibration done indication\n");
+	cnss_pr_dbg("Received Cal done indication. File size: %d\n",
+		    ind->cal_file_upload_size);
+	cnss_pr_info("Calibration took %d ms\n",
+		     jiffies_to_msecs(jiffies - plat_priv->cal_time));
 
 	if (!txn) {
 		cnss_pr_err("Spurious indication\n");
 		return;
 	}
 
+	if (ind->cal_file_upload_size_valid)
+		plat_priv->cal_file_size = ind->cal_file_upload_size;
+
 	cal_info = kzalloc(sizeof(*cal_info), GFP_KERNEL);
 	if (!cal_info)
 		return;
+
+	qmi_record(plat_priv->wlfw_service_instance_id,
+		   QMI_WLFW_CAL_DONE_IND_V01, 0, 0);
 
 	cal_info->cal_status = CNSS_CAL_DONE;
 	cnss_driver_event_post(plat_priv, CNSS_DRIVER_EVENT_COLD_BOOT_CAL_DONE,

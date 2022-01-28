@@ -134,6 +134,8 @@ int cnss_wlfw_qdss_dnld_send_sync(struct cnss_plat_data *plat_priv);
 int cnss_wlfw_send_qdss_trace_mode_req(struct cnss_plat_data *plat_priv,
 				       enum wlfw_qdss_trace_mode_enum_v01 mode,
 				       u64 option);
+int cnss_wlfw_cal_report_req_send_sync(struct cnss_plat_data *plat_priv,
+				       u32 cal_file_download_size);
 #else
 #define QMI_WLFW_TIMEOUT_MS		10000
 
@@ -297,6 +299,13 @@ static inline
 int cnss_wlfw_send_qdss_trace_mode_req(struct cnss_plat_data *plat_priv,
 				       enum wlfw_qdss_trace_mode_enum_v01 mode,
 				       u64 option)
+{
+	return 0;
+}
+
+static inline
+int cnss_wlfw_cal_report_req_send_sync(struct cnss_plat_data *plat_priv,
+				       u32 cal_file_download_size)
 {
 	return 0;
 }

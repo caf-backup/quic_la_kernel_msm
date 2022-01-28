@@ -153,6 +153,14 @@
 
 #define DEVICE_TYPE_RC				0x4
 
+#define PARF_INT_ALL_STATUS			0x224
+#define PARF_INT_ALL_CLEAR			0x228
+#define PARF_INT_ALL_MASK			0x22c
+
+/* PARF_INT_ALL_{STATUS/CLEAR/MASK} register fields */
+#define PARF_INT_ALL_LINK_DOWN                  BIT(1)
+#define PARF_INT_ALL_LINK_UP                    BIT(13)
+
 #define QCOM_PCIE_2_1_0_MAX_SUPPLY	3
 struct qcom_pcie_resources_2_1_0 {
 	struct clk *iface_clk;
@@ -268,6 +276,7 @@ struct qcom_pcie {
 	struct work_struct handle_e911_work;
 	int wake_irq;
 	int mdm2ap_e911_irq;
+	int global_irq;
 	bool enumerated;
 	uint32_t rc_idx;
 	struct notifier_block pci_reboot_notifier;
@@ -380,6 +389,28 @@ static irqreturn_t qcom_pcie_wake_irq_handler(int irq, void *data)
 	struct qcom_pcie *pcie = data;
 
 	schedule_work(&pcie->handle_wake_work);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t qcom_pcie_global_irq_handler(int irq, void *data)
+{
+	struct qcom_pcie *pcie = data;
+	u32 status, mask;
+
+	status = readl_relaxed(pcie->parf + PARF_INT_ALL_STATUS);
+	mask = readl_relaxed(pcie->parf + PARF_INT_ALL_MASK);
+
+	writel_relaxed(status, pcie->parf + PARF_INT_ALL_CLEAR);
+
+	status &= mask;
+
+	if (status & PARF_INT_ALL_LINK_DOWN)
+		dev_info(pcie->pci->dev, "Received Link down event for RC %u\n",
+								pcie->rc_idx);
+	else if (status & PARF_INT_ALL_LINK_UP)
+		dev_info(pcie->pci->dev, "Received Link up event for RC %u\n",
+								pcie->rc_idx);
 
 	return IRQ_HANDLED;
 }
@@ -2668,6 +2699,19 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 				       pcie);
 		if (ret) {
 			dev_err(&pdev->dev, "Unable to request wake irq\n");
+			pm_runtime_disable(&pdev->dev);
+			goto err_pm_runtime_put;
+		}
+	}
+
+	pcie->global_irq = platform_get_irq_byname(pdev, "global_irq");
+	if (pcie->global_irq >= 0) {
+		ret = devm_request_irq(&pdev->dev, pcie->global_irq,
+					qcom_pcie_global_irq_handler,
+					IRQF_TRIGGER_RISING,
+					"pcie-global", pcie);
+		if (ret) {
+			dev_err(&pdev->dev, "Unable to request global irq\n");
 			pm_runtime_disable(&pdev->dev);
 			goto err_pm_runtime_put;
 		}

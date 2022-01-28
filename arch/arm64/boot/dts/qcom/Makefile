@@ -60,6 +60,7 @@ dtb-$(CONFIG_ARCH_QCOM)	+= ipq5018-mp03.5-c1.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= ipq5018-mp03.5-c2.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= ipq5018-mp03.6-c1.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= ipq5018-mp03.6-c2.dtb
+dtb-$(CONFIG_ARCH_QCOM)	+= ipq5018-mp05.1.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= msm8916-mtp.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= msm8916-longcheer-l8150.dtb
 dtb-$(CONFIG_ARCH_QCOM)	+= msm8916-samsung-a3u-eur.dtb

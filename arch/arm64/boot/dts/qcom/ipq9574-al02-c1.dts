@@ -3,6 +3,7 @@
  * IPQ9574 AL02-C1 board device tree source
  *
  * Copyright (c) 2020-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 /dts-v1/;
@@ -574,6 +575,7 @@
 					<20 21 22 23>,		/* Port3 per-core Tx ring map */
 					<24 25 26 27>,		/* Port4 per-core Tx ring map */
 					<28 29 30 31>;		/* Port5 per-core Tx ring map */
+			qcom,txdesc-fc-grp-map = <1 2 3 4 5 6>;	/* Per GMAC flow control group map */
 			qcom,rxfill-map = <4 5 6 7>;		/* Per-core Rx fill ring map */
 			qcom,rxdesc-map = <20 21 22 23>;	/* Per-core Rx desc ring map */
 			interrupts = <0 371 4>,			/* Tx complete ring id #8 IRQ info */

@@ -3373,7 +3373,8 @@ int cnss_ahb_alloc_fw_mem(struct cnss_plat_data *plat_priv)
 				fw_mem[idx].pa = 0;
 			else
 				fw_mem[idx].pa = caldb_location[mode];
-			fw_mem[idx].va = NULL;
+			fw_mem[idx].va = ioremap(fw_mem[idx].pa,
+						 fw_mem[idx].size);
 			fw_mem[idx].size = fw_mem[i].size;
 			fw_mem[idx].type = fw_mem[i].type;
 			idx++;

@@ -34,6 +34,7 @@
 #include "qmi.h"
 #include "bus.h"
 #include "genl.h"
+#include "cnss_plat_ipc_qmi.h"
 
 #define CNSS_DUMP_FORMAT_VER		0x11
 #define CNSS_DUMP_FORMAT_VER_V2		0x22
@@ -517,6 +518,95 @@ void cnss_remove_pm_qos(struct device *dev)
 }
 EXPORT_SYMBOL(cnss_remove_pm_qos);
 
+static int cnss_cal_db_mem_update(struct cnss_plat_data *plat_priv,
+				  enum cnss_cal_db_op op, u32 *size)
+{
+	int ret = 0;
+	char filename[50];
+
+	u32 timeout = cnss_get_qmi_timeout(plat_priv)
+		      + CNSS_DAEMON_CONNECT_TIMEOUT_MS;
+
+	if (op >= CNSS_CAL_DB_INVALID_OP)
+		return -EINVAL;
+
+	if ((plat_priv->bus_type == CNSS_BUS_PCI) ||
+	    (plat_priv->device_id == QCN6122_DEVICE_ID))
+		snprintf(filename, sizeof(filename),
+			 CNSS_CAL_DB_FILE_PREFIX"_%s"CNSS_CAL_DB_FILE_SUFFIX,
+			 plat_priv->device_name);
+	else
+		snprintf(filename, sizeof(filename),
+			 CNSS_CAL_DB_FILE_PREFIX CNSS_CAL_DB_FILE_SUFFIX);
+
+	cnss_pr_info("%s: File Operation %u size %lu file name %s\n", __func__,
+		     op, *size, filename);
+
+	if (*size == 0) {
+		cnss_pr_err("Invalid cal file size\n");
+		return -EINVAL;
+	}
+
+	/* Ensure cnss-daemon is connected */
+	if (!is_cnss_daemon_connected(timeout)) {
+		cnss_pr_err("Daemon not yet connected\n");
+		CNSS_ASSERT(0);
+		return ret;
+	}
+
+	if (!plat_priv->cal_mem->va) {
+		cnss_pr_err("CAL DB Memory not setup for FW\n");
+		return -EINVAL;
+	}
+
+	/* Copy CAL DB file contents to/from CAL_TYPE_DDR mem allocated to FW */
+	if (op == CNSS_CAL_DB_DOWNLOAD) {
+		cnss_pr_dbg("Initiating Calibration file download to mem\n");
+		ret = cnss_plat_ipc_qmi_file_download(filename,
+						      plat_priv->cal_mem->va,
+						      size);
+	} else {
+		cnss_pr_dbg("Initiating Calibration mem upload to file\n");
+		ret = cnss_plat_ipc_qmi_file_upload(filename,
+						    plat_priv->cal_mem->va,
+						    *size);
+	}
+
+	if (ret)
+		cnss_pr_err("Cal DB file %s %s failure\n",
+			    filename,
+			    op == CNSS_CAL_DB_DOWNLOAD ? "download" : "upload");
+	else
+		cnss_pr_dbg("Cal DB file %s %s size %d done\n",
+			    filename,
+			    op == CNSS_CAL_DB_DOWNLOAD ? "download" : "upload",
+			    *size);
+
+	return ret;
+}
+
+static int cnss_cal_mem_upload_to_file(struct cnss_plat_data *plat_priv)
+{
+	if (plat_priv->cal_file_size > plat_priv->cal_mem->size) {
+		cnss_pr_err("Cal file size is larger than Cal DB Mem size\n");
+		return -EINVAL;
+	}
+	return cnss_cal_db_mem_update(plat_priv, CNSS_CAL_DB_UPLOAD,
+				      &plat_priv->cal_file_size);
+}
+
+int cnss_cal_file_download_to_mem(struct cnss_plat_data *plat_priv,
+				  u32 *cal_file_size)
+{
+	/* To download pass the total size of cal DB mem allocated.
+	 * After cal file is download to mem, its size is updated in
+	 * return pointer
+	 */
+	*cal_file_size = plat_priv->cal_mem->size;
+	return cnss_cal_db_mem_update(plat_priv, CNSS_CAL_DB_DOWNLOAD,
+				      cal_file_size);
+}
+
 int cnss_wlan_enable(struct device *dev,
 		     struct cnss_wlan_enable_cfg *config,
 		     enum cnss_driver_mode mode,
@@ -524,9 +614,12 @@ int cnss_wlan_enable(struct device *dev,
 {
 	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
 	int ret;
+	u32 cal_file_size = 0;
 
 	if (!plat_priv)
 		return 0;
+
+	cal_file_size = plat_priv->cal_file_size;
 
 	if (plat_priv->device_id == QCA6174_DEVICE_ID)
 		return 0;
@@ -564,8 +657,20 @@ int cnss_wlan_enable(struct device *dev,
 
 skip_cfg:
 
-	if (mode == CNSS_CALIBRATION || mode == CNSS_FTM_CALIBRATION)
+	if (mode == CNSS_CALIBRATION || mode == CNSS_FTM_CALIBRATION) {
 		set_bit(CNSS_COLD_BOOT_CAL, &plat_priv->driver_state);
+		/* Only check whether cnss-daemon is connected.
+		 * It is not required to wait until it gets connected here.
+		 * Hence pass the timeout value as 0.
+		 */
+		if (is_cnss_daemon_connected(0)) {
+			cnss_pr_dbg("%s: cal_file_size %u !\n", __func__,
+				    cal_file_size);
+			cnss_wlfw_cal_report_req_send_sync(plat_priv,
+							   cal_file_size);
+			plat_priv->cal_time = jiffies;
+		}
+	}
 
 	ret = cnss_wlfw_wlan_mode_send_sync(plat_priv, mode);
 
@@ -1133,8 +1238,11 @@ void cnss_wait_for_cold_boot_cal_done(struct device *dev)
 		 * Check if this device has already completed cold boot cal
 		 * If already completed, we need not wait
 		 */
-		if (!test_bit(CNSS_COLD_BOOT_CAL, &plat_priv->driver_state))
+		if (!test_bit(CNSS_COLD_BOOT_CAL, &plat_priv->driver_state)) {
+			cnss_pr_dbg("%s: Device already completed cold boot cal!\n",
+				    __func__);
 			return;
+		}
 
 		cnss_pr_info("Coldboot Calbration wait started for Device: 0x%lx, timeout: %d seconds\n",
 			     plat_priv->device_id, cold_boot_cal_timeout);
@@ -1747,8 +1855,6 @@ static int cnss_qca8074_notifier_nb(struct notifier_block *nb,
 				  (const struct pci_device_id *)
 				  plat_priv->plat_dev_id);
 	} else if (event_code == CNSS_BEFORE_SHUTDOWN) {
-		cnss_bus_free_fw_mem(plat_priv);
-		cnss_bus_free_qdss_mem(plat_priv);
 		driver_ops->remove((struct pci_dev *)plat_priv->plat_dev);
 	} else if (event_code == CNSS_RAMDUMP_NOTIFICATION) {
 		coresight_abort();
@@ -1760,6 +1866,8 @@ static int cnss_qca8074_notifier_nb(struct notifier_block *nb,
 		if (event_code == CNSS_AFTER_SHUTDOWN) {
 			clear_bit(CNSS_FW_READY, &plat_priv->driver_state);
 			clear_bit(CNSS_FW_MEM_READY, &plat_priv->driver_state);
+			cnss_bus_free_fw_mem(plat_priv);
+			cnss_bus_free_qdss_mem(plat_priv);
 		}
 		driver_ops->update_status((struct pci_dev *)plat_priv->plat_dev,
 					  (const struct pci_device_id *)
@@ -2681,13 +2789,21 @@ static int cnss_cold_boot_cal_done_hdlr(struct cnss_plat_data *plat_priv,
 {
 	struct cnss_cal_info *cal_info = data;
 
-	if (!test_bit(CNSS_COLD_BOOT_CAL, &plat_priv->driver_state))
+	if (!test_bit(CNSS_COLD_BOOT_CAL, &plat_priv->driver_state)) {
+		cnss_pr_dbg("%s: Driver not in cold boot cal state, returning!\n",
+			    __func__);
 		goto out;
+	}
 
 	switch (cal_info->cal_status) {
 	case CNSS_CAL_DONE:
 		cnss_pr_info("Coldboot Calibration completed successfully for device 0x%lx\n",
 			     plat_priv->device_id);
+		/* Send cal upload req to cnss-daemon after confirming that
+		 * it is connected to cnss2 over QMI.
+		 */
+		if (is_cnss_daemon_connected(0))
+			cnss_cal_mem_upload_to_file(plat_priv);
 		plat_priv->cal_done = true;
 		break;
 	case CNSS_CAL_TIMEOUT:
@@ -4146,6 +4262,11 @@ void cnss_update_platform_feature_support(u8 type, u32 instance_id, u32 value)
 	}
 }
 
+unsigned int cnss_get_global_driver_mode(void)
+{
+	return driver_mode;
+}
+
 static int platform_get_qcn6122_userpd_id(struct platform_device *plat_dev,
 					  uint32_t *userpd_id)
 {
@@ -4660,12 +4781,14 @@ static int __init cnss_initialize(void)
 	if (ret)
 		cnss_debug_deinit();
 	cnss_bus_init_by_type(CNSS_BUS_PCI);
+	cnss_plat_ipc_qmi_svc_init();
 
 	return ret;
 }
 
 static void __exit cnss_exit(void)
 {
+	cnss_plat_ipc_qmi_svc_exit();
 	platform_driver_unregister(&cnss_platform_driver);
 	cnss_debug_deinit();
 }

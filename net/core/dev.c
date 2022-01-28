@@ -285,7 +285,6 @@ EXPORT_PER_CPU_SYMBOL(softnet_data);
  *
  *******************************************************************************/
 
-
 /*
  *	Add a protocol ID to the list. Now that the input handler is
  *	smarter we can dispense with all the messy stuff that used to be
@@ -386,7 +385,6 @@ void dev_remove_pack(struct packet_type *pt)
 	synchronize_net();
 }
 EXPORT_SYMBOL(dev_remove_pack);
-
 
 /**
  *	dev_add_offload - register offload handlers
@@ -529,7 +527,6 @@ int netdev_boot_setup_check(struct net_device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(netdev_boot_setup_check);
-
 
 /**
  * netdev_boot_base	- get address from boot time settings
@@ -763,7 +760,6 @@ struct net_device *dev_get_by_index_rcu(struct net *net, int ifindex)
 	return NULL;
 }
 EXPORT_SYMBOL(dev_get_by_index_rcu);
-
 
 /**
  *	dev_get_by_index - find a device by its ifindex
@@ -1458,7 +1454,6 @@ void dev_close(struct net_device *dev)
 	}
 }
 EXPORT_SYMBOL(dev_close);
-
 
 /**
  *	dev_disable_lro - disable Large Receive Offload on a device
@@ -2742,7 +2737,6 @@ void __dev_kfree_skb_any(struct sk_buff *skb, enum skb_free_reason reason)
 }
 EXPORT_SYMBOL(__dev_kfree_skb_any);
 
-
 /**
  * netif_device_detach - mark device as removed
  * @dev: network device
@@ -2971,7 +2965,6 @@ struct sk_buff *skb_mac_gso_segment(struct sk_buff *skb,
 	return segs;
 }
 EXPORT_SYMBOL(skb_mac_gso_segment);
-
 
 /* openvswitch calls this on rx path, so we need a different check.
  */
@@ -3693,6 +3686,7 @@ struct netdev_queue *netdev_core_pick_tx(struct net_device *dev,
 	skb_set_queue_mapping(skb, queue_index);
 	return netdev_get_tx_queue(dev, queue_index);
 }
+EXPORT_SYMBOL(netdev_core_pick_tx);
 
 /**
  *	__dev_queue_xmit - transmit a buffer
@@ -4806,19 +4800,19 @@ another_round:
 		skb_reset_mac_len(skb);
 	}
 
-	if (skb->protocol == cpu_to_be16(ETH_P_8021Q) ||
-	    skb->protocol == cpu_to_be16(ETH_P_8021AD)) {
-		skb = skb_vlan_untag(skb);
-		if (unlikely(!skb))
-			goto out;
-	}
-
 	fast_recv = rcu_dereference(athrs_fast_nat_recv);
 	if (fast_recv) {
 		if (fast_recv(skb)) {
 			ret = NET_RX_SUCCESS;
 			goto out;
 		}
+	}
+
+	if (skb->protocol == cpu_to_be16(ETH_P_8021Q) ||
+	    skb->protocol == cpu_to_be16(ETH_P_8021AD)) {
+		skb = skb_vlan_untag(skb);
+		if (unlikely(!skb))
+			goto out;
 	}
 
 	if (skb_skip_tc_classify(skb))
@@ -7782,7 +7776,6 @@ void *netdev_lower_dev_get_private(struct net_device *dev,
 }
 EXPORT_SYMBOL(netdev_lower_dev_get_private);
 
-
 /**
  * netdev_lower_change - Dispatch event about lower device state change
  * @lower_dev: device
@@ -9408,7 +9401,6 @@ int init_dummy_netdev(struct net_device *dev)
 }
 EXPORT_SYMBOL_GPL(init_dummy_netdev);
 
-
 /**
  *	register_netdev	- register a network device
  *	@dev: device to register
@@ -9537,7 +9529,6 @@ void netdev_run_todo(void)
 	list_replace_init(&net_todo_list, &list);
 
 	__rtnl_unlock();
-
 
 	/* Wait for rcu callbacks to finish before next phase */
 	if (!list_empty(&list))
